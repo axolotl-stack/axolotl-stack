@@ -35,7 +35,7 @@ fn level_chunk(payload: &[u8]) -> LevelChunkPacket {
         client_request_sub_chunk_limit: None,
         cache_enabled: false,
         cache_metadata: Vec::new(),
-        serialized_chunk_data: payload.to_vec(),
+        serialized_chunk_data: payload.to_vec().into(),
     }
 }
 
@@ -82,12 +82,51 @@ fn level_chunk_payload_survives_every_byte_value() {
 }
 
 #[test]
+fn level_chunk_decode_shares_contiguous_payload() {
+    let packet = level_chunk(NON_UTF8);
+    let input = encode(&packet).freeze();
+    let payload_ptr = input.as_ptr().wrapping_add(input.len() - NON_UTF8.len());
+    let mut reader = input.clone();
+    let decoded = LevelChunkPacket::decode(&mut reader, ()).unwrap();
+    assert_eq!(decoded.serialized_chunk_data.as_ptr(), payload_ptr);
+    drop(input);
+    assert_eq!(&decoded.serialized_chunk_data[..], NON_UTF8);
+}
+
+#[test]
+fn frame_encoding_preserves_adjacent_entries_across_prefix_width_changes() {
+    use valentine::bedrock::protocol::v1_26_51::{McpePacketArgs, McpePacketData};
+
+    for capacity in [0, 1, 127, 128, 16_383, 16_384, 65_536] {
+        let mut output = BytesMut::with_capacity(capacity);
+        let mut expected = BytesMut::new();
+        for length in [0, 1, 127, 128, 16_383, 16_384] {
+            let packet = McpePacketData::from(level_chunk(&vec![0x9f; length]));
+            packet.encode_inner(&mut expected, 1, 2).unwrap();
+            packet.encode_inner_bytes_mut(&mut output, 1, 2).unwrap();
+        }
+        assert_eq!(output, expected);
+        let mut input = output.freeze();
+        for length in [0, 1, 127, 128, 16_383, 16_384] {
+            let (header, packet) =
+                McpePacketData::decode_inner_bytes(&mut input, McpePacketArgs).unwrap();
+            assert_eq!((header.from_subclient, header.to_subclient), (1, 2));
+            let McpePacketData::LevelChunkPacket(packet) = packet else {
+                panic!("expected LevelChunk");
+            };
+            assert_eq!(&packet.serialized_chunk_data[..], vec![0x9f; length]);
+        }
+        assert!(input.is_empty());
+    }
+}
+
+#[test]
 fn game_rule_scalar_payloads_are_little_endian() {
     // gophertunnel writes these arms with w.Uint32 / w.Float32
     // (minecraft/protocol/writer.go), both little-endian. They previously went
     // through the bare `i32`/`f32` codecs, which are big-endian.
     let rule = GameRule {
-        rule_name: "showcoordinates".to_string(),
+        rule_name: "showcoordinates".into(),
         rule_can_be_modified: true,
         rule_value: GameRuleRuleValue::Int32(0x0102_0304),
     };

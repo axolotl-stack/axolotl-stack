@@ -18,6 +18,7 @@ tracing-subscriber = { workspace = true, features = ["env-filter", "fmt"] }
 futures.workspace = true
 flate2.workspace = true
 anyhow.workspace = true
+serde_json.workspace = true
 criterion.workspace = true
 protocolgen-contract = { package = "bedrock-protocol-1-26-51", path = "../valentine_gen/protocolgen/generated/1.26.51/rust-contract" }
 

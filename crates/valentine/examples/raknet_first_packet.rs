@@ -65,7 +65,7 @@ async fn main() -> Result<()> {
                     Ok(bytes) => {
                         let mut buf = bytes;
                         // Decode into McpePacket struct which contains header + data
-                        match McpePacket::decode(&mut buf, McpePacketArgs) {
+                        match McpePacket::decode_bytes(&mut buf, McpePacketArgs) {
                             Ok(packet) => {
                                 // Match on packet.data which is the enum
                                 match packet.data {

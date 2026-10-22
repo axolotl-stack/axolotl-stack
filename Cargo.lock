@@ -671,6 +671,16 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "b35204fbdc0b3f4446b89fc1ac2cf84a8a68971995d0bf2e925ec7cd960f9cb3"
 
 [[package]]
+name = "bytestring"
+version = "1.5.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "86566c496f2f47d9b8147a4c8b02ffdb69c919fe0c2b2e7195d22cbba0e635c9"
+dependencies = [
+ "bytes",
+ "serde_core",
+]
+
+[[package]]
 name = "cap-fs-ext"
 version = "3.4.5"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -4853,6 +4863,7 @@ dependencies = [
  "flate2",
  "futures",
  "serde",
+ "serde_json",
  "tokio",
  "tokio-raknet",
  "tracing-subscriber",
@@ -4875,7 +4886,9 @@ dependencies = [
 name = "valentine_bedrock_core"
 version = "0.1.0"
 dependencies = [
+ "arrayvec",
  "bytes",
+ "bytestring",
  "thiserror 1.0.69",
  "uuid",
 ]

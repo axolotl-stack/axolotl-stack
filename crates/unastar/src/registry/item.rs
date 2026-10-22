@@ -203,7 +203,7 @@ impl ItemRegistry {
         let item_data: Vec<ItemData> = self
             .iter()
             .map(|item| ItemData {
-                item_name: item.string_id.clone(),
+                item_name: item.string_id.as_str().into(),
                 item_id: item.network_id as i16,
                 is_component_based: item.component_based,
                 item_version: itemstate_version(item.version),

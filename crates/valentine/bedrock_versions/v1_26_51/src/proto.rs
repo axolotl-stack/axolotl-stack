@@ -12,7 +12,7 @@ use bytes::Buf;
 #[derive(Debug, Clone, PartialEq, Default)]
 pub struct LoginPacket {
     pub client_network_version: i32,
-    pub connection_request: Vec<u8>,
+    pub connection_request: bytes::Bytes,
 }
 impl crate::bedrock::codec::BedrockSized for LoginPacket {
     fn encoded_size(&self) -> usize {
@@ -33,12 +33,13 @@ impl crate::bedrock::codec::BedrockCodec for LoginPacket {
     fn encode<B: bytes::BufMut>(&self, buf: &mut B) -> Result<(), std::io::Error> {
         let _ = buf;
         self.client_network_version.encode(buf)?;
-        let bytes = (&self.connection_request).as_slice();
+        let bytes: &[u8] = (&self.connection_request).as_ref();
         let len = bytes.len();
         crate::bedrock::codec::VarUInt(len as u32).encode(buf)?;
         buf.put_slice(bytes);
         Ok(())
     }
+    #[inline]
     fn decode<B: bytes::Buf>(
         buf: &mut B,
         _args: Self::Args,
@@ -58,9 +59,7 @@ impl crate::bedrock::codec::BedrockCodec for LoginPacket {
                     available: buf.remaining(),
                 });
             }
-            let mut value = vec![0u8; len];
-            buf.copy_to_slice(&mut value);
-            value
+            buf.copy_to_bytes(len)
         };
         Ok(Self {
             client_network_version,
@@ -87,6 +86,7 @@ impl crate::bedrock::codec::BedrockCodec for PlayStatusPacket {
         self.status.encode(buf)?;
         Ok(())
     }
+    #[inline]
     fn decode<B: bytes::Buf>(
         buf: &mut B,
         _args: Self::Args,
@@ -98,7 +98,7 @@ impl crate::bedrock::codec::BedrockCodec for PlayStatusPacket {
 }
 #[derive(Debug, Clone, PartialEq, Default)]
 pub struct ServerToClientHandshakePacket {
-    pub handshake_web_token: String,
+    pub handshake_web_token: crate::bedrock::codec::BedrockString,
 }
 impl crate::bedrock::codec::BedrockSized for ServerToClientHandshakePacket {
     fn encoded_size(&self) -> usize {
@@ -123,6 +123,7 @@ impl crate::bedrock::codec::BedrockCodec for ServerToClientHandshakePacket {
         buf.put_slice(bytes);
         Ok(())
     }
+    #[inline]
     fn decode<B: bytes::Buf>(
         buf: &mut B,
         _args: Self::Args,
@@ -141,9 +142,7 @@ impl crate::bedrock::codec::BedrockCodec for ServerToClientHandshakePacket {
                     available: buf.remaining(),
                 });
             }
-            let mut bytes = vec![0u8; len];
-            buf.copy_to_slice(&mut bytes);
-            crate::bedrock::codec::decode_utf8_lossy_owned(bytes)
+            crate::bedrock::codec::decode_utf8_lossy_bytes(buf.copy_to_bytes(len))
         };
         Ok(Self {
             handshake_web_token,
@@ -164,6 +163,7 @@ impl crate::bedrock::codec::BedrockCodec for ClientToServerHandshakePacket {
         let _ = buf;
         Ok(())
     }
+    #[inline]
     fn decode<B: bytes::Buf>(
         buf: &mut B,
         _args: Self::Args,
@@ -194,6 +194,7 @@ impl crate::bedrock::codec::BedrockCodec for DisconnectPacket {
         self.messages.encode(buf)?;
         Ok(())
     }
+    #[inline]
     fn decode<B: bytes::Buf>(
         buf: &mut B,
         _args: Self::Args,
@@ -259,6 +260,7 @@ impl crate::bedrock::codec::BedrockCodec for ResourcePacksInfoPacket {
         }
         Ok(())
     }
+    #[inline]
     fn decode<B: bytes::Buf>(
         buf: &mut B,
         _args: Self::Args,
@@ -282,7 +284,6 @@ impl crate::bedrock::codec::BedrockCodec for ResourcePacksInfoPacket {
             let mut tmp_vec =
                 crate::bedrock::codec::prepare_decode_vec(len, buf.remaining(), Some(32usize))?;
             for _ in 0..len {
-                crate::bedrock::codec::reserve_decode_item(&mut tmp_vec)?;
                 tmp_vec
                     .push(<PackInfoData as crate::bedrock::codec::BedrockCodec>::decode(buf, ())?);
             }
@@ -302,7 +303,7 @@ impl crate::bedrock::codec::BedrockCodec for ResourcePacksInfoPacket {
 pub struct ResourcePackStackPacket {
     pub texture_pack_required: bool,
     pub texture_pack_list: Vec<PackInstanceId>,
-    pub base_game_version: String,
+    pub base_game_version: crate::bedrock::codec::BedrockString,
     pub experiments: Experiments,
     pub include_editor_packs: bool,
 }
@@ -349,6 +350,7 @@ impl crate::bedrock::codec::BedrockCodec for ResourcePackStackPacket {
         self.include_editor_packs.encode(buf)?;
         Ok(())
     }
+    #[inline]
     fn decode<B: bytes::Buf>(
         buf: &mut B,
         _args: Self::Args,
@@ -365,7 +367,6 @@ impl crate::bedrock::codec::BedrockCodec for ResourcePackStackPacket {
             let mut tmp_vec =
                 crate::bedrock::codec::prepare_decode_vec(len, buf.remaining(), Some(3usize))?;
             for _ in 0..len {
-                crate::bedrock::codec::reserve_decode_item(&mut tmp_vec)?;
                 tmp_vec.push(
                     <PackInstanceId as crate::bedrock::codec::BedrockCodec>::decode(buf, ())?,
                 );
@@ -385,9 +386,7 @@ impl crate::bedrock::codec::BedrockCodec for ResourcePackStackPacket {
                     available: buf.remaining(),
                 });
             }
-            let mut bytes = vec![0u8; len];
-            buf.copy_to_slice(&mut bytes);
-            crate::bedrock::codec::decode_utf8_lossy_owned(bytes)
+            crate::bedrock::codec::decode_utf8_lossy_bytes(buf.copy_to_bytes(len))
         };
         let experiments = <Experiments as crate::bedrock::codec::BedrockCodec>::decode(buf, ())?;
         let include_editor_packs = <bool as crate::bedrock::codec::BedrockCodec>::decode(buf, ())?;
@@ -419,6 +418,7 @@ impl crate::bedrock::codec::BedrockCodec for ResourcePackClientResponsePacket {
         self.response.encode(buf)?;
         Ok(())
     }
+    #[inline]
     fn decode<B: bytes::Buf>(
         buf: &mut B,
         _args: Self::Args,
@@ -435,9 +435,9 @@ impl crate::bedrock::codec::BedrockCodec for ResourcePackClientResponsePacket {
 pub struct TextPacket {
     pub localize: bool,
     pub body: TextPacketBody,
-    pub senders_xuid: String,
-    pub platform_id: String,
-    pub filtered_message: Option<String>,
+    pub senders_xuid: crate::bedrock::codec::BedrockString,
+    pub platform_id: crate::bedrock::codec::BedrockString,
+    pub filtered_message: Option<crate::bedrock::codec::BedrockString>,
 }
 impl crate::bedrock::codec::BedrockSized for TextPacket {
     fn encoded_size(&self) -> usize {
@@ -498,6 +498,7 @@ impl crate::bedrock::codec::BedrockCodec for TextPacket {
         }
         Ok(())
     }
+    #[inline]
     fn decode<B: bytes::Buf>(
         buf: &mut B,
         _args: Self::Args,
@@ -518,9 +519,7 @@ impl crate::bedrock::codec::BedrockCodec for TextPacket {
                     available: buf.remaining(),
                 });
             }
-            let mut bytes = vec![0u8; len];
-            buf.copy_to_slice(&mut bytes);
-            crate::bedrock::codec::decode_utf8_lossy_owned(bytes)
+            crate::bedrock::codec::decode_utf8_lossy_bytes(buf.copy_to_bytes(len))
         };
         let platform_id = {
             let len =
@@ -535,9 +534,7 @@ impl crate::bedrock::codec::BedrockCodec for TextPacket {
                     available: buf.remaining(),
                 });
             }
-            let mut bytes = vec![0u8; len];
-            buf.copy_to_slice(&mut bytes);
-            crate::bedrock::codec::decode_utf8_lossy_owned(bytes)
+            crate::bedrock::codec::decode_utf8_lossy_bytes(buf.copy_to_bytes(len))
         };
         let filtered_message = {
             let present = u8::decode(buf, ())?;
@@ -554,9 +551,7 @@ impl crate::bedrock::codec::BedrockCodec for TextPacket {
                             available: buf.remaining(),
                         });
                     }
-                    let mut bytes = vec![0u8; len];
-                    buf.copy_to_slice(&mut bytes);
-                    crate::bedrock::codec::decode_utf8_lossy_owned(bytes)
+                    crate::bedrock::codec::decode_utf8_lossy_bytes(buf.copy_to_bytes(len))
                 })
             } else {
                 None
@@ -592,6 +587,7 @@ impl crate::bedrock::codec::BedrockCodec for SetTimePacket {
         crate::bedrock::codec::ZigZag32(self.time).encode(buf)?;
         Ok(())
     }
+    #[inline]
     fn decode<B: bytes::Buf>(
         buf: &mut B,
         _args: Self::Args,
@@ -614,17 +610,17 @@ pub struct StartGamePacket {
     pub position: Vec3,
     pub rotation: Vec2,
     pub settings: LevelSettings,
-    pub level_id: String,
-    pub level_name: String,
-    pub template_content_identity: String,
+    pub level_id: crate::bedrock::codec::BedrockString,
+    pub level_name: crate::bedrock::codec::BedrockString,
+    pub template_content_identity: crate::bedrock::codec::BedrockString,
     pub is_trial: bool,
     pub movement_settings: SyncedPlayerMovementSettings,
     pub level_current_time: u64,
     pub enchantment_seed: i32,
     pub block_properties: Vec<ServerBlockProperty>,
-    pub multiplayer_correlation_id: String,
+    pub multiplayer_correlation_id: crate::bedrock::codec::BedrockString,
     pub enable_item_stack_net_manager: bool,
-    pub server_version: String,
+    pub server_version: crate::bedrock::codec::BedrockString,
     pub player_property_data: crate::bedrock::codec::Nbt,
     pub server_block_type_registry_checksum: u64,
     pub world_template_id: MceUuiDjson,
@@ -763,6 +759,7 @@ impl crate::bedrock::codec::BedrockCodec for StartGamePacket {
         self.server_telemetry_data.encode(buf)?;
         Ok(())
     }
+    #[inline]
     fn decode<B: bytes::Buf>(
         buf: &mut B,
         _args: Self::Args,
@@ -787,9 +784,7 @@ impl crate::bedrock::codec::BedrockCodec for StartGamePacket {
                     available: buf.remaining(),
                 });
             }
-            let mut bytes = vec![0u8; len];
-            buf.copy_to_slice(&mut bytes);
-            crate::bedrock::codec::decode_utf8_lossy_owned(bytes)
+            crate::bedrock::codec::decode_utf8_lossy_bytes(buf.copy_to_bytes(len))
         };
         let level_name = {
             let len =
@@ -804,9 +799,7 @@ impl crate::bedrock::codec::BedrockCodec for StartGamePacket {
                     available: buf.remaining(),
                 });
             }
-            let mut bytes = vec![0u8; len];
-            buf.copy_to_slice(&mut bytes);
-            crate::bedrock::codec::decode_utf8_lossy_owned(bytes)
+            crate::bedrock::codec::decode_utf8_lossy_bytes(buf.copy_to_bytes(len))
         };
         let template_content_identity = {
             let len =
@@ -821,9 +814,7 @@ impl crate::bedrock::codec::BedrockCodec for StartGamePacket {
                     available: buf.remaining(),
                 });
             }
-            let mut bytes = vec![0u8; len];
-            buf.copy_to_slice(&mut bytes);
-            crate::bedrock::codec::decode_utf8_lossy_owned(bytes)
+            crate::bedrock::codec::decode_utf8_lossy_bytes(buf.copy_to_bytes(len))
         };
         let is_trial = <bool as crate::bedrock::codec::BedrockCodec>::decode(buf, ())?;
         let movement_settings =
@@ -847,7 +838,6 @@ impl crate::bedrock::codec::BedrockCodec for StartGamePacket {
             let mut tmp_vec =
                 crate::bedrock::codec::prepare_decode_vec(len, buf.remaining(), Some(2usize))?;
             for _ in 0..len {
-                crate::bedrock::codec::reserve_decode_item(&mut tmp_vec)?;
                 tmp_vec.push(
                     <ServerBlockProperty as crate::bedrock::codec::BedrockCodec>::decode(buf, ())?,
                 );
@@ -867,9 +857,7 @@ impl crate::bedrock::codec::BedrockCodec for StartGamePacket {
                     available: buf.remaining(),
                 });
             }
-            let mut bytes = vec![0u8; len];
-            buf.copy_to_slice(&mut bytes);
-            crate::bedrock::codec::decode_utf8_lossy_owned(bytes)
+            crate::bedrock::codec::decode_utf8_lossy_bytes(buf.copy_to_bytes(len))
         };
         let enable_item_stack_net_manager =
             <bool as crate::bedrock::codec::BedrockCodec>::decode(buf, ())?;
@@ -886,9 +874,7 @@ impl crate::bedrock::codec::BedrockCodec for StartGamePacket {
                     available: buf.remaining(),
                 });
             }
-            let mut bytes = vec![0u8; len];
-            buf.copy_to_slice(&mut bytes);
-            crate::bedrock::codec::decode_utf8_lossy_owned(bytes)
+            crate::bedrock::codec::decode_utf8_lossy_bytes(buf.copy_to_bytes(len))
         };
         let player_property_data =
             <crate::bedrock::codec::Nbt as crate::bedrock::codec::BedrockCodec>::decode(buf, ())?;
@@ -953,9 +939,9 @@ impl crate::bedrock::codec::BedrockCodec for StartGamePacket {
 #[derive(Debug, Clone, PartialEq, Default)]
 pub struct AddPlayerPacket {
     pub uuid: MceUuiDjson,
-    pub player_name: String,
+    pub player_name: crate::bedrock::codec::BedrockString,
     pub target_runtime_id: ActorRuntimeId,
-    pub platform_chat_id: String,
+    pub platform_chat_id: crate::bedrock::codec::BedrockString,
     pub position: Vec3,
     pub velocity: Vec3,
     pub rotation: Vec2,
@@ -966,7 +952,7 @@ pub struct AddPlayerPacket {
     pub synched_properties: PropertySyncData,
     pub abilities_data: SerializedAbilitiesData,
     pub actor_links: Vec<ActorLink>,
-    pub device_id: String,
+    pub device_id: crate::bedrock::codec::BedrockString,
     pub build_platform: EnumsBuildPlatform,
 }
 impl crate::bedrock::codec::BedrockSized for AddPlayerPacket {
@@ -1050,6 +1036,7 @@ impl crate::bedrock::codec::BedrockCodec for AddPlayerPacket {
         self.build_platform.encode(buf)?;
         Ok(())
     }
+    #[inline]
     fn decode<B: bytes::Buf>(
         buf: &mut B,
         _args: Self::Args,
@@ -1069,9 +1056,7 @@ impl crate::bedrock::codec::BedrockCodec for AddPlayerPacket {
                     available: buf.remaining(),
                 });
             }
-            let mut bytes = vec![0u8; len];
-            buf.copy_to_slice(&mut bytes);
-            crate::bedrock::codec::decode_utf8_lossy_owned(bytes)
+            crate::bedrock::codec::decode_utf8_lossy_bytes(buf.copy_to_bytes(len))
         };
         let target_runtime_id =
             <ActorRuntimeId as crate::bedrock::codec::BedrockCodec>::decode(buf, ())?;
@@ -1088,9 +1073,7 @@ impl crate::bedrock::codec::BedrockCodec for AddPlayerPacket {
                     available: buf.remaining(),
                 });
             }
-            let mut bytes = vec![0u8; len];
-            buf.copy_to_slice(&mut bytes);
-            crate::bedrock::codec::decode_utf8_lossy_owned(bytes)
+            crate::bedrock::codec::decode_utf8_lossy_bytes(buf.copy_to_bytes(len))
         };
         let position = <Vec3 as crate::bedrock::codec::BedrockCodec>::decode(buf, ())?;
         let velocity = <Vec3 as crate::bedrock::codec::BedrockCodec>::decode(buf, ())?;
@@ -1123,7 +1106,6 @@ impl crate::bedrock::codec::BedrockCodec for AddPlayerPacket {
             let mut tmp_vec =
                 crate::bedrock::codec::prepare_decode_vec(len, buf.remaining(), Some(9usize))?;
             for _ in 0..len {
-                crate::bedrock::codec::reserve_decode_item(&mut tmp_vec)?;
                 tmp_vec.push(<ActorLink as crate::bedrock::codec::BedrockCodec>::decode(
                     buf,
                     (),
@@ -1144,9 +1126,7 @@ impl crate::bedrock::codec::BedrockCodec for AddPlayerPacket {
                     available: buf.remaining(),
                 });
             }
-            let mut bytes = vec![0u8; len];
-            buf.copy_to_slice(&mut bytes);
-            crate::bedrock::codec::decode_utf8_lossy_owned(bytes)
+            crate::bedrock::codec::decode_utf8_lossy_bytes(buf.copy_to_bytes(len))
         };
         let build_platform =
             <EnumsBuildPlatform as crate::bedrock::codec::BedrockCodec>::decode(buf, ())?;
@@ -1174,7 +1154,7 @@ impl crate::bedrock::codec::BedrockCodec for AddPlayerPacket {
 pub struct AddActorPacket {
     pub target_actor_id: ActorUniqueId,
     pub target_runtime_id: ActorRuntimeId,
-    pub actor_type: String,
+    pub actor_type: crate::bedrock::codec::BedrockString,
     pub position: Vec3,
     pub velocity: Vec3,
     pub rotation: Vec2,
@@ -1254,6 +1234,7 @@ impl crate::bedrock::codec::BedrockCodec for AddActorPacket {
         }
         Ok(())
     }
+    #[inline]
     fn decode<B: bytes::Buf>(
         buf: &mut B,
         _args: Self::Args,
@@ -1276,9 +1257,7 @@ impl crate::bedrock::codec::BedrockCodec for AddActorPacket {
                     available: buf.remaining(),
                 });
             }
-            let mut bytes = vec![0u8; len];
-            buf.copy_to_slice(&mut bytes);
-            crate::bedrock::codec::decode_utf8_lossy_owned(bytes)
+            crate::bedrock::codec::decode_utf8_lossy_bytes(buf.copy_to_bytes(len))
         };
         let position = <Vec3 as crate::bedrock::codec::BedrockCodec>::decode(buf, ())?;
         let velocity = <Vec3 as crate::bedrock::codec::BedrockCodec>::decode(buf, ())?;
@@ -1299,7 +1278,6 @@ impl crate::bedrock::codec::BedrockCodec for AddActorPacket {
             let mut tmp_vec =
                 crate::bedrock::codec::prepare_decode_vec(len, buf.remaining(), Some(13usize))?;
             for _ in 0..len {
-                crate::bedrock::codec::reserve_decode_item(&mut tmp_vec)?;
                 tmp_vec.push(
                     <SyncedAttribute as crate::bedrock::codec::BedrockCodec>::decode(buf, ())?,
                 );
@@ -1323,7 +1301,6 @@ impl crate::bedrock::codec::BedrockCodec for AddActorPacket {
             let mut tmp_vec =
                 crate::bedrock::codec::prepare_decode_vec(len, buf.remaining(), Some(9usize))?;
             for _ in 0..len {
-                crate::bedrock::codec::reserve_decode_item(&mut tmp_vec)?;
                 tmp_vec.push(<ActorLink as crate::bedrock::codec::BedrockCodec>::decode(
                     buf,
                     (),
@@ -1366,6 +1343,7 @@ impl crate::bedrock::codec::BedrockCodec for RemoveActorPacket {
         self.target_actor_id.encode(buf)?;
         Ok(())
     }
+    #[inline]
     fn decode<B: bytes::Buf>(
         buf: &mut B,
         _args: Self::Args,
@@ -1413,6 +1391,7 @@ impl crate::bedrock::codec::BedrockCodec for AddItemActorPacket {
         self.is_from_fishing.encode(buf)?;
         Ok(())
     }
+    #[inline]
     fn decode<B: bytes::Buf>(
         buf: &mut B,
         _args: Self::Args,
@@ -1464,6 +1443,7 @@ impl crate::bedrock::codec::BedrockCodec for ServerPlayerPostMovePositionPacket 
         self.pos.encode(buf)?;
         Ok(())
     }
+    #[inline]
     fn decode<B: bytes::Buf>(
         buf: &mut B,
         _args: Self::Args,
@@ -1495,6 +1475,7 @@ impl crate::bedrock::codec::BedrockCodec for TakeItemActorPacket {
         self.actor_runtime_id.encode(buf)?;
         Ok(())
     }
+    #[inline]
     fn decode<B: bytes::Buf>(
         buf: &mut B,
         _args: Self::Args,
@@ -1529,6 +1510,7 @@ impl crate::bedrock::codec::BedrockCodec for MoveActorAbsolutePacket {
         self.move_data.encode(buf)?;
         Ok(())
     }
+    #[inline]
     fn decode<B: bytes::Buf>(
         buf: &mut B,
         _args: Self::Args,
@@ -1594,6 +1576,7 @@ impl crate::bedrock::codec::BedrockCodec for MovePlayerPacket {
         self.tick.encode(buf)?;
         Ok(())
     }
+    #[inline]
     fn decode<B: bytes::Buf>(
         buf: &mut B,
         _args: Self::Args,
@@ -1674,6 +1657,7 @@ impl crate::bedrock::codec::BedrockCodec for UpdateBlockPacket {
         crate::bedrock::codec::VarUInt(self.layer).encode(buf)?;
         Ok(())
     }
+    #[inline]
     fn decode<B: bytes::Buf>(
         buf: &mut B,
         _args: Self::Args,
@@ -1712,7 +1696,7 @@ pub struct AddPaintingPacket {
     pub target_runtime_id: ActorRuntimeId,
     pub position: Vec3,
     pub direction: i32,
-    pub motif: String,
+    pub motif: crate::bedrock::codec::BedrockString,
 }
 impl crate::bedrock::codec::BedrockSized for AddPaintingPacket {
     fn encoded_size(&self) -> usize {
@@ -1747,6 +1731,7 @@ impl crate::bedrock::codec::BedrockCodec for AddPaintingPacket {
         buf.put_slice(bytes);
         Ok(())
     }
+    #[inline]
     fn decode<B: bytes::Buf>(
         buf: &mut B,
         _args: Self::Args,
@@ -1776,9 +1761,7 @@ impl crate::bedrock::codec::BedrockCodec for AddPaintingPacket {
                     available: buf.remaining(),
                 });
             }
-            let mut bytes = vec![0u8; len];
-            buf.copy_to_slice(&mut bytes);
-            crate::bedrock::codec::decode_utf8_lossy_owned(bytes)
+            crate::bedrock::codec::decode_utf8_lossy_bytes(buf.copy_to_bytes(len))
         };
         Ok(Self {
             target_actor_id,
@@ -1818,6 +1801,7 @@ impl crate::bedrock::codec::BedrockCodec for LevelEventPacket {
         crate::bedrock::codec::ZigZag32(self.data).encode(buf)?;
         Ok(())
     }
+    #[inline]
     fn decode<B: bytes::Buf>(
         buf: &mut B,
         _args: Self::Args,
@@ -1872,6 +1856,7 @@ impl crate::bedrock::codec::BedrockCodec for BlockEventPacket {
         crate::bedrock::codec::ZigZag32(self.event_value).encode(buf)?;
         Ok(())
     }
+    #[inline]
     fn decode<B: bytes::Buf>(
         buf: &mut B,
         _args: Self::Args,
@@ -1939,6 +1924,7 @@ impl crate::bedrock::codec::BedrockCodec for ActorEventPacket {
         }
         Ok(())
     }
+    #[inline]
     fn decode<B: bytes::Buf>(
         buf: &mut B,
         _args: Self::Args,
@@ -2018,6 +2004,7 @@ impl crate::bedrock::codec::BedrockCodec for MobEffectPacket {
         self.ambient.encode(buf)?;
         Ok(())
     }
+    #[inline]
     fn decode<B: bytes::Buf>(
         buf: &mut B,
         _args: Self::Args,
@@ -2100,6 +2087,7 @@ impl crate::bedrock::codec::BedrockCodec for UpdateAttributesPacket {
         self.tick.encode(buf)?;
         Ok(())
     }
+    #[inline]
     fn decode<B: bytes::Buf>(
         buf: &mut B,
         _args: Self::Args,
@@ -2117,7 +2105,6 @@ impl crate::bedrock::codec::BedrockCodec for UpdateAttributesPacket {
             let mut tmp_vec =
                 crate::bedrock::codec::prepare_decode_vec(len, buf.remaining(), Some(26usize))?;
             for _ in 0..len {
-                crate::bedrock::codec::reserve_decode_item(&mut tmp_vec)?;
                 tmp_vec
                     .push(<AttributeData as crate::bedrock::codec::BedrockCodec>::decode(buf, ())?);
             }
@@ -2180,6 +2167,7 @@ impl crate::bedrock::codec::BedrockCodec for InventoryTransactionPacket {
         self.transaction.encode(buf)?;
         Ok(())
     }
+    #[inline]
     fn decode<B: bytes::Buf>(
         buf: &mut B,
         _args: Self::Args,
@@ -2204,7 +2192,6 @@ impl crate::bedrock::codec::BedrockCodec for InventoryTransactionPacket {
                         Some(2usize),
                     )?;
                     for _ in 0..len {
-                        crate::bedrock::codec::reserve_decode_item(&mut tmp_vec)?;
                         tmp_vec.push(
                             <LegacySetSlot as crate::bedrock::codec::BedrockCodec>::decode(
                                 buf,
@@ -2261,6 +2248,7 @@ impl crate::bedrock::codec::BedrockCodec for MobEquipmentPacket {
         self.container_id.encode(buf)?;
         Ok(())
     }
+    #[inline]
     fn decode<B: bytes::Buf>(
         buf: &mut B,
         _args: Self::Args,
@@ -2318,6 +2306,7 @@ impl crate::bedrock::codec::BedrockCodec for MobArmorEquipmentPacket {
         self.body.encode(buf)?;
         Ok(())
     }
+    #[inline]
     fn decode<B: bytes::Buf>(
         buf: &mut B,
         _args: Self::Args,
@@ -2392,6 +2381,7 @@ impl crate::bedrock::codec::BedrockCodec for InteractPacket {
         }
         Ok(())
     }
+    #[inline]
     fn decode<B: bytes::Buf>(
         buf: &mut B,
         _args: Self::Args,
@@ -2447,6 +2437,7 @@ impl crate::bedrock::codec::BedrockCodec for BlockPickRequestPacket {
         self.max_slots.encode(buf)?;
         Ok(())
     }
+    #[inline]
     fn decode<B: bytes::Buf>(
         buf: &mut B,
         _args: Self::Args,
@@ -2487,6 +2478,7 @@ impl crate::bedrock::codec::BedrockCodec for ActorPickRequestPacket {
         self.with_data.encode(buf)?;
         Ok(())
     }
+    #[inline]
     fn decode<B: bytes::Buf>(
         buf: &mut B,
         _args: Self::Args,
@@ -2537,6 +2529,7 @@ impl crate::bedrock::codec::BedrockCodec for PlayerActionPacket {
         crate::bedrock::codec::ZigZag32(self.face).encode(buf)?;
         Ok(())
     }
+    #[inline]
     fn decode<B: bytes::Buf>(
         buf: &mut B,
         _args: Self::Args,
@@ -2594,6 +2587,7 @@ impl crate::bedrock::codec::BedrockCodec for HurtArmorPacket {
         crate::bedrock::codec::VarULong(self.armor_slots).encode(buf)?;
         Ok(())
     }
+    #[inline]
     fn decode<B: bytes::Buf>(
         buf: &mut B,
         _args: Self::Args,
@@ -2652,6 +2646,7 @@ impl crate::bedrock::codec::BedrockCodec for SetActorDataPacket {
         self.tick.encode(buf)?;
         Ok(())
     }
+    #[inline]
     fn decode<B: bytes::Buf>(
         buf: &mut B,
         _args: Self::Args,
@@ -2700,6 +2695,7 @@ impl crate::bedrock::codec::BedrockCodec for SetActorMotionPacket {
         self.tick.encode(buf)?;
         Ok(())
     }
+    #[inline]
     fn decode<B: bytes::Buf>(
         buf: &mut B,
         _args: Self::Args,
@@ -2735,6 +2731,7 @@ impl crate::bedrock::codec::BedrockCodec for SetActorLinkPacket {
         self.link.encode(buf)?;
         Ok(())
     }
+    #[inline]
     fn decode<B: bytes::Buf>(
         buf: &mut B,
         _args: Self::Args,
@@ -2765,6 +2762,7 @@ impl crate::bedrock::codec::BedrockCodec for SetHealthPacket {
         crate::bedrock::codec::ZigZag32(self.health).encode(buf)?;
         Ok(())
     }
+    #[inline]
     fn decode<B: bytes::Buf>(
         buf: &mut B,
         _args: Self::Args,
@@ -2807,6 +2805,7 @@ impl crate::bedrock::codec::BedrockCodec for SetSpawnPositionPacket {
         self.spawn_block_pos.encode(buf)?;
         Ok(())
     }
+    #[inline]
     fn decode<B: bytes::Buf>(
         buf: &mut B,
         _args: Self::Args,
@@ -2831,7 +2830,7 @@ pub struct AnimatePacket {
     pub action: EnumsAnimatePacketPayloadAction,
     pub target_actor_runtime_id: ActorRuntimeId,
     pub data: f32,
-    pub swing_source: Option<String>,
+    pub swing_source: Option<crate::bedrock::codec::BedrockString>,
 }
 impl crate::bedrock::codec::BedrockSized for AnimatePacket {
     fn encoded_size(&self) -> usize {
@@ -2874,6 +2873,7 @@ impl crate::bedrock::codec::BedrockCodec for AnimatePacket {
         }
         Ok(())
     }
+    #[inline]
     fn decode<B: bytes::Buf>(
         buf: &mut B,
         _args: Self::Args,
@@ -2904,9 +2904,7 @@ impl crate::bedrock::codec::BedrockCodec for AnimatePacket {
                             available: buf.remaining(),
                         });
                     }
-                    let mut bytes = vec![0u8; len];
-                    buf.copy_to_slice(&mut bytes);
-                    crate::bedrock::codec::decode_utf8_lossy_owned(bytes)
+                    crate::bedrock::codec::decode_utf8_lossy_bytes(buf.copy_to_bytes(len))
                 })
             } else {
                 None
@@ -2945,6 +2943,7 @@ impl crate::bedrock::codec::BedrockCodec for RespawnPacket {
         self.player_runtime_id.encode(buf)?;
         Ok(())
     }
+    #[inline]
     fn decode<B: bytes::Buf>(
         buf: &mut B,
         _args: Self::Args,
@@ -2990,6 +2989,7 @@ impl crate::bedrock::codec::BedrockCodec for ContainerOpenPacket {
         self.target_actor_id.encode(buf)?;
         Ok(())
     }
+    #[inline]
     fn decode<B: bytes::Buf>(
         buf: &mut B,
         _args: Self::Args,
@@ -3033,6 +3033,7 @@ impl crate::bedrock::codec::BedrockCodec for ContainerClosePacket {
         self.server_initiated_close.encode(buf)?;
         Ok(())
     }
+    #[inline]
     fn decode<B: bytes::Buf>(
         buf: &mut B,
         _args: Self::Args,
@@ -3076,6 +3077,7 @@ impl crate::bedrock::codec::BedrockCodec for PlayerHotbarPacket {
         self.shouldselectslot.encode(buf)?;
         Ok(())
     }
+    #[inline]
     fn decode<B: bytes::Buf>(
         buf: &mut B,
         _args: Self::Args,
@@ -3138,6 +3140,7 @@ impl crate::bedrock::codec::BedrockCodec for InventoryContentPacket {
         self.storage_item.encode(buf)?;
         Ok(())
     }
+    #[inline]
     fn decode<B: bytes::Buf>(
         buf: &mut B,
         _args: Self::Args,
@@ -3159,7 +3162,6 @@ impl crate::bedrock::codec::BedrockCodec for InventoryContentPacket {
             let mut tmp_vec =
                 crate::bedrock::codec::prepare_decode_vec(len, buf.remaining(), Some(8usize))?;
             for _ in 0..len {
-                crate::bedrock::codec::reserve_decode_item(&mut tmp_vec)?;
                 tmp_vec
                     .push(
                         <CerealizerNetworkItemStackDescriptorSerializedData as crate::bedrock::codec::BedrockCodec>::decode(
@@ -3241,6 +3243,7 @@ impl crate::bedrock::codec::BedrockCodec for InventorySlotPacket {
         self.item.encode(buf)?;
         Ok(())
     }
+    #[inline]
     fn decode<B: bytes::Buf>(
         buf: &mut B,
         _args: Self::Args,
@@ -3315,6 +3318,7 @@ impl crate::bedrock::codec::BedrockCodec for ContainerSetDataPacket {
         crate::bedrock::codec::ZigZag32(self.value).encode(buf)?;
         Ok(())
     }
+    #[inline]
     fn decode<B: bytes::Buf>(
         buf: &mut B,
         _args: Self::Args,
@@ -3523,6 +3527,7 @@ impl crate::bedrock::codec::BedrockCodec for CraftingDataPacket {
         self.clear_recipes.encode(buf)?;
         Ok(())
     }
+    #[inline]
     fn decode<B: bytes::Buf>(
         buf: &mut B,
         _args: Self::Args,
@@ -3538,7 +3543,6 @@ impl crate::bedrock::codec::BedrockCodec for CraftingDataPacket {
             let mut tmp_vec =
                 crate::bedrock::codec::prepare_decode_vec(len, buf.remaining(), Some(26usize))?;
             for _ in 0..len {
-                crate::bedrock::codec::reserve_decode_item(&mut tmp_vec)?;
                 tmp_vec.push(
                     <ShapedRecipePayload as crate::bedrock::codec::BedrockCodec>::decode(buf, ())?,
                 );
@@ -3555,7 +3559,6 @@ impl crate::bedrock::codec::BedrockCodec for CraftingDataPacket {
             let mut tmp_vec =
                 crate::bedrock::codec::prepare_decode_vec(len, buf.remaining(), Some(23usize))?;
             for _ in 0..len {
-                crate::bedrock::codec::reserve_decode_item(&mut tmp_vec)?;
                 tmp_vec.push(
                     <ShapelessRecipePayload as crate::bedrock::codec::BedrockCodec>::decode(
                         buf,
@@ -3575,7 +3578,6 @@ impl crate::bedrock::codec::BedrockCodec for CraftingDataPacket {
             let mut tmp_vec =
                 crate::bedrock::codec::prepare_decode_vec(len, buf.remaining(), Some(17usize))?;
             for _ in 0..len {
-                crate::bedrock::codec::reserve_decode_item(&mut tmp_vec)?;
                 tmp_vec.push(
                     <MultiRecipePayload as crate::bedrock::codec::BedrockCodec>::decode(buf, ())?,
                 );
@@ -3592,7 +3594,6 @@ impl crate::bedrock::codec::BedrockCodec for CraftingDataPacket {
             let mut tmp_vec =
                 crate::bedrock::codec::prepare_decode_vec(len, buf.remaining(), Some(23usize))?;
             for _ in 0..len {
-                crate::bedrock::codec::reserve_decode_item(&mut tmp_vec)?;
                 tmp_vec.push(
                     <ShapelessRecipePayload as crate::bedrock::codec::BedrockCodec>::decode(
                         buf,
@@ -3612,7 +3613,6 @@ impl crate::bedrock::codec::BedrockCodec for CraftingDataPacket {
             let mut tmp_vec =
                 crate::bedrock::codec::prepare_decode_vec(len, buf.remaining(), Some(23usize))?;
             for _ in 0..len {
-                crate::bedrock::codec::reserve_decode_item(&mut tmp_vec)?;
                 tmp_vec.push(
                     <ShapelessRecipePayload as crate::bedrock::codec::BedrockCodec>::decode(
                         buf,
@@ -3632,7 +3632,6 @@ impl crate::bedrock::codec::BedrockCodec for CraftingDataPacket {
             let mut tmp_vec =
                 crate::bedrock::codec::prepare_decode_vec(len, buf.remaining(), Some(26usize))?;
             for _ in 0..len {
-                crate::bedrock::codec::reserve_decode_item(&mut tmp_vec)?;
                 tmp_vec.push(
                     <ShapedRecipePayload as crate::bedrock::codec::BedrockCodec>::decode(buf, ())?,
                 );
@@ -3649,7 +3648,6 @@ impl crate::bedrock::codec::BedrockCodec for CraftingDataPacket {
             let mut tmp_vec =
                 crate::bedrock::codec::prepare_decode_vec(len, buf.remaining(), Some(18usize))?;
             for _ in 0..len {
-                crate::bedrock::codec::reserve_decode_item(&mut tmp_vec)?;
                 tmp_vec
                     .push(
                         <SmithingTransformRecipePayload as crate::bedrock::codec::BedrockCodec>::decode(
@@ -3670,7 +3668,6 @@ impl crate::bedrock::codec::BedrockCodec for CraftingDataPacket {
             let mut tmp_vec =
                 crate::bedrock::codec::prepare_decode_vec(len, buf.remaining(), Some(12usize))?;
             for _ in 0..len {
-                crate::bedrock::codec::reserve_decode_item(&mut tmp_vec)?;
                 tmp_vec.push(
                     <SmithingTrimRecipePayload as crate::bedrock::codec::BedrockCodec>::decode(
                         buf,
@@ -3690,7 +3687,6 @@ impl crate::bedrock::codec::BedrockCodec for CraftingDataPacket {
             let mut tmp_vec =
                 crate::bedrock::codec::prepare_decode_vec(len, buf.remaining(), Some(6usize))?;
             for _ in 0..len {
-                crate::bedrock::codec::reserve_decode_item(&mut tmp_vec)?;
                 tmp_vec.push(
                     <PotionMixDataEntry as crate::bedrock::codec::BedrockCodec>::decode(buf, ())?,
                 );
@@ -3707,7 +3703,6 @@ impl crate::bedrock::codec::BedrockCodec for CraftingDataPacket {
             let mut tmp_vec =
                 crate::bedrock::codec::prepare_decode_vec(len, buf.remaining(), Some(3usize))?;
             for _ in 0..len {
-                crate::bedrock::codec::reserve_decode_item(&mut tmp_vec)?;
                 tmp_vec.push(
                     <ContainerMixDataEntry as crate::bedrock::codec::BedrockCodec>::decode(
                         buf,
@@ -3727,7 +3722,6 @@ impl crate::bedrock::codec::BedrockCodec for CraftingDataPacket {
             let mut tmp_vec =
                 crate::bedrock::codec::prepare_decode_vec(len, buf.remaining(), Some(2usize))?;
             for _ in 0..len {
-                crate::bedrock::codec::reserve_decode_item(&mut tmp_vec)?;
                 tmp_vec.push(
                     <MaterialReducerDataEntry as crate::bedrock::codec::BedrockCodec>::decode(
                         buf,
@@ -3756,8 +3750,8 @@ impl crate::bedrock::codec::BedrockCodec for CraftingDataPacket {
 }
 #[derive(Debug, Clone, PartialEq, Default)]
 pub struct GuiDataPickItemPacket {
-    pub item_name: String,
-    pub item_effect_name: String,
+    pub item_name: crate::bedrock::codec::BedrockString,
+    pub item_effect_name: crate::bedrock::codec::BedrockString,
     pub slot: i32,
 }
 impl crate::bedrock::codec::BedrockSized for GuiDataPickItemPacket {
@@ -3795,6 +3789,7 @@ impl crate::bedrock::codec::BedrockCodec for GuiDataPickItemPacket {
         crate::bedrock::codec::I32LE(self.slot).encode(buf)?;
         Ok(())
     }
+    #[inline]
     fn decode<B: bytes::Buf>(
         buf: &mut B,
         _args: Self::Args,
@@ -3813,9 +3808,7 @@ impl crate::bedrock::codec::BedrockCodec for GuiDataPickItemPacket {
                     available: buf.remaining(),
                 });
             }
-            let mut bytes = vec![0u8; len];
-            buf.copy_to_slice(&mut bytes);
-            crate::bedrock::codec::decode_utf8_lossy_owned(bytes)
+            crate::bedrock::codec::decode_utf8_lossy_bytes(buf.copy_to_bytes(len))
         };
         let item_effect_name = {
             let len =
@@ -3830,9 +3823,7 @@ impl crate::bedrock::codec::BedrockCodec for GuiDataPickItemPacket {
                     available: buf.remaining(),
                 });
             }
-            let mut bytes = vec![0u8; len];
-            buf.copy_to_slice(&mut bytes);
-            crate::bedrock::codec::decode_utf8_lossy_owned(bytes)
+            crate::bedrock::codec::decode_utf8_lossy_bytes(buf.copy_to_bytes(len))
         };
         let slot =
             <crate::bedrock::codec::I32LE as crate::bedrock::codec::BedrockCodec>::decode(buf, ())?
@@ -3866,6 +3857,7 @@ impl crate::bedrock::codec::BedrockCodec for BlockActorDataPacket {
         self.actor_data_tags.encode(buf)?;
         Ok(())
     }
+    #[inline]
     fn decode<B: bytes::Buf>(
         buf: &mut B,
         _args: Self::Args,
@@ -3888,7 +3880,7 @@ pub struct LevelChunkPacket {
     pub client_request_sub_chunk_limit: Option<i32>,
     pub cache_enabled: bool,
     pub cache_metadata: Vec<LevelChunkPacketPayloadSubChunkMetadata>,
-    pub serialized_chunk_data: Vec<u8>,
+    pub serialized_chunk_data: bytes::Bytes,
 }
 impl crate::bedrock::codec::BedrockSized for LevelChunkPacket {
     fn encoded_size(&self) -> usize {
@@ -3947,12 +3939,13 @@ impl crate::bedrock::codec::BedrockCodec for LevelChunkPacket {
         for item in &self.cache_metadata {
             item.encode(buf)?;
         }
-        let bytes = (&self.serialized_chunk_data).as_slice();
+        let bytes: &[u8] = (&self.serialized_chunk_data).as_ref();
         let len = bytes.len();
         crate::bedrock::codec::VarUInt(len as u32).encode(buf)?;
         buf.put_slice(bytes);
         Ok(())
     }
+    #[inline]
     fn decode<B: bytes::Buf>(
         buf: &mut B,
         _args: Self::Args,
@@ -3991,7 +3984,6 @@ impl crate::bedrock::codec::BedrockCodec for LevelChunkPacket {
             let mut tmp_vec =
                 crate::bedrock::codec::prepare_decode_vec(len, buf.remaining(), Some(8usize))?;
             for _ in 0..len {
-                crate::bedrock::codec::reserve_decode_item(&mut tmp_vec)?;
                 tmp_vec
                     .push(
                         <LevelChunkPacketPayloadSubChunkMetadata as crate::bedrock::codec::BedrockCodec>::decode(
@@ -4015,9 +4007,7 @@ impl crate::bedrock::codec::BedrockCodec for LevelChunkPacket {
                     available: buf.remaining(),
                 });
             }
-            let mut value = vec![0u8; len];
-            buf.copy_to_slice(&mut value);
-            value
+            buf.copy_to_bytes(len)
         };
         Ok(Self {
             chunk_position,
@@ -4049,6 +4039,7 @@ impl crate::bedrock::codec::BedrockCodec for SetCommandsEnabledPacket {
         self.commands_enabled.encode(buf)?;
         Ok(())
     }
+    #[inline]
     fn decode<B: bytes::Buf>(
         buf: &mut B,
         _args: Self::Args,
@@ -4079,6 +4070,7 @@ impl crate::bedrock::codec::BedrockCodec for SetDifficultyPacket {
         crate::bedrock::codec::VarUInt(self.difficulty).encode(buf)?;
         Ok(())
     }
+    #[inline]
     fn decode<B: bytes::Buf>(
         buf: &mut B,
         _args: Self::Args,
@@ -4133,6 +4125,7 @@ impl crate::bedrock::codec::BedrockCodec for ChangeDimensionPacket {
         }
         Ok(())
     }
+    #[inline]
     fn decode<B: bytes::Buf>(
         buf: &mut B,
         _args: Self::Args,
@@ -4182,6 +4175,7 @@ impl crate::bedrock::codec::BedrockCodec for SetPlayerGameTypePacket {
         self.player_game_type.encode(buf)?;
         Ok(())
     }
+    #[inline]
     fn decode<B: bytes::Buf>(
         buf: &mut B,
         _args: Self::Args,
@@ -4223,6 +4217,7 @@ impl crate::bedrock::codec::BedrockCodec for PlayerListPacket {
         }
         Ok(())
     }
+    #[inline]
     fn decode<B: bytes::Buf>(
         buf: &mut B,
         _args: Self::Args,
@@ -4238,7 +4233,6 @@ impl crate::bedrock::codec::BedrockCodec for PlayerListPacket {
             let mut tmp_vec =
                 crate::bedrock::codec::prepare_decode_vec(len, buf.remaining(), Some(18usize))?;
             for _ in 0..len {
-                crate::bedrock::codec::reserve_decode_item(&mut tmp_vec)?;
                 tmp_vec.push(
                     <PlayerListPacketEntriesItem as crate::bedrock::codec::BedrockCodec>::decode(
                         buf,
@@ -4270,6 +4264,7 @@ impl crate::bedrock::codec::BedrockCodec for SimpleEventPacket {
         self.type_.encode(buf)?;
         Ok(())
     }
+    #[inline]
     fn decode<B: bytes::Buf>(
         buf: &mut B,
         _args: Self::Args,
@@ -4311,6 +4306,7 @@ impl crate::bedrock::codec::BedrockCodec for LegacyTelemetryEventPacket {
         self.event_data.encode(buf)?;
         Ok(())
     }
+    #[inline]
     fn decode<B: bytes::Buf>(
         buf: &mut B,
         _args: Self::Args,
@@ -4360,6 +4356,7 @@ impl crate::bedrock::codec::BedrockCodec for SpawnExperienceOrbPacket {
         crate::bedrock::codec::ZigZag32(self.xp_value).encode(buf)?;
         Ok(())
     }
+    #[inline]
     fn decode<B: bytes::Buf>(
         buf: &mut B,
         _args: Self::Args,
@@ -4591,6 +4588,7 @@ impl crate::bedrock::codec::BedrockCodec for ClientboundMapItemDataPacket {
         }
         Ok(())
     }
+    #[inline]
     fn decode<B: bytes::Buf>(
         buf: &mut B,
         _args: Self::Args,
@@ -4615,7 +4613,6 @@ impl crate::bedrock::codec::BedrockCodec for ClientboundMapItemDataPacket {
                         Some(1usize),
                     )?;
                     for _ in 0..len {
-                        crate::bedrock::codec::reserve_decode_item(&mut tmp_vec)?;
                         tmp_vec.push(
                             <ActorUniqueId as crate::bedrock::codec::BedrockCodec>::decode(
                                 buf,
@@ -4655,7 +4652,6 @@ impl crate::bedrock::codec::BedrockCodec for ClientboundMapItemDataPacket {
                         Some(6usize),
                     )?;
                     for _ in 0..len {
-                        crate::bedrock::codec::reserve_decode_item(&mut tmp_vec)?;
                         tmp_vec
                             .push(
                                 <MapItemTrackedActorUniqueId as crate::bedrock::codec::BedrockCodec>::decode(
@@ -4685,7 +4681,6 @@ impl crate::bedrock::codec::BedrockCodec for ClientboundMapItemDataPacket {
                         Some(9usize),
                     )?;
                     for _ in 0..len {
-                        crate::bedrock::codec::reserve_decode_item(&mut tmp_vec)?;
                         tmp_vec.push(
                             <MapDecoration as crate::bedrock::codec::BedrockCodec>::decode(
                                 buf,
@@ -4770,7 +4765,6 @@ impl crate::bedrock::codec::BedrockCodec for ClientboundMapItemDataPacket {
                         Some(4usize),
                     )?;
                     for _ in 0..len {
-                        crate::bedrock::codec::reserve_decode_item(&mut tmp_vec)?;
                         tmp_vec
                             .push(
                                 <crate::bedrock::codec::U32LE as crate::bedrock::codec::BedrockCodec>::decode(
@@ -4836,6 +4830,7 @@ impl crate::bedrock::codec::BedrockCodec for MapInfoRequestPacket {
         }
         Ok(())
     }
+    #[inline]
     fn decode<B: bytes::Buf>(
         buf: &mut B,
         _args: Self::Args,
@@ -4853,7 +4848,6 @@ impl crate::bedrock::codec::BedrockCodec for MapInfoRequestPacket {
             let mut tmp_vec =
                 crate::bedrock::codec::prepare_decode_vec(len, buf.remaining(), Some(6usize))?;
             for _ in 0..len {
-                crate::bedrock::codec::reserve_decode_item(&mut tmp_vec)?;
                 tmp_vec
                     .push(
                         <MapInfoRequestPacketAnonClientPixelsProxy as crate::bedrock::codec::BedrockCodec>::decode(
@@ -4894,6 +4888,7 @@ impl crate::bedrock::codec::BedrockCodec for RequestChunkRadiusPacket {
         self.max_chunk_radius.encode(buf)?;
         Ok(())
     }
+    #[inline]
     fn decode<B: bytes::Buf>(
         buf: &mut B,
         _args: Self::Args,
@@ -4933,6 +4928,7 @@ impl crate::bedrock::codec::BedrockCodec for ChunkRadiusUpdatedPacket {
         crate::bedrock::codec::ZigZag32(self.chunk_radius).encode(buf)?;
         Ok(())
     }
+    #[inline]
     fn decode<B: bytes::Buf>(
         buf: &mut B,
         _args: Self::Args,
@@ -4966,6 +4962,7 @@ impl crate::bedrock::codec::BedrockCodec for GameRulesChangedPacket {
         self.rule_data.encode(buf)?;
         Ok(())
     }
+    #[inline]
     fn decode<B: bytes::Buf>(
         buf: &mut B,
         _args: Self::Args,
@@ -4998,6 +4995,7 @@ impl crate::bedrock::codec::BedrockCodec for CameraPacket {
         self.target_player_id.encode(buf)?;
         Ok(())
     }
+    #[inline]
     fn decode<B: bytes::Buf>(
         buf: &mut B,
         _args: Self::Args,
@@ -5016,8 +5014,8 @@ impl crate::bedrock::codec::BedrockCodec for CameraPacket {
 pub struct BossEventPacket {
     pub target_actor_id: ActorUniqueId,
     pub event_type: EnumsBossEventUpdateType,
-    pub name: String,
-    pub filtered_name: String,
+    pub name: crate::bedrock::codec::BedrockString,
+    pub filtered_name: crate::bedrock::codec::BedrockString,
     pub health_percent: f32,
     pub color: EnumsBossBarColor,
     pub overlay: EnumsBossBarOverlay,
@@ -5065,6 +5063,7 @@ impl crate::bedrock::codec::BedrockCodec for BossEventPacket {
         self.overlay.encode(buf)?;
         Ok(())
     }
+    #[inline]
     fn decode<B: bytes::Buf>(
         buf: &mut B,
         _args: Self::Args,
@@ -5087,9 +5086,7 @@ impl crate::bedrock::codec::BedrockCodec for BossEventPacket {
                     available: buf.remaining(),
                 });
             }
-            let mut bytes = vec![0u8; len];
-            buf.copy_to_slice(&mut bytes);
-            crate::bedrock::codec::decode_utf8_lossy_owned(bytes)
+            crate::bedrock::codec::decode_utf8_lossy_bytes(buf.copy_to_bytes(len))
         };
         let filtered_name = {
             let len =
@@ -5104,9 +5101,7 @@ impl crate::bedrock::codec::BedrockCodec for BossEventPacket {
                     available: buf.remaining(),
                 });
             }
-            let mut bytes = vec![0u8; len];
-            buf.copy_to_slice(&mut bytes);
-            crate::bedrock::codec::decode_utf8_lossy_owned(bytes)
+            crate::bedrock::codec::decode_utf8_lossy_bytes(buf.copy_to_bytes(len))
         };
         let health_percent =
             <crate::bedrock::codec::F32LE as crate::bedrock::codec::BedrockCodec>::decode(buf, ())?
@@ -5149,6 +5144,7 @@ impl crate::bedrock::codec::BedrockCodec for ShowCreditsPacket {
         crate::bedrock::codec::ZigZag32(self.credits_state).encode(buf)?;
         Ok(())
     }
+    #[inline]
     fn decode<B: bytes::Buf>(
         buf: &mut B,
         _args: Self::Args,
@@ -5170,9 +5166,9 @@ impl crate::bedrock::codec::BedrockCodec for ShowCreditsPacket {
 }
 #[derive(Debug, Clone, PartialEq, Default)]
 pub struct AvailableCommandsPacket {
-    pub enum_values: Vec<String>,
-    pub chained_subcommand_values: Vec<String>,
-    pub post_fixes: Vec<String>,
+    pub enum_values: Vec<crate::bedrock::codec::BedrockString>,
+    pub chained_subcommand_values: Vec<crate::bedrock::codec::BedrockString>,
+    pub post_fixes: Vec<crate::bedrock::codec::BedrockString>,
     pub enum_data: Vec<AvailableCommandsPacketPayloadEnumData>,
     pub chained_subcommand_data: Vec<AvailableCommandsPacketPayloadChainedSubcommandData>,
     pub commands: Vec<AvailableCommandsPacketCommandDatajson>,
@@ -5328,6 +5324,7 @@ impl crate::bedrock::codec::BedrockCodec for AvailableCommandsPacket {
         }
         Ok(())
     }
+    #[inline]
     fn decode<B: bytes::Buf>(
         buf: &mut B,
         _args: Self::Args,
@@ -5343,7 +5340,6 @@ impl crate::bedrock::codec::BedrockCodec for AvailableCommandsPacket {
             let mut tmp_vec =
                 crate::bedrock::codec::prepare_decode_vec(len, buf.remaining(), Some(1usize))?;
             for _ in 0..len {
-                crate::bedrock::codec::reserve_decode_item(&mut tmp_vec)?;
                 tmp_vec
                     .push({
                         let len = (<crate::bedrock::codec::VarUInt as crate::bedrock::codec::BedrockCodec>::decode(
@@ -5357,9 +5353,9 @@ impl crate::bedrock::codec::BedrockCodec for AvailableCommandsPacket {
                                 available: buf.remaining(),
                             });
                         }
-                        let mut bytes = vec![0u8; len];
-                        buf.copy_to_slice(&mut bytes);
-                        crate::bedrock::codec::decode_utf8_lossy_owned(bytes)
+                        crate::bedrock::codec::decode_utf8_lossy_bytes(
+                            buf.copy_to_bytes(len),
+                        )
                     });
             }
             tmp_vec
@@ -5374,7 +5370,6 @@ impl crate::bedrock::codec::BedrockCodec for AvailableCommandsPacket {
             let mut tmp_vec =
                 crate::bedrock::codec::prepare_decode_vec(len, buf.remaining(), Some(1usize))?;
             for _ in 0..len {
-                crate::bedrock::codec::reserve_decode_item(&mut tmp_vec)?;
                 tmp_vec
                     .push({
                         let len = (<crate::bedrock::codec::VarUInt as crate::bedrock::codec::BedrockCodec>::decode(
@@ -5388,9 +5383,9 @@ impl crate::bedrock::codec::BedrockCodec for AvailableCommandsPacket {
                                 available: buf.remaining(),
                             });
                         }
-                        let mut bytes = vec![0u8; len];
-                        buf.copy_to_slice(&mut bytes);
-                        crate::bedrock::codec::decode_utf8_lossy_owned(bytes)
+                        crate::bedrock::codec::decode_utf8_lossy_bytes(
+                            buf.copy_to_bytes(len),
+                        )
                     });
             }
             tmp_vec
@@ -5405,7 +5400,6 @@ impl crate::bedrock::codec::BedrockCodec for AvailableCommandsPacket {
             let mut tmp_vec =
                 crate::bedrock::codec::prepare_decode_vec(len, buf.remaining(), Some(1usize))?;
             for _ in 0..len {
-                crate::bedrock::codec::reserve_decode_item(&mut tmp_vec)?;
                 tmp_vec
                     .push({
                         let len = (<crate::bedrock::codec::VarUInt as crate::bedrock::codec::BedrockCodec>::decode(
@@ -5419,9 +5413,9 @@ impl crate::bedrock::codec::BedrockCodec for AvailableCommandsPacket {
                                 available: buf.remaining(),
                             });
                         }
-                        let mut bytes = vec![0u8; len];
-                        buf.copy_to_slice(&mut bytes);
-                        crate::bedrock::codec::decode_utf8_lossy_owned(bytes)
+                        crate::bedrock::codec::decode_utf8_lossy_bytes(
+                            buf.copy_to_bytes(len),
+                        )
                     });
             }
             tmp_vec
@@ -5436,7 +5430,6 @@ impl crate::bedrock::codec::BedrockCodec for AvailableCommandsPacket {
             let mut tmp_vec =
                 crate::bedrock::codec::prepare_decode_vec(len, buf.remaining(), Some(2usize))?;
             for _ in 0..len {
-                crate::bedrock::codec::reserve_decode_item(&mut tmp_vec)?;
                 tmp_vec
                     .push(
                         <AvailableCommandsPacketPayloadEnumData as crate::bedrock::codec::BedrockCodec>::decode(
@@ -5457,7 +5450,6 @@ impl crate::bedrock::codec::BedrockCodec for AvailableCommandsPacket {
             let mut tmp_vec =
                 crate::bedrock::codec::prepare_decode_vec(len, buf.remaining(), Some(2usize))?;
             for _ in 0..len {
-                crate::bedrock::codec::reserve_decode_item(&mut tmp_vec)?;
                 tmp_vec
                     .push(
                         <AvailableCommandsPacketPayloadChainedSubcommandData as crate::bedrock::codec::BedrockCodec>::decode(
@@ -5478,7 +5470,6 @@ impl crate::bedrock::codec::BedrockCodec for AvailableCommandsPacket {
             let mut tmp_vec =
                 crate::bedrock::codec::prepare_decode_vec(len, buf.remaining(), Some(11usize))?;
             for _ in 0..len {
-                crate::bedrock::codec::reserve_decode_item(&mut tmp_vec)?;
                 tmp_vec
                     .push(
                         <AvailableCommandsPacketCommandDatajson as crate::bedrock::codec::BedrockCodec>::decode(
@@ -5499,7 +5490,6 @@ impl crate::bedrock::codec::BedrockCodec for AvailableCommandsPacket {
             let mut tmp_vec =
                 crate::bedrock::codec::prepare_decode_vec(len, buf.remaining(), Some(2usize))?;
             for _ in 0..len {
-                crate::bedrock::codec::reserve_decode_item(&mut tmp_vec)?;
                 tmp_vec
                     .push(
                         <AvailableCommandsPacketPayloadSoftEnumData as crate::bedrock::codec::BedrockCodec>::decode(
@@ -5520,7 +5510,6 @@ impl crate::bedrock::codec::BedrockCodec for AvailableCommandsPacket {
             let mut tmp_vec =
                 crate::bedrock::codec::prepare_decode_vec(len, buf.remaining(), Some(9usize))?;
             for _ in 0..len {
-                crate::bedrock::codec::reserve_decode_item(&mut tmp_vec)?;
                 tmp_vec
                     .push(
                         <AvailableCommandsPacketPayloadConstrainedValueData as crate::bedrock::codec::BedrockCodec>::decode(
@@ -5545,10 +5534,10 @@ impl crate::bedrock::codec::BedrockCodec for AvailableCommandsPacket {
 }
 #[derive(Debug, Clone, PartialEq, Default)]
 pub struct CommandRequestPacket {
-    pub command: String,
+    pub command: crate::bedrock::codec::BedrockString,
     pub origin: CommandOriginDatajson,
     pub is_internal: bool,
-    pub version: String,
+    pub version: crate::bedrock::codec::BedrockString,
 }
 impl crate::bedrock::codec::BedrockSized for CommandRequestPacket {
     fn encoded_size(&self) -> usize {
@@ -5587,6 +5576,7 @@ impl crate::bedrock::codec::BedrockCodec for CommandRequestPacket {
         buf.put_slice(bytes);
         Ok(())
     }
+    #[inline]
     fn decode<B: bytes::Buf>(
         buf: &mut B,
         _args: Self::Args,
@@ -5605,9 +5595,7 @@ impl crate::bedrock::codec::BedrockCodec for CommandRequestPacket {
                     available: buf.remaining(),
                 });
             }
-            let mut bytes = vec![0u8; len];
-            buf.copy_to_slice(&mut bytes);
-            crate::bedrock::codec::decode_utf8_lossy_owned(bytes)
+            crate::bedrock::codec::decode_utf8_lossy_bytes(buf.copy_to_bytes(len))
         };
         let origin =
             <CommandOriginDatajson as crate::bedrock::codec::BedrockCodec>::decode(buf, ())?;
@@ -5625,9 +5613,7 @@ impl crate::bedrock::codec::BedrockCodec for CommandRequestPacket {
                     available: buf.remaining(),
                 });
             }
-            let mut bytes = vec![0u8; len];
-            buf.copy_to_slice(&mut bytes);
-            crate::bedrock::codec::decode_utf8_lossy_owned(bytes)
+            crate::bedrock::codec::decode_utf8_lossy_bytes(buf.copy_to_bytes(len))
         };
         Ok(Self {
             command,
@@ -5640,10 +5626,10 @@ impl crate::bedrock::codec::BedrockCodec for CommandRequestPacket {
 #[derive(Debug, Clone, PartialEq, Default)]
 pub struct CommandBlockUpdatePacket {
     pub target: CommandBlockUpdatePacketTarget,
-    pub command: String,
-    pub last_output: String,
-    pub name: String,
-    pub filtered_name: String,
+    pub command: crate::bedrock::codec::BedrockString,
+    pub last_output: crate::bedrock::codec::BedrockString,
+    pub name: crate::bedrock::codec::BedrockString,
+    pub filtered_name: crate::bedrock::codec::BedrockString,
     pub track_output: bool,
     pub tick_delay: i32,
     pub execute_on_first_tick: bool,
@@ -5709,6 +5695,7 @@ impl crate::bedrock::codec::BedrockCodec for CommandBlockUpdatePacket {
         self.execute_on_first_tick.encode(buf)?;
         Ok(())
     }
+    #[inline]
     fn decode<B: bytes::Buf>(
         buf: &mut B,
         _args: Self::Args,
@@ -5732,9 +5719,7 @@ impl crate::bedrock::codec::BedrockCodec for CommandBlockUpdatePacket {
                     available: buf.remaining(),
                 });
             }
-            let mut bytes = vec![0u8; len];
-            buf.copy_to_slice(&mut bytes);
-            crate::bedrock::codec::decode_utf8_lossy_owned(bytes)
+            crate::bedrock::codec::decode_utf8_lossy_bytes(buf.copy_to_bytes(len))
         };
         let last_output = {
             let len =
@@ -5749,9 +5734,7 @@ impl crate::bedrock::codec::BedrockCodec for CommandBlockUpdatePacket {
                     available: buf.remaining(),
                 });
             }
-            let mut bytes = vec![0u8; len];
-            buf.copy_to_slice(&mut bytes);
-            crate::bedrock::codec::decode_utf8_lossy_owned(bytes)
+            crate::bedrock::codec::decode_utf8_lossy_bytes(buf.copy_to_bytes(len))
         };
         let name = {
             let len =
@@ -5766,9 +5749,7 @@ impl crate::bedrock::codec::BedrockCodec for CommandBlockUpdatePacket {
                     available: buf.remaining(),
                 });
             }
-            let mut bytes = vec![0u8; len];
-            buf.copy_to_slice(&mut bytes);
-            crate::bedrock::codec::decode_utf8_lossy_owned(bytes)
+            crate::bedrock::codec::decode_utf8_lossy_bytes(buf.copy_to_bytes(len))
         };
         let filtered_name = {
             let len =
@@ -5783,9 +5764,7 @@ impl crate::bedrock::codec::BedrockCodec for CommandBlockUpdatePacket {
                     available: buf.remaining(),
                 });
             }
-            let mut bytes = vec![0u8; len];
-            buf.copy_to_slice(&mut bytes);
-            crate::bedrock::codec::decode_utf8_lossy_owned(bytes)
+            crate::bedrock::codec::decode_utf8_lossy_bytes(buf.copy_to_bytes(len))
         };
         let track_output = <bool as crate::bedrock::codec::BedrockCodec>::decode(buf, ())?;
         let tick_delay =
@@ -5826,6 +5805,7 @@ impl crate::bedrock::codec::BedrockCodec for CommandOutputPacket {
         self.output.encode(buf)?;
         Ok(())
     }
+    #[inline]
     fn decode<B: bytes::Buf>(
         buf: &mut B,
         _args: Self::Args,
@@ -5848,7 +5828,7 @@ pub struct UpdateTradePacket {
     pub trader_tier: i32,
     pub entity_unique_id: ActorUniqueId,
     pub last_trading_player: ActorUniqueId,
-    pub display_name: String,
+    pub display_name: crate::bedrock::codec::BedrockString,
     pub use_new_trade_screen: bool,
     pub using_economy_trade: bool,
     pub data: crate::bedrock::codec::Nbt,
@@ -5898,6 +5878,7 @@ impl crate::bedrock::codec::BedrockCodec for UpdateTradePacket {
         self.data.encode(buf)?;
         Ok(())
     }
+    #[inline]
     fn decode<B: bytes::Buf>(
         buf: &mut B,
         _args: Self::Args,
@@ -5934,9 +5915,7 @@ impl crate::bedrock::codec::BedrockCodec for UpdateTradePacket {
                     available: buf.remaining(),
                 });
             }
-            let mut bytes = vec![0u8; len];
-            buf.copy_to_slice(&mut bytes);
-            crate::bedrock::codec::decode_utf8_lossy_owned(bytes)
+            crate::bedrock::codec::decode_utf8_lossy_bytes(buf.copy_to_bytes(len))
         };
         let use_new_trade_screen = <bool as crate::bedrock::codec::BedrockCodec>::decode(buf, ())?;
         let using_economy_trade = <bool as crate::bedrock::codec::BedrockCodec>::decode(buf, ())?;
@@ -5989,6 +5968,7 @@ impl crate::bedrock::codec::BedrockCodec for UpdateEquipPacket {
         self.data.encode(buf)?;
         Ok(())
     }
+    #[inline]
     fn decode<B: bytes::Buf>(
         buf: &mut B,
         _args: Self::Args,
@@ -6017,11 +5997,11 @@ impl crate::bedrock::codec::BedrockCodec for UpdateEquipPacket {
 }
 #[derive(Debug, Clone, PartialEq, Default)]
 pub struct ResourcePackDataInfoPacket {
-    pub resource_name: String,
+    pub resource_name: crate::bedrock::codec::BedrockString,
     pub chunk_size: u32,
     pub numberof_chunks: u32,
     pub file_size: u64,
-    pub file_hash: Vec<u8>,
+    pub file_hash: bytes::Bytes,
     pub is_premium_pack: bool,
     pub pack_type: u8,
 }
@@ -6060,7 +6040,7 @@ impl crate::bedrock::codec::BedrockCodec for ResourcePackDataInfoPacket {
         crate::bedrock::codec::U32LE(self.chunk_size).encode(buf)?;
         crate::bedrock::codec::U32LE(self.numberof_chunks).encode(buf)?;
         crate::bedrock::codec::U64LE(self.file_size).encode(buf)?;
-        let bytes = (&self.file_hash).as_slice();
+        let bytes: &[u8] = (&self.file_hash).as_ref();
         let len = bytes.len();
         crate::bedrock::codec::VarUInt(len as u32).encode(buf)?;
         buf.put_slice(bytes);
@@ -6068,6 +6048,7 @@ impl crate::bedrock::codec::BedrockCodec for ResourcePackDataInfoPacket {
         self.pack_type.encode(buf)?;
         Ok(())
     }
+    #[inline]
     fn decode<B: bytes::Buf>(
         buf: &mut B,
         _args: Self::Args,
@@ -6086,9 +6067,7 @@ impl crate::bedrock::codec::BedrockCodec for ResourcePackDataInfoPacket {
                     available: buf.remaining(),
                 });
             }
-            let mut bytes = vec![0u8; len];
-            buf.copy_to_slice(&mut bytes);
-            crate::bedrock::codec::decode_utf8_lossy_owned(bytes)
+            crate::bedrock::codec::decode_utf8_lossy_bytes(buf.copy_to_bytes(len))
         };
         let chunk_size =
             <crate::bedrock::codec::U32LE as crate::bedrock::codec::BedrockCodec>::decode(buf, ())?
@@ -6112,9 +6091,7 @@ impl crate::bedrock::codec::BedrockCodec for ResourcePackDataInfoPacket {
                     available: buf.remaining(),
                 });
             }
-            let mut value = vec![0u8; len];
-            buf.copy_to_slice(&mut value);
-            value
+            buf.copy_to_bytes(len)
         };
         let is_premium_pack = <bool as crate::bedrock::codec::BedrockCodec>::decode(buf, ())?;
         let pack_type = <u8 as crate::bedrock::codec::BedrockCodec>::decode(buf, ())?;
@@ -6131,10 +6108,10 @@ impl crate::bedrock::codec::BedrockCodec for ResourcePackDataInfoPacket {
 }
 #[derive(Debug, Clone, PartialEq, Default)]
 pub struct ResourcePackChunkDataPacket {
-    pub resource_name: String,
+    pub resource_name: crate::bedrock::codec::BedrockString,
     pub chunk_id: u32,
     pub byte_offset: u64,
-    pub chunk_data: Vec<u8>,
+    pub chunk_data: bytes::Bytes,
 }
 impl crate::bedrock::codec::BedrockSized for ResourcePackChunkDataPacket {
     fn encoded_size(&self) -> usize {
@@ -6167,12 +6144,13 @@ impl crate::bedrock::codec::BedrockCodec for ResourcePackChunkDataPacket {
         buf.put_slice(bytes);
         crate::bedrock::codec::U32LE(self.chunk_id).encode(buf)?;
         crate::bedrock::codec::U64LE(self.byte_offset).encode(buf)?;
-        let bytes = (&self.chunk_data).as_slice();
+        let bytes: &[u8] = (&self.chunk_data).as_ref();
         let len = bytes.len();
         crate::bedrock::codec::VarUInt(len as u32).encode(buf)?;
         buf.put_slice(bytes);
         Ok(())
     }
+    #[inline]
     fn decode<B: bytes::Buf>(
         buf: &mut B,
         _args: Self::Args,
@@ -6191,9 +6169,7 @@ impl crate::bedrock::codec::BedrockCodec for ResourcePackChunkDataPacket {
                     available: buf.remaining(),
                 });
             }
-            let mut bytes = vec![0u8; len];
-            buf.copy_to_slice(&mut bytes);
-            crate::bedrock::codec::decode_utf8_lossy_owned(bytes)
+            crate::bedrock::codec::decode_utf8_lossy_bytes(buf.copy_to_bytes(len))
         };
         let chunk_id =
             <crate::bedrock::codec::U32LE as crate::bedrock::codec::BedrockCodec>::decode(buf, ())?
@@ -6214,9 +6190,7 @@ impl crate::bedrock::codec::BedrockCodec for ResourcePackChunkDataPacket {
                     available: buf.remaining(),
                 });
             }
-            let mut value = vec![0u8; len];
-            buf.copy_to_slice(&mut value);
-            value
+            buf.copy_to_bytes(len)
         };
         Ok(Self {
             resource_name,
@@ -6228,7 +6202,7 @@ impl crate::bedrock::codec::BedrockCodec for ResourcePackChunkDataPacket {
 }
 #[derive(Debug, Clone, PartialEq, Default)]
 pub struct ResourcePackChunkRequestPacket {
-    pub resource_name: String,
+    pub resource_name: crate::bedrock::codec::BedrockString,
     pub chunk: i32,
 }
 impl crate::bedrock::codec::BedrockSized for ResourcePackChunkRequestPacket {
@@ -6256,6 +6230,7 @@ impl crate::bedrock::codec::BedrockCodec for ResourcePackChunkRequestPacket {
         crate::bedrock::codec::I32LE(self.chunk).encode(buf)?;
         Ok(())
     }
+    #[inline]
     fn decode<B: bytes::Buf>(
         buf: &mut B,
         _args: Self::Args,
@@ -6274,9 +6249,7 @@ impl crate::bedrock::codec::BedrockCodec for ResourcePackChunkRequestPacket {
                     available: buf.remaining(),
                 });
             }
-            let mut bytes = vec![0u8; len];
-            buf.copy_to_slice(&mut bytes);
-            crate::bedrock::codec::decode_utf8_lossy_owned(bytes)
+            crate::bedrock::codec::decode_utf8_lossy_bytes(buf.copy_to_bytes(len))
         };
         let chunk =
             <crate::bedrock::codec::I32LE as crate::bedrock::codec::BedrockCodec>::decode(buf, ())?
@@ -6289,7 +6262,7 @@ impl crate::bedrock::codec::BedrockCodec for ResourcePackChunkRequestPacket {
 }
 #[derive(Debug, Clone, PartialEq, Default)]
 pub struct TransferPacket {
-    pub server_address: String,
+    pub server_address: crate::bedrock::codec::BedrockString,
     pub server_port: u16,
     pub reload_world: bool,
     pub gatherings_configuration: Option<ServerConfigurationGatheringsConfigurationJoinInfo>,
@@ -6335,6 +6308,7 @@ impl crate::bedrock::codec::BedrockCodec for TransferPacket {
         }
         Ok(())
     }
+    #[inline]
     fn decode<B: bytes::Buf>(
         buf: &mut B,
         _args: Self::Args,
@@ -6353,9 +6327,7 @@ impl crate::bedrock::codec::BedrockCodec for TransferPacket {
                     available: buf.remaining(),
                 });
             }
-            let mut bytes = vec![0u8; len];
-            buf.copy_to_slice(&mut bytes);
-            crate::bedrock::codec::decode_utf8_lossy_owned(bytes)
+            crate::bedrock::codec::decode_utf8_lossy_bytes(buf.copy_to_bytes(len))
         };
         let server_port =
             <crate::bedrock::codec::U16LE as crate::bedrock::codec::BedrockCodec>::decode(buf, ())?
@@ -6384,7 +6356,7 @@ impl crate::bedrock::codec::BedrockCodec for TransferPacket {
 }
 #[derive(Debug, Clone, PartialEq, Default)]
 pub struct PlaySoundPacket {
-    pub name: String,
+    pub name: crate::bedrock::codec::BedrockString,
     pub position: BlockPos,
     pub volume: f32,
     pub pitch: f32,
@@ -6456,6 +6428,7 @@ impl crate::bedrock::codec::BedrockCodec for PlaySoundPacket {
         }
         Ok(())
     }
+    #[inline]
     fn decode<B: bytes::Buf>(
         buf: &mut B,
         _args: Self::Args,
@@ -6474,9 +6447,7 @@ impl crate::bedrock::codec::BedrockCodec for PlaySoundPacket {
                     available: buf.remaining(),
                 });
             }
-            let mut bytes = vec![0u8; len];
-            buf.copy_to_slice(&mut bytes);
-            crate::bedrock::codec::decode_utf8_lossy_owned(bytes)
+            crate::bedrock::codec::decode_utf8_lossy_bytes(buf.copy_to_bytes(len))
         };
         let position = <BlockPos as crate::bedrock::codec::BedrockCodec>::decode(buf, ())?;
         let volume =
@@ -6529,7 +6500,7 @@ impl crate::bedrock::codec::BedrockCodec for PlaySoundPacket {
 }
 #[derive(Debug, Clone, PartialEq, Default)]
 pub struct StopSoundPacket {
-    pub sound_name: String,
+    pub sound_name: crate::bedrock::codec::BedrockString,
     pub stop_all_sounds: bool,
     pub stop_music_legacy: bool,
 }
@@ -6560,6 +6531,7 @@ impl crate::bedrock::codec::BedrockCodec for StopSoundPacket {
         self.stop_music_legacy.encode(buf)?;
         Ok(())
     }
+    #[inline]
     fn decode<B: bytes::Buf>(
         buf: &mut B,
         _args: Self::Args,
@@ -6578,9 +6550,7 @@ impl crate::bedrock::codec::BedrockCodec for StopSoundPacket {
                     available: buf.remaining(),
                 });
             }
-            let mut bytes = vec![0u8; len];
-            buf.copy_to_slice(&mut bytes);
-            crate::bedrock::codec::decode_utf8_lossy_owned(bytes)
+            crate::bedrock::codec::decode_utf8_lossy_bytes(buf.copy_to_bytes(len))
         };
         let stop_all_sounds = <bool as crate::bedrock::codec::BedrockCodec>::decode(buf, ())?;
         let stop_music_legacy = <bool as crate::bedrock::codec::BedrockCodec>::decode(buf, ())?;
@@ -6594,13 +6564,13 @@ impl crate::bedrock::codec::BedrockCodec for StopSoundPacket {
 #[derive(Debug, Clone, PartialEq, Default)]
 pub struct SetTitlePacket {
     pub title_type: EnumsSetTitlePacketPayloadTitleType,
-    pub title_text: String,
+    pub title_text: crate::bedrock::codec::BedrockString,
     pub fade_in_time: i32,
     pub stay_time: i32,
     pub fade_out_time: i32,
-    pub xuid: String,
-    pub platform_online_id: String,
-    pub filtered_title_message: String,
+    pub xuid: crate::bedrock::codec::BedrockString,
+    pub platform_online_id: crate::bedrock::codec::BedrockString,
+    pub filtered_title_message: crate::bedrock::codec::BedrockString,
 }
 impl crate::bedrock::codec::BedrockSized for SetTitlePacket {
     fn encoded_size(&self) -> usize {
@@ -6669,6 +6639,7 @@ impl crate::bedrock::codec::BedrockCodec for SetTitlePacket {
         buf.put_slice(bytes);
         Ok(())
     }
+    #[inline]
     fn decode<B: bytes::Buf>(
         buf: &mut B,
         _args: Self::Args,
@@ -6692,9 +6663,7 @@ impl crate::bedrock::codec::BedrockCodec for SetTitlePacket {
                     available: buf.remaining(),
                 });
             }
-            let mut bytes = vec![0u8; len];
-            buf.copy_to_slice(&mut bytes);
-            crate::bedrock::codec::decode_utf8_lossy_owned(bytes)
+            crate::bedrock::codec::decode_utf8_lossy_bytes(buf.copy_to_bytes(len))
         };
         let fade_in_time =
             <crate::bedrock::codec::ZigZag32 as crate::bedrock::codec::BedrockCodec>::decode(
@@ -6727,9 +6696,7 @@ impl crate::bedrock::codec::BedrockCodec for SetTitlePacket {
                     available: buf.remaining(),
                 });
             }
-            let mut bytes = vec![0u8; len];
-            buf.copy_to_slice(&mut bytes);
-            crate::bedrock::codec::decode_utf8_lossy_owned(bytes)
+            crate::bedrock::codec::decode_utf8_lossy_bytes(buf.copy_to_bytes(len))
         };
         let platform_online_id = {
             let len =
@@ -6744,9 +6711,7 @@ impl crate::bedrock::codec::BedrockCodec for SetTitlePacket {
                     available: buf.remaining(),
                 });
             }
-            let mut bytes = vec![0u8; len];
-            buf.copy_to_slice(&mut bytes);
-            crate::bedrock::codec::decode_utf8_lossy_owned(bytes)
+            crate::bedrock::codec::decode_utf8_lossy_bytes(buf.copy_to_bytes(len))
         };
         let filtered_title_message = {
             let len =
@@ -6761,9 +6726,7 @@ impl crate::bedrock::codec::BedrockCodec for SetTitlePacket {
                     available: buf.remaining(),
                 });
             }
-            let mut bytes = vec![0u8; len];
-            buf.copy_to_slice(&mut bytes);
-            crate::bedrock::codec::decode_utf8_lossy_owned(bytes)
+            crate::bedrock::codec::decode_utf8_lossy_bytes(buf.copy_to_bytes(len))
         };
         Ok(Self {
             title_type,
@@ -6779,7 +6742,7 @@ impl crate::bedrock::codec::BedrockCodec for SetTitlePacket {
 }
 #[derive(Debug, Clone, PartialEq, Default)]
 pub struct AddBehaviorTreePacket {
-    pub behavior_tree_structure_json: String,
+    pub behavior_tree_structure_json: crate::bedrock::codec::BedrockString,
 }
 impl crate::bedrock::codec::BedrockSized for AddBehaviorTreePacket {
     fn encoded_size(&self) -> usize {
@@ -6804,6 +6767,7 @@ impl crate::bedrock::codec::BedrockCodec for AddBehaviorTreePacket {
         buf.put_slice(bytes);
         Ok(())
     }
+    #[inline]
     fn decode<B: bytes::Buf>(
         buf: &mut B,
         _args: Self::Args,
@@ -6822,9 +6786,7 @@ impl crate::bedrock::codec::BedrockCodec for AddBehaviorTreePacket {
                     available: buf.remaining(),
                 });
             }
-            let mut bytes = vec![0u8; len];
-            buf.copy_to_slice(&mut bytes);
-            crate::bedrock::codec::decode_utf8_lossy_owned(bytes)
+            crate::bedrock::codec::decode_utf8_lossy_bytes(buf.copy_to_bytes(len))
         };
         Ok(Self {
             behavior_tree_structure_json,
@@ -6859,6 +6821,7 @@ impl crate::bedrock::codec::BedrockCodec for StructureBlockUpdatePacket {
         self.is_waterlogged.encode(buf)?;
         Ok(())
     }
+    #[inline]
     fn decode<B: bytes::Buf>(
         buf: &mut B,
         _args: Self::Args,
@@ -6899,6 +6862,7 @@ impl crate::bedrock::codec::BedrockCodec for ShowStoreOfferPacket {
         self.redirect_type.encode(buf)?;
         Ok(())
     }
+    #[inline]
     fn decode<B: bytes::Buf>(
         buf: &mut B,
         _args: Self::Args,
@@ -6918,7 +6882,7 @@ impl crate::bedrock::codec::BedrockCodec for ShowStoreOfferPacket {
 }
 #[derive(Debug, Clone, PartialEq, Default)]
 pub struct PurchaseReceiptPacket {
-    pub purchase_receipts: Vec<String>,
+    pub purchase_receipts: Vec<crate::bedrock::codec::BedrockString>,
 }
 impl crate::bedrock::codec::BedrockSized for PurchaseReceiptPacket {
     fn encoded_size(&self) -> usize {
@@ -6955,6 +6919,7 @@ impl crate::bedrock::codec::BedrockCodec for PurchaseReceiptPacket {
         }
         Ok(())
     }
+    #[inline]
     fn decode<B: bytes::Buf>(
         buf: &mut B,
         _args: Self::Args,
@@ -6970,7 +6935,6 @@ impl crate::bedrock::codec::BedrockCodec for PurchaseReceiptPacket {
             let mut tmp_vec =
                 crate::bedrock::codec::prepare_decode_vec(len, buf.remaining(), Some(1usize))?;
             for _ in 0..len {
-                crate::bedrock::codec::reserve_decode_item(&mut tmp_vec)?;
                 tmp_vec
                     .push({
                         let len = (<crate::bedrock::codec::VarUInt as crate::bedrock::codec::BedrockCodec>::decode(
@@ -6984,9 +6948,9 @@ impl crate::bedrock::codec::BedrockCodec for PurchaseReceiptPacket {
                                 available: buf.remaining(),
                             });
                         }
-                        let mut bytes = vec![0u8; len];
-                        buf.copy_to_slice(&mut bytes);
-                        crate::bedrock::codec::decode_utf8_lossy_owned(bytes)
+                        crate::bedrock::codec::decode_utf8_lossy_bytes(
+                            buf.copy_to_bytes(len),
+                        )
                     });
             }
             tmp_vec
@@ -6998,8 +6962,8 @@ impl crate::bedrock::codec::BedrockCodec for PurchaseReceiptPacket {
 pub struct PlayerSkinPacket {
     pub uuid: MceUuiDjson,
     pub serialized_skin: SerializedSkinRef,
-    pub localized_new_skin_name: String,
-    pub localized_old_skin_name: String,
+    pub localized_new_skin_name: crate::bedrock::codec::BedrockString,
+    pub localized_old_skin_name: crate::bedrock::codec::BedrockString,
 }
 impl crate::bedrock::codec::BedrockSized for PlayerSkinPacket {
     fn encoded_size(&self) -> usize {
@@ -7038,6 +7002,7 @@ impl crate::bedrock::codec::BedrockCodec for PlayerSkinPacket {
         buf.put_slice(bytes);
         Ok(())
     }
+    #[inline]
     fn decode<B: bytes::Buf>(
         buf: &mut B,
         _args: Self::Args,
@@ -7059,9 +7024,7 @@ impl crate::bedrock::codec::BedrockCodec for PlayerSkinPacket {
                     available: buf.remaining(),
                 });
             }
-            let mut bytes = vec![0u8; len];
-            buf.copy_to_slice(&mut bytes);
-            crate::bedrock::codec::decode_utf8_lossy_owned(bytes)
+            crate::bedrock::codec::decode_utf8_lossy_bytes(buf.copy_to_bytes(len))
         };
         let localized_old_skin_name = {
             let len =
@@ -7076,9 +7039,7 @@ impl crate::bedrock::codec::BedrockCodec for PlayerSkinPacket {
                     available: buf.remaining(),
                 });
             }
-            let mut bytes = vec![0u8; len];
-            buf.copy_to_slice(&mut bytes);
-            crate::bedrock::codec::decode_utf8_lossy_owned(bytes)
+            crate::bedrock::codec::decode_utf8_lossy_bytes(buf.copy_to_bytes(len))
         };
         Ok(Self {
             uuid,
@@ -7090,7 +7051,7 @@ impl crate::bedrock::codec::BedrockCodec for PlayerSkinPacket {
 }
 #[derive(Debug, Clone, PartialEq, Default)]
 pub struct SubClientLoginPacket {
-    pub sub_client_connection_request: Vec<u8>,
+    pub sub_client_connection_request: bytes::Bytes,
 }
 impl crate::bedrock::codec::BedrockSized for SubClientLoginPacket {
     fn encoded_size(&self) -> usize {
@@ -7109,12 +7070,13 @@ impl crate::bedrock::codec::BedrockCodec for SubClientLoginPacket {
     const MIN_ENCODED_SIZE: usize = 1usize;
     fn encode<B: bytes::BufMut>(&self, buf: &mut B) -> Result<(), std::io::Error> {
         let _ = buf;
-        let bytes = (&self.sub_client_connection_request).as_slice();
+        let bytes: &[u8] = (&self.sub_client_connection_request).as_ref();
         let len = bytes.len();
         crate::bedrock::codec::VarUInt(len as u32).encode(buf)?;
         buf.put_slice(bytes);
         Ok(())
     }
+    #[inline]
     fn decode<B: bytes::Buf>(
         buf: &mut B,
         _args: Self::Args,
@@ -7133,9 +7095,7 @@ impl crate::bedrock::codec::BedrockCodec for SubClientLoginPacket {
                     available: buf.remaining(),
                 });
             }
-            let mut value = vec![0u8; len];
-            buf.copy_to_slice(&mut value);
-            value
+            buf.copy_to_bytes(len)
         };
         Ok(Self {
             sub_client_connection_request,
@@ -7161,6 +7121,7 @@ impl crate::bedrock::codec::BedrockCodec for AutomationClientConnectPacket {
         self.web_socket_data.encode(buf)?;
         Ok(())
     }
+    #[inline]
     fn decode<B: bytes::Buf>(
         buf: &mut B,
         _args: Self::Args,
@@ -7190,6 +7151,7 @@ impl crate::bedrock::codec::BedrockCodec for SetLastHurtByPacket {
         self.last_hurt_by.encode(buf)?;
         Ok(())
     }
+    #[inline]
     fn decode<B: bytes::Buf>(
         buf: &mut B,
         _args: Self::Args,
@@ -7224,6 +7186,7 @@ impl crate::bedrock::codec::BedrockCodec for BookEditPacket {
         self.operation.encode(buf)?;
         Ok(())
     }
+    #[inline]
     fn decode<B: bytes::Buf>(
         buf: &mut B,
         _args: Self::Args,
@@ -7247,9 +7210,9 @@ impl crate::bedrock::codec::BedrockCodec for BookEditPacket {
 pub struct NpcRequestPacket {
     pub npc_runtime_id: ActorRuntimeId,
     pub request_type: EnumsNpcRequestPacketPayloadRequestType,
-    pub actions: String,
+    pub actions: crate::bedrock::codec::BedrockString,
     pub action_index: u8,
-    pub scene_name: String,
+    pub scene_name: crate::bedrock::codec::BedrockString,
 }
 impl crate::bedrock::codec::BedrockSized for NpcRequestPacket {
     fn encoded_size(&self) -> usize {
@@ -7290,6 +7253,7 @@ impl crate::bedrock::codec::BedrockCodec for NpcRequestPacket {
         buf.put_slice(bytes);
         Ok(())
     }
+    #[inline]
     fn decode<B: bytes::Buf>(
         buf: &mut B,
         _args: Self::Args,
@@ -7314,9 +7278,7 @@ impl crate::bedrock::codec::BedrockCodec for NpcRequestPacket {
                     available: buf.remaining(),
                 });
             }
-            let mut bytes = vec![0u8; len];
-            buf.copy_to_slice(&mut bytes);
-            crate::bedrock::codec::decode_utf8_lossy_owned(bytes)
+            crate::bedrock::codec::decode_utf8_lossy_bytes(buf.copy_to_bytes(len))
         };
         let action_index = <u8 as crate::bedrock::codec::BedrockCodec>::decode(buf, ())?;
         let scene_name = {
@@ -7332,9 +7294,7 @@ impl crate::bedrock::codec::BedrockCodec for NpcRequestPacket {
                     available: buf.remaining(),
                 });
             }
-            let mut bytes = vec![0u8; len];
-            buf.copy_to_slice(&mut bytes);
-            crate::bedrock::codec::decode_utf8_lossy_owned(bytes)
+            crate::bedrock::codec::decode_utf8_lossy_bytes(buf.copy_to_bytes(len))
         };
         Ok(Self {
             npc_runtime_id,
@@ -7347,13 +7307,13 @@ impl crate::bedrock::codec::BedrockCodec for NpcRequestPacket {
 }
 #[derive(Debug, Clone, PartialEq, Default)]
 pub struct PhotoTransferPacket {
-    pub photo_name: String,
-    pub photo_data: Vec<u8>,
-    pub book_id: String,
+    pub photo_name: crate::bedrock::codec::BedrockString,
+    pub photo_data: bytes::Bytes,
+    pub book_id: crate::bedrock::codec::BedrockString,
     pub type_: EnumsPhotoType,
     pub source_type: EnumsPhotoType,
     pub owner_id: i64,
-    pub new_photo_name: String,
+    pub new_photo_name: crate::bedrock::codec::BedrockString,
 }
 impl crate::bedrock::codec::BedrockSized for PhotoTransferPacket {
     fn encoded_size(&self) -> usize {
@@ -7397,7 +7357,7 @@ impl crate::bedrock::codec::BedrockCodec for PhotoTransferPacket {
         let len = bytes.len();
         crate::bedrock::codec::VarUInt(len as u32).encode(buf)?;
         buf.put_slice(bytes);
-        let bytes = (&self.photo_data).as_slice();
+        let bytes: &[u8] = (&self.photo_data).as_ref();
         let len = bytes.len();
         crate::bedrock::codec::VarUInt(len as u32).encode(buf)?;
         buf.put_slice(bytes);
@@ -7414,6 +7374,7 @@ impl crate::bedrock::codec::BedrockCodec for PhotoTransferPacket {
         buf.put_slice(bytes);
         Ok(())
     }
+    #[inline]
     fn decode<B: bytes::Buf>(
         buf: &mut B,
         _args: Self::Args,
@@ -7432,9 +7393,7 @@ impl crate::bedrock::codec::BedrockCodec for PhotoTransferPacket {
                     available: buf.remaining(),
                 });
             }
-            let mut bytes = vec![0u8; len];
-            buf.copy_to_slice(&mut bytes);
-            crate::bedrock::codec::decode_utf8_lossy_owned(bytes)
+            crate::bedrock::codec::decode_utf8_lossy_bytes(buf.copy_to_bytes(len))
         };
         let photo_data = {
             let len =
@@ -7449,9 +7408,7 @@ impl crate::bedrock::codec::BedrockCodec for PhotoTransferPacket {
                     available: buf.remaining(),
                 });
             }
-            let mut value = vec![0u8; len];
-            buf.copy_to_slice(&mut value);
-            value
+            buf.copy_to_bytes(len)
         };
         let book_id = {
             let len =
@@ -7466,9 +7423,7 @@ impl crate::bedrock::codec::BedrockCodec for PhotoTransferPacket {
                     available: buf.remaining(),
                 });
             }
-            let mut bytes = vec![0u8; len];
-            buf.copy_to_slice(&mut bytes);
-            crate::bedrock::codec::decode_utf8_lossy_owned(bytes)
+            crate::bedrock::codec::decode_utf8_lossy_bytes(buf.copy_to_bytes(len))
         };
         let type_ = <EnumsPhotoType as crate::bedrock::codec::BedrockCodec>::decode(buf, ())?;
         let source_type = <EnumsPhotoType as crate::bedrock::codec::BedrockCodec>::decode(buf, ())?;
@@ -7488,9 +7443,7 @@ impl crate::bedrock::codec::BedrockCodec for PhotoTransferPacket {
                     available: buf.remaining(),
                 });
             }
-            let mut bytes = vec![0u8; len];
-            buf.copy_to_slice(&mut bytes);
-            crate::bedrock::codec::decode_utf8_lossy_owned(bytes)
+            crate::bedrock::codec::decode_utf8_lossy_bytes(buf.copy_to_bytes(len))
         };
         Ok(Self {
             photo_name,
@@ -7506,7 +7459,7 @@ impl crate::bedrock::codec::BedrockCodec for PhotoTransferPacket {
 #[derive(Debug, Clone, PartialEq, Default)]
 pub struct ModalFormRequestPacket {
     pub form_id: u32,
-    pub form_uijson: String,
+    pub form_uijson: crate::bedrock::codec::BedrockString,
 }
 impl crate::bedrock::codec::BedrockSized for ModalFormRequestPacket {
     fn encoded_size(&self) -> usize {
@@ -7535,6 +7488,7 @@ impl crate::bedrock::codec::BedrockCodec for ModalFormRequestPacket {
         buf.put_slice(bytes);
         Ok(())
     }
+    #[inline]
     fn decode<B: bytes::Buf>(
         buf: &mut B,
         _args: Self::Args,
@@ -7559,9 +7513,7 @@ impl crate::bedrock::codec::BedrockCodec for ModalFormRequestPacket {
                     available: buf.remaining(),
                 });
             }
-            let mut bytes = vec![0u8; len];
-            buf.copy_to_slice(&mut bytes);
-            crate::bedrock::codec::decode_utf8_lossy_owned(bytes)
+            crate::bedrock::codec::decode_utf8_lossy_bytes(buf.copy_to_bytes(len))
         };
         Ok(Self {
             form_id,
@@ -7628,6 +7580,7 @@ impl crate::bedrock::codec::BedrockCodec for ModalFormResponsePacket {
         }
         Ok(())
     }
+    #[inline]
     fn decode<B: bytes::Buf>(
         buf: &mut B,
         _args: Self::Args,
@@ -7655,9 +7608,7 @@ impl crate::bedrock::codec::BedrockCodec for ModalFormResponsePacket {
                                 available: buf.remaining(),
                             });
                         }
-                        let mut bytes = vec![0u8; len];
-                        buf.copy_to_slice(&mut bytes);
-                        crate::bedrock::codec::decode_utf8_lossy_owned(bytes)
+                        crate::bedrock::codec::decode_utf8_lossy_bytes(buf.copy_to_bytes(len))
                     };
                     res
                 })
@@ -7699,6 +7650,7 @@ impl crate::bedrock::codec::BedrockCodec for ServerSettingsRequestPacket {
         let _ = buf;
         Ok(())
     }
+    #[inline]
     fn decode<B: bytes::Buf>(
         buf: &mut B,
         _args: Self::Args,
@@ -7710,7 +7662,7 @@ impl crate::bedrock::codec::BedrockCodec for ServerSettingsRequestPacket {
 #[derive(Debug, Clone, PartialEq, Default)]
 pub struct ServerSettingsResponsePacket {
     pub form_id: u32,
-    pub form_uijson: String,
+    pub form_uijson: crate::bedrock::codec::BedrockString,
 }
 impl crate::bedrock::codec::BedrockSized for ServerSettingsResponsePacket {
     fn encoded_size(&self) -> usize {
@@ -7739,6 +7691,7 @@ impl crate::bedrock::codec::BedrockCodec for ServerSettingsResponsePacket {
         buf.put_slice(bytes);
         Ok(())
     }
+    #[inline]
     fn decode<B: bytes::Buf>(
         buf: &mut B,
         _args: Self::Args,
@@ -7763,9 +7716,7 @@ impl crate::bedrock::codec::BedrockCodec for ServerSettingsResponsePacket {
                     available: buf.remaining(),
                 });
             }
-            let mut bytes = vec![0u8; len];
-            buf.copy_to_slice(&mut bytes);
-            crate::bedrock::codec::decode_utf8_lossy_owned(bytes)
+            crate::bedrock::codec::decode_utf8_lossy_bytes(buf.copy_to_bytes(len))
         };
         Ok(Self {
             form_id,
@@ -7775,7 +7726,7 @@ impl crate::bedrock::codec::BedrockCodec for ServerSettingsResponsePacket {
 }
 #[derive(Debug, Clone, PartialEq, Default)]
 pub struct ShowProfilePacket {
-    pub player_xuid: String,
+    pub player_xuid: crate::bedrock::codec::BedrockString,
 }
 impl crate::bedrock::codec::BedrockSized for ShowProfilePacket {
     fn encoded_size(&self) -> usize {
@@ -7800,6 +7751,7 @@ impl crate::bedrock::codec::BedrockCodec for ShowProfilePacket {
         buf.put_slice(bytes);
         Ok(())
     }
+    #[inline]
     fn decode<B: bytes::Buf>(
         buf: &mut B,
         _args: Self::Args,
@@ -7818,9 +7770,7 @@ impl crate::bedrock::codec::BedrockCodec for ShowProfilePacket {
                     available: buf.remaining(),
                 });
             }
-            let mut bytes = vec![0u8; len];
-            buf.copy_to_slice(&mut bytes);
-            crate::bedrock::codec::decode_utf8_lossy_owned(bytes)
+            crate::bedrock::codec::decode_utf8_lossy_bytes(buf.copy_to_bytes(len))
         };
         Ok(Self { player_xuid })
     }
@@ -7844,6 +7794,7 @@ impl crate::bedrock::codec::BedrockCodec for SetDefaultGameTypePacket {
         self.default_game_type.encode(buf)?;
         Ok(())
     }
+    #[inline]
     fn decode<B: bytes::Buf>(
         buf: &mut B,
         _args: Self::Args,
@@ -7858,7 +7809,7 @@ impl crate::bedrock::codec::BedrockCodec for SetDefaultGameTypePacket {
 }
 #[derive(Debug, Clone, PartialEq, Default)]
 pub struct RemoveObjectivePacket {
-    pub objective_name: String,
+    pub objective_name: crate::bedrock::codec::BedrockString,
 }
 impl crate::bedrock::codec::BedrockSized for RemoveObjectivePacket {
     fn encoded_size(&self) -> usize {
@@ -7883,6 +7834,7 @@ impl crate::bedrock::codec::BedrockCodec for RemoveObjectivePacket {
         buf.put_slice(bytes);
         Ok(())
     }
+    #[inline]
     fn decode<B: bytes::Buf>(
         buf: &mut B,
         _args: Self::Args,
@@ -7901,19 +7853,17 @@ impl crate::bedrock::codec::BedrockCodec for RemoveObjectivePacket {
                     available: buf.remaining(),
                 });
             }
-            let mut bytes = vec![0u8; len];
-            buf.copy_to_slice(&mut bytes);
-            crate::bedrock::codec::decode_utf8_lossy_owned(bytes)
+            crate::bedrock::codec::decode_utf8_lossy_bytes(buf.copy_to_bytes(len))
         };
         Ok(Self { objective_name })
     }
 }
 #[derive(Debug, Clone, PartialEq, Default)]
 pub struct SetDisplayObjectivePacket {
-    pub display_slot_name: String,
-    pub objective_name: String,
-    pub objective_display_name: String,
-    pub criteria_name: String,
+    pub display_slot_name: crate::bedrock::codec::BedrockString,
+    pub objective_name: crate::bedrock::codec::BedrockString,
+    pub objective_display_name: crate::bedrock::codec::BedrockString,
+    pub criteria_name: crate::bedrock::codec::BedrockString,
     pub sort_order: i32,
 }
 impl crate::bedrock::codec::BedrockSized for SetDisplayObjectivePacket {
@@ -7973,6 +7923,7 @@ impl crate::bedrock::codec::BedrockCodec for SetDisplayObjectivePacket {
         crate::bedrock::codec::ZigZag32(self.sort_order).encode(buf)?;
         Ok(())
     }
+    #[inline]
     fn decode<B: bytes::Buf>(
         buf: &mut B,
         _args: Self::Args,
@@ -7991,9 +7942,7 @@ impl crate::bedrock::codec::BedrockCodec for SetDisplayObjectivePacket {
                     available: buf.remaining(),
                 });
             }
-            let mut bytes = vec![0u8; len];
-            buf.copy_to_slice(&mut bytes);
-            crate::bedrock::codec::decode_utf8_lossy_owned(bytes)
+            crate::bedrock::codec::decode_utf8_lossy_bytes(buf.copy_to_bytes(len))
         };
         let objective_name = {
             let len =
@@ -8008,9 +7957,7 @@ impl crate::bedrock::codec::BedrockCodec for SetDisplayObjectivePacket {
                     available: buf.remaining(),
                 });
             }
-            let mut bytes = vec![0u8; len];
-            buf.copy_to_slice(&mut bytes);
-            crate::bedrock::codec::decode_utf8_lossy_owned(bytes)
+            crate::bedrock::codec::decode_utf8_lossy_bytes(buf.copy_to_bytes(len))
         };
         let objective_display_name = {
             let len =
@@ -8025,9 +7972,7 @@ impl crate::bedrock::codec::BedrockCodec for SetDisplayObjectivePacket {
                     available: buf.remaining(),
                 });
             }
-            let mut bytes = vec![0u8; len];
-            buf.copy_to_slice(&mut bytes);
-            crate::bedrock::codec::decode_utf8_lossy_owned(bytes)
+            crate::bedrock::codec::decode_utf8_lossy_bytes(buf.copy_to_bytes(len))
         };
         let criteria_name = {
             let len =
@@ -8042,9 +7987,7 @@ impl crate::bedrock::codec::BedrockCodec for SetDisplayObjectivePacket {
                     available: buf.remaining(),
                 });
             }
-            let mut bytes = vec![0u8; len];
-            buf.copy_to_slice(&mut bytes);
-            crate::bedrock::codec::decode_utf8_lossy_owned(bytes)
+            crate::bedrock::codec::decode_utf8_lossy_bytes(buf.copy_to_bytes(len))
         };
         let sort_order =
             <crate::bedrock::codec::ZigZag32 as crate::bedrock::codec::BedrockCodec>::decode(
@@ -8092,6 +8035,7 @@ impl crate::bedrock::codec::BedrockCodec for SetScorePacket {
         }
         Ok(())
     }
+    #[inline]
     fn decode<B: bytes::Buf>(
         buf: &mut B,
         _args: Self::Args,
@@ -8107,7 +8051,6 @@ impl crate::bedrock::codec::BedrockCodec for SetScorePacket {
             let mut tmp_vec =
                 crate::bedrock::codec::prepare_decode_vec(len, buf.remaining(), Some(4usize))?;
             for _ in 0..len {
-                crate::bedrock::codec::reserve_decode_item(&mut tmp_vec)?;
                 tmp_vec.push(
                     <SetScorePacketScoreInfoItem as crate::bedrock::codec::BedrockCodec>::decode(
                         buf,
@@ -8145,6 +8088,7 @@ impl crate::bedrock::codec::BedrockCodec for LabTablePacket {
         self.reaction.encode(buf)?;
         Ok(())
     }
+    #[inline]
     fn decode<B: bytes::Buf>(
         buf: &mut B,
         _args: Self::Args,
@@ -8209,6 +8153,7 @@ impl crate::bedrock::codec::BedrockCodec for UpdateBlockSyncedPacket {
         crate::bedrock::codec::VarULong(self.actor_sync_message).encode(buf)?;
         Ok(())
     }
+    #[inline]
     fn decode<B: bytes::Buf>(
         buf: &mut B,
         _args: Self::Args,
@@ -8274,6 +8219,7 @@ impl crate::bedrock::codec::BedrockCodec for MoveActorDeltaPacket {
         self.move_data.encode(buf)?;
         Ok(())
     }
+    #[inline]
     fn decode<B: bytes::Buf>(
         buf: &mut B,
         _args: Self::Args,
@@ -8320,6 +8266,7 @@ impl crate::bedrock::codec::BedrockCodec for SetScoreboardIdentityPacket {
         }
         Ok(())
     }
+    #[inline]
     fn decode<B: bytes::Buf>(
         buf: &mut B,
         _args: Self::Args,
@@ -8340,7 +8287,6 @@ impl crate::bedrock::codec::BedrockCodec for SetScoreboardIdentityPacket {
             let mut tmp_vec =
                 crate::bedrock::codec::prepare_decode_vec(len, buf.remaining(), Some(2usize))?;
             for _ in 0..len {
-                crate::bedrock::codec::reserve_decode_item(&mut tmp_vec)?;
                 tmp_vec.push(
                     <ScoreboardIdentityPacketInfo as crate::bedrock::codec::BedrockCodec>::decode(
                         buf,
@@ -8375,6 +8321,7 @@ impl crate::bedrock::codec::BedrockCodec for SetLocalPlayerAsInitializedPacket {
         self.player_id.encode(buf)?;
         Ok(())
     }
+    #[inline]
     fn decode<B: bytes::Buf>(
         buf: &mut B,
         _args: Self::Args,
@@ -8386,8 +8333,8 @@ impl crate::bedrock::codec::BedrockCodec for SetLocalPlayerAsInitializedPacket {
 }
 #[derive(Debug, Clone, PartialEq, Default)]
 pub struct UpdateSoftEnumPacket {
-    pub enum_name: String,
-    pub values: Vec<String>,
+    pub enum_name: crate::bedrock::codec::BedrockString,
+    pub values: Vec<crate::bedrock::codec::BedrockString>,
     pub update_type: EnumsSoftEnumUpdateType,
 }
 impl crate::bedrock::codec::BedrockSized for UpdateSoftEnumPacket {
@@ -8437,6 +8384,7 @@ impl crate::bedrock::codec::BedrockCodec for UpdateSoftEnumPacket {
         self.update_type.encode(buf)?;
         Ok(())
     }
+    #[inline]
     fn decode<B: bytes::Buf>(
         buf: &mut B,
         _args: Self::Args,
@@ -8455,9 +8403,7 @@ impl crate::bedrock::codec::BedrockCodec for UpdateSoftEnumPacket {
                     available: buf.remaining(),
                 });
             }
-            let mut bytes = vec![0u8; len];
-            buf.copy_to_slice(&mut bytes);
-            crate::bedrock::codec::decode_utf8_lossy_owned(bytes)
+            crate::bedrock::codec::decode_utf8_lossy_bytes(buf.copy_to_bytes(len))
         };
         let values = {
             let len =
@@ -8469,7 +8415,6 @@ impl crate::bedrock::codec::BedrockCodec for UpdateSoftEnumPacket {
             let mut tmp_vec =
                 crate::bedrock::codec::prepare_decode_vec(len, buf.remaining(), Some(1usize))?;
             for _ in 0..len {
-                crate::bedrock::codec::reserve_decode_item(&mut tmp_vec)?;
                 tmp_vec
                     .push({
                         let len = (<crate::bedrock::codec::VarUInt as crate::bedrock::codec::BedrockCodec>::decode(
@@ -8483,9 +8428,9 @@ impl crate::bedrock::codec::BedrockCodec for UpdateSoftEnumPacket {
                                 available: buf.remaining(),
                             });
                         }
-                        let mut bytes = vec![0u8; len];
-                        buf.copy_to_slice(&mut bytes);
-                        crate::bedrock::codec::decode_utf8_lossy_owned(bytes)
+                        crate::bedrock::codec::decode_utf8_lossy_bytes(
+                            buf.copy_to_bytes(len),
+                        )
                     });
             }
             tmp_vec
@@ -8521,6 +8466,7 @@ impl crate::bedrock::codec::BedrockCodec for NetworkStackLatencyPacket {
         self.is_from_server.encode(buf)?;
         Ok(())
     }
+    #[inline]
     fn decode<B: bytes::Buf>(
         buf: &mut B,
         _args: Self::Args,
@@ -8541,7 +8487,7 @@ pub struct SpawnParticleEffectPacket {
     pub dimension_id: u8,
     pub actor_id: ActorUniqueId,
     pub position: Vec3,
-    pub effect_name: String,
+    pub effect_name: crate::bedrock::codec::BedrockString,
     pub molang_variables: Option<MolangVariableMapjson>,
 }
 impl crate::bedrock::codec::BedrockSized for SpawnParticleEffectPacket {
@@ -8595,6 +8541,7 @@ impl crate::bedrock::codec::BedrockCodec for SpawnParticleEffectPacket {
         }
         Ok(())
     }
+    #[inline]
     fn decode<B: bytes::Buf>(
         buf: &mut B,
         _args: Self::Args,
@@ -8616,9 +8563,7 @@ impl crate::bedrock::codec::BedrockCodec for SpawnParticleEffectPacket {
                     available: buf.remaining(),
                 });
             }
-            let mut bytes = vec![0u8; len];
-            buf.copy_to_slice(&mut bytes);
-            crate::bedrock::codec::decode_utf8_lossy_owned(bytes)
+            crate::bedrock::codec::decode_utf8_lossy_bytes(buf.copy_to_bytes(len))
         };
         let molang_variables = {
             let present = u8::decode(buf, ())?;
@@ -8636,9 +8581,7 @@ impl crate::bedrock::codec::BedrockCodec for SpawnParticleEffectPacket {
                                 available: buf.remaining(),
                             });
                         }
-                        let mut bytes = vec![0u8; len];
-                        buf.copy_to_slice(&mut bytes);
-                        crate::bedrock::codec::decode_utf8_lossy_owned(bytes)
+                        crate::bedrock::codec::decode_utf8_lossy_bytes(buf.copy_to_bytes(len))
                     };
                     res
                 })
@@ -8674,6 +8617,7 @@ impl crate::bedrock::codec::BedrockCodec for AvailableActorIdentifiersPacket {
         self.identifier_list.encode(buf)?;
         Ok(())
     }
+    #[inline]
     fn decode<B: bytes::Buf>(
         buf: &mut B,
         _args: Self::Args,
@@ -8722,6 +8666,7 @@ impl crate::bedrock::codec::BedrockCodec for NetworkChunkPublisherUpdatePacket {
         }
         Ok(())
     }
+    #[inline]
     fn decode<B: bytes::Buf>(
         buf: &mut B,
         _args: Self::Args,
@@ -8745,7 +8690,6 @@ impl crate::bedrock::codec::BedrockCodec for NetworkChunkPublisherUpdatePacket {
             let mut tmp_vec =
                 crate::bedrock::codec::prepare_decode_vec(len, buf.remaining(), Some(2usize))?;
             for _ in 0..len {
-                crate::bedrock::codec::reserve_decode_item(&mut tmp_vec)?;
                 tmp_vec.push(<ChunkPos as crate::bedrock::codec::BedrockCodec>::decode(
                     buf,
                     (),
@@ -8794,6 +8738,7 @@ impl crate::bedrock::codec::BedrockCodec for BiomeDefinitionListPacket {
         self.stringlist.encode(buf)?;
         Ok(())
     }
+    #[inline]
     fn decode<B: bytes::Buf>(
         buf: &mut B,
         _args: Self::Args,
@@ -8809,7 +8754,6 @@ impl crate::bedrock::codec::BedrockCodec for BiomeDefinitionListPacket {
             let mut tmp_vec =
                 crate::bedrock::codec::prepare_decode_vec(len, buf.remaining(), Some(31usize))?;
             for _ in 0..len {
-                crate::bedrock::codec::reserve_decode_item(&mut tmp_vec)?;
                 tmp_vec
                     .push(
                         <BiomeDefinitionListPacketMapofBiomenamestodataItem as crate::bedrock::codec::BedrockCodec>::decode(
@@ -8832,7 +8776,7 @@ pub struct LevelSoundEventPacket {
     pub sound_event: SoundEventIdentifierjson,
     pub position: Vec3,
     pub data: i32,
-    pub actor_identifier: String,
+    pub actor_identifier: crate::bedrock::codec::BedrockString,
     pub is_baby: bool,
     pub is_global: bool,
     pub actor_unique_id: i64,
@@ -8897,6 +8841,7 @@ impl crate::bedrock::codec::BedrockCodec for LevelSoundEventPacket {
         }
         Ok(())
     }
+    #[inline]
     fn decode<B: bytes::Buf>(
         buf: &mut B,
         _args: Self::Args,
@@ -8915,9 +8860,7 @@ impl crate::bedrock::codec::BedrockCodec for LevelSoundEventPacket {
                         available: buf.remaining(),
                     });
                 }
-                let mut bytes = vec![0u8; len];
-                buf.copy_to_slice(&mut bytes);
-                crate::bedrock::codec::decode_utf8_lossy_owned(bytes)
+                crate::bedrock::codec::decode_utf8_lossy_bytes(buf.copy_to_bytes(len))
             };
             res
         };
@@ -8941,9 +8884,7 @@ impl crate::bedrock::codec::BedrockCodec for LevelSoundEventPacket {
                     available: buf.remaining(),
                 });
             }
-            let mut bytes = vec![0u8; len];
-            buf.copy_to_slice(&mut bytes);
-            crate::bedrock::codec::decode_utf8_lossy_owned(bytes)
+            crate::bedrock::codec::decode_utf8_lossy_bytes(buf.copy_to_bytes(len))
         };
         let is_baby = <bool as crate::bedrock::codec::BedrockCodec>::decode(buf, ())?;
         let is_global = <bool as crate::bedrock::codec::BedrockCodec>::decode(buf, ())?;
@@ -8997,6 +8938,7 @@ impl crate::bedrock::codec::BedrockCodec for LevelEventGenericPacket {
         self.__ctd__.encode(buf)?;
         Ok(())
     }
+    #[inline]
     fn decode<B: bytes::Buf>(
         buf: &mut B,
         _args: Self::Args,
@@ -9038,6 +8980,7 @@ impl crate::bedrock::codec::BedrockCodec for LecternUpdatePacket {
         self.positionof_lecterntoupdate.encode(buf)?;
         Ok(())
     }
+    #[inline]
     fn decode<B: bytes::Buf>(
         buf: &mut B,
         _args: Self::Args,
@@ -9073,6 +9016,7 @@ impl crate::bedrock::codec::BedrockCodec for ClientCacheStatusPacket {
         self.iscachesupported.encode(buf)?;
         Ok(())
     }
+    #[inline]
     fn decode<B: bytes::Buf>(
         buf: &mut B,
         _args: Self::Args,
@@ -9101,6 +9045,7 @@ impl crate::bedrock::codec::BedrockCodec for OnScreenTextureAnimationPacket {
         crate::bedrock::codec::U32LE(self.effect_id).encode(buf)?;
         Ok(())
     }
+    #[inline]
     fn decode<B: bytes::Buf>(
         buf: &mut B,
         _args: Self::Args,
@@ -9134,6 +9079,7 @@ impl crate::bedrock::codec::BedrockCodec for MapCreateLockedCopyPacket {
         self.new_map_id.encode(buf)?;
         Ok(())
     }
+    #[inline]
     fn decode<B: bytes::Buf>(
         buf: &mut B,
         _args: Self::Args,
@@ -9150,7 +9096,7 @@ impl crate::bedrock::codec::BedrockCodec for MapCreateLockedCopyPacket {
 }
 #[derive(Debug, Clone, PartialEq, Default)]
 pub struct StructureTemplateDataRequestPacket {
-    pub structure_name: String,
+    pub structure_name: crate::bedrock::codec::BedrockString,
     pub structure_position: BlockPos,
     pub structure_settings: StructureSettings,
     pub requested_operation: EnumsStructureTemplateRequestOperation,
@@ -9184,6 +9130,7 @@ impl crate::bedrock::codec::BedrockCodec for StructureTemplateDataRequestPacket 
         self.requested_operation.encode(buf)?;
         Ok(())
     }
+    #[inline]
     fn decode<B: bytes::Buf>(
         buf: &mut B,
         _args: Self::Args,
@@ -9202,9 +9149,7 @@ impl crate::bedrock::codec::BedrockCodec for StructureTemplateDataRequestPacket 
                     available: buf.remaining(),
                 });
             }
-            let mut bytes = vec![0u8; len];
-            buf.copy_to_slice(&mut bytes);
-            crate::bedrock::codec::decode_utf8_lossy_owned(bytes)
+            crate::bedrock::codec::decode_utf8_lossy_bytes(buf.copy_to_bytes(len))
         };
         let structure_position =
             <BlockPos as crate::bedrock::codec::BedrockCodec>::decode(buf, ())?;
@@ -9224,7 +9169,7 @@ impl crate::bedrock::codec::BedrockCodec for StructureTemplateDataRequestPacket 
 }
 #[derive(Debug, Clone, PartialEq, Default)]
 pub struct StructureTemplateDataResponsePacket {
-    pub structure_name: String,
+    pub structure_name: crate::bedrock::codec::BedrockString,
     pub structures_nbt: crate::bedrock::codec::Nbt,
     pub response_type: EnumsStructureTemplateResponseType,
 }
@@ -9255,6 +9200,7 @@ impl crate::bedrock::codec::BedrockCodec for StructureTemplateDataResponsePacket
         self.response_type.encode(buf)?;
         Ok(())
     }
+    #[inline]
     fn decode<B: bytes::Buf>(
         buf: &mut B,
         _args: Self::Args,
@@ -9273,9 +9219,7 @@ impl crate::bedrock::codec::BedrockCodec for StructureTemplateDataResponsePacket
                     available: buf.remaining(),
                 });
             }
-            let mut bytes = vec![0u8; len];
-            buf.copy_to_slice(&mut bytes);
-            crate::bedrock::codec::decode_utf8_lossy_owned(bytes)
+            crate::bedrock::codec::decode_utf8_lossy_bytes(buf.copy_to_bytes(len))
         };
         let structures_nbt =
             <crate::bedrock::codec::Nbt as crate::bedrock::codec::BedrockCodec>::decode(buf, ())?;
@@ -9334,6 +9278,7 @@ impl crate::bedrock::codec::BedrockCodec for ClientCacheBlobStatusPacket {
         }
         Ok(())
     }
+    #[inline]
     fn decode<B: bytes::Buf>(
         buf: &mut B,
         _args: Self::Args,
@@ -9349,7 +9294,6 @@ impl crate::bedrock::codec::BedrockCodec for ClientCacheBlobStatusPacket {
             let mut tmp_vec =
                 crate::bedrock::codec::prepare_decode_vec(len, buf.remaining(), Some(8usize))?;
             for _ in 0..len {
-                crate::bedrock::codec::reserve_decode_item(&mut tmp_vec)?;
                 tmp_vec.push(
                     <crate::bedrock::codec::U64LE as crate::bedrock::codec::BedrockCodec>::decode(
                         buf,
@@ -9370,7 +9314,6 @@ impl crate::bedrock::codec::BedrockCodec for ClientCacheBlobStatusPacket {
             let mut tmp_vec =
                 crate::bedrock::codec::prepare_decode_vec(len, buf.remaining(), Some(8usize))?;
             for _ in 0..len {
-                crate::bedrock::codec::reserve_decode_item(&mut tmp_vec)?;
                 tmp_vec.push(
                     <crate::bedrock::codec::U64LE as crate::bedrock::codec::BedrockCodec>::decode(
                         buf,
@@ -9418,6 +9361,7 @@ impl crate::bedrock::codec::BedrockCodec for ClientCacheMissResponsePacket {
         }
         Ok(())
     }
+    #[inline]
     fn decode<B: bytes::Buf>(
         buf: &mut B,
         _args: Self::Args,
@@ -9433,7 +9377,6 @@ impl crate::bedrock::codec::BedrockCodec for ClientCacheMissResponsePacket {
             let mut tmp_vec =
                 crate::bedrock::codec::prepare_decode_vec(len, buf.remaining(), Some(9usize))?;
             for _ in 0..len {
-                crate::bedrock::codec::reserve_decode_item(&mut tmp_vec)?;
                 tmp_vec.push(
                     <MissingBlobData as crate::bedrock::codec::BedrockCodec>::decode(buf, ())?,
                 );
@@ -9462,6 +9405,7 @@ impl crate::bedrock::codec::BedrockCodec for EducationSettingsPacket {
         self.education_level_settings.encode(buf)?;
         Ok(())
     }
+    #[inline]
     fn decode<B: bytes::Buf>(
         buf: &mut B,
         _args: Self::Args,
@@ -9477,10 +9421,10 @@ impl crate::bedrock::codec::BedrockCodec for EducationSettingsPacket {
 #[derive(Debug, Clone, PartialEq, Default)]
 pub struct EmotePacket {
     pub actor_runtime_id: ActorRuntimeId,
-    pub emote_id: String,
+    pub emote_id: crate::bedrock::codec::BedrockString,
     pub emote_length_ticks: u32,
-    pub xuid: String,
-    pub platform_id: String,
+    pub xuid: crate::bedrock::codec::BedrockString,
+    pub platform_id: crate::bedrock::codec::BedrockString,
     pub flags: u8,
 }
 impl crate::bedrock::codec::BedrockSized for EmotePacket {
@@ -9534,6 +9478,7 @@ impl crate::bedrock::codec::BedrockCodec for EmotePacket {
         self.flags.encode(buf)?;
         Ok(())
     }
+    #[inline]
     fn decode<B: bytes::Buf>(
         buf: &mut B,
         _args: Self::Args,
@@ -9554,9 +9499,7 @@ impl crate::bedrock::codec::BedrockCodec for EmotePacket {
                     available: buf.remaining(),
                 });
             }
-            let mut bytes = vec![0u8; len];
-            buf.copy_to_slice(&mut bytes);
-            crate::bedrock::codec::decode_utf8_lossy_owned(bytes)
+            crate::bedrock::codec::decode_utf8_lossy_bytes(buf.copy_to_bytes(len))
         };
         let emote_length_ticks =
             <crate::bedrock::codec::VarUInt as crate::bedrock::codec::BedrockCodec>::decode(
@@ -9577,9 +9520,7 @@ impl crate::bedrock::codec::BedrockCodec for EmotePacket {
                     available: buf.remaining(),
                 });
             }
-            let mut bytes = vec![0u8; len];
-            buf.copy_to_slice(&mut bytes);
-            crate::bedrock::codec::decode_utf8_lossy_owned(bytes)
+            crate::bedrock::codec::decode_utf8_lossy_bytes(buf.copy_to_bytes(len))
         };
         let platform_id = {
             let len =
@@ -9594,9 +9535,7 @@ impl crate::bedrock::codec::BedrockCodec for EmotePacket {
                     available: buf.remaining(),
                 });
             }
-            let mut bytes = vec![0u8; len];
-            buf.copy_to_slice(&mut bytes);
-            crate::bedrock::codec::decode_utf8_lossy_owned(bytes)
+            crate::bedrock::codec::decode_utf8_lossy_bytes(buf.copy_to_bytes(len))
         };
         let flags = <u8 as crate::bedrock::codec::BedrockCodec>::decode(buf, ())?;
         Ok(Self {
@@ -9628,6 +9567,7 @@ impl crate::bedrock::codec::BedrockCodec for MultiplayerSettingsPacket {
         self.packet_type.encode(buf)?;
         Ok(())
     }
+    #[inline]
     fn decode<B: bytes::Buf>(
         buf: &mut B,
         _args: Self::Args,
@@ -9643,7 +9583,7 @@ impl crate::bedrock::codec::BedrockCodec for MultiplayerSettingsPacket {
 }
 #[derive(Debug, Clone, PartialEq, Default)]
 pub struct SettingsCommandPacket {
-    pub command: String,
+    pub command: crate::bedrock::codec::BedrockString,
     pub suppress_output: bool,
 }
 impl crate::bedrock::codec::BedrockSized for SettingsCommandPacket {
@@ -9671,6 +9611,7 @@ impl crate::bedrock::codec::BedrockCodec for SettingsCommandPacket {
         self.suppress_output.encode(buf)?;
         Ok(())
     }
+    #[inline]
     fn decode<B: bytes::Buf>(
         buf: &mut B,
         _args: Self::Args,
@@ -9689,9 +9630,7 @@ impl crate::bedrock::codec::BedrockCodec for SettingsCommandPacket {
                     available: buf.remaining(),
                 });
             }
-            let mut bytes = vec![0u8; len];
-            buf.copy_to_slice(&mut bytes);
-            crate::bedrock::codec::decode_utf8_lossy_owned(bytes)
+            crate::bedrock::codec::decode_utf8_lossy_bytes(buf.copy_to_bytes(len))
         };
         let suppress_output = <bool as crate::bedrock::codec::BedrockCodec>::decode(buf, ())?;
         Ok(Self {
@@ -9719,6 +9658,7 @@ impl crate::bedrock::codec::BedrockCodec for AnvilDamagePacket {
         self.block_position.encode(buf)?;
         Ok(())
     }
+    #[inline]
     fn decode<B: bytes::Buf>(
         buf: &mut B,
         _args: Self::Args,
@@ -9750,6 +9690,7 @@ impl crate::bedrock::codec::BedrockCodec for CompletedUsingItemPacket {
         crate::bedrock::codec::I32LE(self.item_use_method).encode(buf)?;
         Ok(())
     }
+    #[inline]
     fn decode<B: bytes::Buf>(
         buf: &mut B,
         _args: Self::Args,
@@ -9798,6 +9739,7 @@ impl crate::bedrock::codec::BedrockCodec for NetworkSettingsPacket {
         crate::bedrock::codec::F32LE(self.client_throttle_scalar).encode(buf)?;
         Ok(())
     }
+    #[inline]
     fn decode<B: bytes::Buf>(
         buf: &mut B,
         _args: Self::Args,
@@ -9984,6 +9926,7 @@ impl crate::bedrock::codec::BedrockCodec for PlayerAuthInputPacket {
         self.raw_move_vector.encode(buf)?;
         Ok(())
     }
+    #[inline]
     fn decode<B: bytes::Buf>(
         buf: &mut B,
         _args: Self::Args,
@@ -10005,7 +9948,6 @@ impl crate::bedrock::codec::BedrockCodec for PlayerAuthInputPacket {
             let mut tmp_vec =
                 crate::bedrock::codec::prepare_decode_vec(len, buf.remaining(), Some(1usize))?;
             for _ in 0..len {
-                crate::bedrock::codec::reserve_decode_item(&mut tmp_vec)?;
                 tmp_vec
                     .push(
                         <EnumsPlayerAuthInputPacketPayloadInputData as crate::bedrock::codec::BedrockCodec>::decode(
@@ -10066,7 +10008,6 @@ impl crate::bedrock::codec::BedrockCodec for PlayerAuthInputPacket {
                         Some(5usize),
                     )?;
                     for _ in 0..len {
-                        crate::bedrock::codec::reserve_decode_item(&mut tmp_vec)?;
                         tmp_vec.push(
                             <PlayerBlockActionData as crate::bedrock::codec::BedrockCodec>::decode(
                                 buf,
@@ -10171,6 +10112,7 @@ impl crate::bedrock::codec::BedrockCodec for CreativeContentPacket {
         }
         Ok(())
     }
+    #[inline]
     fn decode<B: bytes::Buf>(
         buf: &mut B,
         _args: Self::Args,
@@ -10186,7 +10128,6 @@ impl crate::bedrock::codec::BedrockCodec for CreativeContentPacket {
             let mut tmp_vec =
                 crate::bedrock::codec::prepare_decode_vec(len, buf.remaining(), Some(8usize))?;
             for _ in 0..len {
-                crate::bedrock::codec::reserve_decode_item(&mut tmp_vec)?;
                 tmp_vec.push(
                     <CreativeGroupInfoPayload as crate::bedrock::codec::BedrockCodec>::decode(
                         buf,
@@ -10206,7 +10147,6 @@ impl crate::bedrock::codec::BedrockCodec for CreativeContentPacket {
             let mut tmp_vec =
                 crate::bedrock::codec::prepare_decode_vec(len, buf.remaining(), Some(8usize))?;
             for _ in 0..len {
-                crate::bedrock::codec::reserve_decode_item(&mut tmp_vec)?;
                 tmp_vec.push(
                     <CreativeItemEntryPayload as crate::bedrock::codec::BedrockCodec>::decode(
                         buf,
@@ -10250,6 +10190,7 @@ impl crate::bedrock::codec::BedrockCodec for PlayerEnchantOptionsPacket {
         }
         Ok(())
     }
+    #[inline]
     fn decode<B: bytes::Buf>(
         buf: &mut B,
         _args: Self::Args,
@@ -10265,7 +10206,6 @@ impl crate::bedrock::codec::BedrockCodec for PlayerEnchantOptionsPacket {
             let mut tmp_vec =
                 crate::bedrock::codec::prepare_decode_vec(len, buf.remaining(), Some(10usize))?;
             for _ in 0..len {
-                crate::bedrock::codec::reserve_decode_item(&mut tmp_vec)?;
                 tmp_vec.push(
                     <ItemEnchantOption as crate::bedrock::codec::BedrockCodec>::decode(buf, ())?,
                 );
@@ -10306,6 +10246,7 @@ impl crate::bedrock::codec::BedrockCodec for ItemStackRequestPacket {
         }
         Ok(())
     }
+    #[inline]
     fn decode<B: bytes::Buf>(
         buf: &mut B,
         _args: Self::Args,
@@ -10321,7 +10262,6 @@ impl crate::bedrock::codec::BedrockCodec for ItemStackRequestPacket {
             let mut tmp_vec =
                 crate::bedrock::codec::prepare_decode_vec(len, buf.remaining(), Some(7usize))?;
             for _ in 0..len {
-                crate::bedrock::codec::reserve_decode_item(&mut tmp_vec)?;
                 tmp_vec
                     .push(
                         <ItemStackRequestPacketDataRequestData as crate::bedrock::codec::BedrockCodec>::decode(
@@ -10366,6 +10306,7 @@ impl crate::bedrock::codec::BedrockCodec for ItemStackResponsePacket {
         }
         Ok(())
     }
+    #[inline]
     fn decode<B: bytes::Buf>(
         buf: &mut B,
         _args: Self::Args,
@@ -10381,7 +10322,6 @@ impl crate::bedrock::codec::BedrockCodec for ItemStackResponsePacket {
             let mut tmp_vec =
                 crate::bedrock::codec::prepare_decode_vec(len, buf.remaining(), Some(3usize))?;
             for _ in 0..len {
-                crate::bedrock::codec::reserve_decode_item(&mut tmp_vec)?;
                 tmp_vec.push(
                     <ItemStackResponseInfo as crate::bedrock::codec::BedrockCodec>::decode(
                         buf,
@@ -10425,6 +10365,7 @@ impl crate::bedrock::codec::BedrockCodec for PlayerArmorDamagePacket {
         }
         Ok(())
     }
+    #[inline]
     fn decode<B: bytes::Buf>(
         buf: &mut B,
         _args: Self::Args,
@@ -10440,7 +10381,6 @@ impl crate::bedrock::codec::BedrockCodec for PlayerArmorDamagePacket {
             let mut tmp_vec =
                 crate::bedrock::codec::prepare_decode_vec(len, buf.remaining(), Some(3usize))?;
             for _ in 0..len {
-                crate::bedrock::codec::reserve_decode_item(&mut tmp_vec)?;
                 tmp_vec.push(
                     <ArmorSlotAndDamagePair as crate::bedrock::codec::BedrockCodec>::decode(
                         buf,
@@ -10457,7 +10397,7 @@ impl crate::bedrock::codec::BedrockCodec for PlayerArmorDamagePacket {
 }
 #[derive(Debug, Clone, PartialEq, Default)]
 pub struct CodeBuilderPacket {
-    pub url: String,
+    pub url: crate::bedrock::codec::BedrockString,
     pub shouldopencodebuilder: bool,
 }
 impl crate::bedrock::codec::BedrockSized for CodeBuilderPacket {
@@ -10485,6 +10425,7 @@ impl crate::bedrock::codec::BedrockCodec for CodeBuilderPacket {
         self.shouldopencodebuilder.encode(buf)?;
         Ok(())
     }
+    #[inline]
     fn decode<B: bytes::Buf>(
         buf: &mut B,
         _args: Self::Args,
@@ -10503,9 +10444,7 @@ impl crate::bedrock::codec::BedrockCodec for CodeBuilderPacket {
                     available: buf.remaining(),
                 });
             }
-            let mut bytes = vec![0u8; len];
-            buf.copy_to_slice(&mut bytes);
-            crate::bedrock::codec::decode_utf8_lossy_owned(bytes)
+            crate::bedrock::codec::decode_utf8_lossy_bytes(buf.copy_to_bytes(len))
         };
         let shouldopencodebuilder = <bool as crate::bedrock::codec::BedrockCodec>::decode(buf, ())?;
         Ok(Self {
@@ -10539,6 +10478,7 @@ impl crate::bedrock::codec::BedrockCodec for UpdatePlayerGameTypePacket {
         self.tick.encode(buf)?;
         Ok(())
     }
+    #[inline]
     fn decode<B: bytes::Buf>(
         buf: &mut B,
         _args: Self::Args,
@@ -10589,6 +10529,7 @@ impl crate::bedrock::codec::BedrockCodec for EmoteListPacket {
         }
         Ok(())
     }
+    #[inline]
     fn decode<B: bytes::Buf>(
         buf: &mut B,
         _args: Self::Args,
@@ -10605,7 +10546,6 @@ impl crate::bedrock::codec::BedrockCodec for EmoteListPacket {
             let mut tmp_vec =
                 crate::bedrock::codec::prepare_decode_vec(len, buf.remaining(), Some(16usize))?;
             for _ in 0..len {
-                crate::bedrock::codec::reserve_decode_item(&mut tmp_vec)?;
                 tmp_vec.push(<uuid::Uuid as crate::bedrock::codec::BedrockCodec>::decode(
                     buf,
                     (),
@@ -10644,6 +10584,7 @@ impl crate::bedrock::codec::BedrockCodec for PositionTrackingDbServerBroadcastPa
         self.positiontrackingdata.encode(buf)?;
         Ok(())
     }
+    #[inline]
     fn decode<B: bytes::Buf>(
         buf: &mut B,
         _args: Self::Args,
@@ -10685,6 +10626,7 @@ impl crate::bedrock::codec::BedrockCodec for PositionTrackingDbClientRequestPack
         self.id.encode(buf)?;
         Ok(())
     }
+    #[inline]
     fn decode<B: bytes::Buf>(
         buf: &mut B,
         _args: Self::Args,
@@ -10701,7 +10643,7 @@ impl crate::bedrock::codec::BedrockCodec for PositionTrackingDbClientRequestPack
 #[derive(Debug, Clone, PartialEq, Default)]
 pub struct DebugInfoPacket {
     pub actor_id: ActorUniqueId,
-    pub data: Vec<u8>,
+    pub data: bytes::Bytes,
 }
 impl crate::bedrock::codec::BedrockSized for DebugInfoPacket {
     fn encoded_size(&self) -> usize {
@@ -10722,12 +10664,13 @@ impl crate::bedrock::codec::BedrockCodec for DebugInfoPacket {
     fn encode<B: bytes::BufMut>(&self, buf: &mut B) -> Result<(), std::io::Error> {
         let _ = buf;
         self.actor_id.encode(buf)?;
-        let bytes = (&self.data).as_slice();
+        let bytes: &[u8] = (&self.data).as_ref();
         let len = bytes.len();
         crate::bedrock::codec::VarUInt(len as u32).encode(buf)?;
         buf.put_slice(bytes);
         Ok(())
     }
+    #[inline]
     fn decode<B: bytes::Buf>(
         buf: &mut B,
         _args: Self::Args,
@@ -10747,9 +10690,7 @@ impl crate::bedrock::codec::BedrockCodec for DebugInfoPacket {
                     available: buf.remaining(),
                 });
             }
-            let mut value = vec![0u8; len];
-            buf.copy_to_slice(&mut value);
-            value
+            buf.copy_to_bytes(len)
         };
         Ok(Self { actor_id, data })
     }
@@ -10759,7 +10700,7 @@ pub struct PacketViolationWarningPacket {
     pub violation_type: EnumsPacketViolationType,
     pub violation_severity: EnumsPacketViolationSeverity,
     pub violation_packet_id: i32,
-    pub violation_context: String,
+    pub violation_context: crate::bedrock::codec::BedrockString,
 }
 impl crate::bedrock::codec::BedrockSized for PacketViolationWarningPacket {
     fn encoded_size(&self) -> usize {
@@ -10792,6 +10733,7 @@ impl crate::bedrock::codec::BedrockCodec for PacketViolationWarningPacket {
         buf.put_slice(bytes);
         Ok(())
     }
+    #[inline]
     fn decode<B: bytes::Buf>(
         buf: &mut B,
         _args: Self::Args,
@@ -10820,9 +10762,7 @@ impl crate::bedrock::codec::BedrockCodec for PacketViolationWarningPacket {
                     available: buf.remaining(),
                 });
             }
-            let mut bytes = vec![0u8; len];
-            buf.copy_to_slice(&mut bytes);
-            crate::bedrock::codec::decode_utf8_lossy_owned(bytes)
+            crate::bedrock::codec::decode_utf8_lossy_bytes(buf.copy_to_bytes(len))
         };
         Ok(Self {
             violation_type,
@@ -10857,6 +10797,7 @@ impl crate::bedrock::codec::BedrockCodec for MotionPredictionHintsPacket {
         self.m_on_ground.encode(buf)?;
         Ok(())
     }
+    #[inline]
     fn decode<B: bytes::Buf>(
         buf: &mut B,
         _args: Self::Args,
@@ -10875,11 +10816,11 @@ impl crate::bedrock::codec::BedrockCodec for MotionPredictionHintsPacket {
 }
 #[derive(Debug, Clone, PartialEq, Default)]
 pub struct AnimateEntityPacket {
-    pub m_animation: String,
-    pub m_next_state: String,
-    pub m_stop_expression: String,
+    pub m_animation: crate::bedrock::codec::BedrockString,
+    pub m_next_state: crate::bedrock::codec::BedrockString,
+    pub m_stop_expression: crate::bedrock::codec::BedrockString,
     pub m_stop_expression_version: i32,
-    pub m_controller: String,
+    pub m_controller: crate::bedrock::codec::BedrockString,
     pub m_blend_out_time: f32,
     pub m_runtime_ids: Vec<ActorRuntimeId>,
 }
@@ -10954,6 +10895,7 @@ impl crate::bedrock::codec::BedrockCodec for AnimateEntityPacket {
         }
         Ok(())
     }
+    #[inline]
     fn decode<B: bytes::Buf>(
         buf: &mut B,
         _args: Self::Args,
@@ -10972,9 +10914,7 @@ impl crate::bedrock::codec::BedrockCodec for AnimateEntityPacket {
                     available: buf.remaining(),
                 });
             }
-            let mut bytes = vec![0u8; len];
-            buf.copy_to_slice(&mut bytes);
-            crate::bedrock::codec::decode_utf8_lossy_owned(bytes)
+            crate::bedrock::codec::decode_utf8_lossy_bytes(buf.copy_to_bytes(len))
         };
         let m_next_state = {
             let len =
@@ -10989,9 +10929,7 @@ impl crate::bedrock::codec::BedrockCodec for AnimateEntityPacket {
                     available: buf.remaining(),
                 });
             }
-            let mut bytes = vec![0u8; len];
-            buf.copy_to_slice(&mut bytes);
-            crate::bedrock::codec::decode_utf8_lossy_owned(bytes)
+            crate::bedrock::codec::decode_utf8_lossy_bytes(buf.copy_to_bytes(len))
         };
         let m_stop_expression = {
             let len =
@@ -11006,9 +10944,7 @@ impl crate::bedrock::codec::BedrockCodec for AnimateEntityPacket {
                     available: buf.remaining(),
                 });
             }
-            let mut bytes = vec![0u8; len];
-            buf.copy_to_slice(&mut bytes);
-            crate::bedrock::codec::decode_utf8_lossy_owned(bytes)
+            crate::bedrock::codec::decode_utf8_lossy_bytes(buf.copy_to_bytes(len))
         };
         let m_stop_expression_version =
             <crate::bedrock::codec::I32LE as crate::bedrock::codec::BedrockCodec>::decode(buf, ())?
@@ -11026,9 +10962,7 @@ impl crate::bedrock::codec::BedrockCodec for AnimateEntityPacket {
                     available: buf.remaining(),
                 });
             }
-            let mut bytes = vec![0u8; len];
-            buf.copy_to_slice(&mut bytes);
-            crate::bedrock::codec::decode_utf8_lossy_owned(bytes)
+            crate::bedrock::codec::decode_utf8_lossy_bytes(buf.copy_to_bytes(len))
         };
         let m_blend_out_time =
             <crate::bedrock::codec::F32LE as crate::bedrock::codec::BedrockCodec>::decode(buf, ())?
@@ -11043,7 +10977,6 @@ impl crate::bedrock::codec::BedrockCodec for AnimateEntityPacket {
             let mut tmp_vec =
                 crate::bedrock::codec::prepare_decode_vec(len, buf.remaining(), Some(1usize))?;
             for _ in 0..len {
-                crate::bedrock::codec::reserve_decode_item(&mut tmp_vec)?;
                 tmp_vec.push(
                     <ActorRuntimeId as crate::bedrock::codec::BedrockCodec>::decode(buf, ())?,
                 );
@@ -11089,6 +11022,7 @@ impl crate::bedrock::codec::BedrockCodec for CameraShakePacket {
         self.shake_action.encode(buf)?;
         Ok(())
     }
+    #[inline]
     fn decode<B: bytes::Buf>(
         buf: &mut B,
         _args: Self::Args,
@@ -11114,7 +11048,7 @@ impl crate::bedrock::codec::BedrockCodec for CameraShakePacket {
 }
 #[derive(Debug, Clone, PartialEq, Default)]
 pub struct PlayerFogPacket {
-    pub fog_stack: Vec<String>,
+    pub fog_stack: Vec<crate::bedrock::codec::BedrockString>,
 }
 impl crate::bedrock::codec::BedrockSized for PlayerFogPacket {
     fn encoded_size(&self) -> usize {
@@ -11151,6 +11085,7 @@ impl crate::bedrock::codec::BedrockCodec for PlayerFogPacket {
         }
         Ok(())
     }
+    #[inline]
     fn decode<B: bytes::Buf>(
         buf: &mut B,
         _args: Self::Args,
@@ -11166,7 +11101,6 @@ impl crate::bedrock::codec::BedrockCodec for PlayerFogPacket {
             let mut tmp_vec =
                 crate::bedrock::codec::prepare_decode_vec(len, buf.remaining(), Some(1usize))?;
             for _ in 0..len {
-                crate::bedrock::codec::reserve_decode_item(&mut tmp_vec)?;
                 tmp_vec
                     .push({
                         let len = (<crate::bedrock::codec::VarUInt as crate::bedrock::codec::BedrockCodec>::decode(
@@ -11180,9 +11114,9 @@ impl crate::bedrock::codec::BedrockCodec for PlayerFogPacket {
                                 available: buf.remaining(),
                             });
                         }
-                        let mut bytes = vec![0u8; len];
-                        buf.copy_to_slice(&mut bytes);
-                        crate::bedrock::codec::decode_utf8_lossy_owned(bytes)
+                        crate::bedrock::codec::decode_utf8_lossy_bytes(
+                            buf.copy_to_bytes(len),
+                        )
                     });
             }
             tmp_vec
@@ -11239,6 +11173,7 @@ impl crate::bedrock::codec::BedrockCodec for CorrectPlayerMovePredictionPacket {
         self.tick.encode(buf)?;
         Ok(())
     }
+    #[inline]
     fn decode<B: bytes::Buf>(
         buf: &mut B,
         _args: Self::Args,
@@ -11307,6 +11242,7 @@ impl crate::bedrock::codec::BedrockCodec for ItemRegistryPacket {
         }
         Ok(())
     }
+    #[inline]
     fn decode<B: bytes::Buf>(
         buf: &mut B,
         _args: Self::Args,
@@ -11322,7 +11258,6 @@ impl crate::bedrock::codec::BedrockCodec for ItemRegistryPacket {
             let mut tmp_vec =
                 crate::bedrock::codec::prepare_decode_vec(len, buf.remaining(), Some(6usize))?;
             for _ in 0..len {
-                crate::bedrock::codec::reserve_decode_item(&mut tmp_vec)?;
                 tmp_vec.push(<ItemData as crate::bedrock::codec::BedrockCodec>::decode(
                     buf,
                     (),
@@ -11335,7 +11270,7 @@ impl crate::bedrock::codec::BedrockCodec for ItemRegistryPacket {
 }
 #[derive(Debug, Clone, PartialEq, Default)]
 pub struct ClientboundDebugRendererPacket {
-    pub type_: String,
+    pub type_: crate::bedrock::codec::BedrockString,
     pub debug_marker_data: Option<ClientboundDebugRendererPacketPayloadDebugMarkerData>,
 }
 impl crate::bedrock::codec::BedrockSized for ClientboundDebugRendererPacket {
@@ -11375,6 +11310,7 @@ impl crate::bedrock::codec::BedrockCodec for ClientboundDebugRendererPacket {
         }
         Ok(())
     }
+    #[inline]
     fn decode<B: bytes::Buf>(
         buf: &mut B,
         _args: Self::Args,
@@ -11393,9 +11329,7 @@ impl crate::bedrock::codec::BedrockCodec for ClientboundDebugRendererPacket {
                     available: buf.remaining(),
                 });
             }
-            let mut bytes = vec![0u8; len];
-            buf.copy_to_slice(&mut bytes);
-            crate::bedrock::codec::decode_utf8_lossy_owned(bytes)
+            crate::bedrock::codec::decode_utf8_lossy_bytes(buf.copy_to_bytes(len))
         };
         let debug_marker_data = {
             let present = u8::decode(buf, ())?;
@@ -11435,6 +11369,7 @@ impl crate::bedrock::codec::BedrockCodec for SyncActorPropertyPacket {
         self.property_data.encode(buf)?;
         Ok(())
     }
+    #[inline]
     fn decode<B: bytes::Buf>(
         buf: &mut B,
         _args: Self::Args,
@@ -11449,12 +11384,12 @@ impl crate::bedrock::codec::BedrockCodec for SyncActorPropertyPacket {
 pub struct AddVolumeEntityPacket {
     pub entity_network_id: EntityNetId,
     pub components: crate::bedrock::codec::Nbt,
-    pub json_identifier: String,
-    pub instance_name: String,
+    pub json_identifier: crate::bedrock::codec::BedrockString,
+    pub instance_name: crate::bedrock::codec::BedrockString,
     pub min_bounds: BlockPos,
     pub max_bounds: BlockPos,
     pub dimension_type: DimensionType,
-    pub engine_version: String,
+    pub engine_version: crate::bedrock::codec::BedrockString,
 }
 impl crate::bedrock::codec::BedrockSized for AddVolumeEntityPacket {
     fn encoded_size(&self) -> usize {
@@ -11509,6 +11444,7 @@ impl crate::bedrock::codec::BedrockCodec for AddVolumeEntityPacket {
         buf.put_slice(bytes);
         Ok(())
     }
+    #[inline]
     fn decode<B: bytes::Buf>(
         buf: &mut B,
         _args: Self::Args,
@@ -11531,9 +11467,7 @@ impl crate::bedrock::codec::BedrockCodec for AddVolumeEntityPacket {
                     available: buf.remaining(),
                 });
             }
-            let mut bytes = vec![0u8; len];
-            buf.copy_to_slice(&mut bytes);
-            crate::bedrock::codec::decode_utf8_lossy_owned(bytes)
+            crate::bedrock::codec::decode_utf8_lossy_bytes(buf.copy_to_bytes(len))
         };
         let instance_name = {
             let len =
@@ -11548,9 +11482,7 @@ impl crate::bedrock::codec::BedrockCodec for AddVolumeEntityPacket {
                     available: buf.remaining(),
                 });
             }
-            let mut bytes = vec![0u8; len];
-            buf.copy_to_slice(&mut bytes);
-            crate::bedrock::codec::decode_utf8_lossy_owned(bytes)
+            crate::bedrock::codec::decode_utf8_lossy_bytes(buf.copy_to_bytes(len))
         };
         let min_bounds = <BlockPos as crate::bedrock::codec::BedrockCodec>::decode(buf, ())?;
         let max_bounds = <BlockPos as crate::bedrock::codec::BedrockCodec>::decode(buf, ())?;
@@ -11569,9 +11501,7 @@ impl crate::bedrock::codec::BedrockCodec for AddVolumeEntityPacket {
                     available: buf.remaining(),
                 });
             }
-            let mut bytes = vec![0u8; len];
-            buf.copy_to_slice(&mut bytes);
-            crate::bedrock::codec::decode_utf8_lossy_owned(bytes)
+            crate::bedrock::codec::decode_utf8_lossy_bytes(buf.copy_to_bytes(len))
         };
         Ok(Self {
             entity_network_id,
@@ -11607,6 +11537,7 @@ impl crate::bedrock::codec::BedrockCodec for RemoveVolumeEntityPacket {
         self.dimension_type.encode(buf)?;
         Ok(())
     }
+    #[inline]
     fn decode<B: bytes::Buf>(
         buf: &mut B,
         _args: Self::Args,
@@ -11641,6 +11572,7 @@ impl crate::bedrock::codec::BedrockCodec for SimulationTypePacket {
         self.sim_type.encode(buf)?;
         Ok(())
     }
+    #[inline]
     fn decode<B: bytes::Buf>(
         buf: &mut B,
         _args: Self::Args,
@@ -11655,10 +11587,10 @@ impl crate::bedrock::codec::BedrockCodec for SimulationTypePacket {
 pub struct NpcDialoguePacket {
     pub npc_id_raw_id: u64,
     pub npc_dialogue_action_type: EnumsNpcDialoguePacketPayloadNpcDialogueActionType,
-    pub dialogue: String,
-    pub scene_name: String,
-    pub npc_name: String,
-    pub action_json: String,
+    pub dialogue: crate::bedrock::codec::BedrockString,
+    pub scene_name: crate::bedrock::codec::BedrockString,
+    pub npc_name: crate::bedrock::codec::BedrockString,
+    pub action_json: crate::bedrock::codec::BedrockString,
 }
 impl crate::bedrock::codec::BedrockSized for NpcDialoguePacket {
     fn encoded_size(&self) -> usize {
@@ -11717,6 +11649,7 @@ impl crate::bedrock::codec::BedrockCodec for NpcDialoguePacket {
         buf.put_slice(bytes);
         Ok(())
     }
+    #[inline]
     fn decode<B: bytes::Buf>(
         buf: &mut B,
         _args: Self::Args,
@@ -11742,9 +11675,7 @@ impl crate::bedrock::codec::BedrockCodec for NpcDialoguePacket {
                     available: buf.remaining(),
                 });
             }
-            let mut bytes = vec![0u8; len];
-            buf.copy_to_slice(&mut bytes);
-            crate::bedrock::codec::decode_utf8_lossy_owned(bytes)
+            crate::bedrock::codec::decode_utf8_lossy_bytes(buf.copy_to_bytes(len))
         };
         let scene_name = {
             let len =
@@ -11759,9 +11690,7 @@ impl crate::bedrock::codec::BedrockCodec for NpcDialoguePacket {
                     available: buf.remaining(),
                 });
             }
-            let mut bytes = vec![0u8; len];
-            buf.copy_to_slice(&mut bytes);
-            crate::bedrock::codec::decode_utf8_lossy_owned(bytes)
+            crate::bedrock::codec::decode_utf8_lossy_bytes(buf.copy_to_bytes(len))
         };
         let npc_name = {
             let len =
@@ -11776,9 +11705,7 @@ impl crate::bedrock::codec::BedrockCodec for NpcDialoguePacket {
                     available: buf.remaining(),
                 });
             }
-            let mut bytes = vec![0u8; len];
-            buf.copy_to_slice(&mut bytes);
-            crate::bedrock::codec::decode_utf8_lossy_owned(bytes)
+            crate::bedrock::codec::decode_utf8_lossy_bytes(buf.copy_to_bytes(len))
         };
         let action_json = {
             let len =
@@ -11793,9 +11720,7 @@ impl crate::bedrock::codec::BedrockCodec for NpcDialoguePacket {
                     available: buf.remaining(),
                 });
             }
-            let mut bytes = vec![0u8; len];
-            buf.copy_to_slice(&mut bytes);
-            crate::bedrock::codec::decode_utf8_lossy_owned(bytes)
+            crate::bedrock::codec::decode_utf8_lossy_bytes(buf.copy_to_bytes(len))
         };
         Ok(Self {
             npc_id_raw_id,
@@ -11826,6 +11751,7 @@ impl crate::bedrock::codec::BedrockCodec for EduUriResourcePacket {
         self.edu_shared_uri_resource.encode(buf)?;
         Ok(())
     }
+    #[inline]
     fn decode<B: bytes::Buf>(
         buf: &mut B,
         _args: Self::Args,
@@ -11841,8 +11767,8 @@ impl crate::bedrock::codec::BedrockCodec for EduUriResourcePacket {
 #[derive(Debug, Clone, PartialEq, Default)]
 pub struct CreatePhotoPacket {
     pub raw_id: u64,
-    pub photo_name: String,
-    pub photo_item_name: String,
+    pub photo_name: crate::bedrock::codec::BedrockString,
+    pub photo_item_name: crate::bedrock::codec::BedrockString,
 }
 impl crate::bedrock::codec::BedrockSized for CreatePhotoPacket {
     fn encoded_size(&self) -> usize {
@@ -11879,6 +11805,7 @@ impl crate::bedrock::codec::BedrockCodec for CreatePhotoPacket {
         buf.put_slice(bytes);
         Ok(())
     }
+    #[inline]
     fn decode<B: bytes::Buf>(
         buf: &mut B,
         _args: Self::Args,
@@ -11900,9 +11827,7 @@ impl crate::bedrock::codec::BedrockCodec for CreatePhotoPacket {
                     available: buf.remaining(),
                 });
             }
-            let mut bytes = vec![0u8; len];
-            buf.copy_to_slice(&mut bytes);
-            crate::bedrock::codec::decode_utf8_lossy_owned(bytes)
+            crate::bedrock::codec::decode_utf8_lossy_bytes(buf.copy_to_bytes(len))
         };
         let photo_item_name = {
             let len =
@@ -11917,9 +11842,7 @@ impl crate::bedrock::codec::BedrockCodec for CreatePhotoPacket {
                     available: buf.remaining(),
                 });
             }
-            let mut bytes = vec![0u8; len];
-            buf.copy_to_slice(&mut bytes);
-            crate::bedrock::codec::decode_utf8_lossy_owned(bytes)
+            crate::bedrock::codec::decode_utf8_lossy_bytes(buf.copy_to_bytes(len))
         };
         Ok(Self {
             raw_id,
@@ -11950,6 +11873,7 @@ impl crate::bedrock::codec::BedrockCodec for UpdateSubChunkBlocksPacket {
         self.blocks_changed.encode(buf)?;
         Ok(())
     }
+    #[inline]
     fn decode<B: bytes::Buf>(
         buf: &mut B,
         _args: Self::Args,
@@ -12008,6 +11932,7 @@ impl crate::bedrock::codec::BedrockCodec for SubChunkPacket {
         }
         Ok(())
     }
+    #[inline]
     fn decode<B: bytes::Buf>(
         buf: &mut B,
         _args: Self::Args,
@@ -12027,7 +11952,6 @@ impl crate::bedrock::codec::BedrockCodec for SubChunkPacket {
             let mut tmp_vec =
                 crate::bedrock::codec::prepare_decode_vec(len, buf.remaining(), Some(10usize))?;
             for _ in 0..len {
-                crate::bedrock::codec::reserve_decode_item(&mut tmp_vec)?;
                 tmp_vec
                     .push(
                         <SubChunkPacketPayloadSubChunkPacketData as crate::bedrock::codec::BedrockCodec>::decode(
@@ -12083,6 +12007,7 @@ impl crate::bedrock::codec::BedrockCodec for SubChunkRequestPacket {
         self.center_pos.encode(buf)?;
         Ok(())
     }
+    #[inline]
     fn decode<B: bytes::Buf>(
         buf: &mut B,
         _args: Self::Args,
@@ -12100,7 +12025,6 @@ impl crate::bedrock::codec::BedrockCodec for SubChunkRequestPacket {
             let mut tmp_vec =
                 crate::bedrock::codec::prepare_decode_vec(len, buf.remaining(), Some(3usize))?;
             for _ in 0..len {
-                crate::bedrock::codec::reserve_decode_item(&mut tmp_vec)?;
                 tmp_vec
                     .push(
                         <SubChunkPacketPayloadSubChunkPosOffset as crate::bedrock::codec::BedrockCodec>::decode(
@@ -12121,7 +12045,7 @@ impl crate::bedrock::codec::BedrockCodec for SubChunkRequestPacket {
 }
 #[derive(Debug, Clone, PartialEq, Default)]
 pub struct PlayerStartItemCooldownPacket {
-    pub item_category: String,
+    pub item_category: crate::bedrock::codec::BedrockString,
     pub duration_ticks: i32,
 }
 impl crate::bedrock::codec::BedrockSized for PlayerStartItemCooldownPacket {
@@ -12151,6 +12075,7 @@ impl crate::bedrock::codec::BedrockCodec for PlayerStartItemCooldownPacket {
         crate::bedrock::codec::ZigZag32(self.duration_ticks).encode(buf)?;
         Ok(())
     }
+    #[inline]
     fn decode<B: bytes::Buf>(
         buf: &mut B,
         _args: Self::Args,
@@ -12169,9 +12094,7 @@ impl crate::bedrock::codec::BedrockCodec for PlayerStartItemCooldownPacket {
                     available: buf.remaining(),
                 });
             }
-            let mut bytes = vec![0u8; len];
-            buf.copy_to_slice(&mut bytes);
-            crate::bedrock::codec::decode_utf8_lossy_owned(bytes)
+            crate::bedrock::codec::decode_utf8_lossy_bytes(buf.copy_to_bytes(len))
         };
         let duration_ticks =
             <crate::bedrock::codec::ZigZag32 as crate::bedrock::codec::BedrockCodec>::decode(
@@ -12187,8 +12110,8 @@ impl crate::bedrock::codec::BedrockCodec for PlayerStartItemCooldownPacket {
 }
 #[derive(Debug, Clone, PartialEq, Default)]
 pub struct ScriptMessagePacket {
-    pub message_id: String,
-    pub message_value: Vec<u8>,
+    pub message_id: crate::bedrock::codec::BedrockString,
+    pub message_value: bytes::Bytes,
 }
 impl crate::bedrock::codec::BedrockSized for ScriptMessagePacket {
     fn encoded_size(&self) -> usize {
@@ -12217,12 +12140,13 @@ impl crate::bedrock::codec::BedrockCodec for ScriptMessagePacket {
         let len = bytes.len();
         crate::bedrock::codec::VarUInt(len as u32).encode(buf)?;
         buf.put_slice(bytes);
-        let bytes = (&self.message_value).as_slice();
+        let bytes: &[u8] = (&self.message_value).as_ref();
         let len = bytes.len();
         crate::bedrock::codec::VarUInt(len as u32).encode(buf)?;
         buf.put_slice(bytes);
         Ok(())
     }
+    #[inline]
     fn decode<B: bytes::Buf>(
         buf: &mut B,
         _args: Self::Args,
@@ -12241,9 +12165,7 @@ impl crate::bedrock::codec::BedrockCodec for ScriptMessagePacket {
                     available: buf.remaining(),
                 });
             }
-            let mut bytes = vec![0u8; len];
-            buf.copy_to_slice(&mut bytes);
-            crate::bedrock::codec::decode_utf8_lossy_owned(bytes)
+            crate::bedrock::codec::decode_utf8_lossy_bytes(buf.copy_to_bytes(len))
         };
         let message_value = {
             let len =
@@ -12258,9 +12180,7 @@ impl crate::bedrock::codec::BedrockCodec for ScriptMessagePacket {
                     available: buf.remaining(),
                 });
             }
-            let mut value = vec![0u8; len];
-            buf.copy_to_slice(&mut value);
-            value
+            buf.copy_to_bytes(len)
         };
         Ok(Self {
             message_id,
@@ -12293,6 +12213,7 @@ impl crate::bedrock::codec::BedrockCodec for CodeBuilderSourcePacket {
         self.code_status.encode(buf)?;
         Ok(())
     }
+    #[inline]
     fn decode<B: bytes::Buf>(
         buf: &mut B,
         _args: Self::Args,
@@ -12336,6 +12257,7 @@ impl crate::bedrock::codec::BedrockCodec for TickingAreasLoadStatusPacket {
         self.waiting_for_preload.encode(buf)?;
         Ok(())
     }
+    #[inline]
     fn decode<B: bytes::Buf>(
         buf: &mut B,
         _args: Self::Args,
@@ -12378,6 +12300,7 @@ impl crate::bedrock::codec::BedrockCodec for DimensionDataPacket {
         }
         Ok(())
     }
+    #[inline]
     fn decode<B: bytes::Buf>(
         buf: &mut B,
         _args: Self::Args,
@@ -12393,7 +12316,6 @@ impl crate::bedrock::codec::BedrockCodec for DimensionDataPacket {
             let mut tmp_vec =
                 crate::bedrock::codec::prepare_decode_vec(len, buf.remaining(), Some(22usize))?;
             for _ in 0..len {
-                crate::bedrock::codec::reserve_decode_item(&mut tmp_vec)?;
                 tmp_vec
                     .push(
                         <DimensionDataPacketDefinitionsItem as crate::bedrock::codec::BedrockCodec>::decode(
@@ -12409,7 +12331,7 @@ impl crate::bedrock::codec::BedrockCodec for DimensionDataPacket {
 }
 #[derive(Debug, Clone, PartialEq, Default)]
 pub struct AgentActionEventPacket {
-    pub request_id: String,
+    pub request_id: crate::bedrock::codec::BedrockString,
     pub action: EnumsAgentActionType,
     pub response: JsonValuejson,
 }
@@ -12448,6 +12370,7 @@ impl crate::bedrock::codec::BedrockCodec for AgentActionEventPacket {
         buf.put_slice(bytes);
         Ok(())
     }
+    #[inline]
     fn decode<B: bytes::Buf>(
         buf: &mut B,
         _args: Self::Args,
@@ -12466,9 +12389,7 @@ impl crate::bedrock::codec::BedrockCodec for AgentActionEventPacket {
                     available: buf.remaining(),
                 });
             }
-            let mut bytes = vec![0u8; len];
-            buf.copy_to_slice(&mut bytes);
-            crate::bedrock::codec::decode_utf8_lossy_owned(bytes)
+            crate::bedrock::codec::decode_utf8_lossy_bytes(buf.copy_to_bytes(len))
         };
         let action =
             <EnumsAgentActionType as crate::bedrock::codec::BedrockCodec>::decode(buf, ())?;
@@ -12485,9 +12406,7 @@ impl crate::bedrock::codec::BedrockCodec for AgentActionEventPacket {
                         available: buf.remaining(),
                     });
                 }
-                let mut bytes = vec![0u8; len];
-                buf.copy_to_slice(&mut bytes);
-                crate::bedrock::codec::decode_utf8_lossy_owned(bytes)
+                crate::bedrock::codec::decode_utf8_lossy_bytes(buf.copy_to_bytes(len))
             };
             res
         };
@@ -12501,9 +12420,9 @@ impl crate::bedrock::codec::BedrockCodec for AgentActionEventPacket {
 #[derive(Debug, Clone, PartialEq, Default)]
 pub struct ChangeMobPropertyPacket {
     pub actor_id: ActorUniqueId,
-    pub property_name: String,
+    pub property_name: crate::bedrock::codec::BedrockString,
     pub bool_component_value: bool,
-    pub string_component_value: String,
+    pub string_component_value: crate::bedrock::codec::BedrockString,
     pub int_component_value: i32,
     pub float_component_value: f32,
 }
@@ -12550,6 +12469,7 @@ impl crate::bedrock::codec::BedrockCodec for ChangeMobPropertyPacket {
         crate::bedrock::codec::F32LE(self.float_component_value).encode(buf)?;
         Ok(())
     }
+    #[inline]
     fn decode<B: bytes::Buf>(
         buf: &mut B,
         _args: Self::Args,
@@ -12569,9 +12489,7 @@ impl crate::bedrock::codec::BedrockCodec for ChangeMobPropertyPacket {
                     available: buf.remaining(),
                 });
             }
-            let mut bytes = vec![0u8; len];
-            buf.copy_to_slice(&mut bytes);
-            crate::bedrock::codec::decode_utf8_lossy_owned(bytes)
+            crate::bedrock::codec::decode_utf8_lossy_bytes(buf.copy_to_bytes(len))
         };
         let bool_component_value = <bool as crate::bedrock::codec::BedrockCodec>::decode(buf, ())?;
         let string_component_value = {
@@ -12587,9 +12505,7 @@ impl crate::bedrock::codec::BedrockCodec for ChangeMobPropertyPacket {
                     available: buf.remaining(),
                 });
             }
-            let mut bytes = vec![0u8; len];
-            buf.copy_to_slice(&mut bytes);
-            crate::bedrock::codec::decode_utf8_lossy_owned(bytes)
+            crate::bedrock::codec::decode_utf8_lossy_bytes(buf.copy_to_bytes(len))
         };
         let int_component_value =
             <crate::bedrock::codec::ZigZag32 as crate::bedrock::codec::BedrockCodec>::decode(
@@ -12614,7 +12530,7 @@ impl crate::bedrock::codec::BedrockCodec for ChangeMobPropertyPacket {
 pub struct LessonProgressPacket {
     pub lesson_action: i32,
     pub score: i32,
-    pub activity_id: String,
+    pub activity_id: crate::bedrock::codec::BedrockString,
 }
 impl crate::bedrock::codec::BedrockSized for LessonProgressPacket {
     fn encoded_size(&self) -> usize {
@@ -12647,6 +12563,7 @@ impl crate::bedrock::codec::BedrockCodec for LessonProgressPacket {
         buf.put_slice(bytes);
         Ok(())
     }
+    #[inline]
     fn decode<B: bytes::Buf>(
         buf: &mut B,
         _args: Self::Args,
@@ -12677,9 +12594,7 @@ impl crate::bedrock::codec::BedrockCodec for LessonProgressPacket {
                     available: buf.remaining(),
                 });
             }
-            let mut bytes = vec![0u8; len];
-            buf.copy_to_slice(&mut bytes);
-            crate::bedrock::codec::decode_utf8_lossy_owned(bytes)
+            crate::bedrock::codec::decode_utf8_lossy_bytes(buf.copy_to_bytes(len))
         };
         Ok(Self {
             lesson_action,
@@ -12718,6 +12633,7 @@ impl crate::bedrock::codec::BedrockCodec for RequestAbilityPacket {
         crate::bedrock::codec::F32LE(self.float).encode(buf)?;
         Ok(())
     }
+    #[inline]
     fn decode<B: bytes::Buf>(
         buf: &mut B,
         _args: Self::Args,
@@ -12773,6 +12689,7 @@ impl crate::bedrock::codec::BedrockCodec for RequestPermissionsPacket {
         crate::bedrock::codec::U16LE(self.custom_permission_flags).encode(buf)?;
         Ok(())
     }
+    #[inline]
     fn decode<B: bytes::Buf>(
         buf: &mut B,
         _args: Self::Args,
@@ -12799,8 +12716,8 @@ impl crate::bedrock::codec::BedrockCodec for RequestPermissionsPacket {
 }
 #[derive(Debug, Clone, PartialEq, Default)]
 pub struct ToastRequestPacket {
-    pub title: String,
-    pub content: String,
+    pub title: crate::bedrock::codec::BedrockString,
+    pub content: crate::bedrock::codec::BedrockString,
 }
 impl crate::bedrock::codec::BedrockSized for ToastRequestPacket {
     fn encoded_size(&self) -> usize {
@@ -12835,6 +12752,7 @@ impl crate::bedrock::codec::BedrockCodec for ToastRequestPacket {
         buf.put_slice(bytes);
         Ok(())
     }
+    #[inline]
     fn decode<B: bytes::Buf>(
         buf: &mut B,
         _args: Self::Args,
@@ -12853,9 +12771,7 @@ impl crate::bedrock::codec::BedrockCodec for ToastRequestPacket {
                     available: buf.remaining(),
                 });
             }
-            let mut bytes = vec![0u8; len];
-            buf.copy_to_slice(&mut bytes);
-            crate::bedrock::codec::decode_utf8_lossy_owned(bytes)
+            crate::bedrock::codec::decode_utf8_lossy_bytes(buf.copy_to_bytes(len))
         };
         let content = {
             let len =
@@ -12870,9 +12786,7 @@ impl crate::bedrock::codec::BedrockCodec for ToastRequestPacket {
                     available: buf.remaining(),
                 });
             }
-            let mut bytes = vec![0u8; len];
-            buf.copy_to_slice(&mut bytes);
-            crate::bedrock::codec::decode_utf8_lossy_owned(bytes)
+            crate::bedrock::codec::decode_utf8_lossy_bytes(buf.copy_to_bytes(len))
         };
         Ok(Self { title, content })
     }
@@ -12896,6 +12810,7 @@ impl crate::bedrock::codec::BedrockCodec for UpdateAbilitiesPacket {
         self.data.encode(buf)?;
         Ok(())
     }
+    #[inline]
     fn decode<B: bytes::Buf>(
         buf: &mut B,
         _args: Self::Args,
@@ -12925,6 +12840,7 @@ impl crate::bedrock::codec::BedrockCodec for UpdateAdventureSettingsPacket {
         self.adventure_settings.encode(buf)?;
         Ok(())
     }
+    #[inline]
     fn decode<B: bytes::Buf>(
         buf: &mut B,
         _args: Self::Args,
@@ -12937,8 +12853,8 @@ impl crate::bedrock::codec::BedrockCodec for UpdateAdventureSettingsPacket {
 }
 #[derive(Debug, Clone, PartialEq, Default)]
 pub struct DeathInfoPacket {
-    pub death_cause_attack_name: String,
-    pub death_cause_message_list: Vec<String>,
+    pub death_cause_attack_name: crate::bedrock::codec::BedrockString,
+    pub death_cause_message_list: Vec<crate::bedrock::codec::BedrockString>,
 }
 impl crate::bedrock::codec::BedrockSized for DeathInfoPacket {
     fn encoded_size(&self) -> usize {
@@ -12985,6 +12901,7 @@ impl crate::bedrock::codec::BedrockCodec for DeathInfoPacket {
         }
         Ok(())
     }
+    #[inline]
     fn decode<B: bytes::Buf>(
         buf: &mut B,
         _args: Self::Args,
@@ -13003,9 +12920,7 @@ impl crate::bedrock::codec::BedrockCodec for DeathInfoPacket {
                     available: buf.remaining(),
                 });
             }
-            let mut bytes = vec![0u8; len];
-            buf.copy_to_slice(&mut bytes);
-            crate::bedrock::codec::decode_utf8_lossy_owned(bytes)
+            crate::bedrock::codec::decode_utf8_lossy_bytes(buf.copy_to_bytes(len))
         };
         let death_cause_message_list = {
             let len =
@@ -13017,7 +12932,6 @@ impl crate::bedrock::codec::BedrockCodec for DeathInfoPacket {
             let mut tmp_vec =
                 crate::bedrock::codec::prepare_decode_vec(len, buf.remaining(), Some(1usize))?;
             for _ in 0..len {
-                crate::bedrock::codec::reserve_decode_item(&mut tmp_vec)?;
                 tmp_vec
                     .push({
                         let len = (<crate::bedrock::codec::VarUInt as crate::bedrock::codec::BedrockCodec>::decode(
@@ -13031,9 +12945,9 @@ impl crate::bedrock::codec::BedrockCodec for DeathInfoPacket {
                                 available: buf.remaining(),
                             });
                         }
-                        let mut bytes = vec![0u8; len];
-                        buf.copy_to_slice(&mut bytes);
-                        crate::bedrock::codec::decode_utf8_lossy_owned(bytes)
+                        crate::bedrock::codec::decode_utf8_lossy_bytes(
+                            buf.copy_to_bytes(len),
+                        )
                     });
             }
             tmp_vec
@@ -13066,6 +12980,7 @@ impl crate::bedrock::codec::BedrockCodec for EditorNetworkPacket {
         self.payload.encode(buf)?;
         Ok(())
     }
+    #[inline]
     fn decode<B: bytes::Buf>(
         buf: &mut B,
         _args: Self::Args,
@@ -13111,6 +13026,7 @@ impl crate::bedrock::codec::BedrockCodec for FeatureRegistryPacket {
         }
         Ok(())
     }
+    #[inline]
     fn decode<B: bytes::Buf>(
         buf: &mut B,
         _args: Self::Args,
@@ -13126,7 +13042,6 @@ impl crate::bedrock::codec::BedrockCodec for FeatureRegistryPacket {
             let mut tmp_vec =
                 crate::bedrock::codec::prepare_decode_vec(len, buf.remaining(), Some(2usize))?;
             for _ in 0..len {
-                crate::bedrock::codec::reserve_decode_item(&mut tmp_vec)?;
                 tmp_vec
                     .push(
                         <FeatureRegistryFeatureBinaryJsonFormat as crate::bedrock::codec::BedrockCodec>::decode(
@@ -13162,6 +13077,7 @@ impl crate::bedrock::codec::BedrockCodec for ServerStatsPacket {
         crate::bedrock::codec::F32LE(self.network_time).encode(buf)?;
         Ok(())
     }
+    #[inline]
     fn decode<B: bytes::Buf>(
         buf: &mut B,
         _args: Self::Args,
@@ -13198,6 +13114,7 @@ impl crate::bedrock::codec::BedrockCodec for RequestNetworkSettingsPacket {
         self.client_network_version.encode(buf)?;
         Ok(())
     }
+    #[inline]
     fn decode<B: bytes::Buf>(
         buf: &mut B,
         _args: Self::Args,
@@ -13217,7 +13134,7 @@ pub struct GameTestRequestPacket {
     pub stop_on_failure: bool,
     pub test_pos: BlockPos,
     pub tests_per_row: i32,
-    pub test_name: String,
+    pub test_name: crate::bedrock::codec::BedrockString,
 }
 impl crate::bedrock::codec::BedrockSized for GameTestRequestPacket {
     fn encoded_size(&self) -> usize {
@@ -13260,6 +13177,7 @@ impl crate::bedrock::codec::BedrockCodec for GameTestRequestPacket {
         buf.put_slice(bytes);
         Ok(())
     }
+    #[inline]
     fn decode<B: bytes::Buf>(
         buf: &mut B,
         _args: Self::Args,
@@ -13299,9 +13217,7 @@ impl crate::bedrock::codec::BedrockCodec for GameTestRequestPacket {
                     available: buf.remaining(),
                 });
             }
-            let mut bytes = vec![0u8; len];
-            buf.copy_to_slice(&mut bytes);
-            crate::bedrock::codec::decode_utf8_lossy_owned(bytes)
+            crate::bedrock::codec::decode_utf8_lossy_bytes(buf.copy_to_bytes(len))
         };
         Ok(Self {
             max_tests_per_batch,
@@ -13317,8 +13233,8 @@ impl crate::bedrock::codec::BedrockCodec for GameTestRequestPacket {
 #[derive(Debug, Clone, PartialEq, Default)]
 pub struct GameTestResultsPacket {
     pub succeeded: bool,
-    pub error: String,
-    pub test_name: String,
+    pub error: crate::bedrock::codec::BedrockString,
+    pub test_name: crate::bedrock::codec::BedrockString,
 }
 impl crate::bedrock::codec::BedrockSized for GameTestResultsPacket {
     fn encoded_size(&self) -> usize {
@@ -13355,6 +13271,7 @@ impl crate::bedrock::codec::BedrockCodec for GameTestResultsPacket {
         buf.put_slice(bytes);
         Ok(())
     }
+    #[inline]
     fn decode<B: bytes::Buf>(
         buf: &mut B,
         _args: Self::Args,
@@ -13374,9 +13291,7 @@ impl crate::bedrock::codec::BedrockCodec for GameTestResultsPacket {
                     available: buf.remaining(),
                 });
             }
-            let mut bytes = vec![0u8; len];
-            buf.copy_to_slice(&mut bytes);
-            crate::bedrock::codec::decode_utf8_lossy_owned(bytes)
+            crate::bedrock::codec::decode_utf8_lossy_bytes(buf.copy_to_bytes(len))
         };
         let test_name = {
             let len =
@@ -13391,9 +13306,7 @@ impl crate::bedrock::codec::BedrockCodec for GameTestResultsPacket {
                     available: buf.remaining(),
                 });
             }
-            let mut bytes = vec![0u8; len];
-            buf.copy_to_slice(&mut bytes);
-            crate::bedrock::codec::decode_utf8_lossy_owned(bytes)
+            crate::bedrock::codec::decode_utf8_lossy_bytes(buf.copy_to_bytes(len))
         };
         Ok(Self {
             succeeded,
@@ -13423,6 +13336,7 @@ impl crate::bedrock::codec::BedrockCodec for UpdateClientInputLocksPacket {
         crate::bedrock::codec::VarUInt(self.input_lock_component_data).encode(buf)?;
         Ok(())
     }
+    #[inline]
     fn decode<B: bytes::Buf>(
         buf: &mut B,
         _args: Self::Args,
@@ -13458,6 +13372,7 @@ impl crate::bedrock::codec::BedrockCodec for CameraPresetsPacket {
         self.camera_presets.encode(buf)?;
         Ok(())
     }
+    #[inline]
     fn decode<B: bytes::Buf>(
         buf: &mut B,
         _args: Self::Args,
@@ -13471,7 +13386,7 @@ impl crate::bedrock::codec::BedrockCodec for CameraPresetsPacket {
 #[derive(Debug, Clone, PartialEq, Default)]
 pub struct UnlockedRecipesPacket {
     pub packet_type: EnumsUnlockedRecipesPacketPayloadPacketType,
-    pub unlocked_recipes_list: Vec<String>,
+    pub unlocked_recipes_list: Vec<crate::bedrock::codec::BedrockString>,
 }
 impl crate::bedrock::codec::BedrockSized for UnlockedRecipesPacket {
     fn encoded_size(&self) -> usize {
@@ -13510,6 +13425,7 @@ impl crate::bedrock::codec::BedrockCodec for UnlockedRecipesPacket {
         }
         Ok(())
     }
+    #[inline]
     fn decode<B: bytes::Buf>(
         buf: &mut B,
         _args: Self::Args,
@@ -13529,7 +13445,6 @@ impl crate::bedrock::codec::BedrockCodec for UnlockedRecipesPacket {
             let mut tmp_vec =
                 crate::bedrock::codec::prepare_decode_vec(len, buf.remaining(), Some(1usize))?;
             for _ in 0..len {
-                crate::bedrock::codec::reserve_decode_item(&mut tmp_vec)?;
                 tmp_vec
                     .push({
                         let len = (<crate::bedrock::codec::VarUInt as crate::bedrock::codec::BedrockCodec>::decode(
@@ -13543,9 +13458,9 @@ impl crate::bedrock::codec::BedrockCodec for UnlockedRecipesPacket {
                                 available: buf.remaining(),
                             });
                         }
-                        let mut bytes = vec![0u8; len];
-                        buf.copy_to_slice(&mut bytes);
-                        crate::bedrock::codec::decode_utf8_lossy_owned(bytes)
+                        crate::bedrock::codec::decode_utf8_lossy_bytes(
+                            buf.copy_to_bytes(len),
+                        )
                     });
             }
             tmp_vec
@@ -13575,6 +13490,7 @@ impl crate::bedrock::codec::BedrockCodec for CameraInstructionPacket {
         self.camera_instruction.encode(buf)?;
         Ok(())
     }
+    #[inline]
     fn decode<B: bytes::Buf>(
         buf: &mut B,
         _args: Self::Args,
@@ -13631,6 +13547,7 @@ impl crate::bedrock::codec::BedrockCodec for TrimDataPacket {
         }
         Ok(())
     }
+    #[inline]
     fn decode<B: bytes::Buf>(
         buf: &mut B,
         _args: Self::Args,
@@ -13646,7 +13563,6 @@ impl crate::bedrock::codec::BedrockCodec for TrimDataPacket {
             let mut tmp_vec =
                 crate::bedrock::codec::prepare_decode_vec(len, buf.remaining(), Some(2usize))?;
             for _ in 0..len {
-                crate::bedrock::codec::reserve_decode_item(&mut tmp_vec)?;
                 tmp_vec
                     .push(<TrimPattern as crate::bedrock::codec::BedrockCodec>::decode(buf, ())?);
             }
@@ -13662,7 +13578,6 @@ impl crate::bedrock::codec::BedrockCodec for TrimDataPacket {
             let mut tmp_vec =
                 crate::bedrock::codec::prepare_decode_vec(len, buf.remaining(), Some(3usize))?;
             for _ in 0..len {
-                crate::bedrock::codec::reserve_decode_item(&mut tmp_vec)?;
                 tmp_vec
                     .push(<TrimMaterial as crate::bedrock::codec::BedrockCodec>::decode(buf, ())?);
             }
@@ -13696,6 +13611,7 @@ impl crate::bedrock::codec::BedrockCodec for OpenSignPacket {
         self.is_front_side.encode(buf)?;
         Ok(())
     }
+    #[inline]
     fn decode<B: bytes::Buf>(
         buf: &mut B,
         _args: Self::Args,
@@ -13728,6 +13644,7 @@ impl crate::bedrock::codec::BedrockCodec for AgentAnimationPacket {
         self.runtime_id.encode(buf)?;
         Ok(())
     }
+    #[inline]
     fn decode<B: bytes::Buf>(
         buf: &mut B,
         _args: Self::Args,
@@ -13756,6 +13673,7 @@ impl crate::bedrock::codec::BedrockCodec for RefreshEntitlementsPacket {
         let _ = buf;
         Ok(())
     }
+    #[inline]
     fn decode<B: bytes::Buf>(
         buf: &mut B,
         _args: Self::Args,
@@ -13795,6 +13713,7 @@ impl crate::bedrock::codec::BedrockCodec for PlayerToggleCrafterSlotRequestPacke
         self.is_disabled.encode(buf)?;
         Ok(())
     }
+    #[inline]
     fn decode<B: bytes::Buf>(
         buf: &mut B,
         _args: Self::Args,
@@ -13839,6 +13758,7 @@ impl crate::bedrock::codec::BedrockCodec for SetPlayerInventoryOptionsPacket {
         self.inventory_options.encode(buf)?;
         Ok(())
     }
+    #[inline]
     fn decode<B: bytes::Buf>(
         buf: &mut B,
         _args: Self::Args,
@@ -13883,6 +13803,7 @@ impl crate::bedrock::codec::BedrockCodec for SetHudPacket {
         self.hud_visible.encode(buf)?;
         Ok(())
     }
+    #[inline]
     fn decode<B: bytes::Buf>(
         buf: &mut B,
         _args: Self::Args,
@@ -13898,7 +13819,6 @@ impl crate::bedrock::codec::BedrockCodec for SetHudPacket {
             let mut tmp_vec =
                 crate::bedrock::codec::prepare_decode_vec(len, buf.remaining(), Some(1usize))?;
             for _ in 0..len {
-                crate::bedrock::codec::reserve_decode_item(&mut tmp_vec)?;
                 tmp_vec.push(
                     <EnumsHudElement as crate::bedrock::codec::BedrockCodec>::decode(buf, ())?,
                 );
@@ -13932,6 +13852,7 @@ impl crate::bedrock::codec::BedrockCodec for AwardAchievementPacket {
         crate::bedrock::codec::I32LE(self.achievement_id).encode(buf)?;
         Ok(())
     }
+    #[inline]
     fn decode<B: bytes::Buf>(
         buf: &mut B,
         _args: Self::Args,
@@ -13957,6 +13878,7 @@ impl crate::bedrock::codec::BedrockCodec for ClientboundCloseFormPacket {
         let _ = buf;
         Ok(())
     }
+    #[inline]
     fn decode<B: bytes::Buf>(
         buf: &mut B,
         _args: Self::Args,
@@ -13999,6 +13921,7 @@ impl crate::bedrock::codec::BedrockCodec for ServerboundLoadingScreenPacket {
         }
         Ok(())
     }
+    #[inline]
     fn decode<B: bytes::Buf>(
         buf: &mut B,
         _args: Self::Args,
@@ -14047,6 +13970,7 @@ impl crate::bedrock::codec::BedrockCodec for JigsawStructureDataPacket {
         self.jigsaw_structure_data_tag.encode(buf)?;
         Ok(())
     }
+    #[inline]
     fn decode<B: bytes::Buf>(
         buf: &mut B,
         _args: Self::Args,
@@ -14061,7 +13985,7 @@ impl crate::bedrock::codec::BedrockCodec for JigsawStructureDataPacket {
 }
 #[derive(Debug, Clone, PartialEq, Default)]
 pub struct CurrentStructureFeaturePacket {
-    pub current_structure_feature: String,
+    pub current_structure_feature: crate::bedrock::codec::BedrockString,
 }
 impl crate::bedrock::codec::BedrockSized for CurrentStructureFeaturePacket {
     fn encoded_size(&self) -> usize {
@@ -14086,6 +14010,7 @@ impl crate::bedrock::codec::BedrockCodec for CurrentStructureFeaturePacket {
         buf.put_slice(bytes);
         Ok(())
     }
+    #[inline]
     fn decode<B: bytes::Buf>(
         buf: &mut B,
         _args: Self::Args,
@@ -14104,9 +14029,7 @@ impl crate::bedrock::codec::BedrockCodec for CurrentStructureFeaturePacket {
                     available: buf.remaining(),
                 });
             }
-            let mut bytes = vec![0u8; len];
-            buf.copy_to_slice(&mut bytes);
-            crate::bedrock::codec::decode_utf8_lossy_owned(bytes)
+            crate::bedrock::codec::decode_utf8_lossy_bytes(buf.copy_to_bytes(len))
         };
         Ok(Self {
             current_structure_feature,
@@ -14231,6 +14154,7 @@ impl crate::bedrock::codec::BedrockCodec for ServerboundDiagnosticsPacket {
         }
         Ok(())
     }
+    #[inline]
     fn decode<B: bytes::Buf>(
         buf: &mut B,
         _args: Self::Args,
@@ -14273,7 +14197,6 @@ impl crate::bedrock::codec::BedrockCodec for ServerboundDiagnosticsPacket {
             let mut tmp_vec =
                 crate::bedrock::codec::prepare_decode_vec(len, buf.remaining(), Some(9usize))?;
             for _ in 0..len {
-                crate::bedrock::codec::reserve_decode_item(&mut tmp_vec)?;
                 tmp_vec.push(
                     <MemoryMemoryCategoryCounter as crate::bedrock::codec::BedrockCodec>::decode(
                         buf,
@@ -14293,7 +14216,6 @@ impl crate::bedrock::codec::BedrockCodec for ServerboundDiagnosticsPacket {
             let mut tmp_vec =
                 crate::bedrock::codec::prepare_decode_vec(len, buf.remaining(), Some(13usize))?;
             for _ in 0..len {
-                crate::bedrock::codec::reserve_decode_item(&mut tmp_vec)?;
                 tmp_vec
                     .push(
                         <EcsProfilingDiagnosticsEntityDiagnosticTimingInfo as crate::bedrock::codec::BedrockCodec>::decode(
@@ -14314,7 +14236,6 @@ impl crate::bedrock::codec::BedrockCodec for ServerboundDiagnosticsPacket {
             let mut tmp_vec =
                 crate::bedrock::codec::prepare_decode_vec(len, buf.remaining(), Some(18usize))?;
             for _ in 0..len {
-                crate::bedrock::codec::reserve_decode_item(&mut tmp_vec)?;
                 tmp_vec
                     .push(
                         <EcsProfilingDiagnosticsSystemDiagnosticTimingInfo as crate::bedrock::codec::BedrockCodec>::decode(
@@ -14335,7 +14256,6 @@ impl crate::bedrock::codec::BedrockCodec for ServerboundDiagnosticsPacket {
             let mut tmp_vec =
                 crate::bedrock::codec::prepare_decode_vec(len, buf.remaining(), Some(9usize))?;
             for _ in 0..len {
-                crate::bedrock::codec::reserve_decode_item(&mut tmp_vec)?;
                 tmp_vec
                     .push(
                         <EcsProfilingDiagnosticsSystemCategory as crate::bedrock::codec::BedrockCodec>::decode(
@@ -14356,7 +14276,6 @@ impl crate::bedrock::codec::BedrockCodec for ServerboundDiagnosticsPacket {
             let mut tmp_vec =
                 crate::bedrock::codec::prepare_decode_vec(len, buf.remaining(), Some(26usize))?;
             for _ in 0..len {
-                crate::bedrock::codec::reserve_decode_item(&mut tmp_vec)?;
                 tmp_vec
                     .push(
                         <BedrockProfileWhiskerDiagnosticsScopeDataSummary as crate::bedrock::codec::BedrockCodec>::decode(
@@ -14387,7 +14306,7 @@ impl crate::bedrock::codec::BedrockCodec for ServerboundDiagnosticsPacket {
 }
 #[derive(Debug, Clone, PartialEq, Default)]
 pub struct CameraAimAssistPacket {
-    pub preset_id: String,
+    pub preset_id: crate::bedrock::codec::BedrockString,
     pub view_angle: Vec2,
     pub distance: f32,
     pub target_mode: EnumsCameraAimAssistPacketPayloadTargetMode,
@@ -14427,6 +14346,7 @@ impl crate::bedrock::codec::BedrockCodec for CameraAimAssistPacket {
         self.show_debug_render.encode(buf)?;
         Ok(())
     }
+    #[inline]
     fn decode<B: bytes::Buf>(
         buf: &mut B,
         _args: Self::Args,
@@ -14445,9 +14365,7 @@ impl crate::bedrock::codec::BedrockCodec for CameraAimAssistPacket {
                     available: buf.remaining(),
                 });
             }
-            let mut bytes = vec![0u8; len];
-            buf.copy_to_slice(&mut bytes);
-            crate::bedrock::codec::decode_utf8_lossy_owned(bytes)
+            crate::bedrock::codec::decode_utf8_lossy_bytes(buf.copy_to_bytes(len))
         };
         let view_angle = <Vec2 as crate::bedrock::codec::BedrockCodec>::decode(buf, ())?;
         let distance =
@@ -14503,6 +14421,7 @@ impl crate::bedrock::codec::BedrockCodec for ContainerRegistryCleanupPacket {
         }
         Ok(())
     }
+    #[inline]
     fn decode<B: bytes::Buf>(
         buf: &mut B,
         _args: Self::Args,
@@ -14518,7 +14437,6 @@ impl crate::bedrock::codec::BedrockCodec for ContainerRegistryCleanupPacket {
             let mut tmp_vec =
                 crate::bedrock::codec::prepare_decode_vec(len, buf.remaining(), Some(2usize))?;
             for _ in 0..len {
-                crate::bedrock::codec::reserve_decode_item(&mut tmp_vec)?;
                 tmp_vec.push(
                     <FullContainerName as crate::bedrock::codec::BedrockCodec>::decode(buf, ())?,
                 );
@@ -14558,6 +14476,7 @@ impl crate::bedrock::codec::BedrockCodec for MovementEffectPacket {
         self.tick.encode(buf)?;
         Ok(())
     }
+    #[inline]
     fn decode<B: bytes::Buf>(
         buf: &mut B,
         _args: Self::Args,
@@ -14631,6 +14550,7 @@ impl crate::bedrock::codec::BedrockCodec for CameraAimAssistPresetsPacket {
         self.operation.encode(buf)?;
         Ok(())
     }
+    #[inline]
     fn decode<B: bytes::Buf>(
         buf: &mut B,
         _args: Self::Args,
@@ -14646,7 +14566,6 @@ impl crate::bedrock::codec::BedrockCodec for CameraAimAssistPresetsPacket {
             let mut tmp_vec =
                 crate::bedrock::codec::prepare_decode_vec(len, buf.remaining(), Some(7usize))?;
             for _ in 0..len {
-                crate::bedrock::codec::reserve_decode_item(&mut tmp_vec)?;
                 tmp_vec
                     .push(
                         <SharedTypesv12150CameraAimAssistCategoryDefinition as crate::bedrock::codec::BedrockCodec>::decode(
@@ -14667,7 +14586,6 @@ impl crate::bedrock::codec::BedrockCodec for CameraAimAssistPresetsPacket {
             let mut tmp_vec =
                 crate::bedrock::codec::prepare_decode_vec(len, buf.remaining(), Some(9usize))?;
             for _ in 0..len {
-                crate::bedrock::codec::reserve_decode_item(&mut tmp_vec)?;
                 tmp_vec
                     .push(
                         <SharedTypesv121120CameraAimAssistPresetDefinition as crate::bedrock::codec::BedrockCodec>::decode(
@@ -14691,7 +14609,7 @@ impl crate::bedrock::codec::BedrockCodec for CameraAimAssistPresetsPacket {
 }
 #[derive(Debug, Clone, PartialEq, Default)]
 pub struct ClientCameraAimAssistPacket {
-    pub camera_preset_id: String,
+    pub camera_preset_id: crate::bedrock::codec::BedrockString,
     pub action: EnumsClientCameraAimAssistPacketAction,
     pub allowaimassist: bool,
 }
@@ -14722,6 +14640,7 @@ impl crate::bedrock::codec::BedrockCodec for ClientCameraAimAssistPacket {
         self.allowaimassist.encode(buf)?;
         Ok(())
     }
+    #[inline]
     fn decode<B: bytes::Buf>(
         buf: &mut B,
         _args: Self::Args,
@@ -14740,9 +14659,7 @@ impl crate::bedrock::codec::BedrockCodec for ClientCameraAimAssistPacket {
                     available: buf.remaining(),
                 });
             }
-            let mut bytes = vec![0u8; len];
-            buf.copy_to_slice(&mut bytes);
-            crate::bedrock::codec::decode_utf8_lossy_owned(bytes)
+            crate::bedrock::codec::decode_utf8_lossy_bytes(buf.copy_to_bytes(len))
         };
         let action = <EnumsClientCameraAimAssistPacketAction as crate::bedrock::codec::BedrockCodec>::decode(
             buf,
@@ -14792,6 +14709,7 @@ impl crate::bedrock::codec::BedrockCodec for ClientMovementPredictionSyncPacket 
         self.actor_flying_state.encode(buf)?;
         Ok(())
     }
+    #[inline]
     fn decode<B: bytes::Buf>(
         buf: &mut B,
         _args: Self::Args,
@@ -14806,23 +14724,15 @@ impl crate::bedrock::codec::BedrockCodec for ClientMovementPredictionSyncPacket 
             )?;
         let movement_attributes = {
             let res: MovementAttributesComponentjson = {
-                let mut values = Vec::with_capacity(9);
-                for _ in 0..9 {
-                    values
-                        .push(
-                            <crate::bedrock::codec::F32LE as crate::bedrock::codec::BedrockCodec>::decode(
-                                    buf,
-                                    (),
-                                )?
-                                .0,
-                        );
-                }
-                match values.try_into() {
-                    Ok(array) => array,
-                    Err(_) => {
-                        unreachable!("fixed-array decoder produced the wrong length")
-                    }
-                }
+                crate::bedrock::codec::decode_fixed_array::<_, 9>(|| {
+                    Ok(
+                    <crate::bedrock::codec::F32LE as crate::bedrock::codec::BedrockCodec>::decode(
+                            buf,
+                            (),
+                        )?
+                        .0,
+                )
+                })?
             };
             res
         };
@@ -14884,6 +14794,7 @@ impl crate::bedrock::codec::BedrockCodec for UpdateClientOptionsPacket {
         }
         Ok(())
     }
+    #[inline]
     fn decode<B: bytes::Buf>(
         buf: &mut B,
         _args: Self::Args,
@@ -14933,6 +14844,7 @@ impl crate::bedrock::codec::BedrockCodec for PlayerVideoCapturePacket {
         self.action.encode(buf)?;
         Ok(())
     }
+    #[inline]
     fn decode<B: bytes::Buf>(
         buf: &mut B,
         _args: Self::Args,
@@ -14973,6 +14885,7 @@ impl crate::bedrock::codec::BedrockCodec for PlayerUpdateEntityOverridesPacket {
         self.update.encode(buf)?;
         Ok(())
     }
+    #[inline]
     fn decode<B: bytes::Buf>(
         buf: &mut B,
         _args: Self::Args,
@@ -15018,6 +14931,7 @@ impl crate::bedrock::codec::BedrockCodec for PlayerLocationPacket {
         self.location.encode(buf)?;
         Ok(())
     }
+    #[inline]
     fn decode<B: bytes::Buf>(
         buf: &mut B,
         _args: Self::Args,
@@ -15052,6 +14966,7 @@ impl crate::bedrock::codec::BedrockCodec for ClientboundControlSchemeSetPacket {
         self.control_scheme.encode(buf)?;
         Ok(())
     }
+    #[inline]
     fn decode<B: bytes::Buf>(
         buf: &mut B,
         _args: Self::Args,
@@ -15095,6 +15010,7 @@ impl crate::bedrock::codec::BedrockCodec for PrimitiveShapesPacket {
         }
         Ok(())
     }
+    #[inline]
     fn decode<B: bytes::Buf>(
         buf: &mut B,
         _args: Self::Args,
@@ -15110,7 +15026,6 @@ impl crate::bedrock::codec::BedrockCodec for PrimitiveShapesPacket {
             let mut tmp_vec =
                 crate::bedrock::codec::prepare_decode_vec(len, buf.remaining(), Some(11usize))?;
             for _ in 0..len {
-                crate::bedrock::codec::reserve_decode_item(&mut tmp_vec)?;
                 tmp_vec.push(
                     <PrimitiveShapeDataPayload as crate::bedrock::codec::BedrockCodec>::decode(
                         buf,
@@ -15128,7 +15043,7 @@ impl crate::bedrock::codec::BedrockCodec for PrimitiveShapesPacket {
 #[derive(Debug, Clone, PartialEq, Default)]
 pub struct ServerboundPackSettingChangePacket {
     pub pack_id: MceUuiDjson,
-    pub pack_setting_name: String,
+    pub pack_setting_name: crate::bedrock::codec::BedrockString,
     pub pack_setting_value: ServerboundPackSettingChangePacketPackSettingValue,
 }
 impl crate::bedrock::codec::BedrockSized for ServerboundPackSettingChangePacket {
@@ -15158,6 +15073,7 @@ impl crate::bedrock::codec::BedrockCodec for ServerboundPackSettingChangePacket 
         self.pack_setting_value.encode(buf)?;
         Ok(())
     }
+    #[inline]
     fn decode<B: bytes::Buf>(
         buf: &mut B,
         _args: Self::Args,
@@ -15177,9 +15093,7 @@ impl crate::bedrock::codec::BedrockCodec for ServerboundPackSettingChangePacket 
                     available: buf.remaining(),
                 });
             }
-            let mut bytes = vec![0u8; len];
-            buf.copy_to_slice(&mut bytes);
-            crate::bedrock::codec::decode_utf8_lossy_owned(bytes)
+            crate::bedrock::codec::decode_utf8_lossy_bytes(buf.copy_to_bytes(len))
         };
         let pack_setting_value = <ServerboundPackSettingChangePacketPackSettingValue as crate::bedrock::codec::BedrockCodec>::decode(
             buf,
@@ -15223,6 +15137,7 @@ impl crate::bedrock::codec::BedrockCodec for ClientboundDataStorePacket {
         }
         Ok(())
     }
+    #[inline]
     fn decode<B: bytes::Buf>(
         buf: &mut B,
         _args: Self::Args,
@@ -15238,7 +15153,6 @@ impl crate::bedrock::codec::BedrockCodec for ClientboundDataStorePacket {
             let mut tmp_vec =
                 crate::bedrock::codec::prepare_decode_vec(len, buf.remaining(), Some(2usize))?;
             for _ in 0..len {
-                crate::bedrock::codec::reserve_decode_item(&mut tmp_vec)?;
                 tmp_vec
                     .push(
                         <ClientboundDataStorePacketUpdatesItem as crate::bedrock::codec::BedrockCodec>::decode(
@@ -15257,8 +15171,8 @@ pub struct GraphicsOverrideParameterPacket {
     pub parameter_keyframe_values: Vec<GraphicsOverrideParameterPacketParameterKeyframeValuesItem>,
     pub float_value: Option<f32>,
     pub vec_3_value: Option<Vec3>,
-    pub biome_identifier: String,
-    pub player_identifier: Option<String>,
+    pub biome_identifier: crate::bedrock::codec::BedrockString,
+    pub player_identifier: Option<crate::bedrock::codec::BedrockString>,
     pub identifierfor_parameter: EnumsGraphicsOverrideParameterType,
     pub reset_parameter: bool,
 }
@@ -15353,6 +15267,7 @@ impl crate::bedrock::codec::BedrockCodec for GraphicsOverrideParameterPacket {
         self.reset_parameter.encode(buf)?;
         Ok(())
     }
+    #[inline]
     fn decode<B: bytes::Buf>(
         buf: &mut B,
         _args: Self::Args,
@@ -15368,7 +15283,6 @@ impl crate::bedrock::codec::BedrockCodec for GraphicsOverrideParameterPacket {
             let mut tmp_vec =
                 crate::bedrock::codec::prepare_decode_vec(len, buf.remaining(), Some(16usize))?;
             for _ in 0..len {
-                crate::bedrock::codec::reserve_decode_item(&mut tmp_vec)?;
                 tmp_vec
                     .push(
                         <GraphicsOverrideParameterPacketParameterKeyframeValuesItem as crate::bedrock::codec::BedrockCodec>::decode(
@@ -15417,9 +15331,7 @@ impl crate::bedrock::codec::BedrockCodec for GraphicsOverrideParameterPacket {
                     available: buf.remaining(),
                 });
             }
-            let mut bytes = vec![0u8; len];
-            buf.copy_to_slice(&mut bytes);
-            crate::bedrock::codec::decode_utf8_lossy_owned(bytes)
+            crate::bedrock::codec::decode_utf8_lossy_bytes(buf.copy_to_bytes(len))
         };
         let player_identifier = {
             let present = u8::decode(buf, ())?;
@@ -15436,9 +15348,7 @@ impl crate::bedrock::codec::BedrockCodec for GraphicsOverrideParameterPacket {
                             available: buf.remaining(),
                         });
                     }
-                    let mut bytes = vec![0u8; len];
-                    buf.copy_to_slice(&mut bytes);
-                    crate::bedrock::codec::decode_utf8_lossy_owned(bytes)
+                    crate::bedrock::codec::decode_utf8_lossy_bytes(buf.copy_to_bytes(len))
                 })
             } else {
                 None
@@ -15480,6 +15390,7 @@ impl crate::bedrock::codec::BedrockCodec for ServerboundDataStorePacket {
         self.update.encode(buf)?;
         Ok(())
     }
+    #[inline]
     fn decode<B: bytes::Buf>(
         buf: &mut B,
         _args: Self::Args,
@@ -15492,7 +15403,7 @@ impl crate::bedrock::codec::BedrockCodec for ServerboundDataStorePacket {
 }
 #[derive(Debug, Clone, PartialEq, Default)]
 pub struct ClientboundDataDrivenUiShowScreenPacket {
-    pub screen_id: String,
+    pub screen_id: crate::bedrock::codec::BedrockString,
     pub form_id: u32,
     pub data_instance_id: Option<u32>,
 }
@@ -15535,6 +15446,7 @@ impl crate::bedrock::codec::BedrockCodec for ClientboundDataDrivenUiShowScreenPa
         }
         Ok(())
     }
+    #[inline]
     fn decode<B: bytes::Buf>(
         buf: &mut B,
         _args: Self::Args,
@@ -15553,9 +15465,7 @@ impl crate::bedrock::codec::BedrockCodec for ClientboundDataDrivenUiShowScreenPa
                     available: buf.remaining(),
                 });
             }
-            let mut bytes = vec![0u8; len];
-            buf.copy_to_slice(&mut bytes);
-            crate::bedrock::codec::decode_utf8_lossy_owned(bytes)
+            crate::bedrock::codec::decode_utf8_lossy_bytes(buf.copy_to_bytes(len))
         };
         let form_id =
             <crate::bedrock::codec::U32LE as crate::bedrock::codec::BedrockCodec>::decode(buf, ())?
@@ -15612,6 +15522,7 @@ impl crate::bedrock::codec::BedrockCodec for ClientboundDataDrivenUiCloseScreenP
         }
         Ok(())
     }
+    #[inline]
     fn decode<B: bytes::Buf>(
         buf: &mut B,
         _args: Self::Args,
@@ -15648,6 +15559,7 @@ impl crate::bedrock::codec::BedrockCodec for ClientboundDataDrivenUiReloadPacket
         let _ = buf;
         Ok(())
     }
+    #[inline]
     fn decode<B: bytes::Buf>(
         buf: &mut B,
         _args: Self::Args,
@@ -15659,10 +15571,10 @@ impl crate::bedrock::codec::BedrockCodec for ClientboundDataDrivenUiReloadPacket
 #[derive(Debug, Clone, PartialEq, Default)]
 pub struct ClientboundTextureShiftPacket {
     pub action_id: EnumsClientboundTextureShiftPacketPayloadAction,
-    pub collection_name: String,
-    pub from_step: String,
-    pub to_step: String,
-    pub all_steps: Vec<String>,
+    pub collection_name: crate::bedrock::codec::BedrockString,
+    pub from_step: crate::bedrock::codec::BedrockString,
+    pub to_step: crate::bedrock::codec::BedrockString,
+    pub all_steps: Vec<crate::bedrock::codec::BedrockString>,
     pub current_length_in_ticks: u64,
     pub total_length_in_ticks: u64,
     pub enabled: bool,
@@ -15744,6 +15656,7 @@ impl crate::bedrock::codec::BedrockCodec for ClientboundTextureShiftPacket {
         self.enabled.encode(buf)?;
         Ok(())
     }
+    #[inline]
     fn decode<B: bytes::Buf>(
         buf: &mut B,
         _args: Self::Args,
@@ -15766,9 +15679,7 @@ impl crate::bedrock::codec::BedrockCodec for ClientboundTextureShiftPacket {
                     available: buf.remaining(),
                 });
             }
-            let mut bytes = vec![0u8; len];
-            buf.copy_to_slice(&mut bytes);
-            crate::bedrock::codec::decode_utf8_lossy_owned(bytes)
+            crate::bedrock::codec::decode_utf8_lossy_bytes(buf.copy_to_bytes(len))
         };
         let from_step = {
             let len =
@@ -15783,9 +15694,7 @@ impl crate::bedrock::codec::BedrockCodec for ClientboundTextureShiftPacket {
                     available: buf.remaining(),
                 });
             }
-            let mut bytes = vec![0u8; len];
-            buf.copy_to_slice(&mut bytes);
-            crate::bedrock::codec::decode_utf8_lossy_owned(bytes)
+            crate::bedrock::codec::decode_utf8_lossy_bytes(buf.copy_to_bytes(len))
         };
         let to_step = {
             let len =
@@ -15800,9 +15709,7 @@ impl crate::bedrock::codec::BedrockCodec for ClientboundTextureShiftPacket {
                     available: buf.remaining(),
                 });
             }
-            let mut bytes = vec![0u8; len];
-            buf.copy_to_slice(&mut bytes);
-            crate::bedrock::codec::decode_utf8_lossy_owned(bytes)
+            crate::bedrock::codec::decode_utf8_lossy_bytes(buf.copy_to_bytes(len))
         };
         let all_steps = {
             let len =
@@ -15814,7 +15721,6 @@ impl crate::bedrock::codec::BedrockCodec for ClientboundTextureShiftPacket {
             let mut tmp_vec =
                 crate::bedrock::codec::prepare_decode_vec(len, buf.remaining(), Some(1usize))?;
             for _ in 0..len {
-                crate::bedrock::codec::reserve_decode_item(&mut tmp_vec)?;
                 tmp_vec
                     .push({
                         let len = (<crate::bedrock::codec::VarUInt as crate::bedrock::codec::BedrockCodec>::decode(
@@ -15828,9 +15734,9 @@ impl crate::bedrock::codec::BedrockCodec for ClientboundTextureShiftPacket {
                                 available: buf.remaining(),
                             });
                         }
-                        let mut bytes = vec![0u8; len];
-                        buf.copy_to_slice(&mut bytes);
-                        crate::bedrock::codec::decode_utf8_lossy_owned(bytes)
+                        crate::bedrock::codec::decode_utf8_lossy_bytes(
+                            buf.copy_to_bytes(len),
+                        )
                     });
             }
             tmp_vec
@@ -15909,6 +15815,7 @@ impl crate::bedrock::codec::BedrockCodec for VoxelShapesPacket {
         crate::bedrock::codec::U16LE(self.custom_shape_count).encode(buf)?;
         Ok(())
     }
+    #[inline]
     fn decode<B: bytes::Buf>(
         buf: &mut B,
         _args: Self::Args,
@@ -15924,7 +15831,6 @@ impl crate::bedrock::codec::BedrockCodec for VoxelShapesPacket {
             let mut tmp_vec =
                 crate::bedrock::codec::prepare_decode_vec(len, buf.remaining(), Some(7usize))?;
             for _ in 0..len {
-                crate::bedrock::codec::reserve_decode_item(&mut tmp_vec)?;
                 tmp_vec
                     .push(
                         <VoxelShapesSerializableVoxelShape as crate::bedrock::codec::BedrockCodec>::decode(
@@ -15945,7 +15851,6 @@ impl crate::bedrock::codec::BedrockCodec for VoxelShapesPacket {
             let mut tmp_vec =
                 crate::bedrock::codec::prepare_decode_vec(len, buf.remaining(), Some(3usize))?;
             for _ in 0..len {
-                crate::bedrock::codec::reserve_decode_item(&mut tmp_vec)?;
                 tmp_vec.push(
                     <VoxelShapesPacketNameMapItem as crate::bedrock::codec::BedrockCodec>::decode(
                         buf,
@@ -15996,6 +15901,7 @@ impl crate::bedrock::codec::BedrockCodec for CameraSplinePacket {
         }
         Ok(())
     }
+    #[inline]
     fn decode<B: bytes::Buf>(
         buf: &mut B,
         _args: Self::Args,
@@ -16011,7 +15917,6 @@ impl crate::bedrock::codec::BedrockCodec for CameraSplinePacket {
             let mut tmp_vec =
                 crate::bedrock::codec::prepare_decode_vec(len, buf.remaining(), Some(9usize))?;
             for _ in 0..len {
-                crate::bedrock::codec::reserve_decode_item(&mut tmp_vec)?;
                 tmp_vec
                     .push(
                         <SharedTypesv1260CameraSplineDefinition as crate::bedrock::codec::BedrockCodec>::decode(
@@ -16058,6 +15963,7 @@ impl crate::bedrock::codec::BedrockCodec for CameraAimAssistActorPriorityPacket 
         }
         Ok(())
     }
+    #[inline]
     fn decode<B: bytes::Buf>(
         buf: &mut B,
         _args: Self::Args,
@@ -16073,7 +15979,6 @@ impl crate::bedrock::codec::BedrockCodec for CameraAimAssistActorPriorityPacket 
             let mut tmp_vec =
                 crate::bedrock::codec::prepare_decode_vec(len, buf.remaining(), Some(16usize))?;
             for _ in 0..len {
-                crate::bedrock::codec::reserve_decode_item(&mut tmp_vec)?;
                 tmp_vec
                     .push(
                         <CameraAimAssistActorPriorityPriorityData as crate::bedrock::codec::BedrockCodec>::decode(
@@ -16103,6 +16008,7 @@ impl crate::bedrock::codec::BedrockCodec for ResourcePacksReadyForValidationPack
         let _ = buf;
         Ok(())
     }
+    #[inline]
     fn decode<B: bytes::Buf>(
         buf: &mut B,
         _args: Self::Args,
@@ -16142,6 +16048,7 @@ impl crate::bedrock::codec::BedrockCodec for LocatorBarPacket {
         }
         Ok(())
     }
+    #[inline]
     fn decode<B: bytes::Buf>(
         buf: &mut B,
         _args: Self::Args,
@@ -16157,7 +16064,6 @@ impl crate::bedrock::codec::BedrockCodec for LocatorBarPacket {
             let mut tmp_vec =
                 crate::bedrock::codec::prepare_decode_vec(len, buf.remaining(), Some(28usize))?;
             for _ in 0..len {
-                crate::bedrock::codec::reserve_decode_item(&mut tmp_vec)?;
                 tmp_vec.push(
                     <LocatorBarWaypointPayload as crate::bedrock::codec::BedrockCodec>::decode(
                         buf,
@@ -16201,6 +16107,7 @@ impl crate::bedrock::codec::BedrockCodec for PartyChangedPacket {
         }
         Ok(())
     }
+    #[inline]
     fn decode<B: bytes::Buf>(
         buf: &mut B,
         _args: Self::Args,
@@ -16220,7 +16127,7 @@ impl crate::bedrock::codec::BedrockCodec for PartyChangedPacket {
 #[derive(Debug, Clone, PartialEq, Default)]
 pub struct ServerboundDataDrivenScreenClosedPacket {
     pub form_id: u32,
-    pub close_reason: String,
+    pub close_reason: crate::bedrock::codec::BedrockString,
 }
 impl crate::bedrock::codec::BedrockSized for ServerboundDataDrivenScreenClosedPacket {
     fn encoded_size(&self) -> usize {
@@ -16247,6 +16154,7 @@ impl crate::bedrock::codec::BedrockCodec for ServerboundDataDrivenScreenClosedPa
         buf.put_slice(bytes);
         Ok(())
     }
+    #[inline]
     fn decode<B: bytes::Buf>(
         buf: &mut B,
         _args: Self::Args,
@@ -16268,9 +16176,7 @@ impl crate::bedrock::codec::BedrockCodec for ServerboundDataDrivenScreenClosedPa
                     available: buf.remaining(),
                 });
             }
-            let mut bytes = vec![0u8; len];
-            buf.copy_to_slice(&mut bytes);
-            crate::bedrock::codec::decode_utf8_lossy_owned(bytes)
+            crate::bedrock::codec::decode_utf8_lossy_bytes(buf.copy_to_bytes(len))
         };
         Ok(Self {
             form_id,
@@ -16297,6 +16203,7 @@ impl crate::bedrock::codec::BedrockCodec for SyncWorldClocksPacket {
         self.data.encode(buf)?;
         Ok(())
     }
+    #[inline]
     fn decode<B: bytes::Buf>(
         buf: &mut B,
         _args: Self::Args,
@@ -16326,6 +16233,7 @@ impl crate::bedrock::codec::BedrockCodec for ClientboundAttributeLayerSyncPacket
         self.data.encode(buf)?;
         Ok(())
     }
+    #[inline]
     fn decode<B: bytes::Buf>(
         buf: &mut B,
         _args: Self::Args,
@@ -16370,6 +16278,7 @@ impl crate::bedrock::codec::BedrockCodec for ServerStoreInfoPacket {
         }
         Ok(())
     }
+    #[inline]
     fn decode<B: bytes::Buf>(
         buf: &mut B,
         _args: Self::Args,
@@ -16424,6 +16333,7 @@ impl crate::bedrock::codec::BedrockCodec for ServerPresenceInfoPacket {
         }
         Ok(())
     }
+    #[inline]
     fn decode<B: bytes::Buf>(
         buf: &mut B,
         _args: Self::Args,
@@ -16487,6 +16397,7 @@ impl crate::bedrock::codec::BedrockCodec for ClientboundUpdateSoundDataPacket {
         self.resume.encode(buf)?;
         Ok(())
     }
+    #[inline]
     fn decode<B: bytes::Buf>(
         buf: &mut B,
         _args: Self::Args,
@@ -16539,9 +16450,9 @@ impl crate::bedrock::codec::BedrockCodec for ClientboundUpdateSoundDataPacket {
 }
 #[derive(Debug, Clone, PartialEq, Default)]
 pub struct SendPartyDestinationCookiePacket {
-    pub cookie: String,
-    pub intent: String,
-    pub destination_name: String,
+    pub cookie: crate::bedrock::codec::BedrockString,
+    pub intent: crate::bedrock::codec::BedrockString,
+    pub destination_name: crate::bedrock::codec::BedrockString,
 }
 impl crate::bedrock::codec::BedrockSized for SendPartyDestinationCookiePacket {
     fn encoded_size(&self) -> usize {
@@ -16586,6 +16497,7 @@ impl crate::bedrock::codec::BedrockCodec for SendPartyDestinationCookiePacket {
         buf.put_slice(bytes);
         Ok(())
     }
+    #[inline]
     fn decode<B: bytes::Buf>(
         buf: &mut B,
         _args: Self::Args,
@@ -16604,9 +16516,7 @@ impl crate::bedrock::codec::BedrockCodec for SendPartyDestinationCookiePacket {
                     available: buf.remaining(),
                 });
             }
-            let mut bytes = vec![0u8; len];
-            buf.copy_to_slice(&mut bytes);
-            crate::bedrock::codec::decode_utf8_lossy_owned(bytes)
+            crate::bedrock::codec::decode_utf8_lossy_bytes(buf.copy_to_bytes(len))
         };
         let intent = {
             let len =
@@ -16621,9 +16531,7 @@ impl crate::bedrock::codec::BedrockCodec for SendPartyDestinationCookiePacket {
                     available: buf.remaining(),
                 });
             }
-            let mut bytes = vec![0u8; len];
-            buf.copy_to_slice(&mut bytes);
-            crate::bedrock::codec::decode_utf8_lossy_owned(bytes)
+            crate::bedrock::codec::decode_utf8_lossy_bytes(buf.copy_to_bytes(len))
         };
         let destination_name = {
             let len =
@@ -16638,9 +16546,7 @@ impl crate::bedrock::codec::BedrockCodec for SendPartyDestinationCookiePacket {
                     available: buf.remaining(),
                 });
             }
-            let mut bytes = vec![0u8; len];
-            buf.copy_to_slice(&mut bytes);
-            crate::bedrock::codec::decode_utf8_lossy_owned(bytes)
+            crate::bedrock::codec::decode_utf8_lossy_bytes(buf.copy_to_bytes(len))
         };
         Ok(Self {
             cookie,
@@ -16651,7 +16557,7 @@ impl crate::bedrock::codec::BedrockCodec for SendPartyDestinationCookiePacket {
 }
 #[derive(Debug, Clone, PartialEq, Default)]
 pub struct PartyDestinationCookieResponsePacket {
-    pub cookie: String,
+    pub cookie: crate::bedrock::codec::BedrockString,
     pub accepted: bool,
 }
 impl crate::bedrock::codec::BedrockSized for PartyDestinationCookieResponsePacket {
@@ -16679,6 +16585,7 @@ impl crate::bedrock::codec::BedrockCodec for PartyDestinationCookieResponsePacke
         self.accepted.encode(buf)?;
         Ok(())
     }
+    #[inline]
     fn decode<B: bytes::Buf>(
         buf: &mut B,
         _args: Self::Args,
@@ -16697,9 +16604,7 @@ impl crate::bedrock::codec::BedrockCodec for PartyDestinationCookieResponsePacke
                     available: buf.remaining(),
                 });
             }
-            let mut bytes = vec![0u8; len];
-            buf.copy_to_slice(&mut bytes);
-            crate::bedrock::codec::decode_utf8_lossy_owned(bytes)
+            crate::bedrock::codec::decode_utf8_lossy_bytes(buf.copy_to_bytes(len))
         };
         let accepted = <bool as crate::bedrock::codec::BedrockCodec>::decode(buf, ())?;
         Ok(Self { cookie, accepted })
@@ -16727,6 +16632,7 @@ impl crate::bedrock::codec::BedrockCodec for SetPlayerFurnaceOptionsPacket {
         self.furnace_options.encode(buf)?;
         Ok(())
     }
+    #[inline]
     fn decode<B: bytes::Buf>(
         buf: &mut B,
         _args: Self::Args,
@@ -16766,6 +16672,7 @@ impl crate::bedrock::codec::BedrockCodec for RecordStartedPacket {
         self.server_sound_handle.encode(buf)?;
         Ok(())
     }
+    #[inline]
     fn decode<B: bytes::Buf>(
         buf: &mut B,
         _args: Self::Args,

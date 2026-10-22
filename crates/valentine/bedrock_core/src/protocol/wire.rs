@@ -21,6 +21,13 @@ pub fn var_u32_len(mut v: u32) -> usize {
 
 #[inline]
 pub fn read_var_u32<B: Buf>(buf: &mut B) -> Result<u32, std::io::Error> {
+    // Most wire values fit one byte; inspect the contiguous chunk directly.
+    if let Some(&byte) = buf.chunk().first()
+        && byte < 0x80
+    {
+        buf.advance(1);
+        return Ok(u32::from(byte));
+    }
     let mut result: u32 = 0;
     for index in 0..5_u32 {
         if !buf.has_remaining() {
@@ -38,7 +45,7 @@ pub fn read_var_u32<B: Buf>(buf: &mut B) -> Result<u32, std::io::Error> {
             ));
         }
         result |= u32::from(payload) << (index * 7);
-        if (byte & 0x80) == 0 {
+        if byte & 0x80 == 0 {
             if index > 0 && payload == 0 {
                 return Err(std::io::Error::new(
                     std::io::ErrorKind::InvalidData,
@@ -75,6 +82,12 @@ pub fn var_u64_len(mut v: u64) -> usize {
 
 #[inline]
 pub fn read_var_u64<B: Buf>(buf: &mut B) -> Result<u64, std::io::Error> {
+    if let Some(&byte) = buf.chunk().first()
+        && byte < 0x80
+    {
+        buf.advance(1);
+        return Ok(u64::from(byte));
+    }
     let mut result: u64 = 0;
     for index in 0..10_u32 {
         if !buf.has_remaining() {
@@ -92,7 +105,7 @@ pub fn read_var_u64<B: Buf>(buf: &mut B) -> Result<u64, std::io::Error> {
             ));
         }
         result |= u64::from(payload) << (index * 7);
-        if (byte & 0x80) == 0 {
+        if byte & 0x80 == 0 {
             if index > 0 && payload == 0 {
                 return Err(std::io::Error::new(
                     std::io::ErrorKind::InvalidData,
@@ -152,6 +165,61 @@ pub fn read_zigzag64<B: Buf>(buf: &mut B) -> Result<i64, std::io::Error> {
 mod tests {
     use super::*;
     use bytes::BytesMut;
+
+    #[test]
+    fn varints_leave_following_fields_at_every_segment_boundary() {
+        for value in [0, 127, 128, u32::MAX] {
+            let mut wire = BytesMut::new();
+            write_var_u32(&mut wire, value);
+            wire.put_u8(0xa5);
+            let wire = wire.freeze();
+            for split in 0..wire.len() {
+                let mut input = wire.slice(..split).chain(wire.slice(split..));
+                assert_eq!(read_var_u32(&mut input).unwrap(), value);
+                assert_eq!(input.get_u8(), 0xa5);
+                assert_eq!(input.remaining(), 0);
+            }
+        }
+        for value in [0, 127, 128, u64::MAX] {
+            let mut wire = BytesMut::new();
+            write_var_u64(&mut wire, value);
+            wire.put_u8(0xa5);
+            let wire = wire.freeze();
+            for split in 0..wire.len() {
+                let mut input = wire.slice(..split).chain(wire.slice(split..));
+                assert_eq!(read_var_u64(&mut input).unwrap(), value);
+                assert_eq!(input.get_u8(), 0xa5);
+                assert_eq!(input.remaining(), 0);
+            }
+        }
+    }
+
+    #[test]
+    fn segmented_varint_errors_preserve_following_fields() {
+        for (mut wire, wide) in [
+            (vec![0xff, 0xff, 0xff, 0xff, 0x10], false),
+            (
+                vec![0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0x02],
+                true,
+            ),
+            (vec![0x80, 0x00], false),
+            (vec![0x80, 0x00], true),
+        ] {
+            wire.push(0xa5);
+            let wire = bytes::Bytes::from(wire);
+            for split in 0..wire.len() {
+                let mut input = wire.slice(..split).chain(wire.slice(split..));
+                let error = if wide {
+                    read_var_u64(&mut input).unwrap_err()
+                } else {
+                    read_var_u32(&mut input).unwrap_err()
+                };
+                assert_eq!(error.kind(), std::io::ErrorKind::InvalidData);
+                assert_eq!(input.remaining(), 1);
+                assert_eq!(input.get_u8(), 0xa5);
+            }
+        }
+    }
 
     // ========== VarU32 Tests ==========
 

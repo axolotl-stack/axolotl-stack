@@ -252,14 +252,14 @@ pub fn resolve_type_to_tokens(
             Primitive::VarLong | Primitive::ZigZag64 => quote! { i64 },
             _ => primitive_to_rust_tokens(p),
         },
-        Type::String { .. } => quote! { String },
+        Type::String { .. } => quote! { crate::bedrock::codec::BedrockString },
         Type::Encapsulated { inner, .. } => resolve_type_to_tokens(inner, hint, ctx)?,
         Type::Reference(r) => {
             let name = clean_type_name(r);
 
-            // Expose LittleString as String to consumers; we still use the wire codec in encode/decode.
+            // Expose LittleString as BedrockString while retaining its wire length prefix.
             if name == "LittleString" {
-                return Ok(quote! { String });
+                return Ok(quote! { crate::bedrock::codec::BedrockString });
             }
 
             // OPTIMIZATION: Check for "Inverse Option"
@@ -515,16 +515,16 @@ pub fn define_type(
         ctx.in_progress.insert(safe_name_str.clone());
         let def = quote! {
             #[derive(Debug, Clone, PartialEq)]
-            pub struct LittleString(pub String);
+            pub struct LittleString(pub crate::bedrock::codec::BedrockString);
 
-            impl From<LittleString> for String {
+            impl From<LittleString> for crate::bedrock::codec::BedrockString {
                 fn from(value: LittleString) -> Self {
                     value.0
                 }
             }
 
             impl std::ops::Deref for LittleString {
-                type Target = String;
+                type Target = crate::bedrock::codec::BedrockString;
                 fn deref(&self) -> &Self::Target {
                     &self.0
                 }
@@ -567,9 +567,9 @@ pub fn define_type(
                             available: buf.remaining(),
                         });
                     }
-                    let mut v = vec![0u8; len];
-                    buf.copy_to_slice(&mut v);
-                    Ok(LittleString(crate::bedrock::codec::decode_utf8_lossy_owned(v)))
+                    Ok(LittleString(crate::bedrock::codec::decode_utf8_lossy_bytes(
+                        buf.copy_to_bytes(len),
+                    )))
                 }
             }
         };
@@ -605,11 +605,16 @@ pub fn define_type(
             quote! { pub type #ident = #rust_type; }
         }
         Type::Reference(r) => {
-            let ref_ident = format_ident!("{}", clean_type_name(r));
-            quote! { pub type #ident = #ref_ident; }
+            let ref_name = clean_type_name(r);
+            if ref_name == "LittleString" {
+                quote! { pub type #ident = crate::bedrock::codec::BedrockString; }
+            } else {
+                let ref_ident = format_ident!("{}", ref_name);
+                quote! { pub type #ident = #ref_ident; }
+            }
         }
         Type::String { .. } => {
-            quote! { pub type #ident = String; }
+            quote! { pub type #ident = crate::bedrock::codec::BedrockString; }
         }
         Type::Encapsulated { inner, .. } => {
             let inner_tokens = resolve_type_to_tokens(inner, &safe_name_str, ctx)?;

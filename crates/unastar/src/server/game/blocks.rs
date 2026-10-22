@@ -572,7 +572,7 @@ fn apply_break_block(world: &mut World, breaking_player: Entity, x: i32, y: i32,
                             auxvalue: 0,
                             net_id_variant: None,
                             block_runtime_id: original_block_id,
-                            user_data_buffer: vec![],
+                            user_data_buffer: Default::default(),
                         },
                         position: Vec3 {
                             x: x as f32 + 0.5,
@@ -658,14 +658,14 @@ fn broadcast_block_break(
     };
 
     let sound_packet = LevelSoundEventPacket {
-        sound_event: "break.block".to_owned(),
+        sound_event: "break.block".into(),
         position: Vec3 {
             x: x as f32 + 0.5,
             y: y as f32 + 0.5,
             z: z as f32 + 0.5,
         },
         data: original_block_id as i32,
-        actor_identifier: String::new(),
+        actor_identifier: "".into(),
         is_baby: false,
         is_global: false,
         actor_unique_id: 0,
@@ -783,7 +783,7 @@ fn handle_block_click(
             && i32::from(data.item.id) == *network_id
             && data.item.stacksize == u16::from(stack.count)
             && u32::try_from(stack.damage).ok() == Some(data.item.auxvalue)
-            && data.item.user_data_buffer.as_slice() == stack.nbt.as_deref().unwrap_or_default()
+            && data.item.user_data_buffer.as_ref() == stack.nbt.as_deref().unwrap_or_default()
             && u32::try_from(stack.runtime_id).ok() == Some(data.item.block_runtime_id)
     });
     if !matches_held
@@ -873,14 +873,14 @@ fn place_block(world: &mut World, x: i32, y: i32, z: i32, block_runtime_id: u32)
         };
 
         let sound_packet = LevelSoundEventPacket {
-            sound_event: "place".to_owned(),
+            sound_event: "place".into(),
             position: Vec3 {
                 x: x as f32 + 0.5,
                 y: y as f32 + 0.5,
                 z: z as f32 + 0.5,
             },
             data: block_runtime_id as i32,
-            actor_identifier: String::new(),
+            actor_identifier: "".into(),
             is_baby: false,
             is_global: false,
             actor_unique_id: 0,

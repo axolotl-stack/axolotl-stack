@@ -170,15 +170,12 @@ pub fn should_box_variant(t: &Type, ctx: &Context, depth: usize) -> bool {
         return true;
     }
     match t {
-        Type::Primitive(p) => match p {
-            Primitive::ByteArray => false,
-            _ => false,
-        },
-        Type::Array { .. } => false,
-        Type::FixedArray { .. } => false,
-        Type::Bitset { .. } => false,
-        Type::String { .. } => false,
-        Type::Encapsulated { .. } => false,
+        Type::Primitive(_) | Type::Array { .. } | Type::String { .. } => false,
+        Type::FixedArray { inner_type, .. } => {
+            should_box_variant(inner_type, ctx, depth + 1) || estimated_inline_size(t, ctx) > 128
+        }
+        Type::Bitset { bits } => bits.div_ceil(64).saturating_mul(8) > 128,
+        Type::Encapsulated { inner, .. } => should_box_variant(inner, ctx, depth + 1),
         Type::Reference(r) => {
             if let Some(inner) = ctx.type_lookup.get(r) {
                 should_box_variant(inner, ctx, depth + 1)
@@ -187,18 +184,12 @@ pub fn should_box_variant(t: &Type, ctx: &Context, depth: usize) -> bool {
             }
         }
         Type::Container(c) => {
-            if c.fields.is_empty() {
-                return false;
-            }
-            if c.fields.len() > 3 {
-                return true;
-            }
             for f in &c.fields {
                 if should_box_variant(&f.type_def, ctx, depth + 1) {
                     return true;
                 }
             }
-            false
+            estimated_inline_size(t, ctx) > 128
         }
         Type::Option(inner) => should_box_variant(inner, ctx, depth + 1),
         Type::Switch { .. } => true,
@@ -370,3 +361,198 @@ pub fn is_recursive_type(name: &str, ty: &Type, ctx: &Context) -> bool {
     }
     visit(name, ty, ctx, &mut HashSet::new())
 }
+
+/// 64-bit Rust layout estimate for dispatch storage, not a wire-size or safety bound.
+/// Accounts for scalar width, alignment, collection handles and common Option niches.
+/// Recursive union payloads are still boxed by `should_box_variant` before sizing.
+pub fn estimated_inline_size(ty: &Type, ctx: &Context) -> usize {
+    #[derive(Clone, Copy)]
+    struct Layout {
+        size: usize,
+        align: usize,
+        niche: bool,
+    }
+
+    fn round(size: usize, align: usize) -> usize {
+        size.checked_add(align - 1)
+            .map_or(usize::MAX, |n| n & !(align - 1))
+    }
+
+    fn scalar(size: usize) -> Layout {
+        Layout {
+            size,
+            align: size.max(1),
+            niche: false,
+        }
+    }
+
+    fn primitive(ty: &Primitive) -> Layout {
+        match ty {
+            Primitive::Void => scalar(0),
+            Primitive::Bool => Layout {
+                niche: true,
+                ..scalar(1)
+            },
+            Primitive::U8 | Primitive::I8 => scalar(1),
+            Primitive::U16 | Primitive::U16LE | Primitive::I16 | Primitive::I16LE => scalar(2),
+            Primitive::U32
+            | Primitive::U32LE
+            | Primitive::I32
+            | Primitive::I32LE
+            | Primitive::F32
+            | Primitive::F32LE
+            | Primitive::VarInt
+            | Primitive::VarUInt
+            | Primitive::ZigZag32 => scalar(4),
+            Primitive::U64
+            | Primitive::U64LE
+            | Primitive::I64
+            | Primitive::I64LE
+            | Primitive::F64
+            | Primitive::F64LE
+            | Primitive::VarLong
+            | Primitive::VarULong
+            | Primitive::ZigZag64 => scalar(8),
+            Primitive::Uuid => Layout {
+                size: 16,
+                align: 1,
+                niche: false,
+            },
+            Primitive::ByteArray | Primitive::Nbt => Layout {
+                size: 32,
+                align: 8,
+                niche: true,
+            },
+        }
+    }
+
+    fn tagged(payload: Layout, cases: usize) -> Layout {
+        if cases <= 1 {
+            return payload;
+        }
+        let highest = cases - 1;
+        let tag = if highest <= u8::MAX as usize {
+            1
+        } else if highest <= u16::MAX as usize {
+            2
+        } else if highest <= u32::MAX as usize {
+            4
+        } else {
+            8
+        };
+        let align = payload.align.max(tag);
+        Layout {
+            size: round(
+                round(tag, payload.align).saturating_add(payload.size),
+                align,
+            ),
+            align,
+            niche: (cases as u128) < (1u128 << (tag * 8)),
+        }
+    }
+
+    fn visit<'a>(ty: &'a Type, ctx: &'a Context, visiting: &mut HashSet<&'a str>) -> Layout {
+        match ty {
+            Type::Primitive(ty) => primitive(ty),
+            Type::String { .. } => primitive(&Primitive::ByteArray),
+            Type::Enum {
+                underlying,
+                variants,
+            } => tagged(primitive(underlying), variants.len() + 1),
+            Type::Bitfield { storage_type, .. } => primitive(storage_type),
+            Type::Packed { backing, .. } => primitive(backing),
+            Type::Array { .. } => Layout {
+                size: 24,
+                align: 8,
+                niche: true,
+            },
+            Type::Bitset { bits } => Layout {
+                size: bits.div_ceil(64).saturating_mul(8),
+                align: 8,
+                niche: false,
+            },
+            Type::Encapsulated { inner, .. } => visit(inner, ctx, visiting),
+            Type::Reference(name) => {
+                if !visiting.insert(name.as_str()) {
+                    return Layout {
+                        size: usize::MAX,
+                        align: 8,
+                        niche: false,
+                    };
+                }
+                let layout = ctx.type_lookup.get(name).map_or(
+                    Layout {
+                        size: 32,
+                        align: 8,
+                        niche: false,
+                    },
+                    |ty| visit(ty, ctx, visiting),
+                );
+                visiting.remove(name.as_str());
+                layout
+            }
+            Type::Container(container) => {
+                let mut layout = scalar(0);
+                for field in &container.fields {
+                    let field = visit(&field.type_def, ctx, visiting);
+                    layout.size = round(layout.size, field.align).saturating_add(field.size);
+                    layout.align = layout.align.max(field.align);
+                    layout.niche |= field.niche;
+                }
+                layout.size = round(layout.size, layout.align);
+                layout
+            }
+            Type::FixedArray { size, inner_type } => {
+                let inner = visit(inner_type, ctx, visiting);
+                Layout {
+                    size: size.saturating_mul(inner.size),
+                    niche: *size > 0 && inner.niche,
+                    ..inner
+                }
+            }
+            Type::Option(inner) => {
+                let inner = visit(inner, ctx, visiting);
+                if inner.niche {
+                    Layout {
+                        niche: false,
+                        ..inner
+                    }
+                } else {
+                    tagged(inner, 2)
+                }
+            }
+            Type::Switch {
+                fields, default, ..
+            } => {
+                let mut payload = visit(default, ctx, visiting);
+                for (_, ty) in fields {
+                    let field = visit(ty, ctx, visiting);
+                    payload.size = payload.size.max(field.size);
+                    payload.align = payload.align.max(field.align);
+                }
+                tagged(payload, fields.len() + 1)
+            }
+            Type::Union { variants, .. } => {
+                let mut payload = scalar(0);
+                for variant in variants {
+                    let field = if should_box_variant(&variant.type_def, ctx, 0) {
+                        Layout {
+                            size: 8,
+                            align: 8,
+                            niche: true,
+                        }
+                    } else {
+                        visit(&variant.type_def, ctx, visiting)
+                    };
+                    payload.size = payload.size.max(field.size);
+                    payload.align = payload.align.max(field.align);
+                }
+                tagged(payload, variants.len())
+            }
+        }
+    }
+    visit(ty, ctx, &mut HashSet::new()).size
+}
+
+// Leave one word for the discriminant within three 64-byte cache lines.
+pub const OWNED_PACKET_INLINE_LIMIT: usize = 3 * 64 - 8;

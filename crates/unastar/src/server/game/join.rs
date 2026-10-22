@@ -153,7 +153,7 @@ impl GameServer {
                 default_min_value: 0.0,
                 default_max_value: default_max,
                 default_value: default,
-                name: name.to_string(),
+                name: name.into(),
                 modifiers: vec![],
             }
         }
@@ -320,7 +320,7 @@ impl GameServer {
                         .map(|block| block.min_state_id)
                         .unwrap_or(0)
                 },
-                user_data_buffer: stack.nbt.clone().unwrap_or_default(),
+                user_data_buffer: stack.nbt.clone().unwrap_or_default().into(),
             }
         };
         let main = world

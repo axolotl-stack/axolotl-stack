@@ -123,7 +123,7 @@ fn handle_item_stack_request(
                         id: stack_id,
                     }),
                     custom_name: BedrockSafetyRedactableString {
-                        unredacted: String::new(),
+                        unredacted: "".into(),
                         redacted: None,
                     },
                     durability_correction: 0,
@@ -326,7 +326,7 @@ fn wire_item(stack: &ItemStack, items: &ItemRegistry) -> Option<WireItem> {
         auxvalue: u32::try_from(stack.damage).ok()?,
         net_id_variant: None,
         block_runtime_id: u32::try_from(stack.runtime_id).ok()?,
-        user_data_buffer: stack.nbt.clone().unwrap_or_default(),
+        user_data_buffer: stack.nbt.clone().unwrap_or_default().into(),
     })
 }
 
@@ -347,7 +347,7 @@ fn validated_item(wire: &WireItem, items: &ItemRegistry) -> Option<ItemStack> {
         runtime_id: i32::try_from(wire.block_runtime_id).ok()?,
         count: u8::try_from(wire.stacksize).ok()?,
         damage: i16::try_from(wire.auxvalue).ok()?,
-        nbt: (!wire.user_data_buffer.is_empty()).then(|| wire.user_data_buffer.clone()),
+        nbt: (!wire.user_data_buffer.is_empty()).then(|| wire.user_data_buffer.to_vec()),
         max_stack_size_override: Some(entry.stack_size),
     })
 }
@@ -476,7 +476,7 @@ fn validate_creative_request<'a>(
     u32::try_from(source.block_runtime_id).ok()?;
     item.runtime_id = source.block_runtime_id;
     item.damage = i16::try_from(source.auxvalue).ok()?;
-    item.nbt = (!source.user_data_buffer.is_empty()).then(|| source.user_data_buffer.clone());
+    item.nbt = (!source.user_data_buffer.is_empty()).then(|| source.user_data_buffer.to_vec());
     Some((slot, item))
 }
 
@@ -688,7 +688,7 @@ mod tests {
                     ..Default::default()
                 },
             ),
-            ItemStackRequestPacketDataRequestDataActionsItem::PlaceActionData(Box::new(
+            ItemStackRequestPacketDataRequestDataActionsItem::PlaceActionData(
                 ItemStackRequestCerealPlaceActionData {
                     amount: 16,
                     source: ItemStackRequestCerealSlotInfoData {
@@ -708,7 +708,7 @@ mod tests {
                     },
                     ..Default::default()
                 },
-            )),
+            ),
         ];
         assert!(
             validate_creative_request(&inv, &actions, &items, GameMode::Survival, |_| Some(
@@ -751,7 +751,7 @@ mod tests {
             },
             {
                 let mut a = action(0, 8, 8);
-                a.to_item.user_data_buffer = vec![1];
+                a.to_item.user_data_buffer = vec![1].into();
                 a
             },
             action(0, 8, 0),
@@ -784,7 +784,7 @@ mod tests {
                 stacksize: 1,
                 auxvalue: 7,
                 block_runtime_id: 33,
-                user_data_buffer: vec![1, 2],
+                user_data_buffer: vec![1, 2].into(),
             },
             ..Default::default()
         });
@@ -810,7 +810,7 @@ mod tests {
                     ..Default::default()
                 },
             ),
-            ItemStackRequestPacketDataRequestDataActionsItem::PlaceActionData(Box::new(
+            ItemStackRequestPacketDataRequestDataActionsItem::PlaceActionData(
                 ItemStackRequestCerealPlaceActionData {
                     amount,
                     source: ItemStackRequestCerealSlotInfoData {
@@ -830,7 +830,7 @@ mod tests {
                     },
                     ..Default::default()
                 },
-            )),
+            ),
         ];
         world.insert_resource(InventoryPacketQueue(vec![(
             entity,
@@ -872,7 +872,7 @@ mod tests {
         let mut from = descriptor(16);
         from.block_runtime_id = 33;
         from.auxvalue = 7;
-        from.user_data_buffer = vec![1, 2];
+        from.user_data_buffer = vec![1, 2].into();
         let mut remove = action(0, 16, 0);
         remove.from_item = from.clone();
         let mut insert = action(1, 0, 16);

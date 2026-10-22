@@ -85,8 +85,8 @@ wire-size lower bound (not Rust's in-memory `size_of`).
 
 Generated recursive types share a synchronous, thread-local budget of 64 active
 recursive value decodes. Exceeding it returns `RecursiveDepthExceeded`; success,
-errors, and unwinding restore the budget. Borrowed packets that defer recursive
-payloads to their raw fallback apply the same policy when materialized.
+errors, and unwinding restore the budget. Typed borrowed recursive unions enforce
+the same budget during decoding, before conversion to an owned packet.
 
 NBT accepts segmented `Buf` inputs without consuming following fields. Values
 wholly in the first chunk retain the contiguous extraction path; split values
@@ -96,6 +96,40 @@ Owned MCPE frame decoding rejects unread payload bytes with
 `TrailingPacketBytes`, matching [gophertunnel's default invalid-packet
 handling](https://github.com/Sandertv/gophertunnel/blob/master/minecraft/packet.go).
 There are no packet-specific trailing-data exceptions.
+
+## Shared byte payloads and typed views
+
+Generated binary buffer fields use `bytes::Bytes`, including chunk payloads,
+login requests, and item user-data buffers. Decoding from `Bytes` shares the input
+allocation; other `Buf` implementations may copy when extracting a buffer.
+Construct fields from a `Vec<u8>` with `.into()` and request a mutable copy with
+`.to_vec()` only when needed.
+
+For a loop over inner frames, construct `bedrock::borrowed::BorrowedReader` once
+over the immutable input and call `McpePacketData::decode_inner_reader` or
+`BorrowedMcpePacket::decode_inner_reader`. Framing borrows the source; only fields
+that retain bytes clone its shared handle. The borrowed method returns the
+unconsumed payload count, which framed callers must require to be zero.
+`decode_inner_bytes` remains convenient for an owned `Bytes` cursor; generic
+`Buf` entry points still support segmented inputs. Once an entry length is
+validated, shared-input entry points consume that complete entry even when its
+header or payload fails, leaving the next entry intact.
+
+Text fields use `bedrock::codec::BedrockString` (`bytestring::ByteString`), an
+immutable, UTF-8-guaranteed `Bytes`-backed string. Decode validates once, shares
+valid input, and normalizes malformed UTF-8 lossily before construction. Reads
+through `&*field` do not validate again. Construct fields with `.into()`; clone
+to share storage, or use `.to_string()` when an application needs mutable text.
+
+Every current packet has a typed `Borrowed*Packet` view. Union arms recursively
+retain `BorrowedStr` and `Bytes`; converting to owned validates textual strings
+without copying valid shared input. Borrowed views preserve invalid UTF-8 bytes
+on re-encoding, while owned conversion replaces them lossily.
+
+`encode_inner_bytes_mut` predicts the frame prefix width from reusable capacity
+and writes the header and body in place. It moves the body only when the prefix
+width prediction is wrong; payload bytes still must be copied once into a
+contiguous output buffer.
 
 ## Notes
 

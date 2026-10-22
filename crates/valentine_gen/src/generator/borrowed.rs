@@ -1,4 +1,6 @@
-use crate::generator::analysis::{find_redundant_fields, should_box_variant};
+use crate::generator::analysis::{
+    OWNED_PACKET_INLINE_LIMIT, estimated_inline_size, find_redundant_fields, should_box_variant,
+};
 use crate::generator::context::Context;
 use crate::generator::definitions::resolve_type_to_tokens;
 use crate::generator::packet::packet_naming;
@@ -49,8 +51,7 @@ pub fn generate_borrowed_module(
             continue;
         };
         let canonical_name = view_gen.canonical_type_name(name);
-        let borrowable = view_gen.is_forced_borrowed_name(&canonical_name)
-            || view_gen.is_borrowable_type(ty, &mut HashSet::new());
+        let borrowable = view_gen.is_borrowable_type(ty, &mut HashSet::new());
         if !borrowable {
             continue;
         }
@@ -60,8 +61,7 @@ pub fn generate_borrowed_module(
     for packet in &parse_result.packets {
         let naming = packet_naming(&packet.name);
         let packet_type = Type::Container(packet.body.clone());
-        let borrowable = view_gen.is_forced_borrowed_name(&naming.payload_name)
-            || view_gen.is_borrowable_type(&packet_type, &mut HashSet::new());
+        let borrowable = view_gen.is_borrowable_type(&packet_type, &mut HashSet::new());
 
         if borrowable {
             view_gen.emit_named_container(&naming.payload_name, &packet.body)?;
@@ -92,7 +92,9 @@ pub fn generate_borrowed_module(
             view_ident: format_ident!("{}View", naming.payload_name),
             decode_args,
             borrowable,
-            boxed: should_box_variant(&packet_type, view_gen.ctx, 0),
+            boxed: estimated_inline_size(&packet_type, view_gen.ctx) > OWNED_PACKET_INLINE_LIMIT,
+            view_boxed: estimated_inline_size(&packet_type, view_gen.ctx)
+                > OWNED_PACKET_INLINE_LIMIT,
         });
     }
 
@@ -130,6 +132,7 @@ struct BorrowedPacketMeta {
     decode_args: TokenStream,
     borrowable: bool,
     boxed: bool,
+    view_boxed: bool,
 }
 
 #[derive(Clone, Copy)]
@@ -142,15 +145,12 @@ enum PrefixKind {
 }
 
 impl BorrowedGenerator<'_, '_> {
-    fn is_forced_borrowed_name(&self, name: &str) -> bool {
-        matches!(name, "TextPacket")
-    }
-
     fn generate_borrowed_mcpe_dispatch(&self, metas: &[BorrowedPacketMeta]) -> TokenStream {
         let mut enum_variants = Vec::new();
         let mut id_arms = Vec::new();
         let mut decode_arms = Vec::new();
         let mut into_owned_arms = Vec::new();
+        let mut view_conversions = Vec::new();
 
         for meta in metas {
             let variant_ident = &meta.variant_ident;
@@ -160,17 +160,29 @@ impl BorrowedGenerator<'_, '_> {
             id_arms.push(quote! { #id => crate::McpePacketName::#variant_ident });
 
             if meta.borrowable {
-                enum_variants.push(quote! { #variant_ident(#view_ident) });
-                decode_arms.push(quote! {
-                    crate::McpePacketName::#variant_ident => {
-                        Self::#variant_ident(
-                            <#view_ident as crate::bedrock::borrowed::BedrockBorrowDecode>::borrow_decode(
-                                &mut payload,
-                                (),
-                            )?
-                        )
+                let wrap_view = if meta.view_boxed {
+                    enum_variants.push(quote! { #variant_ident(Box<#view_ident>) });
+                    quote! { Self::#variant_ident(Box::new(view)) }
+                } else {
+                    enum_variants.push(quote! { #variant_ident(#view_ident) });
+                    quote! { Self::#variant_ident(view) }
+                };
+                view_conversions.push(quote! {
+                    impl From<#view_ident> for BorrowedMcpePacketData {
+                        #[inline]
+                        fn from(view: #view_ident) -> Self {
+                            #wrap_view
+                        }
                     }
                 });
+                decode_arms.push(quote! {
+                    crate::McpePacketName::#variant_ident => decode_view_payload::<#view_ident, B>(payload, ())?
+                });
+                let unpack_view = if meta.view_boxed {
+                    quote! { let view = *view; }
+                } else {
+                    TokenStream::new()
+                };
 
                 let wrap_owned = if meta.boxed {
                     quote! { crate::McpePacketData::#variant_ident(Box::new(view.into())) }
@@ -178,7 +190,7 @@ impl BorrowedGenerator<'_, '_> {
                     quote! { crate::McpePacketData::#variant_ident(view.into()) }
                 };
                 into_owned_arms.push(quote! {
-                    Self::#variant_ident(view) => Ok(#wrap_owned)
+                    Self::#variant_ident(view) => { #unpack_view Ok(#wrap_owned) }
                 });
             }
         }
@@ -224,6 +236,18 @@ impl BorrowedGenerator<'_, '_> {
             })
             .collect();
 
+        let raw_decode_arm = if metas.iter().any(|meta| !meta.borrowable) {
+            quote! {
+                _ => {
+                    let len = bytes::Buf::remaining(payload);
+                    let payload = bytes::Buf::copy_to_bytes(payload, len);
+                    return Ok((Self::Raw { name, payload }, 0));
+                },
+            }
+        } else {
+            TokenStream::new()
+        };
+
         quote! {
             #[derive(Debug, Clone, PartialEq)]
             pub enum BorrowedMcpePacketData {
@@ -232,6 +256,36 @@ impl BorrowedGenerator<'_, '_> {
                     name: crate::McpePacketName,
                     payload: bytes::Bytes,
                 },
+            }
+
+            #(#view_conversions)*
+
+            #[inline]
+            fn decode_view_payload<V, B>(
+                buf: &mut B,
+                args: V::Args,
+            ) -> Result<BorrowedMcpePacketData, crate::bedrock::error::DecodeError>
+            where
+                V: crate::bedrock::borrowed::BedrockBorrowDecode + Into<BorrowedMcpePacketData>,
+                B: bytes::Buf,
+            {
+                if std::mem::size_of::<V>() <= 256 {
+                    Ok(V::borrow_decode(buf, args)?.into())
+                } else {
+                    decode_large_view_payload::<V, B>(buf, args)
+                }
+            }
+
+            #[inline(never)]
+            fn decode_large_view_payload<V, B>(
+                buf: &mut B,
+                args: V::Args,
+            ) -> Result<BorrowedMcpePacketData, crate::bedrock::error::DecodeError>
+            where
+                V: crate::bedrock::borrowed::BedrockBorrowDecode + Into<BorrowedMcpePacketData>,
+                B: bytes::Buf,
+            {
+                Ok(V::borrow_decode(buf, args)?.into())
             }
 
             impl BorrowedMcpePacketData {
@@ -272,16 +326,16 @@ impl BorrowedGenerator<'_, '_> {
                 /// with trailing bytes without having to materialise an owned
                 /// packet. `Raw` payloads are reported as fully consumed
                 /// (`0` remaining) because nothing has parsed them yet.
-                fn decode_payload(
+                #[inline]
+                fn decode_payload<B: bytes::Buf>(
                     name: crate::McpePacketName,
-                    payload: bytes::Bytes,
+                    payload: &mut B,
                 ) -> Result<(Self, usize), crate::bedrock::error::DecodeError> {
-                    let mut payload = payload;
                     let data = match name {
                         #(#decode_arms),*,
-                        _ => return Ok((Self::Raw { name, payload }, 0)),
+                        #raw_decode_arm
                     };
-                    let remaining = bytes::Buf::remaining(&payload);
+                    let remaining = bytes::Buf::remaining(payload);
                     Ok((data, remaining))
                 }
             }
@@ -293,6 +347,7 @@ impl BorrowedGenerator<'_, '_> {
             }
 
             impl BorrowedMcpePacket {
+                #[inline]
                 pub fn decode_inner(
                     buf: &mut bytes::Bytes,
                 ) -> Result<Self, crate::bedrock::error::DecodeError> {
@@ -302,30 +357,96 @@ impl BorrowedGenerator<'_, '_> {
                 /// Decodes one length-prefixed inner frame and also returns the
                 /// number of declared payload bytes the packet decoder did not
                 /// consume, so callers can reject trailing-byte frames.
+                #[inline]
                 pub fn decode_inner_with_remaining(
                     buf: &mut bytes::Bytes,
                 ) -> Result<(Self, usize), crate::bedrock::error::DecodeError> {
-                    let mut frame = crate::bedrock::borrowed::take_var_u32_prefixed_bytes(buf)?;
-                    let header_raw = crate::protocol::wire::read_var_u32(&mut frame)?;
-                    let payload_len = bytes::Buf::remaining(&frame);
-                    let payload = frame.split_to(payload_len);
-                    Self::from_raw_frame_with_remaining(crate::bedrock::borrowed::RawMcpeFrame {
-                        header: crate::bedrock::borrowed::RawMcpeHeader {
-                            id_raw: header_raw & 0x3ff,
-                            from_subclient: (header_raw >> 10) & 0x3,
-                            to_subclient: (header_raw >> 12) & 0x3,
-                        },
-                        payload,
-                    })
+                    Self::decode_entry(buf, false)
                 }
 
+                /// Decodes one length-prefixed inner frame from a reusable reader
+                /// without cloning its source, returning unconsumed payload bytes.
+                ///
+                /// Validated entries are consumed in full even if their header or
+                /// payload is invalid. Invalid lengths consume only their prefix.
+                #[inline]
+                pub fn decode_inner_reader(
+                    buf: &mut crate::bedrock::borrowed::BorrowedReader<'_>,
+                ) -> Result<(Self, usize), crate::bedrock::error::DecodeError> {
+                    Self::decode_entry_reader(buf, false)
+                }
+
+                #[inline]
+                fn decode_entry(
+                    buf: &mut bytes::Bytes,
+                    packet_length_error: bool,
+                ) -> Result<(Self, usize), crate::bedrock::error::DecodeError> {
+                    let available = bytes::Buf::remaining(buf);
+                    let (result, consumed) = {
+                        let mut reader = crate::bedrock::borrowed::BorrowedReader::new(&*buf, available);
+                        let result = Self::decode_entry_reader(&mut reader, packet_length_error);
+                        (result, available - bytes::Buf::remaining(&reader))
+                    };
+                    bytes::Buf::advance(buf, consumed);
+                    result
+                }
+
+                #[inline]
+                fn decode_entry_reader(
+                    buf: &mut crate::bedrock::borrowed::BorrowedReader<'_>,
+                    packet_length_error: bool,
+                ) -> Result<(Self, usize), crate::bedrock::error::DecodeError> {
+                    let len = crate::protocol::wire::read_var_u32(buf)? as usize;
+                    let available = bytes::Buf::remaining(buf);
+                    if available < len {
+                        return Err(if packet_length_error {
+                            crate::bedrock::error::DecodeError::PacketLengthExceeded {
+                                declared: len, available,
+                            }
+                        } else {
+                            crate::bedrock::error::DecodeError::ArrayLengthExceeded {
+                                declared: len, available,
+                            }
+                        });
+                    }
+                    // Consume the declared entry even when its header or payload is invalid.
+                    let mut frame = buf.take_frame(len);
+                    Self::decode_header_and_payload(&mut frame)
+                }
+
+                #[inline]
+                fn decode_header_and_payload<B: bytes::Buf>(
+                    buf: &mut B,
+                ) -> Result<(Self, usize), crate::bedrock::error::DecodeError> {
+                    let header_raw = crate::protocol::wire::read_var_u32(buf)?;
+                    let header = crate::bedrock::borrowed::RawMcpeHeader {
+                        id_raw: header_raw & 0x3ff,
+                        from_subclient: (header_raw >> 10) & 0x3,
+                        to_subclient: (header_raw >> 12) & 0x3,
+                    };
+                    Self::decode_with_header(header, buf)
+                }
+
+                #[inline]
                 pub fn decode_game_frame(
                     buf: &mut bytes::Bytes,
                 ) -> Result<Self, crate::bedrock::error::DecodeError> {
-                    let raw = crate::bedrock::borrowed::RawMcpeFrame::decode(buf)?;
-                    Self::from_raw_frame(raw)
+                    if !bytes::Buf::has_remaining(buf) {
+                        return Err(crate::bedrock::error::DecodeError::UnexpectedEof {
+                            needed: 1, available: 0,
+                        });
+                    }
+                    let leading = bytes::Buf::get_u8(buf);
+                    if leading != crate::bedrock::borrowed::GAME_PACKET_ID {
+                        return Err(crate::bedrock::error::DecodeError::InvalidMagicByte {
+                            expected: crate::bedrock::borrowed::GAME_PACKET_ID,
+                            actual: leading,
+                        });
+                    }
+                    Ok(Self::decode_entry(buf, true)?.0)
                 }
 
+                #[inline]
                 pub fn from_raw_frame(
                     frame: crate::bedrock::borrowed::RawMcpeFrame,
                 ) -> Result<Self, crate::bedrock::error::DecodeError> {
@@ -334,17 +455,26 @@ impl BorrowedGenerator<'_, '_> {
 
                 /// Like [`Self::from_raw_frame`], but also reports the number of
                 /// payload bytes left unconsumed inside the frame.
+                #[inline]
                 pub fn from_raw_frame_with_remaining(
-                    frame: crate::bedrock::borrowed::RawMcpeFrame,
+                    mut frame: crate::bedrock::borrowed::RawMcpeFrame,
                 ) -> Result<(Self, usize), crate::bedrock::error::DecodeError> {
-                    let name = match frame.header.id_raw {
+                    Self::decode_with_header(frame.header, &mut frame.payload)
+                }
+
+                #[inline]
+                fn decode_with_header<B: bytes::Buf>(
+                    header: crate::bedrock::borrowed::RawMcpeHeader,
+                    payload: &mut B,
+                ) -> Result<(Self, usize), crate::bedrock::error::DecodeError> {
+                    let name = match header.id_raw {
                         #(#id_arms),*,
                         id => return Err(crate::bedrock::error::DecodeError::InvalidPacketId { id }),
                     };
-                    let (data, remaining) = BorrowedMcpePacketData::decode_payload(name, frame.payload)?;
+                    let (data, remaining) = BorrowedMcpePacketData::decode_payload(name, payload)?;
                     Ok((
                         Self {
-                            header: frame.header,
+                            header,
                             data,
                         },
                         remaining,
@@ -389,6 +519,7 @@ impl BorrowedGenerator<'_, '_> {
         match ty {
             Type::Container(container) => self.emit_named_container(name, container),
             Type::Switch { .. } => self.emit_named_switch(name, ty),
+            Type::Union { .. } => self.emit_named_union(name, ty),
             _ => Ok(()),
         }
     }
@@ -485,8 +616,9 @@ impl BorrowedGenerator<'_, '_> {
             impl crate::bedrock::borrowed::BedrockBorrowDecode for #view_ident {
                 type Args = ();
 
-                fn borrow_decode(
-                    buf: &mut bytes::Bytes,
+                #[inline]
+                fn borrow_decode<B: bytes::Buf>(
+                    buf: &mut B,
                     _args: Self::Args,
                 ) -> Result<Self, crate::bedrock::error::DecodeError> {
                     #depth_guard
@@ -500,8 +632,9 @@ impl BorrowedGenerator<'_, '_> {
             }
 
             impl #view_ident {
-                pub fn decode(
-                    buf: &mut bytes::Bytes,
+                #[inline]
+                pub fn decode<B: bytes::Buf>(
+                    buf: &mut B,
                 ) -> Result<Self, crate::bedrock::error::DecodeError> {
                     <Self as crate::bedrock::borrowed::BedrockBorrowDecode>::borrow_decode(buf, ())
                 }
@@ -526,6 +659,124 @@ impl BorrowedGenerator<'_, '_> {
             }
         });
 
+        Ok(())
+    }
+
+    /// Emit union payload views recursively: controls stay owned scalars, while
+    /// strings and byte blobs in every selected arm retain their Bytes backing.
+    fn emit_named_union(
+        &mut self,
+        name: &str,
+        ty: &Type,
+    ) -> Result<(), Box<dyn std::error::Error>> {
+        let Type::Union {
+            control_type,
+            variants,
+        } = ty
+        else {
+            return Ok(());
+        };
+        let view_ident = format_ident!("{name}View");
+        if !self.emitted.insert(view_ident.to_string()) {
+            return Ok(());
+        }
+        let owned_ident = format_ident!("{name}");
+        let mut definitions = Vec::new();
+        let mut decodes = Vec::new();
+        let mut encodes = Vec::new();
+        let mut sizes = Vec::new();
+        let mut conversions = Vec::new();
+        let empty = Container {
+            name: name.to_owned(),
+            fields: Vec::new(),
+        };
+        let resolved = ResolvedContainer::analyze(&empty, name, self.ctx);
+        for variant in variants {
+            let ident = format_ident!("{}", safe_camel_ident(&variant.name));
+            let hint = format!("{name}{}", camel_case(&variant.name));
+            let control = variant.control_value;
+            let control_rust =
+                self.borrowed_type_tokens(&Type::Primitive(control_type.clone()), name)?;
+            let control_value = if matches!(control_type, Primitive::Bool) {
+                let value = control != 0;
+                quote! { #value }
+            } else {
+                quote! { (#control as #control_rust) }
+            };
+            let control_encode =
+                self.encode_primitive_stmt(control_type.clone(), quote! { &#control_value });
+            let control_size =
+                self.size_primitive_expr(control_type.clone(), quote! { &#control_value });
+            if matches!(variant.type_def, Type::Primitive(Primitive::Void)) {
+                definitions.push(quote! { #ident });
+                decodes.push(quote! { #control => Self::#ident });
+                encodes.push(quote! { Self::#ident => { #control_encode } });
+                sizes.push(quote! { Self::#ident => #control_size });
+                conversions.push(quote! { #view_ident::#ident => Self::#ident });
+                continue;
+            }
+            let tokens = self.borrowed_type_tokens(&variant.type_def, &hint)?;
+            let decode =
+                self.decode_expr(&variant.type_def, "", &hint, quote! { buf }, &resolved)?;
+            let boxed = should_box_variant(&variant.type_def, self.ctx, 0);
+            let access = if boxed {
+                quote! { value.as_ref() }
+            } else {
+                quote! { value }
+            };
+            let encode = self.encode_stmt(&variant.type_def, access.clone(), &hint)?;
+            let size = self.size_expr(&variant.type_def, access, &hint)?;
+            let input = if boxed {
+                quote! { *value }
+            } else {
+                quote! { value }
+            };
+            let owned = self.owned_expr(&variant.type_def, input, &hint)?;
+            if boxed {
+                definitions.push(quote! { #ident(Box<#tokens>) });
+                decodes.push(quote! { #control => Self::#ident(Box::new(#decode)) });
+                conversions
+                    .push(quote! { #view_ident::#ident(value) => Self::#ident(Box::new(#owned)) });
+            } else {
+                definitions.push(quote! { #ident(#tokens) });
+                decodes.push(quote! { #control => Self::#ident(#decode) });
+                conversions.push(quote! { #view_ident::#ident(value) => Self::#ident(#owned) });
+            }
+            encodes.push(quote! { Self::#ident(value) => { #control_encode #encode } });
+            sizes.push(quote! { Self::#ident(value) => #control_size + (#size) });
+        }
+        let control_decode = self.decode_primitive_expr(control_type.clone(), quote! { buf });
+        let depth_guard = if crate::generator::analysis::is_recursive_type(name, ty, self.ctx) {
+            quote! { let _depth_guard = crate::bedrock::codec::RecursiveDecodeGuard::enter()?; }
+        } else {
+            TokenStream::new()
+        };
+        self.items.push(quote! {
+            #[derive(Debug, Clone, PartialEq)]
+            pub enum #view_ident { #(#definitions),* }
+            impl #view_ident {
+                #[inline]
+                pub fn decode<B: bytes::Buf>(buf: &mut B) -> Result<Self, crate::bedrock::error::DecodeError> {
+                    #depth_guard
+                    Ok(match (#control_decode) as i64 {
+                        #(#decodes,)*
+                        value => return Err(crate::bedrock::error::DecodeError::InvalidEnumValue {
+                            enum_name: stringify!(#owned_ident), value,
+                        }),
+                    })
+                }
+                pub fn encode<B: bytes::BufMut>(&self, buf: &mut B) -> Result<(), std::io::Error> {
+                    match self { #(#encodes),* }
+                    Ok(())
+                }
+            }
+            impl crate::bedrock::codec::BedrockSized for #view_ident {
+                fn encoded_size(&self) -> usize { match self { #(#sizes),* } }
+            }
+            impl From<#view_ident> for #owned_ident {
+                fn from(value: #view_ident) -> Self { match value { #(#conversions),* } }
+            }
+        });
         Ok(())
     }
 
@@ -804,6 +1055,17 @@ impl BorrowedGenerator<'_, '_> {
                 Primitive::Nbt => quote! { crate::bedrock::codec::Nbt },
                 _ => primitive_to_rust_tokens(primitive),
             },
+            Type::Packed { backing, .. } => {
+                self.borrowed_type_tokens(&Type::Primitive(backing.clone()), hint)?
+            }
+            Type::Bitset { bits } => {
+                let words = bits.div_ceil(64);
+                quote! { [u64; #words] }
+            }
+            Type::FixedArray { size, inner_type } => {
+                let inner = self.borrowed_type_tokens(inner_type, &format!("{hint}Item"))?;
+                quote! { [#inner; #size] }
+            }
             Type::Enum { .. } | Type::Bitfield { .. } => {
                 let ident = format_ident!("{}", self.resolved_owned_name(ty, hint)?);
                 quote! { #ident }
@@ -858,11 +1120,8 @@ impl BorrowedGenerator<'_, '_> {
             }
             Type::Union { .. } => {
                 let owned_name = self.resolved_owned_name(ty, hint)?;
-                let ident = format_ident!("{}", owned_name);
-                quote! { #ident }
-            }
-            _ => {
-                let ident = format_ident!("{}", clean_type_name(hint));
+                self.emit_named_union(&owned_name, ty)?;
+                let ident = format_ident!("{}View", owned_name);
                 quote! { #ident }
             }
         })
@@ -879,6 +1138,27 @@ impl BorrowedGenerator<'_, '_> {
         match ty {
             Type::Primitive(primitive) => {
                 Ok(self.decode_primitive_expr(primitive.clone(), buf_ident))
+            }
+            Type::Packed { backing, .. } => {
+                Ok(self.decode_primitive_expr(backing.clone(), buf_ident))
+            }
+            Type::Bitset { bits } => {
+                let words = bits.div_ceil(64);
+                Ok(quote! { crate::bedrock::codec::decode_bitset::<_, #words>(#buf_ident, #bits)? })
+            }
+            Type::FixedArray { size, inner_type } => {
+                let inner = self.decode_expr(
+                    inner_type,
+                    field_name,
+                    &format!("{hint}Item"),
+                    buf_ident,
+                    resolved,
+                )?;
+                Ok(quote! {{
+                    crate::bedrock::codec::decode_fixed_array::<_, #size>(
+                        || Ok(#inner),
+                    )?
+                }})
             }
             Type::String { count_type, .. } => self.decode_prefixed_string(count_type, buf_ident),
             Type::Encapsulated { length_type, inner } => {
@@ -950,6 +1230,11 @@ impl BorrowedGenerator<'_, '_> {
                 )?;
                 let minimum_size =
                     crate::generator::analysis::minimum_encoded_size(inner_type, self.ctx);
+                let reserve_item = if minimum_size == 0 {
+                    quote! { crate::bedrock::codec::reserve_decode_item(&mut values)?; }
+                } else {
+                    TokenStream::new()
+                };
                 Ok(quote! {
                     {
                         let len = #len_decode;
@@ -959,8 +1244,9 @@ impl BorrowedGenerator<'_, '_> {
                             Some(#minimum_size),
                         )?;
                         for _ in 0..len {
-                            crate::bedrock::codec::reserve_decode_item(&mut values)?;
-                            values.push(#inner_decode);
+                            let value = #inner_decode;
+                            #reserve_item
+                            values.push(value);
                         }
                         values
                     }
@@ -986,10 +1272,10 @@ impl BorrowedGenerator<'_, '_> {
                 })
             }
             Type::Union { .. } => {
-                let ident = format_ident!("{}", self.resolved_owned_name(ty, hint)?);
-                Ok(quote! {
-                    <#ident as crate::bedrock::codec::BedrockCodec>::decode(#buf_ident, ())?
-                })
+                let owned_name = self.resolved_owned_name(ty, hint)?;
+                self.emit_named_union(&owned_name, ty)?;
+                let ident = format_ident!("{}View", owned_name);
+                Ok(quote! { #ident::decode(#buf_ident)? })
             }
             Type::Switch {
                 compare_to,
@@ -1152,7 +1438,6 @@ impl BorrowedGenerator<'_, '_> {
                     quote! { <#ident as crate::bedrock::codec::BedrockCodec>::decode(#buf_ident, ())? },
                 )
             }
-            _ => Err("unsupported borrowed decode shape".into()),
         }
     }
 
@@ -1164,6 +1449,14 @@ impl BorrowedGenerator<'_, '_> {
     ) -> Result<TokenStream, Box<dyn std::error::Error>> {
         match ty {
             Type::Primitive(primitive) => Ok(self.encode_primitive_stmt(primitive.clone(), access)),
+            Type::Packed { backing, .. } => Ok(self.encode_primitive_stmt(backing.clone(), access)),
+            Type::Bitset { bits } => {
+                Ok(quote! { crate::bedrock::codec::encode_bitset(#access, #bits, buf)?; })
+            }
+            Type::FixedArray { inner_type, .. } => {
+                let item = self.encode_stmt(inner_type, quote! { item }, &format!("{hint}Item"))?;
+                Ok(quote! { for item in #access { #item } })
+            }
             Type::String { count_type, .. } => {
                 let encode_len =
                     self.encode_length_stmt(count_type, quote! { (#access).as_bytes().len() })?;
@@ -1274,6 +1567,14 @@ impl BorrowedGenerator<'_, '_> {
     ) -> Result<TokenStream, Box<dyn std::error::Error>> {
         match ty {
             Type::Primitive(primitive) => Ok(self.size_primitive_expr(primitive.clone(), access)),
+            Type::Packed { backing, .. } => Ok(self.size_primitive_expr(backing.clone(), access)),
+            Type::Bitset { bits } => {
+                Ok(quote! { crate::bedrock::codec::bitset_encoded_size(#access, #bits) })
+            }
+            Type::FixedArray { inner_type, .. } => {
+                let size = self.size_expr(inner_type, quote! { item }, &format!("{hint}Item"))?;
+                Ok(quote! { (#access).iter().map(|item| #size).sum::<usize>() })
+            }
             Type::String { count_type, .. } => {
                 let len_expr = quote! { (#access).as_bytes().len() };
                 let prefix = self.length_size_expr(count_type, len_expr.clone())?;
@@ -1357,15 +1658,33 @@ impl BorrowedGenerator<'_, '_> {
         hint: &str,
     ) -> Result<TokenStream, Box<dyn std::error::Error>> {
         match ty {
-            Type::String { .. } => Ok(quote! { (#expr).to_string_lossy().into_owned() }),
+            Type::String { encoding, .. } => {
+                if encoding
+                    .as_deref()
+                    .is_some_and(|value| value.eq_ignore_ascii_case("latin1"))
+                {
+                    Ok(quote! {{
+                        let bytes = (#expr).into_bytes();
+                        if bytes.is_ascii() {
+                            crate::bedrock::codec::decode_utf8_lossy_bytes(bytes)
+                        } else {
+                            bytes.iter().map(|&b| b as char).collect::<String>().into()
+                        }
+                    }})
+                } else {
+                    Ok(quote! {
+                        crate::bedrock::codec::decode_utf8_lossy_bytes((#expr).into_bytes())
+                    })
+                }
+            }
             Type::Encapsulated { inner, .. }
                 if matches!(inner.as_ref(), Type::Primitive(Primitive::ByteArray)) =>
             {
-                Ok(quote! { (#expr).to_vec() })
+                Ok(expr)
             }
             Type::Encapsulated { inner, .. } => self.owned_expr(inner, expr, hint),
             Type::Reference(name) if name == "LittleString" => {
-                Ok(quote! { (#expr).to_string_lossy().into_owned() })
+                Ok(quote! { crate::bedrock::codec::decode_utf8_lossy_bytes((#expr).into_bytes()) })
             }
             Type::Reference(name) => {
                 if let Some(resolved) = self.ctx.type_lookup.get(name).cloned() {
@@ -1376,6 +1695,10 @@ impl BorrowedGenerator<'_, '_> {
             Type::Array { inner_type, .. } => {
                 let item = self.owned_expr(inner_type, quote! { item }, &format!("{hint}Item"))?;
                 Ok(quote! { (#expr).into_iter().map(|item| { #item }).collect() })
+            }
+            Type::FixedArray { inner_type, .. } => {
+                let item = self.owned_expr(inner_type, quote! { item }, &format!("{hint}Item"))?;
+                Ok(quote! { (#expr).map(|item| { #item }) })
             }
             Type::Option(inner) => {
                 let item = self.owned_expr(inner, quote! { value }, hint)?;
@@ -1406,13 +1729,16 @@ impl BorrowedGenerator<'_, '_> {
 
                 Ok(quote! { (#expr).into() })
             }
-            Type::Container(_) => Ok(quote! { (#expr).into() }),
+            Type::Container(_) | Type::Union { .. } => Ok(quote! { (#expr).into() }),
             _ => Ok(expr),
         }
     }
 
     fn decode_primitive_expr(&self, primitive: Primitive, buf_ident: TokenStream) -> TokenStream {
         match primitive {
+            Primitive::ByteArray => quote! {
+                crate::bedrock::borrowed::take_var_u32_prefixed_bytes(#buf_ident)?
+            },
             Primitive::VarInt => {
                 quote! { <crate::bedrock::codec::VarInt as crate::bedrock::codec::BedrockCodec>::decode(#buf_ident, ())?.0 }
             }
@@ -1464,6 +1790,10 @@ impl BorrowedGenerator<'_, '_> {
 
     fn encode_primitive_stmt(&self, primitive: Primitive, access: TokenStream) -> TokenStream {
         match primitive {
+            Primitive::ByteArray => quote! {
+                crate::bedrock::codec::VarUInt((#access).len() as u32).encode(buf)?;
+                buf.put_slice((#access).as_ref());
+            },
             Primitive::VarInt => quote! { crate::bedrock::codec::VarInt(*#access).encode(buf)?; },
             Primitive::VarUInt => quote! { crate::bedrock::codec::VarUInt(*#access).encode(buf)?; },
             Primitive::VarLong => quote! { crate::bedrock::codec::VarLong(*#access).encode(buf)?; },
@@ -1490,6 +1820,11 @@ impl BorrowedGenerator<'_, '_> {
 
     fn size_primitive_expr(&self, primitive: Primitive, access: TokenStream) -> TokenStream {
         match primitive {
+            Primitive::ByteArray => quote! {
+                crate::bedrock::codec::BedrockSized::encoded_size(
+                    &crate::bedrock::codec::VarUInt((#access).len() as u32),
+                ) + (#access).len()
+            },
             Primitive::VarInt => {
                 quote! { crate::bedrock::codec::BedrockSized::encoded_size(&crate::bedrock::codec::VarInt(*#access)) }
             }
@@ -1650,7 +1985,6 @@ impl BorrowedGenerator<'_, '_> {
 
     fn is_borrowable_type(&self, ty: &Type, visiting: &mut HashSet<String>) -> bool {
         match ty {
-            Type::Primitive(Primitive::ByteArray) => false,
             Type::Primitive(_) => true,
             Type::String { count_type, .. } => self.prefix_kind(count_type).is_some(),
             Type::Encapsulated { length_type, inner } => {
@@ -1663,7 +1997,7 @@ impl BorrowedGenerator<'_, '_> {
                     return true;
                 }
                 if !visiting.insert(name.clone()) {
-                    return false;
+                    return true;
                 }
                 let result = self
                     .ctx
@@ -1684,14 +2018,18 @@ impl BorrowedGenerator<'_, '_> {
                 self.prefix_kind(count_type).is_some()
                     && self.is_borrowable_type(inner_type, visiting)
             }
-            Type::FixedArray { .. } => false,
-            Type::Bitset { .. } => false,
+            Type::FixedArray { inner_type, .. } => self.is_borrowable_type(inner_type, visiting),
+            Type::Bitset { .. } => true,
             Type::Option(inner) => self.is_borrowable_type(inner, visiting),
+            // Legacy switches still require contextual control-field lowering.
+            // Canonical protocolgen uses Union/Option, which are typed above.
             Type::Switch { .. } => false,
-            Type::Union { .. } => false,
+            Type::Union { variants, .. } => variants
+                .iter()
+                .all(|variant| self.is_borrowable_type(&variant.type_def, visiting)),
             Type::Enum { .. } => true,
             Type::Bitfield { .. } => true,
-            Type::Packed { .. } => false,
+            Type::Packed { .. } => true,
         }
     }
 }

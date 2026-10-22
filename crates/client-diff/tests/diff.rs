@@ -61,7 +61,7 @@ fn float_tolerance_masks_only_nearby_coordinates() {
         packet.position.x = x;
         packet.on_ground = on_ground;
         let mut encoded = Vec::new();
-        McpePacketData::MovePlayerPacket(Box::new(packet))
+        McpePacketData::MovePlayerPacket(packet)
             .encode_inner(&mut encoded, 0, 0)
             .unwrap();
         // The small default MovePlayer body has a one-byte batch length prefix.
@@ -114,7 +114,7 @@ fn modern_login_masks_embedded_certificate_keys_but_preserves_client_claims() {
         let mut bytes = Vec::new();
         McpePacket::from(LoginPacket {
             client_network_version: 2193,
-            connection_request: request,
+            connection_request: request.into(),
         })
         .data
         .encode_inner(&mut bytes, 0, 0)

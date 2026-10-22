@@ -127,12 +127,12 @@ impl GameServer {
             }
             McpePacketData::TextPacket(pk) => {
                 if let Some(mut q) = world.get_resource_mut::<ChatPacketQueue>() {
-                    q.0.push((entity, session_id, ChatAction::Text(*pk)));
+                    q.0.push((entity, session_id, ChatAction::Text(pk)));
                 }
             }
             McpePacketData::MobEquipmentPacket(pk) => {
                 if let Some(mut q) = world.get_resource_mut::<InventoryPacketQueue>() {
-                    q.0.push((entity, InventoryAction::MobEquipment(*pk)));
+                    q.0.push((entity, InventoryAction::MobEquipment(pk)));
                 }
             }
             McpePacketData::ItemStackRequestPacket(pk) => {
@@ -167,7 +167,7 @@ impl GameServer {
                         q.0.push((entity, BlockAction::BlockClick(*use_item)));
                     }
                 } else if let Some(mut q) = world.get_resource_mut::<InventoryPacketQueue>() {
-                    q.0.push((entity, InventoryAction::Transaction(*pk)));
+                    q.0.push((entity, InventoryAction::Transaction(pk)));
                 }
             }
             McpePacketData::MovePlayerPacket(_) => {

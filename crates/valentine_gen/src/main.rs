@@ -1399,7 +1399,7 @@ fn write_generated_surface(
 fn write_borrowed_surface(bedrock_src_dir: &Path) -> Result<(), Box<dyn std::error::Error>> {
     let syntax = parse2(quote! {
         pub use valentine_bedrock_core::bedrock::borrowed::{
-            BedrockBorrowDecode, BorrowedStr, GAME_PACKET_ID, RawMcpeFrame, RawMcpeHeader,
+            BedrockBorrowDecode, BorrowedReader, BorrowedStr, GAME_PACKET_ID, RawMcpeFrame, RawMcpeHeader,
             take_u32le_prefixed_string, take_varint_prefixed_bytes, take_varint_prefixed_string,
         };
     })?;
@@ -1729,7 +1729,7 @@ mod generated_crate_tests {
         fs::write(
             output.join("Cargo.toml"),
             format!(
-                "[workspace]\nresolver = \"2\"\nmembers = [{}]\n[workspace.package]\nedition = \"2024\"\n[workspace.dependencies]\nbytes = \"1\"\nuuid = \"1.8.0\"\n",
+                "[workspace]\nresolver = \"2\"\nmembers = [{}]\n[workspace.package]\nedition = \"2024\"\n[workspace.dependencies]\nbytes = \"1\"\nbytestring = \"1.5\"\narrayvec = \"0.7\"\nuuid = \"1.8.0\"\n",
                 members.join(", ")
             ),
         )
@@ -1857,6 +1857,146 @@ mod generated_crate_tests {
         generate_schema_source(&args, manifest_dir, &output)
             .expect("generate protocolgen temp crate");
 
+        // Exercise IR shapes shared by frontends but absent from this canonical fixture.
+        use crate::ir::{Container, Field, Packet, Primitive, Type};
+        let mut parsed =
+            crate::parser::protocolgen::parse(args.protocolgen_manifest.as_ref().unwrap()).unwrap();
+        let body = Container {
+            name: "BareBytesPacket".into(),
+            fields: vec![
+                Field {
+                    name: "payload".into(),
+                    type_def: Type::Primitive(Primitive::ByteArray),
+                },
+                Field {
+                    name: "marker".into(),
+                    type_def: Type::Primitive(Primitive::U8),
+                },
+            ],
+        };
+        parsed
+            .result
+            .types
+            .insert(body.name.clone(), Type::Container(body.clone()));
+        parsed.result.packets.push(Packet {
+            id: 10,
+            name: body.name.clone(),
+            body,
+        });
+        for (name, value) in [
+            (
+                "ChoiceText",
+                Type::String {
+                    count_type: Box::new(Type::Primitive(Primitive::VarUInt)),
+                    encoding: None,
+                },
+            ),
+            ("ChoiceNumber", Type::Primitive(Primitive::U16LE)),
+        ] {
+            parsed.result.types.insert(
+                name.into(),
+                Type::Container(Container {
+                    name: name.into(),
+                    fields: vec![Field {
+                        name: "value".into(),
+                        type_def: value,
+                    }],
+                }),
+            );
+        }
+        for (id, name, yes, no) in [
+            (
+                11,
+                "PrimitiveChoicePacket",
+                Type::Primitive(Primitive::U8),
+                Type::Primitive(Primitive::U16LE),
+            ),
+            (
+                12,
+                "ReferenceChoicePacket",
+                Type::Reference("ChoiceText".into()),
+                Type::Reference("ChoiceNumber".into()),
+            ),
+        ] {
+            let body = Container {
+                name: name.into(),
+                fields: vec![
+                    Field {
+                        name: "flag".into(),
+                        type_def: Type::Primitive(Primitive::Bool),
+                    },
+                    Field {
+                        name: "payload".into(),
+                        type_def: Type::Switch {
+                            compare_to: "flag".into(),
+                            fields: vec![("true".into(), yes), ("false".into(), no)],
+                            default: Box::new(Type::Primitive(Primitive::Void)),
+                        },
+                    },
+                ],
+            };
+            parsed
+                .result
+                .types
+                .insert(name.into(), Type::Container(body.clone()));
+            parsed.result.packets.push(Packet {
+                id,
+                name: name.into(),
+                body,
+            });
+        }
+        parsed.result.types.insert(
+            "LargeArrayChoice".into(),
+            Type::Union {
+                control_type: Primitive::U8,
+                variants: vec![
+                    crate::ir::UnionVariant {
+                        control_value: 0,
+                        name: "Empty".into(),
+                        type_def: Type::Primitive(Primitive::Void),
+                    },
+                    crate::ir::UnionVariant {
+                        control_value: 1,
+                        name: "Words".into(),
+                        type_def: Type::FixedArray {
+                            size: 17,
+                            inner_type: Box::new(Type::Primitive(Primitive::U64LE)),
+                        },
+                    },
+                ],
+            },
+        );
+        let body = Container {
+            name: "LargeArrayPacket".into(),
+            fields: vec![
+                Field {
+                    name: "payload".into(),
+                    type_def: Type::Reference("LargeArrayChoice".into()),
+                },
+                Field {
+                    name: "marker".into(),
+                    type_def: Type::Primitive(Primitive::U8),
+                },
+            ],
+        };
+        parsed
+            .result
+            .types
+            .insert(body.name.clone(), Type::Container(body.clone()));
+        parsed.result.packets.push(Packet {
+            id: 13,
+            name: body.name.clone(),
+            body,
+        });
+        crate::generator::generate_protocol_module(
+            "valentine_bedrock_1_26_40",
+            "",
+            &parsed.result,
+            &output.join("bedrock_versions/v1_26_40/src"),
+            &mut crate::generator::context::GlobalRegistry::new(),
+        )
+        .unwrap();
+
         let core_source = manifest_dir
             .parent()
             .expect("valentine_gen has a crate parent")
@@ -1865,7 +2005,7 @@ mod generated_crate_tests {
             .expect("copy bedrock_core into generated temp crate");
         fs::write(
             output.join("Cargo.toml"),
-            "[workspace]\nresolver = \"2\"\nmembers = [\"bedrock_core\", \"bedrock_versions/v1_26_40\"]\n[workspace.package]\nedition = \"2024\"\n[workspace.dependencies]\nbytes = \"1\"\nuuid = { version = \"1.8.0\", features = [\"v4\"] }\n",
+            "[workspace]\nresolver = \"2\"\nmembers = [\"bedrock_core\", \"bedrock_versions/v1_26_40\"]\n[workspace.package]\nedition = \"2024\"\n[workspace.dependencies]\nbytes = \"1\"\nbytestring = \"1.5\"\narrayvec = \"0.7\"\nuuid = { version = \"1.8.0\", features = [\"v4\"] }\n",
         )
         .expect("write temp workspace manifest");
 
@@ -1933,6 +2073,112 @@ fn length_prefixed_bytes_decode_as_a_zero_copy_view() {
 "#,
         )
         .expect("write generated integration test");
+        fs::write(tests.join("borrowed_wire_shapes.rs"), r#"
+use bytes::Bytes;
+use valentine_bedrock_1_26_40::{
+    BareBytesPacket, BareBytesPacketView, BorrowedMcpePacket, McpePacketArgs, McpePacketData,
+    PrimitiveChoicePacketPayload, ReferenceChoicePacketPayload,
+    bedrock::codec::{BedrockCodec, BedrockSized},
+};
+
+#[test]
+fn bare_bytes_preserve_the_prefix_and_following_field() {
+    for length in [0usize, 2, 128] {
+        let mut wire = Vec::new();
+        valentine_bedrock_1_26_40::protocol::wire::write_var_u32(&mut wire, length as u32);
+        wire.extend(std::iter::repeat_n(0xaa, length));
+        wire.push(0x7e);
+        let source = Bytes::from(wire);
+        let mut owned_input = source.as_ref();
+        let owned = BareBytesPacket::decode(&mut owned_input, ()).unwrap();
+        let mut input = source.clone();
+        let borrowed = BareBytesPacketView::decode(&mut input).unwrap();
+        assert!(input.is_empty());
+        assert_eq!(borrowed.payload.as_ref(), vec![0xaa; length]);
+        assert_eq!(borrowed.marker, 0x7e);
+        assert_eq!(borrowed.encoded_size(), source.len());
+        let mut encoded = Vec::new();
+        borrowed.encode(&mut encoded).unwrap();
+        assert_eq!(encoded, source.as_ref());
+        let converted: BareBytesPacket = borrowed.into();
+        assert_eq!(converted, owned);
+    }
+    for wire in [&[0x80][..], &[2, 0xaa][..]] {
+        let mut input = Bytes::copy_from_slice(wire);
+        assert!(BareBytesPacketView::decode(&mut input).is_err());
+    }
+}
+
+#[test]
+fn legacy_boolean_switches_preserve_semantics_through_owned_conversion() {
+    for (id, wire) in [
+        (11, &[1, 7][..]), (11, &[0, 0x34, 0x12][..]),
+        (12, &[1, 2, b'o', b'k'][..]), (12, &[0, 0x34, 0x12][..]),
+    ] {
+        let mut frame = vec![(wire.len() + 1) as u8, id];
+        frame.extend_from_slice(wire);
+        let source = Bytes::from(frame);
+        let mut input = source.clone();
+        let (borrowed, remaining) = BorrowedMcpePacket::decode_inner_with_remaining(&mut input).unwrap();
+        assert!(input.is_empty());
+        assert_eq!(remaining, 0);
+        let packet = borrowed.into_owned(McpePacketArgs).unwrap();
+        match &packet.data {
+            McpePacketData::PrimitiveChoicePacket(value) => match &value.payload {
+                PrimitiveChoicePacketPayload::True(value) => {
+                    assert_eq!(wire[0], 1);
+                    assert_eq!(*value, 7);
+                }
+                PrimitiveChoicePacketPayload::False(value) => {
+                    assert_eq!(wire[0], 0);
+                    assert_eq!(*value, 0x1234);
+                }
+            },
+            McpePacketData::ReferenceChoicePacket(value) => match &value.payload {
+                ReferenceChoicePacketPayload::ChoiceText(value) => {
+                    assert_eq!(wire[0], 1);
+                    assert_eq!(value.value, "ok");
+                }
+                ReferenceChoicePacketPayload::ChoiceNumber(value) => {
+                    assert_eq!(wire[0], 0);
+                    assert_eq!(value.value, 0x1234);
+                }
+            },
+            other => panic!("unexpected packet: {other:?}"),
+        }
+        let mut encoded = bytes::BytesMut::new();
+        packet.data.encode_inner_bytes_mut(&mut encoded, 0, 0).unwrap();
+        assert_eq!(encoded.as_ref(), source.as_ref());
+    }
+}
+
+#[test]
+fn large_fixed_array_union_preserves_values_and_following_fields() {
+    use valentine_bedrock_1_26_40::{LargeArrayChoice, LargeArrayPacket, LargeArrayPacketView};
+    let expected = std::array::from_fn::<_, 17, _>(|index| u64::MAX - index as u64);
+    let mut wire = vec![1];
+    for word in expected { wire.extend_from_slice(&word.to_le_bytes()); }
+    wire.push(0x7e);
+    let source = Bytes::from(wire);
+    let mut input = source.as_ref();
+    let owned = LargeArrayPacket::decode(&mut input, ()).unwrap();
+    assert!(input.is_empty());
+    let LargeArrayChoice::Words(words) = &owned.payload else { panic!("expected words"); };
+    assert_eq!(words.as_ref(), &expected);
+    assert_eq!(owned.marker, 0x7e);
+    let mut input = source.clone();
+    let borrowed = LargeArrayPacketView::decode(&mut input).unwrap();
+    assert!(input.is_empty());
+    assert_eq!(borrowed.encoded_size(), source.len());
+    let mut encoded = Vec::new();
+    borrowed.encode(&mut encoded).unwrap();
+    assert_eq!(encoded, source.as_ref());
+    let converted: LargeArrayPacket = borrowed.into();
+    assert_eq!(converted, owned);
+    let mut truncated = source.slice(..source.len() - 2);
+    assert!(LargeArrayPacketView::decode(&mut truncated).is_err());
+}
+"#).unwrap();
 
         let cargo = std::env::var_os("CARGO").unwrap_or_else(|| "cargo".into());
         let test = Command::new(cargo)
@@ -1949,7 +2195,8 @@ fn length_prefixed_bytes_decode_as_a_zero_copy_view() {
         let _ = fs::remove_dir_all(&output);
         assert!(
             test.status.success(),
-            "generated protocolgen crate tests failed:\n{}",
+            "generated protocolgen crate tests failed:\n{}\n{}",
+            String::from_utf8_lossy(&test.stdout),
             String::from_utf8_lossy(&test.stderr)
         );
     }

@@ -559,7 +559,7 @@ impl From<ClientToServerHandshakePacket> for McpePacket {
 }
 impl From<DisconnectPacket> for McpePacketData {
     fn from(packet: DisconnectPacket) -> Self {
-        McpePacketData::DisconnectPacket(Box::new(packet))
+        McpePacketData::DisconnectPacket(packet)
     }
 }
 impl From<DisconnectPacket> for McpePacket {
@@ -569,7 +569,7 @@ impl From<DisconnectPacket> for McpePacket {
 }
 impl From<ResourcePacksInfoPacket> for McpePacketData {
     fn from(packet: ResourcePacksInfoPacket) -> Self {
-        McpePacketData::ResourcePacksInfoPacket(Box::new(packet))
+        McpePacketData::ResourcePacksInfoPacket(packet)
     }
 }
 impl From<ResourcePacksInfoPacket> for McpePacket {
@@ -579,7 +579,7 @@ impl From<ResourcePacksInfoPacket> for McpePacket {
 }
 impl From<ResourcePackStackPacket> for McpePacketData {
     fn from(packet: ResourcePackStackPacket) -> Self {
-        McpePacketData::ResourcePackStackPacket(Box::new(packet))
+        McpePacketData::ResourcePackStackPacket(packet)
     }
 }
 impl From<ResourcePackStackPacket> for McpePacket {
@@ -589,7 +589,7 @@ impl From<ResourcePackStackPacket> for McpePacket {
 }
 impl From<ResourcePackClientResponsePacket> for McpePacketData {
     fn from(packet: ResourcePackClientResponsePacket) -> Self {
-        McpePacketData::ResourcePackClientResponsePacket(Box::new(packet))
+        McpePacketData::ResourcePackClientResponsePacket(packet)
     }
 }
 impl From<ResourcePackClientResponsePacket> for McpePacket {
@@ -599,7 +599,7 @@ impl From<ResourcePackClientResponsePacket> for McpePacket {
 }
 impl From<TextPacket> for McpePacketData {
     fn from(packet: TextPacket) -> Self {
-        McpePacketData::TextPacket(Box::new(packet))
+        McpePacketData::TextPacket(packet)
     }
 }
 impl From<TextPacket> for McpePacket {
@@ -659,7 +659,7 @@ impl From<RemoveActorPacket> for McpePacket {
 }
 impl From<AddItemActorPacket> for McpePacketData {
     fn from(packet: AddItemActorPacket) -> Self {
-        McpePacketData::AddItemActorPacket(Box::new(packet))
+        McpePacketData::AddItemActorPacket(packet)
     }
 }
 impl From<AddItemActorPacket> for McpePacket {
@@ -689,7 +689,7 @@ impl From<TakeItemActorPacket> for McpePacket {
 }
 impl From<MoveActorAbsolutePacket> for McpePacketData {
     fn from(packet: MoveActorAbsolutePacket) -> Self {
-        McpePacketData::MoveActorAbsolutePacket(Box::new(packet))
+        McpePacketData::MoveActorAbsolutePacket(packet)
     }
 }
 impl From<MoveActorAbsolutePacket> for McpePacket {
@@ -699,7 +699,7 @@ impl From<MoveActorAbsolutePacket> for McpePacket {
 }
 impl From<MovePlayerPacket> for McpePacketData {
     fn from(packet: MovePlayerPacket) -> Self {
-        McpePacketData::MovePlayerPacket(Box::new(packet))
+        McpePacketData::MovePlayerPacket(packet)
     }
 }
 impl From<MovePlayerPacket> for McpePacket {
@@ -709,7 +709,7 @@ impl From<MovePlayerPacket> for McpePacket {
 }
 impl From<UpdateBlockPacket> for McpePacketData {
     fn from(packet: UpdateBlockPacket) -> Self {
-        McpePacketData::UpdateBlockPacket(Box::new(packet))
+        McpePacketData::UpdateBlockPacket(packet)
     }
 }
 impl From<UpdateBlockPacket> for McpePacket {
@@ -719,7 +719,7 @@ impl From<UpdateBlockPacket> for McpePacket {
 }
 impl From<AddPaintingPacket> for McpePacketData {
     fn from(packet: AddPaintingPacket) -> Self {
-        McpePacketData::AddPaintingPacket(Box::new(packet))
+        McpePacketData::AddPaintingPacket(packet)
     }
 }
 impl From<AddPaintingPacket> for McpePacket {
@@ -749,7 +749,7 @@ impl From<BlockEventPacket> for McpePacket {
 }
 impl From<ActorEventPacket> for McpePacketData {
     fn from(packet: ActorEventPacket) -> Self {
-        McpePacketData::ActorEventPacket(Box::new(packet))
+        McpePacketData::ActorEventPacket(packet)
     }
 }
 impl From<ActorEventPacket> for McpePacket {
@@ -759,7 +759,7 @@ impl From<ActorEventPacket> for McpePacket {
 }
 impl From<MobEffectPacket> for McpePacketData {
     fn from(packet: MobEffectPacket) -> Self {
-        McpePacketData::MobEffectPacket(Box::new(packet))
+        McpePacketData::MobEffectPacket(packet)
     }
 }
 impl From<MobEffectPacket> for McpePacket {
@@ -779,7 +779,7 @@ impl From<UpdateAttributesPacket> for McpePacket {
 }
 impl From<InventoryTransactionPacket> for McpePacketData {
     fn from(packet: InventoryTransactionPacket) -> Self {
-        McpePacketData::InventoryTransactionPacket(Box::new(packet))
+        McpePacketData::InventoryTransactionPacket(packet)
     }
 }
 impl From<InventoryTransactionPacket> for McpePacket {
@@ -789,7 +789,7 @@ impl From<InventoryTransactionPacket> for McpePacket {
 }
 impl From<MobEquipmentPacket> for McpePacketData {
     fn from(packet: MobEquipmentPacket) -> Self {
-        McpePacketData::MobEquipmentPacket(Box::new(packet))
+        McpePacketData::MobEquipmentPacket(packet)
     }
 }
 impl From<MobEquipmentPacket> for McpePacket {
@@ -839,7 +839,7 @@ impl From<ActorPickRequestPacket> for McpePacket {
 }
 impl From<PlayerActionPacket> for McpePacketData {
     fn from(packet: PlayerActionPacket) -> Self {
-        McpePacketData::PlayerActionPacket(Box::new(packet))
+        McpePacketData::PlayerActionPacket(packet)
     }
 }
 impl From<PlayerActionPacket> for McpePacket {
@@ -859,7 +859,7 @@ impl From<HurtArmorPacket> for McpePacket {
 }
 impl From<SetActorDataPacket> for McpePacketData {
     fn from(packet: SetActorDataPacket) -> Self {
-        McpePacketData::SetActorDataPacket(Box::new(packet))
+        McpePacketData::SetActorDataPacket(packet)
     }
 }
 impl From<SetActorDataPacket> for McpePacket {
@@ -879,7 +879,7 @@ impl From<SetActorMotionPacket> for McpePacket {
 }
 impl From<SetActorLinkPacket> for McpePacketData {
     fn from(packet: SetActorLinkPacket) -> Self {
-        McpePacketData::SetActorLinkPacket(Box::new(packet))
+        McpePacketData::SetActorLinkPacket(packet)
     }
 }
 impl From<SetActorLinkPacket> for McpePacket {
@@ -899,7 +899,7 @@ impl From<SetHealthPacket> for McpePacket {
 }
 impl From<SetSpawnPositionPacket> for McpePacketData {
     fn from(packet: SetSpawnPositionPacket) -> Self {
-        McpePacketData::SetSpawnPositionPacket(Box::new(packet))
+        McpePacketData::SetSpawnPositionPacket(packet)
     }
 }
 impl From<SetSpawnPositionPacket> for McpePacket {
@@ -909,7 +909,7 @@ impl From<SetSpawnPositionPacket> for McpePacket {
 }
 impl From<AnimatePacket> for McpePacketData {
     fn from(packet: AnimatePacket) -> Self {
-        McpePacketData::AnimatePacket(Box::new(packet))
+        McpePacketData::AnimatePacket(packet)
     }
 }
 impl From<AnimatePacket> for McpePacket {
@@ -929,7 +929,7 @@ impl From<RespawnPacket> for McpePacket {
 }
 impl From<ContainerOpenPacket> for McpePacketData {
     fn from(packet: ContainerOpenPacket) -> Self {
-        McpePacketData::ContainerOpenPacket(Box::new(packet))
+        McpePacketData::ContainerOpenPacket(packet)
     }
 }
 impl From<ContainerOpenPacket> for McpePacket {
@@ -959,7 +959,7 @@ impl From<PlayerHotbarPacket> for McpePacket {
 }
 impl From<InventoryContentPacket> for McpePacketData {
     fn from(packet: InventoryContentPacket) -> Self {
-        McpePacketData::InventoryContentPacket(Box::new(packet))
+        McpePacketData::InventoryContentPacket(packet)
     }
 }
 impl From<InventoryContentPacket> for McpePacket {
@@ -969,7 +969,7 @@ impl From<InventoryContentPacket> for McpePacket {
 }
 impl From<InventorySlotPacket> for McpePacketData {
     fn from(packet: InventorySlotPacket) -> Self {
-        McpePacketData::InventorySlotPacket(Box::new(packet))
+        McpePacketData::InventorySlotPacket(packet)
     }
 }
 impl From<InventorySlotPacket> for McpePacket {
@@ -1019,7 +1019,7 @@ impl From<BlockActorDataPacket> for McpePacket {
 }
 impl From<LevelChunkPacket> for McpePacketData {
     fn from(packet: LevelChunkPacket) -> Self {
-        McpePacketData::LevelChunkPacket(Box::new(packet))
+        McpePacketData::LevelChunkPacket(packet)
     }
 }
 impl From<LevelChunkPacket> for McpePacket {
@@ -1049,7 +1049,7 @@ impl From<SetDifficultyPacket> for McpePacket {
 }
 impl From<ChangeDimensionPacket> for McpePacketData {
     fn from(packet: ChangeDimensionPacket) -> Self {
-        McpePacketData::ChangeDimensionPacket(Box::new(packet))
+        McpePacketData::ChangeDimensionPacket(packet)
     }
 }
 impl From<ChangeDimensionPacket> for McpePacket {
@@ -1089,7 +1089,7 @@ impl From<SimpleEventPacket> for McpePacket {
 }
 impl From<LegacyTelemetryEventPacket> for McpePacketData {
     fn from(packet: LegacyTelemetryEventPacket) -> Self {
-        McpePacketData::LegacyTelemetryEventPacket(Box::new(packet))
+        McpePacketData::LegacyTelemetryEventPacket(packet)
     }
 }
 impl From<LegacyTelemetryEventPacket> for McpePacket {
@@ -1109,7 +1109,7 @@ impl From<SpawnExperienceOrbPacket> for McpePacket {
 }
 impl From<ClientboundMapItemDataPacket> for McpePacketData {
     fn from(packet: ClientboundMapItemDataPacket) -> Self {
-        McpePacketData::ClientboundMapItemDataPacket(Box::new(packet))
+        McpePacketData::ClientboundMapItemDataPacket(packet)
     }
 }
 impl From<ClientboundMapItemDataPacket> for McpePacket {
@@ -1169,7 +1169,7 @@ impl From<CameraPacket> for McpePacket {
 }
 impl From<BossEventPacket> for McpePacketData {
     fn from(packet: BossEventPacket) -> Self {
-        McpePacketData::BossEventPacket(Box::new(packet))
+        McpePacketData::BossEventPacket(packet)
     }
 }
 impl From<BossEventPacket> for McpePacket {
@@ -1199,7 +1199,7 @@ impl From<AvailableCommandsPacket> for McpePacket {
 }
 impl From<CommandRequestPacket> for McpePacketData {
     fn from(packet: CommandRequestPacket) -> Self {
-        McpePacketData::CommandRequestPacket(Box::new(packet))
+        McpePacketData::CommandRequestPacket(packet)
     }
 }
 impl From<CommandRequestPacket> for McpePacket {
@@ -1209,7 +1209,7 @@ impl From<CommandRequestPacket> for McpePacket {
 }
 impl From<CommandBlockUpdatePacket> for McpePacketData {
     fn from(packet: CommandBlockUpdatePacket) -> Self {
-        McpePacketData::CommandBlockUpdatePacket(Box::new(packet))
+        McpePacketData::CommandBlockUpdatePacket(packet)
     }
 }
 impl From<CommandBlockUpdatePacket> for McpePacket {
@@ -1219,7 +1219,7 @@ impl From<CommandBlockUpdatePacket> for McpePacket {
 }
 impl From<CommandOutputPacket> for McpePacketData {
     fn from(packet: CommandOutputPacket) -> Self {
-        McpePacketData::CommandOutputPacket(Box::new(packet))
+        McpePacketData::CommandOutputPacket(packet)
     }
 }
 impl From<CommandOutputPacket> for McpePacket {
@@ -1229,7 +1229,7 @@ impl From<CommandOutputPacket> for McpePacket {
 }
 impl From<UpdateTradePacket> for McpePacketData {
     fn from(packet: UpdateTradePacket) -> Self {
-        McpePacketData::UpdateTradePacket(Box::new(packet))
+        McpePacketData::UpdateTradePacket(packet)
     }
 }
 impl From<UpdateTradePacket> for McpePacket {
@@ -1239,7 +1239,7 @@ impl From<UpdateTradePacket> for McpePacket {
 }
 impl From<UpdateEquipPacket> for McpePacketData {
     fn from(packet: UpdateEquipPacket) -> Self {
-        McpePacketData::UpdateEquipPacket(Box::new(packet))
+        McpePacketData::UpdateEquipPacket(packet)
     }
 }
 impl From<UpdateEquipPacket> for McpePacket {
@@ -1249,7 +1249,7 @@ impl From<UpdateEquipPacket> for McpePacket {
 }
 impl From<ResourcePackDataInfoPacket> for McpePacketData {
     fn from(packet: ResourcePackDataInfoPacket) -> Self {
-        McpePacketData::ResourcePackDataInfoPacket(Box::new(packet))
+        McpePacketData::ResourcePackDataInfoPacket(packet)
     }
 }
 impl From<ResourcePackDataInfoPacket> for McpePacket {
@@ -1259,7 +1259,7 @@ impl From<ResourcePackDataInfoPacket> for McpePacket {
 }
 impl From<ResourcePackChunkDataPacket> for McpePacketData {
     fn from(packet: ResourcePackChunkDataPacket) -> Self {
-        McpePacketData::ResourcePackChunkDataPacket(Box::new(packet))
+        McpePacketData::ResourcePackChunkDataPacket(packet)
     }
 }
 impl From<ResourcePackChunkDataPacket> for McpePacket {
@@ -1289,7 +1289,7 @@ impl From<TransferPacket> for McpePacket {
 }
 impl From<PlaySoundPacket> for McpePacketData {
     fn from(packet: PlaySoundPacket) -> Self {
-        McpePacketData::PlaySoundPacket(Box::new(packet))
+        McpePacketData::PlaySoundPacket(packet)
     }
 }
 impl From<PlaySoundPacket> for McpePacket {
@@ -1309,7 +1309,7 @@ impl From<StopSoundPacket> for McpePacket {
 }
 impl From<SetTitlePacket> for McpePacketData {
     fn from(packet: SetTitlePacket) -> Self {
-        McpePacketData::SetTitlePacket(Box::new(packet))
+        McpePacketData::SetTitlePacket(packet)
     }
 }
 impl From<SetTitlePacket> for McpePacket {
@@ -1399,7 +1399,7 @@ impl From<SetLastHurtByPacket> for McpePacket {
 }
 impl From<BookEditPacket> for McpePacketData {
     fn from(packet: BookEditPacket) -> Self {
-        McpePacketData::BookEditPacket(Box::new(packet))
+        McpePacketData::BookEditPacket(packet)
     }
 }
 impl From<BookEditPacket> for McpePacket {
@@ -1409,7 +1409,7 @@ impl From<BookEditPacket> for McpePacket {
 }
 impl From<NpcRequestPacket> for McpePacketData {
     fn from(packet: NpcRequestPacket) -> Self {
-        McpePacketData::NpcRequestPacket(Box::new(packet))
+        McpePacketData::NpcRequestPacket(packet)
     }
 }
 impl From<NpcRequestPacket> for McpePacket {
@@ -1419,7 +1419,7 @@ impl From<NpcRequestPacket> for McpePacket {
 }
 impl From<PhotoTransferPacket> for McpePacketData {
     fn from(packet: PhotoTransferPacket) -> Self {
-        McpePacketData::PhotoTransferPacket(Box::new(packet))
+        McpePacketData::PhotoTransferPacket(packet)
     }
 }
 impl From<PhotoTransferPacket> for McpePacket {
@@ -1499,7 +1499,7 @@ impl From<RemoveObjectivePacket> for McpePacket {
 }
 impl From<SetDisplayObjectivePacket> for McpePacketData {
     fn from(packet: SetDisplayObjectivePacket) -> Self {
-        McpePacketData::SetDisplayObjectivePacket(Box::new(packet))
+        McpePacketData::SetDisplayObjectivePacket(packet)
     }
 }
 impl From<SetDisplayObjectivePacket> for McpePacket {
@@ -1529,7 +1529,7 @@ impl From<LabTablePacket> for McpePacket {
 }
 impl From<UpdateBlockSyncedPacket> for McpePacketData {
     fn from(packet: UpdateBlockSyncedPacket) -> Self {
-        McpePacketData::UpdateBlockSyncedPacket(Box::new(packet))
+        McpePacketData::UpdateBlockSyncedPacket(packet)
     }
 }
 impl From<UpdateBlockSyncedPacket> for McpePacket {
@@ -1539,7 +1539,7 @@ impl From<UpdateBlockSyncedPacket> for McpePacket {
 }
 impl From<MoveActorDeltaPacket> for McpePacketData {
     fn from(packet: MoveActorDeltaPacket) -> Self {
-        McpePacketData::MoveActorDeltaPacket(Box::new(packet))
+        McpePacketData::MoveActorDeltaPacket(packet)
     }
 }
 impl From<MoveActorDeltaPacket> for McpePacket {
@@ -1589,7 +1589,7 @@ impl From<NetworkStackLatencyPacket> for McpePacket {
 }
 impl From<SpawnParticleEffectPacket> for McpePacketData {
     fn from(packet: SpawnParticleEffectPacket) -> Self {
-        McpePacketData::SpawnParticleEffectPacket(Box::new(packet))
+        McpePacketData::SpawnParticleEffectPacket(packet)
     }
 }
 impl From<SpawnParticleEffectPacket> for McpePacket {
@@ -1629,7 +1629,7 @@ impl From<BiomeDefinitionListPacket> for McpePacket {
 }
 impl From<LevelSoundEventPacket> for McpePacketData {
     fn from(packet: LevelSoundEventPacket) -> Self {
-        McpePacketData::LevelSoundEventPacket(Box::new(packet))
+        McpePacketData::LevelSoundEventPacket(packet)
     }
 }
 impl From<LevelSoundEventPacket> for McpePacket {
@@ -1689,7 +1689,7 @@ impl From<MapCreateLockedCopyPacket> for McpePacket {
 }
 impl From<StructureTemplateDataRequestPacket> for McpePacketData {
     fn from(packet: StructureTemplateDataRequestPacket) -> Self {
-        McpePacketData::StructureTemplateDataRequestPacket(Box::new(packet))
+        McpePacketData::StructureTemplateDataRequestPacket(packet)
     }
 }
 impl From<StructureTemplateDataRequestPacket> for McpePacket {
@@ -1739,7 +1739,7 @@ impl From<EducationSettingsPacket> for McpePacket {
 }
 impl From<EmotePacket> for McpePacketData {
     fn from(packet: EmotePacket) -> Self {
-        McpePacketData::EmotePacket(Box::new(packet))
+        McpePacketData::EmotePacket(packet)
     }
 }
 impl From<EmotePacket> for McpePacket {
@@ -1789,7 +1789,7 @@ impl From<CompletedUsingItemPacket> for McpePacket {
 }
 impl From<NetworkSettingsPacket> for McpePacketData {
     fn from(packet: NetworkSettingsPacket) -> Self {
-        McpePacketData::NetworkSettingsPacket(Box::new(packet))
+        McpePacketData::NetworkSettingsPacket(packet)
     }
 }
 impl From<NetworkSettingsPacket> for McpePacket {
@@ -1919,7 +1919,7 @@ impl From<DebugInfoPacket> for McpePacket {
 }
 impl From<PacketViolationWarningPacket> for McpePacketData {
     fn from(packet: PacketViolationWarningPacket) -> Self {
-        McpePacketData::PacketViolationWarningPacket(Box::new(packet))
+        McpePacketData::PacketViolationWarningPacket(packet)
     }
 }
 impl From<PacketViolationWarningPacket> for McpePacket {
@@ -1939,7 +1939,7 @@ impl From<MotionPredictionHintsPacket> for McpePacket {
 }
 impl From<AnimateEntityPacket> for McpePacketData {
     fn from(packet: AnimateEntityPacket) -> Self {
-        McpePacketData::AnimateEntityPacket(Box::new(packet))
+        McpePacketData::AnimateEntityPacket(packet)
     }
 }
 impl From<AnimateEntityPacket> for McpePacket {
@@ -1949,7 +1949,7 @@ impl From<AnimateEntityPacket> for McpePacket {
 }
 impl From<CameraShakePacket> for McpePacketData {
     fn from(packet: CameraShakePacket) -> Self {
-        McpePacketData::CameraShakePacket(Box::new(packet))
+        McpePacketData::CameraShakePacket(packet)
     }
 }
 impl From<CameraShakePacket> for McpePacket {
@@ -1969,7 +1969,7 @@ impl From<PlayerFogPacket> for McpePacket {
 }
 impl From<CorrectPlayerMovePredictionPacket> for McpePacketData {
     fn from(packet: CorrectPlayerMovePredictionPacket) -> Self {
-        McpePacketData::CorrectPlayerMovePredictionPacket(Box::new(packet))
+        McpePacketData::CorrectPlayerMovePredictionPacket(packet)
     }
 }
 impl From<CorrectPlayerMovePredictionPacket> for McpePacket {
@@ -1989,7 +1989,7 @@ impl From<ItemRegistryPacket> for McpePacket {
 }
 impl From<ClientboundDebugRendererPacket> for McpePacketData {
     fn from(packet: ClientboundDebugRendererPacket) -> Self {
-        McpePacketData::ClientboundDebugRendererPacket(Box::new(packet))
+        McpePacketData::ClientboundDebugRendererPacket(packet)
     }
 }
 impl From<ClientboundDebugRendererPacket> for McpePacket {
@@ -2009,7 +2009,7 @@ impl From<SyncActorPropertyPacket> for McpePacket {
 }
 impl From<AddVolumeEntityPacket> for McpePacketData {
     fn from(packet: AddVolumeEntityPacket) -> Self {
-        McpePacketData::AddVolumeEntityPacket(Box::new(packet))
+        McpePacketData::AddVolumeEntityPacket(packet)
     }
 }
 impl From<AddVolumeEntityPacket> for McpePacket {
@@ -2039,7 +2039,7 @@ impl From<SimulationTypePacket> for McpePacket {
 }
 impl From<NpcDialoguePacket> for McpePacketData {
     fn from(packet: NpcDialoguePacket) -> Self {
-        McpePacketData::NpcDialoguePacket(Box::new(packet))
+        McpePacketData::NpcDialoguePacket(packet)
     }
 }
 impl From<NpcDialoguePacket> for McpePacket {
@@ -2079,7 +2079,7 @@ impl From<UpdateSubChunkBlocksPacket> for McpePacket {
 }
 impl From<SubChunkPacket> for McpePacketData {
     fn from(packet: SubChunkPacket) -> Self {
-        McpePacketData::SubChunkPacket(Box::new(packet))
+        McpePacketData::SubChunkPacket(packet)
     }
 }
 impl From<SubChunkPacket> for McpePacket {
@@ -2159,7 +2159,7 @@ impl From<AgentActionEventPacket> for McpePacket {
 }
 impl From<ChangeMobPropertyPacket> for McpePacketData {
     fn from(packet: ChangeMobPropertyPacket) -> Self {
-        McpePacketData::ChangeMobPropertyPacket(Box::new(packet))
+        McpePacketData::ChangeMobPropertyPacket(packet)
     }
 }
 impl From<ChangeMobPropertyPacket> for McpePacket {
@@ -2179,7 +2179,7 @@ impl From<LessonProgressPacket> for McpePacket {
 }
 impl From<RequestAbilityPacket> for McpePacketData {
     fn from(packet: RequestAbilityPacket) -> Self {
-        McpePacketData::RequestAbilityPacket(Box::new(packet))
+        McpePacketData::RequestAbilityPacket(packet)
     }
 }
 impl From<RequestAbilityPacket> for McpePacket {
@@ -2209,7 +2209,7 @@ impl From<ToastRequestPacket> for McpePacket {
 }
 impl From<UpdateAbilitiesPacket> for McpePacketData {
     fn from(packet: UpdateAbilitiesPacket) -> Self {
-        McpePacketData::UpdateAbilitiesPacket(Box::new(packet))
+        McpePacketData::UpdateAbilitiesPacket(packet)
     }
 }
 impl From<UpdateAbilitiesPacket> for McpePacket {
@@ -2219,7 +2219,7 @@ impl From<UpdateAbilitiesPacket> for McpePacket {
 }
 impl From<UpdateAdventureSettingsPacket> for McpePacketData {
     fn from(packet: UpdateAdventureSettingsPacket) -> Self {
-        McpePacketData::UpdateAdventureSettingsPacket(Box::new(packet))
+        McpePacketData::UpdateAdventureSettingsPacket(packet)
     }
 }
 impl From<UpdateAdventureSettingsPacket> for McpePacket {
@@ -2279,7 +2279,7 @@ impl From<RequestNetworkSettingsPacket> for McpePacket {
 }
 impl From<GameTestRequestPacket> for McpePacketData {
     fn from(packet: GameTestRequestPacket) -> Self {
-        McpePacketData::GameTestRequestPacket(Box::new(packet))
+        McpePacketData::GameTestRequestPacket(packet)
     }
 }
 impl From<GameTestRequestPacket> for McpePacket {
@@ -2379,7 +2379,7 @@ impl From<RefreshEntitlementsPacket> for McpePacket {
 }
 impl From<PlayerToggleCrafterSlotRequestPacket> for McpePacketData {
     fn from(packet: PlayerToggleCrafterSlotRequestPacket) -> Self {
-        McpePacketData::PlayerToggleCrafterSlotRequestPacket(Box::new(packet))
+        McpePacketData::PlayerToggleCrafterSlotRequestPacket(packet)
     }
 }
 impl From<PlayerToggleCrafterSlotRequestPacket> for McpePacket {
@@ -2389,7 +2389,7 @@ impl From<PlayerToggleCrafterSlotRequestPacket> for McpePacket {
 }
 impl From<SetPlayerInventoryOptionsPacket> for McpePacketData {
     fn from(packet: SetPlayerInventoryOptionsPacket) -> Self {
-        McpePacketData::SetPlayerInventoryOptionsPacket(Box::new(packet))
+        McpePacketData::SetPlayerInventoryOptionsPacket(packet)
     }
 }
 impl From<SetPlayerInventoryOptionsPacket> for McpePacket {
@@ -2459,7 +2459,7 @@ impl From<CurrentStructureFeaturePacket> for McpePacket {
 }
 impl From<ServerboundDiagnosticsPacket> for McpePacketData {
     fn from(packet: ServerboundDiagnosticsPacket) -> Self {
-        McpePacketData::ServerboundDiagnosticsPacket(Box::new(packet))
+        McpePacketData::ServerboundDiagnosticsPacket(packet)
     }
 }
 impl From<ServerboundDiagnosticsPacket> for McpePacket {
@@ -2469,7 +2469,7 @@ impl From<ServerboundDiagnosticsPacket> for McpePacket {
 }
 impl From<CameraAimAssistPacket> for McpePacketData {
     fn from(packet: CameraAimAssistPacket) -> Self {
-        McpePacketData::CameraAimAssistPacket(Box::new(packet))
+        McpePacketData::CameraAimAssistPacket(packet)
     }
 }
 impl From<CameraAimAssistPacket> for McpePacket {
@@ -2489,7 +2489,7 @@ impl From<ContainerRegistryCleanupPacket> for McpePacket {
 }
 impl From<MovementEffectPacket> for McpePacketData {
     fn from(packet: MovementEffectPacket) -> Self {
-        McpePacketData::MovementEffectPacket(Box::new(packet))
+        McpePacketData::MovementEffectPacket(packet)
     }
 }
 impl From<MovementEffectPacket> for McpePacket {
@@ -2519,7 +2519,7 @@ impl From<ClientCameraAimAssistPacket> for McpePacket {
 }
 impl From<ClientMovementPredictionSyncPacket> for McpePacketData {
     fn from(packet: ClientMovementPredictionSyncPacket) -> Self {
-        McpePacketData::ClientMovementPredictionSyncPacket(Box::new(packet))
+        McpePacketData::ClientMovementPredictionSyncPacket(packet)
     }
 }
 impl From<ClientMovementPredictionSyncPacket> for McpePacket {
@@ -2539,7 +2539,7 @@ impl From<UpdateClientOptionsPacket> for McpePacket {
 }
 impl From<PlayerVideoCapturePacket> for McpePacketData {
     fn from(packet: PlayerVideoCapturePacket) -> Self {
-        McpePacketData::PlayerVideoCapturePacket(Box::new(packet))
+        McpePacketData::PlayerVideoCapturePacket(packet)
     }
 }
 impl From<PlayerVideoCapturePacket> for McpePacket {
@@ -2549,7 +2549,7 @@ impl From<PlayerVideoCapturePacket> for McpePacket {
 }
 impl From<PlayerUpdateEntityOverridesPacket> for McpePacketData {
     fn from(packet: PlayerUpdateEntityOverridesPacket) -> Self {
-        McpePacketData::PlayerUpdateEntityOverridesPacket(Box::new(packet))
+        McpePacketData::PlayerUpdateEntityOverridesPacket(packet)
     }
 }
 impl From<PlayerUpdateEntityOverridesPacket> for McpePacket {
@@ -2559,7 +2559,7 @@ impl From<PlayerUpdateEntityOverridesPacket> for McpePacket {
 }
 impl From<PlayerLocationPacket> for McpePacketData {
     fn from(packet: PlayerLocationPacket) -> Self {
-        McpePacketData::PlayerLocationPacket(Box::new(packet))
+        McpePacketData::PlayerLocationPacket(packet)
     }
 }
 impl From<PlayerLocationPacket> for McpePacket {
@@ -2589,7 +2589,7 @@ impl From<PrimitiveShapesPacket> for McpePacket {
 }
 impl From<ServerboundPackSettingChangePacket> for McpePacketData {
     fn from(packet: ServerboundPackSettingChangePacket) -> Self {
-        McpePacketData::ServerboundPackSettingChangePacket(Box::new(packet))
+        McpePacketData::ServerboundPackSettingChangePacket(packet)
     }
 }
 impl From<ServerboundPackSettingChangePacket> for McpePacket {
@@ -2609,7 +2609,7 @@ impl From<ClientboundDataStorePacket> for McpePacket {
 }
 impl From<GraphicsOverrideParameterPacket> for McpePacketData {
     fn from(packet: GraphicsOverrideParameterPacket) -> Self {
-        McpePacketData::GraphicsOverrideParameterPacket(Box::new(packet))
+        McpePacketData::GraphicsOverrideParameterPacket(packet)
     }
 }
 impl From<GraphicsOverrideParameterPacket> for McpePacket {
@@ -2619,7 +2619,7 @@ impl From<GraphicsOverrideParameterPacket> for McpePacket {
 }
 impl From<ServerboundDataStorePacket> for McpePacketData {
     fn from(packet: ServerboundDataStorePacket) -> Self {
-        McpePacketData::ServerboundDataStorePacket(Box::new(packet))
+        McpePacketData::ServerboundDataStorePacket(packet)
     }
 }
 impl From<ServerboundDataStorePacket> for McpePacket {
@@ -2659,7 +2659,7 @@ impl From<ClientboundDataDrivenUiReloadPacket> for McpePacket {
 }
 impl From<ClientboundTextureShiftPacket> for McpePacketData {
     fn from(packet: ClientboundTextureShiftPacket) -> Self {
-        McpePacketData::ClientboundTextureShiftPacket(Box::new(packet))
+        McpePacketData::ClientboundTextureShiftPacket(packet)
     }
 }
 impl From<ClientboundTextureShiftPacket> for McpePacket {
@@ -2739,7 +2739,7 @@ impl From<ServerboundDataDrivenScreenClosedPacket> for McpePacket {
 }
 impl From<SyncWorldClocksPacket> for McpePacketData {
     fn from(packet: SyncWorldClocksPacket) -> Self {
-        McpePacketData::SyncWorldClocksPacket(Box::new(packet))
+        McpePacketData::SyncWorldClocksPacket(packet)
     }
 }
 impl From<SyncWorldClocksPacket> for McpePacket {
@@ -2749,7 +2749,7 @@ impl From<SyncWorldClocksPacket> for McpePacket {
 }
 impl From<ClientboundAttributeLayerSyncPacket> for McpePacketData {
     fn from(packet: ClientboundAttributeLayerSyncPacket) -> Self {
-        McpePacketData::ClientboundAttributeLayerSyncPacket(Box::new(packet))
+        McpePacketData::ClientboundAttributeLayerSyncPacket(packet)
     }
 }
 impl From<ClientboundAttributeLayerSyncPacket> for McpePacket {
@@ -2779,7 +2779,7 @@ impl From<ServerPresenceInfoPacket> for McpePacket {
 }
 impl From<ClientboundUpdateSoundDataPacket> for McpePacketData {
     fn from(packet: ClientboundUpdateSoundDataPacket) -> Self {
-        McpePacketData::ClientboundUpdateSoundDataPacket(Box::new(packet))
+        McpePacketData::ClientboundUpdateSoundDataPacket(packet)
     }
 }
 impl From<ClientboundUpdateSoundDataPacket> for McpePacket {
@@ -2847,82 +2847,82 @@ pub enum McpePacketData {
     PlayStatusPacket(PlayStatusPacket),
     ServerToClientHandshakePacket(ServerToClientHandshakePacket),
     ClientToServerHandshakePacket(ClientToServerHandshakePacket),
-    DisconnectPacket(Box<DisconnectPacket>),
-    ResourcePacksInfoPacket(Box<ResourcePacksInfoPacket>),
-    ResourcePackStackPacket(Box<ResourcePackStackPacket>),
-    ResourcePackClientResponsePacket(Box<ResourcePackClientResponsePacket>),
-    TextPacket(Box<TextPacket>),
+    DisconnectPacket(DisconnectPacket),
+    ResourcePacksInfoPacket(ResourcePacksInfoPacket),
+    ResourcePackStackPacket(ResourcePackStackPacket),
+    ResourcePackClientResponsePacket(ResourcePackClientResponsePacket),
+    TextPacket(TextPacket),
     SetTimePacket(SetTimePacket),
     StartGamePacket(Box<StartGamePacket>),
     AddPlayerPacket(Box<AddPlayerPacket>),
     AddActorPacket(Box<AddActorPacket>),
     RemoveActorPacket(RemoveActorPacket),
-    AddItemActorPacket(Box<AddItemActorPacket>),
+    AddItemActorPacket(AddItemActorPacket),
     ServerPlayerPostMovePositionPacket(ServerPlayerPostMovePositionPacket),
     TakeItemActorPacket(TakeItemActorPacket),
-    MoveActorAbsolutePacket(Box<MoveActorAbsolutePacket>),
-    MovePlayerPacket(Box<MovePlayerPacket>),
-    UpdateBlockPacket(Box<UpdateBlockPacket>),
-    AddPaintingPacket(Box<AddPaintingPacket>),
+    MoveActorAbsolutePacket(MoveActorAbsolutePacket),
+    MovePlayerPacket(MovePlayerPacket),
+    UpdateBlockPacket(UpdateBlockPacket),
+    AddPaintingPacket(AddPaintingPacket),
     LevelEventPacket(LevelEventPacket),
     BlockEventPacket(BlockEventPacket),
-    ActorEventPacket(Box<ActorEventPacket>),
-    MobEffectPacket(Box<MobEffectPacket>),
+    ActorEventPacket(ActorEventPacket),
+    MobEffectPacket(MobEffectPacket),
     UpdateAttributesPacket(UpdateAttributesPacket),
-    InventoryTransactionPacket(Box<InventoryTransactionPacket>),
-    MobEquipmentPacket(Box<MobEquipmentPacket>),
+    InventoryTransactionPacket(InventoryTransactionPacket),
+    MobEquipmentPacket(MobEquipmentPacket),
     MobArmorEquipmentPacket(Box<MobArmorEquipmentPacket>),
     InteractPacket(InteractPacket),
     BlockPickRequestPacket(BlockPickRequestPacket),
     ActorPickRequestPacket(ActorPickRequestPacket),
-    PlayerActionPacket(Box<PlayerActionPacket>),
+    PlayerActionPacket(PlayerActionPacket),
     HurtArmorPacket(HurtArmorPacket),
-    SetActorDataPacket(Box<SetActorDataPacket>),
+    SetActorDataPacket(SetActorDataPacket),
     SetActorMotionPacket(SetActorMotionPacket),
-    SetActorLinkPacket(Box<SetActorLinkPacket>),
+    SetActorLinkPacket(SetActorLinkPacket),
     SetHealthPacket(SetHealthPacket),
-    SetSpawnPositionPacket(Box<SetSpawnPositionPacket>),
-    AnimatePacket(Box<AnimatePacket>),
+    SetSpawnPositionPacket(SetSpawnPositionPacket),
+    AnimatePacket(AnimatePacket),
     RespawnPacket(RespawnPacket),
-    ContainerOpenPacket(Box<ContainerOpenPacket>),
+    ContainerOpenPacket(ContainerOpenPacket),
     ContainerClosePacket(ContainerClosePacket),
     PlayerHotbarPacket(PlayerHotbarPacket),
-    InventoryContentPacket(Box<InventoryContentPacket>),
-    InventorySlotPacket(Box<InventorySlotPacket>),
+    InventoryContentPacket(InventoryContentPacket),
+    InventorySlotPacket(InventorySlotPacket),
     ContainerSetDataPacket(ContainerSetDataPacket),
     CraftingDataPacket(Box<CraftingDataPacket>),
     GuiDataPickItemPacket(GuiDataPickItemPacket),
     BlockActorDataPacket(BlockActorDataPacket),
-    LevelChunkPacket(Box<LevelChunkPacket>),
+    LevelChunkPacket(LevelChunkPacket),
     SetCommandsEnabledPacket(SetCommandsEnabledPacket),
     SetDifficultyPacket(SetDifficultyPacket),
-    ChangeDimensionPacket(Box<ChangeDimensionPacket>),
+    ChangeDimensionPacket(ChangeDimensionPacket),
     SetPlayerGameTypePacket(SetPlayerGameTypePacket),
     PlayerListPacket(PlayerListPacket),
     SimpleEventPacket(SimpleEventPacket),
-    LegacyTelemetryEventPacket(Box<LegacyTelemetryEventPacket>),
+    LegacyTelemetryEventPacket(LegacyTelemetryEventPacket),
     SpawnExperienceOrbPacket(SpawnExperienceOrbPacket),
-    ClientboundMapItemDataPacket(Box<ClientboundMapItemDataPacket>),
+    ClientboundMapItemDataPacket(ClientboundMapItemDataPacket),
     MapInfoRequestPacket(MapInfoRequestPacket),
     RequestChunkRadiusPacket(RequestChunkRadiusPacket),
     ChunkRadiusUpdatedPacket(ChunkRadiusUpdatedPacket),
     GameRulesChangedPacket(GameRulesChangedPacket),
     CameraPacket(CameraPacket),
-    BossEventPacket(Box<BossEventPacket>),
+    BossEventPacket(BossEventPacket),
     ShowCreditsPacket(ShowCreditsPacket),
     AvailableCommandsPacket(Box<AvailableCommandsPacket>),
-    CommandRequestPacket(Box<CommandRequestPacket>),
-    CommandBlockUpdatePacket(Box<CommandBlockUpdatePacket>),
-    CommandOutputPacket(Box<CommandOutputPacket>),
-    UpdateTradePacket(Box<UpdateTradePacket>),
-    UpdateEquipPacket(Box<UpdateEquipPacket>),
-    ResourcePackDataInfoPacket(Box<ResourcePackDataInfoPacket>),
-    ResourcePackChunkDataPacket(Box<ResourcePackChunkDataPacket>),
+    CommandRequestPacket(CommandRequestPacket),
+    CommandBlockUpdatePacket(CommandBlockUpdatePacket),
+    CommandOutputPacket(CommandOutputPacket),
+    UpdateTradePacket(UpdateTradePacket),
+    UpdateEquipPacket(UpdateEquipPacket),
+    ResourcePackDataInfoPacket(ResourcePackDataInfoPacket),
+    ResourcePackChunkDataPacket(ResourcePackChunkDataPacket),
     ResourcePackChunkRequestPacket(ResourcePackChunkRequestPacket),
     TransferPacket(Box<TransferPacket>),
-    PlaySoundPacket(Box<PlaySoundPacket>),
+    PlaySoundPacket(PlaySoundPacket),
     StopSoundPacket(StopSoundPacket),
-    SetTitlePacket(Box<SetTitlePacket>),
+    SetTitlePacket(SetTitlePacket),
     AddBehaviorTreePacket(AddBehaviorTreePacket),
     StructureBlockUpdatePacket(Box<StructureBlockUpdatePacket>),
     ShowStoreOfferPacket(ShowStoreOfferPacket),
@@ -2931,9 +2931,9 @@ pub enum McpePacketData {
     SubClientLoginPacket(SubClientLoginPacket),
     AutomationClientConnectPacket(AutomationClientConnectPacket),
     SetLastHurtByPacket(SetLastHurtByPacket),
-    BookEditPacket(Box<BookEditPacket>),
-    NpcRequestPacket(Box<NpcRequestPacket>),
-    PhotoTransferPacket(Box<PhotoTransferPacket>),
+    BookEditPacket(BookEditPacket),
+    NpcRequestPacket(NpcRequestPacket),
+    PhotoTransferPacket(PhotoTransferPacket),
     ModalFormRequestPacket(ModalFormRequestPacket),
     ModalFormResponsePacket(ModalFormResponsePacket),
     ServerSettingsRequestPacket(ServerSettingsRequestPacket),
@@ -2941,36 +2941,36 @@ pub enum McpePacketData {
     ShowProfilePacket(ShowProfilePacket),
     SetDefaultGameTypePacket(SetDefaultGameTypePacket),
     RemoveObjectivePacket(RemoveObjectivePacket),
-    SetDisplayObjectivePacket(Box<SetDisplayObjectivePacket>),
+    SetDisplayObjectivePacket(SetDisplayObjectivePacket),
     SetScorePacket(SetScorePacket),
     LabTablePacket(LabTablePacket),
-    UpdateBlockSyncedPacket(Box<UpdateBlockSyncedPacket>),
-    MoveActorDeltaPacket(Box<MoveActorDeltaPacket>),
+    UpdateBlockSyncedPacket(UpdateBlockSyncedPacket),
+    MoveActorDeltaPacket(MoveActorDeltaPacket),
     SetScoreboardIdentityPacket(SetScoreboardIdentityPacket),
     SetLocalPlayerAsInitializedPacket(SetLocalPlayerAsInitializedPacket),
     UpdateSoftEnumPacket(UpdateSoftEnumPacket),
     NetworkStackLatencyPacket(NetworkStackLatencyPacket),
-    SpawnParticleEffectPacket(Box<SpawnParticleEffectPacket>),
+    SpawnParticleEffectPacket(SpawnParticleEffectPacket),
     AvailableActorIdentifiersPacket(AvailableActorIdentifiersPacket),
     NetworkChunkPublisherUpdatePacket(NetworkChunkPublisherUpdatePacket),
     BiomeDefinitionListPacket(BiomeDefinitionListPacket),
-    LevelSoundEventPacket(Box<LevelSoundEventPacket>),
+    LevelSoundEventPacket(LevelSoundEventPacket),
     LevelEventGenericPacket(LevelEventGenericPacket),
     LecternUpdatePacket(LecternUpdatePacket),
     ClientCacheStatusPacket(ClientCacheStatusPacket),
     OnScreenTextureAnimationPacket(OnScreenTextureAnimationPacket),
     MapCreateLockedCopyPacket(MapCreateLockedCopyPacket),
-    StructureTemplateDataRequestPacket(Box<StructureTemplateDataRequestPacket>),
+    StructureTemplateDataRequestPacket(StructureTemplateDataRequestPacket),
     StructureTemplateDataResponsePacket(StructureTemplateDataResponsePacket),
     ClientCacheBlobStatusPacket(ClientCacheBlobStatusPacket),
     ClientCacheMissResponsePacket(ClientCacheMissResponsePacket),
     EducationSettingsPacket(Box<EducationSettingsPacket>),
-    EmotePacket(Box<EmotePacket>),
+    EmotePacket(EmotePacket),
     MultiplayerSettingsPacket(MultiplayerSettingsPacket),
     SettingsCommandPacket(SettingsCommandPacket),
     AnvilDamagePacket(AnvilDamagePacket),
     CompletedUsingItemPacket(CompletedUsingItemPacket),
-    NetworkSettingsPacket(Box<NetworkSettingsPacket>),
+    NetworkSettingsPacket(NetworkSettingsPacket),
     PlayerAuthInputPacket(Box<PlayerAuthInputPacket>),
     CreativeContentPacket(CreativeContentPacket),
     PlayerEnchantOptionsPacket(PlayerEnchantOptionsPacket),
@@ -2983,23 +2983,23 @@ pub enum McpePacketData {
     PositionTrackingDbServerBroadcastPacket(PositionTrackingDbServerBroadcastPacket),
     PositionTrackingDbClientRequestPacket(PositionTrackingDbClientRequestPacket),
     DebugInfoPacket(DebugInfoPacket),
-    PacketViolationWarningPacket(Box<PacketViolationWarningPacket>),
+    PacketViolationWarningPacket(PacketViolationWarningPacket),
     MotionPredictionHintsPacket(MotionPredictionHintsPacket),
-    AnimateEntityPacket(Box<AnimateEntityPacket>),
-    CameraShakePacket(Box<CameraShakePacket>),
+    AnimateEntityPacket(AnimateEntityPacket),
+    CameraShakePacket(CameraShakePacket),
     PlayerFogPacket(PlayerFogPacket),
-    CorrectPlayerMovePredictionPacket(Box<CorrectPlayerMovePredictionPacket>),
+    CorrectPlayerMovePredictionPacket(CorrectPlayerMovePredictionPacket),
     ItemRegistryPacket(ItemRegistryPacket),
-    ClientboundDebugRendererPacket(Box<ClientboundDebugRendererPacket>),
+    ClientboundDebugRendererPacket(ClientboundDebugRendererPacket),
     SyncActorPropertyPacket(SyncActorPropertyPacket),
-    AddVolumeEntityPacket(Box<AddVolumeEntityPacket>),
+    AddVolumeEntityPacket(AddVolumeEntityPacket),
     RemoveVolumeEntityPacket(RemoveVolumeEntityPacket),
     SimulationTypePacket(SimulationTypePacket),
-    NpcDialoguePacket(Box<NpcDialoguePacket>),
+    NpcDialoguePacket(NpcDialoguePacket),
     EduUriResourcePacket(EduUriResourcePacket),
     CreatePhotoPacket(CreatePhotoPacket),
     UpdateSubChunkBlocksPacket(UpdateSubChunkBlocksPacket),
-    SubChunkPacket(Box<SubChunkPacket>),
+    SubChunkPacket(SubChunkPacket),
     SubChunkRequestPacket(SubChunkRequestPacket),
     PlayerStartItemCooldownPacket(PlayerStartItemCooldownPacket),
     ScriptMessagePacket(ScriptMessagePacket),
@@ -3007,19 +3007,19 @@ pub enum McpePacketData {
     TickingAreasLoadStatusPacket(TickingAreasLoadStatusPacket),
     DimensionDataPacket(DimensionDataPacket),
     AgentActionEventPacket(AgentActionEventPacket),
-    ChangeMobPropertyPacket(Box<ChangeMobPropertyPacket>),
+    ChangeMobPropertyPacket(ChangeMobPropertyPacket),
     LessonProgressPacket(LessonProgressPacket),
-    RequestAbilityPacket(Box<RequestAbilityPacket>),
+    RequestAbilityPacket(RequestAbilityPacket),
     RequestPermissionsPacket(RequestPermissionsPacket),
     ToastRequestPacket(ToastRequestPacket),
-    UpdateAbilitiesPacket(Box<UpdateAbilitiesPacket>),
-    UpdateAdventureSettingsPacket(Box<UpdateAdventureSettingsPacket>),
+    UpdateAbilitiesPacket(UpdateAbilitiesPacket),
+    UpdateAdventureSettingsPacket(UpdateAdventureSettingsPacket),
     DeathInfoPacket(DeathInfoPacket),
     EditorNetworkPacket(EditorNetworkPacket),
     FeatureRegistryPacket(FeatureRegistryPacket),
     ServerStatsPacket(ServerStatsPacket),
     RequestNetworkSettingsPacket(RequestNetworkSettingsPacket),
-    GameTestRequestPacket(Box<GameTestRequestPacket>),
+    GameTestRequestPacket(GameTestRequestPacket),
     GameTestResultsPacket(GameTestResultsPacket),
     UpdateClientInputLocksPacket(UpdateClientInputLocksPacket),
     CameraPresetsPacket(CameraPresetsPacket),
@@ -3029,35 +3029,35 @@ pub enum McpePacketData {
     OpenSignPacket(OpenSignPacket),
     AgentAnimationPacket(AgentAnimationPacket),
     RefreshEntitlementsPacket(RefreshEntitlementsPacket),
-    PlayerToggleCrafterSlotRequestPacket(Box<PlayerToggleCrafterSlotRequestPacket>),
-    SetPlayerInventoryOptionsPacket(Box<SetPlayerInventoryOptionsPacket>),
+    PlayerToggleCrafterSlotRequestPacket(PlayerToggleCrafterSlotRequestPacket),
+    SetPlayerInventoryOptionsPacket(SetPlayerInventoryOptionsPacket),
     SetHudPacket(SetHudPacket),
     AwardAchievementPacket(AwardAchievementPacket),
     ClientboundCloseFormPacket(ClientboundCloseFormPacket),
     ServerboundLoadingScreenPacket(ServerboundLoadingScreenPacket),
     JigsawStructureDataPacket(JigsawStructureDataPacket),
     CurrentStructureFeaturePacket(CurrentStructureFeaturePacket),
-    ServerboundDiagnosticsPacket(Box<ServerboundDiagnosticsPacket>),
-    CameraAimAssistPacket(Box<CameraAimAssistPacket>),
+    ServerboundDiagnosticsPacket(ServerboundDiagnosticsPacket),
+    CameraAimAssistPacket(CameraAimAssistPacket),
     ContainerRegistryCleanupPacket(ContainerRegistryCleanupPacket),
-    MovementEffectPacket(Box<MovementEffectPacket>),
+    MovementEffectPacket(MovementEffectPacket),
     CameraAimAssistPresetsPacket(CameraAimAssistPresetsPacket),
     ClientCameraAimAssistPacket(ClientCameraAimAssistPacket),
-    ClientMovementPredictionSyncPacket(Box<ClientMovementPredictionSyncPacket>),
+    ClientMovementPredictionSyncPacket(ClientMovementPredictionSyncPacket),
     UpdateClientOptionsPacket(UpdateClientOptionsPacket),
-    PlayerVideoCapturePacket(Box<PlayerVideoCapturePacket>),
-    PlayerUpdateEntityOverridesPacket(Box<PlayerUpdateEntityOverridesPacket>),
-    PlayerLocationPacket(Box<PlayerLocationPacket>),
+    PlayerVideoCapturePacket(PlayerVideoCapturePacket),
+    PlayerUpdateEntityOverridesPacket(PlayerUpdateEntityOverridesPacket),
+    PlayerLocationPacket(PlayerLocationPacket),
     ClientboundControlSchemeSetPacket(ClientboundControlSchemeSetPacket),
     PrimitiveShapesPacket(PrimitiveShapesPacket),
-    ServerboundPackSettingChangePacket(Box<ServerboundPackSettingChangePacket>),
+    ServerboundPackSettingChangePacket(ServerboundPackSettingChangePacket),
     ClientboundDataStorePacket(ClientboundDataStorePacket),
-    GraphicsOverrideParameterPacket(Box<GraphicsOverrideParameterPacket>),
-    ServerboundDataStorePacket(Box<ServerboundDataStorePacket>),
+    GraphicsOverrideParameterPacket(GraphicsOverrideParameterPacket),
+    ServerboundDataStorePacket(ServerboundDataStorePacket),
     ClientboundDataDrivenUiShowScreenPacket(ClientboundDataDrivenUiShowScreenPacket),
     ClientboundDataDrivenUiCloseScreenPacket(ClientboundDataDrivenUiCloseScreenPacket),
     ClientboundDataDrivenUiReloadPacket(ClientboundDataDrivenUiReloadPacket),
-    ClientboundTextureShiftPacket(Box<ClientboundTextureShiftPacket>),
+    ClientboundTextureShiftPacket(ClientboundTextureShiftPacket),
     VoxelShapesPacket(VoxelShapesPacket),
     CameraSplinePacket(CameraSplinePacket),
     CameraAimAssistActorPriorityPacket(CameraAimAssistActorPriorityPacket),
@@ -3065,11 +3065,11 @@ pub enum McpePacketData {
     LocatorBarPacket(LocatorBarPacket),
     PartyChangedPacket(PartyChangedPacket),
     ServerboundDataDrivenScreenClosedPacket(ServerboundDataDrivenScreenClosedPacket),
-    SyncWorldClocksPacket(Box<SyncWorldClocksPacket>),
-    ClientboundAttributeLayerSyncPacket(Box<ClientboundAttributeLayerSyncPacket>),
+    SyncWorldClocksPacket(SyncWorldClocksPacket),
+    ClientboundAttributeLayerSyncPacket(ClientboundAttributeLayerSyncPacket),
     ServerStoreInfoPacket(ServerStoreInfoPacket),
     ServerPresenceInfoPacket(ServerPresenceInfoPacket),
-    ClientboundUpdateSoundDataPacket(Box<ClientboundUpdateSoundDataPacket>),
+    ClientboundUpdateSoundDataPacket(ClientboundUpdateSoundDataPacket),
     SendPartyDestinationCookiePacket(SendPartyDestinationCookiePacket),
     PartyDestinationCookieResponsePacket(PartyDestinationCookieResponsePacket),
     SetPlayerFurnaceOptionsPacket(SetPlayerFurnaceOptionsPacket),
@@ -4183,9 +4183,15 @@ impl McpePacketData {
             | ((from_subclient & 0x3) << 10)
             | ((to_subclient & 0x3) << 12);
         let prefix_start = buf.len();
-        let reserved_prefix = 10usize;
+        let spare = buf.capacity() - prefix_start;
+        let reserved_prefix = if spare == 0 {
+            5
+        } else {
+            wire::var_u32_len(spare.min(u32::MAX as usize) as u32)
+        };
         buf.resize(prefix_start + reserved_prefix, 0);
-        let body_start = buf.len();
+        wire::write_var_u32(buf, header);
+        let body_start = prefix_start + reserved_prefix;
         match self {
             McpePacketData::LoginPacket(v) => {
                 v.encode(buf)?;
@@ -4882,21 +4888,17 @@ impl McpePacketData {
             }
         }
         let body_end = buf.len();
-        let body_len = body_end - body_start;
+        let total_len = body_end - body_start;
         let mut total_len_buf = [0u8; 5];
-        let mut header_buf = [0u8; 5];
-        let header_len = encode_var_u32_stack(header, &mut header_buf);
-        let total_len = header_len + body_len;
-        let total_len_len = encode_var_u32_stack(total_len as u32, &mut total_len_buf);
-        let prefix_len = total_len_len + header_len;
+        let prefix_len = encode_var_u32_stack(total_len as u32, &mut total_len_buf);
         if prefix_len != reserved_prefix {
+            if prefix_len > reserved_prefix {
+                buf.resize(body_end + prefix_len - reserved_prefix, 0);
+            }
             buf.copy_within(body_start..body_end, prefix_start + prefix_len);
-            buf.truncate(body_end - (reserved_prefix - prefix_len));
+            buf.truncate(prefix_start + prefix_len + total_len);
         }
-        buf[prefix_start..prefix_start + total_len_len]
-            .copy_from_slice(&total_len_buf[..total_len_len]);
-        buf[prefix_start + total_len_len..prefix_start + prefix_len]
-            .copy_from_slice(&header_buf[..header_len]);
+        buf[prefix_start..prefix_start + prefix_len].copy_from_slice(&total_len_buf[..prefix_len]);
         Ok(())
     }
     /// Encodes the packet payload into a game frame: `[0xFE] [Length] [Header] [Body]`.
@@ -4931,6 +4933,17 @@ impl McpePacketData {
         T: crate::bedrock::codec::BedrockCodec + Into<Self>,
         B: bytes::Buf,
     {
+        Self::decode_small_payload::<T, B>(buf, args)
+    }
+    #[inline]
+    fn decode_small_payload<T, B>(
+        buf: &mut B,
+        args: T::Args,
+    ) -> Result<Self, crate::bedrock::error::DecodeError>
+    where
+        T: crate::bedrock::codec::BedrockCodec + Into<Self>,
+        B: bytes::Buf,
+    {
         let packet = T::decode(buf, args)?;
         if buf.has_remaining() {
             return Err(crate::bedrock::error::DecodeError::TrailingPacketBytes {
@@ -4957,737 +4970,1755 @@ impl McpePacketData {
             });
         }
         let mut payload_buf = bytes::Buf::take(&mut *buf, declared_len);
-        let header_raw = wire::read_var_u32(&mut payload_buf)?;
+        Self::decode_bounded_payload(&mut payload_buf, _args)
+    }
+    #[inline]
+    fn decode_bounded_payload<B: bytes::Buf>(
+        payload_buf: &mut B,
+        _args: McpePacketArgs,
+    ) -> Result<(GameHeader, Self), crate::bedrock::error::DecodeError> {
+        let header_raw = wire::read_var_u32(payload_buf)?;
         let id_raw = header_raw & 0x3FF;
         let from_subclient = (header_raw >> 10) & 0x3;
         let to_subclient = (header_raw >> 12) & 0x3;
         let packet_id = McpePacketName::from_raw(id_raw)?;
         let packet = match packet_id {
             McpePacketName::LoginPacket => {
-                Self::decode_payload::<LoginPacket, _>(&mut payload_buf, ())?
+                if std::mem::size_of::<LoginPacket>() <= 256 {
+                    Self::decode_small_payload::<LoginPacket, _>(payload_buf, ())?
+                } else {
+                    Self::decode_payload::<LoginPacket, _>(payload_buf, ())?
+                }
             }
             McpePacketName::PlayStatusPacket => {
-                Self::decode_payload::<PlayStatusPacket, _>(&mut payload_buf, ())?
+                if std::mem::size_of::<PlayStatusPacket>() <= 256 {
+                    Self::decode_small_payload::<PlayStatusPacket, _>(payload_buf, ())?
+                } else {
+                    Self::decode_payload::<PlayStatusPacket, _>(payload_buf, ())?
+                }
             }
             McpePacketName::ServerToClientHandshakePacket => {
-                Self::decode_payload::<ServerToClientHandshakePacket, _>(&mut payload_buf, ())?
+                if std::mem::size_of::<ServerToClientHandshakePacket>() <= 256 {
+                    Self::decode_small_payload::<ServerToClientHandshakePacket, _>(payload_buf, ())?
+                } else {
+                    Self::decode_payload::<ServerToClientHandshakePacket, _>(payload_buf, ())?
+                }
             }
             McpePacketName::ClientToServerHandshakePacket => {
-                Self::decode_payload::<ClientToServerHandshakePacket, _>(&mut payload_buf, ())?
+                if std::mem::size_of::<ClientToServerHandshakePacket>() <= 256 {
+                    Self::decode_small_payload::<ClientToServerHandshakePacket, _>(payload_buf, ())?
+                } else {
+                    Self::decode_payload::<ClientToServerHandshakePacket, _>(payload_buf, ())?
+                }
             }
             McpePacketName::DisconnectPacket => {
-                Self::decode_payload::<DisconnectPacket, _>(&mut payload_buf, ())?
+                if std::mem::size_of::<DisconnectPacket>() <= 256 {
+                    Self::decode_small_payload::<DisconnectPacket, _>(payload_buf, ())?
+                } else {
+                    Self::decode_payload::<DisconnectPacket, _>(payload_buf, ())?
+                }
             }
             McpePacketName::ResourcePacksInfoPacket => {
-                Self::decode_payload::<ResourcePacksInfoPacket, _>(&mut payload_buf, ())?
+                if std::mem::size_of::<ResourcePacksInfoPacket>() <= 256 {
+                    Self::decode_small_payload::<ResourcePacksInfoPacket, _>(payload_buf, ())?
+                } else {
+                    Self::decode_payload::<ResourcePacksInfoPacket, _>(payload_buf, ())?
+                }
             }
             McpePacketName::ResourcePackStackPacket => {
-                Self::decode_payload::<ResourcePackStackPacket, _>(&mut payload_buf, ())?
+                if std::mem::size_of::<ResourcePackStackPacket>() <= 256 {
+                    Self::decode_small_payload::<ResourcePackStackPacket, _>(payload_buf, ())?
+                } else {
+                    Self::decode_payload::<ResourcePackStackPacket, _>(payload_buf, ())?
+                }
             }
             McpePacketName::ResourcePackClientResponsePacket => {
-                Self::decode_payload::<ResourcePackClientResponsePacket, _>(&mut payload_buf, ())?
+                if std::mem::size_of::<ResourcePackClientResponsePacket>() <= 256 {
+                    Self::decode_small_payload::<ResourcePackClientResponsePacket, _>(
+                        payload_buf,
+                        (),
+                    )?
+                } else {
+                    Self::decode_payload::<ResourcePackClientResponsePacket, _>(payload_buf, ())?
+                }
             }
             McpePacketName::TextPacket => {
-                Self::decode_payload::<TextPacket, _>(&mut payload_buf, ())?
+                if std::mem::size_of::<TextPacket>() <= 256 {
+                    Self::decode_small_payload::<TextPacket, _>(payload_buf, ())?
+                } else {
+                    Self::decode_payload::<TextPacket, _>(payload_buf, ())?
+                }
             }
             McpePacketName::SetTimePacket => {
-                Self::decode_payload::<SetTimePacket, _>(&mut payload_buf, ())?
+                if std::mem::size_of::<SetTimePacket>() <= 256 {
+                    Self::decode_small_payload::<SetTimePacket, _>(payload_buf, ())?
+                } else {
+                    Self::decode_payload::<SetTimePacket, _>(payload_buf, ())?
+                }
             }
             McpePacketName::StartGamePacket => {
-                Self::decode_payload::<StartGamePacket, _>(&mut payload_buf, ())?
+                if std::mem::size_of::<StartGamePacket>() <= 256 {
+                    Self::decode_small_payload::<StartGamePacket, _>(payload_buf, ())?
+                } else {
+                    Self::decode_payload::<StartGamePacket, _>(payload_buf, ())?
+                }
             }
             McpePacketName::AddPlayerPacket => {
-                Self::decode_payload::<AddPlayerPacket, _>(&mut payload_buf, ())?
+                if std::mem::size_of::<AddPlayerPacket>() <= 256 {
+                    Self::decode_small_payload::<AddPlayerPacket, _>(payload_buf, ())?
+                } else {
+                    Self::decode_payload::<AddPlayerPacket, _>(payload_buf, ())?
+                }
             }
             McpePacketName::AddActorPacket => {
-                Self::decode_payload::<AddActorPacket, _>(&mut payload_buf, ())?
+                if std::mem::size_of::<AddActorPacket>() <= 256 {
+                    Self::decode_small_payload::<AddActorPacket, _>(payload_buf, ())?
+                } else {
+                    Self::decode_payload::<AddActorPacket, _>(payload_buf, ())?
+                }
             }
             McpePacketName::RemoveActorPacket => {
-                Self::decode_payload::<RemoveActorPacket, _>(&mut payload_buf, ())?
+                if std::mem::size_of::<RemoveActorPacket>() <= 256 {
+                    Self::decode_small_payload::<RemoveActorPacket, _>(payload_buf, ())?
+                } else {
+                    Self::decode_payload::<RemoveActorPacket, _>(payload_buf, ())?
+                }
             }
             McpePacketName::AddItemActorPacket => {
-                Self::decode_payload::<AddItemActorPacket, _>(&mut payload_buf, ())?
+                if std::mem::size_of::<AddItemActorPacket>() <= 256 {
+                    Self::decode_small_payload::<AddItemActorPacket, _>(payload_buf, ())?
+                } else {
+                    Self::decode_payload::<AddItemActorPacket, _>(payload_buf, ())?
+                }
             }
             McpePacketName::ServerPlayerPostMovePositionPacket => {
-                Self::decode_payload::<ServerPlayerPostMovePositionPacket, _>(&mut payload_buf, ())?
+                if std::mem::size_of::<ServerPlayerPostMovePositionPacket>() <= 256 {
+                    Self::decode_small_payload::<ServerPlayerPostMovePositionPacket, _>(
+                        payload_buf,
+                        (),
+                    )?
+                } else {
+                    Self::decode_payload::<ServerPlayerPostMovePositionPacket, _>(payload_buf, ())?
+                }
             }
             McpePacketName::TakeItemActorPacket => {
-                Self::decode_payload::<TakeItemActorPacket, _>(&mut payload_buf, ())?
+                if std::mem::size_of::<TakeItemActorPacket>() <= 256 {
+                    Self::decode_small_payload::<TakeItemActorPacket, _>(payload_buf, ())?
+                } else {
+                    Self::decode_payload::<TakeItemActorPacket, _>(payload_buf, ())?
+                }
             }
             McpePacketName::MoveActorAbsolutePacket => {
-                Self::decode_payload::<MoveActorAbsolutePacket, _>(&mut payload_buf, ())?
+                if std::mem::size_of::<MoveActorAbsolutePacket>() <= 256 {
+                    Self::decode_small_payload::<MoveActorAbsolutePacket, _>(payload_buf, ())?
+                } else {
+                    Self::decode_payload::<MoveActorAbsolutePacket, _>(payload_buf, ())?
+                }
             }
             McpePacketName::MovePlayerPacket => {
-                Self::decode_payload::<MovePlayerPacket, _>(&mut payload_buf, ())?
+                if std::mem::size_of::<MovePlayerPacket>() <= 256 {
+                    Self::decode_small_payload::<MovePlayerPacket, _>(payload_buf, ())?
+                } else {
+                    Self::decode_payload::<MovePlayerPacket, _>(payload_buf, ())?
+                }
             }
             McpePacketName::UpdateBlockPacket => {
-                Self::decode_payload::<UpdateBlockPacket, _>(&mut payload_buf, ())?
+                if std::mem::size_of::<UpdateBlockPacket>() <= 256 {
+                    Self::decode_small_payload::<UpdateBlockPacket, _>(payload_buf, ())?
+                } else {
+                    Self::decode_payload::<UpdateBlockPacket, _>(payload_buf, ())?
+                }
             }
             McpePacketName::AddPaintingPacket => {
-                Self::decode_payload::<AddPaintingPacket, _>(&mut payload_buf, ())?
+                if std::mem::size_of::<AddPaintingPacket>() <= 256 {
+                    Self::decode_small_payload::<AddPaintingPacket, _>(payload_buf, ())?
+                } else {
+                    Self::decode_payload::<AddPaintingPacket, _>(payload_buf, ())?
+                }
             }
             McpePacketName::LevelEventPacket => {
-                Self::decode_payload::<LevelEventPacket, _>(&mut payload_buf, ())?
+                if std::mem::size_of::<LevelEventPacket>() <= 256 {
+                    Self::decode_small_payload::<LevelEventPacket, _>(payload_buf, ())?
+                } else {
+                    Self::decode_payload::<LevelEventPacket, _>(payload_buf, ())?
+                }
             }
             McpePacketName::BlockEventPacket => {
-                Self::decode_payload::<BlockEventPacket, _>(&mut payload_buf, ())?
+                if std::mem::size_of::<BlockEventPacket>() <= 256 {
+                    Self::decode_small_payload::<BlockEventPacket, _>(payload_buf, ())?
+                } else {
+                    Self::decode_payload::<BlockEventPacket, _>(payload_buf, ())?
+                }
             }
             McpePacketName::ActorEventPacket => {
-                Self::decode_payload::<ActorEventPacket, _>(&mut payload_buf, ())?
+                if std::mem::size_of::<ActorEventPacket>() <= 256 {
+                    Self::decode_small_payload::<ActorEventPacket, _>(payload_buf, ())?
+                } else {
+                    Self::decode_payload::<ActorEventPacket, _>(payload_buf, ())?
+                }
             }
             McpePacketName::MobEffectPacket => {
-                Self::decode_payload::<MobEffectPacket, _>(&mut payload_buf, ())?
+                if std::mem::size_of::<MobEffectPacket>() <= 256 {
+                    Self::decode_small_payload::<MobEffectPacket, _>(payload_buf, ())?
+                } else {
+                    Self::decode_payload::<MobEffectPacket, _>(payload_buf, ())?
+                }
             }
             McpePacketName::UpdateAttributesPacket => {
-                Self::decode_payload::<UpdateAttributesPacket, _>(&mut payload_buf, ())?
+                if std::mem::size_of::<UpdateAttributesPacket>() <= 256 {
+                    Self::decode_small_payload::<UpdateAttributesPacket, _>(payload_buf, ())?
+                } else {
+                    Self::decode_payload::<UpdateAttributesPacket, _>(payload_buf, ())?
+                }
             }
             McpePacketName::InventoryTransactionPacket => {
-                Self::decode_payload::<InventoryTransactionPacket, _>(&mut payload_buf, ())?
+                if std::mem::size_of::<InventoryTransactionPacket>() <= 256 {
+                    Self::decode_small_payload::<InventoryTransactionPacket, _>(payload_buf, ())?
+                } else {
+                    Self::decode_payload::<InventoryTransactionPacket, _>(payload_buf, ())?
+                }
             }
             McpePacketName::MobEquipmentPacket => {
-                Self::decode_payload::<MobEquipmentPacket, _>(&mut payload_buf, ())?
+                if std::mem::size_of::<MobEquipmentPacket>() <= 256 {
+                    Self::decode_small_payload::<MobEquipmentPacket, _>(payload_buf, ())?
+                } else {
+                    Self::decode_payload::<MobEquipmentPacket, _>(payload_buf, ())?
+                }
             }
             McpePacketName::MobArmorEquipmentPacket => {
-                Self::decode_payload::<MobArmorEquipmentPacket, _>(&mut payload_buf, ())?
+                if std::mem::size_of::<MobArmorEquipmentPacket>() <= 256 {
+                    Self::decode_small_payload::<MobArmorEquipmentPacket, _>(payload_buf, ())?
+                } else {
+                    Self::decode_payload::<MobArmorEquipmentPacket, _>(payload_buf, ())?
+                }
             }
             McpePacketName::InteractPacket => {
-                Self::decode_payload::<InteractPacket, _>(&mut payload_buf, ())?
+                if std::mem::size_of::<InteractPacket>() <= 256 {
+                    Self::decode_small_payload::<InteractPacket, _>(payload_buf, ())?
+                } else {
+                    Self::decode_payload::<InteractPacket, _>(payload_buf, ())?
+                }
             }
             McpePacketName::BlockPickRequestPacket => {
-                Self::decode_payload::<BlockPickRequestPacket, _>(&mut payload_buf, ())?
+                if std::mem::size_of::<BlockPickRequestPacket>() <= 256 {
+                    Self::decode_small_payload::<BlockPickRequestPacket, _>(payload_buf, ())?
+                } else {
+                    Self::decode_payload::<BlockPickRequestPacket, _>(payload_buf, ())?
+                }
             }
             McpePacketName::ActorPickRequestPacket => {
-                Self::decode_payload::<ActorPickRequestPacket, _>(&mut payload_buf, ())?
+                if std::mem::size_of::<ActorPickRequestPacket>() <= 256 {
+                    Self::decode_small_payload::<ActorPickRequestPacket, _>(payload_buf, ())?
+                } else {
+                    Self::decode_payload::<ActorPickRequestPacket, _>(payload_buf, ())?
+                }
             }
             McpePacketName::PlayerActionPacket => {
-                Self::decode_payload::<PlayerActionPacket, _>(&mut payload_buf, ())?
+                if std::mem::size_of::<PlayerActionPacket>() <= 256 {
+                    Self::decode_small_payload::<PlayerActionPacket, _>(payload_buf, ())?
+                } else {
+                    Self::decode_payload::<PlayerActionPacket, _>(payload_buf, ())?
+                }
             }
             McpePacketName::HurtArmorPacket => {
-                Self::decode_payload::<HurtArmorPacket, _>(&mut payload_buf, ())?
+                if std::mem::size_of::<HurtArmorPacket>() <= 256 {
+                    Self::decode_small_payload::<HurtArmorPacket, _>(payload_buf, ())?
+                } else {
+                    Self::decode_payload::<HurtArmorPacket, _>(payload_buf, ())?
+                }
             }
             McpePacketName::SetActorDataPacket => {
-                Self::decode_payload::<SetActorDataPacket, _>(&mut payload_buf, ())?
+                if std::mem::size_of::<SetActorDataPacket>() <= 256 {
+                    Self::decode_small_payload::<SetActorDataPacket, _>(payload_buf, ())?
+                } else {
+                    Self::decode_payload::<SetActorDataPacket, _>(payload_buf, ())?
+                }
             }
             McpePacketName::SetActorMotionPacket => {
-                Self::decode_payload::<SetActorMotionPacket, _>(&mut payload_buf, ())?
+                if std::mem::size_of::<SetActorMotionPacket>() <= 256 {
+                    Self::decode_small_payload::<SetActorMotionPacket, _>(payload_buf, ())?
+                } else {
+                    Self::decode_payload::<SetActorMotionPacket, _>(payload_buf, ())?
+                }
             }
             McpePacketName::SetActorLinkPacket => {
-                Self::decode_payload::<SetActorLinkPacket, _>(&mut payload_buf, ())?
+                if std::mem::size_of::<SetActorLinkPacket>() <= 256 {
+                    Self::decode_small_payload::<SetActorLinkPacket, _>(payload_buf, ())?
+                } else {
+                    Self::decode_payload::<SetActorLinkPacket, _>(payload_buf, ())?
+                }
             }
             McpePacketName::SetHealthPacket => {
-                Self::decode_payload::<SetHealthPacket, _>(&mut payload_buf, ())?
+                if std::mem::size_of::<SetHealthPacket>() <= 256 {
+                    Self::decode_small_payload::<SetHealthPacket, _>(payload_buf, ())?
+                } else {
+                    Self::decode_payload::<SetHealthPacket, _>(payload_buf, ())?
+                }
             }
             McpePacketName::SetSpawnPositionPacket => {
-                Self::decode_payload::<SetSpawnPositionPacket, _>(&mut payload_buf, ())?
+                if std::mem::size_of::<SetSpawnPositionPacket>() <= 256 {
+                    Self::decode_small_payload::<SetSpawnPositionPacket, _>(payload_buf, ())?
+                } else {
+                    Self::decode_payload::<SetSpawnPositionPacket, _>(payload_buf, ())?
+                }
             }
             McpePacketName::AnimatePacket => {
-                Self::decode_payload::<AnimatePacket, _>(&mut payload_buf, ())?
+                if std::mem::size_of::<AnimatePacket>() <= 256 {
+                    Self::decode_small_payload::<AnimatePacket, _>(payload_buf, ())?
+                } else {
+                    Self::decode_payload::<AnimatePacket, _>(payload_buf, ())?
+                }
             }
             McpePacketName::RespawnPacket => {
-                Self::decode_payload::<RespawnPacket, _>(&mut payload_buf, ())?
+                if std::mem::size_of::<RespawnPacket>() <= 256 {
+                    Self::decode_small_payload::<RespawnPacket, _>(payload_buf, ())?
+                } else {
+                    Self::decode_payload::<RespawnPacket, _>(payload_buf, ())?
+                }
             }
             McpePacketName::ContainerOpenPacket => {
-                Self::decode_payload::<ContainerOpenPacket, _>(&mut payload_buf, ())?
+                if std::mem::size_of::<ContainerOpenPacket>() <= 256 {
+                    Self::decode_small_payload::<ContainerOpenPacket, _>(payload_buf, ())?
+                } else {
+                    Self::decode_payload::<ContainerOpenPacket, _>(payload_buf, ())?
+                }
             }
             McpePacketName::ContainerClosePacket => {
-                Self::decode_payload::<ContainerClosePacket, _>(&mut payload_buf, ())?
+                if std::mem::size_of::<ContainerClosePacket>() <= 256 {
+                    Self::decode_small_payload::<ContainerClosePacket, _>(payload_buf, ())?
+                } else {
+                    Self::decode_payload::<ContainerClosePacket, _>(payload_buf, ())?
+                }
             }
             McpePacketName::PlayerHotbarPacket => {
-                Self::decode_payload::<PlayerHotbarPacket, _>(&mut payload_buf, ())?
+                if std::mem::size_of::<PlayerHotbarPacket>() <= 256 {
+                    Self::decode_small_payload::<PlayerHotbarPacket, _>(payload_buf, ())?
+                } else {
+                    Self::decode_payload::<PlayerHotbarPacket, _>(payload_buf, ())?
+                }
             }
             McpePacketName::InventoryContentPacket => {
-                Self::decode_payload::<InventoryContentPacket, _>(&mut payload_buf, ())?
+                if std::mem::size_of::<InventoryContentPacket>() <= 256 {
+                    Self::decode_small_payload::<InventoryContentPacket, _>(payload_buf, ())?
+                } else {
+                    Self::decode_payload::<InventoryContentPacket, _>(payload_buf, ())?
+                }
             }
             McpePacketName::InventorySlotPacket => {
-                Self::decode_payload::<InventorySlotPacket, _>(&mut payload_buf, ())?
+                if std::mem::size_of::<InventorySlotPacket>() <= 256 {
+                    Self::decode_small_payload::<InventorySlotPacket, _>(payload_buf, ())?
+                } else {
+                    Self::decode_payload::<InventorySlotPacket, _>(payload_buf, ())?
+                }
             }
             McpePacketName::ContainerSetDataPacket => {
-                Self::decode_payload::<ContainerSetDataPacket, _>(&mut payload_buf, ())?
+                if std::mem::size_of::<ContainerSetDataPacket>() <= 256 {
+                    Self::decode_small_payload::<ContainerSetDataPacket, _>(payload_buf, ())?
+                } else {
+                    Self::decode_payload::<ContainerSetDataPacket, _>(payload_buf, ())?
+                }
             }
             McpePacketName::CraftingDataPacket => {
-                Self::decode_payload::<CraftingDataPacket, _>(&mut payload_buf, ())?
+                if std::mem::size_of::<CraftingDataPacket>() <= 256 {
+                    Self::decode_small_payload::<CraftingDataPacket, _>(payload_buf, ())?
+                } else {
+                    Self::decode_payload::<CraftingDataPacket, _>(payload_buf, ())?
+                }
             }
             McpePacketName::GuiDataPickItemPacket => {
-                Self::decode_payload::<GuiDataPickItemPacket, _>(&mut payload_buf, ())?
+                if std::mem::size_of::<GuiDataPickItemPacket>() <= 256 {
+                    Self::decode_small_payload::<GuiDataPickItemPacket, _>(payload_buf, ())?
+                } else {
+                    Self::decode_payload::<GuiDataPickItemPacket, _>(payload_buf, ())?
+                }
             }
             McpePacketName::BlockActorDataPacket => {
-                Self::decode_payload::<BlockActorDataPacket, _>(&mut payload_buf, ())?
+                if std::mem::size_of::<BlockActorDataPacket>() <= 256 {
+                    Self::decode_small_payload::<BlockActorDataPacket, _>(payload_buf, ())?
+                } else {
+                    Self::decode_payload::<BlockActorDataPacket, _>(payload_buf, ())?
+                }
             }
             McpePacketName::LevelChunkPacket => {
-                Self::decode_payload::<LevelChunkPacket, _>(&mut payload_buf, ())?
+                if std::mem::size_of::<LevelChunkPacket>() <= 256 {
+                    Self::decode_small_payload::<LevelChunkPacket, _>(payload_buf, ())?
+                } else {
+                    Self::decode_payload::<LevelChunkPacket, _>(payload_buf, ())?
+                }
             }
             McpePacketName::SetCommandsEnabledPacket => {
-                Self::decode_payload::<SetCommandsEnabledPacket, _>(&mut payload_buf, ())?
+                if std::mem::size_of::<SetCommandsEnabledPacket>() <= 256 {
+                    Self::decode_small_payload::<SetCommandsEnabledPacket, _>(payload_buf, ())?
+                } else {
+                    Self::decode_payload::<SetCommandsEnabledPacket, _>(payload_buf, ())?
+                }
             }
             McpePacketName::SetDifficultyPacket => {
-                Self::decode_payload::<SetDifficultyPacket, _>(&mut payload_buf, ())?
+                if std::mem::size_of::<SetDifficultyPacket>() <= 256 {
+                    Self::decode_small_payload::<SetDifficultyPacket, _>(payload_buf, ())?
+                } else {
+                    Self::decode_payload::<SetDifficultyPacket, _>(payload_buf, ())?
+                }
             }
             McpePacketName::ChangeDimensionPacket => {
-                Self::decode_payload::<ChangeDimensionPacket, _>(&mut payload_buf, ())?
+                if std::mem::size_of::<ChangeDimensionPacket>() <= 256 {
+                    Self::decode_small_payload::<ChangeDimensionPacket, _>(payload_buf, ())?
+                } else {
+                    Self::decode_payload::<ChangeDimensionPacket, _>(payload_buf, ())?
+                }
             }
             McpePacketName::SetPlayerGameTypePacket => {
-                Self::decode_payload::<SetPlayerGameTypePacket, _>(&mut payload_buf, ())?
+                if std::mem::size_of::<SetPlayerGameTypePacket>() <= 256 {
+                    Self::decode_small_payload::<SetPlayerGameTypePacket, _>(payload_buf, ())?
+                } else {
+                    Self::decode_payload::<SetPlayerGameTypePacket, _>(payload_buf, ())?
+                }
             }
             McpePacketName::PlayerListPacket => {
-                Self::decode_payload::<PlayerListPacket, _>(&mut payload_buf, ())?
+                if std::mem::size_of::<PlayerListPacket>() <= 256 {
+                    Self::decode_small_payload::<PlayerListPacket, _>(payload_buf, ())?
+                } else {
+                    Self::decode_payload::<PlayerListPacket, _>(payload_buf, ())?
+                }
             }
             McpePacketName::SimpleEventPacket => {
-                Self::decode_payload::<SimpleEventPacket, _>(&mut payload_buf, ())?
+                if std::mem::size_of::<SimpleEventPacket>() <= 256 {
+                    Self::decode_small_payload::<SimpleEventPacket, _>(payload_buf, ())?
+                } else {
+                    Self::decode_payload::<SimpleEventPacket, _>(payload_buf, ())?
+                }
             }
             McpePacketName::LegacyTelemetryEventPacket => {
-                Self::decode_payload::<LegacyTelemetryEventPacket, _>(&mut payload_buf, ())?
+                if std::mem::size_of::<LegacyTelemetryEventPacket>() <= 256 {
+                    Self::decode_small_payload::<LegacyTelemetryEventPacket, _>(payload_buf, ())?
+                } else {
+                    Self::decode_payload::<LegacyTelemetryEventPacket, _>(payload_buf, ())?
+                }
             }
             McpePacketName::SpawnExperienceOrbPacket => {
-                Self::decode_payload::<SpawnExperienceOrbPacket, _>(&mut payload_buf, ())?
+                if std::mem::size_of::<SpawnExperienceOrbPacket>() <= 256 {
+                    Self::decode_small_payload::<SpawnExperienceOrbPacket, _>(payload_buf, ())?
+                } else {
+                    Self::decode_payload::<SpawnExperienceOrbPacket, _>(payload_buf, ())?
+                }
             }
             McpePacketName::ClientboundMapItemDataPacket => {
-                Self::decode_payload::<ClientboundMapItemDataPacket, _>(&mut payload_buf, ())?
+                if std::mem::size_of::<ClientboundMapItemDataPacket>() <= 256 {
+                    Self::decode_small_payload::<ClientboundMapItemDataPacket, _>(payload_buf, ())?
+                } else {
+                    Self::decode_payload::<ClientboundMapItemDataPacket, _>(payload_buf, ())?
+                }
             }
             McpePacketName::MapInfoRequestPacket => {
-                Self::decode_payload::<MapInfoRequestPacket, _>(&mut payload_buf, ())?
+                if std::mem::size_of::<MapInfoRequestPacket>() <= 256 {
+                    Self::decode_small_payload::<MapInfoRequestPacket, _>(payload_buf, ())?
+                } else {
+                    Self::decode_payload::<MapInfoRequestPacket, _>(payload_buf, ())?
+                }
             }
             McpePacketName::RequestChunkRadiusPacket => {
-                Self::decode_payload::<RequestChunkRadiusPacket, _>(&mut payload_buf, ())?
+                if std::mem::size_of::<RequestChunkRadiusPacket>() <= 256 {
+                    Self::decode_small_payload::<RequestChunkRadiusPacket, _>(payload_buf, ())?
+                } else {
+                    Self::decode_payload::<RequestChunkRadiusPacket, _>(payload_buf, ())?
+                }
             }
             McpePacketName::ChunkRadiusUpdatedPacket => {
-                Self::decode_payload::<ChunkRadiusUpdatedPacket, _>(&mut payload_buf, ())?
+                if std::mem::size_of::<ChunkRadiusUpdatedPacket>() <= 256 {
+                    Self::decode_small_payload::<ChunkRadiusUpdatedPacket, _>(payload_buf, ())?
+                } else {
+                    Self::decode_payload::<ChunkRadiusUpdatedPacket, _>(payload_buf, ())?
+                }
             }
             McpePacketName::GameRulesChangedPacket => {
-                Self::decode_payload::<GameRulesChangedPacket, _>(&mut payload_buf, ())?
+                if std::mem::size_of::<GameRulesChangedPacket>() <= 256 {
+                    Self::decode_small_payload::<GameRulesChangedPacket, _>(payload_buf, ())?
+                } else {
+                    Self::decode_payload::<GameRulesChangedPacket, _>(payload_buf, ())?
+                }
             }
             McpePacketName::CameraPacket => {
-                Self::decode_payload::<CameraPacket, _>(&mut payload_buf, ())?
+                if std::mem::size_of::<CameraPacket>() <= 256 {
+                    Self::decode_small_payload::<CameraPacket, _>(payload_buf, ())?
+                } else {
+                    Self::decode_payload::<CameraPacket, _>(payload_buf, ())?
+                }
             }
             McpePacketName::BossEventPacket => {
-                Self::decode_payload::<BossEventPacket, _>(&mut payload_buf, ())?
+                if std::mem::size_of::<BossEventPacket>() <= 256 {
+                    Self::decode_small_payload::<BossEventPacket, _>(payload_buf, ())?
+                } else {
+                    Self::decode_payload::<BossEventPacket, _>(payload_buf, ())?
+                }
             }
             McpePacketName::ShowCreditsPacket => {
-                Self::decode_payload::<ShowCreditsPacket, _>(&mut payload_buf, ())?
+                if std::mem::size_of::<ShowCreditsPacket>() <= 256 {
+                    Self::decode_small_payload::<ShowCreditsPacket, _>(payload_buf, ())?
+                } else {
+                    Self::decode_payload::<ShowCreditsPacket, _>(payload_buf, ())?
+                }
             }
             McpePacketName::AvailableCommandsPacket => {
-                Self::decode_payload::<AvailableCommandsPacket, _>(&mut payload_buf, ())?
+                if std::mem::size_of::<AvailableCommandsPacket>() <= 256 {
+                    Self::decode_small_payload::<AvailableCommandsPacket, _>(payload_buf, ())?
+                } else {
+                    Self::decode_payload::<AvailableCommandsPacket, _>(payload_buf, ())?
+                }
             }
             McpePacketName::CommandRequestPacket => {
-                Self::decode_payload::<CommandRequestPacket, _>(&mut payload_buf, ())?
+                if std::mem::size_of::<CommandRequestPacket>() <= 256 {
+                    Self::decode_small_payload::<CommandRequestPacket, _>(payload_buf, ())?
+                } else {
+                    Self::decode_payload::<CommandRequestPacket, _>(payload_buf, ())?
+                }
             }
             McpePacketName::CommandBlockUpdatePacket => {
-                Self::decode_payload::<CommandBlockUpdatePacket, _>(&mut payload_buf, ())?
+                if std::mem::size_of::<CommandBlockUpdatePacket>() <= 256 {
+                    Self::decode_small_payload::<CommandBlockUpdatePacket, _>(payload_buf, ())?
+                } else {
+                    Self::decode_payload::<CommandBlockUpdatePacket, _>(payload_buf, ())?
+                }
             }
             McpePacketName::CommandOutputPacket => {
-                Self::decode_payload::<CommandOutputPacket, _>(&mut payload_buf, ())?
+                if std::mem::size_of::<CommandOutputPacket>() <= 256 {
+                    Self::decode_small_payload::<CommandOutputPacket, _>(payload_buf, ())?
+                } else {
+                    Self::decode_payload::<CommandOutputPacket, _>(payload_buf, ())?
+                }
             }
             McpePacketName::UpdateTradePacket => {
-                Self::decode_payload::<UpdateTradePacket, _>(&mut payload_buf, ())?
+                if std::mem::size_of::<UpdateTradePacket>() <= 256 {
+                    Self::decode_small_payload::<UpdateTradePacket, _>(payload_buf, ())?
+                } else {
+                    Self::decode_payload::<UpdateTradePacket, _>(payload_buf, ())?
+                }
             }
             McpePacketName::UpdateEquipPacket => {
-                Self::decode_payload::<UpdateEquipPacket, _>(&mut payload_buf, ())?
+                if std::mem::size_of::<UpdateEquipPacket>() <= 256 {
+                    Self::decode_small_payload::<UpdateEquipPacket, _>(payload_buf, ())?
+                } else {
+                    Self::decode_payload::<UpdateEquipPacket, _>(payload_buf, ())?
+                }
             }
             McpePacketName::ResourcePackDataInfoPacket => {
-                Self::decode_payload::<ResourcePackDataInfoPacket, _>(&mut payload_buf, ())?
+                if std::mem::size_of::<ResourcePackDataInfoPacket>() <= 256 {
+                    Self::decode_small_payload::<ResourcePackDataInfoPacket, _>(payload_buf, ())?
+                } else {
+                    Self::decode_payload::<ResourcePackDataInfoPacket, _>(payload_buf, ())?
+                }
             }
             McpePacketName::ResourcePackChunkDataPacket => {
-                Self::decode_payload::<ResourcePackChunkDataPacket, _>(&mut payload_buf, ())?
+                if std::mem::size_of::<ResourcePackChunkDataPacket>() <= 256 {
+                    Self::decode_small_payload::<ResourcePackChunkDataPacket, _>(payload_buf, ())?
+                } else {
+                    Self::decode_payload::<ResourcePackChunkDataPacket, _>(payload_buf, ())?
+                }
             }
             McpePacketName::ResourcePackChunkRequestPacket => {
-                Self::decode_payload::<ResourcePackChunkRequestPacket, _>(&mut payload_buf, ())?
+                if std::mem::size_of::<ResourcePackChunkRequestPacket>() <= 256 {
+                    Self::decode_small_payload::<ResourcePackChunkRequestPacket, _>(
+                        payload_buf,
+                        (),
+                    )?
+                } else {
+                    Self::decode_payload::<ResourcePackChunkRequestPacket, _>(payload_buf, ())?
+                }
             }
             McpePacketName::TransferPacket => {
-                Self::decode_payload::<TransferPacket, _>(&mut payload_buf, ())?
+                if std::mem::size_of::<TransferPacket>() <= 256 {
+                    Self::decode_small_payload::<TransferPacket, _>(payload_buf, ())?
+                } else {
+                    Self::decode_payload::<TransferPacket, _>(payload_buf, ())?
+                }
             }
             McpePacketName::PlaySoundPacket => {
-                Self::decode_payload::<PlaySoundPacket, _>(&mut payload_buf, ())?
+                if std::mem::size_of::<PlaySoundPacket>() <= 256 {
+                    Self::decode_small_payload::<PlaySoundPacket, _>(payload_buf, ())?
+                } else {
+                    Self::decode_payload::<PlaySoundPacket, _>(payload_buf, ())?
+                }
             }
             McpePacketName::StopSoundPacket => {
-                Self::decode_payload::<StopSoundPacket, _>(&mut payload_buf, ())?
+                if std::mem::size_of::<StopSoundPacket>() <= 256 {
+                    Self::decode_small_payload::<StopSoundPacket, _>(payload_buf, ())?
+                } else {
+                    Self::decode_payload::<StopSoundPacket, _>(payload_buf, ())?
+                }
             }
             McpePacketName::SetTitlePacket => {
-                Self::decode_payload::<SetTitlePacket, _>(&mut payload_buf, ())?
+                if std::mem::size_of::<SetTitlePacket>() <= 256 {
+                    Self::decode_small_payload::<SetTitlePacket, _>(payload_buf, ())?
+                } else {
+                    Self::decode_payload::<SetTitlePacket, _>(payload_buf, ())?
+                }
             }
             McpePacketName::AddBehaviorTreePacket => {
-                Self::decode_payload::<AddBehaviorTreePacket, _>(&mut payload_buf, ())?
+                if std::mem::size_of::<AddBehaviorTreePacket>() <= 256 {
+                    Self::decode_small_payload::<AddBehaviorTreePacket, _>(payload_buf, ())?
+                } else {
+                    Self::decode_payload::<AddBehaviorTreePacket, _>(payload_buf, ())?
+                }
             }
             McpePacketName::StructureBlockUpdatePacket => {
-                Self::decode_payload::<StructureBlockUpdatePacket, _>(&mut payload_buf, ())?
+                if std::mem::size_of::<StructureBlockUpdatePacket>() <= 256 {
+                    Self::decode_small_payload::<StructureBlockUpdatePacket, _>(payload_buf, ())?
+                } else {
+                    Self::decode_payload::<StructureBlockUpdatePacket, _>(payload_buf, ())?
+                }
             }
             McpePacketName::ShowStoreOfferPacket => {
-                Self::decode_payload::<ShowStoreOfferPacket, _>(&mut payload_buf, ())?
+                if std::mem::size_of::<ShowStoreOfferPacket>() <= 256 {
+                    Self::decode_small_payload::<ShowStoreOfferPacket, _>(payload_buf, ())?
+                } else {
+                    Self::decode_payload::<ShowStoreOfferPacket, _>(payload_buf, ())?
+                }
             }
             McpePacketName::PurchaseReceiptPacket => {
-                Self::decode_payload::<PurchaseReceiptPacket, _>(&mut payload_buf, ())?
+                if std::mem::size_of::<PurchaseReceiptPacket>() <= 256 {
+                    Self::decode_small_payload::<PurchaseReceiptPacket, _>(payload_buf, ())?
+                } else {
+                    Self::decode_payload::<PurchaseReceiptPacket, _>(payload_buf, ())?
+                }
             }
             McpePacketName::PlayerSkinPacket => {
-                Self::decode_payload::<PlayerSkinPacket, _>(&mut payload_buf, ())?
+                if std::mem::size_of::<PlayerSkinPacket>() <= 256 {
+                    Self::decode_small_payload::<PlayerSkinPacket, _>(payload_buf, ())?
+                } else {
+                    Self::decode_payload::<PlayerSkinPacket, _>(payload_buf, ())?
+                }
             }
             McpePacketName::SubClientLoginPacket => {
-                Self::decode_payload::<SubClientLoginPacket, _>(&mut payload_buf, ())?
+                if std::mem::size_of::<SubClientLoginPacket>() <= 256 {
+                    Self::decode_small_payload::<SubClientLoginPacket, _>(payload_buf, ())?
+                } else {
+                    Self::decode_payload::<SubClientLoginPacket, _>(payload_buf, ())?
+                }
             }
             McpePacketName::AutomationClientConnectPacket => {
-                Self::decode_payload::<AutomationClientConnectPacket, _>(&mut payload_buf, ())?
+                if std::mem::size_of::<AutomationClientConnectPacket>() <= 256 {
+                    Self::decode_small_payload::<AutomationClientConnectPacket, _>(payload_buf, ())?
+                } else {
+                    Self::decode_payload::<AutomationClientConnectPacket, _>(payload_buf, ())?
+                }
             }
             McpePacketName::SetLastHurtByPacket => {
-                Self::decode_payload::<SetLastHurtByPacket, _>(&mut payload_buf, ())?
+                if std::mem::size_of::<SetLastHurtByPacket>() <= 256 {
+                    Self::decode_small_payload::<SetLastHurtByPacket, _>(payload_buf, ())?
+                } else {
+                    Self::decode_payload::<SetLastHurtByPacket, _>(payload_buf, ())?
+                }
             }
             McpePacketName::BookEditPacket => {
-                Self::decode_payload::<BookEditPacket, _>(&mut payload_buf, ())?
+                if std::mem::size_of::<BookEditPacket>() <= 256 {
+                    Self::decode_small_payload::<BookEditPacket, _>(payload_buf, ())?
+                } else {
+                    Self::decode_payload::<BookEditPacket, _>(payload_buf, ())?
+                }
             }
             McpePacketName::NpcRequestPacket => {
-                Self::decode_payload::<NpcRequestPacket, _>(&mut payload_buf, ())?
+                if std::mem::size_of::<NpcRequestPacket>() <= 256 {
+                    Self::decode_small_payload::<NpcRequestPacket, _>(payload_buf, ())?
+                } else {
+                    Self::decode_payload::<NpcRequestPacket, _>(payload_buf, ())?
+                }
             }
             McpePacketName::PhotoTransferPacket => {
-                Self::decode_payload::<PhotoTransferPacket, _>(&mut payload_buf, ())?
+                if std::mem::size_of::<PhotoTransferPacket>() <= 256 {
+                    Self::decode_small_payload::<PhotoTransferPacket, _>(payload_buf, ())?
+                } else {
+                    Self::decode_payload::<PhotoTransferPacket, _>(payload_buf, ())?
+                }
             }
             McpePacketName::ModalFormRequestPacket => {
-                Self::decode_payload::<ModalFormRequestPacket, _>(&mut payload_buf, ())?
+                if std::mem::size_of::<ModalFormRequestPacket>() <= 256 {
+                    Self::decode_small_payload::<ModalFormRequestPacket, _>(payload_buf, ())?
+                } else {
+                    Self::decode_payload::<ModalFormRequestPacket, _>(payload_buf, ())?
+                }
             }
             McpePacketName::ModalFormResponsePacket => {
-                Self::decode_payload::<ModalFormResponsePacket, _>(&mut payload_buf, ())?
+                if std::mem::size_of::<ModalFormResponsePacket>() <= 256 {
+                    Self::decode_small_payload::<ModalFormResponsePacket, _>(payload_buf, ())?
+                } else {
+                    Self::decode_payload::<ModalFormResponsePacket, _>(payload_buf, ())?
+                }
             }
             McpePacketName::ServerSettingsRequestPacket => {
-                Self::decode_payload::<ServerSettingsRequestPacket, _>(&mut payload_buf, ())?
+                if std::mem::size_of::<ServerSettingsRequestPacket>() <= 256 {
+                    Self::decode_small_payload::<ServerSettingsRequestPacket, _>(payload_buf, ())?
+                } else {
+                    Self::decode_payload::<ServerSettingsRequestPacket, _>(payload_buf, ())?
+                }
             }
             McpePacketName::ServerSettingsResponsePacket => {
-                Self::decode_payload::<ServerSettingsResponsePacket, _>(&mut payload_buf, ())?
+                if std::mem::size_of::<ServerSettingsResponsePacket>() <= 256 {
+                    Self::decode_small_payload::<ServerSettingsResponsePacket, _>(payload_buf, ())?
+                } else {
+                    Self::decode_payload::<ServerSettingsResponsePacket, _>(payload_buf, ())?
+                }
             }
             McpePacketName::ShowProfilePacket => {
-                Self::decode_payload::<ShowProfilePacket, _>(&mut payload_buf, ())?
+                if std::mem::size_of::<ShowProfilePacket>() <= 256 {
+                    Self::decode_small_payload::<ShowProfilePacket, _>(payload_buf, ())?
+                } else {
+                    Self::decode_payload::<ShowProfilePacket, _>(payload_buf, ())?
+                }
             }
             McpePacketName::SetDefaultGameTypePacket => {
-                Self::decode_payload::<SetDefaultGameTypePacket, _>(&mut payload_buf, ())?
+                if std::mem::size_of::<SetDefaultGameTypePacket>() <= 256 {
+                    Self::decode_small_payload::<SetDefaultGameTypePacket, _>(payload_buf, ())?
+                } else {
+                    Self::decode_payload::<SetDefaultGameTypePacket, _>(payload_buf, ())?
+                }
             }
             McpePacketName::RemoveObjectivePacket => {
-                Self::decode_payload::<RemoveObjectivePacket, _>(&mut payload_buf, ())?
+                if std::mem::size_of::<RemoveObjectivePacket>() <= 256 {
+                    Self::decode_small_payload::<RemoveObjectivePacket, _>(payload_buf, ())?
+                } else {
+                    Self::decode_payload::<RemoveObjectivePacket, _>(payload_buf, ())?
+                }
             }
             McpePacketName::SetDisplayObjectivePacket => {
-                Self::decode_payload::<SetDisplayObjectivePacket, _>(&mut payload_buf, ())?
+                if std::mem::size_of::<SetDisplayObjectivePacket>() <= 256 {
+                    Self::decode_small_payload::<SetDisplayObjectivePacket, _>(payload_buf, ())?
+                } else {
+                    Self::decode_payload::<SetDisplayObjectivePacket, _>(payload_buf, ())?
+                }
             }
             McpePacketName::SetScorePacket => {
-                Self::decode_payload::<SetScorePacket, _>(&mut payload_buf, ())?
+                if std::mem::size_of::<SetScorePacket>() <= 256 {
+                    Self::decode_small_payload::<SetScorePacket, _>(payload_buf, ())?
+                } else {
+                    Self::decode_payload::<SetScorePacket, _>(payload_buf, ())?
+                }
             }
             McpePacketName::LabTablePacket => {
-                Self::decode_payload::<LabTablePacket, _>(&mut payload_buf, ())?
+                if std::mem::size_of::<LabTablePacket>() <= 256 {
+                    Self::decode_small_payload::<LabTablePacket, _>(payload_buf, ())?
+                } else {
+                    Self::decode_payload::<LabTablePacket, _>(payload_buf, ())?
+                }
             }
             McpePacketName::UpdateBlockSyncedPacket => {
-                Self::decode_payload::<UpdateBlockSyncedPacket, _>(&mut payload_buf, ())?
+                if std::mem::size_of::<UpdateBlockSyncedPacket>() <= 256 {
+                    Self::decode_small_payload::<UpdateBlockSyncedPacket, _>(payload_buf, ())?
+                } else {
+                    Self::decode_payload::<UpdateBlockSyncedPacket, _>(payload_buf, ())?
+                }
             }
             McpePacketName::MoveActorDeltaPacket => {
-                Self::decode_payload::<MoveActorDeltaPacket, _>(&mut payload_buf, ())?
+                if std::mem::size_of::<MoveActorDeltaPacket>() <= 256 {
+                    Self::decode_small_payload::<MoveActorDeltaPacket, _>(payload_buf, ())?
+                } else {
+                    Self::decode_payload::<MoveActorDeltaPacket, _>(payload_buf, ())?
+                }
             }
             McpePacketName::SetScoreboardIdentityPacket => {
-                Self::decode_payload::<SetScoreboardIdentityPacket, _>(&mut payload_buf, ())?
+                if std::mem::size_of::<SetScoreboardIdentityPacket>() <= 256 {
+                    Self::decode_small_payload::<SetScoreboardIdentityPacket, _>(payload_buf, ())?
+                } else {
+                    Self::decode_payload::<SetScoreboardIdentityPacket, _>(payload_buf, ())?
+                }
             }
             McpePacketName::SetLocalPlayerAsInitializedPacket => {
-                Self::decode_payload::<SetLocalPlayerAsInitializedPacket, _>(&mut payload_buf, ())?
+                if std::mem::size_of::<SetLocalPlayerAsInitializedPacket>() <= 256 {
+                    Self::decode_small_payload::<SetLocalPlayerAsInitializedPacket, _>(
+                        payload_buf,
+                        (),
+                    )?
+                } else {
+                    Self::decode_payload::<SetLocalPlayerAsInitializedPacket, _>(payload_buf, ())?
+                }
             }
             McpePacketName::UpdateSoftEnumPacket => {
-                Self::decode_payload::<UpdateSoftEnumPacket, _>(&mut payload_buf, ())?
+                if std::mem::size_of::<UpdateSoftEnumPacket>() <= 256 {
+                    Self::decode_small_payload::<UpdateSoftEnumPacket, _>(payload_buf, ())?
+                } else {
+                    Self::decode_payload::<UpdateSoftEnumPacket, _>(payload_buf, ())?
+                }
             }
             McpePacketName::NetworkStackLatencyPacket => {
-                Self::decode_payload::<NetworkStackLatencyPacket, _>(&mut payload_buf, ())?
+                if std::mem::size_of::<NetworkStackLatencyPacket>() <= 256 {
+                    Self::decode_small_payload::<NetworkStackLatencyPacket, _>(payload_buf, ())?
+                } else {
+                    Self::decode_payload::<NetworkStackLatencyPacket, _>(payload_buf, ())?
+                }
             }
             McpePacketName::SpawnParticleEffectPacket => {
-                Self::decode_payload::<SpawnParticleEffectPacket, _>(&mut payload_buf, ())?
+                if std::mem::size_of::<SpawnParticleEffectPacket>() <= 256 {
+                    Self::decode_small_payload::<SpawnParticleEffectPacket, _>(payload_buf, ())?
+                } else {
+                    Self::decode_payload::<SpawnParticleEffectPacket, _>(payload_buf, ())?
+                }
             }
             McpePacketName::AvailableActorIdentifiersPacket => {
-                Self::decode_payload::<AvailableActorIdentifiersPacket, _>(&mut payload_buf, ())?
+                if std::mem::size_of::<AvailableActorIdentifiersPacket>() <= 256 {
+                    Self::decode_small_payload::<AvailableActorIdentifiersPacket, _>(
+                        payload_buf,
+                        (),
+                    )?
+                } else {
+                    Self::decode_payload::<AvailableActorIdentifiersPacket, _>(payload_buf, ())?
+                }
             }
             McpePacketName::NetworkChunkPublisherUpdatePacket => {
-                Self::decode_payload::<NetworkChunkPublisherUpdatePacket, _>(&mut payload_buf, ())?
+                if std::mem::size_of::<NetworkChunkPublisherUpdatePacket>() <= 256 {
+                    Self::decode_small_payload::<NetworkChunkPublisherUpdatePacket, _>(
+                        payload_buf,
+                        (),
+                    )?
+                } else {
+                    Self::decode_payload::<NetworkChunkPublisherUpdatePacket, _>(payload_buf, ())?
+                }
             }
             McpePacketName::BiomeDefinitionListPacket => {
-                Self::decode_payload::<BiomeDefinitionListPacket, _>(&mut payload_buf, ())?
+                if std::mem::size_of::<BiomeDefinitionListPacket>() <= 256 {
+                    Self::decode_small_payload::<BiomeDefinitionListPacket, _>(payload_buf, ())?
+                } else {
+                    Self::decode_payload::<BiomeDefinitionListPacket, _>(payload_buf, ())?
+                }
             }
             McpePacketName::LevelSoundEventPacket => {
-                Self::decode_payload::<LevelSoundEventPacket, _>(&mut payload_buf, ())?
+                if std::mem::size_of::<LevelSoundEventPacket>() <= 256 {
+                    Self::decode_small_payload::<LevelSoundEventPacket, _>(payload_buf, ())?
+                } else {
+                    Self::decode_payload::<LevelSoundEventPacket, _>(payload_buf, ())?
+                }
             }
             McpePacketName::LevelEventGenericPacket => {
-                Self::decode_payload::<LevelEventGenericPacket, _>(&mut payload_buf, ())?
+                if std::mem::size_of::<LevelEventGenericPacket>() <= 256 {
+                    Self::decode_small_payload::<LevelEventGenericPacket, _>(payload_buf, ())?
+                } else {
+                    Self::decode_payload::<LevelEventGenericPacket, _>(payload_buf, ())?
+                }
             }
             McpePacketName::LecternUpdatePacket => {
-                Self::decode_payload::<LecternUpdatePacket, _>(&mut payload_buf, ())?
+                if std::mem::size_of::<LecternUpdatePacket>() <= 256 {
+                    Self::decode_small_payload::<LecternUpdatePacket, _>(payload_buf, ())?
+                } else {
+                    Self::decode_payload::<LecternUpdatePacket, _>(payload_buf, ())?
+                }
             }
             McpePacketName::ClientCacheStatusPacket => {
-                Self::decode_payload::<ClientCacheStatusPacket, _>(&mut payload_buf, ())?
+                if std::mem::size_of::<ClientCacheStatusPacket>() <= 256 {
+                    Self::decode_small_payload::<ClientCacheStatusPacket, _>(payload_buf, ())?
+                } else {
+                    Self::decode_payload::<ClientCacheStatusPacket, _>(payload_buf, ())?
+                }
             }
             McpePacketName::OnScreenTextureAnimationPacket => {
-                Self::decode_payload::<OnScreenTextureAnimationPacket, _>(&mut payload_buf, ())?
+                if std::mem::size_of::<OnScreenTextureAnimationPacket>() <= 256 {
+                    Self::decode_small_payload::<OnScreenTextureAnimationPacket, _>(
+                        payload_buf,
+                        (),
+                    )?
+                } else {
+                    Self::decode_payload::<OnScreenTextureAnimationPacket, _>(payload_buf, ())?
+                }
             }
             McpePacketName::MapCreateLockedCopyPacket => {
-                Self::decode_payload::<MapCreateLockedCopyPacket, _>(&mut payload_buf, ())?
+                if std::mem::size_of::<MapCreateLockedCopyPacket>() <= 256 {
+                    Self::decode_small_payload::<MapCreateLockedCopyPacket, _>(payload_buf, ())?
+                } else {
+                    Self::decode_payload::<MapCreateLockedCopyPacket, _>(payload_buf, ())?
+                }
             }
             McpePacketName::StructureTemplateDataRequestPacket => {
-                Self::decode_payload::<StructureTemplateDataRequestPacket, _>(&mut payload_buf, ())?
+                if std::mem::size_of::<StructureTemplateDataRequestPacket>() <= 256 {
+                    Self::decode_small_payload::<StructureTemplateDataRequestPacket, _>(
+                        payload_buf,
+                        (),
+                    )?
+                } else {
+                    Self::decode_payload::<StructureTemplateDataRequestPacket, _>(payload_buf, ())?
+                }
             }
             McpePacketName::StructureTemplateDataResponsePacket => {
-                Self::decode_payload::<StructureTemplateDataResponsePacket, _>(
-                    &mut payload_buf,
-                    (),
-                )?
+                if std::mem::size_of::<StructureTemplateDataResponsePacket>() <= 256 {
+                    Self::decode_small_payload::<StructureTemplateDataResponsePacket, _>(
+                        payload_buf,
+                        (),
+                    )?
+                } else {
+                    Self::decode_payload::<StructureTemplateDataResponsePacket, _>(payload_buf, ())?
+                }
             }
             McpePacketName::ClientCacheBlobStatusPacket => {
-                Self::decode_payload::<ClientCacheBlobStatusPacket, _>(&mut payload_buf, ())?
+                if std::mem::size_of::<ClientCacheBlobStatusPacket>() <= 256 {
+                    Self::decode_small_payload::<ClientCacheBlobStatusPacket, _>(payload_buf, ())?
+                } else {
+                    Self::decode_payload::<ClientCacheBlobStatusPacket, _>(payload_buf, ())?
+                }
             }
             McpePacketName::ClientCacheMissResponsePacket => {
-                Self::decode_payload::<ClientCacheMissResponsePacket, _>(&mut payload_buf, ())?
+                if std::mem::size_of::<ClientCacheMissResponsePacket>() <= 256 {
+                    Self::decode_small_payload::<ClientCacheMissResponsePacket, _>(payload_buf, ())?
+                } else {
+                    Self::decode_payload::<ClientCacheMissResponsePacket, _>(payload_buf, ())?
+                }
             }
             McpePacketName::EducationSettingsPacket => {
-                Self::decode_payload::<EducationSettingsPacket, _>(&mut payload_buf, ())?
+                if std::mem::size_of::<EducationSettingsPacket>() <= 256 {
+                    Self::decode_small_payload::<EducationSettingsPacket, _>(payload_buf, ())?
+                } else {
+                    Self::decode_payload::<EducationSettingsPacket, _>(payload_buf, ())?
+                }
             }
             McpePacketName::EmotePacket => {
-                Self::decode_payload::<EmotePacket, _>(&mut payload_buf, ())?
+                if std::mem::size_of::<EmotePacket>() <= 256 {
+                    Self::decode_small_payload::<EmotePacket, _>(payload_buf, ())?
+                } else {
+                    Self::decode_payload::<EmotePacket, _>(payload_buf, ())?
+                }
             }
             McpePacketName::MultiplayerSettingsPacket => {
-                Self::decode_payload::<MultiplayerSettingsPacket, _>(&mut payload_buf, ())?
+                if std::mem::size_of::<MultiplayerSettingsPacket>() <= 256 {
+                    Self::decode_small_payload::<MultiplayerSettingsPacket, _>(payload_buf, ())?
+                } else {
+                    Self::decode_payload::<MultiplayerSettingsPacket, _>(payload_buf, ())?
+                }
             }
             McpePacketName::SettingsCommandPacket => {
-                Self::decode_payload::<SettingsCommandPacket, _>(&mut payload_buf, ())?
+                if std::mem::size_of::<SettingsCommandPacket>() <= 256 {
+                    Self::decode_small_payload::<SettingsCommandPacket, _>(payload_buf, ())?
+                } else {
+                    Self::decode_payload::<SettingsCommandPacket, _>(payload_buf, ())?
+                }
             }
             McpePacketName::AnvilDamagePacket => {
-                Self::decode_payload::<AnvilDamagePacket, _>(&mut payload_buf, ())?
+                if std::mem::size_of::<AnvilDamagePacket>() <= 256 {
+                    Self::decode_small_payload::<AnvilDamagePacket, _>(payload_buf, ())?
+                } else {
+                    Self::decode_payload::<AnvilDamagePacket, _>(payload_buf, ())?
+                }
             }
             McpePacketName::CompletedUsingItemPacket => {
-                Self::decode_payload::<CompletedUsingItemPacket, _>(&mut payload_buf, ())?
+                if std::mem::size_of::<CompletedUsingItemPacket>() <= 256 {
+                    Self::decode_small_payload::<CompletedUsingItemPacket, _>(payload_buf, ())?
+                } else {
+                    Self::decode_payload::<CompletedUsingItemPacket, _>(payload_buf, ())?
+                }
             }
             McpePacketName::NetworkSettingsPacket => {
-                Self::decode_payload::<NetworkSettingsPacket, _>(&mut payload_buf, ())?
+                if std::mem::size_of::<NetworkSettingsPacket>() <= 256 {
+                    Self::decode_small_payload::<NetworkSettingsPacket, _>(payload_buf, ())?
+                } else {
+                    Self::decode_payload::<NetworkSettingsPacket, _>(payload_buf, ())?
+                }
             }
             McpePacketName::PlayerAuthInputPacket => {
-                Self::decode_payload::<PlayerAuthInputPacket, _>(&mut payload_buf, ())?
+                if std::mem::size_of::<PlayerAuthInputPacket>() <= 256 {
+                    Self::decode_small_payload::<PlayerAuthInputPacket, _>(payload_buf, ())?
+                } else {
+                    Self::decode_payload::<PlayerAuthInputPacket, _>(payload_buf, ())?
+                }
             }
             McpePacketName::CreativeContentPacket => {
-                Self::decode_payload::<CreativeContentPacket, _>(&mut payload_buf, ())?
+                if std::mem::size_of::<CreativeContentPacket>() <= 256 {
+                    Self::decode_small_payload::<CreativeContentPacket, _>(payload_buf, ())?
+                } else {
+                    Self::decode_payload::<CreativeContentPacket, _>(payload_buf, ())?
+                }
             }
             McpePacketName::PlayerEnchantOptionsPacket => {
-                Self::decode_payload::<PlayerEnchantOptionsPacket, _>(&mut payload_buf, ())?
+                if std::mem::size_of::<PlayerEnchantOptionsPacket>() <= 256 {
+                    Self::decode_small_payload::<PlayerEnchantOptionsPacket, _>(payload_buf, ())?
+                } else {
+                    Self::decode_payload::<PlayerEnchantOptionsPacket, _>(payload_buf, ())?
+                }
             }
             McpePacketName::ItemStackRequestPacket => {
-                Self::decode_payload::<ItemStackRequestPacket, _>(&mut payload_buf, ())?
+                if std::mem::size_of::<ItemStackRequestPacket>() <= 256 {
+                    Self::decode_small_payload::<ItemStackRequestPacket, _>(payload_buf, ())?
+                } else {
+                    Self::decode_payload::<ItemStackRequestPacket, _>(payload_buf, ())?
+                }
             }
             McpePacketName::ItemStackResponsePacket => {
-                Self::decode_payload::<ItemStackResponsePacket, _>(&mut payload_buf, ())?
+                if std::mem::size_of::<ItemStackResponsePacket>() <= 256 {
+                    Self::decode_small_payload::<ItemStackResponsePacket, _>(payload_buf, ())?
+                } else {
+                    Self::decode_payload::<ItemStackResponsePacket, _>(payload_buf, ())?
+                }
             }
             McpePacketName::PlayerArmorDamagePacket => {
-                Self::decode_payload::<PlayerArmorDamagePacket, _>(&mut payload_buf, ())?
+                if std::mem::size_of::<PlayerArmorDamagePacket>() <= 256 {
+                    Self::decode_small_payload::<PlayerArmorDamagePacket, _>(payload_buf, ())?
+                } else {
+                    Self::decode_payload::<PlayerArmorDamagePacket, _>(payload_buf, ())?
+                }
             }
             McpePacketName::CodeBuilderPacket => {
-                Self::decode_payload::<CodeBuilderPacket, _>(&mut payload_buf, ())?
+                if std::mem::size_of::<CodeBuilderPacket>() <= 256 {
+                    Self::decode_small_payload::<CodeBuilderPacket, _>(payload_buf, ())?
+                } else {
+                    Self::decode_payload::<CodeBuilderPacket, _>(payload_buf, ())?
+                }
             }
             McpePacketName::UpdatePlayerGameTypePacket => {
-                Self::decode_payload::<UpdatePlayerGameTypePacket, _>(&mut payload_buf, ())?
+                if std::mem::size_of::<UpdatePlayerGameTypePacket>() <= 256 {
+                    Self::decode_small_payload::<UpdatePlayerGameTypePacket, _>(payload_buf, ())?
+                } else {
+                    Self::decode_payload::<UpdatePlayerGameTypePacket, _>(payload_buf, ())?
+                }
             }
             McpePacketName::EmoteListPacket => {
-                Self::decode_payload::<EmoteListPacket, _>(&mut payload_buf, ())?
+                if std::mem::size_of::<EmoteListPacket>() <= 256 {
+                    Self::decode_small_payload::<EmoteListPacket, _>(payload_buf, ())?
+                } else {
+                    Self::decode_payload::<EmoteListPacket, _>(payload_buf, ())?
+                }
             }
             McpePacketName::PositionTrackingDbServerBroadcastPacket => {
-                Self::decode_payload::<PositionTrackingDbServerBroadcastPacket, _>(
-                    &mut payload_buf,
-                    (),
-                )?
+                if std::mem::size_of::<PositionTrackingDbServerBroadcastPacket>() <= 256 {
+                    Self::decode_small_payload::<PositionTrackingDbServerBroadcastPacket, _>(
+                        payload_buf,
+                        (),
+                    )?
+                } else {
+                    Self::decode_payload::<PositionTrackingDbServerBroadcastPacket, _>(
+                        payload_buf,
+                        (),
+                    )?
+                }
             }
             McpePacketName::PositionTrackingDbClientRequestPacket => {
-                Self::decode_payload::<PositionTrackingDbClientRequestPacket, _>(
-                    &mut payload_buf,
-                    (),
-                )?
+                if std::mem::size_of::<PositionTrackingDbClientRequestPacket>() <= 256 {
+                    Self::decode_small_payload::<PositionTrackingDbClientRequestPacket, _>(
+                        payload_buf,
+                        (),
+                    )?
+                } else {
+                    Self::decode_payload::<PositionTrackingDbClientRequestPacket, _>(
+                        payload_buf,
+                        (),
+                    )?
+                }
             }
             McpePacketName::DebugInfoPacket => {
-                Self::decode_payload::<DebugInfoPacket, _>(&mut payload_buf, ())?
+                if std::mem::size_of::<DebugInfoPacket>() <= 256 {
+                    Self::decode_small_payload::<DebugInfoPacket, _>(payload_buf, ())?
+                } else {
+                    Self::decode_payload::<DebugInfoPacket, _>(payload_buf, ())?
+                }
             }
             McpePacketName::PacketViolationWarningPacket => {
-                Self::decode_payload::<PacketViolationWarningPacket, _>(&mut payload_buf, ())?
+                if std::mem::size_of::<PacketViolationWarningPacket>() <= 256 {
+                    Self::decode_small_payload::<PacketViolationWarningPacket, _>(payload_buf, ())?
+                } else {
+                    Self::decode_payload::<PacketViolationWarningPacket, _>(payload_buf, ())?
+                }
             }
             McpePacketName::MotionPredictionHintsPacket => {
-                Self::decode_payload::<MotionPredictionHintsPacket, _>(&mut payload_buf, ())?
+                if std::mem::size_of::<MotionPredictionHintsPacket>() <= 256 {
+                    Self::decode_small_payload::<MotionPredictionHintsPacket, _>(payload_buf, ())?
+                } else {
+                    Self::decode_payload::<MotionPredictionHintsPacket, _>(payload_buf, ())?
+                }
             }
             McpePacketName::AnimateEntityPacket => {
-                Self::decode_payload::<AnimateEntityPacket, _>(&mut payload_buf, ())?
+                if std::mem::size_of::<AnimateEntityPacket>() <= 256 {
+                    Self::decode_small_payload::<AnimateEntityPacket, _>(payload_buf, ())?
+                } else {
+                    Self::decode_payload::<AnimateEntityPacket, _>(payload_buf, ())?
+                }
             }
             McpePacketName::CameraShakePacket => {
-                Self::decode_payload::<CameraShakePacket, _>(&mut payload_buf, ())?
+                if std::mem::size_of::<CameraShakePacket>() <= 256 {
+                    Self::decode_small_payload::<CameraShakePacket, _>(payload_buf, ())?
+                } else {
+                    Self::decode_payload::<CameraShakePacket, _>(payload_buf, ())?
+                }
             }
             McpePacketName::PlayerFogPacket => {
-                Self::decode_payload::<PlayerFogPacket, _>(&mut payload_buf, ())?
+                if std::mem::size_of::<PlayerFogPacket>() <= 256 {
+                    Self::decode_small_payload::<PlayerFogPacket, _>(payload_buf, ())?
+                } else {
+                    Self::decode_payload::<PlayerFogPacket, _>(payload_buf, ())?
+                }
             }
             McpePacketName::CorrectPlayerMovePredictionPacket => {
-                Self::decode_payload::<CorrectPlayerMovePredictionPacket, _>(&mut payload_buf, ())?
+                if std::mem::size_of::<CorrectPlayerMovePredictionPacket>() <= 256 {
+                    Self::decode_small_payload::<CorrectPlayerMovePredictionPacket, _>(
+                        payload_buf,
+                        (),
+                    )?
+                } else {
+                    Self::decode_payload::<CorrectPlayerMovePredictionPacket, _>(payload_buf, ())?
+                }
             }
             McpePacketName::ItemRegistryPacket => {
-                Self::decode_payload::<ItemRegistryPacket, _>(&mut payload_buf, ())?
+                if std::mem::size_of::<ItemRegistryPacket>() <= 256 {
+                    Self::decode_small_payload::<ItemRegistryPacket, _>(payload_buf, ())?
+                } else {
+                    Self::decode_payload::<ItemRegistryPacket, _>(payload_buf, ())?
+                }
             }
             McpePacketName::ClientboundDebugRendererPacket => {
-                Self::decode_payload::<ClientboundDebugRendererPacket, _>(&mut payload_buf, ())?
+                if std::mem::size_of::<ClientboundDebugRendererPacket>() <= 256 {
+                    Self::decode_small_payload::<ClientboundDebugRendererPacket, _>(
+                        payload_buf,
+                        (),
+                    )?
+                } else {
+                    Self::decode_payload::<ClientboundDebugRendererPacket, _>(payload_buf, ())?
+                }
             }
             McpePacketName::SyncActorPropertyPacket => {
-                Self::decode_payload::<SyncActorPropertyPacket, _>(&mut payload_buf, ())?
+                if std::mem::size_of::<SyncActorPropertyPacket>() <= 256 {
+                    Self::decode_small_payload::<SyncActorPropertyPacket, _>(payload_buf, ())?
+                } else {
+                    Self::decode_payload::<SyncActorPropertyPacket, _>(payload_buf, ())?
+                }
             }
             McpePacketName::AddVolumeEntityPacket => {
-                Self::decode_payload::<AddVolumeEntityPacket, _>(&mut payload_buf, ())?
+                if std::mem::size_of::<AddVolumeEntityPacket>() <= 256 {
+                    Self::decode_small_payload::<AddVolumeEntityPacket, _>(payload_buf, ())?
+                } else {
+                    Self::decode_payload::<AddVolumeEntityPacket, _>(payload_buf, ())?
+                }
             }
             McpePacketName::RemoveVolumeEntityPacket => {
-                Self::decode_payload::<RemoveVolumeEntityPacket, _>(&mut payload_buf, ())?
+                if std::mem::size_of::<RemoveVolumeEntityPacket>() <= 256 {
+                    Self::decode_small_payload::<RemoveVolumeEntityPacket, _>(payload_buf, ())?
+                } else {
+                    Self::decode_payload::<RemoveVolumeEntityPacket, _>(payload_buf, ())?
+                }
             }
             McpePacketName::SimulationTypePacket => {
-                Self::decode_payload::<SimulationTypePacket, _>(&mut payload_buf, ())?
+                if std::mem::size_of::<SimulationTypePacket>() <= 256 {
+                    Self::decode_small_payload::<SimulationTypePacket, _>(payload_buf, ())?
+                } else {
+                    Self::decode_payload::<SimulationTypePacket, _>(payload_buf, ())?
+                }
             }
             McpePacketName::NpcDialoguePacket => {
-                Self::decode_payload::<NpcDialoguePacket, _>(&mut payload_buf, ())?
+                if std::mem::size_of::<NpcDialoguePacket>() <= 256 {
+                    Self::decode_small_payload::<NpcDialoguePacket, _>(payload_buf, ())?
+                } else {
+                    Self::decode_payload::<NpcDialoguePacket, _>(payload_buf, ())?
+                }
             }
             McpePacketName::EduUriResourcePacket => {
-                Self::decode_payload::<EduUriResourcePacket, _>(&mut payload_buf, ())?
+                if std::mem::size_of::<EduUriResourcePacket>() <= 256 {
+                    Self::decode_small_payload::<EduUriResourcePacket, _>(payload_buf, ())?
+                } else {
+                    Self::decode_payload::<EduUriResourcePacket, _>(payload_buf, ())?
+                }
             }
             McpePacketName::CreatePhotoPacket => {
-                Self::decode_payload::<CreatePhotoPacket, _>(&mut payload_buf, ())?
+                if std::mem::size_of::<CreatePhotoPacket>() <= 256 {
+                    Self::decode_small_payload::<CreatePhotoPacket, _>(payload_buf, ())?
+                } else {
+                    Self::decode_payload::<CreatePhotoPacket, _>(payload_buf, ())?
+                }
             }
             McpePacketName::UpdateSubChunkBlocksPacket => {
-                Self::decode_payload::<UpdateSubChunkBlocksPacket, _>(&mut payload_buf, ())?
+                if std::mem::size_of::<UpdateSubChunkBlocksPacket>() <= 256 {
+                    Self::decode_small_payload::<UpdateSubChunkBlocksPacket, _>(payload_buf, ())?
+                } else {
+                    Self::decode_payload::<UpdateSubChunkBlocksPacket, _>(payload_buf, ())?
+                }
             }
             McpePacketName::SubChunkPacket => {
-                Self::decode_payload::<SubChunkPacket, _>(&mut payload_buf, ())?
+                if std::mem::size_of::<SubChunkPacket>() <= 256 {
+                    Self::decode_small_payload::<SubChunkPacket, _>(payload_buf, ())?
+                } else {
+                    Self::decode_payload::<SubChunkPacket, _>(payload_buf, ())?
+                }
             }
             McpePacketName::SubChunkRequestPacket => {
-                Self::decode_payload::<SubChunkRequestPacket, _>(&mut payload_buf, ())?
+                if std::mem::size_of::<SubChunkRequestPacket>() <= 256 {
+                    Self::decode_small_payload::<SubChunkRequestPacket, _>(payload_buf, ())?
+                } else {
+                    Self::decode_payload::<SubChunkRequestPacket, _>(payload_buf, ())?
+                }
             }
             McpePacketName::PlayerStartItemCooldownPacket => {
-                Self::decode_payload::<PlayerStartItemCooldownPacket, _>(&mut payload_buf, ())?
+                if std::mem::size_of::<PlayerStartItemCooldownPacket>() <= 256 {
+                    Self::decode_small_payload::<PlayerStartItemCooldownPacket, _>(payload_buf, ())?
+                } else {
+                    Self::decode_payload::<PlayerStartItemCooldownPacket, _>(payload_buf, ())?
+                }
             }
             McpePacketName::ScriptMessagePacket => {
-                Self::decode_payload::<ScriptMessagePacket, _>(&mut payload_buf, ())?
+                if std::mem::size_of::<ScriptMessagePacket>() <= 256 {
+                    Self::decode_small_payload::<ScriptMessagePacket, _>(payload_buf, ())?
+                } else {
+                    Self::decode_payload::<ScriptMessagePacket, _>(payload_buf, ())?
+                }
             }
             McpePacketName::CodeBuilderSourcePacket => {
-                Self::decode_payload::<CodeBuilderSourcePacket, _>(&mut payload_buf, ())?
+                if std::mem::size_of::<CodeBuilderSourcePacket>() <= 256 {
+                    Self::decode_small_payload::<CodeBuilderSourcePacket, _>(payload_buf, ())?
+                } else {
+                    Self::decode_payload::<CodeBuilderSourcePacket, _>(payload_buf, ())?
+                }
             }
             McpePacketName::TickingAreasLoadStatusPacket => {
-                Self::decode_payload::<TickingAreasLoadStatusPacket, _>(&mut payload_buf, ())?
+                if std::mem::size_of::<TickingAreasLoadStatusPacket>() <= 256 {
+                    Self::decode_small_payload::<TickingAreasLoadStatusPacket, _>(payload_buf, ())?
+                } else {
+                    Self::decode_payload::<TickingAreasLoadStatusPacket, _>(payload_buf, ())?
+                }
             }
             McpePacketName::DimensionDataPacket => {
-                Self::decode_payload::<DimensionDataPacket, _>(&mut payload_buf, ())?
+                if std::mem::size_of::<DimensionDataPacket>() <= 256 {
+                    Self::decode_small_payload::<DimensionDataPacket, _>(payload_buf, ())?
+                } else {
+                    Self::decode_payload::<DimensionDataPacket, _>(payload_buf, ())?
+                }
             }
             McpePacketName::AgentActionEventPacket => {
-                Self::decode_payload::<AgentActionEventPacket, _>(&mut payload_buf, ())?
+                if std::mem::size_of::<AgentActionEventPacket>() <= 256 {
+                    Self::decode_small_payload::<AgentActionEventPacket, _>(payload_buf, ())?
+                } else {
+                    Self::decode_payload::<AgentActionEventPacket, _>(payload_buf, ())?
+                }
             }
             McpePacketName::ChangeMobPropertyPacket => {
-                Self::decode_payload::<ChangeMobPropertyPacket, _>(&mut payload_buf, ())?
+                if std::mem::size_of::<ChangeMobPropertyPacket>() <= 256 {
+                    Self::decode_small_payload::<ChangeMobPropertyPacket, _>(payload_buf, ())?
+                } else {
+                    Self::decode_payload::<ChangeMobPropertyPacket, _>(payload_buf, ())?
+                }
             }
             McpePacketName::LessonProgressPacket => {
-                Self::decode_payload::<LessonProgressPacket, _>(&mut payload_buf, ())?
+                if std::mem::size_of::<LessonProgressPacket>() <= 256 {
+                    Self::decode_small_payload::<LessonProgressPacket, _>(payload_buf, ())?
+                } else {
+                    Self::decode_payload::<LessonProgressPacket, _>(payload_buf, ())?
+                }
             }
             McpePacketName::RequestAbilityPacket => {
-                Self::decode_payload::<RequestAbilityPacket, _>(&mut payload_buf, ())?
+                if std::mem::size_of::<RequestAbilityPacket>() <= 256 {
+                    Self::decode_small_payload::<RequestAbilityPacket, _>(payload_buf, ())?
+                } else {
+                    Self::decode_payload::<RequestAbilityPacket, _>(payload_buf, ())?
+                }
             }
             McpePacketName::RequestPermissionsPacket => {
-                Self::decode_payload::<RequestPermissionsPacket, _>(&mut payload_buf, ())?
+                if std::mem::size_of::<RequestPermissionsPacket>() <= 256 {
+                    Self::decode_small_payload::<RequestPermissionsPacket, _>(payload_buf, ())?
+                } else {
+                    Self::decode_payload::<RequestPermissionsPacket, _>(payload_buf, ())?
+                }
             }
             McpePacketName::ToastRequestPacket => {
-                Self::decode_payload::<ToastRequestPacket, _>(&mut payload_buf, ())?
+                if std::mem::size_of::<ToastRequestPacket>() <= 256 {
+                    Self::decode_small_payload::<ToastRequestPacket, _>(payload_buf, ())?
+                } else {
+                    Self::decode_payload::<ToastRequestPacket, _>(payload_buf, ())?
+                }
             }
             McpePacketName::UpdateAbilitiesPacket => {
-                Self::decode_payload::<UpdateAbilitiesPacket, _>(&mut payload_buf, ())?
+                if std::mem::size_of::<UpdateAbilitiesPacket>() <= 256 {
+                    Self::decode_small_payload::<UpdateAbilitiesPacket, _>(payload_buf, ())?
+                } else {
+                    Self::decode_payload::<UpdateAbilitiesPacket, _>(payload_buf, ())?
+                }
             }
             McpePacketName::UpdateAdventureSettingsPacket => {
-                Self::decode_payload::<UpdateAdventureSettingsPacket, _>(&mut payload_buf, ())?
+                if std::mem::size_of::<UpdateAdventureSettingsPacket>() <= 256 {
+                    Self::decode_small_payload::<UpdateAdventureSettingsPacket, _>(payload_buf, ())?
+                } else {
+                    Self::decode_payload::<UpdateAdventureSettingsPacket, _>(payload_buf, ())?
+                }
             }
             McpePacketName::DeathInfoPacket => {
-                Self::decode_payload::<DeathInfoPacket, _>(&mut payload_buf, ())?
+                if std::mem::size_of::<DeathInfoPacket>() <= 256 {
+                    Self::decode_small_payload::<DeathInfoPacket, _>(payload_buf, ())?
+                } else {
+                    Self::decode_payload::<DeathInfoPacket, _>(payload_buf, ())?
+                }
             }
             McpePacketName::EditorNetworkPacket => {
-                Self::decode_payload::<EditorNetworkPacket, _>(&mut payload_buf, ())?
+                if std::mem::size_of::<EditorNetworkPacket>() <= 256 {
+                    Self::decode_small_payload::<EditorNetworkPacket, _>(payload_buf, ())?
+                } else {
+                    Self::decode_payload::<EditorNetworkPacket, _>(payload_buf, ())?
+                }
             }
             McpePacketName::FeatureRegistryPacket => {
-                Self::decode_payload::<FeatureRegistryPacket, _>(&mut payload_buf, ())?
+                if std::mem::size_of::<FeatureRegistryPacket>() <= 256 {
+                    Self::decode_small_payload::<FeatureRegistryPacket, _>(payload_buf, ())?
+                } else {
+                    Self::decode_payload::<FeatureRegistryPacket, _>(payload_buf, ())?
+                }
             }
             McpePacketName::ServerStatsPacket => {
-                Self::decode_payload::<ServerStatsPacket, _>(&mut payload_buf, ())?
+                if std::mem::size_of::<ServerStatsPacket>() <= 256 {
+                    Self::decode_small_payload::<ServerStatsPacket, _>(payload_buf, ())?
+                } else {
+                    Self::decode_payload::<ServerStatsPacket, _>(payload_buf, ())?
+                }
             }
             McpePacketName::RequestNetworkSettingsPacket => {
-                Self::decode_payload::<RequestNetworkSettingsPacket, _>(&mut payload_buf, ())?
+                if std::mem::size_of::<RequestNetworkSettingsPacket>() <= 256 {
+                    Self::decode_small_payload::<RequestNetworkSettingsPacket, _>(payload_buf, ())?
+                } else {
+                    Self::decode_payload::<RequestNetworkSettingsPacket, _>(payload_buf, ())?
+                }
             }
             McpePacketName::GameTestRequestPacket => {
-                Self::decode_payload::<GameTestRequestPacket, _>(&mut payload_buf, ())?
+                if std::mem::size_of::<GameTestRequestPacket>() <= 256 {
+                    Self::decode_small_payload::<GameTestRequestPacket, _>(payload_buf, ())?
+                } else {
+                    Self::decode_payload::<GameTestRequestPacket, _>(payload_buf, ())?
+                }
             }
             McpePacketName::GameTestResultsPacket => {
-                Self::decode_payload::<GameTestResultsPacket, _>(&mut payload_buf, ())?
+                if std::mem::size_of::<GameTestResultsPacket>() <= 256 {
+                    Self::decode_small_payload::<GameTestResultsPacket, _>(payload_buf, ())?
+                } else {
+                    Self::decode_payload::<GameTestResultsPacket, _>(payload_buf, ())?
+                }
             }
             McpePacketName::UpdateClientInputLocksPacket => {
-                Self::decode_payload::<UpdateClientInputLocksPacket, _>(&mut payload_buf, ())?
+                if std::mem::size_of::<UpdateClientInputLocksPacket>() <= 256 {
+                    Self::decode_small_payload::<UpdateClientInputLocksPacket, _>(payload_buf, ())?
+                } else {
+                    Self::decode_payload::<UpdateClientInputLocksPacket, _>(payload_buf, ())?
+                }
             }
             McpePacketName::CameraPresetsPacket => {
-                Self::decode_payload::<CameraPresetsPacket, _>(&mut payload_buf, ())?
+                if std::mem::size_of::<CameraPresetsPacket>() <= 256 {
+                    Self::decode_small_payload::<CameraPresetsPacket, _>(payload_buf, ())?
+                } else {
+                    Self::decode_payload::<CameraPresetsPacket, _>(payload_buf, ())?
+                }
             }
             McpePacketName::UnlockedRecipesPacket => {
-                Self::decode_payload::<UnlockedRecipesPacket, _>(&mut payload_buf, ())?
+                if std::mem::size_of::<UnlockedRecipesPacket>() <= 256 {
+                    Self::decode_small_payload::<UnlockedRecipesPacket, _>(payload_buf, ())?
+                } else {
+                    Self::decode_payload::<UnlockedRecipesPacket, _>(payload_buf, ())?
+                }
             }
             McpePacketName::CameraInstructionPacket => {
-                Self::decode_payload::<CameraInstructionPacket, _>(&mut payload_buf, ())?
+                if std::mem::size_of::<CameraInstructionPacket>() <= 256 {
+                    Self::decode_small_payload::<CameraInstructionPacket, _>(payload_buf, ())?
+                } else {
+                    Self::decode_payload::<CameraInstructionPacket, _>(payload_buf, ())?
+                }
             }
             McpePacketName::TrimDataPacket => {
-                Self::decode_payload::<TrimDataPacket, _>(&mut payload_buf, ())?
+                if std::mem::size_of::<TrimDataPacket>() <= 256 {
+                    Self::decode_small_payload::<TrimDataPacket, _>(payload_buf, ())?
+                } else {
+                    Self::decode_payload::<TrimDataPacket, _>(payload_buf, ())?
+                }
             }
             McpePacketName::OpenSignPacket => {
-                Self::decode_payload::<OpenSignPacket, _>(&mut payload_buf, ())?
+                if std::mem::size_of::<OpenSignPacket>() <= 256 {
+                    Self::decode_small_payload::<OpenSignPacket, _>(payload_buf, ())?
+                } else {
+                    Self::decode_payload::<OpenSignPacket, _>(payload_buf, ())?
+                }
             }
             McpePacketName::AgentAnimationPacket => {
-                Self::decode_payload::<AgentAnimationPacket, _>(&mut payload_buf, ())?
+                if std::mem::size_of::<AgentAnimationPacket>() <= 256 {
+                    Self::decode_small_payload::<AgentAnimationPacket, _>(payload_buf, ())?
+                } else {
+                    Self::decode_payload::<AgentAnimationPacket, _>(payload_buf, ())?
+                }
             }
             McpePacketName::RefreshEntitlementsPacket => {
-                Self::decode_payload::<RefreshEntitlementsPacket, _>(&mut payload_buf, ())?
+                if std::mem::size_of::<RefreshEntitlementsPacket>() <= 256 {
+                    Self::decode_small_payload::<RefreshEntitlementsPacket, _>(payload_buf, ())?
+                } else {
+                    Self::decode_payload::<RefreshEntitlementsPacket, _>(payload_buf, ())?
+                }
             }
             McpePacketName::PlayerToggleCrafterSlotRequestPacket => {
-                Self::decode_payload::<PlayerToggleCrafterSlotRequestPacket, _>(
-                    &mut payload_buf,
-                    (),
-                )?
+                if std::mem::size_of::<PlayerToggleCrafterSlotRequestPacket>() <= 256 {
+                    Self::decode_small_payload::<PlayerToggleCrafterSlotRequestPacket, _>(
+                        payload_buf,
+                        (),
+                    )?
+                } else {
+                    Self::decode_payload::<PlayerToggleCrafterSlotRequestPacket, _>(
+                        payload_buf,
+                        (),
+                    )?
+                }
             }
             McpePacketName::SetPlayerInventoryOptionsPacket => {
-                Self::decode_payload::<SetPlayerInventoryOptionsPacket, _>(&mut payload_buf, ())?
+                if std::mem::size_of::<SetPlayerInventoryOptionsPacket>() <= 256 {
+                    Self::decode_small_payload::<SetPlayerInventoryOptionsPacket, _>(
+                        payload_buf,
+                        (),
+                    )?
+                } else {
+                    Self::decode_payload::<SetPlayerInventoryOptionsPacket, _>(payload_buf, ())?
+                }
             }
             McpePacketName::SetHudPacket => {
-                Self::decode_payload::<SetHudPacket, _>(&mut payload_buf, ())?
+                if std::mem::size_of::<SetHudPacket>() <= 256 {
+                    Self::decode_small_payload::<SetHudPacket, _>(payload_buf, ())?
+                } else {
+                    Self::decode_payload::<SetHudPacket, _>(payload_buf, ())?
+                }
             }
             McpePacketName::AwardAchievementPacket => {
-                Self::decode_payload::<AwardAchievementPacket, _>(&mut payload_buf, ())?
+                if std::mem::size_of::<AwardAchievementPacket>() <= 256 {
+                    Self::decode_small_payload::<AwardAchievementPacket, _>(payload_buf, ())?
+                } else {
+                    Self::decode_payload::<AwardAchievementPacket, _>(payload_buf, ())?
+                }
             }
             McpePacketName::ClientboundCloseFormPacket => {
-                Self::decode_payload::<ClientboundCloseFormPacket, _>(&mut payload_buf, ())?
+                if std::mem::size_of::<ClientboundCloseFormPacket>() <= 256 {
+                    Self::decode_small_payload::<ClientboundCloseFormPacket, _>(payload_buf, ())?
+                } else {
+                    Self::decode_payload::<ClientboundCloseFormPacket, _>(payload_buf, ())?
+                }
             }
             McpePacketName::ServerboundLoadingScreenPacket => {
-                Self::decode_payload::<ServerboundLoadingScreenPacket, _>(&mut payload_buf, ())?
+                if std::mem::size_of::<ServerboundLoadingScreenPacket>() <= 256 {
+                    Self::decode_small_payload::<ServerboundLoadingScreenPacket, _>(
+                        payload_buf,
+                        (),
+                    )?
+                } else {
+                    Self::decode_payload::<ServerboundLoadingScreenPacket, _>(payload_buf, ())?
+                }
             }
             McpePacketName::JigsawStructureDataPacket => {
-                Self::decode_payload::<JigsawStructureDataPacket, _>(&mut payload_buf, ())?
+                if std::mem::size_of::<JigsawStructureDataPacket>() <= 256 {
+                    Self::decode_small_payload::<JigsawStructureDataPacket, _>(payload_buf, ())?
+                } else {
+                    Self::decode_payload::<JigsawStructureDataPacket, _>(payload_buf, ())?
+                }
             }
             McpePacketName::CurrentStructureFeaturePacket => {
-                Self::decode_payload::<CurrentStructureFeaturePacket, _>(&mut payload_buf, ())?
+                if std::mem::size_of::<CurrentStructureFeaturePacket>() <= 256 {
+                    Self::decode_small_payload::<CurrentStructureFeaturePacket, _>(payload_buf, ())?
+                } else {
+                    Self::decode_payload::<CurrentStructureFeaturePacket, _>(payload_buf, ())?
+                }
             }
             McpePacketName::ServerboundDiagnosticsPacket => {
-                Self::decode_payload::<ServerboundDiagnosticsPacket, _>(&mut payload_buf, ())?
+                if std::mem::size_of::<ServerboundDiagnosticsPacket>() <= 256 {
+                    Self::decode_small_payload::<ServerboundDiagnosticsPacket, _>(payload_buf, ())?
+                } else {
+                    Self::decode_payload::<ServerboundDiagnosticsPacket, _>(payload_buf, ())?
+                }
             }
             McpePacketName::CameraAimAssistPacket => {
-                Self::decode_payload::<CameraAimAssistPacket, _>(&mut payload_buf, ())?
+                if std::mem::size_of::<CameraAimAssistPacket>() <= 256 {
+                    Self::decode_small_payload::<CameraAimAssistPacket, _>(payload_buf, ())?
+                } else {
+                    Self::decode_payload::<CameraAimAssistPacket, _>(payload_buf, ())?
+                }
             }
             McpePacketName::ContainerRegistryCleanupPacket => {
-                Self::decode_payload::<ContainerRegistryCleanupPacket, _>(&mut payload_buf, ())?
+                if std::mem::size_of::<ContainerRegistryCleanupPacket>() <= 256 {
+                    Self::decode_small_payload::<ContainerRegistryCleanupPacket, _>(
+                        payload_buf,
+                        (),
+                    )?
+                } else {
+                    Self::decode_payload::<ContainerRegistryCleanupPacket, _>(payload_buf, ())?
+                }
             }
             McpePacketName::MovementEffectPacket => {
-                Self::decode_payload::<MovementEffectPacket, _>(&mut payload_buf, ())?
+                if std::mem::size_of::<MovementEffectPacket>() <= 256 {
+                    Self::decode_small_payload::<MovementEffectPacket, _>(payload_buf, ())?
+                } else {
+                    Self::decode_payload::<MovementEffectPacket, _>(payload_buf, ())?
+                }
             }
             McpePacketName::CameraAimAssistPresetsPacket => {
-                Self::decode_payload::<CameraAimAssistPresetsPacket, _>(&mut payload_buf, ())?
+                if std::mem::size_of::<CameraAimAssistPresetsPacket>() <= 256 {
+                    Self::decode_small_payload::<CameraAimAssistPresetsPacket, _>(payload_buf, ())?
+                } else {
+                    Self::decode_payload::<CameraAimAssistPresetsPacket, _>(payload_buf, ())?
+                }
             }
             McpePacketName::ClientCameraAimAssistPacket => {
-                Self::decode_payload::<ClientCameraAimAssistPacket, _>(&mut payload_buf, ())?
+                if std::mem::size_of::<ClientCameraAimAssistPacket>() <= 256 {
+                    Self::decode_small_payload::<ClientCameraAimAssistPacket, _>(payload_buf, ())?
+                } else {
+                    Self::decode_payload::<ClientCameraAimAssistPacket, _>(payload_buf, ())?
+                }
             }
             McpePacketName::ClientMovementPredictionSyncPacket => {
-                Self::decode_payload::<ClientMovementPredictionSyncPacket, _>(&mut payload_buf, ())?
+                if std::mem::size_of::<ClientMovementPredictionSyncPacket>() <= 256 {
+                    Self::decode_small_payload::<ClientMovementPredictionSyncPacket, _>(
+                        payload_buf,
+                        (),
+                    )?
+                } else {
+                    Self::decode_payload::<ClientMovementPredictionSyncPacket, _>(payload_buf, ())?
+                }
             }
             McpePacketName::UpdateClientOptionsPacket => {
-                Self::decode_payload::<UpdateClientOptionsPacket, _>(&mut payload_buf, ())?
+                if std::mem::size_of::<UpdateClientOptionsPacket>() <= 256 {
+                    Self::decode_small_payload::<UpdateClientOptionsPacket, _>(payload_buf, ())?
+                } else {
+                    Self::decode_payload::<UpdateClientOptionsPacket, _>(payload_buf, ())?
+                }
             }
             McpePacketName::PlayerVideoCapturePacket => {
-                Self::decode_payload::<PlayerVideoCapturePacket, _>(&mut payload_buf, ())?
+                if std::mem::size_of::<PlayerVideoCapturePacket>() <= 256 {
+                    Self::decode_small_payload::<PlayerVideoCapturePacket, _>(payload_buf, ())?
+                } else {
+                    Self::decode_payload::<PlayerVideoCapturePacket, _>(payload_buf, ())?
+                }
             }
             McpePacketName::PlayerUpdateEntityOverridesPacket => {
-                Self::decode_payload::<PlayerUpdateEntityOverridesPacket, _>(&mut payload_buf, ())?
+                if std::mem::size_of::<PlayerUpdateEntityOverridesPacket>() <= 256 {
+                    Self::decode_small_payload::<PlayerUpdateEntityOverridesPacket, _>(
+                        payload_buf,
+                        (),
+                    )?
+                } else {
+                    Self::decode_payload::<PlayerUpdateEntityOverridesPacket, _>(payload_buf, ())?
+                }
             }
             McpePacketName::PlayerLocationPacket => {
-                Self::decode_payload::<PlayerLocationPacket, _>(&mut payload_buf, ())?
+                if std::mem::size_of::<PlayerLocationPacket>() <= 256 {
+                    Self::decode_small_payload::<PlayerLocationPacket, _>(payload_buf, ())?
+                } else {
+                    Self::decode_payload::<PlayerLocationPacket, _>(payload_buf, ())?
+                }
             }
             McpePacketName::ClientboundControlSchemeSetPacket => {
-                Self::decode_payload::<ClientboundControlSchemeSetPacket, _>(&mut payload_buf, ())?
+                if std::mem::size_of::<ClientboundControlSchemeSetPacket>() <= 256 {
+                    Self::decode_small_payload::<ClientboundControlSchemeSetPacket, _>(
+                        payload_buf,
+                        (),
+                    )?
+                } else {
+                    Self::decode_payload::<ClientboundControlSchemeSetPacket, _>(payload_buf, ())?
+                }
             }
             McpePacketName::PrimitiveShapesPacket => {
-                Self::decode_payload::<PrimitiveShapesPacket, _>(&mut payload_buf, ())?
+                if std::mem::size_of::<PrimitiveShapesPacket>() <= 256 {
+                    Self::decode_small_payload::<PrimitiveShapesPacket, _>(payload_buf, ())?
+                } else {
+                    Self::decode_payload::<PrimitiveShapesPacket, _>(payload_buf, ())?
+                }
             }
             McpePacketName::ServerboundPackSettingChangePacket => {
-                Self::decode_payload::<ServerboundPackSettingChangePacket, _>(&mut payload_buf, ())?
+                if std::mem::size_of::<ServerboundPackSettingChangePacket>() <= 256 {
+                    Self::decode_small_payload::<ServerboundPackSettingChangePacket, _>(
+                        payload_buf,
+                        (),
+                    )?
+                } else {
+                    Self::decode_payload::<ServerboundPackSettingChangePacket, _>(payload_buf, ())?
+                }
             }
             McpePacketName::ClientboundDataStorePacket => {
-                Self::decode_payload::<ClientboundDataStorePacket, _>(&mut payload_buf, ())?
+                if std::mem::size_of::<ClientboundDataStorePacket>() <= 256 {
+                    Self::decode_small_payload::<ClientboundDataStorePacket, _>(payload_buf, ())?
+                } else {
+                    Self::decode_payload::<ClientboundDataStorePacket, _>(payload_buf, ())?
+                }
             }
             McpePacketName::GraphicsOverrideParameterPacket => {
-                Self::decode_payload::<GraphicsOverrideParameterPacket, _>(&mut payload_buf, ())?
+                if std::mem::size_of::<GraphicsOverrideParameterPacket>() <= 256 {
+                    Self::decode_small_payload::<GraphicsOverrideParameterPacket, _>(
+                        payload_buf,
+                        (),
+                    )?
+                } else {
+                    Self::decode_payload::<GraphicsOverrideParameterPacket, _>(payload_buf, ())?
+                }
             }
             McpePacketName::ServerboundDataStorePacket => {
-                Self::decode_payload::<ServerboundDataStorePacket, _>(&mut payload_buf, ())?
+                if std::mem::size_of::<ServerboundDataStorePacket>() <= 256 {
+                    Self::decode_small_payload::<ServerboundDataStorePacket, _>(payload_buf, ())?
+                } else {
+                    Self::decode_payload::<ServerboundDataStorePacket, _>(payload_buf, ())?
+                }
             }
             McpePacketName::ClientboundDataDrivenUiShowScreenPacket => {
-                Self::decode_payload::<ClientboundDataDrivenUiShowScreenPacket, _>(
-                    &mut payload_buf,
-                    (),
-                )?
+                if std::mem::size_of::<ClientboundDataDrivenUiShowScreenPacket>() <= 256 {
+                    Self::decode_small_payload::<ClientboundDataDrivenUiShowScreenPacket, _>(
+                        payload_buf,
+                        (),
+                    )?
+                } else {
+                    Self::decode_payload::<ClientboundDataDrivenUiShowScreenPacket, _>(
+                        payload_buf,
+                        (),
+                    )?
+                }
             }
             McpePacketName::ClientboundDataDrivenUiCloseScreenPacket => {
-                Self::decode_payload::<ClientboundDataDrivenUiCloseScreenPacket, _>(
-                    &mut payload_buf,
-                    (),
-                )?
+                if std::mem::size_of::<ClientboundDataDrivenUiCloseScreenPacket>() <= 256 {
+                    Self::decode_small_payload::<ClientboundDataDrivenUiCloseScreenPacket, _>(
+                        payload_buf,
+                        (),
+                    )?
+                } else {
+                    Self::decode_payload::<ClientboundDataDrivenUiCloseScreenPacket, _>(
+                        payload_buf,
+                        (),
+                    )?
+                }
             }
             McpePacketName::ClientboundDataDrivenUiReloadPacket => {
-                Self::decode_payload::<ClientboundDataDrivenUiReloadPacket, _>(
-                    &mut payload_buf,
-                    (),
-                )?
+                if std::mem::size_of::<ClientboundDataDrivenUiReloadPacket>() <= 256 {
+                    Self::decode_small_payload::<ClientboundDataDrivenUiReloadPacket, _>(
+                        payload_buf,
+                        (),
+                    )?
+                } else {
+                    Self::decode_payload::<ClientboundDataDrivenUiReloadPacket, _>(payload_buf, ())?
+                }
             }
             McpePacketName::ClientboundTextureShiftPacket => {
-                Self::decode_payload::<ClientboundTextureShiftPacket, _>(&mut payload_buf, ())?
+                if std::mem::size_of::<ClientboundTextureShiftPacket>() <= 256 {
+                    Self::decode_small_payload::<ClientboundTextureShiftPacket, _>(payload_buf, ())?
+                } else {
+                    Self::decode_payload::<ClientboundTextureShiftPacket, _>(payload_buf, ())?
+                }
             }
             McpePacketName::VoxelShapesPacket => {
-                Self::decode_payload::<VoxelShapesPacket, _>(&mut payload_buf, ())?
+                if std::mem::size_of::<VoxelShapesPacket>() <= 256 {
+                    Self::decode_small_payload::<VoxelShapesPacket, _>(payload_buf, ())?
+                } else {
+                    Self::decode_payload::<VoxelShapesPacket, _>(payload_buf, ())?
+                }
             }
             McpePacketName::CameraSplinePacket => {
-                Self::decode_payload::<CameraSplinePacket, _>(&mut payload_buf, ())?
+                if std::mem::size_of::<CameraSplinePacket>() <= 256 {
+                    Self::decode_small_payload::<CameraSplinePacket, _>(payload_buf, ())?
+                } else {
+                    Self::decode_payload::<CameraSplinePacket, _>(payload_buf, ())?
+                }
             }
             McpePacketName::CameraAimAssistActorPriorityPacket => {
-                Self::decode_payload::<CameraAimAssistActorPriorityPacket, _>(&mut payload_buf, ())?
+                if std::mem::size_of::<CameraAimAssistActorPriorityPacket>() <= 256 {
+                    Self::decode_small_payload::<CameraAimAssistActorPriorityPacket, _>(
+                        payload_buf,
+                        (),
+                    )?
+                } else {
+                    Self::decode_payload::<CameraAimAssistActorPriorityPacket, _>(payload_buf, ())?
+                }
             }
             McpePacketName::ResourcePacksReadyForValidationPacket => {
-                Self::decode_payload::<ResourcePacksReadyForValidationPacket, _>(
-                    &mut payload_buf,
-                    (),
-                )?
+                if std::mem::size_of::<ResourcePacksReadyForValidationPacket>() <= 256 {
+                    Self::decode_small_payload::<ResourcePacksReadyForValidationPacket, _>(
+                        payload_buf,
+                        (),
+                    )?
+                } else {
+                    Self::decode_payload::<ResourcePacksReadyForValidationPacket, _>(
+                        payload_buf,
+                        (),
+                    )?
+                }
             }
             McpePacketName::LocatorBarPacket => {
-                Self::decode_payload::<LocatorBarPacket, _>(&mut payload_buf, ())?
+                if std::mem::size_of::<LocatorBarPacket>() <= 256 {
+                    Self::decode_small_payload::<LocatorBarPacket, _>(payload_buf, ())?
+                } else {
+                    Self::decode_payload::<LocatorBarPacket, _>(payload_buf, ())?
+                }
             }
             McpePacketName::PartyChangedPacket => {
-                Self::decode_payload::<PartyChangedPacket, _>(&mut payload_buf, ())?
+                if std::mem::size_of::<PartyChangedPacket>() <= 256 {
+                    Self::decode_small_payload::<PartyChangedPacket, _>(payload_buf, ())?
+                } else {
+                    Self::decode_payload::<PartyChangedPacket, _>(payload_buf, ())?
+                }
             }
             McpePacketName::ServerboundDataDrivenScreenClosedPacket => {
-                Self::decode_payload::<ServerboundDataDrivenScreenClosedPacket, _>(
-                    &mut payload_buf,
-                    (),
-                )?
+                if std::mem::size_of::<ServerboundDataDrivenScreenClosedPacket>() <= 256 {
+                    Self::decode_small_payload::<ServerboundDataDrivenScreenClosedPacket, _>(
+                        payload_buf,
+                        (),
+                    )?
+                } else {
+                    Self::decode_payload::<ServerboundDataDrivenScreenClosedPacket, _>(
+                        payload_buf,
+                        (),
+                    )?
+                }
             }
             McpePacketName::SyncWorldClocksPacket => {
-                Self::decode_payload::<SyncWorldClocksPacket, _>(&mut payload_buf, ())?
+                if std::mem::size_of::<SyncWorldClocksPacket>() <= 256 {
+                    Self::decode_small_payload::<SyncWorldClocksPacket, _>(payload_buf, ())?
+                } else {
+                    Self::decode_payload::<SyncWorldClocksPacket, _>(payload_buf, ())?
+                }
             }
             McpePacketName::ClientboundAttributeLayerSyncPacket => {
-                Self::decode_payload::<ClientboundAttributeLayerSyncPacket, _>(
-                    &mut payload_buf,
-                    (),
-                )?
+                if std::mem::size_of::<ClientboundAttributeLayerSyncPacket>() <= 256 {
+                    Self::decode_small_payload::<ClientboundAttributeLayerSyncPacket, _>(
+                        payload_buf,
+                        (),
+                    )?
+                } else {
+                    Self::decode_payload::<ClientboundAttributeLayerSyncPacket, _>(payload_buf, ())?
+                }
             }
             McpePacketName::ServerStoreInfoPacket => {
-                Self::decode_payload::<ServerStoreInfoPacket, _>(&mut payload_buf, ())?
+                if std::mem::size_of::<ServerStoreInfoPacket>() <= 256 {
+                    Self::decode_small_payload::<ServerStoreInfoPacket, _>(payload_buf, ())?
+                } else {
+                    Self::decode_payload::<ServerStoreInfoPacket, _>(payload_buf, ())?
+                }
             }
             McpePacketName::ServerPresenceInfoPacket => {
-                Self::decode_payload::<ServerPresenceInfoPacket, _>(&mut payload_buf, ())?
+                if std::mem::size_of::<ServerPresenceInfoPacket>() <= 256 {
+                    Self::decode_small_payload::<ServerPresenceInfoPacket, _>(payload_buf, ())?
+                } else {
+                    Self::decode_payload::<ServerPresenceInfoPacket, _>(payload_buf, ())?
+                }
             }
             McpePacketName::ClientboundUpdateSoundDataPacket => {
-                Self::decode_payload::<ClientboundUpdateSoundDataPacket, _>(&mut payload_buf, ())?
+                if std::mem::size_of::<ClientboundUpdateSoundDataPacket>() <= 256 {
+                    Self::decode_small_payload::<ClientboundUpdateSoundDataPacket, _>(
+                        payload_buf,
+                        (),
+                    )?
+                } else {
+                    Self::decode_payload::<ClientboundUpdateSoundDataPacket, _>(payload_buf, ())?
+                }
             }
             McpePacketName::SendPartyDestinationCookiePacket => {
-                Self::decode_payload::<SendPartyDestinationCookiePacket, _>(&mut payload_buf, ())?
+                if std::mem::size_of::<SendPartyDestinationCookiePacket>() <= 256 {
+                    Self::decode_small_payload::<SendPartyDestinationCookiePacket, _>(
+                        payload_buf,
+                        (),
+                    )?
+                } else {
+                    Self::decode_payload::<SendPartyDestinationCookiePacket, _>(payload_buf, ())?
+                }
             }
             McpePacketName::PartyDestinationCookieResponsePacket => {
-                Self::decode_payload::<PartyDestinationCookieResponsePacket, _>(
-                    &mut payload_buf,
-                    (),
-                )?
+                if std::mem::size_of::<PartyDestinationCookieResponsePacket>() <= 256 {
+                    Self::decode_small_payload::<PartyDestinationCookieResponsePacket, _>(
+                        payload_buf,
+                        (),
+                    )?
+                } else {
+                    Self::decode_payload::<PartyDestinationCookieResponsePacket, _>(
+                        payload_buf,
+                        (),
+                    )?
+                }
             }
             McpePacketName::SetPlayerFurnaceOptionsPacket => {
-                Self::decode_payload::<SetPlayerFurnaceOptionsPacket, _>(&mut payload_buf, ())?
+                if std::mem::size_of::<SetPlayerFurnaceOptionsPacket>() <= 256 {
+                    Self::decode_small_payload::<SetPlayerFurnaceOptionsPacket, _>(payload_buf, ())?
+                } else {
+                    Self::decode_payload::<SetPlayerFurnaceOptionsPacket, _>(payload_buf, ())?
+                }
             }
             McpePacketName::RecordStartedPacket => {
-                Self::decode_payload::<RecordStartedPacket, _>(&mut payload_buf, ())?
+                if std::mem::size_of::<RecordStartedPacket>() <= 256 {
+                    Self::decode_small_payload::<RecordStartedPacket, _>(payload_buf, ())?
+                } else {
+                    Self::decode_payload::<RecordStartedPacket, _>(payload_buf, ())?
+                }
             }
         };
         Ok((
@@ -5698,6 +6729,61 @@ impl McpePacketData {
             },
             packet,
         ))
+    }
+    /// Decodes one `[Length] [Header] [Body]` entry without owning the input.
+    /// Once its length is validated, the complete entry is consumed even
+    /// when its header or typed payload is rejected.
+    #[inline]
+    pub fn decode_inner_reader(
+        buf: &mut crate::bedrock::borrowed::BorrowedReader<'_>,
+        args: McpePacketArgs,
+    ) -> Result<(GameHeader, Self), crate::bedrock::error::DecodeError> {
+        let declared_len = wire::read_var_u32(buf)? as usize;
+        if bytes::Buf::remaining(buf) < declared_len {
+            return Err(crate::bedrock::error::DecodeError::PacketLengthExceeded {
+                declared: declared_len,
+                available: bytes::Buf::remaining(buf),
+            });
+        }
+        let mut payload = buf.take_frame(declared_len);
+        Self::decode_bounded_payload(&mut payload, args)
+    }
+    /// Shared-input convenience wrapper for `[Length] [Header] [Body]`.
+    /// Advances the input by the bytes consumed, including on decode errors.
+    #[inline]
+    pub fn decode_inner_bytes(
+        buf: &mut bytes::Bytes,
+        args: McpePacketArgs,
+    ) -> Result<(GameHeader, Self), crate::bedrock::error::DecodeError> {
+        let input_len = buf.len();
+        let (result, consumed) = {
+            let mut reader = crate::bedrock::borrowed::BorrowedReader::new(&*buf, input_len);
+            let result = Self::decode_inner_reader(&mut reader, args);
+            (result, input_len - bytes::Buf::remaining(&reader))
+        };
+        bytes::Buf::advance(buf, consumed);
+        result
+    }
+    /// Shared-input fast path including the game packet marker.
+    #[inline]
+    pub fn decode_game_frame_bytes(
+        buf: &mut bytes::Bytes,
+        args: McpePacketArgs,
+    ) -> Result<(GameHeader, Self), crate::bedrock::error::DecodeError> {
+        if !bytes::Buf::has_remaining(buf) {
+            return Err(crate::bedrock::error::DecodeError::UnexpectedEof {
+                needed: 1,
+                available: 0,
+            });
+        }
+        let leading = bytes::Buf::get_u8(buf);
+        if leading != GAME_PACKET_ID {
+            return Err(crate::bedrock::error::DecodeError::InvalidMagicByte {
+                expected: GAME_PACKET_ID,
+                actual: leading,
+            });
+        }
+        Self::decode_inner_bytes(buf, args)
     }
     /// Decodes a game frame from the provided buffer: `[0xFE] [Length] [Header] [Body]`.
     pub fn decode_game_frame<B: bytes::Buf>(
@@ -6426,6 +7512,15 @@ impl McpePacket {
             self.header.from_subclient,
             self.header.to_subclient,
         )
+    }
+    /// Decodes shared game-frame input without an owned intermediate frame.
+    #[inline]
+    pub fn decode_bytes(
+        buf: &mut bytes::Bytes,
+        args: McpePacketArgs,
+    ) -> Result<Self, crate::bedrock::error::DecodeError> {
+        let (header, data) = McpePacketData::decode_game_frame_bytes(buf, args)?;
+        Ok(Self { header, data })
     }
     /// Creates a new `McpePacket` from a packet payload and explicit subclient IDs.
     ///

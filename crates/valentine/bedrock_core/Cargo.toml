@@ -5,5 +5,7 @@ edition.workspace = true
 
 [dependencies]
 bytes.workspace = true
+bytestring.workspace = true
+arrayvec.workspace = true
 uuid.workspace = true
 thiserror = "1.0"

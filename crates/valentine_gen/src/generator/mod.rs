@@ -10,7 +10,7 @@ pub mod resolver;
 pub mod structs;
 pub mod utils;
 
-use crate::generator::analysis::should_box_variant;
+use crate::generator::analysis::{OWNED_PACKET_INLINE_LIMIT, estimated_inline_size};
 use crate::generator::borrowed::generate_borrowed_module;
 use crate::generator::definitions::{define_container, resolve_type_to_tokens};
 use crate::generator::resolver::ResolvedContainer;
@@ -374,7 +374,7 @@ fn generate_mcpe_packet_module(
         let payload_ident = naming.payload_ident();
 
         let container_ty = crate::ir::Type::Container(packet.body.clone());
-        let needs_box = should_box_variant(&container_ty, ctx, 0);
+        let needs_box = estimated_inline_size(&container_ty, ctx) > OWNED_PACKET_INLINE_LIMIT;
         let payload_ty = if needs_box {
             quote! { Box<#payload_ident> }
         } else {
@@ -465,7 +465,11 @@ fn generate_mcpe_packet_module(
 
         decode_match_arms.push(quote! {
             McpePacketName::#variant => {
-                Self::decode_payload::<#payload_ident, _>(&mut payload_buf, #decode_args)?
+                if std::mem::size_of::<#payload_ident>() <= 256 {
+                    Self::decode_small_payload::<#payload_ident, _>(payload_buf, #decode_args)?
+                } else {
+                    Self::decode_payload::<#payload_ident, _>(payload_buf, #decode_args)?
+                }
             }
         });
     }
@@ -625,33 +629,37 @@ fn generate_mcpe_packet_module(
                     | ((to_subclient & 0x3) << 12);
 
                 let prefix_start = buf.len();
-                let reserved_prefix = 10usize;
+                // Reused capacity predicts the frame-length width without traversing
+                // variable collections. A correct prediction leaves the body in place.
+                let spare = buf.capacity() - prefix_start;
+                let reserved_prefix = if spare == 0 {
+                    5
+                } else {
+                    wire::var_u32_len(spare.min(u32::MAX as usize) as u32)
+                };
                 buf.resize(prefix_start + reserved_prefix, 0);
-                let body_start = buf.len();
+                wire::write_var_u32(buf, header);
+                let body_start = prefix_start + reserved_prefix;
 
                 match self {
                     #(#encode_match_arms)*
                 }
 
                 let body_end = buf.len();
-                let body_len = body_end - body_start;
-
+                let total_len = body_end - body_start;
                 let mut total_len_buf = [0u8; 5];
-                let mut header_buf = [0u8; 5];
-                let header_len = encode_var_u32_stack(header, &mut header_buf);
-                let total_len = header_len + body_len;
-                let total_len_len = encode_var_u32_stack(total_len as u32, &mut total_len_buf);
-                let prefix_len = total_len_len + header_len;
+                let prefix_len = encode_var_u32_stack(total_len as u32, &mut total_len_buf);
 
                 if prefix_len != reserved_prefix {
+                    if prefix_len > reserved_prefix {
+                        buf.resize(body_end + prefix_len - reserved_prefix, 0);
+                    }
                     buf.copy_within(body_start..body_end, prefix_start + prefix_len);
-                    buf.truncate(body_end - (reserved_prefix - prefix_len));
+                    buf.truncate(prefix_start + prefix_len + total_len);
                 }
 
-                buf[prefix_start..prefix_start + total_len_len]
-                    .copy_from_slice(&total_len_buf[..total_len_len]);
-                buf[prefix_start + total_len_len..prefix_start + prefix_len]
-                    .copy_from_slice(&header_buf[..header_len]);
+                buf[prefix_start..prefix_start + prefix_len]
+                    .copy_from_slice(&total_len_buf[..prefix_len]);
 
                 Ok(())
             }
@@ -690,6 +698,20 @@ fn generate_mcpe_packet_module(
                 T: crate::bedrock::codec::BedrockCodec + Into<Self>,
                 B: bytes::Buf,
             {
+                Self::decode_small_payload::<T, B>(buf, args)
+            }
+
+            // Small payloads avoid a second dispatch call and enum return copy.
+            // Large payloads still enter through the non-inlined boundary above.
+            #[inline]
+            fn decode_small_payload<T, B>(
+                buf: &mut B,
+                args: T::Args,
+            ) -> Result<Self, crate::bedrock::error::DecodeError>
+            where
+                T: crate::bedrock::codec::BedrockCodec + Into<Self>,
+                B: bytes::Buf,
+            {
                 let packet = T::decode(buf, args)?;
                 if buf.has_remaining() {
                     return Err(crate::bedrock::error::DecodeError::TrailingPacketBytes {
@@ -718,7 +740,15 @@ fn generate_mcpe_packet_module(
                 }
 
                 let mut payload_buf = bytes::Buf::take(&mut *buf, declared_len);
-                let header_raw = wire::read_var_u32(&mut payload_buf)?;
+                Self::decode_bounded_payload(&mut payload_buf, _args)
+            }
+
+            #[inline]
+            fn decode_bounded_payload<B: bytes::Buf>(
+                payload_buf: &mut B,
+                _args: McpePacketArgs,
+            ) -> Result<(GameHeader, Self), crate::bedrock::error::DecodeError> {
+                let header_raw = wire::read_var_u32(payload_buf)?;
                 let id_raw = header_raw & 0x3FF;
                 let from_subclient = (header_raw >> 10) & 0x3;
                 let to_subclient = (header_raw >> 12) & 0x3;
@@ -736,6 +766,63 @@ fn generate_mcpe_packet_module(
                     },
                     packet,
                 ))
+            }
+
+            /// Decodes one `[Length] [Header] [Body]` entry without owning the input.
+            /// Once its length is validated, the complete entry is consumed even
+            /// when its header or typed payload is rejected.
+            #[inline]
+            pub fn decode_inner_reader(
+                buf: &mut crate::bedrock::borrowed::BorrowedReader<'_>,
+                args: McpePacketArgs,
+            ) -> Result<(GameHeader, Self), crate::bedrock::error::DecodeError> {
+                let declared_len = wire::read_var_u32(buf)? as usize;
+                if bytes::Buf::remaining(buf) < declared_len {
+                    return Err(crate::bedrock::error::DecodeError::PacketLengthExceeded {
+                        declared: declared_len,
+                        available: bytes::Buf::remaining(buf),
+                    });
+                }
+                let mut payload = buf.take_frame(declared_len);
+                Self::decode_bounded_payload(&mut payload, args)
+            }
+
+            /// Shared-input convenience wrapper for `[Length] [Header] [Body]`.
+            /// Advances the input by the bytes consumed, including on decode errors.
+            #[inline]
+            pub fn decode_inner_bytes(
+                buf: &mut bytes::Bytes,
+                args: McpePacketArgs,
+            ) -> Result<(GameHeader, Self), crate::bedrock::error::DecodeError> {
+                let input_len = buf.len();
+                let (result, consumed) = {
+                    let mut reader =
+                        crate::bedrock::borrowed::BorrowedReader::new(&*buf, input_len);
+                    let result = Self::decode_inner_reader(&mut reader, args);
+                    (result, input_len - bytes::Buf::remaining(&reader))
+                };
+                bytes::Buf::advance(buf, consumed);
+                result
+            }
+
+            /// Shared-input fast path including the game packet marker.
+            #[inline]
+            pub fn decode_game_frame_bytes(
+                buf: &mut bytes::Bytes,
+                args: McpePacketArgs,
+            ) -> Result<(GameHeader, Self), crate::bedrock::error::DecodeError> {
+                if !bytes::Buf::has_remaining(buf) {
+                    return Err(crate::bedrock::error::DecodeError::UnexpectedEof {
+                        needed: 1, available: 0,
+                    });
+                }
+                let leading = bytes::Buf::get_u8(buf);
+                if leading != GAME_PACKET_ID {
+                    return Err(crate::bedrock::error::DecodeError::InvalidMagicByte {
+                        expected: GAME_PACKET_ID, actual: leading,
+                    });
+                }
+                Self::decode_inner_bytes(buf, args)
             }
 
             /// Decodes a game frame from the provided buffer: `[0xFE] [Length] [Header] [Body]`.
@@ -787,6 +874,16 @@ fn generate_mcpe_packet_module(
                     self.header.from_subclient,
                     self.header.to_subclient,
                 )
+            }
+
+            /// Decodes shared game-frame input without an owned intermediate frame.
+            #[inline]
+            pub fn decode_bytes(
+                buf: &mut bytes::Bytes,
+                args: McpePacketArgs,
+            ) -> Result<Self, crate::bedrock::error::DecodeError> {
+                let (header, data) = McpePacketData::decode_game_frame_bytes(buf, args)?;
+                Ok(Self { header, data })
             }
 
             /// Creates a new `McpePacket` from a packet payload and explicit subclient IDs.

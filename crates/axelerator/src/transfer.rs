@@ -393,7 +393,7 @@ async fn send_transfer_packet<T: jolyne::stream::transport::Transport>(
     port: u16,
 ) -> anyhow::Result<()> {
     let transfer = TransferPacket {
-        server_address: addr_str.to_string(),
+        server_address: addr_str.into(),
         server_port: port,
         reload_world: false,
         gatherings_configuration: None,

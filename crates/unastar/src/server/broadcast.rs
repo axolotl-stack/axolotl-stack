@@ -88,11 +88,11 @@ fn build_add_player_packet(
 
     AddPlayerPacket {
         uuid,
-        player_name: name.to_string(),
+        player_name: name.into(),
         target_runtime_id: ActorRuntimeId {
             actor_runtime_id: runtime_id as u64,
         },
-        platform_chat_id: String::new(),
+        platform_chat_id: "".into(),
         position: Vec3 {
             x: position.0.x as f32,
             y: position.0.y as f32,
@@ -124,7 +124,7 @@ fn build_add_player_packet(
             }],
         },
         actor_links: vec![],
-        device_id: String::new(),
+        device_id: "".into(),
         build_platform: EnumsBuildPlatform::Unknown,
     }
 }
@@ -535,14 +535,14 @@ pub fn tick_block_breaking(
 
             // Build breaking sound (SoundType::Hit with block data)
             let sound_event = LevelSoundEventPacket {
-                sound_event: "hit".to_owned(),
+                sound_event: "hit".into(),
                 position: Vec3 {
                     x: x as f32 + 0.5,
                     y: y as f32 + 0.5,
                     z: z as f32 + 0.5,
                 },
                 data: block_runtime_id as i32,
-                actor_identifier: String::new(),
+                actor_identifier: "".into(),
                 is_baby: false,
                 is_global: false,
                 actor_unique_id: 0,

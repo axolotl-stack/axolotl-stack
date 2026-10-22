@@ -1,11 +1,13 @@
 #[instrument(skip(cursor, _session), level = "trace")]
 fn decode_packets(
-    mut cursor: Bytes,
+    cursor: Bytes,
     _session: &BedrockSession,
 ) -> Result<Vec<McpePacket>, JolyneError> {
+    let mut cursor =
+        crate::valentine::bedrock::borrowed::BorrowedReader::new(&cursor, cursor.len());
     let mut packets = Vec::new();
     while cursor.has_remaining() {
-        let (header, data) = McpePacketData::decode_inner(&mut cursor, McpePacketArgs)?;
+        let (header, data) = McpePacketData::decode_inner_reader(&mut cursor, McpePacketArgs)?;
         packets.push(McpePacket { header, data });
     }
     Ok(packets)
@@ -123,7 +125,7 @@ fn decode_payload(
 ) -> Result<Vec<McpePacket>, JolyneError> {
     if payload.first().copied() == Some(GAME_FRAME_ID) {
         let mut buf = payload.clone();
-        let (header, data) = McpePacketData::decode_game_frame(&mut buf, McpePacketArgs)?;
+        let (header, data) = McpePacketData::decode_game_frame_bytes(&mut buf, McpePacketArgs)?;
         return Ok(vec![McpePacket { header, data }]);
     }
     decode_packets(payload, session)

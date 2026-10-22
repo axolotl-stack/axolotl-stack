@@ -602,7 +602,7 @@ impl GameServer {
             for group in tab_groups {
                 protocol_groups.push(CreativeGroupInfoPayload {
                     creative_category: category,
-                    name: group.group_name.to_string(),
+                    name: group.group_name.into(),
                     group_icon_item: CerealizerNetworkItemInstanceDescriptorSerializedData::default(
                     ),
                 });
@@ -627,7 +627,7 @@ impl GameServer {
                             stacksize: 1,
                             auxvalue: creative_item.damage() as u32,
                             block_runtime_id,
-                            user_data_buffer: Vec::new(),
+                            user_data_buffer: Default::default(),
                         },
                         group_index: global_group_index,
                     });
