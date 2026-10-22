@@ -48,6 +48,7 @@ The bot is `tools/client-diff/gt-client` (gophertunnel `80c811b` over go-raknet
 ```powershell
 ./tools/client-diff/real-client/capture.ps1 -Name baseline              # 60 s session, path MTU 1492
 ./tools/client-diff/real-client/capture.ps1 -Name mtu-1200 -Mtu 1200 -Seconds 90 -Commit
+./tools/client-diff/real-client/capture.ps1 -Name mtu-576 -Mtu 576 -Seconds 120 -NoLaunch  # join by hand
 ./tools/client-diff/real-client/capture.ps1 -Client gophertunnel        # plumbing check without the game
 ```
 
@@ -55,6 +56,11 @@ Starts BDS and the relay, opens
 `minecraft://connect/?serverUrl=127.0.0.1&serverPort=<RelayPort>`, records for
 `-Seconds` (join, idle or play; disconnect from the pause menu to capture the
 client's close), closes the game, stops everything and prints the analysis.
+With `-NoLaunch` the script neither opens nor closes the game: it prints the
+relay address (127.0.0.1, `-RelayPort`, default 39140) and records while the
+person at the machine joins it from the game's server list. The upstream is
+BDS, so the client sees BDS's own advertisement (protocol 2193, 1.26.51); no
+pong rewriting is involved.
 `-Commit` copies the capture to `crates/tokio-raknet/tests/captures/real-client/`,
 which `cargo test -p tokio-raknet --test capture_diff -- --ignored` compares
 with `RaknetStream` (Vanilla): MTU probe sizes and cadence, ConnectionRequest

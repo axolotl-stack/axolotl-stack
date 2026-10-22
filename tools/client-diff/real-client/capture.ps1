@@ -17,8 +17,10 @@ is `<Output>/<Name>.jsonl`; -Commit copies it to
 
 Run it only when a person is at the machine: the game must be installed and
 signed in, and must not be running already (the script closes the game process
-it started). -Client gophertunnel replaces the game with the gophertunnel bot
-to check the plumbing without the game.
+it started). -NoLaunch leaves the game to that person: the script only starts
+BDS and the relay, prints the address to join and records for -Seconds without
+opening or closing the game. -Client gophertunnel replaces the game with the
+gophertunnel bot to check the plumbing without the game.
 
 Prerequisites: the BDS runtime in tools/client-diff/endstone-capture/runtime
 (see raknet/README.md). The GDK (Microsoft Store/Xbox app) build connects to
@@ -37,6 +39,7 @@ param(
     [string]$Output = (Join-Path $PSScriptRoot ('../runs/real-client-' + (Get-Date -Format 'yyyyMMdd-HHmmss'))),
     [int]$Port = 39132,
     [int]$RelayPort = 39140,
+    [switch]$NoLaunch,
     [switch]$Commit
 )
 $ErrorActionPreference = 'Stop'
@@ -46,7 +49,7 @@ $Runtime = [IO.Path]::GetFullPath($Runtime)
 $Output = [IO.Path]::GetFullPath($Output)
 New-Item -ItemType Directory -Force $Output | Out-Null
 $GameProcess = 'Minecraft.Windows'
-if ($Client -eq 'minecraft' -and @(Get-Process -Name $GameProcess -ErrorAction SilentlyContinue).Count -gt 0) {
+if ($Client -eq 'minecraft' -and !$NoLaunch -and @(Get-Process -Name $GameProcess -ErrorAction SilentlyContinue).Count -gt 0) {
     throw 'Minecraft is already running; close it first so this script cannot kill an unrelated session.'
 }
 
@@ -61,7 +64,10 @@ $server = Start-Bds $Runtime $Port
 try {
     $relay = Start-Relay $tools.Capture $RelayPort $Port $file $relayArgs
     try {
-        if ($Client -eq 'minecraft') {
+        if ($Client -eq 'minecraft' -and $NoLaunch) {
+            Write-Host "Relay ready: join 127.0.0.1 port $RelayPort in Minecraft now; recording for $Seconds s."
+            Start-Sleep -Seconds $Seconds
+        } elseif ($Client -eq 'minecraft') {
             Start-Process ('minecraft://connect/?serverUrl=127.0.0.1&serverPort=' + $RelayPort)
             Write-Host "Minecraft is connecting to 127.0.0.1:$RelayPort; recording for $Seconds s."
             try {
