@@ -1056,8 +1056,6 @@ mod tests {
         incoming: mpsc::Receiver<Result<ReceivedMessage, crate::RaknetError>>,
         outbound: Option<mpsc::Sender<OutboundMsg>>,
         task: tokio::task::JoinHandle<()>,
-        /// When the server received the ConnectionRequest.
-        request_seen: Instant,
     }
 
     impl VanillaHarness {
@@ -1098,11 +1096,9 @@ mod tests {
             );
             let mut buffer = [0; 2048];
             let mut encoded = BytesMut::new();
-            let mut request_seen = None;
             timeout(Duration::from_secs(2), async {
                 while !session.is_connected() {
                     let (len, _) = server.recv_from(&mut buffer).await.unwrap();
-                    request_seen.get_or_insert_with(Instant::now);
                     let datagram = Datagram::decode(&mut &buffer[..len]).unwrap();
                     session.handle_datagram(datagram, Instant::now()).unwrap();
                     flush_built_datagrams(
@@ -1126,7 +1122,6 @@ mod tests {
                 incoming,
                 outbound: Some(outbound),
                 task,
-                request_seen: request_seen.unwrap(),
             }
         }
 

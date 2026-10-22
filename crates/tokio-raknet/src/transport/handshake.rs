@@ -116,12 +116,17 @@ pub(crate) fn probe_sizes(cap: u16) -> Vec<u16> {
 
 /// Mojang RakNet: `RakNetConnector::connect` calls `resetMyGUID` before every
 /// `RakPeer::Connect` (lens2 `RNC_005_connect.c:57`), so every Vanilla dial
-/// uses a fresh random 64-bit GUID of either sign. `transport::ping` uses one
-/// per ping as well.
+/// uses a fresh random GUID; `transport::ping` uses one per ping as well.
+/// Bedrock replaces RakNet's generator with `Crypto::Random::generateUUID64Bit`
+/// (lens `RakNetConnector::RakNetConnector`, rva 0x5a4f1e0), whose body lens
+/// cannot show. The sign comes from observation: go-raknet rejects
+/// non-negative client GUIDs because "vanilla clients always provide a
+/// negative ClientGUID" (`handler.go:134-136`), and the Optimized listener
+/// keeps that check, so the GUID is random with the sign bit set.
 pub(crate) fn random_guid() -> u64 {
     use std::hash::BuildHasher;
     // Every `RandomState` gets distinct SipHash keys.
-    std::collections::hash_map::RandomState::new().hash_one(Instant::now())
+    std::collections::hash_map::RandomState::new().hash_one(Instant::now()) | (1 << 63)
 }
 
 /// Mojang RakNet `AssignSystemAddressToRemoteSystemList` (lens
@@ -1277,13 +1282,12 @@ mod tests {
     }
 
     /// HS-1: Mojang `resetMyGUID` before every connect: each dial gets a fresh
-    /// random 64-bit GUID of either sign.
+    /// random GUID, negative like real Bedrock clients'.
     #[test]
-    fn vanilla_guids_are_random_per_dial() {
+    fn vanilla_guids_are_random_negative_per_dial() {
         let guids: Vec<u64> = (0..64).map(|_| random_guid()).collect();
         let unique: std::collections::HashSet<_> = guids.iter().collect();
         assert_eq!(unique.len(), guids.len(), "{guids:?}");
-        assert!(guids.iter().any(|&guid| (guid as i64) < 0), "{guids:?}");
-        assert!(guids.iter().any(|&guid| (guid as i64) >= 0), "{guids:?}");
+        assert!(guids.iter().all(|&guid| (guid as i64) < 0), "{guids:?}");
     }
 }
