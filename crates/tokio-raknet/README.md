@@ -485,6 +485,77 @@ not comparable. On hybrid CPUs, pin both A/B executables to the same logical
 core and interleave their runs. `iter_batched` session benchmarks include
 session teardown as well as the named operation.
 
+### Transmission policies A/B (2026-10-22)
+
+Base `6e3b96c` (`main` before the policy split; Optimized on both sides) against
+this branch. Windows i9-14900HX, release builds, high process priority,
+implementations interleaved with alternating order; other workers were running
+on the workstation, so expect a few percent of noise. Medians of per-round
+Criterion estimates (ns), logical CPU 6 (`0x40`); six rounds, 2 s measurement:
+
+| Benchmark group | Rows | Median change | Range |
+|---|---:|---:|---|
+| `ack_benchmark` | 3 | +0.3% | −0.8% … +0.5% |
+| `codec_benchmark` | 2 | −0.5% | −2.3% … +1.2% |
+| `process_datagram` | 2 | −2.3% | −5.8% … +1.2% |
+| `session_hotpath` | 26 | −1.3% | −27.3% … +17.9% |
+| `split_benchmark` | 2 | −5.5% | −8.0% … −2.9% |
+| `throughput_stress` | 22 | −4.8% | −17.9% … +12.9% |
+| `varint_benchmark` | 5 | −0.3% | −7.1% … +1.8% |
+
+The session-hotpath outliers (`handle_ack_overflow` +17.9%, `handle_nack`
++16.3%, `session_tick/*` +12–16%) were re-measured with nine rounds and 4 s
+measurement after Vanilla state moved behind `Option<Box<_>>` (an Optimized
+`Session` is 616 bytes, 608 before; boxing removed a +54.9%
+`handle_data_payload/single_reliable` result caused by the 736-byte inline
+state):
+
+| Benchmark | Base ns | Head ns | Change |
+|---|---:|---:|---:|
+| `handle_ack_nack/handle_ack_small` | 29.82 | 30.14 | +1.1% |
+| `handle_ack_nack/handle_ack_large` | 261.94 | 264.12 | +0.8% |
+| `handle_ack_nack/handle_nack` | 146.99 | 149.23 | +1.5% |
+| `handle_ack_nack/handle_ack_overflow` | 882.82 | 915.58 | +3.7% |
+| `session_tick/tick_empty` | 18.05 | 19.25 | +6.6% |
+| `session_tick/tick_with_pending_acks` | 309.66 | 293.66 | −5.2% |
+| `session_tick/tick_with_outgoing_packets` | 1003.00 | 1006.50 | +0.3% |
+
+`tick_empty` pays 1.2 ns for the policy branch on the 100 ms maintenance
+path; the ACK rows run unchanged code and agree within noise.
+
+Loopback echo, `bench-compare loopback --count 100`, `BENCH_SPLIT_COUNT=10`,
+logical CPUs 8, 10, 12, 14 (`0x5500`), `TOKIO_WORKER_THREADS=4`,
+`GOMAXPROCS=4`, five rounds with a rotating order. Medians of per-round mean,
+p50 and p99; max is the worst observation; microseconds. `BENCH_RAKNET_POLICY`
+selects both peers' policy; Go is go-raknet `87a6b7e` on both sides:
+
+| Bytes | Implementation | Mean | p50 | p99 | Max | Echoes/s |
+|---:|---|---:|---:|---:|---:|---:|
+| 32 | main (Optimized) | 34.89 | 32.6 | 57.8 | 118.4 | 28658 |
+| 32 | head Optimized | 34.14 | 30.5 | 64.7 | 126.4 | 29295 |
+| 32 | head Vanilla | 33.93 | 32.1 | 55.3 | 621.8 | 29472 |
+| 32 | go-raknet | 27.80 | 25.6 | 53.4 | 163.9 | 35967 |
+| 512 | main (Optimized) | 41.91 | 46.2 | 69.1 | 125.6 | 23859 |
+| 512 | head Optimized | 41.65 | 46.3 | 67.9 | 99.7 | 24008 |
+| 512 | head Vanilla | 33.82 | 32.1 | 46.4 | 110.1 | 29570 |
+| 512 | go-raknet | 29.98 | 25.2 | 70.5 | 291.5 | 33354 |
+| 4096 | main (Optimized) | 131.62 | 124.6 | 180.8 | 209.1 | 7598 |
+| 4096 | head Optimized | 122.38 | 118.1 | 163.9 | 270.3 | 8171 |
+| 4096 | head Vanilla | 81.68 | 75.5 | 104.8 | 145.2 | 12243 |
+| 4096 | go-raknet | 83.01 | 74.0 | 114.0 | 754.8 | 12047 |
+| 65536 | main (Optimized) | 1535.15 | 1306.9 | 2083.4 | 34720.5 | 651 |
+| 65536 | head Optimized | 1429.84 | 1404.0 | 1745.9 | 1915.3 | 699 |
+| 65536 | head Vanilla | 1061.82 | 1011.8 | 1198.0 | 1310.3 | 942 |
+| 65536 | go-raknet | 1319.48 | 1103.5 | 2004.4 | 400069.3 | 758 |
+
+Optimized is within noise of `main` (head means −0.6% … −7.0%). Vanilla is
+close to go-raknet: 22% slower at 32 B, 13% slower at 512 B, and 2%/20% faster
+at 4 KiB/64 KiB, where it sends every fragment without a congestion window.
+Before the 1 MiB receive-buffer default, Vanilla↔Vanilla 64 KiB echoes took
+about 290 ms because the unpaced 46-datagram burst overflowed Windows' 64 KiB
+socket buffer (PARITY.md OT-7). The loopback head binary predates only the
+`#[inline]` on split pruning.
+
 ### Encoder and buffer ownership (2026-10-21)
 
 Encoders coalesce adjacent fixed header fields and 24-bit sequences without
