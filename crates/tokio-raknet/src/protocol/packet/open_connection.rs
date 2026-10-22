@@ -7,10 +7,27 @@ use std::net::SocketAddr;
 use bytes::{BufMut, Bytes};
 
 use crate::protocol::{
-    constants::{self, DEFAULT_UNCONNECTED_MAGIC},
+    constants::DEFAULT_UNCONNECTED_MAGIC,
     packet::{Packet, RaknetEncodable},
-    types::{EoBPadding, Magic, RaknetTime},
+    types::{AddressLayout, EoBPadding, Magic, RaknetTime, encode_address},
 };
+
+/// Maximum system addresses carried by `ConnectionRequestAccepted` and
+/// `NewIncomingConnection` (go-raknet `internal/message/addr.go:systemAddresses`).
+pub const MAX_SYSTEM_ADDRESSES: usize = 20;
+
+/// go-raknet `connection_request_accepted.go:UnmarshalBinary`: read up to 20
+/// system addresses, stopping as soon as exactly the two trailing timestamps
+/// remain. Peers send 10 (RakNet) or 20 (Bedrock, go-raknet) addresses.
+fn decode_system_addresses(
+    src: &mut impl bytes::Buf,
+) -> Result<Vec<SocketAddr>, super::DecodeError> {
+    let mut addresses = Vec::with_capacity(MAX_SYSTEM_ADDRESSES);
+    while addresses.len() < MAX_SYSTEM_ADDRESSES && src.remaining() != 16 {
+        addresses.push(SocketAddr::decode_raknet(src)?);
+    }
+    Ok(addresses)
+}
 
 /// Client's initial connection request containing protocol and MTU probe.
 #[derive(Debug, Clone)]
@@ -136,6 +153,24 @@ impl OpenConnectionRequest2 {
             client_guid: u64::decode_raknet(src)?,
         })
     }
+
+    /// Encode the body with an explicit server-address layout (lunar's Vanilla
+    /// client uses [`AddressLayout::Lunar`] for IPv6 servers).
+    pub fn encode_body_with_layout(
+        &self,
+        dst: &mut impl bytes::BufMut,
+        layout: AddressLayout,
+    ) -> Result<(), crate::protocol::packet::EncodeError> {
+        self.magic.encode_raknet(dst)?;
+        if let Some(cookie) = self.cookie {
+            cookie.encode_raknet(dst)?;
+            self.client_proof.encode_raknet(dst)?;
+        }
+        encode_address(&self.server_addr, layout, dst)?;
+        self.mtu.encode_raknet(dst)?;
+        self.client_guid.encode_raknet(dst)?;
+        Ok(())
+    }
 }
 
 impl Packet for OpenConnectionRequest2 {
@@ -145,15 +180,7 @@ impl Packet for OpenConnectionRequest2 {
         &self,
         dst: &mut impl bytes::BufMut,
     ) -> Result<(), crate::protocol::packet::EncodeError> {
-        self.magic.encode_raknet(dst)?;
-        if let Some(cookie) = self.cookie {
-            cookie.encode_raknet(dst)?;
-            self.client_proof.encode_raknet(dst)?;
-        }
-        self.server_addr.encode_raknet(dst)?;
-        self.mtu.encode_raknet(dst)?;
-        self.client_guid.encode_raknet(dst)?;
-        Ok(())
+        self.encode_body_with_layout(dst, AddressLayout::Standard)
     }
 
     fn decode_body(src: &mut impl bytes::Buf) -> Result<Self, super::DecodeError> {
@@ -314,7 +341,7 @@ impl Packet for ConnectionRequest {
 pub struct ConnectionRequestAccepted {
     pub address: SocketAddr,
     pub system_index: u16,
-    pub system_addresses: [SocketAddr; 10],
+    pub system_addresses: Vec<SocketAddr>,
     pub request_timestamp: RaknetTime,
     pub accepted_timestamp: RaknetTime,
 }
@@ -341,12 +368,7 @@ impl Packet for ConnectionRequestAccepted {
     fn decode_body(src: &mut impl bytes::Buf) -> Result<Self, super::DecodeError> {
         let address = SocketAddr::decode_raknet(src)?;
         let system_index = u16::decode_raknet(src)?;
-
-        let mut system_addresses: [SocketAddr; 10] = [SocketAddr::V4(constants::ANY_V4); 10];
-
-        for addr in &mut system_addresses {
-            *addr = SocketAddr::decode_raknet(src)?
-        }
+        let system_addresses = decode_system_addresses(src)?;
 
         let request_timestamp = RaknetTime::decode_raknet(src)?;
         let accepted_timestamp = RaknetTime::decode_raknet(src)?;
@@ -396,9 +418,26 @@ impl Packet for ConnectionRequestFailed {
 #[derive(Debug, Clone)]
 pub struct NewIncomingConnection {
     pub server_address: SocketAddr,
-    pub system_addresses: [SocketAddr; 10],
+    pub system_addresses: Vec<SocketAddr>,
     pub request_timestamp: RaknetTime,
     pub accepted_timestamp: RaknetTime,
+}
+
+impl NewIncomingConnection {
+    /// Encode the body with an explicit layout for the server address.
+    pub fn encode_body_with_layout(
+        &self,
+        dst: &mut impl BufMut,
+        layout: AddressLayout,
+    ) -> Result<(), crate::protocol::packet::EncodeError> {
+        encode_address(&self.server_address, layout, dst)?;
+        for address in &self.system_addresses {
+            address.encode_raknet(dst)?;
+        }
+        self.request_timestamp.encode_raknet(dst)?;
+        self.accepted_timestamp.encode_raknet(dst)?;
+        Ok(())
+    }
 }
 
 impl Packet for NewIncomingConnection {
@@ -408,23 +447,12 @@ impl Packet for NewIncomingConnection {
         &self,
         dst: &mut impl BufMut,
     ) -> Result<(), crate::protocol::packet::EncodeError> {
-        self.server_address.encode_raknet(dst)?;
-        for address in &self.system_addresses {
-            address.encode_raknet(dst)?;
-        }
-        self.request_timestamp.encode_raknet(dst)?;
-        self.accepted_timestamp.encode_raknet(dst)?;
-        Ok(())
+        self.encode_body_with_layout(dst, AddressLayout::Standard)
     }
 
     fn decode_body(src: &mut impl bytes::Buf) -> Result<Self, super::DecodeError> {
         let server_address = SocketAddr::decode_raknet(src)?;
-
-        let mut system_addresses: [SocketAddr; 10] = [SocketAddr::V4(constants::ANY_V4); 10];
-
-        for addr in &mut system_addresses {
-            *addr = SocketAddr::decode_raknet(src)?
-        }
+        let system_addresses = decode_system_addresses(src)?;
 
         let request_timestamp = RaknetTime::decode_raknet(src)?;
         let accepted_timestamp = RaknetTime::decode_raknet(src)?;
@@ -512,5 +540,32 @@ mod tests {
         assert_eq!(decoded.client_guid, pkt.client_guid);
         assert_eq!(decoded.timestamp.0, pkt.timestamp.0);
         assert_eq!(decoded.secure, pkt.secure);
+    }
+
+    /// go-raknet `ConnectionRequestAccepted.MarshalBinary` with its 20 zero
+    /// system addresses. Before the fix the decoder consumed exactly ten
+    /// addresses and read both timestamps out of the eleventh/twelfth address.
+    #[test]
+    fn connection_request_accepted_with_twenty_addresses_keeps_timestamps() {
+        for count in [10usize, 20] {
+            let mut bytes = vec![0x04, 0x80, 0xff, 0xff, 0xfe, 0x4a, 0xbc, 0x00, 0x00];
+            for _ in 0..count {
+                bytes.extend_from_slice(&[0x04, 0xff, 0xff, 0xff, 0xff, 0x00, 0x00]);
+            }
+            bytes.extend_from_slice(&0x0102u64.to_be_bytes());
+            bytes.extend_from_slice(&0x0304u64.to_be_bytes());
+            let decoded = ConnectionRequestAccepted::decode_body(&mut &bytes[..]).unwrap();
+            assert_eq!(decoded.system_addresses.len(), count);
+            assert_eq!(decoded.request_timestamp.0, 0x0102);
+            assert_eq!(decoded.accepted_timestamp.0, 0x0304);
+            assert_eq!(decoded.address, "127.0.0.1:19132".parse().unwrap());
+
+            let mut nic = vec![0x04, 0x80, 0xff, 0xff, 0xfe, 0x4a, 0xbc];
+            nic.extend_from_slice(&bytes[9..]);
+            let decoded = NewIncomingConnection::decode_body(&mut &nic[..]).unwrap();
+            assert_eq!(decoded.system_addresses.len(), count);
+            assert_eq!(decoded.request_timestamp.0, 0x0102);
+            assert_eq!(decoded.accepted_timestamp.0, 0x0304);
+        }
     }
 }

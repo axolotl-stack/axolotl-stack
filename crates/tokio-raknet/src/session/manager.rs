@@ -104,6 +104,8 @@ pub struct ManagedSession {
     last_disconnect_reason: Option<DisconnectReason>,
     ack_deadline: Option<Instant>,
     pending_ack_bytes: usize,
+    /// go-raknet `conn.go:startTicking` `acksLeft`, sampled while closing.
+    vanilla_acks_left: usize,
 }
 
 impl ManagedSession {
@@ -131,7 +133,25 @@ impl ManagedSession {
             last_disconnect_reason: None,
             ack_deadline: None,
             pending_ack_bytes: 0,
+            vanilla_acks_left: 0,
         }
+    }
+
+    /// Transmission policy of the underlying session.
+    pub fn transmission_policy(&self) -> super::TransmissionPolicy {
+        self.inner.transmission_policy()
+    }
+
+    /// Latest RTT estimate, `None` before the first acknowledgement sample.
+    pub fn rtt(&self) -> Option<Duration> {
+        match self.inner.rtt_micros() {
+            u64::MAX => None,
+            micros => Some(Duration::from_micros(micros)),
+        }
+    }
+
+    pub(crate) fn rtt_micros(&self) -> u64 {
+        self.inner.rtt_micros()
     }
 
     pub fn peer(&self) -> SocketAddr {
@@ -256,23 +276,32 @@ impl ManagedSession {
                 let accepted = self
                     .inner
                     .accept_datagram_sequence(dgram.header.sequence, || now)?;
-                self.pending_ack_bytes = self
-                    .pending_ack_bytes
-                    .saturating_add(4 + packets.iter().map(|packet| packet.size()).sum::<usize>());
-                if self.state != ConnectionState::Connected
-                    || dgram
-                        .header
-                        .flags
-                        .contains(crate::protocol::constants::DatagramFlags::CONTINUOUS_SEND)
-                    || packets.iter().any(|packet| packet.header.is_split)
-                    || self.pending_ack_bytes >= self.inner.mtu() / 2
-                {
-                    self.ack_deadline = Some(now);
+                if self.inner.transmission_policy().is_vanilla() {
+                    // go-raknet conn.go:flushACKs: ACKs wait for the 100 ms
+                    // tick. conn.go:handlePacket: a closing connection still
+                    // ACKs datagrams but no longer handles their frames.
+                    if !accepted || self.state == ConnectionState::Closing {
+                        return Ok(Vec::new());
+                    }
                 } else {
-                    self.ack_deadline.get_or_insert(now + MAX_ACK_DELAY);
-                }
-                if !accepted {
-                    return Ok(Vec::new());
+                    self.pending_ack_bytes = self.pending_ack_bytes.saturating_add(
+                        4 + packets.iter().map(|packet| packet.size()).sum::<usize>(),
+                    );
+                    if self.state != ConnectionState::Connected
+                        || dgram
+                            .header
+                            .flags
+                            .contains(crate::protocol::constants::DatagramFlags::CONTINUOUS_SEND)
+                        || packets.iter().any(|packet| packet.header.is_split)
+                        || self.pending_ack_bytes >= self.inner.mtu() / 2
+                    {
+                        self.ack_deadline = Some(now);
+                    } else {
+                        self.ack_deadline.get_or_insert(now + MAX_ACK_DELAY);
+                    }
+                    if !accepted {
+                        return Ok(Vec::new());
+                    }
                 }
                 let mut pkts = self.inner.handle_data_payload(packets, now)?;
                 pkts.extend(self.inner.drain_pending_incoming());
@@ -297,6 +326,13 @@ impl ManagedSession {
     /// so application delivery and congestion progress never wait for maintenance.
     /// Transports must service `ack_deadline` even when no further traffic arrives.
     pub fn build_datagram(&mut self, now: Instant) -> Option<Datagram> {
+        if self.inner.transmission_policy().is_vanilla() {
+            let dgram = self.inner.next_vanilla_datagram(now)?;
+            if let DatagramPayload::EncapsulatedPackets(packets) = &dgram.payload {
+                self.debit_reliable_bytes(packets);
+            }
+            return Some(dgram);
+        }
         self.inner.process_incoming_acks_naks(now);
         let ack = if self.ack_deadline.is_some_and(|deadline| now >= deadline) {
             let ack = self.inner.build_ack_datagram(now);
@@ -629,7 +665,7 @@ mod tests {
         let ctrl = RaknetPacket::ConnectionRequestAccepted(ConnectionRequestAccepted {
             address: "127.0.0.1:19132".parse().unwrap(),
             system_index: 0,
-            system_addresses: [peer; 10],
+            system_addresses: vec![peer; 10],
             request_timestamp: RaknetTime(0),
             accepted_timestamp: RaknetTime(0),
         });

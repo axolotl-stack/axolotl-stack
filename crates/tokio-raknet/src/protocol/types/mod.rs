@@ -14,6 +14,7 @@ mod sequence;
 mod time;
 mod varint;
 
+pub use addr::{AddressLayout, encode_address, unmap_ipv4};
 pub use advertisement::Advertisement;
 pub use datagram_header::DatagramHeader;
 pub use encapsulated_packet_header::EncapsulatedPacketHeader;

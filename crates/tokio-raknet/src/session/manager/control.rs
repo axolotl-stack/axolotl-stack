@@ -1,16 +1,19 @@
 use std::net::SocketAddr;
 use std::time::Instant;
 
+use bytes::{BufMut, Bytes, BytesMut};
+
 use crate::protocol::constants::{
-    DEFAULT_UNCONNECTED_MAGIC, LOCAL_IP_ADDRESSES_V4, LOCAL_IP_ADDRESSES_V6,
+    ANY_V4, DEFAULT_UNCONNECTED_MAGIC, LOCAL_IP_ADDRESSES_V4, LOCAL_IP_ADDRESSES_V6,
 };
 use crate::protocol::packet::{
     ConnectedPing, ConnectedPong, ConnectionRequest, ConnectionRequestAccepted,
-    ConnectionRequestFailed, DisconnectionNotification, NewIncomingConnection, RaknetPacket,
+    ConnectionRequestFailed, DisconnectionNotification, MAX_SYSTEM_ADDRESSES,
+    NewIncomingConnection, Packet, RaknetPacket,
 };
 use crate::protocol::reliability::Reliability;
 use crate::protocol::state::{DisconnectReason, RakPriority};
-use crate::protocol::types::RaknetTime;
+use crate::protocol::types::{AddressLayout, RaknetTime, unmap_ipv4};
 
 use super::{ConnectionState, ManagedSession, SessionError, SessionRole};
 
@@ -33,15 +36,21 @@ impl ManagedSession {
         }
 
         let timestamp = Self::current_raknet_time(now);
-
+        // go-raknet dial.go:connect: ConnectionRequest{Secure: false} via
+        // Conn.Write (ReliableOrdered). Optimized keeps Reliable.
+        let vanilla = self.inner.transmission_policy().is_vanilla();
         let pkt = RaknetPacket::ConnectionRequest(ConnectionRequest {
             client_guid: self.config.guid,
             timestamp,
-
-            secure,
+            secure: secure && !vanilla,
         });
+        let reliability = if vanilla {
+            Reliability::ReliableOrdered
+        } else {
+            Reliability::Reliable
+        };
 
-        self.queue_control_packet(pkt, Reliability::Reliable, 0, RakPriority::Immediate)?;
+        self.queue_control_packet(pkt, reliability, 0, RakPriority::Immediate)?;
 
         self.remote_guid = Some(server_guid);
         self.state = ConnectionState::OnlineHandshake;
@@ -82,6 +91,22 @@ impl ManagedSession {
             RaknetPacket::DisconnectionNotification(notification) => {
                 self.handle_disconnection_notification(notification)
             }
+            RaknetPacket::DetectLostConnection(_)
+                if self.inner.transmission_policy().is_vanilla() =>
+            {
+                // go-raknet handler.go: let the other end know we are alive.
+                let ping = RaknetPacket::ConnectedPing(ConnectedPing {
+                    ping_time: Self::current_raknet_time(now),
+                });
+                if let Err(error) = self.queue_control_packet(
+                    ping,
+                    Reliability::ReliableOrdered,
+                    0,
+                    RakPriority::Immediate,
+                ) {
+                    tracing::debug!(?error, "failed_to_queue_detect_lost_connections_ping");
+                }
+            }
             _ => self.handle_generic_control_states(pkt),
         }
     }
@@ -101,20 +126,40 @@ impl ManagedSession {
         );
 
         let accepted_ts = Self::current_raknet_time(now);
+        // go-raknet handler.go:handleConnectionRequest answers with the
+        // resolved peer, zero-valued system addresses and index 0; Optimized
+        // keeps its RakNet defaults.
+        let (address, system_index, system_addresses) =
+            if self.inner.transmission_policy().is_vanilla() {
+                (
+                    unmap_ipv4(self.peer),
+                    0,
+                    vec![SocketAddr::V4(ANY_V4); MAX_SYSTEM_ADDRESSES],
+                )
+            } else {
+                (self.peer, 47, Self::default_system_addresses(self.peer))
+            };
         let packet = RaknetPacket::ConnectionRequestAccepted(ConnectionRequestAccepted {
-            address: self.peer,
-
-            system_index: 47,
-            system_addresses: Self::default_system_addresses(self.peer),
+            address,
+            system_index,
+            system_addresses,
             request_timestamp: req.timestamp,
-
             accepted_timestamp: accepted_ts,
         });
 
-        match self.queue_control_packet(packet, Reliability::Unreliable, 0, RakPriority::Immediate)
-        {
+        // A lost CRA cannot be recovered by the client (its request was already
+        // ACKed), so it is ReliableOrdered like go-raknet's Conn.send.
+        match self.queue_control_packet(
+            packet,
+            Reliability::ReliableOrdered,
+            0,
+            RakPriority::Immediate,
+        ) {
             Ok(()) => {
-                self.state = ConnectionState::OnlineHandshake;
+                // A repeated request must not move an established session back.
+                if self.state == ConnectionState::Unconnected {
+                    self.state = ConnectionState::OnlineHandshake;
+                }
                 self.last_activity = now;
                 self.last_pong_received = now;
                 self.trace_control("send_conn_request_accepted");
@@ -131,24 +176,50 @@ impl ManagedSession {
         pkt: &ConnectionRequestAccepted,
         now: Instant,
     ) {
-        if self.config.role != SessionRole::Client {
+        // go-raknet handler.go:handleConnectionRequestAccepted answers only the
+        // first CRA; later ones (and CRAs while closing) never reopen a session.
+        if self.config.role != SessionRole::Client
+            || !matches!(
+                self.state,
+                ConnectionState::Unconnected | ConnectionState::OnlineHandshake
+            )
+        {
             return;
         }
 
-        let packet = RaknetPacket::NewIncomingConnection(NewIncomingConnection {
-            server_address: self.peer,
-            system_addresses: Self::default_system_addresses(self.peer),
-            request_timestamp: Self::current_raknet_time(now),
-
-            accepted_timestamp: pkt.request_timestamp,
-        });
-
-        match self.queue_control_packet(
-            packet,
-            Reliability::ReliableOrdered,
-            0,
-            RakPriority::Immediate,
-        ) {
+        let queued = if self.inner.transmission_policy().is_vanilla() {
+            // go-raknet: NewIncomingConnection{resolve(raddr), 20 zero system
+            // addresses, PingTime: CRA.PongTime, PongTime: timestamp()} with
+            // lunar's IPv6 address layout.
+            let packet = NewIncomingConnection {
+                server_address: unmap_ipv4(self.peer),
+                system_addresses: vec![SocketAddr::V4(ANY_V4); MAX_SYSTEM_ADDRESSES],
+                request_timestamp: pkt.accepted_timestamp,
+                accepted_timestamp: Self::current_raknet_time(now),
+            };
+            let mut buffer = BytesMut::with_capacity(1 + 29 + 7 * MAX_SYSTEM_ADDRESSES + 16);
+            buffer.put_u8(NewIncomingConnection::ID);
+            packet
+                .encode_body_with_layout(&mut buffer, AddressLayout::Lunar)
+                .map_err(|error| SessionError::Queue(error.into()))
+                .and_then(|()| {
+                    self.queue_control_bytes(buffer.freeze(), Reliability::ReliableOrdered)
+                })
+        } else {
+            let packet = RaknetPacket::NewIncomingConnection(NewIncomingConnection {
+                server_address: self.peer,
+                system_addresses: Self::default_system_addresses(self.peer),
+                request_timestamp: Self::current_raknet_time(now),
+                accepted_timestamp: pkt.request_timestamp,
+            });
+            self.queue_control_packet(
+                packet,
+                Reliability::ReliableOrdered,
+                0,
+                RakPriority::Immediate,
+            )
+        };
+        match queued {
             Ok(()) => {
                 self.state = ConnectionState::Connected;
                 self.last_activity = now;
@@ -219,8 +290,13 @@ impl ManagedSession {
     }
 
     fn handle_disconnection_notification(&mut self, pkt: &DisconnectionNotification) {
-        self.state = ConnectionState::Closed;
         self.last_disconnect_reason = Some(pkt.reason);
+        if self.inner.transmission_policy().is_vanilla() {
+            // go-raknet handler.go: closeImmediately also notifies the peer.
+            self.vanilla_close_immediately();
+        } else {
+            self.state = ConnectionState::Closed;
+        }
     }
 
     fn handle_generic_control_states(&mut self, pkt: &RaknetPacket) {
@@ -253,6 +329,19 @@ impl ManagedSession {
         Ok(())
     }
 
+    /// Queue an already encoded control packet (ID included).
+    pub(super) fn queue_control_bytes(
+        &mut self,
+        bytes: Bytes,
+        rel: Reliability,
+    ) -> Result<(), SessionError> {
+        let added = self
+            .inner
+            .queue_encoded_packet(bytes, rel, 0, RakPriority::Immediate)?;
+        self.queued_reliable_bytes = self.queued_reliable_bytes.saturating_add(added);
+        Ok(())
+    }
+
     #[allow(dead_code)]
     fn queue_connection_request_failed(&mut self) {
         let packet = RaknetPacket::ConnectionRequestFailed(ConnectionRequestFailed {
@@ -267,11 +356,11 @@ impl ManagedSession {
         );
     }
 
-    pub(super) fn default_system_addresses(peer: SocketAddr) -> [SocketAddr; 10] {
+    pub(super) fn default_system_addresses(peer: SocketAddr) -> Vec<SocketAddr> {
         if peer.is_ipv4() {
-            LOCAL_IP_ADDRESSES_V4.map(SocketAddr::V4)
+            LOCAL_IP_ADDRESSES_V4.map(SocketAddr::V4).to_vec()
         } else {
-            LOCAL_IP_ADDRESSES_V6.map(SocketAddr::V6)
+            LOCAL_IP_ADDRESSES_V6.map(SocketAddr::V6).to_vec()
         }
     }
 

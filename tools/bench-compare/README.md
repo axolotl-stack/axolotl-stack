@@ -83,6 +83,16 @@ To collect Criterion estimates for Valentine separately:
 cargo bench -p bench-compare --bench codec -- --warm-up-time 1 --measurement-time 3
 ```
 
+### RakNet conformance peers
+
+`go run . raknet-conformance-serve -address 127.0.0.1:0` (go-raknet echo
+listener, prints `READY address` on stderr) and
+`go run . raknet-conformance-client -address ADDR -sizes 32,4096 -hold 1s`
+(go-raknet client: echo each size, idle, close) back the opt-in differential test
+`cargo test -p tokio-raknet --test go_conformance -- --ignored --nocapture`,
+which records both clients through a fault-injecting relay. See
+`crates/tokio-raknet/PARITY.md`.
+
 ## Inputs and boundaries
 
 The committed corpus is `crates/valentine_gen/protocolgen/testdata/bench`, pinned by submodule commit `7b2e47c463fa425e25004673cf8960753dd2ff12`. It contains 26 single-packet cases and four realistic batches, generated deterministically by protocolgen from typed Go packets. Both implementations consume those exact files, not independently generated lookalikes. Both validate typed decoding outside timing; encoder preparation is outside timing and output buffers are reused. Packet operations include the length prefix, header varint and typed body. Batch operations include the `0xfe` marker and all entries. Rust borrowed cases are reported only where the public view API produces genuinely typed views; raw payload variants are omitted rather than misrepresented as typed decoding. See the crate README for exact coverage.

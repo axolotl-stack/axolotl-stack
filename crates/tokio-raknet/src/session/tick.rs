@@ -6,25 +6,22 @@ use super::Session;
 
 impl Session {
     /// Periodic maintenance: prune splits, schedule resends, and emit ACK/NACK datagrams.
+    ///
+    /// Vanilla sessions must be ticked every 100 ms (go-raknet
+    /// `conn.go:startTicking`); the call count drives the resend cadence.
     pub fn on_tick(&mut self, now: Instant) -> Vec<Datagram> {
+        if self.is_vanilla() {
+            self.vanilla_mut().ticks += 1;
+            let resend_check = self
+                .vanilla_mut()
+                .ticks
+                .is_multiple_of(super::policy::VANILLA_RESEND_TICKS);
+            return self.on_vanilla_tick(now, resend_check);
+        }
         let mut out = Vec::new();
 
         self.process_incoming_acks_naks(now);
-
-        let dropped = self.split_assembler.prune(now);
-        for (ch, idx) in dropped {
-            if let (Some(ch), Some(idx)) = (ch, idx)
-                && let Some(released) = self.ordering.skip_index(ch, idx)
-            {
-                let mut ready = Vec::new();
-                for pkt in released {
-                    if let Err(error) = self.decode_and_push(pkt, &mut ready) {
-                        tracing::debug!(?error, "failed_to_decode_released_ordered_packet");
-                    }
-                }
-                self.pending_incoming.extend(ready);
-            }
-        }
+        self.prune_expired_splits(now);
 
         let mut bw = self.sliding.get_retransmission_bandwidth();
         if bw > 0 {
@@ -39,6 +36,24 @@ impl Session {
             out.push(d);
         }
         out
+    }
+
+    #[inline]
+    pub(super) fn prune_expired_splits(&mut self, now: Instant) {
+        let dropped = self.split_assembler.prune(now);
+        for (ch, idx) in dropped {
+            if let (Some(ch), Some(idx)) = (ch, idx)
+                && let Some(released) = self.ordering.skip_index(ch, idx)
+            {
+                let mut ready = Vec::new();
+                for pkt in released {
+                    if let Err(error) = self.decode_and_push(pkt, &mut ready) {
+                        tracing::debug!(?error, "failed_to_decode_released_ordered_packet");
+                    }
+                }
+                self.pending_incoming.extend(ready);
+            }
+        }
     }
 }
 

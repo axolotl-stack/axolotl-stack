@@ -175,6 +175,11 @@ impl Session {
     }
 
     pub(crate) fn process_incoming_acks_naks(&mut self, now: Instant) {
+        if self.is_vanilla() {
+            self.vanilla_process_acks(now);
+            self.vanilla_process_naks(now);
+            return;
+        }
         self.process_incoming_acks(now);
         self.process_incoming_naks(now);
     }
