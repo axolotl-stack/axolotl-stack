@@ -8,7 +8,7 @@ use tokio::sync::mpsc;
 use crate::protocol::state::DisconnectReason;
 use crate::protocol::{datagram::Datagram, packet::RaknetPacket};
 use crate::session::manager::{ConnectionState, ManagedSession};
-use crate::transport::listener_conn::SessionState;
+use crate::transport::listener_conn::{AcceptSender, Accepted, SessionState};
 use crate::transport::mux::flush_managed;
 use bytes::Bytes;
 use bytes::BytesMut;
@@ -28,10 +28,7 @@ pub(super) async fn dispatch_datagram(
     peer: SocketAddr,
     sessions: &mut HashMap<SocketAddr, SessionState>,
     pending: &mut HashMap<SocketAddr, PendingConnection>,
-    new_conn_tx: &mpsc::Sender<(
-        SocketAddr,
-        mpsc::Receiver<Result<crate::transport::ReceivedMessage, crate::RaknetError>>,
-    )>,
+    new_conn_tx: &AcceptSender,
     advertisement: &Arc<RwLock<Bytes>>,
     rate_limiter: &mut PingRateLimiter,
     send_buf: &mut BytesMut,
@@ -125,16 +122,14 @@ pub(super) async fn handle_outgoing_msg(
 
     tracing::trace!("outbound queued");
     flush_managed(&mut state.managed, socket, msg.peer, now, false, send_buf).await;
+    state.publish_rtt();
 }
 
 #[tracing::instrument(skip(socket, sessions), level = "trace")]
 pub(super) async fn tick_sessions(
     socket: &UdpSocket,
     sessions: &mut HashMap<SocketAddr, SessionState>,
-    new_conn_tx: &mpsc::Sender<(
-        SocketAddr,
-        mpsc::Receiver<Result<crate::transport::ReceivedMessage, crate::RaknetError>>,
-    )>,
+    new_conn_tx: &AcceptSender,
     send_buf: &mut BytesMut,
 ) {
     let now = Instant::now();
@@ -143,6 +138,7 @@ pub(super) async fn tick_sessions(
     for (&peer, state) in sessions.iter_mut() {
         maybe_announce_connection(peer, state, new_conn_tx).await;
         flush_managed(&mut state.managed, socket, peer, now, true, send_buf).await;
+        state.publish_rtt();
         let pending = state.managed.drain_pending_incoming(now);
         update_handshake_confirmation(&pending, state);
         if state.handshake_confirmed {
@@ -180,10 +176,7 @@ async fn handle_incoming_udp(
     peer: SocketAddr,
     sessions: &mut HashMap<SocketAddr, SessionState>,
     _pending: &mut HashMap<SocketAddr, PendingConnection>,
-    new_conn_tx: &mpsc::Sender<(
-        SocketAddr,
-        mpsc::Receiver<Result<crate::transport::ReceivedMessage, crate::RaknetError>>,
-    )>,
+    new_conn_tx: &AcceptSender,
     send_buf: &mut BytesMut,
 ) -> bool {
     let mut slice = bytes;
@@ -217,6 +210,7 @@ async fn handle_incoming_udp(
 
     maybe_announce_connection(peer, state, new_conn_tx).await;
     flush_managed(&mut state.managed, socket, peer, now, false, send_buf).await;
+    state.publish_rtt();
 
     if closed_after || matches!(state.managed.state(), ConnectionState::Closed) {
         if state.announced {
@@ -239,27 +233,28 @@ async fn handle_incoming_udp(
 pub(super) async fn maybe_announce_connection(
     peer: SocketAddr,
     state: &mut SessionState,
-    new_conn_tx: &mpsc::Sender<(
-        SocketAddr,
-        mpsc::Receiver<Result<crate::transport::ReceivedMessage, crate::RaknetError>>,
-    )>,
+    new_conn_tx: &AcceptSender,
 ) {
     if state.announced || !state.handshake_confirmed || !state.managed.is_connected() {
         return;
     }
 
-    if let Some(rx) = state.pending_rx.take() {
+    if let Some(incoming) = state.pending_rx.take() {
         tracing::info!("announce_connection");
-        match new_conn_tx.try_send((peer, rx)) {
+        let accepted = Accepted {
+            peer,
+            incoming,
+            rtt: state.rtt.clone(),
+        };
+        match new_conn_tx.try_send(accepted) {
             Ok(()) => {
                 state.announced = true;
             }
-            Err(mpsc::error::TrySendError::Full((_, rx))) => {
-                state.pending_rx = Some(rx);
-                state.announced = false;
-            }
-            Err(mpsc::error::TrySendError::Closed((_, rx))) => {
-                state.pending_rx = Some(rx);
+            Err(
+                mpsc::error::TrySendError::Full(accepted)
+                | mpsc::error::TrySendError::Closed(accepted),
+            ) => {
+                state.pending_rx = Some(accepted.incoming);
                 state.announced = false;
             }
         }

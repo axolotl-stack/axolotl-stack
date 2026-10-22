@@ -142,6 +142,18 @@ impl ManagedSession {
         self.inner.transmission_policy()
     }
 
+    /// Latest RTT estimate, `None` before the first acknowledgement sample.
+    pub fn rtt(&self) -> Option<Duration> {
+        match self.inner.rtt_micros() {
+            u64::MAX => None,
+            micros => Some(Duration::from_micros(micros)),
+        }
+    }
+
+    pub(crate) fn rtt_micros(&self) -> u64 {
+        self.inner.rtt_micros()
+    }
+
     pub fn peer(&self) -> SocketAddr {
         self.peer
     }

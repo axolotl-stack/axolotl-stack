@@ -237,6 +237,16 @@ impl Session {
         }
     }
 
+    /// Latest RTT estimate in microseconds (`u64::MAX` before the first
+    /// sample): Optimized's smoothed ACK RTT, Vanilla's mean of the recent
+    /// resend-map samples (go-raknet `resend_map.go:rtt`).
+    pub fn rtt_micros(&self) -> u64 {
+        match &self.vanilla {
+            Some(vanilla) => vanilla.sampled_rtt_micros(),
+            None => self.sliding.rtt_micros(),
+        }
+    }
+
     #[inline]
     fn is_vanilla(&self) -> bool {
         self.vanilla.is_some()

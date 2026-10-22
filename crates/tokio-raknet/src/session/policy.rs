@@ -96,6 +96,16 @@ impl VanillaState {
     pub(crate) fn nak_delay(&self) -> Duration {
         self.stored_rtt + self.stored_rtt / 2
     }
+
+    /// Mean of the recorded samples in microseconds (`u64::MAX` when none),
+    /// without pruning: published as the session RTT estimate.
+    pub(crate) fn sampled_rtt_micros(&self) -> u64 {
+        if self.samples.is_empty() {
+            return u64::MAX;
+        }
+        let total: u128 = self.samples.iter().map(|(_, rtt)| rtt.as_nanos()).sum();
+        (total / self.samples.len() as u128 / 1000) as u64
+    }
 }
 
 #[cfg(test)]

@@ -53,6 +53,30 @@ pub(crate) fn apply_socket_buffers(
     Ok(())
 }
 
+/// RTT estimate in microseconds shared between a muxer (writer) and its
+/// `RaknetStream` (reader); `u64::MAX` means no sample yet.
+#[derive(Clone, Debug)]
+pub(crate) struct RttCell(std::sync::Arc<std::sync::atomic::AtomicU64>);
+
+impl RttCell {
+    pub(crate) fn new() -> Self {
+        Self(std::sync::Arc::new(std::sync::atomic::AtomicU64::new(
+            u64::MAX,
+        )))
+    }
+
+    pub(crate) fn store(&self, micros: u64) {
+        self.0.store(micros, std::sync::atomic::Ordering::Relaxed);
+    }
+
+    pub(crate) fn load(&self) -> Option<std::time::Duration> {
+        match self.0.load(std::sync::atomic::Ordering::Relaxed) {
+            u64::MAX => None,
+            micros => Some(std::time::Duration::from_micros(micros)),
+        }
+    }
+}
+
 pub(crate) fn require_config(
     valid: bool,
     field: &'static str,

@@ -64,7 +64,10 @@ cargo test -p tokio-raknet --test go_conformance -- --ignored --nocapture
 ```
 
 `transport::ping` sends go-raknet's 33-byte unconnected ping and returns the
-server's pong data.
+server's pong data. `RaknetStream::rtt()` exposes the session's RTT estimate
+(`None` before the first acknowledgement sample: Optimized's smoothed ACK RTT,
+Vanilla's mean of recent resend-map samples) without involving the transport
+task, and `RaknetListener::guid()` returns the server GUID carried by its pongs.
 
 ### Application delivery and maintenance
 

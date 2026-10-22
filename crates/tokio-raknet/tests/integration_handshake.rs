@@ -941,3 +941,77 @@ async fn ping_returns_listener_advertisement() {
         matches!(error, RaknetError::Io(error) if error.kind() == std::io::ErrorKind::TimedOut)
     );
 }
+
+/// `RaknetListener::guid` is the GUID carried by the listener's pongs.
+#[tokio::test]
+async fn listener_guid_matches_unconnected_pong() {
+    let listener = RaknetListener::bind("127.0.0.1:0".parse().unwrap())
+        .await
+        .unwrap();
+    let socket = UdpSocket::bind("127.0.0.1:0").await.unwrap();
+    let mut ping = BytesMut::new();
+    RaknetPacket::UnconnectedPing(tokio_raknet::protocol::packet::UnconnectedPing {
+        ping_time: RaknetTime(1),
+        magic: DEFAULT_UNCONNECTED_MAGIC,
+        client_guid: Some(5),
+    })
+    .encode(&mut ping)
+    .unwrap();
+    socket.send_to(&ping, listener.local_addr()).await.unwrap();
+    let RaknetPacket::UnconnectedPong(pong) = recv_packet(&socket).await else {
+        panic!("expected UnconnectedPong");
+    };
+    assert_eq!(pong.server_guid, listener.guid());
+}
+
+/// `RaknetStream::rtt` is `None` until an acknowledgement sample exists and
+/// then reflects the session estimate, for client and accepted streams and
+/// both policies.
+#[tokio::test]
+async fn stream_rtt_is_published_after_acknowledgements() {
+    for policy in [TransmissionPolicy::Vanilla, TransmissionPolicy::Optimized] {
+        let mut listener = RaknetListener::bind_with_config(
+            "127.0.0.1:0".parse().unwrap(),
+            RaknetListenerConfig {
+                transmission_policy: policy,
+                ..Default::default()
+            },
+        )
+        .await
+        .unwrap();
+        let address = listener.local_addr();
+        let server = tokio::spawn(async move {
+            let mut stream = listener.accept().await.unwrap();
+            loop {
+                match timeout(Duration::from_secs(5), stream.recv_message()).await {
+                    Ok(Some(Ok(message))) => {
+                        let mut echo = vec![message.id];
+                        echo.extend_from_slice(&message.payload);
+                        stream.send_encoded(echo).await.unwrap();
+                    }
+                    _ => return stream.rtt(),
+                }
+            }
+        });
+        let mut client = RaknetStream::connect_with_config(
+            address,
+            RaknetStreamConfig {
+                transmission_policy: policy,
+                ..Default::default()
+            },
+        )
+        .await
+        .unwrap();
+        for _ in 0..5 {
+            client.send_encoded(vec![0xfe, 1, 2]).await.unwrap();
+            client.recv_message().await.unwrap().unwrap();
+            // Vanilla acknowledges on its 100 ms tick.
+            tokio::time::sleep(Duration::from_millis(120)).await;
+        }
+        let rtt = client.rtt().expect("client RTT after acknowledged sends");
+        assert!(rtt < Duration::from_secs(1), "{policy:?}: {rtt:?}");
+        drop(client);
+        let server_rtt = server.await.unwrap();
+        assert!(server_rtt.is_some(), "{policy:?}: server stream RTT");
+    }
+}
