@@ -27,19 +27,19 @@ scheduling, pacing and framing. It is a plain enum matched on the hot path
 | | `Vanilla` | `Optimized` |
 |---|---|---|
 | Default for | `RaknetStream::connect*` | `RaknetListener`, low-level `Session` |
-| Model | lunar-bedrock/go-raknet `87a6b7e` (the vanilla Bedrock client RakNet) | tokio-raknet's latency/throughput tuning |
-| Framing | one frame per datagram, flags `0x84`, write order | frames packed to the MTU, RakNet priorities, `0x88` while bursting |
-| Congestion control | none | sliding window (slow start, backoff) |
-| ACKs | every 100 ms connection tick, go's ACK writer | 1 ms coalescing deadline, immediate under pressure |
-| Resends | every third tick for datagrams older than 1.5 × RTT; NAKs resend immediately | per-datagram RTO (`2·SRTT + 4·RTTVAR + 30 ms`), NAKs on the next tick |
-| RTT | mean of samples in the last 5 s (resends count 2 × age), 50 ms default | smoothed ACK RTT |
-| Keepalive / close | ReliableOrdered ping every fifth tick from session creation; close drains the resend map then sends a bare notification | Unreliable ping every 500 ms once connected; close sends the notification first |
-| Client handshake | go's OVH Reply1 workaround, unvalidated Reply2 with MTU clamp, lunar IPv6 address layout, go GUIDs | strict Reply1/Reply2 validation |
+| Model | Mojang RakNet (the Jenkins RakNet 4.081 fork in the Bedrock client and BDS): the client for `RaknetStream`, BDS for `RaknetListener` | tokio-raknet's latency/throughput tuning |
+| Framing | messages packed to `MTU - 37` bytes, resends first, RakNet priorities, message numbers assigned at send; fragments of `MTU - 60` bytes; flags `0x84`/`0x8c` in slow start, `0x80`/`0x88` after | frames packed to the MTU, RakNet priorities, `0x88` while bursting |
+| Congestion control | Mojang's `CCRakNetSlidingWindow` (window from `MTU - 28`, per-ACK congestion avoidance, NAK backoff once per block), 512 reliable messages in flight | sliding window (slow start, backoff) |
+| ACKs | at once until the first RTT sample, then 10 ms after the oldest unacknowledged datagram; NAKs as soon as a gap is seen | 1 ms coalescing deadline, immediate under pressure |
+| Resends | per message, `min(2·RTT + 4·dev + 30 ms, 2 s)` without backoff, re-packed into new datagrams; NAKed messages on the next update | per-datagram RTO (`2·SRTT + 4·RTTVAR + 30 ms`), NAKs on the next tick |
+| Maintenance | 10 ms update cycle, plus an update on every received datagram and `Immediate` send (other priorities wait for the cycle) | listener 100 ms, client 20 ms |
+| Keepalive / close | Unreliable ping every 5 s (two at connect), reliable ping after 5 s with nothing unacknowledged, silent drop 10 s after the last datagram while data is unacknowledged; close queues a bare `0x15` and closes once it is acknowledged; a received `0x15` is ACKed, not echoed | Unreliable ping every 500 ms once connected; close sends the notification first |
+| Handshake | 13 MTU probes 500 ms apart (4×1492, 4×1200, 5×576), Request2 per Reply1, connection MTU `max(576, clamp(mtu, 400, 1492))`, random negative GUID per dial; the listener answers like BDS (1400 MTU cap, Reply2 echo, 50 ms same-IP limit) | strict Reply1/Reply2 validation |
 
 Wire format, ordering/reassembly correctness and the RAKNET-01 safety bounds
-are shared. Every behaviour, the go-raknet source line it comes from, the
-intentional differences and the pinning tests are listed in
-[PARITY.md](PARITY.md). Select a policy per connection:
+are shared. Every behaviour, its evidence (BDS 1.26.51 wire captures and the
+decompiled Mojang RakNet), how go-raknet differs, and the pinning tests are
+listed in [PARITY.md](PARITY.md). Select a policy per connection:
 
 ```rust,no_run
 use tokio_raknet::transport::{RaknetListenerConfig, RaknetStreamConfig, TransmissionPolicy};
@@ -55,18 +55,24 @@ let server = RaknetListenerConfig {
 # let _ = (client, server);
 ```
 
-A differential conformance test drives a real go-raknet peer through a
-recording, fault-injecting relay and compares Vanilla against the go-raknet
-client (needs Go):
+`tests/capture_diff.rs` replays the committed BDS captures
+(`tests/captures/bds-1.26.51`) against a Vanilla listener through the
+recording relay of `examples/raknet_capture` and compares wire layouts and
+timing. Captures are recorded with `tools/client-diff/raknet/capture.ps1`
+(BDS) and `tools/client-diff/real-client/capture.ps1` (the Minecraft client);
+see [tools/client-diff/raknet/README.md](../../tools/client-diff/raknet/README.md).
+A differential test against go-raknet checks the layouts go-raknet and Mojang
+share (needs Go):
 
 ```text
+cargo test -p tokio-raknet --test capture_diff
 cargo test -p tokio-raknet --test go_conformance -- --ignored --nocapture
 ```
 
-`transport::ping` sends go-raknet's 33-byte unconnected ping and returns the
+`transport::ping` sends a 33-byte unconnected ping and returns the
 server's pong data. `RaknetStream::rtt()` exposes the session's RTT estimate
 (`None` before the first acknowledgement sample: Optimized's smoothed ACK RTT,
-Vanilla's mean of recent resend-map samples) without involving the transport
+Vanilla's sliding-window `estimatedRTT`) without involving the transport
 task, and `RaknetListener::guid()` returns the server GUID carried by its pongs.
 
 ### Application delivery and maintenance
@@ -379,7 +385,8 @@ This project is licensed under the [MIT License](LICENSE).
 
 ## Security & Tuning
 
-The behavioral reference is [lunar-bedrock/go-raknet](https://github.com/lunar-bedrock/go-raknet/tree/87a6b7e53799290d70ac25bcd03645d7ead00d2c).
+The reference for these limits is [lunar-bedrock/go-raknet](https://github.com/lunar-bedrock/go-raknet/tree/87a6b7e53799290d70ac25bcd03645d7ead00d2c);
+`Vanilla`'s protocol behaviour follows Mojang RakNet instead ([PARITY.md](PARITY.md)).
 Limits are checked before allocating or scanning peer-controlled windows.
 
 | Resource | Limit / behavior | Upstream reference |
@@ -388,13 +395,13 @@ Limits are checked before allocating or scanning peer-controlled windows.
 | Client MTU discovery | Probes `[cap, 1200, 576]`, four per size, 500 ms apart, replies accepted at any time; 10 transient receive errors tolerated | `dial.go:discoverMTU`, `request1`, `MaxTransientErrors` |
 | Receive / ordered window | 2048 indices; duplicates do not allocate entries | `conn.go:receiveDatagram`, `receivePacket`; `packet_queue.go:put` |
 | ACK/NACK payload | go's rule: a range record while `total + end - start ≤ 8192` (so at most 8193 represented sequences), a single while `total + 1 ≤ 8192`; wrapped ranges and unknown tags rejected; bounded range queues. A NAK resends each awaiting datagram at most once | `acknowledge.go:acknowledgement.read`, `conn.go:resend` |
-| Outgoing reliable data | `max_queued_reliable_bytes` (listener) closes with `QueueTooLong`: Optimized counts unsent bytes, Vanilla (no congestion window) counts bytes until ACKed | none (go-raknet is unbounded) |
+| Outgoing reliable data | `max_queued_reliable_bytes` (listener) closes with `QueueTooLong`: Optimized counts unsent bytes, Vanilla counts reliable bytes until ACKed | none (go-raknet is unbounded) |
 | Split reassembly | 512 fragments per ID, 16 live IDs; fragments fit the supported UDP payload | `conn.go:receiveSplitPacket`, `effectiveMTU` |
 | Handshake cookies | Address-bound, rotated every 2 seconds, current/previous accepted | `handler.go:cookie`; `listener.go:security.tick` |
 | Half-open session | Absolute 10-second completion deadline; retries do not extend it | `handler.go:handleOpenConnectionRequest2` |
 | Malformed peer | Session removed and source IP blocked for 10 seconds | `listener.go:ListenConfig`, `security.block` |
 | Keepalive / inactivity | 500 ms keepalives; 5 seconds plus twice measured RTT; outgoing traffic does not refresh receive activity | `conn.go:startTicking` |
-| Graceful close | Drain reliable sends, at most 5 seconds; empty queues permit close after 1 second (Vanilla: go's ordering, notification last) | `conn.go:startTicking` |
+| Graceful close | Optimized: drain reliable sends, at most 5 seconds; empty queues permit close after 1 second. Vanilla: Mojang's bare notification first, closed once it is acknowledged or 10 s after the last datagram | `conn.go:startTicking` |
 | Client receive queue | 4096 unread messages; one more disconnects | `conn.go:newConn`, `internal/chan.go` |
 | Socket buffers | `socket_recv_buffer_size` defaults to 1 MiB (one unpaced 64 KiB burst; the Windows default is 64 KiB), `socket_send_buffer_size` to the OS default; both applied with `socket2` | Go's IOCP reads (PARITY.md OT-7) |
 
@@ -446,13 +453,13 @@ Safety adaptations to the reference:
   with the same stateless address binding and rotation lifecycle.
 - Optimized only: invalid negotiated MTU is rejected instead of silently
   clamped or applying the reference's provider-specific malformed-reply
-  workaround (Vanilla reproduces both, see PARITY.md MTU-4/MTU-8).
+  workaround (Vanilla follows Mojang, see PARITY.md MTU-4/MTU-8).
 - Extended reliability/channel support is retained. Unknown ACK record tags,
   zero-length frames, malformed datagram flags and overflowing varints are
   rejected; frame bit lengths still round up to the next byte.
 - Optimized only: sliding congestion control and its smoothed RTT estimator
-  are retained; Vanilla averages recovery RTT samples over five seconds like
-  the Go reference.
+  are retained; Vanilla runs Mojang's variant of the sliding window
+  (PARITY.md CC-1).
 
 ### Memory Usage
 Defaults are chosen to be safe for general-purpose use to prevent Denial of Service (DoS) via memory exhaustion:
@@ -462,12 +469,13 @@ Defaults are chosen to be safe for general-purpose use to prevent Denial of Serv
 For high-performance servers (e.g., dedicated game servers) with ample RAM, use `RaknetListenerConfig::high_performance()` or tune these values manually.
 
 ### Ticking
-The listener runs maintenance at **10 Hz (100 ms)**, matching
-`go-raknet/conn.go:Conn.startTicking`. Optimized clients tick every 20 ms;
-Vanilla clients use go's 100 ms connection ticker, phased at session creation.
+The Optimized listener runs maintenance at **10 Hz (100 ms)**, matching
+`go-raknet/conn.go:Conn.startTicking`; Optimized clients tick every 20 ms.
 Under Optimized, ACK/NAK feedback and application writes are flushed promptly,
-independently of that maintenance interval; under Vanilla, ACKs wait for the
-tick and timeout resends for every third tick, as in go-raknet.
+independently of that maintenance interval. Vanilla clients and listeners run
+Mojang's update cycle every 10 ms and on every received datagram or
+`Immediate` send; other application priorities leave on the next cycle, and
+ACKs leave 10 ms after the oldest unacknowledged datagram.
 
 ## Benchmarks
 Performance is a priority. Benchmarks (Ryzen 7 7800x3d):
@@ -534,28 +542,24 @@ selects both peers' policy; Go is go-raknet `87a6b7e` on both sides:
 |---:|---|---:|---:|---:|---:|---:|
 | 32 | main (Optimized) | 34.89 | 32.6 | 57.8 | 118.4 | 28658 |
 | 32 | head Optimized | 34.14 | 30.5 | 64.7 | 126.4 | 29295 |
-| 32 | head Vanilla | 33.93 | 32.1 | 55.3 | 621.8 | 29472 |
 | 32 | go-raknet | 27.80 | 25.6 | 53.4 | 163.9 | 35967 |
 | 512 | main (Optimized) | 41.91 | 46.2 | 69.1 | 125.6 | 23859 |
 | 512 | head Optimized | 41.65 | 46.3 | 67.9 | 99.7 | 24008 |
-| 512 | head Vanilla | 33.82 | 32.1 | 46.4 | 110.1 | 29570 |
 | 512 | go-raknet | 29.98 | 25.2 | 70.5 | 291.5 | 33354 |
 | 4096 | main (Optimized) | 131.62 | 124.6 | 180.8 | 209.1 | 7598 |
 | 4096 | head Optimized | 122.38 | 118.1 | 163.9 | 270.3 | 8171 |
-| 4096 | head Vanilla | 81.68 | 75.5 | 104.8 | 145.2 | 12243 |
 | 4096 | go-raknet | 83.01 | 74.0 | 114.0 | 754.8 | 12047 |
 | 65536 | main (Optimized) | 1535.15 | 1306.9 | 2083.4 | 34720.5 | 651 |
 | 65536 | head Optimized | 1429.84 | 1404.0 | 1745.9 | 1915.3 | 699 |
-| 65536 | head Vanilla | 1061.82 | 1011.8 | 1198.0 | 1310.3 | 942 |
 | 65536 | go-raknet | 1319.48 | 1103.5 | 2004.4 | 400069.3 | 758 |
 
-Optimized is within noise of `main` (head means −0.6% … −7.0%). Vanilla is
-close to go-raknet: 22% slower at 32 B, 13% slower at 512 B, and 2%/20% faster
-at 4 KiB/64 KiB, where it sends every fragment without a congestion window.
-Before the 1 MiB receive-buffer default, Vanilla↔Vanilla 64 KiB echoes took
-about 290 ms because the unpaced 46-datagram burst overflowed Windows' 64 KiB
-socket buffer (PARITY.md OT-7). The loopback head binary predates only the
-`#[inline]` on split pruning.
+Optimized is within noise of `main` (head means −0.6% … −7.0%). The Vanilla
+rows of this run measured the former go-raknet emulation and are superseded:
+Vanilla now follows Mojang RakNet, whose `Normal`-priority sends wait for the
+next 10 ms update cycle and whose ACKs wait 10 ms, like the Bedrock client
+and BDS, so it is not a latency-tuned policy. Before the 1 MiB
+receive-buffer default, unpaced 64 KiB bursts overflowed Windows' 64 KiB
+socket buffer (PARITY.md OT-7).
 
 ### Encoder and buffer ownership (2026-10-21)
 

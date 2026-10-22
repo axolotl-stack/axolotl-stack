@@ -62,7 +62,7 @@ pub struct RaknetStreamConfig {
     /// Maximum number of incoming ACK/NACK ranges to queue per session.
     pub max_incoming_ack_queue: usize,
     /// Transmission policy. Defaults to [`TransmissionPolicy::Vanilla`], the
-    /// lunar-bedrock/go-raknet (vanilla Bedrock client) behaviour.
+    /// Mojang RakNet behaviour of the Minecraft Bedrock client (`PARITY.md`).
     pub transmission_policy: TransmissionPolicy,
     /// Transient receive errors (connection refused/reset/aborted, host or
     /// network unreachable) ignored during the offline handshake; `None` is
@@ -149,8 +149,8 @@ impl RaknetStream {
 
     /// Latest round-trip time estimate of the session, `None` before the
     /// first acknowledgement sample: the smoothed ACK RTT (Optimized) or the
-    /// mean of the recent resend-map samples (Vanilla, go-raknet
-    /// `resend_map.go:rtt`). Readable without involving the transport task.
+    /// sliding window's `estimatedRTT` (Vanilla, Mojang RakNet). Readable
+    /// without involving the transport task.
     pub fn rtt(&self) -> Option<Duration> {
         self.rtt.load()
     }
@@ -362,8 +362,8 @@ struct ClientMuxerContext {
     to_app: mpsc::Sender<Result<ReceivedMessage, crate::RaknetError>>,
     ready: oneshot::Sender<Result<(), crate::RaknetError>>,
     config: RaknetStreamConfig,
-    /// Maintenance cadence: 100 ms for Vanilla (go-raknet's connection
-    /// ticker), `TICK_INTERVAL` for Optimized. Tests may lengthen it to prove a
+    /// Maintenance cadence: Mojang's 10 ms update cycle for Vanilla,
+    /// `TICK_INTERVAL` for Optimized. Tests may lengthen it to prove a
     /// behaviour does not depend on maintenance.
     maintenance_interval: Duration,
     /// RTT estimate published to the `RaknetStream`.
