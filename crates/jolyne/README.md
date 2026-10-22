@@ -120,6 +120,7 @@ the vanilla reference). Tests are in `crates/jolyne` unless noted.
 | Tracing | ✅ | `#[instrument]` spans on every join step, `close` and `disconnect` |
 | Typestate phase safety | ✅ | `stream::BedrockStream<S, R, T>` |
 | Validated ClientData / identity on the session | ✅ | `BedrockStream<Play, Server, _>::{identity, client_data}`; `stream::tests::join_echo_and_typed_disconnect`; validation in `jolyne::auth` |
+| Online identity bound to key possession (no replayed-Login trust; RakNet refuses online without encryption) | ✅ | `proto::tests::{online_identity_is_authenticated_only_after_the_encryption_handshake, replayed_online_login_never_authenticates_and_times_out_at_the_login_deadline, online_mode_without_encryption_is_refused_on_raknet, unencrypted_online_login_trusts_only_a_transport_proven_key}` |
 
 ### Reusable batch pipeline
 
