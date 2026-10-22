@@ -28,11 +28,33 @@ Transport, HTTP endpoint, identities, and discovery follow [df-mc/go-nethernet a
 | ES384 detached SDP fingerprint assertion; `cpk` JWK/DER keys; nested assertion string | `identity.go:Identity.sign`, `identityData`, `generateFingerprints` |
 | HTTP SDP bodies, status JSON, nontrickle ICE, per-negotiation credentials | `endpoint/client.go:Client.Signal`, `DisableTrickleICE`; `endpoint/handler.go:Handler.ServeHTTP` |
 
-### Required webrtc-rs differences
+### Transport stack
 
-Upstream advertises 262144-byte SCTP messages with 262143-byte segment payloads. webrtc-rs 0.12 fixes its callback receive buffer to 65535 bytes (`data_channel/mod.rs:RTCDataChannel::read_loop`), so this crate advertises 65535 and limits segment payloads to **65534**. Larger reliable messages are fragmented. The remote SDP limit constrains outgoing fragments independently of our locally advertised incoming limit.
+The data path composes the sans-IO `rtc` 0.21 crates (rtc-ice, rtc-dtls,
+rtc-sctp, rtc-datachannel, rtc-stun, rtc-turn) directly, as go-nethernet does
+with pion's ORTC pieces, with one Tokio driver task per connection and sends
+written to SCTP and the socket inline. [DESIGN.md](DESIGN.md) documents the
+module layout, task/lock model and wire-parity rules. webrtc-rs 0.12 remains
+only as an independent interop peer in tests.
 
-webrtc-rs requires its exact generated local offer/answer when applying `set_local_description`. The original is installed internally; the wire copy receives the size attribute and signed identity. Fingerprints and transport credentials are unchanged.
+- SDP follows `conn.go:description.encode`/`parseDescription` line for line,
+  including `a=max-message-size:262144`; segments use the remote size minus
+  one (262143 against go-nethernet), so the webrtc-rs 65535 receive-buffer
+  deviation is gone.
+- DTLS always offers SRTP profiles because pion fails data-channel-only
+  connections without one (`dtlstransport.go:completeStart`), but no SRTP keys
+  are ever derived. AES-256-GCM is withheld: as DTLS server we honour the
+  client's preference, and webrtc-rs 0.12 peers panic keying that profile
+  (webrtc-srtp 0.14 `key_derivation.rs:aes_cm_key_derivation`), which is what
+  previously broke every pairing with pion's AES-256-GCM-first preference.
+- Sends complete once SCTP accepted every segment, as `conn.go:Conn.Send`
+  returns after pion queues them; they never wait for acknowledgement (the
+  peer's delayed SACK is 200 ms). Senders pause while more than 1 MiB is
+  unacknowledged and resume at 256 KiB.
+- The ICE agent uses zero candidate acceptance delays, STUN responses are
+  flushed before DTLS flights, and already-due timers run inline instead of
+  through a Tokio sleep (whose tick is 15.6 ms on Windows), so connection setup
+  never waits on a timer.
 
 ## Identities and authentication
 
@@ -52,13 +74,23 @@ Use `NetherNetDialer::connect_with_signaling` and `NetherNetListener::bind_with_
 
 `endpoint::{ClientConfig, HandlerConfig}` support credential providers that are consulted for each negotiation. HTTP signaling gathers candidates into the initial SDP rather than emitting trickle messages. `Handler::serve` and `serve_tls` expose the HTTP endpoint; `Client::status` reads upstream status JSON, and `Client::ping` converts it to RakNet pong data. The Jolyne builder adds `.endpoint(handler, transport_config)` behind its `endpoint` feature while keeping `.xbox(...)` intact.
 
-`NetherNetDialerConfig.setting_engine` and
-`NetherNetListenerConfig.setting_engine` optionally accept a webrtc-rs
-`SettingEngine` for explicit local interface/ICE policy. `None` preserves the
-existing defaults. For strict local tests, enable loopback candidates and use an
-IP filter accepting only IPv4 loopback addresses on both peers; this confines
-the actual ICE/DTLS/SCTP sockets, not merely the signaling endpoint. Loopback
-candidates are a deliberate testing policy, not a production default.
+`NetherNetDialerConfig.transport` and `NetherNetListenerConfig.transport`
+(`TransportConfig`) choose the local addresses that gather host candidates.
+The default matches go-nethernet's pion defaults: every non-loopback UDP4/UDP6
+interface address. `addresses: Some(..)` binds exactly those addresses and
+skips interface enumeration (several milliseconds per connection on Windows).
+`TransportConfig::loopback_v4()` binds only `127.0.0.1`, confining the actual
+ICE/DTLS/SCTP sockets for strict local tests; loopback is a deliberate testing
+policy, not a production default. `relay_only` is the ICE "relay" transport
+policy (go-nethernet `gatherOptions` `ICEGatherPolicy`). `ice_servers` uses the
+crate's own `signaling::IceServer` (UDP `turn:` and `stun:` URLs). Server hosts
+resolve concurrently within 3 s; with trickle ICE they resolve only after the
+offer/answer was sent. One STUN/TURN client runs per server address, so the
+Xbox `stun:`/`turn:` pair for one host:port gathers srflx and relay together.
+Remote `.local` (mDNS) host candidates are resolved query-only, as pion and
+webrtc-rs do by default; local candidates are never published via mDNS. Remote
+DTLS fingerprints may use sha-256, sha-384 or sha-512; other hash functions are
+rejected when the description is parsed.
 
 ## Signal and discovery codecs
 
@@ -83,8 +115,9 @@ byte-for-byte to go-nethernet `discovery.Marshal` vectors.
 - Full UDP-sized discovery receives; truncated, unauthenticated, malformed, wrong-recipient and non-signal packets are rejected without panics.
 - Discovery admits at most 1024 peers/responses, expires both maps together, and never waits on a full signal queue in the socket receive loop. `responses()` contains decoded application bytes, not ASCII hex.
 - `ServerData` is v7; new protocol/version/auth/nonce fields have defaults. `transport_layer` remains application metadata and is not a v7 wire field.
-- Fragment counters and sizes are validated before queueing and while reassembling. Local reassembly byte/time limits supplement the upstream countdown invariant. Timeout is checked on subsequent input; no timer task is allocated per fragmented message.
-- Incoming and outgoing stream handoffs are bounded. Reliable callbacks backpressure rather than dropping fragments. `flush`/graceful `close` wait for accepted writes; transport failures are returned to the sender. Error/drop cleanup cancels pending work and closes transports.
+- Fragment counters and sizes are validated before queueing and while reassembling (`framing::{encode_segments, Reassembler}`, public so framing can be measured without a transport). A first countdown of 255 (256 segments) is rejected because no conforming sender produces it. Local reassembly byte/time limits supplement the upstream countdown invariant. Timeout is checked on subsequent input; no timer task is allocated per fragmented message.
+- Incoming handoff is a bounded queue of completed messages (`incoming_channel_capacity`); when it is full the session stops reading SCTP, so the advertised receive window backpressures the peer instead of dropping fragments. `flush` completes once SCTP accepted the write; graceful `close` additionally waits until both channels' queued bytes are acknowledged. Transport failures are returned to the sender; reassembly failures reach the reader with their own variant (`InvalidSegmentCount`, `MessageTooLarge`, `ReassemblyTimeout`, `InvalidPacket`). Close and drop follow go-nethernet `conn.go:Conn.close`: both channels' outgoing streams are reset, then SCTP is aborted (pion `SCTPTransport.Stop`), DTLS sends `close_notify` and TURN allocations are released; the peer sees `ConnectionClosed` at once.
+- A panic unwinding out of the `rtc` stack (driven inline under the connection lock) or an integration hook (signaling, token verification) becomes `NetherNetError::DependencyPanic` and fails only that connection, which is then poisoned: no `rtc` layer is called again (timers, I/O and teardown stop); a listener negotiation panic replies `CONNECTERROR` 35 and the listener keeps serving other peers.
 - Pending signal delivery, listener connection ownership, endpoint HTTP bodies/subscriptions/negotiations, WebSocket frames/queues, and anomaly-monitor state are bounded. Inline and trickled ICE candidates share a 128-candidate per-peer budget. Congested negotiation subscriptions are failed rather than blocking all peers. Cancellation suppresses pending terminal replies, and cleanup checks connection-instance ownership before removing a reused tuple.
 
 The resource budgets are local hardening policy, not newly invented protocol constants.
@@ -109,7 +142,7 @@ cargo check -p jolyne --all-targets --features nethernet,discovery,xbox-signalin
 cargo check -p axelerator --all-targets
 ```
 
-Tests include upstream wire fixtures, authenticated malformed/truncated discovery input, configuration deadlines/ICE validation, callback backpressure, fragment boundaries, signed-identity tampering, HTTP signaling cancellation/credentials, retained WebSocket framing/closure, and two real loopback WebRTC peers exchanging fragmented reliable and unreliable messages.
+Tests include upstream wire fixtures, go-nethernet SDP line order and parse rules, authenticated malformed/truncated discovery input, configuration deadlines/ICE validation, fragment boundaries up to 262143-byte segments, receive-window backpressure, signed-identity tampering, HTTP signaling cancellation/credentials, retained WebSocket framing/closure, real loopback peers exchanging fragmented reliable and unreliable messages over inline and trickled candidates, go-nethernet close semantics, fingerprint-mismatch rejection, typed reassembly errors, a poisoned connection after a contained transport panic, mDNS candidate resolution, relay-only dials (inline and trickled) and a same-address `stun:`+`turn:` pair against an independent TURN server (webrtc-rs `turn`), an independent webrtc-rs 0.12 answerer with pion's AES-256-GCM-first SRTP preference and an independent webrtc-rs 0.12 offerer, sequential small sends that must not wait for delayed SACKs, and a contained listener negotiation panic.
 
 ## License
 

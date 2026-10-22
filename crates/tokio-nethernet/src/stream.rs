@@ -1,32 +1,19 @@
-use bytes::{Bytes, BytesMut};
-use futures::{Sink, SinkExt, Stream};
+use bytes::Bytes;
+use futures::{Sink, Stream};
 use std::{
-    future::Future,
     pin::Pin,
     sync::Arc,
     task::{Context, Poll},
-    time::Instant,
 };
-use tokio::sync::{Notify, mpsc, oneshot};
 use tokio::time::Duration;
-use tokio_util::sync::PollSender;
-use webrtc::data_channel::RTCDataChannel;
-use webrtc::ice_transport::ice_server::RTCIceServer;
 
-use crate::error::{NetherNetError, catch_dependency_panic};
-use crate::signaling::SignalingChannel;
-
-/// Payload ceiling from upstream `conn.go:maxMessageSize` and `description.encode`:
-/// 262144 SCTP bytes minus the one-byte remaining-segment counter.
-pub(crate) const MAX_MESSAGE_SIZE: usize = 262143;
-
-/// Forced webrtc-rs 0.12 deviation from `conn.go:maxMessageSize`: its
-/// `data_channel/mod.rs:RTCDataChannel::read_loop` uses a fixed 65535-byte
-/// DATA_CHANNEL_BUFFER_SIZE. Reserve one byte for the NetherNet header.
-pub(crate) const TRANSPORT_MAX_PAYLOAD: usize = 65534;
+use crate::error::NetherNetError;
+use crate::framing::MAX_SEGMENT_PAYLOAD;
+use crate::signaling::{IceServer, SignalingChannel};
+use crate::transport::Connection;
 
 /// Local bounded-state policy, not a wire constant.
-const DEFAULT_MAX_REASSEMBLY_SIZE: usize = MAX_MESSAGE_SIZE * 255;
+const DEFAULT_MAX_REASSEMBLY_SIZE: usize = MAX_SEGMENT_PAYLOAD * 255;
 
 /// Default reassembly timeout (30 seconds).
 const DEFAULT_REASSEMBLY_TIMEOUT: Duration = Duration::from_secs(30);
@@ -34,43 +21,45 @@ const DEFAULT_REASSEMBLY_TIMEOUT: Duration = Duration::from_secs(30);
 /// Configuration for `NetherNetStream`.
 #[derive(Debug, Clone)]
 pub struct NetherNetStreamConfig {
-    /// Outbound segment payload size, at most 65534; does not limit inbound frames.
+    /// Outbound segment payload ceiling (1..=262143); the remote
+    /// `max-message-size - 1` also applies. Does not limit inbound segments.
     pub max_message_size: usize,
     /// Timeout for connection establishment.
     pub connection_timeout: Duration,
     /// Explicit ICE servers; nonempty values override signaling credentials.
-    pub ice_servers: Vec<RTCIceServer>,
+    pub ice_servers: Vec<IceServer>,
     /// Maximum size of the reassembly buffer in bytes.
     /// Prevents OOM attacks from fragmented messages.
     pub max_reassembly_size: usize,
     /// Timeout for reassembling fragmented messages.
     /// Rejects subsequent fragments once this duration has elapsed.
     pub reassembly_timeout: Duration,
-    /// Capacity of the incoming message channel.
+    /// Completed messages buffered before SCTP reads pause; the paused stream's
+    /// receive window then applies backpressure to the peer.
     pub incoming_channel_capacity: usize,
 }
 
 impl Default for NetherNetStreamConfig {
     fn default() -> Self {
         Self {
-            max_message_size: TRANSPORT_MAX_PAYLOAD,
+            max_message_size: MAX_SEGMENT_PAYLOAD,
             // dial.go:Dialer.Dial and credentials.go:gatherOptions.
             connection_timeout: Duration::from_secs(15),
             ice_servers: Vec::new(),
             max_reassembly_size: DEFAULT_MAX_REASSEMBLY_SIZE,
             reassembly_timeout: DEFAULT_REASSEMBLY_TIMEOUT,
-            // message.go:wrapDataChannel uses an unbuffered packet handoff;
-            // one slot is the smallest Tokio bounded asynchronous handoff.
-            incoming_channel_capacity: 1,
+            // Bounded like message.go:wrapDataChannel's packet handoff; SCTP's
+            // window holds everything beyond it.
+            incoming_channel_capacity: 64,
         }
     }
 }
 
 impl NetherNetStreamConfig {
     pub(crate) fn validate(&self) -> Result<(), NetherNetError> {
-        if self.max_message_size == 0 || self.max_message_size > TRANSPORT_MAX_PAYLOAD {
+        if self.max_message_size == 0 || self.max_message_size > MAX_SEGMENT_PAYLOAD {
             return Err(NetherNetError::InvalidConfiguration(
-                "segment size must be 1..=65534",
+                "segment size must be 1..=262143",
             ));
         }
         if self.incoming_channel_capacity == 0 || self.incoming_channel_capacity > 1024 {
@@ -94,111 +83,6 @@ impl NetherNetStreamConfig {
             ..Default::default()
         }
     }
-}
-
-/// Negotiated payload limit, following upstream `conn.go:parseDescription`
-/// and `dial.go:Dialer.startTransports` (SCTP limit minus one header byte).
-pub(crate) fn negotiate_max_message_size(sdp: &str, local: usize) -> Result<usize, NetherNetError> {
-    let value = sdp
-        .lines()
-        .find_map(|line| line.strip_prefix("a=max-message-size:"))
-        .ok_or(NetherNetError::InvalidMaxMessageSize)?;
-    if value.is_empty() || !value.bytes().all(|b| b.is_ascii_digit()) {
-        return Err(NetherNetError::InvalidMaxMessageSize);
-    }
-    let size = value
-        .parse::<u32>()
-        .map_err(|_| NetherNetError::InvalidMaxMessageSize)?;
-    if size <= 1 {
-        return Err(NetherNetError::InvalidMaxMessageSize);
-    }
-    Ok(local.min((size - 1) as usize).min(TRANSPORT_MAX_PAYLOAD))
-}
-
-/// Advertise the SCTP ceiling using `conn.go:description.encode` semantics,
-/// capped to webrtc-rs's fixed receive buffer (see `TRANSPORT_MAX_PAYLOAD`).
-pub(crate) fn local_sdp(sdp: String) -> String {
-    let mut result = String::with_capacity(sdp.len() + 28);
-    let mut found = false;
-    for line in sdp.lines() {
-        if line.starts_with("a=max-message-size:") {
-            result.push_str("a=max-message-size:65535\r\n");
-            found = true;
-        } else {
-            result.push_str(line);
-            result.push_str("\r\n");
-        }
-    }
-    if !found {
-        result.push_str("a=max-message-size:65535\r\n");
-    }
-    result
-}
-
-/// Validate before queuing or casting the countdown (`conn.go:Conn.Send`).
-fn segment_count(size: usize, reliable: bool, payload: usize) -> Result<usize, NetherNetError> {
-    if payload == 0 || payload > TRANSPORT_MAX_PAYLOAD {
-        return Err(NetherNetError::InvalidConfiguration(
-            "invalid segment payload size",
-        ));
-    }
-    if !reliable && size > payload {
-        return Err(NetherNetError::MessageTooLarge {
-            size,
-            limit: payload,
-        });
-    }
-    let count = if size == 0 {
-        0
-    } else {
-        (size - 1) / payload + 1
-    };
-    if count > 255 {
-        return Err(NetherNetError::TooManySegments { count });
-    }
-    Ok(count)
-}
-
-async fn deliver_message(
-    tx: &mpsc::Sender<Result<Message, NetherNetError>>,
-    data: Bytes,
-    reliable: bool,
-    max_payload: usize,
-) {
-    let item = if data.len() > max_payload.saturating_add(1) {
-        Err(NetherNetError::MessageTooLarge {
-            size: data.len(),
-            limit: max_payload.saturating_add(1),
-        })
-    } else if data.len() < 2 {
-        Err(NetherNetError::InvalidPacket)
-    } else {
-        Ok(Message::new(data, reliable))
-    };
-    // Like message.go:wrapDataChannel, preserve reliable fragments under pressure.
-    // Await in the callback instead of spawning unbounded pending send tasks.
-    let _ = tx.send(item).await;
-}
-
-/// Register early on each accepted channel; retain the receiver for the stream.
-pub(crate) fn install_message_handler(
-    dc: &Arc<RTCDataChannel>,
-    tx: mpsc::Sender<Result<Message, NetherNetError>>,
-    reliable: bool,
-) {
-    let close_tx = tx.clone();
-    dc.on_close(Box::new(move || {
-        let tx = close_tx.clone();
-        Box::pin(async move {
-            let _ = tx.send(Err(NetherNetError::ConnectionClosed)).await;
-        })
-    }));
-    dc.on_message(Box::new(move |msg| {
-        let tx = tx.clone();
-        Box::pin(
-            async move { deliver_message(&tx, msg.data, reliable, TRANSPORT_MAX_PAYLOAD).await },
-        )
-    }));
 }
 
 /// A message to be sent or received over a NetherNet stream.
@@ -230,283 +114,31 @@ impl Message {
     }
 }
 
-/// A NetherNet stream wrapping WebRTC data channels.
+/// A NetherNet connection: `Stream` of received messages and `Sink` for sends.
 ///
-/// Implements `Stream` for receiving messages and `Sink` for sending messages.
-/// Handles the specific fragmentation logic used by NetherNet for reliable messages.
+/// Sends are written to SCTP and the socket inline (no task hop) and complete
+/// once SCTP accepted every segment, like go-nethernet `conn.go:Conn.Send`;
+/// they pause while more than 1 MiB is unacknowledged. Graceful `close`
+/// additionally waits until every queued byte is acknowledged. Dropping the
+/// stream aborts the connection.
 pub struct NetherNetStream {
-    incoming_rx: mpsc::Receiver<Result<Message, NetherNetError>>,
-    outbound_tx: PollSender<OutboundMessage>,
-    pending_send: Option<oneshot::Receiver<Result<(), NetherNetError>>>,
-    reassembly: ReassemblyState,
-    max_message_size: usize,
-    terminal: bool,
-    sender_task: tokio::task::JoinHandle<()>,
-    channels: [Arc<RTCDataChannel>; 2],
-    peer: Option<Arc<webrtc::peer_connection::RTCPeerConnection>>,
+    connection: Arc<Connection>,
+    driver: tokio::task::JoinHandle<()>,
     remote_identity: Option<crate::identity::VerifiedIdentity>,
-    /// Graceful close has queued its acknowledged-delivery drain.
-    drain_requested: bool,
-}
-
-/// Pause handing messages to SCTP while more than this many bytes on a channel
-/// await acknowledgement; resume once at most `BUFFERED_AMOUNT_LOW` remain.
-///
-/// Local memory bound, not a wire constant. go-nethernet `conn.go:Conn.Send`
-/// returns once pion `DataChannel.Send` has queued each segment and applies no
-/// limit. Awaiting a full drain per message instead serialized every send behind
-/// the peer's delayed SACK (webrtc-sctp `timer/ack_timer.rs:ACK_INTERVAL`, 200 ms;
-/// a lone DATA chunk is never acknowledged sooner), which is what made small
-/// echoes take 200-1000 ms.
-const BUFFERED_AMOUNT_HIGH: usize = 1024 * 1024;
-const BUFFERED_AMOUNT_LOW: usize = 256 * 1024;
-
-enum OutboundCommand {
-    /// Queue the message's frames on its channel's SCTP stream.
-    Send(Message),
-    /// Wait until every byte queued on both channels is acknowledged.
-    Drain,
-}
-
-struct OutboundMessage {
-    command: OutboundCommand,
-    completion: oneshot::Sender<Result<(), NetherNetError>>,
-}
-
-/// Wait until at most `target` bytes remain unacknowledged on `channel`.
-/// The low-buffer callback is the normal wakeup. Periodic state checks ensure a
-/// remotely closed channel cannot strand a waiter (buffered_amount is not reset
-/// by webrtc-rs on close).
-async fn drain_channel(
-    channel: &RTCDataChannel,
-    drained: &Notify,
-    target: usize,
-) -> Result<(), NetherNetError> {
-    loop {
-        if channel.buffered_amount().await <= target {
-            return Ok(());
-        }
-        if channel.ready_state()
-            != webrtc::data_channel::data_channel_state::RTCDataChannelState::Open
-        {
-            return Err(NetherNetError::ConnectionClosed);
-        }
-        tokio::select! {
-            _ = drained.notified() => {},
-            _ = tokio::time::sleep(Duration::from_millis(100)) => {},
-        }
-    }
-}
-
-/// Completes once SCTP has accepted every frame, like go-nethernet
-/// `conn.go:Conn.Send`; it waits for acknowledgements only above the high mark.
-async fn send_message(
-    channel: &RTCDataChannel,
-    item: Message,
-    max_len: usize,
-    drained: &Notify,
-) -> Result<(), NetherNetError> {
-    let count = segment_count(item.buffer.len(), item.reliable, max_len)?;
-    // Empty sends write no frames, matching conn.go:Conn.Send.
-    for (index, fragment) in item.buffer.chunks(max_len).enumerate() {
-        let mut frame = BytesMut::with_capacity(fragment.len() + 1);
-        frame.extend_from_slice(&[(count - 1 - index) as u8]);
-        frame.extend_from_slice(fragment);
-        channel.send(&frame.freeze()).await?;
-    }
-    if channel.buffered_amount().await > BUFFERED_AMOUNT_HIGH {
-        drain_channel(channel, drained, BUFFERED_AMOUNT_LOW).await?;
-    }
-    Ok(())
-}
-
-/// Graceful-close drain: every queued byte on both channels is acknowledged.
-async fn drain_all(
-    channels: [&RTCDataChannel; 2],
-    notifications: &[Arc<Notify>; 2],
-) -> Result<(), NetherNetError> {
-    for (channel, drained) in channels.into_iter().zip(notifications) {
-        // The low callback fires only when crossing the threshold; target zero.
-        channel.set_buffered_amount_low_threshold(0).await;
-        drain_channel(channel, drained, 0).await?;
-    }
-    Ok(())
-}
-
-struct ReassemblyBuffer {
-    remaining: u8,
-    data: BytesMut,
-    started_at: Instant,
-}
-
-struct ReassemblyState {
-    buffer: Option<ReassemblyBuffer>,
-    limit: usize,
-    timeout: Duration,
-}
-
-impl ReassemblyState {
-    fn new(limit: usize, timeout: Duration) -> Self {
-        Self {
-            buffer: None,
-            limit,
-            timeout,
-        }
-    }
-
-    /// Header and strict countdown follow `message.go:parseMessage` and
-    /// `dataChannel.handleMessage`. Size and time limits are local hardening.
-    fn receive(
-        &mut self,
-        data: Bytes,
-        reliable: bool,
-        max_payload: usize,
-    ) -> Result<Option<Message>, NetherNetError> {
-        if data.len() < 2 {
-            return Err(NetherNetError::InvalidPacket);
-        }
-        if data.len() - 1 > max_payload {
-            return Err(NetherNetError::MessageTooLarge {
-                size: data.len() - 1,
-                limit: max_payload,
-            });
-        }
-        let remaining = data[0];
-        let payload = data.slice(1..);
-        if !reliable {
-            if remaining != 0 {
-                return Err(NetherNetError::InvalidSegmentCount {
-                    expected: 0,
-                    actual: remaining,
-                });
-            }
-            return Ok(Some(Message::unreliable(payload)));
-        }
-        if let Some(buffer) = self.buffer.as_mut() {
-            if buffer.started_at.elapsed() > self.timeout {
-                return Err(NetherNetError::ReassemblyTimeout);
-            }
-            let expected = buffer.remaining - 1;
-            if remaining != expected {
-                return Err(NetherNetError::InvalidSegmentCount {
-                    expected,
-                    actual: remaining,
-                });
-            }
-            if payload.len() > self.limit.saturating_sub(buffer.data.len()) {
-                return Err(NetherNetError::MessageTooLarge {
-                    size: buffer.data.len().saturating_add(payload.len()),
-                    limit: self.limit,
-                });
-            }
-            buffer.data.extend_from_slice(&payload);
-            buffer.remaining = remaining;
-            if remaining == 0 {
-                return Ok(Some(Message::reliable(
-                    self.buffer.take().unwrap().data.freeze(),
-                )));
-            }
-            return Ok(None);
-        }
-        if payload.len() > self.limit {
-            return Err(NetherNetError::MessageTooLarge {
-                size: payload.len(),
-                limit: self.limit,
-            });
-        }
-        if remaining == 0 {
-            return Ok(Some(Message::reliable(payload)));
-        }
-        self.buffer = Some(ReassemblyBuffer {
-            remaining,
-            data: BytesMut::from(payload.as_ref()),
-            started_at: Instant::now(),
-        });
-        Ok(None)
-    }
+    terminal: bool,
 }
 
 impl NetherNetStream {
-    /// Consume the receiver belonging to handlers registered before negotiation.
-    pub(crate) fn new_with_receiver(
-        reliable_dc: Arc<RTCDataChannel>,
-        unreliable_dc: Arc<RTCDataChannel>,
-        incoming_tx: mpsc::Sender<Result<Message, NetherNetError>>,
-        incoming_rx: mpsc::Receiver<Result<Message, NetherNetError>>,
-        config: NetherNetStreamConfig,
+    pub(crate) fn new(
+        connection: Arc<Connection>,
+        driver: tokio::task::JoinHandle<()>,
+        remote_identity: Option<crate::identity::VerifiedIdentity>,
     ) -> Self {
-        // A single maximum-sized packet may be queued, bounding outbound storage.
-        let (outbound_tx, mut outbound_rx) = mpsc::channel::<OutboundMessage>(1);
-        let r_dc = reliable_dc.clone();
-        let u_dc = unreliable_dc.clone();
-        let max_len = config.max_message_size;
-        let validation = config.validate();
-        let sender_task = tokio::spawn(async move {
-            if let Err(error) = validation {
-                let _ = incoming_tx.send(Err(error)).await;
-                return;
-            }
-            let notifications = [Arc::new(Notify::new()), Arc::new(Notify::new())];
-            for (channel, notification) in [(&r_dc, &notifications[0]), (&u_dc, &notifications[1])]
-            {
-                let notification = notification.clone();
-                channel
-                    .set_buffered_amount_low_threshold(BUFFERED_AMOUNT_LOW)
-                    .await;
-                channel
-                    .on_buffered_amount_low(Box::new(move || {
-                        let notification = notification.clone();
-                        Box::pin(async move {
-                            notification.notify_one();
-                        })
-                    }))
-                    .await;
-            }
-            while let Some(OutboundMessage {
-                command,
-                completion,
-            }) = outbound_rx.recv().await
-            {
-                let result = match command {
-                    OutboundCommand::Send(message) => {
-                        let (channel, drained) = if message.reliable {
-                            (&r_dc, &notifications[0])
-                        } else {
-                            (&u_dc, &notifications[1])
-                        };
-                        let send = send_message(channel, message, max_len, drained);
-                        catch_dependency_panic("stream send", send).await
-                    }
-                    OutboundCommand::Drain => {
-                        let drain = drain_all([&r_dc, &u_dc], &notifications);
-                        catch_dependency_panic("stream drain", drain).await
-                    }
-                }
-                .and_then(|result| result);
-                let failed = result.is_err();
-                let _ = completion.send(result);
-                if failed {
-                    // The specific non-cloneable transport error belongs to the
-                    // sending future; readers also learn that the stream ended.
-                    let _ = incoming_tx
-                        .send(Err(NetherNetError::ConnectionClosed))
-                        .await;
-                    return;
-                }
-            }
-        });
         Self {
-            incoming_rx,
-            outbound_tx: PollSender::new(outbound_tx),
-            pending_send: None,
-            reassembly: ReassemblyState::new(config.max_reassembly_size, config.reassembly_timeout),
-            max_message_size: config.max_message_size,
+            connection,
+            driver,
+            remote_identity,
             terminal: false,
-            sender_task,
-            channels: [reliable_dc, unreliable_dc],
-            peer: None,
-            remote_identity: None,
-            drain_requested: false,
         }
     }
 
@@ -534,37 +166,14 @@ impl NetherNetStream {
         dialer.dial(network_id).await
     }
 
-    pub(crate) fn attach_peer(&mut self, peer: Arc<webrtc::peer_connection::RTCPeerConnection>) {
-        self.peer = Some(peer);
-    }
-
     /// Remote key-possession proof bound to DTLS. Client JWT authenticity must
     /// additionally be established by a verifier or Login's GameServerToken/cpk binding.
     pub fn remote_identity(&self) -> Option<&crate::identity::VerifiedIdentity> {
         self.remote_identity.as_ref()
     }
 
-    pub(crate) fn set_remote_identity(
-        &mut self,
-        identity: Option<crate::identity::VerifiedIdentity>,
-    ) {
-        self.remote_identity = identity;
-    }
-
-    fn poll_send_completion(&mut self, cx: &mut Context<'_>) -> Poll<Result<(), NetherNetError>> {
-        let Some(completion) = self.pending_send.as_mut() else {
-            return Poll::Ready(Ok(()));
-        };
-        let result = match Pin::new(completion).poll(cx) {
-            Poll::Pending => return Poll::Pending,
-            Poll::Ready(Ok(result)) => result,
-            Poll::Ready(Err(_)) => Err(NetherNetError::ConnectionClosed),
-        };
-        self.pending_send = None;
-        if result.is_err() {
-            self.terminate();
-        }
-        Poll::Ready(result)
+    pub(crate) fn connection(&self) -> &Arc<Connection> {
+        &self.connection
     }
 
     fn terminate(&mut self) {
@@ -572,22 +181,20 @@ impl NetherNetStream {
             return;
         }
         self.terminal = true;
-        self.incoming_rx.close();
-        self.reassembly.buffer = None;
-        self.outbound_tx.close();
-        self.sender_task.abort();
-        let channels = self.channels.clone();
-        let peer = self.peer.take();
-        // Channel callbacks may hold internal locks; close outside the callback.
-        if let Ok(runtime) = tokio::runtime::Handle::try_current() {
-            runtime.spawn(async move {
-                for channel in channels {
-                    let _ = channel.close().await;
-                }
-                if let Some(peer) = peer {
-                    let _ = peer.close().await;
-                }
-            });
+        self.connection.close();
+    }
+
+    /// Map a contained failure to the stream's terminal error.
+    fn finish<T>(
+        &mut self,
+        result: Result<Poll<Result<T, NetherNetError>>, NetherNetError>,
+    ) -> Poll<Result<T, NetherNetError>> {
+        match result {
+            Ok(Poll::Ready(Err(error))) | Err(error) => {
+                self.terminate();
+                Poll::Ready(Err(error))
+            }
+            Ok(poll) => poll,
         }
     }
 }
@@ -599,31 +206,20 @@ impl Stream for NetherNetStream {
         if self.terminal {
             return Poll::Ready(None);
         }
-        loop {
-            match self.incoming_rx.poll_recv(cx) {
-                Poll::Ready(Some(Ok(msg))) => {
-                    match self
-                        .reassembly
-                        .receive(msg.buffer, msg.reliable, TRANSPORT_MAX_PAYLOAD)
-                    {
-                        Ok(Some(message)) => return Poll::Ready(Some(Ok(message))),
-                        Ok(None) => continue,
-                        Err(error) => {
-                            self.terminate();
-                            return Poll::Ready(Some(Err(error)));
-                        }
-                    }
-                }
-                Poll::Ready(Some(Err(error))) => {
-                    self.terminate();
-                    return Poll::Ready(Some(Err(error)));
-                }
-                Poll::Ready(None) => {
-                    self.terminate();
-                    return Poll::Ready(None);
-                }
-                Poll::Pending => return Poll::Pending,
+        let polled = self
+            .connection
+            .with("receive", |session, now| session.poll_recv(now, cx));
+        match polled {
+            Ok(Poll::Ready(Some(Ok(message)))) => Poll::Ready(Some(Ok(message))),
+            Ok(Poll::Ready(Some(Err(error)))) | Err(error) => {
+                self.terminate();
+                Poll::Ready(Some(Err(error)))
             }
+            Ok(Poll::Ready(None)) => {
+                self.terminate();
+                Poll::Ready(None)
+            }
+            Ok(Poll::Pending) => Poll::Pending,
         }
     }
 }
@@ -632,81 +228,59 @@ impl Sink<Message> for NetherNetStream {
     type Error = NetherNetError;
 
     fn poll_ready(mut self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<Result<(), Self::Error>> {
-        if self.terminal || self.drain_requested {
-            return Poll::Ready(Err(NetherNetError::ConnectionClosed));
-        }
-        match self.poll_send_completion(cx) {
-            Poll::Ready(Ok(())) => {}
-            result => return result,
-        }
-        self.outbound_tx
-            .poll_ready_unpin(cx)
-            .map_err(|_| NetherNetError::ConnectionClosed)
-    }
-
-    fn start_send(mut self: Pin<&mut Self>, item: Message) -> Result<(), Self::Error> {
-        if self.terminal || self.drain_requested {
-            return Err(NetherNetError::ConnectionClosed);
-        }
-        segment_count(item.buffer.len(), item.reliable, self.max_message_size)?;
-        if self.pending_send.is_some() {
-            return Err(NetherNetError::InvalidConfiguration(
-                "poll_ready required before start_send",
-            ));
-        }
-        let (completion, receiver) = oneshot::channel();
-        self.outbound_tx
-            .start_send_unpin(OutboundMessage {
-                command: OutboundCommand::Send(item),
-                completion,
-            })
-            .map_err(|_| NetherNetError::ConnectionClosed)?;
-        self.pending_send = Some(receiver);
-        Ok(())
-    }
-
-    fn poll_flush(mut self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<Result<(), Self::Error>> {
         if self.terminal {
             return Poll::Ready(Err(NetherNetError::ConnectionClosed));
         }
-        self.poll_send_completion(cx)
+        let polled = self
+            .connection
+            .with("send", |session, _| session.poll_send_ready(cx));
+        self.finish(polled)
     }
 
-    /// Waits for the last send, then until both channels' queued bytes are
-    /// acknowledged: closing resets the SCTP streams, which could otherwise
-    /// discard frames that `flush` reported as accepted.
+    fn start_send(mut self: Pin<&mut Self>, item: Message) -> Result<(), Self::Error> {
+        if self.terminal {
+            return Err(NetherNetError::ConnectionClosed);
+        }
+        let result = self.connection.with("send", |session, now| {
+            (session.send(now, &item), session.is_finished())
+        });
+        match result {
+            Ok((Ok(()), _)) => Ok(()),
+            // Size violations reject this message only; transport failures end the stream.
+            Ok((Err(error), finished)) => {
+                if finished {
+                    self.terminate();
+                }
+                Err(error)
+            }
+            Err(error) => {
+                self.terminate();
+                Err(error)
+            }
+        }
+    }
+
+    fn poll_flush(self: Pin<&mut Self>, _: &mut Context<'_>) -> Poll<Result<(), Self::Error>> {
+        if self.terminal {
+            return Poll::Ready(Err(NetherNetError::ConnectionClosed));
+        }
+        // Sends are handed to SCTP and the socket inline in `start_send`.
+        Poll::Ready(Ok(()))
+    }
+
     fn poll_close(mut self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<Result<(), Self::Error>> {
         if self.terminal {
             return Poll::Ready(Ok(()));
         }
-        loop {
-            match self.poll_send_completion(cx) {
-                Poll::Ready(Ok(())) => {}
-                result => return result,
-            }
-            if self.drain_requested {
+        let polled = self
+            .connection
+            .with("close", |session, _| session.poll_drained(cx));
+        match self.finish(polled) {
+            Poll::Ready(Ok(())) => {
                 self.terminate();
-                return Poll::Ready(Ok(()));
+                Poll::Ready(Ok(()))
             }
-            match self.outbound_tx.poll_ready_unpin(cx) {
-                Poll::Pending => return Poll::Pending,
-                Poll::Ready(Ok(())) => {}
-                Poll::Ready(Err(_)) => {
-                    self.terminate();
-                    return Poll::Ready(Err(NetherNetError::ConnectionClosed));
-                }
-            }
-            let (completion, receiver) = oneshot::channel();
-            let drain = OutboundMessage {
-                command: OutboundCommand::Drain,
-                completion,
-            };
-            if self.outbound_tx.start_send_unpin(drain).is_err() {
-                self.terminate();
-                return Poll::Ready(Err(NetherNetError::ConnectionClosed));
-            }
-            self.pending_send = Some(receiver);
-            self.drain_requested = true;
+            other => other,
         }
     }
 }
@@ -714,24 +288,16 @@ impl Sink<Message> for NetherNetStream {
 impl Drop for NetherNetStream {
     fn drop(&mut self) {
         self.terminate();
+        self.driver.abort();
     }
 }
 
 #[cfg(test)]
 mod tests {
     use super::*;
-
-    pub(super) fn test_stream(
-        reliable: Arc<RTCDataChannel>,
-        unreliable: Arc<RTCDataChannel>,
-        config: NetherNetStreamConfig,
-    ) -> NetherNetStream {
-        config.validate().unwrap();
-        let (tx, rx) = mpsc::channel(config.incoming_channel_capacity);
-        install_message_handler(&reliable, tx.clone(), true);
-        install_message_handler(&unreliable, tx.clone(), false);
-        NetherNetStream::new_with_receiver(reliable, unreliable, tx, rx, config)
-    }
+    use crate::test_support::{connected_pair, connected_pair_with};
+    use futures::{SinkExt, StreamExt};
+    use tokio::sync::mpsc;
 
     struct QuietSignaling {
         _tx: mpsc::Sender<crate::Signal>,
@@ -791,29 +357,32 @@ mod tests {
         assert_eq!(started.elapsed(), timeout);
     }
 
-    #[tokio::test(start_paused = true)]
+    #[tokio::test]
     async fn configured_ice_servers_override_signaling_credential_wait() {
-        let result = NetherNetStream::connect_with_config(
-            "remote".into(),
-            QuietSignaling::new(true),
-            NetherNetStreamConfig {
-                ice_servers: vec![RTCIceServer {
-                    urls: vec!["invalid://host".into()],
+        // Credentials never resolve: reaching the offer proves they were skipped.
+        let result = tokio::time::timeout(
+            Duration::from_secs(10),
+            NetherNetStream::connect_with_config(
+                "remote".into(),
+                QuietSignaling::new(true),
+                NetherNetStreamConfig {
+                    ice_servers: vec![IceServer {
+                        username: String::new(),
+                        password: String::new(),
+                        urls: vec!["stun:127.0.0.1:9".into()],
+                    }],
                     ..Default::default()
-                }],
-                ..Default::default()
-            },
+                },
+            ),
         )
-        .await;
-        assert!(
-            matches!(result, Err(NetherNetError::WebRTC(_))),
-            "configured invalid ICE URL was ignored"
-        );
+        .await
+        .expect("configured ICE servers must not wait for signaling credentials");
+        assert!(matches!(result, Err(NetherNetError::Signaling(_))));
     }
 
     #[test]
     fn rejects_invalid_configuration() {
-        for size in [0, 65535, 262144, usize::MAX] {
+        for size in [0, 262144, usize::MAX] {
             let config = NetherNetStreamConfig {
                 max_message_size: size,
                 ..Default::default()
@@ -827,335 +396,16 @@ mod tests {
         assert!(config.validate().is_err());
     }
 
-    #[test]
-    fn segment_count_never_wraps() {
-        assert_eq!(segment_count(255 * 3, true, 3).unwrap(), 255);
-        assert!(matches!(
-            segment_count(255 * 3 + 1, true, 3),
-            Err(NetherNetError::TooManySegments { .. })
-        ));
-        assert_eq!(segment_count(0, true, 3).unwrap(), 0);
-        assert!(matches!(
-            segment_count(4, false, 3),
-            Err(NetherNetError::MessageTooLarge { .. })
-        ));
-        assert!(segment_count(1, true, 0).is_err());
-    }
-
-    #[test]
-    fn receives_both_channel_headers_and_strict_countdown() {
-        let mut state = ReassemblyState::new(100, Duration::from_secs(1));
-        assert!(
-            state
-                .receive(Bytes::from_static(&[2, 1]), true, 10)
-                .unwrap()
-                .is_none()
-        );
-        assert!(matches!(
-            state.receive(Bytes::from_static(&[2, 2]), true, 10),
-            Err(NetherNetError::InvalidSegmentCount {
-                expected: 1,
-                actual: 2
-            })
-        ));
-        let mut state = ReassemblyState::new(100, Duration::from_secs(1));
-        assert!(
-            state
-                .receive(Bytes::from_static(&[1, 1]), true, 10)
-                .unwrap()
-                .is_none()
-        );
-        let unreliable = state
-            .receive(Bytes::from_static(&[0, 9]), false, 10)
-            .unwrap()
-            .unwrap();
-        assert_eq!(unreliable.buffer.as_ref(), &[9]);
-        assert!(!unreliable.reliable);
-        assert_eq!(
-            state
-                .receive(Bytes::from_static(&[0, 2]), true, 10)
-                .unwrap()
-                .unwrap()
-                .buffer
-                .as_ref(),
-            &[1, 2]
-        );
-        assert!(
-            state
-                .receive(Bytes::from_static(&[1, 9]), false, 10)
-                .is_err()
-        );
-    }
-
-    #[test]
-    fn receives_exactly_255_segments_without_overflow() {
-        let mut state = ReassemblyState::new(255, Duration::from_secs(1));
-        for remaining in (1..255u8).rev() {
-            assert!(
-                state
-                    .receive(Bytes::from(vec![remaining, 7]), true, 1)
-                    .unwrap()
-                    .is_none()
-            );
-        }
-        assert_eq!(
-            state
-                .receive(Bytes::from_static(&[0, 7]), true, 1)
-                .unwrap()
-                .unwrap()
-                .buffer
-                .len(),
-            255
-        );
-    }
-
-    #[test]
-    fn receive_limits_include_single_packets_and_timeout() {
-        let mut state = ReassemblyState::new(1, Duration::ZERO);
-        assert!(
-            state
-                .receive(Bytes::from_static(&[0, 1, 2]), true, 10)
-                .is_err()
-        );
-        assert!(state.receive(Bytes::from_static(&[0]), true, 10).is_err());
-        assert!(
-            state
-                .receive(Bytes::from_static(&[0, 1, 2]), false, 1)
-                .is_err()
-        );
-        assert!(
-            state
-                .receive(Bytes::from_static(&[1, 1]), true, 10)
-                .unwrap()
-                .is_none()
-        );
-        state.buffer.as_mut().unwrap().started_at = Instant::now() - Duration::from_secs(1);
-        assert!(matches!(
-            state.receive(Bytes::from_static(&[0, 2]), true, 10),
-            Err(NetherNetError::ReassemblyTimeout)
-        ));
-    }
-
-    #[tokio::test]
-    async fn callback_delivery_backpressures_instead_of_dropping() {
-        let (tx, mut rx) = mpsc::channel(1);
-        deliver_message(&tx, Bytes::from_static(&[0, 1]), true, 10).await;
-        let delivery = deliver_message(&tx, Bytes::from_static(&[0, 2]), true, 10);
-        tokio::pin!(delivery);
-        assert!(futures::poll!(&mut delivery).is_pending());
-        assert_eq!(rx.recv().await.unwrap().unwrap().buffer.as_ref(), &[0, 1]);
-        delivery.await;
-        assert_eq!(rx.recv().await.unwrap().unwrap().buffer.as_ref(), &[0, 2]);
-        deliver_message(&tx, Bytes::from_static(&[0, 1, 2]), false, 1).await;
-        assert!(matches!(
-            rx.recv().await.unwrap(),
-            Err(NetherNetError::MessageTooLarge { .. })
-        ));
-    }
-
-    #[test]
-    fn negotiates_required_sctp_limit() {
-        assert_eq!(
-            negotiate_max_message_size("v=0\r\na=max-message-size:65536\r\n", 262143).unwrap(),
-            65534
-        );
-        for sdp in [
-            "v=0\r\n",
-            "a=max-message-size:0\r\n",
-            "a=max-message-size:1\r\n",
-            "a=max-message-size:4294967296\r\n",
-            "a=max-message-size:wat\r\n",
-        ] {
-            assert!(negotiate_max_message_size(sdp, 262143).is_err());
-        }
-        assert_eq!(
-            local_sdp("v=0\r\na=max-message-size:65536\r\n".into()),
-            "v=0\r\na=max-message-size:65535\r\n"
-        );
-    }
-}
-
-#[cfg(test)]
-mod loopback_tests {
-    use super::tests::test_stream;
-    use super::*;
-    use futures::StreamExt;
-    use webrtc::{
-        api::{APIBuilder, setting_engine::SettingEngine},
-        data_channel::data_channel_init::RTCDataChannelInit,
-        peer_connection::{RTCPeerConnection, configuration::RTCConfiguration},
-    };
-
-    async fn peer() -> Arc<RTCPeerConnection> {
-        let mut settings = SettingEngine::default();
-        settings.set_include_loopback_candidate(true);
-        settings.set_ip_filter(Box::new(|ip| ip.is_loopback()));
-        Arc::new(
-            APIBuilder::new()
-                .with_setting_engine(settings)
-                .build()
-                .new_peer_connection(RTCConfiguration::default())
-                .await
-                .unwrap(),
-        )
-    }
-
-    #[tokio::test]
-    async fn flush_and_close_wait_for_sender_completion() {
-        let pc = peer().await;
-        let reliable = pc
-            .create_data_channel("ReliableDataChannel", None)
-            .await
-            .unwrap();
-        let unreliable = pc
-            .create_data_channel("UnreliableDataChannel", None)
-            .await
-            .unwrap();
-        let mut stream = test_stream(reliable, unreliable, NetherNetStreamConfig::default());
-        stream.attach_peer(pc.clone());
-        // Drive the real Sink state machine while holding its completion channel,
-        // without scheduling or timing assumptions about network writes.
-        let (completion, receiver) = oneshot::channel();
-        stream.pending_send = Some(receiver);
-        {
-            let flush = stream.flush();
-            tokio::pin!(flush);
-            assert!(futures::poll!(&mut flush).is_pending());
-        }
-        {
-            let close = stream.close();
-            tokio::pin!(close);
-            assert!(futures::poll!(&mut close).is_pending());
-        }
-        assert!(!stream.terminal);
-        completion.send(Ok(())).unwrap();
-        stream.close().await.unwrap();
-        assert!(stream.terminal);
-        pc.close().await.unwrap();
-    }
-
-    #[tokio::test]
-    async fn send_reports_actual_transport_failure() {
-        let pc = peer().await;
-        let reliable = pc
-            .create_data_channel("ReliableDataChannel", None)
-            .await
-            .unwrap();
-        let unreliable = pc
-            .create_data_channel("UnreliableDataChannel", None)
-            .await
-            .unwrap();
-        let mut stream = test_stream(reliable, unreliable, NetherNetStreamConfig::default());
-        stream.attach_peer(pc.clone());
-        let error = stream
-            .send(Message::reliable(Bytes::from_static(b"closed")))
-            .await
-            .unwrap_err();
-        assert!(matches!(error, NetherNetError::WebRTC(_)));
-        pc.close().await.unwrap();
-    }
-
-    /// Two directly negotiated peers carrying NetherNet streams `a` (client,
-    /// sending with `outgoing`) and `b` (server, default configuration).
-    async fn connected_pair(
-        outgoing: NetherNetStreamConfig,
-    ) -> (
-        Arc<RTCPeerConnection>,
-        Arc<RTCPeerConnection>,
-        NetherNetStream,
-        NetherNetStream,
-    ) {
-        let client = peer().await;
-        let server = peer().await;
-        let (accepted_tx, mut accepted_rx) = mpsc::channel(2);
-        server.on_data_channel(Box::new(move |dc| {
-            let tx = accepted_tx.clone();
-            let opened = dc.clone();
-            dc.on_open(Box::new(move || {
-                let tx = tx.clone();
-                let dc = opened.clone();
-                Box::pin(async move {
-                    tx.send(dc).await.unwrap();
-                })
-            }));
-            Box::pin(async {})
-        }));
-        let reliable = client
-            .create_data_channel(
-                "ReliableDataChannel",
-                Some(RTCDataChannelInit {
-                    ordered: Some(true),
-                    ..Default::default()
-                }),
-            )
-            .await
-            .unwrap();
-        let unreliable = client
-            .create_data_channel(
-                "UnreliableDataChannel",
-                Some(RTCDataChannelInit {
-                    ordered: Some(false),
-                    max_retransmits: Some(0),
-                    ..Default::default()
-                }),
-            )
-            .await
-            .unwrap();
-        let (opened_tx, mut opened_rx) = mpsc::channel(2);
-        for dc in [&reliable, &unreliable] {
-            let tx = opened_tx.clone();
-            dc.on_open(Box::new(move || {
-                let tx = tx.clone();
-                Box::pin(async move {
-                    tx.send(()).await.unwrap();
-                })
-            }));
-        }
-
-        let offer = client.create_offer(None).await.unwrap();
-        let mut complete = client.gathering_complete_promise().await;
-        client.set_local_description(offer).await.unwrap();
-        complete.recv().await;
-        server
-            .set_remote_description(client.local_description().await.unwrap())
-            .await
-            .unwrap();
-        let answer = server.create_answer(None).await.unwrap();
-        let mut complete = server.gathering_complete_promise().await;
-        server.set_local_description(answer).await.unwrap();
-        complete.recv().await;
-        client
-            .set_remote_description(server.local_description().await.unwrap())
-            .await
-            .unwrap();
-        opened_rx.recv().await.unwrap();
-        opened_rx.recv().await.unwrap();
-        let first = accepted_rx.recv().await.unwrap();
-        let second = accepted_rx.recv().await.unwrap();
-        let (remote_r, remote_u) = if first.label() == "ReliableDataChannel" {
-            (first, second)
-        } else {
-            (second, first)
-        };
-        let mut a = test_stream(reliable, unreliable, outgoing);
-        let mut b = test_stream(remote_r, remote_u, NetherNetStreamConfig::default());
-        a.attach_peer(client.clone());
-        b.attach_peer(server.clone());
-        (client, server, a, b)
-    }
-
-    /// NETHERNET-04: webrtc-sctp acknowledges a lone DATA chunk only after its
-    /// 200 ms delayed-ACK timer. Send completion used to wait for that SACK, so
-    /// sequential small sends each took >= 200 ms. They must only await SCTP
-    /// acceptance; the peer application deliberately reads nothing until all
-    /// sends completed, so no reply can carry an early acknowledgement.
+    /// NETHERNET-04: rtc-sctp acknowledges a lone DATA chunk only after its
+    /// 200 ms delayed-ACK timer. Sequential small sends must complete on SCTP
+    /// acceptance; the peer application reads nothing until all sends
+    /// completed, so no reply can carry an early acknowledgement.
     #[tokio::test]
     async fn small_reliable_sends_do_not_wait_for_delayed_sack() {
         const SENDS: usize = 20;
         const DELAYED_ACK: Duration = Duration::from_millis(200);
         tokio::time::timeout(Duration::from_secs(30), async {
-            let (client, server, mut a, mut b) =
-                connected_pair(NetherNetStreamConfig::default()).await;
+            let (mut a, mut b, _listener) = connected_pair(NetherNetStreamConfig::default()).await;
             let started = std::time::Instant::now();
             for index in 0..SENDS {
                 a.send(Message::reliable(Bytes::from(vec![index as u8; 32])))
@@ -1163,7 +413,6 @@ mod loopback_tests {
                     .unwrap();
             }
             let elapsed = started.elapsed();
-            // Acknowledgement-bound sends need >= SENDS * DELAYED_ACK (4 s).
             assert!(
                 elapsed < DELAYED_ACK,
                 "{SENDS} small sends took {elapsed:?}; send completion waits for SACKs"
@@ -1173,24 +422,20 @@ mod loopback_tests {
                 assert!(received.reliable);
                 assert_eq!(received.buffer.as_ref(), [index as u8; 32]);
             }
-            drop((a, b));
-            client.close().await.unwrap();
-            server.close().await.unwrap();
         })
         .await
-        .expect("loopback SCTP exchange timed out");
+        .expect("loopback exchange timed out");
     }
 
     #[tokio::test]
-    async fn real_loopback_sctp_fragmentation_and_unreliable_header() {
+    async fn real_loopback_fragmentation_unreliable_header_and_drained_close() {
         tokio::time::timeout(Duration::from_secs(30), async {
-            // Exercise fragmentation across the actual webrtc-rs 65535-byte
-            // frame receive ceiling, not only small synthetic fragments.
+            // Exercise multi-segment messages larger than one SCTP message.
             let outgoing_small = NetherNetStreamConfig {
                 max_message_size: 16383,
                 ..NetherNetStreamConfig::default()
             };
-            let (client, server, mut a, mut b) = connected_pair(outgoing_small).await;
+            let (mut a, mut b, _listener) = connected_pair(outgoing_small).await;
             let payload = Bytes::from((0..140000).map(|n| n as u8).collect::<Vec<_>>());
             a.send(Message::reliable(payload.clone())).await.unwrap();
             let received = b.next().await.unwrap().unwrap();
@@ -1202,11 +447,20 @@ mod loopback_tests {
             let received = a.next().await.unwrap().unwrap();
             assert!(!received.reliable);
             assert_eq!(received.buffer.as_ref(), b"reply");
-            // Remote receive limits constrain only outbound segments: a peer
-            // advertising 16384 may still send us a 20001-byte frame.
-            let asymmetric = Bytes::from(vec![7; 20000]);
-            b.send(Message::reliable(asymmetric.clone())).await.unwrap();
-            assert_eq!(a.next().await.unwrap().unwrap().buffer, asymmetric);
+            // A single 262143-byte segment, the go-nethernet maximum.
+            let largest = Bytes::from(vec![7; MAX_SEGMENT_PAYLOAD]);
+            b.send(Message::reliable(largest.clone())).await.unwrap();
+            assert_eq!(a.next().await.unwrap().unwrap().buffer, largest);
+            // Unreliable messages are one segment.
+            assert!(matches!(
+                b.send(Message::unreliable(Bytes::from(vec![
+                    0;
+                    MAX_SEGMENT_PAYLOAD
+                        + 1
+                ])))
+                .await,
+                Err(NetherNetError::MessageTooLarge { .. })
+            ));
             // Closing immediately after send must not abort remaining fragments.
             let final_packet = Bytes::from(vec![9; 140000]);
             let expected = final_packet.clone();
@@ -1219,12 +473,187 @@ mod loopback_tests {
             );
             assert_eq!(sent, ());
             assert_eq!(received.buffer, expected);
-            drop(a);
-            drop(b);
-            client.close().await.unwrap();
-            server.close().await.unwrap();
+            // go-nethernet close semantics: the channels reset and the ABORT
+            // that follows the drained close end the peer at once (no ICE
+            // timeout), as an error like go's `net.ErrClosed`.
+            let closed_at = std::time::Instant::now();
+            assert!(matches!(
+                b.next().await,
+                Some(Err(NetherNetError::ConnectionClosed))
+            ));
+            assert!(closed_at.elapsed() < Duration::from_secs(1));
+            assert!(b.next().await.is_none());
+            assert!(matches!(
+                b.send(Message::reliable(Bytes::from_static(b"late"))).await,
+                Err(NetherNetError::ConnectionClosed)
+            ));
         })
         .await
-        .expect("loopback SCTP exchange timed out");
+        .expect("loopback exchange timed out");
+    }
+
+    /// A panic inside the transport poisons that connection only: every
+    /// waiter gets `DependencyPanic`, the driver exits instead of re-entering
+    /// rtc on its next tick, and the peer connection is unaffected.
+    #[tokio::test]
+    async fn contained_panic_poisons_the_connection() {
+        tokio::time::timeout(Duration::from_secs(30), async {
+            let (mut a, mut b, _listener) = connected_pair(NetherNetStreamConfig::default()).await;
+            let error = a
+                .connection
+                .with("test", |_, _| -> () { panic!("rtc exploded") })
+                .unwrap_err();
+            assert!(matches!(
+                error,
+                NetherNetError::DependencyPanic {
+                    context: "test",
+                    ..
+                }
+            ));
+            match a.next().await {
+                Some(Err(NetherNetError::DependencyPanic { message, .. })) => {
+                    assert_eq!(message, "rtc exploded")
+                }
+                other => panic!("expected DependencyPanic, got {other:?}"),
+            }
+            assert!(a.next().await.is_none());
+            assert!(matches!(
+                a.send(Message::reliable(Bytes::from_static(b"x"))).await,
+                Err(NetherNetError::ConnectionClosed)
+            ));
+            while !a.driver.is_finished() {
+                tokio::time::sleep(Duration::from_millis(5)).await;
+            }
+            // Teardown is skipped: no rtc call after the panic.
+            a.connection.close();
+            assert!(
+                a.connection
+                    .with("check", |session, _| session.poll_timeout())
+                    .unwrap()
+                    .is_none()
+            );
+            drop(a);
+            // The peer only sees its transport go quiet (no ABORT was sent).
+            b.send(Message::reliable(Bytes::from_static(b"still writable")))
+                .await
+                .unwrap();
+        })
+        .await
+        .expect("poisoned connection test timed out");
+    }
+
+    /// Reassembly failures keep their type for the reader (`message.go`
+    /// rejects a countdown gap).
+    #[tokio::test]
+    async fn framing_errors_reach_the_reader_typed() {
+        tokio::time::timeout(Duration::from_secs(30), async {
+            let (a, mut b, _listener) = connected_pair(NetherNetStreamConfig::default()).await;
+            a.connection
+                .with("test", |session, now| {
+                    session.write_raw_segment(now, true, &[2, b'x']);
+                    session.write_raw_segment(now, true, &[0, b'y']);
+                })
+                .unwrap();
+            match b.next().await {
+                Some(Err(NetherNetError::InvalidSegmentCount { expected, actual })) => {
+                    assert_eq!((expected, actual), (1, 0));
+                }
+                other => panic!("expected InvalidSegmentCount, got {other:?}"),
+            }
+        })
+        .await
+        .expect("framing error test timed out");
+    }
+
+    /// A certificate that does not match the signaled fingerprint fails the
+    /// DTLS handshake on both sides (`dtlstransport.go:validateFingerPrint`).
+    #[tokio::test]
+    async fn fingerprint_mismatch_rejects_the_connection() {
+        fn tamper(signal: &mut crate::Signal) {
+            if signal.typ == crate::SignalType::Offer {
+                let start = signal.data.find("a=fingerprint:sha-256 ").unwrap() + 22;
+                let digit = if signal.data.as_bytes()[start] == b'0' {
+                    "1"
+                } else {
+                    "0"
+                };
+                signal.data.replace_range(start..start + 1, digit);
+            }
+        }
+        let (server, client) = crate::test_support::signaling_pair_rewriting(false, Some(tamper));
+        let mut listener = crate::NetherNetListener::bind_with_signaling(
+            server,
+            crate::NetherNetListenerConfig {
+                transport: crate::TransportConfig::loopback_v4(),
+                allow_identityless_client: true,
+                ..Default::default()
+            },
+        );
+        let dialer = crate::NetherNetDialer::connect_with_signaling(
+            client,
+            crate::NetherNetDialerConfig {
+                transport: crate::TransportConfig::loopback_v4(),
+                allow_identityless_server: true,
+                connection_timeout: Duration::from_secs(5),
+                ..Default::default()
+            },
+        );
+        let started = std::time::Instant::now();
+        let dialed = dialer.dial("1".into()).await;
+        assert!(dialed.is_err(), "tampered fingerprint must not connect");
+        // Rejected by the handshake (alert), not by the negotiation deadline.
+        assert!(
+            started.elapsed() < Duration::from_secs(4),
+            "{:?}",
+            started.elapsed()
+        );
+        assert!(
+            tokio::time::timeout(Duration::from_millis(200), listener.accept())
+                .await
+                .is_err()
+        );
+    }
+
+    /// Trickle signaling: offers/answers carry no candidates and every
+    /// candidate travels as `CANDIDATEADD` (conn.go:trickleCandidates).
+    #[tokio::test]
+    async fn trickled_candidates_establish_the_connection() {
+        tokio::time::timeout(Duration::from_secs(30), async {
+            let (mut a, mut b, _listener) =
+                connected_pair_with(NetherNetStreamConfig::default(), true).await;
+            a.send(Message::reliable(Bytes::from_static(b"trickled")))
+                .await
+                .unwrap();
+            assert_eq!(
+                b.next().await.unwrap().unwrap().buffer.as_ref(),
+                b"trickled"
+            );
+        })
+        .await
+        .expect("trickled negotiation timed out");
+    }
+
+    #[tokio::test]
+    async fn bounded_inbound_queue_backpressures_through_sctp_window() {
+        tokio::time::timeout(Duration::from_secs(30), async {
+            let config = NetherNetStreamConfig {
+                incoming_channel_capacity: 1,
+                ..NetherNetStreamConfig::default()
+            };
+            let (mut a, mut b, _listener) = connected_pair(config).await;
+            for index in 0..200u32 {
+                a.send(Message::reliable(Bytes::from(
+                    index.to_be_bytes().repeat(256),
+                )))
+                .await
+                .unwrap();
+            }
+            for index in 0..200u32 {
+                let received = b.next().await.unwrap().unwrap();
+                assert_eq!(&received.buffer[..4], index.to_be_bytes());
+            }
+        })
+        .await
+        .expect("paused channel was never resumed");
     }
 }

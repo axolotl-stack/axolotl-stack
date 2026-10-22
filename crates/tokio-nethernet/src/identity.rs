@@ -24,9 +24,9 @@ use p384::{
     },
     pkcs8::{DecodePublicKey, EncodePublicKey},
 };
+use rtc_sdp::description::{common::Attribute, session::SessionDescription};
 use serde::{Deserialize, Serialize};
 use serde_json::{Value, json};
-use webrtc::sdp::description::{common::Attribute, session::SessionDescription};
 
 /// An identity failure, including failures returned by the external authorization service.
 #[derive(Clone, Debug, PartialEq, Eq)]
@@ -305,9 +305,9 @@ fn fingerprint_payload(sdp: &str) -> Result<Vec<u8>, IdentityError> {
 fn description_fingerprint_payload(
     description: &SessionDescription,
 ) -> Result<Vec<u8>, IdentityError> {
-    // Match webrtc 0.12 peer_connection/sdp/mod.rs:extract_fingerprint exactly:
-    // first session attribute, first media attribute (including bare-attribute
-    // shadowing), and rejection of conflicting valued fingerprints.
+    // First session attribute, then first media attribute (including
+    // bare-attribute shadowing); conflicting valued fingerprints are rejected,
+    // so the signed digest is the one `transport::sdp::parse` verifies in DTLS.
     let mut selected = description.attribute("fingerprint").map(String::as_str);
     for media in &description.media_descriptions {
         if let Some(value) = media.attribute("fingerprint").and_then(|value| value) {

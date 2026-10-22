@@ -7,9 +7,11 @@ use nethernet::protocol::packet::discovery::{self, MessagePacket, Packets};
 use nethernet::protocol::webrtc::candidate::{format_ice_candidate, parse_ice_candidate};
 use nethernet::protocol::{Message, MessageSegment, Signal};
 use nethernet_tokio::signaling::caller::server::{
-    CallerServerSignaling, CallerServerSignalingConfig,
+    CallerServerSignaling, CallerServerSignalingConfig, CallerServerSignalingDriver,
 };
-use nethernet_tokio::signaling::caller::{CallerSignaling, CallerSignalingConfig, SignalDelivery};
+use nethernet_tokio::signaling::caller::{
+    CallerSignaling, CallerSignalingConfig, CallerSignalingDriver, SignalDelivery, SignalRequest,
+};
 use nethernet_tokio::transport::{
     ClientIceConfig, ConnectionConfig, NetherClient, NetherServer, ServerIceConfig,
 };
@@ -248,6 +250,30 @@ fn connection_config() -> ConnectionConfig {
     }
 }
 
+/// The Cinnabar caller-signaling driver behind one benchmark TCP bridge.
+trait SignalDriver: Send + 'static {
+    fn recv(&mut self) -> impl Future<Output = Option<SignalRequest>> + Send;
+    fn deliver(&self, wire: &str) -> Result<()>;
+}
+
+impl SignalDriver for CallerSignalingDriver {
+    fn recv(&mut self) -> impl Future<Output = Option<SignalRequest>> + Send {
+        CallerSignalingDriver::recv(self)
+    }
+    fn deliver(&self, wire: &str) -> Result<()> {
+        Ok(self.try_deliver("1", wire)?)
+    }
+}
+
+impl SignalDriver for CallerServerSignalingDriver {
+    fn recv(&mut self) -> impl Future<Output = Option<SignalRequest>> + Send {
+        CallerServerSignalingDriver::recv(self)
+    }
+    fn deliver(&self, wire: &str) -> Result<()> {
+        Ok(self.try_deliver("2", wire)?)
+    }
+}
+
 // Dropping the owner aborts and drops the bridge driver and socket, including on errors.
 struct Bridge {
     task: JoinHandle<Result<()>>,
@@ -256,6 +282,69 @@ struct Bridge {
 }
 
 impl Bridge {
+    /// Bridges `driver` over the benchmark TCP signaling socket.
+    ///
+    /// Two-phase BENCH-DONE, as the Rust and Go bridges: the task keeps
+    /// reading and writing until this side has written its marker and seen the
+    /// peer's. The driver ending is not completion (`NetherClient::connect_with`
+    /// drops its signaling handle once connected, which ends the driver at an
+    /// arbitrary time), and EOF before the peer's marker is an error.
+    fn spawn(stream: TcpStream, mut driver: impl SignalDriver) -> Result<Self> {
+        stream.set_nodelay(true)?;
+        let (reader, mut writer) = stream.into_split();
+        let mut lines = BufReader::new(reader).lines();
+        let (completed, completion) = oneshot::channel();
+        let (commands, mut controls) = mpsc::channel::<oneshot::Sender<()>>(1);
+        let task = tokio::spawn(async move {
+            let mut completed = Some(completed);
+            let mut driver_open = true;
+            let mut reading = true;
+            loop {
+                tokio::select! {
+                    command = controls.recv() => {
+                        let Some(sent) = command else { break };
+                        writer.write_all(BENCH_DONE_LINE).await?;
+                        let _ = sent.send(());
+                    }
+                    request = driver.recv(), if driver_open => {
+                        let Some(request) = request else {
+                            driver_open = false;
+                            continue;
+                        };
+                        let mut line = serde_json::to_vec(&request.signal().to_string())?;
+                        line.push(b'\n');
+                        writer.write_all(&line).await?;
+                        request.finish(Ok(SignalDelivery::ServiceAccepted));
+                    }
+                    line = lines.next_line(), if reading => {
+                        let Some(line) = line? else {
+                            ensure!(completed.is_none(), "signaling closed before peer BENCH-DONE");
+                            reading = false;
+                            continue;
+                        };
+                        let wire: String = serde_json::from_str(&line)?;
+                        if wire == BENCH_DONE {
+                            if let Some(completed) = completed.take() {
+                                let _ = completed.send(());
+                            }
+                            continue;
+                        }
+                        // Late signals after the driver ended have no recipient.
+                        if driver_open {
+                            driver.deliver(&wire)?;
+                        }
+                    }
+                }
+            }
+            Ok(())
+        });
+        Ok(Self {
+            task,
+            completion,
+            commands,
+        })
+    }
+
     async fn complete(&mut self, client: bool) -> Result<()> {
         let handshake = async {
             if !client {
@@ -281,9 +370,9 @@ impl Bridge {
             tokio::select! {
                 biased;
                 result = &mut self.task => {
+                    // The task only ends early on an error (EOF before the
+                    // peer's marker included).
                     result.context("signaling bridge task failed")??;
-                    // A peer may close immediately after its marker. Still require
-                    // both the local write acknowledgment and the received marker.
                     handshake.await
                 }
                 result = &mut handshake => result,
@@ -301,56 +390,12 @@ impl Drop for Bridge {
 }
 
 async fn client_bridge(stream: TcpStream) -> Result<(CallerSignaling, Bridge)> {
-    stream.set_nodelay(true)?;
-    let (signaling, mut driver) = CallerSignaling::new("2".into(), "1".into(), signaling_config())?;
-    let (reader, mut writer) = stream.into_split();
-    let mut lines = BufReader::new(reader).lines();
-    let (completed, completion) = oneshot::channel();
-    let (commands, mut controls) = mpsc::channel::<oneshot::Sender<()>>(1);
-    let task = tokio::spawn(async move {
-        let mut completed = Some(completed);
-        loop {
-            tokio::select! {
-                command = controls.recv() => {
-                    let Some(sent) = command else { break };
-                    writer.write_all(BENCH_DONE_LINE).await?;
-                    let _ = sent.send(());
-                }
-                request = driver.recv() => {
-                    let Some(request) = request else { break };
-                    let mut line = serde_json::to_vec(&request.signal().to_string())?;
-                    line.push(b'\n');
-                    writer.write_all(&line).await?;
-                    request.finish(Ok(SignalDelivery::ServiceAccepted));
-                }
-                line = lines.next_line() => {
-                    let Some(line) = line? else { break };
-                    let wire: String = serde_json::from_str(&line)?;
-                    if wire == BENCH_DONE {
-                        if let Some(completed) = completed.take() {
-                            let _ = completed.send(());
-                        }
-                        continue;
-                    }
-                    driver.try_deliver("1", &wire)?;
-                }
-            }
-        }
-        Ok(())
-    });
-    Ok((
-        signaling,
-        Bridge {
-            task,
-            completion,
-            commands,
-        },
-    ))
+    let (signaling, driver) = CallerSignaling::new("2".into(), "1".into(), signaling_config())?;
+    Ok((signaling, Bridge::spawn(stream, driver)?))
 }
 
 async fn serve_connection(stream: TcpStream, size: usize, count: usize) -> Result<()> {
-    stream.set_nodelay(true)?;
-    let (signaling, mut driver) = CallerServerSignaling::new(
+    let (signaling, driver) = CallerServerSignaling::new(
         "1".into(),
         CallerServerSignalingConfig {
             signaling: signaling_config(),
@@ -359,46 +404,7 @@ async fn serve_connection(stream: TcpStream, size: usize, count: usize) -> Resul
     )?;
     // Subscribe before admitting an offer from the socket.
     let mut server = NetherServer::bind_with(signaling, connection_config()).await?;
-    let (reader, mut writer) = stream.into_split();
-    let mut lines = BufReader::new(reader).lines();
-    let (completed, completion) = oneshot::channel();
-    let (commands, mut controls) = mpsc::channel::<oneshot::Sender<()>>(1);
-    let task = tokio::spawn(async move {
-        let mut completed = Some(completed);
-        loop {
-            tokio::select! {
-                command = controls.recv() => {
-                    let Some(sent) = command else { break };
-                    writer.write_all(BENCH_DONE_LINE).await?;
-                    let _ = sent.send(());
-                }
-                request = driver.recv() => {
-                    let Some(request) = request else { break };
-                    let mut line = serde_json::to_vec(&request.signal().to_string())?;
-                    line.push(b'\n');
-                    writer.write_all(&line).await?;
-                    request.finish(Ok(SignalDelivery::ServiceAccepted));
-                }
-                line = lines.next_line() => {
-                    let Some(line) = line? else { break };
-                    let wire: String = serde_json::from_str(&line)?;
-                    if wire == BENCH_DONE {
-                        if let Some(completed) = completed.take() {
-                            let _ = completed.send(());
-                        }
-                        continue;
-                    }
-                    driver.try_deliver("2", &wire)?;
-                }
-            }
-        }
-        Ok(())
-    });
-    let mut bridge = Bridge {
-        task,
-        completion,
-        commands,
-    };
+    let mut bridge = Bridge::spawn(stream, driver)?;
     let mut accepted = server.accept().await?;
     let expected = payload(size);
     for _ in 0..=count {
@@ -452,6 +458,18 @@ async fn serve(listener: TcpListener, count: usize) -> Result<()> {
     Ok(())
 }
 
+/// Retirement drains the reliable channel to its end. Every echo was verified
+/// and both BENCH-DONE markers were exchanged before it starts, so a peer that
+/// closed first (go-nethernet and tokio-nethernet abort SCTP on close, as pion
+/// does) ends it as well instead of failing the run.
+fn retirement_finished<T>(received: nethernet_tokio::Result<Option<T>>) -> Result<bool> {
+    match received {
+        Ok(Some(_)) => Ok(false),
+        Ok(None) | Err(nethernet_tokio::NetherError::ConnectionClosed) => Ok(true),
+        Err(error) => Err(error.into()),
+    }
+}
+
 fn emit(operation: &str, size: usize, samples: &mut [f64], total_ns: f64) -> Result<()> {
     samples.sort_by(f64::total_cmp);
     let ns = total_ns / samples.len() as f64;
@@ -503,7 +521,7 @@ async fn client(address: SocketAddr, count: usize) -> Result<()> {
         // Keep signaling and RTC alive until the server's final echo send has drained.
         bridge.complete(true).await?;
         let mut retired = client.close();
-        while retired.reliable.recv().await?.is_some() {}
+        while !retirement_finished(retired.reliable.recv().await)? {}
         drop(bridge);
         emit("setup", size, &mut [setup], setup)?;
         emit("echo", size, &mut samples, total_ns)?;
@@ -540,7 +558,68 @@ pub async fn run(mode: &str, address: &str, count: usize) -> Result<()> {
 
 #[cfg(test)]
 mod tests {
-    use super::message_count;
+    use super::{Bridge, SignalDriver, SignalRequest, message_count, retirement_finished};
+    use nethernet_tokio::NetherError;
+    use tokio::net::{TcpListener, TcpStream};
+
+    /// A driver whose signaling handle is already gone, as after
+    /// `NetherClient::connect_with` returns.
+    struct EndedDriver;
+
+    impl SignalDriver for EndedDriver {
+        async fn recv(&mut self) -> Option<SignalRequest> {
+            None
+        }
+        fn deliver(&self, _: &str) -> anyhow::Result<()> {
+            Ok(())
+        }
+    }
+
+    async fn tcp_pair() -> (TcpStream, TcpStream) {
+        let listener = TcpListener::bind("127.0.0.1:0").await.unwrap();
+        let address = listener.local_addr().unwrap();
+        let (client, server) = tokio::join!(TcpStream::connect(address), listener.accept());
+        (client.unwrap(), server.unwrap().0)
+    }
+
+    /// Regression: the bridge task used to stop when the driver ended, so a
+    /// marker arriving afterwards was lost ("signaling closed before server
+    /// BENCH-DONE"). Both markers must still be exchanged.
+    #[tokio::test]
+    async fn markers_are_exchanged_after_the_signal_driver_ended() {
+        let (client, server) = tcp_pair().await;
+        let mut client = Bridge::spawn(client, EndedDriver).unwrap();
+        let mut server = Bridge::spawn(server, EndedDriver).unwrap();
+        // Let both tasks observe the ended driver before any marker.
+        tokio::task::yield_now().await;
+        let (client, server) = tokio::join!(client.complete(true), server.complete(false));
+        client.unwrap();
+        server.unwrap();
+    }
+
+    /// Regression: go-nethernet/tokio-nethernet servers abort SCTP right after
+    /// their marker, so the Cinnabar client's retirement saw ConnectionClosed
+    /// and failed cinnabar-to-go/rust interop after every echo had passed.
+    #[test]
+    fn retirement_ends_on_peer_close_but_not_on_other_errors() {
+        assert!(!retirement_finished(Ok(Some(()))).unwrap());
+        assert!(retirement_finished::<()>(Ok(None)).unwrap());
+        assert!(retirement_finished::<()>(Err(NetherError::ConnectionClosed)).unwrap());
+        assert!(
+            retirement_finished::<()>(Err(NetherError::Io(std::io::ErrorKind::Other.into())))
+                .is_err()
+        );
+    }
+
+    /// EOF is never completion: a peer that closes without its marker fails
+    /// the handshake.
+    #[tokio::test]
+    async fn eof_before_the_peer_marker_is_an_error() {
+        let (client, server) = tcp_pair().await;
+        let mut client = Bridge::spawn(client, EndedDriver).unwrap();
+        drop(server);
+        assert!(client.complete(true).await.is_err());
+    }
 
     #[test]
     fn split_counts_match_other_peers_when_small_count_changes() {

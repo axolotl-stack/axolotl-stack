@@ -14,6 +14,7 @@ use tokio::{
     sync::{Mutex, mpsc, watch},
     time::timeout,
 };
+use tokio_nethernet::framing::{Reassembler, encode_segments};
 use tokio_nethernet::{
     Message, NetherNetDialer, NetherNetDialerConfig, NetherNetListener, NetherNetListenerConfig,
     NetherNetStream, Signal, Signaling, SignalingChannel,
@@ -26,12 +27,8 @@ const IMPLEMENTATION: &str = "rust-owned";
 pub const CANDIDATE: &str = "candidate:1 1 UDP 2130706431 127.0.0.1 50000 typ host generation 0 ufrag bench network-id 0 network-cost 0";
 const SDP: &str = "v=0\r\no=- 1 2 IN IP4 127.0.0.1\r\ns=-\r\nt=0 0\r\nm=application 9 UDP/DTLS/SCTP webrtc-datachannel\r\na=setup:";
 
-fn loopback_settings() -> webrtc::api::setting_engine::SettingEngine {
-    let mut settings = webrtc::api::setting_engine::SettingEngine::default();
-    settings.set_include_loopback_candidate(true);
-    settings.set_ip_filter(Box::new(|ip| ip.is_loopback() && ip.is_ipv4()));
-    settings.set_network_types(vec![webrtc::ice::network_type::NetworkType::Udp4]);
-    settings
+fn loopback_settings() -> tokio_nethernet::TransportConfig {
+    tokio_nethernet::TransportConfig::loopback_v4()
 }
 pub fn signal_fixtures() -> [(&'static str, String); 4] {
     [
@@ -50,6 +47,8 @@ pub fn signal_fixtures() -> [(&'static str, String); 4] {
 
 pub fn micro(iterations: usize) -> Result<()> {
     ensure!(iterations > 0, "iterations must be positive");
+    // Framing first, in the same order as the Cinnabar adapter's micro.
+    framing_micro(iterations)?;
     for (name, text) in signal_fixtures() {
         let signal = Signal::parse(&text, "2".into())?;
         ensure!(
@@ -173,11 +172,93 @@ pub fn micro(iterations: usize) -> Result<()> {
             black_box(discovery::decode(black_box(&wire)).unwrap());
         },
     )?;
-    eprintln!(
-        "{}",
-        serde_json::json!({"area":"coverage", "status":"unavailable", "name":"nethernet_framing", "implementation":IMPLEMENTATION, "reason":"segment_count, send_message and ReassemblyState are private; encode/reassemble including invalid counts and oversize have no public isolated API"})
-    );
     Ok(())
+}
+
+/// Same cases and 16383-byte segment body as the Cinnabar adapter's framing micro.
+fn framing_micro(iterations: usize) -> Result<()> {
+    const SEGMENT_BYTES: usize = 16383;
+    let reassembler = || Reassembler::new(SEGMENT_BYTES, usize::MAX, Duration::from_secs(30));
+    for size in [32, 512, 4096, 65536, 1048576] {
+        let body = super::transport::payload(size);
+        let name = format!("message_{size}");
+        let segments: Vec<_> = encode_segments(&body, SEGMENT_BYTES)?.collect();
+        let mut checked = reassembler();
+        let mut result = None;
+        for segment in &segments {
+            result = checked.push(segment.clone(), true)?;
+        }
+        ensure!(result.as_deref() == Some(body.as_ref()), "framing mismatch");
+        super::measure(
+            "nethernet_framing",
+            &name,
+            "encode",
+            IMPLEMENTATION,
+            size,
+            iterations,
+            || {
+                for segment in encode_segments(black_box(&body), SEGMENT_BYTES).unwrap() {
+                    black_box(segment);
+                }
+            },
+        )?;
+        super::measure(
+            "nethernet_framing",
+            &name,
+            "reassemble",
+            IMPLEMENTATION,
+            size,
+            iterations,
+            || {
+                let mut message = reassembler();
+                for segment in &segments {
+                    black_box(message.push(segment.clone(), true).unwrap());
+                }
+            },
+        )?;
+    }
+    let invalid_count = bytes::Bytes::from_static(&[255, b'x']);
+    super::measure(
+        "nethernet_framing",
+        "invalid_count",
+        "reassemble",
+        IMPLEMENTATION,
+        1,
+        iterations,
+        || {
+            let mut message = reassembler();
+            black_box(message.push(invalid_count.clone(), true).unwrap_err());
+        },
+    )?;
+    let (first, out_of_order) = (
+        bytes::Bytes::from_static(&[2, b'x']),
+        bytes::Bytes::from_static(&[0, b'x']),
+    );
+    super::measure(
+        "nethernet_framing",
+        "invalid_sequence",
+        "reassemble",
+        IMPLEMENTATION,
+        2,
+        iterations,
+        || {
+            let mut message = reassembler();
+            message.push(first.clone(), true).unwrap();
+            black_box(message.push(out_of_order.clone(), true).unwrap_err());
+        },
+    )?;
+    let oversized = super::transport::payload(SEGMENT_BYTES * 255 + 1);
+    super::measure(
+        "nethernet_framing",
+        "oversize",
+        "encode",
+        IMPLEMENTATION,
+        oversized.len(),
+        iterations,
+        || {
+            assert!(black_box(encode_segments(&oversized, SEGMENT_BYTES)).is_err());
+        },
+    )
 }
 
 /// Benchmark-local signaling only. Application bytes still use real ICE/DTLS/SCTP.
@@ -323,7 +404,7 @@ async fn echo(listener: TcpListener, count: usize) -> Result<()> {
             bridge.clone(),
             NetherNetListenerConfig {
                 allow_identityless_client: true,
-                setting_engine: Some(loopback_settings()),
+                transport: loopback_settings(),
                 ..Default::default()
             },
         );
@@ -425,7 +506,7 @@ pub async fn client(address: SocketAddr, count: usize) -> Result<()> {
             bridge.clone(),
             NetherNetDialerConfig {
                 allow_identityless_server: true,
-                setting_engine: Some(loopback_settings()),
+                transport: loopback_settings(),
                 ..Default::default()
             },
         );

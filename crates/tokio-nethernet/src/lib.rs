@@ -35,11 +35,18 @@
 
 pub mod dialer;
 pub mod error;
+pub mod framing;
 pub mod identity;
 pub mod listener;
 pub mod signal_monitor;
 pub mod signaling;
 pub mod stream;
+pub mod transport;
+
+#[cfg(test)]
+mod test_support;
+
+pub use transport::{IpFilter, TransportConfig};
 
 #[cfg(feature = "discovery")]
 pub mod discovery;

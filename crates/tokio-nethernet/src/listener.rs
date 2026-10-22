@@ -1,27 +1,14 @@
 use std::collections::HashMap;
 use std::sync::Arc;
-use tokio::sync::{mpsc, oneshot};
+use tokio::sync::mpsc;
 use tokio::time::{Duration, timeout};
 use tracing::{debug, trace, warn};
-use webrtc::api::APIBuilder;
-use webrtc::api::interceptor_registry::register_default_interceptors;
-use webrtc::api::media_engine::MediaEngine;
-use webrtc::api::setting_engine::SettingEngine;
-use webrtc::data_channel::RTCDataChannel;
-use webrtc::ice_transport::ice_candidate::RTCIceCandidate;
-use webrtc::ice_transport::ice_server::RTCIceServer;
-use webrtc::interceptor::registry::Registry;
-use webrtc::peer_connection::RTCPeerConnection;
-use webrtc::peer_connection::configuration::RTCConfiguration;
-use webrtc::peer_connection::sdp::session_description::RTCSessionDescription;
 
-use crate::error::{NetherNetError, catch_dependency_panic};
-use crate::signaling::{Signal, SignalErrorCode, SignalType, Signaling, format_ice_candidate};
+use crate::error::catch_dependency_panic;
+use crate::signaling::{IceServer, Signal, SignalErrorCode, SignalType, Signaling};
 use crate::stream::{NetherNetStream, NetherNetStreamConfig};
-
-/// Pair of optional data channels (reliable, unreliable) protected by a mutex.
-type DataChannelPair =
-    Arc<tokio::sync::Mutex<(Option<Arc<RTCDataChannel>>, Option<Arc<RTCDataChannel>>)>>;
+use crate::transport::session::Role;
+use crate::transport::{Connection, LocalIdentity, Pending, TransportConfig, sdp};
 
 /// Configuration for `NetherNetListener`.
 #[derive(Clone)]
@@ -31,11 +18,10 @@ pub struct NetherNetListenerConfig {
     /// Timeout for connection establishment.
     pub connection_timeout: Duration,
     /// Explicit ICE servers; nonempty values override signaling credentials.
-    pub ice_servers: Vec<RTCIceServer>,
-    /// Optional WebRTC settings for explicit local interface/ICE policy.
-    /// `None` preserves webrtc-rs defaults, including excluding loopback candidates.
-    /// SRTP protection profiles are always replaced by keyable profiles (see `dialer.rs`).
-    pub setting_engine: Option<SettingEngine>,
+    pub ice_servers: Vec<IceServer>,
+    /// Local interface/ICE policy; the default matches go-nethernet's pion
+    /// defaults (all non-loopback UDP4/UDP6 addresses).
+    pub transport: TransportConfig,
     /// Maximum SDP size in bytes (prevents OOM from large SDPs).
     pub max_sdp_size: usize,
     /// Maximum tracked negotiations/connections (local resource hardening).
@@ -64,7 +50,7 @@ impl Default for NetherNetListenerConfig {
             connection_timeout: Duration::from_secs(5),
             // credentials.go:gatherOptions uses host candidates when credentials are absent.
             ice_servers: Vec::new(),
-            setting_engine: None,
+            transport: TransportConfig::default(),
             max_sdp_size: DEFAULT_MAX_SDP_SIZE,
             max_pending_connections: DEFAULT_MAX_PENDING_CONNECTIONS,
             identity: None,
@@ -87,7 +73,7 @@ pub struct NetherNetListener {
 /// Internal message for cleanup coordination.
 enum ActorMessage {
     Signal(Signal),
-    CleanupConnection((String, u64), Arc<RTCPeerConnection>),
+    CleanupConnection((String, u64), Arc<Connection>),
 }
 
 struct ListenerActor {
@@ -99,10 +85,12 @@ struct ListenerActor {
     /// Channel for spawned tasks to request cleanup.
     cleanup_tx: mpsc::Sender<ActorMessage>,
     generated_identity_key: Option<p384::ecdsa::SigningKey>,
+    /// DTLS certificate shared by this listener's connections (generated on first offer).
+    local: Option<LocalIdentity>,
 }
 
 struct ConnectionHandle {
-    pc: Arc<RTCPeerConnection>,
+    connection: Arc<Connection>,
     candidate_budget: crate::dialer::CandidateBudget,
     cancelled: tokio_util::sync::CancellationToken,
 }
@@ -148,6 +136,7 @@ impl NetherNetListener {
             connections: HashMap::new(),
             cleanup_tx: message_tx,
             generated_identity_key: None,
+            local: None,
         };
 
         tokio::spawn(actor.run());
@@ -191,6 +180,7 @@ impl NetherNetListener {
             connections: HashMap::new(),
             cleanup_tx: message_tx.clone(),
             generated_identity_key: None,
+            local: None,
         };
 
         // Install subscription before processing offers.
@@ -216,11 +206,11 @@ impl NetherNetListener {
     ///
     /// Returns `Err(ConnectionClosed)` if the listener has been shut down.
     #[inline]
-    pub async fn accept(&mut self) -> Result<NetherNetStream, NetherNetError> {
+    pub async fn accept(&mut self) -> Result<NetherNetStream, crate::NetherNetError> {
         self.accept_rx
             .recv()
             .await
-            .ok_or(NetherNetError::ConnectionClosed)
+            .ok_or(crate::NetherNetError::ConnectionClosed)
     }
 
     /// Poll-based accept for use with manual polling or futures combinators.
@@ -251,25 +241,25 @@ impl ListenerActor {
                         warn!(error = %e, "Error processing signal");
                     }
                 }
-                ActorMessage::CleanupConnection(key, pc) => self.cleanup_connection(&key, &pc),
+                ActorMessage::CleanupConnection(key, connection) => {
+                    self.cleanup_connection(&key, &connection)
+                }
             }
         }
 
         for handle in self.connections.into_values() {
             handle.cancelled.cancel();
-            if let Err(error) = handle.pc.close().await {
-                debug!(%error, "Closing listener peer failed");
-            }
+            handle.connection.close();
         }
         debug!("Listener actor shutting down");
     }
 
-    fn cleanup_connection(&mut self, key: &(String, u64), pc: &Arc<RTCPeerConnection>) {
+    fn cleanup_connection(&mut self, key: &(String, u64), connection: &Arc<Connection>) {
         // listener.go:listenerNegotiator.unregister must not remove a replacement owner.
         if self
             .connections
             .get(key)
-            .is_some_and(|handle| Arc::ptr_eq(&handle.pc, pc))
+            .is_some_and(|handle| Arc::ptr_eq(&handle.connection, connection))
         {
             self.connections.remove(key);
         }
@@ -293,7 +283,7 @@ impl ListenerActor {
                 let duration = self.config.connection_timeout;
                 let network_id = signal.network_id.clone();
                 // The actor serves every session: a panic while negotiating one
-                // offer must fail that offer only (its PeerGuard closes the peer).
+                // offer must fail that offer only (its Pending closes the transport).
                 let negotiation =
                     catch_dependency_panic("listener offer", self.handle_connect_request(signal));
                 match timeout(duration, negotiation).await? {
@@ -315,13 +305,16 @@ impl ListenerActor {
             }
             SignalType::Candidate => {
                 if let Some(handle) = self.connections.get(&key) {
-                    let added = self.handle_candidate(&signal, handle);
-                    match catch_dependency_panic("listener candidate", added).await {
-                        Ok(result) => result?,
-                        Err(panic) => {
-                            let _ = handle.pc.close().await;
-                            return Err(panic.into());
+                    if let Err(error) = crate::dialer::add_candidate(
+                        &handle.connection,
+                        &signal.data,
+                        &handle.candidate_budget,
+                    ) {
+                        // Panics are contained by the transport and fail only this connection.
+                        if handle.connection.is_finished() {
+                            handle.connection.close();
                         }
+                        return Err(error.into());
                     }
                 } else {
                     debug!(conn_id, "Received CANDIDATE for unknown connection");
@@ -332,35 +325,30 @@ impl ListenerActor {
                 if let Some(handle) = self.connections.get(&key) {
                     // Keep tuple ownership until its cancelled worker has stopped replying.
                     handle.cancelled.cancel();
-                    let _ = handle.pc.close().await;
+                    handle.connection.close();
                 }
             }
-            SignalType::Answer => {
-                debug!(conn_id, "Ignoring CONNECTRESPONSE sent to a listener");
+            _ => {
+                debug!(typ = %signal.typ, "Unknown signal type");
             }
         }
 
         Ok(())
     }
 
-    async fn handle_candidate(
-        &self,
-        signal: &Signal,
-        handle: &ConnectionHandle,
-    ) -> anyhow::Result<()> {
-        crate::dialer::add_candidate(&handle.pc, &signal.data, &handle.candidate_budget).await?;
-        Ok(())
+    fn local_identity(&mut self) -> Result<LocalIdentity, crate::NetherNetError> {
+        if let Some(local) = &self.local {
+            return Ok(local.clone());
+        }
+        let local = LocalIdentity::generate()?;
+        self.local = Some(local.clone());
+        Ok(local)
     }
 
     async fn handle_connect_request(&mut self, signal: Signal) -> anyhow::Result<()> {
         let conn_id = signal.connection_id;
         let network_id = signal.network_id.clone();
         self.config.stream_config.validate()?;
-        let mut stream_config = self.config.stream_config.clone();
-        stream_config.max_message_size = crate::stream::negotiate_max_message_size(
-            &signal.data,
-            stream_config.max_message_size,
-        )?;
 
         // Security: Check connection limit
         if self.connections.len() >= self.config.max_pending_connections {
@@ -397,6 +385,7 @@ impl ListenerActor {
                 .await?;
             return Ok(());
         }
+        let remote = sdp::parse(&signal.data)?;
         let candidate_budget = crate::dialer::CandidateBudget::default();
         candidate_budget.reserve_sdp(&signal.data)?;
         let allow_missing = self.config.allow_identityless_client
@@ -424,299 +413,93 @@ impl ListenerActor {
             None
         };
 
-        // Build WebRTC API
-        let mut media_engine = MediaEngine::default();
-        let registry = Registry::new();
-        let registry = register_default_interceptors(registry, &mut media_engine)?;
-        let api = APIBuilder::new()
-            .with_media_engine(media_engine)
-            .with_interceptor_registry(registry)
-            .with_setting_engine(crate::dialer::nethernet_setting_engine(
-                self.config.setting_engine.clone(),
-            ))
-            .build();
-
-        let rtc_config = RTCConfiguration {
-            ice_servers: crate::dialer::ice_servers(
-                self.signaling.as_ref(),
-                &self.config.ice_servers,
-            )
-            .await?,
-            ..Default::default()
-        };
-
-        let pc = Arc::new(api.new_peer_connection(rtc_config).await?);
-        let mut guard = crate::dialer::PeerGuard(Some(pc.clone()));
-
-        // Setup ICE candidate handler - uses C++ WebRTC format
-        let sig = self.signaling.clone();
-        let net_id = network_id.clone();
-        let ufrag = Arc::new(tokio::sync::Mutex::new(String::new()));
-        let ufrag_clone = ufrag.clone();
-        let candidate_id = Arc::new(std::sync::atomic::AtomicU32::new(0));
+        let servers =
+            crate::dialer::ice_servers(self.signaling.as_ref(), &self.config.ice_servers).await?;
+        let local = self.local_identity()?;
+        let pending = Pending::open(
+            Role::Listener,
+            &local,
+            &self.config.transport,
+            &self.config.stream_config,
+        )?;
+        // listener.go:listenerNegotiator.answererRole.
+        let local_setup = sdp::Setup::answer_to(remote.setup);
+        // Inline offer candidates are present, so ICE starts immediately.
+        pending.connection().with("offer", |session, now| {
+            session.start(now, &remote, local_setup)
+        })??;
         let nontrickle = self.signaling.disable_trickle_ice();
-        let (started_tx, started_rx) = tokio::sync::watch::channel(false);
-        if !nontrickle {
-            pc.on_ice_candidate(Box::new(move |c: Option<RTCIceCandidate>| {
-                let sig = sig.clone();
-                let net_id = net_id.clone();
-                let ufrag = ufrag_clone.clone();
-                let id = candidate_id.fetch_add(1, std::sync::atomic::Ordering::Relaxed);
-                let mut started = started_rx.clone();
-
-                Box::pin(async move {
-                    if let Some(candidate) = c {
-                        if started.wait_for(|ready| *ready).await.is_err() {
-                            return;
-                        }
-                        let ufrag_val = ufrag.lock().await;
-                        let data = format_ice_candidate(
-                            id,
-                            &candidate.foundation,
-                            &candidate.protocol.to_string().to_lowercase(),
-                            candidate.priority,
-                            &candidate.address,
-                            candidate.port,
-                            &candidate.typ.to_string().to_lowercase(),
-                            if candidate.related_address.is_empty() {
-                                None
-                            } else {
-                                Some(&candidate.related_address)
-                            },
-                            if candidate.related_port == 0 {
-                                None
-                            } else {
-                                Some(candidate.related_port)
-                            },
-                            &ufrag_val,
-                        );
-
-                        trace!(candidate = %data, "Sending ICE candidate");
-                        if !matches!(
-                            timeout(
-                                Duration::from_secs(15),
-                                sig.signal(Signal {
-                                    typ: SignalType::Candidate,
-                                    connection_id: conn_id,
-                                    data,
-                                    network_id: net_id,
-                                })
-                            )
-                            .await,
-                            Ok(Ok(()))
-                        ) {
-                            warn!(conn_id, "Failed to signal ICE candidate");
-                        }
-                    }
-                })
-            }));
-        }
-
-        // Setup data channel handler - set up message handlers IMMEDIATELY to avoid missing messages
-        let (ready_tx, ready_rx) = oneshot::channel();
-        let channels: DataChannelPair = Arc::new(tokio::sync::Mutex::new((None, None)));
-        let channels_clone = channels.clone();
-        let ready_tx = Arc::new(tokio::sync::Mutex::new(Some(ready_tx)));
-
-        // Create message channel UPFRONT so handlers can use it immediately
-        // Use bounded channel to prevent OOM from message flooding
-        let channel_capacity = stream_config.incoming_channel_capacity;
-        let (incoming_tx, incoming_rx) = mpsc::channel(channel_capacity);
-        let incoming_tx = Arc::new(incoming_tx);
-        let incoming_rx = Arc::new(tokio::sync::Mutex::new(Some(incoming_rx)));
-
-        let incoming_tx_clone = incoming_tx.clone();
-        let incoming_rx_clone = incoming_rx.clone();
-        let weak_pc = Arc::downgrade(&pc);
-
-        pc.on_data_channel(Box::new(move |dc: Arc<RTCDataChannel>| {
-            let channels = channels_clone.clone();
-            let ready_tx = ready_tx.clone();
-            let incoming_tx = incoming_tx_clone.clone();
-            let incoming_rx = incoming_rx_clone.clone();
-            let weak_pc = weak_pc.clone();
-
-            Box::pin(async move {
-                let label = dc.label().to_string();
-                trace!(label = %label, "Data channel opened");
-
-                // message.go:MessageReliability.Check rejects unexpected channels or parameters.
-                let reliable = match label.as_str() {
-                    "ReliableDataChannel" if dc.ordered() && dc.max_retransmits().is_none() => true,
-                    "UnreliableDataChannel" if !dc.ordered() && dc.max_retransmits() == Some(0) => {
-                        false
-                    }
-                    _ => {
-                        if let Some(pc) = weak_pc.upgrade() {
-                            let _ = pc.close().await;
-                        }
-                        return;
-                    }
-                };
-                if !dc.protocol().is_empty()
-                    || dc.negotiated()
-                    || dc.max_packet_lifetime().is_some()
-                {
-                    if let Some(pc) = weak_pc.upgrade() {
-                        let _ = pc.close().await;
-                    }
-                    return;
-                }
-                crate::stream::install_message_handler(&dc, (*incoming_tx).clone(), reliable);
-
-                // Store channel
-                let mut locked = channels.lock().await;
-                let slot = if reliable {
-                    &mut locked.0
-                } else {
-                    &mut locked.1
-                };
-                if slot.is_some() || ready_tx.lock().await.is_none() {
-                    drop(locked);
-                    if let Some(pc) = weak_pc.upgrade() {
-                        tokio::spawn(async move {
-                            let _ = pc.close().await;
-                        });
-                    }
-                    return;
-                }
-                *slot = Some(dc);
-
-                // When both channels are ready, signal completion
-                if locked.0.is_some() && locked.1.is_some() {
-                    trace!("Both data channels ready");
-
-                    if let Some(tx) = ready_tx.lock().await.take() {
-                        let r = locked.0.take().unwrap();
-                        let u = locked.1.take().unwrap();
-                        let rx = incoming_rx.lock().await.take();
-                        if let Some(rx) = rx {
-                            let _ = tx.send((r, u, (*incoming_tx).clone(), rx));
-                        }
-                    }
-                }
-            })
-        }));
-
-        // Set remote description (offer)
-        debug!(
-            conn_id,
-            sdp_len = signal.data.len(),
-            "Setting remote description"
-        );
-        trace!(conn_id, sdp = %signal.data, "Full SDP content");
-
-        // Validate SDP has ice-ufrag before trying to set
-        if !signal.data.contains("a=ice-ufrag:") {
-            anyhow::bail!("SDP missing ice-ufrag - possibly truncated in signaling");
-        }
-
-        let remote_desc = RTCSessionDescription::offer(signal.data.clone())?;
-        pc.set_remote_description(remote_desc).await?;
-
-        // Create and send answer
-        let answer = pc.create_answer(None).await?;
-
-        // Extract ufrag from SDP for candidate formatting
-        if let Some(ufrag_match) = answer.sdp.split("a=ice-ufrag:").nth(1)
-            && let Some(ufrag_val) = ufrag_match.split_whitespace().next()
-        {
-            *ufrag.lock().await = ufrag_val.to_string();
-        }
-
-        let mut fixed_sdp = crate::stream::local_sdp(answer.sdp.clone());
-        if let Some(identity) = &server_identity {
-            fixed_sdp = identity.sign_sdp(&fixed_sdp)?;
-        }
-        let mut gathering = pc.gathering_complete_promise().await;
-        // webrtc-rs requires its original local answer; wire-only attributes are added above.
-        pc.set_local_description(answer).await?;
         if nontrickle {
-            gathering.recv().await;
-            fixed_sdp = crate::stream::local_sdp(
-                pc.local_description()
-                    .await
-                    .ok_or_else(|| anyhow::anyhow!("Peer closed during ICE gathering"))?
-                    .sdp,
-            );
-            if let Some(identity) = &server_identity {
-                fixed_sdp = identity.sign_sdp(&fixed_sdp)?;
-            }
+            pending.connection().add_ice_servers(&servers).await?;
+            pending.gathered().await?;
+        }
+        let mut answer = pending.describe(local_setup, nontrickle)?;
+        if let Some(identity) = &server_identity {
+            answer = identity.sign_sdp(&answer)?;
         }
 
         debug!(conn_id, "Sending CONNECTRESPONSE");
         let answer_signal = Signal {
             typ: SignalType::Answer,
             connection_id: conn_id,
-            data: fixed_sdp,
+            data: answer,
             network_id: network_id.clone(),
         };
         if let Some(monitor) = &self.config.signal_monitor {
             monitor.process_outgoing(&answer_signal).await;
         }
         self.signaling.signal(answer_signal).await?;
-        let _ = started_tx.send(true);
+        if !nontrickle {
+            crate::dialer::trickle_candidates(
+                pending.connection().clone(),
+                self.signaling.clone(),
+                network_id.clone(),
+                conn_id,
+                servers,
+            );
+        }
 
         // A tuple remains owned until its worker/reply has finished or been cancelled.
         let cancelled = tokio_util::sync::CancellationToken::new();
-        let handle = Arc::new(ConnectionHandle {
-            pc: pc.clone(),
-            candidate_budget,
-            cancelled: cancelled.clone(),
-        });
-        self.connections
-            .insert((network_id.clone(), conn_id), handle);
-        guard.0 = None;
+        let connection = pending.connection().clone();
+        self.connections.insert(
+            (network_id.clone(), conn_id),
+            Arc::new(ConnectionHandle {
+                connection: connection.clone(),
+                candidate_budget,
+                cancelled: cancelled.clone(),
+            }),
+        );
 
-        // Spawn task to wait for channels and create stream
         let accept_tx = self.accept_tx.clone();
         let connection_timeout = self.config.connection_timeout;
-        let pc_clone = pc.clone();
         let signaling = self.signaling.clone();
         let cleanup_tx = self.cleanup_tx.clone();
 
         tokio::spawn(async move {
             let negotiation = async {
-                match timeout(connection_timeout, ready_rx).await {
-                    Ok(Ok((reliable, unreliable, incoming_tx, incoming_rx))) => {
-                        debug!(
-                            conn_id,
-                            "Data channels ready, creating stream with pre-registered handlers"
-                        );
-                        let mut stream = NetherNetStream::new_with_receiver(
-                            reliable,
-                            unreliable,
-                            incoming_tx,
-                            incoming_rx,
-                            stream_config,
-                        );
-                        stream.attach_peer(pc_clone.clone());
-                        stream.set_remote_identity(remote_identity);
-
-                        match timeout(connection_timeout, accept_tx.send(stream)).await {
-                            Ok(Ok(())) => {
-                                // listener.go:listenerNegotiator.finish retains accepted signal ownership.
-                                while !matches!(pc_clone.connection_state(),
-                                webrtc::peer_connection::peer_connection_state::RTCPeerConnectionState::Closed |
-                                webrtc::peer_connection::peer_connection_state::RTCPeerConnectionState::Failed)
-                            {
+                let opened = timeout(connection_timeout, pending.opened()).await;
+                match opened {
+                    Ok(Ok(())) => {
+                        debug!(conn_id, "Data channels ready");
+                        let stream = pending.into_stream(remote_identity);
+                        let weak = Arc::downgrade(stream.connection());
+                        // An unaccepted stream is dropped by the failed send, closing its transport.
+                        if let Ok(Ok(())) =
+                            timeout(connection_timeout, accept_tx.send(stream)).await
+                        {
+                            // listener.go:listenerNegotiator.finish retains accepted signal ownership.
+                            while weak.upgrade().is_some_and(|c| !c.is_finished()) {
                                 tokio::time::sleep(Duration::from_secs(1)).await;
-                            }
-                            }
-                            _ => {
-                                let _ = pc_clone.close().await;
                             }
                         }
                     }
-                    Ok(Err(_)) => {
-                        debug!(conn_id, "Ready channel dropped");
-                        let _ = pc_clone.close().await;
+                    Ok(Err(error)) => {
+                        debug!(conn_id, %error, "Negotiation failed");
                     }
                     Err(_) => {
                         warn!(conn_id, "Connection timed out waiting for data channels");
-                        let _ = pc_clone.close().await;
-
-                        // Signal timeout error
+                        drop(pending);
                         // dial.go:SignalErrorTimeout also bounds listener terminal notifications.
                         let _ = timeout(
                             Duration::from_secs(2),
@@ -740,7 +523,7 @@ impl ListenerActor {
             let _ = cleanup_tx
                 .send(ActorMessage::CleanupConnection(
                     (network_id, conn_id),
-                    pc_clone,
+                    connection,
                 ))
                 .await;
         });
@@ -752,6 +535,8 @@ impl ListenerActor {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::NetherNetError;
+    use crate::test_support::{idle_connection, offer_sdp};
 
     struct LocalSignaling;
     #[async_trait::async_trait]
@@ -764,47 +549,44 @@ mod tests {
         }
     }
 
-    #[tokio::test]
-    async fn stale_cleanup_does_not_remove_replacement_connection() {
-        let api = APIBuilder::new().build();
-        let old = Arc::new(
-            api.new_peer_connection(RTCConfiguration::default())
-                .await
-                .unwrap(),
-        );
-        let replacement = Arc::new(
-            api.new_peer_connection(RTCConfiguration::default())
-                .await
-                .unwrap(),
-        );
-        let key = ("remote".to_owned(), 42);
+    fn actor(signaling: Arc<dyn Signaling>, config: NetherNetListenerConfig) -> ListenerActor {
         let (cleanup_tx, message_rx) = mpsc::channel(1);
-        let (accept_tx, _accept_rx) = mpsc::channel(1);
-        let mut actor = ListenerActor {
-            signaling: Arc::new(LocalSignaling),
-            config: NetherNetListenerConfig::default(),
+        let (accept_tx, accept_rx) = mpsc::channel(1);
+        // Keep the accept side open for the actor's lifetime in each test.
+        std::mem::forget(accept_rx);
+        ListenerActor {
+            signaling,
+            config,
             message_rx,
             accept_tx,
-            connections: HashMap::from([(
-                key.clone(),
-                Arc::new(ConnectionHandle {
-                    pc: replacement.clone(),
-                    candidate_budget: crate::dialer::CandidateBudget::default(),
-                    cancelled: tokio_util::sync::CancellationToken::new(),
-                }),
-            )]),
+            connections: HashMap::new(),
             cleanup_tx,
             generated_identity_key: None,
-        };
+            local: None,
+        }
+    }
+
+    #[tokio::test]
+    async fn stale_cleanup_does_not_remove_replacement_connection() {
+        let old = idle_connection();
+        let replacement = idle_connection();
+        let key = ("remote".to_owned(), 42);
+        let mut actor = actor(Arc::new(LocalSignaling), NetherNetListenerConfig::default());
+        actor.connections.insert(
+            key.clone(),
+            Arc::new(ConnectionHandle {
+                connection: replacement.clone(),
+                candidate_budget: crate::dialer::CandidateBudget::default(),
+                cancelled: tokio_util::sync::CancellationToken::new(),
+            }),
+        );
         actor.cleanup_connection(&key, &old);
         assert!(Arc::ptr_eq(
-            &actor.connections.get(&key).unwrap().pc,
+            &actor.connections.get(&key).unwrap().connection,
             &replacement
         ));
         actor.cleanup_connection(&key, &replacement);
         assert!(!actor.connections.contains_key(&key));
-        old.close().await.unwrap();
-        replacement.close().await.unwrap();
     }
 
     struct RecordingSignaling(mpsc::Sender<Signal>);
@@ -817,42 +599,35 @@ mod tests {
         fn network_id(&self) -> String {
             "local".into()
         }
+        fn disable_trickle_ice(&self) -> bool {
+            true
+        }
+    }
+
+    fn loopback_config() -> NetherNetListenerConfig {
+        NetherNetListenerConfig {
+            allow_identityless_client: true,
+            transport: TransportConfig::loopback_v4(),
+            ..Default::default()
+        }
     }
 
     #[tokio::test(start_paused = true)]
     async fn remote_cancellation_suppresses_pending_timeout_reply() {
-        let api = APIBuilder::new().build();
-        let client = api
-            .new_peer_connection(RTCConfiguration::default())
-            .await
-            .unwrap();
-        client
-            .create_data_channel("ReliableDataChannel", None)
-            .await
-            .unwrap();
-        let offer = client.create_offer(None).await.unwrap();
         let (outbound, mut replies) = mpsc::channel(4);
-        let (cleanup_tx, message_rx) = mpsc::channel(1);
-        let (accept_tx, _accept_rx) = mpsc::channel(1);
-        let mut actor = ListenerActor {
-            signaling: Arc::new(RecordingSignaling(outbound)),
-            config: NetherNetListenerConfig {
-                allow_identityless_client: true,
+        let mut actor = actor(
+            Arc::new(RecordingSignaling(outbound)),
+            NetherNetListenerConfig {
                 connection_timeout: Duration::from_secs(1),
-                ..Default::default()
+                ..loopback_config()
             },
-            message_rx,
-            accept_tx,
-            connections: HashMap::new(),
-            cleanup_tx,
-            generated_identity_key: None,
-        };
+        );
         actor
             .handle_connect_request(Signal {
                 typ: SignalType::Offer,
                 connection_id: 42,
                 network_id: "remote".into(),
-                data: crate::stream::local_sdp(offer.sdp),
+                data: offer_sdp(),
             })
             .await
             .unwrap();
@@ -870,13 +645,13 @@ mod tests {
             .await
             .unwrap()
             .unwrap();
-        let ActorMessage::CleanupConnection(key, pc) = cleanup else {
+        let ActorMessage::CleanupConnection(key, connection) = cleanup else {
             panic!("expected worker cleanup")
         };
-        actor.cleanup_connection(&key, &pc);
+        actor.cleanup_connection(&key, &connection);
         assert!(!actor.connections.contains_key(&key));
-        // Previously queued trickle candidates are legitimate; a terminal error
-        // after cancellation would address a replacement using the same tuple.
+        // A terminal error after cancellation would address a replacement
+        // using the same tuple.
         while let Ok(reply) = replies.try_recv() {
             assert_ne!(
                 reply.typ,
@@ -884,7 +659,6 @@ mod tests {
                 "stale terminal reply: {reply:?}"
             );
         }
-        client.close().await.unwrap();
     }
 
     /// Stands in for an integration dependency (HTTP/JWT client behind a
@@ -906,31 +680,8 @@ mod tests {
 
     #[tokio::test]
     async fn negotiation_panic_fails_only_that_offer_with_typed_error() {
-        let api = APIBuilder::new().build();
-        let client = api
-            .new_peer_connection(RTCConfiguration::default())
-            .await
-            .unwrap();
-        client
-            .create_data_channel("ReliableDataChannel", None)
-            .await
-            .unwrap();
-        let offer = client.create_offer(None).await.unwrap();
         let (outbound, mut replies) = mpsc::channel(4);
-        let (cleanup_tx, message_rx) = mpsc::channel(1);
-        let (accept_tx, _accept_rx) = mpsc::channel(1);
-        let mut actor = ListenerActor {
-            signaling: Arc::new(PanickingCredentials(outbound)),
-            config: NetherNetListenerConfig {
-                allow_identityless_client: true,
-                ..Default::default()
-            },
-            message_rx,
-            accept_tx,
-            connections: HashMap::new(),
-            cleanup_tx,
-            generated_identity_key: None,
-        };
+        let mut actor = actor(Arc::new(PanickingCredentials(outbound)), loopback_config());
         // The panic used to unwind through the actor task, ending the listener
         // for every later session; it must become this offer's error instead.
         let error = actor
@@ -938,7 +689,7 @@ mod tests {
                 typ: SignalType::Offer,
                 connection_id: 42,
                 network_id: "remote".into(),
-                data: crate::stream::local_sdp(offer.sdp),
+                data: offer_sdp(),
             })
             .await
             .unwrap_err();
@@ -957,6 +708,5 @@ mod tests {
             (SignalErrorCode::GenericFailure as i32).to_string()
         );
         assert!(actor.connections.is_empty());
-        client.close().await.unwrap();
     }
 }
