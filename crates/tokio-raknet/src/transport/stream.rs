@@ -185,6 +185,7 @@ impl RaknetStream {
                 to_app: to_app_tx,
                 ready: ready_tx,
                 config,
+                maintenance_interval: TICK_INTERVAL,
             };
 
             tokio::spawn(run_client_muxer(socket, context));
@@ -332,6 +333,10 @@ struct ClientMuxerContext {
     to_app: mpsc::Sender<Result<ReceivedMessage, crate::RaknetError>>,
     ready: oneshot::Sender<Result<(), crate::RaknetError>>,
     config: RaknetStreamConfig,
+    /// Maintenance (ACK/retransmission bookkeeping) cadence; always
+    /// `TICK_INTERVAL` in production, lengthened only by tests that must prove
+    /// a behaviour does not depend on maintenance.
+    maintenance_interval: Duration,
 }
 
 #[tracing::instrument(skip(socket, context), fields(server = %context.server, mtu = context.config.mtu), level = "debug")]
@@ -342,7 +347,7 @@ async fn run_client_muxer(socket: UdpSocket, mut context: ClientMuxerContext) {
     let mut handshake_started = false;
     // We move the `ready` sender into a local Option
     let mut ready_signal = Some(context.ready);
-    let mut tick = time::interval(TICK_INTERVAL);
+    let mut tick = time::interval(context.maintenance_interval);
     tick.set_missed_tick_behavior(MissedTickBehavior::Skip);
     let ack_timer = time::sleep(Duration::ZERO);
     tokio::pin!(ack_timer);
@@ -957,6 +962,11 @@ mod tests {
                 to_app,
                 ready,
                 config: RaknetStreamConfig::default(),
+                // A maintenance tick far beyond the assertion window: an ACK
+                // that arrives in time can only come from the ACK deadline path,
+                // so scheduler load cannot turn a maintenance flush into a pass
+                // and the window can be generous enough not to flake.
+                maintenance_interval: Duration::from_secs(30),
             },
         ));
         let mut session = ManagedSession::with_config(
@@ -1008,7 +1018,7 @@ mod tests {
             server.send_to(&encoded, client_address).await.unwrap();
             let message = incoming.recv().await.unwrap().unwrap();
             assert_eq!(message.payload, Bytes::from_static(b"quiet server"));
-            timeout(Duration::from_millis(20), async {
+            timeout(Duration::from_millis(500), async {
                 loop {
                     let (len, _) = server.recv_from(&mut buffer).await.unwrap();
                     let datagram = Datagram::decode(&mut &buffer[..len]).unwrap();
@@ -1052,6 +1062,7 @@ mod tests {
                 to_app,
                 ready,
                 config: RaknetStreamConfig::default(),
+                maintenance_interval: TICK_INTERVAL,
             },
         ));
         // A connected datagram flag without its mandatory sequence number.
