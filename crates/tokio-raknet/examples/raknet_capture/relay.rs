@@ -276,11 +276,6 @@ impl Relay {
         })
     }
 
-    /// A snapshot of the records so far.
-    pub fn records(&self) -> Vec<Record> {
-        self.records.lock().clone()
-    }
-
     /// Receipt time of the latest record.
     pub fn last_t_us(&self) -> Option<u64> {
         self.records.lock().last().map(|record| record.t_us)

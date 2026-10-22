@@ -73,7 +73,10 @@ fn reply1(bytes: &[u8]) -> Option<(Option<u32>, u16)> {
     let security = bytes[25] != 0;
     let at = if security { 30 } else { 26 };
     let cookie = security.then(|| u32::from_be_bytes(bytes[26..30].try_into().unwrap()));
-    Some((cookie, u16::from_be_bytes(bytes.get(at..at + 2)?.try_into().ok()?)))
+    Some((
+        cookie,
+        u16::from_be_bytes(bytes.get(at..at + 2)?.try_into().ok()?),
+    ))
 }
 
 fn request2(server: SocketAddr, cookie: Option<u32>, mtu: u16, guid: i64) -> Vec<u8> {
@@ -100,11 +103,13 @@ async fn fresh(server: SocketAddr) -> std::io::Result<UdpSocket> {
     Ok(socket)
 }
 
-/// Runs every probe case against `server` and writes the capture.
+/// Runs every probe case against `server` and writes the capture. Each
+/// exchange waits `wait` for replies.
 pub async fn run(
     server: SocketAddr,
     out: &str,
     server_name: &str,
+    wait: Duration,
 ) -> Result<(), Box<dyn std::error::Error>> {
     let mut writer = std::io::BufWriter::new(std::fs::File::create(out)?);
     let meta = wire::Meta {
@@ -122,7 +127,6 @@ pub async fn run(
         out: writer,
         count: 0,
     };
-    let wait = Duration::from_millis(500);
 
     // Unconnected ping: 0x01, time, magic, GUID.
     let socket = fresh(server).await?;
@@ -133,14 +137,18 @@ pub async fn run(
     probe.exchange(&socket, &ping, wait).await?;
 
     // Request1 sizes: Reply1 MTU as a function of the request size.
-    for mtu in [1500usize, 1492, 1464, 1400, 1300, 1200, 1000, 576, 400, 300, 100] {
+    for mtu in [
+        1500usize, 1492, 1464, 1400, 1300, 1200, 1000, 576, 400, 300, 100,
+    ] {
         let socket = fresh(server).await?;
         probe.exchange(&socket, &request1(mtu, 11), wait).await?;
     }
     // Unsupported protocol versions.
     for protocol in [10u8, 12] {
         let socket = fresh(server).await?;
-        probe.exchange(&socket, &request1(1492, protocol), wait).await?;
+        probe
+            .exchange(&socket, &request1(1492, protocol), wait)
+            .await?;
     }
     // Request2 MTU handling relative to the Reply1 MTU (1492-byte Request1).
     // Each case uses its own GUID: BDS answers a GUID it already has a

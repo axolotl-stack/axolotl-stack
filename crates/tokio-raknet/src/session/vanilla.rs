@@ -129,10 +129,10 @@ impl VanillaState {
     }
 }
 
-/// Mojang `RangeList::Serialize` budget per ACK/NAK datagram: `(MTU - 28) * 8
-/// - 72` bits, a range is added while `16 + written + 65` bits fit. Ranges
-/// are sorted and merged; a datagram also closes at the 8192-sequence decoder
-/// limit of RAKNET-01.
+/// Mojang `RangeList::Serialize` budget per ACK/NAK datagram:
+/// `(MTU - 28) * 8 - 72` bits; a range is added while `16 + written + 65`
+/// bits fit. Ranges are sorted and merged; a datagram also closes at the
+/// 8192-sequence decoder limit of RAKNET-01.
 pub(crate) fn mojang_ack_chunks(
     mut ranges: Vec<SequenceRange>,
     mtu: usize,
@@ -354,9 +354,9 @@ impl Session {
 
     /// Reliable frame bytes ACKed since the last call (manager queue cap).
     pub(crate) fn take_vanilla_acked_bytes(&mut self) -> usize {
-        self.vanilla
-            .as_mut()
-            .map_or(0, |vanilla| std::mem::take(&mut vanilla.acked_reliable_bytes))
+        self.vanilla.as_mut().map_or(0, |vanilla| {
+            std::mem::take(&mut vanilla.acked_reliable_bytes)
+        })
     }
 
     /// `ReliabilityLayer::Update` (lens RL_010): ACKs if due, one NAK
@@ -398,20 +398,21 @@ impl Session {
         let mut current: (Vec<EncapsulatedPacket>, Vec<u32>) = (Vec::new(), Vec::new());
         let mut current_size = 0usize;
         let mut total = 0usize;
-        let mut add = |packet: EncapsulatedPacket,
-                       number: Option<u32>,
-                       datagrams: &mut Vec<(Vec<EncapsulatedPacket>, Vec<u32>)>| {
-            let size = packet.size();
-            if current_size + size > capacity && !current.0.is_empty() {
-                datagrams.push(std::mem::take(&mut current));
-                current_size = 0;
-            }
-            current_size += size;
-            total += size;
-            current.0.push(packet);
-            current.1.extend(number);
-            total
-        };
+        let mut add =
+            |packet: EncapsulatedPacket,
+             number: Option<u32>,
+             datagrams: &mut Vec<(Vec<EncapsulatedPacket>, Vec<u32>)>| {
+                let size = packet.size();
+                if current_size + size > capacity && !current.0.is_empty() {
+                    datagrams.push(std::mem::take(&mut current));
+                    current_size = 0;
+                }
+                current_size += size;
+                total += size;
+                current.0.push(packet);
+                current.1.extend(number);
+                total
+            };
 
         // Resends: the head of the resend list while due.
         let mut sent = 0usize;
@@ -583,7 +584,12 @@ mod tests {
         let now = Instant::now();
         let mut s = session(1400);
         for _ in 0..40 {
-            queue(&mut s, 60, Reliability::ReliableOrdered, RakPriority::Normal);
+            queue(
+                &mut s,
+                60,
+                Reliability::ReliableOrdered,
+                RakPriority::Normal,
+            );
         }
         let out = drain(&mut s, now);
         let flags: Vec<u8> = out.iter().map(|d| d.header.flags.bits()).collect();
@@ -616,7 +622,12 @@ mod tests {
     fn slow_start_doubles_the_burst_per_acked_round() {
         let mut now = Instant::now();
         let mut s = session(1400);
-        queue(&mut s, 200_000, Reliability::ReliableOrdered, RakPriority::Normal);
+        queue(
+            &mut s,
+            200_000,
+            Reliability::ReliableOrdered,
+            RakPriority::Normal,
+        );
         let mut bursts = Vec::new();
         let mut next = 0;
         for _ in 0..5 {
@@ -646,7 +657,10 @@ mod tests {
             .collect();
         assert_eq!(
             sent,
-            vec![(Reliability::Reliable, 0), (Reliability::ReliableOrdered, 1)]
+            vec![
+                (Reliability::Reliable, 0),
+                (Reliability::ReliableOrdered, 1)
+            ]
         );
     }
 
@@ -679,7 +693,8 @@ mod tests {
     fn acks_are_immediate_until_rtt_is_known_then_wait_10ms() {
         let start = Instant::now();
         let mut s = session(1400);
-        s.vanilla_accept_sequence(Sequence24::new(0), start).unwrap();
+        s.vanilla_accept_sequence(Sequence24::new(0), start)
+            .unwrap();
         assert_eq!(s.vanilla_ack_deadline(), Some(start));
         assert_eq!(feedback(&drain(&mut s, start), true), vec![vec![(0, 0)]]);
 
@@ -694,7 +709,10 @@ mod tests {
         s.vanilla_accept_sequence(Sequence24::new(1), t2).unwrap();
         s.vanilla_accept_sequence(Sequence24::new(2), t2 + Duration::from_millis(4))
             .unwrap();
-        assert_eq!(s.vanilla_ack_deadline(), Some(t2 + Duration::from_millis(10)));
+        assert_eq!(
+            s.vanilla_ack_deadline(),
+            Some(t2 + Duration::from_millis(10))
+        );
         assert!(drain(&mut s, t2 + Duration::from_millis(9)).is_empty());
         let out = drain(&mut s, t2 + Duration::from_millis(10));
         assert_eq!(feedback(&out, true), vec![vec![(1, 2)]]);
@@ -708,12 +726,22 @@ mod tests {
         let mut sender = session(576);
         let mut receiver = session(576);
         // Give the receiver an RTT sample so ACKs would otherwise wait.
-        queue(&mut receiver, 10, Reliability::Reliable, RakPriority::Normal);
+        queue(
+            &mut receiver,
+            10,
+            Reliability::Reliable,
+            RakPriority::Normal,
+        );
         drain(&mut receiver, start);
         ack(&mut receiver, 0, 0);
         drain(&mut receiver, start + Duration::from_millis(1));
 
-        queue(&mut sender, 600, Reliability::ReliableOrdered, RakPriority::Normal);
+        queue(
+            &mut sender,
+            600,
+            Reliability::ReliableOrdered,
+            RakPriority::Normal,
+        );
         let now = start + Duration::from_millis(2);
         for datagram in data(&drain(&mut sender, now)) {
             receiver
@@ -724,7 +752,10 @@ mod tests {
                 .unwrap();
         }
         assert_eq!(receiver.vanilla_ack_deadline(), Some(now));
-        assert_eq!(feedback(&drain(&mut receiver, now), true), vec![vec![(0, 1)]]);
+        assert_eq!(
+            feedback(&drain(&mut receiver, now), true),
+            vec![vec![(0, 1)]]
+        );
     }
 
     /// ACK-3/REL-8: a gap is NAKed by the next update (number by number,
@@ -735,15 +766,24 @@ mod tests {
         let now = Instant::now();
         let mut s = session(1400);
         for seq in [0, 3, 3, 1] {
-            assert!(s.vanilla_accept_sequence(Sequence24::new(seq), now).unwrap());
+            assert!(
+                s.vanilla_accept_sequence(Sequence24::new(seq), now)
+                    .unwrap()
+            );
         }
         let out = drain(&mut s, now);
         assert_eq!(feedback(&out, false), vec![vec![(1, 2)]]);
         assert_eq!(feedback(&out, true), vec![vec![(0, 1), (3, 3)]]);
 
-        assert!(s.vanilla_accept_sequence(Sequence24::new(2004), now).unwrap());
+        assert!(
+            s.vanilla_accept_sequence(Sequence24::new(2004), now)
+                .unwrap()
+        );
         let later = now + Duration::from_millis(1);
-        assert_eq!(feedback(&drain(&mut s, later), false), vec![vec![(1004, 2003)]]);
+        assert_eq!(
+            feedback(&drain(&mut s, later), false),
+            vec![vec![(1004, 2003)]]
+        );
         assert!(
             !s.vanilla_accept_sequence(Sequence24::new(2005 + 50_001), later)
                 .unwrap()
@@ -757,10 +797,20 @@ mod tests {
     fn nak_resends_messages_repacked_with_new_data() {
         let now = Instant::now();
         let mut s = session(1400);
-        queue(&mut s, 10, Reliability::ReliableOrdered, RakPriority::Normal);
+        queue(
+            &mut s,
+            10,
+            Reliability::ReliableOrdered,
+            RakPriority::Normal,
+        );
         let first = drain(&mut s, now);
         assert_eq!(first[0].header.sequence.value(), 0);
-        queue(&mut s, 20, Reliability::ReliableOrdered, RakPriority::Normal);
+        queue(
+            &mut s,
+            20,
+            Reliability::ReliableOrdered,
+            RakPriority::Normal,
+        );
         nak(&mut s, 0);
         let later = now + Duration::from_millis(5);
         let out = drain(&mut s, later);
@@ -803,7 +853,12 @@ mod tests {
     fn needs_bas_flag_clears_once_the_window_exceeds_the_threshold() {
         let mut now = Instant::now();
         let mut s = session(1400);
-        queue(&mut s, 100_000, Reliability::ReliableOrdered, RakPriority::Normal);
+        queue(
+            &mut s,
+            100_000,
+            Reliability::ReliableOrdered,
+            RakPriority::Normal,
+        );
         let mut next = 0;
         for _ in 0..3 {
             let sent = data(&drain(&mut s, now)).len() as u32;
@@ -840,9 +895,24 @@ mod tests {
     fn split_ids_advance_only_for_split_messages() {
         let now = Instant::now();
         let mut s = session(576);
-        queue(&mut s, 600, Reliability::ReliableOrdered, RakPriority::Normal);
-        queue(&mut s, 10, Reliability::ReliableOrdered, RakPriority::Normal);
-        queue(&mut s, 600, Reliability::ReliableOrdered, RakPriority::Normal);
+        queue(
+            &mut s,
+            600,
+            Reliability::ReliableOrdered,
+            RakPriority::Normal,
+        );
+        queue(
+            &mut s,
+            10,
+            Reliability::ReliableOrdered,
+            RakPriority::Normal,
+        );
+        queue(
+            &mut s,
+            600,
+            Reliability::ReliableOrdered,
+            RakPriority::Normal,
+        );
         s.vanilla_mut().cc.is_continuous_send = true;
         for seq in 0..10 {
             s.vanilla_mut()

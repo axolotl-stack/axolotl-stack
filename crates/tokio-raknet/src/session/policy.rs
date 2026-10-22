@@ -160,9 +160,10 @@ impl MojangCongestion {
     pub(crate) fn rto(&self) -> Duration {
         let micros = match self.estimated_rtt_us {
             None => RTO_MAX_US,
-            Some(estimated) => (2.0 * estimated + 4.0 * self.deviation_rtt_us
-                + RTO_ADDITIONAL_VARIANCE_US)
-                .min(RTO_MAX_US),
+            Some(estimated) => {
+                (2.0 * estimated + 4.0 * self.deviation_rtt_us + RTO_ADDITIONAL_VARIANCE_US)
+                    .min(RTO_MAX_US)
+            }
         };
         Duration::from_micros(micros as u64)
     }

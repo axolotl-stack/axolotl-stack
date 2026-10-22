@@ -10,9 +10,7 @@ use crate::protocol::{
     reliability::Reliability,
     state::{DisconnectReason, RakPriority},
 };
-use crate::session::policy::{
-    VANILLA_HANDSHAKE_TIMEOUT, VANILLA_PING_INTERVAL, VANILLA_TIMEOUT,
-};
+use crate::session::policy::{VANILLA_HANDSHAKE_TIMEOUT, VANILLA_PING_INTERVAL, VANILLA_TIMEOUT};
 
 use super::{ConnectionState, ManagedSession, SessionError, VanillaClose};
 
@@ -540,7 +538,12 @@ mod tests {
     #[test]
     fn vanilla_server_pings_twice_on_connect_then_every_five_seconds() {
         let start = Instant::now();
-        let mut ms = managed(TransmissionPolicy::Vanilla, SessionRole::Server, PEER, start);
+        let mut ms = managed(
+            TransmissionPolicy::Vanilla,
+            SessionRole::Server,
+            PEER,
+            start,
+        );
         ms.handle_control_packet(
             &RaknetPacket::ConnectionRequest(ConnectionRequest {
                 client_guid: 3,
@@ -642,7 +645,12 @@ mod tests {
     #[test]
     fn vanilla_handshake_times_out_after_ten_seconds() {
         let start = Instant::now();
-        let mut ms = managed(TransmissionPolicy::Vanilla, SessionRole::Client, PEER, start);
+        let mut ms = managed(
+            TransmissionPolicy::Vanilla,
+            SessionRole::Client,
+            PEER,
+            start,
+        );
         ms.start_client_handshake(9, start, false).unwrap();
         ms.on_tick(start + Duration::from_secs(10));
         assert_eq!(ms.state(), ConnectionState::OnlineHandshake);
@@ -827,7 +835,10 @@ mod tests {
                 .expect("pong");
             assert_eq!(pong.0, Reliability::Unreliable);
             assert_eq!(pong.1.ping_time.0, 77);
-            assert_eq!(pong.1.pong_time.0, ManagedSession::current_raknet_time(now).0);
+            assert_eq!(
+                pong.1.pong_time.0,
+                ManagedSession::current_raknet_time(now).0
+            );
         }
     }
 

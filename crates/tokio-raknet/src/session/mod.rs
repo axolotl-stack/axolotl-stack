@@ -42,10 +42,10 @@ use crate::protocol::ack::SequenceRange;
 use ack_queue::AckQueue;
 use ordering_channels::OrderingChannels;
 pub use policy::TransmissionPolicy;
-use vanilla::VanillaState;
 use reliable_tracker::ReliableTracker;
 use sliding_window::SlidingWindow;
 use split_assembler::SplitAssembler;
+use vanilla::VanillaState;
 
 /// Packet decoded out of a session along with delivery metadata.
 pub struct IncomingPacket {

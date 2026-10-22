@@ -39,7 +39,9 @@ impl Args {
         let mut args = args.peekable();
         while let Some(arg) = args.next() {
             if let Some(key) = arg.strip_prefix("--") {
-                let value = args.next().ok_or_else(|| format!("--{key} needs a value"))?;
+                let value = args
+                    .next()
+                    .ok_or_else(|| format!("--{key} needs a value"))?;
                 values.insert(key.to_owned(), value);
             } else {
                 positional.push(arg);
@@ -114,7 +116,13 @@ async fn run_relay(args: &Args) -> Result<(), Error> {
         client: args.string("client"),
         faults: faults.describe(),
     };
-    let relay = Relay::start(listen, upstream, faults, Some((std::fs::File::create(&out)?, meta))).await?;
+    let relay = Relay::start(
+        listen,
+        upstream,
+        faults,
+        Some((std::fs::File::create(&out)?, meta)),
+    )
+    .await?;
     eprintln!("READY {}", relay.address);
     let duration: Option<u64> = args.get("duration-ms")?;
     let idle_exit: Option<u64> = args.get("idle-exit-ms")?;
@@ -142,13 +150,14 @@ async fn run_relay(args: &Args) -> Result<(), Error> {
         if duration.is_some_and(|ms| started.elapsed() >= Duration::from_millis(ms)) {
             break;
         }
-        if let Some(ms) = idle_exit {
-            if let Some(last) = relay.last_t_us()
-                && started.elapsed().saturating_sub(Duration::from_micros(last))
-                    >= Duration::from_millis(ms)
-            {
-                break;
-            }
+        if let Some(ms) = idle_exit
+            && let Some(last) = relay.last_t_us()
+            && started
+                .elapsed()
+                .saturating_sub(Duration::from_micros(last))
+                >= Duration::from_millis(ms)
+        {
+            break;
         }
     }
     let records = relay.finish().await;
@@ -166,7 +175,8 @@ async fn main() -> Result<(), Error> {
         "probe" => {
             let server = loopback(args.required("server")?)?;
             let out: String = args.required("out")?;
-            probe::run(server, &out, &args.string("server-name")).await
+            let wait = Duration::from_millis(args.get("wait-ms")?.unwrap_or(500));
+            probe::run(server, &out, &args.string("server-name"), wait).await
         }
         "analyze" => {
             for path in &args.positional {

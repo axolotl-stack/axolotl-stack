@@ -40,7 +40,9 @@ pub(super) async fn dispatch_datagram(
     if let Some(state) = sessions.get_mut(&peer) {
         if state.managed.transmission_policy().is_vanilla() {
             // Mojang `timeLastDatagramArrived` (connected datagrams only).
-            state.managed.record_datagram_activity(bytes, Instant::now());
+            state
+                .managed
+                .record_datagram_activity(bytes, Instant::now());
         }
         if !handle_incoming_udp(
             socket,

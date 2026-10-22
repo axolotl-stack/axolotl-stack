@@ -92,14 +92,6 @@ impl Frame {
     pub fn id(&self) -> Option<u8> {
         u8::from_str_radix(self.head.get(..2)?, 16).ok()
     }
-
-    /// Wire size of the frame header.
-    pub fn header_len(&self) -> usize {
-        3 + 3 * usize::from(self.mi.is_some())
-            + 3 * usize::from(self.si.is_some())
-            + 4 * usize::from(self.oi.is_some())
-            + 10 * usize::from(self.split.is_some())
-    }
 }
 
 #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
@@ -134,13 +126,6 @@ pub struct Record {
 }
 
 impl Record {
-    pub fn data(&self) -> Option<(u8, u32, &[Frame])> {
-        match &self.body {
-            Body::Data { flags, seq, frames } => Some((*flags, *seq, frames)),
-            _ => None,
-        }
-    }
-
     pub fn offline_id(&self) -> Option<u8> {
         match &self.body {
             Body::Offline { id, .. } => Some(*id),
@@ -379,7 +364,9 @@ mod tests {
 
     #[test]
     fn parses_ack_and_frames() {
-        let ack = [0xc0, 0x00, 0x02, 0x01, 0x05, 0, 0, 0x00, 0x07, 0, 0, 0x09, 0, 0];
+        let ack = [
+            0xc0, 0x00, 0x02, 0x01, 0x05, 0, 0, 0x00, 0x07, 0, 0, 0x09, 0, 0,
+        ];
         assert_eq!(
             parse(&ack),
             Body::Ack {
@@ -394,8 +381,11 @@ mod tests {
         };
         assert_eq!((flags, seq), (0x84, 3));
         assert_eq!(frames[0].rel, 3);
-        assert_eq!((frames[0].mi, frames[0].oi, frames[0].oc), (Some(1), Some(2), Some(0)));
+        assert_eq!(
+            (frames[0].mi, frames[0].oi, frames[0].oc),
+            (Some(1), Some(2), Some(0))
+        );
         assert_eq!(frames[0].id(), Some(0));
-        assert_eq!(frames[0].header_len(), 10);
+        assert_eq!(frames[0].len, 9);
     }
 }

@@ -6,13 +6,12 @@
 use std::collections::{BTreeMap, HashMap, HashSet};
 use std::fmt::Write;
 
-use super::wire::{Action, Body, Dir, Meta, Record};
+use super::wire::{Action, Body, Dir, Meta, Record, from_hex};
 
 /// Offline handshake observations.
 #[derive(Clone, Debug, Default)]
 pub struct Offline {
-    /// `(t_ms, padded MTU)` of each `OpenConnectionRequest1`, with whether
-    /// the relay delivered it.
+    /// `(t_ms, padded MTU, delivered)` of each `OpenConnectionRequest1`.
     pub request1: Vec<(f64, usize, bool)>,
     /// `(t_ms, MTU, security)` of each `OpenConnectionReply1`.
     pub reply1: Vec<(f64, u16, bool)>,
@@ -20,7 +19,7 @@ pub struct Offline {
     pub request2: Vec<(f64, u16)>,
     /// `(t_ms, MTU)` of each `OpenConnectionReply2`.
     pub reply2: Vec<(f64, u16)>,
-    /// Other offline IDs per direction.
+    /// Other offline messages: `(t_ms, direction, ID, length)`.
     pub other: Vec<(f64, Dir, u8, usize)>,
 }
 
@@ -102,19 +101,38 @@ pub struct Side {
     pub ack_interval: Stats,
     /// Delay from receiving a data datagram to the first ACK naming it.
     pub ack_delay: Stats,
+    /// The same delays, only for datagrams without split fragments received
+    /// after this side got its first ACK (Mojang ACKs at once until it has
+    /// an RTT sample, and when a split message completes).
+    pub ack_delays_after_rtt: Vec<f64>,
     /// NAK datagrams sent, with their records.
     pub naks: Vec<(f64, Vec<(u32, u32)>)>,
+    /// Per NAK sent: time since the latest peer data datagram arrived (the
+    /// one that revealed the gap).
+    pub nak_latency: Vec<f64>,
     pub resends: Vec<Resend>,
-    /// Connected pings (`0x00`) sent: times.
-    pub pings: Vec<f64>,
+    /// Per resend of a NAKed transmission: time since that NAK arrived.
+    pub resend_after_nak: Vec<f64>,
+    /// Connected pings (`0x00`) sent: `(t_ms, reliability)`.
+    pub pings: Vec<(f64, u8)>,
     /// Detect-lost-connections (`0x04`) sent: times.
     pub detect_lost: Vec<f64>,
     /// Disconnect notifications (`0x15`) sent: `(t_ms, reliability)`.
     pub disconnects: Vec<(f64, u8)>,
+    /// `ConnectionRequestAccepted` sent: reliability, system address count,
+    /// system index.
+    pub accepted: Option<(u8, usize, u16)>,
+    /// Flags of the datagrams carrying the first split message's fragments
+    /// in the update that started it (sent within 1 ms of the first one).
+    pub first_split_round: Vec<u8>,
+    /// Data datagrams sent after the peer's `0x15` arrived.
+    pub data_after_peer_disconnect: usize,
     /// Largest number of unacknowledged data datagrams in flight.
     pub max_in_flight: usize,
     /// Time of the last datagram sent.
     pub last_ms: f64,
+    /// Time of the last datagram from the peer that the relay delivered.
+    pub last_peer_delivered_ms: f64,
 }
 
 #[derive(Clone, Debug, Default)]
@@ -124,123 +142,215 @@ pub struct Analysis {
     pub server: Side,
 }
 
-fn side(records: &[Record], sender: Dir) -> Side {
-    let mut out = Side::default();
-    // Sequence → (time, delivered) of the sender's data datagrams.
-    let mut sent: HashMap<u32, (f64, Action)> = HashMap::new();
-    // Peer data datagrams the sender received: seq → time.
-    let mut received: HashMap<u32, f64> = HashMap::new();
-    let mut acked_received: HashSet<u32> = HashSet::new();
-    let mut acked_sent: HashSet<u32> = HashSet::new();
-    let mut naked_sent: HashSet<u32> = HashSet::new();
-    // Message index → sequence of its latest transmission.
-    let mut by_message: HashMap<u32, u32> = HashMap::new();
-    let mut splits: BTreeMap<u16, (u32, BTreeMap<u32, usize>)> = BTreeMap::new();
-    let mut in_flight: HashSet<u32> = HashSet::new();
-    let mut ack_delays = Vec::new();
-    let mut ack_times = Vec::new();
-    let mut ack_records = Vec::new();
-    for record in records {
+/// System addresses in a `ConnectionRequestAccepted` payload: the client
+/// address, the index, then addresses until the two trailing timestamps.
+fn accepted_layout(payload: &[u8]) -> Option<(usize, u16)> {
+    let address_len = |tag: u8| match tag {
+        4 => Some(7),
+        6 => Some(29),
+        _ => None,
+    };
+    let mut at = 1 + address_len(*payload.get(1)?)?;
+    let index = u16::from_be_bytes(payload.get(at..at + 2)?.try_into().ok()?);
+    at += 2;
+    let mut count = 0;
+    while payload.len().saturating_sub(at) > 16 {
+        at += address_len(payload[at])?;
+        count += 1;
+    }
+    Some((count, index))
+}
+
+/// Per-sender bookkeeping while walking a capture.
+#[derive(Default)]
+struct Walk {
+    out: Side,
+    /// Sequence → (time, relay action) of the sender's data datagrams.
+    sent: HashMap<u32, (f64, Action)>,
+    /// Peer data datagrams the sender received: sequence → (time, carried a
+    /// split fragment).
+    received: HashMap<u32, (f64, bool)>,
+    acked_received: HashSet<u32>,
+    acked_sent: HashSet<u32>,
+    /// Sequence → when a NAK naming it arrived.
+    naked_sent: HashMap<u32, f64>,
+    /// Message index → sequence of its latest transmission.
+    by_message: HashMap<u32, u32>,
+    splits: BTreeMap<u16, (u32, BTreeMap<u32, usize>)>,
+    in_flight: HashSet<u32>,
+    ack_delays: Vec<f64>,
+    ack_times: Vec<f64>,
+    ack_records: Vec<f64>,
+    rtt_known: bool,
+    last_peer_data: Option<f64>,
+    peer_disconnected: bool,
+    /// The first split message's ID and when its first fragment was sent.
+    first_split: Option<(u16, f64)>,
+}
+
+impl Walk {
+    fn sent(&mut self, record: &Record) {
         let t = record.ms();
-        if record.dir == sender {
-            out.last_ms = t;
-            match &record.body {
-                Body::Data { flags, seq, frames } => {
-                    out.data_datagrams += 1;
-                    *out.flags.entry(*flags).or_default() += 1;
-                    *out.frames_per_datagram.entry(frames.len()).or_default() += 1;
-                    out.max_datagram = out.max_datagram.max(record.len);
-                    sent.insert(*seq, (t, record.action));
-                    in_flight.insert(*seq);
-                    out.max_in_flight = out.max_in_flight.max(in_flight.len());
-                    for frame in frames {
-                        if let Some(mi) = frame.mi {
-                            if let Some(previous) = by_message.insert(mi, *seq) {
-                                let (previous_t, previous_action) = sent[&previous];
-                                out.resends.push(Resend {
-                                    t_ms: t,
-                                    after_ms: t - previous_t,
-                                    after_nak: naked_sent.contains(&previous),
-                                    previous_lost: !previous_action.delivered(),
-                                    previous_acked: acked_sent.contains(&previous),
-                                });
-                                continue;
-                            }
+        self.out.last_ms = t;
+        match &record.body {
+            Body::Data { flags, seq, frames } => {
+                let out = &mut self.out;
+                out.data_datagrams += 1;
+                if self.peer_disconnected {
+                    out.data_after_peer_disconnect += 1;
+                }
+                let first_split = frames.iter().find_map(|frame| frame.split.map(|s| s.1));
+                if let (None, Some(id)) = (self.first_split, first_split) {
+                    self.first_split = Some((id, t));
+                }
+                if let Some((id, started)) = self.first_split
+                    && t - started < 1.0
+                    && frames
+                        .iter()
+                        .any(|frame| frame.split.is_some_and(|s| s.1 == id))
+                {
+                    out.first_split_round.push(*flags);
+                }
+                *out.flags.entry(*flags).or_default() += 1;
+                *out.frames_per_datagram.entry(frames.len()).or_default() += 1;
+                out.max_datagram = out.max_datagram.max(record.len);
+                self.sent.insert(*seq, (t, record.action));
+                self.in_flight.insert(*seq);
+                out.max_in_flight = out.max_in_flight.max(self.in_flight.len());
+                for frame in frames {
+                    if let Some(mi) = frame.mi
+                        && let Some(previous) = self.by_message.insert(mi, *seq)
+                    {
+                        let (previous_t, previous_action) = self.sent[&previous];
+                        let nak = self.naked_sent.get(&previous).copied();
+                        if let Some(nak) = nak {
+                            out.resend_after_nak.push(t - nak);
                         }
-                        if let Some((count, id, index)) = frame.split {
-                            let entry = splits.entry(id).or_insert((count, BTreeMap::new()));
-                            entry.1.insert(index, frame.len);
-                            if index + 1 < count {
-                                out.max_split_datagram = out.max_split_datagram.max(record.len);
-                            }
-                        }
-                        if let Some(id) = frame.id() {
-                            *out
-                                .reliability
-                                .entry(id)
-                                .or_default()
-                                .entry(frame.rel)
-                                .or_default() += 1;
-                            match id {
-                                0x00 => out.pings.push(t),
-                                0x04 => out.detect_lost.push(t),
-                                0x15 => out.disconnects.push((t, frame.rel)),
-                                _ => {}
-                            }
+                        out.resends.push(Resend {
+                            t_ms: t,
+                            after_ms: t - previous_t,
+                            after_nak: nak.is_some(),
+                            previous_lost: !previous_action.delivered(),
+                            previous_acked: self.acked_sent.contains(&previous),
+                        });
+                        continue;
+                    }
+                    if let Some((count, id, index)) = frame.split {
+                        let entry = self.splits.entry(id).or_insert((count, BTreeMap::new()));
+                        entry.1.insert(index, frame.len);
+                        if index + 1 < count {
+                            out.max_split_datagram = out.max_split_datagram.max(record.len);
                         }
                     }
-                }
-                Body::Ack { records: ranges } => {
-                    out.acks += 1;
-                    ack_times.push(t);
-                    ack_records.push(ranges.len() as f64);
-                    for &(start, end) in ranges {
-                        for seq in start..=end {
-                            if acked_received.insert(seq)
-                                && let Some(at) = received.get(&seq)
-                            {
-                                ack_delays.push(t - at);
+                    let Some(id) = frame.id() else {
+                        continue;
+                    };
+                    *out.reliability
+                        .entry(id)
+                        .or_default()
+                        .entry(frame.rel)
+                        .or_default() += 1;
+                    match id {
+                        0x00 => out.pings.push((t, frame.rel)),
+                        0x04 => out.detect_lost.push(t),
+                        0x10 => {
+                            if let Some((count, index)) = accepted_layout(&from_hex(&frame.head)) {
+                                out.accepted = Some((frame.rel, count, index));
                             }
                         }
+                        0x15 => out.disconnects.push((t, frame.rel)),
+                        _ => {}
                     }
                 }
-                Body::Nak { records: ranges } => out.naks.push((t, ranges.clone())),
-                _ => {}
             }
-        } else {
-            match &record.body {
-                Body::Data { seq, .. } if record.action.delivered() => {
-                    received.entry(*seq).or_insert(t);
-                }
-                Body::Ack { records: ranges } if record.action.delivered() => {
-                    for &(start, end) in ranges {
-                        for seq in start..=end {
-                            acked_sent.insert(seq);
-                            in_flight.remove(&seq);
+            Body::Ack { records: ranges } => {
+                self.out.acks += 1;
+                self.ack_times.push(t);
+                self.ack_records.push(ranges.len() as f64);
+                for &(start, end) in ranges {
+                    for seq in start..=end {
+                        if self.acked_received.insert(seq)
+                            && let Some(&(at, split)) = self.received.get(&seq)
+                        {
+                            self.ack_delays.push(t - at);
+                            if self.rtt_known && !split {
+                                self.out.ack_delays_after_rtt.push(t - at);
+                            }
                         }
                     }
                 }
-                Body::Nak { records: ranges } if record.action.delivered() => {
-                    for &(start, end) in ranges {
-                        for seq in start..=end {
-                            naked_sent.insert(seq);
-                            in_flight.remove(&seq);
-                        }
-                    }
-                }
-                _ => {}
             }
+            Body::Nak { records: ranges } => {
+                self.out.naks.push((t, ranges.clone()));
+                if let Some(at) = self.last_peer_data {
+                    self.out.nak_latency.push(t - at);
+                }
+            }
+            _ => {}
         }
     }
-    out.splits = splits
-        .into_values()
-        .map(|(count, parts)| (count, parts.into_values().collect()))
-        .collect();
-    out.ack_delay = Stats::of(&ack_delays);
-    out.ack_records = Stats::of(&ack_records);
-    let intervals: Vec<f64> = ack_times.windows(2).map(|w| w[1] - w[0]).collect();
-    out.ack_interval = Stats::of(&intervals);
-    out
+
+    fn received(&mut self, record: &Record) {
+        if !record.action.delivered() {
+            return;
+        }
+        let t = record.ms();
+        self.out.last_peer_delivered_ms = t;
+        match &record.body {
+            Body::Data { seq, frames, .. } => {
+                let split = frames.iter().any(|frame| frame.split.is_some());
+                self.received.entry(*seq).or_insert((t, split));
+                self.last_peer_data = Some(t);
+                if frames.iter().any(|frame| frame.head == "15") {
+                    self.peer_disconnected = true;
+                }
+            }
+            Body::Ack { records: ranges } => {
+                self.rtt_known = true;
+                for &(start, end) in ranges {
+                    for seq in start..=end {
+                        self.acked_sent.insert(seq);
+                        self.in_flight.remove(&seq);
+                    }
+                }
+            }
+            Body::Nak { records: ranges } => {
+                for &(start, end) in ranges {
+                    for seq in start..=end {
+                        self.naked_sent.insert(seq, t);
+                        self.in_flight.remove(&seq);
+                    }
+                }
+            }
+            _ => {}
+        }
+    }
+
+    fn finish(self) -> Side {
+        let mut out = self.out;
+        out.splits = self
+            .splits
+            .into_values()
+            .map(|(count, parts)| (count, parts.into_values().collect()))
+            .collect();
+        out.ack_delay = Stats::of(&self.ack_delays);
+        out.ack_records = Stats::of(&self.ack_records);
+        let intervals: Vec<f64> = self.ack_times.windows(2).map(|w| w[1] - w[0]).collect();
+        out.ack_interval = Stats::of(&intervals);
+        out
+    }
+}
+
+fn side(records: &[Record], sender: Dir) -> Side {
+    let mut walk = Walk::default();
+    for record in records {
+        if record.dir == sender {
+            walk.sent(record);
+        } else {
+            walk.received(record);
+        }
+    }
+    walk.finish()
 }
 
 fn offline(records: &[Record]) -> Offline {
@@ -263,7 +373,7 @@ fn offline(records: &[Record]) -> Offline {
                         .push((t, u16::from_be_bytes([mtu[0], mtu[1]]), security));
                 }
             }
-            0x07 if bytes.len() >= 2 => {
+            0x07 if bytes.len() >= 10 => {
                 let mtu = &bytes[bytes.len() - 10..bytes.len() - 8];
                 out.request2.push((t, u16::from_be_bytes([mtu[0], mtu[1]])));
             }
@@ -285,8 +395,9 @@ pub fn analyze(records: &[Record]) -> Analysis {
     }
 }
 
-fn intervals(times: &[f64]) -> Stats {
-    Stats::of(&times.windows(2).map(|w| w[1] - w[0]).collect::<Vec<_>>())
+/// Intervals between consecutive times.
+pub fn intervals(times: &[f64]) -> Vec<f64> {
+    times.windows(2).map(|w| w[1] - w[0]).collect()
 }
 
 fn render_side(out: &mut String, name: &str, side: &Side) {
@@ -303,14 +414,19 @@ fn render_side(out: &mut String, name: &str, side: &Side) {
         .map(|(id, rel)| (format!("{id:#04x}"), rel))
         .collect();
     let _ = writeln!(out, "- reliability by message ID: {reliability:?}");
-    let fragment_sizes: BTreeMap<usize, usize> =
-        side.splits
-            .iter()
-            .flat_map(|(_, parts)| parts.iter().rev().skip(1))
-            .fold(BTreeMap::new(), |mut map, len| {
-                *map.entry(*len).or_default() += 1;
-                map
-            });
+    let _ = writeln!(
+        out,
+        "- ConnectionRequestAccepted (rel, addresses, index): {:?}",
+        side.accepted
+    );
+    let fragment_sizes: BTreeMap<usize, usize> = side
+        .splits
+        .iter()
+        .flat_map(|(_, parts)| parts.iter().rev().skip(1))
+        .fold(BTreeMap::new(), |mut map, len| {
+            *map.entry(*len).or_default() += 1;
+            map
+        });
     let _ = writeln!(
         out,
         "- split messages: {}, non-final fragment payload sizes {:?}, max fragment datagram {}",
@@ -320,14 +436,33 @@ fn render_side(out: &mut String, name: &str, side: &Side) {
     );
     let _ = writeln!(
         out,
-        "- ACKs: {} (records/ACK {}), interval ms {}, delay ms {}",
-        side.acks, side.ack_records, side.ack_interval, side.ack_delay
+        "- first split message's initial window (flags): {:02x?}",
+        side.first_split_round
     );
-    let _ = writeln!(out, "- NAKs: {}", side.naks.len());
+    let _ = writeln!(
+        out,
+        "- ACKs: {} (records/ACK {}), interval ms {}, delay ms {}, delay after RTT ms {}",
+        side.acks,
+        side.ack_records,
+        side.ack_interval,
+        side.ack_delay,
+        Stats::of(&side.ack_delays_after_rtt)
+    );
+    let _ = writeln!(
+        out,
+        "- NAKs: {} (latency ms {})",
+        side.naks.len(),
+        Stats::of(&side.nak_latency)
+    );
     for (t, ranges) in side.naks.iter().take(12) {
         let _ = writeln!(out, "  - {t:.1} ms {ranges:?}");
     }
-    let _ = writeln!(out, "- resends: {}", side.resends.len());
+    let _ = writeln!(
+        out,
+        "- resends: {} (after a NAK ms {})",
+        side.resends.len(),
+        Stats::of(&side.resend_after_nak)
+    );
     for resend in side.resends.iter().take(24) {
         let _ = writeln!(
             out,
@@ -339,17 +474,39 @@ fn render_side(out: &mut String, name: &str, side: &Side) {
             resend.previous_acked
         );
     }
+    let times: Vec<f64> = side.pings.iter().map(|&(t, _)| t).collect();
     let _ = writeln!(
         out,
         "- pings: {} at {:?}, intervals ms {}",
         side.pings.len(),
-        side.pings.iter().take(8).map(|t| t.round()).collect::<Vec<_>>(),
-        intervals(&side.pings)
+        side.pings
+            .iter()
+            .take(8)
+            .map(|&(t, rel)| (t.round(), rel))
+            .collect::<Vec<_>>(),
+        Stats::of(&intervals(&times))
     );
     let _ = writeln!(out, "- detect-lost-connections: {:?}", side.detect_lost);
-    let _ = writeln!(out, "- disconnects (t, reliability): {:?}", side.disconnects);
-    let _ = writeln!(out, "- max data datagrams in flight: {}", side.max_in_flight);
-    let _ = writeln!(out, "- last datagram at {:.1} ms\n", side.last_ms);
+    let _ = writeln!(
+        out,
+        "- disconnects (t, reliability): {:?}",
+        side.disconnects
+    );
+    let _ = writeln!(
+        out,
+        "- data datagrams after the peer's 0x15: {}",
+        side.data_after_peer_disconnect
+    );
+    let _ = writeln!(
+        out,
+        "- max data datagrams in flight: {}",
+        side.max_in_flight
+    );
+    let _ = writeln!(
+        out,
+        "- last datagram at {:.1} ms (peer's last delivered at {:.1} ms)\n",
+        side.last_ms, side.last_peer_delivered_ms
+    );
 }
 
 pub fn report(meta: &Meta, records: &[Record]) -> String {

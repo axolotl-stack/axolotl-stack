@@ -632,8 +632,15 @@ async fn run_client_muxer(socket: UdpSocket, mut context: ClientMuxerContext) {
                 // Vanilla: only IMMEDIATE sends wake Mojang's update loop;
                 // other priorities leave on the next 10 ms update.
                 if !vanilla || immediate {
-                    flush_built_datagrams(&mut managed, &socket, server, now, vanilla, &mut send_buf)
-                        .await;
+                    flush_built_datagrams(
+                        &mut managed,
+                        &socket,
+                        server,
+                        now,
+                        vanilla,
+                        &mut send_buf,
+                    )
+                    .await;
                     if vanilla {
                         tick.reset();
                     }
