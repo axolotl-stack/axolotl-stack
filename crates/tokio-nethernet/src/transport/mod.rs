@@ -37,6 +37,8 @@ const RECV_BUFFER: usize = 64 * 1024;
 pub(crate) struct Connection {
     session: Mutex<Session>,
     sockets: Vec<UdpSocket>,
+    /// Shared mDNS socket, bound on the first query (`None` if binding failed).
+    mdns: std::sync::OnceLock<Option<UdpSocket>>,
     driver: Notify,
 }
 
@@ -45,6 +47,7 @@ impl Connection {
         Arc::new(Self {
             session: Mutex::new(session),
             sockets,
+            mdns: std::sync::OnceLock::new(),
             driver: Notify::new(),
         })
     }
@@ -58,34 +61,21 @@ impl Connection {
     ) -> Result<R, NetherNetError> {
         let mut session = self.session.lock();
         let now = Instant::now();
-        let result = std::panic::catch_unwind(AssertUnwindSafe(|| f(&mut session, now)));
-        let result = result.map_err(|payload| {
-            let message = panic_message(payload.as_ref());
-            tracing::error!(context, %message, "dependency panic contained");
-            session.fail(NetherNetError::DependencyPanic {
-                context,
-                message: message.clone(),
-            });
-            NetherNetError::DependencyPanic { context, message }
-        });
+        let result = guarded(&mut session, context, |session| f(session, now));
         // Timers made due by this call (e.g. ICE checks after `start`) run
         // here rather than waiting for the driver to be scheduled.
-        for _ in 0..4 {
-            if session.is_closed() || session.poll_timeout().is_none_or(|due| due > now) {
-                break;
+        let wake = guarded(&mut session, "timer", |session| {
+            for _ in 0..4 {
+                if session.poll_timeout().is_none_or(|due| due > now) {
+                    break;
+                }
+                session.handle_timeout(now);
             }
-            let handled =
-                std::panic::catch_unwind(AssertUnwindSafe(|| session.handle_timeout(now)));
-            if let Err(payload) = handled {
-                session.fail(NetherNetError::DependencyPanic {
-                    context: "timer",
-                    message: panic_message(payload.as_ref()),
-                });
-                break;
-            }
-        }
+            session.driver_needs_wake()
+        })
+        .unwrap_or(true);
         let blocked = self.send_transmits(&mut session);
-        if blocked || session.driver_needs_wake() || session.is_finished() {
+        if blocked || wake || session.is_finished() {
             self.driver.notify_one();
         }
         result
@@ -96,7 +86,18 @@ impl Connection {
         let transmits = session.transmits_mut();
         let mut sent = 0;
         for transmit in transmits.iter() {
-            match self.sockets[transmit.socket].try_send_to(&transmit.data, transmit.to) {
+            let socket = if transmit.socket == ice::MDNS_SOCKET {
+                // A query without a socket is lost like any UDP datagram;
+                // rtc-ice times the query out.
+                let Some(socket) = self.mdns_socket() else {
+                    sent += 1;
+                    continue;
+                };
+                socket
+            } else {
+                &self.sockets[transmit.socket]
+            };
+            match socket.try_send_to(&transmit.data, transmit.to) {
                 Err(error) if error.kind() == io::ErrorKind::WouldBlock => break,
                 // Unreachable destinations are UDP loss; ICE/SCTP recover.
                 _ => sent += 1,
@@ -109,6 +110,59 @@ impl Connection {
     pub(crate) fn close(&self) {
         let _ = self.with("close", |session, now| session.close(now));
     }
+
+    fn mdns_socket(&self) -> Option<&UdpSocket> {
+        self.mdns
+            .get_or_init(|| {
+                let socket = bind_mdns().ok();
+                // The driver starts receiving on it.
+                self.driver.notify_one();
+                socket
+            })
+            .as_ref()
+    }
+
+    /// The socket a datagram was received on (`ice::MDNS_SOCKET` included).
+    fn socket(&self, index: usize) -> Option<&UdpSocket> {
+        if index == ice::MDNS_SOCKET {
+            self.mdns.get().and_then(Option::as_ref)
+        } else {
+            self.sockets.get(index)
+        }
+    }
+}
+
+/// 0.0.0.0:5353 shared with other responders, joined to 224.0.0.251, as
+/// pion's mDNS conn: answers are multicast to the group.
+fn bind_mdns() -> io::Result<UdpSocket> {
+    use socket2::{Domain, Protocol, Socket, Type};
+    let socket = Socket::new(Domain::IPV4, Type::DGRAM, Some(Protocol::UDP))?;
+    socket.set_reuse_address(true)?;
+    socket.bind(&SocketAddr::from(([0, 0, 0, 0], 5353)).into())?;
+    socket.join_multicast_v4(
+        &std::net::Ipv4Addr::new(224, 0, 0, 251),
+        &std::net::Ipv4Addr::UNSPECIFIED,
+    )?;
+    socket.set_nonblocking(true)?;
+    UdpSocket::from_std(socket.into())
+}
+
+/// Run `f` with panic containment; a panic poisons the session (see
+/// `Session::poison`) and is returned as `DependencyPanic`.
+fn guarded<R>(
+    session: &mut Session,
+    context: &'static str,
+    f: impl FnOnce(&mut Session) -> R,
+) -> Result<R, NetherNetError> {
+    std::panic::catch_unwind(AssertUnwindSafe(|| f(session))).map_err(|payload| {
+        let message = panic_message(payload.as_ref());
+        tracing::error!(context, %message, "dependency panic contained");
+        session.poison(NetherNetError::DependencyPanic {
+            context,
+            message: message.clone(),
+        });
+        NetherNetError::DependencyPanic { context, message }
+    })
 }
 
 /// Bind one UDP socket per local address allowed by `config`.
@@ -167,35 +221,36 @@ fn bind(ip: IpAddr) -> io::Result<UdpSocket> {
 
 /// Receive on whichever socket is ready. Windows reports ICMP port
 /// unreachable as `ConnectionReset` on the next receive; that is skipped.
-async fn recv_any(sockets: &[UdpSocket], buf: &mut [u8]) -> (usize, usize, SocketAddr) {
+/// A socket returning more consecutive errors than this in one poll is
+/// skipped until the next wake, so a persistent error cannot spin the driver.
+const MAX_RECV_ERRORS: usize = 16;
+
+async fn recv_any(connection: &Connection, buf: &mut [u8]) -> (usize, usize, SocketAddr) {
     poll_fn(|cx| {
-        for (index, socket) in sockets.iter().enumerate() {
-            loop {
+        let mut errored = false;
+        let mdns = connection
+            .mdns
+            .get()
+            .and_then(Option::as_ref)
+            .map(|socket| (ice::MDNS_SOCKET, socket));
+        for (index, socket) in connection.sockets.iter().enumerate().chain(mdns) {
+            for _ in 0..MAX_RECV_ERRORS {
                 let mut read = ReadBuf::new(buf);
                 match socket.poll_recv_from(cx, &mut read) {
                     Poll::Ready(Ok(from)) => {
                         return Poll::Ready((index, read.filled().len(), from));
                     }
-                    Poll::Ready(Err(_)) => continue,
+                    Poll::Ready(Err(_)) => errored = true,
                     Poll::Pending => break,
                 }
             }
         }
-        Poll::Pending
-    })
-    .await
-}
-
-async fn writable_any(sockets: &[UdpSocket]) {
-    poll_fn(|cx| {
-        if sockets
-            .iter()
-            .any(|socket| socket.poll_send_ready(cx).is_ready())
-        {
-            Poll::Ready(())
-        } else {
-            Poll::Pending
+        if errored {
+            // An erroring socket registered no waker: retry on the next tick
+            // of the scheduler rather than never.
+            cx.waker().wake_by_ref();
         }
+        Poll::Pending
     })
     .await
 }
@@ -208,14 +263,19 @@ pub(crate) async fn drive(connection: Arc<Connection>) {
     let mut last_due = None;
     tokio::pin!(sleep);
     loop {
-        let (deadline, blocked) = {
+        let (deadline, blocked_socket) = {
             let mut session = connection.session.lock();
             if session.is_closed() {
                 return;
             }
-            let deadline = session.poll_timeout();
+            let Ok(deadline) = guarded(&mut session, "timer", |session| session.poll_timeout())
+            else {
+                return;
+            };
             session.set_driver_deadline(deadline);
-            (deadline, !session.transmits_mut().is_empty())
+            // The head datagram blocks the queue: wait for its socket only (another
+            // writable socket would wake this loop forever).
+            (deadline, session.transmits_mut().first().map(|t| t.socket))
         };
         if let Some(deadline) = deadline {
             // A Tokio sleep that is already due still waits for the timer
@@ -232,8 +292,8 @@ pub(crate) async fn drive(connection: Arc<Connection>) {
         }
         tokio::select! {
             biased;
-            (index, len, from) = recv_any(&connection.sockets, &mut buf) => {
-                let socket = &connection.sockets[index];
+            (index, len, from) = recv_any(&connection, &mut buf) => {
+                let Some(socket) = connection.socket(index) else { continue };
                 let mut first = Some((len, from));
                 let _ = connection.with("receive", |session, now| {
                     for _ in 0..RECV_BATCH {
@@ -254,7 +314,7 @@ pub(crate) async fn drive(connection: Arc<Connection>) {
                 let _ = connection.with("timer", |session, now| session.handle_timeout(now));
             }
             () = connection.driver.notified() => {}
-            () = writable_any(&connection.sockets), if blocked => {
+            Ok(()) = connection.sockets[blocked_socket.unwrap_or(0)].writable(), if blocked_socket.is_some() => {
                 let _ = connection.with("flush", |_, _| ());
             }
         }
@@ -287,22 +347,20 @@ pub(crate) struct Pending {
 }
 
 impl Pending {
-    /// Resolve ICE servers, bind sockets, start gathering and the driver.
-    pub(crate) async fn open(
+    /// Bind sockets, gather host candidates and start the driver. ICE
+    /// servers are added separately (`Connection::add_ice_servers`).
+    pub(crate) fn open(
         role: session::Role,
         local: &LocalIdentity,
         transport: &TransportConfig,
-        ice_servers: &[crate::signaling::IceServer],
         stream: &crate::stream::NetherNetStreamConfig,
     ) -> Result<Self, NetherNetError> {
-        let servers = ice::resolve_servers(ice_servers).await;
         let (sockets, hosts) = bind_sockets(transport)?;
         let session = Session::new(
             Instant::now(),
             session::SessionParams {
                 role,
                 hosts,
-                servers,
                 relay_only: transport.relay_only,
                 certificate: local.certificate.clone(),
                 provider: local.provider.clone(),
@@ -387,6 +445,18 @@ impl Drop for Pending {
 }
 
 impl Connection {
+    /// Resolve `servers` (concurrently, bounded) and start srflx/relay gathering.
+    pub(crate) async fn add_ice_servers(
+        &self,
+        servers: &[crate::signaling::IceServer],
+    ) -> Result<(), NetherNetError> {
+        if servers.is_empty() {
+            return Ok(());
+        }
+        let resolved = ice::resolve_servers(servers).await;
+        self.with("servers", |s, now| s.add_servers(now, &resolved))
+    }
+
     pub(crate) fn add_remote_candidate(&self, line: &str) -> Result<(), NetherNetError> {
         self.with("candidate", |s, now| s.add_remote_candidate(now, line))?
     }

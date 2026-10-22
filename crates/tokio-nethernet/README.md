@@ -83,7 +83,14 @@ skips interface enumeration (several milliseconds per connection on Windows).
 ICE/DTLS/SCTP sockets for strict local tests; loopback is a deliberate testing
 policy, not a production default. `relay_only` is the ICE "relay" transport
 policy (go-nethernet `gatherOptions` `ICEGatherPolicy`). `ice_servers` uses the
-crate's own `signaling::IceServer` (UDP `turn:` and `stun:` URLs).
+crate's own `signaling::IceServer` (UDP `turn:` and `stun:` URLs). Server hosts
+resolve concurrently within 3 s; with trickle ICE they resolve only after the
+offer/answer was sent. One STUN/TURN client runs per server address, so the
+Xbox `stun:`/`turn:` pair for one host:port gathers srflx and relay together.
+Remote `.local` (mDNS) host candidates are resolved query-only, as pion and
+webrtc-rs do by default; local candidates are never published via mDNS. Remote
+DTLS fingerprints may use sha-256, sha-384 or sha-512; other hash functions are
+rejected when the description is parsed.
 
 ## Signal and discovery codecs
 
@@ -109,8 +116,8 @@ byte-for-byte to go-nethernet `discovery.Marshal` vectors.
 - Discovery admits at most 1024 peers/responses, expires both maps together, and never waits on a full signal queue in the socket receive loop. `responses()` contains decoded application bytes, not ASCII hex.
 - `ServerData` is v7; new protocol/version/auth/nonce fields have defaults. `transport_layer` remains application metadata and is not a v7 wire field.
 - Fragment counters and sizes are validated before queueing and while reassembling (`framing::{encode_segments, Reassembler}`, public so framing can be measured without a transport). A first countdown of 255 (256 segments) is rejected because no conforming sender produces it. Local reassembly byte/time limits supplement the upstream countdown invariant. Timeout is checked on subsequent input; no timer task is allocated per fragmented message.
-- Incoming handoff is a bounded queue of completed messages (`incoming_channel_capacity`); when it is full the session stops reading SCTP, so the advertised receive window backpressures the peer instead of dropping fragments. `flush` completes once SCTP accepted the write; graceful `close` additionally waits until both channels' queued bytes are acknowledged. Transport failures are returned to the sender. Error/drop cleanup aborts SCTP, sends DTLS `close_notify` and releases TURN allocations.
-- A panic unwinding out of the `rtc` stack (driven inline under the connection lock) or an integration hook (signaling, token verification) becomes `NetherNetError::DependencyPanic` and fails only that connection; a listener negotiation panic replies `CONNECTERROR` 35 and the listener keeps serving other peers.
+- Incoming handoff is a bounded queue of completed messages (`incoming_channel_capacity`); when it is full the session stops reading SCTP, so the advertised receive window backpressures the peer instead of dropping fragments. `flush` completes once SCTP accepted the write; graceful `close` additionally waits until both channels' queued bytes are acknowledged. Transport failures are returned to the sender; reassembly failures reach the reader with their own variant (`InvalidSegmentCount`, `MessageTooLarge`, `ReassemblyTimeout`, `InvalidPacket`). Close and drop follow go-nethernet `conn.go:Conn.close`: both channels' outgoing streams are reset, then SCTP is aborted (pion `SCTPTransport.Stop`), DTLS sends `close_notify` and TURN allocations are released; the peer sees `ConnectionClosed` at once.
+- A panic unwinding out of the `rtc` stack (driven inline under the connection lock) or an integration hook (signaling, token verification) becomes `NetherNetError::DependencyPanic` and fails only that connection, which is then poisoned: no `rtc` layer is called again (timers, I/O and teardown stop); a listener negotiation panic replies `CONNECTERROR` 35 and the listener keeps serving other peers.
 - Pending signal delivery, listener connection ownership, endpoint HTTP bodies/subscriptions/negotiations, WebSocket frames/queues, and anomaly-monitor state are bounded. Inline and trickled ICE candidates share a 128-candidate per-peer budget. Congested negotiation subscriptions are failed rather than blocking all peers. Cancellation suppresses pending terminal replies, and cleanup checks connection-instance ownership before removing a reused tuple.
 
 The resource budgets are local hardening policy, not newly invented protocol constants.
@@ -135,7 +142,7 @@ cargo check -p jolyne --all-targets --features nethernet,discovery,xbox-signalin
 cargo check -p axelerator --all-targets
 ```
 
-Tests include upstream wire fixtures, go-nethernet SDP line order and parse rules, authenticated malformed/truncated discovery input, configuration deadlines/ICE validation, fragment boundaries up to 262143-byte segments, receive-window backpressure, signed-identity tampering, HTTP signaling cancellation/credentials, retained WebSocket framing/closure, real loopback peers exchanging fragmented reliable and unreliable messages over inline and trickled candidates, a relay-only dial through an independent TURN server (webrtc-rs `turn`), an independent webrtc-rs 0.12 answerer with pion's AES-256-GCM-first SRTP preference and an independent webrtc-rs 0.12 offerer, sequential small sends that must not wait for delayed SACKs, and a contained listener negotiation panic.
+Tests include upstream wire fixtures, go-nethernet SDP line order and parse rules, authenticated malformed/truncated discovery input, configuration deadlines/ICE validation, fragment boundaries up to 262143-byte segments, receive-window backpressure, signed-identity tampering, HTTP signaling cancellation/credentials, retained WebSocket framing/closure, real loopback peers exchanging fragmented reliable and unreliable messages over inline and trickled candidates, go-nethernet close semantics, fingerprint-mismatch rejection, typed reassembly errors, a poisoned connection after a contained transport panic, mDNS candidate resolution, relay-only dials (inline and trickled) and a same-address `stun:`+`turn:` pair against an independent TURN server (webrtc-rs `turn`), an independent webrtc-rs 0.12 answerer with pion's AES-256-GCM-first SRTP preference and an independent webrtc-rs 0.12 offerer, sequential small sends that must not wait for delayed SACKs, and a contained listener negotiation panic.
 
 ## License
 

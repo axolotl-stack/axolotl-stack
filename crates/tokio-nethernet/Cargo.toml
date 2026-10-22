@@ -7,7 +7,7 @@ license.workspace = true
 
 [features]
 default = []
-discovery = ["aes", "sha2", "hex"]
+discovery = ["aes", "hex"]
 endpoint = ["dep:reqwest", "dep:http", "dep:hyper", "dep:hyper-util", "dep:http-body-util", "dep:tokio-rustls", "dep:rustls-pemfile", "dep:percent-encoding"]
 xbox-signaling = ["dep:tokio-tungstenite", "dep:http", "dep:tungstenite", "dep:uuid", "dep:futures-util"]
 
@@ -43,7 +43,8 @@ itoa = "1"
 # Optional crypto dependencies for discovery feature
 aes = { workspace = true, optional = true }
 # `compress` exposes the raw SHA-256 compression used for midstate HMAC.
-sha2 = { workspace = true, features = ["compress"], optional = true }
+# DTLS fingerprints (sha-256/384/512) and the discovery HMAC midstate.
+sha2 = { workspace = true, features = ["compress"] }
 hex = { workspace = true, optional = true }
 
 # HTTP endpoint signaling (go-nethernet endpoint package).

@@ -352,17 +352,33 @@ pub(crate) fn add_candidate(
 }
 
 /// Signal each newly gathered local candidate (conn.go:trickleCandidates);
-/// a failed signal closes the connection, as upstream does.
+/// a failed signal closes the connection, as upstream does. Host candidates
+/// go first; ICE servers are resolved only after the description was sent,
+/// so DNS never delays the offer/answer.
 pub(crate) fn trickle_candidates(
     connection: Arc<Connection>,
     signaling: Arc<dyn Signaling>,
     remote: String,
     connection_id: u64,
+    servers: Vec<IceServer>,
 ) {
     tokio::spawn(async move {
         let ufrag = connection.local_ufrag();
         let mut network_id = 0u32;
-        while let Some(candidates) = connection.next_candidates().await {
+        let mut servers = Some(servers);
+        loop {
+            let candidates = match connection.next_candidates().await {
+                Some(candidates) => candidates,
+                None => match servers.take() {
+                    Some(servers) if !servers.is_empty() => {
+                        if connection.add_ice_servers(&servers).await.is_err() {
+                            return;
+                        }
+                        continue;
+                    }
+                    _ => break,
+                },
+            };
             for candidate in candidates {
                 let data = candidate.format(network_id, &ufrag);
                 network_id += 1;
@@ -403,12 +419,11 @@ async fn perform_dial(
             Role::Dialer,
             &local,
             &config.transport,
-            &servers,
             &config.stream_config,
-        )
-        .await?;
+        )?;
         let nontrickle = signaling.disable_trickle_ice();
         if nontrickle {
+            pending.connection().add_ice_servers(&servers).await?;
             pending.gathered().await?;
         }
         let mut offer = pending.describe(sdp::Setup::ActPass, nontrickle)?;
@@ -433,6 +448,7 @@ async fn perform_dial(
                 signaling.clone(),
                 network_id.clone(),
                 connection_id,
+                servers,
             );
         }
 

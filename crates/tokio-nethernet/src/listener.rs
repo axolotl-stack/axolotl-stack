@@ -420,10 +420,8 @@ impl ListenerActor {
             Role::Listener,
             &local,
             &self.config.transport,
-            &servers,
             &self.config.stream_config,
-        )
-        .await?;
+        )?;
         // listener.go:listenerNegotiator.answererRole.
         let local_setup = sdp::Setup::answer_to(remote.setup);
         // Inline offer candidates are present, so ICE starts immediately.
@@ -432,6 +430,7 @@ impl ListenerActor {
         })??;
         let nontrickle = self.signaling.disable_trickle_ice();
         if nontrickle {
+            pending.connection().add_ice_servers(&servers).await?;
             pending.gathered().await?;
         }
         let mut answer = pending.describe(local_setup, nontrickle)?;
@@ -456,6 +455,7 @@ impl ListenerActor {
                 self.signaling.clone(),
                 network_id.clone(),
                 conn_id,
+                servers,
             );
         }
 

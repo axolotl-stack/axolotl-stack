@@ -27,10 +27,10 @@ src/transport/
   mod.rs          Connection handle shared by driver and stream; constants
   config.rs       TransportConfig: local interface/IP policy, UDP4/UDP6
   sdp.rs          NetherNet description encode/parse (go-nethernet parity)
-  certificate.rs  DTLS certificate + upper-case SHA-256 fingerprint
+  certificate.rs  DTLS certificate + upper-case sha-256/384/512 fingerprints
   ice.rs          ICE agent, host sockets, STUN srflx and TURN relays
   session.rs      Sans-IO session: ICE -> DTLS -> SCTP -> DCEP -> segments
-  driver.rs       One Tokio task per connection: sockets, timers
+  mod.rs          Connection + one driver task per connection: sockets, timers
 src/framing.rs    Segment encode/reassembly (unchanged contract)
 src/stream.rs     NetherNetStream over transport::Connection
 src/dialer.rs     Offer side: description, ICE controlling, DCEP opener
@@ -63,7 +63,8 @@ src/listener.rs   Answer side: validation, ICE controlled, DCEP acceptor
   connection without one (`dtlstransport.go:completeStart`); no SRTP keys are
   ever derived, so the webrtc-srtp AES-256 key-length panic cannot recur.
   Client certificates are required and checked against the SDP fingerprint
-  (case-insensitive) inside the handshake.
+  (case-insensitive, hashed with the advertised sha-256/384/512; other hash
+  functions are rejected at parse time) inside the handshake.
 - Max message size is 262144 both ways (segment payload 262143), so the
   webrtc-rs 65535 receive-buffer deviation is gone. Outbound segments use
   the remote `max-message-size - 1`.
@@ -90,8 +91,16 @@ flowchart LR
   a bounded queue, waking the reader. When the queue is full it stops draining
   SCTP streams, so the advertised receive window applies backpressure.
 - Timers: `min(ice, stun/turn, dtls, sctp)` deadline per loop.
-- Peer-triggered panics inside `rtc` calls are caught at the session boundary
-  and fail only that connection (`NetherNetError::DependencyPanic`).
+- Peer-triggered panics inside `rtc` calls (including `poll_timeout`) are
+  caught at the session boundary and fail only that connection
+  (`NetherNetError::DependencyPanic`). The session is then poisoned: closed
+  without teardown, so neither the driver nor `close()` re-enters `rtc`.
+- A blocked send waits for writability of the head datagram's socket only.
+- Close follows go-nethernet `conn.go:Conn.close`: reset both channels'
+  outgoing streams, SCTP ABORT (pion `SCTPTransport.Stop`), DTLS
+  close_notify, TURN deallocation.
+- mDNS is query-only (pion default): a remote `.local` candidate binds the
+  shared 0.0.0.0:5353 socket joined to 224.0.0.251 on first use.
 
 ## Candidates
 
@@ -107,7 +116,7 @@ flowchart LR
 ## Public API changes
 
 - `setting_engine: Option<webrtc::SettingEngine>` becomes
-  `transport: TransportConfig { include_loopback, ip_filter, udp4, udp6 }` on
+  `transport: TransportConfig { include_loopback, ip_filter, udp4, udp6, addresses, relay_only }` on
   dialer and listener configs.
 - `ice_servers: Vec<RTCIceServer>` becomes `Vec<signaling::IceServer>` (the
   crate's own type, already used for signaling credentials).

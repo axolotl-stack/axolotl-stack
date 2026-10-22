@@ -16,6 +16,8 @@ pub(crate) struct Local {
     sender: mpsc::Sender<Signal>,
     receiver: Mutex<Option<mpsc::Receiver<Signal>>>,
     trickle: bool,
+    /// Rewrites every outgoing signal (tampering tests).
+    rewrite: Option<fn(&mut Signal)>,
 }
 
 #[async_trait::async_trait]
@@ -23,6 +25,9 @@ impl Signaling for Local {
     async fn signal(&self, mut signal: Signal) -> anyhow::Result<()> {
         // The transport delivers the sender's network ID, not the destination.
         signal.network_id = self.id.into();
+        if let Some(rewrite) = self.rewrite {
+            rewrite(&mut signal);
+        }
         self.sender.send(signal).await?;
         Ok(())
     }
@@ -46,6 +51,14 @@ impl SignalingChannel for Local {
 
 /// Signaling endpoints for listener ID "1" and dialer ID "2".
 pub(crate) fn signaling_pair(trickle: bool) -> (Local, Local) {
+    signaling_pair_rewriting(trickle, None)
+}
+
+/// As [`signaling_pair`]; `rewrite_dialer` alters each signal the dialer sends.
+pub(crate) fn signaling_pair_rewriting(
+    trickle: bool,
+    rewrite_dialer: Option<fn(&mut Signal)>,
+) -> (Local, Local) {
     let (to_server, server_rx) = mpsc::channel(64);
     let (to_client, client_rx) = mpsc::channel(64);
     (
@@ -54,12 +67,14 @@ pub(crate) fn signaling_pair(trickle: bool) -> (Local, Local) {
             sender: to_client,
             receiver: Mutex::new(Some(server_rx)),
             trickle,
+            rewrite: None,
         },
         Local {
             id: "2",
             sender: to_server,
             receiver: Mutex::new(Some(client_rx)),
             trickle,
+            rewrite: rewrite_dialer,
         },
     )
 }
@@ -109,7 +124,6 @@ pub(crate) fn idle_connection() -> Arc<Connection> {
         SessionParams {
             role: Role::Listener,
             hosts: Vec::new(),
-            servers: Vec::new(),
             relay_only: false,
             certificate,
             provider,

@@ -8,6 +8,7 @@ use std::net::IpAddr;
 
 use rtc_sdp::SessionDescription;
 
+pub(crate) use super::certificate::FingerprintAlgorithm;
 use crate::error::NetherNetError;
 use crate::framing::MAX_SEGMENT_PAYLOAD;
 
@@ -160,7 +161,7 @@ pub(crate) fn encode(local: &LocalDescription<'_>) -> String {
 pub(crate) struct RemoteDescription {
     pub(crate) ufrag: String,
     pub(crate) pwd: String,
-    pub(crate) fingerprint_algorithm: String,
+    pub(crate) fingerprint_algorithm: FingerprintAlgorithm,
     pub(crate) fingerprint: String,
     pub(crate) setup: Setup,
     pub(crate) max_message_size: u32,
@@ -188,6 +189,8 @@ pub(crate) fn parse(sdp: &str) -> Result<RemoteDescription, NetherNetError> {
     let (Some(algorithm), Some(value), None) = (parts.next(), parts.next(), parts.next()) else {
         return Err(invalid("malformed fingerprint"));
     };
+    let algorithm = FingerprintAlgorithm::parse(algorithm)
+        .ok_or(invalid("unsupported fingerprint algorithm"))?;
     let setup = match media_value("setup") {
         Some("active") => Setup::Active,
         Some("passive") => Setup::Passive,
@@ -211,7 +214,7 @@ pub(crate) fn parse(sdp: &str) -> Result<RemoteDescription, NetherNetError> {
     Ok(RemoteDescription {
         ufrag: ufrag.to_owned(),
         pwd: pwd.to_owned(),
-        fingerprint_algorithm: algorithm.to_owned(),
+        fingerprint_algorithm: algorithm,
         fingerprint: value.to_owned(),
         setup,
         max_message_size,
@@ -287,7 +290,7 @@ mod tests {
         let parsed = parse(&sdp).unwrap();
         assert_eq!(parsed.ufrag, "abcd");
         assert_eq!(parsed.pwd, "0123456789abcdef0123");
-        assert_eq!(parsed.fingerprint_algorithm, "sha-256");
+        assert_eq!(parsed.fingerprint_algorithm, FingerprintAlgorithm::Sha256);
         assert_eq!(parsed.fingerprint, "AA:BB");
         assert_eq!(parsed.setup, Setup::ActPass);
         assert_eq!(parsed.max_message_size, 262144);
@@ -359,6 +362,7 @@ mod tests {
                 "a=fingerprint:sha-256 AA:BB\r\n",
                 "a=fingerprint:sha-256\r\n",
             ),
+            ("a=fingerprint:sha-256", "a=fingerprint:sha-1"),
             ("a=setup:passive", "a=setup:holdconn"),
             ("a=setup:passive\r\n", ""),
             ("a=max-message-size:262144", "a=max-message-size:1"),

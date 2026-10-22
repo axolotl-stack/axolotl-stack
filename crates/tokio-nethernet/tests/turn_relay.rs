@@ -67,12 +67,13 @@ struct Local {
     sender: mpsc::Sender<Signal>,
     receiver: Mutex<Option<mpsc::Receiver<Signal>>>,
     observed: Arc<Mutex<Vec<String>>>,
+    trickle: bool,
 }
 
 #[async_trait]
 impl Signaling for Local {
     async fn signal(&self, mut signal: Signal) -> anyhow::Result<()> {
-        if signal.typ == SignalType::Offer {
+        if matches!(signal.typ, SignalType::Offer | SignalType::Candidate) && self.id == "2" {
             self.observed.lock().await.push(signal.data.clone());
         }
         signal.network_id = self.id.into();
@@ -83,7 +84,7 @@ impl Signaling for Local {
         self.id.into()
     }
     fn disable_trickle_ice(&self) -> bool {
-        true
+        !self.trickle
     }
     fn requires_identity(&self) -> bool {
         false
@@ -97,8 +98,13 @@ impl SignalingChannel for Local {
     }
 }
 
-#[tokio::test]
-async fn relay_only_dialer_exchanges_messages_through_turn() {
+/// Dials through a fresh TURN server; returns the dialer's signaled offer
+/// and trickled candidates, and the negotiation time.
+async fn dial_through_turn(
+    relay_only: bool,
+    trickle: bool,
+    urls: impl Fn(SocketAddr) -> Vec<String>,
+) -> (Vec<String>, Duration) {
     let (server, turn) = turn_server().await;
     let observed = Arc::new(Mutex::new(Vec::new()));
     let (to_server, server_rx) = mpsc::channel(16);
@@ -109,6 +115,7 @@ async fn relay_only_dialer_exchanges_messages_through_turn() {
             sender: to_client,
             receiver: Mutex::new(Some(server_rx)),
             observed: observed.clone(),
+            trickle,
         },
         NetherNetListenerConfig {
             transport: TransportConfig::loopback_v4(),
@@ -122,25 +129,28 @@ async fn relay_only_dialer_exchanges_messages_through_turn() {
             sender: to_server,
             receiver: Mutex::new(Some(client_rx)),
             observed: observed.clone(),
+            trickle,
         },
         NetherNetDialerConfig {
             transport: TransportConfig {
-                relay_only: true,
+                relay_only,
                 ..TransportConfig::loopback_v4()
             },
             ice_servers: vec![IceServer {
                 username: "user".into(),
                 password: "pass".into(),
-                urls: vec![format!("turn:{turn}?transport=udp")],
+                urls: urls(turn),
             }],
             allow_identityless_server: true,
             ..Default::default()
         },
     );
-    tokio::time::timeout(Duration::from_secs(20), async {
+    let started = std::time::Instant::now();
+    let elapsed = tokio::time::timeout(Duration::from_secs(20), async {
         let (dialed, accepted) = tokio::join!(dialer.dial("1".into()), listener.accept());
         let mut dialed = dialed.expect("dial through TURN");
         let mut accepted = accepted.expect("accept through TURN");
+        let elapsed = started.elapsed();
         let large = bytes::Bytes::from((0..100_000).map(|n| n as u8).collect::<Vec<_>>());
         dialed.send(Message::reliable(large.clone())).await.unwrap();
         assert_eq!(accepted.next().await.unwrap().unwrap().buffer, large);
@@ -154,21 +164,78 @@ async fn relay_only_dialer_exchanges_messages_through_turn() {
             dialed.next().await.unwrap().unwrap().buffer.as_ref(),
             b"relayed reply"
         );
+        elapsed
     })
     .await
     .expect("relayed negotiation timed out");
+    server.close().await.unwrap();
+    let signals = observed.lock().await.clone();
+    (signals, elapsed)
+}
+
+fn candidates(signals: &[String]) -> Vec<String> {
+    signals
+        .iter()
+        .flat_map(|signal| signal.lines())
+        .filter_map(|line| line.trim().strip_prefix("a=").or(Some(line.trim())))
+        .filter(|line| line.starts_with("candidate:"))
+        .map(str::to_owned)
+        .collect()
+}
+
+#[tokio::test]
+async fn relay_only_dialer_exchanges_messages_through_turn() {
+    let (signals, _) = dial_through_turn(true, false, |turn| {
+        vec![format!("turn:{turn}?transport=udp")]
+    })
+    .await;
     // The non-trickle offer carried only the relay candidate.
-    let offers = observed.lock().await;
-    let candidates: Vec<&str> = offers[0]
-        .lines()
-        .filter(|line| line.starts_with("a=candidate:"))
-        .collect();
+    let candidates = candidates(&signals);
     assert_eq!(candidates.len(), 1, "{candidates:?}");
     assert!(
         candidates[0].contains(" typ relay raddr "),
         "{}",
         candidates[0]
     );
-    drop(offers);
-    server.close().await.unwrap();
+}
+
+/// Xbox credentials list `stun:` and `turn:` for one host:port. Both answers
+/// come from the same address, so they must reach the right client: a
+/// misrouted response would stall gathering until its 5 s timeout.
+#[tokio::test]
+async fn same_address_stun_and_turn_gather_without_timeout() {
+    let (signals, elapsed) = dial_through_turn(false, false, |turn| {
+        vec![format!("stun:{turn}"), format!("turn:{turn}?transport=udp")]
+    })
+    .await;
+    let candidates = candidates(&signals);
+    assert!(
+        candidates.iter().any(|c| c.contains(" typ relay ")),
+        "{candidates:?}"
+    );
+    assert!(
+        candidates.iter().any(|c| c.contains(" typ host ")),
+        "{candidates:?}"
+    );
+    assert!(
+        elapsed < Duration::from_secs(3),
+        "gathering stalled: {elapsed:?}"
+    );
+}
+
+/// Trickle mode resolves ICE servers after the offer and trickles the relay
+/// candidate as CANDIDATEADD.
+#[tokio::test]
+async fn trickled_relay_candidate_connects_relay_only_dialer() {
+    let (signals, _) = dial_through_turn(true, true, |turn| {
+        vec![format!("turn:{turn}?transport=udp")]
+    })
+    .await;
+    assert!(
+        !signals[0].contains("a=candidate:"),
+        "offer must not inline candidates"
+    );
+    let candidates = candidates(&signals[1..]);
+    assert_eq!(candidates.len(), 1, "{candidates:?}");
+    assert!(candidates[0].contains(" typ relay "), "{}", candidates[0]);
 }

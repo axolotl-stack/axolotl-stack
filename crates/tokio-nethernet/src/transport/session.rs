@@ -68,7 +68,6 @@ struct Channel {
 pub(crate) struct SessionParams {
     pub(crate) role: Role,
     pub(crate) hosts: Vec<SocketAddr>,
-    pub(crate) servers: Vec<IceServerAddr>,
     pub(crate) relay_only: bool,
     pub(crate) certificate: LocalCertificate,
     pub(crate) provider: Arc<dyn RTCCryptoProvider>,
@@ -130,7 +129,6 @@ impl Session {
             controlling,
             params.relay_only,
             params.hosts,
-            &params.servers,
             &params.provider,
         )?;
         let sctp_config = SctpConfig::default()
@@ -233,15 +231,17 @@ impl Session {
         self.segment_payload = (remote.max_message_size as usize - 1).min(self.local_segment_cap);
         self.dtls_client = Setup::is_dtls_client(local_setup, remote.setup);
         let expected = remote.fingerprint.clone();
-        let provider = self.provider.clone();
+        let algorithm = remote.fingerprint_algorithm;
         let verify: rtc_dtls::config::VerifyPeerCertificateFn = Arc::new(move |certificates, _| {
             let leaf = certificates
                 .first()
                 .ok_or(rtc_shared::error::Error::ErrNoMatchingCertificateFingerprint)?;
-            match fingerprint(&provider, leaf) {
-                // pion compares case-insensitively (`dtlstransport.go:validateFingerPrint`).
-                Ok(actual) if actual.eq_ignore_ascii_case(&expected) => Ok(()),
-                _ => Err(rtc_shared::error::Error::ErrNoMatchingCertificateFingerprint),
+            // Hashed with the advertised function; pion compares
+            // case-insensitively (`dtlstransport.go:validateFingerPrint`).
+            if fingerprint(algorithm, leaf).eq_ignore_ascii_case(&expected) {
+                Ok(())
+            } else {
+                Err(rtc_shared::error::Error::ErrNoMatchingCertificateFingerprint)
             }
         });
         let config = ConfigBuilder::default()
@@ -286,11 +286,24 @@ impl Session {
         Ok(())
     }
 
+    /// Begin srflx/relay gathering (trickle mode may add servers after the
+    /// description was signaled).
+    pub(crate) fn add_servers(&mut self, now: Instant, servers: &[IceServerAddr]) {
+        if self.closed || servers.is_empty() {
+            return;
+        }
+        self.ice.add_servers(now, servers, &self.provider);
+        self.flush(now);
+    }
+
     pub(crate) fn add_remote_candidate(
         &mut self,
         now: Instant,
         line: &str,
     ) -> Result<(), NetherNetError> {
+        if self.closed {
+            return Err(NetherNetError::ConnectionClosed);
+        }
         self.ice.add_remote_candidate(line)?;
         self.after_input(now);
         Ok(())
@@ -650,8 +663,8 @@ impl Session {
 
     /// Negotiation completes when both channels are open.
     pub(crate) fn poll_open(&mut self, cx: &mut Context<'_>) -> Poll<Result<(), NetherNetError>> {
-        if let Some(error) = &self.failure {
-            return Poll::Ready(Err(clone_error(error)));
+        if let Some(error) = self.report_failure() {
+            return Poll::Ready(Err(error));
         }
         if self.closed {
             return Poll::Ready(Err(NetherNetError::ConnectionClosed));
@@ -679,8 +692,8 @@ impl Session {
         &mut self,
         cx: &mut Context<'_>,
     ) -> Poll<Result<(), NetherNetError>> {
-        if let Some(error) = &self.failure {
-            return Poll::Ready(Err(clone_error(error)));
+        if let Some(error) = self.report_failure() {
+            return Poll::Ready(Err(error));
         }
         if self.closed {
             return Poll::Ready(Err(NetherNetError::ConnectionClosed));
@@ -695,8 +708,8 @@ impl Session {
     /// Queue one NetherNet message: each segment is one SCTP message on the
     /// channel's stream (`conn.go:Conn.Send`). Empty bodies write nothing.
     pub(crate) fn send(&mut self, now: Instant, message: &Message) -> Result<(), NetherNetError> {
-        if let Some(error) = &self.failure {
-            return Err(clone_error(error));
+        if let Some(error) = self.report_failure() {
+            return Err(error);
         }
         if self.closed || !self.is_open() {
             return Err(NetherNetError::ConnectionClosed);
@@ -725,6 +738,19 @@ impl Session {
         Ok(())
     }
 
+    /// Test hook: write one raw (possibly malformed) segment to a channel.
+    #[cfg(test)]
+    pub(crate) fn write_raw_segment(&mut self, now: Instant, reliable: bool, segment: &[u8]) {
+        let id = self.channels[usize::from(!reliable)].id.unwrap();
+        let (_, association) = self.association.as_mut().unwrap();
+        association
+            .stream(id)
+            .unwrap()
+            .write_chunk_with_ppi(now, &Bytes::copy_from_slice(segment), Ppi::Binary)
+            .unwrap();
+        self.flush(now);
+    }
+
     /// Pop the next inbound message; resumes draining channels that stopped
     /// at the queue bound.
     pub(crate) fn poll_recv(
@@ -733,7 +759,7 @@ impl Session {
         cx: &mut Context<'_>,
     ) -> Poll<Option<Result<Message, NetherNetError>>> {
         if let Some(message) = self.inbound.pop_front() {
-            if self.channels.iter().any(|c| c.unread) {
+            if !self.closed && self.channels.iter().any(|c| c.unread) {
                 for index in 0..2 {
                     if self.channels[index].unread
                         && let Some(id) = self.channels[index].id
@@ -746,10 +772,10 @@ impl Session {
             }
             return Poll::Ready(Some(message));
         }
-        if let Some(error) = &self.failure {
+        if self.failure.is_some() {
             if !self.failure_reported {
                 self.failure_reported = true;
-                return Poll::Ready(Some(Err(clone_error(error))));
+                return Poll::Ready(self.report_failure().map(Err));
             }
             return Poll::Ready(None);
         }
@@ -811,6 +837,9 @@ impl Session {
     }
 
     pub(crate) fn poll_timeout(&mut self) -> Option<Instant> {
+        if self.closed {
+            return None;
+        }
         let mut deadline = self.ice.poll_timeout();
         if self.dtls_config.is_some() {
             deadline = min_instant(deadline, self.dtls.poll_timeout(&TUNNEL));
@@ -871,20 +900,53 @@ impl Session {
         wake(&mut self.trickle);
     }
 
+    /// Contain a dependency panic: rtc state may be inconsistent, so fail
+    /// every waiter and never touch a layer again. Every rtc entry point is
+    /// guarded by `closed`: the driver exits, timers stop, `close()` skips the
+    /// teardown and queued datagrams are discarded.
+    pub(crate) fn poison(&mut self, error: NetherNetError) {
+        if self.failure.is_none() {
+            self.failure = Some(error);
+        }
+        self.closed = true;
+        self.transmits.clear();
+        wake(&mut self.reader);
+        wake(&mut self.writer);
+        wake(&mut self.opener);
+        wake(&mut self.gatherer);
+        wake(&mut self.trickle);
+    }
+
+    /// The failure for one waiter: the original error to the first, an
+    /// equivalent copy to later ones (typed framing errors stay typed).
+    fn report_failure(&mut self) -> Option<NetherNetError> {
+        let copy = self.failure.as_ref()?.duplicate();
+        self.failure.replace(copy)
+    }
+
     pub(crate) fn is_finished(&self) -> bool {
         self.closed || self.failure.is_some()
     }
 
-    /// Tear down: SCTP SHUTDOWN, DTLS close_notify, TURN deallocation. A
-    /// graceful SHUTDOWN (not ABORT) like pion's close: peers such as
-    /// cinnabar-mc/nethernet report an ABORT as a connection error.
+    /// Tear down like go-nethernet `conn.go:Conn.close`: close both data
+    /// channels (outgoing stream reset, RFC 8831 §6.7), then stop SCTP (pion
+    /// `SCTPTransport.Stop` sends ABORT), DTLS (close_notify) and ICE (TURN
+    /// deallocation). Nothing waits for the peer; `poll_drained` already let
+    /// queued data reach it.
     pub(crate) fn close(&mut self, now: Instant) {
         if self.closed {
             return;
         }
-        if let Some((_, association)) = &mut self.association
-            && association.shutdown().is_err()
-        {
+        if let Some((_, association)) = &mut self.association {
+            for id in self.channels.iter().filter_map(|channel| channel.id) {
+                if let Ok(mut stream) = association.stream(id) {
+                    let _ = stream.close(now);
+                }
+            }
+        }
+        // The resets leave before the ABORT, which discards anything unsent.
+        self.flush(now);
+        if let Some((_, association)) = &mut self.association {
             let _ = association.abort();
         }
         self.flush(now);
@@ -902,17 +964,5 @@ impl Session {
         wake(&mut self.opener);
         wake(&mut self.gatherer);
         wake(&mut self.trickle);
-    }
-}
-
-/// Errors are surfaced once to each waiter; the session keeps the original.
-fn clone_error(error: &NetherNetError) -> NetherNetError {
-    match error {
-        NetherNetError::DependencyPanic { context, message } => NetherNetError::DependencyPanic {
-            context,
-            message: message.clone(),
-        },
-        NetherNetError::ConnectionClosed => NetherNetError::ConnectionClosed,
-        other => NetherNetError::Transport(other.to_string()),
     }
 }

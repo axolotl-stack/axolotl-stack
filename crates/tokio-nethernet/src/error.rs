@@ -64,6 +64,43 @@ pub enum NetherNetError {
 }
 
 impl NetherNetError {
+    /// An equivalent error for a second observer of one failure. Every
+    /// variant is reproduced exactly except the boxed sources: `Io` keeps its
+    /// kind and message, `Signaling` its rendered chain.
+    pub(crate) fn duplicate(&self) -> Self {
+        match self {
+            Self::Transport(message) => Self::Transport(message.clone()),
+            Self::Signaling(error) => Self::Signaling(anyhow::anyhow!("{error:#}")),
+            Self::Io(error) => Self::Io(std::io::Error::new(error.kind(), error.to_string())),
+            Self::NegotiationTimeout => Self::NegotiationTimeout,
+            Self::ConnectionClosed => Self::ConnectionClosed,
+            Self::InvalidPacket => Self::InvalidPacket,
+            Self::TooManyIceCandidates { limit } => Self::TooManyIceCandidates { limit: *limit },
+            Self::InvalidConfiguration(reason) => Self::InvalidConfiguration(reason),
+            Self::MessageTooLarge { size, limit } => Self::MessageTooLarge {
+                size: *size,
+                limit: *limit,
+            },
+            Self::TooManySegments { count } => Self::TooManySegments { count: *count },
+            Self::InvalidSegmentCount { expected, actual } => Self::InvalidSegmentCount {
+                expected: *expected,
+                actual: *actual,
+            },
+            Self::ReassemblyTimeout => Self::ReassemblyTimeout,
+            Self::InvalidMaxMessageSize => Self::InvalidMaxMessageSize,
+            Self::SignalError { code, message } => Self::SignalError {
+                code: *code,
+                message: message.clone(),
+            },
+            Self::InvalidIceCandidate => Self::InvalidIceCandidate,
+            Self::InvalidDescription(reason) => Self::InvalidDescription(reason),
+            Self::DependencyPanic { context, message } => Self::DependencyPanic {
+                context,
+                message: message.clone(),
+            },
+        }
+    }
+
     /// Creates a signal error with the given code.
     #[inline]
     pub fn signal(code: SignalErrorCode, message: impl Into<String>) -> Self {

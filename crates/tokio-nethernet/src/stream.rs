@@ -473,11 +473,145 @@ mod tests {
             );
             assert_eq!(sent, ());
             assert_eq!(received.buffer, expected);
-            // The peer observes the abort that follows the drained close.
-            assert!(b.next().await.is_none_or(|item| item.is_err()));
+            // go-nethernet close semantics: the channels reset and the ABORT
+            // that follows the drained close end the peer at once (no ICE
+            // timeout), as an error like go's `net.ErrClosed`.
+            let closed_at = std::time::Instant::now();
+            assert!(matches!(
+                b.next().await,
+                Some(Err(NetherNetError::ConnectionClosed))
+            ));
+            assert!(closed_at.elapsed() < Duration::from_secs(1));
+            assert!(b.next().await.is_none());
+            assert!(matches!(
+                b.send(Message::reliable(Bytes::from_static(b"late"))).await,
+                Err(NetherNetError::ConnectionClosed)
+            ));
         })
         .await
         .expect("loopback exchange timed out");
+    }
+
+    /// A panic inside the transport poisons that connection only: every
+    /// waiter gets `DependencyPanic`, the driver exits instead of re-entering
+    /// rtc on its next tick, and the peer connection is unaffected.
+    #[tokio::test]
+    async fn contained_panic_poisons_the_connection() {
+        tokio::time::timeout(Duration::from_secs(30), async {
+            let (mut a, mut b, _listener) = connected_pair(NetherNetStreamConfig::default()).await;
+            let error = a
+                .connection
+                .with("test", |_, _| -> () { panic!("rtc exploded") })
+                .unwrap_err();
+            assert!(matches!(
+                error,
+                NetherNetError::DependencyPanic {
+                    context: "test",
+                    ..
+                }
+            ));
+            match a.next().await {
+                Some(Err(NetherNetError::DependencyPanic { message, .. })) => {
+                    assert_eq!(message, "rtc exploded")
+                }
+                other => panic!("expected DependencyPanic, got {other:?}"),
+            }
+            assert!(a.next().await.is_none());
+            assert!(matches!(
+                a.send(Message::reliable(Bytes::from_static(b"x"))).await,
+                Err(NetherNetError::ConnectionClosed)
+            ));
+            while !a.driver.is_finished() {
+                tokio::time::sleep(Duration::from_millis(5)).await;
+            }
+            // Teardown is skipped: no rtc call after the panic.
+            a.connection.close();
+            assert!(
+                a.connection
+                    .with("check", |session, _| session.poll_timeout())
+                    .unwrap()
+                    .is_none()
+            );
+            drop(a);
+            // The peer only sees its transport go quiet (no ABORT was sent).
+            b.send(Message::reliable(Bytes::from_static(b"still writable")))
+                .await
+                .unwrap();
+        })
+        .await
+        .expect("poisoned connection test timed out");
+    }
+
+    /// Reassembly failures keep their type for the reader (`message.go`
+    /// rejects a countdown gap).
+    #[tokio::test]
+    async fn framing_errors_reach_the_reader_typed() {
+        tokio::time::timeout(Duration::from_secs(30), async {
+            let (a, mut b, _listener) = connected_pair(NetherNetStreamConfig::default()).await;
+            a.connection
+                .with("test", |session, now| {
+                    session.write_raw_segment(now, true, &[2, b'x']);
+                    session.write_raw_segment(now, true, &[0, b'y']);
+                })
+                .unwrap();
+            match b.next().await {
+                Some(Err(NetherNetError::InvalidSegmentCount { expected, actual })) => {
+                    assert_eq!((expected, actual), (1, 0));
+                }
+                other => panic!("expected InvalidSegmentCount, got {other:?}"),
+            }
+        })
+        .await
+        .expect("framing error test timed out");
+    }
+
+    /// A certificate that does not match the signaled fingerprint fails the
+    /// DTLS handshake on both sides (`dtlstransport.go:validateFingerPrint`).
+    #[tokio::test]
+    async fn fingerprint_mismatch_rejects_the_connection() {
+        fn tamper(signal: &mut crate::Signal) {
+            if signal.typ == crate::SignalType::Offer {
+                let start = signal.data.find("a=fingerprint:sha-256 ").unwrap() + 22;
+                let digit = if signal.data.as_bytes()[start] == b'0' {
+                    "1"
+                } else {
+                    "0"
+                };
+                signal.data.replace_range(start..start + 1, digit);
+            }
+        }
+        let (server, client) = crate::test_support::signaling_pair_rewriting(false, Some(tamper));
+        let mut listener = crate::NetherNetListener::bind_with_signaling(
+            server,
+            crate::NetherNetListenerConfig {
+                transport: crate::TransportConfig::loopback_v4(),
+                allow_identityless_client: true,
+                ..Default::default()
+            },
+        );
+        let dialer = crate::NetherNetDialer::connect_with_signaling(
+            client,
+            crate::NetherNetDialerConfig {
+                transport: crate::TransportConfig::loopback_v4(),
+                allow_identityless_server: true,
+                connection_timeout: Duration::from_secs(5),
+                ..Default::default()
+            },
+        );
+        let started = std::time::Instant::now();
+        let dialed = dialer.dial("1".into()).await;
+        assert!(dialed.is_err(), "tampered fingerprint must not connect");
+        // Rejected by the handshake (alert), not by the negotiation deadline.
+        assert!(
+            started.elapsed() < Duration::from_secs(4),
+            "{:?}",
+            started.elapsed()
+        );
+        assert!(
+            tokio::time::timeout(Duration::from_millis(200), listener.accept())
+                .await
+                .is_err()
+        );
     }
 
     /// Trickle signaling: offers/answers carry no candidates and every

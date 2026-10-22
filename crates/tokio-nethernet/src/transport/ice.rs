@@ -26,6 +26,15 @@ use sansio::Protocol;
 use super::sdp::LocalCandidate;
 use crate::error::NetherNetError;
 
+/// `Transmit::socket` of the shared mDNS socket (0.0.0.0:5353 joined to
+/// 224.0.0.251), bound only once a `.local` candidate needs resolving.
+pub(crate) const MDNS_SOCKET: usize = usize::MAX;
+const MDNS_PORT: u16 = 5353;
+const MDNS_GROUP: SocketAddr = SocketAddr::new(
+    IpAddr::V4(std::net::Ipv4Addr::new(224, 0, 0, 251)),
+    MDNS_PORT,
+);
+
 /// One outbound UDP datagram.
 #[derive(Debug)]
 pub(crate) struct Transmit {
@@ -59,7 +68,9 @@ const MAX_EARLY_DTLS: usize = 16;
 /// a slow answer. Keepalive/disconnected/failed keep rtc's pion-like defaults.
 fn agent_config(controlling: bool) -> AgentConfig {
     AgentConfig {
-        multicast_dns_mode: MulticastDnsMode::Disabled,
+        // pion/webrtc-rs default: resolve peers' `.local` host candidates
+        // (libwebrtc hides host IPs behind mDNS names), never publish ours.
+        multicast_dns_mode: MulticastDnsMode::QueryOnly,
         network_types: vec![NetworkType::Udp4, NetworkType::Udp6],
         check_interval: Duration::from_millis(50),
         max_binding_requests: Some(300),
@@ -161,7 +172,6 @@ impl IceLayer {
         controlling: bool,
         relay_only: bool,
         hosts: Vec<SocketAddr>,
-        servers: &[IceServerAddr],
         provider: &Arc<dyn RTCCryptoProvider>,
     ) -> Result<Self, NetherNetError> {
         let mut agent = Agent::new(now, Arc::new(agent_config(controlling)), provider.clone())
@@ -179,7 +189,7 @@ impl IceLayer {
                 agent.add_local_candidate(candidate).map_err(transport)?;
             }
         }
-        let mut layer = Self {
+        Ok(Self {
             agent,
             new_candidates: local_candidates.clone(),
             local_candidates,
@@ -191,18 +201,34 @@ impl IceLayer {
             events: VecDeque::new(),
             started: false,
             early_dtls: Vec::new(),
-        };
-        for server in servers {
-            // Relay-only gathering needs only TURN allocations.
-            if relay_only && matches!(server, IceServerAddr::Stun(_)) {
-                continue;
-            }
-            layer.add_server(now, server, provider);
+        })
+    }
+
+    /// Start srflx/relay gathering against resolved ICE servers. Only one
+    /// client exists per (server address, socket): datagrams are routed by
+    /// source address, and Xbox credentials list `stun:` and `turn:` for the
+    /// same host:port. TURN clients come first and also run the srflx binding,
+    /// so a same-address `stun:` adds nothing.
+    pub(crate) fn add_servers(
+        &mut self,
+        now: Instant,
+        servers: &[IceServerAddr],
+        provider: &Arc<dyn RTCCryptoProvider>,
+    ) {
+        let turn = servers
+            .iter()
+            .filter(|server| matches!(server, IceServerAddr::Turn { .. }));
+        // Relay-only gathering needs only TURN allocations.
+        let stun = servers
+            .iter()
+            .filter(|server| !self.relay_only && matches!(server, IceServerAddr::Stun(_)));
+        let ordered: Vec<&IceServerAddr> = turn.chain(stun).collect();
+        for server in ordered {
+            self.add_server(now, server, provider);
         }
-        if layer.servers.iter().any(TurnServer::gathering) {
-            layer.gather_deadline = Some(now + GATHER_TIMEOUT);
+        if self.servers.iter().any(TurnServer::gathering) && self.gather_deadline.is_none() {
+            self.gather_deadline = Some(now + GATHER_TIMEOUT);
         }
-        Ok(layer)
     }
 
     /// One rtc-turn client per (server, same-family socket); failures to start
@@ -222,7 +248,12 @@ impl IceLayer {
             } => (*addr, Some((username.clone(), password.clone()))),
         };
         for (socket, &host) in self.hosts.iter().enumerate() {
-            if host.is_ipv4() != addr.is_ipv4() {
+            if host.is_ipv4() != addr.is_ipv4()
+                || self
+                    .servers
+                    .iter()
+                    .any(|server| server.server == addr && server.socket == socket)
+            {
                 continue;
             }
             let config = TurnConfig {
@@ -332,6 +363,22 @@ impl IceLayer {
         dtls: &mut Vec<BytesMut>,
         out: &mut Vec<Transmit>,
     ) {
+        if socket == MDNS_SOCKET {
+            // rtc-ice demuxes mDNS by the peer port and resolves pending
+            // `.local` candidates from the answers.
+            if from.port() == MDNS_PORT {
+                let _ = self.agent.handle_read(TaggedBytesMut {
+                    now,
+                    transport: context(
+                        SocketAddr::new(IpAddr::V4(std::net::Ipv4Addr::UNSPECIFIED), MDNS_PORT),
+                        from,
+                    ),
+                    message: data,
+                });
+                self.drain_agent_events(dtls);
+            }
+            return;
+        }
         let Some(&host) = self.hosts.get(socket) else {
             return;
         };
@@ -548,7 +595,13 @@ impl IceLayer {
         data: BytesMut,
         out: &mut Vec<Transmit>,
     ) {
-        if let Some(index) = self.servers.iter().position(|s| s.relayed == Some(local)) {
+        if to == MDNS_GROUP {
+            out.push(Transmit {
+                socket: MDNS_SOCKET,
+                to,
+                data,
+            });
+        } else if let Some(index) = self.servers.iter().position(|s| s.relayed == Some(local)) {
             let server = &mut self.servers[index];
             let sent = server
                 .client
@@ -647,11 +700,16 @@ pub(crate) fn min_instant(a: Option<Instant>, b: Option<Instant>) -> Option<Inst
     }
 }
 
+/// Bound on resolving every ICE server host (below `GATHER_TIMEOUT`); hosts
+/// still unresolved by then are skipped like unreachable servers.
+const DNS_TIMEOUT: Duration = Duration::from_secs(3);
+
 /// Parse and resolve configured or signaled ICE servers. Unparsable or
-/// unsupported URLs (TCP/TLS TURN) are skipped like pion's gatherer.
+/// unsupported URLs (TCP/TLS TURN) are skipped like pion's gatherer. Hosts
+/// resolve concurrently under one `DNS_TIMEOUT`.
 pub(crate) async fn resolve_servers(servers: &[crate::signaling::IceServer]) -> Vec<IceServerAddr> {
     use rtc_ice::url::{ProtoType, SchemeType, Url};
-    let mut resolved = Vec::new();
+    let mut queries = Vec::new();
     for server in servers {
         for raw in &server.urls {
             // `stun:` rejects any query; pion and webrtc strip it.
@@ -661,8 +719,10 @@ pub(crate) async fn resolve_servers(servers: &[crate::signaling::IceServer]) -> 
             };
             let Ok(url) = parsed else { continue };
             let turn = match (url.scheme, url.proto) {
-                (SchemeType::Stun, _) => false,
-                (SchemeType::Turn, ProtoType::Udp) => true,
+                (SchemeType::Stun, _) => None,
+                (SchemeType::Turn, ProtoType::Udp) => {
+                    Some((server.username.clone(), server.password.clone()))
+                }
                 _ => continue,
             };
             let host = if url.host.contains(':') {
@@ -670,26 +730,99 @@ pub(crate) async fn resolve_servers(servers: &[crate::signaling::IceServer]) -> 
             } else {
                 format!("{}:{}", url.host, url.port)
             };
-            let Ok(addrs) = tokio::net::lookup_host(host).await else {
+            queries.push((host, turn));
+        }
+    }
+    let lookups =
+        futures::future::join_all(queries.iter().map(|(host, _)| {
+            tokio::time::timeout(DNS_TIMEOUT, tokio::net::lookup_host(host.clone()))
+        }))
+        .await;
+    let mut resolved = Vec::new();
+    for ((_, turn), lookup) in queries.into_iter().zip(lookups) {
+        let Ok(Ok(addrs)) = lookup else { continue };
+        let mut families = HashSet::new();
+        for addr in addrs {
+            // One address per family, as each needs its own allocation.
+            if !families.insert(matches!(addr.ip(), IpAddr::V4(_))) {
                 continue;
-            };
-            let mut families = HashSet::new();
-            for addr in addrs {
-                // One address per family, as each needs its own allocation.
-                if !families.insert(matches!(addr.ip(), IpAddr::V4(_))) {
-                    continue;
-                }
-                resolved.push(if turn {
-                    IceServerAddr::Turn {
-                        addr,
-                        username: server.username.clone(),
-                        password: server.password.clone(),
-                    }
-                } else {
-                    IceServerAddr::Stun(addr)
-                });
             }
+            resolved.push(match &turn {
+                Some((username, password)) => IceServerAddr::Turn {
+                    addr,
+                    username: username.clone(),
+                    password: password.clone(),
+                },
+                None => IceServerAddr::Stun(addr),
+            });
         }
     }
     resolved
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    /// DNS response carrying one A record `name` -> `ip` (RFC 6762 §6).
+    fn mdns_answer(name: &str, ip: [u8; 4]) -> BytesMut {
+        let mut packet = vec![0, 0, 0x84, 0, 0, 0, 0, 1, 0, 0, 0, 0];
+        for label in name.split('.') {
+            packet.push(label.len() as u8);
+            packet.extend_from_slice(label.as_bytes());
+        }
+        packet.extend_from_slice(&[0, 0, 1, 0, 1, 0, 0, 0, 120, 0, 4]);
+        packet.extend_from_slice(&ip);
+        BytesMut::from(&packet[..])
+    }
+
+    /// Query-only mDNS (pion's default): a `.local` remote candidate is
+    /// queried on the shared mDNS socket and, once answered, checked at the
+    /// resolved address.
+    #[test]
+    fn mdns_candidates_are_queried_and_resolved() {
+        let provider = rtc_crypto::default_provider().unwrap();
+        let now = Instant::now();
+        let host: SocketAddr = "127.0.0.1:40000".parse().unwrap();
+        let mut ice = IceLayer::new(now, true, false, vec![host], &provider).unwrap();
+        ice.start(now, true, "abcd".into(), "0123456789abcdef0123".into())
+            .unwrap();
+        ice.add_remote_candidate(
+            "candidate:1 1 udp 2113937151 nethernet-test.local 61163 typ host",
+        )
+        .unwrap();
+        let (mut dtls, mut out) = (Vec::new(), Vec::new());
+        ice.handle_timeout(now, &mut dtls, &mut out);
+        ice.flush(now, &mut out);
+        let query = out
+            .iter()
+            .find(|transmit| transmit.socket == MDNS_SOCKET)
+            .expect("mDNS query");
+        assert_eq!(query.to, MDNS_GROUP);
+        assert!(
+            query
+                .data
+                .windows(14)
+                .any(|window| window == b"nethernet-test")
+        );
+        out.clear();
+        ice.handle_datagram(
+            now,
+            MDNS_SOCKET,
+            "127.0.0.1:5353".parse().unwrap(),
+            mdns_answer("nethernet-test.local", [127, 0, 0, 1]),
+            &mut dtls,
+            &mut out,
+        );
+        let later = now + Duration::from_millis(100);
+        ice.handle_timeout(later, &mut dtls, &mut out);
+        ice.flush(later, &mut out);
+        let resolved: SocketAddr = "127.0.0.1:61163".parse().unwrap();
+        assert!(
+            out.iter().any(|transmit| transmit.socket == 0
+                && transmit.to == resolved
+                && rtc_stun::message::is_stun_message(&transmit.data)),
+            "{out:?}"
+        );
+    }
 }
