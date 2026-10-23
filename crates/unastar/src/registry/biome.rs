@@ -7,10 +7,11 @@ use super::{Registry, RegistryEntry};
 pub struct BiomeEntry {
     /// Native Bedrock biome ID, also used as the registry identity.
     pub id: u32,
-    /// Sourced packet biome ID, when available.
+    /// Packet biome ID of a data-driven (custom) biome.
     ///
-    /// `None` means the protocol packet should emit Bedrock's vanilla sentinel
-    /// (`0xffff`) instead of inventing a numeric ID.
+    /// `None` emits Bedrock's vanilla sentinel (`0xffff`), as BDS does for
+    /// every vanilla biome. The client rejects a vanilla biome name sent with
+    /// an explicit ID below 30000 and drops the connection after spawning.
     pub packet_id: Option<u16>,
     /// String identifier (e.g., "minecraft:plains").
     pub string_id: String,
@@ -52,9 +53,7 @@ impl BiomeRegistry {
             let climate = biome.climate;
             let entry = BiomeEntry {
                 id: biome.id,
-                packet_id: Some(
-                    u16::try_from(biome.id).expect("native biome ID exceeds packet range"),
-                ),
+                packet_id: None,
                 string_id: biome.identifier.to_string(),
                 name: biome_display_name(biome.identifier),
                 category: biome_category(biome.tags).to_string(),
@@ -71,7 +70,7 @@ impl BiomeRegistry {
     }
 
     /// Convert registry to protocol packet with string interning.
-    /// Match the map-of-biome-names-to-data wire shape, preserving sourced native IDs.
+    /// Match the map-of-biome-names-to-data wire shape of BDS 1.26.51.
     pub fn to_packet(&self) -> jolyne::valentine::BiomeDefinitionListPacket {
         use jolyne::valentine::bedrock::codec::BedrockString;
         use jolyne::valentine::{
@@ -198,8 +197,11 @@ mod tests {
         assert_eq!(plains.dimension, "overworld");
     }
 
+    /// BDS 1.26.51 sends every vanilla biome with the `0xffff` ID sentinel
+    /// (tools/client-diff capture); explicit native IDs made the real 26.52
+    /// client disconnect with `BadPacket` right after spawning.
     #[test]
-    fn vanilla_biome_packet_preserves_native_numeric_ids() {
+    fn vanilla_biome_packet_uses_bds_id_sentinel() {
         let mut registry = BiomeRegistry::new();
         registry.load_vanilla();
 
@@ -211,10 +213,8 @@ mod tests {
         );
         for definition in &packet.mapof_biomenamestodata {
             let name = &packet.stringlist.strings[usize::from(definition.key)];
-            assert_eq!(
-                u32::from(definition.value.id),
-                unastar_data::biomes::get(name).unwrap().id
-            );
+            assert!(unastar_data::biomes::get(name).is_some(), "{name}");
+            assert_eq!(definition.value.id, 0xffff, "{name}");
         }
         let plains_index = packet
             .stringlist
