@@ -561,16 +561,15 @@ impl WorldReady {
     }
 
     /// Sends `DimensionData` (when set), `JigsawStructureData`, `VoxelShapes`,
-    /// `StartGame`, `ItemRegistry` and the definition lists in one batch
-    /// (gophertunnel/BDS order; definitions precede the client's
-    /// `RequestChunkRadius`).
+    /// `StartGame`, `ItemRegistry` and the definition lists as one batch
+    /// whatever the flush mode (BDS order and batching; definitions precede
+    /// the client's `RequestChunkRadius`).
     pub fn start_game(
         mut self,
         params: WorldJoinParams,
         now: Instant,
     ) -> Result<ServerSpawn, Failure<Self>> {
-        let result = (|| {
-            let conn = &mut self.conn;
+        let result = self.conn.queue_group(|conn| {
             if let Some(dimensions) = &params.dimension_data {
                 conn.queue_body(
                     McpePacketName::DimensionDataPacket,
@@ -615,8 +614,8 @@ impl WorldReady {
                     now,
                 )?;
             }
-            conn.flush()
-        })();
+            Ok(())
+        });
         if let Err(error) = result {
             return Err(Failure::new(error, self));
         }
@@ -653,29 +652,27 @@ pub struct ServerSpawn {
 owner!(ServerSpawn);
 
 impl ServerSpawn {
+    /// Answers the first `RequestChunkRadius` with `ChunkRadiusUpdated`,
+    /// `NetworkChunkPublisherUpdate` and `PlayStatus(PlayerSpawn)` in one
+    /// batch.
     fn on_radius(&mut self, requested: i32, now: Instant) -> Result<(), JolyneError> {
         if requested < 1 {
             return Err(ProtocolError::InvalidChunkRadius(requested).into());
         }
         let radius = self.radius_override.unwrap_or(requested);
         self.chunk_radius = Some(radius);
-        self.conn.queue_packet(
-            &McpePacket::from(ChunkRadiusUpdatedPacket {
+        let packets = [
+            McpePacket::from(ChunkRadiusUpdatedPacket {
                 chunk_radius: radius,
             }),
-            now,
-        )?;
-        self.conn.queue_packet(
-            &McpePacket::from(NetworkChunkPublisherUpdatePacket {
+            McpePacket::from(NetworkChunkPublisherUpdatePacket {
                 newpositionforview: self.publisher_position.clone(),
                 newradiusforview: (radius as u32).saturating_mul(16),
                 server_built_chunks_list: vec![],
             }),
-            now,
-        )?;
-        self.conn
-            .queue_packet(&status_packet(PlayStatusPacketStatus::Playerspawn), now)?;
-        self.conn.flush()
+            status_packet(PlayStatusPacketStatus::Playerspawn),
+        ];
+        self.conn.send_batch(&packets, true, now)
     }
 }
 

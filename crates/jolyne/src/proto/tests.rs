@@ -55,13 +55,16 @@ fn error_of<P: Phase>(phase: P, now: Instant) -> JolyneError {
     }
 }
 
-/// Moves every transmit `from` produced into `to`.
-fn pump(from: &mut impl Owner, to: &mut impl Owner) {
+/// Moves every transmit `from` produced into `to`; returns how many batches.
+fn pump(from: &mut impl Owner, to: &mut impl Owner) -> usize {
+    let mut batches = 0;
     while let Some(transmit) = from.poll_transmit() {
         to.connection()
             .handle_datagram(Datagram::Contiguous(transmit.payload))
             .expect("peer decodes every batch");
+        batches += 1;
     }
+    batches
 }
 
 /// Every outbound packet: its name and payload (after the packet header).
@@ -312,6 +315,31 @@ async fn join_sequence_order_matches_vanilla() {
         game_data.voxel_shapes,
         Some(crate::valentine::VoxelShapesPacket::default())
     );
+}
+
+/// BDS sends `StartGame` with the structure and definition packets in one
+/// batch, and the chunk radius answer with `PlayStatus(PlayerSpawn)` in one
+/// batch; under the default immediate flush mode each packet used to leave
+/// in its own batch.
+#[tokio::test]
+async fn start_game_and_spawn_answers_leave_as_single_batches() {
+    let harness = Harness::new(BedrockListenerConfig {
+        online_mode: false,
+        ..Default::default()
+    });
+    assert_eq!(
+        harness.config.connection.flush,
+        crate::config::FlushMode::Immediate
+    );
+    let mut params = params(5);
+    params.dimension_data = Some(Arc::new(crate::valentine::DimensionDataPacket::default()));
+    let (mut spawn, mut client) = harness.through_packs(params).await;
+    assert_eq!(pump(&mut spawn, &mut client), 1); // DimensionData .. CreativeContent
+    let mut client = wait(client);
+    pump(&mut client, &mut spawn);
+    let mut spawn = wait(spawn);
+    assert_eq!(pump(&mut spawn, &mut client), 1); // radius, publisher, PlayerSpawn
+    let _joined = next(client);
 }
 
 /// The real 26.52 client dropped the connection with `BadPacket`

@@ -630,17 +630,38 @@ impl Connection {
         self.begin_pending(now);
         self.pending
             .reserve(estimate.min(self.options.max_pending_bytes));
+        self.grouped(reliable, |conn| {
+            (0..count).try_for_each(|index| queue(conn, index))
+        })
+    }
+
+    /// Seals pending packets, then sends everything `queue` adds as one
+    /// reliable batch whatever the flush mode (split only at the per-batch
+    /// limits), so a group of packets reaches the peer together as BDS sends
+    /// it.
+    pub fn queue_group(
+        &mut self,
+        queue: impl FnOnce(&mut Self) -> Result<(), JolyneError>,
+    ) -> Result<(), JolyneError> {
+        self.flush()?;
+        self.grouped(true, queue)
+    }
+
+    /// Runs `queue` in manual flush mode, then seals what it queued.
+    fn grouped(
+        &mut self,
+        reliable: bool,
+        queue: impl FnOnce(&mut Self) -> Result<(), JolyneError>,
+    ) -> Result<(), JolyneError> {
         let mode = std::mem::replace(&mut self.options.flush, FlushMode::Manual);
         self.batch_reliable = reliable;
-        let result = (0..count)
-            .try_for_each(|index| queue(self, index))
-            .and_then(|()| {
-                if self.pending_packets > 0 {
-                    self.seal(reliable)
-                } else {
-                    Ok(())
-                }
-            });
+        let result = queue(self).and_then(|()| {
+            if self.pending_packets > 0 {
+                self.seal(reliable)
+            } else {
+                Ok(())
+            }
+        });
         self.batch_reliable = true;
         self.options.flush = mode;
         result
