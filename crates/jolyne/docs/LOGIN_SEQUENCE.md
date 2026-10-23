@@ -77,7 +77,7 @@ sequenceDiagram
 - **Encryption**: ECDH key exchange using P-384 curves.
 
 ### 2. Resource Pack Phase
-- Even if no packs are required, the server must send `ResourcePacksInfo`.
+- Even if no packs are required, the server must send `ResourcePacksInfo`. Its world template version must parse as a `SemVersion`: without a template, BDS sends the nil UUID with `0.0.0`. The 26.50+ client rejects an empty version (gophertunnel's default) with `BadPacket` (error `InitialConnection-90`, codeword "Block") before answering.
 - The client must respond with `Completed` (after receiving `ResourcePackStack`) before `StartGame` is sent.
 - **ClientCacheStatus**: Clients may send this to indicate blob cache support. It should be handled (usually ignored if cache not implemented) without blocking the flow.
 
@@ -95,6 +95,7 @@ sequenceDiagram
 This sequence is the contract for compatibility smoke tests, not just documentation.
 
 - `proto::tests::join_sequence_order_matches_vanilla` asserts the server-side packet order through `PlayStatus(PlayerSpawn)`.
+- `proto::tests::post_encryption_packets_match_bds_bytes` pins the `PlayStatus(LoginSuccess)` and `ResourcePacksInfo` payloads to a BDS 1.26.51 capture and `ResourcePackStack` to the bytes real clients accepted before the sans-IO rewrite (base game version `1.26.51`; BDS sends `*`).
 - An Unastar smoke test should boot the server, complete this sequence with real registry data, request a chunk radius, and remain connected.
 - Resource-pack negotiation must wait for the correct completed client response before `StartGame`.
 - `ClientCacheStatus` must be accepted without blocking the flow, even when blob-cache support is disabled.

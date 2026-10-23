@@ -64,15 +64,16 @@ fn pump(from: &mut impl Owner, to: &mut impl Owner) {
     }
 }
 
-type Log = Arc<Mutex<Vec<McpePacketName>>>;
+/// Every outbound packet: its name and payload (after the packet header).
+type Log = Arc<Mutex<Vec<(McpePacketName, Vec<u8>)>>>;
 
 fn recording(log: &Log) -> ConnectionOptions {
     let log = log.clone();
     ConnectionOptions {
         observer: Some(Arc::new(move |event: PacketEvent<'_>| {
             if event.direction == Direction::Outbound {
-                log.lock()
-                    .push(packet_name(event.header.id).expect("known id"));
+                let name = packet_name(event.header.id).expect("known id");
+                log.lock().push((name, event.payload.to_vec()));
             }
         })),
         ..ConnectionOptions::default()
@@ -278,8 +279,9 @@ async fn join_sequence_order_matches_vanilla() {
     assert_eq!(client.session.session.runtime_id(), 42);
     assert_eq!(server.session.chunk_radius(), Some(16));
     assert_eq!(client.session.session.chunk_radius(), Some(16));
+    let sent: Vec<_> = harness.sent.lock().iter().map(|(name, _)| *name).collect();
     assert_eq!(
-        *harness.sent.lock(),
+        sent,
         [
             N::NetworkSettingsPacket,
             N::ServerToClientHandshakePacket,
@@ -309,6 +311,44 @@ async fn join_sequence_order_matches_vanilla() {
     assert_eq!(
         game_data.voxel_shapes,
         Some(crate::valentine::VoxelShapesPacket::default())
+    );
+}
+
+/// The real 26.52 client dropped the connection with `BadPacket`
+/// (`InitialConnection-90`) on a `ResourcePacksInfo` whose world template
+/// version was `""`: since 26.50 that field is a validated cereal
+/// `SemVersion`. Pins the payloads the server sends between the encryption
+/// handshake and the client's first pack response to BDS 1.26.51's bytes
+/// (captured with `tools/client-diff/gt-client`). `ResourcePackStack` keeps
+/// the base game version the pre-sans-IO server sent to accepted clients
+/// (BDS sends `*`).
+#[tokio::test]
+async fn post_encryption_packets_match_bds_bytes() {
+    use McpePacketName as N;
+    let harness = Harness::new(BedrockListenerConfig {
+        online_mode: false,
+        ..Default::default()
+    });
+    harness.through_packs(params(1)).await;
+    let sent = harness.sent.lock();
+    let handshake = sent
+        .iter()
+        .position(|(name, _)| *name == N::ServerToClientHandshakePacket)
+        .expect("handshake sent");
+    let mut bds_info = vec![0u8; 4]; // required, addons, scripts, vibrant visuals
+    bds_info.extend([0u8; 16]); // nil world template UUID
+    bds_info.extend(b"\x050.0.0"); // world template version
+    bds_info.push(0); // no packs (varuint count)
+    let mut stack = vec![0u8, 0]; // not required, no packs
+    stack.extend(b"\x071.26.51"); // base game version
+    stack.extend([0, 0, 0, 0, 0, 0]); // no experiments, never toggled, no editor packs
+    assert_eq!(
+        sent[handshake + 1..handshake + 4],
+        [
+            (N::PlayStatusPacket, vec![0, 0, 0, 0]), // LoginSuccess (i32 BE)
+            (N::ResourcePacksInfoPacket, bds_info),
+            (N::ResourcePackStackPacket, stack),
+        ]
     );
 }
 
