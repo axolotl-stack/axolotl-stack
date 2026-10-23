@@ -27,6 +27,7 @@ pub use crate::proto::conn::{Datagram, Framing, Transmit};
 /// return `Ready(Ok)` before each [`Transport::start_send`], and a message
 /// handed to `start_send` is committed (it is never resubmitted).
 pub trait Transport: Unpin + Send {
+    /// Error returned by send, flush, close and receive operations.
     type Error: std::error::Error + Send + Sync + 'static;
 
     /// RakNet prefixes batches with `0xFE`; message transports do not.

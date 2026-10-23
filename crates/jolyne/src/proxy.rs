@@ -48,8 +48,11 @@ pub enum Side {
 
 /// What to do with a relayed packet.
 pub enum Verdict {
+    /// Relays the packet unchanged.
     Forward,
+    /// Discards the packet.
     Drop,
+    /// Relays this packet in place of the original.
     Replace(RawPacket),
 }
 
@@ -65,8 +68,11 @@ pub struct RelayEnd {
 
 /// Both play sessions of a proxied player.
 pub struct ProxySession<D: Transport, U: Transport> {
+    /// The player's connection to the proxy.
     pub downstream: BedrockStream<Play, Server, D>,
+    /// The proxy's connection to the upstream server, joined as the player.
     pub upstream: BedrockStream<Play, Client, U>,
+    /// The player's verified downstream login.
     pub login: AuthenticatedLogin,
 }
 

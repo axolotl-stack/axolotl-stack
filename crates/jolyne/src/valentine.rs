@@ -9,8 +9,11 @@ pub use valentine::bedrock::version::v1_26_51 as current;
 
 // Names from Jolyne's pre-protocolgen facade that callers still use; the
 // generated 1.26.51 protocol renamed these types.
+/// Former name of [`AvailableActorIdentifiersPacket`](current::AvailableActorIdentifiersPacket).
 pub type AvailableEntityIdentifiersPacket = current::AvailableActorIdentifiersPacket;
+/// Former name of [`EnumsPacketCompressionAlgorithm`](current::EnumsPacketCompressionAlgorithm).
 pub type NetworkSettingsPacketCompressionAlgorithm = current::EnumsPacketCompressionAlgorithm;
+/// Former name of [`EnumsPlayStatus`](current::EnumsPlayStatus).
 pub type PlayStatusPacketStatus = current::EnumsPlayStatus;
 
 #[cfg(test)]

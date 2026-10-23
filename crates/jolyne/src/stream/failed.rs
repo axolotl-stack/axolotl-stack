@@ -24,14 +24,17 @@ impl<T: Transport> Failed<T> {
         Self { error, link }
     }
 
+    /// The error that failed the step.
     pub fn error(&self) -> &JolyneError {
         &self.error
     }
 
+    /// Drops the connection, sending only what was already queued, and returns the error.
     pub fn into_error(self) -> JolyneError {
         self.error
     }
 
+    /// Splits into the error and the connection, for custom failure handling.
     pub fn into_parts(self) -> (JolyneError, BedrockTransport<T>) {
         (self.error, self.link)
     }

@@ -18,14 +18,17 @@ pub struct NetherNetTransport {
 }
 
 impl NetherNetTransport {
+    /// Wraps `stream` with an unspecified (`0.0.0.0:0`) logging address.
     pub fn new(stream: NetherNetStream) -> Self {
         Self::with_addr(stream, SocketAddr::from((Ipv4Addr::UNSPECIFIED, 0)))
     }
 
+    /// Wraps `stream`, reporting `addr` as its peer address for logging.
     pub fn with_addr(stream: NetherNetStream, addr: SocketAddr) -> Self {
         Self { stream, addr }
     }
 
+    /// Returns the underlying NetherNet stream.
     pub fn into_inner(self) -> NetherNetStream {
         self.stream
     }

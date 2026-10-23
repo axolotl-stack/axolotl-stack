@@ -48,6 +48,7 @@ pub enum UnknownPacketPolicy {
 /// `ID` must be a ten-bit ID not used by valentine; [`PacketRegistry::register`]
 /// and [`RawPacket::from_custom`](super::raw::RawPacket::from_custom) enforce this.
 pub trait CustomPacket: Sized {
+    /// The ten-bit packet ID written in the packet header.
     const ID: u16;
 
     /// Decodes the packet body (the bytes after the header varint).
@@ -60,8 +61,10 @@ pub trait CustomPacket: Sized {
 /// Error returned by [`PacketRegistry::register`].
 #[derive(Debug, Clone, Copy, PartialEq, Eq, thiserror::Error)]
 pub enum RegisterError {
+    /// The ID is above [`MAX_PACKET_ID`]; holds the rejected ID.
     #[error("packet id {0} exceeds the ten-bit range")]
     OutOfRange(u16),
+    /// The ID already names a valentine packet; holds the rejected ID.
     #[error("packet id {0} is already a valentine packet")]
     Valentine(u16),
 }
@@ -90,11 +93,13 @@ impl PacketRegistry {
         Ok(())
     }
 
+    /// Whether `id` is a registered custom packet ID.
     #[inline]
     pub fn contains(&self, id: u16) -> bool {
         id <= MAX_PACKET_ID && self.bits[usize::from(id >> 6)] & (1 << (id & 63)) != 0
     }
 
+    /// Whether no custom packet IDs are registered.
     pub fn is_empty(&self) -> bool {
         self.bits.iter().all(|word| *word == 0)
     }
@@ -103,7 +108,9 @@ impl PacketRegistry {
 /// How the batch decoder classifies non-valentine IDs.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
 pub struct PacketFilter {
+    /// What to do with IDs that are neither valentine nor registered custom packets.
     pub unknown: UnknownPacketPolicy,
+    /// Custom packet IDs decoded as known packets.
     pub custom: PacketRegistry,
 }
 

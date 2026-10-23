@@ -25,11 +25,13 @@ use crate::stream::{BedrockStream, Handshake, Server};
 
 /// A source of connected transports.
 pub trait RawListener: Unpin + Send {
+    /// The transport each accepted connection runs over.
     type Transport: Transport;
 
     /// `Ready(None)` once the listener has shut down.
     fn poll_accept(self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<Option<Self::Transport>>;
 
+    /// The bound socket address; `None` for transports without one (NetherNet).
     fn local_addr(&self) -> Option<SocketAddr>;
 
     /// Publishes `status` wherever this listener answers pings.
@@ -88,6 +90,7 @@ impl<L: RawListener> BedrockListener<L> {
         self.slots.count()
     }
 
+    /// The configuration applied to every accepted connection.
     pub fn config(&self) -> &Arc<BedrockListenerConfig> {
         &self.config
     }
@@ -122,14 +125,17 @@ impl<L: RawListener> BedrockListener<L> {
         }
     }
 
+    /// The bound socket address; `None` for NetherNet listeners.
     pub fn local_addr(&self) -> Option<SocketAddr> {
         self.inner.local_addr()
     }
 
+    /// The wrapped raw listener.
     pub fn inner(&self) -> &L {
         &self.inner
     }
 
+    /// The wrapped raw listener, mutably.
     pub fn inner_mut(&mut self) -> &mut L {
         &mut self.inner
     }
@@ -188,6 +194,7 @@ impl RakNetBuilder {
         self
     }
 
+    /// Bedrock configuration applied to accepted connections.
     pub fn config(mut self, config: BedrockListenerConfig) -> Self {
         self.config = config;
         self
@@ -199,6 +206,9 @@ impl RakNetBuilder {
         self
     }
 
+    /// Binds the UDP socket and publishes the initial status. Fails when no
+    /// address was set, the address does not parse, or online mode is on with
+    /// encryption off.
     pub async fn bind(
         self,
     ) -> Result<BedrockListener<tokio_raknet::transport::RaknetListener>, JolyneError> {
@@ -306,6 +316,8 @@ impl NetherNetBuilder {
 
     // Without a signaling feature only `NetherNetSignaling::None` exists and
     // `bind` always fails.
+    /// Starts the selected signaling, binds the listener and publishes the initial
+    /// status. Fails when no signaling was selected.
     #[cfg_attr(
         not(any(
             feature = "discovery",

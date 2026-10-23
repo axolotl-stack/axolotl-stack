@@ -243,6 +243,8 @@ impl<T: Transport> BedrockStream<Login, Server, T> {
 }
 
 impl<T: Transport> BedrockStream<SecurePending, Server, T> {
+    /// The verified login; an online identity stays `AwaitingKeyProof` until
+    /// [`Self::finish_handshake`] proves the client's key.
     pub fn login(&self) -> &AuthenticatedLogin {
         self.owner().login()
     }
@@ -276,6 +278,7 @@ impl<T: Transport> BedrockStream<SecurePending, Server, T> {
 }
 
 impl<T: Transport> BedrockStream<ResourcePacks, Server, T> {
+    /// The player's login; check its identity's trust before relying on account claims.
     pub fn login(&self) -> &AuthenticatedLogin {
         self.owner().login()
     }
@@ -311,6 +314,7 @@ impl<T: Transport> BedrockStream<ResourcePacks, Server, T> {
 }
 
 impl<T: Transport> BedrockStream<StartGame, Server, T> {
+    /// The player's login; check its identity's trust before relying on account claims.
     pub fn login(&self) -> &AuthenticatedLogin {
         self.owner().login()
     }
@@ -336,10 +340,12 @@ impl<T: Transport> BedrockStream<StartGame, Server, T> {
 }
 
 impl<T: Transport> BedrockStream<Play, Server, T> {
+    /// The player's login; check its identity's trust before relying on account claims.
     pub fn login(&self) -> &AuthenticatedLogin {
         &self.owner().login
     }
 
+    /// The player's identity; account IDs (XUID, PlayFab) are `None` unless authenticated.
     pub fn identity(&self) -> &ValidatedIdentity {
         &self.owner().login.identity
     }
@@ -349,10 +355,13 @@ impl<T: Transport> BedrockStream<Play, Server, T> {
         &self.owner().login.client_data
     }
 
+    /// The player's runtime entity ID sent in `StartGame`.
     pub fn runtime_id(&self) -> u64 {
         self.owner().session.runtime_id()
     }
 
+    /// The chunk radius agreed during spawn (`None` if the client initialized
+    /// before requesting one).
     pub fn chunk_radius(&self) -> Option<i32> {
         self.owner().session.chunk_radius()
     }

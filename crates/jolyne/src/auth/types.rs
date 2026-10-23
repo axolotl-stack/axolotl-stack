@@ -1,13 +1,19 @@
+//! Login authentication payload shapes, token claims and the validated identity.
+
 use crate::auth::client_data::ClientData;
 use crate::error::AuthError;
 use md5::{Digest, Md5};
 use serde::Deserialize;
 use uuid::Uuid;
 
+/// `AuthenticationType` of the Login AuthenticationInfo JSON.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum AuthenticationType {
+    /// Multiplayer token login (`Token`); the only type accepted in online mode.
     Full = 0,
+    /// Guest login; accepted only offline with `allow_legacy`.
     Guest = 1,
+    /// Self-signed login; accepted only offline with `allow_legacy`.
     SelfSigned = 2,
 }
 
@@ -24,25 +30,32 @@ impl TryFrom<u32> for AuthenticationType {
     }
 }
 
+/// AuthenticationInfo JSON: the first value of `LoginPacket.connection_request`.
 #[derive(Debug, Deserialize)]
 pub struct AuthInfo {
+    /// Raw `AuthenticationType`; required, see [`AuthenticationType`].
     #[serde(rename = "AuthenticationType")]
     pub authentication_type: Option<u32>,
+    /// Multiplayer token JWT; required for [`AuthenticationType::Full`], optional otherwise.
     #[serde(rename = "Token")]
     pub token: Option<String>,
+    /// Legacy JWT chain container, as a JSON object or a JSON-encoded string.
     #[serde(rename = "Certificate")]
     pub certificate: Option<serde_json::Value>,
-    // Some clients may still send legacy "chain" shape in root.
+    /// Legacy JWT chain sent at the JSON root by some clients instead of `Certificate`.
     pub chain: Option<serde_json::Value>,
 }
 
 /// Legacy chain `extraData` (gophertunnel `login.IdentityData` JSON shape).
 #[derive(Debug, Deserialize, Clone)]
 pub struct ExtraDataClaims {
+    /// Xbox Live user ID; absent for offline identities.
     #[serde(rename = "XUID")]
     pub xuid: Option<String>,
+    /// Player display name (gamertag for Xbox accounts).
     #[serde(rename = "displayName")]
     pub display_name: Option<String>,
+    /// Player UUID string.
     #[serde(rename = "identity")]
     pub uuid: Option<String>,
 }
@@ -53,6 +66,7 @@ pub struct OpenIdClaims {
     /// Xbox Live user ID; empty for unauthenticated identities.
     #[serde(rename = "xid")]
     pub xuid: Option<String>,
+    /// Xbox gamertag, used as the display name.
     #[serde(rename = "xname")]
     pub xbox_username: Option<String>,
     /// Client public key bound to the token; signs client data and keys encryption.
@@ -75,8 +89,10 @@ pub struct OpenIdClaims {
 /// Claims of a legacy self-signed chain link.
 #[derive(Debug, Deserialize)]
 pub struct ChainClaims {
+    /// Public key certified by the link; the last link's key must sign the client data.
     #[serde(rename = "identityPublicKey")]
     pub identity_public_key: Option<String>,
+    /// Player identity claims; carried by the last link.
     #[serde(rename = "extraData")]
     pub extra_data: Option<ExtraDataClaims>,
 }
@@ -295,7 +311,9 @@ impl From<ExtraDataClaims> for IdentityClaims {
 /// account claims.
 #[derive(Debug, Clone)]
 pub struct AuthenticatedLogin {
+    /// Identity from the token or legacy chain.
     pub identity: ValidatedIdentity,
+    /// Client data, verified against the identity key and validated.
     pub client_data: ClientData,
 }
 

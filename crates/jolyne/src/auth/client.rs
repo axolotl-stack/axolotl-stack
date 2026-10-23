@@ -61,7 +61,9 @@ impl std::fmt::Debug for LoginCredentials {
 /// The two values carried by `LoginPacket.connection_request`.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct LoginTokens {
+    /// AuthenticationInfo JSON (`AuthenticationType` and `Token`).
     pub auth_info_json: String,
+    /// ClientData JWT signed with the identity key.
     pub client_data_jwt: String,
 }
 

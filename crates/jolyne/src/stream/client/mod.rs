@@ -51,10 +51,14 @@ pub use crate::auth::client::{LoginCredentials, MultiplayerTokenSource};
 /// Who the client logs in as.
 #[derive(Debug, Clone)]
 pub struct ClientHandshakeConfig {
+    /// Address of the server being joined; not read by the join (a placeholder for
+    /// NetherNet).
     pub server_addr: SocketAddr,
     /// Signs the login tokens and drives the ECDH handshake.
     pub identity_key: SecretKey,
+    /// Player name: the offline chain's `xname` and the client data's `ThirdPartyName`.
     pub display_name: String,
+    /// Player UUID: the offline chain's `leguuid` and the skin/self-signed IDs.
     pub uuid: Uuid,
     /// Login authentication; `Offline` unless built with [`Self::with_xbox_live`].
     pub credentials: LoginCredentials,
@@ -313,6 +317,7 @@ impl<T: Transport> BedrockStream<StartGame, Client, T> {
 }
 
 impl<T: Transport> BedrockStream<Play, Client, T> {
+    /// The player's runtime entity ID from `StartGame`.
     pub fn runtime_id(&self) -> u64 {
         self.owner().session.runtime_id()
     }

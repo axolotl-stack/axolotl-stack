@@ -24,12 +24,16 @@ pub const DEFAULT_MAX_PACKETS_PER_BATCH: usize = 1_600;
 /// The decoded game packet header: ten-bit ID plus sub-client routing bits.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub struct PacketHeader {
+    /// The ten-bit packet ID.
     pub id: u16,
+    /// Sender sub-client index (two wire bits; split-screen players, `0` for the main client).
     pub from_subclient: u8,
+    /// Target sub-client index (two wire bits; `0` for the main client).
     pub to_subclient: u8,
 }
 
 impl PacketHeader {
+    /// A header for `id` addressed from and to the main client (sub-client `0`).
     #[inline]
     pub const fn new(id: u16) -> Self {
         Self {
@@ -140,6 +144,7 @@ impl RawPacket {
         self.name == Some(name)
     }
 
+    /// The parsed packet header.
     #[inline]
     pub fn header(&self) -> PacketHeader {
         self.header
@@ -162,6 +167,7 @@ impl RawPacket {
         &self.frame
     }
 
+    /// Consumes the packet and returns its complete inner frame `[Length][Header][Body]`.
     pub fn into_inner_frame(self) -> Bytes {
         self.frame
     }

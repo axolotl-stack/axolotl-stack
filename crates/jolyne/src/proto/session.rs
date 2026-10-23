@@ -11,6 +11,8 @@ pub struct Session {
 }
 
 impl Session {
+    /// Wraps a connection that finished the join sequence with the player's runtime
+    /// entity ID and the agreed chunk radius.
     pub fn new(conn: Connection, runtime_id: u64, chunk_radius: Option<i32>) -> Self {
         Self {
             conn,

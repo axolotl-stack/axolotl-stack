@@ -49,6 +49,7 @@ pub trait State: sealed::Sealed {}
 
 /// Maps a phase marker to the core owner it wraps for role `R`.
 pub trait PhaseOf<R: Role>: State {
+    /// The sans-IO owner from [`crate::proto`] driving this phase.
     type Owner: Owner + Send;
 }
 
@@ -158,6 +159,7 @@ impl<S: PhaseOf<R>, R: Role, T: Transport> BedrockStream<S, R, T> {
         &self.parts_ref().owner
     }
 
+    /// The transport's peer address (a placeholder for NetherNet).
     pub fn peer_addr(&self) -> std::net::SocketAddr {
         self.parts_ref().transport.peer_addr()
     }
@@ -167,10 +169,12 @@ impl<S: PhaseOf<R>, R: Role, T: Transport> BedrockStream<S, R, T> {
         self.parts_ref().transport.latency()
     }
 
+    /// A snapshot of the connection's packet, batch and byte counters.
     pub fn metrics(&self) -> ConnectionMetrics {
         self.parts_ref().owner.connection_ref().metrics()
     }
 
+    /// The active flush mode.
     pub fn flush_mode(&self) -> FlushMode {
         self.parts_ref().owner.connection_ref().flush_mode()
     }
@@ -324,18 +328,30 @@ pub mod raknet_types {
     //! the sans-IO owners in `proto` (`proto::server::ServerHandshake`, ...).
     use super::*;
 
+    /// Server connection over RakNet; network settings not yet negotiated.
     pub type ServerHandshakeStream = BedrockStream<Handshake, Server, RakNetTransport>;
+    /// Server connection over RakNet; login pending.
     pub type ServerLoginStream = BedrockStream<Login, Server, RakNetTransport>;
+    /// Server connection over RakNet; encryption handshake pending.
     pub type ServerSecurePendingStream = BedrockStream<SecurePending, Server, RakNetTransport>;
+    /// Server connection over RakNet; resource packs pending.
     pub type ServerResourcePacksStream = BedrockStream<ResourcePacks, Server, RakNetTransport>;
+    /// Server connection over RakNet; `StartGame` pending.
     pub type ServerStartGameStream = BedrockStream<StartGame, Server, RakNetTransport>;
+    /// Server connection over RakNet; spawned and exchanging game packets.
     pub type ServerPlayStream = BedrockStream<Play, Server, RakNetTransport>;
 
+    /// Client connection over RakNet; network settings not yet negotiated.
     pub type ClientHandshakeStream = BedrockStream<Handshake, Client, RakNetTransport>;
+    /// Client connection over RakNet; login pending.
     pub type ClientLoginStream = BedrockStream<Login, Client, RakNetTransport>;
+    /// Client connection over RakNet; encryption handshake pending.
     pub type ClientSecurePendingStream = BedrockStream<SecurePending, Client, RakNetTransport>;
+    /// Client connection over RakNet; resource packs pending.
     pub type ClientResourcePacksStream = BedrockStream<ResourcePacks, Client, RakNetTransport>;
+    /// Client connection over RakNet; `StartGame` pending.
     pub type ClientStartGameStream = BedrockStream<StartGame, Client, RakNetTransport>;
+    /// Client connection over RakNet; spawned and exchanging game packets.
     pub type ClientPlayStream = BedrockStream<Play, Client, RakNetTransport>;
 }
 
@@ -344,18 +360,30 @@ pub mod nethernet_types {
     //! Phase aliases over NetherNet (see [`super::raknet_types`]).
     use super::*;
 
+    /// Server connection over NetherNet; network settings not yet negotiated.
     pub type ServerHandshakeStream = BedrockStream<Handshake, Server, NetherNetTransport>;
+    /// Server connection over NetherNet; login pending.
     pub type ServerLoginStream = BedrockStream<Login, Server, NetherNetTransport>;
+    /// Server connection over NetherNet; encryption handshake pending.
     pub type ServerSecurePendingStream = BedrockStream<SecurePending, Server, NetherNetTransport>;
+    /// Server connection over NetherNet; resource packs pending.
     pub type ServerResourcePacksStream = BedrockStream<ResourcePacks, Server, NetherNetTransport>;
+    /// Server connection over NetherNet; `StartGame` pending.
     pub type ServerStartGameStream = BedrockStream<StartGame, Server, NetherNetTransport>;
+    /// Server connection over NetherNet; spawned and exchanging game packets.
     pub type ServerPlayStream = BedrockStream<Play, Server, NetherNetTransport>;
 
+    /// Client connection over NetherNet; network settings not yet negotiated.
     pub type ClientHandshakeStream = BedrockStream<Handshake, Client, NetherNetTransport>;
+    /// Client connection over NetherNet; login pending.
     pub type ClientLoginStream = BedrockStream<Login, Client, NetherNetTransport>;
+    /// Client connection over NetherNet; encryption handshake pending.
     pub type ClientSecurePendingStream = BedrockStream<SecurePending, Client, NetherNetTransport>;
+    /// Client connection over NetherNet; resource packs pending.
     pub type ClientResourcePacksStream = BedrockStream<ResourcePacks, Client, NetherNetTransport>;
+    /// Client connection over NetherNet; `StartGame` pending.
     pub type ClientStartGameStream = BedrockStream<StartGame, Client, NetherNetTransport>;
+    /// Client connection over NetherNet; spawned and exchanging game packets.
     pub type ClientPlayStream = BedrockStream<Play, Client, NetherNetTransport>;
 }
 

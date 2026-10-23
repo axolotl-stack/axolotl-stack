@@ -1,3 +1,6 @@
+//! World-join data a server sends to spawn a player: the [`WorldTemplate`] shared by
+//! every connection and the per-player [`WorldJoinParams`] derived from it.
+
 use crate::valentine::GAME_VERSION;
 use crate::valentine::{
     ActorRuntimeId, ActorUniqueId, AvailableActorIdentifiersPacket, BiomeDefinitionListPacket,
@@ -42,10 +45,16 @@ pub fn empty_jigsaw_structures() -> JigsawStructureDataPacket {
 /// The public packet bundle sent during the Bedrock world-join sequence.
 #[derive(Clone, Debug)]
 pub struct WorldTemplate {
+    /// `StartGame` sent to every player; the entity and runtime IDs are replaced per
+    /// player by [`WorldTemplate::to_join_params`].
     pub start_game_template: StartGamePacket,
+    /// `ItemRegistry` sent right after `StartGame`.
     pub item_registry: Arc<ItemRegistryPacket>,
+    /// `BiomeDefinitionList` sent after `ItemRegistry`.
     pub biome_definitions: Arc<BiomeDefinitionListPacket>,
+    /// `AvailableActorIdentifiers` (entity identifiers) sent after `ItemRegistry`.
     pub available_entities: Arc<AvailableActorIdentifiersPacket>,
+    /// `CreativeContent` (creative inventory) sent after `ItemRegistry`.
     pub creative_content: Arc<CreativeContentPacket>,
     /// Custom dimension definitions; `None` sends no `DimensionData`
     /// (gophertunnel only sends it when `GameData.Dimensions` is non-empty).
@@ -66,15 +75,22 @@ pub struct WorldTemplate {
 /// the definition lists.
 #[derive(Debug)]
 pub struct WorldJoinParams {
+    /// `DimensionData` sent first; `None` sends no `DimensionData`.
     pub dimension_data: Option<Arc<DimensionDataPacket>>,
+    /// `JigsawStructureData` sent before `StartGame`.
     pub jigsaw_structures: Arc<JigsawStructureDataPacket>,
+    /// `VoxelShapes` sent before `StartGame`.
     pub voxel_shapes: Arc<VoxelShapesPacket>,
+    /// This player's `StartGame` packet.
     pub start_game: StartGamePacket,
+    /// `ItemRegistry` sent right after `StartGame`.
     pub item_registry: Arc<ItemRegistryPacket>,
     /// Definition packets sent right after `ItemRegistry` (BDS order). `None`
     /// skips the packet, e.g. for proxies forwarding the upstream's copy.
     pub biome_definitions: Option<Arc<BiomeDefinitionListPacket>>,
+    /// `AvailableActorIdentifiers` sent after `BiomeDefinitionList`; `None` skips it.
     pub available_entities: Option<Arc<AvailableActorIdentifiersPacket>>,
+    /// `CreativeContent` sent after `AvailableActorIdentifiers`; `None` skips it.
     pub creative_content: Option<Arc<CreativeContentPacket>>,
     /// Server-chosen chunk radius (gophertunnel `GameData.ChunkRadius`);
     /// `None` grants the client's request.
@@ -82,6 +98,9 @@ pub struct WorldJoinParams {
 }
 
 impl WorldTemplate {
+    /// Builds join parameters for one player: `StartGame` with its unique and runtime
+    /// entity IDs set to `entity_id`, every definition packet included, and the client's
+    /// requested chunk radius granted.
     pub fn to_join_params(&self, entity_id: i64) -> WorldJoinParams {
         let mut start = self.start_game_template.clone();
         start.entity_id = ActorUniqueId {
