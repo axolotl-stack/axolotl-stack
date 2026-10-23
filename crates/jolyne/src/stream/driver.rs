@@ -8,12 +8,12 @@
 use std::future::poll_fn;
 use std::pin::Pin;
 use std::task::{Context, Poll};
-use std::time::Instant;
+use std::time::{Duration, Instant};
 
 use super::transport::{Datagram, Transport};
-use crate::error::JolyneError;
 #[cfg(any(feature = "server", feature = "client"))]
-use crate::error::ProtocolError;
+use crate::error::HandshakePhase;
+use crate::error::{JolyneError, ProtocolError};
 use crate::proto::conn::Connection;
 #[cfg(any(feature = "server", feature = "client"))]
 use crate::proto::phase::{Failure, Phase, Step};
@@ -45,16 +45,42 @@ pub(crate) async fn flush_out<T: Transport>(
         .map_err(transport_error)
 }
 
-/// Seals pending packets, drains them and closes the transport.
+/// [`flush_out`] bounded by a handshake deadline: a peer that stops reading
+/// cannot hold the join open past it.
+#[cfg(any(feature = "server", feature = "client"))]
+pub(crate) async fn flush_out_by<T: Transport>(
+    transport: &mut T,
+    conn: &mut Connection,
+    deadline: Instant,
+    phase: HandshakePhase,
+) -> Result<(), JolyneError> {
+    let deadline = tokio::time::Instant::from_std(deadline);
+    match tokio::time::timeout_at(deadline, flush_out(transport, conn)).await {
+        Ok(result) => result,
+        Err(_) => Err(ProtocolError::Timeout(phase).into()),
+    }
+}
+
+/// How long closing may spend draining output to a peer that stopped
+/// reading.
+pub(crate) const CLOSE_TIMEOUT: Duration = Duration::from_secs(5);
+
+/// Seals pending packets, drains them and closes the transport, giving up
+/// after [`CLOSE_TIMEOUT`].
 pub(crate) async fn close<T: Transport>(
     transport: &mut T,
     conn: &mut Connection,
 ) -> Result<(), JolyneError> {
-    conn.flush()?;
-    flush_out(transport, conn).await?;
-    poll_fn(|cx| Pin::new(&mut *transport).poll_close(cx))
+    let drain = async {
+        conn.flush()?;
+        flush_out(transport, conn).await?;
+        poll_fn(|cx| Pin::new(&mut *transport).poll_close(cx))
+            .await
+            .map_err(transport_error)
+    };
+    tokio::time::timeout(CLOSE_TIMEOUT, drain)
         .await
-        .map_err(transport_error)
+        .unwrap_or(Err(ProtocolError::CloseTimeout.into()))
 }
 
 /// Best-effort synchronous drain for `Drop`: sends what the transport accepts
@@ -100,11 +126,9 @@ pub(crate) async fn drive<T: Transport, P: Phase>(
         };
         // Writes share the phase deadline: a peer that stops reading cannot
         // hold the join open past it.
-        let deadline = tokio::time::Instant::from_std(phase.deadline());
-        match tokio::time::timeout_at(deadline, flush_out(transport, phase.connection())).await {
-            Ok(Ok(())) => {}
-            Ok(Err(error)) => return Err(Failure::new(error, phase)),
-            Err(_) => return Err(Failure::new(ProtocolError::Timeout(P::PHASE), phase)),
+        let deadline = phase.deadline();
+        if let Err(error) = flush_out_by(transport, phase.connection(), deadline, P::PHASE).await {
+            return Err(Failure::new(error, phase));
         }
         let wake = tokio::time::Instant::from_std(phase.poll_timeout());
         match tokio::time::timeout_at(wake, recv_datagram(transport)).await {

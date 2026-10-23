@@ -174,6 +174,8 @@ pub enum ProtocolError {
     UnexpectedPacket { phase: HandshakePhase, got: String },
     #[error("timed out during {0}")]
     Timeout(HandshakePhase),
+    #[error("timed out draining output while closing")]
+    CloseTimeout,
     #[error("invalid encryption handshake: {0}")]
     InvalidHandshake(String),
     #[error("encrypted frame of {len} bytes is shorter than the {min}-byte minimum")]

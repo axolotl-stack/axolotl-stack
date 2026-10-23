@@ -23,7 +23,7 @@ use crate::config::BedrockListenerConfig;
 use crate::error::{HandshakePhase, JolyneError, ProtocolError};
 use crate::proto::conn::Connection;
 use crate::proto::packs::ServerPacks;
-use crate::proto::phase::{Failure, Owner, Step};
+use crate::proto::phase::{Failure, Owner, Phase, Step};
 use crate::proto::server as core;
 use crate::world::{WorldJoinParams, WorldTemplate};
 
@@ -82,20 +82,43 @@ fn failed<T: Transport, O: Owner>(failure: Failure<O>, transport: T, seat: Seat)
     )
 }
 
-/// Flushes the new owner's queued output and wraps it in the next typestate.
+/// Flushes the new owner's queued output within the deadline of the step
+/// that produced it, and wraps it in the next typestate.
 async fn advance_to<S, T>(
     mut transport: T,
     mut owner: S::Owner,
     seat: Seat,
+    deadline: Instant,
+    phase: HandshakePhase,
 ) -> Result<BedrockStream<S, Server, T>, Failed<T>>
 where
     S: PhaseOf<Server>,
     T: Transport,
 {
-    if let Err(error) = driver::flush_out(&mut transport, owner.connection()).await {
+    if let Err(error) =
+        driver::flush_out_by(&mut transport, owner.connection(), deadline, phase).await
+    {
         return Err(failed(Failure::new(error, owner), transport, seat));
     }
     Ok(BedrockStream::from_parts(transport, owner, seat))
+}
+
+/// Drives `phase` to completion, then advances within its deadline.
+async fn drive_to<S, T, P>(
+    mut transport: T,
+    phase: P,
+    seat: Seat,
+) -> Result<BedrockStream<S, Server, T>, Failed<T>>
+where
+    S: PhaseOf<Server>,
+    T: Transport,
+    P: Phase<Next = S::Owner>,
+{
+    let deadline = phase.deadline();
+    match driver::drive(&mut transport, phase).await {
+        Ok(next) => advance_to(transport, next, seat, deadline, P::PHASE).await,
+        Err(failure) => Err(failed(failure, transport, seat)),
+    }
 }
 
 impl<T: Transport> BedrockStream<Handshake, Server, T> {
@@ -126,14 +149,11 @@ impl<T: Transport> BedrockStream<Handshake, Server, T> {
         self,
     ) -> Result<BedrockStream<Login, Server, T>, Failed<T>> {
         let super::Parts {
-            mut transport,
+            transport,
             owner,
             seat,
         } = self.take();
-        match driver::drive(&mut transport, owner).await {
-            Ok(login) => advance_to(transport, login, seat).await,
-            Err(failure) => Err(failed(failure, transport, seat)),
-        }
+        drive_to(transport, owner, seat).await
     }
 
     /// Runs the whole join with defaults: settings, login, encryption, the
@@ -216,8 +236,18 @@ impl<T: Transport> BedrockStream<Login, Server, T> {
                 return Err(failed(Failure::new(error, request), transport, seat));
             }
         };
+        let deadline = request.deadline();
         match request.authenticated(login, peer, Instant::now()) {
-            Ok(authenticated) => advance_to(transport, authenticated, seat).await,
+            Ok(authenticated) => {
+                advance_to(
+                    transport,
+                    authenticated,
+                    seat,
+                    deadline,
+                    HandshakePhase::Authentication,
+                )
+                .await
+            }
             Err(failure) => Err(failed(failure, transport, seat)),
         }
     }
@@ -238,18 +268,18 @@ impl<T: Transport> BedrockStream<SecurePending, Server, T> {
         config: &ServerHandshakeConfig,
     ) -> Result<BedrockStream<ResourcePacks, Server, T>, Failed<T>> {
         let super::Parts {
-            mut transport,
+            transport,
             owner,
             seat,
         } = self.take();
         let transport_key = transport.proven_peer_key();
+        let deadline = owner.deadline();
         match owner.start_encryption(&config.server_key, transport_key.as_ref(), Instant::now()) {
-            Ok(Step::Next(ready)) => advance_to(transport, ready, seat).await,
+            Ok(Step::Next(ready)) => {
+                advance_to(transport, ready, seat, deadline, HandshakePhase::Encryption).await
+            }
             // `drive` flushes the queued ServerToClientHandshake first.
-            Ok(Step::Wait(encryption)) => match driver::drive(&mut transport, encryption).await {
-                Ok(ready) => advance_to(transport, ready, seat).await,
-                Err(failure) => Err(failed(failure, transport, seat)),
-            },
+            Ok(Step::Wait(encryption)) => drive_to(transport, encryption, seat).await,
             Err(failure) => Err(failed(failure, transport, seat)),
         }
     }
@@ -278,7 +308,7 @@ impl<T: Transport> BedrockStream<ResourcePacks, Server, T> {
         packs: Arc<ServerPacks>,
     ) -> Result<BedrockStream<StartGame, Server, T>, Failed<T>> {
         let super::Parts {
-            mut transport,
+            transport,
             owner,
             seat,
         } = self.take();
@@ -286,10 +316,7 @@ impl<T: Transport> BedrockStream<ResourcePacks, Server, T> {
             Ok(phase) => phase,
             Err(failure) => return Err(failed(failure, transport, seat)),
         };
-        match driver::drive(&mut transport, phase).await {
-            Ok(ready) => advance_to(transport, ready, seat).await,
-            Err(failure) => Err(failed(failure, transport, seat)),
-        }
+        drive_to(transport, phase, seat).await
     }
 }
 
@@ -306,7 +333,7 @@ impl<T: Transport> BedrockStream<StartGame, Server, T> {
         params: WorldJoinParams,
     ) -> Result<BedrockStream<Play, Server, T>, Failed<T>> {
         let super::Parts {
-            mut transport,
+            transport,
             owner,
             seat,
         } = self.take();
@@ -314,10 +341,7 @@ impl<T: Transport> BedrockStream<StartGame, Server, T> {
             Ok(spawn) => spawn,
             Err(failure) => return Err(failed(failure, transport, seat)),
         };
-        match driver::drive(&mut transport, spawn).await {
-            Ok(session) => advance_to(transport, session, seat).await,
-            Err(failure) => Err(failed(failure, transport, seat)),
-        }
+        drive_to(transport, spawn, seat).await
     }
 }
 

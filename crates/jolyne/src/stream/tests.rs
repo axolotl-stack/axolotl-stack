@@ -278,6 +278,119 @@ async fn sends_wait_for_transport_capacity() {
     drop(client);
 }
 
+/// Closing gives up on a peer that stopped reading instead of pinning the
+/// task.
+#[tokio::test]
+async fn close_is_bounded_when_the_peer_stops_reading() {
+    let (mut server, client) = joined(offline()).await;
+    let filled = tokio::time::timeout(Duration::from_millis(100), async {
+        loop {
+            server
+                .send_packet(TextPacket::default().into())
+                .await
+                .unwrap();
+        }
+    })
+    .await;
+    assert!(filled.is_err(), "the pipe must apply backpressure");
+    tokio::time::pause();
+    assert!(matches!(
+        server.close().await,
+        Err(JolyneError::Protocol(ProtocolError::CloseTimeout))
+    ));
+    drop(client);
+}
+
+/// Output flushed while advancing between steps shares the step's deadline:
+/// here `LoginSuccess` (encryption off) cannot be written because the client
+/// never reads.
+#[tokio::test]
+async fn advancing_is_bounded_by_the_step_deadline() {
+    use crate::proto::batch::BatchCompression;
+    use crate::valentine::{LoginPacket, PROTOCOL_VERSION, RequestNetworkSettingsPacket};
+
+    let (server_io, client_io) = pipe(1);
+    let config = Arc::new(BedrockListenerConfig {
+        online_mode: false,
+        encryption_enabled: false,
+        login_timeout: Duration::from_millis(300),
+        ..Default::default()
+    });
+    let server_key = SecretKey::random(&mut rand::thread_rng());
+    let server = tokio::spawn(async move {
+        let stream = BedrockStream::<Handshake, Server, _>::from_transport(server_io, config);
+        let login = stream.accept_network_settings().await?;
+        let secure = login.authenticate().await?;
+        secure
+            .finish_handshake(&crate::stream::server::ServerHandshakeConfig { server_key })
+            .await?;
+        Ok::<(), JolyneError>(())
+    });
+
+    // A raw client: settings, then a compressed Login; it never reads.
+    let now = std::time::Instant::now();
+    let mut client =
+        crate::proto::conn::Connection::new(Framing::RakNet, ClientConfig::default().connection);
+    let send = |client: &mut crate::proto::conn::Connection| {
+        let mut out = Vec::new();
+        while let Some(transmit) = client.poll_transmit() {
+            out.push(transmit);
+        }
+        out
+    };
+    client
+        .queue_packet(
+            &RequestNetworkSettingsPacket {
+                client_network_version: PROTOCOL_VERSION,
+            }
+            .into(),
+            now,
+        )
+        .unwrap();
+    client.flush().unwrap();
+    let tx = client_io.tx.get_ref().unwrap().clone();
+    for transmit in send(&mut client) {
+        tx.send(transmit).await.unwrap();
+    }
+    client
+        .enable_compression(BatchCompression::Deflate, 7, 1)
+        .unwrap();
+    let key = SecretKey::random(&mut rand::thread_rng());
+    let (chain, token) =
+        crate::auth::client::generate_self_signed_chain(&key, "Tester", uuid::Uuid::new_v4())
+            .unwrap();
+    client
+        .queue_packet(
+            &LoginPacket {
+                client_network_version: PROTOCOL_VERSION,
+                connection_request: crate::auth::client::encode_login_request(&chain, &token)
+                    .into(),
+            }
+            .into(),
+            now,
+        )
+        .unwrap();
+    client.flush().unwrap();
+    for transmit in send(&mut client) {
+        tx.send(transmit).await.unwrap();
+    }
+
+    let result = tokio::time::timeout(Duration::from_secs(5), server)
+        .await
+        .expect("the server step must not hang")
+        .unwrap();
+    assert!(
+        matches!(
+            result,
+            Err(JolyneError::Protocol(ProtocolError::Timeout(
+                HandshakePhase::Encryption
+            )))
+        ),
+        "{result:?}"
+    );
+    drop(client_io);
+}
+
 /// A receive cancelled while output is backpressured (e.g. in `select!`)
 /// must not lose a packet it already decoded.
 #[tokio::test]

@@ -8,9 +8,6 @@ use super::link::BedrockTransport;
 use super::transport::Transport;
 use crate::error::JolyneError;
 
-/// How long [`Failed::disconnect`] waits for the transport to drain.
-const DISCONNECT_TIMEOUT: std::time::Duration = std::time::Duration::from_secs(5);
-
 /// The error from a failed join step, plus the connection it failed on.
 ///
 /// Converts into [`JolyneError`] with `?`. To tell the peer why, call
@@ -47,8 +44,8 @@ impl<T: Transport> Failed<T> {
         link.connection_mut()
             .queue_failure_disconnect(&error, Instant::now());
         let (transport, conn) = link.io();
-        // Bounded: a peer that stopped reading must not hold the task.
-        let _ = tokio::time::timeout(DISCONNECT_TIMEOUT, driver::close(transport, conn)).await;
+        // `close` is bounded: a peer that stopped reading cannot hold the task.
+        let _ = driver::close(transport, conn).await;
         error
     }
 }

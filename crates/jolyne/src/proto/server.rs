@@ -314,6 +314,11 @@ impl Authenticated {
         &self.login
     }
 
+    /// The login deadline, which also bounds the encryption handshake.
+    pub fn deadline(&self) -> Instant {
+        self.shared.deadline
+    }
+
     /// Sends `ServerToClientHandshake` (plaintext) and enables encryption, or
     /// skips straight to `LoginSuccess` when encryption is disabled.
     ///
