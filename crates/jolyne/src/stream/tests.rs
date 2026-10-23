@@ -362,6 +362,7 @@ async fn advancing_is_bounded_by_the_step_deadline() {
             &LoginPacket {
                 client_network_version: PROTOCOL_VERSION,
                 connection_request: crate::auth::client::encode_login_request(&chain, &token)
+                    .unwrap()
                     .into(),
             }
             .into(),

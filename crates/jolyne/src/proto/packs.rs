@@ -337,10 +337,9 @@ impl ServerPackExchange {
         conn: &mut Connection,
         now: Instant,
     ) -> Result<(), JolyneError> {
-        let upload = self
-            .upload
-            .as_mut()
-            .expect("chunk without an active upload");
+        let Some(upload) = self.upload.as_mut() else {
+            return Err(PackError::Invalid("chunk".into(), "no transfer in progress").into());
+        };
         let size = self.packs.chunk_size.max(1) as usize;
         let start = index as usize * size;
         let end = (start + size).min(upload.pack.content.len());
@@ -793,7 +792,7 @@ impl ClientPackExchange {
         let offer = self.awaiting.remove(position);
         let initial = (u64::from(info.chunk_size) * u64::from(self.policy.window.max(1)))
             .min(info.file_size) as usize;
-        self.current = Some(Download {
+        let download = Download {
             offer,
             name,
             chunk_size: info.chunk_size,
@@ -803,15 +802,20 @@ impl ClientPackExchange {
             buffer: BytesMut::with_capacity(initial),
             requested: 0,
             received: 0,
-        });
+        };
         if chunks == 0 {
-            return self.complete(conn, now);
+            return self.complete(download, conn, now);
         }
+        self.current = Some(download);
         self.request_more(conn, now)
     }
 
-    fn complete(&mut self, conn: &mut Connection, now: Instant) -> Result<(), JolyneError> {
-        let download = self.current.take().expect("completing without a download");
+    fn complete(
+        &mut self,
+        download: Download,
+        conn: &mut Connection,
+        now: Instant,
+    ) -> Result<(), JolyneError> {
         let sha256: [u8; 32] = Sha256::digest(&download.buffer).into();
         // Deliberately stricter than gophertunnel, which never checks the
         // hash: the advertised value must be the 32-byte SHA-256 and match.
@@ -837,34 +841,39 @@ impl ClientPackExchange {
         now: Instant,
     ) -> Result<(), JolyneError> {
         let name = chunk.resource_name.to_string();
-        let Some(download) = self.current.as_mut().filter(|d| d.name == name) else {
-            return Err(PackError::UnexpectedChunk {
-                pack: name,
-                reason: "no transfer for this pack",
+        let mut download = match self.current.take() {
+            Some(download) if download.name == name => download,
+            other => {
+                self.current = other;
+                return Err(PackError::UnexpectedChunk {
+                    pack: name,
+                    reason: "no transfer for this pack",
+                }
+                .into());
             }
-            .into());
         };
-        if chunk.chunk_id != download.received || chunk.chunk_id >= download.requested {
-            return Err(PackError::UnexpectedChunk {
-                pack: name,
-                reason: "chunk out of order or not requested",
-            }
-            .into());
-        }
         let offset = u64::from(chunk.chunk_id) * u64::from(download.chunk_size);
-        let expected_len = (download.size - offset).min(u64::from(download.chunk_size));
-        if chunk.byte_offset != offset || chunk.chunk_data.len() as u64 != expected_len {
-            return Err(PackError::UnexpectedChunk {
-                pack: name,
-                reason: "chunk offset or length mismatch",
-            }
-            .into());
+        let in_order = chunk.chunk_id == download.received && chunk.chunk_id < download.requested;
+        let reason = if !in_order {
+            Some("chunk out of order or not requested")
+        } else if chunk.byte_offset != offset
+            || chunk.chunk_data.len() as u64
+                != (download.size - offset).min(u64::from(download.chunk_size))
+        {
+            Some("chunk offset or length mismatch")
+        } else {
+            None
+        };
+        if let Some(reason) = reason {
+            self.current = Some(download);
+            return Err(PackError::UnexpectedChunk { pack: name, reason }.into());
         }
         download.buffer.extend_from_slice(&chunk.chunk_data);
         download.received += 1;
         if download.received == download.chunks {
-            return self.complete(conn, now);
+            return self.complete(download, conn, now);
         }
+        self.current = Some(download);
         self.request_more(conn, now)
     }
 

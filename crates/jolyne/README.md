@@ -35,6 +35,12 @@ graph TD
     Proxy --> Stream
 ```
 
+Library code does not panic on peer input or internal state: `lib.rs` denies
+`unwrap`, `expect`, `panic!`, `unreachable!`, `todo!` and `unimplemented!`
+outside tests, so every failure is a `JolyneError`. The single documented
+exception is `BedrockStream`'s `Option` parts slot (needed to move out of a
+`Drop` type), marked `#[expect]` with its invariant.
+
 ### `jolyne::proto`: the sans-IO core
 
 Nothing in `proto` performs I/O, spawns tasks or reads a clock; time is an input.

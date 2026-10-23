@@ -35,7 +35,10 @@ pub(crate) async fn flush_out<T: Transport>(
         poll_fn(|cx| Pin::new(&mut *transport).poll_send_ready(cx))
             .await
             .map_err(transport_error)?;
-        let transmit = conn.poll_transmit().expect("checked has_transmits");
+        // Taken only after the transport reported capacity (cancel safety).
+        let Some(transmit) = conn.poll_transmit() else {
+            break;
+        };
         Pin::new(&mut *transport)
             .start_send(transmit)
             .map_err(transport_error)?;
@@ -94,7 +97,9 @@ pub(crate) fn flush_now<T: Transport>(transport: &mut T, conn: &mut Connection) 
     while conn.has_transmits() {
         match Pin::new(&mut *transport).poll_send_ready(&mut cx) {
             Poll::Ready(Ok(())) => {
-                let transmit = conn.poll_transmit().expect("checked has_transmits");
+                let Some(transmit) = conn.poll_transmit() else {
+                    break;
+                };
                 if Pin::new(&mut *transport).start_send(transmit).is_err() {
                     return;
                 }

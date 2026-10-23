@@ -97,8 +97,12 @@ pub(crate) struct Parts<T, O> {
 }
 
 /// A Bedrock connection in join phase `S`.
+///
+/// `parts` is an `Option` only so consuming methods can move the parts out
+/// of a type with `Drop` (safe Rust has no other way): [`Self::take`]
+/// consumes the stream, so every `&self`/`&mut self` method sees `Some`, and
+/// only `Drop` after a `take` sees `None`.
 pub struct BedrockStream<S: PhaseOf<R>, R: Role, T: Transport> {
-    // `None` only while a consuming method moves the parts out.
     parts: Option<Parts<T, S::Owner>>,
     _marker: PhantomData<fn() -> (S, R)>,
 }
@@ -126,14 +130,20 @@ impl<S: PhaseOf<R>, R: Role, T: Transport> BedrockStream<S, R, T> {
         }
     }
 
+    #[expect(
+        clippy::expect_used,
+        reason = "consumes the stream: parts were set by from_parts and never taken before"
+    )]
     pub(crate) fn take(mut self) -> Parts<T, S::Owner> {
         self.parts.take().expect("stream parts present")
     }
 
+    #[expect(clippy::expect_used, reason = "only take(self) empties parts")]
     fn parts_ref(&self) -> &Parts<T, S::Owner> {
         self.parts.as_ref().expect("stream parts present")
     }
 
+    #[expect(clippy::expect_used, reason = "only take(self) empties parts")]
     pub(crate) fn parts_mut(&mut self) -> &mut Parts<T, S::Owner> {
         self.parts.as_mut().expect("stream parts present")
     }

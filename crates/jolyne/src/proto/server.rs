@@ -118,14 +118,17 @@ impl Phase for ServerHandshake {
         if !packet.is(McpePacketName::RequestNetworkSettingsPacket) {
             return Err(Failure::new(unexpected(Self::PHASE, &packet), self));
         }
-        let client_protocol = match packet.decode_borrowed() {
+        let client_protocol = match packet.clone().decode_borrowed() {
             Ok(decoded) => match decoded.data {
                 BorrowedMcpePacketData::RequestNetworkSettingsPacket(request) => {
-                    request.client_network_version
+                    Some(request.client_network_version)
                 }
-                _ => unreachable!("packet name and decoded variant agree"),
+                _ => None,
             },
             Err(error) => return Err(Failure::new(error, self)),
+        };
+        let Some(client_protocol) = client_protocol else {
+            return Err(Failure::new(unexpected(Self::PHASE, &packet), self));
         };
         if client_protocol != PROTOCOL_VERSION {
             return Err(self.protocol_mismatch(client_protocol, now));
@@ -193,12 +196,12 @@ impl Phase for ServerLogin {
         if !packet.is(McpePacketName::LoginPacket) {
             return Err(Failure::new(unexpected(Self::PHASE, &packet), self));
         }
-        let (protocol, request) = match packet.decode() {
+        let (protocol, request) = match packet.clone().decode() {
             Ok(McpePacket {
                 data: McpePacketData::LoginPacket(login),
                 ..
             }) => (login.client_network_version, login.connection_request),
-            Ok(_) => unreachable!("packet name and decoded variant agree"),
+            Ok(_) => return Err(Failure::new(unexpected(Self::PHASE, &packet), self)),
             Err(error) => return Err(Failure::new(error, self)),
         };
         if protocol != PROTOCOL_VERSION {
@@ -703,7 +706,7 @@ impl Phase for ServerSpawn {
                 Err(error) => Err(Failure::new(error, self)),
             };
         }
-        let decoded = match packet.decode() {
+        let decoded = match packet.clone().decode() {
             Ok(decoded) => decoded,
             Err(error) => return Err(Failure::new(error, self)),
         };
@@ -738,7 +741,11 @@ impl Phase for ServerSpawn {
                     login,
                 }))
             }
-            _ => unreachable!("filtered above"),
+            // Filtered above; anything else waits for the play session.
+            _ => match self.deferred.push(packet) {
+                Ok(()) => Ok(Step::Wait(self)),
+                Err(error) => Err(Failure::new(error, self)),
+            },
         }
     }
 }

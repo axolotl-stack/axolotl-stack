@@ -253,8 +253,11 @@ impl<T: Transport> BedrockStream<Login, Client, T> {
         chain: &str,
         client_token: &str,
     ) -> Result<BedrockStream<SecurePending, Client, T>, Failed<T>> {
+        let request = match crate::auth::client::encode_login_request(chain, client_token) {
+            Ok(request) => request,
+            Err(error) => return Err(self.fail(error.into())),
+        };
         let parts = self.take();
-        let request = crate::auth::client::encode_login_request(chain, client_token);
         let deadline = parts.owner.deadline();
         match parts
             .owner

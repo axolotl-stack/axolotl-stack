@@ -265,9 +265,11 @@ impl ClientData {
     #[cfg(feature = "server")]
     pub(crate) fn normalize_server_address(&mut self) {
         let address = &self.server_address;
-        if !address.contains("://") && address.matches(':').count() > 1 && !address.starts_with('[')
+        if !address.contains("://")
+            && address.matches(':').count() > 1
+            && !address.starts_with('[')
+            && let Some(split) = address.rfind(':')
         {
-            let split = address.rfind(':').expect("contains ':'");
             self.server_address = format!("[{}]{}", &address[..split], &address[split..]);
         }
     }

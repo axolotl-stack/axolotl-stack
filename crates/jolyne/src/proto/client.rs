@@ -113,7 +113,7 @@ impl Phase for ClientSettings {
         ) {
             return Err(Failure::new(unexpected(Self::PHASE, &packet), self));
         }
-        let settings = match decode(packet) {
+        let settings = match decode(packet.clone()) {
             Ok(McpePacket {
                 data: McpePacketData::NetworkSettingsPacket(settings),
                 ..
@@ -123,7 +123,7 @@ impl Phase for ClientSettings {
                 data: McpePacketData::PlayStatusPacket(status),
                 ..
             }) => return Err(Failure::new(JolyneError::LoginRefused(status.status), self)),
-            Ok(_) => unreachable!("filtered by name"),
+            Ok(_) => return Err(Failure::new(unexpected(Self::PHASE, &packet), self)),
             Err(error) => return Err(Failure::new(error, self)),
         };
         let (algorithm, level) = match settings.compression_algorithm {
@@ -240,7 +240,7 @@ impl Phase for ClientHandshake {
                 };
             }
         }
-        let result = match decode(packet) {
+        let result = match decode(packet.clone()) {
             Ok(McpePacket {
                 data: McpePacketData::ServerToClientHandshakePacket(handshake),
                 ..
@@ -259,7 +259,7 @@ impl Phase for ClientHandshake {
                 PlayStatusPacketStatus::Loginsuccess => Ok(true),
                 other => Err(JolyneError::LoginRefused(other)),
             },
-            Ok(_) => unreachable!("filtered by name"),
+            Ok(_) => Err(unexpected(Self::PHASE, &packet)),
             Err(error) => Err(error),
         };
         match result {
@@ -427,11 +427,25 @@ impl ClientSpawn {
     }
 
     fn observe(&mut self, packet: RawPacket, now: Instant) -> Result<(), JolyneError> {
-        match packet.name() {
-            Some(McpePacketName::StartGamePacket) => {
-                let McpePacketData::StartGamePacket(start) = decode(packet)?.data else {
-                    unreachable!("filtered by name")
-                };
+        use McpePacketName as N;
+        // Decode only what the spawn phase reads; everything else is kept for
+        // the play session untouched.
+        if !matches!(
+            packet.name(),
+            Some(
+                N::StartGamePacket
+                    | N::DimensionDataPacket
+                    | N::JigsawStructureDataPacket
+                    | N::VoxelShapesPacket
+                    | N::ItemRegistryPacket
+                    | N::PlayStatusPacket
+                    | N::ChunkRadiusUpdatedPacket
+            )
+        ) {
+            return self.deferred.push(packet);
+        }
+        match decode(packet.clone())?.data {
+            McpePacketData::StartGamePacket(start) => {
                 match &self.start_game {
                     Some(first)
                         if first.runtime_id.actor_runtime_id
@@ -465,46 +479,20 @@ impl ClientSpawn {
                     self.conn.flush()?;
                 }
             }
-            Some(McpePacketName::DimensionDataPacket) => {
-                let McpePacketData::DimensionDataPacket(dimensions) = decode(packet)?.data else {
-                    unreachable!("filtered by name")
-                };
+            McpePacketData::DimensionDataPacket(dimensions) => {
                 self.dimension_data = Some(dimensions);
             }
-            Some(McpePacketName::JigsawStructureDataPacket) => {
-                let McpePacketData::JigsawStructureDataPacket(structures) = decode(packet)?.data
-                else {
-                    unreachable!("filtered by name")
-                };
+            McpePacketData::JigsawStructureDataPacket(structures) => {
                 self.jigsaw_structures = Some(structures);
             }
-            Some(McpePacketName::VoxelShapesPacket) => {
-                let McpePacketData::VoxelShapesPacket(shapes) = decode(packet)?.data else {
-                    unreachable!("filtered by name")
-                };
-                self.voxel_shapes = Some(shapes);
-            }
-            Some(McpePacketName::ItemRegistryPacket) => {
-                let McpePacketData::ItemRegistryPacket(registry) = decode(packet)?.data else {
-                    unreachable!("filtered by name")
-                };
-                self.item_registry = Some(registry);
-            }
-            Some(McpePacketName::PlayStatusPacket) => {
-                let McpePacketData::PlayStatusPacket(status) = decode(packet)?.data else {
-                    unreachable!("filtered by name")
-                };
-                match status.status {
-                    PlayStatusPacketStatus::Playerspawn => self.spawned = true,
-                    PlayStatusPacketStatus::Loginsuccess => {}
-                    other => return Err(JolyneError::LoginRefused(other)),
-                }
-            }
-            Some(McpePacketName::ChunkRadiusUpdatedPacket) => {
-                let McpePacketData::ChunkRadiusUpdatedPacket(update) = decode(packet.clone())?.data
-                else {
-                    unreachable!("filtered by name")
-                };
+            McpePacketData::VoxelShapesPacket(shapes) => self.voxel_shapes = Some(shapes),
+            McpePacketData::ItemRegistryPacket(registry) => self.item_registry = Some(registry),
+            McpePacketData::PlayStatusPacket(status) => match status.status {
+                PlayStatusPacketStatus::Playerspawn => self.spawned = true,
+                PlayStatusPacketStatus::Loginsuccess => {}
+                other => return Err(JolyneError::LoginRefused(other)),
+            },
+            McpePacketData::ChunkRadiusUpdatedPacket(update) => {
                 if update.chunk_radius < 1 {
                     return Err(ProtocolError::InvalidChunkRadius(update.chunk_radius).into());
                 }
@@ -512,6 +500,7 @@ impl ClientSpawn {
                 // The play session still sees the radius update.
                 self.deferred.push(packet)?;
             }
+            // Not one of the names above: keep it for the play session.
             _ => self.deferred.push(packet)?,
         }
         Ok(())
@@ -534,11 +523,18 @@ impl Phase for ClientSpawn {
         if let Err(error) = self.observe(packet, now) {
             return Err(Failure::new(error, self));
         }
-        if !(self.updated_radius.is_some() && self.spawned && self.item_registry.is_some()) {
-            return Ok(Step::Wait(self));
-        }
-        let Some(start_game) = self.start_game.take() else {
-            return Ok(Step::Wait(self));
+        let (start_game, item_registry) = match (self.start_game.take(), self.item_registry.take())
+        {
+            (Some(start_game), Some(item_registry))
+                if self.updated_radius.is_some() && self.spawned =>
+            {
+                (start_game, item_registry)
+            }
+            (start_game, item_registry) => {
+                self.start_game = start_game;
+                self.item_registry = item_registry;
+                return Ok(Step::Wait(self));
+            }
         };
         let runtime_id = start_game.runtime_id.actor_runtime_id;
         let sent = (|| {
@@ -558,6 +554,7 @@ impl Phase for ClientSpawn {
         })();
         if let Err(error) = sent {
             self.start_game = Some(start_game);
+            self.item_registry = Some(item_registry);
             return Err(Failure::new(error, self));
         }
         let ClientSpawn {
@@ -565,7 +562,6 @@ impl Phase for ClientSpawn {
             packs,
             packs_required,
             deferred,
-            item_registry,
             dimension_data,
             jigsaw_structures,
             voxel_shapes,
@@ -581,7 +577,7 @@ impl Phase for ClientSpawn {
             },
             game_data: GameData {
                 start_game: *start_game,
-                item_registry: item_registry.expect("checked above"),
+                item_registry,
                 dimension_data,
                 jigsaw_structures,
                 voxel_shapes,

@@ -565,18 +565,23 @@ impl OpenIdProvider {
     }
 }
 
-static HTTP_CLIENT: LazyLock<reqwest::Client> = LazyLock::new(|| {
+/// Built once; a TLS backend that fails to initialise surfaces as
+/// `ProviderUnavailable` on every fetch instead of a panic.
+static HTTP_CLIENT: LazyLock<Result<reqwest::Client, String>> = LazyLock::new(|| {
     reqwest::Client::builder()
         .https_only(true)
         .connect_timeout(Duration::from_secs(5))
         .timeout(Duration::from_secs(10))
         .user_agent("jolyne-auth/0.1")
         .build()
-        .expect("reqwest client")
+        .map_err(|error| error.to_string())
 });
 
 async fn get_json<T: DeserializeOwned>(url: &str) -> Result<T, AuthError> {
-    HTTP_CLIENT
+    let client = HTTP_CLIENT
+        .as_ref()
+        .map_err(|error| AuthError::ProviderUnavailable(format!("HTTP client: {error}")))?;
+    client
         .get(url)
         .header(reqwest::header::ACCEPT, "application/json")
         .send()

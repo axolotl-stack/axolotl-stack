@@ -231,20 +231,24 @@ pub fn encode_with_multiplayer_token(
 ///
 /// The protocol prefixes both values with little-endian signed 32-bit byte
 /// lengths. The authentication JSON bytes are preserved exactly, matching
-/// the pinned gophertunnel login encoder.
-pub fn encode_login_request(auth_info_json: &str, client_data_jwt: &str) -> Vec<u8> {
+/// the pinned gophertunnel login encoder. Fails when either value is longer
+/// than an `i32` length prefix can state.
+pub fn encode_login_request(
+    auth_info_json: &str,
+    client_data_jwt: &str,
+) -> Result<Vec<u8>, AuthError> {
     let auth_info = auth_info_json.as_bytes();
-
-    let auth_len = i32::try_from(auth_info.len()).expect("login auth JSON exceeds i32 length");
-    let client_len =
-        i32::try_from(client_data_jwt.len()).expect("login client token exceeds i32 length");
+    let length =
+        |len: usize| i32::try_from(len).map_err(|_| AuthError::PayloadTooLarge(i32::MAX as usize));
+    let auth_len = length(auth_info.len())?;
+    let client_len = length(client_data_jwt.len())?;
 
     let mut request = Vec::with_capacity(8 + auth_info.len() + client_data_jwt.len());
     request.extend_from_slice(&auth_len.to_le_bytes());
     request.extend_from_slice(auth_info);
     request.extend_from_slice(&client_len.to_le_bytes());
     request.extend_from_slice(client_data_jwt.as_bytes());
-    request
+    Ok(request)
 }
 
 #[cfg(test)]
@@ -257,7 +261,7 @@ mod tests {
     fn offline_login_encodes_a_retail_supported_device_os() {
         let key = SecretKey::from_slice(&[1; 48]).unwrap();
         let (auth, client) = generate_self_signed_chain(&key, "ClientDiff", Uuid::nil()).unwrap();
-        let request = encode_login_request(&auth, &client);
+        let request = encode_login_request(&auth, &client).unwrap();
         let auth_len = u32::from_le_bytes(request[..4].try_into().unwrap()) as usize;
         let client_len_offset = 4 + auth_len;
         let client_len = u32::from_le_bytes(
@@ -286,7 +290,7 @@ mod tests {
         let key = SecretKey::from_slice(&[1; 48]).unwrap();
         let uuid = Uuid::from_u128(123);
         let (auth, client) = generate_self_signed_chain(&key, "ClientDiff", uuid).unwrap();
-        let request = encode_login_request(&auth, &client);
+        let request = encode_login_request(&auth, &client).unwrap();
         let auth_len = u32::from_le_bytes(request[..4].try_into().unwrap()) as usize;
         let envelope: serde_json::Value =
             serde_json::from_slice(&request[4..4 + auth_len]).unwrap();
@@ -322,7 +326,7 @@ mod tests {
         let provider_token = "opaque.provider.token";
         let (auth, client) =
             encode_with_multiplayer_token(&key, "ClientDiff", Uuid::nil(), provider_token).unwrap();
-        let request = encode_login_request(&auth, &client);
+        let request = encode_login_request(&auth, &client).unwrap();
         let auth_len = u32::from_le_bytes(request[..4].try_into().unwrap()) as usize;
         let envelope: serde_json::Value =
             serde_json::from_slice(&request[4..4 + auth_len]).unwrap();

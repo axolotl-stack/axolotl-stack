@@ -149,7 +149,9 @@ impl Harness {
             uuid::Uuid::new_v4(),
         )
         .unwrap();
-        crate::auth::client::encode_login_request(&chain, &token).into()
+        crate::auth::client::encode_login_request(&chain, &token)
+            .unwrap()
+            .into()
     }
 
     /// Verifies the login like the async layer: offline, or against the test

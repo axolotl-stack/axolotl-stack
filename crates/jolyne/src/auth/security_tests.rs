@@ -315,7 +315,8 @@ mod client_server {
         let request = crate::auth::client::encode_login_request(
             &login.auth_info_json,
             &login.client_data_jwt,
-        );
+        )
+        .unwrap();
         let (auth, client) = decode_login_request(&request).unwrap();
         let accepted =
             authenticate_login_with(&provider(&provider_key), &auth, &client, true, false)

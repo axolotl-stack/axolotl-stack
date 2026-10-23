@@ -51,9 +51,9 @@ impl BatchCipher {
         let mut iv16 = [0u8; 16];
         iv16[..12].copy_from_slice(&iv);
         iv16[15] = 2;
+        // Array-typed key and IV: the lengths are checked at compile time.
         let mut core =
-            ctr::CtrCore::<Aes256Enc, ctr::flavors::Ctr32BE>::new_from_slices(&key, &iv16)
-                .expect("AES-256-CTR key/iv lengths are fixed (32/16 bytes)");
+            ctr::CtrCore::<Aes256Enc, ctr::flavors::Ctr32BE>::new(&key.into(), &iv16.into());
         let mut group_len = 16;
         core.process_with_backend(BackendWidth(&mut group_len));
         Self {
@@ -166,15 +166,12 @@ impl BatchCipher {
         digest.update(self.key);
         let ours = digest.finalize();
 
-        // Both checksums as one u64: a single XOR compare has no data-dependent
-        // early exit, so it is constant time without per-byte barriers.
-        let theirs = u64::from_ne_bytes(
-            buf[checksum_start..]
-                .try_into()
-                .expect("checksum is eight bytes"),
-        );
-        let ours = u64::from_ne_bytes(ours[..CHECKSUM_LEN].try_into().expect("eight bytes"));
-        if std::hint::black_box(theirs ^ ours) != 0 {
+        // OR of the byte differences: no data-dependent early exit.
+        let difference = buf[checksum_start..]
+            .iter()
+            .zip(&ours[..CHECKSUM_LEN])
+            .fold(0u8, |acc, (theirs, ours)| acc | (theirs ^ ours));
+        if std::hint::black_box(difference) != 0 {
             return Err(self.reject(buf, header_len, counter_value));
         }
 
