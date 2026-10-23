@@ -220,6 +220,9 @@ impl Session {
     /// (duplicates included; messages are de-duplicated by message number),
     /// and a forward gap NAKs each skipped number at once (at most 1000; a
     /// gap above 50000 rejects the datagram without an ACK).
+    ///
+    /// Out of line so `process_datagram_sequence` keeps its Optimized frame.
+    #[inline(never)]
     pub(super) fn vanilla_accept_sequence(
         &mut self,
         seq: Sequence24,
