@@ -46,6 +46,9 @@ fn too_large(max: usize) -> ProtocolError {
     failed(format!("decompressed data exceeds max size of {max} bytes"))
 }
 
+/// Upper bound on Snappy's output/input ratio (64/3, rounded up).
+const SNAPPY_MAX_EXPANSION: usize = 22;
+
 impl CompressionContext {
     /// Synchronous callbacks cannot retain a borrow, so their output stays owned.
     pub(crate) fn reclaim(&mut self, output: BytesMut) {
@@ -115,6 +118,15 @@ impl CompressionContext {
             let len = snap::raw::decompress_len(input).map_err(failed)?;
             if len > max {
                 return Err(too_large(max));
+            }
+            // A Snappy element expands at most 64/3 times (a three-byte copy
+            // of 64 bytes): reject impossible declared lengths before zeroing
+            // a buffer of that size for a tiny batch.
+            if len > input.len().saturating_mul(SNAPPY_MAX_EXPANSION) {
+                return Err(failed(format!(
+                    "Snappy batch declares {len} bytes from {} input bytes",
+                    input.len()
+                )));
             }
             let mut out = std::mem::take(&mut self.decode_scratch);
             out.resize(len, 0);
@@ -220,6 +232,30 @@ mod tests {
             );
             assert!(output.len() <= limit, "{name}: {} > {limit}", output.len());
         }
+    }
+
+    #[test]
+    fn snappy_rejects_impossible_declared_length_without_allocating() {
+        let mut codec = CompressionContext::default();
+        // Declares 16 MiB - 1 (within the batch limit) in four bytes plus a
+        // one-byte literal.
+        let input = [0xff, 0xff, 0xff, 0x07, 0x00, b'x'];
+        let error = codec
+            .decompress(&input, BatchCompression::Snappy, 16 * 1024 * 1024)
+            .unwrap_err();
+        assert!(error.to_string().contains("declares"), "{error}");
+        assert!(codec.decode_scratch.capacity() < 4096);
+        // The largest possible expansion still decodes.
+        let data = vec![9u8; 64 * 1024];
+        let mut compressed = BytesMut::from(data.as_slice());
+        codec
+            .compress(&mut compressed, 0, BatchCompression::Snappy, 6)
+            .unwrap();
+        assert!(compressed.len().saturating_mul(SNAPPY_MAX_EXPANSION) >= data.len());
+        let decoded = codec
+            .decompress(&compressed, BatchCompression::Snappy, data.len())
+            .unwrap();
+        assert_eq!(decoded.as_ref(), data.as_slice());
     }
 
     #[test]
