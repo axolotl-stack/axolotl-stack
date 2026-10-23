@@ -4,91 +4,119 @@
 [![Docs.rs](https://docs.rs/jolyne/badge.svg)](https://docs.rs/jolyne)
 [![License](https://img.shields.io/crates/l/jolyne.svg)](https://github.com/axolotl-stack/jolyne/blob/main/LICENSE)
 
-**Jolyne** is a robust, low-level Minecraft: Bedrock Edition protocol library for Rust. It provides the core primitives for building high-performance servers, clients, proxies, and analysis tools.
+**Jolyne** is a Minecraft: Bedrock Edition protocol engine for Rust: servers,
+clients, proxies and protocol tools over RakNet, NetherNet (WebRTC) or your own
+transport. It is pinned to one version, Bedrock 1.26.51 (protocol 2193,
+`jolyne::GAME_VERSION` / `jolyne::PROTOCOL_VERSION`); the protocol check is
+exact. A runtime-free (sans-IO) core does the framing, compression, encryption
+and join phases, and an async Tokio driver runs it over a transport. Game
+logic (world, entities, ticking) belongs to the `unastar` crate.
 
-> **Note:** Server implementation logic (world, entities, ticking) is handled by the `unastar` crate. Jolyne focuses strictly on the protocol implementation.
+## Quickstart
 
-## Architecture
+A server that joins every player with the vanilla flow and logs their packets:
 
-Jolyne is split into a runtime-free protocol core and an async driver.
+```rust,no_run
+use std::sync::Arc;
 
-```mermaid
-graph TD
-    subgraph "jolyne::proto (sans-IO, no tokio)"
-        Conn["Connection: framing, compression, AES-CTR, limits, queues"]
-        Phases["Server/client phase typestates<br/>handle_datagram · poll_transmit · poll_timeout · advance(now)"]
-        Packs["Resource pack exchange (both directions)"]
-        Phases --> Conn
-        Phases --> Packs
-    end
-    subgraph "jolyne::stream (async)"
-        Stream["BedrockStream&lt;Phase, Role, Transport&gt;"]
-        Link["BedrockTransport (raw link)"]
-        Listener["BedrockListener: admission, status"]
-        Proxy["proxy::accept / relay"]
-    end
-    Transport["Transport: RakNet · NetherNet · custom"]
-    Stream --> Phases
-    Link --> Conn
-    Stream --> Transport
-    Listener --> Stream
-    Proxy --> Stream
+use jolyne::{BedrockListener, BedrockListenerConfig, JolyneError, WorldTemplate};
+
+#[tokio::main]
+async fn main() -> Result<(), JolyneError> {
+    // Offline mode accepts self-signed identities; the default requires Xbox Live.
+    let config = BedrockListenerConfig { online_mode: false, ..Default::default() };
+    let mut listener = BedrockListener::raknet().addr("0.0.0.0:19132").config(config).bind().await?;
+    // A minimal world; real servers send BDS registry data.
+    let world = Arc::new(WorldTemplate::default());
+    let server_key = p384::SecretKey::random(&mut rand::thread_rng());
+    loop {
+        let stream = listener.accept().await?;
+        let (world, server_key) = (world.clone(), server_key.clone());
+        tokio::spawn(async move {
+            // Settings, login, encryption, packs, StartGame, spawn. On failure the
+            // player gets a reasoned `Disconnect`.
+            let (mut player, login) = stream.accept_join_sequence(&world, &server_key).await?;
+            println!("{} joined", login.identity.display_name());
+            while let Ok(packet) = player.recv_packet().await {
+                println!("{:?}", packet.data.packet_id());
+            }
+            Ok::<_, JolyneError>(())
+        });
+    }
+}
 ```
+
+A client that joins it with an offline identity:
+
+```rust,no_run
+use jolyne::{BedrockStream, ClientHandshakeConfig};
+
+#[tokio::main]
+async fn main() -> Result<(), Box<dyn std::error::Error>> {
+    let addr = "127.0.0.1:19132".parse()?;
+    let stream = BedrockStream::connect(addr).await?;
+    // Random key and UUID; `ClientHandshakeConfig::with_xbox_live` for online servers.
+    let identity = ClientHandshakeConfig::random(addr, "JolyneBot");
+    let (mut client, game) = stream.join(identity).await?;
+    println!("joined {} as runtime ID {}", game.start_game.level_name, client.runtime_id());
+    for _ in 0..10 {
+        let packet = client.recv_packet().await?;
+        println!("{:?}", packet.data.packet_id());
+    }
+    client.close().await?;
+    Ok(())
+}
+```
+
+Packets are the generated `jolyne::valentine` types (`McpePacket`), sent with
+`send_packet`. Customisation is configuration, not code: resource packs, player
+cap, admission hook, MOTD, auth mode, encryption, compression, timeouts and
+batching live on `BedrockListenerConfig` and `ClientConfig`.
+
+## Choosing a tier
+
+The API has three tiers; each is built from the one below, so dropping a tier
+never means re-implementing the one above. [`docs/API.md`](docs/API.md) is the
+full contract.
+
+| Tier | Use it for | Entry points |
+|---|---|---|
+| 1. High-level (default) | Servers and clients with the vanilla join | crate root: `BedrockListener`, `accept_join_sequence`, `BedrockStream::connect`, `join` |
+| 2. Step-by-step join | Per-player packs, your own admission, work between phases, custom failure handling | `jolyne::stream`: one consuming method per phase, `Failed` |
+| 3. Low-level | Raw/borrowed packets, explicit batches, custom packet IDs, observers, your own socket, runtime or clock | `jolyne::raw` (async), `jolyne::proto` (sans-IO) |
+
+[`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md) explains how the layers fit:
+the sans-IO core, the typestate join, the driver loop, deadlines and where
+batching, compression and encryption happen.
+
+## Examples
+
+Run with `cargo run -p jolyne --example <name> -- [args]`; addresses default to
+`127.0.0.1`.
+
+| Example | Tier | What it shows |
+|---|---|---|
+| `01_server [ADDR] [--online]` | 1 | RakNet server, `accept_join_sequence`; offline unless `--online` |
+| `02_client [ADDR] [--xbox]` | 1 | RakNet client, `join`; `--xbox` logs in through Xbox Live (device code, cached in `token.json`) |
+| `03_custom_join [ADDR]` | 2 | The server join step by step, with work between phases |
+| `04_proxy [UPSTREAM] [LISTEN]` | 3 | `jolyne::proxy` relay; the upstream must be offline (e.g. `01_server`) |
+| `05_tick_loop [ADDR]` | 1 + 3 | `FlushMode::Manual` with a 50 ms tick and `recv_packet_borrowed` |
+| `06_sans_io` | 3 | `jolyne::proto` phases over an in-memory pipe: no sockets, no runtime |
+| `nethernet_server [ADDR]` | 1 | NetherNet LAN listener (`0.0.0.0:7551` to be visible on the LAN) |
+| `nethernet_client [DISCOVERY_ADDR]` | 1 | NetherNet LAN client (`255.255.255.255:7551` to discover on the LAN) |
+| `stress_test --addr A --clients N` | 1 | Many concurrent bot clients against one server |
+
+For example, `cargo run -p jolyne --example 01_server` in one terminal and
+`cargo run -p jolyne --example 02_client` in another. `tests/examples_smoke.rs`
+joins `01_server` and `02_client` over RakNet loopback.
+
+## No panics
 
 Library code does not panic on peer input or internal state: `lib.rs` denies
 `unwrap`, `expect`, `panic!`, `unreachable!`, `todo!` and `unimplemented!`
 outside tests, so every failure is a `JolyneError`. The single documented
 exception is `BedrockStream`'s `Option` parts slot (needed to move out of a
 `Drop` type), marked `#[expect]` with its invariant.
-
-### `jolyne::proto`: the sans-IO core
-
-Nothing in `proto` performs I/O, spawns tasks or reads a clock; time is an input.
-
-- `conn::Connection` owns one peer's codec state. Inbound `Datagram`s go through
-  `handle_datagram` (marker check, in-place decryption when the buffer is
-  unique, decompression, unknown-packet policy) into a queue read with
-  `next_packet`. Outbound packets are framed straight into the pending batch as
-  they are queued and sealed into `Transmit`s (`poll_transmit`).
-  Enabling compression or encryption first seals what is pending, so
-  `NetworkSettings` and `ServerToClientHandshake` always leave in the old
-  format (the vanilla "flush, then switch" ordering falls out of the queue).
-- Join phases are consuming typestates (`proto::server`, `proto::client`)
-  implementing `phase::Phase`: `handle_datagram`, `poll_transmit`,
-  `poll_timeout` (mandatory deadline plus phase timers) and
-  `advance(now) -> Result<Step<Self, Next>, Failure<Self>>`. A `Failure` hands
-  the phase back, still owning the connection, so a reasoned `Disconnect` or
-  `PlayStatus` can be sent.
-- Packets arriving before the phase that handles them are deferred (bounded by
-  `ConnectionOptions::{max_deferred_packets, max_deferred_bytes}`, default
-  4,096 packets / 16 MiB, compacted) and replayed in order into play.
-
-Server phases: `ServerHandshake → ServerLogin → LoginRequest →
-Authenticated → [ServerEncryption] → PacksReady → ServerPacksPhase →
-WorldReady → ServerSpawn → ServerSession`. Client phases: `ClientSettings →
-ClientLogin → ClientHandshake → ClientPacks → ClientSpawn → ClientSession`.
-
-### `jolyne::stream`: the async driver
-
-`BedrockStream<S, R, T>` wraps the core owner of phase `S` for role `R` over
-transport `T`. Each step method (`accept_network_settings`, `authenticate`,
-`finish_handshake`, `negotiate_packs`, `start_game`; client `request_settings`,
-`send_login`, `await_handshake`, `handle_packs`, `await_start_game`) drives one
-core phase and returns the next typestate or `Failed<T>` (convertible to
-`JolyneError`, with `disconnect()` to tell the peer why). The one-call
-`accept_join_sequence` and `join` run every step and handle failures.
-
-In play: `recv_packet_raw` / `recv_packet_borrowed` / `recv_packet`,
-`send_packet`, `send_packet_raw`, `send_custom`, `send_batch(_raw)`, `flush`,
-`set_flush_mode(FlushMode::{Immediate, Manual, Interval(d)})`, `close`
-(drains pending writes), `disconnect(reason, message)`, `metrics`, `latency`.
-Dropping a stream sends whatever the transport accepts without waiting.
-An inbound `Disconnect` surfaces as `JolyneError::Disconnected` (carrying the
-raw packet for proxies). `into_transport()` leaves the typestate for raw I/O.
-
-`Transport` is sink-shaped (`poll_send_ready`/`start_send`/`poll_flush`/
-`poll_close`/`poll_recv`, plus `latency`), so a message is never resubmitted
-and sends wait on transport capacity (backpressure).
 
 ## Feature matrix
 
@@ -99,7 +127,7 @@ the vanilla reference). Tests are in `crates/jolyne` unless noted.
 |---|---|---|
 | Server listener | ✅ | `tests/raknet_listener.rs::listener_advertises_status_and_enforces_max_players` |
 | Client | ✅ | `stream::tests::join_echo_and_typed_disconnect` |
-| Proxy mode (relay, encryption terminated per side, unknown IDs forwarded) | ✅ | `stream::tests::proxy_relays_unknown_packets_and_disconnects`; `examples/proxy.rs` |
+| Proxy mode (relay, encryption terminated per side, unknown IDs forwarded) | ✅ | `stream::tests::proxy_relays_unknown_packets_and_disconnects`; `examples/04_proxy.rs` |
 | RakNet | ✅ | `tests/raknet_listener.rs` (real loopback join) |
 | NetherNet (LAN `ServerData` from the status provider) | ✅ | `tests/nethernet_loopback.rs` (real WebRTC loopback join); `listener::NetherNetBuilder::bind` publishes `ServerStatus::lan_server_data` |
 | Custom transport | ✅ | `stream::tests` (in-memory `Transport`) |
@@ -124,136 +152,94 @@ the vanilla reference). Tests are in `crates/jolyne` unless noted.
 | Server status / MOTD (refreshed every 4 s and on join/leave) | ✅ | `status::tests::pong_matches_gophertunnel_layout_and_unlimited_max`, `tests/raknet_listener.rs` |
 | Packet observer hook (zero cost when unset) | ✅ | `proto::conn::tests::observer_sees_both_directions_with_bodies` |
 | Metrics (packets/bytes/batches in/out, decode errors, unknown IDs) | ✅ | `proto::conn::tests::enabling_compression_and_encryption_seals_pending_in_the_old_format`, `proto::tests::unknown_and_custom_packets_follow_the_configured_policy` |
-| Tracing | ✅ | `#[instrument]` spans on every join step, `close` and `disconnect`; `RUST_LOG=jolyne::wire=trace` logs every batch (wire length, encryption, compression algorithm byte, packet count, plaintext preview) and packet (ID, name, length, first 256 payload bytes in hex); an inbound `PacketViolationWarning` is always logged at `WARN` |
+| Tracing | ✅ | `#[instrument]` spans on every join step, `close` and `disconnect`; `RUST_LOG=jolyne::wire=trace` logs every batch (wire length, encryption, compression algorithm byte, packet count, plaintext preview) and packet (ID, name, length, first 256 payload bytes in hex); an inbound `PacketViolationWarning` is always logged at `WARN` (see [`docs/TRACING_AND_FEATURES.md`](docs/TRACING_AND_FEATURES.md)) |
 | Typestate phase safety | ✅ | `stream::BedrockStream<S, R, T>` |
 | Validated ClientData / identity on the session | ✅ | `BedrockStream<Play, Server, _>::{identity, client_data}`; `stream::tests::join_echo_and_typed_disconnect`; validation in `jolyne::auth` |
 | Online identity bound to key possession (no replayed-Login trust; RakNet refuses online without encryption) | ✅ | `proto::tests::{online_identity_is_authenticated_only_after_the_encryption_handshake, replayed_online_login_never_authenticates_and_times_out_at_the_login_deadline, online_mode_without_encryption_is_refused_on_raknet, unencrypted_online_login_trusts_only_a_transport_proven_key}` |
 | Client can require encryption (`ClientConfig::require_encryption`; off by default) | ✅ | `proto::tests::client_can_require_encryption` |
 
-### Reusable batch pipeline
+## Compression and batch pipeline
 
-Each connection retains a `proto::batch::BatchCodec`. Its compressor,
+Each connection retains a `proto::batch::BatchCodec`: its compressor,
 decompressor, Snappy tables and encode/decode scratch are reused instead of
-constructing a compression engine for every batch. DEFLATE uses libdeflate;
-levels 1–9 retain their numeric value (higher values clamp to 9), level zero
-disables compression, and the transport default remains 7. Cross-implementation
-benchmarks use nominal level 6; different compressors need not emit identical
-bytes. Building jolyne requires a C compiler for bundled libdeflate.
-Decode remembers the previous output length and bounds speculative buffer
-growth; batches exceeding the 1 MiB speculative ceiling use a guarded zlib-rs
-streaming decoder. The decompressed-size bound (default 16 MiB) is always
-enforced; there is no unbounded mode.
+building a compression engine per batch.
 
-Snappy encoding uses a whole-block matcher with input-sized 8/10/12/14-bit
-hash tables retained in 64 KiB of lazily allocated per-connection scratch;
-DEFLATE-only connections do not allocate this table. It emits only
-standard Snappy literal/copy tags, including 32-bit offsets across 64 KiB
-boundaries; it does not emit S2 repeat extensions. Decoding remains the
-`snap` decoder, with the declared decoded length checked before allocation.
-Permanent Go interoperability tests decode checked-in vectors for all four
-benchmark batches, a >64 KiB literal and a copy4 offset. The matcher adapts the
-BSD-licensed [S2 Snappy search](https://github.com/klauspost/compress/tree/v1.18.1/s2);
-its redistribution notice is retained in `src/proto/compression/snappy.rs`.
-See [Snappy measurements and interoperability](../bench-compare/snappy-report.md).
+- **DEFLATE** uses libdeflate (building jolyne needs a C compiler for the
+  bundled library). Levels 1–9 keep their numeric value, higher values clamp
+  to 9, level 0 sends every batch with the uncompressed marker; the default is
+  7. Different compressors need not emit identical bytes, so cross-implementation
+  benchmarks compare sizes on a corpus at nominal level 6.
+- **Decode** remembers the previous output length and bounds speculative
+  buffer growth; batches past the 1 MiB speculative ceiling use a guarded
+  zlib-rs streaming decoder. The decompressed-size bound (default 16 MiB) and
+  the 1,600-packet cap apply to every decode path, typed and raw; there is no
+  unbounded mode.
+- **Snappy** encoding is a whole-block matcher with input-sized 8/10/12/14-bit
+  hash tables in 64 KiB of lazily allocated per-connection scratch
+  (DEFLATE-only connections never allocate it). It emits only standard Snappy
+  literal/copy tags, including 32-bit offsets across 64 KiB boundaries, never
+  S2 repeat extensions. Decoding is the `snap` decoder, with the declared length
+  checked before allocation. Go interoperability tests decode checked-in
+  vectors for the four benchmark batches, a >64 KiB literal and a copy4 offset.
+  The matcher adapts the BSD-licensed
+  [S2 Snappy search](https://github.com/klauspost/compress/tree/v1.18.1/s2);
+  its notice is retained in `src/proto/compression/snappy.rs`. See
+  [Snappy measurements and interoperability](../bench-compare/snappy-report.md).
+- **Encryption**: `proto::crypto::BatchCipher` is the owned, in-place AES-CTR
+  cipher the connection uses. Build separate send/receive instances from the
+  session key and 12-byte IV and call `encrypt`/`decrypt` with the cleartext
+  header length (1 for RakNet, 0 for prefix-free batches); reserve eight spare
+  bytes to avoid allocation. Checksums are compared in constant time; a failed
+  checksum zeroizes the plaintext and permanently invalidates the cipher.
+- **Standalone helpers** (`bench` feature, for `crates/bench-compare`):
+  `BatchCodec::encode_frames_into` frames packet `Bytes` (game header included,
+  length prefix excluded) and `BatchCodec::decode_with` lends each validated
+  frame to a synchronous callback without building a packet vector or touching
+  a reference count per packet. Connections never use them.
 
-For opaque framing, `BatchCodec::encode_frames_into` accepts packet `Bytes`
-including the game header but excluding the length prefix. `decode_with`
-synchronously borrows each validated frame without constructing a packet vector
-or incrementing a reference count per packet. The 1,600-frame limit and the
-decompressed-size limit apply to every decode path, typed and raw.
+## Client login
 
-`proto::crypto::BatchCipher` exposes the owned in-place encryption used by the
-connection. Construct separate send/receive instances with the session key and
-12-byte IV, and call `encrypt`/`decrypt` with the cleartext header length (one
-for RakNet, zero for prefix-free batches). Reserve eight spare bytes before
-encryption to avoid allocation. Checksums are compared in constant time; a
-failed checksum zeroizes the plaintext and permanently invalidates the cipher.
+`ClientHandshakeConfig::credentials` (`auth::client::LoginCredentials`) selects
+the Login authentication:
 
-## Usage
+- **Offline** (`ClientHandshakeConfig::random`): `AuthenticationType: 2` with a
+  self-signed multiplayer `Token` (`aud`, `cpk`, `xname`, `leguuid`, empty
+  account-only claims), matching the pinned gophertunnel encoder. The identity
+  and client-data JWTs use the same P-384 key. Only offline-mode servers accept
+  it.
+- **Online** (`ClientHandshakeConfig::with_xbox_live`): takes an
+  `Arc<dyn auth::client::MultiplayerTokenSource>` and sends
+  `AuthenticationType: 0` with a provider multiplayer token bound to the
+  connection key, as vanilla clients and gophertunnel's dialer do; jolyne
+  online servers and BDS 1.26.51 authenticate only this token. jolyne does not
+  depend on an Xbox client: `examples/02_client.rs --xbox` implements the
+  source with `axolotl-xbl` (PlayFab-scoped XBL token → `PlayFabClient::login`
+  → `service_token` → `multiplayer_token`). Online envelopes are tested end to
+  end against the jolyne verifier with test keys; live Xbox authentication is
+  not exercised by the offline harness.
 
-Add this to your `Cargo.toml`:
+The client never requests or sends a Mojang-signed legacy chain (a top-level
+legacy `chain` is not a modern BDS identity token). Client-generated metadata
+uses Android `DeviceOS: 1`: BDS 1.26.51 rejects the retired UWP `DeviceOS: 7`
+in `ConnectionRequest::isWellFormed`, reporting the misleading
+`readNoHeader failed` before authentication, so caller-supplied metadata must
+also name a supported platform. The client advertises client-side chunk
+generation as disabled.
 
-```toml
-[dependencies]
-jolyne = "0.1"
-```
-
-### Example: Simple Bot (Client)
-
-For client instrumentation or caller-supplied identity JWTs, the `Login` state
-also exposes `send_login_with_tokens(identity_key, auth_info_json, client_data_jwt)`.
-This sends the supplied authentication JSON and signed client-data token without
-regenerating their identity fields; `identity_key` must be the key that signed
-them (it drives the ECDH handshake). The normal `send_login(&ClientHandshakeConfig)`
-continues to generate tokens internally.
-
-Client-generated metadata uses Android `DeviceOS: 1`. BDS 1.26.51 rejects the
-retired UWP `DeviceOS: 7` in `ConnectionRequest::isWellFormed`, reporting the
-misleading `readNoHeader failed` before authentication. Caller-supplied metadata
-must likewise identify a supported platform.
-
-Offline Login uses `AuthenticationType: 2` with a self-signed multiplayer
-`Token` (`aud`, `cpk`, `xname`, `leguuid`, and empty account-only claims), matching
-the pinned gophertunnel encoder. The identity and client-data JWTs use the same
-P-384 key. A top-level legacy `chain` is not a modern BDS identity token.
-The client does not implement client-side chunk generation and advertises that
-capability as disabled for both offline and provider-token Login.
-
-`ClientHandshakeConfig::credentials` selects the Login authentication
-(`auth::client::LoginCredentials`). `ClientHandshakeConfig::with_xbox_live`
-takes an `Arc<dyn auth::client::MultiplayerTokenSource>` and sends
-`AuthenticationType: 0` with a provider multiplayer token bound to the
-connection key, as vanilla clients and gophertunnel's dialer do; jolyne online
-servers and BDS 1.26.51 authenticate only this token. jolyne does not depend on
-an Xbox client: `examples/simple_client.rs` implements the source with
-`axolotl-xbl` (PlayFab-scoped XBL token → `PlayFabClient::login` →
-`service_token` → `multiplayer_token`). `auth::client::build_login` produces the
-same `(auth_info_json, client_data_jwt)` pair for `send_login_with_tokens`.
-The client no longer requests or sends a Mojang-signed legacy chain.
-Online envelopes are tested end to end against the jolyne verifier with test
-keys; live Xbox authentication is not exercised by the offline harness.
-
-The offline vanilla differential harness lives in
-[`tools/client-diff`](../../tools/client-diff/README.md). Its acceptance report
+For instrumentation or caller-built tokens, `BedrockStream<Login, Client, _>`
+also has `send_login_with_tokens(identity_key, auth_info_json,
+client_data_jwt)`, which sends them unchanged; `identity_key` must be the key
+that signed them (it drives the ECDH handshake). `auth::client::build_login`
+produces the same pair that `send_login` sends. The offline vanilla
+differential harness lives in
+[`tools/client-diff`](../../tools/client-diff/README.md); its acceptance report
 distinguishes successful joins from server-rejected login captures.
 
-```rust,no_run
-use jolyne::stream::client::ClientHandshakeConfig;
-use jolyne::stream::BedrockStream;
-use jolyne::valentine::{McpePacket, RequestChunkRadiusPacket};
-
-#[tokio::main]
-async fn main() -> Result<(), Box<dyn std::error::Error>> {
-    let addr = "127.0.0.1:19132".parse()?;
-
-    // 1. Connect
-    let handshake = BedrockStream::connect(addr).await?;
-    
-    // 2. Configure (Auto-generate keys/uuid)
-    let config = ClientHandshakeConfig::random(addr, "JolyneBot");
-
-    // 3. Join (Handles auth, encryption, resource packs)
-    let (mut client, _game_data) = handshake.join(config).await?;
-    
-    // Send a chunk radius request (could be anything.)
-    let req = RequestChunkRadiusPacket {
-        chunk_radius: 8,
-        max_chunk_radius: 8,
-    };
-    client.send_packet(McpePacket::from(req)).await?;
-    
-    Ok(())
-}
-```
-
-`jolyne::valentine` is pinned to Bedrock 26.51 (protocol 2193). Its canonical
-schema label is `valentine::bedrock::version::v1_26_51`.
-
-### Server authentication
+## Server authentication
 
 `auth::authenticate_login(auth_info_json, client_data_jwt, online_mode,
 allow_legacy)` returns `Result<AuthenticatedLogin, AuthError>` with
-`AuthenticatedLogin { identity: ValidatedIdentity, client_data: ClientData }`.
+`AuthenticatedLogin { identity: ValidatedIdentity, client_data: ClientData }`;
 `authenticate_login_with` takes an explicit `auth::openid::OpenIdProvider`.
 Issuer, audience and temporal failures have distinct `AuthError` variants;
 key/signature mismatches are `AuthError::BadSignature`.
@@ -272,10 +258,9 @@ authenticated only if the transport proved the same key
 otherwise downgraded to `Trust::Unauthenticated`; on RakNet, which cannot prove
 keys, online mode without encryption is refused
 (`AuthError::OnlineModeRequiresEncryption`, also at `bind`). The handshake wait
-runs under the login deadline. Read the identity after `finish_handshake`
-(`authenticate` returns only the stream); admission hooks run before it and see
-`AwaitingKeyProof`, so they may refuse on `claimed_xuid()` but must not grant
-anything on it.
+runs under the login deadline. Read the identity after `finish_handshake`;
+admission hooks run before it and see `AwaitingKeyProof`, so they may refuse on
+`claimed_xuid()` but must not grant anything on it.
 
 `ValidatedIdentity` has private fields and no public constructor, so an offline
 identity cannot be upgraded or edited. Its offline XUID claim is only reachable
@@ -287,17 +272,23 @@ XUID, non-nil UUID, display-name length/spacing rules).
 Online OpenID trust starts at Minecraft's HTTPS build discovery endpoint for
 `1.26.51`, follows the published issuer's OpenID configuration and JWKS, and
 enforces issuer, multiplayer audience, expiry/not-before (60-second skew) and
-the published RS256/ES384 algorithm allow-list. JWT `x5u`/`x5c` keys and URLs are
-never trust sources. The process-wide `OpenIdProvider::minecraft()` caches the
-key set without serializing logins: validation clones an `Arc` snapshot and
-verifies without holding a lock; refreshes are single-flight and shared by all
-waiters (success or failure) and run in a spawned task, so a cancelled login
-neither aborts the fetch nor loses its outcome or backoff; an unknown `kid` refreshes at most once per 30
-minutes (gophertunnel `refreshingKeySet`); snapshots older than one hour are
-revalidated by one caller while the others keep using the cached keys, which
-keep serving for up to 24 hours if refreshing fails; failed fetches back off for
-30 seconds; each refresh is bounded by 30 seconds (HTTP connect 5 s, request
-10 s). `RefreshPolicy` and `KeySetSource` make all of this injectable;
+the published RS256/ES384 algorithm allow-list. JWT `x5u`/`x5c` keys and URLs
+are never trust sources. The process-wide `OpenIdProvider::minecraft()` caches
+the key set without serializing logins:
+
+- validation clones an `Arc` snapshot and verifies without holding a lock;
+- refreshes are single-flight, shared by all waiters (success or failure) and
+  run in a spawned task, so a cancelled login neither aborts the fetch nor loses
+  its outcome or backoff;
+- an unknown `kid` refreshes at most once per 30 minutes (gophertunnel
+  `refreshingKeySet`);
+- snapshots older than one hour are revalidated by one caller while the others
+  keep using the cached keys, which keep serving for up to 24 hours if
+  refreshing fails;
+- failed fetches back off for 30 seconds; each refresh is bounded by 30 seconds
+  (HTTP connect 5 s, request 10 s).
+
+`RefreshPolicy` and `KeySetSource` make all of this injectable;
 `OpenIdVerifier::from_jwks` builds an explicitly trusted snapshot and its
 synchronous `validate` uses the production verification path.
 
@@ -322,7 +313,8 @@ Provider discovery and claim conventions follow
 [gophertunnel `service/token.go:VerifierContext`](https://github.com/Sandertv/gophertunnel/blob/be557e33fe6f8d0c0db7ef05b5fd068725c325ad/minecraft/service/token.go)
 and [`login/request.go:Parse`](https://github.com/Sandertv/gophertunnel/blob/be557e33fe6f8d0c0db7ef05b5fd068725c325ad/minecraft/protocol/login/request.go).
 
-
 ## Roadmap
 
-See [`ROADMAP.md`](ROADMAP.md) for vanilla compatibility gates and acceptance evidence.
+See [`ROADMAP.md`](ROADMAP.md) for vanilla compatibility gates and acceptance
+evidence, and [`docs/LOGIN_SEQUENCE.md`](docs/LOGIN_SEQUENCE.md) for the
+packet-level join sequence.

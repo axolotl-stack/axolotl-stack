@@ -1,3 +1,8 @@
+//! Adversarial login verification tests: forged and self-signed provider
+//! tokens, client data bound to the token's `cpk`, offline and legacy logins
+//! that must never authenticate, client-built logins against the verifier,
+//! and malformed envelopes, tokens and client data that must not panic.
+
 use super::*;
 use crate::auth::client_data::tests::valid as valid_client_data;
 use crate::auth::openid::{KeySetSource, OpenIdProvider, OpenIdVerifier, RefreshPolicy};

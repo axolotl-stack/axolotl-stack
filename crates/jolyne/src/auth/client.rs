@@ -13,7 +13,7 @@
 //! Token acquisition is behind [`MultiplayerTokenSource`] so this crate does
 //! not depend on an Xbox Live client. With `axolotl-xbl` the chain is
 //! PlayFab-scoped XBL token → `PlayFabClient::login` → `service_token` →
-//! `multiplayer_token` (see `examples/simple_client.rs`).
+//! `multiplayer_token` (see `examples/02_client.rs`, `--xbox`).
 
 use crate::auth::client_data::ClientData;
 use crate::error::AuthError;

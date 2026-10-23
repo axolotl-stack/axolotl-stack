@@ -3,9 +3,15 @@
 //! ```text
 //! ServerHandshake ─RequestNetworkSettings→ ServerLogin ─Login→ LoginRequest
 //!   ─(caller verifies)→ Authenticated ─start_encryption→ [ServerEncryption ─C2S→]
-//!   PacksReady ─start_packs→ ServerPacks ─Completed→ WorldReady
+//!   PacksReady ─start_packs→ ServerPacksPhase ─Completed→ WorldReady
 //!   ─start_game→ ServerSpawn ─SetLocalPlayerAsInitialized→ ServerSession
 //! ```
+//!
+//! Owners that wait for the client implement [`Phase`]; `LoginRequest`,
+//! `Authenticated`, `PacksReady` and `WorldReady` wait for the caller (the
+//! verified login, the server key, the pack set, the world) and advance
+//! through a consuming method instead. `stream::server` maps them onto the
+//! `BedrockStream` typestate.
 //!
 //! The login stage (settings through `ClientToServerHandshake`) shares one
 //! deadline (`login_timeout`); resource packs and spawn each get their own.

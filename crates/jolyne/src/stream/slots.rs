@@ -1,4 +1,11 @@
 //! Player-count accounting shared by a listener and its connections.
+//!
+//! A listener owns one [`PlayerSlots`] sized by `max_players` (0 =
+//! unlimited). Each connection carries a [`Seat`]: `Uncounted` without a
+//! listener, `Pool` once accepted, and `Held` from the moment `authenticate`
+//! receives `Login` (before verification, so a full server answers cheaply)
+//! until the connection, whatever typestate or [`super::Failed`] holds it,
+//! is dropped. Every change wakes the listener to republish its status.
 
 #[cfg(feature = "server")]
 use std::sync::Arc;

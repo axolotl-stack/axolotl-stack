@@ -1,4 +1,5 @@
-//! Async Bedrock connections over a [`Transport`].
+//! Async Bedrock connections over a [`Transport`]: Tier 2 of the API
+//! (`docs/API.md`), the step-by-step join.
 //!
 //! [`BedrockStream<S, R, T>`] is a typestate: `S` is the join phase, `R` the
 //! role (`Server` or `Client`), `T` the transport. Each phase wraps the
@@ -6,6 +7,22 @@
 //! valid in that phase. Transitions consume the stream; a failed transition
 //! returns [`Failed`], which still owns the connection so a reasoned
 //! `Disconnect` can be sent.
+//!
+//! ```text
+//! Server: Handshake --accept_network_settings--> Login --authenticate--> SecurePending
+//!         --finish_handshake--> ResourcePacks --negotiate_packs[_with]--> StartGame
+//!         --start_game--> Play
+//! Client: Handshake --request_settings--> Login --send_login--> SecurePending
+//!         --await_handshake--> ResourcePacks --handle_packs--> StartGame
+//!         --await_start_game--> Play
+//! ```
+//!
+//! Tier 1's `accept_join_sequence` and `join` run these chains back to back.
+//! In [`Play`] the stream sends and receives packets (`recv_packet`,
+//! `send_packet`, raw and borrowed variants, batches, flush modes);
+//! [`BedrockStream::into_transport`] leaves the typestate for
+//! [`BedrockTransport`]. `docs/ARCHITECTURE.md` describes the driver loop,
+//! deadlines and player seats.
 
 use std::marker::PhantomData;
 use std::time::Duration;

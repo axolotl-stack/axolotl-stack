@@ -1,5 +1,12 @@
 //! Async glue between a [`Transport`] and the sans-IO core.
 //!
+//! [`drive`] runs one join phase: `advance(now)`, write what it queued within
+//! the phase deadline, then wait for a datagram until `poll_timeout` (the
+//! deadline or a timer) and feed it to `handle_datagram`, until the phase
+//! completes or fails. [`recv_raw`] and [`after_send`] do the same for a play
+//! connection and its interval flush timer. [`now`] is the only clock: the
+//! core receives Tokio's time as `std` instants.
+//!
 //! Writes and receives are cancel-safe: a transmit is only taken from the
 //! connection after the transport reported capacity, and a receive is a
 //! single `poll_recv`. A packet handed to a `send_*` method is queued before

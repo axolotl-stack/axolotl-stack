@@ -1,4 +1,11 @@
 //! Owned, in-place Bedrock batch encryption and checksum verification.
+//!
+//! [`BatchCipher`] is the AES-256-CTR stream [`super::conn::Connection`]
+//! applies to every sealed and received batch once the ECDH handshake
+//! ([`super::handshake`]) has derived the session key. It encrypts in place
+//! (reserve eight spare bytes for the checksum to avoid a reallocation),
+//! compares checksums in constant time, and zeroizes the plaintext of a batch
+//! that fails verification.
 
 use aes::Aes256Enc;
 use bytes::BytesMut;

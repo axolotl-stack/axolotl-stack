@@ -1,3 +1,6 @@
+//! JWT helpers shared by server-side login verification: unverified claim
+//! decoding (offline logins only) and P-384 identity keys from base64 DER.
+
 use crate::error::AuthError;
 use base64::Engine as _;
 use base64::engine::general_purpose::{STANDARD, URL_SAFE_NO_PAD};

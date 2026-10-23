@@ -1,3 +1,7 @@
+//! Resource pack exchange tests: two codec-level connections pumped into
+//! each other, covering ordering, chunk pacing, size and hash checks, and
+//! refusals on both sides.
+
 use super::*;
 use crate::config::ConnectionOptions;
 use crate::error::ProtocolError;

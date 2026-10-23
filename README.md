@@ -59,16 +59,16 @@ cargo build --workspace
 ```
 
 ### Running Examples
-Check out the examples in `crates/jolyne/examples` to see the stack in action:
+Check out the examples in `crates/jolyne/examples` (listed in `crates/jolyne/README.md`) to see the stack in action:
 
-**Simple Server (Echo)**:
+**Server (offline, 127.0.0.1:19132)**:
 ```bash
-cargo run -p jolyne --example simple_server --features full
+cargo run -p jolyne --example 01_server
 ```
 
-**Proxy (Passthrough)**:
+**Proxy (players join 127.0.0.1:19133, relayed to the server above)**:
 ```bash
-cargo run -p jolyne --example proxy --features full
+cargo run -p jolyne --example 04_proxy
 ```
 
 ## 🤝 Contributing
