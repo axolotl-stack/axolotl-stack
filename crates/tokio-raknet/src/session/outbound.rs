@@ -74,12 +74,15 @@ impl Session {
     }
 
     /// Build the next DATA datagram to send, if any, respecting MTU and sliding window.
+    ///
+    /// Vanilla datagrams come from Mojang's update, which also emits due
+    /// ACK/NAK datagrams: this returns whatever that update built next.
     pub fn build_data_datagram(&mut self, now: Instant) -> Option<Datagram> {
+        if self.is_vanilla() {
+            return self.next_vanilla_datagram(now);
+        }
         if self.outgoing_heap.is_empty() {
             return None;
-        }
-        if self.is_vanilla() {
-            return Some(self.build_vanilla_datagram(now));
         }
 
         let mut transmission_bw = self.sliding.get_transmission_bandwidth();
@@ -213,7 +216,9 @@ impl Session {
     /// Uses the actual header footprint for the reliability/flags instead of worst-case.
     fn max_encapsulated_payload_len(&self, reliability: Reliability, is_split: bool) -> usize {
         if self.is_vanilla() {
-            return super::vanilla::max_fragment_len(self.mtu, is_split);
+            // Mojang `ReliabilityLayer::Send`: one threshold and fragment
+            // size for every reliability.
+            return super::policy::vanilla_max_fragment_len(self.mtu);
         }
         let header = self.encapsulated_header_overhead(reliability, is_split);
         // Only subtract the encapsulated header; datagram/IP/UDP headers are accounted for
@@ -267,7 +272,9 @@ impl Session {
             None
         };
 
-        let reliable_index = if reliability.is_reliable() {
+        // Vanilla assigns message numbers when a message is sent (Mojang
+        // `ReliabilityLayer::Update`), so they follow transmission order.
+        let reliable_index = if reliability.is_reliable() && !self.is_vanilla() {
             Some(self.next_reliable_index())
         } else {
             None
@@ -289,11 +296,9 @@ impl Session {
         if reliability.is_reliable() { size } else { 0 }
     }
 
+    /// Split messages are sent reliably (both policies; Mojang
+    /// `ReliabilityLayer::Send`, lens RL_009:169-176).
     fn normalize_reliability_for_split(&self, reliability: Reliability) -> Reliability {
-        if self.is_vanilla() {
-            // go-raknet conn.go:write keeps the message reliability for fragments.
-            return reliability;
-        }
         match reliability {
             Reliability::Unreliable => Reliability::Reliable,
             Reliability::UnreliableSequenced => Reliability::ReliableSequenced,
@@ -340,7 +345,7 @@ impl Session {
                 needs_bas: false,
             };
 
-            let reliable_index = if reliability.is_reliable() {
+            let reliable_index = if reliability.is_reliable() && !self.is_vanilla() {
                 Some(self.next_reliable_index())
             } else {
                 None
@@ -374,13 +379,7 @@ impl Session {
     }
 
     fn push_outgoing_encap(&mut self, pkt: EncapsulatedPacket, priority: RakPriority) {
-        let weight = if self.is_vanilla() {
-            // go-raknet writes synchronously: transmission follows write order.
-            self.vanilla_mut().fifo += 1;
-            self.vanilla_mut().fifo
-        } else {
-            self.get_next_weight(priority)
-        };
+        let weight = self.get_next_weight(priority);
         self.outgoing_heap.push(QueuedEncap { weight, pkt });
     }
 

@@ -116,6 +116,10 @@ Edit `scenarios.json`, shared by both clients. Each scenario has `steps`, `idle_
 
 `real-client/launch.ps1` is a manual launcher only. It opens a `minecraft://connect/` URI, waits, and terminates the game process. Review its parameters/help and explicitly run it only when a user is present, BDS/Endstone is ready, and the player can complete any interactive client setup. Capture through Endstone and compare that capture using `diff`; no game invocation belongs in automated verification.
 
+## RakNet wire captures
+
+`raknet/capture.ps1` records Mojang RakNet (BDS) behaviour through a loopback recording relay under path-MTU limits, loss, reordering, kicks and client silence; `real-client/capture.ps1` records the Minecraft client the same way in one command. Both feed `crates/tokio-raknet/tests/capture_diff.rs`; see [raknet/README.md](raknet/README.md). The `raknet-idle` and `raknet-kick` scenarios and the bot's `-linger` flag exist for these captures.
+
 ## Version compatibility
 
 [Endstone 0.11.13 changelog](https://github.com/EndstoneMC/endstone/blob/v0.11.13/CHANGELOG.md) moves to BDS 1.26.52. [Bedrock 26.52](https://minecraft.wiki/w/Bedrock_Edition_26.52) still uses protocol **2193**: the patch did not increment the protocol number. The harness deliberately stays on 0.11.12/1.26.51, rather than assuming equal protocol numbers imply identical server behavior.
