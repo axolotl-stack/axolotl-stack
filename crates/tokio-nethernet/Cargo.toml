@@ -91,6 +91,10 @@ required-features = ["discovery"]
 name = "discovery_server"
 required-features = ["discovery"]
 
+[[example]]
+name = "real_client_probe"
+required-features = ["discovery"]
+
 [[bench]]
 name = "signaling_benchmark"
 harness = false
