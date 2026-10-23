@@ -19,7 +19,7 @@ use super::batch::BatchCompression;
 use super::conn::Connection;
 use super::handshake;
 use super::packs::{ClientPackExchange, ClientPackPolicy, DownloadedPack, PackProgress};
-use super::phase::{Deferred, Failure, Owner, Phase, Step, unexpected};
+use super::phase::{Deferred, Failure, Owner, Phase, Step, deadline_after, unexpected};
 use super::raw::RawPacket;
 use super::session::Session;
 use crate::config::ClientConfig;
@@ -86,7 +86,7 @@ impl ClientSettings {
         Ok(Self {
             conn,
             shared: Shared {
-                deadline: now + config.join_timeout,
+                deadline: deadline_after(now, config.join_timeout),
                 chunk_radius: config.chunk_radius,
                 packs: config.packs.clone(),
             },

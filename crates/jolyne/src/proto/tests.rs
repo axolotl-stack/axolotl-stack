@@ -572,6 +572,49 @@ async fn each_stage_has_a_mandatory_deadline() {
 }
 
 #[tokio::test]
+async fn huge_configured_timeouts_mean_far_deadlines_not_overflow() {
+    // `Duration::MAX` as "never" used to overflow `Instant + Duration`.
+    let harness = Harness::new(BedrockListenerConfig {
+        online_mode: false,
+        login_timeout: Duration::MAX,
+        resource_pack_timeout: Duration::MAX,
+        spawn_timeout: Duration::MAX,
+        ..Default::default()
+    });
+    let far = Instant::now() + Duration::from_secs(50 * 365 * 24 * 60 * 60);
+    let (server, _client) = harness.start();
+    assert!(server.poll_timeout() > far);
+    let (spawn, _client) = harness.through_packs(params(1)).await;
+    assert!(spawn.poll_timeout() > far);
+
+    let client_config = ClientConfig {
+        join_timeout: Duration::MAX,
+        ..ClientConfig::default()
+    };
+    let client = ClientSettings::new(
+        Connection::new(Framing::RakNet, client_config.connection.clone()),
+        &client_config,
+        Instant::now(),
+    )
+    .unwrap();
+    assert!(client.poll_timeout() > far);
+
+    let mut conn = Connection::new(
+        Framing::RakNet,
+        ConnectionOptions {
+            flush: crate::config::FlushMode::Interval(Duration::MAX),
+            ..ConnectionOptions::default()
+        },
+    );
+    let packet = McpePacket::from(crate::valentine::RequestChunkRadiusPacket {
+        chunk_radius: 4,
+        max_chunk_radius: 4,
+    });
+    conn.queue_packet(&packet, Instant::now()).unwrap();
+    assert!(conn.poll_timeout().is_some_and(|at| at > far));
+}
+
+#[tokio::test]
 async fn protocol_mismatch_answers_play_status_and_client_reports_refusal() {
     let harness = Harness::new(BedrockListenerConfig::default());
     let (mut server, mut client) = harness.start();

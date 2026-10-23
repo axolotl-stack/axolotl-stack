@@ -21,7 +21,7 @@ use rand::RngCore;
 use super::conn::{Connection, Framing};
 use super::handshake;
 use super::packs::{PackProgress, ServerPackExchange, ServerPacks};
-use super::phase::{Deferred, Failure, Owner, Phase, Step, unexpected};
+use super::phase::{Deferred, Failure, Owner, Phase, Step, deadline_after, unexpected};
 use super::raw::RawPacket;
 use super::session::Session;
 use crate::auth::{AuthenticatedLogin, Trust};
@@ -70,7 +70,7 @@ owner!(ServerHandshake);
 
 impl ServerHandshake {
     pub fn new(conn: Connection, config: Arc<BedrockListenerConfig>, now: Instant) -> Self {
-        let deadline = now + config.login_timeout;
+        let deadline = deadline_after(now, config.login_timeout);
         Self {
             conn,
             shared: Shared { config, deadline },
@@ -474,7 +474,7 @@ impl PacksReady {
     ) -> Result<ServerPacksPhase, Failure<Self>> {
         match ServerPackExchange::start(packs, &mut self.conn, now) {
             Ok(exchange) => Ok(ServerPacksPhase {
-                deadline: now + self.config.resource_pack_timeout,
+                deadline: deadline_after(now, self.config.resource_pack_timeout),
                 conn: self.conn,
                 config: self.config,
                 login: self.login,
@@ -629,7 +629,7 @@ impl WorldReady {
         }
         tracing::debug!("start game sent");
         Ok(ServerSpawn {
-            deadline: now + self.config.spawn_timeout,
+            deadline: deadline_after(now, self.config.spawn_timeout),
             runtime_id: params.start_game.runtime_id.actor_runtime_id,
             publisher_position: params
                 .start_game

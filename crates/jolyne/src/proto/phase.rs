@@ -7,7 +7,7 @@
 //! more input) or the next one. Failures hand the phase back inside a
 //! [`Failure`] so the caller can still send a `Disconnect`.
 
-use std::time::Instant;
+use std::time::{Duration, Instant};
 
 use super::conn::{Connection, Datagram, Transmit};
 use super::raw::RawPacket;
@@ -25,11 +25,14 @@ pub enum Step<S, N> {
 /// A failed transition. `state` is the phase that failed, still owning the
 /// connection (boxed: failures are rare and owners are large).
 pub struct Failure<S> {
+    /// Why the transition failed.
     pub error: JolyneError,
+    /// The phase that failed, still owning its connection.
     pub state: Box<S>,
 }
 
 impl<S> Failure<S> {
+    /// Wraps `error` together with the phase that produced it.
     pub fn new(error: impl Into<JolyneError>, state: S) -> Self {
         Self {
             error: error.into(),
@@ -37,6 +40,7 @@ impl<S> Failure<S> {
         }
     }
 
+    /// Splits the failure into the error and the unboxed phase.
     pub fn into_parts(self) -> (JolyneError, S) {
         (self.error, *self.state)
     }
@@ -52,10 +56,14 @@ impl<S> std::fmt::Debug for Failure<S> {
 
 /// Anything that owns a connection: phases, intermediate owners, sessions.
 pub trait Owner: Sized {
+    /// Mutable access to the owned connection.
     fn connection(&mut self) -> &mut Connection;
+    /// Shared access to the owned connection.
     fn connection_ref(&self) -> &Connection;
+    /// Consumes the owner and returns its connection.
     fn into_connection(self) -> Connection;
 
+    /// Pops the next outbound transport message, if any is queued.
     fn poll_transmit(&mut self) -> Option<Transmit> {
         self.connection().poll_transmit()
     }
@@ -79,7 +87,9 @@ pub trait Owner: Sized {
 
 /// A handshake phase waiting for packets.
 pub trait Phase: Owner {
+    /// The owner [`Phase::advance`] yields once this phase completes.
     type Next;
+    /// Which handshake phase this is, reported in timeout and unexpected-packet errors.
     const PHASE: HandshakePhase;
 
     /// The mandatory absolute deadline of this phase.
@@ -145,6 +155,15 @@ pub trait Phase: Owner {
     }
 }
 
+/// `now + after` without `Instant`'s overflow panic. Timeouts come from user
+/// config, where a huge value (e.g. `Duration::MAX` for "never") is plausible;
+/// it is capped at about a century, which no session outlives. The cap fits
+/// every supported platform's `Instant`, so `now` is only a formal fallback.
+pub(crate) fn deadline_after(now: Instant, after: Duration) -> Instant {
+    const CENTURY: Duration = Duration::from_secs(100 * 365 * 24 * 60 * 60);
+    now.checked_add(after.min(CENTURY)).unwrap_or(now)
+}
+
 /// Builds the error for a packet a phase did not expect.
 #[cfg(any(feature = "server", feature = "client"))]
 pub(crate) fn unexpected(phase: HandshakePhase, packet: &RawPacket) -> JolyneError {
@@ -166,6 +185,7 @@ pub struct Deferred {
 }
 
 impl Deferred {
+    /// Creates an empty buffer bounded by `connection`'s deferral limits.
     pub fn new(connection: &Connection) -> Self {
         let options = connection.options();
         Self {
@@ -176,6 +196,8 @@ impl Deferred {
         }
     }
 
+    /// Compacts and appends `packet`; fails with `ProtocolError::DeferredOverflow`
+    /// when the packet or byte limit would be exceeded.
     pub fn push(&mut self, packet: RawPacket) -> Result<(), JolyneError> {
         let bytes = self.bytes.saturating_add(packet.inner_frame().len());
         if self.packets.len() == self.max_packets || bytes > self.max_bytes {
@@ -190,10 +212,12 @@ impl Deferred {
         Ok(())
     }
 
+    /// Number of deferred packets.
     pub fn len(&self) -> usize {
         self.packets.len()
     }
 
+    /// Whether no packets are deferred.
     pub fn is_empty(&self) -> bool {
         self.packets.is_empty()
     }

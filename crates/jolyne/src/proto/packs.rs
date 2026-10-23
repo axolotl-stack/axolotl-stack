@@ -26,6 +26,7 @@ use sha2::{Digest, Sha256};
 use uuid::Uuid;
 
 use super::conn::Connection;
+use super::phase::deadline_after;
 use crate::error::{JolyneError, PackError};
 use crate::valentine::{
     ContentIdentity, Experiments, McpePacket, PackIdVersion, PackIdVersionjson, PackInfoData,
@@ -354,7 +355,7 @@ impl ServerPackExchange {
         )?;
         conn.flush()?;
         if !self.packs.chunk_interval.is_zero() {
-            self.next_chunk_at = Some(now + self.packs.chunk_interval);
+            self.next_chunk_at = Some(deadline_after(now, self.packs.chunk_interval));
         }
         if index + 1 == upload.chunks {
             self.upload = None;

@@ -24,6 +24,7 @@ use super::observe::{
     ConnectionMetrics, Direction, HexPreview, PacketEvent, WIRE_TARGET, trace_packet,
     wire_trace_enabled,
 };
+use super::phase::deadline_after;
 use super::raw::{PacketHeader, RawPacket};
 use crate::config::{ConnectionOptions, FlushMode};
 use crate::error::{JolyneError, PeerDisconnect, ProtocolError};
@@ -650,7 +651,7 @@ impl Connection {
     /// When the interval flush timer fires, if armed.
     pub fn poll_timeout(&self) -> Option<Instant> {
         match (self.options.flush, self.pending_since) {
-            (FlushMode::Interval(interval), Some(since)) => Some(since + interval),
+            (FlushMode::Interval(interval), Some(since)) => Some(deadline_after(since, interval)),
             _ => None,
         }
     }
