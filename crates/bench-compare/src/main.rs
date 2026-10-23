@@ -38,6 +38,16 @@ enum Command {
         #[arg(long, default_value_t = 5000)]
         iterations: usize,
     },
+    /// In-memory send + receive through jolyne's stream path.
+    Stream {
+        #[arg(long, default_value_t = 2000)]
+        iterations: usize,
+    },
+    /// Batch framing/compression/crypto rows only.
+    Batch {
+        #[arg(long, default_value_t = 5000)]
+        iterations: usize,
+    },
     Micro {
         #[arg(long, default_value_t = 5000)]
         iterations: usize,
@@ -46,6 +56,13 @@ enum Command {
         wire_only: bool,
     },
     Loopback {
+        #[arg(long, default_value_t = 100)]
+        count: usize,
+    },
+    /// Full jolyne join plus Text echoes over RakNet loopback.
+    Join {
+        #[arg(long, default_value_t = 20)]
+        joins: usize,
         #[arg(long, default_value_t = 100)]
         count: usize,
     },
@@ -68,6 +85,8 @@ fn main() -> Result<()> {
     match args.command {
         Command::NethernetMicro { iterations } => bench_compare::nethernet::micro(iterations),
         Command::Codec { iterations } => bench_compare::codec::run(iterations),
+        Command::Batch { iterations } => bench_compare::batch::run(iterations),
+        Command::Stream { iterations } => bench_compare::stream::run(iterations),
         Command::Micro {
             iterations,
             wire_only,
@@ -95,6 +114,9 @@ fn main() -> Result<()> {
                         }
                         Command::NethernetClient { address, count } => {
                             bench_compare::nethernet::client(address, count).await
+                        }
+                        Command::Join { joins, count } => {
+                            bench_compare::join::loopback(joins, count).await
                         }
                         Command::Loopback { count } => {
                             bench_compare::transport::loopback(count).await

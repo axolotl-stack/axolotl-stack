@@ -262,6 +262,7 @@ fn invalid(rule: &'static str) -> AuthError {
 impl ClientData {
     /// Mirrors gophertunnel's `Parse`: Mojang omits brackets around IPv6
     /// addresses entered without them, so `a:b::c:port` becomes `[a:b::c]:port`.
+    #[cfg(feature = "server")]
     pub(crate) fn normalize_server_address(&mut self) {
         let address = &self.server_address;
         if !address.contains("://") && address.matches(':').count() > 1 && !address.starts_with('[')
@@ -653,6 +654,11 @@ pub(crate) mod tests {
         ] {
             assert_eq!(is_valid_server_address(address), ok, "{address}");
         }
+    }
+
+    #[cfg(feature = "server")]
+    #[test]
+    fn unbracketed_ipv6_server_address_is_normalized() {
         let mut data = valid();
         data.server_address = "2001:db8::1:19132".into();
         data.normalize_server_address();

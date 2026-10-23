@@ -1,6 +1,7 @@
 //! Deterministic `OpenIdProvider` cache tests on Tokio's paused clock.
 
 use super::security_tests::{claims, client_data, key, sign_with, verifier_for};
+use crate::auth::Trust;
 use crate::auth::openid::{KeySetSource, OpenIdProvider, OpenIdVerifier, RefreshPolicy};
 use crate::error::AuthError;
 use futures::future::{BoxFuture, join_all};
@@ -74,7 +75,7 @@ async fn validate(provider: &OpenIdProvider, login: &Login) -> Result<(), AuthEr
     provider
         .validate(&login.token, &login.client)
         .await
-        .map(|login| assert!(login.identity.is_authenticated()))
+        .map(|login| assert_eq!(login.identity.trust(), Trust::AwaitingKeyProof))
 }
 
 #[tokio::test(start_paused = true)]
@@ -240,4 +241,32 @@ async fn fetch_timeout_bounds_a_hung_source() {
         Err(AuthError::ProviderUnavailable(_))
     ));
     assert_eq!(started.elapsed(), policy.fetch_timeout);
+}
+
+/// The fetch runs in its own task: cancelling the login that started it
+/// neither aborts the fetch nor loses its outcome, and a failed outcome still
+/// arms the retry backoff.
+#[tokio::test(start_paused = true)]
+async fn cancelled_login_does_not_abort_or_forget_the_fetch() {
+    let provider_key = key(2);
+    let policy = RefreshPolicy::default();
+    let login = login(&provider_key, None);
+    for (keys, expect_ok) in [
+        (None, false),
+        (Some(vec![(provider_key.clone(), None)]), true),
+    ] {
+        let source = TestSource::new(vec![], Duration::from_millis(10));
+        source.set_keys(keys);
+        let provider = OpenIdProvider::new(source.clone(), policy);
+        // Cancel the triggering login while its fetch is in flight.
+        let cancelled =
+            tokio::time::timeout(Duration::from_millis(5), validate(&provider, &login)).await;
+        assert!(cancelled.is_err(), "login should still be waiting");
+        assert_eq!(source.fetches(), 1);
+        // The fetch completes without any waiter; the next login shares its
+        // recorded outcome instead of fetching again.
+        tokio::time::sleep(Duration::from_millis(10)).await;
+        assert_eq!(validate(&provider, &login).await.is_ok(), expect_ok);
+        assert_eq!(source.fetches(), 1, "outcome or backoff was lost");
+    }
 }

@@ -34,6 +34,7 @@ uuid.workspace = true
 md-5 = { version = "0.10", optional = true }
 parking_lot = "0.12"
 sha2 = "0.11"
+zeroize = "1.8"
 aes = "0.9"
 ctr = "0.10"
 aes-gcm.workspace = true
@@ -46,6 +47,8 @@ tracing.workspace = true
 tokio = { workspace = true, features = ["rt-multi-thread", "macros", "net", "test-util"] }
 tracing-subscriber = { workspace = true, features = ["env-filter", "fmt"] }
 anyhow.workspace = true
+parking_lot = "0.12"
+tokio-util.workspace = true
 clap.workspace = true
 axelerator = { path = "../axelerator" }
 axolotl-xbl = { path = "../axolotl-xbl" }

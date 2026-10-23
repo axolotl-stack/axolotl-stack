@@ -7,6 +7,7 @@ use ctr::cipher::{
     StreamCipherCore, consts::U16, typenum::Unsigned,
 };
 use sha2::{Digest, Sha256};
+use zeroize::Zeroize;
 
 use crate::error::{JolyneError, ProtocolError};
 
@@ -31,12 +32,17 @@ impl StreamCipherClosure for BackendWidth<'_> {
 /// Each nonempty encrypted batch appends the first eight bytes of
 /// SHA256(little-endian batch counter || payload || key). The counter starts at
 /// zero; neither it nor the AES stream resets between batches.
+///
+/// A failed checksum permanently invalidates the cipher: the stream position
+/// is unrecoverable, so every later call fails with
+/// `ProtocolError::CipherInvalidated` and the connection must be closed.
 pub struct BatchCipher {
     cipher: Aes256Ctr,
     key: [u8; 32],
     counter: u64,
     keystream: Box<[u8]>,
     used_keystream: usize,
+    invalidated: bool,
 }
 
 impl BatchCipher {
@@ -56,6 +62,7 @@ impl BatchCipher {
             counter: 0,
             keystream: vec![0; group_len].into_boxed_slice(),
             used_keystream: group_len,
+            invalidated: false,
         }
     }
 
@@ -98,15 +105,17 @@ impl BatchCipher {
     /// An empty buffer is a no-op. Invalid header lengths leave state unchanged.
     /// Reserve eight spare bytes in `buf` to avoid allocation.
     pub fn encrypt(&mut self, buf: &mut BytesMut, header_len: usize) -> Result<(), JolyneError> {
+        if self.invalidated {
+            return Err(ProtocolError::CipherInvalidated.into());
+        }
         if buf.is_empty() {
             return Ok(());
         }
         if header_len > buf.len() {
-            return Err(ProtocolError::UnexpectedHandshake(format!(
-                "encryption header length {} exceeds packet length {}",
-                header_len,
-                buf.len()
-            ))
+            return Err(ProtocolError::ShortEncryptedFrame {
+                len: buf.len(),
+                min: header_len,
+            }
             .into());
         }
 
@@ -127,46 +136,65 @@ impl BatchCipher {
     /// Decrypts, verifies, and removes a batch checksum in place without allocation.
     ///
     /// `header_len` has the same meaning as in [`Self::encrypt`]. Short frames
-    /// leave state unchanged. A checksum failure consumes stream and counter
-    /// state and leaves unauthenticated plaintext in `buf`; discard it and close
-    /// the connection rather than retrying it or using its contents.
+    /// leave state unchanged. The checksum is compared in constant time. On a
+    /// mismatch the unauthenticated plaintext in `buf` is zeroized and the
+    /// cipher is permanently invalidated.
     pub fn decrypt(&mut self, buf: &mut BytesMut, header_len: usize) -> Result<(), JolyneError> {
+        if self.invalidated {
+            return Err(ProtocolError::CipherInvalidated.into());
+        }
         if buf
             .len()
             .checked_sub(header_len)
             .is_none_or(|len| len < CHECKSUM_LEN)
         {
-            return Err(ProtocolError::UnexpectedHandshake(format!(
-                "encrypted packet must be at least {} bytes long, got {}",
-                header_len.saturating_add(CHECKSUM_LEN),
-                buf.len()
-            ))
+            return Err(ProtocolError::ShortEncryptedFrame {
+                len: buf.len(),
+                min: header_len.saturating_add(CHECKSUM_LEN),
+            }
             .into());
         }
 
-        self.apply_keystream(&mut buf[header_len..]);
         let checksum_start = buf.len() - CHECKSUM_LEN;
-        let their_checksum = &buf[checksum_start..];
         let counter_value = self.counter;
         self.counter = self.counter.wrapping_add(1);
 
         let mut digest = Sha256::new();
         digest.update(counter_value.to_le_bytes());
+        self.apply_keystream(&mut buf[header_len..]);
         digest.update(&buf[header_len..checksum_start]);
         digest.update(self.key);
-        let our_checksum_full = digest.finalize();
-        let our_checksum = &our_checksum_full[..CHECKSUM_LEN];
+        let ours = digest.finalize();
 
-        if their_checksum != our_checksum {
-            return Err(ProtocolError::UnexpectedHandshake(format!(
-                "invalid checksum of packet {}: expected {:02x?}, got {:02x?}",
-                counter_value, our_checksum, their_checksum
-            ))
-            .into());
+        // Both checksums as one u64: a single XOR compare has no data-dependent
+        // early exit, so it is constant time without per-byte barriers.
+        let theirs = u64::from_ne_bytes(
+            buf[checksum_start..]
+                .try_into()
+                .expect("checksum is eight bytes"),
+        );
+        let ours = u64::from_ne_bytes(ours[..CHECKSUM_LEN].try_into().expect("eight bytes"));
+        if std::hint::black_box(theirs ^ ours) != 0 {
+            return Err(self.reject(buf, header_len, counter_value));
         }
 
         buf.truncate(checksum_start);
         Ok(())
+    }
+
+    /// Checksum failure: wipe the unauthenticated plaintext and refuse every
+    /// later call.
+    #[cold]
+    #[inline(never)]
+    fn reject(&mut self, buf: &mut BytesMut, header_len: usize, counter: u64) -> JolyneError {
+        self.invalidated = true;
+        buf[header_len..].zeroize();
+        ProtocolError::ChecksumMismatch { counter }.into()
+    }
+
+    /// Whether an earlier checksum failure invalidated this cipher.
+    pub fn is_invalidated(&self) -> bool {
+        self.invalidated
     }
 }
 
@@ -323,7 +351,7 @@ mod tests {
     }
 
     #[test]
-    fn rejects_payload_and_checksum_tampering() {
+    fn tampering_zeroizes_plaintext_and_invalidates_cipher_permanently() {
         for offset in [2, 12] {
             let mut send = BatchCipher::new(KEY, IV);
             let mut recv = BatchCipher::new(KEY, IV);
@@ -332,9 +360,26 @@ mod tests {
             buf[offset] ^= 0xff;
             assert!(matches!(
                 recv.decrypt(&mut buf, 1),
-                Err(JolyneError::Protocol(ProtocolError::UnexpectedHandshake(_)))
+                Err(JolyneError::Protocol(ProtocolError::ChecksumMismatch {
+                    counter: 0
+                }))
             ));
-            assert_eq!(recv.counter, 1);
+            assert_eq!(buf[0], 0xfe, "cleartext header is left intact");
+            assert!(buf[1..].iter().all(|byte| *byte == 0), "plaintext zeroized");
+            assert!(recv.is_invalidated());
+
+            // A valid next batch is still refused: the stream is unrecoverable.
+            let mut next = BytesMut::from(&b"\xfenext"[..]);
+            send.encrypt(&mut next, 1).unwrap();
+            assert!(matches!(
+                recv.decrypt(&mut next, 1),
+                Err(JolyneError::Protocol(ProtocolError::CipherInvalidated))
+            ));
+            let mut outbound = BytesMut::from(&b"\xfeout"[..]);
+            assert!(matches!(
+                recv.encrypt(&mut outbound, 1),
+                Err(JolyneError::Protocol(ProtocolError::CipherInvalidated))
+            ));
         }
     }
 

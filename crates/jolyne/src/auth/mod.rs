@@ -6,7 +6,7 @@
 //!
 //! | Mode | Accepted | Identity |
 //! |---|---|---|
-//! | online | `AuthenticationType` 0 with a provider-signed `Token` | authenticated; `xuid()`, `playfab_id()`, `title_id()` set |
+//! | online | `AuthenticationType` 0 with a provider-signed `Token` | [`Trust::AwaitingKeyProof`]; authenticated (`xuid()`, `playfab_id()`, `title_id()` set) once the connection proves the client holds the token's key |
 //! | offline | type 0 with any `Token`; with `allow_legacy`, type 1/2 with a self-signed `Token` or a legacy chain | unauthenticated; `xuid()` is `None` |
 //!
 //! Client side: see [`client`].
@@ -182,7 +182,7 @@ fn offline_token_login(
 }
 
 #[cfg(all(test, feature = "server"))]
-mod security_tests;
+pub(crate) mod security_tests;
 
 #[cfg(all(test, feature = "server"))]
 mod provider_tests;

@@ -6,7 +6,8 @@
 
 use crate::valentine::{
     AvailableEntityIdentifiersPacket, BiomeDefinitionListPacket, CreativeContentPacket,
-    ItemRegistryPacket, StartGamePacket,
+    DimensionDataPacket, ItemRegistryPacket, JigsawStructureDataPacket, StartGamePacket,
+    VoxelShapesPacket,
 };
 
 /// Game data captured during the login sequence.
@@ -24,6 +25,12 @@ pub struct GameData {
     pub start_game: StartGamePacket,
     /// Item registry with all vanilla and custom items.
     pub item_registry: ItemRegistryPacket,
+    /// `DimensionData` the server sent before `StartGame`, if any.
+    pub dimension_data: Option<DimensionDataPacket>,
+    /// `JigsawStructureData` the server sent before `StartGame`, if any.
+    pub jigsaw_structures: Option<JigsawStructureDataPacket>,
+    /// `VoxelShapes` the server sent before `StartGame`, if any.
+    pub voxel_shapes: Option<VoxelShapesPacket>,
     /// Reserved for callers that choose to capture biome definitions later.
     /// Client login leaves this unset and queues the packet for play.
     pub biome_definitions: Option<BiomeDefinitionListPacket>,

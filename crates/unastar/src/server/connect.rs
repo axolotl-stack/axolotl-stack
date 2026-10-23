@@ -4,8 +4,9 @@
 
 use glam::DVec3;
 use jolyne::auth::ValidatedIdentity;
-use jolyne::stream::raknet_types::{ServerLogin, ServerPlay};
+use jolyne::stream::raknet_types::{ServerHandshake, ServerPlay};
 use jolyne::stream::server::ServerHandshakeConfig;
+use jolyne::stream::{Failed, RakNetTransport};
 use jolyne::valentine::types::{BlockPos, Vec2, Vec3};
 use jolyne::{JolyneError, WorldTemplate};
 use p384::SecretKey;
@@ -22,6 +23,8 @@ use crate::storage::{PlayerData, PlayerProvider};
 /// 4. Resource pack negotiation
 /// 5. Spawn location resolution
 /// 6. Start game packet
+///
+/// A failed step sends the client a reasoned disconnect before returning.
 pub async fn accept_join_sequence(
     template: &WorldTemplate,
     server_key: &SecretKey,
@@ -29,29 +32,34 @@ pub async fn accept_join_sequence(
     player_data_store: &PlayerDataStore,
     player_provider: Option<&dyn PlayerProvider>,
     session_id: u64,
-    handshake_stream: ServerLogin,
+    handshake_stream: ServerHandshake,
 ) -> Result<(ServerPlay, ValidatedIdentity, Vec3, Option<PlayerData>), JolyneError> {
+    /// Tells the client why a join step failed, then surfaces the error.
+    async fn reasoned<T>(
+        step: impl Future<Output = Result<T, Failed<RakNetTransport>>>,
+    ) -> Result<T, JolyneError> {
+        match step.await {
+            Ok(next) => Ok(next),
+            Err(failed) => Err(failed.disconnect().await),
+        }
+    }
+
     // 1. Network Settings
-    let login = handshake_stream.accept_network_settings().await?;
+    let login = reasoned(handshake_stream.accept_network_settings()).await?;
 
     // 2. Auth
-    let (secure, authenticated) = login.authenticate().await?;
-    let identity = authenticated.identity;
+    let secure = reasoned(login.authenticate()).await?;
 
-    // 3. Encryption/handshake
-    let packs = secure
-        .finish_handshake(
-            &ServerHandshakeConfig {
-                server_key: server_key.clone(),
-            },
-            identity.identity_public_key(),
-        )
-        .await?;
+    // 3. Encryption/handshake: the identity is authenticated once the client
+    // proved it holds the login's key.
+    let packs = reasoned(secure.finish_handshake(&ServerHandshakeConfig {
+        server_key: server_key.clone(),
+    }))
+    .await?;
+    let identity = packs.login().identity.clone();
 
-    // 4. Resource packs (none/default)
-    let start_game_state = packs
-        .negotiate_packs(config.server.require_resource_packs)
-        .await?;
+    // 4. Resource packs (from the listener config)
+    let start_game_state = reasoned(packs.negotiate_packs()).await?;
 
     // 5. Resolve spawn before StartGame.
     let uuid = identity.uuid().to_string();
@@ -73,8 +81,11 @@ pub async fn accept_join_sequence(
         z: spawn.z,
     };
 
-    // 6. Build join params (use session_id as entity/runtime ID for now).
+    // 6. Build join params (use session_id as entity/runtime ID for now). The
+    // server grants its default view distance; later radius requests are
+    // handled by the chunk systems.
     let mut join_params = template.to_join_params(session_id as i64);
+    join_params.chunk_radius = Some(config.server.default_chunk_radius);
     join_params.start_game.position = initial_position.clone();
     if let Some(saved) = &saved_data {
         join_params.start_game.game_type = match saved.game_mode {
@@ -96,7 +107,7 @@ pub async fn accept_join_sequence(
     };
 
     // 7. Join.
-    let play = start_game_state.start_game(join_params).await?;
+    let play = reasoned(start_game_state.start_game(join_params)).await?;
     Ok((play, identity, initial_position, saved_data))
 }
 

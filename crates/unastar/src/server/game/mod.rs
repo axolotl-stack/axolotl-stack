@@ -8,6 +8,7 @@ mod chunks;
 mod commands;
 mod inventory;
 mod join;
+mod join_data;
 mod movement;
 mod packet_domains;
 mod packet_queues;
@@ -172,6 +173,8 @@ impl GameServer {
             Arc::new(entities.to_available_entity_identifiers_packet());
         world_template.creative_content = Arc::new(Self::build_creative_content(&items, &blocks));
         world_template.start_game_template.block_properties = blocks.to_block_properties();
+        world_template.jigsaw_structures = Arc::new(join_data::jigsaw_structures());
+        world_template.voxel_shapes = Arc::new(join_data::voxel_shapes());
 
         let world_template = Arc::new(world_template);
         let world_config = config.world;

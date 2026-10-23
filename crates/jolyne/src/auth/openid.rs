@@ -8,6 +8,8 @@
 //!   without holding any lock. No lock is held across HTTP.
 //! - Refreshes are single-flight: concurrent callers that need fresh keys wait
 //!   for the one in-flight fetch and share its outcome, success or failure.
+//!   The fetch runs in its own task, so cancelling the login that started it
+//!   neither aborts it nor loses its outcome or backoff.
 //! - An unknown `kid` triggers a refresh at most once per
 //!   [`RefreshPolicy::unknown_kid_interval`] (gophertunnel
 //!   `minecraft/service/jwks.go:refreshingKeySet`, 30 minutes).
@@ -22,9 +24,10 @@ use crate::auth::client_data::ClientData;
 use crate::auth::types::{AuthenticatedLogin, OpenIdClaims, Trust, ValidatedIdentity};
 use crate::auth::util::key_from_base64;
 use crate::error::AuthError;
-use futures::future::BoxFuture;
+use futures::FutureExt;
+use futures::future::{BoxFuture, Shared};
 use jsonwebtoken::{Algorithm, DecodingKey, Validation, decode, decode_header};
-use parking_lot::RwLock;
+use parking_lot::{Mutex, RwLock};
 use serde::{Deserialize, de::DeserializeOwned};
 use std::sync::{Arc, LazyLock};
 use std::time::Duration;
@@ -185,8 +188,11 @@ impl OpenIdVerifier {
         Err(last_error)
     }
 
-    /// Verifies the provider token, derives the authenticated identity and
-    /// binds the client data to the token's `cpk`.
+    /// Verifies the provider token, derives the identity and binds the client
+    /// data to the token's `cpk`. The identity is
+    /// [`Trust::AwaitingKeyProof`] until the connection proves the client
+    /// holds that key (the server phases do this after the encryption
+    /// handshake).
     pub fn validate(
         &self,
         token: &str,
@@ -195,7 +201,7 @@ impl OpenIdVerifier {
         login_from_claims(
             self.verify_token(token)?,
             client_data_jwt,
-            Trust::Authenticated,
+            Trust::AwaitingKeyProof,
         )
     }
 }
@@ -305,6 +311,7 @@ struct CacheState {
     snapshot: Option<Arc<Snapshot>>,
     /// Number of completed fetch attempts; waiters use it to share an outcome.
     attempts: u64,
+    /// Start of the newest fetch, then its completion time.
     last_attempt: Option<Instant>,
     /// Error of the most recent attempt, cleared on success.
     last_error: Option<AuthError>,
@@ -317,24 +324,89 @@ impl CacheState {
                 .last_attempt
                 .is_none_or(|at| now.saturating_duration_since(at) >= backoff)
     }
+
+    /// The outcome of the most recent completed attempt.
+    fn outcome(&self) -> Result<Arc<Snapshot>, AuthError> {
+        match (&self.last_error, &self.snapshot) {
+            (None, Some(snapshot)) => Ok(snapshot.clone()),
+            (Some(error), _) => Err(error.clone()),
+            (None, None) => Err(AuthError::ProviderUnavailable("no key set".into())),
+        }
+    }
+}
+
+/// One fetch, run in a spawned task and awaited by every interested caller.
+type Flight = Shared<BoxFuture<'static, Result<Arc<Snapshot>, AuthError>>>;
+
+/// How a caller relates to the refresh it asked for.
+enum Refresh {
+    /// This caller started the fetch.
+    Started(Flight),
+    /// Another caller's fetch is in flight.
+    Joined(Flight),
+    /// An attempt completed after the caller looked; this is its outcome.
+    Completed(Result<Arc<Snapshot>, AuthError>),
+}
+
+struct ProviderInner {
+    source: Box<dyn KeySetSource>,
+    policy: RefreshPolicy,
+    state: RwLock<CacheState>,
+    /// The in-flight fetch, cleared by the fetch task when it completes.
+    flight: Mutex<Option<Flight>>,
+}
+
+impl ProviderInner {
+    /// The body of the fetch task: bounded fetch, then the outcome is
+    /// recorded before the flight slot is released.
+    async fn fetch_and_store(self: Arc<Self>) -> Result<Arc<Snapshot>, AuthError> {
+        let result = tokio::time::timeout(self.policy.fetch_timeout, self.source.fetch())
+            .await
+            .unwrap_or_else(|_| {
+                Err(AuthError::ProviderUnavailable(
+                    "key set fetch timed out".into(),
+                ))
+            });
+        let now = Instant::now();
+        let outcome = {
+            let mut state = self.state.write();
+            state.attempts += 1;
+            state.last_attempt = Some(now);
+            match result {
+                Ok(verifier) => {
+                    let snapshot = Arc::new(Snapshot {
+                        verifier,
+                        fetched_at: now,
+                    });
+                    state.snapshot = Some(snapshot.clone());
+                    state.last_error = None;
+                    Ok(snapshot)
+                }
+                Err(error) => {
+                    state.last_error = Some(error.clone());
+                    Err(error)
+                }
+            }
+        };
+        *self.flight.lock() = None;
+        outcome
+    }
 }
 
 /// Cached, concurrently usable OpenID key set (see module docs).
 pub struct OpenIdProvider {
-    source: Box<dyn KeySetSource>,
-    policy: RefreshPolicy,
-    state: RwLock<CacheState>,
-    /// Single-flight guard; held only by the caller performing a fetch.
-    flight: tokio::sync::Mutex<()>,
+    inner: Arc<ProviderInner>,
 }
 
 impl OpenIdProvider {
     pub fn new(source: impl KeySetSource + 'static, policy: RefreshPolicy) -> Self {
         Self {
-            source: Box::new(source),
-            policy,
-            state: RwLock::new(CacheState::default()),
-            flight: tokio::sync::Mutex::new(()),
+            inner: Arc::new(ProviderInner {
+                source: Box::new(source),
+                policy,
+                state: RwLock::new(CacheState::default()),
+                flight: Mutex::new(None),
+            }),
         }
     }
 
@@ -366,26 +438,27 @@ impl OpenIdProvider {
 
     /// Returns usable keys: cached, revalidated, or (cold) freshly fetched.
     async fn current_keys(&self) -> Result<Arc<Snapshot>, AuthError> {
+        let policy = self.inner.policy;
         let now = Instant::now();
         let (snapshot, attempts, retry_allowed) = {
-            let state = self.state.read();
+            let state = self.inner.state.read();
             (
                 state.snapshot.clone(),
                 state.attempts,
-                state.retry_allowed(now, self.policy.retry_backoff),
+                state.retry_allowed(now, policy.retry_backoff),
             )
         };
         let Some(snapshot) = snapshot else {
             if !retry_allowed {
                 return Err(self.last_error());
             }
-            return self.refresh_shared(attempts).await;
+            return self.refresh(attempts).await;
         };
         let age = now.saturating_duration_since(snapshot.fetched_at);
-        if age < self.policy.max_age {
+        if age < policy.max_age {
             return Ok(snapshot);
         }
-        let usable_stale = age < self.policy.max_stale;
+        let usable_stale = age < policy.max_stale;
         if !retry_allowed {
             return if usable_stale {
                 Ok(snapshot)
@@ -393,18 +466,20 @@ impl OpenIdProvider {
                 Err(self.last_error())
             };
         }
-        // Stale-while-revalidate: only one caller fetches, the rest continue.
-        match self.flight.try_lock() {
-            Ok(guard) => match self.fetch(guard, attempts).await {
-                Ok(fresh) => Ok(fresh),
-                Err(error) if usable_stale => {
-                    tracing::warn!(%error, "OpenID key refresh failed; serving cached keys");
-                    Ok(snapshot)
-                }
-                Err(error) => Err(error),
-            },
-            Err(_) if usable_stale => Ok(snapshot),
-            Err(_) => self.refresh_shared(attempts).await,
+        // Stale-while-revalidate: the caller that starts the fetch waits for
+        // it; everyone else keeps using the cached keys meanwhile.
+        let result = match self.begin_refresh(attempts) {
+            Refresh::Joined(_) if usable_stale => return Ok(snapshot),
+            Refresh::Started(flight) | Refresh::Joined(flight) => flight.await,
+            Refresh::Completed(result) => result,
+        };
+        match result {
+            Ok(fresh) => Ok(fresh),
+            Err(error) if usable_stale => {
+                tracing::warn!(%error, "OpenID key refresh failed; serving cached keys");
+                Ok(snapshot)
+            }
+            Err(error) => Err(error),
         }
     }
 
@@ -415,9 +490,10 @@ impl OpenIdProvider {
         &self,
         snapshot: &Snapshot,
     ) -> Result<Option<Arc<Snapshot>>, AuthError> {
+        let policy = self.inner.policy;
         let now = Instant::now();
         let (attempts, retry_allowed) = {
-            let state = self.state.read();
+            let state = self.inner.state.read();
             if !state
                 .snapshot
                 .as_ref()
@@ -428,70 +504,60 @@ impl OpenIdProvider {
             }
             (
                 state.attempts,
-                state.retry_allowed(now, self.policy.retry_backoff),
+                state.retry_allowed(now, policy.retry_backoff),
             )
         };
-        if now.saturating_duration_since(snapshot.fetched_at) < self.policy.unknown_kid_interval
+        if now.saturating_duration_since(snapshot.fetched_at) < policy.unknown_kid_interval
             || !retry_allowed
         {
             return Ok(None);
         }
-        self.refresh_shared(attempts).await.map(Some)
+        self.refresh(attempts).await.map(Some)
     }
 
-    /// Waits for the in-flight fetch or performs one. `observed_attempts` is
-    /// the attempt counter seen before deciding to refresh; if an attempt
-    /// completed meanwhile, its outcome is shared instead of fetching again.
-    async fn refresh_shared(&self, observed_attempts: u64) -> Result<Arc<Snapshot>, AuthError> {
-        let guard = self.flight.lock().await;
-        self.fetch(guard, observed_attempts).await
+    /// Waits for the in-flight fetch or starts one.
+    async fn refresh(&self, observed_attempts: u64) -> Result<Arc<Snapshot>, AuthError> {
+        match self.begin_refresh(observed_attempts) {
+            Refresh::Started(flight) | Refresh::Joined(flight) => flight.await,
+            Refresh::Completed(result) => result,
+        }
     }
 
-    async fn fetch(
-        &self,
-        _guard: tokio::sync::MutexGuard<'_, ()>,
-        observed_attempts: u64,
-    ) -> Result<Arc<Snapshot>, AuthError> {
+    /// Joins the in-flight fetch; shares the outcome of an attempt that
+    /// completed since the caller read `observed_attempts`; otherwise spawns
+    /// a fetch. The attempt is recorded before anyone awaits it, and the
+    /// spawned task records its outcome even if every waiter is cancelled.
+    fn begin_refresh(&self, observed_attempts: u64) -> Refresh {
+        let mut slot = self.inner.flight.lock();
+        if let Some(flight) = slot.as_ref() {
+            return Refresh::Joined(flight.clone());
+        }
         {
-            let state = self.state.read();
+            let mut state = self.inner.state.write();
             if state.attempts != observed_attempts {
-                return match (&state.last_error, &state.snapshot) {
-                    (None, Some(snapshot)) => Ok(snapshot.clone()),
-                    (Some(error), _) => Err(error.clone()),
-                    (None, None) => Err(AuthError::ProviderUnavailable("no key set".into())),
-                };
+                return Refresh::Completed(state.outcome());
             }
+            state.last_attempt = Some(Instant::now());
         }
-        let result = tokio::time::timeout(self.policy.fetch_timeout, self.source.fetch())
-            .await
-            .unwrap_or_else(|_| {
-                Err(AuthError::ProviderUnavailable(
-                    "key set fetch timed out".into(),
-                ))
-            });
-        let now = Instant::now();
-        let mut state = self.state.write();
-        state.attempts += 1;
-        state.last_attempt = Some(now);
-        match result {
-            Ok(verifier) => {
-                let snapshot = Arc::new(Snapshot {
-                    verifier,
-                    fetched_at: now,
-                });
-                state.snapshot = Some(snapshot.clone());
-                state.last_error = None;
-                Ok(snapshot)
-            }
-            Err(error) => {
-                state.last_error = Some(error.clone());
-                Err(error)
-            }
+        // The slot lock is held until the flight is published, so the task
+        // cannot clear the slot before it is set.
+        let task = tokio::spawn(self.inner.clone().fetch_and_store());
+        let flight = async move {
+            task.await.unwrap_or_else(|error| {
+                Err(AuthError::ProviderUnavailable(format!(
+                    "key set fetch task failed: {error}"
+                )))
+            })
         }
+        .boxed()
+        .shared();
+        *slot = Some(flight.clone());
+        Refresh::Started(flight)
     }
 
     fn last_error(&self) -> AuthError {
-        self.state
+        self.inner
+            .state
             .read()
             .last_error
             .clone()
