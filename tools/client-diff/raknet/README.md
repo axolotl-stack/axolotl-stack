@@ -46,9 +46,9 @@ The bot is `tools/client-diff/gt-client` (gophertunnel `80c811b` over go-raknet
 ## Real Minecraft client
 
 ```powershell
-./tools/client-diff/real-client/capture.ps1 -Name baseline              # 60 s session, path MTU 1492
-./tools/client-diff/real-client/capture.ps1 -Name mtu-1200 -Mtu 1200 -Seconds 90 -Commit
-./tools/client-diff/real-client/capture.ps1 -Name mtu-576 -Mtu 576 -Seconds 120 -NoLaunch  # join by hand
+./tools/client-diff/real-client/capture.ps1 -Name baseline -NoLaunch    # 60 s session, path MTU 1492, join by hand
+./tools/client-diff/real-client/capture.ps1 -Name mtu-576 -Mtu 576 -Seconds 75 -NoLaunch
+./tools/client-diff/real-client/capture.ps1 -Name loss-5 -Loss 0.05 -Seconds 75 -NoLaunch -Commit
 ./tools/client-diff/real-client/capture.ps1 -Client gophertunnel        # plumbing check without the game
 ```
 
@@ -66,11 +66,17 @@ BDS 1.26.51 answers RakNet pings with a 33-byte pong without advertisement
 relay runs with `--advertise-relay 2193;1.26.51`: it fills the empty pong
 with a BDS-shaped advertisement naming the relay's port.
 `-Commit` copies the capture to `crates/tokio-raknet/tests/captures/real-client/`,
-which `cargo test -p tokio-raknet --test capture_diff -- --ignored` compares
+which `cargo test -p tokio-raknet --test capture_diff` compares
 with `RaknetStream` (Vanilla): MTU probe sizes and cadence, ConnectionRequest
 and NewIncomingConnection reliability, ACK delay, ping period, fragment sizes.
 Only run it with a person at the machine: the game must be installed and
 signed in, and must not already be running.
+
+Committed captures (`crates/tokio-raknet/tests/captures/real-client`,
+Minecraft 1.26.52 for Windows, joined by hand with `-NoLaunch`): `baseline`
+(path MTU 1492), `mtu-1200`, `mtu-576`, `loss-5` (5% loss both ways). The
+game joined 29-85 s into each recording and was still connected when it
+stopped, so the client's disconnect is not in them.
 
 ## Capture format
 

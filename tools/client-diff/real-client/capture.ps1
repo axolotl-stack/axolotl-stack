@@ -12,7 +12,7 @@ lets the session run for -Seconds (play, idle or disconnect from the pause
 menu), closes the game, stops everything and prints the analysis. The capture
 is `<Output>/<Name>.jsonl`; -Commit copies it to
 `crates/tokio-raknet/tests/captures/real-client/<Name>.jsonl`, where
-`cargo test -p tokio-raknet --test capture_diff -- --ignored` compares it with
+`cargo test -p tokio-raknet --test capture_diff` compares it with
 `RaknetStream` (Vanilla).
 
 Run it only when a person is at the machine: the game must be installed and

@@ -56,9 +56,10 @@ let server = RaknetListenerConfig {
 ```
 
 `tests/capture_diff.rs` replays the committed BDS captures
-(`tests/captures/bds-1.26.51`) against a Vanilla listener through the
-recording relay of `examples/raknet_capture` and compares wire layouts and
-timing. Captures are recorded with `tools/client-diff/raknet/capture.ps1`
+(`tests/captures/bds-1.26.51`) against a Vanilla listener and the committed
+Minecraft client captures (`tests/captures/real-client`) against a Vanilla
+`RaknetStream`, through the recording relay of `examples/raknet_capture`, and
+compares wire layouts and timing. Captures are recorded with `tools/client-diff/raknet/capture.ps1`
 (BDS) and `tools/client-diff/real-client/capture.ps1` (the Minecraft client);
 see [tools/client-diff/raknet/README.md](../../tools/client-diff/raknet/README.md).
 A differential test against go-raknet checks the layouts go-raknet and Mojang

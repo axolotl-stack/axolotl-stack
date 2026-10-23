@@ -15,7 +15,7 @@
 //!
 //! Captures of the real Minecraft client (`tests/captures/real-client`,
 //! recorded with `tools/client-diff/real-client/capture.ps1`) are compared
-//! by the ignored `real_client_captures_match_vanilla_client` test.
+//! with `RaknetStream` by `real_client_captures_match_vanilla_client`.
 
 // The capture tool's modules: the report and CLI helpers are unused here.
 #[allow(dead_code)]
@@ -76,11 +76,11 @@ fn payload(len: usize) -> Vec<u8> {
     bytes
 }
 
-/// One BDS-like session through the relay: the server sends a ~300 KB
-/// message (BDS's first chunk batch was 222 fragments) and a small message
-/// every 50 ms (game ticks); the client sends a 4 KB "login" and small
-/// messages, stays `hold` and then drops its stream.
-async fn session(faults: Faults, hold: Duration, client_mtu: u16) -> Vec<Record> {
+/// One BDS-like session through the relay: the server sends a `big`-byte
+/// message (BDS's first chunk batch was 222 fragments, ~300 KB at MTU 1400)
+/// and a small message every 50 ms (game ticks); the client sends a 4 KB
+/// "login" and small messages, stays `hold` and then drops its stream.
+async fn session(faults: Faults, hold: Duration, client_mtu: u16, big: usize) -> Vec<Record> {
     let mut listener = vanilla_listener().await;
     let upstream = listener.local_addr();
     let relay = Relay::start("127.0.0.1:0".parse().unwrap(), upstream, faults, None)
@@ -91,9 +91,7 @@ async fn session(faults: Faults, hold: Duration, client_mtu: u16) -> Vec<Record>
             .await
             .expect("no connection")
             .expect("listener closed");
-        conn.send_encoded(Message::new(payload(296_000)))
-            .await
-            .unwrap();
+        conn.send_encoded(Message::new(payload(big))).await.unwrap();
         let mut tick = tokio::time::interval(Duration::from_millis(50));
         loop {
             tokio::select! {
@@ -130,7 +128,7 @@ async fn session(faults: Faults, hold: Duration, client_mtu: u16) -> Vec<Record>
             .expect("big message not delivered")
             .unwrap()
             .unwrap();
-        if message.payload.len() + 1 == 296_000 {
+        if message.payload.len() + 1 == big {
             break;
         }
     }
@@ -321,6 +319,7 @@ async fn baseline_session_matches_bds() {
             },
             Duration::from_millis(5600),
             1492,
+            296_000,
         )
         .await,
     );
@@ -397,6 +396,7 @@ async fn loss_recovery_matches_bds() {
             },
             Duration::from_millis(1500),
             1492,
+            296_000,
         )
         .await,
     );
@@ -471,7 +471,6 @@ async fn silent_client_is_dropped_after_ten_seconds_like_bds() {
 /// `RaknetStream` with the Vanilla policy, for every capture recorded with
 /// `tools/client-diff/real-client/capture.ps1`.
 #[tokio::test(flavor = "multi_thread", worker_threads = 4)]
-#[ignore = "needs real-client captures in tests/captures/real-client (see tools/client-diff/raknet/README.md)"]
 async fn real_client_captures_match_vanilla_client() {
     let directory = captures().join("real-client");
     let mut paths: Vec<PathBuf> = std::fs::read_dir(&directory)
@@ -491,7 +490,10 @@ async fn real_client_captures_match_vanilla_client() {
             .split("mtu: Some(")
             .nth(1)
             .and_then(|rest| rest.split(')').next())
-            .and_then(|mtu| mtu.parse().ok());
+            .and_then(|mtu| mtu.parse::<usize>().ok());
+        // 200 fragments of `MTU - 60` (BDS caps the MTU at 1400): within
+        // the 512-part split bound (RAKNET-01) at every path MTU.
+        let big = 200 * (mtu.unwrap_or(1492).min(1400) - 60);
         let ours = analyze(
             &session(
                 Faults {
@@ -500,6 +502,7 @@ async fn real_client_captures_match_vanilla_client() {
                 },
                 Duration::from_millis(6000),
                 1492,
+                big,
             )
             .await,
         );
