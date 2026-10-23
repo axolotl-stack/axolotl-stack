@@ -23,6 +23,13 @@ fn transport_error(error: impl std::error::Error + Send + Sync + 'static) -> Jol
     JolyneError::transport(error)
 }
 
+/// The one clock of the async layer: the sans-IO core gets `std` instants,
+/// read from Tokio's clock so they agree with the Tokio timers the driver
+/// waits on (and with `tokio::time::pause` in tests).
+pub(crate) fn now() -> Instant {
+    tokio::time::Instant::now().into_std()
+}
+
 /// Writes every sealed batch to the transport and flushes it.
 pub(crate) async fn flush_out<T: Transport>(
     transport: &mut T,
@@ -124,7 +131,7 @@ pub(crate) async fn drive<T: Transport, P: Phase>(
     mut phase: P,
 ) -> Result<P::Next, Failure<P>> {
     loop {
-        phase = match phase.advance(Instant::now()) {
+        phase = match phase.advance(now()) {
             Ok(Step::Next(next)) => return Ok(next),
             Ok(Step::Wait(phase)) => phase,
             Err(failure) => return Err(failure),
@@ -161,7 +168,7 @@ pub(crate) async fn recv_raw<T: Transport>(
     loop {
         // Fire a due interval flush even while packets keep arriving.
         if conn.poll_timeout().is_some() {
-            conn.handle_timeout(Instant::now())?;
+            conn.handle_timeout(now())?;
         }
         flush_out(transport, conn).await?;
         if let Some(packet) = conn.next_packet()? {
@@ -177,7 +184,7 @@ pub(crate) async fn recv_raw<T: Transport>(
                 {
                     Ok(datagram) => datagram?,
                     Err(_) => {
-                        conn.handle_timeout(Instant::now())?;
+                        conn.handle_timeout(now())?;
                         continue;
                     }
                 }
@@ -195,7 +202,7 @@ pub(crate) async fn after_send<T: Transport>(
     conn: &mut Connection,
 ) -> Result<(), JolyneError> {
     if conn.poll_timeout().is_some() {
-        conn.handle_timeout(Instant::now())?;
+        conn.handle_timeout(now())?;
     }
     if conn.has_transmits() {
         flush_out(transport, conn).await?;

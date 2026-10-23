@@ -123,7 +123,7 @@ impl<T: Transport> BedrockStream<Handshake, Server, T> {
 
     pub(crate) fn accepted(transport: T, config: Arc<BedrockListenerConfig>, seat: Seat) -> Self {
         let conn = Connection::new(T::FRAMING, config.connection.clone());
-        let owner = core::ServerHandshake::new(conn, config, Instant::now());
+        let owner = core::ServerHandshake::new(conn, config, driver::now());
         Self::from_parts(transport, owner, seat)
     }
 
@@ -200,7 +200,7 @@ impl<T: Transport> BedrockStream<Login, Server, T> {
             Seat::Pool(slots) => match slots.try_acquire() {
                 Some(slot) => Seat::Held { _slot: slot },
                 None => {
-                    let failure = request.refuse_server_full(Instant::now());
+                    let failure = request.refuse_server_full(driver::now());
                     return Err(failed(failure, transport, Seat::Uncounted));
                 }
             },
@@ -226,7 +226,7 @@ impl<T: Transport> BedrockStream<Login, Server, T> {
             }
         };
         let deadline = request.deadline();
-        match request.authenticated(login, peer, Instant::now()) {
+        match request.authenticated(login, peer, driver::now()) {
             Ok(authenticated) => {
                 advance_to(
                     transport,
@@ -266,7 +266,7 @@ impl<T: Transport> BedrockStream<SecurePending, Server, T> {
         } = self.take();
         let transport_key = transport.proven_peer_key();
         let deadline = owner.deadline();
-        match owner.start_encryption(server_key, transport_key.as_ref(), Instant::now()) {
+        match owner.start_encryption(server_key, transport_key.as_ref(), driver::now()) {
             Ok(Step::Next(ready)) => {
                 advance_to(transport, ready, seat, deadline, HandshakePhase::Encryption).await
             }
@@ -305,7 +305,7 @@ impl<T: Transport> BedrockStream<ResourcePacks, Server, T> {
             owner,
             seat,
         } = self.take();
-        let phase = match owner.start_packs_with(packs, Instant::now()) {
+        let phase = match owner.start_packs_with(packs, driver::now()) {
             Ok(phase) => phase,
             Err(failure) => return Err(failed(failure, transport, seat)),
         };
@@ -331,7 +331,7 @@ impl<T: Transport> BedrockStream<StartGame, Server, T> {
             owner,
             seat,
         } = self.take();
-        let spawn = match owner.start_game(params, Instant::now()) {
+        let spawn = match owner.start_game(params, driver::now()) {
             Ok(spawn) => spawn,
             Err(failure) => return Err(failed(failure, transport, seat)),
         };

@@ -165,7 +165,9 @@ async fn join_echo_and_typed_disconnect() {
     }
 }
 
-#[tokio::test]
+// Paused clock: the driver's `now()` and its timers share Tokio's clock, so
+// the interval flush fires at exactly 20 ms of virtual time.
+#[tokio::test(start_paused = true)]
 async fn manual_and_interval_flush_batch_packets() {
     let (mut server, mut client) = joined(offline()).await;
     let before = server.metrics().batches_out;

@@ -165,7 +165,7 @@ impl<T: Transport> BedrockStream<Handshake, Client, T> {
         config: ClientConfig,
     ) -> Result<Self, JolyneError> {
         let conn = Connection::new(T::FRAMING, config.connection.clone());
-        let mut owner = core::ClientSettings::new(conn, &config, Instant::now())?;
+        let mut owner = core::ClientSettings::new(conn, &config, driver::now())?;
         let deadline = owner.deadline();
         driver::flush_out_by(
             &mut transport,
@@ -265,7 +265,7 @@ impl<T: Transport> BedrockStream<Login, Client, T> {
         let deadline = parts.owner.deadline();
         match parts
             .owner
-            .login(identity_key.clone(), request.into(), Instant::now())
+            .login(identity_key.clone(), request.into(), driver::now())
         {
             Ok(handshake) => {
                 advance_to(parts.transport, handshake, deadline, HandshakePhase::Login).await

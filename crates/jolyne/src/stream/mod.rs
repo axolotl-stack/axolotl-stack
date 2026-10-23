@@ -8,7 +8,7 @@
 //! `Disconnect` can be sent.
 
 use std::marker::PhantomData;
-use std::time::{Duration, Instant};
+use std::time::Duration;
 
 use crate::config::FlushMode;
 use crate::error::JolyneError;
@@ -182,7 +182,7 @@ impl<S: PhaseOf<R>, R: Role, T: Transport> BedrockStream<S, R, T> {
     /// Switches between immediate, manual and interval flushing.
     pub async fn set_flush_mode(&mut self, mode: FlushMode) -> Result<(), JolyneError> {
         let (transport, conn) = self.io();
-        conn.set_flush_mode(mode, Instant::now())?;
+        conn.set_flush_mode(mode, driver::now())?;
         driver::after_send(transport, conn).await
     }
 
@@ -203,7 +203,7 @@ impl<S: PhaseOf<R>, R: Role, T: Transport> BedrockStream<S, R, T> {
         // Through `io()`: if this fails or is cancelled, `Drop` still sends
         // what was queued.
         let (transport, conn) = self.io();
-        conn.queue_disconnect(reason, message, Instant::now())?;
+        conn.queue_disconnect(reason, message, driver::now())?;
         driver::close(transport, conn).await
     }
 
@@ -261,21 +261,21 @@ macro_rules! packet_io {
         /// is active (or the pending batch hit its limits).
         pub async fn send_packet(&mut self, packet: McpePacket) -> Result<(), JolyneError> {
             let (transport, conn) = self.io();
-            conn.queue_packet(&packet, Instant::now())?;
+            conn.queue_packet(&packet, driver::now())?;
             driver::after_send(transport, conn).await
         }
 
         /// Queues a packet by reference.
         pub async fn send_packet_ref(&mut self, packet: &McpePacket) -> Result<(), JolyneError> {
             let (transport, conn) = self.io();
-            conn.queue_packet(packet, Instant::now())?;
+            conn.queue_packet(packet, driver::now())?;
             driver::after_send(transport, conn).await
         }
 
         /// Queues a raw packet (forwarded bytes, unknown IDs).
         pub async fn send_packet_raw(&mut self, packet: &RawPacket) -> Result<(), JolyneError> {
             let (transport, conn) = self.io();
-            conn.queue_raw(packet, Instant::now())?;
+            conn.queue_raw(packet, driver::now())?;
             driver::after_send(transport, conn).await
         }
 
@@ -285,7 +285,7 @@ macro_rules! packet_io {
             packet: &P,
         ) -> Result<(), JolyneError> {
             let (transport, conn) = self.io();
-            conn.queue_custom(packet, Instant::now())?;
+            conn.queue_custom(packet, driver::now())?;
             driver::after_send(transport, conn).await
         }
 
@@ -297,7 +297,7 @@ macro_rules! packet_io {
             reliable: bool,
         ) -> Result<(), JolyneError> {
             let (transport, conn) = self.io();
-            conn.send_batch(packets, reliable, Instant::now())?;
+            conn.send_batch(packets, reliable, driver::now())?;
             driver::after_send(transport, conn).await
         }
 
@@ -308,7 +308,7 @@ macro_rules! packet_io {
             reliable: bool,
         ) -> Result<(), JolyneError> {
             let (transport, conn) = self.io();
-            conn.send_batch_raw(packets, reliable, Instant::now())?;
+            conn.send_batch_raw(packets, reliable, driver::now())?;
             driver::after_send(transport, conn).await
         }
     };

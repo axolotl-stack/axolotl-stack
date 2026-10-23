@@ -1,6 +1,6 @@
 //! A transport plus its codec state, outside the join typestate.
 
-use std::time::{Duration, Instant};
+use std::time::Duration;
 
 use super::driver;
 use super::slots::Seat;
@@ -82,7 +82,7 @@ impl<T: Transport> BedrockTransport<T> {
 
     /// Switches between immediate, manual and interval flushing.
     pub async fn set_flush_mode(&mut self, mode: FlushMode) -> Result<(), JolyneError> {
-        self.conn.set_flush_mode(mode, Instant::now())?;
+        self.conn.set_flush_mode(mode, driver::now())?;
         driver::after_send(&mut self.transport, &mut self.conn).await
     }
 
@@ -98,8 +98,7 @@ impl<T: Transport> BedrockTransport<T> {
         reason: EnumsConnectionDisconnectFailReason,
         message: &str,
     ) -> Result<(), JolyneError> {
-        self.conn
-            .queue_disconnect(reason, message, Instant::now())?;
+        self.conn.queue_disconnect(reason, message, driver::now())?;
         driver::close(&mut self.transport, &mut self.conn).await
     }
 

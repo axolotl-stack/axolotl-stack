@@ -1,7 +1,6 @@
 //! A failed join step that still owns the connection.
 
 use std::fmt;
-use std::time::Instant;
 
 use super::driver;
 use super::link::BedrockTransport;
@@ -45,7 +44,7 @@ impl<T: Transport> Failed<T> {
     pub async fn disconnect(self) -> JolyneError {
         let Self { error, mut link } = self;
         link.connection_mut()
-            .queue_failure_disconnect(&error, Instant::now());
+            .queue_failure_disconnect(&error, driver::now());
         let (transport, conn) = link.io();
         // `close` is bounded: a peer that stopped reading cannot hold the task.
         let _ = driver::close(transport, conn).await;
