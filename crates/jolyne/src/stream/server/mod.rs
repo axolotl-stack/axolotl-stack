@@ -65,14 +65,7 @@ pub(crate) async fn verify_login(
 pub type AuthenticatedStream<T> = BedrockStream<SecurePending, Server, T>;
 
 /// A spawned player and its login, as returned by `accept_join_sequence`.
-pub type JoinedStream<T> = (BedrockStream<Play, Server, T>, AuthenticatedLogin);
-
-/// Key material for the encryption handshake.
-#[derive(Debug, Clone)]
-pub struct ServerHandshakeConfig {
-    /// The server's P-384 key; reuse one per listener.
-    pub server_key: SecretKey,
-}
+pub type JoinedServer<T> = (BedrockStream<Play, Server, T>, AuthenticatedLogin);
 
 fn failed<T: Transport, O: Owner>(failure: Failure<O>, transport: T, seat: Seat) -> Failed<T> {
     let (error, owner) = failure.into_parts();
@@ -164,19 +157,15 @@ impl<T: Transport> BedrockStream<Handshake, Server, T> {
         self,
         template: &WorldTemplate,
         server_key: &SecretKey,
-    ) -> Result<JoinedStream<T>, JolyneError> {
+    ) -> Result<JoinedServer<T>, JolyneError> {
         async fn run<T: Transport>(
             stream: BedrockStream<Handshake, Server, T>,
             template: &WorldTemplate,
             server_key: &SecretKey,
-        ) -> Result<JoinedStream<T>, Failed<T>> {
+        ) -> Result<JoinedServer<T>, Failed<T>> {
             let login = stream.accept_network_settings().await?;
             let secure = login.authenticate().await?;
-            let packs = secure
-                .finish_handshake(&ServerHandshakeConfig {
-                    server_key: server_key.clone(),
-                })
-                .await?;
+            let packs = secure.finish_handshake(server_key).await?;
             let start = packs.negotiate_packs().await?;
             let play = start
                 .start_game(template.to_join_params(rand::random()))
@@ -259,13 +248,14 @@ impl<T: Transport> BedrockStream<SecurePending, Server, T> {
     }
 
     /// Runs the ECDH handshake (when enabled) and sends `LoginSuccess`.
-    /// The handshake is flushed in plaintext before encryption starts. A
+    /// `server_key` is the server's P-384 key; reuse one per listener. The
+    /// handshake is flushed in plaintext before encryption starts. A
     /// provider-verified identity is authenticated once the client proves its
     /// key (see `proto::server::Authenticated::start_encryption`).
     #[tracing::instrument(skip_all, level = "debug", fields(peer = %self.peer_addr()))]
     pub async fn finish_handshake(
         self,
-        config: &ServerHandshakeConfig,
+        server_key: &SecretKey,
     ) -> Result<BedrockStream<ResourcePacks, Server, T>, Failed<T>> {
         let super::Parts {
             transport,
@@ -274,7 +264,7 @@ impl<T: Transport> BedrockStream<SecurePending, Server, T> {
         } = self.take();
         let transport_key = transport.proven_peer_key();
         let deadline = owner.deadline();
-        match owner.start_encryption(&config.server_key, transport_key.as_ref(), Instant::now()) {
+        match owner.start_encryption(server_key, transport_key.as_ref(), Instant::now()) {
             Ok(Step::Next(ready)) => {
                 advance_to(transport, ready, seat, deadline, HandshakePhase::Encryption).await
             }

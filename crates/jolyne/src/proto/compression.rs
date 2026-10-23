@@ -50,6 +50,7 @@ fn too_large(max: usize) -> ProtocolError {
 const SNAPPY_MAX_EXPANSION: usize = 22;
 
 impl CompressionContext {
+    #[cfg(any(test, feature = "bench"))]
     /// Synchronous callbacks cannot retain a borrow, so their output stays owned.
     pub(crate) fn reclaim(&mut self, output: BytesMut) {
         self.decode_scratch = output;

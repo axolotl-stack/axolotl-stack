@@ -14,7 +14,7 @@ serde.workspace = true
 serde_json.workspace = true
 sha2.workspace = true
 flate2.workspace = true
-jolyne = { workspace = true, features = ["full", "raknet"] }
+jolyne = { workspace = true, features = ["full", "raknet", "bench"] }
 p384.workspace = true
 rand.workspace = true
 tokio = { workspace = true, features = ["rt-multi-thread", "time", "net", "sync", "macros", "io-util"] }

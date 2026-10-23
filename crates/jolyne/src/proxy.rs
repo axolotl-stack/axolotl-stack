@@ -25,7 +25,6 @@ use crate::proto::packs::{ResourcePack, ServerPacks};
 use crate::proto::phase::Owner;
 use crate::proto::raw::RawPacket;
 use crate::stream::client::ClientHandshakeConfig;
-use crate::stream::server::ServerHandshakeConfig;
 use crate::stream::transport::Transport;
 use crate::stream::{BedrockStream, Client, Failed, Handshake, Play, Server};
 use crate::valentine::{EnumsConnectionDisconnectFailReason, McpePacketName};
@@ -104,10 +103,7 @@ where
     // Finish the downstream login stage first: it runs under `login_timeout`,
     // while the logged-in pack phase has no deadline until packs are offered.
     // The identity is only authenticated once the handshake proved its key.
-    let packs = reasoned(secure.finish_handshake(&ServerHandshakeConfig {
-        server_key: server_key.clone(),
-    }))
-    .await?;
+    let packs = reasoned(secure.finish_handshake(server_key)).await?;
     let login = packs.login().clone();
 
     let dialed = match dial(&login).await {

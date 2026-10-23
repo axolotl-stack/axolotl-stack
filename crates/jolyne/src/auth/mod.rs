@@ -29,8 +29,6 @@ mod util;
 #[cfg(any(feature = "client", feature = "server"))]
 pub use client_data::ClientData;
 #[cfg(feature = "server")]
-pub use legacy::parse_login_chain;
-#[cfg(feature = "server")]
 pub use types::{AuthenticatedLogin, Trust, ValidatedIdentity};
 
 #[cfg(feature = "server")]
@@ -190,35 +188,6 @@ mod provider_tests;
 #[cfg(all(test, feature = "server"))]
 mod tests {
     use super::*;
-    use crate::error::JolyneError;
-
-    #[test]
-    fn parse_login_chain_accepts_valid_payload() {
-        let payload = br#"{"chain":["token1","token2"]}"#;
-        let parsed = parse_login_chain(payload).expect("should parse");
-        assert_eq!(parsed, vec!["token1".to_string(), "token2".to_string()]);
-    }
-
-    #[test]
-    fn parse_login_chain_rejects_invalid_utf8() {
-        let payload = &[0xff, 0xfe, 0xfd];
-        let err = parse_login_chain(payload).expect_err("should fail");
-        assert!(matches!(err, JolyneError::Auth(AuthError::InvalidUtf8)));
-    }
-
-    #[test]
-    fn parse_login_chain_rejects_invalid_json() {
-        let payload = br#"not a json object"#;
-        let err = parse_login_chain(payload).expect_err("should fail");
-        assert!(matches!(err, JolyneError::Auth(AuthError::InvalidJson)));
-    }
-
-    #[test]
-    fn parse_login_chain_rejects_missing_chain() {
-        let payload = br#"{"nope":["token"]}"#;
-        let err = parse_login_chain(payload).expect_err("should fail");
-        assert!(matches!(err, JolyneError::Auth(AuthError::MissingChain)));
-    }
 
     #[cfg(feature = "client")]
     #[test]

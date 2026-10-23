@@ -135,9 +135,6 @@ impl<L: RawListener> BedrockListener<L> {
     }
 }
 
-/// Builder entry point type (`BedrockListener::raknet()`, `::nethernet()`).
-pub struct NoListener;
-
 #[cfg(feature = "raknet")]
 impl BedrockListener<tokio_raknet::transport::RaknetListener> {
     /// Starts building a RakNet (UDP) listener.

@@ -22,7 +22,7 @@ use crate::valentine::{BorrowedMcpePacket, EnumsConnectionDisconnectFailReason, 
 pub(crate) mod driver;
 mod failed;
 mod link;
-pub mod slots;
+pub(crate) mod slots;
 pub mod transport;
 
 #[cfg(feature = "client")]
@@ -39,28 +39,39 @@ pub use transport::NetherNetTransport;
 pub use transport::RakNetTransport;
 pub use transport::Transport;
 
-/// Marker for a join phase.
-pub trait State {}
+mod sealed {
+    /// Keeps the typestate traits closed to jolyne's own markers.
+    pub trait Sealed {}
+}
+
+/// Marker for a join phase. Sealed.
+pub trait State: sealed::Sealed {}
 
 /// Maps a phase marker to the core owner it wraps for role `R`.
 pub trait PhaseOf<R: Role>: State {
     type Owner: Owner + Send;
 }
 
-/// Marker for a connection role.
-pub trait Role {}
+/// Marker for a connection role. Sealed.
+pub trait Role: sealed::Sealed {}
 
 /// Server role marker.
 pub struct Server;
+impl sealed::Sealed for Server {}
 impl Role for Server {}
 
 /// Client role marker.
 pub struct Client;
+impl sealed::Sealed for Client {}
 impl Role for Client {}
 
 macro_rules! states {
     ($($(#[$doc:meta])* $name:ident),* $(,)?) => {
-        $($(#[$doc])* pub struct $name; impl State for $name {})*
+        $(
+            $(#[$doc])* pub struct $name;
+            impl sealed::Sealed for $name {}
+            impl State for $name {}
+        )*
     };
 }
 
@@ -299,42 +310,43 @@ where
 
 #[cfg(feature = "raknet")]
 pub mod raknet_types {
-    //! Phase aliases over RakNet.
+    //! Phase aliases over RakNet. The `Stream` suffix keeps them apart from
+    //! the sans-IO owners in `proto` (`proto::server::ServerHandshake`, ...).
     use super::*;
 
-    pub type ServerHandshake = BedrockStream<Handshake, Server, RakNetTransport>;
-    pub type ServerLogin = BedrockStream<Login, Server, RakNetTransport>;
-    pub type ServerSecurePending = BedrockStream<SecurePending, Server, RakNetTransport>;
-    pub type ServerResourcePacks = BedrockStream<ResourcePacks, Server, RakNetTransport>;
-    pub type ServerStartGame = BedrockStream<StartGame, Server, RakNetTransport>;
-    pub type ServerPlay = BedrockStream<Play, Server, RakNetTransport>;
+    pub type ServerHandshakeStream = BedrockStream<Handshake, Server, RakNetTransport>;
+    pub type ServerLoginStream = BedrockStream<Login, Server, RakNetTransport>;
+    pub type ServerSecurePendingStream = BedrockStream<SecurePending, Server, RakNetTransport>;
+    pub type ServerResourcePacksStream = BedrockStream<ResourcePacks, Server, RakNetTransport>;
+    pub type ServerStartGameStream = BedrockStream<StartGame, Server, RakNetTransport>;
+    pub type ServerPlayStream = BedrockStream<Play, Server, RakNetTransport>;
 
-    pub type ClientHandshake = BedrockStream<Handshake, Client, RakNetTransport>;
-    pub type ClientLogin = BedrockStream<Login, Client, RakNetTransport>;
-    pub type ClientSecurePending = BedrockStream<SecurePending, Client, RakNetTransport>;
-    pub type ClientResourcePacks = BedrockStream<ResourcePacks, Client, RakNetTransport>;
-    pub type ClientStartGame = BedrockStream<StartGame, Client, RakNetTransport>;
-    pub type ClientPlay = BedrockStream<Play, Client, RakNetTransport>;
+    pub type ClientHandshakeStream = BedrockStream<Handshake, Client, RakNetTransport>;
+    pub type ClientLoginStream = BedrockStream<Login, Client, RakNetTransport>;
+    pub type ClientSecurePendingStream = BedrockStream<SecurePending, Client, RakNetTransport>;
+    pub type ClientResourcePacksStream = BedrockStream<ResourcePacks, Client, RakNetTransport>;
+    pub type ClientStartGameStream = BedrockStream<StartGame, Client, RakNetTransport>;
+    pub type ClientPlayStream = BedrockStream<Play, Client, RakNetTransport>;
 }
 
 #[cfg(feature = "nethernet")]
 pub mod nethernet_types {
-    //! Phase aliases over NetherNet.
+    //! Phase aliases over NetherNet (see [`super::raknet_types`]).
     use super::*;
 
-    pub type ServerHandshake = BedrockStream<Handshake, Server, NetherNetTransport>;
-    pub type ServerLogin = BedrockStream<Login, Server, NetherNetTransport>;
-    pub type ServerSecurePending = BedrockStream<SecurePending, Server, NetherNetTransport>;
-    pub type ServerResourcePacks = BedrockStream<ResourcePacks, Server, NetherNetTransport>;
-    pub type ServerStartGame = BedrockStream<StartGame, Server, NetherNetTransport>;
-    pub type ServerPlay = BedrockStream<Play, Server, NetherNetTransport>;
+    pub type ServerHandshakeStream = BedrockStream<Handshake, Server, NetherNetTransport>;
+    pub type ServerLoginStream = BedrockStream<Login, Server, NetherNetTransport>;
+    pub type ServerSecurePendingStream = BedrockStream<SecurePending, Server, NetherNetTransport>;
+    pub type ServerResourcePacksStream = BedrockStream<ResourcePacks, Server, NetherNetTransport>;
+    pub type ServerStartGameStream = BedrockStream<StartGame, Server, NetherNetTransport>;
+    pub type ServerPlayStream = BedrockStream<Play, Server, NetherNetTransport>;
 
-    pub type ClientHandshake = BedrockStream<Handshake, Client, NetherNetTransport>;
-    pub type ClientLogin = BedrockStream<Login, Client, NetherNetTransport>;
-    pub type ClientSecurePending = BedrockStream<SecurePending, Client, NetherNetTransport>;
-    pub type ClientResourcePacks = BedrockStream<ResourcePacks, Client, NetherNetTransport>;
-    pub type ClientStartGame = BedrockStream<StartGame, Client, NetherNetTransport>;
-    pub type ClientPlay = BedrockStream<Play, Client, NetherNetTransport>;
+    pub type ClientHandshakeStream = BedrockStream<Handshake, Client, NetherNetTransport>;
+    pub type ClientLoginStream = BedrockStream<Login, Client, NetherNetTransport>;
+    pub type ClientSecurePendingStream = BedrockStream<SecurePending, Client, NetherNetTransport>;
+    pub type ClientResourcePacksStream = BedrockStream<ResourcePacks, Client, NetherNetTransport>;
+    pub type ClientStartGameStream = BedrockStream<StartGame, Client, NetherNetTransport>;
+    pub type ClientPlayStream = BedrockStream<Play, Client, NetherNetTransport>;
 }
 
 #[cfg(all(test, feature = "server", feature = "client"))]

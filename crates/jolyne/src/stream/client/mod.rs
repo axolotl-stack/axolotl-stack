@@ -44,7 +44,7 @@ impl PhaseOf<Client> for Play {
 }
 
 /// A spawned client stream and the game data captured while joining.
-pub type JoinedStream<T> = (BedrockStream<Play, Client, T>, GameData);
+pub type JoinedClient<T> = (BedrockStream<Play, Client, T>, GameData);
 
 pub use crate::auth::client::{LoginCredentials, MultiplayerTokenSource};
 
@@ -184,11 +184,11 @@ impl<T: Transport> BedrockStream<Handshake, Client, T> {
     /// Runs the whole join and returns the play stream plus the
     /// `StartGame`/`ItemRegistry` data. On failure the transport is closed.
     #[tracing::instrument(skip_all, level = "debug", fields(peer = %self.peer_addr()))]
-    pub async fn join(self, config: ClientHandshakeConfig) -> Result<JoinedStream<T>, JolyneError> {
+    pub async fn join(self, config: ClientHandshakeConfig) -> Result<JoinedClient<T>, JolyneError> {
         async fn run<T: Transport>(
             stream: BedrockStream<Handshake, Client, T>,
             config: &ClientHandshakeConfig,
-        ) -> Result<JoinedStream<T>, Failed<T>> {
+        ) -> Result<JoinedClient<T>, Failed<T>> {
             let login = stream.request_settings().await?;
             let secure = login.send_login(config).await?;
             let packs = secure.await_handshake().await?;
@@ -294,7 +294,7 @@ impl<T: Transport> BedrockStream<StartGame, Client, T> {
     /// Definition packets and anything else received meanwhile stay queued,
     /// in order, for the play session.
     #[tracing::instrument(skip_all, level = "debug", fields(peer = %self.peer_addr()))]
-    pub async fn await_start_game(self) -> Result<JoinedStream<T>, Failed<T>> {
+    pub async fn await_start_game(self) -> Result<JoinedClient<T>, Failed<T>> {
         let parts = self.take();
         let mut transport = parts.transport;
         let deadline = parts.owner.deadline();

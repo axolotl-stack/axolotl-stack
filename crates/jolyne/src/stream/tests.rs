@@ -321,9 +321,7 @@ async fn advancing_is_bounded_by_the_step_deadline() {
         let stream = BedrockStream::<Handshake, Server, _>::from_transport(server_io, config);
         let login = stream.accept_network_settings().await?;
         let secure = login.authenticate().await?;
-        secure
-            .finish_handshake(&crate::stream::server::ServerHandshakeConfig { server_key })
-            .await?;
+        secure.finish_handshake(&server_key).await?;
         Ok::<(), JolyneError>(())
     });
 

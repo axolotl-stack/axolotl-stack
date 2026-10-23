@@ -6,12 +6,14 @@
 use std::collections::VecDeque;
 
 use bytes::{Buf, BufMut, Bytes, BytesMut};
+#[cfg(any(test, feature = "bench"))]
 use valentine::protocol::wire as bedrock_wire;
 
 use super::compression::CompressionContext;
 use super::custom::PacketFilter;
 use super::raw::{BatchStats, DEFAULT_MAX_PACKETS_PER_BATCH, RawPacket, decode_packets_into};
 use crate::error::{JolyneError, ProtocolError};
+#[cfg(any(test, feature = "bench"))]
 use crate::valentine::mcpe::{McpePacket, McpePacketArgs, McpePacketData};
 
 pub const BATCH_PACKET_ID: u8 = 0xFE;
@@ -161,6 +163,7 @@ impl BatchCodec {
         decode_packets_into(payload, filter, limits.max_packets, out)
     }
 
+    #[cfg(any(test, feature = "bench"))]
     /// Decodes a full batch (including the `0xFE` marker) into raw packets,
     /// keeping unknown IDs.
     pub fn decode_batch_raw(
@@ -187,6 +190,7 @@ impl BatchCodec {
         Ok(out.into())
     }
 
+    #[cfg(any(test, feature = "bench"))]
     /// Decodes a full batch into owned valentine packets.
     pub fn decode_batch(
         &mut self,
@@ -220,6 +224,7 @@ impl BatchCodec {
         Ok(packets)
     }
 
+    #[cfg(any(test, feature = "bench"))]
     /// Decode length-delimited packet bytes without parsing their headers.
     ///
     /// The synchronous callback borrows each frame directly from the batch,
@@ -311,6 +316,7 @@ impl BatchCodec {
         Ok(())
     }
 
+    #[cfg(any(test, feature = "bench"))]
     /// Frame typed packets directly in `out`, compressing to reusable scratch.
     pub fn encode_batch_multi_into(
         &mut self,
@@ -331,6 +337,7 @@ impl BatchCodec {
         self.finish(out, prefix_len, settings)
     }
 
+    #[cfg(any(test, feature = "bench"))]
     /// Copy retained raw frames once, directly into the final framing buffer.
     pub fn encode_batch_raw_into(
         &mut self,
@@ -346,6 +353,7 @@ impl BatchCodec {
         self.finish(out, prefix_len, settings)
     }
 
+    #[cfg(any(test, feature = "bench"))]
     /// Frame packet bytes (including the packet header, excluding length).
     pub fn encode_frames_into(
         &mut self,
@@ -370,6 +378,7 @@ impl BatchCodec {
     }
 }
 
+#[cfg(any(test, feature = "bench"))]
 /// Decodes a `0xFE`-prefixed batch into owned packets with default limits.
 pub fn decode_batch(
     buf: &mut Bytes,
@@ -378,6 +387,7 @@ pub fn decode_batch(
     BatchCodec::default().decode_batch(buf, compression_enabled, true, BatchLimits::default())
 }
 
+#[cfg(any(test, feature = "bench"))]
 /// Decodes a `0xFE`-prefixed batch into raw packets, keeping unknown IDs.
 pub fn decode_batch_raw(
     buf: &mut Bytes,
@@ -387,6 +397,7 @@ pub fn decode_batch_raw(
     BatchCodec::default().decode_batch_raw(buf, compression_enabled, max_decompressed)
 }
 
+#[cfg(any(test, feature = "bench"))]
 /// Encodes owned packets into one batch.
 pub fn encode_batch_multi(
     packets: &[McpePacket],
@@ -397,6 +408,7 @@ pub fn encode_batch_multi(
     Ok(out.freeze())
 }
 
+#[cfg(any(test, feature = "bench"))]
 /// Encodes raw packets into one batch.
 pub fn encode_batch_raw(
     packets: &[RawPacket],
