@@ -2606,6 +2606,7 @@ dependencies = [
  "aes 0.9.3",
  "aes-gcm",
  "anyhow",
+ "async-trait",
  "axelerator",
  "axolotl-xbl",
  "base64 0.22.1",

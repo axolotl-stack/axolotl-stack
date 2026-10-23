@@ -59,19 +59,34 @@ axelerator = { path = "../axelerator" }
 axolotl-xbl = { path = "../axolotl-xbl" }
 
 [[example]]
-name = "simple_client"
-path = "examples/simple_client.rs"
-required-features = ["client", "raknet"]
-
-[[example]]
-name = "simple_server"
-path = "examples/simple_server.rs"
+name = "01_server"
+path = "examples/01_server.rs"
 required-features = ["server", "raknet"]
 
 [[example]]
-name = "proxy"
-path = "examples/proxy.rs"
+name = "02_client"
+path = "examples/02_client.rs"
+required-features = ["client", "raknet"]
+
+[[example]]
+name = "03_custom_join"
+path = "examples/03_custom_join.rs"
+required-features = ["server", "raknet"]
+
+[[example]]
+name = "04_proxy"
+path = "examples/04_proxy.rs"
 required-features = ["full", "raknet"]
+
+[[example]]
+name = "05_tick_loop"
+path = "examples/05_tick_loop.rs"
+required-features = ["server", "raknet"]
+
+[[example]]
+name = "06_sans_io"
+path = "examples/06_sans_io.rs"
+required-features = ["full"]
 
 [[example]]
 name = "nethernet_server"

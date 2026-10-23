@@ -8,8 +8,7 @@
 //! multi-player broadcasting and server capacity.
 
 use clap::Parser;
-use jolyne::BedrockStream;
-use jolyne::stream::client::ClientHandshakeConfig;
+use jolyne::{BedrockStream, ClientHandshakeConfig};
 use std::net::SocketAddr;
 use std::sync::Arc;
 use std::sync::atomic::{AtomicU32, Ordering};
