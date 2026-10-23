@@ -17,7 +17,7 @@ use std::task::{Context, Poll};
 
 use anyhow::{Result, ensure};
 use bytes::Bytes;
-use jolyne::ConnectionOptions;
+use jolyne::config::ConnectionOptions;
 use jolyne::proto::batch::{BatchCompression, decode_batch_raw};
 use jolyne::stream::BedrockTransport;
 use jolyne::stream::transport::{Datagram, Framing, Transmit, Transport};
@@ -88,7 +88,7 @@ fn link_with(threshold: u16, encrypted: bool) -> Result<BedrockTransport<SelfLoo
     let mut link = BedrockTransport::new(
         SelfLoop::default(),
         ConnectionOptions {
-            unknown_packets: jolyne::UnknownPacketPolicy::Passthrough,
+            unknown_packets: jolyne::raw::UnknownPacketPolicy::Passthrough,
             max_packets_per_outbound_batch: 4096,
             ..ConnectionOptions::default()
         },
