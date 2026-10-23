@@ -271,8 +271,10 @@ impl Signaling for Client {
                     .body(signal.data)
                     .send()
                     .await?;
+                // The real client's HttpSignalingClient accepts any 2xx
+                // (go-nethernet endpoint/client.go requires exactly 200).
                 anyhow::ensure!(
-                    response.status() == StatusCode::OK,
+                    response.status().is_success(),
                     "POST /v1/join: {}",
                     response.status()
                 );
@@ -910,6 +912,55 @@ mod tests {
                     .await
                     .is_err()
             );
+            server.await.unwrap();
+        }
+    }
+
+    /// The real client's `HttpSignalingClient` treats any 2xx as an answer;
+    /// only exactly 200 used to be accepted. Non-2xx statuses still fail.
+    #[tokio::test]
+    async fn client_accepts_any_success_status() {
+        for (status, accepted) in [
+            (StatusCode::CREATED, true),
+            (StatusCode::ACCEPTED, true),
+            (StatusCode::MULTIPLE_CHOICES, false),
+        ] {
+            let listener = TcpListener::bind("127.0.0.1:0").await.unwrap();
+            let address = listener.local_addr().unwrap();
+            let server = tokio::spawn(async move {
+                let (stream, _) = listener.accept().await.unwrap();
+                let service = hyper::service::service_fn(move |_: Request<Incoming>| async move {
+                    Ok::<_, Infallible>(response(
+                        status,
+                        Some("application/sdp"),
+                        Bytes::from_static(b"v=0\r\n"),
+                    ))
+                });
+                let _ = hyper::server::conn::http1::Builder::new()
+                    .keep_alive(false)
+                    .serve_connection(TokioIo::new(stream), service)
+                    .await;
+            });
+            let client = ClientConfig {
+                network_id: "123".into(),
+                ..Default::default()
+            }
+            .build();
+            let mut answers = client.take_signal_receiver().await.unwrap();
+            let result = client
+                .signal(Signal {
+                    typ: SignalType::Offer,
+                    connection_id: 42,
+                    network_id: format!("http://{address}"),
+                    data: "offer".into(),
+                })
+                .await;
+            assert_eq!(result.is_ok(), accepted, "{status}: {result:?}");
+            if accepted {
+                let answer = answers.try_recv().unwrap();
+                assert_eq!(answer.typ, SignalType::Answer);
+                assert_eq!(answer.data, "v=0\r\n");
+            }
             server.await.unwrap();
         }
     }

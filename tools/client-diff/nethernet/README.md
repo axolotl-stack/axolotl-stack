@@ -35,14 +35,16 @@ future setup lets ICE connect.
 
 ## Commands
 
-Build once (worker, before the session):
+Build once (worker, before the session; the probe binds only `127.0.0.1`, so
+its new executable path raises no prompt):
 
 ```powershell
 cargo build -p tokio-nethernet --features discovery --example real_client_probe
 ```
 
 Each run writes JSON lines to stdout and to `--out`. Paths below are from the
-worktree root.
+worktree root; with `CARGO_TARGET_DIR` set, the executable is under that
+directory instead of `.\target`.
 
 ```powershell
 $probe = ".\target\debug\examples\real_client_probe.exe"
@@ -63,8 +65,10 @@ netstat -ano -p udp | findstr ":7551"   # Minecraft's PID on 0.0.0.0:7551 or [::
 `--wait` bounds discovery (`host`) or the join (`server`). Set `RUST_LOG=debug`
 for transport logs on stderr.
 
-Captures contain the client's identity JWT (`peer_token`), which identifies the
-signed-in account: `captures/` is git-ignored; share only redacted excerpts.
+Captures contain the client's identity claims (`peer_token`: JWT header and
+claims, never the signature; `a=identity` values are redacted in signal
+logs), which identify the signed-in account: `captures/` is git-ignored;
+share only redacted excerpts.
 
 ## Reading the log
 

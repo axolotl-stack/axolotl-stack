@@ -52,7 +52,7 @@ defaults that the binary relies on but that were not read as constants.
 | D1 | Duplicate `CONNECTREQUEST` | ignored | shared | ignored | ignored | match | `listener::tests` |
 | D2 | `CANDIDATEADD` before `CONNECTREQUEST` | creates the session, buffers | shared | dropped | dropped | cosmetic (signaling preserves order) | — |
 | D3 | Signals for unknown sessions | dropped | shared | dropped | dropped | match | — |
-| H1 | HTTP client | `POST {base}/v1/join/{id}`, `application/sdp`, any 2xx is success, else 26 | n/a | exactly 200 | exactly 200 | cosmetic | — |
+| H1 | HTTP client | `POST {base}/v1/join/{id}`, `application/sdp`, any 2xx is success, else 26 (`HttpSignalingClient`) | n/a | exactly 200 | exactly 200 → any 2xx; numeric bodies (BDS replies `37` with 200) stay errors | **fixed** | `endpoint::tests::client_accepts_any_success_status` |
 | H2 | HTTP host | `GET /v1/join` 200 JSON; `POST /v1/join/<u64>`; 400 bad/zero id or empty body; any reply signal as 200 `application/sdp`; 10 s then 504 (W 0xe3dff0) | observed on TCP `server-port` (19132): `GET /v1/join` → 200 `{"name","protocol","version","level","players","maxPlayers","gameType"}`; `/v1/join/0` → 400 `Invalid networkId`; empty → 400 `Missing SDP offer in request body`; other path → 404; identityless offer → 200 body `37` | 15 s then 502, error → 500 | as go; same status JSON fields | cosmetic (go endpoint protocol; go/tokio clients treat a numeric body as an error) | `endpoint::tests` |
 
 ## Transport (ICE, DTLS, SCTP, data channels)
