@@ -707,6 +707,39 @@ impl CustomPacket for Ping {
     }
 }
 
+/// Failure disconnects carry a fixed sentence per reason, never the error's
+/// own text (token/signature details, decode previews).
+#[test]
+fn failure_disconnects_never_send_internal_error_text() {
+    use crate::error::AuthError;
+    let now = Instant::now();
+    for (error, reason, message) in [
+        (
+            JolyneError::from(AuthError::BadSignature("x5u=MHYwEAYH secret".into())),
+            EnumsConnectionDisconnectFailReason::Notauthenticated,
+            "Authentication failed.",
+        ),
+        (
+            ProtocolError::DecompressionFailed("preview 0a0b0c".into()).into(),
+            EnumsConnectionDisconnectFailReason::Badpacket,
+            "Received an invalid packet.",
+        ),
+    ] {
+        let mut server = Connection::new(Framing::RakNet, ConnectionOptions::default());
+        let mut client = Connection::new(Framing::RakNet, ConnectionOptions::default());
+        server.queue_failure_disconnect(&error, now);
+        let transmit = server.poll_transmit().expect("disconnect queued");
+        client
+            .handle_datagram(Datagram::Contiguous(transmit.payload))
+            .unwrap();
+        let Err(JolyneError::Disconnected(disconnect)) = client.next_packet() else {
+            panic!("expected a disconnect for {error}");
+        };
+        assert_eq!(disconnect.reason, reason);
+        assert_eq!(disconnect.message.as_deref(), Some(message));
+    }
+}
+
 #[test]
 fn unknown_and_custom_packets_follow_the_configured_policy() {
     let now = Instant::now();

@@ -117,10 +117,11 @@ where
     let (upstream, game_data) = match dialed {
         Ok(joined) => joined,
         Err(error) => {
+            // The upstream's failure details stay in the proxy's logs.
             let _ = packs
                 .disconnect(
                     EnumsConnectionDisconnectFailReason::Unknown,
-                    &error.to_string(),
+                    "Could not join the upstream server.",
                 )
                 .await;
             return Err(error);

@@ -355,4 +355,20 @@ impl JolyneError {
             | Self::NonValentinePacket(_) => R::Badpacket,
         })
     }
+
+    /// The message sent with [`Self::disconnect_reason`]: one fixed sentence
+    /// per reason, never the error's own text, so decode previews, token and
+    /// signature errors and other internals stay in the server's logs.
+    pub fn disconnect_message(&self) -> &'static str {
+        use EnumsConnectionDisconnectFailReason as R;
+        match self.disconnect_reason() {
+            Some(R::Notauthenticated) => "Authentication failed.",
+            Some(R::Loadingstatetimeout) => "Timed out while joining the world.",
+            Some(R::Timeout) => "Connection timed out.",
+            Some(R::Resourcepackproblem) => "Resource pack negotiation failed.",
+            Some(R::Unknownpacket) => "Received an unknown packet.",
+            Some(R::Badpacket) => "Received an invalid packet.",
+            _ => "Disconnected.",
+        }
+    }
 }

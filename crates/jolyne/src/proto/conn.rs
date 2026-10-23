@@ -167,12 +167,13 @@ impl Connection {
         self.metrics.decode_errors += 1;
     }
 
-    /// Queues a `Disconnect` whose reason is mapped from `error`, when the
-    /// peer should be told (see [`JolyneError::disconnect_reason`]).
+    /// Queues a `Disconnect` whose reason and fixed message are mapped from
+    /// `error`, when the peer should be told (see
+    /// [`JolyneError::disconnect_reason`]); the error's own text is never sent.
     pub fn queue_failure_disconnect(&mut self, error: &JolyneError, now: Instant) {
         if let Some(reason) = error.disconnect_reason() {
             // Best effort: the connection is failing anyway.
-            let _ = self.queue_disconnect(reason, &error.to_string(), now);
+            let _ = self.queue_disconnect(reason, error.disconnect_message(), now);
         }
     }
 
