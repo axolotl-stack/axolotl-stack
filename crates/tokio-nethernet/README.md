@@ -24,6 +24,7 @@ Real-client behaviours that replace go-nethernet's:
 - LAN signaling does not require `a=identity` (`DiscoveryListener::requires_identity` is false): BDS 1.26.51 answers LAN offers without one and accepts identityless LAN offers. Identities that are present are still verified; set `NetherNetListenerConfig.identity` to sign LAN answers.
 - An unparseable remote candidate is skipped instead of failing the connection.
 - A remote description without `a=max-message-size` means 65536 (RFC 8841, libwebrtc), not an error.
+- The HTTP endpoint client accepts any 2xx answer, as the client's `HttpSignalingClient` does.
 - Discovery requests go to every interface's directed broadcast when the destination is the default `255.255.255.255:7551`, and only while no server data is set; addresses are learned from responses and messages only and expire after 60 s; discovered servers expire after 5 s; response data past the declared length is kept.
 
 | Behavior | Source |
