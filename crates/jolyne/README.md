@@ -59,8 +59,9 @@ Nothing in `proto` performs I/O, spawns tasks or reads a clock; time is an input
   `advance(now) -> Result<Step<Self, Next>, Failure<Self>>`. A `Failure` hands
   the phase back, still owning the connection, so a reasoned `Disconnect` or
   `PlayStatus` can be sent.
-- Packets arriving before the phase that handles them are deferred (bounded:
-  1,600 packets / 16 MiB, compacted) and replayed in order into play.
+- Packets arriving before the phase that handles them are deferred (bounded by
+  `ConnectionOptions::{max_deferred_packets, max_deferred_bytes}`, default
+  4,096 packets / 16 MiB, compacted) and replayed in order into play.
 
 Server phases: `ServerHandshake → ServerLogin → LoginRequest →
 Authenticated → [ServerEncryption] → PacksReady → ServerPacksPhase →
@@ -152,7 +153,7 @@ Permanent Go interoperability tests decode checked-in vectors for all four
 benchmark batches, a >64 KiB literal and a copy4 offset. The matcher adapts the
 BSD-licensed [S2 Snappy search](https://github.com/klauspost/compress/tree/v1.18.1/s2);
 its redistribution notice is retained in `src/proto/compression/snappy.rs`.
-See [Snappy measurements and interoperability](snappy-report.md).
+See [Snappy measurements and interoperability](../bench-compare/snappy-report.md).
 
 For opaque framing, `BatchCodec::encode_frames_into` accepts packet `Bytes`
 including the game header but excluding the length prefix. `decode_with`

@@ -1,9 +1,10 @@
 //! A transparent RakNet proxy: players join `0.0.0.0:19133`, the proxy joins
 //! the upstream server as them (offline identity with the same name) and
-//! relays packets both ways, logging chat.
+//! relays packets both ways, logging chat. The upstream must accept offline
+//! identities, so run `simple_server` with `--offline`.
 //!
 //! ```text
-//! cargo run -p jolyne --example simple_server   # upstream on 19132
+//! cargo run -p jolyne --example simple_server -- --offline   # upstream on 19132
 //! cargo run -p jolyne --example proxy -- 127.0.0.1:19132
 //! ```
 

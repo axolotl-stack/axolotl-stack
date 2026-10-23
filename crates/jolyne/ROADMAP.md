@@ -37,11 +37,11 @@ Jolyne is considered compatibility-ready for the pinned Bedrock version only whe
 
 ### JOLYNE-M4: Example And CI Health (done)
 - [x] Examples compile against the current API; `cargo test -p jolyne --all-features` runs in CI.
-- [x] CI checks jolyne feature combinations (`client`/`server` × `raknet`/`nethernet`/`discovery`) with clippy.
+- [x] CI checks jolyne feature combinations (`client,raknet`, `client,nethernet`, `server,raknet`, `server,nethernet`, `server,discovery`, all features) with clippy.
 - [x] The pinned version (Bedrock 1.26.51, protocol 2193) is documented in `README.md`; the protocol check is exact in `proto::server::ServerHandshake` and is the single place an accepted-versions list would go.
 
 ## Documentation Rules
 
-- `DefaultWorldTemplate` is a minimal test scaffold, not a vanilla-compatible registry source.
+- `WorldTemplate::default()` is a minimal test scaffold, not a vanilla-compatible registry source.
 - Public compatibility claims must name the pinned protocol version and the smoke gates that passed.
 - Keep protocol sequencing docs in `docs/LOGIN_SEQUENCE.md`; keep implementation milestones here.

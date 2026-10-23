@@ -13,8 +13,12 @@ async fn main() -> Result<(), Box<dyn Error>> {
         EnvFilter::try_from_default_env().unwrap_or_else(|_| EnvFilter::new("info,jolyne=debug"));
     tracing_subscriber::fmt().with_env_filter(env_filter).init();
 
-    // Config
-    let config = BedrockListenerConfig::default();
+    // `--offline` accepts self-signed identities (e.g. the `proxy` example's
+    // upstream leg); the default requires Xbox Live authentication.
+    let config = BedrockListenerConfig {
+        online_mode: !std::env::args().any(|arg| arg == "--offline"),
+        ..BedrockListenerConfig::default()
+    };
 
     let mut listener = BedrockListener::raknet()
         .addr("0.0.0.0:19132")
