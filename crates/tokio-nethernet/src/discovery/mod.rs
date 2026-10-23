@@ -12,11 +12,14 @@
 //!
 //! Wire behavior follows upstream `discovery/packet.go:Marshal/Unmarshal`,
 //! `discovery/crypto.go:encrypt/decrypt`, and the version 7
-//! `discovery/server_data.go:ServerData.MarshalBinary` layout.
-//! Locally, at most 1024 peer identities and their responses are retained;
-//! inactive responses expire with their address. A full 128-signal queue drops
-//! new signals, and a full UDP send queue drops discovery replies, so spam
-//! cannot suspend reception while awaiting a consumer.
+//! `discovery/server_data.go:ServerData.MarshalBinary` layout. Timing and
+//! addressing follow the real client's `NetherNet::LanThreadManager` (see
+//! `PARITY.md`, rows L9-L13): requests every 2 s to every interface's directed
+//! broadcast, only while not announcing; peer addresses are learned from
+//! responses and messages and expire after 60 s; discovered servers after 5 s.
+//! Locally, at most 1024 peer identities and their responses are retained.
+//! A full 128-signal queue drops new signals, and a full UDP send queue drops
+//! discovery replies, so spam cannot suspend reception while awaiting a consumer.
 
 mod crypto;
 /// Public encrypted/HMAC packet codec (`encode_*` / `decode`), usable without
@@ -26,7 +29,7 @@ pub mod packet;
 pub use packet::{ServerData, ServerDataBuilder, TransportLayer};
 
 use std::collections::HashMap;
-use std::net::SocketAddr;
+use std::net::{IpAddr, Ipv4Addr, Ipv6Addr, SocketAddr};
 use std::sync::Arc;
 use std::time::{Duration, Instant};
 
@@ -50,21 +53,33 @@ const MAX_DISCOVERY_PEERS: usize = 1024;
 pub struct DiscoveryListenerConfig {
     /// Network ID for this listener. Randomly generated if zero.
     pub network_id: u64,
-    /// Broadcast address for sending discovery requests.
+    /// Destination of discovery requests. The default limited broadcast
+    /// `255.255.255.255:7551` is expanded like the client (`LanThreadManager`
+    /// network discovery): the directed broadcast of every non-loopback,
+    /// non-link-local IPv4 interface plus `ff02::1` from an IPv6 socket, all
+    /// on this port, falling back to the limited broadcast when no interface
+    /// qualifies (Windows sends a limited broadcast on one interface only).
+    /// Any other address, e.g. `127.0.0.1:7551`, is used as given.
     pub broadcast_addr: SocketAddr,
-    /// Broadcast interval; default 2s from upstream `discovery/listener.go:Listener.background`.
+    /// Broadcast interval; default 2 s (client config `2000` ms, upstream
+    /// `discovery/listener.go:Listener.background`).
     pub broadcast_interval: Duration,
-    /// Expiry; default 15s from upstream `discovery/listener.go:Listener.deleteInactiveAddresses`.
+    /// Peer address expiry; default 60 s, the client's LAN peer database
+    /// (go-nethernet uses 15 s).
     pub address_timeout: Duration,
+    /// Discovered-server expiry; default 5 s, the client's server list
+    /// (`NetherNetServerLocator::update`).
+    pub response_timeout: Duration,
 }
 
 impl Default for DiscoveryListenerConfig {
     fn default() -> Self {
         Self {
             network_id: rand::random(),
-            broadcast_addr: "255.255.255.255:7551".parse().unwrap(),
+            broadcast_addr: SocketAddr::new(IpAddr::V4(Ipv4Addr::BROADCAST), DEFAULT_PORT),
             broadcast_interval: Duration::from_secs(2),
-            address_timeout: Duration::from_secs(15),
+            address_timeout: Duration::from_secs(60),
+            response_timeout: Duration::from_secs(5),
         }
     }
 }
@@ -75,12 +90,78 @@ struct AddressEntry {
     last_seen: Instant,
 }
 
+/// Decoded server data with the time it was last received.
+struct ResponseEntry {
+    data: Vec<u8>,
+    last_seen: Instant,
+}
+
+/// Request destinations for a configured limited broadcast on `port`, as the
+/// client computes them: `ip | !netmask` for every IPv4 network that is not
+/// loopback, link-local (169.254/16) or a single host, deduplicated; `ff02::1`
+/// when sending from an IPv6 socket; the limited broadcast if no IPv4 network
+/// qualifies.
+pub(crate) fn request_destinations(
+    networks: impl IntoIterator<Item = (Ipv4Addr, Ipv4Addr)>,
+    port: u16,
+    ipv6_socket: bool,
+) -> Vec<SocketAddr> {
+    let mut destinations: Vec<SocketAddr> = Vec::new();
+    for (ip, netmask) in networks {
+        if ip.is_loopback()
+            || ip.is_link_local()
+            || ip.is_unspecified()
+            || netmask == Ipv4Addr::BROADCAST
+        {
+            continue;
+        }
+        let broadcast = Ipv4Addr::from(ip.to_bits() | !netmask.to_bits());
+        let destination = SocketAddr::new(IpAddr::V4(broadcast), port);
+        if !destinations.contains(&destination) {
+            destinations.push(destination);
+        }
+    }
+    if destinations.is_empty() {
+        destinations.push(SocketAddr::new(IpAddr::V4(Ipv4Addr::BROADCAST), port));
+    }
+    if ipv6_socket {
+        // IPv4 destinations travel as v4-mapped addresses on a dual-stack socket.
+        for destination in &mut destinations {
+            if let IpAddr::V4(v4) = destination.ip() {
+                destination.set_ip(IpAddr::V6(v4.to_ipv6_mapped()));
+            }
+        }
+        destinations.push(SocketAddr::new(
+            IpAddr::V6(Ipv6Addr::new(0xff02, 0, 0, 0, 0, 0, 0, 1)),
+            port,
+        ));
+    }
+    destinations
+}
+
+/// IPv4 networks of the local interfaces, `(address, netmask)`.
+fn local_ipv4_networks() -> Vec<(Ipv4Addr, Ipv4Addr)> {
+    match if_addrs::get_if_addrs() {
+        Ok(interfaces) => interfaces
+            .into_iter()
+            .filter_map(|interface| match interface.addr {
+                if_addrs::IfAddr::V4(v4) => Some((v4.ip, v4.netmask)),
+                if_addrs::IfAddr::V6(_) => None,
+            })
+            .collect(),
+        Err(error) => {
+            trace!(%error, "Interface enumeration failed; using the limited broadcast");
+            Vec::new()
+        }
+    }
+}
+
 /// LAN Discovery listener implementing the `Signaling` trait.
 pub struct DiscoveryListener {
     socket: Arc<UdpSocket>,
     config: DiscoveryListenerConfig,
     addresses: RwLock<HashMap<u64, AddressEntry>>,
-    responses: RwLock<HashMap<u64, Vec<u8>>>,
+    responses: RwLock<HashMap<u64, ResponseEntry>>,
     pong_data: RwLock<Option<Vec<u8>>>,
     signal_tx: mpsc::Sender<Signal>,
     signal_rx: RwLock<Option<mpsc::Receiver<Signal>>>,
@@ -138,15 +219,42 @@ impl DiscoveryListener {
         self.signal_rx.write().await.take()
     }
 
-    /// Set server data for responding to discovery requests.
+    /// Set server data for responding to discovery requests. While server
+    /// data is set, this listener announces and stops sending requests (the
+    /// client only broadcasts while browsing).
     pub async fn set_server_data(&self, data: ServerData) {
         let bytes = data.encode();
         *self.pong_data.write().await = Some(bytes);
     }
 
-    /// Get discovered servers and their decoded application data (not ASCII hex).
+    /// Send the current server data to `addr` without a request. The client
+    /// lists any response it receives while browsing (it keeps no pending
+    /// request state), so this makes a server visible to a client whose
+    /// broadcasts cannot reach this socket, e.g. a loopback-only one.
+    pub async fn send_server_data_to(&self, addr: SocketAddr) -> std::io::Result<()> {
+        let response = match self.pong_data.read().await.as_ref() {
+            Some(data) => packet::encode_response(self.config.network_id, data),
+            None => {
+                return Err(std::io::Error::new(
+                    std::io::ErrorKind::InvalidInput,
+                    "no server data set",
+                ));
+            }
+        };
+        self.socket.send_to(&response, addr).await.map(|_| ())
+    }
+
+    /// Get discovered servers and their decoded application data (not ASCII
+    /// hex), excluding servers silent for longer than `response_timeout`.
     pub async fn responses(&self) -> HashMap<u64, Vec<u8>> {
-        self.responses.read().await.clone()
+        let timeout = self.config.response_timeout;
+        self.responses
+            .read()
+            .await
+            .iter()
+            .filter(|(_, entry)| entry.last_seen.elapsed() <= timeout)
+            .map(|(id, entry)| (*id, entry.data.clone()))
+            .collect()
     }
 
     async fn listen_loop(&self) {
@@ -197,26 +305,60 @@ impl DiscoveryListener {
         loop {
             interval.tick().await;
 
-            self.expire_peers().await;
+            self.expire_peers(Instant::now()).await;
 
+            if self.pong_data.read().await.is_some() {
+                continue;
+            }
             let request = packet::encode_request(self.config.network_id);
-            if let Err(e) = self
-                .socket
-                .send_to(&request, self.config.broadcast_addr)
-                .await
-            {
-                trace!(error = %e, "Failed to send discovery broadcast");
+            for destination in self.request_destinations() {
+                if let Err(e) = self.socket.send_to(&request, destination).await {
+                    trace!(error = %e, to = %destination, "Failed to send discovery request");
+                }
             }
         }
     }
 
-    async fn expire_peers(&self) {
+    fn request_destinations(&self) -> Vec<SocketAddr> {
+        let configured = self.config.broadcast_addr;
+        if configured.ip() != IpAddr::V4(Ipv4Addr::BROADCAST) {
+            return vec![configured];
+        }
+        let ipv6_socket = self
+            .socket
+            .local_addr()
+            .is_ok_and(|local| local.is_ipv6());
+        request_destinations(local_ipv4_networks(), configured.port(), ipv6_socket)
+    }
+
+    async fn expire_peers(&self, now: Instant) {
         let mut addrs = self.addresses.write().await;
-        addrs.retain(|_, entry| entry.last_seen.elapsed() <= self.config.address_timeout);
-        self.responses
-            .write()
-            .await
-            .retain(|id, _| addrs.contains_key(id));
+        addrs.retain(|_, entry| now.saturating_duration_since(entry.last_seen) <= self.config.address_timeout);
+        self.responses.write().await.retain(|id, entry| {
+            addrs.contains_key(id)
+                && now.saturating_duration_since(entry.last_seen) <= self.config.response_timeout
+        });
+    }
+
+    /// Record `sender_id` at `addr`; false when a new identity would exceed
+    /// the peer budget (existing peers stay usable during a flood).
+    fn learn_address(
+        addrs: &mut HashMap<u64, AddressEntry>,
+        sender_id: u64,
+        addr: SocketAddr,
+        now: Instant,
+    ) -> bool {
+        if !addrs.contains_key(&sender_id) && addrs.len() >= MAX_DISCOVERY_PEERS {
+            return false;
+        }
+        addrs.insert(
+            sender_id,
+            AddressEntry {
+                addr,
+                last_seen: now,
+            },
+        );
+        true
     }
 
     async fn handle_packet(&self, data: &[u8], addr: SocketAddr) -> anyhow::Result<()> {
@@ -225,23 +367,11 @@ impl DiscoveryListener {
         if sender_id == self.config.network_id {
             return Ok(());
         }
-
-        {
-            let mut addrs = self.addresses.write().await;
-            // Keep existing peers usable during a flood; reject new identities at capacity.
-            if !addrs.contains_key(&sender_id) && addrs.len() >= MAX_DISCOVERY_PEERS {
-                return Ok(());
-            }
-            addrs.insert(
-                sender_id,
-                AddressEntry {
-                    addr,
-                    last_seen: Instant::now(),
-                },
-            );
-        }
+        let now = Instant::now();
 
         match pkt {
+            // Requests are answered at their source but teach no address
+            // (the client's peer database learns from responses and messages).
             packet::Packet::Request => {
                 if let Some(data) = self.pong_data.read().await.as_ref() {
                     trace!(to = %addr, len = data.len(), "Sending discovery response");
@@ -256,13 +386,22 @@ impl DiscoveryListener {
             }
             packet::Packet::Response(data) => {
                 // Same lock ordering as expiry: never retain responses for expired peers.
-                let addrs = self.addresses.read().await;
-                if addrs.contains_key(&sender_id) {
-                    self.responses.write().await.insert(sender_id, data);
+                let mut addrs = self.addresses.write().await;
+                if Self::learn_address(&mut addrs, sender_id, addr, now) {
+                    self.responses.write().await.insert(
+                        sender_id,
+                        ResponseEntry {
+                            data,
+                            last_seen: now,
+                        },
+                    );
                 }
             }
             packet::Packet::Message(msg) => {
-                if msg.recipient_id != self.config.network_id
+                let learned =
+                    Self::learn_address(&mut *self.addresses.write().await, sender_id, addr, now);
+                if !learned
+                    || msg.recipient_id != self.config.network_id
                     || msg.data == "Ping"
                     || msg.data.is_empty()
                 {
@@ -310,6 +449,13 @@ impl Signaling for DiscoveryListener {
 
     fn network_id(&self) -> String {
         self.config.network_id.to_string()
+    }
+
+    /// The client's LAN host answers every LAN-channel offer without trickle
+    /// (`noTrickle = channel != 0`): all candidates inline in
+    /// `CONNECTRESPONSE`, no `CANDIDATEADD`. Offers still trickle.
+    fn disable_trickle_ice_for_answer(&self) -> bool {
+        true
     }
 
     fn set_pong_data(&self, data: &[u8]) {
@@ -426,10 +572,7 @@ mod tests {
             .handle_packet(&packet::encode_response(100, b"updated"), addr)
             .await
             .unwrap();
-        assert_eq!(
-            listener.responses.read().await.get(&100).unwrap(),
-            b"updated"
-        );
+        assert_eq!(listener.responses().await.get(&100).unwrap(), b"updated");
     }
 
     #[tokio::test]
@@ -451,14 +594,107 @@ mod tests {
             .await
             .unwrap();
         listener
-            .addresses
-            .write()
-            .await
-            .get_mut(&1)
-            .unwrap()
-            .last_seen = Instant::now() - Duration::from_secs(30);
-        listener.expire_peers().await;
+            .expire_peers(Instant::now() + Duration::from_secs(61))
+            .await;
         assert!(listener.addresses.read().await.is_empty());
         assert!(listener.responses().await.is_empty());
+    }
+
+    /// The client keeps a peer's address 60 s after its last response or
+    /// message (`LanThreadManager` peer database) but lists a server only
+    /// 5 s (`NetherNetServerLocator::update`); both used to share 15 s.
+    #[tokio::test]
+    async fn expiry_keeps_addresses_60s_and_servers_5s() {
+        let listener = listener().await;
+        let addr = "127.0.0.1:12345".parse().unwrap();
+        listener
+            .handle_packet(&packet::encode_response(1, b"data"), addr)
+            .await
+            .unwrap();
+        let start = Instant::now();
+        listener.expire_peers(start + Duration::from_secs(4)).await;
+        assert!(listener.responses.read().await.contains_key(&1));
+        listener.expire_peers(start + Duration::from_secs(20)).await;
+        assert!(!listener.responses.read().await.contains_key(&1));
+        assert!(listener.addresses.read().await.contains_key(&1));
+        listener.expire_peers(start + Duration::from_secs(59)).await;
+        assert!(listener.addresses.read().await.contains_key(&1));
+        listener.expire_peers(start + Duration::from_secs(61)).await;
+        assert!(listener.addresses.read().await.is_empty());
+    }
+
+    /// Only responses and messages teach the client a peer's address; a
+    /// request (which anyone can send) is answered but leaves no route.
+    #[tokio::test]
+    async fn requests_do_not_make_a_peer_addressable() {
+        let listener = listener().await;
+        listener.set_server_data(ServerData::default()).await;
+        let requester = UdpSocket::bind("127.0.0.1:0").await.unwrap();
+        listener
+            .handle_packet(
+                &packet::encode_request(7),
+                requester.local_addr().unwrap(),
+            )
+            .await
+            .unwrap();
+        let mut reply = vec![0; MAX_UDP_PACKET_SIZE];
+        let len = tokio::time::timeout(Duration::from_secs(2), requester.recv(&mut reply))
+            .await
+            .unwrap()
+            .unwrap();
+        assert!(matches!(
+            packet::decode(&reply[..len]).unwrap(),
+            (packet::Packet::Response(_), 42)
+        ));
+        assert!(listener.addresses.read().await.is_empty());
+        assert!(
+            listener
+                .signal(Signal::error(1, "7".into(), crate::SignalErrorCode::InactivityTimeout))
+                .await
+                .is_err()
+        );
+        listener
+            .handle_packet(
+                &packet::encode_message(7, 42, "CANDIDATEADD 1 candidate:x"),
+                requester.local_addr().unwrap(),
+            )
+            .await
+            .unwrap();
+        assert_eq!(
+            listener.addresses.read().await.get(&7).unwrap().addr,
+            requester.local_addr().unwrap()
+        );
+    }
+
+    /// Requests go to every interface's directed broadcast, as the client's
+    /// network discovery computes them; the limited broadcast only when no
+    /// interface qualifies; IPv6 sockets add `ff02::1`.
+    #[test]
+    fn directed_broadcasts_follow_interfaces() {
+        let net = |ip: &str, mask: &str| (ip.parse().unwrap(), mask.parse().unwrap());
+        let addr = |text: &str| -> SocketAddr { text.parse().unwrap() };
+        assert_eq!(
+            request_destinations(
+                [
+                    net("192.168.1.20", "255.255.255.0"),
+                    net("10.4.0.7", "255.255.0.0"),
+                    net("192.168.1.21", "255.255.255.0"),
+                    net("127.0.0.1", "255.0.0.0"),
+                    net("169.254.3.4", "255.255.0.0"),
+                    net("172.16.0.9", "255.255.255.255"),
+                ],
+                7551,
+                false,
+            ),
+            [addr("192.168.1.255:7551"), addr("10.4.255.255:7551")]
+        );
+        assert_eq!(
+            request_destinations([net("127.0.0.1", "255.0.0.0")], 7551, false),
+            [addr("255.255.255.255:7551")]
+        );
+        assert_eq!(
+            request_destinations([net("192.168.1.20", "255.255.255.0")], 7551, true),
+            [addr("[::ffff:192.168.1.255]:7551"), addr("[ff02::1]:7551")]
+        );
     }
 }

@@ -383,9 +383,12 @@ pub fn decode(data: &[u8]) -> Result<(Packet, u64), &'static str> {
             }
             let app_len = u32_le(body, 0) as usize;
             let app_data = &body[4..];
-            if app_len > u16::MAX as usize || app_data.len() != app_len {
+            if app_len > u16::MAX as usize || app_data.len() < app_len {
                 return Err("response application data truncated");
             }
+            // The client caps the declared hex length at 0x47c but writes the
+            // whole string, and its reader (LanThreadManager datagram
+            // dispatch) takes every byte to the end of the datagram.
             Packet::Response(hex::decode(app_data).map_err(|_| "invalid response hex")?)
         }
         ID_MESSAGE => {
@@ -500,6 +503,34 @@ mod tests {
             panic!("expected response");
         };
         assert_eq!(data, b"raw");
+    }
+
+    /// A vanilla sender declares at most 0x47c hex characters yet appends the
+    /// whole ServerData; the vanilla reader keeps every byte after the length.
+    #[test]
+    fn response_data_beyond_declared_length_is_kept() {
+        let server_data = vec![0xab; 600];
+        let hex = hex::encode(&server_data);
+        let mut payload = Header {
+            packet_id: ID_RESPONSE,
+            sender_id: 9,
+        }
+        .encode();
+        payload.put_u32_le(0x47c);
+        payload.extend_from_slice(hex.as_bytes());
+        assert_eq!(
+            decode(&wrap_packet(&payload)).unwrap(),
+            (Packet::Response(server_data), 9)
+        );
+        // Fewer bytes than declared is still a truncation.
+        let mut short = Header {
+            packet_id: ID_RESPONSE,
+            sender_id: 9,
+        }
+        .encode();
+        short.put_u32_le(4);
+        short.extend_from_slice(b"ab");
+        assert!(decode(&wrap_packet(&short)).is_err());
     }
 
     #[test]

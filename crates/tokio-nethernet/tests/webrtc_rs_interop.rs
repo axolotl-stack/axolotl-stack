@@ -57,10 +57,13 @@ impl SignalingChannel for Pipe {
     }
 }
 
+/// Loopback-only peer: webrtc-rs otherwise binds every interface and, with its
+/// default query-only mDNS, `0.0.0.0:5353` (a host-firewall prompt).
 fn loopback_settings() -> SettingEngine {
     let mut settings = SettingEngine::default();
     settings.set_include_loopback_candidate(true);
     settings.set_ip_filter(Box::new(|ip| ip.is_loopback() && ip.is_ipv4()));
+    settings.set_ice_multicast_dns_mode(webrtc::ice::mdns::MulticastDnsMode::Disabled);
     settings
 }
 

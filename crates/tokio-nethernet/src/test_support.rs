@@ -18,6 +18,8 @@ pub(crate) struct Local {
     trickle: bool,
     /// Rewrites every outgoing signal (tampering tests).
     rewrite: Option<fn(&mut Signal)>,
+    /// Holds each outgoing `CONNECTRESPONSE` back (slow signaling tests).
+    answer_delay: std::time::Duration,
 }
 
 #[async_trait::async_trait]
@@ -27,6 +29,9 @@ impl Signaling for Local {
         signal.network_id = self.id.into();
         if let Some(rewrite) = self.rewrite {
             rewrite(&mut signal);
+        }
+        if signal.typ == crate::SignalType::Answer {
+            tokio::time::sleep(self.answer_delay).await;
         }
         self.sender.send(signal).await?;
         Ok(())
@@ -59,6 +64,19 @@ pub(crate) fn signaling_pair_rewriting(
     trickle: bool,
     rewrite_dialer: Option<fn(&mut Signal)>,
 ) -> (Local, Local) {
+    signaling_pair_with(trickle, rewrite_dialer, std::time::Duration::ZERO)
+}
+
+/// As [`signaling_pair`]; the listener's answers reach the dialer after `delay`.
+pub(crate) fn signaling_pair_delaying_answers(delay: std::time::Duration) -> (Local, Local) {
+    signaling_pair_with(false, None, delay)
+}
+
+fn signaling_pair_with(
+    trickle: bool,
+    rewrite_dialer: Option<fn(&mut Signal)>,
+    answer_delay: std::time::Duration,
+) -> (Local, Local) {
     let (to_server, server_rx) = mpsc::channel(64);
     let (to_client, client_rx) = mpsc::channel(64);
     (
@@ -68,6 +86,7 @@ pub(crate) fn signaling_pair_rewriting(
             receiver: Mutex::new(Some(server_rx)),
             trickle,
             rewrite: None,
+            answer_delay,
         },
         Local {
             id: "2",
@@ -75,6 +94,7 @@ pub(crate) fn signaling_pair_rewriting(
             receiver: Mutex::new(Some(client_rx)),
             trickle,
             rewrite: rewrite_dialer,
+            answer_delay: std::time::Duration::ZERO,
         },
     )
 }
@@ -125,6 +145,7 @@ pub(crate) fn idle_connection() -> Arc<Connection> {
             role: Role::Listener,
             hosts: Vec::new(),
             relay_only: false,
+            resolve_mdns: false,
             certificate,
             provider,
             max_segment_payload: crate::framing::MAX_SEGMENT_PAYLOAD,

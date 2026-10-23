@@ -69,6 +69,8 @@ pub(crate) struct SessionParams {
     pub(crate) role: Role,
     pub(crate) hosts: Vec<SocketAddr>,
     pub(crate) relay_only: bool,
+    /// `TransportConfig::resolve_mdns`.
+    pub(crate) resolve_mdns: bool,
     pub(crate) certificate: LocalCertificate,
     pub(crate) provider: Arc<dyn RTCCryptoProvider>,
     /// Local outbound segment ceiling (`NetherNetStreamConfig::max_message_size`).
@@ -128,6 +130,7 @@ impl Session {
             now,
             controlling,
             params.relay_only,
+            params.resolve_mdns,
             params.hosts,
             &params.provider,
         )?;

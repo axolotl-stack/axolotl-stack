@@ -7,7 +7,7 @@ license.workspace = true
 
 [features]
 default = []
-discovery = ["aes", "hex"]
+discovery = ["aes", "hex", "if-addrs"]
 endpoint = ["dep:reqwest", "dep:http", "dep:hyper", "dep:hyper-util", "dep:http-body-util", "dep:tokio-rustls", "dep:rustls-pemfile", "dep:percent-encoding"]
 xbox-signaling = ["dep:tokio-tungstenite", "dep:http", "dep:tungstenite", "dep:uuid", "dep:futures-util"]
 
@@ -46,6 +46,9 @@ aes = { workspace = true, optional = true }
 # DTLS fingerprints (sha-256/384/512) and the discovery HMAC midstate.
 sha2 = { workspace = true, features = ["compress"] }
 hex = { workspace = true, optional = true }
+# Interface netmasks for per-interface directed discovery broadcasts (the
+# client's `LanThreadManager` destinations); rtc-shared has no masks on Windows.
+if-addrs = { version = "0.13", optional = true }
 
 # HTTP endpoint signaling (go-nethernet endpoint package).
 reqwest = { workspace = true, features = ["rustls-tls", "stream"], optional = true }

@@ -365,23 +365,23 @@ mod tests {
     #[tokio::test]
     async fn configured_ice_servers_override_signaling_credential_wait() {
         // Credentials never resolve: reaching the offer proves they were skipped.
-        let result = tokio::time::timeout(
-            Duration::from_secs(10),
-            NetherNetStream::connect_with_config(
-                "remote".into(),
-                QuietSignaling::new(true),
-                NetherNetStreamConfig {
-                    ice_servers: vec![IceServer {
-                        username: String::new(),
-                        password: String::new(),
-                        urls: vec!["stun:127.0.0.1:9".into()],
-                    }],
-                    ..Default::default()
-                },
-            ),
-        )
-        .await
-        .expect("configured ICE servers must not wait for signaling credentials");
+        // Dialed through the dialer `connect_with_config` delegates to, so
+        // the test binds only 127.0.0.1 (no host-firewall prompt).
+        let dialer = crate::NetherNetDialer::connect_with_signaling(
+            QuietSignaling::new(true),
+            crate::NetherNetDialerConfig {
+                ice_servers: vec![IceServer {
+                    username: String::new(),
+                    password: String::new(),
+                    urls: vec!["stun:127.0.0.1:9".into()],
+                }],
+                transport: crate::TransportConfig::loopback_v4(),
+                ..Default::default()
+            },
+        );
+        let result = tokio::time::timeout(Duration::from_secs(10), dialer.dial("remote".into()))
+            .await
+            .expect("configured ICE servers must not wait for signaling credentials");
         assert!(matches!(result, Err(NetherNetError::Signaling(_))));
     }
 
