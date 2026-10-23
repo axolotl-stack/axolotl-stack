@@ -16,9 +16,6 @@ pub enum AuthError {
     /// The self-signed login certificate chain has no entries.
     #[error("Empty login chain")]
     EmptyChain,
-    /// The login carries no certificate chain.
-    #[error("Missing login chain")]
-    MissingChain,
     /// A self-signed or guest login arrived while online mode is on or legacy
     /// authentication is not allowed.
     #[error("Legacy/self-signed authentication is disabled on this server")]
@@ -43,9 +40,6 @@ pub enum AuthError {
     /// A JWT header cannot be decoded; holds the decoder's message.
     #[error("Invalid JWT header: {0}")]
     InvalidHeader(String),
-    /// A JWT uses a signing algorithm that is not accepted; holds the algorithm.
-    #[error("Unsupported JWT algorithm: {0}")]
-    UnsupportedAlg(String),
     /// A JWT is malformed, has a bad signature or no trusted key verifies it;
     /// holds the reason.
     #[error("JWT validation failed: {0}")]
