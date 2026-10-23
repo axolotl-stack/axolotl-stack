@@ -36,6 +36,7 @@ use crate::valentine::{
 /// One sealed batch to hand to the transport.
 #[derive(Debug, Clone)]
 pub struct Transmit {
+    /// Wire bytes, framed, compressed and encrypted as negotiated.
     pub payload: Bytes,
     /// `true` = reliable ordered delivery (mandatory while encrypted).
     pub reliable: bool,
@@ -44,15 +45,19 @@ pub struct Transmit {
 /// One inbound transport message.
 #[derive(Debug, Clone)]
 pub enum Datagram {
+    /// The whole message, including the message ID byte.
     Contiguous(Bytes),
     /// RakNet surfaces the message ID byte separately from the payload.
     SplitFirst {
+        /// Message ID byte (`0xFE` for game batches).
         first: u8,
+        /// Bytes after the message ID.
         rest: Bytes,
     },
 }
 
 impl Datagram {
+    /// Total length in bytes, counting a split-off ID byte.
     pub fn len(&self) -> usize {
         match self {
             Self::Contiguous(bytes) => bytes.len(),
@@ -60,6 +65,7 @@ impl Datagram {
         }
     }
 
+    /// Whether the datagram has no bytes.
     pub fn is_empty(&self) -> bool {
         self.len() == 0
     }
@@ -113,6 +119,7 @@ pub struct Connection {
 }
 
 impl Connection {
+    /// Creates a plaintext, uncompressed connection using `framing`.
     pub fn new(framing: Framing, options: ConnectionOptions) -> Self {
         let filter = PacketFilter {
             unknown: options.unknown_packets,
@@ -143,14 +150,18 @@ impl Connection {
         self.framing == Framing::RakNet
     }
 
+    /// The transport framing this connection was built with.
     pub fn framing(&self) -> Framing {
         self.framing
     }
 
+    /// Current options, including the flush mode set via
+    /// [`set_flush_mode`](Self::set_flush_mode).
     pub fn options(&self) -> &ConnectionOptions {
         &self.options
     }
 
+    /// Snapshot of the connection's counters.
     pub fn metrics(&self) -> ConnectionMetrics {
         self.metrics
     }
@@ -170,14 +181,17 @@ impl Connection {
         }
     }
 
+    /// Whether batch encryption is enabled.
     pub fn is_encrypted(&self) -> bool {
         self.send_cipher.is_some()
     }
 
+    /// Whether compression is negotiated (batches carry the algorithm byte).
     pub fn is_compressed(&self) -> bool {
         self.codec.is_compressed()
     }
 
+    /// Current flush mode.
     pub fn flush_mode(&self) -> FlushMode {
         self.options.flush
     }
@@ -639,6 +653,7 @@ impl Connection {
         Some(transmit)
     }
 
+    /// Whether sealed batches await [`poll_transmit`](Self::poll_transmit).
     pub fn has_transmits(&self) -> bool {
         !self.outbound.is_empty()
     }

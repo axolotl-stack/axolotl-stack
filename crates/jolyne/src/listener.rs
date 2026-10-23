@@ -6,7 +6,7 @@
 //! ```
 //!
 //! A listener counts joined players against `max_players` and publishes the
-//! [`StatusProvider`](crate::status::StatusProvider) status (RakNet pong,
+//! [`StatusProvider`] status (RakNet pong,
 //! NetherNet LAN server data) at bind, every `status_refresh`, and whenever
 //! a player joins or leaves. Refreshes run while `accept` is awaited.
 

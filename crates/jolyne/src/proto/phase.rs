@@ -1,7 +1,7 @@
 //! The typestate contract shared by every handshake phase.
 //!
 //! A phase owns its [`Connection`]. The driver feeds it datagrams
-//! ([`Phase::handle_datagram`]), drains [`Phase::poll_transmit`], sleeps until
+//! ([`Phase::handle_datagram`]), drains [`Owner::poll_transmit`], sleeps until
 //! [`Phase::poll_timeout`], and calls [`Phase::advance`] with the current time.
 //! `advance` consumes the phase and returns either the same phase (waiting for
 //! more input) or the next one. Failures hand the phase back inside a

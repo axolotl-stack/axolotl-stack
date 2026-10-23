@@ -16,20 +16,27 @@ use crate::error::{JolyneError, ProtocolError};
 #[cfg(any(test, feature = "bench"))]
 use crate::valentine::mcpe::{McpePacket, McpePacketArgs, McpePacketData};
 
+/// RakNet message ID that prefixes every game batch.
 pub const BATCH_PACKET_ID: u8 = 0xFE;
 
 /// Default cap on a decompressed batch (gophertunnel `DefaultMaxDecompressedLen`).
 pub const DEFAULT_MAX_DECOMPRESSED_BATCH: usize = 16 * 1024 * 1024;
 
+/// Compression algorithm byte that precedes a batch payload once compression
+/// is negotiated.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 #[repr(u8)]
 pub enum BatchCompression {
+    /// Raw DEFLATE (`0x00`).
     Deflate = 0x00,
+    /// Snappy (`0x01`).
     Snappy = 0x01,
+    /// Uncompressed payload (`0xFF`).
     None = 0xFF,
 }
 
 impl BatchCompression {
+    /// Parses an algorithm byte; `None` for unknown values.
     pub fn try_from_u8(v: u8) -> Option<Self> {
         match v {
             0x00 => Some(Self::Deflate),
@@ -45,7 +52,9 @@ impl BatchCompression {
 pub struct BatchEncoding {
     /// Whether compression was negotiated (the algorithm byte is present).
     pub enabled: bool,
+    /// Negotiated algorithm; `None` sends every batch uncompressed.
     pub algorithm: BatchCompression,
+    /// Compression level; 0 sends batches uncompressed, deflate clamps above 9.
     pub level: u32,
     /// Payloads shorter than this are sent with the `None` marker.
     pub threshold: u16,
@@ -57,7 +66,9 @@ pub struct BatchEncoding {
 /// bound is always enforced while streaming.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub struct BatchLimits {
+    /// Maximum decompressed batch size in bytes; larger batches are rejected.
     pub max_decompressed: usize,
+    /// Maximum packets per batch; more are rejected.
     pub max_packets: usize,
 }
 

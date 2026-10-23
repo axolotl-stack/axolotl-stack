@@ -69,6 +69,7 @@ pub struct ServerHandshake {
 owner!(ServerHandshake);
 
 impl ServerHandshake {
+    /// Starts the handshake; the login deadline is `config.login_timeout` after `now`.
     pub fn new(conn: Connection, config: Arc<BedrockListenerConfig>, now: Instant) -> Self {
         let deadline = deadline_after(now, config.login_timeout);
         Self {
@@ -77,6 +78,7 @@ impl ServerHandshake {
         }
     }
 
+    /// The listener configuration.
     pub fn config(&self) -> &Arc<BedrockListenerConfig> {
         &self.shared.config
     }
@@ -244,10 +246,12 @@ impl LoginRequest {
         &self.request
     }
 
+    /// The login deadline, set by [`ServerHandshake::new`].
     pub fn deadline(&self) -> Instant {
         self.shared.deadline
     }
 
+    /// The listener configuration.
     pub fn config(&self) -> &Arc<BedrockListenerConfig> {
         &self.shared.config
     }
@@ -313,6 +317,7 @@ pub struct Authenticated {
 owner!(Authenticated);
 
 impl Authenticated {
+    /// The admitted player's login.
     pub fn login(&self) -> &AuthenticatedLogin {
         &self.login
     }
@@ -451,6 +456,7 @@ pub struct PacksReady {
 owner!(PacksReady);
 
 impl PacksReady {
+    /// The admitted player's login.
     pub fn login(&self) -> &AuthenticatedLogin {
         &self.login
     }
@@ -564,6 +570,7 @@ pub struct WorldReady {
 owner!(WorldReady);
 
 impl WorldReady {
+    /// The admitted player's login.
     pub fn login(&self) -> &AuthenticatedLogin {
         &self.login
     }
@@ -752,7 +759,9 @@ impl Phase for ServerSpawn {
 
 /// The play session of an accepted player.
 pub struct ServerSession {
+    /// The play session, after the replay of packets deferred during login.
     pub session: Session,
+    /// The admitted player's login.
     pub login: AuthenticatedLogin,
 }
 

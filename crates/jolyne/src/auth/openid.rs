@@ -281,6 +281,7 @@ pub(crate) fn login_from_claims(
 /// Produces trusted key-set snapshots. Implementations must only use trust
 /// anchors outside the login request (never JWT header URLs or keys).
 pub trait KeySetSource: Send + Sync {
+    /// Fetches a fresh verifier built from the current key set.
     fn fetch(&self) -> BoxFuture<'_, Result<OpenIdVerifier, AuthError>>;
 }
 
@@ -420,6 +421,7 @@ pub struct OpenIdProvider {
 }
 
 impl OpenIdProvider {
+    /// Creates a provider with an empty cache; `source` is fetched on first use.
     pub fn new(source: impl KeySetSource + 'static, policy: RefreshPolicy) -> Self {
         Self {
             inner: Arc::new(ProviderInner {

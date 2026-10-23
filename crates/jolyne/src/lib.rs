@@ -1,4 +1,5 @@
 #![doc = include_str!("../README.md")]
+#![warn(missing_docs)]
 // Library code returns errors instead of panicking; tests may unwrap.
 #![cfg_attr(
     not(test),

@@ -98,12 +98,11 @@ pub(crate) struct Parts<T, O> {
 }
 
 /// A Bedrock connection in join phase `S`.
-///
-/// `parts` is an `Option` only so consuming methods can move the parts out
-/// of a type with `Drop` (safe Rust has no other way): [`Self::take`]
-/// consumes the stream, so every `&self`/`&mut self` method sees `Some`, and
-/// only `Drop` after a `take` sees `None`.
 pub struct BedrockStream<S: PhaseOf<R>, R: Role, T: Transport> {
+    // An `Option` only so consuming methods can move the parts out of a type
+    // with `Drop` (safe Rust has no other way): `take(self)` consumes the
+    // stream, so every `&self`/`&mut self` method sees `Some`, and only
+    // `Drop` after a `take` sees `None`.
     parts: Option<Parts<T, S::Owner>>,
     _marker: PhantomData<fn() -> (S, R)>,
 }

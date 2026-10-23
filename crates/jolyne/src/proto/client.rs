@@ -160,6 +160,7 @@ pub struct ClientLogin {
 owner!(ClientLogin);
 
 impl ClientLogin {
+    /// The join deadline (`join_timeout` after [`ClientSettings::new`]).
     pub fn deadline(&self) -> Instant {
         self.shared.deadline
     }
@@ -403,6 +404,7 @@ owner!(ClientSpawn);
 
 /// The client's play session.
 pub struct ClientSession {
+    /// The play session, after the replay of packets deferred during the join.
     pub session: Session,
     /// Packs downloaded (or loaded from cache) during the join.
     pub packs: Vec<DownloadedPack>,
@@ -424,7 +426,9 @@ impl Owner for ClientSession {
 
 /// What the client learned while joining.
 pub struct ClientJoined {
+    /// The play session.
     pub session: ClientSession,
+    /// World data collected during the join (`StartGame`, item registry, definitions).
     pub game_data: GameData,
 }
 
