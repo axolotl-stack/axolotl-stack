@@ -20,9 +20,12 @@ if (!(Get-Command go -ErrorAction SilentlyContinue) -and (Test-Path 'C:/Program 
 }
 $Suffix = if ($IsWindows) { '.exe' } else { '' }
 $CinnabarManifest = Join-Path $PSScriptRoot 'cinnabar/Cargo.toml'
+# CARGO_TARGET_DIR is honoured so executables can be kept at paths that already
+# carry host-firewall rules (every server here binds 127.0.0.1 only).
+$TargetDir = if ($env:CARGO_TARGET_DIR) { [IO.Path]::GetFullPath($env:CARGO_TARGET_DIR) } else { Join-Path $Repo 'target' }
 $Executables = @{
-    rust = Join-Path $Repo "target/release/bench-compare$Suffix"
-    cinnabar = Join-Path $PSScriptRoot "cinnabar/target/release/cinnabar-bench$Suffix"
+    rust = Join-Path $TargetDir "release/bench-compare$Suffix"
+    cinnabar = Join-Path $(if ($env:CARGO_TARGET_DIR) { $TargetDir } else { Join-Path $PSScriptRoot 'cinnabar/target' }) "release/cinnabar-bench$Suffix"
     go = Join-Path $Cache "go-bench$Suffix"
 }
 $ParentProcess = [Diagnostics.Process]::GetCurrentProcess()
