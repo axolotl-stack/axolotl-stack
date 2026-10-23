@@ -86,6 +86,15 @@ impl Default for SessionConfig {
     }
 }
 
+/// Mojang disconnect mode of a closing Vanilla session.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub(crate) enum VanillaClose {
+    /// `DISCONNECT_ASAP`: close once nothing is queued or unacknowledged.
+    Asap,
+    /// `DISCONNECT_ON_NO_ACK`: close once the pending ACKs are sent.
+    OnNoAck,
+}
+
 /// Higher-level wrapper around `Session` that tracks connection state,
 /// last activity and enforces a few simple state rules.
 pub struct ManagedSession {
@@ -104,8 +113,12 @@ pub struct ManagedSession {
     last_disconnect_reason: Option<DisconnectReason>,
     ack_deadline: Option<Instant>,
     pending_ack_bytes: usize,
-    /// go-raknet `conn.go:startTicking` `acksLeft`, sampled while closing.
-    vanilla_acks_left: usize,
+    /// Vanilla: Mojang `nextPingTime` (`None` pings on the next update).
+    vanilla_next_ping: Option<Instant>,
+    /// Vanilla: Mojang `lastReliableSend` (keepalive), set at creation.
+    vanilla_last_reliable_send: Instant,
+    /// Vanilla: disconnect mode once closing.
+    vanilla_close: Option<VanillaClose>,
 }
 
 impl ManagedSession {
@@ -133,7 +146,9 @@ impl ManagedSession {
             last_disconnect_reason: None,
             ack_deadline: None,
             pending_ack_bytes: 0,
-            vanilla_acks_left: 0,
+            vanilla_next_ping: None,
+            vanilla_last_reliable_send: now,
+            vanilla_close: None,
         }
     }
 
@@ -271,16 +286,12 @@ impl ManagedSession {
 
         match dgram.payload {
             DatagramPayload::EncapsulatedPackets(packets) => {
-                // go-raknet conn.go:receiveDatagram validates and deduplicates
-                // the receive window before touching any packet payload.
                 let accepted = self
                     .inner
                     .accept_datagram_sequence(dgram.header.sequence, || now)?;
                 if self.inner.transmission_policy().is_vanilla() {
-                    // go-raknet conn.go:flushACKs: ACKs wait for the 100 ms
-                    // tick. conn.go:handlePacket: a closing connection still
-                    // ACKs datagrams but no longer handles their frames.
-                    if !accepted || self.state == ConnectionState::Closing {
+                    // Mojang ACK timing lives in the session update.
+                    if !accepted {
                         return Ok(Vec::new());
                     }
                 } else {
@@ -327,8 +338,8 @@ impl ManagedSession {
     /// Transports must service `ack_deadline` even when no further traffic arrives.
     pub fn build_datagram(&mut self, now: Instant) -> Option<Datagram> {
         if self.inner.transmission_policy().is_vanilla() {
-            // Vanilla has no congestion window, so every queued frame leaves
-            // on the next flush: reliable bytes stay charged to
+            // Mojang's update: due ACKs, one NAK, resends and new data within
+            // the window. Reliable bytes stay charged to
             // `max_queued_reliable_bytes` until their ACK, not their send.
             let dgram = self.inner.next_vanilla_datagram(now);
             self.credit_vanilla_acks();
@@ -358,7 +369,11 @@ impl ManagedSession {
 
     /// Earliest pending feedback deadline. A custom transport must call
     /// `build_datagram` at this time even if its socket/application queues are idle.
+    /// Vanilla: when Mojang's ACK rule makes the pending ACKs due.
     pub fn ack_deadline(&self) -> Option<Instant> {
+        if self.inner.transmission_policy().is_vanilla() {
+            return self.inner.vanilla_ack_deadline();
+        }
         self.ack_deadline
     }
 

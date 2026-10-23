@@ -8,11 +8,13 @@
 //! Each scenario runs one scripted client twice through a recording,
 //! fault-injecting UDP relay in front of a go-raknet echo server: first the
 //! go-raknet client (`bench-compare raknet-conformance-client`), then
-//! `RaknetStream` with the default (Vanilla) policy. The recorded client
-//! datagrams are reduced to timing-independent features (wire layouts, frame
-//! metadata, NAK contents) that must be equal, plus timing features (MTU probe
-//! cadence, ACK/ping tick phase, resend delay) that must agree within the
-//! timer tolerance of the host. See `PARITY.md`.
+//! `RaknetStream` with the default (Vanilla) policy. `Vanilla` follows Mojang
+//! RakNet (see `PARITY.md` and `tests/capture_diff.rs`), so only the wire
+//! layouts both share must be equal: MTU probe sizes and cadence, Request2,
+//! NewIncomingConnection and the DisconnectNotification. Where go-raknet
+//! differs from Mojang (ConnectionRequest reliability, one frame per
+//! datagram, 100 ms ACK/500 ms ping ticks, fragment sizes), each side is
+//! checked against its own documented behaviour.
 
 use std::net::SocketAddr;
 use std::path::PathBuf;
@@ -352,6 +354,8 @@ struct Features {
     /// NAK records relative to the first NAKed sequence.
     naks: Vec<Vec<(u32, u32)>>,
     disconnect: Option<(Reliability, Vec<u8>)>,
+    /// MTU carried by the first Request2.
+    mtu: usize,
 }
 
 fn features(records: &[Record]) -> Features {
@@ -377,6 +381,9 @@ fn features(records: &[Record]) -> Features {
                 masked[len - 12..len - 10].fill(0);
                 if len > 1 + 16 + 7 + 2 + 8 {
                     masked[17..21].fill(0);
+                }
+                if out.mtu == 0 {
+                    out.mtu = usize::from(u16::from_be_bytes([bytes[len - 10], bytes[len - 9]]));
                 }
                 out.request2.push(masked);
             }
@@ -452,61 +459,75 @@ fn phase_error(offset: Duration, period: Duration) -> Duration {
 }
 
 fn assert_common(go: &Features, rust: &Features, scenario: &str) {
+    // Shared by go-raknet and Mojang RakNet.
     assert_eq!(rust.request2, go.request2, "{scenario}: Request2 bytes");
-    assert_eq!(
-        rust.connection_request, go.connection_request,
-        "{scenario}: ConnectionRequest frame"
-    );
     assert_eq!(
         rust.new_incoming, go.new_incoming,
         "{scenario}: NewIncomingConnection"
     );
     assert_eq!(
-        rust.app_frames, go.app_frames,
-        "{scenario}: application frames"
-    );
-    assert_eq!(
         rust.disconnect, go.disconnect,
         "{scenario}: DisconnectNotification"
     );
-    for (name, features) in [("go", go), ("tokio", rust)] {
-        assert!(
-            features.data_flags.iter().all(|&flags| flags == 0x84),
-            "{scenario}/{name}: flags {:?}",
-            features.data_flags
-        );
-        assert!(
-            features.frames_per_datagram.iter().all(|&n| n == 1),
-            "{scenario}/{name}: one frame per datagram"
-        );
-        // ACKs and pings sit on the 100 ms connection ticker started just
-        // before the ConnectionRequest.
-        for &ack in &features.acks {
-            assert!(
-                phase_error(ack - features.t0, Duration::from_millis(100)) <= TOLERANCE,
-                "{scenario}/{name}: ACK off the tick grid at {:?}",
-                ack - features.t0
-            );
-        }
-        for pair in features.acks.windows(2) {
-            assert!(
-                pair[1] - pair[0] >= Duration::from_millis(100) - TOLERANCE,
-                "{scenario}/{name}: ACKs between ticks"
-            );
-        }
-        for &(ping, reliability) in &features.pings {
-            assert_eq!(reliability, Reliability::ReliableOrdered);
-            let offset = ping - features.t0;
-            assert!(
-                offset >= Duration::from_millis(500) - TOLERANCE
-                    && phase_error(offset, Duration::from_millis(500)) <= TOLERANCE,
-                "{scenario}/{name}: ping off the 500 ms grid at {offset:?}"
-            );
+    // HS-4: go writes the request ReliableOrdered, Mojang RELIABLE.
+    assert_eq!(
+        go.connection_request.map(|c| c.0),
+        Some(Reliability::ReliableOrdered)
+    );
+    assert_eq!(
+        rust.connection_request.map(|c| c.0),
+        Some(Reliability::Reliable)
+    );
+    // REL-5/REL-11: go keeps the reliability and splits at
+    // `MTU - 28 - 14 - 10`; Mojang sends fragments reliably, at most
+    // `MTU - 60` bytes each.
+    for &(reliability, split, len) in &rust.app_frames {
+        if split.is_some() {
+            assert!(reliability.is_reliable(), "{scenario}: {reliability:?}");
+            assert!(len <= rust.mtu - 60, "{scenario}: tokio fragment {len}");
         }
     }
+    for &(_, split, len) in &go.app_frames {
+        if split.is_some_and(|(count, index)| index + 1 < count) {
+            assert_eq!(len, go.mtu - 28 - 14 - 10, "{scenario}: go fragment");
+        }
+    }
+    // DG-1/DG-2/ACK-1/KA-1 (go-raknet): one frame per 0x84 datagram, ACKs on
+    // the 100 ms connection ticker, ReliableOrdered pings every 500 ms.
     assert!(
-        !go.pings.is_empty() && !rust.pings.is_empty(),
-        "{scenario}: no keepalive observed"
+        go.data_flags.iter().all(|&flags| flags == 0x84),
+        "{scenario}/go: flags {:?}",
+        go.data_flags
+    );
+    assert!(
+        go.frames_per_datagram.iter().all(|&n| n == 1),
+        "{scenario}/go: one frame per datagram"
+    );
+    for &ack in &go.acks {
+        assert!(
+            phase_error(ack - go.t0, Duration::from_millis(100)) <= TOLERANCE,
+            "{scenario}/go: ACK off the tick grid at {:?}",
+            ack - go.t0
+        );
+    }
+    for &(ping, reliability) in &go.pings {
+        assert_eq!(reliability, Reliability::ReliableOrdered);
+        let offset = ping - go.t0;
+        assert!(
+            offset >= Duration::from_millis(500) - TOLERANCE
+                && phase_error(offset, Duration::from_millis(500)) <= TOLERANCE,
+            "{scenario}/go: ping off the 500 ms grid at {offset:?}"
+        );
+    }
+    // KA-1 (Mojang): two unreliable pings right after connecting.
+    let pings: Vec<_> = rust.pings.iter().take(2).collect();
+    assert_eq!(pings.len(), 2, "{scenario}/tokio: connect pings");
+    assert!(
+        pings
+            .iter()
+            .all(|&&(at, reliability)| reliability == Reliability::Unreliable
+                && at - rust.t0 < Duration::from_millis(200)),
+        "{scenario}/tokio: {pings:?}"
     );
     eprintln!(
         "{scenario}: go acks {} pings {} naks {:?} resends {:?}; tokio acks {} pings {} naks {:?} resends {:?}",
@@ -539,13 +560,18 @@ async fn mtu_discovery_with_1200_byte_path() {
     let sizes = |f: &Features| f.probes.iter().map(|p| p.0).collect::<Vec<_>>();
     assert_eq!(sizes(&rust), sizes(&go), "probe sizes");
     assert_eq!(sizes(&go), [1464, 1464, 1464, 1464, 1172]);
+    // Consecutive probes 500 ms apart. go-raknet keeps a 500 ms ticker grid;
+    // Mojang schedules each probe 500 ms after the previous send, so its
+    // lateness accumulates (the real client's probes are 501-508 ms apart,
+    // PARITY.md MTU-2) and absolute offsets from the first probe would drift
+    // out of tolerance.
     for features in [&go, &rust] {
-        for (index, probe) in features.probes.iter().enumerate() {
-            let offset = probe.1 - features.probes[0].1;
-            let expected = Duration::from_millis(500) * index as u32;
+        for (index, pair) in features.probes.windows(2).enumerate() {
+            let gap = pair[1].1 - pair[0].1;
             assert!(
-                offset.abs_diff(expected) <= TOLERANCE,
-                "probe {index} at {offset:?}"
+                gap.abs_diff(Duration::from_millis(500)) <= TOLERANCE,
+                "probe {} {gap:?} after probe {index}",
+                index + 1
             );
         }
     }
@@ -558,7 +584,9 @@ async fn mtu_discovery_with_1200_byte_path() {
     assert_common(&go, &rust, "mtu");
 }
 
-/// ACK-2/3/6, CC-2/3, REL-8: lost application datagrams in both directions.
+/// ACK-3/ACK-6/CC-2: lost application datagrams in both directions are
+/// recovered by both clients: go-raknet by its 300 ms resend scan (the go
+/// server only NAKs aged gaps), Mojang by its RTO or the server's NAK.
 #[tokio::test(flavor = "multi_thread", worker_threads = 4)]
 #[ignore = "requires Go; run with --ignored"]
 async fn loss_recovery_matches_go() {
@@ -575,26 +603,26 @@ async fn loss_recovery_matches_go() {
     let go = features(&run_go(server.address, faults.clone(), &script).await);
     let rust = features(&run_tokio(server.address, faults, &script).await);
     assert_common(&go, &rust, "loss");
-    assert_eq!(rust.naks, go.naks, "loss: NAK records");
-    // The dropped client datagram is resent by the 300 ms resend scan (the go
-    // server only NAKs once a later client datagram arrives).
-    let delay = |f: &Features| f.resends.first().map(|(first, resend)| *resend - *first);
-    let (go_delay, rust_delay) = (delay(&go).unwrap(), delay(&rust).unwrap());
-    assert!(
-        go_delay.abs_diff(rust_delay) <= Duration::from_millis(300) + TOLERANCE,
-        "resend delay go {go_delay:?} tokio {rust_delay:?}"
-    );
-    for features in [&go, &rust] {
-        let (_, resend) = features.resends[0];
+    for (name, features) in [("go", &go), ("tokio", &rust)] {
         assert!(
-            phase_error(resend - features.t0, Duration::from_millis(100)) <= TOLERANCE,
-            "resend off the tick grid"
+            !features.resends.is_empty(),
+            "{name}: dropped datagram not resent"
         );
     }
+    // ACK-3: Mojang NAKs a gap as soon as a later datagram reveals it.
+    assert!(
+        !rust.naks.is_empty(),
+        "tokio: lost server datagram not NAKed"
+    );
+    let (_, resend) = go.resends[0];
+    assert!(
+        phase_error(resend - go.t0, Duration::from_millis(100)) <= TOLERANCE,
+        "go: resend off the tick grid"
+    );
 }
 
-/// REL-6/8/9, ACK-3: an out-of-order split fragment is reassembled and the
-/// NAK decision follows the same RTT-aged rule.
+/// REL-6/8/9: an out-of-order split fragment is reassembled by both clients
+/// (the echo checks delivery); their NAK rules differ (ACK-3).
 #[tokio::test(flavor = "multi_thread", worker_threads = 4)]
 #[ignore = "requires Go; run with --ignored"]
 async fn reordered_split_delivery_matches_go() {
@@ -610,5 +638,5 @@ async fn reordered_split_delivery_matches_go() {
     let go = features(&run_go(server.address, faults.clone(), &script).await);
     let rust = features(&run_tokio(server.address, faults, &script).await);
     assert_common(&go, &rust, "reorder");
-    assert_eq!(rust.naks, go.naks, "reorder: NAK records");
+    assert!(!rust.naks.is_empty(), "tokio: reordered gap not NAKed");
 }

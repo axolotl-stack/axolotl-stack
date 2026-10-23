@@ -1,176 +1,358 @@
-//! `TransmissionPolicy::Vanilla` session mechanics (lunar-bedrock/go-raknet
-//! `87a6b7e`, see `PARITY.md` DG-*, ACK-*, CC-*).
+//! `TransmissionPolicy::Vanilla` reliability layer: Mojang RakNet's
+//! `ReliabilityLayer` (the Jenkins RakNet 4.081 fork in the Bedrock client and
+//! BDS; see `PARITY.md` DG-*, ACK-*, CC-*, REL-*).
+//!
+//! Unlike Optimized, the unit of retransmission is the reliable *message*:
+//! a datagram history maps datagram numbers to the message numbers they
+//! carried, and resends are re-packed (resends first, then new messages) into
+//! fresh datagrams by the next update. One update (`vanilla_update`) does what
+//! `ReliabilityLayer::Update` does: ACKs, at most one NAK datagram, then
+//! resends and new data within the sliding window.
 
+use std::collections::{HashMap, VecDeque};
 use std::time::Instant;
 
 use crate::protocol::{
     ack::{AckNackPayload, SequenceRange},
-    constants::DatagramFlags,
+    constants::{DatagramFlags, MAX_ACK_SEQUENCES},
     datagram::{Datagram, DatagramPayload},
+    encapsulated_packet::EncapsulatedPacket,
+    packet::DecodeError,
     types::{DatagramHeader, Sequence24},
 };
 
-use super::{Session, TrackedDatagram, ack_queue};
+use super::Session;
+use super::policy::{
+    MojangCongestion, VANILLA_ACK_DELAY, VANILLA_HISTORY_LEN, VANILLA_MAX_NAKS_PER_GAP,
+    VANILLA_MAX_SKIPPED_DATAGRAMS, VANILLA_RESEND_SLOTS, VANILLA_UDP_HEADER,
+    vanilla_datagram_capacity,
+};
 
-/// Reliable frame bytes of a tracked datagram, in the units of
-/// `queue_packet`'s return value.
-fn reliable_frame_bytes(datagram: &Datagram) -> usize {
-    match &datagram.payload {
-        DatagramPayload::EncapsulatedPackets(frames) => frames
-            .iter()
-            .filter(|frame| frame.header.reliability.is_reliable())
-            .map(|frame| frame.size())
-            .sum(),
-        _ => 0,
+/// A reliable message awaiting its ACK (`resendBuffer` entry).
+#[derive(Debug)]
+struct ResendEntry {
+    packet: EncapsulatedPacket,
+    next_action: Instant,
+    /// Position token in `resend_order`; older positions are stale.
+    generation: u64,
+}
+
+/// Per-session state of the Vanilla policy.
+#[derive(Debug)]
+pub(crate) struct VanillaState {
+    pub(crate) cc: MojangCongestion,
+    /// Reliable messages in flight by message number (at most 512).
+    resend: HashMap<u32, ResendEntry>,
+    /// `resendLinkedList`: (message number, generation), oldest (re)send
+    /// first. Entries whose generation no longer matches are skipped.
+    resend_order: VecDeque<(u32, u64)>,
+    generation: u64,
+    /// `unacknowledgedBytes`: header + payload of new reliable sends until
+    /// their ACK (resends do not add).
+    unacked_bytes: usize,
+    /// Datagram history from `history_base`: send time and the reliable
+    /// message numbers carried; `None` once ACKed.
+    history: VecDeque<Option<(Instant, Vec<u32>)>>,
+    history_base: Sequence24,
+    /// `expectedNextSequenceNumber` of received datagrams (NAK gaps).
+    expected_next: Sequence24,
+    /// `oldestUnsentAck`.
+    oldest_unsent_ack: Option<Instant>,
+    /// A split message completed: ACK in the next update.
+    ack_now: bool,
+    /// `bandwidthExceededStatistic`: the send queue was non-empty at the
+    /// start of the previous update.
+    bandwidth_exceeded: bool,
+    /// Datagrams built by the last update, not yet handed to the transport.
+    ready: VecDeque<Datagram>,
+    last_update: Option<Instant>,
+    /// Reliable bytes retired by ACKs since the manager last credited them
+    /// against `max_queued_reliable_bytes`.
+    pub(crate) acked_reliable_bytes: usize,
+}
+
+impl VanillaState {
+    pub(crate) fn new(mtu: usize) -> Self {
+        Self {
+            cc: MojangCongestion::new(mtu),
+            resend: HashMap::new(),
+            resend_order: VecDeque::new(),
+            generation: 0,
+            unacked_bytes: 0,
+            history: VecDeque::new(),
+            history_base: Sequence24::new(0),
+            expected_next: Sequence24::new(0),
+            oldest_unsent_ack: None,
+            ack_now: false,
+            bandwidth_exceeded: false,
+            ready: VecDeque::new(),
+            last_update: None,
+            acked_reliable_bytes: 0,
+        }
+    }
+
+    fn push_resend(&mut self, number: u32, packet: EncapsulatedPacket, next_action: Instant) {
+        self.generation += 1;
+        self.resend_order.push_back((number, self.generation));
+        self.resend.insert(
+            number,
+            ResendEntry {
+                packet,
+                next_action,
+                generation: self.generation,
+            },
+        );
+        // Stale positions accumulate when messages are ACKed or moved to the
+        // tail; compact before they outnumber the live entries.
+        if self.resend_order.len() > 2 * self.resend.len() + 64 {
+            let resend = &self.resend;
+            self.resend_order.retain(|&(number, generation)| {
+                resend
+                    .get(&number)
+                    .is_some_and(|entry| entry.generation == generation)
+            });
+        }
+    }
+
+    /// History node of datagram `seq`, if still tracked.
+    fn history_slot(&mut self, seq: Sequence24) -> Option<&mut Option<(Instant, Vec<u32>)>> {
+        let offset = self.history_base.distance_to(seq);
+        self.history.get_mut(offset as usize)
+    }
+
+    fn remove_message(&mut self, number: u32) {
+        if let Some(entry) = self.resend.remove(&number) {
+            let bytes = entry.packet.size();
+            self.unacked_bytes = self.unacked_bytes.saturating_sub(bytes);
+            self.acked_reliable_bytes = self.acked_reliable_bytes.saturating_add(bytes);
+        }
     }
 }
 
-/// go-raknet `conn.go:effectiveMTU`: IPv4 + UDP headers, for every family.
-const UDP_IP_OVERHEAD: usize = 28;
-/// go-raknet `packet.go:packetAdditionalSize`, independent of reliability.
-const PACKET_ADDITIONAL_SIZE: usize = 1 + 3 + 1 + 2 + 3 + 3 + 1;
-/// go-raknet `packet.go:splitAdditionalSize`.
-const SPLIT_ADDITIONAL_SIZE: usize = 4 + 2 + 4;
+/// Mojang `RangeList::Serialize` budget per ACK/NAK datagram:
+/// `(MTU - 28) * 8 - 72` bits; a range is added while `16 + written + 65`
+/// bits fit. Ranges are sorted and merged; a datagram also closes at the
+/// 8192-sequence decoder limit of RAKNET-01.
+pub(crate) fn mojang_ack_chunks(
+    mut ranges: Vec<SequenceRange>,
+    mtu: usize,
+) -> Vec<Vec<SequenceRange>> {
+    ranges.sort_unstable_by_key(|range| range.start.value());
+    let mut merged: Vec<(u32, u32)> = Vec::with_capacity(ranges.len());
+    for range in ranges {
+        let (start, end) = (range.start.value(), range.end.value());
+        match merged.last_mut() {
+            Some(last) if start <= last.1.saturating_add(1) => last.1 = last.1.max(end),
+            _ => merged.push((start, end)),
+        }
+    }
+    let max_bits = (mtu.saturating_sub(VANILLA_UDP_HEADER) * 8).saturating_sub(72);
+    let max_sequences = u32::from(MAX_ACK_SEQUENCES);
+    let mut chunks = Vec::new();
+    let mut records = Vec::new();
+    let (mut bits, mut sequences) = (0usize, 0u32);
+    let mut pending = merged.into_iter().peekable();
+    while let Some(&(start, end)) = pending.peek() {
+        let room = max_sequences - sequences;
+        if 16 + bits + 65 > max_bits || room == 0 {
+            chunks.push(std::mem::take(&mut records));
+            (bits, sequences) = (0, 0);
+            continue;
+        }
+        let take_end = end.min(start + (room - 1));
+        records.push(SequenceRange {
+            start: Sequence24::new(start),
+            end: Sequence24::new(take_end),
+        });
+        bits += if start == take_end { 32 } else { 56 };
+        sequences += take_end - start + 1;
+        pending.next();
+        if take_end < end {
+            // The rest of an oversized range starts the next datagram.
+            chunks.push(std::mem::take(&mut records));
+            (bits, sequences) = (0, 0);
+            let rest = (take_end + 1, end);
+            let remaining: Vec<(u32, u32)> = std::iter::once(rest).chain(pending).collect();
+            pending = remaining.into_iter().peekable();
+        }
+    }
+    if !records.is_empty() {
+        chunks.push(records);
+    }
+    chunks
+}
 
-/// go-raknet `packet.go:split`: the largest unsplit message, or the fragment
-/// size once a message is split.
-pub(super) fn max_fragment_len(mtu: usize, is_split: bool) -> usize {
-    let split = if is_split { SPLIT_ADDITIONAL_SIZE } else { 0 };
-    mtu.saturating_sub(UDP_IP_OVERHEAD + PACKET_ADDITIONAL_SIZE + split)
+fn feedback_datagram(ranges: Vec<SequenceRange>, ack: bool) -> Datagram {
+    let payload = AckNackPayload { ranges };
+    Datagram {
+        header: DatagramHeader {
+            flags: DatagramFlags::VALID
+                | if ack {
+                    DatagramFlags::ACK
+                } else {
+                    DatagramFlags::NACK
+                },
+            sequence: Sequence24::new(0),
+        },
+        payload: if ack {
+            DatagramPayload::Ack(payload)
+        } else {
+            DatagramPayload::Nak(payload)
+        },
+    }
 }
 
 impl Session {
-    /// go-raknet `conn.go:sendDatagram`: exactly one frame, flags `0x84`,
-    /// recorded for resend with the current time when reliable.
-    pub(super) fn build_vanilla_datagram(&mut self, now: Instant) -> Datagram {
-        let queued = self
-            .outgoing_heap
-            .pop()
-            .expect("caller checked the outgoing queue");
-        let seq = self.datagram_write_index;
-        self.datagram_write_index = seq.next();
-        let reliable = queued.pkt.header.reliability.is_reliable();
-        let datagram = Datagram {
-            header: DatagramHeader {
-                flags: DatagramFlags::VALID | DatagramFlags::HAS_B_AND_AS,
-                sequence: seq,
-            },
-            payload: DatagramPayload::EncapsulatedPackets(vec![queued.pkt]),
-        };
-        if reliable {
-            self.sent_datagrams.insert(
-                seq,
-                TrackedDatagram {
-                    datagram: datagram.clone(),
-                    send_time: now,
-                    next_send: now,
-                },
-            );
-        }
-        datagram
+    /// Vanilla state; only called on Vanilla code paths.
+    fn vanilla_mut(&mut self) -> &mut VanillaState {
+        self.vanilla
+            .as_deref_mut()
+            .expect("Vanilla code path on an Optimized session")
     }
 
-    /// Next datagram for an immediate flush: NAK-triggered resends, pending
-    /// NAK feedback, then queued data. ACKs wait for the 100 ms tick.
-    pub(crate) fn next_vanilla_datagram(&mut self, now: Instant) -> Option<Datagram> {
-        self.process_incoming_acks_naks(now);
-        if let Some(datagram) = self.vanilla_mut().resend_ready.pop_front() {
-            return Some(datagram);
-        }
-        if let Some(datagram) = self.vanilla_mut().feedback_ready.pop_front() {
-            return Some(datagram);
-        }
-        let mut feedback = Vec::new();
-        self.vanilla_feedback(false, &mut feedback);
-        if !feedback.is_empty() {
-            self.vanilla_mut().feedback_ready.extend(feedback);
-            return self.vanilla_mut().feedback_ready.pop_front();
-        }
-        self.build_data_datagram(now)
+    fn vanilla_ref(&self) -> &VanillaState {
+        self.vanilla
+            .as_deref()
+            .expect("Vanilla code path on an Optimized session")
     }
 
-    /// go-raknet `conn.go:startTicking` body before the closing/ping logic:
-    /// `flushACKs`, then `checkResend` on every third tick.
-    pub(crate) fn on_vanilla_tick(&mut self, now: Instant, resend_check: bool) -> Vec<Datagram> {
-        let mut out = Vec::new();
-        self.process_incoming_acks_naks(now);
-        self.prune_expired_splits(now);
-        self.vanilla_feedback(true, &mut out);
-        if resend_check {
-            // conn.go:checkResend stores the RTT before scanning.
-            let rtt = self.vanilla_mut().rtt(now);
-            self.vanilla_mut().store_rtt(rtt);
-            let delay = rtt + rtt / 2;
-            let due: Vec<Sequence24> = self
-                .sent_datagrams
-                .iter()
-                .filter(|(_, tracked)| now.saturating_duration_since(tracked.send_time) > delay)
-                .map(|(&seq, _)| seq)
-                .collect();
-            for seq in due {
-                if let Some(tracked) = self.sent_datagrams.remove(&seq) {
-                    out.push(self.vanilla_retransmit(tracked, now));
-                }
-            }
-        }
-        out.extend(self.vanilla_mut().resend_ready.drain(..));
-        out.extend(self.vanilla_mut().feedback_ready.drain(..));
-        self.vanilla_feedback(false, &mut out);
-        out
-    }
-
-    /// go-raknet `conn.go:handleACK` / `resend_map.go:acknowledge`.
-    pub(super) fn vanilla_process_acks(&mut self, now: Instant) {
-        while let Some(range) = self.incoming_acks.pop_front() {
-            while let Some((&seq, _)) = self.sent_datagrams.range(range.start..=range.end).next() {
-                if let Some(tracked) = self.sent_datagrams.remove(&seq) {
-                    let bytes = reliable_frame_bytes(&tracked.datagram);
-                    let vanilla = self.vanilla_mut();
-                    vanilla.record(now, tracked.send_time, 1);
-                    vanilla.acked_reliable_bytes =
-                        vanilla.acked_reliable_bytes.saturating_add(bytes);
-                }
-            }
-        }
-    }
-
-    /// go-raknet `conn.go:handleNACK` / `resend`: every NAKed datagram still
-    /// awaiting an ACK is resent immediately with a fresh sequence number.
+    /// `OnGotPacket` + `acknowlegements.Insert`: every data datagram is ACKed
+    /// (duplicates included; messages are de-duplicated by message number),
+    /// and a forward gap NAKs each skipped number at once (at most 1000; a
+    /// gap above 50000 rejects the datagram without an ACK).
     ///
-    /// The datagrams are snapshotted before any resend (RAKNET-01): a resend
-    /// is re-keyed to the next write index, which may itself fall inside a
-    /// NAKed range and must not be resent again (go's `resend` would). The
-    /// queued ranges are merged first, so each tracked datagram is resent at
-    /// most once per pass and the work is bounded by the resend map.
-    pub(super) fn vanilla_process_naks(&mut self, now: Instant) {
-        if self.incoming_naks.is_empty() {
-            return;
+    /// Out of line so `process_datagram_sequence` keeps its Optimized frame.
+    #[inline(never)]
+    pub(super) fn vanilla_accept_sequence(
+        &mut self,
+        seq: Sequence24,
+        now: Instant,
+    ) -> Result<bool, DecodeError> {
+        let vanilla = self.vanilla_mut();
+        let expected = vanilla.expected_next;
+        if seq == expected {
+            vanilla.expected_next = seq.next();
+        } else if seq > expected {
+            let skipped = expected.distance_to(seq);
+            if skipped > VANILLA_MAX_SKIPPED_DATAGRAMS {
+                return Ok(false);
+            }
+            vanilla.expected_next = seq.next();
+            let naked = skipped.min(VANILLA_MAX_NAKS_PER_GAP);
+            let start = Sequence24::new(seq.value().wrapping_sub(naked) & 0x00ff_ffff);
+            self.outgoing_naks.push(SequenceRange {
+                start,
+                end: seq.prev(),
+            });
         }
-        let mut ranges: Vec<SequenceRange> = self.incoming_naks.drain(..).collect();
-        ranges.sort_unstable_by_key(|range| range.start.value());
-        let mut due = Vec::new();
-        // Highest sequence already covered by an earlier (merged) range.
-        let mut covered: Option<u32> = None;
-        for range in ranges {
-            let end = range.end.value();
-            let start = match covered {
-                Some(covered) if covered >= end => continue,
-                Some(covered) if covered >= range.start.value() => covered + 1,
-                _ => range.start.value(),
-            };
-            covered = Some(end);
-            due.extend(
-                self.sent_datagrams
-                    .range(Sequence24::new(start)..=range.end)
-                    .map(|(&seq, _)| seq),
-            );
-        }
-        for seq in due {
-            if let Some(tracked) = self.sent_datagrams.remove(&seq) {
-                let datagram = self.vanilla_retransmit(tracked, now);
-                self.vanilla_mut().resend_ready.push_back(datagram);
+        self.vanilla_mut().oldest_unsent_ack.get_or_insert(now);
+        self.outgoing_acks.push(SequenceRange {
+            start: seq,
+            end: seq,
+        });
+        Ok(true)
+    }
+
+    /// A split message completed: `SendACKs` runs immediately (lens
+    /// RL_006:1438-1441).
+    pub(super) fn vanilla_split_completed(&mut self) {
+        self.vanilla_mut().ack_now = true;
+    }
+
+    /// ACK processing of `HandleSocketReceiveFromConnectedPlayer`: an RTT
+    /// sample per tracked datagram, window growth, then its messages leave
+    /// the resend buffer.
+    pub(super) fn vanilla_process_acks(&mut self, now: Instant) {
+        let next = self.datagram_write_index;
+        while let Some(range) = self.incoming_acks.pop_front() {
+            let vanilla = self.vanilla.as_deref_mut().expect("Vanilla session");
+            let mut seq = range.start;
+            loop {
+                if let Some(slot) = vanilla.history_slot(seq)
+                    && let Some((sent, messages)) = slot.take()
+                {
+                    vanilla.cc.on_rtt(now.saturating_duration_since(sent));
+                    vanilla.cc.is_continuous_send = vanilla.bandwidth_exceeded;
+                    vanilla.cc.on_ack(seq, next);
+                    for number in messages {
+                        vanilla.remove_message(number);
+                    }
+                }
+                if seq == range.end {
+                    break;
+                }
+                seq = seq.next();
             }
         }
+    }
+
+    /// NAK processing: `OnNAK` per NAKed datagram, then its messages become
+    /// due, so the next update resends them (lens RL_006:337-353).
+    pub(super) fn vanilla_process_naks(&mut self, now: Instant) {
+        let next = self.datagram_write_index;
+        while let Some(range) = self.incoming_naks.pop_front() {
+            let vanilla = self.vanilla.as_deref_mut().expect("Vanilla session");
+            let mut seq = range.start;
+            loop {
+                let messages = vanilla
+                    .history_slot(seq)
+                    .and_then(|slot| slot.as_ref())
+                    .map(|(_, messages)| messages.clone());
+                if let Some(messages) = messages {
+                    vanilla.cc.on_nak(next);
+                    for number in messages {
+                        if let Some(entry) = vanilla.resend.get_mut(&number) {
+                            entry.next_action = now;
+                        }
+                    }
+                }
+                if seq == range.end {
+                    break;
+                }
+                seq = seq.next();
+            }
+        }
+    }
+
+    /// Next datagram for the transport. The first call for a given `now`
+    /// runs one update; later calls drain what it built.
+    pub(crate) fn next_vanilla_datagram(&mut self, now: Instant) -> Option<Datagram> {
+        if self.vanilla_ref().ready.is_empty() && self.vanilla_ref().last_update != Some(now) {
+            self.vanilla_update(now);
+        }
+        self.vanilla_mut().ready.pop_front()
+    }
+
+    /// Runs one update unless one already ran at `now`, and returns every
+    /// datagram it built.
+    pub(crate) fn vanilla_tick(&mut self, now: Instant) -> Vec<Datagram> {
+        if self.vanilla_ref().last_update != Some(now) {
+            self.vanilla_update(now);
+        }
+        self.vanilla_mut().ready.drain(..).collect()
+    }
+
+    /// When pending ACKs become due: at once before the first RTT sample or
+    /// after a split completed, else 10 ms after the oldest unacknowledged
+    /// datagram.
+    pub(crate) fn vanilla_ack_deadline(&self) -> Option<Instant> {
+        let vanilla = self.vanilla_ref();
+        let oldest = vanilla.oldest_unsent_ack?;
+        if vanilla.ack_now || !vanilla.cc.rtt_known() {
+            Some(oldest)
+        } else {
+            Some(oldest + VANILLA_ACK_DELAY)
+        }
+    }
+
+    /// Reliable messages awaiting an ACK (`messagesInResendBuffer`).
+    pub(crate) fn vanilla_messages_in_flight(&self) -> usize {
+        self.vanilla_ref().resend.len()
+    }
+
+    /// No pending ACKs (`DISCONNECT_ON_NO_ACK` close condition).
+    pub(crate) fn vanilla_acks_pending(&self) -> bool {
+        self.vanilla_ref().oldest_unsent_ack.is_some()
     }
 
     /// Reliable frame bytes ACKed since the last call (manager queue cap).
@@ -180,74 +362,142 @@ impl Session {
         })
     }
 
-    /// `resend_map.go:retransmit` (sample `2 × age`) followed by
-    /// `conn.go:sendDatagram` (fresh sequence, new timestamp).
-    fn vanilla_retransmit(&mut self, mut tracked: TrackedDatagram, now: Instant) -> Datagram {
-        self.vanilla_mut().record(now, tracked.send_time, 2);
-        let seq = self.datagram_write_index;
-        self.datagram_write_index = seq.next();
-        tracked.datagram.header.sequence = seq;
-        tracked.send_time = now;
-        tracked.next_send = now;
-        let datagram = tracked.datagram.clone();
-        self.sent_datagrams.insert(seq, tracked);
-        datagram
-    }
+    /// `ReliabilityLayer::Update` (lens RL_010): ACKs if due, one NAK
+    /// datagram, then resends and new messages packed into datagrams.
+    ///
+    /// Out of line: inlined into `on_tick`/`build_data_datagram` it made
+    /// those Optimized entry points save every callee-saved register.
+    #[inline(never)]
+    fn vanilla_update(&mut self, now: Instant) {
+        self.process_incoming_acks_naks(now);
+        self.prune_expired_splits(now);
+        let mtu = self.mtu;
+        let vanilla = self.vanilla.as_deref_mut().expect("Vanilla session");
+        vanilla.last_update = Some(now);
 
-    /// go-raknet `conn.go:sendAcknowledgement`: everything pending, sorted,
-    /// merged and chunked exactly like `acknowledgement.write`.
-    fn vanilla_feedback(&mut self, ack: bool, out: &mut Vec<Datagram>) {
-        let queue = if ack {
-            &mut self.outgoing_acks
-        } else {
-            &mut self.outgoing_naks
-        };
-        let mut ranges = Vec::new();
-        queue.drain_into(&mut ranges);
-        if ranges.is_empty() {
-            return;
+        if let Some(oldest) = vanilla.oldest_unsent_ack
+            && (vanilla.ack_now || !vanilla.cc.rtt_known() || oldest + VANILLA_ACK_DELAY <= now)
+        {
+            let mut ranges = Vec::new();
+            self.outgoing_acks.drain_into(&mut ranges);
+            for chunk in mojang_ack_chunks(ranges, mtu) {
+                vanilla.ready.push_back(feedback_datagram(chunk, true));
+            }
+            vanilla.oldest_unsent_ack = None;
+            vanilla.ack_now = false;
         }
-        let flags = DatagramFlags::VALID
-            | if ack {
-                DatagramFlags::ACK
-            } else {
-                DatagramFlags::NACK
+        let mut naks = Vec::new();
+        self.outgoing_naks.drain_into(&mut naks);
+        if let Some(chunk) = mojang_ack_chunks(naks, mtu).into_iter().next() {
+            // One NAK datagram per update; the rest of the list is cleared.
+            vanilla.ready.push_back(feedback_datagram(chunk, false));
+        }
+
+        let slow_start = vanilla.cc.in_slow_start();
+        let continuous = vanilla.bandwidth_exceeded;
+        vanilla.bandwidth_exceeded = !self.outgoing_heap.is_empty();
+        vanilla.cc.is_continuous_send = continuous;
+        let retransmission_budget = vanilla.unacked_bytes;
+        let transmission_budget = vanilla.cc.transmission_bandwidth(vanilla.unacked_bytes);
+        let capacity = vanilla_datagram_capacity(mtu);
+
+        let mut datagrams: Vec<(Vec<EncapsulatedPacket>, Vec<u32>)> = Vec::new();
+        let mut current: (Vec<EncapsulatedPacket>, Vec<u32>) = (Vec::new(), Vec::new());
+        let mut current_size = 0usize;
+        let mut total = 0usize;
+        let mut add =
+            |packet: EncapsulatedPacket,
+             number: Option<u32>,
+             datagrams: &mut Vec<(Vec<EncapsulatedPacket>, Vec<u32>)>| {
+                let size = packet.size();
+                if current_size + size > capacity && !current.0.is_empty() {
+                    datagrams.push(std::mem::take(&mut current));
+                    current_size = 0;
+                }
+                current_size += size;
+                total += size;
+                current.0.push(packet);
+                current.1.extend(number);
+                total
             };
-        for chunk in ack_queue::go_ack_chunks(ranges, self.mtu) {
-            let payload = AckNackPayload { ranges: chunk };
-            out.push(Datagram {
+
+        // Resends: the head of the resend list while due.
+        let mut sent = 0usize;
+        while sent < retransmission_budget {
+            let Some(&(number, generation)) = vanilla.resend_order.front() else {
+                break;
+            };
+            let live = vanilla
+                .resend
+                .get(&number)
+                .filter(|entry| entry.generation == generation);
+            let Some(entry) = live else {
+                vanilla.resend_order.pop_front();
+                continue;
+            };
+            if entry.next_action > now {
+                break;
+            }
+            vanilla.resend_order.pop_front();
+            let mut entry = vanilla.resend.remove(&number).expect("live entry");
+            vanilla.cc.on_resend(self.datagram_write_index);
+            entry.next_action = now + vanilla.cc.rto();
+            let packet = entry.packet.clone();
+            vanilla.push_resend(number, entry.packet, entry.next_action);
+            sent = add(packet, Some(number), &mut datagrams);
+        }
+
+        // New messages within the window while a resend slot is free.
+        while sent < transmission_budget {
+            let slot_owner = (self.reliability_write_index.value())
+                .wrapping_sub(VANILLA_RESEND_SLOTS)
+                & 0x00ff_ffff;
+            if vanilla.resend.contains_key(&slot_owner) {
+                break;
+            }
+            let Some(queued) = self.outgoing_heap.pop() else {
+                break;
+            };
+            let mut packet = queued.pkt;
+            let number = if packet.header.reliability.is_reliable() {
+                let index = self.reliability_write_index;
+                self.reliability_write_index = index.next();
+                packet.reliable_index = Some(index);
+                vanilla.unacked_bytes += packet.size();
+                vanilla.push_resend(index.value(), packet.clone(), now + vanilla.cc.rto());
+                Some(index.value())
+            } else {
+                None
+            };
+            sent = add(packet, number, &mut datagrams);
+        }
+        if !current.0.is_empty() {
+            datagrams.push(current);
+        }
+
+        for (index, (frames, numbers)) in datagrams.into_iter().enumerate() {
+            let seq = self.datagram_write_index;
+            self.datagram_write_index = seq.next();
+            let mut flags = DatagramFlags::VALID;
+            if slow_start {
+                flags |= DatagramFlags::HAS_B_AND_AS;
+            }
+            if continuous || index > 0 {
+                flags |= DatagramFlags::CONTINUOUS_SEND;
+            }
+            if vanilla.history.len() >= VANILLA_HISTORY_LEN {
+                vanilla.history.pop_front();
+                vanilla.history_base = vanilla.history_base.next();
+            }
+            vanilla.history.push_back(Some((now, numbers)));
+            vanilla.ready.push_back(Datagram {
                 header: DatagramHeader {
                     flags,
-                    sequence: Sequence24::new(0),
+                    sequence: seq,
                 },
-                payload: if ack {
-                    DatagramPayload::Ack(payload)
-                } else {
-                    DatagramPayload::Nak(payload)
-                },
+                payload: DatagramPayload::EncapsulatedPackets(frames),
             });
         }
-    }
-
-    /// Vanilla RTT as `resend_map.go:rtt` would compute it now.
-    pub(crate) fn vanilla_rtt(&mut self, now: Instant) -> std::time::Duration {
-        self.vanilla_mut().rtt(now)
-    }
-
-    /// Unacknowledged datagrams (`len(conn.retransmission.unacknowledged)`).
-    pub(crate) fn unacknowledged(&self) -> usize {
-        self.sent_datagrams.len()
-    }
-
-    /// Drop the resend state (`conn.go:closeImmediately`).
-    pub(crate) fn clear_unacknowledged(&mut self) {
-        self.sent_datagrams.clear();
-        self.vanilla_mut().resend_ready.clear();
-    }
-
-    /// `conn.go:startTicking` tick counter.
-    pub(crate) fn vanilla_ticks(&self) -> u64 {
-        self.vanilla.as_ref().map_or(0, |vanilla| vanilla.ticks)
     }
 }
 
@@ -258,17 +508,14 @@ mod tests {
     use bytes::Bytes;
 
     use super::*;
-    use crate::protocol::{
-        ack::SequenceRange, encapsulated_packet::EncapsulatedPacket, reliability::Reliability,
-        state::RakPriority,
-    };
+    use crate::protocol::{reliability::Reliability, state::RakPriority};
     use crate::session::{SessionTunables, TransmissionPolicy};
 
-    fn session(policy: TransmissionPolicy, mtu: usize) -> Session {
+    fn session(mtu: usize) -> Session {
         Session::with_tunables(
             mtu,
             SessionTunables {
-                transmission: policy,
+                transmission: TransmissionPolicy::Vanilla,
                 ..Default::default()
             },
         )
@@ -289,6 +536,13 @@ mod tests {
         std::iter::from_fn(|| session.next_vanilla_datagram(now)).collect()
     }
 
+    fn data(datagrams: &[Datagram]) -> Vec<&Datagram> {
+        datagrams
+            .iter()
+            .filter(|d| matches!(d.payload, DatagramPayload::EncapsulatedPackets(_)))
+            .collect()
+    }
+
     fn frames(datagram: &Datagram) -> &[EncapsulatedPacket] {
         match &datagram.payload {
             DatagramPayload::EncapsulatedPackets(frames) => frames,
@@ -296,22 +550,26 @@ mod tests {
         }
     }
 
-    fn ranges(datagram: &Datagram) -> Vec<(u32, u32)> {
-        match &datagram.payload {
-            DatagramPayload::Ack(payload) | DatagramPayload::Nak(payload) => payload
-                .ranges
-                .iter()
-                .map(|range| (range.start.value(), range.end.value()))
-                .collect(),
-            other => panic!("expected feedback, got {other:?}"),
-        }
+    fn feedback(datagrams: &[Datagram], ack: bool) -> Vec<Vec<(u32, u32)>> {
+        datagrams
+            .iter()
+            .filter_map(|d| match (&d.payload, ack) {
+                (DatagramPayload::Ack(p), true) | (DatagramPayload::Nak(p), false) => Some(
+                    p.ranges
+                        .iter()
+                        .map(|r| (r.start.value(), r.end.value()))
+                        .collect(),
+                ),
+                _ => None,
+            })
+            .collect()
     }
 
-    fn ack(session: &mut Session, seq: u32) {
+    fn ack(session: &mut Session, first: u32, last: u32) {
         session.handle_ack_payload(AckNackPayload {
             ranges: vec![SequenceRange {
-                start: Sequence24::new(seq),
-                end: Sequence24::new(seq),
+                start: Sequence24::new(first),
+                end: Sequence24::new(last),
             }],
         });
     }
@@ -325,194 +583,328 @@ mod tests {
         });
     }
 
-    /// DG-1/DG-2: go-raknet `conn.go:sendDatagram` writes one frame per
-    /// datagram with flags 0x84, including split fragments and bursts.
+    /// DG-1/DG-2: messages are packed up to `MTU - 37` bytes; the first
+    /// datagram of an update is 0x84 (slow start, not continuous), later
+    /// ones in the same update 0x8c.
     #[test]
-    fn vanilla_one_frame_per_datagram_with_needs_bas_flag() {
+    fn packs_messages_and_flags_continuous_send_after_the_first_datagram() {
         let now = Instant::now();
-        let mut s = session(TransmissionPolicy::Vanilla, 1492);
-        for _ in 0..3 {
+        let mut s = session(1400);
+        for _ in 0..40 {
             queue(
                 &mut s,
-                10,
+                60,
                 Reliability::ReliableOrdered,
                 RakPriority::Normal,
             );
         }
+        let out = drain(&mut s, now);
+        let flags: Vec<u8> = out.iter().map(|d| d.header.flags.bits()).collect();
+        assert_eq!(flags, vec![0x84, 0x8c]);
+        // 60-byte payload + 10-byte header: 19 per datagram (19·70 = 1330 ≤ 1363).
+        assert_eq!(frames(&out[0]).len(), 19);
+        assert!(out[0].size() <= 1400 - 28);
+        let numbers: Vec<u32> = out
+            .iter()
+            .flat_map(frames)
+            .map(|f| f.reliable_index.unwrap().value())
+            .collect();
+        assert_eq!(numbers, (0..numbers.len() as u32).collect::<Vec<_>>());
+    }
+
+    /// Lets the window, not cwnd, bound a test: slow start as if 2000
+    /// datagrams had been ACKed while continuously sending.
+    fn open_window(s: &mut Session) {
+        let cc = &mut s.vanilla_mut().cc;
+        cc.is_continuous_send = true;
+        for seq in 0..2000 {
+            cc.on_ack(Sequence24::new(seq), Sequence24::new(seq + 1));
+        }
+        cc.is_continuous_send = false;
+    }
+
+    /// CC-1: the BDS capture's slow start: two datagrams, then four, eight…
+    /// as each round of ACKs arrives while the queue stays backlogged.
+    #[test]
+    fn slow_start_doubles_the_burst_per_acked_round() {
+        let mut now = Instant::now();
+        let mut s = session(1400);
         queue(
             &mut s,
-            4000,
+            200_000,
             Reliability::ReliableOrdered,
             RakPriority::Normal,
         );
-        let datagrams = drain(&mut s, now);
-        assert_eq!(datagrams.len(), 3 + 3);
-        for (index, datagram) in datagrams.iter().enumerate() {
-            assert_eq!(datagram.header.flags.bits(), 0x84);
-            assert_eq!(datagram.header.sequence.value(), index as u32);
-            assert_eq!(frames(datagram).len(), 1);
+        let mut bursts = Vec::new();
+        let mut next = 0;
+        for _ in 0..5 {
+            let sent = data(&drain(&mut s, now)).len() as u32;
+            bursts.push(sent);
+            now += Duration::from_millis(20);
+            ack(&mut s, next, next + sent - 1);
+            next += sent;
         }
-
-        let mut optimized = session(TransmissionPolicy::Optimized, 1492);
-        for _ in 0..3 {
-            queue(
-                &mut optimized,
-                10,
-                Reliability::ReliableOrdered,
-                RakPriority::Normal,
-            );
-        }
-        let packed = optimized.build_data_datagram(now).unwrap();
-        assert_eq!(frames(&packed).len(), 3);
+        // One window (1372 bytes) plus the datagram that crossed it, then
+        // +1372 bytes of window per ACKed datagram.
+        assert_eq!(bursts, vec![2, 4, 8, 16, 32]);
     }
 
-    /// REL-2/REL-3/DG-5: frames leave in write order with consecutive message
-    /// and order indices; RakNet priorities do not reorder them.
+    /// REL-2: message numbers are assigned when a message is sent, so a
+    /// higher-priority message queued later gets the lower number.
     #[test]
-    fn vanilla_sends_in_write_order_ignoring_priority() {
+    fn message_numbers_follow_send_order_not_queue_order() {
         let now = Instant::now();
-        let mut s = session(TransmissionPolicy::Vanilla, 1492);
-        for priority in [RakPriority::Low, RakPriority::High, RakPriority::Immediate] {
-            queue(&mut s, 10, Reliability::ReliableOrdered, priority);
-        }
-        let indices: Vec<_> = drain(&mut s, now)
+        let mut s = session(1400);
+        queue(&mut s, 10, Reliability::ReliableOrdered, RakPriority::Low);
+        queue(&mut s, 10, Reliability::Reliable, RakPriority::Immediate);
+        let out = drain(&mut s, now);
+        let sent: Vec<(Reliability, u32)> = frames(&out[0])
             .iter()
-            .map(|datagram| {
-                let frame = &frames(datagram)[0];
-                (
-                    frame.reliable_index.unwrap().value(),
-                    frame.ordering_index.unwrap().value(),
-                    frame.ordering_channel.unwrap(),
-                )
-            })
+            .map(|f| (f.header.reliability, f.reliable_index.unwrap().value()))
             .collect();
-        assert_eq!(indices, [(0, 0, 0), (1, 1, 0), (2, 2, 0)]);
+        assert_eq!(
+            sent,
+            vec![
+                (Reliability::Reliable, 0),
+                (Reliability::ReliableOrdered, 1)
+            ]
+        );
     }
 
-    /// REL-11/MTU-10: go-raknet `packet.go:split` budgets
-    /// `mtu - 28 - 14` per frame (`- 10` more once split), for every reliability.
+    /// REL-5/REL-11: fragments carry at most `MTU - 60` bytes and an
+    /// unreliable message is upgraded to reliable once split.
     #[test]
-    fn vanilla_split_threshold_uses_go_constant_overhead() {
+    fn split_fragments_are_mtu_minus_60_and_reliable() {
         let now = Instant::now();
-        for reliability in [Reliability::Unreliable, Reliability::ReliableOrdered] {
-            let mut s = session(TransmissionPolicy::Vanilla, 1492);
-            queue(&mut s, 1492 - 42, reliability, RakPriority::Normal);
-            let single = drain(&mut s, now);
-            assert_eq!(single.len(), 1);
-            assert!(frames(&single[0])[0].split.is_none());
+        let mut s = session(1400);
+        open_window(&mut s);
+        queue(&mut s, 1340, Reliability::Unreliable, RakPriority::Normal);
+        queue(&mut s, 1341, Reliability::Unreliable, RakPriority::Normal);
+        let out = drain(&mut s, now);
+        let all: Vec<&EncapsulatedPacket> = out.iter().flat_map(frames).collect();
+        assert_eq!(all[0].split, None);
+        assert_eq!(all[0].header.reliability, Reliability::Unreliable);
+        let fragments: Vec<(usize, Reliability)> = all[1..]
+            .iter()
+            .map(|f| (f.payload.len(), f.header.reliability))
+            .collect();
+        assert_eq!(
+            fragments,
+            vec![(1340, Reliability::Reliable), (1, Reliability::Reliable)]
+        );
+    }
 
-            queue(&mut s, 1492 - 41, reliability, RakPriority::Normal);
-            let split = drain(&mut s, now);
-            let lengths: Vec<_> = split.iter().map(|d| frames(d)[0].payload.len()).collect();
-            assert_eq!(lengths, [1492 - 52, 11]);
-            let encoded: Vec<_> = split
-                .iter()
-                .map(|d| {
-                    let mut out = bytes::BytesMut::new();
-                    d.encode(&mut out).unwrap();
-                    out.len()
-                })
-                .collect();
-            // Every datagram fits the UDP payload of the MTU.
-            assert!(encoded.iter().all(|&len| len <= 1492 - 28), "{encoded:?}");
-        }
-        // Optimized budgets the actual (smaller) Unreliable header.
-        let mut optimized = session(TransmissionPolicy::Optimized, 1492);
+    /// ACK-1: ACKs leave at once before the first RTT sample; afterwards
+    /// only when the oldest unacknowledged datagram is 10 ms old.
+    #[test]
+    fn acks_are_immediate_until_rtt_is_known_then_wait_10ms() {
+        let start = Instant::now();
+        let mut s = session(1400);
+        s.vanilla_accept_sequence(Sequence24::new(0), start)
+            .unwrap();
+        assert_eq!(s.vanilla_ack_deadline(), Some(start));
+        assert_eq!(feedback(&drain(&mut s, start), true), vec![vec![(0, 0)]]);
+
+        // An RTT sample: send one message and have it ACKed.
+        queue(&mut s, 10, Reliability::Reliable, RakPriority::Normal);
+        let t1 = start + Duration::from_millis(1);
+        drain(&mut s, t1);
+        ack(&mut s, 0, 0);
+        let t2 = start + Duration::from_millis(2);
+        drain(&mut s, t2);
+
+        s.vanilla_accept_sequence(Sequence24::new(1), t2).unwrap();
+        s.vanilla_accept_sequence(Sequence24::new(2), t2 + Duration::from_millis(4))
+            .unwrap();
+        assert_eq!(
+            s.vanilla_ack_deadline(),
+            Some(t2 + Duration::from_millis(10))
+        );
+        assert!(drain(&mut s, t2 + Duration::from_millis(9)).is_empty());
+        let out = drain(&mut s, t2 + Duration::from_millis(10));
+        assert_eq!(feedback(&out, true), vec![vec![(1, 2)]]);
+        assert_eq!(s.vanilla_ack_deadline(), None);
+    }
+
+    /// ACK-1: a completed split message is ACKed without waiting.
+    #[test]
+    fn split_completion_acks_at_once() {
+        let start = Instant::now();
+        let mut sender = session(576);
+        let mut receiver = session(576);
+        // Give the receiver an RTT sample so ACKs would otherwise wait.
         queue(
-            &mut optimized,
-            1492 - 35,
-            Reliability::Unreliable,
+            &mut receiver,
+            10,
+            Reliability::Reliable,
             RakPriority::Normal,
         );
-        let datagram = optimized.build_data_datagram(now).unwrap();
-        assert!(frames(&datagram)[0].split.is_none());
+        drain(&mut receiver, start);
+        ack(&mut receiver, 0, 0);
+        drain(&mut receiver, start + Duration::from_millis(1));
+
+        queue(
+            &mut sender,
+            600,
+            Reliability::ReliableOrdered,
+            RakPriority::Normal,
+        );
+        let now = start + Duration::from_millis(2);
+        for datagram in data(&drain(&mut sender, now)) {
+            receiver
+                .vanilla_accept_sequence(datagram.header.sequence, now)
+                .unwrap();
+            receiver
+                .handle_data_payload(frames(datagram).to_vec(), now)
+                .unwrap();
+        }
+        assert_eq!(receiver.vanilla_ack_deadline(), Some(now));
+        assert_eq!(
+            feedback(&drain(&mut receiver, now), true),
+            vec![vec![(0, 1)]]
+        );
     }
 
-    /// REL-5: go-raknet keeps the message reliability for fragments.
+    /// ACK-3/REL-8: a gap is NAKed by the next update (number by number,
+    /// at most 1000), duplicates are ACKed again, and a gap above 50000
+    /// rejects the datagram.
     #[test]
-    fn vanilla_split_keeps_message_reliability() {
+    fn gaps_are_naked_immediately_and_duplicates_are_reacked() {
         let now = Instant::now();
-        let mut s = session(TransmissionPolicy::Vanilla, 1492);
-        queue(&mut s, 3000, Reliability::Unreliable, RakPriority::Normal);
-        let datagrams = drain(&mut s, now);
-        assert_eq!(datagrams.len(), 3);
-        for datagram in &datagrams {
-            let frame = &frames(datagram)[0];
-            assert_eq!(frame.header.reliability, Reliability::Unreliable);
-            assert!(frame.reliable_index.is_none());
-            assert!(frame.split.is_some());
+        let mut s = session(1400);
+        for seq in [0, 3, 3, 1] {
+            assert!(
+                s.vanilla_accept_sequence(Sequence24::new(seq), now)
+                    .unwrap()
+            );
         }
-        // Unreliable datagrams are never tracked for resend.
-        assert_eq!(s.unacknowledged(), 0);
+        let out = drain(&mut s, now);
+        assert_eq!(feedback(&out, false), vec![vec![(1, 2)]]);
+        assert_eq!(feedback(&out, true), vec![vec![(0, 1), (3, 3)]]);
+
+        assert!(
+            s.vanilla_accept_sequence(Sequence24::new(2004), now)
+                .unwrap()
+        );
+        let later = now + Duration::from_millis(1);
+        assert_eq!(
+            feedback(&drain(&mut s, later), false),
+            vec![vec![(1004, 2003)]]
+        );
+        assert!(
+            !s.vanilla_accept_sequence(Sequence24::new(2005 + 50_001), later)
+                .unwrap()
+        );
+    }
+
+    /// ACK-6: a NAK makes the datagram's messages due; the next update
+    /// resends them in a fresh datagram, packed with new data, keeping their
+    /// message numbers.
+    #[test]
+    fn nak_resends_messages_repacked_with_new_data() {
+        let now = Instant::now();
+        let mut s = session(1400);
+        queue(
+            &mut s,
+            10,
+            Reliability::ReliableOrdered,
+            RakPriority::Normal,
+        );
+        let first = drain(&mut s, now);
+        assert_eq!(first[0].header.sequence.value(), 0);
+        queue(
+            &mut s,
+            20,
+            Reliability::ReliableOrdered,
+            RakPriority::Normal,
+        );
+        nak(&mut s, 0);
+        let later = now + Duration::from_millis(5);
+        let out = drain(&mut s, later);
+        assert_eq!(out.len(), 1);
+        assert_eq!(out[0].header.sequence.value(), 1);
+        let numbers: Vec<u32> = frames(&out[0])
+            .iter()
+            .map(|f| f.reliable_index.unwrap().value())
+            .collect();
+        assert_eq!(numbers, vec![0, 1]);
+        assert_eq!(s.vanilla_messages_in_flight(), 2);
+        ack(&mut s, 1, 1);
+        drain(&mut s, later + Duration::from_millis(1));
+        assert_eq!(s.vanilla_messages_in_flight(), 0);
+    }
+
+    /// CC-2: an unacknowledged message is resent every RTO without
+    /// exponential backoff (2 s before the first RTT sample).
+    #[test]
+    fn timeout_resends_repeat_every_rto_without_backoff() {
+        let start = Instant::now();
+        let mut s = session(1400);
+        queue(&mut s, 10, Reliability::Reliable, RakPriority::Normal);
+        drain(&mut s, start);
+        let mut resends = Vec::new();
+        let mut now = start;
+        for _ in 0..799 {
+            now += Duration::from_millis(10);
+            if !data(&drain(&mut s, now)).is_empty() {
+                resends.push(now.duration_since(start).as_millis());
+            }
+        }
+        assert_eq!(resends, vec![2000, 4000, 6000]);
+    }
+
+    /// CC-1/DG-2: a NAK while continuously sending halves the slow-start
+    /// threshold below the window, so the next datagrams drop the 0x04 bit
+    /// (0x88 instead of 0x8c).
+    #[test]
+    fn needs_bas_flag_clears_once_the_window_exceeds_the_threshold() {
+        let mut now = Instant::now();
+        let mut s = session(1400);
+        queue(
+            &mut s,
+            100_000,
+            Reliability::ReliableOrdered,
+            RakPriority::Normal,
+        );
+        let mut next = 0;
+        for _ in 0..3 {
+            let sent = data(&drain(&mut s, now)).len() as u32;
+            now += Duration::from_millis(5);
+            ack(&mut s, next, next + sent - 1);
+            next += sent;
+        }
+        let burst = data(&drain(&mut s, now)).len() as u32;
+        assert!(burst > 1);
+        nak(&mut s, next);
+        now += Duration::from_millis(5);
+        let out = drain(&mut s, now);
+        let flags: Vec<u8> = data(&out).iter().map(|d| d.header.flags.bits()).collect();
+        assert!(!flags.is_empty());
+        assert!(flags.iter().all(|&f| f == 0x88), "{flags:x?}");
+    }
+
+    /// CC-1/REL-12: at most 512 reliable messages are in flight.
+    #[test]
+    fn new_sends_stop_at_512_messages_in_flight() {
+        let now = Instant::now();
+        let mut s = session(1400);
+        open_window(&mut s);
+        for _ in 0..600 {
+            queue(&mut s, 1, Reliability::Reliable, RakPriority::Normal);
+        }
+        drain(&mut s, now);
+        assert_eq!(s.vanilla_messages_in_flight(), 512);
+        assert_eq!(s.outgoing_heap.len(), 88);
     }
 
     /// REL-10: split IDs advance only for split messages.
     #[test]
     fn split_ids_advance_only_for_split_messages() {
         let now = Instant::now();
-        for policy in [TransmissionPolicy::Vanilla, TransmissionPolicy::Optimized] {
-            let mut s = session(policy, 1492);
-            for len in [10, 3000, 10, 3000] {
-                queue(
-                    &mut s,
-                    len,
-                    Reliability::ReliableOrdered,
-                    RakPriority::Normal,
-                );
-            }
-            let mut ids = Vec::new();
-            while let Some(datagram) = s.build_data_datagram(now) {
-                for frame in frames(&datagram) {
-                    if let Some(split) = &frame.split
-                        && !ids.contains(&split.id)
-                    {
-                        ids.push(split.id);
-                    }
-                }
-                // Keep Optimized's window open.
-                if !policy.is_vanilla() {
-                    s.handle_ack_payload(AckNackPayload {
-                        ranges: vec![SequenceRange {
-                            start: datagram.header.sequence,
-                            end: datagram.header.sequence,
-                        }],
-                    });
-                    s.process_incoming_acks_naks(now);
-                }
-            }
-            assert_eq!(ids, [0, 1], "{policy:?}");
-        }
-    }
-
-    /// CC-1: no congestion window; everything queued is sent at once.
-    #[test]
-    fn vanilla_sends_without_a_congestion_window() {
-        let now = Instant::now();
-        let mut vanilla = session(TransmissionPolicy::Vanilla, 1492);
-        let mut optimized = session(TransmissionPolicy::Optimized, 1492);
-        for s in [&mut vanilla, &mut optimized] {
-            for _ in 0..100 {
-                queue(s, 1000, Reliability::ReliableOrdered, RakPriority::Normal);
-            }
-        }
-        assert_eq!(drain(&mut vanilla, now).len(), 100);
-        assert_eq!(vanilla.unacknowledged(), 100);
-        let mut sent = 0;
-        while optimized.build_data_datagram(now).is_some() {
-            sent += 1;
-        }
-        assert!(sent < 100, "Optimized keeps its congestion window");
-    }
-
-    /// ACK-5/ACK-6/CC-3: ACK samples count once, NAK resends twice their age;
-    /// the RTT is their mean.
-    #[test]
-    fn vanilla_rtt_is_the_mean_of_recent_samples() {
-        let start = Instant::now();
-        let mut s = session(TransmissionPolicy::Vanilla, 1492);
+        let mut s = session(576);
         queue(
             &mut s,
-            10,
+            600,
             Reliability::ReliableOrdered,
             RakPriority::Normal,
         );
@@ -522,176 +914,62 @@ mod tests {
             Reliability::ReliableOrdered,
             RakPriority::Normal,
         );
-        drain(&mut s, start);
-        ack(&mut s, 0);
-        drain(&mut s, start + Duration::from_millis(40));
-        nak(&mut s, 1);
-        drain(&mut s, start + Duration::from_millis(60));
-        assert_eq!(
-            s.vanilla_rtt(start + Duration::from_millis(60)),
-            Duration::from_millis(80)
+        queue(
+            &mut s,
+            600,
+            Reliability::ReliableOrdered,
+            RakPriority::Normal,
         );
-        // Samples older than five seconds are forgotten: back to 50 ms.
-        assert_eq!(
-            s.vanilla_rtt(start + Duration::from_millis(5061)),
-            Duration::from_millis(50)
-        );
-    }
-
-    /// ACK-6: a NAK resends immediately with a fresh datagram sequence while
-    /// keeping the frame's indices.
-    #[test]
-    fn vanilla_nak_resends_immediately_with_fresh_sequences() {
-        let now = Instant::now();
-        let mut s = session(TransmissionPolicy::Vanilla, 1492);
-        for _ in 0..3 {
-            queue(
-                &mut s,
-                10,
-                Reliability::ReliableOrdered,
-                RakPriority::Normal,
-            );
+        s.vanilla_mut().cc.is_continuous_send = true;
+        for seq in 0..10 {
+            s.vanilla_mut()
+                .cc
+                .on_ack(Sequence24::new(seq), Sequence24::new(seq + 1));
         }
-        drain(&mut s, now);
-        nak(&mut s, 1);
-        let resent = drain(&mut s, now);
-        assert_eq!(resent.len(), 1);
-        assert_eq!(resent[0].header.sequence.value(), 3);
-        assert_eq!(resent[0].header.flags.bits(), 0x84);
-        assert_eq!(frames(&resent[0])[0].reliable_index.unwrap().value(), 1);
-        // The old sequence is gone; the new one awaits its ACK.
-        nak(&mut s, 1);
-        assert!(drain(&mut s, now).is_empty());
-        assert_eq!(s.unacknowledged(), 3);
-    }
-
-    /// ACK-6/RAKNET-01: one NAK covering 8192 sequences past the write index
-    /// resends only the datagrams that were awaiting an ACK, once each, even
-    /// though their fresh sequences fall inside the NAKed range (also when a
-    /// second, overlapping NAK is queued before processing).
-    #[test]
-    fn vanilla_nak_past_the_write_index_resends_only_existing_datagrams() {
-        let now = Instant::now();
-        let mut s = session(TransmissionPolicy::Vanilla, 1492);
-        for _ in 0..3 {
-            queue(
-                &mut s,
-                10,
-                Reliability::ReliableOrdered,
-                RakPriority::Normal,
-            );
-        }
-        drain(&mut s, now);
-        for _ in 0..2 {
-            s.handle_nack_payload(AckNackPayload {
-                ranges: vec![SequenceRange {
-                    start: Sequence24::new(0),
-                    end: Sequence24::new(8191),
-                }],
-            });
-        }
-        let resent = drain(&mut s, now);
-        let sequences: Vec<_> = resent.iter().map(|d| d.header.sequence.value()).collect();
-        assert_eq!(sequences, [3, 4, 5]);
-        let indices: Vec<_> = resent
+        let ids: Vec<Option<u16>> = drain(&mut s, now)
             .iter()
-            .map(|d| frames(d)[0].reliable_index.unwrap().value())
+            .flat_map(frames)
+            .map(|f| f.split.as_ref().map(|split| split.id))
             .collect();
-        assert_eq!(indices, [0, 1, 2]);
-        assert_eq!(s.unacknowledged(), 3);
+        assert_eq!(
+            ids,
+            vec![Some(0), Some(0), None, Some(1), Some(1)],
+            "{ids:?}"
+        );
     }
 
-    /// CC-2: unacked datagrams older than 1.5 × RTT are resent on every third
-    /// 100 ms tick only.
+    /// ACK-2: ranges are merged and each datagram holds what fits the
+    /// `(MTU - 28) * 8 - 72` bit budget with Jenkins' 65-bit estimate.
     #[test]
-    fn vanilla_timeout_resends_on_every_third_tick_after_one_and_a_half_rtt() {
-        let start = Instant::now();
-        let tick = |n: u32| start + Duration::from_millis(100) * n;
-        let mut s = session(TransmissionPolicy::Vanilla, 1492);
-        queue(
-            &mut s,
-            10,
-            Reliability::ReliableOrdered,
-            RakPriority::Normal,
+    fn ack_chunks_merge_and_respect_the_range_list_budget() {
+        let singles: Vec<SequenceRange> = (0..1000u32)
+            .map(|seq| SequenceRange {
+                start: Sequence24::new(seq * 2),
+                end: Sequence24::new(seq * 2),
+            })
+            .collect();
+        let chunks = mojang_ack_chunks(singles, 576);
+        // (576 - 28)·8 - 72 = 4312 bits; the k-th single (32 bits) is added
+        // while 16 + 32·(k - 1) + 65 ≤ 4312, so 133 fit.
+        assert_eq!(chunks[0].len(), 133);
+        assert_eq!(chunks.iter().map(Vec::len).sum::<usize>(), 1000);
+        let merged = mojang_ack_chunks(
+            vec![
+                SequenceRange {
+                    start: Sequence24::new(5),
+                    end: Sequence24::new(9),
+                },
+                SequenceRange {
+                    start: Sequence24::new(0),
+                    end: Sequence24::new(4),
+                },
+            ],
+            1400,
         );
-        drain(&mut s, start);
-        assert!(s.on_tick(tick(1)).is_empty());
-        assert!(s.on_tick(tick(2)).is_empty());
-        queue(
-            &mut s,
-            10,
-            Reliability::ReliableOrdered,
-            RakPriority::Normal,
+        assert_eq!(merged.len(), 1);
+        assert_eq!(
+            (merged[0][0].start.value(), merged[0][0].end.value()),
+            (0, 9)
         );
-        drain(&mut s, start + Duration::from_millis(250));
-        // RTT has no samples (50 ms): delay 75 ms. Only the first datagram
-        // (age 300 ms) is due; the second (age 50 ms) is not.
-        let resent = s.on_tick(tick(3));
-        assert_eq!(resent.len(), 1);
-        assert_eq!(resent[0].header.sequence.value(), 2);
-        assert_eq!(frames(&resent[0])[0].reliable_index.unwrap().value(), 0);
-        // The resend recorded 2 × 300 ms.
-        assert_eq!(s.vanilla_rtt(tick(3)), Duration::from_millis(600));
-        // Ticks 4 and 5 never resend, however old the datagrams are.
-        assert!(s.on_tick(tick(4) + Duration::from_secs(2)).is_empty());
-        assert!(s.on_tick(tick(5) + Duration::from_secs(2)).is_empty());
-    }
-
-    /// ACK-3: the NAK delay is 1.5 × the RTT stored by the last resend check
-    /// (zero before the first check).
-    #[test]
-    fn vanilla_nak_delay_uses_rtt_stored_by_resend_checks() {
-        let start = Instant::now();
-        let mut s = session(TransmissionPolicy::Vanilla, 1492);
-        let nak_ranges = |s: &mut Session, now: Instant| -> Vec<(u32, u32)> {
-            drain(s, now).iter().flat_map(ranges).collect()
-        };
-        s.accept_datagram_sequence(Sequence24::new(0), || start)
-            .unwrap();
-        s.accept_datagram_sequence(Sequence24::new(2), || start)
-            .unwrap();
-        assert_eq!(nak_ranges(&mut s, start), [(1, 1)]);
-
-        for n in 1..=3 {
-            s.on_tick(start + Duration::from_millis(100) * n);
-        }
-        // Stored RTT is now 50 ms: gaps wait for a datagram 75 ms old.
-        let t1 = start + Duration::from_secs(1);
-        s.accept_datagram_sequence(Sequence24::new(4), || t1)
-            .unwrap();
-        assert!(nak_ranges(&mut s, t1).is_empty());
-        let t2 = t1 + Duration::from_millis(74);
-        s.accept_datagram_sequence(Sequence24::new(6), || t2)
-            .unwrap();
-        assert!(nak_ranges(&mut s, t2).is_empty());
-        let t3 = t1 + Duration::from_millis(75);
-        s.accept_datagram_sequence(Sequence24::new(8), || t3)
-            .unwrap();
-        assert_eq!(nak_ranges(&mut s, t3), [(3, 3)]);
-    }
-
-    /// ACK-1: ACKs wait for the tick and cover everything received since.
-    #[test]
-    fn vanilla_acks_only_on_ticks() {
-        let now = Instant::now();
-        let mut s = session(TransmissionPolicy::Vanilla, 1492);
-        for seq in [0, 1, 3, 2] {
-            s.accept_datagram_sequence(Sequence24::new(seq), || now)
-                .unwrap();
-        }
-        // Sequence 3 arrived out of order: the zero NAK delay flushes the
-        // hole for 2 at once; the late 2 is then a duplicate (go marks NAKed
-        // gaps received).
-        let immediate = drain(&mut s, now);
-        assert!(
-            immediate
-                .iter()
-                .all(|d| matches!(d.payload, DatagramPayload::Nak(_)))
-        );
-        let tick = s.on_tick(now + Duration::from_millis(100));
-        assert_eq!(tick.len(), 1);
-        assert_eq!(tick[0].header.flags.bits(), 0xc0);
-        assert_eq!(ranges(&tick[0]), [(0, 1), (3, 3)]);
-        assert!(s.on_tick(now + Duration::from_millis(200)).is_empty());
     }
 }

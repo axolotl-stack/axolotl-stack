@@ -105,6 +105,7 @@ impl Session {
 
         // Attempt to add to split assembler (or pass through if not split)
         // Note: add() consumes the packet.
+        let was_split = enc.split.is_some();
         let assembled_opt = self.split_assembler.add(enc, now)?;
 
         // Commit only after the assembler accepted the fragment. Expired split
@@ -117,6 +118,9 @@ impl Session {
             Some(pkt) => pkt,
             None => return Ok(()), // Buffered partial split
         };
+        if was_split && self.is_vanilla() {
+            self.vanilla_split_completed();
+        }
 
         if enc.header.reliability.is_ordered() {
             self.handle_ordered(enc, out)?;
