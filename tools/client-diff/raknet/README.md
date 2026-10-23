@@ -58,9 +58,13 @@ Starts BDS and the relay, opens
 client's close), closes the game, stops everything and prints the analysis.
 With `-NoLaunch` the script neither opens nor closes the game: it prints the
 relay address (127.0.0.1, `-RelayPort`, default 39140) and records while the
-person at the machine joins it from the game's server list. The upstream is
-BDS, so the client sees BDS's own advertisement (protocol 2193, 1.26.51); no
-pong rewriting is involved.
+person at the machine joins it from the game's server list (the
+`minecraft://connect` URI did not connect on the build machine). The game
+joins the IPv4 port of the pong's advertisement, not the port it pinged, and
+BDS 1.26.51 answers RakNet pings with a 33-byte pong without advertisement
+(with that pong the game pinged every 5 s and never sent Request1), so the
+relay runs with `--advertise-relay 2193;1.26.51`: it fills the empty pong
+with a BDS-shaped advertisement naming the relay's port.
 `-Commit` copies the capture to `crates/tokio-raknet/tests/captures/real-client/`,
 which `cargo test -p tokio-raknet --test capture_diff -- --ignored` compares
 with `RaknetStream` (Vanilla): MTU probe sizes and cadence, ConnectionRequest

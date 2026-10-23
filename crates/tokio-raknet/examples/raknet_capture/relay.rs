@@ -42,6 +42,14 @@ pub struct Faults {
     /// Hold this application datagram towards the client until the next
     /// datagram towards the client has been forwarded.
     pub hold_app_s2c: Option<usize>,
+    /// Not a fault: make unconnected pongs advertise the relay, given the
+    /// server's `protocol;version` (e.g. `2193;1.26.51`). The Minecraft
+    /// client joins the IPv4 port of the pong's advertisement, not the port
+    /// it pinged, and did not join BDS 1.26.51 through the relay while its
+    /// RakNet pongs carried no advertisement (33 bytes; it advertises over
+    /// NetherNet only): it pinged every 5 s and never sent Request1.
+    /// See [`advertise_relay`].
+    pub advertise_relay: Option<String>,
 }
 
 impl Faults {
@@ -59,6 +67,55 @@ pub fn is_application(bytes: &[u8]) -> bool {
             .any(|frame| frame.split.is_some() || frame.id().is_some_and(|id| id >= 0x80)),
         _ => false,
     }
+}
+
+/// Field indexes of the IPv4 and IPv6 ports in the `MCPE;…` advertisement.
+const ADVERTISEMENT_PORT_FIELDS: (usize, usize) = (10, 11);
+
+/// An unconnected pong (`0x1c`: ID, time, GUID, magic, then an optional u16
+/// length and advertisement) rewritten to advertise the relay: an
+/// advertisement's IPv4/IPv6 port fields become `v4`/`v6`; an absent or
+/// empty advertisement is replaced by a BDS-shaped one
+/// (`MCPE;Dedicated Server;<protocol;version>;0;10;<GUID>;Bedrock level;Survival;1;<v4>;<v6>;0;`).
+/// The header is kept byte for byte. `None`: not a pong, or an
+/// advertisement without port fields (forwarded unchanged).
+pub fn advertise_relay(bytes: &[u8], protocol_version: &str, v4: u16, v6: u16) -> Option<Vec<u8>> {
+    const HEADER: usize = 1 + 8 + 8 + 16;
+    if bytes.first() != Some(&0x1c) || bytes.len() < HEADER {
+        return None;
+    }
+    let (len, text) = match bytes.get(HEADER..HEADER + 2) {
+        None => (0, ""),
+        Some(prefix) => {
+            let len = u16::from_be_bytes([prefix[0], prefix[1]]) as usize;
+            (
+                len,
+                std::str::from_utf8(bytes.get(HEADER + 2..HEADER + 2 + len)?).ok()?,
+            )
+        }
+    };
+    let text = if text.is_empty() {
+        let guid = u64::from_be_bytes(bytes[9..17].try_into().ok()?);
+        format!(
+            "MCPE;Dedicated Server;{protocol_version};0;10;{guid};Bedrock level;Survival;1;{v4};{v6};0;"
+        )
+    } else {
+        let mut fields: Vec<String> = text.split(';').map(str::to_owned).collect();
+        let (v4_index, v6_index) = ADVERTISEMENT_PORT_FIELDS;
+        if fields.len() <= v6_index {
+            return None;
+        }
+        fields[v4_index] = v4.to_string();
+        fields[v6_index] = v6.to_string();
+        fields.join(";")
+    };
+    let rest = bytes.get(HEADER + 2 + len..).unwrap_or_default();
+    let mut out = Vec::with_capacity(HEADER + 2 + text.len() + rest.len());
+    out.extend_from_slice(&bytes[..HEADER]);
+    out.extend_from_slice(&u16::try_from(text.len()).ok()?.to_be_bytes());
+    out.extend_from_slice(text.as_bytes());
+    out.extend_from_slice(rest);
+    Some(out)
 }
 
 /// xorshift64*: deterministic, dependency-free.
@@ -193,6 +250,13 @@ impl Relay {
             }
             None => None,
         };
+        let advertise = faults.advertise_relay.clone().map(|protocol_version| {
+            (
+                protocol_version,
+                address.port(),
+                address.port().wrapping_add(1),
+            )
+        });
         let mut core = Core {
             rng: Rng(faults.seed | 1),
             faults,
@@ -251,7 +315,10 @@ impl Relay {
                     received = back.recv(&mut back_buf) => {
                         let Ok(len) = received else { continue };
                         let Some(to) = client else { continue };
-                        let bytes = &back_buf[..len];
+                        let rewritten = advertise.as_ref().and_then(|(protocol_version, v4, v6)| {
+                            advertise_relay(&back_buf[..len], protocol_version, *v4, *v6)
+                        });
+                        let bytes = rewritten.as_deref().unwrap_or(&back_buf[..len]);
                         let action = core.decide(Dir::S2c, bytes, &mut s2c);
                         core.log(Dir::S2c, bytes, action);
                         match action {

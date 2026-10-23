@@ -57,7 +57,11 @@ $tools = Build-CaptureTools -Bot:($Client -eq 'gophertunnel')
 Set-BdsProperties $Runtime $Port
 $file = Join-Path $Output "$Name.jsonl"
 $clientName = $(if ($Client -eq 'minecraft') { 'minecraft (real client)' } else { 'gophertunnel 80c811b/go-raknet 87a6b7e' })
-$relayArgs = @('--scenario', "real-client-$Name", '--server', 'bds-1.26.51', '--client', $clientName, '--mtu', "$Mtu")
+# The game joins the IPv4 port advertised in the pong; BDS 1.26.51 sends
+# RakNet pongs without an advertisement, and the game never joined through
+# the relay with them. The relay therefore advertises itself (protocol 2193,
+# 1.26.51). The gophertunnel bot joins the address it dialed either way.
+$relayArgs = @('--scenario', "real-client-$Name", '--server', 'bds-1.26.51', '--client', $clientName, '--mtu', "$Mtu", '--advertise-relay', '2193;1.26.51')
 if ($Loss -gt 0) { $relayArgs += @('--loss', "$Loss", '--seed', '20261022') }
 
 $server = Start-Bds $Runtime $Port

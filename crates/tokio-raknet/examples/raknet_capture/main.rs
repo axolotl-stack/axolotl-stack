@@ -11,6 +11,10 @@
 //! Relay faults: `--mtu N`, `--loss P` (both directions) or
 //! `--loss-c2s P`/`--loss-s2c P`, `--reorder P` (or per direction),
 //! `--fault-after-ms T`, `--blackhole-c2s-after-ms T`, `--seed S`.
+//! `--advertise-relay <protocol;version>` makes unconnected pongs advertise
+//! the relay's port (the Minecraft client joins the pong's IPv4 port, not
+//! the one it pinged) and fills BDS 1.26.51's empty pongs with an
+//! advertisement for that protocol and version.
 //! The relay stops after `--duration-ms`, after `--idle-exit-ms` without
 //! traffic (once traffic started), or when a line `stop` arrives on stdin.
 
@@ -99,6 +103,7 @@ fn faults(args: &Args) -> Result<Faults, Error> {
             .get("blackhole-c2s-after-ms")?
             .map(Duration::from_millis),
         seed: args.get("seed")?.unwrap_or(0x5eed),
+        advertise_relay: args.get("advertise-relay")?,
         ..Faults::default()
     })
 }

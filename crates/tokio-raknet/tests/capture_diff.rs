@@ -167,6 +167,81 @@ fn occasional_pings(side: &Side) -> Vec<f64> {
         .collect()
 }
 
+/// The Minecraft client joins the IPv4 port of the pong's advertisement, so
+/// the real-client relay advertises itself there; BDS 1.26.51's empty
+/// RakNet pong gets a BDS-shaped advertisement; the pong header stays byte
+/// for byte.
+#[test]
+fn relay_advertises_itself_in_pongs() {
+    let mut header = vec![0x1c];
+    header.extend_from_slice(&7u64.to_be_bytes());
+    header.extend_from_slice(&0x0102_0304_0506_0708u64.to_be_bytes());
+    header.extend_from_slice(&[0x00, 0xff, 0xff, 0x00, 0xfe, 0xfe, 0xfe, 0xfe]);
+    header.extend_from_slice(&[0xfd, 0xfd, 0xfd, 0xfd, 0x12, 0x34, 0x56, 0x78]);
+    let pong = |advertisement: &str| {
+        let mut pong = header.clone();
+        pong.extend_from_slice(&(advertisement.len() as u16).to_be_bytes());
+        pong.extend_from_slice(advertisement.as_bytes());
+        pong
+    };
+    let rewrite = |bytes: &[u8]| relay::advertise_relay(bytes, "2193;1.26.51", 39140, 39141);
+    let advertisement_of = |bytes: &[u8]| {
+        assert_eq!(bytes[..33], header[..]);
+        let len = u16::from_be_bytes([bytes[33], bytes[34]]) as usize;
+        assert_eq!(bytes.len(), 35 + len);
+        String::from_utf8(bytes[35..].to_vec()).unwrap()
+    };
+
+    // Port fields replaced, everything else kept.
+    let advertisement =
+        "MCPE;Dedicated Server;2193;1.26.51;0;10;12345;Bedrock level;Survival;1;39132;39133;0;";
+    assert_eq!(
+        advertisement_of(&rewrite(&pong(advertisement)).unwrap()),
+        advertisement.replace(";39132;39133;", ";39140;39141;")
+    );
+
+    // BDS 1.26.51's 33-byte pong, or an empty advertisement: synthesised
+    // with the pong's GUID.
+    let synthesised = format!(
+        "MCPE;Dedicated Server;2193;1.26.51;0;10;{};Bedrock level;Survival;1;39140;39141;0;",
+        0x0102_0304_0506_0708u64
+    );
+    assert_eq!(advertisement_of(&rewrite(&header).unwrap()), synthesised);
+    assert_eq!(advertisement_of(&rewrite(&pong("")).unwrap()), synthesised);
+
+    // Not a pong, or an advertisement without port fields: forwarded as is.
+    assert_eq!(rewrite(&header[..20]), None);
+    let mut ping = pong(advertisement);
+    ping[0] = 0x01;
+    assert_eq!(rewrite(&ping), None);
+    assert_eq!(rewrite(&pong("MCPE;motd;2193;1.26.51;0;10")), None);
+}
+
+/// End to end: a ping through the relay (`--advertise-relay`) returns the
+/// server's advertisement with the relay's ports.
+#[tokio::test]
+async fn relay_pong_advertises_the_relay_port() {
+    let listener = vanilla_listener().await;
+    let relay = Relay::start(
+        "127.0.0.1:0".parse().unwrap(),
+        listener.local_addr(),
+        Faults {
+            advertise_relay: Some("2193;1.26.51".into()),
+            ..Faults::default()
+        },
+        None,
+    )
+    .await
+    .unwrap();
+    let advertisement = tokio_raknet::transport::ping(relay.address).await.unwrap();
+    let port = relay.address.port();
+    let expected = String::from_utf8(listener.get_advertisement())
+        .unwrap()
+        .replace(";19132;19133", &format!(";{port};{}", port + 1));
+    assert_eq!(std::str::from_utf8(&advertisement).unwrap(), expected);
+    relay.finish().await;
+}
+
 /// LS-1..LS-5 (listener offline handshake): every offline exchange of the
 /// BDS probe gets the same reply type and MTU/security fields.
 #[tokio::test]
