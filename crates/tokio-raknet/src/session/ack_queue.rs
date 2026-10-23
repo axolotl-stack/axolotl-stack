@@ -19,7 +19,9 @@ impl AckQueue {
         }
     }
 
-    #[inline]
+    // Every received datagram pushes one range; with the Vanilla path as a
+    // second caller LLVM outlined it, costing Optimized ~1 ns per datagram.
+    #[inline(always)]
     pub fn push(&mut self, range: SequenceRange) {
         // Normalize wrapping ranges before comparing raw endpoints.
         if let Some((tail, head)) = range.split_wrapping() {

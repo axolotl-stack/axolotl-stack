@@ -361,6 +361,10 @@ impl Session {
 
     /// `ReliabilityLayer::Update` (lens RL_010): ACKs if due, one NAK
     /// datagram, then resends and new messages packed into datagrams.
+    ///
+    /// Out of line: inlined into `on_tick`/`build_data_datagram` it made
+    /// those Optimized entry points save every callee-saved register.
+    #[inline(never)]
     fn vanilla_update(&mut self, now: Instant) {
         self.process_incoming_acks_naks(now);
         self.prune_expired_splits(now);
