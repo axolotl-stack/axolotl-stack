@@ -1,3 +1,8 @@
+//! Every socket in these tests binds `127.0.0.1` (listeners explicitly,
+//! clients through `client_bind_addr`): a socket on a wildcard or interface
+//! address makes Windows Firewall prompt for each new test executable path.
+//! Keep new tests on loopback.
+
 use bytes::{Bytes, BytesMut};
 use futures::{SinkExt, StreamExt};
 use std::net::SocketAddr;
@@ -339,8 +344,13 @@ async fn test_stream_addresses() {
             .await
             .expect("connect failed");
 
-        // Client sees its local addr and server's peer addr
+        // Client sees its local addr and server's peer addr. A loopback
+        // server is dialled from loopback, never from a wildcard socket.
         assert!(client.local_addr().port() > 0);
+        assert_eq!(
+            client.local_addr().ip(),
+            std::net::IpAddr::from([127, 0, 0, 1])
+        );
         assert_eq!(client.peer_addr(), server_addr);
     });
 

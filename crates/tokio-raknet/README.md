@@ -295,6 +295,13 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 }
 ```
 
+**Client socket address:** `RaknetStreamConfig::local_addr` sets the address
+the client socket binds. By default a client dialling (or pinging) a loopback
+server binds the loopback address of the same family, and any other server is
+dialled from `0.0.0.0:0` / `[::]:0`. Local tools and tests therefore never
+open a socket on a network interface, which on Windows raises a firewall
+prompt for every new executable path.
+
 **Server with Connection Limits:**
 
 ```rust,no_run
@@ -366,6 +373,11 @@ cargo run --example basic_ping
 ## Contributing
 
 Contributions are welcome! Please ensure that any changes pass existing tests and include new tests where appropriate. This project uses standard `cargo fmt` and `cargo clippy` settings.
+
+Tests, examples and test helpers bind only `127.0.0.1` (listeners
+explicitly, clients through the loopback default above). Binding a wildcard or
+interface address from a test makes Windows Firewall prompt for each new test
+executable path, so keep new tests on loopback.
 
 ## License
 

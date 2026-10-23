@@ -5,8 +5,10 @@ use tokio_raknet::transport::{RaknetListener, RaknetStream};
 
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn Error>> {
+    // Loopback by default (no host-firewall prompt); set BIND_ADDR=0.0.0.0:19135
+    // to accept LAN clients.
     let bind_addr: SocketAddr = std::env::var("BIND_ADDR")
-        .unwrap_or_else(|_| "0.0.0.0:19135".to_string())
+        .unwrap_or_else(|_| "127.0.0.1:19135".to_string())
         .parse()?;
 
     println!("listening on {bind_addr}");

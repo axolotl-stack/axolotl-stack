@@ -31,12 +31,8 @@ pub async fn ping_with_timeout(
     timeout: Duration,
 ) -> Result<Bytes, RaknetError> {
     tokio::time::timeout(timeout, async {
-        let socket = UdpSocket::bind(if server.is_ipv4() {
-            "0.0.0.0:0"
-        } else {
-            "[::]:0"
-        })
-        .await?;
+        // Loopback servers are pinged from loopback (`client_bind_addr`).
+        let socket = UdpSocket::bind(super::client_bind_addr(server, None)).await?;
         let ping = RaknetPacket::UnconnectedPing(UnconnectedPing {
             ping_time: RaknetTime(
                 Instant::now()
