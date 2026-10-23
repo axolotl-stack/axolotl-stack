@@ -25,6 +25,8 @@ criterion.workspace = true
 tracing-subscriber = { workspace = true, features = ["env-filter", "fmt"] }
 tokio = { workspace = true, features = ["rt-multi-thread", "process"] }
 parking_lot = "0.12"
+serde.workspace = true
+serde_json.workspace = true
 
 [[bench]]
 name = "codec_benchmark"

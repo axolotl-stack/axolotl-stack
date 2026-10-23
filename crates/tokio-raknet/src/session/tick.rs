@@ -7,16 +7,12 @@ use super::Session;
 impl Session {
     /// Periodic maintenance: prune splits, schedule resends, and emit ACK/NACK datagrams.
     ///
-    /// Vanilla sessions must be ticked every 100 ms (go-raknet
-    /// `conn.go:startTicking`); the call count drives the resend cadence.
+    /// Vanilla runs one Mojang `ReliabilityLayer::Update` (unless one already
+    /// ran at `now`) and returns everything it built; tick it every 10 ms
+    /// (`VANILLA_TICK_INTERVAL`).
     pub fn on_tick(&mut self, now: Instant) -> Vec<Datagram> {
         if self.is_vanilla() {
-            self.vanilla_mut().ticks += 1;
-            let resend_check = self
-                .vanilla_mut()
-                .ticks
-                .is_multiple_of(super::policy::VANILLA_RESEND_TICKS);
-            return self.on_vanilla_tick(now, resend_check);
+            return self.vanilla_tick(now);
         }
         let mut out = Vec::new();
 

@@ -416,6 +416,7 @@ func main() {
 	scenario := flag.String("scenario", "join-idle", "shared scenario name")
 	scenarios := flag.String("scenarios", "../scenarios.json", "shared scenario JSON")
 	output := flag.String("output", "", "output packet JSONL path (required)")
+	linger := flag.Duration("linger", 0, "keep the process alive this long after the scenario so go-raknet can finish its close handshake (RakNet captures)")
 	flag.Parse()
 	if *output == "" || flag.NArg() != 0 {
 		flag.Usage()
@@ -423,7 +424,9 @@ func main() {
 	}
 	ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt)
 	defer stop()
-	if err := run(ctx, *address, *scenario, *scenarios, *output); err != nil {
+	err := run(ctx, *address, *scenario, *scenarios, *output)
+	time.Sleep(*linger)
+	if err != nil {
 		fmt.Fprintln(os.Stderr, err)
 		os.Exit(1)
 	}

@@ -39,10 +39,10 @@ pub(super) async fn dispatch_datagram(
 
     if let Some(state) = sessions.get_mut(&peer) {
         if state.managed.transmission_policy().is_vanilla() {
-            // listener.go:handle hands every datagram from a connected address
-            // to conn.receive, which refreshes activity before parsing it
-            // (offline IDs included).
-            state.managed.record_activity(Instant::now());
+            // Mojang `timeLastDatagramArrived` (connected datagrams only).
+            state
+                .managed
+                .record_datagram_activity(bytes, Instant::now());
         }
         if !handle_incoming_udp(
             socket,
@@ -72,11 +72,13 @@ pub(super) async fn dispatch_datagram(
                     send_buf,
                 )
                 .await;
-            } else {
+            } else if !config.transmission_policy.is_vanilla() {
                 sessions.remove(&peer);
                 pending.remove(&peer);
                 rate_limiter.block(peer.ip(), Instant::now());
             }
+            // Vanilla: Mojang's reliability layer drops an invalid datagram
+            // and keeps the connection (lens RL_006:199-209).
         }
         return;
     }
@@ -95,9 +97,9 @@ pub(super) async fn dispatch_datagram(
             send_buf,
         )
         .await;
-    } else if bytes[0] & 0x80 == 0 {
+    } else if bytes[0] & 0x80 == 0 && !config.transmission_policy.is_vanilla() {
         // Upstream `handler.go:handleUnconnected` ignores stale datagrams but
-        // rejects unknown offline packet IDs.
+        // rejects unknown offline packet IDs; Mojang ignores them.
         rate_limiter.block(peer.ip(), Instant::now());
     }
 }
@@ -116,6 +118,8 @@ pub(super) async fn handle_outgoing_msg(
     let Some(state) = sessions.get_mut(&msg.peer) else {
         return;
     };
+    let vanilla = state.managed.transmission_policy().is_vanilla();
+    let immediate = msg.priority == crate::protocol::state::RakPriority::Immediate;
 
     if let Err(error) =
         state
@@ -127,7 +131,12 @@ pub(super) async fn handle_outgoing_msg(
     }
 
     tracing::trace!("outbound queued");
-    flush_managed(&mut state.managed, socket, msg.peer, now, false, send_buf).await;
+    // Vanilla: only IMMEDIATE sends wake Mojang's update loop; other
+    // priorities leave on the next 10 ms listener tick.
+    if vanilla && !immediate {
+        return;
+    }
+    flush_managed(&mut state.managed, socket, msg.peer, now, vanilla, send_buf).await;
     state.publish_rtt();
 }
 
@@ -215,7 +224,9 @@ async fn handle_incoming_udp(
     };
 
     maybe_announce_connection(peer, state, new_conn_tx).await;
-    flush_managed(&mut state.managed, socket, peer, now, false, send_buf).await;
+    // Vanilla: a received datagram wakes Mojang's update cycle.
+    let run_tick = state.managed.transmission_policy().is_vanilla();
+    flush_managed(&mut state.managed, socket, peer, now, run_tick, send_buf).await;
     state.publish_rtt();
 
     if closed_after || matches!(state.managed.state(), ConnectionState::Closed) {
@@ -296,7 +307,7 @@ fn deliver_packets_to_app(pkts: Vec<crate::session::IncomingPacket>, state: &mut
                 }
                 Err(mpsc::error::TrySendError::Closed(_)) => {
                     // The application dropped its stream: a graceful close
-                    // (Vanilla drains first, like go-raknet's Conn.Close).
+                    // (Vanilla: Mojang `CloseConnection`, notification first).
                     let _ = state
                         .managed
                         .close(DisconnectReason::Disconnected, Instant::now());
@@ -318,16 +329,15 @@ mod tests {
     use crate::session::manager::{SessionConfig, SessionRole};
     use crate::session::{SessionTunables, TransmissionPolicy};
 
-    /// KA-2: go-raknet `listener.go:handle` passes every datagram from a
-    /// connected address to `conn.receive`, which refreshes activity first,
-    /// so offline IDs from the peer keep a Vanilla session alive.
+    /// KA-2: an offline datagram from a connected peer is answered as
+    /// offline traffic and does not refresh the Vanilla session's
+    /// `timeLastDatagramArrived` (it never reaches the reliability layer).
     #[tokio::test]
-    async fn vanilla_offline_packets_from_a_session_peer_refresh_activity() {
+    async fn vanilla_offline_packets_from_a_session_peer_do_not_refresh_activity() {
         let socket = UdpSocket::bind("127.0.0.1:0").await.unwrap();
         let client = UdpSocket::bind("127.0.0.1:0").await.unwrap();
         let peer = client.local_addr().unwrap();
         let config = RaknetListenerConfig::default();
-        // Created (and last active) well past the 5 s inactivity timeout.
         let created = Instant::now().checked_sub(Duration::from_secs(10)).unwrap();
         let managed = ManagedSession::with_config(
             peer,
@@ -353,6 +363,8 @@ mod tests {
                 announced: false,
                 handshake_confirmed: false,
                 rtt: crate::transport::RttCell::new(),
+                client_guid: 7,
+                created_at: created,
             },
         );
         let mut pending = HashMap::new();
@@ -384,11 +396,79 @@ mod tests {
         .await;
 
         let state = sessions.get_mut(&peer).expect("session kept");
-        let now = Instant::now();
-        for n in 1..=5u32 {
-            state.managed.on_tick(now + Duration::from_millis(100) * n);
+        assert_eq!(state.managed.last_activity(), created);
+    }
+
+    /// Invalid connected datagrams and unknown offline IDs: Mojang drops the
+    /// datagram and keeps the connection and sender; Optimized removes the
+    /// session and blocks the IP.
+    #[tokio::test]
+    async fn vanilla_listener_ignores_invalid_datagrams_and_unknown_offline_ids() {
+        let socket = UdpSocket::bind("127.0.0.1:0").await.unwrap();
+        let client = UdpSocket::bind("127.0.0.1:0").await.unwrap();
+        let stranger: SocketAddr = "127.0.0.1:1".parse().unwrap();
+        let peer = client.local_addr().unwrap();
+        for policy in [TransmissionPolicy::Vanilla, TransmissionPolicy::Optimized] {
+            let config = RaknetListenerConfig {
+                transmission_policy: policy,
+                ..Default::default()
+            };
+            let now = Instant::now();
+            let managed = ManagedSession::with_config(
+                peer,
+                1492,
+                now,
+                SessionConfig {
+                    role: SessionRole::Server,
+                    session: SessionTunables {
+                        transmission: policy,
+                        ..Default::default()
+                    },
+                    ..Default::default()
+                },
+            );
+            let (to_app, _app_rx) = mpsc::channel(1);
+            let mut sessions = HashMap::new();
+            sessions.insert(
+                peer,
+                SessionState {
+                    managed,
+                    to_app,
+                    pending_rx: None,
+                    announced: false,
+                    handshake_confirmed: false,
+                    rtt: crate::transport::RttCell::new(),
+                    client_guid: 7,
+                    created_at: now,
+                },
+            );
+            let mut pending = HashMap::new();
+            let (tx, _rx) = mpsc::channel(1);
+            let ad = Arc::new(RwLock::new(Bytes::new()));
+            let mut limiter = PingRateLimiter::new(10);
+            let mut send = BytesMut::new();
+            for (from, bytes) in [(peer, &[0x84, 0xff][..]), (stranger, &[0x42, 0, 0][..])] {
+                dispatch_datagram(
+                    &socket,
+                    &config,
+                    bytes,
+                    from,
+                    &mut sessions,
+                    &mut pending,
+                    &tx,
+                    &ad,
+                    &mut limiter,
+                    &mut send,
+                )
+                .await;
+            }
+            let vanilla = policy.is_vanilla();
+            assert_eq!(sessions.contains_key(&peer), vanilla, "{policy:?}");
+            assert_eq!(
+                limiter.blocked(peer.ip(), Instant::now()),
+                !vanilla,
+                "{policy:?}"
+            );
         }
-        // The fifth tick checks inactivity: half a second, not ten.
-        assert_eq!(state.managed.state(), ConnectionState::Unconnected);
     }
 }

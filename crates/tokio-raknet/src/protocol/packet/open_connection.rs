@@ -9,11 +9,12 @@ use bytes::{BufMut, Bytes};
 use crate::protocol::{
     constants::DEFAULT_UNCONNECTED_MAGIC,
     packet::{Packet, RaknetEncodable},
-    types::{AddressLayout, EoBPadding, Magic, RaknetTime, encode_address},
+    types::{EoBPadding, Magic, RaknetTime},
 };
 
 /// Maximum system addresses carried by `ConnectionRequestAccepted` and
-/// `NewIncomingConnection` (go-raknet `internal/message/addr.go:systemAddresses`).
+/// `NewIncomingConnection` (Mojang `MAXIMUM_NUMBER_OF_INTERNAL_IDS`, lens
+/// RP_105:52-200; Jenkins uses 10).
 pub const MAX_SYSTEM_ADDRESSES: usize = 20;
 
 /// go-raknet `connection_request_accepted.go:UnmarshalBinary`: read up to 20
@@ -153,24 +154,6 @@ impl OpenConnectionRequest2 {
             client_guid: u64::decode_raknet(src)?,
         })
     }
-
-    /// Encode the body with an explicit server-address layout (lunar's Vanilla
-    /// client uses [`AddressLayout::Lunar`] for IPv6 servers).
-    pub fn encode_body_with_layout(
-        &self,
-        dst: &mut impl bytes::BufMut,
-        layout: AddressLayout,
-    ) -> Result<(), crate::protocol::packet::EncodeError> {
-        self.magic.encode_raknet(dst)?;
-        if let Some(cookie) = self.cookie {
-            cookie.encode_raknet(dst)?;
-            self.client_proof.encode_raknet(dst)?;
-        }
-        encode_address(&self.server_addr, layout, dst)?;
-        self.mtu.encode_raknet(dst)?;
-        self.client_guid.encode_raknet(dst)?;
-        Ok(())
-    }
 }
 
 impl Packet for OpenConnectionRequest2 {
@@ -180,7 +163,15 @@ impl Packet for OpenConnectionRequest2 {
         &self,
         dst: &mut impl bytes::BufMut,
     ) -> Result<(), crate::protocol::packet::EncodeError> {
-        self.encode_body_with_layout(dst, AddressLayout::Standard)
+        self.magic.encode_raknet(dst)?;
+        if let Some(cookie) = self.cookie {
+            cookie.encode_raknet(dst)?;
+            self.client_proof.encode_raknet(dst)?;
+        }
+        self.server_addr.encode_raknet(dst)?;
+        self.mtu.encode_raknet(dst)?;
+        self.client_guid.encode_raknet(dst)?;
+        Ok(())
     }
 
     fn decode_body(src: &mut impl bytes::Buf) -> Result<Self, super::DecodeError> {
@@ -346,25 +337,6 @@ pub struct ConnectionRequestAccepted {
     pub accepted_timestamp: RaknetTime,
 }
 
-impl ConnectionRequestAccepted {
-    /// Encode the body with an explicit address layout (lunar's Vanilla
-    /// listener uses [`AddressLayout::Lunar`] for IPv6 clients).
-    pub fn encode_body_with_layout(
-        &self,
-        dst: &mut impl BufMut,
-        layout: AddressLayout,
-    ) -> Result<(), crate::protocol::packet::EncodeError> {
-        encode_address(&self.address, layout, dst)?;
-        self.system_index.encode_raknet(dst)?;
-        for address in &self.system_addresses {
-            encode_address(address, layout, dst)?;
-        }
-        self.request_timestamp.encode_raknet(dst)?;
-        self.accepted_timestamp.encode_raknet(dst)?;
-        Ok(())
-    }
-}
-
 impl Packet for ConnectionRequestAccepted {
     const ID: u8 = 0x10;
 
@@ -372,7 +344,14 @@ impl Packet for ConnectionRequestAccepted {
         &self,
         dst: &mut impl BufMut,
     ) -> Result<(), crate::protocol::packet::EncodeError> {
-        self.encode_body_with_layout(dst, AddressLayout::Standard)
+        self.address.encode_raknet(dst)?;
+        self.system_index.encode_raknet(dst)?;
+        for address in &self.system_addresses {
+            address.encode_raknet(dst)?;
+        }
+        self.request_timestamp.encode_raknet(dst)?;
+        self.accepted_timestamp.encode_raknet(dst)?;
+        Ok(())
     }
 
     fn decode_body(src: &mut impl bytes::Buf) -> Result<Self, super::DecodeError> {
@@ -433,23 +412,6 @@ pub struct NewIncomingConnection {
     pub accepted_timestamp: RaknetTime,
 }
 
-impl NewIncomingConnection {
-    /// Encode the body with an explicit layout for the server address.
-    pub fn encode_body_with_layout(
-        &self,
-        dst: &mut impl BufMut,
-        layout: AddressLayout,
-    ) -> Result<(), crate::protocol::packet::EncodeError> {
-        encode_address(&self.server_address, layout, dst)?;
-        for address in &self.system_addresses {
-            encode_address(address, layout, dst)?;
-        }
-        self.request_timestamp.encode_raknet(dst)?;
-        self.accepted_timestamp.encode_raknet(dst)?;
-        Ok(())
-    }
-}
-
 impl Packet for NewIncomingConnection {
     const ID: u8 = 0x13;
 
@@ -457,7 +419,13 @@ impl Packet for NewIncomingConnection {
         &self,
         dst: &mut impl BufMut,
     ) -> Result<(), crate::protocol::packet::EncodeError> {
-        self.encode_body_with_layout(dst, AddressLayout::Standard)
+        self.server_address.encode_raknet(dst)?;
+        for address in &self.system_addresses {
+            address.encode_raknet(dst)?;
+        }
+        self.request_timestamp.encode_raknet(dst)?;
+        self.accepted_timestamp.encode_raknet(dst)?;
+        Ok(())
     }
 
     fn decode_body(src: &mut impl bytes::Buf) -> Result<Self, super::DecodeError> {

@@ -1,4 +1,5 @@
 use std::net::SocketAddr;
+use std::time::Instant;
 
 use tokio::sync::mpsc;
 
@@ -28,6 +29,14 @@ pub struct SessionState {
     pub handshake_confirmed: bool,
     /// RTT estimate published to the accepted `RaknetStream`.
     pub(crate) rtt: RttCell,
+    /// Client GUID from the peer's `OpenConnectionRequest2`. A Vanilla listener
+    /// refuses a second connection carrying it (Mojang RakNet
+    /// `ProcessOfflineNetworkPacket`, lens2 `RN_006:1398-1435`).
+    pub client_guid: u64,
+    /// When the session was created; Vanilla's same-IP reconnect limit reads
+    /// it (Mojang RakNet `AssignSystemAddressToRemoteSystemList`, lens
+    /// `RP_106:63-101`).
+    pub created_at: Instant,
 }
 
 impl SessionState {
