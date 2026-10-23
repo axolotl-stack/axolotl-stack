@@ -457,6 +457,13 @@ impl Signaling for DiscoveryListener {
         true
     }
 
+    /// Vanilla LAN peers need no `a=identity`: BDS 1.26.51 answers LAN offers
+    /// without one and accepts identityless LAN offers (its HTTP signaling
+    /// rejects them with 37). Present identities are still verified.
+    fn requires_identity(&self) -> bool {
+        false
+    }
+
     fn set_pong_data(&self, data: &[u8]) {
         let s = String::from_utf8_lossy(data);
         let parts: Vec<&str> = s.split(';').collect();

@@ -87,7 +87,9 @@ async fn test_discovery_broadcast() {
     assert_eq!(decoded.server_name, "Test Server");
 }
 
-/// Exercise discovery, signal routing, SCTP negotiation and fragmented payloads.
+/// Exercise discovery, signal routing, SCTP negotiation and fragmented payloads
+/// with default configurations: like BDS 1.26.51 on LAN, neither side needs an
+/// `a=identity` (go-nethernet's defaults reject identityless peers).
 #[tokio::test]
 async fn test_discovery_connect_flow() {
     use bytes::Bytes;
@@ -127,7 +129,6 @@ async fn test_discovery_connect_flow() {
     let mut listener = NetherNetListener::bind_with_signaling(
         server,
         NetherNetListenerConfig {
-            allow_identityless_client: true,
             transport: tokio_nethernet::TransportConfig::loopback_v4(),
             ..Default::default()
         },
@@ -146,8 +147,8 @@ async fn test_discovery_connect_flow() {
     .expect("discovery connection deadline")
     .expect("discovery negotiation");
     assert!(
-        client.remote_identity().is_some(),
-        "default listener must issue a signed server identity"
+        client.remote_identity().is_none() && server.remote_identity().is_none(),
+        "vanilla LAN answers and offers carry no identity by default"
     );
     let payload = Bytes::from(vec![0x5a; 140_000]);
     client
