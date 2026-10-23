@@ -41,6 +41,16 @@ pub const DEFAULT_CHUNK_SIZE: u32 = 128 * 1024;
 /// gophertunnel `DefaultResourcePackChunkSendDelay`.
 pub const DEFAULT_CHUNK_INTERVAL: Duration = Duration::from_millis(200);
 
+/// `ResourcePacksInfo` world template version for a world not created from a
+/// template, as BDS 1.26.51 sends it (with the nil UUID).
+///
+/// The field is a cereal `SemVersion` since the 26.50 client: its
+/// `SemVersionProxyConstraint` rejects an unparsable string such as `""`
+/// (gophertunnel's default), and the client drops the connection with
+/// `BadPacket` (codeword "Block", `InitialConnection-90`) before answering
+/// the pack offer.
+const NO_WORLD_TEMPLATE_VERSION: &str = "0.0.0";
+
 /// Built-in vanilla packs clients list in stacks without downloading them
 /// (gophertunnel `exemptedPacks`, protocol 2193).
 pub const BUILTIN_PACKS: &[(&str, &str)] = &[
@@ -268,7 +278,7 @@ impl ServerPackExchange {
             world_template_id_and_version: PackIdVersionjson {
                 pack_uuid: Uuid::nil(),
                 pack_version: SemVersionjson {
-                    version: String::new().into(),
+                    version: NO_WORLD_TEMPLATE_VERSION.into(),
                 },
             },
             resource_packs: packs.packs.iter().map(|pack| pack.info()).collect(),
