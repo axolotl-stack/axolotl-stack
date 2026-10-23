@@ -278,6 +278,47 @@ async fn sends_wait_for_transport_capacity() {
     drop(client);
 }
 
+/// A receive cancelled while output is backpressured (e.g. in `select!`)
+/// must not lose a packet it already decoded.
+#[tokio::test]
+async fn cancelled_receive_keeps_queued_packets() {
+    let (mut server, mut client) = joined(offline()).await;
+    // Two packets in one datagram: the second stays queued in the server.
+    client.set_flush_mode(FlushMode::Manual).await.unwrap();
+    for _ in 0..2 {
+        client
+            .send_packet(TextPacket::default().into())
+            .await
+            .unwrap();
+    }
+    client.flush().await.unwrap();
+    next_named(&mut server, McpePacketName::TextPacket).await;
+    // Fill the undrained pipe so the server has output it cannot write.
+    let filled = tokio::time::timeout(Duration::from_millis(100), async {
+        loop {
+            server
+                .send_packet(TextPacket::default().into())
+                .await
+                .unwrap();
+        }
+    })
+    .await;
+    assert!(filled.is_err(), "the pipe must apply backpressure");
+    let cancelled = tokio::time::timeout(Duration::from_millis(50), server.recv_packet_raw()).await;
+    assert!(
+        cancelled.is_err(),
+        "the receive waits for transport capacity"
+    );
+    // Drain the client; the queued packet must still be delivered.
+    let drain = tokio::spawn(async move { while client.recv_packet_raw().await.is_ok() {} });
+    let packet = tokio::time::timeout(Duration::from_secs(5), server.recv_packet_raw())
+        .await
+        .expect("queued packet delivered")
+        .unwrap();
+    assert!(packet.is(McpePacketName::TextPacket));
+    drain.abort();
+}
+
 /// Proxy relay: downstream player ↔ proxy ↔ upstream server, encryption
 /// terminated per side, unknown IDs forwarded byte-identically, Disconnect
 /// forwarded and typed.

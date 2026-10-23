@@ -122,6 +122,9 @@ pub(crate) async fn drive<T: Transport, P: Phase>(
 
 /// The next inbound packet in the play state, running the interval flush
 /// timer while waiting.
+///
+/// Cancel-safe: pending output is drained before a packet is taken from the
+/// queue, and nothing is awaited between taking it and returning it.
 pub(crate) async fn recv_raw<T: Transport>(
     transport: &mut T,
     conn: &mut Connection,
@@ -131,13 +134,10 @@ pub(crate) async fn recv_raw<T: Transport>(
         if conn.poll_timeout().is_some() {
             conn.handle_timeout(Instant::now())?;
         }
+        flush_out(transport, conn).await?;
         if let Some(packet) = conn.next_packet()? {
-            if conn.has_transmits() {
-                flush_out(transport, conn).await?;
-            }
             return Ok(packet);
         }
-        flush_out(transport, conn).await?;
         let datagram = match conn.poll_timeout() {
             Some(at) => {
                 match tokio::time::timeout_at(
