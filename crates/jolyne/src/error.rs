@@ -188,6 +188,8 @@ pub enum ProtocolError {
     UnreliableWhileEncrypted,
     #[error("unsupported compression algorithm {0} in NetworkSettings")]
     UnsupportedNetworkCompression(u16),
+    #[error("invalid DEFLATE compression level {0}")]
+    InvalidCompressionLevel(u32),
     #[error("invalid chunk radius {0}")]
     InvalidChunkRadius(i32),
     #[error("SetLocalPlayerAsInitialized runtime id {got} does not match StartGame {expected}")]

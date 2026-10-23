@@ -133,7 +133,6 @@ fn validate(case: &Case) -> Result<()> {
 pub fn run(iterations: usize) -> Result<()> {
     for case in load()? {
         validate(&case)?;
-        let mut codec = BatchCodec::default();
         let mut output = BytesMut::new();
         for (enabled, algorithm, encode_op, decode_op) in [
             (
@@ -155,17 +154,17 @@ pub fn run(iterations: usize) -> Result<()> {
                 "snappy_decode",
             ),
         ] {
-            let settings = BatchEncoding {
+            let mut codec = BatchCodec::new(BatchEncoding {
                 enabled,
                 algorithm,
                 level: 6,
                 threshold: 0,
                 prefix: true,
-            };
-            codec.encode_frames_into(&case.frames, settings, &mut output)?;
+            })?;
+            codec.encode_frames_into(&case.frames, &mut output)?;
             let encoded = output.clone().freeze();
             let mut decoded = Vec::new();
-            codec.decode_with(encoded.clone(), enabled, 4 * 1024 * 1024, true, |frame| {
+            codec.decode_with(encoded.clone(), 4 * 1024 * 1024, |frame| {
                 decoded.push(Bytes::copy_from_slice(frame));
                 Ok(())
             })?;
@@ -191,7 +190,7 @@ pub fn run(iterations: usize) -> Result<()> {
                 iterations,
                 || {
                     codec
-                        .encode_frames_into(black_box(&case.frames), settings, &mut output)
+                        .encode_frames_into(black_box(&case.frames), &mut output)
                         .unwrap();
                     black_box(&output);
                 },
@@ -205,16 +204,10 @@ pub fn run(iterations: usize) -> Result<()> {
                 iterations,
                 || {
                     codec
-                        .decode_with(
-                            black_box(encoded.clone()),
-                            enabled,
-                            4 * 1024 * 1024,
-                            true,
-                            |frame| {
-                                black_box(frame);
-                                Ok(())
-                            },
-                        )
+                        .decode_with(black_box(encoded.clone()), 4 * 1024 * 1024, |frame| {
+                            black_box(frame);
+                            Ok(())
+                        })
                         .unwrap();
                 },
             )?;

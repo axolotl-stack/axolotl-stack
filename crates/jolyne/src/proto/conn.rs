@@ -17,7 +17,7 @@ use std::time::Instant;
 
 use bytes::{Bytes, BytesMut};
 
-use super::batch::{BatchCodec, BatchCompression, BatchEncoding};
+use super::batch::{BatchCodec, BatchCompression};
 use super::crypto::BatchCipher;
 use super::custom::{CustomPacket, PacketFilter};
 use super::observe::{
@@ -86,22 +86,15 @@ pub enum Framing {
     Unprefixed,
 }
 
-#[derive(Debug, Clone, Copy)]
-struct Compression {
-    algorithm: BatchCompression,
-    level: u32,
-    threshold: u16,
-}
-
 /// Sans-IO Bedrock connection state for one peer.
 pub struct Connection {
     framing: Framing,
-    compression: Option<Compression>,
     // Boxed: the AES key schedules are large and connections move through
     // every phase transition (and async state machines) by value.
     send_cipher: Option<Box<BatchCipher>>,
     recv_cipher: Option<Box<BatchCipher>>,
-    codec: Box<BatchCodec>,
+    /// Framing plus the negotiated compression, once there is one.
+    codec: BatchCodec,
     options: ConnectionOptions,
     filter: PacketFilter,
     inbound: VecDeque<RawPacket>,
@@ -126,10 +119,9 @@ impl Connection {
         };
         Self {
             framing,
-            compression: None,
             send_cipher: None,
             recv_cipher: None,
-            codec: Box::default(),
+            codec: BatchCodec::plain(framing == Framing::RakNet),
             options,
             filter,
             inbound: VecDeque::new(),
@@ -182,7 +174,7 @@ impl Connection {
     }
 
     pub fn is_compressed(&self) -> bool {
-        self.compression.is_some()
+        self.codec.is_compressed()
     }
 
     pub fn flush_mode(&self) -> FlushMode {
@@ -213,12 +205,7 @@ impl Connection {
         threshold: u16,
     ) -> Result<(), JolyneError> {
         self.flush()?;
-        self.compression = Some(Compression {
-            algorithm,
-            level,
-            threshold,
-        });
-        Ok(())
+        self.codec.enable_compression(algorithm, level, threshold)
     }
 
     /// Installs AES-256-CTR for both directions. Pending packets are sealed
@@ -228,25 +215,6 @@ impl Connection {
         self.send_cipher = Some(Box::new(BatchCipher::new(key, iv)));
         self.recv_cipher = Some(Box::new(BatchCipher::new(key, iv)));
         Ok(())
-    }
-
-    fn encoding(&self) -> BatchEncoding {
-        match self.compression {
-            Some(c) => BatchEncoding {
-                enabled: true,
-                algorithm: c.algorithm,
-                level: c.level,
-                threshold: c.threshold,
-                prefix: self.prefix(),
-            },
-            None => BatchEncoding {
-                enabled: false,
-                algorithm: BatchCompression::None,
-                level: 0,
-                threshold: 0,
-                prefix: self.prefix(),
-            },
-        }
     }
 
     // ---------------------------------------------------------------- inbound
@@ -299,14 +267,13 @@ impl Connection {
             }
         };
         let algorithm = self
-            .compression
-            .is_some()
+            .codec
+            .is_compressed()
             .then(|| body.first().copied())
             .flatten();
         let start = self.inbound.len();
         let stats = self.codec.decode_raw_into(
             body,
-            self.compression.is_some(),
             self.options.limits,
             &self.filter,
             &mut self.inbound,
@@ -386,9 +353,7 @@ impl Connection {
 
     fn begin_pending(&mut self, now: Instant) {
         if self.pending_packets == 0 {
-            let encoding = self.encoding();
-            self.pending_header =
-                BatchCodec::start(&mut self.pending, encoding.enabled, encoding.prefix, 256);
+            self.pending_header = self.codec.start(&mut self.pending, 256);
             if let FlushMode::Interval(_) = self.options.flush {
                 self.pending_since = Some(now);
             }
@@ -540,9 +505,7 @@ impl Connection {
         let packets = self.pending_packets as u64;
         self.pending_packets = 0;
         self.pending_since = None;
-        let encoding = self.encoding();
-        self.codec
-            .finish(&mut self.pending, self.pending_header, encoding)?;
+        self.codec.finish(&mut self.pending, self.pending_header)?;
         // Check the bound before encrypting: a refused batch must not advance
         // the cipher, or every later batch would fail the peer's checksum.
         let len = self.pending.len() + if self.send_cipher.is_some() { 8 } else { 0 };
@@ -562,7 +525,7 @@ impl Connection {
                 direction = ?Direction::Outbound,
                 wire_len = len,
                 encrypted = self.send_cipher.is_some(),
-                algorithm = ?self.compression.and(body.first()),
+                algorithm = ?self.codec.is_compressed().then(|| body.first()).flatten(),
                 packets,
                 reliable,
                 plain = %HexPreview(body),
