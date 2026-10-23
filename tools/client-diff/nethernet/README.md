@@ -1,8 +1,9 @@
 # NetherNet real-client probe
 
-Records what the real Minecraft Bedrock client does on NetherNet (discovery,
-signaling, SDP, ICE outcome, first packets, close) against a loopback-only
-tokio-nethernet peer. The findings feed `crates/tokio-nethernet/PARITY.md`.
+Records what the real Minecraft Bedrock client does on NetherNet discovery and
+signaling (server data, offer/answer SDP, candidates, identity claims, error
+codes and timing) against a loopback-only tokio-nethernet peer. The findings
+feed `crates/tokio-nethernet/PARITY.md`.
 
 ## Why loopback works without prompts
 
@@ -21,12 +22,16 @@ accepts discovery datagrams from any source address (client 1.26.50
 | `server` | browses *Play → Friends* (LAN games) | sends unsolicited discovery responses to `127.0.0.1:7551` so "NETHERNET-TRUTH probe" is listed; when joined, logs the offer, candidates and identity, answers `RequestNetworkSettings` with `NetworkSettings`, logs the following packets (Login) |
 | `route` | nothing | sends one datagram from `127.0.0.1` to each local interface address (closed port 9) and reports whether it was delivered |
 
-Discovery and signaling run entirely over loopback. ICE is the open question:
-the client gathers host candidates only on its interface addresses (libwebrtc
-skips loopback), so the pair is `127.0.0.1` ↔ the machine's own LAN address.
-`route` checks the probe → client direction without the client; the
-`host`/`server` logs show whether the full pair works (`connected`/`accepted`,
-or `dial_failed`/`no_join` after the offer/answer exchange).
+Discovery and signaling run entirely over loopback; this was verified against
+a NetherNet BDS 1.26.51, which has an inbound Block rule yet answered discovery
+and `CONNECTREQUEST` from `127.0.0.1`. ICE does **not** connect: the client
+gathers host candidates only on interface addresses (libwebrtc skips
+loopback), and Windows refuses datagrams from a `127.0.0.1` socket to the
+machine's own LAN address (`route`: `WSAENETUNREACH`). Expect `dial_failed` /
+`no_join` after the offer/answer exchange; the transport rows of PARITY.md
+therefore rest on binary analysis. The data-path code in the probe
+(`RequestNetworkSettings`, `NetworkSettings`, packet logging) only runs if a
+future setup lets ICE connect.
 
 ## Commands
 
