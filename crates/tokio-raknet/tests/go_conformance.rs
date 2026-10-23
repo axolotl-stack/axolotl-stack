@@ -560,13 +560,18 @@ async fn mtu_discovery_with_1200_byte_path() {
     let sizes = |f: &Features| f.probes.iter().map(|p| p.0).collect::<Vec<_>>();
     assert_eq!(sizes(&rust), sizes(&go), "probe sizes");
     assert_eq!(sizes(&go), [1464, 1464, 1464, 1464, 1172]);
+    // Consecutive probes 500 ms apart. go-raknet keeps a 500 ms ticker grid;
+    // Mojang schedules each probe 500 ms after the previous send, so its
+    // lateness accumulates (the real client's probes are 501-508 ms apart,
+    // PARITY.md MTU-2) and absolute offsets from the first probe would drift
+    // out of tolerance.
     for features in [&go, &rust] {
-        for (index, probe) in features.probes.iter().enumerate() {
-            let offset = probe.1 - features.probes[0].1;
-            let expected = Duration::from_millis(500) * index as u32;
+        for (index, pair) in features.probes.windows(2).enumerate() {
+            let gap = pair[1].1 - pair[0].1;
             assert!(
-                offset.abs_diff(expected) <= TOLERANCE,
-                "probe {index} at {offset:?}"
+                gap.abs_diff(Duration::from_millis(500)) <= TOLERANCE,
+                "probe {} {gap:?} after probe {index}",
+                index + 1
             );
         }
     }
