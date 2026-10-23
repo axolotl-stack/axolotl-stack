@@ -4,6 +4,7 @@ go 1.25.0
 
 require (
 	github.com/df-mc/go-nethernet v1.0.25-0.20260928201420-215e46422b58
+	github.com/pion/ice/v4 v4.4.4
 	github.com/pion/webrtc/v4 v4.2.21-0.20260920133716-91bfc6c2039f
 	github.com/sandertv/go-raknet v1.15.2-0.20260705184311-0d1fd09e2cf6
 	github.com/sandertv/gophertunnel v1.25.3-0.20260928233358-80c811b61860
@@ -17,7 +18,6 @@ require (
 	github.com/klauspost/compress v1.18.1 // indirect
 	github.com/pion/datachannel v1.6.3 // indirect
 	github.com/pion/dtls/v3 v3.1.9 // indirect
-	github.com/pion/ice/v4 v4.4.4 // indirect
 	github.com/pion/interceptor v0.1.49 // indirect
 	github.com/pion/logging v0.2.4 // indirect
 	github.com/pion/mdns/v2 v2.2.1 // indirect

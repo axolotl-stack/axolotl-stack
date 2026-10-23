@@ -9,6 +9,7 @@ import (
 	"sync"
 
 	nethernet "github.com/df-mc/go-nethernet"
+	"github.com/pion/ice/v4"
 	"github.com/pion/webrtc/v4"
 )
 
@@ -127,10 +128,14 @@ func (b *nethernetBridge) readSignals() {
 	b.cancel(err)
 }
 
+// nethernetAPI confines pion to loopback: IPv4 loopback host candidates only,
+// and no mDNS, whose default query-only mode binds 0.0.0.0:5353 (a Windows
+// Firewall prompt for every new go-bench.exe path).
 func nethernetAPI() *webrtc.API {
 	settings := webrtc.SettingEngine{}
 	settings.SetIncludeLoopbackCandidate(true)
 	settings.SetIPFilter(func(ip net.IP) bool { return ip.IsLoopback() })
 	settings.SetNetworkTypes([]webrtc.NetworkType{webrtc.NetworkTypeUDP4})
+	settings.SetICEMulticastDNSMode(ice.MulticastDNSModeDisabled)
 	return webrtc.NewAPI(webrtc.WithSettingEngine(settings))
 }
