@@ -103,6 +103,10 @@ pub struct OpenIdVerifier {
 }
 
 impl OpenIdVerifier {
+    /// Builds a snapshot from a JWKS document, keeping signing keys usable
+    /// with one of `algorithms`. A malformed key (missing or undecodable
+    /// components) is skipped with a warning, so one bad entry cannot take
+    /// the provider's other keys down; a set with no usable key is an error.
     pub fn from_jwks(
         issuer: &str,
         algorithms: &[Algorithm],
@@ -118,25 +122,33 @@ impl OpenIdVerifier {
                 if jwk.alg.is_some_and(|key_alg| key_alg != alg) {
                     continue;
                 }
-                let key = match alg {
-                    Algorithm::RS256 if jwk.kty == "RSA" => DecodingKey::from_rsa_components(
-                        jwk.n.as_deref().ok_or(AuthError::MissingIdentityKey)?,
-                        jwk.e.as_deref().ok_or(AuthError::MissingIdentityKey)?,
-                    ),
+                let components = match alg {
+                    Algorithm::RS256 if jwk.kty == "RSA" => jwk
+                        .n
+                        .as_deref()
+                        .zip(jwk.e.as_deref())
+                        .map(|(n, e)| DecodingKey::from_rsa_components(n, e)),
                     Algorithm::ES384 if jwk.kty == "EC" && jwk.crv.as_deref() == Some("P-384") => {
-                        DecodingKey::from_ec_components(
-                            jwk.x.as_deref().ok_or(AuthError::MissingIdentityKey)?,
-                            jwk.y.as_deref().ok_or(AuthError::MissingIdentityKey)?,
-                        )
+                        jwk.x
+                            .as_deref()
+                            .zip(jwk.y.as_deref())
+                            .map(|(x, y)| DecodingKey::from_ec_components(x, y))
                     }
                     _ => continue,
+                };
+                match components {
+                    Some(Ok(key)) => keys.push(TrustedKey {
+                        kid: jwk.kid.clone(),
+                        alg,
+                        key,
+                    }),
+                    Some(Err(error)) => {
+                        tracing::warn!(kid = ?jwk.kid, ?alg, %error, "skipping undecodable JWKS key");
+                    }
+                    None => {
+                        tracing::warn!(kid = ?jwk.kid, ?alg, "skipping JWKS key without components")
+                    }
                 }
-                .map_err(jwt_error)?;
-                keys.push(TrustedKey {
-                    kid: jwk.kid.clone(),
-                    alg,
-                    key,
-                });
             }
         }
         if issuer.is_empty() || keys.is_empty() {

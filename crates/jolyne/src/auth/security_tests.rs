@@ -79,6 +79,36 @@ fn provider(key: &SecretKey) -> OpenIdProvider {
 }
 
 #[test]
+fn malformed_jwks_keys_are_skipped_not_fatal() {
+    let good = key(2);
+    let mut set: Value = serde_json::from_str(&jwks(&[(&good, Some("good"))])).unwrap();
+    let keys = set["keys"].as_array_mut().unwrap();
+    keys.insert(
+        0,
+        json!({"kty":"EC","crv":"P-384","alg":"ES384","use":"sig","kid":"no-y","x":"AAAA"}),
+    );
+    keys.push(json!({"kty":"RSA","alg":"RS256","use":"sig","kid":"bad-rsa","n":"!!","e":"!!"}));
+    let verifier = OpenIdVerifier::from_jwks(
+        "https://trusted.test/",
+        &[Algorithm::ES384, Algorithm::RS256],
+        &set.to_string(),
+    )
+    .unwrap();
+    assert!(verifier.knows_kid("good"));
+    assert!(!verifier.knows_kid("no-y") && !verifier.knows_kid("bad-rsa"));
+
+    let only_bad = json!({"keys": [{"kty":"EC","crv":"P-384","kid":"no-y","x":"AAAA"}]});
+    assert!(
+        OpenIdVerifier::from_jwks(
+            "https://trusted.test/",
+            &[Algorithm::ES384],
+            &only_bad.to_string()
+        )
+        .is_err()
+    );
+}
+
+#[test]
 fn self_signed_header_key_is_not_online_trust() {
     let attacker = key(1);
     let token = sign(&attacker, &claims(&attacker));
