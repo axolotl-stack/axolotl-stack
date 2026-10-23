@@ -105,7 +105,7 @@ impl Recording {
             while let Some(signal) = inbound.recv().await {
                 record.event(
                     "signal_in",
-                    json!({"from": signal.network_id, "wire": signal.to_string()}),
+                    json!({"from": signal.network_id, "wire": redact(&signal)}),
                 );
                 if forward.send(signal).await.is_err() {
                     break;
@@ -125,7 +125,7 @@ impl Signaling for Recording {
     async fn signal(&self, signal: Signal) -> anyhow::Result<()> {
         self.log.event(
             "signal_out",
-            json!({"to": signal.network_id, "wire": signal.to_string()}),
+            json!({"to": signal.network_id, "wire": redact(&signal)}),
         );
         let result = self.inner.signal(signal).await;
         if let Err(error) = &result {
@@ -155,7 +155,8 @@ impl SignalingChannel for Recording {
     }
 }
 
-/// Accepts any peer token and records it: the probe observes, it does not
+/// Accepts any peer token and records its header and claims (never the
+/// signature, so the log cannot replay it): the probe observes, it does not
 /// authenticate. Fingerprint binding is still checked by the crate.
 struct RecordToken(Log);
 
@@ -164,9 +165,37 @@ impl TokenVerifier for RecordToken {
         &'a self,
         token: &'a str,
     ) -> Pin<Box<dyn Future<Output = Result<(), IdentityError>> + Send + 'a>> {
-        self.0.event("peer_token", json!({"jwt": token}));
+        use base64::Engine;
+        let decode = |part: Option<&str>| {
+            part.and_then(|part| {
+                base64::engine::general_purpose::URL_SAFE_NO_PAD
+                    .decode(part.trim_end_matches('='))
+                    .ok()
+            })
+            .and_then(|bytes| serde_json::from_slice::<Value>(&bytes).ok())
+        };
+        let mut parts = token.split('.');
+        let header = decode(parts.next());
+        let claims = decode(parts.next());
+        self.0
+            .event("peer_token", json!({"header": header, "claims": claims}));
         Box::pin(async { Ok(()) })
     }
+}
+
+/// Signal text with the `a=identity` value (which embeds the account's
+/// multiplayer JWT) replaced by its length; the token's claims are logged
+/// separately by [`RecordToken`].
+fn redact(signal: &Signal) -> String {
+    signal
+        .to_string()
+        .split("\r\n")
+        .map(|line| match line.strip_prefix("a=identity:") {
+            Some(value) => format!("a=identity:<redacted {} bytes>", value.len()),
+            None => line.to_owned(),
+        })
+        .collect::<Vec<_>>()
+        .join("\r\n")
 }
 
 fn hex_prefix(bytes: &[u8], limit: usize) -> String {
