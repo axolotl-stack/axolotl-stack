@@ -264,12 +264,30 @@ fn params(runtime_id: i64) -> WorldJoinParams {
     WorldTemplate::default().to_join_params(runtime_id)
 }
 
-/// ROADMAP M3: the server's packet order through PlayerSpawn, with the stack
-/// only after the client's first pack response and the structure packets
-/// before StartGame (vanilla/BDS ordering; the client disconnects with
-/// "Missing structure data from server." without JigsawStructureData).
+/// BDS 1.26.51's server-to-client packets through `PlayStatus(PlayerSpawn)`:
+/// `(batch number, packet name)` per packet.
+fn bds_join_trace() -> Vec<(u32, String)> {
+    include_str!("testdata/bds-1.26.51-join-s2c.txt")
+        .lines()
+        .filter(|line| !line.starts_with('#'))
+        .map(|line| {
+            let (batch, name) = line.split_once(' ').expect("batch and packet");
+            (batch.parse().expect("batch number"), name.to_owned())
+        })
+        .collect()
+}
+
+/// ROADMAP M3: the server's packets through PlayerSpawn appear in the order
+/// BDS 1.26.51 sends them (a recorded trace, not a hand-written list): the
+/// stack only after the client's first pack response, the structure packets
+/// before StartGame (the client disconnects with "Missing structure data
+/// from server." without JigsawStructureData), and the StartGame group in
+/// one BDS batch. BDS sends packets jolyne leaves to the application
+/// (player list, abilities, chunks, ...), so jolyne's sequence must be an
+/// order-preserving subsequence. BDS sends no `DimensionData` for vanilla
+/// dimensions; it is checked to precede the structure packets.
 #[tokio::test]
-async fn join_sequence_order_matches_vanilla() {
+async fn join_sequence_follows_the_bds_capture() {
     use McpePacketName as N;
     let harness = Harness::new(BedrockListenerConfig {
         online_mode: false,
@@ -283,27 +301,48 @@ async fn join_sequence_order_matches_vanilla() {
     assert_eq!(server.session.chunk_radius(), Some(16));
     assert_eq!(client.session.session.chunk_radius(), Some(16));
     let sent: Vec<_> = harness.sent.lock().iter().map(|(name, _)| *name).collect();
+    let dimension = sent
+        .iter()
+        .position(|name| *name == N::DimensionDataPacket)
+        .expect("DimensionData sent");
+    assert_eq!(sent[dimension + 1], N::JigsawStructureDataPacket);
+
+    let bds = bds_join_trace();
+    let mut cursor = 0;
+    let mut matched = Vec::new();
+    for name in sent.iter().filter(|name| **name != N::DimensionDataPacket) {
+        let wanted = format!("{name:?}");
+        let offset = bds[cursor..]
+            .iter()
+            .position(|(_, bds_name)| *bds_name == wanted)
+            .unwrap_or_else(|| panic!("{wanted} out of BDS order after {matched:?}"));
+        cursor += offset;
+        matched.push((bds[cursor].0, *name));
+        cursor += 1;
+    }
     assert_eq!(
-        sent,
-        [
-            N::NetworkSettingsPacket,
-            N::ServerToClientHandshakePacket,
-            N::PlayStatusPacket,
-            N::ResourcePacksInfoPacket,
-            N::ResourcePackStackPacket,
-            N::DimensionDataPacket,
-            N::JigsawStructureDataPacket,
-            N::VoxelShapesPacket,
-            N::StartGamePacket,
-            N::ItemRegistryPacket,
-            N::BiomeDefinitionListPacket,
-            N::AvailableActorIdentifiersPacket,
-            N::CreativeContentPacket,
-            N::ChunkRadiusUpdatedPacket,
-            N::NetworkChunkPublisherUpdatePacket,
-            N::PlayStatusPacket,
-        ]
+        cursor,
+        bds.len(),
+        "jolyne's last packet is BDS's PlayStatus(PlayerSpawn)"
     );
+    let start_game_batches: std::collections::BTreeSet<_> = matched
+        .iter()
+        .filter(|(_, name)| {
+            matches!(
+                name,
+                N::JigsawStructureDataPacket
+                    | N::VoxelShapesPacket
+                    | N::StartGamePacket
+                    | N::ItemRegistryPacket
+                    | N::BiomeDefinitionListPacket
+                    | N::AvailableActorIdentifiersPacket
+                    | N::CreativeContentPacket
+            )
+        })
+        .map(|(batch, _)| *batch)
+        .collect();
+    assert_eq!(start_game_batches.len(), 1, "{matched:?}");
+
     // The client keeps the structure packets for proxies to replay.
     let game_data = &client.game_data;
     assert!(game_data.dimension_data.is_some());
@@ -318,9 +357,10 @@ async fn join_sequence_order_matches_vanilla() {
 }
 
 /// BDS sends `StartGame` with the structure and definition packets in one
-/// batch, and the chunk radius answer with `PlayStatus(PlayerSpawn)` in one
-/// batch; under the default immediate flush mode each packet used to leave
-/// in its own batch.
+/// batch, and gophertunnel answers `RequestChunkRadius` with
+/// `ChunkRadiusUpdated`, `NetworkChunkPublisherUpdate` and
+/// `PlayStatus(PlayerSpawn)` in one flush; under the default immediate flush
+/// mode each packet used to leave in its own batch.
 #[tokio::test]
 async fn start_game_and_spawn_answers_leave_as_single_batches() {
     let harness = Harness::new(BedrockListenerConfig {

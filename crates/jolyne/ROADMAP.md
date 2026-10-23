@@ -25,13 +25,13 @@ Jolyne is considered compatibility-ready for the pinned Bedrock version only whe
 - [x] The Xbox client path sends the modern `AuthenticationType: 0` multiplayer token.
 
 ### JOLYNE-M2: Resource-Pack State Machine (done)
-- [x] Do not advance to start-game until `ResourcePackClientResponse::ResourcePackStackFinished` is observed; the stack is only sent after the client's first response (`proto::tests::join_sequence_order_matches_vanilla`, `proto::packs::tests::transfers_verifies_and_orders_stack_after_downloads`).
+- [x] Do not advance to start-game until `ResourcePackClientResponse::ResourcePackStackFinished` is observed; the stack is only sent after the client's first response (`proto::tests::join_sequence_follows_the_bds_capture`, `proto::packs::tests::transfers_verifies_and_orders_stack_after_downloads`).
 - [x] Non-empty pack transfer: `ResourcePackDataInfo`, ordered `ResourcePackChunkRequest`, paced `ResourcePackChunkData`, SHA-256, CDN URL and content keys on the server; bounded windowed download, hash and stack verification on the client (`proto::packs::tests::*`, `stream::tests::resource_packs_download_over_the_async_layer`).
 - [x] `ClientCacheStatus` is deferred during negotiation and delivered to the play session in order (`proto::tests::packets_before_their_phase_are_replayed_into_play_in_order`); the client advertises no blob cache.
 - [x] Pack negotiation has its own deadline (`resource_pack_timeout`, default 5 min) and failures map to `Resourcepackproblem` / `Timeout` disconnects.
 
 ### JOLYNE-M3: Start-Game Ordering Test (done; registry-data run re-scoped)
-- [x] `proto::tests::join_sequence_order_matches_vanilla` asserts the server packet order through `PlayStatus(PlayerSpawn)` (BDS/gophertunnel order: `DimensionData?`, `JigsawStructureData`, `VoxelShapes` precede `StartGame`, which the real client requires; definitions follow `ItemRegistry`; `ChunkRadiusUpdated`, `NetworkChunkPublisherUpdate`, `PlayerSpawn` answer `RequestChunkRadius`). Unastar sends BDS 1.26.51's captured structure payloads (`crates/unastar/data/bds-1.26.51`).
+- [x] `proto::tests::join_sequence_follows_the_bds_capture` checks the server packets through `PlayStatus(PlayerSpawn)` against a recorded BDS 1.26.51 trace (`src/proto/testdata/bds-1.26.51-join-s2c.txt`): an order-preserving subsequence with the StartGame group in one BDS batch (`DimensionData?`, `JigsawStructureData`, `VoxelShapes` precede `StartGame`, which the real client requires; definitions follow `ItemRegistry`; `ChunkRadiusUpdated`, `NetworkChunkPublisherUpdate`, `PlayerSpawn` answer `RequestChunkRadius`). Unastar sends BDS 1.26.51's captured structure payloads (`crates/unastar/data/bds-1.26.51`).
 - [x] `SetLocalPlayerAsInitialized` must carry the `StartGame` runtime ID (`proto::tests::runtime_id_mismatch_is_rejected`).
 - [x] Re-scoped: the ordering test uses `WorldTemplate::default()`; real-registry coverage is the Unastar 5-bot smoke (`stress_test --clients 5`), not a jolyne unit test, because the registry data lives in `unastar-data`.
 

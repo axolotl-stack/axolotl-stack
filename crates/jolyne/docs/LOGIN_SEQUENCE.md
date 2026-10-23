@@ -94,7 +94,7 @@ sequenceDiagram
 
 This sequence is the contract for compatibility smoke tests, not just documentation.
 
-- `proto::tests::join_sequence_order_matches_vanilla` asserts the server-side packet order through `PlayStatus(PlayerSpawn)`.
+- `proto::tests::join_sequence_follows_the_bds_capture` checks the server-side packet order through `PlayStatus(PlayerSpawn)` against a recorded BDS 1.26.51 trace; `proto::tests::start_game_and_spawn_answers_leave_as_single_batches` pins the batching.
 - `proto::tests::post_encryption_packets_match_bds_bytes` pins the `PlayStatus(LoginSuccess)` and `ResourcePacksInfo` payloads to a BDS 1.26.51 capture and `ResourcePackStack` to the bytes real clients accepted before the sans-IO rewrite (base game version `1.26.51`; BDS sends `*`).
 - An Unastar smoke test should boot the server, complete this sequence with real registry data, request a chunk radius, and remain connected.
 - Resource-pack negotiation must wait for the correct completed client response before `StartGame`.
