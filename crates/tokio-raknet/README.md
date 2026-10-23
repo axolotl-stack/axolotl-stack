@@ -562,6 +562,51 @@ and BDS, so it is not a latency-tuned policy. Before the 1 MiB
 receive-buffer default, unpaced 64 KiB bursts overflowed Windows' 64 KiB
 socket buffer (PARITY.md OT-7).
 
+### Mojang Vanilla A/B (2026-10-22)
+
+The Mojang retarget of Vanilla touched code shared with Optimized
+(`Session` dispatch, `AckQueue`, `on_tick`, `build_data_datagram`). It was
+measured against `main` (`88dd5b8`): Optimized Criterion benches, release
+builds, pinned to logical CPU 6 (`0x40`), high priority, five interleaved
+rounds with alternating order, 3 s measurement. Turbo boost was disabled
+(max processor state 99%), so absolute numbers are lower than the run above
+and the two runs should not be compared. Other workers were running, so a
+few percent of noise is expected:
+
+| Benchmark group | Rows | Median Δ (median of rounds) | Range | Median Δ (min of rounds) |
+|---|---:|---:|---|---:|
+| `ack_queue` | 3 | −1.5% | −2.7% … −0.1% | −2.9% |
+| `handle_ack_nack` | 4 | −0.6% | −1.4% … +1.4% | +3.7% |
+| `handle_data_payload` | 4 | −1.1% | −2.9% … +2.5% | +1.5% |
+| `high_packet_rate` | 3 | −2.8% | −2.8% … −1.3% | −0.7% |
+| `memory_pressure` | 2 | −1.3% | −1.6% … −1.0% | −2.2% |
+| `ordering_channel_stress` | 2 | −1.2% | −1.6% … −0.9% | −1.5% |
+| `process_datagram` | 2 | −3.2% | −4.1% … −2.4% | −5.5% |
+| `queue_packet` | 12 | +0.2% | −1.3% … +2.7% | +5.0% |
+| `reliable_tracker_stress` | 2 | +0.4% | −0.5% … +1.2% | −0.1% |
+| `sequence_processing` | 3 | −0.5% | −1.1% … +4.0% | +0.9% |
+| `session_tick` | 3 | +1.3% | −4.0% … +10.0% | +6.1% |
+| `split_assembler` | 2 | −1.3% | −2.3% … −0.3% | −3.2% |
+| `split_reassembly_throughput` | 3 | +2.3% | +1.5% … +2.3% | +3.6% |
+| `throughput_encode_decode` | 10 | −0.7% | −3.6% … +1.5% | +0.2% |
+
+The first run found two codegen regressions in unchanged Optimized source,
+both now fixed:
+
+- With Vanilla as a second caller, LLVM outlined `AckQueue::push`, costing
+  ~1 ns per received datagram (`sequence_processing/in_order_100` +12–14%).
+  It is now `#[inline(always)]`.
+- `vanilla_update` was inlined into `on_tick`, which made the Optimized tick
+  save every callee-saved XMM register (`tick_empty` +7%). It is now
+  `#[inline(never)]`, as is `vanilla_accept_sequence`.
+
+One delta remains, `session_tick/tick_with_outgoing_packets` (+4.6% median,
++5.8% min over a separate seven-round re-run, ~40 ns). Its Optimized
+`on_tick` returns before any data is built, so the benchmark mostly times
+dropping a `Session` that holds 50 queued packets. The `Session` drop glue
+grew with the Vanilla state (457 → 605 instructions), a per-connection cost.
+`tick_empty` and `tick_with_pending_acks` are within noise.
+
 ### Encoder and buffer ownership (2026-10-21)
 
 Encoders coalesce adjacent fixed header fields and 24-bit sequences without
