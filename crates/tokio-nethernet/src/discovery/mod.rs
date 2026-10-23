@@ -324,16 +324,15 @@ impl DiscoveryListener {
         if configured.ip() != IpAddr::V4(Ipv4Addr::BROADCAST) {
             return vec![configured];
         }
-        let ipv6_socket = self
-            .socket
-            .local_addr()
-            .is_ok_and(|local| local.is_ipv6());
+        let ipv6_socket = self.socket.local_addr().is_ok_and(|local| local.is_ipv6());
         request_destinations(local_ipv4_networks(), configured.port(), ipv6_socket)
     }
 
     async fn expire_peers(&self, now: Instant) {
         let mut addrs = self.addresses.write().await;
-        addrs.retain(|_, entry| now.saturating_duration_since(entry.last_seen) <= self.config.address_timeout);
+        addrs.retain(|_, entry| {
+            now.saturating_duration_since(entry.last_seen) <= self.config.address_timeout
+        });
         self.responses.write().await.retain(|id, entry| {
             addrs.contains_key(id)
                 && now.saturating_duration_since(entry.last_seen) <= self.config.response_timeout
@@ -630,11 +629,10 @@ mod tests {
         let listener = listener().await;
         listener.set_server_data(ServerData::default()).await;
         let requester = UdpSocket::bind("127.0.0.1:0").await.unwrap();
+        // Replies use `try_send_to`; let the reactor report the fresh socket writable.
+        listener.socket.writable().await.unwrap();
         listener
-            .handle_packet(
-                &packet::encode_request(7),
-                requester.local_addr().unwrap(),
-            )
+            .handle_packet(&packet::encode_request(7), requester.local_addr().unwrap())
             .await
             .unwrap();
         let mut reply = vec![0; MAX_UDP_PACKET_SIZE];
@@ -649,7 +647,11 @@ mod tests {
         assert!(listener.addresses.read().await.is_empty());
         assert!(
             listener
-                .signal(Signal::error(1, "7".into(), crate::SignalErrorCode::InactivityTimeout))
+                .signal(Signal::error(
+                    1,
+                    "7".into(),
+                    crate::SignalErrorCode::InactivityTimeout
+                ))
                 .await
                 .is_err()
         );

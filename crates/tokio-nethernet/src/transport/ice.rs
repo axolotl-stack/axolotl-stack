@@ -181,8 +181,7 @@ impl IceLayer {
         provider: &Arc<dyn RTCCryptoProvider>,
     ) -> Result<Self, NetherNetError> {
         let config = agent_config(controlling, resolve_mdns);
-        let mut agent =
-            Agent::new(now, Arc::new(config), provider.clone()).map_err(transport)?;
+        let mut agent = Agent::new(now, Arc::new(config), provider.clone()).map_err(transport)?;
         let mut local_candidates = Vec::with_capacity(hosts.len());
         if !relay_only {
             for &host in &hosts {

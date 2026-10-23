@@ -469,7 +469,10 @@ async fn route(log: Log) -> anyhow::Result<()> {
                 Ok(Err(error)) => format!("receive error: {error}"),
             },
         };
-        log.event("route", json!({"to": target.to_string(), "outcome": outcome}));
+        log.event(
+            "route",
+            json!({"to": target.to_string(), "outcome": outcome}),
+        );
     }
     Ok(())
 }

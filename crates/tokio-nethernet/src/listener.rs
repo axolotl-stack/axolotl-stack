@@ -755,7 +755,8 @@ mod tests {
             })
             .await
             .unwrap_err();
-        let reply = replies.recv().await.unwrap();
+        // The reply is sent before the offer's error returns.
+        let reply = replies.try_recv().expect("CONNECTERROR reply");
         assert_eq!(reply.typ, SignalType::Error);
         assert_eq!(reply.connection_id, 42);
         assert_eq!(reply.network_id, "remote");
