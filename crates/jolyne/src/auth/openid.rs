@@ -435,8 +435,9 @@ impl OpenIdProvider {
 
     /// The process-wide provider bootstrapped from Minecraft build discovery.
     pub fn minecraft() -> &'static OpenIdProvider {
-        static PROVIDER: LazyLock<OpenIdProvider> =
-            LazyLock::new(|| OpenIdProvider::new(MinecraftDiscovery, RefreshPolicy::default()));
+        static PROVIDER: LazyLock<OpenIdProvider> = LazyLock::new(|| {
+            OpenIdProvider::new(MinecraftDiscovery { http: Https }, RefreshPolicy::default())
+        });
         &PROVIDER
     }
 
@@ -606,43 +607,64 @@ static HTTP_CLIENT: LazyLock<Result<reqwest::Client, String>> = LazyLock::new(||
         .map_err(|error| error.to_string())
 });
 
-async fn get_json<T: DeserializeOwned>(url: &str) -> Result<T, AuthError> {
-    let client = HTTP_CLIENT
-        .as_ref()
-        .map_err(|error| AuthError::ProviderUnavailable(format!("HTTP client: {error}")))?;
-    client
-        .get(url)
-        .header(reqwest::header::ACCEPT, "application/json")
-        .send()
-        .await
-        .and_then(reqwest::Response::error_for_status)
-        .map_err(|e| AuthError::ProviderUnavailable(format!("HTTP: {e}")))?
-        .json()
-        .await
+/// One HTTPS `GET` returning a JSON body: the only network access of
+/// discovery, injectable so the discovery chain is testable offline.
+pub(crate) trait JsonGet: Send + Sync {
+    fn get_json<'a>(&'a self, url: &'a str) -> BoxFuture<'a, Result<serde_json::Value, AuthError>>;
+}
+
+/// Production [`JsonGet`]: the shared HTTPS-only `reqwest` client.
+pub(crate) struct Https;
+
+impl JsonGet for Https {
+    fn get_json<'a>(&'a self, url: &'a str) -> BoxFuture<'a, Result<serde_json::Value, AuthError>> {
+        Box::pin(async move {
+            let client = HTTP_CLIENT
+                .as_ref()
+                .map_err(|error| AuthError::ProviderUnavailable(format!("HTTP client: {error}")))?;
+            client
+                .get(url)
+                .header(reqwest::header::ACCEPT, "application/json")
+                .send()
+                .await
+                .and_then(reqwest::Response::error_for_status)
+                .map_err(|e| AuthError::ProviderUnavailable(format!("HTTP: {e}")))?
+                .json()
+                .await
+                .map_err(|e| AuthError::ProviderUnavailable(format!("JSON: {e}")))
+        })
+    }
+}
+
+async fn get_as<T: DeserializeOwned>(http: &dyn JsonGet, url: &str) -> Result<T, AuthError> {
+    serde_json::from_value(http.get_json(url).await?)
         .map_err(|e| AuthError::ProviderUnavailable(format!("JSON: {e}")))
 }
 
 /// Only the fixed Minecraft build discovery endpoint bootstraps production trust.
 /// See gophertunnel minecraft/service/discovery.go:Default and
 /// minecraft/service/token.go:configuration. No header URLs or static fallback.
-struct MinecraftDiscovery;
+pub(crate) struct MinecraftDiscovery<H: JsonGet> {
+    pub(crate) http: H,
+}
 
-impl KeySetSource for MinecraftDiscovery {
+impl<H: JsonGet> KeySetSource for MinecraftDiscovery<H> {
     fn fetch(&self) -> BoxFuture<'_, Result<OpenIdVerifier, AuthError>> {
         Box::pin(async {
-            let discovery: DiscoveryEnvelope = get_json(&format!(
-                "{DISCOVERY_URL}{}",
-                crate::valentine::GAME_VERSION
-            ))
+            let http: &dyn JsonGet = &self.http;
+            let discovery: DiscoveryEnvelope = get_as(
+                http,
+                &format!("{DISCOVERY_URL}{}", crate::valentine::GAME_VERSION),
+            )
             .await?;
             let issuer = discovery.result.service_environments.auth.prod.issuer;
             let issuer = format!("{}/", issuer.trim_end_matches('/'));
             let config: Configuration =
-                get_json(&format!("{issuer}.well-known/openid-configuration")).await?;
+                get_as(http, &format!("{issuer}.well-known/openid-configuration")).await?;
             if config.issuer != issuer {
                 return Err(AuthError::InvalidIssuer(config.issuer));
             }
-            let jwks: serde_json::Value = get_json(&config.jwks_uri).await?;
+            let jwks = http.get_json(&config.jwks_uri).await?;
             OpenIdVerifier::from_jwks(
                 &issuer,
                 &config.id_token_signing_alg_values_supported,

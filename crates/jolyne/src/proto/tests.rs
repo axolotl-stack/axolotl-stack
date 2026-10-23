@@ -573,6 +573,61 @@ async fn each_stage_has_a_mandatory_deadline() {
 }
 
 #[tokio::test]
+async fn resource_pack_timeouts_and_failures_have_their_own_disconnect_reasons() {
+    use crate::valentine::EnumsConnectionDisconnectFailReason as R;
+    let harness = Harness::new(BedrockListenerConfig {
+        online_mode: false,
+        ..Default::default()
+    });
+    let (ready, _client) = harness.through_login().await.unwrap();
+    let packs = ready
+        .start_packs(Instant::now())
+        .map_err(|f| f.error)
+        .unwrap();
+    let late = Instant::now() + harness.config.resource_pack_timeout;
+    let timeout = error_of(packs, late);
+    assert!(matches!(
+        timeout,
+        JolyneError::Protocol(ProtocolError::Timeout(HandshakePhase::ResourcePacks))
+    ));
+    assert_eq!(timeout.disconnect_reason(), Some(R::Timeout));
+
+    let refused = JolyneError::from(crate::error::PackError::Refused);
+    assert_eq!(refused.disconnect_reason(), Some(R::Resourcepackproblem));
+    assert_eq!(
+        refused.disconnect_message(),
+        "Resource pack negotiation failed."
+    );
+}
+
+#[tokio::test]
+async fn deferring_more_than_the_configured_bound_fails_the_join() {
+    let text = || McpePacket::from(crate::valentine::TextPacket::default());
+    for (max_packets, max_bytes) in [(2, usize::MAX), (usize::MAX, 8)] {
+        let mut harness = Harness::new(BedrockListenerConfig {
+            online_mode: false,
+            ..Default::default()
+        });
+        harness.client.connection.max_deferred_packets = max_packets;
+        harness.client.connection.max_deferred_bytes = max_bytes;
+        let (mut server, mut client) = harness.through_authentication().await.unwrap();
+        // Play packets before the handshake are deferred by the client.
+        for _ in 0..3 {
+            server
+                .connection()
+                .queue_packet(&text(), Instant::now())
+                .unwrap();
+        }
+        server.connection().flush().unwrap();
+        pump(&mut server, &mut client);
+        assert!(matches!(
+            error_of(client, Instant::now()),
+            JolyneError::Protocol(ProtocolError::DeferredOverflow { .. })
+        ));
+    }
+}
+
+#[tokio::test]
 async fn huge_configured_timeouts_mean_far_deadlines_not_overflow() {
     // `Duration::MAX` as "never" used to overflow `Instant + Duration`.
     let harness = Harness::new(BedrockListenerConfig {

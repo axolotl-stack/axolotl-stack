@@ -128,6 +128,23 @@ mod tests {
     use super::*;
 
     #[test]
+    fn derive_key_matches_an_independent_vector() {
+        // Node/OpenSSL: secp384r1 private keys 0x01×48 and 0x02×48, salt
+        // 00..0f; key = SHA256(salt || ECDH x), IV = key[..12].
+        let ours = SecretKey::from_slice(&[1; 48]).unwrap();
+        let peer = SecretKey::from_slice(&[2; 48]).unwrap().public_key();
+        let salt: Vec<u8> = (0..16).collect();
+        let (key, iv) = derive_key(&ours, &peer, &salt);
+        let expected: [u8; 32] = [
+            0x33, 0x4f, 0xf0, 0xb5, 0xe3, 0xd2, 0xbc, 0x0e, 0xe8, 0xbd, 0x68, 0x9c, 0x59, 0x94,
+            0x0d, 0xf9, 0xb6, 0xa4, 0x7a, 0xd3, 0xfd, 0x83, 0xf2, 0x52, 0xcf, 0x1e, 0x46, 0x05,
+            0xcc, 0x1a, 0xbb, 0x60,
+        ];
+        assert_eq!(key, expected);
+        assert_eq!(iv[..], expected[..12]);
+    }
+
+    #[test]
     fn token_roundtrip_derives_matching_keys() {
         let server = SecretKey::random(&mut rand::thread_rng());
         let client = SecretKey::random(&mut rand::thread_rng());

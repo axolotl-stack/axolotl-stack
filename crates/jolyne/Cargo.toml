@@ -51,6 +51,7 @@ tracing.workspace = true
 tokio = { workspace = true, features = ["rt-multi-thread", "macros", "net", "test-util"] }
 tracing-subscriber = { workspace = true, features = ["env-filter", "fmt"] }
 anyhow.workspace = true
+async-trait.workspace = true
 parking_lot = "0.12"
 tokio-util.workspace = true
 clap.workspace = true

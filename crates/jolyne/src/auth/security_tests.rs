@@ -78,6 +78,38 @@ fn provider(key: &SecretKey) -> OpenIdProvider {
     OpenIdProvider::new(StaticSource(key.clone()), RefreshPolicy::default())
 }
 
+/// RS256 is what the production provider publishes (`openid.rs` default
+/// algorithms). Fixed 2048-bit test key generated with Node `crypto`.
+#[test]
+fn rs256_jwks_validates_provider_tokens() {
+    let pem = include_str!("testdata/rs256-test-key.pem");
+    let jwks = include_str!("testdata/rs256-test-jwks.json");
+    let verifier =
+        OpenIdVerifier::from_jwks("https://trusted.test/", &[Algorithm::RS256], jwks).unwrap();
+    let identity = key(1);
+    let mut header = Header::new(Algorithm::RS256);
+    header.kid = Some("rs-test".into());
+    let sign = |claims: &Value| {
+        encode(
+            &header,
+            claims,
+            &EncodingKey::from_rsa_pem(pem.as_bytes()).unwrap(),
+        )
+        .unwrap()
+    };
+
+    let login = verifier
+        .validate(&sign(&claims(&identity)), &client_data(&identity))
+        .unwrap();
+    assert_eq!(login.identity.claimed_xuid(), Some("2535428123456789"));
+
+    // A token signed by any other key under the same kid is rejected.
+    let mut forged = claims(&identity);
+    forged["xid"] = "1".into();
+    let other = sign_with(&key(3), Some("rs-test"), &forged);
+    assert!(verifier.validate(&other, &client_data(&identity)).is_err());
+}
+
 #[test]
 fn malformed_jwks_keys_are_skipped_not_fatal() {
     let good = key(2);

@@ -1,8 +1,10 @@
 //! Deterministic `OpenIdProvider` cache tests on Tokio's paused clock.
 
-use super::security_tests::{claims, client_data, key, sign_with, verifier_for};
+use super::security_tests::{claims, client_data, jwks, key, sign_with, verifier_for};
 use crate::auth::Trust;
-use crate::auth::openid::{KeySetSource, OpenIdProvider, OpenIdVerifier, RefreshPolicy};
+use crate::auth::openid::{
+    JsonGet, KeySetSource, MinecraftDiscovery, OpenIdProvider, OpenIdVerifier, RefreshPolicy,
+};
 use crate::error::AuthError;
 use futures::future::{BoxFuture, join_all};
 use p384::SecretKey;
@@ -308,4 +310,76 @@ async fn panicking_fetch_frees_the_refresh_slot() {
         .await
         .expect("a new fetch after the panicked one");
     assert_eq!(source.fetches.load(Ordering::SeqCst), 2);
+}
+
+/// Canned JSON responses by URL; records every request.
+struct FakeHttp {
+    responses: Vec<(String, serde_json::Value)>,
+    requested: Mutex<Vec<String>>,
+}
+
+impl JsonGet for FakeHttp {
+    fn get_json<'a>(&'a self, url: &'a str) -> BoxFuture<'a, Result<serde_json::Value, AuthError>> {
+        self.requested.lock().push(url.to_owned());
+        let found = self
+            .responses
+            .iter()
+            .find(|(known, _)| known == url)
+            .map(|(_, body)| body.clone());
+        Box::pin(async move {
+            found.ok_or_else(|| AuthError::ProviderUnavailable(format!("404 {url}")))
+        })
+    }
+}
+
+/// Discovery → OpenID configuration (claiming `config_issuer`) → JWKS.
+fn discovery_http(config_issuer: &str, provider_key: &SecretKey) -> FakeHttp {
+    use serde_json::json;
+    let discovery = format!(
+        "https://client.discovery.minecraft-services.net/api/v1.0/discovery/MinecraftPE/builds/{}",
+        crate::valentine::GAME_VERSION
+    );
+    let auth = json!({"prod": {"issuer": "https://trusted.test"}});
+    FakeHttp {
+        responses: vec![
+            (
+                discovery,
+                json!({"result": {"serviceEnvironments": {"auth": auth}}}),
+            ),
+            (
+                "https://trusted.test/.well-known/openid-configuration".into(),
+                json!({
+                    "issuer": config_issuer,
+                    "jwks_uri": "https://trusted.test/keys",
+                    "id_token_signing_alg_values_supported": ["ES384"],
+                }),
+            ),
+            (
+                "https://trusted.test/keys".into(),
+                serde_json::from_str(&jwks(&[(provider_key, None)])).unwrap(),
+            ),
+        ],
+        requested: Mutex::default(),
+    }
+}
+
+#[tokio::test]
+async fn minecraft_discovery_follows_build_discovery_to_the_jwks() {
+    let provider_key = key(2);
+    let discovery = MinecraftDiscovery {
+        http: discovery_http("https://trusted.test/", &provider_key),
+    };
+    let verifier = discovery.fetch().await.unwrap();
+    let login = login(&provider_key, None);
+    verifier.validate(&login.token, &login.client).unwrap();
+    assert_eq!(discovery.http.requested.lock().len(), 3);
+
+    // The configuration must name the issuer discovery pointed at.
+    let spoofed = MinecraftDiscovery {
+        http: discovery_http("https://evil.test/", &provider_key),
+    };
+    assert!(matches!(
+        spoofed.fetch().await,
+        Err(AuthError::InvalidIssuer(_))
+    ));
 }

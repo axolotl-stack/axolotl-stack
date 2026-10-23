@@ -101,10 +101,10 @@ the vanilla reference). Tests are in `crates/jolyne` unless noted.
 | Client | ✅ | `stream::tests::join_echo_and_typed_disconnect` |
 | Proxy mode (relay, encryption terminated per side, unknown IDs forwarded) | ✅ | `stream::tests::proxy_relays_unknown_packets_and_disconnects`; `examples/proxy.rs` |
 | RakNet | ✅ | `tests/raknet_listener.rs` (real loopback join) |
-| NetherNet (LAN `ServerData` from the status provider) | ✅ | `listener::NetherNetBuilder::bind` publishes `ServerStatus::lan_server_data` |
+| NetherNet (LAN `ServerData` from the status provider) | ✅ | `tests/nethernet_loopback.rs` (real WebRTC loopback join); `listener::NetherNetBuilder::bind` publishes `ServerStatus::lan_server_data` |
 | Custom transport | ✅ | `stream::tests` (in-memory `Transport`) |
-| Compression: Deflate / Snappy / None, server-selectable; threshold default 1 (BDS `server.properties` and captures; gophertunnel uses 256), configurable | ✅ | `proto::tests::compression_and_encryption_are_active_in_play`, `proto::batch::tests::threshold_selects_marker_and_roundtrips_all_algorithms` |
-| Encryption (AES-CTR + checksum) | ✅ | `proto::crypto::tests::*`, `proto::conn::tests::checksum_failure_is_terminal_for_the_connection` |
+| Compression: Deflate / Snappy / None, server-selectable; threshold default 1 (BDS `server.properties` and captures; gophertunnel uses 256), configurable | ✅ | `proto::tests::compression_and_encryption_are_active_in_play`, `proto::batch::tests::threshold_selects_marker_and_roundtrips_all_algorithms`, `proto::compression::tests::snappy_output_matches_the_golden_fixtures` (`tests/fixtures`) |
+| Encryption (AES-CTR + checksum; ECDH key derivation) | ✅ | `proto::crypto::tests::*`, `proto::conn::tests::checksum_failure_is_terminal_for_the_connection`, `proto::handshake::tests::derive_key_matches_an_independent_vector` |
 | Crypto hardening (constant-time compare, cipher invalidated, plaintext zeroized) | ✅ | `proto::crypto::tests::tampering_zeroizes_plaintext_and_invalidates_cipher_permanently` |
 | Resource packs, server send (Info → DataInfo/chunks on request → Stack after download → Completed; SHA-256, CDN URL, content keys, paced chunks) | ✅ | `proto::packs::tests::{transfers_verifies_and_orders_stack_after_downloads, chunk_pacing_holds_replies_on_a_timer, server_rejects_out_of_order_unknown_and_refused, stack_finished_before_stack_is_rejected}` |
 | Resource packs, client download (bounded window, size caps, SHA-256, stack check, cache hook, veto) | ✅ | `proto::packs::tests::{client_bounds_offers_chunk_size_and_hash, data_info_must_match_the_advertised_size, stack_entries_must_be_downloaded_builtin_or_declined, declined_packs_are_not_downloaded}`, `stream::tests::resource_packs_download_over_the_async_layer` |

@@ -244,17 +244,32 @@ mod tests {
     use super::*;
     use std::io::{Read, Write};
 
+    /// A file under `crates/jolyne/tests/fixtures`.
+    fn fixture(path: &str) -> Vec<u8> {
+        let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR")).join("tests/fixtures");
+        std::fs::read(root.join(path)).unwrap()
+    }
+
+    /// xorshift32 noise, identical to `snappyNoise` in
+    /// `tools/bench-compare/go/snappy_test.go`.
+    fn noise(len: usize) -> Vec<u8> {
+        let mut state = 0x1234_5678u32;
+        (0..len)
+            .map(|_| {
+                state ^= state << 13;
+                state ^= state >> 17;
+                state ^= state << 5;
+                state as u8
+            })
+            .collect()
+    }
+
+    const BATCHES: [&str; 4] = ["spawn", "server_tick", "chunk_radius", "client_tick"];
+
     #[test]
     fn snappy_corpus_size_and_reference_roundtrip() {
-        let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"))
-            .join("../valentine_gen/protocolgen/testdata/bench");
-        for (name, limit) in [
-            ("spawn", 1155),
-            ("server_tick", 1599),
-            ("chunk_radius", 79052),
-            ("client_tick", 287),
-        ] {
-            let input = std::fs::read(root.join(format!("synthetic_batch_{name}.bin"))).unwrap();
+        for (name, limit) in BATCHES.into_iter().zip([1155, 1599, 79052, 287]) {
+            let input = fixture(&format!("batches/{name}.bin"));
             let mut output = BytesMut::from(&b"\xfe\x01"[..]);
             output.extend_from_slice(&input[1..]);
             Compression::new(BatchCompression::Snappy, 6)
@@ -268,6 +283,33 @@ mod tests {
                 &input[1..]
             );
             assert!(output.len() <= limit, "{name}: {} > {limit}", output.len());
+        }
+    }
+
+    /// `tests/fixtures/snappy` holds this encoder's output, which the Go
+    /// interop test decodes with gophertunnel; the encoder must keep
+    /// producing exactly those bytes.
+    #[test]
+    fn snappy_output_matches_the_golden_fixtures() {
+        let mut cases = vec![
+            ("long-literal", noise(65537)),
+            ("copy4", [noise(4096), vec![0; 70000], noise(4096)].concat()),
+        ];
+        for name in BATCHES {
+            cases.push((name, fixture(&format!("batches/{name}.bin"))[1..].to_vec()));
+        }
+        for (name, plain) in cases {
+            let golden = fixture(&format!("snappy/{name}.snappy"));
+            let mut output = BytesMut::from(plain.as_slice());
+            Compression::new(BatchCompression::Snappy, 1)
+                .unwrap()
+                .compress(&mut output, 0)
+                .unwrap();
+            assert!(output.as_ref() == golden, "{name}: encoder output changed");
+            assert_eq!(
+                snap::raw::Decoder::new().decompress_vec(&golden).unwrap(),
+                plain
+            );
         }
     }
 
