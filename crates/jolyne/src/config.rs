@@ -237,6 +237,10 @@ pub struct ClientConfig {
     pub chunk_radius: i32,
     /// Resource pack download policy and bounds.
     pub packs: ClientPackPolicy,
+    /// Refuse a server that answers `Login` with `PlayStatus(LoginSuccess)`
+    /// without first starting encryption (`ServerToClientHandshake`).
+    /// Default: `false` (servers that skip encryption are accepted).
+    pub require_encryption: bool,
 }
 
 impl Default for ClientConfig {
@@ -249,6 +253,7 @@ impl Default for ClientConfig {
             join_timeout: Duration::from_secs(120),
             chunk_radius: 16,
             packs: ClientPackPolicy::default(),
+            require_encryption: false,
         }
     }
 }

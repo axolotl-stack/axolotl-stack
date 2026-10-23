@@ -94,6 +94,7 @@ struct Harness {
     /// The key the online login claims; `None` is the client's own key. A
     /// replayed Login claims a key the sender does not hold.
     login_key: Option<SecretKey>,
+    client: ClientConfig,
 }
 
 impl Harness {
@@ -110,6 +111,7 @@ impl Harness {
             framing: Framing::RakNet,
             provider: None,
             login_key: None,
+            client: ClientConfig::default(),
         }
     }
 
@@ -132,10 +134,9 @@ impl Harness {
             self.config.clone(),
             now,
         );
-        let client_config = ClientConfig::default();
         let client = ClientSettings::new(
-            Connection::new(self.framing, client_config.connection.clone()),
-            &client_config,
+            Connection::new(self.framing, self.client.connection.clone()),
+            &self.client,
             now,
         )
         .unwrap();
@@ -983,5 +984,35 @@ async fn unencrypted_online_login_trusts_only_a_transport_proven_key() {
         let identity = &ready.login().identity;
         assert_eq!(identity.trust(), expected);
         assert_eq!(identity.xuid().is_some(), expected == Trust::Authenticated);
+    }
+}
+
+#[tokio::test]
+async fn client_can_require_encryption() {
+    for require_encryption in [false, true] {
+        let mut harness = Harness::new(BedrockListenerConfig {
+            online_mode: false,
+            encryption_enabled: false,
+            ..Default::default()
+        });
+        harness.client.require_encryption = require_encryption;
+        let (authenticated, mut client) = harness.through_authentication().await.unwrap();
+        let mut ready =
+            match authenticated.start_encryption(&harness.server_key, None, Instant::now()) {
+                Ok(Step::Next(ready)) => ready,
+                _ => panic!("encryption is disabled"),
+            };
+        pump(&mut ready, &mut client); // PlayStatus(LoginSuccess), unencrypted
+        match client.advance(Instant::now()) {
+            Ok(Step::Next(_)) => assert!(!require_encryption),
+            Err(failure) => {
+                assert!(require_encryption);
+                assert!(matches!(
+                    failure.error,
+                    JolyneError::Protocol(ProtocolError::InvalidHandshake(_))
+                ));
+            }
+            Ok(Step::Wait(_)) => panic!("LoginSuccess was not handled"),
+        }
     }
 }

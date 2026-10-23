@@ -56,6 +56,7 @@ struct Shared {
     deadline: Instant,
     chunk_radius: i32,
     packs: ClientPackPolicy,
+    require_encryption: bool,
 }
 
 fn decode(packet: RawPacket) -> Result<McpePacket, JolyneError> {
@@ -89,6 +90,7 @@ impl ClientSettings {
                 deadline: deadline_after(now, config.join_timeout),
                 chunk_radius: config.chunk_radius,
                 packs: config.packs.clone(),
+                require_encryption: config.require_encryption,
             },
         })
     }
@@ -256,6 +258,14 @@ impl Phase for ClientHandshake {
                 data: McpePacketData::PlayStatusPacket(status),
                 ..
             }) => match status.status {
+                PlayStatusPacketStatus::Loginsuccess
+                    if self.shared.require_encryption && !self.conn.is_encrypted() =>
+                {
+                    Err(ProtocolError::InvalidHandshake(
+                        "LoginSuccess without encryption; the client requires it".into(),
+                    )
+                    .into())
+                }
                 PlayStatusPacketStatus::Loginsuccess => Ok(true),
                 other => Err(JolyneError::LoginRefused(other)),
             },
