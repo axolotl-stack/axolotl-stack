@@ -68,7 +68,11 @@ impl BatchCipher {
 
     // Prefetch one complete group for the selected AES/VAES backend, retaining
     // unused tail bytes across batches rather than encrypting scalar blocks.
-    fn apply_keystream(&mut self, data: &mut [u8]) {
+    //
+    // `Ctr32BE` ends after 2^32 blocks (~64 GiB per direction). Running out
+    // wipes `data` and invalidates the cipher instead of panicking: the
+    // stream cannot continue, so the connection must close.
+    fn apply_keystream(&mut self, data: &mut [u8]) -> Result<(), JolyneError> {
         let cached = (self.keystream.len() - self.used_keystream).min(data.len());
         let (head, rest) = data.split_at_mut(cached);
         for (byte, key) in head.iter_mut().zip(&self.keystream[self.used_keystream..]) {
@@ -76,26 +80,28 @@ impl BatchCipher {
         }
         self.used_keystream += cached;
         if rest.is_empty() {
-            return;
+            return Ok(());
         }
         let group_len = rest.len() / self.keystream.len() * self.keystream.len();
         let (groups, tail) = rest.split_at_mut(group_len);
-        self.cipher.apply_keystream(groups);
-        if !tail.is_empty() {
+        let mut applied = self.cipher.try_apply_keystream(groups);
+        if applied.is_ok() && !tail.is_empty() {
             // Do not prefetch beyond the underlying cipher's stream limit.
-            if self
-                .cipher
-                .try_write_keystream(&mut self.keystream)
-                .is_err()
-            {
-                self.cipher.apply_keystream(tail);
-                return;
+            if self.cipher.try_write_keystream(&mut self.keystream).is_ok() {
+                for (byte, key) in tail.iter_mut().zip(self.keystream.iter()) {
+                    *byte ^= key;
+                }
+                self.used_keystream = tail.len();
+            } else {
+                applied = self.cipher.try_apply_keystream(tail);
             }
-            for (byte, key) in tail.iter_mut().zip(self.keystream.iter()) {
-                *byte ^= key;
-            }
-            self.used_keystream = tail.len();
         }
+        if applied.is_err() {
+            data.zeroize();
+            self.invalidated = true;
+            return Err(ProtocolError::CipherInvalidated.into());
+        }
+        Ok(())
     }
 
     /// Appends a checksum and encrypts an owned batch in place.
@@ -129,7 +135,7 @@ impl BatchCipher {
         let checksum = digest.finalize();
 
         buf.extend_from_slice(&checksum[..CHECKSUM_LEN]);
-        self.apply_keystream(&mut buf[header_len..]);
+        self.apply_keystream(&mut buf[header_len..])?;
         Ok(())
     }
 
@@ -161,7 +167,7 @@ impl BatchCipher {
 
         let mut digest = Sha256::new();
         digest.update(counter_value.to_le_bytes());
-        self.apply_keystream(&mut buf[header_len..]);
+        self.apply_keystream(&mut buf[header_len..])?;
         digest.update(&buf[header_len..checksum_start]);
         digest.update(self.key);
         let ours = digest.finalize();
@@ -201,6 +207,29 @@ mod tests {
 
     const KEY: [u8; 32] = [0x42; 32];
     const IV: [u8; 12] = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12];
+
+    #[test]
+    fn exhausted_keystream_invalidates_instead_of_panicking() {
+        use ctr::cipher::StreamCipherSeek;
+        let mut send = BatchCipher::new(KEY, IV);
+        // Ctr32BE starts at counter 2 (`[iv, 0, 0, 0, 2]`) and stops before it
+        // wraps; park the stream 64 bytes short of that end.
+        let end = (u64::from(u32::MAX) - 1) * 16;
+        send.cipher.try_seek(end - 64).unwrap();
+        send.used_keystream = send.keystream.len();
+
+        let mut buf = BytesMut::from(&[0xfe; 200][..]);
+        let error = send.encrypt(&mut buf, 1).unwrap_err();
+        assert!(matches!(
+            error,
+            JolyneError::Protocol(ProtocolError::CipherInvalidated)
+        ));
+        assert!(send.is_invalidated());
+        assert_eq!(buf[0], 0xfe, "cleartext header untouched");
+        assert!(buf[1..].iter().all(|&byte| byte == 0), "payload wiped");
+        let mut next = BytesMut::from(&[0xfe, 1][..]);
+        assert!(send.encrypt(&mut next, 1).is_err());
+    }
 
     #[test]
     fn independent_vectors_cross_parallel_cache_boundaries() {
