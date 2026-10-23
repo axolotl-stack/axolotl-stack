@@ -379,6 +379,15 @@ impl ProviderInner {
                     "key set fetch timed out".into(),
                 ))
             });
+        self.record(result)
+    }
+
+    /// Stores one attempt's outcome, then frees the single-flight slot so the
+    /// next refresh (after backoff, on failure) starts a new fetch.
+    fn record(
+        &self,
+        result: Result<OpenIdVerifier, AuthError>,
+    ) -> Result<Arc<Snapshot>, AuthError> {
         let now = Instant::now();
         let outcome = {
             let mut state = self.state.write();
@@ -554,12 +563,18 @@ impl OpenIdProvider {
         // The slot lock is held until the flight is published, so the task
         // cannot clear the slot before it is set.
         let task = tokio::spawn(self.inner.clone().fetch_and_store());
+        let inner = self.inner.clone();
         let flight = async move {
-            task.await.unwrap_or_else(|error| {
-                Err(AuthError::ProviderUnavailable(format!(
+            match task.await {
+                Ok(outcome) => outcome,
+                // The task panicked (e.g. in a custom `KeySetSource`) or was
+                // cancelled before recording: record the failure here, or the
+                // slot would keep this finished flight and every later refresh
+                // would join it instead of fetching again.
+                Err(error) => inner.record(Err(AuthError::ProviderUnavailable(format!(
                     "key set fetch task failed: {error}"
-                )))
-            })
+                )))),
+            }
         }
         .boxed()
         .shared();

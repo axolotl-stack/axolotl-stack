@@ -270,3 +270,42 @@ async fn cancelled_login_does_not_abort_or_forget_the_fetch() {
         assert_eq!(source.fetches(), 1, "outcome or backoff was lost");
     }
 }
+
+/// Panics on its first fetch, then serves `keys`.
+struct PanicsOnce {
+    fetches: AtomicUsize,
+    keys: Keys,
+}
+
+impl KeySetSource for Arc<PanicsOnce> {
+    fn fetch(&self) -> BoxFuture<'_, Result<OpenIdVerifier, AuthError>> {
+        let first = self.fetches.fetch_add(1, Ordering::SeqCst) == 0;
+        Box::pin(async move {
+            assert!(!first, "key source failure");
+            let keys: Vec<_> = self.keys.iter().map(|(key, kid)| (key, *kid)).collect();
+            Ok(verifier_for(&keys))
+        })
+    }
+}
+
+#[tokio::test(start_paused = true)]
+async fn panicking_fetch_frees_the_refresh_slot() {
+    let provider_key = key(2);
+    let source = Arc::new(PanicsOnce {
+        fetches: AtomicUsize::new(0),
+        keys: vec![(provider_key.clone(), None)],
+    });
+    let policy = RefreshPolicy::default();
+    let provider = OpenIdProvider::new(source.clone(), policy);
+    let login = login(&provider_key, None);
+
+    assert!(matches!(
+        validate(&provider, &login).await,
+        Err(AuthError::ProviderUnavailable(_))
+    ));
+    tokio::time::advance(policy.retry_backoff).await;
+    validate(&provider, &login)
+        .await
+        .expect("a new fetch after the panicked one");
+    assert_eq!(source.fetches.load(Ordering::SeqCst), 2);
+}
