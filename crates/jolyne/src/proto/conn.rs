@@ -20,7 +20,10 @@ use bytes::{Bytes, BytesMut};
 use super::batch::{BatchCodec, BatchCompression, BatchEncoding};
 use super::crypto::BatchCipher;
 use super::custom::{CustomPacket, PacketFilter};
-use super::observe::{ConnectionMetrics, Direction, PacketEvent};
+use super::observe::{
+    ConnectionMetrics, Direction, HexPreview, PacketEvent, WIRE_TARGET, trace_packet,
+    wire_trace_enabled,
+};
 use super::raw::{PacketHeader, RawPacket};
 use crate::config::{ConnectionOptions, FlushMode};
 use crate::error::{JolyneError, PeerDisconnect, ProtocolError};
@@ -260,7 +263,8 @@ impl Connection {
     }
 
     fn decode_datagram(&mut self, datagram: Datagram) -> Result<(), JolyneError> {
-        self.metrics.bytes_in += datagram.len() as u64;
+        let wire_len = datagram.len();
+        self.metrics.bytes_in += wire_len as u64;
         self.metrics.batches_in += 1;
         // `skip` cleartext marker bytes stay at the front until after
         // decryption; advancing (not splitting) them never allocates.
@@ -293,6 +297,11 @@ impl Connection {
                 body
             }
         };
+        let algorithm = self
+            .compression
+            .is_some()
+            .then(|| body.first().copied())
+            .flatten();
         let start = self.inbound.len();
         let stats = self.codec.decode_raw_into(
             body,
@@ -303,6 +312,31 @@ impl Connection {
         )?;
         self.metrics.packets_in += stats.packets as u64;
         self.metrics.unknown_packets += (stats.skipped_unknown + stats.passed_unknown) as u64;
+        if wire_trace_enabled() {
+            tracing::trace!(
+                target: WIRE_TARGET,
+                direction = ?Direction::Inbound,
+                wire_len,
+                encrypted = self.recv_cipher.is_some(),
+                algorithm = ?algorithm,
+                packets = stats.packets,
+                "batch"
+            );
+            for packet in self.inbound.range(start..) {
+                trace_packet(Direction::Inbound, packet.header(), packet.body());
+            }
+        }
+        for packet in self.inbound.range(start..) {
+            if packet.is(McpePacketName::PacketViolationWarningPacket) {
+                // The peer rejected one of our packets; the connection
+                // usually closes next without a reason.
+                tracing::warn!(
+                    report = %HexPreview(packet.body()),
+                    decoded = ?packet.clone().decode().map(|packet| packet.data),
+                    "peer reported a packet violation"
+                );
+            }
+        }
         if let Some(observer) = &self.options.observer {
             for packet in self.inbound.range(start..) {
                 observer.observe(PacketEvent {
@@ -371,20 +405,27 @@ impl Connection {
 
     fn after_queue(&mut self, frame_start: usize) -> Result<(), JolyneError> {
         self.pending_packets += 1;
-        if let Some(observer) = &self.options.observer {
+        let trace = wire_trace_enabled();
+        if trace || self.options.observer.is_some() {
             let frame = &self.pending[frame_start..];
             let mut cursor = frame;
             let _len = valentine::protocol::wire::read_var_u32(&mut cursor)?;
             let header_raw = valentine::protocol::wire::read_var_u32(&mut cursor)?;
-            observer.observe(PacketEvent {
-                direction: Direction::Outbound,
-                header: PacketHeader {
-                    id: (header_raw & 0x3FF) as u16,
-                    from_subclient: ((header_raw >> 10) & 3) as u8,
-                    to_subclient: ((header_raw >> 12) & 3) as u8,
-                },
-                payload: cursor,
-            });
+            let header = PacketHeader {
+                id: (header_raw & 0x3FF) as u16,
+                from_subclient: ((header_raw >> 10) & 3) as u8,
+                to_subclient: ((header_raw >> 12) & 3) as u8,
+            };
+            if trace {
+                trace_packet(Direction::Outbound, header, cursor);
+            }
+            if let Some(observer) = &self.options.observer {
+                observer.observe(PacketEvent {
+                    direction: Direction::Outbound,
+                    header,
+                    payload: cursor,
+                });
+            }
         }
         if self.options.flush == FlushMode::Immediate
             || self.pending_packets >= self.options.max_packets_per_outbound_batch
@@ -513,6 +554,20 @@ impl Connection {
             .into());
         }
         let header_len = usize::from(self.prefix());
+        if wire_trace_enabled() {
+            let body = &self.pending[header_len..];
+            tracing::trace!(
+                target: WIRE_TARGET,
+                direction = ?Direction::Outbound,
+                wire_len = len,
+                encrypted = self.send_cipher.is_some(),
+                algorithm = ?self.compression.and(body.first()),
+                packets,
+                reliable,
+                plain = %HexPreview(body),
+                "batch"
+            );
+        }
         if let Some(cipher) = self.send_cipher.as_mut() {
             cipher.encrypt(&mut self.pending, header_len)?;
         }

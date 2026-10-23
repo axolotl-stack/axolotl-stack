@@ -4,10 +4,58 @@
 //! once per inbound batch and once per outbound packet, and counters are
 //! plain integers bumped once per batch, except on the error and
 //! unknown-packet paths.
+//!
+//! Independently of the observer, every batch and packet is logged at
+//! `TRACE` under the [`WIRE_TARGET`] target (`RUST_LOG=jolyne::wire=trace`)
+//! for interop debugging against real clients.
 
+use std::fmt;
 use std::sync::Arc;
 
 use super::raw::PacketHeader;
+
+/// `tracing` target of the per-batch and per-packet wire log.
+pub const WIRE_TARGET: &str = "jolyne::wire";
+
+/// Whether the wire log is enabled; checked before walking a batch.
+#[inline]
+pub(crate) fn wire_trace_enabled() -> bool {
+    tracing::enabled!(target: WIRE_TARGET, tracing::Level::TRACE)
+}
+
+/// Logs one packet of the wire trace.
+pub(crate) fn trace_packet(direction: Direction, header: PacketHeader, payload: &[u8]) {
+    tracing::trace!(
+        target: WIRE_TARGET,
+        ?direction,
+        id = header.id,
+        name = ?super::custom::packet_name(header.id),
+        len = payload.len(),
+        payload = %HexPreview(payload),
+        "packet"
+    );
+}
+
+/// Lowercase hex of the first [`HexPreview::LIMIT`] bytes, then the count
+/// of omitted bytes.
+pub(crate) struct HexPreview<'a>(pub &'a [u8]);
+
+impl HexPreview<'_> {
+    const LIMIT: usize = 256;
+}
+
+impl fmt::Display for HexPreview<'_> {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        let shown = &self.0[..self.0.len().min(Self::LIMIT)];
+        for byte in shown {
+            write!(f, "{byte:02x}")?;
+        }
+        if self.0.len() > shown.len() {
+            write!(f, "…(+{} bytes)", self.0.len() - shown.len())?;
+        }
+        Ok(())
+    }
+}
 
 /// Which way a packet travelled, from this endpoint's point of view.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
