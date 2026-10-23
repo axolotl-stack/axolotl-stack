@@ -125,8 +125,14 @@ pub struct Side {
     /// Flags of the datagrams carrying the first split message's fragments
     /// in the update that started it (sent within 1 ms of the first one).
     pub first_split_round: Vec<u8>,
-    /// Data datagrams sent after the peer's `0x15` arrived.
+    /// Data datagrams sent after the sender ACKed the datagram carrying the
+    /// peer's `0x15`. The ACK proves the sender had processed it; counting
+    /// from the moment the relay forwarded the `0x15` also counted a datagram
+    /// already on its way back (once in eight `capture_diff` runs at the
+    /// test server's 50 ms send rate).
     pub data_after_peer_disconnect: usize,
+    /// When the sender ACKed the datagram carrying the peer's `0x15`.
+    pub peer_disconnect_acked: Option<f64>,
     /// Largest number of unacknowledged data datagrams in flight.
     pub max_in_flight: usize,
     /// Time of the last datagram sent.
@@ -183,6 +189,8 @@ struct Walk {
     ack_records: Vec<f64>,
     rtt_known: bool,
     last_peer_data: Option<f64>,
+    /// Sequence of the peer datagram that carried its `0x15`.
+    peer_disconnect_seq: Option<u32>,
     peer_disconnected: bool,
     /// The first split message's ID and when its first fragment was sent.
     first_split: Option<(u16, f64)>,
@@ -269,6 +277,10 @@ impl Walk {
                 self.ack_records.push(ranges.len() as f64);
                 for &(start, end) in ranges {
                     for seq in start..=end {
+                        if self.peer_disconnect_seq == Some(seq) && !self.peer_disconnected {
+                            self.peer_disconnected = true;
+                            self.out.peer_disconnect_acked = Some(t);
+                        }
                         if self.acked_received.insert(seq)
                             && let Some(&(at, split)) = self.received.get(&seq)
                         {
@@ -302,7 +314,7 @@ impl Walk {
                 self.received.entry(*seq).or_insert((t, split));
                 self.last_peer_data = Some(t);
                 if frames.iter().any(|frame| frame.head == "15") {
-                    self.peer_disconnected = true;
+                    self.peer_disconnect_seq.get_or_insert(*seq);
                 }
             }
             Body::Ack { records: ranges } => {
@@ -494,8 +506,8 @@ fn render_side(out: &mut String, name: &str, side: &Side) {
     );
     let _ = writeln!(
         out,
-        "- data datagrams after the peer's 0x15: {}",
-        side.data_after_peer_disconnect
+        "- peer's 0x15 ACKed at {:?} ms; data datagrams after that ACK: {}",
+        side.peer_disconnect_acked, side.data_after_peer_disconnect
     );
     let _ = writeln!(
         out,

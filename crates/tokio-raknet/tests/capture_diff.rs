@@ -374,6 +374,7 @@ async fn baseline_session_matches_bds() {
     // KA-6: the client's notification is ACKed; no echo, no further data.
     for side in [server, bds_server] {
         assert!(side.disconnects.is_empty());
+        assert!(side.peer_disconnect_acked.is_some(), "0x15 not ACKed");
         assert_eq!(side.data_after_peer_disconnect, 0);
     }
     assert_eq!(ours.client.disconnects.first().map(|d| d.1), Some(3));
