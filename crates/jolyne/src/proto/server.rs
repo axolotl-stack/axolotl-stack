@@ -531,12 +531,15 @@ impl Phase for ServerPacksPhase {
             Err(error) => return Err(Failure::new(error, self)),
         };
         match self.exchange.on_packet(&decoded, &mut self.conn, now) {
-            Ok(PackProgress::Done) => Ok(Step::Next(WorldReady {
-                conn: self.conn,
-                config: self.config,
-                login: self.login,
-                deferred: self.deferred,
-            })),
+            Ok(PackProgress::Done) => {
+                tracing::debug!("resource packs completed");
+                Ok(Step::Next(WorldReady {
+                    conn: self.conn,
+                    config: self.config,
+                    login: self.login,
+                    deferred: self.deferred,
+                }))
+            }
             Ok(_) => Ok(Step::Wait(self)),
             Err(error) => Err(Failure::new(error, self)),
         }
@@ -617,6 +620,7 @@ impl WorldReady {
         if let Err(error) = result {
             return Err(Failure::new(error, self));
         }
+        tracing::debug!("start game sent");
         Ok(ServerSpawn {
             deadline: now + self.config.spawn_timeout,
             runtime_id: params.start_game.runtime_id.actor_runtime_id,

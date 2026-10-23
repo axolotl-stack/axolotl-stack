@@ -117,7 +117,7 @@ the vanilla reference). Tests are in `crates/jolyne` unless noted.
 | Server status / MOTD (refreshed every 4 s and on join/leave) | ✅ | `status::tests::pong_matches_gophertunnel_layout_and_unlimited_max`, `tests/raknet_listener.rs` |
 | Packet observer hook (zero cost when unset) | ✅ | `proto::conn::tests::observer_sees_both_directions_with_bodies` |
 | Metrics (packets/bytes/batches in/out, decode errors, unknown IDs) | ✅ | `proto::conn::tests::enabling_compression_and_encryption_seals_pending_in_the_old_format`, `proto::tests::unknown_and_custom_packets_follow_the_configured_policy` |
-| Tracing | ✅ | `#[instrument]` spans on every join step, `close` and `disconnect` |
+| Tracing | ✅ | `#[instrument]` spans on every join step, `close` and `disconnect`; `RUST_LOG=jolyne::wire=trace` logs every batch (wire length, encryption, compression algorithm byte, packet count, plaintext preview) and packet (ID, name, length, first 256 payload bytes in hex); an inbound `PacketViolationWarning` is always logged at `WARN` |
 | Typestate phase safety | ✅ | `stream::BedrockStream<S, R, T>` |
 | Validated ClientData / identity on the session | ✅ | `BedrockStream<Play, Server, _>::{identity, client_data}`; `stream::tests::join_echo_and_typed_disconnect`; validation in `jolyne::auth` |
 | Online identity bound to key possession (no replayed-Login trust; RakNet refuses online without encryption) | ✅ | `proto::tests::{online_identity_is_authenticated_only_after_the_encryption_handshake, replayed_online_login_never_authenticates_and_times_out_at_the_login_deadline, online_mode_without_encryption_is_refused_on_raknet, unencrypted_online_login_trusts_only_a_transport_proven_key}` |
