@@ -12,7 +12,7 @@ use crate::entity::components::{
     GameMode, HeldSlot, Inventory, InventoryOpened, ItemStackRequestState, MainInventory,
     PlayerSession,
 };
-use crate::item::ItemStack;
+use crate::item::{ItemStack, user_data};
 use crate::registry::ItemRegistry;
 use jolyne::valentine::{
     ActorUniqueId, BlockPos, ContainerClosePacket, ContainerOpenPacket, EnumsContainerEnumName,
@@ -326,7 +326,7 @@ fn wire_item(stack: &ItemStack, items: &ItemRegistry) -> Option<WireItem> {
         auxvalue: u32::try_from(stack.damage).ok()?,
         net_id_variant: None,
         block_runtime_id: u32::try_from(stack.runtime_id).ok()?,
-        user_data_buffer: stack.nbt.clone().unwrap_or_default().into(),
+        user_data_buffer: user_data::network_user_data(&stack.item_id, stack.nbt.as_deref()),
     })
 }
 
@@ -347,7 +347,7 @@ fn validated_item(wire: &WireItem, items: &ItemRegistry) -> Option<ItemStack> {
         runtime_id: i32::try_from(wire.block_runtime_id).ok()?,
         count: u8::try_from(wire.stacksize).ok()?,
         damage: i16::try_from(wire.auxvalue).ok()?,
-        nbt: (!wire.user_data_buffer.is_empty()).then(|| wire.user_data_buffer.to_vec()),
+        nbt: user_data::stored_user_data(&entry.string_id, &wire.user_data_buffer),
         max_stack_size_override: Some(entry.stack_size),
     })
 }
@@ -380,12 +380,21 @@ fn apply_normal_actions(
         if changes.iter().any(|(previous, _)| *previous == slot) {
             return false;
         }
-        let Some(mut expected) = wire_item(actual, items) else {
+        let Some(expected) = wire_item(actual, items) else {
             return false;
         };
-        // Stack prediction IDs are transport bookkeeping, not item identity.
-        expected.net_id_variant = action.from_item.net_id_variant;
-        if expected != action.from_item || validated_item(&action.from_item, items).is_none() {
+        // Stack prediction IDs are transport bookkeeping, not item identity;
+        // user data compares decoded (an omitted buffer equals the default).
+        let expected = WireItem {
+            net_id_variant: action.from_item.net_id_variant,
+            user_data_buffer: action.from_item.user_data_buffer.clone(),
+            ..expected
+        };
+        if expected != action.from_item
+            || user_data::stored_user_data(&actual.item_id, &action.from_item.user_data_buffer)
+                != actual.nbt
+            || validated_item(&action.from_item, items).is_none()
+        {
             return false;
         }
         let Some(item) = validated_item(&action.to_item, items) else {
@@ -476,7 +485,7 @@ fn validate_creative_request<'a>(
     u32::try_from(source.block_runtime_id).ok()?;
     item.runtime_id = source.block_runtime_id;
     item.damage = i16::try_from(source.auxvalue).ok()?;
-    item.nbt = (!source.user_data_buffer.is_empty()).then(|| source.user_data_buffer.to_vec());
+    item.nbt = user_data::stored_user_data(&item.item_id, &source.user_data_buffer);
     Some((slot, item))
 }
 

@@ -630,7 +630,10 @@ impl GameServer {
                             stacksize: 1,
                             auxvalue: creative_item.damage() as u32,
                             block_runtime_id,
-                            user_data_buffer: Default::default(),
+                            user_data_buffer: crate::item::user_data::network_user_data(
+                                creative_item.item_id(),
+                                None,
+                            ),
                         },
                         group_index: global_group_index,
                     });
@@ -688,6 +691,33 @@ mod tests {
             velocity.0.y < 0.0,
             "scheduled physics should leave falling velocity after drag"
         );
+    }
+
+    /// The real 26.52 client disconnected with `BadPacket`
+    /// (`InitialConnection-90`) right after spawning while every creative
+    /// item carried an empty user-data buffer; BDS 1.26.51 sends ten zero
+    /// bytes (eighteen for the shield) for every non-air item.
+    #[test]
+    fn creative_items_carry_bds_shaped_user_data() {
+        let mut items = ItemRegistry::new();
+        items.load_vanilla();
+        let mut blocks = BlockRegistry::new();
+        blocks.load_vanilla();
+        let shield = items
+            .get_by_name("minecraft:shield")
+            .expect("vanilla shield")
+            .network_id;
+        let content = GameServer::build_creative_content(&items, &blocks);
+        assert!(content.entries.len() > 1000);
+        for entry in &content.entries {
+            let item = &entry.item_instance;
+            let expected: &[u8] = if item.id == shield {
+                &[0; 18]
+            } else {
+                &[0; 10]
+            };
+            assert_eq!(item.user_data_buffer[..], *expected, "item {}", item.id);
+        }
     }
 
     #[test]

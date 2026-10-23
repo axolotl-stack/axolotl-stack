@@ -320,7 +320,10 @@ impl GameServer {
                         .map(|block| block.min_state_id)
                         .unwrap_or(0)
                 },
-                user_data_buffer: stack.nbt.clone().unwrap_or_default().into(),
+                user_data_buffer: crate::item::user_data::network_user_data(
+                    &stack.item_id,
+                    stack.nbt.as_deref(),
+                ),
             }
         };
         let main = world
