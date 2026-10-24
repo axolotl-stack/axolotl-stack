@@ -141,3 +141,26 @@ world providers, stored-column preservation through asynchronous loading and
 the save cycle, player disconnect/reconnect, corrupt player data, storage errors,
 and out-of-range block heights. On Windows, set
 `VCPKG_ROOT=C:\Users\jvigu\vcpkg` before building the LevelDB dependency.
+
+## Bedrock-style generator
+
+The Bedrock-style world generator (BDS 1.26.51 parity) lives in
+`src/world/generator/bedrock/` behind the `bedrock-worldgen` cargo feature (off by
+default). Its feature rules, features and biome surface parameters are compiled at build
+time from the vanilla packs of a local BDS install by `unastar_bedrock_codegen`; the packs
+are under the Minecraft EULA and are never committed.
+
+```sh
+UNASTAR_BDS_DIR=/path/to/bds/server cargo build -p unastar --features bedrock-worldgen
+```
+
+`UNASTAR_BDS_DIR` names the BDS server directory (the one containing `bedrock_server`,
+`definitions/` and `behavior_packs/vanilla*`); the build fails with a message naming the
+variable when it is unset. The protocolgen submodule must be initialised for block ids.
+
+Runtime pieces: `world` (block access trait and decoration context), `rng` (Bedrock's
+MT19937), `scatter` (rule/scatter distributions), `features` (JSON feature type
+algorithms), `builtin` (BDS built-in features registered under their identifiers),
+`surface` (Bedrock surface builders), `region` and `decorate` (3x3 decoration driver with
+per-chunk seeding). Decoration parity with BDS is statistical (same rules, densities and
+shapes); byte-exact placement needs BDS's per-chunk seeding and is a later slice.
