@@ -662,7 +662,7 @@ mod tests {
         Age, ChunkRadius, DroppedItem, Living, OnGround, PickupDelay, PlayerSession, Velocity,
     };
     use glam::DVec3;
-    use jolyne::valentine::McpePacketData;
+    use jolyne::valentine::McpePacketName;
 
     #[test]
     fn game_tick_runs_physics_set_for_living_entities() {
@@ -777,17 +777,25 @@ mod tests {
             assert_eq!(session.packets_dropped(), 0);
         }
 
-        let first_packet = outbound_rx.try_recv().expect("initial join packet");
-        match first_packet.data {
-            McpePacketData::ChunkRadiusUpdatedPacket(packet) => {
-                assert_eq!(packet.chunk_radius, 2);
-            }
-            other => panic!("expected ChunkRadiusUpdate first, got {other:?}"),
+        // jolyne's join already answered RequestChunkRadius and sent the actor
+        // identifiers with StartGame; BDS sends neither again after spawn.
+        let mut names = Vec::new();
+        while let Ok(packet) = outbound_rx.try_recv() {
+            names.push(packet.data.packet_id());
         }
-
-        assert!(
-            outbound_rx.try_recv().is_ok(),
-            "spawn should enqueue additional join packets after chunk radius"
+        assert_eq!(
+            names.first(),
+            Some(&McpePacketName::SetPlayerGameTypePacket),
+            "{names:?}"
         );
+        for duplicate in [
+            McpePacketName::ChunkRadiusUpdatedPacket,
+            McpePacketName::AvailableActorIdentifiersPacket,
+        ] {
+            assert!(
+                !names.contains(&duplicate),
+                "{duplicate:?} resent: {names:?}"
+            );
+        }
     }
 }
