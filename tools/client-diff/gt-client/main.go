@@ -55,6 +55,8 @@ type step struct {
 	DZ      float32 `json:"dz"`
 	Entity  string  `json:"entity"`
 	Recipe  string  `json:"recipe"`
+	// Stale sends an unassigned source stack network ID (inventory steps).
+	Stale bool `json:"stale"`
 }
 
 type scenario struct {
@@ -92,12 +94,15 @@ func (s scenario) validate() error {
 			if step.Ticks <= 0 {
 				return fmt.Errorf("step %d: move needs positive ticks", i)
 			}
-		case "move_item", "drop", "craft":
+		case "move_item", "drop", "craft", "take_cursor", "place_cursor", "swap", "drop_cursor":
 			if step.Count <= 0 || step.Count > 64 || step.Slot < 0 || step.Slot >= inventorySize || step.To < 0 || step.To >= inventorySize {
 				return fmt.Errorf("step %d: %s needs count 1..64 and slots 0..35", i, step.Kind)
 			}
 			if step.Kind == "craft" && step.Recipe == "" {
 				return fmt.Errorf("step %d: craft needs a recipe", i)
+			}
+			if step.Stale && step.Kind == "craft" {
+				return fmt.Errorf("step %d: craft cannot use a stale stack ID", i)
 			}
 		case "select":
 			if step.Slot < 0 || step.Slot > 8 {

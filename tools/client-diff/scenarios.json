@@ -108,6 +108,31 @@
         { "after_ms": 300, "kind": "command", "text": "/clear @s" }
       ]
     },
+    "inventory-moves": {
+      "idle_ms": 3000,
+      "auth_input": true,
+      "steps": [
+        { "after_ms": 1000, "kind": "command", "text": "/gamemode survival @s" },
+        { "after_ms": 300, "kind": "command", "text": "/clear @s" },
+        { "after_ms": 300, "kind": "command", "text": "/give @s cobblestone 32" },
+        { "after_ms": 300, "kind": "command", "text": "/give @s oak_log 8" },
+        { "after_ms": 300, "kind": "command", "text": "/give @s apple 4" },
+        { "after_ms": 300, "kind": "command", "text": "/give @s diamond_sword" },
+        { "after_ms": 600, "kind": "move_item", "slot": 0, "to": 9, "count": 32 },
+        { "after_ms": 400, "kind": "move_item", "slot": 9, "to": 10, "count": 12 },
+        { "after_ms": 400, "kind": "move_item", "slot": 10, "to": 9, "count": 12 },
+        { "after_ms": 400, "kind": "swap", "slot": 9, "to": 1, "count": 1 },
+        { "after_ms": 400, "kind": "take_cursor", "slot": 2, "count": 2 },
+        { "after_ms": 400, "kind": "place_cursor", "to": 11, "count": 1 },
+        { "after_ms": 400, "kind": "place_cursor", "to": 2, "count": 1 },
+        { "after_ms": 400, "kind": "drop", "slot": 9, "count": 3 },
+        { "after_ms": 400, "kind": "move_item", "slot": 3, "to": 4, "count": 1, "stale": true },
+        { "after_ms": 400, "kind": "move_item", "slot": 1, "to": 12, "count": 40 },
+        { "after_ms": 400, "kind": "take_cursor", "slot": 3, "count": 1 },
+        { "after_ms": 400, "kind": "drop_cursor", "count": 1 },
+        { "after_ms": 400, "kind": "craft", "recipe": "minecraft:oak_planks", "slot": 9, "to": 13, "count": 1 }
+      ]
+    },
     "tour-interact": {
       "idle_ms": 4000,
       "auth_input": true,

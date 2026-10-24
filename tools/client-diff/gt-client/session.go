@@ -35,6 +35,8 @@ type session struct {
 	anchor     *protocol.BlockPos
 	selected   int
 	inventory  map[int]protocol.ItemInstance
+	// cursor is the UI cursor stack (PlayerUI container slot 0).
+	cursor     protocol.ItemInstance
 	blocks     map[protocol.BlockPos]uint32
 	entities   map[string]uint64
 	positions  map[uint64]mgl32.Vec3
@@ -161,20 +163,39 @@ func (s *session) handle(pk packet.Packet) []packet.Packet {
 // applySlot records the server-assigned player inventory stack after an
 // accepted request.
 func (s *session) applySlot(container byte, info protocol.StackResponseSlotInfo) {
+	var item protocol.ItemInstance
 	switch container {
 	case protocol.ContainerHotBar, protocol.ContainerInventory, protocol.ContainerCombinedHotBarAndInventory:
+		item = s.inventory[int(info.Slot)]
+	case protocol.ContainerCursor:
+		item = s.cursor
 	default:
 		return
 	}
-	slot := int(info.Slot)
-	item := s.inventory[slot]
 	if info.Count == 0 {
 		item = protocol.ItemInstance{}
 	} else {
 		item.Stack.Count = uint16(info.Count)
 		item.StackNetworkID = info.StackNetworkID
 	}
-	s.inventory[slot] = item
+	if container == protocol.ContainerCursor {
+		s.cursor = item
+	} else {
+		s.inventory[int(info.Slot)] = item
+	}
+}
+
+// predict records the item type a request moves into an empty destination,
+// as the client does, so that later steps can address it; counts and stack
+// network IDs come from the server's response (applySlot).
+func predict(dest *protocol.ItemInstance, source protocol.ItemInstance) {
+	if dest.Stack.Count == 0 {
+		*dest = protocol.ItemInstance{Stack: protocol.ItemStack{ItemType: source.Stack.ItemType, BlockRuntimeID: source.Stack.BlockRuntimeID, NBTData: source.Stack.NBTData}}
+	}
+}
+
+func cursorSlot(stack int32) protocol.StackRequestSlotInfo {
+	return protocol.StackRequestSlotInfo{Container: protocol.FullContainerName{ContainerID: protocol.ContainerCursor}, Slot: 0, StackNetworkID: stack}
 }
 
 func (s *session) nextRequestID() int32 {
@@ -409,24 +430,8 @@ func (s *session) packets(st step) ([]packet.Packet, error) {
 		runtimeID := s.runtimeID
 		s.mu.Unlock()
 		return []packet.Packet{&packet.MobEquipment{EntityRuntimeID: runtimeID, NewItem: item, InventorySlot: byte(st.Slot), HotBarSlot: byte(st.Slot), WindowID: protocol.WindowIDInventory}}, nil
-	case "move_item":
-		item, err := s.item(st.Slot)
-		if err != nil {
-			return nil, err
-		}
-		take := &protocol.TakeStackRequestAction{}
-		take.Count = byte(st.Count)
-		take.Source = inventorySlot(st.Slot, item.StackNetworkID)
-		take.Destination = inventorySlot(st.To, 0)
-		return []packet.Packet{&packet.ItemStackRequest{Requests: []protocol.ItemStackRequest{{RequestID: s.nextRequestID(), Actions: []protocol.StackRequestAction{take}}}}}, nil
-	case "drop":
-		item, err := s.item(st.Slot)
-		if err != nil {
-			return nil, err
-		}
-		return []packet.Packet{&packet.ItemStackRequest{Requests: []protocol.ItemStackRequest{{RequestID: s.nextRequestID(), Actions: []protocol.StackRequestAction{
-			&protocol.DropStackRequestAction{Count: byte(st.Count), Source: inventorySlot(st.Slot, item.StackNetworkID)},
-		}}}}}, nil
+	case "move_item", "take_cursor", "place_cursor", "swap", "drop", "drop_cursor":
+		return s.stackRequest(st)
 	case "craft":
 		recipe, err := s.recipe(st.Recipe)
 		if err != nil {
@@ -452,4 +457,65 @@ func (s *session) packets(st step) ([]packet.Packet, error) {
 		}}}}}, nil
 	}
 	return nil, fmt.Errorf("unsupported interaction %q", st.Kind)
+}
+
+// staleStackID is a stack network ID the server never assigned; steps with
+// "stale": true send it as the source ID to capture the rejection.
+const staleStackID = 999999
+
+// stackRequest builds the ItemStackRequest of an inventory step and predicts
+// the destination item type (see predict). Slots 0-35 are the player
+// inventory; the cursor is the PlayerUI container's slot 0.
+func (s *session) stackRequest(st step) ([]packet.Packet, error) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	source := s.inventory[st.Slot]
+	if st.Kind == "place_cursor" || st.Kind == "drop_cursor" {
+		source = s.cursor
+	}
+	if source.Stack.Count == 0 {
+		return nil, fmt.Errorf("%s: source slot is empty", st.Kind)
+	}
+	sourceID := source.StackNetworkID
+	if st.Stale {
+		sourceID = staleStackID
+	}
+	var action protocol.StackRequestAction
+	switch st.Kind {
+	case "move_item":
+		dest := s.inventory[st.To]
+		take := &protocol.TakeStackRequestAction{}
+		take.Count = byte(st.Count)
+		take.Source = inventorySlot(st.Slot, sourceID)
+		take.Destination = inventorySlot(st.To, dest.StackNetworkID)
+		predict(&dest, source)
+		s.inventory[st.To] = dest
+		action = take
+	case "take_cursor":
+		take := &protocol.TakeStackRequestAction{}
+		take.Count = byte(st.Count)
+		take.Source = inventorySlot(st.Slot, sourceID)
+		take.Destination = cursorSlot(s.cursor.StackNetworkID)
+		predict(&s.cursor, source)
+		action = take
+	case "place_cursor":
+		dest := s.inventory[st.To]
+		place := &protocol.PlaceStackRequestAction{}
+		place.Count = byte(st.Count)
+		place.Source = cursorSlot(sourceID)
+		place.Destination = inventorySlot(st.To, dest.StackNetworkID)
+		predict(&dest, source)
+		s.inventory[st.To] = dest
+		action = place
+	case "swap":
+		dest := s.inventory[st.To]
+		action = &protocol.SwapStackRequestAction{Source: inventorySlot(st.Slot, sourceID), Destination: inventorySlot(st.To, dest.StackNetworkID)}
+		s.inventory[st.Slot], s.inventory[st.To] = dest, source
+	case "drop":
+		action = &protocol.DropStackRequestAction{Count: byte(st.Count), Source: inventorySlot(st.Slot, sourceID)}
+	case "drop_cursor":
+		action = &protocol.DropStackRequestAction{Count: byte(st.Count), Source: cursorSlot(sourceID)}
+	}
+	s.requestID -= 2
+	return []packet.Packet{&packet.ItemStackRequest{Requests: []protocol.ItemStackRequest{{RequestID: s.requestID + 1, Actions: []protocol.StackRequestAction{action}}}}}, nil
 }
