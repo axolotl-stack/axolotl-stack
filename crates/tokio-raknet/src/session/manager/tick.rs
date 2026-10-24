@@ -16,10 +16,10 @@ use super::{ConnectionState, ManagedSession, SessionError, VanillaClose};
 
 impl ManagedSession {
     /// Close the session. Optimized sends `DisconnectionNotification`
-    /// immediately and drains. Vanilla follows Mojang's
-    /// `CloseConnection(addr, true, 0, LOW_PRIORITY)`: a bare ReliableOrdered
-    /// notification, then the connection closes once nothing is queued or
-    /// unacknowledged (`DISCONNECT_ASAP`) or the dead-connection timeout hits.
+    /// immediately and drains. Vanilla closes like Mojang RakNet (PARITY
+    /// KA-5): a bare ReliableOrdered notification at low priority, then the
+    /// connection closes once nothing is queued or unacknowledged or the
+    /// dead-connection timeout hits.
     pub fn close(&mut self, reason: DisconnectReason, now: Instant) -> Result<(), SessionError> {
         if !self.inner.transmission_policy().is_vanilla() {
             return self.send_disconnect(reason);
@@ -54,7 +54,7 @@ impl ManagedSession {
         }
     }
 
-    /// Mojang `NotifyAndFlagForShutdown`: the one-byte `0x15`, ReliableOrdered
+    /// Mojang's disconnect notification: the one-byte `0x15`, ReliableOrdered
     /// on channel 0.
     fn queue_vanilla_disconnect(&mut self, priority: RakPriority) -> Result<(), SessionError> {
         let added = self.inner.queue_encoded_packet(
@@ -73,10 +73,9 @@ impl ManagedSession {
         self.last_activity = now;
     }
 
-    /// Mojang `HandleSocketReceiveFromConnectedPlayer` refreshes
-    /// `timeLastDatagramArrived` for every datagram of 3+ bytes handed to
-    /// the reliability layer (the `0x80` bit set), before validating it;
-    /// offline messages from the peer never reach it (lens RL_006:143-152).
+    /// Every datagram of 3+ bytes handed to the reliability layer (the `0x80`
+    /// bit set) refreshes the dead-connection timer before it is validated;
+    /// offline messages from the peer do not (PARITY KA-2).
     pub(crate) fn record_datagram_activity(&mut self, datagram: &[u8], now: Instant) {
         if datagram.len() >= 3 && datagram[0] & 0x80 != 0 {
             self.last_activity = now;
@@ -88,10 +87,10 @@ impl ManagedSession {
         self.last_activity
     }
 
-    /// One Mojang `RakPeer::RunUpdateCycle` pass for this connection: the
-    /// reliable keepalive, the occasional ping, the dead-connection and
-    /// handshake timeouts, one `ReliabilityLayer::Update`, then the close
-    /// conditions of the disconnect modes (lens RP_113:1528-1597, RL_010).
+    /// One Mojang-style update pass for this connection: the reliable
+    /// keepalive, the occasional ping, the dead-connection and handshake
+    /// timeouts, one reliability update, then the close conditions of the
+    /// disconnect modes.
     fn on_vanilla_tick(&mut self, now: Instant) -> Vec<Datagram> {
         if self.state == ConnectionState::Closed {
             return Vec::new();
@@ -392,7 +391,7 @@ mod tests {
     }
 
     /// HS-4: Mojang sends `ConnectionRequest` RELIABLE with the security
-    /// byte 0 (lens RN_006:2647); Optimized keeps Reliable and Reply2's flag.
+    /// byte 0; Optimized keeps Reliable and Reply2's flag.
     #[test]
     fn connection_request_is_reliable_and_vanilla_is_insecure() {
         let now = Instant::now();
@@ -411,8 +410,8 @@ mod tests {
 
     /// HS-7/HS-8/KA-1: the Mojang client answers the CRA with a
     /// NewIncomingConnection (server address as dialed, 20 unassigned
-    /// addresses in the standard layout, `CRA.PongTime`, now), then pings
-    /// unreliably; the first update pings again (lens RP_113:2633-2737).
+    /// addresses in the standard layout, the CRA's pong time, now), then
+    /// pings unreliably; the first update pings again.
     #[test]
     fn vanilla_new_incoming_connection_bytes_and_connect_pings() {
         let now = Instant::now();
@@ -582,7 +581,7 @@ mod tests {
     }
 
     /// KA-2: with nothing unacknowledged for half the timeout, a reliable
-    /// ping keeps the connection alive (lens RP_113:1528-1554).
+    /// ping keeps the connection alive.
     #[test]
     fn vanilla_reliable_keepalive_after_five_idle_seconds() {
         let start = Instant::now();
@@ -798,8 +797,7 @@ mod tests {
         assert!(sent_frames(&mut ms, start).is_empty());
     }
 
-    /// HS-9: `DetectLostConnections` is ignored on receive (Mojang
-    /// RP_113:2020-2026).
+    /// HS-9: `DetectLostConnections` is ignored on receive.
     #[test]
     fn detect_lost_connections_is_ignored() {
         let now = Instant::now();

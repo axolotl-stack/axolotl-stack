@@ -35,7 +35,7 @@ coverage to prevent accidentally substituting hash order or an old palette.
 2. Extract factual tables offline; never couple runtime code to native offsets.
 3. Normalize through `unastar-data` with source/version/hash/confidence metadata.
 4. Fail on missing required identities, measurements or joins; do not invent fallbacks.
-5. Do not commit proprietary binaries or decompiled implementation code.
+5. Do not commit proprietary binaries or code derived from them.
 
 ## Live BDS packet capture
 

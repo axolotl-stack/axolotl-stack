@@ -7,7 +7,7 @@ use super::Session;
 impl Session {
     /// Periodic maintenance: prune splits, schedule resends, and emit ACK/NACK datagrams.
     ///
-    /// Vanilla runs one Mojang `ReliabilityLayer::Update` (unless one already
+    /// Vanilla runs one Mojang-style reliability update (unless one already
     /// ran at `now`) and returns everything it built; tick it every 10 ms
     /// (`VANILLA_TICK_INTERVAL`).
     pub fn on_tick(&mut self, now: Instant) -> Vec<Datagram> {

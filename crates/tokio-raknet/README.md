@@ -37,8 +37,8 @@ scheduling, pacing and framing. It is a plain enum matched on the hot path
 | Handshake | 13 MTU probes 500 ms apart (4×1492, 4×1200, 5×576), Request2 per Reply1, connection MTU `max(576, clamp(mtu, 400, 1492))`, random negative GUID per dial; the listener answers like BDS (1400 MTU cap, Reply2 echo, 50 ms same-IP limit) | strict Reply1/Reply2 validation |
 
 Wire format, ordering/reassembly correctness and the RAKNET-01 safety bounds
-are shared. Every behaviour, its evidence (BDS 1.26.51 wire captures and the
-decompiled Mojang RakNet), how go-raknet differs, and the pinning tests are
+are shared. Every behaviour, its evidence (BDS 1.26.51 and real-client wire
+captures), how go-raknet differs, and the pinning tests are
 listed in [PARITY.md](PARITY.md). Select a policy per connection:
 
 ```rust,no_run

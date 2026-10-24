@@ -35,7 +35,8 @@ impl ManagedSession {
 
         let timestamp = Self::current_raknet_time(now);
         // Both policies send the request RELIABLE (Mojang: IMMEDIATE,
-        // RELIABLE, channel 0, security byte 0; lens RN_006:2647).
+        // RELIABLE, channel 0, security byte 0; real-client capture
+        // `baseline`, PARITY HS-4).
         let vanilla = self.inner.transmission_policy().is_vanilla();
         let pkt = RaknetPacket::ConnectionRequest(ConnectionRequest {
             client_guid: self.config.guid,
@@ -105,7 +106,7 @@ impl ManagedSession {
         let accepted_ts = Self::current_raknet_time(now);
         // A lost CRA cannot be recovered by the client (its request was
         // already ACKed), so it is ReliableOrdered in both policies. Vanilla
-        // writes BDS's layout (lens RP_105:52-200, capture `baseline`):
+        // writes BDS's layout (capture `baseline`, PARITY HS-11):
         // index 0 and 20 system addresses (unassigned here: BDS lists its
         // interface addresses, which a library must not leak).
         let packet = if self.inner.transmission_policy().is_vanilla() {
@@ -167,7 +168,7 @@ impl ManagedSession {
         let vanilla = self.inner.transmission_policy().is_vanilla();
         let packet = if vanilla {
             // Mojang: the server address as dialed, 20 system addresses
-            // (unassigned here), `CRA.PongTime`, now (lens RP_113:2633-2728).
+            // (unassigned here), the CRA's pong time, now (PARITY HS-7).
             NewIncomingConnection {
                 server_address: self.peer,
                 system_addresses: vec![SocketAddr::V4(ANY_V4); MAX_SYSTEM_ADDRESSES],
@@ -233,8 +234,8 @@ impl ManagedSession {
         self.last_activity = now;
         self.last_pong_received = now;
         if self.inner.transmission_policy().is_vanilla() {
-            // Mojang marks the connection CONNECTED and pings unreliably
-            // (lens RP_113:2995-3007).
+            // Mojang marks the connection connected and pings unreliably
+            // (PARITY HS-8).
             self.send_vanilla_ping(now, Reliability::Unreliable);
         }
     }
@@ -270,8 +271,8 @@ impl ManagedSession {
     fn handle_disconnection_notification(&mut self, pkt: &DisconnectionNotification) {
         self.last_disconnect_reason = Some(pkt.reason);
         if self.inner.transmission_policy().is_vanilla() {
-            // Mojang `DISCONNECT_ON_NO_ACK`: flush the ACK, then close; no
-            // notification is sent back (lens RP_113:2008-2018).
+            // Mojang: flush the ACK, then close; no notification is sent
+            // back (capture `baseline`, PARITY KA-6).
             if self.state != ConnectionState::Closed {
                 self.state = ConnectionState::Closing;
                 self.vanilla_close = Some(VanillaClose::OnNoAck);

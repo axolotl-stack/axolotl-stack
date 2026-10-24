@@ -279,11 +279,9 @@ mod tests {
                 .unwrap(),
         )
         .unwrap();
-        // BDS 1.26.51's isWellFormed uses bit (DeviceOS + 1) of 0x1763d.
-        // UWP (7) fails this check before authentication; Android (1) is supported.
-        let os = claims["DeviceOS"].as_u64().unwrap();
-        assert!(os < 16 && (0x1763d_u32 & (1 << (os + 1))) != 0);
-        assert_eq!(os, 1);
+        // BDS 1.26.51 rejects UWP (7) before authentication and accepts
+        // Android (1) (tools/client-diff/examples/rejected-login.md).
+        assert_eq!(claims["DeviceOS"].as_u64(), Some(1));
     }
 
     #[test]

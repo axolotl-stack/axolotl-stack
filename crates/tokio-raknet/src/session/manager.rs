@@ -113,9 +113,11 @@ pub struct ManagedSession {
     last_disconnect_reason: Option<DisconnectReason>,
     ack_deadline: Option<Instant>,
     pending_ack_bytes: usize,
-    /// Vanilla: Mojang `nextPingTime` (`None` pings on the next update).
+    /// Vanilla: next occasional ping (Jenkins `nextPingTime`; `None` pings on
+    /// the next update).
     vanilla_next_ping: Option<Instant>,
-    /// Vanilla: Mojang `lastReliableSend` (keepalive), set at creation.
+    /// Vanilla: last reliable send (Jenkins `lastReliableSend`, keepalive),
+    /// set at creation.
     vanilla_last_reliable_send: Instant,
     /// Vanilla: disconnect mode once closing.
     vanilla_close: Option<VanillaClose>,

@@ -1,9 +1,7 @@
 //! Legacy (pre-OpenID) login chains, accepted only for offline logins.
 //!
 //! Online mode does not accept Mojang-rooted chains: Bedrock Dedicated Server
-//! 1.26.51 no longer embeds the Mojang root key (neither the base64 SPKI nor
-//! its DER bytes occur in `bedrock_server.exe`) nor the `identityPublicKey` /
-//! `extraData` / `certificateAuthority` claim names, so vanilla servers only
+//! 1.26.51 no longer carries the Mojang root key, so vanilla servers only
 //! authenticate the OpenID multiplayer `Token`. See the auth section of the
 //! crate README.
 

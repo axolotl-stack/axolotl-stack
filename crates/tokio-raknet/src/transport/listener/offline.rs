@@ -29,7 +29,7 @@ use crate::transport::listener_conn::SessionState;
 /// not after inactivity. Optimized: go-raknet
 /// `handler.go:handleOpenConnectionRequest2`. Vanilla: Mojang RakNet drops
 /// remote systems still unverified or handshaking 10000 ms after creation
-/// (`RakPeer::RunUpdateCycle`, lens `RP_113:1576-1579`).
+/// (PARITY MTU-14).
 #[derive(Clone, Copy)]
 pub(super) struct PendingConnection {
     pub expires_at: Instant,
@@ -63,26 +63,23 @@ pub(super) fn server_session_config(config: &RaknetListenerConfig) -> SessionCon
     }
 }
 
-/// `MAXIMUM_MTU_SIZE` of the Mojang RakNet build in Bedrock Dedicated Server
-/// (lens `W4_RakPeer_ctor.c:614`, `W5_RakPeer_ctor.c:601`,
-/// `W4/W5_AssignSystemAddress.c:180-181`); client builds use 1492.
+/// The largest MTU Bedrock Dedicated Server grants (capture `probe`: Reply1
+/// MTU capped at 1400, PARITY LS-1); client builds use 1492.
 const BDS_MAXIMUM_MTU_SIZE: u16 = 1400;
 
-/// Mojang RakNet `defaultMTUSize` (lens `RP_001:565`), the floor of every
+/// RakNet `defaultMTUSize` (Jenkins `RakPeer.cpp:206`), the floor of every
 /// negotiated MTU.
 const MOJANG_DEFAULT_MTU_SIZE: u16 = 576;
 
 /// RakNet's `UDP_HEADER_SIZE` (IPv4 + UDP headers), added to the Request1
-/// payload length for every address family (lens2 `RN_006:2171-2194`).
+/// payload length for every address family (capture `probe`, PARITY LS-1).
 const RAKNET_UDP_HEADER_SIZE: usize = 28;
 
-/// Mojang RakNet's same-IP reconnect window: `limitConnectionFrequencyFromTheSameIP`
-/// is on by default (lens `RP_001:1173`) and compares against 50 ms (lens
-/// `RP_106:99`, Windows BDS `W5_AssignSystemAddress.c:116`).
+/// Mojang RakNet's same-IP reconnect window (PARITY LS-6; Jenkins
+/// `limitConnectionFrequencyFromTheSameIP` uses 100 ms and is off by default).
 const MOJANG_SAME_IP_WINDOW: Duration = Duration::from_millis(50);
 
-/// RakNet `UNASSIGNED_RAKNET_GUID`; Request2 GUID lookups skip it (lens2
-/// `RN_006:1408`).
+/// RakNet `UNASSIGNED_RAKNET_GUID`; Request2 GUID lookups skip it.
 const UNASSIGNED_RAKNET_GUID: u64 = u64::MAX;
 
 /// An offline reply of a Vanilla (Bedrock Dedicated Server) listener.
@@ -90,9 +87,8 @@ const UNASSIGNED_RAKNET_GUID: u64 = u64::MAX;
 enum VanillaReply {
     Packet(RaknetPacket),
     /// `id, magic, server GUID`: Mojang RakNet's layout of 0x12
-    /// AlreadyConnected, 0x14 NoFreeIncomingConnections and 0x1a
-    /// IpRecentlyConnected (lens2 `RN_006:1460-1464`, `:1635-1638`,
-    /// `:1859-1862`).
+    /// AlreadyConnected (capture `probe`, PARITY LS-5), 0x14
+    /// NoFreeIncomingConnections and 0x1a IpRecentlyConnected.
     Refusal(u8),
 }
 
@@ -117,9 +113,9 @@ fn vanilla_max_mtu(config: &RaknetListenerConfig) -> u16 {
     config.max_mtu.min(BDS_MAXIMUM_MTU_SIZE)
 }
 
-/// Mojang RakNet `ProcessOfflineNetworkPacket` on OpenConnectionRequest1
-/// (lens2 `RN_006:2149-2269`; Jenkins `RakPeer.cpp:5127-5196`): a foreign
-/// protocol gets 0x19 carrying protocol 11; otherwise Reply1 with no security
+/// Vanilla OpenConnectionRequest1 (capture `probe`, PARITY LS-1/LS-2; Jenkins
+/// `RakPeer.cpp:5127-5196`): a foreign protocol gets 0x19 carrying protocol
+/// 11; otherwise Reply1 with no security
 /// cookie and MTU `min(UDP payload length + 28, MAXIMUM_MTU_SIZE)`, with no
 /// lower bound. There is no capacity or connection check at this stage.
 fn vanilla_request1(
@@ -145,20 +141,20 @@ fn vanilla_request1(
     }))
 }
 
-/// Mojang RakNet `AssignSystemAddressToRemoteSystemList` (lens
-/// `RP_106:120-137`): `max(defaultMTUSize 576, clamp(requested, 400,
-/// MAXIMUM_MTU_SIZE))`. A configured `max_mtu` below 576 also caps the floor.
+/// Mojang RakNet's session MTU (PARITY LS-4): `max(defaultMTUSize 576,
+/// clamp(requested, 400, MAXIMUM_MTU_SIZE))`. A configured `max_mtu` below
+/// 576 also caps the floor.
 fn vanilla_session_mtu(requested: u16, max_mtu: u16) -> u16 {
     requested
         .clamp(MINIMUM_MTU_SIZE, max_mtu)
         .max(MOJANG_DEFAULT_MTU_SIZE.min(max_mtu))
 }
 
-/// Mojang RakNet's same-IP reconnect limit (lens `RP_106:63-101`; Jenkins
+/// Mojang RakNet's same-IP reconnect limit (PARITY LS-6; Jenkins
 /// `RakPeer.cpp:3604-3624` with 100 ms and off by default): a live connection
 /// from the same IP, any port, created less than 50 ms ago refuses the new one.
 ///
-/// RakNet exempts addresses `IsLoopbackAddress` matches (lens `RP_029`): the
+/// Jenkins exempts addresses `IsLoopbackAddress` matches: the
 /// host's own interface addresses and first external address. tokio does not
 /// enumerate interfaces and exempts loopback IPs. The state read is the
 /// sessions map itself, so it is bounded by `max_connections`.
@@ -176,15 +172,14 @@ fn ip_recently_connected(
         })
 }
 
-/// Mojang RakNet `ProcessOfflineNetworkPacket` on OpenConnectionRequest2
-/// (lens2 `RN_006:1348-1460`, `:1563-1660`, `:1737-1860`; Jenkins
-/// `RakPeer.cpp:5198-5418`). No cookie, preceding Request1 or GUID/MTU
+/// Vanilla OpenConnectionRequest2 (capture `probe`, PARITY LS-3..LS-7;
+/// Jenkins `RakPeer.cpp:5198-5418`). No cookie, preceding Request1 or GUID/MTU
 /// validation is required. Outcomes, in order:
 /// - same address and GUID, connection still unverified (no
 ///   ConnectionRequest yet) → Reply2 again, echoing this request's MTU;
 /// - any other address or GUID in use → 0x12 AlreadyConnected;
-/// - full → 0x14 NoFreeIncomingConnections (Mojang's ShadowBanList eviction
-///   is not reproduced);
+/// - full → 0x14 NoFreeIncomingConnections (evicting an existing peer is
+///   not reproduced);
 /// - same IP connected < 50 ms ago → 0x1a IpRecentlyConnected;
 /// - otherwise a session at [`vanilla_session_mtu`] and Reply2 echoing the
 ///   requested MTU verbatim.
@@ -321,7 +316,7 @@ pub(super) async fn handle_offline(
     let decoded = if bytes.first() == Some(&0x07) {
         slice = &bytes[1..];
         // Optimized issues a cookie in every Reply1, so its Request2 carries
-        // one. Mojang RakNet reads none (lens2 `RN_006:1350-1390`).
+        // one. BDS answers Request2 without a cookie (capture `probe`).
         OpenConnectionRequest2::decode_body_with_security(&mut slice, !vanilla)
             .map(RaknetPacket::OpenConnectionRequest2)
     } else {
@@ -572,7 +567,7 @@ mod tests {
     }
 
     /// A RakNet client's Request1 probe for `probe_mtu`: padded to
-    /// `probe_mtu - 28` bytes of UDP payload (lens `RP_113:953-1068`).
+    /// `probe_mtu - 28` bytes of UDP payload (PARITY MTU-3).
     fn request1(protocol_version: u8, probe_mtu: usize) -> BytesMut {
         let mut wire = BytesMut::new();
         RaknetPacket::OpenConnectionRequest1(OpenConnectionRequest1 {
@@ -872,7 +867,7 @@ mod tests {
     }
 
     /// BDS 1.26.51 capture: Reply1 MTU = min(probe MTU, 1400) with no lower
-    /// bound; Mojang RakNet `RN_006:2171-2194` with BDS `MAXIMUM_MTU_SIZE`.
+    /// bound.
     #[test]
     fn vanilla_reply1_mtu_is_payload_plus_28_capped_at_1400() {
         let mut config = listener_config(TransmissionPolicy::Vanilla);
@@ -936,7 +931,7 @@ mod tests {
     }
 
     /// BDS answers protocol 10 or 12 with 0x19 carrying protocol 11 and keeps
-    /// answering (Mojang RakNet `RN_006:2260-2269`); Optimized blocks the IP
+    /// answering (capture `probe`); Optimized blocks the IP
     /// after its 0x19 (go-raknet `listener.go:security.blockFor`).
     #[tokio::test]
     async fn incompatible_protocol_reply_per_policy() {
@@ -992,8 +987,8 @@ mod tests {
     }
 
     /// BDS 1.26.51 capture: Reply2 echoes 1492, 1400, 1200, 576, 400, 399,
-    /// 300, 1500, 1600 and 2000; the session MTU follows Mojang RakNet
-    /// `AssignSystemAddressToRemoteSystemList` (`RP_106:120-137`).
+    /// 300, 1500, 1600 and 2000; the session MTU follows Mojang RakNet's
+    /// clamp (PARITY LS-4).
     #[test]
     fn vanilla_reply2_echoes_requested_mtu_and_session_mtu_is_clamped() {
         let now = Instant::now();
@@ -1019,7 +1014,7 @@ mod tests {
         assert_eq!(vanilla_session_mtu(300, 500), 500);
     }
 
-    /// Mojang RakNet `RN_006:1398-1435`: the same address and GUID get Reply2
+    /// BDS (capture `probe`, PARITY LS-5): the same address and GUID get Reply2
     /// again (echoing the new MTU, no second session) while the connection is
     /// UNVERIFIED_SENDER, and 0x12 once its ConnectionRequest arrived.
     #[test]
@@ -1075,7 +1070,7 @@ mod tests {
         }
     }
 
-    /// Mojang RakNet `RN_006:1398-1464` (Jenkins outcomes 2-4): a GUID in use
+    /// BDS (capture `probe`, PARITY LS-5; Jenkins outcomes 2-4): a GUID in use
     /// at another address, or an address in use with another GUID, gets 0x12;
     /// the unassigned GUID never matches.
     #[test]
@@ -1125,10 +1120,10 @@ mod tests {
         }
     }
 
-    /// BDS answers Request1 from a connected address with Reply1, and has no
-    /// capacity check before Request2 (Mojang RakNet `RN_006:2149-2194`); a
+    /// BDS answers Request1 from a connected address with Reply1 (capture
+    /// `probe`), and has no capacity check before Request2; a
     /// full Vanilla listener then refuses Request2 with 0x14, magic and GUID
-    /// (`RN_006:1635-1638`, without the ShadowBanList eviction). Optimized
+    /// (without evicting an existing peer). Optimized
     /// refuses Request1 with an ID-only 0x14 once full.
     #[tokio::test]
     async fn request1_from_connected_peer_and_when_full_per_policy() {
@@ -1162,7 +1157,7 @@ mod tests {
         }
     }
 
-    /// Mojang RakNet `AssignSystemAddressToRemoteSystemList` (`RP_106:63-101`):
+    /// Mojang RakNet's same-IP reconnect limit (PARITY LS-6):
     /// a new connection from an IP (any port) whose live connection was
     /// created under 50 ms earlier gets 0x1a; loopback is exempt.
     #[test]

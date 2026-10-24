@@ -39,7 +39,7 @@ pub(super) async fn dispatch_datagram(
 
     if let Some(state) = sessions.get_mut(&peer) {
         if state.managed.transmission_policy().is_vanilla() {
-            // Mojang `timeLastDatagramArrived` (connected datagrams only).
+            // Mojang's dead-connection activity (connected datagrams only).
             state
                 .managed
                 .record_datagram_activity(bytes, Instant::now());
@@ -78,7 +78,7 @@ pub(super) async fn dispatch_datagram(
                 rate_limiter.block(peer.ip(), Instant::now());
             }
             // Vanilla: Mojang's reliability layer drops an invalid datagram
-            // and keeps the connection (lens RL_006:199-209).
+            // and keeps the connection (PARITY KA-8).
         }
         return;
     }
@@ -307,7 +307,7 @@ fn deliver_packets_to_app(pkts: Vec<crate::session::IncomingPacket>, state: &mut
                 }
                 Err(mpsc::error::TrySendError::Closed(_)) => {
                     // The application dropped its stream: a graceful close
-                    // (Vanilla: Mojang `CloseConnection`, notification first).
+                    // (Vanilla: Mojang's close, notification first).
                     let _ = state
                         .managed
                         .close(DisconnectReason::Disconnected, Instant::now());

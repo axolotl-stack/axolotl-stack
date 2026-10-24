@@ -403,7 +403,7 @@ impl ListenerActor {
         let remote_identity = match verified {
             Ok(identity) => identity,
             Err(error) => {
-                // The real client's host (`InitiateIncomingSession`) and
+                // The real client's host and
                 // go-nethernet listener.go reply 37 instead of letting the
                 // dialer run into its 10-15 s answer timeout.
                 warn!(conn_id, %error, "Rejecting offer: client identity not allowed");
@@ -733,7 +733,7 @@ mod tests {
     }
 
     /// A vanilla host replies `CONNECTERROR <id> 37` when it declines the
-    /// offer's identity (client `InitiateIncomingSession`); the listener used
+    /// offer's identity (PARITY.md S6); the listener used
     /// to stay silent, leaving the dialer to its answer timeout.
     #[tokio::test]
     async fn rejected_client_identity_replies_identity_not_allowed() {
