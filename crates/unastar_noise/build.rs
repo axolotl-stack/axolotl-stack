@@ -67,5 +67,16 @@ fn main() {
     )
     .expect("Failed to emit generated code");
 
+    // Java block registry for decoration (features/structures).
+    println!("cargo:rerun-if-changed=java_data");
+    let java_blocks = codegen::java_blocks::JavaBlocks::load(
+        &PathBuf::from(&manifest_dir).join("java_data/blocks.json"),
+        &json_root.join("tags/block"),
+    )
+    .unwrap_or_else(|e| panic!("Failed to load Java block data: {e}"));
+    java_blocks
+        .emit(&output_dir)
+        .unwrap_or_else(|e| panic!("Failed to emit Java block data: {e}"));
+
     println!("cargo:warning=Generated worldgen code in {:?}", output_dir);
 }

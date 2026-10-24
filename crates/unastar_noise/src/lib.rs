@@ -43,6 +43,9 @@ pub use biome::Biome;
 // Biome lookup tables
 pub mod biome_tables;
 
+// Java-style decoration (features)
+pub mod features;
+
 // Surface rules system
 pub mod surface;
 pub use surface::{

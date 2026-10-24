@@ -5,4 +5,5 @@
 
 pub mod analyzer;
 pub mod emitter;
+pub mod java_blocks;
 pub mod parser;
