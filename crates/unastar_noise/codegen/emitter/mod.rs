@@ -8,6 +8,7 @@
 
 pub mod biome_features;
 pub mod emitter_quote;
+pub mod java_biomes;
 pub mod java_blocks;
 pub mod noise;
 pub mod settings;
@@ -17,7 +18,7 @@ use super::analyzer::DependencyGraph;
 use super::data::java_blocks::JavaBlocks;
 use super::parser;
 use proc_macro2::TokenStream;
-use std::collections::HashMap;
+use std::collections::{BTreeMap, HashMap};
 use std::path::{Path, PathBuf};
 
 /// Everything the emitters read.
@@ -27,6 +28,8 @@ pub struct Inputs<'a> {
     pub noise_settings: &'a HashMap<String, parser::noise_settings::NoiseSettings>,
     pub biomes: &'a HashMap<String, parser::biome::BiomeJson>,
     pub java_blocks: &'a JavaBlocks,
+    /// `java_data/bedrock_biomes.json`.
+    pub bedrock_biome_ids: &'a BTreeMap<String, u32>,
 }
 
 /// Generated modules written to `OUT_DIR` and their `mod.rs` declarations.
@@ -139,6 +142,10 @@ pub fn emit_all(output_dir: &Path, inputs: &Inputs<'_>) -> Result<(), Box<dyn st
     modules.glob_existing("surface_rules");
 
     modules.public("java_blocks", java_blocks::emit(inputs.java_blocks))?;
+    modules.public(
+        "java_biomes",
+        java_biomes::emit(inputs.biomes, inputs.bedrock_biome_ids)?,
+    )?;
 
     modules.finish()?;
     Ok(())

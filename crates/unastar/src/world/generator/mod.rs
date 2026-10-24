@@ -18,6 +18,7 @@ pub mod density;
 pub mod flat;
 pub mod noise;
 pub mod ore_veinifier;
+pub mod parity;
 pub mod pipeline;
 pub mod proto;
 pub mod region;

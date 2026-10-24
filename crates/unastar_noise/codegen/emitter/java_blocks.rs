@@ -19,6 +19,17 @@ pub fn emit(blocks: &JavaBlocks) -> TokenStream {
     let bedrock_classes = blocks.bedrock_class_table();
     let bedrock_len = bedrock_classes.len();
     let bedrock_classes = bedrock_classes.iter().map(|&v| Literal::u8_unsuffixed(v));
+
+    let mut by_name: Vec<_> = blocks.blocks().iter().collect();
+    by_name.sort_by(|a, b| a.name.cmp(&b.name));
+    let block_count = by_name.len();
+    let names = by_name.iter().map(|b| {
+        let name = &b.name;
+        let first = b.first_id;
+        let default = b.default_id;
+        quote! { (#name, #first, #default) }
+    });
+
     quote! {
         //! Java block states of the pinned Java version, mapped to Bedrock runtime ids.
         //! Generated from `java_data/` by `codegen/emitter/java_blocks.rs`.
@@ -38,5 +49,16 @@ pub fn emit(blocks: &JavaBlocks) -> TokenStream {
         /// `block_class` flags per Bedrock runtime id, as seen by the Java-style generator
         /// (`UNMAPPED` where no Java state maps).
         pub static BEDROCK_STATE_CLASSES: [u8; #bedrock_len] = [#(#bedrock_classes),*];
+
+        /// `(name, first state id, default state id)` of every Java block, sorted by name.
+        pub static JAVA_BLOCKS: [(&str, u32, u32); #block_count] = [#(#names),*];
+
+        /// Default Java state id of a namespaced Java block name.
+        pub fn default_state(name: &str) -> Option<u32> {
+            JAVA_BLOCKS
+                .binary_search_by(|(n, _, _)| (*n).cmp(name))
+                .ok()
+                .map(|i| JAVA_BLOCKS[i].2)
+        }
     }
 }

@@ -113,9 +113,9 @@ impl JavaBlocks {
         self.bedrock[java_id as usize]
     }
 
-    /// Class flags of a Java state id.
-    pub fn class(&self, java_id: u32) -> u8 {
-        self.classes[java_id as usize]
+    /// Every Java block, in state id order.
+    pub fn blocks(&self) -> &[JavaBlock] {
+        &self.blocks
     }
 
     /// Bedrock runtime ids of every Java state, in Java state id order.
@@ -189,11 +189,6 @@ impl JavaBlocks {
             offset = offset * values.len() + index;
         }
         Ok(block.first_id + offset as u32)
-    }
-
-    /// Java state id of a block's default state.
-    pub fn default_state(&self, name: &str) -> Result<u32, String> {
-        self.resolve(name, &BTreeMap::new())
     }
 }
 
