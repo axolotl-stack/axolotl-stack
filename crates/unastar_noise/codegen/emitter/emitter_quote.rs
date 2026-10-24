@@ -252,6 +252,20 @@ impl<'a> AotEmitter<'a> {
 
         let simd_fn = self.emit_compute_function_simd("final_density");
 
+        // Climate (biome source) and preliminary surface roots at arbitrary positions.
+        let uncached_fns: Vec<TokenStream> = [
+            "temperature",
+            "vegetation",
+            "continents",
+            "erosion",
+            "depth",
+            "ridges",
+            "preliminary_surface_level",
+        ]
+        .iter()
+        .map(|name| self.emit_uncached_function(name))
+        .collect();
+
         let tokens = quote! {
             //! AOT-compiled overworld noise router (regenerated at build time from worldgen JSON).
 
@@ -289,6 +303,7 @@ impl<'a> AotEmitter<'a> {
             #find_top_surface_inner
             #(#compute_fns)*
             #simd_fn
+            #(#uncached_fns)*
         };
 
         tokens
@@ -710,7 +725,42 @@ impl<'a> AotEmitter<'a> {
             fn #func_name(
                 ctx: &FunctionContext,
                 noises: &impl NoiseSource,
-                _flat: &FlatCacheGrid,
+                col: &ColumnContext,
+            ) -> f64 {
+                #(#stmts)*
+                #result_expr
+            }
+        }
+    }
+
+    /// `compute_<root>_uncached(ctx, noises, col)`: the root with every flat cache expanded
+    /// inline, for positions outside a chunk's `FlatCacheGrid` (biome zoom neighbours,
+    /// preliminary surface at section corners). `col` must come from
+    /// `ColumnContext::new_standalone` at the same column.
+    fn emit_uncached_function(&mut self, root_name: &str) -> TokenStream {
+        self.var_names.clear();
+        self.var_counter = 0;
+        self.statements.clear();
+        let root_id = self
+            .graph
+            .roots
+            .get(root_name)
+            .unwrap_or_else(|| panic!("router root {root_name} is missing"))
+            .clone();
+        self.expand_flat_cache_inline = true;
+        let result_expr = self.emit_node(&root_id);
+        self.expand_flat_cache_inline = false;
+        let stmts = std::mem::take(&mut self.statements);
+        let func_name = format_ident!("compute_{}_uncached", root_name);
+        let doc = format!(
+            "Router `{root_name}` at any position (flat caches expanded inline). `col` must be `ColumnContext::new_standalone` of the same column."
+        );
+        quote! {
+            #[doc = #doc]
+            #[inline]
+            pub fn #func_name(
+                ctx: &FunctionContext,
+                noises: &impl NoiseSource,
                 col: &ColumnContext,
             ) -> f64 {
                 #(#stmts)*
@@ -737,25 +787,12 @@ impl<'a> AotEmitter<'a> {
         self.var_counter = 0;
         self.statements.clear();
 
-        let root_id = match self.graph.roots.get(root_name) {
-            Some(id) => id.clone(),
-            None => {
-                let func_name = format_ident!("compute_{}", root_name);
-                return quote! {
-                    /// Compute #root_name at a single point.
-                    #[inline]
-                    #[allow(dead_code)]
-                    pub fn #func_name(
-                        _ctx: &FunctionContext,
-                        _noises: &impl NoiseSource,
-                        _flat: &FlatCacheGrid,
-                        _col: &ColumnContext,
-                    ) -> f64 {
-                        0.0
-                    }
-                };
-            }
-        };
+        let root_id = self
+            .graph
+            .roots
+            .get(root_name)
+            .unwrap_or_else(|| panic!("router root {root_name} is missing from the density graph"))
+            .clone();
 
         // Analyze what this root actually needs
         let uses_flat_cache = self.graph.root_uses_flat_cache(root_name);
@@ -1172,9 +1209,9 @@ impl<'a> AotEmitter<'a> {
                 let lb = *lower_bound;
                 let ch = *cell_height;
                 quote! {
-                    find_top_surface(ctx.block_x, ctx.block_z, #lb, (#upper_bound).floor() as i32, #ch, |y| {
+                    find_top_surface(ctx.block_x, ctx.block_z, #lb, #upper_bound, #ch, |y| {
                         let inner_ctx = FunctionContext::new(ctx.block_x, y, ctx.block_z);
-                        compute_preliminary_surface_level_inner_density(&inner_ctx, noises, flat, col)
+                        compute_preliminary_surface_level_inner_density(&inner_ctx, noises, col)
                     })
                 }
             }
@@ -1466,9 +1503,9 @@ impl<'a> AotEmitter<'a> {
                 let lb = *lower_bound;
                 let ch = *cell_height;
                 quote! {
-                    f64x4::splat(find_top_surface(ctx.block_x, ctx.block_z, #lb, (#upper_bound[0]).floor() as i32, #ch, |y| {
+                    f64x4::splat(find_top_surface(ctx.block_x, ctx.block_z, #lb, #upper_bound[0], #ch, |y| {
                         let inner_ctx = FunctionContext::new(ctx.block_x, y, ctx.block_z);
-                        compute_preliminary_surface_level_inner_density(&inner_ctx, noises, flat, col)
+                        compute_preliminary_surface_level_inner_density(&inner_ctx, noises, col)
                     }))
                 }
             }
@@ -2158,7 +2195,7 @@ impl<'a> AotEmitter<'a> {
                 let upper_bound = self.emit_fc_dep(1, node);
                 let inner_name = self.find_top_surface_inner_name(&node.id);
                 quote! {
-                    find_top_surface(block_x, block_z, #lb, (#upper_bound).floor() as i32, #ch, |y| {
+                    find_top_surface(block_x, block_z, #lb, #upper_bound, #ch, |y| {
                         #inner_name(block_x, y, block_z, noises)
                     })
                 }

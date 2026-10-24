@@ -22,7 +22,8 @@ pub type Span = (i64, i64);
 #[derive(Deserialize)]
 struct PointsFile {
     biomes: Vec<String>,
-    points: Vec<Vec<String>>,
+    /// `[biome index, 12 range bounds as decimal strings, offset as a decimal string]`.
+    points: Vec<Vec<serde_json::Value>>,
 }
 
 /// One parameter point and the biome it selects.
@@ -46,7 +47,10 @@ pub fn quantize(value: f32) -> i64 {
     (value * 10000.0f32) as i64
 }
 
-fn parse_f32(text: &str) -> Result<f32, String> {
+fn parse_f32(value: &serde_json::Value) -> Result<f32, String> {
+    let text = value
+        .as_str()
+        .ok_or_else(|| format!("biome parameter {value} is not a decimal string"))?;
     text.parse::<f32>()
         .map_err(|e| format!("bad biome parameter {text}: {e}"))
 }
@@ -63,9 +67,10 @@ impl BiomeParameters {
             if row.len() != 1 + 2 * 6 + 1 {
                 return Err(format!("biome parameter row has {} columns", row.len()));
             }
-            let biome: usize = row[0]
-                .parse()
-                .map_err(|e| format!("bad biome index {}: {e}", row[0]))?;
+            let biome = row[0]
+                .as_u64()
+                .ok_or_else(|| format!("bad biome index {}", row[0]))?
+                as usize;
             if biome >= file.biomes.len() {
                 return Err(format!("biome index {biome} out of range"));
             }

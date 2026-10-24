@@ -7,6 +7,7 @@
 //! to find); older families still glob re-export modules they write themselves.
 
 pub mod biome_features;
+pub mod biome_source;
 pub mod emitter_quote;
 pub mod java_biomes;
 pub mod java_blocks;
@@ -30,6 +31,8 @@ pub struct Inputs<'a> {
     pub java_blocks: &'a JavaBlocks,
     /// `java_data/bedrock_biomes.json`.
     pub bedrock_biome_ids: &'a BTreeMap<String, u32>,
+    /// `java_data/biome_parameters_overworld.json`.
+    pub biome_parameters: &'a super::data::biome_parameters::BiomeParameters,
 }
 
 /// Generated modules written to `OUT_DIR` and their `mod.rs` declarations.
@@ -141,6 +144,10 @@ pub fn emit_all(output_dir: &Path, inputs: &Inputs<'_>) -> Result<(), Box<dyn st
     modules.public(
         "java_biomes",
         java_biomes::emit(inputs.biomes, inputs.bedrock_biome_ids)?,
+    )?;
+    modules.public(
+        "overworld_biome_source",
+        biome_source::emit(inputs.biome_parameters)?,
     )?;
 
     modules.finish()?;

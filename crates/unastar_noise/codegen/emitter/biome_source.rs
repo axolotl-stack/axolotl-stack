@@ -56,7 +56,8 @@ pub fn emit(params: &BiomeParameters) -> Result<TokenStream, String> {
                 flat.first_child.push(next_index);
                 flat.child_count.push(children.len() as u8);
                 // Sub-trees carry a placeholder biome that the search never reads.
-                flat.biome.push(quote! { JavaBiome::#(biome_idents[0]) });
+                let placeholder = &biome_idents[0];
+                flat.biome.push(quote! { JavaBiome::#placeholder });
                 next_index += children.len() as u32;
                 queue.extend(children);
             }

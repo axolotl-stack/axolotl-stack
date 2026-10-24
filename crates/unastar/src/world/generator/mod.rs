@@ -12,6 +12,7 @@
 //! | `void_spawn_platform` | [`VoidGenerator`] | stone platform around the origin |
 
 pub mod aquifer;
+pub mod biome_source;
 mod climate;
 mod constants;
 pub mod density;

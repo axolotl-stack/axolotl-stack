@@ -88,7 +88,7 @@ fn java_style_vs_java_reference() {
             max_terrain_mean_abs_error: 2.3842,
             surface_exact: 0.8442,
             surface_block: 0.7289,
-            surface_biome: 0.0,
+            surface_biome: 0.9999,
             // Dominated by missing decoration until features land; the shift fix moved
             // stone/deepslate counts by 0.07%.
             max_histogram_l1: 0.4550,
@@ -106,7 +106,7 @@ fn java_style_vs_bds_reference() {
             max_terrain_mean_abs_error: 1.2424,
             surface_exact: 0.8807,
             surface_block: 0.8128,
-            surface_biome: 0.0,
+            surface_biome: 0.9946,
             max_histogram_l1: 0.3735,
         },
     );
@@ -132,7 +132,7 @@ fn java_style_protos_vs_java_reference() {
     let floors = [
         ("block_exact", metrics.block_exact, 0.9606),
         ("class_exact", metrics.class_exact, 0.9743),
-        ("biome_exact", metrics.biome_exact, 0.0),
+        ("biome_exact", metrics.biome_exact, 1.0),
     ];
     for (name, value, floor) in floors {
         assert!(

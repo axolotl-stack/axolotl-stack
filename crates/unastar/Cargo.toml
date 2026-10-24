@@ -26,6 +26,7 @@ bevy_tasks.workspace = true
 async-trait.workspace = true
 bleveldb.workspace = true
 serde_json.workspace = true
+sha2.workspace = true
 anyhow = "1.0"
 
 # BlazeDB dependencies

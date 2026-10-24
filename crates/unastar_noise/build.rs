@@ -40,6 +40,8 @@ fn main() {
         .unwrap_or_else(|e| panic!("Failed to load java_data block tables: {e}"));
     let bedrock_biome_ids = codegen::emitter::java_biomes::load_bedrock_ids(&java_data)
         .unwrap_or_else(|e| panic!("Failed to load java_data biome ids: {e}"));
+    let biome_parameters = codegen::data::biome_parameters::BiomeParameters::load(&java_data)
+        .unwrap_or_else(|e| panic!("Failed to load java_data biome parameters: {e}"));
 
     codegen::emitter::emit_all(
         &output_dir,
@@ -50,6 +52,7 @@ fn main() {
             biomes: &biomes,
             java_blocks: &java_blocks,
             bedrock_biome_ids: &bedrock_biome_ids,
+            biome_parameters: &biome_parameters,
         },
     )
     .expect("Failed to emit generated code");

@@ -7,22 +7,23 @@
 //! - Aquifer system for underground water/lava pockets
 //! - Surface rules for biome-based block placement
 
-use super::constants::Biome;
+use super::biome_source;
 use super::density::{
     CachingNoiseChunk, ColumnContext, ColumnContextGrid, FlatCacheGrid, FunctionContext,
     NoiseRegistry, compute_final_density,
 };
 use super::ore_veinifier::OreVeinifier;
 use super::pipeline::{Generator, SpawnPoint};
-use super::proto::{NativeBiome, ProtoChunk, QUARTS_Y, QuartBiomes};
+use super::proto::{NativeBiome, ProtoChunk};
 use super::region::DecorationRegion;
 use super::surface::SurfaceSystem;
 use super::xoroshiro::PositionalRandomFactory;
 use crate::world::ChunkPos;
-use crate::world::chunk::{Chunk, MIN_Y, blocks};
+use crate::world::chunk::{Chunk, blocks};
 use crate::world::generator::BiomeNoise;
 use std::simd::prelude::*;
-use unastar_noise::build_vanilla_surface_rule;
+use unastar_noise::java_biomes::JavaBiome;
+use unastar_noise::{build_vanilla_surface_rule, overworld_settings};
 
 /// Java-style terrain generator using 3D density functions.
 ///
@@ -33,31 +34,26 @@ use unastar_noise::build_vanilla_surface_rule;
 pub struct JavaGenerator {
     /// World seed
     pub seed: i64,
-    /// Biome/Climate noise system (MultiNoise)
-    biome_noise: BiomeNoise,
     /// Noise registry with instantiated noises from seed
     noises: NoiseRegistry,
     /// Surface rules system for biome-based surface blocks
     surface_system: SurfaceSystem,
-    /// Positional random factory for ore vein generation.
-    /// Created via `PositionalRandomFactory::fork_ore_random()`.
+    /// Ore vein positional random (`fromHashOf("minecraft:ore").forkPositional()`).
     ore_random: PositionalRandomFactory,
 }
 
 impl JavaGenerator {
     /// Sea level
-    pub const SEA_LEVEL: i32 = 63;
+    pub const SEA_LEVEL: i32 = overworld_settings::SEA_LEVEL;
 
     /// Create a new Java-style generator with the given seed.
     pub fn new(seed: i64) -> Self {
-        let biome_noise = BiomeNoise::from_seed(seed);
-
         // Create noise registry with all noises instantiated from seed
         let noises = NoiseRegistry::new(seed);
 
         // Build surface rules system using generated vanilla rules from JSON
         let surface_rule = build_vanilla_surface_rule(seed);
-        let surface_system = SurfaceSystem::new(seed, surface_rule, biome_noise.clone());
+        let surface_system = SurfaceSystem::new(seed, surface_rule, BiomeNoise::from_seed(seed));
 
         // `fromHashOf("minecraft:ore").forkPositional()` of the world's base factory.
         let ore_random =
@@ -65,7 +61,6 @@ impl JavaGenerator {
 
         Self {
             seed,
-            biome_noise,
             noises,
             surface_system,
             ore_random,
@@ -117,37 +112,30 @@ impl JavaGenerator {
 
     /// Terrain blocks of a chunk using 3D density functions with cell-based caching.
     ///
-    /// The generation process:
-    /// 1. Create FlatCacheGrid for Y-independent values (AOT compiled)
-    /// 2. Create NoiseBasedAquifer for underground fluid handling
-    /// 3. Create a CachingNoiseChunk for cell-based caching and interpolation
-    /// 4. Initialize interpolators with first X slice using AOT compiled functions
-    /// 5. Traverse cells (4x8x4 blocks) in X-outer, Z-middle, Y-inner order
-    /// 6. Use trilinear interpolation for density (compute at 8 corners, interpolate interior)
-    /// 7. Use aquifer system to determine fluid placement when density <= 0
-    /// 8. Apply surface rules for biome-specific blocks
-    pub fn generate_terrain(&self, chunk_x: i32, chunk_z: i32) -> Chunk {
+    /// `grid` and `col_grid` are the chunk's flat (quart) and column caches, shared with
+    /// the biome source. The generation process:
+    /// 1. Create NoiseBasedAquifer for underground fluid handling
+    /// 2. Create a CachingNoiseChunk for cell-based caching and interpolation
+    /// 3. Initialize interpolators with first X slice using AOT compiled functions
+    /// 4. Traverse cells (4x8x4 blocks) in X-outer, Z-middle, Y-inner order
+    /// 5. Use trilinear interpolation for density (compute at 8 corners, interpolate interior)
+    /// 6. Use aquifer system to determine fluid placement when density <= 0
+    /// 7. Apply surface rules for biome-specific blocks
+    pub fn generate_terrain(
+        &self,
+        chunk_x: i32,
+        chunk_z: i32,
+        grid: &FlatCacheGrid,
+        col_grid: &ColumnContextGrid,
+    ) -> Chunk {
         use super::aquifer::{NoiseBasedAquifer, OverworldFluidPicker};
 
         let mut chunk = Chunk::new(chunk_x, chunk_z);
 
-        // Cell configuration matching Java Edition
-        let cell_width = 4; // blocks per cell in XZ
-        let cell_height = 8; // blocks per cell in Y
-        let min_y = -64;
-        let height = 384;
-
-        // Create FlatCacheGrid for AOT compiled Y-independent values
-        // This pre-computes all FlatCache nodes (continents, erosion, temperature, etc.)
-        // at the 5x5 quart grid positions for this chunk
-        let grid = FlatCacheGrid::new(chunk_x, chunk_z, &self.noises);
-
-        // Pre-compute all 256 ColumnContext values for the chunk.
-        // This implements Java's Cache2D memoization pattern at chunk scale:
-        // instead of computing ColumnContext per-cell (which caused ~281 calls with
-        // expensive spline evaluations), we compute all 256 positions ONCE upfront.
-        // This reduces spline evaluations from ~140,000 to 256 per chunk.
-        let col_grid = ColumnContextGrid::new(chunk_x, chunk_z, &self.noises, &grid);
+        let cell_width = overworld_settings::CELL_WIDTH;
+        let cell_height = overworld_settings::CELL_HEIGHT;
+        let min_y = overworld_settings::MIN_Y;
+        let height = overworld_settings::HEIGHT;
 
         // Create aquifer system for proper underground fluid handling
         // The aquifer determines when to place water/lava vs air in caves
@@ -308,25 +296,6 @@ impl JavaGenerator {
 
         chunk
     }
-
-    /// Generator-native 3D biomes of a chunk, one climate sample per quart cell.
-    fn quart_biomes(&self, pos: ChunkPos) -> QuartBiomes {
-        let mut biomes = QuartBiomes::filled(Biome::Plains as NativeBiome);
-        for qy in 0..QUARTS_Y {
-            let y = MIN_Y + (qy as i32) * 4;
-            for qz in 0..4 {
-                for qx in 0..4 {
-                    let biome = self.biome_noise.get_biome(
-                        pos.x * 16 + (qx as i32) * 4,
-                        y,
-                        pos.z * 16 + (qz as i32) * 4,
-                    );
-                    biomes.set(qx, qy, qz, biome as NativeBiome);
-                }
-            }
-        }
-        biomes
-    }
 }
 
 impl Generator for JavaGenerator {
@@ -335,10 +304,14 @@ impl Generator for JavaGenerator {
     }
 
     fn generate_proto(&self, pos: ChunkPos) -> ProtoChunk {
+        // Flat (quart) and column caches shared by terrain and biomes.
+        let grid = FlatCacheGrid::new(pos.x, pos.z, &self.noises);
+        let col_grid = ColumnContextGrid::new(pos.x, pos.z, &self.noises, &grid);
+        let biomes = biome_source::fill_chunk(&self.noises, pos, &grid, &col_grid);
         ProtoChunk {
             pos,
-            chunk: self.generate_terrain(pos.x, pos.z),
-            biomes: self.quart_biomes(pos),
+            chunk: self.generate_terrain(pos.x, pos.z, &grid, &col_grid),
+            biomes,
         }
     }
 
@@ -353,8 +326,10 @@ impl Generator for JavaGenerator {
     }
 
     fn bedrock_biome(&self, biome: NativeBiome) -> u32 {
-        // Native ids are `Biome` discriminants, which are Bedrock biome ids.
-        biome as u32
+        JavaBiome::from_index(biome)
+            .expect("Java-style protos store JavaBiome discriminants")
+            .data()
+            .bedrock_id
     }
 
     fn find_spawn(&self) -> SpawnPoint {
