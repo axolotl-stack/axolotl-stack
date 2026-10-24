@@ -90,3 +90,58 @@ pub fn decorate_chunk<W: FeatureWorld + ?Sized, H: StepHook<W>>(
         }
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::features::generated::{OVERWORLD_FEATURES, biome_index};
+    use crate::features::java_blocks::states;
+    use crate::features::test_world::TestWorld;
+
+    fn plains_world() -> TestWorld {
+        let mut w = TestWorld::flat(63);
+        w.biome = biome_index("minecraft:plains").unwrap();
+        w.seed = 12345;
+        for x in -16..32 {
+            for z in -16..32 {
+                w.blocks.insert(BlockPos::new(x, 62, z), states::GRASS_BLOCK);
+                w.blocks.insert(BlockPos::new(x, 61, z), states::DIRT);
+            }
+        }
+        w.writable = Some((-16, -16, 31, 31));
+        w
+    }
+
+    fn decorate(w: &mut TestWorld) {
+        let mut set = BiomeSet::default();
+        set.insert(w.biome);
+        decorate_chunk(w, &OVERWORLD_FEATURES, 0, 0, set, &mut NoStructures);
+    }
+
+    /// A flat plains chunk gets ores underground and vegetation on the grass,
+    /// and decoration is a pure function of the seed.
+    #[test]
+    fn plains_chunk_decorates_deterministically() {
+        let mut a = plains_world();
+        decorate(&mut a);
+        let mut b = plains_world();
+        decorate(&mut b);
+        assert_eq!(a.blocks, b.blocks);
+        assert!(a.count(states::COAL_ORE) > 0, "no coal ore");
+        assert!(a.count(states::IRON_ORE) > 0, "no iron ore");
+        let grass = a.blocks.values().filter(|s| s.is(crate::features::java_blocks::blocks::SHORT_GRASS)).count();
+        assert!(grass > 0, "no short grass");
+        // Every write stayed in the writable 3x3 area.
+        assert!(a.blocks.keys().all(|p| (-16..32).contains(&p.x) && (-16..32).contains(&p.z)));
+    }
+
+    #[test]
+    fn different_seeds_decorate_differently() {
+        let mut a = plains_world();
+        decorate(&mut a);
+        let mut b = plains_world();
+        b.seed = 54321;
+        decorate(&mut b);
+        assert_ne!(a.blocks, b.blocks);
+    }
+}
