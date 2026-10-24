@@ -129,11 +129,7 @@ pub fn emit_all(output_dir: &Path, inputs: &Inputs<'_>) -> Result<(), Box<dyn st
     ];
     let graph = DependencyGraph::build(&router_fields, inputs.density_functions);
     let mut emitter = emitter_quote::AotEmitter::new(&graph);
-    std::fs::write(
-        output_dir.join("overworld_compiled.rs"),
-        emitter.emit_module(),
-    )?;
-    modules.glob_existing("overworld_compiled");
+    modules.glob("overworld_compiled", emitter.emit_module())?;
 
     biome_features::emit_biome_features(output_dir, inputs.biomes)?;
     modules.glob_existing("biome_features");

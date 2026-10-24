@@ -83,13 +83,15 @@ fn java_style_vs_java_reference() {
     check(
         "java_1_21_11_seed_12345.json",
         Ratchet {
-            terrain_exact: 0.7659,
-            terrain_within_2: 0.8619,
-            max_terrain_mean_abs_error: 2.4451,
+            terrain_exact: 0.7666,
+            terrain_within_2: 0.8622,
+            max_terrain_mean_abs_error: 2.3842,
             surface_exact: 0.8442,
-            surface_block: 0.7286,
+            surface_block: 0.7289,
             surface_biome: 0.0,
-            max_histogram_l1: 0.4543,
+            // Dominated by missing decoration until features land; the shift fix moved
+            // stone/deepslate counts by 0.07%.
+            max_histogram_l1: 0.4550,
         },
     );
 }
@@ -99,13 +101,13 @@ fn java_style_vs_bds_reference() {
     check(
         "bds_1_26_51_seed_12345.json",
         Ratchet {
-            terrain_exact: 0.8439,
-            terrain_within_2: 0.9233,
-            max_terrain_mean_abs_error: 1.3262,
-            surface_exact: 0.8806,
+            terrain_exact: 0.8446,
+            terrain_within_2: 0.9235,
+            max_terrain_mean_abs_error: 1.2424,
+            surface_exact: 0.8807,
             surface_block: 0.8128,
             surface_biome: 0.0,
-            max_histogram_l1: 0.3724,
+            max_histogram_l1: 0.3735,
         },
     );
 }

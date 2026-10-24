@@ -234,8 +234,8 @@ impl<'a> AotEmitter<'a> {
         }
     }
 
-    /// Generate the complete compiled module as a string.
-    pub fn emit_module(&mut self) -> String {
+    /// Generate the complete compiled module.
+    pub fn emit_module(&mut self) -> TokenStream {
         let helpers = self.emit_helpers();
         let flat_cache_grid = self.emit_flat_cache_grid();
         // After flat_cache_grid emission, the registry contains all unique spline functions
@@ -253,8 +253,7 @@ impl<'a> AotEmitter<'a> {
         let simd_fn = self.emit_compute_function_simd("final_density");
 
         let tokens = quote! {
-            // AUTO-GENERATED AOT-COMPILED DENSITY FUNCTIONS.
-            // DO NOT EDIT - regenerated at build time from worldgen JSON.
+            //! AOT-compiled overworld noise router (regenerated at build time from worldgen JSON).
 
             #![allow(
                 unused_variables,
@@ -292,7 +291,7 @@ impl<'a> AotEmitter<'a> {
             #simd_fn
         };
 
-        tokens.to_string()
+        tokens
     }
 
     fn emit_helpers(&self) -> TokenStream {
@@ -1042,28 +1041,28 @@ impl<'a> AotEmitter<'a> {
                 let xzs = *xz_scale;
                 let ys = *y_scale;
                 quote! {
-                    noises.sample(NoiseRef::#noise_ref, (ctx.block_x as f64 + #sx) * #xzs, (ctx.block_y as f64 + #sy) * #ys, (ctx.block_z as f64 + #sz) * #xzs)
+                    noises.sample(NoiseRef::#noise_ref, ctx.block_x as f64 * #xzs + #sx, ctx.block_y as f64 * #ys + #sy, ctx.block_z as f64 * #xzs + #sz)
                 }
             }
 
             DensityFunctionDef::ShiftA { argument } => {
                 let noise_ref = noise_name_to_ident(argument);
                 quote! {
-                    noises.sample(NoiseRef::#noise_ref, ctx.block_x as f64, 0.0, ctx.block_z as f64) * 4.0
+                    noises.sample(NoiseRef::#noise_ref, ctx.block_x as f64 * 0.25, 0.0, ctx.block_z as f64 * 0.25) * 4.0
                 }
             }
 
             DensityFunctionDef::ShiftB { argument } => {
                 let noise_ref = noise_name_to_ident(argument);
                 quote! {
-                    noises.sample(NoiseRef::#noise_ref, ctx.block_z as f64, ctx.block_x as f64, 0.0) * 4.0
+                    noises.sample(NoiseRef::#noise_ref, ctx.block_z as f64 * 0.25, ctx.block_x as f64 * 0.25, 0.0) * 4.0
                 }
             }
 
             DensityFunctionDef::Shift { argument } => {
                 let noise_ref = noise_name_to_ident(argument);
                 quote! {
-                    noises.sample(NoiseRef::#noise_ref, ctx.block_x as f64, 0.0, ctx.block_z as f64) * 4.0
+                    noises.sample(NoiseRef::#noise_ref, ctx.block_x as f64 * 0.25, ctx.block_y as f64 * 0.25, ctx.block_z as f64 * 0.25) * 4.0
                 }
             }
 
@@ -1331,28 +1330,28 @@ impl<'a> AotEmitter<'a> {
                 let xzs = *xz_scale;
                 let ys = *y_scale;
                 quote! {
-                    noises.sample_4(NoiseRef::#noise_ref, (x_v + #sx) * f64x4::splat(#xzs), (y_v + #sy) * f64x4::splat(#ys), (z_v + #sz) * f64x4::splat(#xzs))
+                    noises.sample_4(NoiseRef::#noise_ref, x_v * f64x4::splat(#xzs) + #sx, y_v * f64x4::splat(#ys) + #sy, z_v * f64x4::splat(#xzs) + #sz)
                 }
             }
 
             DensityFunctionDef::ShiftA { argument } => {
                 let noise_ref = noise_name_to_ident(argument);
                 quote! {
-                    f64x4::splat(noises.sample(NoiseRef::#noise_ref, ctx.block_x as f64, 0.0, ctx.block_z as f64) * 4.0)
+                    f64x4::splat(noises.sample(NoiseRef::#noise_ref, ctx.block_x as f64 * 0.25, 0.0, ctx.block_z as f64 * 0.25) * 4.0)
                 }
             }
 
             DensityFunctionDef::ShiftB { argument } => {
                 let noise_ref = noise_name_to_ident(argument);
                 quote! {
-                    f64x4::splat(noises.sample(NoiseRef::#noise_ref, ctx.block_z as f64, ctx.block_x as f64, 0.0) * 4.0)
+                    f64x4::splat(noises.sample(NoiseRef::#noise_ref, ctx.block_z as f64 * 0.25, ctx.block_x as f64 * 0.25, 0.0) * 4.0)
                 }
             }
 
             DensityFunctionDef::Shift { argument } => {
                 let noise_ref = noise_name_to_ident(argument);
                 quote! {
-                    f64x4::splat(noises.sample(NoiseRef::#noise_ref, ctx.block_x as f64, 0.0, ctx.block_z as f64) * 4.0)
+                    noises.sample_4(NoiseRef::#noise_ref, x_v * f64x4::splat(0.25), y_v * f64x4::splat(0.25), z_v * f64x4::splat(0.25)) * f64x4::splat(4.0)
                 }
             }
 
@@ -2040,17 +2039,17 @@ impl<'a> AotEmitter<'a> {
 
             DensityFunctionDef::ShiftA { argument } => {
                 let noise_ref = noise_name_to_ident(argument);
-                quote! { noises.sample(NoiseRef::#noise_ref, bx as f64, 0.0, bz as f64) * 4.0 }
+                quote! { noises.sample(NoiseRef::#noise_ref, bx as f64 * 0.25, 0.0, bz as f64 * 0.25) * 4.0 }
             }
 
             DensityFunctionDef::ShiftB { argument } => {
                 let noise_ref = noise_name_to_ident(argument);
-                quote! { noises.sample(NoiseRef::#noise_ref, bz as f64, bx as f64, 0.0) * 4.0 }
+                quote! { noises.sample(NoiseRef::#noise_ref, bz as f64 * 0.25, bx as f64 * 0.25, 0.0) * 4.0 }
             }
 
             DensityFunctionDef::Shift { argument } => {
                 let noise_ref = noise_name_to_ident(argument);
-                quote! { noises.sample(NoiseRef::#noise_ref, bx as f64, 0.0, bz as f64) * 4.0 }
+                quote! { noises.sample(NoiseRef::#noise_ref, bx as f64 * 0.25, 0.0, bz as f64 * 0.25) * 4.0 }
             }
 
             DensityFunctionDef::Cache2D { .. } | DensityFunctionDef::CacheOnce { .. } => {
@@ -2083,7 +2082,7 @@ impl<'a> AotEmitter<'a> {
                 let xzs = *xz_scale;
                 let ys = *y_scale;
                 quote! {
-                    noises.sample(NoiseRef::#noise_ref, (bx as f64 + #sx) * #xzs, (0.0 + #sy) * #ys, (bz as f64 + #sz) * #xzs)
+                    noises.sample(NoiseRef::#noise_ref, bx as f64 * #xzs + #sx, 0.0 * #ys + #sy, bz as f64 * #xzs + #sz)
                 }
             }
 
@@ -3175,17 +3174,17 @@ impl<'a> AotEmitter<'a> {
 
             DensityFunctionDef::ShiftA { argument } => {
                 let noise_ref = noise_name_to_ident(argument);
-                quote! { noises.sample(NoiseRef::#noise_ref, block_x as f64, 0.0, block_z as f64) * 4.0 }
+                quote! { noises.sample(NoiseRef::#noise_ref, block_x as f64 * 0.25, 0.0, block_z as f64 * 0.25) * 4.0 }
             }
 
             DensityFunctionDef::ShiftB { argument } => {
                 let noise_ref = noise_name_to_ident(argument);
-                quote! { noises.sample(NoiseRef::#noise_ref, block_z as f64, block_x as f64, 0.0) * 4.0 }
+                quote! { noises.sample(NoiseRef::#noise_ref, block_z as f64 * 0.25, block_x as f64 * 0.25, 0.0) * 4.0 }
             }
 
             DensityFunctionDef::Shift { argument } => {
                 let noise_ref = noise_name_to_ident(argument);
-                quote! { noises.sample(NoiseRef::#noise_ref, block_x as f64, 0.0, block_z as f64) * 4.0 }
+                quote! { noises.sample(NoiseRef::#noise_ref, block_x as f64 * 0.25, 0.0, block_z as f64 * 0.25) * 4.0 }
             }
 
             DensityFunctionDef::Cache2D { .. } => {
@@ -3233,7 +3232,7 @@ impl<'a> AotEmitter<'a> {
                 let xzs = *xz_scale;
                 let ys = *y_scale;
                 quote! {
-                    noises.sample(NoiseRef::#noise_ref, (block_x as f64 + #sx) * #xzs, (0.0 + #sy) * #ys, (block_z as f64 + #sz) * #xzs)
+                    noises.sample(NoiseRef::#noise_ref, block_x as f64 * #xzs + #sx, 0.0 * #ys + #sy, block_z as f64 * #xzs + #sz)
                 }
             }
 
@@ -3576,7 +3575,7 @@ impl<'a> AotEmitter<'a> {
                 let ys = *y_scale;
                 let _ = (shift_x, shift_y, shift_z); // suppress unused warnings
                 quote! {
-                    noises.sample(NoiseRef::#noise_ref, ((block_x as f64) + #sx) * #xs, (0.0 + #sy) * #ys, ((block_z as f64) + #sz) * #xs)
+                    noises.sample(NoiseRef::#noise_ref, (block_x as f64) * #xs + #sx, 0.0 * #ys + #sy, (block_z as f64) * #xs + #sz)
                 }
             }
             DensityFunctionDef::Add { .. } => {
