@@ -14,7 +14,7 @@ The HTTP endpoint is **additional**, not a replacement for franchise friend sign
 
 ## Protocol provenance
 
-Transport, HTTP endpoint, identities, and discovery follow [df-mc/go-nethernet at `215e46422b5831d6ddc6146003617dc3f1ff7c26`](https://github.com/df-mc/go-nethernet/tree/215e46422b5831d6ddc6146003617dc3f1ff7c26). Constants carry upstream file/function comments near their implementation. Where the real Bedrock client (libwebrtc NetherNet, analysed from its binaries) differs from go-nethernet in a way a peer can observe, the crate follows the client; [PARITY.md](PARITY.md) lists every behaviour with the client, BDS, go-nethernet and tokio values and the covering test.
+Transport, HTTP endpoint, identities, and discovery follow [df-mc/go-nethernet at `215e46422b5831d6ddc6146003617dc3f1ff7c26`](https://github.com/df-mc/go-nethernet/tree/215e46422b5831d6ddc6146003617dc3f1ff7c26). Constants carry upstream file/function comments near their implementation. Where the real Bedrock client (WebRTC with libwebrtc's SDP and ICE behaviour) differs from go-nethernet in a way a peer can observe, the crate follows the client; [PARITY.md](PARITY.md) lists every behaviour with the client, BDS, go-nethernet and tokio values and the covering test.
 
 Real-client behaviours that replace go-nethernet's:
 
@@ -24,7 +24,7 @@ Real-client behaviours that replace go-nethernet's:
 - LAN signaling does not require `a=identity` (`DiscoveryListener::requires_identity` is false): BDS 1.26.51 answers LAN offers without one and accepts identityless LAN offers. Identities that are present are still verified; set `NetherNetListenerConfig.identity` to sign LAN answers.
 - An unparseable remote candidate is skipped instead of failing the connection.
 - A remote description without `a=max-message-size` means 65536 (RFC 8841, libwebrtc), not an error.
-- The HTTP endpoint client accepts any 2xx answer, as the client's `HttpSignalingClient` does.
+- The HTTP endpoint client accepts any 2xx answer, as the client's HTTP signaling does.
 - Discovery requests go to every interface's directed broadcast when the destination is the default `255.255.255.255:7551`, and only while no server data is set; addresses are learned from responses and messages only and expire after 60 s; discovered servers expire after 5 s; response data past the declared length is kept.
 
 | Behavior | Source |

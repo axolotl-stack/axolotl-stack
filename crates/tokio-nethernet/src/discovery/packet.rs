@@ -387,8 +387,8 @@ pub fn decode(data: &[u8]) -> Result<(Packet, u64), &'static str> {
                 return Err("response application data truncated");
             }
             // The client caps the declared hex length at 0x47c but writes the
-            // whole string, and its reader (LanThreadManager datagram
-            // dispatch) takes every byte to the end of the datagram.
+            // whole string, and its reader takes every byte to the end of the
+            // datagram (PARITY.md L5).
             Packet::Response(hex::decode(app_data).map_err(|_| "invalid response hex")?)
         }
         ID_MESSAGE => {

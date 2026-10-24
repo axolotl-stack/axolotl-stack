@@ -25,7 +25,7 @@ filed upstream as is.
 }
 ```
 
-**Observed wire shape:** BDS writes the event data with `CompoundTag::write`,
+**Observed wire shape:** BDS writes the event data as a compound body,
 i.e. the compound's *children* — each a named tag (`tag id`, `varuint` name
 length, name, payload) — followed by `TAG_End` (`0x00`). There is no root tag
 ID and no root name. The body ends the packet.
@@ -81,6 +81,6 @@ rooted value, e.g.
 ```
 
 (or an `"nbt_layout": "compound_body"` attribute on `nbt_le` nodes), and select
-it for fields whose BDS writer is `CompoundTag::write` rather than
-`NbtIo::writeNamedTag`/`CompoundTag` with a root header. The Endstone pin
+it for fields BDS writes as a compound body rather than as a rooted named tag
+with a root header. The Endstone pin
 (`packets/LevelEventGenericPacket.json#/fields/1`) is the claim to adjudicate.

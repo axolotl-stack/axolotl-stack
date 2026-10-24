@@ -1,13 +1,14 @@
 //! `TransmissionPolicy::Vanilla` reliability layer: Mojang RakNet's
-//! `ReliabilityLayer` (the Jenkins RakNet 4.081 fork in the Bedrock client and
-//! BDS; see `PARITY.md` DG-*, ACK-*, CC-*, REL-*).
+//! reliability layer (the Jenkins RakNet fork in the Bedrock client and BDS;
+//! see `PARITY.md` DG-*, ACK-*, CC-*, REL-*).
 //!
 //! Unlike Optimized, the unit of retransmission is the reliable *message*:
 //! a datagram history maps datagram numbers to the message numbers they
 //! carried, and resends are re-packed (resends first, then new messages) into
 //! fresh datagrams by the next update. One update (`vanilla_update`) does what
-//! `ReliabilityLayer::Update` does: ACKs, at most one NAK datagram, then
-//! resends and new data within the sliding window.
+//! a RakNet reliability update (Jenkins `ReliabilityLayer::Update`) does: ACKs,
+//! at most one NAK datagram, then resends and new data within the sliding
+//! window.
 
 use std::collections::{HashMap, VecDeque};
 use std::time::Instant;
@@ -129,7 +130,7 @@ impl VanillaState {
     }
 }
 
-/// Mojang `RangeList::Serialize` budget per ACK/NAK datagram:
+/// `RangeList::Serialize` budget per ACK/NAK datagram:
 /// `(MTU - 28) * 8 - 72` bits; a range is added while `16 + written + 65`
 /// bits fit. Ranges are sorted and merged; a datagram also closes at the
 /// 8192-sequence decoder limit of RAKNET-01.
@@ -253,8 +254,7 @@ impl Session {
         Ok(true)
     }
 
-    /// A split message completed: `SendACKs` runs immediately (lens
-    /// RL_006:1438-1441).
+    /// A split message completed: ACKs are sent immediately (PARITY ACK-1).
     pub(super) fn vanilla_split_completed(&mut self) {
         self.vanilla_mut().ack_now = true;
     }
@@ -287,7 +287,7 @@ impl Session {
     }
 
     /// NAK processing: `OnNAK` per NAKed datagram, then its messages become
-    /// due, so the next update resends them (lens RL_006:337-353).
+    /// due, so the next update resends them.
     pub(super) fn vanilla_process_naks(&mut self, now: Instant) {
         let next = self.datagram_write_index;
         while let Some(range) = self.incoming_naks.pop_front() {
@@ -362,7 +362,7 @@ impl Session {
         })
     }
 
-    /// `ReliabilityLayer::Update` (lens RL_010): ACKs if due, one NAK
+    /// One reliability update: ACKs if due, one NAK
     /// datagram, then resends and new messages packed into datagrams.
     ///
     /// Out of line: inlined into `on_tick`/`build_data_datagram` it made

@@ -45,11 +45,11 @@ pub const DEFAULT_CHUNK_INTERVAL: Duration = Duration::from_millis(200);
 /// `ResourcePacksInfo` world template version for a world not created from a
 /// template, as BDS 1.26.51 sends it (with the nil UUID).
 ///
-/// The field is a cereal `SemVersion` since the 26.50 client: its
-/// `SemVersionProxyConstraint` rejects an unparsable string such as `""`
-/// (gophertunnel's default), and the client drops the connection with
-/// `BadPacket` (codeword "Block", `InitialConnection-90`) before answering
-/// the pack offer.
+/// The field is a cereal `SemVersion` since the 26.50 client
+/// (bedrock-protocol-docs `SemVersion.json`): an unparsable string such as
+/// `""` (gophertunnel's default) makes the real client drop the connection
+/// with `BadPacket` (codeword "Block", `InitialConnection-90`) before
+/// answering the pack offer.
 const NO_WORLD_TEMPLATE_VERSION: &str = "0.0.0";
 
 /// Built-in vanilla packs clients list in stacks without downloading them

@@ -4,13 +4,11 @@
 
 ## Root cause of `readNoHeader`
 
-BDS rejects retired UWP **`DeviceOS: 7`** in `ConnectionRequest::isWellFormed`; `readNoHeader failed` is the enclosing packet-reader diagnostic, not evidence that the little-endian string lengths or JWT envelope failed to parse.
+BDS rejects retired UWP **`DeviceOS: 7`** as an invalid connection request; `readNoHeader failed` is the enclosing packet-reader diagnostic, not evidence that the little-endian string lengths or JWT envelope failed to parse.
 
 Evidence:
 
 - The shared scenario forced `DeviceOS: 7` into both clients, and the Rust runner explicitly required it. Jolyne's ordinary offline client also defaulted to 7.
-- Read-only disassembly of the baseline BDS executable shows the Login reader calling native `isWellFormed` at RVA `0x2db430c` (callee `0xa8d6c0`), then emitting `Connection Request invalid.` on a false result. Its DeviceOS check increments the value, bounds it, and tests bit `DeviceOS + 1` of `0x1763d` at RVAs `0xa8d7b1`–`0xa8d7c0`. Bit 8 (OS 7) is clear; bit 2 (Android 1) is set. No executable or server verification logic was modified.
-- BDS executable SHA-256: `76d547f82e02c18d0986c30b47132c9cc4171d0f2df1c00649e50ff35788b321`.
 - Removing Go's `Certificate` in a temporary protocol adapter still produced the original warning (`runs/20261021-183829-781`). That adapter was removed.
 - Changing **only** the shared identity's DeviceOS from 7 to **1**, with the pinned Go code and dependencies unmodified, produced ServerToClientHandshake, ClientToServerHandshake, LoginSuccess, resource-pack completion, StartGame, and SetLocalPlayerAsInitialised (`runs/20261021-184216-027/join-idle-vanilla-go.jsonl`). The Go process exited successfully. This established an accepted reference before changing jolyne's identity envelope.
 
@@ -68,7 +66,7 @@ For all four final sessions, the ordered c2s `(numeric ID, complete bytes)` sequ
 | `go vet ./...` in `tools/client-diff/gt-client` | Exit 0 |
 | `pwsh -NoProfile -File tools/client-diff/run.ps1 -Runtime C:/Users/jvigu/orca/workspaces/axolotl-stack/stab-client-diff/tools/client-diff/endstone-capture/runtime` | Exit 0; both clients completed both scenarios |
 
-The Runtime override reuses the already provisioned pinned BDS/Endstone installation and closed-world template; the current worktree's clients, scenarios and report code ran. The runner restored the template between connections. No 26.52 executable or real Minecraft launcher was run: the native whitelist and single-variable 26.51 experiment resolved the original failure directly.
+The Runtime override reuses the already provisioned pinned BDS/Endstone installation and closed-world template; the current worktree's clients, scenarios and report code ran. The runner restored the template between connections. No 26.52 executable or real Minecraft launcher was run: the single-variable 26.51 experiment resolved the original failure directly.
 
 Additional out-of-ownership finding, reported to the coordinator: the intermediate authentication rejection's Disconnect body `6a000000` triggers Valentine's one-trailing-byte error. It is not suppressed or special-cased here and is not encountered in the completed accepted scenarios.
 

@@ -13,7 +13,7 @@
 //! Wire behavior follows upstream `discovery/packet.go:Marshal/Unmarshal`,
 //! `discovery/crypto.go:encrypt/decrypt`, and the version 7
 //! `discovery/server_data.go:ServerData.MarshalBinary` layout. Timing and
-//! addressing follow the real client's `NetherNet::LanThreadManager` (see
+//! addressing follow the real client's LAN discovery (see
 //! `PARITY.md`, rows L9-L13): requests every 2 s to every interface's directed
 //! broadcast, only while not announcing; peer addresses are learned from
 //! responses and messages and expire after 60 s; discovered servers after 5 s.
@@ -54,21 +54,20 @@ pub struct DiscoveryListenerConfig {
     /// Network ID for this listener. Randomly generated if zero.
     pub network_id: u64,
     /// Destination of discovery requests. The default limited broadcast
-    /// `255.255.255.255:7551` is expanded like the client (`LanThreadManager`
-    /// network discovery): the directed broadcast of every non-loopback,
+    /// `255.255.255.255:7551` is expanded like the client's network
+    /// discovery: the directed broadcast of every non-loopback,
     /// non-link-local IPv4 interface plus `ff02::1` from an IPv6 socket, all
     /// on this port, falling back to the limited broadcast when no interface
     /// qualifies (Windows sends a limited broadcast on one interface only).
     /// Any other address, e.g. `127.0.0.1:7551`, is used as given.
     pub broadcast_addr: SocketAddr,
-    /// Broadcast interval; default 2 s (client config `2000` ms, upstream
+    /// Broadcast interval; default 2 s (the client's 2000 ms, upstream
     /// `discovery/listener.go:Listener.background`).
     pub broadcast_interval: Duration,
     /// Peer address expiry; default 60 s, the client's LAN peer database
     /// (go-nethernet uses 15 s).
     pub address_timeout: Duration,
-    /// Discovered-server expiry; default 5 s, the client's server list
-    /// (`NetherNetServerLocator::update`).
+    /// Discovered-server expiry; default 5 s, the client's server list.
     pub response_timeout: Duration,
 }
 
@@ -451,8 +450,8 @@ impl Signaling for DiscoveryListener {
     }
 
     /// LAN negotiation is non-trickle in both directions: the client's LAN
-    /// host answers every LAN-channel offer without trickle (`noTrickle =
-    /// channel != 0`), and the 1.26.52 client's LAN offer carries all its
+    /// host answers LAN offers without trickle, and the 1.26.52 client's LAN
+    /// offer carries all its
     /// host candidates inline and is never followed by `CANDIDATEADD`
     /// (real-client capture, PARITY.md N1/N7).
     fn disable_trickle_ice(&self) -> bool {
@@ -609,8 +608,8 @@ mod tests {
     }
 
     /// The client keeps a peer's address 60 s after its last response or
-    /// message (`LanThreadManager` peer database) but lists a server only
-    /// 5 s (`NetherNetServerLocator::update`); both used to share 15 s.
+    /// message but lists a server only 5 s (PARITY.md L12/L13); both used to
+    /// share 15 s.
     #[tokio::test]
     async fn expiry_keeps_addresses_60s_and_servers_5s() {
         let listener = listener().await;
