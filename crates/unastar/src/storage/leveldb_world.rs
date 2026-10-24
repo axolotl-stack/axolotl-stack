@@ -10,6 +10,7 @@ use tokio::task;
 
 use crate::storage::keys;
 use crate::storage::provider::{ChunkColumn, StorageError, StorageResult, WorldProvider};
+use crate::world::chunk::DATA3D_HEIGHTMAP_LEN;
 use crate::world::{Chunk, ChunkPos};
 
 /// LevelDB-based world provider.
@@ -90,7 +91,22 @@ impl WorldProvider for LevelDBWorldProvider {
                         .get(&biome_key, &read_opts)
                         .map_err(StorageError::Database)?
                     {
-                        chunk.decode_biomes_disk(&data).map_err(|e| {
+                        // Legacy: unastar used to store `Chunk::encode_biomes()` (the
+                        // LevelChunk network layout) under Data3D. A real Data3D value
+                        // starts with a 512-byte height map, so a shorter value is read
+                        // as that legacy layout, and only if it parses exactly (24
+                        // storages, a zero border count, no other bytes).
+                        let decoded = if data.len() < DATA3D_HEIGHTMAP_LEN {
+                            chunk.decode_biomes_network(&data).map_err(|e| {
+                                format!(
+                                    "{} bytes is shorter than the {DATA3D_HEIGHTMAP_LEN}-byte height map and not unastar's legacy network layout: {e}",
+                                    data.len()
+                                )
+                            })
+                        } else {
+                            chunk.decode_biomes_disk(&data)
+                        };
+                        decoded.map_err(|e| {
                             StorageError::Deserialization(format!(
                                 "chunk ({}, {}) Data3D: {e}",
                                 pos.x, pos.z
@@ -174,5 +190,65 @@ impl WorldProvider for LevelDBWorldProvider {
 
     async fn close(&self) -> StorageResult<()> {
         self.flush().await
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::world::generator::QuartBiomes;
+
+    /// Save an empty column, replace its Data3D value with `data3d` and load it back.
+    async fn load_with_data3d(data3d: &[u8]) -> StorageResult<Option<ChunkColumn>> {
+        let dir = std::env::temp_dir().join(format!("unastar-leveldb-{}", uuid::Uuid::new_v4()));
+        let provider = LevelDBWorldProvider::open(&dir, 0).expect("open leveldb");
+        let pos = ChunkPos::new(1, 2);
+        provider
+            .save_column(pos, 0, &ChunkColumn::new(Chunk::new(pos.x, pos.z)))
+            .await
+            .expect("save column");
+        provider
+            .db
+            .put(&keys::biome_key(pos, 0), data3d, &WriteOptions::new())
+            .expect("overwrite Data3D");
+        let loaded = provider.load_column(pos, 0).await;
+        drop(provider);
+        let _ = std::fs::remove_dir_all(&dir);
+        loaded
+    }
+
+    #[tokio::test]
+    async fn legacy_network_data3d_loads_with_its_biomes() {
+        let mut quarts = QuartBiomes::filled(1);
+        for qz in 0..4 {
+            for qx in 0..4 {
+                for qy in 40..44 {
+                    quarts.set(qx, qy, qz, 2);
+                }
+            }
+        }
+        let mut chunk = Chunk::new(1, 2);
+        chunk.set_biomes_from_quarts(&quarts, u32::from);
+        let network = chunk.encode_biomes();
+        assert!(network.len() < DATA3D_HEIGHTMAP_LEN);
+
+        let loaded = load_with_data3d(&network)
+            .await
+            .expect("legacy Data3D loads")
+            .expect("column exists");
+        assert_eq!(loaded.chunk.biome_at(0, 95, 0), Some(1));
+        assert_eq!(loaded.chunk.biome_at(0, 96, 0), Some(2));
+        assert_eq!(loaded.chunk.biome_at(15, 111, 15), Some(2));
+        assert_eq!(loaded.chunk.biome_at(15, 112, 15), Some(1));
+    }
+
+    #[tokio::test]
+    async fn short_garbage_data3d_is_an_error() {
+        // 15 single-value network storages: parses until it runs out of sections.
+        let garbage = [1u8, 2].repeat(15);
+        assert!(matches!(
+            load_with_data3d(&garbage).await,
+            Err(StorageError::Deserialization(_))
+        ));
     }
 }

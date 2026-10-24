@@ -37,8 +37,9 @@ const SUBCHUNK_VERSION: u8 = 9;
 /// Biome of a new chunk before a generator sets one: Bedrock `plains`.
 pub const DEFAULT_BIOME_ID: u32 = 1;
 
-/// Bytes of the height map at the start of a Data3D value (256 x i16).
-const DATA3D_HEIGHTMAP_LEN: usize = 512;
+/// Bytes of the height map at the start of a Data3D value (256 x i16); every
+/// Bedrock Data3D value is at least this long.
+pub const DATA3D_HEIGHTMAP_LEN: usize = 512;
 
 /// Data3D biome section header meaning "same biomes as the section below".
 const DATA3D_COPY_PREVIOUS: u8 = 0xFF;
@@ -672,6 +673,28 @@ impl Chunk {
             .cloned()
             .ok_or("Data3D value has no biome sections")?;
         sections.resize(SUBCHUNK_COUNT as usize, last);
+        self.biomes = sections;
+        Ok(())
+    }
+
+    /// Replace this chunk's biomes with exactly the layout of [`Self::encode_biomes`]:
+    /// [`SUBCHUNK_COUNT`] network-format storages, a zero border-block count, and no
+    /// other bytes. On error the chunk's biomes are unchanged.
+    pub fn decode_biomes_network(&mut self, data: &[u8]) -> Result<(), String> {
+        let mut rest = data;
+        let mut sections = Vec::with_capacity(SUBCHUNK_COUNT as usize);
+        for index in 0..SUBCHUNK_COUNT {
+            let (section, used) = PalettedStorage::decode(rest)
+                .map_err(|e| format!("network biome section {index}: {e}"))?;
+            rest = &rest[used..];
+            sections.push(section);
+        }
+        if rest != [0] {
+            return Err(format!(
+                "expected only a zero border-block count after {SUBCHUNK_COUNT} network biome sections, found {} bytes",
+                rest.len()
+            ));
+        }
         self.biomes = sections;
         Ok(())
     }
