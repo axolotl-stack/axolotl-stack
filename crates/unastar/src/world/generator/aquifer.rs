@@ -353,11 +353,6 @@ pub struct NoiseBasedAquifer<'a, F: FluidPicker> {
     /// positions per aquifer center, each requiring an expensive ColumnContext + density eval.
     /// Caching these avoids redundant computation when multiple aquifer centers share quart positions.
     preliminary_surface_cache: HashMap<(i32, i32), i32>,
-
-    /// Cache of ColumnContext objects by (block_x, block_z) position for NEIGHBOR chunks only.
-    /// For positions in the current chunk, we use col_grid instead (O(1) lookup).
-    /// ColumnContext::new() is very expensive (noise sampling + spline evaluation).
-    neighbor_column_context_cache: HashMap<(i32, i32), ColumnContext>,
 }
 
 impl<'a, F: FluidPicker> NoiseBasedAquifer<'a, F> {
@@ -460,39 +455,7 @@ impl<'a, F: FluidPicker> NoiseBasedAquifer<'a, F> {
             // Initialize preliminary surface cache - this is the critical performance cache.
             // Each aquifer center samples 13 quart positions, so we expect many cache hits.
             preliminary_surface_cache: HashMap::with_capacity(64),
-            // Cache ColumnContext objects for NEIGHBOR chunks only
-            // (current chunk uses col_grid for O(1) lookups)
-            neighbor_column_context_cache: HashMap::with_capacity(32),
         }
-    }
-
-    /// Get a ColumnContext for the given position.
-    ///
-    /// FAST PATH: For positions within the current chunk, uses the pre-computed
-    /// col_grid for O(1) lookup (no allocation, no computation).
-    ///
-    /// SLOW PATH: For positions in neighbor chunks, creates and caches new contexts.
-    #[inline]
-    fn get_or_create_column_context(&mut self, x: i32, z: i32) -> ColumnContext {
-        let chunk_x = x >> 4;
-        let chunk_z = z >> 4;
-
-        // FAST PATH: Position is in the current chunk - use pre-computed grid
-        // Extract scalar from SIMD context (XZ are same in all lanes)
-        if chunk_x == self.main_chunk_x && chunk_z == self.main_chunk_z {
-            return self.col_grid.get_block(x, z).as_scalar();
-        }
-
-        // SLOW PATH: Position is in a neighbor chunk - use cache
-        if let Some(col) = self.neighbor_column_context_cache.get(&(x, z)) {
-            return *col;
-        }
-
-        self.ensure_grid_cached(chunk_x, chunk_z);
-        let grid = self.get_cached_grid(chunk_x, chunk_z);
-        let col = ColumnContext::new(x, z, self.noises, grid);
-        self.neighbor_column_context_cache.insert((x, z), col);
-        col
     }
 
     /// Ensure a FlatCacheGrid exists for the given chunk coordinates in the cache.
@@ -530,15 +493,6 @@ impl<'a, F: FluidPicker> NoiseBasedAquifer<'a, F> {
         self.neighbor_grid_cache
             .get(&(chunk_x, chunk_z))
             .expect("Grid should have been ensured before get_cached_grid")
-    }
-
-    /// Get ColumnContext for the given (x, z) position.
-    ///
-    /// This is a thin wrapper around get_or_create_column_context which handles
-    /// both current-chunk (O(1) lookup from col_grid) and neighbor-chunk (cached creation) cases.
-    #[inline]
-    fn get_column_context(&mut self, x: i32, z: i32) -> ColumnContext {
-        self.get_or_create_column_context(x, z)
     }
 
     /// Compute max preliminary surface level over a region using pre-computed caches.
@@ -752,15 +706,11 @@ impl<'a, F: FluidPicker> NoiseBasedAquifer<'a, F> {
             }
         }
 
-        // Get cached ColumnContext for this column - used by calculate_pressure for barrier noise.
-        // DEFERRED: Only retrieve here after early exits, since ColumnContext::new() is expensive.
-        let col = self.get_column_context(x, z);
-
         // Calculate pressure for blending
         let fluid2 = self.get_aquifer_status(closest_indices[1]);
         let mut barrier_value = f64::NAN;
         let pressure1 =
-            similarity * self.calculate_pressure(ctx, &col, &mut barrier_value, &fluid1, &fluid2);
+            similarity * self.calculate_pressure(ctx, &mut barrier_value, &fluid1, &fluid2);
 
         if density + pressure1 > 0.0 {
             self.should_schedule_fluid_update = false;
@@ -773,7 +723,7 @@ impl<'a, F: FluidPicker> NoiseBasedAquifer<'a, F> {
         if similarity2 > 0.0 {
             let pressure2 = similarity
                 * similarity2
-                * self.calculate_pressure(ctx, &col, &mut barrier_value, &fluid1, &fluid3);
+                * self.calculate_pressure(ctx, &mut barrier_value, &fluid1, &fluid3);
             if density + pressure2 > 0.0 {
                 self.should_schedule_fluid_update = false;
                 return None;
@@ -785,7 +735,7 @@ impl<'a, F: FluidPicker> NoiseBasedAquifer<'a, F> {
         if similarity3 > 0.0 {
             let pressure3 = similarity
                 * similarity3
-                * self.calculate_pressure(ctx, &col, &mut barrier_value, &fluid2, &fluid3);
+                * self.calculate_pressure(ctx, &mut barrier_value, &fluid2, &fluid3);
             if density + pressure3 > 0.0 {
                 self.should_schedule_fluid_update = false;
                 return None;
@@ -898,15 +848,23 @@ impl<'a, F: FluidPicker> NoiseBasedAquifer<'a, F> {
                 if let Some(&cached) = self.preliminary_surface_cache.get(&(quart_x, quart_z)) {
                     cached
                 } else {
-                    // Cache miss - compute and store using cached ColumnContext
+                    // Cache miss - compute and store
                     let ctx = FunctionContext::new(quart_x, 0, quart_z);
-                    let col = self.get_or_create_column_context(quart_x, quart_z);
                     let sample_chunk_x = quart_x >> 4;
                     let sample_chunk_z = quart_z >> 4;
-                    let sample_grid = self.get_cached_grid(sample_chunk_x, sample_chunk_z);
-                    let computed =
+                    let computed = if sample_chunk_x == self.main_chunk_x
+                        && sample_chunk_z == self.main_chunk_z
+                    {
+                        // Quart corners of this chunk are cell corners of the column grid.
+                        let col = self.col_grid.get_block(quart_x, quart_z).as_scalar();
+                        compute_preliminary_surface_level(&ctx, self.noises, self.grid, &col)
+                    } else {
+                        self.ensure_grid_cached(sample_chunk_x, sample_chunk_z);
+                        let sample_grid = self.get_cached_grid(sample_chunk_x, sample_chunk_z);
+                        let col = ColumnContext::new(quart_x, quart_z, self.noises, sample_grid);
                         compute_preliminary_surface_level(&ctx, self.noises, sample_grid, &col)
-                            .floor() as i32;
+                    }
+                    .floor() as i32;
                     self.preliminary_surface_cache
                         .insert((quart_x, quart_z), computed);
                     computed
@@ -985,11 +943,13 @@ impl<'a, F: FluidPicker> NoiseBasedAquifer<'a, F> {
     ) -> i32 {
         let ctx = FunctionContext::new(x, y, z);
 
-        // Get cached ColumnContext (this is expensive so we cache it)
-        let col = self.get_or_create_column_context(x, z);
+        // The aquifer center can be anywhere (often outside this chunk), so its column
+        // context is computed here rather than read from the cell-corner grid.
         let chunk_x = x >> 4;
         let chunk_z = z >> 4;
+        self.ensure_grid_cached(chunk_x, chunk_z);
         let grid = self.get_cached_grid(chunk_x, chunk_z);
+        let col = ColumnContext::new(x, z, self.noises, grid);
 
         // Check for deep dark region - disables aquifer flooding in these areas
         // Java: if (OverworldBiomeBuilder.isDeepDarkRegion(this.erosion, this.depth, singlePointContext)) { d=-1; e=-1; }
@@ -1133,7 +1093,6 @@ impl<'a, F: FluidPicker> NoiseBasedAquifer<'a, F> {
     fn calculate_pressure(
         &self,
         ctx: &FunctionContext,
-        _col: &ColumnContext,
         barrier_value: &mut f64,
         fluid1: &FluidStatus,
         fluid2: &FluidStatus,
