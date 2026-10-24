@@ -21,6 +21,8 @@ pub struct TestWorld {
     /// `(min_x, min_z, max_x, max_z)`; writes outside are rejected.
     pub writable: Option<(i32, i32, i32, i32)>,
     pub ticks: Vec<BlockPos>,
+    pub region_random: crate::xoroshiro::Xoroshiro128,
+    pub gen_depth: i32,
 }
 
 impl Default for TestWorld {
@@ -33,6 +35,8 @@ impl Default for TestWorld {
             biome: 0,
             writable: None,
             ticks: Vec::new(),
+            region_random: crate::xoroshiro::Xoroshiro128::from_seed(0),
+            gen_depth: 384,
         }
     }
 }
@@ -102,5 +106,11 @@ impl FeatureWorld for TestWorld {
     }
     fn schedule_tick(&mut self, pos: BlockPos) {
         self.ticks.push(pos);
+    }
+    fn region_random(&mut self) -> &mut crate::xoroshiro::Xoroshiro128 {
+        &mut self.region_random
+    }
+    fn gen_depth(&self) -> i32 {
+        self.gen_depth
     }
 }

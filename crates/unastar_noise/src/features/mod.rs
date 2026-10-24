@@ -17,6 +17,7 @@ pub mod config;
 pub mod eval;
 pub mod kinds;
 pub mod noise;
+pub mod placement;
 pub mod random;
 pub mod survival;
 pub mod values;

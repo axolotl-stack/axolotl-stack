@@ -36,6 +36,14 @@ pub trait FeatureWorld {
     /// `schedule_tick` (fluids, falling blocks). Runtimes that do not tick
     /// during generation may ignore it.
     fn schedule_tick(&mut self, pos: BlockPos);
+    /// The region's own random (`WorldGenRegion.getRandom()`): the positional
+    /// factory of `minecraft:worldgen_region_random` (from the level seed) at
+    /// the decorated chunk's minimum block position. Draws are Xoroshiro-native
+    /// (`nextBoolean` = `nextLong() & 1 != 0`), not bit-source draws.
+    fn region_random(&mut self) -> &mut crate::xoroshiro::Xoroshiro128;
+    /// `ChunkGenerator.getGenDepth()`: the noise settings' `height` (384 in the
+    /// overworld, 128 in the nether), which can differ from [`Self::height`].
+    fn gen_depth(&self) -> i32;
 
     // ---- derived helpers -------------------------------------------------
 

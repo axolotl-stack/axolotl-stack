@@ -75,8 +75,14 @@ fn main() {
     )
     .unwrap_or_else(|e| panic!("Failed to load Java block data: {e}"));
     // Features intern block states and sets, so they are emitted first.
-    codegen::emitter::feature::emit_features(&output_dir, &biomes, &features, &mut java_blocks)
-        .unwrap_or_else(|e| panic!("Failed to emit features: {e}"));
+    codegen::emitter::feature::emit_features(
+        &output_dir,
+        &json_root,
+        &biomes,
+        &features,
+        &mut java_blocks,
+    )
+    .unwrap_or_else(|e| panic!("Failed to emit features: {e}"));
     java_blocks
         .emit(&output_dir)
         .unwrap_or_else(|e| panic!("Failed to emit Java block data: {e}"));
