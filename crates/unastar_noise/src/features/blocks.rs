@@ -148,6 +148,37 @@ impl JavaState {
         self.is_in(super::java_blocks::tags::REPLACEABLE)
     }
 
+    /// `isSolidRender()`, approximated: a full-cube collision shape that is not
+    /// leaves, glass, ice or another see-through block family (the block data
+    /// has no occlusion shapes).
+    pub fn is_solid_render(self) -> bool {
+        if !self.is_collision_full_cube() {
+            return false;
+        }
+        !matches!(
+            self.block().def().kind,
+            "minecraft:leaves"
+                | "minecraft:tinted_particle_leaves"
+                | "minecraft:untinted_particle_leaves"
+                | "minecraft:mangrove_leaves"
+                | "minecraft:transparent"
+                | "minecraft:stained_glass"
+                | "minecraft:tinted_glass"
+                | "minecraft:half_transparent"
+                | "minecraft:ice"
+                | "minecraft:frosted_ice"
+                | "minecraft:waterlogged_transparent"
+                | "minecraft:slime"
+                | "minecraft:honey"
+                | "minecraft:barrier"
+                | "minecraft:light"
+                | "minecraft:structure_void"
+                | "minecraft:spawner"
+                | "minecraft:trial_spawner"
+                | "minecraft:vault"
+        )
+    }
+
     fn prop(self, name: &str) -> Option<&'static PropDef> {
         self.block().def().props.iter().find(|p| p.name == name)
     }

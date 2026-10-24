@@ -23,6 +23,7 @@ pub struct TestWorld {
     pub ticks: Vec<BlockPos>,
     pub region_random: crate::xoroshiro::Xoroshiro128,
     pub gen_depth: i32,
+    pub block_entities: Vec<(BlockPos, super::eval::BlockEntityData)>,
 }
 
 impl Default for TestWorld {
@@ -37,6 +38,7 @@ impl Default for TestWorld {
             ticks: Vec::new(),
             region_random: crate::xoroshiro::Xoroshiro128::from_seed(0),
             gen_depth: 384,
+            block_entities: Vec::new(),
         }
     }
 }
@@ -112,5 +114,8 @@ impl FeatureWorld for TestWorld {
     }
     fn gen_depth(&self) -> i32 {
         self.gen_depth
+    }
+    fn set_block_entity(&mut self, pos: BlockPos, data: super::eval::BlockEntityData) {
+        self.block_entities.push((pos, data));
     }
 }

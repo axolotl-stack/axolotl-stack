@@ -8,6 +8,37 @@ use super::blocks::{
 use super::random::{BitSource, FeatureRandom, WorldgenRandom};
 use super::values::weighted_pick;
 
+
+/// Block entity contents produced by generation.
+#[derive(Debug, Clone, Copy, PartialEq)]
+pub struct BlockEntityData {
+    /// Loot table id (`minecraft:chests/simple_dungeon`) with its seed.
+    pub loot: Option<(&'static str, i64)>,
+    /// Spawner / trial spawner entity id (`minecraft:zombie`).
+    pub spawner_entity: Option<&'static str>,
+    /// Raw Java NBT of a template block entity (`id` + data), if any.
+    pub template_nbt: Option<(&'static str, &'static [u8])>,
+}
+
+impl BlockEntityData {
+    /// Loot table only.
+    pub const fn loot(table: &'static str, seed: i64) -> Self {
+        Self {
+            loot: Some((table, seed)),
+            spawner_entity: None,
+            template_nbt: None,
+        }
+    }
+
+    /// Spawner entity only.
+    pub const fn spawner(entity: &'static str) -> Self {
+        Self {
+            loot: None,
+            spawner_entity: Some(entity),
+            template_nbt: None,
+        }
+    }
+}
 /// Java `WorldGenLevel` as seen by features, in Java block-state space.
 ///
 /// Implemented by the generator runtime over the 3x3 decoration region. Reads
@@ -44,6 +75,10 @@ pub trait FeatureWorld {
     /// `ChunkGenerator.getGenDepth()`: the noise settings' `height` (384 in the
     /// overworld, 128 in the nether), which can differ from [`Self::height`].
     fn gen_depth(&self) -> i32;
+    /// Block entity data for a block just placed at `pos` (chest loot tables,
+    /// spawner entities, template block entity NBT). The runtime materialises
+    /// it for the output format; it does not affect generation.
+    fn set_block_entity(&mut self, pos: BlockPos, data: BlockEntityData);
 
     // ---- derived helpers -------------------------------------------------
 

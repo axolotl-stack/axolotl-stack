@@ -113,8 +113,17 @@ fn main() {
         "cargo:warning=Embedded {} structure templates",
         template_names.len()
     );
-    codegen::emitter::structure::emit_structures(&output_dir, &structures, &mut java_blocks)
-        .unwrap_or_else(|e| panic!("Failed to emit structures: {e}"));
+    let mut biome_names: Vec<String> = biomes.keys().map(|b| format!("minecraft:{b}")).collect();
+    biome_names.sort();
+    let placed_names: Vec<String> = features.placed.keys().cloned().collect();
+    codegen::emitter::structure::emit_structures(
+        &output_dir,
+        &structures,
+        &mut java_blocks,
+        &biome_names,
+        &placed_names,
+    )
+    .unwrap_or_else(|e| panic!("Failed to emit structures: {e}"));
     java_blocks
         .emit(&output_dir)
         .unwrap_or_else(|e| panic!("Failed to emit Java block data: {e}"));

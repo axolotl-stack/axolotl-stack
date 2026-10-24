@@ -2272,6 +2272,16 @@ pub fn emit_features(
             });
             quote! { [#(#rows),*] }
         });
+        let biomes_ident = format_ident!("{}_BIOMES", dim_name);
+        let mut bits = 0u128;
+        for b in order.iter() {
+            bits |= 1u128 << em.biome_index[b];
+        }
+        let bits = Literal::u128_suffixed(bits);
+        dims.push(quote! {
+            /// Possible biomes of the dimension's biome source (bit per biome index).
+            pub static #biomes_ident: u128 = #bits;
+        });
         let ident = format_ident!("{}_FEATURES", dim_name);
         dims.push(quote! {
             pub static #ident: DimensionFeatures = DimensionFeatures {
