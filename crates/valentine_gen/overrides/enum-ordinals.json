@@ -1336,6 +1336,8 @@
         "CRAFTER"
       ],
       "values": [
+        -9,
+        -1,
         0,
         1,
         2,
@@ -1372,11 +1374,9 @@
         33,
         34,
         35,
-        36,
-        37,
-        38
+        36
       ],
-      "why": "Protocol 2168 enum values cross-checked against gophertunnel minecraft/protocol/container.go (member-name matches 37/39) and Cloudburst bedrock-codec/src/main/java/org/cloudburstmc/protocol/bedrock/codec/v407/Bedrock_v407.java (member-name matches 20/39)."
+      "why": "ContainerType is signed (int8): NONE = -9, INVENTORY = -1, then CONTAINER = 0 through CRAFTER = 36 in declaration order. Observed from BDS 1.26.51 (valentine tests/wire_probe_conformance.rs): ContainerOpen for the player's own inventory carries 0xff (-1) and the ContainerClose reply carries 0xf7 (-9). gophertunnel minecraft/protocol/container.go numbers ContainerTypeInventory = iota - 1, ContainerTypeContainer = 0 ... ContainerTypeCrafter = 36 (member-name matches 37/39; it has no NONE)."
     },
     {
       "op": "set_enum_values",

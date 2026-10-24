@@ -1256,4 +1256,54 @@ mod tests {
             );
         }
     }
+
+    /// BDS 1.26.51 opens the player's inventory with container type -1 and
+    /// answers a close with -9 (`valentine/tests/wire_probe_conformance.rs`);
+    /// the remaining values follow gophertunnel's `ContainerType*` constants.
+    #[test]
+    fn pinned_docs_lower_container_type_to_signed_bds_values() {
+        let manifest_dir = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
+        let result = parse(
+            &manifest_dir.join("bedrock-protocol-docs"),
+            &manifest_dir.join("overrides"),
+        )
+        .expect("parse the pinned Mojang docs with the checked-in overrides");
+        let lowered: Vec<_> = result
+            .types
+            .values()
+            .filter_map(|ty| match ty {
+                crate::ir::Type::Enum {
+                    underlying,
+                    variants,
+                } if variants.iter().any(|(name, _)| name == "WORKBENCH") => {
+                    Some((underlying, variants))
+                }
+                _ => None,
+            })
+            .collect();
+        assert!(!lowered.is_empty(), "ContainerType is lowered");
+        for (underlying, variants) in lowered {
+            assert_eq!(*underlying, Primitive::I8);
+            let value = |wanted: &str| {
+                variants
+                    .iter()
+                    .find(|(name, _)| name == wanted)
+                    .map(|(_, value)| *value)
+                    .unwrap_or_else(|| panic!("ContainerType has {wanted}"))
+            };
+            for (name, wire) in [
+                ("NONE", -9),
+                ("INVENTORY", -1),
+                ("CONTAINER", 0),
+                ("WORKBENCH", 1),
+                ("FURNACE", 2),
+                ("HOPPER", 8),
+                ("BLAST_FURNACE", 27),
+                ("SMOKER", 28),
+                ("CRAFTER", 36),
+            ] {
+                assert_eq!(value(name), wire, "{name}");
+            }
+        }
+    }
 }
