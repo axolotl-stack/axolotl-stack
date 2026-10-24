@@ -1,4 +1,4 @@
-//! Differential conformance against lunar-bedrock/go-raknet `87a6b7e` (the
+//! Differential conformance against lunar-bedrock/go-raknet `6124f52` (the
 //! `tools/bench-compare/go` pin). Opt-in because it needs Go:
 //!
 //! ```text
@@ -10,11 +10,13 @@
 //! go-raknet client (`bench-compare raknet-conformance-client`), then
 //! `RaknetStream` with the default (Vanilla) policy. `Vanilla` follows Mojang
 //! RakNet (see `PARITY.md` and `tests/capture_diff.rs`), so only the wire
-//! layouts both share must be equal: MTU probe sizes and cadence, Request2,
-//! NewIncomingConnection and the DisconnectNotification. Where go-raknet
-//! differs from Mojang (ConnectionRequest reliability, one frame per
-//! datagram, 100 ms ACK/500 ms ping ticks, fragment sizes), each side is
-//! checked against its own documented behaviour.
+//! behaviour both share must be equal: MTU probe sizes and cadence, Request2,
+//! NewIncomingConnection (except the first system address), the
+//! DisconnectNotification, datagram flags, the 10 ms ACK delay and NAKs for
+//! revealed gaps. Where go-raknet differs from Mojang (ConnectionRequest
+//! reliability, one frame per datagram, ReliableOrdered pings on a 500 ms
+//! tick, fragment sizes, the first NIC system address), each side is checked
+//! against its own documented behaviour.
 
 use std::net::SocketAddr;
 use std::path::PathBuf;
@@ -123,8 +125,11 @@ struct Faults {
     drop_to_server_app: Vec<usize>,
     /// Drop these application datagrams towards the client.
     drop_to_client_app: Vec<usize>,
-    /// Hold this application datagram towards the client until the next
-    /// datagram towards the client has been forwarded (reordering).
+    /// Hold this application datagram towards the client until the next data
+    /// datagram towards the client has been forwarded (reordering). ACKs do
+    /// not release it: go-raknet's congestion window may keep the next data
+    /// datagram back until the server receives an ACK, and an ACK passing the
+    /// held datagram reorders nothing.
     hold_to_client_app: Option<usize>,
 }
 
@@ -217,7 +222,9 @@ impl Relay {
                             continue;
                         }
                         let _ = front.send_to(&bytes, client).await;
-                        if let Some(held) = held.take() {
+                        if bytes[0] & 0xe0 == 0x80
+                            && let Some(held) = held.take()
+                        {
                             let _ = front.send_to(&held, client).await;
                         }
                     }
@@ -350,6 +357,8 @@ struct Features {
     /// Message indices seen more than once: (first send, resend).
     resends: Vec<(Duration, Duration)>,
     acks: Vec<Duration>,
+    /// Each ACK's delay after the last data datagram forwarded to the client.
+    ack_delays: Vec<Duration>,
     pings: Vec<(Duration, Reliability)>,
     /// NAK records relative to the first NAKed sequence.
     naks: Vec<Vec<(u32, u32)>>,
@@ -362,10 +371,14 @@ fn features(records: &[Record]) -> Features {
     let mut out = Features::default();
     let mut first_sent = std::collections::HashMap::new();
     let mut reply1_seen = false;
+    let mut last_data_to_client = None;
     for record in records {
         if record.direction == Direction::ToClient {
             if record.bytes.first() == Some(&0x06) && !record.dropped {
                 reply1_seen = true;
+            }
+            if !record.dropped && record.bytes.first().is_some_and(|&b| b & 0xe0 == 0x80) {
+                last_data_to_client = Some(record.at);
             }
             continue;
         }
@@ -387,7 +400,12 @@ fn features(records: &[Record]) -> Features {
                 }
                 out.request2.push(masked);
             }
-            0xc0 => out.acks.push(record.at),
+            0xc0 => {
+                out.acks.push(record.at);
+                if let Some(last) = last_data_to_client {
+                    out.ack_delays.push(record.at - last);
+                }
+            }
             0xa0 => {
                 if let Ok(Datagram {
                     payload: DatagramPayload::Nak(nak),
@@ -431,6 +449,8 @@ fn features(records: &[Record]) -> Features {
                                 Some((frame.header.reliability, frame.payload.len()));
                         }
                         0x13 => {
+                            // Mask the relay address and both timestamps; the
+                            // first system address is compared separately.
                             let mut masked = frame.payload.to_vec();
                             masked[1..8].fill(0);
                             let len = masked.len();
@@ -458,12 +478,34 @@ fn phase_error(offset: Duration, period: Duration) -> Duration {
     Duration::from_nanos(rem.min(period.as_nanos() - rem) as u64)
 }
 
+/// The first of the NIC's 20 system addresses (after the ID and the 7-byte
+/// IPv4 server address) and the NIC with that address masked.
+fn split_first_system_address(nic: &(Reliability, Vec<u8>)) -> ([u8; 7], (Reliability, Vec<u8>)) {
+    let (reliability, bytes) = nic;
+    let first = bytes[8..15].try_into().unwrap();
+    let mut masked = bytes.clone();
+    masked[8..15].fill(0);
+    (first, (*reliability, masked))
+}
+
 fn assert_common(go: &Features, rust: &Features, scenario: &str) {
     // Shared by go-raknet and Mojang RakNet.
     assert_eq!(rust.request2, go.request2, "{scenario}: Request2 bytes");
+    // HS-7: same NIC except the first system address: go writes its local
+    // socket address (`handler.go:284`, `addr.go:11`), the Vanilla client
+    // leaves all 20 unassigned.
+    let (go_first, go_nic) = split_first_system_address(go.new_incoming.as_ref().unwrap());
+    let (rust_first, rust_nic) = split_first_system_address(rust.new_incoming.as_ref().unwrap());
+    assert_eq!(rust_nic, go_nic, "{scenario}: NewIncomingConnection");
     assert_eq!(
-        rust.new_incoming, go.new_incoming,
-        "{scenario}: NewIncomingConnection"
+        rust_first,
+        [4, 0xff, 0xff, 0xff, 0xff, 0, 0],
+        "{scenario}/tokio: NIC"
+    );
+    assert_eq!(
+        &go_first[..5],
+        &[4, !127, !0, !0, !1],
+        "{scenario}/go: NIC 127.0.0.1"
     );
     assert_eq!(
         rust.disconnect, go.disconnect,
@@ -492,24 +534,34 @@ fn assert_common(go: &Features, rust: &Features, scenario: &str) {
             assert_eq!(len, go.mtu - 28 - 14 - 10, "{scenario}: go fragment");
         }
     }
-    // DG-1/DG-2/ACK-1/KA-1 (go-raknet): one frame per 0x84 datagram, ACKs on
-    // the 100 ms connection ticker, ReliableOrdered pings every 500 ms.
-    assert!(
-        go.data_flags.iter().all(|&flags| flags == 0x84),
-        "{scenario}/go: flags {:?}",
-        go.data_flags
-    );
+    for (name, features) in [("go", go), ("tokio", rust)] {
+        // DG-2: Mojang's flags, 0x80 plus 0x04 in slow start and 0x08 for a
+        // continuous send (go: `conn.go:1078-1087`).
+        assert!(
+            features
+                .data_flags
+                .iter()
+                .all(|&flags| flags & !0x0c == 0x80),
+            "{scenario}/{name}: flags {:?}",
+            features.data_flags
+        );
+        // ACK-1: ACKs leave at once until an ACK/RTT sample exists, then
+        // 10 ms after the oldest unacknowledged datagram (go: `conn.go:66-69,
+        // 317-326`), so never later than 10 ms after the newest one.
+        for &delay in &features.ack_delays {
+            assert!(
+                delay <= Duration::from_millis(10) + TOLERANCE,
+                "{scenario}/{name}: ACK {delay:?} after the last datagram"
+            );
+        }
+    }
+    // DG-1 (go-raknet): one frame per datagram (`conn.go:1077-1091`).
     assert!(
         go.frames_per_datagram.iter().all(|&n| n == 1),
         "{scenario}/go: one frame per datagram"
     );
-    for &ack in &go.acks {
-        assert!(
-            phase_error(ack - go.t0, Duration::from_millis(100)) <= TOLERANCE,
-            "{scenario}/go: ACK off the tick grid at {:?}",
-            ack - go.t0
-        );
-    }
+    // KA-1 (go-raknet): ReliableOrdered pings every fifth tick of the 100 ms
+    // connection ticker (`conn.go:281-282`).
     for &(ping, reliability) in &go.pings {
         assert_eq!(reliability, Reliability::ReliableOrdered);
         let offset = ping - go.t0;
@@ -585,8 +637,8 @@ async fn mtu_discovery_with_1200_byte_path() {
 }
 
 /// ACK-3/ACK-6/CC-2: lost application datagrams in both directions are
-/// recovered by both clients: go-raknet by its 300 ms resend scan (the go
-/// server only NAKs aged gaps), Mojang by its RTO or the server's NAK.
+/// recovered by both clients, through the server's NAK or the RTO; both
+/// clients NAK a lost server datagram as soon as a later one reveals it.
 #[tokio::test(flavor = "multi_thread", worker_threads = 4)]
 #[ignore = "requires Go; run with --ignored"]
 async fn loss_recovery_matches_go() {
@@ -609,20 +661,18 @@ async fn loss_recovery_matches_go() {
             "{name}: dropped datagram not resent"
         );
     }
-    // ACK-3: Mojang NAKs a gap as soon as a later datagram reveals it.
-    assert!(
-        !rust.naks.is_empty(),
-        "tokio: lost server datagram not NAKed"
-    );
-    let (_, resend) = go.resends[0];
-    assert!(
-        phase_error(resend - go.t0, Duration::from_millis(100)) <= TOLERANCE,
-        "go: resend off the tick grid"
-    );
+    // ACK-3: both NAK a gap as soon as a later datagram reveals it (go:
+    // `conn.go:705-711`).
+    for (name, features) in [("go", &go), ("tokio", &rust)] {
+        assert!(
+            !features.naks.is_empty(),
+            "{name}: lost server datagram not NAKed"
+        );
+    }
 }
 
 /// REL-6/8/9: an out-of-order split fragment is reassembled by both clients
-/// (the echo checks delivery); their NAK rules differ (ACK-3).
+/// (the echo checks delivery); both NAK the revealed gap (ACK-3).
 #[tokio::test(flavor = "multi_thread", worker_threads = 4)]
 #[ignore = "requires Go; run with --ignored"]
 async fn reordered_split_delivery_matches_go() {
@@ -638,5 +688,7 @@ async fn reordered_split_delivery_matches_go() {
     let go = features(&run_go(server.address, faults.clone(), &script).await);
     let rust = features(&run_tokio(server.address, faults, &script).await);
     assert_common(&go, &rust, "reorder");
-    assert!(!rust.naks.is_empty(), "tokio: reordered gap not NAKed");
+    for (name, features) in [("go", &go), ("tokio", &rust)] {
+        assert!(!features.naks.is_empty(), "{name}: reordered gap not NAKed");
+    }
 }
