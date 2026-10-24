@@ -468,6 +468,44 @@ impl Chunk {
         }
     }
 
+    /// Build a chunk from a flat block array indexed `((y - MIN_Y) * 16 + z) * 16 + x`
+    /// (`SUBCHUNK_COUNT * 4096` entries); `air` is the air runtime id for the height map.
+    pub fn from_dense(x: i32, z: i32, blocks: &[u32], air: u32) -> Self {
+        assert_eq!(
+            blocks.len(),
+            SUBCHUNK_COUNT as usize * BLOCKS_PER_SUBCHUNK,
+            "dense chunk has the wrong size"
+        );
+        let sub_chunks = blocks
+            .chunks_exact(BLOCKS_PER_SUBCHUNK)
+            .map(|section| SubChunk {
+                storage: PalettedStorage::from_dense_yzx(section),
+            })
+            .collect();
+        let mut height_map = HeightMap::new();
+        for lz in 0..16usize {
+            for lx in 0..16usize {
+                let top = (0..SUBCHUNK_COUNT as usize * 16)
+                    .rev()
+                    .find(|&y| blocks[(y * 16 + lz) * 16 + lx] != air);
+                if let Some(y) = top {
+                    height_map.set(lx as u8, lz as u8, (y as i32 + MIN_Y + 1) as i16);
+                }
+            }
+        }
+        let biomes = (0..SUBCHUNK_COUNT)
+            .map(|_| PalettedStorage::single_block(DEFAULT_BIOME_ID))
+            .collect();
+        Self {
+            x,
+            z,
+            sub_chunks,
+            biomes,
+            height_map,
+            recalculate_height_map: false,
+        }
+    }
+
     /// Fill the bottom layers with blocks.
     ///
     /// # Arguments
@@ -938,6 +976,51 @@ impl PalettedStorage {
         }
     }
 
+    /// Pack 4096 blocks given in `(y, z, x)` order (y outermost) into the `(x, z, y)` index
+    /// layout, with the smallest palette width that fits.
+    fn from_dense_yzx(blocks: &[u32]) -> Self {
+        debug_assert_eq!(blocks.len(), BLOCKS_PER_SUBCHUNK);
+        let mut palette: Vec<u32> = Vec::new();
+        let mut indices = [0u16; BLOCKS_PER_SUBCHUNK];
+        let mut last = (u32::MAX, 0u16);
+        for (i, &block) in blocks.iter().enumerate() {
+            let index = if block == last.0 && !palette.is_empty() {
+                last.1
+            } else {
+                let index = match palette.iter().position(|&p| p == block) {
+                    Some(index) => index as u16,
+                    None => {
+                        palette.push(block);
+                        (palette.len() - 1) as u16
+                    }
+                };
+                last = (block, index);
+                index
+            };
+            let (y, z, x) = (i >> 8, (i >> 4) & 15, i & 15);
+            indices[(x << 8) | (z << 4) | y] = index;
+        }
+        let size = PaletteSize::from_palette_len(palette.len());
+        if size == PaletteSize::Bits0 {
+            return Self {
+                palette,
+                size,
+                indices: vec![],
+            };
+        }
+        let bits = size as usize;
+        let per_word = size.indices_per_word();
+        let mut words = vec![0u32; size.word_count()];
+        for (i, &index) in indices.iter().enumerate() {
+            words[i / per_word] |= (index as u32) << ((i % per_word) * bits);
+        }
+        Self {
+            palette,
+            size,
+            indices: words,
+        }
+    }
+
     /// Fill an entire Y layer with a block.
     fn fill_layer(&mut self, y: usize, block_id: u32) {
         let palette_idx = self.get_or_add_palette_entry(block_id);
@@ -1324,6 +1407,50 @@ mod tests {
         assert_eq!(chunk.x, 1);
         assert_eq!(chunk.z, -2);
         assert_eq!(chunk.sub_chunks.len(), SUBCHUNK_COUNT as usize);
+    }
+
+    #[test]
+    fn from_dense_matches_block_by_block_construction() {
+        let air = *blocks::AIR;
+        let palette = [
+            air,
+            *blocks::STONE,
+            *blocks::DIRT,
+            *blocks::WATER,
+            *blocks::DEEPSLATE,
+        ];
+        let mut dense = vec![air; SUBCHUNK_COUNT as usize * BLOCKS_PER_SUBCHUNK];
+        let mut expected = Chunk::new(3, -2);
+        let mut state = 0x9e37_79b9u32;
+        for (i, slot) in dense.iter_mut().enumerate() {
+            let y = (i >> 8) as i32;
+            // Solid below y=200 with a few block kinds and holes, air above.
+            if y < 200 {
+                state ^= state << 13;
+                state ^= state >> 17;
+                state ^= state << 5;
+                let block = palette[(state % palette.len() as u32) as usize];
+                *slot = block;
+                let (z, x) = (((i >> 4) & 15) as u8, (i & 15) as u8);
+                expected.set_block(x, (y + MIN_Y) as i16, z, block);
+            }
+        }
+        let packed = Chunk::from_dense(3, -2, &dense, air);
+        for y in MIN_Y..MIN_Y + SUBCHUNK_COUNT as i32 * 16 {
+            for z in 0..16u8 {
+                for x in 0..16u8 {
+                    assert_eq!(
+                        packed.get_block(x, y as i16, z),
+                        expected.get_block(x, y as i16, z)
+                    );
+                }
+            }
+        }
+        for z in 0..16u8 {
+            for x in 0..16u8 {
+                assert_eq!(packed.height_map().at(x, z), expected.height_map().at(x, z));
+            }
+        }
     }
 
     #[test]

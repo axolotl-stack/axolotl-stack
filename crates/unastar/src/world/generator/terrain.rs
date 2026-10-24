@@ -17,7 +17,7 @@ use super::density::{
 };
 use super::ore_veinifier::OreVeinifier;
 use super::pipeline::{Generator, SpawnPoint};
-use super::proto::{NativeBiome, ProtoChunk, QuartBiomes};
+use super::proto::{DenseBlocks, NativeBiome, ProtoChunk, QuartBiomes};
 use super::region::DecorationRegion;
 use super::surface::SurfaceSystem;
 use super::xoroshiro::PositionalRandomFactory;
@@ -112,7 +112,7 @@ impl JavaGenerator {
     }
 
     /// The chunk's aquifer (shared by the noise fill and the carvers).
-    fn aquifer<'a>(
+    pub fn aquifer<'a>(
         &'a self,
         pos: ChunkPos,
         grid: &'a FlatCacheGrid,
@@ -147,8 +147,9 @@ impl JavaGenerator {
         grid: &FlatCacheGrid,
         col_grid: &ColumnContextGrid,
         aquifer: &mut NoiseBasedAquifer<'_, OverworldFluidPicker>,
-    ) -> Chunk {
-        let mut chunk = Chunk::new(chunk_x, chunk_z);
+    ) -> DenseBlocks {
+        // Air until filled; the paletted chunk is packed once all stages ran.
+        let mut chunk = DenseBlocks::filled(*blocks::AIR);
 
         let cell_width = overworld_settings::CELL_WIDTH;
         let cell_height = overworld_settings::CELL_HEIGHT;
@@ -348,9 +349,10 @@ impl Generator for JavaGenerator {
         let col_grid = ColumnContextGrid::new(pos.x, pos.z, &self.noises, &grid);
         let biomes = biome_source::fill_chunk(&self.noises, pos, &grid, &col_grid);
         let mut aquifer = self.aquifer(pos, &grid, &col_grid);
-        let mut chunk = self.generate_terrain(pos.x, pos.z, &grid, &col_grid, &mut aquifer);
+        let mut blocks = self.generate_terrain(pos.x, pos.z, &grid, &col_grid, &mut aquifer);
         self.surface_system
-            .build_surface(&mut chunk, pos, &self.noises, &grid, &biomes);
+            .build_surface(&mut blocks, pos, &self.noises, &grid, &biomes);
+        let mut chunk = blocks.to_chunk(pos, *crate::world::chunk::blocks::AIR);
         let mut carving = JavaCarveContext {
             generator: self,
             aquifer: &mut aquifer,

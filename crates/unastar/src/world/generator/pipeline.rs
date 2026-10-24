@@ -165,21 +165,29 @@ impl ChunkPipeline {
     }
 
     /// Finished chunk: proto blocks, decoration from the 9 surrounding origins, and
-    /// Bedrock 3D biomes.
+    /// Bedrock 3D biomes. Generators without decoration need no neighbours, so their protos
+    /// are used directly instead of being cached and copied.
     pub fn generate(&self, pos: ChunkPos) -> Chunk {
+        let generator = &self.generator;
+        if !generator.decorates() {
+            let ProtoChunk {
+                mut chunk, biomes, ..
+            } = generator.generate_proto(pos);
+            chunk.set_biomes_from_quarts(&biomes, |biome| generator.bedrock_biome(biome));
+            chunk.x = pos.x;
+            chunk.z = pos.z;
+            return chunk;
+        }
         let proto = self.proto(pos);
         let mut chunk = proto.chunk.clone();
-        if self.generator.decorates() {
-            for (dx, dz) in SLOT_OFFSETS {
-                let origin = ChunkPos::new(pos.x + dx, pos.z + dz);
-                let writes = self.decoration(origin);
-                // `pos` seen from `origin` is at (-dx, -dz).
-                for write in writes.for_offset(-dx, -dz) {
-                    chunk.set_block(write.x, write.y, write.z, write.block);
-                }
+        for (dx, dz) in SLOT_OFFSETS {
+            let origin = ChunkPos::new(pos.x + dx, pos.z + dz);
+            let writes = self.decoration(origin);
+            // `pos` seen from `origin` is at (-dx, -dz).
+            for write in writes.for_offset(-dx, -dz) {
+                chunk.set_block(write.x, write.y, write.z, write.block);
             }
         }
-        let generator = &self.generator;
         chunk.set_biomes_from_quarts(&proto.biomes, |biome| generator.bedrock_biome(biome));
         chunk.x = pos.x;
         chunk.z = pos.z;

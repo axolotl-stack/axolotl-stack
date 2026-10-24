@@ -2950,44 +2950,31 @@ impl<'a> AotEmitter<'a> {
             /// patterns where we iterate through all columns.
             ///
             /// # Performance
-            /// - Computes 289 ColumnContext4 values once at chunk start (17x17 for boundary handling)
+            /// - Computes the 25 cell-corner ColumnContext4 values once at chunk start
             /// - Each lookup is O(1) array access
-            /// - Eliminates redundant spline evaluations (~140,000 -> 289 per chunk)
+            /// - Spline-heavy 2D caches are evaluated once per cell-corner column
             /// - **SIMD-native storage**: Values stored as `f64x4` to eliminate register thrashing
             ///
-            /// # Boundary Handling
-            /// The grid is 17x17 instead of 16x16 to handle cell interpolation at chunk boundaries.
-            /// Cell corners at position 16 (just outside the chunk) need ColumnContext values,
-            /// so we pre-compute them to avoid discontinuities at chunk edges.
+            /// # Corner columns only
+            /// Every consumer reads 2D caches at noise-cell corners (blocks 0, 4, 8, 12 and 16
+            /// of the chunk, 16 being the next chunk's first column): the cell interpolator,
+            /// the biome source (quart corners) and the aquifer's preliminary surface. The
+            /// grid holds exactly those 5x5 columns; any other column is a caller bug and
+            /// panics.
             ///
             /// # SIMD-Native Storage
-            /// Unlike the previous scalar storage, this stores `ColumnContext4` directly.
             /// Each field is a pre-splatted `f64x4` (same value in all 4 lanes).
-            /// This eliminates the need to call `f64x4::splat()` during density computation,
-            /// removing ~50+ broadcast operations per column evaluation.
             pub struct ColumnContextGrid {
                 /// The chunk X coordinate (in chunk coordinates, not block)
                 pub chunk_x: i32,
                 /// The chunk Z coordinate (in chunk coordinates, not block)
                 pub chunk_z: i32,
-                /// Pre-computed ColumnContext4 for each column (SIMD-native storage).
-                /// Indexed as [local_z][local_x] where local coords are 0..=16.
-                /// Each ColumnContext4 has fields pre-splatted as f64x4 for direct use.
-                contexts: [[ColumnContext4; 17]; 17],
+                /// ColumnContext4 of each corner column, indexed `[local_z / 4][local_x / 4]`.
+                contexts: [[ColumnContext4; 5]; 5],
             }
 
             impl ColumnContextGrid {
-                /// Create a new ColumnContextGrid for a chunk.
-                ///
-                /// Pre-computes all 289 ColumnContext4 values (17x17) for the chunk.
-                /// Each position stores a ColumnContext4 with pre-splatted f64x4 fields,
-                /// enabling direct SIMD usage without broadcast overhead.
-                ///
-                /// # Arguments
-                /// * `chunk_x` - Chunk X coordinate (block_x >> 4)
-                /// * `chunk_z` - Chunk Z coordinate (block_z >> 4)
-                /// * `noises` - Noise source for sampling
-                /// * `flat` - Pre-computed FlatCacheGrid for this chunk
+                /// Compute the 25 cell-corner column contexts of a chunk.
                 pub fn new(
                     chunk_x: i32,
                     chunk_z: i32,
@@ -2996,31 +2983,20 @@ impl<'a> AotEmitter<'a> {
                 ) -> Self {
                     let base_x = chunk_x * 16;
                     let base_z = chunk_z * 16;
-
-                    // Pre-compute all ColumnContext4 values with pre-splatted fields
-                    let mut contexts = [[ColumnContext4::default(); 17]; 17];
-
-                    // Process exactly 17x17 positions (0..=16 in each dimension)
-                    for local_z in 0..17 {
-                        let block_z = base_z + local_z as i32;
-
-                        for local_x in 0..17 {
-                            let block_x = base_x + local_x as i32;
-
-                            // Create ColumnContext4 with SAME position in all 4 lanes
-                            // This pre-splats all values for later SIMD consumption
-                            let block_x_arr = [block_x, block_x, block_x, block_x];
-                            let block_z_arr = [block_z, block_z, block_z, block_z];
-
-                            contexts[local_z][local_x] = ColumnContext4::new_4(
-                                block_x_arr,
-                                block_z_arr,
+                    let mut contexts = [[ColumnContext4::default(); 5]; 5];
+                    for (iz, row) in contexts.iter_mut().enumerate() {
+                        let block_z = base_z + iz as i32 * 4;
+                        for (ix, slot) in row.iter_mut().enumerate() {
+                            let block_x = base_x + ix as i32 * 4;
+                            // Same column in all 4 lanes: values come out pre-splatted.
+                            *slot = ColumnContext4::new_4(
+                                [block_x; 4],
+                                [block_z; 4],
                                 noises,
-                                flat
+                                flat,
                             );
                         }
                     }
-
                     Self {
                         chunk_x,
                         chunk_z,
@@ -3028,40 +3004,23 @@ impl<'a> AotEmitter<'a> {
                     }
                 }
 
-                /// Get the pre-computed ColumnContext4 for a local position.
-                ///
-                /// # Arguments
-                /// * `local_x` - Local X coordinate (0..=16)
-                /// * `local_z` - Local Z coordinate (0..=16)
-                ///
-                /// # Panics
-                /// Panics in debug mode if local coordinates are out of bounds.
+                /// Column context at a local cell corner (`local_x`, `local_z` in 0, 4, 8, 12, 16).
                 #[inline(always)]
                 pub fn get(&self, local_x: usize, local_z: usize) -> &ColumnContext4 {
-                    debug_assert!(local_x <= 16 && local_z <= 16, "Local coords out of bounds");
-                    &self.contexts[local_z][local_x]
+                    assert!(
+                        local_x % 4 == 0 && local_z % 4 == 0 && local_x <= 16 && local_z <= 16,
+                        "column ({local_x}, {local_z}) is not a cell corner"
+                    );
+                    &self.contexts[local_z / 4][local_x / 4]
                 }
 
-                /// Get the pre-computed ColumnContext4 for a block position.
-                ///
-                /// Converts block coordinates to local coordinates and looks up.
-                /// Supports positions 0..=16 within the chunk to handle cell boundary interpolation.
-                ///
-                /// # Arguments
-                /// * `block_x` - Block X coordinate (chunk_x*16 to chunk_x*16+16 inclusive)
-                /// * `block_z` - Block Z coordinate (chunk_z*16 to chunk_z*16+16 inclusive)
-                ///
-                /// # Panics
-                /// Panics in debug mode if block is outside the valid range.
+                /// Column context at an absolute cell-corner block column of this chunk
+                /// (`chunk*16 ..= chunk*16 + 16`, multiples of 4).
                 #[inline(always)]
                 pub fn get_block(&self, block_x: i32, block_z: i32) -> &ColumnContext4 {
-                    let base_x = self.chunk_x * 16;
-                    let base_z = self.chunk_z * 16;
-                    let local_x = (block_x - base_x) as usize;
-                    let local_z = (block_z - base_z) as usize;
-                    debug_assert!(local_x <= 16, "Block X outside chunk+boundary: {} not in {}..={}", block_x, base_x, base_x + 16);
-                    debug_assert!(local_z <= 16, "Block Z outside chunk+boundary: {} not in {}..={}", block_z, base_z, base_z + 16);
-                    &self.contexts[local_z][local_x]
+                    let local_x = (block_x - self.chunk_x * 16) as usize;
+                    let local_z = (block_z - self.chunk_z * 16) as usize;
+                    self.get(local_x, local_z)
                 }
             }
 
