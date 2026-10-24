@@ -56,7 +56,7 @@ if ($Client -eq 'minecraft' -and !$NoLaunch -and @(Get-Process -Name $GameProces
 $tools = Build-CaptureTools -Bot:($Client -eq 'gophertunnel')
 Set-BdsProperties $Runtime $Port
 $file = Join-Path $Output "$Name.jsonl"
-$clientName = $(if ($Client -eq 'minecraft') { 'minecraft (real client)' } else { 'gophertunnel 80c811b/go-raknet 87a6b7e' })
+$clientName = $(if ($Client -eq 'minecraft') { 'minecraft (real client)' } else { 'gophertunnel 80c811b/go-raknet 6124f52' })
 # The game joins the IPv4 port advertised in the pong; BDS 1.26.51 sends
 # RakNet pongs without an advertisement, and the game never joined through
 # the relay with them. The relay therefore advertises itself (protocol 2193,

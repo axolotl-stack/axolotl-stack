@@ -3,7 +3,7 @@ use std::time::{Duration, Instant};
 
 use crate::protocol::{ack::SequenceRange, packet::DecodeError, types::Sequence24};
 
-/// `go-raknet/conn.go:receiveDatagram` limits the live receive window to 2048.
+/// go-raknet `87a6b7e` `conn.go:receiveDatagram` limits the live receive window to 2048.
 /// Check before insertion/missing detection (upstream checks afterwards) so forged
 /// 24-bit gaps never cause work proportional to the attacker-selected distance.
 pub(crate) const RECEIVE_WINDOW_SIZE: u32 = 2048;

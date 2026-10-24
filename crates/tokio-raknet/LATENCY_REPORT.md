@@ -27,9 +27,12 @@ when driving `build_datagram`, even without further input. No new dependencies,
 unsafe code, per-datagram tasks, or payload copies were introduced. Each mux
 retains one ACK timer; idle sessions do not cause a periodic 1 kHz timer wakeup.
 
-Go's reference ACK policy is substantially laxer:
-[`Conn.startTicking` / `flushACKs`](https://github.com/lunar-bedrock/go-raknet/blob/87a6b7e53799/conn.go)
-flushes on a 100 ms maintenance ticker. This change does not adopt that delay.
+Go's reference ACK policy at the time of this report was substantially laxer:
+go-raknet `87a6b7e` [`Conn.startTicking` / `flushACKs`](https://github.com/lunar-bedrock/go-raknet/blob/87a6b7e53799/conn.go)
+flushed on a 100 ms maintenance ticker. This change does not adopt that delay.
+The current pin, go-raknet `6124f52`, holds ACKs 10 ms after the oldest
+unacknowledged datagram (at once until the peer's first ACK) and wakes its send
+loop on a timer ([`conn.go:66-69,299-326,690-703`](https://github.com/lunar-bedrock/go-raknet/blob/6124f52657d4/conn.go#L299-L326)).
 Receive-window, ACK-range, split and ordering limits are unchanged.
 
 ## End-to-end attribution

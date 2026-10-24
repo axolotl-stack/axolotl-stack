@@ -112,9 +112,14 @@ pub async fn client(address: SocketAddr, count: usize) -> Result<()> {
     ensure!(count > 0, "count must be positive");
     for size in SIZES {
         let count = count_for_size(size, count)?;
+        // `setup`: the complete RakNet handshake (MTU discovery, Request2,
+        // ConnectionRequest/Accepted, NewIncomingConnection) until the stream
+        // is connected; one sample per fresh connection.
+        let setup_started = Instant::now();
         let mut stream = timeout(TIMEOUT, connect(address))
             .await
             .context("connect timeout")??;
+        let setup_seconds = setup_started.elapsed().as_secs_f64();
         let payload = payload(size);
         let mut samples = Vec::with_capacity(count);
         let mut started = Instant::now();
@@ -161,6 +166,22 @@ pub async fn client(address: SocketAddr, count: usize) -> Result<()> {
             p50_us: Some(percentile(50)),
             p99_us: Some(percentile(99)),
             max_us: Some(samples[count - 1]),
+        }
+        .emit()?;
+        super::Row {
+            area: "loopback",
+            name: &size.to_string(),
+            operation: "setup",
+            implementation: "rust-owned",
+            ns_per_op: setup_seconds * 1e9,
+            allocs_per_op: None,
+            bytes_per_op: None,
+            payload_bytes: size,
+            msgs_per_sec: 1.0 / setup_seconds,
+            mb_per_sec: 0.0,
+            p50_us: None,
+            p99_us: None,
+            max_us: None,
         }
         .emit()?;
         drop(stream);
