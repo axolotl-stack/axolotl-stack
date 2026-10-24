@@ -37,7 +37,11 @@ fn main() {
             .split(':')
             .map(|p| p.parse().expect("region bounds must be integers"))
             .collect();
-        assert_eq!(v.len(), 4, "region must be x0:z0:x1:z1 (inclusive chunk coords)");
+        assert_eq!(
+            v.len(),
+            4,
+            "region must be x0:z0:x1:z1 (inclusive chunk coords)"
+        );
         regions.push((v[0], v[1], v[2], v[3]));
     }
 
@@ -71,7 +75,10 @@ fn main() {
         }
     }
     if !missing.is_empty() {
-        eprintln!("{} requested chunks are not in the BDS world: {missing:?}", missing.len());
+        eprintln!(
+            "{} requested chunks are not in the BDS world: {missing:?}",
+            missing.len()
+        );
     }
 
     let palette_json: Vec<String> = palette.iter().map(|n| format!("\"{n}\"")).collect();
@@ -279,7 +286,10 @@ fn decode_block_subchunk(data: &[u8]) -> Vec<String> {
         off += used;
         names.push(nbt.string("name").expect("palette entry without name"));
     }
-    indices.into_iter().map(|i| names[i as usize].clone()).collect()
+    indices
+        .into_iter()
+        .map(|i| names[i as usize].clone())
+        .collect()
 }
 
 /// Read a paletted storage header + index words; returns indices and palette length.

@@ -13,11 +13,34 @@ fn is_terrain(name: &str) -> bool {
     let n = name.trim_start_matches("minecraft:");
     matches!(
         n,
-        "stone" | "deepslate" | "dirt" | "coarse_dirt" | "grass_block" | "podzol" | "mycelium"
-            | "sand" | "red_sand" | "sandstone" | "red_sandstone" | "gravel" | "terracotta"
-            | "snow" | "ice" | "packed_ice" | "powder_snow" | "calcite" | "mud" | "bedrock"
-            | "tuff" | "granite" | "raw_iron_block" | "raw_copper_block" | "iron_ore"
-            | "copper_ore" | "deepslate_iron_ore" | "deepslate_copper_ore"
+        "stone"
+            | "deepslate"
+            | "dirt"
+            | "coarse_dirt"
+            | "grass_block"
+            | "podzol"
+            | "mycelium"
+            | "sand"
+            | "red_sand"
+            | "sandstone"
+            | "red_sandstone"
+            | "gravel"
+            | "terracotta"
+            | "snow"
+            | "ice"
+            | "packed_ice"
+            | "powder_snow"
+            | "calcite"
+            | "mud"
+            | "bedrock"
+            | "tuff"
+            | "granite"
+            | "raw_iron_block"
+            | "raw_copper_block"
+            | "iron_ore"
+            | "copper_ore"
+            | "deepslate_iron_ore"
+            | "deepslate_copper_ore"
     ) || n.ends_with("_terracotta")
 }
 
@@ -54,7 +77,10 @@ fn run() {
     let mut ocean_bds = 0;
     let mut ocean_una = 0;
     for c in fx["chunks"].as_array().unwrap() {
-        let (cx, cz) = (c["x"].as_i64().unwrap() as i32, c["z"].as_i64().unwrap() as i32);
+        let (cx, cz) = (
+            c["x"].as_i64().unwrap() as i32,
+            c["z"].as_i64().unwrap() as i32,
+        );
         let chunk = generator.generate_chunk(cx, cz);
         let biome = chunk_biome(&chunk);
         for (k, v) in c["histogram"].as_object().unwrap() {
@@ -66,7 +92,10 @@ fn run() {
             let mut terrain = -65;
             for y in (-64..320).rev() {
                 let id = chunk.get_block(x, y as i16, z);
-                let name = reg.get_by_runtime_id(id).map(|b| b.string_id.as_str()).unwrap_or("?");
+                let name = reg
+                    .get_by_runtime_id(id)
+                    .map(|b| b.string_id.as_str())
+                    .unwrap_or("?");
                 if name == "minecraft:air" {
                     continue;
                 }
@@ -103,7 +132,9 @@ fn run() {
             if sname == "minecraft:water" {
                 ocean_una += 1;
             }
-            *top_confusion.entry((bds_top.clone(), sname.clone())).or_default() += 1;
+            *top_confusion
+                .entry((bds_top.clone(), sname.clone()))
+                .or_default() += 1;
             if biome == bds_biome {
                 biome_eq += 1;
             }
@@ -112,7 +143,10 @@ fn run() {
             for x in 0..16u8 {
                 for z in 0..16u8 {
                     let id = chunk.get_block(x, y as i16, z);
-                    let name = reg.get_by_runtime_id(id).map(|b| b.string_id.as_str()).unwrap_or("?");
+                    let name = reg
+                        .get_by_runtime_id(id)
+                        .map(|b| b.string_id.as_str())
+                        .unwrap_or("?");
                     if name != "minecraft:air" {
                         *hist_una.entry(name.to_string()).or_default() += 1;
                     }
@@ -121,8 +155,18 @@ fn run() {
         }
     }
     let n = cols as f64;
-    println!("chunks={} columns={} gen_time={:?}", cols / 256, cols, t0.elapsed());
-    println!("terrain height exact {:.1}% within2 {:.1}% mean|d| {:.2}", 100.0 * h_eq as f64 / n, 100.0 * h_close as f64 / n, h_abs as f64 / n);
+    println!(
+        "chunks={} columns={} gen_time={:?}",
+        cols / 256,
+        cols,
+        t0.elapsed()
+    );
+    println!(
+        "terrain height exact {:.1}% within2 {:.1}% mean|d| {:.2}",
+        100.0 * h_eq as f64 / n,
+        100.0 * h_close as f64 / n,
+        h_abs as f64 / n
+    );
     println!("surface height exact {:.1}%", 100.0 * surf_eq as f64 / n);
     println!("surface block match {:.1}%", 100.0 * top_eq as f64 / n);
     println!("surface biome id match {:.1}%", 100.0 * biome_eq as f64 / n);
@@ -137,7 +181,13 @@ fn run() {
     keys.dedup();
     let mut rows: Vec<_> = keys
         .into_iter()
-        .map(|k| (hist_bds.get(&k).copied().unwrap_or(0), hist_una.get(&k).copied().unwrap_or(0), k))
+        .map(|k| {
+            (
+                hist_bds.get(&k).copied().unwrap_or(0),
+                hist_una.get(&k).copied().unwrap_or(0),
+                k,
+            )
+        })
         .collect();
     rows.sort_by_key(|r| std::cmp::Reverse(r.0.max(r.1)));
     for (b, u, k) in rows.iter().take(40) {
