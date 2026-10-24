@@ -261,21 +261,26 @@ impl JavaGenerator {
                                             );
                                         }
                                     } else {
-                                        // Use aquifer to determine what to place (water/lava/air)
-                                        // This matches Java's behavior - aquifer handles all non-solid blocks
-                                        // including ocean water via globalFluidPicker
+                                        // The aquifer decides air, water or lava; `None` is a
+                                        // barrier between aquifers, which falls through to the
+                                        // ore veins and then the default block, like solid
+                                        // density does.
                                         let ctx = FunctionContext::new(block_x, block_y, block_z);
-                                        if let Some(block_id) =
-                                            aquifer.compute_substance(&ctx, density)
-                                        {
+                                        let block = match aquifer.compute_substance(&ctx, density) {
+                                            Some(block) => block,
+                                            None if in_vein_range => ore_veinifier
+                                                .compute(&ctx)
+                                                .unwrap_or(*blocks::STONE),
+                                            None => *blocks::STONE,
+                                        };
+                                        if block != *blocks::AIR {
                                             chunk.set_block(
                                                 local_x,
                                                 block_y as i16,
                                                 local_z,
-                                                block_id,
+                                                block,
                                             );
                                         }
-                                        // None from aquifer means air - default, no need to set
                                     }
                                 }
                             }
