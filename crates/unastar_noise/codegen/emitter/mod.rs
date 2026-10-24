@@ -1,5 +1,6 @@
 pub mod biome_features;
 pub mod emitter_quote;
+pub mod feature;
 pub mod noise;
 pub mod surface_rule;
 

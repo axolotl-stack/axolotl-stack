@@ -12,6 +12,7 @@
 //! - [`survival`]: `BlockState.canSurvive` for the blocks features place.
 
 pub mod blocks;
+pub mod climate;
 pub mod config;
 pub mod eval;
 pub mod kinds;
@@ -29,5 +30,11 @@ pub mod java_blocks {
 }
 
 pub use blocks::{BlockPos, BlockSet, Direction, Fluid, Heightmap, JavaBlock, JavaState};
+/// Generated decoration data and placed-feature code (`features.rs`).
+#[allow(clippy::all, missing_docs)]
+pub mod generated {
+    include!(concat!(env!("OUT_DIR"), "/features.rs"));
+}
+
 pub use eval::FeatureWorld;
 pub use random::{FeatureRandom, LegacyRandom, WorldgenRandom};

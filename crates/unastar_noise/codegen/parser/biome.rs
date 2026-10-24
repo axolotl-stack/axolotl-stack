@@ -57,6 +57,10 @@ pub struct BiomeJson {
     #[serde(default)]
     #[allow(dead_code)]
     pub has_precipitation: bool,
+
+    /// `"frozen"` for frozen oceans (temperature modifier), absent otherwise.
+    #[serde(default)]
+    pub temperature_modifier: Option<String>,
 }
 
 /// Generation steps for features.

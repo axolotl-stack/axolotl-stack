@@ -206,8 +206,9 @@ pub struct MultifaceGrowthConfig {
     pub can_place_on_wall: bool,
     pub chance_of_spreading: f32,
     pub can_be_placed_on: BlockSet,
-    /// Directions this block may attach to, in Java's shuffle source order
-    /// (floor, ceiling, then the horizontal plane).
+    /// Directions this block may attach to, in Java's list order before
+    /// shuffling: `Up` if it may hang from ceilings, `Down` if it may sit on
+    /// floors, then the horizontal plane (N, E, S, W) if it may go on walls.
     pub valid_directions: &'static [Direction],
 }
 
