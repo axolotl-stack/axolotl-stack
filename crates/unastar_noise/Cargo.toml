@@ -12,6 +12,10 @@ debug-worldgen = []
 [dependencies]
 # Runtime dependencies - none for now, types are self-contained
 
+[dev-dependencies]
+serde = { workspace = true }
+serde_json = { workspace = true }
+
 [build-dependencies]
 serde = { workspace = true }
 serde_json = { workspace = true }
