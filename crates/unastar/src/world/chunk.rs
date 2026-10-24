@@ -5,6 +5,8 @@
 
 use bytes::{BufMut, BytesMut};
 
+use crate::world::generator::{NativeBiome, QuartBiomes};
+
 /// Legacy sub-chunk request-mode sentinels retained for callers targeting
 /// older Valentine protocol versions. Protocol 2168 no longer encodes these
 /// negative values in `LevelChunkPacket`; its request mode is represented by
@@ -31,6 +33,9 @@ pub const BLOCKS_PER_SUBCHUNK: usize = SUBCHUNK_SIZE * SUBCHUNK_SIZE * SUBCHUNK_
 
 /// Sub-chunk version for network encoding.
 const SUBCHUNK_VERSION: u8 = 9;
+
+/// Biome of a new chunk before a generator sets one: Bedrock `plains`.
+pub const DEFAULT_BIOME_ID: u32 = 1;
 
 /// Block runtime IDs fetched from the shared vanilla block registry.
 /// Uses default runtime state IDs from normalized generated block data.
@@ -326,8 +331,8 @@ pub struct Chunk {
     pub z: i32,
     /// Sub-chunks (index 0 = Y=-64 to Y=-48, etc.)
     sub_chunks: Vec<SubChunk>,
-    /// Biome ID for each sub-chunk section (simplified: one per vertical section)
-    biome_ids: Vec<u32>,
+    /// Biome ids per sub-chunk, 16x16x16 like Bedrock's 3D biome storage.
+    biomes: Vec<PalettedStorage>,
     /// Height map tracking highest light-blocking block per column
     height_map: HeightMap,
     /// Whether height map needs recalculation (reserved for future lazy recalculation)
@@ -442,13 +447,15 @@ impl Chunk {
     pub fn new(x: i32, z: i32) -> Self {
         let sub_chunks = (0..SUBCHUNK_COUNT).map(|_| SubChunk::empty()).collect();
 
-        let biome_ids = vec![0; SUBCHUNK_COUNT as usize]; // Plains biome
+        let biomes = (0..SUBCHUNK_COUNT)
+            .map(|_| PalettedStorage::single_block(DEFAULT_BIOME_ID))
+            .collect();
 
         Self {
             x,
             z,
             sub_chunks,
-            biome_ids,
+            biomes,
             height_map: HeightMap::new(),
             recalculate_height_map: false,
         }
@@ -527,11 +534,52 @@ impl Chunk {
         0
     }
 
-    /// Set the biome ID for all vertical sections.
+    /// Set one biome id for the whole chunk.
     /// This affects grass/foliage color tinting on the client.
     pub fn set_biome(&mut self, biome_id: u32) {
-        for biome in &mut self.biome_ids {
-            *biome = biome_id;
+        for section in &mut self.biomes {
+            *section = PalettedStorage::single_block(biome_id);
+        }
+    }
+
+    /// Bedrock biome id at a block (local x/z, absolute y); `None` outside the height range.
+    pub fn biome_at(&self, x: u8, y: i16, z: u8) -> Option<u32> {
+        let adjusted_y = (y as i32) - MIN_Y;
+        if adjusted_y < 0 || adjusted_y >= (SUBCHUNK_COUNT as i32 * 16) {
+            return None;
+        }
+        let section = &self.biomes[(adjusted_y >> 4) as usize];
+        Some(section.get_block(x as usize & 15, adjusted_y as usize & 15, z as usize & 15))
+    }
+
+    /// Set every block's biome from quart-resolution (4x4x4) generator biomes.
+    pub fn set_biomes_from_quarts(
+        &mut self,
+        quarts: &QuartBiomes,
+        mut to_bedrock: impl FnMut(NativeBiome) -> u32,
+    ) {
+        for (index, section) in self.biomes.iter_mut().enumerate() {
+            let mut ids = [0u32; 64];
+            for qy in 0..4 {
+                for qz in 0..4 {
+                    for qx in 0..4 {
+                        ids[(qy * 4 + qz) * 4 + qx] =
+                            to_bedrock(quarts.get(qx, index * 4 + qy, qz));
+                    }
+                }
+            }
+            *section = PalettedStorage::single_block(ids[0]);
+            if ids.iter().all(|&id| id == ids[0]) {
+                continue;
+            }
+            for x in 0..SUBCHUNK_SIZE {
+                for z in 0..SUBCHUNK_SIZE {
+                    for y in 0..SUBCHUNK_SIZE {
+                        let id = ids[((y >> 2) * 4 + (z >> 2)) * 4 + (x >> 2)];
+                        section.set_block(x, y, z, id);
+                    }
+                }
+            }
         }
     }
 
@@ -541,9 +589,9 @@ impl Chunk {
     pub fn encode_biomes(&self) -> Vec<u8> {
         let mut buf = BytesMut::with_capacity(SUBCHUNK_COUNT as usize * 2 + 1);
 
-        // Encode biome storage for each vertical section
-        for &biome_id in &self.biome_ids {
-            encode_biome_section(&mut buf, biome_id);
+        // One network-format paletted storage per section, like block storage.
+        for section in &self.biomes {
+            section.encode(&mut buf);
         }
 
         // Border blocks count (0 = none)
@@ -1033,14 +1081,6 @@ impl PalettedStorage {
             offset,
         ))
     }
-}
-
-/// Encode a single biome section (16x16x16 area).
-fn encode_biome_section(buf: &mut BytesMut, biome_id: u32) {
-    // Network biome palettes use signed VarInt32 (zigzag) entries, just like blocks.
-    // Single-value palette (bits_per_block = 0): header = 1, then a single palette value.
-    buf.put_u8(1); // Header: (0 << 1) | 1 (network)
-    write_signed_varint32(buf, biome_id as i32);
 }
 
 /// Write a signed varint32 (zigzag encoded).

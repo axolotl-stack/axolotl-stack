@@ -7,7 +7,7 @@
 
 use std::collections::BTreeMap;
 use unastar::registry::BlockRegistry;
-use unastar::world::VanillaGenerator;
+use unastar::world::generator::{ChunkPipeline, JavaGenerator};
 
 fn is_terrain(name: &str) -> bool {
     let n = name.trim_start_matches("minecraft:");
@@ -67,7 +67,7 @@ fn run() {
         .map(|v| v.as_str().unwrap().to_string())
         .collect();
     let reg = BlockRegistry::vanilla();
-    let generator = VanillaGenerator::new(seed);
+    let pipeline = ChunkPipeline::new(std::sync::Arc::new(JavaGenerator::new(seed)));
     let t0 = std::time::Instant::now();
     let (mut cols, mut h_eq, mut h_close, mut h_abs, mut top_eq, mut biome_eq, mut surf_eq) =
         (0u64, 0u64, 0u64, 0i64, 0u64, 0u64, 0u64);
@@ -81,8 +81,7 @@ fn run() {
             c["x"].as_i64().unwrap() as i32,
             c["z"].as_i64().unwrap() as i32,
         );
-        let chunk = generator.generate_chunk(cx, cz);
-        let biome = chunk_biome(&chunk);
+        let chunk = pipeline.generate(unastar::world::ChunkPos::new(cx, cz));
         for (k, v) in c["histogram"].as_object().unwrap() {
             *hist_bds.entry(k.clone()).or_default() += v.as_i64().unwrap();
         }
@@ -135,7 +134,7 @@ fn run() {
             *top_confusion
                 .entry((bds_top.clone(), sname.clone()))
                 .or_default() += 1;
-            if biome == bds_biome {
+            if chunk.biome_at(x, sy as i16, z) == Some(bds_biome) {
                 biome_eq += 1;
             }
         }
@@ -193,19 +192,4 @@ fn run() {
     for (b, u, k) in rows.iter().take(40) {
         println!("  hist {k}: bds {b} unastar {u}");
     }
-}
-
-fn chunk_biome(chunk: &unastar::world::Chunk) -> u32 {
-    let enc = chunk.encode_biomes();
-    // first storage: header byte (bits<<1|1), single value as varint (zigzag)
-    let mut v: u32 = 0;
-    let mut shift = 0;
-    for b in &enc[1..] {
-        v |= ((b & 0x7f) as u32) << shift;
-        shift += 7;
-        if b & 0x80 == 0 {
-            break;
-        }
-    }
-    v >> 1
 }

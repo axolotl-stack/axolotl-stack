@@ -27,7 +27,7 @@ async fn async_stored_chunks_survive_save_cycle_for_both_providers() {
             .unwrap();
         let mut server = GameServer::with_config(ServerConfig {
             world: WorldConfig {
-                generator: WorldGenerator::Vanilla { seed: 12345 },
+                generator: WorldGenerator::Java { seed: 12345 },
                 ..WorldConfig::default()
             },
             ..ServerConfig::default()
@@ -384,7 +384,7 @@ async fn storage_read_errors_never_generate_replacement_terrain() {
         }
     }
     let mut manager = ChunkManager::new(WorldConfig {
-        generator: WorldGenerator::Vanilla { seed: 12345 },
+        generator: WorldGenerator::Java { seed: 12345 },
         ..WorldConfig::default()
     });
     manager.set_provider(Arc::new(UnreadableWorld));

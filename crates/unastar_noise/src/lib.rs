@@ -43,6 +43,9 @@ pub use biome::Biome;
 // Biome lookup tables
 pub mod biome_tables;
 
+// Block-class flags (heightmaps, block predicates)
+pub mod block_class;
+
 // Surface rules system
 pub mod surface;
 pub use surface::{
