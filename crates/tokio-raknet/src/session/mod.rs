@@ -64,7 +64,7 @@ pub enum QueuePacketError {
     Encode(#[from] EncodeError),
 }
 
-/// Low-level parameters bounded by the lunar-bedrock/go-raknet receive limits.
+/// Low-level parameters bounded by the lunar-bedrock/go-raknet `87a6b7e` receive limits.
 #[derive(Debug, Clone)]
 pub struct SessionTunables {
     pub max_ordering_channels: usize,
@@ -89,7 +89,7 @@ impl Default for SessionTunables {
             // Safety deviation: upstream Conn.receiveSplitPacket retains incomplete splits.
             split_timeout: Duration::from_secs(30),
             reliable_window: receive_window::RECEIVE_WINDOW_SIZE,
-            // go-raknet conn.go:Conn.receiveSplitPacket.
+            // go-raknet `87a6b7e` conn.go:Conn.receiveSplitPacket.
             max_split_parts: 512,
             max_concurrent_splits: 16,
             max_incoming_ack_queue: 4096,

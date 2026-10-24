@@ -14,7 +14,7 @@ differences. The Go reference is unmodified.
 
 Windows x64, PowerShell 7, Python 3.12, the repository's pinned Rust toolchain, and Go. If Go is absent, install it with `winget install GoLang.Go` and reopen the terminal (or add `C:\Program Files\Go\bin` to PATH). Endstone 0.11.12 is pinned to the BDS 1.26.51 baseline. Setup downloads BDS from Mojang; binaries, worlds, logs, and virtual environments are ignored and must never be redistributed. Read and comply with the [Minecraft EULA](https://www.minecraft.net/eula).
 
-The reference pins are HashimTheArab/gophertunnel `80c811b6186016b3860c358368cfa47e507f26e9` and lunar-bedrock/go-raknet `87a6b7e53799290d70ac25bcd03645d7ead00d2c`; `gt-client/go.mod` records exact pseudo-versions through replacements of the original sandertv module paths. The fork's go-nethernet and go-xsapi versions remain unchanged.
+The reference pins are HashimTheArab/gophertunnel `80c811b6186016b3860c358368cfa47e507f26e9` and lunar-bedrock/go-raknet `6124f52657d4d5f006ea2af2d525260998dd3173` (moved from `87a6b7e53799` on 2026-10-24, matching `tools/bench-compare/go`); `gt-client/go.mod` records exact pseudo-versions through replacements of the original sandertv module paths. The fork's go-nethernet and go-xsapi versions remain unchanged.
 
 ## Run
 

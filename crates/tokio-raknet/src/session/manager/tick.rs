@@ -193,7 +193,7 @@ impl ManagedSession {
             self.last_disconnect_reason = Some(DisconnectReason::TimedOut);
         }
 
-        // go-raknet conn.go:Conn.startTicking drains ACKs for up to five seconds;
+        // go-raknet `87a6b7e` conn.go:Conn.startTicking drains ACKs for up to five seconds;
         // an empty recovery queue permits closure after one second.
         if self.state == ConnectionState::Closing {
             let since = now.saturating_duration_since(*self.closing_since.get_or_insert(now));

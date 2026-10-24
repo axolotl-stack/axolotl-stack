@@ -23,7 +23,7 @@ go test ./...
 Pop-Location
 ```
 
-`run.ps1` builds release executables, rotates Rust/Cinnabar/Go order across at least three rounds, runs all six directed interop combinations, and writes `report.md` plus ignored `results/run-<unique-id>/` JSONL, metadata, logs, and aggregated JSON. Each invocation gets a fresh evidence directory so old rounds and exclusions cannot leak into a report. `-SkipBuild` reuses executables already built by a previous invocation; the cached Go executable stays in the results base directory. `-Output PATH` changes that base directory. The Cinnabar project has its own `[workspace]` and lockfile; its git dependencies never enter the main workspace build or lockfile. See [Cinnabar pins, licensing and API boundaries](cinnabar/README.md).
+`run.ps1` builds release executables, rotates Rust/Cinnabar/Go order across at least three rounds, runs all six directed interop combinations, and writes `report.md` plus ignored `results/run-<unique-id>/` JSONL, metadata, logs, and aggregated JSON. The metadata and report header record the built go-raknet replacement (`go list -m`) and the power plan's maximum processor state (below 100% disables turbo boost; only compare runs taken under the same setting). Each invocation gets a fresh evidence directory so old rounds and exclusions cannot leak into a report. `-SkipBuild` reuses executables already built by a previous invocation; the cached Go executable stays in the results base directory. `-Output PATH` changes that base directory. The Cinnabar project has its own `[workspace]` and lockfile; its git dependencies never enter the main workspace build or lockfile. See [Cinnabar pins, licensing and API boundaries](cinnabar/README.md).
 
 ### NetherNet comparison
 

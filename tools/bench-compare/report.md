@@ -4,7 +4,10 @@ Measured UTC: 2026-10-21T22:49:33.5813184Z. Median of 3 alternating rounds; meas
 
 Machine: Microsoft Windows 10.0.26200 / X64; Intel64 Family 6 Model 183 Stepping 1, GenuineIntel; 32 logical processors.
 Toolchains: `rustc 1.96.0-nightly (b90dc1e59 2026-03-04)`; `go version go1.27.0 windows/amd64`; Go GOMAXPROCS=4; Tokio multi-thread workers=4.
-Source base: `78325e4416718a7fd39e73cf7986002bb51dbf66`; protocolgen corpus: `7b2e47c463fa425e25004673cf8960753dd2ff12`.
+Source base: `78325e4416718a7fd39e73cf7986002bb51dbf66`; protocolgen corpus: `7b2e47c463fa425e25004673cf8960753dd2ff12`; go-raknet: `github.com/lunar-bedrock/go-raknet v1.15.1-0.20261011161132-87a6b7e53799`.
+Power plan maximum processor state (AC): not recorded (below 100% disables turbo boost; compare only runs taken under the same setting).
+
+**Go RakNet baseline pending re-measurement:** the Go rows below were measured with go-raknet `87a6b7e` (turbo enabled). The pin moved to `6124f52657d4` on 2026-10-24 (see [go/CAVEATS.md](go/CAVEATS.md)); the next `run.ps1` invocation regenerates this report with that pin and records the turbo setting.
 
 Shared Windows workstation; codec/micro inherit affinity to logical CPU 2; loopback/interop inherit logical CPUs 0,2,4,6 (distinct P-cores on measured i9-14900HX), matching 4 workers; other workers may run concurrently; no priority, power-plan or timer-resolution adjustment.
 
@@ -498,7 +501,7 @@ That cuts allocations per round trip on every raw row (up to 8 → 2).
 
 ## Corpus exclusions and API coverage
 
-Corpus encoder: gophertunnel `85d4022854e1` (`v1.25.3-0.20261019151115-85d4022854e1`), as pinned by protocolgen retail/go.mod. Requested live-master reference: HashimTheArab/gophertunnel `80c811b6186016b3860c358368cfa47e507f26e9`; go-raknet: `87a6b7e53799290d70ac25bcd03645d7ead00d2c`. The newer corpus encoder is not silently substituted for the requested reference.
+Corpus encoder: gophertunnel `85d4022854e1` (`v1.25.3-0.20261019151115-85d4022854e1`), as pinned by protocolgen retail/go.mod. Requested live-master reference: HashimTheArab/gophertunnel `80c811b6186016b3860c358368cfa47e507f26e9`; go-raknet: `github.com/lunar-bedrock/go-raknet v1.15.1-0.20261011161132-87a6b7e53799`. The newer corpus encoder is not silently substituted for the requested reference.
 
 | Case | Implementation | Excluded because |
 | --- | --- | --- |
@@ -554,7 +557,7 @@ This separate diagnostic does not enter the alternating comparison medians. Exac
 
 ## Reference split/retransmission finding (separate diagnostic runs)
 
-An uninstrumented go-to-go run of `go run . loopback --count 100` failed at 4096 B, measured message index 81: `handle packet: handle datagram: receive packet: split packet: maximum concurrent splits 16 reached`. No Rust peer participated in that failure; no public listener API overrides this private limit.
+An uninstrumented go-to-go run of `go run . loopback --count 100` with go-raknet `87a6b7e53799` failed at 4096 B, measured message index 81: `handle packet: handle datagram: receive packet: split packet: maximum concurrent splits 16 reached`. No Rust peer participated in that failure; no public listener API overrode this private limit. go-raknet `6124f52657d4` (pinned since 2026-10-24) allows 256 concurrent splits and evicts reassemblies idle for 10 s, so this finding records the former pin.
 
 The coordinator-approved timed matrix retains 100 small-message echoes and uses ten measured plus one readiness echo for split-message sizes on both implementations. Larger-count failures remain failures: the harness neither retries nor changes production/reference sources.
 

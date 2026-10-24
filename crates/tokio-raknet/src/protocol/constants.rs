@@ -18,11 +18,11 @@ pub const RAKNET_PROTOCOL_VERSION: u8 = 11;
 
 // === MTU and framing sizes ===
 
-/// Minimum negotiated MTU, matching lunar-bedrock/go-raknet `conn.go:newConn`
-/// (`minMTUSize`).
+/// Minimum negotiated MTU, matching lunar-bedrock/go-raknet `6124f52`
+/// `conn.go:31` (`minMTUSize`).
 pub const MINIMUM_MTU_SIZE: u16 = 400;
-/// Maximum negotiated MTU, matching lunar-bedrock/go-raknet `conn.go:newConn`
-/// (`maxMTUSize`).
+/// Maximum negotiated MTU, matching lunar-bedrock/go-raknet `6124f52`
+/// `conn.go:32` (`maxMTUSize`).
 pub const MAXIMUM_MTU_SIZE: u16 = 1492;
 /// Candidate MTU sizes to probe, from most used by client.
 pub const MTU_SIZES: &[u16] = &[1200, MAXIMUM_MTU_SIZE, MINIMUM_MTU_SIZE];
@@ -41,7 +41,7 @@ pub const MAXIMUM_ORDERING_CHANNELS: u8 = 16;
 pub const MAXIMUM_ENCAPSULATED_HEADER_SIZE: usize = 28;
 
 /// Maximum expanded ACK/NACK sequence count, from lunar-bedrock/go-raknet
-/// `acknowledge.go:acknowledgement.read` (`maxAcknowledgementPackets`). Our
+/// `6124f52` `acknowledge.go:96` (`maxAcknowledgementPackets`). Our
 /// outgoing ACK/NAK datagrams never exceed it.
 pub const MAX_ACK_SEQUENCES: u16 = 8192;
 
@@ -67,7 +67,7 @@ pub const MAXIMUM_CONNECTION_ATTEMPTS: usize = 10;
 /// Time between sending connection attempts.
 pub const TIME_BETWEEN_SEND_CONNECTION_ATTEMPTS: Duration = Duration::from_millis(1000);
 
-/// Base inactivity timeout, matching go-raknet `conn.go:Conn.startTicking`.
+/// Base inactivity timeout, matching go-raknet `6124f52` `conn.go:285`.
 /// Session management adds twice the measured RTT to this base duration.
 pub const SESSION_TIMEOUT: Duration = Duration::from_millis(5000);
 

@@ -43,7 +43,8 @@ def main():
               f"Measured UTC: {metadata['utc']}. Median of {metadata['rounds']} alternating rounds; measured echoes per connection: {metadata['count']} for 32/512 B and {metadata.get('split_count', metadata['count'])} for 4096/65536 B; untimed readiness echoes per connection: {metadata.get('warmup_echoes', 'not recorded')}.", '',
               f"Machine: {metadata['os']} / {metadata['architecture']}; {metadata.get('cpu')}; {metadata['processors']} logical processors.",
               f"Toolchains: `{metadata['rust']}`; `{metadata['go']}`; Go GOMAXPROCS={metadata['go_cpu']}; Tokio multi-thread workers={metadata.get('rust_workers', 'not recorded')}.",
-              f"Source base: `{metadata['commit']}`; protocolgen corpus: `{metadata['corpus_commit']}`.", '', metadata['conditions'], '',
+              f"Source base: `{metadata['commit']}`; protocolgen corpus: `{metadata['corpus_commit']}`; go-raknet: `{metadata.get('go_raknet', 'not recorded')}`.",
+              f"Power plan maximum processor state (AC): {metadata.get('max_processor_state_ac', 'not recorded')} (below 100% disables turbo boost; compare only runs taken under the same setting).", '', metadata['conditions'], '',
               'Ratios are row-side/Go ns/op (below 1 is faster); throughput is request payload only, decimal MB/s, one completed echo per message. Contract, Valentine and Cinnabar use the same custom-loop estimator in alternating rounds. Medians are descriptive, not significance tests.', '']
     if metadata['rounds'] < 5:
         report += ['**Exploratory record:** fewer than five alternating rounds. This is not the final exclusive-machine optimized-code comparison; do not use these measurements alone for optimization decisions.', '']
@@ -112,7 +113,7 @@ def main():
             if record.get('area') == 'coverage' and record.get('status') == 'unavailable':
                 excluded.add((record['name'], record['implementation'], record.get('reason', 'no public typed API')))
     report += ['## Corpus exclusions and API coverage', '',
-               'Corpus encoder: gophertunnel `85d4022854e1` (`v1.25.3-0.20261019151115-85d4022854e1`), as pinned by protocolgen retail/go.mod. Requested live-master reference: HashimTheArab/gophertunnel `80c811b6186016b3860c358368cfa47e507f26e9`; go-raknet: `87a6b7e53799290d70ac25bcd03645d7ead00d2c`. The newer corpus encoder is not silently substituted for the requested reference.', '',
+               f"Corpus encoder: gophertunnel `85d4022854e1` (`v1.25.3-0.20261019151115-85d4022854e1`), as pinned by protocolgen retail/go.mod. Requested live-master reference: HashimTheArab/gophertunnel `80c811b6186016b3860c358368cfa47e507f26e9`; go-raknet: `{metadata.get('go_raknet', 'not recorded')}`. The newer corpus encoder is not silently substituted for the requested reference.", '',
                '| Case | Implementation | Excluded because |', '| --- | --- | --- |']
     for name, implementation, reason in sorted(excluded):
         report.append(f"| {name} | {implementation} | {str(reason).replace('|', '/').replace(chr(10), ' ')} |")
@@ -135,7 +136,7 @@ def main():
     diagnostic = json.loads(Path(__file__).with_name('diagnostics.json').read_text())
     failure = diagnostic['failure']
     report += ['', '## Reference split/retransmission finding (separate diagnostic runs)', '',
-               f"An uninstrumented {failure['direction']} run of `{failure['command']}` failed at {failure['measured_size']} B, measured message index {failure['measured_message_index']}: `{failure['error']}`. No Rust peer participated in that failure; no public listener API overrides this private limit.", '',
+               f"An uninstrumented {failure['direction']} run of `{failure['command']}` with go-raknet `{diagnostic['reference_commit'][:12]}` failed at {failure['measured_size']} B, measured message index {failure['measured_message_index']}: `{failure['error']}`. No Rust peer participated in that failure; no public listener API overrode this private limit. go-raknet `6124f52657d4` (pinned since 2026-10-24) allows 256 concurrent splits and evicts reassemblies idle for 10 s, so this finding records the former pin.", '',
                'The coordinator-approved timed matrix retains 100 small-message echoes and uses ten measured plus one readiness echo for split-message sizes on both implementations. Larger-count failures remain failures: the harness neither retries nor changes production/reference sources.', '',
                '| Direction | Diagnostic attempt | Completed split groups | Duplicate indexes after completion | Exit code |',
                '| --- | ---: | ---: | ---: | ---: |']

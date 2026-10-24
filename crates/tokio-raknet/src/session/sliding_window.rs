@@ -116,7 +116,7 @@ impl SlidingWindow {
         self.ss_thresh == 0.0 || self.cwnd <= self.ss_thresh
     }
 
-    /// go-raknet conn.go:receiveDatagram starts NAK aging with a zero RTT.
+    /// go-raknet `87a6b7e` conn.go:receiveDatagram starts NAK aging with a zero RTT.
     pub fn measured_rtt(&self) -> Duration {
         Duration::from_secs_f64(self.estimated_rtt.max(0.0) / 1000.0)
     }

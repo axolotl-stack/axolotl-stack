@@ -8,7 +8,7 @@ use crate::protocol::packet::DecodeError;
 use crate::protocol::reliability::Reliability;
 use crate::protocol::types::Sequence24;
 
-/// go-raknet conn.go:Conn.receiveSplitPacket: 512 fragments, 16 live IDs.
+/// go-raknet `87a6b7e` conn.go:Conn.receiveSplitPacket: 512 fragments, 16 live IDs.
 const MAX_SPLIT_PARTS: u32 = 512;
 const MAX_CONCURRENT_SPLITS: usize = 16;
 /// go-raknet conn.go:Conn.effectiveMTU: even a fragment must fit one UDP payload.

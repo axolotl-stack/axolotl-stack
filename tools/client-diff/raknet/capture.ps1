@@ -63,7 +63,7 @@ foreach ($name in $Scenario) {
         if (!$Table.ContainsKey($name)) { throw "Unknown scenario $name" }
         $spec = $Table[$name]
         $relay = Start-Relay $tools.Capture $RelayPort $Port $file (@('--scenario', $name, '--server', 'bds-1.26.51',
-                '--client', 'gophertunnel 80c811b/go-raknet 87a6b7e') + $spec.Relay)
+                '--client', 'gophertunnel 80c811b/go-raknet 6124f52') + $spec.Relay)
         try {
             # Linger lets go-raknet finish its close handshake (ACKs, bare 0x15)
             # instead of vanishing; client-silence models a vanished client.

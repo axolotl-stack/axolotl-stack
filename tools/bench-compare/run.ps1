@@ -103,7 +103,19 @@ try {
         try { & go build -p 8 -o $Go .; if ($LASTEXITCODE) { throw 'Go build failed' } } finally { Pop-Location }
     }
     $ParentProcess.ProcessorAffinity = $Affinity
+    # The Go reference pin is part of every Go timing; record what was built.
+    $goRaknet = (& go -C (Join-Path $PSScriptRoot 'go') list -m -f '{{.Replace.Path}} {{.Replace.Version}}' github.com/sandertv/go-raknet | Out-String).Trim()
+    if ($LASTEXITCODE -or !$goRaknet) { throw 'Could not resolve the go-raknet replacement' }
+    # Turbo boost changes absolute timings; a maximum processor state below 100% disables it.
+    $maxProcessorState = 'not recorded (non-Windows)'
+    if ($IsWindows) {
+        $powercfg = (& powercfg /query SCHEME_CURRENT SUB_PROCESSOR PROCTHROTTLEMAX | Out-String)
+        if ($powercfg -notmatch 'Current AC Power Setting Index:\s*0x([0-9a-fA-F]+)') { throw 'Could not read the maximum processor state from powercfg' }
+        $maxProcessorState = "$([Convert]::ToInt32($Matches[1], 16))%"
+    }
     $meta = @{
+        go_raknet = $goRaknet
+        max_processor_state_ac = $maxProcessorState
         utc = [DateTime]::UtcNow.ToString('o'); rounds = $Rounds; count = $Count; go_cpu = $GoCpu
         warmup_echoes = 1
         split_count = $SplitCount
