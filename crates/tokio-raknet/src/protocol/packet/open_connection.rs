@@ -13,8 +13,8 @@ use crate::protocol::{
 };
 
 /// Maximum system addresses carried by `ConnectionRequestAccepted` and
-/// `NewIncomingConnection` (Mojang `MAXIMUM_NUMBER_OF_INTERNAL_IDS`, lens
-/// RP_105:52-200; Jenkins uses 10).
+/// `NewIncomingConnection` (20 in the BDS CRA and real-client NIC captures,
+/// PARITY HS-7/HS-11; Jenkins `MAXIMUM_NUMBER_OF_INTERNAL_IDS` is 10).
 pub const MAX_SYSTEM_ADDRESSES: usize = 20;
 
 /// go-raknet `connection_request_accepted.go:UnmarshalBinary`: read up to 20

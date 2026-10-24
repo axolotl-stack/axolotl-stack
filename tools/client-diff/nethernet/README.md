@@ -13,8 +13,8 @@ interface and Windows Firewall has nothing to ask about. It needs no admin
 rights, no firewall rule, no packet-capture driver and no Xbox signaling.
 
 The client's LAN socket is a wildcard `[::]:7551` (or `0.0.0.0:7551`) that
-accepts discovery datagrams from any source address (client 1.26.50
-`LanThreadManager`, see PARITY.md rows L14-L15). That gives two paths:
+accepts discovery datagrams from any source address (see PARITY.md rows
+L14-L15). That gives two paths:
 
 | Mode | Client does | Probe does |
 |---|---|---|
@@ -29,7 +29,7 @@ gathers host candidates only on interface addresses (libwebrtc skips
 loopback), and Windows refuses datagrams from a `127.0.0.1` socket to the
 machine's own LAN address (`route`: `WSAENETUNREACH`). Expect `dial_failed` /
 `no_join` after the offer/answer exchange; the transport rows of PARITY.md
-therefore rest on binary analysis. The data-path code in the probe
+are therefore not captured. The data-path code in the probe
 (`RequestNetworkSettings`, `NetworkSettings`, packet logging) only runs if a
 future setup lets ICE connect.
 

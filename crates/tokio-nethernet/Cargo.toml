@@ -47,7 +47,7 @@ aes = { workspace = true, optional = true }
 sha2 = { workspace = true, features = ["compress"] }
 hex = { workspace = true, optional = true }
 # Interface netmasks for per-interface directed discovery broadcasts (the
-# client's `LanThreadManager` destinations); rtc-shared has no masks on Windows.
+# client's LAN request destinations); rtc-shared has no masks on Windows.
 if-addrs = { version = "0.13", optional = true }
 
 # HTTP endpoint signaling (go-nethernet endpoint package).

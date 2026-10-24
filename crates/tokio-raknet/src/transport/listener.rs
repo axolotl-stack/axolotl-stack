@@ -35,9 +35,9 @@ pub struct RaknetListenerConfig {
     /// Maximum MTU size to support/advertise.
     ///
     /// A [`TransmissionPolicy::Vanilla`](crate::session::TransmissionPolicy)
-    /// listener behaves as Bedrock Dedicated Server, whose Mojang RakNet build
-    /// has `MAXIMUM_MTU_SIZE` 1400 (lens `W4_RakPeer_ctor.c:614`,
-    /// `W5_RakPeer_ctor.c:601`). It negotiates at most `min(max_mtu, 1400)`.
+    /// listener behaves as Bedrock Dedicated Server, which grants at most
+    /// 1400 (capture `probe`, PARITY LS-1). It negotiates at most
+    /// `min(max_mtu, 1400)`.
     pub max_mtu: u16,
 
     /// Optional socket receive buffer size.

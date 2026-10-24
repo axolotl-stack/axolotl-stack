@@ -29,9 +29,8 @@ use crate::protocol::constants::{self};
 const TICK_INTERVAL: Duration = Duration::from_millis(20);
 /// go-raknet `conn.go:newConn`: the application queue grows to 4096 messages.
 pub(crate) const CLIENT_RECEIVE_QUEUE: usize = 4096;
-/// Mojang RakNet `RNS2_Berkley::RecvFromLoop` reads into a 1600-byte buffer
-/// (lens2 `SOCK_Berkley_002_RecvFromLoop.c:94`), so the Bedrock client handles
-/// datagrams up to 1600 bytes, longer than its 1492-byte MTU.
+/// The Bedrock client receives into a 1600-byte buffer, so it handles
+/// datagrams up to 1600 bytes, longer than its 1492-byte MTU (PARITY MTU-11).
 pub(crate) const VANILLA_MAX_DATAGRAM: usize = 1600;
 
 /// Configuration for a `RaknetStream`.
@@ -188,8 +187,8 @@ impl RaknetStream {
             let local = socket.local_addr()?;
 
             // Perform offline handshake using OpenConnectionRequest1/2.
-            // Vanilla: Mojang `resetMyGUID` before every connect (lens2
-            // RNC_005_connect.c:57): a fresh random GUID per dial.
+            // Vanilla: a fresh random GUID per dial, like the Bedrock client
+            // (real-client captures, PARITY HS-1).
             let client_guid = match config.transmission_policy {
                 TransmissionPolicy::Vanilla => handshake::random_guid(),
                 TransmissionPolicy::Optimized => client_guid(),
@@ -607,7 +606,7 @@ async fn run_client_muxer(socket: UdpSocket, mut context: ClientMuxerContext) {
 
                 if vanilla {
                     // Mojang's update runs when a datagram wakes the loop,
-                    // then `WaitOnEvent(10)` restarts (lens RN_005:16-29).
+                    // then the 10 ms wait restarts.
                     flush_built_datagrams(&mut managed, &socket, server, now, true, &mut send_buf)
                         .await;
                     tick.reset();

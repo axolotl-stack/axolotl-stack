@@ -4,13 +4,12 @@
 //! The policy is a plain enum matched on the hot path (no trait objects).
 //! `Optimized` keeps tokio-raknet's packing, congestion window, smoothed RTO
 //! and bounded ACK coalescing. `Vanilla` reproduces Mojang RakNet, the
-//! Jenkins RakNet 4.081 fork inside the Minecraft Bedrock client and Bedrock
+//! Jenkins RakNet fork inside the Minecraft Bedrock client and Bedrock
 //! Dedicated Server (see `PARITY.md`): message-level resends re-packed into
 //! datagrams, `CCRakNetSlidingWindow` with Mojang's changes, ACKs 10 ms after
 //! the oldest unacknowledged datagram, NAKs on gap detection and a 10 ms
-//! update cycle. Evidence references `lens` (decompiled Mojang RakNet,
-//! `raknet-truth` report) and the BDS 1.26.51 captures in
-//! `tests/captures/bds-1.26.51`.
+//! update cycle. Evidence: the BDS 1.26.51 and real-client captures in
+//! `tests/captures`.
 
 use std::time::Duration;
 
@@ -36,36 +35,35 @@ impl TransmissionPolicy {
     }
 }
 
-/// Mojang RakNet `UpdateNetworkLoop`: `RunUpdateCycle`, then
-/// `WaitOnEvent(10)`; a received datagram or an `IMMEDIATE` send wakes the
-/// loop early (lens RN_005:16-29, RP_030:108-114, RP_114:13-17).
+/// The RakNet update thread (Jenkins `UpdateNetworkLoop`): `RunUpdateCycle`,
+/// then a 10 ms wait; a received datagram or an `IMMEDIATE` send wakes the
+/// loop early.
 pub const VANILLA_TICK_INTERVAL: Duration = Duration::from_millis(10);
 /// `CCRakNetSlidingWindow::ShouldSendACKs`: SYN, the age of the oldest
-/// unacknowledged datagram before ACKs are sent (lens RL_010:407-412).
+/// unacknowledged datagram before ACKs are sent.
 pub(crate) const VANILLA_ACK_DELAY: Duration = Duration::from_millis(10);
-/// `RakPeer::RunUpdateCycle` occasional ping period (Bedrock enables
-/// `SetOccasionalPing(true)`; lens RP_113:1581-1597, RNC_000:248-257).
+/// Occasional ping period: connected peers are pinged every 5 s (PARITY
+/// KA-1, BDS and real-client captures).
 pub(crate) const VANILLA_PING_INTERVAL: Duration = Duration::from_millis(5000);
-/// `timeoutTime`: RakPeer default and Bedrock's explicit
-/// `SetTimeoutTime(10000)` (lens RP_001:1160, RNC_000:248-256). Drives the
-/// dead-connection rule and the reliable keepalive (`timeoutTime / 2`).
+/// `timeoutTime`, the Jenkins RakPeer default of 10 s (BDS capture
+/// `client-silence`: the silent client is dropped 10 s after its last
+/// datagram). Drives the dead-connection rule and the reliable keepalive
+/// (`timeoutTime / 2`).
 pub(crate) const VANILLA_TIMEOUT: Duration = Duration::from_millis(10_000);
-/// `RakPeer::RunUpdateCycle`: connections still in the online handshake are
-/// dropped this long after creation (lens RP_113:1576-1579).
+/// Connections still in the online handshake are dropped this long after
+/// creation.
 pub(crate) const VANILLA_HANDSHAKE_TIMEOUT: Duration = Duration::from_millis(10_000);
-/// `RESEND_BUFFER_ARRAY_LENGTH`: reliable messages in flight (lens RL_010:924).
+/// `RESEND_BUFFER_ARRAY_LENGTH`: reliable messages in flight.
 pub(crate) const VANILLA_RESEND_SLOTS: u32 = 512;
-/// `DATAGRAM_MESSAGE_ID_ARRAY_LENGTH`: datagram history entries (lens
-/// RL_010:1347-1430).
+/// `DATAGRAM_MESSAGE_ID_ARRAY_LENGTH`: datagram history entries.
 pub(crate) const VANILLA_HISTORY_LEN: usize = 512;
 /// `UDP_HEADER_SIZE`: subtracted from the MTU for every address family.
 pub(crate) const VANILLA_UDP_HEADER: usize = 28;
 /// `DatagramHeaderFormat::GetDataHeaderByteLength`: 72 bits reserved per
-/// datagram when packing messages and ACK/NAK ranges (lens RL_010:1033,
-/// RL_011).
+/// datagram when packing messages and ACK/NAK ranges.
 pub(crate) const VANILLA_DATAGRAM_RESERVE: usize = 9;
 /// `GetMaxMessageHeaderLengthBits`: the fragment size assumes the largest
-/// message header (RELIABLE_SEQUENCED + split, 23 bytes; lens RL_009:149).
+/// message header (RELIABLE_SEQUENCED + split, 23 bytes).
 pub(crate) const VANILLA_MAX_MESSAGE_HEADER: usize = 23;
 /// `OnGotPacket`: a gap above this rejects the datagram.
 pub(crate) const VANILLA_MAX_SKIPPED_DATAGRAMS: u32 = 50_000;
@@ -75,11 +73,12 @@ pub(crate) const VANILLA_MAX_NAKS_PER_GAP: u32 = 1000;
 /// `GetRTOForRetransmission`: `min(2·RTT + 4·deviation + 30 ms, 2000 ms)`.
 const RTO_MAX_US: f64 = 2_000_000.0;
 const RTO_ADDITIONAL_VARIANCE_US: f64 = 30_000.0;
-/// RTT EWMA gain `d` (lens RL_006:2444-2455).
+/// RTT EWMA gain `d`.
 const RTT_GAIN: f64 = 0.05;
 
 /// Largest message payload before a message is split, and the fragment
-/// payload size: `MTU - 28 - 9 - 23` = `MTU - 60` (lens RL_009:149).
+/// payload size: `MTU - 28 - 9 - 23` = `MTU - 60` (BDS and real-client
+/// captures: 1340-byte fragments at MTU 1400, PARITY REL-11).
 pub(crate) fn vanilla_max_fragment_len(mtu: usize) -> usize {
     mtu.saturating_sub(VANILLA_UDP_HEADER + VANILLA_DATAGRAM_RESERVE + VANILLA_MAX_MESSAGE_HEADER)
 }
@@ -90,7 +89,7 @@ pub(crate) fn vanilla_datagram_capacity(mtu: usize) -> usize {
     mtu.saturating_sub(VANILLA_UDP_HEADER + VANILLA_DATAGRAM_RESERVE)
 }
 
-/// Mojang's inlined `CCRakNetSlidingWindow` (lens RL_006, RL_010, RP_106).
+/// Mojang's variant of `CCRakNetSlidingWindow`.
 ///
 /// Differences from Jenkins 4.081: congestion avoidance grows the window on
 /// every ACK instead of once per congestion block, and a NAK latches the
@@ -113,8 +112,7 @@ pub(crate) struct MojangCongestion {
 }
 
 impl MojangCongestion {
-    /// `Init` inlined in `AssignSystemAddressToRemoteSystemList`: window one
-    /// MTU (minus 28), slow-start threshold 0, RTT unset (lens RP_106:152-201).
+    /// `Init`: window one MTU (minus 28), slow-start threshold 0, RTT unset.
     pub(crate) fn new(mtu: usize) -> Self {
         let mtu = mtu.saturating_sub(VANILLA_UDP_HEADER) as f64;
         Self {
@@ -168,7 +166,7 @@ impl MojangCongestion {
         Duration::from_micros(micros as u64)
     }
 
-    /// RTT update of `OnAck` (lens RL_006:2432-2462).
+    /// RTT update of `OnAck`.
     pub(crate) fn on_rtt(&mut self, rtt: Duration) {
         let rtt = rtt.as_micros() as f64;
         self.last_rtt_us = Some(rtt);
@@ -186,7 +184,7 @@ impl MojangCongestion {
     }
 
     /// Window growth of `OnAck` for an ACKed datagram, only while
-    /// continuously sending (lens RL_006:2463-2484).
+    /// continuously sending.
     pub(crate) fn on_ack(&mut self, datagram: Sequence24, next_datagram: Sequence24) {
         if !self.is_continuous_send {
             return;
@@ -206,7 +204,7 @@ impl MojangCongestion {
         }
     }
 
-    /// `OnNAK` with Mojang's block latch (lens RL_006:274-281).
+    /// `OnNAK` with Mojang's block latch.
     pub(crate) fn on_nak(&mut self, next_datagram: Sequence24) {
         if self.is_continuous_send && !self.backoff_this_block {
             self.ss_thresh = self.cwnd * 0.5;
@@ -215,7 +213,7 @@ impl MojangCongestion {
         }
     }
 
-    /// `OnResend`, once per resent message (lens RL_010:841-856).
+    /// `OnResend`, once per resent message.
     pub(crate) fn on_resend(&mut self, next_datagram: Sequence24) {
         if self.is_continuous_send && !self.backoff_this_block && self.cwnd > self.mtu * 2.0 {
             self.ss_thresh = (self.cwnd * 0.5).max(self.mtu);

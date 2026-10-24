@@ -221,10 +221,11 @@ the Login authentication:
 The client never requests or sends a Mojang-signed legacy chain (a top-level
 legacy `chain` is not a modern BDS identity token). Client-generated metadata
 uses Android `DeviceOS: 1`: BDS 1.26.51 rejects the retired UWP `DeviceOS: 7`
-in `ConnectionRequest::isWellFormed`, reporting the misleading
-`readNoHeader failed` before authentication, so caller-supplied metadata must
-also name a supported platform. The client advertises client-side chunk
-generation as disabled.
+as an invalid connection request, reporting the misleading
+`readNoHeader failed` before authentication (observed with the client-diff
+harness, `tools/client-diff/examples/rejected-login.md`), so caller-supplied
+metadata must also name a supported platform. The client advertises
+client-side chunk generation as disabled.
 
 For instrumentation or caller-built tokens, `BedrockStream<Login, Client, _>`
 also has `send_login_with_tokens(identity_key, auth_info_json,
@@ -302,11 +303,9 @@ PlayFabId). Unlike gophertunnel, `ServerAddress` is checked syntactically and
 never resolved through DNS.
 
 Online mode rejects Guest/SelfSigned authentication types, including
-Mojang-rooted legacy chains, which gophertunnel still accepts. Evidence: BDS
-1.26.51's `bedrock_server.exe` contains neither the Mojang root key (base64 SPKI
-or DER bytes) nor the `identityPublicKey`, `extraData` or `certificateAuthority`
-claim names, while it does contain `cpk`, `xname`, `leguuid` and the
-multiplayer audience; vanilla servers therefore only authenticate the `Token`.
+Mojang-rooted legacy chains, which gophertunnel still accepts: BDS 1.26.51 no
+longer carries the Mojang root key, so vanilla servers only authenticate the
+`Token`.
 Legacy chains are parsed for offline logins only and never authenticate.
 
 Provider discovery and claim conventions follow

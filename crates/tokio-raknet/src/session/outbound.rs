@@ -75,7 +75,7 @@ impl Session {
 
     /// Build the next DATA datagram to send, if any, respecting MTU and sliding window.
     ///
-    /// Vanilla datagrams come from Mojang's update, which also emits due
+    /// Vanilla datagrams come from the Mojang-style update, which also emits due
     /// ACK/NAK datagrams: this returns whatever that update built next.
     pub fn build_data_datagram(&mut self, now: Instant) -> Option<Datagram> {
         if self.is_vanilla() {
@@ -216,8 +216,8 @@ impl Session {
     /// Uses the actual header footprint for the reliability/flags instead of worst-case.
     fn max_encapsulated_payload_len(&self, reliability: Reliability, is_split: bool) -> usize {
         if self.is_vanilla() {
-            // Mojang `ReliabilityLayer::Send`: one threshold and fragment
-            // size for every reliability.
+            // Mojang RakNet: one threshold and fragment size for every
+            // reliability (PARITY REL-11).
             return super::policy::vanilla_max_fragment_len(self.mtu);
         }
         let header = self.encapsulated_header_overhead(reliability, is_split);
@@ -272,8 +272,8 @@ impl Session {
             None
         };
 
-        // Vanilla assigns message numbers when a message is sent (Mojang
-        // `ReliabilityLayer::Update`), so they follow transmission order.
+        // Vanilla assigns message numbers when a message is sent (in the
+        // update), so they follow transmission order.
         let reliable_index = if reliability.is_reliable() && !self.is_vanilla() {
             Some(self.next_reliable_index())
         } else {
@@ -296,8 +296,7 @@ impl Session {
         if reliability.is_reliable() { size } else { 0 }
     }
 
-    /// Split messages are sent reliably (both policies; Mojang
-    /// `ReliabilityLayer::Send`, lens RL_009:169-176).
+    /// Split messages are sent reliably (both policies; PARITY REL-5).
     fn normalize_reliability_for_split(&self, reliability: Reliability) -> Reliability {
         match reliability {
             Reliability::Unreliable => Reliability::Reliable,

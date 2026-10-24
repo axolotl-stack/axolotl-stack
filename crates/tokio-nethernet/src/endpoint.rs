@@ -271,7 +271,7 @@ impl Signaling for Client {
                     .body(signal.data)
                     .send()
                     .await?;
-                // The real client's HttpSignalingClient accepts any 2xx
+                // The real client's HTTP signaling accepts any 2xx
                 // (go-nethernet endpoint/client.go requires exactly 200).
                 anyhow::ensure!(
                     response.status().is_success(),
@@ -916,7 +916,7 @@ mod tests {
         }
     }
 
-    /// The real client's `HttpSignalingClient` treats any 2xx as an answer;
+    /// The real client's HTTP signaling treats any 2xx as an answer;
     /// only exactly 200 used to be accepted. Non-2xx statuses still fail.
     #[tokio::test]
     async fn client_accepts_any_success_status() {

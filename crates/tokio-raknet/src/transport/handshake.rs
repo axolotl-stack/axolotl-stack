@@ -5,15 +5,13 @@
 //! time, received datagrams and socket errors, so the timing rules are
 //! unit-testable without sockets.
 //!
-//! - **Vanilla** is the Minecraft Bedrock client: Mojang RakNet
-//!   `RakPeer::Connect` with Bedrock's arguments (12 attempts, 500 ms,
-//!   timeoutTime 0; lens2 `RNC_005_connect.c:147-150`).
-//!   `RakPeer::RunUpdateCycle` (lens `RP_113:953-1068`) sends 13
-//!   `OpenConnectionRequest1` 500 ms apart, four per size, and the attempt
-//!   fails when a fourteenth would be due (`RP_113:971-972,1230-1240`).
+//! - **Vanilla** is the Minecraft Bedrock client (Mojang RakNet): 12
+//!   connection attempts 500 ms apart and no extra timeout, which sends 13
+//!   `OpenConnectionRequest1` 500 ms apart, four per size, and fails the
+//!   attempt when a fourteenth would be due (PARITY MTU-2).
 //!   Probing continues after a Reply1 until Reply2 arrives; every Reply1 is
 //!   answered by exactly one Request2 and there is no separate Request2 timer
-//!   (`ProcessOfflineNetworkPacket`, lens2 `RN_006:1253-1307,3065-3127`).
+//!   (PARITY MTU-4, MTU-9).
 //!   Replies need the offline magic and every field they are read for;
 //!   anything else is dropped (Jenkins `RakPeer.cpp:4581-4627,5449-5469`).
 //! - **Optimized** keeps lunar-bedrock/go-raknet `87a6b7e` `dial.go`'s schedule
@@ -43,20 +41,18 @@ use crate::session::TransmissionPolicy;
 use crate::transport::stream::VANILLA_MAX_DATAGRAM;
 
 /// Probes per MTU size. Optimized: go-raknet `dial.go:request1`. Vanilla:
-/// Mojang `sendConnectionAttemptCount / NUM_MTU_SIZES` = 12 / 3 (lens
-/// `RP_113:953-1068`).
+/// 12 connection attempts over 3 sizes (real-client captures: 4×1492, then
+/// 4×1200, PARITY MTU-1).
 pub(crate) const PROBE_ATTEMPTS: usize = 4;
 /// Time between probes. Optimized: go-raknet's connection-state ticker.
-/// Vanilla: Bedrock's `timeBetweenSendConnectionAttemptsMS` (lens2
-/// `RNC_005_connect.c:147-150`).
+/// Vanilla: the Bedrock client's 500 ms (real-client capture `mtu-576`).
 pub(crate) const RETRY_INTERVAL: Duration = Duration::from_millis(500);
-/// Mojang RakNet: Bedrock's `sendConnectionAttemptCount` (lens2
-/// `RNC_005_connect.c:147-150`). `RunUpdateCycle` sends while
-/// `requestsMade != attempts + 1`, i.e. 13 probes (lens `RP_113:971-972`).
+/// Bedrock's connection attempt count. Probes are sent while
+/// `requestsMade != attempts + 1`, i.e. 13 probes (PARITY MTU-2).
 const VANILLA_CONNECTION_ATTEMPTS: usize = 12;
-/// RakNet `defaultMTUSize` = `mtuSizes[NUM_MTU_SIZES - 1]` = 576 (Mojang lens
-/// `RP_001:565`, Jenkins `RakPeer.cpp:100-104,206`; go-raknet
-/// `minSupportedMTU`): the smallest probe and Mojang's connection MTU floor.
+/// RakNet `defaultMTUSize` = `mtuSizes[NUM_MTU_SIZES - 1]` = 576 (Jenkins
+/// `RakPeer.cpp:100-104,206`; go-raknet `minSupportedMTU`): the smallest probe
+/// and Mojang's connection MTU floor.
 const DEFAULT_MTU_SIZE: u16 = 576;
 /// `EMSGSIZE` as reported by the socket layer: `WSAEMSGSIZE` (10040) on
 /// Windows, 90 on Linux/Android, 40 on Apple platforms and the BSDs.
@@ -100,8 +96,8 @@ enum Phase {
     Done(OfflineHandshake),
 }
 
-/// Probe sizes: Jenkins/Mojang `mtuSizes = {MAXIMUM_MTU_SIZE, 1200, 576}`
-/// (Jenkins `RakPeer.cpp:100-104`; Mojang `mtuSizes[0..1]` inferred, lens section 1b)
+/// Probe sizes: Jenkins `mtuSizes = {MAXIMUM_MTU_SIZE, 1200, 576}`
+/// (`RakPeer.cpp:100-104`; the real-client captures show 1492, 1200, 576)
 /// and go-raknet `dial.go:mtuSizesFor`. The configured cap (clamped to
 /// 576..=1492) replaces the largest entry and only smaller entries follow it.
 pub(crate) fn probe_sizes(cap: u16) -> Vec<u16> {
@@ -115,23 +111,20 @@ pub(crate) fn probe_sizes(cap: u16) -> Vec<u16> {
     sizes
 }
 
-/// Mojang RakNet: `RakNetConnector::connect` calls `resetMyGUID` before every
-/// `RakPeer::Connect` (lens2 `RNC_005_connect.c:57`), so every Vanilla dial
-/// uses a fresh random GUID; `transport::ping` uses one per ping as well.
-/// Bedrock replaces RakNet's generator with `Crypto::Random::generateUUID64Bit`
-/// (lens `RakNetConnector::RakNetConnector`, rva 0x5a4f1e0), whose body lens
-/// cannot show. The sign comes from observation: go-raknet rejects
-/// non-negative client GUIDs because "vanilla clients always provide a
-/// negative ClientGUID" (`6124f52` `handler.go:143-146`), and the Optimized listener
-/// keeps that check, so the GUID is random with the sign bit set.
+/// Every Vanilla dial uses a fresh random GUID, as the Bedrock client does
+/// (real-client captures, PARITY HS-1); `transport::ping` uses one per ping as
+/// well. The sign comes from observation: the captured client GUIDs are all
+/// negative, and go-raknet rejects non-negative client GUIDs because
+/// "vanilla clients always provide a negative ClientGUID" (`6124f52`
+/// `handler.go:143-146`), a check the Optimized listener keeps, so the GUID is
+/// random with the sign bit set.
 pub(crate) fn random_guid() -> u64 {
     use std::hash::BuildHasher;
     // Every `RandomState` gets distinct SipHash keys.
     std::collections::hash_map::RandomState::new().hash_one(Instant::now()) | (1 << 63)
 }
 
-/// Mojang RakNet `AssignSystemAddressToRemoteSystemList` (lens
-/// `RP_106:120-137`; client builds cap at 1492, `W3/W6/W7_AssignSystemAddress`):
+/// Mojang RakNet's connection MTU (PARITY MTU-8; the client caps at 1492):
 /// `max(defaultMTUSize, clamp(mtu, MINIMUM_MTU_SIZE, MAXIMUM_MTU_SIZE))`.
 fn vanilla_connection_mtu(mtu: u16) -> u16 {
     mtu.clamp(MINIMUM_MTU_SIZE, MAXIMUM_MTU_SIZE)
@@ -160,20 +153,18 @@ fn discovery_timed_out() -> RaknetError {
     .into()
 }
 
-/// Mojang/Jenkins `ProcessOfflineNetworkPacket` offline gate for Reply1,
+/// Jenkins `ProcessOfflineNetworkPacket` offline gate for Reply1,
 /// Reply2 and the connection-failure IDs: at least `ID + magic + GUID` (25
-/// bytes) with the magic right after the ID (Jenkins `RakPeer.cpp:4604-4618`;
-/// lens2 `RN_006` gate, same 25-byte bound). Anything else is not an offline
-/// message and, without a connection, is dropped (`RakPeer.cpp:5449-5469`).
+/// bytes) with the magic right after the ID (`RakPeer.cpp:4604-4618`).
+/// Anything else is not an offline message and, without a connection, is
+/// dropped (`RakPeer.cpp:5449-5469`).
 fn is_offline_message(data: &[u8]) -> bool {
     data.len() >= 25 && data[1..17] == DEFAULT_UNCONNECTED_MAGIC
 }
 
-/// Mojang RakNet Reply1 read (lens2 `RN_006:1253-1307,3065-3127`; Jenkins
-/// `RakPeer.cpp:4737-4866`): GUID, security byte, `u32` cookie when the byte
-/// is non-zero, `u16` MTU. Returns the cookie to echo and the MTU as read. The
-/// decompiled reads are unchecked (a short reply leaves the fields
-/// uninitialised), so a reply without all of them is dropped.
+/// Reply1 read (Jenkins `RakPeer.cpp:4737-4866`): GUID, security byte, `u32`
+/// cookie when the byte is non-zero, `u16` MTU. Returns the cookie to echo and
+/// the MTU as read. A reply without all of these fields is dropped.
 fn parse_reply1_mojang(data: &[u8]) -> Option<(Option<u32>, u16)> {
     let security = *data.get(25)? != 0;
     let (cookie, mtu_at) = if security {
@@ -186,7 +177,7 @@ fn parse_reply1_mojang(data: &[u8]) -> Option<(Option<u32>, u16)> {
     Some((cookie, mtu))
 }
 
-/// Mojang RakNet Reply2 read (lens2 `RN_006:2346-2400`): GUID, system address,
+/// Reply2 read: GUID, system address,
 /// `u16` MTU and one security bit, each read checked; a failed read drops the
 /// reply. A system address is tag `4` plus 6 bytes or any other tag plus a
 /// 28-byte `sockaddr_in6` ([INFERENCE] Jenkins `BitStream::Read(SystemAddress&)`,
@@ -220,7 +211,7 @@ pub(crate) struct ClientHandshake {
     server: SocketAddr,
     guid: u64,
     probes: Vec<u16>,
-    /// Probes sent so far (Mojang `requestsMade`).
+    /// Probes sent so far (Jenkins `requestsMade`).
     sent_probes: usize,
     delivered_probes: usize,
     next_probe_at: Instant,
@@ -268,8 +259,8 @@ impl ClientHandshake {
         self.probes.len() * PROBE_ATTEMPTS
     }
 
-    /// Mojang `RunUpdateCycle`: size index `requestsMade / 4`, capped at the
-    /// last size (lens `RP_113:953-1068`).
+    /// Vanilla probe size index: `requestsMade / 4`, capped at the last size
+    /// (PARITY MTU-2).
     fn vanilla_size_index(&self, request: usize) -> usize {
         (request / PROBE_ATTEMPTS).min(self.probes.len() - 1)
     }
@@ -297,7 +288,7 @@ impl ClientHandshake {
 
     /// Fail the attempt once its schedule is exhausted. Vanilla: Mojang emits
     /// `ID_CONNECTION_ATTEMPT_FAILED` when the probe after the thirteenth
-    /// would be due without a Reply2 (lens `RP_113:971-972,1230-1240`).
+    /// would be due without a Reply2 (PARITY MTU-2).
     /// Optimized is bounded by the caller's connection timeout only.
     pub(crate) fn handle_timeout(&self, now: Instant) -> Result<(), RaknetError> {
         if self.policy.is_vanilla()
@@ -346,7 +337,7 @@ impl ClientHandshake {
         }
     }
 
-    /// Mojang `RunUpdateCycle` (lens `RP_113:953-1068`): while no Reply2
+    /// Vanilla probing (PARITY MTU-2): while no Reply2
     /// arrived, send probe `requestsMade` (0..=12) when due, then
     /// `nextRequestTime = now + 500 ms`.
     fn poll_vanilla_probe(&mut self, now: Instant) -> Option<Transmit> {
@@ -391,10 +382,9 @@ impl ClientHandshake {
         error: std::io::Error,
     ) -> Result<(), RaknetError> {
         if self.policy.is_vanilla() {
-            // Mojang RunUpdateCycle (lens RP_113:1197-1221, Jenkins
-            // RakPeer.cpp:5791-5813): EMSGSIZE moves `requestsMade` to the
-            // next size block and sends now; other errors keep the cadence.
-            // Request2 send results are ignored (lens2 RN_006:3065-3127).
+            // Vanilla (PARITY MTU-7; Jenkins RakPeer.cpp:5791-5813): EMSGSIZE
+            // moves `requestsMade` to the next size block and sends now; other
+            // errors keep the cadence. Request2 send results are ignored.
             if let TransmitKind::Probe(index) = kind
                 && error.raw_os_error() == Some(EMSGSIZE)
             {
@@ -462,8 +452,8 @@ impl ClientHandshake {
         }
     }
 
-    /// Mojang `ProcessOfflineNetworkPacket` while the connection attempt is
-    /// pending (until Reply2).
+    /// Vanilla offline replies while the connection attempt is pending (until
+    /// Reply2).
     fn on_vanilla_datagram(&mut self, id: u8, data: &[u8]) -> Result<(), RaknetError> {
         if !matches!(self.phase, Phase::Discovery) {
             return Ok(());
@@ -471,7 +461,7 @@ impl ClientHandshake {
         match id {
             // Every Reply1, including late replies to larger probes, gets one
             // Request2 with its MTU as read and its cookie followed by a zero
-            // "no challenge" byte (lens2 RN_006:1253-1307,3065-3127).
+            // "no challenge" byte (PARITY MTU-4).
             0x06 if is_offline_message(data) => match parse_reply1_mojang(data) {
                 Some((cookie, mtu)) => {
                     let request2 = self.request2(mtu, cookie);
@@ -480,7 +470,7 @@ impl ClientHandshake {
                 None => tracing::debug!("dropping truncated OpenConnectionReply1"),
             },
             // Reply2 is accepted while the attempt is pending, with or
-            // without an earlier Reply1 (lens2 RN_006:2346-2647).
+            // without an earlier Reply1 (PARITY MTU-8).
             0x08 if is_offline_message(data) => match parse_reply2_mojang(data) {
                 Some((server_guid, mtu, security)) => {
                     self.phase = Phase::Done(OfflineHandshake {
@@ -555,7 +545,7 @@ impl ClientHandshake {
 
     /// `OpenConnectionRequest1`: ID, magic, protocol `11` and zero padding up
     /// to `mtu` minus the UDP/IP headers. Vanilla pads to `mtu - 28` for both
-    /// families (Mojang lens `RP_113:953-1068`, Jenkins `RakPeer.cpp:5758-5761`);
+    /// families (real-client capture `baseline`, Jenkins `RakPeer.cpp:5758-5761`);
     /// Optimized accounts for the 40-byte IPv6 header.
     fn request1(&self, mtu: u16) -> Bytes {
         let ip_header = if self.policy.is_vanilla() || self.server.is_ipv4() {
@@ -574,8 +564,8 @@ impl ClientHandshake {
 
     /// `OpenConnectionRequest2`: magic, [cookie, `0` = no challenge], the
     /// dialed server address in RakNet's standard layout (IPv4 inverted; IPv6
-    /// tag `6` + `sockaddr_in6`), MTU, own GUID (Mojang lens2
-    /// `RN_006:3065-3127`; Jenkins `RakPeer.cpp:4757-4853`).
+    /// tag `6` + `sockaddr_in6`), MTU, own GUID (PARITY HS-2; Jenkins
+    /// `RakPeer.cpp:4757-4853`).
     fn request2(&self, mtu: u16, cookie: Option<u32>) -> Bytes {
         let request = OpenConnectionRequest2 {
             magic: DEFAULT_UNCONNECTED_MAGIC,
@@ -612,7 +602,7 @@ pub(crate) async fn perform(
         max_transient_errors,
         Instant::now(),
     );
-    // Vanilla: Mojang's 1600-byte recvfrom buffer (lens section 13); one extra byte
+    // Vanilla: the Bedrock client's 1600-byte receive buffer; one extra byte
     // detects (and drops) longer datagrams where the OS truncates. Optimized:
     // go-raknet dial.go reads offline replies into a maxMTUSize buffer.
     let (max_datagram, buffer_len) = if policy.is_vanilla() {
@@ -785,7 +775,7 @@ mod tests {
         }
     }
 
-    /// MTU-2: Mojang `RunUpdateCycle` with Bedrock's 12 attempts / 500 ms:
+    /// MTU-2: Bedrock's 12 attempts / 500 ms:
     /// 13 probes at 0..=6 s (index `requestsMade / 4`, capped at the last
     /// size), then the attempt fails when the fourteenth would be due.
     #[test]
@@ -1103,7 +1093,7 @@ mod tests {
         assert_eq!(sent(&mut optimized, start).remove(0).bytes.len(), 1200 - 28);
     }
 
-    /// MTU-7: Mojang `RunUpdateCycle` (lens RP_113:1197-1221): EMSGSIZE sets
+    /// MTU-7: EMSGSIZE sets
     /// `requestsMade` to the start of the next size block and sends now.
     #[test]
     fn vanilla_probe_emsgsize_skips_to_next_size() {
@@ -1133,7 +1123,7 @@ mod tests {
         assert!(hs.handle_timeout(last).is_err());
     }
 
-    /// MTU-8: Mojang `AssignSystemAddressToRemoteSystemList`:
+    /// MTU-8: Mojang's connection MTU
     /// `max(576, clamp(mtu, 400, 1492))`; GUID and security not validated.
     #[test]
     fn vanilla_reply2_mtu_is_clamped_like_mojang() {
@@ -1161,7 +1151,7 @@ mod tests {
     }
 
     /// MTU-8: Mojang accepts a Reply2 while the attempt is pending, with or
-    /// without an earlier Reply1 (lens2 RN_006:2346-2647). Its security flag
+    /// without an earlier Reply1. Its security flag
     /// is a single bit (the first of the last byte).
     #[test]
     fn vanilla_reply2_is_accepted_without_reply1() {
@@ -1217,8 +1207,8 @@ mod tests {
     }
 
     /// HS-2: Request2 for a secured server: magic, cookie, `0` (no
-    /// challenge), inverted IPv4 address, MTU, GUID (Mojang lens2
-    /// RN_006:3065-3127; go-raknet `OpenConnectionRequest2.MarshalBinary`).
+    /// challenge), inverted IPv4 address, MTU, GUID (go-raknet
+    /// `OpenConnectionRequest2.MarshalBinary`).
     #[test]
     fn request2_bytes_match_go_layout() {
         let start = Instant::now();
@@ -1283,7 +1273,7 @@ mod tests {
         );
     }
 
-    /// HS-1: Mojang `resetMyGUID` before every connect: each dial gets a fresh
+    /// HS-1: like the Bedrock client, each dial gets a fresh
     /// random GUID, negative like real Bedrock clients'.
     #[test]
     fn vanilla_guids_are_random_negative_per_dial() {

@@ -38,7 +38,7 @@ use tokio_nethernet::{
     NetherNetStream, Signal, Signaling, SignalingChannel, TransportConfig,
 };
 
-/// The client's fixed LAN discovery port (`NetherNetTransportFactory` config).
+/// The client's fixed LAN discovery port.
 const CLIENT_LAN: SocketAddr = SocketAddr::new(IpAddr::V4(Ipv4Addr::LOCALHOST), 7551);
 /// Bedrock 1.26.51 protocol (RequestNetworkSettings and the server data).
 const PROTOCOL: i32 = 2193;

@@ -23,8 +23,8 @@ pub async fn ping(server: SocketAddr) -> Result<Bytes, RaknetError> {
 }
 
 /// go-raknet `Dialer.PingContext`: one 33-byte `UnconnectedPing` carrying a
-/// fresh random client GUID (as the Mojang client's per-connect
-/// `resetMyGUID`), then the first datagram from the server must be an
+/// fresh random client GUID (as the Bedrock client uses a fresh GUID per
+/// connect, PARITY HS-1), then the first datagram from the server must be an
 /// `UnconnectedPong`.
 pub async fn ping_with_timeout(
     server: SocketAddr,
