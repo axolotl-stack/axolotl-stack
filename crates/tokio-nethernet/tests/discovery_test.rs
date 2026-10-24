@@ -164,19 +164,25 @@ async fn test_discovery_connect_flow() {
     assert!(received.reliable);
 }
 
-/// Delegates to a client `DiscoveryListener` and records every inbound signal.
+/// Delegates to a client `DiscoveryListener` (including its trickle policy)
+/// and records every outbound signal; inbound ones are recorded by the test.
 struct Recording {
     inner: std::sync::Arc<DiscoveryListener>,
+    sent: std::sync::Arc<tokio::sync::Mutex<Vec<tokio_nethernet::Signal>>>,
     receiver: tokio::sync::Mutex<Option<tokio::sync::mpsc::Receiver<tokio_nethernet::Signal>>>,
 }
 
 #[async_trait::async_trait]
 impl tokio_nethernet::Signaling for Recording {
     async fn signal(&self, signal: tokio_nethernet::Signal) -> anyhow::Result<()> {
+        self.sent.lock().await.push(signal.clone());
         self.inner.signal(signal).await
     }
     fn network_id(&self) -> String {
         tokio_nethernet::Signaling::network_id(&*self.inner)
+    }
+    fn disable_trickle_ice(&self) -> bool {
+        tokio_nethernet::Signaling::disable_trickle_ice(&*self.inner)
     }
     fn requires_identity(&self) -> bool {
         false
@@ -192,11 +198,11 @@ impl tokio_nethernet::SignalingChannel for Recording {
     }
 }
 
-/// A vanilla LAN host answers without trickle ICE: every candidate is inline
-/// in `CONNECTRESPONSE` and no `CANDIDATEADD` follows, while the dialer
-/// still trickles its own candidates.
+/// LAN negotiation is non-trickle both ways, as the 1.26.52 client and BDS
+/// do: the offer and the answer carry every candidate inline and no
+/// `CANDIDATEADD` is sent in either direction.
 #[tokio::test]
-async fn lan_listener_answers_with_inline_candidates() {
+async fn lan_offers_and_answers_carry_inline_candidates() {
     use tokio_nethernet::{NetherNetDialer, NetherNetDialerConfig, SignalType, TransportConfig};
 
     let server = DiscoveryListener::bind(
@@ -249,9 +255,11 @@ async fn lan_listener_answers_with_inline_candidates() {
             ..Default::default()
         },
     );
+    let sent = std::sync::Arc::new(tokio::sync::Mutex::new(Vec::new()));
     let dialer = NetherNetDialer::connect_with_signaling(
         Recording {
             inner: client,
+            sent: sent.clone(),
             receiver: tokio::sync::Mutex::new(Some(receiver)),
         },
         NetherNetDialerConfig {
@@ -266,24 +274,30 @@ async fn lan_listener_answers_with_inline_candidates() {
     .await
     .expect("LAN connection deadline")
     .expect("LAN negotiation");
-    // Let any trickled candidate that would follow the answer arrive.
+    // Let any trickled candidate that would follow the descriptions arrive.
     tokio::time::sleep(Duration::from_millis(200)).await;
-    let observed = observed.lock().await;
-    let answer = observed
-        .iter()
-        .find(|signal| signal.typ == SignalType::Answer)
-        .expect("CONNECTRESPONSE");
-    assert!(
-        answer.data.contains("a=candidate:"),
-        "answer must carry its candidates: {}",
-        answer.data
-    );
-    assert!(
-        observed
+    let received = observed.lock().await;
+    let sent = sent.lock().await;
+    for (typ, signals) in [
+        (SignalType::Offer, &*sent),
+        (SignalType::Answer, &*received),
+    ] {
+        let description = signals
             .iter()
-            .all(|signal| signal.typ != SignalType::Candidate),
-        "LAN host must not trickle: {observed:?}"
-    );
+            .find(|signal| signal.typ == typ)
+            .expect("description");
+        assert!(
+            description.data.contains("a=candidate:"),
+            "{typ} must carry its candidates: {}",
+            description.data
+        );
+        assert!(
+            signals
+                .iter()
+                .all(|signal| signal.typ != SignalType::Candidate),
+            "LAN peers must not trickle: {signals:?}"
+        );
+    }
 }
 
 /// The client sends discovery requests only while browsing, never while it

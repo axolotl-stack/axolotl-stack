@@ -450,10 +450,12 @@ impl Signaling for DiscoveryListener {
         self.config.network_id.to_string()
     }
 
-    /// The client's LAN host answers every LAN-channel offer without trickle
-    /// (`noTrickle = channel != 0`): all candidates inline in
-    /// `CONNECTRESPONSE`, no `CANDIDATEADD`. Offers still trickle.
-    fn disable_trickle_ice_for_answer(&self) -> bool {
+    /// LAN negotiation is non-trickle in both directions: the client's LAN
+    /// host answers every LAN-channel offer without trickle (`noTrickle =
+    /// channel != 0`), and the 1.26.52 client's LAN offer carries all its
+    /// host candidates inline and is never followed by `CANDIDATEADD`
+    /// (real-client capture, PARITY.md N1/N7).
+    fn disable_trickle_ice(&self) -> bool {
         true
     }
 
