@@ -16,3 +16,11 @@ otherwise.
 Evidence rule: nothing committed references decompilation (no tool names, addresses or
 recovered symbols). Repo text describes behaviour and cites observed captures, public
 Mojang documentation, public data sets or open-source code.
+
+## Worldgen (2026-10-24, later the same day)
+
+| # | Decision |
+|---|---|
+| D6 | Worldgen is ahead-of-time compiled end to end. Density functions already are; surface rules/builders, carvers, placed/configured features, feature rules, and structures (sets, placement, templates, jigsaw pools) are compiled from their data at build time into straight-line Rust, the way `unastar_noise` does today. For worldgen this overrides D2's "no per-entry generated code": the goal is the most efficient generator possible. A later addon/WASM overlay may use an interpreted path for extra content, but vanilla is compiled. |
+| D7 | unastar ships two overworld generators: **Java-style** (Java Edition parity, the existing `unastar_noise` design finished to 100 %: terrain, biomes, surface rules, carvers, features, structures) and **Bedrock-style** (BDS 1.26.51 parity: the shared Java noise core with Bedrock seeding/biomes where they differ, Bedrock surface builders, feature rules/features, carvers and structures from the BDS install). Both share one generator trait, chunk pipeline, AOT toolchain and caches; the world config picks one. Finishing the Java-style generator comes first. |
+| D8 | Each generator is gated by reference fixtures from its own truth source: a Java Edition server (run locally, loopback only) for Java-style, and the shared BDS runtime for Bedrock-style. Parity metrics ratchet: a change may only raise them. Performance is measured (ms/chunk, allocations) and ratchets too. |
