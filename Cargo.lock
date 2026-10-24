@@ -5375,6 +5375,7 @@ dependencies = [
 name = "unastar_noise"
 version = "0.1.0"
 dependencies = [
+ "md-5",
  "prettyplease",
  "proc-macro2",
  "quote",

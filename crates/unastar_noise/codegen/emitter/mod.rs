@@ -10,6 +10,7 @@ pub mod biome_features;
 pub mod emitter_quote;
 pub mod java_blocks;
 pub mod noise;
+pub mod settings;
 pub mod surface_rule;
 
 use super::analyzer::DependencyGraph;
@@ -49,6 +50,14 @@ impl GeneratedModules {
         Ok(())
     }
 
+    /// Write `tokens` to `<name>.rs` and glob re-export it at the crate root (for modules
+    /// the router code refers to unqualified).
+    pub fn glob(&mut self, name: &str, tokens: TokenStream) -> Result<(), String> {
+        self.write(name, tokens)?;
+        self.glob_existing(name);
+        Ok(())
+    }
+
     /// Glob re-export a module an older emitter wrote itself.
     pub fn glob_existing(&mut self, name: &str) {
         self.declarations
@@ -80,13 +89,17 @@ impl GeneratedModules {
 pub fn emit_all(output_dir: &Path, inputs: &Inputs<'_>) -> Result<(), Box<dyn std::error::Error>> {
     let mut modules = GeneratedModules::new(output_dir);
 
-    noise::emit_noise_params(output_dir, inputs.noises)?;
-    modules.glob_existing("noise_params");
+    modules.glob("noise_params", noise::emit_noise_params(inputs.noises)?)?;
+    modules.public("random_hashes", noise::emit_random_hashes())?;
 
     let overworld = inputs
         .noise_settings
         .get("minecraft:overworld")
         .ok_or("noise_settings/overworld.json is missing")?;
+    modules.public(
+        "overworld_settings",
+        settings::emit(overworld, inputs.density_functions, inputs.java_blocks)?,
+    )?;
 
     // Overworld router, AOT compiled.
     let router = &overworld.noise_router;

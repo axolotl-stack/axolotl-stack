@@ -428,12 +428,9 @@ impl<'a, F: FluidPicker> NoiseBasedAquifer<'a, F> {
         let skip_grid_y = grid_y(adjusted_surface + 12) + 1; // Java: gridY(p + 12) - -1
         let skip_sampling_above_y = from_grid_y(skip_grid_y, Y_SPACING - 1) - 1; // Java: fromGridY(q, 11) - 1
 
-        // Create positional random factory from seed
-        // Java: this.positionalRandomFactory = positionalRandomFactory (passed from RandomState)
-        // Java derives aquifer random via: this.random.fromHashOf("minecraft:aquifer").forkPositional()
-        // where this.random is already a PositionalRandomFactory from world seed
-        let base_random = PositionalRandomFactory::new(seed);
-        let positional_random = base_random.fork_aquifer_random();
+        // `fromHashOf("minecraft:aquifer").forkPositional()` of the world's base factory.
+        let positional_random = PositionalRandomFactory::new(seed)
+            .fork_from_hash(unastar_noise::random_hashes::AQUIFER);
 
         Self {
             noises,

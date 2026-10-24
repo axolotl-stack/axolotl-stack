@@ -59,10 +59,9 @@ impl JavaGenerator {
         let surface_rule = build_vanilla_surface_rule(seed);
         let surface_system = SurfaceSystem::new(seed, surface_rule, biome_noise.clone());
 
-        // Create positional random factory for ore vein generation
-        // Java: this.oreRandom = this.random.fromHashOf("minecraft:ore").forkPositional()
-        let base_random = PositionalRandomFactory::new(seed);
-        let ore_random = base_random.fork_ore_random();
+        // `fromHashOf("minecraft:ore").forkPositional()` of the world's base factory.
+        let ore_random =
+            PositionalRandomFactory::new(seed).fork_from_hash(unastar_noise::random_hashes::ORE);
 
         Self {
             seed,

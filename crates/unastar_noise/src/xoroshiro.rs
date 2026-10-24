@@ -188,28 +188,16 @@ pub fn get_seed(x: i32, y: i32, z: i32) -> i64 {
     l >> 16
 }
 
-/// Positional random factory for creating position-dependent RNGs.
-/// This matches Java's `XoroshiroRandomSource.XoroshiroPositionalRandomFactory`.
+/// Positional random factory for creating position-dependent RNGs (Java's Xoroshiro
+/// positional random factory).
 #[derive(Debug, Clone)]
 pub struct PositionalRandomFactory {
     seed_lo: i64,
     seed_hi: i64,
 }
 
-// MD5 hash of "minecraft:aquifer" - precomputed for performance.
-// Java: RandomSupport.seedFromHashOf("minecraft:aquifer")
-const AQUIFER_HASH_LO: i64 = 0x7bb15cc403c6ace6_u64 as i64;
-const AQUIFER_HASH_HI: i64 = 0x0bdd56bc9d232691_u64 as i64;
-
-// MD5 hash of "minecraft:ore" - precomputed for performance.
-// Java: RandomSupport.seedFromHashOf("minecraft:ore")
-// MD5("minecraft:ore") = 9b88124de600116d2ae68055aa4a7761
-const ORE_HASH_LO: i64 = 0x9b88124de600116d_u64 as i64;
-const ORE_HASH_HI: i64 = 0x2ae68055aa4a7761_u64 as i64;
-
 impl PositionalRandomFactory {
-    /// Create a new positional random factory from a world seed.
-    /// This matches Java's `RandomSource.create(seed).forkPositional()`.
+    /// The world's base factory: `Xoroshiro128::from_seed(seed)` forked positionally.
     pub fn new(seed: i64) -> Self {
         let mut rng = Xoroshiro128::from_seed(seed);
         let seed_lo = rng.next_long() as i64;
@@ -222,8 +210,7 @@ impl PositionalRandomFactory {
         Self { seed_lo, seed_hi }
     }
 
-    /// Create a random source at the given position.
-    /// This matches Java's `positionalRandomFactory.at(x, y, z)`.
+    /// Random source for a block position (`at(x, y, z)`).
     #[inline]
     pub fn at(&self, x: i32, y: i32, z: i32) -> Xoroshiro128 {
         let l = get_seed(x, y, z);
@@ -231,50 +218,18 @@ impl PositionalRandomFactory {
         Xoroshiro128::from_state(m as u64, self.seed_hi as u64)
     }
 
-    /// Create a Xoroshiro128 RNG from a hash of the given string, XOR'd with our seeds.
-    /// This matches Java's `PositionalRandomFactory.fromHashOf(String)`.
-    ///
-    /// Java implementation:
-    /// ```java
-    /// public RandomSource fromHashOf(String string) {
-    ///     RandomSupport.Seed128bit seed128bit = RandomSupport.seedFromHashOf(string);
-    ///     return new XoroshiroRandomSource(seed128bit.xor(this.seedLo, this.seedHi));
-    /// }
-    /// ```
-    pub fn from_hash_of_aquifer(&self) -> Xoroshiro128 {
-        // XOR the precomputed MD5 hash with our seeds
-        let lo = AQUIFER_HASH_LO ^ self.seed_lo;
-        let hi = AQUIFER_HASH_HI ^ self.seed_hi;
-        Xoroshiro128::from_state(lo as u64, hi as u64)
+    /// Named random stream (`fromHashOf(name)`): the name's MD5 halves XORed into this
+    /// factory's seed. `hash` comes from the generated `random_hashes` constants or
+    /// `NoiseParamsData::hash`.
+    #[inline]
+    pub fn from_hash(&self, hash: (u64, u64)) -> Xoroshiro128 {
+        Xoroshiro128::from_state(hash.0 ^ self.seed_lo as u64, hash.1 ^ self.seed_hi as u64)
     }
 
-    /// Create a Xoroshiro128 RNG from hash of "minecraft:ore", XOR'd with our seeds.
-    pub fn from_hash_of_ore(&self) -> Xoroshiro128 {
-        // XOR the precomputed MD5 hash with our seeds
-        let lo = ORE_HASH_LO ^ self.seed_lo;
-        let hi = ORE_HASH_HI ^ self.seed_hi;
-        Xoroshiro128::from_state(lo as u64, hi as u64)
-    }
-
-    /// Create the aquifer positional random factory.
-    /// This matches Java's `this.random.fromHashOf("minecraft:aquifer").forkPositional()`.
-    ///
-    /// Java: RandomState.java line 38:
-    /// `this.aquiferRandom = this.random.fromHashOf(Identifier.withDefaultNamespace("aquifer")).forkPositional();`
-    pub fn fork_aquifer_random(&self) -> PositionalRandomFactory {
-        let mut rng = self.from_hash_of_aquifer();
-        let seed_lo = rng.next_long() as i64;
-        let seed_hi = rng.next_long() as i64;
-        PositionalRandomFactory { seed_lo, seed_hi }
-    }
-
-    /// Create the ore positional random factory.
-    /// This matches Java's `this.random.fromHashOf("minecraft:ore").forkPositional()`.
-    ///
-    /// Java: RandomState.java line 39:
-    /// `this.oreRandom = this.random.fromHashOf(Identifier.withDefaultNamespace("ore")).forkPositional();`
-    pub fn fork_ore_random(&self) -> PositionalRandomFactory {
-        let mut rng = self.from_hash_of_ore();
+    /// Positional factory of a named stream (`fromHashOf(name).forkPositional()`), e.g. the
+    /// aquifer and ore-vein randoms.
+    pub fn fork_from_hash(&self, hash: (u64, u64)) -> PositionalRandomFactory {
+        let mut rng = self.from_hash(hash);
         let seed_lo = rng.next_long() as i64;
         let seed_hi = rng.next_long() as i64;
         PositionalRandomFactory { seed_lo, seed_hi }
@@ -311,5 +266,19 @@ mod tests {
         let v2 = rng.next_int(100);
         assert!((0..100).contains(&v1));
         assert!((0..100).contains(&v2));
+    }
+
+    #[test]
+    fn generated_stream_hashes_match_md5() {
+        // md5("minecraft:ore") = 9b88124de600116d 2ae68055aa4a7761
+        assert_eq!(
+            crate::random_hashes::ORE,
+            (0x9b88124de600116d, 0x2ae68055aa4a7761)
+        );
+        // md5("octave_0") = d50708086cef4d7c 6e1651ecc7f43309
+        assert_eq!(
+            crate::random_hashes::octave(0),
+            (0xd50708086cef4d7c, 0x6e1651ecc7f43309)
+        );
     }
 }
