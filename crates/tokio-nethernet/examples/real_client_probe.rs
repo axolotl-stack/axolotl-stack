@@ -140,9 +140,6 @@ impl Signaling for Recording {
     fn disable_trickle_ice(&self) -> bool {
         self.inner.disable_trickle_ice()
     }
-    fn disable_trickle_ice_for_answer(&self) -> bool {
-        self.inner.disable_trickle_ice_for_answer()
-    }
     fn requires_identity(&self) -> bool {
         self.inner.requires_identity()
     }

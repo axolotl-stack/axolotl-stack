@@ -450,8 +450,7 @@ impl ListenerActor {
         pending.connection().with("offer", |session, now| {
             session.start(now, &remote, local_setup)
         })??;
-        // A vanilla LAN host answers non-trickle (`disable_trickle_ice_for_answer`).
-        let nontrickle = self.signaling.disable_trickle_ice_for_answer();
+        let nontrickle = self.signaling.disable_trickle_ice();
         if nontrickle {
             pending.connection().add_ice_servers(&servers).await?;
             pending.gathered().await?;
