@@ -5,6 +5,8 @@
 
 // TODO: Refactor aquifer and ore_veinifier to use AOT-compiled density functions
 pub mod aquifer;
+#[cfg(feature = "bedrock-worldgen")]
+pub mod bedrock;
 pub mod carver;
 mod climate;
 mod constants;

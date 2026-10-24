@@ -3,6 +3,12 @@ name = "unastar"
 version = "0.1.0"
 edition.workspace = true
 
+[features]
+default = []
+# Bedrock-style world generator compiled from a local BDS 1.26.51 install.
+# Needs UNASTAR_BDS_DIR at build time (see README, "Bedrock-style generator").
+bedrock-worldgen = ["dep:unastar_bedrock_codegen"]
+
 [dependencies]
 bytes.workspace = true
 jolyne = { workspace = true, features = ["server", "raknet"] }
@@ -41,6 +47,9 @@ wasmtime-wasi = "41.0"
 #dhat = "0.3"
 # tracy-client = "0.18"
 bitflags = "2.6"
+
+[build-dependencies]
+unastar_bedrock_codegen = { path = "../unastar_bedrock_codegen", optional = true }
 
 [dev-dependencies]
 criterion = { version = "0.5", features = ["html_reports"] }

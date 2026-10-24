@@ -91,6 +91,11 @@ pub const BUILTIN_FEATURES: &[&str] = &[
     "minecraft:wildflowers_feature",
 ];
 
+/// JSON features the Rust built-ins call directly (as `generated::f_<name>`),
+/// e.g. the legacy per-biome tree selectors placing the shipped tree
+/// features. They are emitted even when no rule reaches them otherwise.
+pub const BUILTIN_CALLS: &[&str] = &[];
+
 /// Rust function name of a built-in: the identifier without its namespace,
 /// `:` replaced by `_` (`minecraft:legacy:ice_feature` -> `legacy_ice_feature`).
 pub fn rust_name(identifier: &str) -> String {

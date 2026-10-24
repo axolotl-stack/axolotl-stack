@@ -5297,6 +5297,7 @@ dependencies = [
  "tracing",
  "tracing-subscriber",
  "unastar-data",
+ "unastar_bedrock_codegen",
  "unastar_noise",
  "uuid",
  "valentine",

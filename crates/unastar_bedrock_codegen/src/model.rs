@@ -123,6 +123,11 @@ impl Model {
             .into_iter()
             .map(|r| (r.places_feature.clone(), r.source.clone()))
             .collect();
+        stack.extend(
+            crate::builtin::BUILTIN_CALLS
+                .iter()
+                .map(|id| (id.to_string(), "builtin::BUILTIN_CALLS".to_owned())),
+        );
         while let Some((id, referrer)) = stack.pop() {
             if !seen.insert(id.clone()) {
                 continue;

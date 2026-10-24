@@ -47,7 +47,7 @@ pub fn emit_all(em: &mut Emitter<'_>) -> Result<TokenStream> {
             #[doc = #doc]
             #[inline(never)]
             #[allow(unused_variables)]
-            fn #name<W: BlockWorld>(ctx: &mut Ctx<'_, W>, pos: BlockPos) -> Option<BlockPos> {
+            pub fn #name<W: BlockWorld>(ctx: &mut Ctx<'_, W>, pos: BlockPos) -> Option<BlockPos> {
                 #body
             }
         });
