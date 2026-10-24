@@ -28,7 +28,10 @@ pub struct LlamaSpitBundle {
     pub physics: super::super::components::Physics,
     pub projectile: super::super::components::Projectile,
     pub pushable: super::super::components::Pushable,
+    pub pushable_by_block: super::super::components::PushableByBlock,
+    pub pushable_by_entity: super::super::components::PushableByEntity,
     pub scale: super::super::components::Scale,
+    pub type_family: super::super::components::TypeFamily,
 }
 /// Spawn a new `minecraft:llama_spit` entity with default Bedrock components
 pub fn spawn_llama_spit(commands: &mut Commands) -> Entity {
@@ -95,7 +98,7 @@ pub fn spawn_llama_spit(commands: &mut Commands) -> Entity {
                 push_towards_closest_space: Some(false),
             },
             projectile: super::super::components::Projectile {
-                anchor: Some(1i32),
+                anchor: Some(0i32),
                 angle_offset: Some(0f32),
                 catch_fire: Some(false),
                 crit_particle_on_hurt: Some(false),
@@ -127,10 +130,13 @@ pub fn spawn_llama_spit(commands: &mut Commands) -> Entity {
                     hurt_owner: None,
                     ignite: None,
                     impact_damage: Some(ProjectileOnHitImpactDamage {
-                        apply_knockback_to_blocking_targets: None,
+                        apply_knockback_to_blocking_targets: Some(true),
                         catch_fire: None,
                         channeling: None,
-                        damage: Some(crate::types::RangeOrVal::Fixed(1f32)),
+                        damage: Some(crate::types::RangeOrVal::Range {
+                            min: 1f32,
+                            max: 1f32,
+                        }),
                         destroy_on_hit: None,
                         destroy_on_hit_requires_damage: None,
                         filter: None,
@@ -174,7 +180,12 @@ pub fn spawn_llama_spit(commands: &mut Commands) -> Entity {
                 is_pushable: Some(true),
                 is_pushable_by_piston: Some(true),
             },
+            pushable_by_block: super::super::components::PushableByBlock { data: None },
+            pushable_by_entity: super::super::components::PushableByEntity { data: None },
             scale: super::super::components::Scale { value: 1f32 },
+            type_family: super::super::components::TypeFamily {
+                family: vec!["projectile".to_string(), "llama_spit".to_string()],
+            },
         })
         .id()
 }

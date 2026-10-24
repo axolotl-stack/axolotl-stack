@@ -30,8 +30,10 @@ pub struct FishingHookBundle {
     pub physics: super::super::components::Physics,
     pub projectile: super::super::components::Projectile,
     pub pushable: super::super::components::Pushable,
+    pub pushable_by_block: super::super::components::PushableByBlock,
     pub scale: super::super::components::Scale,
     pub transient: super::super::components::Transient,
+    pub type_family: super::super::components::TypeFamily,
 }
 /// Spawn a new `minecraft:fishing_hook` entity with default Bedrock components
 pub fn spawn_fishing_hook(commands: &mut Commands) -> Entity {
@@ -161,11 +163,15 @@ pub fn spawn_fishing_hook(commands: &mut Commands) -> Entity {
                 uncertainty_multiplier: Some(0f32),
             },
             pushable: super::super::components::Pushable {
-                is_pushable: Some(false),
+                is_pushable: Some(true),
                 is_pushable_by_piston: Some(true),
             },
+            pushable_by_block: super::super::components::PushableByBlock { data: None },
             scale: super::super::components::Scale { value: 1f32 },
             transient: super::super::components::Transient,
+            type_family: super::super::components::TypeFamily {
+                family: vec!["projectile".to_string(), "fishing_hook".to_string()],
+            },
         })
         .id()
 }

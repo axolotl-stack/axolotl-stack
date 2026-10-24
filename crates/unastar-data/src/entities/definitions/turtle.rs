@@ -16,6 +16,7 @@ impl Turtle {
 #[derive(Bundle, Clone)]
 pub struct TurtleBundle {
     pub attack: super::super::components::Attack,
+    pub balloonable: super::super::components::Balloonable,
     pub behavior_hurt_by_target: super::super::components::BehaviorHurtByTarget,
     pub behavior_look_at_player: super::super::components::BehaviorLookAtPlayer,
     pub behavior_move_to_water: super::super::components::BehaviorMoveToWater,
@@ -40,9 +41,13 @@ pub struct TurtleBundle {
     pub movement_amphibious: super::super::components::MovementAmphibious,
     pub nameable: super::super::components::Nameable,
     pub navigation_generic: super::super::components::NavigationGeneric,
+    pub offspring: super::super::components::Offspring,
     pub physics: super::super::components::Physics,
     pub pushable: super::super::components::Pushable,
+    pub pushable_by_block: super::super::components::PushableByBlock,
+    pub pushable_by_entity: super::super::components::PushableByEntity,
     pub scale: super::super::components::Scale,
+    pub spawn_egg_interaction: super::super::components::SpawnEggInteraction,
     pub water_movement: super::super::components::WaterMovement,
 }
 /// Spawn a new `minecraft:turtle` entity with default Bedrock components
@@ -54,6 +59,13 @@ pub fn spawn_turtle(commands: &mut Commands) -> Entity {
                 effect_duration: Some(crate::types::MolangOr::Value(0i32)),
                 effect_name: None,
             },
+            balloonable: super::super::components::Balloonable {
+                mass: None,
+                max_distance: None,
+                on_balloon: None,
+                on_unballoon: None,
+                soft_distance: None,
+            },
             behavior_hurt_by_target: super::super::components::BehaviorHurtByTarget {
                 alert_same_type: Some(false),
                 entity_types: None,
@@ -63,11 +75,11 @@ pub fn spawn_turtle(commands: &mut Commands) -> Entity {
             behavior_look_at_player: super::super::components::BehaviorLookAtPlayer {
                 angle_of_view_horizontal: Some(360i32),
                 angle_of_view_vertical: Some(360i32),
-                look_distance: Some(8f32),
+                look_distance: Some(6f32),
                 look_time: None,
                 priority: Some(BehaviorLookAtPlayerPriority {}),
                 probability: Some(0.02f32),
-                target_distance: Some(6f32),
+                target_distance: None,
             },
             behavior_move_to_water: super::super::components::BehaviorMoveToWater {
                 goal_radius: Some(1.5f32),
@@ -230,6 +242,19 @@ pub fn spawn_turtle(commands: &mut Commands) -> Entity {
                 can_walk_in_lava: Some(false),
                 is_amphibious: Some(true),
             },
+            offspring: super::super::components::Offspring {
+                blend_attributes: None,
+                combine_parent_colors: None,
+                deny_parents_variant: None,
+                inherit_tamed: None,
+                mutation_factor: None,
+                mutation_strategy: None,
+                offspring_pairs: Some(OffspringOffspringPairs {}),
+                parent_centric_attribute_blending: None,
+                property_inheritance: None,
+                random_extra_variant_mutation_interval: None,
+                random_variant_mutation_interval: None,
+            },
             physics: super::super::components::Physics {
                 has_collision: Some(true),
                 has_gravity: Some(true),
@@ -239,8 +264,17 @@ pub fn spawn_turtle(commands: &mut Commands) -> Entity {
                 is_pushable: Some(true),
                 is_pushable_by_piston: Some(true),
             },
+            pushable_by_block: super::super::components::PushableByBlock {
+                data: None,
+            },
+            pushable_by_entity: super::super::components::PushableByEntity {
+                data: None,
+            },
             scale: super::super::components::Scale {
                 value: 1f32,
+            },
+            spawn_egg_interaction: super::super::components::SpawnEggInteraction {
+                data: None,
             },
             water_movement: super::super::components::WaterMovement {
                 drag_factor: Some(0.9f32),

@@ -5,6 +5,10 @@ Generated, source-attributed gameplay data for Unastar.
 The crate is the boundary between raw Bedrock data sources and the server runtime:
 
 1. `datagen` reads protocolgen's pinned native BDS 1.26.51 measurements, vanilla behavior-pack JSON, PMMP creative inventory, and local KDL overrides, then writes reviewable artifacts in `output/`.
+   The vanilla pack is the `data/vanilla_bp` submodule, Mojang/bedrock-samples release
+   `v1.26.50.4` (`46ba6ea`), the newest stable samples release for BDS 26.50/26.51
+   (26.51 is a hotfix without a samples release). Every entity file must parse; datagen
+   fails rather than drop one.
 2. `codegen` reads those golden artifacts and generates Rust types/tables under `src/`.
 3. `unastar` consumes generated APIs; it should not parse PMMP, Prismarine, BDS, or behavior-pack data directly in hot runtime paths.
 

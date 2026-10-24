@@ -29,6 +29,7 @@ pub struct ShulkerBulletBundle {
     pub projectile: super::super::components::Projectile,
     pub pushable: super::super::components::Pushable,
     pub scale: super::super::components::Scale,
+    pub type_family: super::super::components::TypeFamily,
 }
 /// Spawn a new `minecraft:shulker_bullet` entity with default Bedrock components
 pub fn spawn_shulker_bullet(commands: &mut Commands) -> Entity {
@@ -95,7 +96,7 @@ pub fn spawn_shulker_bullet(commands: &mut Commands) -> Entity {
                 push_towards_closest_space: Some(false),
             },
             projectile: super::super::components::Projectile {
-                anchor: Some(1i32),
+                anchor: Some(0i32),
                 angle_offset: Some(0f32),
                 catch_fire: Some(false),
                 crit_particle_on_hurt: Some(true),
@@ -127,10 +128,13 @@ pub fn spawn_shulker_bullet(commands: &mut Commands) -> Entity {
                     hurt_owner: None,
                     ignite: None,
                     impact_damage: Some(ProjectileOnHitImpactDamage {
-                        apply_knockback_to_blocking_targets: None,
+                        apply_knockback_to_blocking_targets: Some(true),
                         catch_fire: None,
                         channeling: None,
-                        damage: Some(crate::types::RangeOrVal::Fixed(4f32)),
+                        damage: Some(crate::types::RangeOrVal::Range {
+                            min: 4f32,
+                            max: 4f32,
+                        }),
                         destroy_on_hit: None,
                         destroy_on_hit_requires_damage: None,
                         filter: None,
@@ -140,16 +144,16 @@ pub fn spawn_shulker_bullet(commands: &mut Commands) -> Entity {
                         power_multiplier: None,
                         semi_random_diff_damage: None,
                         set_last_hurt_requires_damage: None,
-                        should_bounce: Some(true),
+                        should_bounce: None,
                     }),
                     mob_effect: Some(ProjectileOnHitMobEffect {
                         ambient: None,
-                        amplifier: Some(0i32),
+                        amplifier: None,
                         duration: None,
-                        durationeasy: Some(crate::types::MolangOr::Value(200i32)),
-                        durationhard: Some(crate::types::MolangOr::Value(200i32)),
-                        durationnormal: Some(crate::types::MolangOr::Value(200i32)),
-                        effect: Some("levitation".to_string()),
+                        durationeasy: None,
+                        durationhard: None,
+                        durationnormal: None,
+                        effect: Some("".to_string()),
                         visible: None,
                     }),
                     on_fire_time: None,
@@ -190,6 +194,9 @@ pub fn spawn_shulker_bullet(commands: &mut Commands) -> Entity {
                 is_pushable_by_piston: Some(true),
             },
             scale: super::super::components::Scale { value: 1f32 },
+            type_family: super::super::components::TypeFamily {
+                family: vec!["projectile".to_string(), "shulker_bullet".to_string()],
+            },
         })
         .id()
 }

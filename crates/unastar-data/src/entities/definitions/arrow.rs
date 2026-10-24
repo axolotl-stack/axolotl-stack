@@ -30,7 +30,9 @@ pub struct ArrowBundle {
     pub physics: super::super::components::Physics,
     pub projectile: super::super::components::Projectile,
     pub pushable: super::super::components::Pushable,
+    pub pushable_by_block: super::super::components::PushableByBlock,
     pub scale: super::super::components::Scale,
+    pub type_family: super::super::components::TypeFamily,
 }
 /// Spawn a new `minecraft:arrow` entity with default Bedrock components
 pub fn spawn_arrow(commands: &mut Commands) -> Entity {
@@ -101,7 +103,7 @@ pub fn spawn_arrow(commands: &mut Commands) -> Entity {
                 push_towards_closest_space: Some(false),
             },
             projectile: super::super::components::Projectile {
-                anchor: Some(1i32),
+                anchor: Some(0i32),
                 angle_offset: Some(0f32),
                 catch_fire: Some(false),
                 crit_particle_on_hurt: Some(false),
@@ -135,18 +137,21 @@ pub fn spawn_arrow(commands: &mut Commands) -> Entity {
                     hurt_owner: None,
                     ignite: None,
                     impact_damage: Some(ProjectileOnHitImpactDamage {
-                        apply_knockback_to_blocking_targets: None,
+                        apply_knockback_to_blocking_targets: Some(true),
                         catch_fire: None,
                         channeling: None,
-                        damage: None,
+                        damage: Some(crate::types::RangeOrVal::Range {
+                            min: 0f32,
+                            max: 0f32,
+                        }),
                         destroy_on_hit: Some(true),
                         destroy_on_hit_requires_damage: None,
                         filter: None,
                         knockback: Some(true),
                         max_critical_damage: None,
                         min_critical_damage: None,
-                        power_multiplier: None,
-                        semi_random_diff_damage: Some(false),
+                        power_multiplier: Some(2f32),
+                        semi_random_diff_damage: None,
                         set_last_hurt_requires_damage: None,
                         should_bounce: None,
                     }),
@@ -163,13 +168,13 @@ pub fn spawn_arrow(commands: &mut Commands) -> Entity {
                 }),
                 particle: Some("iconcrack".to_string()),
                 potion_effect: Some(-1i32),
-                power: Some(1.6f32),
+                power: Some(1.1f32),
                 reflect_immunity: Some(0f32),
                 reflect_on_hurt: Some(false),
                 semi_random_diff_damage: Some(false),
                 shoot_sound: None,
                 shoot_target: Some(true),
-                should_bounce: Some(true),
+                should_bounce: Some(false),
                 splash_potion: Some(false),
                 splash_range: Some(4f32),
                 stop_on_hurt: None,
@@ -177,19 +182,24 @@ pub fn spawn_arrow(commands: &mut Commands) -> Entity {
                 uncertainty_multiplier: Some(4f32),
             },
             pushable: super::super::components::Pushable {
-                is_pushable: Some(false),
+                is_pushable: Some(true),
                 is_pushable_by_piston: Some(true),
             },
+            pushable_by_block: super::super::components::PushableByBlock { data: None },
             scale: super::super::components::Scale { value: 1f32 },
+            type_family: super::super::components::TypeFamily {
+                family: vec!["projectile".to_string(), "arrow".to_string()],
+            },
         })
         .id()
 }
 /// Component groups for this entity
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub enum ArrowComponentGroup {
-    HardArrow,
-    PillagerArrow,
+    MobArrow,
+    MobCrossbowArrow,
     PlayerArrow,
+    PlayerCrossbowArrow,
 }
 /// Events for this entity
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]

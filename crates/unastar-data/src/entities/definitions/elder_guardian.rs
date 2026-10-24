@@ -15,6 +15,7 @@ impl ElderGuardian {
 /// Component bundle for spawning a `minecraft:elder_guardian`
 #[derive(Bundle, Clone)]
 pub struct ElderGuardianBundle {
+    pub ambient_sound_interval: super::super::components::AmbientSoundInterval,
     pub attack: super::super::components::Attack,
     pub behavior_guardian_attack: super::super::components::BehaviorGuardianAttack,
     pub behavior_look_at_player: super::super::components::BehaviorLookAtPlayer,
@@ -44,21 +45,37 @@ pub struct ElderGuardianBundle {
     pub navigation_generic: super::super::components::NavigationGeneric,
     pub physics: super::super::components::Physics,
     pub pushable: super::super::components::Pushable,
+    pub pushable_by_block: super::super::components::PushableByBlock,
+    pub pushable_by_entity: super::super::components::PushableByEntity,
     pub scale: super::super::components::Scale,
     pub type_family: super::super::components::TypeFamily,
     pub underwater_movement: super::super::components::UnderwaterMovement,
+    pub uses_legacy_friction: super::super::components::UsesLegacyFriction,
 }
 /// Spawn a new `minecraft:elder_guardian` entity with default Bedrock components
 pub fn spawn_elder_guardian(commands: &mut Commands) -> Entity {
     commands
         .spawn(ElderGuardianBundle {
+            ambient_sound_interval: super::super::components::AmbientSoundInterval {
+                event_name: Some("ambient".to_string()),
+                event_names: Some(
+                    vec![
+                        AmbientSoundIntervalEventNames { condition :
+                        Some("query.head_is_in_water".to_string()), event_name :
+                        Some("ambient.in.water".to_string()) }
+                    ],
+                ),
+                range: Some(16f32),
+                value: 8f32,
+            },
             attack: super::super::components::Attack {
                 damage: crate::types::RangeOrVal::Fixed(5f32),
                 effect_duration: Some(crate::types::MolangOr::Value(0i32)),
                 effect_name: None,
             },
             behavior_guardian_attack: super::super::components::BehaviorGuardianAttack {
-                control_flags: Some(BehaviorGuardianAttackControlFlags {}),
+                control_flags: Some(BehaviorGuardianAttackControlFlags {
+                }),
                 elder_extra_magic_damage: Some(2i32),
                 hard_mode_extra_magic_damage: Some(2i32),
                 magic_damage: Some(1i32),
@@ -72,141 +89,78 @@ pub fn spawn_elder_guardian(commands: &mut Commands) -> Entity {
                 angle_of_view_horizontal: Some(360i32),
                 angle_of_view_vertical: Some(360i32),
                 look_distance: Some(12f32),
-                look_time: None,
+                look_time: Some(crate::types::RangeOrVal::Range {
+                    min: 1f32,
+                    max: 2f32,
+                }),
                 priority: Some(BehaviorLookAtPlayerPriority {}),
                 probability: Some(0.01f32),
                 target_distance: None,
             },
-            behavior_move_towards_home_restriction:
-                super::super::components::BehaviorMoveTowardsHomeRestriction {
-                    priority: Some(BehaviorMoveTowardsHomeRestrictionPriority {}),
-                    speed_multiplier: Some(BehaviorMoveTowardsHomeRestrictionSpeedMultiplier {}),
-                },
-            behavior_nearest_attackable_target:
-                super::super::components::BehaviorNearestAttackableTarget {
-                    attack_interval: Some(crate::types::BedrockValue::Object(
+            behavior_move_towards_home_restriction: super::super::components::BehaviorMoveTowardsHomeRestriction {
+                priority: Some(BehaviorMoveTowardsHomeRestrictionPriority {
+                }),
+                speed_multiplier: Some(BehaviorMoveTowardsHomeRestrictionSpeedMultiplier {}),
+            },
+            behavior_nearest_attackable_target: super::super::components::BehaviorNearestAttackableTarget {
+                attack_interval: Some(
+                    crate::types::BedrockValue::Object(
                         std::collections::HashMap::from([
-                            ("max".to_string(), crate::types::BedrockValue::Integer(0i64)),
-                            ("min".to_string(), crate::types::BedrockValue::Integer(0i64)),
+                            (
+                                "max".to_string(),
+                                crate::types::BedrockValue::Integer(1i64),
+                            ),
                         ]),
-                    )),
-                    attack_interval_min: Some(1f32),
-                    attack_owner: Some(false),
-                    control_flags: Some(BehaviorNearestAttackableTargetControlFlags {}),
-                    entity_types: Some(vec![BehaviorNearestAttackableTargetEntityTypes {
-                        check_if_outnumbered: None,
-                        cooldown: None,
-                        filters: Some(crate::types::BedrockValue::Object(
-                            std::collections::HashMap::from([(
-                                "any_of".to_string(),
-                                crate::types::BedrockValue::Array(vec![
-                                    crate::types::BedrockValue::Object(
-                                        std::collections::HashMap::from([
-                                            (
-                                                "subject".to_string(),
-                                                crate::types::BedrockValue::String(
-                                                    "other".to_string(),
-                                                ),
-                                            ),
-                                            (
-                                                "test".to_string(),
-                                                crate::types::BedrockValue::String(
-                                                    "is_family".to_string(),
-                                                ),
-                                            ),
-                                            (
-                                                "value".to_string(),
-                                                crate::types::BedrockValue::String(
-                                                    "player".to_string(),
-                                                ),
-                                            ),
-                                        ]),
-                                    ),
-                                    crate::types::BedrockValue::Object(
-                                        std::collections::HashMap::from([
-                                            (
-                                                "subject".to_string(),
-                                                crate::types::BedrockValue::String(
-                                                    "other".to_string(),
-                                                ),
-                                            ),
-                                            (
-                                                "test".to_string(),
-                                                crate::types::BedrockValue::String(
-                                                    "is_family".to_string(),
-                                                ),
-                                            ),
-                                            (
-                                                "value".to_string(),
-                                                crate::types::BedrockValue::String(
-                                                    "squid".to_string(),
-                                                ),
-                                            ),
-                                        ]),
-                                    ),
-                                    crate::types::BedrockValue::Object(
-                                        std::collections::HashMap::from([
-                                            (
-                                                "subject".to_string(),
-                                                crate::types::BedrockValue::String(
-                                                    "other".to_string(),
-                                                ),
-                                            ),
-                                            (
-                                                "test".to_string(),
-                                                crate::types::BedrockValue::String(
-                                                    "is_family".to_string(),
-                                                ),
-                                            ),
-                                            (
-                                                "value".to_string(),
-                                                crate::types::BedrockValue::String(
-                                                    "axolotl".to_string(),
-                                                ),
-                                            ),
-                                        ]),
-                                    ),
-                                ]),
-                            )]),
-                        )),
-                        max_dist: Some(16f32),
-                        max_flee: None,
-                        max_height: None,
-                        must_see: None,
-                        must_see_forget_duration: None,
-                        priority: None,
-                        reevaluate_description: None,
-                        sprint_speed_multiplier: None,
-                        walk_speed_multiplier: None,
-                        within_default: None,
-                    }]),
-                    must_reach: Some(false),
-                    must_see: Some(true),
-                    must_see_forget_duration: Some(3f32),
-                    persist_time: Some(0f32),
-                    priority: Some(BehaviorNearestAttackableTargetPriority {}),
-                    reselect_targets: Some(false),
-                    scan_interval: Some(10i32),
-                    set_persistent: Some(false),
-                    target_acquisition_probability: Some(1f32),
-                    target_invisible_multiplier: Some(0.7f32),
-                    target_search_height: Some(-1f32),
-                    target_sneak_visibility_multiplier: Some(0.8f32),
-                    within_radius: Some(0f32),
-                },
+                    ),
+                ),
+                attack_interval_min: None,
+                attack_owner: Some(false),
+                control_flags: Some(BehaviorNearestAttackableTargetControlFlags {
+                }),
+                entity_types: Some(
+                    vec![
+                        BehaviorNearestAttackableTargetEntityTypes { check_if_outnumbered
+                        : None, cooldown : None, filters : Some(crate
+                        ::types::BedrockValue::Object(std::collections::HashMap::from([("AND"
+                        .to_string(), crate
+                        ::types::BedrockValue::String("[{\"OR\":[{\"operator\":0,\"subject\":1,\"test\":\"is_family\",\"value\":\"player\"},{\"operator\":0,\"subject\":1,\"test\":\"is_family\",\"value\":\"squid\"},{\"operator\":0,\"subject\":1,\"test\":\"is_family\",\"value\":\"axolotl\"}]}]"
+                        .to_string()))]))), max_dist : None, max_flee : None, max_height
+                        : None, must_see : None, must_see_forget_duration : None,
+                        priority : None, reevaluate_description : None,
+                        sprint_speed_multiplier : None, walk_speed_multiplier : None,
+                        within_default : None }
+                    ],
+                ),
+                must_reach: Some(false),
+                must_see: Some(true),
+                must_see_forget_duration: Some(3f32),
+                persist_time: Some(0f32),
+                priority: Some(BehaviorNearestAttackableTargetPriority {
+                }),
+                reselect_targets: Some(false),
+                scan_interval: Some(10i32),
+                set_persistent: Some(false),
+                target_acquisition_probability: Some(1f32),
+                target_invisible_multiplier: Some(0.7f32),
+                target_search_height: Some(-1f32),
+                target_sneak_visibility_multiplier: Some(0.8f32),
+                within_radius: Some(0f32),
+            },
             behavior_random_look_around: super::super::components::BehaviorRandomLookAround {
                 angle_of_view_horizontal: None,
                 angle_of_view_vertical: None,
                 look_distance: None,
                 look_time: None,
-                priority: Some(BehaviorRandomLookAroundPriority {}),
+                priority: Some(BehaviorRandomLookAroundPriority {
+                }),
                 probability: None,
             },
             behavior_random_swim: super::super::components::BehaviorRandomSwim {
                 avoid_surface: Some(false),
                 interval: Some(120i32),
                 priority: Some(BehaviorRandomSwimPriority {}),
-                speed_multiplier: Some(BehaviorRandomSwimSpeedMultiplier {}),
+                speed_multiplier: Some(BehaviorRandomSwimSpeedMultiplier {
+                }),
                 xz_dist: Some(10i32),
                 y_dist: Some(7i32),
             },
@@ -227,18 +181,21 @@ pub fn spawn_elder_guardian(commands: &mut Commands) -> Entity {
                 height: Some(1.99f32),
                 width: Some(1.99f32),
             },
-            conditional_bandwidth_optimization:
-                super::super::components::ConditionalBandwidthOptimization {
-                    conditional_values: None,
-                    default_values: None,
-                },
+            conditional_bandwidth_optimization: super::super::components::ConditionalBandwidthOptimization {
+                conditional_values: None,
+                default_values: None,
+            },
             experience_reward: super::super::components::ExperienceReward {
                 on_bred: Some(crate::types::MolangOr::Value(0f32)),
-                on_death: Some(crate::types::MolangOr::Expr(
-                    "query.last_hit_by_player ? 10 : 0".to_string(),
-                )),
+                on_death: Some(
+                    crate::types::MolangOr::Expr(
+                        "query.last_hit_by_player ? 10 : 0".to_string(),
+                    ),
+                ),
             },
-            flying_speed: super::super::components::FlyingSpeed { value: 0.02f32 },
+            flying_speed: super::super::components::FlyingSpeed {
+                value: 0.02f32,
+            },
             follow_range: super::super::components::FollowRange {
                 max: Some(16f32),
                 min: None,
@@ -318,19 +275,28 @@ pub fn spawn_elder_guardian(commands: &mut Commands) -> Entity {
                 is_pushable: Some(true),
                 is_pushable_by_piston: Some(true),
             },
-            scale: super::super::components::Scale { value: 1f32 },
+            pushable_by_block: super::super::components::PushableByBlock {
+                data: None,
+            },
+            pushable_by_entity: super::super::components::PushableByEntity {
+                data: None,
+            },
+            scale: super::super::components::Scale {
+                value: 1f32,
+            },
             type_family: super::super::components::TypeFamily {
                 family: vec![
-                    "aquatic".to_string(),
-                    "guardian_elder".to_string(),
-                    "monster".to_string(),
-                    "mob".to_string(),
+                    "aquatic".to_string(), "guardian_elder".to_string(), "monster"
+                    .to_string(), "mob".to_string()
                 ],
             },
             underwater_movement: super::super::components::UnderwaterMovement {
                 max: None,
                 min: None,
                 value: crate::types::RangeOrVal::Fixed(0.3f32),
+            },
+            uses_legacy_friction: super::super::components::UsesLegacyFriction {
+                data: None,
             },
         })
         .id()

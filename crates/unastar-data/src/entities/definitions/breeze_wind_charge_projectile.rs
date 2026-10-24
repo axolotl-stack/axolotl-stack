@@ -29,6 +29,7 @@ pub struct BreezeWindChargeProjectileBundle {
     pub physics: super::super::components::Physics,
     pub projectile: super::super::components::Projectile,
     pub pushable: super::super::components::Pushable,
+    pub pushable_by_block: super::super::components::PushableByBlock,
     pub scale: super::super::components::Scale,
     pub type_family: super::super::components::TypeFamily,
 }
@@ -150,10 +151,13 @@ pub fn spawn_breeze_wind_charge_projectile(commands: &mut Commands) -> Entity {
                     hurt_owner: None,
                     ignite: None,
                     impact_damage: Some(ProjectileOnHitImpactDamage {
-                        apply_knockback_to_blocking_targets: None,
+                        apply_knockback_to_blocking_targets: Some(true),
                         catch_fire: None,
                         channeling: None,
-                        damage: Some(crate::types::RangeOrVal::Fixed(1f32)),
+                        damage: Some(crate::types::RangeOrVal::Range {
+                            min: 1f32,
+                            max: 1f32,
+                        }),
                         destroy_on_hit: None,
                         destroy_on_hit_requires_damage: None,
                         filter: None,
@@ -192,14 +196,17 @@ pub fn spawn_breeze_wind_charge_projectile(commands: &mut Commands) -> Entity {
                 uncertainty_multiplier: Some(4f32),
             },
             pushable: super::super::components::Pushable {
-                is_pushable: Some(false),
+                is_pushable: Some(true),
                 is_pushable_by_piston: Some(true),
             },
+            pushable_by_block: super::super::components::PushableByBlock { data: None },
             scale: super::super::components::Scale { value: 1f32 },
             type_family: super::super::components::TypeFamily {
                 family: vec![
+                    "projectile".to_string(),
                     "wind_charge".to_string(),
                     "wind_charge_projectile".to_string(),
+                    "breeze_wind_charge_projectile".to_string(),
                 ],
             },
         })
