@@ -186,10 +186,7 @@ impl Parser {
 
     fn binary(&mut self, min_level: u8) -> Result<Expr, String> {
         let mut lhs = self.unary()?;
-        loop {
-            let Some(Token::Op(op)) = self.tokens.get(self.pos) else {
-                break;
-            };
+        while let Some(Token::Op(op)) = self.tokens.get(self.pos) {
             let (level, bin) = match *op {
                 "||" => (1, BinOp::Or),
                 "&&" => (2, BinOp::And),

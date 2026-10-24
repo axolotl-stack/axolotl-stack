@@ -299,8 +299,8 @@ mod tests {
             assert_eq!((a.0 + b.0, a.1 + b.1, a.2 + b.2), (0, 0, 0));
             assert_eq!(opposite(opposite(face)), face);
             assert!(same_axis(face, opposite(face)));
-            for other in 0..6 {
-                let dot = a.0 * FACES[other].0 + a.1 * FACES[other].1 + a.2 * FACES[other].2;
+            for (other, f) in FACES.iter().enumerate() {
+                let dot = a.0 * f.0 + a.1 * f.1 + a.2 * f.2;
                 assert_eq!(same_axis(face, other), dot != 0);
             }
         }

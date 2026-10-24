@@ -209,7 +209,7 @@ pub fn source_seed(world_seed: i64, salt: u64, chunk_x: i32, chunk_z: i32, skip_
             ^ (i64::from(chunk_x) as u64).wrapping_mul(K1)
             ^ (i64::from(chunk_z) as u64).wrapping_mul(K2),
     );
-    if skip_carve_chance > 1 && (h >> 32) as u32 % skip_carve_chance as u32 != 0 {
+    if skip_carve_chance > 1 && !((h >> 32) as u32).is_multiple_of(skip_carve_chance as u32) {
         return None;
     }
     Some(h as u32)
