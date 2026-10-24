@@ -20,7 +20,7 @@ Real-client behaviours that replace go-nethernet's:
 
 - A listener rejecting a client identity replies `CONNECTERROR <id> 37` (IdentityNotAllowed), as the client's host does.
 - The listener negotiation deadline is 15 s (the client's host has none; its dialer gives up 10-15 s after `CONNECTREQUEST`).
-- A LAN (`DiscoveryListener`) host answers without trickle ICE: candidates inline in `CONNECTRESPONSE` (`Signaling::disable_trickle_ice_for_answer`); offers still trickle.
+- LAN (`DiscoveryListener`) negotiation is non-trickle both ways, as captured from the 1.26.52 client and BDS: offers and answers carry every candidate inline and no `CANDIDATEADD` is sent.
 - LAN signaling does not require `a=identity` (`DiscoveryListener::requires_identity` is false): BDS 1.26.51 answers LAN offers without one and accepts identityless LAN offers. Identities that are present are still verified; set `NetherNetListenerConfig.identity` to sign LAN answers.
 - An unparseable remote candidate is skipped instead of failing the connection.
 - A remote description without `a=max-message-size` means 65536 (RFC 8841, libwebrtc), not an error.
