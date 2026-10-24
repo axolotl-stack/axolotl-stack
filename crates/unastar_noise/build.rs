@@ -92,6 +92,24 @@ fn main() {
         &mut java_blocks,
     )
     .unwrap_or_else(|e| panic!("Failed to emit features: {e}"));
+
+    // Structure templates from the local Java server jar (feature `java-templates`).
+    println!("cargo:rerun-if-env-changed=UNASTAR_JAVA_SERVER_JAR");
+    let jar = if std::env::var_os("CARGO_FEATURE_JAVA_TEMPLATES").is_some() {
+        let path = std::env::var("UNASTAR_JAVA_SERVER_JAR").unwrap_or_else(|_| {
+            panic!(
+                "feature `java-templates` needs UNASTAR_JAVA_SERVER_JAR = path to the Java Edition \
+                 1.21.11 server.jar (structure templates are read from it at build time)"
+            )
+        });
+        println!("cargo:rerun-if-changed={path}");
+        Some(PathBuf::from(path))
+    } else {
+        None
+    };
+    let template_names = codegen::templates::emit(&output_dir, &java_blocks, jar.as_deref())
+        .unwrap_or_else(|e| panic!("Failed to embed structure templates: {e}"));
+    println!("cargo:warning=Embedded {} structure templates", template_names.len());
     java_blocks
         .emit(&output_dir)
         .unwrap_or_else(|e| panic!("Failed to emit Java block data: {e}"));

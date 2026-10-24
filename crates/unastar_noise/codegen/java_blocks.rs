@@ -236,6 +236,20 @@ impl JavaBlocks {
         Ok((b.first_state + offset) as u16)
     }
 
+    /// `!hasDynamicShape() && isCollisionShapeFullBlock()` for a state id: the
+    /// full-cube flag, excluding blocks whose shape depends on context
+    /// (shulker boxes, moving pistons, scaffolding).
+    pub fn full_cube_static(&self, state: u16) -> bool {
+        let s = state as usize;
+        let i = self.blocks.partition_point(|b| b.first_state <= s) - 1;
+        let b = &self.blocks[i];
+        let dynamic = matches!(
+            b.kind.as_str(),
+            "minecraft:shulker_box" | "minecraft:moving_piston" | "minecraft:scaffolding"
+        );
+        !dynamic && b.flags[s - b.first_state] & 0x80 != 0
+    }
+
     /// Default state id of a block.
     pub fn default_state(&self, name: &str) -> Result<u16> {
         self.state(name, &BTreeMap::new())

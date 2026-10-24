@@ -46,6 +46,9 @@ pub mod biome_tables;
 // Java-style decoration (features)
 pub mod features;
 
+// Java-style structures
+pub mod structures;
+
 // Surface rules system
 pub mod surface;
 pub use surface::{
