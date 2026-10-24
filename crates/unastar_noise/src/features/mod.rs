@@ -14,15 +14,16 @@
 pub mod blocks;
 pub mod climate;
 pub mod config;
+pub mod decorate;
 pub mod eval;
 pub mod kinds;
 pub mod noise;
 pub mod placement;
 pub mod random;
 pub mod survival;
-pub mod values;
 #[cfg(test)]
 pub mod test_world;
+pub mod values;
 
 /// Generated Java block registry (`java_data/blocks.json` + block tags).
 #[allow(clippy::all, missing_docs)]
@@ -32,9 +33,10 @@ pub mod java_blocks {
 
 pub use blocks::{BlockPos, BlockSet, Direction, Fluid, Heightmap, JavaBlock, JavaState};
 /// Generated decoration data and placed-feature code (`features.rs`).
-#[allow(clippy::all, missing_docs)]
+#[allow(clippy::all, missing_docs, unused_parens)]
 pub mod generated {
     include!(concat!(env!("OUT_DIR"), "/features.rs"));
+    include!(concat!(env!("OUT_DIR"), "/features_code.rs"));
 }
 
 pub use eval::FeatureWorld;

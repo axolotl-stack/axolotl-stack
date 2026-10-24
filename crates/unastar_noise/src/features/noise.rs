@@ -10,7 +10,6 @@ use super::random::{LegacyRandom, java_string_hash};
 use crate::noise::{PerlinNoise, SimplexNoise};
 use std::sync::LazyLock;
 
-
 /// A lazily built constant-seeded noise referenced from static provider data.
 pub type NoiseRef = &'static LazyLock<LegacyNoise>;
 /// `PerlinNoise.wrap`: keeps sample coordinates in a precise range.

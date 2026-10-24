@@ -65,7 +65,9 @@ impl<'de, T: DeserializeOwned> Deserialize<'de> for OneOrMany<T> {
     fn deserialize<D: Deserializer<'de>>(d: D) -> Result<Self, D::Error> {
         let v = serde_json::Value::deserialize(d)?;
         if v.is_array() {
-            serde_json::from_value(v).map(OneOrMany).map_err(D::Error::custom)
+            serde_json::from_value(v)
+                .map(OneOrMany)
+                .map_err(D::Error::custom)
         } else {
             serde_json::from_value(v)
                 .map(|x| OneOrMany(vec![x]))

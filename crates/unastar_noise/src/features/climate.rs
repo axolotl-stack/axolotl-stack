@@ -32,7 +32,9 @@ struct PerlinSimplex {
 impl PerlinSimplex {
     fn new(seed: i64, octave_count: usize) -> Self {
         let mut random = LegacyRandom::new(seed);
-        let levels = (0..octave_count).map(|_| SimplexNoise::new(&mut random)).collect();
+        let levels = (0..octave_count)
+            .map(|_| SimplexNoise::new(&mut random))
+            .collect();
         Self { levels }
     }
 
@@ -76,7 +78,8 @@ impl BiomeClimate {
         let t = self.modified_temperature(pos);
         let snow_line = sea_level + 17;
         if pos.y > snow_line {
-            let n = (TEMPERATURE_NOISE.value((pos.x as f32 / 8.0) as f64, (pos.z as f32 / 8.0) as f64)
+            let n = (TEMPERATURE_NOISE
+                .value((pos.x as f32 / 8.0) as f64, (pos.z as f32 / 8.0) as f64)
                 * 8.0) as f32;
             t - (n + pos.y as f32 - snow_line as f32) * 0.05 / 40.0
         } else {

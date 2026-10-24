@@ -89,7 +89,8 @@ impl Zip {
         if u32_at(&self.data, o) != 0x0403_4b50 {
             return Err(format!("zip: bad local header for {name}").into());
         }
-        let start = o + 30 + u16_at(&self.data, o + 26) as usize + u16_at(&self.data, o + 28) as usize;
+        let start =
+            o + 30 + u16_at(&self.data, o + 26) as usize + u16_at(&self.data, o + 28) as usize;
         let raw = &self.data[start..start + e.compressed_size];
         match e.method {
             0 => Ok(raw.to_vec()),

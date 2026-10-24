@@ -548,13 +548,31 @@ impl Heightmap {
 /// Java `BlockPredicate` (data form, evaluated by [`super::eval::test_predicate`]).
 #[derive(Debug, Clone, Copy)]
 pub enum BlockPredicate {
-    MatchingBlocks { set: BlockSet, offset: [i32; 3] },
-    MatchingFluids { fluids: FluidSet, offset: [i32; 3] },
-    Solid { offset: [i32; 3] },
-    Replaceable { offset: [i32; 3] },
-    WouldSurvive { state: JavaState, offset: [i32; 3] },
-    HasSturdyFace { direction: Direction, offset: [i32; 3] },
-    InsideWorldBounds { offset: [i32; 3] },
+    MatchingBlocks {
+        set: BlockSet,
+        offset: [i32; 3],
+    },
+    MatchingFluids {
+        fluids: FluidSet,
+        offset: [i32; 3],
+    },
+    Solid {
+        offset: [i32; 3],
+    },
+    Replaceable {
+        offset: [i32; 3],
+    },
+    WouldSurvive {
+        state: JavaState,
+        offset: [i32; 3],
+    },
+    HasSturdyFace {
+        direction: Direction,
+        offset: [i32; 3],
+    },
+    InsideWorldBounds {
+        offset: [i32; 3],
+    },
     AllOf(&'static [BlockPredicate]),
     AnyOf(&'static [BlockPredicate]),
     Not(&'static BlockPredicate),

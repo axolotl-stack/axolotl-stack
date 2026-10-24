@@ -212,14 +212,14 @@ pub struct MultifaceGrowthConfig {
     pub valid_directions: &'static [Direction],
 }
 
-/// Structure templates and processors are resolved by the structure layer;
-/// fossils reference them by generated index.
+/// `fossil`: template ids (looked up in the embedded template table) and the
+/// processor lists applied to the fossil and its ore overlay.
 #[derive(Debug, Clone, Copy)]
 pub struct FossilConfig {
-    pub fossil_structures: &'static [u16],
-    pub overlay_structures: &'static [u16],
-    pub fossil_processors: u16,
-    pub overlay_processors: u16,
+    pub fossil_structures: &'static [&'static str],
+    pub overlay_structures: &'static [&'static str],
+    pub fossil_processors: &'static [crate::structures::processor::Processor],
+    pub overlay_processors: &'static [crate::structures::processor::Processor],
     pub max_empty_corners_allowed: i32,
 }
 

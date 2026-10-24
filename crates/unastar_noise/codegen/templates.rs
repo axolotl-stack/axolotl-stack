@@ -64,7 +64,10 @@ fn state_of(blocks: &JavaBlocks, entry: &Tag) -> Result<u16> {
     let mut props = BTreeMap::new();
     if let Some(p) = entry.get("Properties").and_then(Tag::as_compound) {
         for (k, v) in p {
-            props.insert(k.clone(), v.as_str().ok_or("non-string property")?.to_string());
+            props.insert(
+                k.clone(),
+                v.as_str().ok_or("non-string property")?.to_string(),
+            );
         }
     }
     blocks.state(name, &props)
@@ -100,7 +103,8 @@ fn encode_template(blocks: &JavaBlocks, root: &Tag, out: &mut Vec<u8>) -> Result
                 match id {
                     "minecraft:jigsaw" => {
                         rec.push(0);
-                        let s = |k: &str| tag.get(k).and_then(Tag::as_str).unwrap_or("").to_string();
+                        let s =
+                            |k: &str| tag.get(k).and_then(Tag::as_str).unwrap_or("").to_string();
                         put_str(&mut rec, &s("name"));
                         put_str(&mut rec, &s("target"));
                         put_str(&mut rec, &s("pool"));
@@ -110,7 +114,9 @@ fn encode_template(blocks: &JavaBlocks, root: &Tag, out: &mut Vec<u8>) -> Result
                         let joint = match tag.get("joint").and_then(Tag::as_str) {
                             Some("rollable") => 0u8,
                             Some("aligned") => 1,
-                            Some(other) => return Err(format!("unknown jigsaw joint {other}").into()),
+                            Some(other) => {
+                                return Err(format!("unknown jigsaw joint {other}").into());
+                            }
                             None => 2, // resolved from the block's orientation at load
                         };
                         rec.push(joint);
@@ -122,7 +128,10 @@ fn encode_template(blocks: &JavaBlocks, root: &Tag, out: &mut Vec<u8>) -> Result
                         if tag.get("mode").and_then(Tag::as_str) == Some("DATA") =>
                     {
                         rec.push(1);
-                        put_str(&mut rec, tag.get("metadata").and_then(Tag::as_str).unwrap_or(""));
+                        put_str(
+                            &mut rec,
+                            tag.get("metadata").and_then(Tag::as_str).unwrap_or(""),
+                        );
                     }
                     _ => {
                         rec.push(2);
@@ -153,7 +162,10 @@ fn encode_template(blocks: &JavaBlocks, root: &Tag, out: &mut Vec<u8>) -> Result
                 .iter()
                 .map(|t| t.as_int().unwrap_or(0))
                 .collect();
-            let idx = b.get("state").and_then(Tag::as_int).ok_or("block without state")? as usize;
+            let idx = b
+                .get("state")
+                .and_then(Tag::as_int)
+                .ok_or("block without state")? as usize;
             let state = *states.get(idx).ok_or("template state index out of range")?;
             let rec = (pos[1], pos[0], pos[2], state, be_of_block[i]);
             if be_of_block[i] != u16::MAX {
@@ -198,7 +210,10 @@ fn encode_template(blocks: &JavaBlocks, root: &Tag, out: &mut Vec<u8>) -> Result
             out.extend_from_slice(&v.to_le_bytes());
         }
         let tag = e.get("nbt");
-        let id = tag.and_then(|t| t.get("id")).and_then(Tag::as_str).unwrap_or("");
+        let id = tag
+            .and_then(|t| t.get("id"))
+            .and_then(Tag::as_str)
+            .unwrap_or("");
         put_str(out, id);
         put_bytes(out, &tag.map(nbt::encode).unwrap_or_default());
     }

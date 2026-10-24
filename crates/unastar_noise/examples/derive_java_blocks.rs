@@ -151,7 +151,11 @@ fn main() {
             Some(Value::Array(a)) => a.iter().map(|v| v.as_u64().unwrap()).collect(),
             _ => panic!("{name}: no collision shape in minecraft-data"),
         };
-        assert_eq!(shape_ids.len(), states.len(), "{name}: state count mismatch");
+        assert_eq!(
+            shape_ids.len(),
+            states.len(),
+            "{name}: state count mismatch"
+        );
         let state_flags: Vec<u8> = shape_ids
             .iter()
             .map(|id| {

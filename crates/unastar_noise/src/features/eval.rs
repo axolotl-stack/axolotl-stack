@@ -122,7 +122,11 @@ fn at(pos: BlockPos, offset: [i32; 3]) -> BlockPos {
 }
 
 /// Evaluate a [`RuleTest`] against a state.
-pub fn test_rule<S: BitSource>(rule: &RuleTest, state: JavaState, rng: &mut WorldgenRandom<S>) -> bool {
+pub fn test_rule<S: BitSource>(
+    rule: &RuleTest,
+    state: JavaState,
+    rng: &mut WorldgenRandom<S>,
+) -> bool {
     match *rule {
         RuleTest::AlwaysTrue => true,
         RuleTest::BlockMatch(block) => state.is(block),
@@ -140,7 +144,11 @@ pub fn random_axis<S: BitSource>(rng: &mut WorldgenRandom<S>) -> &'static str {
 }
 
 /// `BlockStateProvider.getState(random, pos)`.
-pub fn provide_state(provider: &StateProvider, rng: &mut FeatureRandom, pos: BlockPos) -> JavaState {
+pub fn provide_state(
+    provider: &StateProvider,
+    rng: &mut FeatureRandom,
+    pos: BlockPos,
+) -> JavaState {
     match *provider {
         StateProvider::Simple(s) => s,
         StateProvider::Rotated(s) => s.with("axis", random_axis(rng)),
@@ -177,7 +185,8 @@ pub fn provide_state(provider: &StateProvider, rng: &mut FeatureRandom, pos: Blo
             states,
         } => {
             let slow = noise_value(slow_noise, pos, slow_scale);
-            let count = clamped_map(slow, -1.0, 1.0, variety.0 as f64, (variety.1 + 1) as f64) as i32;
+            let count =
+                clamped_map(slow, -1.0, 1.0, variety.0 as f64, (variety.1 + 1) as f64) as i32;
             // Java builds the candidate list then picks from it with the main noise.
             let mut candidates = [JavaState(0); 32];
             let count = count.clamp(0, candidates.len() as i32) as usize;

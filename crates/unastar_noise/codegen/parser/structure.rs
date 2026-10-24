@@ -185,7 +185,10 @@ pub enum PoolElement {
         override_liquid_settings: Option<LiquidSettings>,
     },
     #[serde(rename = "minecraft:feature_pool_element")]
-    Feature { feature: String, projection: Projection },
+    Feature {
+        feature: String,
+        projection: Projection,
+    },
     #[serde(rename = "minecraft:list_pool_element")]
     List {
         elements: Vec<PoolElement>,
@@ -602,7 +605,9 @@ pub struct StructureData {
     pub biome_tags: BTreeMap<String, Vec<String>>,
 }
 
-fn read_dir_json<T: DeserializeOwned>(dir: &Path) -> Result<BTreeMap<String, T>, Box<dyn std::error::Error>> {
+fn read_dir_json<T: DeserializeOwned>(
+    dir: &Path,
+) -> Result<BTreeMap<String, T>, Box<dyn std::error::Error>> {
     let mut out = BTreeMap::new();
     for entry in walkdir::WalkDir::new(dir).sort_by_file_name() {
         let entry = entry?;
@@ -663,7 +668,8 @@ pub fn parse_all(worldgen_root: &Path) -> Result<StructureData, Box<dyn std::err
             }
         }
     }
-    let tags: BTreeMap<String, TagFile> = read_dir_json(&worldgen_root.join("tags/worldgen/biome"))?;
+    let tags: BTreeMap<String, TagFile> =
+        read_dir_json(&worldgen_root.join("tags/worldgen/biome"))?;
     Ok(StructureData {
         sets: read_dir_json(&worldgen_root.join("structure_set"))?,
         structures,

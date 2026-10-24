@@ -26,7 +26,11 @@ fn is_upper(s: JavaState) -> bool {
 }
 
 /// `canSurvive` for `state` placed at `pos`.
-pub fn can_survive<W: FeatureWorld + ?Sized>(world: &mut W, state: JavaState, pos: BlockPos) -> bool {
+pub fn can_survive<W: FeatureWorld + ?Sized>(
+    world: &mut W,
+    state: JavaState,
+    pos: BlockPos,
+) -> bool {
     let block = state.block();
     let below_pos = pos.below();
     match block.def().kind {
@@ -135,9 +139,9 @@ pub fn can_survive<W: FeatureWorld + ?Sized>(world: &mut W, state: JavaState, po
             let below = world.get_state(below_pos);
             below.is(b::CACTUS) || below.is(b::FARMLAND) || below.is_face_sturdy(Direction::Up)
         }
-        "minecraft:bamboo_sapling" | "minecraft:bamboo_stalk" => world
-            .get_state(below_pos)
-            .is_in(tags::BAMBOO_PLANTABLE_ON),
+        "minecraft:bamboo_sapling" | "minecraft:bamboo_stalk" => {
+            world.get_state(below_pos).is_in(tags::BAMBOO_PLANTABLE_ON)
+        }
         "minecraft:snow_layer" => {
             let below = world.get_state(below_pos);
             if below.is_in(tags::SNOW_LAYER_CANNOT_SURVIVE_ON) {
@@ -178,7 +182,9 @@ pub fn can_survive<W: FeatureWorld + ?Sized>(world: &mut W, state: JavaState, po
         }
         "minecraft:cave_vines" | "minecraft:cave_vines_plant" => {
             let above = world.get_state(pos.above());
-            above.is(b::CAVE_VINES) || above.is(b::CAVE_VINES_PLANT) || above.is_face_sturdy(Direction::Down)
+            above.is(b::CAVE_VINES)
+                || above.is(b::CAVE_VINES_PLANT)
+                || above.is_face_sturdy(Direction::Down)
         }
         "minecraft:weeping_vines" | "minecraft:weeping_vines_plant" => {
             let above = world.get_state(pos.above());
@@ -195,7 +201,9 @@ pub fn can_survive<W: FeatureWorld + ?Sized>(world: &mut W, state: JavaState, po
         "minecraft:kelp" | "minecraft:kelp_plant" => {
             let below = world.get_state(below_pos);
             !below.is(b::MAGMA_BLOCK)
-                && (below.is(b::KELP) || below.is(b::KELP_PLANT) || below.is_face_sturdy(Direction::Up))
+                && (below.is(b::KELP)
+                    || below.is(b::KELP_PLANT)
+                    || below.is_face_sturdy(Direction::Up))
         }
         "minecraft:seagrass" => {
             let below = world.get_state(below_pos);
@@ -231,7 +239,9 @@ pub fn can_survive<W: FeatureWorld + ?Sized>(world: &mut W, state: JavaState, po
         "minecraft:soul_fire" => world
             .get_state(below_pos)
             .is_in(tags::SOUL_FIRE_BASE_BLOCKS),
-        "minecraft:coral_plant" | "minecraft:base_coral_plant" | "minecraft:coral_fan"
+        "minecraft:coral_plant"
+        | "minecraft:base_coral_plant"
+        | "minecraft:coral_fan"
         | "minecraft:base_coral_fan" => world.get_state(below_pos).is_face_sturdy(Direction::Up),
         "minecraft:coral_wall_fan" | "minecraft:base_coral_wall_fan" => {
             let facing = facing_of(state).unwrap_or(Direction::North);

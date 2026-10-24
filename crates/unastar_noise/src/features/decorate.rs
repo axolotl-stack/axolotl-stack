@@ -14,7 +14,7 @@
 
 use super::blocks::BlockPos;
 use super::eval::FeatureWorld;
-use super::generated::{DimensionFeatures, BIOME_COUNT};
+use super::generated::{BIOME_COUNT, DimensionFeatures};
 use super::random::FeatureRandom;
 
 /// A set of biome indices (bit per index of `generated::BIOME_NAMES`).
@@ -42,7 +42,13 @@ impl BiomeSet {
 /// Called at the start of every generation step, before features, so the
 /// structure layer can place the structure pieces of that step.
 pub trait StepHook<W: FeatureWorld + ?Sized> {
-    fn place_structures(&mut self, world: &mut W, rng: &mut FeatureRandom, decoration_seed: i64, step: usize);
+    fn place_structures(
+        &mut self,
+        world: &mut W,
+        rng: &mut FeatureRandom,
+        decoration_seed: i64,
+        step: usize,
+    );
 }
 
 /// No structures (decoration of features only).

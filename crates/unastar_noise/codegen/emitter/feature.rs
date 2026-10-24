@@ -196,13 +196,17 @@ impl<'a> Emitter<'a> {
                 FloatProviderObj::Uniform {
                     min_inclusive,
                     max_exclusive,
-                } => quote! { FloatProvider::Uniform { min: #min_inclusive, max_exclusive: #max_exclusive } },
+                } => {
+                    quote! { FloatProvider::Uniform { min: #min_inclusive, max_exclusive: #max_exclusive } }
+                }
                 FloatProviderObj::ClampedNormal {
                     mean,
                     deviation,
                     min,
                     max,
-                } => quote! { FloatProvider::ClampedNormal { mean: #mean, deviation: #deviation, min: #min, max: #max } },
+                } => {
+                    quote! { FloatProvider::ClampedNormal { mean: #mean, deviation: #deviation, min: #min, max: #max } }
+                }
                 FloatProviderObj::Trapezoid { min, max, plateau } => {
                     quote! { FloatProvider::Trapezoid { min: #min, max: #max, plateau: #plateau } }
                 }
@@ -567,7 +571,12 @@ impl<'a> Emitter<'a> {
 
     // ---- placed features ----------------------------------------------------
 
-    fn emit_placed(&mut self, id: &Ident, pf: &PlacedFeatureJson, placed_id: Option<u16>) -> Result<()> {
+    fn emit_placed(
+        &mut self,
+        id: &Ident,
+        pf: &PlacedFeatureJson,
+        placed_id: Option<u16>,
+    ) -> Result<()> {
         let cf = self.configured_ref(&pf.feature)?;
         let mut cont = quote! {
             if #cf(world, rng, p) {
@@ -845,7 +854,9 @@ impl<'a> Emitter<'a> {
             .collect::<Result<Vec<_>>>()?;
         let size = c.size;
         let d = c.discard_chance_on_air_exposure;
-        Ok(quote! { OreConfig { targets: &[#(#targets),*], size: #size, discard_chance_on_air_exposure: #d } })
+        Ok(
+            quote! { OreConfig { targets: &[#(#targets),*], size: #size, discard_chance_on_air_exposure: #d } },
+        )
     }
 
     fn random_patch(&mut self, id: &Ident, c: &ir::RandomPatchConfig) -> Result<()> {
@@ -871,7 +882,12 @@ impl<'a> Emitter<'a> {
         Ok(())
     }
 
-    fn vegetation_patch(&mut self, id: &Ident, c: &ir::VegetationPatchConfig, waterlogged: bool) -> Result<()> {
+    fn vegetation_patch(
+        &mut self,
+        id: &Ident,
+        c: &ir::VegetationPatchConfig,
+        waterlogged: bool,
+    ) -> Result<()> {
         let nested = self.placed_ref(&c.vegetation_feature)?;
         let replaceable = self.tag(&c.replaceable)?;
         let ground = self.state_provider(&c.ground_state)?;
@@ -910,7 +926,12 @@ impl<'a> Emitter<'a> {
         match cf {
             C::Ore(c) => {
                 let v = self.ore_config(c)?;
-                self.wrap_cfg(id, quote! { OreConfig }, v, quote! { kinds::ore::place(world, rng, &CFG, origin) });
+                self.wrap_cfg(
+                    id,
+                    quote! { OreConfig },
+                    v,
+                    quote! { kinds::ore::place(world, rng, &CFG, origin) },
+                );
             }
             C::ScatteredOre(c) => {
                 let v = self.ore_config(c)?;
@@ -921,7 +942,9 @@ impl<'a> Emitter<'a> {
                     quote! { kinds::ore::place_scattered(world, rng, &CFG, origin) },
                 );
             }
-            C::RandomPatch(c) | C::Flower(c) | C::NoBonemealFlower(c) => self.random_patch(id, c)?,
+            C::RandomPatch(c) | C::Flower(c) | C::NoBonemealFlower(c) => {
+                self.random_patch(id, c)?
+            }
             C::RandomSelector(c) => {
                 let mut arms = Vec::new();
                 for w in &c.features {
@@ -1018,7 +1041,9 @@ impl<'a> Emitter<'a> {
                 // `state` is a FluidState; Java places `createLegacyBlock()`,
                 // which for a source fluid is the fluid block at level 0.
                 if !matches!(c.state.name.as_str(), "minecraft:water" | "minecraft:lava") {
-                    return Err(format!("spring fluid {} is not a source fluid", c.state.name).into());
+                    return Err(
+                        format!("spring fluid {} is not a source fluid", c.state.name).into(),
+                    );
                 }
                 let mut level = BTreeMap::new();
                 level.insert("level".to_string(), "0".to_string());
@@ -1092,24 +1117,49 @@ impl<'a> Emitter<'a> {
             }
             C::ForestRock(c) => {
                 let s = self.state(&c.state)?;
-                self.wrap_call(id, quote! { kinds::forest_rock::place(world, rng, #s, origin) });
+                self.wrap_call(
+                    id,
+                    quote! { kinds::forest_rock::place(world, rng, #s, origin) },
+                );
             }
-            C::IceSpike(_) => self.wrap_call(id, quote! { kinds::ice::place_ice_spike(world, rng, origin) }),
+            C::IceSpike(_) => self.wrap_call(
+                id,
+                quote! { kinds::ice::place_ice_spike(world, rng, origin) },
+            ),
             C::Iceberg(c) => {
                 let s = self.state(&c.state)?;
-                self.wrap_call(id, quote! { kinds::ice::place_iceberg(world, rng, #s, origin) });
+                self.wrap_call(
+                    id,
+                    quote! { kinds::ice::place_iceberg(world, rng, #s, origin) },
+                );
             }
-            C::BlueIce(_) => self.wrap_call(id, quote! { kinds::ice::place_blue_ice(world, rng, origin) }),
-            C::FreezeTopLayer(_) => {
-                self.wrap_call(id, quote! { kinds::ice::place_freeze_top_layer(world, rng, origin) })
+            C::BlueIce(_) => self.wrap_call(
+                id,
+                quote! { kinds::ice::place_blue_ice(world, rng, origin) },
+            ),
+            C::FreezeTopLayer(_) => self.wrap_call(
+                id,
+                quote! { kinds::ice::place_freeze_top_layer(world, rng, origin) },
+            ),
+            C::DesertWell(_) => {
+                self.wrap_call(id, quote! { kinds::desert_well::place(world, rng, origin) })
             }
-            C::DesertWell(_) => self.wrap_call(id, quote! { kinds::desert_well::place(world, rng, origin) }),
-            C::MonsterRoom(_) => self.wrap_call(id, quote! { kinds::monster_room::place(world, rng, origin) }),
-            C::BonusChest(_) => self.wrap_call(id, quote! { kinds::bonus_chest::place(world, rng, origin) }),
-            C::Kelp(_) => self.wrap_call(id, quote! { kinds::ocean::place_kelp(world, rng, origin) }),
+            C::MonsterRoom(_) => self.wrap_call(
+                id,
+                quote! { kinds::monster_room::place(world, rng, origin) },
+            ),
+            C::BonusChest(_) => {
+                self.wrap_call(id, quote! { kinds::bonus_chest::place(world, rng, origin) })
+            }
+            C::Kelp(_) => {
+                self.wrap_call(id, quote! { kinds::ocean::place_kelp(world, rng, origin) })
+            }
             C::Seagrass(c) => {
                 let p = c.probability;
-                self.wrap_call(id, quote! { kinds::ocean::place_seagrass(world, rng, #p, origin) });
+                self.wrap_call(
+                    id,
+                    quote! { kinds::ocean::place_seagrass(world, rng, #p, origin) },
+                );
             }
             C::SeaPickle(c) => {
                 let n = self.int_provider(&c.count)?;
@@ -1120,11 +1170,18 @@ impl<'a> Emitter<'a> {
                     quote! { kinds::ocean::place_sea_pickle(world, rng, &CFG, origin) },
                 );
             }
-            C::CoralClaw(_) => self.wrap_call(id, quote! { kinds::ocean::place_coral_claw(world, rng, origin) }),
-            C::CoralMushroom(_) => {
-                self.wrap_call(id, quote! { kinds::ocean::place_coral_mushroom(world, rng, origin) })
-            }
-            C::CoralTree(_) => self.wrap_call(id, quote! { kinds::ocean::place_coral_tree(world, rng, origin) }),
+            C::CoralClaw(_) => self.wrap_call(
+                id,
+                quote! { kinds::ocean::place_coral_claw(world, rng, origin) },
+            ),
+            C::CoralMushroom(_) => self.wrap_call(
+                id,
+                quote! { kinds::ocean::place_coral_mushroom(world, rng, origin) },
+            ),
+            C::CoralTree(_) => self.wrap_call(
+                id,
+                quote! { kinds::ocean::place_coral_tree(world, rng, origin) },
+            ),
             C::Vines(_) => self.wrap_call(id, quote! { kinds::vines::place(world, rng, origin) }),
             C::VegetationPatch(c) => self.vegetation_patch(id, c, false)?,
             C::WaterloggedVegetationPatch(c) => self.vegetation_patch(id, c, true)?,
@@ -1266,7 +1323,12 @@ impl<'a> Emitter<'a> {
             }
             C::Geode(c) => {
                 let v = self.geode_config(c)?;
-                self.wrap_cfg(id, quote! { GeodeConfig }, v, quote! { kinds::geode::place(world, rng, &CFG, origin) });
+                self.wrap_cfg(
+                    id,
+                    quote! { GeodeConfig },
+                    v,
+                    quote! { kinds::geode::place(world, rng, &CFG, origin) },
+                );
             }
             C::DripstoneCluster(c) => {
                 let h = self.int_provider(&c.height)?;
@@ -1354,16 +1416,25 @@ impl<'a> Emitter<'a> {
                     .iter()
                     .map(|s| quote! { #s })
                     .collect::<Vec<_>>();
+                let pl = |name: &str| {
+                    let id = format_ident!("PL_{}", crate::codegen::java_blocks::const_ident(name));
+                    quote! { &crate::structures::generated::#id }
+                };
                 let (fp, op, me) = (
-                    &c.fossil_processors,
-                    &c.overlay_processors,
+                    pl(&c.fossil_processors),
+                    pl(&c.overlay_processors),
                     c.max_empty_corners_allowed,
                 );
-                self.wrap_call(
+                self.wrap_cfg(
                     id,
+                    quote! { FossilConfig },
                     quote! {
-                        kinds::fossil::place(world, rng, &[#(#fs),*], &[#(#os),*], #fp, #op, #me, origin)
+                        FossilConfig {
+                            fossil_structures: &[#(#fs),*], overlay_structures: &[#(#os),*],
+                            fossil_processors: #fp, overlay_processors: #op, max_empty_corners_allowed: #me,
+                        }
                     },
+                    quote! { kinds::fossil::place(world, rng, &CFG, origin) },
                 );
             }
             C::HugeFungus(c) => {
@@ -1406,9 +1477,10 @@ impl<'a> Emitter<'a> {
                     quote! { kinds::nether::place_twisting_vines(world, rng, &CFG, origin) },
                 );
             }
-            C::WeepingVines(_) => {
-                self.wrap_call(id, quote! { kinds::nether::place_weeping_vines(world, rng, origin) })
-            }
+            C::WeepingVines(_) => self.wrap_call(
+                id,
+                quote! { kinds::nether::place_weeping_vines(world, rng, origin) },
+            ),
             C::NetherrackReplaceBlobs(c) => {
                 let (t, s) = (self.state(&c.target)?, self.state(&c.state)?);
                 let r = self.int_provider(&c.radius)?;
@@ -1428,9 +1500,10 @@ impl<'a> Emitter<'a> {
                     quote! { kinds::nether::place_basalt_columns(world, rng, &CFG, origin) },
                 );
             }
-            C::BasaltPillar(_) => {
-                self.wrap_call(id, quote! { kinds::nether::place_basalt_pillar(world, rng, origin) })
-            }
+            C::BasaltPillar(_) => self.wrap_call(
+                id,
+                quote! { kinds::nether::place_basalt_pillar(world, rng, origin) },
+            ),
             C::Delta(c) => {
                 let (ct, rm) = (self.state(&c.contents)?, self.state(&c.rim)?);
                 let (sz, rs) = (self.int_provider(&c.size)?, self.int_provider(&c.rim_size)?);
@@ -1441,10 +1514,14 @@ impl<'a> Emitter<'a> {
                     quote! { kinds::nether::place_delta(world, rng, &CFG, origin) },
                 );
             }
-            C::GlowstoneBlob(_) => {
-                self.wrap_call(id, quote! { kinds::nether::place_glowstone_blob(world, rng, origin) })
-            }
-            C::ChorusPlant(_) => self.wrap_call(id, quote! { kinds::end::place_chorus_plant(world, rng, origin) }),
+            C::GlowstoneBlob(_) => self.wrap_call(
+                id,
+                quote! { kinds::nether::place_glowstone_blob(world, rng, origin) },
+            ),
+            C::ChorusPlant(_) => self.wrap_call(
+                id,
+                quote! { kinds::end::place_chorus_plant(world, rng, origin) },
+            ),
             C::EndGateway(c) => {
                 let exit = match c.exit {
                     Some([x, y, z]) => quote! { Some([#x, #y, #z]) },
@@ -1458,8 +1535,14 @@ impl<'a> Emitter<'a> {
                     quote! { kinds::end::place_end_gateway(world, rng, &CFG, origin) },
                 );
             }
-            C::EndIsland(_) => self.wrap_call(id, quote! { kinds::end::place_end_island(world, rng, origin) }),
-            C::EndPlatform(_) => self.wrap_call(id, quote! { kinds::end::place_end_platform(world, rng, origin) }),
+            C::EndIsland(_) => self.wrap_call(
+                id,
+                quote! { kinds::end::place_end_island(world, rng, origin) },
+            ),
+            C::EndPlatform(_) => self.wrap_call(
+                id,
+                quote! { kinds::end::place_end_platform(world, rng, origin) },
+            ),
             C::EndSpike(c) => {
                 let spikes = c.spikes.iter().map(|s| {
                     let (x, z, r, h, g) = (s.center_x, s.center_z, s.radius, s.height, s.guarded);
@@ -1477,9 +1560,10 @@ impl<'a> Emitter<'a> {
                     quote! { kinds::end::place_end_spike(world, rng, &CFG, origin) },
                 );
             }
-            C::VoidStartPlatform(_) => {
-                self.wrap_call(id, quote! { kinds::end::place_void_start_platform(world, rng, origin) })
-            }
+            C::VoidStartPlatform(_) => self.wrap_call(
+                id,
+                quote! { kinds::end::place_void_start_platform(world, rng, origin) },
+            ),
         }
         Ok(())
     }
@@ -1491,10 +1575,16 @@ impl<'a> Emitter<'a> {
             .iter()
             .any(|d| matches!(d, ir::TreeDecorator::PaleMoss { .. }))
         {
-            if !self.data.configured.contains_key("minecraft:pale_moss_patch") {
+            if !self
+                .data
+                .configured
+                .contains_key("minecraft:pale_moss_patch")
+            {
                 return Err("pale_moss decorator without minecraft:pale_moss_patch".into());
             }
-            Ok(quote! { |w: &mut W, r: &mut FeatureRandom, p: BlockPos| cf_pale_moss_patch(w, r, p) })
+            Ok(
+                quote! { |w: &mut W, r: &mut FeatureRandom, p: BlockPos| cf_pale_moss_patch(w, r, p) },
+            )
         } else {
             Ok(quote! { |_: &mut W, _: &mut FeatureRandom, _: BlockPos| false })
         }
@@ -1580,31 +1670,61 @@ impl<'a> Emitter<'a> {
             quote! { TrunkHeights { base_height: #b, height_rand_a: #a, height_rand_b: #r } }
         };
         let trunk = match &c.trunk_placer {
-            T::Straight { base_height, height_rand_a, height_rand_b } => {
+            T::Straight {
+                base_height,
+                height_rand_a,
+                height_rand_b,
+            } => {
                 let h = heights(*base_height, *height_rand_a, *height_rand_b);
                 quote! { TrunkPlacer::Straight(#h) }
             }
-            T::Forking { base_height, height_rand_a, height_rand_b } => {
+            T::Forking {
+                base_height,
+                height_rand_a,
+                height_rand_b,
+            } => {
                 let h = heights(*base_height, *height_rand_a, *height_rand_b);
                 quote! { TrunkPlacer::Forking(#h) }
             }
-            T::Giant { base_height, height_rand_a, height_rand_b } => {
+            T::Giant {
+                base_height,
+                height_rand_a,
+                height_rand_b,
+            } => {
                 let h = heights(*base_height, *height_rand_a, *height_rand_b);
                 quote! { TrunkPlacer::Giant(#h) }
             }
-            T::MegaJungle { base_height, height_rand_a, height_rand_b } => {
+            T::MegaJungle {
+                base_height,
+                height_rand_a,
+                height_rand_b,
+            } => {
                 let h = heights(*base_height, *height_rand_a, *height_rand_b);
                 quote! { TrunkPlacer::MegaJungle(#h) }
             }
-            T::DarkOak { base_height, height_rand_a, height_rand_b } => {
+            T::DarkOak {
+                base_height,
+                height_rand_a,
+                height_rand_b,
+            } => {
                 let h = heights(*base_height, *height_rand_a, *height_rand_b);
                 quote! { TrunkPlacer::DarkOak(#h) }
             }
-            T::Fancy { base_height, height_rand_a, height_rand_b } => {
+            T::Fancy {
+                base_height,
+                height_rand_a,
+                height_rand_b,
+            } => {
                 let h = heights(*base_height, *height_rand_a, *height_rand_b);
                 quote! { TrunkPlacer::Fancy(#h) }
             }
-            T::Bending { base_height, height_rand_a, height_rand_b, min_height_for_leaves, bend_length } => {
+            T::Bending {
+                base_height,
+                height_rand_a,
+                height_rand_b,
+                min_height_for_leaves,
+                bend_length,
+            } => {
                 let h = heights(*base_height, *height_rand_a, *height_rand_b);
                 let bl = self.int_provider(bend_length)?;
                 quote! { TrunkPlacer::Bending { heights: #h, min_height_for_leaves: #min_height_for_leaves, bend_length: #bl } }
@@ -1656,7 +1776,26 @@ impl<'a> Emitter<'a> {
             }
         };
         let foliage = match &c.foliage_placer {
-            F::Blob { radius, offset, height } | F::Bush { radius, offset, height } | F::Fancy { radius, offset, height } | F::Jungle { radius, offset, height } => {
+            F::Blob {
+                radius,
+                offset,
+                height,
+            }
+            | F::Bush {
+                radius,
+                offset,
+                height,
+            }
+            | F::Fancy {
+                radius,
+                offset,
+                height,
+            }
+            | F::Jungle {
+                radius,
+                offset,
+                height,
+            } => {
                 let (r, o) = (self.int_provider(radius)?, self.int_provider(offset)?);
                 let variant = match &c.foliage_placer {
                     F::Blob { .. } => quote! { Blob },
@@ -1666,12 +1805,28 @@ impl<'a> Emitter<'a> {
                 };
                 quote! { FoliagePlacer::#variant { radius: #r, offset: #o, height: #height } }
             }
-            F::Spruce { radius, offset, trunk_height } => {
-                let (r, o, t) = (self.int_provider(radius)?, self.int_provider(offset)?, self.int_provider(trunk_height)?);
+            F::Spruce {
+                radius,
+                offset,
+                trunk_height,
+            } => {
+                let (r, o, t) = (
+                    self.int_provider(radius)?,
+                    self.int_provider(offset)?,
+                    self.int_provider(trunk_height)?,
+                );
                 quote! { FoliagePlacer::Spruce { radius: #r, offset: #o, trunk_height: #t } }
             }
-            F::Pine { radius, offset, height } => {
-                let (r, o, h) = (self.int_provider(radius)?, self.int_provider(offset)?, self.int_provider(height)?);
+            F::Pine {
+                radius,
+                offset,
+                height,
+            } => {
+                let (r, o, h) = (
+                    self.int_provider(radius)?,
+                    self.int_provider(offset)?,
+                    self.int_provider(height)?,
+                );
                 quote! { FoliagePlacer::Pine { radius: #r, offset: #o, height: #h } }
             }
             F::Acacia { radius, offset } => {
@@ -1682,12 +1837,29 @@ impl<'a> Emitter<'a> {
                 let (r, o) = (self.int_provider(radius)?, self.int_provider(offset)?);
                 quote! { FoliagePlacer::DarkOak { radius: #r, offset: #o } }
             }
-            F::MegaPine { radius, offset, crown_height } => {
-                let (r, o, h) = (self.int_provider(radius)?, self.int_provider(offset)?, self.int_provider(crown_height)?);
+            F::MegaPine {
+                radius,
+                offset,
+                crown_height,
+            } => {
+                let (r, o, h) = (
+                    self.int_provider(radius)?,
+                    self.int_provider(offset)?,
+                    self.int_provider(crown_height)?,
+                );
                 quote! { FoliagePlacer::MegaPine { radius: #r, offset: #o, crown_height: #h } }
             }
-            F::RandomSpread { radius, offset, foliage_height, leaf_placement_attempts } => {
-                let (r, o, h) = (self.int_provider(radius)?, self.int_provider(offset)?, self.int_provider(foliage_height)?);
+            F::RandomSpread {
+                radius,
+                offset,
+                foliage_height,
+                leaf_placement_attempts,
+            } => {
+                let (r, o, h) = (
+                    self.int_provider(radius)?,
+                    self.int_provider(offset)?,
+                    self.int_provider(foliage_height)?,
+                );
                 quote! {
                     FoliagePlacer::RandomSpread { radius: #r, offset: #o, foliage_height: #h, leaf_placement_attempts: #leaf_placement_attempts }
                 }
@@ -1701,7 +1873,11 @@ impl<'a> Emitter<'a> {
                 hanging_leaves_chance,
                 hanging_leaves_extension_chance,
             } => {
-                let (r, o, h) = (self.int_provider(radius)?, self.int_provider(offset)?, self.int_provider(height)?);
+                let (r, o, h) = (
+                    self.int_provider(radius)?,
+                    self.int_provider(offset)?,
+                    self.int_provider(height)?,
+                );
                 quote! {
                     FoliagePlacer::Cherry {
                         radius: #r, offset: #o, height: #h,
@@ -1749,11 +1925,23 @@ impl<'a> Emitter<'a> {
             None => quote! { None },
         };
         let size = match &c.minimum_size {
-            S::TwoLayers { limit, lower_size, upper_size, min_clipped_height } => {
+            S::TwoLayers {
+                limit,
+                lower_size,
+                upper_size,
+                min_clipped_height,
+            } => {
                 let m = opt(*min_clipped_height);
                 quote! { FeatureSize::TwoLayers { limit: #limit, lower_size: #lower_size, upper_size: #upper_size, min_clipped_height: #m } }
             }
-            S::ThreeLayers { limit, upper_limit, lower_size, middle_size, upper_size, min_clipped_height } => {
+            S::ThreeLayers {
+                limit,
+                upper_limit,
+                lower_size,
+                middle_size,
+                upper_size,
+                min_clipped_height,
+            } => {
                 let m = opt(*min_clipped_height);
                 quote! {
                     FeatureSize::ThreeLayers {
@@ -1787,7 +1975,11 @@ impl<'a> Emitter<'a> {
         let l = &c.layers;
         let (lf, li, lm, lo) = (l.filling, l.inner_layer, l.middle_layer, l.outer_layer);
         let k = &c.crack;
-        let (gc, bc, co) = (k.generate_crack_chance, k.base_crack_size, k.crack_point_offset);
+        let (gc, bc, co) = (
+            k.generate_crack_chance,
+            k.base_crack_size,
+            k.crack_point_offset,
+        );
         let owd = self.int_provider(&c.outer_wall_distance)?;
         let dp = self.int_provider(&c.distribution_points)?;
         let po = self.int_provider(&c.point_offset)?;
@@ -1965,16 +2157,21 @@ pub fn emit_features(
     // among biome-listed features, and the emitter assumes that.
     {
         let mut seen: HashMap<String, &String> = HashMap::new();
-        let listed: BTreeSet<&String> = biomes.values().flat_map(|b| b.features.iter().flatten()).collect();
+        let listed: BTreeSet<&String> = biomes
+            .values()
+            .flat_map(|b| b.features.iter().flatten())
+            .collect();
         for name in listed {
             let pf = data
                 .placed
                 .get(name)
                 .ok_or_else(|| format!("biome lists unknown placed feature {name}"))?;
-            let singleton_only = pf
-                .placement
-                .iter()
-                .all(|m| matches!(m, PlacementModifier::InSquare {} | PlacementModifier::Biome {}));
+            let singleton_only = pf.placement.iter().all(|m| {
+                matches!(
+                    m,
+                    PlacementModifier::InSquare {} | PlacementModifier::Biome {}
+                )
+            });
             if let (true, ConfiguredRef::Ref(cf)) = (singleton_only, &pf.feature) {
                 let key = format!("{cf}|{:?}", pf.placement);
                 if let Some(other) = seen.insert(key, name) {
@@ -2030,7 +2227,11 @@ pub fn emit_features(
     let nether = parameter_list_order(&worldgen_root.join("biome_parameters/nether.json"))?;
     let end: Vec<String> = END_BIOMES.iter().map(|s| s.to_string()).collect();
     let mut dims = Vec::new();
-    for (dim_name, order) in [("OVERWORLD", &overworld), ("NETHER", &nether), ("END", &end)] {
+    for (dim_name, order) in [
+        ("OVERWORLD", &overworld),
+        ("NETHER", &nether),
+        ("END", &end),
+    ] {
         let lists: Vec<&Vec<Vec<String>>> = order
             .iter()
             .map(|b| {
@@ -2058,11 +2259,11 @@ pub fn emit_features(
         let biome_tokens = biome_names.iter().map(|bname| {
             let rows = (0..STEPS.len()).map(|s| {
                 let mut idx: Vec<u16> = Vec::new();
-                if order.contains(bname) {
-                    if let Some(list) = biome_json(bname).features.get(s) {
-                        for f in list {
-                            idx.push(step_index[s][f]);
-                        }
+                if order.contains(bname)
+                    && let Some(list) = biome_json(bname).features.get(s)
+                {
+                    for f in list {
+                        idx.push(step_index[s][f]);
                     }
                 }
                 idx.sort_unstable();
@@ -2091,7 +2292,11 @@ pub fn emit_features(
             let frozen = match b.temperature_modifier.as_deref() {
                 None | Some("none") => false,
                 Some("frozen") => true,
-                Some(other) => return Err(format!("biome {name}: unknown temperature_modifier {other}")),
+                Some(other) => {
+                    return Err(format!(
+                        "biome {name}: unknown temperature_modifier {other}"
+                    ));
+                }
             };
             Ok(quote! {
                 BiomeClimate {
@@ -2151,7 +2356,6 @@ pub fn emit_features(
     // Compiled placed/configured features (`features_code.rs`), included by
     // `features::generated` next to the tables above.
     let code = quote! {
-        use super::*;
         use crate::features::blocks::{
             BlockPos, BlockPredicate, BlockSet, Direction, FluidSet, Heightmap, JavaBlock, JavaState,
             NoiseSpec, RuleBasedStateProvider, RuleTest, StateProvider,

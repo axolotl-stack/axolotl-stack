@@ -8,9 +8,15 @@ use super::random::{BitSource, WorldgenRandom};
 pub enum IntProvider {
     Constant(i32),
     /// `Mth.randomBetweenInclusive(min, max)`.
-    Uniform { min: i32, max: i32 },
+    Uniform {
+        min: i32,
+        max: i32,
+    },
     /// `min + nextInt(nextInt(max - min + 1) + 1)`.
-    BiasedToBottom { min: i32, max: i32 },
+    BiasedToBottom {
+        min: i32,
+        max: i32,
+    },
     Clamped {
         source: &'static IntProvider,
         min: i32,
@@ -66,9 +72,11 @@ impl IntProvider {
             IntProvider::Uniform { min, .. } | IntProvider::BiasedToBottom { min, .. } => min,
             IntProvider::Clamped { source, min, max } => source.min_value().clamp(min, max),
             IntProvider::ClampedNormal { min, .. } => min,
-            IntProvider::WeightedList { entries, .. } => {
-                entries.iter().map(|(p, _)| p.min_value()).min().unwrap_or(0)
-            }
+            IntProvider::WeightedList { entries, .. } => entries
+                .iter()
+                .map(|(p, _)| p.min_value())
+                .min()
+                .unwrap_or(0),
         }
     }
 
@@ -79,9 +87,11 @@ impl IntProvider {
             IntProvider::Uniform { max, .. } | IntProvider::BiasedToBottom { max, .. } => max,
             IntProvider::Clamped { source, min, max } => source.max_value().clamp(min, max),
             IntProvider::ClampedNormal { max, .. } => max,
-            IntProvider::WeightedList { entries, .. } => {
-                entries.iter().map(|(p, _)| p.max_value()).max().unwrap_or(0)
-            }
+            IntProvider::WeightedList { entries, .. } => entries
+                .iter()
+                .map(|(p, _)| p.max_value())
+                .max()
+                .unwrap_or(0),
         }
     }
 }
@@ -109,14 +119,21 @@ pub fn weighted_pick<'a, T, S: BitSource>(
 pub enum FloatProvider {
     Constant(f32),
     /// `nextFloat() * (max - min) + min`.
-    Uniform { min: f32, max_exclusive: f32 },
+    Uniform {
+        min: f32,
+        max_exclusive: f32,
+    },
     ClampedNormal {
         mean: f32,
         deviation: f32,
         min: f32,
         max: f32,
     },
-    Trapezoid { min: f32, max: f32, plateau: f32 },
+    Trapezoid {
+        min: f32,
+        max: f32,
+        plateau: f32,
+    },
 }
 
 impl FloatProvider {
@@ -235,7 +252,8 @@ mod tests {
     use super::*;
     use crate::features::random::LegacyRandom;
 
-    static LIST: [(IntProvider, i32); 2] = [(IntProvider::Constant(1), 3), (IntProvider::Constant(7), 1)];
+    static LIST: [(IntProvider, i32); 2] =
+        [(IntProvider::Constant(1), 3), (IntProvider::Constant(7), 1)];
 
     #[test]
     fn weighted_list_walks_cumulative_weights() {

@@ -225,7 +225,8 @@ impl<S: BitSource> WorldgenRandom<S> {
         self.set_seed(level_seed);
         let a = self.next_long() | 1;
         let b = self.next_long() | 1;
-        let seed = ((x as i64).wrapping_mul(a)).wrapping_add((z as i64).wrapping_mul(b)) ^ level_seed;
+        let seed =
+            ((x as i64).wrapping_mul(a)).wrapping_add((z as i64).wrapping_mul(b)) ^ level_seed;
         self.set_seed(seed);
         seed
     }
@@ -244,7 +245,8 @@ impl<S: BitSource> WorldgenRandom<S> {
         self.set_seed(level_seed);
         let a = self.next_long();
         let b = self.next_long();
-        let seed = ((chunk_x as i64).wrapping_mul(a)) ^ ((chunk_z as i64).wrapping_mul(b)) ^ level_seed;
+        let seed =
+            ((chunk_x as i64).wrapping_mul(a)) ^ ((chunk_z as i64).wrapping_mul(b)) ^ level_seed;
         self.set_seed(seed);
     }
 

@@ -46,7 +46,10 @@ pub enum BlockEntityInfo {
     /// Structure block in data mode (`metadata` names the marker).
     DataMarker { metadata: &'static str },
     /// Any other block entity: Java id and its raw (big-endian) NBT compound.
-    Other { id: &'static str, nbt: &'static [u8] },
+    Other {
+        id: &'static str,
+        nbt: &'static [u8],
+    },
 }
 
 /// An entity stored in a template.
@@ -176,10 +179,15 @@ static TEMPLATES: LazyLock<Vec<Template>> = LazyLock::new(|| {
     let data = generated::TEMPLATE_DATA;
     let mut c = Cursor { data, o: 0 };
     let count = c.u32() as usize;
-    assert_eq!(count, TEMPLATE_NAMES.len(), "template blob does not match the name table");
+    assert_eq!(
+        count,
+        TEMPLATE_NAMES.len(),
+        "template blob does not match the name table"
+    );
     (0..count)
         .map(|i| {
-            let off = u32::from_le_bytes(data[4 + 4 * i..8 + 4 * i].try_into().expect("offset")) as usize;
+            let off =
+                u32::from_le_bytes(data[4 + 4 * i..8 + 4 * i].try_into().expect("offset")) as usize;
             decode(TEMPLATE_NAMES[i], data, off)
         })
         .collect()

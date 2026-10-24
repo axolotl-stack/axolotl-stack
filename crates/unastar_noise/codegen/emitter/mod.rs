@@ -2,6 +2,7 @@ pub mod biome_features;
 pub mod emitter_quote;
 pub mod feature;
 pub mod noise;
+pub mod structure;
 pub mod surface_rule;
 
 use super::analyzer::DependencyGraph;

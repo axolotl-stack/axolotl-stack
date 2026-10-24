@@ -109,7 +109,12 @@ fn main() {
     };
     let template_names = codegen::templates::emit(&output_dir, &java_blocks, jar.as_deref())
         .unwrap_or_else(|e| panic!("Failed to embed structure templates: {e}"));
-    println!("cargo:warning=Embedded {} structure templates", template_names.len());
+    println!(
+        "cargo:warning=Embedded {} structure templates",
+        template_names.len()
+    );
+    codegen::emitter::structure::emit_structures(&output_dir, &structures, &mut java_blocks)
+        .unwrap_or_else(|e| panic!("Failed to emit structures: {e}"));
     java_blocks
         .emit(&output_dir)
         .unwrap_or_else(|e| panic!("Failed to emit Java block data: {e}"));

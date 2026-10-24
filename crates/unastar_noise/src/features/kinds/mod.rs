@@ -17,6 +17,7 @@ pub mod dripstone;
 pub mod end;
 pub mod fallen_tree;
 pub mod forest_rock;
+pub mod fossil;
 pub mod geode;
 pub mod huge_mushroom;
 pub mod ice;
