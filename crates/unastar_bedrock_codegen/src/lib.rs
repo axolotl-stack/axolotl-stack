@@ -13,9 +13,11 @@
 //! 4. **Emission** ([`emit`]): `quote` + `prettyplease` Rust modules that the
 //!    `unastar` build script writes to `OUT_DIR`.
 
+pub mod blocks;
 pub mod brarchive;
 pub mod error;
 pub mod json;
+pub mod nbt;
 pub mod packs;
 
 pub use error::{Error, Result};
