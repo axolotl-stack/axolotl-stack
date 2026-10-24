@@ -83,7 +83,21 @@ impl WorldProvider for LevelDBWorldProvider {
                         // Missing subchunks are fine - they're just empty (air)
                     }
 
-                    // TODO: Load biome data from key3DData
+                    // Missing Data3D keeps the default biomes; an unreadable or
+                    // malformed value fails the load rather than losing biomes.
+                    let biome_key = keys::biome_key(pos, dim);
+                    if let Some(data) = db
+                        .get(&biome_key, &read_opts)
+                        .map_err(StorageError::Database)?
+                    {
+                        chunk.decode_biomes_disk(&data).map_err(|e| {
+                            StorageError::Deserialization(format!(
+                                "chunk ({}, {}) Data3D: {e}",
+                                pos.x, pos.z
+                            ))
+                        })?;
+                    }
+
                     // TODO: Load block entities
 
                     Ok(Some(ChunkColumn::new(chunk)))
@@ -104,7 +118,7 @@ impl WorldProvider for LevelDBWorldProvider {
         let finalisation_key = keys::finalisation_key(pos, dim);
 
         // Encode chunk data
-        let biome_data = col.chunk.encode_biomes();
+        let biome_data = col.chunk.encode_biomes_disk();
         let biome_key = keys::biome_key(pos, dim);
 
         // Collect subchunk data

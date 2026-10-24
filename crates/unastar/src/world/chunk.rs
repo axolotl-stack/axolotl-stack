@@ -37,6 +37,12 @@ const SUBCHUNK_VERSION: u8 = 9;
 /// Biome of a new chunk before a generator sets one: Bedrock `plains`.
 pub const DEFAULT_BIOME_ID: u32 = 1;
 
+/// Bytes of the height map at the start of a Data3D value (256 x i16).
+const DATA3D_HEIGHTMAP_LEN: usize = 512;
+
+/// Data3D biome section header meaning "same biomes as the section below".
+const DATA3D_COPY_PREVIOUS: u8 = 0xFF;
+
 /// Block runtime IDs fetched from the shared vanilla block registry.
 /// Uses default runtime state IDs from normalized generated block data.
 pub mod blocks {
@@ -432,7 +438,7 @@ impl PaletteSize {
 /// - 0 bits: 0 bytes (single block type)
 /// - 4 bits: 2,048 bytes (typical terrain)
 /// - 8 bits: 4,096 bytes (complex areas)
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, PartialEq, Eq)]
 pub struct PalettedStorage {
     /// Palette of unique runtime block IDs.
     palette: Vec<u32>,
@@ -598,6 +604,76 @@ impl Chunk {
         buf.put_u8(0);
 
         buf.to_vec()
+    }
+
+    /// Encode biomes as Bedrock's on-disk Data3D value (LevelDB key tag `0x2B`).
+    ///
+    /// Layout, as found in BDS-generated worlds (see `decode_biomes` in
+    /// `examples/bds_worldgen_reference.rs`):
+    /// - 256 i16 LE heights indexed `x + z * 16`, each the first air Y above the
+    ///   column relative to [`MIN_Y`];
+    /// - one biome storage per sub-chunk from the bottom: header `(bits << 1) | 1`
+    ///   (BDS sets the low bit), the packed u32 LE index words, the palette length
+    ///   as i32 LE and the palette as i32 LE biome ids. A single-value storage
+    ///   (`bits == 0`) is the header plus one i32 id, without a length. Header
+    ///   `0xFF` repeats the section below; BDS uses it for identical sections.
+    pub fn encode_biomes_disk(&self) -> Vec<u8> {
+        let mut out = Vec::with_capacity(DATA3D_HEIGHTMAP_LEN + SUBCHUNK_COUNT as usize * 5);
+        for height in self.height_map.data {
+            out.extend_from_slice(&(height - MIN_Y as i16).to_le_bytes());
+        }
+        let mut previous: Option<&PalettedStorage> = None;
+        for section in &self.biomes {
+            if previous == Some(section) {
+                out.push(DATA3D_COPY_PREVIOUS);
+            } else {
+                section.encode_disk_biomes(&mut out);
+            }
+            previous = Some(section);
+        }
+        out
+    }
+
+    /// Replace this chunk's biomes with a Data3D value from [`Self::encode_biomes_disk`]
+    /// or BDS. The height map is skipped (heights come from the blocks); when fewer
+    /// than [`SUBCHUNK_COUNT`] sections are present the last one repeats upward.
+    /// On error the chunk's biomes are unchanged.
+    pub fn decode_biomes_disk(&mut self, data: &[u8]) -> Result<(), String> {
+        let mut rest = data.get(DATA3D_HEIGHTMAP_LEN..).ok_or_else(|| {
+            format!(
+                "Data3D value is {} bytes, shorter than its {DATA3D_HEIGHTMAP_LEN}-byte height map",
+                data.len()
+            )
+        })?;
+        let mut sections: Vec<PalettedStorage> = Vec::with_capacity(SUBCHUNK_COUNT as usize);
+        while let Some(&header) = rest.first() {
+            if sections.len() == SUBCHUNK_COUNT as usize {
+                return Err(format!(
+                    "Data3D value has {} bytes after {SUBCHUNK_COUNT} biome sections",
+                    rest.len()
+                ));
+            }
+            let section = if header == DATA3D_COPY_PREVIOUS {
+                rest = &rest[1..];
+                sections
+                    .last()
+                    .cloned()
+                    .ok_or("Data3D first biome section is a copy marker")?
+            } else {
+                let (section, used) = PalettedStorage::decode_disk_biomes(rest)
+                    .map_err(|e| format!("Data3D biome section {}: {e}", sections.len()))?;
+                rest = &rest[used..];
+                section
+            };
+            sections.push(section);
+        }
+        let last = sections
+            .last()
+            .cloned()
+            .ok_or("Data3D value has no biome sections")?;
+        sections.resize(SUBCHUNK_COUNT as usize, last);
+        self.biomes = sections;
+        Ok(())
     }
 
     /// Encode a specific sub-chunk's data for SubChunk response.
@@ -1081,6 +1157,90 @@ impl PalettedStorage {
             offset,
         ))
     }
+
+    /// Append this storage in the Data3D biome format (see [`Chunk::encode_biomes_disk`]).
+    fn encode_disk_biomes(&self, out: &mut Vec<u8>) {
+        let bits = self.size as u8;
+        out.push((bits << 1) | 1);
+        if bits == 0 {
+            out.extend_from_slice(&(self.palette[0] as i32).to_le_bytes());
+            return;
+        }
+        for &word in &self.indices {
+            out.extend_from_slice(&word.to_le_bytes());
+        }
+        out.extend_from_slice(&(self.palette.len() as i32).to_le_bytes());
+        for &id in &self.palette {
+            out.extend_from_slice(&(id as i32).to_le_bytes());
+        }
+    }
+
+    /// Decode one Data3D biome storage (not a copy marker); returns (storage, bytes used).
+    /// Either value of the header's low bit is accepted.
+    fn decode_disk_biomes(data: &[u8]) -> Result<(Self, usize), String> {
+        let header = *data.first().ok_or("missing storage header")?;
+        let bits = header >> 1;
+        let size =
+            PaletteSize::from_bits(bits).ok_or_else(|| format!("unsupported bit width {bits}"))?;
+        let mut offset = 1;
+        if size == PaletteSize::Bits0 {
+            let id = read_biome_id(data, &mut offset)?;
+            return Ok((Self::single_block(id), offset));
+        }
+
+        let word_bytes = size.word_count() * 4;
+        let words = data
+            .get(offset..offset + word_bytes)
+            .ok_or("truncated index words")?;
+        let indices: Vec<u32> = words
+            .chunks_exact(4)
+            .map(|w| u32::from_le_bytes([w[0], w[1], w[2], w[3]]))
+            .collect();
+        offset += word_bytes;
+
+        let palette_len = read_i32_le(data, &mut offset)?;
+        if palette_len < 1 || palette_len as u64 > 1u64 << bits {
+            return Err(format!(
+                "palette length {palette_len} does not fit {bits}-bit indices"
+            ));
+        }
+        let palette = (0..palette_len)
+            .map(|_| read_biome_id(data, &mut offset))
+            .collect::<Result<Vec<u32>, String>>()?;
+
+        let storage = Self {
+            palette,
+            size,
+            indices,
+        };
+        // Out-of-palette indices would read as air in `get_block`; reject them here.
+        for index in 0..BLOCKS_PER_SUBCHUNK {
+            let (x, z, y) = (index >> 8, (index >> 4) & 0xF, index & 0xF);
+            let palette_index = storage.get_palette_index(x, y, z);
+            if palette_index as usize >= storage.palette.len() {
+                return Err(format!(
+                    "index {palette_index} outside palette of {}",
+                    storage.palette.len()
+                ));
+            }
+        }
+        Ok((storage, offset))
+    }
+}
+
+/// Read an i32 LE at `offset`, advancing it.
+fn read_i32_le(data: &[u8], offset: &mut usize) -> Result<i32, String> {
+    let bytes = data
+        .get(*offset..*offset + 4)
+        .ok_or("truncated i32 value")?;
+    *offset += 4;
+    Ok(i32::from_le_bytes([bytes[0], bytes[1], bytes[2], bytes[3]]))
+}
+
+/// Read a Data3D palette entry (i32 LE biome id), rejecting negative ids.
+fn read_biome_id(data: &[u8], offset: &mut usize) -> Result<u32, String> {
+    let id = read_i32_le(data, offset)?;
+    u32::try_from(id).map_err(|_| format!("negative biome id {id}"))
 }
 
 /// Write a signed varint32 (zigzag encoded).
@@ -1151,6 +1311,113 @@ mod tests {
         assert_eq!(biomes.len(), SUBCHUNK_COUNT as usize * 2 + 1);
         // Last byte should be 0 (no border blocks)
         assert_eq!(*biomes.last().unwrap(), 0);
+    }
+
+    /// Data3D value: section 0 single-value biome 1, section 1 a copy marker,
+    /// section 2 a 1-bit storage with biome 2 for x < 8 and 3 for x >= 8; the
+    /// remaining sections are omitted.
+    fn hand_made_data3d() -> Vec<u8> {
+        let mut blob = vec![0u8; DATA3D_HEIGHTMAP_LEN];
+        blob.push(1);
+        blob.extend_from_slice(&1i32.to_le_bytes());
+        blob.push(DATA3D_COPY_PREVIOUS);
+        blob.push((1 << 1) | 1);
+        // Index (x << 8) | (z << 4) | y, 32 per word: words 64.. cover x >= 8.
+        for word in 0..128 {
+            let bits: u32 = if word < 64 { 0 } else { u32::MAX };
+            blob.extend_from_slice(&bits.to_le_bytes());
+        }
+        for value in [2i32, 2, 3] {
+            blob.extend_from_slice(&value.to_le_bytes());
+        }
+        blob
+    }
+
+    #[test]
+    fn data3d_decode_hand_made_blob_with_copy_marker() {
+        let mut chunk = Chunk::new(0, 0);
+        chunk
+            .decode_biomes_disk(&hand_made_data3d())
+            .expect("valid Data3D value");
+        assert_eq!(chunk.biome_at(0, -64, 0), Some(1));
+        assert_eq!(chunk.biome_at(15, -48, 15), Some(1), "copy of section 0");
+        assert_eq!(chunk.biome_at(4, -33, 9), Some(1));
+        assert_eq!(chunk.biome_at(7, -32, 15), Some(2));
+        assert_eq!(chunk.biome_at(8, -17, 0), Some(3));
+        // Missing sections repeat the last decoded one.
+        assert_eq!(chunk.biome_at(0, 319, 9), Some(2));
+        assert_eq!(chunk.biome_at(15, 100, 0), Some(3));
+    }
+
+    #[test]
+    fn data3d_decode_rejects_malformed_values() {
+        let blob = hand_made_data3d();
+        let mut first_is_copy = vec![0u8; DATA3D_HEIGHTMAP_LEN];
+        first_is_copy.push(DATA3D_COPY_PREVIOUS);
+        let mut out_of_palette = blob.clone();
+        let palette_len_at = blob.len() - 12;
+        out_of_palette[palette_len_at..palette_len_at + 4].copy_from_slice(&1i32.to_le_bytes());
+        out_of_palette.truncate(blob.len() - 4);
+
+        let mut chunk = Chunk::new(0, 0);
+        chunk.set_biome(9);
+        for bad in [
+            &blob[..blob.len() - 1],
+            &blob[..DATA3D_HEIGHTMAP_LEN - 1],
+            &blob[..DATA3D_HEIGHTMAP_LEN],
+            &first_is_copy[..],
+            &out_of_palette[..],
+        ] {
+            assert!(
+                chunk.decode_biomes_disk(bad).is_err(),
+                "{} bytes",
+                bad.len()
+            );
+        }
+        assert_eq!(
+            chunk.biome_at(8, 0, 8),
+            Some(9),
+            "failed decode keeps biomes"
+        );
+    }
+
+    #[test]
+    fn data3d_round_trips_mixed_biomes_and_writes_heights() {
+        let mut quarts = QuartBiomes::filled(1);
+        for qz in 0..4 {
+            for qx in 0..4 {
+                for qy in 40..44 {
+                    quarts.set(qx, qy, qz, 2);
+                }
+            }
+        }
+        quarts.set(3, 21, 0, 3);
+        let mut chunk = Chunk::new(0, 0);
+        chunk.set_biomes_from_quarts(&quarts, u32::from);
+        chunk.set_block(3, 75, 5, *blocks::STONE);
+
+        let data = chunk.encode_biomes_disk();
+        let column = 3 + 5 * 16;
+        assert_eq!(
+            i16::from_le_bytes([data[2 * column], data[2 * column + 1]]),
+            76 - MIN_Y as i16
+        );
+        assert_eq!(data[DATA3D_HEIGHTMAP_LEN + 5], DATA3D_COPY_PREVIOUS);
+
+        let mut loaded = Chunk::new(0, 0);
+        loaded
+            .decode_biomes_disk(&data)
+            .expect("own encoding decodes");
+        assert_eq!(loaded.biome_at(12, 20, 0), Some(3));
+        assert_eq!(loaded.biome_at(11, 20, 0), Some(1));
+        assert_eq!(loaded.biome_at(0, 96, 15), Some(2));
+        for x in 0..16 {
+            for z in 0..16 {
+                for y in MIN_Y as i16..MIN_Y as i16 + SUBCHUNK_COUNT as i16 * 16 {
+                    assert_eq!(loaded.biome_at(x, y, z), chunk.biome_at(x, y, z));
+                }
+            }
+        }
     }
 
     #[test]
