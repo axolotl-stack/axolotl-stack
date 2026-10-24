@@ -91,19 +91,8 @@ impl SurfaceSystem {
         grid: &FlatCacheGrid,
         biomes: &QuartBiomes,
     ) {
-        let mut heights = [MIN_Y as i16; 256];
-        for z in 0..16u8 {
-            for x in 0..16u8 {
-                heights[column_index(x, z)] = top_non_air(chunk, x, z) as i16;
-            }
-        }
-        // Preliminary surface at the section corners (x, x+16) x (z, z+16).
-        let corners = [(0, 0), (16, 0), (0, 16), (16, 16)].map(|(dx, dz)| {
-            let (x, z) = (pos.x * 16 + dx, pos.z * 16 + dz);
-            let ctx = FunctionContext::new(x, 0, z);
-            let col = ColumnContext::new(x, z, noises, grid);
-            compute_preliminary_surface_level(&ctx, noises, grid, &col).floor()
-        });
+        let mut heights = column_heights(chunk);
+        let corners = preliminary_corners(pos, noises, grid);
         let mut border_biomes = HashMap::new();
 
         for local_x in 0..16u8 {
@@ -139,7 +128,6 @@ impl SurfaceSystem {
                     self.eroded_badlands_extension(chunk, noises, local_x, local_z, x, z, top);
                 }
                 let top = top_non_air(chunk, local_x, local_z) + 1;
-                env.heights = &heights;
 
                 let mut stone_depth_above = 0;
                 let mut water_height = i32::MIN;
@@ -208,6 +196,50 @@ impl SurfaceSystem {
                     top_non_air(chunk, local_x, local_z) as i16;
             }
         }
+    }
+
+    /// Java's carver `topMaterial`: the surface rule's block for exposed dirt at
+    /// `(x, y, z)` under a carved surface block, with stone depth 1 above and below.
+    #[allow(clippy::too_many_arguments)]
+    pub fn top_material(
+        &self,
+        chunk: &Chunk,
+        pos: ChunkPos,
+        noises: &NoiseRegistry,
+        grid: &FlatCacheGrid,
+        biomes: &QuartBiomes,
+        x: i32,
+        y: i32,
+        z: i32,
+        has_fluid: bool,
+    ) -> Option<u32> {
+        let heights = column_heights(chunk);
+        let corners = preliminary_corners(pos, noises, grid);
+        let mut border_biomes = HashMap::new();
+        let mut env = ColumnEnv {
+            system: self,
+            noises,
+            pos,
+            biomes,
+            border_biomes: &mut border_biomes,
+            heights: &heights,
+            corners: &corners,
+            local_x: (x & 15) as u8,
+            local_z: (z & 15) as u8,
+            x,
+            z,
+            y,
+            surface_depth: self.surface_depth(noises, x, z),
+            surface_secondary: None,
+            min_surface_level: None,
+            steep: None,
+            noise_cache: [None; NoiseRef::COUNT],
+            biome_cache: None,
+            stone_depth_above: 1,
+            stone_depth_below: 1,
+            water_height: if has_fluid { y + 1 } else { i32::MIN },
+        };
+        overworld_surface::apply(&mut env)
     }
 
     /// `(int)(surface * 2.75 + 3 + random(x, 0, z) * 0.25)`.
@@ -359,6 +391,28 @@ impl SurfaceSystem {
 #[inline]
 fn column_index(x: u8, z: u8) -> usize {
     (z as usize) << 4 | x as usize
+}
+
+/// Top non-air block of every column (`z * 16 + x`), the generation surface heightmap.
+fn column_heights(chunk: &Chunk) -> [i16; 256] {
+    let mut heights = [MIN_Y as i16; 256];
+    for z in 0..16u8 {
+        for x in 0..16u8 {
+            heights[column_index(x, z)] = top_non_air(chunk, x, z) as i16;
+        }
+    }
+    heights
+}
+
+/// Preliminary surface at the chunk's section corners (x, x+16) x (z, z+16); the chunk's
+/// flat cache covers the +16 corners.
+fn preliminary_corners(pos: ChunkPos, noises: &NoiseRegistry, grid: &FlatCacheGrid) -> [f64; 4] {
+    [(0, 0), (16, 0), (0, 16), (16, 16)].map(|(dx, dz)| {
+        let (x, z) = (pos.x * 16 + dx, pos.z * 16 + dz);
+        let ctx = FunctionContext::new(x, 0, z);
+        let col = ColumnContext::new(x, z, noises, grid);
+        compute_preliminary_surface_level(&ctx, noises, grid, &col).floor()
+    })
 }
 
 /// y of the highest non-air block (`MIN_Y - 1` if none).

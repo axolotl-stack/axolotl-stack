@@ -8,6 +8,7 @@
 
 pub mod biome_features;
 pub mod biome_source;
+pub mod carver;
 pub mod emitter_quote;
 pub mod java_biomes;
 pub mod java_blocks;
@@ -33,6 +34,10 @@ pub struct Inputs<'a> {
     pub bedrock_biome_ids: &'a BTreeMap<String, u32>,
     /// `java_data/biome_parameters_overworld.json`.
     pub biome_parameters: &'a super::data::biome_parameters::BiomeParameters,
+    /// `worldgen_data/configured_carver`.
+    pub carvers: &'a BTreeMap<String, parser::carver::ConfiguredCarver>,
+    /// `java_data/tags/block`.
+    pub block_tags: &'a super::data::block_tags::BlockTags,
 }
 
 /// Generated modules written to `OUT_DIR` and their `mod.rs` declarations.
@@ -150,6 +155,18 @@ pub fn emit_all(output_dir: &Path, inputs: &Inputs<'_>) -> Result<(), Box<dyn st
     modules.public(
         "overworld_biome_source",
         biome_source::emit(inputs.biome_parameters)?,
+    )?;
+    modules.public(
+        "carvers",
+        carver::emit(
+            inputs.carvers,
+            inputs.biomes,
+            inputs.biome_parameters,
+            inputs.block_tags,
+            inputs.java_blocks,
+            overworld.noise.min_y,
+            overworld.noise.height,
+        )?,
     )?;
 
     modules.finish()?;

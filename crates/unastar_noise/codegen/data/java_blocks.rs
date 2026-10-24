@@ -118,6 +118,17 @@ impl JavaBlocks {
         &self.blocks
     }
 
+    /// Every Java state id of a namespaced block.
+    pub fn state_ids(&self, name: &str) -> Result<std::ops::Range<u32>, String> {
+        let block = self
+            .by_name
+            .get(name)
+            .map(|&i| &self.blocks[i])
+            .ok_or_else(|| format!("unknown Java block {name} ({})", self.java_version))?;
+        let count: usize = block.properties.iter().map(|(_, v)| v.len()).product();
+        Ok(block.first_id..block.first_id + count as u32)
+    }
+
     /// Bedrock runtime ids of every Java state, in Java state id order.
     pub fn bedrock_table(&self) -> &[u32] {
         &self.bedrock

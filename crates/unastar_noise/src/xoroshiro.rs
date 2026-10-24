@@ -166,11 +166,11 @@ impl JavaRandom {
         (high + low) as f64 / ((1i64 << 53) as f64)
     }
 
-    /// Generate random long (i64).
+    /// Generate random long (i64): `((long) next(32) << 32) + next(32)`, the second half
+    /// sign-extended like Java's int-to-long addition.
     pub fn next_long(&mut self) -> i64 {
         let high = (self.next(32) as i64) << 32;
-        let low = self.next(32) as i64 & 0xffffffff;
-        high + low
+        high.wrapping_add(self.next(32) as i64)
     }
 
     /// Skip n iterations of the RNG.
@@ -302,5 +302,11 @@ mod tests {
         // x * 3129871 overflows i32 for x = 1000; Java wraps it before widening
         // (a 64-bit multiply gives -54790364611788).
         assert_eq!(get_seed(1000, 5, -300), 70359602477876);
+    }
+
+    #[test]
+    fn java_random_next_long_sign_extends_the_low_half() {
+        // java.util.Random(42).nextLong(); the low int is negative for this seed.
+        assert_eq!(JavaRandom::from_seed(42).next_long(), -5025562857975149833);
     }
 }

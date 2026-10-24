@@ -1,20 +1,23 @@
 //! Java-style generator: 3D terrain from the AOT-compiled noise router, aquifers, ore
-//! veins and surface rules.
+//! veins, 3D biomes, surface rules and carvers.
 //!
 //! This module implements Java Edition-style terrain generation with:
 //! - Density functions for 3D terrain shaping (overhangs, caves, etc.)
 //! - Cell-based interpolation for performance
 //! - Aquifer system for underground water/lava pockets
 //! - Surface rules for biome-based block placement
+//! - Cave and canyon carvers
 
+use super::aquifer::{NoiseBasedAquifer, OverworldFluidPicker};
 use super::biome_source;
+use super::carver::{self, CarveContext};
 use super::density::{
     CachingNoiseChunk, ColumnContext, ColumnContextGrid, FlatCacheGrid, FunctionContext,
     NoiseRegistry, compute_final_density,
 };
 use super::ore_veinifier::OreVeinifier;
 use super::pipeline::{Generator, SpawnPoint};
-use super::proto::{NativeBiome, ProtoChunk};
+use super::proto::{NativeBiome, ProtoChunk, QuartBiomes};
 use super::region::DecorationRegion;
 use super::surface::SurfaceSystem;
 use super::xoroshiro::PositionalRandomFactory;
@@ -108,49 +111,49 @@ impl JavaGenerator {
         (0, Self::SEA_LEVEL + 2, 0)
     }
 
+    /// The chunk's aquifer (shared by the noise fill and the carvers).
+    fn aquifer<'a>(
+        &'a self,
+        pos: ChunkPos,
+        grid: &'a FlatCacheGrid,
+        col_grid: &'a ColumnContextGrid,
+    ) -> NoiseBasedAquifer<'a, OverworldFluidPicker> {
+        NoiseBasedAquifer::new(
+            pos.x,
+            pos.z,
+            overworld_settings::MIN_Y,
+            overworld_settings::HEIGHT,
+            &self.noises,
+            grid,
+            col_grid,
+            self.seed,
+            OverworldFluidPicker::new(Self::SEA_LEVEL),
+        )
+    }
+
     /// Terrain blocks of a chunk using 3D density functions with cell-based caching.
     ///
     /// `grid` and `col_grid` are the chunk's flat (quart) and column caches, shared with
     /// the biome source. The generation process:
-    /// 1. Create NoiseBasedAquifer for underground fluid handling
-    /// 2. Create a CachingNoiseChunk for cell-based caching and interpolation
-    /// 3. Initialize interpolators with first X slice using AOT compiled functions
-    /// 4. Traverse cells (4x8x4 blocks) in X-outer, Z-middle, Y-inner order
-    /// 5. Use trilinear interpolation for density (compute at 8 corners, interpolate interior)
-    /// 6. Use aquifer system to determine fluid placement when density <= 0
-    /// 7. Apply surface rules for biome-specific blocks
+    /// 1. Create a CachingNoiseChunk for cell-based caching and interpolation
+    /// 2. Initialize interpolators with first X slice using AOT compiled functions
+    /// 3. Traverse cells (4x8x4 blocks) in X-outer, Z-middle, Y-inner order
+    /// 4. Use trilinear interpolation for density (compute at 8 corners, interpolate interior)
+    /// 5. Use the aquifer to place air, water or lava where density <= 0
     pub fn generate_terrain(
         &self,
         chunk_x: i32,
         chunk_z: i32,
         grid: &FlatCacheGrid,
         col_grid: &ColumnContextGrid,
+        aquifer: &mut NoiseBasedAquifer<'_, OverworldFluidPicker>,
     ) -> Chunk {
-        use super::aquifer::{NoiseBasedAquifer, OverworldFluidPicker};
-
         let mut chunk = Chunk::new(chunk_x, chunk_z);
 
         let cell_width = overworld_settings::CELL_WIDTH;
         let cell_height = overworld_settings::CELL_HEIGHT;
         let min_y = overworld_settings::MIN_Y;
         let height = overworld_settings::HEIGHT;
-
-        // Create aquifer system for proper underground fluid handling
-        // The aquifer determines when to place water/lava vs air in caves
-        // OPTIMIZATION: Pass col_grid so aquifer can reuse pre-computed ColumnContexts
-        // OPTIMIZATION: Use generic FluidPicker instead of Box to avoid heap allocation
-        let fluid_picker = OverworldFluidPicker::new(Self::SEA_LEVEL);
-        let mut aquifer = NoiseBasedAquifer::new(
-            chunk_x,
-            chunk_z,
-            min_y,
-            height,
-            &self.noises,
-            grid,
-            col_grid,
-            self.seed,
-            fluid_picker,
-        );
 
         // Create OreVeinifier for large ore vein generation (copper/iron with granite/tuff filler)
         let ore_veinifier = OreVeinifier::new(&self.noises, self.ore_random.clone());
@@ -297,19 +300,65 @@ impl JavaGenerator {
     }
 }
 
+/// Carving state of one proto chunk: its aquifer and what the surface rule needs for
+/// exposed dirt.
+struct JavaCarveContext<'a, 'g> {
+    generator: &'a JavaGenerator,
+    aquifer: &'a mut NoiseBasedAquifer<'g, OverworldFluidPicker>,
+    pos: ChunkPos,
+    grid: &'a FlatCacheGrid,
+    biomes: &'a QuartBiomes,
+}
+
+impl CarveContext for JavaCarveContext<'_, '_> {
+    fn carve_substance(&mut self, x: i32, y: i32, z: i32) -> Option<u32> {
+        self.aquifer.carve_substance(x, y, z)
+    }
+
+    fn top_material(
+        &mut self,
+        chunk: &Chunk,
+        x: i32,
+        y: i32,
+        z: i32,
+        has_fluid: bool,
+    ) -> Option<u32> {
+        self.generator.surface_system.top_material(
+            chunk,
+            self.pos,
+            &self.generator.noises,
+            self.grid,
+            self.biomes,
+            x,
+            y,
+            z,
+            has_fluid,
+        )
+    }
+}
+
 impl Generator for JavaGenerator {
     fn seed(&self) -> i64 {
         self.seed
     }
 
     fn generate_proto(&self, pos: ChunkPos) -> ProtoChunk {
-        // Flat (quart) and column caches shared by terrain and biomes.
+        // Flat (quart) and column caches shared by terrain, biomes, surface and carvers.
         let grid = FlatCacheGrid::new(pos.x, pos.z, &self.noises);
         let col_grid = ColumnContextGrid::new(pos.x, pos.z, &self.noises, &grid);
         let biomes = biome_source::fill_chunk(&self.noises, pos, &grid, &col_grid);
-        let mut chunk = self.generate_terrain(pos.x, pos.z, &grid, &col_grid);
+        let mut aquifer = self.aquifer(pos, &grid, &col_grid);
+        let mut chunk = self.generate_terrain(pos.x, pos.z, &grid, &col_grid, &mut aquifer);
         self.surface_system
             .build_surface(&mut chunk, pos, &self.noises, &grid, &biomes);
+        let mut carving = JavaCarveContext {
+            generator: self,
+            aquifer: &mut aquifer,
+            pos,
+            grid: &grid,
+            biomes: &biomes,
+        };
+        carver::carve_chunk(self.seed, &mut chunk, pos, &mut carving);
         ProtoChunk { pos, chunk, biomes }
     }
 

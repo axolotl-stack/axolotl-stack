@@ -42,6 +42,9 @@ pub mod biome_climate;
 // Block-class flags (heightmaps, block predicates)
 pub mod block_class;
 
+// Runtime types of the compiled carvers (`carvers`)
+pub mod carver;
+
 // Runtime side of the compiled surface rules (`overworld_surface`)
 pub mod surface;
 

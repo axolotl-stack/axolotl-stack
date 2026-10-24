@@ -42,6 +42,10 @@ fn main() {
         .unwrap_or_else(|e| panic!("Failed to load java_data biome ids: {e}"));
     let biome_parameters = codegen::data::biome_parameters::BiomeParameters::load(&java_data)
         .unwrap_or_else(|e| panic!("Failed to load java_data biome parameters: {e}"));
+    let carvers = codegen::parser::carver::parse_all(&json_root.join("configured_carver"))
+        .unwrap_or_else(|e| panic!("Failed to parse configured carvers: {e}"));
+    let block_tags = codegen::data::block_tags::BlockTags::load(&java_data.join("tags/block"))
+        .unwrap_or_else(|e| panic!("Failed to load java_data block tags: {e}"));
 
     codegen::emitter::emit_all(
         &output_dir,
@@ -53,6 +57,8 @@ fn main() {
             java_blocks: &java_blocks,
             bedrock_biome_ids: &bedrock_biome_ids,
             biome_parameters: &biome_parameters,
+            carvers: &carvers,
+            block_tags: &block_tags,
         },
     )
     .expect("Failed to emit generated code");

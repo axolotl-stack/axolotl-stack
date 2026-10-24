@@ -13,6 +13,7 @@
 
 pub mod aquifer;
 pub mod biome_source;
+pub mod carver;
 pub mod density;
 pub mod flat;
 pub mod noise;

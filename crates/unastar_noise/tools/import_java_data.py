@@ -317,11 +317,13 @@ def main() -> None:
         + "\n"
     )
 
-    tags_src = args.java_datagen / "data" / "minecraft" / "tags" / "worldgen" / "biome"
-    tags_dst = out / "tags" / "worldgen" / "biome"
-    if tags_dst.exists():
-        shutil.rmtree(tags_dst)
-    shutil.copytree(tags_src, tags_dst)
+    # Biome and block tags, as the data generator writes them.
+    for kind in (("worldgen", "biome"), ("block",)):
+        tags_src = args.java_datagen / "data" / "minecraft" / "tags" / Path(*kind)
+        tags_dst = out / "tags" / Path(*kind)
+        if tags_dst.exists():
+            shutil.rmtree(tags_dst)
+        shutil.copytree(tags_src, tags_dst)
 
     print(f"{len(blocks)} blocks, {len(ordinals)} states, {len(points)} biome points -> {out}")
 
