@@ -556,6 +556,7 @@ mod tests {
                 string_id: "minecraft:honey_bottle".into(),
                 name: "honey bottle".into(),
                 stack_size: 16,
+                component_nbt: jolyne::valentine::bedrock::codec::Nbt::default(),
             })
             .unwrap();
         items

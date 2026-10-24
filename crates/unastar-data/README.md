@@ -39,12 +39,17 @@ the protocolgen submodule. They are CC0 BDS measurements from
 `didntpot/bedrock-data` release/1.26.51, commit
 `bb896a46ba856c58383e3cfb962a38c45a0dea78`; see its README/LICENSE and protocolgen's
 `data/NOTICE.md`. Every consumed native file has its own SHA-256/commit entry.
+Text inputs are hashed with CRLF folded to LF (binary files verbatim), so the digests
+equal protocolgen's `data/source/lock.json` on any checkout, including Windows
+`core.autocrlf` ones.
 `generated/data/registry/items.nbt` supplies packet metadata absent from native
 item properties and is separately hashed (Cloudburst provenance in protocolgen's source lock).
+Its contents match the `ItemRegistryPacket` BDS 1.26.51 sends (all 2,076 entries; checked
+against a capture by `unastar`'s `vanilla_item_registry_packet_matches_bds_capture`).
 
 Current golden artifacts:
 
-- `entities.kdl`: vanilla entities and local overrides.
+- `entities.kdl`: 128 vanilla entities and local overrides.
 - `blocks.kdl`: 1,477 native blocks and 22,091 states in **unaltered canonical
   NBT order**; each state retains typed properties, network hash and physical measurements.
   Native property tables and tags are also preserved. Generated block physical fields
@@ -52,6 +57,9 @@ Current golden artifacts:
 - `biomes.kdl`: 89 native IDs/definitions, enriched with explicitly attributed
   behavior-pack components where available.
 - `items.kdl`: 2,076 native IDs/stack limits/properties/tags plus packet registry metadata.
+  The 78 items whose registry component data is not the empty compound carry it as
+  `component_nbt` (base64 of the exact network NBT, sliced from `items.nbt`, never
+  re-encoded); codegen exposes it as `ItemData::component_nbt`.
 - `creative.kdl`: PMMP creative inventory.
 - Optional `biome_packets.kdl` / `entity_identifiers.kdl`: validated BDS captures.
 

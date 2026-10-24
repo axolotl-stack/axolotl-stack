@@ -1,5 +1,6 @@
 //! Item registry code generation from normalized KDL artifacts.
 
+use base64::Engine;
 use heck::ToShoutySnakeCase;
 use kdl::{KdlDocument, KdlNode};
 use proc_macro2::TokenStream;
@@ -7,6 +8,9 @@ use quote::{format_ident, quote};
 use std::collections::{BTreeMap, BTreeSet, HashSet};
 use std::path::Path;
 use tracing::info;
+
+/// The unnamed empty network NBT compound (`0a 00 00`).
+const EMPTY_COMPONENT_NBT: &[u8] = &[0x0a, 0x00, 0x00];
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 struct ParsedItem {
@@ -18,6 +22,8 @@ struct ParsedItem {
     max_stack_size_source: String,
     tags: Vec<String>,
     native_properties_json: String,
+    /// Exact network NBT of the item's ItemRegistryPacket component data.
+    component_nbt: Vec<u8>,
 }
 
 pub fn generate_items(input_dir: &Path, output_dir: &Path) -> miette::Result<()> {
@@ -111,6 +117,27 @@ fn parse_item_node(node: &KdlNode) -> miette::Result<ParsedItem> {
         .ok_or_else(|| miette::miette!("item {} missing max_stack_size_source", identifier))?
         .to_string();
 
+    // Absent means BDS sends the unnamed empty compound.
+    let component_nbt = match node.get("component_nbt") {
+        None => EMPTY_COMPONENT_NBT.to_vec(),
+        Some(value) => {
+            let encoded = value.as_string().ok_or_else(|| {
+                miette::miette!("item {} component_nbt must be a string", identifier)
+            })?;
+            let bytes = base64::engine::general_purpose::STANDARD
+                .decode(encoded)
+                .map_err(|e| {
+                    miette::miette!("item {} component_nbt is not base64: {}", identifier, e)
+                })?;
+            if !bytes.starts_with(&[0x0a, 0x00]) || bytes.last() != Some(&0) {
+                return Err(miette::miette!(
+                    "item {} component_nbt is not an unnamed network NBT compound",
+                    identifier
+                ));
+            }
+            bytes
+        }
+    };
     let mut tags = BTreeSet::new();
     if let Some(children) = node.children() {
         for child in children.nodes() {
@@ -142,6 +169,7 @@ fn parse_item_node(node: &KdlNode) -> miette::Result<ParsedItem> {
                 | "max_stack_size"
                 | "max_stack_size_source"
                 | "registry_metadata_source"
+                | "component_nbt"
         ) {
             continue;
         }
@@ -199,6 +227,7 @@ fn parse_item_node(node: &KdlNode) -> miette::Result<ParsedItem> {
         max_stack_size_source,
         tags: tags.into_iter().collect(),
         native_properties_json,
+        component_nbt,
     })
 }
 
@@ -258,6 +287,12 @@ fn generate_items_module(items: &[ParsedItem], output_dir: &Path) -> miette::Res
             let max_stack_size_source = &item.max_stack_size_source;
             let tags = &item.tags;
             let native_properties_json = &item.native_properties_json;
+            let component_nbt = if item.component_nbt == EMPTY_COMPONENT_NBT {
+                quote! { EMPTY_COMPONENT_NBT }
+            } else {
+                let literal = proc_macro2::Literal::byte_string(&item.component_nbt);
+                quote! { #literal }
+            };
             quote! {
                 pub const #const_name: ItemData = ItemData {
                     id: #id,
@@ -269,6 +304,7 @@ fn generate_items_module(items: &[ParsedItem], output_dir: &Path) -> miette::Res
                     max_stack_size_source: #max_stack_size_source,
                     tags: &[#(#tags),*],
                     native_properties_json: #native_properties_json,
+                    component_nbt: #component_nbt,
                 };
             }
         })
@@ -306,7 +342,12 @@ fn generate_items_module(items: &[ParsedItem], output_dir: &Path) -> miette::Res
         //! Do not edit manually.
         //!
         //! IDs, stack sizes and gameplay properties come from the native item
-        //! table; packet registry metadata comes from protocolgen's items.nbt.
+        //! table; packet registry metadata and component NBT come from
+        //! protocolgen's items.nbt, which matches BDS 1.26.51's ItemRegistryPacket.
+
+        /// The unnamed empty network NBT compound BDS sends for items without
+        /// registry component data.
+        pub const EMPTY_COMPONENT_NBT: &[u8] = b"\x0a\x00\x00";
 
         /// Source-attributed item registry row.
         #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -334,6 +375,10 @@ fn generate_items_module(items: &[ParsedItem], output_dir: &Path) -> miette::Res
             /// Keys retain their native spelling (for example, `maxDamage`).
             /// Registry metadata and fields exposed above are excluded.
             pub native_properties_json: &'static str,
+            /// `ItemRegistryPacket` component data as exact network NBT: an unnamed
+            /// root compound, `{}` for most items, and the component compound BDS
+            /// sends for component-based and legacy-JSON items.
+            pub component_nbt: &'static [u8],
         }
 
         #(#entries)*
@@ -448,6 +493,34 @@ mod tests {
     }
 
     #[test]
+    fn component_nbt_defaults_to_empty_compound_and_rejects_malformed_values() {
+        let parse = |extra: &str| {
+            let doc: KdlDocument = format!(
+                "item minecraft:apple runtime_id=285 component_based=#true version=1 max_stack_size=64 max_stack_size_source=protocolgen_native {extra}"
+            )
+            .parse()
+            .unwrap();
+            parse_item_node(&doc.nodes()[0])
+        };
+        let item = parse("").unwrap();
+        assert_eq!(item.component_nbt, EMPTY_COMPONENT_NBT);
+        // {a: byte 7} as an unnamed root compound.
+        let item = parse(r#"component_nbt="CgABAWEHAA==""#).unwrap();
+        assert_eq!(
+            item.component_nbt,
+            [0x0a, 0x00, 0x01, 0x01, b'a', 0x07, 0x00]
+        );
+        assert_eq!(item.native_properties_json, "{}");
+        for bad in [
+            r#"component_nbt="!""#,
+            r#"component_nbt="AQA=""#,
+            "component_nbt=1",
+        ] {
+            assert!(parse(bad).is_err(), "{bad}");
+        }
+    }
+
+    #[test]
     fn rejects_malformed_native_tags() {
         for child in [
             "tag 12",
@@ -474,6 +547,7 @@ mod tests {
                 max_stack_size_source: "test".to_string(),
                 tags: Vec::new(),
                 native_properties_json: "{}".to_string(),
+                component_nbt: EMPTY_COMPONENT_NBT.to_vec(),
             },
             ParsedItem {
                 identifier: "minecraft:b".to_string(),
@@ -484,6 +558,7 @@ mod tests {
                 max_stack_size_source: "test".to_string(),
                 tags: Vec::new(),
                 native_properties_json: "{}".to_string(),
+                component_nbt: EMPTY_COMPONENT_NBT.to_vec(),
             },
         ];
 
@@ -503,6 +578,7 @@ mod tests {
             max_stack_size_source: "test".to_string(),
             tags: Vec::new(),
             native_properties_json: "{}".to_string(),
+            component_nbt: EMPTY_COMPONENT_NBT.to_vec(),
         }];
 
         let error = validate_items(&items).expect_err("out-of-range network ID is invalid");

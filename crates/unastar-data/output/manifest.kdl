@@ -22,6 +22,6 @@ manifest schema_version="1" generated_at="unknown" {
     artifact "entities" path="entities.kdl" hash="387dcd64991d68b0b163d3fe01590dff663420389f313fd41a984d68db4e4b66"
     artifact "blocks" path="blocks.kdl" hash="85973df38550bf91d6ebc189b7846d3c9ff43c656058a0890fdddb96f108d957"
     artifact "biomes" path="biomes.kdl" hash="5f950b409de320856f231ff01f412876a3b7b08cc792b8e7a6acd14d89103c0d"
-    artifact "items" path="items.kdl" hash="a69c1ed48622c61969b9fea5dd1157aea050914217d923b3601a4a8f0ae870b5"
+    artifact "items" path="items.kdl" hash="f930e88101a6ea2b551fde50d1f5b2705bafe1293299b9abc89fdedf1b6263af"
     artifact "creative" path="creative.kdl" hash="35112ee9b3d22de086b43f8b828386dd3c06145b3e557d043de22291457a3d55"
 }
