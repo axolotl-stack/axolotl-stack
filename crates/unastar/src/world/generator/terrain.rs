@@ -20,10 +20,9 @@ use super::surface::SurfaceSystem;
 use super::xoroshiro::PositionalRandomFactory;
 use crate::world::ChunkPos;
 use crate::world::chunk::{Chunk, blocks};
-use crate::world::generator::BiomeNoise;
 use std::simd::prelude::*;
 use unastar_noise::java_biomes::JavaBiome;
-use unastar_noise::{build_vanilla_surface_rule, overworld_settings};
+use unastar_noise::overworld_settings;
 
 /// Java-style terrain generator using 3D density functions.
 ///
@@ -51,9 +50,8 @@ impl JavaGenerator {
         // Create noise registry with all noises instantiated from seed
         let noises = NoiseRegistry::new(seed);
 
-        // Build surface rules system using generated vanilla rules from JSON
-        let surface_rule = build_vanilla_surface_rule(seed);
-        let surface_system = SurfaceSystem::new(seed, surface_rule, BiomeNoise::from_seed(seed));
+        // Compiled surface rule pass (seed-derived randoms and clay bands).
+        let surface_system = SurfaceSystem::new(seed);
 
         // `fromHashOf("minecraft:ore").forkPositional()` of the world's base factory.
         let ore_random =
@@ -148,8 +146,8 @@ impl JavaGenerator {
             min_y,
             height,
             &self.noises,
-            &grid,
-            &col_grid,
+            grid,
+            col_grid,
             self.seed,
             fluid_picker,
         );
@@ -167,13 +165,13 @@ impl JavaGenerator {
 
         // Initialize interpolator with first X slice using AOT compiled functions
         // Uses pre-computed col_grid for O(1) column context lookups
-        noise_chunk.initialize_for_first_cell_x_aot(&grid, &col_grid, &self.noises);
+        noise_chunk.initialize_for_first_cell_x_aot(grid, col_grid, &self.noises);
 
         // X-outer loop over cells
         for cell_x in 0..cell_count_xz {
             // Advance to next X cell using AOT compiled functions
             // Uses pre-computed col_grid for O(1) column context lookups
-            noise_chunk.advance_cell_x_aot(cell_x as i32, &grid, &col_grid, &self.noises);
+            noise_chunk.advance_cell_x_aot(cell_x as i32, grid, col_grid, &self.noises);
 
             // Z-middle loop
             for cell_z in 0..cell_count_xz {
@@ -290,10 +288,6 @@ impl JavaGenerator {
             noise_chunk.swap_slices();
         }
 
-        // Apply surface rules
-        self.surface_system
-            .build_surface(&mut chunk, chunk_x, chunk_z);
-
         chunk
     }
 }
@@ -308,11 +302,10 @@ impl Generator for JavaGenerator {
         let grid = FlatCacheGrid::new(pos.x, pos.z, &self.noises);
         let col_grid = ColumnContextGrid::new(pos.x, pos.z, &self.noises, &grid);
         let biomes = biome_source::fill_chunk(&self.noises, pos, &grid, &col_grid);
-        ProtoChunk {
-            pos,
-            chunk: self.generate_terrain(pos.x, pos.z, &grid, &col_grid),
-            biomes,
-        }
+        let mut chunk = self.generate_terrain(pos.x, pos.z, &grid, &col_grid);
+        self.surface_system
+            .build_surface(&mut chunk, pos, &self.noises, &grid, &biomes);
+        ProtoChunk { pos, chunk, biomes }
     }
 
     fn decorates(&self) -> bool {

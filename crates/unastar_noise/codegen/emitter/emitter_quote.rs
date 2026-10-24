@@ -168,6 +168,9 @@ pub struct AotEmitter<'a> {
     spline_counter: usize,
     /// When true, FlatCache nodes are expanded inline instead of using grid lookups.
     expand_flat_cache_inline: bool,
+    /// When true, Cache2D nodes are computed inline too (the `_uncached` roots), so the
+    /// function needs neither a FlatCacheGrid nor a ColumnContext.
+    expand_all_caches_inline: bool,
     /// When true, ColumnContext initialization computes flat_cache values inline
     /// instead of looking them up from FlatCacheGrid.
     column_context_standalone_mode: bool,
@@ -204,6 +207,7 @@ impl<'a> AotEmitter<'a> {
             statements: Vec::new(),
             spline_counter: 0,
             expand_flat_cache_inline: false,
+            expand_all_caches_inline: false,
             column_context_standalone_mode: false,
             cache_2d_inner_to_wrapper,
             fc_spline_registry: RefCell::new(SplineRegistry::new()),
@@ -733,14 +737,11 @@ impl<'a> AotEmitter<'a> {
         }
     }
 
-    /// `compute_<root>_uncached(ctx, noises, col)`: the root with every flat cache expanded
-    /// inline, for positions outside a chunk's `FlatCacheGrid` (biome zoom neighbours,
-    /// preliminary surface at section corners). `col` must come from
-    /// `ColumnContext::new_standalone` at the same column.
+    /// `compute_<root>_uncached(ctx, noises)`: the root with every flat and 2D cache
+    /// computed inline, for positions outside a chunk's caches (biome zoom neighbours).
+    /// A `find_top_surface` root also gets its inner density as
+    /// `compute_<root>_inner_density_uncached`.
     fn emit_uncached_function(&mut self, root_name: &str) -> TokenStream {
-        self.var_names.clear();
-        self.var_counter = 0;
-        self.statements.clear();
         let root_id = self
             .graph
             .roots
@@ -748,21 +749,43 @@ impl<'a> AotEmitter<'a> {
             .unwrap_or_else(|| panic!("router root {root_name} is missing"))
             .clone();
         self.expand_flat_cache_inline = true;
+        self.expand_all_caches_inline = true;
+
+        let mut inner = TokenStream::new();
+        if let Some(node) = self.graph.nodes.get(&root_id).cloned()
+            && matches!(node.def, DensityFunctionDef::FindTopSurface { .. })
+        {
+            self.var_names.clear();
+            self.var_counter = 0;
+            self.statements.clear();
+            let inner_expr = self.emit_node(&node.dependencies[0]);
+            let inner_stmts = std::mem::take(&mut self.statements);
+            let inner_name = format_ident!("compute_{}_inner_density_uncached", root_name);
+            inner = quote! {
+                #[inline]
+                fn #inner_name(ctx: &FunctionContext, noises: &impl NoiseSource) -> f64 {
+                    #(#inner_stmts)*
+                    #inner_expr
+                }
+            };
+        }
+
+        self.var_names.clear();
+        self.var_counter = 0;
+        self.statements.clear();
         let result_expr = self.emit_node(&root_id);
         self.expand_flat_cache_inline = false;
+        self.expand_all_caches_inline = false;
         let stmts = std::mem::take(&mut self.statements);
         let func_name = format_ident!("compute_{}_uncached", root_name);
         let doc = format!(
-            "Router `{root_name}` at any position (flat caches expanded inline). `col` must be `ColumnContext::new_standalone` of the same column."
+            "Router `{root_name}` at any position, every cache computed inline (slower than the chunk-cached `compute_{root_name}`)."
         );
         quote! {
+            #inner
             #[doc = #doc]
             #[inline]
-            pub fn #func_name(
-                ctx: &FunctionContext,
-                noises: &impl NoiseSource,
-                col: &ColumnContext,
-            ) -> f64 {
+            pub fn #func_name(ctx: &FunctionContext, noises: &impl NoiseSource) -> f64 {
                 #(#stmts)*
                 #result_expr
             }
@@ -935,7 +958,9 @@ impl<'a> AotEmitter<'a> {
     fn emit_node(&mut self, id: &NodeId) -> TokenStream {
         // Check if this node's value is cached in a Cache2D wrapper.
         // If so, use the pre-computed ColumnContext field instead of recomputing.
-        if let Some(wrapper_id) = self.cache_2d_inner_to_wrapper.get(id).cloned() {
+        if !self.expand_all_caches_inline
+            && let Some(wrapper_id) = self.cache_2d_inner_to_wrapper.get(id).cloned()
+        {
             let field = self.column_context_field_ident(&wrapper_id);
             return quote! { col.#field };
         }
@@ -944,14 +969,16 @@ impl<'a> AotEmitter<'a> {
             return quote! { #var };
         }
 
-        let node = match self.graph.nodes.get(id) {
-            Some(n) => n.clone(),
-            None => return quote! { 0.0 },
-        };
+        let node = self
+            .graph
+            .nodes
+            .get(id)
+            .unwrap_or_else(|| panic!("density node {id:?} is missing from the graph"))
+            .clone();
 
         // Early return for cache_2d nodes: reference the pre-computed ColumnContext field
         // This avoids recomputing expensive Y-independent expressions for every Y position.
-        if node.is_cache_2d {
+        if node.is_cache_2d && !self.expand_all_caches_inline {
             let field = self.column_context_field_ident(&node.id);
             return quote! { col.#field };
         }
@@ -1113,9 +1140,13 @@ impl<'a> AotEmitter<'a> {
             }
 
             DensityFunctionDef::Cache2D { .. } => {
-                // Use the cached value from ColumnContext
-                let field = self.column_context_field_ident(&node.id);
-                quote! { col.#field }
+                if self.expand_all_caches_inline {
+                    self.emit_node(&node.dependencies[0])
+                } else {
+                    // Use the cached value from ColumnContext
+                    let field = self.column_context_field_ident(&node.id);
+                    quote! { col.#field }
+                }
             }
 
             DensityFunctionDef::CacheOnce { .. } | DensityFunctionDef::Interpolated { .. } => {
@@ -1208,10 +1239,15 @@ impl<'a> AotEmitter<'a> {
                 let upper_bound = self.emit_node(&node.dependencies[1]);
                 let lb = *lower_bound;
                 let ch = *cell_height;
+                let inner_call = if self.expand_all_caches_inline {
+                    quote! { compute_preliminary_surface_level_inner_density_uncached(&inner_ctx, noises) }
+                } else {
+                    quote! { compute_preliminary_surface_level_inner_density(&inner_ctx, noises, col) }
+                };
                 quote! {
                     find_top_surface(ctx.block_x, ctx.block_z, #lb, #upper_bound, #ch, |y| {
                         let inner_ctx = FunctionContext::new(ctx.block_x, y, ctx.block_z);
-                        compute_preliminary_surface_level_inner_density(&inner_ctx, noises, col)
+                        #inner_call
                     })
                 }
             }

@@ -1235,6 +1235,23 @@ impl SimplexNoise {
         Self { p, xo, yo, zo }
     }
 
+    /// Create a SimplexNoise from Java's legacy (LCG) random, as the fixed-seed biome
+    /// climate noises are.
+    pub fn from_legacy(rng: &mut crate::xoroshiro::JavaRandom) -> Self {
+        let xo = rng.next_double() * 256.0;
+        let yo = rng.next_double() * 256.0;
+        let zo = rng.next_double() * 256.0;
+        let mut p = [0i32; 512];
+        for (i, slot) in p.iter_mut().enumerate().take(256) {
+            *slot = i as i32;
+        }
+        for i in 0..256 {
+            let j = rng.next_int(256 - i as u32) as usize;
+            p.swap(i, j + i);
+        }
+        Self { p, xo, yo, zo }
+    }
+
     /// Get permutation value with wrapping.
     #[inline(always)]
     fn p(&self, i: i32) -> i32 {

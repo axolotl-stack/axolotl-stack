@@ -137,8 +137,10 @@ pub fn emit_all(output_dir: &Path, inputs: &Inputs<'_>) -> Result<(), Box<dyn st
     biome_features::emit_biome_features(output_dir, inputs.biomes)?;
     modules.glob_existing("biome_features");
 
-    surface_rule::emit_surface_rules(output_dir, &overworld.surface_rule)?;
-    modules.glob_existing("surface_rules");
+    modules.public(
+        "overworld_surface",
+        surface_rule::emit(overworld, inputs.java_blocks)?,
+    )?;
 
     modules.public("java_blocks", java_blocks::emit(inputs.java_blocks))?;
     modules.public(

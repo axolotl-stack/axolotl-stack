@@ -10,7 +10,7 @@
 use sha2::{Digest, Sha256};
 use unastar_noise::java_biomes::JavaBiome;
 use unastar_noise::{
-    ColumnContext, ColumnContextGrid, FlatCacheGrid, FunctionContext, compute_continents,
+    ColumnContextGrid, FlatCacheGrid, FunctionContext, compute_continents,
     compute_continents_uncached, compute_depth, compute_depth_uncached, compute_erosion,
     compute_erosion_uncached, compute_ridges, compute_ridges_uncached, compute_temperature,
     compute_temperature_uncached, compute_vegetation, compute_vegetation_uncached,
@@ -24,16 +24,14 @@ use crate::world::chunk::MIN_Y;
 
 /// Biome at an absolute quart position, without chunk caches.
 pub fn sample_biome(noises: &NoiseRegistry, quart_x: i32, quart_y: i32, quart_z: i32) -> JavaBiome {
-    let (x, y, z) = (quart_x << 2, quart_y << 2, quart_z << 2);
-    let ctx = FunctionContext::new(x, y, z);
-    let col = ColumnContext::new_standalone(x, z, noises);
+    let ctx = FunctionContext::new(quart_x << 2, quart_y << 2, quart_z << 2);
     let target = overworld_biome_source::target(
-        compute_temperature_uncached(&ctx, noises, &col),
-        compute_vegetation_uncached(&ctx, noises, &col),
-        compute_continents_uncached(&ctx, noises, &col),
-        compute_erosion_uncached(&ctx, noises, &col),
-        compute_depth_uncached(&ctx, noises, &col),
-        compute_ridges_uncached(&ctx, noises, &col),
+        compute_temperature_uncached(&ctx, noises),
+        compute_vegetation_uncached(&ctx, noises),
+        compute_continents_uncached(&ctx, noises),
+        compute_erosion_uncached(&ctx, noises),
+        compute_depth_uncached(&ctx, noises),
+        compute_ridges_uncached(&ctx, noises),
     );
     overworld_biome_source::find(&target)
 }
@@ -156,4 +154,47 @@ pub fn zoomed_biome<B: Copy>(
         if best & 2 == 0 { m } else { m + 1 },
         if best & 1 == 0 { n } else { n + 1 },
     )
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use unastar_noise::{ColumnContext, compute_preliminary_surface_level};
+    use unastar_noise::{FunctionContext as Ctx, compute_preliminary_surface_level_uncached};
+
+    /// The cache-free roots (used outside a chunk's caches) must agree with the
+    /// chunk-cached ones; they once dropped the climate shift noise and returned the
+    /// preliminary surface's lower bound everywhere.
+    #[test]
+    fn uncached_roots_match_chunk_caches() {
+        std::thread::Builder::new()
+            .stack_size(64 << 20)
+            .spawn(|| {
+                let noises = NoiseRegistry::new(12345);
+                for pos in [ChunkPos::new(0, 0), ChunkPos::new(-128, 33)] {
+                    let grid = FlatCacheGrid::new(pos.x, pos.z, &noises);
+                    let cols = ColumnContextGrid::new(pos.x, pos.z, &noises, &grid);
+                    let biomes = fill_chunk(&noises, pos, &grid, &cols);
+                    for (qx, qy, qz) in [(0, 30, 0), (3, 20, 1), (2, 5, 3)] {
+                        let sampled = sample_biome(
+                            &noises,
+                            pos.x * 4 + qx as i32,
+                            (MIN_Y >> 2) + qy as i32,
+                            pos.z * 4 + qz as i32,
+                        );
+                        assert_eq!(sampled as NativeBiome, biomes.get(qx, qy, qz));
+                    }
+                    let (x, z) = (pos.x * 16 + 16, pos.z * 16);
+                    let ctx = Ctx::new(x, 0, z);
+                    let col = ColumnContext::new(x, z, &noises, &grid);
+                    assert_eq!(
+                        compute_preliminary_surface_level_uncached(&ctx, &noises),
+                        compute_preliminary_surface_level(&ctx, &noises, &grid, &col)
+                    );
+                }
+            })
+            .unwrap()
+            .join()
+            .unwrap();
+    }
 }

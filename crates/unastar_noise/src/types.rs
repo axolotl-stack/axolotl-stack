@@ -140,3 +140,15 @@ where
     // No surface found in range, return lower bound
     lower_bound as f64
 }
+
+#[cfg(test)]
+mod tests {
+    use super::find_top_surface;
+
+    #[test]
+    fn negative_upper_bound_rounds_down_to_the_cell_below() {
+        // floor(-3.5 / 8) * 8 = -8; truncating toward zero would start at 0.
+        let top = find_top_surface(0, 0, -64, -3.5, 8, |_| 1.0);
+        assert_eq!(top, -8.0);
+    }
+}

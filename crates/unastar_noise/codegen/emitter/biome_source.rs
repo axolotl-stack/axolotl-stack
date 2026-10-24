@@ -109,6 +109,8 @@ pub fn emit(params: &BiomeParameters) -> Result<TokenStream, String> {
             sum
         }
 
+        // Children are node indices into several parallel arrays.
+        #[allow(clippy::needless_range_loop)]
         fn search(node: usize, target: &[i64; #dims], best: Option<usize>) -> Option<usize> {
             let mut best_distance = best.map_or(i64::MAX, |leaf| distance(leaf, target));
             let mut leaf = best;

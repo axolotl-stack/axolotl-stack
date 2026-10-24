@@ -2,8 +2,14 @@
 //!
 //! Each floor is the value measured when it was last raised; a change may only raise a
 //! floor (or lower an error ceiling), in the same commit as the improvement. Metrics are
-//! defined in `unastar::world::generator::parity`; print them with
+//! defined in `unastar::world::generator::parity`; print them (and the block histograms,
+//! which stay report-only while decoration is missing) with
 //! `cargo run -p unastar --example worldgen_parity_report`.
+//!
+//! The truth for the Java-style generator is the Java Edition reference world. The BDS
+//! fixture only gates what both editions share: terrain shape (BDS behaves as Java's noise
+//! router) and biome placement. BDS surface blocks come from Bedrock surface builders and
+//! belong to the Bedrock-style generator's gates.
 
 use std::path::Path;
 use std::sync::Arc;
@@ -13,18 +19,7 @@ use unastar::world::generator::parity::{
 };
 use unastar::world::generator::{ChunkPipeline, JavaGenerator};
 
-/// Minimum rates (and maximum errors) a generator must keep.
-struct Ratchet {
-    terrain_exact: f64,
-    terrain_within_2: f64,
-    max_terrain_mean_abs_error: f64,
-    surface_exact: f64,
-    surface_block: f64,
-    surface_biome: f64,
-    max_histogram_l1: f64,
-}
-
-fn check(fixture: &str, ratchet: Ratchet) {
+fn metrics(fixture: &str) -> ParityMetrics {
     let path = Path::new(env!("CARGO_MANIFEST_DIR"))
         .join("tests/fixtures")
         .join(fixture);
@@ -39,76 +34,56 @@ fn check(fixture: &str, ratchet: Ratchet) {
         .join()
         .unwrap();
     println!("{fixture}: {metrics:#?}");
-    let ParityMetrics {
-        terrain_exact,
-        terrain_within_2,
-        terrain_mean_abs_error,
-        surface_exact,
-        surface_block,
-        surface_biome,
-        histogram_l1,
-        ..
-    } = metrics;
-    let mut failures = Vec::new();
-    let mut floor = |name: &str, value: f64, min: f64| {
-        if value < min {
-            failures.push(format!("{name} {value:.4} fell below its floor {min:.4}"));
-        }
-    };
-    floor("terrain_exact", terrain_exact, ratchet.terrain_exact);
-    floor(
-        "terrain_within_2",
-        terrain_within_2,
-        ratchet.terrain_within_2,
-    );
-    floor("surface_exact", surface_exact, ratchet.surface_exact);
-    floor("surface_block", surface_block, ratchet.surface_block);
-    floor("surface_biome", surface_biome, ratchet.surface_biome);
-    let mut ceiling = |name: &str, value: f64, max: f64| {
-        if value > max {
-            failures.push(format!("{name} {value:.4} rose above its ceiling {max:.4}"));
-        }
-    };
-    ceiling(
-        "terrain_mean_abs_error",
-        terrain_mean_abs_error,
-        ratchet.max_terrain_mean_abs_error,
-    );
-    ceiling("histogram_l1", histogram_l1, ratchet.max_histogram_l1);
+    metrics
+}
+
+/// `(name, value, floor)` must have `value >= floor`; `(name, value, ceiling)` with a
+/// leading `-` in the name must have `value <= ceiling`.
+fn assert_ratchets(fixture: &str, checks: &[(&str, f64, f64)]) {
+    let failures: Vec<String> = checks
+        .iter()
+        .filter_map(|&(name, value, bound)| {
+            if let Some(name) = name.strip_prefix('-') {
+                (value > bound)
+                    .then(|| format!("{name} {value:.4} rose above its ceiling {bound:.4}"))
+            } else {
+                (value < bound)
+                    .then(|| format!("{name} {value:.4} fell below its floor {bound:.4}"))
+            }
+        })
+        .collect();
     assert!(failures.is_empty(), "{fixture}: {}", failures.join("; "));
 }
 
 #[test]
 fn java_style_vs_java_reference() {
-    check(
-        "java_1_21_11_seed_12345.json",
-        Ratchet {
-            terrain_exact: 0.7666,
-            terrain_within_2: 0.8622,
-            max_terrain_mean_abs_error: 2.3842,
-            surface_exact: 0.8442,
-            surface_block: 0.7289,
-            surface_biome: 0.9999,
-            // Dominated by missing decoration until features land; the shift fix moved
-            // stone/deepslate counts by 0.07%.
-            max_histogram_l1: 0.4550,
-        },
+    let fixture = "java_1_21_11_seed_12345.json";
+    let m = metrics(fixture);
+    assert_ratchets(
+        fixture,
+        &[
+            ("terrain_exact", m.terrain_exact, 0.8036),
+            ("terrain_within_2", m.terrain_within_2, 0.9008),
+            ("-terrain_mean_abs_error", m.terrain_mean_abs_error, 1.3875),
+            ("surface_exact", m.surface_exact, 0.8806),
+            ("surface_block", m.surface_block, 0.8391),
+            ("surface_biome", m.surface_biome, 0.9999),
+        ],
     );
 }
 
 #[test]
-fn java_style_vs_bds_reference() {
-    check(
-        "bds_1_26_51_seed_12345.json",
-        Ratchet {
-            terrain_exact: 0.8446,
-            terrain_within_2: 0.9235,
-            max_terrain_mean_abs_error: 1.2424,
-            surface_exact: 0.8807,
-            surface_block: 0.8128,
-            surface_biome: 0.9946,
-            max_histogram_l1: 0.3735,
-        },
+fn java_style_terrain_and_biomes_vs_bds_reference() {
+    let fixture = "bds_1_26_51_seed_12345.json";
+    let m = metrics(fixture);
+    assert_ratchets(
+        fixture,
+        &[
+            ("terrain_exact", m.terrain_exact, 0.8459),
+            ("terrain_within_2", m.terrain_within_2, 0.9428),
+            ("-terrain_mean_abs_error", m.terrain_mean_abs_error, 0.7783),
+            ("surface_biome", m.surface_biome, 0.9946),
+        ],
     );
 }
 
@@ -129,15 +104,12 @@ fn java_style_protos_vs_java_reference() {
         .join()
         .unwrap();
     println!("proto: {metrics:#?}");
-    let floors = [
-        ("block_exact", metrics.block_exact, 0.9606),
-        ("class_exact", metrics.class_exact, 0.9743),
-        ("biome_exact", metrics.biome_exact, 1.0),
-    ];
-    for (name, value, floor) in floors {
-        assert!(
-            value >= floor,
-            "proto {name} {value:.4} fell below its floor {floor:.4}"
-        );
-    }
+    assert_ratchets(
+        "java_1_21_11_seed_12345_proto.json",
+        &[
+            ("block_exact", metrics.block_exact, 0.9801),
+            ("class_exact", metrics.class_exact, 0.9812),
+            ("biome_exact", metrics.biome_exact, 1.0),
+        ],
+    );
 }

@@ -13,8 +13,6 @@
 
 pub mod aquifer;
 pub mod biome_source;
-mod climate;
-mod constants;
 pub mod density;
 pub mod flat;
 pub mod noise;
@@ -28,8 +26,6 @@ pub mod surface;
 mod terrain;
 pub mod xoroshiro;
 
-pub use climate::BiomeNoise;
-pub use constants::Biome;
 pub use flat::{FlatGenerator, VoidGenerator};
 pub use pipeline::{ChunkPipeline, Generator, SpawnPoint};
 pub use proto::{NativeBiome, ProtoChunk, QuartBiomes};

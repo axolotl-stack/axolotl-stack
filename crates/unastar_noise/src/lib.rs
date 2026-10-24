@@ -36,45 +36,14 @@ pub mod xoroshiro;
 pub use noise::{BlendedNoise, DoublePerlinNoise, OctaveNoise, PerlinNoise, SimplexNoise};
 pub use xoroshiro::{JavaRandom, PositionalRandomFactory, Xoroshiro128, get_seed};
 
-// Biome enum
-pub mod biome;
-pub use biome::Biome;
-
-// Biome lookup tables
-pub mod biome_tables;
+// Biome temperature (surface rules, snow/ice, icebergs)
+pub mod biome_climate;
 
 // Block-class flags (heightmaps, block predicates)
 pub mod block_class;
 
-// Surface rules system
+// Runtime side of the compiled surface rules (`overworld_surface`)
 pub mod surface;
-pub use surface::{
-    // Conditions
-    AbovePreliminarySurface,
-    // Rules
-    BandlandsRule,
-    BiomeCheck,
-    BlockIdRule,
-    BlockRule,
-    // Context
-    CaveSurface,
-    Condition,
-    Hole,
-    LazyCondition,
-    NoiseThreshold,
-    Not,
-    Rule,
-    SequenceRule,
-    Steep,
-    StoneDepthCheck,
-    SurfaceContext,
-    Temperature,
-    TestRule,
-    VerticalAnchor,
-    VerticalGradient,
-    WaterCheck,
-    YCheck,
-};
 
 // Include generated code from OUT_DIR
 include!(concat!(env!("OUT_DIR"), "/mod.rs"));

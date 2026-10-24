@@ -32,8 +32,15 @@ impl Xoroshiro128 {
         Self { low: l, high: h }
     }
 
-    /// Create from explicit low/high state.
+    /// Create from explicit low/high state. An all-zero state is replaced by the fixed
+    /// non-zero state Java substitutes (all-zero would only ever produce zeros).
     pub fn from_state(low: u64, high: u64) -> Self {
+        if low | high == 0 {
+            return Self {
+                low: (-7046029254386353131i64) as u64,
+                high: 7640891576956012809,
+            };
+        }
         Self { low, high }
     }
 
@@ -72,6 +79,12 @@ impl Xoroshiro128 {
     /// Generate a random f32 in [0.0, 1.0).
     pub fn next_float(&mut self) -> f32 {
         (self.next_long() >> 40) as f32 / (1u32 << 24) as f32
+    }
+
+    /// Random boolean (lowest bit of `next_long`).
+    #[inline]
+    pub fn next_boolean(&mut self) -> bool {
+        self.next_long() & 1 != 0
     }
 
     /// Fork this RNG into two independent streams.
@@ -175,12 +188,14 @@ impl JavaRandom {
     }
 }
 
-/// Compute a seed from block coordinates.
-/// This is Java's `Mth.getSeed(x, y, z)` implementation.
+/// Compute a seed from block coordinates (Java's `Mth.getSeed(x, y, z)`).
+///
+/// The x term is multiplied in 32-bit arithmetic (it wraps before widening) while the z
+/// term is multiplied in 64-bit, exactly as Java's expression does.
 #[inline]
 pub fn get_seed(x: i32, y: i32, z: i32) -> i64 {
     let mut l =
-        (x as i64).wrapping_mul(3129871) ^ ((z as i64).wrapping_mul(116129781)) ^ (y as i64);
+        (x.wrapping_mul(3129871) as i64) ^ ((z as i64).wrapping_mul(116129781)) ^ (y as i64);
     l = l
         .wrapping_mul(l)
         .wrapping_mul(42317861)
@@ -280,5 +295,12 @@ mod tests {
             crate::random_hashes::octave(0),
             (0xd50708086cef4d7c, 0x6e1651ecc7f43309)
         );
+    }
+
+    #[test]
+    fn get_seed_wraps_the_x_term_in_32_bits() {
+        // x * 3129871 overflows i32 for x = 1000; Java wraps it before widening
+        // (a 64-bit multiply gives -54790364611788).
+        assert_eq!(get_seed(1000, 5, -300), 70359602477876);
     }
 }
