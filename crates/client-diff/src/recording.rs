@@ -147,6 +147,11 @@ impl Recorder {
         self.writer.flush()
     }
 
+    /// The `seq` the next recorded packet will get.
+    pub fn next_seq(&self) -> u64 {
+        self.seq
+    }
+
     /// Records one transport frame; `direction` 0 is client to server.
     fn frame(&mut self, direction: usize, frame: &Bytes) -> Result<()> {
         if frame.is_empty() {

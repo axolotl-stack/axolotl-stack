@@ -1,8 +1,11 @@
 //! BDS Data Extractor
 //!
 //! Connects to a Bedrock Dedicated Server and extracts game data
-//! (items, blocks, creative content, etc.) for code generation.
+//! (items, blocks, creative content, etc.) for code generation, or records a
+//! whole session as packet fixtures (`--capture-dir`).
 
+mod capture;
+mod debug_json;
 mod output;
 
 use anyhow::{Context, Result};
@@ -39,17 +42,61 @@ struct Args {
     #[arg(long)]
     fixture: Option<PathBuf>,
 
+    /// Record the whole session into this directory (packets.jsonl, per-packet
+    /// .bin/.json fixtures, manifest.json) instead of writing extractor JSON
+    #[arg(long, conflicts_with = "fixture")]
+    capture_dir: Option<PathBuf>,
+
+    /// Capture mode: quiet time after the post-spawn definition packets, in seconds
+    #[arg(long, default_value = "5", requires = "capture_dir")]
+    settle: u64,
+
+    /// Capture mode: print BDS_EXTRACTOR_READY_FOR_OP after the join and wait for
+    /// the AvailableCommands resend that follows an op from the server console
+    #[arg(long, requires = "capture_dir")]
+    await_op: bool,
+
+    /// Capture mode: /summon every summonable identifier and keep its AddActor
+    /// (needs operator permission)
+    #[arg(long, requires = "capture_dir")]
+    summon: bool,
+
+    /// Capture mode: seconds to wait for each summoned actor
+    #[arg(long, default_value = "5", requires = "capture_dir")]
+    summon_wait: u64,
+
     /// Log level filter
     #[arg(long, default_value = "info")]
     log: String,
 }
 
-#[tokio::main]
-async fn main() -> Result<()> {
-    let args = Args::parse();
+/// Decoding the largest definition packets (CraftingData, CreativeContent)
+/// recurses deeper than the 1 MiB Windows main-thread stack allows in debug
+/// builds, so the runtime runs on threads with a larger stack.
+const STACK_SIZE: usize = 64 * 1024 * 1024;
 
-    // Initialize logging
+fn main() -> Result<()> {
+    let args = Args::parse();
+    std::thread::Builder::new()
+        .name("bds-extractor".into())
+        .stack_size(STACK_SIZE)
+        .spawn(move || {
+            tokio::runtime::Builder::new_multi_thread()
+                .enable_all()
+                .thread_stack_size(STACK_SIZE)
+                .build()
+                .context("building the tokio runtime")?
+                .block_on(run(args))
+        })
+        .context("spawning the extractor thread")?
+        .join()
+        .map_err(|_| anyhow::anyhow!("extractor thread panicked"))?
+}
+
+async fn run(args: Args) -> Result<()> {
+    // Logs go to stderr: capture mode prints its op handshake on stdout.
     tracing_subscriber::fmt()
+        .with_writer(std::io::stderr)
         .with_env_filter(
             tracing_subscriber::EnvFilter::try_from_default_env()
                 .unwrap_or_else(|_| args.log.parse().unwrap_or_else(|_| "info".parse().unwrap())),
@@ -66,6 +113,20 @@ async fn main() -> Result<()> {
     let addr: SocketAddr = args.addr.parse().context("Invalid server address format")?;
 
     info!("Connecting to BDS at {}...", addr);
+
+    if let Some(out_dir) = args.capture_dir {
+        return capture::run(&capture::Options {
+            addr,
+            name: args.name,
+            out_dir,
+            timeout: Duration::from_secs(args.timeout),
+            settle: Duration::from_secs(args.settle),
+            await_op: args.await_op,
+            summon: args.summon,
+            summon_wait: Duration::from_secs(args.summon_wait),
+        })
+        .await;
+    }
 
     let data = extract_data(addr, &args.name, Duration::from_secs(args.timeout)).await?;
     info!("Extraction complete!");
