@@ -17,12 +17,14 @@
 //!
 //! Generated items reference the runtime through these paths inside the
 //! `generated` module: `super::world`, `super::scatter`, `super::features`,
-//! `super::builtin`, `super::surface`, `super::BiomeSet`, `super::Pass`.
+//! `super::builtin`, `super::surface`, `super::structures`, `super::BiomeSet`,
+//! `super::Pass`.
 
 mod biomes;
 mod features;
 mod rules;
 mod scatter;
+mod structures;
 mod survival;
 
 use crate::blocks::IdSet;
@@ -245,6 +247,7 @@ pub fn generate(model: &Model) -> Result<(String, Report)> {
     let rules = rules::emit(&mut em)?;
     let features = features::emit_all(&mut em)?;
     let biomes = biomes::emit(&mut em)?;
+    let structures = structures::emit(&mut em)?;
     let blocks = em.block_items();
     let bb = builtin_blocks(&em)?;
     let props = props(model);
@@ -258,7 +261,7 @@ pub fn generate(model: &Model) -> Result<(String, Report)> {
     let file = quote! {
         use super::world::{BlockPos, BlockWorld, Ctx};
         #[allow(unused_imports)]
-        use super::{builtin, features, scatter, surface};
+        use super::{builtin, features, scatter, structures, surface};
 
         #blocks
         #bb
@@ -266,6 +269,7 @@ pub fn generate(model: &Model) -> Result<(String, Report)> {
         #rules
         #features
         #biomes
+        #structures
     };
     let parsed: syn::File = syn::parse2(file)
         .map_err(|e| crate::error::Error::data("emitter", format!("generated code does not parse: {e}")))?;

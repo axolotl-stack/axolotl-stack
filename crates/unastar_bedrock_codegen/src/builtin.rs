@@ -94,7 +94,35 @@ pub const BUILTIN_FEATURES: &[&str] = &[
 /// JSON features the Rust built-ins call directly (as `generated::f_<name>`),
 /// e.g. the legacy per-biome tree selectors placing the shipped tree
 /// features. They are emitted even when no rule reaches them otherwise.
-pub const BUILTIN_CALLS: &[&str] = &[];
+pub const BUILTIN_CALLS: &[&str] = &[
+    // plants (builtin/plants.rs): azalea from the root system, dripleaf by facing
+    "minecraft:azalea_tree_feature",
+    "minecraft:big_dripleaf_east_feature",
+    "minecraft:big_dripleaf_north_feature",
+    "minecraft:big_dripleaf_south_feature",
+    "minecraft:big_dripleaf_west_feature",
+    // legacy per-biome tree selectors (builtin/legacy.rs)
+    "minecraft:fancy_oak_tree_feature",
+    "minecraft:fancy_oak_tree_with_beehive_feature",
+    "minecraft:fancy_oak_tree_with_leaf_litter_and_optional_beehive",
+    "minecraft:fancy_oak_tree_with_optional_beehive_feature",
+    "minecraft:jungle_bush_feature",
+    "minecraft:mega_jungle_tree_feature",
+    "minecraft:mega_pine_tree_feature",
+    "minecraft:mega_spruce_tree_feature",
+    "minecraft:oak_tree_feature",
+    "minecraft:pine_tree_feature",
+    "minecraft:savanna_tree_feature",
+    "minecraft:select_birch_tree_feature",
+    "minecraft:select_birch_tree_with_leaf_litter_feature",
+    "minecraft:select_jungle_tree_feature",
+    "minecraft:select_oak_tree_feature",
+    "minecraft:select_oak_tree_with_leaf_litter_feature",
+    "minecraft:select_spruce_tree_feature",
+    "minecraft:select_super_birch_tree_feature",
+    "minecraft:super_birch_tree_with_beehive_feature",
+    "minecraft:swamp_tree_feature",
+];
 
 /// Rust function name of a built-in: the identifier without its namespace,
 /// `:` replaced by `_` (`minecraft:legacy:ice_feature` -> `legacy_ice_feature`).
@@ -118,5 +146,11 @@ mod tests {
         names.dedup();
         assert_eq!(names.len(), len);
         assert_eq!(rust_name("minecraft:legacy:ice_feature"), "legacy_ice_feature");
+    }
+
+    #[test]
+    fn builtin_calls_are_sorted_json_features() {
+        assert!(BUILTIN_CALLS.windows(2).all(|w| w[0] < w[1]), "BUILTIN_CALLS must be sorted and unique");
+        assert!(BUILTIN_CALLS.iter().all(|id| id.starts_with("minecraft:") && !BUILTIN_FEATURES.contains(id)));
     }
 }

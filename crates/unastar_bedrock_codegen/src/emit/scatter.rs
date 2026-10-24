@@ -112,16 +112,45 @@ pub fn emit(
         .filter(|a| matches!(coord_of(s, *a), Coord::Dist { kind: DistKind::FixedGrid | DistKind::JitteredGrid, .. }))
         .collect();
 
+    // Each computed axis becomes `let wN = value;` in evaluation order. An axis
+    // that is never computed, or that an earlier value reads (`variable.worldx`,
+    // the projected floor), is first bound to the input coordinate.
     let mut steps = Vec::new();
+    let mut prelude = Vec::new();
+    let mut defined = [false; 3];
+    let bind = |i: usize, defined: &mut [bool; 3], prelude: &mut Vec<TokenStream>| {
+        if !defined[i] {
+            defined[i] = true;
+            prelude.push(match i {
+                0 => quote!(let wx = origin.x;),
+                1 => quote!(let wy = origin.y;),
+                _ => quote!(let wz = origin.z;),
+            });
+        }
+    };
     let mut grid_divisor = quote!(1i32);
     for axis in s.order {
-        let (var, base) = match axis {
-            Axis::X => (quote!(wx), quote!(origin.x)),
-            Axis::Y => (quote!(wy), if s.project_input_to_floor { quote!(ctx.heightmap(wx, wz)) } else { quote!(origin.y) }),
-            Axis::Z => (quote!(wz), quote!(origin.z)),
+        let (var, base, index) = match axis {
+            Axis::X => (quote!(wx), quote!(origin.x), 0),
+            Axis::Y => (quote!(wy), if s.project_input_to_floor { quote!(ctx.heightmap(wx, wz)) } else { quote!(origin.y) }, 1),
+            Axis::Z => (quote!(wz), quote!(origin.z), 2),
         };
-        let value = match coord_of(s, axis) {
-            Coord::Offset(0) if !(axis == Axis::Y && s.project_input_to_floor) => continue,
+        let coord = coord_of(s, axis);
+        if matches!(coord, Coord::Offset(0)) && !(axis == Axis::Y && s.project_input_to_floor) {
+            continue;
+        }
+        let mut reads = coord_reads(coord);
+        if axis == Axis::Y && s.project_input_to_floor {
+            reads[0] = true;
+            reads[2] = true;
+        }
+        for (i, read) in reads.into_iter().enumerate() {
+            if read {
+                bind(i, &mut defined, &mut prelude);
+            }
+        }
+        defined[index] = true;
+        let value = match coord {
             Coord::Offset(n) => quote!(#base + #n),
             Coord::Expr(e) => int_expr(origin_doc, &env, e)?,
             Coord::Dist { kind, extent, step_size, grid_offset } => {
@@ -146,7 +175,10 @@ pub fn emit(
                 quote!({ let lo = #a; let hi = #b; #base + #sample })
             }
         };
-        steps.push(quote!(#var = #value;));
+        steps.push(quote!(let #var = #value;));
+    }
+    for i in 0..3 {
+        bind(i, &mut defined, &mut prelude);
     }
 
     let iterations = match s.iterations.as_const() {
@@ -165,8 +197,7 @@ pub fn emit(
         #chance
         let mut last = None;
         for #loop_var in 0..#iterations {
-            #[allow(unused_mut)]
-            let (mut wx, mut wy, mut wz) = (origin.x, origin.y, origin.z);
+            #(#prelude)*
             #(#steps)*
             if let Some(p) = #place {
                 last = Some(p);
@@ -182,4 +213,14 @@ fn coord_of(s: &Scatter, axis: Axis) -> &Coord {
         Axis::Y => &s.coords[1],
         Axis::Z => &s.coords[2],
     }
+}
+
+/// Which of `variable.worldx/worldy/worldz` a coordinate's value reads.
+fn coord_reads(coord: &Coord) -> [bool; 3] {
+    let exprs: Vec<&molang::Expr> = match coord {
+        Coord::Offset(_) => Vec::new(),
+        Coord::Expr(e) => vec![e],
+        Coord::Dist { extent, .. } => extent.iter().collect(),
+    };
+    [Var::WorldX, Var::WorldY, Var::WorldZ].map(|v| exprs.iter().any(|e| e.reads(v)))
 }

@@ -25,5 +25,6 @@ pub mod molang;
 pub mod model;
 pub mod nbt;
 pub mod packs;
+pub mod structures;
 
 pub use error::{Error, Result};

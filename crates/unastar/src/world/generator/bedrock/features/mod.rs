@@ -3,7 +3,18 @@
 //! `unastar_bedrock_codegen` (composition types and `single_block_feature` are
 //! compiled inline and have no module here).
 
+pub mod carver;
+pub mod fossil;
+pub mod geode;
+pub mod growing_plant;
+pub mod horizontal_tree_decoration;
+pub mod multiface;
 pub mod ore;
+pub mod partially_exposed_blob;
+pub mod sculk_patch;
+pub mod structure_template;
+pub mod tree;
+pub mod vegetation_patch;
 
 /// An inclusive integer range (`{"range_min": a, "range_max": b}` in pack data).
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]

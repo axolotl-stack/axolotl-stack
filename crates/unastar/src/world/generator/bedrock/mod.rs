@@ -13,6 +13,9 @@
 //! - [`builtin`]: BDS built-in features (no JSON definition), registered under
 //!   their identifiers;
 //! - [`surface`]: Bedrock surface builders parameterised by biome data;
+//! - [`structures`]: data-driven jigsaw structures (assembly, placement,
+//!   terrain adaptation, processors) and the template tables shared with the
+//!   template-based features;
 //! - [`region`]: the 3x3 chunk [`world::BlockWorld`] decoration runs on;
 //! - [`decorate`]: per-chunk seeding and the pass driver.
 
@@ -22,6 +25,7 @@ pub mod features;
 pub mod region;
 pub mod rng;
 pub mod scatter;
+pub mod structures;
 pub mod surface;
 pub mod world;
 

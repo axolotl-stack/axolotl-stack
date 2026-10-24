@@ -9,6 +9,7 @@ use crate::blocks::BlockPalette;
 use crate::error::{Error, Result};
 use crate::ir::{Biome, Feature, FeatureRule, Pass, SpawnRule};
 use crate::packs::{Family, PackStack};
+use crate::structures::StructureData;
 use std::collections::{BTreeMap, BTreeSet};
 use std::path::{Path, PathBuf};
 
@@ -20,6 +21,9 @@ pub struct Model {
     pub rules: BTreeMap<String, FeatureRule>,
     pub features: BTreeMap<String, Feature>,
     pub spawn_rules: BTreeMap<String, SpawnRule>,
+    /// Jigsaw structures, pools, sets, processors and every template they or
+    /// the template-based features place.
+    pub structures: StructureData,
     /// Files read, for `cargo:rerun-if-changed`.
     pub inputs: Vec<PathBuf>,
 }
@@ -60,6 +64,7 @@ impl Model {
             .values()
             .map(|d| SpawnRule::parse(d).map(|r| (r.identifier.clone(), r)))
             .collect::<Result<_>>()?;
+        let structures = StructureData::load(&stack, &palette, &features)?;
 
         let mut inputs = vec![
             native_dir.join("canonical_block_states.nbt"),
@@ -69,12 +74,14 @@ impl Model {
         for family in [Family::Biomes, Family::FeatureRules, Family::Features, Family::SpawnRules] {
             inputs.extend(stack.inputs(family));
         }
+        inputs.extend(structures.inputs.iter().cloned());
         Ok(Model {
             palette,
             biomes,
             rules,
             features,
             spawn_rules,
+            structures,
             inputs,
         })
     }
@@ -123,6 +130,13 @@ impl Model {
             .into_iter()
             .map(|r| (r.places_feature.clone(), r.source.clone()))
             .collect();
+        // Pool feature elements place features from inside structures.
+        stack.extend(
+            self.structures
+                .pool_features
+                .iter()
+                .map(|id| (id.clone(), "worldgen/template_pools".to_owned())),
+        );
         stack.extend(
             crate::builtin::BUILTIN_CALLS
                 .iter()

@@ -106,21 +106,29 @@ fn children(o: &Obj<'_>) -> Result<Vec<String>> {
 fn aggregate(em: &mut Emitter<'_>, o: &Obj<'_>) -> Result<TokenStream> {
     let kids = children(o)?;
     let calls: Vec<TokenStream> = kids.iter().map(|k| em.call(k, quote!(pos))).collect();
+    let Some((last, init)) = calls.split_last() else {
+        return Err(Error::data(o.origin, "aggregate_feature without features"));
+    };
     Ok(match o.opt("early_out").and_then(Value::as_str).unwrap_or("none") {
+        // Every child must place; the result is the last child's output.
         "first_failure" => quote! {
-            let mut last = None;
-            #( match #calls { Some(p) => last = Some(p), None => return None } )*
-            last
+            #( #init?; )*
+            #last
         },
         "first_success" => quote! {
-            #( if let Some(p) = #calls { return Some(p); } )*
-            None
+            #( if let Some(p) = #init { return Some(p); } )*
+            #last
         },
-        "none" => quote! {
-            let mut last = None;
-            #( if let Some(p) = #calls { last = Some(p); } )*
-            last
-        },
+        // Every child runs; the result is the last successful output.
+        "none" => {
+            let names: Vec<_> = (0..calls.len()).map(|i| quote::format_ident!("r{}", i)).collect();
+            let rev: Vec<_> = names.iter().rev().collect();
+            let (first, rest) = rev.split_first().expect("non-empty");
+            quote! {
+                #( let #names = #calls; )*
+                #first #( .or(#rest) )*
+            }
+        }
         other => return Err(Error::data(o.origin, format!("unknown early_out {other:?}"))),
     })
 }
@@ -203,9 +211,8 @@ fn search(em: &mut Emitter<'_>, o: &Obj<'_>) -> Result<TokenStream> {
     let call = em.call(&target, quote!(pos.offset(dx, dy, dz)));
     let mut body = quote! {
         if let Some(p) = #call {
-            last = Some(p);
             successes += 1;
-            if successes >= #required { return last; }
+            if successes >= #required { return Some(p); }
         }
     };
     for &a in order.iter().rev() {
@@ -220,7 +227,6 @@ fn search(em: &mut Emitter<'_>, o: &Obj<'_>) -> Result<TokenStream> {
     }
     Ok(quote! {
         let mut successes = 0i32;
-        let mut last = None;
         #body
         None
     })
