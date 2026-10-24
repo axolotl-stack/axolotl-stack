@@ -14,15 +14,26 @@ The HTTP endpoint is **additional**, not a replacement for franchise friend sign
 
 ## Protocol provenance
 
-Transport, HTTP endpoint, identities, and discovery follow [df-mc/go-nethernet at `215e46422b5831d6ddc6146003617dc3f1ff7c26`](https://github.com/df-mc/go-nethernet/tree/215e46422b5831d6ddc6146003617dc3f1ff7c26). Constants carry upstream file/function comments near their implementation.
+Transport, HTTP endpoint, identities, and discovery follow [df-mc/go-nethernet at `215e46422b5831d6ddc6146003617dc3f1ff7c26`](https://github.com/df-mc/go-nethernet/tree/215e46422b5831d6ddc6146003617dc3f1ff7c26). Constants carry upstream file/function comments near their implementation. Where the real Bedrock client (libwebrtc NetherNet, analysed from its binaries) differs from go-nethernet in a way a peer can observe, the crate follows the client; [PARITY.md](PARITY.md) lists every behaviour with the client, BDS, go-nethernet and tokio values and the covering test.
+
+Real-client behaviours that replace go-nethernet's:
+
+- A listener rejecting a client identity replies `CONNECTERROR <id> 37` (IdentityNotAllowed), as the client's host does.
+- The listener negotiation deadline is 15 s (the client's host has none; its dialer gives up 10-15 s after `CONNECTREQUEST`).
+- A LAN (`DiscoveryListener`) host answers without trickle ICE: candidates inline in `CONNECTRESPONSE` (`Signaling::disable_trickle_ice_for_answer`); offers still trickle.
+- LAN signaling does not require `a=identity` (`DiscoveryListener::requires_identity` is false): BDS 1.26.51 answers LAN offers without one and accepts identityless LAN offers. Identities that are present are still verified; set `NetherNetListenerConfig.identity` to sign LAN answers.
+- An unparseable remote candidate is skipped instead of failing the connection.
+- A remote description without `a=max-message-size` means 65536 (RFC 8841, libwebrtc), not an error.
+- The HTTP endpoint client accepts any 2xx answer, as the client's `HttpSignalingClient` does.
+- Discovery requests go to every interface's directed broadcast when the destination is the default `255.255.255.255:7551`, and only while no server data is set; addresses are learned from responses and messages only and expire after 60 s; discovered servers expire after 5 s; response data past the declared length is kept.
 
 | Behavior | Source |
 | --- | --- |
 | `CONNECTREQUEST`, `CONNECTRESPONSE`, `CANDIDATEADD`, `CONNECTERROR`; decimal-prefix numeric parsing | `signal.go:Signal.UnmarshalText`, `decimalPrefix` |
 | Two labeled channels; ordered reliable, unordered zero-retransmit unreliable | `message.go:MessageReliability.Parameters`, `Check` |
 | One countdown byte on **both** channels; unreliable count must be zero; at most 255 outgoing segments | `conn.go:Conn.Send`, `message.go:dataChannel.handleMessage` |
-| 15-second dial deadline; 5-second listener negotiation; 2-second terminal signal budget | `dial.go:Dialer.Dial`, `SignalErrorTimeout`; `listener.go:ListenConfig.connContext` |
-| UDP port 7551; 2-second broadcasts; 15-second address expiry | `discovery/listener.go:DefaultPort`, `background`, `deleteInactiveAddresses` |
+| 15-second dial deadline; 2-second terminal signal budget | `dial.go:Dialer.Dial`, `SignalErrorTimeout` |
+| UDP port 7551; 2-second broadcasts | `discovery/listener.go:DefaultPort`, `background` |
 | Inclusive packet lengths, AES-ECB/PKCS7 and HMAC-SHA256; hex response application data | `discovery/packet.go`, `crypto.go`, `packet_response.go:ResponsePacket.Read` |
 | Server-data v7, zigzag integers, auth flags and nonce | `discovery/server_data.go:ServerData.MarshalBinary` |
 | ES384 detached SDP fingerprint assertion; `cpk` JWK/DER keys; nested assertion string | `identity.go:Identity.sign`, `identityData`, `generateFingerprints` |
@@ -79,18 +90,25 @@ Use `NetherNetDialer::connect_with_signaling` and `NetherNetListener::bind_with_
 The default matches go-nethernet's pion defaults: every non-loopback UDP4/UDP6
 interface address. `addresses: Some(..)` binds exactly those addresses and
 skips interface enumeration (several milliseconds per connection on Windows).
-`TransportConfig::loopback_v4()` binds only `127.0.0.1`, confining the actual
-ICE/DTLS/SCTP sockets for strict local tests; loopback is a deliberate testing
-policy, not a production default. `relay_only` is the ICE "relay" transport
+`TransportConfig::loopback_v4()` binds only `127.0.0.1`, confining every
+socket (ICE/DTLS/SCTP, and no mDNS resolver) for strict local tests; loopback
+is a deliberate testing policy, not a production default. `relay_only` is the ICE "relay" transport
 policy (go-nethernet `gatherOptions` `ICEGatherPolicy`). `ice_servers` uses the
 crate's own `signaling::IceServer` (UDP `turn:` and `stun:` URLs). Server hosts
 resolve concurrently within 3 s; with trickle ICE they resolve only after the
 offer/answer was sent. One STUN/TURN client runs per server address, so the
 Xbox `stun:`/`turn:` pair for one host:port gathers srflx and relay together.
 Remote `.local` (mDNS) host candidates are resolved query-only, as pion and
-webrtc-rs do by default; local candidates are never published via mDNS. Remote
+webrtc-rs do by default, through a shared `0.0.0.0:5353` socket bound on first
+use; `resolve_mdns: false` (the `loopback_v4()` setting) ignores them instead,
+like the real client, whose libwebrtc never sends them. Local candidates are
+never published via mDNS. Remote
 DTLS fingerprints may use sha-256, sha-384 or sha-512; other hash functions are
 rejected when the description is parsed.
+
+Tests bind nothing but `127.0.0.1` (no interface addresses, no mDNS socket), so
+running them never raises a host-firewall prompt; keep new tests on
+`TransportConfig::loopback_v4()`.
 
 ## Signal and discovery codecs
 
@@ -113,7 +131,7 @@ byte-for-byte to go-nethernet `discovery.Marshal` vectors.
 ## Bounds and error behavior
 
 - Full UDP-sized discovery receives; truncated, unauthenticated, malformed, wrong-recipient and non-signal packets are rejected without panics.
-- Discovery admits at most 1024 peers/responses, expires both maps together, and never waits on a full signal queue in the socket receive loop. `responses()` contains decoded application bytes, not ASCII hex.
+- Discovery admits at most 1024 peers/responses, drops a server's response once its address expires, and never waits on a full signal queue in the socket receive loop. `responses()` contains decoded application bytes, not ASCII hex.
 - `ServerData` is v7; new protocol/version/auth/nonce fields have defaults. `transport_layer` remains application metadata and is not a v7 wire field.
 - Fragment counters and sizes are validated before queueing and while reassembling (`framing::{encode_segments, Reassembler}`, public so framing can be measured without a transport). A first countdown of 255 (256 segments) is rejected because no conforming sender produces it. Local reassembly byte/time limits supplement the upstream countdown invariant. Timeout is checked on subsequent input; no timer task is allocated per fragmented message.
 - Incoming handoff is a bounded queue of completed messages (`incoming_channel_capacity`); when it is full the session stops reading SCTP, so the advertised receive window backpressures the peer instead of dropping fragments. `flush` completes once SCTP accepted the write; graceful `close` additionally waits until both channels' queued bytes are acknowledged. Transport failures are returned to the sender; reassembly failures reach the reader with their own variant (`InvalidSegmentCount`, `MessageTooLarge`, `ReassemblyTimeout`, `InvalidPacket`). Close and drop follow go-nethernet `conn.go:Conn.close`: both channels' outgoing streams are reset, then SCTP is aborted (pion `SCTPTransport.Stop`), DTLS sends `close_notify` and TURN allocations are released; the peer sees `ConnectionClosed` at once.

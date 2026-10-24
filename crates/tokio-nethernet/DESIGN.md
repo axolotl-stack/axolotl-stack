@@ -100,7 +100,9 @@ flowchart LR
   outgoing streams, SCTP ABORT (pion `SCTPTransport.Stop`), DTLS
   close_notify, TURN deallocation.
 - mDNS is query-only (pion default): a remote `.local` candidate binds the
-  shared 0.0.0.0:5353 socket joined to 224.0.0.251 on first use.
+  shared 0.0.0.0:5353 socket joined to 224.0.0.251 on first use, unless
+  `TransportConfig::resolve_mdns` is off (as in `loopback_v4()`), which
+  ignores such candidates like the real client.
 
 ## Candidates
 

@@ -66,11 +66,16 @@ const MAX_EARLY_DTLS: usize = 16;
 /// pair succeeds: zero acceptance waits (rtc defaults are 0.5-2 s for
 /// srflx/prflx/relay) and a 50 ms check interval with enough attempts to cover
 /// a slow answer. Keepalive/disconnected/failed keep rtc's pion-like defaults.
-fn agent_config(controlling: bool) -> AgentConfig {
+fn agent_config(controlling: bool, resolve_mdns: bool) -> AgentConfig {
     AgentConfig {
-        // pion/webrtc-rs default: resolve peers' `.local` host candidates
-        // (libwebrtc hides host IPs behind mDNS names), never publish ours.
-        multicast_dns_mode: MulticastDnsMode::QueryOnly,
+        // pion/webrtc-rs default: resolve peers' `.local` host candidates,
+        // never publish ours. Disabled, rtc-ice ignores `.local` candidates
+        // without querying (the real client never sends them).
+        multicast_dns_mode: if resolve_mdns {
+            MulticastDnsMode::QueryOnly
+        } else {
+            MulticastDnsMode::Disabled
+        },
         network_types: vec![NetworkType::Udp4, NetworkType::Udp6],
         check_interval: Duration::from_millis(50),
         max_binding_requests: Some(300),
@@ -171,11 +176,12 @@ impl IceLayer {
         now: Instant,
         controlling: bool,
         relay_only: bool,
+        resolve_mdns: bool,
         hosts: Vec<SocketAddr>,
         provider: &Arc<dyn RTCCryptoProvider>,
     ) -> Result<Self, NetherNetError> {
-        let mut agent = Agent::new(now, Arc::new(agent_config(controlling)), provider.clone())
-            .map_err(transport)?;
+        let config = agent_config(controlling, resolve_mdns);
+        let mut agent = Agent::new(now, Arc::new(config), provider.clone()).map_err(transport)?;
         let mut local_candidates = Vec::with_capacity(hosts.len());
         if !relay_only {
             for &host in &hosts {
@@ -784,7 +790,7 @@ mod tests {
         let provider = rtc_crypto::default_provider().unwrap();
         let now = Instant::now();
         let host: SocketAddr = "127.0.0.1:40000".parse().unwrap();
-        let mut ice = IceLayer::new(now, true, false, vec![host], &provider).unwrap();
+        let mut ice = IceLayer::new(now, true, false, true, vec![host], &provider).unwrap();
         ice.start(now, true, "abcd".into(), "0123456789abcdef0123".into())
             .unwrap();
         ice.add_remote_candidate(
@@ -822,6 +828,33 @@ mod tests {
             out.iter().any(|transmit| transmit.socket == 0
                 && transmit.to == resolved
                 && rtc_stun::message::is_stun_message(&transmit.data)),
+            "{out:?}"
+        );
+    }
+
+    /// With resolution off (`TransportConfig::loopback_v4`), a `.local`
+    /// candidate is ignored: no query is ever routed to the wildcard mDNS
+    /// socket, so loopback configurations bind nothing beyond 127.0.0.1.
+    #[test]
+    fn disabled_mdns_ignores_local_candidates() {
+        let provider = rtc_crypto::default_provider().unwrap();
+        let now = Instant::now();
+        let host: SocketAddr = "127.0.0.1:40000".parse().unwrap();
+        let mut ice = IceLayer::new(now, true, false, false, vec![host], &provider).unwrap();
+        ice.start(now, true, "abcd".into(), "0123456789abcdef0123".into())
+            .unwrap();
+        ice.add_remote_candidate(
+            "candidate:1 1 udp 2113937151 nethernet-test.local 61163 typ host",
+        )
+        .unwrap();
+        let (mut dtls, mut out) = (Vec::new(), Vec::new());
+        for step in 0..5 {
+            let at = now + Duration::from_millis(100 * step);
+            ice.handle_timeout(at, &mut dtls, &mut out);
+            ice.flush(at, &mut out);
+        }
+        assert!(
+            out.iter().all(|transmit| transmit.socket != MDNS_SOCKET),
             "{out:?}"
         );
     }

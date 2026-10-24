@@ -31,6 +31,13 @@ pub struct TransportConfig {
     /// `ICEGatherPolicy`): advertise and use only TURN relay candidates; direct
     /// traffic is dropped. Requires a UDP `turn:` server.
     pub relay_only: bool,
+    /// Resolve peers' `.local` (mDNS) host candidates by querying 224.0.0.251
+    /// from a shared `0.0.0.0:5353` socket (pion/webrtc-rs query-only default).
+    /// The real client never sends `.local` candidates (its libwebrtc has no
+    /// mDNS responder). When off, such candidates are ignored and no wildcard
+    /// socket is ever bound; [`TransportConfig::loopback_v4`] turns it off so
+    /// loopback configurations bind nothing but `127.0.0.1`.
+    pub resolve_mdns: bool,
 }
 
 impl Default for TransportConfig {
@@ -42,6 +49,7 @@ impl Default for TransportConfig {
             udp4: true,
             udp6: true,
             relay_only: false,
+            resolve_mdns: true,
         }
     }
 }
@@ -55,12 +63,14 @@ impl fmt::Debug for TransportConfig {
             .field("udp4", &self.udp4)
             .field("udp6", &self.udp6)
             .field("relay_only", &self.relay_only)
+            .field("resolve_mdns", &self.resolve_mdns)
             .finish()
     }
 }
 
 impl TransportConfig {
-    /// IPv4 loopback only: strict local tests confining the actual ICE/DTLS/SCTP sockets.
+    /// IPv4 loopback only: strict local tests confining every socket (ICE,
+    /// DTLS, SCTP, and no mDNS resolver) to `127.0.0.1`.
     pub fn loopback_v4() -> Self {
         Self {
             addresses: Some(vec![IpAddr::V4(std::net::Ipv4Addr::LOCALHOST)]),
@@ -69,6 +79,7 @@ impl TransportConfig {
             udp4: true,
             udp6: false,
             relay_only: false,
+            resolve_mdns: false,
         }
     }
 
@@ -103,5 +114,6 @@ mod tests {
         assert_eq!(local.addresses, Some(vec!["127.0.0.1".parse().unwrap()]));
         assert!(local.allows("127.0.0.1".parse().unwrap()));
         assert!(!local.allows("::1".parse().unwrap()));
+        assert!(!local.resolve_mdns);
     }
 }

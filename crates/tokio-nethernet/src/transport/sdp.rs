@@ -15,6 +15,11 @@ use crate::framing::MAX_SEGMENT_PAYLOAD;
 /// Advertised SCTP message ceiling: `conn.go:maxMessageSize` + 1 header byte.
 pub(crate) const MAX_MESSAGE_SIZE: u32 = MAX_SEGMENT_PAYLOAD as u32 + 1;
 
+/// Remote ceiling when `a=max-message-size` is absent: RFC 8841 §6 "64K",
+/// which libwebrtc (the real client's stack) applies. go-nethernet's
+/// `parseDescription` rejects such descriptions instead.
+const DEFAULT_REMOTE_MAX_MESSAGE_SIZE: u32 = 65_536;
+
 /// DTLS connection role from `a=setup`.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub(crate) enum Setup {
@@ -198,11 +203,16 @@ pub(crate) fn parse(sdp: &str) -> Result<RemoteDescription, NetherNetError> {
         Some(_) => return Err(invalid("unsupported setup role")),
         None => return Err(invalid("missing setup")),
     };
-    let max_message_size = media_value("max-message-size")
-        .filter(|value| !value.is_empty() && value.bytes().all(|b| b.is_ascii_digit()))
-        .and_then(|value| value.parse::<u32>().ok())
-        .filter(|&size| size > 1)
-        .ok_or(NetherNetError::InvalidMaxMessageSize)?;
+    // An absent attribute takes the RFC 8841 default like libwebrtc; a present
+    // one must still be a decimal size above the one-byte segment header.
+    let max_message_size = match media_value("max-message-size") {
+        None => DEFAULT_REMOTE_MAX_MESSAGE_SIZE,
+        Some(value) => Some(value)
+            .filter(|value| !value.is_empty() && value.bytes().all(|b| b.is_ascii_digit()))
+            .and_then(|value| value.parse::<u32>().ok())
+            .filter(|&size| size > 1)
+            .ok_or(NetherNetError::InvalidMaxMessageSize)?,
+    };
     let candidates = description
         .attributes
         .iter()
@@ -367,7 +377,7 @@ mod tests {
             ("a=setup:passive\r\n", ""),
             ("a=max-message-size:262144", "a=max-message-size:1"),
             ("a=max-message-size:262144", "a=max-message-size:+5"),
-            ("a=max-message-size:262144\r\n", ""),
+            ("a=max-message-size:262144", "a=max-message-size:"),
         ] {
             assert!(parse(&valid.replace(from, to)).is_err(), "{from} -> {to}");
         }
@@ -381,6 +391,22 @@ mod tests {
                 "a=msid-semantic: WMS\r\na=fingerprint:sha-256 CC:DD\r\n",
             );
         assert_eq!(parse(&session).unwrap().fingerprint, "CC:DD");
+    }
+
+    /// libwebrtc (the client) and RFC 8841 §6 read an absent
+    /// `a=max-message-size` as 65536, so segments become 65535 bytes.
+    #[test]
+    fn missing_max_message_size_defaults_to_libwebrtc_65536() {
+        let valid = encode(&LocalDescription {
+            ufrag: "abcd",
+            pwd: "0123456789abcdef0123",
+            fingerprint: "AA:BB",
+            setup: Setup::ActPass,
+            candidates: &[],
+        });
+        let without = valid.replace("a=max-message-size:262144\r\n", "");
+        assert_ne!(without, valid);
+        assert_eq!(parse(&without).unwrap().max_message_size, 65_536);
     }
 
     #[test]

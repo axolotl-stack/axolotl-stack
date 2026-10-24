@@ -11,7 +11,7 @@
 //! multiple sessions over a single port (for the server).
 
 use bytes::Bytes;
-use std::net::SocketAddr;
+use std::net::{IpAddr, Ipv4Addr, Ipv6Addr, SocketAddr};
 
 use crate::protocol::{reliability::Reliability, state::RakPriority};
 
@@ -51,6 +51,26 @@ pub(crate) fn apply_socket_buffers(
         socket.set_send_buffer_size(size)?;
     }
     Ok(())
+}
+
+/// Local address a client socket (dial or ping) binds for `server`: the
+/// configured address, else the loopback address of the server's family when
+/// the server is on loopback, else that family's wildcard (`0.0.0.0:0` /
+/// `[::]:0`). A socket bound to a wildcard or interface address is a listener
+/// in Windows Firewall's eyes and prompts for every new executable path; a
+/// loopback server is only reachable through loopback anyway, so local
+/// clients (tests, tools) never trigger that prompt.
+pub(crate) fn client_bind_addr(server: SocketAddr, configured: Option<SocketAddr>) -> SocketAddr {
+    if let Some(local) = configured {
+        return local;
+    }
+    let ip = match (server.ip().is_loopback(), server.is_ipv4()) {
+        (true, true) => IpAddr::V4(Ipv4Addr::LOCALHOST),
+        (true, false) => IpAddr::V6(Ipv6Addr::LOCALHOST),
+        (false, true) => IpAddr::V4(Ipv4Addr::UNSPECIFIED),
+        (false, false) => IpAddr::V6(Ipv6Addr::UNSPECIFIED),
+    };
+    SocketAddr::new(ip, 0)
 }
 
 /// RTT estimate in microseconds shared between a muxer (writer) and its
@@ -256,6 +276,32 @@ pub struct OutboundMsg {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn clients_bind_loopback_for_loopback_servers_and_wildcard_otherwise() {
+        let addr = |text: &str| -> SocketAddr { text.parse().unwrap() };
+        assert_eq!(
+            client_bind_addr(addr("127.0.0.1:19132"), None),
+            addr("127.0.0.1:0")
+        );
+        assert_eq!(
+            client_bind_addr(addr("127.8.9.10:19132"), None),
+            addr("127.0.0.1:0")
+        );
+        assert_eq!(client_bind_addr(addr("[::1]:19132"), None), addr("[::1]:0"));
+        assert_eq!(
+            client_bind_addr(addr("203.0.113.7:19132"), None),
+            addr("0.0.0.0:0")
+        );
+        assert_eq!(
+            client_bind_addr(addr("[2001:db8::1]:19132"), None),
+            addr("[::]:0")
+        );
+        assert_eq!(
+            client_bind_addr(addr("127.0.0.1:19132"), Some(addr("0.0.0.0:4000"))),
+            addr("0.0.0.0:4000")
+        );
+    }
 
     #[test]
     fn message_new_defaults() {

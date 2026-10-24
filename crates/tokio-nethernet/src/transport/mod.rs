@@ -367,6 +367,7 @@ impl Pending {
                 role,
                 hosts,
                 relay_only: transport.relay_only,
+                resolve_mdns: transport.resolve_mdns,
                 certificate: local.certificate.clone(),
                 provider: local.provider.clone(),
                 max_segment_payload: stream.max_message_size,

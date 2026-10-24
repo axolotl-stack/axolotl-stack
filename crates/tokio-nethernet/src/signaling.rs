@@ -682,6 +682,14 @@ pub trait Signaling: Send + Sync {
         false
     }
 
+    /// Whether a listener answers with every candidate inline instead of
+    /// trickling them. Defaults to [`Signaling::disable_trickle_ice`]; the real
+    /// client's LAN host always answers non-trickle (`ServerNegotiatorNoTrickleIce`
+    /// for every LAN-channel offer), which `DiscoveryListener` reproduces.
+    fn disable_trickle_ice_for_answer(&self) -> bool {
+        self.disable_trickle_ice()
+    }
+
     /// Whether this signaling transport requires the current identity assertion.
     /// The retained legacy franchise service predates this upstream requirement.
     fn requires_identity(&self) -> bool {
@@ -715,6 +723,10 @@ impl<T: Signaling + ?Sized> Signaling for std::sync::Arc<T> {
 
     fn disable_trickle_ice(&self) -> bool {
         (**self).disable_trickle_ice()
+    }
+
+    fn disable_trickle_ice_for_answer(&self) -> bool {
+        (**self).disable_trickle_ice_for_answer()
     }
 
     fn requires_identity(&self) -> bool {

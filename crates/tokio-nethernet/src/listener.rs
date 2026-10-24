@@ -46,8 +46,11 @@ impl Default for NetherNetListenerConfig {
     fn default() -> Self {
         Self {
             stream_config: NetherNetStreamConfig::default(),
-            // df-mc/go-nethernet listener.go:ListenConfig.connContext uses five seconds.
-            connection_timeout: Duration::from_secs(5),
+            // The real client's host has no negotiation deadline (only ICE
+            // failure ends a session) and its dialer gives up 10-15 s after
+            // CONNECTREQUEST; go-nethernet's 5 s refused slow vanilla peers.
+            // 15 s keeps a local bound that never undercuts the client.
+            connection_timeout: Duration::from_secs(15),
             // credentials.go:gatherOptions uses host candidates when credentials are absent.
             ice_servers: Vec::new(),
             transport: TransportConfig::default(),
@@ -390,13 +393,32 @@ impl ListenerActor {
         candidate_budget.reserve_sdp(&signal.data)?;
         let allow_missing = self.config.allow_identityless_client
             || (!self.signaling.requires_identity() && self.config.verify_client_token.is_none());
-        let remote_identity = crate::identity::verify_sdp_optional(
+        let verified = crate::identity::verify_sdp_optional(
             &signal.data,
             crate::identity::PeerRole::Client,
             self.config.verify_client_token.as_deref(),
             allow_missing,
         )
-        .await?;
+        .await;
+        let remote_identity = match verified {
+            Ok(identity) => identity,
+            Err(error) => {
+                // The real client's host (`InitiateIncomingSession`) and
+                // go-nethernet listener.go reply 37 instead of letting the
+                // dialer run into its 10-15 s answer timeout.
+                warn!(conn_id, %error, "Rejecting offer: client identity not allowed");
+                let _ = timeout(
+                    Duration::from_secs(2),
+                    self.signaling.signal(Signal::error(
+                        conn_id,
+                        network_id,
+                        SignalErrorCode::IdentityNotAllowed,
+                    )),
+                )
+                .await;
+                return Err(error.into());
+            }
+        };
         // listener.go:ListenConfig.Listen defaults to one P-384 key per listener
         // and issues a fresh self-signed server token for each negotiation.
         let server_identity = if let Some(identity) = &self.config.identity {
@@ -428,7 +450,8 @@ impl ListenerActor {
         pending.connection().with("offer", |session, now| {
             session.start(now, &remote, local_setup)
         })??;
-        let nontrickle = self.signaling.disable_trickle_ice();
+        // A vanilla LAN host answers non-trickle (`disable_trickle_ice_for_answer`).
+        let nontrickle = self.signaling.disable_trickle_ice_for_answer();
         if nontrickle {
             pending.connection().add_ice_servers(&servers).await?;
             pending.gathered().await?;
@@ -708,5 +731,69 @@ mod tests {
             (SignalErrorCode::GenericFailure as i32).to_string()
         );
         assert!(actor.connections.is_empty());
+    }
+
+    /// A vanilla host replies `CONNECTERROR <id> 37` when it declines the
+    /// offer's identity (client `InitiateIncomingSession`); the listener used
+    /// to stay silent, leaving the dialer to its answer timeout.
+    #[tokio::test]
+    async fn rejected_client_identity_replies_identity_not_allowed() {
+        let (outbound, mut replies) = mpsc::channel(4);
+        let mut actor = actor(
+            Arc::new(RecordingSignaling(outbound)),
+            NetherNetListenerConfig {
+                allow_identityless_client: false,
+                ..loopback_config()
+            },
+        );
+        actor
+            .handle_signal(Signal {
+                typ: SignalType::Offer,
+                connection_id: 42,
+                network_id: "remote".into(),
+                data: offer_sdp(),
+            })
+            .await
+            .unwrap_err();
+        // The reply is sent before the offer's error returns.
+        let reply = replies.try_recv().expect("CONNECTERROR reply");
+        assert_eq!(reply.typ, SignalType::Error);
+        assert_eq!(reply.connection_id, 42);
+        assert_eq!(reply.network_id, "remote");
+        assert_eq!(reply.data, "37");
+        assert!(actor.connections.is_empty());
+        assert!(replies.try_recv().is_err(), "no answer after rejection");
+    }
+
+    /// The real client's host has no negotiation deadline; a dialer whose
+    /// answer arrives six seconds late (slow signaling) still connects with
+    /// the default listener configuration (go-nethernet's 5 s refused it).
+    #[tokio::test]
+    async fn slow_answer_delivery_still_connects() {
+        let (server, client) =
+            crate::test_support::signaling_pair_delaying_answers(Duration::from_secs(6));
+        let mut listener = NetherNetListener::bind_with_signaling(
+            server,
+            NetherNetListenerConfig {
+                transport: TransportConfig::loopback_v4(),
+                allow_identityless_client: true,
+                ..Default::default()
+            },
+        );
+        let dialer = crate::NetherNetDialer::connect_with_signaling(
+            client,
+            crate::NetherNetDialerConfig {
+                transport: TransportConfig::loopback_v4(),
+                allow_identityless_server: true,
+                ..Default::default()
+            },
+        );
+        let (dialed, accepted) = timeout(Duration::from_secs(14), async {
+            tokio::join!(dialer.dial("1".into()), listener.accept())
+        })
+        .await
+        .expect("slow negotiation timed out");
+        dialed.unwrap();
+        accepted.unwrap();
     }
 }

@@ -68,6 +68,11 @@ pub struct RaknetStreamConfig {
     /// network unreachable) ignored during the offline handshake; `None` is
     /// unlimited. go-raknet `Dialer.MaxTransientErrors` defaults to 10.
     pub max_transient_errors: Option<u32>,
+    /// Local address the client socket binds. `None` (the default) binds the
+    /// server family's wildcard (`0.0.0.0:0` / `[::]:0`), or its loopback
+    /// address when the server is on loopback, so local dials never open a
+    /// socket on a network interface (no host-firewall prompt).
+    pub local_addr: Option<SocketAddr>,
 }
 
 impl Default for RaknetStreamConfig {
@@ -90,6 +95,7 @@ impl Default for RaknetStreamConfig {
             max_incoming_ack_queue: 4096,
             transmission_policy: TransmissionPolicy::Vanilla,
             max_transient_errors: Some(10),
+            local_addr: None,
         }
     }
 }
@@ -169,11 +175,8 @@ impl RaknetStream {
         let connection_timeout = config.connection_timeout;
 
         timeout(connection_timeout, async move {
-            let socket = std::net::UdpSocket::bind(if server.is_ipv4() {
-                "0.0.0.0:0"
-            } else {
-                "[::]:0"
-            })?;
+            let socket =
+                std::net::UdpSocket::bind(super::client_bind_addr(server, config.local_addr))?;
             socket.set_nonblocking(true)?;
             super::apply_socket_buffers(
                 &socket,

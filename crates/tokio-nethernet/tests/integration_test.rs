@@ -46,8 +46,10 @@ async fn test_connect_flow() {
         tx: dialer_sig_in_tx.clone(), // Listener sends to Dialer
     });
 
+    // Loopback only: binding interface addresses would raise a host-firewall prompt.
     let config = NetherNetListenerConfig {
         allow_identityless_client: true,
+        transport: TransportConfig::loopback_v4(),
         ..Default::default()
     };
     let (mut listener, listener_signal_pusher) = NetherNetListener::new(listener_signaling, config);
@@ -78,6 +80,7 @@ async fn test_connect_flow() {
         dialer_signaling,
         NetherNetDialerConfig {
             allow_identityless_server: true,
+            transport: TransportConfig::loopback_v4(),
             ..Default::default()
         },
     );

@@ -340,15 +340,29 @@ impl CandidateBudget {
 
 /// Validate and add one trickled candidate; upstream conn.go:parseRemoteCandidate
 /// accepts either `candidate:` or `a=candidate:`.
+///
+/// An unparseable candidate is skipped, not fatal: the real client's
+/// `onRemoteIceCandidate` only fails `AddIceCandidate` for it and keeps the
+/// session (go-nethernet closes the connection instead). Budget exhaustion and
+/// transport failures still fail the connection.
 pub(crate) fn add_candidate(
     connection: &Connection,
     data: &str,
     budget: &CandidateBudget,
 ) -> Result<(), NetherNetError> {
     let candidate = data.trim().strip_prefix("a=").unwrap_or(data.trim());
-    parse_ice_candidate(candidate).map_err(|_| NetherNetError::InvalidIceCandidate)?;
+    if parse_ice_candidate(candidate).is_err() {
+        debug!(candidate, "Ignoring invalid remote ICE candidate");
+        return Ok(());
+    }
     budget.reserve(1)?;
-    connection.add_remote_candidate(candidate)
+    match connection.add_remote_candidate(candidate) {
+        Err(NetherNetError::InvalidIceCandidate) => {
+            debug!(candidate, "Ignoring unsupported remote ICE candidate");
+            Ok(())
+        }
+        result => result,
+    }
 }
 
 /// Signal each newly gathered local candidate (conn.go:trickleCandidates);
@@ -613,5 +627,37 @@ mod tests {
             budget.reserve(0).is_ok(),
             "failed reservations must leave the budget valid"
         );
+    }
+
+    /// The real client skips a `CANDIDATEADD` it cannot parse and keeps the
+    /// session; an invalid candidate used to fail the dial. Budget
+    /// exhaustion stays fatal.
+    #[tokio::test]
+    async fn invalid_trickled_candidate_is_ignored() {
+        let connection = crate::test_support::idle_connection();
+        let budget = CandidateBudget::default();
+        for garbage in [
+            "candidate:garbage",
+            "a=candidate:1 1 udp 1 not-an-ip 9 typ host",
+            "",
+        ] {
+            add_candidate(&connection, garbage, &budget).unwrap();
+        }
+        // Skipped candidates consume no budget.
+        budget.reserve(MAX_REMOTE_CANDIDATES - 1).unwrap();
+        add_candidate(
+            &connection,
+            "candidate:1 1 udp 2130706431 127.0.0.1 9 typ host",
+            &budget,
+        )
+        .unwrap();
+        assert!(matches!(
+            add_candidate(
+                &connection,
+                "candidate:2 1 udp 2130706431 127.0.0.1 10 typ host",
+                &budget,
+            ),
+            Err(NetherNetError::TooManyIceCandidates { .. })
+        ));
     }
 }

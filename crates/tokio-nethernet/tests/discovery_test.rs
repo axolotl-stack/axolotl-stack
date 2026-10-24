@@ -46,6 +46,7 @@ async fn test_discovery_broadcast() {
         broadcast_addr: "127.0.0.1:17552".parse().unwrap(), // Broadcast to client port
         broadcast_interval: Duration::from_millis(100),
         address_timeout: Duration::from_secs(5),
+        ..Default::default()
     };
     let server = DiscoveryListener::bind("127.0.0.1:17551", server_config)
         .await
@@ -68,6 +69,7 @@ async fn test_discovery_broadcast() {
         broadcast_addr: "127.0.0.1:17551".parse().unwrap(), // Broadcast to server port
         broadcast_interval: Duration::from_millis(100),
         address_timeout: Duration::from_secs(5),
+        ..Default::default()
     };
     let client = DiscoveryListener::bind("127.0.0.1:17552", client_config)
         .await
@@ -85,7 +87,9 @@ async fn test_discovery_broadcast() {
     assert_eq!(decoded.server_name, "Test Server");
 }
 
-/// Exercise discovery, signal routing, SCTP negotiation and fragmented payloads.
+/// Exercise discovery, signal routing, SCTP negotiation and fragmented payloads
+/// with default configurations: like BDS 1.26.51 on LAN, neither side needs an
+/// `a=identity` (go-nethernet's defaults reject identityless peers).
 #[tokio::test]
 async fn test_discovery_connect_flow() {
     use bytes::Bytes;
@@ -121,14 +125,21 @@ async fn test_discovery_connect_flow() {
     })
     .await
     .expect("discovery response");
+    // Loopback only: binding interface addresses would raise a host-firewall prompt.
     let mut listener = NetherNetListener::bind_with_signaling(
         server,
         NetherNetListenerConfig {
-            allow_identityless_client: true,
+            transport: tokio_nethernet::TransportConfig::loopback_v4(),
             ..Default::default()
         },
     );
-    let dialer = NetherNetDialer::connect_with_signaling(client, NetherNetDialerConfig::default());
+    let dialer = NetherNetDialer::connect_with_signaling(
+        client,
+        NetherNetDialerConfig {
+            transport: tokio_nethernet::TransportConfig::loopback_v4(),
+            ..Default::default()
+        },
+    );
     let (mut client, mut server) = timeout(Duration::from_secs(10), async {
         tokio::try_join!(dialer.dial("333333".into()), listener.accept())
     })
@@ -136,8 +147,8 @@ async fn test_discovery_connect_flow() {
     .expect("discovery connection deadline")
     .expect("discovery negotiation");
     assert!(
-        client.remote_identity().is_some(),
-        "default listener must issue a signed server identity"
+        client.remote_identity().is_none() && server.remote_identity().is_none(),
+        "vanilla LAN answers and offers carry no identity by default"
     );
     let payload = Bytes::from(vec![0x5a; 140_000]);
     client
@@ -151,4 +162,160 @@ async fn test_discovery_connect_flow() {
         .unwrap();
     assert_eq!(received.buffer, payload);
     assert!(received.reliable);
+}
+
+/// Delegates to a client `DiscoveryListener` and records every inbound signal.
+struct Recording {
+    inner: std::sync::Arc<DiscoveryListener>,
+    receiver: tokio::sync::Mutex<Option<tokio::sync::mpsc::Receiver<tokio_nethernet::Signal>>>,
+}
+
+#[async_trait::async_trait]
+impl tokio_nethernet::Signaling for Recording {
+    async fn signal(&self, signal: tokio_nethernet::Signal) -> anyhow::Result<()> {
+        self.inner.signal(signal).await
+    }
+    fn network_id(&self) -> String {
+        tokio_nethernet::Signaling::network_id(&*self.inner)
+    }
+    fn requires_identity(&self) -> bool {
+        false
+    }
+}
+
+#[async_trait::async_trait]
+impl tokio_nethernet::SignalingChannel for Recording {
+    async fn take_signal_receiver(
+        &self,
+    ) -> Option<tokio::sync::mpsc::Receiver<tokio_nethernet::Signal>> {
+        self.receiver.lock().await.take()
+    }
+}
+
+/// A vanilla LAN host answers without trickle ICE: every candidate is inline
+/// in `CONNECTRESPONSE` and no `CANDIDATEADD` follows, while the dialer
+/// still trickles its own candidates.
+#[tokio::test]
+async fn lan_listener_answers_with_inline_candidates() {
+    use tokio_nethernet::{NetherNetDialer, NetherNetDialerConfig, SignalType, TransportConfig};
+
+    let server = DiscoveryListener::bind(
+        "127.0.0.1:0",
+        DiscoveryListenerConfig {
+            network_id: 555555,
+            broadcast_addr: "127.0.0.1:9".parse().unwrap(),
+            ..Default::default()
+        },
+    )
+    .await
+    .unwrap();
+    server.set_server_data(ServerData::default()).await;
+    let client = DiscoveryListener::bind(
+        "127.0.0.1:0",
+        DiscoveryListenerConfig {
+            network_id: 666666,
+            broadcast_addr: server.local_addr().unwrap(),
+            broadcast_interval: Duration::from_millis(20),
+            ..Default::default()
+        },
+    )
+    .await
+    .unwrap();
+    timeout(Duration::from_secs(3), async {
+        while !client.responses().await.contains_key(&555555) {
+            tokio::time::sleep(Duration::from_millis(10)).await;
+        }
+    })
+    .await
+    .expect("discovery response");
+
+    let mut inbound = client.take_signal_receiver().await.unwrap();
+    let (forward, receiver) = tokio::sync::mpsc::channel(128);
+    let observed = std::sync::Arc::new(tokio::sync::Mutex::new(Vec::new()));
+    let record = observed.clone();
+    tokio::spawn(async move {
+        while let Some(signal) = inbound.recv().await {
+            record.lock().await.push(signal.clone());
+            if forward.send(signal).await.is_err() {
+                break;
+            }
+        }
+    });
+    let mut listener = NetherNetListener::bind_with_signaling(
+        server,
+        NetherNetListenerConfig {
+            allow_identityless_client: true,
+            transport: TransportConfig::loopback_v4(),
+            ..Default::default()
+        },
+    );
+    let dialer = NetherNetDialer::connect_with_signaling(
+        Recording {
+            inner: client,
+            receiver: tokio::sync::Mutex::new(Some(receiver)),
+        },
+        NetherNetDialerConfig {
+            transport: TransportConfig::loopback_v4(),
+            allow_identityless_server: true,
+            ..Default::default()
+        },
+    );
+    timeout(Duration::from_secs(10), async {
+        tokio::try_join!(dialer.dial("555555".into()), listener.accept())
+    })
+    .await
+    .expect("LAN connection deadline")
+    .expect("LAN negotiation");
+    // Let any trickled candidate that would follow the answer arrive.
+    tokio::time::sleep(Duration::from_millis(200)).await;
+    let observed = observed.lock().await;
+    let answer = observed
+        .iter()
+        .find(|signal| signal.typ == SignalType::Answer)
+        .expect("CONNECTRESPONSE");
+    assert!(
+        answer.data.contains("a=candidate:"),
+        "answer must carry its candidates: {}",
+        answer.data
+    );
+    assert!(
+        observed
+            .iter()
+            .all(|signal| signal.typ != SignalType::Candidate),
+        "LAN host must not trickle: {observed:?}"
+    );
+}
+
+/// The client sends discovery requests only while browsing, never while it
+/// announces a world; tokio used to request every interval regardless.
+#[tokio::test]
+async fn announcing_listener_sends_no_requests() {
+    let probe = tokio::net::UdpSocket::bind("127.0.0.1:0").await.unwrap();
+    let listener = DiscoveryListener::bind(
+        "127.0.0.1:0",
+        DiscoveryListenerConfig {
+            network_id: 777777,
+            broadcast_addr: probe.local_addr().unwrap(),
+            broadcast_interval: Duration::from_millis(20),
+            ..Default::default()
+        },
+    )
+    .await
+    .unwrap();
+    let mut buf = vec![0; 2048];
+    // Browsing: requests arrive at the configured destination.
+    timeout(Duration::from_secs(2), probe.recv(&mut buf))
+        .await
+        .expect("browsing listener must request")
+        .unwrap();
+    listener.set_server_data(ServerData::default()).await;
+    // A request already in flight may still land; then nothing more.
+    tokio::time::sleep(Duration::from_millis(60)).await;
+    while probe.try_recv(&mut buf).is_ok() {}
+    assert!(
+        timeout(Duration::from_millis(200), probe.recv(&mut buf))
+            .await
+            .is_err(),
+        "announcing listener sent a discovery request"
+    );
 }
