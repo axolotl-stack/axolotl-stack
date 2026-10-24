@@ -36,10 +36,12 @@ pub struct HappyGhastBundle {
     pub leashable: super::super::components::Leashable,
     pub movement: super::super::components::Movement,
     pub nameable: super::super::components::Nameable,
+    pub offspring: super::super::components::Offspring,
     pub physics: super::super::components::Physics,
     pub pushable: super::super::components::Pushable,
     pub renders_when_invisible: super::super::components::RendersWhenInvisible,
     pub scale: super::super::components::Scale,
+    pub spawn_egg_interaction: super::super::components::SpawnEggInteraction,
     pub type_family: super::super::components::TypeFamily,
 }
 /// Spawn a new `minecraft:happy_ghast` entity with default Bedrock components
@@ -167,6 +169,19 @@ pub fn spawn_happy_ghast(commands: &mut Commands) -> Entity {
                 default_trigger: None,
                 name_actions: None,
             },
+            offspring: super::super::components::Offspring {
+                blend_attributes: None,
+                combine_parent_colors: None,
+                deny_parents_variant: None,
+                inherit_tamed: None,
+                mutation_factor: None,
+                mutation_strategy: None,
+                offspring_pairs: Some(OffspringOffspringPairs {}),
+                parent_centric_attribute_blending: None,
+                property_inheritance: None,
+                random_extra_variant_mutation_interval: None,
+                random_variant_mutation_interval: None,
+            },
             physics: super::super::components::Physics {
                 has_collision: Some(true),
                 has_gravity: Some(false),
@@ -178,6 +193,7 @@ pub fn spawn_happy_ghast(commands: &mut Commands) -> Entity {
             },
             renders_when_invisible: super::super::components::RendersWhenInvisible,
             scale: super::super::components::Scale { value: 1f32 },
+            spawn_egg_interaction: super::super::components::SpawnEggInteraction { data: None },
             type_family: super::super::components::TypeFamily {
                 family: vec!["happy_ghast".to_string(), "mob".to_string()],
             },
@@ -202,6 +218,7 @@ pub enum HappyGhastEvent {
     AgeableGrowUp,
     BecomeImmobile,
     BecomeMobile,
+    EntityBorn,
     EntitySpawned,
     OnHarnessed,
     OnPassengerDismount,

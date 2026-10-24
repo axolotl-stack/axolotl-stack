@@ -15,6 +15,7 @@ impl Chicken {
 /// Component bundle for spawning a `minecraft:chicken`
 #[derive(Bundle, Clone)]
 pub struct ChickenBundle {
+    pub ambient_sound_interval: super::super::components::AmbientSoundInterval,
     pub attack: super::super::components::Attack,
     pub balloonable: super::super::components::Balloonable,
     pub behavior_float: super::super::components::BehaviorFloat,
@@ -44,15 +45,31 @@ pub struct ChickenBundle {
     pub movement_basic: super::super::components::MovementBasic,
     pub nameable: super::super::components::Nameable,
     pub navigation_walk: super::super::components::NavigationWalk,
+    pub offspring: super::super::components::Offspring,
     pub physics: super::super::components::Physics,
     pub pushable: super::super::components::Pushable,
+    pub pushable_by_block: super::super::components::PushableByBlock,
+    pub pushable_by_entity: super::super::components::PushableByEntity,
     pub scale: super::super::components::Scale,
+    pub spawn_egg_interaction: super::super::components::SpawnEggInteraction,
     pub type_family: super::super::components::TypeFamily,
+    pub uses_legacy_friction: super::super::components::UsesLegacyFriction,
 }
 /// Spawn a new `minecraft:chicken` entity with default Bedrock components
 pub fn spawn_chicken(commands: &mut Commands) -> Entity {
     commands
         .spawn(ChickenBundle {
+            ambient_sound_interval: super::super::components::AmbientSoundInterval {
+                event_name: Some("ambient".to_string()),
+                event_names: Some(
+                    vec![
+                        AmbientSoundIntervalEventNames { condition : Some("query.is_baby"
+                        .to_string()), event_name : Some("ambient.baby".to_string()) }
+                    ],
+                ),
+                range: Some(16f32),
+                value: 6f32,
+            },
             attack: super::super::components::Attack {
                 damage: crate::types::RangeOrVal::Fixed(2f32),
                 effect_duration: Some(crate::types::MolangOr::Value(0i32)),
@@ -268,6 +285,27 @@ pub fn spawn_chicken(commands: &mut Commands) -> Entity {
                 can_walk_in_lava: Some(false),
                 is_amphibious: Some(false),
             },
+            offspring: super::super::components::Offspring {
+                blend_attributes: None,
+                combine_parent_colors: None,
+                deny_parents_variant: None,
+                inherit_tamed: None,
+                mutation_factor: None,
+                mutation_strategy: None,
+                offspring_pairs: Some(OffspringOffspringPairs {}),
+                parent_centric_attribute_blending: None,
+                property_inheritance: Some(
+                    vec![
+                        OffspringPropertyInheritance { additional :
+                        std::collections::HashMap::from([("minecraft:climate_variant"
+                        .to_string(), crate
+                        ::types::BedrockValue::Object(std::collections::HashMap::from([])))])
+                        }
+                    ],
+                ),
+                random_extra_variant_mutation_interval: None,
+                random_variant_mutation_interval: None,
+            },
             physics: super::super::components::Physics {
                 has_collision: Some(true),
                 has_gravity: Some(true),
@@ -277,11 +315,23 @@ pub fn spawn_chicken(commands: &mut Commands) -> Entity {
                 is_pushable: Some(true),
                 is_pushable_by_piston: Some(true),
             },
+            pushable_by_block: super::super::components::PushableByBlock {
+                data: None,
+            },
+            pushable_by_entity: super::super::components::PushableByEntity {
+                data: None,
+            },
             scale: super::super::components::Scale {
                 value: 1f32,
             },
+            spawn_egg_interaction: super::super::components::SpawnEggInteraction {
+                data: None,
+            },
             type_family: super::super::components::TypeFamily {
                 family: vec!["chicken".to_string(), "mob".to_string()],
+            },
+            uses_legacy_friction: super::super::components::UsesLegacyFriction {
+                data: None,
             },
         })
         .id()
@@ -300,5 +350,6 @@ pub enum ChickenEvent {
     EntitySpawned,
     HatchCold,
     HatchWarm,
+    RandomizeSoundVariant,
     SpawnAdult,
 }

@@ -48,12 +48,16 @@ pub struct TraderLlamaBundle {
     pub movement_basic: super::super::components::MovementBasic,
     pub nameable: super::super::components::Nameable,
     pub navigation_walk: super::super::components::NavigationWalk,
+    pub offspring: super::super::components::Offspring,
     pub on_target_acquired: super::super::components::OnTargetAcquired,
     pub on_target_escape: super::super::components::OnTargetEscape,
     pub physics: super::super::components::Physics,
     pub pushable: super::super::components::Pushable,
+    pub pushable_by_block: super::super::components::PushableByBlock,
+    pub pushable_by_entity: super::super::components::PushableByEntity,
     pub scale: super::super::components::Scale,
     pub shooter: super::super::components::Shooter,
+    pub spawn_egg_interaction: super::super::components::SpawnEggInteraction,
     pub type_family: super::super::components::TypeFamily,
 }
 /// Spawn a new `minecraft:trader_llama` entity with default Bedrock components
@@ -117,7 +121,20 @@ pub fn spawn_trader_llama(commands: &mut Commands) -> Entity {
                 track_target: Some(true),
             },
             behavior_nearest_attackable_target: super::super::components::BehaviorNearestAttackableTarget {
-                attack_interval: Some(crate::types::BedrockValue::Integer(16i64)),
+                attack_interval: Some(
+                    crate::types::BedrockValue::Object(
+                        std::collections::HashMap::from([
+                            (
+                                "max".to_string(),
+                                crate::types::BedrockValue::Integer(16i64),
+                            ),
+                            (
+                                "min".to_string(),
+                                crate::types::BedrockValue::Integer(0i64),
+                            ),
+                        ]),
+                    ),
+                ),
                 attack_interval_min: None,
                 attack_owner: Some(false),
                 control_flags: Some(BehaviorNearestAttackableTargetControlFlags {
@@ -383,6 +400,19 @@ pub fn spawn_trader_llama(commands: &mut Commands) -> Entity {
                 can_walk_in_lava: Some(false),
                 is_amphibious: Some(false),
             },
+            offspring: super::super::components::Offspring {
+                blend_attributes: None,
+                combine_parent_colors: None,
+                deny_parents_variant: None,
+                inherit_tamed: Some(false),
+                mutation_factor: None,
+                mutation_strategy: None,
+                offspring_pairs: Some(OffspringOffspringPairs {}),
+                parent_centric_attribute_blending: None,
+                property_inheritance: None,
+                random_extra_variant_mutation_interval: None,
+                random_variant_mutation_interval: None,
+            },
             on_target_acquired: super::super::components::OnTargetAcquired {
                 value: crate::types::BedrockValue::Null,
             },
@@ -398,6 +428,67 @@ pub fn spawn_trader_llama(commands: &mut Commands) -> Entity {
                 is_pushable: Some(true),
                 is_pushable_by_piston: Some(true),
             },
+            pushable_by_block: super::super::components::PushableByBlock {
+                data: None,
+            },
+            pushable_by_entity: super::super::components::PushableByEntity {
+                data: Some(
+                    crate::types::BedrockValue::Object(
+                        std::collections::HashMap::from([
+                            (
+                                "preset".to_string(),
+                                crate::types::BedrockValue::Object(
+                                    std::collections::HashMap::from([
+                                        (
+                                            "filters".to_string(),
+                                            crate::types::BedrockValue::Object(
+                                                std::collections::HashMap::from([
+                                                    (
+                                                        "all_of".to_string(),
+                                                        crate::types::BedrockValue::Array(
+                                                            vec![
+                                                                crate
+                                                                ::types::BedrockValue::Object(std::collections::HashMap::from([("subject"
+                                                                .to_string(), crate ::types::BedrockValue::String("other"
+                                                                .to_string())), ("test".to_string(), crate
+                                                                ::types::BedrockValue::String("is_family".to_string())),
+                                                                ("value".to_string(), crate
+                                                                ::types::BedrockValue::String("sulfur_cube"
+                                                                .to_string()))])), crate
+                                                                ::types::BedrockValue::Object(std::collections::HashMap::from([("domain"
+                                                                .to_string(), crate
+                                                                ::types::BedrockValue::String("minecraft:sulfur_cube_archetype"
+                                                                .to_string())), ("operator".to_string(), crate
+                                                                ::types::BedrockValue::String("not".to_string())),
+                                                                ("subject".to_string(), crate
+                                                                ::types::BedrockValue::String("other".to_string())), ("test"
+                                                                .to_string(), crate
+                                                                ::types::BedrockValue::String("enum_property".to_string())),
+                                                                ("value".to_string(), crate
+                                                                ::types::BedrockValue::String("none".to_string()))])), crate
+                                                                ::types::BedrockValue::Object(std::collections::HashMap::from([("subject"
+                                                                .to_string(), crate ::types::BedrockValue::String("self"
+                                                                .to_string())), ("test".to_string(), crate
+                                                                ::types::BedrockValue::String("is_controlling_passenger_family"
+                                                                .to_string())), ("value".to_string(), crate
+                                                                ::types::BedrockValue::String("player".to_string()))]))
+                                                            ],
+                                                        ),
+                                                    ),
+                                                ]),
+                                            ),
+                                        ),
+                                        (
+                                            "push_mode".to_string(),
+                                            crate::types::BedrockValue::String("none".to_string()),
+                                        ),
+                                    ]),
+                                ),
+                            ),
+                        ]),
+                    ),
+                ),
+            },
             scale: super::super::components::Scale {
                 value: 1f32,
             },
@@ -408,6 +499,9 @@ pub fn spawn_trader_llama(commands: &mut Commands) -> Entity {
                 power: Some(0f32),
                 projectiles: None,
                 sound: None,
+            },
+            spawn_egg_interaction: super::super::components::SpawnEggInteraction {
+                data: None,
             },
             type_family: super::super::components::TypeFamily {
                 family: vec![

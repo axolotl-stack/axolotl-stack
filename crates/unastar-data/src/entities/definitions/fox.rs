@@ -34,6 +34,7 @@ pub struct FoxBundle {
     pub block_climber: super::super::components::BlockClimber,
     pub breathable: super::super::components::Breathable,
     pub can_climb: super::super::components::CanClimb,
+    pub can_stand_on_powder_snow: super::super::components::CanStandOnPowderSnow,
     pub collision_box: super::super::components::CollisionBox,
     pub conditional_bandwidth_optimization:
         super::super::components::ConditionalBandwidthOptimization,
@@ -53,11 +54,15 @@ pub struct FoxBundle {
     pub movement_basic: super::super::components::MovementBasic,
     pub nameable: super::super::components::Nameable,
     pub navigation_walk: super::super::components::NavigationWalk,
+    pub offspring: super::super::components::Offspring,
     pub physics: super::super::components::Physics,
     pub pushable: super::super::components::Pushable,
+    pub pushable_by_block: super::super::components::PushableByBlock,
+    pub pushable_by_entity: super::super::components::PushableByEntity,
     pub scale: super::super::components::Scale,
     pub scheduler: super::super::components::Scheduler,
     pub shareables: super::super::components::Shareables,
+    pub spawn_egg_interaction: super::super::components::SpawnEggInteraction,
     pub type_family: super::super::components::TypeFamily,
 }
 /// Spawn a new `minecraft:fox` entity with default Bedrock components
@@ -412,6 +417,7 @@ pub fn spawn_fox(commands: &mut Commands) -> Entity {
                 total_supply: Some(15i32),
             },
             can_climb: super::super::components::CanClimb,
+            can_stand_on_powder_snow: super::super::components::CanStandOnPowderSnow { data: None },
             collision_box: super::super::components::CollisionBox {
                 height: Some(0.7f32),
                 width: Some(0.6f32),
@@ -581,6 +587,19 @@ pub fn spawn_fox(commands: &mut Commands) -> Entity {
                 can_walk_in_lava: Some(false),
                 is_amphibious: Some(false),
             },
+            offspring: super::super::components::Offspring {
+                blend_attributes: None,
+                combine_parent_colors: None,
+                deny_parents_variant: None,
+                inherit_tamed: None,
+                mutation_factor: None,
+                mutation_strategy: None,
+                offspring_pairs: Some(OffspringOffspringPairs {}),
+                parent_centric_attribute_blending: None,
+                property_inheritance: None,
+                random_extra_variant_mutation_interval: None,
+                random_variant_mutation_interval: None,
+            },
             physics: super::super::components::Physics {
                 has_collision: Some(true),
                 has_gravity: Some(true),
@@ -590,6 +609,8 @@ pub fn spawn_fox(commands: &mut Commands) -> Entity {
                 is_pushable: Some(true),
                 is_pushable_by_piston: Some(true),
             },
+            pushable_by_block: super::super::components::PushableByBlock { data: None },
+            pushable_by_entity: super::super::components::PushableByEntity { data: None },
             scale: super::super::components::Scale { value: 1f32 },
             scheduler: super::super::components::Scheduler {
                 max_delay_secs: Some(0f32),
@@ -779,12 +800,9 @@ pub fn spawn_fox(commands: &mut Commands) -> Entity {
                 ]),
                 singular_pickup: Some(true),
             },
+            spawn_egg_interaction: super::super::components::SpawnEggInteraction { data: None },
             type_family: super::super::components::TypeFamily {
-                family: vec![
-                    "fox".to_string(),
-                    "lightweight".to_string(),
-                    "mob".to_string(),
-                ],
+                family: vec!["fox".to_string(), "mob".to_string()],
             },
         })
         .id()

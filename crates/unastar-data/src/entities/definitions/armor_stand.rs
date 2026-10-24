@@ -25,6 +25,7 @@ pub struct ArmorStandBundle {
     pub health: super::super::components::Health,
     pub hurt_on_condition: super::super::components::HurtOnCondition,
     pub inventory: super::super::components::Inventory,
+    pub is_hidden_when_invisible: super::super::components::IsHiddenWhenInvisible,
     pub knockback_resistance: super::super::components::KnockbackResistance,
     pub loot: super::super::components::Loot,
     pub movement: super::super::components::Movement,
@@ -32,6 +33,7 @@ pub struct ArmorStandBundle {
     pub persistent: super::super::components::Persistent,
     pub physics: super::super::components::Physics,
     pub pushable: super::super::components::Pushable,
+    pub pushable_by_block: super::super::components::PushableByBlock,
     pub scale: super::super::components::Scale,
     pub type_family: super::super::components::TypeFamily,
 }
@@ -88,6 +90,7 @@ pub fn spawn_armor_stand(commands: &mut Commands) -> Entity {
                 private: Some(false),
                 restrict_to_owner: Some(false),
             },
+            is_hidden_when_invisible: super::super::components::IsHiddenWhenInvisible,
             knockback_resistance: super::super::components::KnockbackResistance {
                 max: None,
                 min: None,
@@ -114,9 +117,10 @@ pub fn spawn_armor_stand(commands: &mut Commands) -> Entity {
                 push_towards_closest_space: Some(false),
             },
             pushable: super::super::components::Pushable {
-                is_pushable: Some(false),
+                is_pushable: Some(true),
                 is_pushable_by_piston: Some(true),
             },
+            pushable_by_block: super::super::components::PushableByBlock { data: None },
             scale: super::super::components::Scale { value: 1f32 },
             type_family: super::super::components::TypeFamily {
                 family: vec![

@@ -18,21 +18,19 @@ pub struct ZombieHorseBundle {
     pub ambient_sound_interval: super::super::components::AmbientSoundInterval,
     pub attack: super::super::components::Attack,
     pub balloonable: super::super::components::Balloonable,
-    pub behavior_flee_sun: super::super::components::BehaviorFleeSun,
     pub behavior_float: super::super::components::BehaviorFloat,
     pub behavior_look_at_player: super::super::components::BehaviorLookAtPlayer,
-    pub behavior_panic: super::super::components::BehaviorPanic,
     pub behavior_random_look_around: super::super::components::BehaviorRandomLookAround,
     pub behavior_random_stroll: super::super::components::BehaviorRandomStroll,
     pub behavior_tempt: super::super::components::BehaviorTempt,
     pub breathable: super::super::components::Breathable,
+    pub buoyant: super::super::components::Buoyant,
     pub burns_in_daylight: super::super::components::BurnsInDaylight,
     pub collision_box: super::super::components::CollisionBox,
     pub conditional_bandwidth_optimization:
         super::super::components::ConditionalBandwidthOptimization,
     pub despawn: super::super::components::Despawn,
     pub environment_sensor: super::super::components::EnvironmentSensor,
-    pub equippable: super::super::components::Equippable,
     pub flying_speed: super::super::components::FlyingSpeed,
     pub follow_range: super::super::components::FollowRange,
     pub healable: super::super::components::Healable,
@@ -46,9 +44,13 @@ pub struct ZombieHorseBundle {
     pub movement_basic: super::super::components::MovementBasic,
     pub nameable: super::super::components::Nameable,
     pub navigation_walk: super::super::components::NavigationWalk,
+    pub offspring: super::super::components::Offspring,
     pub physics: super::super::components::Physics,
     pub pushable: super::super::components::Pushable,
+    pub pushable_by_block: super::super::components::PushableByBlock,
+    pub pushable_by_entity: super::super::components::PushableByEntity,
     pub scale: super::super::components::Scale,
+    pub spawn_egg_interaction: super::super::components::SpawnEggInteraction,
     pub type_family: super::super::components::TypeFamily,
 }
 /// Spawn a new `minecraft:zombie_horse` entity with default Bedrock components
@@ -73,12 +75,8 @@ pub fn spawn_zombie_horse(commands: &mut Commands) -> Entity {
                 on_unballoon: None,
                 soft_distance: None,
             },
-            behavior_flee_sun: super::super::components::BehaviorFleeSun {
-                priority: Some(BehaviorFleeSunPriority {}),
-                speed_multiplier: Some(BehaviorFleeSunSpeedMultiplier {}),
-            },
             behavior_float: super::super::components::BehaviorFloat {
-                chance_per_tick_to_float: Some(1f32),
+                chance_per_tick_to_float: Some(0f32),
                 priority: Some(BehaviorFloatPriority {}),
                 sink_with_passengers: Some(false),
                 time_under_water_to_dismount_passengers: Some(2f32),
@@ -87,38 +85,13 @@ pub fn spawn_zombie_horse(commands: &mut Commands) -> Entity {
                 angle_of_view_horizontal: Some(360i32),
                 angle_of_view_vertical: Some(360i32),
                 look_distance: Some(6f32),
-                look_time: None,
+                look_time: Some(crate::types::RangeOrVal::Range {
+                    min: 2f32,
+                    max: 4f32,
+                }),
                 priority: Some(BehaviorLookAtPlayerPriority {}),
                 probability: Some(0.02f32),
                 target_distance: None,
-            },
-            behavior_panic: super::super::components::BehaviorPanic {
-                damage_sources: Some(vec![
-                    "campfire".to_string(),
-                    "fire".to_string(),
-                    "freezing".to_string(),
-                    "lava".to_string(),
-                    "lightning".to_string(),
-                    "magma".to_string(),
-                    "soul_campfire".to_string(),
-                    "temperature".to_string(),
-                    "entity_attack".to_string(),
-                    "entity_explosion".to_string(),
-                    "fireworks".to_string(),
-                    "magic".to_string(),
-                    "projectile".to_string(),
-                    "ram_attack".to_string(),
-                    "sonic_boom".to_string(),
-                    "wither".to_string(),
-                    "mace_smash".to_string(),
-                ]),
-                force: Some(false),
-                ignore_mob_damage: Some(false),
-                panic_sound: None,
-                prefer_water: Some(false),
-                priority: Some(BehaviorPanicPriority {}),
-                sound_interval: None,
-                speed_multiplier: Some(BehaviorPanicSpeedMultiplier {}),
             },
             behavior_random_look_around: super::super::components::BehaviorRandomLookAround {
                 angle_of_view_horizontal: None,
@@ -164,12 +137,27 @@ pub fn spawn_zombie_horse(commands: &mut Commands) -> Entity {
                 suffocate_time: Some(0i32),
                 total_supply: Some(15i32),
             },
+            buoyant: super::super::components::Buoyant {
+                apply_gravity: Some(false),
+                base_buoyancy: Some(1f32),
+                big_wave_probability: Some(0.03f32),
+                big_wave_speed: Some(10f32),
+                buoyancy: None,
+                drag_down_on_buoyancy_removed: Some(0f32),
+                liquid_blocks: Some(vec![
+                    crate::types::BedrockValue::String("minecraft:water".to_string()),
+                    crate::types::BedrockValue::String("minecraft:flowing_water".to_string()),
+                    crate::types::BedrockValue::String("minecraft:lava".to_string()),
+                    crate::types::BedrockValue::String("minecraft:flowing_lava".to_string()),
+                ]),
+                simulate_waves: Some(true),
+            },
             burns_in_daylight: super::super::components::BurnsInDaylight {
                 value: crate::types::BedrockValue::Null,
             },
             collision_box: super::super::components::CollisionBox {
-                height: Some(1.6f32),
-                width: Some(1.4f32),
+                height: Some(1.8f32),
+                width: Some(0.6f32),
             },
             conditional_bandwidth_optimization:
                 super::super::components::ConditionalBandwidthOptimization {
@@ -219,49 +207,6 @@ pub fn spawn_zombie_horse(commands: &mut Commands) -> Entity {
                         ),
                     ]),
                 )),
-            },
-            equippable: super::super::components::Equippable {
-                slots: Some(vec![
-                    EquippableSlots {
-                        accepted_items: Some(vec![crate::types::BedrockValue::String(
-                            "saddle".to_string(),
-                        )]),
-                        interact_text: None,
-                        item: Some(crate::types::BedrockValue::String("saddle".to_string())),
-                        on_equip: Some(EquippableSlotsOnEquip {
-                            event: Some("minecraft:horse_saddled".to_string()),
-                            filters: None,
-                            target: None,
-                        }),
-                        on_unequip: Some(EquippableSlotsOnUnequip {
-                            event: Some("minecraft:horse_unsaddled".to_string()),
-                            filters: None,
-                            target: None,
-                        }),
-                        slot: Some(0i32),
-                    },
-                    EquippableSlots {
-                        accepted_items: Some(vec![
-                            crate::types::BedrockValue::String("horsearmorleather".to_string()),
-                            crate::types::BedrockValue::String("horsearmoriron".to_string()),
-                            crate::types::BedrockValue::String("horsearmorgold".to_string()),
-                            crate::types::BedrockValue::String("horsearmordiamond".to_string()),
-                            crate::types::BedrockValue::String(
-                                "minecraft:copper_horse_armor".to_string(),
-                            ),
-                            crate::types::BedrockValue::String(
-                                "minecraft:netherite_horse_armor".to_string(),
-                            ),
-                        ]),
-                        interact_text: None,
-                        item: Some(crate::types::BedrockValue::String(
-                            "horsearmoriron".to_string(),
-                        )),
-                        on_equip: None,
-                        on_unequip: None,
-                        slot: Some(1i32),
-                    },
-                ]),
             },
             flying_speed: super::super::components::FlyingSpeed { value: 0.02f32 },
             follow_range: super::super::components::FollowRange {
@@ -328,7 +273,7 @@ pub fn spawn_zombie_horse(commands: &mut Commands) -> Entity {
             navigation_walk: super::super::components::NavigationWalk {
                 avoid_damage_blocks: Some(true),
                 avoid_portals: Some(false),
-                avoid_sun: Some(true),
+                avoid_sun: Some(false),
                 avoid_water: Some(true),
                 blocks_to_avoid: None,
                 can_breach: Some(false),
@@ -340,12 +285,25 @@ pub fn spawn_zombie_horse(commands: &mut Commands) -> Entity {
                 can_pass_doors: Some(true),
                 can_path_from_air: Some(false),
                 can_path_over_lava: Some(false),
-                can_path_over_water: Some(false),
+                can_path_over_water: Some(true),
                 can_sink: Some(true),
                 can_swim: Some(false),
                 can_walk: Some(true),
                 can_walk_in_lava: Some(false),
-                is_amphibious: Some(true),
+                is_amphibious: Some(false),
+            },
+            offspring: super::super::components::Offspring {
+                blend_attributes: None,
+                combine_parent_colors: None,
+                deny_parents_variant: None,
+                inherit_tamed: None,
+                mutation_factor: None,
+                mutation_strategy: None,
+                offspring_pairs: Some(OffspringOffspringPairs {}),
+                parent_centric_attribute_blending: None,
+                property_inheritance: None,
+                random_extra_variant_mutation_interval: None,
+                random_variant_mutation_interval: None,
             },
             physics: super::super::components::Physics {
                 has_collision: Some(true),
@@ -356,7 +314,112 @@ pub fn spawn_zombie_horse(commands: &mut Commands) -> Entity {
                 is_pushable: Some(true),
                 is_pushable_by_piston: Some(true),
             },
+            pushable_by_block: super::super::components::PushableByBlock { data: None },
+            pushable_by_entity: super::super::components::PushableByEntity {
+                data: Some(crate::types::BedrockValue::Object(
+                    std::collections::HashMap::from([(
+                        "preset".to_string(),
+                        crate::types::BedrockValue::Object(std::collections::HashMap::from([
+                            (
+                                "filters".to_string(),
+                                crate::types::BedrockValue::Object(
+                                    std::collections::HashMap::from([(
+                                        "all_of".to_string(),
+                                        crate::types::BedrockValue::Array(vec![
+                                            crate::types::BedrockValue::Object(
+                                                std::collections::HashMap::from([
+                                                    (
+                                                        "subject".to_string(),
+                                                        crate::types::BedrockValue::String(
+                                                            "other".to_string(),
+                                                        ),
+                                                    ),
+                                                    (
+                                                        "test".to_string(),
+                                                        crate::types::BedrockValue::String(
+                                                            "is_family".to_string(),
+                                                        ),
+                                                    ),
+                                                    (
+                                                        "value".to_string(),
+                                                        crate::types::BedrockValue::String(
+                                                            "sulfur_cube".to_string(),
+                                                        ),
+                                                    ),
+                                                ]),
+                                            ),
+                                            crate::types::BedrockValue::Object(
+                                                std::collections::HashMap::from([
+                                                    (
+                                                        "domain".to_string(),
+                                                        crate::types::BedrockValue::String(
+                                                            "minecraft:sulfur_cube_archetype"
+                                                                .to_string(),
+                                                        ),
+                                                    ),
+                                                    (
+                                                        "operator".to_string(),
+                                                        crate::types::BedrockValue::String(
+                                                            "not".to_string(),
+                                                        ),
+                                                    ),
+                                                    (
+                                                        "subject".to_string(),
+                                                        crate::types::BedrockValue::String(
+                                                            "other".to_string(),
+                                                        ),
+                                                    ),
+                                                    (
+                                                        "test".to_string(),
+                                                        crate::types::BedrockValue::String(
+                                                            "enum_property".to_string(),
+                                                        ),
+                                                    ),
+                                                    (
+                                                        "value".to_string(),
+                                                        crate::types::BedrockValue::String(
+                                                            "none".to_string(),
+                                                        ),
+                                                    ),
+                                                ]),
+                                            ),
+                                            crate::types::BedrockValue::Object(
+                                                std::collections::HashMap::from([
+                                                    (
+                                                        "subject".to_string(),
+                                                        crate::types::BedrockValue::String(
+                                                            "self".to_string(),
+                                                        ),
+                                                    ),
+                                                    (
+                                                        "test".to_string(),
+                                                        crate::types::BedrockValue::String(
+                                                            "is_controlling_passenger_family"
+                                                                .to_string(),
+                                                        ),
+                                                    ),
+                                                    (
+                                                        "value".to_string(),
+                                                        crate::types::BedrockValue::String(
+                                                            "player".to_string(),
+                                                        ),
+                                                    ),
+                                                ]),
+                                            ),
+                                        ]),
+                                    )]),
+                                ),
+                            ),
+                            (
+                                "push_mode".to_string(),
+                                crate::types::BedrockValue::String("none".to_string()),
+                            ),
+                        ])),
+                    )]),
+                )),
+            },
             scale: super::super::components::Scale { value: 1f32 },
+            spawn_egg_interaction: super::super::components::SpawnEggInteraction { data: None },
             type_family: super::super::components::TypeFamily {
                 family: vec![
                     "zombiehorse".to_string(),

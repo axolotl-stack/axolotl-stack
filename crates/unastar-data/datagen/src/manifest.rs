@@ -349,14 +349,23 @@ fn extract_segment_after(content: &str, marker: &str) -> Option<String> {
     }
 }
 
+/// Hashes a file or directory tree in its line-ending-independent form.
+///
+/// Git checkouts with `core.autocrlf=true` (the Windows default) rewrite LF to
+/// CRLF in text files of submodules, which do not inherit this repository's
+/// `.gitattributes`. Hashing the raw working-tree bytes then disagrees with
+/// protocolgen's `data/source/lock.json` (which digests the committed LF bytes)
+/// and makes the manifest depend on the checkout. See [`canonical_bytes`].
 fn hash_path(path: &Path) -> miette::Result<String> {
     let mut hasher = Sha256::new();
+    let read = |file: &Path| {
+        std::fs::read(file)
+            .map(canonical_bytes)
+            .map_err(|e| miette::miette!("Failed to hash file {}: {}", file.display(), e))
+    };
 
     if path.is_file() {
-        hasher.update(
-            std::fs::read(path)
-                .map_err(|e| miette::miette!("Failed to hash file {}: {}", path.display(), e))?,
-        );
+        hasher.update(read(path)?);
     } else if path.is_dir() {
         let mut files: Vec<PathBuf> = WalkDir::new(path)
             .into_iter()
@@ -370,11 +379,7 @@ fn hash_path(path: &Path) -> miette::Result<String> {
             let relative = file.strip_prefix(path).unwrap_or(&file);
             hasher.update(relative.to_string_lossy().as_bytes());
             hasher.update([0]);
-            hasher.update(
-                std::fs::read(&file).map_err(|e| {
-                    miette::miette!("Failed to hash file {}: {}", file.display(), e)
-                })?,
-            );
+            hasher.update(read(&file)?);
             hasher.update([0]);
         }
     } else {
@@ -382,6 +387,26 @@ fn hash_path(path: &Path) -> miette::Result<String> {
     }
 
     Ok(format!("{:x}", hasher.finalize()))
+}
+
+/// Returns the bytes Git stores for a file regardless of checkout line endings.
+///
+/// Like Git's own text detection, a file containing a NUL byte is binary and
+/// hashed verbatim; any other file has each CRLF folded to LF, which undoes
+/// `core.autocrlf` checkout conversion.
+fn canonical_bytes(bytes: Vec<u8>) -> Vec<u8> {
+    if bytes.contains(&0) || !bytes.windows(2).any(|pair| pair == b"\r\n") {
+        return bytes;
+    }
+    let mut canonical = Vec::with_capacity(bytes.len());
+    let mut iter = bytes.iter().peekable();
+    while let Some(&byte) = iter.next() {
+        if byte == b'\r' && iter.peek() == Some(&&b'\n') {
+            continue;
+        }
+        canonical.push(byte);
+    }
+    canonical
 }
 
 fn render_manifest(sources: &[ManifestSource], artifacts: &[ManifestArtifact]) -> String {
@@ -543,6 +568,61 @@ mod tests {
 
         assert!(err.to_string().contains("not produced by the supplied"));
         let _ = std::fs::remove_dir_all(temp_dir);
+    }
+
+    #[test]
+    fn hash_path_ignores_checkout_line_endings_but_not_binary_bytes() {
+        let temp_dir = std::env::temp_dir().join(format!(
+            "unastar-manifest-eol-test-{}-{}",
+            std::process::id(),
+            unique_suffix()
+        ));
+        std::fs::create_dir_all(&temp_dir).expect("create temp dir");
+        let write = |name: &str, bytes: &[u8]| {
+            let path = temp_dir.join(name);
+            std::fs::write(&path, bytes).expect("write fixture");
+            hash_path(&path).expect("hash fixture")
+        };
+
+        assert_eq!(
+            write("lf.json", b"{\n  \"a\": 1\n}\n"),
+            write("crlf.json", b"{\r\n  \"a\": 1\r\n}\r\n")
+        );
+        // A lone CR is content, not a checkout conversion.
+        assert_ne!(write("cr.txt", b"a\rb"), write("ab.txt", b"ab"));
+        // Binary files (NUL bytes) are never rewritten.
+        assert_ne!(write("lf.nbt", b"\0\n"), write("crlf.nbt", b"\0\r\n"));
+        let _ = std::fs::remove_dir_all(temp_dir);
+    }
+
+    /// The manifest's native input digests must be the ones protocolgen pins in
+    /// its source lock, whatever line endings this checkout of the submodule has.
+    #[test]
+    fn native_input_hashes_match_protocolgen_source_lock() {
+        let source = PathBuf::from(env!("CARGO_MANIFEST_DIR"))
+            .join("../../valentine_gen/protocolgen/data/source");
+        let lock: serde_json::Value = serde_json::from_str(
+            &std::fs::read_to_string(source.join("lock.json"))
+                .expect("protocolgen submodule is initialized"),
+        )
+        .expect("lock.json parses");
+        let mut checked = 0;
+        for input in lock["inputs"].as_object().expect("lock inputs").values() {
+            let Some(path) = input["path"].as_str() else {
+                continue;
+            };
+            if !path.starts_with("inputs/1.26.51/native/") {
+                continue;
+            }
+            assert_eq!(
+                hash_path(&source.join(path)).expect("hash native input"),
+                input["sha256"].as_str().expect("lock sha256"),
+                "{path}"
+            );
+            checked += 1;
+        }
+        // The nine native files the manifest records.
+        assert_eq!(checked, 9);
     }
 
     fn unique_suffix() -> u128 {

@@ -15,6 +15,7 @@ impl Dolphin {
 /// Component bundle for spawning a `minecraft:dolphin`
 #[derive(Bundle, Clone)]
 pub struct DolphinBundle {
+    pub ambient_sound_interval: super::super::components::AmbientSoundInterval,
     pub attack: super::super::components::Attack,
     pub balloonable: super::super::components::Balloonable,
     pub behavior_avoid_mob_type: super::super::components::BehaviorAvoidMobType,
@@ -44,18 +45,32 @@ pub struct DolphinBundle {
     pub movement: super::super::components::Movement,
     pub nameable: super::super::components::Nameable,
     pub navigation_generic: super::super::components::NavigationGeneric,
+    pub offspring: super::super::components::Offspring,
     pub on_target_acquired: super::super::components::OnTargetAcquired,
     pub on_target_escape: super::super::components::OnTargetEscape,
     pub physics: super::super::components::Physics,
     pub pushable: super::super::components::Pushable,
+    pub pushable_by_block: super::super::components::PushableByBlock,
+    pub pushable_by_entity: super::super::components::PushableByEntity,
     pub scale: super::super::components::Scale,
+    pub spawn_egg_interaction: super::super::components::SpawnEggInteraction,
     pub type_family: super::super::components::TypeFamily,
     pub underwater_movement: super::super::components::UnderwaterMovement,
+    pub uses_legacy_friction: super::super::components::UsesLegacyFriction,
 }
 /// Spawn a new `minecraft:dolphin` entity with default Bedrock components
 pub fn spawn_dolphin(commands: &mut Commands) -> Entity {
     commands
         .spawn(DolphinBundle {
+            ambient_sound_interval: super::super::components::AmbientSoundInterval {
+                event_name: Some("ambient".to_string()),
+                event_names: Some(vec![AmbientSoundIntervalEventNames {
+                    condition: Some("query.head_is_in_water".to_string()),
+                    event_name: Some("ambient.in.water".to_string()),
+                }]),
+                range: Some(16f32),
+                value: 6f32,
+            },
             attack: super::super::components::Attack {
                 damage: crate::types::RangeOrVal::Fixed(3f32),
                 effect_duration: Some(crate::types::MolangOr::Value(0i32)),
@@ -359,7 +374,14 @@ pub fn spawn_dolphin(commands: &mut Commands) -> Entity {
                 on_leash: None,
                 on_unleash: None,
                 on_unleash_interact_only: Some(false),
-                presets: None,
+                presets: Some(vec![LeashablePresets {
+                    filter: None,
+                    hard_distance: Some(6f32),
+                    max_distance: Some(10f32),
+                    rotation_adjustment: None,
+                    soft_distance: Some(4f32),
+                    spring_type: None,
+                }]),
                 soft_distance: Some(4f32),
             },
             movement: super::super::components::Movement {
@@ -394,6 +416,19 @@ pub fn spawn_dolphin(commands: &mut Commands) -> Entity {
                 can_walk_in_lava: Some(false),
                 is_amphibious: Some(true),
             },
+            offspring: super::super::components::Offspring {
+                blend_attributes: None,
+                combine_parent_colors: None,
+                deny_parents_variant: None,
+                inherit_tamed: None,
+                mutation_factor: None,
+                mutation_strategy: None,
+                offspring_pairs: Some(OffspringOffspringPairs {}),
+                parent_centric_attribute_blending: None,
+                property_inheritance: None,
+                random_extra_variant_mutation_interval: None,
+                random_variant_mutation_interval: None,
+            },
             on_target_acquired: super::super::components::OnTargetAcquired {
                 value: crate::types::BedrockValue::Null,
             },
@@ -409,7 +444,10 @@ pub fn spawn_dolphin(commands: &mut Commands) -> Entity {
                 is_pushable: Some(true),
                 is_pushable_by_piston: Some(true),
             },
+            pushable_by_block: super::super::components::PushableByBlock { data: None },
+            pushable_by_entity: super::super::components::PushableByEntity { data: None },
             scale: super::super::components::Scale { value: 1f32 },
+            spawn_egg_interaction: super::super::components::SpawnEggInteraction { data: None },
             type_family: super::super::components::TypeFamily {
                 family: vec![
                     "aquatic".to_string(),
@@ -422,6 +460,7 @@ pub fn spawn_dolphin(commands: &mut Commands) -> Entity {
                 min: None,
                 value: crate::types::RangeOrVal::Fixed(0.15f32),
             },
+            uses_legacy_friction: super::super::components::UsesLegacyFriction { data: None },
         })
         .id()
 }
@@ -442,6 +481,7 @@ pub enum DolphinEvent {
     AgeableGrowUp,
     BecomeAngry,
     DriedOut,
+    EntityBorn,
     EntitySpawned,
     NavigationOffLand,
     NavigationOnLand,

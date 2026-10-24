@@ -15,6 +15,7 @@ impl Wolf {
 /// Component bundle for spawning a `minecraft:wolf`
 #[derive(Bundle, Clone)]
 pub struct WolfBundle {
+    pub ambient_sound_interval: super::super::components::AmbientSoundInterval,
     pub attack: super::super::components::Attack,
     pub balloonable: super::super::components::Balloonable,
     pub behavior_beg: super::super::components::BehaviorBeg,
@@ -46,15 +47,29 @@ pub struct WolfBundle {
     pub movement_basic: super::super::components::MovementBasic,
     pub nameable: super::super::components::Nameable,
     pub navigation_walk: super::super::components::NavigationWalk,
+    pub offspring: super::super::components::Offspring,
     pub physics: super::super::components::Physics,
     pub pushable: super::super::components::Pushable,
+    pub pushable_by_block: super::super::components::PushableByBlock,
+    pub pushable_by_entity: super::super::components::PushableByEntity,
     pub scale: super::super::components::Scale,
+    pub spawn_egg_interaction: super::super::components::SpawnEggInteraction,
     pub type_family: super::super::components::TypeFamily,
+    pub uses_legacy_friction: super::super::components::UsesLegacyFriction,
 }
 /// Spawn a new `minecraft:wolf` entity with default Bedrock components
 pub fn spawn_wolf(commands: &mut Commands) -> Entity {
     commands
         .spawn(WolfBundle {
+            ambient_sound_interval: super::super::components::AmbientSoundInterval {
+                event_name: Some("ambient".to_string()),
+                event_names: Some(vec![AmbientSoundIntervalEventNames {
+                    condition: Some("query.is_baby".to_string()),
+                    event_name: Some("ambient.baby".to_string()),
+                }]),
+                range: Some(16f32),
+                value: 6f32,
+            },
             attack: super::super::components::Attack {
                 damage: crate::types::RangeOrVal::Fixed(3f32),
                 effect_duration: Some(crate::types::MolangOr::Value(0i32)),
@@ -69,21 +84,60 @@ pub fn spawn_wolf(commands: &mut Commands) -> Entity {
             },
             behavior_beg: super::super::components::BehaviorBeg {
                 items: Some(vec![
-                    crate::types::BedrockValue::String("bone".to_string()),
-                    crate::types::BedrockValue::String("porkchop".to_string()),
-                    crate::types::BedrockValue::String("cooked_porkchop".to_string()),
-                    crate::types::BedrockValue::String("chicken".to_string()),
-                    crate::types::BedrockValue::String("cooked_chicken".to_string()),
-                    crate::types::BedrockValue::String("beef".to_string()),
-                    crate::types::BedrockValue::String("cooked_beef".to_string()),
-                    crate::types::BedrockValue::String("rotten_flesh".to_string()),
-                    crate::types::BedrockValue::String("muttonraw".to_string()),
-                    crate::types::BedrockValue::String("muttoncooked".to_string()),
-                    crate::types::BedrockValue::String("rabbit".to_string()),
-                    crate::types::BedrockValue::String("cooked_rabbit".to_string()),
+                    crate::types::BedrockValue::Object(std::collections::HashMap::from([(
+                        "name".to_string(),
+                        crate::types::BedrockValue::String("minecraft:bone".to_string()),
+                    )])),
+                    crate::types::BedrockValue::Object(std::collections::HashMap::from([(
+                        "name".to_string(),
+                        crate::types::BedrockValue::String("minecraft:porkchop".to_string()),
+                    )])),
+                    crate::types::BedrockValue::Object(std::collections::HashMap::from([(
+                        "name".to_string(),
+                        crate::types::BedrockValue::String("minecraft:cooked_porkchop".to_string()),
+                    )])),
+                    crate::types::BedrockValue::Object(std::collections::HashMap::from([(
+                        "name".to_string(),
+                        crate::types::BedrockValue::String("minecraft:chicken".to_string()),
+                    )])),
+                    crate::types::BedrockValue::Object(std::collections::HashMap::from([(
+                        "name".to_string(),
+                        crate::types::BedrockValue::String("minecraft:cooked_chicken".to_string()),
+                    )])),
+                    crate::types::BedrockValue::Object(std::collections::HashMap::from([(
+                        "name".to_string(),
+                        crate::types::BedrockValue::String("minecraft:beef".to_string()),
+                    )])),
+                    crate::types::BedrockValue::Object(std::collections::HashMap::from([(
+                        "name".to_string(),
+                        crate::types::BedrockValue::String("minecraft:cooked_beef".to_string()),
+                    )])),
+                    crate::types::BedrockValue::Object(std::collections::HashMap::from([(
+                        "name".to_string(),
+                        crate::types::BedrockValue::String("minecraft:rotten_flesh".to_string()),
+                    )])),
+                    crate::types::BedrockValue::Object(std::collections::HashMap::from([(
+                        "name".to_string(),
+                        crate::types::BedrockValue::String("minecraft:muttonraw".to_string()),
+                    )])),
+                    crate::types::BedrockValue::Object(std::collections::HashMap::from([(
+                        "name".to_string(),
+                        crate::types::BedrockValue::String("minecraft:muttoncooked".to_string()),
+                    )])),
+                    crate::types::BedrockValue::Object(std::collections::HashMap::from([(
+                        "name".to_string(),
+                        crate::types::BedrockValue::String("minecraft:rabbit".to_string()),
+                    )])),
+                    crate::types::BedrockValue::Object(std::collections::HashMap::from([(
+                        "name".to_string(),
+                        crate::types::BedrockValue::String("minecraft:cooked_rabbit".to_string()),
+                    )])),
                 ]),
                 look_distance: Some(8f32),
-                look_time: None,
+                look_time: Some(crate::types::RangeOrVal::Range {
+                    min: 20f32,
+                    max: 40f32,
+                }),
                 priority: Some(BehaviorBegPriority {}),
             },
             behavior_float: super::super::components::BehaviorFloat {
@@ -108,11 +162,11 @@ pub fn spawn_wolf(commands: &mut Commands) -> Entity {
             behavior_look_at_player: super::super::components::BehaviorLookAtPlayer {
                 angle_of_view_horizontal: Some(360i32),
                 angle_of_view_vertical: Some(360i32),
-                look_distance: Some(8f32),
+                look_distance: Some(6f32),
                 look_time: None,
                 priority: Some(BehaviorLookAtPlayerPriority {}),
                 probability: Some(0.02f32),
-                target_distance: Some(6f32),
+                target_distance: None,
             },
             behavior_melee_box_attack: super::super::components::BehaviorMeleeBoxAttack {
                 attack_once: Some(false),
@@ -593,6 +647,19 @@ pub fn spawn_wolf(commands: &mut Commands) -> Entity {
                 can_walk_in_lava: Some(false),
                 is_amphibious: Some(false),
             },
+            offspring: super::super::components::Offspring {
+                blend_attributes: None,
+                combine_parent_colors: Some(true),
+                deny_parents_variant: None,
+                inherit_tamed: None,
+                mutation_factor: None,
+                mutation_strategy: None,
+                offspring_pairs: Some(OffspringOffspringPairs {}),
+                parent_centric_attribute_blending: None,
+                property_inheritance: None,
+                random_extra_variant_mutation_interval: None,
+                random_variant_mutation_interval: None,
+            },
             physics: super::super::components::Physics {
                 has_collision: Some(true),
                 has_gravity: Some(true),
@@ -602,10 +669,14 @@ pub fn spawn_wolf(commands: &mut Commands) -> Entity {
                 is_pushable: Some(true),
                 is_pushable_by_piston: Some(true),
             },
+            pushable_by_block: super::super::components::PushableByBlock { data: None },
+            pushable_by_entity: super::super::components::PushableByEntity { data: None },
             scale: super::super::components::Scale { value: 1f32 },
+            spawn_egg_interaction: super::super::components::SpawnEggInteraction { data: None },
             type_family: super::super::components::TypeFamily {
                 family: vec!["wolf".to_string(), "mob".to_string()],
             },
+            uses_legacy_friction: super::super::components::UsesLegacyFriction { data: None },
         })
         .id()
 }

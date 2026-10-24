@@ -648,10 +648,17 @@ impl<T: BedrockSized> BedrockSized for Option<T> {
     }
 }
 
+/// Bedrock writes a UUID as its two 64-bit halves, most significant half
+/// first, each half little-endian: `8b8d7d29-25ef-4d61-8c7d-897a10c72a91`
+/// is `61 4d ef 25 29 7d 8d 8b 91 2a c7 10 7a 89 7d 8c` on the wire. Observed
+/// in BDS 1.26.51 `PlayerList` entries for a client with that identity, and
+/// identical to gophertunnel `protocol.Writer.UUID`/`Reader.UUID`.
 impl BedrockCodec for uuid::Uuid {
     type Args = ();
     fn encode<B: BufMut>(&self, buf: &mut B) -> Result<(), std::io::Error> {
-        buf.put_slice(self.as_bytes());
+        let (most, least) = self.as_u64_pair();
+        buf.put_u64_le(most);
+        buf.put_u64_le(least);
         Ok(())
     }
 
@@ -662,9 +669,9 @@ impl BedrockCodec for uuid::Uuid {
                 available: buf.remaining(),
             });
         }
-        let mut bytes = [0u8; 16];
-        buf.copy_to_slice(&mut bytes);
-        Ok(uuid::Uuid::from_bytes(bytes))
+        let most = buf.get_u64_le();
+        let least = buf.get_u64_le();
+        Ok(uuid::Uuid::from_u64_pair(most, least))
     }
 }
 
@@ -1771,16 +1778,22 @@ mod tests {
 
     // ========== UUID Tests ==========
 
+    /// BDS 1.26.51 sent this identity in `PlayerList` as these bytes (each
+    /// 64-bit half little-endian); a symmetric round trip cannot catch a
+    /// byte-order mistake, so both directions are pinned to the capture.
     #[test]
-    fn uuid_roundtrip() {
-        let uuid = uuid::Uuid::new_v4();
-        assert_codec_roundtrip(uuid, ());
-    }
-
-    #[test]
-    fn uuid_nil() {
-        let uuid = uuid::Uuid::nil();
-        assert_codec_roundtrip(uuid, ());
+    fn uuid_uses_bds_half_little_endian_byte_order() {
+        let uuid = uuid::Uuid::parse_str("8b8d7d29-25ef-4d61-8c7d-897a10c72a91").unwrap();
+        let wire = [
+            0x61, 0x4d, 0xef, 0x25, 0x29, 0x7d, 0x8d, 0x8b, 0x91, 0x2a, 0xc7, 0x10, 0x7a, 0x89,
+            0x7d, 0x8c,
+        ];
+        let mut encoded = BytesMut::new();
+        uuid.encode(&mut encoded).unwrap();
+        assert_eq!(&encoded[..], &wire);
+        let mut input = &wire[..];
+        assert_eq!(uuid::Uuid::decode(&mut input, ()).unwrap(), uuid);
+        assert!(input.is_empty());
     }
 
     // ========== Option Tests ==========

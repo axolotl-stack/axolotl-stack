@@ -150,16 +150,10 @@ pub fn spawn_warden(commands: &mut Commands) -> Entity {
                 duration: Some(5.5f32),
                 idle_time: Some(60f32),
                 on_start: Some(crate::types::BedrockValue::Object(
-                    std::collections::HashMap::from([
-                        (
-                            "event".to_string(),
-                            crate::types::BedrockValue::String("on_digging_event".to_string()),
-                        ),
-                        (
-                            "target".to_string(),
-                            crate::types::BedrockValue::String("self".to_string()),
-                        ),
-                    ]),
+                    std::collections::HashMap::from([(
+                        "event".to_string(),
+                        crate::types::BedrockValue::String("on_digging_event".to_string()),
+                    )]),
                 )),
                 priority: Some(BehaviorDigPriority {}),
                 suspicion_is_disturbance: Some(true),

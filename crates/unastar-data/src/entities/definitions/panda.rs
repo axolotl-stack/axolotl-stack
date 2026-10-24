@@ -15,6 +15,7 @@ impl Panda {
 /// Component bundle for spawning a `minecraft:panda`
 #[derive(Bundle, Clone)]
 pub struct PandaBundle {
+    pub ambient_sound_interval: super::super::components::AmbientSoundInterval,
     pub attack: super::super::components::Attack,
     pub balloonable: super::super::components::Balloonable,
     pub behavior_breed: super::super::components::BehaviorBreed,
@@ -47,10 +48,13 @@ pub struct PandaBundle {
     pub movement_basic: super::super::components::MovementBasic,
     pub nameable: super::super::components::Nameable,
     pub navigation_walk: super::super::components::NavigationWalk,
+    pub offspring: super::super::components::Offspring,
     pub physics: super::super::components::Physics,
     pub pushable: super::super::components::Pushable,
-    pub rideable: super::super::components::Rideable,
+    pub pushable_by_block: super::super::components::PushableByBlock,
+    pub pushable_by_entity: super::super::components::PushableByEntity,
     pub scale: super::super::components::Scale,
+    pub spawn_egg_interaction: super::super::components::SpawnEggInteraction,
     pub type_family: super::super::components::TypeFamily,
     pub variant: super::super::components::Variant,
     pub water_movement: super::super::components::WaterMovement,
@@ -59,6 +63,17 @@ pub struct PandaBundle {
 pub fn spawn_panda(commands: &mut Commands) -> Entity {
     commands
         .spawn(PandaBundle {
+            ambient_sound_interval: super::super::components::AmbientSoundInterval {
+                event_name: Some("ambient".to_string()),
+                event_names: Some(
+                    vec![
+                        AmbientSoundIntervalEventNames { condition : Some("query.is_baby"
+                        .to_string()), event_name : Some("ambient.baby".to_string()) }
+                    ],
+                ),
+                range: Some(16f32),
+                value: 6f32,
+            },
             attack: super::super::components::Attack {
                 damage: crate::types::RangeOrVal::Fixed(2f32),
                 effect_duration: Some(crate::types::MolangOr::Value(0i32)),
@@ -147,8 +162,14 @@ pub fn spawn_panda(commands: &mut Commands) -> Entity {
             behavior_snacking: super::super::components::BehaviorSnacking {
                 items: Some(
                     vec![
-                        crate ::types::BedrockValue::String("bamboo".to_string()), crate
-                        ::types::BedrockValue::String("cake".to_string())
+                        crate
+                        ::types::BedrockValue::Object(std::collections::HashMap::from([("name"
+                        .to_string(), crate
+                        ::types::BedrockValue::String("minecraft:bamboo"
+                        .to_string()))])), crate
+                        ::types::BedrockValue::Object(std::collections::HashMap::from([("name"
+                        .to_string(), crate
+                        ::types::BedrockValue::String("minecraft:cake".to_string()))]))
                     ],
                 ),
                 priority: Some(BehaviorSnackingPriority {}),
@@ -334,6 +355,23 @@ pub fn spawn_panda(commands: &mut Commands) -> Entity {
                 can_walk_in_lava: Some(false),
                 is_amphibious: Some(false),
             },
+            offspring: super::super::components::Offspring {
+                blend_attributes: Some(false),
+                combine_parent_colors: None,
+                deny_parents_variant: None,
+                inherit_tamed: None,
+                mutation_factor: Some(OffspringMutationFactor {
+                    color: None,
+                    extra_variant: None,
+                    variant: Some(1f32),
+                }),
+                mutation_strategy: None,
+                offspring_pairs: Some(OffspringOffspringPairs {}),
+                parent_centric_attribute_blending: None,
+                property_inheritance: None,
+                random_extra_variant_mutation_interval: None,
+                random_variant_mutation_interval: None,
+            },
             physics: super::super::components::Physics {
                 has_collision: Some(true),
                 has_gravity: Some(true),
@@ -343,31 +381,17 @@ pub fn spawn_panda(commands: &mut Commands) -> Entity {
                 is_pushable: Some(true),
                 is_pushable_by_piston: Some(true),
             },
-            rideable: super::super::components::Rideable {
-                controlling_seat: Some(0i32),
-                crouching_skip_interact: Some(true),
-                dismount_mode: Some("default".to_string()),
-                family_types: Some(
-                    vec!["baby_zombie".to_string(), "baby_husk".to_string()],
-                ),
-                interact_text: None,
-                on_rider_enter_event: None,
-                on_rider_exit_event: None,
-                passenger_max_width: Some(0f32),
-                pull_in_entities: Some(false),
-                rider_can_interact: Some(false),
-                seat_count: Some(1i32),
-                seats: Some(
-                    vec![
-                        RideableSeats { camera_relax_distance_smoothing : None,
-                        lock_rider_rotation : None, max_rider_count : None,
-                        min_rider_count : None, position : None, rotate_rider_by : None,
-                        third_person_camera_radius : None }
-                    ],
-                ),
+            pushable_by_block: super::super::components::PushableByBlock {
+                data: None,
+            },
+            pushable_by_entity: super::super::components::PushableByEntity {
+                data: None,
             },
             scale: super::super::components::Scale {
                 value: 1f32,
+            },
+            spawn_egg_interaction: super::super::components::SpawnEggInteraction {
+                data: None,
             },
             type_family: super::super::components::TypeFamily {
                 family: vec!["panda".to_string()],

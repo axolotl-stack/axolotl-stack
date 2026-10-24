@@ -1,5 +1,6 @@
 //! Normalize native item data and PMMP creative inventory into golden KDL artifacts.
 
+use base64::Engine;
 use kdl::{KdlDocument, KdlEntry, KdlNode, KdlValue};
 use serde::Deserialize;
 use std::collections::{BTreeMap, BTreeSet};
@@ -8,6 +9,10 @@ use tracing::info;
 use zuri_nbt::NBTTag;
 
 use crate::nbt::NetworkLittleEndian;
+
+/// The unnamed empty compound (`0a 00 00`) BDS sends as item component data
+/// for most registry items.
+const EMPTY_COMPONENT_NBT: &[u8] = &[0x0a, 0x00, 0x00];
 
 const CREATIVE_TABS: [(&str, &str); 4] = [
     ("construction", "creative_construction.json"),
@@ -96,6 +101,8 @@ fn apply_registry_metadata(doc: &mut KdlDocument, bytes: &[u8]) -> miette::Resul
     let NBTTag::Compound(registry) = registry else {
         return Err(miette::miette!("items.nbt root must be a compound"));
     };
+    let component_data = crate::nbt::registry_component_data(bytes)
+        .map_err(|e| miette::miette!("Failed to slice items.nbt component data: {}", e))?;
     for node in doc.nodes_mut() {
         let name = node
             .get(0)
@@ -140,6 +147,12 @@ fn apply_registry_metadata(doc: &mut KdlDocument, bytes: &[u8]) -> miette::Resul
                 name
             ));
         };
+        // BDS sends an empty compound for most items; only the others are
+        // recorded, as base64 of the exact network NBT BDS sends.
+        let component_nbt = component_data
+            .get(name)
+            .filter(|nbt| nbt.as_slice() != EMPTY_COMPONENT_NBT)
+            .map(|nbt| base64::engine::general_purpose::STANDARD.encode(nbt));
         node.push(KdlEntry::new_prop(
             "component_based",
             KdlValue::Bool(component_based.0 != 0),
@@ -152,6 +165,12 @@ fn apply_registry_metadata(doc: &mut KdlDocument, bytes: &[u8]) -> miette::Resul
             "registry_metadata_source",
             KdlValue::String("protocolgen_registry".to_string()),
         ));
+        if let Some(component_nbt) = component_nbt {
+            node.push(KdlEntry::new_prop(
+                "component_nbt",
+                KdlValue::String(component_nbt),
+            ));
+        }
     }
     Ok(())
 }
@@ -545,7 +564,8 @@ mod registry_tests {
     fn registry_bytes(id: i32, include_version: bool) -> Vec<u8> {
         let mut row = Compound::builder()
             .with_int("runtime_id", id)
-            .with_byte("component_based", 1);
+            .with_byte("component_based", 1)
+            .with("data", Compound::builder().build());
         if include_version {
             row = row.with_int("version", 2);
         }
@@ -559,6 +579,63 @@ mod registry_tests {
             .write(&mut bytes, zuri_nbt::encoding::NetworkLittleEndian)
             .unwrap();
         bytes
+    }
+
+    fn named(tag: u8, name: &str) -> Vec<u8> {
+        let mut bytes = vec![tag, name.len() as u8];
+        bytes.extend_from_slice(name.as_bytes());
+        bytes
+    }
+
+    /// Hand-encoded rows: map-based NBT writers would reorder the keys.
+    fn registry_row(name: &str, runtime_id_zigzag: &[u8], version: u8, data: &[u8]) -> Vec<u8> {
+        let mut row = named(10, name);
+        row.extend(named(3, "runtime_id"));
+        row.extend_from_slice(runtime_id_zigzag);
+        row.extend(named(1, "component_based"));
+        row.push(1);
+        row.extend(named(3, "version"));
+        row.push(version << 1);
+        row.extend(named(10, "data"));
+        row.extend_from_slice(data);
+        row.push(0);
+        row
+    }
+
+    #[test]
+    fn registry_component_nbt_is_kept_byte_exact_and_empty_data_is_omitted() {
+        let mut doc = native_items_document(
+            r#"{"minecraft:apple":{"id":257,"maxStackSize":64},"minecraft:stone":{"id":1,"maxStackSize":64}}"#,
+            "{}",
+        )
+        .unwrap();
+        // apple data: {z: int -3, a: byte 7} in that (non-sorted) order.
+        let apple_body = [3, 1, b'z', 5, 1, 1, b'a', 7, 0];
+        let mut bytes = vec![10, 0];
+        bytes.extend(registry_row(
+            "minecraft:apple",
+            &[0x82, 0x04],
+            1,
+            &apple_body,
+        ));
+        bytes.extend(registry_row("minecraft:stone", &[0x02], 2, &[0]));
+        bytes.push(0);
+        apply_registry_metadata(&mut doc, &bytes).unwrap();
+
+        let component_nbt = |index: usize| {
+            doc.nodes()[index]
+                .get("component_nbt")
+                .and_then(KdlValue::as_string)
+                .map(|value| {
+                    base64::engine::general_purpose::STANDARD
+                        .decode(value)
+                        .unwrap()
+                })
+        };
+        let mut expected = vec![10, 0];
+        expected.extend_from_slice(&apple_body);
+        assert_eq!(component_nbt(0), Some(expected));
+        assert_eq!(component_nbt(1), None, "BDS sends stone an empty compound");
     }
 
     #[test]

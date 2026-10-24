@@ -61,7 +61,8 @@ pub fn spawn_vex(commands: &mut Commands) -> Entity {
                 max_distance: Some(3f32),
                 min_distance: Some(2f32),
                 priority: Some(BehaviorChargeAttackPriority {}),
-                speed_multiplier: Some(BehaviorChargeAttackSpeedMultiplier {}),
+                speed_multiplier: Some(BehaviorChargeAttackSpeedMultiplier {
+                }),
                 success_rate: Some(0.1428f32),
             },
             behavior_float: super::super::components::BehaviorFloat {
@@ -79,24 +80,12 @@ pub fn spawn_vex(commands: &mut Commands) -> Entity {
             behavior_look_at_entity: super::super::components::BehaviorLookAtEntity {
                 angle_of_view_horizontal: Some(360i32),
                 angle_of_view_vertical: Some(360i32),
-                filters: Some(crate::types::BedrockValue::Object(
-                    std::collections::HashMap::from([
-                        (
-                            "subject".to_string(),
-                            crate::types::BedrockValue::String("other".to_string()),
-                        ),
-                        (
-                            "test".to_string(),
-                            crate::types::BedrockValue::String("is_family".to_string()),
-                        ),
-                        (
-                            "value".to_string(),
-                            crate::types::BedrockValue::String("mob".to_string()),
-                        ),
-                    ]),
-                )),
+                filters: None,
                 look_distance: Some(6f32),
-                look_time: None,
+                look_time: Some(crate::types::RangeOrVal::Range {
+                    min: 1f32,
+                    max: 2f32,
+                }),
                 priority: Some(BehaviorLookAtEntityPriority {}),
                 probability: Some(0.02f32),
             },
@@ -104,196 +93,72 @@ pub fn spawn_vex(commands: &mut Commands) -> Entity {
                 angle_of_view_horizontal: Some(360i32),
                 angle_of_view_vertical: Some(360i32),
                 look_distance: Some(6f32),
-                look_time: None,
+                look_time: Some(crate::types::RangeOrVal::Range {
+                    min: 1f32,
+                    max: 2f32,
+                }),
                 priority: Some(BehaviorLookAtPlayerPriority {}),
                 probability: Some(0.02f32),
                 target_distance: None,
             },
-            behavior_nearest_attackable_target:
-                super::super::components::BehaviorNearestAttackableTarget {
-                    attack_interval: Some(crate::types::BedrockValue::Object(
+            behavior_nearest_attackable_target: super::super::components::BehaviorNearestAttackableTarget {
+                attack_interval: Some(
+                    crate::types::BedrockValue::Object(
                         std::collections::HashMap::from([
-                            ("max".to_string(), crate::types::BedrockValue::Integer(0i64)),
-                            ("min".to_string(), crate::types::BedrockValue::Integer(0i64)),
+                            (
+                                "max".to_string(),
+                                crate::types::BedrockValue::Integer(0i64),
+                            ),
+                            (
+                                "min".to_string(),
+                                crate::types::BedrockValue::Integer(0i64),
+                            ),
                         ]),
-                    )),
-                    attack_interval_min: None,
-                    attack_owner: Some(false),
-                    control_flags: Some(BehaviorNearestAttackableTargetControlFlags {}),
-                    entity_types: Some(vec![
-                        BehaviorNearestAttackableTargetEntityTypes {
-                            check_if_outnumbered: None,
-                            cooldown: None,
-                            filters: Some(crate::types::BedrockValue::Object(
-                                std::collections::HashMap::from([(
-                                    "any_of".to_string(),
-                                    crate::types::BedrockValue::Array(vec![
-                                        crate::types::BedrockValue::Object(
-                                            std::collections::HashMap::from([
-                                                (
-                                                    "subject".to_string(),
-                                                    crate::types::BedrockValue::String(
-                                                        "other".to_string(),
-                                                    ),
-                                                ),
-                                                (
-                                                    "test".to_string(),
-                                                    crate::types::BedrockValue::String(
-                                                        "is_family".to_string(),
-                                                    ),
-                                                ),
-                                                (
-                                                    "value".to_string(),
-                                                    crate::types::BedrockValue::String(
-                                                        "player".to_string(),
-                                                    ),
-                                                ),
-                                            ]),
-                                        ),
-                                        crate::types::BedrockValue::Object(
-                                            std::collections::HashMap::from([
-                                                (
-                                                    "subject".to_string(),
-                                                    crate::types::BedrockValue::String(
-                                                        "other".to_string(),
-                                                    ),
-                                                ),
-                                                (
-                                                    "test".to_string(),
-                                                    crate::types::BedrockValue::String(
-                                                        "is_family".to_string(),
-                                                    ),
-                                                ),
-                                                (
-                                                    "value".to_string(),
-                                                    crate::types::BedrockValue::String(
-                                                        "irongolem".to_string(),
-                                                    ),
-                                                ),
-                                            ]),
-                                        ),
-                                        crate::types::BedrockValue::Object(
-                                            std::collections::HashMap::from([
-                                                (
-                                                    "subject".to_string(),
-                                                    crate::types::BedrockValue::String(
-                                                        "other".to_string(),
-                                                    ),
-                                                ),
-                                                (
-                                                    "test".to_string(),
-                                                    crate::types::BedrockValue::String(
-                                                        "is_family".to_string(),
-                                                    ),
-                                                ),
-                                                (
-                                                    "value".to_string(),
-                                                    crate::types::BedrockValue::String(
-                                                        "wandering_trader".to_string(),
-                                                    ),
-                                                ),
-                                            ]),
-                                        ),
-                                    ]),
-                                )]),
-                            )),
-                            max_dist: Some(70f32),
-                            max_flee: None,
-                            max_height: None,
-                            must_see: None,
-                            must_see_forget_duration: None,
-                            priority: None,
-                            reevaluate_description: None,
-                            sprint_speed_multiplier: None,
-                            walk_speed_multiplier: None,
-                            within_default: None,
-                        },
-                        BehaviorNearestAttackableTargetEntityTypes {
-                            check_if_outnumbered: None,
-                            cooldown: None,
-                            filters: Some(crate::types::BedrockValue::Object(
-                                std::collections::HashMap::from([(
-                                    "all_of".to_string(),
-                                    crate::types::BedrockValue::Array(vec![
-                                        crate::types::BedrockValue::Object(
-                                            std::collections::HashMap::from([
-                                                (
-                                                    "subject".to_string(),
-                                                    crate::types::BedrockValue::String(
-                                                        "other".to_string(),
-                                                    ),
-                                                ),
-                                                (
-                                                    "test".to_string(),
-                                                    crate::types::BedrockValue::String(
-                                                        "is_family".to_string(),
-                                                    ),
-                                                ),
-                                                (
-                                                    "value".to_string(),
-                                                    crate::types::BedrockValue::String(
-                                                        "villager".to_string(),
-                                                    ),
-                                                ),
-                                            ]),
-                                        ),
-                                        crate::types::BedrockValue::Object(
-                                            std::collections::HashMap::from([
-                                                (
-                                                    "operator".to_string(),
-                                                    crate::types::BedrockValue::String(
-                                                        "!=".to_string(),
-                                                    ),
-                                                ),
-                                                (
-                                                    "subject".to_string(),
-                                                    crate::types::BedrockValue::String(
-                                                        "other".to_string(),
-                                                    ),
-                                                ),
-                                                (
-                                                    "test".to_string(),
-                                                    crate::types::BedrockValue::String(
-                                                        "has_component".to_string(),
-                                                    ),
-                                                ),
-                                                (
-                                                    "value".to_string(),
-                                                    crate::types::BedrockValue::String(
-                                                        "minecraft:is_baby".to_string(),
-                                                    ),
-                                                ),
-                                            ]),
-                                        ),
-                                    ]),
-                                )]),
-                            )),
-                            max_dist: Some(70f32),
-                            max_flee: None,
-                            max_height: None,
-                            must_see: None,
-                            must_see_forget_duration: None,
-                            priority: None,
-                            reevaluate_description: None,
-                            sprint_speed_multiplier: None,
-                            walk_speed_multiplier: None,
-                            within_default: None,
-                        },
-                    ]),
-                    must_reach: Some(false),
-                    must_see: Some(true),
-                    must_see_forget_duration: Some(3f32),
-                    persist_time: Some(0f32),
-                    priority: Some(BehaviorNearestAttackableTargetPriority {}),
-                    reselect_targets: Some(false),
-                    scan_interval: Some(10i32),
-                    set_persistent: Some(false),
-                    target_acquisition_probability: Some(1f32),
-                    target_invisible_multiplier: Some(0.7f32),
-                    target_search_height: Some(-1f32),
-                    target_sneak_visibility_multiplier: Some(0.8f32),
-                    within_radius: Some(0f32),
-                },
+                    ),
+                ),
+                attack_interval_min: None,
+                attack_owner: Some(false),
+                control_flags: Some(BehaviorNearestAttackableTargetControlFlags {
+                }),
+                entity_types: Some(
+                    vec![
+                        BehaviorNearestAttackableTargetEntityTypes { check_if_outnumbered
+                        : None, cooldown : None, filters : Some(crate
+                        ::types::BedrockValue::Object(std::collections::HashMap::from([("AND"
+                        .to_string(), crate
+                        ::types::BedrockValue::String("[{\"OR\":[{\"operator\":0,\"subject\":1,\"test\":\"is_family\",\"value\":\"player\"},{\"operator\":0,\"subject\":1,\"test\":\"is_family\",\"value\":\"irongolem\"},{\"operator\":0,\"subject\":1,\"test\":\"is_family\",\"value\":\"wandering_trader\"}]}]"
+                        .to_string()))]))), max_dist : Some(70f32), max_flee : None,
+                        max_height : None, must_see : None, must_see_forget_duration :
+                        None, priority : None, reevaluate_description : None,
+                        sprint_speed_multiplier : None, walk_speed_multiplier : None,
+                        within_default : None },
+                        BehaviorNearestAttackableTargetEntityTypes { check_if_outnumbered
+                        : None, cooldown : None, filters : Some(crate
+                        ::types::BedrockValue::Object(std::collections::HashMap::from([("AND"
+                        .to_string(), crate
+                        ::types::BedrockValue::String("[{\"operator\":0,\"subject\":1,\"test\":\"is_family\",\"value\":\"villager\"},{\"operator\":1,\"subject\":1,\"test\":\"has_component\",\"value\":\"minecraft:is_baby\"}]"
+                        .to_string()))]))), max_dist : Some(70f32), max_flee : None,
+                        max_height : None, must_see : None, must_see_forget_duration :
+                        None, priority : None, reevaluate_description : None,
+                        sprint_speed_multiplier : None, walk_speed_multiplier : None,
+                        within_default : None }
+                    ],
+                ),
+                must_reach: Some(false),
+                must_see: Some(true),
+                must_see_forget_duration: Some(3f32),
+                persist_time: Some(0f32),
+                priority: Some(BehaviorNearestAttackableTargetPriority {
+                }),
+                reselect_targets: Some(false),
+                scan_interval: Some(10i32),
+                set_persistent: Some(false),
+                target_acquisition_probability: Some(1f32),
+                target_invisible_multiplier: Some(0.7f32),
+                target_search_height: Some(-1f32),
+                target_sneak_visibility_multiplier: Some(0.8f32),
+                within_radius: Some(0f32),
+            },
             breathable: super::super::components::Breathable {
                 breathe_blocks: None,
                 breathes_air: Some(true),
@@ -312,11 +177,10 @@ pub fn spawn_vex(commands: &mut Commands) -> Entity {
                 height: Some(0.8f32),
                 width: Some(0.4f32),
             },
-            conditional_bandwidth_optimization:
-                super::super::components::ConditionalBandwidthOptimization {
-                    conditional_values: None,
-                    default_values: None,
-                },
+            conditional_bandwidth_optimization: super::super::components::ConditionalBandwidthOptimization {
+                conditional_values: None,
+                default_values: None,
+            },
             despawn: super::super::components::Despawn {
                 despawn_from_chance: Some(true),
                 despawn_from_distance: Some(DespawnDespawnFromDistance {
@@ -336,13 +200,17 @@ pub fn spawn_vex(commands: &mut Commands) -> Entity {
             },
             experience_reward: super::super::components::ExperienceReward {
                 on_bred: Some(crate::types::MolangOr::Value(0f32)),
-                on_death: Some(crate::types::MolangOr::Expr(
-                    "query.last_hit_by_player ? 5 + (query.equipment_count * Math.Random(1,3)) : 0"
-                        .to_string(),
-                )),
+                on_death: Some(
+                    crate::types::MolangOr::Expr(
+                        "query.last_hit_by_player ? 5 + (query.equipment_count * Math.Random(1,3)) : 0"
+                            .to_string(),
+                    ),
+                ),
             },
             fire_immune: super::super::components::FireImmune,
-            flying_speed: super::super::components::FlyingSpeed { value: 0.02f32 },
+            flying_speed: super::super::components::FlyingSpeed {
+                value: 0.02f32,
+            },
             follow_range: super::super::components::FollowRange {
                 max: None,
                 min: None,
@@ -415,7 +283,9 @@ pub fn spawn_vex(commands: &mut Commands) -> Entity {
                 is_pushable: Some(true),
                 is_pushable_by_piston: Some(true),
             },
-            scale: super::super::components::Scale { value: 1f32 },
+            scale: super::super::components::Scale {
+                value: 1f32,
+            },
             type_family: super::super::components::TypeFamily {
                 family: vec!["vex".to_string(), "monster".to_string(), "mob".to_string()],
             },

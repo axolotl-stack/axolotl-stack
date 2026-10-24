@@ -29,7 +29,10 @@ pub struct DragonFireballBundle {
     pub physics: super::super::components::Physics,
     pub projectile: super::super::components::Projectile,
     pub pushable: super::super::components::Pushable,
+    pub pushable_by_block: super::super::components::PushableByBlock,
+    pub pushable_by_entity: super::super::components::PushableByEntity,
     pub scale: super::super::components::Scale,
+    pub type_family: super::super::components::TypeFamily,
 }
 /// Spawn a new `minecraft:dragon_fireball` entity with default Bedrock components
 pub fn spawn_dragon_fireball(commands: &mut Commands) -> Entity {
@@ -97,7 +100,7 @@ pub fn spawn_dragon_fireball(commands: &mut Commands) -> Entity {
                 push_towards_closest_space: Some(false),
             },
             projectile: super::super::components::Projectile {
-                anchor: Some(2i32),
+                anchor: Some(0i32),
                 angle_offset: Some(0f32),
                 catch_fire: Some(false),
                 crit_particle_on_hurt: Some(false),
@@ -156,7 +159,7 @@ pub fn spawn_dragon_fireball(commands: &mut Commands) -> Entity {
                 power: Some(1.3f32),
                 reflect_immunity: Some(0f32),
                 reflect_on_hurt: Some(true),
-                semi_random_diff_damage: Some(true),
+                semi_random_diff_damage: Some(false),
                 shoot_sound: None,
                 shoot_target: Some(true),
                 should_bounce: Some(false),
@@ -170,7 +173,12 @@ pub fn spawn_dragon_fireball(commands: &mut Commands) -> Entity {
                 is_pushable: Some(true),
                 is_pushable_by_piston: Some(true),
             },
+            pushable_by_block: super::super::components::PushableByBlock { data: None },
+            pushable_by_entity: super::super::components::PushableByEntity { data: None },
             scale: super::super::components::Scale { value: 1f32 },
+            type_family: super::super::components::TypeFamily {
+                family: vec!["projectile".to_string(), "dragon_fireball".to_string()],
+            },
         })
         .id()
 }

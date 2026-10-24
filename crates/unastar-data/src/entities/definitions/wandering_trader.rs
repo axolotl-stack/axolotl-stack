@@ -75,47 +75,12 @@ pub fn spawn_wandering_trader(commands: &mut Commands) -> Entity {
                     vec![
                         BehaviorAvoidMobTypeEntityTypes { check_if_outnumbered : None,
                         cooldown : None, filters : Some(crate
-                        ::types::BedrockValue::Object(std::collections::HashMap::from([("any_of"
-                        .to_string(), crate ::types::BedrockValue::Array(vec![crate
-                        ::types::BedrockValue::Object(std::collections::HashMap::from([("subject"
-                        .to_string(), crate ::types::BedrockValue::String("other"
-                        .to_string())), ("test".to_string(), crate
-                        ::types::BedrockValue::String("is_family".to_string())), ("value"
-                        .to_string(), crate ::types::BedrockValue::String("zombie"
-                        .to_string()))])), crate
-                        ::types::BedrockValue::Object(std::collections::HashMap::from([("subject"
-                        .to_string(), crate ::types::BedrockValue::String("other"
-                        .to_string())), ("test".to_string(), crate
-                        ::types::BedrockValue::String("is_family".to_string())), ("value"
+                        ::types::BedrockValue::Object(std::collections::HashMap::from([("AND"
                         .to_string(), crate
-                        ::types::BedrockValue::String("zombie_villager".to_string()))])),
-                        crate
-                        ::types::BedrockValue::Object(std::collections::HashMap::from([("subject"
-                        .to_string(), crate ::types::BedrockValue::String("other"
-                        .to_string())), ("test".to_string(), crate
-                        ::types::BedrockValue::String("is_family".to_string())), ("value"
-                        .to_string(), crate ::types::BedrockValue::String("zombie_pigman"
-                        .to_string()))])), crate
-                        ::types::BedrockValue::Object(std::collections::HashMap::from([("subject"
-                        .to_string(), crate ::types::BedrockValue::String("other"
-                        .to_string())), ("test".to_string(), crate
-                        ::types::BedrockValue::String("is_family".to_string())), ("value"
-                        .to_string(), crate ::types::BedrockValue::String("illager"
-                        .to_string()))])), crate
-                        ::types::BedrockValue::Object(std::collections::HashMap::from([("subject"
-                        .to_string(), crate ::types::BedrockValue::String("other"
-                        .to_string())), ("test".to_string(), crate
-                        ::types::BedrockValue::String("is_family".to_string())), ("value"
-                        .to_string(), crate ::types::BedrockValue::String("vex"
-                        .to_string()))])), crate
-                        ::types::BedrockValue::Object(std::collections::HashMap::from([("subject"
-                        .to_string(), crate ::types::BedrockValue::String("other"
-                        .to_string())), ("test".to_string(), crate
-                        ::types::BedrockValue::String("is_family".to_string())), ("value"
-                        .to_string(), crate ::types::BedrockValue::String("zoglin"
-                        .to_string()))]))]))]))), max_dist : None, max_flee : None,
-                        max_height : None, must_see : None, must_see_forget_duration :
-                        None, priority : None, reevaluate_description : None,
+                        ::types::BedrockValue::String("[{\"OR\":[{\"operator\":0,\"subject\":1,\"test\":\"is_family\",\"value\":\"zombie\"},{\"operator\":0,\"subject\":1,\"test\":\"is_family\",\"value\":\"zombie_villager\"},{\"operator\":0,\"subject\":1,\"test\":\"is_family\",\"value\":\"zombie_pigman\"},{\"operator\":0,\"subject\":1,\"test\":\"is_family\",\"value\":\"illager\"},{\"operator\":0,\"subject\":1,\"test\":\"is_family\",\"value\":\"vex\"},{\"operator\":0,\"subject\":1,\"test\":\"is_family\",\"value\":\"zoglin\"}]}]"
+                        .to_string()))]))), max_dist : None, max_flee : None, max_height
+                        : None, must_see : None, must_see_forget_duration : None,
+                        priority : None, reevaluate_description : None,
                         sprint_speed_multiplier : Some(0.6f32), walk_speed_multiplier :
                         Some(0.6f32), within_default : None }
                     ],
@@ -171,28 +136,10 @@ pub fn spawn_wandering_trader(commands: &mut Commands) -> Entity {
                     crate::types::BedrockValue::Object(
                         std::collections::HashMap::from([
                             (
-                                "all_of".to_string(),
-                                crate::types::BedrockValue::Array(
-                                    vec![
-                                        crate
-                                        ::types::BedrockValue::Object(std::collections::HashMap::from([("test"
-                                        .to_string(), crate
-                                        ::types::BedrockValue::String("is_daytime".to_string())),
-                                        ("value".to_string(), crate
-                                        ::types::BedrockValue::Bool(true))])), crate
-                                        ::types::BedrockValue::Object(std::collections::HashMap::from([("subject"
-                                        .to_string(), crate ::types::BedrockValue::String("self"
-                                        .to_string())), ("test".to_string(), crate
-                                        ::types::BedrockValue::String("is_visible".to_string())),
-                                        ("value".to_string(), crate
-                                        ::types::BedrockValue::Bool(false))])), crate
-                                        ::types::BedrockValue::Object(std::collections::HashMap::from([("subject"
-                                        .to_string(), crate ::types::BedrockValue::String("self"
-                                        .to_string())), ("test".to_string(), crate
-                                        ::types::BedrockValue::String("is_avoiding_mobs"
-                                        .to_string())), ("value".to_string(), crate
-                                        ::types::BedrockValue::Bool(false))]))
-                                    ],
+                                "AND".to_string(),
+                                crate::types::BedrockValue::String(
+                                    "[{\"operator\":0,\"subject\":0,\"test\":\"is_daytime\",\"value\":true},{\"operator\":0,\"subject\":0,\"test\":\"is_visible\",\"value\":false},{\"operator\":0,\"subject\":0,\"test\":\"is_avoiding_mobs\",\"value\":false}]"
+                                        .to_string(),
                                 ),
                             ),
                         ]),
@@ -303,7 +250,10 @@ pub fn spawn_wandering_trader(commands: &mut Commands) -> Entity {
                 angle_of_view_horizontal: Some(360i32),
                 angle_of_view_vertical: Some(360i32),
                 look_distance: Some(8f32),
-                look_time: None,
+                look_time: Some(crate::types::RangeOrVal::Range {
+                    min: 1f32,
+                    max: 2f32,
+                }),
                 priority: Some(BehaviorLookAtPlayerPriority {}),
                 probability: Some(0.02f32),
                 target_distance: None,
@@ -312,7 +262,10 @@ pub fn spawn_wandering_trader(commands: &mut Commands) -> Entity {
                 angle_of_view_horizontal: Some(360i32),
                 angle_of_view_vertical: Some(360i32),
                 look_distance: Some(8f32),
-                look_time: None,
+                look_time: Some(crate::types::RangeOrVal::Range {
+                    min: 1f32,
+                    max: 2f32,
+                }),
                 priority: Some(BehaviorLookAtTradingPlayerPriority {
                 }),
                 probability: Some(0.02f32),
@@ -424,21 +377,21 @@ pub fn spawn_wandering_trader(commands: &mut Commands) -> Entity {
                     vec![
                         DamageSensorTriggers { cause : Some("entity_attack".to_string()),
                         damage_modifier : None, damage_multiplier : None, deals_damage :
-                        Some("true".to_string()), on_damage : Some(crate
+                        Some("yes".to_string()), on_damage : Some(crate
                         ::types::BedrockValue::Object(std::collections::HashMap::from([("event"
                         .to_string(), crate
                         ::types::BedrockValue::String("minecraft:become_scared"
                         .to_string()))]))), on_damage_sound_event : None },
                         DamageSensorTriggers { cause : Some("projectile".to_string()),
                         damage_modifier : None, damage_multiplier : None, deals_damage :
-                        Some("true".to_string()), on_damage : Some(crate
+                        Some("yes".to_string()), on_damage : Some(crate
                         ::types::BedrockValue::Object(std::collections::HashMap::from([("event"
                         .to_string(), crate
                         ::types::BedrockValue::String("minecraft:become_scared"
                         .to_string()))]))), on_damage_sound_event : None },
                         DamageSensorTriggers { cause : Some("magic".to_string()),
                         damage_modifier : None, damage_multiplier : None, deals_damage :
-                        Some("true".to_string()), on_damage : Some(crate
+                        Some("yes".to_string()), on_damage : Some(crate
                         ::types::BedrockValue::Object(std::collections::HashMap::from([("event"
                         .to_string(), crate
                         ::types::BedrockValue::String("minecraft:become_scared"
@@ -522,7 +475,7 @@ pub fn spawn_wandering_trader(commands: &mut Commands) -> Entity {
             home: super::super::components::Home {
                 home_block_list: None,
                 restriction_radius: Some(16i32),
-                restriction_type: Some("none".to_string()),
+                restriction_type: Some("random_movement".to_string()),
             },
             hurt_on_condition: super::super::components::HurtOnCondition {
                 damage_conditions: None,

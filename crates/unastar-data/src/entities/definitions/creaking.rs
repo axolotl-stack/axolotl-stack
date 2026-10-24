@@ -22,6 +22,7 @@ pub struct CreakingBundle {
     pub despawn: super::super::components::Despawn,
     pub flying_speed: super::super::components::FlyingSpeed,
     pub follow_range: super::super::components::FollowRange,
+    pub freezing_immune: super::super::components::FreezingImmune,
     pub health: super::super::components::Health,
     pub inventory: super::super::components::Inventory,
     pub is_hidden_when_invisible: super::super::components::IsHiddenWhenInvisible,
@@ -82,6 +83,7 @@ pub fn spawn_creaking(commands: &mut Commands) -> Entity {
                 min: None,
                 value: crate::types::RangeOrVal::Fixed(32f32),
             },
+            freezing_immune: super::super::components::FreezingImmune { data: None },
             health: super::super::components::Health {
                 max: Some(1f32),
                 min: None,

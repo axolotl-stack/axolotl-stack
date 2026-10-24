@@ -29,7 +29,10 @@ pub struct ThrownTridentBundle {
     pub physics: super::super::components::Physics,
     pub projectile: super::super::components::Projectile,
     pub pushable: super::super::components::Pushable,
+    pub pushable_by_block: super::super::components::PushableByBlock,
+    pub pushable_by_entity: super::super::components::PushableByEntity,
     pub scale: super::super::components::Scale,
+    pub type_family: super::super::components::TypeFamily,
 }
 /// Spawn a new `minecraft:thrown_trident` entity with default Bedrock components
 pub fn spawn_thrown_trident(commands: &mut Commands) -> Entity {
@@ -97,7 +100,7 @@ pub fn spawn_thrown_trident(commands: &mut Commands) -> Entity {
                 push_towards_closest_space: Some(false),
             },
             projectile: super::super::components::Projectile {
-                anchor: Some(1i32),
+                anchor: Some(0i32),
                 angle_offset: Some(0f32),
                 catch_fire: Some(false),
                 crit_particle_on_hurt: Some(false),
@@ -129,10 +132,13 @@ pub fn spawn_thrown_trident(commands: &mut Commands) -> Entity {
                     hurt_owner: None,
                     ignite: None,
                     impact_damage: Some(ProjectileOnHitImpactDamage {
-                        apply_knockback_to_blocking_targets: None,
+                        apply_knockback_to_blocking_targets: Some(true),
                         catch_fire: None,
                         channeling: None,
-                        damage: Some(crate::types::RangeOrVal::Fixed(8f32)),
+                        damage: Some(crate::types::RangeOrVal::Range {
+                            min: 8f32,
+                            max: 8f32,
+                        }),
                         destroy_on_hit: Some(false),
                         destroy_on_hit_requires_damage: None,
                         filter: None,
@@ -140,7 +146,7 @@ pub fn spawn_thrown_trident(commands: &mut Commands) -> Entity {
                         max_critical_damage: None,
                         min_critical_damage: None,
                         power_multiplier: None,
-                        semi_random_diff_damage: Some(false),
+                        semi_random_diff_damage: None,
                         set_last_hurt_requires_damage: None,
                         should_bounce: None,
                     }),
@@ -163,7 +169,7 @@ pub fn spawn_thrown_trident(commands: &mut Commands) -> Entity {
                 semi_random_diff_damage: Some(false),
                 shoot_sound: None,
                 shoot_target: Some(true),
-                should_bounce: Some(true),
+                should_bounce: Some(false),
                 splash_potion: Some(false),
                 splash_range: Some(4f32),
                 stop_on_hurt: Some(true),
@@ -174,7 +180,12 @@ pub fn spawn_thrown_trident(commands: &mut Commands) -> Entity {
                 is_pushable: Some(true),
                 is_pushable_by_piston: Some(true),
             },
+            pushable_by_block: super::super::components::PushableByBlock { data: None },
+            pushable_by_entity: super::super::components::PushableByEntity { data: None },
             scale: super::super::components::Scale { value: 1f32 },
+            type_family: super::super::components::TypeFamily {
+                family: vec!["projectile".to_string(), "thrown_trident".to_string()],
+            },
         })
         .id()
 }
