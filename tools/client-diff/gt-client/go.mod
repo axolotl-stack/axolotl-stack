@@ -3,6 +3,7 @@ module client-diff/gt-client
 go 1.25.0
 
 require (
+	github.com/go-gl/mathgl v1.1.0
 	github.com/google/uuid v1.6.0
 	github.com/sandertv/gophertunnel v1.25.3-0.20260928233358-80c811b61860
 )
@@ -14,7 +15,6 @@ require (
 	github.com/df-mc/go-playfab/v2 v2.0.2 // indirect
 	github.com/df-mc/go-xsapi/v2 v2.0.3 // indirect
 	github.com/df-mc/jsonc v1.0.5 // indirect
-	github.com/go-gl/mathgl v1.1.0 // indirect
 	github.com/go-jose/go-jose/v4 v4.1.4 // indirect
 	github.com/klauspost/compress v1.18.1 // indirect
 	github.com/pion/datachannel v1.6.2 // indirect
@@ -47,4 +47,4 @@ require (
 
 replace github.com/sandertv/gophertunnel => github.com/HashimTheArab/gophertunnel v1.25.3-0.20260928233358-80c811b61860
 
-replace github.com/sandertv/go-raknet => github.com/lunar-bedrock/go-raknet v1.15.1-0.20261011161132-87a6b7e53799
+replace github.com/sandertv/go-raknet => github.com/lunar-bedrock/go-raknet v1.15.1-0.20261011190141-6124f52657d4
