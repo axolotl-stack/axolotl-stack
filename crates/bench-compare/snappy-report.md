@@ -222,10 +222,10 @@ by existing server code; all five clients reported successful completion.
   Cinnabar's standalone lockfile resolves snap 1.1.2; the stock workspace
   baseline resolves snap 1.1.1. The Go binary reports Go 1.27.0 / GOAMD64=v1,
   gophertunnel `80c811b61860` and klauspost/compress 1.18.1.
-- Durable primary data/provenance: `benches/snappy-evidence.csv` (640 rows)
-  and `benches/snappy-metadata.json`. Negative-control data/provenance:
-  `benches/snappy-control-evidence.csv` (480 rows) and
-  `benches/snappy-control-metadata.json`. Group by `side/name/operation` and
+- Durable primary data/provenance: `data/snappy/snappy-evidence.csv` (640 rows)
+  and `data/snappy/snappy-metadata.json`. Negative-control data/provenance:
+  `data/snappy/snappy-control-evidence.csv` (480 rows) and
+  `data/snappy/snappy-control-metadata.json`. Group by `side/name/operation` and
   take the median of five `ns_per_op` values; both Rust variants intentionally
   retain the harness's `rust-owned` implementation label.
   The report does not require local ignored result directories.

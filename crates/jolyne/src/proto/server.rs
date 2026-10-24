@@ -3,9 +3,15 @@
 //! ```text
 //! ServerHandshake ─RequestNetworkSettings→ ServerLogin ─Login→ LoginRequest
 //!   ─(caller verifies)→ Authenticated ─start_encryption→ [ServerEncryption ─C2S→]
-//!   PacksReady ─start_packs→ ServerPacks ─Completed→ WorldReady
+//!   PacksReady ─start_packs→ ServerPacksPhase ─Completed→ WorldReady
 //!   ─start_game→ ServerSpawn ─SetLocalPlayerAsInitialized→ ServerSession
 //! ```
+//!
+//! Owners that wait for the client implement [`Phase`]; `LoginRequest`,
+//! `Authenticated`, `PacksReady` and `WorldReady` wait for the caller (the
+//! verified login, the server key, the pack set, the world) and advance
+//! through a consuming method instead. `stream::server` maps them onto the
+//! `BedrockStream` typestate.
 //!
 //! The login stage (settings through `ClientToServerHandshake`) shares one
 //! deadline (`login_timeout`); resource packs and spawn each get their own.
@@ -21,7 +27,7 @@ use rand::RngCore;
 use super::conn::{Connection, Framing};
 use super::handshake;
 use super::packs::{PackProgress, ServerPackExchange, ServerPacks};
-use super::phase::{Deferred, Failure, Owner, Phase, Step, unexpected};
+use super::phase::{Deferred, Failure, Owner, Phase, Step, deadline_after, unexpected};
 use super::raw::RawPacket;
 use super::session::Session;
 use crate::auth::{AuthenticatedLogin, Trust};
@@ -69,14 +75,16 @@ pub struct ServerHandshake {
 owner!(ServerHandshake);
 
 impl ServerHandshake {
+    /// Starts the handshake; the login deadline is `config.login_timeout` after `now`.
     pub fn new(conn: Connection, config: Arc<BedrockListenerConfig>, now: Instant) -> Self {
-        let deadline = now + config.login_timeout;
+        let deadline = deadline_after(now, config.login_timeout);
         Self {
             conn,
             shared: Shared { config, deadline },
         }
     }
 
+    /// The listener configuration.
     pub fn config(&self) -> &Arc<BedrockListenerConfig> {
         &self.shared.config
     }
@@ -118,14 +126,17 @@ impl Phase for ServerHandshake {
         if !packet.is(McpePacketName::RequestNetworkSettingsPacket) {
             return Err(Failure::new(unexpected(Self::PHASE, &packet), self));
         }
-        let client_protocol = match packet.decode_borrowed() {
+        let client_protocol = match packet.clone().decode_borrowed() {
             Ok(decoded) => match decoded.data {
                 BorrowedMcpePacketData::RequestNetworkSettingsPacket(request) => {
-                    request.client_network_version
+                    Some(request.client_network_version)
                 }
-                _ => unreachable!("packet name and decoded variant agree"),
+                _ => None,
             },
             Err(error) => return Err(Failure::new(error, self)),
+        };
+        let Some(client_protocol) = client_protocol else {
+            return Err(Failure::new(unexpected(Self::PHASE, &packet), self));
         };
         if client_protocol != PROTOCOL_VERSION {
             return Err(self.protocol_mismatch(client_protocol, now));
@@ -193,12 +204,12 @@ impl Phase for ServerLogin {
         if !packet.is(McpePacketName::LoginPacket) {
             return Err(Failure::new(unexpected(Self::PHASE, &packet), self));
         }
-        let (protocol, request) = match packet.decode() {
+        let (protocol, request) = match packet.clone().decode() {
             Ok(McpePacket {
                 data: McpePacketData::LoginPacket(login),
                 ..
             }) => (login.client_network_version, login.connection_request),
-            Ok(_) => unreachable!("packet name and decoded variant agree"),
+            Ok(_) => return Err(Failure::new(unexpected(Self::PHASE, &packet), self)),
             Err(error) => return Err(Failure::new(error, self)),
         };
         if protocol != PROTOCOL_VERSION {
@@ -241,10 +252,12 @@ impl LoginRequest {
         &self.request
     }
 
+    /// The login deadline, set by [`ServerHandshake::new`].
     pub fn deadline(&self) -> Instant {
         self.shared.deadline
     }
 
+    /// The listener configuration.
     pub fn config(&self) -> &Arc<BedrockListenerConfig> {
         &self.shared.config
     }
@@ -310,8 +323,14 @@ pub struct Authenticated {
 owner!(Authenticated);
 
 impl Authenticated {
+    /// The admitted player's login.
     pub fn login(&self) -> &AuthenticatedLogin {
         &self.login
+    }
+
+    /// The login deadline, which also bounds the encryption handshake.
+    pub fn deadline(&self) -> Instant {
+        self.shared.deadline
     }
 
     /// Sends `ServerToClientHandshake` (plaintext) and enables encryption, or
@@ -443,6 +462,7 @@ pub struct PacksReady {
 owner!(PacksReady);
 
 impl PacksReady {
+    /// The admitted player's login.
     pub fn login(&self) -> &AuthenticatedLogin {
         &self.login
     }
@@ -466,7 +486,7 @@ impl PacksReady {
     ) -> Result<ServerPacksPhase, Failure<Self>> {
         match ServerPackExchange::start(packs, &mut self.conn, now) {
             Ok(exchange) => Ok(ServerPacksPhase {
-                deadline: now + self.config.resource_pack_timeout,
+                deadline: deadline_after(now, self.config.resource_pack_timeout),
                 conn: self.conn,
                 config: self.config,
                 login: self.login,
@@ -556,21 +576,21 @@ pub struct WorldReady {
 owner!(WorldReady);
 
 impl WorldReady {
+    /// The admitted player's login.
     pub fn login(&self) -> &AuthenticatedLogin {
         &self.login
     }
 
     /// Sends `DimensionData` (when set), `JigsawStructureData`, `VoxelShapes`,
-    /// `StartGame`, `ItemRegistry` and the definition lists in one batch
-    /// (gophertunnel/BDS order; definitions precede the client's
-    /// `RequestChunkRadius`).
+    /// `StartGame`, `ItemRegistry` and the definition lists as one batch
+    /// whatever the flush mode (BDS order and batching; definitions precede
+    /// the client's `RequestChunkRadius`).
     pub fn start_game(
         mut self,
         params: WorldJoinParams,
         now: Instant,
     ) -> Result<ServerSpawn, Failure<Self>> {
-        let result = (|| {
-            let conn = &mut self.conn;
+        let result = self.conn.queue_group(|conn| {
             if let Some(dimensions) = &params.dimension_data {
                 conn.queue_body(
                     McpePacketName::DimensionDataPacket,
@@ -615,14 +635,14 @@ impl WorldReady {
                     now,
                 )?;
             }
-            conn.flush()
-        })();
+            Ok(())
+        });
         if let Err(error) = result {
             return Err(Failure::new(error, self));
         }
         tracing::debug!("start game sent");
         Ok(ServerSpawn {
-            deadline: now + self.config.spawn_timeout,
+            deadline: deadline_after(now, self.config.spawn_timeout),
             runtime_id: params.start_game.runtime_id.actor_runtime_id,
             publisher_position: params
                 .start_game
@@ -653,29 +673,27 @@ pub struct ServerSpawn {
 owner!(ServerSpawn);
 
 impl ServerSpawn {
+    /// Answers the first `RequestChunkRadius` with `ChunkRadiusUpdated`,
+    /// `NetworkChunkPublisherUpdate` and `PlayStatus(PlayerSpawn)` in one
+    /// batch.
     fn on_radius(&mut self, requested: i32, now: Instant) -> Result<(), JolyneError> {
         if requested < 1 {
             return Err(ProtocolError::InvalidChunkRadius(requested).into());
         }
         let radius = self.radius_override.unwrap_or(requested);
         self.chunk_radius = Some(radius);
-        self.conn.queue_packet(
-            &McpePacket::from(ChunkRadiusUpdatedPacket {
+        let packets = [
+            McpePacket::from(ChunkRadiusUpdatedPacket {
                 chunk_radius: radius,
             }),
-            now,
-        )?;
-        self.conn.queue_packet(
-            &McpePacket::from(NetworkChunkPublisherUpdatePacket {
+            McpePacket::from(NetworkChunkPublisherUpdatePacket {
                 newpositionforview: self.publisher_position.clone(),
                 newradiusforview: (radius as u32).saturating_mul(16),
                 server_built_chunks_list: vec![],
             }),
-            now,
-        )?;
-        self.conn
-            .queue_packet(&status_packet(PlayStatusPacketStatus::Playerspawn), now)?;
-        self.conn.flush()
+            status_packet(PlayStatusPacketStatus::Playerspawn),
+        ];
+        self.conn.send_batch(&packets, true, now)
     }
 }
 
@@ -701,7 +719,7 @@ impl Phase for ServerSpawn {
                 Err(error) => Err(Failure::new(error, self)),
             };
         }
-        let decoded = match packet.decode() {
+        let decoded = match packet.clone().decode() {
             Ok(decoded) => decoded,
             Err(error) => return Err(Failure::new(error, self)),
         };
@@ -736,14 +754,20 @@ impl Phase for ServerSpawn {
                     login,
                 }))
             }
-            _ => unreachable!("filtered above"),
+            // Filtered above; anything else waits for the play session.
+            _ => match self.deferred.push(packet) {
+                Ok(()) => Ok(Step::Wait(self)),
+                Err(error) => Err(Failure::new(error, self)),
+            },
         }
     }
 }
 
 /// The play session of an accepted player.
 pub struct ServerSession {
+    /// The play session, after the replay of packets deferred during login.
     pub session: Session,
+    /// The admitted player's login.
     pub login: AuthenticatedLogin,
 }
 

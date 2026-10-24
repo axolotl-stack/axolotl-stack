@@ -1,15 +1,11 @@
 //! A failed join step that still owns the connection.
 
 use std::fmt;
-use std::time::Instant;
 
 use super::driver;
 use super::link::BedrockTransport;
 use super::transport::Transport;
 use crate::error::JolyneError;
-
-/// How long [`Failed::disconnect`] waits for the transport to drain.
-const DISCONNECT_TIMEOUT: std::time::Duration = std::time::Duration::from_secs(5);
 
 /// The error from a failed join step, plus the connection it failed on.
 ///
@@ -27,14 +23,17 @@ impl<T: Transport> Failed<T> {
         Self { error, link }
     }
 
+    /// The error that failed the step.
     pub fn error(&self) -> &JolyneError {
         &self.error
     }
 
+    /// Drops the connection, sending only what was already queued, and returns the error.
     pub fn into_error(self) -> JolyneError {
         self.error
     }
 
+    /// Splits into the error and the connection, for custom failure handling.
     pub fn into_parts(self) -> (JolyneError, BedrockTransport<T>) {
         (self.error, self.link)
     }
@@ -45,10 +44,10 @@ impl<T: Transport> Failed<T> {
     pub async fn disconnect(self) -> JolyneError {
         let Self { error, mut link } = self;
         link.connection_mut()
-            .queue_failure_disconnect(&error, Instant::now());
+            .queue_failure_disconnect(&error, driver::now());
         let (transport, conn) = link.io();
-        // Bounded: a peer that stopped reading must not hold the task.
-        let _ = tokio::time::timeout(DISCONNECT_TIMEOUT, driver::close(transport, conn)).await;
+        // `close` is bounded: a peer that stopped reading cannot hold the task.
+        let _ = driver::close(transport, conn).await;
         error
     }
 }

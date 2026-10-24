@@ -1,6 +1,6 @@
 //! A transport plus its codec state, outside the join typestate.
 
-use std::time::{Duration, Instant};
+use std::time::Duration;
 
 use super::driver;
 use super::slots::Seat;
@@ -55,46 +55,54 @@ impl<T: Transport> BedrockTransport<T> {
         &self.conn
     }
 
+    /// The codec state, mutably (e.g. to enable compression or encryption).
     pub fn connection_mut(&mut self) -> &mut Connection {
         &mut self.conn
     }
 
+    /// The underlying transport.
     pub fn transport(&self) -> &T {
         &self.transport
     }
 
+    /// The transport's peer address (a placeholder for NetherNet).
     pub fn peer_addr(&self) -> std::net::SocketAddr {
         self.transport.peer_addr()
     }
 
+    /// Transport round-trip time, when the transport measures it.
     pub fn latency(&self) -> Option<Duration> {
         self.transport.latency()
     }
 
+    /// A snapshot of the connection's packet, batch and byte counters.
     pub fn metrics(&self) -> ConnectionMetrics {
         self.conn.metrics()
     }
 
+    /// Switches between immediate, manual and interval flushing.
     pub async fn set_flush_mode(&mut self, mode: FlushMode) -> Result<(), JolyneError> {
-        self.conn.set_flush_mode(mode, Instant::now())?;
+        self.conn.set_flush_mode(mode, driver::now())?;
         driver::after_send(&mut self.transport, &mut self.conn).await
     }
 
+    /// Seals queued packets into one batch and writes it.
     pub async fn flush(&mut self) -> Result<(), JolyneError> {
         self.conn.flush()?;
         driver::flush_out(&mut self.transport, &mut self.conn).await
     }
 
+    /// Sends `Disconnect{reason, message}`, drains pending writes and closes.
     pub async fn disconnect(
         mut self,
         reason: EnumsConnectionDisconnectFailReason,
         message: &str,
     ) -> Result<(), JolyneError> {
-        self.conn
-            .queue_disconnect(reason, message, Instant::now())?;
+        self.conn.queue_disconnect(reason, message, driver::now())?;
         driver::close(&mut self.transport, &mut self.conn).await
     }
 
+    /// Drains pending writes and closes the transport.
     pub async fn close(mut self) -> Result<(), JolyneError> {
         driver::close(&mut self.transport, &mut self.conn).await
     }

@@ -1,3 +1,8 @@
+//! Adversarial login verification tests: forged and self-signed provider
+//! tokens, client data bound to the token's `cpk`, offline and legacy logins
+//! that must never authenticate, client-built logins against the verifier,
+//! and malformed envelopes, tokens and client data that must not panic.
+
 use super::*;
 use crate::auth::client_data::tests::valid as valid_client_data;
 use crate::auth::openid::{KeySetSource, OpenIdProvider, OpenIdVerifier, RefreshPolicy};
@@ -76,6 +81,68 @@ impl KeySetSource for StaticSource {
 }
 fn provider(key: &SecretKey) -> OpenIdProvider {
     OpenIdProvider::new(StaticSource(key.clone()), RefreshPolicy::default())
+}
+
+/// RS256 is what the production provider publishes (`openid.rs` default
+/// algorithms). Fixed 2048-bit test key generated with Node `crypto`.
+#[test]
+fn rs256_jwks_validates_provider_tokens() {
+    let pem = include_str!("testdata/rs256-test-key.pem");
+    let jwks = include_str!("testdata/rs256-test-jwks.json");
+    let verifier =
+        OpenIdVerifier::from_jwks("https://trusted.test/", &[Algorithm::RS256], jwks).unwrap();
+    let identity = key(1);
+    let mut header = Header::new(Algorithm::RS256);
+    header.kid = Some("rs-test".into());
+    let sign = |claims: &Value| {
+        encode(
+            &header,
+            claims,
+            &EncodingKey::from_rsa_pem(pem.as_bytes()).unwrap(),
+        )
+        .unwrap()
+    };
+
+    let login = verifier
+        .validate(&sign(&claims(&identity)), &client_data(&identity))
+        .unwrap();
+    assert_eq!(login.identity.claimed_xuid(), Some("2535428123456789"));
+
+    // A token signed by any other key under the same kid is rejected.
+    let mut forged = claims(&identity);
+    forged["xid"] = "1".into();
+    let other = sign_with(&key(3), Some("rs-test"), &forged);
+    assert!(verifier.validate(&other, &client_data(&identity)).is_err());
+}
+
+#[test]
+fn malformed_jwks_keys_are_skipped_not_fatal() {
+    let good = key(2);
+    let mut set: Value = serde_json::from_str(&jwks(&[(&good, Some("good"))])).unwrap();
+    let keys = set["keys"].as_array_mut().unwrap();
+    keys.insert(
+        0,
+        json!({"kty":"EC","crv":"P-384","alg":"ES384","use":"sig","kid":"no-y","x":"AAAA"}),
+    );
+    keys.push(json!({"kty":"RSA","alg":"RS256","use":"sig","kid":"bad-rsa","n":"!!","e":"!!"}));
+    let verifier = OpenIdVerifier::from_jwks(
+        "https://trusted.test/",
+        &[Algorithm::ES384, Algorithm::RS256],
+        &set.to_string(),
+    )
+    .unwrap();
+    assert!(verifier.knows_kid("good"));
+    assert!(!verifier.knows_kid("no-y") && !verifier.knows_kid("bad-rsa"));
+
+    let only_bad = json!({"keys": [{"kty":"EC","crv":"P-384","kid":"no-y","x":"AAAA"}]});
+    assert!(
+        OpenIdVerifier::from_jwks(
+            "https://trusted.test/",
+            &[Algorithm::ES384],
+            &only_bad.to_string()
+        )
+        .is_err()
+    );
 }
 
 #[test]
@@ -315,7 +382,8 @@ mod client_server {
         let request = crate::auth::client::encode_login_request(
             &login.auth_info_json,
             &login.client_data_jwt,
-        );
+        )
+        .unwrap();
         let (auth, client) = decode_login_request(&request).unwrap();
         let accepted =
             authenticate_login_with(&provider(&provider_key), &auth, &client, true, false)

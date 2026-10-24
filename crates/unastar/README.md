@@ -87,6 +87,11 @@ stack-request operations return an error and resend inventory instead of reporti
 success or accepting client item grants.
 Creative acquisition retains the advertised damage, block runtime ID, and NBT;
 plugin item grants store the same block runtime ID they send to the client.
+Every non-air item the server sends carries Bedrock item user data
+(`item::user_data`): the default is BDS's empty encoding (ten zero bytes,
+eighteen for the shield). The client drops the connection with `BadPacket`
+right after spawning when creative items carry an empty buffer. Client user
+data is stored verbatim and compared decoded, so a default buffer equals none.
 
 Block interaction requires Survival or Creative mode and server-position reach
 (five blocks in Survival, six in Creative, measured to the block's bounding box).

@@ -60,14 +60,18 @@ impl fmt::Display for HexPreview<'_> {
 /// Which way a packet travelled, from this endpoint's point of view.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum Direction {
+    /// Received from the peer.
     Inbound,
+    /// Sent to the peer.
     Outbound,
 }
 
 /// One observed packet.
 #[derive(Debug, Clone, Copy)]
 pub struct PacketEvent<'a> {
+    /// Whether the packet was received or sent.
     pub direction: Direction,
+    /// The packet's ten-bit ID and sub-client routing bits.
     pub header: PacketHeader,
     /// The packet body (after the header varint), before compression and
     /// encryption.
@@ -79,6 +83,7 @@ pub struct PacketEvent<'a> {
 /// Called synchronously from the codec for every inbound packet that survives
 /// the unknown-packet policy and every outbound packet as it is framed.
 pub trait PacketObserver: Send + Sync {
+    /// Inspects one packet; must not block, as it runs inline in the codec.
     fn observe(&self, event: PacketEvent<'_>);
 }
 
@@ -94,12 +99,17 @@ pub type Observer = Arc<dyn PacketObserver>;
 /// Lightweight per-connection counters.
 #[derive(Debug, Clone, Copy, Default, PartialEq, Eq)]
 pub struct ConnectionMetrics {
+    /// Game packets decoded from inbound batches.
     pub packets_in: u64,
+    /// Game packets framed into outbound batches.
     pub packets_out: u64,
     /// Wire bytes (after encryption/compression).
     pub bytes_in: u64,
+    /// Wire bytes of outbound batches (after compression/encryption).
     pub bytes_out: u64,
+    /// Inbound batches (transport messages) received.
     pub batches_in: u64,
+    /// Outbound batches (transport messages) queued for sending.
     pub batches_out: u64,
     /// Batches or packets that failed to decode.
     pub decode_errors: u64,

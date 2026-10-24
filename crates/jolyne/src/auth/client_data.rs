@@ -73,52 +73,72 @@ where
 #[derive(Debug, Clone, Default, PartialEq, Serialize, Deserialize)]
 #[serde(default)]
 pub struct ClientData {
+    /// Persona skin animations layered over the skin and cycled client-side.
     #[serde(
         rename = "AnimatedImageData",
         deserialize_with = "bounded::<_, _, MAX_ANIMATIONS>"
     )]
     pub animated_image_data: Vec<SkinAnimation>,
+    /// Model arm width: `wide` or `slim`.
     #[serde(rename = "ArmSize")]
     pub arm_size: String,
+    /// Base64 RGBA cape pixels, exactly `CapeImageWidth * CapeImageHeight * 4` bytes;
+    /// usually empty.
     #[serde(rename = "CapeData")]
     pub cape_data: String,
+    /// Identifier of the equipped cape, usually containing a UUID; empty for none.
     #[serde(rename = "CapeId")]
     pub cape_id: String,
+    /// Cape image height in pixels.
     #[serde(rename = "CapeImageHeight")]
     pub cape_image_height: u32,
+    /// Cape image width in pixels.
     #[serde(rename = "CapeImageWidth")]
     pub cape_image_width: u32,
+    /// Whether the equipped cape belongs to a classic skin (typically a MineCon cape).
     #[serde(rename = "CapeOnClassicSkin")]
     pub cape_on_classic_skin: bool,
+    /// Random client ID, usually stable across sessions and game restarts.
     #[serde(rename = "ClientRandomId")]
     pub client_random_id: i64,
+    /// How the client intends to connect to an editor world.
     #[serde(rename = "ClientEditorConnectionIntent")]
     pub client_editor_connection_intent: i32,
+    /// Whether the client supports editor features.
     #[serde(rename = "ClientIsEditorCapable")]
     pub client_is_editor_capable: bool,
+    /// Whether the client hardware supports client-side chunk generation.
     #[serde(rename = "CompatibleWithClientSideChunkGen")]
     pub compatible_with_client_side_chunk_gen: bool,
+    /// Input mode the client is currently using.
     #[serde(rename = "CurrentInputMode")]
     pub current_input_mode: i32,
+    /// Default input mode of the device.
     #[serde(rename = "DefaultInputMode")]
     pub default_input_mode: i32,
     /// Device-specific ID; its format varies per OS and is not validated.
     #[serde(rename = "DeviceId")]
     pub device_id: String,
+    /// Device model name as reported by the client.
     #[serde(rename = "DeviceModel")]
     pub device_model: String,
     /// `1..=15`: Android, iOS, OSX, FireOS, GearVR, Hololens, UWP, Win32,
     /// Dedicated, TVOS, Orbis, NX, Xbox, Windows Phone, Linux.
     #[serde(rename = "DeviceOS")]
     pub device_os: i32,
+    /// Whether the client has profanity filtering enabled.
     #[serde(rename = "FilterProfanity")]
     pub filter_profanity: bool,
+    /// Client game version such as `1.26.51`; digits and dots only.
     #[serde(rename = "GameVersion")]
     pub game_version: String,
+    /// Graphics mode the client is running.
     #[serde(rename = "GraphicsMode")]
     pub graphics_mode: i32,
+    /// GUI scale setting: 0 by default, -1 or -2 for a smaller GUI.
     #[serde(rename = "GuiScale")]
     pub gui_scale: i32,
+    /// Whether the client is running in editor mode.
     #[serde(rename = "IsEditorMode")]
     pub is_editor_mode: bool,
     /// Echo of the identity key. When present it must equal the key that
@@ -129,79 +149,108 @@ pub struct ClientData {
         skip_serializing_if = "Option::is_none"
     )]
     pub identity_public_key: Option<String>,
+    /// Whether the player leads the party identified by `PartyId`.
     #[serde(rename = "IsPartyLeader")]
     pub party_leader: bool,
+    /// Client language such as `en_US`; a BCP-47 tag that may use `_` separators.
     #[serde(rename = "LanguageCode")]
     pub language_code: String,
+    /// Highest render distance, in chunks, that the client hardware can handle.
     #[serde(rename = "MaxViewDistance")]
     pub max_view_distance: i32,
+    /// Device memory tier, 0 (super low, under ~1.5 GB) to 4 (super high, over ~8 GB).
     #[serde(rename = "MemoryTier")]
     pub memory_tier: i32,
+    /// Hex nonce assigned by a peer-to-peer world host through its Xbox Live session;
+    /// absent for other connections.
     #[serde(rename = "Nonce", skip_serializing_if = "Option::is_none")]
     pub nonce: Option<String>,
+    /// Client-sent skin override flag; its meaning is unknown.
     #[serde(rename = "OverrideSkin")]
     pub override_skin: bool,
+    /// Identifier of the player's party; empty when not in a party.
     #[serde(rename = "PartyId")]
     pub party_id: String,
+    /// Persona pieces the skin is composed of.
     #[serde(
         rename = "PersonaPieces",
         deserialize_with = "bounded::<_, _, MAX_PERSONA_PIECES>"
     )]
     pub persona_pieces: Vec<PersonaPiece>,
+    /// Whether the skin is a persona skin made in the in-game character creator.
     #[serde(rename = "PersonaSkin")]
     pub persona_skin: bool,
+    /// Tint colours for some of the pieces in `PersonaPieces`.
     #[serde(
         rename = "PieceTintColors",
         deserialize_with = "bounded::<_, _, MAX_PIECE_TINTS>"
     )]
     pub piece_tint_colours: Vec<PersonaPieceTintColour>,
+    /// Platform offline ID: a UUID or empty.
     #[serde(rename = "PlatformOfflineId")]
     pub platform_offline_id: String,
+    /// Platform online ID: a decimal `u64` or empty.
     #[serde(rename = "PlatformOnlineId")]
     pub platform_online_id: String,
+    /// Type of platform the client runs on.
     #[serde(rename = "PlatformType")]
     pub platform_type: i32,
+    /// UUID sent only by Xbox clients; absent otherwise.
     #[serde(rename = "PlatformUserId", skip_serializing_if = "Option::is_none")]
     pub platform_user_id: Option<String>,
     /// Client-claimed PlayFab ID; use [`super::ValidatedIdentity::playfab_id`]
     /// for the provider-verified value.
     #[serde(rename = "PlayFabId")]
     pub playfab_id: String,
+    /// Whether the skin was purchased (premium content).
     #[serde(rename = "PremiumSkin")]
     pub premium_skin: bool,
+    /// Client-generated hash of the equipped persona skin.
     #[serde(rename = "ProfileHash")]
     pub profile_hash: String,
+    /// UUID that stays stable across game restarts and sessions: a UUID or empty.
     #[serde(rename = "SelfSignedId")]
     pub self_signed_id: String,
     /// Address the player typed (`host:port`, or a NetherNet URL form).
     #[serde(rename = "ServerAddress")]
     pub server_address: String,
+    /// Skin animation data string; its contents are undocumented.
     #[serde(rename = "SkinAnimationData")]
     pub skin_animation_data: String,
+    /// Base skin colour as `#rrggbb` hex.
     #[serde(rename = "SkinColor")]
     pub skin_colour: String,
     /// Base64 RGBA pixels, exactly `SkinImageWidth * SkinImageHeight * 4` bytes.
     #[serde(rename = "SkinData")]
     pub skin_data: String,
+    /// Base64 JSON skin geometry (bones, UVs, pivots); empty or a JSON object.
     #[serde(rename = "SkinGeometryData")]
     pub skin_geometry: String,
+    /// Engine version of the skin geometry.
     #[serde(rename = "SkinGeometryDataEngineVersion")]
     pub skin_geometry_version: String,
+    /// Unique skin ID, e.g. `<uuid>_Alex` for the default Alex skin; must be non-empty.
     #[serde(rename = "SkinId")]
     pub skin_id: String,
+    /// Skin image height in pixels.
     #[serde(rename = "SkinImageHeight")]
     pub skin_image_height: u32,
+    /// Skin image width in pixels.
     #[serde(rename = "SkinImageWidth")]
     pub skin_image_width: u32,
+    /// Base64 JSON object naming the geometry the skin uses (e.g. `geometry.default`).
     #[serde(rename = "SkinResourcePatch")]
     pub skin_resource_patch: String,
     /// Not Xbox-protected; prefer the identity display name.
     #[serde(rename = "ThirdPartyName")]
     pub third_party_name: String,
+    /// Whether the user has only a third-party name; must not be trusted.
     #[serde(rename = "ThirdPartyNameOnly", skip_serializing_if = "Option::is_none")]
     pub third_party_name_only: Option<bool>,
+    /// Whether the client reports the skin as trusted.
     #[serde(rename = "TrustedSkin")]
     pub trusted_skin: bool,
+    /// UI profile: 0 Classic, 1 Pocket; [`ClientData::validate`] accepts `0..=2`.
     #[serde(rename = "UIProfile")]
     pub ui_profile: i32,
 }
@@ -210,17 +259,23 @@ pub struct ClientData {
 #[derive(Debug, Clone, Default, PartialEq, Serialize, Deserialize)]
 #[serde(default)]
 pub struct SkinAnimation {
+    /// Number of animation frames contained in `Image`.
     #[serde(rename = "Frames")]
     pub frames: f64,
+    /// Base64 RGBA pixels, exactly `ImageWidth * ImageHeight * 4` bytes, holding all
+    /// frames.
     #[serde(rename = "Image")]
     pub image: String,
+    /// Animation image height in pixels.
     #[serde(rename = "ImageHeight")]
     pub image_height: u32,
+    /// Animation image width in pixels.
     #[serde(rename = "ImageWidth")]
     pub image_width: u32,
     /// 0 none, 1 face, 2 32x32 body, 3 128x128 body.
     #[serde(rename = "Type")]
     pub animation_type: i32,
+    /// Expression type: 0 linear, 1 blinking.
     #[serde(rename = "AnimationExpression")]
     pub animation_expression: i32,
 }
@@ -229,14 +284,19 @@ pub struct SkinAnimation {
 #[derive(Debug, Clone, Default, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(default)]
 pub struct PersonaPiece {
+    /// Whether the piece is one of the default Steve/Alex pieces.
     #[serde(rename = "IsDefault")]
     pub default: bool,
+    /// UUID of the pack the piece belongs to.
     #[serde(rename = "PackId")]
     pub pack_id: String,
+    /// UUID of the piece itself.
     #[serde(rename = "PieceId")]
     pub piece_id: String,
+    /// Piece type such as `persona_body`, `persona_hair` or `persona_eyes`.
     #[serde(rename = "PieceType")]
     pub piece_type: String,
+    /// Purchase UUID of the piece; empty for default pieces.
     #[serde(rename = "ProductId")]
     pub product_id: String,
 }
@@ -251,6 +311,7 @@ pub struct PersonaPieceTintColour {
         deserialize_with = "bounded::<_, _, MAX_TINT_COLOURS>"
     )]
     pub colours: Vec<String>,
+    /// Persona piece type these colours tint; it appears in `PersonaPieces`.
     #[serde(rename = "PieceType")]
     pub piece_type: String,
 }
@@ -265,9 +326,11 @@ impl ClientData {
     #[cfg(feature = "server")]
     pub(crate) fn normalize_server_address(&mut self) {
         let address = &self.server_address;
-        if !address.contains("://") && address.matches(':').count() > 1 && !address.starts_with('[')
+        if !address.contains("://")
+            && address.matches(':').count() > 1
+            && !address.starts_with('[')
+            && let Some(split) = address.rfind(':')
         {
-            let split = address.rfind(':').expect("contains ':'");
             self.server_address = format!("[{}]{}", &address[..split], &address[split..]);
         }
     }

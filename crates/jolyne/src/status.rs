@@ -9,10 +9,14 @@ use crate::valentine::{GAME_VERSION, PROTOCOL_VERSION};
 /// Game mode shown in the server list.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
 pub enum StatusGameMode {
+    /// Survival mode (game type `0`).
     #[default]
     Survival,
+    /// Creative mode (game type `1`).
     Creative,
+    /// Adventure mode (game type `2`).
     Adventure,
+    /// Spectator mode (game type `6`).
     Spectator,
 }
 
@@ -40,11 +44,15 @@ impl StatusGameMode {
 /// What the server list shows.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct ServerStatus {
+    /// Primary MOTD line; `;` is stripped from the RakNet pong.
     pub server_name: String,
+    /// Secondary line (world/level name); `;` is stripped from the RakNet pong.
     pub sub_name: String,
+    /// Players currently online.
     pub player_count: usize,
     /// Zero is advertised as `player_count + 1` (gophertunnel behaviour).
     pub max_players: usize,
+    /// Game mode shown next to the server entry.
     pub game_mode: StatusGameMode,
 }
 
@@ -103,12 +111,16 @@ pub trait StatusProvider: Send + Sync {
 /// (gophertunnel `NewStatusProvider`).
 #[derive(Debug, Clone)]
 pub struct StaticStatus {
+    /// Primary MOTD line.
     pub server_name: String,
+    /// Secondary line (world/level name).
     pub sub_name: String,
+    /// Advertised game mode.
     pub game_mode: StatusGameMode,
 }
 
 impl StaticStatus {
+    /// A status with the given name lines in survival mode.
     pub fn new(server_name: impl Into<String>, sub_name: impl Into<String>) -> Self {
         Self {
             server_name: server_name.into(),

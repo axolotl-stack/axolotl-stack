@@ -8,14 +8,12 @@
 //! crate README.
 
 use crate::auth::types::{ChainClaims, Trust, ValidatedIdentity};
-use crate::error::{AuthError, JolyneError};
+use crate::error::AuthError;
 use base64::Engine as _;
 use base64::engine::general_purpose::{STANDARD, URL_SAFE_NO_PAD};
 use jsonwebtoken::decode_header;
 use serde_json::Value;
-use tracing::debug;
 
-const MAX_IDENTITY_PAYLOAD_BYTES: usize = 64 * 1024; // defensive bound against large/garbage payloads
 const MAX_CHAIN_TOKENS: usize = 8;
 const MAX_TOKEN_BYTES: usize = 8 * 1024;
 
@@ -79,90 +77,6 @@ pub(crate) fn chain_from_value(v: &Value) -> Option<Vec<String>> {
         }
     }
     None
-}
-
-fn extract_chain_from_json(bytes: &[u8]) -> Result<Vec<String>, AuthError> {
-    let val: Value = serde_json::from_slice(bytes).map_err(|_| AuthError::InvalidJson)?;
-    if let Some(chain) = chain_from_value(&val) {
-        if chain.len() > MAX_CHAIN_TOKENS {
-            return Err(AuthError::ChainTooLong(MAX_CHAIN_TOKENS));
-        }
-        return Ok(chain);
-    }
-    Err(AuthError::MissingChain)
-}
-
-pub fn parse_login_chain(identity_payload: &[u8]) -> Result<Vec<String>, JolyneError> {
-    if identity_payload.len() > MAX_IDENTITY_PAYLOAD_BYTES {
-        return Err(AuthError::PayloadTooLarge(MAX_IDENTITY_PAYLOAD_BYTES).into());
-    }
-    let mut first_error: Option<AuthError> = None;
-    // Fast path: payload is plain JSON with chain field.
-    if let Ok(s) = std::str::from_utf8(identity_payload) {
-        match extract_chain_from_json(s.as_bytes()) {
-            Ok(chain) => return Ok(chain),
-            Err(e) => {
-                if !matches!(e, AuthError::MissingChain) && first_error.is_none() {
-                    first_error = Some(e);
-                }
-            }
-        }
-    }
-
-    // Fallback: Bedrock/Go-style little-endian length-prefixed blob: [u32_le len][json][u32_le raw_token_len][raw_token]
-    if identity_payload.len() >= 4 {
-        let len = u32::from_le_bytes(identity_payload[0..4].try_into().unwrap()) as usize;
-        if identity_payload.len() >= 4 + len {
-            let json_slice = &identity_payload[4..4 + len];
-            match extract_chain_from_json(json_slice) {
-                Ok(chain) => return Ok(chain),
-                Err(e) => {
-                    if !matches!(e, AuthError::MissingChain) && first_error.is_none() {
-                        first_error = Some(e);
-                    }
-                }
-            }
-        }
-    }
-
-    // Last-resort heuristic: find the first '{' and try shrinking from the end until JSON parses.
-    if let Some(start) = identity_payload.iter().position(|b| *b == b'{') {
-        let mut end = identity_payload.len();
-        while end > start {
-            match extract_chain_from_json(&identity_payload[start..end]) {
-                Ok(chain) => return Ok(chain),
-                Err(_) => { /* keep searching */ }
-            }
-            // Back off a bit; raw token bytes come after the JSON, so trim from the end.
-            end = end.saturating_sub(1);
-        }
-    }
-
-    let preview_len = identity_payload.len().min(64);
-    let preview = &identity_payload[..preview_len];
-    match std::str::from_utf8(preview) {
-        Ok(as_str) => debug!(
-            payload_len = identity_payload.len(),
-            preview_str = as_str,
-            preview_hex = ?preview,
-            "parse_login_chain failed to locate chain"
-        ),
-        Err(_) => debug!(
-            payload_len = identity_payload.len(),
-            preview_hex = ?preview,
-            "parse_login_chain failed to locate chain"
-        ),
-    }
-
-    if let Some(err) = first_error {
-        return Err(err.into());
-    }
-
-    if std::str::from_utf8(identity_payload).is_err() {
-        Err(AuthError::InvalidUtf8.into())
-    } else {
-        Err(AuthError::MissingChain.into())
-    }
 }
 
 /// Extracts the unauthenticated identity of an offline legacy chain.

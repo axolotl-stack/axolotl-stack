@@ -103,6 +103,10 @@ pub struct OpenIdVerifier {
 }
 
 impl OpenIdVerifier {
+    /// Builds a snapshot from a JWKS document, keeping signing keys usable
+    /// with one of `algorithms`. A malformed key (missing or undecodable
+    /// components) is skipped with a warning, so one bad entry cannot take
+    /// the provider's other keys down; a set with no usable key is an error.
     pub fn from_jwks(
         issuer: &str,
         algorithms: &[Algorithm],
@@ -118,25 +122,33 @@ impl OpenIdVerifier {
                 if jwk.alg.is_some_and(|key_alg| key_alg != alg) {
                     continue;
                 }
-                let key = match alg {
-                    Algorithm::RS256 if jwk.kty == "RSA" => DecodingKey::from_rsa_components(
-                        jwk.n.as_deref().ok_or(AuthError::MissingIdentityKey)?,
-                        jwk.e.as_deref().ok_or(AuthError::MissingIdentityKey)?,
-                    ),
+                let components = match alg {
+                    Algorithm::RS256 if jwk.kty == "RSA" => jwk
+                        .n
+                        .as_deref()
+                        .zip(jwk.e.as_deref())
+                        .map(|(n, e)| DecodingKey::from_rsa_components(n, e)),
                     Algorithm::ES384 if jwk.kty == "EC" && jwk.crv.as_deref() == Some("P-384") => {
-                        DecodingKey::from_ec_components(
-                            jwk.x.as_deref().ok_or(AuthError::MissingIdentityKey)?,
-                            jwk.y.as_deref().ok_or(AuthError::MissingIdentityKey)?,
-                        )
+                        jwk.x
+                            .as_deref()
+                            .zip(jwk.y.as_deref())
+                            .map(|(x, y)| DecodingKey::from_ec_components(x, y))
                     }
                     _ => continue,
+                };
+                match components {
+                    Some(Ok(key)) => keys.push(TrustedKey {
+                        kid: jwk.kid.clone(),
+                        alg,
+                        key,
+                    }),
+                    Some(Err(error)) => {
+                        tracing::warn!(kid = ?jwk.kid, ?alg, %error, "skipping undecodable JWKS key");
+                    }
+                    None => {
+                        tracing::warn!(kid = ?jwk.kid, ?alg, "skipping JWKS key without components")
+                    }
                 }
-                .map_err(jwt_error)?;
-                keys.push(TrustedKey {
-                    kid: jwk.kid.clone(),
-                    alg,
-                    key,
-                });
             }
         }
         if issuer.is_empty() || keys.is_empty() {
@@ -269,6 +281,7 @@ pub(crate) fn login_from_claims(
 /// Produces trusted key-set snapshots. Implementations must only use trust
 /// anchors outside the login request (never JWT header URLs or keys).
 pub trait KeySetSource: Send + Sync {
+    /// Fetches a fresh verifier built from the current key set.
     fn fetch(&self) -> BoxFuture<'_, Result<OpenIdVerifier, AuthError>>;
 }
 
@@ -367,6 +380,15 @@ impl ProviderInner {
                     "key set fetch timed out".into(),
                 ))
             });
+        self.record(result)
+    }
+
+    /// Stores one attempt's outcome, then frees the single-flight slot so the
+    /// next refresh (after backoff, on failure) starts a new fetch.
+    fn record(
+        &self,
+        result: Result<OpenIdVerifier, AuthError>,
+    ) -> Result<Arc<Snapshot>, AuthError> {
         let now = Instant::now();
         let outcome = {
             let mut state = self.state.write();
@@ -399,6 +421,7 @@ pub struct OpenIdProvider {
 }
 
 impl OpenIdProvider {
+    /// Creates a provider with an empty cache; `source` is fetched on first use.
     pub fn new(source: impl KeySetSource + 'static, policy: RefreshPolicy) -> Self {
         Self {
             inner: Arc::new(ProviderInner {
@@ -412,8 +435,9 @@ impl OpenIdProvider {
 
     /// The process-wide provider bootstrapped from Minecraft build discovery.
     pub fn minecraft() -> &'static OpenIdProvider {
-        static PROVIDER: LazyLock<OpenIdProvider> =
-            LazyLock::new(|| OpenIdProvider::new(MinecraftDiscovery, RefreshPolicy::default()));
+        static PROVIDER: LazyLock<OpenIdProvider> = LazyLock::new(|| {
+            OpenIdProvider::new(MinecraftDiscovery { http: Https }, RefreshPolicy::default())
+        });
         &PROVIDER
     }
 
@@ -542,12 +566,18 @@ impl OpenIdProvider {
         // The slot lock is held until the flight is published, so the task
         // cannot clear the slot before it is set.
         let task = tokio::spawn(self.inner.clone().fetch_and_store());
+        let inner = self.inner.clone();
         let flight = async move {
-            task.await.unwrap_or_else(|error| {
-                Err(AuthError::ProviderUnavailable(format!(
+            match task.await {
+                Ok(outcome) => outcome,
+                // The task panicked (e.g. in a custom `KeySetSource`) or was
+                // cancelled before recording: record the failure here, or the
+                // slot would keep this finished flight and every later refresh
+                // would join it instead of fetching again.
+                Err(error) => inner.record(Err(AuthError::ProviderUnavailable(format!(
                     "key set fetch task failed: {error}"
-                )))
-            })
+                )))),
+            }
         }
         .boxed()
         .shared();
@@ -565,50 +595,76 @@ impl OpenIdProvider {
     }
 }
 
-static HTTP_CLIENT: LazyLock<reqwest::Client> = LazyLock::new(|| {
+/// Built once; a TLS backend that fails to initialise surfaces as
+/// `ProviderUnavailable` on every fetch instead of a panic.
+static HTTP_CLIENT: LazyLock<Result<reqwest::Client, String>> = LazyLock::new(|| {
     reqwest::Client::builder()
         .https_only(true)
         .connect_timeout(Duration::from_secs(5))
         .timeout(Duration::from_secs(10))
         .user_agent("jolyne-auth/0.1")
         .build()
-        .expect("reqwest client")
+        .map_err(|error| error.to_string())
 });
 
-async fn get_json<T: DeserializeOwned>(url: &str) -> Result<T, AuthError> {
-    HTTP_CLIENT
-        .get(url)
-        .header(reqwest::header::ACCEPT, "application/json")
-        .send()
-        .await
-        .and_then(reqwest::Response::error_for_status)
-        .map_err(|e| AuthError::ProviderUnavailable(format!("HTTP: {e}")))?
-        .json()
-        .await
+/// One HTTPS `GET` returning a JSON body: the only network access of
+/// discovery, injectable so the discovery chain is testable offline.
+pub(crate) trait JsonGet: Send + Sync {
+    fn get_json<'a>(&'a self, url: &'a str) -> BoxFuture<'a, Result<serde_json::Value, AuthError>>;
+}
+
+/// Production [`JsonGet`]: the shared HTTPS-only `reqwest` client.
+pub(crate) struct Https;
+
+impl JsonGet for Https {
+    fn get_json<'a>(&'a self, url: &'a str) -> BoxFuture<'a, Result<serde_json::Value, AuthError>> {
+        Box::pin(async move {
+            let client = HTTP_CLIENT
+                .as_ref()
+                .map_err(|error| AuthError::ProviderUnavailable(format!("HTTP client: {error}")))?;
+            client
+                .get(url)
+                .header(reqwest::header::ACCEPT, "application/json")
+                .send()
+                .await
+                .and_then(reqwest::Response::error_for_status)
+                .map_err(|e| AuthError::ProviderUnavailable(format!("HTTP: {e}")))?
+                .json()
+                .await
+                .map_err(|e| AuthError::ProviderUnavailable(format!("JSON: {e}")))
+        })
+    }
+}
+
+async fn get_as<T: DeserializeOwned>(http: &dyn JsonGet, url: &str) -> Result<T, AuthError> {
+    serde_json::from_value(http.get_json(url).await?)
         .map_err(|e| AuthError::ProviderUnavailable(format!("JSON: {e}")))
 }
 
 /// Only the fixed Minecraft build discovery endpoint bootstraps production trust.
 /// See gophertunnel minecraft/service/discovery.go:Default and
 /// minecraft/service/token.go:configuration. No header URLs or static fallback.
-struct MinecraftDiscovery;
+pub(crate) struct MinecraftDiscovery<H: JsonGet> {
+    pub(crate) http: H,
+}
 
-impl KeySetSource for MinecraftDiscovery {
+impl<H: JsonGet> KeySetSource for MinecraftDiscovery<H> {
     fn fetch(&self) -> BoxFuture<'_, Result<OpenIdVerifier, AuthError>> {
         Box::pin(async {
-            let discovery: DiscoveryEnvelope = get_json(&format!(
-                "{DISCOVERY_URL}{}",
-                crate::valentine::GAME_VERSION
-            ))
+            let http: &dyn JsonGet = &self.http;
+            let discovery: DiscoveryEnvelope = get_as(
+                http,
+                &format!("{DISCOVERY_URL}{}", crate::valentine::GAME_VERSION),
+            )
             .await?;
             let issuer = discovery.result.service_environments.auth.prod.issuer;
             let issuer = format!("{}/", issuer.trim_end_matches('/'));
             let config: Configuration =
-                get_json(&format!("{issuer}.well-known/openid-configuration")).await?;
+                get_as(http, &format!("{issuer}.well-known/openid-configuration")).await?;
             if config.issuer != issuer {
                 return Err(AuthError::InvalidIssuer(config.issuer));
             }
-            let jwks: serde_json::Value = get_json(&config.jwks_uri).await?;
+            let jwks = http.get_json(&config.jwks_uri).await?;
             OpenIdVerifier::from_jwks(
                 &issuer,
                 &config.id_token_signing_alg_values_supported,

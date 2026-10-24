@@ -25,7 +25,6 @@ use crate::proto::packs::{ResourcePack, ServerPacks};
 use crate::proto::phase::Owner;
 use crate::proto::raw::RawPacket;
 use crate::stream::client::ClientHandshakeConfig;
-use crate::stream::server::ServerHandshakeConfig;
 use crate::stream::transport::Transport;
 use crate::stream::{BedrockStream, Client, Failed, Handshake, Play, Server};
 use crate::valentine::{EnumsConnectionDisconnectFailReason, McpePacketName};
@@ -49,8 +48,11 @@ pub enum Side {
 
 /// What to do with a relayed packet.
 pub enum Verdict {
+    /// Relays the packet unchanged.
     Forward,
+    /// Discards the packet.
     Drop,
+    /// Relays this packet in place of the original.
     Replace(RawPacket),
 }
 
@@ -66,8 +68,11 @@ pub struct RelayEnd {
 
 /// Both play sessions of a proxied player.
 pub struct ProxySession<D: Transport, U: Transport> {
+    /// The player's connection to the proxy.
     pub downstream: BedrockStream<Play, Server, D>,
+    /// The proxy's connection to the upstream server, joined as the player.
     pub upstream: BedrockStream<Play, Client, U>,
+    /// The player's verified downstream login.
     pub login: AuthenticatedLogin,
 }
 
@@ -104,10 +109,7 @@ where
     // Finish the downstream login stage first: it runs under `login_timeout`,
     // while the logged-in pack phase has no deadline until packs are offered.
     // The identity is only authenticated once the handshake proved its key.
-    let packs = reasoned(secure.finish_handshake(&ServerHandshakeConfig {
-        server_key: server_key.clone(),
-    }))
-    .await?;
+    let packs = reasoned(secure.finish_handshake(server_key)).await?;
     let login = packs.login().clone();
 
     let dialed = match dial(&login).await {
@@ -117,10 +119,11 @@ where
     let (upstream, game_data) = match dialed {
         Ok(joined) => joined,
         Err(error) => {
+            // The upstream's failure details stay in the proxy's logs.
             let _ = packs
                 .disconnect(
                     EnumsConnectionDisconnectFailReason::Unknown,
-                    &error.to_string(),
+                    "Could not join the upstream server.",
                 )
                 .await;
             return Err(error);

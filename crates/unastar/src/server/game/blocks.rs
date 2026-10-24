@@ -521,7 +521,7 @@ fn apply_break_block(world: &mut World, breaking_player: Entity, x: i32, y: i32,
         if is_survival {
             // Look up the block by runtime ID to get its string_id,
             // then find the matching item to get its network_id
-            let item_network_id = world
+            let (item_id, item_network_id) = world
                 .get_resource::<super::types::BlockRegistryResource>()
                 .and_then(|blocks| {
                     blocks
@@ -536,10 +536,10 @@ fn apply_break_block(world: &mut World, breaking_player: Entity, x: i32, y: i32,
                             items
                                 .0
                                 .get_by_name(&block_string_id)
-                                .map(|item| item.network_id)
+                                .map(|item| (item.string_id.clone(), item.network_id))
                         })
                 })
-                .unwrap_or(0);
+                .unwrap_or_default();
 
             if item_network_id != 0 {
                 let item_entity_id = {
@@ -572,7 +572,9 @@ fn apply_break_block(world: &mut World, breaking_player: Entity, x: i32, y: i32,
                             auxvalue: 0,
                             net_id_variant: None,
                             block_runtime_id: original_block_id,
-                            user_data_buffer: Default::default(),
+                            user_data_buffer: crate::item::user_data::network_user_data(
+                                &item_id, None,
+                            ),
                         },
                         position: Vec3 {
                             x: x as f32 + 0.5,
@@ -783,7 +785,8 @@ fn handle_block_click(
             && i32::from(data.item.id) == *network_id
             && data.item.stacksize == u16::from(stack.count)
             && u32::try_from(stack.damage).ok() == Some(data.item.auxvalue)
-            && data.item.user_data_buffer.as_ref() == stack.nbt.as_deref().unwrap_or_default()
+            && crate::item::user_data::stored_user_data(&stack.item_id, &data.item.user_data_buffer)
+                == stack.nbt
             && u32::try_from(stack.runtime_id).ok() == Some(data.item.block_runtime_id)
     });
     if !matches_held

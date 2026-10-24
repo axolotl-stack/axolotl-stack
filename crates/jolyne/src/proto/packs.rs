@@ -26,6 +26,7 @@ use sha2::{Digest, Sha256};
 use uuid::Uuid;
 
 use super::conn::Connection;
+use super::phase::deadline_after;
 use crate::error::{JolyneError, PackError};
 use crate::valentine::{
     ContentIdentity, Experiments, McpePacket, PackIdVersion, PackIdVersionjson, PackInfoData,
@@ -74,14 +75,22 @@ fn is_builtin(uuid: &str, version: &str) -> bool {
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
 #[repr(u8)]
 pub enum PackType {
+    /// Add-on bundle (wire value 1).
     Addon = 1,
+    /// Cached pack (wire value 2).
     Cached = 2,
+    /// Copy-protected pack (wire value 3).
     CopyProtected = 3,
+    /// Behaviour pack (wire value 4); left out of `ResourcePackStack`.
     Behaviour = 4,
+    /// Persona (character creator) piece (wire value 5).
     PersonaPiece = 5,
+    /// Resource pack (wire value 6); the type [`ResourcePack::new`] assigns.
     #[default]
     Resources = 6,
+    /// Skin pack (wire value 7).
     Skins = 7,
+    /// World template (wire value 8).
     WorldTemplate = 8,
 }
 
@@ -89,18 +98,25 @@ pub enum PackType {
 /// Content and hash are private so they always agree and are never empty.
 #[derive(Debug, Clone)]
 pub struct ResourcePack {
+    /// Pack UUID advertised in `ResourcePacksInfo` and the stack.
     pub uuid: Uuid,
+    /// Pack version string (e.g. `1.0.0`); never empty.
     pub version: String,
     content: Bytes,
     sha256: [u8; 32],
+    /// Type sent in `ResourcePackDataInfo`; `Behaviour` packs are left out of the stack.
     pub pack_type: PackType,
     /// AES key for encrypted (marketplace-style) packs; empty when plain.
     pub content_key: String,
+    /// Subpack to apply, sent in `ResourcePacksInfo` and the stack; empty for none.
     pub sub_pack_name: String,
     /// CDN URL clients may fetch the pack from instead of in-band chunks.
     pub cdn_url: String,
+    /// The pack contains scripts; also sets `ResourcePacksInfo.has_scripts`.
     pub has_scripts: bool,
+    /// The pack is an add-on; also sets `ResourcePacksInfo.has_addon_packs`.
     pub is_addon: bool,
+    /// Advertised as `is_ray_tracing_capable` in `ResourcePacksInfo`.
     pub ray_tracing: bool,
 }
 
@@ -148,10 +164,12 @@ impl ResourcePack {
         })
     }
 
+    /// The pack's `.mcpack`/zip bytes.
     pub fn content(&self) -> &Bytes {
         &self.content
     }
 
+    /// SHA-256 of [`content`](Self::content), sent as the `ResourcePackDataInfo` hash.
     pub fn sha256(&self) -> &[u8; 32] {
         &self.sha256
     }
@@ -190,13 +208,16 @@ impl ResourcePack {
 /// Packs a server offers, and how it paces chunks.
 #[derive(Debug, Clone)]
 pub struct ServerPacks {
+    /// Packs offered, in `ResourcePacksInfo` order.
     pub packs: Vec<Arc<ResourcePack>>,
     /// Clients must accept the packs to join.
     pub required: bool,
+    /// Bytes per `ResourcePackChunkData`; zero is treated as one.
     pub chunk_size: u32,
     /// Minimum spacing between chunk replies; zero disables pacing.
     /// Pacing is a timer, never a sleep: other packets keep flowing.
     pub chunk_interval: Duration,
+    /// Sent as `ResourcePacksInfo.force_disable_vibrant_visuals`.
     pub force_disable_vibrant_visuals: bool,
 }
 
@@ -213,10 +234,12 @@ impl Default for ServerPacks {
 }
 
 impl ServerPacks {
+    /// Number of offered packs.
     pub fn len(&self) -> usize {
         self.packs.len()
     }
 
+    /// Whether no packs are offered.
     pub fn is_empty(&self) -> bool {
         self.packs.is_empty()
     }
@@ -337,10 +360,9 @@ impl ServerPackExchange {
         conn: &mut Connection,
         now: Instant,
     ) -> Result<(), JolyneError> {
-        let upload = self
-            .upload
-            .as_mut()
-            .expect("chunk without an active upload");
+        let Some(upload) = self.upload.as_mut() else {
+            return Err(PackError::Invalid("chunk".into(), "no transfer in progress").into());
+        };
         let size = self.packs.chunk_size.max(1) as usize;
         let start = index as usize * size;
         let end = (start + size).min(upload.pack.content.len());
@@ -355,7 +377,7 @@ impl ServerPackExchange {
         )?;
         conn.flush()?;
         if !self.packs.chunk_interval.is_zero() {
-            self.next_chunk_at = Some(now + self.packs.chunk_interval);
+            self.next_chunk_at = Some(deadline_after(now, self.packs.chunk_interval));
         }
         if index + 1 == upload.chunks {
             self.upload = None;
@@ -403,6 +425,8 @@ impl ServerPackExchange {
         Ok(())
     }
 
+    /// Feeds one client packet: `Done` once the client acknowledges the stack,
+    /// `NotMine` for non-pack packets.
     pub fn on_packet(
         &mut self,
         packet: &McpePacket,
@@ -490,17 +514,26 @@ impl ServerPackExchange {
 /// Information a server advertised about one pack.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct PackOffer {
+    /// Pack UUID.
     pub uuid: Uuid,
+    /// Pack version string.
     pub version: String,
+    /// Advertised pack size in bytes.
     pub size: u64,
+    /// AES key for encrypted packs; empty when plain.
     pub content_key: String,
+    /// Subpack the server selected; empty for none.
     pub sub_pack_name: String,
+    /// CDN URL the pack may be fetched from; empty when none.
     pub cdn_url: String,
+    /// The pack contains scripts.
     pub has_scripts: bool,
+    /// The pack is an add-on.
     pub is_addon: bool,
 }
 
 impl PackOffer {
+    /// The `uuid_version` name used in requests and chunk packets.
     pub fn name(&self) -> String {
         format!("{}_{}", self.uuid, self.version)
     }
@@ -509,8 +542,11 @@ impl PackOffer {
 /// A pack the client downloaded and verified.
 #[derive(Debug, Clone)]
 pub struct DownloadedPack {
+    /// The server's advertisement for this pack.
     pub offer: PackOffer,
+    /// Pack bytes, downloaded or loaded from the cache.
     pub content: Bytes,
+    /// SHA-256 of `content`; for downloads it matched the server's advertised hash.
     pub sha256: [u8; 32],
 }
 
@@ -519,6 +555,7 @@ pub trait PackCache: Send + Sync {
     /// Returns cached content for `offer`, if present. The content is
     /// size-checked before use.
     fn load(&self, offer: &PackOffer) -> Option<Bytes>;
+    /// Stores a freshly downloaded and hash-verified pack.
     fn store(&self, pack: &DownloadedPack);
 }
 
@@ -532,10 +569,15 @@ pub type PackFilter = Arc<dyn Fn(&PackOffer) -> bool + Send + Sync>;
 pub struct ClientPackPolicy {
     /// Whether to download offered packs at all.
     pub download: bool,
+    /// Per-offer download filter; `None` downloads every offer.
     pub filter: Option<PackFilter>,
+    /// Consulted before downloading; filled after each verified download.
     pub cache: Option<Arc<dyn PackCache>>,
+    /// Maximum packs `ResourcePacksInfo` may list; more is an error.
     pub max_packs: usize,
+    /// Maximum advertised size of one pack to download, in bytes.
     pub max_pack_size: u64,
+    /// Maximum combined advertised size of packs to download, in bytes.
     pub max_total_size: u64,
     /// Chunk requests kept in flight (1 = gophertunnel's one-at-a-time).
     pub window: u32,
@@ -595,6 +637,7 @@ pub struct ClientPackExchange {
 }
 
 impl ClientPackExchange {
+    /// Creates an exchange that waits for the server's `ResourcePacksInfo`.
     pub fn new(policy: ClientPackPolicy) -> Self {
         Self {
             policy,
@@ -793,7 +836,7 @@ impl ClientPackExchange {
         let offer = self.awaiting.remove(position);
         let initial = (u64::from(info.chunk_size) * u64::from(self.policy.window.max(1)))
             .min(info.file_size) as usize;
-        self.current = Some(Download {
+        let download = Download {
             offer,
             name,
             chunk_size: info.chunk_size,
@@ -803,15 +846,20 @@ impl ClientPackExchange {
             buffer: BytesMut::with_capacity(initial),
             requested: 0,
             received: 0,
-        });
+        };
         if chunks == 0 {
-            return self.complete(conn, now);
+            return self.complete(download, conn, now);
         }
+        self.current = Some(download);
         self.request_more(conn, now)
     }
 
-    fn complete(&mut self, conn: &mut Connection, now: Instant) -> Result<(), JolyneError> {
-        let download = self.current.take().expect("completing without a download");
+    fn complete(
+        &mut self,
+        download: Download,
+        conn: &mut Connection,
+        now: Instant,
+    ) -> Result<(), JolyneError> {
         let sha256: [u8; 32] = Sha256::digest(&download.buffer).into();
         // Deliberately stricter than gophertunnel, which never checks the
         // hash: the advertised value must be the 32-byte SHA-256 and match.
@@ -837,34 +885,39 @@ impl ClientPackExchange {
         now: Instant,
     ) -> Result<(), JolyneError> {
         let name = chunk.resource_name.to_string();
-        let Some(download) = self.current.as_mut().filter(|d| d.name == name) else {
-            return Err(PackError::UnexpectedChunk {
-                pack: name,
-                reason: "no transfer for this pack",
+        let mut download = match self.current.take() {
+            Some(download) if download.name == name => download,
+            other => {
+                self.current = other;
+                return Err(PackError::UnexpectedChunk {
+                    pack: name,
+                    reason: "no transfer for this pack",
+                }
+                .into());
             }
-            .into());
         };
-        if chunk.chunk_id != download.received || chunk.chunk_id >= download.requested {
-            return Err(PackError::UnexpectedChunk {
-                pack: name,
-                reason: "chunk out of order or not requested",
-            }
-            .into());
-        }
         let offset = u64::from(chunk.chunk_id) * u64::from(download.chunk_size);
-        let expected_len = (download.size - offset).min(u64::from(download.chunk_size));
-        if chunk.byte_offset != offset || chunk.chunk_data.len() as u64 != expected_len {
-            return Err(PackError::UnexpectedChunk {
-                pack: name,
-                reason: "chunk offset or length mismatch",
-            }
-            .into());
+        let in_order = chunk.chunk_id == download.received && chunk.chunk_id < download.requested;
+        let reason = if !in_order {
+            Some("chunk out of order or not requested")
+        } else if chunk.byte_offset != offset
+            || chunk.chunk_data.len() as u64
+                != (download.size - offset).min(u64::from(download.chunk_size))
+        {
+            Some("chunk offset or length mismatch")
+        } else {
+            None
+        };
+        if let Some(reason) = reason {
+            self.current = Some(download);
+            return Err(PackError::UnexpectedChunk { pack: name, reason }.into());
         }
         download.buffer.extend_from_slice(&chunk.chunk_data);
         download.received += 1;
         if download.received == download.chunks {
-            return self.complete(conn, now);
+            return self.complete(download, conn, now);
         }
+        self.current = Some(download);
         self.request_more(conn, now)
     }
 
@@ -902,6 +955,8 @@ impl ClientPackExchange {
         conn.flush()
     }
 
+    /// Feeds one server packet: `Done` once the stack is acknowledged, `NotMine`
+    /// for non-pack packets.
     pub fn on_packet(
         &mut self,
         packet: &McpePacket,

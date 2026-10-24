@@ -16,10 +16,12 @@ pub struct RakNetTransport {
 }
 
 impl RakNetTransport {
+    /// Wraps a connected RakNet stream.
     pub fn new(stream: RaknetStream) -> Self {
         Self { inner: stream }
     }
 
+    /// Returns the underlying RakNet stream.
     pub fn into_inner(self) -> RaknetStream {
         self.inner
     }

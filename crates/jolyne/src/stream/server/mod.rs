@@ -23,7 +23,7 @@ use crate::config::BedrockListenerConfig;
 use crate::error::{HandshakePhase, JolyneError, ProtocolError};
 use crate::proto::conn::Connection;
 use crate::proto::packs::ServerPacks;
-use crate::proto::phase::{Failure, Owner, Step};
+use crate::proto::phase::{Failure, Owner, Phase, Step};
 use crate::proto::server as core;
 use crate::world::{WorldJoinParams, WorldTemplate};
 
@@ -65,14 +65,7 @@ pub(crate) async fn verify_login(
 pub type AuthenticatedStream<T> = BedrockStream<SecurePending, Server, T>;
 
 /// A spawned player and its login, as returned by `accept_join_sequence`.
-pub type JoinedStream<T> = (BedrockStream<Play, Server, T>, AuthenticatedLogin);
-
-/// Key material for the encryption handshake.
-#[derive(Debug, Clone)]
-pub struct ServerHandshakeConfig {
-    /// The server's P-384 key; reuse one per listener.
-    pub server_key: SecretKey,
-}
+pub type JoinedServer<T> = (BedrockStream<Play, Server, T>, AuthenticatedLogin);
 
 fn failed<T: Transport, O: Owner>(failure: Failure<O>, transport: T, seat: Seat) -> Failed<T> {
     let (error, owner) = failure.into_parts();
@@ -82,20 +75,43 @@ fn failed<T: Transport, O: Owner>(failure: Failure<O>, transport: T, seat: Seat)
     )
 }
 
-/// Flushes the new owner's queued output and wraps it in the next typestate.
+/// Flushes the new owner's queued output within the deadline of the step
+/// that produced it, and wraps it in the next typestate.
 async fn advance_to<S, T>(
     mut transport: T,
     mut owner: S::Owner,
     seat: Seat,
+    deadline: Instant,
+    phase: HandshakePhase,
 ) -> Result<BedrockStream<S, Server, T>, Failed<T>>
 where
     S: PhaseOf<Server>,
     T: Transport,
 {
-    if let Err(error) = driver::flush_out(&mut transport, owner.connection()).await {
+    if let Err(error) =
+        driver::flush_out_by(&mut transport, owner.connection(), deadline, phase).await
+    {
         return Err(failed(Failure::new(error, owner), transport, seat));
     }
     Ok(BedrockStream::from_parts(transport, owner, seat))
+}
+
+/// Drives `phase` to completion, then advances within its deadline.
+async fn drive_to<S, T, P>(
+    mut transport: T,
+    phase: P,
+    seat: Seat,
+) -> Result<BedrockStream<S, Server, T>, Failed<T>>
+where
+    S: PhaseOf<Server>,
+    T: Transport,
+    P: Phase<Next = S::Owner>,
+{
+    let deadline = phase.deadline();
+    match driver::drive(&mut transport, phase).await {
+        Ok(next) => advance_to(transport, next, seat, deadline, P::PHASE).await,
+        Err(failure) => Err(failed(failure, transport, seat)),
+    }
 }
 
 impl<T: Transport> BedrockStream<Handshake, Server, T> {
@@ -107,7 +123,7 @@ impl<T: Transport> BedrockStream<Handshake, Server, T> {
 
     pub(crate) fn accepted(transport: T, config: Arc<BedrockListenerConfig>, seat: Seat) -> Self {
         let conn = Connection::new(T::FRAMING, config.connection.clone());
-        let owner = core::ServerHandshake::new(conn, config, Instant::now());
+        let owner = core::ServerHandshake::new(conn, config, driver::now());
         Self::from_parts(transport, owner, seat)
     }
 
@@ -126,14 +142,11 @@ impl<T: Transport> BedrockStream<Handshake, Server, T> {
         self,
     ) -> Result<BedrockStream<Login, Server, T>, Failed<T>> {
         let super::Parts {
-            mut transport,
+            transport,
             owner,
             seat,
         } = self.take();
-        match driver::drive(&mut transport, owner).await {
-            Ok(login) => advance_to(transport, login, seat).await,
-            Err(failure) => Err(failed(failure, transport, seat)),
-        }
+        drive_to(transport, owner, seat).await
     }
 
     /// Runs the whole join with defaults: settings, login, encryption, the
@@ -144,19 +157,15 @@ impl<T: Transport> BedrockStream<Handshake, Server, T> {
         self,
         template: &WorldTemplate,
         server_key: &SecretKey,
-    ) -> Result<JoinedStream<T>, JolyneError> {
+    ) -> Result<JoinedServer<T>, JolyneError> {
         async fn run<T: Transport>(
             stream: BedrockStream<Handshake, Server, T>,
             template: &WorldTemplate,
             server_key: &SecretKey,
-        ) -> Result<JoinedStream<T>, Failed<T>> {
+        ) -> Result<JoinedServer<T>, Failed<T>> {
             let login = stream.accept_network_settings().await?;
             let secure = login.authenticate().await?;
-            let packs = secure
-                .finish_handshake(&ServerHandshakeConfig {
-                    server_key: server_key.clone(),
-                })
-                .await?;
+            let packs = secure.finish_handshake(server_key).await?;
             let start = packs.negotiate_packs().await?;
             let play = start
                 .start_game(template.to_join_params(rand::random()))
@@ -191,7 +200,7 @@ impl<T: Transport> BedrockStream<Login, Server, T> {
             Seat::Pool(slots) => match slots.try_acquire() {
                 Some(slot) => Seat::Held { _slot: slot },
                 None => {
-                    let failure = request.refuse_server_full(Instant::now());
+                    let failure = request.refuse_server_full(driver::now());
                     return Err(failed(failure, transport, Seat::Uncounted));
                 }
             },
@@ -216,46 +225,60 @@ impl<T: Transport> BedrockStream<Login, Server, T> {
                 return Err(failed(Failure::new(error, request), transport, seat));
             }
         };
-        match request.authenticated(login, peer, Instant::now()) {
-            Ok(authenticated) => advance_to(transport, authenticated, seat).await,
+        let deadline = request.deadline();
+        match request.authenticated(login, peer, driver::now()) {
+            Ok(authenticated) => {
+                advance_to(
+                    transport,
+                    authenticated,
+                    seat,
+                    deadline,
+                    HandshakePhase::Authentication,
+                )
+                .await
+            }
             Err(failure) => Err(failed(failure, transport, seat)),
         }
     }
 }
 
 impl<T: Transport> BedrockStream<SecurePending, Server, T> {
+    /// The verified login; an online identity stays `AwaitingKeyProof` until
+    /// [`Self::finish_handshake`] proves the client's key.
     pub fn login(&self) -> &AuthenticatedLogin {
         self.owner().login()
     }
 
     /// Runs the ECDH handshake (when enabled) and sends `LoginSuccess`.
-    /// The handshake is flushed in plaintext before encryption starts. A
+    /// `server_key` is the server's P-384 key; reuse one per listener. The
+    /// handshake is flushed in plaintext before encryption starts. A
     /// provider-verified identity is authenticated once the client proves its
     /// key (see `proto::server::Authenticated::start_encryption`).
     #[tracing::instrument(skip_all, level = "debug", fields(peer = %self.peer_addr()))]
     pub async fn finish_handshake(
         self,
-        config: &ServerHandshakeConfig,
+        server_key: &SecretKey,
     ) -> Result<BedrockStream<ResourcePacks, Server, T>, Failed<T>> {
         let super::Parts {
-            mut transport,
+            transport,
             owner,
             seat,
         } = self.take();
         let transport_key = transport.proven_peer_key();
-        match owner.start_encryption(&config.server_key, transport_key.as_ref(), Instant::now()) {
-            Ok(Step::Next(ready)) => advance_to(transport, ready, seat).await,
+        let deadline = owner.deadline();
+        match owner.start_encryption(server_key, transport_key.as_ref(), driver::now()) {
+            Ok(Step::Next(ready)) => {
+                advance_to(transport, ready, seat, deadline, HandshakePhase::Encryption).await
+            }
             // `drive` flushes the queued ServerToClientHandshake first.
-            Ok(Step::Wait(encryption)) => match driver::drive(&mut transport, encryption).await {
-                Ok(ready) => advance_to(transport, ready, seat).await,
-                Err(failure) => Err(failed(failure, transport, seat)),
-            },
+            Ok(Step::Wait(encryption)) => drive_to(transport, encryption, seat).await,
             Err(failure) => Err(failed(failure, transport, seat)),
         }
     }
 }
 
 impl<T: Transport> BedrockStream<ResourcePacks, Server, T> {
+    /// The player's login; check its identity's trust before relying on account claims.
     pub fn login(&self) -> &AuthenticatedLogin {
         self.owner().login()
     }
@@ -278,22 +301,20 @@ impl<T: Transport> BedrockStream<ResourcePacks, Server, T> {
         packs: Arc<ServerPacks>,
     ) -> Result<BedrockStream<StartGame, Server, T>, Failed<T>> {
         let super::Parts {
-            mut transport,
+            transport,
             owner,
             seat,
         } = self.take();
-        let phase = match owner.start_packs_with(packs, Instant::now()) {
+        let phase = match owner.start_packs_with(packs, driver::now()) {
             Ok(phase) => phase,
             Err(failure) => return Err(failed(failure, transport, seat)),
         };
-        match driver::drive(&mut transport, phase).await {
-            Ok(ready) => advance_to(transport, ready, seat).await,
-            Err(failure) => Err(failed(failure, transport, seat)),
-        }
+        drive_to(transport, phase, seat).await
     }
 }
 
 impl<T: Transport> BedrockStream<StartGame, Server, T> {
+    /// The player's login; check its identity's trust before relying on account claims.
     pub fn login(&self) -> &AuthenticatedLogin {
         self.owner().login()
     }
@@ -306,26 +327,25 @@ impl<T: Transport> BedrockStream<StartGame, Server, T> {
         params: WorldJoinParams,
     ) -> Result<BedrockStream<Play, Server, T>, Failed<T>> {
         let super::Parts {
-            mut transport,
+            transport,
             owner,
             seat,
         } = self.take();
-        let spawn = match owner.start_game(params, Instant::now()) {
+        let spawn = match owner.start_game(params, driver::now()) {
             Ok(spawn) => spawn,
             Err(failure) => return Err(failed(failure, transport, seat)),
         };
-        match driver::drive(&mut transport, spawn).await {
-            Ok(session) => advance_to(transport, session, seat).await,
-            Err(failure) => Err(failed(failure, transport, seat)),
-        }
+        drive_to(transport, spawn, seat).await
     }
 }
 
 impl<T: Transport> BedrockStream<Play, Server, T> {
+    /// The player's login; check its identity's trust before relying on account claims.
     pub fn login(&self) -> &AuthenticatedLogin {
         &self.owner().login
     }
 
+    /// The player's identity; account IDs (XUID, PlayFab) are `None` unless authenticated.
     pub fn identity(&self) -> &ValidatedIdentity {
         &self.owner().login.identity
     }
@@ -335,10 +355,13 @@ impl<T: Transport> BedrockStream<Play, Server, T> {
         &self.owner().login.client_data
     }
 
+    /// The player's runtime entity ID sent in `StartGame`.
     pub fn runtime_id(&self) -> u64 {
         self.owner().session.runtime_id()
     }
 
+    /// The chunk radius agreed during spawn (`None` if the client initialized
+    /// before requesting one).
     pub fn chunk_radius(&self) -> Option<i32> {
         self.owner().session.chunk_radius()
     }

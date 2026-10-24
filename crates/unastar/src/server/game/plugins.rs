@@ -139,7 +139,9 @@ pub fn process_plugin_actions(
                             auxvalue: 0,
                             net_id_variant: None,
                             block_runtime_id,
-                            user_data_buffer: Default::default(),
+                            user_data_buffer: crate::item::user_data::network_user_data(
+                                &item_id, None,
+                            ),
                         };
 
                         let slot_packet = InventorySlotPacket {

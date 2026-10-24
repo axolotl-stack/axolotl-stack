@@ -22,7 +22,7 @@ use crate::gamedata::GameData;
 use crate::proto::client as core;
 use crate::proto::conn::Connection;
 use crate::proto::packs::DownloadedPack;
-use crate::proto::phase::{Failure, Owner};
+use crate::proto::phase::{Failure, Owner, Phase};
 
 impl PhaseOf<Client> for Handshake {
     type Owner = core::ClientSettings;
@@ -44,17 +44,21 @@ impl PhaseOf<Client> for Play {
 }
 
 /// A spawned client stream and the game data captured while joining.
-pub type JoinedStream<T> = (BedrockStream<Play, Client, T>, GameData);
+pub type JoinedClient<T> = (BedrockStream<Play, Client, T>, GameData);
 
 pub use crate::auth::client::{LoginCredentials, MultiplayerTokenSource};
 
 /// Who the client logs in as.
 #[derive(Debug, Clone)]
 pub struct ClientHandshakeConfig {
+    /// Address of the server being joined; not read by the join (a placeholder for
+    /// NetherNet).
     pub server_addr: SocketAddr,
     /// Signs the login tokens and drives the ECDH handshake.
     pub identity_key: SecretKey,
+    /// Player name: the offline chain's `xname` and the client data's `ThirdPartyName`.
     pub display_name: String,
+    /// Player UUID: the offline chain's `leguuid` and the skin/self-signed IDs.
     pub uuid: Uuid,
     /// Login authentication; `Offline` unless built with [`Self::with_xbox_live`].
     pub credentials: LoginCredentials,
@@ -100,18 +104,41 @@ fn failed<T: Transport, O: Owner>(failure: Failure<O>, transport: T) -> Failed<T
     )
 }
 
+/// Flushes the new owner's queued output within the deadline of the step
+/// that produced it, and wraps it in the next typestate.
 async fn advance_to<S, T>(
     mut transport: T,
     mut owner: S::Owner,
+    deadline: Instant,
+    phase: HandshakePhase,
 ) -> Result<BedrockStream<S, Client, T>, Failed<T>>
 where
     S: PhaseOf<Client>,
     T: Transport,
 {
-    if let Err(error) = driver::flush_out(&mut transport, owner.connection()).await {
+    if let Err(error) =
+        driver::flush_out_by(&mut transport, owner.connection(), deadline, phase).await
+    {
         return Err(failed(Failure::new(error, owner), transport));
     }
     Ok(BedrockStream::from_parts(transport, owner, Seat::Uncounted))
+}
+
+/// Drives `phase` to completion, then advances within its deadline.
+async fn drive_to<S, T, P>(
+    mut transport: T,
+    phase: P,
+) -> Result<BedrockStream<S, Client, T>, Failed<T>>
+where
+    S: PhaseOf<Client>,
+    T: Transport,
+    P: Phase<Next = S::Owner>,
+{
+    let deadline = phase.deadline();
+    match driver::drive(&mut transport, phase).await {
+        Ok(next) => advance_to(transport, next, deadline, P::PHASE).await,
+        Err(failure) => Err(failed(failure, transport)),
+    }
 }
 
 #[cfg(feature = "raknet")]
@@ -138,8 +165,15 @@ impl<T: Transport> BedrockStream<Handshake, Client, T> {
         config: ClientConfig,
     ) -> Result<Self, JolyneError> {
         let conn = Connection::new(T::FRAMING, config.connection.clone());
-        let mut owner = core::ClientSettings::new(conn, &config, Instant::now())?;
-        driver::flush_out(&mut transport, owner.connection()).await?;
+        let mut owner = core::ClientSettings::new(conn, &config, driver::now())?;
+        let deadline = owner.deadline();
+        driver::flush_out_by(
+            &mut transport,
+            owner.connection(),
+            deadline,
+            core::ClientSettings::PHASE,
+        )
+        .await?;
         Ok(Self::from_parts(transport, owner, Seat::Uncounted))
     }
 
@@ -148,21 +182,17 @@ impl<T: Transport> BedrockStream<Handshake, Client, T> {
     #[tracing::instrument(skip_all, level = "debug", fields(peer = %self.peer_addr()))]
     pub async fn request_settings(self) -> Result<BedrockStream<Login, Client, T>, Failed<T>> {
         let parts = self.take();
-        let mut transport = parts.transport;
-        match driver::drive(&mut transport, parts.owner).await {
-            Ok(login) => advance_to(transport, login).await,
-            Err(failure) => Err(failed(failure, transport)),
-        }
+        drive_to(parts.transport, parts.owner).await
     }
 
     /// Runs the whole join and returns the play stream plus the
     /// `StartGame`/`ItemRegistry` data. On failure the transport is closed.
     #[tracing::instrument(skip_all, level = "debug", fields(peer = %self.peer_addr()))]
-    pub async fn join(self, config: ClientHandshakeConfig) -> Result<JoinedStream<T>, JolyneError> {
+    pub async fn join(self, config: ClientHandshakeConfig) -> Result<JoinedClient<T>, JolyneError> {
         async fn run<T: Transport>(
             stream: BedrockStream<Handshake, Client, T>,
             config: &ClientHandshakeConfig,
-        ) -> Result<JoinedStream<T>, Failed<T>> {
+        ) -> Result<JoinedClient<T>, Failed<T>> {
             let login = stream.request_settings().await?;
             let secure = login.send_login(config).await?;
             let packs = secure.await_handshake().await?;
@@ -227,13 +257,19 @@ impl<T: Transport> BedrockStream<Login, Client, T> {
         chain: &str,
         client_token: &str,
     ) -> Result<BedrockStream<SecurePending, Client, T>, Failed<T>> {
+        let request = match crate::auth::client::encode_login_request(chain, client_token) {
+            Ok(request) => request,
+            Err(error) => return Err(self.fail(error.into())),
+        };
         let parts = self.take();
-        let request = crate::auth::client::encode_login_request(chain, client_token);
+        let deadline = parts.owner.deadline();
         match parts
             .owner
-            .login(identity_key.clone(), request.into(), Instant::now())
+            .login(identity_key.clone(), request.into(), driver::now())
         {
-            Ok(handshake) => advance_to(parts.transport, handshake).await,
+            Ok(handshake) => {
+                advance_to(parts.transport, handshake, deadline, HandshakePhase::Login).await
+            }
             Err(failure) => Err(failed(failure, parts.transport)),
         }
     }
@@ -247,11 +283,7 @@ impl<T: Transport> BedrockStream<SecurePending, Client, T> {
         self,
     ) -> Result<BedrockStream<ResourcePacks, Client, T>, Failed<T>> {
         let parts = self.take();
-        let mut transport = parts.transport;
-        match driver::drive(&mut transport, parts.owner).await {
-            Ok(packs) => advance_to(transport, packs).await,
-            Err(failure) => Err(failed(failure, transport)),
-        }
+        drive_to(parts.transport, parts.owner).await
     }
 }
 
@@ -260,11 +292,7 @@ impl<T: Transport> BedrockStream<ResourcePacks, Client, T> {
     #[tracing::instrument(skip_all, level = "debug", fields(peer = %self.peer_addr()))]
     pub async fn handle_packs(self) -> Result<BedrockStream<StartGame, Client, T>, Failed<T>> {
         let parts = self.take();
-        let mut transport = parts.transport;
-        match driver::drive(&mut transport, parts.owner).await {
-            Ok(spawn) => advance_to(transport, spawn).await,
-            Err(failure) => Err(failed(failure, transport)),
-        }
+        drive_to(parts.transport, parts.owner).await
     }
 }
 
@@ -273,12 +301,14 @@ impl<T: Transport> BedrockStream<StartGame, Client, T> {
     /// Definition packets and anything else received meanwhile stay queued,
     /// in order, for the play session.
     #[tracing::instrument(skip_all, level = "debug", fields(peer = %self.peer_addr()))]
-    pub async fn await_start_game(self) -> Result<JoinedStream<T>, Failed<T>> {
+    pub async fn await_start_game(self) -> Result<JoinedClient<T>, Failed<T>> {
         let parts = self.take();
         let mut transport = parts.transport;
+        let deadline = parts.owner.deadline();
         match driver::drive(&mut transport, parts.owner).await {
             Ok(joined) => {
-                let play = advance_to(transport, joined.session).await?;
+                let play =
+                    advance_to(transport, joined.session, deadline, HandshakePhase::Spawn).await?;
                 Ok((play, joined.game_data))
             }
             Err(failure) => Err(failed(failure, transport)),
@@ -287,6 +317,7 @@ impl<T: Transport> BedrockStream<StartGame, Client, T> {
 }
 
 impl<T: Transport> BedrockStream<Play, Client, T> {
+    /// The player's runtime entity ID from `StartGame`.
     pub fn runtime_id(&self) -> u64 {
         self.owner().session.runtime_id()
     }

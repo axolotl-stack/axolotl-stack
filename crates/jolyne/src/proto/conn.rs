@@ -17,13 +17,14 @@ use std::time::Instant;
 
 use bytes::{Bytes, BytesMut};
 
-use super::batch::{BatchCodec, BatchCompression, BatchEncoding};
+use super::batch::{BatchCodec, BatchCompression};
 use super::crypto::BatchCipher;
 use super::custom::{CustomPacket, PacketFilter};
 use super::observe::{
     ConnectionMetrics, Direction, HexPreview, PacketEvent, WIRE_TARGET, trace_packet,
     wire_trace_enabled,
 };
+use super::phase::deadline_after;
 use super::raw::{PacketHeader, RawPacket};
 use crate::config::{ConnectionOptions, FlushMode};
 use crate::error::{JolyneError, PeerDisconnect, ProtocolError};
@@ -35,6 +36,7 @@ use crate::valentine::{
 /// One sealed batch to hand to the transport.
 #[derive(Debug, Clone)]
 pub struct Transmit {
+    /// Wire bytes, framed, compressed and encrypted as negotiated.
     pub payload: Bytes,
     /// `true` = reliable ordered delivery (mandatory while encrypted).
     pub reliable: bool,
@@ -43,15 +45,19 @@ pub struct Transmit {
 /// One inbound transport message.
 #[derive(Debug, Clone)]
 pub enum Datagram {
+    /// The whole message, including the message ID byte.
     Contiguous(Bytes),
     /// RakNet surfaces the message ID byte separately from the payload.
     SplitFirst {
+        /// Message ID byte (`0xFE` for game batches).
         first: u8,
+        /// Bytes after the message ID.
         rest: Bytes,
     },
 }
 
 impl Datagram {
+    /// Total length in bytes, counting a split-off ID byte.
     pub fn len(&self) -> usize {
         match self {
             Self::Contiguous(bytes) => bytes.len(),
@@ -59,6 +65,7 @@ impl Datagram {
         }
     }
 
+    /// Whether the datagram has no bytes.
     pub fn is_empty(&self) -> bool {
         self.len() == 0
     }
@@ -86,22 +93,15 @@ pub enum Framing {
     Unprefixed,
 }
 
-#[derive(Debug, Clone, Copy)]
-struct Compression {
-    algorithm: BatchCompression,
-    level: u32,
-    threshold: u16,
-}
-
 /// Sans-IO Bedrock connection state for one peer.
 pub struct Connection {
     framing: Framing,
-    compression: Option<Compression>,
     // Boxed: the AES key schedules are large and connections move through
     // every phase transition (and async state machines) by value.
     send_cipher: Option<Box<BatchCipher>>,
     recv_cipher: Option<Box<BatchCipher>>,
-    codec: Box<BatchCodec>,
+    /// Framing plus the negotiated compression, once there is one.
+    codec: BatchCodec,
     options: ConnectionOptions,
     filter: PacketFilter,
     inbound: VecDeque<RawPacket>,
@@ -119,6 +119,7 @@ pub struct Connection {
 }
 
 impl Connection {
+    /// Creates a plaintext, uncompressed connection using `framing`.
     pub fn new(framing: Framing, options: ConnectionOptions) -> Self {
         let filter = PacketFilter {
             unknown: options.unknown_packets,
@@ -126,10 +127,9 @@ impl Connection {
         };
         Self {
             framing,
-            compression: None,
             send_cipher: None,
             recv_cipher: None,
-            codec: Box::default(),
+            codec: BatchCodec::plain(framing == Framing::RakNet),
             options,
             filter,
             inbound: VecDeque::new(),
@@ -150,14 +150,18 @@ impl Connection {
         self.framing == Framing::RakNet
     }
 
+    /// The transport framing this connection was built with.
     pub fn framing(&self) -> Framing {
         self.framing
     }
 
+    /// Current options, including the flush mode set via
+    /// [`set_flush_mode`](Self::set_flush_mode).
     pub fn options(&self) -> &ConnectionOptions {
         &self.options
     }
 
+    /// Snapshot of the connection's counters.
     pub fn metrics(&self) -> ConnectionMetrics {
         self.metrics
     }
@@ -167,23 +171,27 @@ impl Connection {
         self.metrics.decode_errors += 1;
     }
 
-    /// Queues a `Disconnect` whose reason is mapped from `error`, when the
-    /// peer should be told (see [`JolyneError::disconnect_reason`]).
+    /// Queues a `Disconnect` whose reason and fixed message are mapped from
+    /// `error`, when the peer should be told (see
+    /// [`JolyneError::disconnect_reason`]); the error's own text is never sent.
     pub fn queue_failure_disconnect(&mut self, error: &JolyneError, now: Instant) {
         if let Some(reason) = error.disconnect_reason() {
             // Best effort: the connection is failing anyway.
-            let _ = self.queue_disconnect(reason, &error.to_string(), now);
+            let _ = self.queue_disconnect(reason, error.disconnect_message(), now);
         }
     }
 
+    /// Whether batch encryption is enabled.
     pub fn is_encrypted(&self) -> bool {
         self.send_cipher.is_some()
     }
 
+    /// Whether compression is negotiated (batches carry the algorithm byte).
     pub fn is_compressed(&self) -> bool {
-        self.compression.is_some()
+        self.codec.is_compressed()
     }
 
+    /// Current flush mode.
     pub fn flush_mode(&self) -> FlushMode {
         self.options.flush
     }
@@ -212,12 +220,7 @@ impl Connection {
         threshold: u16,
     ) -> Result<(), JolyneError> {
         self.flush()?;
-        self.compression = Some(Compression {
-            algorithm,
-            level,
-            threshold,
-        });
-        Ok(())
+        self.codec.enable_compression(algorithm, level, threshold)
     }
 
     /// Installs AES-256-CTR for both directions. Pending packets are sealed
@@ -227,25 +230,6 @@ impl Connection {
         self.send_cipher = Some(Box::new(BatchCipher::new(key, iv)));
         self.recv_cipher = Some(Box::new(BatchCipher::new(key, iv)));
         Ok(())
-    }
-
-    fn encoding(&self) -> BatchEncoding {
-        match self.compression {
-            Some(c) => BatchEncoding {
-                enabled: true,
-                algorithm: c.algorithm,
-                level: c.level,
-                threshold: c.threshold,
-                prefix: self.prefix(),
-            },
-            None => BatchEncoding {
-                enabled: false,
-                algorithm: BatchCompression::None,
-                level: 0,
-                threshold: 0,
-                prefix: self.prefix(),
-            },
-        }
     }
 
     // ---------------------------------------------------------------- inbound
@@ -298,14 +282,13 @@ impl Connection {
             }
         };
         let algorithm = self
-            .compression
-            .is_some()
+            .codec
+            .is_compressed()
             .then(|| body.first().copied())
             .flatten();
         let start = self.inbound.len();
         let stats = self.codec.decode_raw_into(
             body,
-            self.compression.is_some(),
             self.options.limits,
             &self.filter,
             &mut self.inbound,
@@ -385,9 +368,7 @@ impl Connection {
 
     fn begin_pending(&mut self, now: Instant) {
         if self.pending_packets == 0 {
-            let encoding = self.encoding();
-            self.pending_header =
-                BatchCodec::start(&mut self.pending, encoding.enabled, encoding.prefix, 256);
+            self.pending_header = self.codec.start(&mut self.pending, 256);
             if let FlushMode::Interval(_) = self.options.flush {
                 self.pending_since = Some(now);
             }
@@ -539,9 +520,7 @@ impl Connection {
         let packets = self.pending_packets as u64;
         self.pending_packets = 0;
         self.pending_since = None;
-        let encoding = self.encoding();
-        self.codec
-            .finish(&mut self.pending, self.pending_header, encoding)?;
+        self.codec.finish(&mut self.pending, self.pending_header)?;
         // Check the bound before encrypting: a refused batch must not advance
         // the cipher, or every later batch would fail the peer's checksum.
         let len = self.pending.len() + if self.send_cipher.is_some() { 8 } else { 0 };
@@ -561,7 +540,7 @@ impl Connection {
                 direction = ?Direction::Outbound,
                 wire_len = len,
                 encrypted = self.send_cipher.is_some(),
-                algorithm = ?self.compression.and(body.first()),
+                algorithm = ?self.codec.is_compressed().then(|| body.first()).flatten(),
                 packets,
                 reliable,
                 plain = %HexPreview(body),
@@ -630,17 +609,38 @@ impl Connection {
         self.begin_pending(now);
         self.pending
             .reserve(estimate.min(self.options.max_pending_bytes));
+        self.grouped(reliable, |conn| {
+            (0..count).try_for_each(|index| queue(conn, index))
+        })
+    }
+
+    /// Seals pending packets, then sends everything `queue` adds as one
+    /// reliable batch whatever the flush mode (split only at the per-batch
+    /// limits), so a group of packets reaches the peer together as BDS sends
+    /// it.
+    pub fn queue_group(
+        &mut self,
+        queue: impl FnOnce(&mut Self) -> Result<(), JolyneError>,
+    ) -> Result<(), JolyneError> {
+        self.flush()?;
+        self.grouped(true, queue)
+    }
+
+    /// Runs `queue` in manual flush mode, then seals what it queued.
+    fn grouped(
+        &mut self,
+        reliable: bool,
+        queue: impl FnOnce(&mut Self) -> Result<(), JolyneError>,
+    ) -> Result<(), JolyneError> {
         let mode = std::mem::replace(&mut self.options.flush, FlushMode::Manual);
         self.batch_reliable = reliable;
-        let result = (0..count)
-            .try_for_each(|index| queue(self, index))
-            .and_then(|()| {
-                if self.pending_packets > 0 {
-                    self.seal(reliable)
-                } else {
-                    Ok(())
-                }
-            });
+        let result = queue(self).and_then(|()| {
+            if self.pending_packets > 0 {
+                self.seal(reliable)
+            } else {
+                Ok(())
+            }
+        });
         self.batch_reliable = true;
         self.options.flush = mode;
         result
@@ -653,6 +653,7 @@ impl Connection {
         Some(transmit)
     }
 
+    /// Whether sealed batches await [`poll_transmit`](Self::poll_transmit).
     pub fn has_transmits(&self) -> bool {
         !self.outbound.is_empty()
     }
@@ -665,7 +666,7 @@ impl Connection {
     /// When the interval flush timer fires, if armed.
     pub fn poll_timeout(&self) -> Option<Instant> {
         match (self.options.flush, self.pending_since) {
-            (FlushMode::Interval(interval), Some(since)) => Some(since + interval),
+            (FlushMode::Interval(interval), Some(since)) => Some(deadline_after(since, interval)),
             _ => None,
         }
     }

@@ -4,8 +4,7 @@
 
 use glam::DVec3;
 use jolyne::auth::ValidatedIdentity;
-use jolyne::stream::raknet_types::{ServerHandshake, ServerPlay};
-use jolyne::stream::server::ServerHandshakeConfig;
+use jolyne::stream::raknet_types::{ServerHandshakeStream, ServerPlayStream};
 use jolyne::stream::{Failed, RakNetTransport};
 use jolyne::valentine::types::{BlockPos, Vec2, Vec3};
 use jolyne::{JolyneError, WorldTemplate};
@@ -32,8 +31,16 @@ pub async fn accept_join_sequence(
     player_data_store: &PlayerDataStore,
     player_provider: Option<&dyn PlayerProvider>,
     session_id: u64,
-    handshake_stream: ServerHandshake,
-) -> Result<(ServerPlay, ValidatedIdentity, Vec3, Option<PlayerData>), JolyneError> {
+    handshake_stream: ServerHandshakeStream,
+) -> Result<
+    (
+        ServerPlayStream,
+        ValidatedIdentity,
+        Vec3,
+        Option<PlayerData>,
+    ),
+    JolyneError,
+> {
     /// Tells the client why a join step failed, then surfaces the error.
     async fn reasoned<T>(
         step: impl Future<Output = Result<T, Failed<RakNetTransport>>>,
@@ -52,10 +59,7 @@ pub async fn accept_join_sequence(
 
     // 3. Encryption/handshake: the identity is authenticated once the client
     // proved it holds the login's key.
-    let packs = reasoned(secure.finish_handshake(&ServerHandshakeConfig {
-        server_key: server_key.clone(),
-    }))
-    .await?;
+    let packs = reasoned(secure.finish_handshake(server_key)).await?;
     let identity = packs.login().identity.clone();
 
     // 4. Resource packs (from the listener config)

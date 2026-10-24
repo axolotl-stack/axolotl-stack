@@ -29,8 +29,6 @@ mod util;
 #[cfg(any(feature = "client", feature = "server"))]
 pub use client_data::ClientData;
 #[cfg(feature = "server")]
-pub use legacy::parse_login_chain;
-#[cfg(feature = "server")]
 pub use types::{AuthenticatedLogin, Trust, ValidatedIdentity};
 
 #[cfg(feature = "server")]
@@ -48,12 +46,12 @@ use types::{AuthInfo, AuthenticationType, OpenIdClaims};
 #[cfg(feature = "server")]
 pub fn decode_login_request(payload: &[u8]) -> Result<(String, String), AuthError> {
     fn read_i32(payload: &[u8], offset: &mut usize) -> Result<i32, AuthError> {
-        let end = offset.checked_add(4).ok_or(AuthError::InvalidJson)?;
-        let bytes = payload.get(*offset..end).ok_or(AuthError::InvalidJson)?;
-        *offset = end;
-        Ok(i32::from_le_bytes(
-            bytes.try_into().expect("four-byte slice"),
-        ))
+        let bytes = payload
+            .get(*offset..)
+            .and_then(<[u8]>::first_chunk::<4>)
+            .ok_or(AuthError::InvalidJson)?;
+        *offset += 4;
+        Ok(i32::from_le_bytes(*bytes))
     }
 
     fn read_bytes<'a>(
@@ -190,40 +188,12 @@ mod provider_tests;
 #[cfg(all(test, feature = "server"))]
 mod tests {
     use super::*;
-    use crate::error::JolyneError;
-
-    #[test]
-    fn parse_login_chain_accepts_valid_payload() {
-        let payload = br#"{"chain":["token1","token2"]}"#;
-        let parsed = parse_login_chain(payload).expect("should parse");
-        assert_eq!(parsed, vec!["token1".to_string(), "token2".to_string()]);
-    }
-
-    #[test]
-    fn parse_login_chain_rejects_invalid_utf8() {
-        let payload = &[0xff, 0xfe, 0xfd];
-        let err = parse_login_chain(payload).expect_err("should fail");
-        assert!(matches!(err, JolyneError::Auth(AuthError::InvalidUtf8)));
-    }
-
-    #[test]
-    fn parse_login_chain_rejects_invalid_json() {
-        let payload = br#"not a json object"#;
-        let err = parse_login_chain(payload).expect_err("should fail");
-        assert!(matches!(err, JolyneError::Auth(AuthError::InvalidJson)));
-    }
-
-    #[test]
-    fn parse_login_chain_rejects_missing_chain() {
-        let payload = br#"{"nope":["token"]}"#;
-        let err = parse_login_chain(payload).expect_err("should fail");
-        assert!(matches!(err, JolyneError::Auth(AuthError::MissingChain)));
-    }
 
     #[cfg(feature = "client")]
     #[test]
     fn login_request_round_trip_preserves_length_prefixed_values() {
-        let request = client::encode_login_request(r#"{"chain":["identity"]}"#, "client.jwt");
+        let request = client::encode_login_request(r#"{"chain":["identity"]}"#, "client.jwt")
+            .expect("small request");
         let (auth_info, client_data) = decode_login_request(&request).expect("valid request");
         assert_eq!(auth_info, r#"{"chain":["identity"]}"#);
         assert_eq!(client_data, "client.jwt");

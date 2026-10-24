@@ -55,13 +55,16 @@ fn error_of<P: Phase>(phase: P, now: Instant) -> JolyneError {
     }
 }
 
-/// Moves every transmit `from` produced into `to`.
-fn pump(from: &mut impl Owner, to: &mut impl Owner) {
+/// Moves every transmit `from` produced into `to`; returns how many batches.
+fn pump(from: &mut impl Owner, to: &mut impl Owner) -> usize {
+    let mut batches = 0;
     while let Some(transmit) = from.poll_transmit() {
         to.connection()
             .handle_datagram(Datagram::Contiguous(transmit.payload))
             .expect("peer decodes every batch");
+        batches += 1;
     }
+    batches
 }
 
 /// Every outbound packet: its name and payload (after the packet header).
@@ -91,6 +94,7 @@ struct Harness {
     /// The key the online login claims; `None` is the client's own key. A
     /// replayed Login claims a key the sender does not hold.
     login_key: Option<SecretKey>,
+    client: ClientConfig,
 }
 
 impl Harness {
@@ -107,6 +111,7 @@ impl Harness {
             framing: Framing::RakNet,
             provider: None,
             login_key: None,
+            client: ClientConfig::default(),
         }
     }
 
@@ -129,10 +134,9 @@ impl Harness {
             self.config.clone(),
             now,
         );
-        let client_config = ClientConfig::default();
         let client = ClientSettings::new(
-            Connection::new(self.framing, client_config.connection.clone()),
-            &client_config,
+            Connection::new(self.framing, self.client.connection.clone()),
+            &self.client,
             now,
         )
         .unwrap();
@@ -146,7 +150,9 @@ impl Harness {
             uuid::Uuid::new_v4(),
         )
         .unwrap();
-        crate::auth::client::encode_login_request(&chain, &token).into()
+        crate::auth::client::encode_login_request(&chain, &token)
+            .unwrap()
+            .into()
     }
 
     /// Verifies the login like the async layer: offline, or against the test
@@ -261,12 +267,30 @@ fn params(runtime_id: i64) -> WorldJoinParams {
     WorldTemplate::default().to_join_params(runtime_id)
 }
 
-/// ROADMAP M3: the server's packet order through PlayerSpawn, with the stack
-/// only after the client's first pack response and the structure packets
-/// before StartGame (vanilla/BDS ordering; the client disconnects with
-/// "Missing structure data from server." without JigsawStructureData).
+/// BDS 1.26.51's server-to-client packets through `PlayStatus(PlayerSpawn)`:
+/// `(batch number, packet name)` per packet.
+fn bds_join_trace() -> Vec<(u32, String)> {
+    include_str!("testdata/bds-1.26.51-join-s2c.txt")
+        .lines()
+        .filter(|line| !line.starts_with('#'))
+        .map(|line| {
+            let (batch, name) = line.split_once(' ').expect("batch and packet");
+            (batch.parse().expect("batch number"), name.to_owned())
+        })
+        .collect()
+}
+
+/// ROADMAP M3: the server's packets through PlayerSpawn appear in the order
+/// BDS 1.26.51 sends them (a recorded trace, not a hand-written list): the
+/// stack only after the client's first pack response, the structure packets
+/// before StartGame (the client disconnects with "Missing structure data
+/// from server." without JigsawStructureData), and the StartGame group in
+/// one BDS batch. BDS sends packets jolyne leaves to the application
+/// (player list, abilities, chunks, ...), so jolyne's sequence must be an
+/// order-preserving subsequence. BDS sends no `DimensionData` for vanilla
+/// dimensions; it is checked to precede the structure packets.
 #[tokio::test]
-async fn join_sequence_order_matches_vanilla() {
+async fn join_sequence_follows_the_bds_capture() {
     use McpePacketName as N;
     let harness = Harness::new(BedrockListenerConfig {
         online_mode: false,
@@ -280,27 +304,48 @@ async fn join_sequence_order_matches_vanilla() {
     assert_eq!(server.session.chunk_radius(), Some(16));
     assert_eq!(client.session.session.chunk_radius(), Some(16));
     let sent: Vec<_> = harness.sent.lock().iter().map(|(name, _)| *name).collect();
+    let dimension = sent
+        .iter()
+        .position(|name| *name == N::DimensionDataPacket)
+        .expect("DimensionData sent");
+    assert_eq!(sent[dimension + 1], N::JigsawStructureDataPacket);
+
+    let bds = bds_join_trace();
+    let mut cursor = 0;
+    let mut matched = Vec::new();
+    for name in sent.iter().filter(|name| **name != N::DimensionDataPacket) {
+        let wanted = format!("{name:?}");
+        let offset = bds[cursor..]
+            .iter()
+            .position(|(_, bds_name)| *bds_name == wanted)
+            .unwrap_or_else(|| panic!("{wanted} out of BDS order after {matched:?}"));
+        cursor += offset;
+        matched.push((bds[cursor].0, *name));
+        cursor += 1;
+    }
     assert_eq!(
-        sent,
-        [
-            N::NetworkSettingsPacket,
-            N::ServerToClientHandshakePacket,
-            N::PlayStatusPacket,
-            N::ResourcePacksInfoPacket,
-            N::ResourcePackStackPacket,
-            N::DimensionDataPacket,
-            N::JigsawStructureDataPacket,
-            N::VoxelShapesPacket,
-            N::StartGamePacket,
-            N::ItemRegistryPacket,
-            N::BiomeDefinitionListPacket,
-            N::AvailableActorIdentifiersPacket,
-            N::CreativeContentPacket,
-            N::ChunkRadiusUpdatedPacket,
-            N::NetworkChunkPublisherUpdatePacket,
-            N::PlayStatusPacket,
-        ]
+        cursor,
+        bds.len(),
+        "jolyne's last packet is BDS's PlayStatus(PlayerSpawn)"
     );
+    let start_game_batches: std::collections::BTreeSet<_> = matched
+        .iter()
+        .filter(|(_, name)| {
+            matches!(
+                name,
+                N::JigsawStructureDataPacket
+                    | N::VoxelShapesPacket
+                    | N::StartGamePacket
+                    | N::ItemRegistryPacket
+                    | N::BiomeDefinitionListPacket
+                    | N::AvailableActorIdentifiersPacket
+                    | N::CreativeContentPacket
+            )
+        })
+        .map(|(batch, _)| *batch)
+        .collect();
+    assert_eq!(start_game_batches.len(), 1, "{matched:?}");
+
     // The client keeps the structure packets for proxies to replay.
     let game_data = &client.game_data;
     assert!(game_data.dimension_data.is_some());
@@ -312,6 +357,32 @@ async fn join_sequence_order_matches_vanilla() {
         game_data.voxel_shapes,
         Some(crate::valentine::VoxelShapesPacket::default())
     );
+}
+
+/// BDS sends `StartGame` with the structure and definition packets in one
+/// batch, and gophertunnel answers `RequestChunkRadius` with
+/// `ChunkRadiusUpdated`, `NetworkChunkPublisherUpdate` and
+/// `PlayStatus(PlayerSpawn)` in one flush; under the default immediate flush
+/// mode each packet used to leave in its own batch.
+#[tokio::test]
+async fn start_game_and_spawn_answers_leave_as_single_batches() {
+    let harness = Harness::new(BedrockListenerConfig {
+        online_mode: false,
+        ..Default::default()
+    });
+    assert_eq!(
+        harness.config.connection.flush,
+        crate::config::FlushMode::Immediate
+    );
+    let mut params = params(5);
+    params.dimension_data = Some(Arc::new(crate::valentine::DimensionDataPacket::default()));
+    let (mut spawn, mut client) = harness.through_packs(params).await;
+    assert_eq!(pump(&mut spawn, &mut client), 1); // DimensionData .. CreativeContent
+    let mut client = wait(client);
+    pump(&mut client, &mut spawn);
+    let mut spawn = wait(spawn);
+    assert_eq!(pump(&mut spawn, &mut client), 1); // radius, publisher, PlayerSpawn
+    let _joined = next(client);
 }
 
 /// The real 26.52 client dropped the connection with `BadPacket`
@@ -502,6 +573,104 @@ async fn each_stage_has_a_mandatory_deadline() {
 }
 
 #[tokio::test]
+async fn resource_pack_timeouts_and_failures_have_their_own_disconnect_reasons() {
+    use crate::valentine::EnumsConnectionDisconnectFailReason as R;
+    let harness = Harness::new(BedrockListenerConfig {
+        online_mode: false,
+        ..Default::default()
+    });
+    let (ready, _client) = harness.through_login().await.unwrap();
+    let packs = ready
+        .start_packs(Instant::now())
+        .map_err(|f| f.error)
+        .unwrap();
+    let late = Instant::now() + harness.config.resource_pack_timeout;
+    let timeout = error_of(packs, late);
+    assert!(matches!(
+        timeout,
+        JolyneError::Protocol(ProtocolError::Timeout(HandshakePhase::ResourcePacks))
+    ));
+    assert_eq!(timeout.disconnect_reason(), Some(R::Timeout));
+
+    let refused = JolyneError::from(crate::error::PackError::Refused);
+    assert_eq!(refused.disconnect_reason(), Some(R::Resourcepackproblem));
+    assert_eq!(
+        refused.disconnect_message(),
+        "Resource pack negotiation failed."
+    );
+}
+
+#[tokio::test]
+async fn deferring_more_than_the_configured_bound_fails_the_join() {
+    let text = || McpePacket::from(crate::valentine::TextPacket::default());
+    for (max_packets, max_bytes) in [(2, usize::MAX), (usize::MAX, 8)] {
+        let mut harness = Harness::new(BedrockListenerConfig {
+            online_mode: false,
+            ..Default::default()
+        });
+        harness.client.connection.max_deferred_packets = max_packets;
+        harness.client.connection.max_deferred_bytes = max_bytes;
+        let (mut server, mut client) = harness.through_authentication().await.unwrap();
+        // Play packets before the handshake are deferred by the client.
+        for _ in 0..3 {
+            server
+                .connection()
+                .queue_packet(&text(), Instant::now())
+                .unwrap();
+        }
+        server.connection().flush().unwrap();
+        pump(&mut server, &mut client);
+        assert!(matches!(
+            error_of(client, Instant::now()),
+            JolyneError::Protocol(ProtocolError::DeferredOverflow { .. })
+        ));
+    }
+}
+
+#[tokio::test]
+async fn huge_configured_timeouts_mean_far_deadlines_not_overflow() {
+    // `Duration::MAX` as "never" used to overflow `Instant + Duration`.
+    let harness = Harness::new(BedrockListenerConfig {
+        online_mode: false,
+        login_timeout: Duration::MAX,
+        resource_pack_timeout: Duration::MAX,
+        spawn_timeout: Duration::MAX,
+        ..Default::default()
+    });
+    let far = Instant::now() + Duration::from_secs(50 * 365 * 24 * 60 * 60);
+    let (server, _client) = harness.start();
+    assert!(server.poll_timeout() > far);
+    let (spawn, _client) = harness.through_packs(params(1)).await;
+    assert!(spawn.poll_timeout() > far);
+
+    let client_config = ClientConfig {
+        join_timeout: Duration::MAX,
+        ..ClientConfig::default()
+    };
+    let client = ClientSettings::new(
+        Connection::new(Framing::RakNet, client_config.connection.clone()),
+        &client_config,
+        Instant::now(),
+    )
+    .unwrap();
+    assert!(client.poll_timeout() > far);
+
+    let mut conn = Connection::new(
+        Framing::RakNet,
+        ConnectionOptions {
+            flush: crate::config::FlushMode::Interval(Duration::MAX),
+            ..ConnectionOptions::default()
+        },
+    );
+    let packet = McpePacket::from(crate::valentine::RequestChunkRadiusPacket {
+        chunk_radius: 4,
+        max_chunk_radius: 4,
+    });
+    conn.queue_packet(&packet, Instant::now()).unwrap();
+    assert!(conn.poll_timeout().is_some_and(|at| at > far));
+}
+
+#[tokio::test]
 async fn protocol_mismatch_answers_play_status_and_client_reports_refusal() {
     let harness = Harness::new(BedrockListenerConfig::default());
     let (mut server, mut client) = harness.start();
@@ -636,6 +805,39 @@ impl CustomPacket for Ping {
     fn encode(&self, out: &mut BytesMut) -> Result<(), std::io::Error> {
         out.extend_from_slice(&self.0.to_le_bytes());
         Ok(())
+    }
+}
+
+/// Failure disconnects carry a fixed sentence per reason, never the error's
+/// own text (token/signature details, decode previews).
+#[test]
+fn failure_disconnects_never_send_internal_error_text() {
+    use crate::error::AuthError;
+    let now = Instant::now();
+    for (error, reason, message) in [
+        (
+            JolyneError::from(AuthError::BadSignature("x5u=MHYwEAYH secret".into())),
+            EnumsConnectionDisconnectFailReason::Notauthenticated,
+            "Authentication failed.",
+        ),
+        (
+            ProtocolError::DecompressionFailed("preview 0a0b0c".into()).into(),
+            EnumsConnectionDisconnectFailReason::Badpacket,
+            "Received an invalid packet.",
+        ),
+    ] {
+        let mut server = Connection::new(Framing::RakNet, ConnectionOptions::default());
+        let mut client = Connection::new(Framing::RakNet, ConnectionOptions::default());
+        server.queue_failure_disconnect(&error, now);
+        let transmit = server.poll_transmit().expect("disconnect queued");
+        client
+            .handle_datagram(Datagram::Contiguous(transmit.payload))
+            .unwrap();
+        let Err(JolyneError::Disconnected(disconnect)) = client.next_packet() else {
+            panic!("expected a disconnect for {error}");
+        };
+        assert_eq!(disconnect.reason, reason);
+        assert_eq!(disconnect.message.as_deref(), Some(message));
     }
 }
 
@@ -837,5 +1039,35 @@ async fn unencrypted_online_login_trusts_only_a_transport_proven_key() {
         let identity = &ready.login().identity;
         assert_eq!(identity.trust(), expected);
         assert_eq!(identity.xuid().is_some(), expected == Trust::Authenticated);
+    }
+}
+
+#[tokio::test]
+async fn client_can_require_encryption() {
+    for require_encryption in [false, true] {
+        let mut harness = Harness::new(BedrockListenerConfig {
+            online_mode: false,
+            encryption_enabled: false,
+            ..Default::default()
+        });
+        harness.client.require_encryption = require_encryption;
+        let (authenticated, mut client) = harness.through_authentication().await.unwrap();
+        let mut ready =
+            match authenticated.start_encryption(&harness.server_key, None, Instant::now()) {
+                Ok(Step::Next(ready)) => ready,
+                _ => panic!("encryption is disabled"),
+            };
+        pump(&mut ready, &mut client); // PlayStatus(LoginSuccess), unencrypted
+        match client.advance(Instant::now()) {
+            Ok(Step::Next(_)) => assert!(!require_encryption),
+            Err(failure) => {
+                assert!(require_encryption);
+                assert!(matches!(
+                    failure.error,
+                    JolyneError::Protocol(ProtocolError::InvalidHandshake(_))
+                ));
+            }
+            Ok(Step::Wait(_)) => panic!("LoginSuccess was not handled"),
+        }
     }
 }

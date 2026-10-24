@@ -45,6 +45,7 @@ pub struct ConnectionOptions {
     pub unknown_packets: UnknownPacketPolicy,
     /// Extra packet IDs treated as known.
     pub custom_packets: PacketRegistry,
+    /// When queued outbound packets are sealed into a batch. Default: `Immediate`.
     pub flush: FlushMode,
     /// Outbound packets per batch before the pending batch is sealed
     /// automatically (gophertunnel listeners reject more than 812).
@@ -61,6 +62,7 @@ pub struct ConnectionOptions {
     /// kept (compacted, in order) for the next phase or the play session, up
     /// to this many packets and bytes.
     pub max_deferred_packets: usize,
+    /// Byte cap on deferred packets (see `max_deferred_packets`).
     pub max_deferred_bytes: usize,
     /// Optional read-only packet hook.
     pub observer: Option<Observer>,
@@ -162,6 +164,7 @@ pub struct BedrockListenerConfig {
     /// handshake is what proves an online client holds its token's key, so
     /// RakNet refuses online mode without it.
     pub encryption_enabled: bool,
+    /// Batch compression negotiated in `NetworkSettings`.
     pub compression: CompressionConfig,
     /// Deadline from accept through `ClientToServerHandshake` (settings,
     /// login, authentication, encryption). Default: 30 s.
@@ -176,11 +179,13 @@ pub struct BedrockListenerConfig {
     /// Players allowed concurrently (0 = unlimited). When full, the login is
     /// answered with `PlayStatus(LoginFailedServerFull)`.
     pub max_players: usize,
+    /// Admission check run after login verification; `None` admits everyone.
     pub admission: Option<Arc<dyn AdmissionHook>>,
     /// Status (MOTD) advertised to RakNet pings and NetherNet LAN discovery.
     pub status: Option<Arc<dyn StatusProvider>>,
     /// How often the advertised status is refreshed (gophertunnel: 4 s).
     pub status_refresh: Duration,
+    /// Codec options for every accepted connection.
     pub connection: ConnectionOptions,
 }
 
@@ -237,6 +242,10 @@ pub struct ClientConfig {
     pub chunk_radius: i32,
     /// Resource pack download policy and bounds.
     pub packs: ClientPackPolicy,
+    /// Refuse a server that answers `Login` with `PlayStatus(LoginSuccess)`
+    /// without first starting encryption (`ServerToClientHandshake`).
+    /// Default: `false` (servers that skip encryption are accepted).
+    pub require_encryption: bool,
 }
 
 impl Default for ClientConfig {
@@ -249,6 +258,7 @@ impl Default for ClientConfig {
             join_timeout: Duration::from_secs(120),
             chunk_radius: 16,
             packs: ClientPackPolicy::default(),
+            require_encryption: false,
         }
     }
 }

@@ -1,10 +1,21 @@
 //! Player-count accounting shared by a listener and its connections.
+//!
+//! A listener owns one [`PlayerSlots`] sized by `max_players` (0 =
+//! unlimited). Each connection carries a [`Seat`]: `Uncounted` without a
+//! listener, `Pool` once accepted, and `Held` from the moment `authenticate`
+//! receives `Login` (before verification, so a full server answers cheaply)
+//! until the connection, whatever typestate or [`super::Failed`] holds it,
+//! is dropped. Every change wakes the listener to republish its status.
 
+#[cfg(feature = "server")]
 use std::sync::Arc;
+#[cfg(feature = "server")]
 use std::sync::atomic::{AtomicUsize, Ordering};
 
+#[cfg(feature = "server")]
 use tokio::sync::Notify;
 
+#[cfg(feature = "server")]
 struct Inner {
     count: AtomicUsize,
     max: usize,
@@ -12,11 +23,13 @@ struct Inner {
 }
 
 /// The listener's player counter (gophertunnel `ListenerGroup`).
+#[cfg(feature = "server")]
 #[derive(Clone)]
 pub struct PlayerSlots {
     inner: Arc<Inner>,
 }
 
+#[cfg(feature = "server")]
 impl PlayerSlots {
     /// `max == 0` means unlimited.
     pub fn new(max: usize) -> Self {
@@ -60,10 +73,12 @@ impl PlayerSlots {
 }
 
 /// A held player slot; released on drop.
+#[cfg(feature = "server")]
 pub struct PlayerSlot {
     inner: Arc<Inner>,
 }
 
+#[cfg(feature = "server")]
 impl Drop for PlayerSlot {
     fn drop(&mut self) {
         self.inner.count.fetch_sub(1, Ordering::AcqRel);
@@ -86,7 +101,7 @@ pub(crate) enum Seat {
     Held { _slot: PlayerSlot },
 }
 
-#[cfg(test)]
+#[cfg(all(test, feature = "server"))]
 mod tests {
     use super::*;
 

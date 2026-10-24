@@ -7,23 +7,14 @@
 pub use current::*;
 pub use valentine::bedrock::version::v1_26_51 as current;
 
-// Keep the names used by Jolyne's pre-protocolgen facade available.
-// The current generated protocol renames some packet and shared types. These
-// aliases preserve the flat facade while using the 1.26.51 generated types.
+// Names from Jolyne's pre-protocolgen facade that callers still use; the
+// generated 1.26.51 protocol renamed these types.
+/// Former name of [`current::AvailableActorIdentifiersPacket`].
 pub type AvailableEntityIdentifiersPacket = current::AvailableActorIdentifiersPacket;
-pub type BlockCoordinates = current::BlockPos;
-pub type ChunkRadiusUpdatePacket = current::ChunkRadiusUpdatedPacket;
-pub type EducationSharedResourceUri = current::EduSharedUriResource;
-pub type GameMode = current::EnumsGameType;
+/// Former name of [`current::EnumsPacketCompressionAlgorithm`].
 pub type NetworkSettingsPacketCompressionAlgorithm = current::EnumsPacketCompressionAlgorithm;
-pub type PermissionLevel = current::EnumsPlayerPermissionLevel;
+/// Former name of [`current::EnumsPlayStatus`].
 pub type PlayStatusPacketStatus = current::EnumsPlayStatus;
-pub type ResourcePacksInfoPacketWorldTemplate = current::PackIdVersionjson;
-pub type ResourcePackIdVersions = Vec<current::PackInstanceId>;
-pub type StartGamePacketChatRestrictionLevel = current::EnumsChatRestrictionLevel;
-pub type StartGamePacketEditorWorldType = current::EnumsEditorWorldType;
-pub type Vec2F = current::Vec2;
-pub type Vec3F = current::Vec3;
 
 #[cfg(test)]
 mod tests {

@@ -34,9 +34,9 @@ pub struct ItemStack {
     /// For items with variants (dyes): used as data value.
     pub damage: i16,
 
-    /// Optional NBT data (enchantments, custom name, lore, etc.).
-    /// Stored as raw bytes; parsed lazily when needed.
-    /// NBT parsing is deferred to protocol layer (uses zuri_nbt).
+    /// Network item user data (NBT, can-place-on/can-destroy lists, shield
+    /// blocking tick) exactly as the client sent it; `None` is the default.
+    /// Encode it with [`crate::item::user_data`], never send it raw.
     pub nbt: Option<Vec<u8>>,
 
     /// Cached maximum stack size from the runtime item registry.
@@ -87,7 +87,7 @@ impl ItemStack {
         self
     }
 
-    /// Create a stack with NBT data (raw bytes).
+    /// Create a stack with network item user data (see [`Self::nbt`]).
     #[inline]
     pub fn with_nbt(mut self, nbt: Vec<u8>) -> Self {
         self.nbt = Some(nbt);

@@ -59,9 +59,11 @@ span.record("uuid", &uuid.to_string());
 - **Core** (`proto`): `debug` events at phase transitions (settings negotiated,
   login accepted, encryption established, player initialized). The core has no
   spans of its own; events inherit the driver's step span.
-- **Hot paths** (batch encode/decode, crypto, per-packet I/O) emit nothing.
-  Per-packet visibility is the `PacketObserver` hook (zero cost when unset);
-  counters are in `ConnectionMetrics`.
+- **Hot paths** (batch encode/decode, crypto, per-packet I/O) emit nothing at
+  `debug` or above. Per-packet visibility is opt-in: `TRACE` events under the
+  `jolyne::wire` target (`RUST_LOG=jolyne::wire=trace`, one line per batch and
+  packet) and the `PacketObserver` hook (zero cost when unset); counters are in
+  `ConnectionMetrics`. An inbound `PacketViolationWarning` is logged at `warn`.
 - **Auth**: secrets are never logged; failures are `warn`.
 
 ## 3. Feature flags
@@ -69,17 +71,24 @@ span.record("uuid", &uuid.to_string());
 ```toml
 [features]
 default = ["full", "raknet"]
-client = ["dep:jsonwebtoken", "dep:reqwest"]
-server = ["dep:reqwest", "dep:jsonwebtoken"]
+client = ["dep:jsonwebtoken"]
+server = ["dep:reqwest", "dep:jsonwebtoken", "dep:md-5"]
 full = ["client", "server"]
 raknet = ["dep:tokio-raknet"]
 nethernet = ["dep:tokio-nethernet"]
 discovery = ["nethernet", "tokio-nethernet/discovery"]
 xbox-signaling = ["nethernet", "tokio-nethernet/xbox-signaling"]
 endpoint = ["nethernet", "tokio-nethernet/endpoint"]
+# Standalone batch helpers for crates/bench-compare; connections never use them.
+bench = []
 ```
 
-- `proto::server`, `stream::server`, `listener`, `login` require `server`.
-- `proto::client`, `stream::client` require `client`; `proxy` requires both.
+- `proto::server`, `stream::server`, `listener` and server-side login
+  verification (`auth::{decode_login_request, authenticate_login, legacy,
+  openid, types}`) require `server`.
+- `proto::client`, `stream::client`, `auth::client` require `client`;
+  `proxy` requires both.
 - The `server` feature requires at least one transport (`compile_error!`).
-- CI runs clippy on `client`/`server` × `raknet`/`nethernet`/`discovery`.
+- CI (`.github/workflows/test.yml`) runs `clippy --lib -D warnings` on
+  `client,raknet`, `client,nethernet`, `server,raknet`, `server,nethernet`,
+  `server,discovery`, plus `--all-targets --all-features`.
