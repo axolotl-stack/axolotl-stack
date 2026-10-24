@@ -36,3 +36,30 @@ fn resolves_the_1_26_51_stack() {
     assert!(coal.source.starts_with("vanilla_"), "{}", coal.source);
     assert_eq!(coal.body["distribution"]["iterations"], 0);
 }
+
+fn native_dir() -> PathBuf {
+    PathBuf::from(env!("CARGO_MANIFEST_DIR"))
+        .join("../valentine_gen/protocolgen/data/source/inputs/1.26.51/native")
+}
+
+#[test]
+fn every_document_parses_and_every_reachable_feature_resolves() {
+    use unastar_bedrock_codegen::builtin::BUILTIN_FEATURES;
+    use unastar_bedrock_codegen::model::Model;
+    let Some(dir) = bds_dir() else { return };
+    let model = Model::load(&dir, &native_dir()).unwrap();
+    assert_eq!(model.biomes.len(), 89);
+    assert_eq!(model.overworld_biomes().count(), 83);
+    assert_eq!(model.rules.len(), 267);
+    assert_eq!(model.features.len(), 290);
+    assert!(!model.spawn_rules.is_empty());
+    let active = model.active_rules();
+    assert_eq!(active.len(), 181);
+    let reachable = model.reachable_features(BUILTIN_FEATURES).unwrap();
+    let builtins: Vec<_> = reachable.iter().filter(|f| !model.features.contains_key(*f)).collect();
+    assert_eq!(builtins.len(), BUILTIN_FEATURES.len(), "every listed built-in is reachable");
+    // Dropping one built-in from the registry must fail resolution.
+    let missing: Vec<&str> = BUILTIN_FEATURES.iter().copied().filter(|f| *f != "minecraft:kelp_feature").collect();
+    let err = model.reachable_features(&missing).unwrap_err().to_string();
+    assert!(err.contains("minecraft:kelp_feature"), "{err}");
+}

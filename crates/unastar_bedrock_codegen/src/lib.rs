@@ -15,9 +15,12 @@
 
 pub mod blocks;
 pub mod brarchive;
+pub mod builtin;
 pub mod error;
 pub mod json;
+pub mod ir;
 pub mod molang;
+pub mod model;
 pub mod nbt;
 pub mod packs;
 

@@ -28,6 +28,8 @@ pub enum Var {
     OriginY,
     OriginZ,
     IsLegacy,
+    /// `variable.sea_level`, used by nether material adjustments.
+    SeaLevel,
 }
 
 /// A query or math function.
@@ -260,6 +262,7 @@ impl Parser {
                     "variable.originy" | "v.originy" => Var::OriginY,
                     "variable.originz" | "v.originz" => Var::OriginZ,
                     "variable.is_legacy" | "v.is_legacy" => Var::IsLegacy,
+                    "variable.sea_level" | "v.sea_level" => Var::SeaLevel,
                     "true" => return Ok(Expr::Num(1.0)),
                     "false" => return Ok(Expr::Num(0.0)),
                     _ => return Err(format!("unsupported identifier {name}")),
