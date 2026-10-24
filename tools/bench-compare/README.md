@@ -93,17 +93,35 @@ listener, prints `READY address` on stderr) and
 which records both clients through a fault-injecting relay. See
 `crates/tokio-raknet/PARITY.md`.
 
+### RakNet go-raknet pin A/B
+
+```powershell
+./tools/bench-compare/raknet-pin-ab.ps1 -Rounds 5 -Processor 4
+```
+
+Compares the Go adapter at the current go-raknet pin, the same adapter built in a
+scratch copy against `-OldPin` (default `87a6b7e`, the former pin; tracked sources
+are not modified), and `bench-compare` with `BENCH_RAKNET_POLICY=vanilla` and
+`optimized`, each `loopback --count 100` (`BENCH_SPLIT_COUNT=10`). Builds run on
+E-cores 16–31 with at most eight jobs; timing runs inherit a single logical CPU
+(`-Processor`, default 4, a P-core on the measured i9-14900HX) with
+`GOMAXPROCS=1`/`TOKIO_WORKER_THREADS=1`, in an order that rotates (and reverses
+every other round) across at least three rounds. `summary.md` in the printed
+evidence directory holds medians of the per-round `echo` and `setup`
+statistics and the power plan's maximum processor state. Run it only in a
+coordinator-reserved window.
+
 ## Inputs and boundaries
 
 The committed corpus is `crates/valentine_gen/protocolgen/testdata/bench`, pinned by submodule commit `7b2e47c463fa425e25004673cf8960753dd2ff12`. It contains 26 single-packet cases and four realistic batches, generated deterministically by protocolgen from typed Go packets. Both implementations consume those exact files, not independently generated lookalikes. Both validate typed decoding outside timing; encoder preparation is outside timing and output buffers are reused. Packet operations include the length prefix, header varint and typed body. Batch operations include the `0xfe` marker and all entries. Rust borrowed cases are reported only where the public view API produces genuinely typed views; raw payload variants are omitted rather than misrepresented as typed decoding. See the crate README for exact coverage.
 
 Protocolgen's `differential/retail/bench_test.go`, `bench/benches/codec.rs` and counting allocator establish the benchmark shape. This harness joins normalized per-round JSONL to support transport metrics, borrowed coverage, and alternating paired measurements. The contract crate consumes exactly the same committed corpus and includes identical packet/batch length framing.
 
-Transport loopback creates a listener and dialer, then measures sequential request/echo round trips (one message in flight), excluding connection setup. Four sizes: 32, 512, 4096 and 65536 bytes. Payload byte zero is `0xfe`; remaining bytes are index modulo 251. Every response is compared byte for byte. Large messages force transport splitting/reassembly. `msgs/s` counts completed request/echo pairs and MB/s counts request payload only (decimal MB), not doubled echo traffic, UDP overhead or retransmissions. p50/p99 are nearest-rank observed round-trip latencies, not one-way latency. This is latency-limited echo throughput, not saturation bandwidth. Interop uses the same four connections/sizes and full equality checks, but its timing is not included in speed ratios.
+Transport loopback creates a listener and dialer, then measures sequential request/echo round trips (one message in flight); connection setup is excluded from them and reported separately as the `setup` row (the RakNet handshake of each fresh connection, dial until connected, one sample per size). Four sizes: 32, 512, 4096 and 65536 bytes. Payload byte zero is `0xfe`; remaining bytes are index modulo 251. Every response is compared byte for byte. Large messages force transport splitting/reassembly. `msgs/s` counts completed request/echo pairs and MB/s counts request payload only (decimal MB), not doubled echo traffic, UDP overhead or retransmissions. p50/p99 are nearest-rank observed round-trip latencies, not one-way latency. This is latency-limited echo throughput, not saturation bandwidth. Interop uses the same four connections/sizes and full equality checks, but its timing is not included in speed ratios. The Cinnabar adapter emits no `setup` row.
 
 Each size starts with one identical untimed readiness echo before the configured measured count. This excludes application acceptance and previous-session draining from both throughput and percentile samples; both implementations and interop directions use that same sequence.
 
-The default final matrix measures 100 echoes for 32/512 B and ten for 4096/65536 B, identically on both sides, with a fresh connection for every size and round. `-SplitCount` sets `BENCH_SPLIT_COUNT` in both child processes; direct CLI use without that environment variable uses `--count` for every size. Ten-sample p99 is explicitly marked low-sample (the maximum of ten observations), not a reliable population-tail estimate. The reduced split-message count was selected after a real 100-echo Go-to-Go run exhausted the reference server's private 16-concurrent-split limit. No failure is retried or reported as a success. See the report's direction-specific packet evidence and [diagnostics.json](diagnostics.json): a separate Go-to-Go trace observed 29 late duplicate fragment indexes over 17 already-completed split IDs; one Rust-to-Go trace observed none. That evidence does not attribute the observed failure to tokio-raknet.
+The default final matrix measures 100 echoes for 32/512 B and ten for 4096/65536 B, identically on both sides, with a fresh connection for every size and round. `-SplitCount` sets `BENCH_SPLIT_COUNT` in both child processes; direct CLI use without that environment variable uses `--count` for every size. Ten-sample p99 is explicitly marked low-sample (the maximum of ten observations), not a reliable population-tail estimate. The reduced split-message count was selected after a real 100-echo Go-to-Go run exhausted the former go-raknet pin's (`87a6b7e`) private 16-concurrent-split limit; `6124f52` allows 256, and the count is kept for comparability. No failure is retried or reported as a success. See the report's direction-specific packet evidence and [diagnostics.json](diagnostics.json): a separate Go-to-Go trace observed 29 late duplicate fragment indexes over 17 already-completed split IDs; one Rust-to-Go trace observed none. That evidence does not attribute the observed failure to tokio-raknet.
 
 Microbenchmarks are restricted to APIs publicly exposed by each dependency. Private Go datagram serialization and split assemblers cannot be called without forking or changing production sources. Missing cells are unavailable, never inferred or measured with unrelated substitutes. Read [Go caveats](go/CAVEATS.md) and [Rust caveats](../../crates/bench-compare/README.md) for exact pins, APIs and allocation semantics. No jolyne framing comparison is claimed unless an equivalent public API is actually exercised.
 

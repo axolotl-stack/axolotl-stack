@@ -161,13 +161,28 @@ func client(address string, count int) error {
 		if err != nil {
 			return err
 		}
-		var result row
+		var result, setup row
 		err = bounded(networkTimeout+time.Duration(count)*time.Second, func() error {
+			// setup: the complete RakNet handshake until DialTimeout returns a
+			// connected Conn; one sample per fresh connection.
+			setupStart, err := clock.now()
+			if err != nil {
+				return err
+			}
 			conn, err := (raknet.Dialer{ErrorLog: networkLog}).DialTimeout(address, networkTimeout)
 			if err != nil {
 				return err
 			}
 			defer conn.Close()
+			setupEnd, err := clock.now()
+			if err != nil {
+				return err
+			}
+			setupNS := clock.nanoseconds(setupStart, setupEnd)
+			if setupNS <= 0 {
+				return fmt.Errorf("benchmark clock measured a nonpositive setup duration")
+			}
+			setup = row{Area: "loopback", Name: fmt.Sprintf("%d", size), Operation: "setup", Implementation: "go", NSPerOp: setupNS, PayloadBytes: size, MsgsPerSec: 1e9 / setupNS}
 			want := payload(size)
 			samples := make([]float64, count)
 			var start int64
@@ -224,6 +239,9 @@ func client(address string, count int) error {
 			return err
 		}
 		if err := emit(result); err != nil {
+			return err
+		}
+		if err := emit(setup); err != nil {
 			return err
 		}
 	}
