@@ -5372,6 +5372,20 @@ dependencies = [
 ]
 
 [[package]]
+name = "unastar_bedrock_codegen"
+version = "0.1.0"
+dependencies = [
+ "flate2",
+ "prettyplease",
+ "proc-macro2",
+ "quote",
+ "serde",
+ "serde_json",
+ "syn 2.0.112",
+ "thiserror 2.0.21",
+]
+
+[[package]]
 name = "unastar_noise"
 version = "0.1.0"
 dependencies = [
