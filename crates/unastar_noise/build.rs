@@ -45,6 +45,15 @@ fn main() {
         features.configured.len(),
         features.placed.len()
     );
+    let structures = codegen::parser::structure::parse_all(&json_root)
+        .unwrap_or_else(|e| panic!("Failed to parse structure definitions: {e}"));
+    println!(
+        "cargo:warning=Parsed {} structure sets / {} structures / {} pools / {} processor lists",
+        structures.sets.len(),
+        structures.structures.len(),
+        structures.pools.len(),
+        structures.processor_lists.len()
+    );
 
     println!("cargo:warning=Parsed {} noise definitions", noises.len());
     println!(
