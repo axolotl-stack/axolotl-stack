@@ -392,7 +392,9 @@ mod tests {
     fn parses_checked_in_vanilla_biomes() {
         let biomes = parse_biomes(&vanilla_biomes_dir()).expect("parse biomes");
 
-        assert_eq!(biomes.len(), 87);
+        // bedrock-samples 1.26.50.4 ships a file for each of BDS's 89 biomes
+        // (1.21.130.3 had 87: no dappled_forest or sulfur_caves).
+        assert_eq!(biomes.len(), 89);
         assert!(biomes.iter().any(|biome| {
             biome.identifier == "minecraft:plains"
                 && biome.components.contains_key("minecraft:climate")
