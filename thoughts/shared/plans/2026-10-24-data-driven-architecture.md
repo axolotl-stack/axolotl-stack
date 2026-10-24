@@ -320,18 +320,18 @@ brarchive reader, Molang parser, alias table or chunk pipeline.
 | `Jviguy/stab-vanilla-survival` | damage, hunger, environment, melee, attributes, `LevelRules`, commands, clock and spawn points, player list and skins, relays, food family, WIP `death.rs` | After E2 (needs `spawn_item_drop`). Before merging: food family to D2, `WorldClock`/`SetTime` replaced by W10, dragonfly/wiki combat values and hand-written command overloads recorded as known deviations (O5) until S2/S4. Swing relay exists on both parked branches; keep one |
 | `Jviguy/stab-vanilla-items` | research doc (landed here) and WIP `db31cda` client-diff `inventory-moves` scenario | The scenario lands with I4 once it has run against BDS (the shared runtime's Endstone environment lacks the `endstone_client_diff` plugin) |
 
-## 10. Open decisions
+## 10. Decisions (resolved by the owner, 2026-10-24)
 
-| # | Question | Recommendation |
+| # | Question | Decision |
 |---|---|---|
-| O1 (entities Q1) | Entity data truth source: bedrock-samples 1.26.50.4 with a BDS-install diff check, or the BDS layered packs directly | bedrock-samples + diff check: public, versioned, in every checkout; the check catches drift |
-| O2 (entities Q2) | Separate bevy-free `unastar-rules` crate for filters, events, Molang and loot | Yes: datagen, the worldgen codegen and the runtime all need it without bevy |
+| O1 (entities Q1) | Entity data truth source | bedrock-samples 1.26.50.4 (the `vanilla_bp` submodule) with a check that diffs it against the BDS install's layered packs where the install exists |
+| O2 (entities Q2) | Shared engines | Separate bevy-free `unastar-rules` crate for filters, events, Molang and loot |
 | O3 (entities Q4) | Mob order | zombie, skeleton, creeper, spider, cow, pig, sheep, chicken first, then by component coverage |
-| O4 (entities Q5) | Parked ENTITIES branch | Merge after E0 with the D4/D2 deviations recorded; ITEMS and SURVIVAL need physics, item actors, placement and mining now |
-| O5 (survival) | Parked SURVIVAL branch carries unmeasured combat values (dragonfly/wiki) and hand-written command overloads | Same treatment as O4: merge after E2 with the D4 deviations recorded; S2/S4 remove them |
-| O6 (licensing) | May artefacts derived from EULA data be committed? Today `unastar-data/output/{entities,biomes}.kdl` (from bedrock-samples) and `unastar_noise/worldgen_data` (Java data-pack JSON) are | Generate bedrock-samples-derived artefacts at build time from the submodule and commit only manifests (hashes, counts). The Java worldgen data feeds the default generator, so moving it behind `UNASTAR_JAVA_SERVER_JAR` would make default builds need a local jar: owner call |
+| O4 (entities Q5) | Parked ENTITIES branch | Merge after E0, with the D4/D2 deviations recorded as known deviations; E9 removes them |
+| O5 (survival) | Parked SURVIVAL branch | Same as O4: merge after E2 with the unmeasured combat values and hand-written command overloads recorded as known deviations; S2/S4 remove them |
+| O6 (licensing) | EULA-derived artefacts in the repo | Artefacts derived from bedrock-samples (`unastar-data/output/{entities,biomes}.kdl` and successors) are generated at build time from the submodule; only manifests (hashes, counts) are committed. The Java worldgen data (`unastar_noise/worldgen_data`) stays committed so default builds work without a local jar |
 
-Resolved and not reopened: D1-D8; entities Q3 (one Rust implementation per component
+Also resolved and not reopened: D1-D8; entities Q3 (one Rust implementation per component
 kind, filter test, event action and AI goal, plus the actor-kind registry; parser
 fidelity); items D1-D5 (answered by the owner's D1-D5); world WD1-WD5 (WD3 superseded by
 D6). The remaining survival questions are fixture questions (F1, F2, F8), not owner
