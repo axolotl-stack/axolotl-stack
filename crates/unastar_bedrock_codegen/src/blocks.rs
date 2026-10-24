@@ -399,11 +399,28 @@ struct BlockRange {
     states: Vec<BTreeMap<String, StateValue>>,
 }
 
-/// The canonical block palette plus block tags.
+/// Physical flags of one state (protocolgen native BDS measurements).
+#[derive(Debug, Clone, Copy, Default, PartialEq, Eq)]
+pub struct BlockFlags {
+    /// `solid` of the state (block_state_data.json).
+    pub solid: bool,
+    /// `opaqueFullBlock` of the state.
+    pub opaque_full_block: bool,
+    /// The block's material is a liquid (block_properties_table.json).
+    pub liquid: bool,
+    /// The block's material blocks motion.
+    pub blocks_motion: bool,
+}
+
+/// The canonical block palette plus block tags and physical flags.
 #[derive(Debug, Clone, Default)]
 pub struct BlockPalette {
     blocks: HashMap<String, BlockRange>,
     names_by_tag: HashMap<String, BTreeSet<String>>,
+    /// Block names in palette order, for id -> name lookups.
+    order: Vec<(u32, String)>,
+    /// One entry per runtime id (empty when built without measurements).
+    flags: Vec<BlockFlags>,
     len: u32,
 }
 
@@ -449,7 +466,9 @@ impl BlockPalette {
                 origin: tags_path.display().to_string(),
                 source,
             })?;
-        Self::from_parts(states, tags)
+        let mut palette = Self::from_parts(states, tags)?;
+        palette.flags = load_flags(native_dir, &palette)?;
+        Ok(palette)
     }
 
     /// Build from `(name, states)` in palette order and a `block -> tags` map.
@@ -475,6 +494,7 @@ impl BlockPalette {
                         states: Vec::new(),
                     },
                 );
+                palette.order.push((ordinal, name.clone()));
                 previous = Some(name.clone());
             }
             palette.blocks.get_mut(&name).expect("inserted").states.push(props);
@@ -498,6 +518,39 @@ impl BlockPalette {
 
     pub fn has_block(&self, name: &str) -> bool {
         self.blocks.contains_key(name)
+    }
+
+    /// Every block name in palette order.
+    pub fn names(&self) -> impl Iterator<Item = &str> {
+        self.order.iter().map(|(_, n)| n.as_str())
+    }
+
+    /// `(block name, runtime id of its first state, the state's properties)` of `id`.
+    pub fn describe(&self, id: u32) -> Option<(&str, u32, &BTreeMap<String, StateValue>)> {
+        let at = self.order.partition_point(|(first, _)| *first <= id).checked_sub(1)?;
+        let (first, name) = &self.order[at];
+        let range = &self.blocks[name];
+        let state = range.states.get((id - first) as usize)?;
+        Some((name, *first, state))
+    }
+
+    /// Physical flags of a runtime id (all `false` for palettes built without
+    /// measurements, i.e. in unit tests).
+    pub fn flags(&self, id: u32) -> BlockFlags {
+        self.flags.get(id as usize).copied().unwrap_or_default()
+    }
+
+    /// Every runtime id whose flags satisfy `pred`.
+    pub fn ids_where(&self, pred: impl Fn(BlockFlags) -> bool) -> IdSet {
+        IdSet::from_ids((0..self.len).filter(|&id| pred(self.flags(id))))
+    }
+
+    /// Tags carried by block `name`.
+    pub fn tags_of(&self, name: &str) -> impl Iterator<Item = &str> {
+        self.names_by_tag
+            .iter()
+            .filter(move |(_, names)| names.contains(name))
+            .map(|(tag, _)| tag.as_str())
     }
 
     /// Every state of `name` as `(runtime id, states)`.
@@ -573,6 +626,55 @@ impl BlockPalette {
         }
         Ok(out)
     }
+}
+
+fn load_flags(native_dir: &Path, palette: &BlockPalette) -> Result<Vec<BlockFlags>> {
+    #[derive(serde::Deserialize)]
+    #[serde(rename_all = "camelCase")]
+    struct StateData {
+        solid: bool,
+        opaque_full_block: bool,
+    }
+    #[derive(serde::Deserialize)]
+    #[serde(rename_all = "camelCase")]
+    struct Material {
+        liquid: bool,
+        blocks_motion: bool,
+    }
+    #[derive(serde::Deserialize)]
+    struct Properties {
+        material: Material,
+    }
+    let read = |name: &str| -> Result<Vec<u8>> {
+        let path = native_dir.join(name);
+        std::fs::read(&path).map_err(|e| Error::io(&path, e))
+    };
+    let json_err = |name: &str| {
+        let origin = native_dir.join(name).display().to_string();
+        move |source| Error::Json { origin, source }
+    };
+    let states: HashMap<u32, StateData> =
+        serde_json::from_slice(&read("block_state_data.json")?).map_err(json_err("block_state_data.json"))?;
+    let props: HashMap<String, Properties> = serde_json::from_slice(&read("block_properties_table.json")?)
+        .map_err(json_err("block_properties_table.json"))?;
+    let mut out = Vec::with_capacity(palette.len as usize);
+    for id in 0..palette.len {
+        let (name, _, _) = palette.describe(id).expect("id in palette");
+        let state = states
+            .get(&id)
+            .ok_or_else(|| Error::data("block_state_data.json", format!("no measurements for state {id}")))?;
+        let material = &props
+            .get(name)
+            .ok_or_else(|| Error::data("block_properties_table.json", format!("no properties for {name}")))?
+            .material;
+        out.push(BlockFlags {
+            solid: state.solid,
+            opaque_full_block: state.opaque_full_block,
+            liquid: material.liquid,
+            blocks_motion: material.blocks_motion,
+        });
+    }
+    Ok(out)
 }
 
 #[cfg(test)]

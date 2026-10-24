@@ -296,6 +296,26 @@ fn bool_f(b: bool) -> f32 {
     if b { 1.0 } else { 0.0 }
 }
 
+/// Replace `var` with a constant and fold again.
+pub fn substitute(expr: &Expr, var: Var, value: f32) -> Expr {
+    fn go(e: &Expr, var: Var, value: f32) -> Expr {
+        match e {
+            Expr::Var(v) if *v == var => Expr::Num(value),
+            Expr::Neg(x) => Expr::Neg(Box::new(go(x, var, value))),
+            Expr::Not(x) => Expr::Not(Box::new(go(x, var, value))),
+            Expr::Bin(op, a, b) => Expr::Bin(*op, Box::new(go(a, var, value)), Box::new(go(b, var, value))),
+            Expr::Ternary(c, a, b) => Expr::Ternary(
+                Box::new(go(c, var, value)),
+                Box::new(go(a, var, value)),
+                Box::new(go(b, var, value)),
+            ),
+            Expr::Call(f, args) => Expr::Call(*f, args.iter().map(|a| go(a, var, value)).collect()),
+            other => other.clone(),
+        }
+    }
+    fold(go(expr, var, value))
+}
+
 /// Fold constants and `variable.is_legacy` (always `0`).
 pub fn fold(expr: Expr) -> Expr {
     use Expr::*;

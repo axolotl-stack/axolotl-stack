@@ -16,6 +16,8 @@
 pub mod blocks;
 pub mod brarchive;
 pub mod builtin;
+pub mod builtin_blocks;
+pub mod emit;
 pub mod error;
 pub mod json;
 pub mod ir;
