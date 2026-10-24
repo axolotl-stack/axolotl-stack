@@ -41,4 +41,4 @@ require (
 
 replace github.com/sandertv/gophertunnel => github.com/HashimTheArab/gophertunnel v1.25.3-0.20260928233358-80c811b61860
 
-replace github.com/sandertv/go-raknet => github.com/lunar-bedrock/go-raknet v1.15.1-0.20261011161132-87a6b7e53799
+replace github.com/sandertv/go-raknet => github.com/lunar-bedrock/go-raknet v1.15.1-0.20261011190141-6124f52657d4

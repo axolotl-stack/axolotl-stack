@@ -16,7 +16,7 @@
     "Criterion sample mean/slope and Go testing aggregate ns/op are distinct estimators; no cross-estimator ratios or individual-message percentiles are inferred.",
     "Native Criterion warms each connection for one second and measures long steady-state batches; our custom adapter uses a fresh connection per size, one readiness echo, and only 100 or 10 measured echoes.",
     "Upstream cases are 64-byte full echo and 2 MiB request/1-byte acknowledgement, not the main report's 32/512/4096/65536-byte full echoes.",
-    "Upstream Go pins lunar 6124f52657d4; the main harness pins lunar 87a6b7e53799.",
+    "Upstream Go pins lunar 6124f52657d4; the main harness pinned lunar 87a6b7e53799 at the time of this check and has pinned 6124f52657d4 since 2026-10-24.",
     "Upstream sources and default optimized bench profile were preserved; the final custom adapter's thin-LTO profile is not applied to this diagnostic run.",
     "Go testing on this Windows toolchain already uses QueryPerformanceCounter/Frequency; no published benchmark clock patch or substituted custom harness was used.",
     "Three alternating rounds on a shared workstation do not reproduce historical published hardware/toolchains or validate exact reported multipliers.",

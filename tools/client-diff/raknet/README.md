@@ -41,7 +41,9 @@ both directions and injects faults.
 | `client-silence` | client datagrams dropped after 8 s | bot (BDS's resends and timeout) |
 
 The bot is `tools/client-diff/gt-client` (gophertunnel `80c811b` over go-raknet
-`87a6b7e`), so the client side of these captures is go-raknet, not Mojang.
+`6124f52`), so the client side of these captures is go-raknet, not Mojang. The
+committed captures were recorded with go-raknet `87a6b7e` (their `meta` line
+names the client); `capture_diff` compares only the BDS side.
 
 ## Real Minecraft client
 

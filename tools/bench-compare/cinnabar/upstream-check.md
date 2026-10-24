@@ -12,7 +12,7 @@ The preliminary adapter used the default server connection limit of 10 and a sta
 
 - Source: [cinnabar-mc/raknet at 7eb32a31f5715ed6cd69120ef19118aa03fcab28](https://github.com/cinnabar-mc/raknet/tree/7eb32a31f5715ed6cd69120ef19118aa03fcab28).
 - Separate clone: `tools/bench-compare/results/upstream-check/source`. No Cargo git-cache files or upstream production/benchmark sources were edited. The revision has no `.gitmodules`; no upstream submodules were required. Tracked-source cleanliness was checked before building and before timing.
-- Upstream Go resolves `github.com/sandertv/go-raknet` to lunar `v1.15.1-0.20261011190141-6124f52657d4`. **This differs from the main comparison's lunar `87a6b7e53799` pin.** Both original pins are preserved.
+- Upstream Go resolves `github.com/sandertv/go-raknet` to lunar `v1.15.1-0.20261011190141-6124f52657d4`. **At the time of this check this differed from the main comparison's lunar `87a6b7e53799` pin;** the main comparison moved to `6124f52657d4` on 2026-10-24, so both now use the same Go RakNet. Both original pins are preserved.
 - Machine: Windows `10.0.26200`, x64, Intel Core i9-14900HX. Logical CPUs **0,2,4,6**, inherited process affinity mask **85** before timed child startup. `TOKIO_WORKER_THREADS=4`, `GOMAXPROCS=4`, Go `-test.cpu=4`.
 - Toolchains: `rustc 1.96.0-nightly (b90dc1e59 2026-03-04)`; `go version go1.27.0 windows/amd64`.
 - Timed-run metadata UTC: `2026-10-21T23:10:26.2549295Z`. Parent comparison timings were stopped throughout. No process-priority, power-plan, or timer-resolution tuning was applied; this remains a shared workstation, not an isolated laboratory machine.

@@ -16,11 +16,12 @@
 //!   (`ProcessOfflineNetworkPacket`, lens2 `RN_006:1253-1307,3065-3127`).
 //!   Replies need the offline magic and every field they are read for;
 //!   anything else is dropped (Jenkins `RakPeer.cpp:4581-4627,5449-5469`).
-//! - **Optimized** keeps lunar-bedrock/go-raknet `dial.go`'s schedule
+//! - **Optimized** keeps lunar-bedrock/go-raknet `87a6b7e` `dial.go`'s schedule
 //!   (`discoverMTU`, `request1`, `openConnection`, `request2`): four probes per
 //!   size on a 500 ms ticker, replies accepted at any time, Request2 every
 //!   500 ms, with strict reply validation and a fast fallback on local send
-//!   errors.
+//!   errors. (go-raknet `6124f52` adopted Mojang's 13-probe ladder; see
+//!   PARITY.md MTU-2.)
 //!
 //! Policy-specific rules are listed in `PARITY.md` (MTU-*, HS-*).
 
@@ -121,7 +122,7 @@ pub(crate) fn probe_sizes(cap: u16) -> Vec<u16> {
 /// (lens `RakNetConnector::RakNetConnector`, rva 0x5a4f1e0), whose body lens
 /// cannot show. The sign comes from observation: go-raknet rejects
 /// non-negative client GUIDs because "vanilla clients always provide a
-/// negative ClientGUID" (`handler.go:134-136`), and the Optimized listener
+/// negative ClientGUID" (`6124f52` `handler.go:143-146`), and the Optimized listener
 /// keeps that check, so the GUID is random with the sign bit set.
 pub(crate) fn random_guid() -> u64 {
     use std::hash::BuildHasher;
@@ -137,7 +138,8 @@ fn vanilla_connection_mtu(mtu: u16) -> u16 {
         .max(DEFAULT_MTU_SIZE)
 }
 
-/// Windows/Unix errors go-raknet `udp_transient_error_*.go` ignores while dialing.
+/// Windows/Unix errors go-raknet `87a6b7e` `udp_transient_error_*.go` ignores
+/// while dialing (`6124f52` added EMSGSIZE and WSAENETRESET).
 pub(crate) fn is_transient_receive_error(error: &std::io::Error) -> bool {
     use std::io::ErrorKind;
     matches!(
@@ -1197,8 +1199,8 @@ mod tests {
         }
     }
 
-    /// MTU-9 (Optimized): go-raknet `dial.go:request2` resends Request2 every
-    /// 500 ms; late Reply1 packets are ignored.
+    /// MTU-9 (Optimized): go-raknet `87a6b7e` `dial.go:request2` resends
+    /// Request2 every 500 ms; late Reply1 packets are ignored.
     #[test]
     fn request2_is_retransmitted_every_500ms() {
         let start = Instant::now();

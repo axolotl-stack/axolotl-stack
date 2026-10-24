@@ -58,7 +58,7 @@ impl Session {
                     .max(1),
             )
         };
-        // Local adaptation: go-raknet conn.go:Conn.write sends synchronously;
+        // Local adaptation: go-raknet `87a6b7e` conn.go:Conn.write sends synchronously;
         // our deferred response heap must remain bounded even under ping floods.
         if self.outgoing_heap.len().saturating_add(fragments)
             > super::receive_window::RECEIVE_WINDOW_SIZE as usize

@@ -62,8 +62,9 @@ Minecraft client captures (`tests/captures/real-client`) against a Vanilla
 compares wire layouts and timing. Captures are recorded with `tools/client-diff/raknet/capture.ps1`
 (BDS) and `tools/client-diff/real-client/capture.ps1` (the Minecraft client);
 see [tools/client-diff/raknet/README.md](../../tools/client-diff/raknet/README.md).
-A differential test against go-raknet checks the layouts go-raknet and Mojang
-share (needs Go):
+A differential test against go-raknet `6124f52` checks what go-raknet and
+Mojang share (wire layouts, datagram flags, the 10 ms ACK delay, NAKs of
+revealed gaps; needs Go):
 
 ```text
 cargo test -p tokio-raknet --test capture_diff
@@ -126,7 +127,9 @@ quiet-peer tests verify feedback without further traffic on both transports.
 
 Windows i9-14900HX, release builds, affinity `0x55` (logical CPUs 0, 2, 4, 6),
 four Tokio workers and `GOMAXPROCS=4`. Three alternating rounds ran
-legacy Rust → fixed Rust → Go, then the reverse, then forward again.
+legacy Rust → fixed Rust → Go, then the reverse, then forward again. Go was
+lunar-bedrock/go-raknet `87a6b7e`, the pin at the time; the current `6124f52`
+baseline is in [tools/bench-compare/report.md](../../tools/bench-compare/report.md).
 Each implementation used fresh connections and one untimed readiness echo per
 size, followed by 100 echoes for 32/512 B and ten for 4096/65536 B.
 No local compilation or server smoke ran during this final matrix; other workers
@@ -398,25 +401,28 @@ This project is licensed under the [MIT License](LICENSE).
 
 ## Security & Tuning
 
-The reference for these limits is [lunar-bedrock/go-raknet](https://github.com/lunar-bedrock/go-raknet/tree/87a6b7e53799290d70ac25bcd03645d7ead00d2c);
+These limits were ported from [lunar-bedrock/go-raknet `87a6b7e`](https://github.com/lunar-bedrock/go-raknet/tree/87a6b7e53799290d70ac25bcd03645d7ead00d2c)
+(RAKNET-01). The reference column gives the current pin,
+[go-raknet `6124f52`](https://github.com/lunar-bedrock/go-raknet/tree/6124f52657d4d5f006ea2af2d525260998dd3173),
+which raised several of them; tokio-raknet keeps its own bounds.
 `Vanilla`'s protocol behaviour follows Mojang RakNet instead ([PARITY.md](PARITY.md)).
 Limits are checked before allocating or scanning peer-controlled windows.
 
-| Resource | Limit / behavior | Upstream reference |
+| Resource | Limit / behavior | go-raknet `6124f52` |
 | --- | --- | --- |
-| Negotiated MTU | 400–1492 bytes including IPv4/UDP headers | `conn.go:clampMTU` |
-| Client MTU discovery | Probes `[cap, 1200, 576]`, four per size, 500 ms apart, replies accepted at any time; 10 transient receive errors tolerated | `dial.go:discoverMTU`, `request1`, `MaxTransientErrors` |
-| Receive / ordered window | 2048 indices; duplicates do not allocate entries | `conn.go:receiveDatagram`, `receivePacket`; `packet_queue.go:put` |
-| ACK/NACK payload | go's rule: a range record while `total + end - start ≤ 8192` (so at most 8193 represented sequences), a single while `total + 1 ≤ 8192`; wrapped ranges and unknown tags rejected; bounded range queues. A NAK resends each awaiting datagram at most once | `acknowledge.go:acknowledgement.read`, `conn.go:resend` |
-| Outgoing reliable data | `max_queued_reliable_bytes` (listener) closes with `QueueTooLong`: Optimized counts unsent bytes, Vanilla counts reliable bytes until ACKed | none (go-raknet is unbounded) |
-| Split reassembly | 512 fragments per ID, 16 live IDs; fragments fit the supported UDP payload | `conn.go:receiveSplitPacket`, `effectiveMTU` |
-| Handshake cookies | Address-bound, rotated every 2 seconds, current/previous accepted | `handler.go:cookie`; `listener.go:security.tick` |
-| Half-open session | Absolute 10-second completion deadline; retries do not extend it | `handler.go:handleOpenConnectionRequest2` |
-| Malformed peer | Session removed and source IP blocked for 10 seconds | `listener.go:ListenConfig`, `security.block` |
-| Keepalive / inactivity | 500 ms keepalives; 5 seconds plus twice measured RTT; outgoing traffic does not refresh receive activity | `conn.go:startTicking` |
-| Graceful close | Optimized: drain reliable sends, at most 5 seconds; empty queues permit close after 1 second. Vanilla: Mojang's bare notification first, closed once it is acknowledged or 10 s after the last datagram | `conn.go:startTicking` |
-| Client receive queue | 4096 unread messages; one more disconnects | `conn.go:newConn`, `internal/chan.go` |
-| Socket buffers | `socket_recv_buffer_size` defaults to 1 MiB (one unpaced 64 KiB burst; the Windows default is 64 KiB), `socket_send_buffer_size` to the OS default; both applied with `socket2` | Go's IOCP reads (PARITY.md OT-7) |
+| Negotiated MTU | 400–1492 bytes including IPv4/UDP headers | Same; a listener grants more than 1200 only after a padded Reply1 (`conn.go:26-38`, `handler.go:118-125`) |
+| Client MTU discovery | Probes `[cap, 1200, 576]`, four per size, 500 ms apart, replies accepted at any time; 10 transient receive errors tolerated | 13 probes (four per size, one more at the last), 500 ms apart, until Reply2; 10 transient errors (`mtu_probe.go:17-53`, `dial.go:386-416,428`) |
+| Receive / ordered window | 2048 indices; duplicates do not allocate entries | Ordered window 2048, overflow closes; datagrams more than 50000 ahead dropped (`conn.go:747-751`, `datagram_window.go:3-45`) |
+| ACK/NACK payload | go's rule: a range record while `total + end - start ≤ 8192` (so at most 8193 represented sequences), a single while `total + 1 ≤ 8192`; wrapped ranges and unknown tags rejected; bounded range queues. A NAK resends each awaiting datagram at most once | Same rule (`acknowledge.go:93-127`); a NAK makes each awaiting datagram due (`conn.go:931-957`) |
+| Outgoing reliable data | `max_queued_reliable_bytes` (listener) closes with `QueueTooLong`: Optimized counts unsent bytes, Vanilla counts reliable bytes until ACKed | 16 MiB send queue, `Write` blocks at the limit; 512 reliable datagrams awaiting ACK (`conn.go:61-75,385-426,995-1005`) |
+| Split reassembly | 512 fragments per ID, 16 live IDs; fragments fit the supported UDP payload | 8192 fragments per ID, 256 live IDs, 16384 fragments / 16 MiB retained, 10 s idle expiry (`conn.go:44-59,799-867`) |
+| Handshake cookies | Address-bound, rotated every 2 seconds, current/previous accepted | Same (`handler.go:43-61`, `listener.go:366-384`) |
+| Half-open session | Absolute 10-second completion deadline; retries do not extend it | Same (`handler.go:159-181`) |
+| Malformed peer | Session removed and source IP blocked for 10 seconds | Same (`listener.go:308-310,336-339`) |
+| Keepalive / inactivity | 500 ms keepalives; 5 seconds plus twice measured RTT; outgoing traffic does not refresh receive activity | Same (`conn.go:281-292`) |
+| Graceful close | Optimized: drain reliable sends, at most 5 seconds; empty queues permit close after 1 second. Vanilla: Mojang's bare notification first, closed once it is acknowledged or 10 s after the last datagram | Drain queued and unacknowledged data, then a bare `0x15` resent until acknowledged, at most 5 seconds (`conn.go:262-279`) |
+| Client receive queue | 4096 unread messages; one more disconnects | 4096 (`conn.go:205`, `internal/chan.go`) |
+| Socket buffers | `socket_recv_buffer_size` defaults to 1 MiB (one unpaced 64 KiB burst; the Windows default is 64 KiB), `socket_send_buffer_size` to the OS default; both applied with `socket2` | OS defaults; Go's IOCP reads (PARITY.md OT-7) |
 
 Construction APIs remain source-compatible. `bind_with_config` and
 `connect_with_config` reject invalid configuration before binding a socket:
@@ -483,7 +489,9 @@ For high-performance servers (e.g., dedicated game servers) with ample RAM, use 
 
 ### Ticking
 The Optimized listener runs maintenance at **10 Hz (100 ms)**, matching
-`go-raknet/conn.go:Conn.startTicking`; Optimized clients tick every 20 ms.
+go-raknet `87a6b7e` `conn.go:Conn.startTicking` (`6124f52` keeps that ticker
+but also runs its send update on every received datagram, write and ACK
+timer); Optimized clients tick every 20 ms.
 Under Optimized, ACK/NAK feedback and application writes are flushed promptly,
 independently of that maintenance interval. Vanilla clients and listeners run
 Mojang's update cycle every 10 ms and on every received datagram or
