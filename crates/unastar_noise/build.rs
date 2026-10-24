@@ -38,6 +38,13 @@ fn main() {
             .expect("Failed to parse noise settings");
     let biomes = codegen::parser::biome::parse_all(&json_root.join("biome"))
         .expect("Failed to parse biome definitions");
+    let features = codegen::parser::feature::parse_all(&json_root)
+        .unwrap_or_else(|e| panic!("Failed to parse feature definitions: {e}"));
+    println!(
+        "cargo:warning=Parsed {} configured / {} placed features",
+        features.configured.len(),
+        features.placed.len()
+    );
 
     println!("cargo:warning=Parsed {} noise definitions", noises.len());
     println!(
