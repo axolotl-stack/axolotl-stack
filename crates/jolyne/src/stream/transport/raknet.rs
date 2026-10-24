@@ -5,7 +5,9 @@ use std::pin::Pin;
 use std::task::{Context, Poll};
 
 use futures::Sink;
+use tokio_raknet::RaknetError;
 use tokio_raknet::protocol::reliability::Reliability;
+use tokio_raknet::protocol::state::DisconnectReason;
 use tokio_raknet::transport::{Message, RaknetStream};
 
 use super::{Datagram, Framing, Transmit, Transport};
@@ -81,5 +83,33 @@ impl Transport for RakNetTransport {
 
     fn latency(&self) -> Option<std::time::Duration> {
         self.inner.rtt()
+    }
+
+    /// The peer's disconnection notification (`ClosedByRemotePeer`); a
+    /// timeout or any other reason stays an error.
+    fn is_peer_close(error: &RaknetError) -> bool {
+        matches!(
+            error,
+            RaknetError::Disconnected(DisconnectReason::ClosedByRemotePeer)
+        )
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn only_the_peers_disconnection_notification_is_a_normal_close() {
+        assert!(RakNetTransport::is_peer_close(&RaknetError::Disconnected(
+            DisconnectReason::ClosedByRemotePeer
+        )));
+        for failure in [
+            RaknetError::Disconnected(DisconnectReason::TimedOut),
+            RaknetError::Disconnected(DisconnectReason::BadPacket),
+            RaknetError::ConnectionAborted,
+        ] {
+            assert!(!RakNetTransport::is_peer_close(&failure), "{failure}");
+        }
     }
 }

@@ -67,4 +67,13 @@ pub trait Transport: Unpin + Send {
     fn proven_peer_key(&self) -> Option<p384::PublicKey> {
         None
     }
+
+    /// Whether a `poll_recv` error is the peer closing the connection
+    /// normally (RakNet: its disconnection notification, which vanilla
+    /// clients send on Save and Quit without a Bedrock `Disconnect`) rather
+    /// than a failure. Receives report such an error as
+    /// [`JolyneError::ConnectionClosed`](crate::JolyneError::ConnectionClosed).
+    fn is_peer_close(_error: &Self::Error) -> bool {
+        false
+    }
 }

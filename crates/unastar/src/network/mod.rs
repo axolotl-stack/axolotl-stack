@@ -93,8 +93,14 @@ pub async fn run_network_loop(
                         );
                         break;
                     }
+                    // Save and Quit closes the RakNet connection without a
+                    // Bedrock Disconnect: a normal leave, not an error.
+                    Err(jolyne::JolyneError::ConnectionClosed) => {
+                        info!(session_id, "Client closed the connection");
+                        break;
+                    }
                     Err(e) => {
-                        tracing::error!(session_id, "Connection closed by client/error: {e}");
+                        tracing::error!(session_id, "Connection failed: {e}");
                         break;
                     }
                 }
