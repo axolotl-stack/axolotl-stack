@@ -29,8 +29,12 @@
 //! - Java marks placed fences and wall torches for neighbour-shape
 //!   post-processing when the chunk is promoted; that pass belongs to the
 //!   runtime.
-
-use std::sync::atomic::{AtomicBool, Ordering};
+//! - Java remembers on the corridor that its cave spider spawner was placed,
+//!   so the first decorated chunk whose box holds the drawn position wins and
+//!   later chunks skip the draw. Decoration order is not fixed in unastar
+//!   (output is a pure function of seed and chunk), so the spawner is placed
+//!   only by the chunk containing the corridor's centre column; every chunk
+//!   makes the draws Java makes before a spawner exists.
 
 use crate::features::eval::BlockEntityData;
 use crate::features::java_blocks::{blocks as b, states};
@@ -1064,9 +1068,6 @@ pub struct MineshaftCorridor {
     shaft: Shaft,
     has_rails: bool,
     spider_corridor: bool,
-    /// Set once the spawner is placed (persists across chunks, like Java's
-    /// piece field).
-    has_placed_spider: AtomicBool,
     num_sections: i32,
 }
 
@@ -1091,7 +1092,6 @@ impl MineshaftCorridor {
             shaft: Shaft { base, ty },
             has_rails,
             spider_corridor,
-            has_placed_spider: AtomicBool::new(false),
             num_sections,
         }
     }
@@ -1401,6 +1401,9 @@ impl StructurePiece for MineshaftCorridor {
             );
         }
 
+        let mut placed_spider = false;
+        let c = s.base.bbox.center();
+        let spawner_chunk_probe = BlockPos::new(c.x, bx.min_y, c.z);
         for n in 0..self.num_sections {
             let o = 2 + n * 5;
             self.place_support(world, bx, 0, 0, o, 2, 2, rng);
@@ -1418,12 +1421,15 @@ impl StructurePiece for MineshaftCorridor {
             if rng.next_int_bounded(100) == 0 {
                 self.create_minecart_chest(world, bx, rng, 0, 0, o + 1);
             }
-            if self.spider_corridor && !self.has_placed_spider.load(Ordering::Relaxed) {
+            if self.spider_corridor && !placed_spider {
                 let q = o - 1 + rng.next_int_bounded(3);
                 let pos = s.base.world_pos(1, 0, q);
                 if bx.is_inside(pos) && s.base.is_interior(world, 1, 0, q, bx) {
-                    self.has_placed_spider.store(true, Ordering::Relaxed);
-                    if world.set_state(pos, states::SPAWNER) {
+                    placed_spider = true;
+                    // Java keeps a "placed" flag on the piece across chunks, so the
+                    // first decorated chunk wins. Decoration order is not fixed here,
+                    // so only the chunk holding the corridor's centre may place it.
+                    if bx.is_inside(spawner_chunk_probe) && world.set_state(pos, states::SPAWNER) {
                         world.set_block_entity(pos, BlockEntityData::spawner(SPAWNER_ENTITY));
                     }
                 }
