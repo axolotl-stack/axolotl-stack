@@ -59,8 +59,9 @@ pub trait Generator: Send + Sync + 'static {
     /// Bedrock biome id for a generator-native biome.
     fn bedrock_biome(&self, biome: NativeBiome) -> u32;
 
-    /// World spawn chosen from the generated terrain.
-    fn find_spawn(&self) -> SpawnPoint;
+    /// World spawn. `chunk_at` returns finished chunks (decorated, with biomes) for
+    /// generators that search the generated terrain.
+    fn find_spawn(&self, chunk_at: &dyn Fn(ChunkPos) -> Chunk) -> SpawnPoint;
 }
 
 /// Bounded single-flight cache keyed by chunk position (FIFO eviction).
@@ -194,6 +195,11 @@ impl ChunkPipeline {
         chunk
     }
 
+    /// World spawn chosen by the generator over this pipeline's finished chunks.
+    pub fn find_spawn(&self) -> SpawnPoint {
+        self.generator.find_spawn(&|pos| self.generate(pos))
+    }
+
     /// Number of cached protos (for benchmarks and tests).
     pub fn cached_protos(&self) -> usize {
         self.protos.len()
@@ -259,7 +265,7 @@ mod tests {
         fn bedrock_biome(&self, biome: NativeBiome) -> u32 {
             biome as u32
         }
-        fn find_spawn(&self) -> SpawnPoint {
+        fn find_spawn(&self, _chunk_at: &dyn Fn(ChunkPos) -> Chunk) -> SpawnPoint {
             SpawnPoint { x: 0, y: 1, z: 0 }
         }
     }

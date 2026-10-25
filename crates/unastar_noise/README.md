@@ -32,21 +32,27 @@ Rust (decision D6). Runtime generators live in `crates/unastar/src/world/generat
 | Module | Content |
 |---|---|
 | `noise_params` (glob) | `NoiseRef`, `NOISE_PARAMS` |
-| `overworld_compiled` (glob) | AOT overworld router: `compute_*`, `FlatCacheGrid`, `ColumnContext*` |
-| `surface_rules` (glob) | `build_vanilla_surface_rule` |
+| `random_hashes` | md5-derived seeds of Java's named positional randoms (`ORE`, …) |
+| `overworld_settings` | noise settings scalars, default block/fluid, blended noise, `SPAWN_TARGET` (quantized spawn climate points) |
+| `overworld_compiled` (glob) | AOT overworld router: `compute_*`, `FlatCacheGrid`, `ColumnContext`, `ColumnContextGrid` (the 25 cell-corner columns of a chunk) |
 | `biome_features` (glob) | `BiomeFeatures`, `GenerationStep` |
+| `overworld_surface` | compiled overworld surface rule |
 | `java_blocks` | `JAVA_TO_BEDROCK`, `JAVA_STATE_CLASSES`, `BEDROCK_STATE_CLASSES` |
 | `features::java_blocks` (`java_registry.rs`) | Java block registry for decoration: per-block properties, `blocks::*`/`states::*`/`tags::*` consts, tags and inline block lists as bitsets, per-state solid / sturdy-face / full-cube flags derived from `collisions.json` |
 | `features::generated` (`features.rs`, `features_code.rs`) | Biome table and climate, every configured feature as a `cf_*` fn with a static config, every placed feature as a `pf_*` fn with its placement modifiers inlined, per-dimension step order (`OVERWORLD_FEATURES`, ...) and biome filters |
 | `structures::generated` (`structures.rs`) | Processor lists, template pools, structures and structure sets as static data |
 | `structures::template_data` (`templates.rs` + `templates.bin`) | Structure templates from the local server jar (feature `java-templates`) |
+| `java_biomes` | `JavaBiome` with climate and Bedrock biome id |
+| `overworld_biome_source` | multi-noise R-tree search (`target`, `find`, `quantize`) |
+| `carvers` | `OVERWORLD_CARVERS` with replaceable-block bitsets |
 
 ## Block identity
 
 Generated code works in Bedrock runtime ids (`u32`, the canonical 1.26.51 palette ordinals
 used by `unastar`'s chunks). Java block states are resolved at build time through
 `java_data/bedrock_blocks.json`; every Java 1.21.11 state maps to exactly one Bedrock
-state. `block_class` flags (air, fluid, water, leaves, blocks-motion) drive heightmaps.
+state. `block_class` flags (air, fluid, water, leaves, blocks-motion, full top face) drive
+heightmaps and the world-spawn search; they come from the Java collision shapes.
 
 ## Java decoration and structures
 

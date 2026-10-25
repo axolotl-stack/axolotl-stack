@@ -207,7 +207,10 @@ async fn disconnect_reconnect_restores_inventory_and_player_state() {
 
     let directory = std::env::temp_dir().join(format!("unastar-player-{}", uuid::Uuid::new_v4()));
     let provider = Arc::new(LevelDBPlayerProvider::open(&directory).unwrap());
-    let mut server = GameServer::new();
+    let mut server = GameServer::with_config(ServerConfig {
+        world: WorldConfig::void_spawn_platform(1),
+        ..ServerConfig::default()
+    });
     server
         .ecs
         .world_mut()
@@ -314,7 +317,10 @@ async fn disconnect_reconnect_restores_inventory_and_player_state() {
         Some(&saved_data),
     )
     .await;
-    let mut server = GameServer::new();
+    let mut server = GameServer::with_config(ServerConfig {
+        world: WorldConfig::void_spawn_platform(1),
+        ..ServerConfig::default()
+    });
     server
         .ecs
         .world_mut()
@@ -393,7 +399,7 @@ async fn synchronous_world_extension_does_not_replace_stored_column() {
         .await
         .unwrap();
     let mut world = World::new();
-    let mut manager = ChunkManager::default();
+    let mut manager = ChunkManager::new(WorldConfig::void_spawn_platform(1));
     manager.set_provider(provider.clone());
     world.insert_resource(manager);
     let entity = world.get_or_create_chunk(0, 0);

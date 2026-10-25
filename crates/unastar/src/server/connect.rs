@@ -138,10 +138,9 @@ pub async fn load_player_data(
 
 /// Resolves the spawn location for a player based on config rules.
 ///
-/// IMPORTANT: This function trusts user-configured spawn locations directly.
-/// For vanilla worlds, users should configure an appropriate spawn point in the config.
-/// The expensive `find_safe_spawn()` is only called as a last resort when no location
-/// is configured at all.
+/// IMPORTANT: This function trusts user-configured spawn locations directly. Without a
+/// configured location, generated worlds use the generator's spawn search, which runs once
+/// per process (see [`crate::world::WorldGenerator::spawn`]).
 pub async fn resolve_spawn_location(
     config: &UnastarConfig,
     uuid: Option<&str>,
@@ -200,15 +199,13 @@ pub async fn resolve_spawn_location(
         return location;
     }
 
-    // Final fallback: template spawn (flat/void) or a generator spawn search (terrain).
-    // NOTE: the search is expensive and should be avoided by configuring spawn in config.
-    // This is only called when no spawn location is configured at all.
+    // Final fallback: template spawn (flat/void) or the generator's spawn search
+    // (terrain), computed once on a blocking thread.
     if config.world.generator.uses_generation_pool() {
-        tracing::warn!(
-            "No spawn location configured for a generated world - searching for safe spawn. \
-             This is slow! Configure [[spawn_rules]] with a location in your config."
-        );
-        let spawn = config.world.generator.build().find_spawn();
+        let generator = config.world.generator;
+        let spawn = tokio::task::spawn_blocking(move || generator.spawn())
+            .await
+            .expect("spawn search panicked");
         return SpawnLocation {
             x: spawn.x as f32 + 0.5,
             y: spawn.y as f32,
