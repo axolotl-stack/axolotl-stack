@@ -10,9 +10,8 @@ use super::decorate::{Decorator, chunk_seed};
 use super::generated::{self, bb, props};
 use super::rng::BedrockRandom;
 use super::surface::{self, ColumnInput, SurfaceColumn, SurfaceNoises};
-use super::world::BlockWorld;
 use crate::world::ChunkPos;
-use crate::world::chunk::MIN_Y;
+use crate::world::chunk::{Chunk, MIN_Y};
 use crate::world::generator::pipeline::ChunkCache;
 use crate::world::generator::proto::{DenseBlocks, QUARTS_Y, WORLD_HEIGHT};
 use crate::world::generator::{
@@ -244,13 +243,9 @@ impl Generator for BedrockGenerator {
         u32::from(biome)
     }
 
-    fn find_spawn(&self) -> SpawnPoint {
-        let (x, _, z) = self.core.find_safe_spawn();
-        let mut proto = self.generate_proto(ChunkPos::new(x >> 4, z >> 4));
-        SpawnPoint {
-            x,
-            y: proto.heightmap(x, z),
-            z,
-        }
+    fn find_spawn(&self, chunk_at: &dyn Fn(ChunkPos) -> Chunk) -> SpawnPoint {
+        // Shared safe-spawn search examines finished Bedrock chunks.
+        // BDS spawn-center selection is unmeasured: to confirm by BDS fixture.
+        self.core.find_spawn(chunk_at)
     }
 }

@@ -14,7 +14,7 @@ use unastar_noise::{
     compute_continents_uncached, compute_depth, compute_depth_uncached, compute_erosion,
     compute_erosion_uncached, compute_ridges, compute_ridges_uncached, compute_temperature,
     compute_temperature_uncached, compute_vegetation, compute_vegetation_uncached,
-    overworld_biome_source,
+    overworld_biome_source, overworld_settings,
 };
 
 use super::density::NoiseRegistry;
@@ -71,6 +71,64 @@ pub fn fill_chunk(
         }
     }
     biomes
+}
+
+/// Block column (x, z) where Java's world-spawn search starts: the position closest to
+/// the origin whose climate (at y = 0, depth forced to 0) best fits the noise settings'
+/// `spawn_target`. Fitness is `distance² * 2048² + x² + z²`, minimised over the origin,
+/// a coarse ring search (radius 512..=2048, step 512) and a fine one around the best
+/// so far (radius 32..=512, step 32).
+pub fn spawn_search_start(noises: &NoiseRegistry) -> (i32, i32) {
+    let fitness = |x: i32, z: i32| -> i64 {
+        let ctx = FunctionContext::new((x >> 2) << 2, 0, (z >> 2) << 2);
+        let target = overworld_biome_source::target(
+            compute_temperature_uncached(&ctx, noises),
+            compute_vegetation_uncached(&ctx, noises),
+            compute_continents_uncached(&ctx, noises),
+            compute_erosion_uncached(&ctx, noises),
+            0.0,
+            compute_ridges_uncached(&ctx, noises),
+        );
+        let distance = overworld_settings::SPAWN_TARGET
+            .iter()
+            .map(|point| {
+                point
+                    .iter()
+                    .zip(target)
+                    .map(|(&[min, max], value)| {
+                        let d = if value > max {
+                            value - max
+                        } else {
+                            (min - value).max(0)
+                        };
+                        d * d
+                    })
+                    .sum::<i64>()
+            })
+            .min()
+            .unwrap_or(i64::MAX);
+        distance * 2048 * 2048 + (x as i64).pow(2) + (z as i64).pow(2)
+    };
+    let mut best = ((0, 0), fitness(0, 0));
+    for (max_radius, step) in [(2048.0f32, 512.0f32), (512.0, 32.0)] {
+        let (center_x, center_z) = best.0;
+        let mut angle = 0.0f32;
+        let mut radius = step;
+        while radius <= max_radius {
+            let x = center_x + ((angle as f64).sin() * radius as f64) as i32;
+            let z = center_z + ((angle as f64).cos() * radius as f64) as i32;
+            let f = fitness(x, z);
+            if f < best.1 {
+                best = ((x, z), f);
+            }
+            angle += step / radius;
+            if angle > std::f32::consts::PI * 2.0 {
+                angle = 0.0;
+                radius += step;
+            }
+        }
+    }
+    best.0
 }
 
 /// Seed of the biome zoom: the first 8 bytes (little-endian) of SHA-256 of the world

@@ -2776,47 +2776,17 @@ impl<'a> AotEmitter<'a> {
             })
             .collect();
 
-        // Generate 4-wide flat_cache lookups that pack into f64x4
-        let flat_cache_precompute_4: Vec<TokenStream> = used_flat_caches
-            .iter()
-            .map(|node_id| {
-                let local_var = self.cc_flat_local_var(node_id);
-                let field = self.flat_cache_field_ident(node_id);
-                quote! {
-                    let #local_var = f64x4::from_array([
-                        flat.lookup(&flat.#field, block_x[0], block_z[0]),
-                        flat.lookup(&flat.#field, block_x[1], block_z[1]),
-                        flat.lookup(&flat.#field, block_x[2], block_z[2]),
-                        flat.lookup(&flat.#field, block_x[3], block_z[3]),
-                    ]);
-                }
-            })
-            .collect();
-
-        // Generate 4-wide initialization statements using SIMD spline evaluators
-        let init_stmts_4: Vec<TokenStream> = sorted
-            .iter()
-            .filter_map(|node_id| {
-                let node = self.graph.nodes.get(node_id)?;
-                if !node.is_cache_2d {
-                    return None;
-                }
-                let field = self.column_context_field_ident(node_id);
-                let computation = self.emit_column_context_init_4(node);
-                Some(quote! {
-                    let #field = #computation;
-                })
-            })
-            .collect();
-
-        // Clone field_inits for the 4-wide version
-        let field_inits_4 = field_inits.clone();
-
-        // Generate unpack implementation that extracts 4 ColumnContext from f64x4 fields
         let field_names: Vec<_> = cache_2d_nodes
             .iter()
             .map(|node| self.column_context_field_ident(&node.id))
             .collect();
+
+        // `ColumnContext4::splat`: every field broadcast from the scalar context.
+        let splat_fields: Vec<_> = field_names
+            .iter()
+            .map(|f| quote! { #f: f64x4::splat(column.#f) })
+            .collect();
+        let splat_impl = quote! { Self { #(#splat_fields,)* } };
 
         // Generate default fields for ColumnContext4 (splat 0.0)
         let default_fields_4: Vec<TokenStream> = cache_2d_nodes
@@ -2836,38 +2806,6 @@ impl<'a> AotEmitter<'a> {
                 .map(|f| quote! { #f: self.#f.to_array()[0] })
                 .collect();
             quote! { ColumnContext { #(#extract_fields,)* } }
-        };
-
-        let unpack_impl = if field_names.is_empty() {
-            quote! {
-                [ColumnContext, ColumnContext, ColumnContext, ColumnContext]
-            }
-        } else {
-            // Extract each lane and build ColumnContext
-            let extract_lane_0: Vec<_> = field_names
-                .iter()
-                .map(|f| quote! { #f: self.#f.to_array()[0] })
-                .collect();
-            let extract_lane_1: Vec<_> = field_names
-                .iter()
-                .map(|f| quote! { #f: self.#f.to_array()[1] })
-                .collect();
-            let extract_lane_2: Vec<_> = field_names
-                .iter()
-                .map(|f| quote! { #f: self.#f.to_array()[2] })
-                .collect();
-            let extract_lane_3: Vec<_> = field_names
-                .iter()
-                .map(|f| quote! { #f: self.#f.to_array()[3] })
-                .collect();
-            quote! {
-                [
-                    ColumnContext { #(#extract_lane_0,)* },
-                    ColumnContext { #(#extract_lane_1,)* },
-                    ColumnContext { #(#extract_lane_2,)* },
-                    ColumnContext { #(#extract_lane_3,)* },
-                ]
-            }
         };
 
         quote! {
@@ -2989,12 +2927,8 @@ impl<'a> AotEmitter<'a> {
                         for (ix, slot) in row.iter_mut().enumerate() {
                             let block_x = base_x + ix as i32 * 4;
                             // Same column in all 4 lanes: values come out pre-splatted.
-                            *slot = ColumnContext4::new_4(
-                                [block_x; 4],
-                                [block_z; 4],
-                                noises,
-                                flat,
-                            );
+                            let column = ColumnContext::new(block_x, block_z, noises, flat);
+                            *slot = ColumnContext4::splat(&column);
                         }
                     }
                     Self {
@@ -3008,7 +2942,10 @@ impl<'a> AotEmitter<'a> {
                 #[inline(always)]
                 pub fn get(&self, local_x: usize, local_z: usize) -> &ColumnContext4 {
                     assert!(
-                        local_x % 4 == 0 && local_z % 4 == 0 && local_x <= 16 && local_z <= 16,
+                        local_x.is_multiple_of(4)
+                            && local_z.is_multiple_of(4)
+                            && local_x <= 16
+                            && local_z <= 16,
                         "column ({local_x}, {local_z}) is not a cell corner"
                     );
                     &self.contexts[local_z / 4][local_x / 4]
@@ -3024,19 +2961,8 @@ impl<'a> AotEmitter<'a> {
                 }
             }
 
-            /// SIMD struct for batch processing 4 columns at once.
-            ///
-            /// This allows processing 4 adjacent columns with SIMD spline evaluation,
-            /// providing approximately 4x throughput for ColumnContext computation.
-            ///
-            /// # Usage
-            /// Use `ColumnContext4::new_4()` to compute 4 ColumnContexts at once,
-            /// then use `unpack()` to get the individual ColumnContext values.
-            ///
-            /// # SIMD-Native Storage
-            /// When stored in `ColumnContextGrid`, the same XZ position is used for all 4 lanes,
-            /// making the fields effectively pre-splatted `f64x4` values. This eliminates
-            /// the need for `f64x4::splat()` calls during density computation.
+            /// A [`ColumnContext`] with every field splatted to `f64x4`, the form the
+            /// SIMD density functions read.
             #[derive(Clone, Copy)]
             pub struct ColumnContext4 {
                 #(#field_defs_4,)*
@@ -3051,41 +2977,10 @@ impl<'a> AotEmitter<'a> {
             }
 
             impl ColumnContext4 {
-                /// Compute 4 ColumnContexts at once using SIMD.
-                ///
-                /// This is ~4x faster than calling `ColumnContext::new()` 4 times
-                /// because it uses branchless SIMD spline evaluation.
-                ///
-                /// # Arguments
-                /// * `block_x` - Array of 4 block X coordinates
-                /// * `block_z` - Array of 4 block Z coordinates
-                /// * `noises` - Noise source for sampling
-                /// * `flat` - Pre-computed FlatCacheGrid for this chunk
+                /// Every lane set to `column`.
                 #[inline]
-                pub fn new_4(
-                    block_x: [i32; 4],
-                    block_z: [i32; 4],
-                    noises: &impl NoiseSource,
-                    flat: &FlatCacheGrid,
-                ) -> Self {
-                    // Do 4 flat_cache lookups and pack into f64x4
-                    #(#flat_cache_precompute_4)*
-
-                    // Compute all cache_2d values using SIMD splines
-                    #(#init_stmts_4)*
-
-                    Self {
-                        #(#field_inits_4,)*
-                    }
-                }
-
-                /// Unpack the 4 ColumnContexts from this SIMD struct.
-                ///
-                /// Returns an array of 4 ColumnContext values in the same order
-                /// as the input coordinates.
-                #[inline]
-                pub fn unpack(&self) -> [ColumnContext; 4] {
-                    #unpack_impl
+                pub fn splat(column: &ColumnContext) -> Self {
+                    #splat_impl
                 }
 
                 /// Extract the first lane as a scalar ColumnContext.
@@ -3339,176 +3234,6 @@ impl<'a> AotEmitter<'a> {
                 quote! { 0.0 }
             }
         }
-    }
-
-    // ========== SIMD (4-wide) ColumnContext initialization ==========
-
-    /// Emit 4-wide SIMD initialization expression for a cache_2d node.
-    fn emit_column_context_init_4(&self, node: &DensityNode) -> TokenStream {
-        if node.dependencies.is_empty() {
-            return quote! { f64x4::splat(0.0) };
-        }
-
-        let inner_id = &node.dependencies[0];
-        let inner_node = match self.graph.nodes.get(inner_id) {
-            Some(n) => n,
-            None => return quote! { f64x4::splat(0.0) },
-        };
-
-        self.emit_column_context_inner_4_impl(inner_node)
-    }
-
-    /// Emit 4-wide SIMD computation for an inner node.
-    fn emit_column_context_inner_4_impl(&self, node: &DensityNode) -> TokenStream {
-        match &node.def {
-            DensityFunctionDef::Constant { argument } => {
-                let v = *argument;
-                quote! { f64x4::splat(#v) }
-            }
-
-            DensityFunctionDef::Add { .. } => {
-                let v1 = self.emit_cc_dep_4(0, node);
-                let v2 = self.emit_cc_dep_4(1, node);
-                quote! { (#v1 + #v2) }
-            }
-
-            DensityFunctionDef::Mul { .. } => {
-                let v1 = self.emit_cc_dep_4(0, node);
-                let v2 = self.emit_cc_dep_4(1, node);
-                quote! { (#v1 * #v2) }
-            }
-
-            DensityFunctionDef::Min { .. } => {
-                let v1 = self.emit_cc_dep_4(0, node);
-                let v2 = self.emit_cc_dep_4(1, node);
-                quote! { #v1.simd_min(#v2) }
-            }
-
-            DensityFunctionDef::Max { .. } => {
-                let v1 = self.emit_cc_dep_4(0, node);
-                let v2 = self.emit_cc_dep_4(1, node);
-                quote! { #v1.simd_max(#v2) }
-            }
-
-            DensityFunctionDef::Abs { .. } => {
-                let v = self.emit_cc_dep_4(0, node);
-                quote! { #v.abs() }
-            }
-
-            DensityFunctionDef::Square { .. } => {
-                let v = self.emit_cc_dep_4(0, node);
-                quote! { (#v * #v) }
-            }
-
-            DensityFunctionDef::Cube { .. } => {
-                let v = self.emit_cc_dep_4(0, node);
-                quote! { (#v * #v * #v) }
-            }
-
-            DensityFunctionDef::HalfNegative { .. } => {
-                let v = self.emit_cc_dep_4(0, node);
-                quote! {
-                    {
-                        let val = #v;
-                        let zero = f64x4::splat(0.0);
-                        let half = f64x4::splat(0.5);
-                        val.simd_lt(zero).select(val * half, val)
-                    }
-                }
-            }
-
-            DensityFunctionDef::QuarterNegative { .. } => {
-                let v = self.emit_cc_dep_4(0, node);
-                quote! {
-                    {
-                        let val = #v;
-                        let zero = f64x4::splat(0.0);
-                        let quarter = f64x4::splat(0.25);
-                        val.simd_lt(zero).select(val * quarter, val)
-                    }
-                }
-            }
-
-            DensityFunctionDef::Clamp { min, max, .. } => {
-                let v = self.emit_cc_dep_4(0, node);
-                let mn = *min;
-                let mx = *max;
-                quote! { #v.simd_clamp(f64x4::splat(#mn), f64x4::splat(#mx)) }
-            }
-
-            DensityFunctionDef::Squeeze { .. } => {
-                let v = self.emit_cc_dep_4(0, node);
-                quote! { #v.simd_clamp(f64x4::splat(-1.0), f64x4::splat(1.0)) }
-            }
-
-            DensityFunctionDef::FlatCache { .. }
-            | DensityFunctionDef::Cache2D { .. }
-            | DensityFunctionDef::CacheOnce { .. } => self.emit_cc_dep_4(0, node),
-
-            DensityFunctionDef::Spline { spline } => self.emit_cc_spline_4(spline),
-
-            DensityFunctionDef::BlendAlpha {} => quote! { f64x4::splat(1.0_f64) },
-            DensityFunctionDef::BlendOffset {} => quote! { f64x4::splat(0.0_f64) },
-            DensityFunctionDef::BlendDensity { .. } => self.emit_cc_dep_4(0, node),
-
-            DensityFunctionDef::YClampedGradient { from_value, .. } => {
-                let fv = *from_value;
-                quote! { f64x4::splat(#fv) }
-            }
-
-            DensityFunctionDef::RangeChoice {
-                min_inclusive,
-                max_exclusive,
-                ..
-            } => {
-                let inp = self.emit_cc_dep_4(0, node);
-                let wir = self.emit_cc_dep_4(1, node);
-                let wor = self.emit_cc_dep_4(2, node);
-                let min_v = *min_inclusive;
-                let max_v = *max_exclusive;
-                quote! {
-                    {
-                        let input = #inp;
-                        let within_range = #wir;
-                        let outside_range = #wor;
-                        let min_val = f64x4::splat(#min_v);
-                        let max_val = f64x4::splat(#max_v);
-                        let in_range = input.simd_ge(min_val) & input.simd_lt(max_val);
-                        in_range.select(within_range, outside_range)
-                    }
-                }
-            }
-
-            DensityFunctionDef::Interpolated { .. } => self.emit_cc_dep_4(0, node),
-
-            DensityFunctionDef::Invert { .. } => {
-                let v = self.emit_cc_dep_4(0, node);
-                quote! { (-#v) }
-            }
-
-            _ => quote! { f64x4::splat(0.0) },
-        }
-    }
-
-    /// Emit a 4-wide SIMD dependency reference.
-    fn emit_cc_dep_4(&self, idx: usize, node: &DensityNode) -> TokenStream {
-        if let Some(dep_id) = node.dependencies.get(idx)
-            && let Some(dep_node) = self.graph.nodes.get(dep_id)
-        {
-            // If the dependency is a cache_2d node, reference its field (already f64x4)
-            if dep_node.is_cache_2d {
-                let field = self.column_context_field_ident(dep_id);
-                return quote! { #field };
-            }
-            // If it's a flat_cache node, use the pre-computed f64x4 local variable
-            if dep_node.is_flat_cache {
-                let local_var = self.cc_flat_local_var(dep_id);
-                return quote! { #local_var };
-            }
-            // Otherwise, inline the 4-wide computation
-            return self.emit_column_context_inner_4_impl(dep_node);
-        }
-        quote! { f64x4::splat(0.0_f64) }
     }
 
     /// Emit a dependency reference for ColumnContext initialization.
@@ -4098,326 +3823,6 @@ impl<'a> AotEmitter<'a> {
             }
             SplineValue::Nested(nested) => self.emit_cc_spline(nested),
         }
-    }
-
-    // ========== SIMD (4-wide) ColumnContext Spline Evaluation ==========
-    //
-    // These methods generate code for evaluating splines on 4 columns at once
-    // using f64x4 SIMD vectors. The approach is branchless - we evaluate ALL
-    // segments and use SIMD masks to select the correct result per lane.
-
-    /// Emit a 4-wide SIMD spline within ColumnContext4 initialization.
-    fn emit_cc_spline_4(&self, spline: &SplineDef) -> TokenStream {
-        if spline.points.is_empty() {
-            return quote! { f64x4::splat(0.0_f64) };
-        }
-
-        if spline.points.len() == 1 {
-            return self.emit_cc_spline_value_4(&spline.points[0].value);
-        }
-
-        let coord_expr = self.emit_cc_arg_4(&spline.coordinate);
-
-        if spline_has_only_constants(spline) {
-            return self.emit_cc_spline_optimized_4(spline, coord_expr);
-        }
-
-        self.emit_cc_spline_hermite_4(spline, coord_expr)
-    }
-
-    /// Emit branchless 4-wide SIMD spline evaluation for constant-only splines.
-    /// Uses polynomial form: a + t * (b + t * (c + t * d))
-    fn emit_cc_spline_optimized_4(
-        &self,
-        spline: &SplineDef,
-        coord_expr: TokenStream,
-    ) -> TokenStream {
-        let values = extract_constant_values(&spline.points);
-        let first_loc = spline.points[0].location;
-        let last_loc = spline.points.last().unwrap().location;
-        let first_val = values[0];
-        let last_val = *values.last().unwrap();
-
-        let mut segments = Vec::new();
-        for i in 0..spline.points.len() - 1 {
-            let p0 = &spline.points[i];
-            let p1 = &spline.points[i + 1];
-            let seg = SplineSegment::from_hermite(
-                p0.location,
-                p1.location,
-                values[i],
-                values[i + 1],
-                p0.derivative,
-                p1.derivative,
-            );
-            segments.push(seg);
-        }
-
-        // Generate branchless evaluation code
-        // Strategy: evaluate all segments, use masks to select correct result per lane
-        if segments.len() == 1 {
-            // Single segment: simple case
-            let seg = &segments[0];
-            let x_min = seg.x_min;
-            let x_range = seg.x_max - seg.x_min;
-            let a = seg.a;
-            let b = seg.b;
-            let c = seg.c;
-            let d = seg.d;
-            quote! {
-                {
-                    let coord = #coord_expr;
-                    let first_loc = f64x4::splat(#first_loc);
-                    let last_loc = f64x4::splat(#last_loc);
-                    let first_val = f64x4::splat(#first_val);
-                    let last_val = f64x4::splat(#last_val);
-
-                    // Clamp to range for polynomial evaluation
-                    let t = (coord - f64x4::splat(#x_min)) / f64x4::splat(#x_range);
-                    let poly_result = f64x4::splat(#a) + t * (f64x4::splat(#b) + t * (f64x4::splat(#c) + t * f64x4::splat(#d)));
-
-                    // Apply boundary conditions
-                    let mask_low = coord.simd_le(first_loc);
-                    let mask_high = coord.simd_ge(last_loc);
-                    let result = mask_high.select(last_val, poly_result);
-                    mask_low.select(first_val, result)
-                }
-            }
-        } else {
-            // Multiple segments: evaluate all, blend with masks
-            // Build segment evaluations and masks
-            let num_segs = segments.len();
-            let mut seg_evals = Vec::with_capacity(num_segs);
-            let mut seg_bounds = Vec::with_capacity(num_segs);
-
-            for (i, seg) in segments.iter().enumerate() {
-                let x_min = seg.x_min;
-                let x_max = seg.x_max;
-                let x_range = x_max - x_min;
-                let a = seg.a;
-                let b = seg.b;
-                let c = seg.c;
-                let d = seg.d;
-
-                let seg_var = format_ident!("seg{}", i);
-                let bound_var = format_ident!("bound{}", i);
-
-                seg_evals.push(quote! {
-                    let t = (coord - f64x4::splat(#x_min)) / f64x4::splat(#x_range);
-                    let #seg_var = f64x4::splat(#a) + t * (f64x4::splat(#b) + t * (f64x4::splat(#c) + t * f64x4::splat(#d)));
-                });
-                seg_bounds.push((quote! { let #bound_var = f64x4::splat(#x_max); }, bound_var));
-            }
-
-            // Build the result selection chain (from last to first)
-            // result = seg[n-1]
-            // result = (coord < bound[n-2]).select(seg[n-2], result)
-            // ...
-            // result = (coord < bound[0]).select(seg[0], result)
-            let last_seg = format_ident!("seg{}", num_segs - 1);
-            let mut result_expr = quote! { #last_seg };
-
-            for i in (0..num_segs - 1).rev() {
-                let seg_var = format_ident!("seg{}", i);
-                let bound_var = &seg_bounds[i].1;
-                result_expr = quote! {
-                    coord.simd_lt(#bound_var).select(#seg_var, #result_expr)
-                };
-            }
-
-            let bound_stmts: Vec<_> = seg_bounds.iter().map(|(stmt, _)| stmt.clone()).collect();
-
-            quote! {
-                {
-                    let coord = #coord_expr;
-                    let first_loc = f64x4::splat(#first_loc);
-                    let last_loc = f64x4::splat(#last_loc);
-                    let first_val = f64x4::splat(#first_val);
-                    let last_val = f64x4::splat(#last_val);
-
-                    // Evaluate all segments
-                    #(#seg_evals)*
-
-                    // Segment bounds
-                    #(#bound_stmts)*
-
-                    // Build result from segments (branchless)
-                    let poly_result = #result_expr;
-
-                    // Apply boundary conditions
-                    let mask_low = coord.simd_le(first_loc);
-                    let mask_high = coord.simd_ge(last_loc);
-                    let result = mask_high.select(last_val, poly_result);
-                    mask_low.select(first_val, result)
-                }
-            }
-        }
-    }
-
-    /// Emit branchless 4-wide SIMD Hermite spline evaluation (for nested splines).
-    fn emit_cc_spline_hermite_4(&self, spline: &SplineDef, coord_expr: TokenStream) -> TokenStream {
-        let first_loc = spline.points[0].location;
-        let last_loc = spline.points.last().unwrap().location;
-        let first_val = self.emit_cc_spline_value_4(&spline.points[0].value);
-        let last_val = self.emit_cc_spline_value_4(&spline.points.last().unwrap().value);
-
-        let num_segments = spline.points.len() - 1;
-
-        // Generate all segment evaluations
-        let mut seg_evals = Vec::with_capacity(num_segments);
-        let mut seg_bounds = Vec::with_capacity(num_segments);
-
-        for i in 0..num_segments {
-            let p0 = &spline.points[i];
-            let p1 = &spline.points[i + 1];
-            let v0 = self.emit_cc_spline_value_4(&p0.value);
-            let v1 = self.emit_cc_spline_value_4(&p1.value);
-            let loc0 = p0.location;
-            let loc1 = p1.location;
-            let dt = loc1 - loc0;
-            let d0 = p0.derivative;
-            let d1 = p1.derivative;
-
-            let seg_var = format_ident!("seg{}", i);
-            let bound_var = format_ident!("bound{}", i);
-
-            seg_evals.push(quote! {
-                let v0 = #v0;
-                let v1 = #v1;
-                let t = (coord - f64x4::splat(#loc0)) / f64x4::splat(#dt);
-                let t2 = t * t;
-                let t3 = t2 * t;
-                let h00 = f64x4::splat(2.0) * t3 - f64x4::splat(3.0) * t2 + f64x4::splat(1.0);
-                let h10 = t3 - f64x4::splat(2.0) * t2 + t;
-                let h01 = f64x4::splat(-2.0) * t3 + f64x4::splat(3.0) * t2;
-                let h11 = t3 - t2;
-                let #seg_var = h00 * v0 + h10 * f64x4::splat(#dt * #d0) + h01 * v1 + h11 * f64x4::splat(#dt * #d1);
-            });
-            seg_bounds.push((quote! { let #bound_var = f64x4::splat(#loc1); }, bound_var));
-        }
-
-        // Build selection chain
-        let last_seg = format_ident!("seg{}", num_segments - 1);
-        let mut result_expr = quote! { #last_seg };
-
-        for i in (0..num_segments - 1).rev() {
-            let seg_var = format_ident!("seg{}", i);
-            let bound_var = &seg_bounds[i].1;
-            result_expr = quote! {
-                coord.simd_lt(#bound_var).select(#seg_var, #result_expr)
-            };
-        }
-
-        let bound_stmts: Vec<_> = seg_bounds.iter().map(|(stmt, _)| stmt.clone()).collect();
-
-        quote! {
-            {
-                let coord = #coord_expr;
-                let first_loc = f64x4::splat(#first_loc);
-                let last_loc = f64x4::splat(#last_loc);
-                let first_val = #first_val;
-                let last_val = #last_val;
-
-                // Evaluate all segments
-                #(#seg_evals)*
-
-                // Segment bounds
-                #(#bound_stmts)*
-
-                // Build result from segments (branchless)
-                let poly_result = #result_expr;
-
-                // Apply boundary conditions
-                let mask_low = coord.simd_le(first_loc);
-                let mask_high = coord.simd_ge(last_loc);
-                let result = mask_high.select(last_val, poly_result);
-                mask_low.select(first_val, result)
-            }
-        }
-    }
-
-    /// Emit 4-wide SIMD spline value (constant or nested).
-    fn emit_cc_spline_value_4(&self, value: &SplineValue) -> TokenStream {
-        match value {
-            SplineValue::Constant(v) => {
-                let val = *v;
-                quote! { f64x4::splat(#val) }
-            }
-            SplineValue::Nested(nested) => self.emit_cc_spline_4(nested),
-        }
-    }
-
-    /// Emit 4-wide SIMD argument expression for ColumnContext4.
-    fn emit_cc_arg_4(&self, arg: &DensityFunctionArg) -> TokenStream {
-        match arg {
-            DensityFunctionArg::Constant(v) => {
-                let val = *v;
-                quote! { f64x4::splat(#val) }
-            }
-            DensityFunctionArg::Reference(name) => {
-                if let Some(node_id) = self.find_node_by_ref_name(name)
-                    && let Some(node) = self.graph.nodes.get(&node_id)
-                {
-                    if node.is_cache_2d {
-                        let field = self.column_context_field_ident(&node_id);
-                        return quote! { #field };
-                    }
-                    if node.is_flat_cache {
-                        if self.column_context_standalone_mode {
-                            // Standalone mode: inline the flat_cache computation (4-wide)
-                            return self.emit_flat_cache_init_for_standalone_4(node);
-                        } else {
-                            // Normal mode: use pre-computed local variable (4-wide lookup)
-                            return self.track_and_emit_cc_flat_lookup_4(&node_id);
-                        }
-                    }
-                    return self.emit_column_context_inner_4(node);
-                }
-                quote! { f64x4::splat(0.0_f64) }
-            }
-            DensityFunctionArg::Inline(def) => self.emit_cc_inline_def_4(def),
-        }
-    }
-
-    /// Emit 4-wide SIMD inline definition.
-    fn emit_cc_inline_def_4(&self, def: &DensityFunctionDef) -> TokenStream {
-        match def {
-            DensityFunctionDef::Constant { argument } => {
-                let v = *argument;
-                quote! { f64x4::splat(#v) }
-            }
-            DensityFunctionDef::YClampedGradient { from_value, .. } => {
-                let fv = *from_value;
-                quote! { f64x4::splat(#fv) }
-            }
-            DensityFunctionDef::FlatCache { argument } => self.emit_cc_arg_4(argument),
-            DensityFunctionDef::Cache2D { argument }
-            | DensityFunctionDef::CacheOnce { argument } => self.emit_cc_arg_4(argument),
-            _ => quote! { f64x4::splat(0.0_f64) },
-        }
-    }
-
-    /// Emit 4-wide standalone flat_cache computation.
-    /// Placeholder - needs actual implementation based on scalar version.
-    fn emit_flat_cache_init_for_standalone_4(&self, _node: &DensityNode) -> TokenStream {
-        // TODO: Implement 4-wide flat_cache computation
-        // For now, fall back to scalar-per-lane
-        quote! { f64x4::splat(0.0_f64) }
-    }
-
-    /// Emit 4-wide flat_cache lookup from pre-computed grid.
-    fn track_and_emit_cc_flat_lookup_4(&self, node_id: &NodeId) -> TokenStream {
-        let local_var = self.cc_flat_local_var(node_id);
-        // The 4-wide version will need to do 4 lookups and pack into f64x4
-        // For adjacent columns, we can optimize this
-        quote! { #local_var }
-    }
-
-    /// Emit 4-wide inner computation for ColumnContext.
-    /// Placeholder - needs actual implementation based on scalar version.
-    fn emit_column_context_inner_4(&self, _node: &DensityNode) -> TokenStream {
-        // TODO: Implement 4-wide inner computation
-        quote! { f64x4::splat(0.0_f64) }
     }
 
     fn emit_cc_arg(&self, arg: &DensityFunctionArg) -> TokenStream {

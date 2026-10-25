@@ -24,6 +24,7 @@ pub mod parity;
 pub mod pipeline;
 pub mod proto;
 pub mod region;
+pub mod spawn;
 mod structures;
 pub mod surface;
 mod terrain;

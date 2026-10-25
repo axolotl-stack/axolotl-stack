@@ -21,7 +21,7 @@ use crate::world::ChunkPos;
 use crate::world::chunk::MIN_Y;
 use crate::world::generator::biome_source::{sample_biome, zoom_seed, zoomed_biome};
 use crate::world::generator::density::NoiseRegistry;
-use crate::world::generator::proto::{BlockAccess, QUARTS_Y, QuartBiomes, WORLD_HEIGHT};
+use crate::world::generator::proto::{DenseBlocks, QUARTS_Y, QuartBiomes, WORLD_HEIGHT};
 
 const MAX_Y: i32 = MIN_Y + WORLD_HEIGHT - 1;
 
@@ -83,9 +83,9 @@ impl SurfaceSystem {
 
     /// Apply the surface pass to a proto chunk with its quart biomes. `grid` is the
     /// chunk's flat cache, which also covers the +16 corners of the chunk.
-    pub fn build_surface<B: BlockAccess>(
+    pub fn build_surface(
         &self,
-        chunk: &mut B,
+        chunk: &mut DenseBlocks,
         pos: ChunkPos,
         noises: &NoiseRegistry,
         grid: &FlatCacheGrid,
@@ -201,9 +201,9 @@ impl SurfaceSystem {
     /// Java's carver `topMaterial`: the surface rule's block for exposed dirt at
     /// `(x, y, z)` under a carved surface block, with stone depth 1 above and below.
     #[allow(clippy::too_many_arguments)]
-    pub fn top_material<B: BlockAccess>(
+    pub fn top_material(
         &self,
-        chunk: &B,
+        chunk: &DenseBlocks,
         pos: ChunkPos,
         noises: &NoiseRegistry,
         grid: &FlatCacheGrid,
@@ -257,9 +257,9 @@ impl SurfaceSystem {
 
     /// Stone pillars of eroded badlands, grown from y=64 up to a noise-driven height.
     #[allow(clippy::too_many_arguments)]
-    fn eroded_badlands_extension<B: BlockAccess>(
+    fn eroded_badlands_extension(
         &self,
-        chunk: &mut B,
+        chunk: &mut DenseBlocks,
         noises: &NoiseRegistry,
         local_x: u8,
         local_z: u8,
@@ -316,9 +316,9 @@ impl SurfaceSystem {
 
     /// Packed-ice icebergs with snow caps in frozen oceans.
     #[allow(clippy::too_many_arguments)]
-    fn frozen_ocean_extension<B: BlockAccess>(
+    fn frozen_ocean_extension(
         &self,
-        chunk: &mut B,
+        chunk: &mut DenseBlocks,
         noises: &NoiseRegistry,
         biome: JavaBiome,
         min_surface_level: i32,
@@ -394,7 +394,7 @@ fn column_index(x: u8, z: u8) -> usize {
 }
 
 /// Top non-air block of every column (`z * 16 + x`), the generation surface heightmap.
-fn column_heights<B: BlockAccess>(chunk: &B) -> [i16; 256] {
+fn column_heights(chunk: &DenseBlocks) -> [i16; 256] {
     let mut heights = [MIN_Y as i16; 256];
     for z in 0..16u8 {
         for x in 0..16u8 {
@@ -416,7 +416,7 @@ fn preliminary_corners(pos: ChunkPos, noises: &NoiseRegistry, grid: &FlatCacheGr
 }
 
 /// y of the highest non-air block (`MIN_Y - 1` if none).
-fn top_non_air<B: BlockAccess>(chunk: &B, x: u8, z: u8) -> i32 {
+fn top_non_air(chunk: &DenseBlocks, x: u8, z: u8) -> i32 {
     let mut y = MAX_Y;
     while y >= MIN_Y {
         if !is_air(chunk.get_block(x, y as i16, z)) {

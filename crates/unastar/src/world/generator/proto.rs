@@ -67,37 +67,6 @@ impl DenseBlocks {
     }
 }
 
-/// Read/write access to a chunk's blocks by local x/z and absolute y, shared by the
-/// paletted [`Chunk`] and the [`DenseBlocks`] working buffer.
-pub trait BlockAccess {
-    fn get_block(&self, x: u8, y: i16, z: u8) -> u32;
-    fn set_block(&mut self, x: u8, y: i16, z: u8, block: u32);
-}
-
-impl BlockAccess for DenseBlocks {
-    #[inline(always)]
-    fn get_block(&self, x: u8, y: i16, z: u8) -> u32 {
-        DenseBlocks::get_block(self, x, y, z)
-    }
-
-    #[inline(always)]
-    fn set_block(&mut self, x: u8, y: i16, z: u8, block: u32) {
-        DenseBlocks::set_block(self, x, y, z, block);
-    }
-}
-
-impl BlockAccess for Chunk {
-    #[inline]
-    fn get_block(&self, x: u8, y: i16, z: u8) -> u32 {
-        Chunk::get_block(self, x, y, z)
-    }
-
-    #[inline]
-    fn set_block(&mut self, x: u8, y: i16, z: u8, block: u32) {
-        Chunk::set_block(self, x, y, z, block);
-    }
-}
-
 /// Generator-native biome id.
 ///
 /// Its meaning belongs to the generator that wrote it: the Java-style generator stores

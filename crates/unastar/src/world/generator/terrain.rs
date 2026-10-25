@@ -12,8 +12,7 @@ use super::aquifer::{NoiseBasedAquifer, OverworldFluidPicker};
 use super::biome_source;
 use super::carver::{self, CarveContext};
 use super::density::{
-    CachingNoiseChunk, ColumnContext, ColumnContextGrid, FlatCacheGrid, FunctionContext,
-    NoiseRegistry, compute_final_density,
+    CachingNoiseChunk, ColumnContextGrid, FlatCacheGrid, FunctionContext, NoiseRegistry,
 };
 use super::ore_veinifier::OreVeinifier;
 use super::pipeline::{Generator, SpawnPoint};
@@ -114,49 +113,6 @@ impl JavaGenerator {
                 })
                 .map_or(overworld_settings::MIN_Y, |y| y + 1)
         })
-    }
-
-    /// Find a safe spawn location by sampling terrain.
-    ///
-    /// Searches outward from origin for a location above sea level.
-    pub fn find_safe_spawn(&self) -> (i32, i32, i32) {
-        // Cache grids per chunk to avoid recreating them
-        let mut grid_cache: std::collections::HashMap<(i32, i32), FlatCacheGrid> =
-            std::collections::HashMap::new();
-
-        for radius in 0i32..64 {
-            for dx in -radius..=radius {
-                for dz in -radius..=radius {
-                    if dx.abs() != radius && dz.abs() != radius {
-                        continue;
-                    }
-
-                    // Determine which chunk this position is in
-                    let chunk_x = dx.div_euclid(16);
-                    let chunk_z = dz.div_euclid(16);
-
-                    // Get or create FlatCacheGrid for this chunk
-                    let grid = grid_cache
-                        .entry((chunk_x, chunk_z))
-                        .or_insert_with(|| FlatCacheGrid::new(chunk_x, chunk_z, &self.noises));
-
-                    // Find surface by scanning down from max height
-                    let col = ColumnContext::new(dx, dz, &self.noises, grid);
-                    for y in (Self::SEA_LEVEL + 1..=128).rev() {
-                        let ctx = FunctionContext::new(dx, y, dz);
-                        let density = compute_final_density(&ctx, &self.noises, grid, &col);
-
-                        if density > 0.0 {
-                            // Found solid block, spawn above it
-                            return (dx, y + 2, dz);
-                        }
-                    }
-                }
-            }
-        }
-
-        // Default spawn above sea level
-        (0, Self::SEA_LEVEL + 2, 0)
     }
 
     /// The chunk's aquifer (shared by the noise fill and the carvers).
@@ -366,14 +322,14 @@ impl CarveContext for JavaCarveContext<'_, '_> {
 
     fn top_material(
         &mut self,
-        chunk: &Chunk,
+        blocks: &DenseBlocks,
         x: i32,
         y: i32,
         z: i32,
         has_fluid: bool,
     ) -> Option<u32> {
         self.generator.surface_system.top_material(
-            chunk,
+            blocks,
             self.pos,
             &self.generator.noises,
             self.grid,
@@ -397,10 +353,9 @@ impl Generator for JavaGenerator {
         let col_grid = ColumnContextGrid::new(pos.x, pos.z, &self.noises, &grid);
         let biomes = biome_source::fill_chunk(&self.noises, pos, &grid, &col_grid);
         let mut aquifer = self.aquifer(pos, &grid, &col_grid);
-        let mut blocks = self.generate_terrain(pos.x, pos.z, &grid, &col_grid, &mut aquifer);
+        let mut dense = self.generate_terrain(pos.x, pos.z, &grid, &col_grid, &mut aquifer);
         self.surface_system
-            .build_surface(&mut blocks, pos, &self.noises, &grid, &biomes);
-        let mut chunk = blocks.to_chunk(pos, *crate::world::chunk::blocks::AIR);
+            .build_surface(&mut dense, pos, &self.noises, &grid, &biomes);
         let mut carving = JavaCarveContext {
             generator: self,
             aquifer: &mut aquifer,
@@ -408,7 +363,8 @@ impl Generator for JavaGenerator {
             grid: &grid,
             biomes: &biomes,
         };
-        carver::carve_chunk(self.seed, &mut chunk, pos, &mut carving);
+        carver::carve_chunk(self.seed, &mut dense, pos, &mut carving);
+        let chunk = dense.to_chunk(pos, *blocks::AIR);
         ProtoChunk { pos, chunk, biomes }
     }
 
@@ -429,9 +385,9 @@ impl Generator for JavaGenerator {
             .bedrock_id
     }
 
-    fn find_spawn(&self) -> SpawnPoint {
-        let (x, y, z) = self.find_safe_spawn();
-        SpawnPoint { x, y, z }
+    fn find_spawn(&self, chunk_at: &dyn Fn(ChunkPos) -> Chunk) -> SpawnPoint {
+        let start = biome_source::spawn_search_start(&self.noises);
+        super::spawn::java_spawn(start, chunk_at, self.block_classes())
     }
 }
 
@@ -495,7 +451,6 @@ mod shared_noise_tests {
                 &grid,
                 &biomes,
             );
-            let mut chunk = dense.to_chunk(pos, *blocks::AIR);
             let mut carving = JavaCarveContext {
                 generator: &generator,
                 aquifer: &mut aquifer,
@@ -503,7 +458,7 @@ mod shared_noise_tests {
                 grid: &grid,
                 biomes: &biomes,
             };
-            carver::carve_chunk(generator.seed, &mut chunk, pos, &mut carving);
+            carver::carve_chunk(generator.seed, &mut dense, pos, &mut carving);
             let full = generator.generate_proto(pos);
             assert_eq!(full.biomes, biomes);
             for y in
@@ -512,7 +467,7 @@ mod shared_noise_tests {
                 for z in 0..16 {
                     for x in 0..16 {
                         assert_eq!(
-                            chunk.get_block(x, y as i16, z),
+                            dense.get_block(x, y as i16, z),
                             full.chunk.get_block(x, y as i16, z),
                             "stage split changed ({x},{y},{z}) in {pos:?}"
                         );
