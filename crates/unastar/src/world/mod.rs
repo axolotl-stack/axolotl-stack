@@ -6,7 +6,7 @@ pub mod generator;
 
 pub use chunk::{Chunk, HeightMapType, SUBCHUNK_COUNT, request_mode};
 pub use ecs::{ChunkData, ChunkManager, ChunkPosition, ChunkState};
-pub use generator::VanillaGenerator;
+pub use generator::JavaGenerator;
 
 use serde::{Deserialize, Serialize};
 
@@ -71,8 +71,32 @@ pub enum WorldGenerator {
     SuperFlat,
     /// A 3x3 (or larger) stone platform in an otherwise-void world.
     VoidSpawnPlatform { platform_radius_chunks: u32 },
-    /// Vanilla-style terrain generation with biomes.
-    Vanilla { seed: i64 },
+    /// Java-style terrain (Java Edition 1.21.11 parity target).
+    Java { seed: i64 },
+}
+
+impl WorldGenerator {
+    /// Instantiate the generator this config selects.
+    pub fn build(&self) -> std::sync::Arc<dyn generator::Generator> {
+        match *self {
+            Self::SuperFlat => std::sync::Arc::new(generator::FlatGenerator),
+            Self::VoidSpawnPlatform {
+                platform_radius_chunks,
+            } => std::sync::Arc::new(generator::VoidGenerator {
+                platform_radius_chunks,
+            }),
+            Self::Java { seed } => std::sync::Arc::new(generator::JavaGenerator::new(seed)),
+        }
+    }
+
+    /// Whether generation is expensive enough to run on the generation pool instead of
+    /// inline on the ECS thread.
+    pub fn uses_generation_pool(&self) -> bool {
+        match self {
+            Self::SuperFlat | Self::VoidSpawnPlatform { .. } => false,
+            Self::Java { .. } => true,
+        }
+    }
 }
 
 /// Storage provider for world persistence.
@@ -97,6 +121,9 @@ pub struct WorldConfig {
     pub storage_provider: StorageProvider,
     /// BlazeDB cache capacity in chunks (default: 4096).
     pub blazedb_cache_chunks: usize,
+    /// Chunk generation worker threads; 0 picks half the available cores (at least 1,
+    /// at most 8).
+    pub generation_threads: usize,
 }
 
 impl Default for WorldConfig {
@@ -109,6 +136,7 @@ impl Default for WorldConfig {
             },
             storage_provider: StorageProvider::LevelDb,
             blazedb_cache_chunks: 4096,
+            generation_threads: 0,
         }
     }
 }

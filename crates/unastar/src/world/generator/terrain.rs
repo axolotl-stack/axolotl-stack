@@ -1,78 +1,74 @@
-//! 3D terrain generation using density functions, aquifers, and surface rules.
+//! Java-style generator: 3D terrain from the AOT-compiled noise router, aquifers, ore
+//! veins, 3D biomes, surface rules and carvers.
 //!
 //! This module implements Java Edition-style terrain generation with:
 //! - Density functions for 3D terrain shaping (overhangs, caves, etc.)
 //! - Cell-based interpolation for performance
 //! - Aquifer system for underground water/lava pockets
 //! - Surface rules for biome-based block placement
+//! - Cave and canyon carvers
 
-use super::aquifer::NoiseBasedAquifer;
-use super::constants::Biome;
+use super::aquifer::{NoiseBasedAquifer, OverworldFluidPicker};
+use super::biome_source;
+use super::carver::{self, CarveContext};
 use super::density::{
     CachingNoiseChunk, ColumnContext, ColumnContextGrid, FlatCacheGrid, FunctionContext,
     NoiseRegistry, compute_final_density,
 };
 use super::ore_veinifier::OreVeinifier;
+use super::pipeline::{Generator, SpawnPoint};
+use super::proto::{DenseBlocks, NativeBiome, ProtoChunk, QuartBiomes};
+use super::region::DecorationRegion;
 use super::surface::SurfaceSystem;
-use super::xoroshiro::{JavaRandom, PositionalRandomFactory};
-use crate::world::chunk::{Chunk, blocks};
-use crate::world::generator::BiomeNoise;
+use super::xoroshiro::PositionalRandomFactory;
+use crate::world::ChunkPos;
+use crate::world::chunk::blocks;
 use std::simd::prelude::*;
-use unastar_noise::build_vanilla_surface_rule;
+use unastar_noise::java_biomes::JavaBiome;
+use unastar_noise::overworld_settings;
 
-/// Vanilla terrain generator using 3D density functions.
+/// Java-style terrain generator using 3D density functions.
 ///
 /// This generator produces terrain matching Java Edition's modern world generation:
 /// - 3D density-based terrain with overhangs and natural caves
 /// - Aquifer system for underground water and lava pockets
 /// - Surface rules for biome-specific block placement
-pub struct VanillaGenerator {
+pub struct JavaGenerator {
     /// World seed
     pub seed: i64,
-    /// Biome/Climate noise system (MultiNoise)
-    biome_noise: BiomeNoise,
     /// Noise registry with instantiated noises from seed
     noises: NoiseRegistry,
     /// Surface rules system for biome-based surface blocks
     surface_system: SurfaceSystem,
-    /// Positional random factory for ore vein generation.
-    /// Created via `PositionalRandomFactory::fork_ore_random()`.
+    /// Ore vein positional random (`fromHashOf("minecraft:ore").forkPositional()`).
     ore_random: PositionalRandomFactory,
+    /// Structure starts and noise-only column heights (Java-style structures).
+    structures: super::structures::JavaStructures,
 }
 
-impl VanillaGenerator {
+impl JavaGenerator {
     /// Sea level
-    pub const SEA_LEVEL: i32 = 63;
+    pub const SEA_LEVEL: i32 = overworld_settings::SEA_LEVEL;
 
-    /// Create a new vanilla generator with the given seed.
+    /// Create a new Java-style generator with the given seed.
     pub fn new(seed: i64) -> Self {
-        let biome_noise = BiomeNoise::from_seed(seed);
-
         // Create noise registry with all noises instantiated from seed
         let noises = NoiseRegistry::new(seed);
 
-        // Build surface rules system using generated vanilla rules from JSON
-        let surface_rule = build_vanilla_surface_rule(seed);
-        let surface_system = SurfaceSystem::new(seed, surface_rule, biome_noise.clone());
+        // Compiled surface rule pass (seed-derived randoms and clay bands).
+        let surface_system = SurfaceSystem::new(seed);
 
-        // Create positional random factory for ore vein generation
-        // Java: this.oreRandom = this.random.fromHashOf("minecraft:ore").forkPositional()
-        let base_random = PositionalRandomFactory::new(seed);
-        let ore_random = base_random.fork_ore_random();
+        // `fromHashOf("minecraft:ore").forkPositional()` of the world's base factory.
+        let ore_random =
+            PositionalRandomFactory::new(seed).fork_from_hash(unastar_noise::random_hashes::ORE);
 
         Self {
             seed,
-            biome_noise,
             noises,
             surface_system,
             ore_random,
+            structures: super::structures::JavaStructures::new(),
         }
-    }
-
-    /// Get biome at position based on climate parameters.
-    fn get_biome(&self, x: i32, z: i32) -> Biome {
-        // Use Y=64 (sea level) for standard biome check
-        self.biome_noise.get_biome(x, 64, z)
     }
 
     /// Find a safe spawn location by sampling terrain.
@@ -118,86 +114,52 @@ impl VanillaGenerator {
         (0, Self::SEA_LEVEL + 2, 0)
     }
 
-    /// Map our biome enum to Bedrock biome IDs for grass/foliage color.
-    fn to_bedrock_biome_id(biome: Biome) -> u32 {
-        match biome {
-            Biome::Ocean => 0,
-            Biome::Plains => 1,
-            Biome::Desert => 2,
-            Biome::WindsweptHills => 3, // windswept_hills
-            Biome::Forest => 4,
-            Biome::Taiga => 5,
-            Biome::Swamp => 6,
-            Biome::River => 7,
-            Biome::Beach => 16,
-            Biome::BirchForest => 27,
-            Biome::DarkForest => 29,
-            Biome::SnowyTaiga => 30,
-            Biome::Savanna => 35,
-            Biome::Jungle => 21,
-            Biome::Meadow => 177,
-            Biome::FlowerForest => 132,
-            Biome::SnowyMountains => 13,
-            _ => 1, // Default to Plains for others
-        }
+    /// The chunk's aquifer (shared by the noise fill and the carvers).
+    pub fn aquifer<'a>(
+        &'a self,
+        pos: ChunkPos,
+        grid: &'a FlatCacheGrid,
+        col_grid: &'a ColumnContextGrid,
+    ) -> NoiseBasedAquifer<'a, OverworldFluidPicker> {
+        NoiseBasedAquifer::new(
+            pos.x,
+            pos.z,
+            overworld_settings::MIN_Y,
+            overworld_settings::HEIGHT,
+            &self.noises,
+            grid,
+            col_grid,
+            self.seed,
+            OverworldFluidPicker::new(Self::SEA_LEVEL),
+        )
     }
 
-    /// Generate a chunk using 3D density functions with cell-based caching.
+    /// Terrain blocks of a chunk using 3D density functions with cell-based caching.
     ///
-    /// This is the Java Edition-style terrain generation using density functions
-    /// and cell-based interpolation. It produces 3D features like overhangs and caves.
-    ///
-    /// The generation process:
-    /// 1. Create FlatCacheGrid for Y-independent values (AOT compiled)
-    /// 2. Create NoiseBasedAquifer for underground fluid handling
-    /// 3. Create a CachingNoiseChunk for cell-based caching and interpolation
-    /// 4. Initialize interpolators with first X slice using AOT compiled functions
-    /// 5. Traverse cells (4x8x4 blocks) in X-outer, Z-middle, Y-inner order
-    /// 6. Use trilinear interpolation for density (compute at 8 corners, interpolate interior)
-    /// 7. Use aquifer system to determine fluid placement when density <= 0
-    /// 8. Apply surface rules for biome-specific blocks
-    pub fn generate_chunk(&self, chunk_x: i32, chunk_z: i32) -> Chunk {
-        use super::aquifer::{NoiseBasedAquifer, OverworldFluidPicker};
+    /// `grid` and `col_grid` are the chunk's flat (quart) and column caches, shared with
+    /// the biome source. The generation process:
+    /// 1. Create a CachingNoiseChunk for cell-based caching and interpolation
+    /// 2. Initialize interpolators with first X slice using AOT compiled functions
+    /// 3. Traverse cells (4x8x4 blocks) in X-outer, Z-middle, Y-inner order
+    /// 4. Use trilinear interpolation for density (compute at 8 corners, interpolate interior)
+    /// 5. Use the aquifer to place air, water or lava where density <= 0
+    pub fn generate_terrain(
+        &self,
+        chunk_x: i32,
+        chunk_z: i32,
+        grid: &FlatCacheGrid,
+        col_grid: &ColumnContextGrid,
+        aquifer: &mut NoiseBasedAquifer<'_, OverworldFluidPicker>,
+    ) -> DenseBlocks {
+        // Air until filled; the paletted chunk is packed once all stages ran.
+        let mut chunk = DenseBlocks::filled(*blocks::AIR);
 
-        let mut chunk = Chunk::new(chunk_x, chunk_z);
-
-        // Cell configuration matching Java Edition
-        let cell_width = 4; // blocks per cell in XZ
-        let cell_height = 8; // blocks per cell in Y
-        let min_y = -64;
-        let height = 384;
-
-        // Create FlatCacheGrid for AOT compiled Y-independent values
-        // This pre-computes all FlatCache nodes (continents, erosion, temperature, etc.)
-        // at the 5x5 quart grid positions for this chunk
-        let grid = FlatCacheGrid::new(chunk_x, chunk_z, &self.noises);
-
-        // Pre-compute all 256 ColumnContext values for the chunk.
-        // This implements Java's Cache2D memoization pattern at chunk scale:
-        // instead of computing ColumnContext per-cell (which caused ~281 calls with
-        // expensive spline evaluations), we compute all 256 positions ONCE upfront.
-        // This reduces spline evaluations from ~140,000 to 256 per chunk.
-        let col_grid = ColumnContextGrid::new(chunk_x, chunk_z, &self.noises, &grid);
-
-        // Create aquifer system for proper underground fluid handling
-        // The aquifer determines when to place water/lava vs air in caves
-        // OPTIMIZATION: Pass col_grid so aquifer can reuse pre-computed ColumnContexts
-        // OPTIMIZATION: Use generic FluidPicker instead of Box to avoid heap allocation
-        let fluid_picker = OverworldFluidPicker::new(Self::SEA_LEVEL);
-        let mut aquifer = NoiseBasedAquifer::new(
-            chunk_x,
-            chunk_z,
-            min_y,
-            height,
-            &self.noises,
-            &grid,
-            &col_grid,
-            self.seed,
-            fluid_picker,
-        );
+        let cell_width = overworld_settings::CELL_WIDTH;
+        let cell_height = overworld_settings::CELL_HEIGHT;
+        let min_y = overworld_settings::MIN_Y;
+        let height = overworld_settings::HEIGHT;
 
         // Create OreVeinifier for large ore vein generation (copper/iron with granite/tuff filler)
-        // Uses simplified vein_toggle, vein_ridged, vein_gap density functions (no FlatCache/ColumnContext needed)
         let ore_veinifier = OreVeinifier::new(&self.noises, self.ore_random.clone());
 
         // Create CachingNoiseChunk for interpolation-based generation
@@ -210,13 +172,13 @@ impl VanillaGenerator {
 
         // Initialize interpolator with first X slice using AOT compiled functions
         // Uses pre-computed col_grid for O(1) column context lookups
-        noise_chunk.initialize_for_first_cell_x_aot(&grid, &col_grid, &self.noises);
+        noise_chunk.initialize_for_first_cell_x_aot(grid, col_grid, &self.noises);
 
         // X-outer loop over cells
         for cell_x in 0..cell_count_xz {
             // Advance to next X cell using AOT compiled functions
             // Uses pre-computed col_grid for O(1) column context lookups
-            noise_chunk.advance_cell_x_aot(cell_x as i32, &grid, &col_grid, &self.noises);
+            noise_chunk.advance_cell_x_aot(cell_x as i32, grid, col_grid, &self.noises);
 
             // Z-middle loop
             for cell_z in 0..cell_count_xz {
@@ -306,21 +268,26 @@ impl VanillaGenerator {
                                             );
                                         }
                                     } else {
-                                        // Use aquifer to determine what to place (water/lava/air)
-                                        // This matches Java's behavior - aquifer handles all non-solid blocks
-                                        // including ocean water via globalFluidPicker
+                                        // The aquifer decides air, water or lava; `None` is a
+                                        // barrier between aquifers, which falls through to the
+                                        // ore veins and then the default block, like solid
+                                        // density does.
                                         let ctx = FunctionContext::new(block_x, block_y, block_z);
-                                        if let Some(block_id) =
-                                            aquifer.compute_substance(&ctx, density)
-                                        {
+                                        let block = match aquifer.compute_substance(&ctx, density) {
+                                            Some(block) => block,
+                                            None if in_vein_range => ore_veinifier
+                                                .compute(&ctx)
+                                                .unwrap_or(*blocks::STONE),
+                                            None => *blocks::STONE,
+                                        };
+                                        if block != *blocks::AIR {
                                             chunk.set_block(
                                                 local_x,
                                                 block_y as i16,
                                                 local_z,
-                                                block_id,
+                                                block,
                                             );
                                         }
-                                        // None from aquifer means air - default, no need to set
                                     }
                                 }
                             }
@@ -333,530 +300,107 @@ impl VanillaGenerator {
             noise_chunk.swap_slices();
         }
 
-        // Apply surface rules
-        self.surface_system
-            .build_surface(&mut chunk, chunk_x, chunk_z);
-
-        // Sample center biome
-        let center_biome = self.get_biome(chunk_x * 16 + 8, chunk_z * 16 + 8);
-        chunk.set_biome(Self::to_bedrock_biome_id(center_biome));
-
         chunk
     }
+}
 
-    /// Carve caves into the chunk using vanilla worm algorithm.
-    #[allow(dead_code)]
-    fn carve_caves<F: super::aquifer::FluidPicker>(
-        &self,
-        chunk: &mut Chunk,
-        chunk_x: i32,
-        chunk_z: i32,
-        aquifer: &mut NoiseBasedAquifer<F>,
-    ) {
-        use std::f64::consts::PI;
+/// Carving state of one proto chunk: its aquifer and what the surface rule needs for
+/// exposed dirt.
+struct JavaCarveContext<'a, 'g> {
+    generator: &'a JavaGenerator,
+    aquifer: &'a mut NoiseBasedAquifer<'g, OverworldFluidPicker>,
+    pos: ChunkPos,
+    grid: &'a FlatCacheGrid,
+    biomes: &'a QuartBiomes,
+}
 
-        // Check nearby chunks for cave starts that might reach into this chunk
-        let range = 8; // Cave range in chunks
-        for cx in (chunk_x - range)..=(chunk_x + range) {
-            for cz in (chunk_z - range)..=(chunk_z + range) {
-                // Seed RNG for this chunk
-                let chunk_seed = self
-                    .seed
-                    .wrapping_add((cx as i64).wrapping_mul(341873128712))
-                    .wrapping_add((cz as i64).wrapping_mul(132897987541));
-                let mut rng = JavaRandom::from_seed(chunk_seed);
-
-                // Number of cave starts = rand(rand(rand(15)+1)+1)
-                // But only 1 in 7 chunks have caves
-                let r1 = rng.next_int(15) + 1;
-                let r2 = rng.next_int(r1 as u32) + 1;
-                let mut cave_count = rng.next_int(r2 as u32);
-                if rng.next_int(7) != 0 {
-                    cave_count = 0;
-                }
-
-                for _ in 0..cave_count {
-                    // Start position
-                    let start_x = (cx * 16 + rng.next_int(16)) as f64;
-                    let y_bound = rng.next_int(120) + 8;
-                    let start_y = rng.next_int(y_bound.max(1) as u32) as f64;
-                    let start_z = (cz * 16 + rng.next_int(16)) as f64;
-
-                    // Number of branches
-                    let mut branches = 1;
-                    if rng.next_int(4) == 0 {
-                        // Large room
-                        self.carve_cave_room(
-                            chunk, chunk_x, chunk_z, &mut rng, start_x, start_y, start_z, aquifer,
-                        );
-                        branches += rng.next_int(4);
-                    }
-
-                    for _ in 0..branches {
-                        let yaw = rng.next_float() * PI as f32 * 2.0;
-                        let pitch = (rng.next_float() - 0.5) * 2.0 / 8.0;
-                        let mut width = rng.next_float() * 2.0 + rng.next_float();
-
-                        if rng.next_int(10) == 0 {
-                            width *= rng.next_float() * rng.next_float() * 3.0 + 1.0;
-                        }
-
-                        self.carve_cave_tunnel(
-                            chunk,
-                            chunk_x,
-                            chunk_z,
-                            rng.next_long(),
-                            start_x,
-                            start_y,
-                            start_z,
-                            width,
-                            yaw,
-                            pitch,
-                            0,
-                            0,
-                            1.0,
-                            aquifer,
-                        );
-                    }
-                }
-            }
-        }
+impl CarveContext for JavaCarveContext<'_, '_> {
+    fn carve_substance(&mut self, x: i32, y: i32, z: i32) -> Option<u32> {
+        self.aquifer.carve_substance(x, y, z)
     }
 
-    /// Carve a large cave room.
-    #[allow(dead_code, clippy::too_many_arguments)]
-    fn carve_cave_room<F: super::aquifer::FluidPicker>(
-        &self,
-        chunk: &mut Chunk,
-        chunk_x: i32,
-        chunk_z: i32,
-        rng: &mut JavaRandom,
-        x: f64,
-        y: f64,
-        z: f64,
-        aquifer: &mut NoiseBasedAquifer<F>,
-    ) {
-        let width = 1.0 + rng.next_float() * 6.0;
-        self.carve_cave_tunnel(
-            chunk,
-            chunk_x,
-            chunk_z,
-            rng.next_long(),
+    fn top_material(
+        &mut self,
+        blocks: &DenseBlocks,
+        x: i32,
+        y: i32,
+        z: i32,
+        has_fluid: bool,
+    ) -> Option<u32> {
+        self.generator.surface_system.top_material(
+            blocks,
+            self.pos,
+            &self.generator.noises,
+            self.grid,
+            self.biomes,
             x,
             y,
             z,
-            width,
-            0.0,
-            0.0,
-            -1,
-            -1,
-            0.5,
-            aquifer,
-        );
+            has_fluid,
+        )
+    }
+}
+
+impl JavaGenerator {
+    /// Structure starts that originate in chunk (`x`, `z`) (Java's
+    /// `structure_starts` status), for tools and parity tests.
+    pub fn structure_starts(
+        &self,
+        x: i32,
+        z: i32,
+    ) -> unastar_noise::structures::manager::ChunkStarts {
+        let ctx = self.structures.context(self.seed, &self.noises);
+        self.structures.manager.starts_in_chunk(&ctx, x, z)
+    }
+}
+
+impl Generator for JavaGenerator {
+    fn seed(&self) -> i64 {
+        self.seed
     }
 
-    /// Carve a cave tunnel (worm algorithm from vanilla).
-    #[allow(dead_code, clippy::too_many_arguments)]
-    fn carve_cave_tunnel<F: super::aquifer::FluidPicker>(
-        &self,
-        chunk: &mut Chunk,
-        chunk_x: i32,
-        chunk_z: i32,
-        seed: i64,
-        mut x: f64,
-        mut y: f64,
-        mut z: f64,
-        width: f32,
-        mut yaw: f32,
-        mut pitch: f32,
-        start_idx: i32,
-        end_idx: i32,
-        height_ratio: f64,
-        aquifer: &mut NoiseBasedAquifer<F>,
-    ) {
-        use std::f64::consts::PI;
-
-        let center_x = (chunk_x * 16 + 8) as f64;
-        let center_z = (chunk_z * 16 + 8) as f64;
-
-        let mut yaw_change = 0.0f32;
-        let mut pitch_change = 0.0f32;
-
-        let mut rng = JavaRandom::from_seed(seed);
-
-        let range: i32 = 8 * 16 - 16;
-        let mut end_idx = end_idx;
-        if end_idx <= 0 {
-            end_idx = range - rng.next_int((range / 4) as u32);
-        }
-
-        let mut start_idx = start_idx;
-        let is_room = start_idx == -1;
-        if is_room {
-            start_idx = end_idx / 2;
-        }
-
-        let branch_point = rng.next_int((end_idx / 2).max(1) as u32) + end_idx / 4;
-        let steep_tunnel = rng.next_int(6) == 0;
-
-        for i in start_idx..end_idx {
-            // Cave size varies with sin function
-            let radius = 1.5 + (((i as f64) * PI / (end_idx as f64)).sin() * width as f64);
-            let v_radius = radius * height_ratio;
-
-            // Move in direction
-            let cos_pitch = pitch.cos();
-            let sin_pitch = pitch.sin();
-            x += (yaw.cos() * cos_pitch) as f64;
-            y += sin_pitch as f64;
-            z += (yaw.sin() * cos_pitch) as f64;
-
-            // Pitch changes
-            if steep_tunnel {
-                pitch *= 0.92;
-            } else {
-                pitch *= 0.7;
-            }
-
-            pitch += pitch_change * 0.1;
-            yaw += yaw_change * 0.1;
-
-            pitch_change *= 0.9;
-            yaw_change *= 0.75;
-
-            pitch_change += (rng.next_float() - rng.next_float()) * rng.next_float() * 2.0;
-            yaw_change += (rng.next_float() - rng.next_float()) * rng.next_float() * 4.0;
-
-            // Branch at midpoint
-            if !is_room && i == branch_point && width > 1.0 && end_idx > 0 {
-                self.carve_cave_tunnel(
-                    chunk,
-                    chunk_x,
-                    chunk_z,
-                    rng.next_long(),
-                    x,
-                    y,
-                    z,
-                    rng.next_float() * 0.5 + 0.5,
-                    yaw - PI as f32 / 2.0,
-                    pitch / 3.0,
-                    i,
-                    end_idx,
-                    1.0,
-                    aquifer,
-                );
-                self.carve_cave_tunnel(
-                    chunk,
-                    chunk_x,
-                    chunk_z,
-                    rng.next_long(),
-                    x,
-                    y,
-                    z,
-                    rng.next_float() * 0.5 + 0.5,
-                    yaw + PI as f32 / 2.0,
-                    pitch / 3.0,
-                    i,
-                    end_idx,
-                    1.0,
-                    aquifer,
-                );
-                return;
-            }
-
-            // Skip some positions randomly
-            if is_room || rng.next_int(4) != 0 {
-                // Check if in range of target chunk
-                let dx = x - center_x;
-                let dz = z - center_z;
-                let remaining = (end_idx - i) as f64;
-                let check_rad = (width + 2.0 + 16.0) as f64;
-
-                if dx * dx + dz * dz - remaining * remaining > check_rad * check_rad {
-                    return;
-                }
-
-                // Check if we should carve in this chunk
-                if x >= center_x - 16.0 - radius * 2.0
-                    && z >= center_z - 16.0 - radius * 2.0
-                    && x <= center_x + 16.0 + radius * 2.0
-                    && z <= center_z + 16.0 + radius * 2.0
-                {
-                    // Carve blocks in ellipsoid
-                    // IMPORTANT: Clamp to chunk bounds [0, 16) to prevent accessing neighboring chunks
-                    let min_x = ((x - radius).floor() as i32 - chunk_x * 16).clamp(0, 16);
-                    let max_x = ((x + radius).floor() as i32 - chunk_x * 16 + 1).clamp(0, 16);
-                    let min_y = ((y - v_radius).floor() as i32).clamp(1, 248);
-                    let max_y = ((y + v_radius).floor() as i32 + 1).clamp(1, 248);
-                    let min_z = ((z - radius).floor() as i32 - chunk_z * 16).clamp(0, 16);
-                    let max_z = ((z + radius).floor() as i32 - chunk_z * 16 + 1).clamp(0, 16);
-
-                    for lx in min_x..max_x {
-                        // Safety check: ensure lx is within chunk bounds
-                        if !(0..16).contains(&lx) {
-                            continue;
-                        }
-                        let dx = ((lx + chunk_x * 16) as f64 + 0.5 - x) / radius;
-
-                        for lz in min_z..max_z {
-                            // Safety check: ensure lz is within chunk bounds
-                            if !(0..16).contains(&lz) {
-                                continue;
-                            }
-                            let dz = ((lz + chunk_z * 16) as f64 + 0.5 - z) / radius;
-
-                            if dx * dx + dz * dz < 1.0 {
-                                for ly in (min_y..max_y).rev() {
-                                    let dy = ((ly - 1) as f64 + 0.5 - y) / v_radius;
-
-                                    if dy > -0.7 && dx * dx + dy * dy + dz * dz < 1.0 {
-                                        let current =
-                                            chunk.get_block(lx as u8, ly as i16, lz as u8);
-                                        // Only carve stone, dirt, grass - not water or bedrock
-                                        if current != *blocks::WATER && current != *blocks::BEDROCK
-                                        {
-                                            // Java carvers use aquifer.computeSubstance(pos, 0.0)
-                                            // density=0.0 forces aquifer to decide fluid vs air
-                                            // Java: lava_level is "above_bottom: 8" = -64 + 8 = -56
-                                            const CARVER_LAVA_LEVEL: i32 = -56;
-
-                                            let world_x = lx + chunk_x * 16;
-                                            let world_z = lz + chunk_z * 16;
-                                            let ctx = FunctionContext::new(world_x, ly, world_z);
-
-                                            // Java carvers use aquifer.computeSubstance(pos, 0.0)
-                                            // density=0.0 forces aquifer to decide fluid vs air
-                                            let block = if ly <= CARVER_LAVA_LEVEL {
-                                                *blocks::LAVA
-                                            } else {
-                                                match aquifer.compute_substance(&ctx, 0.0) {
-                                                    Some(block_id) => block_id,
-                                                    None => continue, // Barrier - skip carving this block
-                                                }
-                                            };
-                                            chunk.set_block(lx as u8, ly as i16, lz as u8, block);
-                                        }
-                                    }
-                                }
-                            }
-                        }
-                    }
-
-                    if is_room {
-                        break;
-                    }
-                }
-            }
-        }
+    fn generate_proto(&self, pos: ChunkPos) -> ProtoChunk {
+        // Flat (quart) and column caches shared by terrain, biomes, surface and carvers.
+        let grid = FlatCacheGrid::new(pos.x, pos.z, &self.noises);
+        let col_grid = ColumnContextGrid::new(pos.x, pos.z, &self.noises, &grid);
+        let biomes = biome_source::fill_chunk(&self.noises, pos, &grid, &col_grid);
+        let mut aquifer = self.aquifer(pos, &grid, &col_grid);
+        let mut dense = self.generate_terrain(pos.x, pos.z, &grid, &col_grid, &mut aquifer);
+        self.surface_system
+            .build_surface(&mut dense, pos, &self.noises, &grid, &biomes);
+        let mut carving = JavaCarveContext {
+            generator: self,
+            aquifer: &mut aquifer,
+            pos,
+            grid: &grid,
+            biomes: &biomes,
+        };
+        carver::carve_chunk(self.seed, &mut dense, pos, &mut carving);
+        let chunk = dense.to_chunk(pos, *blocks::AIR);
+        ProtoChunk { pos, chunk, biomes }
     }
 
-    /// Carve ravines (vanilla-accurate from MapGenRavine.java)
-    /// Ravines are rarer but larger than caves, with a distinctive tall/narrow shape
-    #[allow(dead_code)]
-    fn carve_ravines<F: super::aquifer::FluidPicker>(
-        &self,
-        chunk: &mut Chunk,
-        chunk_x: i32,
-        chunk_z: i32,
-        aquifer: &mut NoiseBasedAquifer<F>,
-    ) {
-        use std::f64::consts::PI;
-
-        // Check nearby chunks for ravine starts
-        let range = 8;
-        for cx in (chunk_x - range)..=(chunk_x + range) {
-            for cz in (chunk_z - range)..=(chunk_z + range) {
-                // Seed RNG for this chunk
-                let chunk_seed = self
-                    .seed
-                    .wrapping_add((cx as i64).wrapping_mul(341873128712))
-                    .wrapping_add((cz as i64).wrapping_mul(132897987541))
-                    .wrapping_mul(0x12345678);
-                let mut rng = JavaRandom::from_seed(chunk_seed);
-
-                // Ravines are rare: 1 in 50 chunks
-                if rng.next_int(50) != 0 {
-                    continue;
-                }
-
-                // Start position - ravines start higher than caves (Y 20-60)
-                let start_x = (cx * 16 + rng.next_int(16)) as f64;
-                let y_bound = rng.next_int(40) + 8;
-                let y_range = rng.next_int(y_bound.max(1) as u32) + 20;
-                let start_y = y_range as f64;
-                let start_z = (cz * 16 + rng.next_int(16)) as f64;
-
-                let yaw = rng.next_float() * PI as f32 * 2.0;
-                let pitch = (rng.next_float() - 0.5) * 2.0 / 8.0;
-                // Ravines are wider than caves
-                let width = (rng.next_float() * 2.0 + rng.next_float()) * 2.0;
-
-                self.carve_ravine_tunnel(
-                    chunk,
-                    chunk_x,
-                    chunk_z,
-                    rng.next_long(),
-                    start_x,
-                    start_y,
-                    start_z,
-                    width,
-                    yaw,
-                    pitch,
-                    0,
-                    0,
-                    3.0, // Height ratio of 3 makes ravines tall/narrow
-                    aquifer,
-                );
-            }
-        }
+    fn decorates(&self) -> bool {
+        true
     }
 
-    /// Carve a ravine tunnel (similar to cave but taller and shallower)
-    #[allow(dead_code, clippy::too_many_arguments)]
-    fn carve_ravine_tunnel<F: super::aquifer::FluidPicker>(
-        &self,
-        chunk: &mut Chunk,
-        chunk_x: i32,
-        chunk_z: i32,
-        seed: i64,
-        mut x: f64,
-        mut y: f64,
-        mut z: f64,
-        width: f32,
-        mut yaw: f32,
-        mut pitch: f32,
-        start_idx: i32,
-        end_idx: i32,
-        height_ratio: f64,
-        aquifer: &mut NoiseBasedAquifer<F>,
-    ) {
-        use std::f64::consts::PI;
+    fn decorate(&self, region: &mut DecorationRegion<'_>) {
+        super::features::decorate(self.seed, &self.noises, &self.structures, region);
+    }
 
-        let center_x = (chunk_x * 16 + 8) as f64;
-        let center_z = (chunk_z * 16 + 8) as f64;
+    fn block_classes(&self) -> &'static [u8] {
+        &unastar_noise::java_blocks::BEDROCK_STATE_CLASSES
+    }
 
-        let mut yaw_change = 0.0f32;
-        let mut pitch_change = 0.0f32;
+    fn bedrock_biome(&self, biome: NativeBiome) -> u32 {
+        JavaBiome::from_index(biome)
+            .expect("Java-style protos store JavaBiome discriminants")
+            .data()
+            .bedrock_id
+    }
 
-        let mut rng = JavaRandom::from_seed(seed);
-
-        let range: i32 = 8 * 16 - 16;
-        let mut end_idx = end_idx;
-        if end_idx <= 0 {
-            end_idx = range - rng.next_int((range / 4) as u32);
-        }
-
-        let mut start_idx = start_idx;
-        let is_room = start_idx == -1;
-        if is_room {
-            start_idx = end_idx / 2;
-        }
-
-        for i in start_idx..end_idx {
-            // Ravine size - wider than caves
-            let radius = 1.5 + (((i as f64) * PI / (end_idx as f64)).sin() * width as f64);
-            // Random width variation per step
-            let width_mult = rng.next_float() * 0.25 + 0.75;
-            let h_radius = radius * width_mult as f64;
-            let v_radius = radius * height_ratio * width_mult as f64;
-
-            // Move in direction (ravines move more horizontally)
-            let cos_pitch = pitch.cos();
-            let sin_pitch = pitch.sin();
-            x += (yaw.cos() * cos_pitch) as f64;
-            y += (sin_pitch * 0.3) as f64; // Less vertical movement
-            z += (yaw.sin() * cos_pitch) as f64;
-
-            // Direction changes (ravines curve less than caves)
-            pitch *= 0.7;
-            pitch += pitch_change * 0.05;
-            yaw += yaw_change * 0.05;
-
-            pitch_change *= 0.8;
-            yaw_change *= 0.5;
-
-            pitch_change += (rng.next_float() - rng.next_float()) * rng.next_float() * 2.0;
-            yaw_change += (rng.next_float() - rng.next_float()) * rng.next_float() * 4.0;
-
-            if is_room || rng.next_int(4) != 0 {
-                let dx = x - center_x;
-                let dz = z - center_z;
-                let remaining = (end_idx - i) as f64;
-                let check_rad = (width + 2.0 + 16.0) as f64;
-
-                if dx * dx + dz * dz - remaining * remaining > check_rad * check_rad {
-                    return;
-                }
-
-                if x >= center_x - 16.0 - h_radius * 2.0
-                    && z >= center_z - 16.0 - h_radius * 2.0
-                    && x <= center_x + 16.0 + h_radius * 2.0
-                    && z <= center_z + 16.0 + h_radius * 2.0
-                {
-                    // IMPORTANT: Clamp to chunk bounds [0, 16) to prevent accessing neighboring chunks
-                    let min_x = ((x - h_radius).floor() as i32 - chunk_x * 16).clamp(0, 16);
-                    let max_x = ((x + h_radius).floor() as i32 - chunk_x * 16 + 1).clamp(0, 16);
-                    let min_y = ((y - v_radius).floor() as i32).clamp(1, 248);
-                    let max_y = ((y + v_radius).floor() as i32 + 1).clamp(1, 248);
-                    let min_z = ((z - h_radius).floor() as i32 - chunk_z * 16).clamp(0, 16);
-                    let max_z = ((z + h_radius).floor() as i32 - chunk_z * 16 + 1).clamp(0, 16);
-
-                    for lx in min_x..max_x {
-                        // Safety check: ensure lx is within chunk bounds
-                        if !(0..16).contains(&lx) {
-                            continue;
-                        }
-                        let dx = ((lx + chunk_x * 16) as f64 + 0.5 - x) / h_radius;
-
-                        for lz in min_z..max_z {
-                            // Safety check: ensure lz is within chunk bounds
-                            if !(0..16).contains(&lz) {
-                                continue;
-                            }
-                            let dz = ((lz + chunk_z * 16) as f64 + 0.5 - z) / h_radius;
-
-                            if dx * dx + dz * dz < 1.0 {
-                                for ly in (min_y..max_y).rev() {
-                                    let dy = ((ly - 1) as f64 + 0.5 - y) / v_radius;
-
-                                    // Ravine shape: wider at bottom (inverted from caves)
-                                    if dx * dx + dz * dz + (dy * dy) / 6.0 < 1.0 {
-                                        let current =
-                                            chunk.get_block(lx as u8, ly as i16, lz as u8);
-                                        if current != *blocks::WATER && current != *blocks::BEDROCK
-                                        {
-                                            // Java carvers use aquifer.computeSubstance(pos, 0.0)
-                                            // density=0.0 forces aquifer to decide fluid vs air
-                                            // Java: lava_level is "above_bottom: 8" = -64 + 8 = -56
-                                            const CARVER_LAVA_LEVEL: i32 = -56;
-
-                                            let world_x = lx + chunk_x * 16;
-                                            let world_z = lz + chunk_z * 16;
-                                            let ctx = FunctionContext::new(world_x, ly, world_z);
-
-                                            // Java carvers use aquifer.computeSubstance(pos, 0.0)
-                                            // density=0.0 forces aquifer to decide fluid vs air
-                                            let block = if ly <= CARVER_LAVA_LEVEL {
-                                                *blocks::LAVA
-                                            } else {
-                                                match aquifer.compute_substance(&ctx, 0.0) {
-                                                    Some(block_id) => block_id,
-                                                    None => continue, // Barrier - skip carving this block
-                                                }
-                                            };
-                                            chunk.set_block(lx as u8, ly as i16, lz as u8, block);
-                                        }
-                                    }
-                                }
-                            }
-                        }
-                    }
-
-                    if is_room {
-                        break;
-                    }
-                }
-            }
-        }
+    fn find_spawn(&self) -> SpawnPoint {
+        let (x, y, z) = self.find_safe_spawn();
+        SpawnPoint { x, y, z }
     }
 }

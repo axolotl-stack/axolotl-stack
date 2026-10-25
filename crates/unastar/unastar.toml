@@ -11,7 +11,9 @@
 
 [server]
 # Address to bind the Bedrock listener to.
-bind_address = "0.0.0.0:19132"
+# Loopback by default so local runs never open a public port (and never trigger a
+# firewall prompt). Use "0.0.0.0:19132" to accept players from other machines.
+bind_address = "127.0.0.1:19132"
 
 # Shown in server list (if/when advertisement is implemented).
 motd = "Unastar Server"
@@ -45,6 +47,8 @@ dimension = 0
 storage_provider = "level_db"
 # BlazeDB cache capacity in chunks (used only with "blaze_db").
 blazedb_cache_chunks = 4096
+# Chunk generation worker threads (0 = half the cores, at most 8).
+generation_threads = 0
 
 [world.bounds]
 # Bounds are applied to *terrain generation* (non-air). Chunks outside bounds
@@ -59,7 +63,7 @@ mode = "infinite"
 # max_z = 64
 
 [world.generator]
-# kinds: "super_flat" | "void_spawn_platform" | "vanilla" (requires seed)
+# kinds: "super_flat" | "void_spawn_platform" | "java" (Java Edition-style terrain, requires seed)
 kind = "void_spawn_platform"
 # For void worlds, generate a stone platform at chunk coords [-r..r].
 platform_radius_chunks = 1

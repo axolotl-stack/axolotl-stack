@@ -8,6 +8,27 @@ use std::simd::Select;
 use std::simd::StdFloat;
 use std::simd::prelude::*;
 
+/// The two draws noise initialisation needs (`nextDouble`, `nextInt(bound)`).
+///
+/// Implemented by the Xoroshiro source used for terrain and by
+/// [`crate::features::random::WorldgenRandom`] (legacy-seeded noises such as
+/// the biome info noise and noise-based block state providers).
+pub trait NoiseRandom {
+    fn noise_next_double(&mut self) -> f64;
+    fn noise_next_int(&mut self, bound: u32) -> u32;
+}
+
+impl NoiseRandom for Xoroshiro128 {
+    #[inline]
+    fn noise_next_double(&mut self) -> f64 {
+        self.next_double()
+    }
+    #[inline]
+    fn noise_next_int(&mut self, bound: u32) -> u32 {
+        self.next_int(bound)
+    }
+}
+
 /// 3D Perlin noise generator - cubiomes-accurate implementation.
 #[derive(Debug, Clone)]
 pub struct PerlinNoise {
@@ -49,11 +70,12 @@ impl Default for PerlinNoise {
 }
 
 impl PerlinNoise {
-    /// Initialize Perlin noise from Xoroshiro RNG (cubiomes xPerlinInit).
-    pub fn new(rng: &mut Xoroshiro128) -> Self {
-        let a = rng.next_double() * 256.0;
-        let b = rng.next_double() * 256.0;
-        let c = rng.next_double() * 256.0;
+    /// Initialize Perlin noise (`ImprovedNoise(RandomSource)`): three offsets, then a
+    /// Fisher-Yates shuffle. Works with Xoroshiro and legacy `WorldgenRandom` sources.
+    pub fn new<R: NoiseRandom>(rng: &mut R) -> Self {
+        let a = rng.noise_next_double() * 256.0;
+        let b = rng.noise_next_double() * 256.0;
+        let c = rng.noise_next_double() * 256.0;
 
         // Initialize permutation table as i32 for SIMD gather operations
         let mut d = [0i32; 257];
@@ -65,7 +87,7 @@ impl PerlinNoise {
 
         // Fisher-Yates shuffle
         for i in 0..256 {
-            let j = rng.next_int(256 - i as u32) as usize + i;
+            let j = rng.noise_next_int(256 - i as u32) as usize + i;
             d.swap(i, j);
         }
         // Wrap around for easier indexing
@@ -632,22 +654,7 @@ fn lerp(t: f64, a: f64, b: f64) -> f64 {
 // Octave Noise
 // =============================================================================
 
-/// MD5 hash constants for octave initialization.
-const MD5_OCTAVE_N: [(u64, u64); 13] = [
-    (0xb198de63a8012672, 0x7b84cad43ef7b5a8), // octave_-12
-    (0x0fd787bfbc403ec3, 0x74a4a31ca21b48b8), // octave_-11
-    (0x36d326eed40efeb2, 0x5be9ce18223c636a), // octave_-10
-    (0x082fe255f8be6631, 0x4e96119e22dedc81), // octave_-9
-    (0x0ef68ec68504005e, 0x48b6bf93a2789640), // octave_-8
-    (0xf11268128982754f, 0x257a1d670430b0aa), // octave_-7
-    (0xe51c98ce7d1de664, 0x5f9478a733040c45), // octave_-6
-    (0x6d7b49e7e429850a, 0x2e3063c622a24777), // octave_-5
-    (0xbd90d5377ba1b762, 0xc07317d419a7548d), // octave_-4
-    (0x53d39c6752dac858, 0xbcd1c5a80ab65b3e), // octave_-3
-    (0xb4a24d7a84e7677b, 0x023ff9668e89b5c4), // octave_-2
-    (0xdffa22b534c5f608, 0xb9b67517d3665ca9), // octave_-1
-    (0xd50708086cef4d7c, 0x6e1651ecc7f43309), // octave_0
-];
+// Octave seeds come from the generated `random_hashes::octave` table.
 
 /// Multiple octaves of Perlin noise.
 #[derive(Debug, Clone, Default)]
@@ -690,15 +697,12 @@ impl OctaveNoise {
 
         for (i, &amp) in amplitudes.iter().enumerate() {
             if amp != 0.0 {
-                let octave_idx = (12 + omin + i as i32) as usize;
-                if octave_idx < MD5_OCTAVE_N.len() {
-                    let md5 = MD5_OCTAVE_N[octave_idx];
-                    let mut pxr = Xoroshiro128::from_state(x_lo ^ md5.0, x_hi ^ md5.1);
-                    let mut noise = PerlinNoise::new(&mut pxr);
-                    noise.amplitude = amp * persist;
-                    noise.lacunarity = lacuna;
-                    octaves.push(noise);
-                }
+                let md5 = crate::random_hashes::octave(omin + i as i32);
+                let mut pxr = Xoroshiro128::from_state(x_lo ^ md5.0, x_hi ^ md5.1);
+                let mut noise = PerlinNoise::new(&mut pxr);
+                noise.amplitude = amp * persist;
+                noise.lacunarity = lacuna;
+                octaves.push(noise);
             }
             lacuna *= 2.0;
             persist *= 0.5;
@@ -1231,11 +1235,11 @@ impl SimplexNoise {
     /// G3 constant: 1/6
     const G3: f64 = 0.16666666666666666;
 
-    /// Create a new SimplexNoise from a Xoroshiro RNG.
-    pub fn new(rng: &mut Xoroshiro128) -> Self {
-        let xo = rng.next_double() * 256.0;
-        let yo = rng.next_double() * 256.0;
-        let zo = rng.next_double() * 256.0;
+    /// Create a new SimplexNoise (`SimplexNoise(RandomSource)`).
+    pub fn new<R: NoiseRandom>(rng: &mut R) -> Self {
+        let xo = rng.noise_next_double() * 256.0;
+        let yo = rng.noise_next_double() * 256.0;
+        let zo = rng.noise_next_double() * 256.0;
 
         let mut p = [0i32; 512];
 
@@ -1246,10 +1250,27 @@ impl SimplexNoise {
 
         // Fisher-Yates shuffle (matching Java's exact algorithm)
         for i in 0..256 {
-            let j = rng.next_int(256 - i as u32) as usize;
+            let j = rng.noise_next_int(256 - i as u32) as usize;
             p.swap(i, j + i);
         }
 
+        Self { p, xo, yo, zo }
+    }
+
+    /// Create a SimplexNoise from Java's legacy (LCG) random, as the fixed-seed biome
+    /// climate noises are.
+    pub fn from_legacy(rng: &mut crate::xoroshiro::JavaRandom) -> Self {
+        let xo = rng.next_double() * 256.0;
+        let yo = rng.next_double() * 256.0;
+        let zo = rng.next_double() * 256.0;
+        let mut p = [0i32; 512];
+        for (i, slot) in p.iter_mut().enumerate().take(256) {
+            *slot = i as i32;
+        }
+        for i in 0..256 {
+            let j = rng.next_int(256 - i as u32) as usize;
+            p.swap(i, j + i);
+        }
         Self { p, xo, yo, zo }
     }
 

@@ -29,8 +29,13 @@ const ENTRY_HEADER_LEN: usize = 24;
 const ENTRY_DATA_PREFIX_LEN: usize = 4;
 const MIN_ENTRY_SIZE: u32 = (ENTRY_HEADER_LEN + ENTRY_DATA_PREFIX_LEN) as u32;
 
-/// Current format version.
-const FORMAT_VERSION: u8 = 1;
+/// Current format version. Version 2 stores biomes as a Bedrock Data3D value
+/// ([`Chunk::encode_biomes_disk`]); version 1 stored network-format biomes, which
+/// are skipped on load.
+const FORMAT_VERSION: u8 = 2;
+
+/// First format version whose biome field is a Data3D value.
+const DATA3D_BIOMES_VERSION: u8 = 2;
 
 /// Compression types.
 #[repr(u8)]
@@ -586,7 +591,7 @@ impl BlazeDBProvider {
         }
 
         let compression = data[0];
-        let _version = data[1];
+        let version = data[1];
         let chunk_data = &data[4..]; // Skip compression, version, reserved
 
         // Verify CRC
@@ -607,12 +612,12 @@ impl BlazeDBProvider {
         };
 
         // Deserialize chunk
-        Self::deserialize_chunk(x, z, &decompressed)
+        Self::deserialize_chunk(x, z, version, &decompressed)
     }
 
     /// Serialize a chunk column for storage.
     fn serialize_chunk(col: &ChunkColumn) -> Vec<u8> {
-        let biomes = col.chunk.encode_biomes();
+        let biomes = col.chunk.encode_biomes_disk();
 
         // Collect subchunks
         let mut subchunks = Vec::new();
@@ -622,7 +627,7 @@ impl BlazeDBProvider {
             }
         }
 
-        // Format: biome_len(4) + biomes + subchunk_count(1) + [y(1) + len(4) + data]...
+        // Format: biome_len(4) + Data3D biomes + subchunk_count(1) + [y(1) + len(4) + data]...
         let mut out = Vec::new();
 
         // Biomes
@@ -640,8 +645,8 @@ impl BlazeDBProvider {
         out
     }
 
-    /// Deserialize a chunk column from storage.
-    fn deserialize_chunk(x: i32, z: i32, data: &[u8]) -> StorageResult<ChunkColumn> {
+    /// Deserialize a chunk column stored with format `version`.
+    fn deserialize_chunk(x: i32, z: i32, version: u8, data: &[u8]) -> StorageResult<ChunkColumn> {
         if data.len() < 5 {
             return Err(StorageError::Database("Data too short".to_string()));
         }
@@ -655,11 +660,16 @@ impl BlazeDBProvider {
         if cursor + biome_len > data.len() {
             return Err(StorageError::Database("Invalid biome length".to_string()));
         }
-        let _biomes = &data[cursor..cursor + biome_len];
+        let biomes = &data[cursor..cursor + biome_len];
         cursor += biome_len;
 
         // Create chunk
         let mut chunk = Chunk::new(x, z);
+        if version >= DATA3D_BIOMES_VERSION {
+            chunk.decode_biomes_disk(biomes).map_err(|e| {
+                StorageError::Deserialization(format!("chunk ({x}, {z}) biomes: {e}"))
+            })?;
+        }
 
         // Subchunks
         if cursor >= data.len() {
@@ -782,18 +792,20 @@ impl WorldProvider for BlazeDBProvider {
         .map_err(StorageError::Io)?;
 
         let (x, z, data) = result;
+        if data.len() < 4 {
+            return Err(StorageError::Database("Data too short".to_string()));
+        }
+        let version = data[1];
 
         // Decompress
-        let chunk_data = if data.len() >= 4 && data[0] == Compression::Lz4 as u8 {
+        let chunk_data = if data[0] == Compression::Lz4 as u8 {
             lz4_flex::decompress_size_prepended(&data[4..])
                 .map_err(|e| StorageError::Database(format!("LZ4 error: {}", e)))?
-        } else if data.len() >= 4 {
-            data[4..].to_vec()
         } else {
-            return Err(StorageError::Database("Data too short".to_string()));
+            data[4..].to_vec()
         };
 
-        let col = Self::deserialize_chunk(x, z, &chunk_data)?;
+        let col = Self::deserialize_chunk(x, z, version, &chunk_data)?;
 
         // Cache it
         self.cache.put(morton, col.clone());
@@ -997,6 +1009,23 @@ mod tests {
 
         drop(provider);
         let _ = std::fs::remove_dir_all(&dir);
+    }
+
+    #[test]
+    fn version_1_network_biomes_are_skipped_on_load() {
+        let mut chunk = Chunk::new(0, 0);
+        chunk.set_biome(7);
+        let network = chunk.encode_biomes();
+        let mut data = (network.len() as u32).to_le_bytes().to_vec();
+        data.extend_from_slice(&network);
+        data.push(0);
+
+        let col = BlazeDBProvider::deserialize_chunk(0, 0, 1, &data).expect("version 1 entry");
+        assert_eq!(
+            col.chunk.biome_at(0, 0, 0),
+            Some(crate::world::chunk::DEFAULT_BIOME_ID)
+        );
+        assert!(BlazeDBProvider::deserialize_chunk(0, 0, FORMAT_VERSION, &data).is_err());
     }
 
     #[tokio::test]

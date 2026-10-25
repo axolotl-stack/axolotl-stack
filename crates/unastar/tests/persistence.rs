@@ -7,6 +7,7 @@ use unastar::world::ecs::{
     ChunkData, ChunkLoadConfig, ChunkManager, ChunkStateFlags, PendingChunkGenerations,
     systems::{process_completed_generations, world_to_local_coords},
 };
+use unastar::world::generator::QuartBiomes;
 use unastar::world::{Chunk, ChunkPos, WorldConfig, WorldGenerator};
 
 #[tokio::test(flavor = "multi_thread")]
@@ -27,7 +28,7 @@ async fn async_stored_chunks_survive_save_cycle_for_both_providers() {
             .unwrap();
         let mut server = GameServer::with_config(ServerConfig {
             world: WorldConfig {
-                generator: WorldGenerator::Vanilla { seed: 12345 },
+                generator: WorldGenerator::Java { seed: 12345 },
                 ..WorldConfig::default()
             },
             ..ServerConfig::default()
@@ -91,6 +92,86 @@ async fn async_stored_chunks_survive_save_cycle_for_both_providers() {
         drop(server);
         provider.close().await.unwrap();
         drop(provider);
+        std::fs::remove_dir_all(directory).unwrap();
+    }
+}
+
+/// Biome 1 everywhere except biome 2 in sub-chunk 10 (y 96..111) and biome 3 in
+/// one quart (x 12..15, y 20..23, z 0..3) of sub-chunk 5, which is therefore mixed.
+fn chunk_with_mixed_biomes(pos: ChunkPos) -> Chunk {
+    let mut quarts = QuartBiomes::filled(1);
+    for qz in 0..4 {
+        for qx in 0..4 {
+            for qy in 40..44 {
+                quarts.set(qx, qy, qz, 2);
+            }
+        }
+    }
+    quarts.set(3, 21, 0, 3);
+    let mut chunk = Chunk::new(pos.x, pos.z);
+    chunk.set_biomes_from_quarts(&quarts, u32::from);
+    chunk.set_block(4, 75, 6, *unastar::world::chunk::blocks::DIAMOND_ORE);
+    chunk
+}
+
+fn assert_mixed_biomes(chunk: &Chunk) {
+    assert_eq!(chunk.biome_at(0, -64, 0), Some(1));
+    assert_eq!(chunk.biome_at(12, 20, 0), Some(3));
+    assert_eq!(chunk.biome_at(15, 23, 3), Some(3));
+    assert_eq!(chunk.biome_at(11, 20, 0), Some(1));
+    assert_eq!(chunk.biome_at(15, 20, 4), Some(1));
+    assert_eq!(chunk.biome_at(15, 24, 0), Some(1));
+    assert_eq!(chunk.biome_at(5, 96, 9), Some(2));
+    assert_eq!(chunk.biome_at(5, 111, 9), Some(2));
+    assert_eq!(chunk.biome_at(5, 112, 9), Some(1));
+    assert_eq!(chunk.biome_at(0, 319, 0), Some(1));
+    assert_eq!(
+        chunk.get_block(4, 75, 6),
+        *unastar::world::chunk::blocks::DIAMOND_ORE
+    );
+}
+
+/// Stop a BlazeDB provider and wait for its background writer to release it; the
+/// last handle drops on return, so pending writes and the index are then on disk.
+async fn shut_down_blaze(provider: Arc<BlazeDBProvider>) {
+    provider.close().await.unwrap();
+    for _ in 0..500 {
+        if Arc::strong_count(&provider) == 1 {
+            return;
+        }
+        tokio::time::sleep(std::time::Duration::from_millis(10)).await;
+    }
+    panic!("BlazeDB writer did not stop");
+}
+
+#[tokio::test(flavor = "multi_thread")]
+async fn chunk_biomes_survive_save_and_reopen_for_both_providers() {
+    let pos = ChunkPos::new(4, -1);
+    for blaze in [false, true] {
+        let directory =
+            std::env::temp_dir().join(format!("unastar-biomes-{}", uuid::Uuid::new_v4()));
+        let column = ChunkColumn::new(chunk_with_mixed_biomes(pos));
+        assert_mixed_biomes(&column.chunk);
+        // Reopen before loading so BlazeDB's in-memory cache cannot answer.
+        let loaded = if blaze {
+            let provider = BlazeDBProvider::open(&directory, None).unwrap();
+            provider.save_column(pos, 0, &column).await.unwrap();
+            // Let the background writer receive the entry before stopping it.
+            tokio::time::sleep(std::time::Duration::from_millis(50)).await;
+            shut_down_blaze(provider).await;
+            let provider = BlazeDBProvider::open(&directory, None).unwrap();
+            let loaded = provider.load_column(pos, 0).await.unwrap();
+            shut_down_blaze(provider).await;
+            loaded
+        } else {
+            let provider = LevelDBWorldProvider::open(&directory, 0).unwrap();
+            provider.save_column(pos, 0, &column).await.unwrap();
+            provider.close().await.unwrap();
+            drop(provider);
+            let provider = LevelDBWorldProvider::open(&directory, 0).unwrap();
+            provider.load_column(pos, 0).await.unwrap()
+        };
+        assert_mixed_biomes(&loaded.expect("saved column exists").chunk);
         std::fs::remove_dir_all(directory).unwrap();
     }
 }
@@ -384,7 +465,7 @@ async fn storage_read_errors_never_generate_replacement_terrain() {
         }
     }
     let mut manager = ChunkManager::new(WorldConfig {
-        generator: WorldGenerator::Vanilla { seed: 12345 },
+        generator: WorldGenerator::Java { seed: 12345 },
         ..WorldConfig::default()
     });
     manager.set_provider(Arc::new(UnreadableWorld));

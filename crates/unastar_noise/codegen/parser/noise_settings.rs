@@ -6,15 +6,34 @@ use std::path::Path;
 
 #[derive(Debug, Clone, Deserialize)]
 pub struct NoiseSettings {
-    #[allow(dead_code)]
     pub aquifers_enabled: bool,
-    #[allow(dead_code)]
     pub ore_veins_enabled: bool,
-    #[allow(dead_code)]
     pub sea_level: i32,
+    pub legacy_random_source: bool,
+    pub noise: NoiseShape,
+    pub default_block: BlockStateJson,
+    pub default_fluid: BlockStateJson,
     pub noise_router: NoiseRouter,
     /// Surface rules parsed from JSON.
     pub surface_rule: RuleSource,
+}
+
+/// Vertical extent and cell size of the noise volume.
+#[derive(Debug, Clone, Deserialize)]
+pub struct NoiseShape {
+    pub min_y: i32,
+    pub height: i32,
+    pub size_horizontal: i32,
+    pub size_vertical: i32,
+}
+
+/// A block state as written in worldgen JSON.
+#[derive(Debug, Clone, Deserialize)]
+pub struct BlockStateJson {
+    #[serde(rename = "Name")]
+    pub name: String,
+    #[serde(rename = "Properties", default)]
+    pub properties: std::collections::BTreeMap<String, String>,
 }
 
 /// Noise router containing all density function fields.
@@ -48,14 +67,9 @@ pub fn parse_all(dir: &Path) -> Result<HashMap<String, NoiseSettings>, Box<dyn s
         if entry.path().extension().is_some_and(|e| e == "json") {
             let name = entry.path().file_stem().unwrap().to_string_lossy();
             let content = std::fs::read_to_string(entry.path())?;
-            match serde_json::from_str::<NoiseSettings>(&content) {
-                Ok(ns) => {
-                    settings.insert(format!("minecraft:{}", name), ns);
-                }
-                Err(e) => {
-                    eprintln!("Warning: Failed to parse {}: {}", entry.path().display(), e);
-                }
-            }
+            let parsed: NoiseSettings = serde_json::from_str(&content)
+                .map_err(|e| format!("{}: {e}", entry.path().display()))?;
+            settings.insert(format!("minecraft:{}", name), parsed);
         }
     }
 

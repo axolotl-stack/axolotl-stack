@@ -26,17 +26,109 @@
 //! 5. Check ridged noise for vein shape
 //! 6. Determine ore vs filler based on richness and gap noise
 
-use crate::world::chunk::blocks;
+use std::cell::RefCell;
+
+use crate::world::chunk::{MIN_Y, blocks};
 use crate::world::generator::density::{
-    FunctionContext,
-    NoiseRegistry,
-    compute_vein_gap,
-    compute_vein_ridged,
-    // These vein functions now have simplified signatures (ctx, noises) only
-    // since they don't use FlatCache or Cache2D nodes
-    compute_vein_toggle,
+    FunctionContext, NoiseRef, NoiseRegistry, NoiseSource, compute_vein_gap, compute_vein_toggle,
 };
 use crate::world::generator::xoroshiro::PositionalRandomFactory;
+
+// ========== Cell interpolation ==========
+
+/// Noise cell size: `vein_toggle` and both halves of `vein_ridged` are `interpolated`
+/// in the noise router, so blocks read a trilinear blend of the cell's corner values.
+const CELL_WIDTH: i32 = 4;
+const CELL_HEIGHT: i32 = 8;
+/// Corner rows from the bottom of the world up to the top of the cell holding y = 50.
+const CORNER_ROWS: usize = ((50 - MIN_Y) / CELL_HEIGHT + 2) as usize;
+/// Corners per axis across a chunk.
+const CORNERS_XZ: usize = (16 / CELL_WIDTH + 1) as usize;
+/// `ore_vein_a`/`ore_vein_b` are sampled at four times the block coordinate.
+const VEIN_RIDGED_SCALE: f64 = 4.0;
+/// Offset added to the larger of the two ridged noises.
+const VEIN_RIDGED_OFFSET: f64 = -0.07999999821186066;
+
+/// Corner values `[toggle, vein_a, vein_b]` of every noise cell of one chunk.
+struct VeinCorners {
+    chunk_x: i32,
+    chunk_z: i32,
+    /// Indexed `[(x * CORNER_ROWS + y) * CORNERS_XZ + z]`.
+    values: Vec<[f64; 3]>,
+}
+
+impl VeinCorners {
+    fn new(chunk_x: i32, chunk_z: i32, noises: &NoiseRegistry) -> Self {
+        let mut values = Vec::with_capacity(CORNERS_XZ * CORNER_ROWS * CORNERS_XZ);
+        for cx in 0..CORNERS_XZ as i32 {
+            let x = chunk_x * 16 + cx * CELL_WIDTH;
+            for cy in 0..CORNER_ROWS as i32 {
+                let y = MIN_Y + cy * CELL_HEIGHT;
+                for cz in 0..CORNERS_XZ as i32 {
+                    let z = chunk_z * 16 + cz * CELL_WIDTH;
+                    let toggle = compute_vein_toggle(&FunctionContext::new(x, y, z), noises);
+                    // `range_choice(y, -60, 51, noise, 0)` around each ridged noise.
+                    let ridged = |noise| {
+                        if (-60..51).contains(&y) {
+                            noises.sample(
+                                noise,
+                                x as f64 * VEIN_RIDGED_SCALE,
+                                y as f64 * VEIN_RIDGED_SCALE,
+                                z as f64 * VEIN_RIDGED_SCALE,
+                            )
+                        } else {
+                            0.0
+                        }
+                    };
+                    values.push([
+                        toggle,
+                        ridged(NoiseRef::OreVeinA),
+                        ridged(NoiseRef::OreVeinB),
+                    ]);
+                }
+            }
+        }
+        Self {
+            chunk_x,
+            chunk_z,
+            values,
+        }
+    }
+
+    #[inline]
+    fn corner(&self, x: usize, y: usize, z: usize) -> &[f64; 3] {
+        &self.values[(x * CORNER_ROWS + y) * CORNERS_XZ + z]
+    }
+
+    /// Interpolated `[toggle, vein_a, vein_b]` at a block of this chunk, blended along y,
+    /// then x, then z like the noise chunk's cell interpolators.
+    fn sample(&self, x: i32, y: i32, z: i32) -> [f64; 3] {
+        let (local_x, local_y, local_z) = (x - self.chunk_x * 16, y - MIN_Y, z - self.chunk_z * 16);
+        let (cell_x, cell_y, cell_z) = (
+            (local_x / CELL_WIDTH) as usize,
+            (local_y / CELL_HEIGHT) as usize,
+            (local_z / CELL_WIDTH) as usize,
+        );
+        let tx = (local_x % CELL_WIDTH) as f64 / CELL_WIDTH as f64;
+        let ty = (local_y % CELL_HEIGHT) as f64 / CELL_HEIGHT as f64;
+        let tz = (local_z % CELL_WIDTH) as f64 / CELL_WIDTH as f64;
+        let c = |dx, dy, dz| self.corner(cell_x + dx, cell_y + dy, cell_z + dz);
+        std::array::from_fn(|i| {
+            let xz00 = lerp(ty, c(0, 0, 0)[i], c(0, 1, 0)[i]);
+            let xz10 = lerp(ty, c(1, 0, 0)[i], c(1, 1, 0)[i]);
+            let xz01 = lerp(ty, c(0, 0, 1)[i], c(0, 1, 1)[i]);
+            let xz11 = lerp(ty, c(1, 0, 1)[i], c(1, 1, 1)[i]);
+            let z0 = lerp(tx, xz00, xz10);
+            let z1 = lerp(tx, xz01, xz11);
+            lerp(tz, z0, z1)
+        })
+    }
+}
+
+#[inline]
+fn lerp(t: f64, a: f64, b: f64) -> f64 {
+    a + t * (b - a)
+}
 
 // ========== Constants from Java ==========
 
@@ -127,19 +219,18 @@ impl VeinType {
 /// This is a BlockStateFiller that gets chained after the aquifer in the
 /// material rule list. It returns `Some(block)` to override the block at
 /// a position, or `None` to let other fillers handle it.
-/// Uses AOT-compiled density functions for maximum performance.
 ///
-/// Note: The vein density functions (toggle, ridged, gap) are simple noise
-/// lookups that don't require FlatCacheGrid or ColumnContext, making this
-/// struct very lightweight.
+/// `vein_toggle` and the two ridged noises are cell-interpolated like the final
+/// density: their corner values are sampled once per chunk and blended per block;
+/// `vein_gap` is sampled at the block.
 pub struct OreVeinifier<'a> {
     /// Noise registry for computing density functions.
     noises: &'a NoiseRegistry,
     /// Positional random factory for ore generation.
     /// This matches Java's `RandomState.oreRandom()`.
     ore_random: PositionalRandomFactory,
-    /// Phantom lifetime for NoiseRegistry
-    _marker: std::marker::PhantomData<&'a ()>,
+    /// Cell corners of the chunk being filled, sampled on the first query in it.
+    corners: RefCell<Option<VeinCorners>>,
 }
 
 impl<'a> OreVeinifier<'a> {
@@ -152,8 +243,19 @@ impl<'a> OreVeinifier<'a> {
         Self {
             noises,
             ore_random,
-            _marker: std::marker::PhantomData,
+            corners: RefCell::new(None),
         }
+    }
+
+    /// Interpolated `[toggle, vein_a, vein_b]` at a block.
+    fn interpolated(&self, x: i32, y: i32, z: i32) -> [f64; 3] {
+        let (chunk_x, chunk_z) = (x >> 4, z >> 4);
+        let mut corners = self.corners.borrow_mut();
+        let corners = match &mut *corners {
+            Some(c) if c.chunk_x == chunk_x && c.chunk_z == chunk_z => c,
+            slot => slot.insert(VeinCorners::new(chunk_x, chunk_z, self.noises)),
+        };
+        corners.sample(x, y, z)
     }
 
     /// Compute the block state at a position, if in an ore vein.
@@ -173,9 +275,8 @@ impl<'a> OreVeinifier<'a> {
             return None;
         }
 
-        // Step 1: Compute vein toggle to determine vein type
-        // Simple noise lookup - no FlatCache or Cache2D needed
-        let toggle_value = compute_vein_toggle(ctx, self.noises);
+        // Step 1: Interpolated vein toggle decides the vein type
+        let [toggle_value, vein_a, vein_b] = self.interpolated(ctx.block_x, y, ctx.block_z);
 
         // Determine vein type from toggle sign
         let vein_type = if toggle_value > 0.0 {
@@ -218,8 +319,7 @@ impl<'a> OreVeinifier<'a> {
         }
 
         // Step 6: Check ridged noise for vein shape
-        // Simple noise lookup - no FlatCache or Cache2D needed
-        let ridged = compute_vein_ridged(ctx, self.noises);
+        let ridged = VEIN_RIDGED_OFFSET + vein_a.abs().max(vein_b.abs());
         if ridged >= 0.0 {
             return None;
         }
