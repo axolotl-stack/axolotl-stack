@@ -180,11 +180,12 @@ def mining_items(args) -> list[dict]:
 
 
 ARMOR_DAMAGE = [
-    # Large hits clamp the reduction to defence/5 points: exact defence.
-    {'amount': 1000, 'hits': 1},
     # Small hits: the toughness term matters; summed over many hits.
     {'amount': 4, 'hits': 20},
     {'amount': 16, 'hits': 10},
+    # Large hits clamp the reduction to defence/5 points: exact defence.
+    # Last, and the worn piece is unbreakable, so it cannot break the item.
+    {'amount': 1000, 'hits': 1},
 ]
 
 
