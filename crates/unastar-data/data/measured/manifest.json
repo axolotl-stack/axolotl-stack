@@ -177,21 +177,27 @@
    "files": [
     {
      "path": "fuel_burn_ticks.json",
-     "sha256": "b0c4f32c88a868d0116c4ee6f5a82eeadc67af0ccdb994047f368b53f20327fc"
+     "sha256": "049882a6a77cc93a49ebbb0b392dec51d7153c78dae394f19dfc8aeeb5e0e0d9"
     }
    ],
-   "harness": "tools/bds-sweep (sweep.py fuel, endstone-sweep plugin) at 6f91dcb53ad1d00366ad0f5a36ab239d4a05ac2d",
+   "harness": "tools/bds-sweep (sweep.py fuel, endstone-sweep plugin) at b81edc01471039305b30d04beafac6d9cfaeb3cf",
    "method": "furnace with 1 cobblestone input and 1 candidate fuel (/replaceitem block); server ticks from the first tick the block is lit_furnace to the first tick it is furnace again (+/-1 tick); items that do not light it within 40 ticks are omitted",
    "source": "bds_sweep",
    "sweeps": [
     {
-     "dir": "fuel-20261025T174208Z",
-     "items": 8,
+     "dir": "full-fuel",
+     "items": 2075,
      "runs": [
       {
-       "items": 8,
-       "seconds": 1008.5,
-       "started": "20261025T174208Z",
+       "items": 2075,
+       "seconds": 8.2,
+       "started": "20261025T195609Z",
+       "status": "error"
+      },
+      {
+       "items": 2075,
+       "seconds": 1121.8,
+       "started": "20261025T204445Z",
        "status": "done"
       }
      ]
