@@ -507,10 +507,7 @@ mod tests {
         let wrapped = valentine::bedrock::codec::Nbt(nbt);
         let value = to_json(&format!("{wrapped:?}")).unwrap();
         assert_eq!(value, json!({"a": "x", "b": 1}));
-        assert_eq!(
-            serde_json::to_string(&value).unwrap(),
-            r#"{"a":"x","b":1}"#
-        );
+        assert_eq!(serde_json::to_string(&value).unwrap(), r#"{"a":"x","b":1}"#);
     }
 
     #[test]

@@ -33,6 +33,10 @@ PYTHON = RUNTIME / 'venv' / 'Scripts' / 'python.exe'
 PROPERTIES = SERVER / 'server.properties'
 BACKUP = SERVER / 'server.properties.bds-sweep-backup'
 EXPECTED_VERSION = '26.51'
+# Untracked caches shared by every worktree (Mojang-derived bulk data, raw
+# sweep logs).
+CAPTURES = RUNTIME / 'captures' / '1.26.51'
+SWEEPS = RUNTIME / 'sweeps' / '1.26.51'
 
 
 def bds_processes() -> list[str]:

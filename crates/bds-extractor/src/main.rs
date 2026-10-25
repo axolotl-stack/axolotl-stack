@@ -51,11 +51,6 @@ struct Args {
     #[arg(long, default_value = "5", requires = "capture_dir")]
     settle: u64,
 
-    /// Capture mode: print BDS_EXTRACTOR_READY_FOR_OP after the join and wait for
-    /// the AvailableCommands resend that follows an op from the server console
-    #[arg(long, requires = "capture_dir")]
-    await_op: bool,
-
     /// Capture mode: /summon every summonable identifier and keep its AddActor
     /// (needs operator permission)
     #[arg(long, requires = "capture_dir")]
@@ -94,9 +89,8 @@ fn main() -> Result<()> {
 }
 
 async fn run(args: Args) -> Result<()> {
-    // Logs go to stderr: capture mode prints its op handshake on stdout.
+    // Initialize logging
     tracing_subscriber::fmt()
-        .with_writer(std::io::stderr)
         .with_env_filter(
             tracing_subscriber::EnvFilter::try_from_default_env()
                 .unwrap_or_else(|_| args.log.parse().unwrap_or_else(|_| "info".parse().unwrap())),
@@ -121,7 +115,6 @@ async fn run(args: Args) -> Result<()> {
             out_dir,
             timeout: Duration::from_secs(args.timeout),
             settle: Duration::from_secs(args.settle),
-            await_op: args.await_op,
             summon: args.summon,
             summon_wait: Duration::from_secs(args.summon_wait),
         })

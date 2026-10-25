@@ -41,7 +41,66 @@ not the complete vanilla block palette. Empty creative groups/entries are valid
 when the server sends an empty CreativeContent packet. Per-item `nbt_base64`
 is genuinely optional and omitted when no component NBT is supplied.
 CraftingData/recipes, item tags, canonical block states and other registries
-are outside this extractor's output contract; unrelated play packets are ignored.
+are outside this extractor's JSON output contract; unrelated play packets are
+ignored. Packet-level captures of those use capture mode below.
+
+## Capture mode (packet fixtures)
+
+`--capture-dir DIR` records the whole session instead: the client joins through
+`client_diff::recording`, so `DIR/packets.jsonl` holds every packet in both
+directions (login included) exactly as it crossed the wire (client-diff
+`Record` lines: header and payload, no batch length). After spawn it waits for
+AvailableActorIdentifiers, CreativeContent, CraftingData and AvailableCommands
+plus `--settle` seconds. With `--summon` (operator only) it then runs
+`/summon <id> ~2 ~ ~2` for every identifier AvailableActorIdentifiers marks
+summonable, keeps the first AddActor/AddPainting after each command and clears
+the world between summons (mob spawning, mob loot and entity drops off; two
+`kill` passes so slime/sulfur cube splits are not mistaken for the next actor).
+
+From the recording it writes `join-sequence.json` (server packets of the join
+phase, in order), `join/<seq>-<Packet>.{bin,json}` (every non-chunk join
+packet), `commands/<permission>.{bin,json}` (each AvailableCommands, named by the
+preceding UpdateAbilities permission), `summons/<identifier>.{bin,json}` and
+`manifest.json` (size and SHA-256 of every file, phases, per-summon actor type
+and command feedback). `.bin` is the packet header and payload, the same format
+as `crates/unastar/src/registry/testdata/bds-1.26.51-item-registry.bin`;
+`.json` is the packet's derived `Debug` form converted to JSON (`debug_json.rs`;
+NBT decoded with sorted keys, tag types dropped).
+
+`tools/bds-sweep/capture.py` runs the two reference sessions against the plain
+`bedrock_server.exe` of the shared runtime (no Endstone, whose own commands
+would appear in AvailableCommands), each on a fresh seed-12345 world with BDS
+default settings (survival, easy): `member/` (first join of a member) and
+`operator/` (first join of an operator, then the summons). It needs the
+exclusive BDS slot and takes about four minutes:
+
+```powershell
+cargo build -p bds-extractor
+C:/Users/jvigu/orca/bds-runtime/venv/Scripts/python.exe tools/bds-sweep/capture.py
+C:/Users/jvigu/orca/bds-runtime/venv/Scripts/python.exe tools/bds-sweep/commit_fixtures.py
+```
+
+### What is committed (licensing)
+
+Captures are Mojang-derived. The full capture lives outside the repository in
+the shared, untracked cache `C:/Users/jvigu/orca/bds-runtime/captures/1.26.51/
+<timestamp>/` (`latest.txt` there names the newest one; every worktree can read
+it). `commit_fixtures.py` copies only manifests and the small fixtures tests use
+into `captures/1.26.51/`: both manifests and `session.json` files, the member
+join sequence, member join packets up to `PlayStatus(PlayerSpawn)` (no world
+payload or per-tick actor traffic, at most 128 KiB each) and every
+`operator/summons/*.bin`. CraftingData (1.0 MB), AvailableCommands (396 KB),
+JigsawStructureData (209 KB), `packets.jsonl` and the JSON forms stay in the
+cache; tests that need them read the cache and check the SHA-256 the committed
+manifest records. `tests/captures.rs` checks every committed fixture against its
+manifest entry and that Valentine decodes and re-encodes it byte for byte.
+
+Observed in the 1.26.51 reference capture (2026-10-25): the member and operator
+AvailableCommands are byte-identical (BDS sends one command list and the
+client filters by the UpdateAbilities command permission); opping an online
+player sends UpdateAbilities but no new AvailableCommands; `minecraft:villager`
+and `minecraft:zombie_villager` summon actors of type `minecraft:villager_v2`
+and `minecraft:zombie_villager_v2`.
 
 ## Relationship to protocolgen
 

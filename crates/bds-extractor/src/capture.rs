@@ -3,16 +3,17 @@
 //!
 //! The client joins through `client_diff::recording`, so every packet of the
 //! session (login included, both directions) lands in `packets.jsonl` exactly
-//! as it crossed the wire. The session has up to three phases:
+//! as it crossed the wire. The session has up to two phases:
 //!
 //! 1. **join**: login, spawn, then every post-spawn definition packet
 //!    ([`REQUIRED_AFTER_SPAWN`]) plus a quiet `settle` window;
-//! 2. **op** (`--await-op`): prints [`READY_FOR_OP`] on stdout and waits for
-//!    the server to resend `AvailableCommands` after the runner ops the
-//!    player from the console;
-//! 3. **summon** (`--summon`): `/summon` of every summonable identifier from
-//!    `AvailableActorIdentifiers`, one at a time, keeping the first matching
-//!    `AddActor` (or `AddPainting`).
+//! 2. **summon** (`--summon`, needs operator permission): `/summon` of every
+//!    summonable identifier from `AvailableActorIdentifiers`, one at a time,
+//!    keeping the first matching `AddActor` (or `AddPainting`).
+//!
+//! Permission levels are compared across sessions (one member join, one
+//! operator join): BDS 1.26.51 does not resend `AvailableCommands` when a
+//! player is opped at runtime, it only sends `UpdateAbilities`.
 //!
 //! [`write_outputs`] then derives, from the recording alone:
 //! `join-sequence.json` (every server packet up to the end of the join
@@ -42,16 +43,12 @@ use serde::Serialize;
 use serde_json::{Value, json};
 use sha2::{Digest, Sha256};
 use std::collections::BTreeMap;
-use std::io::Write;
 use std::net::SocketAddr;
 use std::path::{Path, PathBuf};
 use std::sync::{Arc, Mutex};
 use std::time::Duration;
 use tokio::time::Instant;
 use tracing::{info, warn};
-
-/// Printed (alone on a line) when the session waits to be opped.
-pub const READY_FOR_OP: &str = "BDS_EXTRACTOR_READY_FOR_OP";
 
 /// Server packets that follow `PlayStatus(PlayerSpawn)` and complete the join.
 pub const REQUIRED_AFTER_SPAWN: [McpePacketName; 4] = [
@@ -74,7 +71,7 @@ pub struct Options {
     pub timeout: Duration,
     /// Quiet time after the last required post-spawn packet.
     pub settle: Duration,
-    pub await_op: bool,
+    /// Run the summon phase after the join.
     pub summon: bool,
     /// How long to wait for each summoned actor to appear.
     pub summon_wait: Duration,
@@ -84,7 +81,6 @@ pub struct Options {
 #[derive(Debug, Clone, Copy, Default, Serialize, PartialEq, Eq)]
 pub struct Phases {
     pub join_end: u64,
-    pub op_end: Option<u64>,
     pub summon_end: Option<u64>,
 }
 
@@ -93,10 +89,15 @@ pub struct Phases {
 pub struct Summon {
     pub identifier: String,
     pub command: String,
-    /// Hex of the first matching AddActor/AddPainting (header and payload),
-    /// if one arrived; resolved to a recorded `seq` by [`write_outputs`].
+    /// Hex of the first AddActor/AddPainting after the command (header and
+    /// payload), if one arrived; resolved to a recorded `seq` by
+    /// [`write_outputs`]. The world has mob spawning off and is cleared
+    /// between summons, so the first new actor is the summoned one.
     #[serde(skip)]
     pub packet_hex: Option<String>,
+    /// The actor type that packet carries; it can differ from the summoned
+    /// identifier (`minecraft:villager` spawns `minecraft:villager_v2`).
+    pub actor_type: Option<String>,
     /// `seq` of that packet in `packets.jsonl`.
     pub seq: Option<u64>,
     /// Feedback the server sent for the command (CommandOutput message ids
@@ -151,23 +152,13 @@ pub async fn run(options: &Options) -> Result<()> {
             })
             .await
             .with_context(|| {
-                format!("post-spawn packets missing after {:?}: have {seen:?}", options.timeout)
+                format!(
+                    "post-spawn packets missing after {:?}: have {seen:?}",
+                    options.timeout
+                )
             })?;
         session.pump_for(options.settle).await?;
         phases.join_end = session.next_seq()?;
-
-        if options.await_op {
-            println!("{READY_FOR_OP}");
-            std::io::stdout().flush()?;
-            session
-                .pump_until(options.timeout, |name, _| {
-                    name == McpePacketName::AvailableCommandsPacket
-                })
-                .await
-                .context("no AvailableCommands resend after the op request")?;
-            session.pump_for(Duration::from_secs(1)).await?;
-            phases.op_end = Some(session.next_seq()?);
-        }
 
         let mut summons = Vec::new();
         if options.summon {
@@ -188,10 +179,19 @@ pub async fn run(options: &Options) -> Result<()> {
             session.pump_for(Duration::from_secs(2)).await?;
             for identifier in list {
                 let summon = session.summon(&identifier, options.summon_wait).await?;
-                if summon.packet_hex.is_none() {
-                    warn!("{identifier}: no actor packet ({:?})", summon.feedback);
+                match &summon.actor_type {
+                    None => warn!("{identifier}: no actor packet ({:?})", summon.feedback),
+                    Some(actor) if actor != &identifier => {
+                        warn!("{identifier}: first new actor is {actor}")
+                    }
+                    Some(_) => {}
                 }
                 summons.push(summon);
+                // Slimes and sulfur cubes split when they die (after the
+                // death animation): kill twice so no child is mistaken for
+                // the next summon.
+                session.command("kill @e[type=!player]").await?;
+                session.pump_for(Duration::from_millis(1500)).await?;
                 session.command("kill @e[type=!player]").await?;
                 session.pump_for(Duration::from_millis(300)).await?;
             }
@@ -211,9 +211,10 @@ pub async fn run(options: &Options) -> Result<()> {
         .map_err(|_| anyhow::anyhow!("capture lock poisoned"))?
         .flush()?;
     let (phases, summons) = session?;
-    if let Err(error) = disconnect.context("disconnect timed out").and_then(|r| {
-        r.context("disconnect")
-    }) {
+    if let Err(error) = disconnect
+        .context("disconnect timed out")
+        .and_then(|r| r.context("disconnect"))
+    {
         warn!("{error:#}");
     }
 
@@ -223,9 +224,10 @@ pub async fn run(options: &Options) -> Result<()> {
         "Wrote {} files to {} ({} summons captured)",
         manifest["files"].as_array().map_or(0, Vec::len),
         options.out_dir.display(),
-        manifest["summons"]
-            .as_array()
-            .map_or(0, |list| list.iter().filter(|s| !s["seq"].is_null()).count())
+        manifest["summons"].as_array().map_or(0, |list| list
+            .iter()
+            .filter(|s| !s["seq"].is_null())
+            .count())
     );
     Ok(())
 }
@@ -319,6 +321,7 @@ impl<T: jolyne::stream::transport::Transport> Session<'_, T> {
             identifier: identifier.to_owned(),
             command,
             packet_hex: None,
+            actor_type: None,
             seq: None,
             feedback: Vec::new(),
         };
@@ -336,15 +339,13 @@ impl<T: jolyne::stream::transport::Transport> Session<'_, T> {
             }
             let hex = hex::encode(strip_length(packet.inner_frame())?);
             match packet.decode()?.data {
-                McpePacketData::AddActorPacket(actor)
-                    if summon.packet_hex.is_none() && &*actor.actor_type == identifier =>
-                {
+                McpePacketData::AddActorPacket(actor) if summon.packet_hex.is_none() => {
                     summon.packet_hex = Some(hex);
+                    summon.actor_type = Some(actor.actor_type.to_string());
                 }
-                McpePacketData::AddPaintingPacket(_)
-                    if summon.packet_hex.is_none() && identifier == "minecraft:painting" =>
-                {
+                McpePacketData::AddPaintingPacket(_) if summon.packet_hex.is_none() => {
                     summon.packet_hex = Some(hex);
+                    summon.actor_type = Some("minecraft:painting".into());
                 }
                 McpePacketData::CommandOutputPacket(output) => {
                     for message in output.output.output_messages {
@@ -410,8 +411,7 @@ pub fn read_records(path: &Path) -> Result<Vec<Record>> {
         .filter(|line| !line.trim().is_empty())
         .enumerate()
         .map(|(index, line)| {
-            serde_json::from_str(line)
-                .with_context(|| format!("{}:{}", path.display(), index + 1))
+            serde_json::from_str(line).with_context(|| format!("{}:{}", path.display(), index + 1))
         })
         .collect()
 }
@@ -548,9 +548,17 @@ pub fn write_outputs(
             let record = server
                 .iter()
                 .find(|r| r.seq >= phases.join_end && &r.hex == hex)
-                .with_context(|| format!("summon {} packet is not in the recording", summon.identifier))?;
+                .with_context(|| {
+                    format!(
+                        "summon {} packet is not in the recording",
+                        summon.identifier
+                    )
+                })?;
             summon.seq = Some(record.seq);
-            let name = summon.identifier.trim_start_matches("minecraft:").replace(':', "_");
+            let name = summon
+                .identifier
+                .trim_start_matches("minecraft:")
+                .replace(':', "_");
             outputs.packet(&format!("summons/{name}"), record)?;
         }
         resolved.push(summon);
@@ -619,7 +627,8 @@ mod tests {
 
     #[test]
     fn outputs_split_phases_label_commands_and_hash_files() {
-        let dir = std::env::temp_dir().join(format!("bds-extractor-capture-{}", uuid::Uuid::new_v4()));
+        let dir =
+            std::env::temp_dir().join(format!("bds-extractor-capture-{}", uuid::Uuid::new_v4()));
         std::fs::create_dir_all(&dir).unwrap();
         let commands = jolyne::valentine::AvailableCommandsPacket::default();
         let actor = AddActorPacket {
@@ -631,7 +640,7 @@ mod tests {
             record(1, "c2s", GameRulesChangedPacket::default()),
             record(2, "s2c", abilities(EnumsPlayerPermissionLevel::Member)),
             record(3, "s2c", commands.clone()),
-            // Op phase.
+            // A later abilities update relabels the next AvailableCommands.
             record(4, "s2c", abilities(EnumsPlayerPermissionLevel::Operator)),
             record(5, "s2c", commands),
             // Summon phase.
@@ -639,21 +648,25 @@ mod tests {
         ];
         let phases = Phases {
             join_end: 4,
-            op_end: Some(6),
             summon_end: Some(7),
         };
         let summons = [Summon {
             identifier: "minecraft:cow".into(),
             command: "summon minecraft:cow ~2 ~ ~2".into(),
             packet_hex: Some(records[6].hex.clone()),
+            actor_type: Some("minecraft:cow".into()),
             seq: None,
             feedback: vec![],
         }];
         let manifest = write_outputs(&dir, &records, phases, &summons).unwrap();
 
         let sequence: Vec<Value> =
-            serde_json::from_slice(&std::fs::read(dir.join("join-sequence.json")).unwrap()).unwrap();
-        let seqs: Vec<u64> = sequence.iter().map(|r| r["seq"].as_u64().unwrap()).collect();
+            serde_json::from_slice(&std::fs::read(dir.join("join-sequence.json")).unwrap())
+                .unwrap();
+        let seqs: Vec<u64> = sequence
+            .iter()
+            .map(|r| r["seq"].as_u64().unwrap())
+            .collect();
         assert_eq!(seqs, [0, 2, 3], "join phase only, server packets only");
         assert!(dir.join("join/00000-GameRulesChangedPacket.bin").exists());
         assert!(dir.join("commands/member.bin").exists());

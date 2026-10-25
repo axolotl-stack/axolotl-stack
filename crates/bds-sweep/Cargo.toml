@@ -1,0 +1,17 @@
+[package]
+name = "bds-sweep"
+version = "0.1.0"
+edition.workspace = true
+description = "Scripted player for the BDS sweep harness (tools/bds-sweep)"
+
+[[bin]]
+name = "bds-sweep-client"
+path = "src/main.rs"
+
+[dependencies]
+jolyne = { workspace = true, features = ["client", "raknet"] }
+tokio = { workspace = true, features = ["rt-multi-thread", "macros", "time"] }
+clap.workspace = true
+anyhow.workspace = true
+tracing.workspace = true
+tracing-subscriber = { workspace = true, features = ["env-filter", "fmt"] }
