@@ -121,6 +121,10 @@ impl RingPositions {
 /// `ChunkGeneratorStructureState.generateRingPositions` (concentric rings
 /// seed = level seed). Each position is moved to a preferred biome found by
 /// `findBiomeHorizontal` within 112 blocks of the ring point.
+///
+/// The ring points and their forked randoms come from one sequential random,
+/// as in Java; the biome searches are independent (Java runs them as parallel
+/// tasks too) and run on up to 8 threads.
 pub fn ring_positions(
     ctx: &dyn StructureContext,
     distance: i32,
@@ -131,7 +135,7 @@ pub fn ring_positions(
     if count == 0 {
         return Vec::new();
     }
-    let mut out = Vec::with_capacity(count as usize);
+    let mut points: Vec<(i32, i32, LegacyRandom)> = Vec::with_capacity(count as usize);
     let mut random = LegacyRandom::new(ctx.seed());
     let mut angle = random.next_double() * std::f64::consts::PI * 2.0;
     let mut in_ring = 0;
@@ -143,20 +147,7 @@ pub fn ring_positions(
         // Java Math.round: floor(x + 0.5).
         let cx = (angle.cos() * dist + 0.5).floor() as i32;
         let cz = (angle.sin() * dist + 0.5).floor() as i32;
-        let mut fork = random.fork();
-        let found = find_biome_horizontal(
-            ctx,
-            (cx << 4) + 8,
-            0,
-            (cz << 4) + 8,
-            112,
-            preferred,
-            &mut fork,
-        );
-        out.push(match found {
-            Some((x, _, z)) => (x >> 4, z >> 4),
-            None => (cx, cz),
-        });
+        points.push((cx, cz, random.fork()));
         angle += std::f64::consts::PI * 2.0 / per_ring as f64;
         in_ring += 1;
         if in_ring == per_ring {
@@ -167,6 +158,37 @@ pub fn ring_positions(
             angle += random.next_double() * std::f64::consts::PI * 2.0;
         }
     }
+    let search = |(cx, cz, mut fork): (i32, i32, LegacyRandom)| -> (i32, i32) {
+        match find_biome_horizontal(
+            ctx,
+            (cx << 4) + 8,
+            0,
+            (cz << 4) + 8,
+            112,
+            preferred,
+            &mut fork,
+        ) {
+            Some((x, _, z)) => (x >> 4, z >> 4),
+            None => (cx, cz),
+        }
+    };
+    let threads = std::thread::available_parallelism()
+        .map_or(1, |n| n.get())
+        .clamp(1, 8);
+    let per = points.len().div_ceil(threads);
+    let mut out = Vec::with_capacity(points.len());
+    std::thread::scope(|s| {
+        let handles: Vec<_> = points
+            .chunks(per)
+            .map(|part| {
+                let part = part.to_vec();
+                s.spawn(move || part.into_iter().map(search).collect::<Vec<_>>())
+            })
+            .collect();
+        for h in handles {
+            out.extend(h.join().expect("ring search thread"));
+        }
+    });
     out
 }
 

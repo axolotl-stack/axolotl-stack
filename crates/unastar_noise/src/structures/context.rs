@@ -8,7 +8,7 @@ use crate::features::{Heightmap, JavaState};
 ///
 /// Implemented by the Java-style generator runtime. Results must depend only on
 /// the seed and the arguments.
-pub trait StructureContext {
+pub trait StructureContext: Sync {
     /// Level seed.
     fn seed(&self) -> i64;
     /// Lowest buildable Y.
