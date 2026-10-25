@@ -74,6 +74,46 @@ biomes, and the world spawn); `cargo run -p unastar --example worldgen_parity_re
 prints the metrics and `cargo run -p unastar --example worldgen_bench [--release]`
 the ms/chunk and allocations/chunk.
 
+### Column-cache integration evidence
+
+The scalar column-cache correction in `6d8a9649` replaces the SIMD initializer's
+zero-valued noise/nested-input branches, not the decoration algorithms. Isolating
+the old emitter on the merged generator reproduces main's decoration scores;
+restoring the correction improves every Java terrain/surface metric and the overall
+block histogram. Measurements use the unchanged Java 1.21.11 seed-12345 fixtures:
+96 finished chunks (24,576 columns), plus 18 proto chunks (1,769,472 voxels).
+
+| Metric | Old column initializer | Corrected column initializer |
+|---|---:|---:|
+| Terrain height exact | 0.8956706 | 0.9484456 |
+| Terrain height within 2 | 0.9780273 | 0.9847412 |
+| Terrain mean absolute error | 0.3578695 | 0.2550863 |
+| Surface height exact | 0.9007975 | 0.9223633 |
+| Surface block match | 0.9113770 | 0.9138997 |
+| Surface biome match | 0.9999593 | 1.0000000 |
+| Histogram L1 (lower is better) | 0.0127831 | 0.0123699 |
+| Proto block exact | 0.9944995 | 0.9948420 |
+| Proto class exact | 0.9953156 | 0.9954314 |
+| Ore count score | 0.9730356 | 0.9678604 |
+| Blob count score | 0.9677920 | 0.9705872 |
+| Vegetation count score | 0.8536218 | 0.8512088 |
+
+The histogram's total absolute count error falls from 37,524 to 36,311 blocks
+(3.23% improvement). For example, Java/old/corrected counts are
+stone 670449/674068/673077, dirt 29869/28764/28840, sand 1061/979/999,
+short grass 3145/3358/3321, coal ore 5024/4759/4735, and oak leaves
+989/1010/1066. Individual decoration counts do not all improve when their
+supporting terrain changes; these aggregate scores are not placement accuracy.
+This evidence permits resetting only the ore/vegetation count floors to
+0.9678/0.8512, while raising the blob floor to 0.9705. All terrain floors stay
+unchanged. `column_grid_matches_scalar_density` guards the cache correction
+directly; the old initializer fails it at seed 0, column (0, 0), y=64.
+
+Print finished-chunk metrics with `cargo run -p unastar --all-features --example
+worldgen_parity_report -- crates/unastar/tests/fixtures/java_1_21_11_seed_12345.json`
+and all tracked decoration counts with `cargo test -p unastar --all-features
+--test decoration_parity -- --nocapture`.
+
 ## Compatibility Evidence
 
 The server targets Bedrock 1.26.51 (protocol 2193). Game packet handlers use the

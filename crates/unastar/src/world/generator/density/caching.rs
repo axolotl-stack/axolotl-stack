@@ -537,4 +537,41 @@ mod tests {
         assert_eq!(chunk.cell_count_xz, 4);
         assert_eq!(chunk.cell_count_y, 48);
     }
+
+    /// The SIMD column grid must preserve the scalar router's 2D caches. Replacing
+    /// nested noise/spline inputs with zero changes both terrain and decoration.
+    #[test]
+    fn column_grid_matches_scalar_density() {
+        std::thread::Builder::new()
+            .stack_size(64 << 20)
+            .spawn(|| {
+                for seed in [0, 12345] {
+                    let noises = NoiseRegistry::new(seed);
+                    for (chunk_x, chunk_z) in [(0, 0), (6, -2), (-128, 33)] {
+                        let flat = FlatCacheGrid::new(chunk_x, chunk_z, &noises);
+                        let columns = ColumnContextGrid::new(chunk_x, chunk_z, &noises, &flat);
+                        for local_z in (0..=16).step_by(4) {
+                            for local_x in (0..=16).step_by(4) {
+                                let x = chunk_x * 16 + local_x as i32;
+                                let z = chunk_z * 16 + local_z as i32;
+                                let scalar =
+                                    unastar_noise::ColumnContext::new(x, z, &noises, &flat);
+                                let cached = columns.get(local_x, local_z).as_scalar();
+                                for y in [-64, -8, 64, 128, 256] {
+                                    let ctx = FunctionContext::new(x, y, z);
+                                    assert_eq!(
+                                        compute_final_density(&ctx, &noises, &flat, &scalar),
+                                        compute_final_density(&ctx, &noises, &flat, &cached),
+                                        "seed {seed}, column ({x}, {z}), y {y}"
+                                    );
+                                }
+                            }
+                        }
+                    }
+                }
+            })
+            .unwrap()
+            .join()
+            .unwrap();
+    }
 }
