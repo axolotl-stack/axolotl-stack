@@ -1,12 +1,9 @@
 //! Unrolled scatter loops for feature rules and `minecraft:scatter_feature`.
 //!
-//! Coordinate semantics (inferred from the shipped data, logged in
+//! Coordinate semantics (BDS marker controls, logged in
 //! `thoughts/shared/research/bds-quirks.md`):
-//! - numeric constants and distribution objects are offsets from the input
-//!   position (rules use the chunk origin at y = 0);
-//! - Molang strings evaluate to absolute coordinates: the eight ocean seagrass
-//!   scatters place at `query.heightmap(...)` below rules that already placed
-//!   them at the heightmap, which only works if the value is absolute;
+//! - numeric constants, Molang strings, and distribution objects are offsets
+//!   from the input position (rules use the chunk origin at y = 0);
 //! - `project_input_to_floor` moves the base of the y offset to the heightmap
 //!   of the column computed so far;
 //! - `scatter_chance` is rolled once per scatter, before any iteration;
@@ -171,7 +168,10 @@ pub fn emit(
         defined[index] = true;
         let value = match coord {
             Coord::Offset(n) => quote!(#base + #n),
-            Coord::Expr(e) => int_expr(origin_doc, &env, e)?,
+            Coord::Expr(e) => {
+                let value = int_expr(origin_doc, &env, e)?;
+                quote!(#base + #value)
+            }
             Coord::Dist {
                 kind,
                 extent,
@@ -252,3 +252,7 @@ fn coord_reads(coord: &Coord) -> [bool; 3] {
     };
     [Var::WorldX, Var::WorldY, Var::WorldZ].map(|v| exprs.iter().any(|e| e.reads(v)))
 }
+
+#[cfg(test)]
+#[path = "scatter_tests.rs"]
+mod tests;

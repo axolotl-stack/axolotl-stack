@@ -1,11 +1,11 @@
 //! Coordinate distributions used by compiled feature rules and scatter
 //! features (`uniform`, `triangle`, `gaussian`, `inverse_gaussian`,
-//! `fixed_grid`, `jittered_grid`). Extents are inclusive.
+//! `fixed_grid`, `jittered_grid`). Uniform extents are upper-exclusive.
 //!
 //! The shapes follow Mojang's feature documentation (uniform = flat,
 //! triangle = peaked at the centre, gaussian = bell, inverse_gaussian = mass
 //! at the edges, grids = regular steps). BDS's exact draw sequence is not
-//! observable from data; distribution formulas and endpoint behavior remain
+//! observable from data; non-uniform formulas and endpoint behavior remain
 //! unmeasured: to confirm by BDS fixture (research WD4).
 
 use super::rng::BedrockRandom;
@@ -15,11 +15,11 @@ fn ordered(a: i32, b: i32) -> (i32, i32) {
     if a <= b { (a, b) } else { (b, a) }
 }
 
-/// Uniform integer in `[a, b]`.
+/// Uniform integer in `[min(a,b), max(a,b))`; `a` when both bounds are equal.
 #[inline]
 pub fn uniform(rng: &mut BedrockRandom, a: i32, b: i32) -> i32 {
     let (a, b) = ordered(a, b);
-    rng.next_int_inclusive(a, b)
+    a + rng.next_int(b - a)
 }
 
 /// Sum of two uniforms: peaked at the centre of `[a, b]`.

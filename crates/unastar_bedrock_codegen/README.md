@@ -15,7 +15,7 @@ and surface noise still require reference-world measurements. See
 | Shared Java noise/climate/biome mapping and spawn-center selection | unmeasured: to confirm by BDS fixture | Matched terrain/biome/spawn samples across seeds; safe-spawn checks use finished Bedrock chunks |
 | Base bedrock/deepslate layers | Topology and transition boundaries measured in 1,024 columns; RNG/distribution unmeasured: to confirm by BDS fixture | `bds_1_26_51_seed_12345_geology.json`: contiguous bedrock thickness 2–5, stone absent through y=0, deepslate absent from y=8; capture more seeds and exact random draws |
 | Chunk/pass RNG seeding and feature draw order | unmeasured: to confirm by BDS fixture | Marker placements across positive/negative chunks for one fixed seed |
-| Scatter numeric/distribution offsets versus Molang positions, inclusive extents, Gaussian sampling | unmeasured: to confirm by BDS fixture | Single-block rules with constant, expression and distribution coordinates |
+| Scatter coordinate frames and distribution endpoints | BDS marker fixture confirms numeric/Molang offsets and upper-exclusive uniform extents; other distributions remain unmeasured | Fractional rounding, height-query frames, Gaussian and grid controls |
 | Molang noise and query height semantics | unmeasured: to confirm by BDS fixture | Marker heights above flat ground and fluids, noise threshold controls |
 | JSON ore/tree/plant/geode/sculk/blob/decoration feature placement | unmeasured: to confirm by BDS fixture | One isolated feature at a known origin in controlled material |
 | Built-in aquatic/plants/terrain features and legacy selectors | unmeasured: to confirm by BDS fixture | One built-in identifier per control, fixed seed and biome |
