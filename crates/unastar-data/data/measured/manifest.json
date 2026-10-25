@@ -27,6 +27,32 @@
     }
    ]
   },
+  "armor_values": {
+   "bds_version": "1.26.51",
+   "files": [
+    {
+     "path": "armor_values.json",
+     "sha256": "67eb1418259194ea8d093cd772330f6b8f52129f945d4d407956657fd3561eda"
+    }
+   ],
+   "harness": "tools/bds-sweep (sweep.py armor-values, endstone-sweep plugin) at 6b56b7fa92ac2c9b73dfe1ac21fc67f418812d6d",
+   "method": "sweep player (survival, max health 2000, natural regeneration off) wearing one item takes `/damage <player> D entity_attack`; health lost summed over repeated hits spaced past the hurt cooldown; baseline without armour: {\"4\": 4.0, \"16\": 16.0, \"1000\": 1000.0}",
+   "source": "bds_sweep",
+   "sweeps": [
+    {
+     "dir": "full-armor-values",
+     "items": 31,
+     "runs": [
+      {
+       "items": 31,
+       "seconds": 732.7,
+       "started": "20261025T193356Z",
+       "status": "done"
+      }
+     ]
+    }
+   ]
+  },
   "block_drops": {
    "bds_version": "1.26.51",
    "files": [

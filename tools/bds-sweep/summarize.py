@@ -208,12 +208,30 @@ def compare_drops(first: Path, second: Path) -> int:
 
 # ---------------------------------------------------------------- items
 
+def toughness_range(damage: float, per_hit: float, resolution: float, defense: float):
+    """Toughness interval consistent with `per_hit` +- `resolution` under
+    damage * (1 - (def - damage / (2 + tough / 4)) / 25), or None when the
+    measurement cannot be told apart from the clamped def / 5 reduction."""
+    clamped = damage * (1 - min(20, defense / 5) / 25)
+    if per_hit > clamped - 2 * resolution:
+        return None
+    bounds = []
+    for value in (per_hit - resolution, per_hit + resolution):
+        reduction = 25 * (1 - value / damage)
+        if defense - reduction <= 0:
+            return None
+        bounds.append(4 * (damage / (defense - reduction) - 2))
+    return [round(min(bounds), 2), round(max(bounds), 2)]
+
+
 def summarize_armor_values(sweep: Path) -> None:
     """`armor_values.json`: per item the measured health lost per hit for each
-    damage amount, plus `defense` and `toughness` derived with the armour
-    formula damage * (1 - min(20, max(def / 5, def - damage / (2 + tough / 4))) / 25).
-    A 1000-point hit is clamped to def / 5, which gives the defence; small
-    hits give the toughness where they are not clamped (null otherwise)."""
+    damage amount, `defense` and, where the measurement resolves it, a
+    `toughness` interval, both under the armour formula
+    damage * (1 - min(20, max(def / 5, def - damage / (2 + tough / 4))) / 25).
+    A 1000-point hit is clamped to def / 5, which gives the defence exactly;
+    small hits show the toughness only when they land clearly below the
+    clamped value (the health read-out resolves 1 / hits per hit)."""
     rows = {row['key']: row for row in results(sweep)}
     baseline = {hit['damage']: hit['per_hit'] for hit in rows['none']['hits']}
     table = {}
@@ -222,19 +240,15 @@ def summarize_armor_values(sweep: Path) -> None:
             continue
         if row['worn'] != row['item']:
             raise SystemExit(f'{key}: slot {row["slot"]} held {row["worn"]}')
-        hits = {hit['damage']: hit['per_hit'] for hit in row['hits']}
-        defense = round(125 * (1 - hits[1000] / baseline[1000]), 2)
-        toughness = None
-        for damage, per_hit in sorted(hits.items()):
-            reduction = 25 * (1 - per_hit / baseline[damage])
-            if damage == 1000 or reduction <= defense / 5 + 0.05 or defense - reduction <= 0:
-                continue
-            toughness = round(4 * (damage / (defense - reduction) - 2), 2)
+        hits = {hit['damage']: (hit['per_hit'], 1 / hit['hits']) for hit in row['hits']}
+        defense = round(125 * (1 - hits[1000][0] / baseline[1000]), 2)
+        ranges = {str(d): toughness_range(d, per_hit, resolution, defense)
+                  for d, (per_hit, resolution) in sorted(hits.items()) if d != 1000}
         table[row['item']] = {
             'slot': row['slot'],
             'defense': defense,
-            'toughness': toughness,
-            'per_hit': {str(d): v for d, v in sorted(hits.items())},
+            'toughness_range': {d: r for d, r in ranges.items() if r is not None} or None,
+            'per_hit': {str(d): v for d, (v, _) in sorted(hits.items())},
         }
     files = [write('armor_values.json', table)]
     update_manifest('armor_values', {
