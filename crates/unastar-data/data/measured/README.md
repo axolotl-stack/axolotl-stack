@@ -27,6 +27,9 @@ $py = 'C:/Users/jvigu/orca/bds-runtime/venv/Scripts/python.exe'
 | `block_drops/<block>.json` | `{block, cases: [...]}`; one case per (block state, tool): `states`, `tool` key (`hand`, `<tier>_<kind>`, `+silk_touch1`, `+fortune3`, …), `tool_item` (item and enchantments), `samples`, `observed` (histogram of whole outcomes, `name@data` + `x` + count per dropped stack, `;`-separated; `""` = nothing), `fit` and `loot_table` | `/loot spawn <p> mine <block> mainhand` run as the sweep player holding the tool |
 | `armor_slots.json` | `{item: {head, chest, legs, feet, offhand}}`, true when the slot holds the item after the command | `/replaceitem entity <player> slot.armor.<slot>\|slot.weapon.offhand 0 <item>` |
 | `fuel_burn_ticks.json` | `{item: ticks}` for every item that lights a furnace | furnace with one cobblestone input and the item as fuel; server ticks from lit to unlit (±1) |
+| `armor_values.json` | `{item: {slot, defense, toughness, per_hit}}`: health lost per hit for each damage amount, and defence/toughness derived from it (formula in `summarize.py`; toughness null when no measured hit isolates it) | wearing only that item, `/damage <player> D entity_attack` repeated past the hurt cooldown, max health 2000 |
+| `attack_damage.json` | `{tool key: {tool_item, damage: [per trial], consistent}}` | the scripted player attacks a fresh pig (InventoryTransaction attack); Endstone `ActorDamageEvent` value |
+| `mining_ticks.json` | `{block state: {variant: {ticks: [3 trials], median, tool_item, commands, on_ground, in_water}}}`; variants: tool key plus `+haste1`, `+mining_fatigue1`, `+underwater`, `+levitation256` | the scripted player keeps mining (Start/ContinueDestroyBlock); ticks from the click event to the break event (±1 tick) |
 
 `loot_table` uses the behaviour-pack loot-table schema (`pools`, `rolls`,
 `entries` of `type` `item`/`empty`, `weight`, `functions` `set_count` and

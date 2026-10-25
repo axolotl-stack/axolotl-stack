@@ -253,6 +253,12 @@ def main() -> int:
     parser.add_argument('--client', type=Path, default=REPO / 'target' / 'debug' / 'bds-sweep-client.exe')
     parser.add_argument('--timeout', type=float, default=6 * 3600, help='seconds for the whole job')
     args = parser.parse_args()
+    # A queue of sweep.py runs can be paused for someone else's BDS slot:
+    # while this file exists, every new run exits without starting BDS.
+    hold = bds_runtime.SWEEPS / 'hold'
+    if hold.exists():
+        print(f'held: {hold} exists; not starting BDS')
+        return 3
     if not args.client.exists():
         parser.error(f'{args.client} missing: cargo build -p bds-sweep')
     check = subprocess.run([str(bds_runtime.PYTHON), '-c', 'import endstone_bds_sweep'], capture_output=True)

@@ -48,17 +48,20 @@ class Context:
         self.block(pos).set_data(data, False)
 
     def stack(self, spec):
-        """`spec` is null (empty hand) or {item, count?, enchants?: {id: level}}."""
+        """`spec` is null (empty hand) or {item, count?, enchants?: {id: level},
+        unbreakable?: bool}."""
         if not spec:
             return None
         from endstone.inventory import ItemStack
         stack = ItemStack(spec['item'], int(spec.get('count', 1)))
         enchants = spec.get('enchants') or {}
-        if enchants:
+        if enchants or spec.get('unbreakable'):
             meta = stack.item_meta
             for enchant, level in enchants.items():
                 if not meta.add_enchant(enchant, int(level), True):
                     raise RuntimeError(f'cannot enchant {spec["item"]} with {enchant} {level}')
+            if spec.get('unbreakable'):
+                meta.is_unbreakable = True
             stack.set_item_meta(meta)
         return stack
 
@@ -301,7 +304,9 @@ def armor_values(ctx: Context, job: dict):
         for attribute in ARMOR_ATTRIBUTES.values():
             setattr(inventory, attribute, None)
         if item['item']:
-            setattr(inventory, ARMOR_ATTRIBUTES[item['slot']], ctx.stack({'item': item['item']}))
+            # Unbreakable: a 1000-point hit would otherwise destroy the piece.
+            setattr(inventory, ARMOR_ATTRIBUTES[item['slot']],
+                    ctx.stack({'item': item['item'], 'unbreakable': True}))
         yield 2
         hits = []
         for spec in job['damage']:
@@ -345,7 +350,10 @@ def attack(ctx: Context, job: dict):
             continue
         ctx.player.inventory.held_item_slot = 0
         ctx.player.inventory.item_in_main_hand = ctx.stack(item['tool'])
-        yield 5
+        # The client must have received the new held item before it attacks:
+        # BDS ignores an attack whose transaction carries a stale held item
+        # (seen as an empty first trial with a 5-tick wait).
+        yield 20
         trials = []
         for _ in range(int(item.get('repeats', 3))):
             # Keep only the runtime id: an Endstone actor wrapper used after
