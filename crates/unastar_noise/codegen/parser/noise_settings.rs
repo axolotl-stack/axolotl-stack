@@ -16,6 +16,29 @@ pub struct NoiseSettings {
     pub noise_router: NoiseRouter,
     /// Surface rules parsed from JSON.
     pub surface_rule: RuleSource,
+    /// Climate points the world spawn search aims for.
+    pub spawn_target: Vec<SpawnTargetPoint>,
+}
+
+/// One `spawn_target` climate parameter point.
+#[derive(Debug, Clone, Deserialize)]
+pub struct SpawnTargetPoint {
+    pub temperature: ClimateParameter,
+    pub humidity: ClimateParameter,
+    pub continentalness: ClimateParameter,
+    pub erosion: ClimateParameter,
+    pub depth: ClimateParameter,
+    pub weirdness: ClimateParameter,
+    pub offset: serde_json::Number,
+}
+
+/// A climate parameter: a single value or a `[min, max]` range. Kept as JSON numbers so
+/// quantization parses the decimal text as `f32` the way Java's codec reads it.
+#[derive(Debug, Clone, Deserialize)]
+#[serde(untagged)]
+pub enum ClimateParameter {
+    Point(serde_json::Number),
+    Span([serde_json::Number; 2]),
 }
 
 /// Vertical extent and cell size of the noise volume.

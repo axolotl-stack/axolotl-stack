@@ -13,5 +13,8 @@ pub const WATER: u8 = 1 << 2;
 pub const LEAVES: u8 = 1 << 3;
 /// Blocks motion (Java: solid collision shape; cobweb and bamboo sapling excluded).
 pub const BLOCKS_MOTION: u8 = 1 << 4;
+/// The collision shape's top face is a full square (something can stand on the whole
+/// block).
+pub const FULL_TOP_FACE: u8 = 1 << 5;
 /// Runtime id that no Java state maps to; a Java-style generator never places it.
 pub const UNMAPPED: u8 = 1 << 7;

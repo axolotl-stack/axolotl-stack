@@ -908,7 +908,9 @@ mod tests {
 
     fn block_world(mode: GameMode, position: DVec3) -> (World, Entity, Entity) {
         let mut world = World::new();
-        world.insert_resource(ChunkManager::new(crate::world::WorldConfig::default()));
+        world.insert_resource(ChunkManager::new(
+            crate::world::WorldConfig::void_spawn_platform(1),
+        ));
         world.insert_resource(EventBuffer::default());
         world.insert_resource(Messages::<BlockBroadcastEvent>::default());
         let mut chunk = crate::world::chunk::Chunk::new(0, 0);
