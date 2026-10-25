@@ -17,6 +17,7 @@ pub mod class {
     pub const WATER: u8 = 1 << 2;
     pub const LEAVES: u8 = 1 << 3;
     pub const BLOCKS_MOTION: u8 = 1 << 4;
+    pub const FULL_TOP_FACE: u8 = 1 << 5;
     pub const UNMAPPED: u8 = 1 << 7;
 }
 
@@ -219,6 +220,7 @@ fn decode_state(block: &JavaBlock, mut offset: usize) -> BTreeMap<String, String
 /// whose bounding box has an average edge of at least 0.7291666666666666 or a height of at
 /// least 1, excluding cobweb and bamboo saplings. Heightmaps built from it are checked
 /// against the Java reference world (`tests/fixtures/java_1_21_11_seed_12345.json`).
+/// `FULL_TOP_FACE`: see [`top_face_full`].
 fn classify(name: &str, props: &BTreeMap<String, String>, shape: &[[f64; 6]]) -> u8 {
     let mut flags = 0u8;
     let short = name.trim_start_matches("minecraft:");
@@ -257,5 +259,43 @@ fn classify(name: &str, props: &BTreeMap<String, String>, shape: &[[f64; 6]]) ->
             flags |= class::BLOCKS_MOTION;
         }
     }
+    if top_face_full(shape) {
+        flags |= class::FULL_TOP_FACE;
+    }
     flags
+}
+
+/// Whether the collision shape's top face covers the whole block: Java slices the shape
+/// just below y = 1 (at 1 - 1e-7) and the boxes cut by that plane must cover the unit
+/// square in x and z.
+fn top_face_full(shape: &[[f64; 6]]) -> bool {
+    const PLANE: f64 = 1.0 - 1.0e-7;
+    let cut: Vec<&[f64; 6]> = shape
+        .iter()
+        .filter(|b| b[1] < PLANE && b[4] > PLANE)
+        .collect();
+    if cut.is_empty() {
+        return false;
+    }
+    // Exact rectangle-union coverage: every cell of the grid spanned by the boxes' x and
+    // z edges must lie inside some box.
+    let edges = |lo: usize, hi: usize| {
+        let mut e: Vec<f64> = cut
+            .iter()
+            .flat_map(|b| [b[lo].clamp(0.0, 1.0), b[hi].clamp(0.0, 1.0)])
+            .chain([0.0, 1.0])
+            .collect();
+        e.sort_by(f64::total_cmp);
+        e.dedup();
+        e
+    };
+    let (xs, zs) = (edges(0, 3), edges(2, 5));
+    xs.windows(2).all(|x| {
+        let mx = (x[0] + x[1]) / 2.0;
+        zs.windows(2).all(|z| {
+            let mz = (z[0] + z[1]) / 2.0;
+            cut.iter()
+                .any(|b| b[0] <= mx && mx <= b[3] && b[2] <= mz && mz <= b[5])
+        })
+    })
 }

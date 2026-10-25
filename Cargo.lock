@@ -5309,6 +5309,7 @@ dependencies = [
  "serde",
  "serde_json",
  "sha2 0.10.9",
+ "tempfile",
  "thiserror 2.0.21",
  "tokio",
  "tokio-raknet",
@@ -5316,6 +5317,7 @@ dependencies = [
  "tracing",
  "tracing-subscriber",
  "unastar-data",
+ "unastar_bedrock_codegen",
  "unastar_noise",
  "uuid",
  "valentine",
@@ -5407,6 +5409,23 @@ dependencies = [
  "quote",
  "syn 2.0.112",
  "unastar_api",
+]
+
+[[package]]
+name = "unastar_bedrock_codegen"
+version = "0.1.0"
+dependencies = [
+ "flate2",
+ "prettyplease",
+ "proc-macro2",
+ "quote",
+ "serde",
+ "serde_json",
+ "syn 2.0.112",
+ "tempfile",
+ "thiserror 2.0.21",
+ "unastar-packs",
+ "unastar-rules",
 ]
 
 [[package]]

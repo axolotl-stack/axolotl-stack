@@ -34,7 +34,7 @@ pub struct ServerConfig {
 impl Default for ServerConfig {
     fn default() -> Self {
         Self {
-            bind_address: "0.0.0.0:19132".into(),
+            bind_address: "127.0.0.1:19132".into(),
             motd: "Unastar Server".into(),
             max_players: 20,
             default_chunk_radius: 4,

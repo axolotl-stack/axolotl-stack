@@ -5,6 +5,9 @@ edition.workspace = true
 
 [features]
 default = []
+# Bedrock-style world generator compiled from a local BDS 1.26.51 install.
+# Needs UNASTAR_BDS_DIR at build time (see README, "Bedrock-style generator").
+bedrock-worldgen = ["dep:unastar_bedrock_codegen"]
 # Java Edition structure templates for the Java-style generator, read at build
 # time from the server jar named by UNASTAR_JAVA_SERVER_JAR (Mojang assets,
 # never committed). Without it `world.generator.kind = "java"` is rejected.
@@ -50,5 +53,13 @@ wasmtime-wasi = "41.0"
 # tracy-client = "0.18"
 bitflags = "2.6"
 
+[build-dependencies]
+unastar_bedrock_codegen = { path = "../unastar_bedrock_codegen", optional = true }
+
 [dev-dependencies]
 flate2.workspace = true
+tempfile = "3"
+
+[[example]]
+name = "bedrock_decoration_smoke"
+required-features = ["bedrock-worldgen"]

@@ -23,6 +23,8 @@ impl Drop for ConfigFile {
     }
 }
 
+/// The default generator is Java-style, which needs the `java-worldgen` templates.
+#[cfg(feature = "java-worldgen")]
 #[test]
 fn generated_and_shipped_configs_load_with_the_same_safe_defaults() {
     let file = ConfigFile::new();
@@ -46,6 +48,25 @@ fn generated_and_shipped_configs_load_with_the_same_safe_defaults() {
         );
     }
 }
+
+/// Without `java-worldgen` the default (Java-style) world is refused with an error that
+/// names the feature and the jar, instead of starting a world without structures.
+#[cfg(not(feature = "java-worldgen"))]
+#[test]
+fn default_java_world_requires_the_java_worldgen_feature() {
+    let file = ConfigFile::new();
+    match UnastarConfig::load_or_create(&file.0) {
+        Err(ConfigError::Validation(message)) => {
+            assert!(message.contains("java-worldgen"), "{message}");
+            assert!(message.contains("UNASTAR_JAVA_SERVER_JAR"), "{message}");
+        }
+        other => panic!("default Java-style config loaded without java-worldgen: {other:?}"),
+    }
+}
+
+/// Settings tests below pick a generator that needs no build-time game files.
+const VOID_WORLD: &str =
+    "[world.generator]\nkind = 'void_spawn_platform'\nplatform_radius_chunks = 1\n";
 
 #[test]
 fn unknown_config_keys_are_rejected_instead_of_silently_ignored() {
@@ -87,7 +108,7 @@ fn storage_settings_reach_runtime_configuration() {
         std::fs::write(
             &file.0,
             format!(
-                "[world]\nstorage_provider = '{provider}'\nblazedb_cache_chunks = 73\n\
+                "{VOID_WORLD}[world]\nstorage_provider = '{provider}'\nblazedb_cache_chunks = 73\n\
                  [players]\ndata_dir = 'custom-playerdata'\nleveldb_enabled = false\n\
                  save_on_disconnect = false\nsave_previous_position = false"
             ),
@@ -107,7 +128,11 @@ fn storage_settings_reach_runtime_configuration() {
 #[test]
 fn offline_mode_requires_an_explicit_opt_out() {
     let file = ConfigFile::new();
-    std::fs::write(&file.0, "[server]\nonline_mode = false").unwrap();
+    std::fs::write(
+        &file.0,
+        format!("{VOID_WORLD}[server]\nonline_mode = false"),
+    )
+    .unwrap();
     assert!(
         !UnastarConfig::load_or_create(&file.0)
             .unwrap()
@@ -135,6 +160,7 @@ fn strict_world_variants_still_load_valid_options() {
                 platform_radius_chunks: 2,
             },
             WorldGenerator::Java { seed: 42 },
+            WorldGenerator::Bedrock { seed: 42 },
         ] {
             let world = WorldConfig {
                 bounds,
@@ -146,4 +172,19 @@ fn strict_world_variants_still_load_valid_options() {
             assert_eq!(decoded, world);
         }
     }
+}
+
+#[test]
+fn bedrock_config_requires_the_build_time_pack_feature() {
+    // Start from a generator that needs no build-time game files, so the first check
+    // holds in every feature combination (the default Java-style world needs
+    // `java-worldgen`).
+    let mut config = UnastarConfig::default();
+    config.world.generator = crate::world::WorldGenerator::SuperFlat;
+    assert!(config.validate().is_ok());
+    config.world.generator = crate::world::WorldGenerator::Bedrock { seed: 12345 };
+    assert_eq!(
+        config.validate().is_ok(),
+        cfg!(feature = "bedrock-worldgen")
+    );
 }

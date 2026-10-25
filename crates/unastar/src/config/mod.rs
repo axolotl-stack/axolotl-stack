@@ -106,6 +106,13 @@ impl UnastarConfig {
     }
 
     pub fn validate(&self) -> Result<(), String> {
+        #[cfg(not(feature = "bedrock-worldgen"))]
+        if matches!(
+            self.world.generator,
+            crate::world::WorldGenerator::Bedrock { .. }
+        ) {
+            return Err(crate::world::BEDROCK_BUILD_REQUIREMENT.to_owned());
+        }
         if self.spawn_rules.is_empty() {
             return Err("config requires at least one `[[spawn_rules]]` rule".into());
         }
@@ -160,7 +167,7 @@ pub struct ServerConfigFile {
 impl Default for ServerConfigFile {
     fn default() -> Self {
         Self {
-            bind_address: "0.0.0.0:19132".into(),
+            bind_address: "127.0.0.1:19132".into(),
             motd: "Unastar Server".into(),
             max_players: 20,
             default_chunk_radius: 4,
@@ -230,12 +237,13 @@ pub struct SpawnRule {
 }
 
 impl Default for SpawnRule {
+    /// Previous position when known, otherwise the generator's spawn (no fixed location).
     fn default() -> Self {
         Self {
             name: "main".into(),
-            always_at_location: true,
+            always_at_location: false,
             previous_position: true,
-            location: Some(SpawnLocation::default()),
+            location: None,
         }
     }
 }

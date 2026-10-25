@@ -7,7 +7,7 @@ use std::collections::HashMap;
 
 use crate::codegen::data::java_blocks::JavaBlocks;
 use crate::codegen::parser::density_function::{DensityFunctionArg, DensityFunctionDef};
-use crate::codegen::parser::noise_settings::NoiseSettings;
+use crate::codegen::parser::noise_settings::{ClimateParameter, NoiseSettings, SpawnTargetPoint};
 
 pub fn emit(
     settings: &NoiseSettings,
@@ -56,6 +56,12 @@ pub fn emit(
     let cell_height = settings.noise.size_vertical * 4;
     let aquifers = settings.aquifers_enabled;
     let veins = settings.ore_veins_enabled;
+    let spawn_target = spawn_target(&settings.spawn_target)?;
+    let spawn_target_len = spawn_target.len();
+    let spawn_target = spawn_target.iter().map(|point| {
+        let dims = point.iter().map(|[min, max]| quote! { [#min, #max] });
+        quote! { [#(#dims),*] }
+    });
 
     Ok(quote! {
         //! Overworld noise settings (`noise_settings/overworld.json`).
@@ -79,6 +85,10 @@ pub fn emit(
         pub const DEFAULT_BLOCK: u32 = #default_block;
         /// Default fluid (Bedrock runtime id).
         pub const DEFAULT_FLUID: u32 = #default_fluid;
+        /// Climate points the world spawn search aims for: quantized `[min, max]` per
+        /// dimension (temperature, humidity, continentalness, erosion, depth, weirdness,
+        /// offset).
+        pub const SPAWN_TARGET: [[[i64; 2]; 7]; #spawn_target_len] = [#(#spawn_target),*];
 
         /// Parameters of the legacy blended terrain noise (`base_3d_noise`).
         #[derive(Debug, Clone, Copy, PartialEq)]
@@ -99,4 +109,35 @@ pub fn emit(
             smear_scale_multiplier: #smear,
         };
     })
+}
+
+/// Quantized `spawn_target` points (Java's `(long)(value * 10000.0F)`).
+fn spawn_target(points: &[SpawnTargetPoint]) -> Result<Vec<[[i64; 2]; 7]>, String> {
+    let quantize = |n: &serde_json::Number| -> Result<i64, String> {
+        let value: f32 = n
+            .to_string()
+            .parse()
+            .map_err(|e| format!("spawn_target value {n}: {e}"))?;
+        Ok((value * 10000.0f32) as i64)
+    };
+    let span = |p: &ClimateParameter| -> Result<[i64; 2], String> {
+        Ok(match p {
+            ClimateParameter::Point(v) => [quantize(v)?; 2],
+            ClimateParameter::Span([min, max]) => [quantize(min)?, quantize(max)?],
+        })
+    };
+    points
+        .iter()
+        .map(|p| {
+            Ok([
+                span(&p.temperature)?,
+                span(&p.humidity)?,
+                span(&p.continentalness)?,
+                span(&p.erosion)?,
+                span(&p.depth)?,
+                span(&p.weirdness)?,
+                [quantize(&p.offset)?; 2],
+            ])
+        })
+        .collect()
 }

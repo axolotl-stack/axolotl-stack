@@ -49,6 +49,70 @@ directory. The old sample's `[world.storage]` table and its `data_dir`,
 a configuration error: remove that table and use the supported `[world]` keys.
 Player storage remains configured separately under `[players]`.
 
+## World Generation
+
+`[world.generator]` selects the generator; new configs default to Java-style terrain:
+
+| `kind` | Terrain | Spawn without a configured location |
+|---|---|---|
+| `java` (default, `seed = 12345`) | Java Edition 1.21.11-style: noise router, aquifers, ore veins, 3D biomes, surface rules, cave and canyon carvers | Java's world-spawn search (climate target, 11x11 chunk spiral, first standable column), computed once per server process |
+| `super_flat` | bedrock, two dirt, grass | template spawn |
+| `void_spawn_platform` | stone platform of `platform_radius_chunks` | template spawn |
+
+The default spawn rule keeps returning players at their saved position and otherwise
+uses the generator's spawn; set `location` (with `always_at_location = true`) to pin it.
+Java-style chunks are generated on a bounded pool of `world.generation_threads`
+workers (0 = half the cores, 1..=8), off the ECS tick thread. Chunk biomes are 3D
+(4x4x4 quarts) on the wire and in storage (`Data3D`).
+
+Generation runs through `world::generator::ChunkPipeline`: per-chunk terrain stages
+write a flat block buffer that is packed into paletted sub-chunks once; a 3x3
+decoration stage (features and structures) runs only for generators that decorate.
+Parity with the Java reference world is ratcheted by
+`cargo test -p unastar --test worldgen_parity` (terrain/surface heights, proto voxels,
+biomes, and the world spawn); `cargo run -p unastar --example worldgen_parity_report`
+prints the metrics and `cargo run -p unastar --example worldgen_bench [--release]`
+the ms/chunk and allocations/chunk.
+
+### Column-cache integration evidence
+
+The scalar column-cache correction in `6d8a9649` replaces the SIMD initializer's
+zero-valued noise/nested-input branches, not the decoration algorithms. Isolating
+the old emitter on the merged generator reproduces main's decoration scores;
+restoring the correction improves every Java terrain/surface metric and the overall
+block histogram. Measurements use the unchanged Java 1.21.11 seed-12345 fixtures:
+96 finished chunks (24,576 columns), plus 18 proto chunks (1,769,472 voxels).
+
+| Metric | Old column initializer | Corrected column initializer |
+|---|---:|---:|
+| Terrain height exact | 0.8956706 | 0.9484456 |
+| Terrain height within 2 | 0.9780273 | 0.9847412 |
+| Terrain mean absolute error | 0.3578695 | 0.2550863 |
+| Surface height exact | 0.9007975 | 0.9223633 |
+| Surface block match | 0.9113770 | 0.9138997 |
+| Surface biome match | 0.9999593 | 1.0000000 |
+| Histogram L1 (lower is better) | 0.0127831 | 0.0123699 |
+| Proto block exact | 0.9944995 | 0.9948420 |
+| Proto class exact | 0.9953156 | 0.9954314 |
+| Ore count score | 0.9730356 | 0.9678604 |
+| Blob count score | 0.9677920 | 0.9705872 |
+| Vegetation count score | 0.8536218 | 0.8512088 |
+
+The histogram's total absolute count error falls from 37,524 to 36,311 blocks
+(3.23% improvement). For example, Java/old/corrected counts are
+stone 670449/674068/673077, dirt 29869/28764/28840, sand 1061/979/999,
+short grass 3145/3358/3321, coal ore 5024/4759/4735, and oak leaves
+989/1010/1066. Individual decoration counts do not all improve when their
+supporting terrain changes; these aggregate scores are not placement accuracy.
+This evidence permits resetting only the ore/vegetation count floors to
+0.9678/0.8512, while raising the blob floor to 0.9705. All terrain floors stay
+unchanged. `column_grid_matches_scalar_density` guards the cache correction
+directly; the old initializer fails it at seed 0, column (0, 0), y=64.
+
+Print finished-chunk metrics with `cargo run -p unastar --all-features --example
+worldgen_parity_report -- crates/unastar/tests/fixtures/java_1_21_11_seed_12345.json`
+and all tracked decoration counts with `cargo test -p unastar --all-features
+--test decoration_parity -- --nocapture`.
 
 ## Compatibility Evidence
 
@@ -120,7 +184,7 @@ Trapping plugin callbacks are logged, and cancellable callbacks fail closed.
 ## Persistence
 
 Both LevelDB (the default) and BlazeDB use load-before-generate chunk requests.
-For vanilla terrain, storage reads and generation run off the ECS tick thread;
+For Java-style terrain, storage reads and generation run off the ECS tick thread;
 only a confirmed storage miss generates terrain. Storage read errors are logged
 and never become generated replacement columns. Loaded columns start clean,
 while generated or edited columns are saved on unload/shutdown.
@@ -141,3 +205,54 @@ world providers, stored-column preservation through asynchronous loading and
 the save cycle, player disconnect/reconnect, corrupt player data, storage errors,
 and out-of-range block heights. On Windows, set
 `VCPKG_ROOT=C:\Users\jvigu\vcpkg` before building the LevelDB dependency.
+
+## Bedrock-style generator
+
+The Bedrock-style world generator targeting BDS 1.26.51 lives in
+`src/world/generator/bedrock/` behind the `bedrock-worldgen` cargo feature (off by
+default). Its feature rules, features and biome surface parameters are compiled at build
+time from the vanilla packs of a local BDS install by `unastar_bedrock_codegen`; the packs
+are under the Minecraft EULA and are never committed.
+
+```sh
+UNASTAR_BDS_DIR=/path/to/bds/server cargo build -p unastar --features bedrock-worldgen
+```
+
+`UNASTAR_BDS_DIR` names the BDS server directory (the one containing `bedrock_server`,
+`definitions/` and `behavior_packs/vanilla*`); the build fails with a message naming the
+variable when it is unset. The protocolgen submodule must be initialised for block ids.
+
+Select it explicitly:
+
+```toml
+[world.generator]
+kind = "bedrock"
+seed = 12345
+```
+
+Startup rejects this configuration if `bedrock-worldgen` was not compiled in.
+Both editions use the same `Generator`/`ChunkPipeline`, bounded generation pool
+and deterministic 3x3 decoration assembly. Bedrock's proto stage uses shared
+noise/aquifers/veins, maps quart biomes to native Bedrock IDs, applies BDS-data
+surface builders and cave subsurface ranges, then runs compiled carver rules.
+Decoration places data-driven structure sets before feature passes. Height
+oracles use two bounded 128-entry single-flight caches of column heights.
+
+`cargo run -p unastar --features bedrock-worldgen --example worldgen_parity_report -- --kind bedrock`
+prints metrics against the BDS fixture. `worldgen_bench --kind bedrock` reports
+the same single-threaded workload as the Java generator, including allocations.
+
+Runtime pieces: `world` (block access trait and decoration context), `rng` (Bedrock's
+MT19937), `scatter` (rule/scatter distributions), `features` (JSON feature type
+algorithms), `builtin` (BDS built-in features registered under their identifiers),
+`surface` (Bedrock surface builders), `adapter` and `decorate` (shared 3x3 region and driver with
+per-chunk seeding). **BDS parity is not established**, including statistical
+decoration parity. The codegen crate's [measurement ledger](../unastar_bedrock_codegen/README.md)
+lists the unmeasured algorithms and required reference controls.
+
+The shared `JavaGenerator` exposes `generate_noise_proto` and its dense equivalent
+`generate_noise_blocks`: density, aquifers, ore veins and quart biomes before
+edition-specific surface/carver passes. `sample_biome` samples an absolute block
+position using the same seeded noise registry; `noise_heightmap` is a chunk-level
+motion-blocking height oracle before surface/carvers. Callers cache oracle
+results per placement run rather than regenerate a chunk for every queried column.

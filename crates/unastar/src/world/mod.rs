@@ -63,7 +63,7 @@ impl WorldBounds {
 }
 
 /// World generator for chunks.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
 #[serde(tag = "kind", rename_all = "snake_case", deny_unknown_fields)]
 pub enum WorldGenerator {
     /// Superflat world: classic Minecraft superflat (1 bedrock, 2 dirt, 1 grass at Y=0-3).
@@ -73,6 +73,8 @@ pub enum WorldGenerator {
     VoidSpawnPlatform { platform_radius_chunks: u32 },
     /// Java-style terrain (Java Edition 1.21.11 parity target).
     Java { seed: i64 },
+    /// Bedrock-style worldgen from a local BDS 1.26.51 install.
+    Bedrock { seed: i64 },
 }
 
 impl WorldGenerator {
@@ -86,6 +88,17 @@ impl WorldGenerator {
                 platform_radius_chunks,
             }),
             Self::Java { seed } => std::sync::Arc::new(generator::JavaGenerator::new(seed)),
+            Self::Bedrock { seed } => {
+                #[cfg(feature = "bedrock-worldgen")]
+                {
+                    std::sync::Arc::new(generator::bedrock::BedrockGenerator::new(seed))
+                }
+                #[cfg(not(feature = "bedrock-worldgen"))]
+                {
+                    let _ = seed;
+                    panic!("{BEDROCK_BUILD_REQUIREMENT}")
+                }
+            }
         }
     }
 
@@ -94,10 +107,30 @@ impl WorldGenerator {
     pub fn uses_generation_pool(&self) -> bool {
         match self {
             Self::SuperFlat | Self::VoidSpawnPlatform { .. } => false,
-            Self::Java { .. } => true,
+            Self::Java { .. } | Self::Bedrock { .. } => true,
         }
     }
+
+    /// World spawn chosen by this generator. The search generates chunks, so it runs once
+    /// per generator config and process; later calls return the cached point.
+    pub fn spawn(&self) -> generator::SpawnPoint {
+        use std::collections::HashMap;
+        use std::sync::{Arc, LazyLock, Mutex, OnceLock};
+        type Spawns = Mutex<HashMap<WorldGenerator, Arc<OnceLock<generator::SpawnPoint>>>>;
+        static SPAWNS: LazyLock<Spawns> = LazyLock::new(Default::default);
+        let cell = SPAWNS
+            .lock()
+            .expect("spawn cache lock poisoned")
+            .entry(*self)
+            .or_default()
+            .clone();
+        *cell.get_or_init(|| generator::ChunkPipeline::new(self.build()).find_spawn())
+    }
 }
+
+#[cfg(not(feature = "bedrock-worldgen"))]
+pub(crate) const BEDROCK_BUILD_REQUIREMENT: &str = "the Bedrock-style generator needs vanilla packs from a local BDS 1.26.51 install: \
+     build with --features bedrock-worldgen and UNASTAR_BDS_DIR=<server directory>";
 
 /// Storage provider for world persistence.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, Default)]
@@ -131,12 +164,24 @@ impl Default for WorldConfig {
         Self {
             dimension: 0,
             bounds: WorldBounds::Infinite,
-            generator: WorldGenerator::VoidSpawnPlatform {
-                platform_radius_chunks: 1,
-            },
+            // Java-style terrain; seed 12345 is the seed of the Java reference fixtures.
+            generator: WorldGenerator::Java { seed: 12345 },
             storage_provider: StorageProvider::LevelDb,
             blazedb_cache_chunks: 4096,
             generation_threads: 0,
+        }
+    }
+}
+
+impl WorldConfig {
+    /// Default settings with a void world and a stone platform of `platform_radius_chunks`
+    /// around the origin: generated inline, no generation pool or tokio runtime needed.
+    pub fn void_spawn_platform(platform_radius_chunks: u32) -> Self {
+        Self {
+            generator: WorldGenerator::VoidSpawnPlatform {
+                platform_radius_chunks,
+            },
+            ..Self::default()
         }
     }
 }

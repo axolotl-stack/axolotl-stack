@@ -66,13 +66,13 @@ fn java_style_vs_java_reference() {
     assert_ratchets(
         fixture,
         &[
-            ("terrain_exact", m.terrain_exact, 0.8956),
-            ("terrain_within_2", m.terrain_within_2, 0.9780),
-            ("-terrain_mean_abs_error", m.terrain_mean_abs_error, 0.3579),
-            ("surface_exact", m.surface_exact, 0.9007),
-            ("surface_block", m.surface_block, 0.9113),
-            ("-histogram_l1", m.histogram_l1, 0.0128),
-            ("surface_biome", m.surface_biome, 0.9999),
+            ("terrain_exact", m.terrain_exact, 0.9484),
+            ("terrain_within_2", m.terrain_within_2, 0.9847),
+            ("-terrain_mean_abs_error", m.terrain_mean_abs_error, 0.2551),
+            ("surface_exact", m.surface_exact, 0.9223),
+            ("surface_block", m.surface_block, 0.9138),
+            ("-histogram_l1", m.histogram_l1, 0.0124),
+            ("surface_biome", m.surface_biome, 1.0),
         ],
     );
 }
@@ -107,9 +107,25 @@ fn java_style_protos_vs_java_reference() {
     assert_ratchets(
         "java_1_21_11_seed_12345_proto.json",
         &[
-            ("block_exact", metrics.block_exact, 0.9944),
-            ("class_exact", metrics.class_exact, 0.9953),
+            ("block_exact", metrics.block_exact, 0.9948),
+            ("class_exact", metrics.class_exact, 0.9954),
             ("biome_exact", metrics.biome_exact, 1.0),
         ],
     );
+}
+
+/// World spawn of the Java reference world (seed 12345, `level.dat` `spawn.pos`). Java
+/// picks the same spawn with and without features, so the undecorated generator must hit
+/// it exactly.
+/// `JavaGenerator` always loads the structure tables, which need `java-worldgen`.
+#[cfg(feature = "java-worldgen")]
+#[test]
+fn java_style_spawn_matches_java_reference() {
+    let spawn = std::thread::Builder::new()
+        .stack_size(64 << 20)
+        .spawn(|| ChunkPipeline::new(Arc::new(JavaGenerator::new(12345))).find_spawn())
+        .unwrap()
+        .join()
+        .unwrap();
+    assert_eq!((spawn.x, spawn.y, spawn.z), (96, 136, -32));
 }

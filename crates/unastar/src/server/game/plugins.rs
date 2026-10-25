@@ -230,7 +230,7 @@ mod tests {
         world.insert_resource(ActionQueue::default());
         world.insert_resource(ItemRegistryResource(Arc::new(limited_item_registry())));
         world.insert_resource(BlockRegistryResource(Arc::new(BlockRegistry::new())));
-        world.insert_resource(ChunkManager::new(WorldConfig::default()));
+        world.insert_resource(ChunkManager::new(WorldConfig::void_spawn_platform(1)));
         world.insert_resource(bevy_ecs::message::Messages::<BlockBroadcastEvent>::default());
 
         let (outbound_tx, mut outbound_rx) = mpsc::channel(8);

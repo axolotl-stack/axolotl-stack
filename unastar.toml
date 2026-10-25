@@ -63,10 +63,13 @@ mode = "infinite"
 # max_z = 64
 
 [world.generator]
-# kinds: "super_flat" | "void_spawn_platform" | "java" (Java Edition-style terrain, requires seed)
-kind = "void_spawn_platform"
-# For void worlds, generate a stone platform at chunk coords [-r..r].
-platform_radius_chunks = 1
+# kinds: "super_flat" | "void_spawn_platform" | "java" | "bedrock" (edition-style kinds require seed)
+# "bedrock" needs --features bedrock-worldgen and UNASTAR_BDS_DIR at build time.
+kind = "java"
+seed = 12345
+# For void worlds (kind = "void_spawn_platform"), generate a stone platform at chunk
+# coords [-r..r]:
+# platform_radius_chunks = 1
 
 [players]
 # Where Unastar stores per-player files (e.g. last known position).
@@ -92,6 +95,10 @@ save_on_disconnect = true
 #     previous_position = true
 #     always_at_location = true
 #     location = { ... }
+#
+# - No location at all: generated worlds ("java") use the generator's spawn search
+#   (Java's world-spawn rules, computed once per server start); flat and void worlds use
+#   their template spawn.
 
 [[spawn_rules]]
 name = "main"
@@ -100,8 +107,8 @@ name = "main"
 previous_position = true
 
 # If true, force a fixed spawn location (or act as a fallback if previous position is missing).
-always_at_location = true
+always_at_location = false
 
 # Spawn location in *block coordinates* (floats allowed for smoother centering).
-# `yaw` and `pitch` are optional.
-location = { x = 0.5, y = 17.0, z = 0.5, yaw = 0.0, pitch = 0.0 }
+# `yaw` and `pitch` are optional. Unset: the generator picks the spawn.
+# location = { x = 0.5, y = 17.0, z = 0.5, yaw = 0.0, pitch = 0.0 }

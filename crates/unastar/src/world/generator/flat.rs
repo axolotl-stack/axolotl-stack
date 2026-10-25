@@ -4,7 +4,7 @@ use super::pipeline::{Generator, SpawnPoint};
 use super::proto::{NativeBiome, ProtoChunk};
 use super::region::DecorationRegion;
 use crate::world::ChunkPos;
-use crate::world::chunk::{DEFAULT_BIOME_ID, blocks};
+use crate::world::chunk::{Chunk, DEFAULT_BIOME_ID, blocks};
 
 /// Classic superflat: bedrock at y=0, dirt at y=1-2, grass at y=3, plains everywhere.
 #[derive(Debug, Default, Clone, Copy)]
@@ -39,7 +39,7 @@ impl Generator for FlatGenerator {
         biome as u32
     }
 
-    fn find_spawn(&self) -> SpawnPoint {
+    fn find_spawn(&self, _chunk_at: &dyn Fn(ChunkPos) -> Chunk) -> SpawnPoint {
         SpawnPoint { x: 0, y: 4, z: 0 }
     }
 }
@@ -81,7 +81,7 @@ impl Generator for VoidGenerator {
         biome as u32
     }
 
-    fn find_spawn(&self) -> SpawnPoint {
+    fn find_spawn(&self, _chunk_at: &dyn Fn(ChunkPos) -> Chunk) -> SpawnPoint {
         SpawnPoint { x: 0, y: 16, z: 0 }
     }
 }
