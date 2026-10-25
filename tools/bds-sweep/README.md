@@ -33,6 +33,7 @@ cargo build -p bds-extractor -p bds-sweep
 | `mining` | break ticks per (block state, tool, effect/environment), 3 trials | player (survival) at (0.5,-60,0.5) facing the west face of (1,-59,0); client sends Start/ContinueDestroyBlock, BDS breaks the block itself; ticks from the LEFT_CLICK_BLOCK event to the BlockBreakEvent (±1 tick) |
 | `armor-slots` | `/replaceitem` accept per slot (head, chest, legs, feet, offhand) | read back with Endstone `PlayerInventory` |
 | `armor-values` | health lost per `/damage <player> D entity_attack` wearing one item | max health 2000, hits repeated for sub-point precision; needs the full `armor-slots` result for slot assignment |
+| `attack` | melee damage per held item, warm-up + 3 trials | a fresh pig at (2,-60,0.5); the client sends an InventoryTransaction attack; Endstone `ActorDamageEvent` value |
 | `fuel` | furnace burn ticks per item | pool of 32 furnaces, 1 cobblestone input + the item as fuel |
 
 ```powershell
@@ -47,25 +48,19 @@ cargo build -p bds-extractor -p bds-sweep
 Sweeps are resumable: rerun with the same `--out` and finished items
 (`results.jsonl`) are skipped. To hand the BDS over mid-run, create
 `<out>/stop.request`; the runner stops BDS gracefully and restores
-`server.properties`.
+`server.properties`. To pause a queue of runs at the next job boundary,
+create `<runtime>/sweeps/1.26.51/hold`: every new `sweep.py` exits without
+starting BDS while it exists.
 
 ## Runtimes observed (2026-10-25, turbo boost off; compare only like with like)
 
 | Run | Items | Time |
 |---|---|---|
 | `capture.py` (both sessions, 112 summons) | 2 sessions | ~4 min |
-| `drops` slice, 10 blocks x 7-14 tools x 200 samples | 126 | 6-15 s of sweep work (~4,000 samples/s), ~40 s with BDS start/stop |
-| `armor-slots` slice | 10 | 17 s |
-| `fuel` slice (lava bucket burns 20,000 ticks) | 8 | 17 min |
-| `mining`, 2 blocks x 17 variants x 3 trials | 34 | 2.6 min |
-
-Repeatability: two independent `drops` slice runs agreed on all 89
-single-outcome cells and stayed inside the sampling bound on all 37 random
-cells (`summarize.py compare-drops`; recorded in the measured manifest).
-
-## Licensing
-
-Captures are Mojang-derived and stay in the untracked runtime cache except
-for the small committed fixtures and manifests (D13). Sweep outputs are
-measurements of BDS behaviour; only the summarised data goes into
-`crates/unastar-data/data/measured/`, raw logs stay in the runtime cache.
+| `drops --blocks all --samples 400` (first palette state of every block) | 17,073 cells, 6.8 M samples | 15 min |
+| `drops` slice, 10 blocks x 7-14 tools x 200 samples | 126 | 6-15 s of sweep work, ~40 s with BDS start/stop |
+| `armor-slots --items all` | 2,075 | 13 s |
+| `armor-values` (31 items, 31 hits each) | 31 | 12 min |
+| `attack` (43 tools, warm-up + 3 trials) | 43 | 2 min |
+| `fuel --items all` (lava bucket burns 20,000 ticks) | 2,075 | 19 min |
+| `mining --blocks slice` (10 blocks, 3 trials per variant) | 176 | ~20 min in two parts |
