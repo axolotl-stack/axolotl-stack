@@ -51,7 +51,7 @@ when the variable or any file it read changes.
 | Phase | Module | What it does |
 |---|---|---|
 | Ingestion | `unastar_packs::{brarchive,json,packs}` | Shared `.brarchive` reader, JSON with comments, version stack `definitions` < `vanilla` < `vanilla_<version>` ascending up to 1.26.51; the last layer defining an identifier wins |
-| Identity | `blocks`, `nbt` | canonical palette (`canonical_block_states.nbt`), block tags, physical flags; descriptors resolve to runtime ids; pre-flattening names (`minecraft:log` + `old_log_type`, `minecraft:stone` + `stone_type`, `minecraft:tallgrass`, ...) go through `LEGACY_BLOCKS` / `STATE_RENAMES` |
+| Identity | `blocks`, `unastar_packs::nbt` | canonical palette (`canonical_block_states.nbt`), block tags, physical flags; descriptors resolve to runtime ids; pre-flattening names (`minecraft:log` + `old_log_type`, `minecraft:stone` + `stone_type`, `minecraft:tallgrass`, ...) go through `LEGACY_BLOCKS` / `STATE_RENAMES` |
 | IR | `ir`, `model` | strict typed parsing of biomes, feature rules, features, spawn rules (unknown keys fail the build); reachability from overworld rules; built-in registry check |
 | Molang | `unastar_rules::molang`, `molang` | Shared lexer/parser; worldgen-only binding/lowering, constant-folding (`variable.is_legacy` = 0) and `f32` Rust emission; no runtime interpreter |
 | Emission | `emit` | `run_pass` with per-rule biome masks, one `rule_*` per rule, one `f_*` per reachable JSON feature, `BIOMES` surface data, `blocks`/`bb`/`props` constants |
@@ -64,6 +64,20 @@ Legacy Java-format templates shipped with BDS can retain older identifiers:
 `minecraft:chain` is upgraded to native `minecraft:iron_chain` before palette
 resolution, preserving its axis under rotation. The conversion is exercised on
 the local bastion stage templates; placement/pool behavior remains unmeasured.
+
+Template block actors are decoded at build time through shared
+`unastar_packs::{nbt,block_entity}`. The emitter stores sparse cell-indexed
+actor records with native IDs and pre-encoded network NBT children; placement
+only supplies transformed absolute coordinates and lifted loot/spawner fields.
+Both template features and jigsaw pieces write the shared region's actor sink.
+Processors replacing an actor's block type discard that actor; state-only
+changes preserve it. Metadata introduces no RNG draws. Unknown actor identities
+fail generation rather than being silently omitted.
+
+Retaining Java-only fields does not establish that Bedrock interprets them.
+Template entities, legacy hard-coded structure assembly and native behavioral
+parity remain separate work.
+
 
 ## Tests
 

@@ -17,20 +17,17 @@
 //! (shulker) and `Elytra` (item frame holding elytra) are entities spawned by
 //! the runtime later; Java draws no structure random for them.
 //!
-//! Approximation: the template's own block entity data of the chest is kept
-//! next to the loot table; Java merges them into one block entity.
+//! Data-marker loot is merged with the template's AOT block-entity fields.
 
-use crate::features::eval::BlockEntityData;
 use crate::features::java_blocks::blocks as b;
 use crate::features::random::{FeatureRandom, LegacyRandom};
 use crate::features::{BlockPos, FeatureWorld, JavaState};
 use crate::structures::piece::StructurePiece;
 use crate::structures::processor::Processor;
 use crate::structures::start::{GenContext, GenerationStub, StructureKind, lowest_y_at};
-use crate::structures::template_data::{self, BlockEntityInfo};
+use crate::structures::template_data;
 use crate::structures::template_piece::{TemplatePiece, TemplatePlacement};
 use crate::structures::transform::{BoundingBox, Mirror, Rotation, transform};
-use crate::structures::util::pos_seed;
 
 /// `EndCityPieces.MAX_GEN_DEPTH`.
 const MAX_GEN_DEPTH: i32 = 8;
@@ -532,39 +529,6 @@ fn is_randomizable_container(state: JavaState) -> bool {
     )
 }
 
-/// The template block entity data placed at world position `pos` by `piece`
-/// (palette chosen like `placeInWorld` without a shared random).
-fn template_block_entity_at(
-    piece: &TemplatePiece,
-    pos: BlockPos,
-) -> Option<(&'static str, &'static [u8])> {
-    let t = piece.template;
-    if t.palettes.is_empty() {
-        return None;
-    }
-    let tp = piece.template_position;
-    let index = LegacyRandom::new(pos_seed(tp.x, tp.y, tp.z))
-        .next_int_bounded(t.palettes.len() as i32) as usize;
-    t.palettes[index].iter().find_map(|tb| {
-        let i = tb.block_entity?;
-        let local = BlockPos::new(tb.x as i32, tb.y as i32, tb.z as i32);
-        let at = transform(
-            local,
-            piece.placement.mirror,
-            piece.placement.rotation,
-            piece.placement.pivot,
-        )
-        .offset(tp.x, tp.y, tp.z);
-        if at != pos {
-            return None;
-        }
-        match t.block_entities.get(i as usize)? {
-            BlockEntityInfo::Other { id, nbt } => Some((*id, *nbt)),
-            _ => None,
-        }
-    })
-}
-
 /// `EndCityPiece.handleDataMarker`.
 fn handle_data_marker(
     piece: &TemplatePiece,
@@ -578,14 +542,7 @@ fn handle_data_marker(
         let chest = pos.below();
         if chunk_box.is_inside(chest) && is_randomizable_container(world.get_state(chest)) {
             let seed = rng.next_long();
-            world.set_block_entity(
-                chest,
-                BlockEntityData {
-                    loot: Some((END_CITY_TREASURE, seed)),
-                    spawner_entity: None,
-                    template_nbt: template_block_entity_at(piece, chest),
-                },
-            );
+            world.set_block_entity(chest, piece.loot_data_at(chest, END_CITY_TREASURE, seed));
         }
     }
     // `Sentry` (shulker) and `Elytra` (item frame) are entities spawned by

@@ -15,6 +15,7 @@ use unastar_noise::block_class;
 
 use super::proto::{NativeBiome, ProtoChunk, QUARTS_Y, WORLD_HEIGHT};
 use crate::world::ChunkPos;
+use crate::world::block_entity::BlockEntity;
 use crate::world::chunk::{Chunk, MIN_Y, blocks};
 
 /// Heightmap kinds, with Java's predicates over [`block_class`] flags.
@@ -85,6 +86,8 @@ pub trait WorldGenRegion {
     fn get_block(&self, x: i32, y: i32, z: i32) -> u32;
     /// Set a block; returns `false` (and writes nothing) outside the 3x3 area or height range.
     fn set_block(&mut self, x: i32, y: i32, z: i32, block: u32) -> bool;
+    /// Retain an actor at an absolute position; reject positions outside the region/height.
+    fn set_block_entity(&mut self, entity: BlockEntity) -> bool;
     /// First y above the highest block counted by `kind` in the column (`min_y` if none).
     fn heightmap(&self, kind: HeightmapKind, x: i32, z: i32) -> i32;
     /// Generator-native biome at an absolute quart position (y clamped to the world).
@@ -128,6 +131,15 @@ pub const SLOT_OFFSETS: [(i32, i32); 9] = [
 #[derive(Clone, Debug, Default)]
 pub struct DecorationWrites {
     per_slot: [Vec<BlockWrite>; 9],
+    entities: [Vec<EntityWrite>; 9],
+}
+
+/// Sparse metadata edits, interleaved after the indicated number of block writes.
+#[derive(Clone, Debug)]
+struct EntityWrite {
+    after_blocks: usize,
+    position: [i32; 3],
+    entity: Option<BlockEntity>,
 }
 
 impl DecorationWrites {
@@ -136,14 +148,40 @@ impl DecorationWrites {
         &self.per_slot[slot_of(dx, dz)]
     }
 
+    /// Replay both sparse actors and block writes at their original chronological points.
+    pub fn apply_to(&self, dx: i32, dz: i32, chunk: &mut Chunk) {
+        let slot = slot_of(dx, dz);
+        let blocks = &self.per_slot[slot];
+        let mut applied = 0;
+        for write in &self.entities[slot] {
+            for block in &blocks[applied..write.after_blocks] {
+                chunk.set_block(block.x, block.y, block.z, block.block);
+            }
+            applied = write.after_blocks;
+            match &write.entity {
+                Some(entity) => {
+                    chunk.set_block_entity(entity.clone());
+                }
+                None => {
+                    let [x, y, z] = write.position;
+                    chunk.remove_block_entity(x, y, z);
+                }
+            }
+        }
+        for block in &blocks[applied..] {
+            chunk.set_block(block.x, block.y, block.z, block.block);
+        }
+    }
+
     /// Total number of writes.
     pub fn len(&self) -> usize {
-        self.per_slot.iter().map(Vec::len).sum()
+        self.per_slot.iter().map(Vec::len).sum::<usize>()
+            + self.entities.iter().map(Vec::len).sum::<usize>()
     }
 
     /// Whether nothing was written.
     pub fn is_empty(&self) -> bool {
-        self.per_slot.iter().all(Vec::is_empty)
+        self.per_slot.iter().all(Vec::is_empty) && self.entities.iter().all(Vec::is_empty)
     }
 }
 
@@ -192,6 +230,27 @@ impl<'a> DecorationRegion<'a> {
     /// Recorded writes.
     pub fn into_writes(self) -> DecorationWrites {
         self.writes
+    }
+
+    /// Explicit removal participates in the same sparse chronological replay as insertion.
+    pub fn remove_block_entity(&mut self, x: i32, y: i32, z: i32) -> bool {
+        let Some((slot, _, _)) = self.locate(x, z) else {
+            return false;
+        };
+        if !(MIN_Y..MIN_Y + WORLD_HEIGHT).contains(&y) {
+            return false;
+        }
+        let proto = self.protos[slot];
+        let chunk = self.overlays[slot].get_or_insert_with(|| Box::new(proto.chunk.clone()));
+        let removed = chunk.remove_block_entity(x, y, z);
+        // Record even if the origin's proto had no actor: a previous origin may
+        // have supplied one by the time these cached edits are replayed.
+        self.writes.entities[slot].push(EntityWrite {
+            after_blocks: self.writes.per_slot[slot].len(),
+            position: [x, y, z],
+            entity: None,
+        });
+        removed
     }
 
     /// Slot and local coordinates of an absolute block column, if inside the 3x3 area.
@@ -317,6 +376,27 @@ impl WorldGenRegion for DecorationRegion<'_> {
         true
     }
 
+    fn set_block_entity(&mut self, entity: BlockEntity) -> bool {
+        let [x, y, z] = entity.position();
+        let Some((slot, _, _)) = self.locate(x, z) else {
+            return false;
+        };
+        if !(MIN_Y..MIN_Y + WORLD_HEIGHT).contains(&y) {
+            return false;
+        }
+        let proto = self.protos[slot];
+        let chunk = self.overlays[slot].get_or_insert_with(|| Box::new(proto.chunk.clone()));
+        if !chunk.set_block_entity(entity.clone()) {
+            return false;
+        }
+        self.writes.entities[slot].push(EntityWrite {
+            after_blocks: self.writes.per_slot[slot].len(),
+            position: [x, y, z],
+            entity: Some(entity),
+        });
+        true
+    }
+
     fn heightmap(&self, kind: HeightmapKind, x: i32, z: i32) -> i32 {
         let Some((slot, lx, lz)) = self.locate(x, z) else {
             panic!(
@@ -338,5 +418,104 @@ impl WorldGenRegion for DecorationRegion<'_> {
         self.protos[slot]
             .biomes
             .get(lx as usize >> 2, qy, lz as usize >> 2)
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::registry::BlockRegistry;
+    use std::sync::LazyLock;
+    use zuri_nbt::{NBTTag, encoding::LittleEndian};
+
+    static CLASSES: LazyLock<Vec<u8>> = LazyLock::new(|| {
+        let mut classes = vec![block_class::BLOCKS_MOTION; 65536];
+        classes[*blocks::AIR as usize] = block_class::AIR;
+        classes
+    });
+
+    fn actor(position: [i32; 3], marker: u8) -> BlockEntity {
+        BlockEntity::generated(position, "Chest", &[1, 1, b'M', marker], None, None)
+    }
+
+    fn semantics(chunk: &Chunk) -> Vec<([i32; 3], NBTTag)> {
+        let mut actors: Vec<_> = chunk
+            .block_entities()
+            .iter()
+            .map(|entity| {
+                let mut bytes = Vec::new();
+                entity.write_disk_nbt(&mut bytes).unwrap();
+                (
+                    entity.position(),
+                    NBTTag::read(bytes.as_slice(), LittleEndian).unwrap(),
+                )
+            })
+            .collect();
+        actors.sort_by_key(|(position, _)| *position);
+        actors
+    }
+
+    #[test]
+    fn live_overlay_and_cached_replay_preserve_actor_interleaving() {
+        let origin = ChunkPos::new(-1, -1);
+        let chest = BlockRegistry::vanilla()
+            .get_by_name("minecraft:chest")
+            .unwrap();
+        let mut protos = SLOT_OFFSETS
+            .map(|(dx, dz)| ProtoChunk::empty(ChunkPos::new(origin.x + dx, origin.z + dz), 1));
+        let center = slot_of(0, 0);
+        let position = [-1, -1, -1];
+        protos[center]
+            .chunk
+            .set_block(15, -1, 15, chest.min_state_id);
+        protos[center].chunk.set_block_entity(actor(position, 1));
+        let refs = std::array::from_fn(|slot| &protos[slot]);
+        let mut region = DecorationRegion::new(7, origin, refs, &CLASSES);
+        assert_eq!(
+            semantics(region.chunk(center)),
+            semantics(&protos[center].chunk)
+        );
+        // Metadata-only write at block offset zero, followed by a state-only update.
+        assert!(region.set_block_entity(actor(position, 2)));
+        region.set_block(-1, -1, -1, chest.max_state_id);
+        assert_eq!(region.chunk(center).block_entities().len(), 1);
+        let NBTTag::Compound(fields) = &semantics(region.chunk(center))[0].1 else {
+            panic!()
+        };
+        assert_eq!(fields.0.get("M"), Some(&NBTTag::Byte(2.into())));
+        // A different native block clears the actor, including during replay.
+        region.set_block(-1, -1, -1, *blocks::STONE);
+        assert!(region.chunk(center).block_entities().is_empty());
+        region.set_block(-1, -1, -1, chest.min_state_id);
+        region.set_block_entity(actor(position, 3));
+        region.set_block_entity(actor(position, 4));
+        assert_eq!(region.chunk(center).block_entities().len(), 1);
+        assert!(region.remove_block_entity(-1, -1, -1));
+        assert!(region.chunk(center).block_entities().is_empty());
+        region.set_block_entity(actor(position, 5));
+        // Removal must also apply to actors contributed by an earlier origin,
+        // even when no actor was visible to this live origin.
+        assert!(!region.remove_block_entity(-2, -1, -1));
+        // Negative neighbour and both height edges are retained in their own slot.
+        for position in [[-17, -64, -1], [-17, 319, -1]] {
+            region.set_block(position[0], position[1], position[2], chest.min_state_id);
+            assert!(region.set_block_entity(actor(position, 6)));
+        }
+        for position in [[16, 0, -1], [-33, 0, -1], [-1, -65, -1], [-1, 320, -1]] {
+            assert!(!region.set_block_entity(actor(position, 7)));
+        }
+        let expected = SLOT_OFFSETS.map(|(dx, dz)| semantics(region.chunk(slot_of(dx, dz))));
+        let writes = region.into_writes().clone();
+        for (slot, (dx, dz)) in SLOT_OFFSETS.into_iter().enumerate() {
+            let mut replay = protos[slot].chunk.clone();
+            if slot == center {
+                replay.set_block_entity(actor([-2, -1, -1], 9));
+            }
+            writes.apply_to(dx, dz, &mut replay);
+            assert_eq!(semantics(&replay), expected[slot]);
+            // Replaying the same cached origin is deterministic, not append-only.
+            writes.apply_to(dx, dz, &mut replay);
+            assert_eq!(semantics(&replay), expected[slot]);
+        }
     }
 }

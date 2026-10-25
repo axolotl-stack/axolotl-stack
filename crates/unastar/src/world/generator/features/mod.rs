@@ -6,9 +6,7 @@
 //! to and from Bedrock runtime ids through the shared Java->Bedrock table.
 //! Current limits of the region (single block layer):
 //! - waterlogged Java states are written as their Bedrock block without the
-//!   water layer, and read back as not waterlogged;
-//! - block entity data (chest loot tables and seeds, spawner mobs, template
-//!   NBT) is produced but not stored in the chunk yet.
+//!   water layer, and read back as not waterlogged.
 
 use std::sync::LazyLock;
 
@@ -26,6 +24,7 @@ use super::biome_source::{sample_biome, zoom_seed, zoomed_biome};
 use super::density::NoiseRegistry;
 use super::region::{DecorationRegion, HeightmapKind, SLOT_OFFSETS, WorldGenRegion};
 use super::structures::JavaStructures;
+use crate::world::block_entity::{BlockEntity, LootTable};
 use crate::world::chunk::MIN_Y;
 
 /// Bedrock runtime id -> Java state id (the non-waterlogged state when several
@@ -164,7 +163,33 @@ impl FeatureWorld for RegionWorld<'_, '_> {
     fn gen_depth(&self) -> i32 {
         unastar_noise::overworld_settings::HEIGHT
     }
-    fn set_block_entity(&mut self, _pos: BlockPos, _data: BlockEntityData) {}
+    fn set_block_entity(&mut self, pos: BlockPos, data: BlockEntityData) {
+        if !self.inside(pos.x, pos.z) || !(MIN_Y..MIN_Y + self.region.height()).contains(&pos.y) {
+            return;
+        }
+        let (id, fields) = data.template_nbt.unwrap_or_else(|| {
+            let state = self.get_state(pos);
+            let id = match state.block().name() {
+                "minecraft:chest" | "minecraft:trapped_chest" => "Chest",
+                "minecraft:dispenser" => "Dispenser",
+                "minecraft:dropper" => "Dropper",
+                "minecraft:barrel" => "Barrel",
+                "minecraft:spawner" => "MobSpawner",
+                "minecraft:trial_spawner" => "TrialSpawner",
+                "minecraft:suspicious_sand" | "minecraft:suspicious_gravel" => "BrushableBlock",
+                "minecraft:decorated_pot" => "DecoratedPot",
+                other => panic!("generated Java block entity has unsupported block {other}"),
+            };
+            (id, &[])
+        });
+        self.region.set_block_entity(BlockEntity::generated(
+            [pos.x, pos.y, pos.z],
+            id,
+            fields,
+            data.loot.map(|(table, seed)| LootTable::Java(table, seed)),
+            data.spawner_entity,
+        ));
+    }
 }
 
 /// Decorate the region's origin chunk: Java features and structure pieces.

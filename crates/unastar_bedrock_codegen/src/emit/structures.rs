@@ -86,11 +86,30 @@ fn template_tokens(
             placement_priority: #placement,
         }));
     }
+    let actors = t.block_entities.iter().map(|actor| {
+        let cell = actor.cell;
+        let id = actor.data.id;
+        let fields = Literal::byte_string(&actor.data.fields);
+        let java_loot = actor.java_loot;
+        let loot = match &actor.data.loot {
+            Some((table, seed)) => quote!(Some((#table, #seed))),
+            None => quote!(None),
+        };
+        let spawner = match &actor.data.spawner_entity {
+            Some(entity) => quote!(Some(#entity)),
+            None => quote!(None),
+        };
+        quote!(structures::TemplateBlockEntity {
+            cell: #cell, id: #id, fields: #fields, loot: #loot,
+            java_loot: #java_loot, spawner_entity: #spawner,
+        })
+    });
     Ok(quote!(structures::Template {
         size: [#sx, #sy, #sz],
         palette: &[#(#palette),*],
         cells: #cells,
         connectors: &[#(#connectors),*],
+        block_entities: &[#(#actors),*],
     }))
 }
 

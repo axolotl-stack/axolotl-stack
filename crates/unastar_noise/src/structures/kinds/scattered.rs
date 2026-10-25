@@ -1443,7 +1443,7 @@ impl IglooPiece {
 /// `IglooPiece.handleDataMarker`: `"chest"` clears the marker and gives the
 /// chest below it the igloo loot table.
 fn igloo_data_marker(
-    _piece: &TemplatePiece,
+    piece: &TemplatePiece,
     name: &str,
     pos: BlockPos,
     world: &mut dyn FeatureWorld,
@@ -1459,7 +1459,7 @@ fn igloo_data_marker(
     if s.is(b::CHEST) || s.is(b::TRAPPED_CHEST) {
         world.set_block_entity(
             chest,
-            BlockEntityData::loot(IGLOO_CHEST_LOOT, rng.next_long()),
+            piece.loot_data_at(chest, IGLOO_CHEST_LOOT, rng.next_long()),
         );
     }
 }

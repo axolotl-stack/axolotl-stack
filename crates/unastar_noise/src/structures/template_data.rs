@@ -45,10 +45,13 @@ pub enum BlockEntityInfo {
     },
     /// Structure block in data mode (`metadata` names the marker).
     DataMarker { metadata: &'static str },
-    /// Any other block entity: Java id and its raw (big-endian) NBT compound.
+    /// Native Bedrock id and AOT NETWORK compound children (no root/id/xyz or
+    /// lifted loot/spawner keys). Unknown source metadata is retained.
     Other {
         id: &'static str,
         nbt: &'static [u8],
+        loot: Option<(&'static str, i64)>,
+        spawner_entity: Option<&'static str>,
     },
 }
 
@@ -94,6 +97,9 @@ impl Cursor {
     }
     fn i32(&mut self) -> i32 {
         self.u32() as i32
+    }
+    fn i64(&mut self) -> i64 {
+        i64::from_le_bytes(self.bytes(8).try_into().expect("8 bytes"))
     }
     fn f64(&mut self) -> f64 {
         f64::from_le_bytes(self.bytes(8).try_into().expect("8 bytes"))
@@ -151,6 +157,12 @@ fn decode(name: &'static str, data: &'static [u8], offset: usize) -> Template {
             _ => BlockEntityInfo::Other {
                 id: c.str(),
                 nbt: c.blob(),
+                loot: if c.u8() != 0 {
+                    Some((c.str(), c.i64()))
+                } else {
+                    None
+                },
+                spawner_entity: if c.u8() != 0 { Some(c.str()) } else { None },
             },
         });
     }

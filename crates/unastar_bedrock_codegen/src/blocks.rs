@@ -20,11 +20,11 @@
 //! a guess.
 
 use crate::error::{Error, Result};
-use crate::nbt::{Encoding, Reader, Tag};
 use serde_json::Value;
 use std::collections::{BTreeMap, BTreeSet, HashMap};
 use std::ops::RangeInclusive;
 use std::path::Path;
+use unastar_packs::nbt::{Encoding, Reader, Tag};
 
 /// A block state value. Booleans are stored as `Int(0|1)` like the palette.
 #[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Hash)]

@@ -65,6 +65,46 @@ impl TemplatePiece {
         }
     }
 
+    /// Add marker loot without discarding the template actor's other fields.
+    /// Palette alternatives share block positions and actor records in Java's
+    /// template format, so this lookup never needs to select a palette or draw.
+    pub fn loot_data_at(&self, pos: BlockPos, table: &'static str, seed: i64) -> BlockEntityData {
+        let mut data = BlockEntityData::loot(table, seed);
+        let Some(palette) = self.template.palettes.first() else {
+            return data;
+        };
+        for block in palette {
+            let Some(index) = block.block_entity else {
+                continue;
+            };
+            let at = transform(
+                BlockPos::new(block.x as i32, block.y as i32, block.z as i32),
+                self.placement.mirror,
+                self.placement.rotation,
+                self.placement.pivot,
+            )
+            .offset(
+                self.template_position.x,
+                self.template_position.y,
+                self.template_position.z,
+            );
+            if at == pos {
+                if let Some(BlockEntityInfo::Other {
+                    id,
+                    nbt,
+                    spawner_entity,
+                    ..
+                }) = self.template.block_entities.get(index as usize)
+                {
+                    data.template_nbt = Some((*id, *nbt));
+                    data.spawner_entity = *spawner_entity;
+                }
+                break;
+            }
+        }
+        data
+    }
+
     fn settings(&self, chunk_box: &BoundingBox) -> PlaceSettings {
         let mut s = PlaceSettings::new(self.template);
         s.rotation = self.placement.rotation;
@@ -113,14 +153,26 @@ impl TemplatePiece {
 /// Default hand-off of block entities produced by a template placement.
 pub fn record_block_entities(world: &mut dyn FeatureWorld, placed: &[PlacedBlockEntity]) {
     for be in placed {
-        let template_nbt = match be.data {
-            Some(BlockEntityInfo::Other { id, nbt }) => Some((*id, *nbt)),
-            _ => None,
+        let (template_nbt, template_loot, spawner_entity) = match be.data {
+            Some(BlockEntityInfo::Other {
+                id,
+                nbt,
+                loot,
+                spawner_entity,
+            }) => (Some((*id, *nbt)), *loot, *spawner_entity),
+            _ => (None, None, None),
         };
-        let loot = match (be.loot_table, be.loot_seed) {
-            (Some(t), Some(s)) => Some((t, s)),
-            _ => None,
-        };
+        let loot = be
+            .loot_table
+            .or(template_loot.map(|(table, _)| table))
+            .map(|table| {
+                (
+                    table,
+                    be.loot_seed
+                        .or(template_loot.map(|(_, seed)| seed))
+                        .unwrap_or(0),
+                )
+            });
         if template_nbt.is_none() && loot.is_none() {
             continue;
         }
@@ -128,7 +180,7 @@ pub fn record_block_entities(world: &mut dyn FeatureWorld, placed: &[PlacedBlock
             be.pos,
             BlockEntityData {
                 loot,
-                spawner_entity: None,
+                spawner_entity,
                 template_nbt,
             },
         );

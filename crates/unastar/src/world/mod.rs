@@ -1,5 +1,6 @@
 //! World module - chunk storage, generation, and ECS integration.
 
+pub mod block_entity;
 pub mod chunk;
 pub mod ecs;
 pub mod generator;

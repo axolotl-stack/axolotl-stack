@@ -42,8 +42,8 @@
 //! after the fact (see [`adapt`]); processors use position-hashed randomness
 //! so a piece spanning chunks is processed identically in each.
 //!
-//! Block entities, entities and loot are out of scope (the compiled
-//! templates carry block states only).
+//! Block actors carry AOT-compiled native NBT through the shared sparse sink.
+//! Template entities and gameplay loot evaluation are separate concerns.
 
 use super::generated::{self, bb, props};
 use super::rng::BedrockRandom;
@@ -248,6 +248,64 @@ pub struct Connector {
     pub placement_priority: i32,
 }
 
+/// Native actor fields compiled for one packed template cell.
+#[derive(Debug, Clone, Copy)]
+pub struct TemplateBlockEntity {
+    pub cell: u32,
+    pub id: &'static str,
+    pub fields: &'static [u8],
+    pub loot: Option<(&'static str, i64)>,
+    pub java_loot: bool,
+    pub spawner_entity: Option<&'static str>,
+}
+
+impl TemplateBlockEntity {
+    fn place<W: BlockWorld>(&self, ctx: &mut Ctx<'_, W>, pos: BlockPos, before: u32, after: u32) {
+        // A processor replacing the actor's block type invalidates its data.
+        if before != after {
+            let registry = crate::registry::BlockRegistry::vanilla();
+            if registry
+                .get_by_runtime_id(before)
+                .zip(registry.get_by_runtime_id(after))
+                .is_none_or(|(a, b)| a.string_id != b.string_id)
+            {
+                return;
+            }
+        }
+        use crate::world::block_entity::{BlockEntity, LootTable};
+        let loot = self.loot.map(|(table, seed)| {
+            if self.java_loot {
+                LootTable::Java(table, seed)
+            } else {
+                LootTable::Bedrock(table, seed)
+            }
+        });
+        ctx.world.set_block_entity(BlockEntity::generated(
+            [pos.x, pos.y, pos.z],
+            self.id,
+            self.fields,
+            loot,
+            self.spawner_entity,
+        ));
+    }
+}
+
+fn actor_for_cell<'a>(
+    actors: &mut &'a [TemplateBlockEntity],
+    cell: u32,
+) -> Option<&'a TemplateBlockEntity> {
+    while actors.first().is_some_and(|actor| actor.cell < cell) {
+        *actors = &actors[1..];
+    }
+    if actors.first().is_some_and(|actor| actor.cell == cell) {
+        let (first, rest) = actors.split_first().expect("actor cursor is nonempty");
+        *actors = rest;
+        Some(first)
+    } else {
+        None
+    }
+}
+
 /// A compiled structure template.
 #[derive(Debug, Clone, Copy)]
 pub struct Template {
@@ -257,6 +315,7 @@ pub struct Template {
     /// Packed non-void cells, [`CELL_BYTES`] each.
     pub cells: &'static [u8],
     pub connectors: &'static [Connector],
+    pub block_entities: &'static [TemplateBlockEntity],
 }
 
 impl Template {
@@ -279,6 +338,34 @@ impl Template {
     #[inline]
     pub fn state(&self, entry: u16, rotation: u8) -> u32 {
         self.palette[entry as usize][(rotation % 4) as usize]
+    }
+
+    /// Place unprocessed cells and their metadata, without a runtime NBT decoder.
+    pub fn place<W: BlockWorld>(&self, ctx: &mut Ctx<'_, W>, origin: BlockPos, rotation: u8) {
+        if self.block_entities.is_empty() {
+            self.place_cells::<W, false>(ctx, origin, rotation);
+        } else {
+            self.place_cells::<W, true>(ctx, origin, rotation);
+        }
+    }
+
+    fn place_cells<W: BlockWorld, const ACTORS: bool>(
+        &self,
+        ctx: &mut Ctx<'_, W>,
+        origin: BlockPos,
+        rotation: u8,
+    ) {
+        let mut actors = self.block_entities;
+        for (cell, local, entry) in self.cells() {
+            let pos = world_pos(origin, local, rotation);
+            let state = self.state(entry, rotation);
+            if ctx.set(pos, state)
+                && ACTORS
+                && let Some(actor) = actor_for_cell(&mut actors, cell)
+            {
+                actor.place(ctx, pos, state, state);
+            }
+        }
     }
 
     /// Box covered by the template placed at `origin` in `rotation`.
@@ -1145,21 +1232,35 @@ fn place_piece<W: BlockWorld>(
         }
         capped += 1;
     }
+    if template.block_entities.is_empty() {
+        place_piece_cells::<W, false>(ctx, template, piece, columns, list, &caps);
+    } else {
+        place_piece_cells::<W, true>(ctx, template, piece, columns, list, &caps);
+    }
+}
+
+fn place_piece_cells<W: BlockWorld, const ACTORS: bool>(
+    ctx: &mut Ctx<'_, W>,
+    template: &Template,
+    piece: &Piece,
+    columns: ChunkColumns,
+    list: &[Processor],
+    caps: &Caps,
+) {
+    let mut actors = template.block_entities;
     for (cell, local, entry) in template.cells() {
         let pos = world_pos(piece.origin, local, piece.rotation);
         if !columns.contains(pos.x, pos.z) || !ctx.in_height(pos.y) {
             continue;
         }
-        let state = process(
-            list,
-            &caps,
-            list.len(),
-            cell,
-            pos,
-            template.state(entry, piece.rotation),
-            seed,
-        );
-        ctx.set(pos, state);
+        let original = template.state(entry, piece.rotation);
+        let state = process(list, caps, list.len(), cell, pos, original, ctx.seed);
+        if ctx.set(pos, state)
+            && ACTORS
+            && let Some(actor) = actor_for_cell(&mut actors, cell)
+        {
+            actor.place(ctx, pos, original, state);
+        }
     }
 }
 
@@ -1214,12 +1315,14 @@ mod tests {
             palette: &[],
             cells: &[],
             connectors: &PARENT_CONNECTORS,
+            block_entities: &[],
         },
         Template {
             size: [3, 1, 3],
             palette: &[],
             cells: &[],
             connectors: &CHILD_CONNECTORS,
+            block_entities: &[],
         },
     ];
     static CHILDREN: [Element; 1] = [Element {

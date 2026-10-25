@@ -15,7 +15,8 @@ pub struct BlockEntityData {
     pub loot: Option<(&'static str, i64)>,
     /// Spawner / trial spawner entity id (`minecraft:zombie`).
     pub spawner_entity: Option<&'static str>,
-    /// Raw Java NBT of a template block entity (`id` + data), if any.
+    /// Native Bedrock actor id plus AOT-compiled NETWORK compound child tags.
+    /// Bytes exclude the root header/end, id, xyz, and lifted loot/spawner keys.
     pub template_nbt: Option<(&'static str, &'static [u8])>,
 }
 

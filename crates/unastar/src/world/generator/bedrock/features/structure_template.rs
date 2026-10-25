@@ -94,12 +94,7 @@ pub fn place<W: BlockWorld>(ctx: &mut Ctx<'_, W>, pos: BlockPos, p: &Params) -> 
                 let at = pos.offset(dx, 0, dz);
                 let origin = BlockPos::new(at.x + shift_x, at.y - p.ground_level, at.z + shift_z);
                 if fits(ctx, t, origin, rotation, at, p) {
-                    for (_, cell, entry) in t.cells() {
-                        let w = world_pos(origin, cell, rotation);
-                        if ctx.in_height(w.y) {
-                            ctx.set(w, t.state(entry, rotation));
-                        }
-                    }
+                    t.place(ctx, origin, rotation);
                     return Some(at);
                 }
             }
