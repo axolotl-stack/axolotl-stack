@@ -80,6 +80,12 @@ Bedrock ids at the region boundary (`unastar::world::generator::features`).
   `java-templates` feature the build reads `data/minecraft/structure/*.nbt` from the jar
   named by `UNASTAR_JAVA_SERVER_JAR` (`unastar` forwards it as `java-worldgen`). Without it
   the template table is empty and `unastar` rejects `world.generator.kind = "java"`.
+- Template block actors are compiled at build time to explicit Bedrock actor ids and
+  NETWORK-endian NBT child tags. Root/coordinates and lifted loot/spawner identity
+  are supplied at placement; marker/processor loot overrides retain other fields.
+  Unknown actor ids and malformed conversion inputs fail the build. Other source
+  metadata is preserved with its NBT types (including Java-only fields); native
+  Bedrock interpretation of those fields is not implied.
 - Output is a pure function of (seed, chunk): pieces never change while placed. Where
   Java's result depends on which chunk is decorated first, the code picks an
   order-independent rule; these and other deliberate deviations are listed in

@@ -734,6 +734,7 @@ mod tests {
         surface: i32,
         floor_block: u32,
         edits: HashMap<BlockPos, u32>,
+        block_entities: Vec<crate::world::block_entity::BlockEntity>,
     }
 
     impl Flat {
@@ -743,6 +744,7 @@ mod tests {
                 surface,
                 floor_block,
                 edits: HashMap::new(),
+                block_entities: Vec::new(),
             }
         }
     }
@@ -773,6 +775,22 @@ mod tests {
                 return false;
             }
             self.edits.insert(pos, id);
+            true
+        }
+        fn set_block_entity(&mut self, entity: crate::world::block_entity::BlockEntity) -> bool {
+            let position = entity.position();
+            if position[1] < self.min_y() || position[1] >= self.max_y() {
+                return false;
+            }
+            if let Some(existing) = self
+                .block_entities
+                .iter_mut()
+                .find(|existing| existing.position() == position)
+            {
+                *existing = entity;
+            } else {
+                self.block_entities.push(entity);
+            }
             true
         }
         fn biome(&self, _pos: BlockPos) -> u16 {

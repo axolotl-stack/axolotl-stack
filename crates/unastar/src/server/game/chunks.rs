@@ -158,7 +158,8 @@ fn handle_subchunk_request(
             continue;
         };
 
-        let is_empty = chunk_data.inner.is_subchunk_empty(sub_y);
+        let is_empty = chunk_data.inner.is_subchunk_empty(sub_y)
+            && !chunk_data.inner.has_block_entities_in_subchunk(sub_y);
         // Always encode the live chunk: a per-generator template cache would serve
         // stale data after a player edits a chunk.
         let subchunk_data = if !is_empty {

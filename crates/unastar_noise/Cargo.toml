@@ -23,6 +23,7 @@ java-templates = []
 serde = { workspace = true }
 serde_json = { workspace = true }
 walkdir = "2"
+unastar-packs = { path = "../unastar-packs" }
 
 [build-dependencies]
 serde = { workspace = true }
@@ -34,3 +35,4 @@ proc-macro2 = "1"
 prettyplease = { workspace = true }
 flate2 = { workspace = true }
 md5 = { package = "md-5", version = "0.10" }
+unastar-packs = { path = "../unastar-packs" }

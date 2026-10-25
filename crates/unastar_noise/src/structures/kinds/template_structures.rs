@@ -713,7 +713,7 @@ fn shipwreck_height(
 
 /// `ShipwreckPiece.handleDataMarker`: loot for the container below the marker.
 fn shipwreck_marker(
-    _piece: &TemplatePiece,
+    piece: &TemplatePiece,
     metadata: &str,
     pos: BlockPos,
     world: &mut dyn FeatureWorld,
@@ -728,7 +728,7 @@ fn shipwreck_marker(
     };
     let below = pos.below();
     if is_loot_container(world.get_state(below)) {
-        world.set_block_entity(below, BlockEntityData::loot(table, rng.next_long()));
+        world.set_block_entity(below, piece.loot_data_at(below, table, rng.next_long()));
     }
 }
 

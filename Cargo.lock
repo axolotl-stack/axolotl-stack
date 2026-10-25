@@ -5317,6 +5317,7 @@ dependencies = [
  "tracing",
  "tracing-subscriber",
  "unastar-data",
+ "unastar-packs",
  "unastar_bedrock_codegen",
  "unastar_noise",
  "uuid",
@@ -5378,6 +5379,7 @@ dependencies = [
 name = "unastar-packs"
 version = "0.1.0"
 dependencies = [
+ "flate2",
  "serde",
  "serde_json",
  "thiserror 2.0.21",
@@ -5440,6 +5442,7 @@ dependencies = [
  "serde",
  "serde_json",
  "syn 2.0.112",
+ "unastar-packs",
  "walkdir",
 ]
 

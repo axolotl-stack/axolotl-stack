@@ -6,7 +6,8 @@
 //! - [`Encoding::BigEndian`]: Java-format `.nbt` structure templates that BDS
 //!   ships loose in `behavior_packs/*/structures` (gzip-compressed).
 //!
-//! Only reading is supported; the tree is a plain enum.
+//! The plain enum is shared by build-time template compilers. Writers emit
+//! network compound children for block actors and raw Java roots for entities.
 
 use crate::error::{Error, Result};
 use std::collections::BTreeMap;
@@ -59,6 +60,16 @@ impl Tag {
             Tag::Short(v) => Some(v.into()),
             Tag::Int(v) => Some(v.into()),
             Tag::Long(v) => Some(v),
+            _ => None,
+        }
+    }
+
+    /// Byte, Short or Int value (the types used by template geometry).
+    pub fn as_int(&self) -> Option<i32> {
+        match *self {
+            Tag::Byte(value) => Some(value as i32),
+            Tag::Short(value) => Some(value as i32),
+            Tag::Int(value) => Some(value),
             _ => None,
         }
     }
@@ -249,6 +260,22 @@ impl<'a> Reader<'a> {
     }
 }
 
+/// Read one entire rooted compound, rejecting trailing or unsupported content.
+pub fn read_compound(origin: &str, bytes: &[u8], encoding: Encoding) -> Result<Tag> {
+    let mut reader = Reader::new(bytes, encoding, origin);
+    let (_, root) = reader.read_root()?;
+    if !matches!(root, Tag::Compound(_)) {
+        return Err(Error::data(origin, "NBT root is not a compound"));
+    }
+    if !reader.is_empty() {
+        return Err(Error::data(
+            origin,
+            "trailing bytes after NBT root compound",
+        ));
+    }
+    Ok(root)
+}
+
 /// Decode a gzip-compressed big-endian (Java format) NBT file.
 pub fn read_gzip_java(origin: &str, bytes: &[u8]) -> Result<Tag> {
     use std::io::Read;
@@ -259,11 +286,190 @@ pub fn read_gzip_java(origin: &str, bytes: &[u8]) -> Result<Tag> {
             origin: origin.to_owned(),
             reason: format!("gzip: {e}"),
         })?;
-    Ok(Reader::new(&raw, Encoding::BigEndian, origin)
-        .read_root()?
-        .1)
+    read_compound(origin, &raw, Encoding::BigEndian)
 }
 
+/// Re-encode a compound as uncompressed big-endian NBT (unnamed root).
+pub fn encode_java(tag: &Tag) -> Vec<u8> {
+    fn id(t: &Tag) -> u8 {
+        match t {
+            Tag::Byte(_) => 1,
+            Tag::Short(_) => 2,
+            Tag::Int(_) => 3,
+            Tag::Long(_) => 4,
+            Tag::Float(_) => 5,
+            Tag::Double(_) => 6,
+            Tag::ByteArray(_) => 7,
+            Tag::String(_) => 8,
+            Tag::List(_) => 9,
+            Tag::Compound(_) => 10,
+            Tag::IntArray(_) => 11,
+            Tag::LongArray(_) => 12,
+        }
+    }
+    fn s(out: &mut Vec<u8>, v: &str) {
+        out.extend_from_slice(&(v.len() as u16).to_be_bytes());
+        out.extend_from_slice(v.as_bytes());
+    }
+    fn p(out: &mut Vec<u8>, t: &Tag) {
+        match t {
+            Tag::Byte(v) => out.push(*v as u8),
+            Tag::Short(v) => out.extend_from_slice(&v.to_be_bytes()),
+            Tag::Int(v) => out.extend_from_slice(&v.to_be_bytes()),
+            Tag::Long(v) => out.extend_from_slice(&v.to_be_bytes()),
+            Tag::Float(v) => out.extend_from_slice(&v.to_bits().to_be_bytes()),
+            Tag::Double(v) => out.extend_from_slice(&v.to_bits().to_be_bytes()),
+            Tag::ByteArray(v) => {
+                out.extend_from_slice(&(v.len() as i32).to_be_bytes());
+                out.extend(v.iter().map(|b| *b as u8));
+            }
+            Tag::String(v) => s(out, v),
+            Tag::List(v) => {
+                out.push(v.first().map(id).unwrap_or(0));
+                out.extend_from_slice(&(v.len() as i32).to_be_bytes());
+                for x in v {
+                    p(out, x);
+                }
+            }
+            Tag::Compound(m) => {
+                for (k, v) in m {
+                    out.push(id(v));
+                    s(out, k);
+                    p(out, v);
+                }
+                out.push(0);
+            }
+            Tag::IntArray(v) => {
+                out.extend_from_slice(&(v.len() as i32).to_be_bytes());
+                for x in v {
+                    out.extend_from_slice(&x.to_be_bytes());
+                }
+            }
+            Tag::LongArray(v) => {
+                out.extend_from_slice(&(v.len() as i32).to_be_bytes());
+                for x in v {
+                    out.extend_from_slice(&x.to_be_bytes());
+                }
+            }
+        }
+    }
+    let mut out = vec![10, 0, 0];
+    p(&mut out, tag);
+    out
+}
+
+/// Encode named NETWORK-endian child tags, without a root header or end tag.
+pub fn encode_network_fields(fields: &BTreeMap<String, Tag>) -> Result<Vec<u8>> {
+    fn var(out: &mut Vec<u8>, mut value: u64) {
+        while value >= 0x80 {
+            out.push(value as u8 | 0x80);
+            value >>= 7;
+        }
+        out.push(value as u8);
+    }
+    fn int(out: &mut Vec<u8>, value: i32) {
+        var(out, ((value as u32) << 1 ^ (value >> 31) as u32) as u64);
+    }
+    fn long(out: &mut Vec<u8>, value: i64) {
+        var(out, (value as u64) << 1 ^ (value >> 63) as u64);
+    }
+    fn string(out: &mut Vec<u8>, value: &str) -> Result<()> {
+        let len = u32::try_from(value.len())
+            .map_err(|error| Error::data("network NBT encoder", error.to_string()))?;
+        var(out, len as u64);
+        out.extend_from_slice(value.as_bytes());
+        Ok(())
+    }
+    fn id(tag: &Tag) -> u8 {
+        match tag {
+            Tag::Byte(_) => 1,
+            Tag::Short(_) => 2,
+            Tag::Int(_) => 3,
+            Tag::Long(_) => 4,
+            Tag::Float(_) => 5,
+            Tag::Double(_) => 6,
+            Tag::ByteArray(_) => 7,
+            Tag::String(_) => 8,
+            Tag::List(_) => 9,
+            Tag::Compound(_) => 10,
+            Tag::IntArray(_) => 11,
+            Tag::LongArray(_) => 12,
+        }
+    }
+    fn children(out: &mut Vec<u8>, fields: &BTreeMap<String, Tag>) -> Result<()> {
+        for (name, tag) in fields {
+            out.push(id(tag));
+            string(out, name)?;
+            payload(out, tag)?;
+        }
+        Ok(())
+    }
+    fn payload(out: &mut Vec<u8>, tag: &Tag) -> Result<()> {
+        match tag {
+            Tag::Byte(value) => out.push(*value as u8),
+            Tag::Short(value) => out.extend_from_slice(&value.to_le_bytes()),
+            Tag::Int(value) => int(out, *value),
+            Tag::Long(value) => long(out, *value),
+            Tag::Float(value) => out.extend_from_slice(&value.to_le_bytes()),
+            Tag::Double(value) => out.extend_from_slice(&value.to_le_bytes()),
+            Tag::String(value) => string(out, value)?,
+            Tag::Compound(fields) => {
+                children(out, fields)?;
+                out.push(0);
+            }
+            Tag::List(values) => {
+                let kind = values.first().map(id).unwrap_or(0);
+                if values.iter().any(|tag| id(tag) != kind) {
+                    return Err(Error::data(
+                        "network NBT encoder",
+                        "NBT list contains mixed tag types",
+                    ));
+                }
+                out.push(kind);
+                int(
+                    out,
+                    i32::try_from(values.len())
+                        .map_err(|error| Error::data("network NBT encoder", error.to_string()))?,
+                );
+                for value in values {
+                    payload(out, value)?;
+                }
+            }
+            Tag::ByteArray(values) => {
+                int(
+                    out,
+                    i32::try_from(values.len())
+                        .map_err(|error| Error::data("network NBT encoder", error.to_string()))?,
+                );
+                out.extend(values.iter().map(|value| *value as u8));
+            }
+            Tag::IntArray(values) => {
+                int(
+                    out,
+                    i32::try_from(values.len())
+                        .map_err(|error| Error::data("network NBT encoder", error.to_string()))?,
+                );
+                for value in values {
+                    int(out, *value);
+                }
+            }
+            Tag::LongArray(values) => {
+                int(
+                    out,
+                    i32::try_from(values.len())
+                        .map_err(|error| Error::data("network NBT encoder", error.to_string()))?,
+                );
+                for value in values {
+                    long(out, *value);
+                }
+            }
+        }
+        Ok(())
+    }
+    let mut out = Vec::new();
+    children(&mut out, fields)?;
+    Ok(out)
+}
 #[cfg(test)]
 mod tests {
     use super::*;

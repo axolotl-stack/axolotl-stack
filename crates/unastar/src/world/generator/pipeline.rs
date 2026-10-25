@@ -187,9 +187,7 @@ impl ChunkPipeline {
             let origin = ChunkPos::new(pos.x + dx, pos.z + dz);
             let writes = self.decoration(origin);
             // `pos` seen from `origin` is at (-dx, -dz).
-            for write in writes.for_offset(-dx, -dz) {
-                chunk.set_block(write.x, write.y, write.z, write.block);
-            }
+            writes.apply_to(-dx, -dz, &mut chunk);
         }
         chunk.set_biomes_from_quarts(&proto.biomes, |biome| generator.bedrock_biome(biome));
         chunk.x = pos.x;
@@ -330,5 +328,120 @@ mod tests {
         region.set_block(3, 10, 4, *blocks::AIR);
         assert_eq!(region.heightmap(HeightmapKind::WorldSurface, 3, 4), 1);
         assert!(!region.set_block(40, 10, 4, *blocks::DIRT));
+    }
+
+    struct ActorGenerator;
+
+    impl Generator for ActorGenerator {
+        fn seed(&self) -> i64 {
+            7
+        }
+        fn generate_proto(&self, pos: ChunkPos) -> ProtoChunk {
+            use crate::world::block_entity::BlockEntity;
+            let mut proto = ProtoChunk::empty(pos, 1);
+            let chest = blocks::get_block_id("minecraft:chest");
+            proto.chunk.set_block(5, 10, 5, chest);
+            proto.chunk.set_block_entity(BlockEntity::generated(
+                [pos.x * 16 + 5, 10, pos.z * 16 + 5],
+                "Chest",
+                &[],
+                None,
+                None,
+            ));
+            proto
+        }
+        fn decorates(&self) -> bool {
+            true
+        }
+        fn decorate(&self, region: &mut DecorationRegion<'_>) {
+            use crate::world::block_entity::{BlockEntity, LootTable};
+            let pos = region.origin();
+            // Metadata-only origin write overwrites its proto actor before any blocks.
+            region.set_block_entity(BlockEntity::generated(
+                [pos.x * 16 + 5, 10, pos.z * 16 + 5],
+                "Chest",
+                &[],
+                Some(LootTable::Bedrock("loot_tables/chests/test.json", -7)),
+                None,
+            ));
+            // The negative neighbour supplies this chunk's top-height chest.
+            let position = [pos.x * 16 + 16, 319, pos.z * 16 + 16];
+            region.set_block(
+                position[0],
+                position[1],
+                position[2],
+                blocks::get_block_id("minecraft:chest"),
+            );
+            region.set_block_entity(BlockEntity::generated(position, "Chest", &[], None, None));
+            // A later block replacement must clear its actor in final replay.
+            let replaced = [pos.x * 16 + 6, -64, pos.z * 16 + 6];
+            region.set_block(
+                replaced[0],
+                replaced[1],
+                replaced[2],
+                blocks::get_block_id("minecraft:chest"),
+            );
+            region.set_block_entity(BlockEntity::generated(replaced, "Chest", &[], None, None));
+            region.set_block(replaced[0], replaced[1], replaced[2], *blocks::STONE);
+        }
+        fn block_classes(&self) -> &'static [u8] {
+            &TEST_CLASSES
+        }
+        fn bedrock_biome(&self, biome: NativeBiome) -> u32 {
+            biome as u32
+        }
+        fn find_spawn(&self, _chunk_at: &dyn Fn(ChunkPos) -> Chunk) -> SpawnPoint {
+            SpawnPoint { x: 0, y: 11, z: 0 }
+        }
+    }
+
+    fn actor_semantics(chunk: &Chunk) -> Vec<([i32; 3], zuri_nbt::NBTTag)> {
+        let mut actors: Vec<_> = chunk
+            .block_entities()
+            .iter()
+            .map(|entity| {
+                let mut bytes = Vec::new();
+                entity.write_disk_nbt(&mut bytes).unwrap();
+                (
+                    entity.position(),
+                    zuri_nbt::NBTTag::read(bytes.as_slice(), zuri_nbt::encoding::LittleEndian)
+                        .unwrap(),
+                )
+            })
+            .collect();
+        actors.sort_by_key(|(position, _)| *position);
+        actors
+    }
+
+    #[test]
+    fn pipeline_merges_proto_and_cached_neighbor_actors_independent_of_request_order() {
+        let pos = ChunkPos::new(-1, -1);
+        let next = ChunkPos::new(0, 0);
+        let forward = ChunkPipeline::new(Arc::new(ActorGenerator));
+        let a = forward.generate(pos);
+        let b = forward.generate(next);
+        let backward = ChunkPipeline::new(Arc::new(ActorGenerator));
+        let b2 = backward.generate(next);
+        let a2 = backward.generate(pos);
+        assert_eq!(actor_semantics(&a), actor_semantics(&a2));
+        assert_eq!(actor_semantics(&b), actor_semantics(&b2));
+        assert_eq!(actor_semantics(&a), actor_semantics(&forward.generate(pos)));
+        let positions: Vec<_> = actor_semantics(&a)
+            .into_iter()
+            .map(|(position, _)| position)
+            .collect();
+        assert_eq!(positions, vec![[-16, 319, -16], [-11, 10, -11]]);
+        assert_eq!(
+            a.get_block(0, 319, 0),
+            blocks::get_block_id("minecraft:chest")
+        );
+        assert_eq!(a.get_block(6, -64, 6), *blocks::STONE);
+        let (_, zuri_nbt::NBTTag::Compound(fields)) = &actor_semantics(&a)[1] else {
+            panic!()
+        };
+        assert_eq!(
+            fields.0.get("LootTableSeed"),
+            Some(&zuri_nbt::NBTTag::Long((-7).into()))
+        );
     }
 }

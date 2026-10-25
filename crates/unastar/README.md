@@ -256,3 +256,23 @@ edition-specific surface/carver passes. `sample_biome` samples an absolute block
 position using the same seeded noise registry; `noise_heightmap` is a chunk-level
 motion-blocking height oracle before surface/carvers. Callers cache oracle
 results per placement run rather than regenerate a chunk for every queried column.
+
+## Generated block entities
+
+Java and Bedrock structure placement retain sparse native block actors in
+`Chunk`, through proto generation, 3x3 decoration overlays and cached replay.
+Block-type replacement removes stale metadata; changes between states of the
+same block type preserve it. Generated loot/spawner metadata is AOT-encoded:
+runtime placement does not parse template NBT or draw additional random values.
+
+LevelDB stores concatenated fixed-little-endian roots under chunk key `0x31`.
+BlazeDB writes format v3 with an explicit metadata length and still reads v1/v2
+columns without actors. Flush and close drain queued writes before returning.
+Subchunk network responses append the actors belonging to that section;
+request-mode `LevelChunk` biome payloads remain unchanged.
+
+Regression coverage includes rotated Java outpost chest/mansion spawner and
+authored Bedrock chest/spawner placement through real provider close/reopen,
+negative coordinates, section filtering, stale-data removal and old BlazeDB
+versions. This is metadata retention, not a claim of implemented container
+interaction, loot rolling, mob spawning or interpretation of Java-only fields.

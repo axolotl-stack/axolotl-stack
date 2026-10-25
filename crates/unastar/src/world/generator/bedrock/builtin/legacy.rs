@@ -1142,11 +1142,11 @@ mod tests {
     }
 
     /// A 16x16 column of blocks from y 0 to 16, air by default.
-    struct Grid(Vec<u32>);
+    struct Grid(Vec<u32>, Vec<crate::world::block_entity::BlockEntity>);
 
     impl Grid {
         fn new() -> Self {
-            Self(vec![bb::AIR; 16 * 16 * 16])
+            Self(vec![bb::AIR; 16 * 16 * 16], Vec::new())
         }
 
         fn index(pos: BlockPos) -> Option<usize> {
@@ -1171,6 +1171,22 @@ mod tests {
         }
         fn set(&mut self, pos: BlockPos, id: u32) -> bool {
             Self::index(pos).map(|i| self.0[i] = id).is_some()
+        }
+        fn set_block_entity(&mut self, entity: crate::world::block_entity::BlockEntity) -> bool {
+            let position = entity.position();
+            if Self::index(BlockPos::new(position[0], position[1], position[2])).is_none() {
+                return false;
+            }
+            if let Some(existing) = self
+                .1
+                .iter_mut()
+                .find(|existing| existing.position() == position)
+            {
+                *existing = entity;
+            } else {
+                self.1.push(entity);
+            }
+            true
         }
         fn biome(&self, _: BlockPos) -> u16 {
             0

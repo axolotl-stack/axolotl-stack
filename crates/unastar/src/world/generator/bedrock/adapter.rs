@@ -83,6 +83,14 @@ impl<R: WorldGenRegion> BlockWorld for RegionWorld<'_, R> {
         true
     }
 
+    fn set_block_entity(&mut self, entity: crate::world::block_entity::BlockEntity) -> bool {
+        let [x, y, z] = entity.position();
+        if self.column(x, z).is_none() || !(self.min_y()..self.max_y()).contains(&y) {
+            return false;
+        }
+        self.region.set_block_entity(entity)
+    }
+
     fn biome(&self, p: BlockPos) -> u16 {
         if self.column(p.x, p.z).is_none() {
             return u16::MAX;
@@ -142,6 +150,10 @@ impl BlockWorld for ProtoChunk {
         self.chunk
             .set_block((p.x & 15) as u8, p.y as i16, (p.z & 15) as u8, id);
         true
+    }
+
+    fn set_block_entity(&mut self, entity: crate::world::block_entity::BlockEntity) -> bool {
+        self.chunk.set_block_entity(entity)
     }
 
     fn biome(&self, p: BlockPos) -> u16 {

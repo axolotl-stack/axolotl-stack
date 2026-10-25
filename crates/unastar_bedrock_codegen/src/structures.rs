@@ -34,18 +34,19 @@
 //! **Special cells.** `structure_void` cells are not stored (the world keeps
 //! its block), `structure_block` data blocks are skipped, `jigsaw` blocks
 //! become their `final_state` and are recorded as [`Connector`]s for assembly.
-//! Block entities (chest/barrel loot, campfire items), template entities and
-//! processor loot modifiers are out of scope: only block states are placed.
+//! Block actors are compiled to native identities and static network-NBT fields;
+//! template entities and processor loot modifiers remain separate concerns.
 //! The secondary block layer of `.mcstructure` files (waterlogging liquid) is
 //! dropped for the same reason as `waterlogged`.
 
 use crate::blocks::{self, BlockDescriptor, BlockPalette, StateValue};
 use crate::error::{Error, Result};
 use crate::ir::{self, BiomeFilter, Feature, Obj};
-use crate::nbt::{self, Encoding, Reader, Tag};
 use serde_json::Value;
 use std::collections::BTreeMap;
 use std::path::{Path, PathBuf};
+use unastar_packs::block_entity::{self, CompiledBlockEntity};
+use unastar_packs::nbt::{self, Encoding, Reader, Tag};
 use unastar_packs::packs::{Document, Family, PackStack};
 
 /// The built-in empty pool / processor list / jigsaw target.
@@ -160,6 +161,15 @@ pub struct Connector {
     pub placement_priority: i32,
 }
 
+/// A block actor attached to one packed template cell.
+#[derive(Debug, Clone)]
+pub struct TemplateBlockEntity {
+    pub cell: u32,
+    pub data: CompiledBlockEntity,
+    /// Java-format source loot identifiers need the native loot-path conversion.
+    pub java_loot: bool,
+}
+
 /// A decoded structure template.
 #[derive(Debug, Clone)]
 pub struct Template {
@@ -174,6 +184,7 @@ pub struct Template {
     /// Non-void cells: template-local position and palette index.
     pub cells: Vec<([u8; 3], u16)>,
     pub connectors: Vec<Connector>,
+    pub block_entities: Vec<TemplateBlockEntity>,
 }
 
 /// Accumulates a template's palette and cells.
@@ -198,6 +209,7 @@ impl TemplateBuilder {
                 palette: Vec::new(),
                 cells: Vec::new(),
                 connectors: Vec::new(),
+                block_entities: Vec::new(),
             },
             dedupe: BTreeMap::new(),
         })
@@ -225,6 +237,18 @@ impl TemplateBuilder {
         self.template
             .cells
             .push(([pos[0] as u8, pos[1] as u8, pos[2] as u8], entry));
+        Ok(())
+    }
+
+    fn block_entity(&mut self, tag: &Tag, java_loot: bool) -> Result<()> {
+        let data = block_entity::compile(&self.template.origin, tag)?;
+        let cell =
+            u32::try_from(self.template.cells.len() - 1).expect("template cell count fits u32");
+        self.template.block_entities.push(TemplateBlockEntity {
+            cell,
+            data,
+            java_loot,
+        });
         Ok(())
     }
 }
@@ -304,6 +328,7 @@ pub fn feature_template(feature: &str) -> Template {
         size: [1, 1, 1],
         palette: Vec::new(),
         cells: Vec::new(),
+        block_entities: Vec::new(),
         connectors: vec![Connector {
             pos: [0, 0, 0],
             front: Dir6::Down,
@@ -424,7 +449,6 @@ fn load_java_template(
     }
     for b in list(origin, child(origin, map, "blocks")?, "blocks")? {
         let m = compound(origin, b, "block")?;
-        // `nbt` of non-jigsaw blocks is block-entity data (loot, items): out of scope.
         check_keys(origin, m, &["pos", "state", "nbt"], "block")?;
         let pos = int3(origin, child(origin, m, "pos")?, "pos")?;
         let state = integer(origin, child(origin, m, "state")?, "state")?;
@@ -451,6 +475,9 @@ fn load_java_template(
                 })?;
                 let entry = builder.entry(ids)?;
                 builder.cell(pos, entry)?;
+                if let Some(actor) = m.get("nbt") {
+                    builder.block_entity(actor, true)?;
+                }
             }
         }
     }
@@ -602,6 +629,7 @@ pub fn rotate_java_properties(
 /// Java block names whose Bedrock 1.26.51 identifier differs.
 const JAVA_RENAMES: &[(&str, &str)] = &[
     ("bricks", "brick_block"),
+    ("chain", "iron_chain"),
     ("cobweb", "web"),
     ("dead_bush", "deadbush"),
     ("dirt_path", "grass_path"),
@@ -1058,7 +1086,6 @@ fn load_bedrock_template(
         child(origin, palettes, "default")?,
         "default palette",
     )?;
-    // `block_position_data` is block-entity data and scheduled ticks: out of scope.
     check_keys(
         origin,
         default,
@@ -1112,6 +1139,36 @@ fn load_bedrock_template(
             format!("{} block indices for size {size:?}", primary.len()),
         ));
     }
+    let mut actors = BTreeMap::new();
+    if let Some(positions) = default.get("block_position_data") {
+        for (index, data) in compound(origin, positions, "block_position_data")? {
+            let index: usize = index.parse().map_err(|_| {
+                Error::data(origin, "block actor index is not a nonnegative integer")
+            })?;
+            if index >= volume {
+                return Err(Error::data(
+                    origin,
+                    "block actor index outside the template volume",
+                ));
+            }
+            let data = compound(origin, data, "block position data")?;
+            check_keys(
+                origin,
+                data,
+                &["block_entity_data", "tick_queue_data"],
+                "block position data",
+            )?;
+            if let Some(actor) = data.get("block_entity_data") {
+                // Structure-block markers are intentionally omitted with their blocks.
+                if !matches!(
+                    actor.get("id").and_then(Tag::as_str),
+                    Some("StructureBlock" | "minecraft:structure_block")
+                ) {
+                    actors.insert(index, actor);
+                }
+            }
+        }
+    }
     for (i, t) in primary.iter().enumerate() {
         let index = integer(origin, t, "block index")?;
         if index < 0 {
@@ -1130,6 +1187,15 @@ fn load_bedrock_template(
         let i = i as i32;
         let pos = [i / (sy * sz), (i / sz) % sy, i % sz];
         builder.cell(pos, entry)?;
+        if let Some(actor) = actors.remove(&(i as usize)) {
+            builder.block_entity(actor, false)?;
+        }
+    }
+    if !actors.is_empty() {
+        return Err(Error::data(
+            origin,
+            "block actor references a void template cell",
+        ));
     }
     Ok(builder.template)
 }
@@ -2098,6 +2164,39 @@ mod tests {
                 &[("persistent_bit", StateValue::Int(1))]
             )
         );
+    }
+
+    #[test]
+    fn legacy_bastion_chain_uses_iron_chain_and_preserves_axis() {
+        // Shipped bastion stages still name `chain`; native 26.51 calls it
+        // `iron_chain`, with default pillar_axis=y and horizontal x/z states.
+        let p = BlockPalette::from_parts(
+            block(
+                "minecraft:iron_chain",
+                &[("pillar_axis", strs(&["y", "x", "z"]))],
+            ),
+            BTreeMap::new(),
+        )
+        .unwrap();
+        let id = |axis: &str| {
+            expect(
+                &p,
+                "minecraft:iron_chain",
+                &[("pillar_axis", StateValue::Str(axis.into()))],
+            )
+        };
+        assert_eq!(
+            convert(&p, "minecraft:chain", &[("waterlogged", "false")]).unwrap(),
+            id("y")
+        );
+        let ids = java_rotations(
+            &p,
+            "legacy bastion",
+            "minecraft:chain",
+            &props(&[("axis", "x"), ("waterlogged", "false")]),
+        )
+        .unwrap();
+        assert_eq!(ids, [id("x"), id("z"), id("x"), id("z")]);
     }
 
     #[test]

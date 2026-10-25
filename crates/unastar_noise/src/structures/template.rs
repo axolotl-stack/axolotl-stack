@@ -61,7 +61,7 @@ pub struct BlockInfo {
 pub struct PlacedBlockEntity {
     pub pos: BlockPos,
     pub state: JavaState,
-    /// Template data (id + raw NBT) when the template had one.
+    /// AOT-compiled template actor metadata when the template had one.
     pub data: Option<&'static BlockEntityInfo>,
     /// Loot table override from a processor.
     pub loot_table: Option<&'static str>,
