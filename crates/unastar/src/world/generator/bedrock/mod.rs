@@ -34,6 +34,7 @@ pub mod builtin;
 pub mod decorate;
 pub mod features;
 mod generator;
+mod geology;
 pub mod rng;
 pub mod scatter;
 pub mod structures;

@@ -82,6 +82,10 @@ impl BedrockGenerator {
         let heights = self
             .noise_heights
             .get_or_compute(pos, || column_heights(&blocks, props::blocks_motion));
+        super::geology::apply(
+            &mut blocks,
+            &mut BedrockRandom::new(chunk_seed(self.seed(), pos.x, pos.z) ^ 0x6261_7365),
+        );
         let mut rng = BedrockRandom::new(chunk_seed(self.seed(), pos.x, pos.z));
         for z in 0..16u8 {
             for x in 0..16u8 {

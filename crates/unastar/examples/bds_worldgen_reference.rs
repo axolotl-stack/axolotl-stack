@@ -8,6 +8,8 @@
 //! 2. Force generation from the server console with preloaded ticking areas,
 //!    e.g. `tickingarea add -64 0 -64 63 0 63 origin true`, wait, then `stop`.
 //! 3. `cargo run -p unastar --example bds_worldgen_reference -- <world dir> <out.json> <x0:z0:x1:z1>...`
+//!    Add `--geology` before the world directory to export per-y block counts
+//!    from -64 through 16 instead, for measuring base-layer transitions.
 //!
 //! The fixture stores, per chunk column, the surface height (highest non-air
 //! block), the terrain height (highest block produced by noise, surface rules
@@ -24,9 +26,15 @@ const MIN_Y: i32 = -64;
 const SUBCHUNKS: i32 = 24;
 
 fn main() {
-    let args: Vec<String> = std::env::args().collect();
+    let mut args: Vec<String> = std::env::args().collect();
+    let geology = args.get(1).is_some_and(|arg| arg == "--geology");
+    if geology {
+        args.remove(1);
+    }
     if args.len() < 4 {
-        eprintln!("usage: bds_worldgen_reference <world dir> <out.json> <x0:z0:x1:z1>...");
+        eprintln!(
+            "usage: bds_worldgen_reference [--geology] <world dir> <out.json> <x0:z0:x1:z1>..."
+        );
         std::process::exit(2);
     }
     let world = Path::new(&args[1]);
@@ -66,9 +74,11 @@ fn main() {
         for cx in x0..=x1 {
             for cz in z0..=z1 {
                 match load_column(&db, &read, cx, cz) {
-                    Some(col) => {
-                        chunks_json.push(col.to_json(cx, cz, &mut palette, &mut palette_index))
-                    }
+                    Some(col) => chunks_json.push(if geology {
+                        col.geology_json(cx, cz)
+                    } else {
+                        col.to_json(cx, cz, &mut palette, &mut palette_index)
+                    }),
                     None => missing.push((cx, cz)),
                 }
             }
@@ -108,6 +118,37 @@ fn idx(x: usize, y: usize, z: usize) -> usize {
 }
 
 impl Column {
+    fn geology_json(&self, cx: i32, cz: i32) -> String {
+        let layers: Vec<_> = (-64..=16)
+            .map(|y| {
+                let mut counts: BTreeMap<&str, u32> = BTreeMap::new();
+                for z in 0..16 {
+                    for x in 0..16 {
+                        let name = self.blocks[idx(x, (y - MIN_Y) as usize, z)]
+                            .as_deref()
+                            .unwrap_or("minecraft:air");
+                        *counts.entry(name).or_default() += 1;
+                    }
+                }
+                serde_json::json!({ "y": y, "counts": counts })
+            })
+            .collect();
+        let bedrock_masks: Vec<u8> = (0..256)
+            .map(|i| {
+                let (x, z) = (i % 16, i / 16);
+                let mut mask = 0;
+                for y in 0..6 {
+                    if self.blocks[idx(x, y, z)].as_deref() == Some("minecraft:bedrock") {
+                        mask |= 1 << y;
+                    }
+                }
+                mask
+            })
+            .collect();
+        serde_json::json!({ "x": cx, "z": cz, "layers": layers, "bedrock_masks": bedrock_masks })
+            .to_string()
+    }
+
     fn to_json(
         &self,
         cx: i32,
