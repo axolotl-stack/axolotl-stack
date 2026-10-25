@@ -58,6 +58,7 @@ unastar_bedrock_codegen = { path = "../unastar_bedrock_codegen", optional = true
 
 [dev-dependencies]
 flate2.workspace = true
+crc32c = "0.6"
 tempfile = "3"
 unastar-packs = { path = "../unastar-packs" }
 

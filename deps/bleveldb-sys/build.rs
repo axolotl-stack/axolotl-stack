@@ -45,6 +45,35 @@ fn main() {
         }
     }
 
+    // This crate invokes cc directly, not CMake: no generated port_config.h
+    // enables the linked codecs for us. Without these flags valid BDS SSTs
+    // reach the codec's compiled-out branch and are reported as corrupt.
+    build
+        .define("HAVE_ZLIB", Some("1"))
+        .define("HAVE_SNAPPY", Some("1"))
+        .define("LEVELDB_SUPPORT_LEGACY_ZLIB_ENUM", Some("1"));
+    let windows_library = if cfg!(target_os = "windows") {
+        let root = find_vcpkg_root().expect("Failed to find vcpkg installation.");
+        let triplet = if cfg!(target_arch = "x86_64") {
+            "x64-windows-static-md"
+        } else if cfg!(target_arch = "aarch64") {
+            "arm64-windows-static-md"
+        } else {
+            panic!("Unsupported architecture for Windows platform.");
+        };
+        let installed = Path::new(&root).join("installed").join(triplet);
+        build.include(installed.join("include"));
+        Some(installed.join("lib"))
+    } else {
+        build.include("/usr/include");
+        if cfg!(target_os = "macos") {
+            build.include("/usr/local/include").include("/opt/homebrew/include");
+        }
+        None
+    };
+    println!("cargo:rerun-if-env-changed=VCPKG_ROOT");
+    println!("cargo:rerun-if-env-changed=VCPKG_INSTALLATION_ROOT");
+
     if cfg!(target_os = "windows") {
         build.define("LEVELDB_PLATFORM_WINDOWS", None);
         build.define("NOMINMAX", None);
@@ -60,34 +89,8 @@ fn main() {
     println!("cargo:rerun-if-changed=leveldb/");
 
     // Link libraries needed by LevelDB
-    if cfg!(target_os = "windows") {
-        let vcpkg_path = find_vcpkg_root().expect("Failed to find vcpkg installation.");
-        let vcpkg_root = Path::new(&vcpkg_path);
-
-        if cfg!(target_arch = "x86") {
-            panic!("32-bit architecture is not supported. Please use x64 architecture.");
-        }
-
-        let mut triplet = "";
-
-        // updated to static-md so that we dont have to provide dlls to users.
-        if cfg!(target_arch = "x86_64") {
-            triplet = "x64-windows-static-md";
-        } else if cfg!(target_arch = "aarch64") {
-            triplet = "arm64-windows-static-md";
-        } else {
-            let _ = triplet;
-            panic!("Unsupported architecture for Windows platform.");
-        }
-
-        println!(
-            "cargo:rustc-link-search=native={}",
-            vcpkg_root
-                .join("installed")
-                .join(triplet)
-                .join("lib")
-                .display()
-        );
+    if let Some(library) = windows_library {
+        println!("cargo:rustc-link-search=native={}", library.display());
 
         println!("cargo:rustc-link-lib=static=zs");
         println!("cargo:rustc-link-lib=static=snappy");
@@ -115,15 +118,6 @@ fn main() {
         println!("cargo:rustc-link-lib=static=snappy");
     }
 
-    // Optional: print current submodule commit hash for debugging
-    if let Ok(output) = std::process::Command::new("git")
-        .args(&["-C", "leveldb", "rev-parse", "--short", "HEAD"])
-        .output()
-    {
-        if let Ok(hash) = String::from_utf8(output.stdout) {
-            println!("cargo:warning=Building LevelDB commit: {}", hash.trim());
-        }
-    }
 }
 
 fn find_vcpkg_root() -> Option<String> {
