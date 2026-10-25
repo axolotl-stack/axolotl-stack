@@ -140,10 +140,8 @@ pub async fn run(options: &Options) -> Result<()> {
         let mut seen = Vec::new();
         session
             .pump_until(options.timeout, |name, packet| {
-                if let Some(packet) = packet {
-                    if let McpePacketData::AvailableActorIdentifiersPacket(ids) = packet {
-                        identifiers = Some(ids.identifier_list.clone());
-                    }
+                if let Some(McpePacketData::AvailableActorIdentifiersPacket(ids)) = packet {
+                    identifiers = Some(ids.identifier_list.clone());
                 }
                 if REQUIRED_AFTER_SPAWN.contains(&name) && !seen.contains(&name) {
                     seen.push(name);
