@@ -456,7 +456,9 @@ pub enum JolyneError {
     Transport(#[source] Box<dyn std::error::Error + Send + Sync>),
 
     /// The connection is closed: the peer's `Disconnect` was already reported,
-    /// the transport ended or the listener stopped accepting.
+    /// the peer closed the transport normally (`Transport::is_peer_close`,
+    /// e.g. a vanilla client's Save and Quit), the transport ended or the
+    /// listener stopped accepting. Not a failure.
     #[error("Connection closed")]
     ConnectionClosed,
 

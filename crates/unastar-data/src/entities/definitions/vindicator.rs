@@ -72,11 +72,9 @@ pub fn spawn_vindicator(commands: &mut Commands) -> Entity {
                     vec![
                         BehaviorAvoidMobTypeEntityTypes { check_if_outnumbered : None,
                         cooldown : None, filters : Some(crate
-                        ::types::BedrockValue::Object(std::collections::HashMap::from([("subject"
-                        .to_string(), crate ::types::BedrockValue::String("other"
-                        .to_string())), ("test".to_string(), crate
-                        ::types::BedrockValue::String("is_family".to_string())), ("value"
-                        .to_string(), crate ::types::BedrockValue::String("creaking"
+                        ::types::BedrockValue::Object(std::collections::HashMap::from([("AND"
+                        .to_string(), crate
+                        ::types::BedrockValue::String("[{\"operator\":0,\"subject\":1,\"test\":\"is_family\",\"value\":\"creaking\"}]"
                         .to_string()))]))), max_dist : Some(8f32), max_flee : None,
                         max_height : None, must_see : None, must_see_forget_duration :
                         None, priority : None, reevaluate_description : None,
@@ -163,7 +161,10 @@ pub fn spawn_vindicator(commands: &mut Commands) -> Entity {
                 angle_of_view_horizontal: Some(360i32),
                 angle_of_view_vertical: Some(360i32),
                 look_distance: Some(8f32),
-                look_time: None,
+                look_time: Some(crate::types::RangeOrVal::Range {
+                    min: 1f32,
+                    max: 2f32,
+                }),
                 priority: Some(BehaviorLookAtPlayerPriority {}),
                 probability: Some(0.02f32),
                 target_distance: None,

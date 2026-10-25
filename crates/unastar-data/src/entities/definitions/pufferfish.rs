@@ -56,97 +56,55 @@ pub fn spawn_pufferfish(commands: &mut Commands) -> Entity {
                 avoid_mob_sound: Some("undefined".to_string()),
                 avoid_target_xz: Some(16i32),
                 avoid_target_y: Some(7i32),
-                control_flags: Some(BehaviorAvoidMobTypeControlFlags {}),
-                entity_types: Some(vec![BehaviorAvoidMobTypeEntityTypes {
-                    check_if_outnumbered: None,
-                    cooldown: None,
-                    filters: Some(crate::types::BedrockValue::Object(
-                        std::collections::HashMap::from([(
-                            "any_of".to_string(),
-                            crate::types::BedrockValue::Array(vec![
-                                crate::types::BedrockValue::Object(
-                                    std::collections::HashMap::from([
-                                        (
-                                            "subject".to_string(),
-                                            crate::types::BedrockValue::String("other".to_string()),
-                                        ),
-                                        (
-                                            "test".to_string(),
-                                            crate::types::BedrockValue::String(
-                                                "is_family".to_string(),
-                                            ),
-                                        ),
-                                        (
-                                            "value".to_string(),
-                                            crate::types::BedrockValue::String(
-                                                "player".to_string(),
-                                            ),
-                                        ),
-                                    ]),
-                                ),
-                                crate::types::BedrockValue::Object(
-                                    std::collections::HashMap::from([
-                                        (
-                                            "subject".to_string(),
-                                            crate::types::BedrockValue::String("other".to_string()),
-                                        ),
-                                        (
-                                            "test".to_string(),
-                                            crate::types::BedrockValue::String(
-                                                "is_family".to_string(),
-                                            ),
-                                        ),
-                                        (
-                                            "value".to_string(),
-                                            crate::types::BedrockValue::String(
-                                                "axolotl".to_string(),
-                                            ),
-                                        ),
-                                    ]),
-                                ),
-                            ]),
-                        )]),
-                    )),
-                    max_dist: Some(6f32),
-                    max_flee: None,
-                    max_height: None,
-                    must_see: None,
-                    must_see_forget_duration: None,
-                    priority: None,
-                    reevaluate_description: None,
-                    sprint_speed_multiplier: Some(2f32),
-                    walk_speed_multiplier: Some(1.5f32),
-                    within_default: None,
-                }]),
+                control_flags: Some(BehaviorAvoidMobTypeControlFlags {
+                }),
+                entity_types: Some(
+                    vec![
+                        BehaviorAvoidMobTypeEntityTypes { check_if_outnumbered : None,
+                        cooldown : None, filters : Some(crate
+                        ::types::BedrockValue::Object(std::collections::HashMap::from([("AND"
+                        .to_string(), crate
+                        ::types::BedrockValue::String("[{\"OR\":[{\"operator\":0,\"subject\":1,\"test\":\"is_family\",\"value\":\"player\"},{\"operator\":0,\"subject\":1,\"test\":\"is_family\",\"value\":\"axolotl\"}]}]"
+                        .to_string()))]))), max_dist : Some(6f32), max_flee : None,
+                        max_height : None, must_see : None, must_see_forget_duration :
+                        None, priority : None, reevaluate_description : None,
+                        sprint_speed_multiplier : Some(2f32), walk_speed_multiplier :
+                        Some(1.5f32), within_default : None }
+                    ],
+                ),
                 ignore_visibility: Some(false),
                 ignore_visibilty: None,
                 max_dist: Some(3f32),
                 max_flee: Some(10f32),
-                on_escape_event: Some(crate::types::BedrockValue::Object(
-                    std::collections::HashMap::from([
-                        (
-                            "event".to_string(),
-                            crate::types::BedrockValue::String("".to_string()),
-                        ),
-                        (
-                            "filters".to_string(),
-                            crate::types::BedrockValue::Object(std::collections::HashMap::from([
-                                ("AND".to_string(), crate::types::BedrockValue::Null),
-                                ("NOT".to_string(), crate::types::BedrockValue::Null),
-                                ("OR".to_string(), crate::types::BedrockValue::Null),
-                                ("all".to_string(), crate::types::BedrockValue::Null),
-                                ("all_of".to_string(), crate::types::BedrockValue::Null),
-                                ("any".to_string(), crate::types::BedrockValue::Null),
-                                ("any_of".to_string(), crate::types::BedrockValue::Null),
-                                ("none_of".to_string(), crate::types::BedrockValue::Null),
-                            ])),
-                        ),
-                        (
-                            "target".to_string(),
-                            crate::types::BedrockValue::String("self".to_string()),
-                        ),
-                    ]),
-                )),
+                on_escape_event: Some(
+                    crate::types::BedrockValue::Object(
+                        std::collections::HashMap::from([
+                            (
+                                "event".to_string(),
+                                crate::types::BedrockValue::String("".to_string()),
+                            ),
+                            (
+                                "filters".to_string(),
+                                crate::types::BedrockValue::Object(
+                                    std::collections::HashMap::from([
+                                        ("AND".to_string(), crate::types::BedrockValue::Null),
+                                        ("NOT".to_string(), crate::types::BedrockValue::Null),
+                                        ("OR".to_string(), crate::types::BedrockValue::Null),
+                                        ("all".to_string(), crate::types::BedrockValue::Null),
+                                        ("all_of".to_string(), crate::types::BedrockValue::Null),
+                                        ("any".to_string(), crate::types::BedrockValue::Null),
+                                        ("any_of".to_string(), crate::types::BedrockValue::Null),
+                                        ("none_of".to_string(), crate::types::BedrockValue::Null),
+                                    ]),
+                                ),
+                            ),
+                            (
+                                "target".to_string(),
+                                crate::types::BedrockValue::String("self".to_string()),
+                            ),
+                        ]),
+                    ),
+                ),
                 priority: Some(BehaviorAvoidMobTypePriority {}),
                 probability_per_strength: Some(1f32),
                 remove_target: Some(false),
@@ -162,7 +120,8 @@ pub fn spawn_pufferfish(commands: &mut Commands) -> Entity {
                 avoid_surface: Some(true),
                 interval: Some(0i32),
                 priority: Some(BehaviorRandomSwimPriority {}),
-                speed_multiplier: Some(BehaviorRandomSwimSpeedMultiplier {}),
+                speed_multiplier: Some(BehaviorRandomSwimSpeedMultiplier {
+                }),
                 xz_dist: Some(16i32),
                 y_dist: Some(4i32),
             },
@@ -171,7 +130,8 @@ pub fn spawn_pufferfish(commands: &mut Commands) -> Entity {
                 interval: Some(1f32),
                 look_ahead: Some(2f32),
                 priority: Some(BehaviorSwimWanderPriority {}),
-                speed_multiplier: Some(BehaviorSwimWanderSpeedMultiplier {}),
+                speed_multiplier: Some(BehaviorSwimWanderSpeedMultiplier {
+                }),
                 wander_time: Some(5f32),
             },
             breathable: super::super::components::Breathable {
@@ -191,11 +151,10 @@ pub fn spawn_pufferfish(commands: &mut Commands) -> Entity {
                 height: Some(0.8f32),
                 width: Some(0.8f32),
             },
-            conditional_bandwidth_optimization:
-                super::super::components::ConditionalBandwidthOptimization {
-                    conditional_values: None,
-                    default_values: None,
-                },
+            conditional_bandwidth_optimization: super::super::components::ConditionalBandwidthOptimization {
+                conditional_values: None,
+                default_values: None,
+            },
             despawn: super::super::components::Despawn {
                 despawn_from_chance: Some(true),
                 despawn_from_distance: Some(DespawnDespawnFromDistance {
@@ -211,9 +170,11 @@ pub fn spawn_pufferfish(commands: &mut Commands) -> Entity {
             },
             experience_reward: super::super::components::ExperienceReward {
                 on_bred: Some(crate::types::MolangOr::Value(0f32)),
-                on_death: Some(crate::types::MolangOr::Expr(
-                    "query.last_hit_by_player ? Math.Random(1,3) : 0".to_string(),
-                )),
+                on_death: Some(
+                    crate::types::MolangOr::Expr(
+                        "query.last_hit_by_player ? Math.Random(1,3) : 0".to_string(),
+                    ),
+                ),
             },
             flocking: super::super::components::Flocking {
                 block_distance: Some(2f32),
@@ -235,7 +196,9 @@ pub fn spawn_pufferfish(commands: &mut Commands) -> Entity {
                 separation_weight: Some(1.75f32),
                 use_center_of_mass: Some(true),
             },
-            flying_speed: super::super::components::FlyingSpeed { value: 0.02f32 },
+            flying_speed: super::super::components::FlyingSpeed {
+                value: 0.02f32,
+            },
             follow_range: super::super::components::FollowRange {
                 max: None,
                 min: None,
@@ -307,12 +270,12 @@ pub fn spawn_pufferfish(commands: &mut Commands) -> Entity {
                 is_pushable: Some(true),
                 is_pushable_by_piston: Some(true),
             },
-            scale: super::super::components::Scale { value: 1.2f32 },
+            scale: super::super::components::Scale {
+                value: 1.2f32,
+            },
             type_family: super::super::components::TypeFamily {
                 family: vec![
-                    "aquatic".to_string(),
-                    "pufferfish".to_string(),
-                    "fish".to_string(),
+                    "aquatic".to_string(), "pufferfish".to_string(), "fish".to_string()
                 ],
             },
             underwater_movement: super::super::components::UnderwaterMovement {

@@ -15,6 +15,7 @@ impl Egg {
 /// Component bundle for spawning a `minecraft:egg`
 #[derive(Bundle, Clone)]
 pub struct EggBundle {
+    pub apply_knockback_rules: super::super::components::ApplyKnockbackRules,
     pub attack: super::super::components::Attack,
     pub breathable: super::super::components::Breathable,
     pub collision_box: super::super::components::CollisionBox,
@@ -28,12 +29,32 @@ pub struct EggBundle {
     pub physics: super::super::components::Physics,
     pub projectile: super::super::components::Projectile,
     pub pushable: super::super::components::Pushable,
+    pub pushable_by_block: super::super::components::PushableByBlock,
+    pub pushable_by_entity: super::super::components::PushableByEntity,
     pub scale: super::super::components::Scale,
+    pub type_family: super::super::components::TypeFamily,
 }
 /// Spawn a new `minecraft:egg` entity with default Bedrock components
 pub fn spawn_egg(commands: &mut Commands) -> Entity {
     commands
         .spawn(EggBundle {
+            apply_knockback_rules: super::super::components::ApplyKnockbackRules {
+                data: Some(crate::types::BedrockValue::Object(
+                    std::collections::HashMap::from([(
+                        "preset".to_string(),
+                        crate::types::BedrockValue::Object(std::collections::HashMap::from([
+                            (
+                                "vertical_power".to_string(),
+                                crate::types::BedrockValue::Float(0.1f64),
+                            ),
+                            (
+                                "vertical_velocity_cap".to_string(),
+                                crate::types::BedrockValue::Float(0.1f64),
+                            ),
+                        ])),
+                    )]),
+                )),
+            },
             attack: super::super::components::Attack {
                 damage: crate::types::RangeOrVal::Fixed(2f32),
                 effect_duration: Some(crate::types::MolangOr::Value(0i32)),
@@ -127,10 +148,13 @@ pub fn spawn_egg(commands: &mut Commands) -> Entity {
                     hurt_owner: None,
                     ignite: None,
                     impact_damage: Some(ProjectileOnHitImpactDamage {
-                        apply_knockback_to_blocking_targets: None,
+                        apply_knockback_to_blocking_targets: Some(true),
                         catch_fire: None,
                         channeling: None,
-                        damage: Some(crate::types::RangeOrVal::Fixed(0f32)),
+                        damage: Some(crate::types::RangeOrVal::Range {
+                            min: 0f32,
+                            max: 0f32,
+                        }),
                         destroy_on_hit: Some(true),
                         destroy_on_hit_requires_damage: None,
                         filter: None,
@@ -210,11 +234,11 @@ pub fn spawn_egg(commands: &mut Commands) -> Entity {
                     }),
                     spawn_aoe_cloud: None,
                     spawn_chance: Some(ProjectileOnHitSpawnChance {
-                        first_spawn_chance: Some(8f32),
+                        first_spawn_chance: Some(0.125f32),
                         first_spawn_count: Some(1i32),
                         first_spawn_percent_chance: None,
                         on_spawn: None,
-                        second_spawn_chance: Some(32f32),
+                        second_spawn_chance: Some(0.03125f32),
                         second_spawn_count: Some(4i32),
                         spawn_baby: Some(true),
                         spawn_definition: Some("minecraft:chicken".to_string()),
@@ -242,7 +266,12 @@ pub fn spawn_egg(commands: &mut Commands) -> Entity {
                 is_pushable: Some(true),
                 is_pushable_by_piston: Some(true),
             },
+            pushable_by_block: super::super::components::PushableByBlock { data: None },
+            pushable_by_entity: super::super::components::PushableByEntity { data: None },
             scale: super::super::components::Scale { value: 1f32 },
+            type_family: super::super::components::TypeFamily {
+                family: vec!["projectile".to_string(), "egg".to_string()],
+            },
         })
         .id()
 }

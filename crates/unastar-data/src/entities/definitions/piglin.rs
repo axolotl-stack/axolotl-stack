@@ -46,11 +46,15 @@ pub struct PiglinBundle {
     pub movement_basic: super::super::components::MovementBasic,
     pub nameable: super::super::components::Nameable,
     pub navigation_walk: super::super::components::NavigationWalk,
+    pub offspring: super::super::components::Offspring,
     pub on_target_acquired: super::super::components::OnTargetAcquired,
     pub physics: super::super::components::Physics,
     pub pushable: super::super::components::Pushable,
+    pub pushable_by_block: super::super::components::PushableByBlock,
+    pub pushable_by_entity: super::super::components::PushableByEntity,
     pub scale: super::super::components::Scale,
     pub shareables: super::super::components::Shareables,
+    pub spawn_egg_interaction: super::super::components::SpawnEggInteraction,
 }
 /// Spawn a new `minecraft:piglin` entity with default Bedrock components
 pub fn spawn_piglin(commands: &mut Commands) -> Entity {
@@ -462,6 +466,19 @@ pub fn spawn_piglin(commands: &mut Commands) -> Entity {
                 can_walk_in_lava: Some(false),
                 is_amphibious: Some(false),
             },
+            offspring: super::super::components::Offspring {
+                blend_attributes: None,
+                combine_parent_colors: None,
+                deny_parents_variant: None,
+                inherit_tamed: None,
+                mutation_factor: None,
+                mutation_strategy: None,
+                offspring_pairs: Some(OffspringOffspringPairs {}),
+                parent_centric_attribute_blending: None,
+                property_inheritance: None,
+                random_extra_variant_mutation_interval: None,
+                random_variant_mutation_interval: None,
+            },
             on_target_acquired: super::super::components::OnTargetAcquired {
                 value: crate::types::BedrockValue::Null,
             },
@@ -474,6 +491,8 @@ pub fn spawn_piglin(commands: &mut Commands) -> Entity {
                 is_pushable: Some(true),
                 is_pushable_by_piston: Some(true),
             },
+            pushable_by_block: super::super::components::PushableByBlock { data: None },
+            pushable_by_entity: super::super::components::PushableByEntity { data: None },
             scale: super::super::components::Scale { value: 1f32 },
             shareables: super::super::components::Shareables {
                 all_items: Some(false),
@@ -1623,6 +1642,21 @@ pub fn spawn_piglin(commands: &mut Commands) -> Entity {
                     },
                     ShareablesItems {
                         admire: Some(true),
+                        barter: None,
+                        consume_item: None,
+                        craft_into: None,
+                        item: Some("minecraft:golden_dandelion".to_string()),
+                        item_aux: None,
+                        max_amount: None,
+                        pickup_limit: Some(1i32),
+                        pickup_only: None,
+                        priority: Some(2i32),
+                        stored_in_inventory: Some(true),
+                        surplus_amount: None,
+                        want_amount: None,
+                    },
+                    ShareablesItems {
+                        admire: Some(true),
                         barter: Some(true),
                         consume_item: None,
                         craft_into: None,
@@ -1639,6 +1673,7 @@ pub fn spawn_piglin(commands: &mut Commands) -> Entity {
                 ]),
                 singular_pickup: Some(true),
             },
+            spawn_egg_interaction: super::super::components::SpawnEggInteraction { data: None },
         })
         .id()
 }

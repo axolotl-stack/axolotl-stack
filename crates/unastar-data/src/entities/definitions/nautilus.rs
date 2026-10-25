@@ -15,6 +15,7 @@ impl Nautilus {
 /// Component bundle for spawning a `minecraft:nautilus`
 #[derive(Bundle, Clone)]
 pub struct NautilusBundle {
+    pub ambient_sound_interval: super::super::components::AmbientSoundInterval,
     pub attack: super::super::components::Attack,
     pub behavior_hurt_by_target: super::super::components::BehaviorHurtByTarget,
     pub behavior_random_swim: super::super::components::BehaviorRandomSwim,
@@ -38,15 +39,28 @@ pub struct NautilusBundle {
     pub movement_sway: super::super::components::MovementSway,
     pub nameable: super::super::components::Nameable,
     pub navigation_generic: super::super::components::NavigationGeneric,
+    pub offspring: super::super::components::Offspring,
     pub physics: super::super::components::Physics,
     pub pushable: super::super::components::Pushable,
+    pub pushable_by_block: super::super::components::PushableByBlock,
+    pub pushable_by_entity: super::super::components::PushableByEntity,
     pub scale: super::super::components::Scale,
+    pub spawn_egg_interaction: super::super::components::SpawnEggInteraction,
     pub type_family: super::super::components::TypeFamily,
 }
 /// Spawn a new `minecraft:nautilus` entity with default Bedrock components
 pub fn spawn_nautilus(commands: &mut Commands) -> Entity {
     commands
         .spawn(NautilusBundle {
+            ambient_sound_interval: super::super::components::AmbientSoundInterval {
+                event_name: Some("ambient".to_string()),
+                event_names: Some(vec![AmbientSoundIntervalEventNames {
+                    condition: Some("query.head_is_in_water".to_string()),
+                    event_name: Some("ambient.in.water".to_string()),
+                }]),
+                range: Some(16f32),
+                value: 8f32,
+            },
             attack: super::super::components::Attack {
                 damage: crate::types::RangeOrVal::Fixed(3f32),
                 effect_duration: Some(crate::types::MolangOr::Value(0i32)),
@@ -86,7 +100,7 @@ pub fn spawn_nautilus(commands: &mut Commands) -> Entity {
                 breathes_lava: Some(false),
                 breathes_solids: Some(false),
                 breathes_water: Some(true),
-                can_dehydrate: Some(true),
+                can_dehydrate: Some(false),
                 generates_bubbles: Some(true),
                 inhale_time: Some(0f32),
                 non_breathe_blocks: None,
@@ -192,6 +206,19 @@ pub fn spawn_nautilus(commands: &mut Commands) -> Entity {
                 can_walk_in_lava: Some(false),
                 is_amphibious: Some(false),
             },
+            offspring: super::super::components::Offspring {
+                blend_attributes: None,
+                combine_parent_colors: None,
+                deny_parents_variant: None,
+                inherit_tamed: None,
+                mutation_factor: None,
+                mutation_strategy: None,
+                offspring_pairs: Some(OffspringOffspringPairs {}),
+                parent_centric_attribute_blending: None,
+                property_inheritance: None,
+                random_extra_variant_mutation_interval: None,
+                random_variant_mutation_interval: None,
+            },
             physics: super::super::components::Physics {
                 has_collision: Some(true),
                 has_gravity: Some(true),
@@ -201,7 +228,116 @@ pub fn spawn_nautilus(commands: &mut Commands) -> Entity {
                 is_pushable: Some(true),
                 is_pushable_by_piston: Some(true),
             },
+            pushable_by_block: super::super::components::PushableByBlock { data: None },
+            pushable_by_entity: super::super::components::PushableByEntity {
+                data: Some(crate::types::BedrockValue::Object(
+                    std::collections::HashMap::from([(
+                        "preset".to_string(),
+                        crate::types::BedrockValue::Object(std::collections::HashMap::from([
+                            (
+                                "filters".to_string(),
+                                crate::types::BedrockValue::Object(
+                                    std::collections::HashMap::from([(
+                                        "all_of".to_string(),
+                                        crate::types::BedrockValue::Array(vec![
+                                            crate::types::BedrockValue::Object(
+                                                std::collections::HashMap::from([
+                                                    (
+                                                        "subject".to_string(),
+                                                        crate::types::BedrockValue::String(
+                                                            "other".to_string(),
+                                                        ),
+                                                    ),
+                                                    (
+                                                        "test".to_string(),
+                                                        crate::types::BedrockValue::String(
+                                                            "is_family".to_string(),
+                                                        ),
+                                                    ),
+                                                    (
+                                                        "value".to_string(),
+                                                        crate::types::BedrockValue::String(
+                                                            "sulfur_cube".to_string(),
+                                                        ),
+                                                    ),
+                                                ]),
+                                            ),
+                                            crate::types::BedrockValue::Object(
+                                                std::collections::HashMap::from([
+                                                    (
+                                                        "domain".to_string(),
+                                                        crate::types::BedrockValue::String(
+                                                            "minecraft:sulfur_cube_archetype"
+                                                                .to_string(),
+                                                        ),
+                                                    ),
+                                                    (
+                                                        "operator".to_string(),
+                                                        crate::types::BedrockValue::String(
+                                                            "not".to_string(),
+                                                        ),
+                                                    ),
+                                                    (
+                                                        "subject".to_string(),
+                                                        crate::types::BedrockValue::String(
+                                                            "other".to_string(),
+                                                        ),
+                                                    ),
+                                                    (
+                                                        "test".to_string(),
+                                                        crate::types::BedrockValue::String(
+                                                            "enum_property".to_string(),
+                                                        ),
+                                                    ),
+                                                    (
+                                                        "value".to_string(),
+                                                        crate::types::BedrockValue::String(
+                                                            "none".to_string(),
+                                                        ),
+                                                    ),
+                                                ]),
+                                            ),
+                                            crate::types::BedrockValue::Object(
+                                                std::collections::HashMap::from([
+                                                    (
+                                                        "subject".to_string(),
+                                                        crate::types::BedrockValue::String(
+                                                            "self".to_string(),
+                                                        ),
+                                                    ),
+                                                    (
+                                                        "test".to_string(),
+                                                        crate::types::BedrockValue::String(
+                                                            "is_controlling_passenger_family"
+                                                                .to_string(),
+                                                        ),
+                                                    ),
+                                                    (
+                                                        "value".to_string(),
+                                                        crate::types::BedrockValue::String(
+                                                            "player".to_string(),
+                                                        ),
+                                                    ),
+                                                ]),
+                                            ),
+                                        ]),
+                                    )]),
+                                ),
+                            ),
+                            (
+                                "push_mode".to_string(),
+                                crate::types::BedrockValue::String("none".to_string()),
+                            ),
+                            (
+                                "require_collision_overlap".to_string(),
+                                crate::types::BedrockValue::Bool(false),
+                            ),
+                        ])),
+                    )]),
+                )),
+            },
             scale: super::super::components::Scale { value: 1f32 },
+            spawn_egg_interaction: super::super::components::SpawnEggInteraction { data: None },
             type_family: super::super::components::TypeFamily {
                 family: vec![
                     "aquatic".to_string(),
@@ -218,7 +354,6 @@ pub enum NautilusComponentGroup {
     NautilusAdult,
     NautilusAiControlled,
     NautilusBaby,
-    NautilusCharging,
     NautilusLeashable,
     NautilusPlayerControlled,
     NautilusTame,
@@ -237,6 +372,7 @@ pub enum NautilusEvent {
     BecomeAngry,
     EntityBorn,
     EntitySpawned,
+    OnArmorEquip,
     OnCalm,
     OnDismount,
     OnMount,
@@ -247,11 +383,10 @@ pub enum NautilusEvent {
     OnTame,
     OnUnleashed,
     OnUnsaddled,
+    SpawnTameAdult,
     SpawnTameBaby,
     SpawnWildAdult,
     SpawnWildBaby,
-    StartCharge,
-    StopCharge,
     SwitchToAiControlled,
     SwitchToPlayerControlled,
 }

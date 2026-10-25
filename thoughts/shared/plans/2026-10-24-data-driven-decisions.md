@@ -24,3 +24,15 @@ Mojang documentation, public data sets or open-source code.
 | D6 | Worldgen is ahead-of-time compiled end to end. Density functions already are; surface rules/builders, carvers, placed/configured features, feature rules, and structures (sets, placement, templates, jigsaw pools) are compiled from their data at build time into straight-line Rust, the way `unastar_noise` does today. For worldgen this overrides D2's "no per-entry generated code": the goal is the most efficient generator possible. A later addon/WASM overlay may use an interpreted path for extra content, but vanilla is compiled. |
 | D7 | unastar ships two overworld generators: **Java-style** (Java Edition parity, the existing `unastar_noise` design finished to 100 %: terrain, biomes, surface rules, carvers, features, structures) and **Bedrock-style** (BDS 1.26.51 parity: the shared Java noise core with Bedrock seeding/biomes where they differ, Bedrock surface builders, feature rules/features, carvers and structures from the BDS install). Both share one generator trait, chunk pipeline, AOT toolchain and caches; the world config picks one. Finishing the Java-style generator comes first. |
 | D8 | Each generator is gated by reference fixtures from its own truth source: a Java Edition server (run locally, loopback only) for Java-style, and the shared BDS runtime for Bedrock-style. Parity metrics ratchet: a change may only raise them. Performance is measured (ms/chunk, allocations) and ratchets too. |
+
+## Gameplay architecture (2026-10-24, after the combined architecture review)
+
+Recorded in full in `thoughts/shared/plans/2026-10-24-data-driven-architecture.md` §10.
+
+| # | Decision |
+|---|---|
+| D9 | Entity data comes from bedrock-samples (the `vanilla_bp` submodule, 1.26.50.4+), checked against the BDS install's layered packs where present. |
+| D10 | Filters, events, Molang and loot live in a separate bevy-free `unastar-rules` crate shared by runtime, datagen and worldgen codegen. |
+| D11 | First mobs: zombie, skeleton, creeper, spider, cow, pig, sheep, chicken; then by component coverage. |
+| D12 | Parked gameplay branches land with their non-BDS numbers recorded as known deviations, replaced by BDS sweeps later. |
+| D13 | Artefacts derived from bedrock-samples are generated at build time, not committed (manifests only). Java worldgen data stays committed. |

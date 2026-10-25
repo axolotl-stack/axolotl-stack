@@ -16,7 +16,6 @@ impl Default for AmbientSoundIntervalEventNames {
 }
 /// Bedrock component `minecraft:ambient_sound_interval`. Sets the entity's delay between playing its ambient sound.
 #[derive(Component, Debug, Clone, PartialEq)]
-#[component(storage = "SparseSet")]
 pub struct AmbientSoundInterval {
     ///Level sound event to be played as the ambient sound.
     pub event_name: Option<String>,

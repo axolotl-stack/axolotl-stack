@@ -24,6 +24,7 @@ pub struct EnderDragonBundle {
     pub fire_immune: super::super::components::FireImmune,
     pub flying_speed: super::super::components::FlyingSpeed,
     pub follow_range: super::super::components::FollowRange,
+    pub freezing_immune: super::super::components::FreezingImmune,
     pub game_event_movement_tracking: super::super::components::GameEventMovementTracking,
     pub health: super::super::components::Health,
     pub inventory: super::super::components::Inventory,
@@ -88,6 +89,7 @@ pub fn spawn_ender_dragon(commands: &mut Commands) -> Entity {
                 min: None,
                 value: crate::types::RangeOrVal::Fixed(16f32),
             },
+            freezing_immune: super::super::components::FreezingImmune { data: None },
             game_event_movement_tracking: super::super::components::GameEventMovementTracking {
                 emit_flap: Some(true),
                 emit_move: Some(true),

@@ -74,7 +74,10 @@ pub fn spawn_zombie_villager(commands: &mut Commands) -> Entity {
                 angle_of_view_horizontal: Some(360i32),
                 angle_of_view_vertical: Some(360i32),
                 look_distance: Some(6f32),
-                look_time: None,
+                look_time: Some(crate::types::RangeOrVal::Range {
+                    min: 1f32,
+                    max: 2f32,
+                }),
                 priority: Some(BehaviorLookAtPlayerPriority {}),
                 probability: Some(0.02f32),
                 target_distance: None,
@@ -102,274 +105,99 @@ pub fn spawn_zombie_villager(commands: &mut Commands) -> Entity {
                 reach_multiplier: None,
                 require_complete_path: Some(false),
                 set_persistent: None,
-                speed_multiplier: Some(BehaviorMeleeBoxAttackSpeedMultiplier {}),
+                speed_multiplier: Some(BehaviorMeleeBoxAttackSpeedMultiplier {
+                }),
                 target_dist: None,
                 track_target: Some(false),
                 x_max_rotation: Some(30f32),
                 y_max_head_rotation: Some(30f32),
             },
-            behavior_nearest_attackable_target:
-                super::super::components::BehaviorNearestAttackableTarget {
-                    attack_interval: Some(crate::types::BedrockValue::Object(
+            behavior_nearest_attackable_target: super::super::components::BehaviorNearestAttackableTarget {
+                attack_interval: Some(
+                    crate::types::BedrockValue::Object(
                         std::collections::HashMap::from([
-                            ("max".to_string(), crate::types::BedrockValue::Integer(0i64)),
-                            ("min".to_string(), crate::types::BedrockValue::Integer(0i64)),
+                            (
+                                "max".to_string(),
+                                crate::types::BedrockValue::Integer(0i64),
+                            ),
+                            (
+                                "min".to_string(),
+                                crate::types::BedrockValue::Integer(0i64),
+                            ),
                         ]),
-                    )),
-                    attack_interval_min: None,
-                    attack_owner: Some(false),
-                    control_flags: Some(BehaviorNearestAttackableTargetControlFlags {}),
-                    entity_types: Some(vec![
-                        BehaviorNearestAttackableTargetEntityTypes {
-                            check_if_outnumbered: None,
-                            cooldown: None,
-                            filters: Some(crate::types::BedrockValue::Object(
-                                std::collections::HashMap::from([(
-                                    "any_of".to_string(),
-                                    crate::types::BedrockValue::Array(vec![
-                                        crate::types::BedrockValue::Object(
-                                            std::collections::HashMap::from([
-                                                (
-                                                    "subject".to_string(),
-                                                    crate::types::BedrockValue::String(
-                                                        "other".to_string(),
-                                                    ),
-                                                ),
-                                                (
-                                                    "test".to_string(),
-                                                    crate::types::BedrockValue::String(
-                                                        "is_family".to_string(),
-                                                    ),
-                                                ),
-                                                (
-                                                    "value".to_string(),
-                                                    crate::types::BedrockValue::String(
-                                                        "player".to_string(),
-                                                    ),
-                                                ),
-                                            ]),
-                                        ),
-                                        crate::types::BedrockValue::Object(
-                                            std::collections::HashMap::from([
-                                                (
-                                                    "subject".to_string(),
-                                                    crate::types::BedrockValue::String(
-                                                        "other".to_string(),
-                                                    ),
-                                                ),
-                                                (
-                                                    "test".to_string(),
-                                                    crate::types::BedrockValue::String(
-                                                        "is_family".to_string(),
-                                                    ),
-                                                ),
-                                                (
-                                                    "value".to_string(),
-                                                    crate::types::BedrockValue::String(
-                                                        "snowgolem".to_string(),
-                                                    ),
-                                                ),
-                                            ]),
-                                        ),
-                                        crate::types::BedrockValue::Object(
-                                            std::collections::HashMap::from([
-                                                (
-                                                    "subject".to_string(),
-                                                    crate::types::BedrockValue::String(
-                                                        "other".to_string(),
-                                                    ),
-                                                ),
-                                                (
-                                                    "test".to_string(),
-                                                    crate::types::BedrockValue::String(
-                                                        "is_family".to_string(),
-                                                    ),
-                                                ),
-                                                (
-                                                    "value".to_string(),
-                                                    crate::types::BedrockValue::String(
-                                                        "irongolem".to_string(),
-                                                    ),
-                                                ),
-                                            ]),
-                                        ),
-                                    ]),
-                                )]),
-                            )),
-                            max_dist: Some(35f32),
-                            max_flee: None,
-                            max_height: None,
-                            must_see: None,
-                            must_see_forget_duration: None,
-                            priority: None,
-                            reevaluate_description: None,
-                            sprint_speed_multiplier: None,
-                            walk_speed_multiplier: None,
-                            within_default: None,
-                        },
-                        BehaviorNearestAttackableTargetEntityTypes {
-                            check_if_outnumbered: None,
-                            cooldown: None,
-                            filters: Some(crate::types::BedrockValue::Object(
-                                std::collections::HashMap::from([(
-                                    "any_of".to_string(),
-                                    crate::types::BedrockValue::Array(vec![
-                                        crate::types::BedrockValue::Object(
-                                            std::collections::HashMap::from([
-                                                (
-                                                    "subject".to_string(),
-                                                    crate::types::BedrockValue::String(
-                                                        "other".to_string(),
-                                                    ),
-                                                ),
-                                                (
-                                                    "test".to_string(),
-                                                    crate::types::BedrockValue::String(
-                                                        "is_family".to_string(),
-                                                    ),
-                                                ),
-                                                (
-                                                    "value".to_string(),
-                                                    crate::types::BedrockValue::String(
-                                                        "villager".to_string(),
-                                                    ),
-                                                ),
-                                            ]),
-                                        ),
-                                        crate::types::BedrockValue::Object(
-                                            std::collections::HashMap::from([
-                                                (
-                                                    "subject".to_string(),
-                                                    crate::types::BedrockValue::String(
-                                                        "other".to_string(),
-                                                    ),
-                                                ),
-                                                (
-                                                    "test".to_string(),
-                                                    crate::types::BedrockValue::String(
-                                                        "is_family".to_string(),
-                                                    ),
-                                                ),
-                                                (
-                                                    "value".to_string(),
-                                                    crate::types::BedrockValue::String(
-                                                        "wandering_trader".to_string(),
-                                                    ),
-                                                ),
-                                            ]),
-                                        ),
-                                    ]),
-                                )]),
-                            )),
-                            max_dist: Some(35f32),
-                            max_flee: None,
-                            max_height: None,
-                            must_see: Some(false),
-                            must_see_forget_duration: None,
-                            priority: None,
-                            reevaluate_description: None,
-                            sprint_speed_multiplier: None,
-                            walk_speed_multiplier: None,
-                            within_default: None,
-                        },
-                        BehaviorNearestAttackableTargetEntityTypes {
-                            check_if_outnumbered: None,
-                            cooldown: None,
-                            filters: Some(crate::types::BedrockValue::Object(
-                                std::collections::HashMap::from([(
-                                    "all_of".to_string(),
-                                    crate::types::BedrockValue::Array(vec![
-                                        crate::types::BedrockValue::Object(
-                                            std::collections::HashMap::from([
-                                                (
-                                                    "subject".to_string(),
-                                                    crate::types::BedrockValue::String(
-                                                        "other".to_string(),
-                                                    ),
-                                                ),
-                                                (
-                                                    "test".to_string(),
-                                                    crate::types::BedrockValue::String(
-                                                        "is_family".to_string(),
-                                                    ),
-                                                ),
-                                                (
-                                                    "value".to_string(),
-                                                    crate::types::BedrockValue::String(
-                                                        "baby_turtle".to_string(),
-                                                    ),
-                                                ),
-                                            ]),
-                                        ),
-                                        crate::types::BedrockValue::Object(
-                                            std::collections::HashMap::from([
-                                                (
-                                                    "operator".to_string(),
-                                                    crate::types::BedrockValue::String(
-                                                        "!=".to_string(),
-                                                    ),
-                                                ),
-                                                (
-                                                    "subject".to_string(),
-                                                    crate::types::BedrockValue::String(
-                                                        "other".to_string(),
-                                                    ),
-                                                ),
-                                                (
-                                                    "test".to_string(),
-                                                    crate::types::BedrockValue::String(
-                                                        "in_water".to_string(),
-                                                    ),
-                                                ),
-                                                (
-                                                    "value".to_string(),
-                                                    crate::types::BedrockValue::Bool(true),
-                                                ),
-                                            ]),
-                                        ),
-                                    ]),
-                                )]),
-                            )),
-                            max_dist: Some(35f32),
-                            max_flee: None,
-                            max_height: None,
-                            must_see: None,
-                            must_see_forget_duration: None,
-                            priority: None,
-                            reevaluate_description: None,
-                            sprint_speed_multiplier: None,
-                            walk_speed_multiplier: None,
-                            within_default: None,
-                        },
-                    ]),
-                    must_reach: Some(false),
-                    must_see: Some(true),
-                    must_see_forget_duration: Some(3f32),
-                    persist_time: Some(0f32),
-                    priority: Some(BehaviorNearestAttackableTargetPriority {}),
-                    reselect_targets: Some(true),
-                    scan_interval: Some(10i32),
-                    set_persistent: Some(false),
-                    target_acquisition_probability: Some(1f32),
-                    target_invisible_multiplier: Some(0.7f32),
-                    target_search_height: Some(-1f32),
-                    target_sneak_visibility_multiplier: Some(0.8f32),
-                    within_radius: Some(0f32),
-                },
+                    ),
+                ),
+                attack_interval_min: None,
+                attack_owner: Some(false),
+                control_flags: Some(BehaviorNearestAttackableTargetControlFlags {
+                }),
+                entity_types: Some(
+                    vec![
+                        BehaviorNearestAttackableTargetEntityTypes { check_if_outnumbered
+                        : None, cooldown : None, filters : Some(crate
+                        ::types::BedrockValue::Object(std::collections::HashMap::from([("AND"
+                        .to_string(), crate
+                        ::types::BedrockValue::String("[{\"OR\":[{\"operator\":0,\"subject\":1,\"test\":\"is_family\",\"value\":\"player\"},{\"operator\":0,\"subject\":1,\"test\":\"is_family\",\"value\":\"snowgolem\"},{\"operator\":0,\"subject\":1,\"test\":\"is_family\",\"value\":\"irongolem\"}]}]"
+                        .to_string()))]))), max_dist : Some(35f32), max_flee : None,
+                        max_height : None, must_see : None, must_see_forget_duration :
+                        None, priority : None, reevaluate_description : None,
+                        sprint_speed_multiplier : None, walk_speed_multiplier : None,
+                        within_default : None },
+                        BehaviorNearestAttackableTargetEntityTypes { check_if_outnumbered
+                        : None, cooldown : None, filters : Some(crate
+                        ::types::BedrockValue::Object(std::collections::HashMap::from([("AND"
+                        .to_string(), crate
+                        ::types::BedrockValue::String("[{\"OR\":[{\"operator\":0,\"subject\":1,\"test\":\"is_family\",\"value\":\"villager\"},{\"operator\":0,\"subject\":1,\"test\":\"is_family\",\"value\":\"wandering_trader\"}]}]"
+                        .to_string()))]))), max_dist : Some(35f32), max_flee : None,
+                        max_height : None, must_see : Some(false),
+                        must_see_forget_duration : None, priority : None,
+                        reevaluate_description : None, sprint_speed_multiplier : None,
+                        walk_speed_multiplier : None, within_default : None },
+                        BehaviorNearestAttackableTargetEntityTypes { check_if_outnumbered
+                        : None, cooldown : None, filters : Some(crate
+                        ::types::BedrockValue::Object(std::collections::HashMap::from([("AND"
+                        .to_string(), crate
+                        ::types::BedrockValue::String("[{\"operator\":0,\"subject\":1,\"test\":\"is_family\",\"value\":\"baby_turtle\"},{\"operator\":1,\"subject\":1,\"test\":\"in_water\",\"value\":true}]"
+                        .to_string()))]))), max_dist : Some(35f32), max_flee : None,
+                        max_height : None, must_see : None, must_see_forget_duration :
+                        None, priority : None, reevaluate_description : None,
+                        sprint_speed_multiplier : None, walk_speed_multiplier : None,
+                        within_default : None }
+                    ],
+                ),
+                must_reach: Some(false),
+                must_see: Some(true),
+                must_see_forget_duration: Some(3f32),
+                persist_time: Some(0f32),
+                priority: Some(BehaviorNearestAttackableTargetPriority {
+                }),
+                reselect_targets: Some(true),
+                scan_interval: Some(10i32),
+                set_persistent: Some(false),
+                target_acquisition_probability: Some(1f32),
+                target_invisible_multiplier: Some(0.7f32),
+                target_search_height: Some(-1f32),
+                target_sneak_visibility_multiplier: Some(0.8f32),
+                within_radius: Some(0f32),
+            },
             behavior_pickup_items: super::super::components::BehaviorPickupItems {
                 can_pickup_any_item: Some(true),
                 can_pickup_to_hand_or_equipment: Some(true),
                 cooldown_after_being_attacked: None,
-                excluded_items: Some(vec![crate::types::BedrockValue::String(
-                    "minecraft:glow_ink_sac".to_string(),
-                )]),
+                excluded_items: Some(
+                    vec![
+                        crate ::types::BedrockValue::String("minecraft:glow_ink_sac"
+                        .to_string())
+                    ],
+                ),
                 goal_radius: Some(2f32),
                 max_dist: Some(3f32),
                 pickup_based_on_chance: Some(false),
                 pickup_same_items_as_in_hand: None,
                 priority: Some(BehaviorPickupItemsPriority {}),
                 search_height: None,
-                speed_multiplier: Some(BehaviorPickupItemsSpeedMultiplier {}),
+                speed_multiplier: Some(BehaviorPickupItemsSpeedMultiplier {
+                }),
                 track_target: Some(false),
             },
             behavior_random_look_around: super::super::components::BehaviorRandomLookAround {
@@ -377,13 +205,15 @@ pub fn spawn_zombie_villager(commands: &mut Commands) -> Entity {
                 angle_of_view_vertical: None,
                 look_distance: None,
                 look_time: None,
-                priority: Some(BehaviorRandomLookAroundPriority {}),
+                priority: Some(BehaviorRandomLookAroundPriority {
+                }),
                 probability: None,
             },
             behavior_random_stroll: super::super::components::BehaviorRandomStroll {
                 interval: Some(120i32),
                 priority: Some(BehaviorRandomStrollPriority {}),
-                speed_multiplier: Some(BehaviorRandomStrollSpeedMultiplier {}),
+                speed_multiplier: Some(BehaviorRandomStrollSpeedMultiplier {
+                }),
                 xz_dist: Some(10i32),
                 y_dist: Some(7i32),
             },
@@ -394,7 +224,8 @@ pub fn spawn_zombie_villager(commands: &mut Commands) -> Entity {
                 search_count: None,
                 search_height: Some(2i32),
                 search_range: Some(10i32),
-                speed_multiplier: Some(BehaviorStompTurtleEggSpeedMultiplier {}),
+                speed_multiplier: Some(BehaviorStompTurtleEggSpeedMultiplier {
+                }),
             },
             breathable: super::super::components::Breathable {
                 breathe_blocks: None,
@@ -417,11 +248,10 @@ pub fn spawn_zombie_villager(commands: &mut Commands) -> Entity {
                 height: Some(1.9f32),
                 width: Some(0.6f32),
             },
-            conditional_bandwidth_optimization:
-                super::super::components::ConditionalBandwidthOptimization {
-                    conditional_values: None,
-                    default_values: None,
-                },
+            conditional_bandwidth_optimization: super::super::components::ConditionalBandwidthOptimization {
+                conditional_values: None,
+                default_values: None,
+            },
             despawn: super::super::components::Despawn {
                 despawn_from_chance: Some(true),
                 despawn_from_distance: Some(DespawnDespawnFromDistance {
@@ -437,14 +267,19 @@ pub fn spawn_zombie_villager(commands: &mut Commands) -> Entity {
             },
             equip_item: super::super::components::EquipItem {
                 can_wear_armor: None,
-                excluded_items: Some(vec![crate::types::BedrockValue::Object(
-                    std::collections::HashMap::from([(
-                        "item".to_string(),
-                        crate::types::BedrockValue::String("minecraft:banner:15".to_string()),
-                    )]),
-                )]),
+                excluded_items: Some(
+                    vec![
+                        crate
+                        ::types::BedrockValue::Object(std::collections::HashMap::from([("item"
+                        .to_string(), crate
+                        ::types::BedrockValue::String("minecraft:banner:15"
+                        .to_string()))]))
+                    ],
+                ),
             },
-            flying_speed: super::super::components::FlyingSpeed { value: 0.02f32 },
+            flying_speed: super::super::components::FlyingSpeed {
+                value: 0.02f32,
+            },
             follow_range: super::super::components::FollowRange {
                 max: None,
                 min: None,
@@ -459,104 +294,42 @@ pub fn spawn_zombie_villager(commands: &mut Commands) -> Entity {
                 damage_conditions: None,
             },
             interact: super::super::components::Interact {
-                interactions: Some(vec![InteractInteractions {
-                    add_items: None,
-                    admire: None,
-                    barter: None,
-                    cooldown: None,
-                    cooldown_after_being_attacked: None,
-                    drop_item_slot: None,
-                    drop_item_y_offset: None,
-                    equip_item_slot: None,
-                    give_item: None,
-                    health_amount: None,
-                    hurt_item: None,
-                    interact_text: Some("action.interact.cure".to_string()),
-                    on_interact: Some(crate::types::BedrockValue::Object(
-                        std::collections::HashMap::from([
-                            (
-                                "event".to_string(),
-                                crate::types::BedrockValue::String(
-                                    "villager_converted".to_string(),
-                                ),
-                            ),
-                            (
-                                "filters".to_string(),
-                                crate::types::BedrockValue::Object(
-                                    std::collections::HashMap::from([(
-                                        "all_of".to_string(),
-                                        crate::types::BedrockValue::Array(vec![
-                                            crate::types::BedrockValue::Object(
-                                                std::collections::HashMap::from([
-                                                    (
-                                                        "domain".to_string(),
-                                                        crate::types::BedrockValue::String(
-                                                            "hand".to_string(),
-                                                        ),
-                                                    ),
-                                                    (
-                                                        "subject".to_string(),
-                                                        crate::types::BedrockValue::String(
-                                                            "other".to_string(),
-                                                        ),
-                                                    ),
-                                                    (
-                                                        "test".to_string(),
-                                                        crate::types::BedrockValue::String(
-                                                            "has_equipment".to_string(),
-                                                        ),
-                                                    ),
-                                                    (
-                                                        "value".to_string(),
-                                                        crate::types::BedrockValue::String(
-                                                            "golden_apple".to_string(),
-                                                        ),
-                                                    ),
-                                                ]),
-                                            ),
-                                            crate::types::BedrockValue::Object(
-                                                std::collections::HashMap::from([
-                                                    (
-                                                        "subject".to_string(),
-                                                        crate::types::BedrockValue::String(
-                                                            "self".to_string(),
-                                                        ),
-                                                    ),
-                                                    (
-                                                        "test".to_string(),
-                                                        crate::types::BedrockValue::String(
-                                                            "has_component".to_string(),
-                                                        ),
-                                                    ),
-                                                    (
-                                                        "value".to_string(),
-                                                        crate::types::BedrockValue::String(
-                                                            "minecraft:effect.weakness".to_string(),
-                                                        ),
-                                                    ),
-                                                ]),
-                                            ),
-                                        ]),
-                                    )]),
-                                ),
-                            ),
-                            (
-                                "target".to_string(),
-                                crate::types::BedrockValue::String("self".to_string()),
-                            ),
-                        ]),
-                    )),
-                    particle_on_start: None,
-                    play_sounds: None,
-                    repair_entity_item: None,
-                    spawn_entities: None,
-                    spawn_items: None,
-                    swing: None,
-                    take_item: None,
-                    transform_to_item: None,
-                    use_item: Some(true),
-                    vibration: None,
-                }]),
+                interactions: Some(
+                    vec![
+                        InteractInteractions { add_items : None, admire : None, barter :
+                        None, cooldown : None, cooldown_after_being_attacked : None,
+                        drop_item_slot : None, drop_item_y_offset : None, equip_item_slot
+                        : None, give_item : None, health_amount : None, hurt_item : None,
+                        interact_text : Some("action.interact.cure".to_string()),
+                        on_interact : Some(crate
+                        ::types::BedrockValue::Object(std::collections::HashMap::from([("event"
+                        .to_string(), crate
+                        ::types::BedrockValue::String("villager_converted".to_string())),
+                        ("filters".to_string(), crate
+                        ::types::BedrockValue::Object(std::collections::HashMap::from([("all_of"
+                        .to_string(), crate ::types::BedrockValue::Array(vec![crate
+                        ::types::BedrockValue::Object(std::collections::HashMap::from([("domain"
+                        .to_string(), crate ::types::BedrockValue::String("hand"
+                        .to_string())), ("subject".to_string(), crate
+                        ::types::BedrockValue::String("other".to_string())), ("test"
+                        .to_string(), crate ::types::BedrockValue::String("has_equipment"
+                        .to_string())), ("value".to_string(), crate
+                        ::types::BedrockValue::String("golden_apple".to_string()))])),
+                        crate
+                        ::types::BedrockValue::Object(std::collections::HashMap::from([("subject"
+                        .to_string(), crate ::types::BedrockValue::String("self"
+                        .to_string())), ("test".to_string(), crate
+                        ::types::BedrockValue::String("has_component".to_string())),
+                        ("value".to_string(), crate
+                        ::types::BedrockValue::String("minecraft:effect.weakness"
+                        .to_string()))]))]))]))), ("target".to_string(), crate
+                        ::types::BedrockValue::String("self".to_string()))]))),
+                        particle_on_start : None, play_sounds : None, repair_entity_item
+                        : None, spawn_entities : None, spawn_items : None, swing :
+                        Some(false), take_item : None, transform_to_item : None, use_item
+                        : Some(true), vibration : None }
+                    ],
+                ),
             },
             inventory: super::super::components::Inventory {
                 additional_slots_per_strength: Some(0i32),
@@ -618,524 +391,200 @@ pub fn spawn_zombie_villager(commands: &mut Commands) -> Entity {
                 is_pushable: Some(true),
                 is_pushable_by_piston: Some(true),
             },
-            scale: super::super::components::Scale { value: 1f32 },
+            scale: super::super::components::Scale {
+                value: 1f32,
+            },
             shareables: super::super::components::Shareables {
                 all_items: Some(false),
                 all_items_max_amount: Some(-1i32),
                 all_items_surplus_amount: Some(-1i32),
                 all_items_want_amount: Some(-1i32),
-                items: Some(vec![
-                    ShareablesItems {
-                        admire: None,
-                        barter: None,
-                        consume_item: None,
-                        craft_into: None,
-                        item: Some("minecraft:netherite_sword".to_string()),
-                        item_aux: None,
-                        max_amount: None,
-                        pickup_limit: None,
-                        pickup_only: None,
-                        priority: Some(0i32),
-                        stored_in_inventory: None,
-                        surplus_amount: Some(1i32),
-                        want_amount: Some(1i32),
-                    },
-                    ShareablesItems {
-                        admire: None,
-                        barter: None,
-                        consume_item: None,
-                        craft_into: None,
-                        item: Some("minecraft:diamond_sword".to_string()),
-                        item_aux: None,
-                        max_amount: None,
-                        pickup_limit: None,
-                        pickup_only: None,
-                        priority: Some(1i32),
-                        stored_in_inventory: None,
-                        surplus_amount: Some(1i32),
-                        want_amount: Some(1i32),
-                    },
-                    ShareablesItems {
-                        admire: None,
-                        barter: None,
-                        consume_item: None,
-                        craft_into: None,
-                        item: Some("minecraft:iron_sword".to_string()),
-                        item_aux: None,
-                        max_amount: None,
-                        pickup_limit: None,
-                        pickup_only: None,
-                        priority: Some(2i32),
-                        stored_in_inventory: None,
-                        surplus_amount: Some(1i32),
-                        want_amount: Some(1i32),
-                    },
-                    ShareablesItems {
-                        admire: None,
-                        barter: None,
-                        consume_item: None,
-                        craft_into: None,
-                        item: Some("minecraft:stone_sword".to_string()),
-                        item_aux: None,
-                        max_amount: None,
-                        pickup_limit: None,
-                        pickup_only: None,
-                        priority: Some(3i32),
-                        stored_in_inventory: None,
-                        surplus_amount: Some(1i32),
-                        want_amount: Some(1i32),
-                    },
-                    ShareablesItems {
-                        admire: None,
-                        barter: None,
-                        consume_item: None,
-                        craft_into: None,
-                        item: Some("minecraft:golden_sword".to_string()),
-                        item_aux: None,
-                        max_amount: None,
-                        pickup_limit: None,
-                        pickup_only: None,
-                        priority: Some(4i32),
-                        stored_in_inventory: None,
-                        surplus_amount: Some(1i32),
-                        want_amount: Some(1i32),
-                    },
-                    ShareablesItems {
-                        admire: None,
-                        barter: None,
-                        consume_item: None,
-                        craft_into: None,
-                        item: Some("minecraft:wooden_sword".to_string()),
-                        item_aux: None,
-                        max_amount: None,
-                        pickup_limit: None,
-                        pickup_only: None,
-                        priority: Some(5i32),
-                        stored_in_inventory: None,
-                        surplus_amount: Some(1i32),
-                        want_amount: Some(1i32),
-                    },
-                    ShareablesItems {
-                        admire: None,
-                        barter: None,
-                        consume_item: None,
-                        craft_into: None,
-                        item: Some("minecraft:netherite_helmet".to_string()),
-                        item_aux: None,
-                        max_amount: None,
-                        pickup_limit: None,
-                        pickup_only: None,
-                        priority: Some(0i32),
-                        stored_in_inventory: None,
-                        surplus_amount: Some(1i32),
-                        want_amount: Some(1i32),
-                    },
-                    ShareablesItems {
-                        admire: None,
-                        barter: None,
-                        consume_item: None,
-                        craft_into: None,
-                        item: Some("minecraft:diamond_helmet".to_string()),
-                        item_aux: None,
-                        max_amount: None,
-                        pickup_limit: None,
-                        pickup_only: None,
-                        priority: Some(1i32),
-                        stored_in_inventory: None,
-                        surplus_amount: Some(1i32),
-                        want_amount: Some(1i32),
-                    },
-                    ShareablesItems {
-                        admire: None,
-                        barter: None,
-                        consume_item: None,
-                        craft_into: None,
-                        item: Some("minecraft:iron_helmet".to_string()),
-                        item_aux: None,
-                        max_amount: None,
-                        pickup_limit: None,
-                        pickup_only: None,
-                        priority: Some(2i32),
-                        stored_in_inventory: None,
-                        surplus_amount: Some(1i32),
-                        want_amount: Some(1i32),
-                    },
-                    ShareablesItems {
-                        admire: None,
-                        barter: None,
-                        consume_item: None,
-                        craft_into: None,
-                        item: Some("minecraft:chainmail_helmet".to_string()),
-                        item_aux: None,
-                        max_amount: None,
-                        pickup_limit: None,
-                        pickup_only: None,
-                        priority: Some(3i32),
-                        stored_in_inventory: None,
-                        surplus_amount: Some(1i32),
-                        want_amount: Some(1i32),
-                    },
-                    ShareablesItems {
-                        admire: None,
-                        barter: None,
-                        consume_item: None,
-                        craft_into: None,
-                        item: Some("minecraft:golden_helmet".to_string()),
-                        item_aux: None,
-                        max_amount: None,
-                        pickup_limit: None,
-                        pickup_only: None,
-                        priority: Some(4i32),
-                        stored_in_inventory: None,
-                        surplus_amount: Some(1i32),
-                        want_amount: Some(1i32),
-                    },
-                    ShareablesItems {
-                        admire: None,
-                        barter: None,
-                        consume_item: None,
-                        craft_into: None,
-                        item: Some("minecraft:leather_helmet".to_string()),
-                        item_aux: None,
-                        max_amount: None,
-                        pickup_limit: None,
-                        pickup_only: None,
-                        priority: Some(5i32),
-                        stored_in_inventory: None,
-                        surplus_amount: Some(1i32),
-                        want_amount: Some(1i32),
-                    },
-                    ShareablesItems {
-                        admire: None,
-                        barter: None,
-                        consume_item: None,
-                        craft_into: None,
-                        item: Some("minecraft:turtle_helmet".to_string()),
-                        item_aux: None,
-                        max_amount: None,
-                        pickup_limit: None,
-                        pickup_only: None,
-                        priority: Some(6i32),
-                        stored_in_inventory: None,
-                        surplus_amount: Some(1i32),
-                        want_amount: Some(1i32),
-                    },
-                    ShareablesItems {
-                        admire: None,
-                        barter: None,
-                        consume_item: None,
-                        craft_into: None,
-                        item: Some("minecraft:skull:0".to_string()),
-                        item_aux: None,
-                        max_amount: None,
-                        pickup_limit: None,
-                        pickup_only: None,
-                        priority: Some(7i32),
-                        stored_in_inventory: None,
-                        surplus_amount: Some(1i32),
-                        want_amount: Some(1i32),
-                    },
-                    ShareablesItems {
-                        admire: None,
-                        barter: None,
-                        consume_item: None,
-                        craft_into: None,
-                        item: Some("minecraft:skull:1".to_string()),
-                        item_aux: None,
-                        max_amount: None,
-                        pickup_limit: None,
-                        pickup_only: None,
-                        priority: Some(7i32),
-                        stored_in_inventory: None,
-                        surplus_amount: Some(1i32),
-                        want_amount: Some(1i32),
-                    },
-                    ShareablesItems {
-                        admire: None,
-                        barter: None,
-                        consume_item: None,
-                        craft_into: None,
-                        item: Some("minecraft:carved_pumpkin".to_string()),
-                        item_aux: None,
-                        max_amount: None,
-                        pickup_limit: None,
-                        pickup_only: None,
-                        priority: Some(7i32),
-                        stored_in_inventory: None,
-                        surplus_amount: Some(1i32),
-                        want_amount: Some(1i32),
-                    },
-                    ShareablesItems {
-                        admire: None,
-                        barter: None,
-                        consume_item: None,
-                        craft_into: None,
-                        item: Some("minecraft:netherite_chestplate".to_string()),
-                        item_aux: None,
-                        max_amount: None,
-                        pickup_limit: None,
-                        pickup_only: None,
-                        priority: Some(0i32),
-                        stored_in_inventory: None,
-                        surplus_amount: Some(1i32),
-                        want_amount: Some(1i32),
-                    },
-                    ShareablesItems {
-                        admire: None,
-                        barter: None,
-                        consume_item: None,
-                        craft_into: None,
-                        item: Some("minecraft:diamond_chestplate".to_string()),
-                        item_aux: None,
-                        max_amount: None,
-                        pickup_limit: None,
-                        pickup_only: None,
-                        priority: Some(1i32),
-                        stored_in_inventory: None,
-                        surplus_amount: Some(1i32),
-                        want_amount: Some(1i32),
-                    },
-                    ShareablesItems {
-                        admire: None,
-                        barter: None,
-                        consume_item: None,
-                        craft_into: None,
-                        item: Some("minecraft:iron_chestplate".to_string()),
-                        item_aux: None,
-                        max_amount: None,
-                        pickup_limit: None,
-                        pickup_only: None,
-                        priority: Some(2i32),
-                        stored_in_inventory: None,
-                        surplus_amount: Some(1i32),
-                        want_amount: Some(1i32),
-                    },
-                    ShareablesItems {
-                        admire: None,
-                        barter: None,
-                        consume_item: None,
-                        craft_into: None,
-                        item: Some("minecraft:chainmail_chestplate".to_string()),
-                        item_aux: None,
-                        max_amount: None,
-                        pickup_limit: None,
-                        pickup_only: None,
-                        priority: Some(3i32),
-                        stored_in_inventory: None,
-                        surplus_amount: Some(1i32),
-                        want_amount: Some(1i32),
-                    },
-                    ShareablesItems {
-                        admire: None,
-                        barter: None,
-                        consume_item: None,
-                        craft_into: None,
-                        item: Some("minecraft:golden_chestplate".to_string()),
-                        item_aux: None,
-                        max_amount: None,
-                        pickup_limit: None,
-                        pickup_only: None,
-                        priority: Some(4i32),
-                        stored_in_inventory: None,
-                        surplus_amount: Some(1i32),
-                        want_amount: Some(1i32),
-                    },
-                    ShareablesItems {
-                        admire: None,
-                        barter: None,
-                        consume_item: None,
-                        craft_into: None,
-                        item: Some("minecraft:leather_chestplate".to_string()),
-                        item_aux: None,
-                        max_amount: None,
-                        pickup_limit: None,
-                        pickup_only: None,
-                        priority: Some(5i32),
-                        stored_in_inventory: None,
-                        surplus_amount: Some(1i32),
-                        want_amount: Some(1i32),
-                    },
-                    ShareablesItems {
-                        admire: None,
-                        barter: None,
-                        consume_item: None,
-                        craft_into: None,
-                        item: Some("minecraft:netherite_leggings".to_string()),
-                        item_aux: None,
-                        max_amount: None,
-                        pickup_limit: None,
-                        pickup_only: None,
-                        priority: Some(0i32),
-                        stored_in_inventory: None,
-                        surplus_amount: Some(1i32),
-                        want_amount: Some(1i32),
-                    },
-                    ShareablesItems {
-                        admire: None,
-                        barter: None,
-                        consume_item: None,
-                        craft_into: None,
-                        item: Some("minecraft:diamond_leggings".to_string()),
-                        item_aux: None,
-                        max_amount: None,
-                        pickup_limit: None,
-                        pickup_only: None,
-                        priority: Some(1i32),
-                        stored_in_inventory: None,
-                        surplus_amount: Some(1i32),
-                        want_amount: Some(1i32),
-                    },
-                    ShareablesItems {
-                        admire: None,
-                        barter: None,
-                        consume_item: None,
-                        craft_into: None,
-                        item: Some("minecraft:iron_leggings".to_string()),
-                        item_aux: None,
-                        max_amount: None,
-                        pickup_limit: None,
-                        pickup_only: None,
-                        priority: Some(2i32),
-                        stored_in_inventory: None,
-                        surplus_amount: Some(1i32),
-                        want_amount: Some(1i32),
-                    },
-                    ShareablesItems {
-                        admire: None,
-                        barter: None,
-                        consume_item: None,
-                        craft_into: None,
-                        item: Some("minecraft:chainmail_leggings".to_string()),
-                        item_aux: None,
-                        max_amount: None,
-                        pickup_limit: None,
-                        pickup_only: None,
-                        priority: Some(3i32),
-                        stored_in_inventory: None,
-                        surplus_amount: Some(1i32),
-                        want_amount: Some(1i32),
-                    },
-                    ShareablesItems {
-                        admire: None,
-                        barter: None,
-                        consume_item: None,
-                        craft_into: None,
-                        item: Some("minecraft:golden_leggings".to_string()),
-                        item_aux: None,
-                        max_amount: None,
-                        pickup_limit: None,
-                        pickup_only: None,
-                        priority: Some(4i32),
-                        stored_in_inventory: None,
-                        surplus_amount: Some(1i32),
-                        want_amount: Some(1i32),
-                    },
-                    ShareablesItems {
-                        admire: None,
-                        barter: None,
-                        consume_item: None,
-                        craft_into: None,
-                        item: Some("minecraft:leather_leggings".to_string()),
-                        item_aux: None,
-                        max_amount: None,
-                        pickup_limit: None,
-                        pickup_only: None,
-                        priority: Some(5i32),
-                        stored_in_inventory: None,
-                        surplus_amount: Some(1i32),
-                        want_amount: Some(1i32),
-                    },
-                    ShareablesItems {
-                        admire: None,
-                        barter: None,
-                        consume_item: None,
-                        craft_into: None,
-                        item: Some("minecraft:netherite_boots".to_string()),
-                        item_aux: None,
-                        max_amount: None,
-                        pickup_limit: None,
-                        pickup_only: None,
-                        priority: Some(0i32),
-                        stored_in_inventory: None,
-                        surplus_amount: Some(1i32),
-                        want_amount: Some(1i32),
-                    },
-                    ShareablesItems {
-                        admire: None,
-                        barter: None,
-                        consume_item: None,
-                        craft_into: None,
-                        item: Some("minecraft:diamond_boots".to_string()),
-                        item_aux: None,
-                        max_amount: None,
-                        pickup_limit: None,
-                        pickup_only: None,
-                        priority: Some(1i32),
-                        stored_in_inventory: None,
-                        surplus_amount: Some(1i32),
-                        want_amount: Some(1i32),
-                    },
-                    ShareablesItems {
-                        admire: None,
-                        barter: None,
-                        consume_item: None,
-                        craft_into: None,
-                        item: Some("minecraft:iron_boots".to_string()),
-                        item_aux: None,
-                        max_amount: None,
-                        pickup_limit: None,
-                        pickup_only: None,
-                        priority: Some(2i32),
-                        stored_in_inventory: None,
-                        surplus_amount: Some(1i32),
-                        want_amount: Some(1i32),
-                    },
-                    ShareablesItems {
-                        admire: None,
-                        barter: None,
-                        consume_item: None,
-                        craft_into: None,
-                        item: Some("minecraft:chainmail_boots".to_string()),
-                        item_aux: None,
-                        max_amount: None,
-                        pickup_limit: None,
-                        pickup_only: None,
-                        priority: Some(3i32),
-                        stored_in_inventory: None,
-                        surplus_amount: Some(1i32),
-                        want_amount: Some(1i32),
-                    },
-                    ShareablesItems {
-                        admire: None,
-                        barter: None,
-                        consume_item: None,
-                        craft_into: None,
-                        item: Some("minecraft:golden_boots".to_string()),
-                        item_aux: None,
-                        max_amount: None,
-                        pickup_limit: None,
-                        pickup_only: None,
-                        priority: Some(4i32),
-                        stored_in_inventory: None,
-                        surplus_amount: Some(1i32),
-                        want_amount: Some(1i32),
-                    },
-                    ShareablesItems {
-                        admire: None,
-                        barter: None,
-                        consume_item: None,
-                        craft_into: None,
-                        item: Some("minecraft:leather_boots".to_string()),
-                        item_aux: None,
-                        max_amount: None,
-                        pickup_limit: None,
-                        pickup_only: None,
-                        priority: Some(5i32),
-                        stored_in_inventory: None,
-                        surplus_amount: Some(1i32),
-                        want_amount: Some(1i32),
-                    },
-                ]),
+                items: Some(
+                    vec![
+                        ShareablesItems { admire : None, barter : None, consume_item :
+                        None, craft_into : None, item : Some("minecraft:netherite_sword"
+                        .to_string()), item_aux : None, max_amount : None, pickup_limit :
+                        None, pickup_only : None, priority : Some(0i32),
+                        stored_in_inventory : None, surplus_amount : Some(1i32),
+                        want_amount : Some(1i32) }, ShareablesItems { admire : None,
+                        barter : None, consume_item : None, craft_into : None, item :
+                        Some("minecraft:diamond_sword".to_string()), item_aux : None,
+                        max_amount : None, pickup_limit : None, pickup_only : None,
+                        priority : Some(1i32), stored_in_inventory : None, surplus_amount
+                        : Some(1i32), want_amount : Some(1i32) }, ShareablesItems {
+                        admire : None, barter : None, consume_item : None, craft_into :
+                        None, item : Some("minecraft:iron_sword".to_string()), item_aux :
+                        None, max_amount : None, pickup_limit : None, pickup_only : None,
+                        priority : Some(2i32), stored_in_inventory : None, surplus_amount
+                        : Some(1i32), want_amount : Some(1i32) }, ShareablesItems {
+                        admire : None, barter : None, consume_item : None, craft_into :
+                        None, item : Some("minecraft:stone_sword".to_string()), item_aux
+                        : None, max_amount : None, pickup_limit : None, pickup_only :
+                        None, priority : Some(3i32), stored_in_inventory : None,
+                        surplus_amount : Some(1i32), want_amount : Some(1i32) },
+                        ShareablesItems { admire : None, barter : None, consume_item :
+                        None, craft_into : None, item : Some("minecraft:golden_sword"
+                        .to_string()), item_aux : None, max_amount : None, pickup_limit :
+                        None, pickup_only : None, priority : Some(4i32),
+                        stored_in_inventory : None, surplus_amount : Some(1i32),
+                        want_amount : Some(1i32) }, ShareablesItems { admire : None,
+                        barter : None, consume_item : None, craft_into : None, item :
+                        Some("minecraft:wooden_sword".to_string()), item_aux : None,
+                        max_amount : None, pickup_limit : None, pickup_only : None,
+                        priority : Some(5i32), stored_in_inventory : None, surplus_amount
+                        : Some(1i32), want_amount : Some(1i32) }, ShareablesItems {
+                        admire : None, barter : None, consume_item : None, craft_into :
+                        None, item : Some("minecraft:netherite_helmet".to_string()),
+                        item_aux : None, max_amount : None, pickup_limit : None,
+                        pickup_only : None, priority : Some(0i32), stored_in_inventory :
+                        None, surplus_amount : Some(1i32), want_amount : Some(1i32) },
+                        ShareablesItems { admire : None, barter : None, consume_item :
+                        None, craft_into : None, item : Some("minecraft:diamond_helmet"
+                        .to_string()), item_aux : None, max_amount : None, pickup_limit :
+                        None, pickup_only : None, priority : Some(1i32),
+                        stored_in_inventory : None, surplus_amount : Some(1i32),
+                        want_amount : Some(1i32) }, ShareablesItems { admire : None,
+                        barter : None, consume_item : None, craft_into : None, item :
+                        Some("minecraft:iron_helmet".to_string()), item_aux : None,
+                        max_amount : None, pickup_limit : None, pickup_only : None,
+                        priority : Some(2i32), stored_in_inventory : None, surplus_amount
+                        : Some(1i32), want_amount : Some(1i32) }, ShareablesItems {
+                        admire : None, barter : None, consume_item : None, craft_into :
+                        None, item : Some("minecraft:chainmail_helmet".to_string()),
+                        item_aux : None, max_amount : None, pickup_limit : None,
+                        pickup_only : None, priority : Some(3i32), stored_in_inventory :
+                        None, surplus_amount : Some(1i32), want_amount : Some(1i32) },
+                        ShareablesItems { admire : None, barter : None, consume_item :
+                        None, craft_into : None, item : Some("minecraft:golden_helmet"
+                        .to_string()), item_aux : None, max_amount : None, pickup_limit :
+                        None, pickup_only : None, priority : Some(4i32),
+                        stored_in_inventory : None, surplus_amount : Some(1i32),
+                        want_amount : Some(1i32) }, ShareablesItems { admire : None,
+                        barter : None, consume_item : None, craft_into : None, item :
+                        Some("minecraft:leather_helmet".to_string()), item_aux : None,
+                        max_amount : None, pickup_limit : None, pickup_only : None,
+                        priority : Some(5i32), stored_in_inventory : None, surplus_amount
+                        : Some(1i32), want_amount : Some(1i32) }, ShareablesItems {
+                        admire : None, barter : None, consume_item : None, craft_into :
+                        None, item : Some("minecraft:turtle_helmet".to_string()),
+                        item_aux : None, max_amount : None, pickup_limit : None,
+                        pickup_only : None, priority : Some(6i32), stored_in_inventory :
+                        None, surplus_amount : Some(1i32), want_amount : Some(1i32) },
+                        ShareablesItems { admire : None, barter : None, consume_item :
+                        None, craft_into : None, item : Some("minecraft:skull:0"
+                        .to_string()), item_aux : None, max_amount : None, pickup_limit :
+                        None, pickup_only : None, priority : Some(7i32),
+                        stored_in_inventory : None, surplus_amount : Some(1i32),
+                        want_amount : Some(1i32) }, ShareablesItems { admire : None,
+                        barter : None, consume_item : None, craft_into : None, item :
+                        Some("minecraft:skull:1".to_string()), item_aux : None,
+                        max_amount : None, pickup_limit : None, pickup_only : None,
+                        priority : Some(7i32), stored_in_inventory : None, surplus_amount
+                        : Some(1i32), want_amount : Some(1i32) }, ShareablesItems {
+                        admire : None, barter : None, consume_item : None, craft_into :
+                        None, item : Some("minecraft:carved_pumpkin".to_string()),
+                        item_aux : None, max_amount : None, pickup_limit : None,
+                        pickup_only : None, priority : Some(7i32), stored_in_inventory :
+                        None, surplus_amount : Some(1i32), want_amount : Some(1i32) },
+                        ShareablesItems { admire : None, barter : None, consume_item :
+                        None, craft_into : None, item :
+                        Some("minecraft:netherite_chestplate".to_string()), item_aux :
+                        None, max_amount : None, pickup_limit : None, pickup_only : None,
+                        priority : Some(0i32), stored_in_inventory : None, surplus_amount
+                        : Some(1i32), want_amount : Some(1i32) }, ShareablesItems {
+                        admire : None, barter : None, consume_item : None, craft_into :
+                        None, item : Some("minecraft:diamond_chestplate".to_string()),
+                        item_aux : None, max_amount : None, pickup_limit : None,
+                        pickup_only : None, priority : Some(1i32), stored_in_inventory :
+                        None, surplus_amount : Some(1i32), want_amount : Some(1i32) },
+                        ShareablesItems { admire : None, barter : None, consume_item :
+                        None, craft_into : None, item : Some("minecraft:iron_chestplate"
+                        .to_string()), item_aux : None, max_amount : None, pickup_limit :
+                        None, pickup_only : None, priority : Some(2i32),
+                        stored_in_inventory : None, surplus_amount : Some(1i32),
+                        want_amount : Some(1i32) }, ShareablesItems { admire : None,
+                        barter : None, consume_item : None, craft_into : None, item :
+                        Some("minecraft:chainmail_chestplate".to_string()), item_aux :
+                        None, max_amount : None, pickup_limit : None, pickup_only : None,
+                        priority : Some(3i32), stored_in_inventory : None, surplus_amount
+                        : Some(1i32), want_amount : Some(1i32) }, ShareablesItems {
+                        admire : None, barter : None, consume_item : None, craft_into :
+                        None, item : Some("minecraft:golden_chestplate".to_string()),
+                        item_aux : None, max_amount : None, pickup_limit : None,
+                        pickup_only : None, priority : Some(4i32), stored_in_inventory :
+                        None, surplus_amount : Some(1i32), want_amount : Some(1i32) },
+                        ShareablesItems { admire : None, barter : None, consume_item :
+                        None, craft_into : None, item :
+                        Some("minecraft:leather_chestplate".to_string()), item_aux :
+                        None, max_amount : None, pickup_limit : None, pickup_only : None,
+                        priority : Some(5i32), stored_in_inventory : None, surplus_amount
+                        : Some(1i32), want_amount : Some(1i32) }, ShareablesItems {
+                        admire : None, barter : None, consume_item : None, craft_into :
+                        None, item : Some("minecraft:netherite_leggings".to_string()),
+                        item_aux : None, max_amount : None, pickup_limit : None,
+                        pickup_only : None, priority : Some(0i32), stored_in_inventory :
+                        None, surplus_amount : Some(1i32), want_amount : Some(1i32) },
+                        ShareablesItems { admire : None, barter : None, consume_item :
+                        None, craft_into : None, item : Some("minecraft:diamond_leggings"
+                        .to_string()), item_aux : None, max_amount : None, pickup_limit :
+                        None, pickup_only : None, priority : Some(1i32),
+                        stored_in_inventory : None, surplus_amount : Some(1i32),
+                        want_amount : Some(1i32) }, ShareablesItems { admire : None,
+                        barter : None, consume_item : None, craft_into : None, item :
+                        Some("minecraft:iron_leggings".to_string()), item_aux : None,
+                        max_amount : None, pickup_limit : None, pickup_only : None,
+                        priority : Some(2i32), stored_in_inventory : None, surplus_amount
+                        : Some(1i32), want_amount : Some(1i32) }, ShareablesItems {
+                        admire : None, barter : None, consume_item : None, craft_into :
+                        None, item : Some("minecraft:chainmail_leggings".to_string()),
+                        item_aux : None, max_amount : None, pickup_limit : None,
+                        pickup_only : None, priority : Some(3i32), stored_in_inventory :
+                        None, surplus_amount : Some(1i32), want_amount : Some(1i32) },
+                        ShareablesItems { admire : None, barter : None, consume_item :
+                        None, craft_into : None, item : Some("minecraft:golden_leggings"
+                        .to_string()), item_aux : None, max_amount : None, pickup_limit :
+                        None, pickup_only : None, priority : Some(4i32),
+                        stored_in_inventory : None, surplus_amount : Some(1i32),
+                        want_amount : Some(1i32) }, ShareablesItems { admire : None,
+                        barter : None, consume_item : None, craft_into : None, item :
+                        Some("minecraft:leather_leggings".to_string()), item_aux : None,
+                        max_amount : None, pickup_limit : None, pickup_only : None,
+                        priority : Some(5i32), stored_in_inventory : None, surplus_amount
+                        : Some(1i32), want_amount : Some(1i32) }, ShareablesItems {
+                        admire : None, barter : None, consume_item : None, craft_into :
+                        None, item : Some("minecraft:netherite_boots".to_string()),
+                        item_aux : None, max_amount : None, pickup_limit : None,
+                        pickup_only : None, priority : Some(0i32), stored_in_inventory :
+                        None, surplus_amount : Some(1i32), want_amount : Some(1i32) },
+                        ShareablesItems { admire : None, barter : None, consume_item :
+                        None, craft_into : None, item : Some("minecraft:diamond_boots"
+                        .to_string()), item_aux : None, max_amount : None, pickup_limit :
+                        None, pickup_only : None, priority : Some(1i32),
+                        stored_in_inventory : None, surplus_amount : Some(1i32),
+                        want_amount : Some(1i32) }, ShareablesItems { admire : None,
+                        barter : None, consume_item : None, craft_into : None, item :
+                        Some("minecraft:iron_boots".to_string()), item_aux : None,
+                        max_amount : None, pickup_limit : None, pickup_only : None,
+                        priority : Some(2i32), stored_in_inventory : None, surplus_amount
+                        : Some(1i32), want_amount : Some(1i32) }, ShareablesItems {
+                        admire : None, barter : None, consume_item : None, craft_into :
+                        None, item : Some("minecraft:chainmail_boots".to_string()),
+                        item_aux : None, max_amount : None, pickup_limit : None,
+                        pickup_only : None, priority : Some(3i32), stored_in_inventory :
+                        None, surplus_amount : Some(1i32), want_amount : Some(1i32) },
+                        ShareablesItems { admire : None, barter : None, consume_item :
+                        None, craft_into : None, item : Some("minecraft:golden_boots"
+                        .to_string()), item_aux : None, max_amount : None, pickup_limit :
+                        None, pickup_only : None, priority : Some(4i32),
+                        stored_in_inventory : None, surplus_amount : Some(1i32),
+                        want_amount : Some(1i32) }, ShareablesItems { admire : None,
+                        barter : None, consume_item : None, craft_into : None, item :
+                        Some("minecraft:leather_boots".to_string()), item_aux : None,
+                        max_amount : None, pickup_limit : None, pickup_only : None,
+                        priority : Some(5i32), stored_in_inventory : None, surplus_amount
+                        : Some(1i32), want_amount : Some(1i32) }
+                    ],
+                ),
                 singular_pickup: Some(true),
             },
         })

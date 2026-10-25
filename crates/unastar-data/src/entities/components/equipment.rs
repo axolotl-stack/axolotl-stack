@@ -16,7 +16,6 @@ impl Default for EquipmentSlotDropChance {
 }
 /// Bedrock component `minecraft:equipment`. Sets the equipment table to use for the entity.
 #[derive(Component, Debug, Clone, PartialEq)]
-#[component(storage = "SparseSet")]
 pub struct Equipment {
     ///A list of slots with the chance to drop an equipped item from that slot.
     pub slot_drop_chance: Option<Vec<EquipmentSlotDropChance>>,
