@@ -417,9 +417,8 @@ mod shared_noise_tests {
             let (mut dense, biomes) = generator.generate_noise_blocks(pos);
             let heights = generator.noise_heightmap(pos);
             let classes = &unastar_noise::java_blocks::BEDROCK_STATE_CLASSES;
-            for i in 0..256 {
+            for (i, &top) in heights.iter().enumerate() {
                 let (x, z) = ((i % 16) as u8, (i / 16) as u8);
-                let top = heights[i];
                 if top > overworld_settings::MIN_Y {
                     assert_ne!(
                         classes[dense.get_block(x, (top - 1) as i16, z) as usize]
