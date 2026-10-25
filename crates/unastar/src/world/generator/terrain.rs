@@ -22,7 +22,7 @@ use super::region::DecorationRegion;
 use super::surface::SurfaceSystem;
 use super::xoroshiro::PositionalRandomFactory;
 use crate::world::ChunkPos;
-use crate::world::chunk::{Chunk, blocks};
+use crate::world::chunk::blocks;
 use std::simd::prelude::*;
 use unastar_noise::java_biomes::JavaBiome;
 use unastar_noise::overworld_settings;
@@ -318,14 +318,14 @@ impl CarveContext for JavaCarveContext<'_, '_> {
 
     fn top_material(
         &mut self,
-        chunk: &Chunk,
+        blocks: &DenseBlocks,
         x: i32,
         y: i32,
         z: i32,
         has_fluid: bool,
     ) -> Option<u32> {
         self.generator.surface_system.top_material(
-            chunk,
+            blocks,
             self.pos,
             &self.generator.noises,
             self.grid,
@@ -349,10 +349,9 @@ impl Generator for JavaGenerator {
         let col_grid = ColumnContextGrid::new(pos.x, pos.z, &self.noises, &grid);
         let biomes = biome_source::fill_chunk(&self.noises, pos, &grid, &col_grid);
         let mut aquifer = self.aquifer(pos, &grid, &col_grid);
-        let mut blocks = self.generate_terrain(pos.x, pos.z, &grid, &col_grid, &mut aquifer);
+        let mut dense = self.generate_terrain(pos.x, pos.z, &grid, &col_grid, &mut aquifer);
         self.surface_system
-            .build_surface(&mut blocks, pos, &self.noises, &grid, &biomes);
-        let mut chunk = blocks.to_chunk(pos, *crate::world::chunk::blocks::AIR);
+            .build_surface(&mut dense, pos, &self.noises, &grid, &biomes);
         let mut carving = JavaCarveContext {
             generator: self,
             aquifer: &mut aquifer,
@@ -360,7 +359,8 @@ impl Generator for JavaGenerator {
             grid: &grid,
             biomes: &biomes,
         };
-        carver::carve_chunk(self.seed, &mut chunk, pos, &mut carving);
+        carver::carve_chunk(self.seed, &mut dense, pos, &mut carving);
+        let chunk = dense.to_chunk(pos, *blocks::AIR);
         ProtoChunk { pos, chunk, biomes }
     }
 

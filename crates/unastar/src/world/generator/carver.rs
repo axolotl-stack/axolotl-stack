@@ -17,7 +17,8 @@ use unastar_noise::{FunctionContext, carvers, java_blocks, overworld_settings};
 
 use super::aquifer::{FluidPicker, NoiseBasedAquifer};
 use crate::world::ChunkPos;
-use crate::world::chunk::{Chunk, MIN_Y};
+use crate::world::chunk::MIN_Y;
+use crate::world::generator::proto::DenseBlocks;
 
 /// Default states of the blocks carving reads or writes, as Bedrock runtime ids.
 struct CarverBlocks {
@@ -87,7 +88,7 @@ pub trait CarveContext {
     /// The surface material for exposed dirt under a carved surface block.
     fn top_material(
         &mut self,
-        chunk: &Chunk,
+        blocks: &DenseBlocks,
         x: i32,
         y: i32,
         z: i32,
@@ -103,14 +104,19 @@ impl<F: FluidPicker> NoiseBasedAquifer<'_, F> {
 }
 
 struct Carving<'a, C: CarveContext> {
-    chunk: &'a mut Chunk,
+    chunk: &'a mut DenseBlocks,
     pos: ChunkPos,
     mask: CarvingMask,
     ctx: &'a mut C,
 }
 
 /// Carve a chunk with every carver started within 8 chunks.
-pub fn carve_chunk<C: CarveContext>(seed: i64, chunk: &mut Chunk, pos: ChunkPos, ctx: &mut C) {
+pub fn carve_chunk<C: CarveContext>(
+    seed: i64,
+    chunk: &mut DenseBlocks,
+    pos: ChunkPos,
+    ctx: &mut C,
+) {
     let mut carving = Carving {
         chunk,
         pos,
