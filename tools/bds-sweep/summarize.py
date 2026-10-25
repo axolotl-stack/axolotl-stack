@@ -57,6 +57,17 @@ def write(relative: str, value) -> dict:
     return {'path': relative, 'sha256': hashlib.sha256(text.encode('utf-8')).hexdigest()}
 
 
+def write_cases(relative: str, block: str, cases: list[dict]) -> dict:
+    """`{"block": ..., "cases": [...]}` with one compact case per line, so
+    diffs stay per case while the files stay small."""
+    lines = ',\n'.join(json.dumps(case, separators=(',', ':'), sort_keys=True) for case in cases)
+    text = f'{{"block":{json.dumps(block)},"cases":[\n{lines}\n]}}\n'
+    path = MEASURED / relative
+    path.parent.mkdir(parents=True, exist_ok=True)
+    path.write_bytes(text.encode('utf-8'))
+    return {'path': relative, 'sha256': hashlib.sha256(text.encode('utf-8')).hexdigest()}
+
+
 def update_manifest(family: str, entry: dict) -> None:
     path = MEASURED / 'manifest.json'
     manifest = json.loads(path.read_text(encoding='utf-8')) if path.exists() else {'bds_version': BDS_VERSION}
@@ -142,22 +153,44 @@ def summarize_drops(sweeps: list[Path]) -> None:
         by_block[row['block']].append(row)
     files = []
     for block, block_rows in sorted(by_block.items()):
-        cases = []
+        cases: list[dict] = []
+        merged: dict[str, dict] = {}
         for row in sorted(block_rows, key=lambda r: r['key']):
-            table, fit = loot_table(row['outcomes'])
-            cases.append({
+            placed = row['placed']
+            tool = row['key'].rsplit('|', 1)[1]
+            if placed['type'] != row['block']:
+                # BDS stores another block for this state (flowing liquids,
+                # bubble columns, soul fire without soul soil).
+                table, fit = None, 'not_placeable'
+            elif not row['unchanged']:
+                # The block left the arena during sampling (buttons, frames,
+                # wall banners without support pop off); `observed` mixes its
+                # own drop with samples taken on air.
+                table, fit = None, 'unstable_block'
+            else:
+                table, fit = loot_table(row['outcomes'])
+            case = {
                 'states': row['states'],
-                'tool': row['key'].rsplit('|', 1)[1],
-                'tool_item': row['tool'],
+                'placed_states': placed['states'],
+                'tools': [tool],
                 'samples': row['samples'],
-                'command_failures': row['command_failures'],
-                'block_unchanged': row['unchanged'],
                 'fit': fit,
                 'observed': row['outcomes'],
                 'loot_table': table,
-            })
+            }
+            if row['command_failures']:
+                case['command_failures'] = row['command_failures']
+            # Tools with the same exact outcome on the same state share a case.
+            if fit == 'exact' and not row['command_failures']:
+                group = json.dumps([row['states'], placed['states'], row['samples'], row['outcomes']],
+                                   sort_keys=True)
+                if group in merged:
+                    merged[group]['tools'].append(tool)
+                    continue
+                merged[group] = case
+            cases.append(case)
         name = block.removeprefix('minecraft:')
-        files.append(write(f'block_drops/{name}.json', {'block': block, 'cases': cases}))
+        files.append(write_cases(f'block_drops/{name}.json', block, cases))
     update_manifest('block_drops', {
         **provenance('drops', sweeps),
         'method': '`/loot spawn <p> mine <block> mainhand` executed as the sweep player holding the tool '

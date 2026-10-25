@@ -24,7 +24,7 @@ $py = 'C:/Users/jvigu/orca/bds-runtime/venv/Scripts/python.exe'
 
 | File | Content | Method |
 |---|---|---|
-| `block_drops/<block>.json` | `{block, cases: [...]}`; one case per (block state, tool): `states`, `tool` key (`hand`, `<tier>_<kind>`, `+silk_touch1`, `+fortune3`, …), `tool_item` (item and enchantments), `samples`, `observed` (histogram of whole outcomes, `name@data` + `x` + count per dropped stack, `;`-separated; `""` = nothing), `fit` and `loot_table` | `/loot spawn <p> mine <block> mainhand` run as the sweep player holding the tool |
+| `block_drops/<block>.json` | `{"block", "cases": [...]}`, one compact case per line: `states` (requested), `placed_states` (what BDS stored), `tools` (tool keys sharing this outcome, see below), `samples`, `observed` (histogram of whole outcomes: per dropped stack `name@data` + `x` + count, `;`-separated, `""` = nothing), `fit`, `loot_table` | `/loot spawn <p> mine <block> mainhand` run as the sweep player holding the tool, 400 samples per (state, tool) |
 | `armor_slots.json` | `{item: {head, chest, legs, feet, offhand}}`, true when the slot holds the item after the command | `/replaceitem entity <player> slot.armor.<slot>\|slot.weapon.offhand 0 <item>` |
 | `fuel_burn_ticks.json` | `{item: ticks}` for every item that lights a furnace | furnace with one cobblestone input and the item as fuel; server ticks from lit to unlit (±1) |
 | `armor_values.json` | `{item: {slot, defense, toughness_range, per_hit}}`: health lost per hit for each damage amount; `defense` exact (from a 1000-point hit); `toughness_range` = interval per damage amount where the 1/hits read-out resolves it, else null (formula in `summarize.py`) | wearing only that (unbreakable) item, `/damage <player> D entity_attack` repeated past the hurt cooldown, max health 2000, natural regeneration off |
@@ -40,12 +40,35 @@ entry weighted by how often it was seen. Items are treated as independent of
 each other, and the weights are sample frequencies (see `samples`), not
 derived probabilities. Consumers that need the exact random rule (fortune
 formulas, flint chance and similar) derive it from `observed` and record the
-derivation; the measured histogram stays the evidence.
+derivation; the measured histogram stays the evidence. `fit: "unstable_block"`
+(buttons, frames, wall banners, tripwire hooks, … without support) means the
+block popped off during sampling, so `observed` is not a drop table and
+`loot_table` is null; `fit: "not_placeable"` means BDS stores another block
+for that state (flowing liquids, bubble columns, soul fire).
+
+Tool keys: `hand`; `<tier>_<kind>` for `minecraft:<tier>_<kind>` (tiers wooden,
+stone, copper, iron, golden, diamond, netherite; kinds pickaxe, axe, shovel, hoe,
+sword); `shears`; enchantments appended as `+<enchantment><level>`
+(`diamond_pickaxe+fortune3`, `diamond_shovel+silk_touch1`). Per block the
+drops sweep uses: hand, every tier of each correct tool (protocolgen native
+mining classes), one wrong tool (diamond), shears, silk touch and fortune
+I-III on the diamond correct tool (pickaxe when none). Mining variants add
+`+efficiencyN`, `+haste1/2`, `+mining_fatigue1`, `+underwater`.
+
+Coverage: drops for the first palette state of every block (1,476 blocks,
+17,073 (state, tool) cells; other states are a later sweep, `sweep.py drops
+--states all`); mining for the 10-block slice of `sweep.py`; armour slots and
+fuels for every registry item; armour values for every `minecraft:is_armor`
+item; attack damage for every tool tier, trident, mace and sharpness I-V.
+Not measured yet: airborne mining, enchantability.
 
 Notes from the sweeps:
 
 - `/replaceitem` puts any item into `slot.armor.head` and `slot.weapon.offhand`;
   chest, legs and feet only take items that fit them. This is the command path;
   inventory transactions can be stricter.
-- BDS drops each item of a stack as a separate item actor (two diamonds from
-  fortune are two actors with count 1); `observed` keeps them separate.
+- `/loot spawn … mine` drops each item of a stack as a separate item actor (two
+  diamonds from fortune are two actors with count 1); `observed` keeps them
+  separate.
+- The first attack after the held item changes deals no damage; the attack job
+  makes one warm-up attack before its three measured trials.

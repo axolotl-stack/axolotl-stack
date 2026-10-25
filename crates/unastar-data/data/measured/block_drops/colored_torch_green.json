@@ -1,0 +1,4 @@
+{"block":"minecraft:colored_torch_green","cases":[
+{"fit":"exact","loot_table":{"pools":[{"entries":[{"name":"minecraft:colored_torch_green","type":"item"}],"rolls":1}]},"observed":{"minecraft:colored_torch_green@0x1":400},"placed_states":{"torch_facing_direction":"unknown"},"samples":400,"states":{"torch_facing_direction":"unknown"},"tools":["diamond_pickaxe","diamond_pickaxe+fortune1","diamond_pickaxe+fortune2","diamond_pickaxe+fortune3","diamond_pickaxe+silk_touch1","shears"]},
+{"fit":"exact","loot_table":{"pools":[{"entries":[{"name":"minecraft:colored_torch_green","type":"item"}],"rolls":1}]},"observed":{"minecraft:colored_torch_green@0x1":400},"placed_states":{"torch_facing_direction":"top"},"samples":400,"states":{"torch_facing_direction":"unknown"},"tools":["hand"]}
+]}

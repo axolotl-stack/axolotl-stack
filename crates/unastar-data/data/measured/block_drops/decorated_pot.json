@@ -1,0 +1,4 @@
+{"block":"minecraft:decorated_pot","cases":[
+{"fit":"exact","loot_table":{"pools":[{"entries":[{"functions":[{"count":4,"function":"set_count"}],"name":"minecraft:brick","type":"item"}],"rolls":1}]},"observed":{"minecraft:brick@0x1;minecraft:brick@0x1;minecraft:brick@0x1;minecraft:brick@0x1":400},"placed_states":{"direction":0},"samples":400,"states":{"direction":0},"tools":["diamond_pickaxe","diamond_pickaxe+fortune1","diamond_pickaxe+fortune2","diamond_pickaxe+fortune3"]},
+{"fit":"exact","loot_table":{"pools":[{"entries":[{"name":"minecraft:decorated_pot","type":"item"}],"rolls":1}]},"observed":{"minecraft:decorated_pot@0x1":400},"placed_states":{"direction":0},"samples":400,"states":{"direction":0},"tools":["diamond_pickaxe+silk_touch1","hand","shears"]}
+]}

@@ -1,0 +1,4 @@
+{"block":"minecraft:mushroom_stem","cases":[
+{"fit":"exact","loot_table":{"pools":[]},"observed":{"":400},"placed_states":{"huge_mushroom_bits":0},"samples":400,"states":{"huge_mushroom_bits":0},"tools":["copper_axe","diamond_axe","diamond_axe+fortune1","diamond_axe+fortune2","diamond_axe+fortune3","diamond_pickaxe","golden_axe","hand","iron_axe","netherite_axe","shears","stone_axe","wooden_axe"]},
+{"fit":"exact","loot_table":{"pools":[{"entries":[{"functions":[{"data":15,"function":"set_data"}],"name":"minecraft:mushroom_stem","type":"item"}],"rolls":1}]},"observed":{"minecraft:mushroom_stem@15x1":400},"placed_states":{"huge_mushroom_bits":0},"samples":400,"states":{"huge_mushroom_bits":0},"tools":["diamond_axe+silk_touch1"]}
+]}

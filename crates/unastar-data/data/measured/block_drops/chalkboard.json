@@ -1,0 +1,10 @@
+{"block":"minecraft:chalkboard","cases":[
+{"fit":"exact","loot_table":{"pools":[]},"observed":{"":400},"placed_states":{"direction":0},"samples":400,"states":{"direction":0},"tools":["copper_axe","diamond_axe+fortune1","diamond_axe+fortune3","golden_axe","netherite_axe","shears","wooden_axe"]},
+{"fit":"unstable_block","loot_table":null,"observed":{"":400},"placed_states":{"direction":0},"samples":400,"states":{"direction":0},"tools":["diamond_axe"]},
+{"fit":"unstable_block","loot_table":null,"observed":{"":400},"placed_states":{"direction":0},"samples":400,"states":{"direction":0},"tools":["diamond_axe+fortune2"]},
+{"fit":"unstable_block","loot_table":null,"observed":{"":400},"placed_states":{"direction":0},"samples":400,"states":{"direction":0},"tools":["diamond_axe+silk_touch1"]},
+{"fit":"unstable_block","loot_table":null,"observed":{"":400},"placed_states":{"direction":0},"samples":400,"states":{"direction":0},"tools":["diamond_pickaxe"]},
+{"fit":"unstable_block","loot_table":null,"observed":{"":400},"placed_states":{"direction":0},"samples":400,"states":{"direction":0},"tools":["hand"]},
+{"fit":"unstable_block","loot_table":null,"observed":{"":400},"placed_states":{"direction":0},"samples":400,"states":{"direction":0},"tools":["iron_axe"]},
+{"fit":"unstable_block","loot_table":null,"observed":{"":400},"placed_states":{"direction":0},"samples":400,"states":{"direction":0},"tools":["stone_axe"]}
+]}

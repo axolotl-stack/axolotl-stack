@@ -1,0 +1,16 @@
+{"block":"minecraft:wall_banner","cases":[
+{"fit":"unstable_block","loot_table":null,"observed":{"":90,"minecraft:banner@0x1":310},"placed_states":{"facing_direction":0},"samples":400,"states":{"facing_direction":0},"tools":["copper_axe"]},
+{"fit":"unstable_block","loot_table":null,"observed":{"":63,"minecraft:banner@0x1":337},"placed_states":{"facing_direction":0},"samples":400,"states":{"facing_direction":0},"tools":["diamond_axe"]},
+{"fit":"unstable_block","loot_table":null,"observed":{"":59,"minecraft:banner@0x1":341},"placed_states":{"facing_direction":0},"samples":400,"states":{"facing_direction":0},"tools":["diamond_axe+fortune1"]},
+{"fit":"unstable_block","loot_table":null,"observed":{"":75,"minecraft:banner@0x1":325},"placed_states":{"facing_direction":0},"samples":400,"states":{"facing_direction":0},"tools":["diamond_axe+fortune2"]},
+{"fit":"unstable_block","loot_table":null,"observed":{"":87,"minecraft:banner@0x1":313},"placed_states":{"facing_direction":0},"samples":400,"states":{"facing_direction":0},"tools":["diamond_axe+fortune3"]},
+{"fit":"unstable_block","loot_table":null,"observed":{"":49,"minecraft:banner@0x1":351},"placed_states":{"facing_direction":0},"samples":400,"states":{"facing_direction":0},"tools":["diamond_axe+silk_touch1"]},
+{"fit":"unstable_block","loot_table":null,"observed":{"":56,"minecraft:banner@0x1":344},"placed_states":{"facing_direction":0},"samples":400,"states":{"facing_direction":0},"tools":["diamond_pickaxe"]},
+{"fit":"unstable_block","loot_table":null,"observed":{"":68,"minecraft:banner@0x1":332},"placed_states":{"facing_direction":0},"samples":400,"states":{"facing_direction":0},"tools":["golden_axe"]},
+{"fit":"unstable_block","loot_table":null,"observed":{"":189,"minecraft:banner@0x1":211},"placed_states":{"facing_direction":0},"samples":400,"states":{"facing_direction":0},"tools":["hand"]},
+{"fit":"unstable_block","loot_table":null,"observed":{"":68,"minecraft:banner@0x1":332},"placed_states":{"facing_direction":0},"samples":400,"states":{"facing_direction":0},"tools":["iron_axe"]},
+{"fit":"unstable_block","loot_table":null,"observed":{"":51,"minecraft:banner@0x1":349},"placed_states":{"facing_direction":0},"samples":400,"states":{"facing_direction":0},"tools":["netherite_axe"]},
+{"fit":"unstable_block","loot_table":null,"observed":{"":49,"minecraft:banner@0x1":351},"placed_states":{"facing_direction":0},"samples":400,"states":{"facing_direction":0},"tools":["shears"]},
+{"fit":"unstable_block","loot_table":null,"observed":{"":113,"minecraft:banner@0x1":287},"placed_states":{"facing_direction":0},"samples":400,"states":{"facing_direction":0},"tools":["stone_axe"]},
+{"fit":"unstable_block","loot_table":null,"observed":{"":110,"minecraft:banner@0x1":290},"placed_states":{"facing_direction":0},"samples":400,"states":{"facing_direction":0},"tools":["wooden_axe"]}
+]}

@@ -1,0 +1,16 @@
+{"block":"minecraft:daylight_detector","cases":[
+{"fit":"unstable_block","loot_table":null,"observed":{"minecraft:daylight_detector@0x1":400},"placed_states":{"redstone_signal":0},"samples":400,"states":{"redstone_signal":0},"tools":["copper_axe"]},
+{"fit":"unstable_block","loot_table":null,"observed":{"minecraft:daylight_detector@0x1":400},"placed_states":{"redstone_signal":0},"samples":400,"states":{"redstone_signal":0},"tools":["diamond_axe"]},
+{"fit":"unstable_block","loot_table":null,"observed":{"minecraft:daylight_detector@0x1":400},"placed_states":{"redstone_signal":0},"samples":400,"states":{"redstone_signal":0},"tools":["diamond_axe+fortune1"]},
+{"fit":"unstable_block","loot_table":null,"observed":{"minecraft:daylight_detector@0x1":400},"placed_states":{"redstone_signal":0},"samples":400,"states":{"redstone_signal":0},"tools":["diamond_axe+fortune2"]},
+{"fit":"unstable_block","loot_table":null,"observed":{"minecraft:daylight_detector@0x1":400},"placed_states":{"redstone_signal":0},"samples":400,"states":{"redstone_signal":0},"tools":["diamond_axe+fortune3"]},
+{"fit":"unstable_block","loot_table":null,"observed":{"minecraft:daylight_detector@0x1":400},"placed_states":{"redstone_signal":0},"samples":400,"states":{"redstone_signal":0},"tools":["diamond_axe+silk_touch1"]},
+{"fit":"unstable_block","loot_table":null,"observed":{"minecraft:daylight_detector@0x1":400},"placed_states":{"redstone_signal":0},"samples":400,"states":{"redstone_signal":0},"tools":["diamond_pickaxe"]},
+{"fit":"unstable_block","loot_table":null,"observed":{"minecraft:daylight_detector@0x1":400},"placed_states":{"redstone_signal":0},"samples":400,"states":{"redstone_signal":0},"tools":["golden_axe"]},
+{"fit":"unstable_block","loot_table":null,"observed":{"minecraft:daylight_detector@0x1":400},"placed_states":{"redstone_signal":0},"samples":400,"states":{"redstone_signal":0},"tools":["hand"]},
+{"fit":"unstable_block","loot_table":null,"observed":{"minecraft:daylight_detector@0x1":400},"placed_states":{"redstone_signal":0},"samples":400,"states":{"redstone_signal":0},"tools":["iron_axe"]},
+{"fit":"unstable_block","loot_table":null,"observed":{"minecraft:daylight_detector@0x1":400},"placed_states":{"redstone_signal":0},"samples":400,"states":{"redstone_signal":0},"tools":["netherite_axe"]},
+{"fit":"unstable_block","loot_table":null,"observed":{"minecraft:daylight_detector@0x1":400},"placed_states":{"redstone_signal":0},"samples":400,"states":{"redstone_signal":0},"tools":["shears"]},
+{"fit":"unstable_block","loot_table":null,"observed":{"minecraft:daylight_detector@0x1":400},"placed_states":{"redstone_signal":0},"samples":400,"states":{"redstone_signal":0},"tools":["stone_axe"]},
+{"fit":"unstable_block","loot_table":null,"observed":{"minecraft:daylight_detector@0x1":400},"placed_states":{"redstone_signal":0},"samples":400,"states":{"redstone_signal":0},"tools":["wooden_axe"]}
+]}

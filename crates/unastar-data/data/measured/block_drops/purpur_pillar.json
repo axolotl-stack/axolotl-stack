@@ -1,0 +1,4 @@
+{"block":"minecraft:purpur_pillar","cases":[
+{"fit":"exact","loot_table":{"pools":[{"entries":[{"name":"minecraft:purpur_pillar","type":"item"}],"rolls":1}]},"observed":{"minecraft:purpur_pillar@0x1":400},"placed_states":{"pillar_axis":"y"},"samples":400,"states":{"pillar_axis":"y"},"tools":["copper_pickaxe","diamond_pickaxe","diamond_pickaxe+fortune1","diamond_pickaxe+fortune2","diamond_pickaxe+fortune3","diamond_pickaxe+silk_touch1","golden_pickaxe","iron_pickaxe","netherite_pickaxe","stone_pickaxe","wooden_pickaxe"]},
+{"fit":"exact","loot_table":{"pools":[]},"observed":{"":400},"placed_states":{"pillar_axis":"y"},"samples":400,"states":{"pillar_axis":"y"},"tools":["diamond_axe","hand","shears"]}
+]}

@@ -1,0 +1,4 @@
+{"block":"minecraft:vine","cases":[
+{"fit":"exact","loot_table":{"pools":[]},"observed":{"":400},"placed_states":{"vine_direction_bits":0},"samples":400,"states":{"vine_direction_bits":0},"tools":["copper_axe","diamond_axe","diamond_axe+fortune1","diamond_axe+fortune2","diamond_axe+fortune3","diamond_axe+silk_touch1","diamond_pickaxe","golden_axe","hand","iron_axe","netherite_axe","stone_axe","wooden_axe"]},
+{"fit":"exact","loot_table":{"pools":[{"entries":[{"name":"minecraft:vine","type":"item"}],"rolls":1}]},"observed":{"minecraft:vine@0x1":400},"placed_states":{"vine_direction_bits":0},"samples":400,"states":{"vine_direction_bits":0},"tools":["shears"]}
+]}

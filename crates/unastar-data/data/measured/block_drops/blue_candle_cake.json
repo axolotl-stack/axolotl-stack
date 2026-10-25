@@ -1,0 +1,3 @@
+{"block":"minecraft:blue_candle_cake","cases":[
+{"fit":"exact","loot_table":{"pools":[{"entries":[{"name":"minecraft:blue_candle","type":"item"}],"rolls":1}]},"observed":{"minecraft:blue_candle@0x1":400},"placed_states":{"lit":false},"samples":400,"states":{"lit":0},"tools":["diamond_pickaxe","diamond_pickaxe+fortune1","diamond_pickaxe+fortune2","diamond_pickaxe+fortune3","diamond_pickaxe+silk_touch1","hand","shears"]}
+]}

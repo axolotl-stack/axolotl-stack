@@ -1,0 +1,9 @@
+{"block":"minecraft:fern","cases":[
+{"fit":"empirical","loot_table":{"pools":[{"entries":[{"type":"empty","weight":342},{"name":"minecraft:wheat_seeds","type":"item","weight":58}],"rolls":1}]},"observed":{"":342,"minecraft:wheat_seeds@0x1":58},"placed_states":{},"samples":400,"states":{},"tools":["diamond_pickaxe"]},
+{"fit":"empirical","loot_table":{"pools":[{"entries":[{"type":"empty","weight":353},{"name":"minecraft:wheat_seeds","type":"item","weight":47}],"rolls":1}]},"observed":{"":353,"minecraft:wheat_seeds@0x1":47},"placed_states":{},"samples":400,"states":{},"tools":["diamond_pickaxe+fortune1"]},
+{"fit":"empirical","loot_table":{"pools":[{"entries":[{"type":"empty","weight":350},{"name":"minecraft:wheat_seeds","type":"item","weight":50}],"rolls":1}]},"observed":{"":350,"minecraft:wheat_seeds@0x1":50},"placed_states":{},"samples":400,"states":{},"tools":["diamond_pickaxe+fortune2"]},
+{"fit":"empirical","loot_table":{"pools":[{"entries":[{"type":"empty","weight":345},{"name":"minecraft:wheat_seeds","type":"item","weight":55}],"rolls":1}]},"observed":{"":345,"minecraft:wheat_seeds@0x1":55},"placed_states":{},"samples":400,"states":{},"tools":["diamond_pickaxe+fortune3"]},
+{"fit":"empirical","loot_table":{"pools":[{"entries":[{"type":"empty","weight":353},{"name":"minecraft:wheat_seeds","type":"item","weight":47}],"rolls":1}]},"observed":{"":353,"minecraft:wheat_seeds@0x1":47},"placed_states":{},"samples":400,"states":{},"tools":["diamond_pickaxe+silk_touch1"]},
+{"fit":"empirical","loot_table":{"pools":[{"entries":[{"type":"empty","weight":354},{"name":"minecraft:wheat_seeds","type":"item","weight":46}],"rolls":1}]},"observed":{"":354,"minecraft:wheat_seeds@0x1":46},"placed_states":{},"samples":400,"states":{},"tools":["hand"]},
+{"fit":"exact","loot_table":{"pools":[{"entries":[{"name":"minecraft:fern","type":"item"}],"rolls":1}]},"observed":{"minecraft:fern@0x1":400},"placed_states":{},"samples":400,"states":{},"tools":["shears"]}
+]}

@@ -1,0 +1,7 @@
+{"block":"minecraft:unlit_redstone_torch","cases":[
+{"fit":"unstable_block","loot_table":null,"observed":{"minecraft:redstone_torch@0x1":400},"placed_states":{"torch_facing_direction":"unknown"},"samples":400,"states":{"torch_facing_direction":"unknown"},"tools":["diamond_pickaxe"]},
+{"fit":"exact","loot_table":{"pools":[{"entries":[{"name":"minecraft:redstone_torch","type":"item"}],"rolls":1}]},"observed":{"minecraft:redstone_torch@0x1":400},"placed_states":{"torch_facing_direction":"unknown"},"samples":400,"states":{"torch_facing_direction":"unknown"},"tools":["diamond_pickaxe+fortune1","hand","shears"]},
+{"fit":"unstable_block","loot_table":null,"observed":{"minecraft:redstone_torch@0x1":400},"placed_states":{"torch_facing_direction":"unknown"},"samples":400,"states":{"torch_facing_direction":"unknown"},"tools":["diamond_pickaxe+fortune2"]},
+{"fit":"unstable_block","loot_table":null,"observed":{"minecraft:redstone_torch@0x1":400},"placed_states":{"torch_facing_direction":"unknown"},"samples":400,"states":{"torch_facing_direction":"unknown"},"tools":["diamond_pickaxe+fortune3"]},
+{"fit":"unstable_block","loot_table":null,"observed":{"minecraft:redstone_torch@0x1":400},"placed_states":{"torch_facing_direction":"unknown"},"samples":400,"states":{"torch_facing_direction":"unknown"},"tools":["diamond_pickaxe+silk_touch1"]}
+]}

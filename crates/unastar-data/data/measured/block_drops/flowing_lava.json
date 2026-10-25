@@ -1,0 +1,9 @@
+{"block":"minecraft:flowing_lava","cases":[
+{"fit":"not_placeable","loot_table":null,"observed":{"":400},"placed_states":{"liquid_depth":0},"samples":400,"states":{"liquid_depth":0},"tools":["diamond_pickaxe"]},
+{"fit":"not_placeable","loot_table":null,"observed":{"":400},"placed_states":{"liquid_depth":0},"samples":400,"states":{"liquid_depth":0},"tools":["diamond_pickaxe+fortune1"]},
+{"fit":"not_placeable","loot_table":null,"observed":{"":400},"placed_states":{"liquid_depth":0},"samples":400,"states":{"liquid_depth":0},"tools":["diamond_pickaxe+fortune2"]},
+{"fit":"not_placeable","loot_table":null,"observed":{"":400},"placed_states":{"liquid_depth":0},"samples":400,"states":{"liquid_depth":0},"tools":["diamond_pickaxe+fortune3"]},
+{"fit":"not_placeable","loot_table":null,"observed":{"":400},"placed_states":{"liquid_depth":0},"samples":400,"states":{"liquid_depth":0},"tools":["diamond_pickaxe+silk_touch1"]},
+{"fit":"not_placeable","loot_table":null,"observed":{"":400},"placed_states":{"liquid_depth":0},"samples":400,"states":{"liquid_depth":0},"tools":["hand"]},
+{"fit":"not_placeable","loot_table":null,"observed":{"":400},"placed_states":{"liquid_depth":0},"samples":400,"states":{"liquid_depth":0},"tools":["shears"]}
+]}

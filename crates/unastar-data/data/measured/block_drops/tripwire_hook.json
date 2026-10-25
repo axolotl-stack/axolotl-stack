@@ -1,0 +1,9 @@
+{"block":"minecraft:tripwire_hook","cases":[
+{"fit":"unstable_block","loot_table":null,"observed":{"":87,"minecraft:tripwire_hook@0x1":313},"placed_states":{"attached_bit":false,"direction":0,"powered_bit":false},"samples":400,"states":{"attached_bit":0,"direction":0,"powered_bit":0},"tools":["diamond_pickaxe"]},
+{"fit":"unstable_block","loot_table":null,"observed":{"":32,"minecraft:tripwire_hook@0x1":368},"placed_states":{"attached_bit":false,"direction":0,"powered_bit":false},"samples":400,"states":{"attached_bit":0,"direction":0,"powered_bit":0},"tools":["diamond_pickaxe+fortune1"]},
+{"fit":"unstable_block","loot_table":null,"observed":{"":30,"minecraft:tripwire_hook@0x1":370},"placed_states":{"attached_bit":false,"direction":0,"powered_bit":false},"samples":400,"states":{"attached_bit":0,"direction":0,"powered_bit":0},"tools":["diamond_pickaxe+fortune2"]},
+{"fit":"unstable_block","loot_table":null,"observed":{"":38,"minecraft:tripwire_hook@0x1":362},"placed_states":{"attached_bit":false,"direction":0,"powered_bit":false},"samples":400,"states":{"attached_bit":0,"direction":0,"powered_bit":0},"tools":["diamond_pickaxe+fortune3"]},
+{"fit":"unstable_block","loot_table":null,"observed":{"":28,"minecraft:tripwire_hook@0x1":372},"placed_states":{"attached_bit":false,"direction":0,"powered_bit":false},"samples":400,"states":{"attached_bit":0,"direction":0,"powered_bit":0},"tools":["diamond_pickaxe+silk_touch1"]},
+{"fit":"unstable_block","loot_table":null,"observed":{"":249,"minecraft:tripwire_hook@0x1":151},"placed_states":{"attached_bit":false,"direction":0,"powered_bit":false},"samples":400,"states":{"attached_bit":0,"direction":0,"powered_bit":0},"tools":["hand"]},
+{"fit":"unstable_block","loot_table":null,"observed":{"":27,"minecraft:tripwire_hook@0x1":373},"placed_states":{"attached_bit":false,"direction":0,"powered_bit":false},"samples":400,"states":{"attached_bit":0,"direction":0,"powered_bit":0},"tools":["shears"]}
+]}
