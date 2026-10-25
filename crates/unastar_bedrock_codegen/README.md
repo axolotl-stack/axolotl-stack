@@ -73,6 +73,10 @@ Both template features and jigsaw pieces write the shared region's actor sink.
 Processors replacing an actor's block type discard that actor; state-only
 changes preserve it. Metadata introduces no RNG draws. Unknown actor identities
 fail generation rather than being silently omitted.
+The caller explicitly selects the actor source schema: Java loot paths/seeds
+are lifted for native placement, while native Bedrock loot stays in the static
+body unchanged. In particular, three captured natural BDS chests use NBT Int
+`LootTableSeed`; applying Java's Long-only schema would reject those records.
 
 Retaining Java-only fields does not establish that Bedrock interprets them.
 Template entities, legacy hard-coded structure assembly and native behavioral
