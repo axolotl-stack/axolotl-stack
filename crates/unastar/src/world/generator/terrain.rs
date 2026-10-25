@@ -341,6 +341,19 @@ impl CarveContext for JavaCarveContext<'_, '_> {
     }
 }
 
+impl JavaGenerator {
+    /// Structure starts that originate in chunk (`x`, `z`) (Java's
+    /// `structure_starts` status), for tools and parity tests.
+    pub fn structure_starts(
+        &self,
+        x: i32,
+        z: i32,
+    ) -> unastar_noise::structures::manager::ChunkStarts {
+        let ctx = self.structures.context(self.seed, &self.noises);
+        self.structures.manager.starts_in_chunk(&ctx, x, z)
+    }
+}
+
 impl Generator for JavaGenerator {
     fn seed(&self) -> i64 {
         self.seed
