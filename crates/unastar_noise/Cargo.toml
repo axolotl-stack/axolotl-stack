@@ -31,3 +31,4 @@ quote = "1"
 proc-macro2 = "1"
 prettyplease = { workspace = true }
 flate2 = { workspace = true }
+md5 = { package = "md-5", version = "0.10" }

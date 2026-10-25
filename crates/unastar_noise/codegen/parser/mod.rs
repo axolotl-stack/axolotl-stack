@@ -1,4 +1,5 @@
 pub mod biome;
+pub mod carver;
 pub mod density_function;
 pub mod feature;
 pub mod noise;

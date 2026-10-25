@@ -21,7 +21,7 @@ impl Default for StringOrArray {
 }
 
 impl StringOrArray {
-    #[allow(dead_code)]
+    /// The references as a list.
     pub fn into_vec(self) -> Vec<String> {
         match self {
             StringOrArray::Single(s) => vec![s],
@@ -40,27 +40,21 @@ pub struct BiomeJson {
 
     /// Carver references (cave, canyon, etc.) - can be a string or array in JSON.
     #[serde(default)]
-    #[allow(dead_code)]
     pub carvers: StringOrArray,
 
     /// Temperature value for the biome (0.0 - 2.0 typical range)
-    #[serde(default)]
-    #[allow(dead_code)]
     pub temperature: f32,
 
-    /// Downfall/precipitation value (0.0 - 1.0)
-    #[serde(default)]
-    #[allow(dead_code)]
-    pub downfall: f32,
-
-    /// Whether this biome has precipitation
-    #[serde(default)]
-    #[allow(dead_code)]
-    pub has_precipitation: bool,
-
-    /// `"frozen"` for frozen oceans (temperature modifier), absent otherwise.
+    /// `"frozen"` for frozen oceans; absent otherwise.
     #[serde(default)]
     pub temperature_modifier: Option<String>,
+
+    /// Whether this biome has precipitation
+    pub has_precipitation: bool,
+
+    /// Downfall (biome foliage/grass colour input; carried into the climate table).
+    #[serde(default)]
+    pub downfall: f32,
 }
 
 /// Generation steps for features.

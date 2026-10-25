@@ -25,10 +25,10 @@ pub mod survival;
 pub mod test_world;
 pub mod values;
 
-/// Generated Java block registry (`java_data/blocks.json` + block tags).
+/// Generated Java block registry (`java_data` blocks, collisions, block tags).
 #[allow(clippy::all, missing_docs)]
 pub mod java_blocks {
-    include!(concat!(env!("OUT_DIR"), "/java_blocks.rs"));
+    include!(concat!(env!("OUT_DIR"), "/java_registry.rs"));
 }
 
 pub use blocks::{BlockPos, BlockSet, Direction, Fluid, Heightmap, JavaBlock, JavaState};

@@ -4,10 +4,10 @@
 //! are now provided by the unastar_noise crate.
 
 use crate::world::generator::noise::{BlendedNoise, DoublePerlinNoise};
-use crate::world::generator::xoroshiro::Xoroshiro128;
+use crate::world::generator::xoroshiro::PositionalRandomFactory;
 use std::simd::prelude::*;
 
-use unastar_noise::{NOISE_PARAMS, NoiseRef, NoiseSource};
+use unastar_noise::{NOISE_PARAMS, NoiseRef, NoiseSource, overworld_settings, random_hashes};
 
 /// Registry of instantiated noise functions (created from seed).
 ///
@@ -22,37 +22,35 @@ pub struct NoiseRegistry {
 }
 
 impl NoiseRegistry {
-    /// Create a new noise registry with all noises instantiated from the seed.
+    /// Instantiate every noise for a seed the way Java's `RandomState` does: each noise is
+    /// seeded from the world's positional factory by `fromHashOf("minecraft:<noise>")`,
+    /// the blended terrain noise by `fromHashOf("minecraft:terrain")`.
     pub fn new(seed: i64) -> Self {
-        // Pre-allocate Vec with exact size
+        let base = PositionalRandomFactory::new(seed);
         let mut noises = Vec::with_capacity(NoiseRef::COUNT);
-
-        // Initialize in order so index matches enum discriminant
         for (noise_ref, params) in NOISE_PARAMS.iter() {
             debug_assert_eq!(
                 noises.len(),
                 *noise_ref as usize,
                 "NOISE_PARAMS out of order"
             );
-            let salted_seed = Self::hash_seed(seed, *noise_ref);
-            let mut rng = Xoroshiro128::from_seed(salted_seed);
-            let noise = DoublePerlinNoise::new(&mut rng, params.amplitudes, params.first_octave);
-            noises.push(noise);
+            let mut rng = base.from_hash(params.hash);
+            noises.push(DoublePerlinNoise::new(
+                &mut rng,
+                params.amplitudes,
+                params.first_octave,
+            ));
         }
 
-        // Create BlendedNoise for base_3d_noise
-        // Use a specific seed salt for BlendedNoise
-        let blended_seed = seed.wrapping_mul(31).wrapping_add(1000);
-        let mut blended_rng = Xoroshiro128::from_seed(blended_seed);
-        // Default parameters for overworld base_3d_noise (from worldgen JSON):
-        // xz_scale=0.25, y_scale=0.125, xz_factor=80.0, y_factor=160.0, smear_scale_multiplier=8.0
+        let params = overworld_settings::BLENDED_NOISE;
+        let mut blended_rng = base.from_hash(random_hashes::TERRAIN);
         let blended_noise = BlendedNoise::new(
             &mut blended_rng,
-            0.25,  // xz_scale
-            0.125, // y_scale
-            80.0,  // xz_factor
-            160.0, // y_factor
-            8.0,   // smear_scale_multiplier
+            params.xz_scale,
+            params.y_scale,
+            params.xz_factor,
+            params.y_factor,
+            params.smear_scale_multiplier,
         );
 
         Self {
@@ -67,12 +65,6 @@ impl NoiseRegistry {
     pub fn get(&self, noise_ref: NoiseRef) -> &DoublePerlinNoise {
         // SAFETY: NoiseRef is repr(usize) and we initialized all variants
         unsafe { self.noises.get_unchecked(noise_ref as usize) }
-    }
-
-    /// Hash a seed with a noise ref to create unique noise instances.
-    fn hash_seed(seed: i64, noise_ref: NoiseRef) -> i64 {
-        let salt = noise_ref as u64;
-        seed.wrapping_mul(31).wrapping_add(salt as i64)
     }
 
     /// Get the seed used to create this registry.

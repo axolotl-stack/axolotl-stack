@@ -7,9 +7,10 @@ use std::sync::Arc;
 use super::components::{
     ChunkData, ChunkEntities, ChunkPosition, ChunkState, ChunkStateFlags, ChunkViewers,
 };
-use super::generation_worker::ChunkGenerationWorker;
+use super::generation_worker::{ChunkGenerationWorker, generation_threads};
 use crate::storage::WorldProvider;
-use crate::world::{Chunk, ChunkPos, WorldConfig, WorldGenerator};
+use crate::world::generator::ChunkPipeline;
+use crate::world::{Chunk, ChunkPos, WorldConfig};
 
 /// Global resource for chunk entity management.
 ///
@@ -26,41 +27,43 @@ pub struct ChunkManager {
     world_config: WorldConfig,
     /// Optional world provider for loading chunks from disk.
     provider: Option<Arc<dyn WorldProvider>>,
-    /// Cached VanillaGenerator for chunk generation (Arc for sharing with worker).
-    vanilla_generator: Option<Arc<crate::world::generator::VanillaGenerator>>,
+    /// Generator pipeline for the configured world generator (shared with the pool).
+    pipeline: Arc<ChunkPipeline>,
     /// Chunks that need viewers added once their entity is fully spawned/ready.
     pub pending_viewers: HashMap<(i32, i32), Vec<Entity>>,
     /// Track pending async generation requests (chunk coords -> waiting viewers).
     pub pending_generation: HashMap<(i32, i32), Vec<Entity>>,
-    /// Async chunk generation worker (only for vanilla generation).
+    /// Generation pool (only for generators that are too expensive to run inline).
     generation_worker: Option<ChunkGenerationWorker>,
 }
 
 impl ChunkManager {
     /// Create a new chunk manager with the given world configuration.
+    ///
+    /// Generators that use the generation pool must be created inside a tokio runtime.
     pub fn new(world_config: WorldConfig) -> Self {
-        // Pre-create VanillaGenerator if using vanilla world type (Arc for sharing)
-        let vanilla_generator = match &world_config.generator {
-            WorldGenerator::Vanilla { seed } => Some(Arc::new(
-                crate::world::generator::VanillaGenerator::new(*seed),
-            )),
-            _ => None,
-        };
-
-        // Create async generation worker for vanilla generation
-        let generation_worker = vanilla_generator
-            .as_ref()
-            .map(|generator| ChunkGenerationWorker::spawn(generator.clone()));
+        let pipeline = Arc::new(ChunkPipeline::new(world_config.generator.build()));
+        let generation_worker = world_config.generator.uses_generation_pool().then(|| {
+            ChunkGenerationWorker::spawn(
+                pipeline.clone(),
+                generation_threads(world_config.generation_threads),
+            )
+        });
 
         Self {
             chunks: HashMap::new(),
             world_config,
             provider: None,
-            vanilla_generator,
+            pipeline,
             pending_viewers: HashMap::new(),
             pending_generation: HashMap::new(),
             generation_worker,
         }
+    }
+
+    /// The generator pipeline of this world.
+    pub fn pipeline(&self) -> &Arc<ChunkPipeline> {
+        &self.pipeline
     }
 
     /// Set the world provider for chunk loading.
@@ -141,54 +144,16 @@ impl ChunkManager {
     /// Generate a new chunk at the given position.
     /// This creates the chunk data but doesn't spawn an ECS entity.
     pub fn generate_chunk(&self, x: i32, z: i32) -> Chunk {
-        use crate::world::WorldGenerator;
-        use crate::world::chunk::blocks::STONE;
-
         let pos = ChunkPos::new(x, z);
-        let mut chunk = Chunk::new(x, z);
-
         if !self.world_config.bounds.contains(pos) {
             tracing::warn!(
                 chunk = ?(x, z),
                 bounds = ?self.world_config.bounds,
                 "Chunk outside world bounds - returning empty"
             );
-            return chunk; // Empty chunk
+            return Chunk::new(x, z);
         }
-
-        match self.world_config.generator {
-            WorldGenerator::SuperFlat => {
-                // Standard Minecraft superflat: bedrock, 2 dirt, 1 grass
-                // Y=0: Bedrock, Y=1-2: Dirt, Y=3: Grass
-                // Fill in reverse order so higher layers don't overwrite lower ones
-                use crate::world::chunk::blocks::{BEDROCK, DIRT, GRASS_BLOCK};
-                // First fill with grass (will be at Y=3 when done)
-                chunk.fill_floor(4, *GRASS_BLOCK); // Y=0-3: all grass initially
-                // Then overwrite Y=0-2 with dirt
-                chunk.fill_floor(3, *DIRT); // Y=0-2: now dirt
-                // Finally overwrite Y=0 with bedrock
-                chunk.fill_floor(1, *BEDROCK); // Y=0: now bedrock
-            }
-            WorldGenerator::VoidSpawnPlatform {
-                platform_radius_chunks,
-            } => {
-                if x.unsigned_abs() <= platform_radius_chunks
-                    && z.unsigned_abs() <= platform_radius_chunks
-                {
-                    chunk.fill_subchunk_solid(4, *STONE);
-                }
-            }
-            WorldGenerator::Vanilla { .. } => {
-                // Use cached VanillaGenerator for terrain generation
-                if let Some(ref genr) = self.vanilla_generator {
-                    chunk = genr.generate_chunk(x, z);
-                    chunk.x = x;
-                    chunk.z = z;
-                }
-            }
-        }
-
-        chunk
+        self.pipeline.generate(pos)
     }
 
     /// Load or generate a chunk at the given position.

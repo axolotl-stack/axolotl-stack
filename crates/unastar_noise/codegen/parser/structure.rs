@@ -629,7 +629,10 @@ fn read_dir_json<T: DeserializeOwned>(
 }
 
 /// Parse every structure registry under `worldgen_root`.
-pub fn parse_all(worldgen_root: &Path) -> Result<StructureData, Box<dyn std::error::Error>> {
+pub fn parse_all(
+    worldgen_root: &Path,
+    java_data: &Path,
+) -> Result<StructureData, Box<dyn std::error::Error>> {
     // serde ignores `deny_unknown_fields` on structs that `flatten` the common
     // settings, so every structure file's keys are checked against the fields
     // its type accepts.
@@ -669,7 +672,7 @@ pub fn parse_all(worldgen_root: &Path) -> Result<StructureData, Box<dyn std::err
         }
     }
     let tags: BTreeMap<String, TagFile> =
-        read_dir_json(&worldgen_root.join("tags/worldgen/biome"))?;
+        read_dir_json(&java_data.join("tags/worldgen/biome"))?;
     Ok(StructureData {
         sets: read_dir_json(&worldgen_root.join("structure_set"))?,
         structures,

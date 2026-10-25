@@ -26,6 +26,7 @@ bevy_tasks.workspace = true
 async-trait.workspace = true
 bleveldb.workspace = true
 serde_json.workspace = true
+sha2.workspace = true
 anyhow = "1.0"
 
 # BlazeDB dependencies
@@ -43,8 +44,4 @@ wasmtime-wasi = "41.0"
 bitflags = "2.6"
 
 [dev-dependencies]
-criterion = { version = "0.5", features = ["html_reports"] }
-
-[[bench]]
-name = "world_generation"
-harness = false
+flate2.workspace = true

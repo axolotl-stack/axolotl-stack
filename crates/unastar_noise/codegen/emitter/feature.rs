@@ -2103,23 +2103,29 @@ fn sort_features(biome_lists: &[&Vec<Vec<String>>]) -> Result<Vec<Vec<String>>> 
     Ok(steps)
 }
 
-/// Biome order of a multi-noise parameter list report (first appearance).
+/// Biome order of a multi-noise parameter list (first appearance): either the
+/// data generator report (`biomes: [{biome, parameters}]`) or the compact
+/// `java_data` form whose `biomes` is already that ordered list.
 fn parameter_list_order(path: &Path) -> Result<Vec<String>> {
     #[derive(serde::Deserialize)]
     struct Report {
-        biomes: Vec<Entry>,
-    }
-    #[derive(serde::Deserialize)]
-    struct Entry {
-        biome: String,
+        biomes: Vec<serde_json::Value>,
     }
     let r: Report = serde_json::from_str(&std::fs::read_to_string(path)?)
         .map_err(|e| format!("{}: {e}", path.display()))?;
     let mut seen = BTreeSet::new();
     let mut out = Vec::new();
     for e in r.biomes {
-        if seen.insert(e.biome.clone()) {
-            out.push(e.biome);
+        let name = match &e {
+            serde_json::Value::String(s) => s.clone(),
+            other => other
+                .get("biome")
+                .and_then(|b| b.as_str())
+                .ok_or_else(|| format!("{}: bad biome entry {other}", path.display()))?
+                .to_string(),
+        };
+        if seen.insert(name.clone()) {
+            out.push(name);
         }
     }
     Ok(out)
@@ -2128,7 +2134,7 @@ fn parameter_list_order(path: &Path) -> Result<Vec<String>> {
 /// Emit `features.rs` into `out_dir`.
 pub fn emit_features(
     out_dir: &Path,
-    worldgen_root: &Path,
+    java_data: &Path,
     biomes: &HashMap<String, BiomeJson>,
     data: &FeatureData,
     blocks: &mut JavaBlocks,
@@ -2223,8 +2229,8 @@ pub fn emit_features(
     }
 
     // Per-dimension step order and per-biome step membership.
-    let overworld = parameter_list_order(&worldgen_root.join("biome_parameters/overworld.json"))?;
-    let nether = parameter_list_order(&worldgen_root.join("biome_parameters/nether.json"))?;
+    let overworld = parameter_list_order(&java_data.join("biome_parameters_overworld.json"))?;
+    let nether = parameter_list_order(&java_data.join("biome_parameters_nether.json"))?;
     let end: Vec<String> = END_BIOMES.iter().map(|s| s.to_string()).collect();
     let mut dims = Vec::new();
     for (dim_name, order) in [

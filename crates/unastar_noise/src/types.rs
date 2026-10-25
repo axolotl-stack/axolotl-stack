@@ -100,7 +100,7 @@ pub trait NoiseSource {
 /// * `_block_x` - Block X coordinate (for debugging)
 /// * `_block_z` - Block Z coordinate (for debugging)
 /// * `lower_bound` - Minimum Y to search (inclusive)
-/// * `upper_bound` - Maximum Y to search (inclusive)
+/// * `upper_bound` - Upper bound of the search (density function value)
 /// * `cell_height` - Y step size for the search (typically 8)
 /// * `density_fn` - Function that computes density at a given Y level
 ///
@@ -111,18 +111,16 @@ pub fn find_top_surface<F>(
     _block_x: i32,
     _block_z: i32,
     lower_bound: i32,
-    upper_bound: i32,
+    upper_bound: f64,
     cell_height: i32,
     mut density_fn: F,
 ) -> f64
 where
     F: FnMut(i32) -> f64,
 {
-    // Java: Mth.floor(upperBound / cellHeight) * cellHeight
-    // Round upper_bound down to nearest multiple of cell_height
-    let mut y = (upper_bound / cell_height) * cell_height;
+    // Round the upper bound down to a multiple of the cell height (floor, also for negatives).
+    let mut y = (upper_bound / cell_height as f64).floor() as i32 * cell_height;
 
-    // Java: if (i <= this.lowerBound) return this.lowerBound
     if y <= lower_bound {
         return lower_bound as f64;
     }
@@ -141,4 +139,16 @@ where
 
     // No surface found in range, return lower bound
     lower_bound as f64
+}
+
+#[cfg(test)]
+mod tests {
+    use super::find_top_surface;
+
+    #[test]
+    fn negative_upper_bound_rounds_down_to_the_cell_below() {
+        // floor(-3.5 / 8) * 8 = -8; truncating toward zero would start at 0.
+        let top = find_top_surface(0, 0, -64, -3.5, 8, |_| 1.0);
+        assert_eq!(top, -8.0);
+    }
 }

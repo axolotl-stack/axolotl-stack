@@ -1,11 +1,21 @@
-//! Java block model for code generation: the pinned block table
-//! (`java_data/blocks.json`), block tags (`worldgen_data/tags/block`), state id
-//! resolution and block-set interning, plus the emitter for the generated
-//! `java_blocks.rs` module.
+//! Java block model for code generation: the pinned block registry
+//! (`java_data/blocks.json`, shared with the terrain toolchain), block types
+//! (`java_data/block_kinds.json`), collision shapes (`java_data/collisions.json`),
+//! block tags (`java_data/tags/block`), state id resolution and block-set
+//! interning, plus the emitter for the generated `java_registry.rs` module
+//! (`features::java_blocks`).
 //!
 //! Every block state referenced by feature or structure data is resolved here
 //! to its global Java state id; an unknown block, property or value fails the
 //! build.
+//!
+//! Per-state flags are derived from the collision boxes:
+//! - bit 0: Java "legacy solid": non-empty shape whose bounds have an average
+//!   edge >= 0.7291666 or a full height (signs, banners and pressure plates
+//!   force it on);
+//! - bits 1..=6: full-face collision in `Direction` order (down, up, north,
+//!   south, west, east), for `has_sturdy_face`;
+//! - bit 7: full-cube collision.
 
 use proc_macro2::{Literal, TokenStream};
 use quote::{format_ident, quote};
@@ -16,24 +26,81 @@ use std::path::Path;
 #[derive(Debug, Deserialize)]
 struct BlocksFile {
     blocks: Vec<BlockJson>,
-    state_count: usize,
 }
 
 #[derive(Debug, Deserialize)]
 struct BlockJson {
     name: String,
-    #[serde(rename = "type")]
-    kind: String,
-    props: Vec<(String, Vec<String>)>,
-    default: usize,
-    flags: FlagsJson,
+    first_id: usize,
+    default_id: usize,
+    properties: Vec<(String, Vec<String>)>,
 }
 
 #[derive(Debug, Deserialize)]
-#[serde(untagged)]
-enum FlagsJson {
-    Uniform(u8),
-    PerState(Vec<u8>),
+struct CollisionsFile {
+    shapes: Vec<Vec<[f64; 6]>>,
+    indices: Vec<usize>,
+}
+
+/// Blocks whose block properties force `isSolid()` on regardless of shape.
+const FORCE_SOLID_ON_SUFFIXES: &[&str] = &["_sign", "_banner", "_pressure_plate"];
+
+const EPS: f64 = 1e-7;
+
+/// Whether the union of `boxes` covers one unit face (1/64 grid of cell
+/// centres; exact for vanilla's 1/16-step shapes).
+fn face_full(boxes: &[[f64; 6]], axis: usize, at_max: bool) -> bool {
+    let (u, v) = match axis {
+        0 => (1, 2),
+        1 => (0, 2),
+        _ => (0, 1),
+    };
+    let plane = if at_max { 1.0 } else { 0.0 };
+    let n = 64;
+    (0..n).all(|i| {
+        (0..n).all(|j| {
+            let pu = (i as f64 + 0.5) / n as f64;
+            let pv = (j as f64 + 0.5) / n as f64;
+            boxes.iter().any(|bx| {
+                let touches = if at_max {
+                    (bx[axis + 3] - plane).abs() < EPS
+                } else {
+                    (bx[axis] - plane).abs() < EPS
+                };
+                touches && bx[u] <= pu && pu <= bx[u + 3] && bx[v] <= pv && pv <= bx[v + 3]
+            })
+        })
+    })
+}
+
+fn shape_flags(boxes: &[[f64; 6]]) -> u8 {
+    let mut f = 0u8;
+    if !boxes.is_empty() {
+        let mut b = [f64::MAX, f64::MAX, f64::MAX, f64::MIN, f64::MIN, f64::MIN];
+        for bx in boxes {
+            for i in 0..3 {
+                b[i] = b[i].min(bx[i]);
+                b[i + 3] = b[i + 3].max(bx[i + 3]);
+            }
+        }
+        let (dx, dy, dz) = (b[3] - b[0], b[4] - b[1], b[5] - b[2]);
+        if (dx + dy + dz) / 3.0 >= 0.7291666666666666 || dy >= 1.0 {
+            f |= 1;
+        }
+        let faces = [(1, false), (1, true), (2, false), (2, true), (0, false), (0, true)];
+        for (i, (axis, max)) in faces.into_iter().enumerate() {
+            if face_full(boxes, axis, max) {
+                f |= 1 << (i + 1);
+            }
+        }
+        if boxes
+            .iter()
+            .any(|bx| bx.iter().zip([0.0, 0.0, 0.0, 1.0, 1.0, 1.0]).all(|(a, e)| (a - e).abs() < EPS))
+        {
+            f |= 1 << 7;
+        }
+    }
+    f
 }
 
 /// One Java block.
@@ -86,39 +153,63 @@ enum TagEntry {
 pub type Result<T, E = Box<dyn std::error::Error>> = std::result::Result<T, E>;
 
 impl JavaBlocks {
-    /// Load `blocks.json` and every block tag under `tags_dir`.
-    pub fn load(blocks_json: &Path, tags_dir: &Path) -> Result<Self> {
-        let file: BlocksFile = serde_json::from_str(&std::fs::read_to_string(blocks_json)?)
-            .map_err(|e| format!("{}: {e}", blocks_json.display()))?;
+    /// Load the block registry, block types, collision shapes and block tags
+    /// from `java_data`.
+    pub fn load(java_data: &Path) -> Result<Self> {
+        let read = |name: &str| -> Result<String> {
+            let p = java_data.join(name);
+            std::fs::read_to_string(&p).map_err(|e| format!("{}: {e}", p.display()).into())
+        };
+        let file: BlocksFile =
+            serde_json::from_str(&read("blocks.json")?).map_err(|e| format!("java_data/blocks.json: {e}"))?;
+        let kinds: BTreeMap<String, String> = serde_json::from_str(&read("block_kinds.json")?)
+            .map_err(|e| format!("java_data/block_kinds.json: {e}"))?;
+        let collisions: CollisionsFile = serde_json::from_str(&read("collisions.json")?)
+            .map_err(|e| format!("java_data/collisions.json: {e}"))?;
+        // Shapes are shared by many states: classify each once.
+        let shape_bits: Vec<u8> = collisions.shapes.iter().map(|boxes| shape_flags(boxes)).collect();
         let mut blocks = Vec::with_capacity(file.blocks.len());
         let mut by_name = HashMap::new();
         let mut first = 0;
         for b in file.blocks {
-            let count: usize = b.props.iter().map(|(_, v)| v.len()).product();
-            let flags = match b.flags {
-                FlagsJson::Uniform(f) => vec![f; count],
-                FlagsJson::PerState(v) => {
-                    if v.len() != count {
-                        return Err(format!("{}: flag count mismatch", b.name).into());
-                    }
-                    v
-                }
-            };
+            let count: usize = b.properties.iter().map(|(_, v)| v.len()).product();
+            if b.first_id != first {
+                return Err(format!("{}: state ids are not contiguous", b.name).into());
+            }
+            let kind = kinds
+                .get(&b.name)
+                .ok_or_else(|| format!("java_data/block_kinds.json has no type for {}", b.name))?
+                .clone();
+            let short = b.name.trim_start_matches("minecraft:");
+            let force_solid = FORCE_SOLID_ON_SUFFIXES.iter().any(|s| short.ends_with(s));
+            let flags = (first..first + count)
+                .map(|s| {
+                    let shape = *collisions
+                        .indices
+                        .get(s)
+                        .ok_or_else(|| format!("collisions.json has no shape for state {s}"))?;
+                    let bits = *shape_bits
+                        .get(shape)
+                        .ok_or_else(|| format!("collisions.json: bad shape index {shape}"))?;
+                    Ok(if force_solid { bits | 1 } else { bits })
+                })
+                .collect::<Result<Vec<u8>>>()?;
             by_name.insert(b.name.clone(), blocks.len());
             blocks.push(Block {
                 name: b.name,
-                kind: b.kind,
-                props: b.props,
+                kind,
+                props: b.properties,
                 first_state: first,
                 state_count: count,
-                default_offset: b.default,
+                default_offset: b.default_id - first,
                 flags,
             });
             first += count;
         }
-        if first != file.state_count {
-            return Err("java block table state count mismatch".into());
+        if first != collisions.indices.len() {
+            return Err("java_data block and collision tables disagree on the state count".into());
         }
+        let tags_dir = &java_data.join("tags/block");
 
         // Raw tag files.
         let mut raw: BTreeMap<String, Vec<TagEntry>> = BTreeMap::new();
@@ -413,7 +504,7 @@ impl JavaBlocks {
                 #(#tag_consts)*
             }
         };
-        write_pretty(&out_dir.join("java_blocks.rs"), tokens)
+        write_pretty(&out_dir.join("java_registry.rs"), tokens)
     }
 }
 

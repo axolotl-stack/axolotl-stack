@@ -5280,7 +5280,7 @@ dependencies = [
  "bleveldb",
  "bytes",
  "crc32fast",
- "criterion",
+ "flate2",
  "glam 0.30.9",
  "jolyne",
  "lru",
@@ -5290,6 +5290,7 @@ dependencies = [
  "rand 0.8.5",
  "serde",
  "serde_json",
+ "sha2 0.10.9",
  "thiserror 2.0.21",
  "tokio",
  "tokio-raknet",
@@ -5376,6 +5377,7 @@ name = "unastar_noise"
 version = "0.1.0"
 dependencies = [
  "flate2",
+ "md-5",
  "prettyplease",
  "proc-macro2",
  "quote",

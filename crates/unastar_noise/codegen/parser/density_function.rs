@@ -143,15 +143,10 @@ pub enum DensityFunctionDef {
 
     #[serde(rename = "minecraft:old_blended_noise")]
     OldBlendedNoise {
-        #[allow(dead_code)]
         xz_scale: f64,
-        #[allow(dead_code)]
         y_scale: f64,
-        #[allow(dead_code)]
         xz_factor: f64,
-        #[allow(dead_code)]
         y_factor: f64,
-        #[allow(dead_code)]
         smear_scale_multiplier: f64,
     },
 
