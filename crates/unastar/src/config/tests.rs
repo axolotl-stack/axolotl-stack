@@ -160,6 +160,7 @@ fn strict_world_variants_still_load_valid_options() {
                 platform_radius_chunks: 2,
             },
             WorldGenerator::Java { seed: 42 },
+            WorldGenerator::Bedrock { seed: 42 },
         ] {
             let world = WorldConfig {
                 bounds,
@@ -171,4 +172,15 @@ fn strict_world_variants_still_load_valid_options() {
             assert_eq!(decoded, world);
         }
     }
+}
+
+#[test]
+fn bedrock_config_requires_the_build_time_pack_feature() {
+    let mut config = UnastarConfig::default();
+    assert!(config.validate().is_ok());
+    config.world.generator = crate::world::WorldGenerator::Bedrock { seed: 12345 };
+    assert_eq!(
+        config.validate().is_ok(),
+        cfg!(feature = "bedrock-worldgen")
+    );
 }

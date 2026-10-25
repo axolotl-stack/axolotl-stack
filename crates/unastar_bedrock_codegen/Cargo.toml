@@ -1,0 +1,22 @@
+[package]
+name = "unastar_bedrock_codegen"
+version = "0.1.0"
+edition.workspace = true
+license.workspace = true
+description = "Build-time ingestion of BDS worldgen data and AOT Rust emission for unastar's Bedrock-style generator"
+publish = false
+
+[dependencies]
+unastar-packs = { path = "../unastar-packs" }
+unastar-rules = { path = "../unastar-rules" }
+serde = { workspace = true }
+serde_json = { workspace = true }
+quote = { workspace = true }
+proc-macro2 = { workspace = true }
+syn = { workspace = true }
+prettyplease = { workspace = true }
+thiserror = { workspace = true }
+flate2 = "1"
+
+[dev-dependencies]
+tempfile = "3"

@@ -205,3 +205,54 @@ world providers, stored-column preservation through asynchronous loading and
 the save cycle, player disconnect/reconnect, corrupt player data, storage errors,
 and out-of-range block heights. On Windows, set
 `VCPKG_ROOT=C:\Users\jvigu\vcpkg` before building the LevelDB dependency.
+
+## Bedrock-style generator
+
+The Bedrock-style world generator targeting BDS 1.26.51 lives in
+`src/world/generator/bedrock/` behind the `bedrock-worldgen` cargo feature (off by
+default). Its feature rules, features and biome surface parameters are compiled at build
+time from the vanilla packs of a local BDS install by `unastar_bedrock_codegen`; the packs
+are under the Minecraft EULA and are never committed.
+
+```sh
+UNASTAR_BDS_DIR=/path/to/bds/server cargo build -p unastar --features bedrock-worldgen
+```
+
+`UNASTAR_BDS_DIR` names the BDS server directory (the one containing `bedrock_server`,
+`definitions/` and `behavior_packs/vanilla*`); the build fails with a message naming the
+variable when it is unset. The protocolgen submodule must be initialised for block ids.
+
+Select it explicitly:
+
+```toml
+[world.generator]
+kind = "bedrock"
+seed = 12345
+```
+
+Startup rejects this configuration if `bedrock-worldgen` was not compiled in.
+Both editions use the same `Generator`/`ChunkPipeline`, bounded generation pool
+and deterministic 3x3 decoration assembly. Bedrock's proto stage uses shared
+noise/aquifers/veins, maps quart biomes to native Bedrock IDs, applies BDS-data
+surface builders and cave subsurface ranges, then runs compiled carver rules.
+Decoration places data-driven structure sets before feature passes. Height
+oracles use two bounded 128-entry single-flight caches of column heights.
+
+`cargo run -p unastar --features bedrock-worldgen --example worldgen_parity_report -- --kind bedrock`
+prints metrics against the BDS fixture. `worldgen_bench --kind bedrock` reports
+the same single-threaded workload as the Java generator, including allocations.
+
+Runtime pieces: `world` (block access trait and decoration context), `rng` (Bedrock's
+MT19937), `scatter` (rule/scatter distributions), `features` (JSON feature type
+algorithms), `builtin` (BDS built-in features registered under their identifiers),
+`surface` (Bedrock surface builders), `adapter` and `decorate` (shared 3x3 region and driver with
+per-chunk seeding). **BDS parity is not established**, including statistical
+decoration parity. The codegen crate's [measurement ledger](../unastar_bedrock_codegen/README.md)
+lists the unmeasured algorithms and required reference controls.
+
+The shared `JavaGenerator` exposes `generate_noise_proto` and its dense equivalent
+`generate_noise_blocks`: density, aquifers, ore veins and quart biomes before
+edition-specific surface/carver passes. `sample_biome` samples an absolute block
+position using the same seeded noise registry; `noise_heightmap` is a chunk-level
+motion-blocking height oracle before surface/carvers. Callers cache oracle
+results per placement run rather than regenerate a chunk for every queried column.

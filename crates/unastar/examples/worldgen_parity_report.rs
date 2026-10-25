@@ -1,6 +1,6 @@
-//! Print parity metrics of the Java-style generator against the reference fixtures.
+//! Print parity metrics against the edition's reference fixtures.
 //!
-//! `cargo run -p unastar --example worldgen_parity_report [-- <fixture.json>...]`
+//! `cargo run -p unastar --example worldgen_parity_report -- [--kind java|bedrock] [fixture.json...]`
 //! (from the repo root; defaults to the BDS and Java seed-12345 fixtures). The same
 //! metrics are ratcheted by `tests/worldgen_parity.rs`.
 
@@ -8,7 +8,7 @@ use std::path::PathBuf;
 use std::sync::Arc;
 
 use unastar::world::generator::parity::{Fixture, ProtoFixture, measure, measure_proto};
-use unastar::world::generator::{ChunkPipeline, JavaGenerator};
+use unastar::world::generator::{ChunkPipeline, Generator, JavaGenerator};
 
 const DEFAULT_FIXTURES: [&str; 3] = [
     "crates/unastar/tests/fixtures/bds_1_26_51_seed_12345.json",
@@ -27,19 +27,35 @@ fn main() {
 }
 
 fn run() {
-    let args: Vec<PathBuf> = std::env::args().skip(1).map(PathBuf::from).collect();
-    let paths: Vec<PathBuf> = if args.is_empty() {
-        DEFAULT_FIXTURES.iter().map(PathBuf::from).collect()
-    } else {
-        args
-    };
+    let mut args = std::env::args().skip(1);
+    let mut kind = String::from("java");
+    let mut paths = Vec::new();
+    while let Some(arg) = args.next() {
+        if arg == "--kind" {
+            kind = args.next().expect("--kind needs java or bedrock");
+        } else {
+            paths.push(PathBuf::from(arg));
+        }
+    }
+    if paths.is_empty() {
+        paths.extend(
+            DEFAULT_FIXTURES
+                .iter()
+                .filter(|path| kind != "bedrock" || path.contains("bds_"))
+                .map(PathBuf::from),
+        );
+    }
     for path in paths {
         if path.to_string_lossy().ends_with("_proto.json") {
+            assert_eq!(
+                kind, "java",
+                "proto fixtures describe the Java pre-decoration stage"
+            );
             report_proto(&path);
             continue;
         }
         let fixture = Fixture::load(&path).unwrap_or_else(|e| panic!("{e}"));
-        let pipeline = ChunkPipeline::new(Arc::new(JavaGenerator::new(fixture.seed)));
+        let pipeline = ChunkPipeline::new(generator(&kind, fixture.seed));
         let started = std::time::Instant::now();
         let report = measure(&fixture, &pipeline);
         let m = report.metrics;
@@ -83,6 +99,21 @@ fn run() {
             println!("  {name}: {r} {g}");
         }
         println!();
+    }
+}
+
+fn generator(kind: &str, seed: i64) -> Arc<dyn Generator> {
+    match kind {
+        "java" => Arc::new(JavaGenerator::new(seed)),
+        #[cfg(feature = "bedrock-worldgen")]
+        "bedrock" => Arc::new(unastar::world::generator::bedrock::BedrockGenerator::new(
+            seed,
+        )),
+        #[cfg(not(feature = "bedrock-worldgen"))]
+        "bedrock" => {
+            panic!("--kind bedrock requires --features bedrock-worldgen and UNASTAR_BDS_DIR")
+        }
+        other => panic!("unknown --kind {other} (java, bedrock)"),
     }
 }
 

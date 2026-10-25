@@ -21,6 +21,7 @@ members = [
     "crates/bds-extractor",
     "crates/client-diff",
     "crates/bench-compare",
+    "crates/unastar_bedrock_codegen",
 ]
 
 [workspace.package]

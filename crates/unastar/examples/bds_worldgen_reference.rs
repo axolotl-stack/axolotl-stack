@@ -8,6 +8,10 @@
 //! 2. Force generation from the server console with preloaded ticking areas,
 //!    e.g. `tickingarea add -64 0 -64 63 0 63 origin true`, wait, then `stop`.
 //! 3. `cargo run -p unastar --example bds_worldgen_reference -- <world dir> <out.json> <x0:z0:x1:z1>...`
+//!    Add `--geology` before the world directory to export per-y block counts
+//!    from -64 through 16 instead, for measuring base-layer transitions.
+//!    Stop BDS first. The dumper opens a temporary snapshot because LevelDB
+//!    can compact logs even when the caller only reads.
 //!
 //! The fixture stores, per chunk column, the surface height (highest non-air
 //! block), the terrain height (highest block produced by noise, surface rules
@@ -24,13 +28,34 @@ const MIN_Y: i32 = -64;
 const SUBCHUNKS: i32 = 24;
 
 fn main() {
-    let args: Vec<String> = std::env::args().collect();
+    let mut args: Vec<String> = std::env::args().collect();
+    let geology = args.get(1).is_some_and(|arg| arg == "--geology");
+    let markers = args.get(1).is_some_and(|arg| arg == "--markers");
+    let features = args.get(1).is_some_and(|arg| arg == "--features");
+    if geology || markers || features {
+        args.remove(1);
+    }
     if args.len() < 4 {
-        eprintln!("usage: bds_worldgen_reference <world dir> <out.json> <x0:z0:x1:z1>...");
+        eprintln!(
+            "usage: bds_worldgen_reference [--geology|--markers|--features] <world dir> <out.json> <x0:z0:x1:z1>..."
+        );
         std::process::exit(2);
     }
     let world = Path::new(&args[1]);
     let out = Path::new(&args[2]);
+    let controls_field = if markers || features {
+        let source = world
+            .parent()
+            .expect("controlled world parent")
+            .join("controls.json");
+        let metadata: serde_json::Value = serde_json::from_slice(
+            &std::fs::read(&source).expect("read authored controls.json beside world"),
+        )
+        .expect("parse authored controls.json");
+        format!("\"controls\": {metadata},\n")
+    } else {
+        String::new()
+    };
     let mut regions = Vec::new();
     for spec in &args[3..] {
         let v: Vec<i32> = spec
@@ -44,6 +69,14 @@ fn main() {
         );
         regions.push((v[0], v[1], v[2], v[3]));
     }
+    let snapshot = tempfile::Builder::new()
+        .prefix("unastar-bds-reference-")
+        .tempdir()
+        .expect("create reference snapshot");
+    std::fs::copy(world.join("level.dat"), snapshot.path().join("level.dat"))
+        .expect("snapshot level.dat");
+    copy_tree(&world.join("db"), &snapshot.path().join("db")).expect("snapshot BDS database");
+    let world = snapshot.path();
 
     let level = std::fs::read(world.join("level.dat")).expect("read level.dat");
     let level_nbt = Nbt::read_root(&level[8..]);
@@ -66,9 +99,15 @@ fn main() {
         for cx in x0..=x1 {
             for cz in z0..=z1 {
                 match load_column(&db, &read, cx, cz) {
-                    Some(col) => {
-                        chunks_json.push(col.to_json(cx, cz, &mut palette, &mut palette_index))
-                    }
+                    Some(col) => chunks_json.push(if geology {
+                        col.geology_json(cx, cz)
+                    } else if markers {
+                        col.markers_json(cx, cz)
+                    } else if features {
+                        col.feature_samples_json(cx, cz)
+                    } else {
+                        col.to_json(cx, cz, &mut palette, &mut palette_index)
+                    }),
                     None => missing.push((cx, cz)),
                 }
             }
@@ -83,7 +122,7 @@ fn main() {
 
     let palette_json: Vec<String> = palette.iter().map(|n| format!("\"{n}\"")).collect();
     let json = format!(
-        "{{\n\"seed\": {seed},\n\"spawn\": [{}, {}],\n\"palette\": [{}],\n\"chunks\": [\n{}\n]\n}}\n",
+        "{{\n\"seed\": {seed},\n\"spawn\": [{}, {}],\n\"palette\": [{}],\n{controls_field}\"chunks\": [\n{}\n]\n}}\n",
         spawn.0,
         spawn.1,
         palette_json.join(","),
@@ -91,6 +130,20 @@ fn main() {
     );
     std::fs::write(out, json).expect("write fixture");
     println!("wrote {} chunks to {}", chunks_json.len(), out.display());
+}
+
+fn copy_tree(source: &Path, destination: &Path) -> std::io::Result<()> {
+    std::fs::create_dir_all(destination)?;
+    for entry in std::fs::read_dir(source)? {
+        let entry = entry?;
+        let target = destination.join(entry.file_name());
+        if entry.file_type()?.is_dir() {
+            copy_tree(&entry.path(), &target)?;
+        } else {
+            std::fs::copy(entry.path(), target)?;
+        }
+    }
+    Ok(())
 }
 
 /// Decoded BDS chunk column: block names per position plus surface biomes.
@@ -108,6 +161,106 @@ fn idx(x: usize, y: usize, z: usize) -> usize {
 }
 
 impl Column {
+    fn markers_json(&self, cx: i32, cz: i32) -> String {
+        let mut markers = Vec::new();
+        for y in 0..(SUBCHUNKS * 16) as usize {
+            for z in 0..16 {
+                for x in 0..16 {
+                    if let Some(block) = self.blocks[idx(x, y, z)].as_deref()
+                        && matches!(
+                            block,
+                            "minecraft:diamond_block"
+                                | "minecraft:lapis_block"
+                                | "minecraft:gold_block"
+                                | "minecraft:emerald_block"
+                                | "minecraft:redstone_block"
+                                | "minecraft:iron_block"
+                                | "minecraft:copper_block"
+                                | "minecraft:netherite_block"
+                                | "minecraft:purple_concrete"
+                                | "minecraft:orange_concrete"
+                                | "minecraft:yellow_concrete"
+                                | "minecraft:blue_concrete"
+                                | "minecraft:green_concrete"
+                                | "minecraft:pink_concrete"
+                                | "minecraft:red_concrete"
+                                | "minecraft:black_concrete"
+                                | "minecraft:lime_concrete"
+                                | "minecraft:cyan_concrete"
+                                | "minecraft:magenta_concrete"
+                                | "minecraft:light_blue_concrete"
+                                | "minecraft:white_concrete"
+                                | "minecraft:light_gray_concrete"
+                        )
+                    {
+                        markers.push(serde_json::json!({
+                            "x": cx * 16 + x as i32, "y": MIN_Y + y as i32,
+                            "z": cz * 16 + z as i32, "block": block,
+                        }));
+                    }
+                }
+            }
+        }
+        serde_json::json!({ "x": cx, "z": cz, "markers": markers }).to_string()
+    }
+
+    /// Non-background blocks of the authored oak/coal controls at y=192..232.
+    fn feature_samples_json(&self, cx: i32, cz: i32) -> String {
+        let mut samples = Vec::new();
+        for y in 192..=232 {
+            for z in 0..16 {
+                for x in 0..16 {
+                    if let Some(block) = self.blocks[idx(x, (y - MIN_Y) as usize, z)].as_deref()
+                        && !matches!(
+                            block,
+                            "minecraft:air"
+                                | "minecraft:stone"
+                                | "minecraft:dirt"
+                                | "minecraft:grass_block"
+                        )
+                    {
+                        samples.push(serde_json::json!({
+                            "x": cx * 16 + x as i32, "y": y,
+                            "z": cz * 16 + z as i32, "block": block,
+                        }));
+                    }
+                }
+            }
+        }
+        serde_json::json!({ "x": cx, "z": cz, "blocks": samples }).to_string()
+    }
+
+    fn geology_json(&self, cx: i32, cz: i32) -> String {
+        let layers: Vec<_> = (-64..=16)
+            .map(|y| {
+                let mut counts: BTreeMap<&str, u32> = BTreeMap::new();
+                for z in 0..16 {
+                    for x in 0..16 {
+                        let name = self.blocks[idx(x, (y - MIN_Y) as usize, z)]
+                            .as_deref()
+                            .unwrap_or("minecraft:air");
+                        *counts.entry(name).or_default() += 1;
+                    }
+                }
+                serde_json::json!({ "y": y, "counts": counts })
+            })
+            .collect();
+        let bedrock_masks: Vec<u8> = (0..256)
+            .map(|i| {
+                let (x, z) = (i % 16, i / 16);
+                let mut mask = 0;
+                for y in 0..6 {
+                    if self.blocks[idx(x, y, z)].as_deref() == Some("minecraft:bedrock") {
+                        mask |= 1 << y;
+                    }
+                }
+                mask
+            })
+            .collect();
+        serde_json::json!({ "x": cx, "z": cz, "layers": layers, "bedrock_masks": bedrock_masks })
+            .to_string()
+    }
+
     fn to_json(
         &self,
         cx: i32,
