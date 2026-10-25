@@ -241,7 +241,12 @@ impl TemplateBuilder {
     }
 
     fn block_entity(&mut self, tag: &Tag, java_loot: bool) -> Result<()> {
-        let data = block_entity::compile(&self.template.origin, tag)?;
+        let source = if java_loot {
+            block_entity::Source::Java
+        } else {
+            block_entity::Source::Bedrock
+        };
+        let data = block_entity::compile(&self.template.origin, tag, source)?;
         let cell =
             u32::try_from(self.template.cells.len() - 1).expect("template cell count fits u32");
         self.template.block_entities.push(TemplateBlockEntity {

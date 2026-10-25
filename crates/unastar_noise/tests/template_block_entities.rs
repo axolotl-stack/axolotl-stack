@@ -33,7 +33,8 @@ fn lifts_loot_without_duplicate_keys_and_preserves_unknown_network_fields() {
             Tag::Compound(BTreeMap::from([("d".into(), Tag::Int(-3))])),
         ),
     ]);
-    let compiled = block_entity::compile("barrel.nbt", &source).unwrap();
+    let compiled =
+        block_entity::compile("barrel.nbt", &source, block_entity::Source::Java).unwrap();
     assert_eq!(compiled.id, "Barrel");
     assert_eq!(
         compiled.loot,
@@ -75,7 +76,8 @@ fn lifts_spawner_identity_without_discarding_spawn_metadata() {
             Tag::List(vec![compound([("weight", Tag::Int(2))])]),
         ),
     ]);
-    let compiled = block_entity::compile("spawner.nbt", &source).unwrap();
+    let compiled =
+        block_entity::compile("spawner.nbt", &source, block_entity::Source::Java).unwrap();
     assert_eq!(compiled.id, "MobSpawner");
     assert_eq!(compiled.spawner_entity.as_deref(), Some("minecraft:spider"));
     let expected = BTreeMap::from([
@@ -130,7 +132,7 @@ fn unknown_actor_and_malformed_lifted_fields_fail_clearly() {
         ),
     ];
     for (source, message) in invalid {
-        let error = block_entity::compile("invalid.nbt", &source)
+        let error = block_entity::compile("invalid.nbt", &source, block_entity::Source::Java)
             .expect_err("must reject invalid conversion")
             .to_string();
         assert!(error.contains(message), "{error}");
@@ -143,23 +145,4 @@ fn unknown_actor_and_malformed_lifted_fields_fail_clearly() {
             .to_string()
             .contains("trailing bytes")
     );
-}
-
-#[test]
-fn native_actor_loot_paths_are_not_rewritten_by_the_compiler() {
-    let source = compound([
-        ("id", Tag::String("Chest".into())),
-        (
-            "LootTable",
-            Tag::String("loot_tables/chests/simple_dungeon.json".into()),
-        ),
-        ("LootTableSeed", Tag::Long(123)),
-    ]);
-    let compiled = block_entity::compile("native.mcstructure", &source).unwrap();
-    assert_eq!(compiled.id, "Chest");
-    assert_eq!(
-        compiled.loot,
-        Some(("loot_tables/chests/simple_dungeon.json".into(), 123))
-    );
-    assert!(compiled.fields.is_empty());
 }

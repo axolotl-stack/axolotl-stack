@@ -66,17 +66,31 @@ async fn rotated_bedrock_chest_and_spawner_survive_region_replay_and_provider_re
             .unwrap();
         [[chest; 4], [spawner; 4]]
     });
-    let template = Template {
-        size: [3, 2, 2],
-        palette: &*PALETTE,
-        cells: &[0, 0, 0, 0, 0, 2, 1, 1, 1, 0],
-        connectors: &[],
-        block_entities: &[
+    static CHEST_FIELDS: std::sync::LazyLock<Vec<u8>> = std::sync::LazyLock::new(|| {
+        use unastar_packs::{
+            block_entity::{self, Source},
+            nbt::Tag,
+        };
+        let source = Tag::Compound(BTreeMap::from([
+            ("id".into(), Tag::String("Chest".into())),
+            ("CustomName".into(), Tag::String("cache".into())),
+            (
+                "LootTable".into(),
+                Tag::String("loot_tables/chests/simple_dungeon.json".into()),
+            ),
+            ("LootTableSeed".into(), Tag::Int(-314159)),
+        ]));
+        block_entity::compile("authored-native-template", &source, Source::Bedrock)
+            .unwrap()
+            .fields
+    });
+    static ACTORS: std::sync::LazyLock<[TemplateBlockEntity; 2]> = std::sync::LazyLock::new(|| {
+        [
             TemplateBlockEntity {
                 cell: 0,
                 id: "Chest",
-                fields: b"\x08\x0aCustomName\x05cache",
-                loot: Some(("loot_tables/chests/simple_dungeon.json", -314159)),
+                fields: &CHEST_FIELDS,
+                loot: None,
                 java_loot: false,
                 spawner_entity: None,
             },
@@ -88,7 +102,14 @@ async fn rotated_bedrock_chest_and_spawner_survive_region_replay_and_provider_re
                 java_loot: false,
                 spawner_entity: Some("minecraft:zombie"),
             },
-        ],
+        ]
+    });
+    let template = Template {
+        size: [3, 2, 2],
+        palette: &*PALETTE,
+        cells: &[0, 0, 0, 0, 0, 2, 1, 1, 1, 0],
+        connectors: &[],
+        block_entities: &*ACTORS,
     };
     let mut rng = BedrockRandom::new(9234);
     let mut expected_rng = rng.clone();
@@ -123,7 +144,7 @@ async fn rotated_bedrock_chest_and_spawner_survive_region_replay_and_provider_re
                     "LootTable",
                     string("loot_tables/chests/simple_dungeon.json"),
                 ),
-                ("LootTableSeed", NBTTag::Long((-314159).into())),
+                ("LootTableSeed", NBTTag::Int((-314159).into())),
             ]),
         ),
         (
