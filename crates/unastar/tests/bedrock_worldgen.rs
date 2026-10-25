@@ -73,22 +73,26 @@ fn bedrock_style_vs_bds_reference_ratchets() {
             );
             let m = measure(&fixture, &pipeline).metrics;
             println!("Bedrock BDS seed12345: {m:#?}");
+            // Authorized measured-correctness exception, 2026-10-25:
+            // reverting only four disproven scatter/query assumptions exactly
+            // recovers the old metrics. Preserve the controlled BDS behavior;
+            // see unastar_bedrock_codegen/README.md's complete ablation table.
             for (name, value, floor) in [
-                ("terrain_exact", m.terrain_exact, 0.8431),
-                ("terrain_within_2", m.terrain_within_2, 0.8824),
-                ("surface_exact", m.surface_exact, 0.8532),
-                ("surface_block", m.surface_block, 0.8023),
+                ("terrain_exact", m.terrain_exact, 0.8354),
+                ("terrain_within_2", m.terrain_within_2, 0.8819),
+                ("surface_exact", m.surface_exact, 0.8574),
+                ("surface_block", m.surface_block, 0.8057),
                 ("surface_biome", m.surface_biome, 0.9950),
             ] {
                 assert!(value >= floor, "{name} {value:.6} fell below {floor:.6}");
             }
             assert!(
-                m.terrain_mean_abs_error <= 1.9172,
+                m.terrain_mean_abs_error <= 1.9358,
                 "terrain error rose: {}",
                 m.terrain_mean_abs_error
             );
             assert!(
-                m.histogram_l1 <= 0.0741,
+                m.histogram_l1 <= 0.0727,
                 "histogram error rose: {}",
                 m.histogram_l1
             );

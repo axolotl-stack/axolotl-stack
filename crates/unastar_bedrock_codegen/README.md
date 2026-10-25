@@ -75,21 +75,45 @@ performance benchmark.
 
 ## Measured baseline (2026-10-25)
 
-Runtime `7bbf024` / lint `4aa93c1`, shared core `6d8a964`, local BDS 26.51
-inputs. The 68-chunk seed-12345 BDS fixture contains 17,408 columns.
+Merged runtime `7677b34c`, local BDS 26.51 inputs. The unchanged 68-chunk
+seed-12345 BDS fixture contains 17,408 columns.
 `cargo test -p unastar --features bedrock-worldgen --test bedrock_worldgen`
 ratchets these measurements; it also checks request-order independence and
 the observed foundation-layer boundaries.
 
-| Parity metric | Measured value |
-|---|---:|
-| Terrain height exact | 84.3118% |
-| Terrain height within 2 blocks | 88.2410% |
-| Terrain mean absolute error | 1.9171 blocks |
-| Surface height exact | 85.3228% |
-| Surface block match | 80.2332% |
-| Surface biome match | 99.5060% |
-| Histogram L1 | 0.074099 |
+### Controlled-correction ratchet exception
+
+On the same merged source, temporarily reverting only four disproven
+scatter/query assumptions exactly reproduces the previous baseline. Restoring
+the BDS-proven behavior changes the aggregate measurements as follows:
+
+| Parity metric | Old-behavior ablation | BDS-corrected |
+|---|---:|---:|
+| Terrain height exact | 0.8431181066176471 | 0.8354204963235294 |
+| Terrain height within 2 blocks | 0.8824103860294118 | 0.8819508272058824 |
+| Terrain mean absolute error (blocks) | 1.9171070772058822 | 1.9357766544117647 |
+| Surface height exact | 0.8532284007352942 | 0.8574793198529411 |
+| Surface block match | 0.8023322610294118 | 0.8057789522058824 |
+| Surface biome match | 0.9950597426470589 | 0.9950022977941176 |
+| Histogram L1 | 0.07409867366640406 | 0.07266664986780405 |
+
+The coordinator authorized the terrain/within-two/error ratchet exception on
+2026-10-25; surface, block and histogram ratchets are strengthened, and the biome
+floor is preserved. No fixture, shared noise implementation or unrelated
+generation stage changed in the ablation. The four controlled references in
+`unastar/tests/fixtures/bds_1_26_51_feature_coordinates.json` are:
+
+- Relative numeric/Molang coordinates: `numeric`, `literal`, `nested_literal`,
+  `nested_random` at input x=-128, 0, 128.
+- Upper-exclusive uniform extents: `uniform`, 128 attempts per origin.
+- Nearest/half-away offset rounding: the six `round_*` cases.
+- Fluid-inclusive world-space heightmap versus solid height:
+  `heightmap_zero`, `above_top_solid_zero`, plus the four y=280 query controls.
+
+Each correction has a failing-before/passing-after regression. **[INFERENCE]**
+The lower `terrain_exact` likely exposes still-unmeasured feature geometry,
+RNG/draw order or query behavior outside the controlled stone/water case;
+the earlier wrong assumptions were compensating for part of that mismatch.
 
 Benchmark: `worldgen_bench --kind java|bedrock`, same feature-enabled binary,
 68 fixture chunks, three rounds alternating Java then Bedrock, Windows affinity
