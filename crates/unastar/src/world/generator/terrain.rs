@@ -68,6 +68,54 @@ impl JavaGenerator {
         }
     }
 
+    /// Shared noise-stage proto: density, aquifers, ore veins and quart biomes,
+    /// before edition-specific surface builders and explicit carvers.
+    ///
+    /// Uses this generator's seeded noise registry; consumers must not create
+    /// another registry to access the shared terrain core.
+    pub fn generate_noise_proto(&self, pos: ChunkPos) -> ProtoChunk {
+        let (dense, biomes) = self.generate_noise_blocks(pos);
+        let chunk = dense.to_chunk(pos, *blocks::AIR);
+        ProtoChunk { pos, chunk, biomes }
+    }
+
+    /// Dense form of the shared noise stage, so another edition can apply
+    /// its surface/carvers before packing block palettes.
+    pub fn generate_noise_blocks(&self, pos: ChunkPos) -> (DenseBlocks, QuartBiomes) {
+        let grid = FlatCacheGrid::new(pos.x, pos.z, &self.noises);
+        let col_grid = ColumnContextGrid::new(pos.x, pos.z, &self.noises, &grid);
+        let biomes = biome_source::fill_chunk(&self.noises, pos, &grid, &col_grid);
+        let mut aquifer = self.aquifer(pos, &grid, &col_grid);
+        let dense = self.generate_terrain(pos.x, pos.z, &grid, &col_grid, &mut aquifer);
+        (dense, biomes)
+    }
+
+    /// Native Java biome at the quart containing an absolute block position.
+    pub fn sample_biome(&self, x: i32, y: i32, z: i32) -> NativeBiome {
+        biome_source::sample_biome(&self.noises, x >> 2, y >> 2, z >> 2) as NativeBiome
+    }
+
+    /// First block above motion-blocking noise terrain, in `z * 16 + x`
+    /// order. Surface rules and explicit carvers have not run.
+    ///
+    /// Structure callers should cache this chunk-level oracle for their
+    /// placement run rather than generating the same terrain for each column.
+    pub fn noise_heightmap(&self, pos: ChunkPos) -> [i32; 256] {
+        let (dense, _) = self.generate_noise_blocks(pos);
+        let classes = &unastar_noise::java_blocks::BEDROCK_STATE_CLASSES;
+        std::array::from_fn(|i| {
+            let (x, z) = ((i % 16) as u8, (i / 16) as u8);
+            (overworld_settings::MIN_Y..overworld_settings::MIN_Y + overworld_settings::HEIGHT)
+                .rev()
+                .find(|&y| {
+                    classes[dense.get_block(x, y as i16, z) as usize]
+                        & unastar_noise::block_class::BLOCKS_MOTION
+                        != 0
+                })
+                .map_or(overworld_settings::MIN_Y, |y| y + 1)
+        })
+    }
+
     /// Find a safe spawn location by sampling terrain.
     ///
     /// Searches outward from origin for a location above sea level.
@@ -384,5 +432,93 @@ impl Generator for JavaGenerator {
     fn find_spawn(&self) -> SpawnPoint {
         let (x, y, z) = self.find_safe_spawn();
         SpawnPoint { x, y, z }
+    }
+}
+
+#[cfg(test)]
+mod shared_noise_tests {
+    use super::*;
+
+    /// A carver's aquifer must not depend on having populated the noise-stage
+    /// cache first. Other edition surfaces run between these stages.
+    #[test]
+    fn separated_noise_stage_preserves_java_terrain_and_quart_boundaries() {
+        std::thread::Builder::new()
+            .stack_size(64 << 20)
+            .spawn(check_separated_stages)
+            .unwrap()
+            .join()
+            .unwrap();
+    }
+
+    fn check_separated_stages() {
+        let generator = JavaGenerator::new(12345);
+        for pos in [
+            ChunkPos::new(0, 0),
+            ChunkPos::new(-2, 1),
+            ChunkPos::new(8, -3),
+        ] {
+            let (mut dense, biomes) = generator.generate_noise_blocks(pos);
+            let heights = generator.noise_heightmap(pos);
+            let classes = &unastar_noise::java_blocks::BEDROCK_STATE_CLASSES;
+            for i in 0..256 {
+                let (x, z) = ((i % 16) as u8, (i / 16) as u8);
+                let top = heights[i];
+                if top > overworld_settings::MIN_Y {
+                    assert_ne!(
+                        classes[dense.get_block(x, (top - 1) as i16, z) as usize]
+                            & unastar_noise::block_class::BLOCKS_MOTION,
+                        0
+                    );
+                }
+                for y in top..overworld_settings::MIN_Y + overworld_settings::HEIGHT {
+                    assert_eq!(
+                        classes[dense.get_block(x, y as i16, z) as usize]
+                            & unastar_noise::block_class::BLOCKS_MOTION,
+                        0
+                    );
+                }
+            }
+            for (x, y, z) in [(0, -64, 0), (15, 319, 15), (4, 64, 8)] {
+                assert_eq!(
+                    biomes.at_block(x, y, z),
+                    generator.sample_biome(pos.x * 16 + i32::from(x), y, pos.z * 16 + i32::from(z)),
+                );
+            }
+            let grid = FlatCacheGrid::new(pos.x, pos.z, &generator.noises);
+            let col_grid = ColumnContextGrid::new(pos.x, pos.z, &generator.noises, &grid);
+            let mut aquifer = generator.aquifer(pos, &grid, &col_grid);
+            generator.surface_system.build_surface(
+                &mut dense,
+                pos,
+                &generator.noises,
+                &grid,
+                &biomes,
+            );
+            let mut chunk = dense.to_chunk(pos, *blocks::AIR);
+            let mut carving = JavaCarveContext {
+                generator: &generator,
+                aquifer: &mut aquifer,
+                pos,
+                grid: &grid,
+                biomes: &biomes,
+            };
+            carver::carve_chunk(generator.seed, &mut chunk, pos, &mut carving);
+            let full = generator.generate_proto(pos);
+            assert_eq!(full.biomes, biomes);
+            for y in
+                overworld_settings::MIN_Y..overworld_settings::MIN_Y + overworld_settings::HEIGHT
+            {
+                for z in 0..16 {
+                    for x in 0..16 {
+                        assert_eq!(
+                            chunk.get_block(x, y as i16, z),
+                            full.chunk.get_block(x, y as i16, z),
+                            "stage split changed ({x},{y},{z}) in {pos:?}"
+                        );
+                    }
+                }
+            }
+        }
     }
 }

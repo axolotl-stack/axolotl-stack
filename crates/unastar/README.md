@@ -144,7 +144,7 @@ and out-of-range block heights. On Windows, set
 
 ## Bedrock-style generator
 
-The Bedrock-style world generator (BDS 1.26.51 parity) lives in
+The Bedrock-style world generator targeting BDS 1.26.51 lives in
 `src/world/generator/bedrock/` behind the `bedrock-worldgen` cargo feature (off by
 default). Its feature rules, features and biome surface parameters are compiled at build
 time from the vanilla packs of a local BDS install by `unastar_bedrock_codegen`; the packs
@@ -162,5 +162,13 @@ Runtime pieces: `world` (block access trait and decoration context), `rng` (Bedr
 MT19937), `scatter` (rule/scatter distributions), `features` (JSON feature type
 algorithms), `builtin` (BDS built-in features registered under their identifiers),
 `surface` (Bedrock surface builders), `region` and `decorate` (3x3 decoration driver with
-per-chunk seeding). Decoration parity with BDS is statistical (same rules, densities and
-shapes); byte-exact placement needs BDS's per-chunk seeding and is a later slice.
+per-chunk seeding). **BDS parity is not established**, including statistical
+decoration parity. The codegen crate's [measurement ledger](../unastar_bedrock_codegen/README.md)
+lists the unmeasured algorithms and required reference controls.
+
+The shared `JavaGenerator` exposes `generate_noise_proto` and its dense equivalent
+`generate_noise_blocks`: density, aquifers, ore veins and quart biomes before
+edition-specific surface/carver passes. `sample_biome` samples an absolute block
+position using the same seeded noise registry; `noise_heightmap` is a chunk-level
+motion-blocking height oracle before surface/carvers. Callers cache oracle
+results per placement run rather than regenerate a chunk for every queried column.
