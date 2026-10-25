@@ -15,6 +15,7 @@ impl Axolotl {
 /// Component bundle for spawning a `minecraft:axolotl`
 #[derive(Bundle, Clone)]
 pub struct AxolotlBundle {
+    pub ambient_sound_interval: super::super::components::AmbientSoundInterval,
     pub attack: super::super::components::Attack,
     pub behavior_look_at_player: super::super::components::BehaviorLookAtPlayer,
     pub behavior_melee_box_attack: super::super::components::BehaviorMeleeBoxAttack,
@@ -43,16 +44,30 @@ pub struct AxolotlBundle {
     pub movement_amphibious: super::super::components::MovementAmphibious,
     pub nameable: super::super::components::Nameable,
     pub navigation_generic: super::super::components::NavigationGeneric,
+    pub offspring: super::super::components::Offspring,
     pub physics: super::super::components::Physics,
     pub pushable: super::super::components::Pushable,
+    pub pushable_by_block: super::super::components::PushableByBlock,
+    pub pushable_by_entity: super::super::components::PushableByEntity,
     pub scale: super::super::components::Scale,
+    pub spawn_egg_interaction: super::super::components::SpawnEggInteraction,
     pub type_family: super::super::components::TypeFamily,
     pub underwater_movement: super::super::components::UnderwaterMovement,
+    pub uses_legacy_friction: super::super::components::UsesLegacyFriction,
 }
 /// Spawn a new `minecraft:axolotl` entity with default Bedrock components
 pub fn spawn_axolotl(commands: &mut Commands) -> Entity {
     commands
         .spawn(AxolotlBundle {
+            ambient_sound_interval: super::super::components::AmbientSoundInterval {
+                event_name: Some("ambient".to_string()),
+                event_names: Some(vec![AmbientSoundIntervalEventNames {
+                    condition: Some("query.head_is_in_water".to_string()),
+                    event_name: Some("ambient.in.water".to_string()),
+                }]),
+                range: Some(16f32),
+                value: 6f32,
+            },
             attack: super::super::components::Attack {
                 damage: crate::types::RangeOrVal::Fixed(2f32),
                 effect_duration: Some(crate::types::MolangOr::Value(0i32)),
@@ -61,11 +76,11 @@ pub fn spawn_axolotl(commands: &mut Commands) -> Entity {
             behavior_look_at_player: super::super::components::BehaviorLookAtPlayer {
                 angle_of_view_horizontal: Some(360i32),
                 angle_of_view_vertical: Some(360i32),
-                look_distance: Some(8f32),
+                look_distance: Some(6f32),
                 look_time: None,
                 priority: Some(BehaviorLookAtPlayerPriority {}),
                 probability: Some(0.02f32),
-                target_distance: Some(6f32),
+                target_distance: None,
             },
             behavior_melee_box_attack: super::super::components::BehaviorMeleeBoxAttack {
                 attack_once: Some(false),
@@ -79,19 +94,13 @@ pub fn spawn_axolotl(commands: &mut Commands) -> Entity {
                 max_path_time: Some(0.55f32),
                 melee_fov: Some(90f32),
                 min_path_time: Some(0.2f32),
-                on_attack: None,
-                on_kill: Some(crate::types::BedrockValue::Object(
-                    std::collections::HashMap::from([
-                        (
-                            "event".to_string(),
-                            crate::types::BedrockValue::String("killed_enemy_event".to_string()),
-                        ),
-                        (
-                            "target".to_string(),
-                            crate::types::BedrockValue::String("self".to_string()),
-                        ),
-                    ]),
+                on_attack: Some(crate::types::BedrockValue::Object(
+                    std::collections::HashMap::from([(
+                        "event".to_string(),
+                        crate::types::BedrockValue::String("killed_enemy_event".to_string()),
+                    )]),
                 )),
+                on_kill: None,
                 outer_boundary_time_increase: Some(0.5f32),
                 path_fail_time_increase: Some(0.75f32),
                 path_inner_boundary: Some(16f32),
@@ -425,7 +434,7 @@ pub fn spawn_axolotl(commands: &mut Commands) -> Entity {
                 )),
                 force_below_health: Some(8i32),
                 priority: Some(BehaviorPlayDeadPriority {}),
-                random_damage_range: None,
+                random_damage_range: Some(vec![0i32]),
                 random_start_chance: Some(0.33f32),
             },
             behavior_random_stroll: super::super::components::BehaviorRandomStroll {
@@ -582,6 +591,23 @@ pub fn spawn_axolotl(commands: &mut Commands) -> Entity {
                 can_walk_in_lava: Some(false),
                 is_amphibious: Some(true),
             },
+            offspring: super::super::components::Offspring {
+                blend_attributes: None,
+                combine_parent_colors: None,
+                deny_parents_variant: None,
+                inherit_tamed: None,
+                mutation_factor: Some(OffspringMutationFactor {
+                    color: None,
+                    extra_variant: None,
+                    variant: Some(0.00083f32),
+                }),
+                mutation_strategy: None,
+                offspring_pairs: Some(OffspringOffspringPairs {}),
+                parent_centric_attribute_blending: None,
+                property_inheritance: None,
+                random_extra_variant_mutation_interval: None,
+                random_variant_mutation_interval: None,
+            },
             physics: super::super::components::Physics {
                 has_collision: Some(true),
                 has_gravity: Some(true),
@@ -591,7 +617,10 @@ pub fn spawn_axolotl(commands: &mut Commands) -> Entity {
                 is_pushable: Some(true),
                 is_pushable_by_piston: Some(true),
             },
+            pushable_by_block: super::super::components::PushableByBlock { data: None },
+            pushable_by_entity: super::super::components::PushableByEntity { data: None },
             scale: super::super::components::Scale { value: 1f32 },
+            spawn_egg_interaction: super::super::components::SpawnEggInteraction { data: None },
             type_family: super::super::components::TypeFamily {
                 family: vec![
                     "aquatic".to_string(),
@@ -604,6 +633,7 @@ pub fn spawn_axolotl(commands: &mut Commands) -> Entity {
                 min: None,
                 value: crate::types::RangeOrVal::Fixed(0.2f32),
             },
+            uses_legacy_friction: super::super::components::UsesLegacyFriction { data: None },
         })
         .id()
 }

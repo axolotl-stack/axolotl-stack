@@ -28,7 +28,10 @@ pub struct EnderPearlBundle {
     pub physics: super::super::components::Physics,
     pub projectile: super::super::components::Projectile,
     pub pushable: super::super::components::Pushable,
+    pub pushable_by_block: super::super::components::PushableByBlock,
+    pub pushable_by_entity: super::super::components::PushableByEntity,
     pub scale: super::super::components::Scale,
+    pub type_family: super::super::components::TypeFamily,
 }
 /// Spawn a new `minecraft:ender_pearl` entity with default Bedrock components
 pub fn spawn_ender_pearl(commands: &mut Commands) -> Entity {
@@ -136,9 +139,9 @@ pub fn spawn_ender_pearl(commands: &mut Commands) -> Entity {
                     }),
                     spawn_aoe_cloud: None,
                     spawn_chance: Some(ProjectileOnHitSpawnChance {
-                        first_spawn_chance: None,
+                        first_spawn_chance: Some(0.05f32),
                         first_spawn_count: Some(1i32),
-                        first_spawn_percent_chance: Some(5f32),
+                        first_spawn_percent_chance: None,
                         on_spawn: None,
                         second_spawn_chance: None,
                         second_spawn_count: None,
@@ -168,7 +171,12 @@ pub fn spawn_ender_pearl(commands: &mut Commands) -> Entity {
                 is_pushable: Some(true),
                 is_pushable_by_piston: Some(true),
             },
+            pushable_by_block: super::super::components::PushableByBlock { data: None },
+            pushable_by_entity: super::super::components::PushableByEntity { data: None },
             scale: super::super::components::Scale { value: 1f32 },
+            type_family: super::super::components::TypeFamily {
+                family: vec!["projectile".to_string(), "ender_pearl".to_string()],
+            },
         })
         .id()
 }

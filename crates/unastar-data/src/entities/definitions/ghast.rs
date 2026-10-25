@@ -85,61 +85,54 @@ pub fn spawn_ghast(commands: &mut Commands) -> Entity {
                 hurt_owner: Some(false),
                 priority: Some(BehaviorHurtByTargetPriority {}),
             },
-            behavior_nearest_attackable_target:
-                super::super::components::BehaviorNearestAttackableTarget {
-                    attack_interval: Some(crate::types::BedrockValue::Object(
+            behavior_nearest_attackable_target: super::super::components::BehaviorNearestAttackableTarget {
+                attack_interval: Some(
+                    crate::types::BedrockValue::Object(
                         std::collections::HashMap::from([
-                            ("max".to_string(), crate::types::BedrockValue::Integer(0i64)),
-                            ("min".to_string(), crate::types::BedrockValue::Integer(0i64)),
+                            (
+                                "max".to_string(),
+                                crate::types::BedrockValue::Integer(0i64),
+                            ),
+                            (
+                                "min".to_string(),
+                                crate::types::BedrockValue::Integer(0i64),
+                            ),
                         ]),
-                    )),
-                    attack_interval_min: None,
-                    attack_owner: Some(false),
-                    control_flags: Some(BehaviorNearestAttackableTargetControlFlags {}),
-                    entity_types: Some(vec![BehaviorNearestAttackableTargetEntityTypes {
-                        check_if_outnumbered: None,
-                        cooldown: None,
-                        filters: Some(crate::types::BedrockValue::Object(
-                            std::collections::HashMap::from([
-                                (
-                                    "subject".to_string(),
-                                    crate::types::BedrockValue::String("other".to_string()),
-                                ),
-                                (
-                                    "test".to_string(),
-                                    crate::types::BedrockValue::String("is_family".to_string()),
-                                ),
-                                (
-                                    "value".to_string(),
-                                    crate::types::BedrockValue::String("player".to_string()),
-                                ),
-                            ]),
-                        )),
-                        max_dist: Some(28f32),
-                        max_flee: None,
-                        max_height: None,
-                        must_see: None,
-                        must_see_forget_duration: None,
-                        priority: None,
-                        reevaluate_description: None,
-                        sprint_speed_multiplier: None,
-                        walk_speed_multiplier: None,
-                        within_default: None,
-                    }]),
-                    must_reach: Some(false),
-                    must_see: Some(true),
-                    must_see_forget_duration: Some(3f32),
-                    persist_time: Some(0f32),
-                    priority: Some(BehaviorNearestAttackableTargetPriority {}),
-                    reselect_targets: Some(false),
-                    scan_interval: Some(10i32),
-                    set_persistent: Some(false),
-                    target_acquisition_probability: Some(1f32),
-                    target_invisible_multiplier: Some(0.7f32),
-                    target_search_height: Some(-1f32),
-                    target_sneak_visibility_multiplier: Some(0.8f32),
-                    within_radius: Some(0f32),
-                },
+                    ),
+                ),
+                attack_interval_min: None,
+                attack_owner: Some(false),
+                control_flags: Some(BehaviorNearestAttackableTargetControlFlags {
+                }),
+                entity_types: Some(
+                    vec![
+                        BehaviorNearestAttackableTargetEntityTypes { check_if_outnumbered
+                        : None, cooldown : None, filters : Some(crate
+                        ::types::BedrockValue::Object(std::collections::HashMap::from([("AND"
+                        .to_string(), crate
+                        ::types::BedrockValue::String("[{\"operator\":0,\"subject\":1,\"test\":\"is_family\",\"value\":\"player\"}]"
+                        .to_string()))]))), max_dist : Some(28f32), max_flee : None,
+                        max_height : None, must_see : None, must_see_forget_duration :
+                        None, priority : None, reevaluate_description : None,
+                        sprint_speed_multiplier : None, walk_speed_multiplier : None,
+                        within_default : None }
+                    ],
+                ),
+                must_reach: Some(false),
+                must_see: Some(true),
+                must_see_forget_duration: Some(3f32),
+                persist_time: Some(0f32),
+                priority: Some(BehaviorNearestAttackableTargetPriority {
+                }),
+                reselect_targets: Some(false),
+                scan_interval: Some(10i32),
+                set_persistent: Some(false),
+                target_acquisition_probability: Some(1f32),
+                target_invisible_multiplier: Some(0.7f32),
+                target_search_height: Some(-1f32),
+                target_sneak_visibility_multiplier: Some(0.8f32),
+                within_radius: Some(0f32),
+            },
             behavior_ranged_attack: super::super::components::BehaviorRangedAttack {
                 attack_interval: Some(0f32),
                 attack_interval_max: Some(0f32),
@@ -153,7 +146,8 @@ pub fn spawn_ghast(commands: &mut Commands) -> Entity {
                 priority: Some(BehaviorRangedAttackPriority {}),
                 ranged_fov: Some(90f32),
                 set_persistent: Some(false),
-                speed_multiplier: Some(BehaviorRangedAttackSpeedMultiplier {}),
+                speed_multiplier: Some(BehaviorRangedAttackSpeedMultiplier {
+                }),
                 swing: Some(false),
                 target_in_sight_time: Some(1f32),
                 x_max_rotation: Some(30f32),
@@ -180,20 +174,19 @@ pub fn spawn_ghast(commands: &mut Commands) -> Entity {
                 height: Some(4f32),
                 width: Some(4.02f32),
             },
-            conditional_bandwidth_optimization:
-                super::super::components::ConditionalBandwidthOptimization {
-                    conditional_values: None,
-                    default_values: None,
-                },
+            conditional_bandwidth_optimization: super::super::components::ConditionalBandwidthOptimization {
+                conditional_values: None,
+                default_values: None,
+            },
             damage_sensor: super::super::components::DamageSensor {
-                triggers: Some(vec![DamageSensorTriggers {
-                    cause: Some("fall".to_string()),
-                    damage_modifier: None,
-                    damage_multiplier: None,
-                    deals_damage: Some("no".to_string()),
-                    on_damage: None,
-                    on_damage_sound_event: None,
-                }]),
+                triggers: Some(
+                    vec![
+                        DamageSensorTriggers { cause : Some("fall".to_string()),
+                        damage_modifier : None, damage_multiplier : None, deals_damage :
+                        Some("no".to_string()), on_damage : None, on_damage_sound_event :
+                        None }
+                    ],
+                ),
             },
             despawn: super::super::components::Despawn {
                 despawn_from_chance: Some(true),
@@ -210,13 +203,17 @@ pub fn spawn_ghast(commands: &mut Commands) -> Entity {
             },
             experience_reward: super::super::components::ExperienceReward {
                 on_bred: Some(crate::types::MolangOr::Value(0f32)),
-                on_death: Some(crate::types::MolangOr::Expr(
-                    "query.last_hit_by_player ? 5 + (query.equipment_count * Math.Random(1,3)) : 0"
-                        .to_string(),
-                )),
+                on_death: Some(
+                    crate::types::MolangOr::Expr(
+                        "query.last_hit_by_player ? 5 + (query.equipment_count * Math.Random(1,3)) : 0"
+                            .to_string(),
+                    ),
+                ),
             },
             fire_immune: super::super::components::FireImmune,
-            flying_speed: super::super::components::FlyingSpeed { value: 0.02f32 },
+            flying_speed: super::super::components::FlyingSpeed {
+                value: 0.02f32,
+            },
             follow_range: super::super::components::FollowRange {
                 max: Some(64f32),
                 min: None,
@@ -283,7 +280,9 @@ pub fn spawn_ghast(commands: &mut Commands) -> Entity {
                 is_pushable: Some(true),
                 is_pushable_by_piston: Some(true),
             },
-            scale: super::super::components::Scale { value: 1f32 },
+            scale: super::super::components::Scale {
+                value: 1f32,
+            },
             shooter: super::super::components::Shooter {
                 aux_val: Some(-1i32),
                 def: Some("minecraft:fireball".to_string()),
@@ -294,9 +293,7 @@ pub fn spawn_ghast(commands: &mut Commands) -> Entity {
             },
             type_family: super::super::components::TypeFamily {
                 family: vec![
-                    "ghast".to_string(),
-                    "monster".to_string(),
-                    "mob".to_string(),
+                    "ghast".to_string(), "monster".to_string(), "mob".to_string()
                 ],
             },
         })

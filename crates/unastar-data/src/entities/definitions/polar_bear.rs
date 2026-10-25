@@ -15,6 +15,7 @@ impl PolarBear {
 /// Component bundle for spawning a `minecraft:polar_bear`
 #[derive(Bundle, Clone)]
 pub struct PolarBearBundle {
+    pub ambient_sound_interval: super::super::components::AmbientSoundInterval,
     pub attack: super::super::components::Attack,
     pub balloonable: super::super::components::Balloonable,
     pub behavior_float: super::super::components::BehaviorFloat,
@@ -31,6 +32,7 @@ pub struct PolarBearBundle {
     pub despawn: super::super::components::Despawn,
     pub flying_speed: super::super::components::FlyingSpeed,
     pub follow_range: super::super::components::FollowRange,
+    pub freezing_immune: super::super::components::FreezingImmune,
     pub health: super::super::components::Health,
     pub hurt_on_condition: super::super::components::HurtOnCondition,
     pub inventory: super::super::components::Inventory,
@@ -41,16 +43,30 @@ pub struct PolarBearBundle {
     pub movement_basic: super::super::components::MovementBasic,
     pub nameable: super::super::components::Nameable,
     pub navigation_walk: super::super::components::NavigationWalk,
+    pub offspring: super::super::components::Offspring,
     pub physics: super::super::components::Physics,
     pub pushable: super::super::components::Pushable,
+    pub pushable_by_block: super::super::components::PushableByBlock,
+    pub pushable_by_entity: super::super::components::PushableByEntity,
     pub scale: super::super::components::Scale,
+    pub spawn_egg_interaction: super::super::components::SpawnEggInteraction,
     pub type_family: super::super::components::TypeFamily,
+    pub uses_legacy_friction: super::super::components::UsesLegacyFriction,
     pub water_movement: super::super::components::WaterMovement,
 }
 /// Spawn a new `minecraft:polar_bear` entity with default Bedrock components
 pub fn spawn_polar_bear(commands: &mut Commands) -> Entity {
     commands
         .spawn(PolarBearBundle {
+            ambient_sound_interval: super::super::components::AmbientSoundInterval {
+                event_name: Some("ambient".to_string()),
+                event_names: Some(vec![AmbientSoundIntervalEventNames {
+                    condition: Some("query.is_baby".to_string()),
+                    event_name: Some("ambient.baby".to_string()),
+                }]),
+                range: Some(16f32),
+                value: 6f32,
+            },
             attack: super::super::components::Attack {
                 damage: crate::types::RangeOrVal::Fixed(2f32),
                 effect_duration: Some(crate::types::MolangOr::Value(0i32)),
@@ -78,11 +94,11 @@ pub fn spawn_polar_bear(commands: &mut Commands) -> Entity {
             behavior_look_at_player: super::super::components::BehaviorLookAtPlayer {
                 angle_of_view_horizontal: Some(360i32),
                 angle_of_view_vertical: Some(360i32),
-                look_distance: Some(8f32),
+                look_distance: Some(6f32),
                 look_time: None,
                 priority: Some(BehaviorLookAtPlayerPriority {}),
                 probability: Some(0.02f32),
-                target_distance: Some(6f32),
+                target_distance: None,
             },
             behavior_panic: super::super::components::BehaviorPanic {
                 damage_sources: Some(vec![
@@ -161,6 +177,7 @@ pub fn spawn_polar_bear(commands: &mut Commands) -> Entity {
                 min: None,
                 value: crate::types::RangeOrVal::Fixed(48f32),
             },
+            freezing_immune: super::super::components::FreezingImmune { data: None },
             health: super::super::components::Health {
                 max: None,
                 min: None,
@@ -228,6 +245,19 @@ pub fn spawn_polar_bear(commands: &mut Commands) -> Entity {
                 can_walk_in_lava: Some(false),
                 is_amphibious: Some(false),
             },
+            offspring: super::super::components::Offspring {
+                blend_attributes: None,
+                combine_parent_colors: None,
+                deny_parents_variant: None,
+                inherit_tamed: None,
+                mutation_factor: None,
+                mutation_strategy: None,
+                offspring_pairs: Some(OffspringOffspringPairs {}),
+                parent_centric_attribute_blending: None,
+                property_inheritance: None,
+                random_extra_variant_mutation_interval: None,
+                random_variant_mutation_interval: None,
+            },
             physics: super::super::components::Physics {
                 has_collision: Some(true),
                 has_gravity: Some(true),
@@ -237,10 +267,14 @@ pub fn spawn_polar_bear(commands: &mut Commands) -> Entity {
                 is_pushable: Some(true),
                 is_pushable_by_piston: Some(true),
             },
+            pushable_by_block: super::super::components::PushableByBlock { data: None },
+            pushable_by_entity: super::super::components::PushableByEntity { data: None },
             scale: super::super::components::Scale { value: 1f32 },
+            spawn_egg_interaction: super::super::components::SpawnEggInteraction { data: None },
             type_family: super::super::components::TypeFamily {
                 family: vec!["polarbear".to_string(), "mob".to_string()],
             },
+            uses_legacy_friction: super::super::components::UsesLegacyFriction { data: None },
             water_movement: super::super::components::WaterMovement {
                 drag_factor: Some(0.98f32),
             },

@@ -46,9 +46,11 @@ pub struct CamelBundle {
     pub movement_basic: super::super::components::MovementBasic,
     pub nameable: super::super::components::Nameable,
     pub navigation_walk: super::super::components::NavigationWalk,
+    pub offspring: super::super::components::Offspring,
     pub physics: super::super::components::Physics,
     pub pushable: super::super::components::Pushable,
     pub scale: super::super::components::Scale,
+    pub spawn_egg_interaction: super::super::components::SpawnEggInteraction,
     pub type_family: super::super::components::TypeFamily,
     pub variable_max_auto_step: super::super::components::VariableMaxAutoStep,
 }
@@ -77,11 +79,11 @@ pub fn spawn_camel(commands: &mut Commands) -> Entity {
             behavior_look_at_player: super::super::components::BehaviorLookAtPlayer {
                 angle_of_view_horizontal: Some(360i32),
                 angle_of_view_vertical: Some(360i32),
-                look_distance: Some(8f32),
+                look_distance: Some(6f32),
                 look_time: None,
                 priority: Some(BehaviorLookAtPlayerPriority {}),
                 probability: Some(0.02f32),
-                target_distance: Some(6f32),
+                target_distance: None,
             },
             behavior_panic: super::super::components::BehaviorPanic {
                 damage_sources: Some(
@@ -290,6 +292,19 @@ pub fn spawn_camel(commands: &mut Commands) -> Entity {
                 can_walk_in_lava: Some(false),
                 is_amphibious: Some(false),
             },
+            offspring: super::super::components::Offspring {
+                blend_attributes: None,
+                combine_parent_colors: None,
+                deny_parents_variant: None,
+                inherit_tamed: None,
+                mutation_factor: None,
+                mutation_strategy: None,
+                offspring_pairs: Some(OffspringOffspringPairs {}),
+                parent_centric_attribute_blending: None,
+                property_inheritance: None,
+                random_extra_variant_mutation_interval: None,
+                random_variant_mutation_interval: None,
+            },
             physics: super::super::components::Physics {
                 has_collision: Some(true),
                 has_gravity: Some(true),
@@ -301,6 +316,9 @@ pub fn spawn_camel(commands: &mut Commands) -> Entity {
             },
             scale: super::super::components::Scale {
                 value: 1f32,
+            },
+            spawn_egg_interaction: super::super::components::SpawnEggInteraction {
+                data: None,
             },
             type_family: super::super::components::TypeFamily {
                 family: vec!["camel".to_string(), "mob".to_string()],
@@ -318,6 +336,8 @@ pub fn spawn_camel(commands: &mut Commands) -> Entity {
 pub enum CamelComponentGroup {
     CamelAdult,
     CamelBaby,
+    CamelBabySitting,
+    CamelBabyStanding,
     CamelSaddled,
     CamelSitting,
     CamelStanding,
@@ -332,5 +352,9 @@ pub enum CamelEvent {
     EntitySpawned,
     SpawnAdult,
     StartSitting,
+    StartSittingAdult,
+    StartSittingBaby,
     StopSitting,
+    StopSittingAdult,
+    StopSittingBaby,
 }

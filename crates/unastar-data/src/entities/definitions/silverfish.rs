@@ -25,6 +25,7 @@ pub struct SilverfishBundle {
     pub block_climber: super::super::components::BlockClimber,
     pub breathable: super::super::components::Breathable,
     pub can_climb: super::super::components::CanClimb,
+    pub can_stand_on_powder_snow: super::super::components::CanStandOnPowderSnow,
     pub collision_box: super::super::components::CollisionBox,
     pub conditional_bandwidth_optimization:
         super::super::components::ConditionalBandwidthOptimization,
@@ -45,6 +46,8 @@ pub struct SilverfishBundle {
     pub navigation_walk: super::super::components::NavigationWalk,
     pub physics: super::super::components::Physics,
     pub pushable: super::super::components::Pushable,
+    pub pushable_by_block: super::super::components::PushableByBlock,
+    pub pushable_by_entity: super::super::components::PushableByEntity,
     pub scale: super::super::components::Scale,
     pub type_family: super::super::components::TypeFamily,
 }
@@ -64,122 +67,59 @@ pub fn spawn_silverfish(commands: &mut Commands) -> Entity {
                 time_under_water_to_dismount_passengers: Some(0f32),
             },
             behavior_hurt_by_target: super::super::components::BehaviorHurtByTarget {
-                alert_same_type: Some(true),
+                alert_same_type: Some(false),
                 entity_types: None,
                 hurt_owner: Some(false),
                 priority: Some(BehaviorHurtByTargetPriority {}),
             },
-            behavior_nearest_attackable_target:
-                super::super::components::BehaviorNearestAttackableTarget {
-                    attack_interval: Some(crate::types::BedrockValue::Integer(10i64)),
-                    attack_interval_min: None,
-                    attack_owner: Some(false),
-                    control_flags: Some(BehaviorNearestAttackableTargetControlFlags {}),
-                    entity_types: Some(vec![BehaviorNearestAttackableTargetEntityTypes {
-                        check_if_outnumbered: None,
-                        cooldown: None,
-                        filters: Some(crate::types::BedrockValue::Object(
-                            std::collections::HashMap::from([(
-                                "any_of".to_string(),
-                                crate::types::BedrockValue::Array(vec![
-                                    crate::types::BedrockValue::Object(
-                                        std::collections::HashMap::from([
-                                            (
-                                                "subject".to_string(),
-                                                crate::types::BedrockValue::String(
-                                                    "other".to_string(),
-                                                ),
-                                            ),
-                                            (
-                                                "test".to_string(),
-                                                crate::types::BedrockValue::String(
-                                                    "is_family".to_string(),
-                                                ),
-                                            ),
-                                            (
-                                                "value".to_string(),
-                                                crate::types::BedrockValue::String(
-                                                    "player".to_string(),
-                                                ),
-                                            ),
-                                        ]),
-                                    ),
-                                    crate::types::BedrockValue::Object(
-                                        std::collections::HashMap::from([
-                                            (
-                                                "subject".to_string(),
-                                                crate::types::BedrockValue::String(
-                                                    "other".to_string(),
-                                                ),
-                                            ),
-                                            (
-                                                "test".to_string(),
-                                                crate::types::BedrockValue::String(
-                                                    "is_family".to_string(),
-                                                ),
-                                            ),
-                                            (
-                                                "value".to_string(),
-                                                crate::types::BedrockValue::String(
-                                                    "snowgolem".to_string(),
-                                                ),
-                                            ),
-                                        ]),
-                                    ),
-                                    crate::types::BedrockValue::Object(
-                                        std::collections::HashMap::from([
-                                            (
-                                                "subject".to_string(),
-                                                crate::types::BedrockValue::String(
-                                                    "other".to_string(),
-                                                ),
-                                            ),
-                                            (
-                                                "test".to_string(),
-                                                crate::types::BedrockValue::String(
-                                                    "is_family".to_string(),
-                                                ),
-                                            ),
-                                            (
-                                                "value".to_string(),
-                                                crate::types::BedrockValue::String(
-                                                    "irongolem".to_string(),
-                                                ),
-                                            ),
-                                        ]),
-                                    ),
-                                ]),
-                            )]),
-                        )),
-                        max_dist: Some(8f32),
-                        max_flee: None,
-                        max_height: None,
-                        must_see: None,
-                        must_see_forget_duration: None,
-                        priority: None,
-                        reevaluate_description: None,
-                        sprint_speed_multiplier: None,
-                        walk_speed_multiplier: None,
-                        within_default: None,
-                    }]),
-                    must_reach: Some(false),
-                    must_see: Some(false),
-                    must_see_forget_duration: Some(3f32),
-                    persist_time: Some(0f32),
-                    priority: Some(BehaviorNearestAttackableTargetPriority {}),
-                    reselect_targets: Some(false),
-                    scan_interval: Some(10i32),
-                    set_persistent: Some(false),
-                    target_acquisition_probability: Some(1f32),
-                    target_invisible_multiplier: Some(0.7f32),
-                    target_search_height: Some(-1f32),
-                    target_sneak_visibility_multiplier: Some(0.8f32),
-                    within_radius: Some(0f32),
-                },
-            behavior_silverfish_merge_with_stone:
-                super::super::components::BehaviorSilverfishMergeWithStone {
-                    priority: Some(BehaviorSilverfishMergeWithStonePriority {}),
-                },
+            behavior_nearest_attackable_target: super::super::components::BehaviorNearestAttackableTarget {
+                attack_interval: Some(
+                    crate::types::BedrockValue::Object(
+                        std::collections::HashMap::from([
+                            (
+                                "max".to_string(),
+                                crate::types::BedrockValue::Integer(10i64),
+                            ),
+                        ]),
+                    ),
+                ),
+                attack_interval_min: None,
+                attack_owner: Some(false),
+                control_flags: Some(BehaviorNearestAttackableTargetControlFlags {
+                }),
+                entity_types: Some(
+                    vec![
+                        BehaviorNearestAttackableTargetEntityTypes { check_if_outnumbered
+                        : None, cooldown : None, filters : Some(crate
+                        ::types::BedrockValue::Object(std::collections::HashMap::from([("AND"
+                        .to_string(), crate
+                        ::types::BedrockValue::String("[{\"OR\":[{\"operator\":0,\"subject\":1,\"test\":\"is_family\",\"value\":\"player\"},{\"operator\":0,\"subject\":1,\"test\":\"is_family\",\"value\":\"snowgolem\"},{\"operator\":0,\"subject\":1,\"test\":\"is_family\",\"value\":\"irongolem\"}]}]"
+                        .to_string()))]))), max_dist : Some(8f32), max_flee : None,
+                        max_height : None, must_see : None, must_see_forget_duration :
+                        None, priority : None, reevaluate_description : None,
+                        sprint_speed_multiplier : None, walk_speed_multiplier : None,
+                        within_default : None }
+                    ],
+                ),
+                must_reach: Some(false),
+                must_see: Some(false),
+                must_see_forget_duration: Some(3f32),
+                persist_time: Some(0f32),
+                priority: Some(BehaviorNearestAttackableTargetPriority {
+                }),
+                reselect_targets: Some(false),
+                scan_interval: Some(10i32),
+                set_persistent: Some(false),
+                target_acquisition_probability: Some(1f32),
+                target_invisible_multiplier: Some(0.7f32),
+                target_search_height: Some(-1f32),
+                target_sneak_visibility_multiplier: Some(0.8f32),
+                within_radius: Some(0f32),
+            },
+            behavior_silverfish_merge_with_stone: super::super::components::BehaviorSilverfishMergeWithStone {
+                priority: Some(BehaviorSilverfishMergeWithStonePriority {
+                }),
+            },
             block_climber: super::super::components::BlockClimber,
             breathable: super::super::components::Breathable {
                 breathe_blocks: None,
@@ -195,15 +135,17 @@ pub fn spawn_silverfish(commands: &mut Commands) -> Entity {
                 total_supply: Some(15i32),
             },
             can_climb: super::super::components::CanClimb,
+            can_stand_on_powder_snow: super::super::components::CanStandOnPowderSnow {
+                data: None,
+            },
             collision_box: super::super::components::CollisionBox {
                 height: Some(0.3f32),
                 width: Some(0.4f32),
             },
-            conditional_bandwidth_optimization:
-                super::super::components::ConditionalBandwidthOptimization {
-                    conditional_values: None,
-                    default_values: None,
-                },
+            conditional_bandwidth_optimization: super::super::components::ConditionalBandwidthOptimization {
+                conditional_values: None,
+                default_values: None,
+            },
             despawn: super::super::components::Despawn {
                 despawn_from_chance: Some(true),
                 despawn_from_distance: Some(DespawnDespawnFromDistance {
@@ -219,11 +161,15 @@ pub fn spawn_silverfish(commands: &mut Commands) -> Entity {
             },
             experience_reward: super::super::components::ExperienceReward {
                 on_bred: Some(crate::types::MolangOr::Value(0f32)),
-                on_death: Some(crate::types::MolangOr::Expr(
-                    "query.last_hit_by_player ? 5 : 0".to_string(),
-                )),
+                on_death: Some(
+                    crate::types::MolangOr::Expr(
+                        "query.last_hit_by_player ? 5 : 0".to_string(),
+                    ),
+                ),
             },
-            flying_speed: super::super::components::FlyingSpeed { value: 0.02f32 },
+            flying_speed: super::super::components::FlyingSpeed {
+                value: 0.02f32,
+            },
             follow_range: super::super::components::FollowRange {
                 max: None,
                 min: None,
@@ -300,14 +246,19 @@ pub fn spawn_silverfish(commands: &mut Commands) -> Entity {
                 is_pushable: Some(true),
                 is_pushable_by_piston: Some(true),
             },
-            scale: super::super::components::Scale { value: 1f32 },
+            pushable_by_block: super::super::components::PushableByBlock {
+                data: None,
+            },
+            pushable_by_entity: super::super::components::PushableByEntity {
+                data: None,
+            },
+            scale: super::super::components::Scale {
+                value: 1f32,
+            },
             type_family: super::super::components::TypeFamily {
                 family: vec![
-                    "silverfish".to_string(),
-                    "monster".to_string(),
-                    "lightweight".to_string(),
-                    "mob".to_string(),
-                    "arthropod".to_string(),
+                    "silverfish".to_string(), "monster".to_string(), "mob".to_string(),
+                    "arthropod".to_string()
                 ],
             },
         })

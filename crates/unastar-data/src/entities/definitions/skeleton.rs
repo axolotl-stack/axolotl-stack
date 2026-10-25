@@ -40,6 +40,7 @@ pub struct SkeletonBundle {
     pub experience_reward: super::super::components::ExperienceReward,
     pub flying_speed: super::super::components::FlyingSpeed,
     pub follow_range: super::super::components::FollowRange,
+    pub freezing_immune: super::super::components::FreezingImmune,
     pub health: super::super::components::Health,
     pub hurt_on_condition: super::super::components::HurtOnCondition,
     pub inventory: super::super::components::Inventory,
@@ -52,6 +53,8 @@ pub struct SkeletonBundle {
     pub navigation_walk: super::super::components::NavigationWalk,
     pub physics: super::super::components::Physics,
     pub pushable: super::super::components::Pushable,
+    pub pushable_by_block: super::super::components::PushableByBlock,
+    pub pushable_by_entity: super::super::components::PushableByEntity,
     pub rotation_locked_to_vehicle: super::super::components::RotationLockedToVehicle,
     pub scale: super::super::components::Scale,
     pub shareables: super::super::components::Shareables,
@@ -228,7 +231,7 @@ pub fn spawn_skeleton(commands: &mut Commands) -> Entity {
                                     ),
                                 ]),
                             )),
-                            max_dist: Some(16f32),
+                            max_dist: None,
                             max_flee: None,
                             max_height: None,
                             must_see: None,
@@ -258,7 +261,7 @@ pub fn spawn_skeleton(commands: &mut Commands) -> Entity {
                                     ),
                                 ]),
                             )),
-                            max_dist: Some(16f32),
+                            max_dist: None,
                             max_flee: None,
                             max_height: None,
                             must_see: None,
@@ -321,7 +324,7 @@ pub fn spawn_skeleton(commands: &mut Commands) -> Entity {
                                     ]),
                                 )]),
                             )),
-                            max_dist: Some(16f32),
+                            max_dist: None,
                             max_flee: None,
                             max_height: None,
                             must_see: None,
@@ -351,7 +354,14 @@ pub fn spawn_skeleton(commands: &mut Commands) -> Entity {
                 can_pickup_any_item: Some(true),
                 can_pickup_to_hand_or_equipment: Some(true),
                 cooldown_after_being_attacked: None,
-                excluded_items: None,
+                excluded_items: Some(vec![crate::types::BedrockValue::Object(
+                    std::collections::HashMap::from([(
+                        "tags".to_string(),
+                        crate::types::BedrockValue::String(
+                            "q.all_tags('minecraft:is_spear')".to_string(),
+                        ),
+                    )]),
+                )]),
                 goal_radius: Some(2f32),
                 max_dist: Some(3f32),
                 pickup_based_on_chance: Some(true),
@@ -378,9 +388,9 @@ pub fn spawn_skeleton(commands: &mut Commands) -> Entity {
             },
             behavior_ranged_attack: super::super::components::BehaviorRangedAttack {
                 attack_interval: Some(0f32),
-                attack_interval_max: Some(3f32),
-                attack_interval_min: Some(1f32),
-                attack_radius: Some(15f32),
+                attack_interval_max: Some(0f32),
+                attack_interval_min: Some(0f32),
+                attack_radius: Some(0f32),
                 attack_radius_min: Some(0f32),
                 burst_interval: Some(0f32),
                 burst_shots: Some(1i32),
@@ -522,6 +532,7 @@ pub fn spawn_skeleton(commands: &mut Commands) -> Entity {
                 min: None,
                 value: crate::types::RangeOrVal::Fixed(16f32),
             },
+            freezing_immune: super::super::components::FreezingImmune { data: None },
             health: super::super::components::Health {
                 max: Some(20f32),
                 min: None,
@@ -590,6 +601,8 @@ pub fn spawn_skeleton(commands: &mut Commands) -> Entity {
                 is_pushable: Some(true),
                 is_pushable_by_piston: Some(true),
             },
+            pushable_by_block: super::super::components::PushableByBlock { data: None },
+            pushable_by_entity: super::super::components::PushableByEntity { data: None },
             rotation_locked_to_vehicle: super::super::components::RotationLockedToVehicle,
             scale: super::super::components::Scale { value: 1f32 },
             shareables: super::super::components::Shareables {
@@ -1229,6 +1242,7 @@ pub enum SkeletonComponentGroup {
     LightningImmune,
     MeleeAttack,
     RangedAttack,
+    RangedAttackHard,
 }
 /// Events for this entity
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
@@ -1240,4 +1254,6 @@ pub enum SkeletonEvent {
     MeleeMode,
     RangedMode,
     SpringTrap,
+    SwitchToHardRanged,
+    SwitchToNormalRanged,
 }

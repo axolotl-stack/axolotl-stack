@@ -42,10 +42,12 @@ pub struct SnifferBundle {
     pub movement_basic: super::super::components::MovementBasic,
     pub nameable: super::super::components::Nameable,
     pub navigation_walk: super::super::components::NavigationWalk,
+    pub offspring: super::super::components::Offspring,
     pub persistent: super::super::components::Persistent,
     pub physics: super::super::components::Physics,
     pub pushable: super::super::components::Pushable,
     pub scale: super::super::components::Scale,
+    pub spawn_egg_interaction: super::super::components::SpawnEggInteraction,
     pub type_family: super::super::components::TypeFamily,
 }
 /// Spawn a new `minecraft:sniffer` entity with default Bedrock components
@@ -73,11 +75,11 @@ pub fn spawn_sniffer(commands: &mut Commands) -> Entity {
             behavior_look_at_player: super::super::components::BehaviorLookAtPlayer {
                 angle_of_view_horizontal: Some(360i32),
                 angle_of_view_vertical: Some(360i32),
-                look_distance: Some(8f32),
+                look_distance: Some(6f32),
                 look_time: None,
                 priority: Some(BehaviorLookAtPlayerPriority {}),
                 probability: Some(0.02f32),
-                target_distance: Some(6f32),
+                target_distance: None,
             },
             behavior_panic: super::super::components::BehaviorPanic {
                 damage_sources: Some(
@@ -133,7 +135,7 @@ pub fn spawn_sniffer(commands: &mut Commands) -> Entity {
             behavior_timer_flag_1: super::super::components::BehaviorTimerFlag1 {
                 control_flags: Some(BehaviorTimerFlag1ControlFlags {}),
                 cooldown_range: Some(vec![0f32]),
-                duration_range: Some(vec![2f32]),
+                duration_range: Some(vec![0f32]),
                 on_end: Some(
                     crate::types::BedrockValue::Object(
                         std::collections::HashMap::from([
@@ -302,6 +304,19 @@ pub fn spawn_sniffer(commands: &mut Commands) -> Entity {
                 can_walk_in_lava: Some(false),
                 is_amphibious: Some(false),
             },
+            offspring: super::super::components::Offspring {
+                blend_attributes: None,
+                combine_parent_colors: None,
+                deny_parents_variant: None,
+                inherit_tamed: None,
+                mutation_factor: None,
+                mutation_strategy: None,
+                offspring_pairs: Some(OffspringOffspringPairs {}),
+                parent_centric_attribute_blending: None,
+                property_inheritance: None,
+                random_extra_variant_mutation_interval: None,
+                random_variant_mutation_interval: None,
+            },
             persistent: super::super::components::Persistent,
             physics: super::super::components::Physics {
                 has_collision: Some(true),
@@ -314,6 +329,9 @@ pub fn spawn_sniffer(commands: &mut Commands) -> Entity {
             },
             scale: super::super::components::Scale {
                 value: 1f32,
+            },
+            spawn_egg_interaction: super::super::components::SpawnEggInteraction {
+                data: None,
             },
             type_family: super::super::components::TypeFamily {
                 family: vec!["sniffer".to_string(), "mob".to_string()],

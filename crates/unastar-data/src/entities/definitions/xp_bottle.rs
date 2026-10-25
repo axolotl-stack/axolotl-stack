@@ -28,7 +28,10 @@ pub struct XpBottleBundle {
     pub physics: super::super::components::Physics,
     pub projectile: super::super::components::Projectile,
     pub pushable: super::super::components::Pushable,
+    pub pushable_by_block: super::super::components::PushableByBlock,
+    pub pushable_by_entity: super::super::components::PushableByEntity,
     pub scale: super::super::components::Scale,
+    pub type_family: super::super::components::TypeFamily,
 }
 /// Spawn a new `minecraft:xp_bottle` entity with default Bedrock components
 pub fn spawn_xp_bottle(commands: &mut Commands) -> Entity {
@@ -162,7 +165,12 @@ pub fn spawn_xp_bottle(commands: &mut Commands) -> Entity {
                 is_pushable: Some(true),
                 is_pushable_by_piston: Some(true),
             },
+            pushable_by_block: super::super::components::PushableByBlock { data: None },
+            pushable_by_entity: super::super::components::PushableByEntity { data: None },
             scale: super::super::components::Scale { value: 1f32 },
+            type_family: super::super::components::TypeFamily {
+                family: vec!["projectile".to_string(), "xp_bottle".to_string()],
+            },
         })
         .id()
 }

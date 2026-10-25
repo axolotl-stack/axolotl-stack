@@ -28,6 +28,8 @@ pub struct MinecartBundle {
     pub movement: super::super::components::Movement,
     pub physics: super::super::components::Physics,
     pub pushable: super::super::components::Pushable,
+    pub pushable_by_block: super::super::components::PushableByBlock,
+    pub pushable_by_entity: super::super::components::PushableByEntity,
     pub rail_movement: super::super::components::RailMovement,
     pub rail_sensor: super::super::components::RailSensor,
     pub rideable: super::super::components::Rideable,
@@ -67,10 +69,6 @@ pub fn spawn_minecart(commands: &mut Commands) -> Entity {
                             conditional_values: Some(vec![crate::types::BedrockValue::Object(
                                 std::collections::HashMap::from([
                                     (
-                                        "operator".to_string(),
-                                        crate::types::BedrockValue::String("==".to_string()),
-                                    ),
-                                    (
                                         "subject".to_string(),
                                         crate::types::BedrockValue::String("self".to_string()),
                                     ),
@@ -78,7 +76,6 @@ pub fn spawn_minecart(commands: &mut Commands) -> Entity {
                                         "test".to_string(),
                                         crate::types::BedrockValue::String("is_moving".to_string()),
                                     ),
-                                    ("value".to_string(), crate::types::BedrockValue::Bool(true)),
                                 ]),
                             )]),
                             max_dropped_ticks: Some(0i32),
@@ -125,6 +122,136 @@ pub fn spawn_minecart(commands: &mut Commands) -> Entity {
             pushable: super::super::components::Pushable {
                 is_pushable: Some(true),
                 is_pushable_by_piston: Some(true),
+            },
+            pushable_by_block: super::super::components::PushableByBlock { data: None },
+            pushable_by_entity: super::super::components::PushableByEntity {
+                data: Some(crate::types::BedrockValue::Object(
+                    std::collections::HashMap::from([(
+                        "preset".to_string(),
+                        crate::types::BedrockValue::Array(vec![
+                            crate::types::BedrockValue::Object(std::collections::HashMap::from([
+                                (
+                                    "filters".to_string(),
+                                    crate::types::BedrockValue::Object(
+                                        std::collections::HashMap::from([(
+                                            "all_of".to_string(),
+                                            crate::types::BedrockValue::Array(vec![
+                                                crate::types::BedrockValue::Object(
+                                                    std::collections::HashMap::from([
+                                                        (
+                                                            "subject".to_string(),
+                                                            crate::types::BedrockValue::String(
+                                                                "other".to_string(),
+                                                            ),
+                                                        ),
+                                                        (
+                                                            "test".to_string(),
+                                                            crate::types::BedrockValue::String(
+                                                                "is_family".to_string(),
+                                                            ),
+                                                        ),
+                                                        (
+                                                            "value".to_string(),
+                                                            crate::types::BedrockValue::String(
+                                                                "sulfur_cube".to_string(),
+                                                            ),
+                                                        ),
+                                                    ]),
+                                                ),
+                                                crate::types::BedrockValue::Object(
+                                                    std::collections::HashMap::from([
+                                                        (
+                                                            "domain".to_string(),
+                                                            crate::types::BedrockValue::String(
+                                                                "minecraft:sulfur_cube_archetype"
+                                                                    .to_string(),
+                                                            ),
+                                                        ),
+                                                        (
+                                                            "operator".to_string(),
+                                                            crate::types::BedrockValue::String(
+                                                                "not".to_string(),
+                                                            ),
+                                                        ),
+                                                        (
+                                                            "subject".to_string(),
+                                                            crate::types::BedrockValue::String(
+                                                                "other".to_string(),
+                                                            ),
+                                                        ),
+                                                        (
+                                                            "test".to_string(),
+                                                            crate::types::BedrockValue::String(
+                                                                "enum_property".to_string(),
+                                                            ),
+                                                        ),
+                                                        (
+                                                            "value".to_string(),
+                                                            crate::types::BedrockValue::String(
+                                                                "none".to_string(),
+                                                            ),
+                                                        ),
+                                                    ]),
+                                                ),
+                                                crate::types::BedrockValue::Object(
+                                                    std::collections::HashMap::from([
+                                                        (
+                                                            "subject".to_string(),
+                                                            crate::types::BedrockValue::String(
+                                                                "self".to_string(),
+                                                            ),
+                                                        ),
+                                                        (
+                                                            "test".to_string(),
+                                                            crate::types::BedrockValue::String(
+                                                                "is_controlling_passenger_family"
+                                                                    .to_string(),
+                                                            ),
+                                                        ),
+                                                        (
+                                                            "value".to_string(),
+                                                            crate::types::BedrockValue::String(
+                                                                "player".to_string(),
+                                                            ),
+                                                        ),
+                                                    ]),
+                                                ),
+                                            ]),
+                                        )]),
+                                    ),
+                                ),
+                                (
+                                    "push_mode".to_string(),
+                                    crate::types::BedrockValue::String("none".to_string()),
+                                ),
+                            ])),
+                            crate::types::BedrockValue::Object(std::collections::HashMap::from([
+                                (
+                                    "min_distance".to_string(),
+                                    crate::types::BedrockValue::Float(0.01f64),
+                                ),
+                                (
+                                    "push_mode".to_string(),
+                                    crate::types::BedrockValue::String(
+                                        "legacy_minecart".to_string(),
+                                    ),
+                                ),
+                                (
+                                    "push_scale_other".to_string(),
+                                    crate::types::BedrockValue::Float(0.25f64),
+                                ),
+                                (
+                                    "push_scale_self".to_string(),
+                                    crate::types::BedrockValue::Float(0.5f64),
+                                ),
+                                (
+                                    "strength_multiplier".to_string(),
+                                    crate::types::BedrockValue::Float(0.1f64),
+                                ),
+                            ])),
+                        ]),
+                    )]),
+                )),
             },
             rail_movement: super::super::components::RailMovement {
                 max_speed: Some(0.4f32),

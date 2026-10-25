@@ -41,7 +41,7 @@ pub const BAMBOO_JUNGLE: BiomeData = BiomeData {
     id: 48u32,
     native_definition_json: "{\"ashDensity\":0,\"blueSporeDensity\":0,\"depth\":0.1,\"downfall\":0.9,\"foliageSnow\":0,\"mapWaterColor\":\"#a514a2c5\",\"maxSnowLevel\":0.125,\"minSnowLevel\":0,\"rain\":true,\"redSporeDensity\":0,\"scale\":0.2,\"snowAccumulation\":0,\"temperature\":0.95,\"waterTransparency\":0.65,\"whiteAshDensity\":0}",
     identifier: "minecraft:bamboo_jungle",
-    format_version: "1.21.110",
+    format_version: "1.26.50",
     source: "protocolgen_native",
     source_file: "bamboo_jungle.biome.json",
     climate: Some(BiomeClimate {
@@ -52,6 +52,7 @@ pub const BAMBOO_JUNGLE: BiomeData = BiomeData {
     tags: &[
         "animal",
         "bamboo",
+        "has_structure_abandoned_camp",
         "jungle",
         "monster",
         "overworld",
@@ -145,7 +146,7 @@ pub const BIRCH_FOREST: BiomeData = BiomeData {
     id: 27u32,
     native_definition_json: "{\"ashDensity\":0,\"blueSporeDensity\":0,\"depth\":0.1,\"downfall\":0.6,\"foliageSnow\":0,\"mapWaterColor\":\"#a50677ce\",\"maxSnowLevel\":0.125,\"minSnowLevel\":0,\"rain\":true,\"redSporeDensity\":0,\"scale\":0.2,\"snowAccumulation\":0,\"temperature\":0.6,\"waterTransparency\":0.65,\"whiteAshDensity\":0}",
     identifier: "minecraft:birch_forest",
-    format_version: "1.21.110",
+    format_version: "1.26.50",
     source: "protocolgen_native",
     source_file: "birch_forest.biome.json",
     climate: Some(BiomeClimate {
@@ -158,6 +159,7 @@ pub const BIRCH_FOREST: BiomeData = BiomeData {
         "bee_habitat",
         "birch",
         "forest",
+        "has_structure_abandoned_camp",
         "monster",
         "overworld",
     ],
@@ -230,7 +232,7 @@ pub const BIRCH_FOREST_MUTATED: BiomeData = BiomeData {
     id: 155u32,
     native_definition_json: "{\"ashDensity\":0,\"blueSporeDensity\":0,\"depth\":0.2,\"downfall\":0.6,\"foliageSnow\":0,\"mapWaterColor\":\"#a50677ce\",\"maxSnowLevel\":0.125,\"minSnowLevel\":0,\"rain\":true,\"redSporeDensity\":0,\"scale\":0.4,\"snowAccumulation\":0,\"temperature\":0.6,\"waterTransparency\":0.65,\"whiteAshDensity\":0}",
     identifier: "minecraft:birch_forest_mutated",
-    format_version: "1.21.110",
+    format_version: "1.26.50",
     source: "protocolgen_native",
     source_file: "birch_forest_mutated.biome.json",
     climate: Some(BiomeClimate {
@@ -243,6 +245,7 @@ pub const BIRCH_FOREST_MUTATED: BiomeData = BiomeData {
         "bee_habitat",
         "birch",
         "forest",
+        "has_structure_abandoned_camp",
         "has_structure_trail_ruins",
         "monster",
         "mutated",
@@ -259,7 +262,7 @@ pub const CHERRY_GROVE: BiomeData = BiomeData {
     id: 192u32,
     native_definition_json: "{\"ashDensity\":0,\"blueSporeDensity\":0,\"depth\":0.1,\"downfall\":0.8,\"foliageSnow\":0,\"mapWaterColor\":\"#a660b7ff\",\"maxSnowLevel\":0.125,\"minSnowLevel\":0,\"rain\":true,\"redSporeDensity\":0,\"scale\":0.2,\"snowAccumulation\":0,\"temperature\":0.3,\"waterTransparency\":0.65,\"whiteAshDensity\":0}",
     identifier: "minecraft:cherry_grove",
-    format_version: "1.21.110",
+    format_version: "1.26.50",
     source: "protocolgen_native",
     source_file: "cherry_grove.biome.json",
     climate: Some(BiomeClimate {
@@ -270,6 +273,7 @@ pub const CHERRY_GROVE: BiomeData = BiomeData {
     tags: &[
         "bee_habitat",
         "cherry_grove",
+        "has_structure_abandoned_camp",
         "monster",
         "mountains",
         "overworld",
@@ -315,7 +319,7 @@ pub const COLD_OCEAN: BiomeData = BiomeData {
     id: 44u32,
     native_definition_json: "{\"ashDensity\":0,\"blueSporeDensity\":0,\"depth\":-1,\"downfall\":0.5,\"foliageSnow\":0,\"mapWaterColor\":\"#a52080c9\",\"maxSnowLevel\":0.125,\"minSnowLevel\":0,\"rain\":true,\"redSporeDensity\":0,\"scale\":0.1,\"snowAccumulation\":0,\"temperature\":0.5,\"waterTransparency\":0.65,\"whiteAshDensity\":0}",
     identifier: "minecraft:cold_ocean",
-    format_version: "1.21.110",
+    format_version: "1.26.0",
     source: "protocolgen_native",
     source_file: "cold_ocean.biome.json",
     climate: Some(BiomeClimate {
@@ -325,6 +329,8 @@ pub const COLD_OCEAN: BiomeData = BiomeData {
     }),
     tags: &[
         "cold",
+        "fast_fishing",
+        "high_seas",
         "monster",
         "ocean",
         "overworld",
@@ -342,7 +348,7 @@ pub const COLD_TAIGA: BiomeData = BiomeData {
     id: 30u32,
     native_definition_json: "{\"ashDensity\":0,\"blueSporeDensity\":0,\"depth\":0.2,\"downfall\":0.4,\"foliageSnow\":0,\"mapWaterColor\":\"#a5205e83\",\"maxSnowLevel\":0.5,\"minSnowLevel\":0.125,\"rain\":true,\"redSporeDensity\":0,\"scale\":0.2,\"snowAccumulation\":0.125,\"temperature\":-0.5,\"waterTransparency\":0.65,\"whiteAshDensity\":0}",
     identifier: "minecraft:cold_taiga",
-    format_version: "1.21.110",
+    format_version: "1.26.50",
     source: "protocolgen_native",
     source_file: "cold_taiga.biome.json",
     climate: Some(BiomeClimate {
@@ -354,6 +360,7 @@ pub const COLD_TAIGA: BiomeData = BiomeData {
         "animal",
         "cold",
         "forest",
+        "has_structure_abandoned_camp",
         "has_structure_trail_ruins",
         "monster",
         "overworld",
@@ -366,13 +373,14 @@ pub const COLD_TAIGA: BiomeData = BiomeData {
         "minecraft:overworld_height",
         "minecraft:surface_builder",
         "minecraft:tags",
+        "minecraft:village_type",
     ],
 };
 pub const COLD_TAIGA_HILLS: BiomeData = BiomeData {
     id: 31u32,
     native_definition_json: "{\"ashDensity\":0,\"blueSporeDensity\":0,\"depth\":0.45,\"downfall\":0.4,\"foliageSnow\":0,\"mapWaterColor\":\"#a5245b78\",\"maxSnowLevel\":0.5,\"minSnowLevel\":0.125,\"rain\":true,\"redSporeDensity\":0,\"scale\":0.3,\"snowAccumulation\":0.125,\"temperature\":-0.5,\"waterTransparency\":0.65,\"whiteAshDensity\":0}",
     identifier: "minecraft:cold_taiga_hills",
-    format_version: "1.21.110",
+    format_version: "1.26.0",
     source: "protocolgen_native",
     source_file: "cold_taiga_hills.biome.json",
     climate: Some(BiomeClimate {
@@ -397,6 +405,7 @@ pub const COLD_TAIGA_HILLS: BiomeData = BiomeData {
         "minecraft:overworld_height",
         "minecraft:surface_builder",
         "minecraft:tags",
+        "minecraft:village_type",
     ],
 };
 pub const COLD_TAIGA_MUTATED: BiomeData = BiomeData {
@@ -460,22 +469,36 @@ pub const DAPPLED_FOREST: BiomeData = BiomeData {
     id: 195u32,
     native_definition_json: "{\"ashDensity\":0,\"blueSporeDensity\":0,\"depth\":0.1,\"downfall\":0.6,\"foliageSnow\":0,\"mapWaterColor\":\"#a660b7ff\",\"maxSnowLevel\":0.125,\"minSnowLevel\":0,\"rain\":true,\"redSporeDensity\":0,\"scale\":0.2,\"snowAccumulation\":0,\"temperature\":0.6,\"waterTransparency\":0.65,\"whiteAshDensity\":0}",
     identifier: "minecraft:dappled_forest",
-    format_version: "",
+    format_version: "1.26.50",
     source: "protocolgen_native",
-    source_file: "",
+    source_file: "dappled_forest.biome.json",
     climate: Some(BiomeClimate {
         temperature: 0.6f32,
         downfall: 0.6f32,
         snow_accumulation: Some((0f32, 0.125f32)),
     }),
-    tags: &[],
-    component_names: &[],
+    tags: &[
+        "animal",
+        "dappled_forest",
+        "forest",
+        "has_structure_abandoned_camp",
+        "monster",
+        "overworld",
+        "spawns_cold_variant_farm_animals",
+    ],
+    component_names: &[
+        "minecraft:climate",
+        "minecraft:overworld_height",
+        "minecraft:surface_builder",
+        "minecraft:surface_material_adjustments",
+        "minecraft:tags",
+    ],
 };
 pub const DEEP_COLD_OCEAN: BiomeData = BiomeData {
     id: 45u32,
     native_definition_json: "{\"ashDensity\":0,\"blueSporeDensity\":0,\"depth\":-1.8,\"downfall\":0.5,\"foliageSnow\":0,\"mapWaterColor\":\"#a52080c9\",\"maxSnowLevel\":0.125,\"minSnowLevel\":0,\"rain\":true,\"redSporeDensity\":0,\"scale\":0.1,\"snowAccumulation\":0,\"temperature\":0.5,\"waterTransparency\":0.65,\"whiteAshDensity\":0}",
     identifier: "minecraft:deep_cold_ocean",
-    format_version: "1.21.110",
+    format_version: "1.26.0",
     source: "protocolgen_native",
     source_file: "deep_cold_ocean.biome.json",
     climate: Some(BiomeClimate {
@@ -486,6 +509,8 @@ pub const DEEP_COLD_OCEAN: BiomeData = BiomeData {
     tags: &[
         "cold",
         "deep",
+        "fast_fishing",
+        "high_seas",
         "monster",
         "ocean",
         "overworld",
@@ -529,7 +554,7 @@ pub const DEEP_FROZEN_OCEAN: BiomeData = BiomeData {
     id: 47u32,
     native_definition_json: "{\"ashDensity\":0,\"blueSporeDensity\":0,\"depth\":-1.8,\"downfall\":0.5,\"foliageSnow\":0,\"mapWaterColor\":\"#a52570b5\",\"maxSnowLevel\":0.25,\"minSnowLevel\":0.125,\"rain\":true,\"redSporeDensity\":0,\"scale\":0.1,\"snowAccumulation\":0.125,\"temperature\":0.5,\"waterTransparency\":0.65,\"whiteAshDensity\":0}",
     identifier: "minecraft:deep_frozen_ocean",
-    format_version: "1.21.110",
+    format_version: "1.26.0",
     source: "protocolgen_native",
     source_file: "deep_frozen_ocean.biome.json",
     climate: Some(BiomeClimate {
@@ -539,7 +564,9 @@ pub const DEEP_FROZEN_OCEAN: BiomeData = BiomeData {
     }),
     tags: &[
         "deep",
+        "fast_fishing",
         "frozen",
+        "high_seas",
         "monster",
         "ocean",
         "overworld",
@@ -560,7 +587,7 @@ pub const DEEP_LUKEWARM_OCEAN: BiomeData = BiomeData {
     id: 43u32,
     native_definition_json: "{\"ashDensity\":0,\"blueSporeDensity\":0,\"depth\":-1.8,\"downfall\":0.5,\"foliageSnow\":0,\"mapWaterColor\":\"#a50d96db\",\"maxSnowLevel\":0.125,\"minSnowLevel\":0,\"rain\":true,\"redSporeDensity\":0,\"scale\":0.1,\"snowAccumulation\":0,\"temperature\":0.5,\"waterTransparency\":0.65,\"whiteAshDensity\":0}",
     identifier: "minecraft:deep_lukewarm_ocean",
-    format_version: "1.21.110",
+    format_version: "1.26.0",
     source: "protocolgen_native",
     source_file: "deep_lukewarm_ocean.biome.json",
     climate: Some(BiomeClimate {
@@ -570,11 +597,14 @@ pub const DEEP_LUKEWARM_OCEAN: BiomeData = BiomeData {
     }),
     tags: &[
         "deep",
+        "fast_fishing",
+        "high_seas",
         "lukewarm",
         "monster",
         "ocean",
         "overworld",
         "spawns_warm_variant_farm_animals",
+        "temperate_ocean",
     ],
     component_names: &[
         "minecraft:climate",
@@ -588,7 +618,7 @@ pub const DEEP_OCEAN: BiomeData = BiomeData {
     id: 24u32,
     native_definition_json: "{\"ashDensity\":0,\"blueSporeDensity\":0,\"depth\":-1.8,\"downfall\":0.5,\"foliageSnow\":0,\"mapWaterColor\":\"#a51787d4\",\"maxSnowLevel\":0.125,\"minSnowLevel\":0,\"rain\":true,\"redSporeDensity\":0,\"scale\":0.1,\"snowAccumulation\":0,\"temperature\":0.5,\"waterTransparency\":0.65,\"whiteAshDensity\":0}",
     identifier: "minecraft:deep_ocean",
-    format_version: "1.21.110",
+    format_version: "1.26.0",
     source: "protocolgen_native",
     source_file: "deep_ocean.biome.json",
     climate: Some(BiomeClimate {
@@ -598,6 +628,8 @@ pub const DEEP_OCEAN: BiomeData = BiomeData {
     }),
     tags: &[
         "deep",
+        "fast_fishing",
+        "high_seas",
         "monster",
         "ocean",
         "overworld",
@@ -615,7 +647,7 @@ pub const DEEP_WARM_OCEAN: BiomeData = BiomeData {
     id: 41u32,
     native_definition_json: "{\"ashDensity\":0,\"blueSporeDensity\":0,\"depth\":-1.8,\"downfall\":0.5,\"foliageSnow\":0,\"mapWaterColor\":\"#a502b0e5\",\"maxSnowLevel\":0.125,\"minSnowLevel\":0,\"rain\":true,\"redSporeDensity\":0,\"scale\":0.1,\"snowAccumulation\":0,\"temperature\":0.5,\"waterTransparency\":0.65,\"whiteAshDensity\":0}",
     identifier: "minecraft:deep_warm_ocean",
-    format_version: "1.21.110",
+    format_version: "1.26.0",
     source: "protocolgen_native",
     source_file: "deep_warm_ocean.biome.json",
     climate: Some(BiomeClimate {
@@ -625,10 +657,13 @@ pub const DEEP_WARM_OCEAN: BiomeData = BiomeData {
     }),
     tags: &[
         "deep",
+        "fast_fishing",
+        "high_seas",
         "monster",
         "ocean",
         "overworld",
         "spawns_warm_variant_farm_animals",
+        "temperate_ocean",
         "warm",
     ],
     component_names: &[
@@ -642,7 +677,7 @@ pub const DESERT: BiomeData = BiomeData {
     id: 2u32,
     native_definition_json: "{\"ashDensity\":0,\"blueSporeDensity\":0,\"depth\":0.125,\"downfall\":0,\"foliageSnow\":0,\"mapWaterColor\":\"#a532a598\",\"maxSnowLevel\":0.125,\"minSnowLevel\":0,\"rain\":false,\"redSporeDensity\":0,\"scale\":0.05,\"snowAccumulation\":0,\"temperature\":2,\"waterTransparency\":0.65,\"whiteAshDensity\":0}",
     identifier: "minecraft:desert",
-    format_version: "1.21.110",
+    format_version: "1.26.0",
     source: "protocolgen_native",
     source_file: "desert.biome.json",
     climate: Some(BiomeClimate {
@@ -665,6 +700,7 @@ pub const DESERT: BiomeData = BiomeData {
         "minecraft:overworld_height",
         "minecraft:surface_builder",
         "minecraft:tags",
+        "minecraft:village_type",
     ],
 };
 pub const DESERT_HILLS: BiomeData = BiomeData {
@@ -830,7 +866,7 @@ pub const EXTREME_HILLS_PLUS_TREES: BiomeData = BiomeData {
     id: 34u32,
     native_definition_json: "{\"ashDensity\":0,\"blueSporeDensity\":0,\"depth\":1,\"downfall\":0.3,\"foliageSnow\":0,\"mapWaterColor\":\"#a50e63ab\",\"maxSnowLevel\":0.125,\"minSnowLevel\":0,\"rain\":true,\"redSporeDensity\":0,\"scale\":0.5,\"snowAccumulation\":0,\"temperature\":0.2,\"waterTransparency\":0.65,\"whiteAshDensity\":0}",
     identifier: "minecraft:extreme_hills_plus_trees",
-    format_version: "1.21.110",
+    format_version: "1.26.50",
     source: "protocolgen_native",
     source_file: "extreme_hills_plus_trees.biome.json",
     climate: Some(BiomeClimate {
@@ -842,6 +878,7 @@ pub const EXTREME_HILLS_PLUS_TREES: BiomeData = BiomeData {
         "animal",
         "extreme_hills",
         "forest",
+        "has_structure_abandoned_camp",
         "monster",
         "mountain",
         "overworld",
@@ -888,7 +925,7 @@ pub const FLOWER_FOREST: BiomeData = BiomeData {
     id: 132u32,
     native_definition_json: "{\"ashDensity\":0,\"blueSporeDensity\":0,\"depth\":0.1,\"downfall\":0.8,\"foliageSnow\":0,\"mapWaterColor\":\"#a520a3cc\",\"maxSnowLevel\":0.125,\"minSnowLevel\":0,\"rain\":true,\"redSporeDensity\":0,\"scale\":0.4,\"snowAccumulation\":0,\"temperature\":0.7,\"waterTransparency\":0.65,\"whiteAshDensity\":0}",
     identifier: "minecraft:flower_forest",
-    format_version: "1.21.110",
+    format_version: "1.26.50",
     source: "protocolgen_native",
     source_file: "flower_forest.biome.json",
     climate: Some(BiomeClimate {
@@ -900,6 +937,7 @@ pub const FLOWER_FOREST: BiomeData = BiomeData {
         "animal",
         "bee_habitat",
         "flower_forest",
+        "has_structure_abandoned_camp",
         "monster",
         "mutated",
         "overworld",
@@ -915,7 +953,7 @@ pub const FOREST: BiomeData = BiomeData {
     id: 4u32,
     native_definition_json: "{\"ashDensity\":0,\"blueSporeDensity\":0,\"depth\":0.1,\"downfall\":0.8,\"foliageSnow\":0,\"mapWaterColor\":\"#a51e97f2\",\"maxSnowLevel\":0.125,\"minSnowLevel\":0,\"rain\":true,\"redSporeDensity\":0,\"scale\":0.2,\"snowAccumulation\":0,\"temperature\":0.7,\"waterTransparency\":0.65,\"whiteAshDensity\":0}",
     identifier: "minecraft:forest",
-    format_version: "1.21.110",
+    format_version: "1.26.50",
     source: "protocolgen_native",
     source_file: "forest.biome.json",
     climate: Some(BiomeClimate {
@@ -923,7 +961,15 @@ pub const FOREST: BiomeData = BiomeData {
         downfall: 0.8f32,
         snow_accumulation: Some((0f32, 0.125f32)),
     }),
-    tags: &["animal", "bee_habitat", "forest", "monster", "overworld"],
+    tags: &[
+        "animal",
+        "bee_habitat",
+        "forest",
+        "has_structure_abandoned_camp",
+        "monster",
+        "oak_forest",
+        "overworld",
+    ],
     component_names: &[
         "minecraft:climate",
         "minecraft:multinoise_generation_rules",
@@ -965,7 +1011,7 @@ pub const FROZEN_OCEAN: BiomeData = BiomeData {
     id: 46u32,
     native_definition_json: "{\"ashDensity\":0,\"blueSporeDensity\":0,\"depth\":-1,\"downfall\":0.5,\"foliageSnow\":0,\"mapWaterColor\":\"#a52570b5\",\"maxSnowLevel\":0.25,\"minSnowLevel\":0.125,\"rain\":true,\"redSporeDensity\":0,\"scale\":0.1,\"snowAccumulation\":0.125,\"temperature\":0,\"waterTransparency\":0.65,\"whiteAshDensity\":0}",
     identifier: "minecraft:frozen_ocean",
-    format_version: "1.21.110",
+    format_version: "1.26.0",
     source: "protocolgen_native",
     source_file: "frozen_ocean.biome.json",
     climate: Some(BiomeClimate {
@@ -974,7 +1020,9 @@ pub const FROZEN_OCEAN: BiomeData = BiomeData {
         snow_accumulation: Some((0.125f32, 0.25f32)),
     }),
     tags: &[
+        "fast_fishing",
         "frozen",
+        "high_seas",
         "monster",
         "ocean",
         "overworld",
@@ -1149,7 +1197,7 @@ pub const ICE_PLAINS: BiomeData = BiomeData {
     id: 12u32,
     native_definition_json: "{\"ashDensity\":0,\"blueSporeDensity\":0,\"depth\":0.125,\"downfall\":0.5,\"foliageSnow\":0,\"mapWaterColor\":\"#a514559b\",\"maxSnowLevel\":1,\"minSnowLevel\":0.25,\"rain\":true,\"redSporeDensity\":0,\"scale\":0.05,\"snowAccumulation\":0.25,\"temperature\":0,\"waterTransparency\":0.65,\"whiteAshDensity\":0}",
     identifier: "minecraft:ice_plains",
-    format_version: "1.21.110",
+    format_version: "1.26.0",
     source: "protocolgen_native",
     source_file: "ice_plains.biome.json",
     climate: Some(BiomeClimate {
@@ -1175,6 +1223,7 @@ pub const ICE_PLAINS: BiomeData = BiomeData {
         "minecraft:overworld_height",
         "minecraft:surface_builder",
         "minecraft:tags",
+        "minecraft:village_type",
     ],
 };
 pub const ICE_PLAINS_SPIKES: BiomeData = BiomeData {
@@ -1272,7 +1321,7 @@ pub const JUNGLE_EDGE: BiomeData = BiomeData {
     id: 23u32,
     native_definition_json: "{\"ashDensity\":0,\"blueSporeDensity\":0,\"depth\":0.1,\"downfall\":0.8,\"foliageSnow\":0,\"mapWaterColor\":\"#a50d8ae3\",\"maxSnowLevel\":0.125,\"minSnowLevel\":0,\"rain\":true,\"redSporeDensity\":0,\"scale\":0.2,\"snowAccumulation\":0,\"temperature\":0.95,\"waterTransparency\":0.65,\"whiteAshDensity\":0}",
     identifier: "minecraft:jungle_edge",
-    format_version: "1.21.110",
+    format_version: "1.26.50",
     source: "protocolgen_native",
     source_file: "jungle_edge.biome.json",
     climate: Some(BiomeClimate {
@@ -1283,6 +1332,7 @@ pub const JUNGLE_EDGE: BiomeData = BiomeData {
     tags: &[
         "animal",
         "edge",
+        "has_structure_abandoned_camp",
         "jungle",
         "monster",
         "overworld",
@@ -1386,7 +1436,7 @@ pub const LEGACY_FROZEN_OCEAN: BiomeData = BiomeData {
     id: 10u32,
     native_definition_json: "{\"ashDensity\":0,\"blueSporeDensity\":0,\"depth\":-1,\"downfall\":0.5,\"foliageSnow\":0,\"mapWaterColor\":\"#a660b7ff\",\"maxSnowLevel\":0.25,\"minSnowLevel\":0.125,\"rain\":true,\"redSporeDensity\":0,\"scale\":0.1,\"snowAccumulation\":0.125,\"temperature\":0,\"waterTransparency\":0.65,\"whiteAshDensity\":0}",
     identifier: "minecraft:legacy_frozen_ocean",
-    format_version: "1.21.110",
+    format_version: "1.26.0",
     source: "protocolgen_native",
     source_file: "legacy_frozen_ocean.biome.json",
     climate: Some(BiomeClimate {
@@ -1395,7 +1445,9 @@ pub const LEGACY_FROZEN_OCEAN: BiomeData = BiomeData {
         snow_accumulation: Some((0.125f32, 0.25f32)),
     }),
     tags: &[
+        "fast_fishing",
         "frozen",
+        "high_seas",
         "legacy",
         "ocean",
         "overworld",
@@ -1412,7 +1464,7 @@ pub const LUKEWARM_OCEAN: BiomeData = BiomeData {
     id: 42u32,
     native_definition_json: "{\"ashDensity\":0,\"blueSporeDensity\":0,\"depth\":-1,\"downfall\":0.5,\"foliageSnow\":0,\"mapWaterColor\":\"#a50d96db\",\"maxSnowLevel\":0.125,\"minSnowLevel\":0,\"rain\":true,\"redSporeDensity\":0,\"scale\":0.1,\"snowAccumulation\":0,\"temperature\":0.5,\"waterTransparency\":0.65,\"whiteAshDensity\":0}",
     identifier: "minecraft:lukewarm_ocean",
-    format_version: "1.21.110",
+    format_version: "1.26.0",
     source: "protocolgen_native",
     source_file: "lukewarm_ocean.biome.json",
     climate: Some(BiomeClimate {
@@ -1421,11 +1473,14 @@ pub const LUKEWARM_OCEAN: BiomeData = BiomeData {
         snow_accumulation: Some((0f32, 0.125f32)),
     }),
     tags: &[
+        "fast_fishing",
+        "high_seas",
         "lukewarm",
         "monster",
         "ocean",
         "overworld",
         "spawns_warm_variant_farm_animals",
+        "temperate_ocean",
     ],
     component_names: &[
         "minecraft:climate",
@@ -1465,7 +1520,7 @@ pub const MANGROVE_SWAMP: BiomeData = BiomeData {
     id: 191u32,
     native_definition_json: "{\"ashDensity\":0,\"blueSporeDensity\":0,\"depth\":-0.2,\"downfall\":0.9,\"foliageSnow\":0,\"mapWaterColor\":\"#a660b7ff\",\"maxSnowLevel\":0.125,\"minSnowLevel\":0,\"rain\":true,\"redSporeDensity\":0,\"scale\":0.1,\"snowAccumulation\":0,\"temperature\":0.8,\"waterTransparency\":0.65,\"whiteAshDensity\":0}",
     identifier: "minecraft:mangrove_swamp",
-    format_version: "1.21.110",
+    format_version: "1.26.0",
     source: "protocolgen_native",
     source_file: "mangrove_swamp.biome.json",
     climate: Some(BiomeClimate {
@@ -1477,6 +1532,7 @@ pub const MANGROVE_SWAMP: BiomeData = BiomeData {
         "mangrove_swamp",
         "monster",
         "overworld",
+        "slime",
         "spawns_slimes_on_surface",
         "spawns_warm_variant_farm_animals",
         "spawns_warm_variant_frogs",
@@ -1492,7 +1548,7 @@ pub const MEADOW: BiomeData = BiomeData {
     id: 186u32,
     native_definition_json: "{\"ashDensity\":0,\"blueSporeDensity\":0,\"depth\":0.1,\"downfall\":0.8,\"foliageSnow\":0,\"mapWaterColor\":\"#a660b7ff\",\"maxSnowLevel\":0.125,\"minSnowLevel\":0,\"rain\":true,\"redSporeDensity\":0,\"scale\":0.2,\"snowAccumulation\":0,\"temperature\":0.3,\"waterTransparency\":0.65,\"whiteAshDensity\":0}",
     identifier: "minecraft:meadow",
-    format_version: "1.21.110",
+    format_version: "1.26.50",
     source: "protocolgen_native",
     source_file: "meadow.biome.json",
     climate: Some(BiomeClimate {
@@ -1500,19 +1556,27 @@ pub const MEADOW: BiomeData = BiomeData {
         downfall: 0.8f32,
         snow_accumulation: Some((0f32, 0.125f32)),
     }),
-    tags: &["bee_habitat", "meadow", "monster", "mountains", "overworld"],
+    tags: &[
+        "bee_habitat",
+        "has_structure_abandoned_camp",
+        "meadow",
+        "monster",
+        "mountains",
+        "overworld",
+    ],
     component_names: &[
         "minecraft:climate",
         "minecraft:mountain_parameters",
         "minecraft:surface_builder",
         "minecraft:tags",
+        "minecraft:village_type",
     ],
 };
 pub const MEGA_TAIGA: BiomeData = BiomeData {
     id: 32u32,
     native_definition_json: "{\"ashDensity\":0,\"blueSporeDensity\":0,\"depth\":0.2,\"downfall\":0.8,\"foliageSnow\":0,\"mapWaterColor\":\"#a52d6d77\",\"maxSnowLevel\":0.125,\"minSnowLevel\":0,\"rain\":true,\"redSporeDensity\":0,\"scale\":0.2,\"snowAccumulation\":0,\"temperature\":0.3,\"waterTransparency\":0.65,\"whiteAshDensity\":0}",
     identifier: "minecraft:mega_taiga",
-    format_version: "1.21.110",
+    format_version: "1.26.50",
     source: "protocolgen_native",
     source_file: "mega_taiga.biome.json",
     climate: Some(BiomeClimate {
@@ -1523,6 +1587,7 @@ pub const MEGA_TAIGA: BiomeData = BiomeData {
     tags: &[
         "animal",
         "forest",
+        "has_structure_abandoned_camp",
         "has_structure_trail_ruins",
         "mega",
         "monster",
@@ -1575,7 +1640,7 @@ pub const MESA: BiomeData = BiomeData {
     id: 37u32,
     native_definition_json: "{\"ashDensity\":0,\"blueSporeDensity\":0,\"depth\":0.1,\"downfall\":0,\"foliageSnow\":0,\"mapWaterColor\":\"#a54e7f81\",\"maxSnowLevel\":0.125,\"minSnowLevel\":0,\"rain\":false,\"redSporeDensity\":0,\"scale\":0.2,\"snowAccumulation\":0,\"temperature\":2,\"waterTransparency\":0.65,\"whiteAshDensity\":0}",
     identifier: "minecraft:mesa",
-    format_version: "1.21.110",
+    format_version: "1.26.0",
     source: "protocolgen_native",
     source_file: "mesa.biome.json",
     climate: Some(BiomeClimate {
@@ -1590,6 +1655,7 @@ pub const MESA: BiomeData = BiomeData {
         "overworld",
         "spawns_mesa_mobs",
         "spawns_warm_variant_farm_animals",
+        "surface_mineshaft",
     ],
     component_names: &[
         "minecraft:climate",
@@ -1605,7 +1671,7 @@ pub const MESA_BRYCE: BiomeData = BiomeData {
     id: 165u32,
     native_definition_json: "{\"ashDensity\":0,\"blueSporeDensity\":0,\"depth\":0.1,\"downfall\":0,\"foliageSnow\":0,\"mapWaterColor\":\"#a514a2c5\",\"maxSnowLevel\":0.125,\"minSnowLevel\":0,\"rain\":false,\"redSporeDensity\":0,\"scale\":0.2,\"snowAccumulation\":0,\"temperature\":2,\"waterTransparency\":0.65,\"whiteAshDensity\":0}",
     identifier: "minecraft:mesa_bryce",
-    format_version: "1.21.110",
+    format_version: "1.26.0",
     source: "protocolgen_native",
     source_file: "mesa_bryce.biome.json",
     climate: Some(BiomeClimate {
@@ -1621,6 +1687,7 @@ pub const MESA_BRYCE: BiomeData = BiomeData {
         "overworld",
         "spawns_mesa_mobs",
         "spawns_warm_variant_farm_animals",
+        "surface_mineshaft",
     ],
     component_names: &[
         "minecraft:climate",
@@ -1635,7 +1702,7 @@ pub const MESA_PLATEAU: BiomeData = BiomeData {
     id: 39u32,
     native_definition_json: "{\"ashDensity\":0,\"blueSporeDensity\":0,\"depth\":1.5,\"downfall\":0,\"foliageSnow\":0,\"mapWaterColor\":\"#a555809e\",\"maxSnowLevel\":0.125,\"minSnowLevel\":0,\"rain\":false,\"redSporeDensity\":0,\"scale\":0.025,\"snowAccumulation\":0,\"temperature\":2,\"waterTransparency\":0.65,\"whiteAshDensity\":0}",
     identifier: "minecraft:mesa_plateau",
-    format_version: "1.21.110",
+    format_version: "1.26.0",
     source: "protocolgen_native",
     source_file: "mesa_plateau.biome.json",
     climate: Some(BiomeClimate {
@@ -1652,6 +1719,7 @@ pub const MESA_PLATEAU: BiomeData = BiomeData {
         "rare",
         "spawns_mesa_mobs",
         "spawns_warm_variant_farm_animals",
+        "surface_mineshaft",
     ],
     component_names: &[
         "minecraft:climate",
@@ -1666,7 +1734,7 @@ pub const MESA_PLATEAU_MUTATED: BiomeData = BiomeData {
     id: 167u32,
     native_definition_json: "{\"ashDensity\":0,\"blueSporeDensity\":0,\"depth\":0.45,\"downfall\":0,\"foliageSnow\":0,\"mapWaterColor\":\"#a555809e\",\"maxSnowLevel\":0.125,\"minSnowLevel\":0,\"rain\":false,\"redSporeDensity\":0,\"scale\":0.3,\"snowAccumulation\":0,\"temperature\":2,\"waterTransparency\":0.65,\"whiteAshDensity\":0}",
     identifier: "minecraft:mesa_plateau_mutated",
-    format_version: "1.21.110",
+    format_version: "1.26.0",
     source: "protocolgen_native",
     source_file: "mesa_plateau_mutated.biome.json",
     climate: Some(BiomeClimate {
@@ -1684,6 +1752,7 @@ pub const MESA_PLATEAU_MUTATED: BiomeData = BiomeData {
         "spawns_mesa_mobs",
         "spawns_warm_variant_farm_animals",
         "stone",
+        "surface_mineshaft",
     ],
     component_names: &[
         "minecraft:climate",
@@ -1697,7 +1766,7 @@ pub const MESA_PLATEAU_STONE: BiomeData = BiomeData {
     id: 38u32,
     native_definition_json: "{\"ashDensity\":0,\"blueSporeDensity\":0,\"depth\":1.5,\"downfall\":0,\"foliageSnow\":0,\"mapWaterColor\":\"#a555809e\",\"maxSnowLevel\":0.125,\"minSnowLevel\":0,\"rain\":false,\"redSporeDensity\":0,\"scale\":0.025,\"snowAccumulation\":0,\"temperature\":2,\"waterTransparency\":0.65,\"whiteAshDensity\":0}",
     identifier: "minecraft:mesa_plateau_stone",
-    format_version: "1.21.110",
+    format_version: "1.26.50",
     source: "protocolgen_native",
     source_file: "mesa_plateau_stone.biome.json",
     climate: Some(BiomeClimate {
@@ -1707,6 +1776,7 @@ pub const MESA_PLATEAU_STONE: BiomeData = BiomeData {
     }),
     tags: &[
         "animal",
+        "has_structure_abandoned_camp",
         "mesa",
         "monster",
         "overworld",
@@ -1715,6 +1785,7 @@ pub const MESA_PLATEAU_STONE: BiomeData = BiomeData {
         "spawns_mesa_mobs",
         "spawns_warm_variant_farm_animals",
         "stone",
+        "surface_mineshaft",
     ],
     component_names: &[
         "minecraft:climate",
@@ -1730,7 +1801,7 @@ pub const MESA_PLATEAU_STONE_MUTATED: BiomeData = BiomeData {
     id: 166u32,
     native_definition_json: "{\"ashDensity\":0,\"blueSporeDensity\":0,\"depth\":0.45,\"downfall\":0,\"foliageSnow\":0,\"mapWaterColor\":\"#a555809e\",\"maxSnowLevel\":0.125,\"minSnowLevel\":0,\"rain\":false,\"redSporeDensity\":0,\"scale\":0.3,\"snowAccumulation\":0,\"temperature\":2,\"waterTransparency\":0.65,\"whiteAshDensity\":0}",
     identifier: "minecraft:mesa_plateau_stone_mutated",
-    format_version: "1.21.110",
+    format_version: "1.26.0",
     source: "protocolgen_native",
     source_file: "mesa_plateau_stone_mutated.biome.json",
     climate: Some(BiomeClimate {
@@ -1747,6 +1818,7 @@ pub const MESA_PLATEAU_STONE_MUTATED: BiomeData = BiomeData {
         "plateau",
         "spawns_mesa_mobs",
         "spawns_warm_variant_farm_animals",
+        "surface_mineshaft",
     ],
     component_names: &[
         "minecraft:climate",
@@ -1805,7 +1877,7 @@ pub const OCEAN: BiomeData = BiomeData {
     id: 0u32,
     native_definition_json: "{\"ashDensity\":0,\"blueSporeDensity\":0,\"depth\":-1,\"downfall\":0.5,\"foliageSnow\":0,\"mapWaterColor\":\"#a51787d4\",\"maxSnowLevel\":0.125,\"minSnowLevel\":0,\"rain\":true,\"redSporeDensity\":0,\"scale\":0.1,\"snowAccumulation\":0,\"temperature\":0.5,\"waterTransparency\":0.65,\"whiteAshDensity\":0}",
     identifier: "minecraft:ocean",
-    format_version: "1.21.110",
+    format_version: "1.26.0",
     source: "protocolgen_native",
     source_file: "ocean.biome.json",
     climate: Some(BiomeClimate {
@@ -1813,7 +1885,7 @@ pub const OCEAN: BiomeData = BiomeData {
         downfall: 0.5f32,
         snow_accumulation: Some((0f32, 0.125f32)),
     }),
-    tags: &["monster", "ocean", "overworld"],
+    tags: &["fast_fishing", "high_seas", "monster", "ocean", "overworld"],
     component_names: &[
         "minecraft:climate",
         "minecraft:multinoise_generation_rules",
@@ -1827,7 +1899,7 @@ pub const PALE_GARDEN: BiomeData = BiomeData {
     id: 193u32,
     native_definition_json: "{\"ashDensity\":0,\"blueSporeDensity\":0,\"depth\":0.1,\"downfall\":0.8,\"foliageSnow\":0,\"mapWaterColor\":\"#a660b7ff\",\"maxSnowLevel\":0.125,\"minSnowLevel\":0,\"rain\":true,\"redSporeDensity\":0,\"scale\":0.2,\"snowAccumulation\":0,\"temperature\":0.7,\"waterTransparency\":0.65,\"whiteAshDensity\":0}",
     identifier: "minecraft:pale_garden",
-    format_version: "1.21.110",
+    format_version: "1.26.50",
     source: "protocolgen_native",
     source_file: "pale_garden.biome.json",
     climate: Some(BiomeClimate {
@@ -1835,7 +1907,12 @@ pub const PALE_GARDEN: BiomeData = BiomeData {
         downfall: 0.8f32,
         snow_accumulation: Some((0f32, 0.125f32)),
     }),
-    tags: &["monster", "overworld", "pale_garden"],
+    tags: &[
+        "has_structure_abandoned_camp",
+        "monster",
+        "overworld",
+        "pale_garden",
+    ],
     component_names: &[
         "minecraft:climate",
         "minecraft:map_tints",
@@ -1848,7 +1925,7 @@ pub const PLAINS: BiomeData = BiomeData {
     id: 1u32,
     native_definition_json: "{\"ashDensity\":0,\"blueSporeDensity\":0,\"depth\":0.125,\"downfall\":0.4,\"foliageSnow\":0,\"mapWaterColor\":\"#a544aff5\",\"maxSnowLevel\":0.125,\"minSnowLevel\":0,\"rain\":true,\"redSporeDensity\":0,\"scale\":0.05,\"snowAccumulation\":0,\"temperature\":0.8,\"waterTransparency\":0.65,\"whiteAshDensity\":0}",
     identifier: "minecraft:plains",
-    format_version: "1.21.110",
+    format_version: "1.26.0",
     source: "protocolgen_native",
     source_file: "plains.biome.json",
     climate: Some(BiomeClimate {
@@ -1864,6 +1941,7 @@ pub const PLAINS: BiomeData = BiomeData {
         "minecraft:overworld_height",
         "minecraft:surface_builder",
         "minecraft:tags",
+        "minecraft:village_type",
     ],
 };
 pub const REDWOOD_TAIGA_HILLS_MUTATED: BiomeData = BiomeData {
@@ -1901,7 +1979,7 @@ pub const REDWOOD_TAIGA_MUTATED: BiomeData = BiomeData {
     id: 160u32,
     native_definition_json: "{\"ashDensity\":0,\"blueSporeDensity\":0,\"depth\":0.2,\"downfall\":0.8,\"foliageSnow\":0,\"mapWaterColor\":\"#a52d6d77\",\"maxSnowLevel\":0.125,\"minSnowLevel\":0,\"rain\":true,\"redSporeDensity\":0,\"scale\":0.2,\"snowAccumulation\":0,\"temperature\":0.25,\"waterTransparency\":0.65,\"whiteAshDensity\":0}",
     identifier: "minecraft:redwood_taiga_mutated",
-    format_version: "1.21.110",
+    format_version: "1.26.50",
     source: "protocolgen_native",
     source_file: "redwood_taiga_mutated.biome.json",
     climate: Some(BiomeClimate {
@@ -1912,6 +1990,7 @@ pub const REDWOOD_TAIGA_MUTATED: BiomeData = BiomeData {
     tags: &[
         "animal",
         "forest",
+        "has_structure_abandoned_camp",
         "has_structure_trail_ruins",
         "mega",
         "monster",
@@ -2015,7 +2094,7 @@ pub const SAVANNA: BiomeData = BiomeData {
     id: 35u32,
     native_definition_json: "{\"ashDensity\":0,\"blueSporeDensity\":0,\"depth\":0.125,\"downfall\":0,\"foliageSnow\":0,\"mapWaterColor\":\"#a52c8b9c\",\"maxSnowLevel\":0.125,\"minSnowLevel\":0,\"rain\":false,\"redSporeDensity\":0,\"scale\":0.05,\"snowAccumulation\":0,\"temperature\":1.2,\"waterTransparency\":0.65,\"whiteAshDensity\":0}",
     identifier: "minecraft:savanna",
-    format_version: "1.21.110",
+    format_version: "1.26.50",
     source: "protocolgen_native",
     source_file: "savanna.biome.json",
     climate: Some(BiomeClimate {
@@ -2025,6 +2104,7 @@ pub const SAVANNA: BiomeData = BiomeData {
     }),
     tags: &[
         "animal",
+        "has_structure_abandoned_camp",
         "monster",
         "overworld",
         "savanna",
@@ -2038,6 +2118,7 @@ pub const SAVANNA: BiomeData = BiomeData {
         "minecraft:overworld_height",
         "minecraft:surface_builder",
         "minecraft:tags",
+        "minecraft:village_type",
     ],
 };
 pub const SAVANNA_MUTATED: BiomeData = BiomeData {
@@ -2236,22 +2317,28 @@ pub const SULFUR_CAVES: BiomeData = BiomeData {
     id: 194u32,
     native_definition_json: "{\"ashDensity\":0,\"blueSporeDensity\":0,\"depth\":0.1,\"downfall\":0.4,\"foliageSnow\":0,\"mapWaterColor\":\"#a660b7ff\",\"maxSnowLevel\":0.125,\"minSnowLevel\":0,\"rain\":true,\"redSporeDensity\":0,\"scale\":0.2,\"snowAccumulation\":0,\"temperature\":0.8,\"waterTransparency\":0.65,\"whiteAshDensity\":0}",
     identifier: "minecraft:sulfur_caves",
-    format_version: "",
+    format_version: "1.26.30",
     source: "protocolgen_native",
-    source_file: "",
+    source_file: "sulfur_caves.biome.json",
     climate: Some(BiomeClimate {
         temperature: 0.8f32,
         downfall: 0.4f32,
         snow_accumulation: Some((0f32, 0.125f32)),
     }),
-    tags: &[],
-    component_names: &[],
+    tags: &["caves", "monster", "overworld", "sulfur_caves"],
+    component_names: &[
+        "minecraft:climate",
+        "minecraft:overworld_height",
+        "minecraft:subsurface_builder",
+        "minecraft:surface_builder",
+        "minecraft:tags",
+    ],
 };
 pub const SUNFLOWER_PLAINS: BiomeData = BiomeData {
     id: 129u32,
     native_definition_json: "{\"ashDensity\":0,\"blueSporeDensity\":0,\"depth\":0.125,\"downfall\":0.4,\"foliageSnow\":0,\"mapWaterColor\":\"#a660b7ff\",\"maxSnowLevel\":0.125,\"minSnowLevel\":0,\"rain\":true,\"redSporeDensity\":0,\"scale\":0.05,\"snowAccumulation\":0,\"temperature\":0.8,\"waterTransparency\":0.65,\"whiteAshDensity\":0}",
     identifier: "minecraft:sunflower_plains",
-    format_version: "1.21.110",
+    format_version: "1.26.0",
     source: "protocolgen_native",
     source_file: "sunflower_plains.biome.json",
     climate: Some(BiomeClimate {
@@ -2272,13 +2359,14 @@ pub const SUNFLOWER_PLAINS: BiomeData = BiomeData {
         "minecraft:overworld_height",
         "minecraft:surface_builder",
         "minecraft:tags",
+        "minecraft:village_type",
     ],
 };
 pub const SWAMPLAND: BiomeData = BiomeData {
     id: 6u32,
     native_definition_json: "{\"ashDensity\":0,\"blueSporeDensity\":0,\"depth\":-0.2,\"downfall\":0.9,\"foliageSnow\":0,\"mapWaterColor\":\"#a5617b64\",\"maxSnowLevel\":0.125,\"minSnowLevel\":0,\"rain\":true,\"redSporeDensity\":0,\"scale\":0.1,\"snowAccumulation\":0,\"temperature\":0.8,\"waterTransparency\":0.65,\"whiteAshDensity\":0}",
     identifier: "minecraft:swampland",
-    format_version: "1.21.110",
+    format_version: "1.26.50",
     source: "protocolgen_native",
     source_file: "swampland.biome.json",
     climate: Some(BiomeClimate {
@@ -2288,10 +2376,13 @@ pub const SWAMPLAND: BiomeData = BiomeData {
     }),
     tags: &[
         "animal",
+        "has_structure_abandoned_camp",
         "monster",
         "overworld",
+        "slime",
         "spawns_slimes_on_surface",
         "swamp",
+        "swamp_water_huge_mushroom",
     ],
     component_names: &[
         "minecraft:climate",
@@ -2306,7 +2397,7 @@ pub const SWAMPLAND_MUTATED: BiomeData = BiomeData {
     id: 134u32,
     native_definition_json: "{\"ashDensity\":0,\"blueSporeDensity\":0,\"depth\":-0.1,\"downfall\":0.5,\"foliageSnow\":0,\"mapWaterColor\":\"#a5617b64\",\"maxSnowLevel\":0.125,\"minSnowLevel\":0,\"rain\":true,\"redSporeDensity\":0,\"scale\":0.3,\"snowAccumulation\":0,\"temperature\":0.8,\"waterTransparency\":0.65,\"whiteAshDensity\":0}",
     identifier: "minecraft:swampland_mutated",
-    format_version: "1.21.110",
+    format_version: "1.26.0",
     source: "protocolgen_native",
     source_file: "swampland_mutated.biome.json",
     climate: Some(BiomeClimate {
@@ -2319,8 +2410,10 @@ pub const SWAMPLAND_MUTATED: BiomeData = BiomeData {
         "monster",
         "mutated",
         "overworld_generation",
+        "slime",
         "spawns_slimes_on_surface",
         "swamp",
+        "swamp_water_huge_mushroom",
     ],
     component_names: &[
         "minecraft:climate",
@@ -2334,7 +2427,7 @@ pub const TAIGA: BiomeData = BiomeData {
     id: 5u32,
     native_definition_json: "{\"ashDensity\":0,\"blueSporeDensity\":0,\"depth\":0.1,\"downfall\":0.8,\"foliageSnow\":0,\"mapWaterColor\":\"#a5287082\",\"maxSnowLevel\":0.25,\"minSnowLevel\":0,\"rain\":true,\"redSporeDensity\":0,\"scale\":0.2,\"snowAccumulation\":0,\"temperature\":0.25,\"waterTransparency\":0.65,\"whiteAshDensity\":0}",
     identifier: "minecraft:taiga",
-    format_version: "1.21.110",
+    format_version: "1.26.50",
     source: "protocolgen_native",
     source_file: "taiga.biome.json",
     climate: Some(BiomeClimate {
@@ -2345,6 +2438,7 @@ pub const TAIGA: BiomeData = BiomeData {
     tags: &[
         "animal",
         "forest",
+        "has_structure_abandoned_camp",
         "has_structure_trail_ruins",
         "monster",
         "overworld",
@@ -2358,13 +2452,14 @@ pub const TAIGA: BiomeData = BiomeData {
         "minecraft:overworld_height",
         "minecraft:surface_builder",
         "minecraft:tags",
+        "minecraft:village_type",
     ],
 };
 pub const TAIGA_HILLS: BiomeData = BiomeData {
     id: 19u32,
     native_definition_json: "{\"ashDensity\":0,\"blueSporeDensity\":0,\"depth\":0.45,\"downfall\":0.8,\"foliageSnow\":0,\"mapWaterColor\":\"#a5236583\",\"maxSnowLevel\":0.25,\"minSnowLevel\":0,\"rain\":true,\"redSporeDensity\":0,\"scale\":0.3,\"snowAccumulation\":0,\"temperature\":0.25,\"waterTransparency\":0.65,\"whiteAshDensity\":0}",
     identifier: "minecraft:taiga_hills",
-    format_version: "1.21.110",
+    format_version: "1.26.0",
     source: "protocolgen_native",
     source_file: "taiga_hills.biome.json",
     climate: Some(BiomeClimate {
@@ -2387,6 +2482,7 @@ pub const TAIGA_HILLS: BiomeData = BiomeData {
         "minecraft:overworld_height",
         "minecraft:surface_builder",
         "minecraft:tags",
+        "minecraft:village_type",
     ],
 };
 pub const TAIGA_MUTATED: BiomeData = BiomeData {
@@ -2444,7 +2540,7 @@ pub const WARM_OCEAN: BiomeData = BiomeData {
     id: 40u32,
     native_definition_json: "{\"ashDensity\":0,\"blueSporeDensity\":0,\"depth\":-1,\"downfall\":0.5,\"foliageSnow\":0,\"mapWaterColor\":\"#a502b0e5\",\"maxSnowLevel\":0.125,\"minSnowLevel\":0,\"rain\":true,\"redSporeDensity\":0,\"scale\":0.1,\"snowAccumulation\":0,\"temperature\":0.5,\"waterTransparency\":0.65,\"whiteAshDensity\":0}",
     identifier: "minecraft:warm_ocean",
-    format_version: "1.21.110",
+    format_version: "1.26.0",
     source: "protocolgen_native",
     source_file: "warm_ocean.biome.json",
     climate: Some(BiomeClimate {
@@ -2453,11 +2549,14 @@ pub const WARM_OCEAN: BiomeData = BiomeData {
         snow_accumulation: Some((0f32, 0.125f32)),
     }),
     tags: &[
+        "fast_fishing",
+        "high_seas",
         "monster",
         "ocean",
         "overworld",
         "spawns_warm_variant_farm_animals",
         "spawns_warm_variant_frogs",
+        "temperate_ocean",
         "warm",
     ],
     component_names: &[

@@ -15,6 +15,7 @@ impl Cat {
 /// Component bundle for spawning a `minecraft:cat`
 #[derive(Bundle, Clone)]
 pub struct CatBundle {
+    pub ambient_sound_interval: super::super::components::AmbientSoundInterval,
     pub attack: super::super::components::Attack,
     pub attack_damage: super::super::components::AttackDamage,
     pub balloonable: super::super::components::Balloonable,
@@ -46,15 +47,31 @@ pub struct CatBundle {
     pub movement_basic: super::super::components::MovementBasic,
     pub nameable: super::super::components::Nameable,
     pub navigation_walk: super::super::components::NavigationWalk,
+    pub offspring: super::super::components::Offspring,
     pub physics: super::super::components::Physics,
     pub pushable: super::super::components::Pushable,
+    pub pushable_by_block: super::super::components::PushableByBlock,
+    pub pushable_by_entity: super::super::components::PushableByEntity,
     pub scale: super::super::components::Scale,
+    pub spawn_egg_interaction: super::super::components::SpawnEggInteraction,
     pub type_family: super::super::components::TypeFamily,
+    pub uses_legacy_friction: super::super::components::UsesLegacyFriction,
 }
 /// Spawn a new `minecraft:cat` entity with default Bedrock components
 pub fn spawn_cat(commands: &mut Commands) -> Entity {
     commands
         .spawn(CatBundle {
+            ambient_sound_interval: super::super::components::AmbientSoundInterval {
+                event_name: Some("ambient".to_string()),
+                event_names: Some(
+                    vec![
+                        AmbientSoundIntervalEventNames { condition : Some("query.is_baby"
+                        .to_string()), event_name : Some("ambient.baby".to_string()) }
+                    ],
+                ),
+                range: Some(16f32),
+                value: 6f32,
+            },
             attack: super::super::components::Attack {
                 damage: crate::types::RangeOrVal::Fixed(2f32),
                 effect_duration: Some(crate::types::MolangOr::Value(0i32)),
@@ -82,7 +99,7 @@ pub fn spawn_cat(commands: &mut Commands) -> Entity {
                 must_be_on_ground: Some(true),
                 priority: Some(BehaviorLeapAtTargetPriority {}),
                 set_persistent: Some(false),
-                target_dist: Some(0.3f32),
+                target_dist: None,
                 yd: Some(0f32),
             },
             behavior_look_at_player: super::super::components::BehaviorLookAtPlayer {
@@ -283,6 +300,19 @@ pub fn spawn_cat(commands: &mut Commands) -> Entity {
                 can_walk_in_lava: Some(false),
                 is_amphibious: Some(false),
             },
+            offspring: super::super::components::Offspring {
+                blend_attributes: None,
+                combine_parent_colors: Some(true),
+                deny_parents_variant: None,
+                inherit_tamed: None,
+                mutation_factor: None,
+                mutation_strategy: None,
+                offspring_pairs: Some(OffspringOffspringPairs {}),
+                parent_centric_attribute_blending: None,
+                property_inheritance: None,
+                random_extra_variant_mutation_interval: None,
+                random_variant_mutation_interval: None,
+            },
             physics: super::super::components::Physics {
                 has_collision: Some(true),
                 has_gravity: Some(true),
@@ -292,11 +322,23 @@ pub fn spawn_cat(commands: &mut Commands) -> Entity {
                 is_pushable: Some(true),
                 is_pushable_by_piston: Some(true),
             },
+            pushable_by_block: super::super::components::PushableByBlock {
+                data: None,
+            },
+            pushable_by_entity: super::super::components::PushableByEntity {
+                data: None,
+            },
             scale: super::super::components::Scale {
                 value: 1f32,
             },
+            spawn_egg_interaction: super::super::components::SpawnEggInteraction {
+                data: None,
+            },
             type_family: super::super::components::TypeFamily {
                 family: vec!["cat".to_string(), "mob".to_string()],
+            },
+            uses_legacy_friction: super::super::components::UsesLegacyFriction {
+                data: None,
             },
         })
         .id()
@@ -330,6 +372,7 @@ pub enum CatEvent {
     EntitySpawned,
     OnTame,
     PetSleptWithOwner,
+    RandomizeSoundVariant,
     SpawnFromVillage,
     SpawnMidnightCat,
     SpawnTameAdult,

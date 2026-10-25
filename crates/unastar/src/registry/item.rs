@@ -3,6 +3,7 @@
 use std::collections::HashMap;
 
 use jolyne::valentine::EnumsItemVersion;
+use jolyne::valentine::bedrock::codec::Nbt;
 use tracing::info;
 
 use super::{Registry, RegistryEntry, RegistryError};
@@ -30,6 +31,10 @@ pub struct ItemEntry {
     /// This is generated from behavior-pack item components where available,
     /// otherwise it remains an explicit unsourced default in `unastar-data`.
     pub stack_size: u8,
+    /// Component data sent for this item in `ItemRegistryPacket`, as network
+    /// NBT. Vanilla items carry exactly what BDS sends: an empty compound for
+    /// most, the component compound for component-based and legacy-JSON items.
+    pub component_nbt: Nbt,
 }
 
 impl RegistryEntry for ItemEntry {
@@ -181,6 +186,7 @@ impl ItemRegistry {
                 string_id: item.identifier.to_string(),
                 name: item_display_name(item.identifier),
                 stack_size: item.max_stack_size,
+                component_nbt: Nbt(bytes::Bytes::from_static(item.component_nbt)),
             };
             self.register(entry)
                 .expect("generated item data should have unique registry keys");
@@ -198,7 +204,6 @@ impl ItemRegistry {
     /// Convert registry to protocol packet.
     pub fn to_packet(&self) -> jolyne::valentine::ItemRegistryPacket {
         use jolyne::valentine::ItemData;
-        use jolyne::valentine::bedrock::codec::Nbt;
 
         let item_data: Vec<ItemData> = self
             .iter()
@@ -207,7 +212,7 @@ impl ItemRegistry {
                 item_id: item.network_id as i16,
                 is_component_based: item.component_based,
                 item_version: itemstate_version(item.version),
-                item_component_data: Nbt::default(),
+                item_component_data: item.component_nbt.clone(),
             })
             .collect();
 
@@ -247,6 +252,7 @@ mod tests {
                 string_id: "minecraft:test_component_item".to_string(),
                 name: "test_component_item".to_string(),
                 stack_size: 64,
+                component_nbt: Nbt::default(),
             })
             .expect("register item");
 
@@ -264,6 +270,43 @@ mod tests {
         );
     }
 
+    /// `testdata/bds-1.26.51-item-registry.bin` is the `ItemRegistryPacket`
+    /// (packet header and payload) BDS 1.26.51 sent to a gophertunnel client on
+    /// 2026-10-24. BDS orders entries by an internal hash, so the comparison is
+    /// per item name; every field, including the component NBT bytes, must match.
+    #[test]
+    fn vanilla_item_registry_packet_matches_bds_capture() {
+        use jolyne::valentine::bedrock::codec::BedrockCodec;
+        use jolyne::valentine::{ItemData, ItemRegistryPacket};
+
+        let capture = include_bytes!("testdata/bds-1.26.51-item-registry.bin");
+        let (header, mut payload) = capture.split_at(2);
+        assert_eq!(header, [0xa2, 0x01], "ItemRegistryPacket id 162");
+        let bds = ItemRegistryPacket::decode(&mut payload, ()).expect("decode capture");
+        assert!(payload.is_empty());
+        let bds: HashMap<String, ItemData> = bds
+            .item_data
+            .into_iter()
+            .map(|item| (item.item_name.to_string(), item))
+            .collect();
+
+        let mut registry = ItemRegistry::new();
+        registry.load_vanilla();
+        let ours = registry.to_packet().item_data;
+        assert_eq!(ours.len(), bds.len());
+        let mut with_components = 0;
+        for item in &ours {
+            let expected = bds
+                .get(&*item.item_name)
+                .unwrap_or_else(|| panic!("{} is not in the BDS registry", item.item_name));
+            assert_eq!(item, expected, "{}", item.item_name);
+            if item.item_component_data != Nbt::default() {
+                with_components += 1;
+            }
+        }
+        assert_eq!(with_components, 78);
+    }
+
     #[test]
     fn item_registry_indexes_name_and_network_id() {
         let mut registry = ItemRegistry::new();
@@ -276,6 +319,7 @@ mod tests {
                 string_id: "minecraft:indexed_item".to_string(),
                 name: "indexed_item".to_string(),
                 stack_size: 64,
+                component_nbt: Nbt::default(),
             })
             .expect("register item");
 
@@ -307,6 +351,7 @@ mod tests {
                 string_id: "minecraft:old_name".to_string(),
                 name: "old_name".to_string(),
                 stack_size: 64,
+                component_nbt: Nbt::default(),
             })
             .expect("register item");
 
@@ -356,6 +401,7 @@ mod tests {
                 string_id: "minecraft:unique".to_string(),
                 name: "unique".to_string(),
                 stack_size: 64,
+                component_nbt: Nbt::default(),
             })
             .expect("register item");
 
@@ -368,6 +414,7 @@ mod tests {
                 string_id: "minecraft:unique".to_string(),
                 name: "duplicate name".to_string(),
                 stack_size: 64,
+                component_nbt: Nbt::default(),
             })
             .expect_err("duplicate string IDs must be rejected");
         assert!(matches!(duplicate_name, RegistryError::StringIdConflict(_)));
@@ -381,6 +428,7 @@ mod tests {
                 string_id: "minecraft:other".to_string(),
                 name: "duplicate network".to_string(),
                 stack_size: 64,
+                component_nbt: Nbt::default(),
             })
             .expect_err("duplicate network IDs must be rejected");
         assert!(matches!(
@@ -401,6 +449,7 @@ mod tests {
                 string_id: "minecraft:first".to_string(),
                 name: "first".to_string(),
                 stack_size: 64,
+                component_nbt: Nbt::default(),
             })
             .expect("register first");
         registry
@@ -412,6 +461,7 @@ mod tests {
                 string_id: "minecraft:second".to_string(),
                 name: "second".to_string(),
                 stack_size: 64,
+                component_nbt: Nbt::default(),
             })
             .expect("register second");
 
@@ -455,6 +505,7 @@ mod tests {
                 string_id: "minecraft:removed".to_string(),
                 name: "removed".to_string(),
                 stack_size: 64,
+                component_nbt: Nbt::default(),
             })
             .expect("register item");
         let removed = registry.unregister(4).expect("remove sparse entry");

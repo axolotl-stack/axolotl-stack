@@ -45,9 +45,13 @@ pub struct SheepBundle {
     pub movement_basic: super::super::components::MovementBasic,
     pub nameable: super::super::components::Nameable,
     pub navigation_walk: super::super::components::NavigationWalk,
+    pub offspring: super::super::components::Offspring,
     pub physics: super::super::components::Physics,
     pub pushable: super::super::components::Pushable,
+    pub pushable_by_block: super::super::components::PushableByBlock,
+    pub pushable_by_entity: super::super::components::PushableByEntity,
     pub scale: super::super::components::Scale,
+    pub spawn_egg_interaction: super::super::components::SpawnEggInteraction,
     pub type_family: super::super::components::TypeFamily,
 }
 /// Spawn a new `minecraft:sheep` entity with default Bedrock components
@@ -277,7 +281,7 @@ pub fn spawn_sheep(commands: &mut Commands) -> Entity {
                         .to_string()), repair_entity_item : None, spawn_entities : None,
                         spawn_items : Some(InteractInteractionsSpawnItems { table :
                         Some("loot_tables/entities/sheep_shear.json".to_string()),
-                        y_offset : None }), swing : None, take_item : None,
+                        y_offset : None }), swing : Some(true), take_item : None,
                         transform_to_item : None, use_item : Some(false), vibration :
                         Some("shear".to_string()) }
                     ],
@@ -342,6 +346,19 @@ pub fn spawn_sheep(commands: &mut Commands) -> Entity {
                 can_walk_in_lava: Some(false),
                 is_amphibious: Some(false),
             },
+            offspring: super::super::components::Offspring {
+                blend_attributes: None,
+                combine_parent_colors: Some(true),
+                deny_parents_variant: None,
+                inherit_tamed: None,
+                mutation_factor: None,
+                mutation_strategy: None,
+                offspring_pairs: Some(OffspringOffspringPairs {}),
+                parent_centric_attribute_blending: None,
+                property_inheritance: None,
+                random_extra_variant_mutation_interval: None,
+                random_variant_mutation_interval: None,
+            },
             physics: super::super::components::Physics {
                 has_collision: Some(true),
                 has_gravity: Some(true),
@@ -351,8 +368,17 @@ pub fn spawn_sheep(commands: &mut Commands) -> Entity {
                 is_pushable: Some(true),
                 is_pushable_by_piston: Some(true),
             },
+            pushable_by_block: super::super::components::PushableByBlock {
+                data: None,
+            },
+            pushable_by_entity: super::super::components::PushableByEntity {
+                data: None,
+            },
             scale: super::super::components::Scale {
                 value: 1f32,
+            },
+            spawn_egg_interaction: super::super::components::SpawnEggInteraction {
+                data: None,
             },
             type_family: super::super::components::TypeFamily {
                 family: vec!["sheep".to_string(), "mob".to_string()],

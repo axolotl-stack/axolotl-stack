@@ -165,6 +165,65 @@ async fn join_echo_and_typed_disconnect() {
     }
 }
 
+/// A transport whose only inbound event is one receive error.
+struct FailsOnce {
+    error: Option<PeerGone>,
+}
+
+#[derive(Debug, thiserror::Error)]
+#[error("peer gone (normal close: {0})")]
+struct PeerGone(bool);
+
+impl Transport for FailsOnce {
+    type Error = PeerGone;
+    const FRAMING: Framing = Framing::RakNet;
+
+    fn poll_send_ready(self: Pin<&mut Self>, _: &mut Context<'_>) -> Poll<Result<(), PeerGone>> {
+        Poll::Ready(Ok(()))
+    }
+    fn start_send(self: Pin<&mut Self>, _: Transmit) -> Result<(), PeerGone> {
+        Ok(())
+    }
+    fn poll_flush(self: Pin<&mut Self>, _: &mut Context<'_>) -> Poll<Result<(), PeerGone>> {
+        Poll::Ready(Ok(()))
+    }
+    fn poll_close(self: Pin<&mut Self>, _: &mut Context<'_>) -> Poll<Result<(), PeerGone>> {
+        Poll::Ready(Ok(()))
+    }
+    fn poll_recv(
+        mut self: Pin<&mut Self>,
+        _: &mut Context<'_>,
+    ) -> Poll<Option<Result<Datagram, PeerGone>>> {
+        Poll::Ready(self.error.take().map(Err))
+    }
+    fn peer_addr(&self) -> SocketAddr {
+        SocketAddr::from((Ipv4Addr::LOCALHOST, 0))
+    }
+    fn is_peer_close(error: &PeerGone) -> bool {
+        error.0
+    }
+}
+
+/// A normal remote close (e.g. RakNet's disconnection notification on Save
+/// and Quit) is `ConnectionClosed`, not a transport failure.
+#[tokio::test]
+async fn a_normal_peer_close_is_connection_closed_not_a_transport_error() {
+    for normal in [true, false] {
+        let mut link = BedrockTransport::new(
+            FailsOnce {
+                error: Some(PeerGone(normal)),
+            },
+            crate::config::ConnectionOptions::default(),
+        );
+        let error = link.recv_packet_raw().await.unwrap_err();
+        if normal {
+            assert!(matches!(error, JolyneError::ConnectionClosed), "{error}");
+        } else {
+            assert!(matches!(error, JolyneError::Transport(_)), "{error}");
+        }
+    }
+}
+
 // Paused clock: the driver's `now()` and its timers share Tokio's clock, so
 // the interval flush fires at exactly 20 ms of virtual time.
 #[tokio::test(start_paused = true)]

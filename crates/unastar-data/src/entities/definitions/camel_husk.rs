@@ -79,11 +79,11 @@ pub fn spawn_camel_husk(commands: &mut Commands) -> Entity {
             behavior_look_at_player: super::super::components::BehaviorLookAtPlayer {
                 angle_of_view_horizontal: Some(360i32),
                 angle_of_view_vertical: Some(360i32),
-                look_distance: Some(8f32),
+                look_distance: Some(6f32),
                 look_time: None,
                 priority: Some(BehaviorLookAtPlayerPriority {}),
                 probability: Some(0.02f32),
-                target_distance: Some(6f32),
+                target_distance: None,
             },
             behavior_mount_pathing: super::super::components::BehaviorMountPathing {
                 priority: Some(BehaviorMountPathingPriority {}),
@@ -443,7 +443,6 @@ pub enum CamelHuskComponentGroup {
     CamelHuskStanding,
     CamelHuskWithHostileRider,
     CamelHuskWithNoHostileRider,
-    CamelHuskWithNoRider,
 }
 /// Events for this entity
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]

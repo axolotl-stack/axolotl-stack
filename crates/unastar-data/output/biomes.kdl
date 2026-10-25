@@ -3,7 +3,7 @@
 // Source: protocolgen native biome IDs and definitions; vanilla behavior-pack gameplay components
 // Biome count: 89
 
-biome minecraft:bamboo_jungle format_version="1.21.110" source=protocolgen_native source_file=bamboo_jungle.biome.json id=48 native_definition="{\"ashDensity\":0,\"blueSporeDensity\":0,\"depth\":0.1,\"downfall\":0.9,\"foliageSnow\":0,\"mapWaterColor\":\"#a514a2c5\",\"maxSnowLevel\":0.125,\"minSnowLevel\":0,\"rain\":true,\"redSporeDensity\":0,\"scale\":0.2,\"snowAccumulation\":0,\"temperature\":0.95,\"waterTransparency\":0.65,\"whiteAshDensity\":0}" components_source=vanilla_behavior_pack {
+biome minecraft:bamboo_jungle format_version="1.26.50" source=protocolgen_native source_file=bamboo_jungle.biome.json id=48 native_definition="{\"ashDensity\":0,\"blueSporeDensity\":0,\"depth\":0.1,\"downfall\":0.9,\"foliageSnow\":0,\"mapWaterColor\":\"#a514a2c5\",\"maxSnowLevel\":0.125,\"minSnowLevel\":0,\"rain\":true,\"redSporeDensity\":0,\"scale\":0.2,\"snowAccumulation\":0,\"temperature\":0.95,\"waterTransparency\":0.65,\"whiteAshDensity\":0}" components_source=vanilla_behavior_pack {
     component minecraft:climate source=vanilla_behavior_pack {
         downfall 0.9
         snow_accumulation {
@@ -38,6 +38,7 @@ biome minecraft:bamboo_jungle format_version="1.21.110" source=protocolgen_nativ
             tag overworld
             tag spawns_jungle_mobs
             tag spawns_warm_variant_farm_animals
+            tag has_structure_abandoned_camp
         }
     }
 }
@@ -149,7 +150,7 @@ biome minecraft:beach format_version="1.21.110" source=protocolgen_native source
         }
     }
 }
-biome minecraft:birch_forest format_version="1.21.110" source=protocolgen_native source_file=birch_forest.biome.json id=27 native_definition="{\"ashDensity\":0,\"blueSporeDensity\":0,\"depth\":0.1,\"downfall\":0.6,\"foliageSnow\":0,\"mapWaterColor\":\"#a50677ce\",\"maxSnowLevel\":0.125,\"minSnowLevel\":0,\"rain\":true,\"redSporeDensity\":0,\"scale\":0.2,\"snowAccumulation\":0,\"temperature\":0.6,\"waterTransparency\":0.65,\"whiteAshDensity\":0}" components_source=vanilla_behavior_pack {
+biome minecraft:birch_forest format_version="1.26.50" source=protocolgen_native source_file=birch_forest.biome.json id=27 native_definition="{\"ashDensity\":0,\"blueSporeDensity\":0,\"depth\":0.1,\"downfall\":0.6,\"foliageSnow\":0,\"mapWaterColor\":\"#a50677ce\",\"maxSnowLevel\":0.125,\"minSnowLevel\":0,\"rain\":true,\"redSporeDensity\":0,\"scale\":0.2,\"snowAccumulation\":0,\"temperature\":0.6,\"waterTransparency\":0.65,\"whiteAshDensity\":0}" components_source=vanilla_behavior_pack {
     component minecraft:climate source=vanilla_behavior_pack {
         downfall 0.6
         snow_accumulation {
@@ -190,6 +191,7 @@ biome minecraft:birch_forest format_version="1.21.110" source=protocolgen_native
             tag monster
             tag overworld
             tag bee_habitat
+            tag has_structure_abandoned_camp
         }
     }
 }
@@ -269,7 +271,7 @@ biome minecraft:birch_forest_hills_mutated format_version="1.21.110" source=prot
         }
     }
 }
-biome minecraft:birch_forest_mutated format_version="1.21.110" source=protocolgen_native source_file=birch_forest_mutated.biome.json id=155 native_definition="{\"ashDensity\":0,\"blueSporeDensity\":0,\"depth\":0.2,\"downfall\":0.6,\"foliageSnow\":0,\"mapWaterColor\":\"#a50677ce\",\"maxSnowLevel\":0.125,\"minSnowLevel\":0,\"rain\":true,\"redSporeDensity\":0,\"scale\":0.4,\"snowAccumulation\":0,\"temperature\":0.6,\"waterTransparency\":0.65,\"whiteAshDensity\":0}" components_source=vanilla_behavior_pack {
+biome minecraft:birch_forest_mutated format_version="1.26.50" source=protocolgen_native source_file=birch_forest_mutated.biome.json id=155 native_definition="{\"ashDensity\":0,\"blueSporeDensity\":0,\"depth\":0.2,\"downfall\":0.6,\"foliageSnow\":0,\"mapWaterColor\":\"#a50677ce\",\"maxSnowLevel\":0.125,\"minSnowLevel\":0,\"rain\":true,\"redSporeDensity\":0,\"scale\":0.4,\"snowAccumulation\":0,\"temperature\":0.6,\"waterTransparency\":0.65,\"whiteAshDensity\":0}" components_source=vanilla_behavior_pack {
     component minecraft:climate source=vanilla_behavior_pack {
         downfall 0.6
         snow_accumulation {
@@ -302,10 +304,11 @@ biome minecraft:birch_forest_mutated format_version="1.21.110" source=protocolge
             tag bee_habitat
             tag overworld_generation
             tag has_structure_trail_ruins
+            tag has_structure_abandoned_camp
         }
     }
 }
-biome minecraft:cherry_grove format_version="1.21.110" source=protocolgen_native source_file=cherry_grove.biome.json id=192 native_definition="{\"ashDensity\":0,\"blueSporeDensity\":0,\"depth\":0.1,\"downfall\":0.8,\"foliageSnow\":0,\"mapWaterColor\":\"#a660b7ff\",\"maxSnowLevel\":0.125,\"minSnowLevel\":0,\"rain\":true,\"redSporeDensity\":0,\"scale\":0.2,\"snowAccumulation\":0,\"temperature\":0.3,\"waterTransparency\":0.65,\"whiteAshDensity\":0}" components_source=vanilla_behavior_pack {
+biome minecraft:cherry_grove format_version="1.26.50" source=protocolgen_native source_file=cherry_grove.biome.json id=192 native_definition="{\"ashDensity\":0,\"blueSporeDensity\":0,\"depth\":0.1,\"downfall\":0.8,\"foliageSnow\":0,\"mapWaterColor\":\"#a660b7ff\",\"maxSnowLevel\":0.125,\"minSnowLevel\":0,\"rain\":true,\"redSporeDensity\":0,\"scale\":0.2,\"snowAccumulation\":0,\"temperature\":0.3,\"waterTransparency\":0.65,\"whiteAshDensity\":0}" components_source=vanilla_behavior_pack {
     component minecraft:climate source=vanilla_behavior_pack {
         downfall 0.8
         temperature 0.3
@@ -340,6 +343,7 @@ biome minecraft:cherry_grove format_version="1.21.110" source=protocolgen_native
             tag overworld
             tag cherry_grove
             tag bee_habitat
+            tag has_structure_abandoned_camp
         }
     }
 }
@@ -379,7 +383,7 @@ biome minecraft:cold_beach format_version="1.21.110" source=protocolgen_native s
         }
     }
 }
-biome minecraft:cold_ocean format_version="1.21.110" source=protocolgen_native source_file=cold_ocean.biome.json id=44 native_definition="{\"ashDensity\":0,\"blueSporeDensity\":0,\"depth\":-1,\"downfall\":0.5,\"foliageSnow\":0,\"mapWaterColor\":\"#a52080c9\",\"maxSnowLevel\":0.125,\"minSnowLevel\":0,\"rain\":true,\"redSporeDensity\":0,\"scale\":0.1,\"snowAccumulation\":0,\"temperature\":0.5,\"waterTransparency\":0.65,\"whiteAshDensity\":0}" components_source=vanilla_behavior_pack {
+biome minecraft:cold_ocean format_version="1.26.0" source=protocolgen_native source_file=cold_ocean.biome.json id=44 native_definition="{\"ashDensity\":0,\"blueSporeDensity\":0,\"depth\":-1,\"downfall\":0.5,\"foliageSnow\":0,\"mapWaterColor\":\"#a52080c9\",\"maxSnowLevel\":0.125,\"minSnowLevel\":0,\"rain\":true,\"redSporeDensity\":0,\"scale\":0.1,\"snowAccumulation\":0,\"temperature\":0.5,\"waterTransparency\":0.65,\"whiteAshDensity\":0}" components_source=vanilla_behavior_pack {
     component minecraft:climate source=vanilla_behavior_pack {
         downfall 0.5
         snow_accumulation {
@@ -417,10 +421,12 @@ biome minecraft:cold_ocean format_version="1.21.110" source=protocolgen_native s
             tag ocean
             tag overworld
             tag spawns_cold_variant_farm_animals
+            tag fast_fishing
+            tag high_seas
         }
     }
 }
-biome minecraft:cold_taiga format_version="1.21.110" source=protocolgen_native source_file=cold_taiga.biome.json id=30 native_definition="{\"ashDensity\":0,\"blueSporeDensity\":0,\"depth\":0.2,\"downfall\":0.4,\"foliageSnow\":0,\"mapWaterColor\":\"#a5205e83\",\"maxSnowLevel\":0.5,\"minSnowLevel\":0.125,\"rain\":true,\"redSporeDensity\":0,\"scale\":0.2,\"snowAccumulation\":0.125,\"temperature\":-0.5,\"waterTransparency\":0.65,\"whiteAshDensity\":0}" components_source=vanilla_behavior_pack {
+biome minecraft:cold_taiga format_version="1.26.50" source=protocolgen_native source_file=cold_taiga.biome.json id=30 native_definition="{\"ashDensity\":0,\"blueSporeDensity\":0,\"depth\":0.2,\"downfall\":0.4,\"foliageSnow\":0,\"mapWaterColor\":\"#a5205e83\",\"maxSnowLevel\":0.5,\"minSnowLevel\":0.125,\"rain\":true,\"redSporeDensity\":0,\"scale\":0.2,\"snowAccumulation\":0.125,\"temperature\":-0.5,\"waterTransparency\":0.65,\"whiteAshDensity\":0}" components_source=vanilla_behavior_pack {
     component minecraft:climate source=vanilla_behavior_pack {
         downfall 0.4
         snow_accumulation {
@@ -463,10 +469,14 @@ biome minecraft:cold_taiga format_version="1.21.110" source=protocolgen_native s
             tag taiga
             tag has_structure_trail_ruins
             tag spawns_cold_variant_farm_animals
+            tag has_structure_abandoned_camp
         }
     }
+    component minecraft:village_type source=vanilla_behavior_pack {
+        type taiga
+    }
 }
-biome minecraft:cold_taiga_hills format_version="1.21.110" source=protocolgen_native source_file=cold_taiga_hills.biome.json id=31 native_definition="{\"ashDensity\":0,\"blueSporeDensity\":0,\"depth\":0.45,\"downfall\":0.4,\"foliageSnow\":0,\"mapWaterColor\":\"#a5245b78\",\"maxSnowLevel\":0.5,\"minSnowLevel\":0.125,\"rain\":true,\"redSporeDensity\":0,\"scale\":0.3,\"snowAccumulation\":0.125,\"temperature\":-0.5,\"waterTransparency\":0.65,\"whiteAshDensity\":0}" components_source=vanilla_behavior_pack {
+biome minecraft:cold_taiga_hills format_version="1.26.0" source=protocolgen_native source_file=cold_taiga_hills.biome.json id=31 native_definition="{\"ashDensity\":0,\"blueSporeDensity\":0,\"depth\":0.45,\"downfall\":0.4,\"foliageSnow\":0,\"mapWaterColor\":\"#a5245b78\",\"maxSnowLevel\":0.5,\"minSnowLevel\":0.125,\"rain\":true,\"redSporeDensity\":0,\"scale\":0.3,\"snowAccumulation\":0.125,\"temperature\":-0.5,\"waterTransparency\":0.65,\"whiteAshDensity\":0}" components_source=vanilla_behavior_pack {
     component minecraft:climate source=vanilla_behavior_pack {
         downfall 0.4
         snow_accumulation {
@@ -502,6 +512,9 @@ biome minecraft:cold_taiga_hills format_version="1.21.110" source=protocolgen_na
             tag spawns_cold_variant_frogs
             tag spawns_white_rabbits
         }
+    }
+    component minecraft:village_type source=vanilla_behavior_pack {
+        type taiga
     }
 }
 biome minecraft:cold_taiga_mutated format_version="1.21.110" source=protocolgen_native source_file=cold_taiga_mutated.biome.json id=158 native_definition="{\"ashDensity\":0,\"blueSporeDensity\":0,\"depth\":0.3,\"downfall\":0.4,\"foliageSnow\":0,\"mapWaterColor\":\"#a5205e83\",\"maxSnowLevel\":0.125,\"minSnowLevel\":0,\"rain\":true,\"redSporeDensity\":0,\"scale\":0.4,\"snowAccumulation\":0,\"temperature\":-0.5,\"waterTransparency\":0.65,\"whiteAshDensity\":0}" components_source=vanilla_behavior_pack {
@@ -606,9 +619,61 @@ biome minecraft:crimson_forest format_version="1.21.110" source=protocolgen_nati
         }
     }
 }
-biome minecraft:dappled_forest format_version="" source=protocolgen_native source_file="" id=195 native_definition="{\"ashDensity\":0,\"blueSporeDensity\":0,\"depth\":0.1,\"downfall\":0.6,\"foliageSnow\":0,\"mapWaterColor\":\"#a660b7ff\",\"maxSnowLevel\":0.125,\"minSnowLevel\":0,\"rain\":true,\"redSporeDensity\":0,\"scale\":0.2,\"snowAccumulation\":0,\"temperature\":0.6,\"waterTransparency\":0.65,\"whiteAshDensity\":0}" components_source=vanilla_behavior_pack {
+biome minecraft:dappled_forest format_version="1.26.50" source=protocolgen_native source_file=dappled_forest.biome.json id=195 native_definition="{\"ashDensity\":0,\"blueSporeDensity\":0,\"depth\":0.1,\"downfall\":0.6,\"foliageSnow\":0,\"mapWaterColor\":\"#a660b7ff\",\"maxSnowLevel\":0.125,\"minSnowLevel\":0,\"rain\":true,\"redSporeDensity\":0,\"scale\":0.2,\"snowAccumulation\":0,\"temperature\":0.6,\"waterTransparency\":0.65,\"whiteAshDensity\":0}" components_source=vanilla_behavior_pack {
+    component minecraft:climate source=vanilla_behavior_pack {
+        downfall 0.6
+        snow_accumulation {
+            item 0.0
+            item 0.125
+        }
+        temperature 0.6
+    }
+    component minecraft:overworld_height source=vanilla_behavior_pack {
+        noise_type default
+    }
+    component minecraft:surface_builder source=vanilla_behavior_pack {
+        builder {
+            foundation_material minecraft:stone
+            mid_material minecraft:dirt
+            sea_floor_depth 7
+            sea_floor_material minecraft:gravel
+            sea_material minecraft:water
+            top_material minecraft:grass_block
+            type minecraft:overworld
+        }
+    }
+    component minecraft:surface_material_adjustments source=vanilla_behavior_pack {
+        adjustments {
+            adjustment {
+                materials {
+                    top_material {
+                        name minecraft:dirt
+                        states {
+                            dirt_type coarse
+                        }
+                    }
+                }
+                noise_frequency_scale 0.22
+                noise_range {
+                    item 0.3
+                    item 1.0
+                }
+            }
+        }
+    }
+    component minecraft:tags source=vanilla_behavior_pack {
+        tags {
+            tag animal
+            tag dappled_forest
+            tag monster
+            tag forest
+            tag overworld
+            tag spawns_cold_variant_farm_animals
+            tag has_structure_abandoned_camp
+        }
+    }
 }
-biome minecraft:deep_cold_ocean format_version="1.21.110" source=protocolgen_native source_file=deep_cold_ocean.biome.json id=45 native_definition="{\"ashDensity\":0,\"blueSporeDensity\":0,\"depth\":-1.8,\"downfall\":0.5,\"foliageSnow\":0,\"mapWaterColor\":\"#a52080c9\",\"maxSnowLevel\":0.125,\"minSnowLevel\":0,\"rain\":true,\"redSporeDensity\":0,\"scale\":0.1,\"snowAccumulation\":0,\"temperature\":0.5,\"waterTransparency\":0.65,\"whiteAshDensity\":0}" components_source=vanilla_behavior_pack {
+biome minecraft:deep_cold_ocean format_version="1.26.0" source=protocolgen_native source_file=deep_cold_ocean.biome.json id=45 native_definition="{\"ashDensity\":0,\"blueSporeDensity\":0,\"depth\":-1.8,\"downfall\":0.5,\"foliageSnow\":0,\"mapWaterColor\":\"#a52080c9\",\"maxSnowLevel\":0.125,\"minSnowLevel\":0,\"rain\":true,\"redSporeDensity\":0,\"scale\":0.1,\"snowAccumulation\":0,\"temperature\":0.5,\"waterTransparency\":0.65,\"whiteAshDensity\":0}" components_source=vanilla_behavior_pack {
     component minecraft:climate source=vanilla_behavior_pack {
         downfall 0.5
         snow_accumulation {
@@ -647,6 +712,8 @@ biome minecraft:deep_cold_ocean format_version="1.21.110" source=protocolgen_nat
             tag ocean
             tag overworld
             tag spawns_cold_variant_farm_animals
+            tag fast_fishing
+            tag high_seas
         }
     }
 }
@@ -679,7 +746,7 @@ biome minecraft:deep_dark format_version="1.21.110" source=protocolgen_native so
         }
     }
 }
-biome minecraft:deep_frozen_ocean format_version="1.21.110" source=protocolgen_native source_file=deep_frozen_ocean.biome.json id=47 native_definition="{\"ashDensity\":0,\"blueSporeDensity\":0,\"depth\":-1.8,\"downfall\":0.5,\"foliageSnow\":0,\"mapWaterColor\":\"#a52570b5\",\"maxSnowLevel\":0.25,\"minSnowLevel\":0.125,\"rain\":true,\"redSporeDensity\":0,\"scale\":0.1,\"snowAccumulation\":0.125,\"temperature\":0.5,\"waterTransparency\":0.65,\"whiteAshDensity\":0}" components_source=vanilla_behavior_pack {
+biome minecraft:deep_frozen_ocean format_version="1.26.0" source=protocolgen_native source_file=deep_frozen_ocean.biome.json id=47 native_definition="{\"ashDensity\":0,\"blueSporeDensity\":0,\"depth\":-1.8,\"downfall\":0.5,\"foliageSnow\":0,\"mapWaterColor\":\"#a52570b5\",\"maxSnowLevel\":0.25,\"minSnowLevel\":0.125,\"rain\":true,\"redSporeDensity\":0,\"scale\":0.1,\"snowAccumulation\":0.125,\"temperature\":0.5,\"waterTransparency\":0.65,\"whiteAshDensity\":0}" components_source=vanilla_behavior_pack {
     component minecraft:climate source=vanilla_behavior_pack {
         downfall 0.5
         snow_accumulation {
@@ -721,10 +788,12 @@ biome minecraft:deep_frozen_ocean format_version="1.21.110" source=protocolgen_n
             tag spawns_cold_variant_farm_animals
             tag spawns_cold_variant_frogs
             tag spawns_polar_bears_on_alternate_blocks
+            tag fast_fishing
+            tag high_seas
         }
     }
 }
-biome minecraft:deep_lukewarm_ocean format_version="1.21.110" source=protocolgen_native source_file=deep_lukewarm_ocean.biome.json id=43 native_definition="{\"ashDensity\":0,\"blueSporeDensity\":0,\"depth\":-1.8,\"downfall\":0.5,\"foliageSnow\":0,\"mapWaterColor\":\"#a50d96db\",\"maxSnowLevel\":0.125,\"minSnowLevel\":0,\"rain\":true,\"redSporeDensity\":0,\"scale\":0.1,\"snowAccumulation\":0,\"temperature\":0.5,\"waterTransparency\":0.65,\"whiteAshDensity\":0}" components_source=vanilla_behavior_pack {
+biome minecraft:deep_lukewarm_ocean format_version="1.26.0" source=protocolgen_native source_file=deep_lukewarm_ocean.biome.json id=43 native_definition="{\"ashDensity\":0,\"blueSporeDensity\":0,\"depth\":-1.8,\"downfall\":0.5,\"foliageSnow\":0,\"mapWaterColor\":\"#a50d96db\",\"maxSnowLevel\":0.125,\"minSnowLevel\":0,\"rain\":true,\"redSporeDensity\":0,\"scale\":0.1,\"snowAccumulation\":0,\"temperature\":0.5,\"waterTransparency\":0.65,\"whiteAshDensity\":0}" components_source=vanilla_behavior_pack {
     component minecraft:climate source=vanilla_behavior_pack {
         downfall 0.5
         snow_accumulation {
@@ -763,10 +832,13 @@ biome minecraft:deep_lukewarm_ocean format_version="1.21.110" source=protocolgen
             tag ocean
             tag overworld
             tag spawns_warm_variant_farm_animals
+            tag fast_fishing
+            tag high_seas
+            tag temperate_ocean
         }
     }
 }
-biome minecraft:deep_ocean format_version="1.21.110" source=protocolgen_native source_file=deep_ocean.biome.json id=24 native_definition="{\"ashDensity\":0,\"blueSporeDensity\":0,\"depth\":-1.8,\"downfall\":0.5,\"foliageSnow\":0,\"mapWaterColor\":\"#a51787d4\",\"maxSnowLevel\":0.125,\"minSnowLevel\":0,\"rain\":true,\"redSporeDensity\":0,\"scale\":0.1,\"snowAccumulation\":0,\"temperature\":0.5,\"waterTransparency\":0.65,\"whiteAshDensity\":0}" components_source=vanilla_behavior_pack {
+biome minecraft:deep_ocean format_version="1.26.0" source=protocolgen_native source_file=deep_ocean.biome.json id=24 native_definition="{\"ashDensity\":0,\"blueSporeDensity\":0,\"depth\":-1.8,\"downfall\":0.5,\"foliageSnow\":0,\"mapWaterColor\":\"#a51787d4\",\"maxSnowLevel\":0.125,\"minSnowLevel\":0,\"rain\":true,\"redSporeDensity\":0,\"scale\":0.1,\"snowAccumulation\":0,\"temperature\":0.5,\"waterTransparency\":0.65,\"whiteAshDensity\":0}" components_source=vanilla_behavior_pack {
     component minecraft:climate source=vanilla_behavior_pack {
         downfall 0.5
         snow_accumulation {
@@ -808,10 +880,12 @@ biome minecraft:deep_ocean format_version="1.21.110" source=protocolgen_native s
             tag ocean
             tag overworld
             tag spawns_warm_variant_farm_animals
+            tag fast_fishing
+            tag high_seas
         }
     }
 }
-biome minecraft:deep_warm_ocean format_version="1.21.110" source=protocolgen_native source_file=deep_warm_ocean.biome.json id=41 native_definition="{\"ashDensity\":0,\"blueSporeDensity\":0,\"depth\":-1.8,\"downfall\":0.5,\"foliageSnow\":0,\"mapWaterColor\":\"#a502b0e5\",\"maxSnowLevel\":0.125,\"minSnowLevel\":0,\"rain\":true,\"redSporeDensity\":0,\"scale\":0.1,\"snowAccumulation\":0,\"temperature\":0.5,\"waterTransparency\":0.65,\"whiteAshDensity\":0}" components_source=vanilla_behavior_pack {
+biome minecraft:deep_warm_ocean format_version="1.26.0" source=protocolgen_native source_file=deep_warm_ocean.biome.json id=41 native_definition="{\"ashDensity\":0,\"blueSporeDensity\":0,\"depth\":-1.8,\"downfall\":0.5,\"foliageSnow\":0,\"mapWaterColor\":\"#a502b0e5\",\"maxSnowLevel\":0.125,\"minSnowLevel\":0,\"rain\":true,\"redSporeDensity\":0,\"scale\":0.1,\"snowAccumulation\":0,\"temperature\":0.5,\"waterTransparency\":0.65,\"whiteAshDensity\":0}" components_source=vanilla_behavior_pack {
     component minecraft:climate source=vanilla_behavior_pack {
         downfall 0.5
         snow_accumulation {
@@ -842,10 +916,13 @@ biome minecraft:deep_warm_ocean format_version="1.21.110" source=protocolgen_nat
             tag overworld
             tag warm
             tag spawns_warm_variant_farm_animals
+            tag fast_fishing
+            tag high_seas
+            tag temperate_ocean
         }
     }
 }
-biome minecraft:desert format_version="1.21.110" source=protocolgen_native source_file=desert.biome.json id=2 native_definition="{\"ashDensity\":0,\"blueSporeDensity\":0,\"depth\":0.125,\"downfall\":0,\"foliageSnow\":0,\"mapWaterColor\":\"#a532a598\",\"maxSnowLevel\":0.125,\"minSnowLevel\":0,\"rain\":false,\"redSporeDensity\":0,\"scale\":0.05,\"snowAccumulation\":0,\"temperature\":2,\"waterTransparency\":0.65,\"whiteAshDensity\":0}" components_source=vanilla_behavior_pack {
+biome minecraft:desert format_version="1.26.0" source=protocolgen_native source_file=desert.biome.json id=2 native_definition="{\"ashDensity\":0,\"blueSporeDensity\":0,\"depth\":0.125,\"downfall\":0,\"foliageSnow\":0,\"mapWaterColor\":\"#a532a598\",\"maxSnowLevel\":0.125,\"minSnowLevel\":0,\"rain\":false,\"redSporeDensity\":0,\"scale\":0.05,\"snowAccumulation\":0,\"temperature\":2,\"waterTransparency\":0.65,\"whiteAshDensity\":0}" components_source=vanilla_behavior_pack {
     component minecraft:climate source=vanilla_behavior_pack {
         downfall 0.0
         snow_accumulation {
@@ -894,6 +971,9 @@ biome minecraft:desert format_version="1.21.110" source=protocolgen_native sourc
             tag spawns_warm_variant_farm_animals
             tag spawns_warm_variant_frogs
         }
+    }
+    component minecraft:village_type source=vanilla_behavior_pack {
+        type desert
     }
 }
 biome minecraft:desert_hills format_version="1.21.110" source=protocolgen_native source_file=desert_hills.biome.json id=17 native_definition="{\"ashDensity\":0,\"blueSporeDensity\":0,\"depth\":0.45,\"downfall\":0,\"foliageSnow\":0,\"mapWaterColor\":\"#a51a7aa1\",\"maxSnowLevel\":0.125,\"minSnowLevel\":0,\"rain\":false,\"redSporeDensity\":0,\"scale\":0.3,\"snowAccumulation\":0,\"temperature\":2,\"waterTransparency\":0.65,\"whiteAshDensity\":0}" components_source=vanilla_behavior_pack {
@@ -1159,7 +1239,7 @@ biome minecraft:extreme_hills_mutated format_version="1.21.110" source=protocolg
         }
     }
 }
-biome minecraft:extreme_hills_plus_trees format_version="1.21.110" source=protocolgen_native source_file=extreme_hills_plus_trees.biome.json id=34 native_definition="{\"ashDensity\":0,\"blueSporeDensity\":0,\"depth\":1,\"downfall\":0.3,\"foliageSnow\":0,\"mapWaterColor\":\"#a50e63ab\",\"maxSnowLevel\":0.125,\"minSnowLevel\":0,\"rain\":true,\"redSporeDensity\":0,\"scale\":0.5,\"snowAccumulation\":0,\"temperature\":0.2,\"waterTransparency\":0.65,\"whiteAshDensity\":0}" components_source=vanilla_behavior_pack {
+biome minecraft:extreme_hills_plus_trees format_version="1.26.50" source=protocolgen_native source_file=extreme_hills_plus_trees.biome.json id=34 native_definition="{\"ashDensity\":0,\"blueSporeDensity\":0,\"depth\":1,\"downfall\":0.3,\"foliageSnow\":0,\"mapWaterColor\":\"#a50e63ab\",\"maxSnowLevel\":0.125,\"minSnowLevel\":0,\"rain\":true,\"redSporeDensity\":0,\"scale\":0.5,\"snowAccumulation\":0,\"temperature\":0.2,\"waterTransparency\":0.65,\"whiteAshDensity\":0}" components_source=vanilla_behavior_pack {
     component minecraft:climate source=vanilla_behavior_pack {
         downfall 0.3
         snow_accumulation {
@@ -1194,6 +1274,7 @@ biome minecraft:extreme_hills_plus_trees format_version="1.21.110" source=protoc
             tag mountain
             tag overworld
             tag spawns_cold_variant_farm_animals
+            tag has_structure_abandoned_camp
         }
     }
 }
@@ -1258,7 +1339,7 @@ biome minecraft:extreme_hills_plus_trees_mutated format_version="1.21.110" sourc
         }
     }
 }
-biome minecraft:flower_forest format_version="1.21.110" source=protocolgen_native source_file=flower_forest.biome.json id=132 native_definition="{\"ashDensity\":0,\"blueSporeDensity\":0,\"depth\":0.1,\"downfall\":0.8,\"foliageSnow\":0,\"mapWaterColor\":\"#a520a3cc\",\"maxSnowLevel\":0.125,\"minSnowLevel\":0,\"rain\":true,\"redSporeDensity\":0,\"scale\":0.4,\"snowAccumulation\":0,\"temperature\":0.7,\"waterTransparency\":0.65,\"whiteAshDensity\":0}" components_source=vanilla_behavior_pack {
+biome minecraft:flower_forest format_version="1.26.50" source=protocolgen_native source_file=flower_forest.biome.json id=132 native_definition="{\"ashDensity\":0,\"blueSporeDensity\":0,\"depth\":0.1,\"downfall\":0.8,\"foliageSnow\":0,\"mapWaterColor\":\"#a520a3cc\",\"maxSnowLevel\":0.125,\"minSnowLevel\":0,\"rain\":true,\"redSporeDensity\":0,\"scale\":0.4,\"snowAccumulation\":0,\"temperature\":0.7,\"waterTransparency\":0.65,\"whiteAshDensity\":0}" components_source=vanilla_behavior_pack {
     component minecraft:climate source=vanilla_behavior_pack {
         downfall 0.8
         snow_accumulation {
@@ -1292,10 +1373,11 @@ biome minecraft:flower_forest format_version="1.21.110" source=protocolgen_nativ
             tag mutated
             tag overworld
             tag bee_habitat
+            tag has_structure_abandoned_camp
         }
     }
 }
-biome minecraft:forest format_version="1.21.110" source=protocolgen_native source_file=forest.biome.json id=4 native_definition="{\"ashDensity\":0,\"blueSporeDensity\":0,\"depth\":0.1,\"downfall\":0.8,\"foliageSnow\":0,\"mapWaterColor\":\"#a51e97f2\",\"maxSnowLevel\":0.125,\"minSnowLevel\":0,\"rain\":true,\"redSporeDensity\":0,\"scale\":0.2,\"snowAccumulation\":0,\"temperature\":0.7,\"waterTransparency\":0.65,\"whiteAshDensity\":0}" components_source=vanilla_behavior_pack {
+biome minecraft:forest format_version="1.26.50" source=protocolgen_native source_file=forest.biome.json id=4 native_definition="{\"ashDensity\":0,\"blueSporeDensity\":0,\"depth\":0.1,\"downfall\":0.8,\"foliageSnow\":0,\"mapWaterColor\":\"#a51e97f2\",\"maxSnowLevel\":0.125,\"minSnowLevel\":0,\"rain\":true,\"redSporeDensity\":0,\"scale\":0.2,\"snowAccumulation\":0,\"temperature\":0.7,\"waterTransparency\":0.65,\"whiteAshDensity\":0}" components_source=vanilla_behavior_pack {
     component minecraft:climate source=vanilla_behavior_pack {
         downfall 0.8
         snow_accumulation {
@@ -1346,6 +1428,8 @@ biome minecraft:forest format_version="1.21.110" source=protocolgen_native sourc
             tag monster
             tag overworld
             tag bee_habitat
+            tag has_structure_abandoned_camp
+            tag oak_forest
         }
     }
 }
@@ -1390,7 +1474,7 @@ biome minecraft:forest_hills format_version="1.21.110" source=protocolgen_native
         }
     }
 }
-biome minecraft:frozen_ocean format_version="1.21.110" source=protocolgen_native source_file=frozen_ocean.biome.json id=46 native_definition="{\"ashDensity\":0,\"blueSporeDensity\":0,\"depth\":-1,\"downfall\":0.5,\"foliageSnow\":0,\"mapWaterColor\":\"#a52570b5\",\"maxSnowLevel\":0.25,\"minSnowLevel\":0.125,\"rain\":true,\"redSporeDensity\":0,\"scale\":0.1,\"snowAccumulation\":0.125,\"temperature\":0,\"waterTransparency\":0.65,\"whiteAshDensity\":0}" components_source=vanilla_behavior_pack {
+biome minecraft:frozen_ocean format_version="1.26.0" source=protocolgen_native source_file=frozen_ocean.biome.json id=46 native_definition="{\"ashDensity\":0,\"blueSporeDensity\":0,\"depth\":-1,\"downfall\":0.5,\"foliageSnow\":0,\"mapWaterColor\":\"#a52570b5\",\"maxSnowLevel\":0.25,\"minSnowLevel\":0.125,\"rain\":true,\"redSporeDensity\":0,\"scale\":0.1,\"snowAccumulation\":0.125,\"temperature\":0,\"waterTransparency\":0.65,\"whiteAshDensity\":0}" components_source=vanilla_behavior_pack {
     component minecraft:climate source=vanilla_behavior_pack {
         downfall 0.5
         snow_accumulation {
@@ -1440,6 +1524,8 @@ biome minecraft:frozen_ocean format_version="1.21.110" source=protocolgen_native
             tag spawns_cold_variant_frogs
             tag spawns_snow_foxes
             tag spawns_white_rabbits
+            tag fast_fishing
+            tag high_seas
         }
     }
 }
@@ -1739,7 +1825,7 @@ biome minecraft:ice_mountains format_version="1.21.110" source=protocolgen_nativ
         }
     }
 }
-biome minecraft:ice_plains format_version="1.21.110" source=protocolgen_native source_file=ice_plains.biome.json id=12 native_definition="{\"ashDensity\":0,\"blueSporeDensity\":0,\"depth\":0.125,\"downfall\":0.5,\"foliageSnow\":0,\"mapWaterColor\":\"#a514559b\",\"maxSnowLevel\":1,\"minSnowLevel\":0.25,\"rain\":true,\"redSporeDensity\":0,\"scale\":0.05,\"snowAccumulation\":0.25,\"temperature\":0,\"waterTransparency\":0.65,\"whiteAshDensity\":0}" components_source=vanilla_behavior_pack {
+biome minecraft:ice_plains format_version="1.26.0" source=protocolgen_native source_file=ice_plains.biome.json id=12 native_definition="{\"ashDensity\":0,\"blueSporeDensity\":0,\"depth\":0.125,\"downfall\":0.5,\"foliageSnow\":0,\"mapWaterColor\":\"#a514559b\",\"maxSnowLevel\":1,\"minSnowLevel\":0.25,\"rain\":true,\"redSporeDensity\":0,\"scale\":0.05,\"snowAccumulation\":0.25,\"temperature\":0,\"waterTransparency\":0.65,\"whiteAshDensity\":0}" components_source=vanilla_behavior_pack {
     component minecraft:climate source=vanilla_behavior_pack {
         downfall 0.5
         snow_accumulation {
@@ -1793,6 +1879,9 @@ biome minecraft:ice_plains format_version="1.21.110" source=protocolgen_native s
             tag spawns_snow_foxes
             tag spawns_white_rabbits
         }
+    }
+    component minecraft:village_type source=vanilla_behavior_pack {
+        type ice
     }
 }
 biome minecraft:ice_plains_spikes format_version="1.21.110" source=protocolgen_native source_file=ice_plains_spikes.biome.json id=140 native_definition="{\"ashDensity\":0,\"blueSporeDensity\":0,\"depth\":0.425,\"downfall\":1,\"foliageSnow\":0,\"mapWaterColor\":\"#a660b7ff\",\"maxSnowLevel\":1.5,\"minSnowLevel\":0.5,\"rain\":true,\"redSporeDensity\":0,\"scale\":0.45,\"snowAccumulation\":0.5,\"temperature\":0,\"waterTransparency\":0.65,\"whiteAshDensity\":0}" components_source=vanilla_behavior_pack {
@@ -1934,7 +2023,7 @@ biome minecraft:jungle format_version="1.21.110" source=protocolgen_native sourc
         }
     }
 }
-biome minecraft:jungle_edge format_version="1.21.110" source=protocolgen_native source_file=jungle_edge.biome.json id=23 native_definition="{\"ashDensity\":0,\"blueSporeDensity\":0,\"depth\":0.1,\"downfall\":0.8,\"foliageSnow\":0,\"mapWaterColor\":\"#a50d8ae3\",\"maxSnowLevel\":0.125,\"minSnowLevel\":0,\"rain\":true,\"redSporeDensity\":0,\"scale\":0.2,\"snowAccumulation\":0,\"temperature\":0.95,\"waterTransparency\":0.65,\"whiteAshDensity\":0}" components_source=vanilla_behavior_pack {
+biome minecraft:jungle_edge format_version="1.26.50" source=protocolgen_native source_file=jungle_edge.biome.json id=23 native_definition="{\"ashDensity\":0,\"blueSporeDensity\":0,\"depth\":0.1,\"downfall\":0.8,\"foliageSnow\":0,\"mapWaterColor\":\"#a50d8ae3\",\"maxSnowLevel\":0.125,\"minSnowLevel\":0,\"rain\":true,\"redSporeDensity\":0,\"scale\":0.2,\"snowAccumulation\":0,\"temperature\":0.95,\"waterTransparency\":0.65,\"whiteAshDensity\":0}" components_source=vanilla_behavior_pack {
     component minecraft:climate source=vanilla_behavior_pack {
         downfall 0.8
         snow_accumulation {
@@ -1969,6 +2058,7 @@ biome minecraft:jungle_edge format_version="1.21.110" source=protocolgen_native 
             tag overworld
             tag spawns_jungle_mobs
             tag spawns_warm_variant_farm_animals
+            tag has_structure_abandoned_camp
         }
     }
 }
@@ -2084,7 +2174,7 @@ biome minecraft:jungle_mutated format_version="1.21.110" source=protocolgen_nati
         }
     }
 }
-biome minecraft:legacy_frozen_ocean format_version="1.21.110" source=protocolgen_native source_file=legacy_frozen_ocean.biome.json id=10 native_definition="{\"ashDensity\":0,\"blueSporeDensity\":0,\"depth\":-1,\"downfall\":0.5,\"foliageSnow\":0,\"mapWaterColor\":\"#a660b7ff\",\"maxSnowLevel\":0.25,\"minSnowLevel\":0.125,\"rain\":true,\"redSporeDensity\":0,\"scale\":0.1,\"snowAccumulation\":0.125,\"temperature\":0,\"waterTransparency\":0.65,\"whiteAshDensity\":0}" components_source=vanilla_behavior_pack {
+biome minecraft:legacy_frozen_ocean format_version="1.26.0" source=protocolgen_native source_file=legacy_frozen_ocean.biome.json id=10 native_definition="{\"ashDensity\":0,\"blueSporeDensity\":0,\"depth\":-1,\"downfall\":0.5,\"foliageSnow\":0,\"mapWaterColor\":\"#a660b7ff\",\"maxSnowLevel\":0.25,\"minSnowLevel\":0.125,\"rain\":true,\"redSporeDensity\":0,\"scale\":0.1,\"snowAccumulation\":0.125,\"temperature\":0,\"waterTransparency\":0.65,\"whiteAshDensity\":0}" components_source=vanilla_behavior_pack {
     component minecraft:climate source=vanilla_behavior_pack {
         downfall 0.5
         snow_accumulation {
@@ -2104,10 +2194,12 @@ biome minecraft:legacy_frozen_ocean format_version="1.21.110" source=protocolgen
             tag overworld
             tag spawns_cold_variant_farm_animals
             tag spawns_polar_bears_on_alternate_blocks
+            tag fast_fishing
+            tag high_seas
         }
     }
 }
-biome minecraft:lukewarm_ocean format_version="1.21.110" source=protocolgen_native source_file=lukewarm_ocean.biome.json id=42 native_definition="{\"ashDensity\":0,\"blueSporeDensity\":0,\"depth\":-1,\"downfall\":0.5,\"foliageSnow\":0,\"mapWaterColor\":\"#a50d96db\",\"maxSnowLevel\":0.125,\"minSnowLevel\":0,\"rain\":true,\"redSporeDensity\":0,\"scale\":0.1,\"snowAccumulation\":0,\"temperature\":0.5,\"waterTransparency\":0.65,\"whiteAshDensity\":0}" components_source=vanilla_behavior_pack {
+biome minecraft:lukewarm_ocean format_version="1.26.0" source=protocolgen_native source_file=lukewarm_ocean.biome.json id=42 native_definition="{\"ashDensity\":0,\"blueSporeDensity\":0,\"depth\":-1,\"downfall\":0.5,\"foliageSnow\":0,\"mapWaterColor\":\"#a50d96db\",\"maxSnowLevel\":0.125,\"minSnowLevel\":0,\"rain\":true,\"redSporeDensity\":0,\"scale\":0.1,\"snowAccumulation\":0,\"temperature\":0.5,\"waterTransparency\":0.65,\"whiteAshDensity\":0}" components_source=vanilla_behavior_pack {
     component minecraft:climate source=vanilla_behavior_pack {
         downfall 0.5
         snow_accumulation {
@@ -2145,6 +2237,9 @@ biome minecraft:lukewarm_ocean format_version="1.21.110" source=protocolgen_nati
             tag ocean
             tag overworld
             tag spawns_warm_variant_farm_animals
+            tag fast_fishing
+            tag high_seas
+            tag temperate_ocean
         }
     }
 }
@@ -2177,7 +2272,7 @@ biome minecraft:lush_caves format_version="1.21.110" source=protocolgen_native s
         }
     }
 }
-biome minecraft:mangrove_swamp format_version="1.21.110" source=protocolgen_native source_file=mangrove_swamp.biome.json id=191 native_definition="{\"ashDensity\":0,\"blueSporeDensity\":0,\"depth\":-0.2,\"downfall\":0.9,\"foliageSnow\":0,\"mapWaterColor\":\"#a660b7ff\",\"maxSnowLevel\":0.125,\"minSnowLevel\":0,\"rain\":true,\"redSporeDensity\":0,\"scale\":0.1,\"snowAccumulation\":0,\"temperature\":0.8,\"waterTransparency\":0.65,\"whiteAshDensity\":0}" components_source=vanilla_behavior_pack {
+biome minecraft:mangrove_swamp format_version="1.26.0" source=protocolgen_native source_file=mangrove_swamp.biome.json id=191 native_definition="{\"ashDensity\":0,\"blueSporeDensity\":0,\"depth\":-0.2,\"downfall\":0.9,\"foliageSnow\":0,\"mapWaterColor\":\"#a660b7ff\",\"maxSnowLevel\":0.125,\"minSnowLevel\":0,\"rain\":true,\"redSporeDensity\":0,\"scale\":0.1,\"snowAccumulation\":0,\"temperature\":0.8,\"waterTransparency\":0.65,\"whiteAshDensity\":0}" components_source=vanilla_behavior_pack {
     component minecraft:climate source=vanilla_behavior_pack {
         downfall 0.9
         snow_accumulation {
@@ -2209,10 +2304,11 @@ biome minecraft:mangrove_swamp format_version="1.21.110" source=protocolgen_nati
             tag spawns_slimes_on_surface
             tag spawns_warm_variant_farm_animals
             tag spawns_warm_variant_frogs
+            tag slime
         }
     }
 }
-biome minecraft:meadow format_version="1.21.110" source=protocolgen_native source_file=meadow.biome.json id=186 native_definition="{\"ashDensity\":0,\"blueSporeDensity\":0,\"depth\":0.1,\"downfall\":0.8,\"foliageSnow\":0,\"mapWaterColor\":\"#a660b7ff\",\"maxSnowLevel\":0.125,\"minSnowLevel\":0,\"rain\":true,\"redSporeDensity\":0,\"scale\":0.2,\"snowAccumulation\":0,\"temperature\":0.3,\"waterTransparency\":0.65,\"whiteAshDensity\":0}" components_source=vanilla_behavior_pack {
+biome minecraft:meadow format_version="1.26.50" source=protocolgen_native source_file=meadow.biome.json id=186 native_definition="{\"ashDensity\":0,\"blueSporeDensity\":0,\"depth\":0.1,\"downfall\":0.8,\"foliageSnow\":0,\"mapWaterColor\":\"#a660b7ff\",\"maxSnowLevel\":0.125,\"minSnowLevel\":0,\"rain\":true,\"redSporeDensity\":0,\"scale\":0.2,\"snowAccumulation\":0,\"temperature\":0.3,\"waterTransparency\":0.65,\"whiteAshDensity\":0}" components_source=vanilla_behavior_pack {
     component minecraft:climate source=vanilla_behavior_pack {
         downfall 0.8
         temperature 0.3
@@ -2240,10 +2336,14 @@ biome minecraft:meadow format_version="1.21.110" source=protocolgen_native sourc
             tag overworld
             tag meadow
             tag bee_habitat
+            tag has_structure_abandoned_camp
         }
     }
+    component minecraft:village_type source=vanilla_behavior_pack {
+        type default
+    }
 }
-biome minecraft:mega_taiga format_version="1.21.110" source=protocolgen_native source_file=mega_taiga.biome.json id=32 native_definition="{\"ashDensity\":0,\"blueSporeDensity\":0,\"depth\":0.2,\"downfall\":0.8,\"foliageSnow\":0,\"mapWaterColor\":\"#a52d6d77\",\"maxSnowLevel\":0.125,\"minSnowLevel\":0,\"rain\":true,\"redSporeDensity\":0,\"scale\":0.2,\"snowAccumulation\":0,\"temperature\":0.3,\"waterTransparency\":0.65,\"whiteAshDensity\":0}" components_source=vanilla_behavior_pack {
+biome minecraft:mega_taiga format_version="1.26.50" source=protocolgen_native source_file=mega_taiga.biome.json id=32 native_definition="{\"ashDensity\":0,\"blueSporeDensity\":0,\"depth\":0.2,\"downfall\":0.8,\"foliageSnow\":0,\"mapWaterColor\":\"#a52d6d77\",\"maxSnowLevel\":0.125,\"minSnowLevel\":0,\"rain\":true,\"redSporeDensity\":0,\"scale\":0.2,\"snowAccumulation\":0,\"temperature\":0.3,\"waterTransparency\":0.65,\"whiteAshDensity\":0}" components_source=vanilla_behavior_pack {
     component minecraft:climate source=vanilla_behavior_pack {
         downfall 0.8
         snow_accumulation {
@@ -2316,6 +2416,7 @@ biome minecraft:mega_taiga format_version="1.21.110" source=protocolgen_native s
             tag taiga
             tag has_structure_trail_ruins
             tag spawns_cold_variant_farm_animals
+            tag has_structure_abandoned_camp
         }
     }
 }
@@ -2387,7 +2488,7 @@ biome minecraft:mega_taiga_hills format_version="1.21.110" source=protocolgen_na
         }
     }
 }
-biome minecraft:mesa format_version="1.21.110" source=protocolgen_native source_file=mesa.biome.json id=37 native_definition="{\"ashDensity\":0,\"blueSporeDensity\":0,\"depth\":0.1,\"downfall\":0,\"foliageSnow\":0,\"mapWaterColor\":\"#a54e7f81\",\"maxSnowLevel\":0.125,\"minSnowLevel\":0,\"rain\":false,\"redSporeDensity\":0,\"scale\":0.2,\"snowAccumulation\":0,\"temperature\":2,\"waterTransparency\":0.65,\"whiteAshDensity\":0}" components_source=vanilla_behavior_pack {
+biome minecraft:mesa format_version="1.26.0" source=protocolgen_native source_file=mesa.biome.json id=37 native_definition="{\"ashDensity\":0,\"blueSporeDensity\":0,\"depth\":0.1,\"downfall\":0,\"foliageSnow\":0,\"mapWaterColor\":\"#a54e7f81\",\"maxSnowLevel\":0.125,\"minSnowLevel\":0,\"rain\":false,\"redSporeDensity\":0,\"scale\":0.2,\"snowAccumulation\":0,\"temperature\":2,\"waterTransparency\":0.65,\"whiteAshDensity\":0}" components_source=vanilla_behavior_pack {
     component minecraft:climate source=vanilla_behavior_pack {
         downfall 0.0
         snow_accumulation {
@@ -2435,10 +2536,11 @@ biome minecraft:mesa format_version="1.21.110" source=protocolgen_native source_
             tag overworld
             tag spawns_mesa_mobs
             tag spawns_warm_variant_farm_animals
+            tag surface_mineshaft
         }
     }
 }
-biome minecraft:mesa_bryce format_version="1.21.110" source=protocolgen_native source_file=mesa_bryce.biome.json id=165 native_definition="{\"ashDensity\":0,\"blueSporeDensity\":0,\"depth\":0.1,\"downfall\":0,\"foliageSnow\":0,\"mapWaterColor\":\"#a514a2c5\",\"maxSnowLevel\":0.125,\"minSnowLevel\":0,\"rain\":false,\"redSporeDensity\":0,\"scale\":0.2,\"snowAccumulation\":0,\"temperature\":2,\"waterTransparency\":0.65,\"whiteAshDensity\":0}" components_source=vanilla_behavior_pack {
+biome minecraft:mesa_bryce format_version="1.26.0" source=protocolgen_native source_file=mesa_bryce.biome.json id=165 native_definition="{\"ashDensity\":0,\"blueSporeDensity\":0,\"depth\":0.1,\"downfall\":0,\"foliageSnow\":0,\"mapWaterColor\":\"#a514a2c5\",\"maxSnowLevel\":0.125,\"minSnowLevel\":0,\"rain\":false,\"redSporeDensity\":0,\"scale\":0.2,\"snowAccumulation\":0,\"temperature\":2,\"waterTransparency\":0.65,\"whiteAshDensity\":0}" components_source=vanilla_behavior_pack {
     component minecraft:climate source=vanilla_behavior_pack {
         downfall 0.0
         snow_accumulation {
@@ -2484,10 +2586,11 @@ biome minecraft:mesa_bryce format_version="1.21.110" source=protocolgen_native s
             tag overworld
             tag spawns_mesa_mobs
             tag spawns_warm_variant_farm_animals
+            tag surface_mineshaft
         }
     }
 }
-biome minecraft:mesa_plateau format_version="1.21.110" source=protocolgen_native source_file=mesa_plateau.biome.json id=39 native_definition="{\"ashDensity\":0,\"blueSporeDensity\":0,\"depth\":1.5,\"downfall\":0,\"foliageSnow\":0,\"mapWaterColor\":\"#a555809e\",\"maxSnowLevel\":0.125,\"minSnowLevel\":0,\"rain\":false,\"redSporeDensity\":0,\"scale\":0.025,\"snowAccumulation\":0,\"temperature\":2,\"waterTransparency\":0.65,\"whiteAshDensity\":0}" components_source=vanilla_behavior_pack {
+biome minecraft:mesa_plateau format_version="1.26.0" source=protocolgen_native source_file=mesa_plateau.biome.json id=39 native_definition="{\"ashDensity\":0,\"blueSporeDensity\":0,\"depth\":1.5,\"downfall\":0,\"foliageSnow\":0,\"mapWaterColor\":\"#a555809e\",\"maxSnowLevel\":0.125,\"minSnowLevel\":0,\"rain\":false,\"redSporeDensity\":0,\"scale\":0.025,\"snowAccumulation\":0,\"temperature\":2,\"waterTransparency\":0.65,\"whiteAshDensity\":0}" components_source=vanilla_behavior_pack {
     component minecraft:climate source=vanilla_behavior_pack {
         downfall 0.0
         snow_accumulation {
@@ -2541,10 +2644,11 @@ biome minecraft:mesa_plateau format_version="1.21.110" source=protocolgen_native
             tag rare
             tag spawns_mesa_mobs
             tag spawns_warm_variant_farm_animals
+            tag surface_mineshaft
         }
     }
 }
-biome minecraft:mesa_plateau_mutated format_version="1.21.110" source=protocolgen_native source_file=mesa_plateau_mutated.biome.json id=167 native_definition="{\"ashDensity\":0,\"blueSporeDensity\":0,\"depth\":0.45,\"downfall\":0,\"foliageSnow\":0,\"mapWaterColor\":\"#a555809e\",\"maxSnowLevel\":0.125,\"minSnowLevel\":0,\"rain\":false,\"redSporeDensity\":0,\"scale\":0.3,\"snowAccumulation\":0,\"temperature\":2,\"waterTransparency\":0.65,\"whiteAshDensity\":0}" components_source=vanilla_behavior_pack {
+biome minecraft:mesa_plateau_mutated format_version="1.26.0" source=protocolgen_native source_file=mesa_plateau_mutated.biome.json id=167 native_definition="{\"ashDensity\":0,\"blueSporeDensity\":0,\"depth\":0.45,\"downfall\":0,\"foliageSnow\":0,\"mapWaterColor\":\"#a555809e\",\"maxSnowLevel\":0.125,\"minSnowLevel\":0,\"rain\":false,\"redSporeDensity\":0,\"scale\":0.3,\"snowAccumulation\":0,\"temperature\":2,\"waterTransparency\":0.65,\"whiteAshDensity\":0}" components_source=vanilla_behavior_pack {
     component minecraft:climate source=vanilla_behavior_pack {
         downfall 0.0
         snow_accumulation {
@@ -2589,10 +2693,11 @@ biome minecraft:mesa_plateau_mutated format_version="1.21.110" source=protocolge
             tag stone
             tag spawns_mesa_mobs
             tag spawns_warm_variant_farm_animals
+            tag surface_mineshaft
         }
     }
 }
-biome minecraft:mesa_plateau_stone format_version="1.21.110" source=protocolgen_native source_file=mesa_plateau_stone.biome.json id=38 native_definition="{\"ashDensity\":0,\"blueSporeDensity\":0,\"depth\":1.5,\"downfall\":0,\"foliageSnow\":0,\"mapWaterColor\":\"#a555809e\",\"maxSnowLevel\":0.125,\"minSnowLevel\":0,\"rain\":false,\"redSporeDensity\":0,\"scale\":0.025,\"snowAccumulation\":0,\"temperature\":2,\"waterTransparency\":0.65,\"whiteAshDensity\":0}" components_source=vanilla_behavior_pack {
+biome minecraft:mesa_plateau_stone format_version="1.26.50" source=protocolgen_native source_file=mesa_plateau_stone.biome.json id=38 native_definition="{\"ashDensity\":0,\"blueSporeDensity\":0,\"depth\":1.5,\"downfall\":0,\"foliageSnow\":0,\"mapWaterColor\":\"#a555809e\",\"maxSnowLevel\":0.125,\"minSnowLevel\":0,\"rain\":false,\"redSporeDensity\":0,\"scale\":0.025,\"snowAccumulation\":0,\"temperature\":2,\"waterTransparency\":0.65,\"whiteAshDensity\":0}" components_source=vanilla_behavior_pack {
     component minecraft:climate source=vanilla_behavior_pack {
         downfall 0.0
         snow_accumulation {
@@ -2650,10 +2755,12 @@ biome minecraft:mesa_plateau_stone format_version="1.21.110" source=protocolgen_
             tag stone
             tag spawns_mesa_mobs
             tag spawns_warm_variant_farm_animals
+            tag surface_mineshaft
+            tag has_structure_abandoned_camp
         }
     }
 }
-biome minecraft:mesa_plateau_stone_mutated format_version="1.21.110" source=protocolgen_native source_file=mesa_plateau_stone_mutated.biome.json id=166 native_definition="{\"ashDensity\":0,\"blueSporeDensity\":0,\"depth\":0.45,\"downfall\":0,\"foliageSnow\":0,\"mapWaterColor\":\"#a555809e\",\"maxSnowLevel\":0.125,\"minSnowLevel\":0,\"rain\":false,\"redSporeDensity\":0,\"scale\":0.3,\"snowAccumulation\":0,\"temperature\":2,\"waterTransparency\":0.65,\"whiteAshDensity\":0}" components_source=vanilla_behavior_pack {
+biome minecraft:mesa_plateau_stone_mutated format_version="1.26.0" source=protocolgen_native source_file=mesa_plateau_stone_mutated.biome.json id=166 native_definition="{\"ashDensity\":0,\"blueSporeDensity\":0,\"depth\":0.45,\"downfall\":0,\"foliageSnow\":0,\"mapWaterColor\":\"#a555809e\",\"maxSnowLevel\":0.125,\"minSnowLevel\":0,\"rain\":false,\"redSporeDensity\":0,\"scale\":0.3,\"snowAccumulation\":0,\"temperature\":2,\"waterTransparency\":0.65,\"whiteAshDensity\":0}" components_source=vanilla_behavior_pack {
     component minecraft:climate source=vanilla_behavior_pack {
         downfall 0.0
         snow_accumulation {
@@ -2697,6 +2804,7 @@ biome minecraft:mesa_plateau_stone_mutated format_version="1.21.110" source=prot
             tag plateau
             tag spawns_mesa_mobs
             tag spawns_warm_variant_farm_animals
+            tag surface_mineshaft
         }
     }
 }
@@ -2763,7 +2871,7 @@ biome minecraft:mushroom_island_shore format_version="1.21.110" source=protocolg
         }
     }
 }
-biome minecraft:ocean format_version="1.21.110" source=protocolgen_native source_file=ocean.biome.json id=0 native_definition="{\"ashDensity\":0,\"blueSporeDensity\":0,\"depth\":-1,\"downfall\":0.5,\"foliageSnow\":0,\"mapWaterColor\":\"#a51787d4\",\"maxSnowLevel\":0.125,\"minSnowLevel\":0,\"rain\":true,\"redSporeDensity\":0,\"scale\":0.1,\"snowAccumulation\":0,\"temperature\":0.5,\"waterTransparency\":0.65,\"whiteAshDensity\":0}" components_source=vanilla_behavior_pack {
+biome minecraft:ocean format_version="1.26.0" source=protocolgen_native source_file=ocean.biome.json id=0 native_definition="{\"ashDensity\":0,\"blueSporeDensity\":0,\"depth\":-1,\"downfall\":0.5,\"foliageSnow\":0,\"mapWaterColor\":\"#a51787d4\",\"maxSnowLevel\":0.125,\"minSnowLevel\":0,\"rain\":true,\"redSporeDensity\":0,\"scale\":0.1,\"snowAccumulation\":0,\"temperature\":0.5,\"waterTransparency\":0.65,\"whiteAshDensity\":0}" components_source=vanilla_behavior_pack {
     component minecraft:climate source=vanilla_behavior_pack {
         downfall 0.5
         snow_accumulation {
@@ -2807,10 +2915,12 @@ biome minecraft:ocean format_version="1.21.110" source=protocolgen_native source
             tag monster
             tag ocean
             tag overworld
+            tag fast_fishing
+            tag high_seas
         }
     }
 }
-biome minecraft:pale_garden format_version="1.21.110" source=protocolgen_native source_file=pale_garden.biome.json id=193 native_definition="{\"ashDensity\":0,\"blueSporeDensity\":0,\"depth\":0.1,\"downfall\":0.8,\"foliageSnow\":0,\"mapWaterColor\":\"#a660b7ff\",\"maxSnowLevel\":0.125,\"minSnowLevel\":0,\"rain\":true,\"redSporeDensity\":0,\"scale\":0.2,\"snowAccumulation\":0,\"temperature\":0.7,\"waterTransparency\":0.65,\"whiteAshDensity\":0}" components_source=vanilla_behavior_pack {
+biome minecraft:pale_garden format_version="1.26.50" source=protocolgen_native source_file=pale_garden.biome.json id=193 native_definition="{\"ashDensity\":0,\"blueSporeDensity\":0,\"depth\":0.1,\"downfall\":0.8,\"foliageSnow\":0,\"mapWaterColor\":\"#a660b7ff\",\"maxSnowLevel\":0.125,\"minSnowLevel\":0,\"rain\":true,\"redSporeDensity\":0,\"scale\":0.2,\"snowAccumulation\":0,\"temperature\":0.7,\"waterTransparency\":0.65,\"whiteAshDensity\":0}" components_source=vanilla_behavior_pack {
     component minecraft:climate source=vanilla_behavior_pack {
         downfall 0.8
         snow_accumulation {
@@ -2845,10 +2955,11 @@ biome minecraft:pale_garden format_version="1.21.110" source=protocolgen_native 
             tag monster
             tag overworld
             tag pale_garden
+            tag has_structure_abandoned_camp
         }
     }
 }
-biome minecraft:plains format_version="1.21.110" source=protocolgen_native source_file=plains.biome.json id=1 native_definition="{\"ashDensity\":0,\"blueSporeDensity\":0,\"depth\":0.125,\"downfall\":0.4,\"foliageSnow\":0,\"mapWaterColor\":\"#a544aff5\",\"maxSnowLevel\":0.125,\"minSnowLevel\":0,\"rain\":true,\"redSporeDensity\":0,\"scale\":0.05,\"snowAccumulation\":0,\"temperature\":0.8,\"waterTransparency\":0.65,\"whiteAshDensity\":0}" components_source=vanilla_behavior_pack {
+biome minecraft:plains format_version="1.26.0" source=protocolgen_native source_file=plains.biome.json id=1 native_definition="{\"ashDensity\":0,\"blueSporeDensity\":0,\"depth\":0.125,\"downfall\":0.4,\"foliageSnow\":0,\"mapWaterColor\":\"#a544aff5\",\"maxSnowLevel\":0.125,\"minSnowLevel\":0,\"rain\":true,\"redSporeDensity\":0,\"scale\":0.05,\"snowAccumulation\":0,\"temperature\":0.8,\"waterTransparency\":0.65,\"whiteAshDensity\":0}" components_source=vanilla_behavior_pack {
     component minecraft:climate source=vanilla_behavior_pack {
         downfall 0.4
         snow_accumulation {
@@ -2913,6 +3024,9 @@ biome minecraft:plains format_version="1.21.110" source=protocolgen_native sourc
             tag plains
             tag bee_habitat
         }
+    }
+    component minecraft:village_type source=vanilla_behavior_pack {
+        type default
     }
 }
 biome minecraft:redwood_taiga_hills_mutated format_version="1.21.110" source=protocolgen_native source_file=redwood_taiga_hills_mutated.biome.json id=161 native_definition="{\"ashDensity\":0,\"blueSporeDensity\":0,\"depth\":0.55,\"downfall\":0.8,\"foliageSnow\":0,\"mapWaterColor\":\"#a5286378\",\"maxSnowLevel\":0.125,\"minSnowLevel\":0,\"rain\":true,\"redSporeDensity\":0,\"scale\":0.5,\"snowAccumulation\":0,\"temperature\":0.3,\"waterTransparency\":0.65,\"whiteAshDensity\":0}" components_source=vanilla_behavior_pack {
@@ -2984,7 +3098,7 @@ biome minecraft:redwood_taiga_hills_mutated format_version="1.21.110" source=pro
         }
     }
 }
-biome minecraft:redwood_taiga_mutated format_version="1.21.110" source=protocolgen_native source_file=redwood_taiga_mutated.biome.json id=160 native_definition="{\"ashDensity\":0,\"blueSporeDensity\":0,\"depth\":0.2,\"downfall\":0.8,\"foliageSnow\":0,\"mapWaterColor\":\"#a52d6d77\",\"maxSnowLevel\":0.125,\"minSnowLevel\":0,\"rain\":true,\"redSporeDensity\":0,\"scale\":0.2,\"snowAccumulation\":0,\"temperature\":0.25,\"waterTransparency\":0.65,\"whiteAshDensity\":0}" components_source=vanilla_behavior_pack {
+biome minecraft:redwood_taiga_mutated format_version="1.26.50" source=protocolgen_native source_file=redwood_taiga_mutated.biome.json id=160 native_definition="{\"ashDensity\":0,\"blueSporeDensity\":0,\"depth\":0.2,\"downfall\":0.8,\"foliageSnow\":0,\"mapWaterColor\":\"#a52d6d77\",\"maxSnowLevel\":0.125,\"minSnowLevel\":0,\"rain\":true,\"redSporeDensity\":0,\"scale\":0.2,\"snowAccumulation\":0,\"temperature\":0.25,\"waterTransparency\":0.65,\"whiteAshDensity\":0}" components_source=vanilla_behavior_pack {
     component minecraft:climate source=vanilla_behavior_pack {
         downfall 0.8
         snow_accumulation {
@@ -3047,6 +3161,7 @@ biome minecraft:redwood_taiga_mutated format_version="1.21.110" source=protocolg
             tag taiga
             tag has_structure_trail_ruins
             tag spawns_cold_variant_farm_animals
+            tag has_structure_abandoned_camp
         }
     }
 }
@@ -3167,7 +3282,7 @@ biome minecraft:roofed_forest_mutated format_version="1.21.110" source=protocolg
         }
     }
 }
-biome minecraft:savanna format_version="1.21.110" source=protocolgen_native source_file=savanna.biome.json id=35 native_definition="{\"ashDensity\":0,\"blueSporeDensity\":0,\"depth\":0.125,\"downfall\":0,\"foliageSnow\":0,\"mapWaterColor\":\"#a52c8b9c\",\"maxSnowLevel\":0.125,\"minSnowLevel\":0,\"rain\":false,\"redSporeDensity\":0,\"scale\":0.05,\"snowAccumulation\":0,\"temperature\":1.2,\"waterTransparency\":0.65,\"whiteAshDensity\":0}" components_source=vanilla_behavior_pack {
+biome minecraft:savanna format_version="1.26.50" source=protocolgen_native source_file=savanna.biome.json id=35 native_definition="{\"ashDensity\":0,\"blueSporeDensity\":0,\"depth\":0.125,\"downfall\":0,\"foliageSnow\":0,\"mapWaterColor\":\"#a52c8b9c\",\"maxSnowLevel\":0.125,\"minSnowLevel\":0,\"rain\":false,\"redSporeDensity\":0,\"scale\":0.05,\"snowAccumulation\":0,\"temperature\":1.2,\"waterTransparency\":0.65,\"whiteAshDensity\":0}" components_source=vanilla_behavior_pack {
     component minecraft:climate source=vanilla_behavior_pack {
         downfall 0.0
         snow_accumulation {
@@ -3215,7 +3330,11 @@ biome minecraft:savanna format_version="1.21.110" source=protocolgen_native sour
             tag savanna
             tag spawns_savanna_mobs
             tag spawns_warm_variant_farm_animals
+            tag has_structure_abandoned_camp
         }
+    }
+    component minecraft:village_type source=vanilla_behavior_pack {
+        type savanna
     }
 }
 biome minecraft:savanna_mutated format_version="1.21.110" source=protocolgen_native source_file=savanna_mutated.biome.json id=163 native_definition="{\"ashDensity\":0,\"blueSporeDensity\":0,\"depth\":0.3625,\"downfall\":0,\"foliageSnow\":0,\"mapWaterColor\":\"#a660b7ff\",\"maxSnowLevel\":0.125,\"minSnowLevel\":0,\"rain\":false,\"redSporeDensity\":0,\"scale\":1.225,\"snowAccumulation\":0,\"temperature\":2,\"waterTransparency\":0.65,\"whiteAshDensity\":0}" components_source=vanilla_behavior_pack {
@@ -3600,9 +3719,104 @@ biome minecraft:stony_peaks format_version="1.21.110" source=protocolgen_native 
         }
     }
 }
-biome minecraft:sulfur_caves format_version="" source=protocolgen_native source_file="" id=194 native_definition="{\"ashDensity\":0,\"blueSporeDensity\":0,\"depth\":0.1,\"downfall\":0.4,\"foliageSnow\":0,\"mapWaterColor\":\"#a660b7ff\",\"maxSnowLevel\":0.125,\"minSnowLevel\":0,\"rain\":true,\"redSporeDensity\":0,\"scale\":0.2,\"snowAccumulation\":0,\"temperature\":0.8,\"waterTransparency\":0.65,\"whiteAshDensity\":0}" components_source=vanilla_behavior_pack {
+biome minecraft:sulfur_caves format_version="1.26.30" source=protocolgen_native source_file=sulfur_caves.biome.json id=194 native_definition="{\"ashDensity\":0,\"blueSporeDensity\":0,\"depth\":0.1,\"downfall\":0.4,\"foliageSnow\":0,\"mapWaterColor\":\"#a660b7ff\",\"maxSnowLevel\":0.125,\"minSnowLevel\":0,\"rain\":true,\"redSporeDensity\":0,\"scale\":0.2,\"snowAccumulation\":0,\"temperature\":0.8,\"waterTransparency\":0.65,\"whiteAshDensity\":0}" components_source=vanilla_behavior_pack {
+    component minecraft:climate source=vanilla_behavior_pack {
+        downfall 0.4
+        temperature 0.8
+    }
+    component minecraft:overworld_height source=vanilla_behavior_pack {
+        noise_type default
+    }
+    component minecraft:subsurface_builder source=vanilla_behavior_pack {
+        builder {
+            noise_block_specifiers {
+                item {
+                    block minecraft:cinnabar
+                    range {
+                        max -0.1
+                        min -0.4
+                    }
+                }
+                item {
+                    block minecraft:sulfur
+                    range {
+                        max 0.4
+                        min 0.0
+                    }
+                }
+                item {
+                    block minecraft:cinnabar
+                    range {
+                        max 1.0
+                        min 0.4
+                    }
+                }
+            }
+            noise_descriptor {
+                amplitudes {
+                    item 1.0
+                    item 0.0
+                    item 1.0
+                }
+                first_octave -5
+                name minecraft:sulfur_cave_gradient
+            }
+            non_replaceable_blocks {
+                item minecraft:bedrock
+            }
+            type minecraft:noise_gradient
+        }
+    }
+    component minecraft:surface_builder source=vanilla_behavior_pack {
+        builder {
+            noise_block_specifiers {
+                item {
+                    block minecraft:cinnabar
+                    range {
+                        max -0.1
+                        min -0.4
+                    }
+                }
+                item {
+                    block minecraft:sulfur
+                    range {
+                        max 0.4
+                        min 0.0
+                    }
+                }
+                item {
+                    block minecraft:cinnabar
+                    range {
+                        max 1.0
+                        min 0.4
+                    }
+                }
+            }
+            noise_descriptor {
+                amplitudes {
+                    item 1.0
+                    item 0.0
+                    item 1.0
+                }
+                first_octave -5
+                name minecraft:sulfur_cave_gradient
+            }
+            non_replaceable_blocks {
+                item minecraft:bedrock
+            }
+            type minecraft:noise_gradient
+        }
+    }
+    component minecraft:tags source=vanilla_behavior_pack {
+        tags {
+            tag caves
+            tag sulfur_caves
+            tag overworld
+            tag monster
+        }
+    }
 }
-biome minecraft:sunflower_plains format_version="1.21.110" source=protocolgen_native source_file=sunflower_plains.biome.json id=129 native_definition="{\"ashDensity\":0,\"blueSporeDensity\":0,\"depth\":0.125,\"downfall\":0.4,\"foliageSnow\":0,\"mapWaterColor\":\"#a660b7ff\",\"maxSnowLevel\":0.125,\"minSnowLevel\":0,\"rain\":true,\"redSporeDensity\":0,\"scale\":0.05,\"snowAccumulation\":0,\"temperature\":0.8,\"waterTransparency\":0.65,\"whiteAshDensity\":0}" components_source=vanilla_behavior_pack {
+biome minecraft:sunflower_plains format_version="1.26.0" source=protocolgen_native source_file=sunflower_plains.biome.json id=129 native_definition="{\"ashDensity\":0,\"blueSporeDensity\":0,\"depth\":0.125,\"downfall\":0.4,\"foliageSnow\":0,\"mapWaterColor\":\"#a660b7ff\",\"maxSnowLevel\":0.125,\"minSnowLevel\":0,\"rain\":true,\"redSporeDensity\":0,\"scale\":0.05,\"snowAccumulation\":0,\"temperature\":0.8,\"waterTransparency\":0.65,\"whiteAshDensity\":0}" components_source=vanilla_behavior_pack {
     component minecraft:climate source=vanilla_behavior_pack {
         downfall 0.4
         snow_accumulation {
@@ -3635,8 +3849,11 @@ biome minecraft:sunflower_plains format_version="1.21.110" source=protocolgen_na
             tag bee_habitat
         }
     }
+    component minecraft:village_type source=vanilla_behavior_pack {
+        type default
+    }
 }
-biome minecraft:swampland format_version="1.21.110" source=protocolgen_native source_file=swampland.biome.json id=6 native_definition="{\"ashDensity\":0,\"blueSporeDensity\":0,\"depth\":-0.2,\"downfall\":0.9,\"foliageSnow\":0,\"mapWaterColor\":\"#a5617b64\",\"maxSnowLevel\":0.125,\"minSnowLevel\":0,\"rain\":true,\"redSporeDensity\":0,\"scale\":0.1,\"snowAccumulation\":0,\"temperature\":0.8,\"waterTransparency\":0.65,\"whiteAshDensity\":0}" components_source=vanilla_behavior_pack {
+biome minecraft:swampland format_version="1.26.50" source=protocolgen_native source_file=swampland.biome.json id=6 native_definition="{\"ashDensity\":0,\"blueSporeDensity\":0,\"depth\":-0.2,\"downfall\":0.9,\"foliageSnow\":0,\"mapWaterColor\":\"#a5617b64\",\"maxSnowLevel\":0.125,\"minSnowLevel\":0,\"rain\":true,\"redSporeDensity\":0,\"scale\":0.1,\"snowAccumulation\":0,\"temperature\":0.8,\"waterTransparency\":0.65,\"whiteAshDensity\":0}" components_source=vanilla_behavior_pack {
     component minecraft:climate source=vanilla_behavior_pack {
         downfall 0.9
         snow_accumulation {
@@ -3682,10 +3899,13 @@ biome minecraft:swampland format_version="1.21.110" source=protocolgen_native so
             tag overworld
             tag swamp
             tag spawns_slimes_on_surface
+            tag slime
+            tag swamp_water_huge_mushroom
+            tag has_structure_abandoned_camp
         }
     }
 }
-biome minecraft:swampland_mutated format_version="1.21.110" source=protocolgen_native source_file=swampland_mutated.biome.json id=134 native_definition="{\"ashDensity\":0,\"blueSporeDensity\":0,\"depth\":-0.1,\"downfall\":0.5,\"foliageSnow\":0,\"mapWaterColor\":\"#a5617b64\",\"maxSnowLevel\":0.125,\"minSnowLevel\":0,\"rain\":true,\"redSporeDensity\":0,\"scale\":0.3,\"snowAccumulation\":0,\"temperature\":0.8,\"waterTransparency\":0.65,\"whiteAshDensity\":0}" components_source=vanilla_behavior_pack {
+biome minecraft:swampland_mutated format_version="1.26.0" source=protocolgen_native source_file=swampland_mutated.biome.json id=134 native_definition="{\"ashDensity\":0,\"blueSporeDensity\":0,\"depth\":-0.1,\"downfall\":0.5,\"foliageSnow\":0,\"mapWaterColor\":\"#a5617b64\",\"maxSnowLevel\":0.125,\"minSnowLevel\":0,\"rain\":true,\"redSporeDensity\":0,\"scale\":0.3,\"snowAccumulation\":0,\"temperature\":0.8,\"waterTransparency\":0.65,\"whiteAshDensity\":0}" components_source=vanilla_behavior_pack {
     component minecraft:climate source=vanilla_behavior_pack {
         downfall 0.5
         snow_accumulation {
@@ -3726,10 +3946,12 @@ biome minecraft:swampland_mutated format_version="1.21.110" source=protocolgen_n
             tag swamp
             tag overworld_generation
             tag spawns_slimes_on_surface
+            tag slime
+            tag swamp_water_huge_mushroom
         }
     }
 }
-biome minecraft:taiga format_version="1.21.110" source=protocolgen_native source_file=taiga.biome.json id=5 native_definition="{\"ashDensity\":0,\"blueSporeDensity\":0,\"depth\":0.1,\"downfall\":0.8,\"foliageSnow\":0,\"mapWaterColor\":\"#a5287082\",\"maxSnowLevel\":0.25,\"minSnowLevel\":0,\"rain\":true,\"redSporeDensity\":0,\"scale\":0.2,\"snowAccumulation\":0,\"temperature\":0.25,\"waterTransparency\":0.65,\"whiteAshDensity\":0}" components_source=vanilla_behavior_pack {
+biome minecraft:taiga format_version="1.26.50" source=protocolgen_native source_file=taiga.biome.json id=5 native_definition="{\"ashDensity\":0,\"blueSporeDensity\":0,\"depth\":0.1,\"downfall\":0.8,\"foliageSnow\":0,\"mapWaterColor\":\"#a5287082\",\"maxSnowLevel\":0.25,\"minSnowLevel\":0,\"rain\":true,\"redSporeDensity\":0,\"scale\":0.2,\"snowAccumulation\":0,\"temperature\":0.25,\"waterTransparency\":0.65,\"whiteAshDensity\":0}" components_source=vanilla_behavior_pack {
     component minecraft:climate source=vanilla_behavior_pack {
         downfall 0.8
         snow_accumulation {
@@ -3778,10 +4000,14 @@ biome minecraft:taiga format_version="1.21.110" source=protocolgen_native source
             tag taiga
             tag has_structure_trail_ruins
             tag spawns_cold_variant_farm_animals
+            tag has_structure_abandoned_camp
         }
     }
+    component minecraft:village_type source=vanilla_behavior_pack {
+        type taiga
+    }
 }
-biome minecraft:taiga_hills format_version="1.21.110" source=protocolgen_native source_file=taiga_hills.biome.json id=19 native_definition="{\"ashDensity\":0,\"blueSporeDensity\":0,\"depth\":0.45,\"downfall\":0.8,\"foliageSnow\":0,\"mapWaterColor\":\"#a5236583\",\"maxSnowLevel\":0.25,\"minSnowLevel\":0,\"rain\":true,\"redSporeDensity\":0,\"scale\":0.3,\"snowAccumulation\":0,\"temperature\":0.25,\"waterTransparency\":0.65,\"whiteAshDensity\":0}" components_source=vanilla_behavior_pack {
+biome minecraft:taiga_hills format_version="1.26.0" source=protocolgen_native source_file=taiga_hills.biome.json id=19 native_definition="{\"ashDensity\":0,\"blueSporeDensity\":0,\"depth\":0.45,\"downfall\":0.8,\"foliageSnow\":0,\"mapWaterColor\":\"#a5236583\",\"maxSnowLevel\":0.25,\"minSnowLevel\":0,\"rain\":true,\"redSporeDensity\":0,\"scale\":0.3,\"snowAccumulation\":0,\"temperature\":0.25,\"waterTransparency\":0.65,\"whiteAshDensity\":0}" components_source=vanilla_behavior_pack {
     component minecraft:climate source=vanilla_behavior_pack {
         downfall 0.8
         snow_accumulation {
@@ -3821,6 +4047,9 @@ biome minecraft:taiga_hills format_version="1.21.110" source=protocolgen_native 
             tag taiga
             tag spawns_cold_variant_farm_animals
         }
+    }
+    component minecraft:village_type source=vanilla_behavior_pack {
+        type taiga
     }
 }
 biome minecraft:taiga_mutated format_version="1.21.110" source=protocolgen_native source_file=taiga_mutated.biome.json id=133 native_definition="{\"ashDensity\":0,\"blueSporeDensity\":0,\"depth\":0.2,\"downfall\":0.8,\"foliageSnow\":0,\"mapWaterColor\":\"#a51e6b82\",\"maxSnowLevel\":0.125,\"minSnowLevel\":0,\"rain\":true,\"redSporeDensity\":0,\"scale\":0.4,\"snowAccumulation\":0,\"temperature\":0.25,\"waterTransparency\":0.65,\"whiteAshDensity\":0}" components_source=vanilla_behavior_pack {
@@ -3880,7 +4109,7 @@ biome minecraft:the_end format_version="1.21.110" source=protocolgen_native sour
         }
     }
 }
-biome minecraft:warm_ocean format_version="1.21.110" source=protocolgen_native source_file=warm_ocean.biome.json id=40 native_definition="{\"ashDensity\":0,\"blueSporeDensity\":0,\"depth\":-1,\"downfall\":0.5,\"foliageSnow\":0,\"mapWaterColor\":\"#a502b0e5\",\"maxSnowLevel\":0.125,\"minSnowLevel\":0,\"rain\":true,\"redSporeDensity\":0,\"scale\":0.1,\"snowAccumulation\":0,\"temperature\":0.5,\"waterTransparency\":0.65,\"whiteAshDensity\":0}" components_source=vanilla_behavior_pack {
+biome minecraft:warm_ocean format_version="1.26.0" source=protocolgen_native source_file=warm_ocean.biome.json id=40 native_definition="{\"ashDensity\":0,\"blueSporeDensity\":0,\"depth\":-1,\"downfall\":0.5,\"foliageSnow\":0,\"mapWaterColor\":\"#a502b0e5\",\"maxSnowLevel\":0.125,\"minSnowLevel\":0,\"rain\":true,\"redSporeDensity\":0,\"scale\":0.1,\"snowAccumulation\":0,\"temperature\":0.5,\"waterTransparency\":0.65,\"whiteAshDensity\":0}" components_source=vanilla_behavior_pack {
     component minecraft:climate source=vanilla_behavior_pack {
         downfall 0.5
         snow_accumulation {
@@ -3919,6 +4148,9 @@ biome minecraft:warm_ocean format_version="1.21.110" source=protocolgen_native s
             tag warm
             tag spawns_warm_variant_farm_animals
             tag spawns_warm_variant_frogs
+            tag fast_fishing
+            tag high_seas
+            tag temperate_ocean
         }
     }
 }

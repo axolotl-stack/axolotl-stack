@@ -1,7 +1,7 @@
 ---
 date: 2026-10-24
 author: VANILLA-WORLD (task_08915bba6495)
-status: research complete, decisions resolved (§7), no implementation
+status: research complete, decisions resolved (§7); D6-D8 (worldgen AOT, two generators, per-generator fixtures) supersede WD3 and the "decoded at startup" form for worldgen data; implementation by WG-CORE, WG-JAVA-DECOR and WG-BEDROCK (§5)
 area: worldgen (terrain, biomes, surface, carvers, features), spawn rules, world ticking (clock, random ticks, autosave)
 truth: BDS 1.26.51 (protocol 2193) install on disk + BDS packet captures (`tools/client-diff`) + a BDS-generated reference world (committed fixture) + public Mojang docs/samples + Java Edition worldgen data
 ---
@@ -20,12 +20,13 @@ truth: BDS 1.26.51 (protocol 2193) install on disk + BDS packet captures (`tools
   The built-in side, counted from what the data references: the surface-builder types named by biome JSON, about 20 feature types, 65 feature identifiers with no JSON definition, 31 `minecraft:legacy:*` features, and the climate→biome table.
 - **Ticking is built-in behaviour in BDS** (no pack data describes it), driven by block tags and states: crop growth, leaf decay, grass spread and the random-tick scheduler. Section 2.2 states the expected vanilla behaviour; each formula is confirmed by a BDS sweep before it is relied on.
   Time moved to **world clocks** in 26.x. BDS 1.26.51 sends `SyncWorldClocksPacket`, not `SetTime`: 0 `SetTime` against 54 `SyncWorldClocks` across 14 captured sessions (`tools/client-diff/conformance-report.md:121`).
-- **Design (decisions resolved in §7):**
+- **Design (decisions resolved in §7, updated by owner D6-D8):**
+  - two generators share one generator trait, chunk pipeline, AOT toolchain and caches: **Java-style** (Java Edition parity, finished first) and **Bedrock-style** (BDS 1.26.51 parity); the world config picks one (D7);
   - terrain stays Java-JSON → AOT codegen;
-  - Bedrock pack data (biomes, feature_rules, features, spawn_rules) is normalised by `unastar-data` datagen; the schemas are generated as typed Rust, the vanilla data is embedded and decoded at startup, and generic Rust feature, surface-builder and spawn-condition implementations interpret it;
+  - worldgen data is compiled ahead of time end to end (D6): Java surface rules, carvers, placed/configured features and structures from the Java data; Bedrock biomes (surface builders), feature_rules, features, carvers and structures from the BDS install, read at build time and emitted as straight-line Rust;
   - the BDS built-in and legacy features become Rust implementations registered under the same identifiers;
   - a 3×3 post-process stage gives cross-chunk decoration;
-  - parity is gated by the committed BDS fixture.
+  - parity is gated per generator by its own reference fixtures with ratchets (D8): a Java Edition server for Java-style, the committed BDS fixture for Bedrock-style.
 
 ## 1. Current unastar state
 
@@ -173,12 +174,11 @@ What the experiment showed:
 2. **Surface.** BDS uses Bedrock surface builders configured by biome JSON, not Java surface rules.
    - unastar's Java surface rules also carry placeholder noises.
    - Each builder type named in biome JSON (`overworld`, `mesa`, `capped`, `frozen_ocean`, `swamp`, `the_end`, plus any extra type the install's biomes name) needs a Rust implementation matched to the fixture.
-   - Resolved (WD2): port the BDS builders once W2 makes biomes right; the fixture decides each builder. Until then the Java rules with correct noise seeding stay in place as the explicit interim, not a silent fallback.
+   - Resolved (WD2, with D7): the Bedrock-style generator ports the BDS builders once W2 makes biomes right, and the fixture decides each builder; the Java-style generator keeps Java surface rules with correct noise seeding.
 3. **Data source and licensing.**
    - BDS `features`/`feature_rules` are not in bedrock-samples. They live in the BDS install (`definitions/` + `.brarchive`).
-   - Their licence class (Minecraft EULA) is the same as the already-vendored `vanilla_bp` and the protocolgen native dumps.
-   - Resolved (WD1): they are ingested from the shared BDS install. The `.brarchive` reader is about 15 lines; the format is shown in §6.
-   - The vendored `vanilla_bp` (biomes, spawn_rules) is bumped to 1.26.50 or newer first (owner D1), so pack data and install data describe the same version.
+   - Their licence class is the Minecraft EULA, the same as the bedrock-samples `vanilla_bp`; they are read at build time from the local install (`UNASTAR_BDS_DIR`, behind the off-by-default `bedrock-worldgen` feature) and never committed. (The protocolgen native tables are CC0 and are committed.)
+   - Resolved (WD1): they are ingested from the shared BDS install. The `.brarchive` format is shown in §6.
 4. **Built-in behaviour that is not in any pack.** Each is hand-ported in Rust; every ported formula is pinned by a unit test and a BDS fixture:
    - 65 built-in features;
    - 31 legacy features (per-biome tree, forest foliage and flower selectors, …);
@@ -193,14 +193,14 @@ What the experiment showed:
    - a post-process step that runs once a chunk's 8 neighbours exist as protos;
    - a fixed placement-pass order.
 7. **Block identity.** Feature JSON uses legacy names and states (`minecraft:log{old_log_type}`). This depends on the shared `StateTable` (ENTITIES) and on a block-upgrade alias table, which is a new data family. The weak "first canonical state" default is wrong for logs (`pillar_axis=x`).
-8. **Molang.** A small subset is enough for feature rules (§2.3). Spawn rules need none; their filters are the shared filter language. Both should reuse the shared Molang/filter crate that ENTITIES leads, not a worldgen-local evaluator.
+8. **Molang.** A small subset is enough for feature rules (§2.3), and under D6 it is compiled to Rust at build time (no runtime interpreter for vanilla worldgen). Spawn rules need none; their filters are the shared filter language. There should be one Molang parser shared by the worldgen codegen and the runtime evaluator that ENTITIES leads, not two dialects.
 9. **Time protocol.** In 26.51 the time is the overworld world clock synced by `SyncWorldClocksPacket` (initialise registry on join, `SyncState` on change). "SetTime every 20 s" is not what BDS 1.26.51 does (captures above). Resolved (WD5): world clocks. The periodic re-sync cadence still needs a capture with the cycle running.
 10. **Random-tick rate.** Expected BDS behaviour: `randomTickSpeed × floor(2.5 × non-empty sub-chunk height)` positions per chunk, spread over the whole occupied height (Java: 3 per section). The default randomTickSpeed is 1. To confirm with a BDS sweep before W11 ships.
 11. **Performance.** Generic interpreted features are cheap next to terrain noise (about 105 ms/chunk debug). The real costs are:
     - one OS thread per chunk (`generation_worker.rs:92`);
     - the extra 3×3 proto ring.
     A bounded pool with 16 MiB stacks plus an LRU proto cache keeps the amortised cost at about one proto per chunk. Bevy is not involved: generation stays off-ECS.
-12. **Versioned packs.** Feature and rule stacks depend on the world's base game version. unastar targets one version (1.26.51), so datagen should resolve the stack once and emit the final set, recording the source pack per row.
+12. **Versioned packs.** Feature and rule stacks depend on the world's base game version. unastar targets one version (1.26.51), so the build-time codegen resolves the stack once and emits the final set, recording the source pack per row.
 
 ## 4. Proposed unastar design
 
@@ -210,16 +210,14 @@ What the experiment showed:
 |---|---|---|---|
 | Noise router, aquifer, veins, climate, biome placement | Java `worldgen_data` (noise, density_function, noise_settings, `multi_noise_biome_source_parameter_list`) | Build-time AOT (as today) plus a generated MD5 table for `fromHashOf` | `unastar_noise` |
 | Java→Bedrock biome map | generated from Java biome names × `unastar-data` biome identifiers, with an explicit alias table and a test that every Java overworld biome maps | embedded table | `unastar-data` (new family) |
-| Bedrock biome worldgen params | BP biome JSON (`surface_builder`, `surface_material_adjustments`, `mountain_parameters`, tags, climate) | generated schema structs; data embedded, decoded at startup | `unastar-data` (extend biomes codegen) |
-| Feature rules + features | BDS `definitions/` + `vanilla_*/__brarchive` resolved for 1.26.51 | `feature_rules.kdl`, `features.kdl` (normalised JSON per row, source pack recorded), embedded and decoded at startup into generated typed structs | `unastar-data` (new families) |
-| Block alias/upgrade table | protocolgen / native data | embedded map, decoded at startup | `unastar-data` (new family) |
-| Spawn rules | BP `spawn_rules` | `spawn_rules.kdl` → typed rows (conditions as shared filter AST) | `unastar-data` (new family) |
+| Bedrock biome worldgen params | BP biome JSON (`surface_builder`, `surface_material_adjustments`, `mountain_parameters`, tags, climate) from the BDS install | AOT compiled (D6) into surface data and builder calls | `unastar_bedrock_codegen` |
+| Feature rules + features | BDS `definitions/` + `vanilla_*/__brarchive` resolved for 1.26.51 | AOT compiled (D6): one function per rule and per reachable JSON feature, Molang distributions emitted as Rust expressions | `unastar_bedrock_codegen` |
+| Block alias/upgrade table | protocolgen / native data | build-time table used by the codegen (pre-flattening names resolved before emission) | `unastar_bedrock_codegen` |
+| Spawn rules | BP `spawn_rules` | gameplay data, not worldgen: generated schema + embedded data decoded at startup (D2), conditions as shared filter AST | `unastar-data` (new family) |
 | Generic implementations | Rust | `FeatureType` impls (scatter, aggregate, sequence, weighted_random, single_block, ore, tree, snap_to_surface, search, growing_plant, vegetation_patch, multiface, surface_relative_threshold, cave_carver, …); `SurfaceBuilder` impls (one per builder type); built-in and legacy features registered by identifier | hand-written, each formula pinned by a unit test and a BDS fixture | `unastar/src/world/generator/{features,surface,carver}` |
-| Molang + filters | shared | evaluator crate/module led by ENTITIES | shared |
+| Molang + filters | shared | one parser: compiled to Rust by the worldgen codegen (D6), evaluated at runtime by the shared rules engine (entities §4.3) | shared |
 
-**Build-time or runtime?** (WD3, owner D2)
-- Schemas are generated at build time: one typed Rust struct/enum per data family. The vanilla data itself is embedded in the binary and decoded at startup: no I/O at generation time, and parity-testable.
-- No per-entry Rust code is generated. Because the startup decoder produces the same structs a pack would, a later pack overlay loader (add-ons, custom features) deserialises the same shape into the same registry (owner D5). Section 4.4 shows the registry and overlay shape.
+**Build-time or runtime?** WD3 is superseded by owner D6: worldgen is compiled ahead of time end to end, the way `unastar_noise` compiles density functions, and per-entry generated code is allowed for worldgen. A later addon/WASM overlay may add an interpreted path for extra content (D5), but vanilla is compiled. Spawn rules drive gameplay spawning and stay under D2.
 
 ### 4.2 Generation pipeline (off-ECS, deterministic)
 
@@ -252,11 +250,11 @@ flowchart LR
 ### 4.4 Plugins and custom packs
 
 **Registries are keyed by identifier.**
-- `FeatureRegistry: identifier → Arc<dyn FeatureInstance>`;
-- `SurfaceBuilderRegistry: type → builder`;
+- Vanilla features, rules and surface builders are compiled code (D6), addressed by identifier;
+- built-in and legacy features are Rust registered under their identifiers;
 - `RandomTickBehaviour: block identifier/tag → behaviour`.
 
-Vanilla rows are registered at startup. Scope is vanilla only for now (owner D5), but a later pack loader (runtime JSON, same schema) or a WASM mod could register more rows or override them before the generator is frozen. This mirrors BDS's pack stack and fits the frozen-registry plan in `2026-01-04-block-registry-typestate-architecture.md`.
+Scope is vanilla only for now (owner D5). A later pack loader or WASM mod adds or overrides rows through an interpreted overlay that consults the overlay's identifiers before the compiled vanilla set, frozen before generation starts. This mirrors BDS's pack stack and fits the frozen-registry plan in `2026-01-04-block-registry-typestate-architecture.md`.
 
 Growing the WIT plugin API (e.g. "register feature") is out of scope until the coordinator approves it.
 
@@ -281,10 +279,10 @@ Growing the WIT plugin API (e.g. "register feature") is out of scope until the c
 |---|---|---|---|---|
 | W1 | `fromHashOf` MD5 table generated in `unastar_noise` codegen; Java `RandomState` seeding for every router noise, `BlendedNoise` and the surface/`noise_threshold` noises (also removes the placeholder noises) | S | — | Fixture: terrain exact ≥ 84 %, within ±2 ≥ 92 % (ratchet) |
 | W2 | Climate from router functions (with shift + depth), Java parameter-point search from `multi_noise_biome_source_parameter_list` codegen, 3D quart biome storage + network encoding, generated Java→Bedrock biome map | M | W1, owner D1 (`vanilla_bp` ≥ 1.26.50) | Fixture surface-biome match (new ratchet); a unit test that every Java overworld biome maps |
-| W3 | Default `kind="vanilla"` config + climate-guided spawn search + surface Y search (avoid water/leaves); vanilla `spawnradius` | S | W2 | Seed 12345 → spawn x,z = (103, −28); spawn column is solid and dry |
-| W4 | BDS surface builders from biome-JSON params (new `unastar-data` schema fields), one builder type at a time; Java rules removed once every builder beats them on the fixture (WD2) | M–L | W2 | Fixture surface-block match ratchet |
+| W3 | Default generator `kind` config (`java` first, D7) + climate-guided spawn search + surface Y search (avoid water/leaves); vanilla `spawnradius` | S | W2 | Seed 12345 → spawn x,z = (103, −28) on the Bedrock-style generator; spawn column is solid and dry |
+| W4 | BDS surface builders from biome-JSON params, one builder type at a time, for the Bedrock-style generator; Java surface rules stay for the Java-style generator (D7) | M–L | W2 | Fixture surface-block match ratchet |
 | W5 | Generation pool (bounded, 16 MiB stacks) + proto cache + 3×3 post-process with `PASS_ORDER`; SuperFlat sub-chunk cache bug fix (`server/game/chunks.rs:162-176`) | M | W1 | Determinism: same chunk generated in any request order is identical. Seam test across chunk borders. Regression test for edit-after-re-request |
-| W6 | `feature_rules` + `features` data families (BDS install → KDL, version-stack resolution, block alias table); `FeatureRegistry`; Molang subset via the shared evaluator | M | WD1, ENTITIES Molang | Datagen test: 267 rules / 290 features; every `places_feature` resolves to JSON, built-in or legacy, otherwise datagen fails |
+| W6 | `feature_rules` + `features` (BDS install → typed IR → AOT emission per D6, version-stack resolution, block alias table); Molang subset compiled at build time | M | WD1 | Codegen test: 267 rules / 290 features; every `places_feature` resolves to JSON, built-in or legacy, otherwise the build fails |
 | W7 | Feature types, part 1: ore, scatter, aggregate, sequence, weighted_random, single_block, search, snap_to_surface | M | W5, W6 | Fixture histograms: coal/iron/gold/redstone/lapis/diamond, diorite/andesite/granite, gravel, dirt within tolerance |
 | W8 | Feature types, part 2: tree (trunk/canopy variants), growing_plant, vegetation_patch, multiface; legacy tree/flower selectors; built-ins in priority order (cactus, reeds, kelp, seagrass, clay, ice) | L | W7, ENTITIES `StateTable` | Fixture: leaves/logs/grass/flower counts, kelp/seagrass in ocean chunks |
 | W9 | Carvers: one `cave_carver_feature` / `underwater_cave_carver_feature` implementation matched to the fixture; delete `terrain.rs:347-861` and `generator/carver/` | M | W5, W6 | Fixture: air/water volume below sea level; determinism |
@@ -295,6 +293,8 @@ Growing the WIT plugin API (e.g. "register feature") is out of scope until the c
 | W14 | (later) Byte-exact decoration RNG, derived from BDS single-feature fixtures (WD4) | L | W7, W8 | Fixture: exact block positions for the pinned features |
 
 W1→W2→W3 is the critical path for "a fresh world looks like BDS". W10–W12 are independent and can run in parallel with worldgen.
+
+**Owners after D6-D8.** The worldgen wave covers W1-W9 and W14 plus Java-style decoration and structures, which D7 adds: WG-CORE owns W1, W2, W3, W5, Java surface rules and Java carvers, the generator trait/pipeline and the benchmark; WG-JAVA-DECOR owns Java placed/configured features and Java structures (AOT); WG-BEDROCK owns W4, W6-W9 for the Bedrock-style generator, Bedrock structures, the spawn-rule IR and, later, W14. W10 (clock), W11 (random ticks), W12 (autosave) and the W13 spawner stay with the world-ticking lane. The cross-area roadmap is in `thoughts/shared/plans/2026-10-24-data-driven-architecture.md`.
 
 ## 6. Notes for whoever implements
 
@@ -310,12 +310,12 @@ W1→W2→W3 is the critical path for "a fresh world looks like BDS". W10–W12 
 
 ## 7. World decisions (resolved)
 
-The world-specific decisions (WD1–WD5) are resolved by taking each recommendation. All of them follow the owner's cross-area decisions D1–D5 in `thoughts/shared/plans/2026-10-24-data-driven-decisions.md`: pack pin 1.26.50+ (D1), schema codegen with embedded data decoded at startup (D2), copy BDS exactly and log quirks in `bds-quirks.md` (D3), measure built-in facts from BDS (D4), vanilla only with registries open for addon packs and WASM later (D5).
+The world-specific decisions (WD1–WD5) are resolved by taking each recommendation. All of them follow the owner's cross-area decisions D1–D5 in `thoughts/shared/plans/2026-10-24-data-driven-decisions.md`: pack pin 1.26.50+ (D1), schema codegen with embedded data decoded at startup (D2), copy BDS exactly and log quirks in `bds-quirks.md` (D3), measure built-in facts from BDS (D4), vanilla only with registries open for addon packs and WASM later (D5). The later worldgen decisions D6-D8 replace WD3 (worldgen is AOT compiled) and add the Java-style generator with its own Java Edition fixtures.
 
 | # | Decision | Resolution | Follows |
 |---|---|---|---|
-| WD1 | Source of feature and feature_rules data | Ingest from the shared BDS install (`definitions/` + versioned `.brarchive`, Minecraft EULA like `vanilla_bp`). Java `placed_feature`/`configured_feature` are not used for decoration | D1, D3 |
-| WD2 | Surface generation | Port the BDS surface builders, parameterised by biome JSON, after W2 makes biomes right; the fixture decides each builder. Java surface rules (seeding fixed) remain only until then | D3 |
-| WD3 | Compile-time or runtime data | Compile vanilla in and add a runtime pack overlay later. Concretely: schemas are generated, the vanilla data is embedded and decoded at startup into those types, and an overlay feeds the same types before the registries freeze | D2, D5 |
+| WD1 | Source of feature and feature_rules data | Ingest from the shared BDS install (`definitions/` + versioned `.brarchive`, Minecraft EULA like `vanilla_bp`) for the Bedrock-style generator. Java `placed_feature`/`configured_feature` drive the Java-style generator (D7) only | D1, D3, D7 |
+| WD2 | Surface generation | Bedrock-style: port the BDS surface builders, parameterised by biome JSON, after W2 makes biomes right; the fixture decides each builder. Java-style keeps Java surface rules (seeding fixed) | D3, D7 |
+| WD3 | Compile-time or runtime data | **Superseded by D6:** worldgen data is AOT compiled end to end; only a later addon/WASM overlay may be interpreted. Spawn rules (gameplay) keep D2: generated schema, embedded data decoded at startup | D6, D2, D5 |
 | WD4 | Decoration RNG parity | Statistical decoration first (same rules, densities and shapes); exact placement later (W14), with the seeding derived from BDS fixtures | D3, D4 |
 | WD5 | Time protocol | 26.x world clocks (`SyncWorldClocksPacket`), as BDS 1.26.51 does; no legacy `SetTime` loop unless a capture shows BDS sending it | D3 |
