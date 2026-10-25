@@ -49,6 +49,30 @@ directory. The old sample's `[world.storage]` table and its `data_dir`,
 a configuration error: remove that table and use the supported `[world]` keys.
 Player storage remains configured separately under `[players]`.
 
+## World Generation
+
+`[world.generator]` selects the generator; new configs default to Java-style terrain:
+
+| `kind` | Terrain | Spawn without a configured location |
+|---|---|---|
+| `java` (default, `seed = 12345`) | Java Edition 1.21.11-style: noise router, aquifers, ore veins, 3D biomes, surface rules, cave and canyon carvers | Java's world-spawn search (climate target, 11x11 chunk spiral, first standable column), computed once per server process |
+| `super_flat` | bedrock, two dirt, grass | template spawn |
+| `void_spawn_platform` | stone platform of `platform_radius_chunks` | template spawn |
+
+The default spawn rule keeps returning players at their saved position and otherwise
+uses the generator's spawn; set `location` (with `always_at_location = true`) to pin it.
+Java-style chunks are generated on a bounded pool of `world.generation_threads`
+workers (0 = half the cores, 1..=8), off the ECS tick thread. Chunk biomes are 3D
+(4x4x4 quarts) on the wire and in storage (`Data3D`).
+
+Generation runs through `world::generator::ChunkPipeline`: per-chunk terrain stages
+write a flat block buffer that is packed into paletted sub-chunks once; a 3x3
+decoration stage (features and structures) runs only for generators that decorate.
+Parity with the Java reference world is ratcheted by
+`cargo test -p unastar --test worldgen_parity` (terrain/surface heights, proto voxels,
+biomes, and the world spawn); `cargo run -p unastar --example worldgen_parity_report`
+prints the metrics and `cargo run -p unastar --example worldgen_bench [--release]`
+the ms/chunk and allocations/chunk.
 
 ## Compatibility Evidence
 
@@ -120,7 +144,7 @@ Trapping plugin callbacks are logged, and cancellable callbacks fail closed.
 ## Persistence
 
 Both LevelDB (the default) and BlazeDB use load-before-generate chunk requests.
-For vanilla terrain, storage reads and generation run off the ECS tick thread;
+For Java-style terrain, storage reads and generation run off the ECS tick thread;
 only a confirmed storage miss generates terrain. Storage read errors are logged
 and never become generated replacement columns. Loaded columns start clean,
 while generated or edited columns are saved on unload/shutdown.

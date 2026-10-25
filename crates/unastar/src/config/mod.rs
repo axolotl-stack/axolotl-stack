@@ -218,12 +218,13 @@ pub struct SpawnRule {
 }
 
 impl Default for SpawnRule {
+    /// Previous position when known, otherwise the generator's spawn (no fixed location).
     fn default() -> Self {
         Self {
             name: "main".into(),
-            always_at_location: true,
+            always_at_location: false,
             previous_position: true,
-            location: Some(SpawnLocation::default()),
+            location: None,
         }
     }
 }

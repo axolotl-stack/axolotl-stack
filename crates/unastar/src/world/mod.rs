@@ -147,9 +147,8 @@ impl Default for WorldConfig {
         Self {
             dimension: 0,
             bounds: WorldBounds::Infinite,
-            generator: WorldGenerator::VoidSpawnPlatform {
-                platform_radius_chunks: 1,
-            },
+            // Java-style terrain; seed 12345 is the seed of the Java reference fixtures.
+            generator: WorldGenerator::Java { seed: 12345 },
             storage_provider: StorageProvider::LevelDb,
             blazedb_cache_chunks: 4096,
             generation_threads: 0,
