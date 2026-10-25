@@ -395,7 +395,7 @@ impl ExtractedData {
 }
 
 /// Simple ISO 8601 timestamp without pulling in chrono
-fn chrono_lite_now() -> String {
+pub(crate) fn chrono_lite_now() -> String {
     use std::time::SystemTime;
     let now = SystemTime::now()
         .duration_since(SystemTime::UNIX_EPOCH)

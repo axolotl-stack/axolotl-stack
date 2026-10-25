@@ -1,0 +1,488 @@
+{
+ "copper_axe": {
+  "consistent": true,
+  "damage": [
+   5.0,
+   5.0,
+   5.0
+  ],
+  "tool_item": {
+   "item": "minecraft:copper_axe"
+  }
+ },
+ "copper_hoe": {
+  "consistent": true,
+  "damage": [
+   4.0,
+   4.0,
+   4.0
+  ],
+  "tool_item": {
+   "item": "minecraft:copper_hoe"
+  }
+ },
+ "copper_pickaxe": {
+  "consistent": true,
+  "damage": [
+   4.0,
+   4.0,
+   4.0
+  ],
+  "tool_item": {
+   "item": "minecraft:copper_pickaxe"
+  }
+ },
+ "copper_shovel": {
+  "consistent": true,
+  "damage": [
+   3.0,
+   3.0,
+   3.0
+  ],
+  "tool_item": {
+   "item": "minecraft:copper_shovel"
+  }
+ },
+ "copper_sword": {
+  "consistent": true,
+  "damage": [
+   6.0,
+   6.0,
+   6.0
+  ],
+  "tool_item": {
+   "item": "minecraft:copper_sword"
+  }
+ },
+ "diamond_axe": {
+  "consistent": true,
+  "damage": [
+   7.0,
+   7.0,
+   7.0
+  ],
+  "tool_item": {
+   "item": "minecraft:diamond_axe"
+  }
+ },
+ "diamond_hoe": {
+  "consistent": true,
+  "damage": [
+   6.0,
+   6.0,
+   6.0
+  ],
+  "tool_item": {
+   "item": "minecraft:diamond_hoe"
+  }
+ },
+ "diamond_pickaxe": {
+  "consistent": true,
+  "damage": [
+   6.0,
+   6.0,
+   6.0
+  ],
+  "tool_item": {
+   "item": "minecraft:diamond_pickaxe"
+  }
+ },
+ "diamond_shovel": {
+  "consistent": true,
+  "damage": [
+   5.0,
+   5.0,
+   5.0
+  ],
+  "tool_item": {
+   "item": "minecraft:diamond_shovel"
+  }
+ },
+ "diamond_sword": {
+  "consistent": true,
+  "damage": [
+   8.0,
+   8.0,
+   8.0
+  ],
+  "tool_item": {
+   "item": "minecraft:diamond_sword"
+  }
+ },
+ "diamond_sword+sharpness1": {
+  "consistent": true,
+  "damage": [
+   9.0,
+   9.0,
+   9.0
+  ],
+  "tool_item": {
+   "enchants": {
+    "minecraft:sharpness": 1
+   },
+   "item": "minecraft:diamond_sword"
+  }
+ },
+ "diamond_sword+sharpness2": {
+  "consistent": true,
+  "damage": [
+   10.0,
+   10.0,
+   10.0
+  ],
+  "tool_item": {
+   "enchants": {
+    "minecraft:sharpness": 2
+   },
+   "item": "minecraft:diamond_sword"
+  }
+ },
+ "diamond_sword+sharpness3": {
+  "consistent": true,
+  "damage": [
+   11.0,
+   11.0,
+   11.0
+  ],
+  "tool_item": {
+   "enchants": {
+    "minecraft:sharpness": 3
+   },
+   "item": "minecraft:diamond_sword"
+  }
+ },
+ "diamond_sword+sharpness4": {
+  "consistent": true,
+  "damage": [
+   13.0,
+   13.0,
+   13.0
+  ],
+  "tool_item": {
+   "enchants": {
+    "minecraft:sharpness": 4
+   },
+   "item": "minecraft:diamond_sword"
+  }
+ },
+ "diamond_sword+sharpness5": {
+  "consistent": true,
+  "damage": [
+   14.0,
+   14.0,
+   14.0
+  ],
+  "tool_item": {
+   "enchants": {
+    "minecraft:sharpness": 5
+   },
+   "item": "minecraft:diamond_sword"
+  }
+ },
+ "golden_axe": {
+  "consistent": true,
+  "damage": [
+   4.0,
+   4.0,
+   4.0
+  ],
+  "tool_item": {
+   "item": "minecraft:golden_axe"
+  }
+ },
+ "golden_hoe": {
+  "consistent": true,
+  "damage": [
+   3.0,
+   3.0,
+   3.0
+  ],
+  "tool_item": {
+   "item": "minecraft:golden_hoe"
+  }
+ },
+ "golden_pickaxe": {
+  "consistent": true,
+  "damage": [
+   3.0,
+   3.0,
+   3.0
+  ],
+  "tool_item": {
+   "item": "minecraft:golden_pickaxe"
+  }
+ },
+ "golden_shovel": {
+  "consistent": true,
+  "damage": [
+   2.0,
+   2.0,
+   2.0
+  ],
+  "tool_item": {
+   "item": "minecraft:golden_shovel"
+  }
+ },
+ "golden_sword": {
+  "consistent": true,
+  "damage": [
+   5.0,
+   5.0,
+   5.0
+  ],
+  "tool_item": {
+   "item": "minecraft:golden_sword"
+  }
+ },
+ "hand": {
+  "consistent": true,
+  "damage": [
+   1.0,
+   1.0,
+   1.0
+  ],
+  "tool_item": null
+ },
+ "iron_axe": {
+  "consistent": true,
+  "damage": [
+   6.0,
+   6.0,
+   6.0
+  ],
+  "tool_item": {
+   "item": "minecraft:iron_axe"
+  }
+ },
+ "iron_hoe": {
+  "consistent": true,
+  "damage": [
+   5.0,
+   5.0,
+   5.0
+  ],
+  "tool_item": {
+   "item": "minecraft:iron_hoe"
+  }
+ },
+ "iron_pickaxe": {
+  "consistent": true,
+  "damage": [
+   5.0,
+   5.0,
+   5.0
+  ],
+  "tool_item": {
+   "item": "minecraft:iron_pickaxe"
+  }
+ },
+ "iron_shovel": {
+  "consistent": true,
+  "damage": [
+   4.0,
+   4.0,
+   4.0
+  ],
+  "tool_item": {
+   "item": "minecraft:iron_shovel"
+  }
+ },
+ "iron_sword": {
+  "consistent": true,
+  "damage": [
+   7.0,
+   7.0,
+   7.0
+  ],
+  "tool_item": {
+   "item": "minecraft:iron_sword"
+  }
+ },
+ "mace": {
+  "consistent": true,
+  "damage": [
+   6.0,
+   6.0,
+   6.0
+  ],
+  "tool_item": {
+   "item": "minecraft:mace"
+  }
+ },
+ "netherite_axe": {
+  "consistent": true,
+  "damage": [
+   8.0,
+   8.0,
+   8.0
+  ],
+  "tool_item": {
+   "item": "minecraft:netherite_axe"
+  }
+ },
+ "netherite_hoe": {
+  "consistent": true,
+  "damage": [
+   7.0,
+   7.0,
+   7.0
+  ],
+  "tool_item": {
+   "item": "minecraft:netherite_hoe"
+  }
+ },
+ "netherite_pickaxe": {
+  "consistent": true,
+  "damage": [
+   7.0,
+   7.0,
+   7.0
+  ],
+  "tool_item": {
+   "item": "minecraft:netherite_pickaxe"
+  }
+ },
+ "netherite_shovel": {
+  "consistent": true,
+  "damage": [
+   6.0,
+   6.0,
+   6.0
+  ],
+  "tool_item": {
+   "item": "minecraft:netherite_shovel"
+  }
+ },
+ "netherite_sword": {
+  "consistent": true,
+  "damage": [
+   9.0,
+   9.0,
+   9.0
+  ],
+  "tool_item": {
+   "item": "minecraft:netherite_sword"
+  }
+ },
+ "stone_axe": {
+  "consistent": true,
+  "damage": [
+   5.0,
+   5.0,
+   5.0
+  ],
+  "tool_item": {
+   "item": "minecraft:stone_axe"
+  }
+ },
+ "stone_hoe": {
+  "consistent": true,
+  "damage": [
+   4.0,
+   4.0,
+   4.0
+  ],
+  "tool_item": {
+   "item": "minecraft:stone_hoe"
+  }
+ },
+ "stone_pickaxe": {
+  "consistent": true,
+  "damage": [
+   4.0,
+   4.0,
+   4.0
+  ],
+  "tool_item": {
+   "item": "minecraft:stone_pickaxe"
+  }
+ },
+ "stone_shovel": {
+  "consistent": true,
+  "damage": [
+   3.0,
+   3.0,
+   3.0
+  ],
+  "tool_item": {
+   "item": "minecraft:stone_shovel"
+  }
+ },
+ "stone_sword": {
+  "consistent": true,
+  "damage": [
+   6.0,
+   6.0,
+   6.0
+  ],
+  "tool_item": {
+   "item": "minecraft:stone_sword"
+  }
+ },
+ "trident": {
+  "consistent": true,
+  "damage": [
+   9.0,
+   9.0,
+   9.0
+  ],
+  "tool_item": {
+   "item": "minecraft:trident"
+  }
+ },
+ "wooden_axe": {
+  "consistent": true,
+  "damage": [
+   4.0,
+   4.0,
+   4.0
+  ],
+  "tool_item": {
+   "item": "minecraft:wooden_axe"
+  }
+ },
+ "wooden_hoe": {
+  "consistent": true,
+  "damage": [
+   3.0,
+   3.0,
+   3.0
+  ],
+  "tool_item": {
+   "item": "minecraft:wooden_hoe"
+  }
+ },
+ "wooden_pickaxe": {
+  "consistent": true,
+  "damage": [
+   3.0,
+   3.0,
+   3.0
+  ],
+  "tool_item": {
+   "item": "minecraft:wooden_pickaxe"
+  }
+ },
+ "wooden_shovel": {
+  "consistent": true,
+  "damage": [
+   2.0,
+   2.0,
+   2.0
+  ],
+  "tool_item": {
+   "item": "minecraft:wooden_shovel"
+  }
+ },
+ "wooden_sword": {
+  "consistent": true,
+  "damage": [
+   5.0,
+   5.0,
+   5.0
+  ],
+  "tool_item": {
+   "item": "minecraft:wooden_sword"
+  }
+ }
+}

@@ -1,0 +1,4 @@
+{"block":"minecraft:blue_ice","cases":[
+{"fit":"exact","loot_table":{"pools":[]},"observed":{"":400},"samples":400,"states":[{}],"tools":["copper_pickaxe","diamond_axe","diamond_pickaxe","diamond_pickaxe+fortune1","diamond_pickaxe+fortune2","diamond_pickaxe+fortune3","golden_pickaxe","hand","iron_pickaxe","netherite_pickaxe","shears","stone_pickaxe","wooden_pickaxe"]},
+{"fit":"exact","loot_table":{"pools":[{"entries":[{"name":"minecraft:blue_ice","type":"item"}],"rolls":1}]},"observed":{"minecraft:blue_ice@0x1":400},"samples":400,"states":[{}],"tools":["diamond_pickaxe+silk_touch1"]}
+]}

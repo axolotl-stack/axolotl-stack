@@ -1,0 +1,16 @@
+[build-system]
+requires = ["setuptools>=68"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "endstone-bds-sweep"
+version = "0.1.0"
+description = "BDS built-in fact sweeps (drops, slots, fuels, mining) for unastar measured data; inert unless BDS_SWEEP_JOB is set"
+requires-python = ">=3.10"
+dependencies = ["endstone==0.11.12"]
+
+[project.entry-points.endstone]
+bds_sweep = "endstone_bds_sweep.plugin:BdsSweep"
+
+[tool.setuptools.packages.find]
+where = ["src"]

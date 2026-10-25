@@ -1,0 +1,391 @@
+{
+ "minecraft:chainmail_boots": {
+  "defense": 1.0,
+  "per_hit": {
+   "1000": 992.0,
+   "16": 15.8,
+   "4": 3.95
+  },
+  "slot": "feet",
+  "toughness_range": null
+ },
+ "minecraft:chainmail_chestplate": {
+  "defense": 5.0,
+  "per_hit": {
+   "1000": 960.0,
+   "16": 15.3,
+   "4": 3.5
+  },
+  "slot": "chest",
+  "toughness_range": {
+   "4": [
+    -0.69,
+    2.24
+   ]
+  }
+ },
+ "minecraft:chainmail_helmet": {
+  "defense": 2.0,
+  "per_hit": {
+   "1000": 984.0,
+   "16": 15.7,
+   "4": 3.9
+  },
+  "slot": "head",
+  "toughness_range": null
+ },
+ "minecraft:chainmail_leggings": {
+  "defense": 4.0,
+  "per_hit": {
+   "1000": 968.0,
+   "16": 15.4,
+   "4": 3.65
+  },
+  "slot": "legs",
+  "toughness_range": {
+   "4": [
+    -0.47,
+    2.67
+   ]
+  }
+ },
+ "minecraft:copper_boots": {
+  "defense": 1.0,
+  "per_hit": {
+   "1000": 992.0,
+   "16": 15.8,
+   "4": 3.95
+  },
+  "slot": "feet",
+  "toughness_range": null
+ },
+ "minecraft:copper_chestplate": {
+  "defense": 4.0,
+  "per_hit": {
+   "1000": 968.0,
+   "16": 15.4,
+   "4": 3.65
+  },
+  "slot": "chest",
+  "toughness_range": {
+   "4": [
+    -0.47,
+    2.67
+   ]
+  }
+ },
+ "minecraft:copper_helmet": {
+  "defense": 2.0,
+  "per_hit": {
+   "1000": 984.0,
+   "16": 15.7,
+   "4": 3.9
+  },
+  "slot": "head",
+  "toughness_range": null
+ },
+ "minecraft:copper_leggings": {
+  "defense": 3.0,
+  "per_hit": {
+   "1000": 976.0,
+   "16": 15.6,
+   "4": 3.8
+  },
+  "slot": "legs",
+  "toughness_range": {
+   "4": [
+    -0.24,
+    3.13
+   ]
+  }
+ },
+ "minecraft:diamond_boots": {
+  "defense": 3.0,
+  "per_hit": {
+   "1000": 976.0,
+   "16": 15.6,
+   "4": 3.75
+  },
+  "slot": "feet",
+  "toughness_range": {
+   "4": [
+    1.14,
+    6.22
+   ]
+  }
+ },
+ "minecraft:diamond_chestplate": {
+  "defense": 8.0,
+  "per_hit": {
+   "1000": 936.0,
+   "16": 14.9,
+   "4": 2.95
+  },
+  "slot": "chest",
+  "toughness_range": {
+   "4": [
+    1.14,
+    6.22
+   ]
+  }
+ },
+ "minecraft:diamond_helmet": {
+  "defense": 3.0,
+  "per_hit": {
+   "1000": 976.0,
+   "16": 15.6,
+   "4": 3.75
+  },
+  "slot": "head",
+  "toughness_range": {
+   "4": [
+    1.14,
+    6.22
+   ]
+  }
+ },
+ "minecraft:diamond_leggings": {
+  "defense": 6.0,
+  "per_hit": {
+   "1000": 952.0,
+   "16": 15.2,
+   "4": 3.25
+  },
+  "slot": "legs",
+  "toughness_range": {
+   "4": [
+    1.85,
+    8.0
+   ]
+  }
+ },
+ "minecraft:elytra": {
+  "defense": 0.0,
+  "per_hit": {
+   "1000": 1000.0,
+   "16": 16.0,
+   "4": 4.0
+  },
+  "slot": "chest",
+  "toughness_range": null
+ },
+ "minecraft:golden_boots": {
+  "defense": 1.0,
+  "per_hit": {
+   "1000": 992.0,
+   "16": 15.8,
+   "4": 3.95
+  },
+  "slot": "feet",
+  "toughness_range": null
+ },
+ "minecraft:golden_chestplate": {
+  "defense": 5.0,
+  "per_hit": {
+   "1000": 960.0,
+   "16": 15.3,
+   "4": 3.5
+  },
+  "slot": "chest",
+  "toughness_range": {
+   "4": [
+    -0.69,
+    2.24
+   ]
+  }
+ },
+ "minecraft:golden_helmet": {
+  "defense": 2.0,
+  "per_hit": {
+   "1000": 984.0,
+   "16": 15.7,
+   "4": 3.9
+  },
+  "slot": "head",
+  "toughness_range": null
+ },
+ "minecraft:golden_leggings": {
+  "defense": 3.0,
+  "per_hit": {
+   "1000": 976.0,
+   "16": 15.6,
+   "4": 3.8
+  },
+  "slot": "legs",
+  "toughness_range": {
+   "4": [
+    -0.24,
+    3.13
+   ]
+  }
+ },
+ "minecraft:iron_boots": {
+  "defense": 2.0,
+  "per_hit": {
+   "1000": 984.0,
+   "16": 15.7,
+   "4": 3.9
+  },
+  "slot": "feet",
+  "toughness_range": null
+ },
+ "minecraft:iron_chestplate": {
+  "defense": 6.0,
+  "per_hit": {
+   "1000": 952.0,
+   "16": 15.2,
+   "4": 3.35
+  },
+  "slot": "chest",
+  "toughness_range": {
+   "4": [
+    -0.89,
+    1.85
+   ]
+  }
+ },
+ "minecraft:iron_helmet": {
+  "defense": 2.0,
+  "per_hit": {
+   "1000": 984.0,
+   "16": 15.7,
+   "4": 3.9
+  },
+  "slot": "head",
+  "toughness_range": null
+ },
+ "minecraft:iron_leggings": {
+  "defense": 5.0,
+  "per_hit": {
+   "1000": 960.0,
+   "16": 15.3,
+   "4": 3.5
+  },
+  "slot": "legs",
+  "toughness_range": {
+   "4": [
+    -0.69,
+    2.24
+   ]
+  }
+ },
+ "minecraft:leather_boots": {
+  "defense": 1.0,
+  "per_hit": {
+   "1000": 992.0,
+   "16": 15.8,
+   "4": 3.95
+  },
+  "slot": "feet",
+  "toughness_range": null
+ },
+ "minecraft:leather_chestplate": {
+  "defense": 3.0,
+  "per_hit": {
+   "1000": 976.0,
+   "16": 15.6,
+   "4": 3.8
+  },
+  "slot": "chest",
+  "toughness_range": {
+   "4": [
+    -0.24,
+    3.13
+   ]
+  }
+ },
+ "minecraft:leather_helmet": {
+  "defense": 1.0,
+  "per_hit": {
+   "1000": 992.0,
+   "16": 15.8,
+   "4": 3.95
+  },
+  "slot": "head",
+  "toughness_range": null
+ },
+ "minecraft:leather_leggings": {
+  "defense": 2.0,
+  "per_hit": {
+   "1000": 984.0,
+   "16": 15.7,
+   "4": 3.9
+  },
+  "slot": "legs",
+  "toughness_range": null
+ },
+ "minecraft:netherite_boots": {
+  "defense": 3.0,
+  "per_hit": {
+   "1000": 976.0,
+   "16": 15.6,
+   "4": 3.75
+  },
+  "slot": "feet",
+  "toughness_range": {
+   "4": [
+    1.14,
+    6.22
+   ]
+  }
+ },
+ "minecraft:netherite_chestplate": {
+  "defense": 8.0,
+  "per_hit": {
+   "1000": 936.0,
+   "16": 14.6,
+   "4": 2.95
+  },
+  "slot": "chest",
+  "toughness_range": {
+   "16": [
+    2.72,
+    3.31
+   ],
+   "4": [
+    1.14,
+    6.22
+   ]
+  }
+ },
+ "minecraft:netherite_helmet": {
+  "defense": 3.0,
+  "per_hit": {
+   "1000": 976.0,
+   "16": 15.6,
+   "4": 3.75
+  },
+  "slot": "head",
+  "toughness_range": {
+   "4": [
+    1.14,
+    6.22
+   ]
+  }
+ },
+ "minecraft:netherite_leggings": {
+  "defense": 6.0,
+  "per_hit": {
+   "1000": 952.0,
+   "16": 15.2,
+   "4": 3.25
+  },
+  "slot": "legs",
+  "toughness_range": {
+   "4": [
+    1.85,
+    8.0
+   ]
+  }
+ },
+ "minecraft:turtle_helmet": {
+  "defense": 2.0,
+  "per_hit": {
+   "1000": 984.0,
+   "16": 15.7,
+   "4": 3.9
+  },
+  "slot": "head",
+  "toughness_range": null
+ }
+}

@@ -1,0 +1,32 @@
+{
+  "bds_version": "26.51",
+  "server": "bedrock_server.exe (no Endstone)",
+  "server_properties": {
+    "server-name": "bds-sweep bds-extractor-1.26.51",
+    "server-port": 19132,
+    "server-portv6": 19133,
+    "online-mode": "false",
+    "enable-lan-visibility": "false",
+    "allow-cheats": "true",
+    "level-name": "bds-extractor-1.26.51",
+    "max-players": 2,
+    "content-log-file-enabled": "false",
+    "default-player-permission-level": "member",
+    "level-seed": 12345,
+    "gamemode": "survival",
+    "difficulty": "easy"
+  },
+  "extractor_command": [
+    "bds-extractor",
+    "--addr",
+    "127.0.0.1:19132",
+    "--name",
+    "BDSExtractor",
+    "--timeout",
+    "120",
+    "--capture-dir",
+    "C:\\Users\\jvigu\\orca\\workspaces\\axolotl-stack\\stab-tooling\\.cache\\bds-captures\\1.26.51\\20261025T172246Z\\member",
+    "--log",
+    "info"
+  ]
+}
