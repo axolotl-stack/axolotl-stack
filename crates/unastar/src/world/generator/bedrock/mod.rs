@@ -102,7 +102,11 @@ impl BiomeSet {
     /// `true` when any id is in both sets (compiled rule masks use this).
     #[inline]
     pub fn intersects(&self, mask: &[u64; 4]) -> bool {
-        (self.0[0] & mask[0]) | (self.0[1] & mask[1]) | (self.0[2] & mask[2]) | (self.0[3] & mask[3]) != 0
+        (self.0[0] & mask[0])
+            | (self.0[1] & mask[1])
+            | (self.0[2] & mask[2])
+            | (self.0[3] & mask[3])
+            != 0
     }
 
     pub fn is_empty(&self) -> bool {

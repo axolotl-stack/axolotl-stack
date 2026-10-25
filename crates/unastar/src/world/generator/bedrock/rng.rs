@@ -22,7 +22,9 @@ pub struct BedrockRandom {
 
 impl std::fmt::Debug for BedrockRandom {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        f.debug_struct("BedrockRandom").field("index", &self.index).finish_non_exhaustive()
+        f.debug_struct("BedrockRandom")
+            .field("index", &self.index)
+            .finish_non_exhaustive()
     }
 }
 
@@ -122,7 +124,13 @@ mod tests {
     fn matches_the_mt19937_reference_vector() {
         // init_genrand(5489) reference outputs (mt19937ar.c test vector).
         let mut r = BedrockRandom::new(5489);
-        let expected = [3_499_211_612u32, 581_869_302, 3_890_346_734, 3_586_334_585, 545_404_204];
+        let expected = [
+            3_499_211_612u32,
+            581_869_302,
+            3_890_346_734,
+            3_586_334_585,
+            545_404_204,
+        ];
         for e in expected {
             assert_eq!(r.next_u32(), e);
         }

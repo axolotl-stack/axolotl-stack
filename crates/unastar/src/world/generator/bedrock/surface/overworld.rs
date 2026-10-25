@@ -19,11 +19,23 @@
 
 use super::super::generated::bb;
 use super::super::rng::BedrockRandom;
-use super::{Column, Materials, SurfaceColumn, convert_foundation, fill_sea, is_foundation, is_liquid, underwater};
+use super::{
+    Column, Materials, SurfaceColumn, convert_foundation, fill_sea, is_foundation, is_liquid,
+    underwater,
+};
 
 /// Run the overworld builder; returns the lowest y it dressed.
-pub(super) fn build<C: SurfaceColumn>(col: &mut C, c: &Column<'_>, base: &Materials, rng: &mut BedrockRandom) -> Option<i32> {
-    let sea = if c.biome.adjustments.is_empty() { base.sea } else { c.materials(base, c.sea_level - 1).sea };
+pub(super) fn build<C: SurfaceColumn>(
+    col: &mut C,
+    c: &Column<'_>,
+    base: &Materials,
+    rng: &mut BedrockRandom,
+) -> Option<i32> {
+    let sea = if c.biome.adjustments.is_empty() {
+        base.sea
+    } else {
+        c.materials(base, c.sea_level - 1).sea
+    };
     fill_sea(col, c, sea);
     let depth = c.depth.max(0);
     let mut foundation = base.foundation;
@@ -97,14 +109,26 @@ mod tests {
     #[test]
     fn sand_layer_rests_on_sandstone() {
         let noises = SurfaceNoises::with_biomes(3, &[]);
-        let desert = Materials { top: bb::SAND, mid: bb::SAND, ..PLAINS };
+        let desert = Materials {
+            top: bb::SAND,
+            mid: bb::SAND,
+            ..PLAINS
+        };
         let b = biome(Builder::Overworld(desert));
         let mut found = false;
         for x in 0..64 {
             let mut col = VecColumn::terrain(80, None);
-            build_column(&mut col, &input(&b, x * 7, 0), &noises, &mut BedrockRandom::new(x as u32));
+            build_column(
+                &mut col,
+                &input(&b, x * 7, 0),
+                &noises,
+                &mut BedrockRandom::new(x as u32),
+            );
             assert_eq!(col.get(80), bb::SAND);
-            let sand = (col.min_y..80).rev().take_while(|&y| col.get(y) == bb::SAND).count() as i32;
+            let sand = (col.min_y..80)
+                .rev()
+                .take_while(|&y| col.get(y) == bb::SAND)
+                .count() as i32;
             let below = col.get(79 - sand);
             if sand > 1 {
                 // Depth > 1: at least one sandstone block (80 - 63 = 17 extra).
@@ -125,7 +149,12 @@ mod tests {
         for y in 20..=40 {
             col.set(y, bb::AIR);
         }
-        build_column(&mut col, &input(&b, 0, 0), &noises, &mut BedrockRandom::new(2));
+        build_column(
+            &mut col,
+            &input(&b, 0, 0),
+            &noises,
+            &mut BedrockRandom::new(2),
+        );
         assert_eq!(col.get(90), bb::GRASS_BLOCK);
         assert_eq!(col.get(19), bb::STONE, "cave floor keeps its stone");
     }

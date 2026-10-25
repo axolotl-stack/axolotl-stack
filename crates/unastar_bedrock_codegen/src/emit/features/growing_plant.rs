@@ -37,14 +37,22 @@ pub fn emit(em: &mut Emitter<'_>, o: &Obj<'_>) -> Result<TokenStream> {
     let step: i32 = match o.str("growth_direction")? {
         "UP" | "up" => 1,
         "DOWN" | "down" => -1,
-        other => return Err(Error::data(origin, format!("unknown growth_direction {other:?}"))),
+        other => {
+            return Err(Error::data(
+                origin,
+                format!("unknown growth_direction {other:?}"),
+            ));
+        }
     };
     let allow_water = o.bool_or("allow_water", false)?;
     let age = o.opt("age").map(|v| int_range(origin, v)).transpose()?;
     if let Some(age) = age
         && age.max <= age.min
     {
-        return Err(Error::data(origin, format!("empty age range {}..{}", age.min, age.max)));
+        return Err(Error::data(
+            origin,
+            format!("empty age range {}..{}", age.min, age.max),
+        ));
     }
     let mut body = Vec::new();
     for (v, w) in weighted(origin, o.array("body_blocks")?)? {
@@ -91,17 +99,28 @@ fn weighted<'v>(origin: &str, items: &'v [Value]) -> Result<Vec<(&'v Value, i32)
                 }
                 Ok((value, w))
             }
-            _ => Err(Error::data(origin, format!("not a [value, weight] pair: {item}"))),
+            _ => Err(Error::data(
+                origin,
+                format!("not a [value, weight] pair: {item}"),
+            )),
         })
         .collect()
 }
 
 fn has_state(palette: &BlockPalette, id: u32, key: &str) -> bool {
-    palette.describe(id).is_some_and(|(_, _, state)| state.contains_key(key))
+    palette
+        .describe(id)
+        .is_some_and(|(_, _, state)| state.contains_key(key))
 }
 
 /// The state of `id`'s block equal to `id` except `key = value`.
-pub(super) fn with_state(palette: &BlockPalette, origin: &str, id: u32, key: &str, value: &StateValue) -> Result<u32> {
+pub(super) fn with_state(
+    palette: &BlockPalette,
+    origin: &str,
+    id: u32,
+    key: &str,
+    value: &StateValue,
+) -> Result<u32> {
     let (name, _, state) = palette
         .describe(id)
         .ok_or_else(|| Error::data(origin, format!("runtime id {id} is not in the palette")))?;
@@ -109,7 +128,9 @@ pub(super) fn with_state(palette: &BlockPalette, origin: &str, id: u32, key: &st
         .states_of(name)
         .into_iter()
         .flatten()
-        .find(|(_, s)| s.get(key) == Some(value) && s.iter().all(|(k, v)| k == key || state.get(k) == Some(v)))
+        .find(|(_, s)| {
+            s.get(key) == Some(value) && s.iter().all(|(k, v)| k == key || state.get(k) == Some(v))
+        })
         .map(|(i, _)| i)
         .ok_or_else(|| Error::data(origin, format!("{name} has no state {key}={value}")))
 }

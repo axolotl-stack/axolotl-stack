@@ -37,7 +37,13 @@ pub fn emit(em: &mut Emitter<'_>, o: &Obj<'_>) -> Result<TokenStream> {
     let allow_adjacent = required_bool(o, "allow_adjacent")?;
     let mut rotations = Vec::new();
     for dir in DIRECTIONS {
-        let state = with_state(palette, origin, id, DIRECTION_STATE, &StateValue::Str(dir.to_owned()))?;
+        let state = with_state(
+            palette,
+            origin,
+            id,
+            DIRECTION_STATE,
+            &StateValue::Str(dir.to_owned()),
+        )?;
         rotations.push(em.block(state));
     }
     let decoration = palette.all_states(origin, &[name])?;
@@ -97,5 +103,9 @@ fn bark_sides(palette: &crate::blocks::BlockPalette) -> (IdSet, IdSet, IdSet) {
             }
         }
     }
-    (IdSet::from_ids(all), IdSet::from_ids(along_x), IdSet::from_ids(along_z))
+    (
+        IdSet::from_ids(all),
+        IdSet::from_ids(along_x),
+        IdSet::from_ids(along_z),
+    )
 }

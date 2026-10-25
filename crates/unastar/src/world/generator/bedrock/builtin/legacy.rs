@@ -102,7 +102,9 @@ fn grow<W: BlockWorld>(ctx: &mut Ctx<'_, W>, tree: Tree, pos: BlockPos) -> Optio
         Tree::OakLitter => generated::f_select_oak_tree_with_leaf_litter_feature(ctx, pos),
         Tree::FancyOak => generated::f_fancy_oak_tree_with_optional_beehive_feature(ctx, pos),
         Tree::FancyOakPlain => generated::f_fancy_oak_tree_feature(ctx, pos),
-        Tree::FancyOakLitter => generated::f_fancy_oak_tree_with_leaf_litter_and_optional_beehive(ctx, pos),
+        Tree::FancyOakLitter => {
+            generated::f_fancy_oak_tree_with_leaf_litter_and_optional_beehive(ctx, pos)
+        }
         Tree::FancyOakBees => generated::f_fancy_oak_tree_with_beehive_feature(ctx, pos),
         Tree::Birch => generated::f_select_birch_tree_feature(ctx, pos),
         Tree::BirchLitter => generated::f_select_birch_tree_with_leaf_litter_feature(ctx, pos),
@@ -207,7 +209,11 @@ fn birch_tree(_: &mut BedrockRandom) -> Tree {
 
 /// Tall birch forest: half super birch, half birch.
 fn birch_mutated_tree(rng: &mut BedrockRandom) -> Tree {
-    if rng.next_int(2) == 0 { Tree::SuperBirch } else { Tree::Birch }
+    if rng.next_int(2) == 0 {
+        Tree::SuperBirch
+    } else {
+        Tree::Birch
+    }
 }
 
 /// Windswept (extreme hills) forest: spruce 2/3, otherwise fancy oak 1/10 else oak.
@@ -223,14 +229,22 @@ fn windswept_tree(rng: &mut BedrockRandom) -> Tree {
 
 /// Taiga: pine 1/3 else spruce.
 fn taiga_tree(rng: &mut BedrockRandom) -> Tree {
-    if rng.next_int(3) == 0 { Tree::Pine } else { Tree::Spruce }
+    if rng.next_int(3) == 0 {
+        Tree::Pine
+    } else {
+        Tree::Spruce
+    }
 }
 
 /// Old growth pine taiga (`mega_taiga`): a giant tree 1/3 of the time, of
 /// which 12/13 giant pines and 1/13 giant spruces; otherwise the taiga mix.
 fn mega_taiga_tree(rng: &mut BedrockRandom) -> Tree {
     if rng.next_int(3) == 0 {
-        if rng.next_int(13) == 0 { Tree::MegaSpruce } else { Tree::MegaPine }
+        if rng.next_int(13) == 0 {
+            Tree::MegaSpruce
+        } else {
+            Tree::MegaPine
+        }
     } else {
         taiga_tree(rng)
     }
@@ -239,7 +253,11 @@ fn mega_taiga_tree(rng: &mut BedrockRandom) -> Tree {
 /// Old growth spruce taiga (`redwood_taiga_mutated`): giant spruce 1/3,
 /// otherwise the taiga mix.
 fn redwood_mutated_tree(rng: &mut BedrockRandom) -> Tree {
-    if rng.next_int(3) == 0 { Tree::MegaSpruce } else { taiga_tree(rng) }
+    if rng.next_int(3) == 0 {
+        Tree::MegaSpruce
+    } else {
+        taiga_tree(rng)
+    }
 }
 
 /// Jungle: fancy oak 1/10, otherwise bush 1/2, otherwise (not at the edge)
@@ -282,20 +300,32 @@ fn bamboo_jungle_tree(rng: &mut BedrockRandom) -> Tree {
 
 /// Savanna: acacia 4/5 else a plain oak (savannas have no fallen trees or bees).
 fn savanna_tree(rng: &mut BedrockRandom) -> Tree {
-    if rng.next_int(5) > 0 { Tree::Acacia } else { Tree::OakPlain }
+    if rng.next_int(5) > 0 {
+        Tree::Acacia
+    } else {
+        Tree::OakPlain
+    }
 }
 
 /// Plains: fancy oak 1/3 else oak (beehive chance from the data's
 /// `optional_beehive_feature`).
 fn plains_tree(rng: &mut BedrockRandom) -> Tree {
-    if rng.next_int(3) == 0 { Tree::FancyOak } else { Tree::Oak }
+    if rng.next_int(3) == 0 {
+        Tree::FancyOak
+    } else {
+        Tree::Oak
+    }
 }
 
 /// Meadow: the rare meadow tree always carries a beehive (the data's optional
 /// beehive chance is 0 in meadows, so the `*_with_beehive_feature` variants
 /// are used); half fancy oak, half super birch.
 fn meadow_tree(rng: &mut BedrockRandom) -> Tree {
-    if rng.next_int(2) == 0 { Tree::FancyOakBees } else { Tree::SuperBirchBees }
+    if rng.next_int(2) == 0 {
+        Tree::FancyOakBees
+    } else {
+        Tree::SuperBirchBees
+    }
 }
 
 fn spruce_tree(_: &mut BedrockRandom) -> Tree {
@@ -311,7 +341,10 @@ fn swamp_tree(_: &mut BedrockRandom) -> Tree {
 }
 
 /// Bamboo jungle trees (see [`bamboo_jungle_tree`]), 30 per chunk.
-pub fn legacy_bamboo_jungle_tree_feature<W: BlockWorld>(ctx: &mut Ctx<'_, W>, pos: BlockPos) -> Option<BlockPos> {
+pub fn legacy_bamboo_jungle_tree_feature<W: BlockWorld>(
+    ctx: &mut Ctx<'_, W>,
+    pos: BlockPos,
+) -> Option<BlockPos> {
     plant_trees(ctx, pos, BAMBOO_JUNGLE, bamboo_jungle_tree)
 }
 
@@ -324,7 +357,10 @@ pub fn legacy_birch_forest_mutated_tree_feature<W: BlockWorld>(
 }
 
 /// Birch forest trees: 10 birches per chunk.
-pub fn legacy_birch_forest_tree_feature<W: BlockWorld>(ctx: &mut Ctx<'_, W>, pos: BlockPos) -> Option<BlockPos> {
+pub fn legacy_birch_forest_tree_feature<W: BlockWorld>(
+    ctx: &mut Ctx<'_, W>,
+    pos: BlockPos,
+) -> Option<BlockPos> {
     plant_trees(ctx, pos, BIRCH_FOREST, birch_tree)
 }
 
@@ -338,39 +374,60 @@ pub fn legacy_extreme_hills_plus_trees_tree_feature<W: BlockWorld>(
 }
 
 /// Flower forest trees: 6 per chunk, forest weights.
-pub fn legacy_flower_forest_tree_feature<W: BlockWorld>(ctx: &mut Ctx<'_, W>, pos: BlockPos) -> Option<BlockPos> {
+pub fn legacy_flower_forest_tree_feature<W: BlockWorld>(
+    ctx: &mut Ctx<'_, W>,
+    pos: BlockPos,
+) -> Option<BlockPos> {
     plant_trees(ctx, pos, FLOWER_FOREST, flower_forest_tree)
 }
 
 /// Forest trees: 10 per chunk, birch 1/5, fancy oak 1/10 of the rest, with
 /// leaf litter.
-pub fn legacy_forest_tree_feature<W: BlockWorld>(ctx: &mut Ctx<'_, W>, pos: BlockPos) -> Option<BlockPos> {
+pub fn legacy_forest_tree_feature<W: BlockWorld>(
+    ctx: &mut Ctx<'_, W>,
+    pos: BlockPos,
+) -> Option<BlockPos> {
     plant_trees(ctx, pos, FOREST, forest_tree)
 }
 
 /// Snowy plains / ice mountains: one spruce in one chunk out of ten.
-pub fn legacy_ice_tree_feature<W: BlockWorld>(ctx: &mut Ctx<'_, W>, pos: BlockPos) -> Option<BlockPos> {
+pub fn legacy_ice_tree_feature<W: BlockWorld>(
+    ctx: &mut Ctx<'_, W>,
+    pos: BlockPos,
+) -> Option<BlockPos> {
     plant_trees(ctx, pos, SNOWY, spruce_tree)
 }
 
 /// Sparse jungle (jungle edge): 2 per chunk, no mega jungle trees.
-pub fn legacy_jungle_edge_tree_feature<W: BlockWorld>(ctx: &mut Ctx<'_, W>, pos: BlockPos) -> Option<BlockPos> {
+pub fn legacy_jungle_edge_tree_feature<W: BlockWorld>(
+    ctx: &mut Ctx<'_, W>,
+    pos: BlockPos,
+) -> Option<BlockPos> {
     plant_trees(ctx, pos, JUNGLE_EDGE, jungle_edge_tree)
 }
 
 /// Jungle: 50 per chunk (fancy oak, bushes, mega and regular jungle trees).
-pub fn legacy_jungle_tree_feature<W: BlockWorld>(ctx: &mut Ctx<'_, W>, pos: BlockPos) -> Option<BlockPos> {
+pub fn legacy_jungle_tree_feature<W: BlockWorld>(
+    ctx: &mut Ctx<'_, W>,
+    pos: BlockPos,
+) -> Option<BlockPos> {
     plant_trees(ctx, pos, JUNGLE, jungle_tree)
 }
 
 /// Meadow: one tree with a beehive in one chunk out of a hundred.
-pub fn legacy_meadow_trees_feature<W: BlockWorld>(ctx: &mut Ctx<'_, W>, pos: BlockPos) -> Option<BlockPos> {
+pub fn legacy_meadow_trees_feature<W: BlockWorld>(
+    ctx: &mut Ctx<'_, W>,
+    pos: BlockPos,
+) -> Option<BlockPos> {
     plant_trees(ctx, pos, MEADOW, meadow_tree)
 }
 
 /// Old growth pine taiga (also its mutated hills, per the BDS rules): 10 per
 /// chunk, a third giant.
-pub fn legacy_mega_taiga_tree_feature<W: BlockWorld>(ctx: &mut Ctx<'_, W>, pos: BlockPos) -> Option<BlockPos> {
+pub fn legacy_mega_taiga_tree_feature<W: BlockWorld>(
+    ctx: &mut Ctx<'_, W>,
+    pos: BlockPos,
+) -> Option<BlockPos> {
     plant_trees(ctx, pos, TAIGA, mega_taiga_tree)
 }
 
@@ -383,7 +440,10 @@ pub fn legacy_mesa_plateau_stone_tree_feature<W: BlockWorld>(
 }
 
 /// Plains: a tree in one chunk out of twenty, fancy oak 1/3.
-pub fn legacy_plains_tree_feature<W: BlockWorld>(ctx: &mut Ctx<'_, W>, pos: BlockPos) -> Option<BlockPos> {
+pub fn legacy_plains_tree_feature<W: BlockWorld>(
+    ctx: &mut Ctx<'_, W>,
+    pos: BlockPos,
+) -> Option<BlockPos> {
     plant_trees(ctx, pos, PLAINS, plains_tree)
 }
 
@@ -396,17 +456,26 @@ pub fn legacy_redwood_taiga_mutated_tree_feature<W: BlockWorld>(
 }
 
 /// Windswept savanna: 2 per chunk, acacia 4/5.
-pub fn legacy_savanna_mutated_tree_feature<W: BlockWorld>(ctx: &mut Ctx<'_, W>, pos: BlockPos) -> Option<BlockPos> {
+pub fn legacy_savanna_mutated_tree_feature<W: BlockWorld>(
+    ctx: &mut Ctx<'_, W>,
+    pos: BlockPos,
+) -> Option<BlockPos> {
     plant_trees(ctx, pos, SAVANNA_MUTATED, savanna_tree)
 }
 
 /// Savanna and savanna plateau: 1 per chunk, acacia 4/5.
-pub fn legacy_savanna_tree_feature<W: BlockWorld>(ctx: &mut Ctx<'_, W>, pos: BlockPos) -> Option<BlockPos> {
+pub fn legacy_savanna_tree_feature<W: BlockWorld>(
+    ctx: &mut Ctx<'_, W>,
+    pos: BlockPos,
+) -> Option<BlockPos> {
     plant_trees(ctx, pos, SAVANNA, savanna_tree)
 }
 
 /// Taiga (every non-giant taiga, snowy ones included): 10 per chunk, pine 1/3.
-pub fn legacy_taiga_tree_feature<W: BlockWorld>(ctx: &mut Ctx<'_, W>, pos: BlockPos) -> Option<BlockPos> {
+pub fn legacy_taiga_tree_feature<W: BlockWorld>(
+    ctx: &mut Ctx<'_, W>,
+    pos: BlockPos,
+) -> Option<BlockPos> {
     plant_trees(ctx, pos, TAIGA, taiga_tree)
 }
 
@@ -414,7 +483,10 @@ pub fn legacy_taiga_tree_feature<W: BlockWorld>(ctx: &mut Ctx<'_, W>, pos: Block
 /// with vines that may root up to 2 blocks under water). BDS has no other rule
 /// that places swamp trees and nothing else references `swamp_tree_feature`;
 /// swamp grass, flowers, lilies, reeds and mushrooms all have their own rules.
-pub fn legacy_swamp_foliage_feature<W: BlockWorld>(ctx: &mut Ctx<'_, W>, pos: BlockPos) -> Option<BlockPos> {
+pub fn legacy_swamp_foliage_feature<W: BlockWorld>(
+    ctx: &mut Ctx<'_, W>,
+    pos: BlockPos,
+) -> Option<BlockPos> {
     plant_trees(ctx, pos, SWAMP, swamp_tree)
 }
 
@@ -422,7 +494,12 @@ pub fn legacy_swamp_foliage_feature<W: BlockWorld>(ctx: &mut Ctx<'_, W>, pos: Bl
 // Flowers (one per call: the `scatter_*_flower_feature` patches iterate)
 // ---------------------------------------------------------------------------
 
-const TULIPS: [u32; 4] = [bb::ORANGE_TULIP, bb::RED_TULIP, bb::PINK_TULIP, bb::WHITE_TULIP];
+const TULIPS: [u32; 4] = [
+    bb::ORANGE_TULIP,
+    bb::RED_TULIP,
+    bb::PINK_TULIP,
+    bb::WHITE_TULIP,
+];
 const PLAINS_COMMON: [u32; 4] = [bb::POPPY, bb::AZURE_BLUET, bb::OXEYE_DAISY, bb::CORNFLOWER];
 /// Flower forest flowers in noise order (blue orchid is swamp-only).
 const FLOWER_FOREST_FLOWERS: [u32; 11] = [
@@ -447,7 +524,11 @@ fn plant_fits<W: BlockWorld>(ctx: &Ctx<'_, W>, pos: BlockPos) -> bool {
 }
 
 /// Put `flower` at `pos` if it fits.
-fn place_flower<W: BlockWorld>(ctx: &mut Ctx<'_, W>, pos: BlockPos, flower: u32) -> Option<BlockPos> {
+fn place_flower<W: BlockWorld>(
+    ctx: &mut Ctx<'_, W>,
+    pos: BlockPos,
+    flower: u32,
+) -> Option<BlockPos> {
     ctx.set(pos, flower).then_some(pos)
 }
 
@@ -473,14 +554,21 @@ fn flower_forest_flower(noise: f32) -> u32 {
 
 /// Generic overworld flower: dandelion 2/3, poppy 1/3.
 fn overworld_flower(rng: &mut BedrockRandom) -> u32 {
-    if rng.next_int(3) > 0 { bb::DANDELION } else { bb::POPPY }
+    if rng.next_int(3) > 0 {
+        bb::DANDELION
+    } else {
+        bb::POPPY
+    }
 }
 
 /// One flower forest flower at `pos`, chosen by `query.noise` at 1/48 scale.
 ///
 /// `ctx.noise` is the world noise behind Molang `query.noise` (about
 /// [-1, 1]); the scale is the vanilla flower forest band scale.
-pub fn legacy_flower_forest_flower_feature<W: BlockWorld>(ctx: &mut Ctx<'_, W>, pos: BlockPos) -> Option<BlockPos> {
+pub fn legacy_flower_forest_flower_feature<W: BlockWorld>(
+    ctx: &mut Ctx<'_, W>,
+    pos: BlockPos,
+) -> Option<BlockPos> {
     if !plant_fits(ctx, pos) {
         return None;
     }
@@ -489,7 +577,10 @@ pub fn legacy_flower_forest_flower_feature<W: BlockWorld>(ctx: &mut Ctx<'_, W>, 
 }
 
 /// One generic flower (dandelion or poppy) at `pos`.
-pub fn legacy_overworld_flower_feature<W: BlockWorld>(ctx: &mut Ctx<'_, W>, pos: BlockPos) -> Option<BlockPos> {
+pub fn legacy_overworld_flower_feature<W: BlockWorld>(
+    ctx: &mut Ctx<'_, W>,
+    pos: BlockPos,
+) -> Option<BlockPos> {
     if !plant_fits(ctx, pos) {
         return None;
     }
@@ -500,7 +591,10 @@ pub fn legacy_overworld_flower_feature<W: BlockWorld>(ctx: &mut Ctx<'_, W>, pos:
 /// One plains flower at `pos`; the noise is `query.noise(x / 200, z / 200)`,
 /// the same field the plains rules threshold at -0.8 for their flower and
 /// grass counts, so tulip patches coincide with the flower-rich chunks.
-pub fn legacy_plains_flower_feature<W: BlockWorld>(ctx: &mut Ctx<'_, W>, pos: BlockPos) -> Option<BlockPos> {
+pub fn legacy_plains_flower_feature<W: BlockWorld>(
+    ctx: &mut Ctx<'_, W>,
+    pos: BlockPos,
+) -> Option<BlockPos> {
     if !plant_fits(ctx, pos) {
         return None;
     }
@@ -510,7 +604,10 @@ pub fn legacy_plains_flower_feature<W: BlockWorld>(ctx: &mut Ctx<'_, W>, pos: Bl
 }
 
 /// One blue orchid at `pos`.
-pub fn legacy_swamp_flower_feature<W: BlockWorld>(ctx: &mut Ctx<'_, W>, pos: BlockPos) -> Option<BlockPos> {
+pub fn legacy_swamp_flower_feature<W: BlockWorld>(
+    ctx: &mut Ctx<'_, W>,
+    pos: BlockPos,
+) -> Option<BlockPos> {
     if !plant_fits(ctx, pos) {
         return None;
     }
@@ -562,7 +659,11 @@ fn double_plant_patch<W: BlockWorld>(
 
 /// Forest double flowers: each patch picks one species, then tries up to 5
 /// random columns of the chunk until a patch places something.
-fn forest_double_flowers<W: BlockWorld>(ctx: &mut Ctx<'_, W>, pos: BlockPos, bonus: i32) -> Option<BlockPos> {
+fn forest_double_flowers<W: BlockWorld>(
+    ctx: &mut Ctx<'_, W>,
+    pos: BlockPos,
+    bonus: i32,
+) -> Option<BlockPos> {
     let origin = chunk_origin(pos);
     let patches = double_flower_patches(ctx.rng, bonus);
     let mut last = None;
@@ -581,12 +682,18 @@ fn forest_double_flowers<W: BlockWorld>(ctx: &mut Ctx<'_, W>, pos: BlockPos, bon
 
 /// Forest foliage (forests and birch forests): lilac/rose bush/peony patches,
 /// one in one chunk out of five.
-pub fn legacy_forest_foliage_feature<W: BlockWorld>(ctx: &mut Ctx<'_, W>, pos: BlockPos) -> Option<BlockPos> {
+pub fn legacy_forest_foliage_feature<W: BlockWorld>(
+    ctx: &mut Ctx<'_, W>,
+    pos: BlockPos,
+) -> Option<BlockPos> {
     forest_double_flowers(ctx, pos, 0)
 }
 
 /// Flower forest foliage: lilac/rose bush/peony patches, 0 to 3 per chunk.
-pub fn legacy_flower_forest_foliage_feature<W: BlockWorld>(ctx: &mut Ctx<'_, W>, pos: BlockPos) -> Option<BlockPos> {
+pub fn legacy_flower_forest_foliage_feature<W: BlockWorld>(
+    ctx: &mut Ctx<'_, W>,
+    pos: BlockPos,
+) -> Option<BlockPos> {
     forest_double_flowers(ctx, pos, 2)
 }
 
@@ -595,7 +702,10 @@ pub fn legacy_flower_forest_foliage_feature<W: BlockWorld>(ctx: &mut Ctx<'_, W>,
 // ---------------------------------------------------------------------------
 
 /// Old growth pine taiga boulders: 0 to 2 per chunk at random columns.
-pub fn legacy_forest_rock_feature<W: BlockWorld>(ctx: &mut Ctx<'_, W>, pos: BlockPos) -> Option<BlockPos> {
+pub fn legacy_forest_rock_feature<W: BlockWorld>(
+    ctx: &mut Ctx<'_, W>,
+    pos: BlockPos,
+) -> Option<BlockPos> {
     let origin = chunk_origin(pos);
     let rocks = ctx.rng.next_int(3);
     let mut last = None;
@@ -682,22 +792,37 @@ fn very_biased_to_bottom(rng: &mut BedrockRandom, min: i32, max: i32, inner: i32
 /// post-1.18 values for the -64..320 world (BDS ships none; statistical
 /// parity). Only the source block is placed; the fluid flows once the chunk
 /// ticks, as in vanilla.
-pub fn legacy_springs_feature<W: BlockWorld>(ctx: &mut Ctx<'_, W>, pos: BlockPos) -> Option<BlockPos> {
+pub fn legacy_springs_feature<W: BlockWorld>(
+    ctx: &mut Ctx<'_, W>,
+    pos: BlockPos,
+) -> Option<BlockPos> {
     let origin = chunk_origin(pos);
     let (min_y, max_y) = (ctx.world.min_y(), ctx.world.max_y());
     let mut last = None;
     for _ in 0..WATER_SPRING_ATTEMPTS {
         let x = origin.x + ctx.rng.next_int(16);
         let z = origin.z + ctx.rng.next_int(16);
-        let y = ctx.rng.next_int_inclusive(min_y, WATER_SPRING_MAX_Y.min(max_y - 1));
-        if let Some(placed) = spring(ctx, BlockPos::new(x, y, z), bb::WATER, bb::water_spring_host) {
+        let y = ctx
+            .rng
+            .next_int_inclusive(min_y, WATER_SPRING_MAX_Y.min(max_y - 1));
+        if let Some(placed) = spring(
+            ctx,
+            BlockPos::new(x, y, z),
+            bb::WATER,
+            bb::water_spring_host,
+        ) {
             last = Some(placed);
         }
     }
     for _ in 0..LAVA_SPRING_ATTEMPTS {
         let x = origin.x + ctx.rng.next_int(16);
         let z = origin.z + ctx.rng.next_int(16);
-        let y = very_biased_to_bottom(ctx.rng, min_y, max_y - 1 - LAVA_SPRING_TOP_MARGIN, LAVA_SPRING_TOP_MARGIN);
+        let y = very_biased_to_bottom(
+            ctx.rng,
+            min_y,
+            max_y - 1 - LAVA_SPRING_TOP_MARGIN,
+            LAVA_SPRING_TOP_MARGIN,
+        );
         if let Some(placed) = spring(ctx, BlockPos::new(x, y, z), bb::LAVA, bb::lava_spring_host) {
             last = Some(placed);
         }
@@ -708,7 +833,12 @@ pub fn legacy_springs_feature<W: BlockWorld>(ctx: &mut Ctx<'_, W>, pos: BlockPos
 /// Place `fluid` at `pos` if it is a wall spot opening onto exactly one side:
 /// host rock above and below, `pos` itself air or host rock, and of the four
 /// horizontal neighbours exactly three host rock and one air.
-fn spring<W: BlockWorld>(ctx: &mut Ctx<'_, W>, pos: BlockPos, fluid: u32, host: fn(u32) -> bool) -> Option<BlockPos> {
+fn spring<W: BlockWorld>(
+    ctx: &mut Ctx<'_, W>,
+    pos: BlockPos,
+    fluid: u32,
+    host: fn(u32) -> bool,
+) -> Option<BlockPos> {
     if !host(ctx.get(pos.above())) || !host(ctx.get(pos.below())) {
         return None;
     }
@@ -773,7 +903,11 @@ fn freeze_column<W: BlockWorld>(ctx: &mut Ctx<'_, W>, x: i32, z: i32) -> Option<
     let sea_frozen_by_surface = matches!(biome.surface, Some(Builder::FrozenOcean(_)));
     let mut changed = None;
     let mut ground = ctx.get(surface);
-    if !sea_frozen_by_surface && ground == bb::WATER && is_cold(ctx, biome, surface) && ctx.set(surface, bb::ICE) {
+    if !sea_frozen_by_surface
+        && ground == bb::WATER
+        && is_cold(ctx, biome, surface)
+        && ctx.set(surface, bb::ICE)
+    {
         ground = bb::ICE;
         changed = Some(surface);
     }
@@ -821,19 +955,31 @@ mod tests {
         let mut counts = vec![0usize; trees.len()];
         for _ in 0..DRAWS {
             let tree = select(&mut rng);
-            let i = trees.iter().position(|t| *t == tree).unwrap_or_else(|| panic!("unexpected {tree:?}"));
+            let i = trees
+                .iter()
+                .position(|t| *t == tree)
+                .unwrap_or_else(|| panic!("unexpected {tree:?}"));
             counts[i] += 1;
         }
-        counts.into_iter().map(|c| c as f64 / DRAWS as f64).collect()
+        counts
+            .into_iter()
+            .map(|c| c as f64 / DRAWS as f64)
+            .collect()
     }
 
     fn close(actual: f64, expected: f64) {
-        assert!((actual - expected).abs() < 0.006, "share {actual} != {expected}");
+        assert!(
+            (actual - expected).abs() < 0.006,
+            "share {actual} != {expected}"
+        );
     }
 
     #[test]
     fn forest_weights() {
-        let s = shares(forest_tree, &[Tree::BirchLitter, Tree::FancyOakLitter, Tree::OakLitter]);
+        let s = shares(
+            forest_tree,
+            &[Tree::BirchLitter, Tree::FancyOakLitter, Tree::OakLitter],
+        );
         close(s[0], 0.2);
         close(s[1], 0.08);
         close(s[2], 0.72);
@@ -841,7 +987,12 @@ mod tests {
 
     #[test]
     fn jungle_weights_and_edge_has_no_mega_trees() {
-        let all = [Tree::FancyOakPlain, Tree::JungleBush, Tree::MegaJungle, Tree::Jungle];
+        let all = [
+            Tree::FancyOakPlain,
+            Tree::JungleBush,
+            Tree::MegaJungle,
+            Tree::Jungle,
+        ];
         let s = shares(jungle_tree, &all);
         close(s[0], 0.1);
         close(s[1], 0.45);
@@ -856,11 +1007,17 @@ mod tests {
     fn taiga_weights() {
         let s = shares(taiga_tree, &[Tree::Pine, Tree::Spruce]);
         close(s[0], 1.0 / 3.0);
-        let mega = shares(mega_taiga_tree, &[Tree::MegaPine, Tree::MegaSpruce, Tree::Pine, Tree::Spruce]);
+        let mega = shares(
+            mega_taiga_tree,
+            &[Tree::MegaPine, Tree::MegaSpruce, Tree::Pine, Tree::Spruce],
+        );
         close(mega[0], 12.0 / 39.0);
         close(mega[1], 1.0 / 39.0);
         close(mega[2], 2.0 / 9.0);
-        let redwood = shares(redwood_mutated_tree, &[Tree::MegaSpruce, Tree::Pine, Tree::Spruce]);
+        let redwood = shares(
+            redwood_mutated_tree,
+            &[Tree::MegaSpruce, Tree::Pine, Tree::Spruce],
+        );
         close(redwood[0], 1.0 / 3.0);
         close(redwood[1], 2.0 / 9.0);
     }
@@ -869,10 +1026,21 @@ mod tests {
     fn savanna_windswept_bamboo_weights() {
         let s = shares(savanna_tree, &[Tree::Acacia, Tree::OakPlain]);
         close(s[0], 0.8);
-        let w = shares(windswept_tree, &[Tree::Spruce, Tree::FancyOakPlain, Tree::Oak]);
+        let w = shares(
+            windswept_tree,
+            &[Tree::Spruce, Tree::FancyOakPlain, Tree::Oak],
+        );
         close(w[0], 2.0 / 3.0);
         close(w[1], 1.0 / 30.0);
-        let b = shares(bamboo_jungle_tree, &[Tree::FancyOakPlain, Tree::JungleBush, Tree::MegaJungle, Tree::Jungle]);
+        let b = shares(
+            bamboo_jungle_tree,
+            &[
+                Tree::FancyOakPlain,
+                Tree::JungleBush,
+                Tree::MegaJungle,
+                Tree::Jungle,
+            ],
+        );
         close(b[0], 0.05);
         close(b[1], 0.95 * 0.15);
         close(b[2], 0.95 * 0.85 * 0.7);
@@ -897,7 +1065,9 @@ mod tests {
         for _ in 0..1000 {
             assert!(TULIPS.contains(&plains_flower(-0.9, &mut rng)));
         }
-        let dandelions = (0..DRAWS).filter(|_| plains_flower(0.0, &mut rng) == bb::DANDELION).count();
+        let dandelions = (0..DRAWS)
+            .filter(|_| plains_flower(0.0, &mut rng) == bb::DANDELION)
+            .count();
         close(dandelions as f64 / DRAWS as f64, 1.0 / 3.0);
         assert!((0..1000).all(|_| {
             let f = plains_flower(0.5, &mut rng);
@@ -915,7 +1085,10 @@ mod tests {
         let mut previous = 0;
         for step in 0..=200 {
             let flower = flower_forest_flower(-1.0 + step as f32 / 100.0);
-            let index = FLOWER_FOREST_FLOWERS.iter().position(|f| *f == flower).unwrap();
+            let index = FLOWER_FOREST_FLOWERS
+                .iter()
+                .position(|f| *f == flower)
+                .unwrap();
             assert!(index >= previous);
             previous = index;
         }
@@ -925,16 +1098,22 @@ mod tests {
     #[test]
     fn overworld_flower_weights() {
         let mut rng = BedrockRandom::new(3);
-        let dandelions = (0..DRAWS).filter(|_| overworld_flower(&mut rng) == bb::DANDELION).count();
+        let dandelions = (0..DRAWS)
+            .filter(|_| overworld_flower(&mut rng) == bb::DANDELION)
+            .count();
         close(dandelions as f64 / DRAWS as f64, 2.0 / 3.0);
     }
 
     #[test]
     fn double_flower_patch_counts() {
         let mut rng = BedrockRandom::new(11);
-        let forest: usize = (0..DRAWS).map(|_| double_flower_patches(&mut rng, 0) as usize).sum();
+        let forest: usize = (0..DRAWS)
+            .map(|_| double_flower_patches(&mut rng, 0) as usize)
+            .sum();
         close(forest as f64 / DRAWS as f64, 0.2);
-        let flower: usize = (0..DRAWS).map(|_| double_flower_patches(&mut rng, 2) as usize).sum();
+        let flower: usize = (0..DRAWS)
+            .map(|_| double_flower_patches(&mut rng, 2) as usize)
+            .sum();
         assert!(((flower as f64 / DRAWS as f64) - 1.2).abs() < 0.02);
     }
 
@@ -954,8 +1133,14 @@ mod tests {
 
     #[test]
     fn chunk_origin_masks_negative_coordinates() {
-        assert_eq!(chunk_origin(BlockPos::new(-1, 70, 17)), BlockPos::new(-16, 70, 16));
-        assert_eq!(chunk_origin(BlockPos::new(32, 0, -32)), BlockPos::new(32, 0, -32));
+        assert_eq!(
+            chunk_origin(BlockPos::new(-1, 70, 17)),
+            BlockPos::new(-16, 70, 16)
+        );
+        assert_eq!(
+            chunk_origin(BlockPos::new(32, 0, -32)),
+            BlockPos::new(32, 0, -32)
+        );
     }
 
     /// A 16x16 column of blocks from y 0 to 16, air by default.
@@ -967,7 +1152,8 @@ mod tests {
         }
 
         fn index(pos: BlockPos) -> Option<usize> {
-            let inside = (0..16).contains(&pos.x) && (0..16).contains(&pos.y) && (0..16).contains(&pos.z);
+            let inside =
+                (0..16).contains(&pos.x) && (0..16).contains(&pos.y) && (0..16).contains(&pos.z);
             inside.then(|| ((pos.y * 16 + pos.z) * 16 + pos.x) as usize)
         }
     }
@@ -980,7 +1166,10 @@ mod tests {
             16
         }
         fn get(&self, pos: BlockPos) -> u32 {
-            Self::index(pos).map_or(crate::world::generator::bedrock::world::OUT_OF_BOUNDS, |i| self.0[i])
+            Self::index(pos).map_or(
+                crate::world::generator::bedrock::world::OUT_OF_BOUNDS,
+                |i| self.0[i],
+            )
         }
         fn set(&mut self, pos: BlockPos, id: u32) -> bool {
             Self::index(pos).map(|i| self.0[i] = id).is_some()
@@ -1028,18 +1217,37 @@ mod tests {
     fn spring_needs_one_opening() {
         let mut grid = wall();
         let mut rng = BedrockRandom::new(0);
-        let mut ctx = Ctx { world: &mut grid, rng: &mut rng, noise: &Flat, seed: 0 };
+        let mut ctx = Ctx {
+            world: &mut grid,
+            rng: &mut rng,
+            noise: &Flat,
+            seed: 0,
+        };
         let at = BlockPos::new(5, 5, 5);
-        assert_eq!(spring(&mut ctx, at, bb::WATER, bb::water_spring_host), Some(at));
+        assert_eq!(
+            spring(&mut ctx, at, bb::WATER, bb::water_spring_host),
+            Some(at)
+        );
         assert_eq!(ctx.get(at), bb::WATER);
         // Fully enclosed: no opening.
         let enclosed = BlockPos::new(10, 10, 10);
-        assert_eq!(spring(&mut ctx, enclosed, bb::LAVA, bb::lava_spring_host), None);
+        assert_eq!(
+            spring(&mut ctx, enclosed, bb::LAVA, bb::lava_spring_host),
+            None
+        );
         // Two openings: rejected.
         ctx.set(BlockPos::new(2, 5, 5), bb::AIR);
         ctx.set(BlockPos::new(2, 5, 6), bb::AIR);
         ctx.set(BlockPos::new(2, 5, 4), bb::AIR);
-        assert_eq!(spring(&mut ctx, BlockPos::new(2, 5, 5), bb::LAVA, bb::lava_spring_host), None);
+        assert_eq!(
+            spring(
+                &mut ctx,
+                BlockPos::new(2, 5, 5),
+                bb::LAVA,
+                bb::lava_spring_host
+            ),
+            None
+        );
     }
 
     #[test]
@@ -1051,7 +1259,12 @@ mod tests {
             }
         }
         let mut rng = BedrockRandom::new(9);
-        let mut ctx = Ctx { world: &mut grid, rng: &mut rng, noise: &Flat, seed: 0 };
+        let mut ctx = Ctx {
+            world: &mut grid,
+            rng: &mut rng,
+            noise: &Flat,
+            seed: 0,
+        };
         let rock = forest_rock(&mut ctx, BlockPos::new(8, 12, 8)).expect("rock placed");
         assert_eq!(rock, BlockPos::new(8, 5, 8));
         let mut cobbles = 0;
@@ -1061,7 +1274,9 @@ mod tests {
                     if grid.get(BlockPos::new(x, y, z)) == bb::MOSSY_COBBLESTONE {
                         cobbles += 1;
                         // Three blobs of half-axis <= 1, each shifted by <= 1.
-                        assert!((5..=10).contains(&x) && (2..=6).contains(&y) && (5..=10).contains(&z));
+                        assert!(
+                            (5..=10).contains(&x) && (2..=6).contains(&y) && (5..=10).contains(&z)
+                        );
                     }
                 }
             }
@@ -1076,7 +1291,12 @@ mod tests {
     fn forest_rock_gives_up_near_the_bottom() {
         let mut grid = Grid::new();
         let mut rng = BedrockRandom::new(9);
-        let mut ctx = Ctx { world: &mut grid, rng: &mut rng, noise: &Flat, seed: 0 };
+        let mut ctx = Ctx {
+            world: &mut grid,
+            rng: &mut rng,
+            noise: &Flat,
+            seed: 0,
+        };
         assert_eq!(forest_rock(&mut ctx, BlockPos::new(8, 12, 8)), None);
     }
 

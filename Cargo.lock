@@ -5403,6 +5403,8 @@ dependencies = [
  "serde_json",
  "syn 2.0.112",
  "thiserror 2.0.21",
+ "unastar-packs",
+ "unastar-rules",
 ]
 
 [[package]]

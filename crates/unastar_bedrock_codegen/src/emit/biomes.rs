@@ -10,8 +10,13 @@ use proc_macro2::TokenStream;
 use quote::quote;
 
 fn materials(em: &mut Emitter<'_>, m: &Materials) -> TokenStream {
-    let (top, mid, sea_floor, foundation, sea) =
-        (em.block(m.top), em.block(m.mid), em.block(m.sea_floor), em.block(m.foundation), em.block(m.sea));
+    let (top, mid, sea_floor, foundation, sea) = (
+        em.block(m.top),
+        em.block(m.mid),
+        em.block(m.sea_floor),
+        em.block(m.foundation),
+        em.block(m.sea),
+    );
     let depth = m.sea_floor_depth;
     quote!(surface::Materials { top: #top, mid: #mid, sea_floor: #sea_floor, foundation: #foundation, sea: #sea, sea_floor_depth: #depth })
 }
@@ -26,16 +31,31 @@ fn builder(em: &mut Emitter<'_>, b: &SurfaceBuilder) -> TokenStream {
             let m = materials(em, m);
             quote!(surface::Builder::FrozenOcean(#m))
         }
-        SurfaceBuilder::Swamp { materials: m, max_puddle_depth_below_sea_level } => {
+        SurfaceBuilder::Swamp {
+            materials: m,
+            max_puddle_depth_below_sea_level,
+        } => {
             let m = materials(em, m);
             quote!(surface::Builder::Swamp { materials: #m, max_puddle_depth_below_sea_level: #max_puddle_depth_below_sea_level })
         }
-        SurfaceBuilder::Mesa { materials: m, clay, hard_clay, bryce_pillars, has_forest } => {
+        SurfaceBuilder::Mesa {
+            materials: m,
+            clay,
+            hard_clay,
+            bryce_pillars,
+            has_forest,
+        } => {
             let m = materials(em, m);
             let (clay, hard_clay) = (em.block(*clay), em.block(*hard_clay));
             quote!(surface::Builder::Mesa { materials: #m, clay: #clay, hard_clay: #hard_clay, bryce_pillars: #bryce_pillars, has_forest: #has_forest })
         }
-        SurfaceBuilder::Capped { floor, ceiling, sea, foundation, beach } => {
+        SurfaceBuilder::Capped {
+            floor,
+            ceiling,
+            sea,
+            foundation,
+            beach,
+        } => {
             let floor: Vec<_> = floor.iter().map(|b| em.block(*b)).collect();
             let ceiling: Vec<_> = ceiling.iter().map(|b| em.block(*b)).collect();
             let (sea, foundation) = (em.block(*sea), em.block(*foundation));
@@ -49,7 +69,13 @@ fn builder(em: &mut Emitter<'_>, b: &SurfaceBuilder) -> TokenStream {
             quote!(surface::Builder::Capped { floor: &[#(#floor),*], ceiling: &[#(#ceiling),*], sea: #sea, foundation: #foundation, beach: #beach })
         }
         SurfaceBuilder::TheEnd => quote!(surface::Builder::TheEnd),
-        SurfaceBuilder::NoiseGradient { noise_name, first_octave, amplitudes, non_replaceable, specifiers } => {
+        SurfaceBuilder::NoiseGradient {
+            noise_name,
+            first_octave,
+            amplitudes,
+            non_replaceable,
+            specifiers,
+        } => {
             let test = em.matches(quote!(b), non_replaceable);
             let specs = specifiers.iter().map(|(lo, hi, b)| {
                 let b = em.block(*b);
@@ -75,11 +101,21 @@ fn adjustment(em: &mut Emitter<'_>, biome: &Biome, a: &MaterialAdjustment) -> Re
         }
         None => quote!(None),
     };
-    let (top, mid, sea_floor, foundation, sea) = (opt(a.top), opt(a.mid), opt(a.sea_floor), opt(a.foundation), opt(a.sea));
+    let (top, mid, sea_floor, foundation, sea) = (
+        opt(a.top),
+        opt(a.mid),
+        opt(a.sea_floor),
+        opt(a.foundation),
+        opt(a.sea),
+    );
     let scale = a.noise_frequency_scale;
     let [lo, hi] = a.noise_range;
     // `variable.sea_level` is the dimension's sea level: 32 in the nether, 63 elsewhere.
-    let sea_level = if biome.tags.contains("nether") { 32.0 } else { 63.0 };
+    let sea_level = if biome.tags.contains("nether") {
+        32.0
+    } else {
+        63.0
+    };
     let height = match &a.height_range {
         None => quote!(None),
         Some([min, max]) => {
@@ -87,7 +123,12 @@ fn adjustment(em: &mut Emitter<'_>, biome: &Biome, a: &MaterialAdjustment) -> Re
                 molang::substitute(e, Var::SeaLevel, sea_level)
                     .as_const()
                     .map(|v| v.floor() as i32)
-                    .ok_or_else(|| Error::data(&biome.source, "height_range must be constant once sea_level is known"))
+                    .ok_or_else(|| {
+                        Error::data(
+                            &biome.source,
+                            "height_range must be constant once sea_level is known",
+                        )
+                    })
             };
             let (min, max) = (eval(min)?, eval(max)?);
             quote!(Some((#min, #max)))
@@ -121,7 +162,11 @@ pub fn emit(em: &mut Emitter<'_>) -> Result<TokenStream> {
             }
             None => quote!(None),
         };
-        let adjustments = b.adjustments.iter().map(|a| adjustment(em, b, a)).collect::<Result<Vec<_>>>()?;
+        let adjustments = b
+            .adjustments
+            .iter()
+            .map(|a| adjustment(em, b, a))
+            .collect::<Result<Vec<_>>>()?;
         let mountain = match &b.mountain {
             None => quote!(None),
             Some(m) => {
@@ -140,7 +185,9 @@ pub fn emit(em: &mut Emitter<'_>) -> Result<TokenStream> {
             }
         };
         let frozen = b.tags.contains("frozen");
-        let overworld = crate::model::OVERWORLD_TAGS.iter().any(|t| b.tags.contains(*t));
+        let overworld = crate::model::OVERWORLD_TAGS
+            .iter()
+            .any(|t| b.tags.contains(*t));
         rows.push(quote!(surface::BiomeData {
             id: #id,
             identifier: #identifier,

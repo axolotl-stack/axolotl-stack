@@ -61,14 +61,22 @@ pub struct Params {
 /// Place one patch around `pos`, calling `vegetation` (the compiled
 /// `vegetation_feature`) on the decorated cells; `Some(pos)` when any cell
 /// was kept.
-pub fn place<W, F>(ctx: &mut Ctx<'_, W>, pos: BlockPos, p: &Params, mut vegetation: F) -> Option<BlockPos>
+pub fn place<W, F>(
+    ctx: &mut Ctx<'_, W>,
+    pos: BlockPos,
+    p: &Params,
+    mut vegetation: F,
+) -> Option<BlockPos>
 where
     W: BlockWorld,
     F: FnMut(&mut Ctx<'_, W>, BlockPos) -> Option<BlockPos>,
 {
     let rx = p.horizontal_radius.sample(ctx.rng) + 1;
     let rz = p.horizontal_radius.sample(ctx.rng) + 1;
-    debug_assert!(rx <= MAX_RADIUS + 1 && rz <= MAX_RADIUS + 1, "horizontal_radius above MAX_RADIUS");
+    debug_assert!(
+        rx <= MAX_RADIUS + 1 && rz <= MAX_RADIUS + 1,
+        "horizontal_radius above MAX_RADIUS"
+    );
     let mut cells = [BlockPos::new(0, 0, 0); MAX_CELLS];
     let mut n = ground_patch(ctx, pos, p, rx, rz, &mut cells);
     // Direction from the ground towards the open side.
@@ -91,7 +99,11 @@ where
     }
     for &cell in &cells[..n] {
         if p.vegetation_chance > 0.0 && ctx.rng.next_float() < p.vegetation_chance {
-            let at = if p.waterlogged { cell } else { cell.offset(0, out, 0) };
+            let at = if p.waterlogged {
+                cell
+            } else {
+                cell.offset(0, out, 0)
+            };
             vegetation(&mut *ctx, at);
         }
     }
@@ -116,7 +128,9 @@ fn ground_patch<W: BlockWorld>(
             match column(x, z, rx, rz) {
                 Column::Corner => continue,
                 Column::Edge => {
-                    if !(p.extra_edge_column_chance != 0.0 && ctx.rng.next_float() <= p.extra_edge_column_chance) {
+                    if !(p.extra_edge_column_chance != 0.0
+                        && ctx.rng.next_float() <= p.extra_edge_column_chance)
+                    {
                         continue;
                     }
                 }
@@ -137,7 +151,8 @@ fn ground_patch<W: BlockWorld>(
             if !bb::air(ctx.get(at)) || !is_sturdy(ctx.get(ground)) {
                 continue;
             }
-            let extra = p.extra_deep_block_chance > 0.0 && ctx.rng.next_float() < p.extra_deep_block_chance;
+            let extra =
+                p.extra_deep_block_chance > 0.0 && ctx.rng.next_float() < p.extra_deep_block_chance;
             let depth = p.depth.sample(ctx.rng) + i32::from(extra);
             if place_ground(ctx, ground, inward, depth, p) {
                 cells[n] = ground;
@@ -168,7 +183,13 @@ fn column(x: i32, z: i32, rx: i32, rz: i32) -> Column {
 
 /// Replace up to `depth` blocks from `ground` inwards; `false` when the very
 /// first block could not be replaced.
-fn place_ground<W: BlockWorld>(ctx: &mut Ctx<'_, W>, ground: BlockPos, inward: i32, depth: i32, p: &Params) -> bool {
+fn place_ground<W: BlockWorld>(
+    ctx: &mut Ctx<'_, W>,
+    ground: BlockPos,
+    inward: i32,
+    depth: i32,
+    p: &Params,
+) -> bool {
     let mut at = ground;
     for i in 0..depth {
         let id = ctx.get(at);
@@ -235,9 +256,15 @@ mod tests {
         // Radius 2 -> half-extent 3; no edge columns: the inner 5x5, 2 deep.
         let clay = world.positions(|id| id == bb::CLAY);
         assert_eq!(clay.len(), 50);
-        assert!(clay.iter().all(|at| at.x.abs() <= 2 && at.z.abs() <= 2 && (-2..=-1).contains(&at.y)));
+        assert!(
+            clay.iter()
+                .all(|at| at.x.abs() <= 2 && at.z.abs() <= 2 && (-2..=-1).contains(&at.y))
+        );
         assert_eq!(calls.len(), 25);
-        assert!(calls.iter().all(|at| at.y == 0), "vegetation grows on the open cell above the ground");
+        assert!(
+            calls.iter().all(|at| at.y == 0),
+            "vegetation grows on the open cell above the ground"
+        );
     }
 
     #[test]
@@ -256,7 +283,11 @@ mod tests {
             keys.sort_unstable();
             keys
         };
-        assert_eq!(sorted(&calls), sorted(&water), "vegetation grows from the water cells");
+        assert_eq!(
+            sorted(&calls),
+            sorted(&water),
+            "vegetation grows from the water cells"
+        );
     }
 
     #[test]

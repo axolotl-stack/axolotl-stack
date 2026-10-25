@@ -74,13 +74,19 @@ mod tests {
             exposed_face: UP,
         };
         let mut rng = BedrockRandom::new(4);
-        let placed = with_ctx(&mut world, &mut rng, |ctx| place(ctx, BlockPos::new(0, 0, 0), &p));
+        let placed = with_ctx(&mut world, &mut rng, |ctx| {
+            place(ctx, BlockPos::new(0, 0, 0), &p)
+        });
         assert_eq!(placed, Some(BlockPos::new(0, 0, 0)));
         // The 3x3x3 cube round the floor block (0, -1, 0): its two stone
         // layers convert, the water layer does not.
         let magma = world.positions(|id| id == bb::MAGMA);
         assert_eq!(magma.len(), 18);
-        assert!(magma.iter().all(|at| (-2..=-1).contains(&at.y) && at.x.abs() <= 1 && at.z.abs() <= 1));
+        assert!(
+            magma
+                .iter()
+                .all(|at| (-2..=-1).contains(&at.y) && at.x.abs() <= 1 && at.z.abs() <= 1)
+        );
     }
 
     #[test]
@@ -96,7 +102,14 @@ mod tests {
             exposed_face: UP,
         };
         let mut rng = BedrockRandom::new(4);
-        assert_eq!(with_ctx(&mut world, &mut rng, |ctx| place(ctx, BlockPos::new(0, 0, 0), &p)), None);
+        assert_eq!(
+            with_ctx(&mut world, &mut rng, |ctx| place(
+                ctx,
+                BlockPos::new(0, 0, 0),
+                &p
+            )),
+            None
+        );
         assert_eq!(world.count(bb::MAGMA), 0);
     }
 }

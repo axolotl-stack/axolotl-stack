@@ -44,7 +44,11 @@ pub fn inverse_gaussian(rng: &mut BedrockRandom, a: i32, b: i32) -> i32 {
     let (a, b) = ordered(a, b);
     let g = gaussian(rng, a, b);
     let mid = (a + b) / 2;
-    if g <= mid { a + (mid - g) } else { b - (g - mid) }
+    if g <= mid {
+        a + (mid - g)
+    } else {
+        b - (g - mid)
+    }
 }
 
 /// Number of cells of a grid over `[a, b]` with `step` and `offset`.
@@ -64,7 +68,14 @@ pub fn fixed_grid(a: i32, b: i32, step: i32, offset: i32, index: i32) -> i32 {
 
 /// Jittered grid: cell `index` plus a uniform offset inside the cell.
 #[inline]
-pub fn jittered_grid(rng: &mut BedrockRandom, a: i32, b: i32, step: i32, offset: i32, index: i32) -> i32 {
+pub fn jittered_grid(
+    rng: &mut BedrockRandom,
+    a: i32,
+    b: i32,
+    step: i32,
+    offset: i32,
+    index: i32,
+) -> i32 {
     let (_, hi) = ordered(a, b);
     let base = fixed_grid(a, b, step, offset, index);
     (base + rng.next_int(step.max(1))).min(hi)
@@ -102,7 +113,10 @@ mod tests {
             centre_uni += i32::from((-1..=1).contains(&uniform(&mut r, -8, 8)));
             edge_inv += i32::from(inverse_gaussian(&mut r, -8, 8).abs() >= 6);
         }
-        assert!(centre_tri > centre_uni * 3 / 2, "{centre_tri} vs {centre_uni}");
+        assert!(
+            centre_tri > centre_uni * 3 / 2,
+            "{centre_tri} vs {centre_uni}"
+        );
         assert!(edge_inv > 20_000 * 3 / 17, "{edge_inv}");
     }
 

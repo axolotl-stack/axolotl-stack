@@ -43,10 +43,10 @@ use crate::blocks::{self, BlockDescriptor, BlockPalette, StateValue};
 use crate::error::{Error, Result};
 use crate::ir::{self, BiomeFilter, Feature, Obj};
 use crate::nbt::{self, Encoding, Reader, Tag};
-use crate::packs::{Document, Family, PackStack};
 use serde_json::Value;
 use std::collections::BTreeMap;
 use std::path::{Path, PathBuf};
+use unastar_packs::packs::{Document, Family, PackStack};
 
 /// The built-in empty pool / processor list / jigsaw target.
 pub const EMPTY: &str = "minecraft:empty";
@@ -185,7 +185,10 @@ struct TemplateBuilder {
 impl TemplateBuilder {
     fn new(key: &str, origin: &str, size: [i32; 3]) -> Result<Self> {
         if size.iter().any(|&s| !(1..=255).contains(&s)) {
-            return Err(Error::data(origin, format!("template size {size:?} outside 1..=255")));
+            return Err(Error::data(
+                origin,
+                format!("template size {size:?} outside 1..=255"),
+            ));
         }
         Ok(Self {
             template: Template {
@@ -219,7 +222,9 @@ impl TemplateBuilder {
                 format!("cell {pos:?} outside the template size {size:?}"),
             ));
         }
-        self.template.cells.push(([pos[0] as u8, pos[1] as u8, pos[2] as u8], entry));
+        self.template
+            .cells
+            .push(([pos[0] as u8, pos[1] as u8, pos[2] as u8], entry));
         Ok(())
     }
 }
@@ -252,7 +257,10 @@ pub fn template_files(stack: &PackStack) -> Result<BTreeMap<String, PathBuf>> {
             if let Some(previous) = in_layer.insert(key.clone(), path.clone()) {
                 return Err(Error::data(
                     path.display().to_string(),
-                    format!("template {key} also defined in the same layer by {}", previous.display()),
+                    format!(
+                        "template {key} also defined in the same layer by {}",
+                        previous.display()
+                    ),
                 ));
             }
             out.insert(key, path);
@@ -351,23 +359,44 @@ fn int3(origin: &str, tag: &Tag, what: &str) -> Result<[i32; 3]> {
 }
 
 /// Strict NBT: every key must be known.
-fn check_keys(origin: &str, map: &BTreeMap<String, Tag>, allowed: &[&str], what: &str) -> Result<()> {
+fn check_keys(
+    origin: &str,
+    map: &BTreeMap<String, Tag>,
+    allowed: &[&str],
+    what: &str,
+) -> Result<()> {
     match map.keys().find(|k| !allowed.contains(&k.as_str())) {
-        Some(extra) => Err(Error::data(origin, format!("unknown {what} NBT key {extra:?}"))),
+        Some(extra) => Err(Error::data(
+            origin,
+            format!("unknown {what} NBT key {extra:?}"),
+        )),
         None => Ok(()),
     }
 }
 
 // --- Java templates ---------------------------------------------------------
 
-fn load_java_template(palette: &BlockPalette, key: &str, origin: &str, bytes: &[u8]) -> Result<Template> {
+fn load_java_template(
+    palette: &BlockPalette,
+    key: &str,
+    origin: &str,
+    bytes: &[u8],
+) -> Result<Template> {
     let root = nbt::read_gzip_java(origin, bytes)?;
     let map = compound(origin, &root, "template")?;
     // `entities` (mobs, item frames) are out of scope; the rest is metadata.
     check_keys(
         origin,
         map,
-        &["DataVersion", "author", "version", "size", "palette", "blocks", "entities"],
+        &[
+            "DataVersion",
+            "author",
+            "version",
+            "size",
+            "palette",
+            "blocks",
+            "entities",
+        ],
         "template",
     )?;
     let size = int3(origin, child(origin, map, "size")?, "size")?;
@@ -402,7 +431,9 @@ fn load_java_template(palette: &BlockPalette, key: &str, origin: &str, bytes: &[
         let (name, props) = usize::try_from(state)
             .ok()
             .and_then(|i| entries.get(i))
-            .ok_or_else(|| Error::data(origin, format!("block state {state} outside the palette")))?;
+            .ok_or_else(|| {
+                Error::data(origin, format!("block state {state} outside the palette"))
+            })?;
         match name.as_str() {
             "minecraft:structure_void" | "minecraft:structure_block" => {}
             "minecraft:jigsaw" => {
@@ -415,8 +446,9 @@ fn load_java_template(palette: &BlockPalette, key: &str, origin: &str, bytes: &[
                 builder.template.connectors.push(connector);
             }
             _ => {
-                let ids = converted[state as usize]
-                    .ok_or_else(|| Error::data(origin, format!("palette entry {name} has no block state")))?;
+                let ids = converted[state as usize].ok_or_else(|| {
+                    Error::data(origin, format!("palette entry {name} has no block state"))
+                })?;
                 let entry = builder.entry(ids)?;
                 builder.cell(pos, entry)?;
             }
@@ -451,7 +483,10 @@ fn jigsaw(
     if let Some(c) = data.get("components")
         && !compound(origin, c, "components")?.is_empty()
     {
-        return Err(Error::data(origin, format!("jigsaw at {pos:?} has data components")));
+        return Err(Error::data(
+            origin,
+            format!("jigsaw at {pos:?} has data components"),
+        ));
     }
     let orientation = props
         .get("orientation")
@@ -478,7 +513,8 @@ fn jigsaw(
         // Vanilla default: horizontal connectors are aligned, vertical ones rollable.
         None => matches!(front, Dir6::Up | Dir6::Down),
     };
-    let priority = |key: &str| -> Result<i32> { data.get(key).map_or(Ok(0), |t| integer(origin, t, key)) };
+    let priority =
+        |key: &str| -> Result<i32> { data.get(key).map_or(Ok(0), |t| integer(origin, t, key)) };
     Ok((
         Connector {
             pos,
@@ -532,7 +568,10 @@ pub fn java_rotations(
 /// Rotate Java block properties clockwise by `quarter_turns`: `facing`,
 /// `axis` and the per-side `north/east/south/west` properties move; stair
 /// `shape` and chest `type` are relative to `facing` and stay.
-pub fn rotate_java_properties(props: &BTreeMap<String, String>, quarter_turns: u8) -> BTreeMap<String, String> {
+pub fn rotate_java_properties(
+    props: &BTreeMap<String, String>,
+    quarter_turns: u8,
+) -> BTreeMap<String, String> {
     let r = quarter_turns % 4;
     let mut out = BTreeMap::new();
     for (key, value) in props {
@@ -581,7 +620,10 @@ fn java_flag(origin: &str, name: &str, key: &str, v: &str) -> Result<bool> {
     match v {
         "true" => Ok(true),
         "false" => Ok(false),
-        _ => Err(Error::data(origin, format!("{name} {key}={v:?} is not a boolean"))),
+        _ => Err(Error::data(
+            origin,
+            format!("{name} {key}={v:?} is not a boolean"),
+        )),
     }
 }
 
@@ -606,7 +648,14 @@ fn side_height(origin: &str, name: &str, key: &str, v: &str) -> Result<StateValu
 /// are 10 (sides) or 15 (all faces).
 pub fn mushroom_bits(props: &BTreeMap<String, String>, stem: bool) -> i32 {
     let side = |k: &str| props.get(k).is_some_and(|v| v == "true");
-    let (n, e, s, w, u, d) = (side("north"), side("east"), side("south"), side("west"), side("up"), side("down"));
+    let (n, e, s, w, u, d) = (
+        side("north"),
+        side("east"),
+        side("south"),
+        side("west"),
+        side("up"),
+        side("down"),
+    );
     if stem {
         return if u || d { 15 } else { 10 };
     }
@@ -616,8 +665,20 @@ pub fn mushroom_bits(props: &BTreeMap<String, String>, stem: bool) -> i32 {
     if !(n || e || s || w || u || d) {
         return 0;
     }
-    let ns = if n { 0 } else if s { 2 } else { 1 };
-    let ew = if w { 0 } else if e { 2 } else { 1 };
+    let ns = if n {
+        0
+    } else if s {
+        2
+    } else {
+        1
+    };
+    let ew = if w {
+        0
+    } else if e {
+        2
+    } else {
+        1
+    };
     // Rows north/none/south, columns west/none/east.
     [[1, 2, 3], [4, 5, 6], [7, 8, 9]][ns][ew]
 }
@@ -631,7 +692,8 @@ pub fn java_descriptor(
     name: &str,
     props: &BTreeMap<String, String>,
 ) -> Result<BlockDescriptor> {
-    let fail = |reason: String| Error::data(origin, format!("palette entry {name}{props:?}: {reason}"));
+    let fail =
+        |reason: String| Error::data(origin, format!("palette entry {name}{props:?}: {reason}"));
     let base = name
         .strip_prefix("minecraft:")
         .ok_or_else(|| fail("not a minecraft block".into()))?;
@@ -644,7 +706,8 @@ pub fn java_descriptor(
         && prop("type") == Some("double")
     {
         format!("minecraft:{stem}_double_slab")
-    } else if matches!(base, "furnace" | "blast_furnace" | "smoker") && prop("lit") == Some("true") {
+    } else if matches!(base, "furnace" | "blast_furnace" | "smoker") && prop("lit") == Some("true")
+    {
         format!("minecraft:lit_{base}")
     } else if base == "water" && prop("level").is_some_and(|l| l != "0") {
         "minecraft:flowing_water".to_owned()
@@ -728,7 +791,9 @@ pub fn java_descriptor(
             },
             "shape" if has("minecraft:corner") => match v {
                 "straight" => ("minecraft:corner".into(), string("none")),
-                "inner_left" | "inner_right" | "outer_left" | "outer_right" => ("minecraft:corner".into(), string(v)),
+                "inner_left" | "inner_right" | "outer_left" | "outer_right" => {
+                    ("minecraft:corner".into(), string(v))
+                }
                 _ => return Err(bad_value()),
             },
             "type" if has("minecraft:vertical_half") => match v {
@@ -738,7 +803,9 @@ pub fn java_descriptor(
                 _ => return Err(bad_value()),
             },
             // Bedrock pairs chests through their block entities.
-            "type" if base == "chest" || base == "trapped_chest" || base.ends_with("copper_chest") => {
+            "type"
+                if base == "chest" || base == "trapped_chest" || base.ends_with("copper_chest") =>
+            {
                 if !matches!(v, "single" | "left" | "right") {
                     return Err(bad_value());
                 }
@@ -748,23 +815,32 @@ pub fn java_descriptor(
                 flag()?;
                 continue;
             }
-            "north" | "east" | "south" | "west" if has(&format!("minecraft:connection_{key}")) => {
-                (format!("minecraft:connection_{key}"), int(i32::from(flag()?)))
-            }
-            "north" | "east" | "south" | "west" if has(&format!("wall_connection_type_{key}")) => {
-                (format!("wall_connection_type_{key}"), side_height(origin, name, key, v)?)
-            }
+            "north" | "east" | "south" | "west" if has(&format!("minecraft:connection_{key}")) => (
+                format!("minecraft:connection_{key}"),
+                int(i32::from(flag()?)),
+            ),
+            "north" | "east" | "south" | "west" if has(&format!("wall_connection_type_{key}")) => (
+                format!("wall_connection_type_{key}"),
+                side_height(origin, name, key, v)?,
+            ),
             "north" | "east" | "south" | "west" if has(&format!("pale_moss_carpet_side_{key}")) => {
-                (format!("pale_moss_carpet_side_{key}"), side_height(origin, name, key, v)?)
+                (
+                    format!("pale_moss_carpet_side_{key}"),
+                    side_height(origin, name, key, v)?,
+                )
             }
             "up" if has("wall_post_bit") => ("wall_post_bit".into(), int(i32::from(flag()?))),
-            "bottom" if has("upper_block_bit") => ("upper_block_bit".into(), int(i32::from(!flag()?))),
+            "bottom" if has("upper_block_bit") => {
+                ("upper_block_bit".into(), int(i32::from(!flag()?)))
+            }
             // Bedrock leaves do not store their log distance.
             "distance" if has("persistent_bit") => {
                 number()?;
                 continue;
             }
-            "persistent" if has("persistent_bit") => ("persistent_bit".into(), int(i32::from(flag()?))),
+            "persistent" if has("persistent_bit") => {
+                ("persistent_bit".into(), int(i32::from(flag()?)))
+            }
             // Bedrock derives the snowy side texture from the block above.
             "snowy" => {
                 flag()?;
@@ -785,17 +861,25 @@ pub fn java_descriptor(
             "age" if has("age") => ("age".into(), int(number()?)),
             "age" if has("growth") => ("growth".into(), int(number()?)),
             "stage" if has("age_bit") => ("age_bit".into(), int(number()?)),
-            "moisture" if has("moisturized_amount") => ("moisturized_amount".into(), int(number()?)),
-            "level" if has("composter_fill_level") => ("composter_fill_level".into(), int(number()?)),
+            "moisture" if has("moisturized_amount") => {
+                ("moisturized_amount".into(), int(number()?))
+            }
+            "level" if has("composter_fill_level") => {
+                ("composter_fill_level".into(), int(number()?))
+            }
             "level" if has("liquid_depth") => ("liquid_depth".into(), int(number()?)),
             // Java cauldron levels 1..=3 are Bedrock fill levels 2, 4, 6.
             "level" if has("fill_level") => ("fill_level".into(), int(number()? * 2)),
             "layers" if has("height") => ("height".into(), int(number()? - 1)),
-            "segment_amount" | "flower_amount" if has("growth") => ("growth".into(), int(number()? - 1)),
+            "segment_amount" | "flower_amount" if has("growth") => {
+                ("growth".into(), int(number()? - 1))
+            }
             "hanging" if has("hanging") => ("hanging".into(), int(i32::from(flag()?))),
             "tip" if has("tip") => ("tip".into(), int(i32::from(flag()?))),
             "natural" if has("natural") => ("natural".into(), int(i32::from(flag()?))),
-            "creaking_heart_state" if has("creaking_heart_state") => ("creaking_heart_state".into(), string(v)),
+            "creaking_heart_state" if has("creaking_heart_state") => {
+                ("creaking_heart_state".into(), string(v))
+            }
             "face" if has("attachment") => match v {
                 "floor" => ("attachment".into(), string("standing")),
                 "ceiling" => ("attachment".into(), string("hanging")),
@@ -815,7 +899,10 @@ pub fn java_descriptor(
         states.insert(state, val);
     }
     if has("huge_mushroom_bits") {
-        states.insert("huge_mushroom_bits".into(), int(mushroom_bits(props, base == "mushroom_stem")));
+        states.insert(
+            "huge_mushroom_bits".into(),
+            int(mushroom_bits(props, base == "mushroom_stem")),
+        );
     }
     if has("vine_direction_bits") {
         // Bits: 1 south, 2 west, 4 north, 8 east; Java `up` has no Bedrock state.
@@ -827,7 +914,10 @@ pub fn java_descriptor(
         }
         states.insert("vine_direction_bits".into(), int(bits));
     }
-    Ok(BlockDescriptor { name: target, states })
+    Ok(BlockDescriptor {
+        name: target,
+        states,
+    })
 }
 
 // --- Bedrock templates ------------------------------------------------------
@@ -852,10 +942,18 @@ const UNROTATED_STATES: &[&str] = &[
 ];
 
 /// State name prefixes in the same situation as [`UNROTATED_STATES`].
-const UNROTATED_PREFIXES: &[&str] = &["minecraft:connection_", "wall_connection_type_", "pale_moss_carpet_side_"];
+const UNROTATED_PREFIXES: &[&str] = &[
+    "minecraft:connection_",
+    "wall_connection_type_",
+    "pale_moss_carpet_side_",
+];
 
 /// Rotate a Bedrock descriptor clockwise by `quarter_turns`.
-pub fn rotate_bedrock(origin: &str, desc: &BlockDescriptor, quarter_turns: u8) -> Result<BlockDescriptor> {
+pub fn rotate_bedrock(
+    origin: &str,
+    desc: &BlockDescriptor,
+    quarter_turns: u8,
+) -> Result<BlockDescriptor> {
     let r = quarter_turns % 4;
     let mut out = BlockDescriptor::named(&desc.name);
     // Index cycles of the clockwise rotation in each encoding.
@@ -867,16 +965,27 @@ pub fn rotate_bedrock(origin: &str, desc: &BlockDescriptor, quarter_turns: u8) -
         Some(order[(i + r as usize) % 4])
     };
     for (key, value) in &desc.states {
-        let bad = || Error::data(origin, format!("{} {key}={value} cannot be rotated", desc.name));
+        let bad = || {
+            Error::data(
+                origin,
+                format!("{} {key}={value} cannot be rotated", desc.name),
+            )
+        };
         let rotated = match (key.as_str(), value) {
             ("minecraft:cardinal_direction", StateValue::Str(s)) => {
                 let d = Dir6::parse(s).ok_or_else(bad)?;
                 StateValue::Str(d.rotate(r).name().to_owned())
             }
             ("facing_direction", StateValue::Int(v)) if *v <= 1 => value.clone(),
-            ("facing_direction", StateValue::Int(v)) => StateValue::Int(cycle(&FACING, *v).ok_or_else(bad)?),
-            ("direction", StateValue::Int(v)) => StateValue::Int(cycle(&LEGACY, *v).ok_or_else(bad)?),
-            ("weirdo_direction", StateValue::Int(v)) => StateValue::Int(cycle(&WEIRDO, *v).ok_or_else(bad)?),
+            ("facing_direction", StateValue::Int(v)) => {
+                StateValue::Int(cycle(&FACING, *v).ok_or_else(bad)?)
+            }
+            ("direction", StateValue::Int(v)) => {
+                StateValue::Int(cycle(&LEGACY, *v).ok_or_else(bad)?)
+            }
+            ("weirdo_direction", StateValue::Int(v)) => {
+                StateValue::Int(cycle(&WEIRDO, *v).ok_or_else(bad)?)
+            }
             ("pillar_axis", StateValue::Str(s)) if r % 2 == 1 => StateValue::Str(
                 match s.as_str() {
                     "x" => "z",
@@ -885,7 +994,10 @@ pub fn rotate_bedrock(origin: &str, desc: &BlockDescriptor, quarter_turns: u8) -
                 }
                 .to_owned(),
             ),
-            (k, _) if UNROTATED_STATES.contains(&k) || UNROTATED_PREFIXES.iter().any(|p| k.starts_with(p)) => {
+            (k, _)
+                if UNROTATED_STATES.contains(&k)
+                    || UNROTATED_PREFIXES.iter().any(|p| k.starts_with(p)) =>
+            {
                 if r == 0 {
                     value.clone()
                 } else {
@@ -899,21 +1011,40 @@ pub fn rotate_bedrock(origin: &str, desc: &BlockDescriptor, quarter_turns: u8) -
     Ok(out)
 }
 
-fn load_bedrock_template(palette: &BlockPalette, key: &str, origin: &str, bytes: &[u8]) -> Result<Template> {
+fn load_bedrock_template(
+    palette: &BlockPalette,
+    key: &str,
+    origin: &str,
+    bytes: &[u8],
+) -> Result<Template> {
     let mut reader = Reader::new(bytes, Encoding::LittleEndian, origin);
     let (_, root) = reader.read_root()?;
     let map = compound(origin, &root, "structure file")?;
     check_keys(
         origin,
         map,
-        &["format_version", "size", "structure", "structure_world_origin"],
+        &[
+            "format_version",
+            "size",
+            "structure",
+            "structure_world_origin",
+        ],
         "structure file",
     )?;
     let size = int3(origin, child(origin, map, "size")?, "size")?;
     let structure = compound(origin, child(origin, map, "structure")?, "structure")?;
     // `entities` are out of scope.
-    check_keys(origin, structure, &["block_indices", "entities", "palette"], "structure")?;
-    let layers = list(origin, child(origin, structure, "block_indices")?, "block_indices")?;
+    check_keys(
+        origin,
+        structure,
+        &["block_indices", "entities", "palette"],
+        "structure",
+    )?;
+    let layers = list(
+        origin,
+        child(origin, structure, "block_indices")?,
+        "block_indices",
+    )?;
     // Layer 1 holds the waterlogging liquid of layer-0 blocks, which one block
     // id per cell cannot represent: only layer 0 is placed.
     let primary = layers
@@ -922,16 +1053,37 @@ fn load_bedrock_template(palette: &BlockPalette, key: &str, origin: &str, bytes:
         .and_then(|l| list(origin, l, "block layer"))?;
     let palettes = compound(origin, child(origin, structure, "palette")?, "palette")?;
     check_keys(origin, palettes, &["default"], "palette")?;
-    let default = compound(origin, child(origin, palettes, "default")?, "default palette")?;
+    let default = compound(
+        origin,
+        child(origin, palettes, "default")?,
+        "default palette",
+    )?;
     // `block_position_data` is block-entity data and scheduled ticks: out of scope.
-    check_keys(origin, default, &["block_palette", "block_position_data"], "default palette")?;
+    check_keys(
+        origin,
+        default,
+        &["block_palette", "block_position_data"],
+        "default palette",
+    )?;
     let mut builder = TemplateBuilder::new(key, origin, size)?;
     let mut entries: Vec<Option<u16>> = Vec::new();
-    for e in list(origin, child(origin, default, "block_palette")?, "block_palette")? {
+    for e in list(
+        origin,
+        child(origin, default, "block_palette")?,
+        "block_palette",
+    )? {
         let m = compound(origin, e, "block palette entry")?;
-        check_keys(origin, m, &["name", "states", "version"], "block palette entry")?;
+        check_keys(
+            origin,
+            m,
+            &["name", "states", "version"],
+            "block palette entry",
+        )?;
         let name = text(origin, child(origin, m, "name")?, "name")?;
-        if matches!(name, "minecraft:structure_void" | "minecraft:structure_block") {
+        if matches!(
+            name,
+            "minecraft:structure_void" | "minecraft:structure_block"
+        ) {
             entries.push(None);
             continue;
         }
@@ -968,7 +1120,9 @@ fn load_bedrock_template(palette: &BlockPalette, key: &str, origin: &str, bytes:
         let entry = usize::try_from(index)
             .ok()
             .and_then(|i| entries.get(i))
-            .ok_or_else(|| Error::data(origin, format!("block index {index} outside the palette")))?;
+            .ok_or_else(|| {
+                Error::data(origin, format!("block index {index} outside the palette"))
+            })?;
         let Some(entry) = *entry else {
             continue;
         };
@@ -988,7 +1142,10 @@ fn load_bedrock_template(palette: &BlockPalette, key: &str, origin: &str, bytes:
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum ElementKind {
     /// `minecraft:single_pool_element`: a template with optional processors.
-    Template { template: usize, processors: Option<usize> },
+    Template {
+        template: usize,
+        processors: Option<usize>,
+    },
     /// `minecraft:feature_pool_element`: `template` is the element's 1x1x1
     /// shape ([`feature_template`]), `feature` indexes
     /// [`StructureData::pool_features`].
@@ -1030,7 +1187,10 @@ pub enum Processor {
     Rules(Vec<ProcessorRule>),
     /// `minecraft:capped`: the delegate rules change at most `limit` blocks
     /// of a piece, chosen at random.
-    Capped { limit: u32, rules: Vec<ProcessorRule> },
+    Capped {
+        limit: u32,
+        rules: Vec<ProcessorRule>,
+    },
 }
 
 /// A `minecraft:processor_list`.
@@ -1120,7 +1280,11 @@ impl StructureData {
     /// Resolve the four structure families, load every template they and the
     /// `structure_template_feature` / `fossil_feature` documents in `features`
     /// reference, and convert their palettes.
-    pub fn load(stack: &PackStack, palette: &BlockPalette, features: &BTreeMap<String, Feature>) -> Result<Self> {
+    pub fn load(
+        stack: &PackStack,
+        palette: &BlockPalette,
+        features: &BTreeMap<String, Feature>,
+    ) -> Result<Self> {
         let mut data = StructureData::default();
         let files = template_files(stack)?;
         for family in [
@@ -1135,7 +1299,8 @@ impl StructureData {
         let processor_docs = stack.resolve(Family::Processors)?;
         for doc in processor_docs.values() {
             let list = parse_processor_list(palette, doc)?;
-            data.processor_index.insert(list.identifier.clone(), data.processors.len());
+            data.processor_index
+                .insert(list.identifier.clone(), data.processors.len());
             data.processors.push(list);
         }
 
@@ -1151,7 +1316,8 @@ impl StructureData {
         let structure_docs = stack.resolve(Family::JigsawStructures)?;
         for doc in structure_docs.values() {
             let s = data.parse_structure(doc)?;
-            data.structure_index.insert(s.identifier.clone(), data.structures.len());
+            data.structure_index
+                .insert(s.identifier.clone(), data.structures.len());
             data.structures.push(s);
         }
 
@@ -1169,16 +1335,30 @@ impl StructureData {
                 .get("structure_name")
                 .and_then(Value::as_str)
                 .ok_or_else(|| Error::data(&f.source, "structure_name is not a string"))?;
-            let location = template_location(name, &files)
-                .ok_or_else(|| Error::data(&f.source, format!("no structure template file for {name:?}")))?;
+            let location = template_location(name, &files).ok_or_else(|| {
+                Error::data(
+                    &f.source,
+                    format!("no structure template file for {name:?}"),
+                )
+            })?;
             let index = data.template(palette, &files, &location, &f.source)?;
             data.named_templates.insert(name.to_owned(), index);
         }
 
-        if features.values().any(|f| f.kind == "minecraft:fossil_feature") {
-            let fossils: Vec<String> = files.keys().filter(|k| k.starts_with("fossils/")).cloned().collect();
+        if features
+            .values()
+            .any(|f| f.kind == "minecraft:fossil_feature")
+        {
+            let fossils: Vec<String> = files
+                .keys()
+                .filter(|k| k.starts_with("fossils/"))
+                .cloned()
+                .collect();
             if fossils.is_empty() {
-                return Err(Error::data("structures/fossils", "fossil_feature needs fossil templates"));
+                return Err(Error::data(
+                    "structures/fossils",
+                    "fossil_feature needs fossil templates",
+                ));
             }
             for key in fossils {
                 let index = data.template(palette, &files, &key, "structures/fossils")?;
@@ -1190,7 +1370,10 @@ impl StructureData {
         for t in &data.templates {
             for c in &t.connectors {
                 if c.pool != EMPTY && !data.pool_index.contains_key(&c.pool) {
-                    return Err(Error::data(&t.origin, format!("jigsaw names unknown pool {}", c.pool)));
+                    return Err(Error::data(
+                        &t.origin,
+                        format!("jigsaw names unknown pool {}", c.pool),
+                    ));
                 }
             }
         }
@@ -1252,7 +1435,12 @@ impl StructureData {
             .ok_or_else(|| Error::data(origin, format!("unknown template pool {id}")))
     }
 
-    fn parse_pool(&mut self, palette: &BlockPalette, files: &BTreeMap<String, PathBuf>, doc: &Document) -> Result<Pool> {
+    fn parse_pool(
+        &mut self,
+        palette: &BlockPalette,
+        files: &BTreeMap<String, PathBuf>,
+        doc: &Document,
+    ) -> Result<Pool> {
         let origin = doc.source.as_str();
         let o = Obj::new(origin, &doc.body)?;
         o.ignore(&["description"]);
@@ -1270,7 +1458,10 @@ impl StructureData {
             let e = Obj::new(origin, item)?;
             let weight = e.i32("weight")?;
             if !(1..=150).contains(&weight) {
-                return Err(Error::data(origin, format!("pool element weight {weight} outside 1..=150")));
+                return Err(Error::data(
+                    origin,
+                    format!("pool element weight {weight} outside 1..=150"),
+                ));
             }
             let kind = self.parse_element(palette, files, origin, e.req("element")?)?;
             e.finish()?;
@@ -1299,7 +1490,10 @@ impl StructureData {
         let rigid = |o: &Obj<'_>| -> Result<()> {
             match o.opt("projection").map(|p| p.as_str()) {
                 None | Some(Some("rigid")) => Ok(()),
-                Some(other) => Err(Error::data(origin, format!("unsupported projection {other:?}"))),
+                Some(other) => Err(Error::data(
+                    origin,
+                    format!("unsupported projection {other:?}"),
+                )),
             }
         };
         let kind = match o.str("element_type")? {
@@ -1310,16 +1504,23 @@ impl StructureData {
                 let processors = match o.opt("processors") {
                     None => None,
                     Some(Value::String(id)) if id == EMPTY => None,
-                    Some(Value::String(id)) => Some(
-                        *self
-                            .processor_index
-                            .get(id)
-                            .ok_or_else(|| Error::data(origin, format!("unknown processor list {id}")))?,
-                    ),
-                    Some(other) => return Err(Error::data(origin, format!("processors must name a list: {other}"))),
+                    Some(Value::String(id)) => {
+                        Some(*self.processor_index.get(id).ok_or_else(|| {
+                            Error::data(origin, format!("unknown processor list {id}"))
+                        })?)
+                    }
+                    Some(other) => {
+                        return Err(Error::data(
+                            origin,
+                            format!("processors must name a list: {other}"),
+                        ));
+                    }
                 };
                 rigid(&o)?;
-                ElementKind::Template { template, processors }
+                ElementKind::Template {
+                    template,
+                    processors,
+                }
             }
             "minecraft:feature_pool_element" => {
                 let feature = o.str("feature")?;
@@ -1328,7 +1529,12 @@ impl StructureData {
                 ElementKind::Feature { template, feature }
             }
             "minecraft:empty_pool_element" => ElementKind::Empty,
-            other => return Err(Error::data(origin, format!("unsupported pool element type {other}"))),
+            other => {
+                return Err(Error::data(
+                    origin,
+                    format!("unsupported pool element type {other}"),
+                ));
+            }
         };
         o.finish()?;
         Ok(kind)
@@ -1337,7 +1543,10 @@ impl StructureData {
     fn parse_structure(&self, doc: &Document) -> Result<JigsawStructure> {
         let origin = doc.source.as_str();
         if doc.kind != "minecraft:jigsaw" {
-            return Err(Error::data(origin, format!("unsupported structure type {}", doc.kind)));
+            return Err(Error::data(
+                origin,
+                format!("unsupported structure type {}", doc.kind),
+            ));
         }
         let o = Obj::new(origin, &doc.body)?;
         o.ignore(&["description"]);
@@ -1346,21 +1555,30 @@ impl StructureData {
         let step = STEPS
             .iter()
             .position(|s| *s == step_name)
-            .ok_or_else(|| Error::data(origin, format!("unknown step {step_name:?}")))? as u8;
+            .ok_or_else(|| Error::data(origin, format!("unknown step {step_name:?}")))?
+            as u8;
         let adaptation = match o.opt("terrain_adaptation").map(|v| v.as_str()) {
             None | Some(Some("none")) => Adaptation::None,
             Some(Some("bury")) => Adaptation::Bury,
             Some(Some("beard_thin")) => Adaptation::BeardThin,
             Some(Some("beard_box")) => Adaptation::BeardBox,
             Some(Some("encapsulate")) => Adaptation::Encapsulate,
-            Some(other) => return Err(Error::data(origin, format!("unknown terrain_adaptation {other:?}"))),
+            Some(other) => {
+                return Err(Error::data(
+                    origin,
+                    format!("unknown terrain_adaptation {other:?}"),
+                ));
+            }
         };
         let start_pool = self
             .pool_ref(origin, o.str("start_pool")?)?
             .ok_or_else(|| Error::data(origin, "start_pool is the empty pool"))?;
         let max_depth = o.i32("max_depth")?;
         if !(0..=20).contains(&max_depth) {
-            return Err(Error::data(origin, format!("max_depth {max_depth} outside 0..=20")));
+            return Err(Error::data(
+                origin,
+                format!("max_depth {max_depth} outside 0..=20"),
+            ));
         }
         let distance = o.req("max_distance_from_center")?;
         let (horizontal, vertical) = if distance.is_number() {
@@ -1373,13 +1591,21 @@ impl StructureData {
             pair
         };
         if !(1..=128).contains(&horizontal) || !(1..=4096).contains(&vertical) {
-            return Err(Error::data(origin, format!("max_distance_from_center ({horizontal}, {vertical}) out of range")));
+            return Err(Error::data(
+                origin,
+                format!("max_distance_from_center ({horizontal}, {vertical}) out of range"),
+            ));
         }
         let start_height = height_provider(origin, o.req("start_height")?)?;
         let project_to_surface = match o.opt("heightmap_projection").map(|v| v.as_str()) {
             None | Some(Some("none")) => false,
             Some(Some("world_surface")) => true,
-            Some(other) => return Err(Error::data(origin, format!("unsupported heightmap_projection {other:?}"))),
+            Some(other) => {
+                return Err(Error::data(
+                    origin,
+                    format!("unsupported heightmap_projection {other:?}"),
+                ));
+            }
         };
         let (padding_bottom, padding_top) = match o.opt("dimension_padding") {
             None => (0, 0),
@@ -1419,18 +1645,29 @@ impl StructureData {
         let p = Obj::new(origin, o.req("placement")?)?;
         let kind = p.str("type")?;
         if kind != "minecraft:random_spread" {
-            return Err(Error::data(origin, format!("unsupported structure placement {kind}")));
+            return Err(Error::data(
+                origin,
+                format!("unsupported structure placement {kind}"),
+            ));
         }
         let salt = p.i32("salt")?;
         let spacing = p.i32("spacing")?;
         let separation = p.i32("separation")?;
         if !(0..spacing).contains(&separation) || spacing > 4096 {
-            return Err(Error::data(origin, format!("spacing {spacing} / separation {separation}")));
+            return Err(Error::data(
+                origin,
+                format!("spacing {spacing} / separation {separation}"),
+            ));
         }
         let triangular = match p.opt("spread_type").map(|v| v.as_str()) {
             None | Some(Some("linear")) => false,
             Some(Some("triangular")) => true,
-            Some(other) => return Err(Error::data(origin, format!("unknown spread_type {other:?}"))),
+            Some(other) => {
+                return Err(Error::data(
+                    origin,
+                    format!("unknown spread_type {other:?}"),
+                ));
+            }
         };
         p.finish()?;
         let mut structures = Vec::new();
@@ -1470,7 +1707,11 @@ impl StructureData {
 
     /// Largest horizontal extent of any template a structure can place.
     pub fn max_template_extent(&self) -> i32 {
-        self.templates.iter().map(|t| t.size[0].max(t.size[2])).max().unwrap_or(1)
+        self.templates
+            .iter()
+            .map(|t| t.size[0].max(t.size[2]))
+            .max()
+            .unwrap_or(1)
     }
 }
 
@@ -1483,7 +1724,8 @@ pub fn template_location(name: &str, files: &BTreeMap<String, PathBuf>) -> Optio
     if files.contains_key(&nested) {
         return Some(nested);
     }
-    (matches!(namespace, "minecraft" | "mystructure") && files.contains_key(path)).then(|| path.to_owned())
+    (matches!(namespace, "minecraft" | "mystructure") && files.contains_key(path))
+        .then(|| path.to_owned())
 }
 
 /// `start_height`: `{"type": "constant", "value": <anchor>}` or a bare anchor.
@@ -1492,7 +1734,10 @@ fn height_provider(origin: &str, v: &Value) -> Result<Anchor> {
     let anchor = match o.opt("type") {
         Some(t) => {
             if t.as_str() != Some("constant") && t.as_str() != Some("minecraft:constant") {
-                return Err(Error::data(origin, format!("unsupported height provider {t}")));
+                return Err(Error::data(
+                    origin,
+                    format!("unsupported height provider {t}"),
+                ));
             }
             vertical_anchor(origin, o.req("value")?)?
         }
@@ -1518,14 +1763,20 @@ fn anchor_keys(origin: &str, o: &Obj<'_>) -> Result<Anchor> {
         (Some(v), None, None) => Ok(Anchor::Absolute(ir::int(origin, "absolute", v)?)),
         (None, Some(v), None) => Ok(Anchor::AboveBottom(ir::int(origin, "above_bottom", v)?)),
         (None, None, Some(v)) => Ok(Anchor::BelowTop(ir::int(origin, "below_top", v)?)),
-        _ => Err(Error::data(origin, "vertical anchor needs exactly one of absolute/above_bottom/below_top")),
+        _ => Err(Error::data(
+            origin,
+            "vertical anchor needs exactly one of absolute/above_bottom/below_top",
+        )),
     }
 }
 
 fn parse_processor_list(palette: &BlockPalette, doc: &Document) -> Result<ProcessorList> {
     let origin = doc.source.as_str();
     if doc.kind != "minecraft:processor_list" {
-        return Err(Error::data(origin, format!("unsupported processor document {}", doc.kind)));
+        return Err(Error::data(
+            origin,
+            format!("unsupported processor document {}", doc.kind),
+        ));
     }
     let o = Obj::new(origin, &doc.body)?;
     o.ignore(&["description"]);
@@ -1535,9 +1786,15 @@ fn parse_processor_list(palette: &BlockPalette, doc: &Document) -> Result<Proces
         .map(|p| parse_processor(palette, origin, p))
         .collect::<Result<Vec<_>>>()?;
     o.finish()?;
-    let capped = processors.iter().filter(|p| matches!(p, Processor::Capped { .. })).count();
+    let capped = processors
+        .iter()
+        .filter(|p| matches!(p, Processor::Capped { .. }))
+        .count();
     if capped > MAX_CAPPED_PER_LIST {
-        return Err(Error::data(origin, format!("{capped} capped processors (max {MAX_CAPPED_PER_LIST})")));
+        return Err(Error::data(
+            origin,
+            format!("{capped} capped processors (max {MAX_CAPPED_PER_LIST})"),
+        ));
     }
     Ok(ProcessorList {
         identifier: doc.identifier.clone(),
@@ -1558,17 +1815,29 @@ fn parse_processor(palette: &BlockPalette, origin: &str, v: &Value) -> Result<Pr
         "minecraft:capped" => {
             let limit = o.i32("limit")?;
             if !(1..=MAX_CAPPED_LIMIT as i32).contains(&limit) {
-                return Err(Error::data(origin, format!("capped limit {limit} outside 1..={MAX_CAPPED_LIMIT}")));
+                return Err(Error::data(
+                    origin,
+                    format!("capped limit {limit} outside 1..={MAX_CAPPED_LIMIT}"),
+                ));
             }
-            let Processor::Rules(rules) = parse_processor(palette, origin, o.req("delegate")?)? else {
-                return Err(Error::data(origin, "capped delegate must be a rule processor"));
+            let Processor::Rules(rules) = parse_processor(palette, origin, o.req("delegate")?)?
+            else {
+                return Err(Error::data(
+                    origin,
+                    "capped delegate must be a rule processor",
+                ));
             };
             Processor::Capped {
                 limit: limit as u32,
                 rules,
             }
         }
-        other => return Err(Error::data(origin, format!("unsupported processor type {other}"))),
+        other => {
+            return Err(Error::data(
+                origin,
+                format!("unsupported processor type {other}"),
+            ));
+        }
     };
     o.finish()?;
     Ok(p)
@@ -1590,14 +1859,22 @@ fn parse_rule(palette: &BlockPalette, origin: &str, v: &Value) -> Result<Process
         let set = ir::block_set(palette, origin, input.req("block")?)?;
         match set.ranges() {
             [r] => Ok((*r.start(), *r.end())),
-            _ => Err(Error::data(origin, "processor input block must be one contiguous state range")),
+            _ => Err(Error::data(
+                origin,
+                "processor input block must be one contiguous state range",
+            )),
         }
     };
     let (range, probability) = match input.str("predicate_type")? {
         "minecraft:block_match" => (block_range(&input)?, 1.0),
         "minecraft:random_block_match" => (block_range(&input)?, input.f32("probability")?),
         "minecraft:always_true" => ((0, u32::MAX - 1), 1.0),
-        other => return Err(Error::data(origin, format!("unsupported input predicate {other}"))),
+        other => {
+            return Err(Error::data(
+                origin,
+                format!("unsupported input predicate {other}"),
+            ));
+        }
     };
     input.finish()?;
     if let Some(p) = o.opt("location_predicate") {
@@ -1622,11 +1899,17 @@ mod tests {
     use super::*;
 
     fn props(pairs: &[(&str, &str)]) -> BTreeMap<String, String> {
-        pairs.iter().map(|(k, v)| (k.to_string(), v.to_string())).collect()
+        pairs
+            .iter()
+            .map(|(k, v)| (k.to_string(), v.to_string()))
+            .collect()
     }
 
     /// Every combination of the given state values, in canonical order.
-    fn block(name: &str, states: &[(&str, Vec<StateValue>)]) -> Vec<(String, BTreeMap<String, StateValue>)> {
+    fn block(
+        name: &str,
+        states: &[(&str, Vec<StateValue>)],
+    ) -> Vec<(String, BTreeMap<String, StateValue>)> {
         let mut out: Vec<BTreeMap<String, StateValue>> = vec![BTreeMap::new()];
         for (key, values) in states {
             let mut next = Vec::new();
@@ -1647,7 +1930,10 @@ mod tests {
     }
 
     fn strs(values: &[&str]) -> Vec<StateValue> {
-        values.iter().map(|v| StateValue::Str(v.to_string())).collect()
+        values
+            .iter()
+            .map(|v| StateValue::Str(v.to_string()))
+            .collect()
     }
 
     fn palette() -> BlockPalette {
@@ -1656,14 +1942,32 @@ mod tests {
         states.extend(block(
             "minecraft:oak_stairs",
             &[
-                ("minecraft:corner", strs(&["none", "inner_left", "inner_right", "outer_left", "outer_right"])),
+                (
+                    "minecraft:corner",
+                    strs(&[
+                        "none",
+                        "inner_left",
+                        "inner_right",
+                        "outer_left",
+                        "outer_right",
+                    ]),
+                ),
                 ("upside_down_bit", ints(2)),
                 ("weirdo_direction", ints(4)),
             ],
         ));
-        states.extend(block("minecraft:oak_log", &[("pillar_axis", strs(&["y", "x", "z"]))]));
-        states.extend(block("minecraft:brick_slab", &[("minecraft:vertical_half", strs(&["bottom", "top"]))]));
-        states.extend(block("minecraft:brick_double_slab", &[("minecraft:vertical_half", strs(&["bottom", "top"]))]));
+        states.extend(block(
+            "minecraft:oak_log",
+            &[("pillar_axis", strs(&["y", "x", "z"]))],
+        ));
+        states.extend(block(
+            "minecraft:brick_slab",
+            &[("minecraft:vertical_half", strs(&["bottom", "top"]))],
+        ));
+        states.extend(block(
+            "minecraft:brick_double_slab",
+            &[("minecraft:vertical_half", strs(&["bottom", "top"]))],
+        ));
         states.extend(block("minecraft:oak_planks", &[]));
         states.extend(block(
             "minecraft:oak_fence",
@@ -1674,9 +1978,15 @@ mod tests {
                 ("minecraft:connection_west", ints(2)),
             ],
         ));
-        states.extend(block("minecraft:oak_leaves", &[("persistent_bit", ints(2)), ("update_bit", ints(2))]));
+        states.extend(block(
+            "minecraft:oak_leaves",
+            &[("persistent_bit", ints(2)), ("update_bit", ints(2))],
+        ));
         states.extend(block("minecraft:brick_block", &[]));
-        states.extend(block("minecraft:jigsaw", &[("facing_direction", ints(6)), ("rotation", ints(4))]));
+        states.extend(block(
+            "minecraft:jigsaw",
+            &[("facing_direction", ints(6)), ("rotation", ints(4))],
+        ));
         BlockPalette::from_parts(states, BTreeMap::new()).unwrap()
     }
 
@@ -1698,7 +2008,12 @@ mod tests {
         let got = convert(
             &p,
             "minecraft:oak_stairs",
-            &[("facing", "south"), ("half", "top"), ("shape", "outer_left"), ("waterlogged", "false")],
+            &[
+                ("facing", "south"),
+                ("half", "top"),
+                ("shape", "outer_left"),
+                ("waterlogged", "false"),
+            ],
         )
         .unwrap();
         let want = expect(
@@ -1711,7 +2026,16 @@ mod tests {
             ],
         );
         assert_eq!(got, want);
-        let east = convert(&p, "minecraft:oak_stairs", &[("facing", "east"), ("half", "bottom"), ("shape", "straight")]).unwrap();
+        let east = convert(
+            &p,
+            "minecraft:oak_stairs",
+            &[
+                ("facing", "east"),
+                ("half", "bottom"),
+                ("shape", "straight"),
+            ],
+        )
+        .unwrap();
         assert_eq!(east, expect(&p, "minecraft:oak_stairs", &[]));
     }
 
@@ -1719,18 +2043,61 @@ mod tests {
     fn logs_slabs_planks_and_renames() {
         let p = palette();
         let log = convert(&p, "minecraft:oak_log", &[("axis", "x")]).unwrap();
-        assert_eq!(log, expect(&p, "minecraft:oak_log", &[("pillar_axis", StateValue::Str("x".into()))]));
-        let top = convert(&p, "minecraft:brick_slab", &[("type", "top"), ("waterlogged", "false")]).unwrap();
+        assert_eq!(
+            log,
+            expect(
+                &p,
+                "minecraft:oak_log",
+                &[("pillar_axis", StateValue::Str("x".into()))]
+            )
+        );
+        let top = convert(
+            &p,
+            "minecraft:brick_slab",
+            &[("type", "top"), ("waterlogged", "false")],
+        )
+        .unwrap();
         assert_eq!(
             top,
-            expect(&p, "minecraft:brick_slab", &[("minecraft:vertical_half", StateValue::Str("top".into()))])
+            expect(
+                &p,
+                "minecraft:brick_slab",
+                &[("minecraft:vertical_half", StateValue::Str("top".into()))]
+            )
         );
-        let double = convert(&p, "minecraft:brick_slab", &[("type", "double"), ("waterlogged", "false")]).unwrap();
+        let double = convert(
+            &p,
+            "minecraft:brick_slab",
+            &[("type", "double"), ("waterlogged", "false")],
+        )
+        .unwrap();
         assert_eq!(double, expect(&p, "minecraft:brick_double_slab", &[]));
-        assert_eq!(convert(&p, "minecraft:oak_planks", &[]).unwrap(), expect(&p, "minecraft:oak_planks", &[]));
-        assert_eq!(convert(&p, "minecraft:bricks", &[]).unwrap(), expect(&p, "minecraft:brick_block", &[]));
-        let leaves = convert(&p, "minecraft:oak_leaves", &[("distance", "3"), ("persistent", "true"), ("waterlogged", "false")]).unwrap();
-        assert_eq!(leaves, expect(&p, "minecraft:oak_leaves", &[("persistent_bit", StateValue::Int(1))]));
+        assert_eq!(
+            convert(&p, "minecraft:oak_planks", &[]).unwrap(),
+            expect(&p, "minecraft:oak_planks", &[])
+        );
+        assert_eq!(
+            convert(&p, "minecraft:bricks", &[]).unwrap(),
+            expect(&p, "minecraft:brick_block", &[])
+        );
+        let leaves = convert(
+            &p,
+            "minecraft:oak_leaves",
+            &[
+                ("distance", "3"),
+                ("persistent", "true"),
+                ("waterlogged", "false"),
+            ],
+        )
+        .unwrap();
+        assert_eq!(
+            leaves,
+            expect(
+                &p,
+                "minecraft:oak_leaves",
+                &[("persistent_bit", StateValue::Int(1))]
+            )
+        );
     }
 
     #[test]
@@ -1745,15 +2112,40 @@ mod tests {
     #[test]
     fn rotation_moves_facing_axis_and_sides() {
         let p = palette();
-        let stairs = props(&[("facing", "north"), ("half", "bottom"), ("shape", "straight")]);
+        let stairs = props(&[
+            ("facing", "north"),
+            ("half", "bottom"),
+            ("shape", "straight"),
+        ]);
         let ids = java_rotations(&p, "t", "minecraft:oak_stairs", &stairs).unwrap();
         // north -> east -> south -> west
-        let dir = |d: i32| expect(&p, "minecraft:oak_stairs", &[("weirdo_direction", StateValue::Int(d))]);
+        let dir = |d: i32| {
+            expect(
+                &p,
+                "minecraft:oak_stairs",
+                &[("weirdo_direction", StateValue::Int(d))],
+            )
+        };
         assert_eq!(ids, [dir(3), dir(0), dir(2), dir(1)]);
         let log = java_rotations(&p, "t", "minecraft:oak_log", &props(&[("axis", "x")])).unwrap();
         assert_eq!(log[0], log[2]);
-        assert_eq!(log[1], expect(&p, "minecraft:oak_log", &[("pillar_axis", StateValue::Str("z".into()))]));
-        let fence = rotate_java_properties(&props(&[("north", "true"), ("east", "false"), ("south", "false"), ("west", "false")]), 1);
+        assert_eq!(
+            log[1],
+            expect(
+                &p,
+                "minecraft:oak_log",
+                &[("pillar_axis", StateValue::Str("z".into()))]
+            )
+        );
+        let fence = rotate_java_properties(
+            &props(&[
+                ("north", "true"),
+                ("east", "false"),
+                ("south", "false"),
+                ("west", "false"),
+            ]),
+            1,
+        );
         assert_eq!(fence.get("east").map(String::as_str), Some("true"));
         assert_eq!(fence.get("north").map(String::as_str), Some("false"));
     }
@@ -1781,14 +2173,19 @@ mod tests {
     #[test]
     fn bedrock_states_rotate() {
         let mut d = BlockDescriptor::named("minecraft:jigsaw");
-        d.states.insert("facing_direction".into(), StateValue::Int(2));
+        d.states
+            .insert("facing_direction".into(), StateValue::Int(2));
         let r = rotate_bedrock("t", &d, 1).unwrap();
         assert_eq!(r.states["facing_direction"], StateValue::Int(5));
         let mut legacy = BlockDescriptor::named("minecraft:cocoa");
         legacy.states.insert("direction".into(), StateValue::Int(0));
-        assert_eq!(rotate_bedrock("t", &legacy, 1).unwrap().states["direction"], StateValue::Int(1));
+        assert_eq!(
+            rotate_bedrock("t", &legacy, 1).unwrap().states["direction"],
+            StateValue::Int(1)
+        );
         let mut vine = BlockDescriptor::named("minecraft:vine");
-        vine.states.insert("vine_direction_bits".into(), StateValue::Int(1));
+        vine.states
+            .insert("vine_direction_bits".into(), StateValue::Int(1));
         assert!(rotate_bedrock("t", &vine, 1).is_err());
         assert!(rotate_bedrock("t", &vine, 0).is_ok());
     }
@@ -1796,12 +2193,35 @@ mod tests {
     #[test]
     fn mushroom_faces_fold_into_bits() {
         let p = |pairs: &[(&str, &str)]| props(pairs);
-        let all = |v: &str| p(&[("north", v), ("east", v), ("south", v), ("west", v), ("up", v), ("down", v)]);
+        let all = |v: &str| {
+            p(&[
+                ("north", v),
+                ("east", v),
+                ("south", v),
+                ("west", v),
+                ("up", v),
+                ("down", v),
+            ])
+        };
         assert_eq!(mushroom_bits(&all("true"), false), 14);
         assert_eq!(mushroom_bits(&all("false"), false), 0);
-        let nw = p(&[("north", "true"), ("east", "false"), ("south", "false"), ("west", "true"), ("up", "true"), ("down", "false")]);
+        let nw = p(&[
+            ("north", "true"),
+            ("east", "false"),
+            ("south", "false"),
+            ("west", "true"),
+            ("up", "true"),
+            ("down", "false"),
+        ]);
         assert_eq!(mushroom_bits(&nw, false), 1);
-        let se = p(&[("north", "false"), ("east", "true"), ("south", "true"), ("west", "false"), ("up", "true"), ("down", "false")]);
+        let se = p(&[
+            ("north", "false"),
+            ("east", "true"),
+            ("south", "true"),
+            ("west", "false"),
+            ("up", "true"),
+            ("down", "false"),
+        ]);
         assert_eq!(mushroom_bits(&se, false), 9);
         assert_eq!(mushroom_bits(&all("true"), true), 15);
     }
@@ -1820,13 +2240,19 @@ mod tests {
     #[test]
     fn feature_names_resolve_to_nested_or_root_templates() {
         let mut files = BTreeMap::new();
-        files.insert("minecraft/sulfur_spring_small_1".to_owned(), PathBuf::from("a"));
+        files.insert(
+            "minecraft/sulfur_spring_small_1".to_owned(),
+            PathBuf::from("a"),
+        );
         files.insert("hot_air_balloon".to_owned(), PathBuf::from("b"));
         assert_eq!(
             template_location("minecraft:sulfur_spring_small_1", &files).as_deref(),
             Some("minecraft/sulfur_spring_small_1")
         );
-        assert_eq!(template_location("mystructure:hot_air_balloon", &files).as_deref(), Some("hot_air_balloon"));
+        assert_eq!(
+            template_location("mystructure:hot_air_balloon", &files).as_deref(),
+            Some("hot_air_balloon")
+        );
         assert_eq!(template_location("example:hot_air_balloon", &files), None);
     }
 }

@@ -17,7 +17,11 @@ use super::{Column, NoiseGradient, SurfaceColumn, is_liquid};
 
 /// Run the noise gradient builder; returns the lowest y of its window
 /// (`None` in a surface pass over a column without solid blocks).
-pub(super) fn build<C: SurfaceColumn>(col: &mut C, c: &Column<'_>, g: &NoiseGradient) -> Option<i32> {
+pub(super) fn build<C: SurfaceColumn>(
+    col: &mut C,
+    c: &Column<'_>,
+    g: &NoiseGradient,
+) -> Option<i32> {
     let (lo, hi) = if c.surface {
         let (top, _) = (c.lo..c.hi)
             .rev()
@@ -33,7 +37,11 @@ pub(super) fn build<C: SurfaceColumn>(col: &mut C, c: &Column<'_>, g: &NoiseGrad
             continue;
         }
         let n = c.noises.gradient(g, c.x, y, c.z);
-        if let Some(&(_, _, block)) = g.specifiers.iter().find(|&&(min, max, _)| n >= min as f64 && n <= max as f64) {
+        if let Some(&(_, _, block)) = g
+            .specifiers
+            .iter()
+            .find(|&&(min, max, _)| n >= min as f64 && n <= max as f64)
+        {
             col.set(y, block);
         }
     }
@@ -66,7 +74,10 @@ mod tests {
     };
 
     fn cave_biome(g: NoiseGradient) -> BiomeData {
-        BiomeData { subsurface: Some(Builder::NoiseGradient(g)), ..biome(Builder::NoiseGradient(g)) }
+        BiomeData {
+            subsurface: Some(Builder::NoiseGradient(g)),
+            ..biome(Builder::NoiseGradient(g))
+        }
     }
 
     #[test]
@@ -78,11 +89,19 @@ mod tests {
         for y in 0..10 {
             col.set(y, bb::AIR);
         }
-        build_column(&mut col, &input(&b, 3, 3), &noises, &mut BedrockRandom::new(0));
+        build_column(
+            &mut col,
+            &input(&b, 3, 3),
+            &noises,
+            &mut BedrockRandom::new(0),
+        );
         assert_eq!(col.get(-64), bb::BEDROCK);
         assert_eq!(col.count(|id| id == bb::STONE), 0);
         assert_eq!(col.count(|id| id == bb::AIR), 10 + (320 - 71));
-        assert_eq!(col.count(|id| id == bb::CALCITE), (71 + 64 - 1 - 10) as usize);
+        assert_eq!(
+            col.count(|id| id == bb::CALCITE),
+            (71 + 64 - 1 - 10) as usize
+        );
     }
 
     #[test]
@@ -90,7 +109,14 @@ mod tests {
         let b = cave_biome(SPLIT);
         let noises = SurfaceNoises::with_biomes(4, std::slice::from_ref(&b));
         let mut col = VecColumn::terrain(100, None);
-        build_range(&mut col, &input(&b, 0, 0), &noises, &mut BedrockRandom::new(0), -40, 40);
+        build_range(
+            &mut col,
+            &input(&b, 0, 0),
+            &noises,
+            &mut BedrockRandom::new(0),
+            -40,
+            40,
+        );
         for y in -40..40 {
             let n = noises.gradient(&SPLIT, 0, y, 0);
             let expected = if n <= 0.0 { bb::CALCITE } else { bb::TUFF };

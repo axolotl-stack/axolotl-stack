@@ -43,7 +43,12 @@ fn pick(list: &[u32], noise: f64) -> Option<u32> {
 }
 
 /// Run the capped builder; returns the lowest y it dressed.
-pub(super) fn build<C: SurfaceColumn>(col: &mut C, c: &Column<'_>, p: &Capped, rng: &mut BedrockRandom) -> Option<i32> {
+pub(super) fn build<C: SurfaceColumn>(
+    col: &mut C,
+    c: &Column<'_>,
+    p: &Capped,
+    rng: &mut BedrockRandom,
+) -> Option<i32> {
     // The builder has no top/mid materials; adjustments can still swap its
     // sea and foundation (applied column-wide, at sea level).
     let (mut sea, mut foundation) = (p.sea, p.foundation);
@@ -56,7 +61,9 @@ pub(super) fn build<C: SurfaceColumn>(col: &mut C, c: &Column<'_>, p: &Capped, r
     fill_sea(col, c, sea);
     let floor = pick(p.floor, c.noises.capped_floor(c.x, c.z));
     let ceiling = pick(p.ceiling, c.noises.capped_ceiling(c.x, c.z));
-    let beach = p.beach.filter(|_| c.noises.beach(c.x, c.z) > 0.15 + rng.next_float() as f64 * 0.35);
+    let beach = p
+        .beach
+        .filter(|_| c.noises.beach(c.x, c.z) > 0.15 + rng.next_float() as f64 * 0.35);
     let depth = c.depth;
     let open = |b: u32| bb::air(b) || is_liquid(b);
     let mut lowest: Option<i32> = None;
@@ -112,8 +119,17 @@ mod tests {
     static CEILING: [u32; 1] = [bb::CLAY];
 
     fn nether() -> BiomeData {
-        let builder = Builder::Capped { floor: &FLOOR, ceiling: &CEILING, sea: bb::LAVA, foundation: bb::DEEPSLATE, beach: None };
-        BiomeData { overworld: false, ..biome(builder) }
+        let builder = Builder::Capped {
+            floor: &FLOOR,
+            ceiling: &CEILING,
+            sea: bb::LAVA,
+            foundation: bb::DEEPSLATE,
+            beach: None,
+        };
+        BiomeData {
+            overworld: false,
+            ..biome(builder)
+        }
     }
 
     #[test]
@@ -127,7 +143,10 @@ mod tests {
                 col.set(y, bb::AIR);
             }
             let mut rng = BedrockRandom::new(x as u32);
-            let inp = ColumnInput { sea_level: 32, ..input(&b, x * 9, 0) };
+            let inp = ColumnInput {
+                sea_level: 32,
+                ..input(&b, x * 9, 0)
+            };
             let depth = Column::new(&inp, &noises, &mut rng.clone(), -64, 320, true).depth;
             build_column(&mut col, &inp, &noises, &mut rng);
             assert!((10..32).all(|y| col.get(y) == bb::LAVA));
@@ -141,7 +160,10 @@ mod tests {
                 assert_eq!(col.get(floor_top - depth), bb::DEEPSLATE);
             }
             for ceiling_bottom in [81, 41] {
-                assert!((ceiling_bottom..ceiling_bottom + depth).all(|y| col.get(y) == bb::CLAY), "x {x}");
+                assert!(
+                    (ceiling_bottom..ceiling_bottom + depth).all(|y| col.get(y) == bb::CLAY),
+                    "x {x}"
+                );
             }
             // The roof's top surface is a floor too (open sky above).
             let top = col.get(127);

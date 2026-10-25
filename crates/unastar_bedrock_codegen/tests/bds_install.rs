@@ -5,13 +5,15 @@
 //! message) when it is not set.
 
 use std::path::PathBuf;
-use unastar_bedrock_codegen::packs::{Family, PackStack};
+use unastar_packs::packs::{Family, PackStack};
 
 fn bds_dir() -> Option<PathBuf> {
     match std::env::var_os("UNASTAR_BDS_DIR") {
         Some(dir) => Some(PathBuf::from(dir)),
         None => {
-            eprintln!("skipping: UNASTAR_BDS_DIR is not set (point it at a BDS 1.26.51 server directory)");
+            eprintln!(
+                "skipping: UNASTAR_BDS_DIR is not set (point it at a BDS 1.26.51 server directory)"
+            );
             None
         }
     }
@@ -56,10 +58,21 @@ fn every_document_parses_and_every_reachable_feature_resolves() {
     let active = model.active_rules();
     assert_eq!(active.len(), 181);
     let reachable = model.reachable_features(BUILTIN_FEATURES).unwrap();
-    let builtins: Vec<_> = reachable.iter().filter(|f| !model.features.contains_key(*f)).collect();
-    assert_eq!(builtins.len(), BUILTIN_FEATURES.len(), "every listed built-in is reachable");
+    let builtins: Vec<_> = reachable
+        .iter()
+        .filter(|f| !model.features.contains_key(*f))
+        .collect();
+    assert_eq!(
+        builtins.len(),
+        BUILTIN_FEATURES.len(),
+        "every listed built-in is reachable"
+    );
     // Dropping one built-in from the registry must fail resolution.
-    let missing: Vec<&str> = BUILTIN_FEATURES.iter().copied().filter(|f| *f != "minecraft:kelp_feature").collect();
+    let missing: Vec<&str> = BUILTIN_FEATURES
+        .iter()
+        .copied()
+        .filter(|f| *f != "minecraft:kelp_feature")
+        .collect();
     let err = model.reachable_features(&missing).unwrap_err().to_string();
     assert!(err.contains("minecraft:kelp_feature"), "{err}");
 }
@@ -71,10 +84,16 @@ fn the_whole_stack_compiles_to_parseable_rust() {
     let model = Model::load(&dir, &native_dir()).unwrap();
     let (_, report) = unastar_bedrock_codegen::emit::generate(&model).unwrap();
     assert_eq!(report.rules, 181);
-    assert_eq!(report.builtins, unastar_bedrock_codegen::builtin::BUILTIN_FEATURES.len());
+    assert_eq!(
+        report.builtins,
+        unastar_bedrock_codegen::builtin::BUILTIN_FEATURES.len()
+    );
     assert_eq!(report.biomes, model.overworld_biomes().count());
     assert_eq!(
         report.features + report.builtins,
-        model.reachable_features(unastar_bedrock_codegen::builtin::BUILTIN_FEATURES).unwrap().len()
+        model
+            .reachable_features(unastar_bedrock_codegen::builtin::BUILTIN_FEATURES)
+            .unwrap()
+            .len()
     );
 }

@@ -115,7 +115,14 @@ fn descend_to_ground<W: BlockWorld>(ctx: &Ctx<'_, W>, pos: BlockPos) -> BlockPos
     p
 }
 
-const NEIGHBOURS_6: [(i32, i32, i32); 6] = [(1, 0, 0), (-1, 0, 0), (0, 1, 0), (0, -1, 0), (0, 0, 1), (0, 0, -1)];
+const NEIGHBOURS_6: [(i32, i32, i32); 6] = [
+    (1, 0, 0),
+    (-1, 0, 0),
+    (0, 1, 0),
+    (0, -1, 0),
+    (0, 0, 1),
+    (0, 0, -1),
+];
 
 // ---------------------------------------------------------------------------
 // Spikes (pointed dripstone and sulfur spikes)
@@ -244,9 +251,16 @@ fn grow_spike<W: BlockWorld>(
         room += 1;
     }
     let merge = merge && room == len;
-    let row = if dy < 0 { &states.hanging } else { &states.standing };
+    let row = if dy < 0 {
+        &states.hanging
+    } else {
+        &states.standing
+    };
     for i in 0..room {
-        ctx.set(start.offset(0, dy * i, 0), row[thickness_at(i, room, merge) as usize]);
+        ctx.set(
+            start.offset(0, dy * i, 0),
+            row[thickness_at(i, room, merge) as usize],
+        );
     }
     room
 }
@@ -277,14 +291,32 @@ const PATCH_RADIUS_3: f32 = 0.5;
 /// (20 % taller); here every further segment has the same 20 % chance, capped
 /// at 4, which keeps vanilla's 1/2 ratio and lets the rare longer ones BDS
 /// shows appear.
-fn place_small_spike<W: BlockWorld>(ctx: &mut Ctx<'_, W>, pos: BlockPos, kind: &SpikeKind) -> Option<BlockPos> {
+fn place_small_spike<W: BlockWorld>(
+    ctx: &mut Ctx<'_, W>,
+    pos: BlockPos,
+    kind: &SpikeKind,
+) -> Option<BlockPos> {
     if !is_empty_or_water(ctx.get(pos)) {
         return None;
     }
     // The feature receives a point in open space (the snap moves it beside a
     // wall); it attaches to the nearest ceiling/floor within the snap range.
-    let ceiling = scan_edge(ctx, pos, 1, SMALL_SPIKE_SEARCH, is_empty_or_water, kind.attach);
-    let floor = scan_edge(ctx, pos, -1, SMALL_SPIKE_SEARCH, is_empty_or_water, kind.attach);
+    let ceiling = scan_edge(
+        ctx,
+        pos,
+        1,
+        SMALL_SPIKE_SEARCH,
+        is_empty_or_water,
+        kind.attach,
+    );
+    let floor = scan_edge(
+        ctx,
+        pos,
+        -1,
+        SMALL_SPIKE_SEARCH,
+        is_empty_or_water,
+        kind.attach,
+    );
     let (root_y, dy) = match (ceiling, floor) {
         (Some(c), Some(f)) => {
             if ctx.rng.next_int(2) == 0 {
@@ -347,18 +379,36 @@ const CLUSTER_BIAS_DISTANCE: f32 = 8.0;
 /// 0.1 on the rim rising to 1 three blocks inside.
 fn column_chance(x_radius: i32, z_radius: i32, dx: i32, dz: i32) -> f32 {
     let to_edge = (x_radius - dx.abs()).min(z_radius - dz.abs());
-    clamped_map(to_edge as f32, 0.0, CLUSTER_EDGE_DISTANCE, CLUSTER_EDGE_CHANCE, 1.0)
+    clamped_map(
+        to_edge as f32,
+        0.0,
+        CLUSTER_EDGE_DISTANCE,
+        CLUSTER_EDGE_CHANCE,
+        1.0,
+    )
 }
 
 /// Spike length in a cluster column: 0 with probability `1 - density`, else a
 /// clamped normal around a bias that is `max_height / 2` at the centre and 0
 /// eight blocks (taxicab) out.
-fn cluster_spike_height(rng: &mut BedrockRandom, dx: i32, dz: i32, density: f32, max_height: i32) -> i32 {
+fn cluster_spike_height(
+    rng: &mut BedrockRandom,
+    dx: i32,
+    dz: i32,
+    density: f32,
+    max_height: i32,
+) -> i32 {
     if max_height <= 0 || rng.next_float() > density {
         return 0;
     }
     let distance = (dx.abs() + dz.abs()) as f32;
-    let bias = clamped_map(distance, 0.0, CLUSTER_BIAS_DISTANCE, max_height as f32 / 2.0, 0.0);
+    let bias = clamped_map(
+        distance,
+        0.0,
+        CLUSTER_BIAS_DISTANCE,
+        max_height as f32 / 2.0,
+        0.0,
+    );
     clamped_normal(rng, bias, CLUSTER_HEIGHT_DEVIATION, 0.0, max_height as f32) as i32
 }
 
@@ -366,15 +416,28 @@ fn cluster_spike_height(rng: &mut BedrockRandom, dx: i32, dz: i32, density: f32,
 /// is enclosed by water-holding blocks on all sides and below.
 fn can_place_pool<W: BlockWorld>(ctx: &Ctx<'_, W>, at: BlockPos) -> bool {
     let id = ctx.get(at);
-    if bb::water(id) || id == bb::DRIPSTONE_BLOCK || bb::pointed_dripstone(id) || bb::water(ctx.get(at.above())) {
+    if bb::water(id)
+        || id == bb::DRIPSTONE_BLOCK
+        || bb::pointed_dripstone(id)
+        || bb::water(ctx.get(at.above()))
+    {
         return false;
     }
-    Direction::ALL.iter().all(|&d| holds_water(ctx.get(at.side(d)))) && holds_water(ctx.get(at.below()))
+    Direction::ALL
+        .iter()
+        .all(|&d| holds_water(ctx.get(at.side(d))))
+        && holds_water(ctx.get(at.below()))
 }
 
 /// Replaces up to `thickness` blocks from `start` along `dy` with the family
 /// block, stopping at the first block it may not replace.
-fn replace_layer<W: BlockWorld>(ctx: &mut Ctx<'_, W>, start: BlockPos, dy: i32, thickness: i32, kind: &SpikeKind) -> bool {
+fn replace_layer<W: BlockWorld>(
+    ctx: &mut Ctx<'_, W>,
+    start: BlockPos,
+    dy: i32,
+    thickness: i32,
+    kind: &SpikeKind,
+) -> bool {
     let mut placed = false;
     for i in 0..thickness {
         if !place_base_block(ctx, start.offset(0, dy * i, 0), kind) {
@@ -405,8 +468,22 @@ fn cluster_column<W: BlockWorld>(
     if !is_empty_or_water(ctx.get(col)) {
         return false;
     }
-    let ceiling = scan_edge(ctx, col, 1, CLUSTER_SEARCH, is_empty_or_water, is_column_edge);
-    let mut floor = scan_edge(ctx, col, -1, CLUSTER_SEARCH, is_empty_or_water, is_column_edge);
+    let ceiling = scan_edge(
+        ctx,
+        col,
+        1,
+        CLUSTER_SEARCH,
+        is_empty_or_water,
+        is_column_edge,
+    );
+    let mut floor = scan_edge(
+        ctx,
+        col,
+        -1,
+        CLUSTER_SEARCH,
+        is_empty_or_water,
+        is_column_edge,
+    );
     if ceiling.is_none() && floor.is_none() {
         return false;
     }
@@ -434,7 +511,9 @@ fn cluster_column<W: BlockWorld>(
     if let Some(c) = ceiling {
         let at = BlockPos::new(col.x, c, col.z);
         if grow_down && !bb::lava(ctx.get(at)) {
-            let thickness = ctx.rng.next_int_inclusive(CLUSTER_LAYER_THICKNESS.0, CLUSTER_LAYER_THICKNESS.1);
+            let thickness = ctx
+                .rng
+                .next_int_inclusive(CLUSTER_LAYER_THICKNESS.0, CLUSTER_LAYER_THICKNESS.1);
             placed |= replace_layer(ctx, at, 1, thickness, kind);
             down = cluster_spike_height(ctx.rng, dx, dz, roll.density, max_height);
             if !(kind.attach)(ctx.get(at)) {
@@ -446,12 +525,16 @@ fn cluster_column<W: BlockWorld>(
     if let Some(f) = floor {
         let at = BlockPos::new(col.x, f, col.z);
         if grow_up && !bb::lava(ctx.get(at)) {
-            let thickness = ctx.rng.next_int_inclusive(CLUSTER_LAYER_THICKNESS.0, CLUSTER_LAYER_THICKNESS.1);
+            let thickness = ctx
+                .rng
+                .next_int_inclusive(CLUSTER_LAYER_THICKNESS.0, CLUSTER_LAYER_THICKNESS.1);
             placed |= replace_layer(ctx, at, -1, thickness, kind);
             // A stalagmite under a stalactite mirrors its length within the
             // allowed difference; a lone one draws its own.
             up = if down > 0 {
-                let diff = ctx.rng.next_int_inclusive(-CLUSTER_MAX_HEIGHT_DIFF, CLUSTER_MAX_HEIGHT_DIFF);
+                let diff = ctx
+                    .rng
+                    .next_int_inclusive(-CLUSTER_MAX_HEIGHT_DIFF, CLUSTER_MAX_HEIGHT_DIFF);
                 (down + diff).clamp(0, max_height)
             } else {
                 cluster_spike_height(ctx.rng, dx, dz, roll.density, max_height)
@@ -485,12 +568,26 @@ fn cluster_column<W: BlockWorld>(
     if let Some(c) = ceiling
         && down > 0
     {
-        placed |= grow_spike(ctx, BlockPos::new(col.x, c - 1, col.z), -1, down, merge, kind.states) > 0;
+        placed |= grow_spike(
+            ctx,
+            BlockPos::new(col.x, c - 1, col.z),
+            -1,
+            down,
+            merge,
+            kind.states,
+        ) > 0;
     }
     if let Some(f) = floor
         && up > 0
     {
-        placed |= grow_spike(ctx, BlockPos::new(col.x, f + 1, col.z), 1, up, merge, kind.states) > 0;
+        placed |= grow_spike(
+            ctx,
+            BlockPos::new(col.x, f + 1, col.z),
+            1,
+            up,
+            merge,
+            kind.states,
+        ) > 0;
     }
     placed
 }
@@ -498,11 +595,18 @@ fn cluster_column<W: BlockWorld>(
 /// Vanilla dripstone cluster algorithm for a spike family: a rectangle of
 /// columns, each scanning for its floor and ceiling, coating them with the
 /// family block and growing paired spikes (pools only when `pools`).
-fn place_cluster<W: BlockWorld>(ctx: &mut Ctx<'_, W>, pos: BlockPos, kind: &SpikeKind, pools: bool) -> Option<BlockPos> {
+fn place_cluster<W: BlockWorld>(
+    ctx: &mut Ctx<'_, W>,
+    pos: BlockPos,
+    kind: &SpikeKind,
+    pools: bool,
+) -> Option<BlockPos> {
     if !is_empty_or_water(ctx.get(pos)) {
         return None;
     }
-    let height = ctx.rng.next_int_inclusive(CLUSTER_HEIGHT.0, CLUSTER_HEIGHT.1);
+    let height = ctx
+        .rng
+        .next_int_inclusive(CLUSTER_HEIGHT.0, CLUSTER_HEIGHT.1);
     let wetness = if pools {
         let (mean, deviation, lo, hi) = CLUSTER_WETNESS;
         clamped_normal(ctx.rng, mean, deviation, lo, hi)
@@ -510,9 +614,17 @@ fn place_cluster<W: BlockWorld>(ctx: &mut Ctx<'_, W>, pos: BlockPos, kind: &Spik
         0.0
     };
     let density = uniform(ctx.rng, CLUSTER_DENSITY.0, CLUSTER_DENSITY.1);
-    let roll = ClusterRoll { height, wetness, density };
-    let x_radius = ctx.rng.next_int_inclusive(CLUSTER_RADIUS.0, CLUSTER_RADIUS.1);
-    let z_radius = ctx.rng.next_int_inclusive(CLUSTER_RADIUS.0, CLUSTER_RADIUS.1);
+    let roll = ClusterRoll {
+        height,
+        wetness,
+        density,
+    };
+    let x_radius = ctx
+        .rng
+        .next_int_inclusive(CLUSTER_RADIUS.0, CLUSTER_RADIUS.1);
+    let z_radius = ctx
+        .rng
+        .next_int_inclusive(CLUSTER_RADIUS.0, CLUSTER_RADIUS.1);
     let mut placed = false;
     for dx in -x_radius..=x_radius {
         for dz in -z_radius..=z_radius {
@@ -561,12 +673,20 @@ struct Wind {
 }
 
 impl Wind {
-    const NONE: Wind = Wind { origin_y: 0, vx: 0.0, vz: 0.0 };
+    const NONE: Wind = Wind {
+        origin_y: 0,
+        vx: 0.0,
+        vz: 0.0,
+    };
 
     fn new(origin_y: i32, rng: &mut BedrockRandom) -> Wind {
         let speed = uniform(rng, LARGE_WIND_SPEED.0, LARGE_WIND_SPEED.1);
         let angle = uniform(rng, 0.0, PI);
-        Wind { origin_y, vx: angle.cos() * speed, vz: angle.sin() * speed }
+        Wind {
+            origin_y,
+            vx: angle.cos() * speed,
+            vz: angle.sin() * speed,
+        }
     }
 
     fn offset(self, p: BlockPos) -> BlockPos {
@@ -574,7 +694,11 @@ impl Wind {
             return p;
         }
         let k = (self.origin_y - p.y) as f32;
-        p.offset((self.vx * k).floor() as i32, 0, (self.vz * k).floor() as i32)
+        p.offset(
+            (self.vx * k).floor() as i32,
+            0,
+            (self.vz * k).floor() as i32,
+        )
     }
 }
 
@@ -657,7 +781,11 @@ impl LargeDripstone {
                     h = (h as f32 * uniform(ctx.rng, 0.8, 1.0)) as i32;
                 }
                 let mut at = self.root.offset(dx, 0, dz);
-                let max_y = if self.pointing_up { ctx.heightmap(at.x, at.z) } else { i32::MAX };
+                let max_y = if self.pointing_up {
+                    ctx.heightmap(at.x, at.z)
+                } else {
+                    i32::MAX
+                };
                 let mut started = false;
                 for _ in 0..h {
                     if at.y >= max_y {
@@ -721,7 +849,8 @@ fn cap_bits(dx: i32, dz: i32, r: i32, cut_corners: bool, top: bool) -> Option<u8
     if cut_corners && (west || east) && (north || south) {
         return None;
     }
-    let mut bits = 5 - i32::from(west) + i32::from(east) - 3 * i32::from(north) + 3 * i32::from(south);
+    let mut bits =
+        5 - i32::from(west) + i32::from(east) - 3 * i32::from(north) + 3 * i32::from(south);
     if cut_corners {
         let (near_w, near_e, near_n, near_s) = (dx == 1 - r, dx == r - 1, dz == 1 - r, dz == r - 1);
         if (near_w && north) || (west && near_n) {
@@ -840,7 +969,9 @@ pub fn desert_well_feature<W: BlockWorld>(ctx: &mut Ctx<'_, W>, pos: BlockPos) -
     }
     for dx in -2..=2 {
         for dz in -2..=2 {
-            if bb::air(ctx.get(ground.offset(dx, -1, dz))) && bb::air(ctx.get(ground.offset(dx, -2, dz))) {
+            if bb::air(ctx.get(ground.offset(dx, -1, dz)))
+                && bb::air(ctx.get(ground.offset(dx, -2, dz)))
+            {
                 return None;
             }
         }
@@ -867,7 +998,10 @@ pub fn desert_well_feature<W: BlockWorld>(ctx: &mut Ctx<'_, W>, pos: BlockPos) -
 /// them with 2-4 dripstone blocks, sometimes sink a one-block pool, and grow
 /// stalactite/stalagmite pairs (2-6 high, longest near the centre, merged
 /// when they meet).
-pub fn dripstone_cluster_feature<W: BlockWorld>(ctx: &mut Ctx<'_, W>, pos: BlockPos) -> Option<BlockPos> {
+pub fn dripstone_cluster_feature<W: BlockWorld>(
+    ctx: &mut Ctx<'_, W>,
+    pos: BlockPos,
+) -> Option<BlockPos> {
     place_cluster(ctx, pos, &DRIPSTONE_KIND, true)
 }
 
@@ -878,7 +1012,10 @@ pub fn dripstone_cluster_feature<W: BlockWorld>(ctx: &mut Ctx<'_, W>, pos: Block
 /// are a 3x3 top over three hollow radius-2 side layers. Faces carry the
 /// [`cap_bits`] values, the stem is `mushroom_stem` with bits 10 (stem sides).
 /// Blocks are only written where the current block is not opaque.
-pub fn huge_mushroom_feature<W: BlockWorld>(ctx: &mut Ctx<'_, W>, pos: BlockPos) -> Option<BlockPos> {
+pub fn huge_mushroom_feature<W: BlockWorld>(
+    ctx: &mut Ctx<'_, W>,
+    pos: BlockPos,
+) -> Option<BlockPos> {
     let red = ctx.rng.next_int(2) == 1;
     let mut height = ctx.rng.next_int(3) + 4;
     if ctx.rng.next_int(12) == 0 {
@@ -902,7 +1039,11 @@ pub fn huge_mushroom_feature<W: BlockWorld>(ctx: &mut Ctx<'_, W>, pos: BlockPos)
         }
     }
     let top = pos.y + height;
-    let (cap, first) = if red { (&RED_CAP, top - 3) } else { (&BROWN_CAP, top) };
+    let (cap, first) = if red {
+        (&RED_CAP, top - 3)
+    } else {
+        (&BROWN_CAP, top)
+    };
     for y in first..=top {
         let is_top = y == top;
         let r = match (red, is_top) {
@@ -952,7 +1093,11 @@ pub fn ice_patch_feature<W: BlockWorld>(ctx: &mut Ctx<'_, W>, pos: BlockPos) -> 
             for dy in -1..=1 {
                 let at = ground.offset(dx, dy, dz);
                 let id = ctx.get(at);
-                if bb::dirt_like(id) || id == bb::GRASS_BLOCK || id == bb::SNOW_BLOCK || id == bb::ICE {
+                if bb::dirt_like(id)
+                    || id == bb::GRASS_BLOCK
+                    || id == bb::SNOW_BLOCK
+                    || id == bb::ICE
+                {
                     placed |= ctx.set(at, bb::PACKED_ICE);
                 }
             }
@@ -1011,7 +1156,11 @@ pub fn ice_spike_feature<W: BlockWorld>(ctx: &mut Ctx<'_, W>, pos: BlockPos) -> 
     for dx in -root..=root {
         for dz in -root..=root {
             let mut at = base.offset(dx, -1, dz);
-            let mut run = if dx.abs() == 1 && dz.abs() == 1 { ctx.rng.next_int(5) } else { 50 };
+            let mut run = if dx.abs() == 1 && dz.abs() == 1 {
+                ctx.rng.next_int(5)
+            } else {
+                50
+            };
             while at.y > ICE_SPIKE_ROOT_FLOOR {
                 let id = ctx.get(at);
                 if !(ice_spike_replaceable(id) || id == bb::PACKED_ICE) {
@@ -1038,7 +1187,10 @@ pub fn ice_spike_feature<W: BlockWorld>(ctx: &mut Ctx<'_, W>, pos: BlockPos) -> 
 /// stalagmite cone (see [`cone_height`]) of dripstone blocks, each first sunk
 /// into the rock until its base circle is embedded, leaning with a random wind
 /// when the radius is at least 4.
-pub fn large_dripstone_feature<W: BlockWorld>(ctx: &mut Ctx<'_, W>, pos: BlockPos) -> Option<BlockPos> {
+pub fn large_dripstone_feature<W: BlockWorld>(
+    ctx: &mut Ctx<'_, W>,
+    pos: BlockPos,
+) -> Option<BlockPos> {
     if !is_empty_or_fluid(ctx.get(pos)) {
         return None;
     }
@@ -1049,24 +1201,37 @@ pub fn large_dripstone_feature<W: BlockWorld>(ctx: &mut Ctx<'_, W>, pos: BlockPo
     if gap < 4 {
         return None;
     }
-    let radius_max = ((gap as f32 * LARGE_MAX_RADIUS_TO_HEIGHT) as i32).clamp(LARGE_RADIUS.0, LARGE_RADIUS.1);
+    let radius_max =
+        ((gap as f32 * LARGE_MAX_RADIUS_TO_HEIGHT) as i32).clamp(LARGE_RADIUS.0, LARGE_RADIUS.1);
     let radius = ctx.rng.next_int_inclusive(LARGE_RADIUS.0, radius_max);
     let mut stalactite = LargeDripstone {
         root: BlockPos::new(pos.x, ceiling - 1, pos.z),
         pointing_up: false,
         radius,
-        bluntness: uniform(ctx.rng, LARGE_STALACTITE_BLUNTNESS.0, LARGE_STALACTITE_BLUNTNESS.1),
+        bluntness: uniform(
+            ctx.rng,
+            LARGE_STALACTITE_BLUNTNESS.0,
+            LARGE_STALACTITE_BLUNTNESS.1,
+        ),
         scale: uniform(ctx.rng, LARGE_HEIGHT_SCALE.0, LARGE_HEIGHT_SCALE.1),
     };
     let mut stalagmite = LargeDripstone {
         root: BlockPos::new(pos.x, floor + 1, pos.z),
         pointing_up: true,
         radius,
-        bluntness: uniform(ctx.rng, LARGE_STALAGMITE_BLUNTNESS.0, LARGE_STALAGMITE_BLUNTNESS.1),
+        bluntness: uniform(
+            ctx.rng,
+            LARGE_STALAGMITE_BLUNTNESS.0,
+            LARGE_STALAGMITE_BLUNTNESS.1,
+        ),
         scale: uniform(ctx.rng, LARGE_HEIGHT_SCALE.0, LARGE_HEIGHT_SCALE.1),
     };
     // Vanilla's minimum bluntness for wind is 0, so only the radius gates it.
-    let wind = if radius >= LARGE_MIN_RADIUS_FOR_WIND { Wind::new(pos.y, ctx.rng) } else { Wind::NONE };
+    let wind = if radius >= LARGE_MIN_RADIUS_FOR_WIND {
+        Wind::new(pos.y, ctx.rng)
+    } else {
+        Wind::NONE
+    };
     let mut placed = false;
     if stalactite.anchor(ctx, wind) {
         placed |= stalactite.place(ctx, wind);
@@ -1081,7 +1246,10 @@ pub fn large_dripstone_feature<W: BlockWorld>(ctx: &mut Ctx<'_, W>, pos: BlockPo
 /// `small_dripstone_snap_to_surface_feature`): one small pointed dripstone on
 /// the nearest floor or ceiling within 12 blocks, over a random patch of
 /// dripstone blocks (see `place_small_spike`).
-pub fn pointed_dripstone_feature<W: BlockWorld>(ctx: &mut Ctx<'_, W>, pos: BlockPos) -> Option<BlockPos> {
+pub fn pointed_dripstone_feature<W: BlockWorld>(
+    ctx: &mut Ctx<'_, W>,
+    pos: BlockPos,
+) -> Option<BlockPos> {
     place_small_spike(ctx, pos, &DRIPSTONE_KIND)
 }
 
@@ -1116,7 +1284,11 @@ pub fn sulfur_pool<W: BlockWorld>(ctx: &mut Ctx<'_, W>, pos: BlockPos) -> Option
     }
     // Depth of the cell at offset (dx, dz), 0 outside the grid.
     let cell = |depth: &[[i32; POOL_GRID]; POOL_GRID], dx: i32, dz: i32| -> i32 {
-        if dx.abs() > c || dz.abs() > c { 0 } else { depth[(dx + c) as usize][(dz + c) as usize] }
+        if dx.abs() > c || dz.abs() > c {
+            0
+        } else {
+            depth[(dx + c) as usize][(dz + c) as usize]
+        }
     };
     // Drop cells that cannot hold water until nothing changes; each pass
     // removes at least one of the at most 81 cells.
@@ -1141,7 +1313,8 @@ pub fn sulfur_pool<W: BlockWorld>(ctx: &mut Ctx<'_, W>, pos: BlockPos) -> Option
                             break;
                         }
                         let (sx, sz) = dir.delta();
-                        ok = cell(&depth, dx + sx, dz + sz) > i || holds_water(ctx.get(at.side(dir)));
+                        ok = cell(&depth, dx + sx, dz + sz) > i
+                            || holds_water(ctx.get(at.side(dir)));
                     }
                 }
                 if !ok {
@@ -1189,7 +1362,10 @@ pub fn sulfur_pool<W: BlockWorld>(ctx: &mut Ctx<'_, W>, pos: BlockPos) -> Option
 /// pointed dripstone states): the vanilla cluster algorithm with sulfur as
 /// the coating block and sulfur spikes, without pools (sulfur caves get their
 /// water from `sulfur_pool`).
-pub fn sulfur_spike_cluster_feature<W: BlockWorld>(ctx: &mut Ctx<'_, W>, pos: BlockPos) -> Option<BlockPos> {
+pub fn sulfur_spike_cluster_feature<W: BlockWorld>(
+    ctx: &mut Ctx<'_, W>,
+    pos: BlockPos,
+) -> Option<BlockPos> {
     place_cluster(ctx, pos, &SULFUR_KIND, false)
 }
 
@@ -1197,7 +1373,10 @@ pub fn sulfur_spike_cluster_feature<W: BlockWorld>(ctx: &mut Ctx<'_, W>, pos: Bl
 /// the counterpart of the small dripstone rule): inferred as a small spike
 /// (see `place_small_spike`) of sulfur spikes growing from sulfur, cinnabar or
 /// base stone, with a sulfur patch around its base.
-pub fn sulfur_spike_feature<W: BlockWorld>(ctx: &mut Ctx<'_, W>, pos: BlockPos) -> Option<BlockPos> {
+pub fn sulfur_spike_feature<W: BlockWorld>(
+    ctx: &mut Ctx<'_, W>,
+    pos: BlockPos,
+) -> Option<BlockPos> {
     place_small_spike(ctx, pos, &SULFUR_KIND)
 }
 
@@ -1263,7 +1442,10 @@ mod tests {
         assert_eq!(order(2, false), [Frustum, Tip]);
         assert_eq!(order(3, false), [Base, Frustum, Tip]);
         assert_eq!(order(4, false), [Base, Middle, Frustum, Tip]);
-        assert_eq!(order(6, false), [Base, Middle, Middle, Middle, Frustum, Tip]);
+        assert_eq!(
+            order(6, false),
+            [Base, Middle, Middle, Middle, Frustum, Tip]
+        );
         assert_eq!(order(3, true), [Base, Frustum, Merge]);
         assert_eq!(order(1, true), [Merge]);
     }
@@ -1284,7 +1466,10 @@ mod tests {
         assert_eq!(cap_bits(3, 0, 3, true, true), Some(6));
         assert_eq!(cap_bits(0, 3, 3, true, true), Some(8));
         assert_eq!(cap_bits(1, 1, 3, true, true), Some(5));
-        let placed = (-3..=3).flat_map(|x| (-3..=3).map(move |z| (x, z))).filter(|&(x, z)| cap_bits(x, z, 3, true, true).is_some()).count();
+        let placed = (-3..=3)
+            .flat_map(|x| (-3..=3).map(move |z| (x, z)))
+            .filter(|&(x, z)| cap_bits(x, z, 3, true, true).is_some())
+            .count();
         assert_eq!(placed, 49 - 4);
     }
 
@@ -1303,7 +1488,10 @@ mod tests {
         assert_eq!(cap_bits(-1, -2, 2, true, false), Some(1));
         assert_eq!(cap_bits(0, -2, 2, true, false), Some(2));
         assert_eq!(cap_bits(2, 1, 2, true, false), Some(9));
-        let ring = (-2..=2).flat_map(|x| (-2..=2).map(move |z| (x, z))).filter(|&(x, z)| cap_bits(x, z, 2, true, false).is_some()).count();
+        let ring = (-2..=2)
+            .flat_map(|x| (-2..=2).map(move |z| (x, z)))
+            .filter(|&(x, z)| cap_bits(x, z, 2, true, false).is_some())
+            .count();
         assert_eq!(ring, 12);
         // Every placed value is a valid cap face (1..=9).
         for r in 1..=3 {
@@ -1338,7 +1526,10 @@ mod tests {
     #[test]
     fn large_dripstone_cone_profile() {
         let (max_r, scale, blunt) = (8.0, 1.0, 0.5);
-        assert!(cone_height(max_r, max_r, scale, blunt) < 0.5, "cone reaches ~0 at the rim");
+        assert!(
+            cone_height(max_r, max_r, scale, blunt) < 0.5,
+            "cone reaches ~0 at the rim"
+        );
         let mut last = f32::INFINITY;
         for i in 0..=16 {
             let h = cone_height(i as f32 * 0.5, max_r, scale, blunt);
@@ -1346,7 +1537,10 @@ mod tests {
             last = h;
         }
         // Bluntness flattens the tip: below it the height is constant.
-        assert_eq!(cone_height(0.0, max_r, scale, blunt), cone_height(0.4, max_r, scale, blunt));
+        assert_eq!(
+            cone_height(0.0, max_r, scale, blunt),
+            cone_height(0.4, max_r, scale, blunt)
+        );
         assert!(cone_height(0.0, max_r, 2.0, blunt) > cone_height(0.0, max_r, 1.0, blunt));
     }
 
@@ -1358,7 +1552,10 @@ mod tests {
                 for dz in -2..=2 {
                     match well_part(dx, dy, dz) {
                         Some(p) => {
-                            assert!((-1..=4).contains(&dy), "well block outside its 6 layers at dy {dy}");
+                            assert!(
+                                (-1..=4).contains(&dy),
+                                "well block outside its 6 layers at dy {dy}"
+                            );
                             counts[p as usize] += 1;
                         }
                         None => assert!(dy != -1 && dy != 0, "base layers are solid"),

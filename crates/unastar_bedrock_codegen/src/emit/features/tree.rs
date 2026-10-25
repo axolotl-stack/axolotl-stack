@@ -63,8 +63,14 @@ pub fn emit(em: &mut Emitter<'_>, o: &Obj<'_>) -> Result<TokenStream> {
     let palette = &model.palette;
     let mut items = Vec::new();
 
-    let grow_on = em.matches(quote!(b), &block_set(palette, origin, o.req("may_grow_on")?)?);
-    let replace = em.matches(quote!(b), &block_set(palette, origin, o.req("may_replace")?)?);
+    let grow_on = em.matches(
+        quote!(b),
+        &block_set(palette, origin, o.req("may_grow_on")?)?,
+    );
+    let replace = em.matches(
+        quote!(b),
+        &block_set(palette, origin, o.req("may_replace")?)?,
+    );
     items.push(quote! {
         fn may_grow_on(b: u32) -> bool { #grow_on }
         fn may_replace(b: u32) -> bool { #replace }
@@ -74,7 +80,11 @@ pub fn emit(em: &mut Emitter<'_>, o: &Obj<'_>) -> Result<TokenStream> {
             let test = em.matches(quote!(b), &block_set(palette, origin, v)?);
             quote!(fn may_grow_through(b: u32) -> bool { #test })
         }
-        None => quote!(fn may_grow_through(_: u32) -> bool { false }),
+        None => quote!(
+            fn may_grow_through(_: u32) -> bool {
+                false
+            }
+        ),
     });
 
     let base_list = match o.req("base_block")? {
@@ -111,21 +121,44 @@ pub fn emit(em: &mut Emitter<'_>, o: &Obj<'_>) -> Result<TokenStream> {
         None => quote!(None),
     };
 
-    let canopy_keys: Vec<&'static str> = CANOPIES.iter().copied().filter(|&k| o.opt(k).is_some()).collect();
+    let canopy_keys: Vec<&'static str> = CANOPIES
+        .iter()
+        .copied()
+        .filter(|&k| o.opt(k).is_some())
+        .collect();
     let (canopy, fancy_height) = match canopy_keys.as_slice() {
         [] => (quote!(None), None),
         &[key] => {
             let (tokens, fancy_height) = parse_canopy(em, origin, key, o.req(key)?)?;
             (quote!(Some(#tokens)), fancy_height)
         }
-        many => return Err(Error::data(origin, format!("tree with several canopies: {many:?}"))),
+        many => {
+            return Err(Error::data(
+                origin,
+                format!("tree with several canopies: {many:?}"),
+            ));
+        }
     };
 
-    let trunk_keys: Vec<&'static str> = TRUNKS.iter().copied().filter(|&k| o.opt(k).is_some()).collect();
+    let trunk_keys: Vec<&'static str> = TRUNKS
+        .iter()
+        .copied()
+        .filter(|&k| o.opt(k).is_some())
+        .collect();
     let &[trunk_key] = trunk_keys.as_slice() else {
-        return Err(Error::data(origin, format!("tree needs exactly one trunk, found {trunk_keys:?}")));
+        return Err(Error::data(
+            origin,
+            format!("tree needs exactly one trunk, found {trunk_keys:?}"),
+        ));
     };
-    let (trunk, log_feature) = parse_trunk(em, origin, trunk_key, o.req(trunk_key)?, fancy_height, &mut items)?;
+    let (trunk, log_feature) = parse_trunk(
+        em,
+        origin,
+        trunk_key,
+        o.req(trunk_key)?,
+        fancy_height,
+        &mut items,
+    )?;
 
     let log_decoration = log_feature.is_some();
     let decorate = match &log_feature {
@@ -184,7 +217,10 @@ fn range_tokens(origin: &str, v: &Value) -> Result<TokenStream> {
 fn range_or_zero(origin: &str, v: Option<&Value>) -> Result<TokenStream> {
     match v {
         Some(v) => range_tokens(origin, v),
-        None => Ok(quote!(features::IntRange { min: 0i32, max: 0i32 })),
+        None => Ok(quote!(features::IntRange {
+            min: 0i32,
+            max: 0i32
+        })),
     }
 }
 
@@ -214,14 +250,34 @@ fn with_state(palette: &BlockPalette, id: u32, key: &str, value: &StateValue) ->
         .states_of(name)
         .into_iter()
         .flatten()
-        .find(|(_, s)| s.iter().all(|(k, v)| if k == key { v == value } else { state.get(k) == Some(v) }))
+        .find(|(_, s)| {
+            s.iter().all(|(k, v)| {
+                if k == key {
+                    v == value
+                } else {
+                    state.get(k) == Some(v)
+                }
+            })
+        })
         .map_or(id, |(i, _)| i)
 }
 
 /// `features::tree::Log` with the three `pillar_axis` states of a block.
-fn log_tokens(em: &mut Emitter<'_>, palette: &BlockPalette, origin: &str, v: &Value) -> Result<TokenStream> {
+fn log_tokens(
+    em: &mut Emitter<'_>,
+    palette: &BlockPalette,
+    origin: &str,
+    v: &Value,
+) -> Result<TokenStream> {
     let id = block(palette, origin, v)?;
-    let [x, y, z] = ["x", "y", "z"].map(|axis| with_state(palette, id, "pillar_axis", &StateValue::Str(axis.to_owned())));
+    let [x, y, z] = ["x", "y", "z"].map(|axis| {
+        with_state(
+            palette,
+            id,
+            "pillar_axis",
+            &StateValue::Str(axis.to_owned()),
+        )
+    });
     let (x, y, z) = (em.block(x), em.block(y), em.block(z));
     Ok(quote!(features::tree::Log { x: #x, y: #y, z: #z }))
 }
@@ -230,17 +286,34 @@ fn log_tokens(em: &mut Emitter<'_>, palette: &BlockPalette, origin: &str, v: &Va
 fn side_tokens(em: &mut Emitter<'_>, palette: &BlockPalette, id: u32) -> TokenStream {
     let states: Vec<TokenStream> = [1, 2, 4, 8]
         .into_iter()
-        .map(|bit| em.block(with_state(palette, id, "vine_direction_bits", &StateValue::Int(bit))))
+        .map(|bit| {
+            em.block(with_state(
+                palette,
+                id,
+                "vine_direction_bits",
+                &StateValue::Int(bit),
+            ))
+        })
         .collect();
     quote!([#(#states),*])
 }
 
-fn leaf_tokens(em: &mut Emitter<'_>, palette: &BlockPalette, origin: &str, v: &Value) -> Result<TokenStream> {
+fn leaf_tokens(
+    em: &mut Emitter<'_>,
+    palette: &BlockPalette,
+    origin: &str,
+    v: &Value,
+) -> Result<TokenStream> {
     Ok(em.block(block(palette, origin, v)?))
 }
 
 /// `trunk_decoration` -> `Option<TrunkDecoration>`.
-fn trunk_decoration(em: &mut Emitter<'_>, palette: &BlockPalette, origin: &str, v: Option<&Value>) -> Result<TokenStream> {
+fn trunk_decoration(
+    em: &mut Emitter<'_>,
+    palette: &BlockPalette,
+    origin: &str,
+    v: Option<&Value>,
+) -> Result<TokenStream> {
     let Some(v) = v else {
         return Ok(quote!(None));
     };
@@ -253,7 +326,12 @@ fn trunk_decoration(em: &mut Emitter<'_>, palette: &BlockPalette, origin: &str, 
 }
 
 /// `canopy_decoration` -> `Option<CanopyDecoration>`.
-fn canopy_decoration(em: &mut Emitter<'_>, palette: &BlockPalette, origin: &str, v: Option<&Value>) -> Result<TokenStream> {
+fn canopy_decoration(
+    em: &mut Emitter<'_>,
+    palette: &BlockPalette,
+    origin: &str,
+    v: Option<&Value>,
+) -> Result<TokenStream> {
     let Some(v) = v else {
         return Ok(quote!(None));
     };
@@ -264,7 +342,12 @@ fn canopy_decoration(em: &mut Emitter<'_>, palette: &BlockPalette, origin: &str,
     let step: i32 = match o.str("step_direction")? {
         "down" => -1,
         "up" => 1,
-        other => return Err(Error::data(origin, format!("unknown step_direction {other:?}"))),
+        other => {
+            return Err(Error::data(
+                origin,
+                format!("unknown step_direction {other:?}"),
+            ));
+        }
     };
     o.finish()?;
     let block = side_tokens(em, palette, id);
@@ -311,7 +394,10 @@ fn height(origin: &str, v: &Value) -> Result<(TokenStream, Option<i32>)> {
 fn plain_height(origin: &str, v: &Value) -> Result<TokenStream> {
     match height(origin, v)? {
         (tokens, None) => Ok(tokens),
-        (_, Some(_)) => Err(Error::data(origin, "min_height_for_canopy is only supported on acacia_trunk")),
+        (_, Some(_)) => Err(Error::data(
+            origin,
+            "min_height_for_canopy is only supported on acacia_trunk",
+        )),
     }
 }
 
@@ -319,7 +405,12 @@ fn plain_height(origin: &str, v: &Value) -> Result<TokenStream> {
 // Roots, trunks, canopies
 // ---------------------------------------------------------------------------
 
-fn mangrove_roots(em: &mut Emitter<'_>, origin: &str, v: &Value, items: &mut Vec<TokenStream>) -> Result<TokenStream> {
+fn mangrove_roots(
+    em: &mut Emitter<'_>,
+    origin: &str,
+    v: &Value,
+    items: &mut Vec<TokenStream>,
+) -> Result<TokenStream> {
     let model = em.model;
     let palette = &model.palette;
     let r = Obj::new(origin, v)?;
@@ -356,11 +447,23 @@ fn mangrove_roots(em: &mut Emitter<'_>, origin: &str, v: &Value, items: &mut Vec
 }
 
 /// `branch_canopy: {"<kind>": {...}}` -> `&BRANCH_CANOPY` (a sibling static).
-fn branch_canopy(em: &mut Emitter<'_>, origin: &str, v: &Value, items: &mut Vec<TokenStream>) -> Result<TokenStream> {
+fn branch_canopy(
+    em: &mut Emitter<'_>,
+    origin: &str,
+    v: &Value,
+    items: &mut Vec<TokenStream>,
+) -> Result<TokenStream> {
     let o = Obj::new(origin, v)?;
-    let keys: Vec<&'static str> = CANOPIES.iter().copied().filter(|&k| o.opt(k).is_some()).collect();
+    let keys: Vec<&'static str> = CANOPIES
+        .iter()
+        .copied()
+        .filter(|&k| o.opt(k).is_some())
+        .collect();
     let &[key] = keys.as_slice() else {
-        return Err(Error::data(origin, format!("branch_canopy needs exactly one canopy, found {keys:?}")));
+        return Err(Error::data(
+            origin,
+            format!("branch_canopy needs exactly one canopy, found {keys:?}"),
+        ));
     };
     let (tokens, _) = parse_canopy(em, origin, key, o.req(key)?)?;
     o.finish()?;
@@ -388,7 +491,10 @@ fn parse_trunk(
     });
     let feature = feature.transpose()?;
     if feature.is_some() && !matches!(key, "poplar_trunk" | "fallen_trunk") {
-        return Err(Error::data(origin, format!("log_decoration_feature is not supported on {key}")));
+        return Err(Error::data(
+            origin,
+            format!("log_decoration_feature is not supported on {key}"),
+        ));
     }
     let tokens = match key {
         "trunk" => {
@@ -426,8 +532,12 @@ fn parse_trunk(
             let width = o.i32("trunk_width")?;
             let width_scale = o.f32("width_scale")?;
             let foliage_altitude = o.f32("foliage_altitude_factor")?;
-            let foliage_height = fancy_height
-                .ok_or_else(|| Error::data(origin, "fancy_trunk needs a fancy_canopy (its height spaces the clusters)"))?;
+            let foliage_height = fancy_height.ok_or_else(|| {
+                Error::data(
+                    origin,
+                    "fancy_trunk needs a fancy_canopy (its height spaces the clusters)",
+                )
+            })?;
             quote!(features::tree::Trunk::Fancy(features::tree::FancyTrunk {
                 base: #base,
                 variance: #variance,
@@ -489,7 +599,12 @@ fn parse_trunk(
                     let l = Obj::new(origin, v)?;
                     let diagonal = match l.req("allow_diagonal_growth")? {
                         Value::Bool(b) => *b,
-                        other => return Err(Error::data(origin, format!("allow_diagonal_growth is not a bool: {other}"))),
+                        other => {
+                            return Err(Error::data(
+                                origin,
+                                format!("allow_diagonal_growth is not a bool: {other}"),
+                            ));
+                        }
                     };
                     let lean_height = range_tokens(origin, l.req("lean_height")?)?;
                     let steps = range_tokens(origin, l.req("lean_steps")?)?;
@@ -563,7 +678,11 @@ fn parse_trunk(
             let h = plain_height(origin, o.req("trunk_height")?)?;
             let b = Obj::new(origin, o.req("branches")?)?;
             let w = Obj::new(origin, b.req("tree_type_weights")?)?;
-            let weights = vec![w.i32("one_branch")?, w.i32("two_branches")?, w.i32("two_branches_and_trunk")?];
+            let weights = vec![
+                w.i32("one_branch")?,
+                w.i32("two_branches")?,
+                w.i32("two_branches_and_trunk")?,
+            ];
             w.finish()?;
             let horizontal = range_tokens(origin, b.req("branch_horizontal_length")?)?;
             let start = range_tokens(origin, b.req("branch_start_offset_from_top")?)?;
@@ -612,7 +731,12 @@ fn parse_trunk(
 
 /// One canopy -> `features::tree::Canopy`, plus the cluster height of a
 /// `fancy_canopy` (the fancy trunk spaces its clusters by it).
-fn parse_canopy(em: &mut Emitter<'_>, origin: &str, key: &str, v: &Value) -> Result<(TokenStream, Option<i32>)> {
+fn parse_canopy(
+    em: &mut Emitter<'_>,
+    origin: &str,
+    key: &str,
+    v: &Value,
+) -> Result<(TokenStream, Option<i32>)> {
     let model = em.model;
     let palette = &model.palette;
     let o = Obj::new(origin, v)?;
@@ -634,7 +758,10 @@ fn parse_canopy(em: &mut Emitter<'_>, origin: &str, key: &str, v: &Value) -> Res
             };
             let variation = match o.opt("variation_chance") {
                 None => Vec::new(),
-                Some(Value::Array(list)) => list.iter().map(|c| percent_chance(origin, c)).collect::<Result<Vec<_>>>()?,
+                Some(Value::Array(list)) => list
+                    .iter()
+                    .map(|c| percent_chance(origin, c))
+                    .collect::<Result<Vec<_>>>()?,
                 Some(single) => vec![percent_chance(origin, single)?],
             };
             let leaf = leaf_tokens(em, palette, origin, o.req("leaf_block")?)?;
@@ -733,10 +860,12 @@ fn parse_canopy(em: &mut Emitter<'_>, origin: &str, key: &str, v: &Value) -> Res
             let attempts = o.i32("leaf_placement_attempts")?;
             let mut leaves = Vec::new();
             for entry in o.array("leaf_blocks")? {
-                let pair = entry
-                    .as_array()
-                    .filter(|p| p.len() == 2)
-                    .ok_or_else(|| Error::data(origin, format!("leaf_blocks entry is not [block, weight]: {entry}")))?;
+                let pair = entry.as_array().filter(|p| p.len() == 2).ok_or_else(|| {
+                    Error::data(
+                        origin,
+                        format!("leaf_blocks entry is not [block, weight]: {entry}"),
+                    )
+                })?;
                 let leaf = leaf_tokens(em, palette, origin, &pair[0])?;
                 let weight = int(origin, "leaf_blocks weight", &pair[1])?;
                 leaves.push(quote!((#leaf, #weight)));
@@ -745,14 +874,22 @@ fn parse_canopy(em: &mut Emitter<'_>, origin: &str, key: &str, v: &Value) -> Res
                 return Err(Error::data(origin, "leaf_blocks is empty"));
             }
             let decoration = canopy_decoration(em, palette, origin, o.opt("canopy_decoration"))?;
-            let hanging = match (o.opt("hanging_block"), o.opt("hanging_block_placement_chance")) {
+            let hanging = match (
+                o.opt("hanging_block"),
+                o.opt("hanging_block_placement_chance"),
+            ) {
                 (Some(b), Some(c)) => {
                     let b = leaf_tokens(em, palette, origin, b)?;
                     let c = percent_chance(origin, c)?;
                     quote!(Some((#b, #c)))
                 }
                 (None, None) => quote!(None),
-                _ => return Err(Error::data(origin, "hanging_block and hanging_block_placement_chance come together")),
+                _ => {
+                    return Err(Error::data(
+                        origin,
+                        "hanging_block and hanging_block_placement_chance come together",
+                    ));
+                }
             };
             quote!(features::tree::Canopy::RandomSpread(features::tree::RandomSpreadCanopy {
                 height: #height,

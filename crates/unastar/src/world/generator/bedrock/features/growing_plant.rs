@@ -112,12 +112,21 @@ mod tests {
             let mut world = Cube::filled(8, bb::STONE);
             world.fill((0, 0, 0), (0, 3, 0), bb::AIR);
             let mut rng = BedrockRandom::new(seed);
-            let placed = with_ctx(&mut world, &mut rng, |ctx| place(ctx, BlockPos::new(0, 3, 0), &PLANT));
+            let placed = with_ctx(&mut world, &mut rng, |ctx| {
+                place(ctx, BlockPos::new(0, 3, 0), &PLANT)
+            });
             assert_eq!(placed, Some(BlockPos::new(0, 3, 0)));
             for y in 1..=3 {
-                assert_eq!(world.get(BlockPos::new(0, y, 0)), bb::SAND, "body at y = {y}");
+                assert_eq!(
+                    world.get(BlockPos::new(0, y, 0)),
+                    bb::SAND,
+                    "body at y = {y}"
+                );
             }
-            assert!(HEADS.contains(&world.get(BlockPos::new(0, 0, 0))), "head on the last open cell");
+            assert!(
+                HEADS.contains(&world.get(BlockPos::new(0, 0, 0))),
+                "head on the last open cell"
+            );
         }
     }
 
@@ -125,7 +134,10 @@ mod tests {
     fn full_height_column_ends_with_a_head() {
         let mut world = Cube::filled(8, bb::AIR);
         let mut rng = BedrockRandom::new(2);
-        with_ctx(&mut world, &mut rng, |ctx| place(ctx, BlockPos::new(0, 7, 0), &PLANT)).expect("placed");
+        with_ctx(&mut world, &mut rng, |ctx| {
+            place(ctx, BlockPos::new(0, 7, 0), &PLANT)
+        })
+        .expect("placed");
         assert_eq!(world.count(bb::SAND), 5);
         assert!(HEADS.contains(&world.get(BlockPos::new(0, 2, 0))));
         assert_eq!(world.get(BlockPos::new(0, 1, 0)), bb::AIR);
@@ -142,9 +154,14 @@ mod tests {
         for (p, expected) in [(wet, 6), (dry, 0)] {
             let mut world = Cube::filled(8, bb::WATER);
             let mut rng = BedrockRandom::new(3);
-            let placed = with_ctx(&mut world, &mut rng, |ctx| place(ctx, BlockPos::new(0, 0, 0), &p));
+            let placed = with_ctx(&mut world, &mut rng, |ctx| {
+                place(ctx, BlockPos::new(0, 0, 0), &p)
+            });
             assert_eq!(placed.is_some(), expected > 0);
-            assert_eq!(world.count(bb::SAND) + world.count(bb::GRAVEL) + world.count(bb::CLAY), expected);
+            assert_eq!(
+                world.count(bb::SAND) + world.count(bb::GRAVEL) + world.count(bb::CLAY),
+                expected
+            );
         }
     }
 
@@ -180,7 +197,10 @@ mod tests {
             assert!((1..=13).contains(&h));
             seen[h as usize] += 1;
         }
-        assert!(seen[1..].iter().all(|&c| c > 0), "every height occurs: {seen:?}");
+        assert!(
+            seen[1..].iter().all(|&c| c > 0),
+            "every height occurs: {seen:?}"
+        );
         // Heights above 7 only come from the weight-2 range: rarer than 1..=2.
         assert!(seen[8..].iter().sum::<u32>() < seen[1] + seen[2]);
     }

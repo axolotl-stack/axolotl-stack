@@ -259,7 +259,9 @@ pub fn read_gzip_java(origin: &str, bytes: &[u8]) -> Result<Tag> {
             origin: origin.to_owned(),
             reason: format!("gzip: {e}"),
         })?;
-    Ok(Reader::new(&raw, Encoding::BigEndian, origin).read_root()?.1)
+    Ok(Reader::new(&raw, Encoding::BigEndian, origin)
+        .read_root()?
+        .1)
 }
 
 #[cfg(test)]
@@ -281,8 +283,14 @@ mod tests {
     fn big_and_little_endian_fixed_width() {
         let be = [10, 0, 0, 3, 0, 1, b'x', 0, 0, 1, 2, 0];
         let le = [10, 0, 0, 3, 1, 0, b'x', 2, 1, 0, 0, 0];
-        let a = Reader::new(&be, Encoding::BigEndian, "t").read_root().unwrap().1;
-        let b = Reader::new(&le, Encoding::LittleEndian, "t").read_root().unwrap().1;
+        let a = Reader::new(&be, Encoding::BigEndian, "t")
+            .read_root()
+            .unwrap()
+            .1;
+        let b = Reader::new(&le, Encoding::LittleEndian, "t")
+            .read_root()
+            .unwrap()
+            .1;
         assert_eq!(a.get("x"), Some(&Tag::Int(258)));
         assert_eq!(b.get("x"), Some(&Tag::Int(258)));
     }

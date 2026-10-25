@@ -9,7 +9,14 @@
 use super::super::world::{BlockPos, BlockWorld, Ctx};
 use std::f32::consts::PI;
 
-const NEIGHBOURS: [(i32, i32, i32); 6] = [(1, 0, 0), (-1, 0, 0), (0, 1, 0), (0, -1, 0), (0, 0, 1), (0, 0, -1)];
+const NEIGHBOURS: [(i32, i32, i32); 6] = [
+    (1, 0, 0),
+    (-1, 0, 0),
+    (0, 1, 0),
+    (0, -1, 0),
+    (0, 0, 1),
+    (0, 0, -1),
+];
 
 /// Place one ore blob centred on `pos`; `Some(pos)` when any block changed.
 pub fn place<W: BlockWorld>(
@@ -62,7 +69,9 @@ pub fn place<W: BlockWorld>(
                         continue;
                     };
                     if discard_chance_on_air_exposure > 0.0
-                        && NEIGHBOURS.iter().any(|&(nx, ny, nz)| is_air(ctx.get(at.offset(nx, ny, nz))))
+                        && NEIGHBOURS
+                            .iter()
+                            .any(|&(nx, ny, nz)| is_air(ctx.get(at.offset(nx, ny, nz))))
                         && ctx.rng.probability(discard_chance_on_air_exposure)
                     {
                         continue;

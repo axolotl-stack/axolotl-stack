@@ -34,7 +34,14 @@ use super::super::rng::BedrockRandom;
 use super::super::world::{BlockPos, BlockWorld, Ctx};
 
 /// Face offsets indexed by face (= bit index in `multi_face_direction_bits`).
-pub const FACES: [(i32, i32, i32); 6] = [(0, -1, 0), (0, 1, 0), (0, 0, 1), (-1, 0, 0), (0, 0, -1), (1, 0, 0)];
+pub const FACES: [(i32, i32, i32); 6] = [
+    (0, -1, 0),
+    (0, 1, 0),
+    (0, 0, 1),
+    (-1, 0, 0),
+    (0, 0, -1),
+    (1, 0, 0),
+];
 /// Face index of the bottom face.
 pub const DOWN: usize = 0;
 /// Face index of the top face.
@@ -124,7 +131,9 @@ impl Spreader {
     /// Face mask of `id` if it is this block.
     #[inline]
     pub fn mask(&self, id: u32) -> Option<u8> {
-        id.checked_sub(self.base).filter(|m| *m < 64).map(|m| m as u8)
+        id.checked_sub(self.base)
+            .filter(|m| *m < 64)
+            .map(|m| m as u8)
     }
 
     /// Runtime id of the state with face mask `mask`.
@@ -134,7 +143,12 @@ impl Spreader {
     }
 
     /// Face mask currently at `at` if a face `face` may be added there.
-    fn can_spread_into<W: BlockWorld>(&self, ctx: &Ctx<'_, W>, at: BlockPos, face: usize) -> Option<u8> {
+    fn can_spread_into<W: BlockWorld>(
+        &self,
+        ctx: &Ctx<'_, W>,
+        at: BlockPos,
+        face: usize,
+    ) -> Option<u8> {
         let id = ctx.get(at);
         let mask = if bb::air(id) { 0 } else { self.mask(id)? };
         if mask & bit(face) != 0 || !(self.can_attach)(ctx.get(step(at, face))) {
@@ -145,12 +159,22 @@ impl Spreader {
 
     /// Spread from face `from` of the block at `pos` towards `to`, using the
     /// first applicable spot (same block, beside, wrap-around).
-    pub fn spread_toward<W: BlockWorld>(&self, ctx: &mut Ctx<'_, W>, pos: BlockPos, from: usize, to: usize) -> bool {
+    pub fn spread_toward<W: BlockWorld>(
+        &self,
+        ctx: &mut Ctx<'_, W>,
+        pos: BlockPos,
+        from: usize,
+        to: usize,
+    ) -> bool {
         if same_axis(from, to) {
             return false;
         }
         let beside = step(pos, to);
-        let spots = [(pos, to), (beside, from), (step(beside, from), opposite(to))];
+        let spots = [
+            (pos, to),
+            (beside, from),
+            (step(beside, from), opposite(to)),
+        ];
         for (i, &(at, face)) in spots.iter().enumerate() {
             if i == 2 && self.wrap_needs_open_corner && is_sturdy(ctx.get(beside)) {
                 continue;
@@ -164,7 +188,12 @@ impl Spreader {
 
     /// Vanilla's growth spread after a placement: try directions in random
     /// order and stop at the first successful spread from face `from`.
-    pub fn spread_from_face_randomly<W: BlockWorld>(&self, ctx: &mut Ctx<'_, W>, pos: BlockPos, from: usize) -> bool {
+    pub fn spread_from_face_randomly<W: BlockWorld>(
+        &self,
+        ctx: &mut Ctx<'_, W>,
+        pos: BlockPos,
+        from: usize,
+    ) -> bool {
         let source = self.mask(ctx.get(pos)).unwrap_or(0);
         let mut order = [0, 1, 2, 3, 4, 5];
         shuffle(&mut order, ctx.rng);
@@ -181,7 +210,13 @@ impl Spreader {
     /// `other_source` the source is another block acting as if covered on
     /// every face of `source` (sculk spreading veins round itself), otherwise
     /// it is this block and skips directions it already has.
-    pub fn spread_all<W: BlockWorld>(&self, ctx: &mut Ctx<'_, W>, pos: BlockPos, source: u8, other_source: bool) -> bool {
+    pub fn spread_all<W: BlockWorld>(
+        &self,
+        ctx: &mut Ctx<'_, W>,
+        pos: BlockPos,
+        source: u8,
+        other_source: bool,
+    ) -> bool {
         let mut any = false;
         for from in 0..6 {
             if source & bit(from) == 0 {
@@ -258,7 +293,12 @@ pub fn place<W: BlockWorld>(ctx: &mut Ctx<'_, W>, pos: BlockPos, p: &Params) -> 
 
 /// Attach the first face of `dirs` resting on a `can_place_on` block. Like
 /// vanilla, finding a supported face the block already has ends the attempt.
-fn try_place<W: BlockWorld>(ctx: &mut Ctx<'_, W>, at: BlockPos, dirs: &[usize], p: &Params) -> bool {
+fn try_place<W: BlockWorld>(
+    ctx: &mut Ctx<'_, W>,
+    at: BlockPos,
+    dirs: &[usize],
+    p: &Params,
+) -> bool {
     let current = p.spreader.mask(ctx.get(at)).unwrap_or(0);
     for &face in dirs {
         if !(p.can_place_on)(ctx.get(step(at, face))) {
@@ -366,13 +406,23 @@ mod tests {
             let mut world = Cube::filled(16, bb::STONE);
             world.fill((-2, 0, -2), (2, 2, 2), bb::AIR);
             let mut rng = BedrockRandom::new(seed);
-            let at = with_ctx(&mut world, &mut rng, |ctx| place(ctx, BlockPos::new(0, 1, 0), &p));
+            let at = with_ctx(&mut world, &mut rng, |ctx| {
+                place(ctx, BlockPos::new(0, 1, 0), &p)
+            });
             let at = at.expect("a face is found within search_range");
             let mask = p.spreader.mask(world.get(at)).expect("a multiface block");
-            assert_eq!(mask.count_ones(), 1, "chance_of_spreading 0 places one face");
+            assert_eq!(
+                mask.count_ones(),
+                1,
+                "chance_of_spreading 0 places one face"
+            );
             let face = mask.trailing_zeros() as usize;
             assert_ne!(face, DOWN, "floor placement is disabled");
-            assert_eq!(world.get(step(at, face)), bb::STONE, "the face rests on stone");
+            assert_eq!(
+                world.get(step(at, face)),
+                bb::STONE,
+                "the face rests on stone"
+            );
         }
     }
 
@@ -398,7 +448,10 @@ mod tests {
             let mut world = Cube::filled(16, bb::STONE);
             world.fill((-3, 0, -3), (3, 3, 3), bb::AIR);
             let mut rng = BedrockRandom::new(seed);
-            with_ctx(&mut world, &mut rng, |ctx| place(ctx, BlockPos::new(0, 1, 0), &p)).expect("placed");
+            with_ctx(&mut world, &mut rng, |ctx| {
+                place(ctx, BlockPos::new(0, 1, 0), &p)
+            })
+            .expect("placed");
             let faces: u32 = world
                 .positions(|id| spreader.mask(id).is_some())
                 .iter()
@@ -406,7 +459,10 @@ mod tests {
                     let mask = spreader.mask(world.get(at)).unwrap_or(0);
                     for face in 0..6 {
                         if mask & bit(face) != 0 {
-                            assert!(is_sturdy(world.get(step(at, face))), "every face rests on a sturdy block");
+                            assert!(
+                                is_sturdy(world.get(step(at, face))),
+                                "every face rests on a sturdy block"
+                            );
                         }
                     }
                     mask.count_ones()
@@ -518,7 +574,11 @@ pub(super) mod test_world {
     }
 
     /// Run `f` with a decoration context over `world`.
-    pub fn with_ctx<R>(world: &mut Cube, rng: &mut BedrockRandom, f: impl FnOnce(&mut Ctx<'_, Cube>) -> R) -> R {
+    pub fn with_ctx<R>(
+        world: &mut Cube,
+        rng: &mut BedrockRandom,
+        f: impl FnOnce(&mut Ctx<'_, Cube>) -> R,
+    ) -> R {
         let mut ctx = Ctx {
             world,
             rng,

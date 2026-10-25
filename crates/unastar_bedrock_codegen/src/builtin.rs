@@ -140,17 +140,31 @@ mod tests {
     #[test]
     fn rust_names_are_unique_identifiers() {
         let mut names: Vec<String> = BUILTIN_FEATURES.iter().map(|id| rust_name(id)).collect();
-        assert!(names.iter().all(|n| syn::parse_str::<syn::Ident>(n).is_ok()));
+        assert!(
+            names
+                .iter()
+                .all(|n| syn::parse_str::<syn::Ident>(n).is_ok())
+        );
         let len = names.len();
         names.sort();
         names.dedup();
         assert_eq!(names.len(), len);
-        assert_eq!(rust_name("minecraft:legacy:ice_feature"), "legacy_ice_feature");
+        assert_eq!(
+            rust_name("minecraft:legacy:ice_feature"),
+            "legacy_ice_feature"
+        );
     }
 
     #[test]
     fn builtin_calls_are_sorted_json_features() {
-        assert!(BUILTIN_CALLS.windows(2).all(|w| w[0] < w[1]), "BUILTIN_CALLS must be sorted and unique");
-        assert!(BUILTIN_CALLS.iter().all(|id| id.starts_with("minecraft:") && !BUILTIN_FEATURES.contains(id)));
+        assert!(
+            BUILTIN_CALLS.windows(2).all(|w| w[0] < w[1]),
+            "BUILTIN_CALLS must be sorted and unique"
+        );
+        assert!(
+            BUILTIN_CALLS
+                .iter()
+                .all(|id| id.starts_with("minecraft:") && !BUILTIN_FEATURES.contains(id))
+        );
     }
 }

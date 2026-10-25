@@ -22,11 +22,22 @@ use super::super::world::{BlockPos, BlockWorld, Ctx, Direction};
 
 /// Coral blocks, colours ordered tube, brain, bubble, fire, horn (the order
 /// of every coral table below).
-const CORAL_BLOCKS: [u32; 5] =
-    [bb::TUBE_CORAL_BLOCK, bb::BRAIN_CORAL_BLOCK, bb::BUBBLE_CORAL_BLOCK, bb::FIRE_CORAL_BLOCK, bb::HORN_CORAL_BLOCK];
+const CORAL_BLOCKS: [u32; 5] = [
+    bb::TUBE_CORAL_BLOCK,
+    bb::BRAIN_CORAL_BLOCK,
+    bb::BUBBLE_CORAL_BLOCK,
+    bb::FIRE_CORAL_BLOCK,
+    bb::HORN_CORAL_BLOCK,
+];
 
 /// Standing coral plants.
-const CORAL_PLANTS: [u32; 5] = [bb::TUBE_CORAL, bb::BRAIN_CORAL, bb::BUBBLE_CORAL, bb::FIRE_CORAL, bb::HORN_CORAL];
+const CORAL_PLANTS: [u32; 5] = [
+    bb::TUBE_CORAL,
+    bb::BRAIN_CORAL,
+    bb::BUBBLE_CORAL,
+    bb::FIRE_CORAL,
+    bb::HORN_CORAL,
+];
 
 /// Floor coral fans, both `coral_fan_direction` rotations.
 const CORAL_FANS: [[u32; 2]; 5] = [
@@ -41,7 +52,12 @@ const CORAL_FANS: [[u32; 2]; 5] = [
 /// [`Direction::ALL`] order (south, west, north, east). A fan facing `dir`
 /// sits on the `dir` side of its supporting block.
 const CORAL_WALL_FANS: [[u32; 4]; 5] = [
-    [bb::TUBE_CORAL_WALL_FAN_SOUTH, bb::TUBE_CORAL_WALL_FAN_WEST, bb::TUBE_CORAL_WALL_FAN_NORTH, bb::TUBE_CORAL_WALL_FAN_EAST],
+    [
+        bb::TUBE_CORAL_WALL_FAN_SOUTH,
+        bb::TUBE_CORAL_WALL_FAN_WEST,
+        bb::TUBE_CORAL_WALL_FAN_NORTH,
+        bb::TUBE_CORAL_WALL_FAN_EAST,
+    ],
     [
         bb::BRAIN_CORAL_WALL_FAN_SOUTH,
         bb::BRAIN_CORAL_WALL_FAN_WEST,
@@ -54,16 +70,36 @@ const CORAL_WALL_FANS: [[u32; 4]; 5] = [
         bb::BUBBLE_CORAL_WALL_FAN_NORTH,
         bb::BUBBLE_CORAL_WALL_FAN_EAST,
     ],
-    [bb::FIRE_CORAL_WALL_FAN_SOUTH, bb::FIRE_CORAL_WALL_FAN_WEST, bb::FIRE_CORAL_WALL_FAN_NORTH, bb::FIRE_CORAL_WALL_FAN_EAST],
-    [bb::HORN_CORAL_WALL_FAN_SOUTH, bb::HORN_CORAL_WALL_FAN_WEST, bb::HORN_CORAL_WALL_FAN_NORTH, bb::HORN_CORAL_WALL_FAN_EAST],
+    [
+        bb::FIRE_CORAL_WALL_FAN_SOUTH,
+        bb::FIRE_CORAL_WALL_FAN_WEST,
+        bb::FIRE_CORAL_WALL_FAN_NORTH,
+        bb::FIRE_CORAL_WALL_FAN_EAST,
+    ],
+    [
+        bb::HORN_CORAL_WALL_FAN_SOUTH,
+        bb::HORN_CORAL_WALL_FAN_WEST,
+        bb::HORN_CORAL_WALL_FAN_NORTH,
+        bb::HORN_CORAL_WALL_FAN_EAST,
+    ],
 ];
 
 /// Sea pickles with 1..=4 pickles (`cluster_count` 0..=3).
-const SEA_PICKLES: [u32; 4] = [bb::SEA_PICKLE_1, bb::SEA_PICKLE_2, bb::SEA_PICKLE_3, bb::SEA_PICKLE_4];
+const SEA_PICKLES: [u32; 4] = [
+    bb::SEA_PICKLE_1,
+    bb::SEA_PICKLE_2,
+    bb::SEA_PICKLE_3,
+    bb::SEA_PICKLE_4,
+];
 
 /// Kelp tips: vanilla worldgen kelp ends in a tip aged 20..=23, so it only
 /// grows a few more blocks (growth stops at age 25).
-const KELP_TIPS: [u32; 4] = [bb::KELP_AGE_20, bb::KELP_AGE_21, bb::KELP_AGE_22, bb::KELP_AGE_23];
+const KELP_TIPS: [u32; 4] = [
+    bb::KELP_AGE_20,
+    bb::KELP_AGE_21,
+    bb::KELP_AGE_22,
+    bb::KELP_AGE_23,
+];
 
 /// Chance that a seagrass placement is double (tall) seagrass, per variant.
 /// These are the vanilla probabilities of the four seagrass configurations;
@@ -195,7 +231,11 @@ pub fn kelp_feature<W: BlockWorld>(ctx: &mut Ctx<'_, W>, pos: BlockPos) -> Optio
             }
             break;
         }
-        let id = if i == extra { KELP_TIPS[ctx.rng.next_int(4) as usize] } else { bb::KELP_AGE_0 };
+        let id = if i == extra {
+            KELP_TIPS[ctx.rng.next_int(4) as usize]
+        } else {
+            bb::KELP_AGE_0
+        };
         if !ctx.set(at, id) {
             // Left the writable region: cap what was placed so far.
             if i > 0 {
@@ -214,7 +254,11 @@ pub fn kelp_feature<W: BlockWorld>(ctx: &mut Ctx<'_, W>, pos: BlockPos) -> Optio
 /// `tall_chance` (needs water above too), else short seagrass. Only in
 /// water on a solid non-magma floor. The tall roll comes before the floor
 /// check, as in vanilla.
-fn place_seagrass<W: BlockWorld>(ctx: &mut Ctx<'_, W>, pos: BlockPos, tall_chance: f32) -> Option<BlockPos> {
+fn place_seagrass<W: BlockWorld>(
+    ctx: &mut Ctx<'_, W>,
+    pos: BlockPos,
+    tall_chance: f32,
+) -> Option<BlockPos> {
     if !bb::water(ctx.get(pos)) {
         return None;
     }
@@ -245,19 +289,28 @@ pub fn seagrass_feature<W: BlockWorld>(ctx: &mut Ctx<'_, W>, pos: BlockPos) -> O
 
 /// `minecraft:shortest_seagrass_feature`: seagrass, 30 % double (ocean,
 /// cold and warm ocean variant).
-pub fn shortest_seagrass_feature<W: BlockWorld>(ctx: &mut Ctx<'_, W>, pos: BlockPos) -> Option<BlockPos> {
+pub fn shortest_seagrass_feature<W: BlockWorld>(
+    ctx: &mut Ctx<'_, W>,
+    pos: BlockPos,
+) -> Option<BlockPos> {
     place_seagrass(ctx, pos, SHORTEST_TALL_CHANCE)
 }
 
 /// `minecraft:shorter_seagrass_feature`: seagrass, 40 % double (river
 /// variant).
-pub fn shorter_seagrass_feature<W: BlockWorld>(ctx: &mut Ctx<'_, W>, pos: BlockPos) -> Option<BlockPos> {
+pub fn shorter_seagrass_feature<W: BlockWorld>(
+    ctx: &mut Ctx<'_, W>,
+    pos: BlockPos,
+) -> Option<BlockPos> {
     place_seagrass(ctx, pos, SHORTER_TALL_CHANCE)
 }
 
 /// `minecraft:taller_seagrass_feature`: seagrass, 80 % double (deep ocean
 /// variant).
-pub fn taller_seagrass_feature<W: BlockWorld>(ctx: &mut Ctx<'_, W>, pos: BlockPos) -> Option<BlockPos> {
+pub fn taller_seagrass_feature<W: BlockWorld>(
+    ctx: &mut Ctx<'_, W>,
+    pos: BlockPos,
+) -> Option<BlockPos> {
     place_seagrass(ctx, pos, TALLER_TALL_CHANCE)
 }
 
@@ -277,7 +330,9 @@ pub fn pickle_feature<W: BlockWorld>(ctx: &mut Ctx<'_, W>, pos: BlockPos) -> Opt
         let pickle = SEA_PICKLES[ctx.rng.next_int(4) as usize];
         let y = ctx.above_top_solid(x, z);
         let at = BlockPos::new(x, y, z);
-        let placed = bb::water(ctx.get(at)) && supports_water_plant(ctx.get(at.below())) && ctx.set(at, pickle);
+        let placed = bb::water(ctx.get(at))
+            && supports_water_plant(ctx.get(at.below()))
+            && ctx.set(at, pickle);
         if placed && first.is_none() {
             first = Some(at);
         }
@@ -347,14 +402,18 @@ fn underwater_disc<W: BlockWorld>(
 /// 1, replacing dirt and clay (vanilla legacy clay disc).
 pub fn clay_feature<W: BlockWorld>(ctx: &mut Ctx<'_, W>, pos: BlockPos) -> Option<BlockPos> {
     let radius = 2 + ctx.rng.next_int(2);
-    underwater_disc(ctx, pos, radius, 1, bb::CLAY, |id| id == bb::DIRT || id == bb::CLAY)
+    underwater_disc(ctx, pos, radius, 1, bb::CLAY, |id| {
+        id == bb::DIRT || id == bb::CLAY
+    })
 }
 
 /// `minecraft:gravel_feature`: underwater gravel disc, radius 2..=5, half
 /// height 2, replacing dirt and grass blocks (vanilla legacy gravel disc).
 pub fn gravel_feature<W: BlockWorld>(ctx: &mut Ctx<'_, W>, pos: BlockPos) -> Option<BlockPos> {
     let radius = 2 + ctx.rng.next_int(4);
-    underwater_disc(ctx, pos, radius, 2, bb::GRAVEL, |id| id == bb::DIRT || id == bb::GRASS_BLOCK)
+    underwater_disc(ctx, pos, radius, 2, bb::GRAVEL, |id| {
+        id == bb::DIRT || id == bb::GRASS_BLOCK
+    })
 }
 
 /// `minecraft:sand_feature`: underwater sand disc, radius 2..=5, half height
@@ -362,7 +421,9 @@ pub fn gravel_feature<W: BlockWorld>(ctx: &mut Ctx<'_, W>, pos: BlockPos) -> Opt
 /// rule places it; it is kept registered as a built-in.
 pub fn sand_feature<W: BlockWorld>(ctx: &mut Ctx<'_, W>, pos: BlockPos) -> Option<BlockPos> {
     let radius = 2 + ctx.rng.next_int(4);
-    underwater_disc(ctx, pos, radius, 2, bb::SAND, |id| id == bb::DIRT || id == bb::GRASS_BLOCK)
+    underwater_disc(ctx, pos, radius, 2, bb::SAND, |id| {
+        id == bb::DIRT || id == bb::GRASS_BLOCK
+    })
 }
 
 /// `minecraft:grass_disc_feature` (mangrove swamps, input above the top
@@ -391,7 +452,11 @@ pub fn grass_disc_feature<W: BlockWorld>(ctx: &mut Ctx<'_, W>, pos: BlockPos) ->
                     continue;
                 }
                 let above = ctx.get(at.above());
-                let block = if props::is_solid(above) || bb::water(above) { bb::DIRT } else { bb::GRASS_BLOCK };
+                let block = if props::is_solid(above) || bb::water(above) {
+                    bb::DIRT
+                } else {
+                    bb::GRASS_BLOCK
+                };
                 placed |= ctx.set(at, block);
             }
         }
@@ -589,7 +654,10 @@ pub fn coral_crust_feature<W: BlockWorld>(ctx: &mut Ctx<'_, W>, pos: BlockPos) -
             let water = BlockPos::new(x, y, z);
             let floor = water.below();
             let floor_id = ctx.get(floor);
-            let crustable = bb::sand_like(floor_id) || floor_id == bb::GRAVEL || floor_id == bb::CLAY || floor_id == bb::DIRT;
+            let crustable = bb::sand_like(floor_id)
+                || floor_id == bb::GRAVEL
+                || floor_id == bb::CLAY
+                || floor_id == bb::DIRT;
             if crustable && bb::water(ctx.get(water)) {
                 placed |= ctx.set(floor, block);
             }
@@ -616,7 +684,8 @@ pub fn coral_hang_feature<W: BlockWorld>(ctx: &mut Ctx<'_, W>, pos: BlockPos) ->
                 continue;
             }
             let side = at.side(dir);
-            let attached = bb::water(ctx.get(side)) && ctx.set(side, CORAL_WALL_FANS[colour][dir_index(dir)]);
+            let attached =
+                bb::water(ctx.get(side)) && ctx.set(side, CORAL_WALL_FANS[colour][dir_index(dir)]);
             if attached && placed.is_none() {
                 placed = Some(side);
             }
@@ -669,7 +738,12 @@ mod tests {
 
     impl Flat {
         fn new(floor: i32, surface: i32, floor_block: u32) -> Self {
-            Self { floor, surface, floor_block, edits: HashMap::new() }
+            Self {
+                floor,
+                surface,
+                floor_block,
+                edits: HashMap::new(),
+            }
         }
     }
 
@@ -726,7 +800,12 @@ mod tests {
     /// Run `f` on `world` with an rng seeded by `seed`.
     fn run<R>(world: &mut Flat, seed: u32, f: impl FnOnce(&mut Ctx<'_, Flat>) -> R) -> R {
         let mut rng = BedrockRandom::new(seed);
-        let mut ctx = Ctx { world, rng: &mut rng, noise: &NoNoise, seed: 0 };
+        let mut ctx = Ctx {
+            world,
+            rng: &mut rng,
+            noise: &NoNoise,
+            seed: 0,
+        };
         f(&mut ctx)
     }
 
@@ -807,27 +886,48 @@ mod tests {
         for seed in 0..64 {
             // Water at y 59..=62: the top segment needs water above, so 61.
             let mut world = Flat::new(58, 62, bb::SAND);
-            let placed = run(&mut world, seed, |ctx| kelp_feature(ctx, BlockPos::new(0, 59, 0)));
+            let placed = run(&mut world, seed, |ctx| {
+                kelp_feature(ctx, BlockPos::new(0, 59, 0))
+            });
             assert!(placed.is_some());
             assert!(!bb::kelp(world.get(BlockPos::new(0, 62, 0))));
-            let top = (59..=61).rev().find(|&y| bb::kelp(world.get(BlockPos::new(0, y, 0)))).unwrap();
+            let top = (59..=61)
+                .rev()
+                .find(|&y| bb::kelp(world.get(BlockPos::new(0, y, 0))))
+                .unwrap();
             assert!(KELP_TIPS.contains(&world.get(BlockPos::new(0, top, 0))));
         }
         let mut land = Flat::new(70, 62, bb::SAND);
-        assert!(run(&mut land, 1, |ctx| kelp_feature(ctx, BlockPos::new(0, 71, 0))).is_none());
+        assert!(
+            run(&mut land, 1, |ctx| kelp_feature(
+                ctx,
+                BlockPos::new(0, 71, 0)
+            ))
+            .is_none()
+        );
     }
 
     #[test]
     fn seagrass_variants_follow_their_tall_chance() {
         let pos = BlockPos::new(0, 41, 0);
         let mut shares = [0.0f32; 4];
-        let chances = [SHORTEST_TALL_CHANCE, SHORTER_TALL_CHANCE, SEAGRASS_TALL_CHANCE, TALLER_TALL_CHANCE];
+        let chances = [
+            SHORTEST_TALL_CHANCE,
+            SHORTER_TALL_CHANCE,
+            SEAGRASS_TALL_CHANCE,
+            TALLER_TALL_CHANCE,
+        ];
         let mut rng = BedrockRandom::new(7);
         for (share, &chance) in shares.iter_mut().zip(&chances) {
             let mut tall = 0;
             for _ in 0..2000 {
                 let mut world = Flat::new(40, 62, bb::SAND);
-                let mut ctx = Ctx { world: &mut world, rng: &mut rng, noise: &NoNoise, seed: 0 };
+                let mut ctx = Ctx {
+                    world: &mut world,
+                    rng: &mut rng,
+                    noise: &NoNoise,
+                    seed: 0,
+                };
                 assert_eq!(place_seagrass(&mut ctx, pos, chance), Some(pos));
                 match world.get(pos) {
                     id if id == bb::SEAGRASS_DOUBLE_BOT => {
@@ -838,7 +938,10 @@ mod tests {
                 }
             }
             *share = tall as f32 / 2000.0;
-            assert!((*share - chance).abs() < 0.05, "share {share} for chance {chance}");
+            assert!(
+                (*share - chance).abs() < 0.05,
+                "share {share} for chance {chance}"
+            );
         }
         assert!(shares.windows(2).all(|w| w[0] < w[1]), "{shares:?}");
     }
@@ -846,10 +949,22 @@ mod tests {
     #[test]
     fn seagrass_needs_water_and_a_solid_floor() {
         let mut land = Flat::new(70, 62, bb::SAND);
-        assert!(run(&mut land, 3, |ctx| seagrass_feature(ctx, BlockPos::new(0, 71, 0))).is_none());
+        assert!(
+            run(&mut land, 3, |ctx| seagrass_feature(
+                ctx,
+                BlockPos::new(0, 71, 0)
+            ))
+            .is_none()
+        );
         // Floating in mid-water (floor far below): no support.
         let mut deep = Flat::new(30, 62, bb::SAND);
-        assert!(run(&mut deep, 3, |ctx| seagrass_feature(ctx, BlockPos::new(0, 50, 0))).is_none());
+        assert!(
+            run(&mut deep, 3, |ctx| seagrass_feature(
+                ctx,
+                BlockPos::new(0, 50, 0)
+            ))
+            .is_none()
+        );
         assert!(deep.edits.is_empty());
     }
 
@@ -858,7 +973,10 @@ mod tests {
         for seed in 0..16 {
             let mut world = Flat::new(50, 62, bb::DIRT);
             let pos = BlockPos::new(0, 51, 0);
-            assert_eq!(run(&mut world, seed, |ctx| clay_feature(ctx, pos)), Some(pos));
+            assert_eq!(
+                run(&mut world, seed, |ctx| clay_feature(ctx, pos)),
+                Some(pos)
+            );
             for (at, &id) in &world.edits {
                 assert_eq!(id, bb::CLAY);
                 assert!(in_disc(at.x, at.z, 3), "{at:?}");
@@ -867,7 +985,13 @@ mod tests {
             }
         }
         let mut dry = Flat::new(70, 62, bb::DIRT);
-        assert!(run(&mut dry, 1, |ctx| gravel_feature(ctx, BlockPos::new(0, 71, 0))).is_none());
+        assert!(
+            run(&mut dry, 1, |ctx| gravel_feature(
+                ctx,
+                BlockPos::new(0, 71, 0)
+            ))
+            .is_none()
+        );
     }
 
     #[test]
@@ -885,7 +1009,9 @@ mod tests {
     fn grass_disc_turns_dry_mud_into_grass_over_dirt() {
         // Mud up to 62, air above.
         let mut world = Flat::new(62, 62, bb::MUD);
-        let placed = run(&mut world, 9, |ctx| grass_disc_feature(ctx, BlockPos::new(0, 63, 0)));
+        let placed = run(&mut world, 9, |ctx| {
+            grass_disc_feature(ctx, BlockPos::new(0, 63, 0))
+        });
         assert!(placed.is_some());
         assert_eq!(world.get(BlockPos::new(0, 62, 0)), bb::GRASS_BLOCK);
         assert_eq!(world.get(BlockPos::new(0, 61, 0)), bb::DIRT);
@@ -893,34 +1019,70 @@ mod tests {
         assert_eq!(world.get(BlockPos::new(0, 59, 0)), bb::MUD);
         // Submerged mud becomes dirt, never grass.
         let mut wet = Flat::new(60, 62, bb::MUD);
-        run(&mut wet, 9, |ctx| grass_disc_feature(ctx, BlockPos::new(0, 61, 0)));
+        run(&mut wet, 9, |ctx| {
+            grass_disc_feature(ctx, BlockPos::new(0, 61, 0))
+        });
         assert!(wet.edits.values().all(|&id| id == bb::DIRT));
         // Not on mud: nothing.
         let mut sand = Flat::new(62, 62, bb::SAND);
-        assert!(run(&mut sand, 9, |ctx| grass_disc_feature(ctx, BlockPos::new(0, 63, 0))).is_none());
+        assert!(
+            run(&mut sand, 9, |ctx| grass_disc_feature(
+                ctx,
+                BlockPos::new(0, 63, 0)
+            ))
+            .is_none()
+        );
     }
 
     #[test]
     fn waterlily_floats_to_the_surface() {
         let mut world = Flat::new(58, 62, bb::DIRT);
-        let placed = run(&mut world, 1, |ctx| waterlily_feature(ctx, BlockPos::new(0, 59, 0)));
+        let placed = run(&mut world, 1, |ctx| {
+            waterlily_feature(ctx, BlockPos::new(0, 59, 0))
+        });
         assert_eq!(placed, Some(BlockPos::new(0, 63, 0)));
         assert_eq!(world.get(BlockPos::new(0, 63, 0)), bb::WATERLILY);
         // Directly above the surface too.
         let mut world = Flat::new(58, 62, bb::DIRT);
-        assert!(run(&mut world, 1, |ctx| waterlily_feature(ctx, BlockPos::new(0, 63, 0))).is_some());
+        assert!(
+            run(&mut world, 1, |ctx| waterlily_feature(
+                ctx,
+                BlockPos::new(0, 63, 0)
+            ))
+            .is_some()
+        );
         // Too deep, in the ground, or on land: nothing.
         let mut deep = Flat::new(30, 62, bb::DIRT);
-        assert!(run(&mut deep, 1, |ctx| waterlily_feature(ctx, BlockPos::new(0, 31, 0))).is_none());
-        assert!(run(&mut deep, 1, |ctx| waterlily_feature(ctx, BlockPos::new(0, 20, 0))).is_none());
+        assert!(
+            run(&mut deep, 1, |ctx| waterlily_feature(
+                ctx,
+                BlockPos::new(0, 31, 0)
+            ))
+            .is_none()
+        );
+        assert!(
+            run(&mut deep, 1, |ctx| waterlily_feature(
+                ctx,
+                BlockPos::new(0, 20, 0)
+            ))
+            .is_none()
+        );
         let mut land = Flat::new(70, 62, bb::DIRT);
-        assert!(run(&mut land, 1, |ctx| waterlily_feature(ctx, BlockPos::new(0, 71, 0))).is_none());
+        assert!(
+            run(&mut land, 1, |ctx| waterlily_feature(
+                ctx,
+                BlockPos::new(0, 71, 0)
+            ))
+            .is_none()
+        );
     }
 
     #[test]
     fn pickles_sit_on_the_floor_in_water() {
         let mut world = Flat::new(40, 62, bb::SAND);
-        let placed = run(&mut world, 11, |ctx| pickle_feature(ctx, BlockPos::new(0, 41, 0)));
+        let placed = run(&mut world, 11, |ctx| {
+            pickle_feature(ctx, BlockPos::new(0, 41, 0))
+        });
         assert!(placed.is_some());
         for (at, id) in &world.edits {
             assert!(SEA_PICKLES.contains(id));
@@ -940,11 +1102,16 @@ mod tests {
         let mut any = false;
         for seed in 0..48 {
             let mut world = Flat::new(40, 62, bb::SAND);
-            let placed = run(&mut world, seed, |ctx| coral_feature(ctx, BlockPos::new(0, 41, 0)));
+            let placed = run(&mut world, seed, |ctx| {
+                coral_feature(ctx, BlockPos::new(0, 41, 0))
+            });
             any |= placed.is_some();
             let mut colours = world.edits.values().filter_map(|&id| coral_colour(id));
             if let Some(first) = colours.next() {
-                assert!(colours.all(|c| c == first), "one colour of coral block per structure");
+                assert!(
+                    colours.all(|c| c == first),
+                    "one colour of coral block per structure"
+                );
             }
             for (at, &id) in &world.edits {
                 assert!(reef_block(id), "{at:?}");
@@ -963,7 +1130,9 @@ mod tests {
                 world.set(BlockPos::new(0, y, 0), bb::TUBE_CORAL_BLOCK);
             }
             let before = world.edits.len();
-            let placed = run(&mut world, seed, |ctx| coral_hang_feature(ctx, BlockPos::new(0, 44, 0)));
+            let placed = run(&mut world, seed, |ctx| {
+                coral_hang_feature(ctx, BlockPos::new(0, 44, 0))
+            });
             any |= placed.is_some();
             assert_eq!(placed.is_some(), world.edits.len() > before);
             for (at, &id) in &world.edits {
@@ -971,7 +1140,10 @@ mod tests {
                     continue;
                 }
                 assert!((41..=43).contains(&at.y));
-                let dir = Direction::ALL.into_iter().find(|d| d.delta() == (at.x, at.z)).expect("adjacent");
+                let dir = Direction::ALL
+                    .into_iter()
+                    .find(|d| d.delta() == (at.x, at.z))
+                    .expect("adjacent");
                 assert_eq!(id, CORAL_WALL_FANS[0][dir_index(dir)]);
             }
         }
@@ -981,17 +1153,27 @@ mod tests {
     #[test]
     fn sea_anemone_decorates_the_floor_below_sea_level() {
         let mut world = Flat::new(40, 62, bb::SAND);
-        let placed = run(&mut world, 2, |ctx| sea_anemone_feature(ctx, BlockPos::new(3, 62, 4)));
+        let placed = run(&mut world, 2, |ctx| {
+            sea_anemone_feature(ctx, BlockPos::new(3, 62, 4))
+        });
         assert_eq!(placed, Some(BlockPos::new(3, 41, 4)));
         assert!(bb::coral_plant_or_fan(world.get(BlockPos::new(3, 41, 4))));
         let mut land = Flat::new(70, 62, bb::SAND);
-        assert!(run(&mut land, 2, |ctx| sea_anemone_feature(ctx, BlockPos::new(3, 62, 4))).is_none());
+        assert!(
+            run(&mut land, 2, |ctx| sea_anemone_feature(
+                ctx,
+                BlockPos::new(3, 62, 4)
+            ))
+            .is_none()
+        );
     }
 
     #[test]
     fn coral_crust_stays_flush_with_the_floor() {
         let mut world = Flat::new(40, 62, bb::SAND);
-        let placed = run(&mut world, 4, |ctx| coral_crust_feature(ctx, BlockPos::new(0, 41, 0)));
+        let placed = run(&mut world, 4, |ctx| {
+            coral_crust_feature(ctx, BlockPos::new(0, 41, 0))
+        });
         assert!(placed.is_some());
         let first = *world.edits.values().next().unwrap();
         for (at, &id) in &world.edits {

@@ -12,16 +12,30 @@ use proc_macro2::{Ident, TokenStream};
 use quote::{format_ident, quote};
 
 fn rule_fn(rule: &FeatureRule) -> Ident {
-    format_ident!("rule_{}", sanitize(rule.identifier.strip_prefix("minecraft:").unwrap_or(&rule.identifier)))
+    format_ident!(
+        "rule_{}",
+        sanitize(
+            rule.identifier
+                .strip_prefix("minecraft:")
+                .unwrap_or(&rule.identifier)
+        )
+    )
 }
 
 fn mask(em: &Emitter<'_>, rule: &FeatureRule) -> Result<[u64; 4]> {
     let mut words = [0u64; 4];
     for biome in em.model.overworld_biomes() {
-        if rule.biome_filter.as_ref().is_none_or(|f| f.matches(&biome.tags)) {
+        if rule
+            .biome_filter
+            .as_ref()
+            .is_none_or(|f| f.matches(&biome.tags))
+        {
             let id = biome.id as usize;
             if id >= 256 {
-                return Err(Error::data(&biome.source, format!("biome id {id} does not fit the 256-bit mask")));
+                return Err(Error::data(
+                    &biome.source,
+                    format!("biome id {id} does not fit the 256-bit mask"),
+                ));
             }
             words[id / 64] |= 1 << (id % 64);
         }
@@ -49,7 +63,10 @@ pub fn emit(em: &mut Emitter<'_>) -> Result<TokenStream> {
         let name = rule_fn(rule);
         let call = |pos: TokenStream| em.call(&rule.places_feature, pos);
         let body = scatter::emit(em, &rule.source, &rule.scatter, call)?;
-        let doc = format!(" `{}` from `{}`: places `{}`.", rule.identifier, rule.source, rule.places_feature);
+        let doc = format!(
+            " `{}` from `{}`: places `{}`.",
+            rule.identifier, rule.source, rule.places_feature
+        );
         fns.push(quote! {
             #[doc = #doc]
             #[inline(never)]

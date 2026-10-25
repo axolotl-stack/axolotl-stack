@@ -17,7 +17,10 @@ pub fn emit(em: &mut Emitter<'_>, o: &Obj<'_>) -> Result<TokenStream> {
     let id = block(&em.model.palette, origin, o.req("places_block")?)?;
     let radius = o.i32("placement_radius_around_floor")?;
     if radius < 0 {
-        return Err(Error::data(origin, format!("negative placement_radius_around_floor {radius}")));
+        return Err(Error::data(
+            origin,
+            format!("negative placement_radius_around_floor {radius}"),
+        ));
     }
     let probability = o.f32("placement_probability_per_valid_position")?;
     let face: usize = match o.opt("exposed_face") {
@@ -29,9 +32,19 @@ pub fn emit(em: &mut Emitter<'_>, o: &Obj<'_>) -> Result<TokenStream> {
             "west" => 3,
             "north" => 4,
             "east" => 5,
-            other => return Err(Error::data(origin, format!("unknown exposed_face {other:?}"))),
+            other => {
+                return Err(Error::data(
+                    origin,
+                    format!("unknown exposed_face {other:?}"),
+                ));
+            }
         },
-        Some(other) => return Err(Error::data(origin, format!("exposed_face is not a string: {other}"))),
+        Some(other) => {
+            return Err(Error::data(
+                origin,
+                format!("exposed_face is not a string: {other}"),
+            ));
+        }
     };
     let places = em.block(id);
     Ok(quote!({

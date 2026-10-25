@@ -112,19 +112,35 @@ pub fn place<W: BlockWorld>(ctx: &mut Ctx<'_, W>, pos: BlockPos, p: &Params) -> 
 /// block above, searched within `steepness` of `y`.
 fn level_sample<W: BlockWorld>(ctx: &Ctx<'_, W>, x: i32, y: i32, z: i32, steepness: i32) -> bool {
     (y - steepness..=y + steepness).any(|top| {
-        props::is_solid(ctx.get(BlockPos::new(x, top - 1, z))) && !props::is_solid(ctx.get(BlockPos::new(x, top, z)))
+        props::is_solid(ctx.get(BlockPos::new(x, top - 1, z)))
+            && !props::is_solid(ctx.get(BlockPos::new(x, top, z)))
     })
 }
 
-fn fits<W: BlockWorld>(ctx: &mut Ctx<'_, W>, t: &Template, origin: BlockPos, rotation: u8, at: BlockPos, p: &Params) -> bool {
+fn fits<W: BlockWorld>(
+    ctx: &mut Ctx<'_, W>,
+    t: &Template,
+    origin: BlockPos,
+    rotation: u8,
+    at: BlockPos,
+    p: &Params,
+) -> bool {
     let bbox: BoundingBox = t.bounding_box(origin, rotation);
     if !ctx.in_height(bbox.min.y) || !ctx.in_height(bbox.max.y) {
         return false;
     }
     if let Some(steepness) = p.leveled {
         let (cx, cz) = bbox.center_xz();
-        let samples = [(bbox.min.x, cz), (bbox.max.x, cz), (cx, bbox.min.z), (cx, bbox.max.z)];
-        if !samples.iter().all(|&(x, z)| level_sample(ctx, x, at.y, z, steepness)) {
+        let samples = [
+            (bbox.min.x, cz),
+            (bbox.max.x, cz),
+            (cx, bbox.min.z),
+            (cx, bbox.max.z),
+        ];
+        if !samples
+            .iter()
+            .all(|&(x, z)| level_sample(ctx, x, at.y, z, steepness))
+        {
             return false;
         }
     }

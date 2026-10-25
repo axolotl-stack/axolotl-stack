@@ -24,7 +24,10 @@ pub fn chunk_seed(world_seed: i64, chunk_x: i32, chunk_z: i32) -> u32 {
     let mut r = BedrockRandom::new(world_seed as u32 ^ (world_seed >> 32) as u32);
     let a = r.next_u32() | 1;
     let b = r.next_u32() | 1;
-    (chunk_x as u32).wrapping_mul(a).wrapping_add((chunk_z as u32).wrapping_mul(b)) ^ world_seed as u32
+    (chunk_x as u32)
+        .wrapping_mul(a)
+        .wrapping_add((chunk_z as u32).wrapping_mul(b))
+        ^ world_seed as u32
 }
 
 /// Molang `query.noise(x, z)`: 2D simplex noise seeded from the world seed,
@@ -63,7 +66,15 @@ impl Decorator {
         }
     }
 
-    fn run<W: BlockWorld>(&self, world: &mut W, chunk_x: i32, chunk_z: i32, biomes: &BiomeSet, passes: &[Pass], salt: u32) {
+    fn run<W: BlockWorld>(
+        &self,
+        world: &mut W,
+        chunk_x: i32,
+        chunk_z: i32,
+        biomes: &BiomeSet,
+        passes: &[Pass],
+        salt: u32,
+    ) {
         let mut rng = BedrockRandom::new(chunk_seed(self.seed, chunk_x, chunk_z) ^ salt);
         let mut ctx = Ctx {
             world,
@@ -78,14 +89,33 @@ impl Decorator {
     }
 
     /// Run the `pregeneration_pass` (cave carvers) for one chunk.
-    pub fn carve<W: BlockWorld>(&self, world: &mut W, chunk_x: i32, chunk_z: i32, biomes: &BiomeSet) {
+    pub fn carve<W: BlockWorld>(
+        &self,
+        world: &mut W,
+        chunk_x: i32,
+        chunk_z: i32,
+        biomes: &BiomeSet,
+    ) {
         // A separate stream keeps carving independent of decoration draws.
-        self.run(world, chunk_x, chunk_z, biomes, &[Pass::Pregeneration], 0x5bd1_e995);
+        self.run(
+            world,
+            chunk_x,
+            chunk_z,
+            biomes,
+            &[Pass::Pregeneration],
+            0x5bd1_e995,
+        );
     }
 
     /// Run every decoration pass after `pregeneration_pass` for one chunk;
     /// `world` must expose the chunk's 3x3 neighbourhood.
-    pub fn decorate<W: BlockWorld>(&self, world: &mut W, chunk_x: i32, chunk_z: i32, biomes: &BiomeSet) {
+    pub fn decorate<W: BlockWorld>(
+        &self,
+        world: &mut W,
+        chunk_x: i32,
+        chunk_z: i32,
+        biomes: &BiomeSet,
+    ) {
         self.run(world, chunk_x, chunk_z, biomes, &Pass::ALL[1..], 0);
     }
 }

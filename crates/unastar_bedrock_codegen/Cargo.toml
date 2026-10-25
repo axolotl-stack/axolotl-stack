@@ -7,6 +7,8 @@ description = "Build-time ingestion of BDS worldgen data and AOT Rust emission f
 publish = false
 
 [dependencies]
+unastar-packs = { path = "../unastar-packs" }
+unastar-rules = { path = "../unastar-rules" }
 serde = { workspace = true }
 serde_json = { workspace = true }
 quote = { workspace = true }

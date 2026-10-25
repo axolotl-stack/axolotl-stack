@@ -47,7 +47,14 @@ const OUTER_LAYER: f64 = 4.2;
 /// Growth directions of `inner_placements`, in the order of
 /// [`Params::inner_placements`]' state columns (Bedrock `minecraft:block_face`
 /// order): down, up, north, south, west, east.
-const FACES: [(i32, i32, i32); 6] = [(0, -1, 0), (0, 1, 0), (0, 0, -1), (0, 0, 1), (-1, 0, 0), (1, 0, 0)];
+const FACES: [(i32, i32, i32); 6] = [
+    (0, -1, 0),
+    (0, 1, 0),
+    (0, 0, -1),
+    (0, 0, 1),
+    (-1, 0, 0),
+    (1, 0, 0),
+];
 
 /// Parameters of one geode feature.
 #[derive(Debug, Clone, Copy)]
@@ -86,13 +93,22 @@ pub struct Params {
 
 /// Place one geode with its distribution points offset from `pos`;
 /// `Some(pos)` when any block changed.
-pub fn place<W: BlockWorld>(ctx: &mut Ctx<'_, W>, pos: BlockPos, params: &Params) -> Option<BlockPos> {
+pub fn place<W: BlockWorld>(
+    ctx: &mut Ctx<'_, W>,
+    pos: BlockPos,
+    params: &Params,
+) -> Option<BlockPos> {
     // Draw order below follows the vanilla algorithm; BDS's exact draws are
     // not observable from data (statistical parity).
     let noise = ShellNoise::new(i64::from(ctx.rng.next_u32()));
     let points = params.distribution_points.sample(ctx.rng).max(1);
     let crack_jitter = f64::from(ctx.rng.next_float());
-    let t = Thresholds::new(points, params.outer_wall_distance.max, f64::from(params.base_crack_size), crack_jitter);
+    let t = Thresholds::new(
+        points,
+        params.outer_wall_distance.max,
+        f64::from(params.base_crack_size),
+        crack_jitter,
+    );
     let generate_crack = ctx.rng.probability(params.generate_crack_chance);
 
     let mut centres: Vec<(BlockPos, f64)> = Vec::with_capacity(points as usize);
@@ -126,13 +142,20 @@ pub fn place<W: BlockWorld>(ctx: &mut Ctx<'_, W>, pos: BlockPos, params: &Params
             for dy in -r..=r {
                 let at = pos.offset(dx, dy, dz);
                 let n = noise.sample(at) * noise_multiplier;
-                let s: f64 = centres.iter().map(|&(c, offset)| inv_sqrt(dist_sq(at, c) + offset) + n).sum();
+                let s: f64 = centres
+                    .iter()
+                    .map(|&(c, offset)| inv_sqrt(dist_sq(at, c) + offset) + n)
+                    .sum();
                 if s < t.outer {
                     continue;
                 }
                 let block = if s < t.filling
                     && !cracks.is_empty()
-                    && cracks.iter().map(|&c| inv_sqrt(dist_sq(at, c) + crack_point_offset) + n).sum::<f64>() >= t.crack
+                    && cracks
+                        .iter()
+                        .map(|&c| inv_sqrt(dist_sq(at, c) + crack_point_offset) + n)
+                        .sum::<f64>()
+                        >= t.crack
                 {
                     bb::AIR
                 } else if s >= t.filling {
@@ -144,7 +167,11 @@ pub fn place<W: BlockWorld>(ctx: &mut Ctx<'_, W>, pos: BlockPos, params: &Params
                     {
                         potential.push(at);
                     }
-                    if alternate { params.alternate_inner_layer } else { params.inner_layer }
+                    if alternate {
+                        params.alternate_inner_layer
+                    } else {
+                        params.inner_layer
+                    }
                 } else if s >= t.middle {
                     params.middle_layer
                 } else {
@@ -218,7 +245,11 @@ fn inv_sqrt(v: f64) -> f64 {
 
 #[inline]
 fn dist_sq(a: BlockPos, b: BlockPos) -> f64 {
-    let (dx, dy, dz) = (f64::from(a.x - b.x), f64::from(a.y - b.y), f64::from(a.z - b.z));
+    let (dx, dy, dz) = (
+        f64::from(a.x - b.x),
+        f64::from(a.y - b.y),
+        f64::from(a.z - b.z),
+    );
     dx * dx + dy * dy + dz * dz
 }
 
@@ -330,7 +361,14 @@ mod tests {
     }
 
     /// One "placement" block per face, so the face it grew in is visible.
-    static PLACEMENTS: [[u32; 6]; 1] = [[bb::SAND, bb::RED_SAND, bb::GRAVEL, bb::CLAY, bb::ICE, bb::DIRT]];
+    static PLACEMENTS: [[u32; 6]; 1] = [[
+        bb::SAND,
+        bb::RED_SAND,
+        bb::GRAVEL,
+        bb::CLAY,
+        bb::ICE,
+        bb::DIRT,
+    ]];
 
     fn params() -> Params {
         Params {
@@ -411,18 +449,30 @@ mod tests {
         };
         let core = positions(bb::AIR);
         let n = core.len() as f64;
-        let centre = core.iter().fold((0.0, 0.0, 0.0), |a, p| (a.0 + p.0 / n, a.1 + p.1 / n, a.2 + p.2 / n));
+        let centre = core.iter().fold((0.0, 0.0, 0.0), |a, p| {
+            (a.0 + p.0 / n, a.1 + p.1 / n, a.2 + p.2 / n)
+        });
         let mean_distance = |id: u32| {
             let ps = positions(id);
             let sum: f64 = ps
                 .iter()
-                .map(|p| ((p.0 - centre.0).powi(2) + (p.1 - centre.1).powi(2) + (p.2 - centre.2).powi(2)).sqrt())
+                .map(|p| {
+                    ((p.0 - centre.0).powi(2) + (p.1 - centre.1).powi(2) + (p.2 - centre.2).powi(2))
+                        .sqrt()
+                })
                 .sum();
             sum / ps.len() as f64
         };
-        let (core_d, inner_d, middle_d, outer_d) =
-            (mean_distance(bb::AIR), mean_distance(bb::CALCITE), mean_distance(bb::TUFF), mean_distance(bb::OBSIDIAN));
-        assert!(core_d < inner_d && inner_d < middle_d && middle_d < outer_d, "{core_d} {inner_d} {middle_d} {outer_d}");
+        let (core_d, inner_d, middle_d, outer_d) = (
+            mean_distance(bb::AIR),
+            mean_distance(bb::CALCITE),
+            mean_distance(bb::TUFF),
+            mean_distance(bb::OBSIDIAN),
+        );
+        assert!(
+            core_d < inner_d && inner_d < middle_d && middle_d < outer_d,
+            "{core_d} {inner_d} {middle_d} {outer_d}"
+        );
         let mut grown = 0;
         for (face, &(dx, dy, dz)) in FACES.iter().enumerate() {
             let id = PLACEMENTS[0][face];
@@ -434,7 +484,10 @@ mod tests {
                         }
                         grown += 1;
                         let support = world.get(BlockPos::new(x - dx, y - dy, z - dz));
-                        assert!(support == bb::CALCITE || support == bb::MAGMA, "{id} at {x} {y} {z} not on the shell");
+                        assert!(
+                            support == bb::CALCITE || support == bb::MAGMA,
+                            "{id} at {x} {y} {z} not on the shell"
+                        );
                     }
                 }
             }

@@ -8,10 +8,10 @@
 use crate::blocks::BlockPalette;
 use crate::error::{Error, Result};
 use crate::ir::{Biome, Feature, FeatureRule, Pass, SpawnRule};
-use crate::packs::{Family, PackStack};
 use crate::structures::StructureData;
 use std::collections::{BTreeMap, BTreeSet};
 use std::path::{Path, PathBuf};
+use unastar_packs::packs::{Family, PackStack};
 
 /// Everything the emitters consume.
 pub struct Model {
@@ -38,10 +38,11 @@ impl Model {
         let palette = BlockPalette::load(native_dir)?;
         let ids_path = native_dir.join("biome_id_map.json");
         let ids_bytes = std::fs::read(&ids_path).map_err(|e| Error::io(&ids_path, e))?;
-        let ids: BTreeMap<String, u16> = serde_json::from_slice(&ids_bytes).map_err(|source| Error::Json {
-            origin: ids_path.display().to_string(),
-            source,
-        })?;
+        let ids: BTreeMap<String, u16> =
+            serde_json::from_slice(&ids_bytes).map_err(|source| Error::Json {
+                origin: ids_path.display().to_string(),
+                source,
+            })?;
 
         let mut biomes = stack
             .resolve(Family::Biomes)?
@@ -73,7 +74,12 @@ impl Model {
             native_dir.join("block_properties_table.json"),
             ids_path,
         ];
-        for family in [Family::Biomes, Family::FeatureRules, Family::Features, Family::SpawnRules] {
+        for family in [
+            Family::Biomes,
+            Family::FeatureRules,
+            Family::Features,
+            Family::SpawnRules,
+        ] {
             inputs.extend(stack.inputs(family));
         }
         inputs.extend(structures.inputs.iter().cloned());
@@ -103,7 +109,11 @@ impl Model {
         self.rules
             .values()
             .filter(|r| r.pass == pass && !r.is_disabled())
-            .filter(|r| r.biome_filter.as_ref().is_none_or(|f| f.matches(&biome.tags)))
+            .filter(|r| {
+                r.biome_filter
+                    .as_ref()
+                    .is_none_or(|f| f.matches(&biome.tags))
+            })
             .collect()
     }
 

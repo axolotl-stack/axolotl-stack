@@ -62,7 +62,10 @@ impl Normal {
         );
         let omin = first_octave.min(MAX_OCTAVE + 1 - len).max(MIN_OCTAVE);
         let mut rng = named_rng(seed, name);
-        Self { noise: DoublePerlinNoise::new(&mut rng, amplitudes, omin), coord_scale: 2f64.powi(first_octave - omin) }
+        Self {
+            noise: DoublePerlinNoise::new(&mut rng, amplitudes, omin),
+            coord_scale: 2f64.powi(first_octave - omin),
+        }
     }
 
     #[inline]
@@ -88,7 +91,9 @@ struct GradientNoise {
 
 impl GradientNoise {
     fn matches(&self, g: &NoiseGradient) -> bool {
-        self.name == g.noise_name && self.first_octave == g.first_octave && self.amplitudes == g.amplitudes
+        self.name == g.noise_name
+            && self.first_octave == g.first_octave
+            && self.amplitudes == g.amplitudes
     }
 }
 
@@ -133,7 +138,9 @@ impl SurfaceNoises {
         let mut gradients: Vec<GradientNoise> = Vec::new();
         for biome in biomes {
             for builder in [biome.surface, biome.subsurface].into_iter().flatten() {
-                let Builder::NoiseGradient(g) = builder else { continue };
+                let Builder::NoiseGradient(g) = builder else {
+                    continue;
+                };
                 if gradients.iter().any(|n| n.matches(&g)) {
                     continue;
                 }
@@ -176,7 +183,10 @@ impl SurfaceNoises {
     /// noise is a single simplex octave in `[-1, 1]`; ours is clamped to it).
     #[inline]
     pub(super) fn band(&self, x: i32, y: i32, z: i32) -> Band {
-        let n = self.band_offset.at_2d(x as f64 / 512.0, z as f64 / 512.0).clamp(-1.0, 1.0);
+        let n = self
+            .band_offset
+            .at_2d(x as f64 / 512.0, z as f64 / 512.0)
+            .clamp(-1.0, 1.0);
         let offset = (n * 2.0).round() as i32;
         self.bands[(y + offset).rem_euclid(BAND_COUNT as i32) as usize]
     }
@@ -202,7 +212,8 @@ impl SurfaceNoises {
     /// Iceberg roof noise (classic 1/10.24 input scale).
     #[inline]
     pub(super) fn iceberg_roof(&self, x: i32, z: i32) -> f64 {
-        self.iceberg_roof.at_2d(x as f64 * 0.097_656_25, z as f64 * 0.097_656_25)
+        self.iceberg_roof
+            .at_2d(x as f64 * 0.097_656_25, z as f64 * 0.097_656_25)
     }
 
     /// Frozen ocean temperature: vanilla's frozen-ocean modifier, which
@@ -235,13 +246,15 @@ impl SurfaceNoises {
     /// Capped builder floor material noise, roughly `[-1, 1]`.
     #[inline]
     pub(super) fn capped_floor(&self, x: i32, z: i32) -> f64 {
-        self.capped_floor.at_2d(x as f64 * CAPPED_SCALE, z as f64 * CAPPED_SCALE)
+        self.capped_floor
+            .at_2d(x as f64 * CAPPED_SCALE, z as f64 * CAPPED_SCALE)
     }
 
     /// Capped builder ceiling material noise, roughly `[-1, 1]`.
     #[inline]
     pub(super) fn capped_ceiling(&self, x: i32, z: i32) -> f64 {
-        self.capped_ceiling.at_2d(x as f64 * CAPPED_SCALE, z as f64 * CAPPED_SCALE)
+        self.capped_ceiling
+            .at_2d(x as f64 * CAPPED_SCALE, z as f64 * CAPPED_SCALE)
     }
 
     /// 3D value of a `noise_gradient` descriptor at a block.
@@ -251,7 +264,10 @@ impl SurfaceNoises {
     /// (an integration error, not a data condition).
     pub(super) fn gradient(&self, g: &NoiseGradient, x: i32, y: i32, z: i32) -> f64 {
         let Some(n) = self.gradients.iter().find(|n| n.matches(g)) else {
-            panic!("noise `{}` was not built: SurfaceNoises must come from the biome table in use", g.noise_name);
+            panic!(
+                "noise `{}` was not built: SurfaceNoises must come from the biome table in use",
+                g.noise_name
+            );
         };
         n.noise.at(x as f64, y as f64, z as f64)
     }
@@ -331,7 +347,8 @@ mod tests {
         let a = generate_bands(&mut named_rng(7, "minecraft:clay_bands"));
         let b = generate_bands(&mut named_rng(7, "minecraft:clay_bands"));
         assert_eq!(a, b);
-        let differs = (8..16).any(|s| generate_bands(&mut named_rng(s, "minecraft:clay_bands")) != a);
+        let differs =
+            (8..16).any(|s| generate_bands(&mut named_rng(s, "minecraft:clay_bands")) != a);
         assert!(differs, "band sequences should depend on the seed");
     }
 
@@ -344,12 +361,19 @@ mod tests {
             assert!(count(Band::White) >= 1, "seed {seed}: no white band");
             assert!(count(Band::Yellow) >= 1 && count(Band::Brown) >= 2 && count(Band::Red) >= 1);
             assert!(count(Band::Orange) >= 1, "seed {seed}: no orange band");
-            assert!(count(Band::Base) >= 10, "seed {seed}: base terracotta too rare");
+            assert!(
+                count(Band::Base) >= 10,
+                "seed {seed}: base terracotta too rare"
+            );
             orange_total += count(Band::Orange);
         }
         // An orange band every ~4 entries, partly painted over by the streaks:
         // a 64-entry sequence keeps on average well over 5.
-        assert!(orange_total / 32 >= 6, "mean orange bands {}", orange_total / 32);
+        assert!(
+            orange_total / 32 >= 6,
+            "mean orange bands {}",
+            orange_total / 32
+        );
     }
 
     #[test]

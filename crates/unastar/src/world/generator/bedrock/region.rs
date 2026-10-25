@@ -48,7 +48,14 @@ impl<'a, B: BiomeSource> ChunkRegion<'a, B> {
         let (cx, cz) = (chunks[4].x, chunks[4].z);
         for (i, c) in chunks.iter().enumerate() {
             let (dx, dz) = ((i % 3) as i32 - 1, (i / 3) as i32 - 1);
-            assert!(c.x == cx + dx && c.z == cz + dz, "region chunk {i} is ({}, {}), expected ({}, {})", c.x, c.z, cx + dx, cz + dz);
+            assert!(
+                c.x == cx + dx && c.z == cz + dz,
+                "region chunk {i} is ({}, {}), expected ({}, {})",
+                c.x,
+                c.z,
+                cx + dx,
+                cz + dz
+            );
         }
         Self {
             chunks,
@@ -63,13 +70,17 @@ impl<'a, B: BiomeSource> ChunkRegion<'a, B> {
     #[inline]
     fn column(&self, x: i32, z: i32) -> Option<usize> {
         let (lx, lz) = (x - self.origin_x, z - self.origin_z);
-        ((0..SPAN as i32).contains(&lx) && (0..SPAN as i32).contains(&lz)).then(|| lz as usize * SPAN + lx as usize)
+        ((0..SPAN as i32).contains(&lx) && (0..SPAN as i32).contains(&lz))
+            .then(|| lz as usize * SPAN + lx as usize)
     }
 
     #[inline]
     fn locate(&self, pos: BlockPos) -> Option<(usize, u8, u8)> {
         let (lx, lz) = (pos.x - self.origin_x, pos.z - self.origin_z);
-        if !(0..SPAN as i32).contains(&lx) || !(0..SPAN as i32).contains(&lz) || !(MIN_Y..MAX_Y).contains(&pos.y) {
+        if !(0..SPAN as i32).contains(&lx)
+            || !(0..SPAN as i32).contains(&lz)
+            || !(MIN_Y..MAX_Y).contains(&pos.y)
+        {
             return None;
         }
         let chunk = (lz / 16) as usize * 3 + (lx / 16) as usize;

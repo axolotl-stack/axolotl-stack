@@ -169,7 +169,12 @@ pub struct ColumnInput<'a> {
 /// Build the surface of one column: the biome's surface builder on the
 /// surface layer, freezing of the top water in frozen biomes, then the
 /// subsurface builder (if any) on everything below the surface layer.
-pub fn build_column<C: SurfaceColumn>(col: &mut C, input: &ColumnInput<'_>, noises: &SurfaceNoises, rng: &mut BedrockRandom) {
+pub fn build_column<C: SurfaceColumn>(
+    col: &mut C,
+    input: &ColumnInput<'_>,
+    noises: &SurfaceNoises,
+    rng: &mut BedrockRandom,
+) {
     let biome = input.biome;
     let mut c = Column::new(input, noises, rng, col.min_y(), col.max_y(), true);
     let mut bottom = c.hi;
@@ -204,7 +209,9 @@ pub fn build_range<C: SurfaceColumn>(
     min_y: i32,
     max_y: i32,
 ) {
-    let Some(builder) = &input.biome.subsurface else { return };
+    let Some(builder) = &input.biome.subsurface else {
+        return;
+    };
     let (lo, hi) = (min_y.max(col.min_y()), max_y.min(col.max_y()));
     if lo >= hi {
         return;
@@ -269,7 +276,9 @@ impl<'a> Column<'a> {
             biome
                 .mountain
                 .and_then(|m| m.steep_material)
-                .and_then(|(block, slopes)| is_steep(slopes, input.neighbour_heights).then_some(block))
+                .and_then(|(block, slopes)| {
+                    is_steep(slopes, input.neighbour_heights).then_some(block)
+                })
         } else {
             None
         };
@@ -299,7 +308,9 @@ impl<'a> Column<'a> {
         {
             return false;
         }
-        let n = self.noises.surface(self.x, self.z, a.noise_frequency_scale as f64);
+        let n = self
+            .noises
+            .surface(self.x, self.z, a.noise_frequency_scale as f64);
         n >= a.noise_range.0 as f64 && n <= a.noise_range.1 as f64
     }
 
@@ -333,19 +344,54 @@ impl<'a> Column<'a> {
     }
 }
 
-fn run<C: SurfaceColumn>(col: &mut C, builder: &Builder, c: &Column<'_>, rng: &mut BedrockRandom) -> Option<i32> {
+fn run<C: SurfaceColumn>(
+    col: &mut C,
+    builder: &Builder,
+    c: &Column<'_>,
+    rng: &mut BedrockRandom,
+) -> Option<i32> {
     match *builder {
         Builder::Overworld(m) => overworld::build(col, c, &m, rng),
         Builder::FrozenOcean(m) => frozen_ocean::build(col, c, &m, rng),
-        Builder::Swamp { materials, max_puddle_depth_below_sea_level } => {
-            swamp::build(col, c, &materials, max_puddle_depth_below_sea_level, rng)
-        }
-        Builder::Mesa { materials, clay, hard_clay, bryce_pillars, has_forest } => {
-            mesa::build(col, c, &mesa::Mesa { materials, clay, hard_clay, bryce_pillars, has_forest })
-        }
-        Builder::Capped { floor, ceiling, sea, foundation, beach } => {
-            capped::build(col, c, &capped::Capped { floor, ceiling, sea, foundation, beach }, rng)
-        }
+        Builder::Swamp {
+            materials,
+            max_puddle_depth_below_sea_level,
+        } => swamp::build(col, c, &materials, max_puddle_depth_below_sea_level, rng),
+        Builder::Mesa {
+            materials,
+            clay,
+            hard_clay,
+            bryce_pillars,
+            has_forest,
+        } => mesa::build(
+            col,
+            c,
+            &mesa::Mesa {
+                materials,
+                clay,
+                hard_clay,
+                bryce_pillars,
+                has_forest,
+            },
+        ),
+        Builder::Capped {
+            floor,
+            ceiling,
+            sea,
+            foundation,
+            beach,
+        } => capped::build(
+            col,
+            c,
+            &capped::Capped {
+                floor,
+                ceiling,
+                sea,
+                foundation,
+                beach,
+            },
+            rng,
+        ),
         Builder::TheEnd => the_end::build(col, c),
         Builder::NoiseGradient(g) => noise_gradient::build(col, c, &g),
     }
@@ -391,7 +437,10 @@ fn underwater<C: SurfaceColumn>(col: &C, y: i32, sea_level: i32) -> bool {
 
 /// Highest non-air block of `lo..hi` and its id.
 fn first_non_air<C: SurfaceColumn>(col: &C, lo: i32, hi: i32) -> Option<(i32, u32)> {
-    (lo..hi).rev().map(|y| (y, col.get(y))).find(|&(_, b)| !bb::air(b))
+    (lo..hi)
+        .rev()
+        .map(|y| (y, col.get(y)))
+        .find(|&(_, b)| !bb::air(b))
 }
 
 /// `sea_material` fills the open sea: in overworld biomes the air between
@@ -474,7 +523,10 @@ mod test_support {
                     }
                 })
                 .collect();
-            Self { min_y: MIN_Y, blocks }
+            Self {
+                min_y: MIN_Y,
+                blocks,
+            }
         }
 
         /// Number of blocks of the column satisfying `pred`.
@@ -516,7 +568,13 @@ mod test_support {
 
     /// Flat-neighbourhood input at `(x, z)`.
     pub(super) fn input(biome: &BiomeData, x: i32, z: i32) -> ColumnInput<'_> {
-        ColumnInput { x, z, biome, sea_level: SEA, neighbour_heights: [70; 4] }
+        ColumnInput {
+            x,
+            z,
+            biome,
+            sea_level: SEA,
+            neighbour_heights: [70; 4],
+        }
     }
 }
 
@@ -536,11 +594,15 @@ mod tests {
         for x in (0..256).step_by(17) {
             let mut col = VecColumn::terrain(70, None);
             let mut rng = BedrockRandom::new(x as u32);
-            let expected = surface_depth(noises.surface(x, 3, DEPTH_NOISE_SCALE), &mut rng.clone()).max(0);
+            let expected =
+                surface_depth(noises.surface(x, 3, DEPTH_NOISE_SCALE), &mut rng.clone()).max(0);
             build_column(&mut col, &input(&b, x, 3), &noises, &mut rng);
             assert_eq!(col.get(70), bb::GRASS_BLOCK);
             assert_eq!(col.get(71), bb::AIR);
-            let dirt = (col.min_y..70).rev().take_while(|&y| col.get(y) == bb::DIRT).count() as i32;
+            let dirt = (col.min_y..70)
+                .rev()
+                .take_while(|&y| col.get(y) == bb::DIRT)
+                .count() as i32;
             assert_eq!(dirt, expected, "x {x}");
             assert!(dirt <= 8);
             assert!((col.min_y..70 - dirt).all(|y| col.get(y) == bb::STONE));
@@ -552,7 +614,12 @@ mod tests {
         let noises = noises();
         let b = biome(Builder::Overworld(PLAINS));
         let mut col = VecColumn::terrain(30, Some(SEA - 1));
-        build_column(&mut col, &input(&b, 5, 5), &noises, &mut BedrockRandom::new(1));
+        build_column(
+            &mut col,
+            &input(&b, 5, 5),
+            &noises,
+            &mut BedrockRandom::new(1),
+        );
         assert_eq!(col.get(30), bb::GRAVEL);
         assert_eq!(col.count(|id| id == bb::GRASS_BLOCK || id == bb::DIRT), 0);
         assert_eq!(col.count(|id| id == bb::WATER), (SEA - 31) as usize);
@@ -563,7 +630,12 @@ mod tests {
         let noises = noises();
         let b = biome(Builder::Overworld(PLAINS));
         let mut col = VecColumn::terrain(SEA - 3, Some(SEA - 1));
-        build_column(&mut col, &input(&b, 5, 5), &noises, &mut BedrockRandom::new(1));
+        build_column(
+            &mut col,
+            &input(&b, 5, 5),
+            &noises,
+            &mut BedrockRandom::new(1),
+        );
         assert_eq!(col.get(SEA - 3), bb::DIRT);
         assert_eq!(col.count(|id| id == bb::GRASS_BLOCK || id == bb::GRAVEL), 0);
     }
@@ -573,14 +645,24 @@ mod tests {
         let noises = noises();
         let mut b = biome(Builder::Overworld(PLAINS));
         let mut col = VecColumn::terrain(40, None);
-        build_column(&mut col, &input(&b, 0, 0), &noises, &mut BedrockRandom::new(1));
+        build_column(
+            &mut col,
+            &input(&b, 0, 0),
+            &noises,
+            &mut BedrockRandom::new(1),
+        );
         assert!((41..SEA).all(|y| col.get(y) == bb::WATER));
         assert_eq!(col.get(SEA), bb::AIR);
 
         b.frozen = true;
         b.temperature = 0.0;
         let mut col = VecColumn::terrain(40, Some(SEA - 1));
-        build_column(&mut col, &input(&b, 0, 0), &noises, &mut BedrockRandom::new(1));
+        build_column(
+            &mut col,
+            &input(&b, 0, 0),
+            &noises,
+            &mut BedrockRandom::new(1),
+        );
         assert_eq!(col.get(SEA - 1), bb::ICE);
         assert_eq!(col.get(SEA - 2), bb::WATER);
     }
@@ -598,13 +680,31 @@ mod tests {
             height_range: None,
         };
         static ALWAYS: [Adjustment; 1] = [SAND_TOP];
-        static NEVER: [Adjustment; 1] = [Adjustment { noise_range: (5.0, 6.0), ..SAND_TOP }];
-        static TOO_LOW: [Adjustment; 1] = [Adjustment { height_range: Some((0, 10)), ..SAND_TOP }];
+        static NEVER: [Adjustment; 1] = [Adjustment {
+            noise_range: (5.0, 6.0),
+            ..SAND_TOP
+        }];
+        static TOO_LOW: [Adjustment; 1] = [Adjustment {
+            height_range: Some((0, 10)),
+            ..SAND_TOP
+        }];
         let noises = noises();
-        for (adjustments, top) in [(&ALWAYS, bb::SAND), (&NEVER, bb::GRASS_BLOCK), (&TOO_LOW, bb::GRASS_BLOCK)] {
-            let b = BiomeData { adjustments, ..biome(Builder::Overworld(PLAINS)) };
+        for (adjustments, top) in [
+            (&ALWAYS, bb::SAND),
+            (&NEVER, bb::GRASS_BLOCK),
+            (&TOO_LOW, bb::GRASS_BLOCK),
+        ] {
+            let b = BiomeData {
+                adjustments,
+                ..biome(Builder::Overworld(PLAINS))
+            };
             let mut col = VecColumn::terrain(70, None);
-            build_column(&mut col, &input(&b, 9, 9), &noises, &mut BedrockRandom::new(3));
+            build_column(
+                &mut col,
+                &input(&b, 9, 9),
+                &noises,
+                &mut BedrockRandom::new(3),
+            );
             assert_eq!(col.get(70), top);
             assert!(col.get(69) == bb::DIRT || col.get(69) == bb::STONE);
         }
@@ -635,23 +735,46 @@ mod tests {
             },
         ];
         let noises = noises();
-        let b = BiomeData { adjustments: &BOTH, ..biome(Builder::Overworld(PLAINS)) };
-        let c = Column::new(&input(&b, 1, 1), &noises, &mut BedrockRandom::new(0), -64, 320, true);
+        let b = BiomeData {
+            adjustments: &BOTH,
+            ..biome(Builder::Overworld(PLAINS))
+        };
+        let c = Column::new(
+            &input(&b, 1, 1),
+            &noises,
+            &mut BedrockRandom::new(0),
+            -64,
+            320,
+            true,
+        );
         let m = c.materials(&PLAINS, 70);
-        assert_eq!((m.top, m.mid, m.sea_floor), (bb::PACKED_ICE, bb::SAND, bb::GRAVEL));
+        assert_eq!(
+            (m.top, m.mid, m.sea_floor),
+            (bb::PACKED_ICE, bb::SAND, bb::GRAVEL)
+        );
     }
 
     #[test]
     fn steep_slopes_get_steep_material() {
         let noises = noises();
         let b = BiomeData {
-            mountain: Some(Mountain { steep_material: Some((bb::PACKED_ICE, [true, false, false, false])), top_slide_enabled: None }),
+            mountain: Some(Mountain {
+                steep_material: Some((bb::PACKED_ICE, [true, false, false, false])),
+                top_slide_enabled: None,
+            }),
             ..biome(Builder::Overworld(PLAINS))
         };
         // Rising toward the south: a north-facing slope.
-        for (heights, top) in [([60, 80, 70, 70], bb::PACKED_ICE), ([80, 60, 70, 70], bb::GRASS_BLOCK), ([68, 71, 70, 70], bb::GRASS_BLOCK)] {
+        for (heights, top) in [
+            ([60, 80, 70, 70], bb::PACKED_ICE),
+            ([80, 60, 70, 70], bb::GRASS_BLOCK),
+            ([68, 71, 70, 70], bb::GRASS_BLOCK),
+        ] {
             let mut col = VecColumn::terrain(70, None);
-            let inp = ColumnInput { neighbour_heights: heights, ..input(&b, 0, 0) };
+            let inp = ColumnInput {
+                neighbour_heights: heights,
+                ..input(&b, 0, 0)
+            };
             build_column(&mut col, &inp, &noises, &mut BedrockRandom::new(5));
             assert_eq!(col.get(70), top, "{heights:?}");
         }
@@ -660,18 +783,35 @@ mod tests {
     #[test]
     fn nether_biomes_flood_caverns_and_surface_every_floor() {
         let noises = noises();
-        let m = Materials { top: bb::GRAVEL, mid: bb::GRAVEL, sea_floor: bb::GRAVEL, foundation: bb::DEEPSLATE, sea: bb::LAVA, sea_floor_depth: 7 };
-        let b = BiomeData { overworld: false, ..biome(Builder::Overworld(m)) };
+        let m = Materials {
+            top: bb::GRAVEL,
+            mid: bb::GRAVEL,
+            sea_floor: bb::GRAVEL,
+            foundation: bb::DEEPSLATE,
+            sea: bb::LAVA,
+            sea_floor_depth: 7,
+        };
+        let b = BiomeData {
+            overworld: false,
+            ..biome(Builder::Overworld(m))
+        };
         let mut col = VecColumn::terrain(100, None);
         for y in 21..=60 {
             col.set(y, bb::AIR);
         }
-        let inp = ColumnInput { sea_level: 32, ..input(&b, 0, 0) };
+        let inp = ColumnInput {
+            sea_level: 32,
+            ..input(&b, 0, 0)
+        };
         build_column(&mut col, &inp, &noises, &mut BedrockRandom::new(5));
         assert!((21..32).all(|y| col.get(y) == bb::LAVA));
         assert!((32..=60).all(|y| col.get(y) == bb::AIR));
         assert_eq!(col.get(100), bb::GRAVEL);
-        assert_eq!(col.get(20), bb::GRAVEL, "floor under the lava sea is surfaced too");
+        assert_eq!(
+            col.get(20),
+            bb::GRAVEL,
+            "floor under the lava sea is surfaced too"
+        );
         // Remaining terrain stone became the builder's foundation.
         assert_eq!(col.count(|id| id == bb::STONE), 0);
         assert!(col.get(-60) == bb::DEEPSLATE);

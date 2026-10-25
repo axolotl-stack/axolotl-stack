@@ -24,7 +24,10 @@
 
 use super::super::generated::bb;
 use super::noises::Band;
-use super::{Column, LEGACY_NOISE_SCALE, Materials, SurfaceColumn, convert_foundation, fill_sea, first_non_air, is_foundation, is_liquid, underwater};
+use super::{
+    Column, LEGACY_NOISE_SCALE, Materials, SurfaceColumn, convert_foundation, fill_sea,
+    first_non_air, is_foundation, is_liquid, underwater,
+};
 use std::f64::consts::PI;
 
 /// Above this y band tops are orange terracotta (vanilla).
@@ -59,7 +62,11 @@ fn band_block(band: Band, p: &Mesa) -> u32 {
 /// Run the mesa builder; returns the lowest y it dressed.
 pub(super) fn build<C: SurfaceColumn>(col: &mut C, c: &Column<'_>, p: &Mesa) -> Option<i32> {
     let base = &p.materials;
-    let sea = if c.biome.adjustments.is_empty() { base.sea } else { c.materials(base, c.sea_level - 1).sea };
+    let sea = if c.biome.adjustments.is_empty() {
+        base.sea
+    } else {
+        c.materials(base, c.sea_level - 1).sea
+    };
     fill_sea(col, c, sea);
     if p.bryce_pillars && c.surface {
         erode(col, c, base.foundation);
@@ -92,11 +99,19 @@ pub(super) fn build<C: SurfaceColumn>(col: &mut C, c: &Column<'_>, p: &Mesa) -> 
             m = c.materials(base, y);
             remaining = depth + (y - c.sea_level).max(0);
             let top = if underwater(col, y, c.sea_level) {
-                if y < c.sea_level - m.sea_floor_depth - depth { m.sea_floor } else { m.mid }
+                if y < c.sea_level - m.sea_floor_depth - depth {
+                    m.sea_floor
+                } else {
+                    m.mid
+                }
             } else if let Some(steep) = c.steep {
                 steep
             } else if p.has_forest && y > FOREST_BASE + depth * 2 {
-                if plain { bb::COARSE_DIRT } else { bb::GRASS_BLOCK }
+                if plain {
+                    bb::COARSE_DIRT
+                } else {
+                    bb::GRASS_BLOCK
+                }
             } else if y > c.sea_level + 3 + depth {
                 if y > BAND_TOP {
                     bb::ORANGE_TERRACOTTA
@@ -123,7 +138,9 @@ pub(super) fn build<C: SurfaceColumn>(col: &mut C, c: &Column<'_>, p: &Mesa) -> 
 
 /// Height (exclusive) of the eroded badlands spire at the column, if any.
 fn pillar_top(c: &Column<'_>) -> Option<i32> {
-    let e = (c.noise * LEGACY_NOISE_SCALE).abs().min(c.noises.pillar(c.x, c.z) * 15.0);
+    let e = (c.noise * LEGACY_NOISE_SCALE)
+        .abs()
+        .min(c.noises.pillar(c.x, c.z) * 15.0);
     if e <= 0.0 {
         return None;
     }
@@ -137,7 +154,9 @@ fn pillar_top(c: &Column<'_>) -> Option<i32> {
 fn erode<C: SurfaceColumn>(col: &mut C, c: &Column<'_>, foundation: u32) {
     let Some(top) = pillar_top(c) else { return };
     let top = top.min(c.hi);
-    let Some((surface, b)) = first_non_air(col, c.lo, c.hi) else { return };
+    let Some((surface, b)) = first_non_air(col, c.lo, c.hi) else {
+        return;
+    };
     if is_liquid(b) {
         return;
     }
@@ -148,12 +167,16 @@ fn erode<C: SurfaceColumn>(col: &mut C, c: &Column<'_>, foundation: u32) {
 
 #[cfg(test)]
 mod tests {
+    use super::super::super::rng::BedrockRandom;
     use super::super::test_support::{PLAINS, SEA, VecColumn, biome, input};
     use super::super::{Builder, SurfaceNoises, build_column};
     use super::*;
-    use super::super::super::rng::BedrockRandom;
 
-    const BADLANDS: Materials = Materials { top: bb::RED_SAND, mid: bb::HARDENED_CLAY, ..PLAINS };
+    const BADLANDS: Materials = Materials {
+        top: bb::RED_SAND,
+        mid: bb::HARDENED_CLAY,
+        ..PLAINS
+    };
 
     fn mesa(bryce_pillars: bool, has_forest: bool) -> Builder {
         Builder::Mesa {
@@ -171,13 +194,21 @@ mod tests {
         let b = biome(mesa(false, false));
         for x in 0..32 {
             let mut col = VecColumn::terrain(110, None);
-            build_column(&mut col, &input(&b, x * 11, 0), &noises, &mut BedrockRandom::new(x as u32));
+            build_column(
+                &mut col,
+                &input(&b, x * 11, 0),
+                &noises,
+                &mut BedrockRandom::new(x as u32),
+            );
             // 110 - 63 = 47 extra blocks: the whole top of the hill is banded.
             for y in 110 - 47..=110 {
                 assert!(bb::terracotta(col.get(y)), "x {x} y {y}: {}", col.get(y));
             }
             assert_eq!(col.get(111), bb::AIR);
-            assert_eq!(col.count(|id| id == bb::RED_SAND || id == bb::GRASS_BLOCK), 0);
+            assert_eq!(
+                col.count(|id| id == bb::RED_SAND || id == bb::GRASS_BLOCK),
+                0
+            );
         }
     }
 
@@ -185,7 +216,13 @@ mod tests {
     fn bands_follow_the_seed_sequence() {
         let noises = SurfaceNoises::with_biomes(21, &[]);
         let again = SurfaceNoises::with_biomes(21, &[]);
-        let p = Mesa { materials: BADLANDS, clay: bb::WHITE_TERRACOTTA, hard_clay: bb::HARDENED_CLAY, bryce_pillars: false, has_forest: false };
+        let p = Mesa {
+            materials: BADLANDS,
+            clay: bb::WHITE_TERRACOTTA,
+            hard_clay: bb::HARDENED_CLAY,
+            bryce_pillars: false,
+            has_forest: false,
+        };
         let mut colours = 0;
         for y in 64..128 {
             let block = band_block(noises.band(5, y, 5), &p);
@@ -207,7 +244,12 @@ mod tests {
         let noises = SurfaceNoises::with_biomes(21, &[]);
         let b = biome(mesa(false, false));
         let mut col = VecColumn::terrain(SEA + 1, None);
-        build_column(&mut col, &input(&b, 0, 0), &noises, &mut BedrockRandom::new(0));
+        build_column(
+            &mut col,
+            &input(&b, 0, 0),
+            &noises,
+            &mut BedrockRandom::new(0),
+        );
         assert_eq!(col.get(SEA + 1), bb::RED_SAND);
         assert_eq!(col.get(SEA), bb::HARDENED_CLAY);
     }
@@ -218,7 +260,12 @@ mod tests {
         let b = biome(mesa(false, true));
         for x in 0..16 {
             let mut col = VecColumn::terrain(110, None);
-            build_column(&mut col, &input(&b, x * 13, 0), &noises, &mut BedrockRandom::new(0));
+            build_column(
+                &mut col,
+                &input(&b, x * 13, 0),
+                &noises,
+                &mut BedrockRandom::new(0),
+            );
             let top = col.get(110);
             assert!(top == bb::GRASS_BLOCK || top == bb::COARSE_DIRT, "x {x}");
             assert!(bb::terracotta(col.get(109)));
@@ -242,7 +289,10 @@ mod tests {
             }
             let mut col = VecColumn::terrain(SEA + 1, None);
             build_column(&mut col, &inp, &noises, &mut BedrockRandom::new(0));
-            assert!((SEA + 1..top).all(|y| bb::terracotta(col.get(y))), "spire below {top}");
+            assert!(
+                (SEA + 1..top).all(|y| bb::terracotta(col.get(y))),
+                "spire below {top}"
+            );
             assert_eq!(col.get(top), bb::AIR);
             seen += 1;
             if seen == 8 {

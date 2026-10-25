@@ -18,9 +18,9 @@ pub enum Error {
         #[source]
         source: std::io::Error,
     },
-    /// A `.brarchive` container is malformed.
-    #[error("{path}: malformed brarchive: {reason}")]
-    Brarchive { path: PathBuf, reason: String },
+    /// The shared pack reader rejected an input.
+    #[error(transparent)]
+    Packs(#[from] unastar_packs::Error),
     /// A JSON document could not be parsed.
     #[error("{origin}: invalid JSON: {source}")]
     Json {

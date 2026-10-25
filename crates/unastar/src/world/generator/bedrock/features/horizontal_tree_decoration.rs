@@ -99,13 +99,26 @@ mod tests {
             let mut world = Cube::filled(8, bb::AIR);
             world.set(BlockPos::new(0, 0, 0), bb::OAK_LOG);
             let mut rng = BedrockRandom::new(seed);
-            let at = with_ctx(&mut world, &mut rng, |ctx| place(ctx, BlockPos::new(0, 0, 0), &PARAMS)).expect("placed");
-            let side = Direction::ALL.iter().position(|&d| BlockPos::new(0, 0, 0).side(d) == at).expect("beside the log");
-            assert_eq!(world.get(at), PARAMS.rotations[side], "rotated towards its side");
+            let at = with_ctx(&mut world, &mut rng, |ctx| {
+                place(ctx, BlockPos::new(0, 0, 0), &PARAMS)
+            })
+            .expect("placed");
+            let side = Direction::ALL
+                .iter()
+                .position(|&d| BlockPos::new(0, 0, 0).side(d) == at)
+                .expect("beside the log");
+            assert_eq!(
+                world.get(at),
+                PARAMS.rotations[side],
+                "rotated towards its side"
+            );
             hits[side] += 1;
         }
         assert_eq!(hits[1] + hits[3], 0, "west/east are cut ends");
-        assert!(hits[0] > 0 && hits[2] > 0, "both bark sides are used: {hits:?}");
+        assert!(
+            hits[0] > 0 && hits[2] > 0,
+            "both bark sides are used: {hits:?}"
+        );
     }
 
     #[test]
@@ -117,7 +130,14 @@ mod tests {
             world.set(BlockPos::new(0, 1, 1), bb::SAND);
             world.set(BlockPos::new(0, 1, -1), bb::GRAVEL);
             let mut rng = BedrockRandom::new(seed);
-            assert_eq!(with_ctx(&mut world, &mut rng, |ctx| place(ctx, BlockPos::new(0, 0, 0), &PARAMS)), None);
+            assert_eq!(
+                with_ctx(&mut world, &mut rng, |ctx| place(
+                    ctx,
+                    BlockPos::new(0, 0, 0),
+                    &PARAMS
+                )),
+                None
+            );
         }
     }
 }

@@ -35,8 +35,10 @@ pub fn emit(em: &mut Emitter<'_>, o: &Obj<'_>) -> Result<TokenStream> {
     for v in o.array("inner_placements")? {
         placements.push(facings(palette, origin, block(palette, origin, v)?)?);
     }
-    let (wall_min, wall_max) = exclusive_range(o, "min_outer_wall_distance", "max_outer_wall_distance")?;
-    let (points_min, points_max) = exclusive_range(o, "min_distribution_points", "max_distribution_points")?;
+    let (wall_min, wall_max) =
+        exclusive_range(o, "min_outer_wall_distance", "max_outer_wall_distance")?;
+    let (points_min, points_max) =
+        exclusive_range(o, "min_distribution_points", "max_distribution_points")?;
     let (offset_min, offset_max) = exclusive_range(o, "min_point_offset", "max_point_offset")?;
     let max_radius = o.i32("max_radius")?;
     let crack_point_offset = o.f32("crack_point_offset")?;
@@ -56,7 +58,10 @@ pub fn emit(em: &mut Emitter<'_>, o: &Obj<'_>) -> Result<TokenStream> {
     };
     let invalid_blocks_threshold = o.i32("invalid_blocks_threshold")?;
     if max_radius <= 0 {
-        return Err(Error::data(origin, format!("max_radius must be positive, got {max_radius}")));
+        return Err(Error::data(
+            origin,
+            format!("max_radius must be positive, got {max_radius}"),
+        ));
     }
 
     let mut rows = Vec::with_capacity(placements.len());
@@ -65,7 +70,8 @@ pub fn emit(em: &mut Emitter<'_>, o: &Obj<'_>) -> Result<TokenStream> {
         rows.push(quote!([#(#cells),*]));
     }
     let count = rows.len();
-    let [filler, inner, alternate, middle, outer] = [filler, inner, alternate, middle, outer].map(|id| em.block(id));
+    let [filler, inner, alternate, middle, outer] =
+        [filler, inner, alternate, middle, outer].map(|id| em.block(id));
     Ok(quote! {{
         static INNER_PLACEMENTS: [[u32; 6]; #count] = [#(#rows),*];
         static PARAMS: features::geode::Params = features::geode::Params {
@@ -93,10 +99,17 @@ pub fn emit(em: &mut Emitter<'_>, o: &Obj<'_>) -> Result<TokenStream> {
 }
 
 /// `[min, max)` from the pack as an inclusive `(min, max - 1)`.
-fn exclusive_range(o: &Obj<'_>, min_key: &'static str, max_key: &'static str) -> Result<(i32, i32)> {
+fn exclusive_range(
+    o: &Obj<'_>,
+    min_key: &'static str,
+    max_key: &'static str,
+) -> Result<(i32, i32)> {
     let (min, max) = (o.i32(min_key)?, o.i32(max_key)?);
     if max <= min {
-        return Err(Error::data(o.origin, format!("{max_key} ({max}) must exceed {min_key} ({min})")));
+        return Err(Error::data(
+            o.origin,
+            format!("{max_key} ({max}) must exceed {min_key} ({min})"),
+        ));
     }
     Ok((min, max - 1))
 }
@@ -112,18 +125,22 @@ fn facings(palette: &BlockPalette, origin: &str, id: u32) -> Result<[u32; 6]> {
         return Ok(out);
     }
     for (slot, face) in out.iter_mut().zip(FACES) {
-        let found = palette.states_of(name).into_iter().flatten().find(|(_, s)| {
-            s.iter().all(|(k, v)| {
-                if k == FACE_STATE {
-                    matches!(v, StateValue::Str(f) if f == face)
-                } else {
-                    state.get(k) == Some(v)
-                }
-            })
-        });
-        *slot = found
-            .map(|(i, _)| i)
-            .ok_or_else(|| Error::data(origin, format!("{name} has no {FACE_STATE}={face} state")))?;
+        let found = palette
+            .states_of(name)
+            .into_iter()
+            .flatten()
+            .find(|(_, s)| {
+                s.iter().all(|(k, v)| {
+                    if k == FACE_STATE {
+                        matches!(v, StateValue::Str(f) if f == face)
+                    } else {
+                        state.get(k) == Some(v)
+                    }
+                })
+            });
+        *slot = found.map(|(i, _)| i).ok_or_else(|| {
+            Error::data(origin, format!("{name} has no {FACE_STATE}={face} state"))
+        })?;
     }
     Ok(out)
 }

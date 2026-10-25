@@ -48,10 +48,10 @@ when the variable or any file it read changes.
 
 | Phase | Module | What it does |
 |---|---|---|
-| Ingestion | `brarchive`, `json`, `packs` | `.brarchive` containers (format in the module docs), JSON with comments, version stack `definitions` < `vanilla` < `vanilla_<version>` ascending up to 1.26.51; the last layer defining an identifier wins |
+| Ingestion | `unastar_packs::{brarchive,json,packs}` | Shared `.brarchive` reader, JSON with comments, version stack `definitions` < `vanilla` < `vanilla_<version>` ascending up to 1.26.51; the last layer defining an identifier wins |
 | Identity | `blocks`, `nbt` | canonical palette (`canonical_block_states.nbt`), block tags, physical flags; descriptors resolve to runtime ids; pre-flattening names (`minecraft:log` + `old_log_type`, `minecraft:stone` + `stone_type`, `minecraft:tallgrass`, ...) go through `LEGACY_BLOCKS` / `STATE_RENAMES` |
 | IR | `ir`, `model` | strict typed parsing of biomes, feature rules, features, spawn rules (unknown keys fail the build); reachability from overworld rules; built-in registry check |
-| Molang | `molang` | the subset used by worldgen data, constant-folded (`variable.is_legacy` = 0) and emitted as `f32` Rust; no runtime interpreter |
+| Molang | `unastar_rules::molang`, `molang` | Shared lexer/parser; worldgen-only binding/lowering, constant-folding (`variable.is_legacy` = 0) and `f32` Rust emission; no runtime interpreter |
 | Emission | `emit` | `run_pass` with per-rule biome masks, one `rule_*` per rule, one `f_*` per reachable JSON feature, `BIOMES` surface data, `blocks`/`bb`/`props` constants |
 
 `builtin` lists the built-in features (identifiers without a JSON definition) that the
@@ -60,7 +60,8 @@ runtime implements in Rust; a reachable built-in missing from the list fails the
 
 ## Tests
 
-`cargo test -p unastar_bedrock_codegen`. Unit tests use synthetic archives and palettes.
+`cargo test -p unastar_bedrock_codegen`. Unit tests use synthetic palettes; shared
+archive/version-stack tests live in `unastar-packs`, parser tests in `unastar-rules`.
 `tests/bds_install.rs` checks the real install (counts, every reference resolves) and
 skips with a message when `UNASTAR_BDS_DIR` is not set.
 

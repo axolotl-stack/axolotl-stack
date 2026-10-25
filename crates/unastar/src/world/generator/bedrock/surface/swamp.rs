@@ -35,7 +35,9 @@ fn puddle<C: SurfaceColumn>(col: &mut C, c: &Column<'_>, base: &Materials, max_d
     if n <= 0.0 {
         return;
     }
-    let Some((top, b)) = first_non_air(col, c.lo, c.hi) else { return };
+    let Some((top, b)) = first_non_air(col, c.lo, c.hi) else {
+        return;
+    };
     if top != c.sea_level - 1 || !is_foundation(b, base.foundation) {
         return;
     }
@@ -59,11 +61,19 @@ mod tests {
     #[test]
     fn puddles_form_at_water_level_where_noise_is_positive() {
         let noises = SurfaceNoises::with_biomes(5, &[]);
-        let b = biome(Builder::Swamp { materials: PLAINS, max_puddle_depth_below_sea_level: 3 });
+        let b = biome(Builder::Swamp {
+            materials: PLAINS,
+            max_puddle_depth_below_sea_level: 3,
+        });
         let (mut wet, mut dry) = (0, 0);
         for x in 0..256 {
             let mut col = VecColumn::terrain(SEA - 1, None);
-            build_column(&mut col, &input(&b, x * 3, 0), &noises, &mut BedrockRandom::new(x as u32));
+            build_column(
+                &mut col,
+                &input(&b, x * 3, 0),
+                &noises,
+                &mut BedrockRandom::new(x as u32),
+            );
             let n = noises.puddle(x * 3, 0);
             if n > 0.0 {
                 wet += 1;
@@ -84,10 +94,18 @@ mod tests {
     #[test]
     fn no_puddles_above_water_level() {
         let noises = SurfaceNoises::with_biomes(5, &[]);
-        let b = biome(Builder::Swamp { materials: PLAINS, max_puddle_depth_below_sea_level: 1 });
+        let b = biome(Builder::Swamp {
+            materials: PLAINS,
+            max_puddle_depth_below_sea_level: 1,
+        });
         for x in 0..64 {
             let mut col = VecColumn::terrain(SEA + 2, None);
-            build_column(&mut col, &input(&b, x * 3, 0), &noises, &mut BedrockRandom::new(1));
+            build_column(
+                &mut col,
+                &input(&b, x * 3, 0),
+                &noises,
+                &mut BedrockRandom::new(1),
+            );
             assert_eq!(col.count(|id| id == bb::WATER), 0);
         }
     }

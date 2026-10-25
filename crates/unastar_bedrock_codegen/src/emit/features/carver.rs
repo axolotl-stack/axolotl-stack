@@ -48,12 +48,22 @@ pub fn emit(em: &mut Emitter<'_>, o: &Obj<'_>, kind: Kind) -> Result<TokenStream
     if skip_carve_chance < 0 || height_limit <= 0 {
         return Err(Error::data(
             origin,
-            format!("skip_carve_chance ({skip_carve_chance}) must be >= 0 and height_limit ({height_limit}) > 0"),
+            format!(
+                "skip_carve_chance ({skip_carve_chance}) must be >= 0 and height_limit ({height_limit}) > 0"
+            ),
         ));
     }
     let y_scale = float_range(origin, "y_scale", o.req("y_scale")?)?;
-    let horizontal = float_range(origin, "horizontal_radius_multiplier", o.req("horizontal_radius_multiplier")?)?;
-    let vertical = float_range(origin, "vertical_radius_multiplier", o.req("vertical_radius_multiplier")?)?;
+    let horizontal = float_range(
+        origin,
+        "horizontal_radius_multiplier",
+        o.req("horizontal_radius_multiplier")?,
+    )?;
+    let vertical = float_range(
+        origin,
+        "vertical_radius_multiplier",
+        o.req("vertical_radius_multiplier")?,
+    )?;
     let floor_level = float_range(origin, "floor_level", o.req("floor_level")?)?;
 
     let kind = match kind {
@@ -90,23 +100,34 @@ pub fn emit(em: &mut Emitter<'_>, o: &Obj<'_>, kind: Kind) -> Result<TokenStream
 /// `[min, max]` (or a single number) as a `features::carver::FloatRange`.
 fn float_range(origin: &str, key: &str, v: &Value) -> Result<TokenStream> {
     let (min, max) = match v {
-        Value::Array(items) if items.len() == 2 => (num(origin, key, &items[0])?, num(origin, key, &items[1])?),
+        Value::Array(items) if items.len() == 2 => {
+            (num(origin, key, &items[0])?, num(origin, key, &items[1])?)
+        }
         Value::Number(_) => {
             let n = num(origin, key, v)?;
             (n, n)
         }
-        other => return Err(Error::data(origin, format!("{key} is not a [min, max] range: {other}"))),
+        other => {
+            return Err(Error::data(
+                origin,
+                format!("{key} is not a [min, max] range: {other}"),
+            ));
+        }
     };
     if max < min {
-        return Err(Error::data(origin, format!("{key} range [{min}, {max}] is reversed")));
+        return Err(Error::data(
+            origin,
+            format!("{key} range [{min}, {max}] is reversed"),
+        ));
     }
     Ok(quote!(features::carver::FloatRange { min: #min, max: #max }))
 }
 
 /// FNV-1a 64 of `text`.
 fn fnv1a(text: &str) -> u64 {
-    text.bytes()
-        .fold(0xcbf2_9ce4_8422_2325, |h, b| (h ^ u64::from(b)).wrapping_mul(0x0000_0100_0000_01b3))
+    text.bytes().fold(0xcbf2_9ce4_8422_2325, |h, b| {
+        (h ^ u64::from(b)).wrapping_mul(0x0000_0100_0000_01b3)
+    })
 }
 
 #[cfg(test)]

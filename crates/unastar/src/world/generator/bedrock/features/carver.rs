@@ -59,7 +59,14 @@ const START_ABOVE_BOTTOM: i32 = 8;
 /// (`above_bottom: 8`, inclusive).
 const LAVA_ABOVE_BOTTOM: i32 = 8;
 
-const NEIGHBOURS: [(i32, i32, i32); 6] = [(1, 0, 0), (-1, 0, 0), (0, 1, 0), (0, -1, 0), (0, 0, 1), (0, 0, -1)];
+const NEIGHBOURS: [(i32, i32, i32); 6] = [
+    (1, 0, 0),
+    (-1, 0, 0),
+    (0, 1, 0),
+    (0, -1, 0),
+    (0, 0, 1),
+    (0, 0, -1),
+];
 
 /// Which carver type the parameters belong to.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -159,7 +166,11 @@ pub struct Params {
 
 /// Carve the caves reaching the 16 x 16 column at `pos` (the chunk's min
 /// corner); `Some(pos)` when any block changed.
-pub fn place<W: BlockWorld>(ctx: &mut Ctx<'_, W>, pos: BlockPos, params: &Params) -> Option<BlockPos> {
+pub fn place<W: BlockWorld>(
+    ctx: &mut Ctx<'_, W>,
+    pos: BlockPos,
+    params: &Params,
+) -> Option<BlockPos> {
     let carver = Carver {
         params,
         x0: pos.x,
@@ -171,7 +182,8 @@ pub fn place<W: BlockWorld>(ctx: &mut Ctx<'_, W>, pos: BlockPos, params: &Params
     let mut carved = false;
     for sx in chunk_x - SOURCE_RADIUS..=chunk_x + SOURCE_RADIUS {
         for sz in chunk_z - SOURCE_RADIUS..=chunk_z + SOURCE_RADIUS {
-            let Some(seed) = source_seed(ctx.seed, params.salt, sx, sz, params.skip_carve_chance) else {
+            let Some(seed) = source_seed(ctx.seed, params.salt, sx, sz, params.skip_carve_chance)
+            else {
                 continue;
             };
             let mut rng = BedrockRandom::new(seed);
@@ -200,7 +212,13 @@ const fn mix64(mut z: u64) -> u64 {
 /// avoids seeding an MT19937 (2.5 KiB of state) for each of the 289 source
 /// chunks when only ~1/33 of them carve. BDS's own source-chunk seeding is not
 /// observable from data: statistical parity, exact draw order unknown.
-pub fn source_seed(world_seed: i64, salt: u64, chunk_x: i32, chunk_z: i32, skip_carve_chance: i32) -> Option<u32> {
+pub fn source_seed(
+    world_seed: i64,
+    salt: u64,
+    chunk_x: i32,
+    chunk_z: i32,
+    skip_carve_chance: i32,
+) -> Option<u32> {
     const K1: u64 = 0x9e37_79b9_7f4a_7c15;
     const K2: u64 = 0xc2b2_ae3d_27d4_eb4f;
     let h = mix64(
@@ -238,7 +256,15 @@ pub fn in_carve_shape(dxz_sq: f64, dy: f64, floor_level: f64) -> bool {
 /// step, and carves at most `thickness + 2` (plus half a chunk) away. Vanilla
 /// stops a tunnel once this fails.
 #[inline]
-pub fn can_reach(center_x: f64, center_z: f64, x: f64, z: f64, step: i32, steps: i32, thickness: f64) -> bool {
+pub fn can_reach(
+    center_x: f64,
+    center_z: f64,
+    x: f64,
+    z: f64,
+    step: i32,
+    steps: i32,
+    thickness: f64,
+) -> bool {
     let (dx, dz) = (x - center_x, z - center_z);
     let remaining = f64::from(steps - step);
     let reach = thickness + 2.0 + 16.0;
@@ -286,7 +312,13 @@ struct Carver<'p> {
 impl Carver<'_> {
     /// Simulate every cave of one source chunk, carving the parts inside the
     /// target column.
-    fn carve_source<W: BlockWorld>(&self, ctx: &mut Ctx<'_, W>, rng: &mut BedrockRandom, sx: i32, sz: i32) -> bool {
+    fn carve_source<W: BlockWorld>(
+        &self,
+        ctx: &mut Ctx<'_, W>,
+        rng: &mut BedrockRandom,
+        sx: i32,
+        sz: i32,
+    ) -> bool {
         let p = self.params;
         let width = f64::from(p.width_modifier);
         let starts = {
@@ -311,7 +343,8 @@ impl Carver<'_> {
                 let y_scale = p.y_scale.sample(rng);
                 let thickness = 1.0 + f64::from(rng.next_float()) * 6.0;
                 let radius = 1.5 + thickness + width;
-                carved |= self.carve_ellipsoid(ctx, x + 1.0, y, z, radius, radius * y_scale, shape.floor);
+                carved |=
+                    self.carve_ellipsoid(ctx, x + 1.0, y, z, radius, radius * y_scale, shape.floor);
                 tunnels += rng.next_int(4);
             }
             for _ in 0..tunnels {
@@ -342,7 +375,13 @@ impl Carver<'_> {
 
     /// Walk one tunnel. Branches recurse once (branch thickness is below 1,
     /// so branches never split again).
-    fn tunnel<W: BlockWorld>(&self, ctx: &mut Ctx<'_, W>, seed: u32, shape: &Shape, t: Tunnel) -> bool {
+    fn tunnel<W: BlockWorld>(
+        &self,
+        ctx: &mut Ctx<'_, W>,
+        seed: u32,
+        shape: &Shape,
+        t: Tunnel,
+    ) -> bool {
         let mut rng = BedrockRandom::new(seed);
         let width = f64::from(self.params.width_modifier);
         let Tunnel {
@@ -374,7 +413,8 @@ impl Carver<'_> {
             yaw += yaw_change * 0.1;
             pitch_change *= 0.9;
             yaw_change *= 0.75;
-            pitch_change += f64::from((rng.next_float() - rng.next_float()) * rng.next_float() * 2.0);
+            pitch_change +=
+                f64::from((rng.next_float() - rng.next_float()) * rng.next_float() * 2.0);
             yaw_change += f64::from((rng.next_float() - rng.next_float()) * rng.next_float() * 4.0);
             if step == split && thickness > 1.0 {
                 for turn in [-FRAC_PI_2, FRAC_PI_2] {
@@ -435,7 +475,9 @@ impl Carver<'_> {
         let Some((y_lo, y_hi)) = clip_span(cy, vertical, self.min_y + 1, self.max_y - 1) else {
             return false;
         };
-        if self.params.kind == Kind::UnderwaterCave && !touches_water_box(ctx, (x_lo, x_hi), (y_lo, y_hi), (z_lo, z_hi)) {
+        if self.params.kind == Kind::UnderwaterCave
+            && !touches_water_box(ctx, (x_lo, x_hi), (y_lo, y_hi), (z_lo, z_hi))
+        {
             return false;
         }
         let mut carved = false;
@@ -462,7 +504,12 @@ impl Carver<'_> {
     }
 
     /// Carve one block of the volume.
-    fn carve_block<W: BlockWorld>(&self, ctx: &mut Ctx<'_, W>, at: BlockPos, exposed_top: &mut Option<u32>) -> bool {
+    fn carve_block<W: BlockWorld>(
+        &self,
+        ctx: &mut Ctx<'_, W>,
+        at: BlockPos,
+        exposed_top: &mut Option<u32>,
+    ) -> bool {
         let p = self.params;
         let id = ctx.get(at);
         if bb::air(id) {
@@ -473,7 +520,11 @@ impl Carver<'_> {
                 if !overworld_carvable(id) || touches(ctx, at, bb::water) {
                     return false;
                 }
-                if at.y <= self.min_y + LAVA_ABOVE_BOTTOM { bb::LAVA } else { p.fill_with }
+                if at.y <= self.min_y + LAVA_ABOVE_BOTTOM {
+                    bb::LAVA
+                } else {
+                    p.fill_with
+                }
             }
             Kind::UnderwaterCave => {
                 if !overworld_carvable(id) {
@@ -483,7 +534,9 @@ impl Carver<'_> {
             }
             Kind::NetherCave => {
                 // The nether lava sea must not pour into the caves.
-                if !bb::nether_carver_replaceable(id) || touches(ctx, at, |b| bb::lava(b) || bb::water(b)) {
+                if !bb::nether_carver_replaceable(id)
+                    || touches(ctx, at, |b| bb::lava(b) || bb::water(b))
+                {
                     return false;
                 }
                 p.fill_with
@@ -512,13 +565,20 @@ impl Carver<'_> {
 /// Whether any of the six neighbours of `at` matches `pred`.
 #[inline]
 fn touches<W: BlockWorld>(ctx: &Ctx<'_, W>, at: BlockPos, pred: impl Fn(u32) -> bool) -> bool {
-    NEIGHBOURS.iter().any(|&(dx, dy, dz)| pred(ctx.get(at.offset(dx, dy, dz))))
+    NEIGHBOURS
+        .iter()
+        .any(|&(dx, dy, dz)| pred(ctx.get(at.offset(dx, dy, dz))))
 }
 
 /// Whether the box (grown by one block on every side) contains water: the
 /// underwater carver only extends existing water (an ocean floor or a
 /// flooded cave) instead of leaving sealed water pockets in solid rock.
-fn touches_water_box<W: BlockWorld>(ctx: &Ctx<'_, W>, xs: (i32, i32), ys: (i32, i32), zs: (i32, i32)) -> bool {
+fn touches_water_box<W: BlockWorld>(
+    ctx: &Ctx<'_, W>,
+    xs: (i32, i32),
+    ys: (i32, i32),
+    zs: (i32, i32),
+) -> bool {
     for x in xs.0 - 1..=xs.1 + 1 {
         for z in zs.0 - 1..=zs.1 + 1 {
             for y in ys.0 - 1..=ys.1 + 1 {
@@ -569,7 +629,9 @@ mod tests {
 
         fn index(&self, p: BlockPos) -> Option<usize> {
             let (x, y, z) = (p.x - self.x0, p.y - self.min_y, p.z - self.z0);
-            let inside = (0..self.size).contains(&x) && (0..self.max_y - self.min_y).contains(&y) && (0..self.size).contains(&z);
+            let inside = (0..self.size).contains(&x)
+                && (0..self.max_y - self.min_y).contains(&y)
+                && (0..self.size).contains(&z);
             inside.then(|| ((y * self.size + z) * self.size + x) as usize)
         }
     }
@@ -616,7 +678,10 @@ mod tests {
             y_scale: FloatRange { min: 0.1, max: 0.9 },
             horizontal_radius_multiplier: FloatRange { min: 0.7, max: 1.4 },
             vertical_radius_multiplier: FloatRange { min: 0.8, max: 1.3 },
-            floor_level: FloatRange { min: -1.0, max: -0.4 },
+            floor_level: FloatRange {
+                min: -1.0,
+                max: -0.4,
+            },
         }
     }
 
@@ -648,7 +713,10 @@ mod tests {
             }
         }
         let expected = 20_000 / 33;
-        assert!((hits - expected).abs() < expected / 5, "{hits} vs {expected}");
+        assert!(
+            (hits - expected).abs() < expected / 5,
+            "{hits} vs {expected}"
+        );
     }
 
     #[test]
@@ -673,7 +741,10 @@ mod tests {
     fn ellipsoid_respects_floor_and_column() {
         let mut world = Boxed::filled(-16, -16, 48, 0, 32, bb::STONE);
         let params = Params {
-            floor_level: FloatRange { min: -0.5, max: -0.5 },
+            floor_level: FloatRange {
+                min: -0.5,
+                max: -0.5,
+            },
             ..cave(1)
         };
         let carver = Carver {
@@ -721,7 +792,10 @@ mod tests {
             carved += 1;
             let i = i as i32;
             let (x, z, y) = (i % 48 - 16, i / 48 % 48 - 16, i / (48 * 48) - 64);
-            assert!((0..16).contains(&x) && (0..16).contains(&z), "carved outside the column at {x} {y} {z}");
+            assert!(
+                (0..16).contains(&x) && (0..16).contains(&z),
+                "carved outside the column at {x} {y} {z}"
+            );
             assert!(y > -64, "bottom layer carved");
             let expected = if y <= -56 { bb::LAVA } else { bb::AIR };
             assert_eq!(after, expected, "fill at y {y}");

@@ -15,10 +15,16 @@ pub fn emit(em: &mut Emitter<'_>, o: &Obj<'_>) -> Result<TokenStream> {
     let ore = ir::block(&model.palette, origin, o.req("ore_block")?)?;
     let max_empty_corners = o.i32("max_empty_corners")?;
     if !(0..=8).contains(&max_empty_corners) {
-        return Err(Error::data(origin, format!("max_empty_corners {max_empty_corners} outside 0..=8")));
+        return Err(Error::data(
+            origin,
+            format!("max_empty_corners {max_empty_corners} outside 0..=8"),
+        ));
     }
     if model.structures.fossils.is_empty() {
-        return Err(Error::data(origin, "no structures/fossils templates were loaded"));
+        return Err(Error::data(
+            origin,
+            "no structures/fossils templates were loaded",
+        ));
     }
     let templates = model
         .structures

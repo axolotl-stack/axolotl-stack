@@ -189,7 +189,13 @@ fn can_spread_from<W: BlockWorld>(ctx: &Ctx<'_, W>, pos: BlockPos) -> bool {
     }
 }
 
-fn update<W: BlockWorld>(ctx: &mut Ctx<'_, W>, origin: BlockPos, c: &mut Cursor, convert: bool, p: &Params) {
+fn update<W: BlockWorld>(
+    ctx: &mut Ctx<'_, W>,
+    origin: BlockPos,
+    c: &mut Cursor,
+    convert: bool,
+    p: &Params,
+) {
     if c.charge <= 0 {
         return;
     }
@@ -222,11 +228,20 @@ fn update<W: BlockWorld>(ctx: &mut Ctx<'_, W>, origin: BlockPos, c: &mut Cursor,
         Kind::Vein(mask) => c.faces = Some(mask),
         Kind::Other => {}
     }
-    c.decay_delay = if k == Kind::Other { (c.decay_delay - 1).max(0) } else { 1 };
+    c.decay_delay = if k == Kind::Other {
+        (c.decay_delay - 1).max(0)
+    } else {
+        1
+    };
     c.update_delay = 1;
 }
 
-fn spread_veins<W: BlockWorld>(ctx: &mut Ctx<'_, W>, pos: BlockPos, k: Kind, faces: Option<u8>) -> bool {
+fn spread_veins<W: BlockWorld>(
+    ctx: &mut Ctx<'_, W>,
+    pos: BlockPos,
+    k: Kind,
+    faces: Option<u8>,
+) -> bool {
     match k {
         Kind::Sculk => VEIN.spread_all(ctx, pos, ALL_FACES, true),
         Kind::Vein(mask) => VEIN.spread_all(ctx, pos, mask, false),
@@ -250,7 +265,14 @@ fn regrow<W: BlockWorld>(ctx: &mut Ctx<'_, W>, pos: BlockPos, faces: u8) -> bool
     mask != 0 && ctx.set(pos, VEIN.state(mask))
 }
 
-fn use_charge<W: BlockWorld>(ctx: &mut Ctx<'_, W>, origin: BlockPos, c: &Cursor, k: Kind, convert: bool, p: &Params) -> i32 {
+fn use_charge<W: BlockWorld>(
+    ctx: &mut Ctx<'_, W>,
+    origin: BlockPos,
+    c: &Cursor,
+    k: Kind,
+    convert: bool,
+    p: &Params,
+) -> i32 {
     match k {
         Kind::Sculk => sculk_use_charge(ctx, origin, c.pos, c.charge),
         Kind::Vein(mask) => {
@@ -277,7 +299,12 @@ fn dist_sq(a: BlockPos, b: BlockPos) -> i32 {
     dx * dx + dy * dy + dz * dz
 }
 
-fn sculk_use_charge<W: BlockWorld>(ctx: &mut Ctx<'_, W>, origin: BlockPos, at: BlockPos, charge: i32) -> i32 {
+fn sculk_use_charge<W: BlockWorld>(
+    ctx: &mut Ctx<'_, W>,
+    origin: BlockPos,
+    at: BlockPos,
+    charge: i32,
+) -> i32 {
     if charge == 0 || ctx.rng.next_int(CHARGE_DECAY_RATE) != 0 {
         return charge;
     }
@@ -334,7 +361,12 @@ fn can_place_growth<W: BlockWorld>(ctx: &Ctx<'_, W>, at: BlockPos) -> bool {
 
 /// Turn the block behind one face (random order) of the vein at `pos` into
 /// sculk, spread veins round it and drop vein faces now resting on it.
-fn place_sculk<W: BlockWorld>(ctx: &mut Ctx<'_, W>, pos: BlockPos, mask: u8, replaceable: fn(u32) -> bool) -> bool {
+fn place_sculk<W: BlockWorld>(
+    ctx: &mut Ctx<'_, W>,
+    pos: BlockPos,
+    mask: u8,
+    replaceable: fn(u32) -> bool,
+) -> bool {
     let mut order = [0usize, 1, 2, 3, 4, 5];
     shuffle(&mut order, ctx.rng);
     for face in order {
@@ -424,7 +456,11 @@ fn movement<W: BlockWorld>(ctx: &mut Ctx<'_, W>, pos: BlockPos) -> Option<BlockP
 }
 
 /// An edge move needs one of the two face neighbours it passes to be open.
-fn unobstructed<W: BlockWorld>(ctx: &Ctx<'_, W>, from: BlockPos, (dx, dy, dz): (i32, i32, i32)) -> bool {
+fn unobstructed<W: BlockWorld>(
+    ctx: &Ctx<'_, W>,
+    from: BlockPos,
+    (dx, dy, dz): (i32, i32, i32),
+) -> bool {
     if dx.abs() + dy.abs() + dz.abs() == 1 {
         return true;
     }
@@ -447,7 +483,10 @@ mod tests {
 
     #[test]
     fn neighbours_are_the_18_edge_and_face_offsets() {
-        let faces = NEIGHBOURS.iter().filter(|o| o.0.abs() + o.1.abs() + o.2.abs() == 1).count();
+        let faces = NEIGHBOURS
+            .iter()
+            .filter(|o| o.0.abs() + o.1.abs() + o.2.abs() == 1)
+            .count();
         assert_eq!(faces, 6);
         assert_eq!(NEIGHBOURS.len() - faces, 12);
         for f in FACES {
@@ -460,7 +499,11 @@ mod tests {
 
     #[test]
     fn decay_penalty_grows_with_distance_and_is_capped() {
-        assert_eq!(decay_penalty(1, 32), 1, "at the no-growth radius only the minimum");
+        assert_eq!(
+            decay_penalty(1, 32),
+            1,
+            "at the no-growth radius only the minimum"
+        );
         let mut last = 0;
         for d in 1..30 {
             let p = decay_penalty(d * d, 100);
@@ -495,7 +538,9 @@ mod tests {
         let mut world = Cube::filled(20, bb::AIR);
         world.fill((-20, -20, -20), (19, -1, 19), bb::STONE);
         let mut rng = BedrockRandom::new(seed);
-        let placed = with_ctx(&mut world, &mut rng, |ctx| place(ctx, BlockPos::new(0, 0, 0), &params()));
+        let placed = with_ctx(&mut world, &mut rng, |ctx| {
+            place(ctx, BlockPos::new(0, 0, 0), &params())
+        });
         assert_eq!(placed, Some(BlockPos::new(0, 0, 0)));
         world
     }
@@ -508,15 +553,25 @@ mod tests {
             assert!(sculk.len() >= 10, "a patch grows: {} blocks", sculk.len());
             for at in &sculk {
                 assert!(at.y < 0, "only ground converts");
-                assert!(at.x * at.x + at.z * at.z < 16 * 16, "cursors die 15 blocks out");
+                assert!(
+                    at.x * at.x + at.z * at.z < 16 * 16,
+                    "cursors die 15 blocks out"
+                );
             }
-            assert_eq!(world.get(BlockPos::new(0, 0, 0)), bb::CALCITE, "central block on a full block");
+            assert_eq!(
+                world.get(BlockPos::new(0, 0, 0)),
+                bb::CALCITE,
+                "central block on a full block"
+            );
             for at in world.positions(|id| VEIN.mask(id).is_some()) {
                 let mask = VEIN.mask(world.get(at)).unwrap_or(0);
                 assert_ne!(mask, 0, "no faceless veins");
                 for face in 0..6 {
                     if mask & bit(face) != 0 {
-                        assert!(vein_can_attach(world.get(step(at, face))), "vein faces rest on non-sculk");
+                        assert!(
+                            vein_can_attach(world.get(step(at, face))),
+                            "vein faces rest on non-sculk"
+                        );
                     }
                 }
             }
@@ -526,14 +581,24 @@ mod tests {
     #[test]
     fn patch_is_deterministic_per_seed() {
         let (a, b) = (run(3), run(3));
-        assert_eq!(a.positions(|id| id == bb::SCULK), b.positions(|id| id == bb::SCULK));
+        assert_eq!(
+            a.positions(|id| id == bb::SCULK),
+            b.positions(|id| id == bb::SCULK)
+        );
     }
 
     #[test]
     fn patch_needs_a_supported_origin() {
         let mut world = Cube::filled(8, bb::AIR);
         let mut rng = BedrockRandom::new(1);
-        assert_eq!(with_ctx(&mut world, &mut rng, |ctx| place(ctx, BlockPos::new(0, 0, 0), &params())), None);
+        assert_eq!(
+            with_ctx(&mut world, &mut rng, |ctx| place(
+                ctx,
+                BlockPos::new(0, 0, 0),
+                &params()
+            )),
+            None
+        );
         assert_eq!(world.count(bb::AIR), 16 * 16 * 16);
     }
 }

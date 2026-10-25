@@ -106,7 +106,10 @@ pub const LEGACY_BLOCKS: &[LegacyBlock] = &[
     LegacyBlock {
         name: "minecraft:dirt",
         variant_state: Some("dirt_type"),
-        variants: &[("normal", "minecraft:dirt"), ("coarse", "minecraft:coarse_dirt")],
+        variants: &[
+            ("normal", "minecraft:dirt"),
+            ("coarse", "minecraft:coarse_dirt"),
+        ],
     },
     LegacyBlock {
         name: "minecraft:sand",
@@ -140,7 +143,10 @@ pub const LEGACY_BLOCKS: &[LegacyBlock] = &[
     LegacyBlock {
         name: "minecraft:log2",
         variant_state: Some("new_log_type"),
-        variants: &[("acacia", "minecraft:acacia_log"), ("dark_oak", "minecraft:dark_oak_log")],
+        variants: &[
+            ("acacia", "minecraft:acacia_log"),
+            ("dark_oak", "minecraft:dark_oak_log"),
+        ],
     },
     LegacyBlock {
         name: "minecraft:leaves",
@@ -247,7 +253,10 @@ fn json_state(origin: &str, key: &str, value: &Value) -> Result<StateValue> {
             .map(StateValue::Int)
             .ok_or_else(|| Error::data(origin, format!("state {key}={n} is not an i32"))),
         Value::String(s) => Ok(StateValue::Str(s.clone())),
-        other => Err(Error::data(origin, format!("state {key}={other} has an unsupported type"))),
+        other => Err(Error::data(
+            origin,
+            format!("state {key}={other} has an unsupported type"),
+        )),
     }
 }
 
@@ -264,12 +273,16 @@ pub fn upgrade(origin: &str, mut desc: BlockDescriptor) -> Result<BlockDescripto
                     .iter()
                     .find(|(name, _)| *name == v)
                     .map(|(_, new)| *new)
-                    .ok_or_else(|| Error::data(origin, format!("{} {key}={v:?} has no alias", desc.name)))?,
+                    .ok_or_else(|| {
+                        Error::data(origin, format!("{} {key}={v:?} has no alias", desc.name))
+                    })?,
                 Some(StateValue::Int(i)) => usize::try_from(i)
                     .ok()
                     .and_then(|i| legacy.variants.get(i))
                     .map(|(_, new)| *new)
-                    .ok_or_else(|| Error::data(origin, format!("{} {key}={i} has no alias", desc.name)))?,
+                    .ok_or_else(|| {
+                        Error::data(origin, format!("{} {key}={i} has no alias", desc.name))
+                    })?,
             },
         };
         desc.name = new_name.to_owned();
@@ -277,15 +290,24 @@ pub fn upgrade(origin: &str, mut desc: BlockDescriptor) -> Result<BlockDescripto
     for rename in STATE_RENAMES.iter().filter(|r| r.block == desc.name) {
         if let Some(old) = desc.states.remove(rename.old) {
             let StateValue::Int(i) = old else {
-                return Err(Error::data(origin, format!("{} {}={old} is not an integer", desc.name, rename.old)));
+                return Err(Error::data(
+                    origin,
+                    format!("{} {}={old} is not an integer", desc.name, rename.old),
+                ));
             };
             let new = rename
                 .values
                 .iter()
                 .find(|(v, _)| *v == i)
                 .map(|(_, n)| *n)
-                .ok_or_else(|| Error::data(origin, format!("{} {}={i} has no rename", desc.name, rename.old)))?;
-            desc.states.insert(rename.new.to_owned(), StateValue::Str(new.to_owned()));
+                .ok_or_else(|| {
+                    Error::data(
+                        origin,
+                        format!("{} {}={i} has no rename", desc.name, rename.old),
+                    )
+                })?;
+            desc.states
+                .insert(rename.new.to_owned(), StateValue::Str(new.to_owned()));
         }
     }
     Ok(desc)
@@ -296,12 +318,14 @@ pub fn parse_descriptor(origin: &str, value: &Value) -> Result<BlockDescriptor> 
     let desc = match value {
         Value::String(name) => BlockDescriptor::named(name),
         Value::Object(map) => {
-            let name = map
-                .get("name")
-                .and_then(Value::as_str)
-                .ok_or_else(|| Error::data(origin, format!("block descriptor without name: {value}")))?;
+            let name = map.get("name").and_then(Value::as_str).ok_or_else(|| {
+                Error::data(origin, format!("block descriptor without name: {value}"))
+            })?;
             if let Some(extra) = map.keys().find(|k| *k != "name" && *k != "states") {
-                return Err(Error::data(origin, format!("unknown block descriptor key {extra:?}")));
+                return Err(Error::data(
+                    origin,
+                    format!("unknown block descriptor key {extra:?}"),
+                ));
             }
             let mut desc = BlockDescriptor::named(name);
             if let Some(states) = map.get("states") {
@@ -314,7 +338,12 @@ pub fn parse_descriptor(origin: &str, value: &Value) -> Result<BlockDescriptor> 
             }
             desc
         }
-        other => return Err(Error::data(origin, format!("not a block descriptor: {other}"))),
+        other => {
+            return Err(Error::data(
+                origin,
+                format!("not a block descriptor: {other}"),
+            ));
+        }
     };
     upgrade(origin, desc)
 }
@@ -327,7 +356,9 @@ pub fn parse_predicate(origin: &str, value: &Value) -> Result<BlockPredicate> {
             .ok_or_else(|| Error::data(origin, "block tags is not a string"))?;
         return parse_any_tag(expr)
             .map(BlockPredicate::AnyTag)
-            .ok_or_else(|| Error::data(origin, format!("unsupported block tag expression {expr:?}")));
+            .ok_or_else(|| {
+                Error::data(origin, format!("unsupported block tag expression {expr:?}"))
+            });
     }
     parse_descriptor(origin, value).map(BlockPredicate::Block)
 }
@@ -443,7 +474,9 @@ impl BlockPalette {
             let props = tag
                 .get("states")
                 .and_then(Tag::as_compound)
-                .ok_or_else(|| Error::data(&origin, format!("state {} has no states", states.len())))?;
+                .ok_or_else(|| {
+                    Error::data(&origin, format!("state {} has no states", states.len()))
+                })?;
             let mut map = BTreeMap::new();
             for (k, v) in props {
                 let value = match v {
@@ -452,7 +485,9 @@ impl BlockPalette {
                         other
                             .as_i64()
                             .and_then(|i| i32::try_from(i).ok())
-                            .ok_or_else(|| Error::data(&origin, format!("{name} state {k} is not integral")))?,
+                            .ok_or_else(|| {
+                                Error::data(&origin, format!("{name} state {k} is not integral"))
+                            })?,
                     ),
                 };
                 map.insert(k.clone(), value);
@@ -485,7 +520,10 @@ impl BlockPalette {
             let ordinal = ordinal as u32;
             if previous.as_deref() != Some(name.as_str()) {
                 if palette.blocks.contains_key(&name) {
-                    return Err(Error::data("canonical palette", format!("{name} is not contiguous")));
+                    return Err(Error::data(
+                        "canonical palette",
+                        format!("{name} is not contiguous"),
+                    ));
                 }
                 palette.blocks.insert(
                     name.clone(),
@@ -497,11 +535,20 @@ impl BlockPalette {
                 palette.order.push((ordinal, name.clone()));
                 previous = Some(name.clone());
             }
-            palette.blocks.get_mut(&name).expect("inserted").states.push(props);
+            palette
+                .blocks
+                .get_mut(&name)
+                .expect("inserted")
+                .states
+                .push(props);
         }
         for (block, block_tags) in tags {
             for tag in block_tags {
-                palette.names_by_tag.entry(tag).or_default().insert(block.clone());
+                palette
+                    .names_by_tag
+                    .entry(tag)
+                    .or_default()
+                    .insert(block.clone());
             }
         }
         Ok(palette)
@@ -527,7 +574,10 @@ impl BlockPalette {
 
     /// `(block name, runtime id of its first state, the state's properties)` of `id`.
     pub fn describe(&self, id: u32) -> Option<(&str, u32, &BTreeMap<String, StateValue>)> {
-        let at = self.order.partition_point(|(first, _)| *first <= id).checked_sub(1)?;
+        let at = self
+            .order
+            .partition_point(|(first, _)| *first <= id)
+            .checked_sub(1)?;
         let (first, name) = &self.order[at];
         let range = &self.blocks[name];
         let state = range.states.get((id - first) as usize)?;
@@ -554,9 +604,18 @@ impl BlockPalette {
     }
 
     /// Every state of `name` as `(runtime id, states)`.
-    pub fn states_of(&self, name: &str) -> Option<impl Iterator<Item = (u32, &BTreeMap<String, StateValue>)>> {
+    pub fn states_of(
+        &self,
+        name: &str,
+    ) -> Option<impl Iterator<Item = (u32, &BTreeMap<String, StateValue>)>> {
         let range = self.blocks.get(name)?;
-        Some(range.states.iter().enumerate().map(|(i, s)| (range.first + i as u32, s)))
+        Some(
+            range
+                .states
+                .iter()
+                .enumerate()
+                .map(|(i, s)| (range.first + i as u32, s)),
+        )
     }
 
     fn block(&self, origin: &str, desc: &BlockDescriptor) -> Result<&BlockRange> {
@@ -567,10 +626,16 @@ impl BlockPalette {
         let default = &range.states[0];
         for (key, value) in &desc.states {
             if !default.contains_key(key) {
-                return Err(Error::data(origin, format!("{} has no state {key}", desc.name)));
+                return Err(Error::data(
+                    origin,
+                    format!("{} has no state {key}", desc.name),
+                ));
             }
             if !range.states.iter().any(|s| s.get(key) == Some(value)) {
-                return Err(Error::data(origin, format!("{} {key}={value} is not a valid value", desc.name)));
+                return Err(Error::data(
+                    origin,
+                    format!("{} {key}={value} is not a valid value", desc.name),
+                ));
             }
         }
         Ok(range)
@@ -586,7 +651,12 @@ impl BlockPalette {
             .iter()
             .position(|s| *s == wanted)
             .map(|i| range.first + i as u32)
-            .ok_or_else(|| Error::data(origin, format!("{desc:?} is not a canonical state combination")))
+            .ok_or_else(|| {
+                Error::data(
+                    origin,
+                    format!("{desc:?} is not a canonical state combination"),
+                )
+            })
     }
 
     /// Every runtime id a predicate matches.
@@ -594,20 +664,21 @@ impl BlockPalette {
         match pred {
             BlockPredicate::Block(desc) => {
                 let range = self.block(origin, desc)?;
-                Ok(IdSet::from_ids(range.states.iter().enumerate().filter_map(|(i, s)| {
-                    desc.states
-                        .iter()
-                        .all(|(k, v)| s.get(k) == Some(v))
-                        .then_some(range.first + i as u32)
-                })))
+                Ok(IdSet::from_ids(range.states.iter().enumerate().filter_map(
+                    |(i, s)| {
+                        desc.states
+                            .iter()
+                            .all(|(k, v)| s.get(k) == Some(v))
+                            .then_some(range.first + i as u32)
+                    },
+                )))
             }
             BlockPredicate::AnyTag(tags) => {
                 let mut ids = Vec::new();
                 for tag in tags {
-                    let names = self
-                        .names_by_tag
-                        .get(tag)
-                        .ok_or_else(|| Error::data(origin, format!("no block carries tag {tag:?}")))?;
+                    let names = self.names_by_tag.get(tag).ok_or_else(|| {
+                        Error::data(origin, format!("no block carries tag {tag:?}"))
+                    })?;
                     for name in names {
                         let range = &self.blocks[name];
                         ids.extend(range.first..range.first + range.states.len() as u32);
@@ -622,7 +693,9 @@ impl BlockPalette {
     pub fn all_states(&self, origin: &str, names: &[&str]) -> Result<IdSet> {
         let mut out = IdSet::default();
         for name in names {
-            out = out.union(&self.matching(origin, &BlockPredicate::Block(BlockDescriptor::named(name)))?);
+            out = out.union(
+                &self.matching(origin, &BlockPredicate::Block(BlockDescriptor::named(name)))?,
+            );
         }
         Ok(out)
     }
@@ -653,19 +726,28 @@ fn load_flags(native_dir: &Path, palette: &BlockPalette) -> Result<Vec<BlockFlag
         let origin = native_dir.join(name).display().to_string();
         move |source| Error::Json { origin, source }
     };
-    let states: HashMap<u32, StateData> =
-        serde_json::from_slice(&read("block_state_data.json")?).map_err(json_err("block_state_data.json"))?;
-    let props: HashMap<String, Properties> = serde_json::from_slice(&read("block_properties_table.json")?)
-        .map_err(json_err("block_properties_table.json"))?;
+    let states: HashMap<u32, StateData> = serde_json::from_slice(&read("block_state_data.json")?)
+        .map_err(json_err("block_state_data.json"))?;
+    let props: HashMap<String, Properties> =
+        serde_json::from_slice(&read("block_properties_table.json")?)
+            .map_err(json_err("block_properties_table.json"))?;
     let mut out = Vec::with_capacity(palette.len as usize);
     for id in 0..palette.len {
         let (name, _, _) = palette.describe(id).expect("id in palette");
-        let state = states
-            .get(&id)
-            .ok_or_else(|| Error::data("block_state_data.json", format!("no measurements for state {id}")))?;
+        let state = states.get(&id).ok_or_else(|| {
+            Error::data(
+                "block_state_data.json",
+                format!("no measurements for state {id}"),
+            )
+        })?;
         let material = &props
             .get(name)
-            .ok_or_else(|| Error::data("block_properties_table.json", format!("no properties for {name}")))?
+            .ok_or_else(|| {
+                Error::data(
+                    "block_properties_table.json",
+                    format!("no properties for {name}"),
+                )
+            })?
             .material;
         out.push(BlockFlags {
             solid: state.solid,
@@ -686,7 +768,10 @@ mod tests {
         let s = |name: &str, props: &[(&str, StateValue)]| {
             (
                 name.to_owned(),
-                props.iter().map(|(k, v)| (k.to_string(), v.clone())).collect(),
+                props
+                    .iter()
+                    .map(|(k, v)| (k.to_string(), v.clone()))
+                    .collect(),
             )
         };
         let axis = |v: &str| ("pillar_axis", StateValue::Str(v.into()));
@@ -699,14 +784,26 @@ mod tests {
                 s("minecraft:andesite", &[]),
                 s("minecraft:short_grass", &[]),
                 s("minecraft:fern", &[]),
-                s("minecraft:big_dripleaf", &[
-                    ("big_dripleaf_head", StateValue::Int(0)),
-                    ("minecraft:cardinal_direction", StateValue::Str("south".into())),
-                ]),
-                s("minecraft:big_dripleaf", &[
-                    ("big_dripleaf_head", StateValue::Int(1)),
-                    ("minecraft:cardinal_direction", StateValue::Str("west".into())),
-                ]),
+                s(
+                    "minecraft:big_dripleaf",
+                    &[
+                        ("big_dripleaf_head", StateValue::Int(0)),
+                        (
+                            "minecraft:cardinal_direction",
+                            StateValue::Str("south".into()),
+                        ),
+                    ],
+                ),
+                s(
+                    "minecraft:big_dripleaf",
+                    &[
+                        ("big_dripleaf_head", StateValue::Int(1)),
+                        (
+                            "minecraft:cardinal_direction",
+                            StateValue::Str("west".into()),
+                        ),
+                    ],
+                ),
             ],
             BTreeMap::from([
                 ("minecraft:oak_log".to_owned(), vec!["log".to_owned()]),
@@ -721,7 +818,11 @@ mod tests {
         let p = palette();
         let log = parse_descriptor("t", &json!("minecraft:oak_log")).unwrap();
         assert_eq!(p.resolve("t", &log).unwrap(), 1);
-        let x = parse_descriptor("t", &json!({"name": "oak_log", "states": {"pillar_axis": "x"}})).unwrap();
+        let x = parse_descriptor(
+            "t",
+            &json!({"name": "oak_log", "states": {"pillar_axis": "x"}}),
+        )
+        .unwrap();
         assert_eq!(p.resolve("t", &x).unwrap(), 2);
     }
 
@@ -730,21 +831,46 @@ mod tests {
         let p = palette();
         let old_log = parse_descriptor("t", &json!({"name": "minecraft:log", "states": {"old_log_type": "oak", "pillar_axis": "z"}})).unwrap();
         assert_eq!(p.resolve("t", &old_log).unwrap(), 3);
-        let andesite = parse_descriptor("t", &json!({"name": "minecraft:stone", "states": {"stone_type": "andesite"}})).unwrap();
+        let andesite = parse_descriptor(
+            "t",
+            &json!({"name": "minecraft:stone", "states": {"stone_type": "andesite"}}),
+        )
+        .unwrap();
         assert_eq!(andesite.name, "minecraft:andesite");
-        let by_data_value = parse_descriptor("t", &json!({"name": "minecraft:stone", "states": {"stone_type": 5}})).unwrap();
+        let by_data_value = parse_descriptor(
+            "t",
+            &json!({"name": "minecraft:stone", "states": {"stone_type": 5}}),
+        )
+        .unwrap();
         assert_eq!(by_data_value.name, "minecraft:andesite");
-        let fern = parse_descriptor("t", &json!({"name": "minecraft:tallgrass", "states": {"tall_grass_type": "fern"}})).unwrap();
+        let fern = parse_descriptor(
+            "t",
+            &json!({"name": "minecraft:tallgrass", "states": {"tall_grass_type": "fern"}}),
+        )
+        .unwrap();
         assert_eq!(p.resolve("t", &fern).unwrap(), 6);
-        assert_eq!(parse_descriptor("t", &json!("minecraft:tallgrass")).unwrap().name, "minecraft:short_grass");
-        assert_eq!(parse_descriptor("t", &json!("minecraft:grass")).unwrap().name, "minecraft:grass_block");
+        assert_eq!(
+            parse_descriptor("t", &json!("minecraft:tallgrass"))
+                .unwrap()
+                .name,
+            "minecraft:short_grass"
+        );
+        assert_eq!(
+            parse_descriptor("t", &json!("minecraft:grass"))
+                .unwrap()
+                .name,
+            "minecraft:grass_block"
+        );
     }
 
     #[test]
     fn unknown_legacy_values_fail() {
-        let err = parse_descriptor("f.json", &json!({"name": "minecraft:stone", "states": {"stone_type": "marble"}}))
-            .unwrap_err()
-            .to_string();
+        let err = parse_descriptor(
+            "f.json",
+            &json!({"name": "minecraft:stone", "states": {"stone_type": "marble"}}),
+        )
+        .unwrap_err()
+        .to_string();
         assert!(err.contains("f.json") && err.contains("marble"), "{err}");
     }
 
@@ -758,11 +884,27 @@ mod tests {
     #[test]
     fn invalid_states_are_build_errors() {
         let p = palette();
-        let bad_key = parse_descriptor("t", &json!({"name": "minecraft:oak_log", "states": {"color": "red"}})).unwrap();
-        assert!(p.resolve("t", &bad_key).unwrap_err().to_string().contains("no state color"));
-        let bad_value = parse_descriptor("t", &json!({"name": "minecraft:oak_log", "states": {"pillar_axis": "w"}})).unwrap();
+        let bad_key = parse_descriptor(
+            "t",
+            &json!({"name": "minecraft:oak_log", "states": {"color": "red"}}),
+        )
+        .unwrap();
+        assert!(
+            p.resolve("t", &bad_key)
+                .unwrap_err()
+                .to_string()
+                .contains("no state color")
+        );
+        let bad_value = parse_descriptor(
+            "t",
+            &json!({"name": "minecraft:oak_log", "states": {"pillar_axis": "w"}}),
+        )
+        .unwrap();
         assert!(p.resolve("t", &bad_value).is_err());
-        assert!(p.resolve("t", &BlockDescriptor::named("minecraft:nope")).is_err());
+        assert!(
+            p.resolve("t", &BlockDescriptor::named("minecraft:nope"))
+                .is_err()
+        );
     }
 
     #[test]
@@ -772,14 +914,24 @@ mod tests {
         assert_eq!(p.matching("t", &any_log).unwrap().ranges(), &[1..=3]);
         let tags = parse_predicate("t", &json!({"tags": "query.any_tag('log', 'stone')"})).unwrap();
         assert_eq!(p.matching("t", &tags).unwrap().ranges(), &[1..=4]);
-        let z = parse_predicate("t", &json!({"name": "minecraft:oak_log", "states": {"pillar_axis": "z"}})).unwrap();
+        let z = parse_predicate(
+            "t",
+            &json!({"name": "minecraft:oak_log", "states": {"pillar_axis": "z"}}),
+        )
+        .unwrap();
         assert_eq!(p.matching("t", &z).unwrap().ranges(), &[3..=3]);
-        assert!(p.matching("t", &BlockPredicate::AnyTag(vec!["nope".into()])).is_err());
+        assert!(
+            p.matching("t", &BlockPredicate::AnyTag(vec!["nope".into()]))
+                .is_err()
+        );
     }
 
     #[test]
     fn any_tag_parser_accepts_only_quoted_lists() {
-        assert_eq!(parse_any_tag("query.any_tag('dirt', 'sand')"), Some(vec!["dirt".into(), "sand".into()]));
+        assert_eq!(
+            parse_any_tag("query.any_tag('dirt', 'sand')"),
+            Some(vec!["dirt".into(), "sand".into()])
+        );
         assert_eq!(parse_any_tag("query.any_tag(dirt)"), None);
         assert_eq!(parse_any_tag("query.all_tags('dirt')"), None);
     }

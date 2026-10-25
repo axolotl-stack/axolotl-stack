@@ -61,7 +61,12 @@ pub enum Direction {
 }
 
 impl Direction {
-    pub const ALL: [Direction; 4] = [Direction::South, Direction::West, Direction::North, Direction::East];
+    pub const ALL: [Direction; 4] = [
+        Direction::South,
+        Direction::West,
+        Direction::North,
+        Direction::East,
+    ];
 
     #[inline]
     pub const fn delta(self) -> (i32, i32) {

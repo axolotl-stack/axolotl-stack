@@ -12,7 +12,9 @@ use super::Emitter;
 use super::scatter::biome_tag_test;
 use crate::error::{Error, Result};
 use crate::ir::BiomeFilter;
-use crate::structures::{Adaptation, Anchor, Dir6, EMPTY, ElementKind, Processor, ProcessorRule, StructureData, Template};
+use crate::structures::{
+    Adaptation, Anchor, Dir6, EMPTY, ElementKind, Processor, ProcessorRule, StructureData, Template,
+};
 use proc_macro2::{Literal, TokenStream};
 use quote::{format_ident, quote};
 use std::collections::BTreeMap;
@@ -40,9 +42,16 @@ fn dir(d: Dir6) -> TokenStream {
     }
 }
 
-fn template_tokens(t: &Template, names: &BTreeMap<&str, u16>, data: &StructureData) -> Result<TokenStream> {
+fn template_tokens(
+    t: &Template,
+    names: &BTreeMap<&str, u16>,
+    data: &StructureData,
+) -> Result<TokenStream> {
     let [sx, sy, sz] = t.size;
-    let palette = t.palette.iter().map(|[a, b, c, d]| quote!([#a, #b, #c, #d]));
+    let palette = t
+        .palette
+        .iter()
+        .map(|[a, b, c, d]| quote!([#a, #b, #c, #d]));
     let mut bytes = Vec::with_capacity(t.cells.len() * 5);
     for ([x, y, z], entry) in &t.cells {
         bytes.extend_from_slice(&[*x, *y, *z]);
@@ -58,13 +67,13 @@ fn template_tokens(t: &Template, names: &BTreeMap<&str, u16>, data: &StructureDa
         let pool = if c.pool == EMPTY {
             none()
         } else {
-            let i = *data
-                .pool_index
-                .get(&c.pool)
-                .ok_or_else(|| Error::data(&t.origin, format!("jigsaw names unknown pool {}", c.pool)))?;
+            let i = *data.pool_index.get(&c.pool).ok_or_else(|| {
+                Error::data(&t.origin, format!("jigsaw names unknown pool {}", c.pool))
+            })?;
             index(&t.origin, i)?
         };
-        let (rollable, selection, placement) = (c.rollable, c.selection_priority, c.placement_priority);
+        let (rollable, selection, placement) =
+            (c.rollable, c.selection_priority, c.placement_priority);
         connectors.push(quote!(structures::Connector {
             pos: [#x, #y, #z],
             front: #front,
@@ -143,7 +152,10 @@ pub fn emit(em: &mut Emitter<'_>) -> Result<TokenStream> {
         let mut elements = Vec::new();
         for e in &pool.elements {
             let (template, processors, feature) = match e.kind {
-                ElementKind::Template { template, processors } => (
+                ElementKind::Template {
+                    template,
+                    processors,
+                } => (
                     index(&pool.source, template)?,
                     match processors {
                         Some(p) => index(&pool.source, p)?,
@@ -151,12 +163,15 @@ pub fn emit(em: &mut Emitter<'_>) -> Result<TokenStream> {
                     },
                     none(),
                 ),
-                ElementKind::Feature { template, feature } => {
-                    (index(&pool.source, template)?, none(), index(&pool.source, feature)?)
-                }
+                ElementKind::Feature { template, feature } => (
+                    index(&pool.source, template)?,
+                    none(),
+                    index(&pool.source, feature)?,
+                ),
                 ElementKind::Empty => (none(), none(), none()),
             };
-            let weight = u16::try_from(e.weight).map_err(|_| Error::data(&pool.source, "pool weight overflow"))?;
+            let weight = u16::try_from(e.weight)
+                .map_err(|_| Error::data(&pool.source, "pool weight overflow"))?;
             elements.push(quote!(structures::Element {
                 weight: #weight,
                 template: #template,
@@ -203,7 +218,8 @@ pub fn emit(em: &mut Emitter<'_>) -> Result<TokenStream> {
             fn #f(biome: u16) -> bool { #test }
         });
         let start_pool = index(&s.source, s.start_pool)?;
-        let max_depth = u8::try_from(s.max_depth).map_err(|_| Error::data(&s.source, "max_depth overflow"))?;
+        let max_depth =
+            u8::try_from(s.max_depth).map_err(|_| Error::data(&s.source, "max_depth overflow"))?;
         let (horizontal, vertical) = (s.horizontal, s.vertical);
         let start_height = match s.start_height {
             Anchor::Absolute(y) => quote!(structures::Anchor::Absolute(#y)),
@@ -222,7 +238,11 @@ pub fn emit(em: &mut Emitter<'_>) -> Result<TokenStream> {
         let step = s.step;
         // Every piece lies within `horizontal` of the start piece's centre,
         // which lies within one template extent of the start chunk corner.
-        let reach_blocks = if s.max_depth > 0 { s.horizontal + extent } else { 2 * extent };
+        let reach_blocks = if s.max_depth > 0 {
+            s.horizontal + extent
+        } else {
+            2 * extent
+        };
         let reach = (reach_blocks + 15) / 16 + 1;
         structures.push(quote!(structures::Structure {
             start_pool: #start_pool,
@@ -245,10 +265,12 @@ pub fn emit(em: &mut Emitter<'_>) -> Result<TokenStream> {
         let mut entries = Vec::new();
         for &(s, w) in &set.structures {
             let s = index(&set.source, s)?;
-            let w = u16::try_from(w).map_err(|_| Error::data(&set.source, "structure weight overflow"))?;
+            let w = u16::try_from(w)
+                .map_err(|_| Error::data(&set.source, "structure weight overflow"))?;
             entries.push(quote!((#s, #w)));
         }
-        let (spacing, separation, salt, triangular) = (set.spacing, set.separation, set.salt, set.triangular);
+        let (spacing, separation, salt, triangular) =
+            (set.spacing, set.separation, set.salt, set.triangular);
         sets.push(quote!(structures::StructureSet {
             structures: &[#(#entries),*],
             spacing: #spacing,
@@ -265,7 +287,13 @@ pub fn emit(em: &mut Emitter<'_>) -> Result<TokenStream> {
         arms.push(quote!(#i => #call,));
     }
 
-    let (nt, np, nl, ns, nset) = (templates.len(), pools.len(), processors.len(), structures.len(), sets.len());
+    let (nt, np, nl, ns, nset) = (
+        templates.len(),
+        pools.len(),
+        processors.len(),
+        structures.len(),
+        sets.len(),
+    );
     Ok(quote! {
         /// Structure templates: jigsaw pieces, feature-element shapes, fossils
         /// and `structure_template_feature` templates.

@@ -78,7 +78,9 @@ const DRY_GROUND_TAGS: &[&str] = &["dirt", "sand"];
 fn terracotta(palette: &BlockPalette) -> Vec<&str> {
     palette
         .names()
-        .filter(|n| *n == "minecraft:hardened_clay" || n.ends_with("_terracotta") && !n.contains("glazed"))
+        .filter(|n| {
+            *n == "minecraft:hardened_clay" || n.ends_with("_terracotta") && !n.contains("glazed")
+        })
         .collect()
 }
 
@@ -93,12 +95,17 @@ pub fn classify(palette: &BlockPalette, origin: &str, id: u32) -> Result<Surviva
         return Ok(Survival::Below(IdSet::from_ids(first..first + len)));
     }
     if DIRT_PLANTS.contains(&name) {
-        return Ok(Survival::Below(palette.matching(origin, &crate::blocks::BlockPredicate::AnyTag(vec!["dirt".into()]))?));
+        return Ok(Survival::Below(palette.matching(
+            origin,
+            &crate::blocks::BlockPredicate::AnyTag(vec!["dirt".into()]),
+        )?));
     }
     if DRY_PLANTS.contains(&name) {
         let tags = DRY_GROUND_TAGS.iter().map(|t| t.to_string()).collect();
         let ground = palette.matching(origin, &crate::blocks::BlockPredicate::AnyTag(tags))?;
-        return Ok(Survival::Below(ground.union(&palette.all_states(origin, &terracotta(palette))?)));
+        return Ok(Survival::Below(
+            ground.union(&palette.all_states(origin, &terracotta(palette))?),
+        ));
     }
     if CEILING_PLANTS.contains(&name) {
         return Ok(Survival::Above(palette.ids_where(|f| f.solid)));

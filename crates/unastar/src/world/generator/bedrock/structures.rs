@@ -263,13 +263,16 @@ impl Template {
     /// Every cell as `(cell index, template-local position, palette entry)`.
     #[inline]
     pub fn cells(&self) -> impl Iterator<Item = (u32, [i32; 3], u16)> + '_ {
-        self.cells.chunks_exact(CELL_BYTES).enumerate().map(|(i, c)| {
-            (
-                i as u32,
-                [i32::from(c[0]), i32::from(c[1]), i32::from(c[2])],
-                u16::from_le_bytes([c[3], c[4]]),
-            )
-        })
+        self.cells
+            .chunks_exact(CELL_BYTES)
+            .enumerate()
+            .map(|(i, c)| {
+                (
+                    i as u32,
+                    [i32::from(c[0]), i32::from(c[1]), i32::from(c[2])],
+                    u16::from_le_bytes([c[3], c[4]]),
+                )
+            })
     }
 
     /// Runtime id of palette `entry` in `rotation`.
@@ -326,7 +329,10 @@ pub enum Processor {
     /// `minecraft:rule`: the first matching rule replaces the block.
     Rules(&'static [ProcessorRule]),
     /// `minecraft:capped`: the rules change at most `limit` blocks per piece.
-    Capped { limit: u16, rules: &'static [ProcessorRule] },
+    Capped {
+        limit: u16,
+        rules: &'static [ProcessorRule],
+    },
 }
 
 /// A processor list.
@@ -408,7 +414,12 @@ pub fn region_random(world_seed: i64, region_x: i32, region_z: i32, salt: i32) -
 impl StructureSet {
     /// Start chunk of region `(region_x, region_z)` and the random that
     /// continues with structure selection and assembly.
-    pub fn start_chunk(&self, world_seed: i64, region_x: i32, region_z: i32) -> (i32, i32, BedrockRandom) {
+    pub fn start_chunk(
+        &self,
+        world_seed: i64,
+        region_x: i32,
+        region_z: i32,
+    ) -> (i32, i32, BedrockRandom) {
         let mut rng = region_random(world_seed, region_x, region_z, self.salt);
         let span = self.spacing - self.separation;
         let (ox, oz) = if self.triangular {
@@ -419,7 +430,11 @@ impl StructureSet {
             let x = rng.next_int(span);
             (x, rng.next_int(span))
         };
-        (region_x * self.spacing + ox, region_z * self.spacing + oz, rng)
+        (
+            region_x * self.spacing + ox,
+            region_z * self.spacing + oz,
+            rng,
+        )
     }
 }
 
@@ -472,9 +487,15 @@ impl Space {
 
 /// Can `child` (in `child_rotation`) attach to `parent` (in `parent_rotation`)?
 #[inline]
-pub fn can_attach(parent: &Connector, parent_rotation: u8, child: &Connector, child_rotation: u8) -> bool {
+pub fn can_attach(
+    parent: &Connector,
+    parent_rotation: u8,
+    child: &Connector,
+    child_rotation: u8,
+) -> bool {
     parent.front.rotate(parent_rotation) == child.front.rotate(child_rotation).opposite()
-        && (parent.rollable || parent.top.rotate(parent_rotation) == child.top.rotate(child_rotation))
+        && (parent.rollable
+            || parent.top.rotate(parent_rotation) == child.top.rotate(child_rotation))
         && parent.target == child.name
 }
 
@@ -504,11 +525,19 @@ fn pick_weighted(rng: &mut BedrockRandom, elements: &[Element]) -> Option<usize>
 /// Append `(pool, element)` for every element of `pool` in weighted random
 /// order (sequential weighted draws without replacement, which orders
 /// elements like the first occurrences of a shuffled weight-repeated list).
-fn weighted_order(rng: &mut BedrockRandom, elements: &[Element], pool: u16, out: &mut Vec<(u16, u16)>) {
+fn weighted_order(
+    rng: &mut BedrockRandom,
+    elements: &[Element],
+    pool: u16,
+    out: &mut Vec<(u16, u16)>,
+) {
     let start = out.len();
     out.extend((0..elements.len() as u16).map(|i| (pool, i)));
     for k in start..out.len() {
-        let total: i32 = out[k..].iter().map(|&(_, i)| i32::from(elements[i as usize].weight)).sum();
+        let total: i32 = out[k..]
+            .iter()
+            .map(|&(_, i)| i32::from(elements[i as usize].weight))
+            .sum();
         if total <= 0 {
             return;
         }
@@ -679,7 +708,11 @@ pub fn assemble(
                             continue;
                         }
                         let local = world_pos(BlockPos::new(0, 0, 0), cc.pos, rotation);
-                        let origin = BlockPos::new(target.x - local.x, target.y - local.y, target.z - local.z);
+                        let origin = BlockPos::new(
+                            target.x - local.x,
+                            target.y - local.y,
+                            target.z - local.z,
+                        );
                         let bbox = local_box.offset(origin.x, origin.y, origin.z);
                         if !spaces[space].fits(&bbox) {
                             continue;
@@ -735,7 +768,8 @@ pub fn generate_start(
         }
         let (index, _) = remaining.remove(chosen);
         let structure = &structures[index as usize];
-        let Some(start) = start_piece(t, structure, rng, chunk_x, chunk_z, surface, min_y, max_y) else {
+        let Some(start) = start_piece(t, structure, rng, chunk_x, chunk_z, surface, min_y, max_y)
+        else {
             continue;
         };
         let (cx, cz) = start.bbox.center_xz();
@@ -791,9 +825,9 @@ pub fn place_in_chunk<W: BlockWorld>(
                 if (sx - chunk_x).abs() > reach || (sz - chunk_z).abs() > reach {
                     continue;
                 }
-                let Some((index, pieces)) =
-                    generate_start(t, structures, set, &mut rng, sx, sz, surface, biome, min_y, max_y)
-                else {
+                let Some((index, pieces)) = generate_start(
+                    t, structures, set, &mut rng, sx, sz, surface, biome, min_y, max_y,
+                ) else {
                     continue;
                 };
                 if pieces.iter().any(|p| columns.overlaps(&p.bbox)) {
@@ -817,7 +851,10 @@ fn place_start<W: BlockWorld>(
     columns: ChunkColumns,
 ) {
     if structure.adaptation != Adaptation::None {
-        for p in pieces.iter().filter(|p| p.feature == NONE && columns.overlaps(&p.bbox)) {
+        for p in pieces
+            .iter()
+            .filter(|p| p.feature == NONE && columns.overlaps(&p.bbox))
+        {
             adapt(ctx, structure.adaptation, &p.bbox, columns);
         }
     }
@@ -872,7 +909,12 @@ fn is_open(id: u32) -> bool {
 /// - `bury` / `encapsulate`: fill every air/liquid block of the box with the
 ///   ground material, so only the template's own cells (including its air)
 ///   stay open.
-pub fn adapt<W: BlockWorld>(ctx: &mut Ctx<'_, W>, mode: Adaptation, bbox: &BoundingBox, columns: ChunkColumns) {
+pub fn adapt<W: BlockWorld>(
+    ctx: &mut Ctx<'_, W>,
+    mode: Adaptation,
+    bbox: &BoundingBox,
+    columns: ChunkColumns,
+) {
     let floor = bbox.min.y;
     let x0 = bbox.min.x.max(columns.x0);
     let x1 = bbox.max.x.min(columns.x0 + 15);
@@ -948,14 +990,24 @@ fn unit_float(h: u64) -> f32 {
 
 /// First matching rule's output for `state` at `pos`. `random_block_match`
 /// rules draw only when the block matches, like vanilla.
-pub fn apply_rules(rules: &[ProcessorRule], state: u32, seed: i64, pos: BlockPos, salt: u64) -> Option<u32> {
+pub fn apply_rules(
+    rules: &[ProcessorRule],
+    state: u32,
+    seed: i64,
+    pos: BlockPos,
+    salt: u64,
+) -> Option<u32> {
     let mut draw = 0u64;
     for r in rules {
         if state < r.input_first || state > r.input_last {
             continue;
         }
         if r.probability < 1.0 {
-            let roll = unit_float(position_hash(seed, pos, salt.wrapping_mul(64).wrapping_add(draw)));
+            let roll = unit_float(position_hash(
+                seed,
+                pos,
+                salt.wrapping_mul(64).wrapping_add(draw),
+            ));
             draw += 1;
             if roll >= r.probability {
                 continue;
@@ -1012,7 +1064,15 @@ impl Caps {
 }
 
 /// State of a cell after `list[..upto]`.
-fn process(list: &[Processor], caps: &Caps, upto: usize, cell: u32, pos: BlockPos, state: u32, seed: i64) -> u32 {
+fn process(
+    list: &[Processor],
+    caps: &Caps,
+    upto: usize,
+    cell: u32,
+    pos: BlockPos,
+    state: u32,
+    seed: i64,
+) -> u32 {
     let mut state = state;
     let mut capped = 0;
     for (k, p) in list.iter().take(upto).enumerate() {
@@ -1034,7 +1094,12 @@ fn process(list: &[Processor], caps: &Caps, upto: usize, cell: u32, pos: BlockPo
 }
 
 /// Write the cells of `piece` inside `columns`, processors applied.
-fn place_piece<W: BlockWorld>(ctx: &mut Ctx<'_, W>, t: Tables<'_>, piece: &Piece, columns: ChunkColumns) {
+fn place_piece<W: BlockWorld>(
+    ctx: &mut Ctx<'_, W>,
+    t: Tables<'_>,
+    piece: &Piece,
+    columns: ChunkColumns,
+) {
     let template = &t.templates[piece.template as usize];
     let list: &[Processor] = match t.processors.get(piece.processors as usize) {
         Some(l) => l.processors,
@@ -1047,7 +1112,11 @@ fn place_piece<W: BlockWorld>(ctx: &mut Ctx<'_, W>, t: Tables<'_>, piece: &Piece
     };
     // Capped processors look at the whole piece, so they are resolved over
     // every cell first (deterministically, whatever chunk is generated).
-    let piece_seed = position_hash(seed, piece.origin, (u64::from(piece.template) << 8) | u64::from(piece.rotation));
+    let piece_seed = position_hash(
+        seed,
+        piece.origin,
+        (u64::from(piece.template) << 8) | u64::from(piece.rotation),
+    );
     let mut capped = 0;
     for (k, p) in list.iter().enumerate() {
         let Processor::Capped { limit, rules } = p else {
@@ -1058,7 +1127,15 @@ fn place_piece<W: BlockWorld>(ctx: &mut Ctx<'_, W>, t: Tables<'_>, piece: &Piece
         }
         for (cell, local, entry) in template.cells() {
             let pos = world_pos(piece.origin, local, piece.rotation);
-            let before = process(list, &caps, k, cell, pos, template.state(entry, piece.rotation), seed);
+            let before = process(
+                list,
+                &caps,
+                k,
+                cell,
+                pos,
+                template.state(entry, piece.rotation),
+                seed,
+            );
             if let Some(output) = apply_rules(rules, before, seed, pos, k as u64)
                 && output != before
             {
@@ -1073,7 +1150,15 @@ fn place_piece<W: BlockWorld>(ctx: &mut Ctx<'_, W>, t: Tables<'_>, piece: &Piece
         if !columns.contains(pos.x, pos.z) || !ctx.in_height(pos.y) {
             continue;
         }
-        let state = process(list, &caps, list.len(), cell, pos, template.state(entry, piece.rotation), seed);
+        let state = process(
+            list,
+            &caps,
+            list.len(),
+            cell,
+            pos,
+            template.state(entry, piece.rotation),
+            seed,
+        );
         ctx.set(pos, state);
     }
 }
@@ -1240,7 +1325,10 @@ mod tests {
         assert!(can_attach(parent, 0, child, 0));
         assert!(!can_attach(parent, 0, child, 1));
         assert!(can_attach(parent, 1, child, 1));
-        assert!(!can_attach(child, 0, parent, 0), "target must match the child's name");
+        assert!(
+            !can_attach(child, 0, parent, 0),
+            "target must match the child's name"
+        );
     }
 
     #[test]
@@ -1258,8 +1346,14 @@ mod tests {
         assert!(!child.bbox.intersects(&start.bbox));
         assert_eq!(child.depth, 1);
         // The child touches the parent through the connector.
-        let gap_x = (child.bbox.min.x - start.bbox.max.x, start.bbox.min.x - child.bbox.max.x);
-        let gap_z = (child.bbox.min.z - start.bbox.max.z, start.bbox.min.z - child.bbox.max.z);
+        let gap_x = (
+            child.bbox.min.x - start.bbox.max.x,
+            start.bbox.min.x - child.bbox.max.x,
+        );
+        let gap_z = (
+            child.bbox.min.z - start.bbox.max.z,
+            start.bbox.min.z - child.bbox.max.z,
+        );
         assert!(gap_x.0 == 1 || gap_x.1 == 1 || gap_z.0 == 1 || gap_z.1 == 1);
     }
 
@@ -1318,7 +1412,15 @@ mod tests {
             len: [0; MAX_CAPPED_PER_LIST],
         };
         for (cell, key) in [(0u32, 50u64), (1, 10), (2, 40), (3, 5)] {
-            caps.offer(0, 2, Pick { key, cell, output: 7 });
+            caps.offer(
+                0,
+                2,
+                Pick {
+                    key,
+                    cell,
+                    output: 7,
+                },
+            );
         }
         assert_eq!(caps.len[0], 2);
         assert_eq!(caps.selected(0, 3), Some(7));

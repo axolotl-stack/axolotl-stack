@@ -28,7 +28,12 @@ pub fn emit(em: &mut Emitter<'_>, o: &Obj<'_>) -> Result<TokenStream> {
     let ceiling = match o.str("surface")? {
         "floor" => false,
         "ceiling" => true,
-        other => return Err(Error::data(origin, format!("unknown vegetation patch surface {other:?}"))),
+        other => {
+            return Err(Error::data(
+                origin,
+                format!("unknown vegetation patch surface {other:?}"),
+            ));
+        }
     };
     let depth = range_tokens(origin, o.req("depth")?)?;
     let vertical_range = o.i32("vertical_range")?;
@@ -37,7 +42,10 @@ pub fn emit(em: &mut Emitter<'_>, o: &Obj<'_>) -> Result<TokenStream> {
     if radius.min < 0 || radius.max < radius.min || radius.max > MAX_RADIUS {
         return Err(Error::data(
             origin,
-            format!("horizontal_radius {}..={} outside 0..={MAX_RADIUS}", radius.min, radius.max),
+            format!(
+                "horizontal_radius {}..={} outside 0..={MAX_RADIUS}",
+                radius.min, radius.max
+            ),
         ));
     }
     let extra_deep = o.f32_or("extra_deep_block_chance", 0.0)?;
@@ -45,7 +53,10 @@ pub fn emit(em: &mut Emitter<'_>, o: &Obj<'_>) -> Result<TokenStream> {
     let waterlogged = o.bool_or("waterlogged", false)?;
     if waterlogged && ceiling {
         // The pool test looks at the cell's sides and bottom: floor only.
-        return Err(Error::data(origin, "waterlogged ceiling patches are not supported"));
+        return Err(Error::data(
+            origin,
+            "waterlogged ceiling patches are not supported",
+        ));
     }
     let test = em.matches(quote!(b), &replaceable);
     let ground = em.block(ground);

@@ -37,7 +37,9 @@ mod vegetation_patch;
 pub fn emit(em: &mut Emitter<'_>, kind: &str, o: &Obj<'_>) -> Result<TokenStream> {
     match kind {
         "minecraft:cave_carver_feature" => carver::emit(em, o, carver::Kind::Cave),
-        "minecraft:underwater_cave_carver_feature" => carver::emit(em, o, carver::Kind::UnderwaterCave),
+        "minecraft:underwater_cave_carver_feature" => {
+            carver::emit(em, o, carver::Kind::UnderwaterCave)
+        }
         "minecraft:nether_cave_carver_feature" => carver::emit(em, o, carver::Kind::NetherCave),
         "minecraft:geode_feature" => geode::emit(em, o),
         "minecraft:growing_plant_feature" => growing_plant::emit(em, o),
@@ -49,6 +51,9 @@ pub fn emit(em: &mut Emitter<'_>, kind: &str, o: &Obj<'_>) -> Result<TokenStream
         "minecraft:structure_template_feature" => structure_template::emit(em, o),
         "minecraft:fossil_feature" => fossil::emit(em, o),
         "minecraft:tree_feature" => tree::emit(em, o),
-        _ => Err(Error::data(o.origin, format!("feature type {kind} has no emitter"))),
+        _ => Err(Error::data(
+            o.origin,
+            format!("feature type {kind} has no emitter"),
+        )),
     }
 }

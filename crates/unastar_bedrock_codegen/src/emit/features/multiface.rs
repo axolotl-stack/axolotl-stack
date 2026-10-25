@@ -30,7 +30,10 @@ pub fn emit(em: &mut Emitter<'_>, o: &Obj<'_>) -> Result<TokenStream> {
         .ok_or_else(|| Error::data(origin, format!("runtime id {id} is not in the palette")))?;
     let base = face_states_base(palette, origin, name)?;
     if id != base {
-        return Err(Error::data(origin, format!("places_block {name} must be given without faces")));
+        return Err(Error::data(
+            origin,
+            format!("places_block {name} must be given without faces"),
+        ));
     }
     let search_range = o.i32("search_range")?;
     // Face bits: 0 down, 1 up, 2..=5 south, west, north, east.
@@ -91,6 +94,9 @@ pub(super) fn face_states_base(palette: &BlockPalette, origin: &str, name: &str)
     }
     match base {
         Some(base) if count == 64 => Ok(base),
-        _ => Err(Error::data(origin, format!("{name}: expected 64 {FACE_BITS} states, found {count}"))),
+        _ => Err(Error::data(
+            origin,
+            format!("{name}: expected 64 {FACE_BITS} states, found {count}"),
+        )),
     }
 }

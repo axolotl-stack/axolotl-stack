@@ -23,18 +23,25 @@ pub fn emit(em: &mut Emitter<'_>, o: &Obj<'_>) -> Result<TokenStream> {
     let origin = o.origin;
     let model = em.model;
     let name = o.str("structure_name")?;
-    let template_index = model
-        .structures
-        .named_template(name)
-        .ok_or_else(|| Error::data(origin, format!("structure template {name:?} was not loaded")))?;
+    let template_index = model.structures.named_template(name).ok_or_else(|| {
+        Error::data(
+            origin,
+            format!("structure template {name:?} was not loaded"),
+        )
+    })?;
     let height = model.structures.templates[template_index].size[1];
-    let template = u16::try_from(template_index).map_err(|_| Error::data(origin, "template index overflow"))?;
+    let template = u16::try_from(template_index)
+        .map_err(|_| Error::data(origin, "template index overflow"))?;
     let radius = o.i32_or("adjustment_radius", 0)?;
     if !(0..=16).contains(&radius) {
-        return Err(Error::data(origin, format!("adjustment_radius {radius} outside 0..=16")));
+        return Err(Error::data(
+            origin,
+            format!("adjustment_radius {radius} outside 0..=16"),
+        ));
     }
     // Quarter turns clockwise from the template's own orientation (north).
-    let fixed = |quarter_turns: u8| quote!(features::structure_template::Facing::Fixed(#quarter_turns));
+    let fixed =
+        |quarter_turns: u8| quote!(features::structure_template::Facing::Fixed(#quarter_turns));
     let facing = match o.opt("facing_direction") {
         None => quote!(features::structure_template::Facing::Random),
         Some(v) => match v.as_str() {
@@ -48,7 +55,10 @@ pub fn emit(em: &mut Emitter<'_>, o: &Obj<'_>) -> Result<TokenStream> {
     };
     let ground_level = o.i32_or("ground_level", 0)?;
     if ground_level < 0 {
-        return Err(Error::data(origin, format!("ground_level {ground_level} is negative")));
+        return Err(Error::data(
+            origin,
+            format!("ground_level {ground_level} is negative"),
+        ));
     }
     // Values above the template height are clamped (Mojang docs).
     let ground_level = ground_level.min(height - 1);
@@ -74,7 +84,10 @@ pub fn emit(em: &mut Emitter<'_>, o: &Obj<'_>) -> Result<TokenStream> {
             let steepness = l.i32_or("max_steepness", 2)?;
             l.finish()?;
             if steepness < 0 {
-                return Err(Error::data(origin, format!("max_steepness {steepness} is negative")));
+                return Err(Error::data(
+                    origin,
+                    format!("max_steepness {steepness} is negative"),
+                ));
             }
             leveled = quote!(Some(#steepness));
         }

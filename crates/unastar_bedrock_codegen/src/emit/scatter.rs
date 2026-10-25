@@ -88,7 +88,10 @@ pub fn emit(
     let env = ScatterEnv { em };
     let chance = match &s.chance {
         None => quote!(),
-        Some(ScatterChance::Fraction { numerator, denominator }) => {
+        Some(ScatterChance::Fraction {
+            numerator,
+            denominator,
+        }) => {
             if numerator >= denominator {
                 quote!()
             } else {
@@ -109,7 +112,15 @@ pub fn emit(
         .order
         .iter()
         .copied()
-        .filter(|a| matches!(coord_of(s, *a), Coord::Dist { kind: DistKind::FixedGrid | DistKind::JitteredGrid, .. }))
+        .filter(|a| {
+            matches!(
+                coord_of(s, *a),
+                Coord::Dist {
+                    kind: DistKind::FixedGrid | DistKind::JitteredGrid,
+                    ..
+                }
+            )
+        })
         .collect();
 
     // Each computed axis becomes `let wN = value;` in evaluation order. An axis
@@ -132,7 +143,15 @@ pub fn emit(
     for axis in s.order {
         let (var, base, index) = match axis {
             Axis::X => (quote!(wx), quote!(origin.x), 0),
-            Axis::Y => (quote!(wy), if s.project_input_to_floor { quote!(ctx.heightmap(wx, wz)) } else { quote!(origin.y) }, 1),
+            Axis::Y => (
+                quote!(wy),
+                if s.project_input_to_floor {
+                    quote!(ctx.heightmap(wx, wz))
+                } else {
+                    quote!(origin.y)
+                },
+                1,
+            ),
             Axis::Z => (quote!(wz), quote!(origin.z), 2),
         };
         let coord = coord_of(s, axis);
@@ -153,7 +172,12 @@ pub fn emit(
         let value = match coord {
             Coord::Offset(n) => quote!(#base + #n),
             Coord::Expr(e) => int_expr(origin_doc, &env, e)?,
-            Coord::Dist { kind, extent, step_size, grid_offset } => {
+            Coord::Dist {
+                kind,
+                extent,
+                step_size,
+                grid_offset,
+            } => {
                 let a = int_expr(origin_doc, &env, &extent[0])?;
                 let b = int_expr(origin_doc, &env, &extent[1])?;
                 // Bind the extent first: it may query `ctx` while the sample borrows `ctx.rng`.
@@ -191,7 +215,11 @@ pub fn emit(
             quote!(scatter::coord(#e))
         }
     };
-    let loop_var = if grid_axes.is_empty() { quote!(_) } else { quote!(i) };
+    let loop_var = if grid_axes.is_empty() {
+        quote!(_)
+    } else {
+        quote!(i)
+    };
     let place = place(quote!(BlockPos::new(wx, wy, wz)));
     Ok(quote! {{
         #chance

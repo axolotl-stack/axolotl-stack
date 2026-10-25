@@ -10,10 +10,10 @@
 use crate::blocks::{BlockPalette, IdSet, parse_descriptor, parse_predicate};
 use crate::error::{Error, Result};
 use crate::molang::{self, Expr};
-use crate::packs::Document;
 use serde_json::{Map, Value};
 use std::cell::RefCell;
 use std::collections::{BTreeMap, BTreeSet};
+use unastar_packs::packs::Document;
 
 // ---------------------------------------------------------------------------
 // Strict object access
@@ -68,7 +68,8 @@ impl<'a> Obj<'a> {
     }
 
     pub fn f32_or(&self, key: &'a str, default: f32) -> Result<f32> {
-        self.opt(key).map_or(Ok(default), |v| num(self.origin, key, v))
+        self.opt(key)
+            .map_or(Ok(default), |v| num(self.origin, key, v))
     }
 
     pub fn i32(&self, key: &'a str) -> Result<i32> {
@@ -76,14 +77,18 @@ impl<'a> Obj<'a> {
     }
 
     pub fn i32_or(&self, key: &'a str, default: i32) -> Result<i32> {
-        self.opt(key).map_or(Ok(default), |v| int(self.origin, key, v))
+        self.opt(key)
+            .map_or(Ok(default), |v| int(self.origin, key, v))
     }
 
     pub fn bool_or(&self, key: &'a str, default: bool) -> Result<bool> {
         match self.opt(key) {
             None => Ok(default),
             Some(Value::Bool(b)) => Ok(*b),
-            Some(other) => Err(Error::data(self.origin, format!("{key} is not a bool: {other}"))),
+            Some(other) => Err(Error::data(
+                self.origin,
+                format!("{key} is not a bool: {other}"),
+            )),
         }
     }
 
@@ -120,7 +125,10 @@ pub fn expr(origin: &str, v: &Value) -> Result<Expr> {
         Value::Number(n) => Ok(Expr::Num(n.as_f64().expect("json number") as f32)),
         Value::Bool(b) => Ok(Expr::Num(if *b { 1.0 } else { 0.0 })),
         Value::String(s) => molang::parse(origin, s),
-        other => Err(Error::data(origin, format!("expected a number or Molang, got {other}"))),
+        other => Err(Error::data(
+            origin,
+            format!("expected a number or Molang, got {other}"),
+        )),
     }
 }
 
@@ -160,7 +168,12 @@ pub fn int_range(origin: &str, v: &Value) -> Result<IntRange> {
         return Ok(IntRange { min: n, max: n });
     }
     let o = Obj::new(origin, v)?;
-    let r = match (o.opt("range_min"), o.opt("range_max"), o.opt("min"), o.opt("max")) {
+    let r = match (
+        o.opt("range_min"),
+        o.opt("range_max"),
+        o.opt("min"),
+        o.opt("max"),
+    ) {
         (Some(a), Some(b), None, None) | (None, None, Some(a), Some(b)) => IntRange {
             min: int(origin, "range_min", a)?,
             max: int(origin, "range_max", b)?,
@@ -231,7 +244,12 @@ impl Pass {
             "surface_pass" => Pass::Surface,
             "after_surface_pass" => Pass::AfterSurface,
             "final_pass" => Pass::Final,
-            other => return Err(Error::data(origin, format!("unknown placement_pass {other:?}"))),
+            other => {
+                return Err(Error::data(
+                    origin,
+                    format!("unknown placement_pass {other:?}"),
+                ));
+            }
         })
     }
 
@@ -264,7 +282,10 @@ impl BiomeFilter {
     pub fn parse(origin: &str, v: &Value) -> Result<Self> {
         match v {
             Value::Array(items) => Ok(BiomeFilter::All(
-                items.iter().map(|i| Self::parse(origin, i)).collect::<Result<_>>()?,
+                items
+                    .iter()
+                    .map(|i| Self::parse(origin, i))
+                    .collect::<Result<_>>()?,
             )),
             Value::Object(map) if map.contains_key("all_of") || map.contains_key("any_of") => {
                 if map.len() != 1 {
@@ -272,7 +293,10 @@ impl BiomeFilter {
                 }
                 let (key, inner) = map.iter().next().expect("one key");
                 let items = match inner {
-                    Value::Array(items) => items.iter().map(|i| Self::parse(origin, i)).collect::<Result<_>>()?,
+                    Value::Array(items) => items
+                        .iter()
+                        .map(|i| Self::parse(origin, i))
+                        .collect::<Result<_>>()?,
                     single => vec![Self::parse(origin, single)?],
                 };
                 Ok(if key == "all_of" {
@@ -285,17 +309,28 @@ impl BiomeFilter {
                 let o = Obj::new(origin, v)?;
                 let test = o.str("test")?;
                 if test != "has_biome_tag" {
-                    return Err(Error::data(origin, format!("unsupported biome filter test {test:?}")));
+                    return Err(Error::data(
+                        origin,
+                        format!("unsupported biome filter test {test:?}"),
+                    ));
                 }
                 let negate = match o.opt("operator").and_then(Value::as_str).unwrap_or("==") {
                     "==" | "equals" => false,
                     "!=" | "not" | "<>" => true,
-                    other => return Err(Error::data(origin, format!("unsupported filter operator {other:?}"))),
+                    other => {
+                        return Err(Error::data(
+                            origin,
+                            format!("unsupported filter operator {other:?}"),
+                        ));
+                    }
                 };
                 if let Some(subject) = o.opt("subject").and_then(Value::as_str)
                     && subject != "self"
                 {
-                    return Err(Error::data(origin, format!("unsupported filter subject {subject:?}")));
+                    return Err(Error::data(
+                        origin,
+                        format!("unsupported filter subject {subject:?}"),
+                    ));
                 }
                 let tag = o.str("value")?.to_owned();
                 o.finish()?;
@@ -358,14 +393,23 @@ fn coord(origin: &str, v: &Value) -> Result<Coord> {
         }),
         Value::Object(_) => {
             let o = Obj::new(origin, v)?;
-            let kind = match o.opt("distribution").and_then(Value::as_str).unwrap_or("uniform") {
+            let kind = match o
+                .opt("distribution")
+                .and_then(Value::as_str)
+                .unwrap_or("uniform")
+            {
                 "uniform" => DistKind::Uniform,
                 "gaussian" => DistKind::Gaussian,
                 "inverse_gaussian" => DistKind::InverseGaussian,
                 "triangle" => DistKind::Triangle,
                 "fixed_grid" => DistKind::FixedGrid,
                 "jittered_grid" => DistKind::JitteredGrid,
-                other => return Err(Error::data(origin, format!("unknown distribution {other:?}"))),
+                other => {
+                    return Err(Error::data(
+                        origin,
+                        format!("unknown distribution {other:?}"),
+                    ));
+                }
             };
             let extent = o.array("extent")?;
             let [a, b] = extent else {
@@ -427,28 +471,51 @@ impl Scatter {
         let chance = match o.opt("scatter_chance") {
             None => None,
             Some(v @ Value::Object(_)) => match chance(origin, v)? {
-                Chance::Fraction { numerator, denominator } => Some(ScatterChance::Fraction { numerator, denominator }),
+                Chance::Fraction {
+                    numerator,
+                    denominator,
+                } => Some(ScatterChance::Fraction {
+                    numerator,
+                    denominator,
+                }),
                 Chance::Probability(p) => Some(ScatterChance::Percent(Expr::Num(p * 100.0))),
             },
             Some(v) => Some(ScatterChance::Percent(expr(origin, v)?)),
         };
-        let axis = |key| o.opt(key).map_or(Ok(Coord::Offset(0)), |v| coord(origin, v));
+        let axis = |key| {
+            o.opt(key)
+                .map_or(Ok(Coord::Offset(0)), |v| coord(origin, v))
+        };
         let coords = [axis("x")?, axis("y")?, axis("z")?];
-        let order_str = o.opt("coordinate_eval_order").and_then(Value::as_str).unwrap_or("xzy");
+        let order_str = o
+            .opt("coordinate_eval_order")
+            .and_then(Value::as_str)
+            .unwrap_or("xzy");
         let mut order = [Axis::X; 3];
         let mut seen = BTreeSet::new();
         if order_str.len() != 3 {
-            return Err(Error::data(origin, format!("bad coordinate_eval_order {order_str:?}")));
+            return Err(Error::data(
+                origin,
+                format!("bad coordinate_eval_order {order_str:?}"),
+            ));
         }
         for (slot, c) in order.iter_mut().zip(order_str.chars()) {
             *slot = match c {
                 'x' => Axis::X,
                 'y' => Axis::Y,
                 'z' => Axis::Z,
-                _ => return Err(Error::data(origin, format!("bad coordinate_eval_order {order_str:?}"))),
+                _ => {
+                    return Err(Error::data(
+                        origin,
+                        format!("bad coordinate_eval_order {order_str:?}"),
+                    ));
+                }
             };
             if !seen.insert(c) {
-                return Err(Error::data(origin, format!("bad coordinate_eval_order {order_str:?}")));
+                return Err(Error::data(
+                    origin,
+                    format!("bad coordinate_eval_order {order_str:?}"),
+                ));
             }
         }
         Ok(Scatter {
@@ -477,7 +544,10 @@ impl FeatureRule {
     pub fn parse(doc: &Document) -> Result<Self> {
         let origin = doc.source.as_str();
         if doc.kind != "minecraft:feature_rules" {
-            return Err(Error::data(origin, format!("expected minecraft:feature_rules, got {}", doc.kind)));
+            return Err(Error::data(
+                origin,
+                format!("expected minecraft:feature_rules, got {}", doc.kind),
+            ));
         }
         let o = Obj::new(origin, &doc.body)?;
         let desc = Obj::new(origin, o.req("description")?)?;
@@ -701,7 +771,10 @@ fn surface_builder(palette: &BlockPalette, origin: &str, v: &Value) -> Result<Su
     outer.finish()?;
     let ty = o.str("type")?;
     let blocks = |key| -> Result<Vec<u32>> {
-        o.array(key)?.iter().map(|b| block(palette, origin, b)).collect()
+        o.array(key)?
+            .iter()
+            .map(|b| block(palette, origin, b))
+            .collect()
     };
     let builder = match ty {
         "minecraft:overworld" => SurfaceBuilder::Overworld(materials(palette, &o)?),
@@ -722,7 +795,10 @@ fn surface_builder(palette: &BlockPalette, origin: &str, v: &Value) -> Result<Su
             ceiling: blocks("ceiling_materials")?,
             sea: block(palette, origin, o.req("sea_material")?)?,
             foundation: block(palette, origin, o.req("foundation_material")?)?,
-            beach: o.opt("beach_material").map(|b| block(palette, origin, b)).transpose()?,
+            beach: o
+                .opt("beach_material")
+                .map(|b| block(palette, origin, b))
+                .transpose()?,
         },
         "minecraft:the_end" => SurfaceBuilder::TheEnd,
         "minecraft:noise_gradient" => {
@@ -739,7 +815,11 @@ fn surface_builder(palette: &BlockPalette, origin: &str, v: &Value) -> Result<Su
             for spec in o.array("noise_block_specifiers")? {
                 let s = Obj::new(origin, spec)?;
                 let range = Obj::new(origin, s.req("range")?)?;
-                specifiers.push((range.f32("min")?, range.f32("max")?, block(palette, origin, s.req("block")?)?));
+                specifiers.push((
+                    range.f32("min")?,
+                    range.f32("max")?,
+                    block(palette, origin, s.req("block")?)?,
+                ));
                 range.finish()?;
                 s.finish()?;
             }
@@ -751,14 +831,23 @@ fn surface_builder(palette: &BlockPalette, origin: &str, v: &Value) -> Result<Su
                 specifiers,
             }
         }
-        other => return Err(Error::data(origin, format!("unknown surface builder type {other:?}"))),
+        other => {
+            return Err(Error::data(
+                origin,
+                format!("unknown surface builder type {other:?}"),
+            ));
+        }
     };
     o.finish()?;
     Ok(builder)
 }
 
 impl Biome {
-    pub fn parse(doc: &Document, palette: &BlockPalette, ids: &BTreeMap<String, u16>) -> Result<Self> {
+    pub fn parse(
+        doc: &Document,
+        palette: &BlockPalette,
+        ids: &BTreeMap<String, u16>,
+    ) -> Result<Self> {
         let origin = doc.source.as_str();
         let o = Obj::new(origin, &doc.body)?;
         o.ignore(&["description"]);
@@ -768,7 +857,11 @@ impl Biome {
         let tag_set = tags
             .array("tags")?
             .iter()
-            .map(|t| t.as_str().map(str::to_owned).ok_or_else(|| Error::data(origin, "tag is not a string")))
+            .map(|t| {
+                t.as_str()
+                    .map(str::to_owned)
+                    .ok_or_else(|| Error::data(origin, "tag is not a string"))
+            })
             .collect::<Result<BTreeSet<_>>>()?;
         tags.finish()?;
         let climate = Obj::new(origin, c.req("minecraft:climate")?)?;
@@ -777,7 +870,10 @@ impl Biome {
         let snow_accumulation = match climate.opt("snow_accumulation") {
             None => None,
             Some(v) => match v.as_array().map(Vec::as_slice) {
-                Some([a, b]) => Some([num(origin, "snow_accumulation", a)?, num(origin, "snow_accumulation", b)?]),
+                Some([a, b]) => Some([
+                    num(origin, "snow_accumulation", a)?,
+                    num(origin, "snow_accumulation", b)?,
+                ]),
                 _ => return Err(Error::data(origin, "snow_accumulation needs two numbers")),
             },
         };
@@ -836,7 +932,11 @@ impl Biome {
     }
 }
 
-fn material_adjustment(palette: &BlockPalette, origin: &str, v: &Value) -> Result<MaterialAdjustment> {
+fn material_adjustment(
+    palette: &BlockPalette,
+    origin: &str,
+    v: &Value,
+) -> Result<MaterialAdjustment> {
     let o = Obj::new(origin, v)?;
     let m = Obj::new(origin, o.req("materials")?)?;
     let get = |key| m.opt(key).map(|b| block(palette, origin, b)).transpose();
@@ -865,14 +965,21 @@ fn material_adjustment(palette: &BlockPalette, origin: &str, v: &Value) -> Resul
         sea,
         // Mojang's biome documentation gives 0.0625 as the default scale.
         noise_frequency_scale: o.f32_or("noise_frequency_scale", 0.0625)?,
-        noise_range: [num(origin, "noise_range", lo)?, num(origin, "noise_range", hi)?],
+        noise_range: [
+            num(origin, "noise_range", lo)?,
+            num(origin, "noise_range", hi)?,
+        ],
         height_range,
     };
     o.finish()?;
     Ok(adj)
 }
 
-fn mountain_parameters(palette: &BlockPalette, origin: &str, v: &Value) -> Result<MountainParameters> {
+fn mountain_parameters(
+    palette: &BlockPalette,
+    origin: &str,
+    v: &Value,
+) -> Result<MountainParameters> {
     let o = Obj::new(origin, v)?;
     let mut out = MountainParameters::default();
     if let Some(steep) = o.opt("steep_material_adjustment") {
@@ -915,7 +1022,10 @@ impl SpawnRule {
     pub fn parse(doc: &Document) -> Result<Self> {
         let origin = doc.source.as_str();
         if doc.kind != "minecraft:spawn_rules" {
-            return Err(Error::data(origin, format!("expected minecraft:spawn_rules, got {}", doc.kind)));
+            return Err(Error::data(
+                origin,
+                format!("expected minecraft:spawn_rules, got {}", doc.kind),
+            ));
         }
         let o = Obj::new(origin, &doc.body)?;
         let desc = Obj::new(origin, o.req("description")?)?;
@@ -950,8 +1060,8 @@ impl SpawnRule {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::packs::parse_document;
     use serde_json::json;
+    use unastar_packs::packs::parse_document;
 
     fn doc(v: Value) -> Document {
         parse_document("test.json", v.to_string().as_bytes()).unwrap()
@@ -1002,9 +1112,11 @@ mod tests {
                 "conditions": extra
             }})
         };
-        let err = FeatureRule::parse(&doc(base(json!({"placement_pass": "surface_pass", "bogus": 1}))))
-            .unwrap_err()
-            .to_string();
+        let err = FeatureRule::parse(&doc(base(
+            json!({"placement_pass": "surface_pass", "bogus": 1}),
+        )))
+        .unwrap_err()
+        .to_string();
         assert!(err.contains("bogus"), "{err}");
         assert!(FeatureRule::parse(&doc(base(json!({"placement_pass": "nope_pass"})))).is_err());
     }
@@ -1036,6 +1148,9 @@ mod tests {
             "nested": {"places_feature": "minecraft:c", "trunk": {"log_decoration_feature": "minecraft:d"}}
         }})))
         .unwrap();
-        assert_eq!(f.refs, ["minecraft:a", "minecraft:b", "minecraft:c", "minecraft:d"]);
+        assert_eq!(
+            f.refs,
+            ["minecraft:a", "minecraft:b", "minecraft:c", "minecraft:d"]
+        );
     }
 }

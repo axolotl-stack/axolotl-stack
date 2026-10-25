@@ -115,7 +115,10 @@ pub enum Height {
     Range(IntRange),
     /// `base + sum(next_int(interval))` (`{"base", "intervals"}`), the classic
     /// `base + rand(a) + rand(b)` tree heights.
-    Intervals { base: i32, intervals: &'static [i32] },
+    Intervals {
+        base: i32,
+        intervals: &'static [i32],
+    },
     /// `base + next_int(a + 1) + next_int(b + 1)`
     /// (`{"base", "height_rand_a", "height_rand_b"}`, both bounds inclusive).
     Rand { base: i32, a: i32, b: i32 },
@@ -126,7 +129,9 @@ impl Height {
     pub fn sample(self, rng: &mut BedrockRandom) -> i32 {
         match self {
             Height::Range(r) => r.sample(rng),
-            Height::Intervals { base, intervals } => base + intervals.iter().map(|&n| rng.next_int(n)).sum::<i32>(),
+            Height::Intervals { base, intervals } => {
+                base + intervals.iter().map(|&n| rng.next_int(n)).sum::<i32>()
+            }
             Height::Rand { base, a, b } => base + rng.next_int(a + 1) + rng.next_int(b + 1),
         }
     }
@@ -693,7 +698,10 @@ struct Buf<T: Copy + Default, const N: usize> {
 
 impl<T: Copy + Default, const N: usize> Buf<T, N> {
     fn new() -> Self {
-        Self { items: [T::default(); N], len: 0 }
+        Self {
+            items: [T::default(); N],
+            len: 0,
+        }
     }
 
     /// `None` when full.
@@ -739,7 +747,10 @@ struct Plan {
 
 impl Plan {
     fn new() -> Self {
-        Self { logs: Buf::new(), attach: Buf::new() }
+        Self {
+            logs: Buf::new(),
+            attach: Buf::new(),
+        }
     }
 
     #[inline]
@@ -763,7 +774,11 @@ struct LeafSink {
 
 impl LeafSink {
     fn new(p: &Params, track: bool) -> Self {
-        Self { may_replace: p.may_replace, track, bounds: None }
+        Self {
+            may_replace: p.may_replace,
+            track,
+            bounds: None,
+        }
     }
 
     /// Place `block` at `at` if the cell is air or `may_replace`.
@@ -793,7 +808,12 @@ impl LeafSink {
 /// the compiled `log_decoration_feature` (called on every flagged log when
 /// `p.log_decoration` is set). Returns the trunk origin on success and places
 /// nothing when the ground or a trunk cell rejects the tree.
-pub fn place<W, F>(ctx: &mut Ctx<'_, W>, pos: BlockPos, p: &'static Params, mut decorate: F) -> Option<BlockPos>
+pub fn place<W, F>(
+    ctx: &mut Ctx<'_, W>,
+    pos: BlockPos,
+    p: &'static Params,
+    mut decorate: F,
+) -> Option<BlockPos>
 where
     W: BlockWorld,
     F: FnMut(&mut Ctx<'_, W>, BlockPos) -> Option<BlockPos>,
@@ -828,7 +848,11 @@ where
                 continue;
             }
             // Duplicates (two root paths meeting) keep their muddy state.
-            let block = if here == r.mud || here == r.muddy_root { r.muddy_root } else { r.root };
+            let block = if here == r.mud || here == r.muddy_root {
+                r.muddy_root
+            } else {
+                r.root
+            };
             ctx.set(at, block);
         }
     }
@@ -872,7 +896,11 @@ where
             }
         }
     }
-    if let Some(MangroveRoots { above_root: Some((block, chance)), .. }) = &p.roots {
+    if let Some(MangroveRoots {
+        above_root: Some((block, chance)),
+        ..
+    }) = &p.roots
+    {
         for &at in roots.as_slice() {
             if chance.roll(ctx.rng) && bb::air(ctx.get(at.above())) {
                 ctx.set(at.above(), *block);
@@ -921,7 +949,13 @@ fn place_base<W: BlockWorld>(ctx: &mut Ctx<'_, W>, p: &Params, at: BlockPos, wid
 /// a few random edge discs within three blocks of the trunk; the pack only
 /// gives the count, so the `num_clusters` centres are uniform over that same
 /// area (statistical parity).
-fn base_clusters<W: BlockWorld>(ctx: &mut Ctx<'_, W>, p: &Params, c: &BaseCluster, origin: BlockPos, width: i32) {
+fn base_clusters<W: BlockWorld>(
+    ctx: &mut Ctx<'_, W>,
+    p: &Params,
+    c: &BaseCluster,
+    origin: BlockPos,
+    width: i32,
+) {
     let Some(&block) = p.base_block.first() else {
         return;
     };
@@ -1023,7 +1057,11 @@ fn root_candidates(
     let side = at.side(dir);
     let dist = manhattan(at, centre);
     if dist > max_width - 3 && dist <= max_width {
-        if rng.next_float() < ROOT_SKEW { ([below, side.below()], 2) } else { ([below, below], 1) }
+        if rng.next_float() < ROOT_SKEW {
+            ([below, side.below()], 2)
+        } else {
+            ([below, below], 1)
+        }
     } else if dist > max_width || rng.next_float() < ROOT_SKEW {
         ([below, below], 1)
     } else if rng.next_int(2) == 0 {
@@ -1037,7 +1075,12 @@ fn root_candidates(
 // Trunks
 // ---------------------------------------------------------------------------
 
-fn plan_trunk<W: BlockWorld>(ctx: &mut Ctx<'_, W>, p: &Params, origin: BlockPos, plan: &mut Plan) -> Option<()> {
+fn plan_trunk<W: BlockWorld>(
+    ctx: &mut Ctx<'_, W>,
+    p: &Params,
+    origin: BlockPos,
+    plan: &mut Plan,
+) -> Option<()> {
     match &p.trunk {
         Trunk::Straight(t) => straight(ctx, t, origin, plan),
         Trunk::Fancy(t) => fancy(ctx, p, t, origin, plan),
@@ -1080,7 +1123,14 @@ fn footprint(plan: &mut Plan, at: BlockPos, width: i32, block: u32, flags: u8) -
 
 /// Upright column of `height` layers. The bottom layer never gets vines
 /// (classic jungle trunks start their vines one block up).
-fn column(plan: &mut Plan, origin: BlockPos, height: i32, width: i32, block: u32, flags: u8) -> Option<()> {
+fn column(
+    plan: &mut Plan,
+    origin: BlockPos,
+    height: i32,
+    width: i32,
+    block: u32,
+    flags: u8,
+) -> Option<()> {
     for i in 0..height {
         let f = if i == 0 { flags & !DECO_VINES } else { flags };
         footprint(plan, origin.offset(0, i, 0), width, block, f)?;
@@ -1091,7 +1141,12 @@ fn column(plan: &mut Plan, origin: BlockPos, height: i32, width: i32, block: u32
 /// Straight column; the crown sits one above the top log. With
 /// `can_be_submerged` the base may stand in at most `max_depth` blocks of
 /// liquid (swamp oaks).
-fn straight<W: BlockWorld>(ctx: &mut Ctx<'_, W>, t: &StraightTrunk, origin: BlockPos, plan: &mut Plan) -> Option<()> {
+fn straight<W: BlockWorld>(
+    ctx: &mut Ctx<'_, W>,
+    t: &StraightTrunk,
+    origin: BlockPos,
+    plan: &mut Plan,
+) -> Option<()> {
     if let Some(max) = t.max_water_depth {
         let mut depth = 0;
         while depth <= max && props::is_liquid(ctx.get(origin.offset(0, depth, 0))) {
@@ -1117,7 +1172,13 @@ fn straight<W: BlockWorld>(ctx: &mut Ctx<'_, W>, t: &StraightTrunk, origin: Bloc
 /// - each accepted cluster above `L * min_altitude_factor` gets a limb
 ///   sloping up from the trunk by `branch_slope`, logs oriented along the
 ///   limb's dominant horizontal axis.
-fn fancy<W: BlockWorld>(ctx: &mut Ctx<'_, W>, p: &Params, t: &FancyTrunk, origin: BlockPos, plan: &mut Plan) -> Option<()> {
+fn fancy<W: BlockWorld>(
+    ctx: &mut Ctx<'_, W>,
+    p: &Params,
+    t: &FancyTrunk,
+    origin: BlockPos,
+    plan: &mut Plan,
+) -> Option<()> {
     let fh = t.foliage_height.max(1);
     let mut limit = t.base + ctx.rng.next_int(t.variance);
     if let Some(i) = blocked_at(ctx, p, origin, origin.offset(0, limit - 1, 0)) {
@@ -1148,7 +1209,11 @@ fn fancy<W: BlockWorld>(ctx: &mut Ctx<'_, W>, p: &Params, t: &FancyTrunk, origin
             }
             let (dx, dz) = (origin.x - node.x, origin.z - node.z);
             let base_f = node.y as f32 - ((dx * dx + dz * dz) as f32).sqrt() * t.branch_slope;
-            let base_y = if base_f > trunk_top as f32 { trunk_top } else { base_f as i32 };
+            let base_y = if base_f > trunk_top as f32 {
+                trunk_top
+            } else {
+                base_f as i32
+            };
             let base = BlockPos::new(origin.x, base_y, origin.z);
             if blocked_at(ctx, p, base, node).is_some() {
                 continue;
@@ -1205,7 +1270,12 @@ fn line_cell(a: BlockPos, d: (i32, i32, i32), steps: i32, j: i32) -> BlockPos {
 }
 
 /// Index of the first cell of the line `a..=b` a log may not occupy.
-fn blocked_at<W: BlockWorld>(ctx: &Ctx<'_, W>, p: &Params, a: BlockPos, b: BlockPos) -> Option<i32> {
+fn blocked_at<W: BlockWorld>(
+    ctx: &Ctx<'_, W>,
+    p: &Params,
+    a: BlockPos,
+    b: BlockPos,
+) -> Option<i32> {
     let (d, steps) = line(a, b);
     (0..=steps).find(|&j| {
         let c = line_cell(a, d, steps, j);
@@ -1252,7 +1322,11 @@ fn mega(rng: &mut BedrockRandom, t: &MegaTrunk, origin: BlockPos, plan: &mut Pla
         for l in 0..b.length {
             bx = (centre + cos * l as f32) as i32;
             bz = (centre + sin * l as f32) as i32;
-            plan.log(origin.offset(bx, y - 3 + (l as f32 * b.slope) as i32, bz), t.log.y, DECO_VINES)?;
+            plan.log(
+                origin.offset(bx, y - 3 + (l as f32 * b.slope) as i32, bz),
+                t.log.y,
+                DECO_VINES,
+            )?;
         }
         plan.attach(origin.offset(bx, y, bz), true)?;
         y -= b.interval.sample(rng).max(1);
@@ -1275,14 +1349,23 @@ fn mega(rng: &mut BedrockRandom, t: &MegaTrunk, origin: BlockPos, plan: &mut Pla
 ///   `branch_chance`, a stub of `branch_length` logs hanging from
 ///   `branch_position` below the top, crowned by the branch canopy (the log
 ///   stubs under dark oak roofs).
-fn acacia(rng: &mut BedrockRandom, t: &AcaciaTrunk, origin: BlockPos, plan: &mut Plan) -> Option<()> {
+fn acacia(
+    rng: &mut BedrockRandom,
+    t: &AcaciaTrunk,
+    origin: BlockPos,
+    plan: &mut Plan,
+) -> Option<()> {
     let h = t.height.sample(rng).max(1);
     let w = t.width;
     let block = t.log.y;
     let dir = random_dir(rng);
     let (dx, dz) = dir.delta();
     let (lean_start, mut steps, diagonal) = match t.lean {
-        Some(l) => (h - l.height.sample(rng), l.steps.sample(rng), l.allow_diagonal),
+        Some(l) => (
+            h - l.height.sample(rng),
+            l.steps.sample(rng),
+            l.allow_diagonal,
+        ),
         None => (h, 0, true),
     };
     let (mut x, mut z) = (0, 0);
@@ -1362,7 +1445,11 @@ fn acacia(rng: &mut BedrockRandom, t: &AcaciaTrunk, origin: BlockPos, plan: &mut
                 let n = b.length.sample(rng);
                 let stub_top = top - b.position.sample(rng);
                 for k in 0..n {
-                    plan.log(origin.offset(x + rx, stub_top - k, z + rz), block, DECO_VINES)?;
+                    plan.log(
+                        origin.offset(x + rx, stub_top - k, z + rz),
+                        block,
+                        DECO_VINES,
+                    )?;
                 }
                 plan.attach(origin.offset(x + rx, stub_top + 1, z + rz), true)?;
             }
@@ -1375,7 +1462,12 @@ fn acacia(rng: &mut BedrockRandom, t: &AcaciaTrunk, origin: BlockPos, plan: &mut
 /// start a branch `branch_length` above it that climbs diagonally for
 /// `branch_steps` logs in a random direction. Every branch end and the top
 /// carry the canopy.
-fn mangrove(rng: &mut BedrockRandom, t: &MangroveTrunk, origin: BlockPos, plan: &mut Plan) -> Option<()> {
+fn mangrove(
+    rng: &mut BedrockRandom,
+    t: &MangroveTrunk,
+    origin: BlockPos,
+    plan: &mut Plan,
+) -> Option<()> {
     let h = t.height.sample(rng).max(1);
     column(plan, origin, h, t.width, t.log.y, DECO_VINES)?;
     if let Some(b) = &t.branches {
@@ -1405,12 +1497,21 @@ fn mangrove(rng: &mut BedrockRandom, t: &MangroveTrunk, origin: BlockPos, plan: 
 /// then walks towards its end, `horizontal_length` out and
 /// `height - 1 + end_offset` up, choosing a vertical step with probability
 /// `remaining height / remaining distance`.
-fn cherry(rng: &mut BedrockRandom, t: &CherryTrunk, origin: BlockPos, plan: &mut Plan) -> Option<()> {
+fn cherry(
+    rng: &mut BedrockRandom,
+    t: &CherryTrunk,
+    origin: BlockPos,
+    plan: &mut Plan,
+) -> Option<()> {
     let h = t.height.sample(rng).max(1);
     let b = &t.branches;
     let lo = (h - 1 + b.start_offset.min).max(0);
     let hi = (h - 1 + b.start_offset.max).max(0).max(lo + 1);
-    let kind = pick(&[(0, b.weights[0]), (1, b.weights[1]), (2, b.weights[2])], rng).unwrap_or(0);
+    let kind = pick(
+        &[(0, b.weights[0]), (1, b.weights[1]), (2, b.weights[2])],
+        rng,
+    )
+    .unwrap_or(0);
     let trunk_len = match kind {
         2 => h,
         1 => lo.max(hi) + 1,
@@ -1423,7 +1524,16 @@ fn cherry(rng: &mut BedrockRandom, t: &CherryTrunk, origin: BlockPos, plan: &mut
     let dir = random_dir(rng);
     cherry_branch(rng, t, origin, h, dir, lo, lo < trunk_len - 1, plan)?;
     if kind >= 1 {
-        cherry_branch(rng, t, origin, h, dir.opposite(), hi, hi < trunk_len - 1, plan)?;
+        cherry_branch(
+            rng,
+            t,
+            origin,
+            h,
+            dir.opposite(),
+            hi,
+            hi < trunk_len - 1,
+            plan,
+        )?;
     }
     Some(())
 }
@@ -1476,7 +1586,13 @@ fn cherry_branch(
 /// directions at `remaining_trunk_height_above_branches` below the top,
 /// holding the bottom of the column canopy (stub length is not in the data;
 /// one log keeps them inside the crown).
-fn poplar(rng: &mut BedrockRandom, p: &Params, t: &PoplarTrunk, origin: BlockPos, plan: &mut Plan) -> Option<()> {
+fn poplar(
+    rng: &mut BedrockRandom,
+    p: &Params,
+    t: &PoplarTrunk,
+    origin: BlockPos,
+    plan: &mut Plan,
+) -> Option<()> {
     let h = t.height.sample(rng).max(1);
     column(plan, origin, h, 1, t.log.y, DECO_VINES | DECO_FEATURE)?;
     let stub_log = match &p.canopy {
@@ -1491,7 +1607,11 @@ fn poplar(rng: &mut BedrockRandom, p: &Params, t: &PoplarTrunk, origin: BlockPos
     }
     if y < h {
         for &d in &dirs[..n] {
-            plan.log(origin.offset(0, y, 0).side(d), stub_log.along(horizontal_axis(d)), 0)?;
+            plan.log(
+                origin.offset(0, y, 0).side(d),
+                stub_log.along(horizontal_axis(d)),
+                0,
+            )?;
         }
     }
     plan.attach(origin.offset(0, h, 0), false)
@@ -1504,7 +1624,13 @@ fn poplar(rng: &mut BedrockRandom, p: &Params, t: &PoplarTrunk, origin: BlockPos
 /// cell must be free and no more than two consecutive cells may lack solid
 /// ground. A log that does not fit leaves the stump alone (vanilla). Lying
 /// logs receive `log_decoration_feature`; the stump gets the trunk vines.
-fn fallen<W: BlockWorld>(ctx: &mut Ctx<'_, W>, p: &Params, t: &FallenTrunk, origin: BlockPos, plan: &mut Plan) -> Option<()> {
+fn fallen<W: BlockWorld>(
+    ctx: &mut Ctx<'_, W>,
+    p: &Params,
+    t: &FallenTrunk,
+    origin: BlockPos,
+    plan: &mut Plan,
+) -> Option<()> {
     plan.log(origin, t.log.y, DECO_VINES)?;
     let dir = random_dir(ctx.rng);
     let (dx, dz) = dir.delta();
@@ -1563,7 +1689,13 @@ fn pick_at<T: Copy>(list: &[(T, i32)], mut roll: i32) -> Option<T> {
 // Canopies
 // ---------------------------------------------------------------------------
 
-fn place_canopy<W: BlockWorld>(ctx: &mut Ctx<'_, W>, sink: &mut LeafSink, c: &Canopy, a: Attachment, origin: BlockPos) {
+fn place_canopy<W: BlockWorld>(
+    ctx: &mut Ctx<'_, W>,
+    sink: &mut LeafSink,
+    c: &Canopy,
+    a: Attachment,
+    origin: BlockPos,
+) {
     match c {
         Canopy::Blob(c) => blob(ctx, sink, c, a.pos),
         Canopy::Fancy(c) => fancy_cluster(ctx, sink, c, a.pos),
@@ -1595,8 +1727,15 @@ fn core_dist(d: i32, width: i32) -> i32 {
 /// is `centre`, reaching `r` beyond the core; `keep(rng, dx, dz)` decides
 /// each cell from its distances to the core.
 #[allow(clippy::too_many_arguments)]
-fn layer<W, K>(ctx: &mut Ctx<'_, W>, sink: &mut LeafSink, centre: BlockPos, core: i32, r: i32, block: u32, mut keep: K)
-where
+fn layer<W, K>(
+    ctx: &mut Ctx<'_, W>,
+    sink: &mut LeafSink,
+    centre: BlockPos,
+    core: i32,
+    r: i32,
+    block: u32,
+    mut keep: K,
+) where
     W: BlockWorld,
     K: FnMut(&mut BedrockRandom, i32, i32) -> bool,
 {
@@ -1626,20 +1765,35 @@ fn blob<W: BlockWorld>(ctx: &mut Ctx<'_, W>, sink: &mut LeafSink, c: &BlobCanopy
         let r = blob_radius(c.min_width, c.rise, c.run, c.offset_max - o);
         let index = (o - c.offset_min) as usize;
         let variation = c.variation.get(index).or(c.variation.last()).copied();
-        layer(ctx, sink, at.offset(0, o, 0), 1, r, c.leaf, |rng, ax, az| {
-            !(ax == r && az == r && variation.is_some_and(|v| v.roll(rng)))
-        });
+        layer(
+            ctx,
+            sink,
+            at.offset(0, o, 0),
+            1,
+            r,
+            c.leaf,
+            |rng, ax, az| !(ax == r && az == r && variation.is_some_and(|v| v.roll(rng))),
+        );
     }
 }
 
 /// Fancy oak cluster radius of layer `i` (end layers one smaller).
 #[inline]
 fn fancy_cluster_radius(radius: i32, height: i32, i: i32) -> f32 {
-    if i == 0 || i == height - 1 { (radius - 1) as f32 } else { radius as f32 }
+    if i == 0 || i == height - 1 {
+        (radius - 1) as f32
+    } else {
+        radius as f32
+    }
 }
 
 /// Fancy oak cluster: `height` round layers upwards from the node.
-fn fancy_cluster<W: BlockWorld>(ctx: &mut Ctx<'_, W>, sink: &mut LeafSink, c: &FancyCanopy, at: BlockPos) {
+fn fancy_cluster<W: BlockWorld>(
+    ctx: &mut Ctx<'_, W>,
+    sink: &mut LeafSink,
+    c: &FancyCanopy,
+    at: BlockPos,
+) {
     for i in 0..c.height {
         let r = fancy_cluster_radius(c.radius, c.height, i);
         let reach = (r + 0.618) as i32;
@@ -1669,12 +1823,25 @@ fn mega_keep(ax: i32, az: i32, r: i32, simplify: bool) -> bool {
 
 /// Mega canopy: `height` disc layers downwards from the attachment, widening
 /// by one per layer around the core.
-fn mega_canopy<W: BlockWorld>(ctx: &mut Ctx<'_, W>, sink: &mut LeafSink, c: &MegaCanopy, at: BlockPos) {
+fn mega_canopy<W: BlockWorld>(
+    ctx: &mut Ctx<'_, W>,
+    sink: &mut LeafSink,
+    c: &MegaCanopy,
+    at: BlockPos,
+) {
     let layers = c.height.sample(ctx.rng);
     for d in 0..layers {
         let r = mega_radius(c.base_radius, c.core_width, d);
         let simplify = c.simplify;
-        layer(ctx, sink, at.offset(0, -d, 0), c.core_width, r, c.leaf, |_, ax, az| mega_keep(ax, az, r, simplify));
+        layer(
+            ctx,
+            sink,
+            at.offset(0, -d, 0),
+            c.core_width,
+            r,
+            c.leaf,
+            |_, ax, az| mega_keep(ax, az, r, simplify),
+        );
     }
 }
 
@@ -1690,14 +1857,31 @@ fn mega_pine_radius(base: i32, step: f32, depth: i32, height: i32) -> i32 {
 /// Mega pine cone: from the attachment down `height` layers, radius growing
 /// to `base_radius + radius_step`; a layer repeating the previous radius on
 /// an even y grows by one (the ragged spruce silhouette).
-fn mega_pine<W: BlockWorld>(ctx: &mut Ctx<'_, W>, sink: &mut LeafSink, c: &MegaPineCanopy, at: BlockPos) {
+fn mega_pine<W: BlockWorld>(
+    ctx: &mut Ctx<'_, W>,
+    sink: &mut LeafSink,
+    c: &MegaPineCanopy,
+    at: BlockPos,
+) {
     let h = c.height.sample(ctx.rng);
     let mut prev = 0;
     for k in 0..=h {
         let y = at.y - k;
         let r = mega_pine_radius(c.base_radius, c.radius_step, k, h);
-        let rr = if k > 0 && r == prev && (y & 1) == 0 { r + 1 } else { r };
-        layer(ctx, sink, BlockPos::new(at.x, y, at.z), c.core_width, rr, c.leaf, |_, ax, az| mega_keep(ax, az, rr, false));
+        let rr = if k > 0 && r == prev && (y & 1) == 0 {
+            r + 1
+        } else {
+            r
+        };
+        layer(
+            ctx,
+            sink,
+            BlockPos::new(at.x, y, at.z),
+            c.core_width,
+            rr,
+            c.leaf,
+            |_, ax, az| mega_keep(ax, az, rr, false),
+        );
         prev = r;
     }
 }
@@ -1726,7 +1910,15 @@ fn pine<W: BlockWorld>(ctx: &mut Ctx<'_, W>, sink: &mut LeafSink, c: &PineCanopy
     let mut r = 0;
     for y in (bottom..=top).rev() {
         let rr = r;
-        layer(ctx, sink, BlockPos::new(at.x, y, at.z), 1, rr, c.leaf, |_, ax, az| rr == 0 || ax != rr || az != rr);
+        layer(
+            ctx,
+            sink,
+            BlockPos::new(at.x, y, at.z),
+            1,
+            rr,
+            c.leaf,
+            |_, ax, az| rr == 0 || ax != rr || az != rr,
+        );
         r = pine_next(r, y, bottom, max);
     }
 }
@@ -1745,9 +1937,16 @@ impl SpruceRing {
     /// one wider (up to `max`).
     fn step(self, max: i32) -> Self {
         if self.r >= self.cap {
-            SpruceRing { r: self.next, cap: (self.cap + 1).min(max), next: 1 }
+            SpruceRing {
+                r: self.next,
+                cap: (self.cap + 1).min(max),
+                next: 1,
+            }
         } else {
-            SpruceRing { r: self.r + 1, ..self }
+            SpruceRing {
+                r: self.r + 1,
+                ..self
+            }
         }
     }
 }
@@ -1755,14 +1954,32 @@ impl SpruceRing {
 /// Spruce: rings from `upper_offset` above the attachment down to
 /// `lower_offset` above the trunk base, alternating widths that widen down
 /// to `max_radius`.
-fn spruce<W: BlockWorld>(ctx: &mut Ctx<'_, W>, sink: &mut LeafSink, c: &SpruceCanopy, at: BlockPos, base_y: i32) {
+fn spruce<W: BlockWorld>(
+    ctx: &mut Ctx<'_, W>,
+    sink: &mut LeafSink,
+    c: &SpruceCanopy,
+    at: BlockPos,
+    base_y: i32,
+) {
     let top = at.y + c.upper_offset.sample(ctx.rng);
     let bottom = base_y + c.lower_offset.sample(ctx.rng);
     let max = c.max_radius.sample(ctx.rng);
-    let mut ring = SpruceRing { r: ctx.rng.next_int(2), cap: 1, next: 0 };
+    let mut ring = SpruceRing {
+        r: ctx.rng.next_int(2),
+        cap: 1,
+        next: 0,
+    };
     for y in (bottom..=top).rev() {
         let rr = ring.r;
-        layer(ctx, sink, BlockPos::new(at.x, y, at.z), 1, rr, c.leaf, |_, ax, az| rr == 0 || ax != rr || az != rr);
+        layer(
+            ctx,
+            sink,
+            BlockPos::new(at.x, y, at.z),
+            1,
+            rr,
+            c.leaf,
+            |_, ax, az| rr == 0 || ax != rr || az != rr,
+        );
         ring = ring.step(max);
     }
 }
@@ -1781,7 +1998,12 @@ fn roofed_keep(index: i32, ax: i32, az: i32, outer: i32, inner: i32) -> bool {
 
 /// Dark oak roof: `height` layers from one below the top log; the last
 /// layer (of three or more) is the core only, placed half the time.
-fn roofed<W: BlockWorld>(ctx: &mut Ctx<'_, W>, sink: &mut LeafSink, c: &RoofedCanopy, at: BlockPos) {
+fn roofed<W: BlockWorld>(
+    ctx: &mut Ctx<'_, W>,
+    sink: &mut LeafSink,
+    c: &RoofedCanopy,
+    at: BlockPos,
+) {
     let (outer, inner) = (c.outer_radius, c.inner_radius);
     for index in 0..c.height {
         let centre = at.offset(0, index - 2, 0);
@@ -1792,16 +2014,25 @@ fn roofed<W: BlockWorld>(ctx: &mut Ctx<'_, W>, sink: &mut LeafSink, c: &RoofedCa
             continue;
         }
         let r = if index == 1 { inner } else { outer };
-        layer(ctx, sink, centre, c.core_width, r, c.leaf, |_, ax, az| roofed_keep(index, ax, az, outer, inner));
+        layer(ctx, sink, centre, c.core_width, r, c.leaf, |_, ax, az| {
+            roofed_keep(index, ax, az, outer, inner)
+        });
     }
 }
 
 /// Acacia crown: a `size`-radius square without corners at the top log level
 /// and a 3x3 above it, plus four outriggers at distance `size - 1` unless
 /// simplified.
-fn acacia_canopy<W: BlockWorld>(ctx: &mut Ctx<'_, W>, sink: &mut LeafSink, c: &AcaciaCanopy, at: BlockPos) {
+fn acacia_canopy<W: BlockWorld>(
+    ctx: &mut Ctx<'_, W>,
+    sink: &mut LeafSink,
+    c: &AcaciaCanopy,
+    at: BlockPos,
+) {
     let s = c.size;
-    layer(ctx, sink, at.below(), 1, s, c.leaf, |_, ax, az| ax != s || az != s);
+    layer(ctx, sink, at.below(), 1, s, c.leaf, |_, ax, az| {
+        ax != s || az != s
+    });
     layer(ctx, sink, at, 1, 1, c.leaf, |_, _, _| true);
     if !c.simplify {
         for d in Direction::ALL {
@@ -1813,7 +2044,12 @@ fn acacia_canopy<W: BlockWorld>(ctx: &mut Ctx<'_, W>, sink: &mut LeafSink, c: &A
 
 /// Random spread: `attempts` leaves at triangular random offsets
 /// (`next_int(n) - next_int(n)`) around the attachment.
-fn random_spread<W: BlockWorld>(ctx: &mut Ctx<'_, W>, sink: &mut LeafSink, c: &RandomSpreadCanopy, at: BlockPos) {
+fn random_spread<W: BlockWorld>(
+    ctx: &mut Ctx<'_, W>,
+    sink: &mut LeafSink,
+    c: &RandomSpreadCanopy,
+    at: BlockPos,
+) {
     for _ in 0..c.attempts {
         let dx = ctx.rng.next_int(c.radius) - ctx.rng.next_int(c.radius);
         let dy = ctx.rng.next_int(c.height) - ctx.rng.next_int(c.height);
@@ -1826,7 +2062,14 @@ fn random_spread<W: BlockWorld>(ctx: &mut Ctx<'_, W>, sink: &mut LeafSink, c: &R
 
 /// Whether a cherry row cell is left out: edge holes in the wide bottom row,
 /// corners always (radius > 2) or by chance, and random holes near corners.
-fn cherry_skip(rng: &mut BedrockRandom, c: &CherryCanopy, local_y: i32, ax: i32, az: i32, r: i32) -> bool {
+fn cherry_skip(
+    rng: &mut BedrockRandom,
+    c: &CherryCanopy,
+    local_y: i32,
+    ax: i32,
+    az: i32,
+    r: i32,
+) -> bool {
     if local_y == -1 && (ax == r || az == r) && rng.probability(c.wide_bottom_hole) {
         return true;
     }
@@ -1842,7 +2085,12 @@ fn cherry_skip(rng: &mut BedrockRandom, c: &CherryCanopy, local_y: i32, ax: i32,
 /// `height - 3` radius `i - 2`, `height - 4` radius `i - 1`, `height - 5..=0`
 /// radius `i`, then `-1` radius `i` and `-2` radius `i - 1`, the last two
 /// with leaves hanging from their edges.
-fn cherry_canopy<W: BlockWorld>(ctx: &mut Ctx<'_, W>, sink: &mut LeafSink, c: &CherryCanopy, at: BlockPos) {
+fn cherry_canopy<W: BlockWorld>(
+    ctx: &mut Ctx<'_, W>,
+    sink: &mut LeafSink,
+    c: &CherryCanopy,
+    at: BlockPos,
+) {
     let i = c.radius - 1;
     cherry_row(ctx, sink, c, at, c.height - 3, i - 2, false);
     cherry_row(ctx, sink, c, at, c.height - 4, i - 1, false);
@@ -1870,7 +2118,9 @@ fn cherry_row<W: BlockWorld>(
         return;
     }
     let centre = at.offset(0, local_y, 0);
-    layer(ctx, sink, centre, 1, r, c.leaf, |rng, ax, az| !cherry_skip(rng, c, local_y, ax, az, r));
+    layer(ctx, sink, centre, 1, r, c.leaf, |rng, ax, az| {
+        !cherry_skip(rng, c, local_y, ax, az, r)
+    });
     if !hanging {
         return;
     }
@@ -1885,7 +2135,10 @@ fn cherry_row<W: BlockWorld>(
                 continue;
             }
             let below = cell.below();
-            if manhattan(below, branch_end) >= 7 || !ctx.rng.probability(c.hanging) || !sink.put(ctx, below, c.leaf) {
+            if manhattan(below, branch_end) >= 7
+                || !ctx.rng.probability(c.hanging)
+                || !sink.put(ctx, below, c.leaf)
+            {
                 continue;
             }
             let further = below.below();
@@ -1915,27 +2168,55 @@ fn poplar_side(ax: i32, az: i32, size: i32) -> bool {
 /// Poplar column: a tip leaf above the attachment, a narrow cap at the
 /// attachment, `height` full layers below it (outer leaves dropped with
 /// `side_hole_chance`) and a narrow bottom layer.
-fn poplar_canopy<W: BlockWorld>(ctx: &mut Ctx<'_, W>, sink: &mut LeafSink, c: &PoplarCanopy, at: BlockPos) {
+fn poplar_canopy<W: BlockWorld>(
+    ctx: &mut Ctx<'_, W>,
+    sink: &mut LeafSink,
+    c: &PoplarCanopy,
+    at: BlockPos,
+) {
     let size = pick(c.radius, ctx.rng).unwrap_or(0);
     let h = c.height.sample(ctx.rng).max(1);
     let reach = (size.max(0) as f32).sqrt() as i32;
     let narrow = size / 2;
     let side_hole = c.side_hole;
     sink.put(ctx, at.above(), c.leaf);
-    layer(ctx, sink, at, 1, reach, c.leaf, |_, ax, az| poplar_layer(ax, az, narrow));
+    layer(ctx, sink, at, 1, reach, c.leaf, |_, ax, az| {
+        poplar_layer(ax, az, narrow)
+    });
     for d in 1..=h {
-        layer(ctx, sink, at.offset(0, -d, 0), 1, reach, c.leaf, |rng, ax, az| {
-            poplar_layer(ax, az, size) && !(poplar_side(ax, az, size) && rng.probability(side_hole))
-        });
+        layer(
+            ctx,
+            sink,
+            at.offset(0, -d, 0),
+            1,
+            reach,
+            c.leaf,
+            |rng, ax, az| {
+                poplar_layer(ax, az, size)
+                    && !(poplar_side(ax, az, size) && rng.probability(side_hole))
+            },
+        );
     }
-    layer(ctx, sink, at.offset(0, -h - 1, 0), 1, reach, c.leaf, |_, ax, az| poplar_layer(ax, az, narrow));
+    layer(
+        ctx,
+        sink,
+        at.offset(0, -h - 1, 0),
+        1,
+        reach,
+        c.leaf,
+        |_, ax, az| poplar_layer(ax, az, narrow),
+    );
 }
 
 /// Vines and hanging blocks on the leaves of `canopy` inside `bounds` (the
 /// box of the leaves this tree placed): per leaf and free side, a vine column
 /// with the decoration chance; under a leaf with air below, the hanging
 /// block with its chance.
-fn decorate_canopy<W: BlockWorld>(ctx: &mut Ctx<'_, W>, canopy: &Canopy, bounds: (BlockPos, BlockPos)) {
+fn decorate_canopy<W: BlockWorld>(
+    ctx: &mut Ctx<'_, W>,
+    canopy: &Canopy,
+    bounds: (BlockPos, BlockPos),
+) {
     let (vines, hanging) = canopy.decorations();
     let (lo, hi) = bounds;
     for y in (lo.y..=hi.y).rev() {
@@ -1948,7 +2229,13 @@ fn decorate_canopy<W: BlockWorld>(ctx: &mut Ctx<'_, W>, canopy: &Canopy, bounds:
                 if let Some(d) = vines {
                     for dir in Direction::ALL {
                         if d.chance.roll(ctx.rng) {
-                            hang(ctx, at.side(dir), d.block[dir.opposite() as usize], d.step, d.num_steps);
+                            hang(
+                                ctx,
+                                at.side(dir),
+                                d.block[dir.opposite() as usize],
+                                d.step,
+                                d.num_steps,
+                            );
                         }
                     }
                 }
@@ -1987,9 +2274,31 @@ mod tests {
         let mut rng = BedrockRandom::new(11);
         let cases = [
             (Height::Range(IntRange { min: 4, max: 6 }), 4, 6),
-            (Height::Intervals { base: 6, intervals: &[3, 2] }, 6, 9),
-            (Height::Intervals { base: 10, intervals: &[3, 20] }, 10, 31),
-            (Height::Rand { base: 2, a: 1, b: 4 }, 2, 7),
+            (
+                Height::Intervals {
+                    base: 6,
+                    intervals: &[3, 2],
+                },
+                6,
+                9,
+            ),
+            (
+                Height::Intervals {
+                    base: 10,
+                    intervals: &[3, 20],
+                },
+                10,
+                31,
+            ),
+            (
+                Height::Rand {
+                    base: 2,
+                    a: 1,
+                    b: 4,
+                },
+                2,
+                7,
+            ),
         ];
         for (h, lo, hi) in cases {
             let (mut seen_lo, mut seen_hi) = (false, false);
@@ -2005,7 +2314,11 @@ mod tests {
 
     #[test]
     fn blob_radius_reproduces_oak_swamp_and_bush_profiles() {
-        let profile = |min, rise, run, layers| (0..layers).map(|d| blob_radius(min, rise, run, d)).collect::<Vec<_>>();
+        let profile = |min, rise, run, layers| {
+            (0..layers)
+                .map(|d| blob_radius(min, rise, run, d))
+                .collect::<Vec<_>>()
+        };
         // Depth 0 is the top layer.
         assert_eq!(profile(1, 1, 2, 4), [1, 1, 2, 2]);
         assert_eq!(profile(2, 1, 2, 4), [2, 2, 3, 3]);
@@ -2035,14 +2348,23 @@ mod tests {
     fn roof_layers_match_the_dark_oak_shape() {
         // 2x2 core, outer radius 2, inner radius 3.
         assert_eq!(count(2, 2, |ax, az| roofed_keep(0, ax, az, 2, 3)), 36);
-        assert_eq!(count(2, 3, |ax, az| roofed_keep(1, ax, az, 2, 3)), 64 - 4 * 3);
+        assert_eq!(
+            count(2, 3, |ax, az| roofed_keep(1, ax, az, 2, 3)),
+            64 - 4 * 3
+        );
         assert_eq!(count(2, 2, |ax, az| roofed_keep(2, ax, az, 2, 3)), 24);
     }
 
     #[test]
     fn mega_discs_widen_downwards_and_trim_large_corners() {
-        assert_eq!((0..3).map(|d| mega_radius(2, 2, d)).collect::<Vec<_>>(), [3, 4, 5]);
-        assert_eq!((0..3).map(|d| mega_radius(1, 1, d)).collect::<Vec<_>>(), [1, 2, 3]);
+        assert_eq!(
+            (0..3).map(|d| mega_radius(2, 2, d)).collect::<Vec<_>>(),
+            [3, 4, 5]
+        );
+        assert_eq!(
+            (0..3).map(|d| mega_radius(1, 1, d)).collect::<Vec<_>>(),
+            [1, 2, 3]
+        );
         assert!(mega_keep(4, 3, 5, true));
         assert!(!mega_keep(4, 3, 5, false));
         assert!(!mega_keep(4, 4, 5, true));
@@ -2071,7 +2393,11 @@ mod tests {
 
     #[test]
     fn spruce_rings_alternate_and_respect_the_max_radius() {
-        let mut ring = SpruceRing { r: 0, cap: 1, next: 0 };
+        let mut ring = SpruceRing {
+            r: 0,
+            cap: 1,
+            next: 0,
+        };
         let mut radii = Vec::new();
         for _ in 0..10 {
             radii.push(ring.r);
@@ -2114,7 +2440,12 @@ mod tests {
     fn poplar_sections_form_a_narrow_column() {
         assert_eq!(count(1, 2, |ax, az| poplar_layer(ax, az, 5)), 21);
         assert_eq!(count(1, 2, |ax, az| poplar_layer(ax, az, 8)), 25);
-        assert!(poplar_side(2, 0, 5) && poplar_side(1, 2, 5) && !poplar_side(1, 1, 5) && !poplar_side(0, 0, 5));
+        assert!(
+            poplar_side(2, 0, 5)
+                && poplar_side(1, 2, 5)
+                && !poplar_side(1, 1, 5)
+                && !poplar_side(0, 0, 5)
+        );
     }
 
     #[test]
@@ -2154,7 +2485,11 @@ mod tests {
             320
         }
         fn get(&self, pos: BlockPos) -> u32 {
-            if (-64..320).contains(&pos.y) { self.blocks.get(&pos).copied().unwrap_or(bb::AIR) } else { OUT_OF_BOUNDS }
+            if (-64..320).contains(&pos.y) {
+                self.blocks.get(&pos).copied().unwrap_or(bb::AIR)
+            } else {
+                OUT_OF_BOUNDS
+            }
         }
         fn set(&mut self, pos: BlockPos, id: u32) -> bool {
             if !(-64..320).contains(&pos.y) {
@@ -2191,9 +2526,17 @@ mod tests {
         false
     }
 
-    const OAK: Log = Log { x: bb::OAK_LOG, y: bb::OAK_LOG, z: bb::OAK_LOG };
+    const OAK: Log = Log {
+        x: bb::OAK_LOG,
+        y: bb::OAK_LOG,
+        z: bb::OAK_LOG,
+    };
     /// Distinct stand-ins for the lying states, to check log orientation.
-    const MARKED: Log = Log { x: bb::SAND, y: bb::OAK_LOG, z: bb::GRAVEL };
+    const MARKED: Log = Log {
+        x: bb::SAND,
+        y: bb::OAK_LOG,
+        z: bb::GRAVEL,
+    };
 
     static OAK_TREE: Params = Params {
         may_grow_on: on_dirt,
@@ -2215,7 +2558,12 @@ mod tests {
             min_width: 1,
             rise: 1,
             run: 2,
-            variation: &[Chance::Fraction(1, 2), Chance::Fraction(1, 2), Chance::Fraction(1, 2), Chance::Fraction(1, 1)],
+            variation: &[
+                Chance::Fraction(1, 2),
+                Chance::Fraction(1, 2),
+                Chance::Fraction(1, 2),
+                Chance::Fraction(1, 1),
+            ],
             leaf: bb::OAK_LEAVES,
             decoration: None,
         })),
@@ -2230,7 +2578,10 @@ mod tests {
         base_cluster: None,
         roots: None,
         trunk: Trunk::Mega(MegaTrunk {
-            height: Height::Intervals { base: 13, intervals: &[3, 15] },
+            height: Height::Intervals {
+                base: 13,
+                intervals: &[3, 15],
+            },
             width: 2,
             log: OAK,
             decoration: None,
@@ -2263,12 +2614,22 @@ mod tests {
         log_decoration: true,
     };
 
-    fn grow<F>(world: &mut TestWorld, seed: u32, p: &'static Params, decorate: F) -> Option<BlockPos>
+    fn grow<F>(
+        world: &mut TestWorld,
+        seed: u32,
+        p: &'static Params,
+        decorate: F,
+    ) -> Option<BlockPos>
     where
         F: FnMut(&mut Ctx<'_, TestWorld>, BlockPos) -> Option<BlockPos>,
     {
         let mut rng = BedrockRandom::new(seed);
-        let mut ctx = Ctx { world, rng: &mut rng, noise: &Flat, seed: 0 };
+        let mut ctx = Ctx {
+            world,
+            rng: &mut rng,
+            noise: &Flat,
+            seed: 0,
+        };
         place(&mut ctx, BlockPos::new(0, 1, 0), p, decorate)
     }
 
@@ -2278,7 +2639,9 @@ mod tests {
             let mut world = TestWorld::floor(8, bb::GRASS_BLOCK);
             let base = grow(&mut world, seed, &OAK_TREE, |_, _| None);
             assert_eq!(base, Some(BlockPos::new(0, 1, 0)));
-            let h = (1..20).take_while(|&y| world.get(BlockPos::new(0, y, 0)) == bb::OAK_LOG).count() as i32;
+            let h = (1..20)
+                .take_while(|&y| world.get(BlockPos::new(0, y, 0)) == bb::OAK_LOG)
+                .count() as i32;
             assert!((4..=6).contains(&h), "trunk height {h}");
             // Grass under the trunk became the first base block.
             assert_eq!(world.get(BlockPos::new(0, 0, 0)), bb::DIRT);
@@ -2306,7 +2669,9 @@ mod tests {
     fn mega_trunk_is_two_by_two_and_sits_on_its_base_block() {
         let mut world = TestWorld::floor(10, bb::DIRT);
         assert!(grow(&mut world, 9, &MEGA_TREE, |_, _| None).is_some());
-        let h = (1..64).take_while(|&y| world.get(BlockPos::new(0, y, 0)) == bb::OAK_LOG).count() as i32;
+        let h = (1..64)
+            .take_while(|&y| world.get(BlockPos::new(0, y, 0)) == bb::OAK_LOG)
+            .count() as i32;
         assert!((13..=29).contains(&h), "trunk height {h}");
         for (dx, dz) in [(0, 0), (1, 0), (0, 1), (1, 1)] {
             assert_eq!(world.get(BlockPos::new(dx, 0, dz)), bb::PODZOL);
@@ -2328,14 +2693,22 @@ mod tests {
             });
             assert_eq!(base, Some(BlockPos::new(0, 1, 0)));
             assert_eq!(world.get(BlockPos::new(0, 1, 0)), bb::OAK_LOG);
-            let lying: Vec<BlockPos> =
-                world.blocks.iter().filter(|&(_, &b)| b == bb::SAND || b == bb::GRAVEL).map(|(&p, _)| p).collect();
+            let lying: Vec<BlockPos> = world
+                .blocks
+                .iter()
+                .filter(|&(_, &b)| b == bb::SAND || b == bb::GRAVEL)
+                .map(|(&p, _)| p)
+                .collect();
             assert!((4..=6).contains(&lying.len()), "log length {}", lying.len());
             assert_eq!(decorated.len(), lying.len());
             for p in &lying {
                 assert_eq!(p.y, 1);
                 let along_x = world.get(*p) == bb::SAND;
-                assert!(if along_x { p.z == 0 && p.x.abs() >= 2 } else { p.x == 0 && p.z.abs() >= 2 });
+                assert!(if along_x {
+                    p.z == 0 && p.x.abs() >= 2
+                } else {
+                    p.x == 0 && p.z.abs() >= 2
+                });
             }
         }
     }

@@ -33,30 +33,95 @@ use super::super::world::{BlockPos, BlockWorld, Ctx, Direction};
 
 /// `minecraft:pink_petals` by `[growth][direction]`.
 const PINK_PETALS: [[u32; 4]; 4] = [
-    [bb::PINK_PETALS_1_SOUTH, bb::PINK_PETALS_1_WEST, bb::PINK_PETALS_1_NORTH, bb::PINK_PETALS_1_EAST],
-    [bb::PINK_PETALS_2_SOUTH, bb::PINK_PETALS_2_WEST, bb::PINK_PETALS_2_NORTH, bb::PINK_PETALS_2_EAST],
-    [bb::PINK_PETALS_3_SOUTH, bb::PINK_PETALS_3_WEST, bb::PINK_PETALS_3_NORTH, bb::PINK_PETALS_3_EAST],
-    [bb::PINK_PETALS_4_SOUTH, bb::PINK_PETALS_4_WEST, bb::PINK_PETALS_4_NORTH, bb::PINK_PETALS_4_EAST],
+    [
+        bb::PINK_PETALS_1_SOUTH,
+        bb::PINK_PETALS_1_WEST,
+        bb::PINK_PETALS_1_NORTH,
+        bb::PINK_PETALS_1_EAST,
+    ],
+    [
+        bb::PINK_PETALS_2_SOUTH,
+        bb::PINK_PETALS_2_WEST,
+        bb::PINK_PETALS_2_NORTH,
+        bb::PINK_PETALS_2_EAST,
+    ],
+    [
+        bb::PINK_PETALS_3_SOUTH,
+        bb::PINK_PETALS_3_WEST,
+        bb::PINK_PETALS_3_NORTH,
+        bb::PINK_PETALS_3_EAST,
+    ],
+    [
+        bb::PINK_PETALS_4_SOUTH,
+        bb::PINK_PETALS_4_WEST,
+        bb::PINK_PETALS_4_NORTH,
+        bb::PINK_PETALS_4_EAST,
+    ],
 ];
 
 /// `minecraft:wildflowers` by `[growth][direction]`.
 const WILDFLOWERS: [[u32; 4]; 4] = [
-    [bb::WILDFLOWERS_1_SOUTH, bb::WILDFLOWERS_1_WEST, bb::WILDFLOWERS_1_NORTH, bb::WILDFLOWERS_1_EAST],
-    [bb::WILDFLOWERS_2_SOUTH, bb::WILDFLOWERS_2_WEST, bb::WILDFLOWERS_2_NORTH, bb::WILDFLOWERS_2_EAST],
-    [bb::WILDFLOWERS_3_SOUTH, bb::WILDFLOWERS_3_WEST, bb::WILDFLOWERS_3_NORTH, bb::WILDFLOWERS_3_EAST],
-    [bb::WILDFLOWERS_4_SOUTH, bb::WILDFLOWERS_4_WEST, bb::WILDFLOWERS_4_NORTH, bb::WILDFLOWERS_4_EAST],
+    [
+        bb::WILDFLOWERS_1_SOUTH,
+        bb::WILDFLOWERS_1_WEST,
+        bb::WILDFLOWERS_1_NORTH,
+        bb::WILDFLOWERS_1_EAST,
+    ],
+    [
+        bb::WILDFLOWERS_2_SOUTH,
+        bb::WILDFLOWERS_2_WEST,
+        bb::WILDFLOWERS_2_NORTH,
+        bb::WILDFLOWERS_2_EAST,
+    ],
+    [
+        bb::WILDFLOWERS_3_SOUTH,
+        bb::WILDFLOWERS_3_WEST,
+        bb::WILDFLOWERS_3_NORTH,
+        bb::WILDFLOWERS_3_EAST,
+    ],
+    [
+        bb::WILDFLOWERS_4_SOUTH,
+        bb::WILDFLOWERS_4_WEST,
+        bb::WILDFLOWERS_4_NORTH,
+        bb::WILDFLOWERS_4_EAST,
+    ],
 ];
 
 /// `minecraft:leaf_litter` by `[growth][direction]`.
 const LEAF_LITTER: [[u32; 4]; 4] = [
-    [bb::LEAF_LITTER_1_SOUTH, bb::LEAF_LITTER_1_WEST, bb::LEAF_LITTER_1_NORTH, bb::LEAF_LITTER_1_EAST],
-    [bb::LEAF_LITTER_2_SOUTH, bb::LEAF_LITTER_2_WEST, bb::LEAF_LITTER_2_NORTH, bb::LEAF_LITTER_2_EAST],
-    [bb::LEAF_LITTER_3_SOUTH, bb::LEAF_LITTER_3_WEST, bb::LEAF_LITTER_3_NORTH, bb::LEAF_LITTER_3_EAST],
-    [bb::LEAF_LITTER_4_SOUTH, bb::LEAF_LITTER_4_WEST, bb::LEAF_LITTER_4_NORTH, bb::LEAF_LITTER_4_EAST],
+    [
+        bb::LEAF_LITTER_1_SOUTH,
+        bb::LEAF_LITTER_1_WEST,
+        bb::LEAF_LITTER_1_NORTH,
+        bb::LEAF_LITTER_1_EAST,
+    ],
+    [
+        bb::LEAF_LITTER_2_SOUTH,
+        bb::LEAF_LITTER_2_WEST,
+        bb::LEAF_LITTER_2_NORTH,
+        bb::LEAF_LITTER_2_EAST,
+    ],
+    [
+        bb::LEAF_LITTER_3_SOUTH,
+        bb::LEAF_LITTER_3_WEST,
+        bb::LEAF_LITTER_3_NORTH,
+        bb::LEAF_LITTER_3_EAST,
+    ],
+    [
+        bb::LEAF_LITTER_4_SOUTH,
+        bb::LEAF_LITTER_4_WEST,
+        bb::LEAF_LITTER_4_NORTH,
+        bb::LEAF_LITTER_4_EAST,
+    ],
 ];
 
 /// `minecraft:pumpkin` by direction.
-const PUMPKINS: [u32; 4] = [bb::PUMPKIN_SOUTH, bb::PUMPKIN_WEST, bb::PUMPKIN_NORTH, bb::PUMPKIN_EAST];
+const PUMPKINS: [u32; 4] = [
+    bb::PUMPKIN_SOUTH,
+    bb::PUMPKIN_WEST,
+    bb::PUMPKIN_NORTH,
+    bb::PUMPKIN_EAST,
+];
 
 /// `minecraft:vine` attached on one side, by direction of the supporting
 /// block (`vine_direction_bits` 1 south, 2 west, 4 north, 8 east).
@@ -64,9 +129,15 @@ const VINES: [u32; 4] = [bb::VINE_SOUTH, bb::VINE_WEST, bb::VINE_NORTH, bb::VINE
 
 /// Small dripleaf lower and upper halves by direction.
 const SMALL_DRIPLEAF: [(u32, u32); 4] = [
-    (bb::SMALL_DRIPLEAF_LOWER_SOUTH, bb::SMALL_DRIPLEAF_UPPER_SOUTH),
+    (
+        bb::SMALL_DRIPLEAF_LOWER_SOUTH,
+        bb::SMALL_DRIPLEAF_UPPER_SOUTH,
+    ),
     (bb::SMALL_DRIPLEAF_LOWER_WEST, bb::SMALL_DRIPLEAF_UPPER_WEST),
-    (bb::SMALL_DRIPLEAF_LOWER_NORTH, bb::SMALL_DRIPLEAF_UPPER_NORTH),
+    (
+        bb::SMALL_DRIPLEAF_LOWER_NORTH,
+        bb::SMALL_DRIPLEAF_UPPER_NORTH,
+    ),
     (bb::SMALL_DRIPLEAF_LOWER_EAST, bb::SMALL_DRIPLEAF_UPPER_EAST),
 ];
 
@@ -74,7 +145,14 @@ const SMALL_DRIPLEAF: [(u32, u32); 4] = [
 /// allium, azure bluet, oxeye daisy, cornflower), equally likely. Vanilla's
 /// meadow patch also mixes short and tall grass in, which BDS places through
 /// its own grass rules, so only the flowers are drawn here.
-const MEADOW_FLOWERS: [u32; 6] = [bb::DANDELION, bb::POPPY, bb::ALLIUM, bb::AZURE_BLUET, bb::OXEYE_DAISY, bb::CORNFLOWER];
+const MEADOW_FLOWERS: [u32; 6] = [
+    bb::DANDELION,
+    bb::POPPY,
+    bb::ALLIUM,
+    bb::AZURE_BLUET,
+    bb::OXEYE_DAISY,
+    bb::CORNFLOWER,
+];
 
 /// A vegetation block: one block, or a lower/upper pair that needs the block
 /// above free.
@@ -90,7 +168,10 @@ const MOSS_VEGETATION: [(Plant, i32); 5] = [
     (Plant::Single(bb::AZALEA), 7),
     (Plant::Single(bb::MOSS_CARPET), 25),
     (Plant::Single(bb::SHORT_GRASS), 50),
-    (Plant::Double(bb::TALL_GRASS_LOWER, bb::TALL_GRASS_UPPER), 10),
+    (
+        Plant::Double(bb::TALL_GRASS_LOWER, bb::TALL_GRASS_UPPER),
+        10,
+    ),
 ];
 
 /// Vanilla pale moss vegetation weights (sum 60): a flat pale moss carpet
@@ -99,7 +180,10 @@ const MOSS_VEGETATION: [(Plant, i32); 5] = [
 const PALE_MOSS_VEGETATION: [(Plant, i32); 3] = [
     (Plant::Single(bb::PALE_MOSS_CARPET), 25),
     (Plant::Single(bb::SHORT_GRASS), 25),
-    (Plant::Double(bb::TALL_GRASS_LOWER, bb::TALL_GRASS_UPPER), 10),
+    (
+        Plant::Double(bb::TALL_GRASS_LOWER, bb::TALL_GRASS_UPPER),
+        10,
+    ),
 ];
 
 // ---------------------------------------------------------------------------
@@ -127,7 +211,12 @@ const FIREFLY_WATER_SAMPLES: i32 = 16;
 const VINE_MAX_DESCENT: i32 = 128;
 /// Search order of `vines_single_face_feature` (vanilla direction order
 /// without up/down).
-const SINGLE_FACE_ORDER: [Direction; 4] = [Direction::North, Direction::South, Direction::West, Direction::East];
+const SINGLE_FACE_ORDER: [Direction; 4] = [
+    Direction::North,
+    Direction::South,
+    Direction::West,
+    Direction::East,
+];
 
 /// Azalea root system (vanilla lush caves parameters).
 const ROOT_COLUMN_MAX_HEIGHT: i32 = 100;
@@ -148,7 +237,11 @@ const TREE_ALLOWED_VERTICAL_WATER: i32 = 2;
 /// spread draws nothing for y.
 fn patch_offset(rng: &mut BedrockRandom, xz_spread: i32, y_spread: i32) -> (i32, i32, i32) {
     let dx = rng.next_int(xz_spread + 1) - rng.next_int(xz_spread + 1);
-    let dy = if y_spread > 0 { rng.next_int(y_spread + 1) - rng.next_int(y_spread + 1) } else { 0 };
+    let dy = if y_spread > 0 {
+        rng.next_int(y_spread + 1) - rng.next_int(y_spread + 1)
+    } else {
+        0
+    };
     let dz = rng.next_int(xz_spread + 1) - rng.next_int(xz_spread + 1);
     (dx, dy, dz)
 }
@@ -202,7 +295,9 @@ fn bamboo_segment(k: i32, top: i32) -> u32 {
 fn cactus_survives<W: BlockWorld>(ctx: &Ctx<'_, W>, at: BlockPos) -> bool {
     let below = ctx.get(at.below());
     (bb::cactus(below) || bb::sand_like(below))
-        && Direction::ALL.into_iter().all(|d| !props::is_solid(ctx.get(at.side(d))))
+        && Direction::ALL
+            .into_iter()
+            .all(|d| !props::is_solid(ctx.get(at.side(d))))
 }
 
 /// Sugar cane ground: a dirt-like or sand block with water (or frosted ice)
@@ -210,7 +305,9 @@ fn cactus_survives<W: BlockWorld>(ctx: &Ctx<'_, W>, at: BlockPos) -> bool {
 fn reeds_ground<W: BlockWorld>(ctx: &Ctx<'_, W>, ground: BlockPos) -> bool {
     let id = ctx.get(ground);
     (bb::dirt_like(id) || bb::sand_like(id))
-        && Direction::ALL.into_iter().any(|d| bb::reeds_water(ctx.get(ground.side(d))))
+        && Direction::ALL
+            .into_iter()
+            .any(|d| bb::reeds_water(ctx.get(ground.side(d))))
 }
 
 /// Dead bush ground: sand, terracotta or dirt-like.
@@ -238,7 +335,11 @@ fn supports_vine(id: u32) -> bool {
 
 /// Ground an azalea tree grows on (vanilla "azalea grows on").
 fn azalea_grows_on(id: u32) -> bool {
-    bb::dirt_like(id) || bb::sand_like(id) || bb::terracotta(id) || id == bb::SNOW_BLOCK || id == bb::POWDER_SNOW
+    bb::dirt_like(id)
+        || bb::sand_like(id)
+        || bb::terracotta(id)
+        || id == bb::SNOW_BLOCK
+        || id == bb::POWDER_SNOW
 }
 
 /// Blocks the root system turns into rooted dirt.
@@ -271,7 +372,12 @@ fn place_plant<W: BlockWorld>(ctx: &mut Ctx<'_, W>, pos: BlockPos, plant: Plant)
 }
 
 /// One plant on air above ground matching `ground`.
-fn place_single<W: BlockWorld>(ctx: &mut Ctx<'_, W>, pos: BlockPos, block: u32, ground: fn(u32) -> bool) -> Option<BlockPos> {
+fn place_single<W: BlockWorld>(
+    ctx: &mut Ctx<'_, W>,
+    pos: BlockPos,
+    block: u32,
+    ground: fn(u32) -> bool,
+) -> Option<BlockPos> {
     if !bb::air(ctx.get(pos)) || !ground(ctx.get(pos.below())) {
         return None;
     }
@@ -296,7 +402,11 @@ fn place_segmented<W: BlockWorld>(
 }
 
 /// Floor vegetation drawn from a weighted table, on air above dirt-like ground.
-fn place_vegetation<W: BlockWorld>(ctx: &mut Ctx<'_, W>, pos: BlockPos, table: &[(Plant, i32)]) -> Option<BlockPos> {
+fn place_vegetation<W: BlockWorld>(
+    ctx: &mut Ctx<'_, W>,
+    pos: BlockPos,
+    table: &[(Plant, i32)],
+) -> Option<BlockPos> {
     if !bb::air(ctx.get(pos)) || !bb::dirt_like(ctx.get(pos.below())) {
         return None;
     }
@@ -382,7 +492,8 @@ pub fn dead_bush_feature<W: BlockWorld>(ctx: &mut Ctx<'_, W>, pos: BlockPos) -> 
     let mut placed = false;
     for _ in 0..tries {
         let (dx, dy, dz) = patch_offset(ctx.rng, xz, y);
-        placed |= place_single(ctx, pos.offset(dx, dy, dz), bb::DEADBUSH, dead_bush_ground).is_some();
+        placed |=
+            place_single(ctx, pos.offset(dx, dy, dz), bb::DEADBUSH, dead_bush_ground).is_some();
     }
     placed.then_some(pos)
 }
@@ -426,7 +537,13 @@ fn firefly_patch<W: BlockWorld>(ctx: &mut Ctx<'_, W>, center: BlockPos) -> Optio
     let mut placed = false;
     for _ in 0..tries {
         let (dx, dy, dz) = patch_offset(ctx.rng, xz, y);
-        placed |= place_single(ctx, center.offset(dx, dy, dz), bb::FIREFLY_BUSH, bb::dirt_like).is_some();
+        placed |= place_single(
+            ctx,
+            center.offset(dx, dy, dz),
+            bb::FIREFLY_BUSH,
+            bb::dirt_like,
+        )
+        .is_some();
     }
     placed.then_some(center)
 }
@@ -435,7 +552,10 @@ fn firefly_patch<W: BlockWorld>(ctx: &mut Ctx<'_, W>, center: BlockPos) -> Optio
 /// on the surface of a random column of the chunk. The rule passes the chunk
 /// corner, so the column is chosen here (clusters would otherwise line up on
 /// the chunk grid).
-pub fn firefly_bush_cluster_feature<W: BlockWorld>(ctx: &mut Ctx<'_, W>, pos: BlockPos) -> Option<BlockPos> {
+pub fn firefly_bush_cluster_feature<W: BlockWorld>(
+    ctx: &mut Ctx<'_, W>,
+    pos: BlockPos,
+) -> Option<BlockPos> {
     let center = random_surface_in_chunk(ctx, pos);
     firefly_patch(ctx, center)
 }
@@ -444,13 +564,18 @@ pub fn firefly_bush_cluster_feature<W: BlockWorld>(ctx: &mut Ctx<'_, W>, pos: Bl
 /// a shore. Up to 16 random surface columns of the chunk are tried; the first
 /// one that is air above dirt-like ground with water beside the ground block
 /// (vanilla's near-water test) gets the cluster.
-pub fn firefly_bush_water_cluster_feature<W: BlockWorld>(ctx: &mut Ctx<'_, W>, pos: BlockPos) -> Option<BlockPos> {
+pub fn firefly_bush_water_cluster_feature<W: BlockWorld>(
+    ctx: &mut Ctx<'_, W>,
+    pos: BlockPos,
+) -> Option<BlockPos> {
     for _ in 0..FIREFLY_WATER_SAMPLES {
         let center = random_surface_in_chunk(ctx, pos);
         let ground = center.below();
         if bb::air(ctx.get(center))
             && bb::dirt_like(ctx.get(ground))
-            && Direction::ALL.into_iter().any(|d| bb::water(ctx.get(ground.side(d))))
+            && Direction::ALL
+                .into_iter()
+                .any(|d| bb::water(ctx.get(ground.side(d))))
         {
             return firefly_patch(ctx, center);
         }
@@ -464,21 +589,32 @@ pub fn firefly_bush_water_cluster_feature<W: BlockWorld>(ctx: &mut Ctx<'_, W>, p
 
 /// `minecraft:brown_mushroom_feature`: one brown mushroom at `pos` on
 /// mushroom ground (see [`mushroom_ground`]).
-pub fn brown_mushroom_feature<W: BlockWorld>(ctx: &mut Ctx<'_, W>, pos: BlockPos) -> Option<BlockPos> {
+pub fn brown_mushroom_feature<W: BlockWorld>(
+    ctx: &mut Ctx<'_, W>,
+    pos: BlockPos,
+) -> Option<BlockPos> {
     place_single(ctx, pos, bb::BROWN_MUSHROOM, mushroom_ground)
 }
 
 /// `minecraft:red_mushroom_feature`: one red mushroom at `pos` on mushroom
 /// ground (see [`mushroom_ground`]).
-pub fn red_mushroom_feature<W: BlockWorld>(ctx: &mut Ctx<'_, W>, pos: BlockPos) -> Option<BlockPos> {
+pub fn red_mushroom_feature<W: BlockWorld>(
+    ctx: &mut Ctx<'_, W>,
+    pos: BlockPos,
+) -> Option<BlockPos> {
     place_single(ctx, pos, bb::RED_MUSHROOM, mushroom_ground)
 }
 
 /// `minecraft:sweet_berry_bush_feature`: one mature sweet berry bush
 /// (`growth` 3, bearing berries) on air above a grass block (vanilla
 /// restricts the berry patch to grass blocks).
-pub fn sweet_berry_bush_feature<W: BlockWorld>(ctx: &mut Ctx<'_, W>, pos: BlockPos) -> Option<BlockPos> {
-    place_single(ctx, pos, bb::SWEET_BERRY_BUSH_MATURE, |id| id == bb::GRASS_BLOCK)
+pub fn sweet_berry_bush_feature<W: BlockWorld>(
+    ctx: &mut Ctx<'_, W>,
+    pos: BlockPos,
+) -> Option<BlockPos> {
+    place_single(ctx, pos, bb::SWEET_BERRY_BUSH_MATURE, |id| {
+        id == bb::GRASS_BLOCK
+    })
 }
 
 /// `minecraft:eyeblossom_feature` (pale garden): one eyeblossom on dirt-like
@@ -491,7 +627,10 @@ pub fn eyeblossom_feature<W: BlockWorld>(ctx: &mut Ctx<'_, W>, pos: BlockPos) ->
 
 /// `minecraft:meadow_flower_feature`: one meadow flower (see
 /// [`MEADOW_FLOWERS`]) on dirt-like ground.
-pub fn meadow_flower_feature<W: BlockWorld>(ctx: &mut Ctx<'_, W>, pos: BlockPos) -> Option<BlockPos> {
+pub fn meadow_flower_feature<W: BlockWorld>(
+    ctx: &mut Ctx<'_, W>,
+    pos: BlockPos,
+) -> Option<BlockPos> {
     if !bb::air(ctx.get(pos)) || !bb::dirt_like(ctx.get(pos.below())) {
         return None;
     }
@@ -516,7 +655,9 @@ pub fn wildflowers_feature<W: BlockWorld>(ctx: &mut Ctx<'_, W>, pos: BlockPos) -
 /// face; the scatter around a tree reaches 2 blocks up, which must not put
 /// litter on the canopy).
 pub fn leaf_litter_feature<W: BlockWorld>(ctx: &mut Ctx<'_, W>, pos: BlockPos) -> Option<BlockPos> {
-    place_segmented(ctx, pos, &LEAF_LITTER, |id| props::is_solid(id) && !bb::leaves(id))
+    place_segmented(ctx, pos, &LEAF_LITTER, |id| {
+        props::is_solid(id) && !bb::leaves(id)
+    })
 }
 
 // ---------------------------------------------------------------------------
@@ -541,7 +682,9 @@ pub fn vines_feature<W: BlockWorld>(ctx: &mut Ctx<'_, W>, pos: BlockPos) -> Opti
     for _ in 0..VINE_MAX_DESCENT {
         let id = ctx.get(at);
         if bb::air(id) {
-            let support = Direction::ALL.into_iter().find(|&d| supports_vine(ctx.get(at.side(d))));
+            let support = Direction::ALL
+                .into_iter()
+                .find(|&d| supports_vine(ctx.get(at.side(d))));
             if let Some(dir) = support {
                 placed |= ctx.set(at, VINES[dir as usize]);
             }
@@ -560,11 +703,16 @@ pub fn vines_feature<W: BlockWorld>(ctx: &mut Ctx<'_, W>, pos: BlockPos) -> Opti
 /// `minecraft:vines_single_face_feature` (lush caves): one vine at `pos` if
 /// it is air, attached to the first supporting neighbour in vanilla
 /// direction order (north, south, west, east).
-pub fn vines_single_face_feature<W: BlockWorld>(ctx: &mut Ctx<'_, W>, pos: BlockPos) -> Option<BlockPos> {
+pub fn vines_single_face_feature<W: BlockWorld>(
+    ctx: &mut Ctx<'_, W>,
+    pos: BlockPos,
+) -> Option<BlockPos> {
     if !bb::air(ctx.get(pos)) {
         return None;
     }
-    let dir = SINGLE_FACE_ORDER.into_iter().find(|&d| supports_vine(ctx.get(pos.side(d))))?;
+    let dir = SINGLE_FACE_ORDER
+        .into_iter()
+        .find(|&d| supports_vine(ctx.get(pos.side(d))))?;
     ctx.set(pos, VINES[dir as usize]).then_some(pos)
 }
 
@@ -598,7 +746,11 @@ pub fn bamboo_feature<W: BlockWorld>(ctx: &mut Ctx<'_, W>, pos: BlockPos) -> Opt
     }
     if grown >= 3 {
         let above = pos.offset(0, grown, 0);
-        let top = if bb::air(ctx.get(above)) && ctx.set(above, bb::BAMBOO_FINAL_LARGE) { grown } else { grown - 1 };
+        let top = if bb::air(ctx.get(above)) && ctx.set(above, bb::BAMBOO_FINAL_LARGE) {
+            grown
+        } else {
+            grown - 1
+        };
         for k in top - 2..=top {
             ctx.set(pos.offset(0, k, 0), bamboo_segment(k, top));
         }
@@ -639,14 +791,20 @@ pub fn podzol_area_feature<W: BlockWorld>(ctx: &mut Ctx<'_, W>, pos: BlockPos) -
 /// `minecraft:moss_vegetation_feature` (vegetation of moss patches): one of
 /// flowering azalea, azalea, moss carpet, short grass or tall grass
 /// ([`MOSS_VEGETATION`] weights) on air above the moss.
-pub fn moss_vegetation_feature<W: BlockWorld>(ctx: &mut Ctx<'_, W>, pos: BlockPos) -> Option<BlockPos> {
+pub fn moss_vegetation_feature<W: BlockWorld>(
+    ctx: &mut Ctx<'_, W>,
+    pos: BlockPos,
+) -> Option<BlockPos> {
     place_vegetation(ctx, pos, &MOSS_VEGETATION)
 }
 
 /// `minecraft:pale_moss_vegetation_feature` (vegetation of pale moss
 /// patches): pale moss carpet, short grass or tall grass
 /// ([`PALE_MOSS_VEGETATION`] weights) on air above the pale moss.
-pub fn pale_moss_vegetation_feature<W: BlockWorld>(ctx: &mut Ctx<'_, W>, pos: BlockPos) -> Option<BlockPos> {
+pub fn pale_moss_vegetation_feature<W: BlockWorld>(
+    ctx: &mut Ctx<'_, W>,
+    pos: BlockPos,
+) -> Option<BlockPos> {
     place_vegetation(ctx, pos, &PALE_MOSS_VEGETATION)
 }
 
@@ -705,7 +863,10 @@ fn small_dripleaf<W: BlockWorld>(ctx: &mut Ctx<'_, W>, pos: BlockPos) -> Option<
 /// up to two blocks below the tree), and up to 20 hanging roots are placed
 /// in air under solid blocks within +-2 horizontally and +-1 vertically of
 /// `pos`. Returns the tree position.
-pub fn azalea_root_system_feature<W: BlockWorld>(ctx: &mut Ctx<'_, W>, pos: BlockPos) -> Option<BlockPos> {
+pub fn azalea_root_system_feature<W: BlockWorld>(
+    ctx: &mut Ctx<'_, W>,
+    pos: BlockPos,
+) -> Option<BlockPos> {
     if !bb::air(ctx.get(pos)) {
         return None;
     }
@@ -762,7 +923,8 @@ fn place_rooted_dirt_layer<W: BlockWorld>(ctx: &mut Ctx<'_, W>, center: BlockPos
 fn place_hanging_roots<W: BlockWorld>(ctx: &mut Ctx<'_, W>, origin: BlockPos) {
     for _ in 0..HANGING_ROOT_PLACEMENT_ATTEMPTS {
         let dx = ctx.rng.next_int(HANGING_ROOT_RADIUS) - ctx.rng.next_int(HANGING_ROOT_RADIUS);
-        let dy = ctx.rng.next_int(HANGING_ROOTS_VERTICAL_SPAN) - ctx.rng.next_int(HANGING_ROOTS_VERTICAL_SPAN);
+        let dy = ctx.rng.next_int(HANGING_ROOTS_VERTICAL_SPAN)
+            - ctx.rng.next_int(HANGING_ROOTS_VERTICAL_SPAN);
         let dz = ctx.rng.next_int(HANGING_ROOT_RADIUS) - ctx.rng.next_int(HANGING_ROOT_RADIUS);
         let at = origin.offset(dx, dy, dz);
         if bb::air(ctx.get(at)) && props::is_solid(ctx.get(at.above())) {
@@ -800,7 +962,10 @@ mod tests {
         }
 
         fn top(&self, x: i32, z: i32, pred: fn(u32) -> bool) -> i32 {
-            (-64..320).rev().find(|&y| pred(self.get(BlockPos::new(x, y, z)))).map_or(-64, |y| y + 1)
+            (-64..320)
+                .rev()
+                .find(|&y| pred(self.get(BlockPos::new(x, y, z))))
+                .map_or(-64, |y| y + 1)
         }
     }
 
@@ -812,7 +977,11 @@ mod tests {
             320
         }
         fn get(&self, pos: BlockPos) -> u32 {
-            if Self::in_range(pos) { self.blocks.get(&pos).copied().unwrap_or(bb::AIR) } else { OUT_OF_BOUNDS }
+            if Self::in_range(pos) {
+                self.blocks.get(&pos).copied().unwrap_or(bb::AIR)
+            } else {
+                OUT_OF_BOUNDS
+            }
         }
         fn set(&mut self, pos: BlockPos, id: u32) -> bool {
             if !Self::in_range(pos) {
@@ -839,9 +1008,19 @@ mod tests {
         }
     }
 
-    fn run(world: &mut TestWorld, seed: u32, f: fn(&mut Ctx<'_, TestWorld>, BlockPos) -> Option<BlockPos>, pos: BlockPos) -> Option<BlockPos> {
+    fn run(
+        world: &mut TestWorld,
+        seed: u32,
+        f: fn(&mut Ctx<'_, TestWorld>, BlockPos) -> Option<BlockPos>,
+        pos: BlockPos,
+    ) -> Option<BlockPos> {
         let mut rng = BedrockRandom::new(seed);
-        let mut ctx = Ctx { world, rng: &mut rng, noise: &Flat, seed: 0 };
+        let mut ctx = Ctx {
+            world,
+            rng: &mut rng,
+            noise: &Flat,
+            seed: 0,
+        };
         f(&mut ctx, pos)
     }
 
@@ -851,7 +1030,10 @@ mod tests {
         let picks: Vec<char> = (0..6).map(|roll| weighted(&table, roll)).collect();
         assert_eq!(picks, ['a', 'b', 'b', 'c', 'c', 'c']);
         assert_eq!(MOSS_VEGETATION.iter().map(|&(_, w)| w).sum::<i32>(), 96);
-        assert_eq!(PALE_MOSS_VEGETATION.iter().map(|&(_, w)| w).sum::<i32>(), 60);
+        assert_eq!(
+            PALE_MOSS_VEGETATION.iter().map(|&(_, w)| w).sum::<i32>(),
+            60
+        );
     }
 
     #[test]
@@ -864,7 +1046,10 @@ mod tests {
             counts[(v - 1) as usize] += 1;
         }
         // Expected 11/18, 5/18, 2/18.
-        assert!(counts[0] > counts[1] && counts[1] > counts[2] && counts[2] > 0, "{counts:?}");
+        assert!(
+            counts[0] > counts[1] && counts[1] > counts[2] && counts[2] > 0,
+            "{counts:?}"
+        );
     }
 
     #[test]
@@ -884,7 +1069,12 @@ mod tests {
 
     #[test]
     fn disc_has_vanilla_cell_counts() {
-        let cells = |r: i32| (-r..=r).flat_map(|x| (-r..=r).map(move |z| (x, z))).filter(|&(x, z)| in_disc(x, z, r)).count();
+        let cells = |r: i32| {
+            (-r..=r)
+                .flat_map(|x| (-r..=r).map(move |z| (x, z)))
+                .filter(|&(x, z)| in_disc(x, z, r))
+                .count()
+        };
         assert_eq!([cells(1), cells(2), cells(3), cells(4)], [5, 13, 29, 49]);
     }
 
@@ -892,7 +1082,14 @@ mod tests {
     fn bamboo_segments_put_leaves_on_top() {
         let column: Vec<u32> = (0..=6).map(|k| bamboo_segment(k, 6)).collect();
         assert_eq!(&column[..4], &[bb::BAMBOO_TRUNK; 4]);
-        assert_eq!(&column[4..], &[bb::BAMBOO_TOP_SMALL, bb::BAMBOO_TOP_LARGE, bb::BAMBOO_FINAL_LARGE]);
+        assert_eq!(
+            &column[4..],
+            &[
+                bb::BAMBOO_TOP_SMALL,
+                bb::BAMBOO_TOP_LARGE,
+                bb::BAMBOO_FINAL_LARGE
+            ]
+        );
     }
 
     #[test]
@@ -900,7 +1097,9 @@ mod tests {
         let mut w = TestWorld::floor(2, 63, bb::GRASS_BLOCK);
         let base = BlockPos::new(0, 64, 0);
         assert_eq!(run(&mut w, 3, bamboo_feature, base), Some(base));
-        let len = (0..).take_while(|&k| bb::bamboo(w.get(base.offset(0, k, 0)))).count() as i32;
+        let len = (0..)
+            .take_while(|&k| bb::bamboo(w.get(base.offset(0, k, 0))))
+            .count() as i32;
         assert!((6..=17).contains(&len), "len {len}");
         for k in 0..len {
             assert_eq!(w.get(base.offset(0, k, 0)), bamboo_segment(k, len - 1));
@@ -928,7 +1127,11 @@ mod tests {
                 }
                 let below = w.get(pos.below());
                 assert!(below == bb::SAND || below == bb::CACTUS);
-                assert!(Direction::ALL.into_iter().all(|d| !props::is_solid(w.get(pos.side(d)))));
+                assert!(
+                    Direction::ALL
+                        .into_iter()
+                        .all(|d| !props::is_solid(w.get(pos.side(d))))
+                );
                 assert!(pos.y <= 66, "column taller than 3 at {pos:?}");
             }
         }
@@ -938,18 +1141,25 @@ mod tests {
     #[test]
     fn reeds_need_water_next_to_their_ground() {
         let mut dry = TestWorld::floor(8, 63, bb::SAND);
-        assert_eq!(run(&mut dry, 5, reeds_feature, BlockPos::new(0, 64, 0)), None);
+        assert_eq!(
+            run(&mut dry, 5, reeds_feature, BlockPos::new(0, 64, 0)),
+            None
+        );
 
         let mut wet = TestWorld::floor(8, 63, bb::SAND);
         for z in -8..=8 {
             wet.blocks.insert(BlockPos::new(0, 63, z), bb::WATER);
         }
-        let placed = (0..20).filter(|&s| run(&mut wet, s, reeds_feature, BlockPos::new(0, 64, 0)).is_some()).count();
+        let placed = (0..20)
+            .filter(|&s| run(&mut wet, s, reeds_feature, BlockPos::new(0, 64, 0)).is_some())
+            .count();
         assert!(placed > 0);
         for (&pos, &id) in &wet.blocks {
             if id == bb::REEDS && w_is_base(&wet, pos) {
                 assert_eq!(pos.x.abs(), 1, "cane base away from water at {pos:?}");
-                let height = (0..).take_while(|&k| wet.get(pos.offset(0, k, 0)) == bb::REEDS).count();
+                let height = (0..)
+                    .take_while(|&k| wet.get(pos.offset(0, k, 0)) == bb::REEDS)
+                    .count();
                 assert!((2..=4).contains(&height));
             }
         }

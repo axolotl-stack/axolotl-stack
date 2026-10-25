@@ -27,8 +27,10 @@ mod bedrock {
                  time and never committed."
             );
         };
-        let manifest = PathBuf::from(std::env::var("CARGO_MANIFEST_DIR").expect("CARGO_MANIFEST_DIR"));
-        let native_dir = manifest.join("../valentine_gen/protocolgen/data/source/inputs/1.26.51/native");
+        let manifest =
+            PathBuf::from(std::env::var("CARGO_MANIFEST_DIR").expect("CARGO_MANIFEST_DIR"));
+        let native_dir =
+            manifest.join("../valentine_gen/protocolgen/data/source/inputs/1.26.51/native");
         if !native_dir.join("canonical_block_states.nbt").is_file() {
             panic!(
                 "protocolgen native data is missing at {}: run `git submodule update --init \
@@ -37,10 +39,13 @@ mod bedrock {
             );
         }
         let model = unastar_bedrock_codegen::model::Model::load(&bds_dir, &native_dir)
-            .unwrap_or_else(|e| panic!("reading BDS worldgen data from {}: {e}", bds_dir.display()));
+            .unwrap_or_else(|e| {
+                panic!("reading BDS worldgen data from {}: {e}", bds_dir.display())
+            });
         let (source, _report) = unastar_bedrock_codegen::emit::generate(&model)
             .unwrap_or_else(|e| panic!("compiling BDS worldgen data: {e}"));
-        let out = PathBuf::from(std::env::var("OUT_DIR").expect("OUT_DIR")).join("bedrock_worldgen.rs");
+        let out =
+            PathBuf::from(std::env::var("OUT_DIR").expect("OUT_DIR")).join("bedrock_worldgen.rs");
         std::fs::write(&out, source).unwrap_or_else(|e| panic!("writing {}: {e}", out.display()));
         for input in &model.inputs {
             println!("cargo:rerun-if-changed={}", input.display());

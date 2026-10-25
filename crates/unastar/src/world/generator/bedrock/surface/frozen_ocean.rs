@@ -16,7 +16,12 @@ use super::super::rng::BedrockRandom;
 use super::{Column, LEGACY_NOISE_SCALE, Materials, SurfaceColumn, overworld};
 
 /// Run the frozen ocean builder; returns the lowest y it dressed.
-pub(super) fn build<C: SurfaceColumn>(col: &mut C, c: &Column<'_>, base: &Materials, rng: &mut BedrockRandom) -> Option<i32> {
+pub(super) fn build<C: SurfaceColumn>(
+    col: &mut C,
+    c: &Column<'_>,
+    base: &Materials,
+    rng: &mut BedrockRandom,
+) -> Option<i32> {
     if c.surface
         && let Some(berg) = iceberg(c)
     {
@@ -35,7 +40,9 @@ struct Iceberg {
 
 /// Iceberg extent at the column, if one rises here.
 fn iceberg(c: &Column<'_>) -> Option<Iceberg> {
-    let e = (c.noise * LEGACY_NOISE_SCALE).abs().min(c.noises.iceberg(c.x, c.z) * 15.0);
+    let e = (c.noise * LEGACY_NOISE_SCALE)
+        .abs()
+        .min(c.noises.iceberg(c.x, c.z) * 15.0);
     if e <= 1.8 {
         return None;
     }
@@ -48,7 +55,10 @@ fn iceberg(c: &Column<'_>) -> Option<Iceberg> {
         return None;
     }
     let sea = c.sea_level as f64;
-    Some(Iceberg { top: (sea + height) as i32, bottom: (sea - height - 7.0) as i32 })
+    Some(Iceberg {
+        top: (sea + height) as i32,
+        bottom: (sea - height - 7.0) as i32,
+    })
 }
 
 /// Build the iceberg from the top down through the open column, stopping at
@@ -108,7 +118,10 @@ mod tests {
                 id == bb::PACKED_ICE || id == bb::SNOW_BLOCK || id == bb::WATER || id == bb::AIR
             }));
             let above_sea = (SEA..berg.top).filter(|&y| col.get(y) != bb::AIR).count() as i32;
-            assert!(above_sea * 10 >= (berg.top - SEA) * 8, "iceberg should be mostly solid above sea");
+            assert!(
+                above_sea * 10 >= (berg.top - SEA) * 8,
+                "iceberg should be mostly solid above sea"
+            );
             seen += 1;
             if seen == 8 {
                 break;
