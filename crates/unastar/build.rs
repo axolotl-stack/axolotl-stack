@@ -40,7 +40,10 @@ mod bedrock {
         }
         let model = unastar_bedrock_codegen::model::Model::load(&bds_dir, &native_dir)
             .unwrap_or_else(|e| {
-                panic!("reading BDS worldgen data from {}: {e}", bds_dir.display())
+                panic!(
+                    "the `bedrock-worldgen` feature could not read UNASTAR_BDS_DIR={}: {e}",
+                    bds_dir.display()
+                )
             });
         let (source, _report) = unastar_bedrock_codegen::emit::generate(&model)
             .unwrap_or_else(|e| panic!("compiling BDS worldgen data: {e}"));

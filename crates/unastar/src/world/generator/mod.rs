@@ -8,6 +8,7 @@
 //! | `kind` | Generator | Truth source |
 //! |---|---|---|
 //! | `java` | [`JavaGenerator`] | Java Edition 1.21.11 reference worlds |
+//! | `bedrock` | `bedrock::BedrockGenerator` (`bedrock-worldgen` feature) | BDS 1.26.51 reference worlds; parity incomplete |
 //! | `super_flat` | [`FlatGenerator`] | classic superflat layers |
 //! | `void_spawn_platform` | [`VoidGenerator`] | stone platform around the origin |
 

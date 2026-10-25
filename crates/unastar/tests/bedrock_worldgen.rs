@@ -132,3 +132,48 @@ fn bedrock_decoration_is_independent_of_chunk_request_order() {
         .join()
         .unwrap();
 }
+
+#[test]
+fn frozen_ocean_temperature_patches_ratchet_against_bds() {
+    use unastar::world::generator::{
+        bedrock::{
+            generated,
+            surface::{self, Builder, SurfaceNoises},
+        },
+        parity::Fixture,
+    };
+    let path = std::path::Path::new(env!("CARGO_MANIFEST_DIR"))
+        .join("tests/fixtures/bds_1_26_51_seed_12345.json");
+    let fixture = Fixture::load(&path).unwrap();
+    let noises = SurfaceNoises::new(fixture.seed);
+    let java = unastar_noise::java_biomes::JavaBiome::from_name("minecraft:frozen_ocean").unwrap();
+    let (mut ice, mut water, mut java_ice, mut java_water) = (0, 0, 0, 0);
+    for chunk in &fixture.chunks {
+        for i in 0..256 {
+            let Some(biome) = generated::biome(chunk.surface_biome[i] as u16) else {
+                continue;
+            };
+            if !matches!(biome.surface, Some(Builder::FrozenOcean(_))) {
+                continue;
+            }
+            let actual = match chunk.surface_block[i].as_str() {
+                "minecraft:ice" => true,
+                "minecraft:water" => false,
+                _ => continue,
+            };
+            let x = chunk.pos.x * 16 + (i % 16) as i32;
+            let z = chunk.pos.z * 16 + (i / 16) as i32;
+            let ours = surface::freezes(&noises, biome, x, z);
+            let shared =
+                unastar_noise::biome_climate::cold_enough_to_snow(java, x, chunk.surface[i], z, 63);
+            ice += i32::from(actual && ours);
+            water += i32::from(!actual && !ours);
+            java_ice += i32::from(actual && shared);
+            java_water += i32::from(!actual && !shared);
+        }
+    }
+    println!("frozen-ocean correct ice/water: Bedrock {ice}/{water}, Java {java_ice}/{java_water}");
+    // Separate class floors prevent an always-water predicate from passing.
+    assert!(ice >= 111, "reference ice matches regressed to {ice}");
+    assert!(water >= 561, "reference water matches regressed to {water}");
+}

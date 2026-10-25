@@ -68,6 +68,10 @@ impl Model {
         let structures = StructureData::load(&stack, &palette, &features)?;
 
         let mut inputs = vec![
+            // Watch directory membership too: adding an override or archive
+            // must invalidate the build even when all old files are unchanged.
+            bds_dir.join("behavior_packs"),
+            bds_dir.join("definitions"),
             native_dir.join("canonical_block_states.nbt"),
             native_dir.join("block_tags.json"),
             native_dir.join("block_state_data.json"),

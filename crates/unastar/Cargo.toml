@@ -54,6 +54,7 @@ unastar_bedrock_codegen = { path = "../unastar_bedrock_codegen", optional = true
 
 [dev-dependencies]
 flate2.workspace = true
+tempfile = "3"
 
 [[example]]
 name = "bedrock_decoration_smoke"

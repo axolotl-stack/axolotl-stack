@@ -61,7 +61,8 @@ mode = "infinite"
 # max_z = 64
 
 [world.generator]
-# kinds: "super_flat" | "void_spawn_platform" | "java" (Java Edition-style terrain, requires seed)
+# kinds: "super_flat" | "void_spawn_platform" | "java" | "bedrock" (edition-style kinds require seed)
+# "bedrock" needs --features bedrock-worldgen and UNASTAR_BDS_DIR at build time.
 kind = "void_spawn_platform"
 # For void worlds, generate a stone platform at chunk coords [-r..r].
 platform_radius_chunks = 1
