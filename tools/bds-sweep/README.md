@@ -52,6 +52,12 @@ Sweeps are resumable: rerun with the same `--out` and finished items
 create `<runtime>/sweeps/1.26.51/hold`: every new `sweep.py` exits without
 starting BDS while it exists.
 
+A few block states crash Endstone in `Block.set_data`. The plugin marks the
+item in flight (`<out>/inflight.json`, removed on a graceful stop); when a
+run dies on it, the resumed run records that state as `crashed` for every
+tool and moves on, so rerunning `sweep.py` with the same `--out` until
+`done.json` appears completes the sweep.
+
 ## Runtimes observed (2026-10-25, turbo boost off; compare only like with like)
 
 | Run | Items | Time |
@@ -64,3 +70,4 @@ starting BDS while it exists.
 | `attack` (43 tools, warm-up + 3 trials) | 43 | 2 min |
 | `fuel --items all` (lava bucket burns 20,000 ticks) | 2,075 | 19 min |
 | `mining --blocks slice` (10 blocks, 3 trials per variant) | 176 | ~20 min in two parts |
+| `drops --blocks all --states all --samples 64` | 287,231 cells | ~50 min over 7 attempts (5 crashing states skipped, 3 handovers) |
