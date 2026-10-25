@@ -229,6 +229,30 @@ def summarize_fuel(sweep: Path) -> None:
     })
 
 
+def summarize_mining(sweep: Path) -> None:
+    table: dict[str, dict] = defaultdict(dict)
+    for row in results(sweep):
+        state, variant = row['key'].split('|', 1)
+        ticks = sorted(t for t in row['ticks'] if t is not None)
+        trial = row['trials'][0]
+        table[state][variant] = {
+            'ticks': row['ticks'],
+            'median': ticks[len(ticks) // 2] if ticks else None,
+            'tool_item': row['tool'],
+            'commands': row['commands'],
+            'on_ground': trial['on_ground'],
+            'in_water': trial['in_water'],
+        }
+    files = [write('mining_ticks.json', dict(sorted(table.items())))]
+    update_manifest('mining_ticks', {
+        **provenance('mining', [sweep]),
+        'method': 'sweep player in survival facing the block keeps sending StartDestroyBlock then '
+                  'ContinueDestroyBlock (no prediction); BDS breaks the block itself; server ticks from the '
+                  'LEFT_CLICK_BLOCK interaction to the BlockBreakEvent, three trials (resolution +/-1 tick)',
+        'files': files,
+    })
+
+
 def main() -> int:
     if len(sys.argv) < 3:
         print(__doc__)
@@ -242,6 +266,8 @@ def main() -> int:
         summarize_armor(dirs[0])
     elif kind == 'fuel':
         summarize_fuel(dirs[0])
+    elif kind == 'mining':
+        summarize_mining(dirs[0])
     else:
         print(__doc__)
         return 2

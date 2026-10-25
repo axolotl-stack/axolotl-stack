@@ -157,9 +157,21 @@ def mining_items(args) -> list[dict]:
         for effect, amplifier in (('haste', 0), ('haste', 1), ('mining_fatigue', 0)):
             variants.append((tool(best, 'diamond'), [f'effect {{player}} {effect} 1000 {amplifier} true'],
                              f'+{effect}{amplifier + 1}'))
+        water = ['setblock 0 -60 0 water', 'setblock 0 -59 0 water']
+        dry = ['setblock 0 -60 0 air', 'setblock 0 -59 0 air']
+        environments = [
+            ('+underwater', water, dry),
+            # Probe for an airborne player; each trial records on_ground.
+            ('+levitation256', ['effect {player} levitation 1000 255 true'], []),
+        ]
         for spec, commands, suffix in variants:
             items.append({'key': f'{state_key(block, states)}|{tool_key(spec)}{suffix}', 'block': block,
                           'states': states, 'tool': spec, 'commands': commands, 'max_ticks': args.mine_ticks})
+        for suffix, commands, cleanup in environments:
+            for spec in (None, tool(best, 'diamond')):
+                items.append({'key': f'{state_key(block, states)}|{tool_key(spec)}{suffix}', 'block': block,
+                              'states': states, 'tool': spec, 'commands': commands, 'cleanup': cleanup,
+                              'max_ticks': args.mine_ticks * 5})
     return items
 
 

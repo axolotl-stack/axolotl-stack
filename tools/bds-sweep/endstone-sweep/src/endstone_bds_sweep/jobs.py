@@ -214,58 +214,69 @@ def fuel(ctx: Context, job: dict):
 def mining(ctx: Context, job: dict):
     """Break time per (block state, tool, effects): the sweep player (survival,
     facing the block from `arena.miner`) gets a `bds-sweep:mine` order and
-    keeps sending ContinueDestroyBlock; the time is the number of server ticks
-    from its LEFT_CLICK_BLOCK interaction to the BlockBreakEvent. With
-    `predict_after` > 0 the client predicts the break after that many ticks
-    instead (the server then accepts or rejects it)."""
+    keeps sending ContinueDestroyBlock; BDS breaks the block itself when its
+    own progress completes. The time is the number of server ticks from the
+    LEFT_CLICK_BLOCK interaction to the BlockBreakEvent, measured `repeats`
+    times per item; every trial ends with a stop order so no mining state
+    carries over. With `predict_after` > 0 the client predicts the break after
+    that many ticks instead."""
     name = job['player']
     miner = job['arena']['miner']
     pos = tuple(job['arena']['mine_block'])
     face = int(job['arena']['mine_face'])
     ctx.must(f'gamemode survival "{name}"')
+
+    def trial(item):
+        ctx.set_state(pos, item['block'], item['states'])
+        yield 3
+        ctx.plugin.events.clear()
+        environment = {'on_ground': ctx.player.is_on_ground, 'in_water': ctx.player.is_in_water}
+        predict = int(item.get('predict_after', 0))
+        ctx.player.send_message(f'bds-sweep:mine {pos[0]} {pos[1]} {pos[2]} {face} {predict}')
+        start = broke = None
+        for _ in range(int(item.get('max_ticks', 1200))):
+            yield 1
+            for tick, kind, where in ctx.plugin.events:
+                if where == pos and kind == 'left_click_block' and start is None:
+                    start = tick
+                if where == pos and kind == 'break' and broke is None:
+                    broke = tick
+            if broke is not None:
+                break
+        ctx.player.send_message('bds-sweep:stop')
+        yield 3
+        ctx.set_state(pos, 'minecraft:air', {})
+        ctx.take_items()
+        events = [[t, k] for t, k, w in ctx.plugin.events if w == pos][:8]
+        return {'start_tick': start, 'break_tick': broke, 'events': events, **environment,
+                'ticks': broke - start if start is not None and broke is not None else None}
+
     for item in job['items']:
         if item['key'] in ctx.done:
             continue
         ctx.must(f'tp "{name}" {miner[0]} {miner[1]} {miner[2]} {miner[3]} {miner[4]}')
-        ctx.must(f'effect "{name}" clear')
+        # Fails when there is nothing to clear.
+        ctx.cmd(f'effect "{name}" clear')
         for line in item.get('commands', []):
             ctx.must(line.replace('{player}', f'"{name}"'))
-        ctx.set_state(pos, item['block'], item['states'])
         ctx.player.inventory.item_in_main_hand = ctx.stack(item['tool'])
-        yield 5
-        ctx.plugin.events.clear()
-        predict = int(item.get('predict_after', 0))
-        ctx.player.send_message(f'bds-sweep:mine {pos[0]} {pos[1]} {pos[2]} {face} {predict}')
-        start = broke = None
-        limit = int(item.get('max_ticks', 1200))
-        for _ in range(limit):
-            yield 1
-            for tick, kind, where in ctx.plugin.events:
-                if where != pos:
-                    continue
-                if kind == 'left_click_block' and start is None:
-                    start = tick
-                if kind == 'break' and broke is None:
-                    broke = tick
-            if broke is not None:
-                break
-        if broke is None:
-            ctx.player.send_message('bds-sweep:stop')
-            yield 2
+        trials = []
+        for _ in range(int(item.get('repeats', 3))):
+            trials.append((yield from trial(item)))
+        ticks = [t['ticks'] for t in trials]
+        for line in item.get('cleanup', []):
+            ctx.must(line.replace('{player}', f'"{name}"'))
         ctx.record({
             'key': item['key'],
             'block': item['block'],
             'states': item['states'],
             'tool': item['tool'],
             'commands': item.get('commands', []),
-            'predict_after': predict,
-            'start_tick': start,
-            'break_tick': broke,
-            'ticks': broke - start if start is not None and broke is not None else None,
-            'events': [[t, k] for t, k, w in ctx.plugin.events if w == pos][:8],
+            'predict_after': int(item.get('predict_after', 0)),
+            'ticks': ticks,
+            'consistent': len(set(ticks)) == 1 and ticks[0] is not None,
+            'trials': trials,
         })
-        ctx.set_state(pos, 'minecraft:air', {})
-        ctx.take_items()
     ctx.must(f'gamemode creative "{name}"')
 
 
