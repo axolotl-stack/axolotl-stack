@@ -844,17 +844,17 @@ impl<'a, F: FluidPicker> NoiseBasedAquifer<'a, F> {
             let quart_z = (sample_z >> 2) << 2;
 
             // PERFORMANCE CRITICAL: Check cache first to avoid expensive ColumnContext creation
-            let raw_surface =
-                if let Some(&cached) = self.preliminary_surface_cache.get(&(quart_x, quart_z)) {
-                    cached
-                } else {
-                    // Cache miss - compute and store
-                    let ctx = FunctionContext::new(quart_x, 0, quart_z);
-                    let sample_chunk_x = quart_x >> 4;
-                    let sample_chunk_z = quart_z >> 4;
-                    let computed = if sample_chunk_x == self.main_chunk_x
-                        && sample_chunk_z == self.main_chunk_z
-                    {
+            let raw_surface = if let Some(&cached) =
+                self.preliminary_surface_cache.get(&(quart_x, quart_z))
+            {
+                cached
+            } else {
+                // Cache miss - compute and store
+                let ctx = FunctionContext::new(quart_x, 0, quart_z);
+                let sample_chunk_x = quart_x >> 4;
+                let sample_chunk_z = quart_z >> 4;
+                let computed =
+                    if sample_chunk_x == self.main_chunk_x && sample_chunk_z == self.main_chunk_z {
                         // Quart corners of this chunk are cell corners of the column grid.
                         let col = self.col_grid.get_block(quart_x, quart_z).as_scalar();
                         compute_preliminary_surface_level(&ctx, self.noises, self.grid, &col)
@@ -865,10 +865,10 @@ impl<'a, F: FluidPicker> NoiseBasedAquifer<'a, F> {
                         compute_preliminary_surface_level(&ctx, self.noises, sample_grid, &col)
                     }
                     .floor() as i32;
-                    self.preliminary_surface_cache
-                        .insert((quart_x, quart_z), computed);
-                    computed
-                };
+                self.preliminary_surface_cache
+                    .insert((quart_x, quart_z), computed);
+                computed
+            };
             let adjusted_surface = raw_surface + 8; // Java: r = this.adjustSurfaceLevel(q)
 
             let is_at_our_position = i == 0; // Java: bl2 = is[0] == 0 && is[1] == 0

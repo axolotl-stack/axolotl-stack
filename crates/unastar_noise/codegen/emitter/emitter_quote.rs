@@ -3008,7 +3008,10 @@ impl<'a> AotEmitter<'a> {
                 #[inline(always)]
                 pub fn get(&self, local_x: usize, local_z: usize) -> &ColumnContext4 {
                     assert!(
-                        local_x % 4 == 0 && local_z % 4 == 0 && local_x <= 16 && local_z <= 16,
+                        local_x.is_multiple_of(4)
+                            && local_z.is_multiple_of(4)
+                            && local_x <= 16
+                            && local_z <= 16,
                         "column ({local_x}, {local_z}) is not a cell corner"
                     );
                     &self.contexts[local_z / 4][local_x / 4]

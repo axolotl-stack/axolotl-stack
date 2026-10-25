@@ -102,7 +102,7 @@ fn java_style_protos_vs_java_reference() {
     assert_ratchets(
         "java_1_21_11_seed_12345_proto.json",
         &[
-            ("block_exact", metrics.block_exact, 0.9942),
+            ("block_exact", metrics.block_exact, 0.9944),
             ("class_exact", metrics.class_exact, 0.9953),
             ("biome_exact", metrics.biome_exact, 1.0),
         ],
