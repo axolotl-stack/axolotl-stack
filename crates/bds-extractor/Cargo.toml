@@ -32,3 +32,13 @@ anyhow.workspace = true
 
 # Base64 for NBT encoding
 base64.workspace = true
+
+# Packet capture mode
+client-diff = { path = "../client-diff" }
+hex.workspace = true
+sha2.workspace = true
+zuri_nbt.workspace = true
+
+[dev-dependencies]
+bytes.workspace = true
+uuid.workspace = true

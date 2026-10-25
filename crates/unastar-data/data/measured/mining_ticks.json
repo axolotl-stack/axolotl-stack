@@ -1,0 +1,2716 @@
+{
+ "minecraft:coal_ore[]": {
+  "copper_pickaxe": {
+   "commands": [],
+   "in_water": false,
+   "median": 17,
+   "on_ground": true,
+   "ticks": [
+    17,
+    18,
+    17
+   ],
+   "tool_item": {
+    "item": "minecraft:copper_pickaxe"
+   }
+  },
+  "diamond_pickaxe": {
+   "commands": [],
+   "in_water": false,
+   "median": 10,
+   "on_ground": true,
+   "ticks": [
+    11,
+    10,
+    10
+   ],
+   "tool_item": {
+    "item": "minecraft:diamond_pickaxe"
+   }
+  },
+  "diamond_pickaxe+efficiency1": {
+   "commands": [],
+   "in_water": false,
+   "median": 8,
+   "on_ground": true,
+   "ticks": [
+    7,
+    8,
+    9
+   ],
+   "tool_item": {
+    "enchants": {
+     "minecraft:efficiency": 1
+    },
+    "item": "minecraft:diamond_pickaxe"
+   }
+  },
+  "diamond_pickaxe+efficiency2": {
+   "commands": [],
+   "in_water": false,
+   "median": 6,
+   "on_ground": true,
+   "ticks": [
+    6,
+    5,
+    6
+   ],
+   "tool_item": {
+    "enchants": {
+     "minecraft:efficiency": 2
+    },
+    "item": "minecraft:diamond_pickaxe"
+   }
+  },
+  "diamond_pickaxe+efficiency3": {
+   "commands": [],
+   "in_water": false,
+   "median": 4,
+   "on_ground": true,
+   "ticks": [
+    4,
+    5,
+    4
+   ],
+   "tool_item": {
+    "enchants": {
+     "minecraft:efficiency": 3
+    },
+    "item": "minecraft:diamond_pickaxe"
+   }
+  },
+  "diamond_pickaxe+efficiency4": {
+   "commands": [],
+   "in_water": false,
+   "median": 3,
+   "on_ground": true,
+   "ticks": [
+    4,
+    3,
+    3
+   ],
+   "tool_item": {
+    "enchants": {
+     "minecraft:efficiency": 4
+    },
+    "item": "minecraft:diamond_pickaxe"
+   }
+  },
+  "diamond_pickaxe+efficiency5": {
+   "commands": [],
+   "in_water": false,
+   "median": 3,
+   "on_ground": true,
+   "ticks": [
+    2,
+    3,
+    3
+   ],
+   "tool_item": {
+    "enchants": {
+     "minecraft:efficiency": 5
+    },
+    "item": "minecraft:diamond_pickaxe"
+   }
+  },
+  "diamond_pickaxe+haste1": {
+   "commands": [
+    "effect {player} haste 1000 0 true"
+   ],
+   "in_water": false,
+   "median": 8,
+   "on_ground": true,
+   "ticks": [
+    8,
+    8,
+    7
+   ],
+   "tool_item": {
+    "item": "minecraft:diamond_pickaxe"
+   }
+  },
+  "diamond_pickaxe+haste2": {
+   "commands": [
+    "effect {player} haste 1000 1 true"
+   ],
+   "in_water": false,
+   "median": 5,
+   "on_ground": true,
+   "ticks": [
+    5,
+    5,
+    5
+   ],
+   "tool_item": {
+    "item": "minecraft:diamond_pickaxe"
+   }
+  },
+  "diamond_pickaxe+mining_fatigue1": {
+   "commands": [
+    "effect {player} mining_fatigue 1000 0 true"
+   ],
+   "in_water": false,
+   "median": 53,
+   "on_ground": true,
+   "ticks": [
+    53,
+    54,
+    53
+   ],
+   "tool_item": {
+    "item": "minecraft:diamond_pickaxe"
+   }
+  },
+  "diamond_pickaxe+underwater": {
+   "commands": [
+    "setblock 0 -60 0 water",
+    "setblock 0 -59 0 water"
+   ],
+   "in_water": true,
+   "median": 56,
+   "on_ground": true,
+   "ticks": [
+    55,
+    56,
+    56
+   ],
+   "tool_item": {
+    "item": "minecraft:diamond_pickaxe"
+   }
+  },
+  "golden_pickaxe": {
+   "commands": [],
+   "in_water": false,
+   "median": 7,
+   "on_ground": true,
+   "ticks": [
+    7,
+    7,
+    7
+   ],
+   "tool_item": {
+    "item": "minecraft:golden_pickaxe"
+   }
+  },
+  "hand": {
+   "commands": [],
+   "in_water": false,
+   "median": 299,
+   "on_ground": true,
+   "ticks": [
+    298,
+    299,
+    299
+   ],
+   "tool_item": null
+  },
+  "hand+underwater": {
+   "commands": [
+    "setblock 0 -60 0 water",
+    "setblock 0 -59 0 water"
+   ],
+   "in_water": true,
+   "median": 299,
+   "on_ground": true,
+   "ticks": [
+    311,
+    299,
+    299
+   ],
+   "tool_item": null
+  },
+  "iron_pickaxe": {
+   "commands": [],
+   "in_water": false,
+   "median": 14,
+   "on_ground": true,
+   "ticks": [
+    14,
+    14,
+    14
+   ],
+   "tool_item": {
+    "item": "minecraft:iron_pickaxe"
+   }
+  },
+  "netherite_pickaxe": {
+   "commands": [],
+   "in_water": false,
+   "median": 9,
+   "on_ground": true,
+   "ticks": [
+    9,
+    9,
+    9
+   ],
+   "tool_item": {
+    "item": "minecraft:netherite_pickaxe"
+   }
+  },
+  "shears": {
+   "commands": [],
+   "in_water": false,
+   "median": 299,
+   "on_ground": true,
+   "ticks": [
+    299,
+    299,
+    300
+   ],
+   "tool_item": {
+    "item": "minecraft:shears"
+   }
+  },
+  "stone_pickaxe": {
+   "commands": [],
+   "in_water": false,
+   "median": 22,
+   "on_ground": true,
+   "ticks": [
+    23,
+    22,
+    22
+   ],
+   "tool_item": {
+    "item": "minecraft:stone_pickaxe"
+   }
+  },
+  "wooden_pickaxe": {
+   "commands": [],
+   "in_water": false,
+   "median": 44,
+   "on_ground": true,
+   "ticks": [
+    44,
+    44,
+    44
+   ],
+   "tool_item": {
+    "item": "minecraft:wooden_pickaxe"
+   }
+  }
+ },
+ "minecraft:diamond_ore[]": {
+  "copper_pickaxe": {
+   "commands": [],
+   "in_water": false,
+   "median": 58,
+   "on_ground": true,
+   "ticks": [
+    59,
+    58,
+    58
+   ],
+   "tool_item": {
+    "item": "minecraft:copper_pickaxe"
+   }
+  },
+  "diamond_pickaxe": {
+   "commands": [],
+   "in_water": false,
+   "median": 11,
+   "on_ground": true,
+   "ticks": [
+    11,
+    10,
+    11
+   ],
+   "tool_item": {
+    "item": "minecraft:diamond_pickaxe"
+   }
+  },
+  "diamond_pickaxe+efficiency1": {
+   "commands": [],
+   "in_water": false,
+   "median": 8,
+   "on_ground": true,
+   "ticks": [
+    7,
+    8,
+    9
+   ],
+   "tool_item": {
+    "enchants": {
+     "minecraft:efficiency": 1
+    },
+    "item": "minecraft:diamond_pickaxe"
+   }
+  },
+  "diamond_pickaxe+efficiency2": {
+   "commands": [],
+   "in_water": false,
+   "median": 6,
+   "on_ground": true,
+   "ticks": [
+    6,
+    6,
+    6
+   ],
+   "tool_item": {
+    "enchants": {
+     "minecraft:efficiency": 2
+    },
+    "item": "minecraft:diamond_pickaxe"
+   }
+  },
+  "diamond_pickaxe+efficiency3": {
+   "commands": [],
+   "in_water": false,
+   "median": 5,
+   "on_ground": true,
+   "ticks": [
+    5,
+    5,
+    5
+   ],
+   "tool_item": {
+    "enchants": {
+     "minecraft:efficiency": 3
+    },
+    "item": "minecraft:diamond_pickaxe"
+   }
+  },
+  "diamond_pickaxe+efficiency4": {
+   "commands": [],
+   "in_water": false,
+   "median": 3,
+   "on_ground": true,
+   "ticks": [
+    4,
+    3,
+    3
+   ],
+   "tool_item": {
+    "enchants": {
+     "minecraft:efficiency": 4
+    },
+    "item": "minecraft:diamond_pickaxe"
+   }
+  },
+  "diamond_pickaxe+efficiency5": {
+   "commands": [],
+   "in_water": false,
+   "median": 2,
+   "on_ground": true,
+   "ticks": [
+    2,
+    2,
+    2
+   ],
+   "tool_item": {
+    "enchants": {
+     "minecraft:efficiency": 5
+    },
+    "item": "minecraft:diamond_pickaxe"
+   }
+  },
+  "diamond_pickaxe+haste1": {
+   "commands": [
+    "effect {player} haste 1000 0 true"
+   ],
+   "in_water": false,
+   "median": 7,
+   "on_ground": true,
+   "ticks": [
+    7,
+    7,
+    6
+   ],
+   "tool_item": {
+    "item": "minecraft:diamond_pickaxe"
+   }
+  },
+  "diamond_pickaxe+haste2": {
+   "commands": [
+    "effect {player} haste 1000 1 true"
+   ],
+   "in_water": false,
+   "median": 5,
+   "on_ground": true,
+   "ticks": [
+    5,
+    4,
+    5
+   ],
+   "tool_item": {
+    "item": "minecraft:diamond_pickaxe"
+   }
+  },
+  "diamond_pickaxe+mining_fatigue1": {
+   "commands": [
+    "effect {player} mining_fatigue 1000 0 true"
+   ],
+   "in_water": false,
+   "median": 53,
+   "on_ground": true,
+   "ticks": [
+    54,
+    53,
+    53
+   ],
+   "tool_item": {
+    "item": "minecraft:diamond_pickaxe"
+   }
+  },
+  "diamond_pickaxe+underwater": {
+   "commands": [
+    "setblock 0 -60 0 water",
+    "setblock 0 -59 0 water"
+   ],
+   "in_water": true,
+   "median": 57,
+   "on_ground": true,
+   "ticks": [
+    57,
+    57,
+    56
+   ],
+   "tool_item": {
+    "item": "minecraft:diamond_pickaxe"
+   }
+  },
+  "golden_pickaxe": {
+   "commands": [],
+   "in_water": false,
+   "median": 24,
+   "on_ground": true,
+   "ticks": [
+    24,
+    24,
+    24
+   ],
+   "tool_item": {
+    "item": "minecraft:golden_pickaxe"
+   }
+  },
+  "hand": {
+   "commands": [],
+   "in_water": false,
+   "median": 299,
+   "on_ground": true,
+   "ticks": [
+    299,
+    299,
+    299
+   ],
+   "tool_item": null
+  },
+  "hand+underwater": {
+   "commands": [
+    "setblock 0 -60 0 water",
+    "setblock 0 -59 0 water"
+   ],
+   "in_water": true,
+   "median": 299,
+   "on_ground": true,
+   "ticks": [
+    310,
+    299,
+    299
+   ],
+   "tool_item": null
+  },
+  "iron_pickaxe": {
+   "commands": [],
+   "in_water": false,
+   "median": 14,
+   "on_ground": true,
+   "ticks": [
+    14,
+    14,
+    14
+   ],
+   "tool_item": {
+    "item": "minecraft:iron_pickaxe"
+   }
+  },
+  "netherite_pickaxe": {
+   "commands": [],
+   "in_water": false,
+   "median": 10,
+   "on_ground": true,
+   "ticks": [
+    10,
+    8,
+    10
+   ],
+   "tool_item": {
+    "item": "minecraft:netherite_pickaxe"
+   }
+  },
+  "shears": {
+   "commands": [],
+   "in_water": false,
+   "median": 299,
+   "on_ground": true,
+   "ticks": [
+    299,
+    299,
+    298
+   ],
+   "tool_item": {
+    "item": "minecraft:shears"
+   }
+  },
+  "stone_pickaxe": {
+   "commands": [],
+   "in_water": false,
+   "median": 74,
+   "on_ground": true,
+   "ticks": [
+    74,
+    74,
+    74
+   ],
+   "tool_item": {
+    "item": "minecraft:stone_pickaxe"
+   }
+  },
+  "wooden_pickaxe": {
+   "commands": [],
+   "in_water": false,
+   "median": 150,
+   "on_ground": true,
+   "ticks": [
+    150,
+    149,
+    150
+   ],
+   "tool_item": {
+    "item": "minecraft:wooden_pickaxe"
+   }
+  }
+ },
+ "minecraft:glass[]": {
+  "diamond_pickaxe+efficiency1": {
+   "commands": [],
+   "in_water": false,
+   "median": 8,
+   "on_ground": true,
+   "ticks": [
+    8,
+    8,
+    8
+   ],
+   "tool_item": {
+    "enchants": {
+     "minecraft:efficiency": 1
+    },
+    "item": "minecraft:diamond_pickaxe"
+   }
+  },
+  "diamond_pickaxe+efficiency2": {
+   "commands": [],
+   "in_water": false,
+   "median": 8,
+   "on_ground": true,
+   "ticks": [
+    8,
+    8,
+    8
+   ],
+   "tool_item": {
+    "enchants": {
+     "minecraft:efficiency": 2
+    },
+    "item": "minecraft:diamond_pickaxe"
+   }
+  },
+  "diamond_pickaxe+efficiency3": {
+   "commands": [],
+   "in_water": false,
+   "median": 8,
+   "on_ground": true,
+   "ticks": [
+    8,
+    8,
+    8
+   ],
+   "tool_item": {
+    "enchants": {
+     "minecraft:efficiency": 3
+    },
+    "item": "minecraft:diamond_pickaxe"
+   }
+  },
+  "diamond_pickaxe+efficiency4": {
+   "commands": [],
+   "in_water": false,
+   "median": 8,
+   "on_ground": true,
+   "ticks": [
+    8,
+    8,
+    8
+   ],
+   "tool_item": {
+    "enchants": {
+     "minecraft:efficiency": 4
+    },
+    "item": "minecraft:diamond_pickaxe"
+   }
+  },
+  "diamond_pickaxe+efficiency5": {
+   "commands": [],
+   "in_water": false,
+   "median": 8,
+   "on_ground": true,
+   "ticks": [
+    8,
+    7,
+    8
+   ],
+   "tool_item": {
+    "enchants": {
+     "minecraft:efficiency": 5
+    },
+    "item": "minecraft:diamond_pickaxe"
+   }
+  },
+  "diamond_pickaxe+haste1": {
+   "commands": [
+    "effect {player} haste 1000 0 true"
+   ],
+   "in_water": false,
+   "median": 6,
+   "on_ground": true,
+   "ticks": [
+    6,
+    6,
+    6
+   ],
+   "tool_item": {
+    "item": "minecraft:diamond_pickaxe"
+   }
+  },
+  "diamond_pickaxe+haste2": {
+   "commands": [
+    "effect {player} haste 1000 1 true"
+   ],
+   "in_water": false,
+   "median": 4,
+   "on_ground": true,
+   "ticks": [
+    4,
+    4,
+    4
+   ],
+   "tool_item": {
+    "item": "minecraft:diamond_pickaxe"
+   }
+  },
+  "diamond_pickaxe+mining_fatigue1": {
+   "commands": [
+    "effect {player} mining_fatigue 1000 0 true"
+   ],
+   "in_water": false,
+   "median": 42,
+   "on_ground": true,
+   "ticks": [
+    42,
+    42,
+    42
+   ],
+   "tool_item": {
+    "item": "minecraft:diamond_pickaxe"
+   }
+  },
+  "diamond_pickaxe+underwater": {
+   "commands": [
+    "setblock 0 -60 0 water",
+    "setblock 0 -59 0 water"
+   ],
+   "in_water": true,
+   "median": 8,
+   "on_ground": true,
+   "ticks": [
+    41,
+    8,
+    8
+   ],
+   "tool_item": {
+    "item": "minecraft:diamond_pickaxe"
+   }
+  },
+  "hand": {
+   "commands": [],
+   "in_water": false,
+   "median": 8,
+   "on_ground": true,
+   "ticks": [
+    8,
+    8,
+    8
+   ],
+   "tool_item": null
+  },
+  "hand+underwater": {
+   "commands": [
+    "setblock 0 -60 0 water",
+    "setblock 0 -59 0 water"
+   ],
+   "in_water": true,
+   "median": 20,
+   "on_ground": true,
+   "ticks": [
+    20,
+    23,
+    8
+   ],
+   "tool_item": null
+  },
+  "shears": {
+   "commands": [],
+   "in_water": false,
+   "median": 8,
+   "on_ground": true,
+   "ticks": [
+    8,
+    8,
+    8
+   ],
+   "tool_item": {
+    "item": "minecraft:shears"
+   }
+  }
+ },
+ "minecraft:grass_block[]": {
+  "copper_shovel": {
+   "commands": [],
+   "in_water": false,
+   "median": 3,
+   "on_ground": true,
+   "ticks": [
+    3,
+    3,
+    4
+   ],
+   "tool_item": {
+    "item": "minecraft:copper_shovel"
+   }
+  },
+  "diamond_shovel": {
+   "commands": [],
+   "in_water": false,
+   "median": 2,
+   "on_ground": true,
+   "ticks": [
+    2,
+    2,
+    2
+   ],
+   "tool_item": {
+    "item": "minecraft:diamond_shovel"
+   }
+  },
+  "diamond_shovel+efficiency1": {
+   "commands": [],
+   "in_water": false,
+   "median": 1,
+   "on_ground": true,
+   "ticks": [
+    1,
+    1,
+    1
+   ],
+   "tool_item": {
+    "enchants": {
+     "minecraft:efficiency": 1
+    },
+    "item": "minecraft:diamond_shovel"
+   }
+  },
+  "diamond_shovel+efficiency2": {
+   "commands": [],
+   "in_water": false,
+   "median": 1,
+   "on_ground": true,
+   "ticks": [
+    1,
+    1,
+    1
+   ],
+   "tool_item": {
+    "enchants": {
+     "minecraft:efficiency": 2
+    },
+    "item": "minecraft:diamond_shovel"
+   }
+  },
+  "diamond_shovel+efficiency3": {
+   "commands": [],
+   "in_water": false,
+   "median": 0,
+   "on_ground": true,
+   "ticks": [
+    0,
+    0,
+    0
+   ],
+   "tool_item": {
+    "enchants": {
+     "minecraft:efficiency": 3
+    },
+    "item": "minecraft:diamond_shovel"
+   }
+  },
+  "diamond_shovel+efficiency4": {
+   "commands": [],
+   "in_water": false,
+   "median": 0,
+   "on_ground": true,
+   "ticks": [
+    0,
+    0,
+    0
+   ],
+   "tool_item": {
+    "enchants": {
+     "minecraft:efficiency": 4
+    },
+    "item": "minecraft:diamond_shovel"
+   }
+  },
+  "diamond_shovel+efficiency5": {
+   "commands": [],
+   "in_water": false,
+   "median": 0,
+   "on_ground": true,
+   "ticks": [
+    0,
+    0,
+    0
+   ],
+   "tool_item": {
+    "enchants": {
+     "minecraft:efficiency": 5
+    },
+    "item": "minecraft:diamond_shovel"
+   }
+  },
+  "diamond_shovel+haste1": {
+   "commands": [
+    "effect {player} haste 1000 0 true"
+   ],
+   "in_water": false,
+   "median": 1,
+   "on_ground": true,
+   "ticks": [
+    1,
+    1,
+    1
+   ],
+   "tool_item": {
+    "item": "minecraft:diamond_shovel"
+   }
+  },
+  "diamond_shovel+haste2": {
+   "commands": [
+    "effect {player} haste 1000 1 true"
+   ],
+   "in_water": false,
+   "median": 1,
+   "on_ground": true,
+   "ticks": [
+    1,
+    1,
+    1
+   ],
+   "tool_item": {
+    "item": "minecraft:diamond_shovel"
+   }
+  },
+  "diamond_shovel+mining_fatigue1": {
+   "commands": [
+    "effect {player} mining_fatigue 1000 0 true"
+   ],
+   "in_water": false,
+   "median": 10,
+   "on_ground": true,
+   "ticks": [
+    10,
+    10,
+    10
+   ],
+   "tool_item": {
+    "item": "minecraft:diamond_shovel"
+   }
+  },
+  "diamond_shovel+underwater": {
+   "commands": [
+    "setblock 0 -60 0 water",
+    "setblock 0 -59 0 water"
+   ],
+   "in_water": true,
+   "median": 11,
+   "on_ground": true,
+   "ticks": [
+    11,
+    12,
+    2
+   ],
+   "tool_item": {
+    "item": "minecraft:diamond_shovel"
+   }
+  },
+  "golden_shovel": {
+   "commands": [],
+   "in_water": false,
+   "median": 1,
+   "on_ground": true,
+   "ticks": [
+    1,
+    1,
+    1
+   ],
+   "tool_item": {
+    "item": "minecraft:golden_shovel"
+   }
+  },
+  "hand": {
+   "commands": [],
+   "in_water": false,
+   "median": 17,
+   "on_ground": true,
+   "ticks": [
+    17,
+    17,
+    17
+   ],
+   "tool_item": null
+  },
+  "hand+underwater": {
+   "commands": [
+    "setblock 0 -60 0 water",
+    "setblock 0 -59 0 water"
+   ],
+   "in_water": true,
+   "median": 25,
+   "on_ground": true,
+   "ticks": [
+    29,
+    25,
+    17
+   ],
+   "tool_item": null
+  },
+  "iron_shovel": {
+   "commands": [],
+   "in_water": false,
+   "median": 2,
+   "on_ground": true,
+   "ticks": [
+    2,
+    2,
+    2
+   ],
+   "tool_item": {
+    "item": "minecraft:iron_shovel"
+   }
+  },
+  "netherite_shovel": {
+   "commands": [],
+   "in_water": false,
+   "median": 1,
+   "on_ground": true,
+   "ticks": [
+    1,
+    1,
+    1
+   ],
+   "tool_item": {
+    "item": "minecraft:netherite_shovel"
+   }
+  },
+  "shears": {
+   "commands": [],
+   "in_water": false,
+   "median": 17,
+   "on_ground": true,
+   "ticks": [
+    17,
+    17,
+    17
+   ],
+   "tool_item": {
+    "item": "minecraft:shears"
+   }
+  },
+  "stone_shovel": {
+   "commands": [],
+   "in_water": false,
+   "median": 4,
+   "on_ground": true,
+   "ticks": [
+    4,
+    4,
+    4
+   ],
+   "tool_item": {
+    "item": "minecraft:stone_shovel"
+   }
+  },
+  "wooden_shovel": {
+   "commands": [],
+   "in_water": false,
+   "median": 8,
+   "on_ground": true,
+   "ticks": [
+    8,
+    8,
+    8
+   ],
+   "tool_item": {
+    "item": "minecraft:wooden_shovel"
+   }
+  }
+ },
+ "minecraft:gravel[]": {
+  "copper_shovel": {
+   "commands": [],
+   "in_water": false,
+   "median": 3,
+   "on_ground": true,
+   "ticks": [
+    3,
+    3,
+    3
+   ],
+   "tool_item": {
+    "item": "minecraft:copper_shovel"
+   }
+  },
+  "diamond_shovel": {
+   "commands": [],
+   "in_water": false,
+   "median": 2,
+   "on_ground": true,
+   "ticks": [
+    2,
+    2,
+    2
+   ],
+   "tool_item": {
+    "item": "minecraft:diamond_shovel"
+   }
+  },
+  "diamond_shovel+efficiency1": {
+   "commands": [],
+   "in_water": false,
+   "median": 1,
+   "on_ground": true,
+   "ticks": [
+    1,
+    1,
+    1
+   ],
+   "tool_item": {
+    "enchants": {
+     "minecraft:efficiency": 1
+    },
+    "item": "minecraft:diamond_shovel"
+   }
+  },
+  "diamond_shovel+efficiency2": {
+   "commands": [],
+   "in_water": false,
+   "median": 1,
+   "on_ground": true,
+   "ticks": [
+    1,
+    1,
+    1
+   ],
+   "tool_item": {
+    "enchants": {
+     "minecraft:efficiency": 2
+    },
+    "item": "minecraft:diamond_shovel"
+   }
+  },
+  "diamond_shovel+efficiency3": {
+   "commands": [],
+   "in_water": false,
+   "median": 0,
+   "on_ground": true,
+   "ticks": [
+    0,
+    0,
+    0
+   ],
+   "tool_item": {
+    "enchants": {
+     "minecraft:efficiency": 3
+    },
+    "item": "minecraft:diamond_shovel"
+   }
+  },
+  "diamond_shovel+efficiency4": {
+   "commands": [],
+   "in_water": false,
+   "median": 0,
+   "on_ground": true,
+   "ticks": [
+    0,
+    0,
+    0
+   ],
+   "tool_item": {
+    "enchants": {
+     "minecraft:efficiency": 4
+    },
+    "item": "minecraft:diamond_shovel"
+   }
+  },
+  "diamond_shovel+efficiency5": {
+   "commands": [],
+   "in_water": false,
+   "median": 0,
+   "on_ground": true,
+   "ticks": [
+    0,
+    0,
+    0
+   ],
+   "tool_item": {
+    "enchants": {
+     "minecraft:efficiency": 5
+    },
+    "item": "minecraft:diamond_shovel"
+   }
+  },
+  "diamond_shovel+haste1": {
+   "commands": [
+    "effect {player} haste 1000 0 true"
+   ],
+   "in_water": false,
+   "median": 1,
+   "on_ground": true,
+   "ticks": [
+    1,
+    1,
+    1
+   ],
+   "tool_item": {
+    "item": "minecraft:diamond_shovel"
+   }
+  },
+  "diamond_shovel+haste2": {
+   "commands": [
+    "effect {player} haste 1000 1 true"
+   ],
+   "in_water": false,
+   "median": 1,
+   "on_ground": true,
+   "ticks": [
+    1,
+    1,
+    1
+   ],
+   "tool_item": {
+    "item": "minecraft:diamond_shovel"
+   }
+  },
+  "diamond_shovel+mining_fatigue1": {
+   "commands": [
+    "effect {player} mining_fatigue 1000 0 true"
+   ],
+   "in_water": false,
+   "median": 10,
+   "on_ground": true,
+   "ticks": [
+    10,
+    10,
+    10
+   ],
+   "tool_item": {
+    "item": "minecraft:diamond_shovel"
+   }
+  },
+  "diamond_shovel+underwater": {
+   "commands": [
+    "setblock 0 -60 0 water",
+    "setblock 0 -59 0 water"
+   ],
+   "in_water": true,
+   "median": 11,
+   "on_ground": true,
+   "ticks": [
+    11,
+    11,
+    3
+   ],
+   "tool_item": {
+    "item": "minecraft:diamond_shovel"
+   }
+  },
+  "golden_shovel": {
+   "commands": [],
+   "in_water": false,
+   "median": 1,
+   "on_ground": true,
+   "ticks": [
+    1,
+    1,
+    1
+   ],
+   "tool_item": {
+    "item": "minecraft:golden_shovel"
+   }
+  },
+  "hand": {
+   "commands": [],
+   "in_water": false,
+   "median": 17,
+   "on_ground": true,
+   "ticks": [
+    null,
+    17,
+    17
+   ],
+   "tool_item": null
+  },
+  "hand+underwater": {
+   "commands": [
+    "setblock 0 -60 0 water",
+    "setblock 0 -59 0 water"
+   ],
+   "in_water": true,
+   "median": 25,
+   "on_ground": true,
+   "ticks": [
+    29,
+    25,
+    17
+   ],
+   "tool_item": null
+  },
+  "iron_shovel": {
+   "commands": [],
+   "in_water": false,
+   "median": 2,
+   "on_ground": true,
+   "ticks": [
+    2,
+    2,
+    2
+   ],
+   "tool_item": {
+    "item": "minecraft:iron_shovel"
+   }
+  },
+  "netherite_shovel": {
+   "commands": [],
+   "in_water": false,
+   "median": 1,
+   "on_ground": true,
+   "ticks": [
+    1,
+    1,
+    1
+   ],
+   "tool_item": {
+    "item": "minecraft:netherite_shovel"
+   }
+  },
+  "shears": {
+   "commands": [],
+   "in_water": false,
+   "median": 17,
+   "on_ground": true,
+   "ticks": [
+    17,
+    18,
+    17
+   ],
+   "tool_item": {
+    "item": "minecraft:shears"
+   }
+  },
+  "stone_shovel": {
+   "commands": [],
+   "in_water": false,
+   "median": 4,
+   "on_ground": true,
+   "ticks": [
+    4,
+    4,
+    4
+   ],
+   "tool_item": {
+    "item": "minecraft:stone_shovel"
+   }
+  },
+  "wooden_shovel": {
+   "commands": [],
+   "in_water": false,
+   "median": 8,
+   "on_ground": true,
+   "ticks": [
+    8,
+    8,
+    8
+   ],
+   "tool_item": {
+    "item": "minecraft:wooden_shovel"
+   }
+  }
+ },
+ "minecraft:oak_leaves[persistent_bit=false,update_bit=false]": {
+  "copper_hoe": {
+   "commands": [],
+   "in_water": false,
+   "median": 1,
+   "on_ground": true,
+   "ticks": [
+    1,
+    1,
+    1
+   ],
+   "tool_item": {
+    "item": "minecraft:copper_hoe"
+   }
+  },
+  "diamond_hoe": {
+   "commands": [],
+   "in_water": false,
+   "median": 0,
+   "on_ground": true,
+   "ticks": [
+    0,
+    0,
+    0
+   ],
+   "tool_item": {
+    "item": "minecraft:diamond_hoe"
+   }
+  },
+  "diamond_hoe+efficiency1": {
+   "commands": [],
+   "in_water": false,
+   "median": 0,
+   "on_ground": true,
+   "ticks": [
+    0,
+    0,
+    0
+   ],
+   "tool_item": {
+    "enchants": {
+     "minecraft:efficiency": 1
+    },
+    "item": "minecraft:diamond_hoe"
+   }
+  },
+  "diamond_hoe+efficiency2": {
+   "commands": [],
+   "in_water": false,
+   "median": 0,
+   "on_ground": true,
+   "ticks": [
+    0,
+    0,
+    0
+   ],
+   "tool_item": {
+    "enchants": {
+     "minecraft:efficiency": 2
+    },
+    "item": "minecraft:diamond_hoe"
+   }
+  },
+  "diamond_hoe+efficiency3": {
+   "commands": [],
+   "in_water": false,
+   "median": 0,
+   "on_ground": true,
+   "ticks": [
+    0,
+    0,
+    0
+   ],
+   "tool_item": {
+    "enchants": {
+     "minecraft:efficiency": 3
+    },
+    "item": "minecraft:diamond_hoe"
+   }
+  },
+  "diamond_hoe+efficiency4": {
+   "commands": [],
+   "in_water": false,
+   "median": 0,
+   "on_ground": true,
+   "ticks": [
+    0,
+    0,
+    0
+   ],
+   "tool_item": {
+    "enchants": {
+     "minecraft:efficiency": 4
+    },
+    "item": "minecraft:diamond_hoe"
+   }
+  },
+  "diamond_hoe+efficiency5": {
+   "commands": [],
+   "in_water": false,
+   "median": 0,
+   "on_ground": true,
+   "ticks": [
+    0,
+    0,
+    0
+   ],
+   "tool_item": {
+    "enchants": {
+     "minecraft:efficiency": 5
+    },
+    "item": "minecraft:diamond_hoe"
+   }
+  },
+  "diamond_hoe+haste1": {
+   "commands": [
+    "effect {player} haste 1000 0 true"
+   ],
+   "in_water": false,
+   "median": 0,
+   "on_ground": true,
+   "ticks": [
+    0,
+    0,
+    0
+   ],
+   "tool_item": {
+    "item": "minecraft:diamond_hoe"
+   }
+  },
+  "diamond_hoe+haste2": {
+   "commands": [
+    "effect {player} haste 1000 1 true"
+   ],
+   "in_water": false,
+   "median": 0,
+   "on_ground": true,
+   "ticks": [
+    0,
+    0,
+    0
+   ],
+   "tool_item": {
+    "item": "minecraft:diamond_hoe"
+   }
+  },
+  "diamond_hoe+mining_fatigue1": {
+   "commands": [
+    "effect {player} mining_fatigue 1000 0 true"
+   ],
+   "in_water": false,
+   "median": 3,
+   "on_ground": true,
+   "ticks": [
+    3,
+    3,
+    3
+   ],
+   "tool_item": {
+    "item": "minecraft:diamond_hoe"
+   }
+  },
+  "diamond_hoe+underwater": {
+   "commands": [
+    "setblock 0 -60 0 water",
+    "setblock 0 -59 0 water"
+   ],
+   "in_water": true,
+   "median": 3,
+   "on_ground": true,
+   "ticks": [
+    3,
+    3,
+    3
+   ],
+   "tool_item": {
+    "item": "minecraft:diamond_hoe"
+   }
+  },
+  "golden_hoe": {
+   "commands": [],
+   "in_water": false,
+   "median": 0,
+   "on_ground": true,
+   "ticks": [
+    0,
+    0,
+    0
+   ],
+   "tool_item": {
+    "item": "minecraft:golden_hoe"
+   }
+  },
+  "hand": {
+   "commands": [],
+   "in_water": false,
+   "median": 5,
+   "on_ground": true,
+   "ticks": [
+    5,
+    5,
+    5
+   ],
+   "tool_item": null
+  },
+  "hand+underwater": {
+   "commands": [
+    "setblock 0 -60 0 water",
+    "setblock 0 -59 0 water"
+   ],
+   "in_water": true,
+   "median": 17,
+   "on_ground": true,
+   "ticks": [
+    17,
+    23,
+    5
+   ],
+   "tool_item": null
+  },
+  "iron_hoe": {
+   "commands": [],
+   "in_water": false,
+   "median": 0,
+   "on_ground": true,
+   "ticks": [
+    0,
+    0,
+    0
+   ],
+   "tool_item": {
+    "item": "minecraft:iron_hoe"
+   }
+  },
+  "netherite_hoe": {
+   "commands": [],
+   "in_water": false,
+   "median": 0,
+   "on_ground": true,
+   "ticks": [
+    0,
+    0,
+    0
+   ],
+   "tool_item": {
+    "item": "minecraft:netherite_hoe"
+   }
+  },
+  "shears": {
+   "commands": [],
+   "in_water": false,
+   "median": 0,
+   "on_ground": true,
+   "ticks": [
+    0,
+    0,
+    0
+   ],
+   "tool_item": {
+    "item": "minecraft:shears"
+   }
+  },
+  "stone_hoe": {
+   "commands": [],
+   "in_water": false,
+   "median": 1,
+   "on_ground": true,
+   "ticks": [
+    1,
+    1,
+    1
+   ],
+   "tool_item": {
+    "item": "minecraft:stone_hoe"
+   }
+  },
+  "wooden_hoe": {
+   "commands": [],
+   "in_water": false,
+   "median": 2,
+   "on_ground": true,
+   "ticks": [
+    2,
+    2,
+    2
+   ],
+   "tool_item": {
+    "item": "minecraft:wooden_hoe"
+   }
+  }
+ },
+ "minecraft:oak_log[pillar_axis=\"y\"]": {
+  "copper_axe": {
+   "commands": [],
+   "in_water": false,
+   "median": 11,
+   "on_ground": true,
+   "ticks": [
+    11,
+    11,
+    11
+   ],
+   "tool_item": {
+    "item": "minecraft:copper_axe"
+   }
+  },
+  "diamond_axe": {
+   "commands": [],
+   "in_water": false,
+   "median": 7,
+   "on_ground": true,
+   "ticks": [
+    7,
+    7,
+    7
+   ],
+   "tool_item": {
+    "item": "minecraft:diamond_axe"
+   }
+  },
+  "diamond_axe+efficiency1": {
+   "commands": [],
+   "in_water": false,
+   "median": 5,
+   "on_ground": true,
+   "ticks": [
+    5,
+    5,
+    5
+   ],
+   "tool_item": {
+    "enchants": {
+     "minecraft:efficiency": 1
+    },
+    "item": "minecraft:diamond_axe"
+   }
+  },
+  "diamond_axe+efficiency2": {
+   "commands": [],
+   "in_water": false,
+   "median": 4,
+   "on_ground": true,
+   "ticks": [
+    4,
+    4,
+    4
+   ],
+   "tool_item": {
+    "enchants": {
+     "minecraft:efficiency": 2
+    },
+    "item": "minecraft:diamond_axe"
+   }
+  },
+  "diamond_axe+efficiency3": {
+   "commands": [],
+   "in_water": false,
+   "median": 3,
+   "on_ground": true,
+   "ticks": [
+    3,
+    3,
+    3
+   ],
+   "tool_item": {
+    "enchants": {
+     "minecraft:efficiency": 3
+    },
+    "item": "minecraft:diamond_axe"
+   }
+  },
+  "diamond_axe+efficiency4": {
+   "commands": [],
+   "in_water": false,
+   "median": 2,
+   "on_ground": true,
+   "ticks": [
+    2,
+    2,
+    2
+   ],
+   "tool_item": {
+    "enchants": {
+     "minecraft:efficiency": 4
+    },
+    "item": "minecraft:diamond_axe"
+   }
+  },
+  "diamond_axe+efficiency5": {
+   "commands": [],
+   "in_water": false,
+   "median": 1,
+   "on_ground": true,
+   "ticks": [
+    1,
+    1,
+    1
+   ],
+   "tool_item": {
+    "enchants": {
+     "minecraft:efficiency": 5
+    },
+    "item": "minecraft:diamond_axe"
+   }
+  },
+  "diamond_axe+haste1": {
+   "commands": [
+    "effect {player} haste 1000 0 true"
+   ],
+   "in_water": false,
+   "median": 5,
+   "on_ground": true,
+   "ticks": [
+    5,
+    5,
+    5
+   ],
+   "tool_item": {
+    "item": "minecraft:diamond_axe"
+   }
+  },
+  "diamond_axe+haste2": {
+   "commands": [
+    "effect {player} haste 1000 1 true"
+   ],
+   "in_water": false,
+   "median": 3,
+   "on_ground": true,
+   "ticks": [
+    3,
+    3,
+    3
+   ],
+   "tool_item": {
+    "item": "minecraft:diamond_axe"
+   }
+  },
+  "diamond_axe+mining_fatigue1": {
+   "commands": [
+    "effect {player} mining_fatigue 1000 0 true"
+   ],
+   "in_water": false,
+   "median": 35,
+   "on_ground": true,
+   "ticks": [
+    35,
+    35,
+    36
+   ],
+   "tool_item": {
+    "item": "minecraft:diamond_axe"
+   }
+  },
+  "diamond_axe+underwater": {
+   "commands": [
+    "setblock 0 -60 0 water",
+    "setblock 0 -59 0 water"
+   ],
+   "in_water": true,
+   "median": 7,
+   "on_ground": true,
+   "ticks": [
+    37,
+    7,
+    7
+   ],
+   "tool_item": {
+    "item": "minecraft:diamond_axe"
+   }
+  },
+  "golden_axe": {
+   "commands": [],
+   "in_water": false,
+   "median": 4,
+   "on_ground": true,
+   "ticks": [
+    4,
+    5,
+    4
+   ],
+   "tool_item": {
+    "item": "minecraft:golden_axe"
+   }
+  },
+  "hand": {
+   "commands": [],
+   "in_water": false,
+   "median": 59,
+   "on_ground": true,
+   "ticks": [
+    59,
+    59,
+    59
+   ],
+   "tool_item": null
+  },
+  "hand+underwater": {
+   "commands": [
+    "setblock 0 -60 0 water",
+    "setblock 0 -59 0 water"
+   ],
+   "in_water": true,
+   "median": 59,
+   "on_ground": true,
+   "ticks": [
+    71,
+    59,
+    59
+   ],
+   "tool_item": null
+  },
+  "iron_axe": {
+   "commands": [],
+   "in_water": false,
+   "median": 9,
+   "on_ground": true,
+   "ticks": [
+    9,
+    9,
+    9
+   ],
+   "tool_item": {
+    "item": "minecraft:iron_axe"
+   }
+  },
+  "netherite_axe": {
+   "commands": [],
+   "in_water": false,
+   "median": 6,
+   "on_ground": true,
+   "ticks": [
+    6,
+    6,
+    6
+   ],
+   "tool_item": {
+    "item": "minecraft:netherite_axe"
+   }
+  },
+  "shears": {
+   "commands": [],
+   "in_water": false,
+   "median": 59,
+   "on_ground": true,
+   "ticks": [
+    60,
+    59,
+    59
+   ],
+   "tool_item": {
+    "item": "minecraft:shears"
+   }
+  },
+  "stone_axe": {
+   "commands": [],
+   "in_water": false,
+   "median": 14,
+   "on_ground": true,
+   "ticks": [
+    14,
+    14,
+    14
+   ],
+   "tool_item": {
+    "item": "minecraft:stone_axe"
+   }
+  },
+  "wooden_axe": {
+   "commands": [],
+   "in_water": false,
+   "median": 29,
+   "on_ground": true,
+   "ticks": [
+    29,
+    29,
+    29
+   ],
+   "tool_item": {
+    "item": "minecraft:wooden_axe"
+   }
+  }
+ },
+ "minecraft:stone[]": {
+  "copper_pickaxe": {
+   "commands": [],
+   "in_water": false,
+   "median": 8,
+   "on_ground": true,
+   "ticks": [
+    9,
+    8,
+    7
+   ],
+   "tool_item": {
+    "item": "minecraft:copper_pickaxe"
+   }
+  },
+  "diamond_pickaxe": {
+   "commands": [],
+   "in_water": false,
+   "median": 5,
+   "on_ground": true,
+   "ticks": [
+    6,
+    5,
+    5
+   ],
+   "tool_item": {
+    "item": "minecraft:diamond_pickaxe"
+   }
+  },
+  "diamond_pickaxe+efficiency1": {
+   "commands": [],
+   "in_water": false,
+   "median": 4,
+   "on_ground": true,
+   "ticks": [
+    4,
+    4,
+    4
+   ],
+   "tool_item": {
+    "enchants": {
+     "minecraft:efficiency": 1
+    },
+    "item": "minecraft:diamond_pickaxe"
+   }
+  },
+  "diamond_pickaxe+efficiency2": {
+   "commands": [],
+   "in_water": false,
+   "median": 3,
+   "on_ground": true,
+   "ticks": [
+    3,
+    3,
+    3
+   ],
+   "tool_item": {
+    "enchants": {
+     "minecraft:efficiency": 2
+    },
+    "item": "minecraft:diamond_pickaxe"
+   }
+  },
+  "diamond_pickaxe+efficiency3": {
+   "commands": [],
+   "in_water": false,
+   "median": 2,
+   "on_ground": true,
+   "ticks": [
+    3,
+    2,
+    2
+   ],
+   "tool_item": {
+    "enchants": {
+     "minecraft:efficiency": 3
+    },
+    "item": "minecraft:diamond_pickaxe"
+   }
+  },
+  "diamond_pickaxe+efficiency4": {
+   "commands": [],
+   "in_water": false,
+   "median": 1,
+   "on_ground": true,
+   "ticks": [
+    1,
+    2,
+    1
+   ],
+   "tool_item": {
+    "enchants": {
+     "minecraft:efficiency": 4
+    },
+    "item": "minecraft:diamond_pickaxe"
+   }
+  },
+  "diamond_pickaxe+efficiency5": {
+   "commands": [],
+   "in_water": false,
+   "median": 1,
+   "on_ground": true,
+   "ticks": [
+    1,
+    2,
+    1
+   ],
+   "tool_item": {
+    "enchants": {
+     "minecraft:efficiency": 5
+    },
+    "item": "minecraft:diamond_pickaxe"
+   }
+  },
+  "diamond_pickaxe+haste1": {
+   "commands": [
+    "effect {player} haste 1000 0 true"
+   ],
+   "in_water": false,
+   "median": 3,
+   "on_ground": true,
+   "ticks": [
+    3,
+    3,
+    3
+   ],
+   "tool_item": {
+    "item": "minecraft:diamond_pickaxe"
+   }
+  },
+  "diamond_pickaxe+haste2": {
+   "commands": [
+    "effect {player} haste 1000 1 true"
+   ],
+   "in_water": false,
+   "median": 2,
+   "on_ground": true,
+   "ticks": [
+    2,
+    2,
+    2
+   ],
+   "tool_item": {
+    "item": "minecraft:diamond_pickaxe"
+   }
+  },
+  "diamond_pickaxe+mining_fatigue1": {
+   "commands": [
+    "effect {player} mining_fatigue 1000 0 true"
+   ],
+   "in_water": false,
+   "median": 26,
+   "on_ground": true,
+   "ticks": [
+    26,
+    26,
+    27
+   ],
+   "tool_item": {
+    "item": "minecraft:diamond_pickaxe"
+   }
+  },
+  "diamond_pickaxe+underwater": {
+   "commands": [
+    "setblock 0 -60 0 water",
+    "setblock 0 -59 0 water"
+   ],
+   "in_water": true,
+   "median": 28,
+   "on_ground": true,
+   "ticks": [
+    28,
+    29,
+    28
+   ],
+   "tool_item": {
+    "item": "minecraft:diamond_pickaxe"
+   }
+  },
+  "golden_pickaxe": {
+   "commands": [],
+   "in_water": false,
+   "median": 3,
+   "on_ground": true,
+   "ticks": [
+    3,
+    3,
+    2
+   ],
+   "tool_item": {
+    "item": "minecraft:golden_pickaxe"
+   }
+  },
+  "hand": {
+   "commands": [],
+   "in_water": false,
+   "median": 149,
+   "on_ground": true,
+   "ticks": [
+    149,
+    149,
+    149
+   ],
+   "tool_item": null
+  },
+  "hand+underwater": {
+   "commands": [
+    "setblock 0 -60 0 water",
+    "setblock 0 -59 0 water"
+   ],
+   "in_water": true,
+   "median": 149,
+   "on_ground": true,
+   "ticks": [
+    161,
+    149,
+    149
+   ],
+   "tool_item": null
+  },
+  "iron_pickaxe": {
+   "commands": [],
+   "in_water": false,
+   "median": 7,
+   "on_ground": true,
+   "ticks": [
+    7,
+    8,
+    7
+   ],
+   "tool_item": {
+    "item": "minecraft:iron_pickaxe"
+   }
+  },
+  "netherite_pickaxe": {
+   "commands": [],
+   "in_water": false,
+   "median": 4,
+   "on_ground": true,
+   "ticks": [
+    4,
+    3,
+    4
+   ],
+   "tool_item": {
+    "item": "minecraft:netherite_pickaxe"
+   }
+  },
+  "shears": {
+   "commands": [],
+   "in_water": false,
+   "median": 149,
+   "on_ground": true,
+   "ticks": [
+    149,
+    149,
+    150
+   ],
+   "tool_item": {
+    "item": "minecraft:shears"
+   }
+  },
+  "stone_pickaxe": {
+   "commands": [],
+   "in_water": false,
+   "median": 11,
+   "on_ground": true,
+   "ticks": [
+    11,
+    11,
+    11
+   ],
+   "tool_item": {
+    "item": "minecraft:stone_pickaxe"
+   }
+  },
+  "wooden_pickaxe": {
+   "commands": [],
+   "in_water": false,
+   "median": 22,
+   "on_ground": true,
+   "ticks": [
+    22,
+    23,
+    22
+   ],
+   "tool_item": {
+    "item": "minecraft:wooden_pickaxe"
+   }
+  }
+ },
+ "minecraft:web[]": {
+  "copper_sword": {
+   "commands": [],
+   "in_water": false,
+   "median": 7,
+   "on_ground": true,
+   "ticks": [
+    7,
+    7,
+    7
+   ],
+   "tool_item": {
+    "item": "minecraft:copper_sword"
+   }
+  },
+  "diamond_sword": {
+   "commands": [],
+   "in_water": false,
+   "median": 7,
+   "on_ground": true,
+   "ticks": [
+    7,
+    7,
+    7
+   ],
+   "tool_item": {
+    "item": "minecraft:diamond_sword"
+   }
+  },
+  "diamond_sword+efficiency1": {
+   "commands": [],
+   "in_water": false,
+   "median": 7,
+   "on_ground": true,
+   "ticks": [
+    7,
+    7,
+    7
+   ],
+   "tool_item": {
+    "enchants": {
+     "minecraft:efficiency": 1
+    },
+    "item": "minecraft:diamond_sword"
+   }
+  },
+  "diamond_sword+efficiency2": {
+   "commands": [],
+   "in_water": false,
+   "median": 7,
+   "on_ground": true,
+   "ticks": [
+    7,
+    7,
+    7
+   ],
+   "tool_item": {
+    "enchants": {
+     "minecraft:efficiency": 2
+    },
+    "item": "minecraft:diamond_sword"
+   }
+  },
+  "diamond_sword+efficiency3": {
+   "commands": [],
+   "in_water": false,
+   "median": 7,
+   "on_ground": true,
+   "ticks": [
+    7,
+    7,
+    7
+   ],
+   "tool_item": {
+    "enchants": {
+     "minecraft:efficiency": 3
+    },
+    "item": "minecraft:diamond_sword"
+   }
+  },
+  "diamond_sword+efficiency4": {
+   "commands": [],
+   "in_water": false,
+   "median": 7,
+   "on_ground": true,
+   "ticks": [
+    7,
+    7,
+    7
+   ],
+   "tool_item": {
+    "enchants": {
+     "minecraft:efficiency": 4
+    },
+    "item": "minecraft:diamond_sword"
+   }
+  },
+  "diamond_sword+efficiency5": {
+   "commands": [],
+   "in_water": false,
+   "median": 7,
+   "on_ground": true,
+   "ticks": [
+    7,
+    7,
+    7
+   ],
+   "tool_item": {
+    "enchants": {
+     "minecraft:efficiency": 5
+    },
+    "item": "minecraft:diamond_sword"
+   }
+  },
+  "diamond_sword+haste1": {
+   "commands": [
+    "effect {player} haste 1000 0 true"
+   ],
+   "in_water": false,
+   "median": 5,
+   "on_ground": true,
+   "ticks": [
+    5,
+    5,
+    5
+   ],
+   "tool_item": {
+    "item": "minecraft:diamond_sword"
+   }
+  },
+  "diamond_sword+haste2": {
+   "commands": [
+    "effect {player} haste 1000 1 true"
+   ],
+   "in_water": false,
+   "median": 3,
+   "on_ground": true,
+   "ticks": [
+    3,
+    3,
+    3
+   ],
+   "tool_item": {
+    "item": "minecraft:diamond_sword"
+   }
+  },
+  "diamond_sword+mining_fatigue1": {
+   "commands": [
+    "effect {player} mining_fatigue 1000 0 true"
+   ],
+   "in_water": false,
+   "median": 38,
+   "on_ground": true,
+   "ticks": [
+    38,
+    38,
+    38
+   ],
+   "tool_item": {
+    "item": "minecraft:diamond_sword"
+   }
+  },
+  "diamond_sword+underwater": {
+   "commands": [
+    "setblock 0 -60 0 water",
+    "setblock 0 -59 0 water"
+   ],
+   "in_water": true,
+   "median": 7,
+   "on_ground": true,
+   "ticks": [
+    39,
+    7,
+    7
+   ],
+   "tool_item": {
+    "item": "minecraft:diamond_sword"
+   }
+  },
+  "golden_sword": {
+   "commands": [],
+   "in_water": false,
+   "median": 7,
+   "on_ground": true,
+   "ticks": [
+    7,
+    7,
+    7
+   ],
+   "tool_item": {
+    "item": "minecraft:golden_sword"
+   }
+  },
+  "hand": {
+   "commands": [],
+   "in_water": false,
+   "median": 399,
+   "on_ground": true,
+   "ticks": [
+    399,
+    399,
+    399
+   ],
+   "tool_item": null
+  },
+  "hand+underwater": {
+   "commands": [
+    "setblock 0 -60 0 water",
+    "setblock 0 -59 0 water"
+   ],
+   "in_water": true,
+   "median": 399,
+   "on_ground": true,
+   "ticks": [
+    411,
+    399,
+    399
+   ],
+   "tool_item": null
+  },
+  "iron_sword": {
+   "commands": [],
+   "in_water": false,
+   "median": 7,
+   "on_ground": true,
+   "ticks": [
+    7,
+    7,
+    7
+   ],
+   "tool_item": {
+    "item": "minecraft:iron_sword"
+   }
+  },
+  "netherite_sword": {
+   "commands": [],
+   "in_water": false,
+   "median": 7,
+   "on_ground": true,
+   "ticks": [
+    7,
+    7,
+    7
+   ],
+   "tool_item": {
+    "item": "minecraft:netherite_sword"
+   }
+  },
+  "shears": {
+   "commands": [],
+   "in_water": false,
+   "median": 7,
+   "on_ground": true,
+   "ticks": [
+    7,
+    7,
+    7
+   ],
+   "tool_item": {
+    "item": "minecraft:shears"
+   }
+  },
+  "stone_sword": {
+   "commands": [],
+   "in_water": false,
+   "median": 7,
+   "on_ground": true,
+   "ticks": [
+    7,
+    7,
+    7
+   ],
+   "tool_item": {
+    "item": "minecraft:stone_sword"
+   }
+  },
+  "wooden_sword": {
+   "commands": [],
+   "in_water": false,
+   "median": 7,
+   "on_ground": true,
+   "ticks": [
+    7,
+    7,
+    7
+   ],
+   "tool_item": {
+    "item": "minecraft:wooden_sword"
+   }
+  }
+ },
+ "minecraft:wheat[growth=7]": {
+  "diamond_pickaxe+efficiency1": {
+   "commands": [],
+   "in_water": false,
+   "median": 0,
+   "on_ground": true,
+   "ticks": [
+    0,
+    0,
+    0
+   ],
+   "tool_item": {
+    "enchants": {
+     "minecraft:efficiency": 1
+    },
+    "item": "minecraft:diamond_pickaxe"
+   }
+  },
+  "diamond_pickaxe+efficiency2": {
+   "commands": [],
+   "in_water": false,
+   "median": 0,
+   "on_ground": true,
+   "ticks": [
+    0,
+    0,
+    0
+   ],
+   "tool_item": {
+    "enchants": {
+     "minecraft:efficiency": 2
+    },
+    "item": "minecraft:diamond_pickaxe"
+   }
+  },
+  "diamond_pickaxe+efficiency3": {
+   "commands": [],
+   "in_water": false,
+   "median": 0,
+   "on_ground": true,
+   "ticks": [
+    0,
+    0,
+    0
+   ],
+   "tool_item": {
+    "enchants": {
+     "minecraft:efficiency": 3
+    },
+    "item": "minecraft:diamond_pickaxe"
+   }
+  },
+  "diamond_pickaxe+efficiency4": {
+   "commands": [],
+   "in_water": false,
+   "median": 0,
+   "on_ground": true,
+   "ticks": [
+    0,
+    0,
+    0
+   ],
+   "tool_item": {
+    "enchants": {
+     "minecraft:efficiency": 4
+    },
+    "item": "minecraft:diamond_pickaxe"
+   }
+  },
+  "diamond_pickaxe+efficiency5": {
+   "commands": [],
+   "in_water": false,
+   "median": 0,
+   "on_ground": true,
+   "ticks": [
+    0,
+    0,
+    0
+   ],
+   "tool_item": {
+    "enchants": {
+     "minecraft:efficiency": 5
+    },
+    "item": "minecraft:diamond_pickaxe"
+   }
+  },
+  "diamond_pickaxe+haste1": {
+   "commands": [
+    "effect {player} haste 1000 0 true"
+   ],
+   "in_water": false,
+   "median": 0,
+   "on_ground": true,
+   "ticks": [
+    0,
+    0,
+    0
+   ],
+   "tool_item": {
+    "item": "minecraft:diamond_pickaxe"
+   }
+  },
+  "diamond_pickaxe+haste2": {
+   "commands": [
+    "effect {player} haste 1000 1 true"
+   ],
+   "in_water": false,
+   "median": 0,
+   "on_ground": true,
+   "ticks": [
+    0,
+    0,
+    0
+   ],
+   "tool_item": {
+    "item": "minecraft:diamond_pickaxe"
+   }
+  },
+  "diamond_pickaxe+mining_fatigue1": {
+   "commands": [
+    "effect {player} mining_fatigue 1000 0 true"
+   ],
+   "in_water": false,
+   "median": 0,
+   "on_ground": true,
+   "ticks": [
+    0,
+    0,
+    0
+   ],
+   "tool_item": {
+    "item": "minecraft:diamond_pickaxe"
+   }
+  },
+  "diamond_pickaxe+underwater": {
+   "commands": [
+    "setblock 0 -60 0 water",
+    "setblock 0 -59 0 water"
+   ],
+   "in_water": true,
+   "median": 0,
+   "on_ground": true,
+   "ticks": [
+    0,
+    0,
+    0
+   ],
+   "tool_item": {
+    "item": "minecraft:diamond_pickaxe"
+   }
+  },
+  "hand": {
+   "commands": [],
+   "in_water": false,
+   "median": 0,
+   "on_ground": true,
+   "ticks": [
+    0,
+    0,
+    0
+   ],
+   "tool_item": null
+  },
+  "hand+underwater": {
+   "commands": [
+    "setblock 0 -60 0 water",
+    "setblock 0 -59 0 water"
+   ],
+   "in_water": true,
+   "median": 0,
+   "on_ground": true,
+   "ticks": [
+    0,
+    0,
+    0
+   ],
+   "tool_item": null
+  },
+  "shears": {
+   "commands": [],
+   "in_water": true,
+   "median": 0,
+   "on_ground": true,
+   "ticks": [
+    0,
+    0,
+    0
+   ],
+   "tool_item": {
+    "item": "minecraft:shears"
+   }
+  }
+ }
+}

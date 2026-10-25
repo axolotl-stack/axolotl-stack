@@ -1,0 +1,9 @@
+{"block":"minecraft:short_grass","cases":[
+{"fit":"empirical","loot_table":{"pools":[{"entries":[{"type":"empty","weight":354},{"name":"minecraft:wheat_seeds","type":"item","weight":46}],"rolls":1}]},"observed":{"":354,"minecraft:wheat_seeds@0x1":46},"samples":400,"states":[{}],"tools":["diamond_pickaxe"]},
+{"fit":"empirical","loot_table":{"pools":[{"entries":[{"type":"empty","weight":356},{"name":"minecraft:wheat_seeds","type":"item","weight":44}],"rolls":1}]},"observed":{"":356,"minecraft:wheat_seeds@0x1":44},"samples":400,"states":[{}],"tools":["diamond_pickaxe+fortune1"]},
+{"fit":"empirical","loot_table":{"pools":[{"entries":[{"type":"empty","weight":345},{"name":"minecraft:wheat_seeds","type":"item","weight":55}],"rolls":1}]},"observed":{"":345,"minecraft:wheat_seeds@0x1":55},"samples":400,"states":[{}],"tools":["diamond_pickaxe+fortune2"]},
+{"fit":"empirical","loot_table":{"pools":[{"entries":[{"type":"empty","weight":363},{"name":"minecraft:wheat_seeds","type":"item","weight":37}],"rolls":1}]},"observed":{"":363,"minecraft:wheat_seeds@0x1":37},"samples":400,"states":[{}],"tools":["diamond_pickaxe+fortune3"]},
+{"fit":"empirical","loot_table":{"pools":[{"entries":[{"type":"empty","weight":356},{"name":"minecraft:wheat_seeds","type":"item","weight":44}],"rolls":1}]},"observed":{"":356,"minecraft:wheat_seeds@0x1":44},"samples":400,"states":[{}],"tools":["diamond_pickaxe+silk_touch1"]},
+{"fit":"unstable_block","loot_table":null,"observed":{"":364,"minecraft:wheat_seeds@0x1":36},"samples":400,"states":[{}],"tools":["hand"]},
+{"fit":"unstable_block","loot_table":null,"observed":{"":227,"minecraft:short_grass@0x1":173},"samples":400,"states":[{}],"tools":["shears"]}
+]}

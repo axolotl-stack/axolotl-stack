@@ -37,3 +37,6 @@ nul
 # Local compiler crash dumps and generator error token dumps.
 /rustc-ice-*.txt
 debug_gen_error_*.rs
+
+# Untracked BDS capture/sweep cache (Mojang-derived; see crates/bds-extractor/README.md)
+/.cache/

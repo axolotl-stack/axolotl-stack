@@ -417,14 +417,32 @@ version = "0.1.0"
 dependencies = [
  "anyhow",
  "base64 0.22.1",
+ "bytes",
  "clap",
+ "client-diff",
+ "hex",
  "jolyne",
  "serde",
  "serde_json",
+ "sha2 0.10.9",
  "tokio",
  "tracing",
  "tracing-subscriber",
+ "uuid",
  "valentine",
+ "zuri_nbt",
+]
+
+[[package]]
+name = "bds-sweep"
+version = "0.1.0"
+dependencies = [
+ "anyhow",
+ "clap",
+ "jolyne",
+ "tokio",
+ "tracing",
+ "tracing-subscriber",
 ]
 
 [[package]]

@@ -1,4 +1,5 @@
 pub mod conformance;
+pub mod recording;
 
 use anyhow::{Context, Result, ensure};
 use base64::{Engine, engine::general_purpose::URL_SAFE_NO_PAD};

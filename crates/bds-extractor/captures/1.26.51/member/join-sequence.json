@@ -1,0 +1,8416 @@
+[
+  {
+    "bytes": 12,
+    "id": 143,
+    "packet": "NetworkSettingsPacket",
+    "seq": 1,
+    "t_ms": 25.0
+  },
+  {
+    "bytes": 428,
+    "id": 3,
+    "packet": "ServerToClientHandshakePacket",
+    "seq": 3,
+    "t_ms": 91.0
+  },
+  {
+    "bytes": 5,
+    "id": 2,
+    "packet": "PlayStatusPacket",
+    "seq": 5,
+    "t_ms": 159.0
+  },
+  {
+    "bytes": 28,
+    "id": 6,
+    "packet": "ResourcePacksInfoPacket",
+    "seq": 6,
+    "t_ms": 159.0
+  },
+  {
+    "bytes": 11,
+    "id": 7,
+    "packet": "ResourcePackStackPacket",
+    "seq": 9,
+    "t_ms": 207.0
+  },
+  {
+    "bytes": 64,
+    "id": 124,
+    "packet": "LevelEventGenericPacket",
+    "seq": 11,
+    "t_ms": 451.0
+  },
+  {
+    "bytes": 16630,
+    "id": 63,
+    "packet": "PlayerListPacket",
+    "seq": 12,
+    "t_ms": 451.0
+  },
+  {
+    "bytes": 15,
+    "id": 344,
+    "packet": "SyncWorldClocksPacket",
+    "seq": 13,
+    "t_ms": 452.0
+  },
+  {
+    "bytes": 209309,
+    "id": 313,
+    "packet": "JigsawStructureDataPacket",
+    "seq": 14,
+    "t_ms": 452.0
+  },
+  {
+    "bytes": 23180,
+    "id": 337,
+    "packet": "VoxelShapesPacket",
+    "seq": 15,
+    "t_ms": 466.0
+  },
+  {
+    "bytes": 73910,
+    "id": 11,
+    "packet": "StartGamePacket",
+    "seq": 16,
+    "t_ms": 468.0
+  },
+  {
+    "bytes": 105,
+    "id": 165,
+    "packet": "SyncActorPropertyPacket",
+    "seq": 17,
+    "t_ms": 472.0
+  },
+  {
+    "bytes": 125,
+    "id": 165,
+    "packet": "SyncActorPropertyPacket",
+    "seq": 18,
+    "t_ms": 472.0
+  },
+  {
+    "bytes": 222,
+    "id": 165,
+    "packet": "SyncActorPropertyPacket",
+    "seq": 19,
+    "t_ms": 472.0
+  },
+  {
+    "bytes": 171,
+    "id": 165,
+    "packet": "SyncActorPropertyPacket",
+    "seq": 20,
+    "t_ms": 473.0
+  },
+  {
+    "bytes": 214,
+    "id": 165,
+    "packet": "SyncActorPropertyPacket",
+    "seq": 21,
+    "t_ms": 473.0
+  },
+  {
+    "bytes": 170,
+    "id": 165,
+    "packet": "SyncActorPropertyPacket",
+    "seq": 22,
+    "t_ms": 473.0
+  },
+  {
+    "bytes": 99,
+    "id": 165,
+    "packet": "SyncActorPropertyPacket",
+    "seq": 23,
+    "t_ms": 473.0
+  },
+  {
+    "bytes": 107,
+    "id": 165,
+    "packet": "SyncActorPropertyPacket",
+    "seq": 24,
+    "t_ms": 473.0
+  },
+  {
+    "bytes": 169,
+    "id": 165,
+    "packet": "SyncActorPropertyPacket",
+    "seq": 25,
+    "t_ms": 473.0
+  },
+  {
+    "bytes": 80,
+    "id": 165,
+    "packet": "SyncActorPropertyPacket",
+    "seq": 26,
+    "t_ms": 473.0
+  },
+  {
+    "bytes": 252,
+    "id": 165,
+    "packet": "SyncActorPropertyPacket",
+    "seq": 27,
+    "t_ms": 473.0
+  },
+  {
+    "bytes": 74,
+    "id": 165,
+    "packet": "SyncActorPropertyPacket",
+    "seq": 28,
+    "t_ms": 473.0
+  },
+  {
+    "bytes": 167,
+    "id": 165,
+    "packet": "SyncActorPropertyPacket",
+    "seq": 29,
+    "t_ms": 473.0
+  },
+  {
+    "bytes": 113450,
+    "id": 162,
+    "packet": "ItemRegistryPacket",
+    "seq": 30,
+    "t_ms": 473.0
+  },
+  {
+    "bytes": 33,
+    "id": 43,
+    "packet": "SetSpawnPositionPacket",
+    "seq": 31,
+    "t_ms": 480.0
+  },
+  {
+    "bytes": 238,
+    "id": 344,
+    "packet": "SyncWorldClocksPacket",
+    "seq": 32,
+    "t_ms": 480.0
+  },
+  {
+    "bytes": 2,
+    "id": 60,
+    "packet": "SetDifficultyPacket",
+    "seq": 33,
+    "t_ms": 480.0
+  },
+  {
+    "bytes": 2,
+    "id": 59,
+    "packet": "SetCommandsEnabledPacket",
+    "seq": 34,
+    "t_ms": 480.0
+  },
+  {
+    "bytes": 7,
+    "id": 188,
+    "packet": "UpdateAdventureSettingsPacket",
+    "seq": 35,
+    "t_ms": 480.0
+  },
+  {
+    "bytes": 35,
+    "id": 187,
+    "packet": "UpdateAbilitiesPacket",
+    "seq": 36,
+    "t_ms": 480.0
+  },
+  {
+    "bytes": 750,
+    "id": 72,
+    "packet": "GameRulesChangedPacket",
+    "seq": 37,
+    "t_ms": 480.0
+  },
+  {
+    "bytes": 16630,
+    "id": 63,
+    "packet": "PlayerListPacket",
+    "seq": 38,
+    "t_ms": 480.0
+  },
+  {
+    "bytes": 35,
+    "id": 187,
+    "packet": "UpdateAbilitiesPacket",
+    "seq": 39,
+    "t_ms": 481.0
+  },
+  {
+    "bytes": 7668,
+    "id": 122,
+    "packet": "BiomeDefinitionListPacket",
+    "seq": 40,
+    "t_ms": 481.0
+  },
+  {
+    "bytes": 8908,
+    "id": 119,
+    "packet": "AvailableActorIdentifiersPacket",
+    "seq": 41,
+    "t_ms": 482.0
+  },
+  {
+    "bytes": 3,
+    "id": 160,
+    "packet": "PlayerFogPacket",
+    "seq": 42,
+    "t_ms": 482.0
+  },
+  {
+    "bytes": 339,
+    "id": 198,
+    "packet": "CameraPresetsPacket",
+    "seq": 43,
+    "t_ms": 482.0
+  },
+  {
+    "bytes": 1098,
+    "id": 320,
+    "packet": "CameraAimAssistPresetsPacket",
+    "seq": 44,
+    "t_ms": 482.0
+  },
+  {
+    "bytes": 3,
+    "id": 338,
+    "packet": "CameraSplinePacket",
+    "seq": 45,
+    "t_ms": 483.0
+  },
+  {
+    "bytes": 841,
+    "id": 29,
+    "packet": "UpdateAttributesPacket",
+    "seq": 46,
+    "t_ms": 483.0
+  },
+  {
+    "bytes": 56422,
+    "id": 145,
+    "packet": "CreativeContentPacket",
+    "seq": 47,
+    "t_ms": 483.0
+  },
+  {
+    "bytes": 1271,
+    "id": 302,
+    "packet": "TrimDataPacket",
+    "seq": 48,
+    "t_ms": 486.0
+  },
+  {
+    "bytes": 301,
+    "id": 49,
+    "packet": "InventoryContentPacket",
+    "seq": 49,
+    "t_ms": 487.0
+  },
+  {
+    "bytes": 53,
+    "id": 49,
+    "packet": "InventoryContentPacket",
+    "seq": 50,
+    "t_ms": 487.0
+  },
+  {
+    "bytes": 445,
+    "id": 49,
+    "packet": "InventoryContentPacket",
+    "seq": 51,
+    "t_ms": 487.0
+  },
+  {
+    "bytes": 21,
+    "id": 49,
+    "packet": "InventoryContentPacket",
+    "seq": 52,
+    "t_ms": 487.0
+  },
+  {
+    "bytes": 4,
+    "id": 48,
+    "packet": "PlayerHotbarPacket",
+    "seq": 53,
+    "t_ms": 487.0
+  },
+  {
+    "bytes": 1042770,
+    "id": 52,
+    "packet": "CraftingDataPacket",
+    "seq": 54,
+    "t_ms": 487.0
+  },
+  {
+    "bytes": 395699,
+    "id": 76,
+    "packet": "AvailableCommandsPacket",
+    "seq": 55,
+    "t_ms": 552.0
+  },
+  {
+    "bytes": 15,
+    "id": 45,
+    "packet": "RespawnPacket",
+    "seq": 58,
+    "t_ms": 625.0
+  },
+  {
+    "bytes": 15,
+    "id": 45,
+    "packet": "RespawnPacket",
+    "seq": 59,
+    "t_ms": 625.0
+  },
+  {
+    "bytes": 9,
+    "id": 121,
+    "packet": "NetworkChunkPublisherUpdatePacket",
+    "seq": 60,
+    "t_ms": 625.0
+  },
+  {
+    "bytes": 48,
+    "id": 123,
+    "packet": "LevelSoundEventPacket",
+    "seq": 61,
+    "t_ms": 625.0
+  },
+  {
+    "bytes": 399,
+    "id": 39,
+    "packet": "SetActorDataPacket",
+    "seq": 62,
+    "t_ms": 625.0
+  },
+  {
+    "bytes": 3,
+    "id": 314,
+    "packet": "CurrentStructureFeaturePacket",
+    "seq": 63,
+    "t_ms": 625.0
+  },
+  {
+    "bytes": 2768,
+    "id": 29,
+    "packet": "UpdateAttributesPacket",
+    "seq": 64,
+    "t_ms": 625.0
+  },
+  {
+    "bytes": 12,
+    "id": 121,
+    "packet": "NetworkChunkPublisherUpdatePacket",
+    "seq": 65,
+    "t_ms": 625.0
+  },
+  {
+    "bytes": 12,
+    "id": 121,
+    "packet": "NetworkChunkPublisherUpdatePacket",
+    "seq": 66,
+    "t_ms": 625.0
+  },
+  {
+    "bytes": 12,
+    "id": 121,
+    "packet": "NetworkChunkPublisherUpdatePacket",
+    "seq": 67,
+    "t_ms": 625.0
+  },
+  {
+    "bytes": 12,
+    "id": 121,
+    "packet": "NetworkChunkPublisherUpdatePacket",
+    "seq": 68,
+    "t_ms": 625.0
+  },
+  {
+    "bytes": 12,
+    "id": 121,
+    "packet": "NetworkChunkPublisherUpdatePacket",
+    "seq": 69,
+    "t_ms": 625.0
+  },
+  {
+    "bytes": 15,
+    "id": 45,
+    "packet": "RespawnPacket",
+    "seq": 70,
+    "t_ms": 627.0
+  },
+  {
+    "bytes": 12,
+    "id": 121,
+    "packet": "NetworkChunkPublisherUpdatePacket",
+    "seq": 71,
+    "t_ms": 627.0
+  },
+  {
+    "bytes": 2118,
+    "id": 58,
+    "packet": "LevelChunkPacket",
+    "seq": 72,
+    "t_ms": 627.0
+  },
+  {
+    "bytes": 6747,
+    "id": 58,
+    "packet": "LevelChunkPacket",
+    "seq": 73,
+    "t_ms": 627.0
+  },
+  {
+    "bytes": 7259,
+    "id": 58,
+    "packet": "LevelChunkPacket",
+    "seq": 74,
+    "t_ms": 627.0
+  },
+  {
+    "bytes": 2632,
+    "id": 58,
+    "packet": "LevelChunkPacket",
+    "seq": 75,
+    "t_ms": 628.0
+  },
+  {
+    "bytes": 2633,
+    "id": 58,
+    "packet": "LevelChunkPacket",
+    "seq": 76,
+    "t_ms": 628.0
+  },
+  {
+    "bytes": 1604,
+    "id": 58,
+    "packet": "LevelChunkPacket",
+    "seq": 77,
+    "t_ms": 628.0
+  },
+  {
+    "bytes": 2632,
+    "id": 58,
+    "packet": "LevelChunkPacket",
+    "seq": 78,
+    "t_ms": 628.0
+  },
+  {
+    "bytes": 9824,
+    "id": 58,
+    "packet": "LevelChunkPacket",
+    "seq": 79,
+    "t_ms": 628.0
+  },
+  {
+    "bytes": 2633,
+    "id": 58,
+    "packet": "LevelChunkPacket",
+    "seq": 80,
+    "t_ms": 629.0
+  },
+  {
+    "bytes": 10850,
+    "id": 58,
+    "packet": "LevelChunkPacket",
+    "seq": 81,
+    "t_ms": 629.0
+  },
+  {
+    "bytes": 2632,
+    "id": 58,
+    "packet": "LevelChunkPacket",
+    "seq": 82,
+    "t_ms": 629.0
+  },
+  {
+    "bytes": 1592,
+    "id": 58,
+    "packet": "LevelChunkPacket",
+    "seq": 83,
+    "t_ms": 630.0
+  },
+  {
+    "bytes": 5202,
+    "id": 58,
+    "packet": "LevelChunkPacket",
+    "seq": 84,
+    "t_ms": 630.0
+  },
+  {
+    "bytes": 2117,
+    "id": 58,
+    "packet": "LevelChunkPacket",
+    "seq": 85,
+    "t_ms": 630.0
+  },
+  {
+    "bytes": 2633,
+    "id": 58,
+    "packet": "LevelChunkPacket",
+    "seq": 86,
+    "t_ms": 630.0
+  },
+  {
+    "bytes": 191,
+    "id": 172,
+    "packet": "UpdateSubChunkBlocksPacket",
+    "seq": 87,
+    "t_ms": 632.0
+  },
+  {
+    "bytes": 12,
+    "id": 121,
+    "packet": "NetworkChunkPublisherUpdatePacket",
+    "seq": 88,
+    "t_ms": 632.0
+  },
+  {
+    "bytes": 69,
+    "id": 172,
+    "packet": "UpdateSubChunkBlocksPacket",
+    "seq": 89,
+    "t_ms": 659.0
+  },
+  {
+    "bytes": 12,
+    "id": 121,
+    "packet": "NetworkChunkPublisherUpdatePacket",
+    "seq": 90,
+    "t_ms": 659.0
+  },
+  {
+    "bytes": 2,
+    "id": 70,
+    "packet": "ChunkRadiusUpdatedPacket",
+    "seq": 91,
+    "t_ms": 659.0
+  },
+  {
+    "bytes": 69,
+    "id": 172,
+    "packet": "UpdateSubChunkBlocksPacket",
+    "seq": 92,
+    "t_ms": 706.0
+  },
+  {
+    "bytes": 13,
+    "id": 121,
+    "packet": "NetworkChunkPublisherUpdatePacket",
+    "seq": 93,
+    "t_ms": 706.0
+  },
+  {
+    "bytes": 69,
+    "id": 172,
+    "packet": "UpdateSubChunkBlocksPacket",
+    "seq": 94,
+    "t_ms": 758.0
+  },
+  {
+    "bytes": 13,
+    "id": 121,
+    "packet": "NetworkChunkPublisherUpdatePacket",
+    "seq": 95,
+    "t_ms": 758.0
+  },
+  {
+    "bytes": 13,
+    "id": 121,
+    "packet": "NetworkChunkPublisherUpdatePacket",
+    "seq": 96,
+    "t_ms": 801.0
+  },
+  {
+    "bytes": 13,
+    "id": 121,
+    "packet": "NetworkChunkPublisherUpdatePacket",
+    "seq": 97,
+    "t_ms": 857.0
+  },
+  {
+    "bytes": 13,
+    "id": 121,
+    "packet": "NetworkChunkPublisherUpdatePacket",
+    "seq": 98,
+    "t_ms": 908.0
+  },
+  {
+    "bytes": 13,
+    "id": 121,
+    "packet": "NetworkChunkPublisherUpdatePacket",
+    "seq": 99,
+    "t_ms": 955.0
+  },
+  {
+    "bytes": 13,
+    "id": 121,
+    "packet": "NetworkChunkPublisherUpdatePacket",
+    "seq": 100,
+    "t_ms": 1008.0
+  },
+  {
+    "bytes": 13,
+    "id": 121,
+    "packet": "NetworkChunkPublisherUpdatePacket",
+    "seq": 101,
+    "t_ms": 1051.0
+  },
+  {
+    "bytes": 13,
+    "id": 121,
+    "packet": "NetworkChunkPublisherUpdatePacket",
+    "seq": 102,
+    "t_ms": 1107.0
+  },
+  {
+    "bytes": 13,
+    "id": 121,
+    "packet": "NetworkChunkPublisherUpdatePacket",
+    "seq": 103,
+    "t_ms": 1158.0
+  },
+  {
+    "bytes": 13,
+    "id": 121,
+    "packet": "NetworkChunkPublisherUpdatePacket",
+    "seq": 104,
+    "t_ms": 1205.0
+  },
+  {
+    "bytes": 13,
+    "id": 21,
+    "packet": "UpdateBlockPacket",
+    "seq": 105,
+    "t_ms": 1258.0
+  },
+  {
+    "bytes": 13,
+    "id": 121,
+    "packet": "NetworkChunkPublisherUpdatePacket",
+    "seq": 106,
+    "t_ms": 1258.0
+  },
+  {
+    "bytes": 1078,
+    "id": 58,
+    "packet": "LevelChunkPacket",
+    "seq": 107,
+    "t_ms": 1258.0
+  },
+  {
+    "bytes": 1078,
+    "id": 58,
+    "packet": "LevelChunkPacket",
+    "seq": 108,
+    "t_ms": 1258.0
+  },
+  {
+    "bytes": 1078,
+    "id": 58,
+    "packet": "LevelChunkPacket",
+    "seq": 109,
+    "t_ms": 1259.0
+  },
+  {
+    "bytes": 13,
+    "id": 121,
+    "packet": "NetworkChunkPublisherUpdatePacket",
+    "seq": 110,
+    "t_ms": 1302.0
+  },
+  {
+    "bytes": 1078,
+    "id": 58,
+    "packet": "LevelChunkPacket",
+    "seq": 111,
+    "t_ms": 1302.0
+  },
+  {
+    "bytes": 3132,
+    "id": 58,
+    "packet": "LevelChunkPacket",
+    "seq": 112,
+    "t_ms": 1302.0
+  },
+  {
+    "bytes": 13,
+    "id": 121,
+    "packet": "NetworkChunkPublisherUpdatePacket",
+    "seq": 113,
+    "t_ms": 1357.0
+  },
+  {
+    "bytes": 565,
+    "id": 58,
+    "packet": "LevelChunkPacket",
+    "seq": 114,
+    "t_ms": 1357.0
+  },
+  {
+    "bytes": 565,
+    "id": 58,
+    "packet": "LevelChunkPacket",
+    "seq": 115,
+    "t_ms": 1357.0
+  },
+  {
+    "bytes": 565,
+    "id": 58,
+    "packet": "LevelChunkPacket",
+    "seq": 116,
+    "t_ms": 1357.0
+  },
+  {
+    "bytes": 5193,
+    "id": 58,
+    "packet": "LevelChunkPacket",
+    "seq": 117,
+    "t_ms": 1357.0
+  },
+  {
+    "bytes": 5190,
+    "id": 58,
+    "packet": "LevelChunkPacket",
+    "seq": 118,
+    "t_ms": 1357.0
+  },
+  {
+    "bytes": 13,
+    "id": 121,
+    "packet": "NetworkChunkPublisherUpdatePacket",
+    "seq": 119,
+    "t_ms": 1408.0
+  },
+  {
+    "bytes": 565,
+    "id": 58,
+    "packet": "LevelChunkPacket",
+    "seq": 120,
+    "t_ms": 1408.0
+  },
+  {
+    "bytes": 565,
+    "id": 58,
+    "packet": "LevelChunkPacket",
+    "seq": 121,
+    "t_ms": 1409.0
+  },
+  {
+    "bytes": 565,
+    "id": 58,
+    "packet": "LevelChunkPacket",
+    "seq": 122,
+    "t_ms": 1409.0
+  },
+  {
+    "bytes": 565,
+    "id": 58,
+    "packet": "LevelChunkPacket",
+    "seq": 123,
+    "t_ms": 1409.0
+  },
+  {
+    "bytes": 13,
+    "id": 121,
+    "packet": "NetworkChunkPublisherUpdatePacket",
+    "seq": 124,
+    "t_ms": 1457.0
+  },
+  {
+    "bytes": 9824,
+    "id": 58,
+    "packet": "LevelChunkPacket",
+    "seq": 125,
+    "t_ms": 1457.0
+  },
+  {
+    "bytes": 565,
+    "id": 58,
+    "packet": "LevelChunkPacket",
+    "seq": 126,
+    "t_ms": 1458.0
+  },
+  {
+    "bytes": 3147,
+    "id": 58,
+    "packet": "LevelChunkPacket",
+    "seq": 127,
+    "t_ms": 1458.0
+  },
+  {
+    "bytes": 1606,
+    "id": 58,
+    "packet": "LevelChunkPacket",
+    "seq": 128,
+    "t_ms": 1458.0
+  },
+  {
+    "bytes": 1606,
+    "id": 58,
+    "packet": "LevelChunkPacket",
+    "seq": 129,
+    "t_ms": 1458.0
+  },
+  {
+    "bytes": 2119,
+    "id": 58,
+    "packet": "LevelChunkPacket",
+    "seq": 130,
+    "t_ms": 1459.0
+  },
+  {
+    "bytes": 13,
+    "id": 121,
+    "packet": "NetworkChunkPublisherUpdatePacket",
+    "seq": 131,
+    "t_ms": 1508.0
+  },
+  {
+    "bytes": 2119,
+    "id": 58,
+    "packet": "LevelChunkPacket",
+    "seq": 132,
+    "t_ms": 1508.0
+  },
+  {
+    "bytes": 2633,
+    "id": 58,
+    "packet": "LevelChunkPacket",
+    "seq": 133,
+    "t_ms": 1508.0
+  },
+  {
+    "bytes": 565,
+    "id": 58,
+    "packet": "LevelChunkPacket",
+    "seq": 134,
+    "t_ms": 1508.0
+  },
+  {
+    "bytes": 565,
+    "id": 58,
+    "packet": "LevelChunkPacket",
+    "seq": 135,
+    "t_ms": 1508.0
+  },
+  {
+    "bytes": 565,
+    "id": 58,
+    "packet": "LevelChunkPacket",
+    "seq": 136,
+    "t_ms": 1508.0
+  },
+  {
+    "bytes": 565,
+    "id": 58,
+    "packet": "LevelChunkPacket",
+    "seq": 137,
+    "t_ms": 1508.0
+  },
+  {
+    "bytes": 13,
+    "id": 121,
+    "packet": "NetworkChunkPublisherUpdatePacket",
+    "seq": 138,
+    "t_ms": 1554.0
+  },
+  {
+    "bytes": 4178,
+    "id": 58,
+    "packet": "LevelChunkPacket",
+    "seq": 139,
+    "t_ms": 1554.0
+  },
+  {
+    "bytes": 9824,
+    "id": 58,
+    "packet": "LevelChunkPacket",
+    "seq": 140,
+    "t_ms": 1554.0
+  },
+  {
+    "bytes": 7258,
+    "id": 58,
+    "packet": "LevelChunkPacket",
+    "seq": 141,
+    "t_ms": 1555.0
+  },
+  {
+    "bytes": 4178,
+    "id": 58,
+    "packet": "LevelChunkPacket",
+    "seq": 142,
+    "t_ms": 1556.0
+  },
+  {
+    "bytes": 1592,
+    "id": 58,
+    "packet": "LevelChunkPacket",
+    "seq": 143,
+    "t_ms": 1556.0
+  },
+  {
+    "bytes": 2631,
+    "id": 58,
+    "packet": "LevelChunkPacket",
+    "seq": 144,
+    "t_ms": 1556.0
+  },
+  {
+    "bytes": 9307,
+    "id": 58,
+    "packet": "LevelChunkPacket",
+    "seq": 145,
+    "t_ms": 1556.0
+  },
+  {
+    "bytes": 6229,
+    "id": 58,
+    "packet": "LevelChunkPacket",
+    "seq": 146,
+    "t_ms": 1557.0
+  },
+  {
+    "bytes": 1611,
+    "id": 58,
+    "packet": "LevelChunkPacket",
+    "seq": 147,
+    "t_ms": 1557.0
+  },
+  {
+    "bytes": 4180,
+    "id": 58,
+    "packet": "LevelChunkPacket",
+    "seq": 148,
+    "t_ms": 1557.0
+  },
+  {
+    "bytes": 565,
+    "id": 58,
+    "packet": "LevelChunkPacket",
+    "seq": 149,
+    "t_ms": 1558.0
+  },
+  {
+    "bytes": 565,
+    "id": 58,
+    "packet": "LevelChunkPacket",
+    "seq": 150,
+    "t_ms": 1558.0
+  },
+  {
+    "bytes": 3145,
+    "id": 58,
+    "packet": "LevelChunkPacket",
+    "seq": 151,
+    "t_ms": 1558.0
+  },
+  {
+    "bytes": 9820,
+    "id": 58,
+    "packet": "LevelChunkPacket",
+    "seq": 152,
+    "t_ms": 1558.0
+  },
+  {
+    "bytes": 6742,
+    "id": 58,
+    "packet": "LevelChunkPacket",
+    "seq": 153,
+    "t_ms": 1559.0
+  },
+  {
+    "bytes": 2119,
+    "id": 58,
+    "packet": "LevelChunkPacket",
+    "seq": 154,
+    "t_ms": 1559.0
+  },
+  {
+    "bytes": 4180,
+    "id": 58,
+    "packet": "LevelChunkPacket",
+    "seq": 155,
+    "t_ms": 1559.0
+  },
+  {
+    "bytes": 4692,
+    "id": 58,
+    "packet": "LevelChunkPacket",
+    "seq": 156,
+    "t_ms": 1560.0
+  },
+  {
+    "bytes": 565,
+    "id": 58,
+    "packet": "LevelChunkPacket",
+    "seq": 157,
+    "t_ms": 1560.0
+  },
+  {
+    "bytes": 2120,
+    "id": 58,
+    "packet": "LevelChunkPacket",
+    "seq": 158,
+    "t_ms": 1560.0
+  },
+  {
+    "bytes": 50,
+    "id": 172,
+    "packet": "UpdateSubChunkBlocksPacket",
+    "seq": 159,
+    "t_ms": 1608.0
+  },
+  {
+    "bytes": 13,
+    "id": 121,
+    "packet": "NetworkChunkPublisherUpdatePacket",
+    "seq": 160,
+    "t_ms": 1608.0
+  },
+  {
+    "bytes": 3662,
+    "id": 58,
+    "packet": "LevelChunkPacket",
+    "seq": 161,
+    "t_ms": 1608.0
+  },
+  {
+    "bytes": 2120,
+    "id": 58,
+    "packet": "LevelChunkPacket",
+    "seq": 162,
+    "t_ms": 1608.0
+  },
+  {
+    "bytes": 9306,
+    "id": 58,
+    "packet": "LevelChunkPacket",
+    "seq": 163,
+    "t_ms": 1608.0
+  },
+  {
+    "bytes": 565,
+    "id": 58,
+    "packet": "LevelChunkPacket",
+    "seq": 164,
+    "t_ms": 1609.0
+  },
+  {
+    "bytes": 565,
+    "id": 58,
+    "packet": "LevelChunkPacket",
+    "seq": 165,
+    "t_ms": 1609.0
+  },
+  {
+    "bytes": 565,
+    "id": 58,
+    "packet": "LevelChunkPacket",
+    "seq": 166,
+    "t_ms": 1609.0
+  },
+  {
+    "bytes": 565,
+    "id": 58,
+    "packet": "LevelChunkPacket",
+    "seq": 167,
+    "t_ms": 1609.0
+  },
+  {
+    "bytes": 565,
+    "id": 58,
+    "packet": "LevelChunkPacket",
+    "seq": 168,
+    "t_ms": 1609.0
+  },
+  {
+    "bytes": 565,
+    "id": 58,
+    "packet": "LevelChunkPacket",
+    "seq": 169,
+    "t_ms": 1609.0
+  },
+  {
+    "bytes": 565,
+    "id": 58,
+    "packet": "LevelChunkPacket",
+    "seq": 170,
+    "t_ms": 1609.0
+  },
+  {
+    "bytes": 565,
+    "id": 58,
+    "packet": "LevelChunkPacket",
+    "seq": 171,
+    "t_ms": 1609.0
+  },
+  {
+    "bytes": 565,
+    "id": 58,
+    "packet": "LevelChunkPacket",
+    "seq": 172,
+    "t_ms": 1609.0
+  },
+  {
+    "bytes": 565,
+    "id": 58,
+    "packet": "LevelChunkPacket",
+    "seq": 173,
+    "t_ms": 1609.0
+  },
+  {
+    "bytes": 565,
+    "id": 58,
+    "packet": "LevelChunkPacket",
+    "seq": 174,
+    "t_ms": 1609.0
+  },
+  {
+    "bytes": 565,
+    "id": 58,
+    "packet": "LevelChunkPacket",
+    "seq": 175,
+    "t_ms": 1609.0
+  },
+  {
+    "bytes": 565,
+    "id": 58,
+    "packet": "LevelChunkPacket",
+    "seq": 176,
+    "t_ms": 1609.0
+  },
+  {
+    "bytes": 565,
+    "id": 58,
+    "packet": "LevelChunkPacket",
+    "seq": 177,
+    "t_ms": 1609.0
+  },
+  {
+    "bytes": 565,
+    "id": 58,
+    "packet": "LevelChunkPacket",
+    "seq": 178,
+    "t_ms": 1609.0
+  },
+  {
+    "bytes": 565,
+    "id": 58,
+    "packet": "LevelChunkPacket",
+    "seq": 179,
+    "t_ms": 1610.0
+  },
+  {
+    "bytes": 565,
+    "id": 58,
+    "packet": "LevelChunkPacket",
+    "seq": 180,
+    "t_ms": 1610.0
+  },
+  {
+    "bytes": 13,
+    "id": 121,
+    "packet": "NetworkChunkPublisherUpdatePacket",
+    "seq": 181,
+    "t_ms": 1660.0
+  },
+  {
+    "bytes": 565,
+    "id": 58,
+    "packet": "LevelChunkPacket",
+    "seq": 182,
+    "t_ms": 1660.0
+  },
+  {
+    "bytes": 3145,
+    "id": 58,
+    "packet": "LevelChunkPacket",
+    "seq": 183,
+    "t_ms": 1660.0
+  },
+  {
+    "bytes": 565,
+    "id": 58,
+    "packet": "LevelChunkPacket",
+    "seq": 184,
+    "t_ms": 1660.0
+  },
+  {
+    "bytes": 3144,
+    "id": 58,
+    "packet": "LevelChunkPacket",
+    "seq": 185,
+    "t_ms": 1660.0
+  },
+  {
+    "bytes": 6220,
+    "id": 58,
+    "packet": "LevelChunkPacket",
+    "seq": 186,
+    "t_ms": 1660.0
+  },
+  {
+    "bytes": 565,
+    "id": 58,
+    "packet": "LevelChunkPacket",
+    "seq": 187,
+    "t_ms": 1661.0
+  },
+  {
+    "bytes": 7249,
+    "id": 58,
+    "packet": "LevelChunkPacket",
+    "seq": 188,
+    "t_ms": 1661.0
+  },
+  {
+    "bytes": 565,
+    "id": 58,
+    "packet": "LevelChunkPacket",
+    "seq": 189,
+    "t_ms": 1661.0
+  },
+  {
+    "bytes": 565,
+    "id": 58,
+    "packet": "LevelChunkPacket",
+    "seq": 190,
+    "t_ms": 1661.0
+  },
+  {
+    "bytes": 565,
+    "id": 58,
+    "packet": "LevelChunkPacket",
+    "seq": 191,
+    "t_ms": 1661.0
+  },
+  {
+    "bytes": 565,
+    "id": 58,
+    "packet": "LevelChunkPacket",
+    "seq": 192,
+    "t_ms": 1661.0
+  },
+  {
+    "bytes": 565,
+    "id": 58,
+    "packet": "LevelChunkPacket",
+    "seq": 193,
+    "t_ms": 1661.0
+  },
+  {
+    "bytes": 6940,
+    "id": 58,
+    "packet": "LevelChunkPacket",
+    "seq": 194,
+    "t_ms": 1661.0
+  },
+  {
+    "bytes": 565,
+    "id": 58,
+    "packet": "LevelChunkPacket",
+    "seq": 195,
+    "t_ms": 1662.0
+  },
+  {
+    "bytes": 565,
+    "id": 58,
+    "packet": "LevelChunkPacket",
+    "seq": 196,
+    "t_ms": 1662.0
+  },
+  {
+    "bytes": 565,
+    "id": 58,
+    "packet": "LevelChunkPacket",
+    "seq": 197,
+    "t_ms": 1662.0
+  },
+  {
+    "bytes": 5705,
+    "id": 58,
+    "packet": "LevelChunkPacket",
+    "seq": 198,
+    "t_ms": 1662.0
+  },
+  {
+    "bytes": 1079,
+    "id": 58,
+    "packet": "LevelChunkPacket",
+    "seq": 199,
+    "t_ms": 1662.0
+  },
+  {
+    "bytes": 565,
+    "id": 58,
+    "packet": "LevelChunkPacket",
+    "seq": 200,
+    "t_ms": 1663.0
+  },
+  {
+    "bytes": 565,
+    "id": 58,
+    "packet": "LevelChunkPacket",
+    "seq": 201,
+    "t_ms": 1663.0
+  },
+  {
+    "bytes": 2,
+    "id": 42,
+    "packet": "SetHealthPacket",
+    "seq": 202,
+    "t_ms": 1663.0
+  },
+  {
+    "bytes": 5,
+    "id": 2,
+    "packet": "PlayStatusPacket",
+    "seq": 203,
+    "t_ms": 1663.0
+  },
+  {
+    "bytes": 12,
+    "id": 121,
+    "packet": "NetworkChunkPublisherUpdatePacket",
+    "seq": 206,
+    "t_ms": 1745.0
+  },
+  {
+    "bytes": 1592,
+    "id": 58,
+    "packet": "LevelChunkPacket",
+    "seq": 207,
+    "t_ms": 1745.0
+  },
+  {
+    "bytes": 2632,
+    "id": 58,
+    "packet": "LevelChunkPacket",
+    "seq": 208,
+    "t_ms": 1745.0
+  },
+  {
+    "bytes": 3147,
+    "id": 58,
+    "packet": "LevelChunkPacket",
+    "seq": 209,
+    "t_ms": 1745.0
+  },
+  {
+    "bytes": 565,
+    "id": 58,
+    "packet": "LevelChunkPacket",
+    "seq": 210,
+    "t_ms": 1746.0
+  },
+  {
+    "bytes": 4180,
+    "id": 58,
+    "packet": "LevelChunkPacket",
+    "seq": 211,
+    "t_ms": 1746.0
+  },
+  {
+    "bytes": 4178,
+    "id": 58,
+    "packet": "LevelChunkPacket",
+    "seq": 212,
+    "t_ms": 1746.0
+  },
+  {
+    "bytes": 4700,
+    "id": 58,
+    "packet": "LevelChunkPacket",
+    "seq": 213,
+    "t_ms": 1746.0
+  },
+  {
+    "bytes": 4798,
+    "id": 58,
+    "packet": "LevelChunkPacket",
+    "seq": 214,
+    "t_ms": 1747.0
+  },
+  {
+    "bytes": 565,
+    "id": 58,
+    "packet": "LevelChunkPacket",
+    "seq": 215,
+    "t_ms": 1747.0
+  },
+  {
+    "bytes": 1611,
+    "id": 58,
+    "packet": "LevelChunkPacket",
+    "seq": 216,
+    "t_ms": 1747.0
+  },
+  {
+    "bytes": 565,
+    "id": 58,
+    "packet": "LevelChunkPacket",
+    "seq": 217,
+    "t_ms": 1747.0
+  },
+  {
+    "bytes": 3661,
+    "id": 58,
+    "packet": "LevelChunkPacket",
+    "seq": 218,
+    "t_ms": 1747.0
+  },
+  {
+    "bytes": 3671,
+    "id": 58,
+    "packet": "LevelChunkPacket",
+    "seq": 219,
+    "t_ms": 1748.0
+  },
+  {
+    "bytes": 2640,
+    "id": 58,
+    "packet": "LevelChunkPacket",
+    "seq": 220,
+    "t_ms": 1748.0
+  },
+  {
+    "bytes": 4692,
+    "id": 58,
+    "packet": "LevelChunkPacket",
+    "seq": 221,
+    "t_ms": 1748.0
+  },
+  {
+    "bytes": 1609,
+    "id": 58,
+    "packet": "LevelChunkPacket",
+    "seq": 222,
+    "t_ms": 1748.0
+  },
+  {
+    "bytes": 2115,
+    "id": 58,
+    "packet": "LevelChunkPacket",
+    "seq": 223,
+    "t_ms": 1748.0
+  },
+  {
+    "bytes": 2620,
+    "id": 58,
+    "packet": "LevelChunkPacket",
+    "seq": 224,
+    "t_ms": 1749.0
+  },
+  {
+    "bytes": 565,
+    "id": 58,
+    "packet": "LevelChunkPacket",
+    "seq": 225,
+    "t_ms": 1749.0
+  },
+  {
+    "bytes": 565,
+    "id": 58,
+    "packet": "LevelChunkPacket",
+    "seq": 226,
+    "t_ms": 1749.0
+  },
+  {
+    "bytes": 239,
+    "id": 172,
+    "packet": "UpdateSubChunkBlocksPacket",
+    "seq": 227,
+    "t_ms": 1760.0
+  },
+  {
+    "bytes": 50,
+    "id": 172,
+    "packet": "UpdateSubChunkBlocksPacket",
+    "seq": 228,
+    "t_ms": 1760.0
+  },
+  {
+    "bytes": 123,
+    "id": 172,
+    "packet": "UpdateSubChunkBlocksPacket",
+    "seq": 229,
+    "t_ms": 1760.0
+  },
+  {
+    "bytes": 12,
+    "id": 121,
+    "packet": "NetworkChunkPublisherUpdatePacket",
+    "seq": 230,
+    "t_ms": 1760.0
+  },
+  {
+    "bytes": 565,
+    "id": 58,
+    "packet": "LevelChunkPacket",
+    "seq": 231,
+    "t_ms": 1760.0
+  },
+  {
+    "bytes": 4183,
+    "id": 58,
+    "packet": "LevelChunkPacket",
+    "seq": 232,
+    "t_ms": 1760.0
+  },
+  {
+    "bytes": 5206,
+    "id": 58,
+    "packet": "LevelChunkPacket",
+    "seq": 233,
+    "t_ms": 1760.0
+  },
+  {
+    "bytes": 565,
+    "id": 58,
+    "packet": "LevelChunkPacket",
+    "seq": 234,
+    "t_ms": 1761.0
+  },
+  {
+    "bytes": 4180,
+    "id": 58,
+    "packet": "LevelChunkPacket",
+    "seq": 235,
+    "t_ms": 1761.0
+  },
+  {
+    "bytes": 2629,
+    "id": 58,
+    "packet": "LevelChunkPacket",
+    "seq": 236,
+    "t_ms": 1761.0
+  },
+  {
+    "bytes": 565,
+    "id": 58,
+    "packet": "LevelChunkPacket",
+    "seq": 237,
+    "t_ms": 1761.0
+  },
+  {
+    "bytes": 2123,
+    "id": 58,
+    "packet": "LevelChunkPacket",
+    "seq": 238,
+    "t_ms": 1761.0
+  },
+  {
+    "bytes": 565,
+    "id": 58,
+    "packet": "LevelChunkPacket",
+    "seq": 239,
+    "t_ms": 1761.0
+  },
+  {
+    "bytes": 5197,
+    "id": 58,
+    "packet": "LevelChunkPacket",
+    "seq": 240,
+    "t_ms": 1762.0
+  },
+  {
+    "bytes": 565,
+    "id": 58,
+    "packet": "LevelChunkPacket",
+    "seq": 241,
+    "t_ms": 1762.0
+  },
+  {
+    "bytes": 565,
+    "id": 58,
+    "packet": "LevelChunkPacket",
+    "seq": 242,
+    "t_ms": 1762.0
+  },
+  {
+    "bytes": 565,
+    "id": 58,
+    "packet": "LevelChunkPacket",
+    "seq": 243,
+    "t_ms": 1762.0
+  },
+  {
+    "bytes": 565,
+    "id": 58,
+    "packet": "LevelChunkPacket",
+    "seq": 244,
+    "t_ms": 1762.0
+  },
+  {
+    "bytes": 565,
+    "id": 58,
+    "packet": "LevelChunkPacket",
+    "seq": 245,
+    "t_ms": 1762.0
+  },
+  {
+    "bytes": 565,
+    "id": 58,
+    "packet": "LevelChunkPacket",
+    "seq": 246,
+    "t_ms": 1762.0
+  },
+  {
+    "bytes": 565,
+    "id": 58,
+    "packet": "LevelChunkPacket",
+    "seq": 247,
+    "t_ms": 1762.0
+  },
+  {
+    "bytes": 565,
+    "id": 58,
+    "packet": "LevelChunkPacket",
+    "seq": 248,
+    "t_ms": 1762.0
+  },
+  {
+    "bytes": 565,
+    "id": 58,
+    "packet": "LevelChunkPacket",
+    "seq": 249,
+    "t_ms": 1762.0
+  },
+  {
+    "bytes": 565,
+    "id": 58,
+    "packet": "LevelChunkPacket",
+    "seq": 250,
+    "t_ms": 1762.0
+  },
+  {
+    "bytes": 658,
+    "id": 199,
+    "packet": "UnlockedRecipesPacket",
+    "seq": 251,
+    "t_ms": 1762.0
+  },
+  {
+    "bytes": 17,
+    "id": 39,
+    "packet": "SetActorDataPacket",
+    "seq": 252,
+    "t_ms": 1762.0
+  },
+  {
+    "bytes": 239,
+    "id": 172,
+    "packet": "UpdateSubChunkBlocksPacket",
+    "seq": 253,
+    "t_ms": 1804.0
+  },
+  {
+    "bytes": 123,
+    "id": 172,
+    "packet": "UpdateSubChunkBlocksPacket",
+    "seq": 254,
+    "t_ms": 1804.0
+  },
+  {
+    "bytes": 2633,
+    "id": 58,
+    "packet": "LevelChunkPacket",
+    "seq": 255,
+    "t_ms": 1804.0
+  },
+  {
+    "bytes": 4692,
+    "id": 58,
+    "packet": "LevelChunkPacket",
+    "seq": 256,
+    "t_ms": 1804.0
+  },
+  {
+    "bytes": 4697,
+    "id": 58,
+    "packet": "LevelChunkPacket",
+    "seq": 257,
+    "t_ms": 1805.0
+  },
+  {
+    "bytes": 2123,
+    "id": 58,
+    "packet": "LevelChunkPacket",
+    "seq": 258,
+    "t_ms": 1805.0
+  },
+  {
+    "bytes": 3659,
+    "id": 58,
+    "packet": "LevelChunkPacket",
+    "seq": 259,
+    "t_ms": 1805.0
+  },
+  {
+    "bytes": 565,
+    "id": 58,
+    "packet": "LevelChunkPacket",
+    "seq": 260,
+    "t_ms": 1806.0
+  },
+  {
+    "bytes": 6223,
+    "id": 58,
+    "packet": "LevelChunkPacket",
+    "seq": 261,
+    "t_ms": 1806.0
+  },
+  {
+    "bytes": 565,
+    "id": 58,
+    "packet": "LevelChunkPacket",
+    "seq": 262,
+    "t_ms": 1807.0
+  },
+  {
+    "bytes": 565,
+    "id": 58,
+    "packet": "LevelChunkPacket",
+    "seq": 263,
+    "t_ms": 1807.0
+  },
+  {
+    "bytes": 6323,
+    "id": 58,
+    "packet": "LevelChunkPacket",
+    "seq": 264,
+    "t_ms": 1807.0
+  },
+  {
+    "bytes": 565,
+    "id": 58,
+    "packet": "LevelChunkPacket",
+    "seq": 265,
+    "t_ms": 1807.0
+  },
+  {
+    "bytes": 565,
+    "id": 58,
+    "packet": "LevelChunkPacket",
+    "seq": 266,
+    "t_ms": 1808.0
+  },
+  {
+    "bytes": 11272,
+    "id": 58,
+    "packet": "LevelChunkPacket",
+    "seq": 267,
+    "t_ms": 1808.0
+  },
+  {
+    "bytes": 1593,
+    "id": 58,
+    "packet": "LevelChunkPacket",
+    "seq": 268,
+    "t_ms": 1809.0
+  },
+  {
+    "bytes": 1593,
+    "id": 58,
+    "packet": "LevelChunkPacket",
+    "seq": 269,
+    "t_ms": 1809.0
+  },
+  {
+    "bytes": 4167,
+    "id": 58,
+    "packet": "LevelChunkPacket",
+    "seq": 270,
+    "t_ms": 1809.0
+  },
+  {
+    "bytes": 1593,
+    "id": 58,
+    "packet": "LevelChunkPacket",
+    "seq": 271,
+    "t_ms": 1810.0
+  },
+  {
+    "bytes": 1079,
+    "id": 58,
+    "packet": "LevelChunkPacket",
+    "seq": 272,
+    "t_ms": 1810.0
+  },
+  {
+    "bytes": 1079,
+    "id": 58,
+    "packet": "LevelChunkPacket",
+    "seq": 273,
+    "t_ms": 1810.0
+  },
+  {
+    "bytes": 7259,
+    "id": 58,
+    "packet": "LevelChunkPacket",
+    "seq": 274,
+    "t_ms": 1810.0
+  },
+  {
+    "bytes": 50,
+    "id": 172,
+    "packet": "UpdateSubChunkBlocksPacket",
+    "seq": 275,
+    "t_ms": 1888.0
+  },
+  {
+    "bytes": 123,
+    "id": 172,
+    "packet": "UpdateSubChunkBlocksPacket",
+    "seq": 276,
+    "t_ms": 1888.0
+  },
+  {
+    "bytes": 123,
+    "id": 172,
+    "packet": "UpdateSubChunkBlocksPacket",
+    "seq": 277,
+    "t_ms": 1888.0
+  },
+  {
+    "bytes": 4697,
+    "id": 58,
+    "packet": "LevelChunkPacket",
+    "seq": 278,
+    "t_ms": 1888.0
+  },
+  {
+    "bytes": 2123,
+    "id": 58,
+    "packet": "LevelChunkPacket",
+    "seq": 279,
+    "t_ms": 1888.0
+  },
+  {
+    "bytes": 565,
+    "id": 58,
+    "packet": "LevelChunkPacket",
+    "seq": 280,
+    "t_ms": 1889.0
+  },
+  {
+    "bytes": 4183,
+    "id": 58,
+    "packet": "LevelChunkPacket",
+    "seq": 281,
+    "t_ms": 1889.0
+  },
+  {
+    "bytes": 565,
+    "id": 58,
+    "packet": "LevelChunkPacket",
+    "seq": 282,
+    "t_ms": 1889.0
+  },
+  {
+    "bytes": 4183,
+    "id": 58,
+    "packet": "LevelChunkPacket",
+    "seq": 283,
+    "t_ms": 1889.0
+  },
+  {
+    "bytes": 3153,
+    "id": 58,
+    "packet": "LevelChunkPacket",
+    "seq": 284,
+    "t_ms": 1890.0
+  },
+  {
+    "bytes": 5206,
+    "id": 58,
+    "packet": "LevelChunkPacket",
+    "seq": 285,
+    "t_ms": 1890.0
+  },
+  {
+    "bytes": 3659,
+    "id": 58,
+    "packet": "LevelChunkPacket",
+    "seq": 286,
+    "t_ms": 1891.0
+  },
+  {
+    "bytes": 565,
+    "id": 58,
+    "packet": "LevelChunkPacket",
+    "seq": 287,
+    "t_ms": 1891.0
+  },
+  {
+    "bytes": 2640,
+    "id": 58,
+    "packet": "LevelChunkPacket",
+    "seq": 288,
+    "t_ms": 1891.0
+  },
+  {
+    "bytes": 565,
+    "id": 58,
+    "packet": "LevelChunkPacket",
+    "seq": 289,
+    "t_ms": 1891.0
+  },
+  {
+    "bytes": 4186,
+    "id": 58,
+    "packet": "LevelChunkPacket",
+    "seq": 290,
+    "t_ms": 1891.0
+  },
+  {
+    "bytes": 7371,
+    "id": 58,
+    "packet": "LevelChunkPacket",
+    "seq": 291,
+    "t_ms": 1892.0
+  },
+  {
+    "bytes": 3144,
+    "id": 58,
+    "packet": "LevelChunkPacket",
+    "seq": 292,
+    "t_ms": 1893.0
+  },
+  {
+    "bytes": 5730,
+    "id": 58,
+    "packet": "LevelChunkPacket",
+    "seq": 293,
+    "t_ms": 1893.0
+  },
+  {
+    "bytes": 4176,
+    "id": 58,
+    "packet": "LevelChunkPacket",
+    "seq": 294,
+    "t_ms": 1893.0
+  },
+  {
+    "bytes": 3147,
+    "id": 58,
+    "packet": "LevelChunkPacket",
+    "seq": 295,
+    "t_ms": 1894.0
+  },
+  {
+    "bytes": 565,
+    "id": 58,
+    "packet": "LevelChunkPacket",
+    "seq": 296,
+    "t_ms": 1894.0
+  },
+  {
+    "bytes": 4168,
+    "id": 58,
+    "packet": "LevelChunkPacket",
+    "seq": 297,
+    "t_ms": 1894.0
+  },
+  {
+    "bytes": 7255,
+    "id": 58,
+    "packet": "LevelChunkPacket",
+    "seq": 298,
+    "t_ms": 1911.0
+  },
+  {
+    "bytes": 565,
+    "id": 58,
+    "packet": "LevelChunkPacket",
+    "seq": 299,
+    "t_ms": 1912.0
+  },
+  {
+    "bytes": 6222,
+    "id": 58,
+    "packet": "LevelChunkPacket",
+    "seq": 300,
+    "t_ms": 1912.0
+  },
+  {
+    "bytes": 6222,
+    "id": 58,
+    "packet": "LevelChunkPacket",
+    "seq": 301,
+    "t_ms": 1913.0
+  },
+  {
+    "bytes": 1079,
+    "id": 58,
+    "packet": "LevelChunkPacket",
+    "seq": 302,
+    "t_ms": 1913.0
+  },
+  {
+    "bytes": 565,
+    "id": 58,
+    "packet": "LevelChunkPacket",
+    "seq": 303,
+    "t_ms": 1914.0
+  },
+  {
+    "bytes": 1593,
+    "id": 58,
+    "packet": "LevelChunkPacket",
+    "seq": 304,
+    "t_ms": 1914.0
+  },
+  {
+    "bytes": 6948,
+    "id": 58,
+    "packet": "LevelChunkPacket",
+    "seq": 305,
+    "t_ms": 1914.0
+  },
+  {
+    "bytes": 565,
+    "id": 58,
+    "packet": "LevelChunkPacket",
+    "seq": 306,
+    "t_ms": 1915.0
+  },
+  {
+    "bytes": 4168,
+    "id": 58,
+    "packet": "LevelChunkPacket",
+    "seq": 307,
+    "t_ms": 1915.0
+  },
+  {
+    "bytes": 1079,
+    "id": 58,
+    "packet": "LevelChunkPacket",
+    "seq": 308,
+    "t_ms": 1915.0
+  },
+  {
+    "bytes": 1079,
+    "id": 58,
+    "packet": "LevelChunkPacket",
+    "seq": 309,
+    "t_ms": 1915.0
+  },
+  {
+    "bytes": 1079,
+    "id": 58,
+    "packet": "LevelChunkPacket",
+    "seq": 310,
+    "t_ms": 1915.0
+  },
+  {
+    "bytes": 1079,
+    "id": 58,
+    "packet": "LevelChunkPacket",
+    "seq": 311,
+    "t_ms": 1915.0
+  },
+  {
+    "bytes": 1593,
+    "id": 58,
+    "packet": "LevelChunkPacket",
+    "seq": 312,
+    "t_ms": 1916.0
+  },
+  {
+    "bytes": 6226,
+    "id": 58,
+    "packet": "LevelChunkPacket",
+    "seq": 313,
+    "t_ms": 1916.0
+  },
+  {
+    "bytes": 1078,
+    "id": 58,
+    "packet": "LevelChunkPacket",
+    "seq": 314,
+    "t_ms": 1916.0
+  },
+  {
+    "bytes": 5705,
+    "id": 58,
+    "packet": "LevelChunkPacket",
+    "seq": 315,
+    "t_ms": 1917.0
+  },
+  {
+    "bytes": 1079,
+    "id": 58,
+    "packet": "LevelChunkPacket",
+    "seq": 316,
+    "t_ms": 1917.0
+  },
+  {
+    "bytes": 1593,
+    "id": 58,
+    "packet": "LevelChunkPacket",
+    "seq": 317,
+    "t_ms": 1917.0
+  },
+  {
+    "bytes": 2640,
+    "id": 58,
+    "packet": "LevelChunkPacket",
+    "seq": 318,
+    "t_ms": 1959.0
+  },
+  {
+    "bytes": 4692,
+    "id": 58,
+    "packet": "LevelChunkPacket",
+    "seq": 319,
+    "t_ms": 1959.0
+  },
+  {
+    "bytes": 2640,
+    "id": 58,
+    "packet": "LevelChunkPacket",
+    "seq": 320,
+    "t_ms": 1959.0
+  },
+  {
+    "bytes": 1605,
+    "id": 58,
+    "packet": "LevelChunkPacket",
+    "seq": 321,
+    "t_ms": 1959.0
+  },
+  {
+    "bytes": 9824,
+    "id": 58,
+    "packet": "LevelChunkPacket",
+    "seq": 322,
+    "t_ms": 1959.0
+  },
+  {
+    "bytes": 565,
+    "id": 58,
+    "packet": "LevelChunkPacket",
+    "seq": 323,
+    "t_ms": 1960.0
+  },
+  {
+    "bytes": 4183,
+    "id": 58,
+    "packet": "LevelChunkPacket",
+    "seq": 324,
+    "t_ms": 1960.0
+  },
+  {
+    "bytes": 2640,
+    "id": 58,
+    "packet": "LevelChunkPacket",
+    "seq": 325,
+    "t_ms": 1960.0
+  },
+  {
+    "bytes": 1592,
+    "id": 58,
+    "packet": "LevelChunkPacket",
+    "seq": 326,
+    "t_ms": 1961.0
+  },
+  {
+    "bytes": 1609,
+    "id": 58,
+    "packet": "LevelChunkPacket",
+    "seq": 327,
+    "t_ms": 1961.0
+  },
+  {
+    "bytes": 5721,
+    "id": 58,
+    "packet": "LevelChunkPacket",
+    "seq": 328,
+    "t_ms": 1961.0
+  },
+  {
+    "bytes": 1611,
+    "id": 58,
+    "packet": "LevelChunkPacket",
+    "seq": 329,
+    "t_ms": 1961.0
+  },
+  {
+    "bytes": 565,
+    "id": 58,
+    "packet": "LevelChunkPacket",
+    "seq": 330,
+    "t_ms": 1961.0
+  },
+  {
+    "bytes": 2123,
+    "id": 58,
+    "packet": "LevelChunkPacket",
+    "seq": 331,
+    "t_ms": 1961.0
+  },
+  {
+    "bytes": 2638,
+    "id": 58,
+    "packet": "LevelChunkPacket",
+    "seq": 332,
+    "t_ms": 1962.0
+  },
+  {
+    "bytes": 5206,
+    "id": 58,
+    "packet": "LevelChunkPacket",
+    "seq": 333,
+    "t_ms": 1962.0
+  },
+  {
+    "bytes": 565,
+    "id": 58,
+    "packet": "LevelChunkPacket",
+    "seq": 334,
+    "t_ms": 1962.0
+  },
+  {
+    "bytes": 2124,
+    "id": 58,
+    "packet": "LevelChunkPacket",
+    "seq": 335,
+    "t_ms": 1962.0
+  },
+  {
+    "bytes": 3654,
+    "id": 58,
+    "packet": "LevelChunkPacket",
+    "seq": 336,
+    "t_ms": 1962.0
+  },
+  {
+    "bytes": 6736,
+    "id": 58,
+    "packet": "LevelChunkPacket",
+    "seq": 337,
+    "t_ms": 1963.0
+  },
+  {
+    "bytes": 50,
+    "id": 172,
+    "packet": "UpdateSubChunkBlocksPacket",
+    "seq": 338,
+    "t_ms": 2009.0
+  },
+  {
+    "bytes": 2123,
+    "id": 58,
+    "packet": "LevelChunkPacket",
+    "seq": 339,
+    "t_ms": 2009.0
+  },
+  {
+    "bytes": 3658,
+    "id": 58,
+    "packet": "LevelChunkPacket",
+    "seq": 340,
+    "t_ms": 2009.0
+  },
+  {
+    "bytes": 1609,
+    "id": 58,
+    "packet": "LevelChunkPacket",
+    "seq": 341,
+    "t_ms": 2010.0
+  },
+  {
+    "bytes": 565,
+    "id": 58,
+    "packet": "LevelChunkPacket",
+    "seq": 342,
+    "t_ms": 2010.0
+  },
+  {
+    "bytes": 2638,
+    "id": 58,
+    "packet": "LevelChunkPacket",
+    "seq": 343,
+    "t_ms": 2010.0
+  },
+  {
+    "bytes": 3658,
+    "id": 58,
+    "packet": "LevelChunkPacket",
+    "seq": 344,
+    "t_ms": 2010.0
+  },
+  {
+    "bytes": 4168,
+    "id": 58,
+    "packet": "LevelChunkPacket",
+    "seq": 345,
+    "t_ms": 2010.0
+  },
+  {
+    "bytes": 565,
+    "id": 58,
+    "packet": "LevelChunkPacket",
+    "seq": 346,
+    "t_ms": 2010.0
+  },
+  {
+    "bytes": 565,
+    "id": 58,
+    "packet": "LevelChunkPacket",
+    "seq": 347,
+    "t_ms": 2011.0
+  },
+  {
+    "bytes": 1079,
+    "id": 58,
+    "packet": "LevelChunkPacket",
+    "seq": 348,
+    "t_ms": 2011.0
+  },
+  {
+    "bytes": 1079,
+    "id": 58,
+    "packet": "LevelChunkPacket",
+    "seq": 349,
+    "t_ms": 2011.0
+  },
+  {
+    "bytes": 1079,
+    "id": 58,
+    "packet": "LevelChunkPacket",
+    "seq": 350,
+    "t_ms": 2011.0
+  },
+  {
+    "bytes": 1079,
+    "id": 58,
+    "packet": "LevelChunkPacket",
+    "seq": 351,
+    "t_ms": 2011.0
+  },
+  {
+    "bytes": 564,
+    "id": 58,
+    "packet": "LevelChunkPacket",
+    "seq": 352,
+    "t_ms": 2011.0
+  },
+  {
+    "bytes": 565,
+    "id": 58,
+    "packet": "LevelChunkPacket",
+    "seq": 353,
+    "t_ms": 2011.0
+  },
+  {
+    "bytes": 565,
+    "id": 58,
+    "packet": "LevelChunkPacket",
+    "seq": 354,
+    "t_ms": 2011.0
+  },
+  {
+    "bytes": 1079,
+    "id": 58,
+    "packet": "LevelChunkPacket",
+    "seq": 355,
+    "t_ms": 2011.0
+  },
+  {
+    "bytes": 564,
+    "id": 58,
+    "packet": "LevelChunkPacket",
+    "seq": 356,
+    "t_ms": 2011.0
+  },
+  {
+    "bytes": 1078,
+    "id": 58,
+    "packet": "LevelChunkPacket",
+    "seq": 357,
+    "t_ms": 2011.0
+  },
+  {
+    "bytes": 3132,
+    "id": 58,
+    "packet": "LevelChunkPacket",
+    "seq": 358,
+    "t_ms": 2011.0
+  },
+  {
+    "bytes": 388,
+    "id": 15,
+    "packet": "AddItemActorPacket",
+    "seq": 359,
+    "t_ms": 2012.0
+  },
+  {
+    "bytes": 384,
+    "id": 15,
+    "packet": "AddItemActorPacket",
+    "seq": 360,
+    "t_ms": 2012.0
+  },
+  {
+    "bytes": 49,
+    "id": 123,
+    "packet": "LevelSoundEventPacket",
+    "seq": 361,
+    "t_ms": 2012.0
+  },
+  {
+    "bytes": 49,
+    "id": 123,
+    "packet": "LevelSoundEventPacket",
+    "seq": 362,
+    "t_ms": 2012.0
+  },
+  {
+    "bytes": 17,
+    "id": 39,
+    "packet": "SetActorDataPacket",
+    "seq": 363,
+    "t_ms": 2012.0
+  },
+  {
+    "bytes": 17,
+    "id": 39,
+    "packet": "SetActorDataPacket",
+    "seq": 364,
+    "t_ms": 2012.0
+  },
+  {
+    "bytes": 25,
+    "id": 111,
+    "packet": "MoveActorDeltaPacket",
+    "seq": 365,
+    "t_ms": 2012.0
+  },
+  {
+    "bytes": 25,
+    "id": 111,
+    "packet": "MoveActorDeltaPacket",
+    "seq": 366,
+    "t_ms": 2012.0
+  },
+  {
+    "bytes": 5214,
+    "id": 58,
+    "packet": "LevelChunkPacket",
+    "seq": 367,
+    "t_ms": 2054.0
+  },
+  {
+    "bytes": 4700,
+    "id": 58,
+    "packet": "LevelChunkPacket",
+    "seq": 368,
+    "t_ms": 2054.0
+  },
+  {
+    "bytes": 565,
+    "id": 58,
+    "packet": "LevelChunkPacket",
+    "seq": 369,
+    "t_ms": 2055.0
+  },
+  {
+    "bytes": 565,
+    "id": 58,
+    "packet": "LevelChunkPacket",
+    "seq": 370,
+    "t_ms": 2055.0
+  },
+  {
+    "bytes": 4170,
+    "id": 58,
+    "packet": "LevelChunkPacket",
+    "seq": 371,
+    "t_ms": 2055.0
+  },
+  {
+    "bytes": 3155,
+    "id": 58,
+    "packet": "LevelChunkPacket",
+    "seq": 372,
+    "t_ms": 2055.0
+  },
+  {
+    "bytes": 5731,
+    "id": 58,
+    "packet": "LevelChunkPacket",
+    "seq": 373,
+    "t_ms": 2055.0
+  },
+  {
+    "bytes": 6737,
+    "id": 58,
+    "packet": "LevelChunkPacket",
+    "seq": 374,
+    "t_ms": 2056.0
+  },
+  {
+    "bytes": 565,
+    "id": 58,
+    "packet": "LevelChunkPacket",
+    "seq": 375,
+    "t_ms": 2056.0
+  },
+  {
+    "bytes": 565,
+    "id": 58,
+    "packet": "LevelChunkPacket",
+    "seq": 376,
+    "t_ms": 2056.0
+  },
+  {
+    "bytes": 4677,
+    "id": 58,
+    "packet": "LevelChunkPacket",
+    "seq": 377,
+    "t_ms": 2056.0
+  },
+  {
+    "bytes": 4686,
+    "id": 58,
+    "packet": "LevelChunkPacket",
+    "seq": 378,
+    "t_ms": 2057.0
+  },
+  {
+    "bytes": 9306,
+    "id": 58,
+    "packet": "LevelChunkPacket",
+    "seq": 379,
+    "t_ms": 2057.0
+  },
+  {
+    "bytes": 7249,
+    "id": 58,
+    "packet": "LevelChunkPacket",
+    "seq": 380,
+    "t_ms": 2058.0
+  },
+  {
+    "bytes": 1078,
+    "id": 58,
+    "packet": "LevelChunkPacket",
+    "seq": 381,
+    "t_ms": 2058.0
+  },
+  {
+    "bytes": 1078,
+    "id": 58,
+    "packet": "LevelChunkPacket",
+    "seq": 382,
+    "t_ms": 2058.0
+  },
+  {
+    "bytes": 1078,
+    "id": 58,
+    "packet": "LevelChunkPacket",
+    "seq": 383,
+    "t_ms": 2058.0
+  },
+  {
+    "bytes": 3654,
+    "id": 58,
+    "packet": "LevelChunkPacket",
+    "seq": 384,
+    "t_ms": 2058.0
+  },
+  {
+    "bytes": 5199,
+    "id": 58,
+    "packet": "LevelChunkPacket",
+    "seq": 385,
+    "t_ms": 2059.0
+  },
+  {
+    "bytes": 4682,
+    "id": 58,
+    "packet": "LevelChunkPacket",
+    "seq": 386,
+    "t_ms": 2059.0
+  },
+  {
+    "bytes": 50,
+    "id": 172,
+    "packet": "UpdateSubChunkBlocksPacket",
+    "seq": 387,
+    "t_ms": 2093.0
+  },
+  {
+    "bytes": 565,
+    "id": 58,
+    "packet": "LevelChunkPacket",
+    "seq": 388,
+    "t_ms": 2093.0
+  },
+  {
+    "bytes": 565,
+    "id": 58,
+    "packet": "LevelChunkPacket",
+    "seq": 389,
+    "t_ms": 2093.0
+  },
+  {
+    "bytes": 565,
+    "id": 58,
+    "packet": "LevelChunkPacket",
+    "seq": 390,
+    "t_ms": 2093.0
+  },
+  {
+    "bytes": 565,
+    "id": 58,
+    "packet": "LevelChunkPacket",
+    "seq": 391,
+    "t_ms": 2093.0
+  },
+  {
+    "bytes": 6736,
+    "id": 58,
+    "packet": "LevelChunkPacket",
+    "seq": 392,
+    "t_ms": 2093.0
+  },
+  {
+    "bytes": 565,
+    "id": 58,
+    "packet": "LevelChunkPacket",
+    "seq": 393,
+    "t_ms": 2093.0
+  },
+  {
+    "bytes": 565,
+    "id": 58,
+    "packet": "LevelChunkPacket",
+    "seq": 394,
+    "t_ms": 2093.0
+  },
+  {
+    "bytes": 565,
+    "id": 58,
+    "packet": "LevelChunkPacket",
+    "seq": 395,
+    "t_ms": 2093.0
+  },
+  {
+    "bytes": 565,
+    "id": 58,
+    "packet": "LevelChunkPacket",
+    "seq": 396,
+    "t_ms": 2093.0
+  },
+  {
+    "bytes": 565,
+    "id": 58,
+    "packet": "LevelChunkPacket",
+    "seq": 397,
+    "t_ms": 2093.0
+  },
+  {
+    "bytes": 565,
+    "id": 58,
+    "packet": "LevelChunkPacket",
+    "seq": 398,
+    "t_ms": 2094.0
+  },
+  {
+    "bytes": 4170,
+    "id": 58,
+    "packet": "LevelChunkPacket",
+    "seq": 399,
+    "t_ms": 2094.0
+  },
+  {
+    "bytes": 1078,
+    "id": 58,
+    "packet": "LevelChunkPacket",
+    "seq": 400,
+    "t_ms": 2094.0
+  },
+  {
+    "bytes": 6944,
+    "id": 58,
+    "packet": "LevelChunkPacket",
+    "seq": 401,
+    "t_ms": 2094.0
+  },
+  {
+    "bytes": 1078,
+    "id": 58,
+    "packet": "LevelChunkPacket",
+    "seq": 402,
+    "t_ms": 2095.0
+  },
+  {
+    "bytes": 8492,
+    "id": 58,
+    "packet": "LevelChunkPacket",
+    "seq": 403,
+    "t_ms": 2095.0
+  },
+  {
+    "bytes": 3650,
+    "id": 58,
+    "packet": "LevelChunkPacket",
+    "seq": 404,
+    "t_ms": 2095.0
+  },
+  {
+    "bytes": 1078,
+    "id": 58,
+    "packet": "LevelChunkPacket",
+    "seq": 405,
+    "t_ms": 2096.0
+  },
+  {
+    "bytes": 1078,
+    "id": 58,
+    "packet": "LevelChunkPacket",
+    "seq": 406,
+    "t_ms": 2096.0
+  },
+  {
+    "bytes": 3132,
+    "id": 58,
+    "packet": "LevelChunkPacket",
+    "seq": 407,
+    "t_ms": 2096.0
+  },
+  {
+    "bytes": 384,
+    "id": 15,
+    "packet": "AddItemActorPacket",
+    "seq": 408,
+    "t_ms": 2096.0
+  },
+  {
+    "bytes": 49,
+    "id": 123,
+    "packet": "LevelSoundEventPacket",
+    "seq": 409,
+    "t_ms": 2096.0
+  },
+  {
+    "bytes": 20,
+    "id": 25,
+    "packet": "LevelEventPacket",
+    "seq": 410,
+    "t_ms": 2096.0
+  },
+  {
+    "bytes": 17,
+    "id": 39,
+    "packet": "SetActorDataPacket",
+    "seq": 411,
+    "t_ms": 2096.0
+  },
+  {
+    "bytes": 25,
+    "id": 111,
+    "packet": "MoveActorDeltaPacket",
+    "seq": 412,
+    "t_ms": 2096.0
+  },
+  {
+    "bytes": 12,
+    "id": 21,
+    "packet": "UpdateBlockPacket",
+    "seq": 413,
+    "t_ms": 2161.0
+  },
+  {
+    "bytes": 565,
+    "id": 58,
+    "packet": "LevelChunkPacket",
+    "seq": 414,
+    "t_ms": 2162.0
+  },
+  {
+    "bytes": 2126,
+    "id": 58,
+    "packet": "LevelChunkPacket",
+    "seq": 415,
+    "t_ms": 2162.0
+  },
+  {
+    "bytes": 1611,
+    "id": 58,
+    "packet": "LevelChunkPacket",
+    "seq": 416,
+    "t_ms": 2162.0
+  },
+  {
+    "bytes": 2123,
+    "id": 58,
+    "packet": "LevelChunkPacket",
+    "seq": 417,
+    "t_ms": 2162.0
+  },
+  {
+    "bytes": 4700,
+    "id": 58,
+    "packet": "LevelChunkPacket",
+    "seq": 418,
+    "t_ms": 2162.0
+  },
+  {
+    "bytes": 565,
+    "id": 58,
+    "packet": "LevelChunkPacket",
+    "seq": 419,
+    "t_ms": 2163.0
+  },
+  {
+    "bytes": 565,
+    "id": 58,
+    "packet": "LevelChunkPacket",
+    "seq": 420,
+    "t_ms": 2163.0
+  },
+  {
+    "bytes": 4176,
+    "id": 58,
+    "packet": "LevelChunkPacket",
+    "seq": 421,
+    "t_ms": 2163.0
+  },
+  {
+    "bytes": 565,
+    "id": 58,
+    "packet": "LevelChunkPacket",
+    "seq": 422,
+    "t_ms": 2164.0
+  },
+  {
+    "bytes": 4698,
+    "id": 58,
+    "packet": "LevelChunkPacket",
+    "seq": 423,
+    "t_ms": 2164.0
+  },
+  {
+    "bytes": 4183,
+    "id": 58,
+    "packet": "LevelChunkPacket",
+    "seq": 424,
+    "t_ms": 2164.0
+  },
+  {
+    "bytes": 2126,
+    "id": 58,
+    "packet": "LevelChunkPacket",
+    "seq": 425,
+    "t_ms": 2165.0
+  },
+  {
+    "bytes": 4698,
+    "id": 58,
+    "packet": "LevelChunkPacket",
+    "seq": 426,
+    "t_ms": 2165.0
+  },
+  {
+    "bytes": 3144,
+    "id": 58,
+    "packet": "LevelChunkPacket",
+    "seq": 427,
+    "t_ms": 2166.0
+  },
+  {
+    "bytes": 5215,
+    "id": 58,
+    "packet": "LevelChunkPacket",
+    "seq": 428,
+    "t_ms": 2166.0
+  },
+  {
+    "bytes": 565,
+    "id": 58,
+    "packet": "LevelChunkPacket",
+    "seq": 429,
+    "t_ms": 2166.0
+  },
+  {
+    "bytes": 5207,
+    "id": 58,
+    "packet": "LevelChunkPacket",
+    "seq": 430,
+    "t_ms": 2166.0
+  },
+  {
+    "bytes": 565,
+    "id": 58,
+    "packet": "LevelChunkPacket",
+    "seq": 431,
+    "t_ms": 2167.0
+  },
+  {
+    "bytes": 3142,
+    "id": 58,
+    "packet": "LevelChunkPacket",
+    "seq": 432,
+    "t_ms": 2167.0
+  },
+  {
+    "bytes": 9324,
+    "id": 58,
+    "packet": "LevelChunkPacket",
+    "seq": 433,
+    "t_ms": 2167.0
+  },
+  {
+    "bytes": 3155,
+    "id": 58,
+    "packet": "LevelChunkPacket",
+    "seq": 434,
+    "t_ms": 2206.0
+  },
+  {
+    "bytes": 4174,
+    "id": 58,
+    "packet": "LevelChunkPacket",
+    "seq": 435,
+    "t_ms": 2206.0
+  },
+  {
+    "bytes": 5721,
+    "id": 58,
+    "packet": "LevelChunkPacket",
+    "seq": 436,
+    "t_ms": 2206.0
+  },
+  {
+    "bytes": 6242,
+    "id": 58,
+    "packet": "LevelChunkPacket",
+    "seq": 437,
+    "t_ms": 2207.0
+  },
+  {
+    "bytes": 2631,
+    "id": 58,
+    "packet": "LevelChunkPacket",
+    "seq": 438,
+    "t_ms": 2207.0
+  },
+  {
+    "bytes": 4170,
+    "id": 58,
+    "packet": "LevelChunkPacket",
+    "seq": 439,
+    "t_ms": 2208.0
+  },
+  {
+    "bytes": 2641,
+    "id": 58,
+    "packet": "LevelChunkPacket",
+    "seq": 440,
+    "t_ms": 2208.0
+  },
+  {
+    "bytes": 6751,
+    "id": 58,
+    "packet": "LevelChunkPacket",
+    "seq": 441,
+    "t_ms": 2208.0
+  },
+  {
+    "bytes": 5204,
+    "id": 58,
+    "packet": "LevelChunkPacket",
+    "seq": 442,
+    "t_ms": 2209.0
+  },
+  {
+    "bytes": 565,
+    "id": 58,
+    "packet": "LevelChunkPacket",
+    "seq": 443,
+    "t_ms": 2209.0
+  },
+  {
+    "bytes": 6235,
+    "id": 58,
+    "packet": "LevelChunkPacket",
+    "seq": 444,
+    "t_ms": 2209.0
+  },
+  {
+    "bytes": 4169,
+    "id": 58,
+    "packet": "LevelChunkPacket",
+    "seq": 445,
+    "t_ms": 2210.0
+  },
+  {
+    "bytes": 2625,
+    "id": 58,
+    "packet": "LevelChunkPacket",
+    "seq": 446,
+    "t_ms": 2210.0
+  },
+  {
+    "bytes": 6230,
+    "id": 58,
+    "packet": "LevelChunkPacket",
+    "seq": 447,
+    "t_ms": 2210.0
+  },
+  {
+    "bytes": 3154,
+    "id": 58,
+    "packet": "LevelChunkPacket",
+    "seq": 448,
+    "t_ms": 2210.0
+  },
+  {
+    "bytes": 7367,
+    "id": 58,
+    "packet": "LevelChunkPacket",
+    "seq": 449,
+    "t_ms": 2211.0
+  },
+  {
+    "bytes": 1078,
+    "id": 58,
+    "packet": "LevelChunkPacket",
+    "seq": 450,
+    "t_ms": 2211.0
+  },
+  {
+    "bytes": 1079,
+    "id": 58,
+    "packet": "LevelChunkPacket",
+    "seq": 451,
+    "t_ms": 2211.0
+  },
+  {
+    "bytes": 1078,
+    "id": 58,
+    "packet": "LevelChunkPacket",
+    "seq": 452,
+    "t_ms": 2211.0
+  },
+  {
+    "bytes": 564,
+    "id": 58,
+    "packet": "LevelChunkPacket",
+    "seq": 453,
+    "t_ms": 2211.0
+  },
+  {
+    "bytes": 17,
+    "id": 39,
+    "packet": "SetActorDataPacket",
+    "seq": 454,
+    "t_ms": 2212.0
+  },
+  {
+    "bytes": 71,
+    "id": 172,
+    "packet": "UpdateSubChunkBlocksPacket",
+    "seq": 455,
+    "t_ms": 2259.0
+  },
+  {
+    "bytes": 565,
+    "id": 58,
+    "packet": "LevelChunkPacket",
+    "seq": 456,
+    "t_ms": 2259.0
+  },
+  {
+    "bytes": 4176,
+    "id": 58,
+    "packet": "LevelChunkPacket",
+    "seq": 457,
+    "t_ms": 2259.0
+  },
+  {
+    "bytes": 565,
+    "id": 58,
+    "packet": "LevelChunkPacket",
+    "seq": 458,
+    "t_ms": 2260.0
+  },
+  {
+    "bytes": 1079,
+    "id": 58,
+    "packet": "LevelChunkPacket",
+    "seq": 459,
+    "t_ms": 2260.0
+  },
+  {
+    "bytes": 3141,
+    "id": 58,
+    "packet": "LevelChunkPacket",
+    "seq": 460,
+    "t_ms": 2260.0
+  },
+  {
+    "bytes": 1079,
+    "id": 58,
+    "packet": "LevelChunkPacket",
+    "seq": 461,
+    "t_ms": 2260.0
+  },
+  {
+    "bytes": 1078,
+    "id": 58,
+    "packet": "LevelChunkPacket",
+    "seq": 462,
+    "t_ms": 2260.0
+  },
+  {
+    "bytes": 564,
+    "id": 58,
+    "packet": "LevelChunkPacket",
+    "seq": 463,
+    "t_ms": 2260.0
+  },
+  {
+    "bytes": 1078,
+    "id": 58,
+    "packet": "LevelChunkPacket",
+    "seq": 464,
+    "t_ms": 2260.0
+  },
+  {
+    "bytes": 564,
+    "id": 58,
+    "packet": "LevelChunkPacket",
+    "seq": 465,
+    "t_ms": 2261.0
+  },
+  {
+    "bytes": 1593,
+    "id": 58,
+    "packet": "LevelChunkPacket",
+    "seq": 466,
+    "t_ms": 2261.0
+  },
+  {
+    "bytes": 4167,
+    "id": 58,
+    "packet": "LevelChunkPacket",
+    "seq": 467,
+    "t_ms": 2261.0
+  },
+  {
+    "bytes": 5191,
+    "id": 58,
+    "packet": "LevelChunkPacket",
+    "seq": 468,
+    "t_ms": 2261.0
+  },
+  {
+    "bytes": 1079,
+    "id": 58,
+    "packet": "LevelChunkPacket",
+    "seq": 469,
+    "t_ms": 2261.0
+  },
+  {
+    "bytes": 1079,
+    "id": 58,
+    "packet": "LevelChunkPacket",
+    "seq": 470,
+    "t_ms": 2262.0
+  },
+  {
+    "bytes": 5715,
+    "id": 58,
+    "packet": "LevelChunkPacket",
+    "seq": 471,
+    "t_ms": 2262.0
+  },
+  {
+    "bytes": 1078,
+    "id": 58,
+    "packet": "LevelChunkPacket",
+    "seq": 472,
+    "t_ms": 2262.0
+  },
+  {
+    "bytes": 1078,
+    "id": 58,
+    "packet": "LevelChunkPacket",
+    "seq": 473,
+    "t_ms": 2262.0
+  },
+  {
+    "bytes": 9321,
+    "id": 58,
+    "packet": "LevelChunkPacket",
+    "seq": 474,
+    "t_ms": 2262.0
+  },
+  {
+    "bytes": 1078,
+    "id": 58,
+    "packet": "LevelChunkPacket",
+    "seq": 475,
+    "t_ms": 2263.0
+  },
+  {
+    "bytes": 388,
+    "id": 15,
+    "packet": "AddItemActorPacket",
+    "seq": 476,
+    "t_ms": 2263.0
+  },
+  {
+    "bytes": 384,
+    "id": 15,
+    "packet": "AddItemActorPacket",
+    "seq": 477,
+    "t_ms": 2263.0
+  },
+  {
+    "bytes": 49,
+    "id": 123,
+    "packet": "LevelSoundEventPacket",
+    "seq": 478,
+    "t_ms": 2263.0
+  },
+  {
+    "bytes": 49,
+    "id": 123,
+    "packet": "LevelSoundEventPacket",
+    "seq": 479,
+    "t_ms": 2263.0
+  },
+  {
+    "bytes": 17,
+    "id": 39,
+    "packet": "SetActorDataPacket",
+    "seq": 480,
+    "t_ms": 2263.0
+  },
+  {
+    "bytes": 17,
+    "id": 39,
+    "packet": "SetActorDataPacket",
+    "seq": 481,
+    "t_ms": 2263.0
+  },
+  {
+    "bytes": 17,
+    "id": 39,
+    "packet": "SetActorDataPacket",
+    "seq": 482,
+    "t_ms": 2263.0
+  },
+  {
+    "bytes": 25,
+    "id": 111,
+    "packet": "MoveActorDeltaPacket",
+    "seq": 483,
+    "t_ms": 2263.0
+  },
+  {
+    "bytes": 25,
+    "id": 111,
+    "packet": "MoveActorDeltaPacket",
+    "seq": 484,
+    "t_ms": 2263.0
+  },
+  {
+    "bytes": 5217,
+    "id": 58,
+    "packet": "LevelChunkPacket",
+    "seq": 485,
+    "t_ms": 2304.0
+  },
+  {
+    "bytes": 565,
+    "id": 58,
+    "packet": "LevelChunkPacket",
+    "seq": 486,
+    "t_ms": 2304.0
+  },
+  {
+    "bytes": 565,
+    "id": 58,
+    "packet": "LevelChunkPacket",
+    "seq": 487,
+    "t_ms": 2304.0
+  },
+  {
+    "bytes": 1592,
+    "id": 58,
+    "packet": "LevelChunkPacket",
+    "seq": 488,
+    "t_ms": 2304.0
+  },
+  {
+    "bytes": 4700,
+    "id": 58,
+    "packet": "LevelChunkPacket",
+    "seq": 489,
+    "t_ms": 2304.0
+  },
+  {
+    "bytes": 1593,
+    "id": 58,
+    "packet": "LevelChunkPacket",
+    "seq": 490,
+    "t_ms": 2304.0
+  },
+  {
+    "bytes": 5728,
+    "id": 58,
+    "packet": "LevelChunkPacket",
+    "seq": 491,
+    "t_ms": 2305.0
+  },
+  {
+    "bytes": 1079,
+    "id": 58,
+    "packet": "LevelChunkPacket",
+    "seq": 492,
+    "t_ms": 2305.0
+  },
+  {
+    "bytes": 1593,
+    "id": 58,
+    "packet": "LevelChunkPacket",
+    "seq": 493,
+    "t_ms": 2305.0
+  },
+  {
+    "bytes": 5711,
+    "id": 58,
+    "packet": "LevelChunkPacket",
+    "seq": 494,
+    "t_ms": 2305.0
+  },
+  {
+    "bytes": 1078,
+    "id": 58,
+    "packet": "LevelChunkPacket",
+    "seq": 495,
+    "t_ms": 2306.0
+  },
+  {
+    "bytes": 6734,
+    "id": 58,
+    "packet": "LevelChunkPacket",
+    "seq": 496,
+    "t_ms": 2306.0
+  },
+  {
+    "bytes": 3140,
+    "id": 58,
+    "packet": "LevelChunkPacket",
+    "seq": 497,
+    "t_ms": 2306.0
+  },
+  {
+    "bytes": 1078,
+    "id": 58,
+    "packet": "LevelChunkPacket",
+    "seq": 498,
+    "t_ms": 2306.0
+  },
+  {
+    "bytes": 5706,
+    "id": 58,
+    "packet": "LevelChunkPacket",
+    "seq": 499,
+    "t_ms": 2307.0
+  },
+  {
+    "bytes": 8908,
+    "id": 58,
+    "packet": "LevelChunkPacket",
+    "seq": 500,
+    "t_ms": 2307.0
+  },
+  {
+    "bytes": 3140,
+    "id": 58,
+    "packet": "LevelChunkPacket",
+    "seq": 501,
+    "t_ms": 2308.0
+  },
+  {
+    "bytes": 1078,
+    "id": 58,
+    "packet": "LevelChunkPacket",
+    "seq": 502,
+    "t_ms": 2308.0
+  },
+  {
+    "bytes": 1079,
+    "id": 58,
+    "packet": "LevelChunkPacket",
+    "seq": 503,
+    "t_ms": 2308.0
+  },
+  {
+    "bytes": 1078,
+    "id": 58,
+    "packet": "LevelChunkPacket",
+    "seq": 504,
+    "t_ms": 2308.0
+  },
+  {
+    "bytes": 50,
+    "id": 172,
+    "packet": "UpdateSubChunkBlocksPacket",
+    "seq": 505,
+    "t_ms": 2358.0
+  },
+  {
+    "bytes": 2124,
+    "id": 58,
+    "packet": "LevelChunkPacket",
+    "seq": 506,
+    "t_ms": 2358.0
+  },
+  {
+    "bytes": 4693,
+    "id": 58,
+    "packet": "LevelChunkPacket",
+    "seq": 507,
+    "t_ms": 2358.0
+  },
+  {
+    "bytes": 4176,
+    "id": 58,
+    "packet": "LevelChunkPacket",
+    "seq": 508,
+    "t_ms": 2358.0
+  },
+  {
+    "bytes": 2124,
+    "id": 58,
+    "packet": "LevelChunkPacket",
+    "seq": 509,
+    "t_ms": 2359.0
+  },
+  {
+    "bytes": 3155,
+    "id": 58,
+    "packet": "LevelChunkPacket",
+    "seq": 510,
+    "t_ms": 2359.0
+  },
+  {
+    "bytes": 5207,
+    "id": 58,
+    "packet": "LevelChunkPacket",
+    "seq": 511,
+    "t_ms": 2359.0
+  },
+  {
+    "bytes": 2630,
+    "id": 58,
+    "packet": "LevelChunkPacket",
+    "seq": 512,
+    "t_ms": 2359.0
+  },
+  {
+    "bytes": 565,
+    "id": 58,
+    "packet": "LevelChunkPacket",
+    "seq": 513,
+    "t_ms": 2359.0
+  },
+  {
+    "bytes": 1079,
+    "id": 58,
+    "packet": "LevelChunkPacket",
+    "seq": 514,
+    "t_ms": 2359.0
+  },
+  {
+    "bytes": 4178,
+    "id": 58,
+    "packet": "LevelChunkPacket",
+    "seq": 515,
+    "t_ms": 2359.0
+  },
+  {
+    "bytes": 1079,
+    "id": 58,
+    "packet": "LevelChunkPacket",
+    "seq": 516,
+    "t_ms": 2360.0
+  },
+  {
+    "bytes": 4176,
+    "id": 58,
+    "packet": "LevelChunkPacket",
+    "seq": 517,
+    "t_ms": 2360.0
+  },
+  {
+    "bytes": 2640,
+    "id": 58,
+    "packet": "LevelChunkPacket",
+    "seq": 518,
+    "t_ms": 2360.0
+  },
+  {
+    "bytes": 1078,
+    "id": 58,
+    "packet": "LevelChunkPacket",
+    "seq": 519,
+    "t_ms": 2360.0
+  },
+  {
+    "bytes": 1078,
+    "id": 58,
+    "packet": "LevelChunkPacket",
+    "seq": 520,
+    "t_ms": 2360.0
+  },
+  {
+    "bytes": 564,
+    "id": 58,
+    "packet": "LevelChunkPacket",
+    "seq": 521,
+    "t_ms": 2360.0
+  },
+  {
+    "bytes": 3142,
+    "id": 58,
+    "packet": "LevelChunkPacket",
+    "seq": 522,
+    "t_ms": 2360.0
+  },
+  {
+    "bytes": 565,
+    "id": 58,
+    "packet": "LevelChunkPacket",
+    "seq": 523,
+    "t_ms": 2361.0
+  },
+  {
+    "bytes": 1079,
+    "id": 58,
+    "packet": "LevelChunkPacket",
+    "seq": 524,
+    "t_ms": 2361.0
+  },
+  {
+    "bytes": 3140,
+    "id": 58,
+    "packet": "LevelChunkPacket",
+    "seq": 525,
+    "t_ms": 2361.0
+  },
+  {
+    "bytes": 1079,
+    "id": 58,
+    "packet": "LevelChunkPacket",
+    "seq": 526,
+    "t_ms": 2412.0
+  },
+  {
+    "bytes": 3135,
+    "id": 58,
+    "packet": "LevelChunkPacket",
+    "seq": 527,
+    "t_ms": 2412.0
+  },
+  {
+    "bytes": 3654,
+    "id": 58,
+    "packet": "LevelChunkPacket",
+    "seq": 528,
+    "t_ms": 2412.0
+  },
+  {
+    "bytes": 1079,
+    "id": 58,
+    "packet": "LevelChunkPacket",
+    "seq": 529,
+    "t_ms": 2413.0
+  },
+  {
+    "bytes": 2625,
+    "id": 58,
+    "packet": "LevelChunkPacket",
+    "seq": 530,
+    "t_ms": 2413.0
+  },
+  {
+    "bytes": 3648,
+    "id": 58,
+    "packet": "LevelChunkPacket",
+    "seq": 531,
+    "t_ms": 2413.0
+  },
+  {
+    "bytes": 7777,
+    "id": 58,
+    "packet": "LevelChunkPacket",
+    "seq": 532,
+    "t_ms": 2413.0
+  },
+  {
+    "bytes": 8287,
+    "id": 58,
+    "packet": "LevelChunkPacket",
+    "seq": 533,
+    "t_ms": 2414.0
+  },
+  {
+    "bytes": 6232,
+    "id": 58,
+    "packet": "LevelChunkPacket",
+    "seq": 534,
+    "t_ms": 2415.0
+  },
+  {
+    "bytes": 3142,
+    "id": 58,
+    "packet": "LevelChunkPacket",
+    "seq": 535,
+    "t_ms": 2416.0
+  },
+  {
+    "bytes": 6226,
+    "id": 58,
+    "packet": "LevelChunkPacket",
+    "seq": 536,
+    "t_ms": 2416.0
+  },
+  {
+    "bytes": 1078,
+    "id": 58,
+    "packet": "LevelChunkPacket",
+    "seq": 537,
+    "t_ms": 2417.0
+  },
+  {
+    "bytes": 3653,
+    "id": 58,
+    "packet": "LevelChunkPacket",
+    "seq": 538,
+    "t_ms": 2417.0
+  },
+  {
+    "bytes": 1078,
+    "id": 58,
+    "packet": "LevelChunkPacket",
+    "seq": 539,
+    "t_ms": 2417.0
+  },
+  {
+    "bytes": 5197,
+    "id": 58,
+    "packet": "LevelChunkPacket",
+    "seq": 540,
+    "t_ms": 2418.0
+  },
+  {
+    "bytes": 1078,
+    "id": 58,
+    "packet": "LevelChunkPacket",
+    "seq": 541,
+    "t_ms": 2418.0
+  },
+  {
+    "bytes": 10862,
+    "id": 58,
+    "packet": "LevelChunkPacket",
+    "seq": 542,
+    "t_ms": 2418.0
+  },
+  {
+    "bytes": 1078,
+    "id": 58,
+    "packet": "LevelChunkPacket",
+    "seq": 543,
+    "t_ms": 2419.0
+  },
+  {
+    "bytes": 4682,
+    "id": 58,
+    "packet": "LevelChunkPacket",
+    "seq": 544,
+    "t_ms": 2419.0
+  },
+  {
+    "bytes": 1078,
+    "id": 58,
+    "packet": "LevelChunkPacket",
+    "seq": 545,
+    "t_ms": 2420.0
+  },
+  {
+    "bytes": 49,
+    "id": 123,
+    "packet": "LevelSoundEventPacket",
+    "seq": 546,
+    "t_ms": 2420.0
+  },
+  {
+    "bytes": 15,
+    "id": 40,
+    "packet": "SetActorMotionPacket",
+    "seq": 547,
+    "t_ms": 2420.0
+  },
+  {
+    "bytes": 14,
+    "id": 21,
+    "packet": "UpdateBlockPacket",
+    "seq": 548,
+    "t_ms": 2459.0
+  },
+  {
+    "bytes": 6243,
+    "id": 58,
+    "packet": "LevelChunkPacket",
+    "seq": 549,
+    "t_ms": 2459.0
+  },
+  {
+    "bytes": 1079,
+    "id": 58,
+    "packet": "LevelChunkPacket",
+    "seq": 550,
+    "t_ms": 2459.0
+  },
+  {
+    "bytes": 1079,
+    "id": 58,
+    "packet": "LevelChunkPacket",
+    "seq": 551,
+    "t_ms": 2459.0
+  },
+  {
+    "bytes": 3145,
+    "id": 58,
+    "packet": "LevelChunkPacket",
+    "seq": 552,
+    "t_ms": 2459.0
+  },
+  {
+    "bytes": 5215,
+    "id": 58,
+    "packet": "LevelChunkPacket",
+    "seq": 553,
+    "t_ms": 2460.0
+  },
+  {
+    "bytes": 1078,
+    "id": 58,
+    "packet": "LevelChunkPacket",
+    "seq": 554,
+    "t_ms": 2460.0
+  },
+  {
+    "bytes": 1078,
+    "id": 58,
+    "packet": "LevelChunkPacket",
+    "seq": 555,
+    "t_ms": 2460.0
+  },
+  {
+    "bytes": 6227,
+    "id": 58,
+    "packet": "LevelChunkPacket",
+    "seq": 556,
+    "t_ms": 2460.0
+  },
+  {
+    "bytes": 6742,
+    "id": 58,
+    "packet": "LevelChunkPacket",
+    "seq": 557,
+    "t_ms": 2461.0
+  },
+  {
+    "bytes": 1078,
+    "id": 58,
+    "packet": "LevelChunkPacket",
+    "seq": 558,
+    "t_ms": 2461.0
+  },
+  {
+    "bytes": 13742,
+    "id": 58,
+    "packet": "LevelChunkPacket",
+    "seq": 559,
+    "t_ms": 2461.0
+  },
+  {
+    "bytes": 1078,
+    "id": 58,
+    "packet": "LevelChunkPacket",
+    "seq": 560,
+    "t_ms": 2462.0
+  },
+  {
+    "bytes": 1078,
+    "id": 58,
+    "packet": "LevelChunkPacket",
+    "seq": 561,
+    "t_ms": 2462.0
+  },
+  {
+    "bytes": 9830,
+    "id": 58,
+    "packet": "LevelChunkPacket",
+    "seq": 562,
+    "t_ms": 2462.0
+  },
+  {
+    "bytes": 1078,
+    "id": 58,
+    "packet": "LevelChunkPacket",
+    "seq": 563,
+    "t_ms": 2463.0
+  },
+  {
+    "bytes": 1078,
+    "id": 58,
+    "packet": "LevelChunkPacket",
+    "seq": 564,
+    "t_ms": 2463.0
+  },
+  {
+    "bytes": 3136,
+    "id": 58,
+    "packet": "LevelChunkPacket",
+    "seq": 565,
+    "t_ms": 2463.0
+  },
+  {
+    "bytes": 25,
+    "id": 111,
+    "packet": "MoveActorDeltaPacket",
+    "seq": 566,
+    "t_ms": 2463.0
+  },
+  {
+    "bytes": 15,
+    "id": 40,
+    "packet": "SetActorMotionPacket",
+    "seq": 567,
+    "t_ms": 2463.0
+  },
+  {
+    "bytes": 15,
+    "id": 40,
+    "packet": "SetActorMotionPacket",
+    "seq": 568,
+    "t_ms": 2463.0
+  },
+  {
+    "bytes": 71,
+    "id": 172,
+    "packet": "UpdateSubChunkBlocksPacket",
+    "seq": 569,
+    "t_ms": 2510.0
+  },
+  {
+    "bytes": 13,
+    "id": 21,
+    "packet": "UpdateBlockPacket",
+    "seq": 570,
+    "t_ms": 2510.0
+  },
+  {
+    "bytes": 4176,
+    "id": 58,
+    "packet": "LevelChunkPacket",
+    "seq": 571,
+    "t_ms": 2510.0
+  },
+  {
+    "bytes": 4166,
+    "id": 58,
+    "packet": "LevelChunkPacket",
+    "seq": 572,
+    "t_ms": 2510.0
+  },
+  {
+    "bytes": 2116,
+    "id": 58,
+    "packet": "LevelChunkPacket",
+    "seq": 573,
+    "t_ms": 2510.0
+  },
+  {
+    "bytes": 4698,
+    "id": 58,
+    "packet": "LevelChunkPacket",
+    "seq": 574,
+    "t_ms": 2510.0
+  },
+  {
+    "bytes": 2126,
+    "id": 58,
+    "packet": "LevelChunkPacket",
+    "seq": 575,
+    "t_ms": 2511.0
+  },
+  {
+    "bytes": 1079,
+    "id": 58,
+    "packet": "LevelChunkPacket",
+    "seq": 576,
+    "t_ms": 2511.0
+  },
+  {
+    "bytes": 2639,
+    "id": 58,
+    "packet": "LevelChunkPacket",
+    "seq": 577,
+    "t_ms": 2511.0
+  },
+  {
+    "bytes": 5193,
+    "id": 58,
+    "packet": "LevelChunkPacket",
+    "seq": 578,
+    "t_ms": 2511.0
+  },
+  {
+    "bytes": 5215,
+    "id": 58,
+    "packet": "LevelChunkPacket",
+    "seq": 579,
+    "t_ms": 2512.0
+  },
+  {
+    "bytes": 565,
+    "id": 58,
+    "packet": "LevelChunkPacket",
+    "seq": 580,
+    "t_ms": 2512.0
+  },
+  {
+    "bytes": 565,
+    "id": 58,
+    "packet": "LevelChunkPacket",
+    "seq": 581,
+    "t_ms": 2512.0
+  },
+  {
+    "bytes": 2625,
+    "id": 58,
+    "packet": "LevelChunkPacket",
+    "seq": 582,
+    "t_ms": 2512.0
+  },
+  {
+    "bytes": 2115,
+    "id": 58,
+    "packet": "LevelChunkPacket",
+    "seq": 583,
+    "t_ms": 2512.0
+  },
+  {
+    "bytes": 4183,
+    "id": 58,
+    "packet": "LevelChunkPacket",
+    "seq": 584,
+    "t_ms": 2512.0
+  },
+  {
+    "bytes": 3155,
+    "id": 58,
+    "packet": "LevelChunkPacket",
+    "seq": 585,
+    "t_ms": 2513.0
+  },
+  {
+    "bytes": 2639,
+    "id": 58,
+    "packet": "LevelChunkPacket",
+    "seq": 586,
+    "t_ms": 2513.0
+  },
+  {
+    "bytes": 2643,
+    "id": 58,
+    "packet": "LevelChunkPacket",
+    "seq": 587,
+    "t_ms": 2513.0
+  },
+  {
+    "bytes": 3652,
+    "id": 58,
+    "packet": "LevelChunkPacket",
+    "seq": 588,
+    "t_ms": 2513.0
+  },
+  {
+    "bytes": 5730,
+    "id": 58,
+    "packet": "LevelChunkPacket",
+    "seq": 589,
+    "t_ms": 2514.0
+  },
+  {
+    "bytes": 388,
+    "id": 15,
+    "packet": "AddItemActorPacket",
+    "seq": 590,
+    "t_ms": 2514.0
+  },
+  {
+    "bytes": 49,
+    "id": 123,
+    "packet": "LevelSoundEventPacket",
+    "seq": 591,
+    "t_ms": 2514.0
+  },
+  {
+    "bytes": 17,
+    "id": 39,
+    "packet": "SetActorDataPacket",
+    "seq": 592,
+    "t_ms": 2514.0
+  },
+  {
+    "bytes": 25,
+    "id": 111,
+    "packet": "MoveActorDeltaPacket",
+    "seq": 593,
+    "t_ms": 2514.0
+  },
+  {
+    "bytes": 15,
+    "id": 40,
+    "packet": "SetActorMotionPacket",
+    "seq": 594,
+    "t_ms": 2514.0
+  },
+  {
+    "bytes": 25,
+    "id": 111,
+    "packet": "MoveActorDeltaPacket",
+    "seq": 595,
+    "t_ms": 2514.0
+  },
+  {
+    "bytes": 3660,
+    "id": 58,
+    "packet": "LevelChunkPacket",
+    "seq": 596,
+    "t_ms": 2554.0
+  },
+  {
+    "bytes": 2126,
+    "id": 58,
+    "packet": "LevelChunkPacket",
+    "seq": 597,
+    "t_ms": 2554.0
+  },
+  {
+    "bytes": 2643,
+    "id": 58,
+    "packet": "LevelChunkPacket",
+    "seq": 598,
+    "t_ms": 2554.0
+  },
+  {
+    "bytes": 9433,
+    "id": 58,
+    "packet": "LevelChunkPacket",
+    "seq": 599,
+    "t_ms": 2555.0
+  },
+  {
+    "bytes": 1593,
+    "id": 58,
+    "packet": "LevelChunkPacket",
+    "seq": 600,
+    "t_ms": 2555.0
+  },
+  {
+    "bytes": 1609,
+    "id": 58,
+    "packet": "LevelChunkPacket",
+    "seq": 601,
+    "t_ms": 2555.0
+  },
+  {
+    "bytes": 2115,
+    "id": 58,
+    "packet": "LevelChunkPacket",
+    "seq": 602,
+    "t_ms": 2555.0
+  },
+  {
+    "bytes": 5207,
+    "id": 58,
+    "packet": "LevelChunkPacket",
+    "seq": 603,
+    "t_ms": 2556.0
+  },
+  {
+    "bytes": 1593,
+    "id": 58,
+    "packet": "LevelChunkPacket",
+    "seq": 604,
+    "t_ms": 2556.0
+  },
+  {
+    "bytes": 1078,
+    "id": 58,
+    "packet": "LevelChunkPacket",
+    "seq": 605,
+    "t_ms": 2556.0
+  },
+  {
+    "bytes": 2126,
+    "id": 58,
+    "packet": "LevelChunkPacket",
+    "seq": 606,
+    "t_ms": 2556.0
+  },
+  {
+    "bytes": 3145,
+    "id": 58,
+    "packet": "LevelChunkPacket",
+    "seq": 607,
+    "t_ms": 2556.0
+  },
+  {
+    "bytes": 1078,
+    "id": 58,
+    "packet": "LevelChunkPacket",
+    "seq": 608,
+    "t_ms": 2557.0
+  },
+  {
+    "bytes": 2115,
+    "id": 58,
+    "packet": "LevelChunkPacket",
+    "seq": 609,
+    "t_ms": 2557.0
+  },
+  {
+    "bytes": 2124,
+    "id": 58,
+    "packet": "LevelChunkPacket",
+    "seq": 610,
+    "t_ms": 2557.0
+  },
+  {
+    "bytes": 1078,
+    "id": 58,
+    "packet": "LevelChunkPacket",
+    "seq": 611,
+    "t_ms": 2557.0
+  },
+  {
+    "bytes": 6336,
+    "id": 58,
+    "packet": "LevelChunkPacket",
+    "seq": 612,
+    "t_ms": 2557.0
+  },
+  {
+    "bytes": 3141,
+    "id": 58,
+    "packet": "LevelChunkPacket",
+    "seq": 613,
+    "t_ms": 2558.0
+  },
+  {
+    "bytes": 2115,
+    "id": 58,
+    "packet": "LevelChunkPacket",
+    "seq": 614,
+    "t_ms": 2558.0
+  },
+  {
+    "bytes": 5704,
+    "id": 58,
+    "packet": "LevelChunkPacket",
+    "seq": 615,
+    "t_ms": 2558.0
+  },
+  {
+    "bytes": 17,
+    "id": 39,
+    "packet": "SetActorDataPacket",
+    "seq": 616,
+    "t_ms": 2558.0
+  },
+  {
+    "bytes": 25,
+    "id": 111,
+    "packet": "MoveActorDeltaPacket",
+    "seq": 617,
+    "t_ms": 2558.0
+  },
+  {
+    "bytes": 25,
+    "id": 111,
+    "packet": "MoveActorDeltaPacket",
+    "seq": 618,
+    "t_ms": 2558.0
+  },
+  {
+    "bytes": 15,
+    "id": 40,
+    "packet": "SetActorMotionPacket",
+    "seq": 619,
+    "t_ms": 2558.0
+  },
+  {
+    "bytes": 50,
+    "id": 172,
+    "packet": "UpdateSubChunkBlocksPacket",
+    "seq": 620,
+    "t_ms": 2609.0
+  },
+  {
+    "bytes": 1079,
+    "id": 58,
+    "packet": "LevelChunkPacket",
+    "seq": 621,
+    "t_ms": 2609.0
+  },
+  {
+    "bytes": 1079,
+    "id": 58,
+    "packet": "LevelChunkPacket",
+    "seq": 622,
+    "t_ms": 2609.0
+  },
+  {
+    "bytes": 1079,
+    "id": 58,
+    "packet": "LevelChunkPacket",
+    "seq": 623,
+    "t_ms": 2609.0
+  },
+  {
+    "bytes": 3649,
+    "id": 58,
+    "packet": "LevelChunkPacket",
+    "seq": 624,
+    "t_ms": 2609.0
+  },
+  {
+    "bytes": 3657,
+    "id": 58,
+    "packet": "LevelChunkPacket",
+    "seq": 625,
+    "t_ms": 2609.0
+  },
+  {
+    "bytes": 6746,
+    "id": 58,
+    "packet": "LevelChunkPacket",
+    "seq": 626,
+    "t_ms": 2610.0
+  },
+  {
+    "bytes": 3667,
+    "id": 58,
+    "packet": "LevelChunkPacket",
+    "seq": 627,
+    "t_ms": 2610.0
+  },
+  {
+    "bytes": 1078,
+    "id": 58,
+    "packet": "LevelChunkPacket",
+    "seq": 628,
+    "t_ms": 2610.0
+  },
+  {
+    "bytes": 1593,
+    "id": 58,
+    "packet": "LevelChunkPacket",
+    "seq": 629,
+    "t_ms": 2610.0
+  },
+  {
+    "bytes": 4178,
+    "id": 58,
+    "packet": "LevelChunkPacket",
+    "seq": 630,
+    "t_ms": 2610.0
+  },
+  {
+    "bytes": 2106,
+    "id": 58,
+    "packet": "LevelChunkPacket",
+    "seq": 631,
+    "t_ms": 2611.0
+  },
+  {
+    "bytes": 1078,
+    "id": 58,
+    "packet": "LevelChunkPacket",
+    "seq": 632,
+    "t_ms": 2611.0
+  },
+  {
+    "bytes": 2109,
+    "id": 58,
+    "packet": "LevelChunkPacket",
+    "seq": 633,
+    "t_ms": 2611.0
+  },
+  {
+    "bytes": 3152,
+    "id": 58,
+    "packet": "LevelChunkPacket",
+    "seq": 634,
+    "t_ms": 2611.0
+  },
+  {
+    "bytes": 6232,
+    "id": 58,
+    "packet": "LevelChunkPacket",
+    "seq": 635,
+    "t_ms": 2611.0
+  },
+  {
+    "bytes": 1078,
+    "id": 58,
+    "packet": "LevelChunkPacket",
+    "seq": 636,
+    "t_ms": 2612.0
+  },
+  {
+    "bytes": 5723,
+    "id": 58,
+    "packet": "LevelChunkPacket",
+    "seq": 637,
+    "t_ms": 2612.0
+  },
+  {
+    "bytes": 3153,
+    "id": 58,
+    "packet": "LevelChunkPacket",
+    "seq": 638,
+    "t_ms": 2612.0
+  },
+  {
+    "bytes": 3649,
+    "id": 58,
+    "packet": "LevelChunkPacket",
+    "seq": 639,
+    "t_ms": 2613.0
+  },
+  {
+    "bytes": 7784,
+    "id": 58,
+    "packet": "LevelChunkPacket",
+    "seq": 640,
+    "t_ms": 2613.0
+  },
+  {
+    "bytes": 388,
+    "id": 15,
+    "packet": "AddItemActorPacket",
+    "seq": 641,
+    "t_ms": 2613.0
+  },
+  {
+    "bytes": 49,
+    "id": 123,
+    "packet": "LevelSoundEventPacket",
+    "seq": 642,
+    "t_ms": 2613.0
+  },
+  {
+    "bytes": 17,
+    "id": 39,
+    "packet": "SetActorDataPacket",
+    "seq": 643,
+    "t_ms": 2613.0
+  },
+  {
+    "bytes": 17,
+    "id": 39,
+    "packet": "SetActorDataPacket",
+    "seq": 644,
+    "t_ms": 2613.0
+  },
+  {
+    "bytes": 25,
+    "id": 111,
+    "packet": "MoveActorDeltaPacket",
+    "seq": 645,
+    "t_ms": 2614.0
+  },
+  {
+    "bytes": 15,
+    "id": 40,
+    "packet": "SetActorMotionPacket",
+    "seq": 646,
+    "t_ms": 2614.0
+  },
+  {
+    "bytes": 21,
+    "id": 111,
+    "packet": "MoveActorDeltaPacket",
+    "seq": 647,
+    "t_ms": 2614.0
+  },
+  {
+    "bytes": 25,
+    "id": 111,
+    "packet": "MoveActorDeltaPacket",
+    "seq": 648,
+    "t_ms": 2614.0
+  },
+  {
+    "bytes": 4693,
+    "id": 58,
+    "packet": "LevelChunkPacket",
+    "seq": 649,
+    "t_ms": 2660.0
+  },
+  {
+    "bytes": 2630,
+    "id": 58,
+    "packet": "LevelChunkPacket",
+    "seq": 650,
+    "t_ms": 2660.0
+  },
+  {
+    "bytes": 4700,
+    "id": 58,
+    "packet": "LevelChunkPacket",
+    "seq": 651,
+    "t_ms": 2661.0
+  },
+  {
+    "bytes": 1601,
+    "id": 58,
+    "packet": "LevelChunkPacket",
+    "seq": 652,
+    "t_ms": 2661.0
+  },
+  {
+    "bytes": 1078,
+    "id": 58,
+    "packet": "LevelChunkPacket",
+    "seq": 653,
+    "t_ms": 2661.0
+  },
+  {
+    "bytes": 3135,
+    "id": 58,
+    "packet": "LevelChunkPacket",
+    "seq": 654,
+    "t_ms": 2661.0
+  },
+  {
+    "bytes": 3157,
+    "id": 58,
+    "packet": "LevelChunkPacket",
+    "seq": 655,
+    "t_ms": 2661.0
+  },
+  {
+    "bytes": 1078,
+    "id": 58,
+    "packet": "LevelChunkPacket",
+    "seq": 656,
+    "t_ms": 2662.0
+  },
+  {
+    "bytes": 1078,
+    "id": 58,
+    "packet": "LevelChunkPacket",
+    "seq": 657,
+    "t_ms": 2662.0
+  },
+  {
+    "bytes": 1078,
+    "id": 58,
+    "packet": "LevelChunkPacket",
+    "seq": 658,
+    "t_ms": 2662.0
+  },
+  {
+    "bytes": 5198,
+    "id": 58,
+    "packet": "LevelChunkPacket",
+    "seq": 659,
+    "t_ms": 2662.0
+  },
+  {
+    "bytes": 5733,
+    "id": 58,
+    "packet": "LevelChunkPacket",
+    "seq": 660,
+    "t_ms": 2662.0
+  },
+  {
+    "bytes": 4162,
+    "id": 58,
+    "packet": "LevelChunkPacket",
+    "seq": 661,
+    "t_ms": 2663.0
+  },
+  {
+    "bytes": 1593,
+    "id": 58,
+    "packet": "LevelChunkPacket",
+    "seq": 662,
+    "t_ms": 2663.0
+  },
+  {
+    "bytes": 1078,
+    "id": 58,
+    "packet": "LevelChunkPacket",
+    "seq": 663,
+    "t_ms": 2663.0
+  },
+  {
+    "bytes": 6761,
+    "id": 58,
+    "packet": "LevelChunkPacket",
+    "seq": 664,
+    "t_ms": 2663.0
+  },
+  {
+    "bytes": 1593,
+    "id": 58,
+    "packet": "LevelChunkPacket",
+    "seq": 665,
+    "t_ms": 2664.0
+  },
+  {
+    "bytes": 6760,
+    "id": 58,
+    "packet": "LevelChunkPacket",
+    "seq": 666,
+    "t_ms": 2664.0
+  },
+  {
+    "bytes": 4685,
+    "id": 58,
+    "packet": "LevelChunkPacket",
+    "seq": 667,
+    "t_ms": 2664.0
+  },
+  {
+    "bytes": 1078,
+    "id": 58,
+    "packet": "LevelChunkPacket",
+    "seq": 668,
+    "t_ms": 2665.0
+  },
+  {
+    "bytes": 15,
+    "id": 40,
+    "packet": "SetActorMotionPacket",
+    "seq": 669,
+    "t_ms": 2665.0
+  },
+  {
+    "bytes": 1078,
+    "id": 58,
+    "packet": "LevelChunkPacket",
+    "seq": 670,
+    "t_ms": 2707.0
+  },
+  {
+    "bytes": 3648,
+    "id": 58,
+    "packet": "LevelChunkPacket",
+    "seq": 671,
+    "t_ms": 2707.0
+  },
+  {
+    "bytes": 1078,
+    "id": 58,
+    "packet": "LevelChunkPacket",
+    "seq": 672,
+    "t_ms": 2707.0
+  },
+  {
+    "bytes": 5731,
+    "id": 58,
+    "packet": "LevelChunkPacket",
+    "seq": 673,
+    "t_ms": 2707.0
+  },
+  {
+    "bytes": 2622,
+    "id": 58,
+    "packet": "LevelChunkPacket",
+    "seq": 674,
+    "t_ms": 2708.0
+  },
+  {
+    "bytes": 3141,
+    "id": 58,
+    "packet": "LevelChunkPacket",
+    "seq": 675,
+    "t_ms": 2708.0
+  },
+  {
+    "bytes": 1593,
+    "id": 58,
+    "packet": "LevelChunkPacket",
+    "seq": 676,
+    "t_ms": 2708.0
+  },
+  {
+    "bytes": 1078,
+    "id": 58,
+    "packet": "LevelChunkPacket",
+    "seq": 677,
+    "t_ms": 2708.0
+  },
+  {
+    "bytes": 3157,
+    "id": 58,
+    "packet": "LevelChunkPacket",
+    "seq": 678,
+    "t_ms": 2708.0
+  },
+  {
+    "bytes": 2111,
+    "id": 58,
+    "packet": "LevelChunkPacket",
+    "seq": 679,
+    "t_ms": 2709.0
+  },
+  {
+    "bytes": 3658,
+    "id": 58,
+    "packet": "LevelChunkPacket",
+    "seq": 680,
+    "t_ms": 2709.0
+  },
+  {
+    "bytes": 1078,
+    "id": 58,
+    "packet": "LevelChunkPacket",
+    "seq": 681,
+    "t_ms": 2709.0
+  },
+  {
+    "bytes": 1078,
+    "id": 58,
+    "packet": "LevelChunkPacket",
+    "seq": 682,
+    "t_ms": 2709.0
+  },
+  {
+    "bytes": 1078,
+    "id": 58,
+    "packet": "LevelChunkPacket",
+    "seq": 683,
+    "t_ms": 2709.0
+  },
+  {
+    "bytes": 1078,
+    "id": 58,
+    "packet": "LevelChunkPacket",
+    "seq": 684,
+    "t_ms": 2709.0
+  },
+  {
+    "bytes": 6244,
+    "id": 58,
+    "packet": "LevelChunkPacket",
+    "seq": 685,
+    "t_ms": 2709.0
+  },
+  {
+    "bytes": 1078,
+    "id": 58,
+    "packet": "LevelChunkPacket",
+    "seq": 686,
+    "t_ms": 2710.0
+  },
+  {
+    "bytes": 7263,
+    "id": 58,
+    "packet": "LevelChunkPacket",
+    "seq": 687,
+    "t_ms": 2710.0
+  },
+  {
+    "bytes": 1078,
+    "id": 58,
+    "packet": "LevelChunkPacket",
+    "seq": 688,
+    "t_ms": 2710.0
+  },
+  {
+    "bytes": 1078,
+    "id": 58,
+    "packet": "LevelChunkPacket",
+    "seq": 689,
+    "t_ms": 2711.0
+  },
+  {
+    "bytes": 25,
+    "id": 111,
+    "packet": "MoveActorDeltaPacket",
+    "seq": 690,
+    "t_ms": 2711.0
+  },
+  {
+    "bytes": 14,
+    "id": 21,
+    "packet": "UpdateBlockPacket",
+    "seq": 691,
+    "t_ms": 2760.0
+  },
+  {
+    "bytes": 5212,
+    "id": 58,
+    "packet": "LevelChunkPacket",
+    "seq": 692,
+    "t_ms": 2760.0
+  },
+  {
+    "bytes": 1593,
+    "id": 58,
+    "packet": "LevelChunkPacket",
+    "seq": 693,
+    "t_ms": 2760.0
+  },
+  {
+    "bytes": 3155,
+    "id": 58,
+    "packet": "LevelChunkPacket",
+    "seq": 694,
+    "t_ms": 2760.0
+  },
+  {
+    "bytes": 3155,
+    "id": 58,
+    "packet": "LevelChunkPacket",
+    "seq": 695,
+    "t_ms": 2760.0
+  },
+  {
+    "bytes": 2641,
+    "id": 58,
+    "packet": "LevelChunkPacket",
+    "seq": 696,
+    "t_ms": 2761.0
+  },
+  {
+    "bytes": 1078,
+    "id": 58,
+    "packet": "LevelChunkPacket",
+    "seq": 697,
+    "t_ms": 2761.0
+  },
+  {
+    "bytes": 2622,
+    "id": 58,
+    "packet": "LevelChunkPacket",
+    "seq": 698,
+    "t_ms": 2761.0
+  },
+  {
+    "bytes": 1078,
+    "id": 58,
+    "packet": "LevelChunkPacket",
+    "seq": 699,
+    "t_ms": 2761.0
+  },
+  {
+    "bytes": 1078,
+    "id": 58,
+    "packet": "LevelChunkPacket",
+    "seq": 700,
+    "t_ms": 2761.0
+  },
+  {
+    "bytes": 1078,
+    "id": 58,
+    "packet": "LevelChunkPacket",
+    "seq": 701,
+    "t_ms": 2761.0
+  },
+  {
+    "bytes": 5214,
+    "id": 58,
+    "packet": "LevelChunkPacket",
+    "seq": 702,
+    "t_ms": 2761.0
+  },
+  {
+    "bytes": 3647,
+    "id": 58,
+    "packet": "LevelChunkPacket",
+    "seq": 703,
+    "t_ms": 2762.0
+  },
+  {
+    "bytes": 5213,
+    "id": 58,
+    "packet": "LevelChunkPacket",
+    "seq": 704,
+    "t_ms": 2762.0
+  },
+  {
+    "bytes": 3155,
+    "id": 58,
+    "packet": "LevelChunkPacket",
+    "seq": 705,
+    "t_ms": 2762.0
+  },
+  {
+    "bytes": 1078,
+    "id": 58,
+    "packet": "LevelChunkPacket",
+    "seq": 706,
+    "t_ms": 2762.0
+  },
+  {
+    "bytes": 1078,
+    "id": 58,
+    "packet": "LevelChunkPacket",
+    "seq": 707,
+    "t_ms": 2762.0
+  },
+  {
+    "bytes": 1078,
+    "id": 58,
+    "packet": "LevelChunkPacket",
+    "seq": 708,
+    "t_ms": 2763.0
+  },
+  {
+    "bytes": 3141,
+    "id": 58,
+    "packet": "LevelChunkPacket",
+    "seq": 709,
+    "t_ms": 2763.0
+  },
+  {
+    "bytes": 3144,
+    "id": 58,
+    "packet": "LevelChunkPacket",
+    "seq": 710,
+    "t_ms": 2763.0
+  },
+  {
+    "bytes": 2626,
+    "id": 58,
+    "packet": "LevelChunkPacket",
+    "seq": 711,
+    "t_ms": 2763.0
+  },
+  {
+    "bytes": 25,
+    "id": 111,
+    "packet": "MoveActorDeltaPacket",
+    "seq": 712,
+    "t_ms": 2763.0
+  },
+  {
+    "bytes": 15,
+    "id": 40,
+    "packet": "SetActorMotionPacket",
+    "seq": 713,
+    "t_ms": 2763.0
+  },
+  {
+    "bytes": 15,
+    "id": 40,
+    "packet": "SetActorMotionPacket",
+    "seq": 714,
+    "t_ms": 2763.0
+  },
+  {
+    "bytes": 1078,
+    "id": 58,
+    "packet": "LevelChunkPacket",
+    "seq": 715,
+    "t_ms": 2803.0
+  },
+  {
+    "bytes": 2124,
+    "id": 58,
+    "packet": "LevelChunkPacket",
+    "seq": 716,
+    "t_ms": 2803.0
+  },
+  {
+    "bytes": 4700,
+    "id": 58,
+    "packet": "LevelChunkPacket",
+    "seq": 717,
+    "t_ms": 2803.0
+  },
+  {
+    "bytes": 5207,
+    "id": 58,
+    "packet": "LevelChunkPacket",
+    "seq": 718,
+    "t_ms": 2804.0
+  },
+  {
+    "bytes": 1078,
+    "id": 58,
+    "packet": "LevelChunkPacket",
+    "seq": 719,
+    "t_ms": 2804.0
+  },
+  {
+    "bytes": 1078,
+    "id": 58,
+    "packet": "LevelChunkPacket",
+    "seq": 720,
+    "t_ms": 2804.0
+  },
+  {
+    "bytes": 4690,
+    "id": 58,
+    "packet": "LevelChunkPacket",
+    "seq": 721,
+    "t_ms": 2804.0
+  },
+  {
+    "bytes": 1078,
+    "id": 58,
+    "packet": "LevelChunkPacket",
+    "seq": 722,
+    "t_ms": 2804.0
+  },
+  {
+    "bytes": 4683,
+    "id": 58,
+    "packet": "LevelChunkPacket",
+    "seq": 723,
+    "t_ms": 2804.0
+  },
+  {
+    "bytes": 3156,
+    "id": 58,
+    "packet": "LevelChunkPacket",
+    "seq": 724,
+    "t_ms": 2805.0
+  },
+  {
+    "bytes": 2125,
+    "id": 58,
+    "packet": "LevelChunkPacket",
+    "seq": 725,
+    "t_ms": 2805.0
+  },
+  {
+    "bytes": 2625,
+    "id": 58,
+    "packet": "LevelChunkPacket",
+    "seq": 726,
+    "t_ms": 2805.0
+  },
+  {
+    "bytes": 3153,
+    "id": 58,
+    "packet": "LevelChunkPacket",
+    "seq": 727,
+    "t_ms": 2805.0
+  },
+  {
+    "bytes": 2625,
+    "id": 58,
+    "packet": "LevelChunkPacket",
+    "seq": 728,
+    "t_ms": 2806.0
+  },
+  {
+    "bytes": 1078,
+    "id": 58,
+    "packet": "LevelChunkPacket",
+    "seq": 729,
+    "t_ms": 2806.0
+  },
+  {
+    "bytes": 2630,
+    "id": 58,
+    "packet": "LevelChunkPacket",
+    "seq": 730,
+    "t_ms": 2806.0
+  },
+  {
+    "bytes": 4704,
+    "id": 58,
+    "packet": "LevelChunkPacket",
+    "seq": 731,
+    "t_ms": 2806.0
+  },
+  {
+    "bytes": 3648,
+    "id": 58,
+    "packet": "LevelChunkPacket",
+    "seq": 732,
+    "t_ms": 2806.0
+  },
+  {
+    "bytes": 3668,
+    "id": 58,
+    "packet": "LevelChunkPacket",
+    "seq": 733,
+    "t_ms": 2807.0
+  },
+  {
+    "bytes": 1078,
+    "id": 58,
+    "packet": "LevelChunkPacket",
+    "seq": 734,
+    "t_ms": 2807.0
+  },
+  {
+    "bytes": 15,
+    "id": 40,
+    "packet": "SetActorMotionPacket",
+    "seq": 735,
+    "t_ms": 2807.0
+  },
+  {
+    "bytes": 1078,
+    "id": 58,
+    "packet": "LevelChunkPacket",
+    "seq": 736,
+    "t_ms": 2884.0
+  },
+  {
+    "bytes": 4690,
+    "id": 58,
+    "packet": "LevelChunkPacket",
+    "seq": 737,
+    "t_ms": 2884.0
+  },
+  {
+    "bytes": 4681,
+    "id": 58,
+    "packet": "LevelChunkPacket",
+    "seq": 738,
+    "t_ms": 2885.0
+  },
+  {
+    "bytes": 1601,
+    "id": 58,
+    "packet": "LevelChunkPacket",
+    "seq": 739,
+    "t_ms": 2885.0
+  },
+  {
+    "bytes": 6237,
+    "id": 58,
+    "packet": "LevelChunkPacket",
+    "seq": 740,
+    "t_ms": 2885.0
+  },
+  {
+    "bytes": 4681,
+    "id": 58,
+    "packet": "LevelChunkPacket",
+    "seq": 741,
+    "t_ms": 2886.0
+  },
+  {
+    "bytes": 5206,
+    "id": 58,
+    "packet": "LevelChunkPacket",
+    "seq": 742,
+    "t_ms": 2886.0
+  },
+  {
+    "bytes": 6752,
+    "id": 58,
+    "packet": "LevelChunkPacket",
+    "seq": 743,
+    "t_ms": 2886.0
+  },
+  {
+    "bytes": 4690,
+    "id": 58,
+    "packet": "LevelChunkPacket",
+    "seq": 744,
+    "t_ms": 2887.0
+  },
+  {
+    "bytes": 4167,
+    "id": 58,
+    "packet": "LevelChunkPacket",
+    "seq": 745,
+    "t_ms": 2887.0
+  },
+  {
+    "bytes": 5733,
+    "id": 58,
+    "packet": "LevelChunkPacket",
+    "seq": 746,
+    "t_ms": 2888.0
+  },
+  {
+    "bytes": 2110,
+    "id": 58,
+    "packet": "LevelChunkPacket",
+    "seq": 747,
+    "t_ms": 2888.0
+  },
+  {
+    "bytes": 4161,
+    "id": 58,
+    "packet": "LevelChunkPacket",
+    "seq": 748,
+    "t_ms": 2888.0
+  },
+  {
+    "bytes": 1593,
+    "id": 58,
+    "packet": "LevelChunkPacket",
+    "seq": 749,
+    "t_ms": 2889.0
+  },
+  {
+    "bytes": 2640,
+    "id": 58,
+    "packet": "LevelChunkPacket",
+    "seq": 750,
+    "t_ms": 2889.0
+  },
+  {
+    "bytes": 2110,
+    "id": 58,
+    "packet": "LevelChunkPacket",
+    "seq": 751,
+    "t_ms": 2889.0
+  },
+  {
+    "bytes": 3157,
+    "id": 58,
+    "packet": "LevelChunkPacket",
+    "seq": 752,
+    "t_ms": 2889.0
+  },
+  {
+    "bytes": 5207,
+    "id": 58,
+    "packet": "LevelChunkPacket",
+    "seq": 753,
+    "t_ms": 2889.0
+  },
+  {
+    "bytes": 1592,
+    "id": 58,
+    "packet": "LevelChunkPacket",
+    "seq": 754,
+    "t_ms": 2890.0
+  },
+  {
+    "bytes": 3156,
+    "id": 58,
+    "packet": "LevelChunkPacket",
+    "seq": 755,
+    "t_ms": 2890.0
+  },
+  {
+    "bytes": 17,
+    "id": 39,
+    "packet": "SetActorDataPacket",
+    "seq": 756,
+    "t_ms": 2890.0
+  },
+  {
+    "bytes": 17,
+    "id": 39,
+    "packet": "SetActorDataPacket",
+    "seq": 757,
+    "t_ms": 2890.0
+  },
+  {
+    "bytes": 21,
+    "id": 111,
+    "packet": "MoveActorDeltaPacket",
+    "seq": 758,
+    "t_ms": 2890.0
+  },
+  {
+    "bytes": 13,
+    "id": 21,
+    "packet": "UpdateBlockPacket",
+    "seq": 759,
+    "t_ms": 2910.0
+  },
+  {
+    "bytes": 1078,
+    "id": 58,
+    "packet": "LevelChunkPacket",
+    "seq": 760,
+    "t_ms": 2910.0
+  },
+  {
+    "bytes": 1078,
+    "id": 58,
+    "packet": "LevelChunkPacket",
+    "seq": 761,
+    "t_ms": 2910.0
+  },
+  {
+    "bytes": 5729,
+    "id": 58,
+    "packet": "LevelChunkPacket",
+    "seq": 762,
+    "t_ms": 2910.0
+  },
+  {
+    "bytes": 1078,
+    "id": 58,
+    "packet": "LevelChunkPacket",
+    "seq": 763,
+    "t_ms": 2911.0
+  },
+  {
+    "bytes": 6243,
+    "id": 58,
+    "packet": "LevelChunkPacket",
+    "seq": 764,
+    "t_ms": 2911.0
+  },
+  {
+    "bytes": 3140,
+    "id": 58,
+    "packet": "LevelChunkPacket",
+    "seq": 765,
+    "t_ms": 2911.0
+  },
+  {
+    "bytes": 6760,
+    "id": 58,
+    "packet": "LevelChunkPacket",
+    "seq": 766,
+    "t_ms": 2911.0
+  },
+  {
+    "bytes": 1078,
+    "id": 58,
+    "packet": "LevelChunkPacket",
+    "seq": 767,
+    "t_ms": 2912.0
+  },
+  {
+    "bytes": 1078,
+    "id": 58,
+    "packet": "LevelChunkPacket",
+    "seq": 768,
+    "t_ms": 2912.0
+  },
+  {
+    "bytes": 6241,
+    "id": 58,
+    "packet": "LevelChunkPacket",
+    "seq": 769,
+    "t_ms": 2912.0
+  },
+  {
+    "bytes": 6234,
+    "id": 58,
+    "packet": "LevelChunkPacket",
+    "seq": 770,
+    "t_ms": 2913.0
+  },
+  {
+    "bytes": 5207,
+    "id": 58,
+    "packet": "LevelChunkPacket",
+    "seq": 771,
+    "t_ms": 2913.0
+  },
+  {
+    "bytes": 3646,
+    "id": 58,
+    "packet": "LevelChunkPacket",
+    "seq": 772,
+    "t_ms": 2913.0
+  },
+  {
+    "bytes": 3146,
+    "id": 58,
+    "packet": "LevelChunkPacket",
+    "seq": 773,
+    "t_ms": 2914.0
+  },
+  {
+    "bytes": 2106,
+    "id": 58,
+    "packet": "LevelChunkPacket",
+    "seq": 774,
+    "t_ms": 2914.0
+  },
+  {
+    "bytes": 8298,
+    "id": 58,
+    "packet": "LevelChunkPacket",
+    "seq": 775,
+    "t_ms": 2914.0
+  },
+  {
+    "bytes": 3140,
+    "id": 58,
+    "packet": "LevelChunkPacket",
+    "seq": 776,
+    "t_ms": 2915.0
+  },
+  {
+    "bytes": 6747,
+    "id": 58,
+    "packet": "LevelChunkPacket",
+    "seq": 777,
+    "t_ms": 2915.0
+  },
+  {
+    "bytes": 2126,
+    "id": 58,
+    "packet": "LevelChunkPacket",
+    "seq": 778,
+    "t_ms": 2915.0
+  },
+  {
+    "bytes": 1078,
+    "id": 58,
+    "packet": "LevelChunkPacket",
+    "seq": 779,
+    "t_ms": 2916.0
+  },
+  {
+    "bytes": 49,
+    "id": 123,
+    "packet": "LevelSoundEventPacket",
+    "seq": 780,
+    "t_ms": 2916.0
+  },
+  {
+    "bytes": 17,
+    "id": 39,
+    "packet": "SetActorDataPacket",
+    "seq": 781,
+    "t_ms": 2916.0
+  },
+  {
+    "bytes": 15,
+    "id": 40,
+    "packet": "SetActorMotionPacket",
+    "seq": 782,
+    "t_ms": 2916.0
+  },
+  {
+    "bytes": 25,
+    "id": 111,
+    "packet": "MoveActorDeltaPacket",
+    "seq": 783,
+    "t_ms": 2916.0
+  },
+  {
+    "bytes": 3153,
+    "id": 58,
+    "packet": "LevelChunkPacket",
+    "seq": 784,
+    "t_ms": 2958.0
+  },
+  {
+    "bytes": 3133,
+    "id": 58,
+    "packet": "LevelChunkPacket",
+    "seq": 785,
+    "t_ms": 2958.0
+  },
+  {
+    "bytes": 1609,
+    "id": 58,
+    "packet": "LevelChunkPacket",
+    "seq": 786,
+    "t_ms": 2958.0
+  },
+  {
+    "bytes": 1078,
+    "id": 58,
+    "packet": "LevelChunkPacket",
+    "seq": 787,
+    "t_ms": 2958.0
+  },
+  {
+    "bytes": 4686,
+    "id": 58,
+    "packet": "LevelChunkPacket",
+    "seq": 788,
+    "t_ms": 2958.0
+  },
+  {
+    "bytes": 3139,
+    "id": 58,
+    "packet": "LevelChunkPacket",
+    "seq": 789,
+    "t_ms": 2959.0
+  },
+  {
+    "bytes": 5214,
+    "id": 58,
+    "packet": "LevelChunkPacket",
+    "seq": 790,
+    "t_ms": 2959.0
+  },
+  {
+    "bytes": 3155,
+    "id": 58,
+    "packet": "LevelChunkPacket",
+    "seq": 791,
+    "t_ms": 2959.0
+  },
+  {
+    "bytes": 2628,
+    "id": 58,
+    "packet": "LevelChunkPacket",
+    "seq": 792,
+    "t_ms": 2960.0
+  },
+  {
+    "bytes": 3155,
+    "id": 58,
+    "packet": "LevelChunkPacket",
+    "seq": 793,
+    "t_ms": 2960.0
+  },
+  {
+    "bytes": 2111,
+    "id": 58,
+    "packet": "LevelChunkPacket",
+    "seq": 794,
+    "t_ms": 2960.0
+  },
+  {
+    "bytes": 1078,
+    "id": 58,
+    "packet": "LevelChunkPacket",
+    "seq": 795,
+    "t_ms": 2960.0
+  },
+  {
+    "bytes": 4675,
+    "id": 58,
+    "packet": "LevelChunkPacket",
+    "seq": 796,
+    "t_ms": 2960.0
+  },
+  {
+    "bytes": 3153,
+    "id": 58,
+    "packet": "LevelChunkPacket",
+    "seq": 797,
+    "t_ms": 2961.0
+  },
+  {
+    "bytes": 1592,
+    "id": 58,
+    "packet": "LevelChunkPacket",
+    "seq": 798,
+    "t_ms": 2961.0
+  },
+  {
+    "bytes": 5728,
+    "id": 58,
+    "packet": "LevelChunkPacket",
+    "seq": 799,
+    "t_ms": 2961.0
+  },
+  {
+    "bytes": 2627,
+    "id": 58,
+    "packet": "LevelChunkPacket",
+    "seq": 800,
+    "t_ms": 2961.0
+  },
+  {
+    "bytes": 5729,
+    "id": 58,
+    "packet": "LevelChunkPacket",
+    "seq": 801,
+    "t_ms": 2961.0
+  },
+  {
+    "bytes": 2112,
+    "id": 58,
+    "packet": "LevelChunkPacket",
+    "seq": 802,
+    "t_ms": 2962.0
+  },
+  {
+    "bytes": 1078,
+    "id": 58,
+    "packet": "LevelChunkPacket",
+    "seq": 803,
+    "t_ms": 2962.0
+  },
+  {
+    "bytes": 49,
+    "id": 123,
+    "packet": "LevelSoundEventPacket",
+    "seq": 804,
+    "t_ms": 2962.0
+  },
+  {
+    "bytes": 17,
+    "id": 39,
+    "packet": "SetActorDataPacket",
+    "seq": 805,
+    "t_ms": 2962.0
+  },
+  {
+    "bytes": 21,
+    "id": 111,
+    "packet": "MoveActorDeltaPacket",
+    "seq": 806,
+    "t_ms": 2962.0
+  },
+  {
+    "bytes": 4702,
+    "id": 58,
+    "packet": "LevelChunkPacket",
+    "seq": 807,
+    "t_ms": 3009.0
+  },
+  {
+    "bytes": 1600,
+    "id": 58,
+    "packet": "LevelChunkPacket",
+    "seq": 808,
+    "t_ms": 3009.0
+  },
+  {
+    "bytes": 1078,
+    "id": 58,
+    "packet": "LevelChunkPacket",
+    "seq": 809,
+    "t_ms": 3010.0
+  },
+  {
+    "bytes": 1592,
+    "id": 58,
+    "packet": "LevelChunkPacket",
+    "seq": 810,
+    "t_ms": 3010.0
+  },
+  {
+    "bytes": 2106,
+    "id": 58,
+    "packet": "LevelChunkPacket",
+    "seq": 811,
+    "t_ms": 3010.0
+  },
+  {
+    "bytes": 1600,
+    "id": 58,
+    "packet": "LevelChunkPacket",
+    "seq": 812,
+    "t_ms": 3010.0
+  },
+  {
+    "bytes": 6243,
+    "id": 58,
+    "packet": "LevelChunkPacket",
+    "seq": 813,
+    "t_ms": 3010.0
+  },
+  {
+    "bytes": 2106,
+    "id": 58,
+    "packet": "LevelChunkPacket",
+    "seq": 814,
+    "t_ms": 3011.0
+  },
+  {
+    "bytes": 6231,
+    "id": 58,
+    "packet": "LevelChunkPacket",
+    "seq": 815,
+    "t_ms": 3011.0
+  },
+  {
+    "bytes": 6246,
+    "id": 58,
+    "packet": "LevelChunkPacket",
+    "seq": 816,
+    "t_ms": 3011.0
+  },
+  {
+    "bytes": 2106,
+    "id": 58,
+    "packet": "LevelChunkPacket",
+    "seq": 817,
+    "t_ms": 3012.0
+  },
+  {
+    "bytes": 7781,
+    "id": 58,
+    "packet": "LevelChunkPacket",
+    "seq": 818,
+    "t_ms": 3012.0
+  },
+  {
+    "bytes": 1078,
+    "id": 58,
+    "packet": "LevelChunkPacket",
+    "seq": 819,
+    "t_ms": 3012.0
+  },
+  {
+    "bytes": 1078,
+    "id": 58,
+    "packet": "LevelChunkPacket",
+    "seq": 820,
+    "t_ms": 3012.0
+  },
+  {
+    "bytes": 3668,
+    "id": 58,
+    "packet": "LevelChunkPacket",
+    "seq": 821,
+    "t_ms": 3013.0
+  },
+  {
+    "bytes": 3141,
+    "id": 58,
+    "packet": "LevelChunkPacket",
+    "seq": 822,
+    "t_ms": 3013.0
+  },
+  {
+    "bytes": 2106,
+    "id": 58,
+    "packet": "LevelChunkPacket",
+    "seq": 823,
+    "t_ms": 3013.0
+  },
+  {
+    "bytes": 2629,
+    "id": 58,
+    "packet": "LevelChunkPacket",
+    "seq": 824,
+    "t_ms": 3013.0
+  },
+  {
+    "bytes": 2106,
+    "id": 58,
+    "packet": "LevelChunkPacket",
+    "seq": 825,
+    "t_ms": 3013.0
+  },
+  {
+    "bytes": 5729,
+    "id": 58,
+    "packet": "LevelChunkPacket",
+    "seq": 826,
+    "t_ms": 3014.0
+  },
+  {
+    "bytes": 15,
+    "id": 40,
+    "packet": "SetActorMotionPacket",
+    "seq": 827,
+    "t_ms": 3014.0
+  },
+  {
+    "bytes": 25,
+    "id": 111,
+    "packet": "MoveActorDeltaPacket",
+    "seq": 828,
+    "t_ms": 3014.0
+  },
+  {
+    "bytes": 1078,
+    "id": 58,
+    "packet": "LevelChunkPacket",
+    "seq": 829,
+    "t_ms": 3077.0
+  },
+  {
+    "bytes": 3144,
+    "id": 58,
+    "packet": "LevelChunkPacket",
+    "seq": 830,
+    "t_ms": 3077.0
+  },
+  {
+    "bytes": 1078,
+    "id": 58,
+    "packet": "LevelChunkPacket",
+    "seq": 831,
+    "t_ms": 3077.0
+  },
+  {
+    "bytes": 1078,
+    "id": 58,
+    "packet": "LevelChunkPacket",
+    "seq": 832,
+    "t_ms": 3077.0
+  },
+  {
+    "bytes": 1078,
+    "id": 58,
+    "packet": "LevelChunkPacket",
+    "seq": 833,
+    "t_ms": 3077.0
+  },
+  {
+    "bytes": 4679,
+    "id": 58,
+    "packet": "LevelChunkPacket",
+    "seq": 834,
+    "t_ms": 3077.0
+  },
+  {
+    "bytes": 1592,
+    "id": 58,
+    "packet": "LevelChunkPacket",
+    "seq": 835,
+    "t_ms": 3078.0
+  },
+  {
+    "bytes": 4676,
+    "id": 58,
+    "packet": "LevelChunkPacket",
+    "seq": 836,
+    "t_ms": 3078.0
+  },
+  {
+    "bytes": 3144,
+    "id": 58,
+    "packet": "LevelChunkPacket",
+    "seq": 837,
+    "t_ms": 3078.0
+  },
+  {
+    "bytes": 4700,
+    "id": 58,
+    "packet": "LevelChunkPacket",
+    "seq": 838,
+    "t_ms": 3078.0
+  },
+  {
+    "bytes": 3132,
+    "id": 58,
+    "packet": "LevelChunkPacket",
+    "seq": 839,
+    "t_ms": 3079.0
+  },
+  {
+    "bytes": 4693,
+    "id": 58,
+    "packet": "LevelChunkPacket",
+    "seq": 840,
+    "t_ms": 3079.0
+  },
+  {
+    "bytes": 2106,
+    "id": 58,
+    "packet": "LevelChunkPacket",
+    "seq": 841,
+    "t_ms": 3079.0
+  },
+  {
+    "bytes": 2106,
+    "id": 58,
+    "packet": "LevelChunkPacket",
+    "seq": 842,
+    "t_ms": 3079.0
+  },
+  {
+    "bytes": 3141,
+    "id": 58,
+    "packet": "LevelChunkPacket",
+    "seq": 843,
+    "t_ms": 3080.0
+  },
+  {
+    "bytes": 1591,
+    "id": 58,
+    "packet": "LevelChunkPacket",
+    "seq": 844,
+    "t_ms": 3080.0
+  },
+  {
+    "bytes": 2111,
+    "id": 58,
+    "packet": "LevelChunkPacket",
+    "seq": 845,
+    "t_ms": 3080.0
+  },
+  {
+    "bytes": 1593,
+    "id": 58,
+    "packet": "LevelChunkPacket",
+    "seq": 846,
+    "t_ms": 3080.0
+  },
+  {
+    "bytes": 6746,
+    "id": 58,
+    "packet": "LevelChunkPacket",
+    "seq": 847,
+    "t_ms": 3080.0
+  },
+  {
+    "bytes": 2627,
+    "id": 58,
+    "packet": "LevelChunkPacket",
+    "seq": 848,
+    "t_ms": 3081.0
+  },
+  {
+    "bytes": 25,
+    "id": 111,
+    "packet": "MoveActorDeltaPacket",
+    "seq": 849,
+    "t_ms": 3081.0
+  },
+  {
+    "bytes": 4681,
+    "id": 58,
+    "packet": "LevelChunkPacket",
+    "seq": 850,
+    "t_ms": 3108.0
+  },
+  {
+    "bytes": 2106,
+    "id": 58,
+    "packet": "LevelChunkPacket",
+    "seq": 851,
+    "t_ms": 3109.0
+  },
+  {
+    "bytes": 2123,
+    "id": 58,
+    "packet": "LevelChunkPacket",
+    "seq": 852,
+    "t_ms": 3109.0
+  },
+  {
+    "bytes": 1078,
+    "id": 58,
+    "packet": "LevelChunkPacket",
+    "seq": 853,
+    "t_ms": 3109.0
+  },
+  {
+    "bytes": 6246,
+    "id": 58,
+    "packet": "LevelChunkPacket",
+    "seq": 854,
+    "t_ms": 3109.0
+  },
+  {
+    "bytes": 6246,
+    "id": 58,
+    "packet": "LevelChunkPacket",
+    "seq": 855,
+    "t_ms": 3109.0
+  },
+  {
+    "bytes": 1078,
+    "id": 58,
+    "packet": "LevelChunkPacket",
+    "seq": 856,
+    "t_ms": 3110.0
+  },
+  {
+    "bytes": 2106,
+    "id": 58,
+    "packet": "LevelChunkPacket",
+    "seq": 857,
+    "t_ms": 3110.0
+  },
+  {
+    "bytes": 3155,
+    "id": 58,
+    "packet": "LevelChunkPacket",
+    "seq": 858,
+    "t_ms": 3110.0
+  },
+  {
+    "bytes": 3141,
+    "id": 58,
+    "packet": "LevelChunkPacket",
+    "seq": 859,
+    "t_ms": 3110.0
+  },
+  {
+    "bytes": 4686,
+    "id": 58,
+    "packet": "LevelChunkPacket",
+    "seq": 860,
+    "t_ms": 3111.0
+  },
+  {
+    "bytes": 2106,
+    "id": 58,
+    "packet": "LevelChunkPacket",
+    "seq": 861,
+    "t_ms": 3111.0
+  },
+  {
+    "bytes": 2106,
+    "id": 58,
+    "packet": "LevelChunkPacket",
+    "seq": 862,
+    "t_ms": 3111.0
+  },
+  {
+    "bytes": 4160,
+    "id": 58,
+    "packet": "LevelChunkPacket",
+    "seq": 863,
+    "t_ms": 3111.0
+  },
+  {
+    "bytes": 5209,
+    "id": 58,
+    "packet": "LevelChunkPacket",
+    "seq": 864,
+    "t_ms": 3111.0
+  },
+  {
+    "bytes": 4185,
+    "id": 58,
+    "packet": "LevelChunkPacket",
+    "seq": 865,
+    "t_ms": 3112.0
+  },
+  {
+    "bytes": 1078,
+    "id": 58,
+    "packet": "LevelChunkPacket",
+    "seq": 866,
+    "t_ms": 3112.0
+  },
+  {
+    "bytes": 4679,
+    "id": 58,
+    "packet": "LevelChunkPacket",
+    "seq": 867,
+    "t_ms": 3112.0
+  },
+  {
+    "bytes": 1076,
+    "id": 58,
+    "packet": "LevelChunkPacket",
+    "seq": 868,
+    "t_ms": 3113.0
+  },
+  {
+    "bytes": 3155,
+    "id": 58,
+    "packet": "LevelChunkPacket",
+    "seq": 869,
+    "t_ms": 3113.0
+  },
+  {
+    "bytes": 25,
+    "id": 111,
+    "packet": "MoveActorDeltaPacket",
+    "seq": 870,
+    "t_ms": 3113.0
+  },
+  {
+    "bytes": 15,
+    "id": 40,
+    "packet": "SetActorMotionPacket",
+    "seq": 871,
+    "t_ms": 3113.0
+  },
+  {
+    "bytes": 13,
+    "id": 21,
+    "packet": "UpdateBlockPacket",
+    "seq": 872,
+    "t_ms": 3160.0
+  },
+  {
+    "bytes": 2115,
+    "id": 58,
+    "packet": "LevelChunkPacket",
+    "seq": 873,
+    "t_ms": 3160.0
+  },
+  {
+    "bytes": 4693,
+    "id": 58,
+    "packet": "LevelChunkPacket",
+    "seq": 874,
+    "t_ms": 3160.0
+  },
+  {
+    "bytes": 5712,
+    "id": 58,
+    "packet": "LevelChunkPacket",
+    "seq": 875,
+    "t_ms": 3160.0
+  },
+  {
+    "bytes": 4178,
+    "id": 58,
+    "packet": "LevelChunkPacket",
+    "seq": 876,
+    "t_ms": 3161.0
+  },
+  {
+    "bytes": 2626,
+    "id": 58,
+    "packet": "LevelChunkPacket",
+    "seq": 877,
+    "t_ms": 3161.0
+  },
+  {
+    "bytes": 1599,
+    "id": 58,
+    "packet": "LevelChunkPacket",
+    "seq": 878,
+    "t_ms": 3161.0
+  },
+  {
+    "bytes": 1591,
+    "id": 58,
+    "packet": "LevelChunkPacket",
+    "seq": 879,
+    "t_ms": 3161.0
+  },
+  {
+    "bytes": 5730,
+    "id": 58,
+    "packet": "LevelChunkPacket",
+    "seq": 880,
+    "t_ms": 3161.0
+  },
+  {
+    "bytes": 2124,
+    "id": 58,
+    "packet": "LevelChunkPacket",
+    "seq": 881,
+    "t_ms": 3162.0
+  },
+  {
+    "bytes": 1078,
+    "id": 58,
+    "packet": "LevelChunkPacket",
+    "seq": 882,
+    "t_ms": 3162.0
+  },
+  {
+    "bytes": 5187,
+    "id": 58,
+    "packet": "LevelChunkPacket",
+    "seq": 883,
+    "t_ms": 3162.0
+  },
+  {
+    "bytes": 2106,
+    "id": 58,
+    "packet": "LevelChunkPacket",
+    "seq": 884,
+    "t_ms": 3162.0
+  },
+  {
+    "bytes": 2106,
+    "id": 58,
+    "packet": "LevelChunkPacket",
+    "seq": 885,
+    "t_ms": 3163.0
+  },
+  {
+    "bytes": 2641,
+    "id": 58,
+    "packet": "LevelChunkPacket",
+    "seq": 886,
+    "t_ms": 3163.0
+  },
+  {
+    "bytes": 2627,
+    "id": 58,
+    "packet": "LevelChunkPacket",
+    "seq": 887,
+    "t_ms": 3163.0
+  },
+  {
+    "bytes": 3143,
+    "id": 58,
+    "packet": "LevelChunkPacket",
+    "seq": 888,
+    "t_ms": 3163.0
+  },
+  {
+    "bytes": 2106,
+    "id": 58,
+    "packet": "LevelChunkPacket",
+    "seq": 889,
+    "t_ms": 3163.0
+  },
+  {
+    "bytes": 5726,
+    "id": 58,
+    "packet": "LevelChunkPacket",
+    "seq": 890,
+    "t_ms": 3163.0
+  },
+  {
+    "bytes": 2112,
+    "id": 58,
+    "packet": "LevelChunkPacket",
+    "seq": 891,
+    "t_ms": 3164.0
+  },
+  {
+    "bytes": 1591,
+    "id": 58,
+    "packet": "LevelChunkPacket",
+    "seq": 892,
+    "t_ms": 3164.0
+  },
+  {
+    "bytes": 15,
+    "id": 40,
+    "packet": "SetActorMotionPacket",
+    "seq": 893,
+    "t_ms": 3164.0
+  },
+  {
+    "bytes": 5713,
+    "id": 58,
+    "packet": "LevelChunkPacket",
+    "seq": 894,
+    "t_ms": 3252.0
+  },
+  {
+    "bytes": 5721,
+    "id": 58,
+    "packet": "LevelChunkPacket",
+    "seq": 895,
+    "t_ms": 3252.0
+  },
+  {
+    "bytes": 565,
+    "id": 58,
+    "packet": "LevelChunkPacket",
+    "seq": 896,
+    "t_ms": 3252.0
+  },
+  {
+    "bytes": 565,
+    "id": 58,
+    "packet": "LevelChunkPacket",
+    "seq": 897,
+    "t_ms": 3252.0
+  },
+  {
+    "bytes": 565,
+    "id": 58,
+    "packet": "LevelChunkPacket",
+    "seq": 898,
+    "t_ms": 3252.0
+  },
+  {
+    "bytes": 565,
+    "id": 58,
+    "packet": "LevelChunkPacket",
+    "seq": 899,
+    "t_ms": 3252.0
+  },
+  {
+    "bytes": 3145,
+    "id": 58,
+    "packet": "LevelChunkPacket",
+    "seq": 900,
+    "t_ms": 3252.0
+  },
+  {
+    "bytes": 4690,
+    "id": 58,
+    "packet": "LevelChunkPacket",
+    "seq": 901,
+    "t_ms": 3253.0
+  },
+  {
+    "bytes": 4683,
+    "id": 58,
+    "packet": "LevelChunkPacket",
+    "seq": 902,
+    "t_ms": 3253.0
+  },
+  {
+    "bytes": 1601,
+    "id": 58,
+    "packet": "LevelChunkPacket",
+    "seq": 903,
+    "t_ms": 3253.0
+  },
+  {
+    "bytes": 7248,
+    "id": 58,
+    "packet": "LevelChunkPacket",
+    "seq": 904,
+    "t_ms": 3253.0
+  },
+  {
+    "bytes": 2116,
+    "id": 58,
+    "packet": "LevelChunkPacket",
+    "seq": 905,
+    "t_ms": 3254.0
+  },
+  {
+    "bytes": 2116,
+    "id": 58,
+    "packet": "LevelChunkPacket",
+    "seq": 906,
+    "t_ms": 3254.0
+  },
+  {
+    "bytes": 3155,
+    "id": 58,
+    "packet": "LevelChunkPacket",
+    "seq": 907,
+    "t_ms": 3254.0
+  },
+  {
+    "bytes": 7779,
+    "id": 58,
+    "packet": "LevelChunkPacket",
+    "seq": 908,
+    "t_ms": 3254.0
+  },
+  {
+    "bytes": 1592,
+    "id": 58,
+    "packet": "LevelChunkPacket",
+    "seq": 909,
+    "t_ms": 3255.0
+  },
+  {
+    "bytes": 5727,
+    "id": 58,
+    "packet": "LevelChunkPacket",
+    "seq": 910,
+    "t_ms": 3255.0
+  },
+  {
+    "bytes": 8296,
+    "id": 58,
+    "packet": "LevelChunkPacket",
+    "seq": 911,
+    "t_ms": 3255.0
+  },
+  {
+    "bytes": 3145,
+    "id": 58,
+    "packet": "LevelChunkPacket",
+    "seq": 912,
+    "t_ms": 3256.0
+  },
+  {
+    "bytes": 1076,
+    "id": 58,
+    "packet": "LevelChunkPacket",
+    "seq": 913,
+    "t_ms": 3256.0
+  },
+  {
+    "bytes": 17,
+    "id": 39,
+    "packet": "SetActorDataPacket",
+    "seq": 914,
+    "t_ms": 3256.0
+  },
+  {
+    "bytes": 21,
+    "id": 111,
+    "packet": "MoveActorDeltaPacket",
+    "seq": 915,
+    "t_ms": 3256.0
+  },
+  {
+    "bytes": 565,
+    "id": 58,
+    "packet": "LevelChunkPacket",
+    "seq": 916,
+    "t_ms": 3282.0
+  },
+  {
+    "bytes": 565,
+    "id": 58,
+    "packet": "LevelChunkPacket",
+    "seq": 917,
+    "t_ms": 3282.0
+  },
+  {
+    "bytes": 565,
+    "id": 58,
+    "packet": "LevelChunkPacket",
+    "seq": 918,
+    "t_ms": 3282.0
+  },
+  {
+    "bytes": 565,
+    "id": 58,
+    "packet": "LevelChunkPacket",
+    "seq": 919,
+    "t_ms": 3282.0
+  },
+  {
+    "bytes": 565,
+    "id": 58,
+    "packet": "LevelChunkPacket",
+    "seq": 920,
+    "t_ms": 3282.0
+  },
+  {
+    "bytes": 565,
+    "id": 58,
+    "packet": "LevelChunkPacket",
+    "seq": 921,
+    "t_ms": 3282.0
+  },
+  {
+    "bytes": 565,
+    "id": 58,
+    "packet": "LevelChunkPacket",
+    "seq": 922,
+    "t_ms": 3282.0
+  },
+  {
+    "bytes": 565,
+    "id": 58,
+    "packet": "LevelChunkPacket",
+    "seq": 923,
+    "t_ms": 3282.0
+  },
+  {
+    "bytes": 565,
+    "id": 58,
+    "packet": "LevelChunkPacket",
+    "seq": 924,
+    "t_ms": 3282.0
+  },
+  {
+    "bytes": 565,
+    "id": 58,
+    "packet": "LevelChunkPacket",
+    "seq": 925,
+    "t_ms": 3282.0
+  },
+  {
+    "bytes": 565,
+    "id": 58,
+    "packet": "LevelChunkPacket",
+    "seq": 926,
+    "t_ms": 3282.0
+  },
+  {
+    "bytes": 1605,
+    "id": 58,
+    "packet": "LevelChunkPacket",
+    "seq": 927,
+    "t_ms": 3282.0
+  },
+  {
+    "bytes": 565,
+    "id": 58,
+    "packet": "LevelChunkPacket",
+    "seq": 928,
+    "t_ms": 3282.0
+  },
+  {
+    "bytes": 565,
+    "id": 58,
+    "packet": "LevelChunkPacket",
+    "seq": 929,
+    "t_ms": 3282.0
+  },
+  {
+    "bytes": 565,
+    "id": 58,
+    "packet": "LevelChunkPacket",
+    "seq": 930,
+    "t_ms": 3283.0
+  },
+  {
+    "bytes": 1079,
+    "id": 58,
+    "packet": "LevelChunkPacket",
+    "seq": 931,
+    "t_ms": 3283.0
+  },
+  {
+    "bytes": 565,
+    "id": 58,
+    "packet": "LevelChunkPacket",
+    "seq": 932,
+    "t_ms": 3283.0
+  },
+  {
+    "bytes": 1078,
+    "id": 58,
+    "packet": "LevelChunkPacket",
+    "seq": 933,
+    "t_ms": 3283.0
+  },
+  {
+    "bytes": 565,
+    "id": 58,
+    "packet": "LevelChunkPacket",
+    "seq": 934,
+    "t_ms": 3283.0
+  },
+  {
+    "bytes": 1079,
+    "id": 58,
+    "packet": "LevelChunkPacket",
+    "seq": 935,
+    "t_ms": 3283.0
+  },
+  {
+    "bytes": 17,
+    "id": 39,
+    "packet": "SetActorDataPacket",
+    "seq": 936,
+    "t_ms": 3283.0
+  },
+  {
+    "bytes": 21,
+    "id": 111,
+    "packet": "MoveActorDeltaPacket",
+    "seq": 937,
+    "t_ms": 3283.0
+  },
+  {
+    "bytes": 565,
+    "id": 58,
+    "packet": "LevelChunkPacket",
+    "seq": 938,
+    "t_ms": 3326.0
+  },
+  {
+    "bytes": 565,
+    "id": 58,
+    "packet": "LevelChunkPacket",
+    "seq": 939,
+    "t_ms": 3326.0
+  },
+  {
+    "bytes": 2120,
+    "id": 58,
+    "packet": "LevelChunkPacket",
+    "seq": 940,
+    "t_ms": 3326.0
+  },
+  {
+    "bytes": 565,
+    "id": 58,
+    "packet": "LevelChunkPacket",
+    "seq": 941,
+    "t_ms": 3326.0
+  },
+  {
+    "bytes": 565,
+    "id": 58,
+    "packet": "LevelChunkPacket",
+    "seq": 942,
+    "t_ms": 3326.0
+  },
+  {
+    "bytes": 2120,
+    "id": 58,
+    "packet": "LevelChunkPacket",
+    "seq": 943,
+    "t_ms": 3326.0
+  },
+  {
+    "bytes": 1605,
+    "id": 58,
+    "packet": "LevelChunkPacket",
+    "seq": 944,
+    "t_ms": 3326.0
+  },
+  {
+    "bytes": 565,
+    "id": 58,
+    "packet": "LevelChunkPacket",
+    "seq": 945,
+    "t_ms": 3326.0
+  },
+  {
+    "bytes": 1605,
+    "id": 58,
+    "packet": "LevelChunkPacket",
+    "seq": 946,
+    "t_ms": 3326.0
+  },
+  {
+    "bytes": 565,
+    "id": 58,
+    "packet": "LevelChunkPacket",
+    "seq": 947,
+    "t_ms": 3327.0
+  },
+  {
+    "bytes": 565,
+    "id": 58,
+    "packet": "LevelChunkPacket",
+    "seq": 948,
+    "t_ms": 3327.0
+  },
+  {
+    "bytes": 4174,
+    "id": 58,
+    "packet": "LevelChunkPacket",
+    "seq": 949,
+    "t_ms": 3327.0
+  },
+  {
+    "bytes": 2119,
+    "id": 58,
+    "packet": "LevelChunkPacket",
+    "seq": 950,
+    "t_ms": 3327.0
+  },
+  {
+    "bytes": 2635,
+    "id": 58,
+    "packet": "LevelChunkPacket",
+    "seq": 951,
+    "t_ms": 3327.0
+  },
+  {
+    "bytes": 565,
+    "id": 58,
+    "packet": "LevelChunkPacket",
+    "seq": 952,
+    "t_ms": 3327.0
+  },
+  {
+    "bytes": 565,
+    "id": 58,
+    "packet": "LevelChunkPacket",
+    "seq": 953,
+    "t_ms": 3327.0
+  },
+  {
+    "bytes": 5722,
+    "id": 58,
+    "packet": "LevelChunkPacket",
+    "seq": 954,
+    "t_ms": 3327.0
+  },
+  {
+    "bytes": 3148,
+    "id": 58,
+    "packet": "LevelChunkPacket",
+    "seq": 955,
+    "t_ms": 3328.0
+  },
+  {
+    "bytes": 565,
+    "id": 58,
+    "packet": "LevelChunkPacket",
+    "seq": 956,
+    "t_ms": 3328.0
+  },
+  {
+    "bytes": 1079,
+    "id": 58,
+    "packet": "LevelChunkPacket",
+    "seq": 957,
+    "t_ms": 3328.0
+  },
+  {
+    "bytes": 16,
+    "id": 157,
+    "packet": "MotionPredictionHintsPacket",
+    "seq": 958,
+    "t_ms": 3328.0
+  },
+  {
+    "bytes": 13,
+    "id": 21,
+    "packet": "UpdateBlockPacket",
+    "seq": 959,
+    "t_ms": 3374.0
+  },
+  {
+    "bytes": 5707,
+    "id": 58,
+    "packet": "LevelChunkPacket",
+    "seq": 960,
+    "t_ms": 3374.0
+  },
+  {
+    "bytes": 565,
+    "id": 58,
+    "packet": "LevelChunkPacket",
+    "seq": 961,
+    "t_ms": 3375.0
+  },
+  {
+    "bytes": 3146,
+    "id": 58,
+    "packet": "LevelChunkPacket",
+    "seq": 962,
+    "t_ms": 3375.0
+  },
+  {
+    "bytes": 2120,
+    "id": 58,
+    "packet": "LevelChunkPacket",
+    "seq": 963,
+    "t_ms": 3375.0
+  },
+  {
+    "bytes": 565,
+    "id": 58,
+    "packet": "LevelChunkPacket",
+    "seq": 964,
+    "t_ms": 3375.0
+  },
+  {
+    "bytes": 2120,
+    "id": 58,
+    "packet": "LevelChunkPacket",
+    "seq": 965,
+    "t_ms": 3375.0
+  },
+  {
+    "bytes": 565,
+    "id": 58,
+    "packet": "LevelChunkPacket",
+    "seq": 966,
+    "t_ms": 3375.0
+  },
+  {
+    "bytes": 5707,
+    "id": 58,
+    "packet": "LevelChunkPacket",
+    "seq": 967,
+    "t_ms": 3375.0
+  },
+  {
+    "bytes": 10337,
+    "id": 58,
+    "packet": "LevelChunkPacket",
+    "seq": 968,
+    "t_ms": 3376.0
+  },
+  {
+    "bytes": 2632,
+    "id": 58,
+    "packet": "LevelChunkPacket",
+    "seq": 969,
+    "t_ms": 3377.0
+  },
+  {
+    "bytes": 3659,
+    "id": 58,
+    "packet": "LevelChunkPacket",
+    "seq": 970,
+    "t_ms": 3377.0
+  },
+  {
+    "bytes": 565,
+    "id": 58,
+    "packet": "LevelChunkPacket",
+    "seq": 971,
+    "t_ms": 3377.0
+  },
+  {
+    "bytes": 565,
+    "id": 58,
+    "packet": "LevelChunkPacket",
+    "seq": 972,
+    "t_ms": 3377.0
+  },
+  {
+    "bytes": 565,
+    "id": 58,
+    "packet": "LevelChunkPacket",
+    "seq": 973,
+    "t_ms": 3377.0
+  },
+  {
+    "bytes": 2633,
+    "id": 58,
+    "packet": "LevelChunkPacket",
+    "seq": 974,
+    "t_ms": 3377.0
+  },
+  {
+    "bytes": 2632,
+    "id": 58,
+    "packet": "LevelChunkPacket",
+    "seq": 975,
+    "t_ms": 3377.0
+  },
+  {
+    "bytes": 5710,
+    "id": 58,
+    "packet": "LevelChunkPacket",
+    "seq": 976,
+    "t_ms": 3377.0
+  },
+  {
+    "bytes": 10334,
+    "id": 58,
+    "packet": "LevelChunkPacket",
+    "seq": 977,
+    "t_ms": 3378.0
+  },
+  {
+    "bytes": 566,
+    "id": 58,
+    "packet": "LevelChunkPacket",
+    "seq": 978,
+    "t_ms": 3379.0
+  },
+  {
+    "bytes": 566,
+    "id": 58,
+    "packet": "LevelChunkPacket",
+    "seq": 979,
+    "t_ms": 3379.0
+  },
+  {
+    "bytes": 17,
+    "id": 111,
+    "packet": "MoveActorDeltaPacket",
+    "seq": 980,
+    "t_ms": 3379.0
+  },
+  {
+    "bytes": 10850,
+    "id": 58,
+    "packet": "LevelChunkPacket",
+    "seq": 981,
+    "t_ms": 3410.0
+  },
+  {
+    "bytes": 2632,
+    "id": 58,
+    "packet": "LevelChunkPacket",
+    "seq": 982,
+    "t_ms": 3410.0
+  },
+  {
+    "bytes": 10337,
+    "id": 58,
+    "packet": "LevelChunkPacket",
+    "seq": 983,
+    "t_ms": 3411.0
+  },
+  {
+    "bytes": 2632,
+    "id": 58,
+    "packet": "LevelChunkPacket",
+    "seq": 984,
+    "t_ms": 3411.0
+  },
+  {
+    "bytes": 3145,
+    "id": 58,
+    "packet": "LevelChunkPacket",
+    "seq": 985,
+    "t_ms": 3411.0
+  },
+  {
+    "bytes": 8278,
+    "id": 58,
+    "packet": "LevelChunkPacket",
+    "seq": 986,
+    "t_ms": 3412.0
+  },
+  {
+    "bytes": 5200,
+    "id": 58,
+    "packet": "LevelChunkPacket",
+    "seq": 987,
+    "t_ms": 3412.0
+  },
+  {
+    "bytes": 3146,
+    "id": 58,
+    "packet": "LevelChunkPacket",
+    "seq": 988,
+    "t_ms": 3412.0
+  },
+  {
+    "bytes": 565,
+    "id": 58,
+    "packet": "LevelChunkPacket",
+    "seq": 989,
+    "t_ms": 3413.0
+  },
+  {
+    "bytes": 11363,
+    "id": 58,
+    "packet": "LevelChunkPacket",
+    "seq": 990,
+    "t_ms": 3413.0
+  },
+  {
+    "bytes": 565,
+    "id": 58,
+    "packet": "LevelChunkPacket",
+    "seq": 991,
+    "t_ms": 3413.0
+  },
+  {
+    "bytes": 565,
+    "id": 58,
+    "packet": "LevelChunkPacket",
+    "seq": 992,
+    "t_ms": 3413.0
+  },
+  {
+    "bytes": 3146,
+    "id": 58,
+    "packet": "LevelChunkPacket",
+    "seq": 993,
+    "t_ms": 3413.0
+  },
+  {
+    "bytes": 565,
+    "id": 58,
+    "packet": "LevelChunkPacket",
+    "seq": 994,
+    "t_ms": 3414.0
+  },
+  {
+    "bytes": 10850,
+    "id": 58,
+    "packet": "LevelChunkPacket",
+    "seq": 995,
+    "t_ms": 3414.0
+  },
+  {
+    "bytes": 2635,
+    "id": 58,
+    "packet": "LevelChunkPacket",
+    "seq": 996,
+    "t_ms": 3414.0
+  },
+  {
+    "bytes": 565,
+    "id": 58,
+    "packet": "LevelChunkPacket",
+    "seq": 997,
+    "t_ms": 3414.0
+  },
+  {
+    "bytes": 565,
+    "id": 58,
+    "packet": "LevelChunkPacket",
+    "seq": 998,
+    "t_ms": 3414.0
+  },
+  {
+    "bytes": 565,
+    "id": 58,
+    "packet": "LevelChunkPacket",
+    "seq": 999,
+    "t_ms": 3414.0
+  },
+  {
+    "bytes": 565,
+    "id": 58,
+    "packet": "LevelChunkPacket",
+    "seq": 1000,
+    "t_ms": 3415.0
+  },
+  {
+    "bytes": 21,
+    "id": 111,
+    "packet": "MoveActorDeltaPacket",
+    "seq": 1001,
+    "t_ms": 3415.0
+  },
+  {
+    "bytes": 130,
+    "id": 172,
+    "packet": "UpdateSubChunkBlocksPacket",
+    "seq": 1002,
+    "t_ms": 3457.0
+  },
+  {
+    "bytes": 12908,
+    "id": 58,
+    "packet": "LevelChunkPacket",
+    "seq": 1003,
+    "t_ms": 3457.0
+  },
+  {
+    "bytes": 3661,
+    "id": 58,
+    "packet": "LevelChunkPacket",
+    "seq": 1004,
+    "t_ms": 3458.0
+  },
+  {
+    "bytes": 565,
+    "id": 58,
+    "packet": "LevelChunkPacket",
+    "seq": 1005,
+    "t_ms": 3458.0
+  },
+  {
+    "bytes": 3149,
+    "id": 58,
+    "packet": "LevelChunkPacket",
+    "seq": 1006,
+    "t_ms": 3458.0
+  },
+  {
+    "bytes": 564,
+    "id": 58,
+    "packet": "LevelChunkPacket",
+    "seq": 1007,
+    "t_ms": 3458.0
+  },
+  {
+    "bytes": 565,
+    "id": 58,
+    "packet": "LevelChunkPacket",
+    "seq": 1008,
+    "t_ms": 3458.0
+  },
+  {
+    "bytes": 565,
+    "id": 58,
+    "packet": "LevelChunkPacket",
+    "seq": 1009,
+    "t_ms": 3458.0
+  },
+  {
+    "bytes": 1079,
+    "id": 58,
+    "packet": "LevelChunkPacket",
+    "seq": 1010,
+    "t_ms": 3458.0
+  },
+  {
+    "bytes": 565,
+    "id": 58,
+    "packet": "LevelChunkPacket",
+    "seq": 1011,
+    "t_ms": 3458.0
+  },
+  {
+    "bytes": 9828,
+    "id": 58,
+    "packet": "LevelChunkPacket",
+    "seq": 1012,
+    "t_ms": 3458.0
+  },
+  {
+    "bytes": 4688,
+    "id": 58,
+    "packet": "LevelChunkPacket",
+    "seq": 1013,
+    "t_ms": 3459.0
+  },
+  {
+    "bytes": 565,
+    "id": 58,
+    "packet": "LevelChunkPacket",
+    "seq": 1014,
+    "t_ms": 3459.0
+  },
+  {
+    "bytes": 3645,
+    "id": 58,
+    "packet": "LevelChunkPacket",
+    "seq": 1015,
+    "t_ms": 3459.0
+  },
+  {
+    "bytes": 565,
+    "id": 58,
+    "packet": "LevelChunkPacket",
+    "seq": 1016,
+    "t_ms": 3459.0
+  },
+  {
+    "bytes": 565,
+    "id": 58,
+    "packet": "LevelChunkPacket",
+    "seq": 1017,
+    "t_ms": 3459.0
+  },
+  {
+    "bytes": 565,
+    "id": 58,
+    "packet": "LevelChunkPacket",
+    "seq": 1018,
+    "t_ms": 3459.0
+  },
+  {
+    "bytes": 565,
+    "id": 58,
+    "packet": "LevelChunkPacket",
+    "seq": 1019,
+    "t_ms": 3459.0
+  },
+  {
+    "bytes": 564,
+    "id": 58,
+    "packet": "LevelChunkPacket",
+    "seq": 1020,
+    "t_ms": 3459.0
+  },
+  {
+    "bytes": 565,
+    "id": 58,
+    "packet": "LevelChunkPacket",
+    "seq": 1021,
+    "t_ms": 3459.0
+  },
+  {
+    "bytes": 565,
+    "id": 58,
+    "packet": "LevelChunkPacket",
+    "seq": 1022,
+    "t_ms": 3459.0
+  },
+  {
+    "bytes": 21,
+    "id": 111,
+    "packet": "MoveActorDeltaPacket",
+    "seq": 1023,
+    "t_ms": 3460.0
+  },
+  {
+    "bytes": 130,
+    "id": 172,
+    "packet": "UpdateSubChunkBlocksPacket",
+    "seq": 1024,
+    "t_ms": 3510.0
+  },
+  {
+    "bytes": 7766,
+    "id": 58,
+    "packet": "LevelChunkPacket",
+    "seq": 1025,
+    "t_ms": 3510.0
+  },
+  {
+    "bytes": 9306,
+    "id": 58,
+    "packet": "LevelChunkPacket",
+    "seq": 1026,
+    "t_ms": 3510.0
+  },
+  {
+    "bytes": 1079,
+    "id": 58,
+    "packet": "LevelChunkPacket",
+    "seq": 1027,
+    "t_ms": 3511.0
+  },
+  {
+    "bytes": 565,
+    "id": 58,
+    "packet": "LevelChunkPacket",
+    "seq": 1028,
+    "t_ms": 3511.0
+  },
+  {
+    "bytes": 3132,
+    "id": 58,
+    "packet": "LevelChunkPacket",
+    "seq": 1029,
+    "t_ms": 3511.0
+  },
+  {
+    "bytes": 565,
+    "id": 58,
+    "packet": "LevelChunkPacket",
+    "seq": 1030,
+    "t_ms": 3511.0
+  },
+  {
+    "bytes": 565,
+    "id": 58,
+    "packet": "LevelChunkPacket",
+    "seq": 1031,
+    "t_ms": 3511.0
+  },
+  {
+    "bytes": 565,
+    "id": 58,
+    "packet": "LevelChunkPacket",
+    "seq": 1032,
+    "t_ms": 3511.0
+  },
+  {
+    "bytes": 1078,
+    "id": 58,
+    "packet": "LevelChunkPacket",
+    "seq": 1033,
+    "t_ms": 3511.0
+  },
+  {
+    "bytes": 565,
+    "id": 58,
+    "packet": "LevelChunkPacket",
+    "seq": 1034,
+    "t_ms": 3511.0
+  },
+  {
+    "bytes": 565,
+    "id": 58,
+    "packet": "LevelChunkPacket",
+    "seq": 1035,
+    "t_ms": 3512.0
+  },
+  {
+    "bytes": 4168,
+    "id": 58,
+    "packet": "LevelChunkPacket",
+    "seq": 1036,
+    "t_ms": 3512.0
+  },
+  {
+    "bytes": 565,
+    "id": 58,
+    "packet": "LevelChunkPacket",
+    "seq": 1037,
+    "t_ms": 3512.0
+  },
+  {
+    "bytes": 4160,
+    "id": 58,
+    "packet": "LevelChunkPacket",
+    "seq": 1038,
+    "t_ms": 3512.0
+  },
+  {
+    "bytes": 565,
+    "id": 58,
+    "packet": "LevelChunkPacket",
+    "seq": 1039,
+    "t_ms": 3512.0
+  },
+  {
+    "bytes": 1078,
+    "id": 58,
+    "packet": "LevelChunkPacket",
+    "seq": 1040,
+    "t_ms": 3512.0
+  },
+  {
+    "bytes": 565,
+    "id": 58,
+    "packet": "LevelChunkPacket",
+    "seq": 1041,
+    "t_ms": 3512.0
+  },
+  {
+    "bytes": 1079,
+    "id": 58,
+    "packet": "LevelChunkPacket",
+    "seq": 1042,
+    "t_ms": 3512.0
+  },
+  {
+    "bytes": 7248,
+    "id": 58,
+    "packet": "LevelChunkPacket",
+    "seq": 1043,
+    "t_ms": 3512.0
+  },
+  {
+    "bytes": 1078,
+    "id": 58,
+    "packet": "LevelChunkPacket",
+    "seq": 1044,
+    "t_ms": 3513.0
+  },
+  {
+    "bytes": 1078,
+    "id": 58,
+    "packet": "LevelChunkPacket",
+    "seq": 1045,
+    "t_ms": 3553.0
+  },
+  {
+    "bytes": 1079,
+    "id": 58,
+    "packet": "LevelChunkPacket",
+    "seq": 1046,
+    "t_ms": 3553.0
+  },
+  {
+    "bytes": 4160,
+    "id": 58,
+    "packet": "LevelChunkPacket",
+    "seq": 1047,
+    "t_ms": 3553.0
+  },
+  {
+    "bytes": 565,
+    "id": 58,
+    "packet": "LevelChunkPacket",
+    "seq": 1048,
+    "t_ms": 3553.0
+  },
+  {
+    "bytes": 1078,
+    "id": 58,
+    "packet": "LevelChunkPacket",
+    "seq": 1049,
+    "t_ms": 3553.0
+  },
+  {
+    "bytes": 1078,
+    "id": 58,
+    "packet": "LevelChunkPacket",
+    "seq": 1050,
+    "t_ms": 3554.0
+  },
+  {
+    "bytes": 1079,
+    "id": 58,
+    "packet": "LevelChunkPacket",
+    "seq": 1051,
+    "t_ms": 3554.0
+  },
+  {
+    "bytes": 1079,
+    "id": 58,
+    "packet": "LevelChunkPacket",
+    "seq": 1052,
+    "t_ms": 3554.0
+  },
+  {
+    "bytes": 564,
+    "id": 58,
+    "packet": "LevelChunkPacket",
+    "seq": 1053,
+    "t_ms": 3554.0
+  },
+  {
+    "bytes": 565,
+    "id": 58,
+    "packet": "LevelChunkPacket",
+    "seq": 1054,
+    "t_ms": 3554.0
+  },
+  {
+    "bytes": 1078,
+    "id": 58,
+    "packet": "LevelChunkPacket",
+    "seq": 1055,
+    "t_ms": 3554.0
+  },
+  {
+    "bytes": 3646,
+    "id": 58,
+    "packet": "LevelChunkPacket",
+    "seq": 1056,
+    "t_ms": 3554.0
+  },
+  {
+    "bytes": 564,
+    "id": 58,
+    "packet": "LevelChunkPacket",
+    "seq": 1057,
+    "t_ms": 3554.0
+  },
+  {
+    "bytes": 1078,
+    "id": 58,
+    "packet": "LevelChunkPacket",
+    "seq": 1058,
+    "t_ms": 3554.0
+  },
+  {
+    "bytes": 1078,
+    "id": 58,
+    "packet": "LevelChunkPacket",
+    "seq": 1059,
+    "t_ms": 3554.0
+  },
+  {
+    "bytes": 1078,
+    "id": 58,
+    "packet": "LevelChunkPacket",
+    "seq": 1060,
+    "t_ms": 3554.0
+  },
+  {
+    "bytes": 4675,
+    "id": 58,
+    "packet": "LevelChunkPacket",
+    "seq": 1061,
+    "t_ms": 3554.0
+  },
+  {
+    "bytes": 3646,
+    "id": 58,
+    "packet": "LevelChunkPacket",
+    "seq": 1062,
+    "t_ms": 3555.0
+  },
+  {
+    "bytes": 1593,
+    "id": 58,
+    "packet": "LevelChunkPacket",
+    "seq": 1063,
+    "t_ms": 3555.0
+  },
+  {
+    "bytes": 2627,
+    "id": 58,
+    "packet": "LevelChunkPacket",
+    "seq": 1064,
+    "t_ms": 3555.0
+  },
+  {
+    "bytes": 17,
+    "id": 39,
+    "packet": "SetActorDataPacket",
+    "seq": 1065,
+    "t_ms": 3555.0
+  },
+  {
+    "bytes": 21,
+    "id": 111,
+    "packet": "MoveActorDeltaPacket",
+    "seq": 1066,
+    "t_ms": 3555.0
+  },
+  {
+    "bytes": 1076,
+    "id": 58,
+    "packet": "LevelChunkPacket",
+    "seq": 1067,
+    "t_ms": 3608.0
+  },
+  {
+    "bytes": 2125,
+    "id": 58,
+    "packet": "LevelChunkPacket",
+    "seq": 1068,
+    "t_ms": 3609.0
+  },
+  {
+    "bytes": 1078,
+    "id": 58,
+    "packet": "LevelChunkPacket",
+    "seq": 1069,
+    "t_ms": 3609.0
+  },
+  {
+    "bytes": 3140,
+    "id": 58,
+    "packet": "LevelChunkPacket",
+    "seq": 1070,
+    "t_ms": 3609.0
+  },
+  {
+    "bytes": 1076,
+    "id": 58,
+    "packet": "LevelChunkPacket",
+    "seq": 1071,
+    "t_ms": 3609.0
+  },
+  {
+    "bytes": 3668,
+    "id": 58,
+    "packet": "LevelChunkPacket",
+    "seq": 1072,
+    "t_ms": 3609.0
+  },
+  {
+    "bytes": 6249,
+    "id": 58,
+    "packet": "LevelChunkPacket",
+    "seq": 1073,
+    "t_ms": 3609.0
+  },
+  {
+    "bytes": 2626,
+    "id": 58,
+    "packet": "LevelChunkPacket",
+    "seq": 1074,
+    "t_ms": 3610.0
+  },
+  {
+    "bytes": 3145,
+    "id": 58,
+    "packet": "LevelChunkPacket",
+    "seq": 1075,
+    "t_ms": 3610.0
+  },
+  {
+    "bytes": 5308,
+    "id": 58,
+    "packet": "LevelChunkPacket",
+    "seq": 1076,
+    "t_ms": 3610.0
+  },
+  {
+    "bytes": 2126,
+    "id": 58,
+    "packet": "LevelChunkPacket",
+    "seq": 1077,
+    "t_ms": 3610.0
+  },
+  {
+    "bytes": 1076,
+    "id": 58,
+    "packet": "LevelChunkPacket",
+    "seq": 1078,
+    "t_ms": 3610.0
+  },
+  {
+    "bytes": 1076,
+    "id": 58,
+    "packet": "LevelChunkPacket",
+    "seq": 1079,
+    "t_ms": 3610.0
+  },
+  {
+    "bytes": 2115,
+    "id": 58,
+    "packet": "LevelChunkPacket",
+    "seq": 1080,
+    "t_ms": 3610.0
+  },
+  {
+    "bytes": 1599,
+    "id": 58,
+    "packet": "LevelChunkPacket",
+    "seq": 1081,
+    "t_ms": 3611.0
+  },
+  {
+    "bytes": 5215,
+    "id": 58,
+    "packet": "LevelChunkPacket",
+    "seq": 1082,
+    "t_ms": 3611.0
+  },
+  {
+    "bytes": 5702,
+    "id": 58,
+    "packet": "LevelChunkPacket",
+    "seq": 1083,
+    "t_ms": 3611.0
+  },
+  {
+    "bytes": 1078,
+    "id": 58,
+    "packet": "LevelChunkPacket",
+    "seq": 1084,
+    "t_ms": 3611.0
+  },
+  {
+    "bytes": 2116,
+    "id": 58,
+    "packet": "LevelChunkPacket",
+    "seq": 1085,
+    "t_ms": 3611.0
+  },
+  {
+    "bytes": 3153,
+    "id": 58,
+    "packet": "LevelChunkPacket",
+    "seq": 1086,
+    "t_ms": 3611.0
+  },
+  {
+    "bytes": 21,
+    "id": 111,
+    "packet": "MoveActorDeltaPacket",
+    "seq": 1087,
+    "t_ms": 3612.0
+  },
+  {
+    "bytes": 1591,
+    "id": 58,
+    "packet": "LevelChunkPacket",
+    "seq": 1088,
+    "t_ms": 3660.0
+  },
+  {
+    "bytes": 5187,
+    "id": 58,
+    "packet": "LevelChunkPacket",
+    "seq": 1089,
+    "t_ms": 3660.0
+  },
+  {
+    "bytes": 1076,
+    "id": 58,
+    "packet": "LevelChunkPacket",
+    "seq": 1090,
+    "t_ms": 3660.0
+  },
+  {
+    "bytes": 1078,
+    "id": 58,
+    "packet": "LevelChunkPacket",
+    "seq": 1091,
+    "t_ms": 3660.0
+  },
+  {
+    "bytes": 3142,
+    "id": 58,
+    "packet": "LevelChunkPacket",
+    "seq": 1092,
+    "t_ms": 3660.0
+  },
+  {
+    "bytes": 2113,
+    "id": 58,
+    "packet": "LevelChunkPacket",
+    "seq": 1093,
+    "t_ms": 3660.0
+  },
+  {
+    "bytes": 2641,
+    "id": 58,
+    "packet": "LevelChunkPacket",
+    "seq": 1094,
+    "t_ms": 3661.0
+  },
+  {
+    "bytes": 4700,
+    "id": 58,
+    "packet": "LevelChunkPacket",
+    "seq": 1095,
+    "t_ms": 3661.0
+  },
+  {
+    "bytes": 1076,
+    "id": 58,
+    "packet": "LevelChunkPacket",
+    "seq": 1096,
+    "t_ms": 3661.0
+  },
+  {
+    "bytes": 5706,
+    "id": 58,
+    "packet": "LevelChunkPacket",
+    "seq": 1097,
+    "t_ms": 3661.0
+  },
+  {
+    "bytes": 1078,
+    "id": 58,
+    "packet": "LevelChunkPacket",
+    "seq": 1098,
+    "t_ms": 3661.0
+  },
+  {
+    "bytes": 9843,
+    "id": 58,
+    "packet": "LevelChunkPacket",
+    "seq": 1099,
+    "t_ms": 3661.0
+  },
+  {
+    "bytes": 2640,
+    "id": 58,
+    "packet": "LevelChunkPacket",
+    "seq": 1100,
+    "t_ms": 3662.0
+  },
+  {
+    "bytes": 3654,
+    "id": 58,
+    "packet": "LevelChunkPacket",
+    "seq": 1101,
+    "t_ms": 3662.0
+  },
+  {
+    "bytes": 1592,
+    "id": 58,
+    "packet": "LevelChunkPacket",
+    "seq": 1102,
+    "t_ms": 3663.0
+  },
+  {
+    "bytes": 2125,
+    "id": 58,
+    "packet": "LevelChunkPacket",
+    "seq": 1103,
+    "t_ms": 3663.0
+  },
+  {
+    "bytes": 2126,
+    "id": 58,
+    "packet": "LevelChunkPacket",
+    "seq": 1104,
+    "t_ms": 3663.0
+  },
+  {
+    "bytes": 2628,
+    "id": 58,
+    "packet": "LevelChunkPacket",
+    "seq": 1105,
+    "t_ms": 3663.0
+  },
+  {
+    "bytes": 1078,
+    "id": 58,
+    "packet": "LevelChunkPacket",
+    "seq": 1106,
+    "t_ms": 3663.0
+  },
+  {
+    "bytes": 3141,
+    "id": 58,
+    "packet": "LevelChunkPacket",
+    "seq": 1107,
+    "t_ms": 3663.0
+  },
+  {
+    "bytes": 1076,
+    "id": 58,
+    "packet": "LevelChunkPacket",
+    "seq": 1108,
+    "t_ms": 3708.0
+  },
+  {
+    "bytes": 2640,
+    "id": 58,
+    "packet": "LevelChunkPacket",
+    "seq": 1109,
+    "t_ms": 3708.0
+  },
+  {
+    "bytes": 4176,
+    "id": 58,
+    "packet": "LevelChunkPacket",
+    "seq": 1110,
+    "t_ms": 3708.0
+  },
+  {
+    "bytes": 1076,
+    "id": 58,
+    "packet": "LevelChunkPacket",
+    "seq": 1111,
+    "t_ms": 3708.0
+  },
+  {
+    "bytes": 5723,
+    "id": 58,
+    "packet": "LevelChunkPacket",
+    "seq": 1112,
+    "t_ms": 3708.0
+  },
+  {
+    "bytes": 1076,
+    "id": 58,
+    "packet": "LevelChunkPacket",
+    "seq": 1113,
+    "t_ms": 3709.0
+  },
+  {
+    "bytes": 2117,
+    "id": 58,
+    "packet": "LevelChunkPacket",
+    "seq": 1114,
+    "t_ms": 3709.0
+  },
+  {
+    "bytes": 4691,
+    "id": 58,
+    "packet": "LevelChunkPacket",
+    "seq": 1115,
+    "t_ms": 3709.0
+  },
+  {
+    "bytes": 6213,
+    "id": 58,
+    "packet": "LevelChunkPacket",
+    "seq": 1116,
+    "t_ms": 3709.0
+  },
+  {
+    "bytes": 1076,
+    "id": 58,
+    "packet": "LevelChunkPacket",
+    "seq": 1117,
+    "t_ms": 3710.0
+  },
+  {
+    "bytes": 2626,
+    "id": 58,
+    "packet": "LevelChunkPacket",
+    "seq": 1118,
+    "t_ms": 3710.0
+  },
+  {
+    "bytes": 3668,
+    "id": 58,
+    "packet": "LevelChunkPacket",
+    "seq": 1119,
+    "t_ms": 3710.0
+  },
+  {
+    "bytes": 2642,
+    "id": 58,
+    "packet": "LevelChunkPacket",
+    "seq": 1120,
+    "t_ms": 3710.0
+  },
+  {
+    "bytes": 3141,
+    "id": 58,
+    "packet": "LevelChunkPacket",
+    "seq": 1121,
+    "t_ms": 3710.0
+  },
+  {
+    "bytes": 1078,
+    "id": 58,
+    "packet": "LevelChunkPacket",
+    "seq": 1122,
+    "t_ms": 3710.0
+  },
+  {
+    "bytes": 1076,
+    "id": 58,
+    "packet": "LevelChunkPacket",
+    "seq": 1123,
+    "t_ms": 3710.0
+  },
+  {
+    "bytes": 5187,
+    "id": 58,
+    "packet": "LevelChunkPacket",
+    "seq": 1124,
+    "t_ms": 3710.0
+  },
+  {
+    "bytes": 2125,
+    "id": 58,
+    "packet": "LevelChunkPacket",
+    "seq": 1125,
+    "t_ms": 3711.0
+  },
+  {
+    "bytes": 2126,
+    "id": 58,
+    "packet": "LevelChunkPacket",
+    "seq": 1126,
+    "t_ms": 3711.0
+  },
+  {
+    "bytes": 3654,
+    "id": 58,
+    "packet": "LevelChunkPacket",
+    "seq": 1127,
+    "t_ms": 3711.0
+  },
+  {
+    "bytes": 17,
+    "id": 111,
+    "packet": "MoveActorDeltaPacket",
+    "seq": 1128,
+    "t_ms": 3711.0
+  },
+  {
+    "bytes": 3145,
+    "id": 58,
+    "packet": "LevelChunkPacket",
+    "seq": 1129,
+    "t_ms": 3758.0
+  },
+  {
+    "bytes": 1076,
+    "id": 58,
+    "packet": "LevelChunkPacket",
+    "seq": 1130,
+    "t_ms": 3758.0
+  },
+  {
+    "bytes": 4159,
+    "id": 58,
+    "packet": "LevelChunkPacket",
+    "seq": 1131,
+    "t_ms": 3758.0
+  },
+  {
+    "bytes": 2640,
+    "id": 58,
+    "packet": "LevelChunkPacket",
+    "seq": 1132,
+    "t_ms": 3759.0
+  },
+  {
+    "bytes": 13,
+    "id": 21,
+    "packet": "UpdateBlockPacket",
+    "seq": 1133,
+    "t_ms": 3801.0
+  },
+  {
+    "bytes": 744,
+    "id": 13,
+    "packet": "AddActorPacket",
+    "seq": 1134,
+    "t_ms": 3859.0
+  },
+  {
+    "bytes": 744,
+    "id": 13,
+    "packet": "AddActorPacket",
+    "seq": 1135,
+    "t_ms": 3859.0
+  },
+  {
+    "bytes": 744,
+    "id": 13,
+    "packet": "AddActorPacket",
+    "seq": 1136,
+    "t_ms": 3859.0
+  },
+  {
+    "bytes": 49,
+    "id": 123,
+    "packet": "LevelSoundEventPacket",
+    "seq": 1137,
+    "t_ms": 3859.0
+  },
+  {
+    "bytes": 49,
+    "id": 123,
+    "packet": "LevelSoundEventPacket",
+    "seq": 1138,
+    "t_ms": 3859.0
+  },
+  {
+    "bytes": 49,
+    "id": 123,
+    "packet": "LevelSoundEventPacket",
+    "seq": 1139,
+    "t_ms": 3859.0
+  },
+  {
+    "bytes": 17,
+    "id": 111,
+    "packet": "MoveActorDeltaPacket",
+    "seq": 1140,
+    "t_ms": 3859.0
+  },
+  {
+    "bytes": 12,
+    "id": 21,
+    "packet": "UpdateBlockPacket",
+    "seq": 1141,
+    "t_ms": 3908.0
+  },
+  {
+    "bytes": 21,
+    "id": 111,
+    "packet": "MoveActorDeltaPacket",
+    "seq": 1142,
+    "t_ms": 3908.0
+  },
+  {
+    "bytes": 21,
+    "id": 111,
+    "packet": "MoveActorDeltaPacket",
+    "seq": 1143,
+    "t_ms": 3956.0
+  },
+  {
+    "bytes": 14,
+    "id": 21,
+    "packet": "UpdateBlockPacket",
+    "seq": 1144,
+    "t_ms": 4007.0
+  },
+  {
+    "bytes": 14,
+    "id": 111,
+    "packet": "MoveActorDeltaPacket",
+    "seq": 1145,
+    "t_ms": 4051.0
+  },
+  {
+    "bytes": 17,
+    "id": 111,
+    "packet": "MoveActorDeltaPacket",
+    "seq": 1146,
+    "t_ms": 4051.0
+  },
+  {
+    "bytes": 21,
+    "id": 111,
+    "packet": "MoveActorDeltaPacket",
+    "seq": 1147,
+    "t_ms": 4159.0
+  },
+  {
+    "bytes": 17,
+    "id": 111,
+    "packet": "MoveActorDeltaPacket",
+    "seq": 1148,
+    "t_ms": 4207.0
+  },
+  {
+    "bytes": 3,
+    "id": 314,
+    "packet": "CurrentStructureFeaturePacket",
+    "seq": 1149,
+    "t_ms": 4259.0
+  },
+  {
+    "bytes": 17,
+    "id": 39,
+    "packet": "SetActorDataPacket",
+    "seq": 1150,
+    "t_ms": 4326.0
+  },
+  {
+    "bytes": 17,
+    "id": 111,
+    "packet": "MoveActorDeltaPacket",
+    "seq": 1151,
+    "t_ms": 4358.0
+  },
+  {
+    "bytes": 21,
+    "id": 111,
+    "packet": "MoveActorDeltaPacket",
+    "seq": 1152,
+    "t_ms": 4410.0
+  },
+  {
+    "bytes": 17,
+    "id": 111,
+    "packet": "MoveActorDeltaPacket",
+    "seq": 1153,
+    "t_ms": 4458.0
+  },
+  {
+    "bytes": 13,
+    "id": 21,
+    "packet": "UpdateBlockPacket",
+    "seq": 1154,
+    "t_ms": 4510.0
+  },
+  {
+    "bytes": 13,
+    "id": 21,
+    "packet": "UpdateBlockPacket",
+    "seq": 1155,
+    "t_ms": 4510.0
+  },
+  {
+    "bytes": 13,
+    "id": 21,
+    "packet": "UpdateBlockPacket",
+    "seq": 1156,
+    "t_ms": 4560.0
+  },
+  {
+    "bytes": 14,
+    "id": 21,
+    "packet": "UpdateBlockPacket",
+    "seq": 1157,
+    "t_ms": 4560.0
+  },
+  {
+    "bytes": 17,
+    "id": 111,
+    "packet": "MoveActorDeltaPacket",
+    "seq": 1158,
+    "t_ms": 4560.0
+  },
+  {
+    "bytes": 13,
+    "id": 21,
+    "packet": "UpdateBlockPacket",
+    "seq": 1159,
+    "t_ms": 4609.0
+  },
+  {
+    "bytes": 14,
+    "id": 111,
+    "packet": "MoveActorDeltaPacket",
+    "seq": 1160,
+    "t_ms": 4658.0
+  },
+  {
+    "bytes": 21,
+    "id": 111,
+    "packet": "MoveActorDeltaPacket",
+    "seq": 1161,
+    "t_ms": 4658.0
+  },
+  {
+    "bytes": 17,
+    "id": 111,
+    "packet": "MoveActorDeltaPacket",
+    "seq": 1162,
+    "t_ms": 4705.0
+  },
+  {
+    "bytes": 14,
+    "id": 111,
+    "packet": "MoveActorDeltaPacket",
+    "seq": 1163,
+    "t_ms": 4854.0
+  },
+  {
+    "bytes": 17,
+    "id": 111,
+    "packet": "MoveActorDeltaPacket",
+    "seq": 1164,
+    "t_ms": 4854.0
+  },
+  {
+    "bytes": 17,
+    "id": 111,
+    "packet": "MoveActorDeltaPacket",
+    "seq": 1165,
+    "t_ms": 4908.0
+  },
+  {
+    "bytes": 17,
+    "id": 111,
+    "packet": "MoveActorDeltaPacket",
+    "seq": 1166,
+    "t_ms": 4956.0
+  },
+  {
+    "bytes": 17,
+    "id": 111,
+    "packet": "MoveActorDeltaPacket",
+    "seq": 1167,
+    "t_ms": 5207.0
+  },
+  {
+    "bytes": 14,
+    "id": 111,
+    "packet": "MoveActorDeltaPacket",
+    "seq": 1168,
+    "t_ms": 5301.0
+  },
+  {
+    "bytes": 15,
+    "id": 40,
+    "packet": "SetActorMotionPacket",
+    "seq": 1169,
+    "t_ms": 5301.0
+  },
+  {
+    "bytes": 17,
+    "id": 39,
+    "packet": "SetActorDataPacket",
+    "seq": 1170,
+    "t_ms": 5351.0
+  },
+  {
+    "bytes": 17,
+    "id": 111,
+    "packet": "MoveActorDeltaPacket",
+    "seq": 1171,
+    "t_ms": 5351.0
+  },
+  {
+    "bytes": 17,
+    "id": 111,
+    "packet": "MoveActorDeltaPacket",
+    "seq": 1172,
+    "t_ms": 5408.0
+  },
+  {
+    "bytes": 744,
+    "id": 13,
+    "packet": "AddActorPacket",
+    "seq": 1173,
+    "t_ms": 5458.0
+  },
+  {
+    "bytes": 49,
+    "id": 123,
+    "packet": "LevelSoundEventPacket",
+    "seq": 1174,
+    "t_ms": 5461.0
+  },
+  {
+    "bytes": 14,
+    "id": 111,
+    "packet": "MoveActorDeltaPacket",
+    "seq": 1175,
+    "t_ms": 5461.0
+  },
+  {
+    "bytes": 17,
+    "id": 111,
+    "packet": "MoveActorDeltaPacket",
+    "seq": 1176,
+    "t_ms": 5461.0
+  },
+  {
+    "bytes": 14,
+    "id": 111,
+    "packet": "MoveActorDeltaPacket",
+    "seq": 1177,
+    "t_ms": 5507.0
+  },
+  {
+    "bytes": 14,
+    "id": 111,
+    "packet": "MoveActorDeltaPacket",
+    "seq": 1178,
+    "t_ms": 5507.0
+  },
+  {
+    "bytes": 13,
+    "id": 21,
+    "packet": "UpdateBlockPacket",
+    "seq": 1179,
+    "t_ms": 5551.0
+  },
+  {
+    "bytes": 23,
+    "id": 111,
+    "packet": "MoveActorDeltaPacket",
+    "seq": 1180,
+    "t_ms": 5658.0
+  },
+  {
+    "bytes": 14,
+    "id": 111,
+    "packet": "MoveActorDeltaPacket",
+    "seq": 1181,
+    "t_ms": 5705.0
+  },
+  {
+    "bytes": 17,
+    "id": 111,
+    "packet": "MoveActorDeltaPacket",
+    "seq": 1182,
+    "t_ms": 5705.0
+  },
+  {
+    "bytes": 23,
+    "id": 111,
+    "packet": "MoveActorDeltaPacket",
+    "seq": 1183,
+    "t_ms": 5757.0
+  },
+  {
+    "bytes": 15,
+    "id": 40,
+    "packet": "SetActorMotionPacket",
+    "seq": 1184,
+    "t_ms": 5757.0
+  },
+  {
+    "bytes": 17,
+    "id": 39,
+    "packet": "SetActorDataPacket",
+    "seq": 1185,
+    "t_ms": 5801.0
+  },
+  {
+    "bytes": 17,
+    "id": 39,
+    "packet": "SetActorDataPacket",
+    "seq": 1186,
+    "t_ms": 5855.0
+  },
+  {
+    "bytes": 21,
+    "id": 111,
+    "packet": "MoveActorDeltaPacket",
+    "seq": 1187,
+    "t_ms": 5855.0
+  },
+  {
+    "bytes": 22,
+    "id": 111,
+    "packet": "MoveActorDeltaPacket",
+    "seq": 1188,
+    "t_ms": 5855.0
+  },
+  {
+    "bytes": 15,
+    "id": 40,
+    "packet": "SetActorMotionPacket",
+    "seq": 1189,
+    "t_ms": 5855.0
+  },
+  {
+    "bytes": 17,
+    "id": 39,
+    "packet": "SetActorDataPacket",
+    "seq": 1190,
+    "t_ms": 5888.0
+  },
+  {
+    "bytes": 17,
+    "id": 39,
+    "packet": "SetActorDataPacket",
+    "seq": 1191,
+    "t_ms": 5888.0
+  },
+  {
+    "bytes": 22,
+    "id": 111,
+    "packet": "MoveActorDeltaPacket",
+    "seq": 1192,
+    "t_ms": 5888.0
+  },
+  {
+    "bytes": 17,
+    "id": 111,
+    "packet": "MoveActorDeltaPacket",
+    "seq": 1193,
+    "t_ms": 5888.0
+  },
+  {
+    "bytes": 17,
+    "id": 111,
+    "packet": "MoveActorDeltaPacket",
+    "seq": 1194,
+    "t_ms": 5956.0
+  },
+  {
+    "bytes": 22,
+    "id": 111,
+    "packet": "MoveActorDeltaPacket",
+    "seq": 1195,
+    "t_ms": 6007.0
+  },
+  {
+    "bytes": 23,
+    "id": 111,
+    "packet": "MoveActorDeltaPacket",
+    "seq": 1196,
+    "t_ms": 6007.0
+  },
+  {
+    "bytes": 17,
+    "id": 39,
+    "packet": "SetActorDataPacket",
+    "seq": 1197,
+    "t_ms": 6051.0
+  },
+  {
+    "bytes": 17,
+    "id": 39,
+    "packet": "SetActorDataPacket",
+    "seq": 1198,
+    "t_ms": 6051.0
+  },
+  {
+    "bytes": 21,
+    "id": 111,
+    "packet": "MoveActorDeltaPacket",
+    "seq": 1199,
+    "t_ms": 6051.0
+  },
+  {
+    "bytes": 22,
+    "id": 111,
+    "packet": "MoveActorDeltaPacket",
+    "seq": 1200,
+    "t_ms": 6107.0
+  },
+  {
+    "bytes": 22,
+    "id": 111,
+    "packet": "MoveActorDeltaPacket",
+    "seq": 1201,
+    "t_ms": 6158.0
+  },
+  {
+    "bytes": 17,
+    "id": 111,
+    "packet": "MoveActorDeltaPacket",
+    "seq": 1202,
+    "t_ms": 6206.0
+  },
+  {
+    "bytes": 15,
+    "id": 40,
+    "packet": "SetActorMotionPacket",
+    "seq": 1203,
+    "t_ms": 6207.0
+  },
+  {
+    "bytes": 21,
+    "id": 111,
+    "packet": "MoveActorDeltaPacket",
+    "seq": 1204,
+    "t_ms": 6257.0
+  },
+  {
+    "bytes": 21,
+    "id": 111,
+    "packet": "MoveActorDeltaPacket",
+    "seq": 1205,
+    "t_ms": 6258.0
+  },
+  {
+    "bytes": 22,
+    "id": 111,
+    "packet": "MoveActorDeltaPacket",
+    "seq": 1206,
+    "t_ms": 6302.0
+  },
+  {
+    "bytes": 23,
+    "id": 111,
+    "packet": "MoveActorDeltaPacket",
+    "seq": 1207,
+    "t_ms": 6302.0
+  },
+  {
+    "bytes": 23,
+    "id": 111,
+    "packet": "MoveActorDeltaPacket",
+    "seq": 1208,
+    "t_ms": 6456.0
+  },
+  {
+    "bytes": 21,
+    "id": 111,
+    "packet": "MoveActorDeltaPacket",
+    "seq": 1209,
+    "t_ms": 6508.0
+  },
+  {
+    "bytes": 17,
+    "id": 111,
+    "packet": "MoveActorDeltaPacket",
+    "seq": 1210,
+    "t_ms": 6551.0
+  },
+  {
+    "bytes": 21,
+    "id": 111,
+    "packet": "MoveActorDeltaPacket",
+    "seq": 1211,
+    "t_ms": 6607.0
+  }
+]
