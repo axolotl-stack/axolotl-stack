@@ -10,6 +10,8 @@ members = [
     "crates/example-plugin",
     "crates/unastar-data",
     "crates/unastar-data/datagen",
+    "crates/unastar-packs",
+    "crates/unastar-rules",
     "crates/unastar-data/codegen",
     "crates/valentine_gen",
     "crates/tokio-raknet",
