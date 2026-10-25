@@ -392,7 +392,7 @@ mod tests {
         let mut world = World::new();
         let entity = world.spawn_empty().id();
 
-        let mut manager = ChunkManager::default();
+        let mut manager = ChunkManager::new(WorldConfig::void_spawn_platform(1));
         let pos = ChunkPosition::new(1, 2);
 
         assert!(!manager.contains(&pos));
@@ -407,7 +407,7 @@ mod tests {
         let mut world = World::new();
         let entity = world.spawn_empty().id();
 
-        let mut manager = ChunkManager::default();
+        let mut manager = ChunkManager::new(WorldConfig::void_spawn_platform(1));
         let pos = ChunkPosition::new(1, 2);
 
         manager.insert(pos, entity);
@@ -422,7 +422,7 @@ mod tests {
         let e1 = world.spawn_empty().id();
         let e2 = world.spawn_empty().id();
 
-        let mut manager = ChunkManager::default();
+        let mut manager = ChunkManager::new(WorldConfig::void_spawn_platform(1));
         manager.insert(ChunkPosition::new(0, 0), e1);
         manager.insert(ChunkPosition::new(1, 0), e2);
 

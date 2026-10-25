@@ -25,16 +25,28 @@ pub const BLOCKS_PER_CHUNK: usize = 16 * 16 * WORLD_HEIGHT as usize;
 /// avoids the paletted storage's per-block palette search and repacking. The buffer is
 /// packed into a [`Chunk`] once, when the stages are done. Index:
 /// `((y - MIN_Y) * 16 + z) * 16 + x`.
+///
+/// Each thread keeps the last dropped buffer (384 KiB) for its next chunk, so generation
+/// workers allocate it once.
 pub struct DenseBlocks {
     blocks: Box<[u32]>,
+}
+
+thread_local! {
+    static SPARE_BLOCKS: std::cell::Cell<Option<Box<[u32]>>> = const { std::cell::Cell::new(None) };
 }
 
 impl DenseBlocks {
     /// Every block set to `block`.
     pub fn filled(block: u32) -> Self {
-        Self {
-            blocks: vec![block; BLOCKS_PER_CHUNK].into_boxed_slice(),
-        }
+        let blocks = match SPARE_BLOCKS.take() {
+            Some(mut blocks) => {
+                blocks.fill(block);
+                blocks
+            }
+            None => vec![block; BLOCKS_PER_CHUNK].into_boxed_slice(),
+        };
+        Self { blocks }
     }
 
     #[inline(always)]
@@ -64,6 +76,12 @@ impl DenseBlocks {
     /// Pack into a chunk (paletted sub-chunks and the light height map).
     pub fn to_chunk(&self, pos: ChunkPos, air: u32) -> Chunk {
         Chunk::from_dense(pos.x, pos.z, &self.blocks, air)
+    }
+}
+
+impl Drop for DenseBlocks {
+    fn drop(&mut self) {
+        SPARE_BLOCKS.set(Some(std::mem::take(&mut self.blocks)));
     }
 }
 

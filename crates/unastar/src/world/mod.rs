@@ -164,12 +164,24 @@ impl Default for WorldConfig {
         Self {
             dimension: 0,
             bounds: WorldBounds::Infinite,
-            generator: WorldGenerator::VoidSpawnPlatform {
-                platform_radius_chunks: 1,
-            },
+            // Java-style terrain; seed 12345 is the seed of the Java reference fixtures.
+            generator: WorldGenerator::Java { seed: 12345 },
             storage_provider: StorageProvider::LevelDb,
             blazedb_cache_chunks: 4096,
             generation_threads: 0,
+        }
+    }
+}
+
+impl WorldConfig {
+    /// Default settings with a void world and a stone platform of `platform_radius_chunks`
+    /// around the origin: generated inline, no generation pool or tokio runtime needed.
+    pub fn void_spawn_platform(platform_radius_chunks: u32) -> Self {
+        Self {
+            generator: WorldGenerator::VoidSpawnPlatform {
+                platform_radius_chunks,
+            },
+            ..Self::default()
         }
     }
 }
