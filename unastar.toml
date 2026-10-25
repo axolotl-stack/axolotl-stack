@@ -11,7 +11,9 @@
 
 [server]
 # Address to bind the Bedrock listener to.
-bind_address = "0.0.0.0:19132"
+# Loopback by default so local runs never open a public port (and never trigger a
+# firewall prompt). Use "0.0.0.0:19132" to accept players from other machines.
+bind_address = "127.0.0.1:19132"
 
 # Shown in the server list (RakNet pong and LAN discovery).
 motd = "Unastar Server"
