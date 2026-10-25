@@ -43,6 +43,19 @@ fn main() {
     }
     let world = Path::new(&args[1]);
     let out = Path::new(&args[2]);
+    let controls_field = if markers || features {
+        let source = world
+            .parent()
+            .expect("controlled world parent")
+            .join("controls.json");
+        let metadata: serde_json::Value = serde_json::from_slice(
+            &std::fs::read(&source).expect("read authored controls.json beside world"),
+        )
+        .expect("parse authored controls.json");
+        format!("\"controls\": {metadata},\n")
+    } else {
+        String::new()
+    };
     let mut regions = Vec::new();
     for spec in &args[3..] {
         let v: Vec<i32> = spec
@@ -109,7 +122,7 @@ fn main() {
 
     let palette_json: Vec<String> = palette.iter().map(|n| format!("\"{n}\"")).collect();
     let json = format!(
-        "{{\n\"seed\": {seed},\n\"spawn\": [{}, {}],\n\"palette\": [{}],\n\"chunks\": [\n{}\n]\n}}\n",
+        "{{\n\"seed\": {seed},\n\"spawn\": [{}, {}],\n\"palette\": [{}],\n{controls_field}\"chunks\": [\n{}\n]\n}}\n",
         spawn.0,
         spawn.1,
         palette_json.join(","),
@@ -166,6 +179,18 @@ impl Column {
                                 | "minecraft:netherite_block"
                                 | "minecraft:purple_concrete"
                                 | "minecraft:orange_concrete"
+                                | "minecraft:yellow_concrete"
+                                | "minecraft:blue_concrete"
+                                | "minecraft:green_concrete"
+                                | "minecraft:pink_concrete"
+                                | "minecraft:red_concrete"
+                                | "minecraft:black_concrete"
+                                | "minecraft:lime_concrete"
+                                | "minecraft:cyan_concrete"
+                                | "minecraft:magenta_concrete"
+                                | "minecraft:light_blue_concrete"
+                                | "minecraft:white_concrete"
+                                | "minecraft:light_gray_concrete"
                         )
                     {
                         markers.push(serde_json::json!({

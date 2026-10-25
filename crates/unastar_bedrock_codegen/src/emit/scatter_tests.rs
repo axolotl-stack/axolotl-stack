@@ -158,3 +158,43 @@ fn uniform_upper_extent_is_exclusive_in_emitted_placements() {
         },
     );
 }
+
+#[test]
+fn molang_offsets_round_to_nearest_with_ties_away_from_zero_before_translation() {
+    // BDS marker controls at all three origins: ±1.25 -> ±1,
+    // ±1.75 -> ±2, ±1.5 -> ±2. Dynamic expressions take the runtime path.
+    let model = model();
+    let em = Emitter {
+        model: &model,
+        reachable: BTreeSet::new(),
+        blocks: BTreeMap::new(),
+        used_names: BTreeSet::new(),
+    };
+    let mut calls = Vec::new();
+    for (i, value) in ["1.25", "1.75", "-1.25", "-1.75", "1.5", "-1.5"]
+        .into_iter()
+        .enumerate()
+    {
+        for z in [0, 2] {
+            let x = if z == 0 {
+                value.to_owned()
+            } else {
+                format!("{value} + variable.originz")
+            };
+            let scatter = parse(&json!({"iterations":1,"x":x,"y":290+i,"z":z}));
+            calls.push(emit(&em, "rounding control", &scatter, place).unwrap());
+        }
+    }
+    execute(
+        quote! { #(let _ = { #calls };)* None },
+        quote! {
+            let mut expected = std::collections::BTreeMap::new();
+            for (i, offset) in [1, 2, -1, -2, 2, -2].into_iter().enumerate() {
+                for z in [0, 2] {
+                    expected.insert((128 + offset, 290 + i as i32, z), 7);
+                }
+            }
+            assert_eq!(ctx.world.blocks, expected);
+        },
+    );
+}

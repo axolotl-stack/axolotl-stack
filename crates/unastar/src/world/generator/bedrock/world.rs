@@ -101,8 +101,8 @@ pub trait BlockWorld {
     fn set(&mut self, pos: BlockPos, id: u32) -> bool;
     /// Numeric Bedrock biome id at `pos`.
     fn biome(&self, pos: BlockPos) -> u16;
-    /// `query.heightmap`: y of the first block above the highest block that
-    /// is neither air nor a liquid, at column `(x, z)`.
+    /// `query.heightmap`: y of the first block above the highest non-air block,
+    /// including liquids, at column `(x, z)` (BDS water/stone marker controls).
     fn heightmap(&mut self, x: i32, z: i32) -> i32;
     /// `query.above_top_solid`: y of the first block above the highest solid
     /// block (palette `solid` flag) at column `(x, z)`.

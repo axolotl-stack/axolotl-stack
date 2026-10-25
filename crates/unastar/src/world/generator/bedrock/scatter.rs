@@ -81,11 +81,11 @@ pub fn jittered_grid(
     (base + rng.next_int(step.max(1))).min(hi)
 }
 
-/// Molang result to a block coordinate (floor, like the scattered positions
-/// of Bedrock's integer block grid).
+/// Molang coordinate offset: nearest integer, with half ties away from zero.
+/// Conversion precedes translation by the input position (BDS marker controls).
 #[inline]
 pub fn coord(v: f32) -> i32 {
-    v.floor() as i32
+    v.round() as i32
 }
 
 #[cfg(test)]
@@ -128,11 +128,5 @@ mod tests {
         assert_eq!(cells, [0, 2, 4, 6]);
         assert_eq!(fixed_grid(0, 6, 2, 0, 4), 0);
         assert_eq!(fixed_grid(-1, 1, 2, 1, 0), 0);
-    }
-
-    #[test]
-    fn coords_floor_negative_values() {
-        assert_eq!(coord(-0.5), -1);
-        assert_eq!(coord(3.99), 3);
     }
 }

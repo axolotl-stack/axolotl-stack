@@ -69,7 +69,7 @@ fn int_expr(origin: &str, env: &ScatterEnv<'_, '_>, e: &molang::Expr) -> Result<
         return Ok(quote!(#v));
     }
     let t = molang::emit(origin, e, env)?;
-    Ok(quote!(scatter::coord(#t)))
+    Ok(quote!((#t).floor() as i32))
 }
 
 /// Emit a block evaluating to `Option<BlockPos>`: the last successful
@@ -169,7 +169,13 @@ pub fn emit(
         let value = match coord {
             Coord::Offset(n) => quote!(#base + #n),
             Coord::Expr(e) => {
-                let value = int_expr(origin_doc, &env, e)?;
+                let value = if let Some(v) = e.as_const() {
+                    let v = v.round() as i32;
+                    quote!(#v)
+                } else {
+                    let value = molang::emit(origin_doc, e, &env)?;
+                    quote!(scatter::coord(#value))
+                };
                 quote!(#base + #value)
             }
             Coord::Dist {
@@ -212,7 +218,7 @@ pub fn emit(
         }
         None => {
             let e = molang::emit(origin_doc, &s.iterations, &env)?;
-            quote!(scatter::coord(#e))
+            quote!((#e).floor() as i32)
         }
     };
     let loop_var = if grid_axes.is_empty() {

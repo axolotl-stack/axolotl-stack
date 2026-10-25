@@ -15,8 +15,8 @@ and surface noise still require reference-world measurements. See
 | Shared Java noise/climate/biome mapping and spawn-center selection | unmeasured: to confirm by BDS fixture | Matched terrain/biome/spawn samples across seeds; safe-spawn checks use finished Bedrock chunks |
 | Base bedrock/deepslate layers | Topology and transition boundaries measured in 1,024 columns; RNG/distribution unmeasured: to confirm by BDS fixture | `bds_1_26_51_seed_12345_geology.json`: contiguous bedrock thickness 2–5, stone absent through y=0, deepslate absent from y=8; capture more seeds and exact random draws |
 | Chunk/pass RNG seeding and feature draw order | unmeasured: to confirm by BDS fixture | Marker placements across positive/negative chunks for one fixed seed |
-| Scatter coordinate frames and distribution endpoints | BDS marker fixture confirms numeric/Molang offsets and upper-exclusive uniform extents; other distributions remain unmeasured | Fractional rounding, height-query frames, Gaussian and grid controls |
-| Molang noise and query height semantics | unmeasured: to confirm by BDS fixture | Marker heights above flat ground and fluids, noise threshold controls |
+| Scatter coordinate frames and distribution endpoints | BDS marker fixture confirms numeric/Molang offsets, nearest/half-away offset rounding and upper-exclusive uniform extents; other distributions remain unmeasured | Gaussian and grid controls |
+| Molang noise and query height semantics | Stone/water controls confirm world-space heights: heightmap includes water, above-top-solid skips water; noise and other material classes remain unmeasured | Noise threshold controls and foliage/material height queries |
 | JSON ore/tree/plant/geode/sculk/blob/decoration feature placement | unmeasured: to confirm by BDS fixture | One isolated feature at a known origin in controlled material |
 | Built-in aquatic/plants/terrain features and legacy selectors | unmeasured: to confirm by BDS fixture | One built-in identifier per control, fixed seed and biome |
 | Surface builders, noise seeds, mountain slopes and adjustment precedence | unmeasured: to confirm by BDS fixture | Matched columns for each builder with captured biome/material inputs |
@@ -137,9 +137,10 @@ noise and the final ice/snow placement still need controlled BDS measurements.
 ### Controlled worlds
 
 `tools/bds-worldgen-controls/controls.py --out <new outside-repo directory>`
-prepares ten authored marker cases at chunk origins -8, 0 and 8: numeric,
-literal-string, random, world/origin variables, uniform endpoints and nested
-scatter frames. It copies no Mojang assets. `--run --runtime-helper
+prepares 22 authored marker cases at chunk origins -8, 0 and 8: numeric,
+literal-string, random, world/origin variables, uniform endpoints, fractional
+rounding and nested scatter/height-query frames. It copies no Mojang assets.
+`--run --runtime-helper
 <TOOLING bds_runtime.py>` additionally runs a reserved BDS session, saves its
 world/logs outside the repository, and requests isolated oak and coal features
 with the [documented `/place feature` command](https://learn.microsoft.com/en-us/minecraft/creator/commands/commands/place).

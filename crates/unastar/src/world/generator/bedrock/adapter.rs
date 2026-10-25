@@ -45,7 +45,7 @@ impl<'a, R: WorldGenRegion> RegionWorld<'a, R> {
             if if solid {
                 props::is_solid(id)
             } else {
-                id != bb::AIR && !props::is_liquid(id)
+                id != bb::AIR
             } {
                 return y + 1;
             }
@@ -160,7 +160,7 @@ impl BlockWorld for ProtoChunk {
             .rev()
             .find(|&y| {
                 let id = self.get(BlockPos::new(x, y, z));
-                id != bb::AIR && !props::is_liquid(id)
+                id != bb::AIR
             })
             .map_or(self.min_y(), |y| y + 1)
     }
@@ -184,6 +184,35 @@ mod tests {
     use crate::world::generator::region::SLOT_OFFSETS;
 
     #[test]
+    fn bds_heightmap_includes_water_while_above_top_solid_skips_it() {
+        // Authored BDS seed-12345 controls: stone y=250, water y=255,
+        // white query.heightmap marker y=256, grey above_top_solid y=251.
+        let origin = ChunkPos::new(8, 1);
+        let mut protos = SLOT_OFFSETS
+            .map(|(x, z)| ProtoChunk::empty(ChunkPos::new(origin.x + x, origin.z + z), 1));
+        let proto = protos.iter_mut().find(|p| p.pos == origin).unwrap();
+        assert!(proto.set(BlockPos::new(136, 250, 16), bb::STONE));
+        assert!(proto.set(BlockPos::new(136, 255, 16), bb::WATER));
+        assert_eq!(proto.heightmap(136, 16), 256);
+        assert_eq!(proto.above_top_solid(136, 16), 251);
+        let mut region = DecorationRegion::new(
+            12345,
+            origin,
+            std::array::from_fn(|i| &protos[i]),
+            &unastar_noise::java_blocks::BEDROCK_STATE_CLASSES,
+        );
+        let mut world = RegionWorld::new(&mut region);
+        assert_eq!(world.heightmap(136, 16), 256);
+        assert_eq!(world.above_top_solid(136, 16), 251);
+        assert!(world.set(BlockPos::new(136, 255, 16), bb::AIR));
+        assert_eq!(world.heightmap(136, 16), 251);
+        assert_eq!(world.above_top_solid(136, 16), 251);
+        assert!(world.set(BlockPos::new(136, 250, 16), bb::AIR));
+        assert_eq!(world.heightmap(136, 16), MIN_Y);
+        assert_eq!(world.above_top_solid(136, 16), MIN_Y);
+    }
+
+    #[test]
     fn negative_region_edges_and_height_invalidation() {
         let origin = ChunkPos::new(-1, -1);
         let protos = SLOT_OFFSETS
@@ -201,8 +230,6 @@ mod tests {
         assert!(world.set(BlockPos::new(-16, 63, -16), bb::STONE));
         assert_eq!(world.heightmap(-16, -16), 64);
         assert_eq!(world.above_top_solid(-16, -16), 64);
-        assert!(world.set(BlockPos::new(-16, 80, -16), bb::WATER));
-        assert_eq!(world.heightmap(-16, -16), 64);
         assert!(world.set(BlockPos::new(-16, 63, -16), bb::AIR));
         assert_eq!(world.heightmap(-16, -16), MIN_Y);
         assert_eq!(world.above_top_solid(-16, -16), MIN_Y);
