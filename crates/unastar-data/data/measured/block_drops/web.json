@@ -1,5 +1,5 @@
 {"block":"minecraft:web","cases":[
-{"fit":"exact","loot_table":{"pools":[{"entries":[{"name":"minecraft:string","type":"item"}],"rolls":1}]},"observed":{"minecraft:string@0x1":400},"placed_states":{},"samples":400,"states":{},"tools":["copper_sword","diamond_sword","diamond_sword+fortune1","diamond_sword+fortune2","diamond_sword+fortune3","golden_sword","iron_sword","netherite_sword","stone_sword","wooden_sword"]},
-{"fit":"exact","loot_table":{"pools":[]},"observed":{"":400},"placed_states":{},"samples":400,"states":{},"tools":["diamond_pickaxe","hand"]},
-{"fit":"exact","loot_table":{"pools":[{"entries":[{"name":"minecraft:web","type":"item"}],"rolls":1}]},"observed":{"minecraft:web@0x1":400},"placed_states":{},"samples":400,"states":{},"tools":["diamond_sword+silk_touch1","shears"]}
+{"fit":"exact","loot_table":{"pools":[{"entries":[{"name":"minecraft:string","type":"item"}],"rolls":1}]},"observed":{"minecraft:string@0x1":400},"samples":400,"states":[{}],"tools":["copper_sword","diamond_sword","diamond_sword+fortune1","diamond_sword+fortune2","diamond_sword+fortune3","golden_sword","iron_sword","netherite_sword","stone_sword","wooden_sword"]},
+{"fit":"exact","loot_table":{"pools":[]},"observed":{"":400},"samples":400,"states":[{}],"tools":["diamond_pickaxe","hand"]},
+{"fit":"exact","loot_table":{"pools":[{"entries":[{"name":"minecraft:web","type":"item"}],"rolls":1}]},"observed":{"minecraft:web@0x1":400},"samples":400,"states":[{}],"tools":["diamond_sword+silk_touch1","shears"]}
 ]}

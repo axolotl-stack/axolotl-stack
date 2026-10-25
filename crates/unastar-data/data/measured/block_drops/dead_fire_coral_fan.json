@@ -1,4 +1,6 @@
 {"block":"minecraft:dead_fire_coral_fan","cases":[
-{"fit":"exact","loot_table":{"pools":[]},"observed":{"":400},"placed_states":{"coral_fan_direction":0},"samples":400,"states":{"coral_fan_direction":0},"tools":["diamond_pickaxe","diamond_pickaxe+fortune1","diamond_pickaxe+fortune2","diamond_pickaxe+fortune3","hand","shears"]},
-{"fit":"exact","loot_table":{"pools":[{"entries":[{"name":"minecraft:dead_fire_coral_fan","type":"item"}],"rolls":1}]},"observed":{"minecraft:dead_fire_coral_fan@0x1":400},"placed_states":{"coral_fan_direction":0},"samples":400,"states":{"coral_fan_direction":0},"tools":["diamond_pickaxe+silk_touch1"]}
+{"fit":"exact","loot_table":{"pools":[]},"observed":{"":400},"samples":400,"states":[{"coral_fan_direction":0}],"tools":["diamond_pickaxe","diamond_pickaxe+fortune1","diamond_pickaxe+fortune2","diamond_pickaxe+fortune3","hand","shears"]},
+{"fit":"exact","loot_table":{"pools":[{"entries":[{"name":"minecraft:dead_fire_coral_fan","type":"item"}],"rolls":1}]},"observed":{"minecraft:dead_fire_coral_fan@0x1":400},"samples":400,"states":[{"coral_fan_direction":0}],"tools":["diamond_pickaxe+silk_touch1"]},
+{"fit":"exact","loot_table":{"pools":[]},"observed":{"":64},"samples":64,"states":[{"coral_fan_direction":1}],"tools":["diamond_pickaxe","diamond_pickaxe+fortune1","diamond_pickaxe+fortune2","diamond_pickaxe+fortune3","hand","shears"]},
+{"fit":"exact","loot_table":{"pools":[{"entries":[{"name":"minecraft:dead_fire_coral_fan","type":"item"}],"rolls":1}]},"observed":{"minecraft:dead_fire_coral_fan@0x1":64},"samples":64,"states":[{"coral_fan_direction":1}],"tools":["diamond_pickaxe+silk_touch1"]}
 ]}

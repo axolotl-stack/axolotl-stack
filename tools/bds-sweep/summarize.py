@@ -143,6 +143,32 @@ def loot_table(outcomes: dict[str, int]) -> tuple[dict, str]:
     return {'pools': pools}, 'exact' if deterministic else 'empirical'
 
 
+def merge_states(cases: list[dict]) -> list[dict]:
+    """Turns `states`/`placed_states` into lists and folds exact cases that
+    differ only in the block state (same tools, samples and outcome) into
+    one case listing every such state."""
+    out: list[dict] = []
+    groups: dict[str, dict] = {}
+    for case in cases:
+        case = {**case, 'states': [case['states']]}
+        if 'placed_states' in case:
+            case['placed_states'] = [case['placed_states']]
+        if case['fit'] == 'exact' and 'command_failures' not in case:
+            key = json.dumps([sorted(case['tools']), case['samples'], case['observed']], sort_keys=True)
+            if key in groups:
+                groups[key]['states'] += case['states']
+                groups[key]['placed_states'] += case['placed_states']
+                continue
+            groups[key] = case
+        out.append(case)
+    for case in out:
+        # BDS normalises bits to booleans; keep what it stored only where it
+        # differs from the request.
+        if case.get('placed_states') == case['states']:
+            del case['placed_states']
+    return out
+
+
 def summarize_drops(sources: list[Path], repeats: list[Path]) -> None:
     """Merges measurement sweeps by cell key, the first sweep that has a cell
     wins (list the sweep with more samples first, e.g. the 400-sample
@@ -201,7 +227,7 @@ def summarize_drops(sources: list[Path], repeats: list[Path]) -> None:
                 merged[group] = case
             cases.append(case)
         name = block.removeprefix('minecraft:')
-        files.append(write_cases(f'block_drops/{name}.json', block, cases))
+        files.append(write_cases(f'block_drops/{name}.json', block, merge_states(cases)))
     update_manifest('block_drops', {
         **provenance('drops', sources + repeats),
         'method': '`/loot spawn <p> mine <block> mainhand` executed as the sweep player holding the tool '

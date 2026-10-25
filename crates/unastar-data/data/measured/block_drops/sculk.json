@@ -1,4 +1,4 @@
 {"block":"minecraft:sculk","cases":[
-{"fit":"exact","loot_table":{"pools":[]},"observed":{"":400},"placed_states":{},"samples":400,"states":{},"tools":["copper_hoe","diamond_hoe","diamond_hoe+fortune1","diamond_hoe+fortune2","diamond_hoe+fortune3","diamond_pickaxe","golden_hoe","hand","iron_hoe","netherite_hoe","shears","stone_hoe","wooden_hoe"]},
-{"fit":"exact","loot_table":{"pools":[{"entries":[{"name":"minecraft:sculk","type":"item"}],"rolls":1}]},"observed":{"minecraft:sculk@0x1":400},"placed_states":{},"samples":400,"states":{},"tools":["diamond_hoe+silk_touch1"]}
+{"fit":"exact","loot_table":{"pools":[]},"observed":{"":400},"samples":400,"states":[{}],"tools":["copper_hoe","diamond_hoe","diamond_hoe+fortune1","diamond_hoe+fortune2","diamond_hoe+fortune3","diamond_pickaxe","golden_hoe","hand","iron_hoe","netherite_hoe","shears","stone_hoe","wooden_hoe"]},
+{"fit":"exact","loot_table":{"pools":[{"entries":[{"name":"minecraft:sculk","type":"item"}],"rolls":1}]},"observed":{"minecraft:sculk@0x1":400},"samples":400,"states":[{}],"tools":["diamond_hoe+silk_touch1"]}
 ]}
