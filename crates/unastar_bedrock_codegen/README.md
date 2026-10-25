@@ -60,6 +60,11 @@ when the variable or any file it read changes.
 runtime implements in Rust; a reachable built-in missing from the list fails the build.
 `builtin_blocks` declares the blocks hand-written runtime code needs.
 
+Legacy Java-format templates shipped with BDS can retain older identifiers:
+`minecraft:chain` is upgraded to native `minecraft:iron_chain` before palette
+resolution, preserving its axis under rotation. The conversion is exercised on
+the local bastion stage templates; placement/pool behavior remains unmeasured.
+
 ## Tests
 
 `cargo test -p unastar_bedrock_codegen`. Unit tests use synthetic palettes; shared

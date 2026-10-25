@@ -602,6 +602,7 @@ pub fn rotate_java_properties(
 /// Java block names whose Bedrock 1.26.51 identifier differs.
 const JAVA_RENAMES: &[(&str, &str)] = &[
     ("bricks", "brick_block"),
+    ("chain", "iron_chain"),
     ("cobweb", "web"),
     ("dead_bush", "deadbush"),
     ("dirt_path", "grass_path"),
@@ -2098,6 +2099,39 @@ mod tests {
                 &[("persistent_bit", StateValue::Int(1))]
             )
         );
+    }
+
+    #[test]
+    fn legacy_bastion_chain_uses_iron_chain_and_preserves_axis() {
+        // Shipped bastion stages still name `chain`; native 26.51 calls it
+        // `iron_chain`, with default pillar_axis=y and horizontal x/z states.
+        let p = BlockPalette::from_parts(
+            block(
+                "minecraft:iron_chain",
+                &[("pillar_axis", strs(&["y", "x", "z"]))],
+            ),
+            BTreeMap::new(),
+        )
+        .unwrap();
+        let id = |axis: &str| {
+            expect(
+                &p,
+                "minecraft:iron_chain",
+                &[("pillar_axis", StateValue::Str(axis.into()))],
+            )
+        };
+        assert_eq!(
+            convert(&p, "minecraft:chain", &[("waterlogged", "false")]).unwrap(),
+            id("y")
+        );
+        let ids = java_rotations(
+            &p,
+            "legacy bastion",
+            "minecraft:chain",
+            &props(&[("axis", "x"), ("waterlogged", "false")]),
+        )
+        .unwrap();
+        assert_eq!(ids, [id("x"), id("z"), id("x"), id("z")]);
     }
 
     #[test]
