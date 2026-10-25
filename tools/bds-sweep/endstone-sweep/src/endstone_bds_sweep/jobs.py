@@ -331,5 +331,38 @@ def armor_values(ctx: Context, job: dict):
     ctx.must(f'gamemode creative "{name}"')
 
 
-JOBS = {'drops': drops, 'armor_slots': armor_slots, 'armor_values': armor_values, 'fuel': fuel,
-        'mining': mining}
+def attack(ctx: Context, job: dict):
+    """Melee damage per held item: a fresh target mob is spawned in front of
+    the sweep player (creative, on the ground, not sprinting), the client
+    gets a `bds-sweep:attack <runtime id>` order, and the damage events of
+    that mob are recorded; `repeats` trials per item."""
+    from endstone.level import Location
+    spot = job['arena']['target']
+    miner = job['arena']['miner']
+    ctx.must(f'tp "{job["player"]}" {miner[0]} {miner[1]} {miner[2]} {miner[3]} {miner[4]}')
+    for item in job['items']:
+        if item['key'] in ctx.done:
+            continue
+        ctx.player.inventory.held_item_slot = 0
+        ctx.player.inventory.item_in_main_hand = ctx.stack(item['tool'])
+        yield 5
+        trials = []
+        for _ in range(int(item.get('repeats', 3))):
+            target = ctx.dimension.spawn_actor(Location(ctx.dimension, spot[0], spot[1], spot[2]), job['target'])
+            yield 3
+            ctx.plugin.damage.clear()
+            ctx.player.send_message(f'bds-sweep:attack {target.runtime_id}')
+            yield 6
+            damage = [round(d, 4) for _, kind, d, _ in ctx.plugin.damage if kind == job['target']]
+            causes = sorted({c for _, kind, _, c in ctx.plugin.damage if kind == job['target']})
+            trials.append({'damage': damage, 'causes': causes})
+            if target.is_valid:
+                target.remove()
+            ctx.take_items()
+            yield 2
+        ctx.record({'key': item['key'], 'tool': item['tool'], 'target': job['target'], 'trials': trials})
+    ctx.player.inventory.item_in_main_hand = None
+
+
+JOBS = {'drops': drops, 'armor_slots': armor_slots, 'armor_values': armor_values, 'attack': attack,
+        'fuel': fuel, 'mining': mining}

@@ -11,7 +11,10 @@
 //!   action `StartDestroyBlock`), then `ContinueDestroyBlock` every tick; when
 //!   `PREDICT` > 0, send `PredictDestroyBlock` that many ticks after the start
 //!   and stop;
-//! * `bds-sweep:stop`: abort the current mining (`AbortDestroyBlock`).
+//! * `bds-sweep:stop`: abort the current mining (`AbortDestroyBlock`);
+//! * `bds-sweep:attack RUNTIME_ID`: attack that actor with the held item
+//!   (`InventoryTransaction` use-item-on-actor, hotbar slot 0 as last sent
+//!   by the server).
 //!
 //! Exits successfully when the server closes the session.
 
@@ -21,10 +24,14 @@ use jolyne::stream::client::ClientHandshakeConfig;
 use jolyne::{
     BedrockStream, JolyneError,
     valentine::{
-        ActorRuntimeId, BlockPos, EnumsClientPlayMode, EnumsInputMode, EnumsNewInteractionModel,
-        EnumsPlayerActionType, EnumsPlayerAuthInputPacketPayloadInputData, EnumsPlayerRespawnState,
-        McpePacket, McpePacketData, McpePacketName, PlayerActionPacket, PlayerAuthInputPacket,
-        PlayerBlockActionData, PlayerInputTick, RespawnPacket, Vec2, Vec3,
+        ActorRuntimeId, BlockPos, CerealizerNetworkItemStackDescriptorSerializedData,
+        EnumsClientPlayMode, EnumsInputMode, EnumsItemUseOnActorInventoryTransactionActionType,
+        EnumsNewInteractionModel, EnumsPlayerActionType,
+        EnumsPlayerAuthInputPacketPayloadInputData, EnumsPlayerRespawnState,
+        InventoryTransactionPacket, InventoryTransactionPacketTransaction,
+        ItemUseOnActorInventoryTransaction, McpePacket, McpePacketData, McpePacketName,
+        PlayerActionPacket, PlayerAuthInputPacket, PlayerBlockActionData, PlayerInputTick,
+        RespawnPacket, Vec2, Vec3,
     },
 };
 use std::net::SocketAddr;
@@ -57,6 +64,20 @@ struct Mining {
 enum Order {
     Mine(Mining),
     Stop,
+    /// Attack the actor with this runtime id with the held item.
+    Attack(u64),
+}
+
+/// The first `n` numbers of an order. The order arrives inside the Debug
+/// form of the text body, so the last number is followed by the closing
+/// quote.
+fn numbers<'a>(words: impl Iterator<Item = &'a str>, n: usize) -> Option<Vec<i64>> {
+    let numbers: Vec<i64> = words
+        .take(n)
+        .map(|word| word.trim_end_matches(|c: char| !c.is_ascii_digit()).parse())
+        .collect::<Result<_, _>>()
+        .ok()?;
+    (numbers.len() == n).then_some(numbers)
 }
 
 /// Parses a plugin order from a chat message (anywhere in the text).
@@ -66,13 +87,7 @@ fn parse_order(text: &str) -> Option<Order> {
     match words.next()? {
         "stop" | "stop\"" => Some(Order::Stop),
         "mine" => {
-            // The order arrives inside the Debug form of the text body, so
-            // the last number is followed by the closing quote.
-            let numbers: Vec<i64> = words
-                .take(5)
-                .map(|word| word.trim_end_matches(|c: char| !c.is_ascii_digit()).parse())
-                .collect::<Result<_, _>>()
-                .ok()?;
+            let numbers = numbers(words, 5)?;
             let [x, y, z, face, predict_after] = numbers[..] else {
                 return None;
             };
@@ -83,6 +98,7 @@ fn parse_order(text: &str) -> Option<Order> {
                 elapsed: 0,
             }))
         }
+        "attack" => Some(Order::Attack(u64::try_from(numbers(words, 1)?[0]).ok()?)),
         _ => None,
     }
 }
@@ -97,6 +113,9 @@ struct Player {
     mining: Option<Mining>,
     /// A block action to send with the next input (abort).
     pending: Option<PlayerBlockActionData>,
+    /// Hotbar slot 0 (the held slot) as the server last sent it; attacks
+    /// carry it like a vanilla client.
+    held: CerealizerNetworkItemStackDescriptorSerializedData,
 }
 
 fn block_action(action: EnumsPlayerActionType, mining: &Mining) -> PlayerBlockActionData {
@@ -132,7 +151,8 @@ impl Player {
         actions
     }
 
-    fn order(&mut self, order: Order) {
+    /// Applies an order; returns packets to send right away.
+    fn order(&mut self, order: Order) -> Vec<McpePacket> {
         match order {
             Order::Mine(mining) => self.mining = Some(mining),
             Order::Stop => {
@@ -143,7 +163,28 @@ impl Player {
                     ));
                 }
             }
+            Order::Attack(target) => return vec![self.attack(target)],
         }
+        Vec::new()
+    }
+
+    /// `InventoryTransaction` use-item-on-actor `Attack` with the held slot.
+    fn attack(&self, target: u64) -> McpePacket {
+        McpePacket::from(InventoryTransactionPacket {
+            transaction: InventoryTransactionPacketTransaction::ItemUseOnActorInventoryTransaction(
+                ItemUseOnActorInventoryTransaction {
+                    runtime_id: ActorRuntimeId {
+                        actor_runtime_id: target,
+                    },
+                    action_type: EnumsItemUseOnActorInventoryTransactionActionType::Attack,
+                    slot: 0,
+                    item: self.held.clone(),
+                    from_position: self.position.clone(),
+                    ..Default::default()
+                },
+            ),
+            ..Default::default()
+        })
     }
 
     fn auth_input(&mut self) -> McpePacket {
@@ -197,8 +238,18 @@ impl Player {
             McpePacketData::TextPacket(text) => {
                 if let Some(order) = parse_order(&format!("{:?}", text.body)) {
                     info!("order {order:?}");
-                    self.order(order);
+                    return self.order(order);
                 }
+            }
+            McpePacketData::InventoryContentPacket(content) if content.container_id == 0 => {
+                if let Some(first) = content.slots.into_iter().next() {
+                    self.held = first;
+                }
+            }
+            McpePacketData::InventorySlotPacket(slot)
+                if slot.container_id == 0 && slot.slot == 0 =>
+            {
+                self.held = slot.item;
             }
             McpePacketData::CorrectPlayerMovePredictionPacket(packet) => {
                 self.position = packet.pos;
@@ -259,6 +310,7 @@ async fn main() -> Result<()> {
         tick: 0,
         mining: None,
         pending: None,
+        held: Default::default(),
     };
     let mut ticker = tokio::time::interval(Duration::from_millis(50));
     loop {
@@ -282,6 +334,8 @@ async fn main() -> Result<()> {
                             | McpePacketName::RespawnPacket
                             | McpePacketName::NetworkStackLatencyPacket
                             | McpePacketName::TextPacket
+                            | McpePacketName::InventoryContentPacket
+                            | McpePacketName::InventorySlotPacket
                     )
                 ) {
                     for reply in player.handle(packet.decode()?.data) {
@@ -305,6 +359,7 @@ mod tests {
             tick: 0,
             mining: None,
             pending: None,
+            held: Default::default(),
         }
     }
 
@@ -324,6 +379,10 @@ mod tests {
         assert_eq!(parse_order("bds-sweep:stop"), Some(Order::Stop));
         assert_eq!(parse_order("bds-sweep:mine 1 2"), None);
         assert_eq!(parse_order("hello"), None);
+        assert_eq!(
+            parse_order(r#"{ message: "bds-sweep:attack 4294967297" }"#),
+            Some(Order::Attack(4294967297))
+        );
     }
 
     #[test]

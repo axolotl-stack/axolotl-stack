@@ -40,7 +40,8 @@ STOP_REQUEST = 'stop.request'
 # `miner` = x, y, z, yaw, pitch: facing east (yaw -90) at the west face (4) of
 # `mine_block`, which is at eye level (eyes at y + 1.62).
 ARENA = {'player': [0.5, -60, 0.5], 'block': [3, -60, 0], 'furnaces': [-8, -60, 6],
-         'miner': [0.5, -60, 0.5, -90, 0], 'mine_block': [1, -59, 0], 'mine_face': 4}
+         'miner': [0.5, -60, 0.5, -90, 0], 'mine_block': [1, -59, 0], 'mine_face': 4,
+         'target': [2.0, -60, 0.5]}
 SETUP = [
     'gamerule domobspawning false',
     'gamerule dodaylightcycle false',
@@ -207,6 +208,18 @@ def armor_value_items(args) -> list[dict]:
     return items
 
 
+def attack_items(args) -> list[dict]:
+    """Hand, every tier of every digger and sword, trident and mace, and
+    sharpness I-V on the diamond sword."""
+    tools: list[dict | None] = [None]
+    tools += [tool(kind, tier) for kind in DIGGERS for tier in TIERS]
+    tools += [{'item': 'minecraft:trident'}, {'item': 'minecraft:mace'}]
+    tools += [tool('sword', 'diamond', sharpness=level) for level in range(1, 6)]
+    if args.items not in ('slice', 'all'):
+        tools += [{'item': name} for name in args.items.split(',')]
+    return [{'key': tool_key(spec), 'tool': spec} for spec in tools]
+
+
 def build_job(args, out: Path) -> dict:
     job = {'kind': args.kind.replace('-', '_'), 'player': PLAYER, 'output_dir': str(out),
            'arena': ARENA, 'setup_commands': SETUP}
@@ -218,6 +231,8 @@ def build_job(args, out: Path) -> dict:
         job['items'] = [{'key': name, 'item': name} for name in item_names(args.items, SLICE_ITEMS)]
     elif args.kind == 'armor-values':
         job.update(max_health=2000, damage=ARMOR_DAMAGE, items=armor_value_items(args))
+    elif args.kind == 'attack':
+        job.update(target='minecraft:pig', items=attack_items(args))
     elif args.kind == 'fuel':
         job.update(furnace='furnace', lit_furnace='minecraft:lit_furnace', input='cobblestone',
                    max_ticks=args.max_ticks,
@@ -227,7 +242,7 @@ def build_job(args, out: Path) -> dict:
 
 def main() -> int:
     parser = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
-    parser.add_argument('kind', choices=['drops', 'mining', 'armor-slots', 'armor-values', 'fuel'])
+    parser.add_argument('kind', choices=['drops', 'mining', 'armor-slots', 'armor-values', 'attack', 'fuel'])
     parser.add_argument('--out', type=Path)
     parser.add_argument('--blocks', default='slice', help="'slice', 'all' or comma-separated identifiers")
     parser.add_argument('--states', default='first', choices=['first', 'all'])
