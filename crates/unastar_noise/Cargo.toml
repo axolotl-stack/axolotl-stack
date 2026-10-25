@@ -19,3 +19,5 @@ walkdir = "2"
 syn = { version = "2", features = ["full", "extra-traits"] }
 quote = "1"
 proc-macro2 = "1"
+prettyplease = { workspace = true }
+md5 = { package = "md-5", version = "0.10" }

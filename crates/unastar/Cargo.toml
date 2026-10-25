@@ -32,6 +32,7 @@ bevy_tasks.workspace = true
 async-trait.workspace = true
 bleveldb.workspace = true
 serde_json.workspace = true
+sha2.workspace = true
 anyhow = "1.0"
 
 # BlazeDB dependencies
@@ -52,11 +53,7 @@ bitflags = "2.6"
 unastar_bedrock_codegen = { path = "../unastar_bedrock_codegen", optional = true }
 
 [dev-dependencies]
-criterion = { version = "0.5", features = ["html_reports"] }
-
-[[bench]]
-name = "world_generation"
-harness = false
+flate2.workspace = true
 
 [[example]]
 name = "bedrock_decoration_smoke"

@@ -168,6 +168,9 @@ pub struct AotEmitter<'a> {
     spline_counter: usize,
     /// When true, FlatCache nodes are expanded inline instead of using grid lookups.
     expand_flat_cache_inline: bool,
+    /// When true, Cache2D nodes are computed inline too (the `_uncached` roots), so the
+    /// function needs neither a FlatCacheGrid nor a ColumnContext.
+    expand_all_caches_inline: bool,
     /// When true, ColumnContext initialization computes flat_cache values inline
     /// instead of looking them up from FlatCacheGrid.
     column_context_standalone_mode: bool,
@@ -204,6 +207,7 @@ impl<'a> AotEmitter<'a> {
             statements: Vec::new(),
             spline_counter: 0,
             expand_flat_cache_inline: false,
+            expand_all_caches_inline: false,
             column_context_standalone_mode: false,
             cache_2d_inner_to_wrapper,
             fc_spline_registry: RefCell::new(SplineRegistry::new()),
@@ -234,8 +238,8 @@ impl<'a> AotEmitter<'a> {
         }
     }
 
-    /// Generate the complete compiled module as a string.
-    pub fn emit_module(&mut self) -> String {
+    /// Generate the complete compiled module.
+    pub fn emit_module(&mut self) -> TokenStream {
         let helpers = self.emit_helpers();
         let flat_cache_grid = self.emit_flat_cache_grid();
         // After flat_cache_grid emission, the registry contains all unique spline functions
@@ -252,9 +256,22 @@ impl<'a> AotEmitter<'a> {
 
         let simd_fn = self.emit_compute_function_simd("final_density");
 
+        // Climate (biome source) and preliminary surface roots at arbitrary positions.
+        let uncached_fns: Vec<TokenStream> = [
+            "temperature",
+            "vegetation",
+            "continents",
+            "erosion",
+            "depth",
+            "ridges",
+            "preliminary_surface_level",
+        ]
+        .iter()
+        .map(|name| self.emit_uncached_function(name))
+        .collect();
+
         let tokens = quote! {
-            // AUTO-GENERATED AOT-COMPILED DENSITY FUNCTIONS.
-            // DO NOT EDIT - regenerated at build time from worldgen JSON.
+            //! AOT-compiled overworld noise router (regenerated at build time from worldgen JSON).
 
             #![allow(
                 unused_variables,
@@ -290,9 +307,10 @@ impl<'a> AotEmitter<'a> {
             #find_top_surface_inner
             #(#compute_fns)*
             #simd_fn
+            #(#uncached_fns)*
         };
 
-        tokens.to_string()
+        tokens
     }
 
     fn emit_helpers(&self) -> TokenStream {
@@ -711,9 +729,63 @@ impl<'a> AotEmitter<'a> {
             fn #func_name(
                 ctx: &FunctionContext,
                 noises: &impl NoiseSource,
-                _flat: &FlatCacheGrid,
                 col: &ColumnContext,
             ) -> f64 {
+                #(#stmts)*
+                #result_expr
+            }
+        }
+    }
+
+    /// `compute_<root>_uncached(ctx, noises)`: the root with every flat and 2D cache
+    /// computed inline, for positions outside a chunk's caches (biome zoom neighbours).
+    /// A `find_top_surface` root also gets its inner density as
+    /// `compute_<root>_inner_density_uncached`.
+    fn emit_uncached_function(&mut self, root_name: &str) -> TokenStream {
+        let root_id = self
+            .graph
+            .roots
+            .get(root_name)
+            .unwrap_or_else(|| panic!("router root {root_name} is missing"))
+            .clone();
+        self.expand_flat_cache_inline = true;
+        self.expand_all_caches_inline = true;
+
+        let mut inner = TokenStream::new();
+        if let Some(node) = self.graph.nodes.get(&root_id).cloned()
+            && matches!(node.def, DensityFunctionDef::FindTopSurface { .. })
+        {
+            self.var_names.clear();
+            self.var_counter = 0;
+            self.statements.clear();
+            let inner_expr = self.emit_node(&node.dependencies[0]);
+            let inner_stmts = std::mem::take(&mut self.statements);
+            let inner_name = format_ident!("compute_{}_inner_density_uncached", root_name);
+            inner = quote! {
+                #[inline]
+                fn #inner_name(ctx: &FunctionContext, noises: &impl NoiseSource) -> f64 {
+                    #(#inner_stmts)*
+                    #inner_expr
+                }
+            };
+        }
+
+        self.var_names.clear();
+        self.var_counter = 0;
+        self.statements.clear();
+        let result_expr = self.emit_node(&root_id);
+        self.expand_flat_cache_inline = false;
+        self.expand_all_caches_inline = false;
+        let stmts = std::mem::take(&mut self.statements);
+        let func_name = format_ident!("compute_{}_uncached", root_name);
+        let doc = format!(
+            "Router `{root_name}` at any position, every cache computed inline (slower than the chunk-cached `compute_{root_name}`)."
+        );
+        quote! {
+            #inner
+            #[doc = #doc]
+            #[inline]
+            pub fn #func_name(ctx: &FunctionContext, noises: &impl NoiseSource) -> f64 {
                 #(#stmts)*
                 #result_expr
             }
@@ -738,25 +810,12 @@ impl<'a> AotEmitter<'a> {
         self.var_counter = 0;
         self.statements.clear();
 
-        let root_id = match self.graph.roots.get(root_name) {
-            Some(id) => id.clone(),
-            None => {
-                let func_name = format_ident!("compute_{}", root_name);
-                return quote! {
-                    /// Compute #root_name at a single point.
-                    #[inline]
-                    #[allow(dead_code)]
-                    pub fn #func_name(
-                        _ctx: &FunctionContext,
-                        _noises: &impl NoiseSource,
-                        _flat: &FlatCacheGrid,
-                        _col: &ColumnContext,
-                    ) -> f64 {
-                        0.0
-                    }
-                };
-            }
-        };
+        let root_id = self
+            .graph
+            .roots
+            .get(root_name)
+            .unwrap_or_else(|| panic!("router root {root_name} is missing from the density graph"))
+            .clone();
 
         // Analyze what this root actually needs
         let uses_flat_cache = self.graph.root_uses_flat_cache(root_name);
@@ -899,7 +958,9 @@ impl<'a> AotEmitter<'a> {
     fn emit_node(&mut self, id: &NodeId) -> TokenStream {
         // Check if this node's value is cached in a Cache2D wrapper.
         // If so, use the pre-computed ColumnContext field instead of recomputing.
-        if let Some(wrapper_id) = self.cache_2d_inner_to_wrapper.get(id).cloned() {
+        if !self.expand_all_caches_inline
+            && let Some(wrapper_id) = self.cache_2d_inner_to_wrapper.get(id).cloned()
+        {
             let field = self.column_context_field_ident(&wrapper_id);
             return quote! { col.#field };
         }
@@ -908,14 +969,16 @@ impl<'a> AotEmitter<'a> {
             return quote! { #var };
         }
 
-        let node = match self.graph.nodes.get(id) {
-            Some(n) => n.clone(),
-            None => return quote! { 0.0 },
-        };
+        let node = self
+            .graph
+            .nodes
+            .get(id)
+            .unwrap_or_else(|| panic!("density node {id:?} is missing from the graph"))
+            .clone();
 
         // Early return for cache_2d nodes: reference the pre-computed ColumnContext field
         // This avoids recomputing expensive Y-independent expressions for every Y position.
-        if node.is_cache_2d {
+        if node.is_cache_2d && !self.expand_all_caches_inline {
             let field = self.column_context_field_ident(&node.id);
             return quote! { col.#field };
         }
@@ -1042,28 +1105,28 @@ impl<'a> AotEmitter<'a> {
                 let xzs = *xz_scale;
                 let ys = *y_scale;
                 quote! {
-                    noises.sample(NoiseRef::#noise_ref, (ctx.block_x as f64 + #sx) * #xzs, (ctx.block_y as f64 + #sy) * #ys, (ctx.block_z as f64 + #sz) * #xzs)
+                    noises.sample(NoiseRef::#noise_ref, ctx.block_x as f64 * #xzs + #sx, ctx.block_y as f64 * #ys + #sy, ctx.block_z as f64 * #xzs + #sz)
                 }
             }
 
             DensityFunctionDef::ShiftA { argument } => {
                 let noise_ref = noise_name_to_ident(argument);
                 quote! {
-                    noises.sample(NoiseRef::#noise_ref, ctx.block_x as f64, 0.0, ctx.block_z as f64) * 4.0
+                    noises.sample(NoiseRef::#noise_ref, ctx.block_x as f64 * 0.25, 0.0, ctx.block_z as f64 * 0.25) * 4.0
                 }
             }
 
             DensityFunctionDef::ShiftB { argument } => {
                 let noise_ref = noise_name_to_ident(argument);
                 quote! {
-                    noises.sample(NoiseRef::#noise_ref, ctx.block_z as f64, ctx.block_x as f64, 0.0) * 4.0
+                    noises.sample(NoiseRef::#noise_ref, ctx.block_z as f64 * 0.25, ctx.block_x as f64 * 0.25, 0.0) * 4.0
                 }
             }
 
             DensityFunctionDef::Shift { argument } => {
                 let noise_ref = noise_name_to_ident(argument);
                 quote! {
-                    noises.sample(NoiseRef::#noise_ref, ctx.block_x as f64, 0.0, ctx.block_z as f64) * 4.0
+                    noises.sample(NoiseRef::#noise_ref, ctx.block_x as f64 * 0.25, ctx.block_y as f64 * 0.25, ctx.block_z as f64 * 0.25) * 4.0
                 }
             }
 
@@ -1077,9 +1140,13 @@ impl<'a> AotEmitter<'a> {
             }
 
             DensityFunctionDef::Cache2D { .. } => {
-                // Use the cached value from ColumnContext
-                let field = self.column_context_field_ident(&node.id);
-                quote! { col.#field }
+                if self.expand_all_caches_inline {
+                    self.emit_node(&node.dependencies[0])
+                } else {
+                    // Use the cached value from ColumnContext
+                    let field = self.column_context_field_ident(&node.id);
+                    quote! { col.#field }
+                }
             }
 
             DensityFunctionDef::CacheOnce { .. } | DensityFunctionDef::Interpolated { .. } => {
@@ -1172,10 +1239,15 @@ impl<'a> AotEmitter<'a> {
                 let upper_bound = self.emit_node(&node.dependencies[1]);
                 let lb = *lower_bound;
                 let ch = *cell_height;
+                let inner_call = if self.expand_all_caches_inline {
+                    quote! { compute_preliminary_surface_level_inner_density_uncached(&inner_ctx, noises) }
+                } else {
+                    quote! { compute_preliminary_surface_level_inner_density(&inner_ctx, noises, col) }
+                };
                 quote! {
-                    find_top_surface(ctx.block_x, ctx.block_z, #lb, (#upper_bound).floor() as i32, #ch, |y| {
+                    find_top_surface(ctx.block_x, ctx.block_z, #lb, #upper_bound, #ch, |y| {
                         let inner_ctx = FunctionContext::new(ctx.block_x, y, ctx.block_z);
-                        compute_preliminary_surface_level_inner_density(&inner_ctx, noises, flat, col)
+                        #inner_call
                     })
                 }
             }
@@ -1331,28 +1403,28 @@ impl<'a> AotEmitter<'a> {
                 let xzs = *xz_scale;
                 let ys = *y_scale;
                 quote! {
-                    noises.sample_4(NoiseRef::#noise_ref, (x_v + #sx) * f64x4::splat(#xzs), (y_v + #sy) * f64x4::splat(#ys), (z_v + #sz) * f64x4::splat(#xzs))
+                    noises.sample_4(NoiseRef::#noise_ref, x_v * f64x4::splat(#xzs) + #sx, y_v * f64x4::splat(#ys) + #sy, z_v * f64x4::splat(#xzs) + #sz)
                 }
             }
 
             DensityFunctionDef::ShiftA { argument } => {
                 let noise_ref = noise_name_to_ident(argument);
                 quote! {
-                    f64x4::splat(noises.sample(NoiseRef::#noise_ref, ctx.block_x as f64, 0.0, ctx.block_z as f64) * 4.0)
+                    f64x4::splat(noises.sample(NoiseRef::#noise_ref, ctx.block_x as f64 * 0.25, 0.0, ctx.block_z as f64 * 0.25) * 4.0)
                 }
             }
 
             DensityFunctionDef::ShiftB { argument } => {
                 let noise_ref = noise_name_to_ident(argument);
                 quote! {
-                    f64x4::splat(noises.sample(NoiseRef::#noise_ref, ctx.block_z as f64, ctx.block_x as f64, 0.0) * 4.0)
+                    f64x4::splat(noises.sample(NoiseRef::#noise_ref, ctx.block_z as f64 * 0.25, ctx.block_x as f64 * 0.25, 0.0) * 4.0)
                 }
             }
 
             DensityFunctionDef::Shift { argument } => {
                 let noise_ref = noise_name_to_ident(argument);
                 quote! {
-                    f64x4::splat(noises.sample(NoiseRef::#noise_ref, ctx.block_x as f64, 0.0, ctx.block_z as f64) * 4.0)
+                    noises.sample_4(NoiseRef::#noise_ref, x_v * f64x4::splat(0.25), y_v * f64x4::splat(0.25), z_v * f64x4::splat(0.25)) * f64x4::splat(4.0)
                 }
             }
 
@@ -1467,9 +1539,9 @@ impl<'a> AotEmitter<'a> {
                 let lb = *lower_bound;
                 let ch = *cell_height;
                 quote! {
-                    f64x4::splat(find_top_surface(ctx.block_x, ctx.block_z, #lb, (#upper_bound[0]).floor() as i32, #ch, |y| {
+                    f64x4::splat(find_top_surface(ctx.block_x, ctx.block_z, #lb, #upper_bound[0], #ch, |y| {
                         let inner_ctx = FunctionContext::new(ctx.block_x, y, ctx.block_z);
-                        compute_preliminary_surface_level_inner_density(&inner_ctx, noises, flat, col)
+                        compute_preliminary_surface_level_inner_density(&inner_ctx, noises, col)
                     }))
                 }
             }
@@ -2040,17 +2112,17 @@ impl<'a> AotEmitter<'a> {
 
             DensityFunctionDef::ShiftA { argument } => {
                 let noise_ref = noise_name_to_ident(argument);
-                quote! { noises.sample(NoiseRef::#noise_ref, bx as f64, 0.0, bz as f64) * 4.0 }
+                quote! { noises.sample(NoiseRef::#noise_ref, bx as f64 * 0.25, 0.0, bz as f64 * 0.25) * 4.0 }
             }
 
             DensityFunctionDef::ShiftB { argument } => {
                 let noise_ref = noise_name_to_ident(argument);
-                quote! { noises.sample(NoiseRef::#noise_ref, bz as f64, bx as f64, 0.0) * 4.0 }
+                quote! { noises.sample(NoiseRef::#noise_ref, bz as f64 * 0.25, bx as f64 * 0.25, 0.0) * 4.0 }
             }
 
             DensityFunctionDef::Shift { argument } => {
                 let noise_ref = noise_name_to_ident(argument);
-                quote! { noises.sample(NoiseRef::#noise_ref, bx as f64, 0.0, bz as f64) * 4.0 }
+                quote! { noises.sample(NoiseRef::#noise_ref, bx as f64 * 0.25, 0.0, bz as f64 * 0.25) * 4.0 }
             }
 
             DensityFunctionDef::Cache2D { .. } | DensityFunctionDef::CacheOnce { .. } => {
@@ -2083,7 +2155,7 @@ impl<'a> AotEmitter<'a> {
                 let xzs = *xz_scale;
                 let ys = *y_scale;
                 quote! {
-                    noises.sample(NoiseRef::#noise_ref, (bx as f64 + #sx) * #xzs, (0.0 + #sy) * #ys, (bz as f64 + #sz) * #xzs)
+                    noises.sample(NoiseRef::#noise_ref, bx as f64 * #xzs + #sx, 0.0 * #ys + #sy, bz as f64 * #xzs + #sz)
                 }
             }
 
@@ -2159,7 +2231,7 @@ impl<'a> AotEmitter<'a> {
                 let upper_bound = self.emit_fc_dep(1, node);
                 let inner_name = self.find_top_surface_inner_name(&node.id);
                 quote! {
-                    find_top_surface(block_x, block_z, #lb, (#upper_bound).floor() as i32, #ch, |y| {
+                    find_top_surface(block_x, block_z, #lb, #upper_bound, #ch, |y| {
                         #inner_name(block_x, y, block_z, noises)
                     })
                 }
@@ -2878,44 +2950,31 @@ impl<'a> AotEmitter<'a> {
             /// patterns where we iterate through all columns.
             ///
             /// # Performance
-            /// - Computes 289 ColumnContext4 values once at chunk start (17x17 for boundary handling)
+            /// - Computes the 25 cell-corner ColumnContext4 values once at chunk start
             /// - Each lookup is O(1) array access
-            /// - Eliminates redundant spline evaluations (~140,000 -> 289 per chunk)
+            /// - Spline-heavy 2D caches are evaluated once per cell-corner column
             /// - **SIMD-native storage**: Values stored as `f64x4` to eliminate register thrashing
             ///
-            /// # Boundary Handling
-            /// The grid is 17x17 instead of 16x16 to handle cell interpolation at chunk boundaries.
-            /// Cell corners at position 16 (just outside the chunk) need ColumnContext values,
-            /// so we pre-compute them to avoid discontinuities at chunk edges.
+            /// # Corner columns only
+            /// Every consumer reads 2D caches at noise-cell corners (blocks 0, 4, 8, 12 and 16
+            /// of the chunk, 16 being the next chunk's first column): the cell interpolator,
+            /// the biome source (quart corners) and the aquifer's preliminary surface. The
+            /// grid holds exactly those 5x5 columns; any other column is a caller bug and
+            /// panics.
             ///
             /// # SIMD-Native Storage
-            /// Unlike the previous scalar storage, this stores `ColumnContext4` directly.
             /// Each field is a pre-splatted `f64x4` (same value in all 4 lanes).
-            /// This eliminates the need to call `f64x4::splat()` during density computation,
-            /// removing ~50+ broadcast operations per column evaluation.
             pub struct ColumnContextGrid {
                 /// The chunk X coordinate (in chunk coordinates, not block)
                 pub chunk_x: i32,
                 /// The chunk Z coordinate (in chunk coordinates, not block)
                 pub chunk_z: i32,
-                /// Pre-computed ColumnContext4 for each column (SIMD-native storage).
-                /// Indexed as [local_z][local_x] where local coords are 0..=16.
-                /// Each ColumnContext4 has fields pre-splatted as f64x4 for direct use.
-                contexts: [[ColumnContext4; 17]; 17],
+                /// ColumnContext4 of each corner column, indexed `[local_z / 4][local_x / 4]`.
+                contexts: [[ColumnContext4; 5]; 5],
             }
 
             impl ColumnContextGrid {
-                /// Create a new ColumnContextGrid for a chunk.
-                ///
-                /// Pre-computes all 289 ColumnContext4 values (17x17) for the chunk.
-                /// Each position stores a ColumnContext4 with pre-splatted f64x4 fields,
-                /// enabling direct SIMD usage without broadcast overhead.
-                ///
-                /// # Arguments
-                /// * `chunk_x` - Chunk X coordinate (block_x >> 4)
-                /// * `chunk_z` - Chunk Z coordinate (block_z >> 4)
-                /// * `noises` - Noise source for sampling
-                /// * `flat` - Pre-computed FlatCacheGrid for this chunk
+                /// Compute the 25 cell-corner column contexts of a chunk.
                 pub fn new(
                     chunk_x: i32,
                     chunk_z: i32,
@@ -2924,31 +2983,20 @@ impl<'a> AotEmitter<'a> {
                 ) -> Self {
                     let base_x = chunk_x * 16;
                     let base_z = chunk_z * 16;
-
-                    // Pre-compute all ColumnContext4 values with pre-splatted fields
-                    let mut contexts = [[ColumnContext4::default(); 17]; 17];
-
-                    // Process exactly 17x17 positions (0..=16 in each dimension)
-                    for local_z in 0..17 {
-                        let block_z = base_z + local_z as i32;
-
-                        for local_x in 0..17 {
-                            let block_x = base_x + local_x as i32;
-
-                            // Create ColumnContext4 with SAME position in all 4 lanes
-                            // This pre-splats all values for later SIMD consumption
-                            let block_x_arr = [block_x, block_x, block_x, block_x];
-                            let block_z_arr = [block_z, block_z, block_z, block_z];
-
-                            contexts[local_z][local_x] = ColumnContext4::new_4(
-                                block_x_arr,
-                                block_z_arr,
+                    let mut contexts = [[ColumnContext4::default(); 5]; 5];
+                    for (iz, row) in contexts.iter_mut().enumerate() {
+                        let block_z = base_z + iz as i32 * 4;
+                        for (ix, slot) in row.iter_mut().enumerate() {
+                            let block_x = base_x + ix as i32 * 4;
+                            // Same column in all 4 lanes: values come out pre-splatted.
+                            *slot = ColumnContext4::new_4(
+                                [block_x; 4],
+                                [block_z; 4],
                                 noises,
-                                flat
+                                flat,
                             );
                         }
                     }
-
                     Self {
                         chunk_x,
                         chunk_z,
@@ -2956,40 +3004,23 @@ impl<'a> AotEmitter<'a> {
                     }
                 }
 
-                /// Get the pre-computed ColumnContext4 for a local position.
-                ///
-                /// # Arguments
-                /// * `local_x` - Local X coordinate (0..=16)
-                /// * `local_z` - Local Z coordinate (0..=16)
-                ///
-                /// # Panics
-                /// Panics in debug mode if local coordinates are out of bounds.
+                /// Column context at a local cell corner (`local_x`, `local_z` in 0, 4, 8, 12, 16).
                 #[inline(always)]
                 pub fn get(&self, local_x: usize, local_z: usize) -> &ColumnContext4 {
-                    debug_assert!(local_x <= 16 && local_z <= 16, "Local coords out of bounds");
-                    &self.contexts[local_z][local_x]
+                    assert!(
+                        local_x % 4 == 0 && local_z % 4 == 0 && local_x <= 16 && local_z <= 16,
+                        "column ({local_x}, {local_z}) is not a cell corner"
+                    );
+                    &self.contexts[local_z / 4][local_x / 4]
                 }
 
-                /// Get the pre-computed ColumnContext4 for a block position.
-                ///
-                /// Converts block coordinates to local coordinates and looks up.
-                /// Supports positions 0..=16 within the chunk to handle cell boundary interpolation.
-                ///
-                /// # Arguments
-                /// * `block_x` - Block X coordinate (chunk_x*16 to chunk_x*16+16 inclusive)
-                /// * `block_z` - Block Z coordinate (chunk_z*16 to chunk_z*16+16 inclusive)
-                ///
-                /// # Panics
-                /// Panics in debug mode if block is outside the valid range.
+                /// Column context at an absolute cell-corner block column of this chunk
+                /// (`chunk*16 ..= chunk*16 + 16`, multiples of 4).
                 #[inline(always)]
                 pub fn get_block(&self, block_x: i32, block_z: i32) -> &ColumnContext4 {
-                    let base_x = self.chunk_x * 16;
-                    let base_z = self.chunk_z * 16;
-                    let local_x = (block_x - base_x) as usize;
-                    let local_z = (block_z - base_z) as usize;
-                    debug_assert!(local_x <= 16, "Block X outside chunk+boundary: {} not in {}..={}", block_x, base_x, base_x + 16);
-                    debug_assert!(local_z <= 16, "Block Z outside chunk+boundary: {} not in {}..={}", block_z, base_z, base_z + 16);
-                    &self.contexts[local_z][local_x]
+                    let local_x = (block_x - self.chunk_x * 16) as usize;
+                    let local_z = (block_z - self.chunk_z * 16) as usize;
+                    self.get(local_x, local_z)
                 }
             }
 
@@ -3175,17 +3206,17 @@ impl<'a> AotEmitter<'a> {
 
             DensityFunctionDef::ShiftA { argument } => {
                 let noise_ref = noise_name_to_ident(argument);
-                quote! { noises.sample(NoiseRef::#noise_ref, block_x as f64, 0.0, block_z as f64) * 4.0 }
+                quote! { noises.sample(NoiseRef::#noise_ref, block_x as f64 * 0.25, 0.0, block_z as f64 * 0.25) * 4.0 }
             }
 
             DensityFunctionDef::ShiftB { argument } => {
                 let noise_ref = noise_name_to_ident(argument);
-                quote! { noises.sample(NoiseRef::#noise_ref, block_z as f64, block_x as f64, 0.0) * 4.0 }
+                quote! { noises.sample(NoiseRef::#noise_ref, block_z as f64 * 0.25, block_x as f64 * 0.25, 0.0) * 4.0 }
             }
 
             DensityFunctionDef::Shift { argument } => {
                 let noise_ref = noise_name_to_ident(argument);
-                quote! { noises.sample(NoiseRef::#noise_ref, block_x as f64, 0.0, block_z as f64) * 4.0 }
+                quote! { noises.sample(NoiseRef::#noise_ref, block_x as f64 * 0.25, 0.0, block_z as f64 * 0.25) * 4.0 }
             }
 
             DensityFunctionDef::Cache2D { .. } => {
@@ -3233,7 +3264,7 @@ impl<'a> AotEmitter<'a> {
                 let xzs = *xz_scale;
                 let ys = *y_scale;
                 quote! {
-                    noises.sample(NoiseRef::#noise_ref, (block_x as f64 + #sx) * #xzs, (0.0 + #sy) * #ys, (block_z as f64 + #sz) * #xzs)
+                    noises.sample(NoiseRef::#noise_ref, block_x as f64 * #xzs + #sx, 0.0 * #ys + #sy, block_z as f64 * #xzs + #sz)
                 }
             }
 
@@ -3576,7 +3607,7 @@ impl<'a> AotEmitter<'a> {
                 let ys = *y_scale;
                 let _ = (shift_x, shift_y, shift_z); // suppress unused warnings
                 quote! {
-                    noises.sample(NoiseRef::#noise_ref, ((block_x as f64) + #sx) * #xs, (0.0 + #sy) * #ys, ((block_z as f64) + #sz) * #xs)
+                    noises.sample(NoiseRef::#noise_ref, (block_x as f64) * #xs + #sx, 0.0 * #ys + #sy, (block_z as f64) * #xs + #sz)
                 }
             }
             DensityFunctionDef::Add { .. } => {
