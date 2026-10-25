@@ -11,8 +11,10 @@ Starts BDS 1.26.51 under Endstone on a fresh superflat creative world
 for the plugin (`endstone-sweep`, installed editable into the shared venv) to
 write `done.json` or `error.txt`. Results are appended to
 `<out>/results.jsonl`; rerunning with the same `--out` skips finished items,
-so a sweep can be interrupted and resumed. Raw results stay out of the
-repository; `summarize.py` turns them into measured data.
+so a sweep can be interrupted and resumed. To hand the BDS slot over
+mid-sweep, create `<out>/stop.request`: the runner stops BDS gracefully
+within a second and restores `server.properties`. Raw results stay out of
+the repository; `summarize.py` turns them into measured data.
 """
 
 from __future__ import annotations
@@ -33,6 +35,7 @@ import native  # noqa: E402
 REPO = Path(__file__).resolve().parents[2]
 LEVEL = 'bds-sweep-1.26.51'
 PLAYER = 'BDSSweep'
+STOP_REQUEST = 'stop.request'
 # Superflat: grass top at y=-61, so the player stands at y=-60.
 # `miner` = x, y, z, yaw, pitch: facing east (yaw -90) at the west face (4) of
 # `mine_block`, which is at eye level (eyes at y + 1.62).
@@ -213,7 +216,7 @@ def main() -> int:
     stamp = dt.datetime.now(dt.timezone.utc).strftime('%Y%m%dT%H%M%SZ')
     out: Path = (args.out or bds_runtime.SWEEPS / f'{args.kind}-{stamp}').resolve()
     out.mkdir(parents=True, exist_ok=True)
-    for stale in ('done.json', 'error.txt', 'loaded.json'):
+    for stale in ('done.json', 'error.txt', 'loaded.json', STOP_REQUEST):
         (out / stale).unlink(missing_ok=True)
     job = build_job(args, out)
     job_path = out / 'job.json'
@@ -241,6 +244,12 @@ def main() -> int:
                             break
                         if (out / 'error.txt').exists():
                             status = 'error'
+                            break
+                        # Handover: `stop.request` in the output directory stops BDS
+                        # gracefully; finished items stay in results.jsonl.
+                        if (out / STOP_REQUEST).exists():
+                            (out / STOP_REQUEST).unlink()
+                            status = 'stopped on request (resume with the same --out)'
                             break
                         if client.poll() is not None:
                             status = f'client exited {client.returncode}'

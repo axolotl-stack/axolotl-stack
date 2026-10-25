@@ -131,7 +131,10 @@ def loot_table(outcomes: dict[str, int]) -> tuple[dict, str]:
 
 
 def summarize_drops(sweeps: list[Path]) -> None:
-    rows = [row for sweep in sweeps for row in results(sweep)]
+    """The first sweep is the measurement; further sweeps of the same job are
+    repeat runs whose agreement is recorded as `repeatability`."""
+    primary, repeats = sweeps[0], sweeps[1:]
+    rows = results(primary)
     by_block: dict[str, list[dict]] = defaultdict(list)
     for row in rows:
         by_block[row['block']].append(row)
@@ -157,6 +160,7 @@ def summarize_drops(sweeps: list[Path]) -> None:
         **provenance('drops', sweeps),
         'method': '`/loot spawn <p> mine <block> mainhand` executed as the sweep player holding the tool '
                   '(Endstone ItemStack + ItemMeta enchants), item actors collected and removed after each sample',
+        'repeatability': [{'repeat': r.name, **compare(primary, r)} for r in repeats],
         'files': files,
     })
 
@@ -166,13 +170,14 @@ def total_variation(a: dict[str, int], b: dict[str, int]) -> float:
     return 0.5 * sum(abs(a.get(k, 0) / na - b.get(k, 0) / nb) for k in set(a) | set(b))
 
 
-def compare_drops(first: Path, second: Path) -> int:
-    """Repeatability report: deterministic cells must be identical; random
-    cells are compared by total variation distance against the 99.9 %
-    sampling bound sqrt(k/n) heuristic (k outcomes, n samples per run)."""
+def compare(first: Path, second: Path) -> dict:
+    """Repeatability of two drop sweeps: cells where both runs saw a single
+    outcome must be identical; other cells are compared by total variation
+    distance against the heuristic bound 2*sqrt(k/n) (k distinct outcomes, n
+    samples per run), which sampling noise alone rarely exceeds."""
     a = {row['key']: row for row in results(first)}
     b = {row['key']: row for row in results(second)}
-    mismatches = 0
+    mismatches = []
     deterministic = random = 0
     worst = (0.0, '')
     for key in sorted(a.keys() & b.keys()):
@@ -180,8 +185,7 @@ def compare_drops(first: Path, second: Path) -> int:
         if len(oa) == 1 and len(ob) == 1:
             deterministic += 1
             if oa != ob:
-                mismatches += 1
-                print(f'DETERMINISTIC MISMATCH {key}: {oa} vs {ob}')
+                mismatches.append(f'deterministic {key}: {oa} vs {ob}')
             continue
         random += 1
         tv = total_variation(oa, ob)
@@ -190,11 +194,16 @@ def compare_drops(first: Path, second: Path) -> int:
         if tv > worst[0]:
             worst = (tv, key)
         if tv > bound:
-            mismatches += 1
-            print(f'DISTRIBUTION MISMATCH {key}: tv={tv:.3f} > {bound:.3f}\n  {oa}\n  {ob}')
-    print(f'{deterministic} deterministic cells, {random} random cells, {mismatches} mismatches; '
-          f'largest total variation {worst[0]:.3f} ({worst[1]})')
-    return 1 if mismatches else 0
+            mismatches.append(f'distribution {key}: tv={tv:.3f} > {bound:.3f}')
+    return {'cells': len(a.keys() & b.keys()), 'deterministic_cells': deterministic,
+            'random_cells': random, 'mismatches': mismatches,
+            'largest_total_variation': {'value': round(worst[0], 4), 'cell': worst[1]}}
+
+
+def compare_drops(first: Path, second: Path) -> int:
+    report = compare(first, second)
+    print(json.dumps(report, indent=1))
+    return 1 if report['mismatches'] else 0
 
 
 # ---------------------------------------------------------------- items
