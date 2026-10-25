@@ -5372,6 +5372,25 @@ dependencies = [
 ]
 
 [[package]]
+name = "unastar-packs"
+version = "0.1.0"
+dependencies = [
+ "serde",
+ "serde_json",
+ "thiserror 2.0.21",
+ "unastar-rules",
+]
+
+[[package]]
+name = "unastar-rules"
+version = "0.1.0"
+dependencies = [
+ "serde",
+ "serde_json",
+ "thiserror 2.0.21",
+]
+
+[[package]]
 name = "unastar_api"
 version = "0.2.0"
 dependencies = [
