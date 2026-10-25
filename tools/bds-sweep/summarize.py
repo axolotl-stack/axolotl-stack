@@ -279,10 +279,12 @@ def summarize_fuel(sweep: Path) -> None:
 
 def summarize_attack(sweep: Path) -> None:
     """`attack_damage.json`: per held item the damage event value of each
-    trial's first hit on the target and whether all trials agree."""
+    measured trial's first hit on the target and whether all trials agree
+    (the warm-up trial after each held-item change is skipped)."""
     table = {}
     for row in results(sweep):
-        firsts = [trial['damage'][0] if trial['damage'] else None for trial in row['trials']]
+        measured = [trial for trial in row['trials'] if not trial.get('warmup')]
+        firsts = [trial['damage'][0] if trial['damage'] else None for trial in measured]
         table[row['key']] = {
             'tool_item': row['tool'],
             'damage': firsts,
@@ -293,7 +295,7 @@ def summarize_attack(sweep: Path) -> None:
         **provenance('attack', [sweep]),
         'method': 'sweep player (creative, on the ground, not sprinting) holding the item attacks a freshly '
                   'spawned minecraft:pig through an InventoryTransaction use-item-on-actor Attack; value of the '
-                  'Endstone ActorDamageEvent for the pig, three trials',
+                  'Endstone ActorDamageEvent for the pig, three trials after one warm-up attack',
         'files': files,
     })
 

@@ -350,12 +350,13 @@ def attack(ctx: Context, job: dict):
             continue
         ctx.player.inventory.held_item_slot = 0
         ctx.player.inventory.item_in_main_hand = ctx.stack(item['tool'])
-        # The client must have received the new held item before it attacks:
-        # BDS ignores an attack whose transaction carries a stale held item
-        # (seen as an empty first trial with a 5-tick wait).
-        yield 20
+        yield 5
         trials = []
-        for _ in range(int(item.get('repeats', 3))):
+        # Trial 0 is a warm-up and not recorded as a measurement: the first
+        # attack after the held item changed through Endstone never deals
+        # damage (observed with 5 and 20 ticks of wait; BDS then resyncs the
+        # slot and later attacks hit).
+        for index in range(int(item.get('repeats', 3)) + 1):
             # Keep only the runtime id: an Endstone actor wrapper used after
             # its actor is destroyed (the target can die from one hit)
             # crashes the server.
@@ -367,7 +368,7 @@ def attack(ctx: Context, job: dict):
             yield 6
             damage = [round(d, 4) for _, kind, d, _ in ctx.plugin.damage if kind == job['target']]
             causes = sorted({c for _, kind, _, c in ctx.plugin.damage if kind == job['target']})
-            trials.append({'damage': damage, 'causes': causes})
+            trials.append({'damage': damage, 'causes': causes, 'warmup': index == 0})
             for actor in ctx.dimension.actors:
                 if actor.runtime_id == target:
                     actor.remove()
