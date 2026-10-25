@@ -262,9 +262,9 @@ fn template_with_jigsaws(name: &str) -> (&'static Template, &'static [TemplateJi
                     } else {
                         JointType::Rollable
                     }),
-                    name: normalize_id(*jname),
-                    target: normalize_id(*target),
-                    pool: normalize_id(*pool),
+                    name: normalize_id(jname),
+                    target: normalize_id(target),
+                    pool: normalize_id(pool),
                     selection_priority: *selection_priority,
                     placement_priority: *placement_priority,
                 }
@@ -348,7 +348,7 @@ fn element_jigsaws(
                 })
                 .collect();
             shuffle(&mut list, rng);
-            list.sort_by(|a, c| c.selection_priority.cmp(&a.selection_priority));
+            list.sort_by_key(|j| std::cmp::Reverse(j.selection_priority));
             list
         }
         // FeaturePoolElement's built-in jigsaw: facing down, pointing nowhere.
@@ -369,6 +369,7 @@ fn element_jigsaws(
 }
 
 /// Borrow a cached id for the program's lifetime (the cache is a static).
+#[allow(clippy::ptr_arg)]
 fn static_str(s: &'static Cow<'static, str>) -> &'static str {
     s
 }

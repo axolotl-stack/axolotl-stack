@@ -215,11 +215,12 @@ pub fn template_or_empty(name: &str) -> &'static Template {
 /// If templates were not embedded (build without `java-templates`); callers
 /// that run without them must check [`TEMPLATES_EMBEDDED`] first.
 pub fn template(name: &str) -> Option<&'static Template> {
-    assert!(
-        TEMPLATES_EMBEDDED,
-        "structure templates are not embedded: build unastar_noise with the `java-templates` \
-         feature and UNASTAR_JAVA_SERVER_JAR set"
-    );
+    if !TEMPLATES_EMBEDDED {
+        panic!(
+            "structure templates are not embedded: build unastar_noise with the `java-templates` \
+             feature and UNASTAR_JAVA_SERVER_JAR set"
+        );
+    }
     TEMPLATE_NAMES
         .binary_search(&name)
         .ok()

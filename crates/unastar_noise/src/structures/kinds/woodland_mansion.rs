@@ -913,6 +913,7 @@ impl MansionPiecePlacer<'_> {
         self.create_roof(pos.offset(0, 16, 0), rotation, base, Some(third));
         self.create_roof(pos.offset(0, 27, 0), rotation, third, None);
 
+        #[allow(clippy::needless_range_loop)]
         for floor in 0..3usize {
             let floor_pos = pos.offset(0, 8 * floor as i32 + if floor == 2 { 3 } else { 0 }, 0);
             let rooms = &grid.floor_rooms[floor];

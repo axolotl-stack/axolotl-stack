@@ -223,7 +223,7 @@ pub mod height {
         max: i32,
         inner: i32,
     ) -> i32 {
-        if max - min - inner + 1 <= 0 {
+        if max - min - inner < 0 {
             return min;
         }
         let k = rng.next_int_bounded(max - min - inner + 1);
@@ -238,7 +238,7 @@ pub mod height {
         max: i32,
         inner: i32,
     ) -> i32 {
-        if max - min - inner + 1 <= 0 {
+        if max - min - inner < 0 {
             return min;
         }
         let k = rng.next_int_between_inclusive(min + inner, max);

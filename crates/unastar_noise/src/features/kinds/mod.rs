@@ -25,13 +25,22 @@ pub mod lake;
 pub mod monster_room;
 pub mod multiface_growth;
 pub mod nether;
+// Boolean and float tests are written as in Java so draw order and NaN
+// behaviour stay evident.
+#[allow(clippy::nonminimal_bool, clippy::neg_cmp_op_on_partial_ord)]
 pub mod ocean;
 pub mod ore;
 pub mod root_system;
+// Boolean and float tests are written as in Java so draw order and NaN
+// behaviour stay evident.
+#[allow(clippy::nonminimal_bool, clippy::neg_cmp_op_on_partial_ord)]
 pub mod sculk_patch;
 pub mod simple_block;
 pub mod spring;
 pub mod tree;
 pub mod underwater_magma;
+// Boolean and float tests are written as in Java so draw order and NaN
+// behaviour stay evident.
+#[allow(clippy::nonminimal_bool, clippy::neg_cmp_op_on_partial_ord)]
 pub mod vegetation_patch;
 pub mod vines;

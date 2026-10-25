@@ -23,7 +23,7 @@ pub fn on_ground_y<W: FeatureWorld + ?Sized>(
     let mut seen = 0;
     let mut above = world.get_state(BlockPos::new(x, top, z));
     let mut y = top;
-    while y >= world.min_y() + 1 {
+    while y > world.min_y() {
         let below = world.get_state(BlockPos::new(x, y - 1, z));
         if !layer_empty(below) && layer_empty(above) && !below.is(b::BEDROCK) {
             if seen == layer {

@@ -466,13 +466,13 @@ impl JavaHashSet {
         let mut p = root;
         loop {
             let ph = self.n(p).hash;
-            let dir = if ph > h {
-                -1
-            } else if ph < h {
+            let dir = if ph < h {
                 1
-            } else if self.n(p).pos == pos {
-                return false;
-            } else if self.find(self.n(p).left, h, pos) || self.find(self.n(p).right, h, pos) {
+            } else if ph == h
+                && (self.n(p).pos == pos
+                    || self.find(self.n(p).left, h, pos)
+                    || self.find(self.n(p).right, h, pos))
+            {
                 return false;
             } else {
                 -1

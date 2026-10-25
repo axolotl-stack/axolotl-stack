@@ -3,6 +3,7 @@
 pub mod context;
 pub mod jigsaw;
 pub mod kinds;
+pub mod manager;
 pub mod piece;
 pub mod placement;
 pub mod processor;

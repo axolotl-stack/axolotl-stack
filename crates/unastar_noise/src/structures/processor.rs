@@ -137,6 +137,7 @@ pub enum Processor {
 
 impl Processor {
     /// `processBlock`. `original` is the untransformed template block.
+    #[allow(clippy::too_many_arguments)]
     pub fn process<W: FeatureWorld + ?Sized>(
         &self,
         world: &mut W,
@@ -255,6 +256,7 @@ impl Processor {
     }
 
     /// `finalizeProcessing` (only `capped` does anything).
+    #[allow(clippy::too_many_arguments)]
     pub fn finalize<W: FeatureWorld + ?Sized>(
         &self,
         world: &mut W,

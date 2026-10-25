@@ -255,9 +255,7 @@ impl JavaState {
             return Fluid {
                 kind,
                 source: level == 0,
-                amount: if level == 0 {
-                    8
-                } else if level >= 8 {
+                amount: if level == 0 || level >= 8 {
                     8
                 } else {
                     8 - level as u8

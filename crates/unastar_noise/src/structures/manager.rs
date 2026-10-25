@@ -107,7 +107,12 @@ impl StructureManager {
 
     /// Starts whose box intersects chunk (`cx`, `cz`), from chunks within 8
     /// (`createReferences`), as (structure, start) pairs grouped by structure.
-    pub fn references(&self, ctx: &dyn StructureContext, cx: i32, cz: i32) -> Vec<(ChunkStarts, usize)> {
+    pub fn references(
+        &self,
+        ctx: &dyn StructureContext,
+        cx: i32,
+        cz: i32,
+    ) -> Vec<(ChunkStarts, usize)> {
         let (x0, z0) = (cx * 16, cz * 16);
         let mut out = Vec::new();
         for i in cx - 8..=cx + 8 {
@@ -124,7 +129,12 @@ impl StructureManager {
     }
 
     /// Decoration hook placing the structures of each step in chunk (`cx`, `cz`).
-    pub fn decoration_hook<'a>(&'a self, ctx: &'a dyn StructureContext, cx: i32, cz: i32) -> StructureStepHook<'a> {
+    pub fn decoration_hook<'a>(
+        &'a self,
+        ctx: &'a dyn StructureContext,
+        cx: i32,
+        cz: i32,
+    ) -> StructureStepHook<'a> {
         StructureStepHook {
             manager: self,
             ctx,
@@ -135,7 +145,12 @@ impl StructureManager {
 }
 
 /// `tryGenerateStructure`: run the structure's generator for this chunk.
-fn try_generate(ctx: &dyn StructureContext, structure: u16, cx: i32, cz: i32) -> Option<StructureStart> {
+fn try_generate(
+    ctx: &dyn StructureContext,
+    structure: u16,
+    cx: i32,
+    cz: i32,
+) -> Option<StructureStart> {
     let def = &super::generated::STRUCTURES[structure as usize];
     let mut g = GenContext::new(ctx, def, cx, cz);
     let stub = super::kinds::find_generation_point(&mut g)?;
@@ -157,10 +172,23 @@ pub struct StructureStepHook<'a> {
 }
 
 impl<W: FeatureWorld> StepHook<W> for StructureStepHook<'_> {
-    fn place_structures(&mut self, world: &mut W, rng: &mut FeatureRandom, decoration_seed: i64, step: usize) {
+    fn place_structures(
+        &mut self,
+        world: &mut W,
+        rng: &mut FeatureRandom,
+        decoration_seed: i64,
+        step: usize,
+    ) {
         let (cx, cz) = self.chunk;
         // `getWritableArea`: the chunk column from min_y + 1.
-        let chunk_box = BoundingBox::new(cx * 16, world.min_y() + 1, cz * 16, cx * 16 + 15, world.max_y() - 1, cz * 16 + 15);
+        let chunk_box = BoundingBox::new(
+            cx * 16,
+            world.min_y() + 1,
+            cz * 16,
+            cx * 16 + 15,
+            world.max_y() - 1,
+            cz * 16 + 15,
+        );
         for (m, &structure) in self.manager.step_structures[step].iter().enumerate() {
             rng.set_feature_seed(decoration_seed, m as i32, step as i32);
             for (starts, k) in &self.refs {
@@ -195,5 +223,142 @@ pub fn place_in_chunk<W: FeatureWorld>(
             piece.post_process(world, ctx, rng, chunk_box, chunk, pivot);
         }
     }
-    super::kinds::after_place(start.def(), world, ctx, rng, chunk_box, chunk, &start.pieces);
+    super::kinds::after_place(
+        start.def(),
+        world,
+        ctx,
+        rng,
+        chunk_box,
+        chunk,
+        &start.pieces,
+    );
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::features::decorate::{BiomeSet, decorate_chunk};
+    use crate::features::generated::{OVERWORLD_BIOMES, OVERWORLD_FEATURES, biome_index};
+    use crate::features::java_blocks::states;
+    use crate::features::test_world::TestWorld;
+    use crate::features::{Heightmap, JavaState};
+    use crate::structures::template_data::TEMPLATES_EMBEDDED;
+
+    /// Flat plains at y 64 (top block y 63).
+    struct Plains {
+        seed: i64,
+        biome: u8,
+    }
+
+    impl StructureContext for Plains {
+        fn seed(&self) -> i64 {
+            self.seed
+        }
+        fn min_y(&self) -> i32 {
+            -64
+        }
+        fn height(&self) -> i32 {
+            384
+        }
+        fn sea_level(&self) -> i32 {
+            63
+        }
+        fn noise_biome(&self, _: i32, _: i32, _: i32) -> u8 {
+            self.biome
+        }
+        fn base_height(&self, _: i32, _: i32, _: Heightmap) -> i32 {
+            64
+        }
+        fn base_column(&self, _: i32, _: i32, out: &mut [JavaState]) {
+            for (i, s) in out.iter_mut().enumerate() {
+                *s = if i < 128 { states::STONE } else { states::AIR };
+            }
+        }
+    }
+
+    fn plains(seed: i64) -> Plains {
+        Plains {
+            seed,
+            biome: biome_index("minecraft:plains").unwrap(),
+        }
+    }
+
+    fn name(s: &StructureStart) -> &'static str {
+        s.def().name
+    }
+
+    /// Over a 12x12 region grid of chunks, plains villages appear about once per
+    /// 34-chunk village region and every start's chunk is its set's placement chunk.
+    #[test]
+    fn plains_starts_follow_placement() {
+        if !TEMPLATES_EMBEDDED {
+            return;
+        }
+        let ctx = plains(12345);
+        let manager = StructureManager::new(OVERWORLD_BIOMES);
+        let mut villages = 0;
+        for cx in -48..48 {
+            for cz in -48..48 {
+                for s in manager.starts_in_chunk(&ctx, cx, cz).iter() {
+                    assert!(!s.pieces.is_empty());
+                    if name(s) == "minecraft:village_plains" {
+                        villages += 1;
+                        let set = super::super::generated::STRUCTURE_SETS
+                            .iter()
+                            .find(|d| d.name == "minecraft:villages")
+                            .unwrap();
+                        assert_eq!(set.placement.potential_chunk(ctx.seed, cx, cz), (cx, cz));
+                    }
+                }
+            }
+        }
+        // 96x96 chunks / 34x34 regions: up to 9 regions fully inside.
+        assert!((3..=16).contains(&villages), "{villages} villages");
+    }
+
+    /// Decorating a chunk next to a village with the structure hook writes
+    /// structure blocks, deterministically.
+    #[test]
+    fn village_chunk_decorates_with_structures() {
+        if !TEMPLATES_EMBEDDED {
+            return;
+        }
+        let ctx = plains(12345);
+        let manager = StructureManager::new(OVERWORLD_BIOMES);
+        let mut found = None;
+        'outer: for cx in -48..48 {
+            for cz in -48..48 {
+                for s in manager.starts_in_chunk(&ctx, cx, cz).iter() {
+                    if name(s) == "minecraft:village_plains" {
+                        found = Some((cx, cz));
+                        break 'outer;
+                    }
+                }
+            }
+        }
+        let (cx, cz) = found.expect("a plains village in range");
+        let run = || {
+            let mut w = TestWorld::flat(64);
+            w.seed = ctx.seed;
+            w.biome = ctx.biome;
+            w.writable = Some((cx * 16 - 16, cz * 16 - 16, cx * 16 + 31, cz * 16 + 31));
+            let mut set = BiomeSet::default();
+            set.insert(ctx.biome);
+            let mut hook = manager.decoration_hook(&ctx, cx, cz);
+            decorate_chunk(&mut w, &OVERWORLD_FEATURES, cx, cz, set, &mut hook);
+            w
+        };
+        let a = run();
+        let b = run();
+        assert_eq!(a.blocks, b.blocks);
+        let structure_blocks = a
+            .blocks
+            .values()
+            .filter(|s| {
+                s.is(crate::features::java_blocks::blocks::OAK_PLANKS)
+                    || s.is(crate::features::java_blocks::blocks::DIRT_PATH)
+            })
+            .count();
+        assert!(structure_blocks > 0, "no village blocks in the start chunk");
+    }
 }
