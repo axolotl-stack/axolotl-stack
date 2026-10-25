@@ -63,7 +63,7 @@ impl WorldBounds {
 }
 
 /// World generator for chunks.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
 #[serde(tag = "kind", rename_all = "snake_case", deny_unknown_fields)]
 pub enum WorldGenerator {
     /// Superflat world: classic Minecraft superflat (1 bedrock, 2 dirt, 1 grass at Y=0-3).
@@ -96,6 +96,22 @@ impl WorldGenerator {
             Self::SuperFlat | Self::VoidSpawnPlatform { .. } => false,
             Self::Java { .. } => true,
         }
+    }
+
+    /// World spawn chosen by this generator. The search generates chunks, so it runs once
+    /// per generator config and process; later calls return the cached point.
+    pub fn spawn(&self) -> generator::SpawnPoint {
+        use std::collections::HashMap;
+        use std::sync::{Arc, LazyLock, Mutex, OnceLock};
+        type Spawns = Mutex<HashMap<WorldGenerator, Arc<OnceLock<generator::SpawnPoint>>>>;
+        static SPAWNS: LazyLock<Spawns> = LazyLock::new(Default::default);
+        let cell = SPAWNS
+            .lock()
+            .expect("spawn cache lock poisoned")
+            .entry(*self)
+            .or_default()
+            .clone();
+        *cell.get_or_init(|| generator::ChunkPipeline::new(self.build()).find_spawn())
     }
 }
 

@@ -63,12 +63,12 @@ fn java_style_vs_java_reference() {
     assert_ratchets(
         fixture,
         &[
-            ("terrain_exact", m.terrain_exact, 0.8271),
-            ("terrain_within_2", m.terrain_within_2, 0.9115),
-            ("-terrain_mean_abs_error", m.terrain_mean_abs_error, 1.1395),
-            ("surface_exact", m.surface_exact, 0.8848),
-            ("surface_block", m.surface_block, 0.8400),
-            ("surface_biome", m.surface_biome, 0.9999),
+            ("terrain_exact", m.terrain_exact, 0.8798),
+            ("terrain_within_2", m.terrain_within_2, 0.9182),
+            ("-terrain_mean_abs_error", m.terrain_mean_abs_error, 1.0373),
+            ("surface_exact", m.surface_exact, 0.8964),
+            ("surface_block", m.surface_block, 0.8409),
+            ("surface_biome", m.surface_biome, 1.0),
         ],
     );
 }
@@ -102,9 +102,23 @@ fn java_style_protos_vs_java_reference() {
     assert_ratchets(
         "java_1_21_11_seed_12345_proto.json",
         &[
-            ("block_exact", metrics.block_exact, 0.9944),
-            ("class_exact", metrics.class_exact, 0.9953),
+            ("block_exact", metrics.block_exact, 0.9948),
+            ("class_exact", metrics.class_exact, 0.9954),
             ("biome_exact", metrics.biome_exact, 1.0),
         ],
     );
+}
+
+/// World spawn of the Java reference world (seed 12345, `level.dat` `spawn.pos`). Java
+/// picks the same spawn with and without features, so the undecorated generator must hit
+/// it exactly.
+#[test]
+fn java_style_spawn_matches_java_reference() {
+    let spawn = std::thread::Builder::new()
+        .stack_size(64 << 20)
+        .spawn(|| ChunkPipeline::new(Arc::new(JavaGenerator::new(12345))).find_spawn())
+        .unwrap()
+        .join()
+        .unwrap();
+    assert_eq!((spawn.x, spawn.y, spawn.z), (96, 136, -32));
 }
