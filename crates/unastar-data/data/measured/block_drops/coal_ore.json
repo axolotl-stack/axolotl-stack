@@ -1,0 +1,438 @@
+{
+ "block": "minecraft:coal_ore",
+ "cases": [
+  {
+   "block_unchanged": true,
+   "command_failures": 0,
+   "fit": "exact",
+   "loot_table": {
+    "pools": [
+     {
+      "entries": [
+       {
+        "name": "minecraft:coal",
+        "type": "item"
+       }
+      ],
+      "rolls": 1
+     }
+    ]
+   },
+   "observed": {
+    "minecraft:coal@0x1": 200
+   },
+   "samples": 200,
+   "states": {},
+   "tool": "copper_pickaxe",
+   "tool_item": {
+    "item": "minecraft:copper_pickaxe"
+   }
+  },
+  {
+   "block_unchanged": true,
+   "command_failures": 0,
+   "fit": "exact",
+   "loot_table": {
+    "pools": []
+   },
+   "observed": {
+    "": 200
+   },
+   "samples": 200,
+   "states": {},
+   "tool": "diamond_axe",
+   "tool_item": {
+    "item": "minecraft:diamond_axe"
+   }
+  },
+  {
+   "block_unchanged": true,
+   "command_failures": 0,
+   "fit": "exact",
+   "loot_table": {
+    "pools": [
+     {
+      "entries": [
+       {
+        "name": "minecraft:coal",
+        "type": "item"
+       }
+      ],
+      "rolls": 1
+     }
+    ]
+   },
+   "observed": {
+    "minecraft:coal@0x1": 200
+   },
+   "samples": 200,
+   "states": {},
+   "tool": "diamond_pickaxe",
+   "tool_item": {
+    "item": "minecraft:diamond_pickaxe"
+   }
+  },
+  {
+   "block_unchanged": true,
+   "command_failures": 0,
+   "fit": "empirical",
+   "loot_table": {
+    "pools": [
+     {
+      "entries": [
+       {
+        "name": "minecraft:coal",
+        "type": "item",
+        "weight": 129
+       },
+       {
+        "functions": [
+         {
+          "count": 2,
+          "function": "set_count"
+         }
+        ],
+        "name": "minecraft:coal",
+        "type": "item",
+        "weight": 71
+       }
+      ],
+      "rolls": 1
+     }
+    ]
+   },
+   "observed": {
+    "minecraft:coal@0x1": 129,
+    "minecraft:coal@0x1;minecraft:coal@0x1": 71
+   },
+   "samples": 200,
+   "states": {},
+   "tool": "diamond_pickaxe+fortune1",
+   "tool_item": {
+    "enchants": {
+     "minecraft:fortune": 1
+    },
+    "item": "minecraft:diamond_pickaxe"
+   }
+  },
+  {
+   "block_unchanged": true,
+   "command_failures": 0,
+   "fit": "empirical",
+   "loot_table": {
+    "pools": [
+     {
+      "entries": [
+       {
+        "name": "minecraft:coal",
+        "type": "item",
+        "weight": 98
+       },
+       {
+        "functions": [
+         {
+          "count": 2,
+          "function": "set_count"
+         }
+        ],
+        "name": "minecraft:coal",
+        "type": "item",
+        "weight": 42
+       },
+       {
+        "functions": [
+         {
+          "count": 3,
+          "function": "set_count"
+         }
+        ],
+        "name": "minecraft:coal",
+        "type": "item",
+        "weight": 60
+       }
+      ],
+      "rolls": 1
+     }
+    ]
+   },
+   "observed": {
+    "minecraft:coal@0x1": 98,
+    "minecraft:coal@0x1;minecraft:coal@0x1": 42,
+    "minecraft:coal@0x1;minecraft:coal@0x1;minecraft:coal@0x1": 60
+   },
+   "samples": 200,
+   "states": {},
+   "tool": "diamond_pickaxe+fortune2",
+   "tool_item": {
+    "enchants": {
+     "minecraft:fortune": 2
+    },
+    "item": "minecraft:diamond_pickaxe"
+   }
+  },
+  {
+   "block_unchanged": true,
+   "command_failures": 0,
+   "fit": "empirical",
+   "loot_table": {
+    "pools": [
+     {
+      "entries": [
+       {
+        "name": "minecraft:coal",
+        "type": "item",
+        "weight": 84
+       },
+       {
+        "functions": [
+         {
+          "count": 2,
+          "function": "set_count"
+         }
+        ],
+        "name": "minecraft:coal",
+        "type": "item",
+        "weight": 31
+       },
+       {
+        "functions": [
+         {
+          "count": 3,
+          "function": "set_count"
+         }
+        ],
+        "name": "minecraft:coal",
+        "type": "item",
+        "weight": 37
+       },
+       {
+        "functions": [
+         {
+          "count": 4,
+          "function": "set_count"
+         }
+        ],
+        "name": "minecraft:coal",
+        "type": "item",
+        "weight": 48
+       }
+      ],
+      "rolls": 1
+     }
+    ]
+   },
+   "observed": {
+    "minecraft:coal@0x1": 84,
+    "minecraft:coal@0x1;minecraft:coal@0x1": 31,
+    "minecraft:coal@0x1;minecraft:coal@0x1;minecraft:coal@0x1": 37,
+    "minecraft:coal@0x1;minecraft:coal@0x1;minecraft:coal@0x1;minecraft:coal@0x1": 48
+   },
+   "samples": 200,
+   "states": {},
+   "tool": "diamond_pickaxe+fortune3",
+   "tool_item": {
+    "enchants": {
+     "minecraft:fortune": 3
+    },
+    "item": "minecraft:diamond_pickaxe"
+   }
+  },
+  {
+   "block_unchanged": true,
+   "command_failures": 0,
+   "fit": "exact",
+   "loot_table": {
+    "pools": [
+     {
+      "entries": [
+       {
+        "name": "minecraft:coal_ore",
+        "type": "item"
+       }
+      ],
+      "rolls": 1
+     }
+    ]
+   },
+   "observed": {
+    "minecraft:coal_ore@0x1": 200
+   },
+   "samples": 200,
+   "states": {},
+   "tool": "diamond_pickaxe+silk_touch1",
+   "tool_item": {
+    "enchants": {
+     "minecraft:silk_touch": 1
+    },
+    "item": "minecraft:diamond_pickaxe"
+   }
+  },
+  {
+   "block_unchanged": true,
+   "command_failures": 0,
+   "fit": "exact",
+   "loot_table": {
+    "pools": [
+     {
+      "entries": [
+       {
+        "name": "minecraft:coal",
+        "type": "item"
+       }
+      ],
+      "rolls": 1
+     }
+    ]
+   },
+   "observed": {
+    "minecraft:coal@0x1": 200
+   },
+   "samples": 200,
+   "states": {},
+   "tool": "golden_pickaxe",
+   "tool_item": {
+    "item": "minecraft:golden_pickaxe"
+   }
+  },
+  {
+   "block_unchanged": true,
+   "command_failures": 0,
+   "fit": "exact",
+   "loot_table": {
+    "pools": []
+   },
+   "observed": {
+    "": 200
+   },
+   "samples": 200,
+   "states": {},
+   "tool": "hand",
+   "tool_item": null
+  },
+  {
+   "block_unchanged": true,
+   "command_failures": 0,
+   "fit": "exact",
+   "loot_table": {
+    "pools": [
+     {
+      "entries": [
+       {
+        "name": "minecraft:coal",
+        "type": "item"
+       }
+      ],
+      "rolls": 1
+     }
+    ]
+   },
+   "observed": {
+    "minecraft:coal@0x1": 200
+   },
+   "samples": 200,
+   "states": {},
+   "tool": "iron_pickaxe",
+   "tool_item": {
+    "item": "minecraft:iron_pickaxe"
+   }
+  },
+  {
+   "block_unchanged": true,
+   "command_failures": 0,
+   "fit": "exact",
+   "loot_table": {
+    "pools": [
+     {
+      "entries": [
+       {
+        "name": "minecraft:coal",
+        "type": "item"
+       }
+      ],
+      "rolls": 1
+     }
+    ]
+   },
+   "observed": {
+    "minecraft:coal@0x1": 200
+   },
+   "samples": 200,
+   "states": {},
+   "tool": "netherite_pickaxe",
+   "tool_item": {
+    "item": "minecraft:netherite_pickaxe"
+   }
+  },
+  {
+   "block_unchanged": true,
+   "command_failures": 0,
+   "fit": "exact",
+   "loot_table": {
+    "pools": []
+   },
+   "observed": {
+    "": 200
+   },
+   "samples": 200,
+   "states": {},
+   "tool": "shears",
+   "tool_item": {
+    "item": "minecraft:shears"
+   }
+  },
+  {
+   "block_unchanged": true,
+   "command_failures": 0,
+   "fit": "exact",
+   "loot_table": {
+    "pools": [
+     {
+      "entries": [
+       {
+        "name": "minecraft:coal",
+        "type": "item"
+       }
+      ],
+      "rolls": 1
+     }
+    ]
+   },
+   "observed": {
+    "minecraft:coal@0x1": 200
+   },
+   "samples": 200,
+   "states": {},
+   "tool": "stone_pickaxe",
+   "tool_item": {
+    "item": "minecraft:stone_pickaxe"
+   }
+  },
+  {
+   "block_unchanged": true,
+   "command_failures": 0,
+   "fit": "exact",
+   "loot_table": {
+    "pools": [
+     {
+      "entries": [
+       {
+        "name": "minecraft:coal",
+        "type": "item"
+       }
+      ],
+      "rolls": 1
+     }
+    ]
+   },
+   "observed": {
+    "minecraft:coal@0x1": 200
+   },
+   "samples": 200,
+   "states": {},
+   "tool": "wooden_pickaxe",
+   "tool_item": {
+    "item": "minecraft:wooden_pickaxe"
+   }
+  }
+ ]
+}

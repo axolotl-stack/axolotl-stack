@@ -1,0 +1,144 @@
+{
+ "block": "minecraft:glass",
+ "cases": [
+  {
+   "block_unchanged": true,
+   "command_failures": 0,
+   "fit": "exact",
+   "loot_table": {
+    "pools": []
+   },
+   "observed": {
+    "": 200
+   },
+   "samples": 200,
+   "states": {},
+   "tool": "diamond_pickaxe",
+   "tool_item": {
+    "item": "minecraft:diamond_pickaxe"
+   }
+  },
+  {
+   "block_unchanged": true,
+   "command_failures": 0,
+   "fit": "exact",
+   "loot_table": {
+    "pools": []
+   },
+   "observed": {
+    "": 200
+   },
+   "samples": 200,
+   "states": {},
+   "tool": "diamond_pickaxe+fortune1",
+   "tool_item": {
+    "enchants": {
+     "minecraft:fortune": 1
+    },
+    "item": "minecraft:diamond_pickaxe"
+   }
+  },
+  {
+   "block_unchanged": true,
+   "command_failures": 0,
+   "fit": "exact",
+   "loot_table": {
+    "pools": []
+   },
+   "observed": {
+    "": 200
+   },
+   "samples": 200,
+   "states": {},
+   "tool": "diamond_pickaxe+fortune2",
+   "tool_item": {
+    "enchants": {
+     "minecraft:fortune": 2
+    },
+    "item": "minecraft:diamond_pickaxe"
+   }
+  },
+  {
+   "block_unchanged": true,
+   "command_failures": 0,
+   "fit": "exact",
+   "loot_table": {
+    "pools": []
+   },
+   "observed": {
+    "": 200
+   },
+   "samples": 200,
+   "states": {},
+   "tool": "diamond_pickaxe+fortune3",
+   "tool_item": {
+    "enchants": {
+     "minecraft:fortune": 3
+    },
+    "item": "minecraft:diamond_pickaxe"
+   }
+  },
+  {
+   "block_unchanged": true,
+   "command_failures": 0,
+   "fit": "exact",
+   "loot_table": {
+    "pools": [
+     {
+      "entries": [
+       {
+        "name": "minecraft:glass",
+        "type": "item"
+       }
+      ],
+      "rolls": 1
+     }
+    ]
+   },
+   "observed": {
+    "minecraft:glass@0x1": 200
+   },
+   "samples": 200,
+   "states": {},
+   "tool": "diamond_pickaxe+silk_touch1",
+   "tool_item": {
+    "enchants": {
+     "minecraft:silk_touch": 1
+    },
+    "item": "minecraft:diamond_pickaxe"
+   }
+  },
+  {
+   "block_unchanged": true,
+   "command_failures": 0,
+   "fit": "exact",
+   "loot_table": {
+    "pools": []
+   },
+   "observed": {
+    "": 200
+   },
+   "samples": 200,
+   "states": {},
+   "tool": "hand",
+   "tool_item": null
+  },
+  {
+   "block_unchanged": true,
+   "command_failures": 0,
+   "fit": "exact",
+   "loot_table": {
+    "pools": []
+   },
+   "observed": {
+    "": 200
+   },
+   "samples": 200,
+   "states": {},
+   "tool": "shears",
+   "tool_item": {
+    "item": "minecraft:shears"
+   }
+  }
+ ]
+}

@@ -1,0 +1,751 @@
+{
+ "block": "minecraft:oak_leaves",
+ "cases": [
+  {
+   "block_unchanged": true,
+   "command_failures": 0,
+   "fit": "empirical",
+   "loot_table": {
+    "pools": [
+     {
+      "entries": [
+       {
+        "type": "empty",
+        "weight": 189
+       },
+       {
+        "name": "minecraft:oak_sapling",
+        "type": "item",
+        "weight": 11
+       }
+      ],
+      "rolls": 1
+     },
+     {
+      "entries": [
+       {
+        "type": "empty",
+        "weight": 197
+       },
+       {
+        "name": "minecraft:stick",
+        "type": "item",
+        "weight": 3
+       }
+      ],
+      "rolls": 1
+     }
+    ]
+   },
+   "observed": {
+    "": 186,
+    "minecraft:oak_sapling@0x1": 11,
+    "minecraft:stick@0x1": 3
+   },
+   "samples": 200,
+   "states": {
+    "persistent_bit": false,
+    "update_bit": false
+   },
+   "tool": "copper_hoe",
+   "tool_item": {
+    "item": "minecraft:copper_hoe"
+   }
+  },
+  {
+   "block_unchanged": true,
+   "command_failures": 0,
+   "fit": "empirical",
+   "loot_table": {
+    "pools": [
+     {
+      "entries": [
+       {
+        "type": "empty",
+        "weight": 199
+       },
+       {
+        "name": "minecraft:apple",
+        "type": "item",
+        "weight": 1
+       }
+      ],
+      "rolls": 1
+     },
+     {
+      "entries": [
+       {
+        "type": "empty",
+        "weight": 190
+       },
+       {
+        "name": "minecraft:oak_sapling",
+        "type": "item",
+        "weight": 10
+       }
+      ],
+      "rolls": 1
+     },
+     {
+      "entries": [
+       {
+        "type": "empty",
+        "weight": 196
+       },
+       {
+        "name": "minecraft:stick",
+        "type": "item",
+        "weight": 4
+       }
+      ],
+      "rolls": 1
+     }
+    ]
+   },
+   "observed": {
+    "": 185,
+    "minecraft:apple@0x1": 1,
+    "minecraft:oak_sapling@0x1": 10,
+    "minecraft:stick@0x1": 4
+   },
+   "samples": 200,
+   "states": {
+    "persistent_bit": false,
+    "update_bit": false
+   },
+   "tool": "diamond_hoe",
+   "tool_item": {
+    "item": "minecraft:diamond_hoe"
+   }
+  },
+  {
+   "block_unchanged": true,
+   "command_failures": 0,
+   "fit": "empirical",
+   "loot_table": {
+    "pools": [
+     {
+      "entries": [
+       {
+        "type": "empty",
+        "weight": 187
+       },
+       {
+        "name": "minecraft:oak_sapling",
+        "type": "item",
+        "weight": 13
+       }
+      ],
+      "rolls": 1
+     },
+     {
+      "entries": [
+       {
+        "type": "empty",
+        "weight": 197
+       },
+       {
+        "name": "minecraft:stick",
+        "type": "item",
+        "weight": 3
+       }
+      ],
+      "rolls": 1
+     }
+    ]
+   },
+   "observed": {
+    "": 184,
+    "minecraft:oak_sapling@0x1": 13,
+    "minecraft:stick@0x1": 3
+   },
+   "samples": 200,
+   "states": {
+    "persistent_bit": false,
+    "update_bit": false
+   },
+   "tool": "diamond_hoe+fortune1",
+   "tool_item": {
+    "enchants": {
+     "minecraft:fortune": 1
+    },
+    "item": "minecraft:diamond_hoe"
+   }
+  },
+  {
+   "block_unchanged": true,
+   "command_failures": 0,
+   "fit": "empirical",
+   "loot_table": {
+    "pools": [
+     {
+      "entries": [
+       {
+        "type": "empty",
+        "weight": 181
+       },
+       {
+        "name": "minecraft:oak_sapling",
+        "type": "item",
+        "weight": 19
+       }
+      ],
+      "rolls": 1
+     },
+     {
+      "entries": [
+       {
+        "type": "empty",
+        "weight": 193
+       },
+       {
+        "name": "minecraft:stick",
+        "type": "item",
+        "weight": 7
+       }
+      ],
+      "rolls": 1
+     }
+    ]
+   },
+   "observed": {
+    "": 175,
+    "minecraft:oak_sapling@0x1": 18,
+    "minecraft:oak_sapling@0x1;minecraft:stick@0x1": 1,
+    "minecraft:stick@0x1": 6
+   },
+   "samples": 200,
+   "states": {
+    "persistent_bit": false,
+    "update_bit": false
+   },
+   "tool": "diamond_hoe+fortune2",
+   "tool_item": {
+    "enchants": {
+     "minecraft:fortune": 2
+    },
+    "item": "minecraft:diamond_hoe"
+   }
+  },
+  {
+   "block_unchanged": true,
+   "command_failures": 0,
+   "fit": "empirical",
+   "loot_table": {
+    "pools": [
+     {
+      "entries": [
+       {
+        "type": "empty",
+        "weight": 187
+       },
+       {
+        "name": "minecraft:oak_sapling",
+        "type": "item",
+        "weight": 13
+       }
+      ],
+      "rolls": 1
+     },
+     {
+      "entries": [
+       {
+        "type": "empty",
+        "weight": 171
+       },
+       {
+        "name": "minecraft:stick",
+        "type": "item",
+        "weight": 29
+       }
+      ],
+      "rolls": 1
+     }
+    ]
+   },
+   "observed": {
+    "": 159,
+    "minecraft:oak_sapling@0x1": 12,
+    "minecraft:oak_sapling@0x1;minecraft:stick@0x1": 1,
+    "minecraft:stick@0x1": 28
+   },
+   "samples": 200,
+   "states": {
+    "persistent_bit": false,
+    "update_bit": false
+   },
+   "tool": "diamond_hoe+fortune3",
+   "tool_item": {
+    "enchants": {
+     "minecraft:fortune": 3
+    },
+    "item": "minecraft:diamond_hoe"
+   }
+  },
+  {
+   "block_unchanged": true,
+   "command_failures": 0,
+   "fit": "exact",
+   "loot_table": {
+    "pools": [
+     {
+      "entries": [
+       {
+        "name": "minecraft:oak_leaves",
+        "type": "item"
+       }
+      ],
+      "rolls": 1
+     }
+    ]
+   },
+   "observed": {
+    "minecraft:oak_leaves@0x1": 200
+   },
+   "samples": 200,
+   "states": {
+    "persistent_bit": false,
+    "update_bit": false
+   },
+   "tool": "diamond_hoe+silk_touch1",
+   "tool_item": {
+    "enchants": {
+     "minecraft:silk_touch": 1
+    },
+    "item": "minecraft:diamond_hoe"
+   }
+  },
+  {
+   "block_unchanged": true,
+   "command_failures": 0,
+   "fit": "empirical",
+   "loot_table": {
+    "pools": [
+     {
+      "entries": [
+       {
+        "type": "empty",
+        "weight": 189
+       },
+       {
+        "name": "minecraft:oak_sapling",
+        "type": "item",
+        "weight": 11
+       }
+      ],
+      "rolls": 1
+     },
+     {
+      "entries": [
+       {
+        "type": "empty",
+        "weight": 198
+       },
+       {
+        "name": "minecraft:stick",
+        "type": "item",
+        "weight": 2
+       }
+      ],
+      "rolls": 1
+     }
+    ]
+   },
+   "observed": {
+    "": 187,
+    "minecraft:oak_sapling@0x1": 11,
+    "minecraft:stick@0x1": 2
+   },
+   "samples": 200,
+   "states": {
+    "persistent_bit": false,
+    "update_bit": false
+   },
+   "tool": "diamond_pickaxe",
+   "tool_item": {
+    "item": "minecraft:diamond_pickaxe"
+   }
+  },
+  {
+   "block_unchanged": true,
+   "command_failures": 0,
+   "fit": "empirical",
+   "loot_table": {
+    "pools": [
+     {
+      "entries": [
+       {
+        "type": "empty",
+        "weight": 186
+       },
+       {
+        "name": "minecraft:oak_sapling",
+        "type": "item",
+        "weight": 14
+       }
+      ],
+      "rolls": 1
+     },
+     {
+      "entries": [
+       {
+        "type": "empty",
+        "weight": 196
+       },
+       {
+        "name": "minecraft:stick",
+        "type": "item",
+        "weight": 4
+       }
+      ],
+      "rolls": 1
+     }
+    ]
+   },
+   "observed": {
+    "": 182,
+    "minecraft:oak_sapling@0x1": 14,
+    "minecraft:stick@0x1": 4
+   },
+   "samples": 200,
+   "states": {
+    "persistent_bit": false,
+    "update_bit": false
+   },
+   "tool": "golden_hoe",
+   "tool_item": {
+    "item": "minecraft:golden_hoe"
+   }
+  },
+  {
+   "block_unchanged": true,
+   "command_failures": 0,
+   "fit": "empirical",
+   "loot_table": {
+    "pools": [
+     {
+      "entries": [
+       {
+        "type": "empty",
+        "weight": 198
+       },
+       {
+        "name": "minecraft:apple",
+        "type": "item",
+        "weight": 2
+       }
+      ],
+      "rolls": 1
+     },
+     {
+      "entries": [
+       {
+        "type": "empty",
+        "weight": 191
+       },
+       {
+        "name": "minecraft:oak_sapling",
+        "type": "item",
+        "weight": 9
+       }
+      ],
+      "rolls": 1
+     },
+     {
+      "entries": [
+       {
+        "type": "empty",
+        "weight": 196
+       },
+       {
+        "name": "minecraft:stick",
+        "type": "item",
+        "weight": 4
+       }
+      ],
+      "rolls": 1
+     }
+    ]
+   },
+   "observed": {
+    "": 186,
+    "minecraft:apple@0x1": 2,
+    "minecraft:oak_sapling@0x1": 8,
+    "minecraft:oak_sapling@0x1;minecraft:stick@0x1": 1,
+    "minecraft:stick@0x1": 3
+   },
+   "samples": 200,
+   "states": {
+    "persistent_bit": false,
+    "update_bit": false
+   },
+   "tool": "hand",
+   "tool_item": null
+  },
+  {
+   "block_unchanged": true,
+   "command_failures": 0,
+   "fit": "empirical",
+   "loot_table": {
+    "pools": [
+     {
+      "entries": [
+       {
+        "type": "empty",
+        "weight": 199
+       },
+       {
+        "name": "minecraft:apple",
+        "type": "item",
+        "weight": 1
+       }
+      ],
+      "rolls": 1
+     },
+     {
+      "entries": [
+       {
+        "type": "empty",
+        "weight": 193
+       },
+       {
+        "name": "minecraft:oak_sapling",
+        "type": "item",
+        "weight": 7
+       }
+      ],
+      "rolls": 1
+     },
+     {
+      "entries": [
+       {
+        "type": "empty",
+        "weight": 196
+       },
+       {
+        "name": "minecraft:stick",
+        "type": "item",
+        "weight": 4
+       }
+      ],
+      "rolls": 1
+     }
+    ]
+   },
+   "observed": {
+    "": 189,
+    "minecraft:apple@0x1;minecraft:stick@0x1": 1,
+    "minecraft:oak_sapling@0x1": 7,
+    "minecraft:stick@0x1": 3
+   },
+   "samples": 200,
+   "states": {
+    "persistent_bit": false,
+    "update_bit": false
+   },
+   "tool": "iron_hoe",
+   "tool_item": {
+    "item": "minecraft:iron_hoe"
+   }
+  },
+  {
+   "block_unchanged": true,
+   "command_failures": 0,
+   "fit": "empirical",
+   "loot_table": {
+    "pools": [
+     {
+      "entries": [
+       {
+        "type": "empty",
+        "weight": 190
+       },
+       {
+        "name": "minecraft:oak_sapling",
+        "type": "item",
+        "weight": 10
+       }
+      ],
+      "rolls": 1
+     },
+     {
+      "entries": [
+       {
+        "type": "empty",
+        "weight": 198
+       },
+       {
+        "name": "minecraft:stick",
+        "type": "item",
+        "weight": 2
+       }
+      ],
+      "rolls": 1
+     }
+    ]
+   },
+   "observed": {
+    "": 188,
+    "minecraft:oak_sapling@0x1": 10,
+    "minecraft:stick@0x1": 2
+   },
+   "samples": 200,
+   "states": {
+    "persistent_bit": false,
+    "update_bit": false
+   },
+   "tool": "netherite_hoe",
+   "tool_item": {
+    "item": "minecraft:netherite_hoe"
+   }
+  },
+  {
+   "block_unchanged": true,
+   "command_failures": 0,
+   "fit": "exact",
+   "loot_table": {
+    "pools": [
+     {
+      "entries": [
+       {
+        "name": "minecraft:oak_leaves",
+        "type": "item"
+       }
+      ],
+      "rolls": 1
+     }
+    ]
+   },
+   "observed": {
+    "minecraft:oak_leaves@0x1": 200
+   },
+   "samples": 200,
+   "states": {
+    "persistent_bit": false,
+    "update_bit": false
+   },
+   "tool": "shears",
+   "tool_item": {
+    "item": "minecraft:shears"
+   }
+  },
+  {
+   "block_unchanged": true,
+   "command_failures": 0,
+   "fit": "empirical",
+   "loot_table": {
+    "pools": [
+     {
+      "entries": [
+       {
+        "type": "empty",
+        "weight": 191
+       },
+       {
+        "name": "minecraft:oak_sapling",
+        "type": "item",
+        "weight": 9
+       }
+      ],
+      "rolls": 1
+     },
+     {
+      "entries": [
+       {
+        "type": "empty",
+        "weight": 195
+       },
+       {
+        "name": "minecraft:stick",
+        "type": "item",
+        "weight": 5
+       }
+      ],
+      "rolls": 1
+     }
+    ]
+   },
+   "observed": {
+    "": 187,
+    "minecraft:oak_sapling@0x1": 8,
+    "minecraft:oak_sapling@0x1;minecraft:stick@0x1": 1,
+    "minecraft:stick@0x1": 4
+   },
+   "samples": 200,
+   "states": {
+    "persistent_bit": false,
+    "update_bit": false
+   },
+   "tool": "stone_hoe",
+   "tool_item": {
+    "item": "minecraft:stone_hoe"
+   }
+  },
+  {
+   "block_unchanged": true,
+   "command_failures": 0,
+   "fit": "empirical",
+   "loot_table": {
+    "pools": [
+     {
+      "entries": [
+       {
+        "type": "empty",
+        "weight": 199
+       },
+       {
+        "name": "minecraft:apple",
+        "type": "item",
+        "weight": 1
+       }
+      ],
+      "rolls": 1
+     },
+     {
+      "entries": [
+       {
+        "type": "empty",
+        "weight": 188
+       },
+       {
+        "name": "minecraft:oak_sapling",
+        "type": "item",
+        "weight": 12
+       }
+      ],
+      "rolls": 1
+     },
+     {
+      "entries": [
+       {
+        "type": "empty",
+        "weight": 193
+       },
+       {
+        "name": "minecraft:stick",
+        "type": "item",
+        "weight": 7
+       }
+      ],
+      "rolls": 1
+     }
+    ]
+   },
+   "observed": {
+    "": 180,
+    "minecraft:apple@0x1": 1,
+    "minecraft:oak_sapling@0x1": 12,
+    "minecraft:stick@0x1": 7
+   },
+   "samples": 200,
+   "states": {
+    "persistent_bit": false,
+    "update_bit": false
+   },
+   "tool": "wooden_hoe",
+   "tool_item": {
+    "item": "minecraft:wooden_hoe"
+   }
+  }
+ ]
+}

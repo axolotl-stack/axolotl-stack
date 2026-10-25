@@ -1,0 +1,393 @@
+{
+ "block": "minecraft:grass_block",
+ "cases": [
+  {
+   "block_unchanged": true,
+   "command_failures": 0,
+   "fit": "exact",
+   "loot_table": {
+    "pools": [
+     {
+      "entries": [
+       {
+        "name": "minecraft:dirt",
+        "type": "item"
+       }
+      ],
+      "rolls": 1
+     }
+    ]
+   },
+   "observed": {
+    "minecraft:dirt@0x1": 200
+   },
+   "samples": 200,
+   "states": {},
+   "tool": "copper_shovel",
+   "tool_item": {
+    "item": "minecraft:copper_shovel"
+   }
+  },
+  {
+   "block_unchanged": true,
+   "command_failures": 0,
+   "fit": "exact",
+   "loot_table": {
+    "pools": [
+     {
+      "entries": [
+       {
+        "name": "minecraft:dirt",
+        "type": "item"
+       }
+      ],
+      "rolls": 1
+     }
+    ]
+   },
+   "observed": {
+    "minecraft:dirt@0x1": 200
+   },
+   "samples": 200,
+   "states": {},
+   "tool": "diamond_pickaxe",
+   "tool_item": {
+    "item": "minecraft:diamond_pickaxe"
+   }
+  },
+  {
+   "block_unchanged": true,
+   "command_failures": 0,
+   "fit": "exact",
+   "loot_table": {
+    "pools": [
+     {
+      "entries": [
+       {
+        "name": "minecraft:dirt",
+        "type": "item"
+       }
+      ],
+      "rolls": 1
+     }
+    ]
+   },
+   "observed": {
+    "minecraft:dirt@0x1": 200
+   },
+   "samples": 200,
+   "states": {},
+   "tool": "diamond_shovel",
+   "tool_item": {
+    "item": "minecraft:diamond_shovel"
+   }
+  },
+  {
+   "block_unchanged": true,
+   "command_failures": 0,
+   "fit": "exact",
+   "loot_table": {
+    "pools": [
+     {
+      "entries": [
+       {
+        "name": "minecraft:dirt",
+        "type": "item"
+       }
+      ],
+      "rolls": 1
+     }
+    ]
+   },
+   "observed": {
+    "minecraft:dirt@0x1": 200
+   },
+   "samples": 200,
+   "states": {},
+   "tool": "diamond_shovel+fortune1",
+   "tool_item": {
+    "enchants": {
+     "minecraft:fortune": 1
+    },
+    "item": "minecraft:diamond_shovel"
+   }
+  },
+  {
+   "block_unchanged": true,
+   "command_failures": 0,
+   "fit": "exact",
+   "loot_table": {
+    "pools": [
+     {
+      "entries": [
+       {
+        "name": "minecraft:dirt",
+        "type": "item"
+       }
+      ],
+      "rolls": 1
+     }
+    ]
+   },
+   "observed": {
+    "minecraft:dirt@0x1": 200
+   },
+   "samples": 200,
+   "states": {},
+   "tool": "diamond_shovel+fortune2",
+   "tool_item": {
+    "enchants": {
+     "minecraft:fortune": 2
+    },
+    "item": "minecraft:diamond_shovel"
+   }
+  },
+  {
+   "block_unchanged": true,
+   "command_failures": 0,
+   "fit": "exact",
+   "loot_table": {
+    "pools": [
+     {
+      "entries": [
+       {
+        "name": "minecraft:dirt",
+        "type": "item"
+       }
+      ],
+      "rolls": 1
+     }
+    ]
+   },
+   "observed": {
+    "minecraft:dirt@0x1": 200
+   },
+   "samples": 200,
+   "states": {},
+   "tool": "diamond_shovel+fortune3",
+   "tool_item": {
+    "enchants": {
+     "minecraft:fortune": 3
+    },
+    "item": "minecraft:diamond_shovel"
+   }
+  },
+  {
+   "block_unchanged": true,
+   "command_failures": 0,
+   "fit": "exact",
+   "loot_table": {
+    "pools": [
+     {
+      "entries": [
+       {
+        "name": "minecraft:grass_block",
+        "type": "item"
+       }
+      ],
+      "rolls": 1
+     }
+    ]
+   },
+   "observed": {
+    "minecraft:grass_block@0x1": 200
+   },
+   "samples": 200,
+   "states": {},
+   "tool": "diamond_shovel+silk_touch1",
+   "tool_item": {
+    "enchants": {
+     "minecraft:silk_touch": 1
+    },
+    "item": "minecraft:diamond_shovel"
+   }
+  },
+  {
+   "block_unchanged": true,
+   "command_failures": 0,
+   "fit": "exact",
+   "loot_table": {
+    "pools": [
+     {
+      "entries": [
+       {
+        "name": "minecraft:dirt",
+        "type": "item"
+       }
+      ],
+      "rolls": 1
+     }
+    ]
+   },
+   "observed": {
+    "minecraft:dirt@0x1": 200
+   },
+   "samples": 200,
+   "states": {},
+   "tool": "golden_shovel",
+   "tool_item": {
+    "item": "minecraft:golden_shovel"
+   }
+  },
+  {
+   "block_unchanged": true,
+   "command_failures": 0,
+   "fit": "exact",
+   "loot_table": {
+    "pools": [
+     {
+      "entries": [
+       {
+        "name": "minecraft:dirt",
+        "type": "item"
+       }
+      ],
+      "rolls": 1
+     }
+    ]
+   },
+   "observed": {
+    "minecraft:dirt@0x1": 200
+   },
+   "samples": 200,
+   "states": {},
+   "tool": "hand",
+   "tool_item": null
+  },
+  {
+   "block_unchanged": true,
+   "command_failures": 0,
+   "fit": "exact",
+   "loot_table": {
+    "pools": [
+     {
+      "entries": [
+       {
+        "name": "minecraft:dirt",
+        "type": "item"
+       }
+      ],
+      "rolls": 1
+     }
+    ]
+   },
+   "observed": {
+    "minecraft:dirt@0x1": 200
+   },
+   "samples": 200,
+   "states": {},
+   "tool": "iron_shovel",
+   "tool_item": {
+    "item": "minecraft:iron_shovel"
+   }
+  },
+  {
+   "block_unchanged": true,
+   "command_failures": 0,
+   "fit": "exact",
+   "loot_table": {
+    "pools": [
+     {
+      "entries": [
+       {
+        "name": "minecraft:dirt",
+        "type": "item"
+       }
+      ],
+      "rolls": 1
+     }
+    ]
+   },
+   "observed": {
+    "minecraft:dirt@0x1": 200
+   },
+   "samples": 200,
+   "states": {},
+   "tool": "netherite_shovel",
+   "tool_item": {
+    "item": "minecraft:netherite_shovel"
+   }
+  },
+  {
+   "block_unchanged": true,
+   "command_failures": 0,
+   "fit": "exact",
+   "loot_table": {
+    "pools": [
+     {
+      "entries": [
+       {
+        "name": "minecraft:dirt",
+        "type": "item"
+       }
+      ],
+      "rolls": 1
+     }
+    ]
+   },
+   "observed": {
+    "minecraft:dirt@0x1": 200
+   },
+   "samples": 200,
+   "states": {},
+   "tool": "shears",
+   "tool_item": {
+    "item": "minecraft:shears"
+   }
+  },
+  {
+   "block_unchanged": true,
+   "command_failures": 0,
+   "fit": "exact",
+   "loot_table": {
+    "pools": [
+     {
+      "entries": [
+       {
+        "name": "minecraft:dirt",
+        "type": "item"
+       }
+      ],
+      "rolls": 1
+     }
+    ]
+   },
+   "observed": {
+    "minecraft:dirt@0x1": 200
+   },
+   "samples": 200,
+   "states": {},
+   "tool": "stone_shovel",
+   "tool_item": {
+    "item": "minecraft:stone_shovel"
+   }
+  },
+  {
+   "block_unchanged": true,
+   "command_failures": 0,
+   "fit": "exact",
+   "loot_table": {
+    "pools": [
+     {
+      "entries": [
+       {
+        "name": "minecraft:dirt",
+        "type": "item"
+       }
+      ],
+      "rolls": 1
+     }
+    ]
+   },
+   "observed": {
+    "minecraft:dirt@0x1": 200
+   },
+   "samples": 200,
+   "states": {},
+   "tool": "wooden_shovel",
+   "tool_item": {
+    "item": "minecraft:wooden_shovel"
+   }
+  }
+ ]
+}

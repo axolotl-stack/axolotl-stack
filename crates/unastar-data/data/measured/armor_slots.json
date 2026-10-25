@@ -1,0 +1,72 @@
+{
+ "minecraft:carved_pumpkin": {
+  "chest": false,
+  "feet": false,
+  "head": true,
+  "legs": false,
+  "offhand": true
+ },
+ "minecraft:diamond_helmet": {
+  "chest": false,
+  "feet": false,
+  "head": true,
+  "legs": false,
+  "offhand": true
+ },
+ "minecraft:elytra": {
+  "chest": true,
+  "feet": false,
+  "head": true,
+  "legs": false,
+  "offhand": true
+ },
+ "minecraft:iron_chestplate": {
+  "chest": true,
+  "feet": false,
+  "head": true,
+  "legs": false,
+  "offhand": true
+ },
+ "minecraft:leather_leggings": {
+  "chest": false,
+  "feet": false,
+  "head": true,
+  "legs": true,
+  "offhand": true
+ },
+ "minecraft:netherite_boots": {
+  "chest": false,
+  "feet": true,
+  "head": true,
+  "legs": false,
+  "offhand": true
+ },
+ "minecraft:shield": {
+  "chest": false,
+  "feet": false,
+  "head": true,
+  "legs": false,
+  "offhand": true
+ },
+ "minecraft:stick": {
+  "chest": false,
+  "feet": false,
+  "head": true,
+  "legs": false,
+  "offhand": true
+ },
+ "minecraft:totem_of_undying": {
+  "chest": false,
+  "feet": false,
+  "head": true,
+  "legs": false,
+  "offhand": true
+ },
+ "minecraft:turtle_helmet": {
+  "chest": false,
+  "feet": false,
+  "head": true,
+  "legs": false,
+  "offhand": true
+ }
+}

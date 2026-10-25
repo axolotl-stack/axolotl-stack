@@ -1,0 +1,144 @@
+{
+ "bds_version": "1.26.51",
+ "families": {
+  "armor_slots": {
+   "bds_version": "1.26.51",
+   "files": [
+    {
+     "path": "armor_slots.json",
+     "sha256": "ce063e16386766638175f09e508266e951e497ae75bfd4db1e82ca9a4eebd4e8"
+    }
+   ],
+   "harness": "tools/bds-sweep (sweep.py armor-slots, endstone-sweep plugin) at 6f91dcb53ad1d00366ad0f5a36ab239d4a05ac2d",
+   "method": "`/replaceitem entity <player> slot.armor.<slot>|slot.weapon.offhand 0 <item>` from the console; true when the slot holds the item afterwards (Endstone PlayerInventory)",
+   "source": "bds_sweep",
+   "sweeps": [
+    {
+     "dir": "armor-slots-20261025T174051Z",
+     "items": 10,
+     "runs": [
+      {
+       "items": 10,
+       "seconds": 16.6,
+       "started": "20261025T174051Z",
+       "status": "done"
+      }
+     ]
+    }
+   ]
+  },
+  "block_drops": {
+   "bds_version": "1.26.51",
+   "files": [
+    {
+     "path": "block_drops/coal_ore.json",
+     "sha256": "99b3357bb46e98003cbfa5dc2d1c5c17d32c48d7b175f3764f3da63e92a93bbf"
+    },
+    {
+     "path": "block_drops/diamond_ore.json",
+     "sha256": "e19cbc84674f3d6810cae8192f62a1f0bcd4e76e1590fcb4b63decbb5830138b"
+    },
+    {
+     "path": "block_drops/glass.json",
+     "sha256": "3ec5665b08d2b0b1dbed2e9f7cd30456e87c67ea0ea1e4788de7195b67ba21d1"
+    },
+    {
+     "path": "block_drops/grass_block.json",
+     "sha256": "c9fe8cb12508116fb0431cb31c2abb4d510c934043b9d939dab0f55553547e9f"
+    },
+    {
+     "path": "block_drops/gravel.json",
+     "sha256": "b31c6143fc8a64cd14f435beda312b6e82f6deca73119e9f7be0df19cb3fc327"
+    },
+    {
+     "path": "block_drops/oak_leaves.json",
+     "sha256": "aa7105331d50abc57a2877d644639b67d2df79119d7bbc715175f640dd03a8cf"
+    },
+    {
+     "path": "block_drops/oak_log.json",
+     "sha256": "5ed69cef0e111bf4a56817f30bfea14fe0cac23f452b662932b5385f59214c92"
+    },
+    {
+     "path": "block_drops/stone.json",
+     "sha256": "f8e4cddf5aea26e867cfbec771b6f76696f7ffd82570d8cffc739ee25ca63ea2"
+    },
+    {
+     "path": "block_drops/web.json",
+     "sha256": "0717aa658b7793282a847597a98cf04f04f30ff81e290cbbf12398a4c65d351d"
+    },
+    {
+     "path": "block_drops/wheat.json",
+     "sha256": "adb158b24c130aede97d1724eb9447fa79ebedb66fcc9a29ef5efe2ed7624a5f"
+    }
+   ],
+   "harness": "tools/bds-sweep (sweep.py drops, endstone-sweep plugin) at 6f91dcb53ad1d00366ad0f5a36ab239d4a05ac2d",
+   "method": "`/loot spawn <p> mine <block> mainhand` executed as the sweep player holding the tool (Endstone ItemStack + ItemMeta enchants), item actors collected and removed after each sample",
+   "repeatability": [
+    {
+     "cells": 126,
+     "deterministic_cells": 89,
+     "largest_total_variation": {
+      "cell": "minecraft:wheat[growth=7]|diamond_pickaxe+fortune2",
+      "value": 0.115
+     },
+     "mismatches": [],
+     "random_cells": 37,
+     "repeat": "drops-20261025T175957Z"
+    }
+   ],
+   "source": "bds_sweep",
+   "sweeps": [
+    {
+     "dir": "drops-20261025T175856Z",
+     "items": 126,
+     "runs": [
+      {
+       "items": 126,
+       "seconds": 25.0,
+       "started": "20261025T175856Z",
+       "status": "done"
+      }
+     ]
+    },
+    {
+     "dir": "drops-20261025T175957Z",
+     "items": 126,
+     "runs": [
+      {
+       "items": 126,
+       "seconds": 14.9,
+       "started": "20261025T175957Z",
+       "status": "done"
+      }
+     ]
+    }
+   ]
+  },
+  "fuel_burn_ticks": {
+   "bds_version": "1.26.51",
+   "files": [
+    {
+     "path": "fuel_burn_ticks.json",
+     "sha256": "b0c4f32c88a868d0116c4ee6f5a82eeadc67af0ccdb994047f368b53f20327fc"
+    }
+   ],
+   "harness": "tools/bds-sweep (sweep.py fuel, endstone-sweep plugin) at 6f91dcb53ad1d00366ad0f5a36ab239d4a05ac2d",
+   "method": "furnace with 1 cobblestone input and 1 candidate fuel (/replaceitem block); server ticks from the first tick the block is lit_furnace to the first tick it is furnace again (+/-1 tick); items that do not light it within 40 ticks are omitted",
+   "source": "bds_sweep",
+   "sweeps": [
+    {
+     "dir": "fuel-20261025T174208Z",
+     "items": 8,
+     "runs": [
+      {
+       "items": 8,
+       "seconds": 1008.5,
+       "started": "20261025T174208Z",
+       "status": "done"
+      }
+     ]
+    }
+   ]
+  }
+ }
+}
