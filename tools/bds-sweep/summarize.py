@@ -1,6 +1,6 @@
 """Turn raw sweep results into measured data for `crates/unastar-data`.
 
-    python tools/bds-sweep/summarize.py drops SWEEP_DIR [SWEEP_DIR ...]
+    python tools/bds-sweep/summarize.py drops SWEEP_DIR [SWEEP_DIR ...] [repeat=SWEEP_DIR ...]
     python tools/bds-sweep/summarize.py armor-slots SWEEP_DIR
     python tools/bds-sweep/summarize.py fuel SWEEP_DIR
     python tools/bds-sweep/summarize.py compare-drops SWEEP_DIR_A SWEEP_DIR_B
@@ -143,13 +143,18 @@ def loot_table(outcomes: dict[str, int]) -> tuple[dict, str]:
     return {'pools': pools}, 'exact' if deterministic else 'empirical'
 
 
-def summarize_drops(sweeps: list[Path]) -> None:
-    """The first sweep is the measurement; further sweeps of the same job are
-    repeat runs whose agreement is recorded as `repeatability`."""
-    primary, repeats = sweeps[0], sweeps[1:]
-    rows = results(primary)
+def summarize_drops(sources: list[Path], repeats: list[Path]) -> None:
+    """Merges measurement sweeps by cell key, the first sweep that has a cell
+    wins (list the sweep with more samples first, e.g. the 400-sample
+    first-state sweep before the all-states sweep). `repeats` are repeat runs
+    of the first sweep; their agreement is recorded as `repeatability`."""
+    primary = sources[0]
+    chosen: dict[str, dict] = {}
+    for source in sources:
+        for row in results(source):
+            chosen.setdefault(row['key'], row)
     by_block: dict[str, list[dict]] = defaultdict(list)
-    for row in rows:
+    for row in chosen.values():
         by_block[row['block']].append(row)
     files = []
     for block, block_rows in sorted(by_block.items()):
@@ -192,7 +197,7 @@ def summarize_drops(sweeps: list[Path]) -> None:
         name = block.removeprefix('minecraft:')
         files.append(write_cases(f'block_drops/{name}.json', block, cases))
     update_manifest('block_drops', {
-        **provenance('drops', sweeps),
+        **provenance('drops', sources + repeats),
         'method': '`/loot spawn <p> mine <block> mainhand` executed as the sweep player holding the tool '
                   '(Endstone ItemStack + ItemMeta enchants), item actors collected and removed after each sample',
         'repeatability': [{'repeat': r.name, **compare(primary, r)} for r in repeats],
@@ -379,7 +384,9 @@ def main() -> int:
         return 2
     kind, dirs = sys.argv[1], [Path(arg).resolve() for arg in sys.argv[2:]]
     if kind == 'drops':
-        summarize_drops(dirs)
+        args = sys.argv[2:]
+        summarize_drops([Path(a).resolve() for a in args if not a.startswith('repeat=')],
+                        [Path(a.removeprefix('repeat=')).resolve() for a in args if a.startswith('repeat=')])
     elif kind == 'compare-drops':
         return compare_drops(*dirs)
     elif kind == 'armor-slots':
