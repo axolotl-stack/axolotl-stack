@@ -307,8 +307,8 @@ def main() -> int:
                             break
                         if client.poll() is not None:
                             # A login can time out while BDS is still busy right after
-                            # start; retry before the job has begun.
-                            if client.returncode != 0 and logins < 3 and not (out / 'results.jsonl').exists():
+                            # start; retry during the first minutes of the run.
+                            if client.returncode != 0 and logins < 3 and time.monotonic() - started < 300:
                                 logins += 1
                                 client = subprocess.Popen([str(args.client), '--name', PLAYER], cwd=REPO,
                                                           stdout=log, stderr=subprocess.STDOUT)
