@@ -277,6 +277,27 @@ def summarize_fuel(sweep: Path) -> None:
     })
 
 
+def summarize_attack(sweep: Path) -> None:
+    """`attack_damage.json`: per held item the damage event value of each
+    trial's first hit on the target and whether all trials agree."""
+    table = {}
+    for row in results(sweep):
+        firsts = [trial['damage'][0] if trial['damage'] else None for trial in row['trials']]
+        table[row['key']] = {
+            'tool_item': row['tool'],
+            'damage': firsts,
+            'consistent': len(set(firsts)) == 1 and firsts[0] is not None,
+        }
+    files = [write('attack_damage.json', dict(sorted(table.items())))]
+    update_manifest('attack_damage', {
+        **provenance('attack', [sweep]),
+        'method': 'sweep player (creative, on the ground, not sprinting) holding the item attacks a freshly '
+                  'spawned minecraft:pig through an InventoryTransaction use-item-on-actor Attack; value of the '
+                  'Endstone ActorDamageEvent for the pig, three trials',
+        'files': files,
+    })
+
+
 def summarize_mining(sweep: Path) -> None:
     table: dict[str, dict] = defaultdict(dict)
     for row in results(sweep):
@@ -318,6 +339,8 @@ def main() -> int:
         summarize_fuel(dirs[0])
     elif kind == 'mining':
         summarize_mining(dirs[0])
+    elif kind == 'attack':
+        summarize_attack(dirs[0])
     else:
         print(__doc__)
         return 2
