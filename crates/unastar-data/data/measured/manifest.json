@@ -6,21 +6,21 @@
    "files": [
     {
      "path": "armor_slots.json",
-     "sha256": "ce063e16386766638175f09e508266e951e497ae75bfd4db1e82ca9a4eebd4e8"
+     "sha256": "5e06ff5c52e3c2e91c84c99b5319c64fc9e6ee445514eec8b72ca57528463272"
     }
    ],
-   "harness": "tools/bds-sweep (sweep.py armor-slots, endstone-sweep plugin) at 6f91dcb53ad1d00366ad0f5a36ab239d4a05ac2d",
+   "harness": "tools/bds-sweep (sweep.py armor-slots, endstone-sweep plugin) at 3eccfa87d10d9d7ba8b96c8f0766fcd96b6177d6",
    "method": "`/replaceitem entity <player> slot.armor.<slot>|slot.weapon.offhand 0 <item>` from the console; true when the slot holds the item afterwards (Endstone PlayerInventory)",
    "source": "bds_sweep",
    "sweeps": [
     {
-     "dir": "armor-slots-20261025T174051Z",
-     "items": 10,
+     "dir": "full-armor-slots",
+     "items": 2075,
      "runs": [
       {
-       "items": 10,
-       "seconds": 16.6,
-       "started": "20261025T174051Z",
+       "items": 2075,
+       "seconds": 13.1,
+       "started": "20261025T192328Z",
        "status": "done"
       }
      ]
