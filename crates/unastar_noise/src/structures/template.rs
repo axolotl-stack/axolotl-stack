@@ -238,6 +238,7 @@ pub fn place_in_world<W: FeatureWorld + ?Sized>(
     rng: &mut FeatureRandom,
     on_block_entity: &mut dyn FnMut(PlacedBlockEntity),
 ) -> bool {
+    let _stage = crate::profile::scope(crate::profile::Stage::StructureTemplates);
     let t = settings.template;
     if t.palettes.is_empty() {
         return false;

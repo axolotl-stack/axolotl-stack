@@ -182,11 +182,15 @@ pub fn ring_positions(
             .chunks(per)
             .map(|part| {
                 let part = part.to_vec();
-                s.spawn(move || part.into_iter().map(search).collect::<Vec<_>>())
+                s.spawn(move || {
+                    crate::profile::thread_allocations(|| {
+                        part.into_iter().map(search).collect::<Vec<_>>()
+                    })
+                })
             })
             .collect();
         for h in handles {
-            out.extend(h.join().expect("ring search thread"));
+            out.extend(h.join().expect("ring search thread").into_inner());
         }
     });
     out

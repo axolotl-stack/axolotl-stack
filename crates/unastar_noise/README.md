@@ -85,3 +85,15 @@ Bedrock ids at the region boundary (`unastar::world::generator::features`).
   order-independent rule; these and other deliberate deviations are listed in
   `thoughts/shared/research/java-quirks.md`.
 
+## Performance instrumentation
+
+The opt-in `worldgen-profile` feature exposes exclusive, thread-local stage timers
+and allocation attribution through `profile`. Ordinary builds compile scopes away;
+the benchmark supplies the counting allocator. `unastar` forwards this feature to
+its `worldgen_bench` example, which reports every Java decoration step, structure
+starts/references/pieces/templates, terrain stages and Bedrock feature passes.
+See [`tools/worldgen-perf`](../../tools/worldgen-perf/README.md) for deterministic
+allocation ratchets, actual-generation-pool throughput, cold spawn-radius timing,
+one-P-core alternating A/B measurements and non-admin Windows CPU profiling.
+
+

@@ -25,6 +25,7 @@ use crate::world::chunk::{Chunk, blocks};
 use std::simd::prelude::*;
 use unastar_noise::java_biomes::JavaBiome;
 use unastar_noise::overworld_settings;
+use unastar_noise::profile::{self, Stage};
 
 /// Java-style terrain generator using 3D density functions.
 ///
@@ -84,9 +85,13 @@ impl JavaGenerator {
     /// Dense form of the shared noise stage, so another edition can apply
     /// its surface/carvers before packing block palettes.
     pub fn generate_noise_blocks(&self, pos: ChunkPos) -> (DenseBlocks, QuartBiomes) {
+        let _noise = profile::scope(Stage::Noise);
         let grid = FlatCacheGrid::new(pos.x, pos.z, &self.noises);
         let col_grid = ColumnContextGrid::new(pos.x, pos.z, &self.noises, &grid);
-        let biomes = biome_source::fill_chunk(&self.noises, pos, &grid, &col_grid);
+        let biomes = {
+            let _biomes = profile::scope(Stage::Biomes);
+            biome_source::fill_chunk(&self.noises, pos, &grid, &col_grid)
+        };
         let mut aquifer = self.aquifer(pos, &grid, &col_grid);
         let dense = self.generate_terrain(pos.x, pos.z, &grid, &col_grid, &mut aquifer);
         (dense, biomes)
@@ -156,6 +161,7 @@ impl JavaGenerator {
         aquifer: &mut NoiseBasedAquifer<'_, OverworldFluidPicker>,
     ) -> DenseBlocks {
         // Air until filled; the paletted chunk is packed once all stages ran.
+        let _noise = profile::scope(Stage::Noise);
         let mut chunk = DenseBlocks::filled(*blocks::AIR);
 
         let cell_width = overworld_settings::CELL_WIDTH;
@@ -220,6 +226,7 @@ impl JavaGenerator {
                                 // Fast path: all 4 blocks are solid
                                 if in_vein_range {
                                     // Check veinifier for ore veins
+                                    let _fluids = profile::scope(Stage::AquiferVeins);
                                     for z_in_cell in 0..4i32 {
                                         let local_z =
                                             ((cell_z as i32) * cell_width + z_in_cell) as u8;
@@ -244,6 +251,7 @@ impl JavaGenerator {
                                 }
                             } else {
                                 // Process each block - use aquifer for non-solid, veinifier for solid
+                                let _fluids = profile::scope(Stage::AquiferVeins);
                                 for z_in_cell in 0..4i32 {
                                     let density = densities_arr[z_in_cell as usize];
                                     let local_z = ((cell_z as i32) * cell_width + z_in_cell) as u8;
@@ -364,14 +372,21 @@ impl Generator for JavaGenerator {
     }
 
     fn generate_proto(&self, pos: ChunkPos) -> ProtoChunk {
+        let _noise = profile::scope(Stage::Noise);
         // Flat (quart) and column caches shared by terrain, biomes, surface and carvers.
         let grid = FlatCacheGrid::new(pos.x, pos.z, &self.noises);
         let col_grid = ColumnContextGrid::new(pos.x, pos.z, &self.noises, &grid);
-        let biomes = biome_source::fill_chunk(&self.noises, pos, &grid, &col_grid);
+        let biomes = {
+            let _biomes = profile::scope(Stage::Biomes);
+            biome_source::fill_chunk(&self.noises, pos, &grid, &col_grid)
+        };
         let mut aquifer = self.aquifer(pos, &grid, &col_grid);
         let mut dense = self.generate_terrain(pos.x, pos.z, &grid, &col_grid, &mut aquifer);
-        self.surface_system
-            .build_surface(&mut dense, pos, &self.noises, &grid, &biomes);
+        {
+            let _surface = profile::scope(Stage::Surface);
+            self.surface_system
+                .build_surface(&mut dense, pos, &self.noises, &grid, &biomes);
+        }
         let mut carving = JavaCarveContext {
             generator: self,
             aquifer: &mut aquifer,
@@ -379,7 +394,11 @@ impl Generator for JavaGenerator {
             grid: &grid,
             biomes: &biomes,
         };
-        carver::carve_chunk(self.seed, &mut dense, pos, &mut carving);
+        {
+            let _carvers = profile::scope(Stage::Carvers);
+            carver::carve_chunk(self.seed, &mut dense, pos, &mut carving);
+        }
+        let _packing = profile::scope(Stage::Packing);
         let chunk = dense.to_chunk(pos, *blocks::AIR);
         ProtoChunk { pos, chunk, biomes }
     }

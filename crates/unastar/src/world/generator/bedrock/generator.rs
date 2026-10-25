@@ -72,6 +72,7 @@ impl BedrockGenerator {
 
     fn surface_blocks(&self, pos: ChunkPos) -> (DenseBlocks, QuartBiomes) {
         let (mut blocks, mut biomes) = self.core.generate_noise_blocks(pos);
+        let _surface = unastar_noise::profile::scope(unastar_noise::profile::Stage::Surface);
         for qy in 0..QUARTS_Y {
             for qz in 0..4 {
                 for qx in 0..4 {
@@ -200,7 +201,10 @@ impl Generator for BedrockGenerator {
         let (blocks, biomes) = self.surface_blocks(pos);
         self.surface_heights
             .get_or_compute(pos, || column_heights(&blocks, |id| id != bb::AIR));
-        let chunk = blocks.to_chunk(pos, bb::AIR);
+        let chunk = {
+            let _packing = unastar_noise::profile::scope(unastar_noise::profile::Stage::Packing);
+            blocks.to_chunk(pos, bb::AIR)
+        };
         let mut set = BiomeSet::default();
         for &id in biomes.as_slice() {
             set.insert(id);

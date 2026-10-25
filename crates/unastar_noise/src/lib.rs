@@ -48,6 +48,9 @@ pub mod features;
 // Java-style structures
 pub mod structures;
 
+// Optional benchmark instrumentation (zero-sized scopes in production builds).
+pub mod profile;
+
 // Runtime types of the compiled carvers (`carvers`)
 pub mod carver;
 

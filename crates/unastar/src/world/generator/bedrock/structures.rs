@@ -803,6 +803,8 @@ pub fn place_in_chunk<W: BlockWorld>(
     chunk_x: i32,
     chunk_z: i32,
 ) {
+    let references_stage =
+        unastar_noise::profile::scope(unastar_noise::profile::Stage::StructureReferences);
     let t = Tables::vanilla();
     let structures: &[Structure] = &generated::JIGSAW_STRUCTURES;
     let (min_y, max_y) = (ctx.world.min_y(), ctx.world.max_y());
@@ -825,9 +827,15 @@ pub fn place_in_chunk<W: BlockWorld>(
                 if (sx - chunk_x).abs() > reach || (sz - chunk_z).abs() > reach {
                     continue;
                 }
-                let Some((index, pieces)) = generate_start(
-                    t, structures, set, &mut rng, sx, sz, surface, biome, min_y, max_y,
-                ) else {
+                let generated = {
+                    let _starts = unastar_noise::profile::scope(
+                        unastar_noise::profile::Stage::StructureStarts,
+                    );
+                    generate_start(
+                        t, structures, set, &mut rng, sx, sz, surface, biome, min_y, max_y,
+                    )
+                };
+                let Some((index, pieces)) = generated else {
                     continue;
                 };
                 if pieces.iter().any(|p| columns.overlaps(&p.bbox)) {
@@ -837,6 +845,8 @@ pub fn place_in_chunk<W: BlockWorld>(
         }
     }
     starts.sort_by_key(|&(step, _, _)| step);
+    drop(references_stage);
+    let _pieces = unastar_noise::profile::scope(unastar_noise::profile::Stage::StructurePieces);
     for (_, index, pieces) in &starts {
         place_start(ctx, t, &structures[*index], pieces, columns);
     }
@@ -1100,6 +1110,8 @@ fn place_piece<W: BlockWorld>(
     piece: &Piece,
     columns: ChunkColumns,
 ) {
+    let _templates =
+        unastar_noise::profile::scope(unastar_noise::profile::Stage::StructureTemplates);
     let template = &t.templates[piece.template as usize];
     let list: &[Processor] = match t.processors.get(piece.processors as usize) {
         Some(l) => l.processors,

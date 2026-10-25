@@ -83,6 +83,18 @@ impl Decorator {
         };
         let origin = BlockPos::new(chunk_x * 16, 0, chunk_z * 16);
         for &pass in passes {
+            use unastar_noise::profile::{self, Stage};
+            let _stage = profile::scope(match pass {
+                Pass::Pregeneration => Stage::Carvers,
+                Pass::First => Stage::BedrockFirst,
+                Pass::BeforeUnderground => Stage::BedrockBeforeUnderground,
+                Pass::Underground => Stage::BedrockUnderground,
+                Pass::AfterUnderground => Stage::BedrockAfterUnderground,
+                Pass::BeforeSurface => Stage::BedrockBeforeSurface,
+                Pass::Surface => Stage::BedrockSurface,
+                Pass::AfterSurface => Stage::BedrockAfterSurface,
+                Pass::Final => Stage::BedrockFinal,
+            });
             generated::run_pass(pass, &mut ctx, origin, biomes);
         }
     }

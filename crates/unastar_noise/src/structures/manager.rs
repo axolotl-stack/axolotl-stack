@@ -61,6 +61,7 @@ impl StructureManager {
         if let Some(s) = self.cache.lock().expect("structure cache").get(&(cx, cz)) {
             return s.clone();
         }
+        let _stage = crate::profile::scope(crate::profile::Stage::StructureStarts);
         let mut out = Vec::new();
         for &set in &self.possible_sets {
             if !is_structure_chunk(&self.rings, set, ctx, cx, cz) {
@@ -113,6 +114,7 @@ impl StructureManager {
         cx: i32,
         cz: i32,
     ) -> Vec<(ChunkStarts, usize)> {
+        let _stage = crate::profile::scope(crate::profile::Stage::StructureReferences);
         let (x0, z0) = (cx * 16, cz * 16);
         let mut out = Vec::new();
         for i in cx - 8..=cx + 8 {
@@ -179,6 +181,7 @@ impl<W: FeatureWorld> StepHook<W> for StructureStepHook<'_> {
         decoration_seed: i64,
         step: usize,
     ) {
+        let _stage = crate::profile::scope(crate::profile::Stage::StructurePieces);
         let (cx, cz) = self.chunk;
         // `getWritableArea`: the chunk column from min_y + 1.
         let chunk_box = BoundingBox::new(
