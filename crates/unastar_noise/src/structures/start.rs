@@ -81,12 +81,24 @@ pub enum StructureKind {
     Fortress,
     Igloo,
     JungleTemple,
-    Mineshaft { mesa: bool },
-    NetherFossil { height: StructureHeight },
+    Mineshaft {
+        mesa: bool,
+    },
+    NetherFossil {
+        height: StructureHeight,
+    },
     OceanMonument,
-    OceanRuin { warm: bool, large_probability: f32, cluster_probability: f32 },
-    RuinedPortal { setups: &'static [RuinedPortalSetup] },
-    Shipwreck { beached: bool },
+    OceanRuin {
+        warm: bool,
+        large_probability: f32,
+        cluster_probability: f32,
+    },
+    RuinedPortal {
+        setups: &'static [RuinedPortalSetup],
+    },
+    Shipwreck {
+        beached: bool,
+    },
     Stronghold,
     SwampHut,
     WoodlandMansion,
@@ -115,7 +127,12 @@ pub struct GenContext<'a> {
 }
 
 impl<'a> GenContext<'a> {
-    pub fn new(ctx: &'a dyn StructureContext, def: &'static StructureDef, chunk_x: i32, chunk_z: i32) -> Self {
+    pub fn new(
+        ctx: &'a dyn StructureContext,
+        def: &'static StructureDef,
+        chunk_x: i32,
+        chunk_z: i32,
+    ) -> Self {
         let mut random = LegacyRandom::new(0);
         random.set_large_feature_seed(ctx.seed(), chunk_x, chunk_z);
         Self {
@@ -160,11 +177,14 @@ impl<'a> GenContext<'a> {
 /// `Structure.getLowestY(context, x, z, width, depth)`.
 pub fn lowest_y_at(ctx: &dyn StructureContext, x: i32, z: i32, width: i32, depth: i32) -> i32 {
     let h = |x, z| ctx.first_occupied_height(x, z, Heightmap::WorldSurfaceWg);
-    h(x, z).min(h(x, z + depth)).min(h(x + width, z).min(h(x + width, z + depth)))
+    h(x, z)
+        .min(h(x, z + depth))
+        .min(h(x + width, z).min(h(x + width, z + depth)))
 }
 
 /// The lazily built pieces of a generation point.
-pub type PieceBuilder<'a> = Box<dyn FnOnce(&mut GenContext<'_>) -> Vec<Box<dyn StructurePiece>> + 'a>;
+pub type PieceBuilder<'a> =
+    Box<dyn FnOnce(&mut GenContext<'_>) -> Vec<Box<dyn StructurePiece>> + 'a>;
 
 /// `Structure.GenerationStub`: where a start would be and how to build it.
 pub struct GenerationStub<'a> {
@@ -184,7 +204,12 @@ pub struct StructureStart {
 }
 
 impl StructureStart {
-    pub fn new(structure: u16, chunk_x: i32, chunk_z: i32, pieces: Vec<Box<dyn StructurePiece>>) -> Option<Self> {
+    pub fn new(
+        structure: u16,
+        chunk_x: i32,
+        chunk_z: i32,
+        pieces: Vec<Box<dyn StructurePiece>>,
+    ) -> Option<Self> {
         let first = pieces.first()?.bbox();
         let mut bbox = first;
         for p in &pieces[1..] {

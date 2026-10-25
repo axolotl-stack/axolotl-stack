@@ -12,9 +12,11 @@ use unastar_noise::features::generated::{
 
 #[test]
 fn unknown_feature_type_is_rejected() {
-    let err = serde_json::from_str::<ConfiguredFeature>(r#"{"type":"minecraft:not_a_feature","config":{}}"#)
-        .unwrap_err()
-        .to_string();
+    let err = serde_json::from_str::<ConfiguredFeature>(
+        r#"{"type":"minecraft:not_a_feature","config":{}}"#,
+    )
+    .unwrap_err()
+    .to_string();
     assert!(err.contains("not_a_feature"), "{err}");
 }
 
@@ -54,7 +56,10 @@ fn inline_object_errors_keep_their_cause() {
 /// that is what makes per-biome decoration order match vanilla.
 #[test]
 fn step_order_respects_every_biome_list() {
-    for (dim, data) in [("overworld", &OVERWORLD_FEATURES), ("nether", &NETHER_FEATURES)] {
+    for (dim, data) in [
+        ("overworld", &OVERWORLD_FEATURES),
+        ("nether", &NETHER_FEATURES),
+    ] {
         for (b, steps) in data.biome_steps.iter().enumerate() {
             for (s, idx) in steps.iter().enumerate() {
                 assert!(
@@ -72,8 +77,14 @@ fn step_order_respects_every_biome_list() {
 
 #[test]
 fn overworld_biomes_decorate_only_overworld_features() {
-    let plains = BIOME_NAMES.iter().position(|b| *b == "minecraft:plains").unwrap();
-    let nether = BIOME_NAMES.iter().position(|b| *b == "minecraft:nether_wastes").unwrap();
+    let plains = BIOME_NAMES
+        .iter()
+        .position(|b| *b == "minecraft:plains")
+        .unwrap();
+    let nether = BIOME_NAMES
+        .iter()
+        .position(|b| *b == "minecraft:nether_wastes")
+        .unwrap();
     assert!(OVERWORLD_BIOMES & (1u128 << plains) != 0);
     assert!(OVERWORLD_BIOMES & (1u128 << nether) == 0);
     let ores: Vec<&str> = OVERWORLD_FEATURES.biome_steps[plains][6]
@@ -82,5 +93,9 @@ fn overworld_biomes_decorate_only_overworld_features() {
         .collect();
     assert!(ores.contains(&"minecraft:ore_diamond"), "{ores:?}");
     assert!(ores.contains(&"minecraft:ore_coal_upper"), "{ores:?}");
-    assert!(OVERWORLD_FEATURES.biome_steps[nether].iter().all(|s| s.is_empty()));
+    assert!(
+        OVERWORLD_FEATURES.biome_steps[nether]
+            .iter()
+            .all(|s| s.is_empty())
+    );
 }

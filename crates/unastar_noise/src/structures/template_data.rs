@@ -193,6 +193,22 @@ static TEMPLATES: LazyLock<Vec<Template>> = LazyLock::new(|| {
         .collect()
 });
 
+static EMPTY: Template = Template {
+    name: "",
+    size: [0, 0, 0],
+    palettes: Vec::new(),
+    block_entities: Vec::new(),
+    entities: Vec::new(),
+};
+
+/// `StructureTemplateManager.getOrCreate(id)`: the template, or Java's empty
+/// template (size 0, no palette) when the id has no file. Vanilla 1.21.11 data
+/// references one such id (`minecraft:ancient_city/walls/intact_horizontal_wall_stairs_5`),
+/// which Java then treats as a zero-size piece that places nothing.
+pub fn template_or_empty(name: &str) -> &'static Template {
+    template(name).unwrap_or(&EMPTY)
+}
+
 /// Template by id (`minecraft:igloo/top`).
 ///
 /// # Panics

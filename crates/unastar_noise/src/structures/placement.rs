@@ -121,7 +121,13 @@ impl RingPositions {
 /// `ChunkGeneratorStructureState.generateRingPositions` (concentric rings
 /// seed = level seed). Each position is moved to a preferred biome found by
 /// `findBiomeHorizontal` within 112 blocks of the ring point.
-pub fn ring_positions(ctx: &dyn StructureContext, distance: i32, spread: i32, count: i32, preferred: u128) -> Vec<(i32, i32)> {
+pub fn ring_positions(
+    ctx: &dyn StructureContext,
+    distance: i32,
+    spread: i32,
+    count: i32,
+    preferred: u128,
+) -> Vec<(i32, i32)> {
     if count == 0 {
         return Vec::new();
     }
@@ -132,12 +138,21 @@ pub fn ring_positions(ctx: &dyn StructureContext, distance: i32, spread: i32, co
     let mut ring = 0;
     let mut per_ring = spread;
     for j in 0..count {
-        let dist = (4 * distance + distance * ring * 6) as f64 + (random.next_double() - 0.5) * distance as f64 * 2.5;
+        let dist = (4 * distance + distance * ring * 6) as f64
+            + (random.next_double() - 0.5) * distance as f64 * 2.5;
         // Java Math.round: floor(x + 0.5).
         let cx = (angle.cos() * dist + 0.5).floor() as i32;
         let cz = (angle.sin() * dist + 0.5).floor() as i32;
         let mut fork = random.fork();
-        let found = find_biome_horizontal(ctx, (cx << 4) + 8, 0, (cz << 4) + 8, 112, preferred, &mut fork);
+        let found = find_biome_horizontal(
+            ctx,
+            (cx << 4) + 8,
+            0,
+            (cz << 4) + 8,
+            112,
+            preferred,
+            &mut fork,
+        );
         out.push(match found {
             Some((x, _, z)) => (x >> 4, z >> 4),
             None => (cx, cz),
@@ -215,7 +230,14 @@ impl Placement {
     }
 
     /// `isPlacementChunk`.
-    pub fn is_placement_chunk(&self, rings: &RingPositions, set: usize, ctx: &dyn StructureContext, x: i32, z: i32) -> bool {
+    pub fn is_placement_chunk(
+        &self,
+        rings: &RingPositions,
+        set: usize,
+        ctx: &dyn StructureContext,
+        x: i32,
+        z: i32,
+    ) -> bool {
         match self.kind {
             PlacementKind::RandomSpread { .. } => self.potential_chunk(ctx.seed(), x, z) == (x, z),
             PlacementKind::ConcentricRings { .. } => rings.get(set, ctx).contains(&(x, z)),
@@ -224,12 +246,22 @@ impl Placement {
 }
 
 /// `StructurePlacement.isStructureChunk` for set `set`.
-pub fn is_structure_chunk(rings: &RingPositions, set: usize, ctx: &dyn StructureContext, x: i32, z: i32) -> bool {
+pub fn is_structure_chunk(
+    rings: &RingPositions,
+    set: usize,
+    ctx: &dyn StructureContext,
+    x: i32,
+    z: i32,
+) -> bool {
     let p = &super::generated::STRUCTURE_SETS[set].placement;
     if !p.is_placement_chunk(rings, set, ctx, x, z) {
         return false;
     }
-    if p.frequency < 1.0 && !p.frequency_reduction.should_generate(ctx.seed(), p.salt, x, z, p.frequency) {
+    if p.frequency < 1.0
+        && !p
+            .frequency_reduction
+            .should_generate(ctx.seed(), p.salt, x, z, p.frequency)
+    {
         return false;
     }
     if let Some((other, range)) = p.exclusion_zone {

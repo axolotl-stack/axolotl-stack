@@ -12,10 +12,12 @@ pub trait StructureContext {
     /// Level seed.
     fn seed(&self) -> i64;
     /// Lowest buildable Y.
+    /// Lowest Y of the `WorldGenerationContext`: `max(level min_y, generator min_y)`.
     fn min_y(&self) -> i32;
-    /// Build height (layers).
+    /// Height of the `WorldGenerationContext`: `min(level height, generator gen depth)`
+    /// (384 in the overworld, 128 in the nether). Height providers resolve
+    /// anchors against this and [`Self::min_y`].
     fn height(&self) -> i32;
-    /// Sea level.
     fn sea_level(&self) -> i32;
     /// `BiomeSource.getNoiseBiome(qx, qy, qz, sampler)`: biome index (into
     /// `features::generated::BIOME_NAMES`) at a quart position, no zoom.

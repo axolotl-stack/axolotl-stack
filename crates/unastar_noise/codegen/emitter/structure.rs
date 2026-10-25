@@ -230,8 +230,17 @@ impl<'a> StructureEmitter<'a> {
 }
 
 /// Resolve a biome tag (or `#tag` / list of ids) to a biome index bitset.
-fn biome_set(data: &StructureData, biome_index: &BTreeMap<String, usize>, spec: &str) -> Result<u128> {
-    fn tag(data: &StructureData, idx: &BTreeMap<String, usize>, name: &str, depth: usize) -> Result<u128> {
+fn biome_set(
+    data: &StructureData,
+    biome_index: &BTreeMap<String, usize>,
+    spec: &str,
+) -> Result<u128> {
+    fn tag(
+        data: &StructureData,
+        idx: &BTreeMap<String, usize>,
+        name: &str,
+        depth: usize,
+    ) -> Result<u128> {
         if depth > 16 {
             return Err(format!("biome tag cycle at {name}").into());
         }
@@ -244,7 +253,9 @@ fn biome_set(data: &StructureData, biome_index: &BTreeMap<String, usize>, spec: 
             if let Some(t) = e.strip_prefix('#') {
                 bits |= tag(data, idx, t, depth + 1)?;
             } else {
-                let i = idx.get(e).ok_or_else(|| format!("biome tag #{name}: unknown biome {e}"))?;
+                let i = idx
+                    .get(e)
+                    .ok_or_else(|| format!("biome tag #{name}: unknown biome {e}"))?;
                 bits |= 1u128 << i;
             }
         }
@@ -271,7 +282,8 @@ fn anchor(a: &VerticalAnchor) -> TokenStream {
 
 fn structure_height(h: &HeightProvider) -> Result<TokenStream> {
     Ok(match h {
-        HeightProvider::Constant(a) | HeightProvider::Provider(HeightProviderObj::Constant { value: a }) => {
+        HeightProvider::Constant(a)
+        | HeightProvider::Provider(HeightProviderObj::Constant { value: a }) => {
             let a = anchor(a);
             quote! { StructureHeight::Constant(#a) }
         }
@@ -303,7 +315,11 @@ impl StructureEmitter<'_> {
         })
     }
 
-    fn pool_element(&mut self, e: &PoolElement, placed: &BTreeMap<String, u16>) -> Result<TokenStream> {
+    fn pool_element(
+        &mut self,
+        e: &PoolElement,
+        placed: &BTreeMap<String, u16>,
+    ) -> Result<TokenStream> {
         let proj = |p: Projection| match p {
             Projection::Rigid => quote! { Projection::Rigid },
             Projection::TerrainMatching => quote! { Projection::TerrainMatching },
@@ -334,14 +350,20 @@ impl StructureEmitter<'_> {
                     PoolElement::Single { template: #location, processors: #p, projection: #pr, override_liquid: #l, legacy: #legacy }
                 }
             }
-            PoolElement::Feature { feature, projection } => {
-                let id = *placed
-                    .get(feature)
-                    .ok_or_else(|| format!("feature_pool_element: unknown placed feature {feature}"))?;
+            PoolElement::Feature {
+                feature,
+                projection,
+            } => {
+                let id = *placed.get(feature).ok_or_else(|| {
+                    format!("feature_pool_element: unknown placed feature {feature}")
+                })?;
                 let pr = proj(*projection);
                 quote! { PoolElement::Feature { feature: #id, projection: #pr } }
             }
-            PoolElement::List { elements, projection } => {
+            PoolElement::List {
+                elements,
+                projection,
+            } => {
                 let es = elements
                     .iter()
                     .map(|x| self.pool_element(x, placed))
@@ -355,7 +377,9 @@ impl StructureEmitter<'_> {
 
     fn pool_alias(a: &PoolAlias) -> TokenStream {
         match a {
-            PoolAlias::Direct { alias, target } => quote! { PoolAlias::Direct { alias: #alias, target: #target } },
+            PoolAlias::Direct { alias, target } => {
+                quote! { PoolAlias::Direct { alias: #alias, target: #target } }
+            }
             PoolAlias::Random { alias, targets } => {
                 let ts = targets.iter().map(|t| {
                     let (d, w) = (&t.data, t.weight);
@@ -426,7 +450,9 @@ pub fn emit_structures(
         if !data.pools.contains_key(fallback) {
             return Err(format!("template pool {name}: unknown fallback {fallback}").into());
         }
-        pools.push(quote! { TemplatePool { name: #name, fallback: #fallback, elements: &[#(#es),*] } });
+        pools.push(
+            quote! { TemplatePool { name: #name, fallback: #fallback, elements: &[#(#es),*] } },
+        );
     }
     let n_pools = pools.len();
 
@@ -440,7 +466,8 @@ pub fn emit_structures(
     let mut defs = Vec::new();
     for (name, s) in &data.structures {
         let c = s.common();
-        let biomes = biome_set(data, &biome_index, &c.biomes).map_err(|e| format!("structure {name}: {e}"))?;
+        let biomes = biome_set(data, &biome_index, &c.biomes)
+            .map_err(|e| format!("structure {name}: {e}"))?;
         let biomes = proc_macro2::Literal::u128_suffixed(biomes);
         let step = step_index(&c.step)?;
         let adapt = match c.terrain_adaptation {
@@ -453,7 +480,9 @@ pub fn emit_structures(
         let kind = match s {
             Structure::Jigsaw(j) => {
                 if !data.pools.contains_key(&j.start_pool) {
-                    return Err(format!("structure {name}: unknown start pool {}", j.start_pool).into());
+                    return Err(
+                        format!("structure {name}: unknown start pool {}", j.start_pool).into(),
+                    );
                 }
                 let sp = &j.start_pool;
                 let sjn = match &j.start_jigsaw_name {
@@ -496,7 +525,11 @@ pub fn emit_structures(
                 let mesa = match m.mineshaft_type.as_str() {
                     "normal" => false,
                     "mesa" => true,
-                    other => return Err(format!("structure {name}: unknown mineshaft_type {other}").into()),
+                    other => {
+                        return Err(
+                            format!("structure {name}: unknown mineshaft_type {other}").into()
+                        );
+                    }
                 };
                 quote! { StructureKind::Mineshaft { mesa: #mesa } }
             }
@@ -509,7 +542,9 @@ pub fn emit_structures(
                 let warm = match r.biome_temp.as_str() {
                     "warm" => true,
                     "cold" => false,
-                    other => return Err(format!("structure {name}: unknown biome_temp {other}").into()),
+                    other => {
+                        return Err(format!("structure {name}: unknown biome_temp {other}").into());
+                    }
                 };
                 let (lp, cp) = (r.large_probability, r.cluster_probability);
                 quote! { StructureKind::OceanRuin { warm: #warm, large_probability: #lp, cluster_probability: #cp } }
@@ -550,16 +585,21 @@ pub fn emit_structures(
     let n_structures = defs.len();
 
     // Structure sets (sorted ids).
-    let set_ids: BTreeMap<&String, u16> = data.sets.keys().enumerate().map(|(i, n)| (n, i as u16)).collect();
+    let set_ids: BTreeMap<&String, u16> = data
+        .sets
+        .keys()
+        .enumerate()
+        .map(|(i, n)| (n, i as u16))
+        .collect();
     let mut sets = Vec::new();
     for (name, set) in &data.sets {
         let entries = set
             .structures
             .iter()
             .map(|e| {
-                let i = structure_ids
-                    .get(&e.structure)
-                    .ok_or_else(|| format!("structure set {name}: unknown structure {}", e.structure))?;
+                let i = structure_ids.get(&e.structure).ok_or_else(|| {
+                    format!("structure set {name}: unknown structure {}", e.structure)
+                })?;
                 let w = e.weight;
                 Ok(quote! { (#i, #w) })
             })
@@ -574,9 +614,12 @@ pub fn emit_structures(
             Ok(match z {
                 None => quote! { None },
                 Some(z) => {
-                    let i = set_ids
-                        .get(&z.other_set)
-                        .ok_or_else(|| format!("structure set {name}: unknown exclusion set {}", z.other_set))?;
+                    let i = set_ids.get(&z.other_set).ok_or_else(|| {
+                        format!(
+                            "structure set {name}: unknown exclusion set {}",
+                            z.other_set
+                        )
+                    })?;
                     let c = z.chunk_count;
                     quote! { Some((#i, #c)) }
                 }

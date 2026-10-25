@@ -8,7 +8,6 @@ use super::blocks::{
 use super::random::{BitSource, FeatureRandom, WorldgenRandom};
 use super::values::weighted_pick;
 
-
 /// Block entity contents produced by generation.
 #[derive(Debug, Clone, Copy, PartialEq)]
 pub struct BlockEntityData {

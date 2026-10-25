@@ -2,8 +2,8 @@
 
 pub mod context;
 pub mod jigsaw;
-pub mod piece;
 pub mod kinds;
+pub mod piece;
 pub mod placement;
 pub mod processor;
 pub mod ruined;

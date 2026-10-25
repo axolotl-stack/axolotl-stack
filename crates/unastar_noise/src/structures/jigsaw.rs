@@ -30,7 +30,10 @@ pub enum PoolElement {
         legacy: bool,
     },
     /// `feature_pool_element`: a placed feature id.
-    Feature { feature: u16, projection: Projection },
+    Feature {
+        feature: u16,
+        projection: Projection,
+    },
     /// `list_pool_element`.
     List {
         elements: &'static [PoolElement],

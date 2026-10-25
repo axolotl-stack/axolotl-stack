@@ -111,19 +111,36 @@ impl PieceBase {
     }
 
     /// `getBlock(level, x, y, z, box)`: air outside `bx`.
-    pub fn get_block<W: FeatureWorld + ?Sized>(&self, world: &mut W, x: i32, y: i32, z: i32, bx: &BoundingBox) -> JavaState {
+    pub fn get_block<W: FeatureWorld + ?Sized>(
+        &self,
+        world: &mut W,
+        x: i32,
+        y: i32,
+        z: i32,
+        bx: &BoundingBox,
+    ) -> JavaState {
         let pos = self.world_pos(x, y, z);
-        if bx.is_inside(pos) { world.get_state(pos) } else { states::AIR }
+        if bx.is_inside(pos) {
+            world.get_state(pos)
+        } else {
+            states::AIR
+        }
     }
 
     /// `isInterior(level, x, y, z, box)`.
-    pub fn is_interior<W: FeatureWorld + ?Sized>(&self, world: &mut W, x: i32, y: i32, z: i32, bx: &BoundingBox) -> bool {
+    pub fn is_interior<W: FeatureWorld + ?Sized>(
+        &self,
+        world: &mut W,
+        x: i32,
+        y: i32,
+        z: i32,
+        bx: &BoundingBox,
+    ) -> bool {
         let pos = self.world_pos(x, y + 1, z);
         if !bx.is_inside(pos) {
             return false;
         }
-        let p = self.world_pos(x, y, z);
-        p.y < world.get_height(Heightmap::OceanFloorWg, p.x, p.z)
+        pos.y < world.get_height(Heightmap::OceanFloorWg, pos.x, pos.z)
     }
 
     /// `generateAirBox`.
@@ -353,7 +370,14 @@ impl PieceBase {
         if !bx.is_inside(pos) || world.get_state(pos).is(b::DISPENSER) {
             return false;
         }
-        self.place_block(world, states::DISPENSER.with("facing", facing.name()), x, y, z, bx);
+        self.place_block(
+            world,
+            states::DISPENSER.with("facing", facing.name()),
+            x,
+            y,
+            z,
+            bx,
+        );
         if world.get_state(pos).is(b::DISPENSER) {
             world.set_block_entity(pos, BlockEntityData::loot(loot_table, rng.next_long()));
         }
@@ -374,7 +398,11 @@ pub fn is_replaceable_by_structures(s: JavaState) -> bool {
 
 /// `StructurePiece.reorient(level, pos, chest)`: face away from the single
 /// solid neighbour, or away from walls in front.
-pub fn reorient_chest<W: FeatureWorld + ?Sized>(world: &mut W, pos: BlockPos, state: JavaState) -> JavaState {
+pub fn reorient_chest<W: FeatureWorld + ?Sized>(
+    world: &mut W,
+    pos: BlockPos,
+    state: JavaState,
+) -> JavaState {
     let mut only: Option<Direction> = None;
     for dir in Direction::HORIZONTAL {
         let n = world.get_state(pos.rel(dir));

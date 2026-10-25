@@ -86,7 +86,8 @@ impl TemplatePiece {
         block: crate::features::JavaBlock,
     ) -> Vec<(BlockPos, Option<&'static BlockEntityInfo>)> {
         let t = self.template;
-        let index = settings.next_int(rng, self.template_position, t.palettes.len() as i32) as usize;
+        let index =
+            settings.next_int(rng, self.template_position, t.palettes.len() as i32) as usize;
         let mut out = Vec::new();
         for tb in &t.palettes[index] {
             if !tb.state.is(block) {
@@ -94,8 +95,16 @@ impl TemplatePiece {
             }
             let local = BlockPos::new(tb.x as i32, tb.y as i32, tb.z as i32);
             let rel = transform(local, settings.mirror, settings.rotation, settings.pivot);
-            let pos = rel.offset(self.template_position.x, self.template_position.y, self.template_position.z);
-            out.push((pos, tb.block_entity.and_then(|i| t.block_entities.get(i as usize))));
+            let pos = rel.offset(
+                self.template_position.x,
+                self.template_position.y,
+                self.template_position.z,
+            );
+            out.push((
+                pos,
+                tb.block_entity
+                    .and_then(|i| t.block_entities.get(i as usize)),
+            ));
         }
         out
     }
@@ -150,12 +159,21 @@ impl StructurePiece for TemplatePiece {
     ) {
         let mut settings = self.settings(chunk_box);
         let mut placed = Vec::new();
-        if !place_in_world(world, self.template_position, pivot, &mut settings, rng, &mut |be| placed.push(be)) {
+        if !place_in_world(
+            world,
+            self.template_position,
+            pivot,
+            &mut settings,
+            rng,
+            &mut |be| placed.push(be),
+        ) {
             return;
         }
         record_block_entities(world, &placed);
         for (pos, info) in self.filter_blocks(&settings, rng, b::STRUCTURE_BLOCK) {
-            if let (Some(BlockEntityInfo::DataMarker { metadata }), Some(handler)) = (info, self.on_data_marker) {
+            if let (Some(BlockEntityInfo::DataMarker { metadata }), Some(handler)) =
+                (info, self.on_data_marker)
+            {
                 handler(self, metadata, pos, world, rng, chunk_box);
             }
         }
