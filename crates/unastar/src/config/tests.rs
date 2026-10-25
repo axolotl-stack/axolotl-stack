@@ -134,7 +134,7 @@ fn strict_world_variants_still_load_valid_options() {
             WorldGenerator::VoidSpawnPlatform {
                 platform_radius_chunks: 2,
             },
-            WorldGenerator::Vanilla { seed: 42 },
+            WorldGenerator::Java { seed: 42 },
         ] {
             let world = WorldConfig {
                 bounds,

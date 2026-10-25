@@ -3,6 +3,13 @@ name = "unastar"
 version = "0.1.0"
 edition.workspace = true
 
+[features]
+default = []
+# Java Edition structure templates for the Java-style generator, read at build
+# time from the server jar named by UNASTAR_JAVA_SERVER_JAR (Mojang assets,
+# never committed). Without it `world.generator.kind = "java"` is rejected.
+java-worldgen = ["unastar_noise/java-templates"]
+
 [dependencies]
 bytes.workspace = true
 jolyne = { workspace = true, features = ["server", "raknet"] }
@@ -26,6 +33,7 @@ bevy_tasks.workspace = true
 async-trait.workspace = true
 bleveldb.workspace = true
 serde_json.workspace = true
+sha2.workspace = true
 anyhow = "1.0"
 
 # BlazeDB dependencies
@@ -43,8 +51,4 @@ wasmtime-wasi = "41.0"
 bitflags = "2.6"
 
 [dev-dependencies]
-criterion = { version = "0.5", features = ["html_reports"] }
-
-[[bench]]
-name = "world_generation"
-harness = false
+flate2.workspace = true

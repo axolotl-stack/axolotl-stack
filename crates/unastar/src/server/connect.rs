@@ -200,20 +200,19 @@ pub async fn resolve_spawn_location(
         return location;
     }
 
-    // Final fallback: use template spawn (for non-vanilla) or search for safe spawn (vanilla)
-    // NOTE: find_safe_spawn() is expensive and should be avoided by configuring spawn in config.
+    // Final fallback: template spawn (flat/void) or a generator spawn search (terrain).
+    // NOTE: the search is expensive and should be avoided by configuring spawn in config.
     // This is only called when no spawn location is configured at all.
-    if let crate::world::WorldGenerator::Vanilla { seed } = config.world.generator {
+    if config.world.generator.uses_generation_pool() {
         tracing::warn!(
-            "No spawn location configured for vanilla world - searching for safe spawn. \
+            "No spawn location configured for a generated world - searching for safe spawn. \
              This is slow! Configure [[spawn_rules]] with a location in your config."
         );
-        let generator = crate::world::generator::VanillaGenerator::new(seed);
-        let (x, y, z) = generator.find_safe_spawn();
+        let spawn = config.world.generator.build().find_spawn();
         return SpawnLocation {
-            x: x as f32 + 0.5,
-            y: y as f32,
-            z: z as f32 + 0.5,
+            x: spawn.x as f32 + 0.5,
+            y: spawn.y as f32,
+            z: spawn.z as f32 + 0.5,
             yaw: 0.0,
             pitch: 0.0,
         };

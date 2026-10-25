@@ -159,23 +159,10 @@ fn handle_subchunk_request(
         };
 
         let is_empty = chunk_data.inner.is_subchunk_empty(sub_y);
+        // Always encode the live chunk: a per-generator template cache would serve
+        // stale data after a player edits a chunk.
         let subchunk_data = if !is_empty {
-            let use_cache = matches!(
-                chunk_manager.world_config().generator,
-                crate::world::WorldGenerator::SuperFlat
-            );
-
-            if use_cache {
-                if let Some(cached) =
-                    crate::world::generator::flat::get_cached_superflat_subchunk(sub_y)
-                {
-                    cached.to_vec()
-                } else {
-                    chunk_data.inner.encode_subchunk(sub_y).unwrap_or_default()
-                }
-            } else {
-                chunk_data.inner.encode_subchunk(sub_y).unwrap_or_default()
-            }
+            chunk_data.inner.encode_subchunk(sub_y).unwrap_or_default()
         } else {
             vec![]
         };
@@ -261,4 +248,71 @@ fn empty_height_map_data() -> SubChunkPacketPayloadHeightmapData {
 
 fn height_map(map: [u8; 256]) -> [Vec<i8>; 16] {
     std::array::from_fn(|z| (0..16).map(|x| map[(z << 4) | x] as i8).collect())
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::world::chunk::blocks;
+    use crate::world::ecs::ChunkManagerWorldExt;
+    use crate::world::{WorldConfig, WorldGenerator};
+    use bevy_ecs::system::RunSystemOnce;
+    use jolyne::valentine::types::{DimensionType, SubChunkPacketPayloadSubChunkPosOffset};
+    use jolyne::valentine::{McpePacketData, SubChunkRequestPacket};
+
+    /// An edited superflat chunk must be served as edited, not as the generator template.
+    #[test]
+    fn edited_superflat_subchunk_is_served_live() {
+        let mut world = World::new();
+        world.insert_resource(ChunkManager::new(WorldConfig {
+            generator: WorldGenerator::SuperFlat,
+            ..WorldConfig::default()
+        }));
+        world.insert_resource(ServerConfigResource(Default::default()));
+        world.init_resource::<ChunkPacketQueue>();
+        let chunk = world.get_or_create_chunk(0, 0);
+        // Replace the grass at y=3 with stone.
+        let edited = {
+            let mut data = world.get_mut::<ChunkData>(chunk).unwrap();
+            data.inner.set_block(1, 3, 1, *blocks::STONE);
+            data.inner.encode_subchunk(0).unwrap()
+        };
+
+        let (tx, mut rx) = tokio::sync::mpsc::channel(8);
+        let player = world
+            .spawn(PlayerSession::new(1, "test".into(), None, None, tx))
+            .id();
+        world.resource_mut::<ChunkPacketQueue>().0.push((
+            player,
+            ChunkAction::SubchunkRequest(SubChunkRequestPacket {
+                dimension_type: DimensionType { value: 0 },
+                sub_chunk_position_offset_list: vec![SubChunkPacketPayloadSubChunkPosOffset {
+                    subchunk_offset_x: 0,
+                    subchunk_offset_y: 0,
+                    subchunk_offset_z: 0,
+                }],
+                center_pos: SubChunkPos {
+                    subchunk_position_x: 0,
+                    subchunk_position_y: 0,
+                    subchunk_position_z: 0,
+                },
+            }),
+        ));
+        world.run_system_once(apply_chunk_requests).unwrap();
+
+        let McpePacketData::SubChunkPacket(packet) = rx.try_recv().unwrap().data else {
+            panic!("expected a SubChunk packet");
+        };
+        let served = packet.sub_chunk_data[0]
+            .serialized_sub_chunk
+            .as_ref()
+            .expect("non-empty sub-chunk");
+        assert_eq!(served.as_ref(), edited.as_slice());
+        // The generator template differs, so a template cache would fail this test.
+        let template = crate::world::generator::Generator::generate_proto(
+            &crate::world::generator::FlatGenerator,
+            crate::world::ChunkPos::new(0, 0),
+        );
+        assert_ne!(template.chunk.encode_subchunk(0).unwrap(), edited);
+    }
 }
