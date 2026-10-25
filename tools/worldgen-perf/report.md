@@ -83,6 +83,10 @@ Same 68 positions, release stage build, mask 4, turbo off, concurrent workers ac
 
 The initial per-stage allocation/byte ceiling passes; both edition hash tests pass.
 This slice claims allocation savings, not a wall-time speedup.
+Full acceptance at `e0e399d9`: `cargo test -p unastar -p unastar_noise --all-features
+--no-fail-fast` passed **701 tests across 13 suites, 1 ignored**. The requested
+three-crate all-target/all-feature clippy with `-D warnings` and `cargo fmt --all`
+also passed.
 
 ### Rejected quart-grid cache experiment
 
@@ -92,3 +96,23 @@ active: Java median 79.794 → 77.784 ms/requested chunk. However it increased f
 allocation traffic by 24,016 bytes (174,887,548 → 174,911,564 bytes, normal builds).
 The grid cache was removed rather than weakening the byte ceiling or retaining
 additional state for a small noisy timing gain.
+
+## Java demand-decoded template slots
+
+Each embedded template now has its own `OnceLock<Template>` slot. The index table
+is validated once, but requesting a template decodes only its existing compiled
+blob offset instead of allocating palettes/entities for all 1,202 templates.
+Returned references remain stable and concurrent requests are single-flight.
+No decoder, template bytes, processor order or placement behavior changes.
+
+Release stage build, mask 4, turbo off, other workers active; same 68-chunk workload:
+
+| Fixture-total traffic | Prior scratch-list slice | Demand-decoded templates |
+|---|---:|---:|
+| Finished allocations | 189107 | 186239 |
+| Finished requested bytes | 174812524 | 166525870 |
+
+All savings are attributed to structure starts. Raw result:
+[`lazy-java-stages.json`](lazy-java-stages.json). The original stage ceilings and
+both 68-chunk exact-output hashes pass. Requested fmt/clippy gates pass; the full
+all-feature unastar + unastar_noise suite again passes 701 tests (1 ignored).
