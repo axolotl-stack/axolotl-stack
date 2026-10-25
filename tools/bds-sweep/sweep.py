@@ -290,6 +290,7 @@ def main() -> int:
             with (out / 'client.log').open('a', encoding='utf-8') as log:
                 client = subprocess.Popen([str(args.client), '--name', PLAYER], cwd=REPO,
                                           stdout=log, stderr=subprocess.STDOUT)
+                logins = 1
                 try:
                     while time.monotonic() - started < args.timeout:
                         if (out / 'done.json').exists():
@@ -305,6 +306,13 @@ def main() -> int:
                             status = 'stopped on request (resume with the same --out)'
                             break
                         if client.poll() is not None:
+                            # A login can time out while BDS is still busy right after
+                            # start; retry before the job has begun.
+                            if client.returncode != 0 and logins < 3 and not (out / 'results.jsonl').exists():
+                                logins += 1
+                                client = subprocess.Popen([str(args.client), '--name', PLAYER], cwd=REPO,
+                                                          stdout=log, stderr=subprocess.STDOUT)
+                                continue
                             status = f'client exited {client.returncode}'
                             break
                         time.sleep(1)

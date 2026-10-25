@@ -173,14 +173,20 @@ def fuel(ctx: Context, job: dict):
     def load(index: int) -> None:
         pos = positions[index]
         ctx.set_state(pos, 'minecraft:air', {})
-        if not pending:
-            slots[index] = None
-            return
-        item = pending.pop(0)
-        ctx.must(f'setblock {pos[0]} {pos[1]} {pos[2]} {job["furnace"]}')
-        ctx.must(f'replaceitem block {pos[0]} {pos[1]} {pos[2]} slot.container 0 {job["input"]} 1')
-        ctx.must(f'replaceitem block {pos[0]} {pos[1]} {pos[2]} slot.container 1 {item["item"]} 1')
-        slots[index] = {'item': item, 'loaded': tick, 'lit_at': None}
+        while pending:
+            item = pending.pop(0)
+            ctx.must(f'setblock {pos[0]} {pos[1]} {pos[2]} {job["furnace"]}')
+            ctx.must(f'replaceitem block {pos[0]} {pos[1]} {pos[2]} slot.container 0 {job["input"]} 1')
+            # Block-only identifiers (double slabs, wall signs, ...) are not
+            # items the command accepts: not a fuel.
+            if ctx.cmd(f'replaceitem block {pos[0]} {pos[1]} {pos[2]} slot.container 1 {item["item"]} 1'):
+                slots[index] = {'item': item, 'loaded': tick, 'lit_at': None}
+                return
+            ctx.record({'key': item['key'], 'item': item['item'], 'furnace': job['furnace'],
+                        'input': job['input'], 'accepted': False, 'lit': False, 'burn_ticks': None,
+                        'timed_out': False})
+            ctx.set_state(pos, 'minecraft:air', {})
+        slots[index] = None
 
     for index in range(size):
         load(index)
