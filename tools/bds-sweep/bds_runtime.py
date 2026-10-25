@@ -116,7 +116,9 @@ class Bds:
 
     def _read(self) -> None:
         assert self.process and self.process.stdout
-        with self.log_path.open('w', encoding='utf-8') as log:
+        # Append: a resumed sweep keeps the log (and crash report) of the
+        # previous attempt.
+        with self.log_path.open('a', encoding='utf-8') as log:
             for line in self.process.stdout:
                 log.write(line)
                 log.flush()

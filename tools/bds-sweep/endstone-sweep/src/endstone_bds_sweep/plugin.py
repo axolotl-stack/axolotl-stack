@@ -114,3 +114,10 @@ class BdsSweep(Plugin):
             self.task.cancel()
         (self.out / name).write_text(text, encoding='utf-8')
         self.logger.info(f'sweep finished: {name}')
+
+    def on_disable(self) -> None:
+        # A graceful stop (handover, `stop`) interrupts the in-flight item
+        # without it having crashed anything: forget it so the resumed run
+        # measures it again. A crash never reaches this point.
+        if self.job is not None:
+            (self.out / 'inflight.json').unlink(missing_ok=True)
