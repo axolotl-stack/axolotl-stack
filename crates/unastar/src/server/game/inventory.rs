@@ -146,6 +146,24 @@ fn handle_item_stack_request(
     }
 }
 
+/// Signed `ContainerType` values (int8 on the wire, `u8` fields in Valentine).
+///
+/// BDS 1.26.51 opens the player's own inventory with `INVENTORY` (-1) and
+/// answers the client's `ContainerClose` with `NONE` (-9); see
+/// `crates/valentine/tests/wire_probe_conformance.rs`.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[repr(i8)]
+enum WireContainerType {
+    None = -9,
+    Inventory = -1,
+}
+
+impl WireContainerType {
+    const fn byte(self) -> u8 {
+        self as i8 as u8
+    }
+}
+
 fn handle_container_close(
     entity: Entity,
     pk: &ContainerClosePacket,
@@ -163,7 +181,7 @@ fn handle_container_close(
         if let Ok((_, _, _, _, session)) = players.get(entity) {
             let _ = session.send(McpePacket::from(ContainerClosePacket {
                 container_id: 0,
-                container_type: u8::MAX,
+                container_type: WireContainerType::None.byte(),
                 server_initiated_close: false,
             }));
         }
@@ -227,7 +245,7 @@ fn handle_interact(
             if let Ok((_, _, _, _, session)) = players.get(entity) {
                 let _ = session.send(McpePacket::from(ContainerOpenPacket {
                     container_id: 0,
-                    container_type: u8::MAX,
+                    container_type: WireContainerType::Inventory.byte(),
                     position: BlockPos { x: 0, y: 0, z: 0 },
                     target_actor_id: ActorUniqueId {
                         actor_unique_id: -1,
@@ -538,6 +556,7 @@ mod tests {
                 string_id: "minecraft:honey_bottle".into(),
                 name: "honey bottle".into(),
                 stack_size: 16,
+                component_nbt: jolyne::valentine::bedrock::codec::Nbt::default(),
             })
             .unwrap();
         items
@@ -930,5 +949,64 @@ mod tests {
             assert_eq!(response.responses[0].result, EnumsItemStackNetResult::Error);
             assert!(rx.try_recv().is_err());
         }
+    }
+
+    /// Same exchange as the BDS 1.26.51 capture in
+    /// `valentine/tests/wire_probe_conformance.rs`: the inventory opens as
+    /// `INVENTORY` (-1) and the close is answered with `NONE` (-9).
+    #[test]
+    fn inventory_open_and_close_use_bds_container_types() {
+        use super::super::types::{ItemRegistryResource, ServerWorldTemplate};
+        use jolyne::valentine::*;
+        use std::sync::Arc;
+        let mut world = World::new();
+        world.insert_resource(ItemRegistryResource(Arc::new(registry())));
+        world.insert_resource(ServerWorldTemplate(Arc::new(
+            jolyne::WorldTemplate::default(),
+        )));
+        world.insert_resource(InventoryEvents::default());
+        let (tx, mut rx) = tokio::sync::mpsc::channel(8);
+        let entity = world
+            .spawn((
+                GameMode::Creative,
+                MainInventory::default(),
+                HeldSlot::default(),
+                InventoryOpened::default(),
+                ItemStackRequestState::default(),
+                PlayerSession::new(1, "test".into(), None, None, tx),
+            ))
+            .id();
+        world.insert_resource(InventoryPacketQueue(vec![
+            (
+                entity,
+                super::InventoryAction::Interact(InteractPacket {
+                    action: EnumsInteractPacketPayloadAction::Openinventory,
+                    ..Default::default()
+                }),
+            ),
+            (
+                entity,
+                super::InventoryAction::ContainerClose(ContainerClosePacket {
+                    container_id: 0,
+                    container_type: 0xff,
+                    server_initiated_close: false,
+                }),
+            ),
+        ]));
+        let mut schedule = Schedule::default();
+        schedule.add_systems(apply_inventory);
+        schedule.run(&mut world);
+
+        let McpePacketData::ContainerOpenPacket(open) = rx.try_recv().unwrap().data else {
+            panic!("container open");
+        };
+        assert_eq!(open.container_type as i8, -1);
+        let McpePacketData::ContainerClosePacket(close) = rx.try_recv().unwrap().data else {
+            panic!("container close");
+        };
+        assert_eq!(close.container_type as i8, -9);
+        assert_eq!(close.container_id, open.container_id);
+        assert!(!close.server_initiated_close);
+        assert!(!world.get::<InventoryOpened>(entity).unwrap().0);
     }
 }

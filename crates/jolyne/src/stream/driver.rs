@@ -124,11 +124,15 @@ pub(crate) fn flush_now<T: Transport>(transport: &mut T, conn: &mut Connection) 
     let _ = Pin::new(&mut *transport).poll_flush(&mut cx);
 }
 
+/// The next datagram. The transport ending, or the peer closing it normally
+/// ([`Transport::is_peer_close`]), is [`JolyneError::ConnectionClosed`].
 async fn recv_datagram<T: Transport>(transport: &mut T) -> Result<Datagram, JolyneError> {
-    poll_fn(|cx| Pin::new(&mut *transport).poll_recv(cx))
-        .await
-        .ok_or(JolyneError::ConnectionClosed)?
-        .map_err(transport_error)
+    match poll_fn(|cx| Pin::new(&mut *transport).poll_recv(cx)).await {
+        Some(Ok(datagram)) => Ok(datagram),
+        Some(Err(error)) if T::is_peer_close(&error) => Err(JolyneError::ConnectionClosed),
+        Some(Err(error)) => Err(transport_error(error)),
+        None => Err(JolyneError::ConnectionClosed),
+    }
 }
 
 /// Drives a handshake phase to completion.

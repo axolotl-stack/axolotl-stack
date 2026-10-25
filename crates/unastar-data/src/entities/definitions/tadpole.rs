@@ -37,6 +37,8 @@ pub struct TadpoleBundle {
     pub navigation_generic: super::super::components::NavigationGeneric,
     pub physics: super::super::components::Physics,
     pub pushable: super::super::components::Pushable,
+    pub pushable_by_block: super::super::components::PushableByBlock,
+    pub pushable_by_entity: super::super::components::PushableByEntity,
     pub scale: super::super::components::Scale,
     pub type_family: super::super::components::TypeFamily,
     pub underwater_movement: super::super::components::UnderwaterMovement,
@@ -66,11 +68,11 @@ pub fn spawn_tadpole(commands: &mut Commands) -> Entity {
             behavior_look_at_player: super::super::components::BehaviorLookAtPlayer {
                 angle_of_view_horizontal: Some(360i32),
                 angle_of_view_vertical: Some(360i32),
-                look_distance: Some(8f32),
+                look_distance: Some(6f32),
                 look_time: None,
                 priority: Some(BehaviorLookAtPlayerPriority {}),
                 probability: Some(0.02f32),
-                target_distance: Some(6f32),
+                target_distance: None,
             },
             behavior_panic: super::super::components::BehaviorPanic {
                 damage_sources: Some(
@@ -213,6 +215,12 @@ pub fn spawn_tadpole(commands: &mut Commands) -> Entity {
             pushable: super::super::components::Pushable {
                 is_pushable: Some(true),
                 is_pushable_by_piston: Some(true),
+            },
+            pushable_by_block: super::super::components::PushableByBlock {
+                data: None,
+            },
+            pushable_by_entity: super::super::components::PushableByEntity {
+                data: None,
             },
             scale: super::super::components::Scale {
                 value: 1f32,

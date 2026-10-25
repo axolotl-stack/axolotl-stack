@@ -72,33 +72,10 @@ pub fn spawn_villager(commands: &mut Commands) -> Entity {
                     vec![
                         BehaviorAvoidMobTypeEntityTypes { check_if_outnumbered : None,
                         cooldown : None, filters : Some(crate
-                        ::types::BedrockValue::Object(std::collections::HashMap::from([("any_of"
-                        .to_string(), crate ::types::BedrockValue::Array(vec![crate
-                        ::types::BedrockValue::Object(std::collections::HashMap::from([("subject"
-                        .to_string(), crate ::types::BedrockValue::String("other"
-                        .to_string())), ("test".to_string(), crate
-                        ::types::BedrockValue::String("is_family".to_string())), ("value"
-                        .to_string(), crate ::types::BedrockValue::String("zombie"
-                        .to_string()))])), crate
-                        ::types::BedrockValue::Object(std::collections::HashMap::from([("subject"
-                        .to_string(), crate ::types::BedrockValue::String("other"
-                        .to_string())), ("test".to_string(), crate
-                        ::types::BedrockValue::String("is_family".to_string())), ("value"
+                        ::types::BedrockValue::Object(std::collections::HashMap::from([("AND"
                         .to_string(), crate
-                        ::types::BedrockValue::String("zombie_villager".to_string()))])),
-                        crate
-                        ::types::BedrockValue::Object(std::collections::HashMap::from([("subject"
-                        .to_string(), crate ::types::BedrockValue::String("other"
-                        .to_string())), ("test".to_string(), crate
-                        ::types::BedrockValue::String("is_family".to_string())), ("value"
-                        .to_string(), crate ::types::BedrockValue::String("illager"
-                        .to_string()))])), crate
-                        ::types::BedrockValue::Object(std::collections::HashMap::from([("subject"
-                        .to_string(), crate ::types::BedrockValue::String("other"
-                        .to_string())), ("test".to_string(), crate
-                        ::types::BedrockValue::String("is_family".to_string())), ("value"
-                        .to_string(), crate ::types::BedrockValue::String("vex"
-                        .to_string()))]))]))]))), max_dist : Some(8f32), max_flee : None,
+                        ::types::BedrockValue::String("[{\"OR\":[{\"operator\":0,\"subject\":1,\"test\":\"is_family\",\"value\":\"zombie\"},{\"operator\":0,\"subject\":1,\"test\":\"is_family\",\"value\":\"zombie_villager\"},{\"operator\":0,\"subject\":1,\"test\":\"is_family\",\"value\":\"illager\"},{\"operator\":0,\"subject\":1,\"test\":\"is_family\",\"value\":\"vex\"}]}]"
+                        .to_string()))]))), max_dist : Some(8f32), max_flee : None,
                         max_height : None, must_see : None, must_see_forget_duration :
                         None, priority : None, reevaluate_description : None,
                         sprint_speed_multiplier : Some(0.6f32), walk_speed_multiplier :
@@ -159,7 +136,10 @@ pub fn spawn_villager(commands: &mut Commands) -> Entity {
                 angle_of_view_horizontal: Some(360i32),
                 angle_of_view_vertical: Some(360i32),
                 look_distance: Some(8f32),
-                look_time: None,
+                look_time: Some(crate::types::RangeOrVal::Range {
+                    min: 1f32,
+                    max: 2f32,
+                }),
                 priority: Some(BehaviorLookAtPlayerPriority {}),
                 probability: Some(0.02f32),
                 target_distance: None,
@@ -168,7 +148,10 @@ pub fn spawn_villager(commands: &mut Commands) -> Entity {
                 angle_of_view_horizontal: Some(360i32),
                 angle_of_view_vertical: Some(360i32),
                 look_distance: Some(8f32),
-                look_time: None,
+                look_time: Some(crate::types::RangeOrVal::Range {
+                    min: 1f32,
+                    max: 2f32,
+                }),
                 priority: Some(BehaviorLookAtTradingPlayerPriority {
                 }),
                 probability: Some(0.02f32),
@@ -309,8 +292,8 @@ pub fn spawn_villager(commands: &mut Commands) -> Entity {
                 triggers: Some(
                     vec![
                         DamageSensorTriggers { cause : None, damage_modifier : None,
-                        damage_multiplier : None, deals_damage : Some("false"
-                        .to_string()), on_damage : Some(crate
+                        damage_multiplier : None, deals_damage : Some("no".to_string()),
+                        on_damage : Some(crate
                         ::types::BedrockValue::Object(std::collections::HashMap::from([("event"
                         .to_string(), crate ::types::BedrockValue::String("become_witch"
                         .to_string())), ("filters".to_string(), crate

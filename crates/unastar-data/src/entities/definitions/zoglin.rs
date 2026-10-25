@@ -44,10 +44,14 @@ pub struct ZoglinBundle {
     pub movement_basic: super::super::components::MovementBasic,
     pub nameable: super::super::components::Nameable,
     pub navigation_walk: super::super::components::NavigationWalk,
+    pub offspring: super::super::components::Offspring,
     pub on_target_acquired: super::super::components::OnTargetAcquired,
     pub physics: super::super::components::Physics,
     pub pushable: super::super::components::Pushable,
+    pub pushable_by_block: super::super::components::PushableByBlock,
+    pub pushable_by_entity: super::super::components::PushableByEntity,
     pub scale: super::super::components::Scale,
+    pub spawn_egg_interaction: super::super::components::SpawnEggInteraction,
 }
 /// Spawn a new `minecraft:zoglin` entity with default Bedrock components
 pub fn spawn_zoglin(commands: &mut Commands) -> Entity {
@@ -180,7 +184,7 @@ pub fn spawn_zoglin(commands: &mut Commands) -> Entity {
                                 ]),
                             )]),
                         )),
-                        max_dist: Some(16f32),
+                        max_dist: None,
                         max_flee: None,
                         max_height: None,
                         must_see: None,
@@ -460,6 +464,19 @@ pub fn spawn_zoglin(commands: &mut Commands) -> Entity {
                 can_walk_in_lava: Some(false),
                 is_amphibious: Some(true),
             },
+            offspring: super::super::components::Offspring {
+                blend_attributes: None,
+                combine_parent_colors: None,
+                deny_parents_variant: None,
+                inherit_tamed: None,
+                mutation_factor: None,
+                mutation_strategy: None,
+                offspring_pairs: Some(OffspringOffspringPairs {}),
+                parent_centric_attribute_blending: None,
+                property_inheritance: None,
+                random_extra_variant_mutation_interval: None,
+                random_variant_mutation_interval: None,
+            },
             on_target_acquired: super::super::components::OnTargetAcquired {
                 value: crate::types::BedrockValue::Null,
             },
@@ -472,7 +489,10 @@ pub fn spawn_zoglin(commands: &mut Commands) -> Entity {
                 is_pushable: Some(true),
                 is_pushable_by_piston: Some(true),
             },
+            pushable_by_block: super::super::components::PushableByBlock { data: None },
+            pushable_by_entity: super::super::components::PushableByEntity { data: None },
             scale: super::super::components::Scale { value: 1f32 },
+            spawn_egg_interaction: super::super::components::SpawnEggInteraction { data: None },
         })
         .id()
 }
@@ -490,6 +510,7 @@ pub enum ZoglinEvent {
     BecomeCalmEvent,
     AsAdult,
     AsBaby,
+    EntityBorn,
     EntitySpawned,
     EntityTransformed,
 }

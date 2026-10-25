@@ -73,7 +73,10 @@ pub fn spawn_copper_golem(commands: &mut Commands) -> Entity {
                 angle_of_view_horizontal: Some(360i32),
                 angle_of_view_vertical: Some(360i32),
                 look_distance: Some(6f32),
-                look_time: None,
+                look_time: Some(crate::types::RangeOrVal::Range {
+                    min: 1f32,
+                    max: 2f32,
+                }),
                 priority: Some(BehaviorLookAtPlayerPriority {}),
                 probability: Some(0.02f32),
                 target_distance: None,
@@ -164,10 +167,15 @@ pub fn spawn_copper_golem(commands: &mut Commands) -> Entity {
                 allowed_items: Some(vec![]),
                 destination_container_types: Some(
                     vec![
-                        crate ::types::BedrockValue::String("minecraft:chest"
-                        .to_string()), crate
+                        crate
+                        ::types::BedrockValue::Object(std::collections::HashMap::from([("name"
+                        .to_string(), crate
+                        ::types::BedrockValue::String("minecraft:chest".to_string()))])),
+                        crate
+                        ::types::BedrockValue::Object(std::collections::HashMap::from([("name"
+                        .to_string(), crate
                         ::types::BedrockValue::String("minecraft:trapped_chest"
-                        .to_string())
+                        .to_string()))]))
                     ],
                 ),
                 disallowed_items: Some(vec![]),
@@ -185,22 +193,39 @@ pub fn spawn_copper_golem(commands: &mut Commands) -> Entity {
                 search_strategy: Some("nearest".to_string()),
                 source_container_types: Some(
                     vec![
-                        crate ::types::BedrockValue::String("minecraft:copper_chest"
-                        .to_string()), crate
+                        crate
+                        ::types::BedrockValue::Object(std::collections::HashMap::from([("name"
+                        .to_string(), crate
+                        ::types::BedrockValue::String("minecraft:copper_chest"
+                        .to_string()))])), crate
+                        ::types::BedrockValue::Object(std::collections::HashMap::from([("name"
+                        .to_string(), crate
                         ::types::BedrockValue::String("minecraft:exposed_copper_chest"
-                        .to_string()), crate
+                        .to_string()))])), crate
+                        ::types::BedrockValue::Object(std::collections::HashMap::from([("name"
+                        .to_string(), crate
                         ::types::BedrockValue::String("minecraft:oxidized_copper_chest"
-                        .to_string()), crate
+                        .to_string()))])), crate
+                        ::types::BedrockValue::Object(std::collections::HashMap::from([("name"
+                        .to_string(), crate
                         ::types::BedrockValue::String("minecraft:waxed_copper_chest"
-                        .to_string()), crate
+                        .to_string()))])), crate
+                        ::types::BedrockValue::Object(std::collections::HashMap::from([("name"
+                        .to_string(), crate
                         ::types::BedrockValue::String("minecraft:waxed_exposed_copper_chest"
-                        .to_string()), crate
+                        .to_string()))])), crate
+                        ::types::BedrockValue::Object(std::collections::HashMap::from([("name"
+                        .to_string(), crate
                         ::types::BedrockValue::String("minecraft:waxed_oxidized_copper_chest"
-                        .to_string()), crate
+                        .to_string()))])), crate
+                        ::types::BedrockValue::Object(std::collections::HashMap::from([("name"
+                        .to_string(), crate
                         ::types::BedrockValue::String("minecraft:waxed_weathered_copper_chest"
-                        .to_string()), crate
+                        .to_string()))])), crate
+                        ::types::BedrockValue::Object(std::collections::HashMap::from([("name"
+                        .to_string(), crate
                         ::types::BedrockValue::String("minecraft:weathered_copper_chest"
-                        .to_string())
+                        .to_string()))]))
                     ],
                 ),
             },
@@ -481,7 +506,7 @@ pub fn spawn_copper_golem(commands: &mut Commands) -> Entity {
                         spawn_entities : None, spawn_items :
                         Some(InteractInteractionsSpawnItems { table :
                         Some("loot_tables/entities/copper_golem_shear.json".to_string()),
-                        y_offset : None }), swing : None, take_item : None,
+                        y_offset : None }), swing : Some(false), take_item : None,
                         transform_to_item : None, use_item : Some(false), vibration :
                         Some("shear".to_string()) }
                     ],

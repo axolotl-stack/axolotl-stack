@@ -1,8 +1,8 @@
 use crate::ir::*;
-use serde::Deserialize;
+use serde::{Deserialize, Deserializer};
 use std::collections::HashMap;
 use std::path::Path;
-use tracing::{debug, warn};
+use tracing::debug;
 use walkdir::WalkDir;
 
 use crate::json::remove_json_comments;
@@ -16,15 +16,26 @@ struct RawEntityFile {
     entity: RawEntity,
 }
 
+/// Since bedrock-samples 1.26.50 (`format_version` 1.26.0) Mojang writes an
+/// entity without events as `"events": null`; the sections are read as empty
+/// when absent or null.
 #[derive(Deserialize)]
 struct RawEntity {
     description: RawDescription,
-    #[serde(default)]
+    #[serde(default, deserialize_with = "null_as_empty")]
     components: HashMap<String, serde_json::Value>,
-    #[serde(default)]
+    #[serde(default, deserialize_with = "null_as_empty")]
     component_groups: HashMap<String, HashMap<String, serde_json::Value>>,
-    #[serde(default)]
+    #[serde(default, deserialize_with = "null_as_empty")]
     events: HashMap<String, serde_json::Value>,
+}
+
+fn null_as_empty<'de, D, T>(deserializer: D) -> Result<T, D::Error>
+where
+    D: Deserializer<'de>,
+    T: Default + Deserialize<'de>,
+{
+    Option::<T>::deserialize(deserializer).map(Option::unwrap_or_default)
 }
 
 #[derive(Deserialize)]
@@ -43,17 +54,19 @@ struct RawDescription {
     properties: HashMap<String, serde_json::Value>,
 }
 
+/// Parses every vanilla entity file. A missing directory or any file that does
+/// not parse is an error: dropping entities would silently shrink the artifact.
 pub fn parse_vanilla_entities(dir: &Path) -> miette::Result<HashMap<String, EntityDef>> {
     let mut entities = HashMap::new();
 
-    if !dir.exists() {
-        warn!(
+    if !dir.is_dir() {
+        return Err(miette::miette!(
             "Vanilla entities directory does not exist: {}",
             dir.display()
-        );
-        return Ok(entities);
+        ));
     }
 
+    let mut failures = Vec::new();
     for entry in WalkDir::new(dir)
         .into_iter()
         .filter_map(|e| e.ok())
@@ -71,10 +84,16 @@ pub fn parse_vanilla_entities(dir: &Path) -> miette::Result<HashMap<String, Enti
                     .to_string();
                 entities.insert(name, entity);
             }
-            Err(e) => {
-                warn!("Failed to parse {}: {}", path.display(), e);
-            }
+            Err(e) => failures.push(e.to_string()),
         }
+    }
+    if !failures.is_empty() {
+        failures.sort();
+        return Err(miette::miette!(
+            "{} vanilla entity files failed to parse:\n{}",
+            failures.len(),
+            failures.join("\n")
+        ));
     }
 
     Ok(entities)
@@ -248,4 +267,37 @@ fn extract_component_groups(value: Option<&serde_json::Value>) -> Vec<String> {
                 .collect()
         })
         .unwrap_or_default()
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    /// bedrock-samples 1.26.50.4 `area_effect_cloud.json` shape.
+    #[test]
+    fn null_events_parse_as_no_events() {
+        let dir = std::env::temp_dir().join(format!(
+            "unastar-vanilla-null-events-{}",
+            std::process::id()
+        ));
+        std::fs::create_dir_all(&dir).unwrap();
+        std::fs::write(
+            dir.join("cloud.json"),
+            r#"{"format_version":"1.26.0","minecraft:entity":{
+                "description":{"identifier":"minecraft:area_effect_cloud"},
+                "components":{"minecraft:physics":{"has_collision":false}},
+                "events":null}}"#,
+        )
+        .unwrap();
+
+        let entities = parse_vanilla_entities(&dir).expect("null events are valid");
+        let cloud = &entities["area_effect_cloud"];
+        assert!(cloud.events.is_empty());
+        assert!(cloud.components.contains_key("minecraft:physics"));
+
+        std::fs::write(dir.join("broken.json"), "{").unwrap();
+        let error = parse_vanilla_entities(&dir).expect_err("a broken file is an error");
+        assert!(error.to_string().contains("1 vanilla entity files failed"));
+        let _ = std::fs::remove_dir_all(dir);
+    }
 }

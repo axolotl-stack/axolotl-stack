@@ -28,6 +28,8 @@ pub struct ChestMinecartBundle {
     pub movement: super::super::components::Movement,
     pub physics: super::super::components::Physics,
     pub pushable: super::super::components::Pushable,
+    pub pushable_by_block: super::super::components::PushableByBlock,
+    pub pushable_by_entity: super::super::components::PushableByEntity,
     pub rail_movement: super::super::components::RailMovement,
     pub scale: super::super::components::Scale,
     pub type_family: super::super::components::TypeFamily,
@@ -109,7 +111,7 @@ pub fn spawn_chest_minecart(commands: &mut Commands) -> Entity {
                 private: Some(false),
                 restrict_to_owner: Some(false),
             },
-            is_stackable: super::super::components::IsStackable { value: true },
+            is_stackable: super::super::components::IsStackable { value: false },
             movement: super::super::components::Movement {
                 max: None,
                 min: None,
@@ -123,6 +125,36 @@ pub fn spawn_chest_minecart(commands: &mut Commands) -> Entity {
             pushable: super::super::components::Pushable {
                 is_pushable: Some(true),
                 is_pushable_by_piston: Some(true),
+            },
+            pushable_by_block: super::super::components::PushableByBlock { data: None },
+            pushable_by_entity: super::super::components::PushableByEntity {
+                data: Some(crate::types::BedrockValue::Object(
+                    std::collections::HashMap::from([(
+                        "preset".to_string(),
+                        crate::types::BedrockValue::Object(std::collections::HashMap::from([
+                            (
+                                "min_distance".to_string(),
+                                crate::types::BedrockValue::Float(0.01f64),
+                            ),
+                            (
+                                "push_mode".to_string(),
+                                crate::types::BedrockValue::String("legacy_minecart".to_string()),
+                            ),
+                            (
+                                "push_scale_other".to_string(),
+                                crate::types::BedrockValue::Float(0.25f64),
+                            ),
+                            (
+                                "push_scale_self".to_string(),
+                                crate::types::BedrockValue::Float(0.5f64),
+                            ),
+                            (
+                                "strength_multiplier".to_string(),
+                                crate::types::BedrockValue::Float(0.1f64),
+                            ),
+                        ])),
+                    )]),
+                )),
             },
             rail_movement: super::super::components::RailMovement {
                 max_speed: Some(0.4f32),

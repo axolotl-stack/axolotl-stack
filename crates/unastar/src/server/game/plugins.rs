@@ -279,6 +279,7 @@ mod tests {
                 string_id: "minecraft:honey_bottle".to_string(),
                 name: "honey bottle".to_string(),
                 stack_size: 16,
+                component_nbt: jolyne::valentine::bedrock::codec::Nbt::default(),
             })
             .expect("register limited item");
         registry

@@ -15,10 +15,8 @@ use jolyne::valentine::types::{
     PropertySyncData, SerializedAbilitiesData, SerializedAbilitiesDataSerializedLayer,
     SynchedActorDataCopyableDataList,
 };
-use jolyne::valentine::{
-    ChunkRadiusUpdatedPacket, SetActorDataPacket, UpdateAbilitiesPacket, UpdateAttributesPacket,
-};
 use jolyne::valentine::{InventoryContentPacket, McpePacket, SetPlayerGameTypePacket};
+use jolyne::valentine::{SetActorDataPacket, UpdateAbilitiesPacket, UpdateAttributesPacket};
 use tracing::debug;
 
 const BUILD: u32 = 1;
@@ -56,23 +54,10 @@ impl GameServer {
             .copied()
             .unwrap_or(GameMode::Survival);
 
-        let config = world
-            .get_resource::<super::types::ServerConfigResource>()
-            .unwrap();
-        let world_template = world
-            .get_resource::<super::types::ServerWorldTemplate>()
-            .unwrap();
         let current_tick = world
             .get_resource::<crate::ecs::resources::TickCounter>()
             .unwrap()
             .current;
-
-        let _ = session.send(McpePacket::from(ChunkRadiusUpdatedPacket {
-            chunk_radius: config.0.default_chunk_radius,
-        }));
-        let _ = session.send(McpePacket::from(
-            world_template.0.available_entities.as_ref().clone(),
-        ));
 
         // Send gamemode to client (hides hunger bar in creative, etc.)
         let protocol_gamemode = match game_mode {

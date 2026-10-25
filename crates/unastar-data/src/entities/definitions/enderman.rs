@@ -47,6 +47,8 @@ pub struct EndermanBundle {
     pub navigation_walk: super::super::components::NavigationWalk,
     pub physics: super::super::components::Physics,
     pub pushable: super::super::components::Pushable,
+    pub pushable_by_block: super::super::components::PushableByBlock,
+    pub pushable_by_entity: super::super::components::PushableByEntity,
     pub renders_when_invisible: super::super::components::RendersWhenInvisible,
     pub scale: super::super::components::Scale,
     pub teleport: super::super::components::Teleport,
@@ -80,12 +82,20 @@ pub fn spawn_enderman(commands: &mut Commands) -> Entity {
                 look_distance: Some(8f32),
                 look_time: None,
                 priority: Some(BehaviorLookAtPlayerPriority {}),
-                probability: Some(8f32),
+                probability: Some(1f32),
                 target_distance: None,
             },
             behavior_nearest_attackable_target:
                 super::super::components::BehaviorNearestAttackableTarget {
-                    attack_interval: Some(crate::types::BedrockValue::Integer(10i64)),
+                    attack_interval: Some(crate::types::BedrockValue::Object(
+                        std::collections::HashMap::from([
+                            (
+                                "max".to_string(),
+                                crate::types::BedrockValue::Integer(10i64),
+                            ),
+                            ("min".to_string(), crate::types::BedrockValue::Integer(0i64)),
+                        ]),
+                    )),
                     attack_interval_min: None,
                     attack_owner: Some(false),
                     control_flags: Some(BehaviorNearestAttackableTargetControlFlags {}),
@@ -141,8 +151,14 @@ pub fn spawn_enderman(commands: &mut Commands) -> Entity {
                 placeable_carried_blocks: None,
                 priority: Some(BehaviorPlaceBlockPriority {}),
                 randomly_placeable_blocks: None,
-                xz_range: None,
-                y_range: None,
+                xz_range: Some(crate::types::RangeOrVal::Range {
+                    min: -1f32,
+                    max: 1f32,
+                }),
+                y_range: Some(crate::types::RangeOrVal::Range {
+                    min: 0f32,
+                    max: 2f32,
+                }),
             },
             behavior_random_look_around: super::super::components::BehaviorRandomLookAround {
                 angle_of_view_horizontal: None,
@@ -206,14 +222,21 @@ pub fn spawn_enderman(commands: &mut Commands) -> Entity {
                     crate::types::BedrockValue::String("lily_of_the_valley".to_string()),
                     crate::types::BedrockValue::String("wither_rose".to_string()),
                     crate::types::BedrockValue::String("torchflower".to_string()),
+                    crate::types::BedrockValue::String("golden_dandelion".to_string()),
                 ]),
                 can_take: None,
                 chance: Some(0.05f32),
                 on_take: None,
                 priority: Some(BehaviorTakeBlockPriority {}),
                 requires_line_of_sight: None,
-                xz_range: None,
-                y_range: None,
+                xz_range: Some(crate::types::RangeOrVal::Range {
+                    min: -2f32,
+                    max: 2f32,
+                }),
+                y_range: Some(crate::types::RangeOrVal::Range {
+                    min: 0f32,
+                    max: 3f32,
+                }),
             },
             breathable: super::super::components::Breathable {
                 breathe_blocks: None,
@@ -372,6 +395,8 @@ pub fn spawn_enderman(commands: &mut Commands) -> Entity {
                 is_pushable: Some(true),
                 is_pushable_by_piston: Some(true),
             },
+            pushable_by_block: super::super::components::PushableByBlock { data: None },
+            pushable_by_entity: super::super::components::PushableByEntity { data: None },
             renders_when_invisible: super::super::components::RendersWhenInvisible,
             scale: super::super::components::Scale { value: 1f32 },
             teleport: super::super::components::Teleport {

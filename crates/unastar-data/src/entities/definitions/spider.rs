@@ -23,6 +23,7 @@ pub struct SpiderBundle {
     pub behavior_mount_pathing: super::super::components::BehaviorMountPathing,
     pub behavior_random_look_around: super::super::components::BehaviorRandomLookAround,
     pub behavior_random_stroll: super::super::components::BehaviorRandomStroll,
+    pub block_movement_slowdown_immunity: super::super::components::BlockMovementSlowdownImmunity,
     pub breathable: super::super::components::Breathable,
     pub can_climb: super::super::components::CanClimb,
     pub collision_box: super::super::components::CollisionBox,
@@ -44,6 +45,8 @@ pub struct SpiderBundle {
     pub navigation_climb: super::super::components::NavigationClimb,
     pub physics: super::super::components::Physics,
     pub pushable: super::super::components::Pushable,
+    pub pushable_by_block: super::super::components::PushableByBlock,
+    pub pushable_by_entity: super::super::components::PushableByEntity,
     pub renders_when_invisible: super::super::components::RendersWhenInvisible,
     pub rideable: super::super::components::Rideable,
     pub scale: super::super::components::Scale,
@@ -245,6 +248,15 @@ pub fn spawn_spider(commands: &mut Commands) -> Entity {
                 xz_dist: Some(10i32),
                 y_dist: Some(7i32),
             },
+            block_movement_slowdown_immunity:
+                super::super::components::BlockMovementSlowdownImmunity {
+                    data: Some(crate::types::BedrockValue::Object(
+                        std::collections::HashMap::from([(
+                            "block".to_string(),
+                            crate::types::BedrockValue::String("minecraft:web".to_string()),
+                        )]),
+                    )),
+                },
             breathable: super::super::components::Breathable {
                 breathe_blocks: None,
                 breathes_air: Some(true),
@@ -360,12 +372,14 @@ pub fn spawn_spider(commands: &mut Commands) -> Entity {
                 is_pushable: Some(true),
                 is_pushable_by_piston: Some(true),
             },
+            pushable_by_block: super::super::components::PushableByBlock { data: None },
+            pushable_by_entity: super::super::components::PushableByEntity { data: None },
             renders_when_invisible: super::super::components::RendersWhenInvisible,
             rideable: super::super::components::Rideable {
                 controlling_seat: Some(0i32),
                 crouching_skip_interact: Some(true),
                 dismount_mode: Some("default".to_string()),
-                family_types: Some(vec!["baby_zombie".to_string(), "baby_husk".to_string()]),
+                family_types: Some(vec!["baby_undead".to_string()]),
                 interact_text: None,
                 on_rider_enter_event: None,
                 on_rider_exit_event: None,

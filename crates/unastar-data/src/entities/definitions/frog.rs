@@ -15,6 +15,7 @@ impl Frog {
 /// Component bundle for spawning a `minecraft:frog`
 #[derive(Bundle, Clone)]
 pub struct FrogBundle {
+    pub ambient_sound_interval: super::super::components::AmbientSoundInterval,
     pub attack: super::super::components::Attack,
     pub behavior_breed: super::super::components::BehaviorBreed,
     pub behavior_croak: super::super::components::BehaviorCroak,
@@ -46,16 +47,32 @@ pub struct FrogBundle {
     pub movement_amphibious: super::super::components::MovementAmphibious,
     pub nameable: super::super::components::Nameable,
     pub navigation_generic: super::super::components::NavigationGeneric,
+    pub offspring: super::super::components::Offspring,
     pub physics: super::super::components::Physics,
     pub pushable: super::super::components::Pushable,
+    pub pushable_by_block: super::super::components::PushableByBlock,
+    pub pushable_by_entity: super::super::components::PushableByEntity,
     pub scale: super::super::components::Scale,
+    pub spawn_egg_interaction: super::super::components::SpawnEggInteraction,
     pub type_family: super::super::components::TypeFamily,
     pub underwater_movement: super::super::components::UnderwaterMovement,
+    pub uses_legacy_friction: super::super::components::UsesLegacyFriction,
 }
 /// Spawn a new `minecraft:frog` entity with default Bedrock components
 pub fn spawn_frog(commands: &mut Commands) -> Entity {
     commands
         .spawn(FrogBundle {
+            ambient_sound_interval: super::super::components::AmbientSoundInterval {
+                event_name: Some("ambient".to_string()),
+                event_names: Some(
+                    vec![
+                        AmbientSoundIntervalEventNames { condition : Some("query.is_baby"
+                        .to_string()), event_name : Some("ambient.baby".to_string()) }
+                    ],
+                ),
+                range: Some(16f32),
+                value: 6f32,
+            },
             attack: super::super::components::Attack {
                 damage: crate::types::RangeOrVal::Fixed(2f32),
                 effect_duration: Some(crate::types::MolangOr::Value(0i32)),
@@ -66,7 +83,7 @@ pub fn spawn_frog(commands: &mut Commands) -> Entity {
                 speed_multiplier: Some(BehaviorBreedSpeedMultiplier {}),
             },
             behavior_croak: super::super::components::BehaviorCroak {
-                duration: Some(vec![4.5f32]),
+                duration: Some(vec![0f32]),
                 filters: Some(
                     crate::types::BedrockValue::Object(
                         std::collections::HashMap::from([
@@ -89,7 +106,7 @@ pub fn spawn_frog(commands: &mut Commands) -> Entity {
                         ]),
                     ),
                 ),
-                interval: None,
+                interval: Some(vec![0i32]),
                 priority: Some(BehaviorCroakPriority {}),
             },
             behavior_eat_mob: super::super::components::BehaviorEatMob {
@@ -102,11 +119,13 @@ pub fn spawn_frog(commands: &mut Commands) -> Entity {
                 run_speed: Some(2f32),
             },
             behavior_jump_to_block: super::super::components::BehaviorJumpToBlock {
-                cooldown_range: None,
+                cooldown_range: Some(vec![0f32]),
                 forbidden_blocks: Some(
                     vec![
-                        crate ::types::BedrockValue::String("minecraft:water"
-                        .to_string())
+                        crate
+                        ::types::BedrockValue::Object(std::collections::HashMap::from([("name"
+                        .to_string(), crate
+                        ::types::BedrockValue::String("minecraft:water".to_string()))]))
                     ],
                 ),
                 max_velocity: Some(1f32),
@@ -114,10 +133,15 @@ pub fn spawn_frog(commands: &mut Commands) -> Entity {
                 minimum_path_length: Some(2i32),
                 preferred_blocks: Some(
                     vec![
-                        crate ::types::BedrockValue::String("minecraft:waterlily"
-                        .to_string()), crate
+                        crate
+                        ::types::BedrockValue::Object(std::collections::HashMap::from([("name"
+                        .to_string(), crate
+                        ::types::BedrockValue::String("minecraft:waterlily"
+                        .to_string()))])), crate
+                        ::types::BedrockValue::Object(std::collections::HashMap::from([("name"
+                        .to_string(), crate
                         ::types::BedrockValue::String("minecraft:big_dripleaf"
-                        .to_string())
+                        .to_string()))]))
                     ],
                 ),
                 preferred_blocks_chance: Some(0.5f32),
@@ -129,11 +153,11 @@ pub fn spawn_frog(commands: &mut Commands) -> Entity {
             behavior_look_at_player: super::super::components::BehaviorLookAtPlayer {
                 angle_of_view_horizontal: Some(360i32),
                 angle_of_view_vertical: Some(360i32),
-                look_distance: Some(8f32),
+                look_distance: Some(6f32),
                 look_time: None,
                 priority: Some(BehaviorLookAtPlayerPriority {}),
                 probability: Some(0.02f32),
-                target_distance: Some(6f32),
+                target_distance: None,
             },
             behavior_move_to_land: super::super::components::BehaviorMoveToLand {
                 goal_radius: Some(2f32),
@@ -181,8 +205,8 @@ pub fn spawn_frog(commands: &mut Commands) -> Entity {
                         ::types::BedrockValue::String("other".to_string())), ("test"
                         .to_string(), crate ::types::BedrockValue::String("is_variant"
                         .to_string())), ("value".to_string(), crate
-                        ::types::BedrockValue::Integer(1i64))]))]))]))), max_dist :
-                        Some(16f32), max_flee : None, max_height : None, must_see : None,
+                        ::types::BedrockValue::Integer(1i64))]))]))]))), max_dist : None,
+                        max_flee : None, max_height : None, must_see : None,
                         must_see_forget_duration : None, priority : None,
                         reevaluate_description : None, sprint_speed_multiplier : None,
                         walk_speed_multiplier : None, within_default : None },
@@ -202,8 +226,8 @@ pub fn spawn_frog(commands: &mut Commands) -> Entity {
                         ::types::BedrockValue::String("other".to_string())), ("test"
                         .to_string(), crate ::types::BedrockValue::String("is_variant"
                         .to_string())), ("value".to_string(), crate
-                        ::types::BedrockValue::Integer(1i64))]))]))]))), max_dist :
-                        Some(16f32), max_flee : None, max_height : None, must_see : None,
+                        ::types::BedrockValue::Integer(1i64))]))]))]))), max_dist : None,
+                        max_flee : None, max_height : None, must_see : None,
                         must_see_forget_duration : None, priority : None,
                         reevaluate_description : None, sprint_speed_multiplier : None,
                         walk_speed_multiplier : None, within_default : None }
@@ -284,11 +308,8 @@ pub fn spawn_frog(commands: &mut Commands) -> Entity {
                 ),
                 breeds_with: Some(
                     vec![
-                        BreedableBreedsWith { baby_type : Some("minecraft:tadpole"
-                        .to_string()), breed_event : Some(BreedableBreedsWithBreedEvent {
-                        event : Some("become_pregnant".to_string()), filters : None,
-                        target : None }), mate_type : Some("minecraft:frog".to_string())
-                        }
+                        BreedableBreedsWith { baby_type : None, breed_event : None,
+                        mate_type : None }
                     ],
                 ),
                 causes_pregnancy: Some(true),
@@ -412,6 +433,19 @@ pub fn spawn_frog(commands: &mut Commands) -> Entity {
                 can_walk_in_lava: Some(false),
                 is_amphibious: Some(true),
             },
+            offspring: super::super::components::Offspring {
+                blend_attributes: None,
+                combine_parent_colors: None,
+                deny_parents_variant: None,
+                inherit_tamed: None,
+                mutation_factor: None,
+                mutation_strategy: None,
+                offspring_pairs: Some(OffspringOffspringPairs {}),
+                parent_centric_attribute_blending: None,
+                property_inheritance: None,
+                random_extra_variant_mutation_interval: None,
+                random_variant_mutation_interval: None,
+            },
             physics: super::super::components::Physics {
                 has_collision: Some(true),
                 has_gravity: Some(true),
@@ -421,8 +455,17 @@ pub fn spawn_frog(commands: &mut Commands) -> Entity {
                 is_pushable: Some(true),
                 is_pushable_by_piston: Some(true),
             },
+            pushable_by_block: super::super::components::PushableByBlock {
+                data: None,
+            },
+            pushable_by_entity: super::super::components::PushableByEntity {
+                data: None,
+            },
             scale: super::super::components::Scale {
                 value: 1f32,
+            },
+            spawn_egg_interaction: super::super::components::SpawnEggInteraction {
+                data: None,
             },
             type_family: super::super::components::TypeFamily {
                 family: vec!["frog".to_string(), "mob".to_string()],
@@ -431,6 +474,9 @@ pub fn spawn_frog(commands: &mut Commands) -> Entity {
                 max: None,
                 min: None,
                 value: crate::types::RangeOrVal::Fixed(0.15f32),
+            },
+            uses_legacy_friction: super::super::components::UsesLegacyFriction {
+                data: None,
             },
         })
         .id()

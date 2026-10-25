@@ -146,7 +146,7 @@ pub fn spawn_witch(commands: &mut Commands) -> Entity {
                         .to_string(), crate
                         ::types::BedrockValue::String("target_distance".to_string())),
                         ("value".to_string(), crate
-                        ::types::BedrockValue::Float(11f64))]))]))])), id : 14i32 }
+                        ::types::BedrockValue::Integer(11i64))]))]))])), id : 14i32 }
                     ],
                 ),
                 priority: Some(BehaviorDrinkPotionPriority {}),
@@ -169,7 +169,10 @@ pub fn spawn_witch(commands: &mut Commands) -> Entity {
                 angle_of_view_horizontal: Some(360i32),
                 angle_of_view_vertical: Some(360i32),
                 look_distance: Some(16f32),
-                look_time: None,
+                look_time: Some(crate::types::RangeOrVal::Range {
+                    min: 1f32,
+                    max: 2f32,
+                }),
                 priority: Some(BehaviorLookAtPlayerPriority {}),
                 probability: Some(0.02f32),
                 target_distance: None,
@@ -468,7 +471,7 @@ pub fn spawn_witch(commands: &mut Commands) -> Entity {
                         .to_string(), crate
                         ::types::BedrockValue::String("target_distance".to_string())),
                         ("value".to_string(), crate
-                        ::types::BedrockValue::Float(8f64))])), crate
+                        ::types::BedrockValue::Integer(8i64))])), crate
                         ::types::BedrockValue::Object(std::collections::HashMap::from([("none_of"
                         .to_string(), crate ::types::BedrockValue::Array(vec![crate
                         ::types::BedrockValue::Object(std::collections::HashMap::from([("subject"

@@ -18,7 +18,6 @@ pub struct RabbitBundle {
     pub attack: super::super::components::Attack,
     pub balloonable: super::super::components::Balloonable,
     pub behavior_avoid_mob_type: super::super::components::BehaviorAvoidMobType,
-    pub behavior_breed: super::super::components::BehaviorBreed,
     pub behavior_float: super::super::components::BehaviorFloat,
     pub behavior_look_at_player: super::super::components::BehaviorLookAtPlayer,
     pub behavior_panic: super::super::components::BehaviorPanic,
@@ -28,6 +27,7 @@ pub struct RabbitBundle {
     pub block_climber: super::super::components::BlockClimber,
     pub breathable: super::super::components::Breathable,
     pub can_climb: super::super::components::CanClimb,
+    pub can_stand_on_powder_snow: super::super::components::CanStandOnPowderSnow,
     pub collision_box: super::super::components::CollisionBox,
     pub conditional_bandwidth_optimization:
         super::super::components::ConditionalBandwidthOptimization,
@@ -44,9 +44,13 @@ pub struct RabbitBundle {
     pub movement_skip: super::super::components::MovementSkip,
     pub nameable: super::super::components::Nameable,
     pub navigation_walk: super::super::components::NavigationWalk,
+    pub offspring: super::super::components::Offspring,
     pub physics: super::super::components::Physics,
     pub pushable: super::super::components::Pushable,
+    pub pushable_by_block: super::super::components::PushableByBlock,
+    pub pushable_by_entity: super::super::components::PushableByEntity,
     pub scale: super::super::components::Scale,
+    pub spawn_egg_interaction: super::super::components::SpawnEggInteraction,
     pub type_family: super::super::components::TypeFamily,
 }
 /// Spawn a new `minecraft:rabbit` entity with default Bedrock components
@@ -155,10 +159,6 @@ pub fn spawn_rabbit(commands: &mut Commands) -> Entity {
                 sprint_speed_multiplier: Some(1f32),
                 walk_speed_multiplier: Some(1f32),
             },
-            behavior_breed: super::super::components::BehaviorBreed {
-                priority: Some(BehaviorBreedPriority {}),
-                speed_multiplier: Some(BehaviorBreedSpeedMultiplier {}),
-            },
             behavior_float: super::super::components::BehaviorFloat {
                 chance_per_tick_to_float: Some(0.8f32),
                 priority: Some(BehaviorFloatPriority {}),
@@ -250,9 +250,12 @@ pub fn spawn_rabbit(commands: &mut Commands) -> Entity {
                 total_supply: Some(15i32),
             },
             can_climb: super::super::components::CanClimb,
+            can_stand_on_powder_snow: super::super::components::CanStandOnPowderSnow {
+                data: None,
+            },
             collision_box: super::super::components::CollisionBox {
-                height: Some(0.67f32),
-                width: Some(0.67f32),
+                height: Some(1.8f32),
+                width: Some(0.6f32),
             },
             conditional_bandwidth_optimization: super::super::components::ConditionalBandwidthOptimization {
                 conditional_values: None,
@@ -297,8 +300,18 @@ pub fn spawn_rabbit(commands: &mut Commands) -> Entity {
             },
             is_hidden_when_invisible: super::super::components::IsHiddenWhenInvisible,
             jump_dynamic: super::super::components::JumpDynamic {
-                fast_skip_data: None,
-                regular_skip_data: None,
+                fast_skip_data: Some(JumpDynamicFastSkipData {
+                    animation_duration: Some(15f32),
+                    distance_scale: Some(1.75f32),
+                    height: Some(0.15f32),
+                    jump_delay: Some(1f32),
+                }),
+                regular_skip_data: Some(JumpDynamicRegularSkipData {
+                    animation_duration: Some(18f32),
+                    distance_scale: Some(0.8f32),
+                    height: Some(0.25f32),
+                    jump_delay: Some(15f32),
+                }),
             },
             leashable: super::super::components::Leashable {
                 can_be_cut: Some(true),
@@ -347,6 +360,23 @@ pub fn spawn_rabbit(commands: &mut Commands) -> Entity {
                 can_walk_in_lava: Some(false),
                 is_amphibious: Some(false),
             },
+            offspring: super::super::components::Offspring {
+                blend_attributes: None,
+                combine_parent_colors: None,
+                deny_parents_variant: None,
+                inherit_tamed: None,
+                mutation_factor: Some(OffspringMutationFactor {
+                    color: None,
+                    extra_variant: None,
+                    variant: Some(0.2f32),
+                }),
+                mutation_strategy: None,
+                offspring_pairs: Some(OffspringOffspringPairs {}),
+                parent_centric_attribute_blending: None,
+                property_inheritance: None,
+                random_extra_variant_mutation_interval: None,
+                random_variant_mutation_interval: None,
+            },
             physics: super::super::components::Physics {
                 has_collision: Some(true),
                 has_gravity: Some(true),
@@ -356,13 +386,20 @@ pub fn spawn_rabbit(commands: &mut Commands) -> Entity {
                 is_pushable: Some(true),
                 is_pushable_by_piston: Some(true),
             },
+            pushable_by_block: super::super::components::PushableByBlock {
+                data: None,
+            },
+            pushable_by_entity: super::super::components::PushableByEntity {
+                data: None,
+            },
             scale: super::super::components::Scale {
-                value: 0.6f32,
+                value: 1f32,
+            },
+            spawn_egg_interaction: super::super::components::SpawnEggInteraction {
+                data: None,
             },
             type_family: super::super::components::TypeFamily {
-                family: vec![
-                    "rabbit".to_string(), "lightweight".to_string(), "mob".to_string()
-                ],
+                family: vec!["rabbit".to_string(), "mob".to_string()],
             },
         })
         .id()

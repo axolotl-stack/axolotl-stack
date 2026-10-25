@@ -15,6 +15,8 @@ impl Drowned {
 /// Component bundle for spawning a `minecraft:drowned`
 #[derive(Bundle, Clone)]
 pub struct DrownedBundle {
+    pub ambient_sound_interval: super::super::components::AmbientSoundInterval,
+    pub apply_knockback_rules: super::super::components::ApplyKnockbackRules,
     pub attack: super::super::components::Attack,
     pub behavior_equip_item: super::super::components::BehaviorEquipItem,
     pub behavior_flee_sun: super::super::components::BehaviorFleeSun,
@@ -39,25 +41,64 @@ pub struct DrownedBundle {
     pub health: super::super::components::Health,
     pub hurt_on_condition: super::super::components::HurtOnCondition,
     pub inventory: super::super::components::Inventory,
+    pub is_hidden_when_invisible: super::super::components::IsHiddenWhenInvisible,
     pub jump_static: super::super::components::JumpStatic,
+    pub loot: super::super::components::Loot,
     pub movement: super::super::components::Movement,
     pub movement_generic: super::super::components::MovementGeneric,
     pub nameable: super::super::components::Nameable,
     pub navigation_generic: super::super::components::NavigationGeneric,
+    pub offspring: super::super::components::Offspring,
     pub on_target_acquired: super::super::components::OnTargetAcquired,
     pub on_target_escape: super::super::components::OnTargetEscape,
     pub physics: super::super::components::Physics,
     pub pushable: super::super::components::Pushable,
+    pub pushable_by_block: super::super::components::PushableByBlock,
+    pub pushable_by_entity: super::super::components::PushableByEntity,
     pub rotation_locked_to_vehicle: super::super::components::RotationLockedToVehicle,
     pub scale: super::super::components::Scale,
     pub shareables: super::super::components::Shareables,
-    pub type_family: super::super::components::TypeFamily,
+    pub spawn_egg_interaction: super::super::components::SpawnEggInteraction,
     pub underwater_movement: super::super::components::UnderwaterMovement,
 }
 /// Spawn a new `minecraft:drowned` entity with default Bedrock components
 pub fn spawn_drowned(commands: &mut Commands) -> Entity {
     commands
         .spawn(DrownedBundle {
+            ambient_sound_interval: super::super::components::AmbientSoundInterval {
+                event_name: Some("ambient".to_string()),
+                event_names: Some(vec![AmbientSoundIntervalEventNames {
+                    condition: Some("query.head_is_in_water".to_string()),
+                    event_name: Some("ambient.in.water".to_string()),
+                }]),
+                range: Some(16f32),
+                value: 8f32,
+            },
+            apply_knockback_rules: super::super::components::ApplyKnockbackRules {
+                data: Some(crate::types::BedrockValue::Object(
+                    std::collections::HashMap::from([(
+                        "preset".to_string(),
+                        crate::types::BedrockValue::Object(std::collections::HashMap::from([
+                            (
+                                "check_if_target_is_immersed_in_water".to_string(),
+                                crate::types::BedrockValue::Bool(true),
+                            ),
+                            (
+                                "horizontal_power".to_string(),
+                                crate::types::BedrockValue::Float(0.6f64),
+                            ),
+                            (
+                                "vertical_power".to_string(),
+                                crate::types::BedrockValue::Float(-0.6f64),
+                            ),
+                            (
+                                "vertical_velocity_cap".to_string(),
+                                crate::types::BedrockValue::Float(-0.4f64),
+                            ),
+                        ])),
+                    )]),
+                )),
+            },
             attack: super::super::components::Attack {
                 damage: crate::types::RangeOrVal::Fixed(2f32),
                 effect_duration: Some(crate::types::MolangOr::Value(0i32)),
@@ -463,9 +504,18 @@ pub fn spawn_drowned(commands: &mut Commands) -> Entity {
                 can_pickup_any_item: Some(true),
                 can_pickup_to_hand_or_equipment: Some(true),
                 cooldown_after_being_attacked: None,
-                excluded_items: Some(vec![crate::types::BedrockValue::String(
-                    "minecraft:glow_ink_sac".to_string(),
-                )]),
+                excluded_items: Some(vec![
+                    crate::types::BedrockValue::Object(std::collections::HashMap::from([(
+                        "name".to_string(),
+                        crate::types::BedrockValue::String("minecraft:glow_ink_sac".to_string()),
+                    )])),
+                    crate::types::BedrockValue::Object(std::collections::HashMap::from([(
+                        "tags".to_string(),
+                        crate::types::BedrockValue::String(
+                            "q.all_tags('minecraft:is_spear')".to_string(),
+                        ),
+                    )])),
+                ]),
                 goal_radius: Some(2f32),
                 max_dist: Some(3f32),
                 pickup_based_on_chance: Some(true),
@@ -569,8 +619,12 @@ pub fn spawn_drowned(commands: &mut Commands) -> Entity {
                 private: Some(false),
                 restrict_to_owner: Some(false),
             },
+            is_hidden_when_invisible: super::super::components::IsHiddenWhenInvisible,
             jump_static: super::super::components::JumpStatic {
                 jump_power: Some(0.42f32),
+            },
+            loot: super::super::components::Loot {
+                table: "loot_tables/entities/drowned.json".to_string(),
             },
             movement: super::super::components::Movement {
                 max: None,
@@ -607,6 +661,19 @@ pub fn spawn_drowned(commands: &mut Commands) -> Entity {
                 can_walk_in_lava: Some(false),
                 is_amphibious: Some(true),
             },
+            offspring: super::super::components::Offspring {
+                blend_attributes: None,
+                combine_parent_colors: None,
+                deny_parents_variant: None,
+                inherit_tamed: None,
+                mutation_factor: None,
+                mutation_strategy: None,
+                offspring_pairs: Some(OffspringOffspringPairs {}),
+                parent_centric_attribute_blending: None,
+                property_inheritance: None,
+                random_extra_variant_mutation_interval: None,
+                random_variant_mutation_interval: None,
+            },
             on_target_acquired: super::super::components::OnTargetAcquired {
                 value: crate::types::BedrockValue::Null,
             },
@@ -622,6 +689,8 @@ pub fn spawn_drowned(commands: &mut Commands) -> Entity {
                 is_pushable: Some(true),
                 is_pushable_by_piston: Some(true),
             },
+            pushable_by_block: super::super::components::PushableByBlock { data: None },
+            pushable_by_entity: super::super::components::PushableByEntity { data: None },
             rotation_locked_to_vehicle: super::super::components::RotationLockedToVehicle,
             scale: super::super::components::Scale { value: 1f32 },
             shareables: super::super::components::Shareables {
@@ -1248,15 +1317,7 @@ pub fn spawn_drowned(commands: &mut Commands) -> Entity {
                 ]),
                 singular_pickup: Some(true),
             },
-            type_family: super::super::components::TypeFamily {
-                family: vec![
-                    "drowned".to_string(),
-                    "zombie".to_string(),
-                    "undead".to_string(),
-                    "monster".to_string(),
-                    "mob".to_string(),
-                ],
-            },
+            spawn_egg_interaction: super::super::components::SpawnEggInteraction { data: None },
             underwater_movement: super::super::components::UnderwaterMovement {
                 max: None,
                 min: None,
@@ -1271,6 +1332,7 @@ pub enum DrownedComponentGroup {
     AdultDrowned,
     BabyDrowned,
     CanBreakDoors,
+    DrownedJockey,
     DrownedRider,
     HunterMode,
     MeleeEquipment,
@@ -1285,8 +1347,12 @@ pub enum DrownedComponentGroup {
 pub enum DrownedEvent {
     AsAdult,
     AsBaby,
+    AsBabyJockey,
     AsRangedAdult,
+    AsRangedBaby,
+    AsRangedBabyJockey,
     AsRider,
+    EntityBorn,
     EntitySpawned,
     HasTarget,
     LostTarget,

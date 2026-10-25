@@ -51,6 +51,8 @@ pub struct ParchedBundle {
     pub navigation_walk: super::super::components::NavigationWalk,
     pub physics: super::super::components::Physics,
     pub pushable: super::super::components::Pushable,
+    pub pushable_by_block: super::super::components::PushableByBlock,
+    pub pushable_by_entity: super::super::components::PushableByEntity,
     pub scale: super::super::components::Scale,
     pub shareables: super::super::components::Shareables,
     pub type_family: super::super::components::TypeFamily,
@@ -225,7 +227,7 @@ pub fn spawn_parched(commands: &mut Commands) -> Entity {
                                     ),
                                 ]),
                             )),
-                            max_dist: Some(16f32),
+                            max_dist: None,
                             max_flee: None,
                             max_height: None,
                             must_see: None,
@@ -255,7 +257,7 @@ pub fn spawn_parched(commands: &mut Commands) -> Entity {
                                     ),
                                 ]),
                             )),
-                            max_dist: Some(16f32),
+                            max_dist: None,
                             max_flee: None,
                             max_height: None,
                             must_see: None,
@@ -318,7 +320,7 @@ pub fn spawn_parched(commands: &mut Commands) -> Entity {
                                     ]),
                                 )]),
                             )),
-                            max_dist: Some(16f32),
+                            max_dist: None,
                             max_flee: None,
                             max_height: None,
                             must_see: None,
@@ -348,7 +350,14 @@ pub fn spawn_parched(commands: &mut Commands) -> Entity {
                 can_pickup_any_item: Some(true),
                 can_pickup_to_hand_or_equipment: Some(true),
                 cooldown_after_being_attacked: None,
-                excluded_items: None,
+                excluded_items: Some(vec![crate::types::BedrockValue::Object(
+                    std::collections::HashMap::from([(
+                        "tags".to_string(),
+                        crate::types::BedrockValue::String(
+                            "q.all_tags('minecraft:is_spear')".to_string(),
+                        ),
+                    )]),
+                )]),
                 goal_radius: Some(2f32),
                 max_dist: Some(3f32),
                 pickup_based_on_chance: Some(true),
@@ -543,6 +552,8 @@ pub fn spawn_parched(commands: &mut Commands) -> Entity {
                 is_pushable: Some(true),
                 is_pushable_by_piston: Some(true),
             },
+            pushable_by_block: super::super::components::PushableByBlock { data: None },
+            pushable_by_entity: super::super::components::PushableByEntity { data: None },
             scale: super::super::components::Scale { value: 1f32 },
             shareables: super::super::components::Shareables {
                 all_items: Some(false),
@@ -1170,6 +1181,7 @@ pub fn spawn_parched(commands: &mut Commands) -> Entity {
 pub enum ParchedComponentGroup {
     MeleeAttack,
     RangedAttack,
+    RangedAttackHard,
 }
 /// Events for this entity
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
@@ -1177,4 +1189,6 @@ pub enum ParchedEvent {
     EntitySpawned,
     MeleeMode,
     RangedMode,
+    SwitchToHardRanged,
+    SwitchToNormalRanged,
 }

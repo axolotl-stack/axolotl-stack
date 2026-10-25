@@ -149,4 +149,5 @@ contiguous output buffer.
 ## Notes
 
 - Bedrock strings are decoded lossily on purpose for wire compatibility with existing implementations such as `gophertunnel`.
+- UUIDs (`uuid::Uuid`, `mce::UUID`) are written as two 64-bit halves, most significant half first, each half little-endian, as BDS 1.26.51 sends them (`tests/wire_probe_conformance.rs`) and as gophertunnel reads them. A symmetric round trip cannot catch a byte-order bug; the capture test pins it.
 - Prefer importing from `bedrock::version::vX_Y_Z` in application code unless you specifically need the raw generated protocol crate or a compatibility alias.
