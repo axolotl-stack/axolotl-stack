@@ -155,3 +155,16 @@ impl Default for WorldConfig {
         }
     }
 }
+
+impl WorldConfig {
+    /// Default settings with a void world and a stone platform of `platform_radius_chunks`
+    /// around the origin: generated inline, no generation pool or tokio runtime needed.
+    pub fn void_spawn_platform(platform_radius_chunks: u32) -> Self {
+        Self {
+            generator: WorldGenerator::VoidSpawnPlatform {
+                platform_radius_chunks,
+            },
+            ..Self::default()
+        }
+    }
+}

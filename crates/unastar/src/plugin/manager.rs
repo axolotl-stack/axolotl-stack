@@ -1218,7 +1218,9 @@ mod tests {
             world.insert_resource(crate::ecs::resources::TickCounter { current: 42 });
             world.insert_resource(crate::ecs::events::ActionQueue::default());
             world.insert_resource(bevy_ecs::message::Messages::<BlockBroadcastEvent>::default());
-            world.insert_resource(ChunkManager::new(crate::world::WorldConfig::default()));
+            world.insert_resource(ChunkManager::new(
+                crate::world::WorldConfig::void_spawn_platform(1),
+            ));
             let chunk = world.spawn(ChunkData::new(Chunk::new(0, 0))).id();
             world
                 .resource_mut::<ChunkManager>()

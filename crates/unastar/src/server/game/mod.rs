@@ -664,9 +664,17 @@ mod tests {
     use glam::DVec3;
     use jolyne::valentine::McpePacketName;
 
+    /// A server over a void world: no generation pool, so no tokio runtime needed.
+    fn void_server() -> GameServer {
+        GameServer::with_config(ServerConfig {
+            world: crate::world::WorldConfig::void_spawn_platform(1),
+            ..ServerConfig::default()
+        })
+    }
+
     #[test]
     fn game_tick_runs_physics_set_for_living_entities() {
-        let mut server = GameServer::new();
+        let mut server = void_server();
         let entity = server
             .ecs
             .world_mut()
@@ -722,7 +730,7 @@ mod tests {
 
     #[test]
     fn game_tick_runs_entity_lifecycle_systems() {
-        let mut server = GameServer::new();
+        let mut server = void_server();
         let entity = server
             .ecs
             .world_mut()
@@ -743,6 +751,7 @@ mod tests {
         let mut server = GameServer::with_config(ServerConfig {
             default_chunk_radius: 2,
             max_chunk_radius: 4,
+            world: crate::world::WorldConfig::void_spawn_platform(1),
             ..ServerConfig::default()
         });
         let (outbound_tx, mut outbound_rx) = tokio::sync::mpsc::channel(32);
