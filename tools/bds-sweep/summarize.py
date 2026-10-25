@@ -161,8 +161,14 @@ def summarize_drops(sources: list[Path], repeats: list[Path]) -> None:
         cases: list[dict] = []
         merged: dict[str, dict] = {}
         for row in sorted(block_rows, key=lambda r: r['key']):
-            placed = row['placed']
             tool = row['key'].rsplit('|', 1)[1]
+            if row.get('crashed'):
+                # Setting this state crashed the server (Endstone access
+                # violation in Block.set_data); nothing was measured.
+                cases.append({'states': row['states'], 'tools': [tool], 'fit': 'server_crash',
+                              'observed': None, 'loot_table': None})
+                continue
+            placed = row['placed']
             if placed['type'] != row['block']:
                 # BDS stores another block for this state (flowing liquids,
                 # bubble columns, soul fire without soul soil).

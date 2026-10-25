@@ -23,11 +23,31 @@ class Context:
         self.out = Path(plugin.job['output_dir'])
         self.results_path = self.out / 'results.jsonl'
         self.done = set()
+        # Block states (key before `|`) that crashed the server; every later
+        # item on such a state is recorded as crashed without touching it.
+        self.crashed_states: set[str] = set()
         if self.results_path.exists():
             for line in self.results_path.read_text(encoding='utf-8').splitlines():
                 if line.strip():
-                    self.done.add(json.loads(line)['key'])
+                    row = json.loads(line)
+                    self.done.add(row['key'])
+                    if row.get('crashed'):
+                        self.crashed_states.add(row['key'].split('|', 1)[0])
         self.results = self.results_path.open('a', encoding='utf-8', buffering=1)
+        # An item that was in flight when the previous run died took the
+        # server down with it (Endstone crashes on a few block states): record
+        # it as crashed so the resumed run skips it instead of crashing again.
+        self.inflight = self.out / 'inflight.json'
+        if self.inflight.exists():
+            item = json.loads(self.inflight.read_text(encoding='utf-8'))
+            if item['key'] not in self.done:
+                self.record({**item, 'crashed': True})
+                self.crashed_states.add(item['key'].split('|', 1)[0])
+            self.inflight.unlink()
+
+    def begin(self, item: dict) -> None:
+        """Marks `item` as in flight until it is recorded."""
+        self.inflight.write_text(json.dumps(item), encoding='utf-8')
 
     def cmd(self, line: str) -> bool:
         return self.server.dispatch_command(self.server.command_sender, line)
@@ -97,6 +117,10 @@ def drops(ctx: Context, job: dict):
     for item in job['items']:
         if item['key'] in ctx.done:
             continue
+        if item['key'].split('|', 1)[0] in ctx.crashed_states:
+            ctx.record({**item, 'crashed': True})
+            continue
+        ctx.begin(item)
         ctx.set_state(pos, item['block'], item['states'])
         ctx.player.inventory.item_in_main_hand = ctx.stack(item['tool'])
         placed = ctx.block(pos).data
