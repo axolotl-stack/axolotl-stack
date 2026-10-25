@@ -26,6 +26,8 @@ pub struct StructureManager {
     rings: RingPositions,
     cache: Mutex<HashMap<(i32, i32), ChunkStarts>>,
     cache_limit: usize,
+    /// Most queried chunks have no starts; share that immutable result.
+    empty_starts: ChunkStarts,
     /// Structure indices per generation step, in registry order.
     step_structures: [Vec<u16>; 11],
 }
@@ -52,6 +54,7 @@ impl StructureManager {
             rings: RingPositions::new(sets.len()),
             cache: Mutex::new(HashMap::new()),
             cache_limit: 4096,
+            empty_starts: Arc::new(Vec::new()),
             step_structures,
         }
     }
@@ -97,7 +100,11 @@ impl StructureManager {
                 total -= weight;
             }
         }
-        let starts = Arc::new(out);
+        let starts = if out.is_empty() {
+            self.empty_starts.clone()
+        } else {
+            Arc::new(out)
+        };
         let mut cache = self.cache.lock().expect("structure cache");
         if cache.len() >= self.cache_limit {
             cache.clear();

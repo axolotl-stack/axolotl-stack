@@ -63,3 +63,32 @@ its owner's cutover must extend this hash before optimizing that merged path.
 
 The full all-feature test acceptance and heavy measurement modes are separate gates;
 no multi-threaded terrain throughput or vanilla-server baseline is claimed here.
+
+## Java immutable empty starts and template scratch lists
+
+The structure manager now shares one immutable empty-start result instead of
+allocating an `Arc<Vec<_>>` for every empty queried chunk. Template processing
+copies static processor references individually instead of cloning their Vec;
+only capped processors retain the originals list needed by finalization.
+The capped-after-filtering boundary has a deterministic regression test.
+
+Same 68 positions, release stage build, mask 4, turbo off, concurrent workers active:
+
+| Fixture-total allocation traffic | Before | After |
+|---|---:|---:|
+| Finished allocations | 190742 | 189107 |
+| Finished requested bytes | 174887868 | 174812524 |
+| Structure-start allocations | 46564 | 44943 |
+| Template allocations | 366 | 352 |
+
+The initial per-stage allocation/byte ceiling passes; both edition hash tests pass.
+This slice claims allocation savings, not a wall-time speedup.
+
+### Rejected quart-grid cache experiment
+
+A 256-entry shared quart-grid cache plus the changes above passed both exact-output
+tests and three alternating normal-release A/B rounds on mask 4, turbo off, workers
+active: Java median 79.794 → 77.784 ms/requested chunk. However it increased fixture
+allocation traffic by 24,016 bytes (174,887,548 → 174,911,564 bytes, normal builds).
+The grid cache was removed rather than weakening the byte ceiling or retaining
+additional state for a small noisy timing gain.
