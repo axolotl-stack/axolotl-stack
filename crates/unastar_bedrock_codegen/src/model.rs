@@ -69,6 +69,8 @@ impl Model {
         let mut inputs = vec![
             native_dir.join("canonical_block_states.nbt"),
             native_dir.join("block_tags.json"),
+            native_dir.join("block_state_data.json"),
+            native_dir.join("block_properties_table.json"),
             ids_path,
         ];
         for family in [Family::Biomes, Family::FeatureRules, Family::Features, Family::SpawnRules] {

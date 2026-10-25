@@ -69,9 +69,12 @@ fn the_whole_stack_compiles_to_parseable_rust() {
     use unastar_bedrock_codegen::model::Model;
     let Some(dir) = bds_dir() else { return };
     let model = Model::load(&dir, &native_dir()).unwrap();
-    let (source, report) = unastar_bedrock_codegen::emit::generate(&model).unwrap();
+    let (_, report) = unastar_bedrock_codegen::emit::generate(&model).unwrap();
     assert_eq!(report.rules, 181);
     assert_eq!(report.builtins, unastar_bedrock_codegen::builtin::BUILTIN_FEATURES.len());
-    assert!(source.contains("pub fn run_pass"));
-    assert!(source.contains("pub static BIOMES"));
+    assert_eq!(report.biomes, model.overworld_biomes().count());
+    assert_eq!(
+        report.features + report.builtins,
+        model.reachable_features(unastar_bedrock_codegen::builtin::BUILTIN_FEATURES).unwrap().len()
+    );
 }

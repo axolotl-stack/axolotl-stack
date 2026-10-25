@@ -17,6 +17,21 @@ use unastar::world::generator::bedrock::generated::BIOMES;
 use unastar::world::generator::bedrock::region::ChunkRegion;
 use unastar::world::generator::bedrock::world::{BlockPos, BlockWorld};
 use unastar::world::generator::bedrock::BiomeSet;
+use unastar::world::generator::bedrock::rng::BedrockRandom;
+use unastar::world::generator::bedrock::surface::{self, ColumnInput, SurfaceColumn, SurfaceNoises};
+
+struct Column<'a> {
+    chunk: &'a mut Chunk,
+    x: u8,
+    z: u8,
+}
+
+impl SurfaceColumn for Column<'_> {
+    fn min_y(&self) -> i32 { MIN_Y }
+    fn max_y(&self) -> i32 { MIN_Y + 384 }
+    fn get(&self, y: i32) -> u32 { self.chunk.get_block(self.x, y as i16, self.z) }
+    fn set(&mut self, y: i32, id: u32) { self.chunk.set_block(self.x, y as i16, self.z, id); }
+}
 
 fn histogram(chunk: &Chunk) -> BTreeMap<u32, u32> {
     let mut out = BTreeMap::new();
@@ -50,12 +65,44 @@ fn run() {
         .collect();
     println!("terrain 3x3: {:.1} ms", t.elapsed().as_secs_f64() * 1e3);
     let decorator = Decorator::new(seed);
+    let surface_noises = SurfaceNoises::new(seed);
     let registry = BlockRegistry::vanilla();
-    let before = histogram(&base[4]);
+    // Snapshot solid heights before applying any biome's surface, so slopes
+    // cannot depend on the column traversal order.
+    let heights: Vec<i32> = (0..48 * 48).map(|i| {
+        let (x, z) = (i % 48, i / 48);
+        let chunk = &base[z / 16 * 3 + x / 16];
+        (MIN_Y..MIN_Y + 384).rev().find(|&y| {
+            let id = chunk.get_block((x % 16) as u8, y as i16, (z % 16) as u8);
+            id != unastar::world::generator::bedrock::generated::bb::AIR
+                && !unastar::world::generator::bedrock::generated::props::is_liquid(id)
+        }).unwrap_or(MIN_Y)
+    }).collect();
     let mut total = std::time::Duration::ZERO;
     let mut runs = 0;
     for biome in BIOMES.iter().filter(|b| b.overworld) {
         let mut chunks = base.clone();
+        let mut surface_rng = BedrockRandom::new(seed as u32);
+        for (i, chunk) in chunks.iter_mut().enumerate() {
+            for z in 0..16u8 {
+                for x in 0..16u8 {
+                    let (rx, rz) = (i % 3 * 16 + x as usize, i / 3 * 16 + z as usize);
+                    let height = |x: usize, z: usize| heights[z * 48 + x];
+                    let input = ColumnInput {
+                        x: chunk.x * 16 + x as i32,
+                        z: chunk.z * 16 + z as i32,
+                        biome,
+                        sea_level: 63,
+                        neighbour_heights: [
+                            height(rx, rz.saturating_sub(1)), height(rx, (rz + 1).min(47)),
+                            height(rx.saturating_sub(1), rz), height((rx + 1).min(47), rz),
+                        ],
+                    };
+                    surface::build_column(&mut Column { chunk, x, z }, &input, &surface_noises, &mut surface_rng);
+                }
+            }
+        }
+        let before = histogram(&chunks[4]);
         let id = biome.id;
         let source = move |_: i32, _: i32, _: i32| id;
         let mut set = BiomeSet::default();

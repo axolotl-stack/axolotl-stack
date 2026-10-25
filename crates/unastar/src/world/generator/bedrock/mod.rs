@@ -1,4 +1,4 @@
-//! Bedrock-style world generation (BDS 1.26.51 parity), `kind = "bedrock"`.
+//! Bedrock-style world generation targeting BDS 1.26.51.
 //!
 //! The vanilla data (feature rules, features, biome surface parameters) is
 //! read from a local BDS install at build time and compiled to Rust by
@@ -18,6 +18,16 @@
 //!   template-based features;
 //! - [`region`]: the 3x3 chunk [`world::BlockWorld`] decoration runs on;
 //! - [`decorate`]: per-chunk seeding and the pass driver.
+//!
+//! # Measurement boundary
+//!
+//! **unmeasured: to confirm by BDS fixture** applies to per-chunk/feature RNG
+//! seeding and draw order, coordinate/distribution semantics, built-in feature
+//! geometry and selectors, JSON feature placement details, surface noise and
+//! builder formulas, carver paths, jigsaw placement and processors. The data
+//! schemas and emitted numeric identities are checked against local install
+//! inputs; that does not establish runtime BDS parity. The codegen README lists
+//! the measurement categories and the reference controls needed for each.
 
 pub mod builtin;
 pub mod decorate;

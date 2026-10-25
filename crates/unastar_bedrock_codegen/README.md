@@ -1,9 +1,30 @@
 # unastar_bedrock_codegen
 
-Build-time toolchain of unastar's **Bedrock-style** world generator (`kind = "bedrock"`,
-BDS 1.26.51 parity). It reads the vanilla behaviour packs of a local BDS install and
-compiles feature rules, features and biome surface parameters into straight-line Rust
+Build-time toolchain for unastar's Bedrock-style world generator, targeting BDS
+1.26.51. It reads the vanilla behaviour packs of a local BDS install and compiles
+feature rules, features and biome surface parameters into straight-line Rust
 that `crates/unastar` includes (`world::generator::bedrock::generated`).
+
+The compiled data path is exercised against the local install; **BDS world parity
+is not established**. Runtime seeding, built-in feature geometry, scatter semantics
+and surface noise still require reference-world measurements. See
+`thoughts/shared/research/bds-quirks.md` for the explicit inference boundaries.
+
+| Runtime area | Status | Needed BDS control |
+|---|---|---|
+| Chunk/pass RNG seeding and feature draw order | unmeasured: to confirm by BDS fixture | Marker placements across positive/negative chunks for one fixed seed |
+| Scatter numeric/distribution offsets versus Molang positions, inclusive extents, Gaussian sampling | unmeasured: to confirm by BDS fixture | Single-block rules with constant, expression and distribution coordinates |
+| Molang noise and query height semantics | unmeasured: to confirm by BDS fixture | Marker heights above flat ground and fluids, noise threshold controls |
+| JSON ore/tree/plant/geode/sculk/blob/decoration feature placement | unmeasured: to confirm by BDS fixture | One isolated feature at a known origin in controlled material |
+| Built-in aquatic/plants/terrain features and legacy selectors | unmeasured: to confirm by BDS fixture | One built-in identifier per control, fixed seed and biome |
+| Surface builders, noise seeds, mountain slopes and adjustment precedence | unmeasured: to confirm by BDS fixture | Matched columns for each builder with captured biome/material inputs |
+| Cave/underwater/nether carver geometry and probability | unmeasured: to confirm by BDS fixture | Isolated carver rules in stone and underwater regions |
+| Template rotation, jigsaw expansion, structure placement and processors | unmeasured: to confirm by BDS fixture | Template/pool controls at known origins plus structure-set placements |
+| Hard-coded structures without shipped placement data | Not implemented | Reference-world placement captures and controlled templates |
+
+The synthetic/unit checks validate the implemented invariants, not equivalence
+to BDS. Data-derived parameters are compiled; the unmeasured algorithms above
+must not be treated as established vanilla behavior.
 
 The BDS packs are under the Minecraft EULA: they are **read at build time and never
 committed**. No vanilla data lives in this crate.
@@ -42,3 +63,9 @@ runtime implements in Rust; a reachable built-in missing from the list fails the
 `cargo test -p unastar_bedrock_codegen`. Unit tests use synthetic archives and palettes.
 `tests/bds_install.rs` checks the real install (counts, every reference resolves) and
 skips with a message when `UNASTAR_BDS_DIR` is not set.
+
+`cargo run -p unastar --features bedrock-worldgen --example bedrock_decoration_smoke`
+applies each overworld biome's compiled surface and decoration rules to a shared
+3x3 terrain region, printing the resulting block changes. This catches runtime
+failures across all biome rule paths; it is not a parity test or a controlled
+performance benchmark.
