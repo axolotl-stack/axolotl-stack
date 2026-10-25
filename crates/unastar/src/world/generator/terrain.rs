@@ -41,6 +41,8 @@ pub struct JavaGenerator {
     surface_system: SurfaceSystem,
     /// Ore vein positional random (`fromHashOf("minecraft:ore").forkPositional()`).
     ore_random: PositionalRandomFactory,
+    /// Structure starts and noise-only column heights (Java-style structures).
+    structures: super::structures::JavaStructures,
 }
 
 impl JavaGenerator {
@@ -64,6 +66,7 @@ impl JavaGenerator {
             noises,
             surface_system,
             ore_random,
+            structures: super::structures::JavaStructures::new(),
         }
     }
 
@@ -342,6 +345,19 @@ impl CarveContext for JavaCarveContext<'_, '_> {
     }
 }
 
+impl JavaGenerator {
+    /// Structure starts that originate in chunk (`x`, `z`) (Java's
+    /// `structure_starts` status), for tools and parity tests.
+    pub fn structure_starts(
+        &self,
+        x: i32,
+        z: i32,
+    ) -> unastar_noise::structures::manager::ChunkStarts {
+        let ctx = self.structures.context(self.seed, &self.noises);
+        self.structures.manager.starts_in_chunk(&ctx, x, z)
+    }
+}
+
 impl Generator for JavaGenerator {
     fn seed(&self) -> i64 {
         self.seed
@@ -369,10 +385,12 @@ impl Generator for JavaGenerator {
     }
 
     fn decorates(&self) -> bool {
-        false
+        true
     }
 
-    fn decorate(&self, _region: &mut DecorationRegion<'_>) {}
+    fn decorate(&self, region: &mut DecorationRegion<'_>) {
+        super::features::decorate(self.seed, &self.noises, &self.structures, region);
+    }
 
     fn block_classes(&self) -> &'static [u8] {
         &unastar_noise::java_blocks::BEDROCK_STATE_CLASSES

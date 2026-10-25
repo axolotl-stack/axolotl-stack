@@ -42,6 +42,12 @@ pub mod biome_climate;
 // Block-class flags (heightmaps, block predicates)
 pub mod block_class;
 
+// Java-style decoration (features)
+pub mod features;
+
+// Java-style structures
+pub mod structures;
+
 // Runtime types of the compiled carvers (`carvers`)
 pub mod carver;
 

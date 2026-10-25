@@ -10,10 +10,12 @@ pub mod biome_features;
 pub mod biome_source;
 pub mod carver;
 pub mod emitter_quote;
+pub mod feature;
 pub mod java_biomes;
 pub mod java_blocks;
 pub mod noise;
 pub mod settings;
+pub mod structure;
 pub mod surface_rule;
 
 use super::analyzer::DependencyGraph;

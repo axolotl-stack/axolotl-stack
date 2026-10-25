@@ -8,6 +8,10 @@ default = []
 # Bedrock-style world generator compiled from a local BDS 1.26.51 install.
 # Needs UNASTAR_BDS_DIR at build time (see README, "Bedrock-style generator").
 bedrock-worldgen = ["dep:unastar_bedrock_codegen"]
+# Java Edition structure templates for the Java-style generator, read at build
+# time from the server jar named by UNASTAR_JAVA_SERVER_JAR (Mojang assets,
+# never committed). Without it `world.generator.kind = "java"` is rejected.
+java-worldgen = ["unastar_noise/java-templates"]
 
 [dependencies]
 bytes.workspace = true

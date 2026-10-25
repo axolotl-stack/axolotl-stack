@@ -51,6 +51,10 @@ pub struct BiomeJson {
 
     /// Whether this biome has precipitation
     pub has_precipitation: bool,
+
+    /// Downfall (biome foliage/grass colour input; carried into the climate table).
+    #[serde(default)]
+    pub downfall: f32,
 }
 
 /// Generation steps for features.

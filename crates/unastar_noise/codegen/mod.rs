@@ -6,4 +6,8 @@
 pub mod analyzer;
 pub mod data;
 pub mod emitter;
+pub mod jar;
+pub mod java_blocks;
+pub mod nbt;
 pub mod parser;
+pub mod templates;

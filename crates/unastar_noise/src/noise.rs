@@ -8,6 +8,27 @@ use std::simd::Select;
 use std::simd::StdFloat;
 use std::simd::prelude::*;
 
+/// The two draws noise initialisation needs (`nextDouble`, `nextInt(bound)`).
+///
+/// Implemented by the Xoroshiro source used for terrain and by
+/// [`crate::features::random::WorldgenRandom`] (legacy-seeded noises such as
+/// the biome info noise and noise-based block state providers).
+pub trait NoiseRandom {
+    fn noise_next_double(&mut self) -> f64;
+    fn noise_next_int(&mut self, bound: u32) -> u32;
+}
+
+impl NoiseRandom for Xoroshiro128 {
+    #[inline]
+    fn noise_next_double(&mut self) -> f64 {
+        self.next_double()
+    }
+    #[inline]
+    fn noise_next_int(&mut self, bound: u32) -> u32 {
+        self.next_int(bound)
+    }
+}
+
 /// 3D Perlin noise generator - cubiomes-accurate implementation.
 #[derive(Debug, Clone)]
 pub struct PerlinNoise {
@@ -49,11 +70,12 @@ impl Default for PerlinNoise {
 }
 
 impl PerlinNoise {
-    /// Initialize Perlin noise from Xoroshiro RNG (cubiomes xPerlinInit).
-    pub fn new(rng: &mut Xoroshiro128) -> Self {
-        let a = rng.next_double() * 256.0;
-        let b = rng.next_double() * 256.0;
-        let c = rng.next_double() * 256.0;
+    /// Initialize Perlin noise (`ImprovedNoise(RandomSource)`): three offsets, then a
+    /// Fisher-Yates shuffle. Works with Xoroshiro and legacy `WorldgenRandom` sources.
+    pub fn new<R: NoiseRandom>(rng: &mut R) -> Self {
+        let a = rng.noise_next_double() * 256.0;
+        let b = rng.noise_next_double() * 256.0;
+        let c = rng.noise_next_double() * 256.0;
 
         // Initialize permutation table as i32 for SIMD gather operations
         let mut d = [0i32; 257];
@@ -65,7 +87,7 @@ impl PerlinNoise {
 
         // Fisher-Yates shuffle
         for i in 0..256 {
-            let j = rng.next_int(256 - i as u32) as usize + i;
+            let j = rng.noise_next_int(256 - i as u32) as usize + i;
             d.swap(i, j);
         }
         // Wrap around for easier indexing
@@ -1213,11 +1235,11 @@ impl SimplexNoise {
     /// G3 constant: 1/6
     const G3: f64 = 0.16666666666666666;
 
-    /// Create a new SimplexNoise from a Xoroshiro RNG.
-    pub fn new(rng: &mut Xoroshiro128) -> Self {
-        let xo = rng.next_double() * 256.0;
-        let yo = rng.next_double() * 256.0;
-        let zo = rng.next_double() * 256.0;
+    /// Create a new SimplexNoise (`SimplexNoise(RandomSource)`).
+    pub fn new<R: NoiseRandom>(rng: &mut R) -> Self {
+        let xo = rng.noise_next_double() * 256.0;
+        let yo = rng.noise_next_double() * 256.0;
+        let zo = rng.noise_next_double() * 256.0;
 
         let mut p = [0i32; 512];
 
@@ -1228,7 +1250,7 @@ impl SimplexNoise {
 
         // Fisher-Yates shuffle (matching Java's exact algorithm)
         for i in 0..256 {
-            let j = rng.next_int(256 - i as u32) as usize;
+            let j = rng.noise_next_int(256 - i as u32) as usize;
             p.swap(i, j + i);
         }
 

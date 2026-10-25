@@ -36,6 +36,22 @@ fn main() {
             .expect("Failed to parse noise settings");
     let biomes = codegen::parser::biome::parse_all(&json_root.join("biome"))
         .expect("Failed to parse biome definitions");
+    let features = codegen::parser::feature::parse_all(&json_root)
+        .unwrap_or_else(|e| panic!("Failed to parse feature definitions: {e}"));
+    println!(
+        "cargo:warning=Parsed {} configured / {} placed features",
+        features.configured.len(),
+        features.placed.len()
+    );
+    let structures = codegen::parser::structure::parse_all(&json_root, &java_data)
+        .unwrap_or_else(|e| panic!("Failed to parse structure definitions: {e}"));
+    println!(
+        "cargo:warning=Parsed {} structure sets / {} structures / {} pools / {} processor lists",
+        structures.sets.len(),
+        structures.structures.len(),
+        structures.pools.len(),
+        structures.processor_lists.len()
+    );
     let java_blocks = codegen::data::java_blocks::JavaBlocks::load(&java_data)
         .unwrap_or_else(|e| panic!("Failed to load java_data block tables: {e}"));
     let bedrock_biome_ids = codegen::emitter::java_biomes::load_bedrock_ids(&java_data)
@@ -62,4 +78,54 @@ fn main() {
         },
     )
     .expect("Failed to emit generated code");
+
+    // Java block registry for decoration (features/structures).
+    let mut decor_blocks = codegen::java_blocks::JavaBlocks::load(&java_data)
+        .unwrap_or_else(|e| panic!("Failed to load Java block data: {e}"));
+    // Features intern block states and sets, so they are emitted first.
+    codegen::emitter::feature::emit_features(
+        &output_dir,
+        &java_data,
+        &biomes,
+        &features,
+        &mut decor_blocks,
+    )
+    .unwrap_or_else(|e| panic!("Failed to emit features: {e}"));
+
+    // Structure templates from the local Java server jar (feature `java-templates`).
+    println!("cargo:rerun-if-env-changed=UNASTAR_JAVA_SERVER_JAR");
+    let jar = if std::env::var_os("CARGO_FEATURE_JAVA_TEMPLATES").is_some() {
+        let path = std::env::var("UNASTAR_JAVA_SERVER_JAR").unwrap_or_else(|_| {
+            panic!(
+                "feature `java-templates` needs UNASTAR_JAVA_SERVER_JAR = path to the Java Edition \
+                 1.21.11 server.jar (structure templates are read from it at build time)"
+            )
+        });
+        println!("cargo:rerun-if-changed={path}");
+        Some(PathBuf::from(path))
+    } else {
+        None
+    };
+    let template_names = codegen::templates::emit(&output_dir, &decor_blocks, jar.as_deref())
+        .unwrap_or_else(|e| panic!("Failed to embed structure templates: {e}"));
+    println!(
+        "cargo:warning=Embedded {} structure templates",
+        template_names.len()
+    );
+    let mut biome_names: Vec<String> = biomes.keys().map(|b| format!("minecraft:{b}")).collect();
+    biome_names.sort();
+    let placed_names: Vec<String> = features.placed.keys().cloned().collect();
+    codegen::emitter::structure::emit_structures(
+        &output_dir,
+        &structures,
+        &mut decor_blocks,
+        &biome_names,
+        &placed_names,
+    )
+    .unwrap_or_else(|e| panic!("Failed to emit structures: {e}"));
+    decor_blocks
+        .emit(&output_dir)
+        .unwrap_or_else(|e| panic!("Failed to emit Java block data: {e}"));
+
+    println!("cargo:warning=Generated worldgen code in {:?}", output_dir);
 }
