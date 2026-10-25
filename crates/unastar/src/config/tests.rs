@@ -176,7 +176,11 @@ fn strict_world_variants_still_load_valid_options() {
 
 #[test]
 fn bedrock_config_requires_the_build_time_pack_feature() {
+    // Start from a generator that needs no build-time game files, so the first check
+    // holds in every feature combination (the default Java-style world needs
+    // `java-worldgen`).
     let mut config = UnastarConfig::default();
+    config.world.generator = crate::world::WorldGenerator::SuperFlat;
     assert!(config.validate().is_ok());
     config.world.generator = crate::world::WorldGenerator::Bedrock { seed: 12345 };
     assert_eq!(
