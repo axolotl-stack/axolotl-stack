@@ -11,7 +11,7 @@
 //! + 1`) use it in noise patches (soul sand valley gravel beaches). The patch
 //! noise scale and threshold are not observable from the data; they follow
 //! the classic nether beaches (patch noise above `0.15 + U[0, 0.35)`),
-//! statistical parity. Remaining terrain stone becomes
+//! unmeasured: to confirm by BDS fixture. Remaining terrain stone becomes
 //! `foundation_material`.
 
 use super::super::generated::bb;

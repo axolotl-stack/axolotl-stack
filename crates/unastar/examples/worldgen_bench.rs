@@ -153,7 +153,15 @@ fn run() {
     let generator: std::sync::Arc<dyn Generator> = match kind {
         "java" => std::sync::Arc::new(JavaGenerator::new(seed)),
         "flat" => std::sync::Arc::new(FlatGenerator),
-        other => panic!("unknown --kind {other} (java, flat)"),
+        #[cfg(feature = "bedrock-worldgen")]
+        "bedrock" => std::sync::Arc::new(
+            unastar::world::generator::bedrock::BedrockGenerator::new(seed),
+        ),
+        #[cfg(not(feature = "bedrock-worldgen"))]
+        "bedrock" => {
+            panic!("--kind bedrock requires --features bedrock-worldgen and UNASTAR_BDS_DIR")
+        }
+        other => panic!("unknown --kind {other} (java, bedrock, flat)"),
     };
     let setup_ms = started.elapsed().as_secs_f64() * 1e3;
 

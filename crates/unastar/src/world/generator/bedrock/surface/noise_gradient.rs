@@ -6,7 +6,7 @@
 //! The noise is the descriptor's normal noise (`first_octave`, `amplitudes`)
 //! sampled at block coordinates, seeded per world from its name. Whether
 //! BDS adds a vertical bias ("gradient") to the value is not observable from
-//! the data; none is applied (statistical parity on the documented ranges).
+//! the data; none is applied (unmeasured: to confirm by BDS fixture).
 //!
 //! As a surface builder it dresses the surface layer (the top solid block
 //! and the `depth` blocks below it); as a subsurface builder, its whole

@@ -13,8 +13,8 @@
 //! water block it grows in; the world implementation owns Bedrock's extra
 //! water layer for blocks that need one (corals, pickles).
 //!
-//! Decoration is statistical parity with BDS: shapes, densities and palettes
-//! follow vanilla behaviour, the exact draw order of BDS is unknown.
+//! **unmeasured: to confirm by BDS fixture**: geometry, density, palettes and
+//! random draw order of built-in aquatic placements.
 
 use super::super::generated::{bb, props};
 use super::super::rng::BedrockRandom;
@@ -611,7 +611,7 @@ fn coral_mushroom<W: BlockWorld>(ctx: &mut Ctx<'_, W>, pos: BlockPos, block: u32
 /// `minecraft:coral_feature`: one warm ocean coral structure of a random
 /// colour on the floor at `pos`, uniformly a tree, claw or mushroom (vanilla
 /// warm ocean vegetation shapes; BDS ships no document for the selection, so
-/// the uniform pick is statistical parity).
+/// the uniform pick is unmeasured: to confirm by BDS fixture).
 pub fn coral_feature<W: BlockWorld>(ctx: &mut Ctx<'_, W>, pos: BlockPos) -> Option<BlockPos> {
     let shape = ctx.rng.next_int(3);
     let block = CORAL_BLOCKS[ctx.rng.next_int(5) as usize];
@@ -629,7 +629,7 @@ pub fn coral_feature<W: BlockWorld>(ctx: &mut Ctx<'_, W>, pos: BlockPos) -> Opti
 /// gravel, clay or dirt with water above and within 2 blocks of `pos.y` (the
 /// patch does not drape over ledges); edge columns are kept with 50 %. BDS
 /// ships no parameters for this feature: the shape is inferred from observed
-/// reefs (flat coral patches on the sand), statistical parity only.
+/// reefs (flat coral patches on the sand), unmeasured: to confirm by BDS fixture.
 pub fn coral_crust_feature<W: BlockWorld>(ctx: &mut Ctx<'_, W>, pos: BlockPos) -> Option<BlockPos> {
     if !bb::water(ctx.get(pos)) || !props::is_solid(ctx.get(pos.below())) {
         return None;
@@ -670,7 +670,7 @@ pub fn coral_crust_feature<W: BlockWorld>(ctx: &mut Ctx<'_, W>, pos: BlockPos) -
 /// wall fans were once the `coral_fan_hang` blocks): walks down the coral
 /// blocks below `pos` (the top of a reef column, at most 8) and gives each
 /// water side a wall fan of the block's colour with 25 %. The fan count per
-/// block is inferred, statistical parity only.
+/// block is inferred, unmeasured: to confirm by BDS fixture.
 pub fn coral_hang_feature<W: BlockWorld>(ctx: &mut Ctx<'_, W>, pos: BlockPos) -> Option<BlockPos> {
     const MAX_DEPTH: i32 = 8;
     let mut placed = None;
@@ -699,7 +699,7 @@ pub fn coral_hang_feature<W: BlockWorld>(ctx: &mut Ctx<'_, W>, pos: BlockPos) ->
 /// the scattered floor decoration of warm oceans: one random coral or floor
 /// fan on the floor of the input column, in water on a solid floor. Columns
 /// whose floor reaches above the input (land) are skipped. The block choice
-/// is inferred from observed warm ocean floors, statistical parity only.
+/// is inferred, unmeasured: to confirm by BDS fixture.
 pub fn sea_anemone_feature<W: BlockWorld>(ctx: &mut Ctx<'_, W>, pos: BlockPos) -> Option<BlockPos> {
     let y = ctx.above_top_solid(pos.x, pos.z);
     if y > pos.y {

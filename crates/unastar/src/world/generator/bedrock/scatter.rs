@@ -5,8 +5,8 @@
 //! The shapes follow Mojang's feature documentation (uniform = flat,
 //! triangle = peaked at the centre, gaussian = bell, inverse_gaussian = mass
 //! at the edges, grids = regular steps). BDS's exact draw sequence is not
-//! observable from data; these keep the documented shape and range, which is
-//! what statistical decoration parity (research WD4) relies on.
+//! observable from data; distribution formulas and endpoint behavior remain
+//! unmeasured: to confirm by BDS fixture (research WD4).
 
 use super::rng::BedrockRandom;
 

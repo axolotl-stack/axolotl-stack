@@ -158,10 +158,30 @@ UNASTAR_BDS_DIR=/path/to/bds/server cargo build -p unastar --features bedrock-wo
 `definitions/` and `behavior_packs/vanilla*`); the build fails with a message naming the
 variable when it is unset. The protocolgen submodule must be initialised for block ids.
 
+Select it explicitly:
+
+```toml
+[world.generator]
+kind = "bedrock"
+seed = 12345
+```
+
+Startup rejects this configuration if `bedrock-worldgen` was not compiled in.
+Both editions use the same `Generator`/`ChunkPipeline`, bounded generation pool
+and deterministic 3x3 decoration assembly. Bedrock's proto stage uses shared
+noise/aquifers/veins, maps quart biomes to native Bedrock IDs, applies BDS-data
+surface builders and cave subsurface ranges, then runs compiled carver rules.
+Decoration places data-driven structure sets before feature passes. Height
+oracles use two bounded 128-entry single-flight caches of column heights.
+
+`cargo run -p unastar --features bedrock-worldgen --example worldgen_parity_report -- --kind bedrock`
+prints metrics against the BDS fixture. `worldgen_bench --kind bedrock` reports
+the same single-threaded workload as the Java generator, including allocations.
+
 Runtime pieces: `world` (block access trait and decoration context), `rng` (Bedrock's
 MT19937), `scatter` (rule/scatter distributions), `features` (JSON feature type
 algorithms), `builtin` (BDS built-in features registered under their identifiers),
-`surface` (Bedrock surface builders), `region` and `decorate` (3x3 decoration driver with
+`surface` (Bedrock surface builders), `adapter` and `decorate` (shared 3x3 region and driver with
 per-chunk seeding). **BDS parity is not established**, including statistical
 decoration parity. The codegen crate's [measurement ledger](../unastar_bedrock_codegen/README.md)
 lists the unmeasured algorithms and required reference controls.

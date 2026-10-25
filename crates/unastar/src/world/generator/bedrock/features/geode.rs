@@ -98,8 +98,7 @@ pub fn place<W: BlockWorld>(
     pos: BlockPos,
     params: &Params,
 ) -> Option<BlockPos> {
-    // Draw order below follows the vanilla algorithm; BDS's exact draws are
-    // not observable from data (statistical parity).
+    // The geometry and draw order are unmeasured: to confirm by BDS fixture.
     let noise = ShellNoise::new(i64::from(ctx.rng.next_u32()));
     let points = params.distribution_points.sample(ctx.rng).max(1);
     let crack_jitter = f64::from(ctx.rng.next_float());

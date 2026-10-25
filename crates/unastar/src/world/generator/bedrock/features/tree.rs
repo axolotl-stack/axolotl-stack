@@ -34,8 +34,7 @@
 //!   `100.0`), except `poplar_canopy.side_hole_chance`, which is a
 //!   probability in `[0, 1]` (`0.15`).
 //!
-//! The shapes are the classic vanilla shapes shared by both editions; BDS's
-//! exact random draw order is not observable from data (statistical parity).
+//! Geometry and random draw order are unmeasured: to confirm by BDS fixture.
 
 use super::super::generated::{bb, props};
 use super::super::rng::BedrockRandom;
@@ -948,7 +947,7 @@ fn place_base<W: BlockWorld>(ctx: &mut Ctx<'_, W>, p: &Params, at: BlockPos, wid
 /// `base_cluster` patches. Vanilla mega spruces convert four corner discs and
 /// a few random edge discs within three blocks of the trunk; the pack only
 /// gives the count, so the `num_clusters` centres are uniform over that same
-/// area (statistical parity).
+/// area (unmeasured: to confirm by BDS fixture).
 fn base_clusters<W: BlockWorld>(
     ctx: &mut Ctx<'_, W>,
     p: &Params,

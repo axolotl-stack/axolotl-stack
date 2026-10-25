@@ -73,6 +73,8 @@ pub enum WorldGenerator {
     VoidSpawnPlatform { platform_radius_chunks: u32 },
     /// Java-style terrain (Java Edition 1.21.11 parity target).
     Java { seed: i64 },
+    /// Bedrock-style worldgen from a local BDS 1.26.51 install.
+    Bedrock { seed: i64 },
 }
 
 impl WorldGenerator {
@@ -86,6 +88,17 @@ impl WorldGenerator {
                 platform_radius_chunks,
             }),
             Self::Java { seed } => std::sync::Arc::new(generator::JavaGenerator::new(seed)),
+            Self::Bedrock { seed } => {
+                #[cfg(feature = "bedrock-worldgen")]
+                {
+                    std::sync::Arc::new(generator::bedrock::BedrockGenerator::new(seed))
+                }
+                #[cfg(not(feature = "bedrock-worldgen"))]
+                {
+                    let _ = seed;
+                    panic!("{BEDROCK_BUILD_REQUIREMENT}")
+                }
+            }
         }
     }
 
@@ -94,10 +107,14 @@ impl WorldGenerator {
     pub fn uses_generation_pool(&self) -> bool {
         match self {
             Self::SuperFlat | Self::VoidSpawnPlatform { .. } => false,
-            Self::Java { .. } => true,
+            Self::Java { .. } | Self::Bedrock { .. } => true,
         }
     }
 }
+
+#[cfg(not(feature = "bedrock-worldgen"))]
+pub(crate) const BEDROCK_BUILD_REQUIREMENT: &str = "the Bedrock-style generator needs vanilla packs from a local BDS 1.26.51 install: \
+     build with --features bedrock-worldgen and UNASTAR_BDS_DIR=<server directory>";
 
 /// Storage provider for world persistence.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, Default)]

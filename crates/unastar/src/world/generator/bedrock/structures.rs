@@ -15,8 +15,8 @@
 //! for `triangular`). The offsets are drawn from a [`BedrockRandom`] seeded
 //! with `fold32(world_seed + region_x * 341873128712 + region_z *
 //! 132897987541 + salt)` ([`region_random`]); BDS's exact salt mixing is not
-//! observable from data, so placement matches vanilla statistically (same
-//! grid, same spacing), not chunk-exactly. The same random then picks the
+//! measured: placement is unmeasured: to confirm by BDS fixture, including
+//! grid offsets and spacing. The same random then picks the
 //! set's structures by weight, without replacement, until one passes its
 //! biome filter at the start piece's centre.
 //!

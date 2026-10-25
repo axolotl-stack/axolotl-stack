@@ -10,17 +10,18 @@
 use std::collections::BTreeMap;
 use std::time::Instant;
 use unastar::registry::BlockRegistry;
-use unastar::world::VanillaGenerator;
+use unastar::world::ChunkPos;
 use unastar::world::chunk::{Chunk, MIN_Y};
 use unastar::world::generator::bedrock::BiomeSet;
+use unastar::world::generator::bedrock::adapter::RegionWorld;
 use unastar::world::generator::bedrock::decorate::Decorator;
 use unastar::world::generator::bedrock::generated::BIOMES;
-use unastar::world::generator::bedrock::region::ChunkRegion;
 use unastar::world::generator::bedrock::rng::BedrockRandom;
 use unastar::world::generator::bedrock::surface::{
     self, ColumnInput, SurfaceColumn, SurfaceNoises,
 };
 use unastar::world::generator::bedrock::world::{BlockPos, BlockWorld};
+use unastar::world::generator::{DecorationRegion, JavaGenerator, ProtoChunk, QuartBiomes};
 
 struct Column<'a> {
     chunk: &'a mut Chunk,
@@ -74,10 +75,14 @@ fn run() {
         args.get(1).copied().unwrap_or(0) as i32,
         args.get(2).copied().unwrap_or(0) as i32,
     );
-    let terrain = VanillaGenerator::new(seed);
+    let terrain = JavaGenerator::new(seed);
     let t = Instant::now();
     let base: Vec<Chunk> = (0..9)
-        .map(|i| terrain.generate_chunk(cx + (i % 3) - 1, cz + (i / 3) - 1))
+        .map(|i| {
+            terrain
+                .generate_noise_proto(ChunkPos::new(cx + (i % 3) - 1, cz + (i / 3) - 1))
+                .chunk
+        })
         .collect();
     println!("terrain 3x3: {:.1} ms", t.elapsed().as_secs_f64() * 1e3);
     let decorator = Decorator::new(seed);
@@ -132,23 +137,38 @@ fn run() {
         }
         let before = histogram(&chunks[4]);
         let id = biome.id;
-        let source = move |_: i32, _: i32, _: i32| id;
         let mut set = BiomeSet::default();
         set.insert(id);
-        let [c0, c1, c2, c3, c4, c5, c6, c7, c8] = &mut chunks[..] else {
-            unreachable!()
-        };
-        let mut region = ChunkRegion::new([c0, c1, c2, c3, c4, c5, c6, c7, c8], &source);
+        let mut protos: Vec<_> = chunks
+            .into_iter()
+            .map(|chunk| ProtoChunk {
+                pos: ChunkPos::new(chunk.x, chunk.z),
+                chunk,
+                biomes: QuartBiomes::filled(id),
+            })
+            .collect();
         let t = Instant::now();
-        decorator.carve(&mut region, cx, cz, &set);
-        decorator.decorate(&mut region, cx, cz, &set);
+        decorator.carve(&mut protos[4], cx, cz, &set);
+        let mut region = DecorationRegion::new(
+            seed,
+            ChunkPos::new(cx, cz),
+            std::array::from_fn(|i| &protos[i]),
+            &unastar::world::generator::bedrock::generated::props::STATE_CLASSES,
+        );
+        let mut world = RegionWorld::new(&mut region);
+        decorator.decorate(&mut world, cx, cz, &set);
         let elapsed = t.elapsed();
         total += elapsed;
         runs += 1;
-        let top = region.heightmap(cx * 16 + 8, cz * 16 + 8);
-        let probe = region.get(BlockPos::new(cx * 16 + 8, top - 1, cz * 16 + 8));
-        drop(region);
-        let after = histogram(&chunks[4]);
+        let top = world.heightmap(cx * 16 + 8, cz * 16 + 8);
+        let probe = world.get(BlockPos::new(cx * 16 + 8, top - 1, cz * 16 + 8));
+        drop(world);
+        let writes = region.into_writes();
+        let mut center = protos.swap_remove(4).chunk;
+        for write in writes.for_offset(0, 0) {
+            center.set_block(write.x, write.y, write.z, write.block);
+        }
+        let after = histogram(&center);
         let mut changes: Vec<(i64, String)> = after
             .iter()
             .map(|(id, n)| (*n as i64 - *before.get(id).unwrap_or(&0) as i64, *id))

@@ -10,8 +10,8 @@
 //! followed by the potent sulfur search, the trail is snapped to a cave
 //! ceiling) and documented as such next to the code.
 //!
-//! Decoration is statistical parity with BDS: the shapes, sizes and
-//! probabilities are vanilla's, the exact draw order is unknown.
+//! **unmeasured: to confirm by BDS fixture**: built-in geometry, sizes,
+//! probabilities and random draw order.
 //!
 //! Bedrock keeps waterlogging in a separate liquid layer that [`BlockWorld`]
 //! does not expose, so a spike grown into water replaces the water block.

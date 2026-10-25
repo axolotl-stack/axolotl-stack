@@ -211,7 +211,7 @@ const fn mix64(mut z: u64) -> u64 {
 /// bits. Rolling the skip chance on the hash instead of the first random draw
 /// avoids seeding an MT19937 (2.5 KiB of state) for each of the 289 source
 /// chunks when only ~1/33 of them carve. BDS's own source-chunk seeding is not
-/// observable from data: statistical parity, exact draw order unknown.
+/// measured: unmeasured: to confirm by BDS fixture, including random draw order.
 pub fn source_seed(
     world_seed: i64,
     salt: u64,

@@ -17,10 +17,8 @@
 //!   swamp foliage is the swamp tree pass (see [`legacy_swamp_foliage_feature`]);
 //! - **forest rock**, **springs** and **ice** are the classic small decorators.
 //!
-//! Counts and weights are the vanilla values shared by both editions where
-//! BDS ships no number; BDS's exact random draw order is not observable from
-//! the data, so these reproduce the statistics (statistical parity), not the
-//! byte-exact layout.
+//! Selector weights, counts, geometry and random draw order are inferred,
+//! unmeasured: to confirm by BDS fixture.
 
 use crate::world::generator::bedrock::generated::{self, bb, props};
 use crate::world::generator::bedrock::rng::BedrockRandom;
@@ -285,7 +283,7 @@ fn jungle_edge_tree(rng: &mut BedrockRandom) -> Tree {
 /// Bamboo jungle: sequential chances fancy oak 5%, bush 15%, mega jungle 70%,
 /// else a jungle tree. (The other edition's selector falls through to a grass
 /// patch instead; BDS places bamboo-jungle grass through its own rule, so the
-/// fall-through here is a tree. Exact BDS split unknown; statistical parity.)
+/// fall-through here is a tree. BDS split unmeasured: to confirm by BDS fixture.)
 fn bamboo_jungle_tree(rng: &mut BedrockRandom) -> Tree {
     if rng.probability(0.05) {
         Tree::FancyOakPlain
@@ -789,9 +787,9 @@ fn very_biased_to_bottom(rng: &mut BedrockRandom, min: i32, max: i32, inner: i32
 /// Single-block springs in cave walls: 25 water attempts (uniform from the
 /// world bottom to y 192) and 20 lava attempts (strongly biased to the bottom)
 /// at random columns of the chunk. Counts and heights are the vanilla
-/// post-1.18 values for the -64..320 world (BDS ships none; statistical
-/// parity). Only the source block is placed; the fluid flows once the chunk
-/// ticks, as in vanilla.
+/// post-1.18 assumptions for the -64..320 world (BDS ships none;
+/// unmeasured: to confirm by BDS fixture). Only the source block is placed;
+/// fluid simulation is separate from world generation.
 pub fn legacy_springs_feature<W: BlockWorld>(
     ctx: &mut Ctx<'_, W>,
     pos: BlockPos,
@@ -931,8 +929,8 @@ fn holds_snow(ground: u32) -> bool {
 /// Whether water freezes / snow settles at `pos` in `biome`: the biome
 /// temperature, lowered above y 80 by 0.05 per 40 blocks (the altitude is
 /// jittered by `query.noise` at 1/8 scale, 8 blocks of amplitude, so the snow
-/// line is ragged), must be below 0.15. BDS's exact jitter noise is not
-/// observable from the data; statistical parity.
+/// line is ragged), must be below 0.15. The jitter model is
+/// unmeasured: to confirm by BDS fixture.
 fn is_cold<W: BlockWorld>(ctx: &Ctx<'_, W>, biome: &BiomeData, pos: BlockPos) -> bool {
     let mut temperature = biome.temperature;
     if pos.y > COOLING_START_Y {

@@ -16,7 +16,7 @@
 //! - [`structures`]: data-driven jigsaw structures (assembly, placement,
 //!   terrain adaptation, processors) and the template tables shared with the
 //!   template-based features;
-//! - [`region`]: the 3x3 chunk [`world::BlockWorld`] decoration runs on;
+//! - [`adapter`]: Bedrock block queries over the shared 3x3 decoration region;
 //! - [`decorate`]: per-chunk seeding and the pass driver.
 //!
 //! # Measurement boundary
@@ -29,15 +29,18 @@
 //! inputs; that does not establish runtime BDS parity. The codegen README lists
 //! the measurement categories and the reference controls needed for each.
 
+pub mod adapter;
 pub mod builtin;
 pub mod decorate;
 pub mod features;
-pub mod region;
+mod generator;
 pub mod rng;
 pub mod scatter;
 pub mod structures;
 pub mod surface;
 pub mod world;
+
+pub use generator::BedrockGenerator;
 
 /// Output of `unastar_bedrock_codegen` for the local BDS install.
 #[allow(

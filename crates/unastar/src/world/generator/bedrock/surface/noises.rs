@@ -3,15 +3,13 @@
 //! Every noise is a "normal noise" (two octave Perlin sums, `unastar_noise`'s
 //! [`DoublePerlinNoise`]) seeded from the world seed and a per-noise name.
 //! BDS's exact per-noise seeding is not observable from the pack data, so
-//! the values are statistical parity: same frequencies and value ranges as
-//! vanilla, not the same samples.
+//! the samples and frequencies are unmeasured: to confirm by BDS fixture.
 //!
-//! Scales follow vanilla: the surface noise is the one both editions use for
-//! the layer depth and for the material checks (`noise * 2.75 + 3` blocks of
-//! mid material; legacy builders worked on `noise * 8.25`, which is why the
-//! Bedrock adjustment thresholds are the legacy ones divided by 8.25). The
-//! frequencies of the badlands, iceberg and swamp noises are the classic
-//! surface builders' ones.
+//! The current model uses `noise * 2.75 + 3` for material depth and
+//! `noise * 8.25` for legacy builder thresholds. The correspondence between
+//! these scales and the shipped adjustment ranges is a hypothesis, not a
+//! BDS measurement. Badlands, iceberg and swamp noise frequencies are also
+//! unmeasured: to confirm by BDS fixture.
 
 use super::{BiomeData, Builder, NoiseGradient};
 use unastar_noise::{DoublePerlinNoise, Xoroshiro128};
@@ -281,7 +279,7 @@ impl SurfaceNoises {
 
 /// Patch size of the capped builder's floor/ceiling materials. Not
 /// observable from the data; basalt/blackstone and soul sand/soil patches in
-/// BDS are a few blocks to a few tens of blocks wide (statistical parity).
+/// BDS remain unmeasured: to confirm by BDS fixture.
 const CAPPED_SCALE: f64 = 0.1;
 
 /// Xoroshiro seeded from the world seed mixed with an FNV-1a hash of `name`,

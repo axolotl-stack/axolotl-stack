@@ -17,9 +17,8 @@
 //!   default patch), so they place at most one plant at `pos`.
 //!
 //! Every placement checks the vanilla survival rule of the plant against
-//! its support. Decoration aims at statistical parity: the draw order inside
-//! each built-in follows the vanilla algorithm where it is known, but BDS's
-//! exact order is not observable from data.
+//! its support. Built-in geometry and draw order are unmeasured: to confirm
+//! by BDS fixture.
 
 use super::super::generated::{self, bb, props};
 use super::super::rng::BedrockRandom;
@@ -202,8 +201,8 @@ const FIREFLY_PATCH: (i32, i32, i32) = (20, 4, 3);
 /// Random surface columns the near-water firefly cluster tries before giving
 /// up. The rule fires 1 in 8 chunks at the chunk corner, so the built-in has
 /// to look for a shore itself (a single random column would make the bushes
-/// an order of magnitude rarer than observed); statistical parity, BDS's
-/// search is not observable from data.
+/// an order of magnitude rarer in this model); search behavior remains
+/// unmeasured: to confirm by BDS fixture.
 const FIREFLY_WATER_SAMPLES: i32 = 16;
 
 /// Longest walk of `vines_feature` down from the canopy top (it stops at

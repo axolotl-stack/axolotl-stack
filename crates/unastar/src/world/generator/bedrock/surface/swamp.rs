@@ -7,7 +7,7 @@
 //! puddle depth by `max_puddle_depth_below_sea_level` (1 in swamps, the
 //! classic single-block puddle; 3 in mangrove swamps). How BDS spreads the
 //! depth between 1 and that bound is not observable from the data: here it
-//! grows by one block per 1/8 of noise (statistical parity).
+//! grows by one block per 1/8 of noise (unmeasured: to confirm by BDS fixture).
 
 use super::super::rng::BedrockRandom;
 use super::{Column, Materials, SurfaceColumn, first_non_air, is_foundation, overworld};

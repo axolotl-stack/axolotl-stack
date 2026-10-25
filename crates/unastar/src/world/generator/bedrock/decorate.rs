@@ -5,11 +5,10 @@
 //! the surface builders; [`Decorator::decorate`] runs every later pass in
 //! [`Pass::ALL`] order with the 3x3 neighbourhood available.
 //!
-//! **Seeding.** Each chunk draws from its own [`BedrockRandom`], seeded from
-//! the world seed and the chunk position (`chunk_seed`), so the output of a
-//! chunk does not depend on generation order. BDS's own per-chunk seeding and
-//! per-feature draw order are not observable from data; byte-exact placement
-//! is the later W14 slice (research §5), decoration parity is statistical.
+//! **unmeasured: to confirm by BDS fixture**: chunk seeding, pass stream
+//! separation, rule draw order and Molang noise. Each chunk currently has an
+//! independent deterministic stream. Neither statistical nor byte-exact
+//! decoration parity has been established.
 
 use super::generated;
 use super::rng::BedrockRandom;
@@ -105,6 +104,28 @@ impl Decorator {
             &[Pass::Pregeneration],
             0x5bd1_e995,
         );
+    }
+
+    /// Place compiled structure sets before vegetation decoration.
+    ///
+    /// **unmeasured: to confirm by BDS fixture**: the independent structure
+    /// stream salt and its ordering relative to the feature passes.
+    pub fn structures<W: BlockWorld>(
+        &self,
+        world: &mut W,
+        chunk_x: i32,
+        chunk_z: i32,
+        surface: &dyn Fn(i32, i32) -> i32,
+        biome: &dyn Fn(i32, i32, i32) -> u16,
+    ) {
+        let mut rng = BedrockRandom::new(chunk_seed(self.seed, chunk_x, chunk_z) ^ 0x7374_7275);
+        let mut ctx = Ctx {
+            world,
+            rng: &mut rng,
+            noise: &self.noise,
+            seed: self.seed,
+        };
+        super::structures::place_in_chunk(&mut ctx, surface, biome, chunk_x, chunk_z);
     }
 
     /// Run every decoration pass after `pregeneration_pass` for one chunk;

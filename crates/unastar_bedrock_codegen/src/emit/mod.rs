@@ -220,7 +220,7 @@ fn builtin_blocks(em: &Emitter<'_>) -> Result<TokenStream> {
 }
 
 /// The `props` module: per-state physical flags as bitsets over the palette.
-fn props(model: &Model) -> TokenStream {
+fn props(model: &Model) -> Result<TokenStream> {
     let palette = &model.palette;
     let words = palette.len().div_ceil(64) as usize;
     let bitset = |pred: &dyn Fn(crate::blocks::BlockFlags) -> bool| {
@@ -236,9 +236,40 @@ fn props(model: &Model) -> TokenStream {
     let liquid = bitset(&|f| f.liquid);
     let motion = bitset(&|f| f.blocks_motion);
     let opaque = bitset(&|f| f.opaque_full_block);
-    quote!(
+    let leaves = palette.matching(
+        "native block classes",
+        &crate::blocks::BlockPredicate::AnyTag(vec!["minecraft:leaves".to_owned()]),
+    )?;
+    let classes: Vec<_> = (0..palette.len())
+        .map(|id| {
+            let flags = palette.flags(id);
+            let (name, _, _) = palette.describe(id).expect("palette ordinal");
+            let mut bits = Vec::new();
+            if name == "minecraft:air" {
+                bits.push(quote!(class::AIR));
+            }
+            if flags.liquid {
+                bits.push(quote!(class::FLUID));
+            }
+            if matches!(name, "minecraft:water" | "minecraft:flowing_water") {
+                bits.push(quote!(class::WATER));
+            }
+            if flags.blocks_motion {
+                bits.push(quote!(class::BLOCKS_MOTION));
+            }
+            if leaves.contains(id) {
+                bits.push(quote!(class::LEAVES));
+            }
+            quote!(0u8 #(| #bits)*)
+        })
+        .collect();
+    let class_count = classes.len();
+    Ok(quote!(
         /// Physical flags per runtime id (protocolgen native BDS measurements).
         pub mod props {
+            use unastar_noise::block_class as class;
+            /// Native BDS state classes, including states with no Java mapping.
+            pub static STATE_CLASSES: [u8; #class_count] = [#(#classes),*];
             const WORDS: usize = #words;
             static SOLID: [u64; WORDS] = [#(#solid),*];
             static LIQUID: [u64; WORDS] = [#(#liquid),*];
@@ -257,7 +288,7 @@ fn props(model: &Model) -> TokenStream {
             /// Opaque full block.
             #[inline] pub fn is_opaque(id: u32) -> bool { bit(&OPAQUE, id) }
         }
-    )
+    ))
 }
 
 /// Generate the whole compiled module as formatted Rust source.
@@ -269,7 +300,7 @@ pub fn generate(model: &Model) -> Result<(String, Report)> {
     let structures = structures::emit(&mut em)?;
     let blocks = em.block_items();
     let bb = builtin_blocks(&em)?;
-    let props = props(model);
+    let props = props(model)?;
     let report = Report {
         rules: model.active_rules().len(),
         features: em

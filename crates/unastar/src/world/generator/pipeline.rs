@@ -64,7 +64,7 @@ pub trait Generator: Send + Sync + 'static {
 }
 
 /// Bounded single-flight cache keyed by chunk position (FIFO eviction).
-struct ChunkCache<V> {
+pub(crate) struct ChunkCache<V> {
     capacity: usize,
     inner: Mutex<CacheInner<V>>,
 }
@@ -75,7 +75,7 @@ struct CacheInner<V> {
 }
 
 impl<V> ChunkCache<V> {
-    fn new(capacity: usize) -> Self {
+    pub(crate) fn new(capacity: usize) -> Self {
         assert!(capacity > 0, "chunk cache capacity must be positive");
         Self {
             capacity,
@@ -86,7 +86,7 @@ impl<V> ChunkCache<V> {
         }
     }
 
-    fn get_or_compute(&self, pos: ChunkPos, compute: impl FnOnce() -> V) -> Arc<V> {
+    pub(crate) fn get_or_compute(&self, pos: ChunkPos, compute: impl FnOnce() -> V) -> Arc<V> {
         let cell = {
             let mut inner = self.inner.lock().expect("chunk cache poisoned");
             if let Some(cell) = inner.map.get(&pos) {

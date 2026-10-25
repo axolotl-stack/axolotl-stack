@@ -11,7 +11,7 @@
 //! wood block); otherwise all four. Without `allow_adjacent`, nothing is
 //! placed when another `places_block` already touches the target cell.
 //!
-//! BDS's draw order is unknown (statistical parity): one side is drawn and
+//! Draw order is unmeasured: to confirm by BDS fixture. One side is drawn and
 //! the feature fails when that side is occupied, so partly covered trunks get
 //! fewer decorations, as with any single-try decoration.
 

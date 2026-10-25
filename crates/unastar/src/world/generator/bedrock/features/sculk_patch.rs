@@ -22,10 +22,10 @@
 //! `extra_growth_chance` (a count range, despite the name) more shriekers
 //! are placed on sturdy floor within 2 blocks of the origin.
 //!
-//! The constants are vanilla's world-generation spreader values; BDS's exact
-//! draw order is unknown (statistical parity). Vanilla also spreads through
-//! water (waterlogging); the decoration world has a single block layer, so
-//! only air counts as open here. `can_place_sculk_patch_on` is empty in every
+//! Spreader constants and draw order are inferred and unmeasured: to confirm
+//! by BDS fixture. The decoration world has a single block layer, so it
+//! cannot represent waterlogged sculk; only air counts as open here.
+//! `can_place_sculk_patch_on` is empty in every
 //! vanilla document; when given it replaces the default set of blocks sculk
 //! may replace (vanilla's world-generation sculk-replaceable set).
 
