@@ -18,8 +18,8 @@ import time
 import traceback
 from pathlib import Path
 
-from endstone.event import (BlockBreakEvent, EventPriority, PlayerInteractEvent, PlayerJoinEvent,
-                            ServerLoadEvent, event_handler)
+from endstone.event import (ActorDamageEvent, BlockBreakEvent, EventPriority, PlayerInteractEvent,
+                            PlayerJoinEvent, ServerLoadEvent, event_handler)
 from endstone.plugin import Plugin
 
 from . import jobs
@@ -48,6 +48,8 @@ class BdsSweep(Plugin):
         self.started = 0.0
         # (tick, kind, (x, y, z)) of the sweep player's block clicks and breaks.
         self.events: list[tuple[int, str, tuple[int, int, int]]] = []
+        # (tick, actor type, damage, cause) of every damage event.
+        self.damage: list[tuple[int, str, float, str]] = []
         self.register_events(self)
 
     @event_handler
@@ -76,6 +78,10 @@ class BdsSweep(Plugin):
         if event.player.name == self.job['player']:
             block = event.block
             self.events.append((self.ticks, 'break', (block.x, block.y, block.z)))
+
+    @event_handler(priority=EventPriority.MONITOR, ignore_cancelled=True)
+    def on_damage(self, event: ActorDamageEvent) -> None:
+        self.damage.append((self.ticks, event.actor.type, event.damage, event.damage_source.type))
 
     def tick(self) -> None:
         if self.runner is None:

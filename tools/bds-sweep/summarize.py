@@ -208,6 +208,45 @@ def compare_drops(first: Path, second: Path) -> int:
 
 # ---------------------------------------------------------------- items
 
+def summarize_armor_values(sweep: Path) -> None:
+    """`armor_values.json`: per item the measured health lost per hit for each
+    damage amount, plus `defense` and `toughness` derived with the armour
+    formula damage * (1 - min(20, max(def / 5, def - damage / (2 + tough / 4))) / 25).
+    A 1000-point hit is clamped to def / 5, which gives the defence; small
+    hits give the toughness where they are not clamped (null otherwise)."""
+    rows = {row['key']: row for row in results(sweep)}
+    baseline = {hit['damage']: hit['per_hit'] for hit in rows['none']['hits']}
+    table = {}
+    for key, row in sorted(rows.items()):
+        if key == 'none':
+            continue
+        if row['worn'] != row['item']:
+            raise SystemExit(f'{key}: slot {row["slot"]} held {row["worn"]}')
+        hits = {hit['damage']: hit['per_hit'] for hit in row['hits']}
+        defense = round(125 * (1 - hits[1000] / baseline[1000]), 2)
+        toughness = None
+        for damage, per_hit in sorted(hits.items()):
+            reduction = 25 * (1 - per_hit / baseline[damage])
+            if damage == 1000 or reduction <= defense / 5 + 0.05 or defense - reduction <= 0:
+                continue
+            toughness = round(4 * (damage / (defense - reduction) - 2), 2)
+        table[row['item']] = {
+            'slot': row['slot'],
+            'defense': defense,
+            'toughness': toughness,
+            'per_hit': {str(d): v for d, v in sorted(hits.items())},
+        }
+    files = [write('armor_values.json', table)]
+    update_manifest('armor_values', {
+        **provenance('armor-values', [sweep]),
+        'method': 'sweep player (survival, max health 2000, natural regeneration off) wearing one item takes '
+                  '`/damage <player> D entity_attack`; health lost summed over repeated hits spaced past the hurt '
+                  'cooldown; baseline without armour: ' + json.dumps(baseline),
+        'files': files,
+    })
+
+
+
 def summarize_armor(sweep: Path) -> None:
     table = {}
     for row in results(sweep):
@@ -273,6 +312,8 @@ def main() -> int:
         return compare_drops(*dirs)
     elif kind == 'armor-slots':
         summarize_armor(dirs[0])
+    elif kind == 'armor-values':
+        summarize_armor_values(dirs[0])
     elif kind == 'fuel':
         summarize_fuel(dirs[0])
     elif kind == 'mining':

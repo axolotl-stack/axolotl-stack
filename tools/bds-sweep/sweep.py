@@ -178,6 +178,35 @@ def mining_items(args) -> list[dict]:
     return items
 
 
+ARMOR_DAMAGE = [
+    # Large hits clamp the reduction to defence/5 points: exact defence.
+    {'amount': 1000, 'hits': 1},
+    # Small hits: the toughness term matters; summed over many hits.
+    {'amount': 4, 'hits': 20},
+    {'amount': 16, 'hits': 10},
+]
+
+
+def armor_value_items(args) -> list[dict]:
+    """No armour (baseline), then every item with the native tag
+    `minecraft:is_armor` plus the extra `--items`, each in the armour slot the
+    measured `armor_slots.json` assigns (chest, legs or feet if one takes it,
+    else head)."""
+    slots_path = REPO / 'crates' / 'unastar-data' / 'data' / 'measured' / 'armor_slots.json'
+    slots = json.loads(slots_path.read_text(encoding='utf-8'))
+    tags = native.item_tags()
+    names = sorted(name for name, item_tags in tags.items() if 'minecraft:is_armor' in item_tags)
+    if args.items not in ('slice', 'all'):
+        names += [name for name in args.items.split(',') if name not in names]
+    items = [{'key': 'none', 'item': None, 'slot': 'head'}]
+    for name in names:
+        if name not in slots:
+            raise SystemExit(f'{name} is not in {slots_path}: run the armor-slots sweep with --items all first')
+        slot = next((s for s in ('chest', 'legs', 'feet') if slots[name][s]), 'head')
+        items.append({'key': name, 'item': name, 'slot': slot})
+    return items
+
+
 def build_job(args, out: Path) -> dict:
     job = {'kind': args.kind.replace('-', '_'), 'player': PLAYER, 'output_dir': str(out),
            'arena': ARENA, 'setup_commands': SETUP}
@@ -187,6 +216,8 @@ def build_job(args, out: Path) -> dict:
         job['items'] = mining_items(args)
     elif args.kind == 'armor-slots':
         job['items'] = [{'key': name, 'item': name} for name in item_names(args.items, SLICE_ITEMS)]
+    elif args.kind == 'armor-values':
+        job.update(max_health=2000, damage=ARMOR_DAMAGE, items=armor_value_items(args))
     elif args.kind == 'fuel':
         job.update(furnace='furnace', lit_furnace='minecraft:lit_furnace', input='cobblestone',
                    max_ticks=args.max_ticks,
@@ -196,7 +227,7 @@ def build_job(args, out: Path) -> dict:
 
 def main() -> int:
     parser = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
-    parser.add_argument('kind', choices=['drops', 'mining', 'armor-slots', 'fuel'])
+    parser.add_argument('kind', choices=['drops', 'mining', 'armor-slots', 'armor-values', 'fuel'])
     parser.add_argument('--out', type=Path)
     parser.add_argument('--blocks', default='slice', help="'slice', 'all' or comma-separated identifiers")
     parser.add_argument('--states', default='first', choices=['first', 'all'])

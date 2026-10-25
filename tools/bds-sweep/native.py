@@ -129,3 +129,14 @@ def items() -> list[str]:
     tag = reader.byte()
     reader.string()
     return sorted(reader.payload(tag))
+
+
+_TAG_ROW = re.compile(r'^\t"([^"]+)":\s+\[\]string\{([^}]*)\},$', re.M)
+
+
+def item_tags() -> dict[str, list[str]]:
+    """Native item tags per item (protocolgen `item/runtime_generated.go`)."""
+    text = (DATA / 'item' / 'runtime_generated.go').read_text(encoding='utf-8')
+    body = text[text.index('var runtimeTags = map[string][]string{'):]
+    body = body[:body.index('\n}\n')]
+    return {name: re.findall(r'"([^"]+)"', tags) for name, tags in _TAG_ROW.findall(body)}

@@ -280,4 +280,56 @@ def mining(ctx: Context, job: dict):
     ctx.must(f'gamemode creative "{name}"')
 
 
-JOBS = {'drops': drops, 'armor_slots': armor_slots, 'fuel': fuel, 'mining': mining}
+ARMOR_ATTRIBUTES = {'head': 'helmet', 'chest': 'chestplate', 'legs': 'leggings', 'feet': 'boots'}
+
+
+def armor_values(ctx: Context, job: dict):
+    """Damage reduction per armour item: the sweep player (survival, raised
+    max health, no natural regeneration) wears only that item and takes
+    `hits` x `/damage <player> D entity_attack` per configured D, spaced past
+    the hurt cooldown. Endstone reports health as an integer, so the health
+    lost over all hits of one D gives the per-hit value to 1/hits."""
+    name = job['player']
+    inventory = ctx.player.inventory
+    for line in ('gamerule naturalregeneration false', 'difficulty normal', f'gamemode survival "{name}"',
+                 f'effect "{name}" saturation 1000000 255 true'):
+        ctx.must(line)
+    ctx.player.max_health = int(job['max_health'])
+    for item in job['items']:
+        if item['key'] in ctx.done:
+            continue
+        for attribute in ARMOR_ATTRIBUTES.values():
+            setattr(inventory, attribute, None)
+        if item['item']:
+            setattr(inventory, ARMOR_ATTRIBUTES[item['slot']], ctx.stack({'item': item['item']}))
+        yield 2
+        hits = []
+        for spec in job['damage']:
+            amount, count = spec['amount'], int(spec['hits'])
+            ctx.player.health = ctx.player.max_health
+            ctx.plugin.damage.clear()
+            before = ctx.player.health
+            for _ in range(count):
+                ctx.must(f'damage "{name}" {amount} entity_attack')
+                yield int(job.get('cooldown_ticks', 15))
+            after = ctx.player.health
+            events = sorted({round(d, 4) for _, kind, d, _ in ctx.plugin.damage if kind == 'minecraft:player'})
+            hits.append({'damage': amount, 'hits': count, 'health_lost': before - after,
+                         'per_hit': (before - after) / count, 'event_damage': events})
+        worn = getattr(inventory, ARMOR_ATTRIBUTES[item['slot']]) if item['item'] else None
+        ctx.record({
+            'key': item['key'],
+            'item': item['item'],
+            'slot': item['slot'],
+            'worn': worn.type.id if worn is not None else None,
+            'max_health': ctx.player.max_health,
+            'hits': hits,
+        })
+    for attribute in ARMOR_ATTRIBUTES.values():
+        setattr(inventory, attribute, None)
+    ctx.player.health = ctx.player.max_health
+    ctx.must(f'gamemode creative "{name}"')
+
+
+JOBS = {'drops': drops, 'armor_slots': armor_slots, 'armor_values': armor_values, 'fuel': fuel,
+        'mining': mining}
