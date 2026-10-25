@@ -121,3 +121,11 @@ def mining() -> dict[str, dict]:
         name: {'effective': _families(effective), 'harvest': _families(harvest), 'level': int(level)}
         for name, effective, harvest, level in _ROW.findall(text)
     }
+
+
+def items() -> list[str]:
+    """Every item identifier of the protocolgen item registry, sorted."""
+    reader = _Reader((DATA / 'registry' / 'items.nbt').read_bytes())
+    tag = reader.byte()
+    reader.string()
+    return sorted(reader.payload(tag))

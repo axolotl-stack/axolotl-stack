@@ -1,0 +1,2 @@
+[endstone]
+bds_sweep = endstone_bds_sweep.plugin:BdsSweep

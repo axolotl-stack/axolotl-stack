@@ -34,7 +34,10 @@ REPO = Path(__file__).resolve().parents[2]
 LEVEL = 'bds-sweep-1.26.51'
 PLAYER = 'BDSSweep'
 # Superflat: grass top at y=-61, so the player stands at y=-60.
-ARENA = {'player': [0.5, -60, 0.5], 'block': [3, -60, 0], 'furnaces': [-8, -60, 6]}
+# `miner` = x, y, z, yaw, pitch: facing east (yaw -90) at the west face (4) of
+# `mine_block`, which is at eye level (eyes at y + 1.62).
+ARENA = {'player': [0.5, -60, 0.5], 'block': [3, -60, 0], 'furnaces': [-8, -60, 6],
+         'miner': [0.5, -60, 0.5, -90, 0], 'mine_block': [1, -59, 0], 'mine_face': 4}
 SETUP = [
     'gamerule domobspawning false',
     'gamerule dodaylightcycle false',
@@ -129,30 +132,63 @@ def drops_items(args) -> list[dict]:
     return items
 
 
+def item_names(spec: str, slice_: list[str]) -> list[str]:
+    if spec == 'slice':
+        return slice_
+    if spec == 'all':
+        return [name for name in native.items() if name != 'minecraft:air']
+    return spec.split(',')
+
+
+def mining_items(args) -> list[dict]:
+    """Hand, every tier of each correct digger, shears, efficiency I-V on the
+    diamond correct tool, and haste I/II and mining fatigue I with it."""
+    facts = native.mining()
+    cells = list(SLICE_BLOCKS.items()) if args.blocks == 'slice' else [
+        (name, native.default_states()[name]) for name in args.blocks.split(',')]
+    items = []
+    for block, states in cells:
+        kinds = [k for k in DIGGERS if k in facts.get(block, {}).get('effective', [])]
+        best = kinds[0] if kinds else 'pickaxe'
+        variants: list[tuple[dict | None, list[str], str]] = [(None, [], '')]
+        variants += [(tool(kind, tier), [], '') for kind in kinds for tier in TIERS]
+        variants.append(({'item': 'minecraft:shears'}, [], ''))
+        variants += [(tool(best, 'diamond', efficiency=level), [], '') for level in range(1, 6)]
+        for effect, amplifier in (('haste', 0), ('haste', 1), ('mining_fatigue', 0)):
+            variants.append((tool(best, 'diamond'), [f'effect {{player}} {effect} 1000 {amplifier} true'],
+                             f'+{effect}{amplifier + 1}'))
+        for spec, commands, suffix in variants:
+            items.append({'key': f'{state_key(block, states)}|{tool_key(spec)}{suffix}', 'block': block,
+                          'states': states, 'tool': spec, 'commands': commands, 'max_ticks': args.mine_ticks})
+    return items
+
+
 def build_job(args, out: Path) -> dict:
     job = {'kind': args.kind.replace('-', '_'), 'player': PLAYER, 'output_dir': str(out),
            'arena': ARENA, 'setup_commands': SETUP}
     if args.kind == 'drops':
         job['items'] = drops_items(args)
+    elif args.kind == 'mining':
+        job['items'] = mining_items(args)
     elif args.kind == 'armor-slots':
-        names = SLICE_ITEMS if args.items == 'slice' else args.items.split(',')
-        job['items'] = [{'key': name, 'item': name} for name in names]
+        job['items'] = [{'key': name, 'item': name} for name in item_names(args.items, SLICE_ITEMS)]
     elif args.kind == 'fuel':
-        names = SLICE_FUELS if args.items == 'slice' else args.items.split(',')
         job.update(furnace='furnace', lit_furnace='minecraft:lit_furnace', input='cobblestone',
-                   max_ticks=args.max_ticks, items=[{'key': name, 'item': name} for name in names])
+                   max_ticks=args.max_ticks,
+                   items=[{'key': name, 'item': name} for name in item_names(args.items, SLICE_FUELS)])
     return job
 
 
 def main() -> int:
     parser = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
-    parser.add_argument('kind', choices=['drops', 'armor-slots', 'fuel'])
+    parser.add_argument('kind', choices=['drops', 'mining', 'armor-slots', 'fuel'])
     parser.add_argument('--out', type=Path)
     parser.add_argument('--blocks', default='slice', help="'slice', 'all' or comma-separated identifiers")
     parser.add_argument('--states', default='first', choices=['first', 'all'])
     parser.add_argument('--items', default='slice', help="'slice' or comma-separated identifiers")
     parser.add_argument('--samples', type=int, default=200)
-    parser.add_argument('--max-ticks', type=int, default=24000)
+    parser.add_argument('--max-ticks', type=int, default=24000, help='fuel: longest burn to wait for')
+    parser.add_argument('--mine-ticks', type=int, default=600, help='mining: longest break to wait for')
     parser.add_argument('--client', type=Path, default=REPO / 'target' / 'debug' / 'bds-sweep-client.exe')
     parser.add_argument('--timeout', type=float, default=6 * 3600, help='seconds for the whole job')
     args = parser.parse_args()

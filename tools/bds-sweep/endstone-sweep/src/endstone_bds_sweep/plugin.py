@@ -9,7 +9,8 @@ already present there are skipped, so an interrupted sweep resumes. The
 outcome is `done.json` or `error.txt` in the output directory.
 """
 
-from __future__ import annotations
+# No `from __future__ import annotations`: Endstone reads the event type from
+# each handler's real annotation.
 
 import json
 import os
@@ -17,7 +18,8 @@ import time
 import traceback
 from pathlib import Path
 
-from endstone.event import PlayerJoinEvent, ServerLoadEvent, event_handler
+from endstone.event import (BlockBreakEvent, EventPriority, PlayerInteractEvent, PlayerJoinEvent,
+                            ServerLoadEvent, event_handler)
 from endstone.plugin import Plugin
 
 from . import jobs
@@ -44,6 +46,8 @@ class BdsSweep(Plugin):
         self.ticks = 0
         self.wake = 0
         self.started = 0.0
+        # (tick, kind, (x, y, z)) of the sweep player's block clicks and breaks.
+        self.events: list[tuple[int, str, tuple[int, int, int]]] = []
         self.register_events(self)
 
     @event_handler
@@ -60,6 +64,18 @@ class BdsSweep(Plugin):
             return
         self.task = self.server.scheduler.run_task(
             self, self.tick, delay=int(self.job.get('start_delay_ticks', 60)), period=1)
+
+    @event_handler(priority=EventPriority.MONITOR, ignore_cancelled=True)
+    def on_interact(self, event: PlayerInteractEvent) -> None:
+        if event.player.name == self.job['player'] and event.has_block:
+            block = event.block
+            self.events.append((self.ticks, event.action.name.lower(), (block.x, block.y, block.z)))
+
+    @event_handler(priority=EventPriority.MONITOR, ignore_cancelled=True)
+    def on_break(self, event: BlockBreakEvent) -> None:
+        if event.player.name == self.job['player']:
+            block = event.block
+            self.events.append((self.ticks, 'break', (block.x, block.y, block.z)))
 
     def tick(self) -> None:
         if self.runner is None:

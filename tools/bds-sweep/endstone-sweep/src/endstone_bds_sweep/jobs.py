@@ -153,57 +153,120 @@ def armor_slots(ctx: Context, job: dict):
 
 
 def fuel(ctx: Context, job: dict):
-    """Furnace burn time per fuel: furnaces in a row, one smeltable input and
-    one fuel item each; counts server ticks from the first tick the furnace
-    is lit to the first tick it is unlit again."""
+    """Furnace burn time per item: a pool of furnaces, each loaded with one
+    smeltable input and one candidate fuel; counts server ticks from the
+    first tick the furnace is lit to the first tick it is unlit again. An
+    item that has not lit the furnace after `ignite_ticks` is not a fuel."""
     origin = job['arena']['furnaces']
     pending = [item for item in job['items'] if item['key'] not in ctx.done]
-    batch = int(job.get('batch', 32))
-    while pending:
-        group, pending = pending[:batch], pending[batch:]
-        positions = []
-        for index, item in enumerate(group):
-            pos = (origin[0] + 2 * (index % 16), origin[1], origin[2] + 2 * (index // 16))
-            ctx.set_state(pos, 'minecraft:air', {})
-            ctx.must(f'setblock {pos[0]} {pos[1]} {pos[2]} {job["furnace"]}')
-            positions.append(pos)
-        yield 2
-        for item, pos in zip(group, positions):
-            ctx.must(f'replaceitem block {pos[0]} {pos[1]} {pos[2]} slot.container 0 {job["input"]} 1')
-            ctx.must(f'replaceitem block {pos[0]} {pos[1]} {pos[2]} slot.container 1 {item["item"]} 1')
-        state = {item['key']: {'lit_at': None, 'unlit_at': None} for item in group}
-        tick = 0
-        limit = int(job.get('max_ticks', 24000))
-        lit_type = job['lit_furnace']
-        while tick < limit and any(s['unlit_at'] is None for s in state.values()):
-            yield 1
-            tick += 1
-            for item, pos in zip(group, positions):
-                s = state[item['key']]
-                lit = ctx.block(pos).type == lit_type
-                if lit and s['lit_at'] is None:
-                    s['lit_at'] = tick
-                elif not lit and s['lit_at'] is not None and s['unlit_at'] is None:
-                    s['unlit_at'] = tick
-            # Nothing ever lit after 40 ticks: not a fuel.
-            if tick == 40:
-                for s in state.values():
-                    if s['lit_at'] is None:
-                        s['unlit_at'] = -1
-        for item, pos in zip(group, positions):
-            s = state[item['key']]
+    size = int(job.get('pool', 32))
+    positions = [(origin[0] + 2 * (i % 16), origin[1], origin[2] + 2 * (i // 16)) for i in range(size)]
+    limit = int(job.get('max_ticks', 24000))
+    ignite = int(job.get('ignite_ticks', 40))
+    lit_type = job['lit_furnace']
+    slots: list[dict | None] = [None] * size
+    tick = 0
+
+    def load(index: int) -> None:
+        pos = positions[index]
+        ctx.set_state(pos, 'minecraft:air', {})
+        if not pending:
+            slots[index] = None
+            return
+        item = pending.pop(0)
+        ctx.must(f'setblock {pos[0]} {pos[1]} {pos[2]} {job["furnace"]}')
+        ctx.must(f'replaceitem block {pos[0]} {pos[1]} {pos[2]} slot.container 0 {job["input"]} 1')
+        ctx.must(f'replaceitem block {pos[0]} {pos[1]} {pos[2]} slot.container 1 {item["item"]} 1')
+        slots[index] = {'item': item, 'loaded': tick, 'lit_at': None}
+
+    for index in range(size):
+        load(index)
+    while any(slots):
+        yield 1
+        tick += 1
+        for index, slot in enumerate(slots):
+            if slot is None:
+                continue
+            lit = ctx.block(positions[index]).type == lit_type
+            age = tick - slot['loaded']
+            burn = None
+            if lit and slot['lit_at'] is None:
+                slot['lit_at'] = tick
+                continue
+            if slot['lit_at'] is None and age < ignite:
+                continue
+            if slot['lit_at'] is not None and lit and age < limit:
+                continue
+            if slot['lit_at'] is not None and not lit:
+                burn = tick - slot['lit_at']
             ctx.record({
-                'key': item['key'],
-                'item': item['item'],
+                'key': slot['item']['key'],
+                'item': slot['item']['item'],
                 'furnace': job['furnace'],
-                'lit_at': s['lit_at'],
-                'unlit_at': s['unlit_at'] if s['unlit_at'] != -1 else None,
-                'burn_ticks': (s['unlit_at'] - s['lit_at'])
-                if s['lit_at'] is not None and s['unlit_at'] not in (None, -1) else None,
-                'timed_out': s['lit_at'] is not None and s['unlit_at'] is None,
+                'input': job['input'],
+                'lit': slot['lit_at'] is not None,
+                'burn_ticks': burn,
+                'timed_out': slot['lit_at'] is not None and burn is None,
             })
-            ctx.set_state(pos, 'minecraft:air', {})
-        yield 2
+            load(index)
 
 
-JOBS = {'drops': drops, 'armor_slots': armor_slots, 'fuel': fuel}
+def mining(ctx: Context, job: dict):
+    """Break time per (block state, tool, effects): the sweep player (survival,
+    facing the block from `arena.miner`) gets a `bds-sweep:mine` order and
+    keeps sending ContinueDestroyBlock; the time is the number of server ticks
+    from its LEFT_CLICK_BLOCK interaction to the BlockBreakEvent. With
+    `predict_after` > 0 the client predicts the break after that many ticks
+    instead (the server then accepts or rejects it)."""
+    name = job['player']
+    miner = job['arena']['miner']
+    pos = tuple(job['arena']['mine_block'])
+    face = int(job['arena']['mine_face'])
+    ctx.must(f'gamemode survival "{name}"')
+    for item in job['items']:
+        if item['key'] in ctx.done:
+            continue
+        ctx.must(f'tp "{name}" {miner[0]} {miner[1]} {miner[2]} {miner[3]} {miner[4]}')
+        ctx.must(f'effect "{name}" clear')
+        for line in item.get('commands', []):
+            ctx.must(line.replace('{player}', f'"{name}"'))
+        ctx.set_state(pos, item['block'], item['states'])
+        ctx.player.inventory.item_in_main_hand = ctx.stack(item['tool'])
+        yield 5
+        ctx.plugin.events.clear()
+        predict = int(item.get('predict_after', 0))
+        ctx.player.send_message(f'bds-sweep:mine {pos[0]} {pos[1]} {pos[2]} {face} {predict}')
+        start = broke = None
+        limit = int(item.get('max_ticks', 1200))
+        for _ in range(limit):
+            yield 1
+            for tick, kind, where in ctx.plugin.events:
+                if where != pos:
+                    continue
+                if kind == 'left_click_block' and start is None:
+                    start = tick
+                if kind == 'break' and broke is None:
+                    broke = tick
+            if broke is not None:
+                break
+        if broke is None:
+            ctx.player.send_message('bds-sweep:stop')
+            yield 2
+        ctx.record({
+            'key': item['key'],
+            'block': item['block'],
+            'states': item['states'],
+            'tool': item['tool'],
+            'commands': item.get('commands', []),
+            'predict_after': predict,
+            'start_tick': start,
+            'break_tick': broke,
+            'ticks': broke - start if start is not None and broke is not None else None,
+            'events': [[t, k] for t, k, w in ctx.plugin.events if w == pos][:8],
+        })
+        ctx.set_state(pos, 'minecraft:air', {})
+        ctx.take_items()
+    ctx.must(f'gamemode creative "{name}"')
+
+
+JOBS = {'drops': drops, 'armor_slots': armor_slots, 'fuel': fuel, 'mining': mining}
