@@ -120,6 +120,18 @@ impl UnastarConfig {
                 "`server.default_chunk_radius` cannot exceed `server.max_chunk_radius`".into(),
             );
         }
+        if matches!(
+            self.world.generator,
+            crate::world::WorldGenerator::Java { .. }
+        ) && !unastar_noise::structures::template_data::TEMPLATES_EMBEDDED
+        {
+            return Err(
+                "the Java-style generator (`world.generator.kind = \"java\"`) needs structure templates \
+                 from the Java server jar: build with `--features java-worldgen` and \
+                 UNASTAR_JAVA_SERVER_JAR=<path to the Java Edition 1.21.11 server.jar>"
+                    .into(),
+            );
+        }
         Ok(())
     }
 }

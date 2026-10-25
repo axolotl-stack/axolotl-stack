@@ -104,6 +104,11 @@ pub fn emit_random_hashes() -> TokenStream {
             "minecraft:clay_bands",
             "Badlands terracotta bands.",
         ),
+        (
+            "WORLDGEN_REGION_RANDOM",
+            "minecraft:worldgen_region_random",
+            "Decoration region random (`WorldGenRegion.getRandom()`).",
+        ),
     ];
     let consts = named.iter().map(|(ident, name, doc)| {
         let ident = Ident::new(ident, Span::call_site());

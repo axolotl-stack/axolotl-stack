@@ -87,16 +87,24 @@ fn shape_flags(boxes: &[[f64; 6]]) -> u8 {
         if (dx + dy + dz) / 3.0 >= 0.7291666666666666 || dy >= 1.0 {
             f |= 1;
         }
-        let faces = [(1, false), (1, true), (2, false), (2, true), (0, false), (0, true)];
+        let faces = [
+            (1, false),
+            (1, true),
+            (2, false),
+            (2, true),
+            (0, false),
+            (0, true),
+        ];
         for (i, (axis, max)) in faces.into_iter().enumerate() {
             if face_full(boxes, axis, max) {
                 f |= 1 << (i + 1);
             }
         }
-        if boxes
-            .iter()
-            .any(|bx| bx.iter().zip([0.0, 0.0, 0.0, 1.0, 1.0, 1.0]).all(|(a, e)| (a - e).abs() < EPS))
-        {
+        if boxes.iter().any(|bx| {
+            bx.iter()
+                .zip([0.0, 0.0, 0.0, 1.0, 1.0, 1.0])
+                .all(|(a, e)| (a - e).abs() < EPS)
+        }) {
             f |= 1 << 7;
         }
     }
@@ -160,14 +168,18 @@ impl JavaBlocks {
             let p = java_data.join(name);
             std::fs::read_to_string(&p).map_err(|e| format!("{}: {e}", p.display()).into())
         };
-        let file: BlocksFile =
-            serde_json::from_str(&read("blocks.json")?).map_err(|e| format!("java_data/blocks.json: {e}"))?;
+        let file: BlocksFile = serde_json::from_str(&read("blocks.json")?)
+            .map_err(|e| format!("java_data/blocks.json: {e}"))?;
         let kinds: BTreeMap<String, String> = serde_json::from_str(&read("block_kinds.json")?)
             .map_err(|e| format!("java_data/block_kinds.json: {e}"))?;
         let collisions: CollisionsFile = serde_json::from_str(&read("collisions.json")?)
             .map_err(|e| format!("java_data/collisions.json: {e}"))?;
         // Shapes are shared by many states: classify each once.
-        let shape_bits: Vec<u8> = collisions.shapes.iter().map(|boxes| shape_flags(boxes)).collect();
+        let shape_bits: Vec<u8> = collisions
+            .shapes
+            .iter()
+            .map(|boxes| shape_flags(boxes))
+            .collect();
         let mut blocks = Vec::with_capacity(file.blocks.len());
         let mut by_name = HashMap::new();
         let mut first = 0;

@@ -671,8 +671,7 @@ pub fn parse_all(
             }
         }
     }
-    let tags: BTreeMap<String, TagFile> =
-        read_dir_json(&java_data.join("tags/worldgen/biome"))?;
+    let tags: BTreeMap<String, TagFile> = read_dir_json(&java_data.join("tags/worldgen/biome"))?;
     Ok(StructureData {
         sets: read_dir_json(&worldgen_root.join("structure_set"))?,
         structures,

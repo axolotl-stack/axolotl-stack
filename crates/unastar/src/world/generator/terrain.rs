@@ -42,6 +42,8 @@ pub struct JavaGenerator {
     surface_system: SurfaceSystem,
     /// Ore vein positional random (`fromHashOf("minecraft:ore").forkPositional()`).
     ore_random: PositionalRandomFactory,
+    /// Structure starts and noise-only column heights (Java-style structures).
+    structures: super::structures::JavaStructures,
 }
 
 impl JavaGenerator {
@@ -65,6 +67,7 @@ impl JavaGenerator {
             noises,
             surface_system,
             ore_random,
+            structures: super::structures::JavaStructures::new(),
         }
     }
 
@@ -365,10 +368,12 @@ impl Generator for JavaGenerator {
     }
 
     fn decorates(&self) -> bool {
-        false
+        true
     }
 
-    fn decorate(&self, _region: &mut DecorationRegion<'_>) {}
+    fn decorate(&self, region: &mut DecorationRegion<'_>) {
+        super::features::decorate(self.seed, &self.noises, &self.structures, region);
+    }
 
     fn block_classes(&self) -> &'static [u8] {
         &unastar_noise::java_blocks::BEDROCK_STATE_CLASSES

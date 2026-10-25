@@ -21,6 +21,9 @@ This directory holds the other Java facts the AOT toolchain (`build.rs`) compile
 | `bedrock_biomes.json` | Java biome → Bedrock numeric biome id. |
 | `biome_parameters_overworld.json` | The data generator's overworld multi-noise parameter points (`reports/biome_parameters`), floats kept as decimal strings. |
 | `tags/worldgen/biome/` | Biome tags from the data generator. |
+| `tags/block/` | Block tags from the data generator (feature/structure predicates). |
+| `block_kinds.json` | Java block id → block type (`definition.type` of `reports/blocks.json`), used by feature survival rules and structure processors. |
+| `biome_parameters_nether.json` | The data generator's nether parameter list report (biome order for the nether's feature sorting). |
 
 ## Regenerating
 
@@ -38,3 +41,7 @@ python crates/unastar_noise/tools/import_java_data.py \
 ```
 
 The import fails if any Java state has no Bedrock canonical state.
+
+`block_kinds.json` is the `definition.type` of every entry of `<dg-1.21.11>/reports/blocks.json`
+(`{"minecraft:stone": "minecraft:block", ...}`, sorted by id); `biome_parameters_nether.json` is
+`<dg-1.21.11>/reports/biome_parameters/minecraft/nether.json` unchanged.

@@ -2,8 +2,8 @@
 //!
 //! Each floor is the value measured when it was last raised; a change may only raise a
 //! floor (or lower an error ceiling), in the same commit as the improvement. Metrics are
-//! defined in `unastar::world::generator::parity`; print them (and the block histograms,
-//! which stay report-only while decoration is missing) with
+//! defined in `unastar::world::generator::parity`; print them (and the block histograms)
+//! with
 //! `cargo run -p unastar --example worldgen_parity_report`.
 //!
 //! The truth for the Java-style generator is the Java Edition reference world. The BDS
@@ -15,11 +15,12 @@
 use std::path::Path;
 use std::sync::Arc;
 
-use unastar::world::generator::parity::{
-    Fixture, ParityMetrics, ProtoFixture, measure, measure_proto,
-};
+#[cfg(feature = "java-worldgen")]
+use unastar::world::generator::parity::{Fixture, ParityMetrics, measure};
+use unastar::world::generator::parity::{ProtoFixture, measure_proto};
 use unastar::world::generator::{ChunkPipeline, JavaGenerator};
 
+#[cfg(feature = "java-worldgen")]
 fn metrics(fixture: &str) -> ParityMetrics {
     let path = Path::new(env!("CARGO_MANIFEST_DIR"))
         .join("tests/fixtures")
@@ -56,6 +57,8 @@ fn assert_ratchets(fixture: &str, checks: &[(&str, f64, f64)]) {
     assert!(failures.is_empty(), "{fixture}: {}", failures.join("; "));
 }
 
+/// Finished chunks include structures, whose templates need `java-worldgen`.
+#[cfg(feature = "java-worldgen")]
 #[test]
 fn java_style_vs_java_reference() {
     let fixture = "java_1_21_11_seed_12345.json";
@@ -63,11 +66,12 @@ fn java_style_vs_java_reference() {
     assert_ratchets(
         fixture,
         &[
-            ("terrain_exact", m.terrain_exact, 0.8271),
-            ("terrain_within_2", m.terrain_within_2, 0.9115),
-            ("-terrain_mean_abs_error", m.terrain_mean_abs_error, 1.1395),
-            ("surface_exact", m.surface_exact, 0.8848),
-            ("surface_block", m.surface_block, 0.8400),
+            ("terrain_exact", m.terrain_exact, 0.8956),
+            ("terrain_within_2", m.terrain_within_2, 0.9780),
+            ("-terrain_mean_abs_error", m.terrain_mean_abs_error, 0.3579),
+            ("surface_exact", m.surface_exact, 0.9007),
+            ("surface_block", m.surface_block, 0.9113),
+            ("-histogram_l1", m.histogram_l1, 0.0128),
             ("surface_biome", m.surface_biome, 0.9999),
         ],
     );
@@ -75,6 +79,7 @@ fn java_style_vs_java_reference() {
 
 /// Biome placement is shared by both editions (BDS places Java's biomes); terrain height
 /// is not gated here because BDS carves with its own cave carver features.
+#[cfg(feature = "java-worldgen")]
 #[test]
 fn java_style_biomes_vs_bds_reference() {
     let fixture = "bds_1_26_51_seed_12345.json";

@@ -15,6 +15,7 @@ pub mod aquifer;
 pub mod biome_source;
 pub mod carver;
 pub mod density;
+pub mod features;
 pub mod flat;
 pub mod noise;
 pub mod ore_veinifier;
@@ -22,7 +23,7 @@ pub mod parity;
 pub mod pipeline;
 pub mod proto;
 pub mod region;
-mod structures;
+pub mod structures;
 pub mod surface;
 mod terrain;
 pub mod xoroshiro;
@@ -31,7 +32,4 @@ pub use flat::{FlatGenerator, VoidGenerator};
 pub use pipeline::{ChunkPipeline, Generator, SpawnPoint};
 pub use proto::{NativeBiome, ProtoChunk, QuartBiomes};
 pub use region::{DecorationRegion, HeightmapKind, WorldGenRegion};
-pub use structures::{
-    StructureConfig, StructurePos, StructureType, find_structures_in_area, get_structure_pos,
-};
 pub use terrain::JavaGenerator;

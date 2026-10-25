@@ -3,6 +3,13 @@ name = "unastar"
 version = "0.1.0"
 edition.workspace = true
 
+[features]
+default = []
+# Java Edition structure templates for the Java-style generator, read at build
+# time from the server jar named by UNASTAR_JAVA_SERVER_JAR (Mojang assets,
+# never committed). Without it `world.generator.kind = "java"` is rejected.
+java-worldgen = ["unastar_noise/java-templates"]
+
 [dependencies]
 bytes.workspace = true
 jolyne = { workspace = true, features = ["server", "raknet"] }

@@ -81,7 +81,7 @@ fn main() {
 
     // Java block registry for decoration (features/structures).
     let mut decor_blocks = codegen::java_blocks::JavaBlocks::load(&java_data)
-    .unwrap_or_else(|e| panic!("Failed to load Java block data: {e}"));
+        .unwrap_or_else(|e| panic!("Failed to load Java block data: {e}"));
     // Features intern block states and sets, so they are emitted first.
     codegen::emitter::feature::emit_features(
         &output_dir,
