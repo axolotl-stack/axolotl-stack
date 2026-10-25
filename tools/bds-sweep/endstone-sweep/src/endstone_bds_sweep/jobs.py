@@ -348,16 +348,21 @@ def attack(ctx: Context, job: dict):
         yield 5
         trials = []
         for _ in range(int(item.get('repeats', 3))):
-            target = ctx.dimension.spawn_actor(Location(ctx.dimension, spot[0], spot[1], spot[2]), job['target'])
+            # Keep only the runtime id: an Endstone actor wrapper used after
+            # its actor is destroyed (the target can die from one hit)
+            # crashes the server.
+            target = ctx.dimension.spawn_actor(
+                Location(ctx.dimension, spot[0], spot[1], spot[2]), job['target']).runtime_id
             yield 3
             ctx.plugin.damage.clear()
-            ctx.player.send_message(f'bds-sweep:attack {target.runtime_id}')
+            ctx.player.send_message(f'bds-sweep:attack {target}')
             yield 6
             damage = [round(d, 4) for _, kind, d, _ in ctx.plugin.damage if kind == job['target']]
             causes = sorted({c for _, kind, _, c in ctx.plugin.damage if kind == job['target']})
             trials.append({'damage': damage, 'causes': causes})
-            if target.is_valid:
-                target.remove()
+            for actor in ctx.dimension.actors:
+                if actor.runtime_id == target:
+                    actor.remove()
             ctx.take_items()
             yield 2
         ctx.record({'key': item['key'], 'tool': item['tool'], 'target': job['target'], 'trials': trials})
