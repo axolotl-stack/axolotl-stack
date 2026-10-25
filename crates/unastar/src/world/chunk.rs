@@ -613,18 +613,16 @@ impl Chunk {
                     }
                 }
             }
-            *section = PalettedStorage::single_block(ids[0]);
             if ids.iter().all(|&id| id == ids[0]) {
+                *section = PalettedStorage::single_block(ids[0]);
                 continue;
             }
-            for x in 0..SUBCHUNK_SIZE {
-                for z in 0..SUBCHUNK_SIZE {
-                    for y in 0..SUBCHUNK_SIZE {
-                        let id = ids[((y >> 2) * 4 + (z >> 2)) * 4 + (x >> 2)];
-                        section.set_block(x, y, z, id);
-                    }
-                }
+            let mut dense = [0u32; BLOCKS_PER_SUBCHUNK];
+            for (i, slot) in dense.iter_mut().enumerate() {
+                let (y, z, x) = (i >> 8, (i >> 4) & 15, i & 15);
+                *slot = ids[((y >> 2) * 4 + (z >> 2)) * 4 + (x >> 2)];
             }
+            *section = PalettedStorage::from_dense_yzx(&dense);
         }
     }
 
