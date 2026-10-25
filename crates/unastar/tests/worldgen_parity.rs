@@ -117,6 +117,8 @@ fn java_style_protos_vs_java_reference() {
 /// World spawn of the Java reference world (seed 12345, `level.dat` `spawn.pos`). Java
 /// picks the same spawn with and without features, so the undecorated generator must hit
 /// it exactly.
+/// `JavaGenerator` always loads the structure tables, which need `java-worldgen`.
+#[cfg(feature = "java-worldgen")]
 #[test]
 fn java_style_spawn_matches_java_reference() {
     let spawn = std::thread::Builder::new()
