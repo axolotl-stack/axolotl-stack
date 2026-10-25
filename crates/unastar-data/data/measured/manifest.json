@@ -53,6 +53,38 @@
     }
    ]
   },
+  "attack_damage": {
+   "bds_version": "1.26.51",
+   "files": [
+    {
+     "path": "attack_damage.json",
+     "sha256": "8f08d4b6ba5e1ee826da08fa004a83e4eab49dd61df7631a2606164fa02c7e92"
+    }
+   ],
+   "harness": "tools/bds-sweep (sweep.py attack, endstone-sweep plugin) at 1e93dee335ccb136d3f5ce09e182bba4d96c764a",
+   "method": "sweep player (creative, on the ground, not sprinting) holding the item attacks a freshly spawned minecraft:pig through an InventoryTransaction use-item-on-actor Attack; value of the Endstone ActorDamageEvent for the pig, three trials after one warm-up attack",
+   "source": "bds_sweep",
+   "sweeps": [
+    {
+     "dir": "full-attack",
+     "items": 43,
+     "runs": [
+      {
+       "items": 43,
+       "seconds": 15.7,
+       "started": "20261025T195553Z",
+       "status": "client exited 1"
+      },
+      {
+       "items": 43,
+       "seconds": 117.4,
+       "started": "20261025T204248Z",
+       "status": "done"
+      }
+     ]
+    }
+   ]
+  },
   "block_drops": {
    "bds_version": "1.26.51",
    "files": [
