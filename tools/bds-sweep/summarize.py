@@ -27,6 +27,8 @@ BDS_VERSION = '1.26.51'
 
 
 def results(sweep: Path) -> list[dict]:
+    """The rows of the sweep's current job (rows of items a later job no
+    longer lists are dropped); every listed item must be finished."""
     rows = [json.loads(line) for line in (sweep / 'results.jsonl').read_text(encoding='utf-8').splitlines()
             if line.strip()]
     job = json.loads((sweep / 'job.json').read_text(encoding='utf-8'))
@@ -34,7 +36,7 @@ def results(sweep: Path) -> list[dict]:
     missing = expected - {row['key'] for row in rows}
     if missing:
         raise SystemExit(f'{sweep}: {len(missing)} items unfinished (rerun sweep.py with --out {sweep})')
-    return rows
+    return [row for row in rows if row['key'] in expected]
 
 
 def runs(sweep: Path) -> list[dict]:

@@ -163,11 +163,10 @@ def mining_items(args) -> list[dict]:
                              f'+{effect}{amplifier + 1}'))
         water = ['setblock 0 -60 0 water', 'setblock 0 -59 0 water']
         dry = ['setblock 0 -60 0 air', 'setblock 0 -59 0 air']
-        environments = [
-            ('+underwater', water, dry),
-            # Probe for an airborne player; each trial records on_ground.
-            ('+levitation256', ['effect {player} levitation 1000 255 true'], []),
-        ]
+        # Airborne is not measured: the only way found to keep a survival
+        # player off the ground (levitation, amplifier 255) lifts it out of
+        # reach, so the block never breaks (on_ground was false in the probe).
+        environments = [('+underwater', water, dry)]
         for spec, commands, suffix in variants:
             items.append({'key': f'{state_key(block, states)}|{tool_key(spec)}{suffix}', 'block': block,
                           'states': states, 'tool': spec, 'commands': commands, 'max_ticks': args.mine_ticks})
