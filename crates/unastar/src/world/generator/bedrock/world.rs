@@ -99,6 +99,8 @@ pub trait BlockWorld {
     fn get(&self, pos: BlockPos) -> u32;
     /// Set `pos`; `false` (and no change) outside the writable region.
     fn set(&mut self, pos: BlockPos, id: u32) -> bool;
+    /// Retain a generated actor at its absolute position; reject unwritable positions.
+    fn set_block_entity(&mut self, entity: crate::world::block_entity::BlockEntity) -> bool;
     /// Numeric Bedrock biome id at `pos`.
     fn biome(&self, pos: BlockPos) -> u16;
     /// `query.heightmap`: y of the first block above the highest non-air block,

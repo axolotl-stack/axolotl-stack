@@ -149,7 +149,7 @@ impl QuartBiomes {
 pub struct ProtoChunk {
     /// Chunk position.
     pub pos: ChunkPos,
-    /// Blocks, with Bedrock runtime ids.
+    /// Blocks and sparse immutable block actors, with Bedrock runtime ids.
     pub chunk: Chunk,
     /// Generator-native 3D biomes.
     pub biomes: QuartBiomes,

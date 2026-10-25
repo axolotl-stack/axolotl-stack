@@ -15,15 +15,18 @@
 //! template: `size: [i32; 3]`, `palettes: u16`, per palette
 //! `blocks: u32` and `blocks` records of `x, y, z: u8, state: u16, entity: u16`
 //! (`0xFFFF` = none); `entities: u16` block-entity records (kind byte:
-//! 0 jigsaw, 1 data marker, 2 other with raw NBT); `entity_count: u16` entity
-//! records (`pos: [f64; 3]`, `block_pos: [i32; 3]`, `id`, raw NBT).
+//! 0 jigsaw, 1 data marker, 2 native id + NETWORK child fields + lifted loot/spawner);
+//! `entity_count: u16` entity records (`pos: [f64; 3]`, `block_pos: [i32; 3]`,
+//! `id`, raw Java NBT).
 
 use crate::codegen::java_blocks::{JavaBlocks, Result, write_pretty};
-use crate::codegen::nbt::{self, Tag};
 use quote::quote;
 use std::collections::BTreeMap;
-use std::io::Read;
 use std::path::Path;
+use unastar_packs::{
+    block_entity,
+    nbt::{self, Tag},
+};
 
 fn put_str(out: &mut Vec<u8>, s: &str) {
     out.extend_from_slice(&(s.len() as u16).to_le_bytes());
@@ -73,7 +76,7 @@ fn state_of(blocks: &JavaBlocks, entry: &Tag) -> Result<u16> {
     blocks.state(name, &props)
 }
 
-fn encode_template(blocks: &JavaBlocks, root: &Tag, out: &mut Vec<u8>) -> Result<()> {
+fn encode_template(origin: &str, blocks: &JavaBlocks, root: &Tag, out: &mut Vec<u8>) -> Result<()> {
     let size = root
         .get("size")
         .and_then(Tag::as_list)
@@ -134,9 +137,25 @@ fn encode_template(blocks: &JavaBlocks, root: &Tag, out: &mut Vec<u8>) -> Result
                         );
                     }
                     _ => {
+                        let compiled = block_entity::compile(origin, tag)?;
                         rec.push(2);
-                        put_str(&mut rec, id);
-                        put_bytes(&mut rec, &nbt::encode(tag));
+                        put_str(&mut rec, compiled.id);
+                        put_bytes(&mut rec, &compiled.fields);
+                        match compiled.loot {
+                            Some((table, seed)) => {
+                                rec.push(1);
+                                put_str(&mut rec, &table);
+                                rec.extend_from_slice(&seed.to_le_bytes());
+                            }
+                            None => rec.push(0),
+                        }
+                        match compiled.spawner_entity {
+                            Some(entity) => {
+                                rec.push(1);
+                                put_str(&mut rec, &entity);
+                            }
+                            None => rec.push(0),
+                        }
                     }
                 }
                 be_of_block.push(be_records.len() as u16);
@@ -215,7 +234,7 @@ fn encode_template(blocks: &JavaBlocks, root: &Tag, out: &mut Vec<u8>) -> Result
             .and_then(Tag::as_str)
             .unwrap_or("");
         put_str(out, id);
-        put_bytes(out, &tag.map(nbt::encode).unwrap_or_default());
+        put_bytes(out, &tag.map(nbt::encode_java).unwrap_or_default());
     }
     Ok(())
 }
@@ -238,11 +257,9 @@ pub fn emit(out_dir: &Path, blocks: &JavaBlocks, jar: Option<&Path>) -> Result<V
         let mut records = Vec::with_capacity(members.len());
         for m in &members {
             let gz = zip.read(m)?;
-            let mut raw = Vec::new();
-            flate2::read::GzDecoder::new(gz.as_slice()).read_to_end(&mut raw)?;
-            let root = nbt::parse(&raw).map_err(|e| format!("{m}: {e}"))?;
+            let root = nbt::read_gzip_java(m, &gz)?;
             let mut rec = Vec::new();
-            encode_template(blocks, &root, &mut rec).map_err(|e| format!("{m}: {e}"))?;
+            encode_template(m, blocks, &root, &mut rec).map_err(|e| format!("{m}: {e}"))?;
             let name = format!("minecraft:{}", &m[prefix.len()..m.len() - 4]);
             names.push(name);
             records.push(rec);

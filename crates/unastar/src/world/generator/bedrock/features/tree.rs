@@ -2458,6 +2458,7 @@ mod tests {
     #[derive(Default)]
     struct TestWorld {
         blocks: HashMap<BlockPos, u32>,
+        block_entities: Vec<crate::world::block_entity::BlockEntity>,
     }
 
     impl TestWorld {
@@ -2495,6 +2496,22 @@ mod tests {
                 return false;
             }
             self.blocks.insert(pos, id);
+            true
+        }
+        fn set_block_entity(&mut self, entity: crate::world::block_entity::BlockEntity) -> bool {
+            let position = entity.position();
+            if !(-64..320).contains(&position[1]) {
+                return false;
+            }
+            if let Some(existing) = self
+                .block_entities
+                .iter_mut()
+                .find(|existing| existing.position() == position)
+            {
+                *existing = entity;
+            } else {
+                self.block_entities.push(entity);
+            }
             true
         }
         fn biome(&self, _: BlockPos) -> u16 {

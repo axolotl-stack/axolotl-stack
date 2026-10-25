@@ -31,12 +31,10 @@ pub enum StorageError {
 /// Data stored for a chunk column.
 #[derive(Debug, Clone)]
 pub struct ChunkColumn {
-    /// The chunk block data.
+    /// The authoritative chunk block data and sparse block-entity metadata.
     pub chunk: Chunk,
     /// Entities in this chunk (serialized NBT).
     pub entities: Vec<Vec<u8>>,
-    /// Block entities (serialized NBT).
-    pub block_entities: Vec<Vec<u8>>,
 }
 
 impl ChunkColumn {
@@ -45,7 +43,6 @@ impl ChunkColumn {
         Self {
             chunk,
             entities: Vec::new(),
-            block_entities: Vec::new(),
         }
     }
 }

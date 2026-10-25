@@ -51,7 +51,7 @@ when the variable or any file it read changes.
 | Phase | Module | What it does |
 |---|---|---|
 | Ingestion | `unastar_packs::{brarchive,json,packs}` | Shared `.brarchive` reader, JSON with comments, version stack `definitions` < `vanilla` < `vanilla_<version>` ascending up to 1.26.51; the last layer defining an identifier wins |
-| Identity | `blocks`, `nbt` | canonical palette (`canonical_block_states.nbt`), block tags, physical flags; descriptors resolve to runtime ids; pre-flattening names (`minecraft:log` + `old_log_type`, `minecraft:stone` + `stone_type`, `minecraft:tallgrass`, ...) go through `LEGACY_BLOCKS` / `STATE_RENAMES` |
+| Identity | `blocks`, `unastar_packs::nbt` | canonical palette (`canonical_block_states.nbt`), block tags, physical flags; descriptors resolve to runtime ids; pre-flattening names (`minecraft:log` + `old_log_type`, `minecraft:stone` + `stone_type`, `minecraft:tallgrass`, ...) go through `LEGACY_BLOCKS` / `STATE_RENAMES` |
 | IR | `ir`, `model` | strict typed parsing of biomes, feature rules, features, spawn rules (unknown keys fail the build); reachability from overworld rules; built-in registry check |
 | Molang | `unastar_rules::molang`, `molang` | Shared lexer/parser; worldgen-only binding/lowering, constant-folding (`variable.is_legacy` = 0) and `f32` Rust emission; no runtime interpreter |
 | Emission | `emit` | `run_pass` with per-rule biome masks, one `rule_*` per rule, one `f_*` per reachable JSON feature, `BIOMES` surface data, `blocks`/`bb`/`props` constants |
@@ -59,6 +59,25 @@ when the variable or any file it read changes.
 `builtin` lists the built-in features (identifiers without a JSON definition) that the
 runtime implements in Rust; a reachable built-in missing from the list fails the build.
 `builtin_blocks` declares the blocks hand-written runtime code needs.
+
+Legacy Java-format templates shipped with BDS can retain older identifiers:
+`minecraft:chain` is upgraded to native `minecraft:iron_chain` before palette
+resolution, preserving its axis under rotation. The conversion is exercised on
+the local bastion stage templates; placement/pool behavior remains unmeasured.
+
+Template block actors are decoded at build time through shared
+`unastar_packs::{nbt,block_entity}`. The emitter stores sparse cell-indexed
+actor records with native IDs and pre-encoded network NBT children; placement
+only supplies transformed absolute coordinates and lifted loot/spawner fields.
+Both template features and jigsaw pieces write the shared region's actor sink.
+Processors replacing an actor's block type discard that actor; state-only
+changes preserve it. Metadata introduces no RNG draws. Unknown actor identities
+fail generation rather than being silently omitted.
+
+Retaining Java-only fields does not establish that Bedrock interprets them.
+Template entities, legacy hard-coded structure assembly and native behavioral
+parity remain separate work.
+
 
 ## Tests
 
@@ -115,25 +134,25 @@ The lower `terrain_exact` likely exposes still-unmeasured feature geometry,
 RNG/draw order or query behavior outside the controlled stone/water case;
 the earlier wrong assumptions were compensating for part of that mismatch.
 
-Benchmark: `worldgen_bench --kind java|bedrock`, same feature-enabled binary,
-68 fixture chunks, three rounds alternating Java then Bedrock, Windows affinity
-mask `4` (one P-core logical CPU), power-plan maximum processor state 99%
-(turbo disabled). No other benchmark suite ran in this worker. Other workers
-were active; the debug ranges show substantial drift, so these are baselines,
-not optimization speedup claims. Finished costs include the cold pipeline's
-neighbor ring: Bedrock made 264 protos for 68 requested chunks. At this core
-revision the Java row has no decoration, so it is not an equivalent-completeness
-comparison.
+Benchmark of corrected runtime `c154b89d`: `worldgen_bench --kind java|bedrock`,
+same binary with both `bedrock-worldgen,java-worldgen` enabled, 68 fixture chunks,
+three rounds alternating Java then Bedrock. Windows affinity mask `4` pins one
+P-core logical CPU; power-plan maximum processor state remains 99% (turbo
+disabled). No other benchmark suite ran in this worker; other workers were
+active. These are current baselines, not optimization speedup claims. Both
+generators made 264 protos for 68 cold finished chunks and include their current
+decoration/structure implementations. Bedrock legacy structures remain missing,
+so the rows do not imply equivalent completeness or parity.
 
 | Profile | Generator | Proto median (range), ms/chunk | Finished median (range), ms/chunk | Allocations/finished chunk | KiB allocated/finished chunk |
 |---|---|---:|---:|---:|---:|
-| Debug | Java | 102.72 (84.03–109.38) | 100.16 (83.89–110.89) | 107 | 595 |
-| Debug | Bedrock | 114.17 (78.32–172.67) | 615.97 (413.37–695.70) | 2032 | 3000 |
-| Release | Java | 9.37 (9.19–11.02) | 9.21 (8.86–11.94) | 107 | 595 |
-| Release | Bedrock | 8.23 (7.80–9.96) | 40.46 (39.71–43.11) | 2032 | 3000 |
+| Debug | Java | 70.97 (70.34–73.25) | 588.93 (587.83–609.27) | 2805 | 2511 |
+| Debug | Bedrock | 66.32 (65.93–67.51) | 327.30 (326.97–331.31) | 1949 | 1417 |
+| Release | Java | 8.33 (7.87–8.43) | 80.29 (79.28–86.37) | 2805 | 2511 |
+| Release | Bedrock | 7.30 (6.89–7.83) | 37.12 (36.24–37.53) | 1949 | 1417 |
 
 Release built with
-`cargo build --release -p unastar --features bedrock-worldgen --bin unastar --example worldgen_bench`.
+`cargo build --release -p unastar --features bedrock-worldgen,java-worldgen --bin unastar --example worldgen_bench`.
 The server's `kind = "bedrock"` configuration reached `Server ready` in an
 isolated loopback-only startup smoke; no real-client visual check was performed
 by this worker.

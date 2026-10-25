@@ -5,6 +5,8 @@
 
 use bytes::{BufMut, BytesMut};
 
+use crate::registry::BlockRegistry;
+use crate::world::block_entity::BlockEntity;
 use crate::world::generator::{NativeBiome, QuartBiomes};
 
 /// Legacy sub-chunk request-mode sentinels retained for callers targeting
@@ -340,6 +342,8 @@ pub struct Chunk {
     sub_chunks: Vec<SubChunk>,
     /// Biome ids per sub-chunk, 16x16x16 like Bedrock's 3D biome storage.
     biomes: Vec<PalettedStorage>,
+    /// Sparse actors; an empty chunk allocates no actor storage.
+    block_entities: Vec<BlockEntity>,
     /// Height map tracking highest light-blocking block per column
     height_map: HeightMap,
     /// Whether height map needs recalculation (reserved for future lazy recalculation)
@@ -463,6 +467,7 @@ impl Chunk {
             z,
             sub_chunks,
             biomes,
+            block_entities: Vec::new(),
             height_map: HeightMap::new(),
             recalculate_height_map: false,
         }
@@ -501,6 +506,7 @@ impl Chunk {
             z,
             sub_chunks,
             biomes,
+            block_entities: Vec::new(),
             height_map,
             recalculate_height_map: false,
         }
@@ -511,6 +517,7 @@ impl Chunk {
     /// # Arguments
     /// * `layers` - Number of Y layers to fill (from world Y=0 upward).
     pub fn fill_floor(&mut self, layers: u32, block_id: u32) {
+        self.retain_block_entities_for_fill(0, layers.min(320) as i32, block_id);
         // Y=0 is at subchunk index 4 (since MIN_Y=-64, so subchunk 0 covers Y=-64 to -48)
         // Subchunk 4 covers Y=0 to Y=15
         let base_subchunk_idx = 4usize;
@@ -548,6 +555,8 @@ impl Chunk {
     /// * `block_id` - Runtime block ID to fill with
     pub fn fill_subchunk_solid(&mut self, subchunk_idx: usize, block_id: u32) {
         if subchunk_idx < self.sub_chunks.len() {
+            let min_y = MIN_Y + subchunk_idx as i32 * 16;
+            self.retain_block_entities_for_fill(min_y, min_y + 16, block_id);
             self.sub_chunks[subchunk_idx].fill_solid(block_id);
 
             // Update height map if this is a non-air block
@@ -566,6 +575,22 @@ impl Chunk {
                 }
             }
         }
+    }
+
+    fn retain_block_entities_for_fill(&mut self, min_y: i32, max_y: i32, block: u32) {
+        let sub_chunks = &self.sub_chunks;
+        self.block_entities.retain(|entity| {
+            let [x, y, z] = entity.position();
+            if !(min_y..max_y).contains(&y) {
+                return true;
+            }
+            let old = sub_chunks[((y - MIN_Y) >> 4) as usize].get_block(
+                (x & 15) as u8,
+                (y & 15) as u8,
+                (z & 15) as u8,
+            );
+            same_native_block(old, block)
+        });
     }
 
     /// Get the count of sub-chunks from bottom to highest non-empty.
@@ -735,16 +760,73 @@ impl Chunk {
         Ok(())
     }
 
-    /// Encode a specific sub-chunk's data for SubChunk response.
-    /// Returns None if the sub-chunk doesn't exist.
+    /// Encode a section and its rooted network-NBT actors for a SubChunk response.
+    ///
+    /// Request-mode LevelChunk carries only biomes; actors follow their section's
+    /// block storage here (without a count or border byte).
     pub fn encode_subchunk(&self, y_index: i32) -> Option<Vec<u8>> {
-        // Convert absolute Y index to array index
-        let array_idx = (y_index - (MIN_Y >> 4)) as usize;
-        let sub = self.sub_chunks.get(array_idx)?;
+        let mut out = self.encode_subchunk_disk(y_index)?;
+        for entity in &self.block_entities {
+            if entity.position()[1] >> 4 == y_index {
+                out.extend_from_slice(&entity.network_nbt().0);
+            }
+        }
+        Some(out)
+    }
 
+    /// Encode block storage only, without the network actor suffix.
+    /// Providers persist actors separately under Bedrock tag 0x31.
+    pub fn encode_subchunk_disk(&self, y_index: i32) -> Option<Vec<u8>> {
+        let array_idx = y_index.checked_sub(MIN_Y >> 4)? as usize;
+        let sub = self.sub_chunks.get(array_idx)?;
         let mut buf = BytesMut::with_capacity(1024);
         sub.encode(&mut buf, y_index as i8);
         Some(buf.to_vec())
+    }
+
+    pub fn has_block_entities_in_subchunk(&self, y_index: i32) -> bool {
+        self.block_entities
+            .iter()
+            .any(|entity| entity.position()[1] >> 4 == y_index)
+    }
+
+    /// Immutable actors in this chunk, at absolute block coordinates.
+    pub fn block_entities(&self) -> &[BlockEntity] {
+        &self.block_entities
+    }
+
+    /// Insert or replace an actor, rejecting another chunk or invalid world height.
+    pub fn set_block_entity(&mut self, entity: BlockEntity) -> bool {
+        let [x, y, z] = entity.position();
+        if x >> 4 != self.x
+            || z >> 4 != self.z
+            || !(MIN_Y..MIN_Y + SUBCHUNK_COUNT as i32 * 16).contains(&y)
+        {
+            return false;
+        }
+        if let Some(old) = self
+            .block_entities
+            .iter_mut()
+            .find(|old| old.position() == [x, y, z])
+        {
+            *old = entity;
+        } else {
+            self.block_entities.push(entity);
+        }
+        true
+    }
+
+    /// Remove an actor at an absolute position; returns whether one existed.
+    pub fn remove_block_entity(&mut self, x: i32, y: i32, z: i32) -> bool {
+        let Some(index) = self
+            .block_entities
+            .iter()
+            .position(|entity| entity.position() == [x, y, z])
+        else {
+            return false;
+        };
+        self.block_entities.remove(index);
+        true
     }
 
     /// Check if sub-chunk at given Y index is all air.
@@ -802,7 +884,7 @@ impl Chunk {
     /// Returns the previous block runtime ID, or None if out of bounds.
     pub fn set_block(&mut self, x: u8, y: i16, z: u8, block_id: u32) -> Option<u32> {
         let adjusted_y = (y as i32) - MIN_Y;
-        if adjusted_y < 0 || adjusted_y >= (SUBCHUNK_COUNT as i32 * 16) {
+        if x >= 16 || z >= 16 || adjusted_y < 0 || adjusted_y >= (SUBCHUNK_COUNT as i32 * 16) {
             return None;
         }
 
@@ -810,6 +892,21 @@ impl Chunk {
         let local_y = (adjusted_y % 16) as u8;
 
         let old = self.sub_chunks[subchunk_idx].set_block(x, local_y, z, block_id);
+        if old != block_id && !self.block_entities.is_empty() {
+            let position = [(self.x << 4) | x as i32, y as i32, (self.z << 4) | z as i32];
+            if let Some(index) = self
+                .block_entities
+                .iter()
+                .position(|entity| entity.position() == position)
+            {
+                // Resolve native identity only at an occupied actor cell. State-only
+                // changes (e.g. chest facing) must not destroy its persistent contents.
+                let same_type = same_native_block(old, block_id);
+                if !same_type {
+                    self.block_entities.remove(index);
+                }
+            }
+        }
 
         // Update height map if needed
         self.update_heightmap_for_block(x, y, z, block_id);
@@ -1332,6 +1429,20 @@ impl PalettedStorage {
     }
 }
 
+fn same_native_block(old: u32, new: u32) -> bool {
+    if old == new {
+        return true;
+    }
+    let registry = BlockRegistry::vanilla();
+    match (
+        registry.get_by_runtime_id(old),
+        registry.get_by_runtime_id(new),
+    ) {
+        (Some(old), Some(new)) => old.id == new.id,
+        _ => false,
+    }
+}
+
 /// Read an i32 LE at `offset`, advancing it.
 fn read_i32_le(data: &[u8], offset: &mut usize) -> Result<i32, String> {
     let bytes = data
@@ -1398,6 +1509,118 @@ fn read_unsigned_varint32(data: &[u8]) -> Option<(u32, usize)> {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn actors_obey_absolute_chunk_and_height_boundaries() {
+        let mut chunk = Chunk::new(-2, -1);
+        for position in [[-32, -64, -16], [-17, 319, -1]] {
+            assert!(chunk.set_block_entity(BlockEntity::generated(
+                position,
+                "Chest",
+                &[],
+                None,
+                None
+            )));
+        }
+        for position in [
+            [-33, 0, -1],
+            [-16, 0, -1],
+            [-17, -65, -1],
+            [-17, 320, -1],
+            [-17, 0, 0],
+        ] {
+            assert!(!chunk.set_block_entity(BlockEntity::generated(
+                position,
+                "Chest",
+                &[],
+                None,
+                None
+            )));
+        }
+        assert_eq!(chunk.block_entities().len(), 2);
+        assert!(chunk.set_block_entity(BlockEntity::generated(
+            [-32, -64, -16],
+            "MobSpawner",
+            &[],
+            None,
+            Some("minecraft:pig")
+        )));
+        assert_eq!(chunk.block_entities().len(), 2);
+        assert!(chunk.remove_block_entity(-32, -64, -16));
+        assert!(!chunk.remove_block_entity(-32, -64, -16));
+        assert_eq!(chunk.block_entities()[0].position(), [-17, 319, -1]);
+    }
+
+    #[test]
+    fn state_only_changes_preserve_actors_but_replacements_and_bulk_fills_remove_them() {
+        let registry = BlockRegistry::vanilla();
+        let chest = registry.get_by_name("minecraft:chest").unwrap();
+        assert!(chest.min_state_id < chest.max_state_id);
+        let mut chunk = Chunk::new(-1, -1);
+        chunk.set_block(15, -1, 15, chest.min_state_id);
+        let entity = BlockEntity::generated([-1, -1, -1], "Chest", &[], None, None);
+        chunk.set_block_entity(entity.clone());
+        chunk.set_block(15, -1, 15, chest.max_state_id);
+        assert_eq!(chunk.block_entities(), std::slice::from_ref(&entity));
+        chunk.set_block(15, -1, 15, *blocks::STONE);
+        assert!(chunk.block_entities().is_empty());
+        chunk.set_block(15, -1, 15, chest.min_state_id);
+        chunk.set_block_entity(entity);
+        chunk.fill_subchunk_solid(3, chest.max_state_id);
+        assert_eq!(chunk.block_entities().len(), 1);
+        chunk.fill_subchunk_solid(3, *blocks::AIR);
+        assert!(chunk.block_entities().is_empty());
+        chunk.set_block(15, 0, 15, chest.min_state_id);
+        chunk.set_block_entity(BlockEntity::generated(
+            [-1, 0, -1],
+            "Chest",
+            &[],
+            None,
+            None,
+        ));
+        chunk.fill_floor(1, *blocks::STONE);
+        assert!(chunk.block_entities().is_empty());
+    }
+
+    #[test]
+    fn subchunk_payload_contains_only_its_actors_after_block_storage() {
+        use valentine::bedrock::codec::{BedrockCodec, Nbt};
+        let mut chunk = Chunk::new(-1, -1);
+        for y in [-64, -49, -48, -1, 0, 319] {
+            chunk.set_block(15, y, 15, *blocks::STONE);
+            chunk.set_block_entity(BlockEntity::generated(
+                [-1, y as i32, -1],
+                "Chest",
+                &[],
+                None,
+                None,
+            ));
+        }
+        for section in -4..20 {
+            let bytes = chunk.encode_subchunk(section).unwrap();
+            let blocks = chunk.encode_subchunk_disk(section).unwrap();
+            assert!(bytes.starts_with(&blocks));
+            let mut input = &bytes[blocks.len()..];
+            let mut positions = Vec::new();
+            while !input.is_empty() {
+                let nbt = Nbt::decode(&mut input, ()).unwrap();
+                positions.push(BlockEntity::from_network_nbt(nbt).unwrap().position());
+            }
+            let expected: Vec<_> = chunk
+                .block_entities()
+                .iter()
+                .filter(|entity| entity.position()[1] >> 4 == section)
+                .map(BlockEntity::position)
+                .collect();
+            assert_eq!(positions, expected);
+            assert_eq!(
+                chunk.has_block_entities_in_subchunk(section),
+                !expected.is_empty()
+            );
+        }
+        assert!(chunk.encode_subchunk(i32::MIN).is_none());
+        assert!(chunk.encode_subchunk(20).is_none());
+    }
 
     #[test]
     fn test_chunk_creation() {

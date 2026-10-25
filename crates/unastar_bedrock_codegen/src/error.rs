@@ -28,9 +28,6 @@ pub enum Error {
         #[source]
         source: serde_json::Error,
     },
-    /// An NBT document is malformed.
-    #[error("{origin}: malformed NBT: {reason}")]
-    Nbt { origin: String, reason: String },
     /// The data is well formed but violates a schema or cross-reference rule.
     #[error("{origin}: {reason}")]
     Data { origin: String, reason: String },

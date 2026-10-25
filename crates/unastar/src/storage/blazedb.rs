@@ -15,12 +15,13 @@ use std::io::{Read, Seek, SeekFrom, Write};
 use std::path::{Path, PathBuf};
 use std::sync::Arc;
 use std::sync::atomic::{AtomicU64, Ordering};
-use tokio::sync::mpsc;
+use tokio::sync::{mpsc, oneshot};
 use tracing::{debug, error, info, warn};
 
 use super::cache::ShardedCache;
 use super::morton;
 use super::provider::{ChunkColumn, StorageError, StorageResult, WorldProvider};
+use crate::world::block_entity::BlockEntity;
 use crate::world::{Chunk, ChunkPos};
 
 /// Magic bytes at start of each chunk entry.
@@ -29,10 +30,9 @@ const ENTRY_HEADER_LEN: usize = 24;
 const ENTRY_DATA_PREFIX_LEN: usize = 4;
 const MIN_ENTRY_SIZE: u32 = (ENTRY_HEADER_LEN + ENTRY_DATA_PREFIX_LEN) as u32;
 
-/// Current format version. Version 2 stores biomes as a Bedrock Data3D value
-/// ([`Chunk::encode_biomes_disk`]); version 1 stored network-format biomes, which
-/// are skipped on load.
-const FORMAT_VERSION: u8 = 2;
+/// Version 3 appends length-prefixed concatenated fixed-LE block-entity NBT.
+/// Version 2 stores Data3D biomes; version 1's network biomes are skipped.
+const FORMAT_VERSION: u8 = 3;
 
 /// First format version whose biome field is a Data3D value.
 const DATA3D_BIOMES_VERSION: u8 = 2;
@@ -82,6 +82,12 @@ struct WriteRequest {
     dim: i32,
 }
 
+enum WriteCommand {
+    Save(WriteRequest),
+    Flush(oneshot::Sender<StorageResult<()>>),
+    Close(oneshot::Sender<StorageResult<()>>),
+}
+
 /// BlazeDB world provider.
 pub struct BlazeDBProvider {
     /// Path to the database directory.
@@ -97,9 +103,7 @@ pub struct BlazeDBProvider {
     /// Configuration.
     config: BlazeConfig,
     /// Write channel sender (for async writes).
-    write_tx: mpsc::UnboundedSender<WriteRequest>,
-    /// Shutdown flag.
-    shutdown: Arc<std::sync::atomic::AtomicBool>,
+    write_tx: mpsc::UnboundedSender<WriteCommand>,
 }
 
 impl BlazeDBProvider {
@@ -127,20 +131,21 @@ impl BlazeDBProvider {
             .open(&data_path)
             .map_err(StorageError::Io)?;
 
-        let write_offset = data_file.metadata().map(|m| m.len()).unwrap_or(0);
+        let write_offset = data_file.metadata().map_err(StorageError::Io)?.len();
 
         // Try to load index from file, or rebuild from data
         let mut index = if index_path.exists() {
-            Self::load_index(&index_path).unwrap_or_else(|e| {
-                warn!("Failed to load index, rebuilding: {}", e);
-                Self::rebuild_index(&data_file).unwrap_or_default()
-            })
+            match Self::load_index(&index_path) {
+                Ok(index) => index,
+                Err(e) => {
+                    warn!("Failed to load index, rebuilding: {}", e);
+                    Self::rebuild_index(&data_file)?
+                }
+            }
         } else {
-            Self::rebuild_index(&data_file).unwrap_or_default()
+            Self::rebuild_index(&data_file)?
         };
-        if let Err(e) = Self::repair_legacy_index_sizes(&data_file, &mut index) {
-            warn!("Failed to repair legacy BlazeDB index sizes: {}", e);
-        }
+        Self::repair_legacy_index_sizes(&data_file, &mut index)?;
 
         info!(
             "BlazeDB opened: {} chunks in index, {} bytes on disk",
@@ -153,7 +158,6 @@ impl BlazeDBProvider {
 
         // Create write channel
         let (write_tx, write_rx) = mpsc::unbounded_channel();
-        let shutdown = Arc::new(std::sync::atomic::AtomicBool::new(false));
 
         let provider = Arc::new(Self {
             path,
@@ -163,7 +167,6 @@ impl BlazeDBProvider {
             cache,
             config,
             write_tx,
-            shutdown: shutdown.clone(),
         });
 
         // Start background write worker
@@ -180,6 +183,11 @@ impl BlazeDBProvider {
         let mut file = File::open(path).map_err(StorageError::Io)?;
         let mut data = Vec::new();
         file.read_to_end(&mut data).map_err(StorageError::Io)?;
+        if data.len() % 20 != 0 {
+            return Err(StorageError::Deserialization(
+                "Truncated BlazeDB index".into(),
+            ));
+        }
 
         let mut index = HashMap::new();
         let mut cursor = 0;
@@ -200,23 +208,24 @@ impl BlazeDBProvider {
     fn rebuild_index(file: &File) -> StorageResult<HashMap<u64, IndexEntry>> {
         let mut file = file.try_clone().map_err(StorageError::Io)?;
         let mut index = HashMap::new();
+        let file_len = file.metadata().map_err(StorageError::Io)?.len();
 
         file.seek(SeekFrom::Start(0)).map_err(StorageError::Io)?;
 
         loop {
             let offset = file.stream_position().map_err(StorageError::Io)?;
+            if offset == file_len {
+                break;
+            }
 
             // Read header
             let mut header = [0u8; 4];
-            match file.read_exact(&mut header) {
-                Ok(_) => {}
-                Err(e) if e.kind() == std::io::ErrorKind::UnexpectedEof => break,
-                Err(e) => return Err(StorageError::Io(e)),
-            }
+            file.read_exact(&mut header).map_err(StorageError::Io)?;
 
             if &header != MAGIC {
-                warn!("Invalid magic at offset {}, stopping index rebuild", offset);
-                break;
+                return Err(StorageError::Deserialization(format!(
+                    "Invalid BlazeDB magic at offset {offset}"
+                )));
             }
 
             // Read size
@@ -224,11 +233,9 @@ impl BlazeDBProvider {
             file.read_exact(&mut size_buf).map_err(StorageError::Io)?;
             let size = u32::from_le_bytes(size_buf);
             if size < MIN_ENTRY_SIZE {
-                warn!(
-                    "Invalid entry size {} at offset {}, stopping index rebuild",
-                    size, offset
-                );
-                break;
+                return Err(StorageError::Deserialization(format!(
+                    "Invalid BlazeDB entry size {size} at offset {offset}"
+                )));
             }
 
             // Skip CRC
@@ -245,15 +252,16 @@ impl BlazeDBProvider {
             let x = i32::from_le_bytes(x_buf);
             let z = i32::from_le_bytes(z_buf);
             let dim = i32::from_le_bytes(dim_buf);
+            let mut prefix = [0u8; ENTRY_DATA_PREFIX_LEN];
+            file.read_exact(&mut prefix).map_err(StorageError::Io)?;
 
             let mut entry_size = size as u64;
-            let file_len = file.metadata().map_err(StorageError::Io)?.len();
-            let Some(declared_end) = offset.checked_add(entry_size) else {
-                warn!("BlazeDB entry at offset {} overflows file offsets", offset);
-                break;
-            };
+            let declared_end = offset
+                .checked_add(entry_size)
+                .ok_or_else(|| StorageError::Deserialization("Chunk entry size overflow".into()))?;
             let legacy_end = declared_end.checked_add(ENTRY_DATA_PREFIX_LEN as u64);
             if let Some(legacy_end) = legacy_end
+                && matches!(prefix[1], 1 | 2)
                 && declared_end < file_len
                 && legacy_end <= file_len
                 && !Self::file_has_magic_at(&mut file, declared_end, file_len)?
@@ -267,16 +275,13 @@ impl BlazeDBProvider {
                 );
                 entry_size += ENTRY_DATA_PREFIX_LEN as u64;
             }
-            let Some(entry_end) = offset.checked_add(entry_size) else {
-                warn!("BlazeDB entry at offset {} overflows file offsets", offset);
-                break;
-            };
+            let entry_end = offset
+                .checked_add(entry_size)
+                .ok_or_else(|| StorageError::Deserialization("Chunk entry size overflow".into()))?;
             if entry_end > file_len {
-                warn!(
-                    "BlazeDB entry at offset {} declares end {} beyond file length {}, stopping index rebuild",
-                    offset, entry_end, file_len
-                );
-                break;
+                return Err(StorageError::Deserialization(format!(
+                    "BlazeDB entry at {offset} ends at {entry_end}, beyond file length {file_len}"
+                )));
             }
 
             let entry_size = u32::try_from(entry_size)
@@ -318,25 +323,18 @@ impl BlazeDBProvider {
     ///
     /// Older entries stored `size = 24 + payload_len` but still wrote the
     /// 4-byte compression/version/reserved prefix between the fixed header and
-    /// payload. When the next indexed offset or EOF is exactly 4 bytes after
-    /// the declared end, the entry is unambiguously an old short-size entry.
+    /// payload. Boundaries are checked against the actual data file, including
+    /// obsolete entries between the latest indexed chunk versions.
     fn repair_legacy_index_sizes(
         file: &File,
         index: &mut HashMap<u64, IndexEntry>,
     ) -> StorageResult<()> {
         let file_len = file.metadata().map_err(StorageError::Io)?.len();
-        let mut entries: Vec<(u64, u64)> = index
-            .iter()
-            .map(|(&morton, entry)| (morton, entry.offset))
-            .collect();
-        entries.sort_by_key(|&(_, offset)| offset);
+        let mut file = file.try_clone().map_err(StorageError::Io)?;
 
         let mut repairs = Vec::new();
         let mut removals = Vec::new();
-        for (idx, &(morton, _offset)) in entries.iter().enumerate() {
-            let Some(entry) = index.get(&morton) else {
-                continue;
-            };
+        for (&morton, entry) in index.iter() {
             if entry.size < MIN_ENTRY_SIZE {
                 warn!(
                     "Dropping too-small BlazeDB index entry at offset {} with size {}",
@@ -362,24 +360,34 @@ impl BlazeDBProvider {
                 removals.push(morton);
                 continue;
             };
-            let boundary = entries
-                .get(idx + 1)
-                .map(|&(_, next_offset)| next_offset)
-                .unwrap_or(file_len);
-
-            if declared_end == boundary {
+            if declared_end <= file_len
+                && Self::entry_boundary_is_valid(&mut file, declared_end, file_len)?
+            {
                 continue;
             }
 
-            if declared_end
-                .checked_add(ENTRY_DATA_PREFIX_LEN as u64)
-                .is_some_and(|legacy_end| legacy_end == boundary)
-            {
+            let legacy_end = declared_end.checked_add(ENTRY_DATA_PREFIX_LEN as u64);
+            let legacy_boundary = match legacy_end {
+                Some(end) if end <= file_len => {
+                    Self::entry_boundary_is_valid(&mut file, end, file_len)?
+                }
+                _ => false,
+            };
+            let legacy_version = if legacy_boundary {
+                file.seek(SeekFrom::Start(entry.offset + ENTRY_HEADER_LEN as u64))
+                    .map_err(StorageError::Io)?;
+                let mut prefix = [0u8; ENTRY_DATA_PREFIX_LEN];
+                file.read_exact(&mut prefix).map_err(StorageError::Io)?;
+                matches!(prefix[1], 1 | 2)
+            } else {
+                false
+            };
+            if legacy_version {
                 repairs.push(morton);
             } else {
                 warn!(
-                    "Dropping BlazeDB index entry at offset {} with declared end {} beyond boundary {}",
-                    entry.offset, declared_end, boundary
+                    "Dropping BlazeDB index entry at offset {} with invalid declared end {}",
+                    entry.offset, declared_end
                 );
                 removals.push(morton);
             }
@@ -423,53 +431,46 @@ impl BlazeDBProvider {
     }
 
     /// Background write worker.
-    async fn write_worker(provider: Arc<Self>, mut rx: mpsc::UnboundedReceiver<WriteRequest>) {
-        let mut pending_writes: Vec<WriteRequest> = Vec::new();
-        let mut last_flush = std::time::Instant::now();
-
+    async fn write_worker(provider: Arc<Self>, mut rx: mpsc::UnboundedReceiver<WriteCommand>) {
+        let mut pending_writes = Vec::new();
         loop {
-            // Try to receive with timeout for batching
             match tokio::time::timeout(
                 std::time::Duration::from_millis(provider.config.flush_interval_ms),
                 rx.recv(),
             )
             .await
             {
-                Ok(Some(req)) => {
-                    pending_writes.push(req);
+                Ok(Some(WriteCommand::Save(req))) => pending_writes.push(req),
+                Ok(Some(WriteCommand::Flush(reply))) => {
+                    let _ = reply.send(provider.flush_pending(&mut pending_writes));
+                }
+                Ok(Some(WriteCommand::Close(reply))) => {
+                    rx.close();
+                    let result = provider.flush_pending(&mut pending_writes);
+                    drop(provider);
+                    let _ = reply.send(result);
+                    return;
                 }
                 Ok(None) => {
-                    // Channel closed, flush and exit
-                    if !pending_writes.is_empty()
-                        && let Err(e) = provider.flush_writes(&mut pending_writes)
-                    {
+                    if let Err(e) = provider.flush_pending(&mut pending_writes) {
                         error!("Error flushing writes on shutdown: {}", e);
                     }
                     break;
                 }
                 Err(_) => {
-                    // Timeout - flush if we have pending writes
-                    if !pending_writes.is_empty()
-                        && last_flush.elapsed().as_millis()
-                            >= provider.config.flush_interval_ms as u128
-                    {
-                        if let Err(e) = provider.flush_writes(&mut pending_writes) {
-                            error!("Error flushing writes: {}", e);
-                        }
-                        last_flush = std::time::Instant::now();
+                    if let Err(e) = provider.flush_writes(&mut pending_writes) {
+                        error!("Error flushing writes: {}", e);
                     }
                 }
             }
-
-            if provider.shutdown.load(Ordering::Relaxed) {
-                if !pending_writes.is_empty() {
-                    let _ = provider.flush_writes(&mut pending_writes);
-                }
-                break;
-            }
         }
-
         debug!("BlazeDB write worker shut down");
+    }
+
+    fn flush_pending(&self, writes: &mut Vec<WriteRequest>) -> StorageResult<()> {
+        self.flush_writes(writes)?;
+        self.data_file.lock().sync_all().map_err(StorageError::Io)?;
+        self.save_index()
     }
 
     /// Flush pending writes to disk.
@@ -481,7 +482,7 @@ impl BlazeDBProvider {
         let mut file = self.data_file.lock();
         let mut index = self.index.write();
 
-        for req in writes.drain(..) {
+        for req in writes.iter() {
             let offset = self.write_offset.load(Ordering::Relaxed);
 
             // Build entry
@@ -536,93 +537,19 @@ impl BlazeDBProvider {
         }
 
         file.flush().map_err(StorageError::Io)?;
+        writes.clear();
 
         Ok(())
     }
 
-    /// Read a chunk from disk at the given offset.
-    #[allow(dead_code)]
-    fn read_chunk_at(&self, entry: IndexEntry) -> StorageResult<ChunkColumn> {
-        let mut file = self.data_file.lock();
-
-        file.seek(SeekFrom::Start(entry.offset))
-            .map_err(StorageError::Io)?;
-
-        let mut header = [0u8; 24];
-        file.read_exact(&mut header).map_err(StorageError::Io)?;
-
-        // Verify magic
-        if &header[0..4] != MAGIC {
-            return Err(StorageError::Database("Invalid magic bytes".to_string()));
-        }
-
-        let header_size = u32::from_le_bytes(header[4..8].try_into().unwrap());
-        let effective_size = entry.size.max(header_size);
-        if effective_size < MIN_ENTRY_SIZE {
-            return Err(StorageError::Database(format!(
-                "Invalid chunk entry size {}",
-                effective_size
-            )));
-        }
-        let file_len = file.metadata().map_err(StorageError::Io)?.len();
-        let entry_end = entry
-            .offset
-            .checked_add(effective_size as u64)
-            .ok_or_else(|| StorageError::Database("Chunk entry size overflow".to_string()))?;
-        if entry_end > file_len {
-            return Err(StorageError::Database(format!(
-                "Chunk entry end {} exceeds file length {}",
-                entry_end, file_len
-            )));
-        }
-        let stored_crc = u32::from_le_bytes(header[8..12].try_into().unwrap());
-        let x = i32::from_le_bytes(header[12..16].try_into().unwrap());
-        let z = i32::from_le_bytes(header[16..20].try_into().unwrap());
-        let _dim = i32::from_le_bytes(header[20..24].try_into().unwrap());
-
-        // Read data
-        let data_size = effective_size as usize - ENTRY_HEADER_LEN;
-        let mut data = vec![0u8; data_size];
-        file.read_exact(&mut data).map_err(StorageError::Io)?;
-
-        // Skip compression byte and version in the data
-        if data.len() < 4 {
-            return Err(StorageError::Database("Data too short".to_string()));
-        }
-
-        let compression = data[0];
-        let version = data[1];
-        let chunk_data = &data[4..]; // Skip compression, version, reserved
-
-        // Verify CRC
-        let computed_crc = crc32fast::hash(chunk_data);
-        if computed_crc != stored_crc {
-            warn!(
-                "CRC mismatch for chunk ({}, {}): expected {:08x}, got {:08x}",
-                x, z, stored_crc, computed_crc
-            );
-        }
-
-        // Decompress if needed
-        let decompressed = if compression == Compression::Lz4 as u8 {
-            lz4_flex::decompress_size_prepended(chunk_data)
-                .map_err(|e| StorageError::Database(format!("LZ4 decompress error: {}", e)))?
-        } else {
-            chunk_data.to_vec()
-        };
-
-        // Deserialize chunk
-        Self::deserialize_chunk(x, z, version, &decompressed)
-    }
-
     /// Serialize a chunk column for storage.
-    fn serialize_chunk(col: &ChunkColumn) -> Vec<u8> {
+    fn serialize_chunk(col: &ChunkColumn) -> StorageResult<Vec<u8>> {
         let biomes = col.chunk.encode_biomes_disk();
 
         // Collect subchunks
         let mut subchunks = Vec::new();
         for y_index in -4..20i8 {
-            if let Some(data) = col.chunk.encode_subchunk(y_index as i32) {
+            if let Some(data) = col.chunk.encode_subchunk_disk(y_index as i32) {
                 subchunks.push((y_index, data));
             }
         }
@@ -641,14 +568,29 @@ impl BlazeDBProvider {
             out.extend_from_slice(&(data.len() as u32).to_le_bytes());
             out.extend_from_slice(&data);
         }
+        let length_offset = out.len();
+        out.extend_from_slice(&0u32.to_le_bytes());
+        for entity in col.chunk.block_entities() {
+            entity
+                .write_disk_nbt(&mut out)
+                .map_err(|e| StorageError::Serialization(format!("block entity: {e}")))?;
+        }
+        let length = u32::try_from(out.len() - length_offset - 4)
+            .map_err(|_| StorageError::Serialization("block entities too large".into()))?;
+        out[length_offset..length_offset + 4].copy_from_slice(&length.to_le_bytes());
 
-        out
+        Ok(out)
     }
 
     /// Deserialize a chunk column stored with format `version`.
     fn deserialize_chunk(x: i32, z: i32, version: u8, data: &[u8]) -> StorageResult<ChunkColumn> {
+        if !(1..=FORMAT_VERSION).contains(&version) {
+            return Err(StorageError::Deserialization(format!(
+                "Unsupported BlazeDB chunk version {version}"
+            )));
+        }
         if data.len() < 5 {
-            return Err(StorageError::Database("Data too short".to_string()));
+            return Err(StorageError::Deserialization("Data too short".into()));
         }
 
         let mut cursor = 0;
@@ -657,7 +599,7 @@ impl BlazeDBProvider {
         let biome_len = u32::from_le_bytes(data[cursor..cursor + 4].try_into().unwrap()) as usize;
         cursor += 4;
 
-        if cursor + biome_len > data.len() {
+        if biome_len > data.len() - cursor {
             return Err(StorageError::Database("Invalid biome length".to_string()));
         }
         let biomes = &data[cursor..cursor + biome_len];
@@ -672,16 +614,20 @@ impl BlazeDBProvider {
         }
 
         // Subchunks
-        if cursor >= data.len() {
-            return Ok(ChunkColumn::new(chunk));
-        }
 
+        if cursor == data.len() {
+            return Err(StorageError::Deserialization(
+                "Missing subchunk count".into(),
+            ));
+        }
         let subchunk_count = data[cursor] as usize;
         cursor += 1;
 
         for _ in 0..subchunk_count {
-            if cursor + 5 > data.len() {
-                break;
+            if data.len() - cursor < 5 {
+                return Err(StorageError::Deserialization(
+                    "Truncated subchunk header".into(),
+                ));
             }
 
             let y = data[cursor] as i8 as i32;
@@ -690,15 +636,45 @@ impl BlazeDBProvider {
             let len = u32::from_le_bytes(data[cursor..cursor + 4].try_into().unwrap()) as usize;
             cursor += 4;
 
-            if cursor + len > data.len() {
-                break;
+            if len > data.len() - cursor {
+                return Err(StorageError::Deserialization(
+                    "Truncated subchunk data".into(),
+                ));
             }
 
-            let subchunk_data = &data[cursor..cursor + len];
-            if let Err(e) = chunk.decode_subchunk(y, subchunk_data) {
-                warn!("Failed to decode subchunk y={}: {}", y, e);
+            chunk
+                .decode_subchunk(y, &data[cursor..cursor + len])
+                .map_err(|e| StorageError::Deserialization(format!("subchunk y={y}: {e}")))?;
+            cursor += len;
+        }
+        if version >= 3 {
+            if data.len() - cursor < 4 {
+                return Err(StorageError::Deserialization(
+                    "Missing block-entity length".into(),
+                ));
+            }
+            let len = u32::from_le_bytes(data[cursor..cursor + 4].try_into().unwrap()) as usize;
+            cursor += 4;
+            if len != data.len() - cursor {
+                return Err(StorageError::Deserialization(
+                    "Invalid block-entity length".into(),
+                ));
+            }
+            let mut input = &data[cursor..];
+            while !input.is_empty() {
+                let entity = BlockEntity::read_disk_nbt(&mut input)
+                    .map_err(|e| StorageError::Deserialization(format!("block entity: {e}")))?;
+                let position = entity.position();
+                if !chunk.set_block_entity(entity) {
+                    return Err(StorageError::Deserialization(format!(
+                        "block entity {position:?} is outside chunk ({x}, {z})"
+                    )));
+                }
             }
             cursor += len;
+        }
+        if cursor != data.len() {
+            return Err(StorageError::Deserialization("Trailing chunk data".into()));
         }
 
         Ok(ChunkColumn::new(chunk))
@@ -725,13 +701,10 @@ impl WorldProvider for BlazeDBProvider {
             return Ok(None);
         };
 
-        // Read from disk (blocking, so spawn_blocking)
-        let _provider = self.data_file.clone();
         let this_entry = entry;
 
         // Clone self for the blocking task
         let data_file = self.data_file.clone();
-        let _config_compression = self.config.compression;
 
         let result = tokio::task::spawn_blocking(move || {
             let mut file = data_file.lock();
@@ -776,33 +749,51 @@ impl WorldProvider for BlazeDBProvider {
                     ),
                 ));
             }
-            let _stored_crc = u32::from_le_bytes(header[8..12].try_into().unwrap());
+            let stored_crc = u32::from_le_bytes(header[8..12].try_into().unwrap());
             let x = i32::from_le_bytes(header[12..16].try_into().unwrap());
             let z = i32::from_le_bytes(header[16..20].try_into().unwrap());
+            let stored_dim = i32::from_le_bytes(header[20..24].try_into().unwrap());
+            if x != pos.x || z != pos.z || stored_dim != dim {
+                return Err(std::io::Error::new(
+                    std::io::ErrorKind::InvalidData,
+                    "Chunk entry coordinates do not match index",
+                ));
+            }
 
             // Read rest
             let data_size = effective_size as usize - ENTRY_HEADER_LEN;
             let mut data = vec![0u8; data_size];
             file.read_exact(&mut data)?;
 
-            Ok((x, z, data))
+            Ok((x, z, stored_crc, data))
         })
         .await
         .map_err(|e| StorageError::Database(format!("Join error: {}", e)))?
         .map_err(StorageError::Io)?;
 
-        let (x, z, data) = result;
+        let (x, z, stored_crc, data) = result;
         if data.len() < 4 {
             return Err(StorageError::Database("Data too short".to_string()));
         }
         let version = data[1];
+        if crc32fast::hash(&data[4..]) != stored_crc {
+            return Err(StorageError::Deserialization(
+                "BlazeDB chunk CRC mismatch".into(),
+            ));
+        }
 
         // Decompress
-        let chunk_data = if data[0] == Compression::Lz4 as u8 {
-            lz4_flex::decompress_size_prepended(&data[4..])
-                .map_err(|e| StorageError::Database(format!("LZ4 error: {}", e)))?
-        } else {
-            data[4..].to_vec()
+        let chunk_data = match data[0] {
+            value if value == Compression::Lz4 as u8 => {
+                lz4_flex::decompress_size_prepended(&data[4..])
+                    .map_err(|e| StorageError::Deserialization(format!("LZ4 error: {e}")))?
+            }
+            value if value == Compression::None as u8 => data[4..].to_vec(),
+            value => {
+                return Err(StorageError::Deserialization(format!(
+                    "Unsupported BlazeDB compression {value}"
+                )));
+            }
         };
 
         let col = Self::deserialize_chunk(x, z, version, &chunk_data)?;
@@ -816,11 +807,18 @@ impl WorldProvider for BlazeDBProvider {
     async fn save_column(&self, pos: ChunkPos, dim: i32, col: &ChunkColumn) -> StorageResult<()> {
         let morton = morton::encode(pos.x, pos.z, dim);
 
-        // Update cache
-        self.cache.put(morton, col.clone());
-
-        // Serialize
-        let raw_data = Self::serialize_chunk(col);
+        for entity in col.chunk.block_entities() {
+            let [x, _, z] = entity.position();
+            if x.div_euclid(16) != pos.x || z.div_euclid(16) != pos.z {
+                return Err(StorageError::Serialization(format!(
+                    "block entity {:?} is outside chunk ({}, {})",
+                    entity.position(),
+                    pos.x,
+                    pos.z
+                )));
+            }
+        }
+        let raw_data = Self::serialize_chunk(col)?;
 
         // Compress
         let compressed = if self.config.compression == Compression::Lz4 {
@@ -839,34 +837,36 @@ impl WorldProvider for BlazeDBProvider {
         };
 
         self.write_tx
-            .send(req)
+            .send(WriteCommand::Save(req))
             .map_err(|_| StorageError::Database("Write channel closed".to_string()))?;
+        self.cache.put(morton, col.clone());
 
         Ok(())
     }
 
     async fn flush(&self) -> StorageResult<()> {
-        // Sync data file
-        {
-            let file = self.data_file.lock();
-            file.sync_all().map_err(StorageError::Io)?;
-        }
-
-        // Save index
-        self.save_index()?;
-
-        Ok(())
+        let (reply, result) = oneshot::channel();
+        self.write_tx
+            .send(WriteCommand::Flush(reply))
+            .map_err(|_| StorageError::Database("Write channel closed".into()))?;
+        result
+            .await
+            .map_err(|_| StorageError::Database("Write worker stopped".into()))?
     }
 
     async fn close(&self) -> StorageResult<()> {
-        self.shutdown.store(true, Ordering::Relaxed);
-        self.flush().await
+        let (reply, result) = oneshot::channel();
+        self.write_tx
+            .send(WriteCommand::Close(reply))
+            .map_err(|_| StorageError::Database("Write channel closed".into()))?;
+        result
+            .await
+            .map_err(|_| StorageError::Database("Write worker stopped".into()))?
     }
 }
 
 impl Drop for BlazeDBProvider {
     fn drop(&mut self) {
-        self.shutdown.store(true, Ordering::Relaxed);
         // Best-effort flush
         if let Err(e) = self.save_index() {
             error!("Failed to save index on drop: {}", e);
@@ -910,7 +910,9 @@ mod tests {
 
     fn write_legacy_short_entry(dir: &Path, pos: ChunkPos, dim: i32) -> Vec<u8> {
         std::fs::create_dir_all(dir).expect("create legacy db dir");
-        let raw_data = BlazeDBProvider::serialize_chunk(&test_column(pos));
+        let mut raw_data =
+            BlazeDBProvider::serialize_chunk(&test_column(pos)).expect("serialize chunk");
+        raw_data.truncate(raw_data.len() - 4);
         let morton = morton::encode(pos.x, pos.z, dim);
         let legacy_size = (ENTRY_HEADER_LEN + raw_data.len()) as u32;
 
@@ -923,7 +925,7 @@ mod tests {
         entry.extend_from_slice(&pos.z.to_le_bytes());
         entry.extend_from_slice(&dim.to_le_bytes());
         entry.push(Compression::None as u8);
-        entry.push(FORMAT_VERSION);
+        entry.push(DATA3D_BIOMES_VERSION);
         entry.extend_from_slice(&[0u8; 2]);
         entry.extend_from_slice(&raw_data);
         std::fs::write(dir.join("chunks.dat"), entry).expect("write legacy chunks.dat");
@@ -943,7 +945,8 @@ mod tests {
         let provider = BlazeDBProvider::open(&dir, Some(test_config())).expect("open blazedb");
         let pos = ChunkPos { x: 3, z: -7 };
         let dim = 0;
-        let raw_data = BlazeDBProvider::serialize_chunk(&test_column(pos));
+        let raw_data =
+            BlazeDBProvider::serialize_chunk(&test_column(pos)).expect("serialize chunk");
         let morton = morton::encode(pos.x, pos.z, dim);
         let mut writes = vec![WriteRequest {
             morton,
@@ -984,7 +987,8 @@ mod tests {
         let dim = 0;
         {
             let provider = BlazeDBProvider::open(&dir, Some(test_config())).expect("open blazedb");
-            let raw_data = BlazeDBProvider::serialize_chunk(&test_column(pos));
+            let raw_data =
+                BlazeDBProvider::serialize_chunk(&test_column(pos)).expect("serialize chunk");
             let mut writes = vec![WriteRequest {
                 morton: morton::encode(pos.x, pos.z, dim),
                 data: raw_data,
@@ -1026,6 +1030,62 @@ mod tests {
             Some(crate::world::chunk::DEFAULT_BIOME_ID)
         );
         assert!(BlazeDBProvider::deserialize_chunk(0, 0, FORMAT_VERSION, &data).is_err());
+    }
+
+    #[test]
+    fn version_2_data3d_entries_remain_readable_without_metadata() {
+        let mut column = test_column(ChunkPos::new(-2, 5));
+        column.chunk.set_biome(7);
+        let mut data = BlazeDBProvider::serialize_chunk(&column).expect("serialize");
+        data.truncate(data.len() - 4); // Version 2 ends after the subchunk records.
+        let restored = BlazeDBProvider::deserialize_chunk(-2, 5, 2, &data).expect("version 2");
+        assert_eq!(restored.chunk.get_block(1, 0, 2), 42);
+        assert_eq!(restored.chunk.biome_at(0, 0, 0), Some(7));
+        assert!(restored.chunk.block_entities().is_empty());
+        data.push(0);
+        assert!(BlazeDBProvider::deserialize_chunk(-2, 5, 2, &data).is_err());
+    }
+
+    #[test]
+    fn malformed_block_entity_payloads_fail_without_partial_chunk_fallback() {
+        let column = test_column(ChunkPos::new(0, 0));
+        let empty = BlazeDBProvider::serialize_chunk(&column).expect("serialize");
+        let length_offset = empty.len() - 4;
+        let actor = BlockEntity::generated([1, 70, 2], "Chest", &[], None, None);
+        let mut nbt = Vec::new();
+        actor.write_disk_nbt(&mut nbt).expect("disk nbt");
+        let payload = |bytes: &[u8]| {
+            let mut data = empty[..length_offset].to_vec();
+            data.extend_from_slice(&(bytes.len() as u32).to_le_bytes());
+            data.extend_from_slice(bytes);
+            data
+        };
+        let valid = payload(&nbt);
+        let restored =
+            BlazeDBProvider::deserialize_chunk(0, 0, FORMAT_VERSION, &valid).expect("valid actor");
+        assert_eq!(restored.chunk.block_entities()[0].position(), [1, 70, 2]);
+        for bytes in [&nbt[..nbt.len() - 1], &[0xff][..]] {
+            assert!(
+                BlazeDBProvider::deserialize_chunk(0, 0, FORMAT_VERSION, &payload(bytes)).is_err()
+            );
+        }
+        for position in [[16, 70, 2], [1, 320, 2], [1, -65, 2]] {
+            let actor = BlockEntity::generated(position, "Chest", &[], None, None);
+            let mut bytes = Vec::new();
+            actor.write_disk_nbt(&mut bytes).expect("disk nbt");
+            assert!(
+                BlazeDBProvider::deserialize_chunk(0, 0, FORMAT_VERSION, &payload(&bytes)).is_err()
+            );
+        }
+        let mut trailing = valid.clone();
+        trailing.push(0);
+        assert!(BlazeDBProvider::deserialize_chunk(0, 0, FORMAT_VERSION, &trailing).is_err());
+        for len in [length_offset, length_offset + 1, valid.len() - 1] {
+            assert!(
+                BlazeDBProvider::deserialize_chunk(0, 0, FORMAT_VERSION, &valid[..len]).is_err()
+            );
+        }
+        assert!(BlazeDBProvider::deserialize_chunk(0, 0, FORMAT_VERSION + 1, &valid).is_err());
     }
 
     #[tokio::test]

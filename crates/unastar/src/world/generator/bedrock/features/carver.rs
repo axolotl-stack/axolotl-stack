@@ -612,6 +612,7 @@ mod tests {
         min_y: i32,
         max_y: i32,
         blocks: Vec<u32>,
+        block_entities: Vec<crate::world::block_entity::BlockEntity>,
     }
 
     impl Boxed {
@@ -624,6 +625,7 @@ mod tests {
                 min_y,
                 max_y,
                 blocks: vec![id; n],
+                block_entities: Vec::new(),
             }
         }
 
@@ -654,6 +656,25 @@ mod tests {
                 }
                 None => false,
             }
+        }
+        fn set_block_entity(&mut self, entity: crate::world::block_entity::BlockEntity) -> bool {
+            let position = entity.position();
+            if self
+                .index(BlockPos::new(position[0], position[1], position[2]))
+                .is_none()
+            {
+                return false;
+            }
+            if let Some(existing) = self
+                .block_entities
+                .iter_mut()
+                .find(|existing| existing.position() == position)
+            {
+                *existing = entity;
+            } else {
+                self.block_entities.push(entity);
+            }
+            true
         }
         fn biome(&self, _pos: BlockPos) -> u16 {
             0

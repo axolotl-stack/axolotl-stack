@@ -10,6 +10,7 @@ use tokio::task;
 
 use crate::storage::keys;
 use crate::storage::provider::{ChunkColumn, StorageError, StorageResult, WorldProvider};
+use crate::world::block_entity::BlockEntity;
 use crate::world::chunk::DATA3D_HEIGHTMAP_LEN;
 use crate::world::{Chunk, ChunkPos};
 
@@ -114,7 +115,26 @@ impl WorldProvider for LevelDBWorldProvider {
                         })?;
                     }
 
-                    // TODO: Load block entities
+                    if let Some(data) = db
+                        .get(&keys::block_entities_key(pos, dim), &read_opts)
+                        .map_err(StorageError::Database)?
+                    {
+                        let mut input = data.as_slice();
+                        while !input.is_empty() {
+                            let entity = BlockEntity::read_disk_nbt(&mut input).map_err(|e| {
+                                StorageError::Deserialization(format!(
+                                    "chunk ({}, {}) block entity: {e}", pos.x, pos.z
+                                ))
+                            })?;
+                            let position = entity.position();
+                            if !chunk.set_block_entity(entity) {
+                                return Err(StorageError::Deserialization(format!(
+                                    "block entity {position:?} is outside chunk ({}, {})",
+                                    pos.x, pos.z
+                                )));
+                            }
+                        }
+                    }
 
                     Ok(Some(ChunkColumn::new(chunk)))
                 }
@@ -136,12 +156,28 @@ impl WorldProvider for LevelDBWorldProvider {
         // Encode chunk data
         let biome_data = col.chunk.encode_biomes_disk();
         let biome_key = keys::biome_key(pos, dim);
+        let block_entities_key = keys::block_entities_key(pos, dim);
+        let mut block_entities = Vec::new();
+        for entity in col.chunk.block_entities() {
+            let [x, _, z] = entity.position();
+            if x.div_euclid(16) != pos.x || z.div_euclid(16) != pos.z {
+                return Err(StorageError::Serialization(format!(
+                    "block entity {:?} is outside chunk ({}, {})",
+                    entity.position(),
+                    pos.x,
+                    pos.z
+                )));
+            }
+            entity
+                .write_disk_nbt(&mut block_entities)
+                .map_err(|e| StorageError::Serialization(format!("block entity: {e}")))?;
+        }
 
         // Collect subchunk data
         let mut subchunk_entries: Vec<(Vec<u8>, Vec<u8>)> = Vec::new();
         for y_index in -4..20i8 {
             // Standard overworld range
-            if let Some(data) = col.chunk.encode_subchunk(y_index as i32) {
+            if let Some(data) = col.chunk.encode_subchunk_disk(y_index as i32) {
                 let key = keys::subchunk_key(pos, dim, y_index);
                 subchunk_entries.push((key, data));
             }
@@ -165,7 +201,12 @@ impl WorldProvider for LevelDBWorldProvider {
                 batch.put(&key, &data);
             }
 
-            // TODO: Block entities, entities
+            // Overwrites must remove the previous sparse metadata as well.
+            if block_entities.is_empty() {
+                batch.delete(&block_entities_key);
+            } else {
+                batch.put(&block_entities_key, &block_entities);
+            }
 
             // Write batch atomically - method is on WriteBatch, takes &db
             batch
