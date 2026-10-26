@@ -761,9 +761,17 @@ The failing targets were:
 
 The other 446 Unastar library tests passed, including the new full-precision
 test. Bedrock aggregate ratchets, decoration/structure parity and the debug
-Bedrock hash also passed before interruption. Remaining noise/Java hash/worldgen
-checks are being completed separately, without retrying or suppressing the
-failed storage cases. Storage code was not changed by this slice.
+Bedrock hash also passed before interruption. Remaining checks were then
+completed separately, without retrying or suppressing the failed storage cases:
+
+- Noise all-feature tests: **255 unit/integration tests plus one doctest pass**.
+- `worldgen_parity`: **4 pass**.
+- Debug Java complete-output hash: **1 pass**.
+- Normal-release complete-output hashes, without `worldgen-profile`: **2 pass**.
+- Normal-release `worldgen_bench` builds and its EXE/PDB are preserved.
+
+The full suite still is not green because those seven storage failures remain
+unresolved; storage code was not changed by this slice.
 
 WG-BEDROCK reported AC0/battery75% earlier; a post-timeout PERF guard later
 reported AC1/battery52%, 308.8 GB free on C: and about 6.5 GiB physical memory
@@ -774,4 +782,21 @@ rounds checked AC1 before/after each child and do not include this SIMD memo.
 
 Review also confirmed `ColumnContextGrid` already fills exactly 25 cell corners;
 its legacy 289-position introduction is stale, not a new optimization opportunity.
+
+
+The prepared normal-release timing pair is isolated to the SIMD memo:
+
+- Control runtime source `d0bedbf5`:
+  `aot-branches/worldgen_bench_cache_scratch.exe`,
+  SHA-256 `c456ba74b2e7b0238dc36b7f03d5a27d6dabece6fa425ac381d90017c974a4be`.
+- Candidate runtime source `ead92b2e`:
+  `aot-branches/worldgen_bench_simd_memo.exe`,
+  SHA-256 `fa43041ce4c1284388c1445a9d5f3a79a9d9195ae30be0553aa74e405f9e8540`.
+
+Both are under `C:/Users/jvigu/orca/wg-perf-artifacts/`. No timing row is
+reported for this pair yet: ENT explicitly cannot grant isolation during its
+authorized E2 acceptance. Its eventual handback and fresh Java/Bedrock peer
+clearance are required; untimed jobs1 work is allowed without another coordinator
+gate under the global eight-job policy. Pipeline dependency deferral is analysis
+only and remains with the new canonical Java owner until a precise handoff.
 
