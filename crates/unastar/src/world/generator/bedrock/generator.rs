@@ -6,7 +6,7 @@
 
 use super::BiomeSet;
 use super::adapter::RegionWorld;
-use super::decorate::{Decorator, chunk_seed};
+use super::decorate::Decorator;
 use super::generated::{self, bb, props};
 use super::rng::BedrockRandom;
 use super::surface::{self, ColumnInput, SurfaceColumn, SurfaceNoises};
@@ -82,11 +82,12 @@ impl BedrockGenerator {
         let heights = self
             .noise_heights
             .get_or_compute(pos, || column_heights(&blocks, props::blocks_motion));
+        let population_seed = self.decorator.chunk_seed(pos.x, pos.z);
         super::geology::apply(
             &mut blocks,
-            &mut BedrockRandom::new(chunk_seed(self.seed(), pos.x, pos.z) ^ 0x6261_7365),
+            &mut BedrockRandom::new(population_seed ^ 0x6261_7365),
         );
-        let mut rng = BedrockRandom::new(chunk_seed(self.seed(), pos.x, pos.z));
+        let mut rng = BedrockRandom::new(population_seed);
         for z in 0..16u8 {
             for x in 0..16u8 {
                 let (wx, wz) = (pos.x * 16 + i32::from(x), pos.z * 16 + i32::from(z));

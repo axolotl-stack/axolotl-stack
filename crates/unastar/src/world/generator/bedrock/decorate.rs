@@ -16,31 +16,35 @@ use super::rng::BedrockRandom;
 use super::world::{BlockPos, BlockWorld, Ctx};
 use super::{BiomeSet, Pass};
 
-/// Seed of a chunk's decoration random: two odd multipliers drawn from the
-/// world seed mix the chunk coordinates (the classic per-chunk population
-/// seed shape), folded to MT19937's 32-bit seed.
-pub fn chunk_seed(world_seed: i64, chunk_x: i32, chunk_z: i32) -> u32 {
-    let mut r = BedrockRandom::new(world_seed as u32 ^ (world_seed >> 32) as u32);
-    let a = r.next_u32() | 1;
-    let b = r.next_u32() | 1;
-    (chunk_x as u32)
-        .wrapping_mul(a)
-        .wrapping_add((chunk_z as u32).wrapping_mul(b))
-        ^ world_seed as u32
-}
-
 /// Per-world decoration state.
 pub struct Decorator {
     seed: i64,
+    population_x: u32,
+    population_z: u32,
     noise: MolangNoise,
 }
 
 impl Decorator {
     pub fn new(seed: i64) -> Self {
+        let mut population = BedrockRandom::new(seed as u32 ^ (seed >> 32) as u32);
+        let population_x = population.next_u32() | 1;
+        let population_z = population.next_u32() | 1;
         Self {
             seed,
+            population_x,
+            population_z,
             noise: MolangNoise,
         }
+    }
+
+    /// Mix chunk coordinates with the world's two immutable odd population
+    /// multipliers. Keep wrapping arithmetic and the signed-world high-word fold
+    /// unchanged; each phase still constructs its own RNG from this seed.
+    pub(super) fn chunk_seed(&self, chunk_x: i32, chunk_z: i32) -> u32 {
+        (chunk_x as u32)
+            .wrapping_mul(self.population_x)
+            .wrapping_add((chunk_z as u32).wrapping_mul(self.population_z))
+            ^ self.seed as u32
     }
 
     fn run<W: BlockWorld>(
@@ -52,7 +56,7 @@ impl Decorator {
         passes: &[Pass],
         salt: u32,
     ) {
-        let mut rng = BedrockRandom::new(chunk_seed(self.seed, chunk_x, chunk_z) ^ salt);
+        let mut rng = BedrockRandom::new(self.chunk_seed(chunk_x, chunk_z) ^ salt);
         let mut ctx = Ctx {
             world,
             rng: &mut rng,
@@ -96,7 +100,7 @@ impl Decorator {
         surface: &dyn Fn(i32, i32) -> i32,
         biome: &dyn Fn(i32, i32, i32) -> u16,
     ) {
-        let mut rng = BedrockRandom::new(chunk_seed(self.seed, chunk_x, chunk_z) ^ 0x7374_7275);
+        let mut rng = BedrockRandom::new(self.chunk_seed(chunk_x, chunk_z) ^ 0x7374_7275);
         let mut ctx = Ctx {
             world,
             rng: &mut rng,
@@ -139,7 +143,7 @@ mod tests {
             (54321, -128, 34, 0x94d2_7b74_e243_9f2c),
         ];
         for (world_seed, x, z, expected) in cases {
-            let seed = chunk_seed(world_seed, x, z);
+            let seed = Decorator::new(world_seed).chunk_seed(x, z);
             let mut fingerprint = 0xcbf2_9ce4_8422_2325u64;
             for salt in [0, 0x5bd1_e995, 0x7374_7275, 0x6261_7365] {
                 let mut stream = BedrockRandom::new(seed ^ salt);

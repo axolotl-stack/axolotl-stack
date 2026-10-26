@@ -246,6 +246,14 @@ writes and encoded block/actor bytes across all 83 overworld biomes. It observed
 1.44% fewer block reads across that decoration workload (54 biomes improved,
 none increased); this is a work-count reduction, not a measured wall-time speedup.
 
+The decorator also stores the world's two population-seed multipliers once,
+sharing the same wrapping coordinate mix across geology, surfaces, carving,
+structures and decoration. Each phase retains its original RNG seed and salts;
+only repeated world-seed MT19937 setup is removed. Independent signed-boundary
+stream fingerprints pass before and after, and old/new carver and decoration
+bytes match across all 83 overworld biomes in each of two signed-seed worlds.
+This preserves the existing model; it does not establish native BDS seeding parity.
+
 Molang `query.noise` is a stateless intrinsic in `molang_noise`, not a world-seeded
 Java noise instance. Its fixed permutation/hash gradients are evaluated at compile
 time; sampling keeps the measured native float32 operation order. Authored BDS
