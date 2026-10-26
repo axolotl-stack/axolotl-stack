@@ -439,6 +439,7 @@ version = "0.1.0"
 dependencies = [
  "anyhow",
  "clap",
+ "client-diff",
  "jolyne",
  "tokio",
  "tracing",
@@ -5319,6 +5320,7 @@ dependencies = [
  "tracing-subscriber",
  "unastar-data",
  "unastar-packs",
+ "unastar-rules",
  "unastar_bedrock_codegen",
  "unastar_noise",
  "uuid",
@@ -5332,10 +5334,12 @@ dependencies = [
 name = "unastar-data"
 version = "0.1.0"
 dependencies = [
- "bevy_ecs",
  "rand 0.8.5",
  "serde",
  "serde_json",
+ "sha2 0.10.9",
+ "unastar-packs",
+ "unastar-rules",
 ]
 
 [[package]]
@@ -5372,6 +5376,7 @@ dependencies = [
  "thiserror 2.0.21",
  "tracing",
  "tracing-subscriber",
+ "unastar-data",
  "walkdir",
  "zuri_nbt",
 ]
@@ -5381,6 +5386,7 @@ name = "unastar-packs"
 version = "0.1.0"
 dependencies = [
  "flate2",
+ "regex",
  "serde",
  "serde_json",
  "thiserror 2.0.21",
@@ -5391,8 +5397,14 @@ dependencies = [
 name = "unastar-rules"
 version = "0.1.0"
 dependencies = [
+ "convert_case",
+ "prettyplease",
+ "proc-macro2",
+ "quote",
+ "rand 0.8.5",
  "serde",
  "serde_json",
+ "syn 2.0.112",
  "thiserror 2.0.21",
 ]
 

@@ -36,3 +36,17 @@ Recorded in full in `thoughts/shared/plans/2026-10-24-data-driven-architecture.m
 | D11 | First mobs: zombie, skeleton, creeper, spider, cow, pig, sheep, chicken; then by component coverage. |
 | D12 | Parked gameplay branches land with their non-BDS numbers recorded as known deviations, replaced by BDS sweeps later. |
 | D13 | Artefacts derived from bedrock-samples are generated at build time, not committed (manifests only). Java worldgen data stays committed. |
+
+## Known deviations (parked work)
+
+Work written before these decisions and parked unmerged until its area's design is
+approved. Each row names the slice that removes it.
+
+| Branch | Deviation | Against | Removed by |
+|---|---|---|---|
+| `Jviguy/stab-vanilla-entities` | **X1:** 199 block loot tables (`unastar-data/data/overrides/loot_tables/blocks.json`) are authored from Java Edition tables, not measured from BDS | D4 | Entities E9: BDS block-drop sweep |
+| `Jviguy/stab-vanilla-entities` | **X2:** tool-tier speeds/harvest levels, sword/shears speeds, mining wear and the break-time formula use unmeasured vanilla constants | D4 | Entities E9: BDS mining/tool-wear sweep; see `thoughts/shared/research/2026-10-24-data-driven-entities.md` §1.5 |
+
+E0 removed the former D2 loot deviation: canonical pack/override JSON is built
+into `OUT_DIR`, embedded, and decoded once into `unastar-rules::loot` types.
+The evaluator moved to that bevy-free crate; X1/X2 above remain until E9.

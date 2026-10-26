@@ -6,7 +6,7 @@
 
 use bevy_ecs::prelude::*;
 use glam::IVec3;
-use tracing::{debug, info, trace, warn};
+use tracing::{debug, trace, warn};
 
 use super::packet_queues::{BlockAction, BlockPacketQueue};
 use crate::ecs::events::{EventBuffer, ServerEvent};
@@ -98,7 +98,7 @@ fn process_auth_input_block_actions(
                 let break_time_ticks = if is_creative {
                     0
                 } else {
-                    get_block_break_time(world, x, y, z)
+                    player_break_ticks(world, player_entity, (x, y, z))
                 };
 
                 trace!(pos = ?(x, y, z), is_creative, break_time_ticks, "StartBreak");
@@ -134,7 +134,7 @@ fn process_auth_input_block_actions(
                     let break_time_ticks = if is_creative {
                         0
                     } else {
-                        get_block_break_time(world, x, y, z)
+                        player_break_ticks(world, player_entity, (x, y, z))
                     };
 
                     trace!(pos = ?(x, y, z), is_creative, break_time_ticks, "CrackBreak: starting break");
@@ -375,14 +375,19 @@ pub(crate) fn commit_block_event(world: &mut World, event: &ServerEvent) {
             block_id,
             ..
         } => {
-            let valid = can_interact(world, *entity, *position)
-                && block_at(world, *position) == Some(*blocks::AIR)
-                && held_block(world, *entity).is_some_and(|(held, _, _)| held == *block_id);
-            if !valid {
+            let upper = if can_interact(world, *entity, *position) {
+                placement_upper(world, *entity, *position, *block_id)
+            } else {
+                None
+            };
+            let Some(upper) = upper else {
                 reject_block_event(world, event);
                 return;
-            }
+            };
             place_block(world, position.0, position.1, position.2, *block_id);
+            if let Some((above, upper_state)) = upper {
+                place_block(world, above.x, above.y, above.z, upper_state);
+            }
             if world.get::<crate::entity::components::GameMode>(*entity)
                 == Some(&crate::entity::components::GameMode::Survival)
             {
@@ -441,7 +446,9 @@ fn break_block(world: &mut World, player: Entity, x: i32, y: i32, z: i32) {
     let Some(block_id) = block_at(world, position) else {
         return;
     };
-    if block_id == *blocks::AIR || (!creative && get_block_break_time(world, x, y, z) == u32::MAX) {
+    if block_id == *blocks::AIR
+        || (!creative && player_break_ticks(world, player, position) == u32::MAX)
+    {
         correct_block(world, player, position);
         return;
     }
@@ -511,111 +518,23 @@ fn apply_break_block(world: &mut World, breaking_player: Entity, x: i32, y: i32,
         new_block: *blocks::AIR,
     });
 
-    // Spawn item drop in survival
-    if original_block_id != *blocks::AIR {
-        let is_survival = world
+    super::falling::schedule_gravity_checks(world, IVec3::new(x, y, z));
+
+    // Survival breaks drop the block's items as real item entities and wear
+    // the tool.
+    if original_block_id != *blocks::AIR
+        && !world
             .get::<crate::entity::components::GameMode>(breaking_player)
-            .map(|gm| !gm.instant_break())
-            .unwrap_or(true);
-
-        if is_survival {
-            // Look up the block by runtime ID to get its string_id,
-            // then find the matching item to get its network_id
-            let (item_id, item_network_id) = world
-                .get_resource::<super::types::BlockRegistryResource>()
-                .and_then(|blocks| {
-                    blocks
-                        .0
-                        .get_by_runtime_id(original_block_id)
-                        .map(|b| b.string_id.clone())
-                })
-                .and_then(|block_string_id| {
-                    world
-                        .get_resource::<super::types::ItemRegistryResource>()
-                        .and_then(|items| {
-                            items
-                                .0
-                                .get_by_name(&block_string_id)
-                                .map(|item| (item.string_id.clone(), item.network_id))
-                        })
-                })
-                .unwrap_or_default();
-
-            if item_network_id != 0 {
-                let item_entity_id = {
-                    let mut counter = world
-                        .get_resource_mut::<super::types::ItemEntityIdCounter>()
-                        .unwrap();
-                    let id = counter.0;
-                    counter.0 += 1;
-                    id
-                };
-
-                use jolyne::valentine::AddItemActorPacket;
-                use jolyne::valentine::types::{
-                    ActorRuntimeId, ActorUniqueId,
-                    CerealizerNetworkItemStackDescriptorSerializedData,
-                    SynchedActorDataCopyableDataList, Vec3,
-                };
-
-                let item_packet = match i16::try_from(item_network_id) {
-                    Ok(network_id) => Some(AddItemActorPacket {
-                        target_actor_id: ActorUniqueId {
-                            actor_unique_id: item_entity_id,
-                        },
-                        target_runtime_id: ActorRuntimeId {
-                            actor_runtime_id: item_entity_id as u64,
-                        },
-                        item: CerealizerNetworkItemStackDescriptorSerializedData {
-                            id: network_id,
-                            stacksize: 1,
-                            auxvalue: 0,
-                            net_id_variant: None,
-                            block_runtime_id: original_block_id,
-                            user_data_buffer: crate::item::user_data::network_user_data(
-                                &item_id, None,
-                            ),
-                        },
-                        position: Vec3 {
-                            x: x as f32 + 0.5,
-                            y: y as f32 + 0.25,
-                            z: z as f32 + 0.5,
-                        },
-                        velocity: Vec3 {
-                            x: 0.0,
-                            y: 0.1,
-                            z: 0.0,
-                        },
-                        entity_data: SynchedActorDataCopyableDataList::default(),
-                        is_from_fishing: false,
-                    }),
-                    Err(_) => {
-                        warn!(
-                            item_network_id,
-                            "Skipping item drop outside protocol ID range"
-                        );
-                        None
-                    }
-                };
-
-                if let Some(item_packet) = item_packet {
-                    if let Some(session) = world.get::<PlayerSession>(breaking_player) {
-                        let _ = session.send(McpePacket::from(item_packet.clone()));
-                        info!(pos = ?(x, y, z), item_network_id, entity_id = item_entity_id, "Spawned item drop");
-                    }
-
-                    if let Some(chunk_viewers) = world.get::<ChunkViewers>(chunk_entity) {
-                        for viewer in chunk_viewers.iter() {
-                            if viewer != breaking_player
-                                && let Some(viewer_session) = world.get::<PlayerSession>(viewer)
-                            {
-                                let _ = viewer_session.send(McpePacket::from(item_packet.clone()));
-                            }
-                        }
-                    }
-                }
-            }
-        }
+            .is_some_and(|mode| mode.instant_break())
+    {
+        let tool = held_item(world, breaking_player);
+        super::block_drops::drop_block_items(
+            world,
+            IVec3::new(x, y, z),
+            original_block_id,
+            tool.as_ref(),
+        );
+        wear_held_tool(world, breaking_player, original_block_id);
     }
 
     // Broadcast update to viewers
@@ -700,37 +619,114 @@ fn broadcast_block_break(
     }
 }
 
-/// Get break time in ticks for the block at given world coordinates.
-fn get_block_break_time(world: &World, x: i32, y: i32, z: i32) -> u32 {
-    let (cx, cz) = world_to_chunk_coords(x, z);
-    let (local_x, local_y, local_z) = world_to_local_coords(x, y, z);
+/// The stack in the player's selected hotbar slot, if any.
+fn held_item(world: &World, player: Entity) -> Option<crate::item::ItemStack> {
+    let slot = world.get::<crate::entity::components::HeldSlot>(player)?.0;
+    world
+        .get::<crate::entity::components::MainInventory>(player)?
+        .hotbar(slot)
+        .filter(|stack| !stack.is_empty())
+        .cloned()
+}
 
-    let block_runtime_id = {
-        let Some(chunk_manager) = world.get_resource::<ChunkManager>() else {
-            return 20;
-        };
-        let Some(chunk_entity) = chunk_manager.get_by_coords(cx, cz) else {
-            return 20;
-        };
-        let Some(chunk_data) = world.get::<crate::world::ecs::ChunkData>(chunk_entity) else {
-            return 20;
-        };
-        chunk_data.inner.get_block(local_x, local_y, local_z)
+/// Player state that affects break time, measured server-side: on ground
+/// is a collision probe 1/16 block under the feet against block shapes
+/// (not the client's flag), under water is the eye block being water.
+fn mining_conditions(world: &World, player: Entity) -> super::mining::MiningConditions {
+    use crate::entity::components::{Effects, PlayerState, Position};
+    use crate::entity::systems::{BlockSource, collides_with_blocks};
+    use crate::registry::collision::Aabb;
+    let Some(eye) = world.get::<Position>(player).map(|p| p.0) else {
+        return super::mining::MiningConditions::default();
     };
-
-    if let Some(blocks) = world.get_resource::<super::types::BlockRegistryResource>()
-        && let Some(block) = blocks.0.get_by_runtime_id(block_runtime_id)
-    {
-        if block.hardness < 0.0 {
-            return u32::MAX;
-        }
-        if block.hardness <= 0.0 {
-            return 1;
-        }
-        return (block.hardness * 5.0 * 20.0).ceil() as u32;
+    let feet = eye - glam::DVec3::new(0.0, crate::entity::PLAYER_EYE_HEIGHT, 0.0);
+    let probe = Aabb::new(
+        feet + glam::DVec3::new(-0.3, -0.0625, -0.3),
+        feet + glam::DVec3::new(0.3, 0.0, 0.3),
+    );
+    let underwater = world
+        .block_at(eye.floor().as_ivec3())
+        .zip(world.get_resource::<super::types::BlockRegistryResource>())
+        .and_then(|(id, registry)| registry.0.get_by_runtime_id(id).map(|b| b.data))
+        .is_some_and(|data| data.liquid && data.material == 5);
+    super::mining::MiningConditions {
+        on_ground: collides_with_blocks(world, probe),
+        flying: world.get::<PlayerState>(player).is_some_and(|s| s.flying),
+        riding: false,
+        underwater,
+        ..Default::default()
     }
+    .with_effects(world.get::<Effects>(player))
+}
 
-    20
+/// Ticks `player` needs to break the block at `position` with the held item.
+/// `u32::MAX` for unbreakable or unknown blocks.
+fn player_break_ticks(world: &World, player: Entity, position: (i32, i32, i32)) -> u32 {
+    let Some(block) = block_at(world, position).and_then(|id| {
+        world
+            .get_resource::<super::types::BlockRegistryResource>()?
+            .0
+            .get_by_runtime_id(id)
+    }) else {
+        return u32::MAX;
+    };
+    let tool = held_item(world, player);
+    super::mining::break_ticks(block, tool.as_ref(), mining_conditions(world, player))
+}
+
+/// Apply mining wear to the held tool after breaking `block_runtime_id`;
+/// unbreaking may spare it, and a tool worn down to `maxDamage` breaks.
+fn wear_held_tool(world: &mut World, player: Entity, block_runtime_id: u32) {
+    use crate::entity::components::{HeldSlot, MainInventory};
+    use crate::item::enchant::{
+        Enchantment, durability_damage, enchantment_level, with_durability_damage,
+    };
+    let Some(tool) = held_item(world, player) else {
+        return;
+    };
+    let Some(registry) = world
+        .get_resource::<super::types::BlockRegistryResource>()
+        .map(|r| r.0.clone())
+    else {
+        return;
+    };
+    let Some(block) = registry.get_by_runtime_id(block_runtime_id) else {
+        return;
+    };
+    let wear = super::mining::mining_wear(block, &tool);
+    let Some(max_damage) = crate::registry::item::tool_info(&tool.item_id)
+        .map(|info| info.max_damage)
+        .filter(|max| *max > 0 && wear > 0)
+    else {
+        return;
+    };
+    let unbreaking = enchantment_level(&tool, Enchantment::Unbreaking);
+    let mut applied = 0;
+    {
+        let mut rng = world.get_resource_or_init::<crate::entity::EntityRandom>();
+        for _ in 0..wear {
+            let roll = rand::Rng::gen_range(&mut rng.0, 0..=unbreaking);
+            if !super::mining::unbreaking_spares(unbreaking, roll) {
+                applied += 1;
+            }
+        }
+    }
+    if applied == 0 {
+        return;
+    }
+    let damage = durability_damage(&tool) + applied;
+    let worn = if damage >= max_damage {
+        crate::item::ItemStack::empty()
+    } else {
+        with_durability_damage(&tool, damage)
+    };
+    let slot = world.get::<HeldSlot>(player).map_or(0, |slot| slot.0);
+    if let Some(mut inventory) = world.get_mut::<MainInventory>(player)
+        && let Some(stack) = inventory.hotbar_mut(slot)
+    {
+        *stack = worn.clone();
+    }
+    super::items::send_slot(world, player, usize::from(slot), &worn);
 }
 
 /// Handle block click from InventoryTransaction ItemUse::ClickBlock.
@@ -789,18 +785,57 @@ fn handle_block_click(
                 == stack.nbt
             && u32::try_from(stack.runtime_id).ok() == Some(data.item.block_runtime_id)
     });
-    if !matches_held
-        || !can_interact(world, entity, clicked)
-        || !can_interact(world, entity, position)
-        || block_at(world, clicked).is_none_or(|block| block == *blocks::AIR)
-        || block_at(world, position) != Some(*blocks::AIR)
-    {
+    let placement = held
+        .as_ref()
+        .filter(|_| matches_held)
+        .and_then(|(held_state, _, _)| {
+            let registry = &world
+                .get_resource::<super::types::BlockRegistryResource>()?
+                .0;
+            let held_entry = registry.get_by_runtime_id(*held_state)?;
+            let rotation = world
+                .get::<crate::entity::components::Rotation>(entity)
+                .copied()
+                .unwrap_or_default();
+            let input = super::placement::PlacementInput {
+                clicked: IVec3::new(clicked.0, clicked.1, clicked.2),
+                face: data.face,
+                click: glam::DVec3::new(
+                    f64::from(data.click_position.x),
+                    f64::from(data.click_position.y),
+                    f64::from(data.click_position.z),
+                ),
+                yaw: rotation.yaw,
+                pitch: rotation.pitch,
+            };
+            super::placement::resolve_placement(world, held_entry, &input)
+        });
+    let Some(placement) = placement.filter(|placement| {
+        let target = (
+            placement.position.x,
+            placement.position.y,
+            placement.position.z,
+        );
+        can_interact(world, entity, clicked)
+            && can_interact(world, entity, target)
+            && block_at(world, clicked).is_some_and(|block| block != *blocks::AIR)
+    }) else {
         correct_block(world, entity, clicked);
         correct_block(world, entity, position);
         super::inventory::resync_inventory(world, entity);
         return;
+    };
+    let target = (
+        placement.position.x,
+        placement.position.y,
+        placement.position.z,
+    );
+    if placement_upper(world, entity, target, placement.state).is_none() {
+        correct_block(world, entity, clicked);
+        correct_block(world, entity, target);
+        super::inventory::resync_inventory(world, entity);
+        return;
     }
-    let block_id = held.unwrap().0;
     let player_id = world
         .get::<PlayerUuid>(entity)
         .map(|id| id.0.to_string())
@@ -809,14 +844,83 @@ fn handle_block_click(
         events.push(ServerEvent::BlockPlace {
             entity,
             player_id,
-            position,
-            block_id,
+            position: target,
+            block_id: placement.state,
         });
     }
 }
 
-/// Place a block at world coordinates: update chunk and broadcast.
+/// Validate placing `state` at `position` with the player's held block and
+/// return the extra upper-half block (doors), `Some(None)` when there is
+/// none, or `None` when the placement is not allowed (wrong item, occupied
+/// target, entity in the way).
+///
+/// Runs both when the click is received and again at commit, after plugin
+/// dispatch, so the world may have changed in between.
+#[allow(clippy::option_option)]
+fn placement_upper(
+    world: &mut World,
+    entity: Entity,
+    position: (i32, i32, i32),
+    state: u32,
+) -> Option<Option<(IVec3, u32)>> {
+    use super::placement::{double_slab, is_replaceable, obstructed, placed_boxes};
+    let registry = world
+        .get_resource::<super::types::BlockRegistryResource>()?
+        .0
+        .clone();
+    let (held_state, _, _) = held_block(world, entity)?;
+    let held = registry.get_by_runtime_id(held_state)?;
+    let placed = registry.get_by_runtime_id(state)?;
+    let pos = IVec3::new(position.0, position.1, position.2);
+    let current_state = block_at(world, position)?;
+    let current = registry.get_by_runtime_id(current_state)?;
+    let merging_slab = double_slab(&registry, held).is_some_and(|double| {
+        double.string_id == placed.string_id && current.string_id == held.string_id
+    });
+    let fills_free_space =
+        placed.string_id == held.string_id && is_replaceable(current, current_state);
+    if !(merging_slab || fills_free_space) {
+        return None;
+    }
+    let upper = match placed.state_value(state, "upper_block_bit") {
+        Some(crate::registry::block::StateValue::Byte(0)) => {
+            let above = (position.0, position.1 + 1, position.2);
+            let above_state = block_at(world, above)?;
+            if !is_replaceable(registry.get_by_runtime_id(above_state)?, above_state) {
+                return None;
+            }
+            let upper_state = placed.with_state_value(
+                state,
+                "upper_block_bit",
+                crate::registry::block::StateValue::Byte(1),
+            )?;
+            Some((pos + IVec3::Y, upper_state))
+        }
+        Some(_) => return None,
+        None => None,
+    };
+    let mut boxes = placed_boxes(&registry, pos, state);
+    if let Some((above, upper_state)) = upper {
+        boxes.extend(placed_boxes(&registry, above, upper_state));
+    }
+    if obstructed(world, &boxes) {
+        return None;
+    }
+    Some(upper)
+}
+
+/// Place a block at world coordinates: update chunk and broadcast with the
+/// place sound.
 fn place_block(world: &mut World, x: i32, y: i32, z: i32, block_runtime_id: u32) {
+    set_block(world, IVec3::new(x, y, z), block_runtime_id, true);
+}
+
+/// Set a block at world coordinates, broadcast the change to the chunk's
+/// viewers (with the place sound when `place_sound`) and schedule gravity
+/// checks for the block and the one above it.
+pub(super) fn set_block(world: &mut World, pos: IVec3, block_runtime_id: u32, place_sound: bool) {
+    let (x, y, z) = (pos.x, pos.y, pos.z);
     let (cx, cz) = world_to_chunk_coords(x, z);
     let (local_x, local_y, local_z) = world_to_local_coords(x, y, z);
 
@@ -864,6 +968,8 @@ fn place_block(world: &mut World, x: i32, y: i32, z: i32, block_runtime_id: u32)
         new_block: block_runtime_id,
     });
 
+    super::falling::schedule_gravity_checks(world, pos);
+
     // Broadcast to viewers
     if let Some(chunk_viewers) = world.get::<ChunkViewers>(chunk_entity) {
         use jolyne::valentine::{LevelSoundEventPacket, UpdateBlockPacket};
@@ -875,7 +981,7 @@ fn place_block(world: &mut World, x: i32, y: i32, z: i32, block_runtime_id: u32)
             layer: 0,
         };
 
-        let sound_packet = LevelSoundEventPacket {
+        let sound_packet = place_sound.then(|| LevelSoundEventPacket {
             sound_event: "place".into(),
             position: Vec3 {
                 x: x as f32 + 0.5,
@@ -888,12 +994,14 @@ fn place_block(world: &mut World, x: i32, y: i32, z: i32, block_runtime_id: u32)
             is_global: false,
             actor_unique_id: 0,
             fire_at_position: None,
-        };
+        });
 
         for viewer_entity in chunk_viewers.iter() {
             if let Some(session) = world.get::<PlayerSession>(viewer_entity) {
                 let _ = session.send(McpePacket::from(update_packet.clone()));
-                let _ = session.send(McpePacket::from(sound_packet.clone()));
+                if let Some(sound) = &sound_packet {
+                    let _ = session.send(McpePacket::from(sound.clone()));
+                }
             }
         }
     }
@@ -912,6 +1020,9 @@ mod tests {
             crate::world::WorldConfig::void_spawn_platform(1),
         ));
         world.insert_resource(EventBuffer::default());
+        world.insert_resource(super::super::types::BlockRegistryResource(
+            std::sync::Arc::new(crate::registry::BlockRegistry::vanilla().clone()),
+        ));
         world.insert_resource(Messages::<BlockBroadcastEvent>::default());
         let mut chunk = crate::world::chunk::Chunk::new(0, 0);
         chunk.set_block(1, 64, 1, *blocks::STONE);
@@ -1065,6 +1176,89 @@ mod tests {
     }
 
     #[test]
+    fn placing_inside_the_player_is_rejected() {
+        let (mut world, player, chunk) = block_world(
+            GameMode::Survival,
+            DVec3::new(1.5, 65.0 + crate::entity::PLAYER_EYE_HEIGHT, 1.5),
+        );
+        world
+            .entity_mut(player)
+            .insert(crate::entity::components::Player);
+        let data = placement(&mut world);
+        world
+            .get_mut::<MainInventory>(player)
+            .unwrap()
+            .0
+            .set_item(0, crate::item::ItemStack::new("minecraft:stone", 2))
+            .unwrap();
+        handle_block_click(&mut world, player, &data);
+        assert!(
+            !world
+                .resource_mut::<EventBuffer>()
+                .drain()
+                .iter()
+                .any(|event| matches!(event, ServerEvent::BlockPlace { .. }))
+        );
+        assert_eq!(
+            world
+                .get::<ChunkData>(chunk)
+                .unwrap()
+                .inner
+                .get_block(1, 65, 1),
+            *blocks::AIR
+        );
+    }
+
+    #[test]
+    fn doors_place_both_halves_facing_the_look_direction() {
+        use crate::registry::block::StateValue;
+        let (mut world, player, chunk) =
+            block_world(GameMode::Survival, DVec3::new(3.5, 64.0, 1.5));
+        let mut data = placement(&mut world);
+        let door = crate::registry::BlockRegistry::vanilla()
+            .get_by_name("minecraft:wooden_door")
+            .unwrap();
+        let items = world
+            .resource::<super::super::types::ItemRegistryResource>()
+            .0
+            .clone();
+        let door_item = items.get_by_name("minecraft:wooden_door").unwrap();
+        let stack = crate::item::ItemStack::new("minecraft:wooden_door", 1)
+            .with_max_stack_size(door_item.stack_size)
+            .with_runtime_id(door.default_state_id as i32);
+        data.item.id = door_item.network_id as i16;
+        data.item.stacksize = 1;
+        data.item.block_runtime_id = door.default_state_id;
+        world
+            .get_mut::<MainInventory>(player)
+            .unwrap()
+            .0
+            .set_item(0, stack)
+            .unwrap();
+        world
+            .entity_mut(player)
+            .insert(crate::entity::components::Rotation::new(270.0, 0.0));
+        handle_block_click(&mut world, player, &data);
+        let event = world.resource_mut::<EventBuffer>().drain().pop().unwrap();
+        commit_block_event(&mut world, &event);
+        let chunk = &world.get::<ChunkData>(chunk).unwrap().inner;
+        let lower = chunk.get_block(1, 65, 1);
+        let upper = chunk.get_block(1, 66, 1);
+        assert_eq!(
+            door.state_value(lower, "upper_block_bit"),
+            Some(StateValue::Byte(0))
+        );
+        assert_eq!(
+            door.state_value(upper, "upper_block_bit"),
+            Some(StateValue::Byte(1))
+        );
+        assert_eq!(
+            door.state_value(lower, "minecraft:cardinal_direction"),
+            Some(StateValue::Str("east"))
+        );
+    }
+
+    #[test]
     fn allowed_survival_place_consumes_exactly_one_and_cannot_replay_over_block() {
         let (mut world, player, chunk) =
             block_world(GameMode::Survival, DVec3::new(1.0, 64.0, 1.0));
@@ -1143,6 +1337,78 @@ mod tests {
                 *blocks::AIR
             );
         }
+    }
+
+    fn give(world: &mut World, player: Entity, stack: crate::item::ItemStack) {
+        world
+            .get_mut::<MainInventory>(player)
+            .unwrap()
+            .0
+            .set_item(0, stack)
+            .unwrap();
+    }
+
+    fn floor_under(world: &mut World, chunk: Entity) {
+        let mut data = world.get_mut::<ChunkData>(chunk).unwrap();
+        for x in 0..16 {
+            for z in 0..16 {
+                data.inner.set_block(x, 62, z, *blocks::STONE);
+            }
+        }
+    }
+
+    /// StartBreak timing comes from the vanilla formula with the held tool
+    /// and the server-measured ground state, not a flat `hardness * 100`.
+    #[test]
+    fn break_time_uses_tool_and_ground_state() {
+        let eye = DVec3::new(1.5, 63.0 + crate::entity::PLAYER_EYE_HEIGHT, 1.5);
+        let (mut world, player, chunk) = block_world(GameMode::Survival, eye);
+        floor_under(&mut world, chunk);
+        assert_eq!(player_break_ticks(&world, player, (1, 64, 1)), 150);
+        give(
+            &mut world,
+            player,
+            crate::item::ItemStack::new("minecraft:iron_pickaxe", 1),
+        );
+        assert_eq!(player_break_ticks(&world, player, (1, 64, 1)), 8);
+        world
+            .get_mut::<crate::entity::components::Position>(player)
+            .unwrap()
+            .0
+            .y += 1.0;
+        assert_eq!(
+            player_break_ticks(&world, player, (1, 64, 1)),
+            38,
+            "airborne mining is five times slower"
+        );
+    }
+
+    #[test]
+    fn breaking_wears_the_tool_and_a_spent_tool_breaks() {
+        use crate::item::enchant::{durability_damage, with_durability_damage};
+        let eye = DVec3::new(1.5, 63.0 + crate::entity::PLAYER_EYE_HEIGHT, 1.5);
+        let (mut world, player, chunk) = block_world(GameMode::Survival, eye);
+        floor_under(&mut world, chunk);
+        let mut items = crate::registry::ItemRegistry::new();
+        items.load_vanilla();
+        world.insert_resource(super::super::types::ItemRegistryResource(
+            std::sync::Arc::new(items),
+        ));
+        give(
+            &mut world,
+            player,
+            crate::item::ItemStack::new("minecraft:iron_pickaxe", 1),
+        );
+        wear_held_tool(&mut world, player, *blocks::STONE);
+        let held = held_item(&world, player).unwrap();
+        assert_eq!(durability_damage(&held), 1);
+
+        give(&mut world, player, with_durability_damage(&held, 249));
+        wear_held_tool(&mut world, player, *blocks::STONE);
+        assert!(
+            held_item(&world, player).is_none(),
+            "iron pickaxe has 250 uses"
+        );
     }
 
     #[test]

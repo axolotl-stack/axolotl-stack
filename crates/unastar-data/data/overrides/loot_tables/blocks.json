@@ -1,0 +1,6538 @@
+{
+  "//": "Block loot tables in the behavior-pack loot-table schema. BDS 1.26.51 ships no loot tables for these blocks (their drops are built into the server), so these are authored from the Java Edition vanilla tables with Bedrock identifiers until a BDS drop sweep replaces them. Extensions beyond the Bedrock schema, all with Java semantics: entry type 'alternatives' (first child whose conditions pass), function 'apply_bonus' (ore_drops / uniform_bonus_count / binomial_with_bonus_count), function 'limit_count', count provider {type: binomial, n, p}, conditions 'table_bonus', 'block_state_property' and 'inverted'. Blocks absent here drop their own item; blocks that require the correct tool drop nothing without it.",
+  "blocks/acacia_leaves": {
+    "//source": "Java Edition vanilla loot table of the same block, with Bedrock identifiers (BDS ships no loot table for this block); not yet measured against BDS",
+    "pools": [
+      {
+        "rolls": 1,
+        "entries": [
+          {
+            "type": "alternatives",
+            "children": [
+              {
+                "type": "item",
+                "name": "minecraft:acacia_leaves",
+                "conditions": [
+                  {
+                    "condition": "match_tool",
+                    "item": "minecraft:shears"
+                  }
+                ]
+              },
+              {
+                "type": "item",
+                "name": "minecraft:acacia_leaves",
+                "conditions": [
+                  {
+                    "condition": "match_tool",
+                    "enchantments": [
+                      {
+                        "enchantment": "silk_touch",
+                        "levels": {
+                          "range_min": 1
+                        }
+                      }
+                    ]
+                  }
+                ]
+              },
+              {
+                "type": "item",
+                "name": "minecraft:acacia_sapling",
+                "conditions": [
+                  {
+                    "condition": "table_bonus",
+                    "enchantment": "fortune",
+                    "chances": [
+                      0.05,
+                      0.0625,
+                      0.083333336,
+                      0.1
+                    ]
+                  }
+                ]
+              }
+            ]
+          }
+        ]
+      },
+      {
+        "rolls": 1,
+        "conditions": [
+          {
+            "condition": "inverted",
+            "term": {
+              "condition": "match_tool",
+              "item": "minecraft:shears"
+            }
+          },
+          {
+            "condition": "inverted",
+            "term": {
+              "condition": "match_tool",
+              "enchantments": [
+                {
+                  "enchantment": "silk_touch",
+                  "levels": {
+                    "range_min": 1
+                  }
+                }
+              ]
+            }
+          }
+        ],
+        "entries": [
+          {
+            "type": "item",
+            "name": "minecraft:stick",
+            "functions": [
+              {
+                "function": "set_count",
+                "count": {
+                  "min": 1,
+                  "max": 2
+                }
+              }
+            ],
+            "conditions": [
+              {
+                "condition": "table_bonus",
+                "enchantment": "fortune",
+                "chances": [
+                  0.02,
+                  0.022222223,
+                  0.025,
+                  0.033333335,
+                  0.1
+                ]
+              }
+            ]
+          }
+        ]
+      }
+    ]
+  },
+  "blocks/acacia_standing_sign": {
+    "//source": "Java Edition vanilla loot table of the same block, with Bedrock identifiers (BDS ships no loot table for this block); not yet measured against BDS",
+    "pools": [
+      {
+        "rolls": 1,
+        "entries": [
+          {
+            "type": "item",
+            "name": "minecraft:acacia_sign"
+          }
+        ]
+      }
+    ]
+  },
+  "blocks/acacia_wall_sign": {
+    "//source": "Java Edition vanilla loot table of the same block, with Bedrock identifiers (BDS ships no loot table for this block); not yet measured against BDS",
+    "pools": [
+      {
+        "rolls": 1,
+        "entries": [
+          {
+            "type": "item",
+            "name": "minecraft:acacia_sign"
+          }
+        ]
+      }
+    ]
+  },
+  "blocks/amethyst_cluster": {
+    "//source": "Java Edition vanilla loot table of the same block, with Bedrock identifiers (BDS ships no loot table for this block); not yet measured against BDS",
+    "pools": [
+      {
+        "rolls": 1,
+        "entries": [
+          {
+            "type": "alternatives",
+            "children": [
+              {
+                "type": "item",
+                "name": "minecraft:amethyst_cluster",
+                "conditions": [
+                  {
+                    "condition": "match_tool",
+                    "enchantments": [
+                      {
+                        "enchantment": "silk_touch",
+                        "levels": {
+                          "range_min": 1
+                        }
+                      }
+                    ]
+                  }
+                ]
+              },
+              {
+                "type": "item",
+                "name": "minecraft:amethyst_shard",
+                "functions": [
+                  {
+                    "function": "set_count",
+                    "count": 4
+                  },
+                  {
+                    "function": "apply_bonus",
+                    "enchantment": "fortune",
+                    "formula": "ore_drops"
+                  }
+                ]
+              }
+            ]
+          }
+        ]
+      }
+    ]
+  },
+  "blocks/azalea_leaves": {
+    "//source": "Java Edition vanilla loot table of the same block, with Bedrock identifiers (BDS ships no loot table for this block); not yet measured against BDS",
+    "pools": [
+      {
+        "rolls": 1,
+        "entries": [
+          {
+            "type": "alternatives",
+            "children": [
+              {
+                "type": "item",
+                "name": "minecraft:azalea_leaves",
+                "conditions": [
+                  {
+                    "condition": "match_tool",
+                    "item": "minecraft:shears"
+                  }
+                ]
+              },
+              {
+                "type": "item",
+                "name": "minecraft:azalea_leaves",
+                "conditions": [
+                  {
+                    "condition": "match_tool",
+                    "enchantments": [
+                      {
+                        "enchantment": "silk_touch",
+                        "levels": {
+                          "range_min": 1
+                        }
+                      }
+                    ]
+                  }
+                ]
+              },
+              {
+                "type": "item",
+                "name": "minecraft:azalea",
+                "conditions": [
+                  {
+                    "condition": "table_bonus",
+                    "enchantment": "fortune",
+                    "chances": [
+                      0.05,
+                      0.0625,
+                      0.083333336,
+                      0.1
+                    ]
+                  }
+                ]
+              }
+            ]
+          }
+        ]
+      },
+      {
+        "rolls": 1,
+        "conditions": [
+          {
+            "condition": "inverted",
+            "term": {
+              "condition": "match_tool",
+              "item": "minecraft:shears"
+            }
+          },
+          {
+            "condition": "inverted",
+            "term": {
+              "condition": "match_tool",
+              "enchantments": [
+                {
+                  "enchantment": "silk_touch",
+                  "levels": {
+                    "range_min": 1
+                  }
+                }
+              ]
+            }
+          }
+        ],
+        "entries": [
+          {
+            "type": "item",
+            "name": "minecraft:stick",
+            "functions": [
+              {
+                "function": "set_count",
+                "count": {
+                  "min": 1,
+                  "max": 2
+                }
+              }
+            ],
+            "conditions": [
+              {
+                "condition": "table_bonus",
+                "enchantment": "fortune",
+                "chances": [
+                  0.02,
+                  0.022222223,
+                  0.025,
+                  0.033333335,
+                  0.1
+                ]
+              }
+            ]
+          }
+        ]
+      }
+    ]
+  },
+  "blocks/azalea_leaves_flowered": {
+    "//source": "Java Edition vanilla loot table of the same block, with Bedrock identifiers (BDS ships no loot table for this block); not yet measured against BDS",
+    "pools": [
+      {
+        "rolls": 1,
+        "entries": [
+          {
+            "type": "alternatives",
+            "children": [
+              {
+                "type": "item",
+                "name": "minecraft:azalea_leaves_flowered",
+                "conditions": [
+                  {
+                    "condition": "match_tool",
+                    "item": "minecraft:shears"
+                  }
+                ]
+              },
+              {
+                "type": "item",
+                "name": "minecraft:azalea_leaves_flowered",
+                "conditions": [
+                  {
+                    "condition": "match_tool",
+                    "enchantments": [
+                      {
+                        "enchantment": "silk_touch",
+                        "levels": {
+                          "range_min": 1
+                        }
+                      }
+                    ]
+                  }
+                ]
+              },
+              {
+                "type": "item",
+                "name": "minecraft:flowering_azalea",
+                "conditions": [
+                  {
+                    "condition": "table_bonus",
+                    "enchantment": "fortune",
+                    "chances": [
+                      0.05,
+                      0.0625,
+                      0.083333336,
+                      0.1
+                    ]
+                  }
+                ]
+              }
+            ]
+          }
+        ]
+      },
+      {
+        "rolls": 1,
+        "conditions": [
+          {
+            "condition": "inverted",
+            "term": {
+              "condition": "match_tool",
+              "item": "minecraft:shears"
+            }
+          },
+          {
+            "condition": "inverted",
+            "term": {
+              "condition": "match_tool",
+              "enchantments": [
+                {
+                  "enchantment": "silk_touch",
+                  "levels": {
+                    "range_min": 1
+                  }
+                }
+              ]
+            }
+          }
+        ],
+        "entries": [
+          {
+            "type": "item",
+            "name": "minecraft:stick",
+            "functions": [
+              {
+                "function": "set_count",
+                "count": {
+                  "min": 1,
+                  "max": 2
+                }
+              }
+            ],
+            "conditions": [
+              {
+                "condition": "table_bonus",
+                "enchantment": "fortune",
+                "chances": [
+                  0.02,
+                  0.022222223,
+                  0.025,
+                  0.033333335,
+                  0.1
+                ]
+              }
+            ]
+          }
+        ]
+      }
+    ]
+  },
+  "blocks/bamboo_sapling": {
+    "//source": "Java Edition vanilla loot table of the same block, with Bedrock identifiers (BDS ships no loot table for this block); not yet measured against BDS",
+    "pools": [
+      {
+        "rolls": 1,
+        "entries": [
+          {
+            "type": "item",
+            "name": "minecraft:bamboo"
+          }
+        ]
+      }
+    ]
+  },
+  "blocks/bamboo_standing_sign": {
+    "//source": "Java Edition vanilla loot table of the same block, with Bedrock identifiers (BDS ships no loot table for this block); not yet measured against BDS",
+    "pools": [
+      {
+        "rolls": 1,
+        "entries": [
+          {
+            "type": "item",
+            "name": "minecraft:bamboo_sign"
+          }
+        ]
+      }
+    ]
+  },
+  "blocks/bamboo_wall_sign": {
+    "//source": "Java Edition vanilla loot table of the same block, with Bedrock identifiers (BDS ships no loot table for this block); not yet measured against BDS",
+    "pools": [
+      {
+        "rolls": 1,
+        "entries": [
+          {
+            "type": "item",
+            "name": "minecraft:bamboo_sign"
+          }
+        ]
+      }
+    ]
+  },
+  "blocks/bee_nest": {
+    "//source": "Java Edition vanilla loot table of the same block, with Bedrock identifiers (BDS ships no loot table for this block); not yet measured against BDS",
+    "pools": [
+      {
+        "rolls": 1,
+        "entries": [
+          {
+            "type": "item",
+            "name": "minecraft:bee_nest",
+            "conditions": [
+              {
+                "condition": "match_tool",
+                "enchantments": [
+                  {
+                    "enchantment": "silk_touch",
+                    "levels": {
+                      "range_min": 1
+                    }
+                  }
+                ]
+              }
+            ]
+          }
+        ]
+      }
+    ]
+  },
+  "blocks/beetroot": {
+    "//source": "Java Edition vanilla loot table of the same block, with Bedrock identifiers (BDS ships no loot table for this block); not yet measured against BDS; mature at growth 7",
+    "pools": [
+      {
+        "rolls": 1,
+        "entries": [
+          {
+            "type": "alternatives",
+            "children": [
+              {
+                "type": "item",
+                "name": "minecraft:beetroot",
+                "conditions": [
+                  {
+                    "condition": "block_state_property",
+                    "properties": {
+                      "growth": 7
+                    }
+                  }
+                ]
+              },
+              {
+                "type": "item",
+                "name": "minecraft:beetroot_seeds"
+              }
+            ]
+          }
+        ]
+      },
+      {
+        "rolls": 1,
+        "conditions": [
+          {
+            "condition": "block_state_property",
+            "properties": {
+              "growth": 7
+            }
+          }
+        ],
+        "entries": [
+          {
+            "type": "item",
+            "name": "minecraft:beetroot_seeds",
+            "functions": [
+              {
+                "function": "apply_bonus",
+                "enchantment": "fortune",
+                "formula": "binomial_with_bonus_count",
+                "parameters": {
+                  "extra": 3,
+                  "probability": 0.5714286
+                }
+              }
+            ]
+          }
+        ]
+      }
+    ]
+  },
+  "blocks/birch_leaves": {
+    "//source": "Java Edition vanilla loot table of the same block, with Bedrock identifiers (BDS ships no loot table for this block); not yet measured against BDS",
+    "pools": [
+      {
+        "rolls": 1,
+        "entries": [
+          {
+            "type": "alternatives",
+            "children": [
+              {
+                "type": "item",
+                "name": "minecraft:birch_leaves",
+                "conditions": [
+                  {
+                    "condition": "match_tool",
+                    "item": "minecraft:shears"
+                  }
+                ]
+              },
+              {
+                "type": "item",
+                "name": "minecraft:birch_leaves",
+                "conditions": [
+                  {
+                    "condition": "match_tool",
+                    "enchantments": [
+                      {
+                        "enchantment": "silk_touch",
+                        "levels": {
+                          "range_min": 1
+                        }
+                      }
+                    ]
+                  }
+                ]
+              },
+              {
+                "type": "item",
+                "name": "minecraft:birch_sapling",
+                "conditions": [
+                  {
+                    "condition": "table_bonus",
+                    "enchantment": "fortune",
+                    "chances": [
+                      0.05,
+                      0.0625,
+                      0.083333336,
+                      0.1
+                    ]
+                  }
+                ]
+              }
+            ]
+          }
+        ]
+      },
+      {
+        "rolls": 1,
+        "conditions": [
+          {
+            "condition": "inverted",
+            "term": {
+              "condition": "match_tool",
+              "item": "minecraft:shears"
+            }
+          },
+          {
+            "condition": "inverted",
+            "term": {
+              "condition": "match_tool",
+              "enchantments": [
+                {
+                  "enchantment": "silk_touch",
+                  "levels": {
+                    "range_min": 1
+                  }
+                }
+              ]
+            }
+          }
+        ],
+        "entries": [
+          {
+            "type": "item",
+            "name": "minecraft:stick",
+            "functions": [
+              {
+                "function": "set_count",
+                "count": {
+                  "min": 1,
+                  "max": 2
+                }
+              }
+            ],
+            "conditions": [
+              {
+                "condition": "table_bonus",
+                "enchantment": "fortune",
+                "chances": [
+                  0.02,
+                  0.022222223,
+                  0.025,
+                  0.033333335,
+                  0.1
+                ]
+              }
+            ]
+          }
+        ]
+      }
+    ]
+  },
+  "blocks/birch_standing_sign": {
+    "//source": "Java Edition vanilla loot table of the same block, with Bedrock identifiers (BDS ships no loot table for this block); not yet measured against BDS",
+    "pools": [
+      {
+        "rolls": 1,
+        "entries": [
+          {
+            "type": "item",
+            "name": "minecraft:birch_sign"
+          }
+        ]
+      }
+    ]
+  },
+  "blocks/birch_wall_sign": {
+    "//source": "Java Edition vanilla loot table of the same block, with Bedrock identifiers (BDS ships no loot table for this block); not yet measured against BDS",
+    "pools": [
+      {
+        "rolls": 1,
+        "entries": [
+          {
+            "type": "item",
+            "name": "minecraft:birch_sign"
+          }
+        ]
+      }
+    ]
+  },
+  "blocks/black_candle_cake": {
+    "//source": "Java Edition vanilla loot table of the same block, with Bedrock identifiers (BDS ships no loot table for this block); not yet measured against BDS",
+    "pools": [
+      {
+        "rolls": 1,
+        "entries": [
+          {
+            "type": "item",
+            "name": "minecraft:black_candle"
+          }
+        ]
+      }
+    ]
+  },
+  "blocks/black_stained_glass": {
+    "//source": "Java Edition vanilla loot table of the same block, with Bedrock identifiers (BDS ships no loot table for this block); not yet measured against BDS",
+    "pools": [
+      {
+        "rolls": 1,
+        "entries": [
+          {
+            "type": "item",
+            "name": "minecraft:black_stained_glass",
+            "conditions": [
+              {
+                "condition": "match_tool",
+                "enchantments": [
+                  {
+                    "enchantment": "silk_touch",
+                    "levels": {
+                      "range_min": 1
+                    }
+                  }
+                ]
+              }
+            ]
+          }
+        ]
+      }
+    ]
+  },
+  "blocks/black_stained_glass_pane": {
+    "//source": "Java Edition vanilla loot table of the same block, with Bedrock identifiers (BDS ships no loot table for this block); not yet measured against BDS",
+    "pools": [
+      {
+        "rolls": 1,
+        "entries": [
+          {
+            "type": "item",
+            "name": "minecraft:black_stained_glass_pane",
+            "conditions": [
+              {
+                "condition": "match_tool",
+                "enchantments": [
+                  {
+                    "enchantment": "silk_touch",
+                    "levels": {
+                      "range_min": 1
+                    }
+                  }
+                ]
+              }
+            ]
+          }
+        ]
+      }
+    ]
+  },
+  "blocks/blue_candle_cake": {
+    "//source": "Java Edition vanilla loot table of the same block, with Bedrock identifiers (BDS ships no loot table for this block); not yet measured against BDS",
+    "pools": [
+      {
+        "rolls": 1,
+        "entries": [
+          {
+            "type": "item",
+            "name": "minecraft:blue_candle"
+          }
+        ]
+      }
+    ]
+  },
+  "blocks/blue_ice": {
+    "//source": "Java Edition vanilla loot table of the same block, with Bedrock identifiers (BDS ships no loot table for this block); not yet measured against BDS",
+    "pools": [
+      {
+        "rolls": 1,
+        "entries": [
+          {
+            "type": "item",
+            "name": "minecraft:blue_ice",
+            "conditions": [
+              {
+                "condition": "match_tool",
+                "enchantments": [
+                  {
+                    "enchantment": "silk_touch",
+                    "levels": {
+                      "range_min": 1
+                    }
+                  }
+                ]
+              }
+            ]
+          }
+        ]
+      }
+    ]
+  },
+  "blocks/blue_stained_glass": {
+    "//source": "Java Edition vanilla loot table of the same block, with Bedrock identifiers (BDS ships no loot table for this block); not yet measured against BDS",
+    "pools": [
+      {
+        "rolls": 1,
+        "entries": [
+          {
+            "type": "item",
+            "name": "minecraft:blue_stained_glass",
+            "conditions": [
+              {
+                "condition": "match_tool",
+                "enchantments": [
+                  {
+                    "enchantment": "silk_touch",
+                    "levels": {
+                      "range_min": 1
+                    }
+                  }
+                ]
+              }
+            ]
+          }
+        ]
+      }
+    ]
+  },
+  "blocks/blue_stained_glass_pane": {
+    "//source": "Java Edition vanilla loot table of the same block, with Bedrock identifiers (BDS ships no loot table for this block); not yet measured against BDS",
+    "pools": [
+      {
+        "rolls": 1,
+        "entries": [
+          {
+            "type": "item",
+            "name": "minecraft:blue_stained_glass_pane",
+            "conditions": [
+              {
+                "condition": "match_tool",
+                "enchantments": [
+                  {
+                    "enchantment": "silk_touch",
+                    "levels": {
+                      "range_min": 1
+                    }
+                  }
+                ]
+              }
+            ]
+          }
+        ]
+      }
+    ]
+  },
+  "blocks/bookshelf": {
+    "//source": "Java Edition vanilla loot table of the same block, with Bedrock identifiers (BDS ships no loot table for this block); not yet measured against BDS",
+    "pools": [
+      {
+        "rolls": 1,
+        "entries": [
+          {
+            "type": "alternatives",
+            "children": [
+              {
+                "type": "item",
+                "name": "minecraft:bookshelf",
+                "conditions": [
+                  {
+                    "condition": "match_tool",
+                    "enchantments": [
+                      {
+                        "enchantment": "silk_touch",
+                        "levels": {
+                          "range_min": 1
+                        }
+                      }
+                    ]
+                  }
+                ]
+              },
+              {
+                "type": "item",
+                "name": "minecraft:book",
+                "functions": [
+                  {
+                    "function": "set_count",
+                    "count": 3
+                  }
+                ]
+              }
+            ]
+          }
+        ]
+      }
+    ]
+  },
+  "blocks/brown_candle_cake": {
+    "//source": "Java Edition vanilla loot table of the same block, with Bedrock identifiers (BDS ships no loot table for this block); not yet measured against BDS",
+    "pools": [
+      {
+        "rolls": 1,
+        "entries": [
+          {
+            "type": "item",
+            "name": "minecraft:brown_candle"
+          }
+        ]
+      }
+    ]
+  },
+  "blocks/brown_stained_glass": {
+    "//source": "Java Edition vanilla loot table of the same block, with Bedrock identifiers (BDS ships no loot table for this block); not yet measured against BDS",
+    "pools": [
+      {
+        "rolls": 1,
+        "entries": [
+          {
+            "type": "item",
+            "name": "minecraft:brown_stained_glass",
+            "conditions": [
+              {
+                "condition": "match_tool",
+                "enchantments": [
+                  {
+                    "enchantment": "silk_touch",
+                    "levels": {
+                      "range_min": 1
+                    }
+                  }
+                ]
+              }
+            ]
+          }
+        ]
+      }
+    ]
+  },
+  "blocks/brown_stained_glass_pane": {
+    "//source": "Java Edition vanilla loot table of the same block, with Bedrock identifiers (BDS ships no loot table for this block); not yet measured against BDS",
+    "pools": [
+      {
+        "rolls": 1,
+        "entries": [
+          {
+            "type": "item",
+            "name": "minecraft:brown_stained_glass_pane",
+            "conditions": [
+              {
+                "condition": "match_tool",
+                "enchantments": [
+                  {
+                    "enchantment": "silk_touch",
+                    "levels": {
+                      "range_min": 1
+                    }
+                  }
+                ]
+              }
+            ]
+          }
+        ]
+      }
+    ]
+  },
+  "blocks/bubble_column": {
+    "//source": "Java Edition vanilla loot table of the same block, with Bedrock identifiers (BDS ships no loot table for this block); not yet measured against BDS; drops nothing",
+    "pools": []
+  },
+  "blocks/budding_amethyst": {
+    "//source": "Java Edition vanilla loot table of the same block, with Bedrock identifiers (BDS ships no loot table for this block); not yet measured against BDS; drops nothing",
+    "pools": []
+  },
+  "blocks/cake": {
+    "//source": "Java Edition vanilla loot table of the same block, with Bedrock identifiers (BDS ships no loot table for this block); not yet measured against BDS; drops nothing",
+    "pools": []
+  },
+  "blocks/candle_cake": {
+    "//source": "Java Edition vanilla loot table of the same block, with Bedrock identifiers (BDS ships no loot table for this block); not yet measured against BDS",
+    "pools": [
+      {
+        "rolls": 1,
+        "entries": [
+          {
+            "type": "item",
+            "name": "minecraft:candle"
+          }
+        ]
+      }
+    ]
+  },
+  "blocks/carrots": {
+    "//source": "Java Edition vanilla loot table of the same block, with Bedrock identifiers (BDS ships no loot table for this block); not yet measured against BDS; mature at growth 7",
+    "pools": [
+      {
+        "rolls": 1,
+        "entries": [
+          {
+            "type": "item",
+            "name": "minecraft:carrot"
+          }
+        ]
+      },
+      {
+        "rolls": 1,
+        "conditions": [
+          {
+            "condition": "block_state_property",
+            "properties": {
+              "growth": 7
+            }
+          }
+        ],
+        "entries": [
+          {
+            "type": "item",
+            "name": "minecraft:carrot",
+            "functions": [
+              {
+                "function": "apply_bonus",
+                "enchantment": "fortune",
+                "formula": "binomial_with_bonus_count",
+                "parameters": {
+                  "extra": 3,
+                  "probability": 0.5714286
+                }
+              }
+            ]
+          }
+        ]
+      }
+    ]
+  },
+  "blocks/cave_vines": {
+    "//source": "Java Edition vanilla loot table of the same block, with Bedrock identifiers (BDS ships no loot table for this block); not yet measured against BDS; berry-less vines drop nothing",
+    "pools": []
+  },
+  "blocks/cave_vines_body_with_berries": {
+    "//source": "Java Edition vanilla loot table of the same block, with Bedrock identifiers (BDS ships no loot table for this block); not yet measured against BDS",
+    "pools": [
+      {
+        "rolls": 1,
+        "entries": [
+          {
+            "type": "item",
+            "name": "minecraft:glow_berries"
+          }
+        ]
+      }
+    ]
+  },
+  "blocks/cave_vines_head_with_berries": {
+    "//source": "Java Edition vanilla loot table of the same block, with Bedrock identifiers (BDS ships no loot table for this block); not yet measured against BDS",
+    "pools": [
+      {
+        "rolls": 1,
+        "entries": [
+          {
+            "type": "item",
+            "name": "minecraft:glow_berries"
+          }
+        ]
+      }
+    ]
+  },
+  "blocks/cherry_leaves": {
+    "//source": "Java Edition vanilla loot table of the same block, with Bedrock identifiers (BDS ships no loot table for this block); not yet measured against BDS",
+    "pools": [
+      {
+        "rolls": 1,
+        "entries": [
+          {
+            "type": "alternatives",
+            "children": [
+              {
+                "type": "item",
+                "name": "minecraft:cherry_leaves",
+                "conditions": [
+                  {
+                    "condition": "match_tool",
+                    "item": "minecraft:shears"
+                  }
+                ]
+              },
+              {
+                "type": "item",
+                "name": "minecraft:cherry_leaves",
+                "conditions": [
+                  {
+                    "condition": "match_tool",
+                    "enchantments": [
+                      {
+                        "enchantment": "silk_touch",
+                        "levels": {
+                          "range_min": 1
+                        }
+                      }
+                    ]
+                  }
+                ]
+              },
+              {
+                "type": "item",
+                "name": "minecraft:cherry_sapling",
+                "conditions": [
+                  {
+                    "condition": "table_bonus",
+                    "enchantment": "fortune",
+                    "chances": [
+                      0.05,
+                      0.0625,
+                      0.083333336,
+                      0.1
+                    ]
+                  }
+                ]
+              }
+            ]
+          }
+        ]
+      },
+      {
+        "rolls": 1,
+        "conditions": [
+          {
+            "condition": "inverted",
+            "term": {
+              "condition": "match_tool",
+              "item": "minecraft:shears"
+            }
+          },
+          {
+            "condition": "inverted",
+            "term": {
+              "condition": "match_tool",
+              "enchantments": [
+                {
+                  "enchantment": "silk_touch",
+                  "levels": {
+                    "range_min": 1
+                  }
+                }
+              ]
+            }
+          }
+        ],
+        "entries": [
+          {
+            "type": "item",
+            "name": "minecraft:stick",
+            "functions": [
+              {
+                "function": "set_count",
+                "count": {
+                  "min": 1,
+                  "max": 2
+                }
+              }
+            ],
+            "conditions": [
+              {
+                "condition": "table_bonus",
+                "enchantment": "fortune",
+                "chances": [
+                  0.02,
+                  0.022222223,
+                  0.025,
+                  0.033333335,
+                  0.1
+                ]
+              }
+            ]
+          }
+        ]
+      }
+    ]
+  },
+  "blocks/cherry_standing_sign": {
+    "//source": "Java Edition vanilla loot table of the same block, with Bedrock identifiers (BDS ships no loot table for this block); not yet measured against BDS",
+    "pools": [
+      {
+        "rolls": 1,
+        "entries": [
+          {
+            "type": "item",
+            "name": "minecraft:cherry_sign"
+          }
+        ]
+      }
+    ]
+  },
+  "blocks/cherry_wall_sign": {
+    "//source": "Java Edition vanilla loot table of the same block, with Bedrock identifiers (BDS ships no loot table for this block); not yet measured against BDS",
+    "pools": [
+      {
+        "rolls": 1,
+        "entries": [
+          {
+            "type": "item",
+            "name": "minecraft:cherry_sign"
+          }
+        ]
+      }
+    ]
+  },
+  "blocks/clay": {
+    "//source": "Java Edition vanilla loot table of the same block, with Bedrock identifiers (BDS ships no loot table for this block); not yet measured against BDS",
+    "pools": [
+      {
+        "rolls": 1,
+        "entries": [
+          {
+            "type": "alternatives",
+            "children": [
+              {
+                "type": "item",
+                "name": "minecraft:clay",
+                "conditions": [
+                  {
+                    "condition": "match_tool",
+                    "enchantments": [
+                      {
+                        "enchantment": "silk_touch",
+                        "levels": {
+                          "range_min": 1
+                        }
+                      }
+                    ]
+                  }
+                ]
+              },
+              {
+                "type": "item",
+                "name": "minecraft:clay_ball",
+                "functions": [
+                  {
+                    "function": "set_count",
+                    "count": 4
+                  }
+                ]
+              }
+            ]
+          }
+        ]
+      }
+    ]
+  },
+  "blocks/coal_ore": {
+    "//source": "Java Edition vanilla loot table of the same block, with Bedrock identifiers (BDS ships no loot table for this block); not yet measured against BDS",
+    "pools": [
+      {
+        "rolls": 1,
+        "entries": [
+          {
+            "type": "alternatives",
+            "children": [
+              {
+                "type": "item",
+                "name": "minecraft:coal_ore",
+                "conditions": [
+                  {
+                    "condition": "match_tool",
+                    "enchantments": [
+                      {
+                        "enchantment": "silk_touch",
+                        "levels": {
+                          "range_min": 1
+                        }
+                      }
+                    ]
+                  }
+                ]
+              },
+              {
+                "type": "item",
+                "name": "minecraft:coal",
+                "functions": [
+                  {
+                    "function": "apply_bonus",
+                    "enchantment": "fortune",
+                    "formula": "ore_drops"
+                  }
+                ]
+              }
+            ]
+          }
+        ]
+      }
+    ]
+  },
+  "blocks/cocoa": {
+    "//source": "Java Edition vanilla loot table of the same block, with Bedrock identifiers (BDS ships no loot table for this block); not yet measured against BDS",
+    "pools": [
+      {
+        "rolls": 1,
+        "entries": [
+          {
+            "type": "alternatives",
+            "children": [
+              {
+                "type": "item",
+                "name": "minecraft:cocoa_beans",
+                "functions": [
+                  {
+                    "function": "set_count",
+                    "count": {
+                      "min": 2,
+                      "max": 3
+                    }
+                  }
+                ],
+                "conditions": [
+                  {
+                    "condition": "block_state_property",
+                    "properties": {
+                      "age": 2
+                    }
+                  }
+                ]
+              },
+              {
+                "type": "item",
+                "name": "minecraft:cocoa_beans"
+              }
+            ]
+          }
+        ]
+      }
+    ]
+  },
+  "blocks/copper_ore": {
+    "//source": "Java Edition vanilla loot table of the same block, with Bedrock identifiers (BDS ships no loot table for this block); not yet measured against BDS",
+    "pools": [
+      {
+        "rolls": 1,
+        "entries": [
+          {
+            "type": "alternatives",
+            "children": [
+              {
+                "type": "item",
+                "name": "minecraft:copper_ore",
+                "conditions": [
+                  {
+                    "condition": "match_tool",
+                    "enchantments": [
+                      {
+                        "enchantment": "silk_touch",
+                        "levels": {
+                          "range_min": 1
+                        }
+                      }
+                    ]
+                  }
+                ]
+              },
+              {
+                "type": "item",
+                "name": "minecraft:raw_copper",
+                "functions": [
+                  {
+                    "function": "set_count",
+                    "count": {
+                      "min": 2,
+                      "max": 5
+                    }
+                  },
+                  {
+                    "function": "apply_bonus",
+                    "enchantment": "fortune",
+                    "formula": "ore_drops"
+                  }
+                ]
+              }
+            ]
+          }
+        ]
+      }
+    ]
+  },
+  "blocks/crimson_standing_sign": {
+    "//source": "Java Edition vanilla loot table of the same block, with Bedrock identifiers (BDS ships no loot table for this block); not yet measured against BDS",
+    "pools": [
+      {
+        "rolls": 1,
+        "entries": [
+          {
+            "type": "item",
+            "name": "minecraft:crimson_sign"
+          }
+        ]
+      }
+    ]
+  },
+  "blocks/crimson_wall_sign": {
+    "//source": "Java Edition vanilla loot table of the same block, with Bedrock identifiers (BDS ships no loot table for this block); not yet measured against BDS",
+    "pools": [
+      {
+        "rolls": 1,
+        "entries": [
+          {
+            "type": "item",
+            "name": "minecraft:crimson_sign"
+          }
+        ]
+      }
+    ]
+  },
+  "blocks/cyan_candle_cake": {
+    "//source": "Java Edition vanilla loot table of the same block, with Bedrock identifiers (BDS ships no loot table for this block); not yet measured against BDS",
+    "pools": [
+      {
+        "rolls": 1,
+        "entries": [
+          {
+            "type": "item",
+            "name": "minecraft:cyan_candle"
+          }
+        ]
+      }
+    ]
+  },
+  "blocks/cyan_stained_glass": {
+    "//source": "Java Edition vanilla loot table of the same block, with Bedrock identifiers (BDS ships no loot table for this block); not yet measured against BDS",
+    "pools": [
+      {
+        "rolls": 1,
+        "entries": [
+          {
+            "type": "item",
+            "name": "minecraft:cyan_stained_glass",
+            "conditions": [
+              {
+                "condition": "match_tool",
+                "enchantments": [
+                  {
+                    "enchantment": "silk_touch",
+                    "levels": {
+                      "range_min": 1
+                    }
+                  }
+                ]
+              }
+            ]
+          }
+        ]
+      }
+    ]
+  },
+  "blocks/cyan_stained_glass_pane": {
+    "//source": "Java Edition vanilla loot table of the same block, with Bedrock identifiers (BDS ships no loot table for this block); not yet measured against BDS",
+    "pools": [
+      {
+        "rolls": 1,
+        "entries": [
+          {
+            "type": "item",
+            "name": "minecraft:cyan_stained_glass_pane",
+            "conditions": [
+              {
+                "condition": "match_tool",
+                "enchantments": [
+                  {
+                    "enchantment": "silk_touch",
+                    "levels": {
+                      "range_min": 1
+                    }
+                  }
+                ]
+              }
+            ]
+          }
+        ]
+      }
+    ]
+  },
+  "blocks/dark_oak_leaves": {
+    "//source": "Java Edition vanilla loot table of the same block, with Bedrock identifiers (BDS ships no loot table for this block); not yet measured against BDS",
+    "pools": [
+      {
+        "rolls": 1,
+        "entries": [
+          {
+            "type": "alternatives",
+            "children": [
+              {
+                "type": "item",
+                "name": "minecraft:dark_oak_leaves",
+                "conditions": [
+                  {
+                    "condition": "match_tool",
+                    "item": "minecraft:shears"
+                  }
+                ]
+              },
+              {
+                "type": "item",
+                "name": "minecraft:dark_oak_leaves",
+                "conditions": [
+                  {
+                    "condition": "match_tool",
+                    "enchantments": [
+                      {
+                        "enchantment": "silk_touch",
+                        "levels": {
+                          "range_min": 1
+                        }
+                      }
+                    ]
+                  }
+                ]
+              },
+              {
+                "type": "item",
+                "name": "minecraft:dark_oak_sapling",
+                "conditions": [
+                  {
+                    "condition": "table_bonus",
+                    "enchantment": "fortune",
+                    "chances": [
+                      0.05,
+                      0.0625,
+                      0.083333336,
+                      0.1
+                    ]
+                  }
+                ]
+              }
+            ]
+          }
+        ]
+      },
+      {
+        "rolls": 1,
+        "conditions": [
+          {
+            "condition": "inverted",
+            "term": {
+              "condition": "match_tool",
+              "item": "minecraft:shears"
+            }
+          },
+          {
+            "condition": "inverted",
+            "term": {
+              "condition": "match_tool",
+              "enchantments": [
+                {
+                  "enchantment": "silk_touch",
+                  "levels": {
+                    "range_min": 1
+                  }
+                }
+              ]
+            }
+          }
+        ],
+        "entries": [
+          {
+            "type": "item",
+            "name": "minecraft:stick",
+            "functions": [
+              {
+                "function": "set_count",
+                "count": {
+                  "min": 1,
+                  "max": 2
+                }
+              }
+            ],
+            "conditions": [
+              {
+                "condition": "table_bonus",
+                "enchantment": "fortune",
+                "chances": [
+                  0.02,
+                  0.022222223,
+                  0.025,
+                  0.033333335,
+                  0.1
+                ]
+              }
+            ]
+          }
+        ]
+      },
+      {
+        "rolls": 1,
+        "conditions": [
+          {
+            "condition": "inverted",
+            "term": {
+              "condition": "match_tool",
+              "item": "minecraft:shears"
+            }
+          },
+          {
+            "condition": "inverted",
+            "term": {
+              "condition": "match_tool",
+              "enchantments": [
+                {
+                  "enchantment": "silk_touch",
+                  "levels": {
+                    "range_min": 1
+                  }
+                }
+              ]
+            }
+          }
+        ],
+        "entries": [
+          {
+            "type": "item",
+            "name": "minecraft:apple",
+            "conditions": [
+              {
+                "condition": "table_bonus",
+                "enchantment": "fortune",
+                "chances": [
+                  0.005,
+                  0.0055555557,
+                  0.00625,
+                  0.008333334,
+                  0.025
+                ]
+              }
+            ]
+          }
+        ]
+      }
+    ]
+  },
+  "blocks/darkoak_standing_sign": {
+    "//source": "Java Edition vanilla loot table of the same block, with Bedrock identifiers (BDS ships no loot table for this block); not yet measured against BDS",
+    "pools": [
+      {
+        "rolls": 1,
+        "entries": [
+          {
+            "type": "item",
+            "name": "minecraft:dark_oak_sign"
+          }
+        ]
+      }
+    ]
+  },
+  "blocks/darkoak_wall_sign": {
+    "//source": "Java Edition vanilla loot table of the same block, with Bedrock identifiers (BDS ships no loot table for this block); not yet measured against BDS",
+    "pools": [
+      {
+        "rolls": 1,
+        "entries": [
+          {
+            "type": "item",
+            "name": "minecraft:dark_oak_sign"
+          }
+        ]
+      }
+    ]
+  },
+  "blocks/daylight_detector_inverted": {
+    "//source": "Java Edition vanilla loot table of the same block, with Bedrock identifiers (BDS ships no loot table for this block); not yet measured against BDS",
+    "pools": [
+      {
+        "rolls": 1,
+        "entries": [
+          {
+            "type": "item",
+            "name": "minecraft:daylight_detector"
+          }
+        ]
+      }
+    ]
+  },
+  "blocks/deadbush": {
+    "//source": "Java Edition vanilla loot table of the same block, with Bedrock identifiers (BDS ships no loot table for this block); not yet measured against BDS",
+    "pools": [
+      {
+        "rolls": 1,
+        "entries": [
+          {
+            "type": "alternatives",
+            "children": [
+              {
+                "type": "item",
+                "name": "minecraft:deadbush",
+                "conditions": [
+                  {
+                    "condition": "match_tool",
+                    "item": "minecraft:shears"
+                  }
+                ]
+              },
+              {
+                "type": "item",
+                "name": "minecraft:stick",
+                "functions": [
+                  {
+                    "function": "set_count",
+                    "count": {
+                      "min": 0,
+                      "max": 2
+                    }
+                  }
+                ]
+              }
+            ]
+          }
+        ]
+      }
+    ]
+  },
+  "blocks/deepslate": {
+    "//source": "Java Edition vanilla loot table of the same block, with Bedrock identifiers (BDS ships no loot table for this block); not yet measured against BDS",
+    "pools": [
+      {
+        "rolls": 1,
+        "entries": [
+          {
+            "type": "alternatives",
+            "children": [
+              {
+                "type": "item",
+                "name": "minecraft:deepslate",
+                "conditions": [
+                  {
+                    "condition": "match_tool",
+                    "enchantments": [
+                      {
+                        "enchantment": "silk_touch",
+                        "levels": {
+                          "range_min": 1
+                        }
+                      }
+                    ]
+                  }
+                ]
+              },
+              {
+                "type": "item",
+                "name": "minecraft:cobbled_deepslate"
+              }
+            ]
+          }
+        ]
+      }
+    ]
+  },
+  "blocks/deepslate_coal_ore": {
+    "//source": "Java Edition vanilla loot table of the same block, with Bedrock identifiers (BDS ships no loot table for this block); not yet measured against BDS",
+    "pools": [
+      {
+        "rolls": 1,
+        "entries": [
+          {
+            "type": "alternatives",
+            "children": [
+              {
+                "type": "item",
+                "name": "minecraft:deepslate_coal_ore",
+                "conditions": [
+                  {
+                    "condition": "match_tool",
+                    "enchantments": [
+                      {
+                        "enchantment": "silk_touch",
+                        "levels": {
+                          "range_min": 1
+                        }
+                      }
+                    ]
+                  }
+                ]
+              },
+              {
+                "type": "item",
+                "name": "minecraft:coal",
+                "functions": [
+                  {
+                    "function": "apply_bonus",
+                    "enchantment": "fortune",
+                    "formula": "ore_drops"
+                  }
+                ]
+              }
+            ]
+          }
+        ]
+      }
+    ]
+  },
+  "blocks/deepslate_copper_ore": {
+    "//source": "Java Edition vanilla loot table of the same block, with Bedrock identifiers (BDS ships no loot table for this block); not yet measured against BDS",
+    "pools": [
+      {
+        "rolls": 1,
+        "entries": [
+          {
+            "type": "alternatives",
+            "children": [
+              {
+                "type": "item",
+                "name": "minecraft:deepslate_copper_ore",
+                "conditions": [
+                  {
+                    "condition": "match_tool",
+                    "enchantments": [
+                      {
+                        "enchantment": "silk_touch",
+                        "levels": {
+                          "range_min": 1
+                        }
+                      }
+                    ]
+                  }
+                ]
+              },
+              {
+                "type": "item",
+                "name": "minecraft:raw_copper",
+                "functions": [
+                  {
+                    "function": "set_count",
+                    "count": {
+                      "min": 2,
+                      "max": 5
+                    }
+                  },
+                  {
+                    "function": "apply_bonus",
+                    "enchantment": "fortune",
+                    "formula": "ore_drops"
+                  }
+                ]
+              }
+            ]
+          }
+        ]
+      }
+    ]
+  },
+  "blocks/deepslate_diamond_ore": {
+    "//source": "Java Edition vanilla loot table of the same block, with Bedrock identifiers (BDS ships no loot table for this block); not yet measured against BDS",
+    "pools": [
+      {
+        "rolls": 1,
+        "entries": [
+          {
+            "type": "alternatives",
+            "children": [
+              {
+                "type": "item",
+                "name": "minecraft:deepslate_diamond_ore",
+                "conditions": [
+                  {
+                    "condition": "match_tool",
+                    "enchantments": [
+                      {
+                        "enchantment": "silk_touch",
+                        "levels": {
+                          "range_min": 1
+                        }
+                      }
+                    ]
+                  }
+                ]
+              },
+              {
+                "type": "item",
+                "name": "minecraft:diamond",
+                "functions": [
+                  {
+                    "function": "apply_bonus",
+                    "enchantment": "fortune",
+                    "formula": "ore_drops"
+                  }
+                ]
+              }
+            ]
+          }
+        ]
+      }
+    ]
+  },
+  "blocks/deepslate_emerald_ore": {
+    "//source": "Java Edition vanilla loot table of the same block, with Bedrock identifiers (BDS ships no loot table for this block); not yet measured against BDS",
+    "pools": [
+      {
+        "rolls": 1,
+        "entries": [
+          {
+            "type": "alternatives",
+            "children": [
+              {
+                "type": "item",
+                "name": "minecraft:deepslate_emerald_ore",
+                "conditions": [
+                  {
+                    "condition": "match_tool",
+                    "enchantments": [
+                      {
+                        "enchantment": "silk_touch",
+                        "levels": {
+                          "range_min": 1
+                        }
+                      }
+                    ]
+                  }
+                ]
+              },
+              {
+                "type": "item",
+                "name": "minecraft:emerald",
+                "functions": [
+                  {
+                    "function": "apply_bonus",
+                    "enchantment": "fortune",
+                    "formula": "ore_drops"
+                  }
+                ]
+              }
+            ]
+          }
+        ]
+      }
+    ]
+  },
+  "blocks/deepslate_gold_ore": {
+    "//source": "Java Edition vanilla loot table of the same block, with Bedrock identifiers (BDS ships no loot table for this block); not yet measured against BDS",
+    "pools": [
+      {
+        "rolls": 1,
+        "entries": [
+          {
+            "type": "alternatives",
+            "children": [
+              {
+                "type": "item",
+                "name": "minecraft:deepslate_gold_ore",
+                "conditions": [
+                  {
+                    "condition": "match_tool",
+                    "enchantments": [
+                      {
+                        "enchantment": "silk_touch",
+                        "levels": {
+                          "range_min": 1
+                        }
+                      }
+                    ]
+                  }
+                ]
+              },
+              {
+                "type": "item",
+                "name": "minecraft:raw_gold",
+                "functions": [
+                  {
+                    "function": "apply_bonus",
+                    "enchantment": "fortune",
+                    "formula": "ore_drops"
+                  }
+                ]
+              }
+            ]
+          }
+        ]
+      }
+    ]
+  },
+  "blocks/deepslate_iron_ore": {
+    "//source": "Java Edition vanilla loot table of the same block, with Bedrock identifiers (BDS ships no loot table for this block); not yet measured against BDS",
+    "pools": [
+      {
+        "rolls": 1,
+        "entries": [
+          {
+            "type": "alternatives",
+            "children": [
+              {
+                "type": "item",
+                "name": "minecraft:deepslate_iron_ore",
+                "conditions": [
+                  {
+                    "condition": "match_tool",
+                    "enchantments": [
+                      {
+                        "enchantment": "silk_touch",
+                        "levels": {
+                          "range_min": 1
+                        }
+                      }
+                    ]
+                  }
+                ]
+              },
+              {
+                "type": "item",
+                "name": "minecraft:raw_iron",
+                "functions": [
+                  {
+                    "function": "apply_bonus",
+                    "enchantment": "fortune",
+                    "formula": "ore_drops"
+                  }
+                ]
+              }
+            ]
+          }
+        ]
+      }
+    ]
+  },
+  "blocks/deepslate_lapis_ore": {
+    "//source": "Java Edition vanilla loot table of the same block, with Bedrock identifiers (BDS ships no loot table for this block); not yet measured against BDS",
+    "pools": [
+      {
+        "rolls": 1,
+        "entries": [
+          {
+            "type": "alternatives",
+            "children": [
+              {
+                "type": "item",
+                "name": "minecraft:deepslate_lapis_ore",
+                "conditions": [
+                  {
+                    "condition": "match_tool",
+                    "enchantments": [
+                      {
+                        "enchantment": "silk_touch",
+                        "levels": {
+                          "range_min": 1
+                        }
+                      }
+                    ]
+                  }
+                ]
+              },
+              {
+                "type": "item",
+                "name": "minecraft:lapis_lazuli",
+                "functions": [
+                  {
+                    "function": "set_count",
+                    "count": {
+                      "min": 4,
+                      "max": 9
+                    }
+                  },
+                  {
+                    "function": "apply_bonus",
+                    "enchantment": "fortune",
+                    "formula": "ore_drops"
+                  }
+                ]
+              }
+            ]
+          }
+        ]
+      }
+    ]
+  },
+  "blocks/deepslate_redstone_ore": {
+    "//source": "Java Edition vanilla loot table of the same block, with Bedrock identifiers (BDS ships no loot table for this block); not yet measured against BDS",
+    "pools": [
+      {
+        "rolls": 1,
+        "entries": [
+          {
+            "type": "alternatives",
+            "children": [
+              {
+                "type": "item",
+                "name": "minecraft:deepslate_redstone_ore",
+                "conditions": [
+                  {
+                    "condition": "match_tool",
+                    "enchantments": [
+                      {
+                        "enchantment": "silk_touch",
+                        "levels": {
+                          "range_min": 1
+                        }
+                      }
+                    ]
+                  }
+                ]
+              },
+              {
+                "type": "item",
+                "name": "minecraft:redstone",
+                "functions": [
+                  {
+                    "function": "set_count",
+                    "count": {
+                      "min": 4,
+                      "max": 5
+                    }
+                  },
+                  {
+                    "function": "apply_bonus",
+                    "enchantment": "fortune",
+                    "formula": "uniform_bonus_count",
+                    "parameters": {
+                      "bonusMultiplier": 1
+                    }
+                  }
+                ]
+              }
+            ]
+          }
+        ]
+      }
+    ]
+  },
+  "blocks/diamond_ore": {
+    "//source": "Java Edition vanilla loot table of the same block, with Bedrock identifiers (BDS ships no loot table for this block); not yet measured against BDS",
+    "pools": [
+      {
+        "rolls": 1,
+        "entries": [
+          {
+            "type": "alternatives",
+            "children": [
+              {
+                "type": "item",
+                "name": "minecraft:diamond_ore",
+                "conditions": [
+                  {
+                    "condition": "match_tool",
+                    "enchantments": [
+                      {
+                        "enchantment": "silk_touch",
+                        "levels": {
+                          "range_min": 1
+                        }
+                      }
+                    ]
+                  }
+                ]
+              },
+              {
+                "type": "item",
+                "name": "minecraft:diamond",
+                "functions": [
+                  {
+                    "function": "apply_bonus",
+                    "enchantment": "fortune",
+                    "formula": "ore_drops"
+                  }
+                ]
+              }
+            ]
+          }
+        ]
+      }
+    ]
+  },
+  "blocks/emerald_ore": {
+    "//source": "Java Edition vanilla loot table of the same block, with Bedrock identifiers (BDS ships no loot table for this block); not yet measured against BDS",
+    "pools": [
+      {
+        "rolls": 1,
+        "entries": [
+          {
+            "type": "alternatives",
+            "children": [
+              {
+                "type": "item",
+                "name": "minecraft:emerald_ore",
+                "conditions": [
+                  {
+                    "condition": "match_tool",
+                    "enchantments": [
+                      {
+                        "enchantment": "silk_touch",
+                        "levels": {
+                          "range_min": 1
+                        }
+                      }
+                    ]
+                  }
+                ]
+              },
+              {
+                "type": "item",
+                "name": "minecraft:emerald",
+                "functions": [
+                  {
+                    "function": "apply_bonus",
+                    "enchantment": "fortune",
+                    "formula": "ore_drops"
+                  }
+                ]
+              }
+            ]
+          }
+        ]
+      }
+    ]
+  },
+  "blocks/end_gateway": {
+    "//source": "Java Edition vanilla loot table of the same block, with Bedrock identifiers (BDS ships no loot table for this block); not yet measured against BDS; drops nothing",
+    "pools": []
+  },
+  "blocks/end_portal": {
+    "//source": "Java Edition vanilla loot table of the same block, with Bedrock identifiers (BDS ships no loot table for this block); not yet measured against BDS; drops nothing",
+    "pools": []
+  },
+  "blocks/farmland": {
+    "//source": "Java Edition vanilla loot table of the same block, with Bedrock identifiers (BDS ships no loot table for this block); not yet measured against BDS",
+    "pools": [
+      {
+        "rolls": 1,
+        "entries": [
+          {
+            "type": "item",
+            "name": "minecraft:dirt"
+          }
+        ]
+      }
+    ]
+  },
+  "blocks/fern": {
+    "//source": "Java Edition vanilla loot table of the same block, with Bedrock identifiers (BDS ships no loot table for this block); not yet measured against BDS",
+    "pools": [
+      {
+        "rolls": 1,
+        "entries": [
+          {
+            "type": "alternatives",
+            "children": [
+              {
+                "type": "item",
+                "name": "minecraft:fern",
+                "conditions": [
+                  {
+                    "condition": "match_tool",
+                    "item": "minecraft:shears"
+                  }
+                ]
+              },
+              {
+                "type": "item",
+                "name": "minecraft:wheat_seeds",
+                "functions": [
+                  {
+                    "function": "apply_bonus",
+                    "enchantment": "fortune",
+                    "formula": "uniform_bonus_count",
+                    "parameters": {
+                      "bonusMultiplier": 2
+                    }
+                  }
+                ],
+                "conditions": [
+                  {
+                    "condition": "random_chance",
+                    "chance": 0.125
+                  }
+                ]
+              }
+            ]
+          }
+        ]
+      }
+    ]
+  },
+  "blocks/fire": {
+    "//source": "Java Edition vanilla loot table of the same block, with Bedrock identifiers (BDS ships no loot table for this block); not yet measured against BDS; drops nothing",
+    "pools": []
+  },
+  "blocks/flowing_lava": {
+    "//source": "Java Edition vanilla loot table of the same block, with Bedrock identifiers (BDS ships no loot table for this block); not yet measured against BDS; drops nothing",
+    "pools": []
+  },
+  "blocks/flowing_water": {
+    "//source": "Java Edition vanilla loot table of the same block, with Bedrock identifiers (BDS ships no loot table for this block); not yet measured against BDS; drops nothing",
+    "pools": []
+  },
+  "blocks/frog_spawn": {
+    "//source": "Java Edition vanilla loot table of the same block, with Bedrock identifiers (BDS ships no loot table for this block); not yet measured against BDS; drops nothing",
+    "pools": []
+  },
+  "blocks/frosted_ice": {
+    "//source": "Java Edition vanilla loot table of the same block, with Bedrock identifiers (BDS ships no loot table for this block); not yet measured against BDS; drops nothing",
+    "pools": []
+  },
+  "blocks/glass": {
+    "//source": "Java Edition vanilla loot table of the same block, with Bedrock identifiers (BDS ships no loot table for this block); not yet measured against BDS",
+    "pools": [
+      {
+        "rolls": 1,
+        "entries": [
+          {
+            "type": "item",
+            "name": "minecraft:glass",
+            "conditions": [
+              {
+                "condition": "match_tool",
+                "enchantments": [
+                  {
+                    "enchantment": "silk_touch",
+                    "levels": {
+                      "range_min": 1
+                    }
+                  }
+                ]
+              }
+            ]
+          }
+        ]
+      }
+    ]
+  },
+  "blocks/glass_pane": {
+    "//source": "Java Edition vanilla loot table of the same block, with Bedrock identifiers (BDS ships no loot table for this block); not yet measured against BDS",
+    "pools": [
+      {
+        "rolls": 1,
+        "entries": [
+          {
+            "type": "item",
+            "name": "minecraft:glass_pane",
+            "conditions": [
+              {
+                "condition": "match_tool",
+                "enchantments": [
+                  {
+                    "enchantment": "silk_touch",
+                    "levels": {
+                      "range_min": 1
+                    }
+                  }
+                ]
+              }
+            ]
+          }
+        ]
+      }
+    ]
+  },
+  "blocks/glow_lichen": {
+    "//source": "Java Edition vanilla loot table of the same block, with Bedrock identifiers (BDS ships no loot table for this block); not yet measured against BDS",
+    "pools": [
+      {
+        "rolls": 1,
+        "entries": [
+          {
+            "type": "item",
+            "name": "minecraft:glow_lichen",
+            "conditions": [
+              {
+                "condition": "match_tool",
+                "item": "minecraft:shears"
+              }
+            ]
+          }
+        ]
+      }
+    ]
+  },
+  "blocks/glowstone": {
+    "//source": "Java Edition vanilla loot table of the same block, with Bedrock identifiers (BDS ships no loot table for this block); not yet measured against BDS",
+    "pools": [
+      {
+        "rolls": 1,
+        "entries": [
+          {
+            "type": "alternatives",
+            "children": [
+              {
+                "type": "item",
+                "name": "minecraft:glowstone",
+                "conditions": [
+                  {
+                    "condition": "match_tool",
+                    "enchantments": [
+                      {
+                        "enchantment": "silk_touch",
+                        "levels": {
+                          "range_min": 1
+                        }
+                      }
+                    ]
+                  }
+                ]
+              },
+              {
+                "type": "item",
+                "name": "minecraft:glowstone_dust",
+                "functions": [
+                  {
+                    "function": "set_count",
+                    "count": {
+                      "min": 2,
+                      "max": 4
+                    }
+                  },
+                  {
+                    "function": "apply_bonus",
+                    "enchantment": "fortune",
+                    "formula": "uniform_bonus_count",
+                    "parameters": {
+                      "bonusMultiplier": 1
+                    }
+                  },
+                  {
+                    "function": "limit_count",
+                    "limit": {
+                      "min": 1,
+                      "max": 4
+                    }
+                  }
+                ]
+              }
+            ]
+          }
+        ]
+      }
+    ]
+  },
+  "blocks/gold_ore": {
+    "//source": "Java Edition vanilla loot table of the same block, with Bedrock identifiers (BDS ships no loot table for this block); not yet measured against BDS",
+    "pools": [
+      {
+        "rolls": 1,
+        "entries": [
+          {
+            "type": "alternatives",
+            "children": [
+              {
+                "type": "item",
+                "name": "minecraft:gold_ore",
+                "conditions": [
+                  {
+                    "condition": "match_tool",
+                    "enchantments": [
+                      {
+                        "enchantment": "silk_touch",
+                        "levels": {
+                          "range_min": 1
+                        }
+                      }
+                    ]
+                  }
+                ]
+              },
+              {
+                "type": "item",
+                "name": "minecraft:raw_gold",
+                "functions": [
+                  {
+                    "function": "apply_bonus",
+                    "enchantment": "fortune",
+                    "formula": "ore_drops"
+                  }
+                ]
+              }
+            ]
+          }
+        ]
+      }
+    ]
+  },
+  "blocks/grass_block": {
+    "//source": "Java Edition vanilla loot table of the same block, with Bedrock identifiers (BDS ships no loot table for this block); not yet measured against BDS",
+    "pools": [
+      {
+        "rolls": 1,
+        "entries": [
+          {
+            "type": "alternatives",
+            "children": [
+              {
+                "type": "item",
+                "name": "minecraft:grass_block",
+                "conditions": [
+                  {
+                    "condition": "match_tool",
+                    "enchantments": [
+                      {
+                        "enchantment": "silk_touch",
+                        "levels": {
+                          "range_min": 1
+                        }
+                      }
+                    ]
+                  }
+                ]
+              },
+              {
+                "type": "item",
+                "name": "minecraft:dirt"
+              }
+            ]
+          }
+        ]
+      }
+    ]
+  },
+  "blocks/grass_path": {
+    "//source": "Java Edition vanilla loot table of the same block, with Bedrock identifiers (BDS ships no loot table for this block); not yet measured against BDS",
+    "pools": [
+      {
+        "rolls": 1,
+        "entries": [
+          {
+            "type": "item",
+            "name": "minecraft:dirt"
+          }
+        ]
+      }
+    ]
+  },
+  "blocks/gravel": {
+    "//source": "Java Edition vanilla loot table of the same block, with Bedrock identifiers (BDS ships no loot table for this block); not yet measured against BDS",
+    "pools": [
+      {
+        "rolls": 1,
+        "entries": [
+          {
+            "type": "alternatives",
+            "children": [
+              {
+                "type": "item",
+                "name": "minecraft:gravel",
+                "conditions": [
+                  {
+                    "condition": "match_tool",
+                    "enchantments": [
+                      {
+                        "enchantment": "silk_touch",
+                        "levels": {
+                          "range_min": 1
+                        }
+                      }
+                    ]
+                  }
+                ]
+              },
+              {
+                "type": "item",
+                "name": "minecraft:flint",
+                "conditions": [
+                  {
+                    "condition": "table_bonus",
+                    "enchantment": "fortune",
+                    "chances": [
+                      0.1,
+                      0.14285715,
+                      0.25,
+                      1.0
+                    ]
+                  }
+                ]
+              },
+              {
+                "type": "item",
+                "name": "minecraft:gravel"
+              }
+            ]
+          }
+        ]
+      }
+    ]
+  },
+  "blocks/gray_candle_cake": {
+    "//source": "Java Edition vanilla loot table of the same block, with Bedrock identifiers (BDS ships no loot table for this block); not yet measured against BDS",
+    "pools": [
+      {
+        "rolls": 1,
+        "entries": [
+          {
+            "type": "item",
+            "name": "minecraft:gray_candle"
+          }
+        ]
+      }
+    ]
+  },
+  "blocks/gray_stained_glass": {
+    "//source": "Java Edition vanilla loot table of the same block, with Bedrock identifiers (BDS ships no loot table for this block); not yet measured against BDS",
+    "pools": [
+      {
+        "rolls": 1,
+        "entries": [
+          {
+            "type": "item",
+            "name": "minecraft:gray_stained_glass",
+            "conditions": [
+              {
+                "condition": "match_tool",
+                "enchantments": [
+                  {
+                    "enchantment": "silk_touch",
+                    "levels": {
+                      "range_min": 1
+                    }
+                  }
+                ]
+              }
+            ]
+          }
+        ]
+      }
+    ]
+  },
+  "blocks/gray_stained_glass_pane": {
+    "//source": "Java Edition vanilla loot table of the same block, with Bedrock identifiers (BDS ships no loot table for this block); not yet measured against BDS",
+    "pools": [
+      {
+        "rolls": 1,
+        "entries": [
+          {
+            "type": "item",
+            "name": "minecraft:gray_stained_glass_pane",
+            "conditions": [
+              {
+                "condition": "match_tool",
+                "enchantments": [
+                  {
+                    "enchantment": "silk_touch",
+                    "levels": {
+                      "range_min": 1
+                    }
+                  }
+                ]
+              }
+            ]
+          }
+        ]
+      }
+    ]
+  },
+  "blocks/green_candle_cake": {
+    "//source": "Java Edition vanilla loot table of the same block, with Bedrock identifiers (BDS ships no loot table for this block); not yet measured against BDS",
+    "pools": [
+      {
+        "rolls": 1,
+        "entries": [
+          {
+            "type": "item",
+            "name": "minecraft:green_candle"
+          }
+        ]
+      }
+    ]
+  },
+  "blocks/green_stained_glass": {
+    "//source": "Java Edition vanilla loot table of the same block, with Bedrock identifiers (BDS ships no loot table for this block); not yet measured against BDS",
+    "pools": [
+      {
+        "rolls": 1,
+        "entries": [
+          {
+            "type": "item",
+            "name": "minecraft:green_stained_glass",
+            "conditions": [
+              {
+                "condition": "match_tool",
+                "enchantments": [
+                  {
+                    "enchantment": "silk_touch",
+                    "levels": {
+                      "range_min": 1
+                    }
+                  }
+                ]
+              }
+            ]
+          }
+        ]
+      }
+    ]
+  },
+  "blocks/green_stained_glass_pane": {
+    "//source": "Java Edition vanilla loot table of the same block, with Bedrock identifiers (BDS ships no loot table for this block); not yet measured against BDS",
+    "pools": [
+      {
+        "rolls": 1,
+        "entries": [
+          {
+            "type": "item",
+            "name": "minecraft:green_stained_glass_pane",
+            "conditions": [
+              {
+                "condition": "match_tool",
+                "enchantments": [
+                  {
+                    "enchantment": "silk_touch",
+                    "levels": {
+                      "range_min": 1
+                    }
+                  }
+                ]
+              }
+            ]
+          }
+        ]
+      }
+    ]
+  },
+  "blocks/hanging_roots": {
+    "//source": "Java Edition vanilla loot table of the same block, with Bedrock identifiers (BDS ships no loot table for this block); not yet measured against BDS",
+    "pools": [
+      {
+        "rolls": 1,
+        "entries": [
+          {
+            "type": "item",
+            "name": "minecraft:hanging_roots",
+            "conditions": [
+              {
+                "condition": "match_tool",
+                "item": "minecraft:shears"
+              }
+            ]
+          }
+        ]
+      }
+    ]
+  },
+  "blocks/ice": {
+    "//source": "Java Edition vanilla loot table of the same block, with Bedrock identifiers (BDS ships no loot table for this block); not yet measured against BDS",
+    "pools": [
+      {
+        "rolls": 1,
+        "entries": [
+          {
+            "type": "item",
+            "name": "minecraft:ice",
+            "conditions": [
+              {
+                "condition": "match_tool",
+                "enchantments": [
+                  {
+                    "enchantment": "silk_touch",
+                    "levels": {
+                      "range_min": 1
+                    }
+                  }
+                ]
+              }
+            ]
+          }
+        ]
+      }
+    ]
+  },
+  "blocks/infested_chiseled_stone_bricks": {
+    "//source": "Java Edition vanilla loot table of the same block, with Bedrock identifiers (BDS ships no loot table for this block); not yet measured against BDS",
+    "pools": [
+      {
+        "rolls": 1,
+        "entries": [
+          {
+            "type": "item",
+            "name": "minecraft:infested_chiseled_stone_bricks",
+            "conditions": [
+              {
+                "condition": "match_tool",
+                "enchantments": [
+                  {
+                    "enchantment": "silk_touch",
+                    "levels": {
+                      "range_min": 1
+                    }
+                  }
+                ]
+              }
+            ]
+          }
+        ]
+      }
+    ]
+  },
+  "blocks/infested_cobblestone": {
+    "//source": "Java Edition vanilla loot table of the same block, with Bedrock identifiers (BDS ships no loot table for this block); not yet measured against BDS",
+    "pools": [
+      {
+        "rolls": 1,
+        "entries": [
+          {
+            "type": "item",
+            "name": "minecraft:infested_cobblestone",
+            "conditions": [
+              {
+                "condition": "match_tool",
+                "enchantments": [
+                  {
+                    "enchantment": "silk_touch",
+                    "levels": {
+                      "range_min": 1
+                    }
+                  }
+                ]
+              }
+            ]
+          }
+        ]
+      }
+    ]
+  },
+  "blocks/infested_cracked_stone_bricks": {
+    "//source": "Java Edition vanilla loot table of the same block, with Bedrock identifiers (BDS ships no loot table for this block); not yet measured against BDS",
+    "pools": [
+      {
+        "rolls": 1,
+        "entries": [
+          {
+            "type": "item",
+            "name": "minecraft:infested_cracked_stone_bricks",
+            "conditions": [
+              {
+                "condition": "match_tool",
+                "enchantments": [
+                  {
+                    "enchantment": "silk_touch",
+                    "levels": {
+                      "range_min": 1
+                    }
+                  }
+                ]
+              }
+            ]
+          }
+        ]
+      }
+    ]
+  },
+  "blocks/infested_deepslate": {
+    "//source": "Java Edition vanilla loot table of the same block, with Bedrock identifiers (BDS ships no loot table for this block); not yet measured against BDS",
+    "pools": [
+      {
+        "rolls": 1,
+        "entries": [
+          {
+            "type": "item",
+            "name": "minecraft:infested_deepslate",
+            "conditions": [
+              {
+                "condition": "match_tool",
+                "enchantments": [
+                  {
+                    "enchantment": "silk_touch",
+                    "levels": {
+                      "range_min": 1
+                    }
+                  }
+                ]
+              }
+            ]
+          }
+        ]
+      }
+    ]
+  },
+  "blocks/infested_mossy_stone_bricks": {
+    "//source": "Java Edition vanilla loot table of the same block, with Bedrock identifiers (BDS ships no loot table for this block); not yet measured against BDS",
+    "pools": [
+      {
+        "rolls": 1,
+        "entries": [
+          {
+            "type": "item",
+            "name": "minecraft:infested_mossy_stone_bricks",
+            "conditions": [
+              {
+                "condition": "match_tool",
+                "enchantments": [
+                  {
+                    "enchantment": "silk_touch",
+                    "levels": {
+                      "range_min": 1
+                    }
+                  }
+                ]
+              }
+            ]
+          }
+        ]
+      }
+    ]
+  },
+  "blocks/infested_stone": {
+    "//source": "Java Edition vanilla loot table of the same block, with Bedrock identifiers (BDS ships no loot table for this block); not yet measured against BDS",
+    "pools": [
+      {
+        "rolls": 1,
+        "entries": [
+          {
+            "type": "item",
+            "name": "minecraft:infested_stone",
+            "conditions": [
+              {
+                "condition": "match_tool",
+                "enchantments": [
+                  {
+                    "enchantment": "silk_touch",
+                    "levels": {
+                      "range_min": 1
+                    }
+                  }
+                ]
+              }
+            ]
+          }
+        ]
+      }
+    ]
+  },
+  "blocks/infested_stone_bricks": {
+    "//source": "Java Edition vanilla loot table of the same block, with Bedrock identifiers (BDS ships no loot table for this block); not yet measured against BDS",
+    "pools": [
+      {
+        "rolls": 1,
+        "entries": [
+          {
+            "type": "item",
+            "name": "minecraft:infested_stone_bricks",
+            "conditions": [
+              {
+                "condition": "match_tool",
+                "enchantments": [
+                  {
+                    "enchantment": "silk_touch",
+                    "levels": {
+                      "range_min": 1
+                    }
+                  }
+                ]
+              }
+            ]
+          }
+        ]
+      }
+    ]
+  },
+  "blocks/iron_ore": {
+    "//source": "Java Edition vanilla loot table of the same block, with Bedrock identifiers (BDS ships no loot table for this block); not yet measured against BDS",
+    "pools": [
+      {
+        "rolls": 1,
+        "entries": [
+          {
+            "type": "alternatives",
+            "children": [
+              {
+                "type": "item",
+                "name": "minecraft:iron_ore",
+                "conditions": [
+                  {
+                    "condition": "match_tool",
+                    "enchantments": [
+                      {
+                        "enchantment": "silk_touch",
+                        "levels": {
+                          "range_min": 1
+                        }
+                      }
+                    ]
+                  }
+                ]
+              },
+              {
+                "type": "item",
+                "name": "minecraft:raw_iron",
+                "functions": [
+                  {
+                    "function": "apply_bonus",
+                    "enchantment": "fortune",
+                    "formula": "ore_drops"
+                  }
+                ]
+              }
+            ]
+          }
+        ]
+      }
+    ]
+  },
+  "blocks/jungle_leaves": {
+    "//source": "Java Edition vanilla loot table of the same block, with Bedrock identifiers (BDS ships no loot table for this block); not yet measured against BDS",
+    "pools": [
+      {
+        "rolls": 1,
+        "entries": [
+          {
+            "type": "alternatives",
+            "children": [
+              {
+                "type": "item",
+                "name": "minecraft:jungle_leaves",
+                "conditions": [
+                  {
+                    "condition": "match_tool",
+                    "item": "minecraft:shears"
+                  }
+                ]
+              },
+              {
+                "type": "item",
+                "name": "minecraft:jungle_leaves",
+                "conditions": [
+                  {
+                    "condition": "match_tool",
+                    "enchantments": [
+                      {
+                        "enchantment": "silk_touch",
+                        "levels": {
+                          "range_min": 1
+                        }
+                      }
+                    ]
+                  }
+                ]
+              },
+              {
+                "type": "item",
+                "name": "minecraft:jungle_sapling",
+                "conditions": [
+                  {
+                    "condition": "table_bonus",
+                    "enchantment": "fortune",
+                    "chances": [
+                      0.025,
+                      0.027777778,
+                      0.03125,
+                      0.041666668,
+                      0.1
+                    ]
+                  }
+                ]
+              }
+            ]
+          }
+        ]
+      },
+      {
+        "rolls": 1,
+        "conditions": [
+          {
+            "condition": "inverted",
+            "term": {
+              "condition": "match_tool",
+              "item": "minecraft:shears"
+            }
+          },
+          {
+            "condition": "inverted",
+            "term": {
+              "condition": "match_tool",
+              "enchantments": [
+                {
+                  "enchantment": "silk_touch",
+                  "levels": {
+                    "range_min": 1
+                  }
+                }
+              ]
+            }
+          }
+        ],
+        "entries": [
+          {
+            "type": "item",
+            "name": "minecraft:stick",
+            "functions": [
+              {
+                "function": "set_count",
+                "count": {
+                  "min": 1,
+                  "max": 2
+                }
+              }
+            ],
+            "conditions": [
+              {
+                "condition": "table_bonus",
+                "enchantment": "fortune",
+                "chances": [
+                  0.02,
+                  0.022222223,
+                  0.025,
+                  0.033333335,
+                  0.1
+                ]
+              }
+            ]
+          }
+        ]
+      }
+    ]
+  },
+  "blocks/jungle_standing_sign": {
+    "//source": "Java Edition vanilla loot table of the same block, with Bedrock identifiers (BDS ships no loot table for this block); not yet measured against BDS",
+    "pools": [
+      {
+        "rolls": 1,
+        "entries": [
+          {
+            "type": "item",
+            "name": "minecraft:jungle_sign"
+          }
+        ]
+      }
+    ]
+  },
+  "blocks/jungle_wall_sign": {
+    "//source": "Java Edition vanilla loot table of the same block, with Bedrock identifiers (BDS ships no loot table for this block); not yet measured against BDS",
+    "pools": [
+      {
+        "rolls": 1,
+        "entries": [
+          {
+            "type": "item",
+            "name": "minecraft:jungle_sign"
+          }
+        ]
+      }
+    ]
+  },
+  "blocks/lapis_ore": {
+    "//source": "Java Edition vanilla loot table of the same block, with Bedrock identifiers (BDS ships no loot table for this block); not yet measured against BDS",
+    "pools": [
+      {
+        "rolls": 1,
+        "entries": [
+          {
+            "type": "alternatives",
+            "children": [
+              {
+                "type": "item",
+                "name": "minecraft:lapis_ore",
+                "conditions": [
+                  {
+                    "condition": "match_tool",
+                    "enchantments": [
+                      {
+                        "enchantment": "silk_touch",
+                        "levels": {
+                          "range_min": 1
+                        }
+                      }
+                    ]
+                  }
+                ]
+              },
+              {
+                "type": "item",
+                "name": "minecraft:lapis_lazuli",
+                "functions": [
+                  {
+                    "function": "set_count",
+                    "count": {
+                      "min": 4,
+                      "max": 9
+                    }
+                  },
+                  {
+                    "function": "apply_bonus",
+                    "enchantment": "fortune",
+                    "formula": "ore_drops"
+                  }
+                ]
+              }
+            ]
+          }
+        ]
+      }
+    ]
+  },
+  "blocks/large_amethyst_bud": {
+    "//source": "Java Edition vanilla loot table of the same block, with Bedrock identifiers (BDS ships no loot table for this block); not yet measured against BDS",
+    "pools": [
+      {
+        "rolls": 1,
+        "entries": [
+          {
+            "type": "item",
+            "name": "minecraft:large_amethyst_bud",
+            "conditions": [
+              {
+                "condition": "match_tool",
+                "enchantments": [
+                  {
+                    "enchantment": "silk_touch",
+                    "levels": {
+                      "range_min": 1
+                    }
+                  }
+                ]
+              }
+            ]
+          }
+        ]
+      }
+    ]
+  },
+  "blocks/large_fern": {
+    "//source": "Java Edition vanilla loot table of the same block, with Bedrock identifiers (BDS ships no loot table for this block); not yet measured against BDS",
+    "pools": [
+      {
+        "rolls": 1,
+        "entries": [
+          {
+            "type": "alternatives",
+            "children": [
+              {
+                "type": "item",
+                "name": "minecraft:fern",
+                "functions": [
+                  {
+                    "function": "set_count",
+                    "count": 2
+                  }
+                ],
+                "conditions": [
+                  {
+                    "condition": "match_tool",
+                    "item": "minecraft:shears"
+                  }
+                ]
+              },
+              {
+                "type": "item",
+                "name": "minecraft:wheat_seeds",
+                "functions": [
+                  {
+                    "function": "apply_bonus",
+                    "enchantment": "fortune",
+                    "formula": "uniform_bonus_count",
+                    "parameters": {
+                      "bonusMultiplier": 2
+                    }
+                  }
+                ],
+                "conditions": [
+                  {
+                    "condition": "random_chance",
+                    "chance": 0.125
+                  }
+                ]
+              }
+            ]
+          }
+        ]
+      }
+    ]
+  },
+  "blocks/lava": {
+    "//source": "Java Edition vanilla loot table of the same block, with Bedrock identifiers (BDS ships no loot table for this block); not yet measured against BDS; drops nothing",
+    "pools": []
+  },
+  "blocks/light_blue_candle_cake": {
+    "//source": "Java Edition vanilla loot table of the same block, with Bedrock identifiers (BDS ships no loot table for this block); not yet measured against BDS",
+    "pools": [
+      {
+        "rolls": 1,
+        "entries": [
+          {
+            "type": "item",
+            "name": "minecraft:light_blue_candle"
+          }
+        ]
+      }
+    ]
+  },
+  "blocks/light_blue_stained_glass": {
+    "//source": "Java Edition vanilla loot table of the same block, with Bedrock identifiers (BDS ships no loot table for this block); not yet measured against BDS",
+    "pools": [
+      {
+        "rolls": 1,
+        "entries": [
+          {
+            "type": "item",
+            "name": "minecraft:light_blue_stained_glass",
+            "conditions": [
+              {
+                "condition": "match_tool",
+                "enchantments": [
+                  {
+                    "enchantment": "silk_touch",
+                    "levels": {
+                      "range_min": 1
+                    }
+                  }
+                ]
+              }
+            ]
+          }
+        ]
+      }
+    ]
+  },
+  "blocks/light_blue_stained_glass_pane": {
+    "//source": "Java Edition vanilla loot table of the same block, with Bedrock identifiers (BDS ships no loot table for this block); not yet measured against BDS",
+    "pools": [
+      {
+        "rolls": 1,
+        "entries": [
+          {
+            "type": "item",
+            "name": "minecraft:light_blue_stained_glass_pane",
+            "conditions": [
+              {
+                "condition": "match_tool",
+                "enchantments": [
+                  {
+                    "enchantment": "silk_touch",
+                    "levels": {
+                      "range_min": 1
+                    }
+                  }
+                ]
+              }
+            ]
+          }
+        ]
+      }
+    ]
+  },
+  "blocks/light_gray_candle_cake": {
+    "//source": "Java Edition vanilla loot table of the same block, with Bedrock identifiers (BDS ships no loot table for this block); not yet measured against BDS",
+    "pools": [
+      {
+        "rolls": 1,
+        "entries": [
+          {
+            "type": "item",
+            "name": "minecraft:light_gray_candle"
+          }
+        ]
+      }
+    ]
+  },
+  "blocks/light_gray_stained_glass": {
+    "//source": "Java Edition vanilla loot table of the same block, with Bedrock identifiers (BDS ships no loot table for this block); not yet measured against BDS",
+    "pools": [
+      {
+        "rolls": 1,
+        "entries": [
+          {
+            "type": "item",
+            "name": "minecraft:light_gray_stained_glass",
+            "conditions": [
+              {
+                "condition": "match_tool",
+                "enchantments": [
+                  {
+                    "enchantment": "silk_touch",
+                    "levels": {
+                      "range_min": 1
+                    }
+                  }
+                ]
+              }
+            ]
+          }
+        ]
+      }
+    ]
+  },
+  "blocks/light_gray_stained_glass_pane": {
+    "//source": "Java Edition vanilla loot table of the same block, with Bedrock identifiers (BDS ships no loot table for this block); not yet measured against BDS",
+    "pools": [
+      {
+        "rolls": 1,
+        "entries": [
+          {
+            "type": "item",
+            "name": "minecraft:light_gray_stained_glass_pane",
+            "conditions": [
+              {
+                "condition": "match_tool",
+                "enchantments": [
+                  {
+                    "enchantment": "silk_touch",
+                    "levels": {
+                      "range_min": 1
+                    }
+                  }
+                ]
+              }
+            ]
+          }
+        ]
+      }
+    ]
+  },
+  "blocks/lime_candle_cake": {
+    "//source": "Java Edition vanilla loot table of the same block, with Bedrock identifiers (BDS ships no loot table for this block); not yet measured against BDS",
+    "pools": [
+      {
+        "rolls": 1,
+        "entries": [
+          {
+            "type": "item",
+            "name": "minecraft:lime_candle"
+          }
+        ]
+      }
+    ]
+  },
+  "blocks/lime_stained_glass": {
+    "//source": "Java Edition vanilla loot table of the same block, with Bedrock identifiers (BDS ships no loot table for this block); not yet measured against BDS",
+    "pools": [
+      {
+        "rolls": 1,
+        "entries": [
+          {
+            "type": "item",
+            "name": "minecraft:lime_stained_glass",
+            "conditions": [
+              {
+                "condition": "match_tool",
+                "enchantments": [
+                  {
+                    "enchantment": "silk_touch",
+                    "levels": {
+                      "range_min": 1
+                    }
+                  }
+                ]
+              }
+            ]
+          }
+        ]
+      }
+    ]
+  },
+  "blocks/lime_stained_glass_pane": {
+    "//source": "Java Edition vanilla loot table of the same block, with Bedrock identifiers (BDS ships no loot table for this block); not yet measured against BDS",
+    "pools": [
+      {
+        "rolls": 1,
+        "entries": [
+          {
+            "type": "item",
+            "name": "minecraft:lime_stained_glass_pane",
+            "conditions": [
+              {
+                "condition": "match_tool",
+                "enchantments": [
+                  {
+                    "enchantment": "silk_touch",
+                    "levels": {
+                      "range_min": 1
+                    }
+                  }
+                ]
+              }
+            ]
+          }
+        ]
+      }
+    ]
+  },
+  "blocks/lit_blast_furnace": {
+    "//source": "Java Edition vanilla loot table of the same block, with Bedrock identifiers (BDS ships no loot table for this block); not yet measured against BDS",
+    "pools": [
+      {
+        "rolls": 1,
+        "entries": [
+          {
+            "type": "item",
+            "name": "minecraft:blast_furnace"
+          }
+        ]
+      }
+    ]
+  },
+  "blocks/lit_deepslate_redstone_ore": {
+    "//source": "Java Edition vanilla loot table of the same block, with Bedrock identifiers (BDS ships no loot table for this block); not yet measured against BDS",
+    "pools": [
+      {
+        "rolls": 1,
+        "entries": [
+          {
+            "type": "alternatives",
+            "children": [
+              {
+                "type": "item",
+                "name": "minecraft:deepslate_redstone_ore",
+                "conditions": [
+                  {
+                    "condition": "match_tool",
+                    "enchantments": [
+                      {
+                        "enchantment": "silk_touch",
+                        "levels": {
+                          "range_min": 1
+                        }
+                      }
+                    ]
+                  }
+                ]
+              },
+              {
+                "type": "item",
+                "name": "minecraft:redstone",
+                "functions": [
+                  {
+                    "function": "set_count",
+                    "count": {
+                      "min": 4,
+                      "max": 5
+                    }
+                  },
+                  {
+                    "function": "apply_bonus",
+                    "enchantment": "fortune",
+                    "formula": "uniform_bonus_count",
+                    "parameters": {
+                      "bonusMultiplier": 1
+                    }
+                  }
+                ]
+              }
+            ]
+          }
+        ]
+      }
+    ]
+  },
+  "blocks/lit_furnace": {
+    "//source": "Java Edition vanilla loot table of the same block, with Bedrock identifiers (BDS ships no loot table for this block); not yet measured against BDS",
+    "pools": [
+      {
+        "rolls": 1,
+        "entries": [
+          {
+            "type": "item",
+            "name": "minecraft:furnace"
+          }
+        ]
+      }
+    ]
+  },
+  "blocks/lit_redstone_lamp": {
+    "//source": "Java Edition vanilla loot table of the same block, with Bedrock identifiers (BDS ships no loot table for this block); not yet measured against BDS",
+    "pools": [
+      {
+        "rolls": 1,
+        "entries": [
+          {
+            "type": "item",
+            "name": "minecraft:redstone_lamp"
+          }
+        ]
+      }
+    ]
+  },
+  "blocks/lit_redstone_ore": {
+    "//source": "Java Edition vanilla loot table of the same block, with Bedrock identifiers (BDS ships no loot table for this block); not yet measured against BDS",
+    "pools": [
+      {
+        "rolls": 1,
+        "entries": [
+          {
+            "type": "alternatives",
+            "children": [
+              {
+                "type": "item",
+                "name": "minecraft:redstone_ore",
+                "conditions": [
+                  {
+                    "condition": "match_tool",
+                    "enchantments": [
+                      {
+                        "enchantment": "silk_touch",
+                        "levels": {
+                          "range_min": 1
+                        }
+                      }
+                    ]
+                  }
+                ]
+              },
+              {
+                "type": "item",
+                "name": "minecraft:redstone",
+                "functions": [
+                  {
+                    "function": "set_count",
+                    "count": {
+                      "min": 4,
+                      "max": 5
+                    }
+                  },
+                  {
+                    "function": "apply_bonus",
+                    "enchantment": "fortune",
+                    "formula": "uniform_bonus_count",
+                    "parameters": {
+                      "bonusMultiplier": 1
+                    }
+                  }
+                ]
+              }
+            ]
+          }
+        ]
+      }
+    ]
+  },
+  "blocks/lit_smoker": {
+    "//source": "Java Edition vanilla loot table of the same block, with Bedrock identifiers (BDS ships no loot table for this block); not yet measured against BDS",
+    "pools": [
+      {
+        "rolls": 1,
+        "entries": [
+          {
+            "type": "item",
+            "name": "minecraft:smoker"
+          }
+        ]
+      }
+    ]
+  },
+  "blocks/magenta_candle_cake": {
+    "//source": "Java Edition vanilla loot table of the same block, with Bedrock identifiers (BDS ships no loot table for this block); not yet measured against BDS",
+    "pools": [
+      {
+        "rolls": 1,
+        "entries": [
+          {
+            "type": "item",
+            "name": "minecraft:magenta_candle"
+          }
+        ]
+      }
+    ]
+  },
+  "blocks/magenta_stained_glass": {
+    "//source": "Java Edition vanilla loot table of the same block, with Bedrock identifiers (BDS ships no loot table for this block); not yet measured against BDS",
+    "pools": [
+      {
+        "rolls": 1,
+        "entries": [
+          {
+            "type": "item",
+            "name": "minecraft:magenta_stained_glass",
+            "conditions": [
+              {
+                "condition": "match_tool",
+                "enchantments": [
+                  {
+                    "enchantment": "silk_touch",
+                    "levels": {
+                      "range_min": 1
+                    }
+                  }
+                ]
+              }
+            ]
+          }
+        ]
+      }
+    ]
+  },
+  "blocks/magenta_stained_glass_pane": {
+    "//source": "Java Edition vanilla loot table of the same block, with Bedrock identifiers (BDS ships no loot table for this block); not yet measured against BDS",
+    "pools": [
+      {
+        "rolls": 1,
+        "entries": [
+          {
+            "type": "item",
+            "name": "minecraft:magenta_stained_glass_pane",
+            "conditions": [
+              {
+                "condition": "match_tool",
+                "enchantments": [
+                  {
+                    "enchantment": "silk_touch",
+                    "levels": {
+                      "range_min": 1
+                    }
+                  }
+                ]
+              }
+            ]
+          }
+        ]
+      }
+    ]
+  },
+  "blocks/mangrove_leaves": {
+    "//source": "Java Edition vanilla loot table of the same block, with Bedrock identifiers (BDS ships no loot table for this block); not yet measured against BDS",
+    "pools": [
+      {
+        "rolls": 1,
+        "entries": [
+          {
+            "type": "alternatives",
+            "children": [
+              {
+                "type": "item",
+                "name": "minecraft:mangrove_leaves",
+                "conditions": [
+                  {
+                    "condition": "match_tool",
+                    "item": "minecraft:shears"
+                  }
+                ]
+              },
+              {
+                "type": "item",
+                "name": "minecraft:mangrove_leaves",
+                "conditions": [
+                  {
+                    "condition": "match_tool",
+                    "enchantments": [
+                      {
+                        "enchantment": "silk_touch",
+                        "levels": {
+                          "range_min": 1
+                        }
+                      }
+                    ]
+                  }
+                ]
+              }
+            ]
+          }
+        ]
+      },
+      {
+        "rolls": 1,
+        "conditions": [
+          {
+            "condition": "inverted",
+            "term": {
+              "condition": "match_tool",
+              "item": "minecraft:shears"
+            }
+          },
+          {
+            "condition": "inverted",
+            "term": {
+              "condition": "match_tool",
+              "enchantments": [
+                {
+                  "enchantment": "silk_touch",
+                  "levels": {
+                    "range_min": 1
+                  }
+                }
+              ]
+            }
+          }
+        ],
+        "entries": [
+          {
+            "type": "item",
+            "name": "minecraft:stick",
+            "functions": [
+              {
+                "function": "set_count",
+                "count": {
+                  "min": 1,
+                  "max": 2
+                }
+              }
+            ],
+            "conditions": [
+              {
+                "condition": "table_bonus",
+                "enchantment": "fortune",
+                "chances": [
+                  0.02,
+                  0.022222223,
+                  0.025,
+                  0.033333335,
+                  0.1
+                ]
+              }
+            ]
+          }
+        ]
+      }
+    ]
+  },
+  "blocks/mangrove_standing_sign": {
+    "//source": "Java Edition vanilla loot table of the same block, with Bedrock identifiers (BDS ships no loot table for this block); not yet measured against BDS",
+    "pools": [
+      {
+        "rolls": 1,
+        "entries": [
+          {
+            "type": "item",
+            "name": "minecraft:mangrove_sign"
+          }
+        ]
+      }
+    ]
+  },
+  "blocks/mangrove_wall_sign": {
+    "//source": "Java Edition vanilla loot table of the same block, with Bedrock identifiers (BDS ships no loot table for this block); not yet measured against BDS",
+    "pools": [
+      {
+        "rolls": 1,
+        "entries": [
+          {
+            "type": "item",
+            "name": "minecraft:mangrove_sign"
+          }
+        ]
+      }
+    ]
+  },
+  "blocks/medium_amethyst_bud": {
+    "//source": "Java Edition vanilla loot table of the same block, with Bedrock identifiers (BDS ships no loot table for this block); not yet measured against BDS",
+    "pools": [
+      {
+        "rolls": 1,
+        "entries": [
+          {
+            "type": "item",
+            "name": "minecraft:medium_amethyst_bud",
+            "conditions": [
+              {
+                "condition": "match_tool",
+                "enchantments": [
+                  {
+                    "enchantment": "silk_touch",
+                    "levels": {
+                      "range_min": 1
+                    }
+                  }
+                ]
+              }
+            ]
+          }
+        ]
+      }
+    ]
+  },
+  "blocks/melon_block": {
+    "//source": "Java Edition vanilla loot table of the same block, with Bedrock identifiers (BDS ships no loot table for this block); not yet measured against BDS",
+    "pools": [
+      {
+        "rolls": 1,
+        "entries": [
+          {
+            "type": "alternatives",
+            "children": [
+              {
+                "type": "item",
+                "name": "minecraft:melon_block",
+                "conditions": [
+                  {
+                    "condition": "match_tool",
+                    "enchantments": [
+                      {
+                        "enchantment": "silk_touch",
+                        "levels": {
+                          "range_min": 1
+                        }
+                      }
+                    ]
+                  }
+                ]
+              },
+              {
+                "type": "item",
+                "name": "minecraft:melon_slice",
+                "functions": [
+                  {
+                    "function": "set_count",
+                    "count": {
+                      "min": 3,
+                      "max": 7
+                    }
+                  },
+                  {
+                    "function": "apply_bonus",
+                    "enchantment": "fortune",
+                    "formula": "uniform_bonus_count",
+                    "parameters": {
+                      "bonusMultiplier": 1
+                    }
+                  },
+                  {
+                    "function": "limit_count",
+                    "limit": {
+                      "max": 9
+                    }
+                  }
+                ]
+              }
+            ]
+          }
+        ]
+      }
+    ]
+  },
+  "blocks/melon_stem": {
+    "//source": "Java Edition vanilla loot table of the same block, with Bedrock identifiers (BDS ships no loot table for this block); not yet measured against BDS",
+    "pools": [
+      {
+        "rolls": 1,
+        "conditions": [
+          {
+            "condition": "block_state_property",
+            "properties": {
+              "growth": 0
+            }
+          }
+        ],
+        "entries": [
+          {
+            "type": "item",
+            "name": "minecraft:melon_seeds",
+            "functions": [
+              {
+                "function": "set_count",
+                "count": {
+                  "type": "binomial",
+                  "n": 3,
+                  "p": 0.0666667
+                }
+              }
+            ]
+          }
+        ]
+      },
+      {
+        "rolls": 1,
+        "conditions": [
+          {
+            "condition": "block_state_property",
+            "properties": {
+              "growth": 1
+            }
+          }
+        ],
+        "entries": [
+          {
+            "type": "item",
+            "name": "minecraft:melon_seeds",
+            "functions": [
+              {
+                "function": "set_count",
+                "count": {
+                  "type": "binomial",
+                  "n": 3,
+                  "p": 0.1333333
+                }
+              }
+            ]
+          }
+        ]
+      },
+      {
+        "rolls": 1,
+        "conditions": [
+          {
+            "condition": "block_state_property",
+            "properties": {
+              "growth": 2
+            }
+          }
+        ],
+        "entries": [
+          {
+            "type": "item",
+            "name": "minecraft:melon_seeds",
+            "functions": [
+              {
+                "function": "set_count",
+                "count": {
+                  "type": "binomial",
+                  "n": 3,
+                  "p": 0.2
+                }
+              }
+            ]
+          }
+        ]
+      },
+      {
+        "rolls": 1,
+        "conditions": [
+          {
+            "condition": "block_state_property",
+            "properties": {
+              "growth": 3
+            }
+          }
+        ],
+        "entries": [
+          {
+            "type": "item",
+            "name": "minecraft:melon_seeds",
+            "functions": [
+              {
+                "function": "set_count",
+                "count": {
+                  "type": "binomial",
+                  "n": 3,
+                  "p": 0.2666667
+                }
+              }
+            ]
+          }
+        ]
+      },
+      {
+        "rolls": 1,
+        "conditions": [
+          {
+            "condition": "block_state_property",
+            "properties": {
+              "growth": 4
+            }
+          }
+        ],
+        "entries": [
+          {
+            "type": "item",
+            "name": "minecraft:melon_seeds",
+            "functions": [
+              {
+                "function": "set_count",
+                "count": {
+                  "type": "binomial",
+                  "n": 3,
+                  "p": 0.3333333
+                }
+              }
+            ]
+          }
+        ]
+      },
+      {
+        "rolls": 1,
+        "conditions": [
+          {
+            "condition": "block_state_property",
+            "properties": {
+              "growth": 5
+            }
+          }
+        ],
+        "entries": [
+          {
+            "type": "item",
+            "name": "minecraft:melon_seeds",
+            "functions": [
+              {
+                "function": "set_count",
+                "count": {
+                  "type": "binomial",
+                  "n": 3,
+                  "p": 0.4
+                }
+              }
+            ]
+          }
+        ]
+      },
+      {
+        "rolls": 1,
+        "conditions": [
+          {
+            "condition": "block_state_property",
+            "properties": {
+              "growth": 6
+            }
+          }
+        ],
+        "entries": [
+          {
+            "type": "item",
+            "name": "minecraft:melon_seeds",
+            "functions": [
+              {
+                "function": "set_count",
+                "count": {
+                  "type": "binomial",
+                  "n": 3,
+                  "p": 0.4666667
+                }
+              }
+            ]
+          }
+        ]
+      },
+      {
+        "rolls": 1,
+        "conditions": [
+          {
+            "condition": "block_state_property",
+            "properties": {
+              "growth": 7
+            }
+          }
+        ],
+        "entries": [
+          {
+            "type": "item",
+            "name": "minecraft:melon_seeds",
+            "functions": [
+              {
+                "function": "set_count",
+                "count": {
+                  "type": "binomial",
+                  "n": 3,
+                  "p": 0.5333333
+                }
+              }
+            ]
+          }
+        ]
+      }
+    ]
+  },
+  "blocks/mob_spawner": {
+    "//source": "Java Edition vanilla loot table of the same block, with Bedrock identifiers (BDS ships no loot table for this block); not yet measured against BDS; drops nothing",
+    "pools": []
+  },
+  "blocks/moving_block": {
+    "//source": "Java Edition vanilla loot table of the same block, with Bedrock identifiers (BDS ships no loot table for this block); not yet measured against BDS; drops nothing",
+    "pools": []
+  },
+  "blocks/mycelium": {
+    "//source": "Java Edition vanilla loot table of the same block, with Bedrock identifiers (BDS ships no loot table for this block); not yet measured against BDS",
+    "pools": [
+      {
+        "rolls": 1,
+        "entries": [
+          {
+            "type": "alternatives",
+            "children": [
+              {
+                "type": "item",
+                "name": "minecraft:mycelium",
+                "conditions": [
+                  {
+                    "condition": "match_tool",
+                    "enchantments": [
+                      {
+                        "enchantment": "silk_touch",
+                        "levels": {
+                          "range_min": 1
+                        }
+                      }
+                    ]
+                  }
+                ]
+              },
+              {
+                "type": "item",
+                "name": "minecraft:dirt"
+              }
+            ]
+          }
+        ]
+      }
+    ]
+  },
+  "blocks/nether_gold_ore": {
+    "//source": "Java Edition vanilla loot table of the same block, with Bedrock identifiers (BDS ships no loot table for this block); not yet measured against BDS",
+    "pools": [
+      {
+        "rolls": 1,
+        "entries": [
+          {
+            "type": "alternatives",
+            "children": [
+              {
+                "type": "item",
+                "name": "minecraft:nether_gold_ore",
+                "conditions": [
+                  {
+                    "condition": "match_tool",
+                    "enchantments": [
+                      {
+                        "enchantment": "silk_touch",
+                        "levels": {
+                          "range_min": 1
+                        }
+                      }
+                    ]
+                  }
+                ]
+              },
+              {
+                "type": "item",
+                "name": "minecraft:gold_nugget",
+                "functions": [
+                  {
+                    "function": "set_count",
+                    "count": {
+                      "min": 2,
+                      "max": 6
+                    }
+                  },
+                  {
+                    "function": "apply_bonus",
+                    "enchantment": "fortune",
+                    "formula": "ore_drops"
+                  }
+                ]
+              }
+            ]
+          }
+        ]
+      }
+    ]
+  },
+  "blocks/nether_sprouts": {
+    "//source": "Java Edition vanilla loot table of the same block, with Bedrock identifiers (BDS ships no loot table for this block); not yet measured against BDS",
+    "pools": [
+      {
+        "rolls": 1,
+        "entries": [
+          {
+            "type": "item",
+            "name": "minecraft:nether_sprouts",
+            "conditions": [
+              {
+                "condition": "match_tool",
+                "item": "minecraft:shears"
+              }
+            ]
+          }
+        ]
+      }
+    ]
+  },
+  "blocks/nether_wart": {
+    "//source": "Java Edition vanilla loot table of the same block, with Bedrock identifiers (BDS ships no loot table for this block); not yet measured against BDS",
+    "pools": [
+      {
+        "rolls": 1,
+        "entries": [
+          {
+            "type": "alternatives",
+            "children": [
+              {
+                "type": "item",
+                "name": "minecraft:nether_wart",
+                "functions": [
+                  {
+                    "function": "set_count",
+                    "count": {
+                      "min": 2,
+                      "max": 4
+                    }
+                  },
+                  {
+                    "function": "apply_bonus",
+                    "enchantment": "fortune",
+                    "formula": "uniform_bonus_count",
+                    "parameters": {
+                      "bonusMultiplier": 1
+                    }
+                  }
+                ],
+                "conditions": [
+                  {
+                    "condition": "block_state_property",
+                    "properties": {
+                      "age": 3
+                    }
+                  }
+                ]
+              },
+              {
+                "type": "item",
+                "name": "minecraft:nether_wart"
+              }
+            ]
+          }
+        ]
+      }
+    ]
+  },
+  "blocks/oak_leaves": {
+    "//source": "Java Edition vanilla loot table of the same block, with Bedrock identifiers (BDS ships no loot table for this block); not yet measured against BDS",
+    "pools": [
+      {
+        "rolls": 1,
+        "entries": [
+          {
+            "type": "alternatives",
+            "children": [
+              {
+                "type": "item",
+                "name": "minecraft:oak_leaves",
+                "conditions": [
+                  {
+                    "condition": "match_tool",
+                    "item": "minecraft:shears"
+                  }
+                ]
+              },
+              {
+                "type": "item",
+                "name": "minecraft:oak_leaves",
+                "conditions": [
+                  {
+                    "condition": "match_tool",
+                    "enchantments": [
+                      {
+                        "enchantment": "silk_touch",
+                        "levels": {
+                          "range_min": 1
+                        }
+                      }
+                    ]
+                  }
+                ]
+              },
+              {
+                "type": "item",
+                "name": "minecraft:oak_sapling",
+                "conditions": [
+                  {
+                    "condition": "table_bonus",
+                    "enchantment": "fortune",
+                    "chances": [
+                      0.05,
+                      0.0625,
+                      0.083333336,
+                      0.1
+                    ]
+                  }
+                ]
+              }
+            ]
+          }
+        ]
+      },
+      {
+        "rolls": 1,
+        "conditions": [
+          {
+            "condition": "inverted",
+            "term": {
+              "condition": "match_tool",
+              "item": "minecraft:shears"
+            }
+          },
+          {
+            "condition": "inverted",
+            "term": {
+              "condition": "match_tool",
+              "enchantments": [
+                {
+                  "enchantment": "silk_touch",
+                  "levels": {
+                    "range_min": 1
+                  }
+                }
+              ]
+            }
+          }
+        ],
+        "entries": [
+          {
+            "type": "item",
+            "name": "minecraft:stick",
+            "functions": [
+              {
+                "function": "set_count",
+                "count": {
+                  "min": 1,
+                  "max": 2
+                }
+              }
+            ],
+            "conditions": [
+              {
+                "condition": "table_bonus",
+                "enchantment": "fortune",
+                "chances": [
+                  0.02,
+                  0.022222223,
+                  0.025,
+                  0.033333335,
+                  0.1
+                ]
+              }
+            ]
+          }
+        ]
+      },
+      {
+        "rolls": 1,
+        "conditions": [
+          {
+            "condition": "inverted",
+            "term": {
+              "condition": "match_tool",
+              "item": "minecraft:shears"
+            }
+          },
+          {
+            "condition": "inverted",
+            "term": {
+              "condition": "match_tool",
+              "enchantments": [
+                {
+                  "enchantment": "silk_touch",
+                  "levels": {
+                    "range_min": 1
+                  }
+                }
+              ]
+            }
+          }
+        ],
+        "entries": [
+          {
+            "type": "item",
+            "name": "minecraft:apple",
+            "conditions": [
+              {
+                "condition": "table_bonus",
+                "enchantment": "fortune",
+                "chances": [
+                  0.005,
+                  0.0055555557,
+                  0.00625,
+                  0.008333334,
+                  0.025
+                ]
+              }
+            ]
+          }
+        ]
+      }
+    ]
+  },
+  "blocks/orange_candle_cake": {
+    "//source": "Java Edition vanilla loot table of the same block, with Bedrock identifiers (BDS ships no loot table for this block); not yet measured against BDS",
+    "pools": [
+      {
+        "rolls": 1,
+        "entries": [
+          {
+            "type": "item",
+            "name": "minecraft:orange_candle"
+          }
+        ]
+      }
+    ]
+  },
+  "blocks/orange_stained_glass": {
+    "//source": "Java Edition vanilla loot table of the same block, with Bedrock identifiers (BDS ships no loot table for this block); not yet measured against BDS",
+    "pools": [
+      {
+        "rolls": 1,
+        "entries": [
+          {
+            "type": "item",
+            "name": "minecraft:orange_stained_glass",
+            "conditions": [
+              {
+                "condition": "match_tool",
+                "enchantments": [
+                  {
+                    "enchantment": "silk_touch",
+                    "levels": {
+                      "range_min": 1
+                    }
+                  }
+                ]
+              }
+            ]
+          }
+        ]
+      }
+    ]
+  },
+  "blocks/orange_stained_glass_pane": {
+    "//source": "Java Edition vanilla loot table of the same block, with Bedrock identifiers (BDS ships no loot table for this block); not yet measured against BDS",
+    "pools": [
+      {
+        "rolls": 1,
+        "entries": [
+          {
+            "type": "item",
+            "name": "minecraft:orange_stained_glass_pane",
+            "conditions": [
+              {
+                "condition": "match_tool",
+                "enchantments": [
+                  {
+                    "enchantment": "silk_touch",
+                    "levels": {
+                      "range_min": 1
+                    }
+                  }
+                ]
+              }
+            ]
+          }
+        ]
+      }
+    ]
+  },
+  "blocks/packed_ice": {
+    "//source": "Java Edition vanilla loot table of the same block, with Bedrock identifiers (BDS ships no loot table for this block); not yet measured against BDS",
+    "pools": [
+      {
+        "rolls": 1,
+        "entries": [
+          {
+            "type": "item",
+            "name": "minecraft:packed_ice",
+            "conditions": [
+              {
+                "condition": "match_tool",
+                "enchantments": [
+                  {
+                    "enchantment": "silk_touch",
+                    "levels": {
+                      "range_min": 1
+                    }
+                  }
+                ]
+              }
+            ]
+          }
+        ]
+      }
+    ]
+  },
+  "blocks/pale_oak_leaves": {
+    "//source": "Java Edition vanilla loot table of the same block, with Bedrock identifiers (BDS ships no loot table for this block); not yet measured against BDS",
+    "pools": [
+      {
+        "rolls": 1,
+        "entries": [
+          {
+            "type": "alternatives",
+            "children": [
+              {
+                "type": "item",
+                "name": "minecraft:pale_oak_leaves",
+                "conditions": [
+                  {
+                    "condition": "match_tool",
+                    "item": "minecraft:shears"
+                  }
+                ]
+              },
+              {
+                "type": "item",
+                "name": "minecraft:pale_oak_leaves",
+                "conditions": [
+                  {
+                    "condition": "match_tool",
+                    "enchantments": [
+                      {
+                        "enchantment": "silk_touch",
+                        "levels": {
+                          "range_min": 1
+                        }
+                      }
+                    ]
+                  }
+                ]
+              },
+              {
+                "type": "item",
+                "name": "minecraft:pale_oak_sapling",
+                "conditions": [
+                  {
+                    "condition": "table_bonus",
+                    "enchantment": "fortune",
+                    "chances": [
+                      0.05,
+                      0.0625,
+                      0.083333336,
+                      0.1
+                    ]
+                  }
+                ]
+              }
+            ]
+          }
+        ]
+      },
+      {
+        "rolls": 1,
+        "conditions": [
+          {
+            "condition": "inverted",
+            "term": {
+              "condition": "match_tool",
+              "item": "minecraft:shears"
+            }
+          },
+          {
+            "condition": "inverted",
+            "term": {
+              "condition": "match_tool",
+              "enchantments": [
+                {
+                  "enchantment": "silk_touch",
+                  "levels": {
+                    "range_min": 1
+                  }
+                }
+              ]
+            }
+          }
+        ],
+        "entries": [
+          {
+            "type": "item",
+            "name": "minecraft:stick",
+            "functions": [
+              {
+                "function": "set_count",
+                "count": {
+                  "min": 1,
+                  "max": 2
+                }
+              }
+            ],
+            "conditions": [
+              {
+                "condition": "table_bonus",
+                "enchantment": "fortune",
+                "chances": [
+                  0.02,
+                  0.022222223,
+                  0.025,
+                  0.033333335,
+                  0.1
+                ]
+              }
+            ]
+          }
+        ]
+      }
+    ]
+  },
+  "blocks/pale_oak_standing_sign": {
+    "//source": "Java Edition vanilla loot table of the same block, with Bedrock identifiers (BDS ships no loot table for this block); not yet measured against BDS",
+    "pools": [
+      {
+        "rolls": 1,
+        "entries": [
+          {
+            "type": "item",
+            "name": "minecraft:pale_oak_sign"
+          }
+        ]
+      }
+    ]
+  },
+  "blocks/pale_oak_wall_sign": {
+    "//source": "Java Edition vanilla loot table of the same block, with Bedrock identifiers (BDS ships no loot table for this block); not yet measured against BDS",
+    "pools": [
+      {
+        "rolls": 1,
+        "entries": [
+          {
+            "type": "item",
+            "name": "minecraft:pale_oak_sign"
+          }
+        ]
+      }
+    ]
+  },
+  "blocks/pink_candle_cake": {
+    "//source": "Java Edition vanilla loot table of the same block, with Bedrock identifiers (BDS ships no loot table for this block); not yet measured against BDS",
+    "pools": [
+      {
+        "rolls": 1,
+        "entries": [
+          {
+            "type": "item",
+            "name": "minecraft:pink_candle"
+          }
+        ]
+      }
+    ]
+  },
+  "blocks/pink_stained_glass": {
+    "//source": "Java Edition vanilla loot table of the same block, with Bedrock identifiers (BDS ships no loot table for this block); not yet measured against BDS",
+    "pools": [
+      {
+        "rolls": 1,
+        "entries": [
+          {
+            "type": "item",
+            "name": "minecraft:pink_stained_glass",
+            "conditions": [
+              {
+                "condition": "match_tool",
+                "enchantments": [
+                  {
+                    "enchantment": "silk_touch",
+                    "levels": {
+                      "range_min": 1
+                    }
+                  }
+                ]
+              }
+            ]
+          }
+        ]
+      }
+    ]
+  },
+  "blocks/pink_stained_glass_pane": {
+    "//source": "Java Edition vanilla loot table of the same block, with Bedrock identifiers (BDS ships no loot table for this block); not yet measured against BDS",
+    "pools": [
+      {
+        "rolls": 1,
+        "entries": [
+          {
+            "type": "item",
+            "name": "minecraft:pink_stained_glass_pane",
+            "conditions": [
+              {
+                "condition": "match_tool",
+                "enchantments": [
+                  {
+                    "enchantment": "silk_touch",
+                    "levels": {
+                      "range_min": 1
+                    }
+                  }
+                ]
+              }
+            ]
+          }
+        ]
+      }
+    ]
+  },
+  "blocks/piston_arm_collision": {
+    "//source": "Java Edition vanilla loot table of the same block, with Bedrock identifiers (BDS ships no loot table for this block); not yet measured against BDS; drops nothing",
+    "pools": []
+  },
+  "blocks/pitcher_crop": {
+    "//source": "Java Edition vanilla loot table of the same block, with Bedrock identifiers (BDS ships no loot table for this block); not yet measured against BDS",
+    "pools": [
+      {
+        "rolls": 1,
+        "entries": [
+          {
+            "type": "item",
+            "name": "minecraft:pitcher_pod"
+          }
+        ]
+      }
+    ]
+  },
+  "blocks/podzol": {
+    "//source": "Java Edition vanilla loot table of the same block, with Bedrock identifiers (BDS ships no loot table for this block); not yet measured against BDS",
+    "pools": [
+      {
+        "rolls": 1,
+        "entries": [
+          {
+            "type": "alternatives",
+            "children": [
+              {
+                "type": "item",
+                "name": "minecraft:podzol",
+                "conditions": [
+                  {
+                    "condition": "match_tool",
+                    "enchantments": [
+                      {
+                        "enchantment": "silk_touch",
+                        "levels": {
+                          "range_min": 1
+                        }
+                      }
+                    ]
+                  }
+                ]
+              },
+              {
+                "type": "item",
+                "name": "minecraft:dirt"
+              }
+            ]
+          }
+        ]
+      }
+    ]
+  },
+  "blocks/portal": {
+    "//source": "Java Edition vanilla loot table of the same block, with Bedrock identifiers (BDS ships no loot table for this block); not yet measured against BDS; drops nothing",
+    "pools": []
+  },
+  "blocks/potatoes": {
+    "//source": "Java Edition vanilla loot table of the same block, with Bedrock identifiers (BDS ships no loot table for this block); not yet measured against BDS; mature at growth 7",
+    "pools": [
+      {
+        "rolls": 1,
+        "entries": [
+          {
+            "type": "item",
+            "name": "minecraft:potato"
+          }
+        ]
+      },
+      {
+        "rolls": 1,
+        "conditions": [
+          {
+            "condition": "block_state_property",
+            "properties": {
+              "growth": 7
+            }
+          }
+        ],
+        "entries": [
+          {
+            "type": "item",
+            "name": "minecraft:potato",
+            "functions": [
+              {
+                "function": "apply_bonus",
+                "enchantment": "fortune",
+                "formula": "binomial_with_bonus_count",
+                "parameters": {
+                  "extra": 3,
+                  "probability": 0.5714286
+                }
+              }
+            ]
+          }
+        ]
+      },
+      {
+        "rolls": 1,
+        "conditions": [
+          {
+            "condition": "block_state_property",
+            "properties": {
+              "growth": 7
+            }
+          }
+        ],
+        "entries": [
+          {
+            "type": "item",
+            "name": "minecraft:poisonous_potato",
+            "conditions": [
+              {
+                "condition": "random_chance",
+                "chance": 0.02
+              }
+            ]
+          }
+        ]
+      }
+    ]
+  },
+  "blocks/powder_snow": {
+    "//source": "Java Edition vanilla loot table of the same block, with Bedrock identifiers (BDS ships no loot table for this block); not yet measured against BDS; drops nothing",
+    "pools": []
+  },
+  "blocks/powered_comparator": {
+    "//source": "Java Edition vanilla loot table of the same block, with Bedrock identifiers (BDS ships no loot table for this block); not yet measured against BDS",
+    "pools": [
+      {
+        "rolls": 1,
+        "entries": [
+          {
+            "type": "item",
+            "name": "minecraft:comparator"
+          }
+        ]
+      }
+    ]
+  },
+  "blocks/powered_repeater": {
+    "//source": "Java Edition vanilla loot table of the same block, with Bedrock identifiers (BDS ships no loot table for this block); not yet measured against BDS",
+    "pools": [
+      {
+        "rolls": 1,
+        "entries": [
+          {
+            "type": "item",
+            "name": "minecraft:repeater"
+          }
+        ]
+      }
+    ]
+  },
+  "blocks/pumpkin_stem": {
+    "//source": "Java Edition vanilla loot table of the same block, with Bedrock identifiers (BDS ships no loot table for this block); not yet measured against BDS",
+    "pools": [
+      {
+        "rolls": 1,
+        "conditions": [
+          {
+            "condition": "block_state_property",
+            "properties": {
+              "growth": 0
+            }
+          }
+        ],
+        "entries": [
+          {
+            "type": "item",
+            "name": "minecraft:pumpkin_seeds",
+            "functions": [
+              {
+                "function": "set_count",
+                "count": {
+                  "type": "binomial",
+                  "n": 3,
+                  "p": 0.0666667
+                }
+              }
+            ]
+          }
+        ]
+      },
+      {
+        "rolls": 1,
+        "conditions": [
+          {
+            "condition": "block_state_property",
+            "properties": {
+              "growth": 1
+            }
+          }
+        ],
+        "entries": [
+          {
+            "type": "item",
+            "name": "minecraft:pumpkin_seeds",
+            "functions": [
+              {
+                "function": "set_count",
+                "count": {
+                  "type": "binomial",
+                  "n": 3,
+                  "p": 0.1333333
+                }
+              }
+            ]
+          }
+        ]
+      },
+      {
+        "rolls": 1,
+        "conditions": [
+          {
+            "condition": "block_state_property",
+            "properties": {
+              "growth": 2
+            }
+          }
+        ],
+        "entries": [
+          {
+            "type": "item",
+            "name": "minecraft:pumpkin_seeds",
+            "functions": [
+              {
+                "function": "set_count",
+                "count": {
+                  "type": "binomial",
+                  "n": 3,
+                  "p": 0.2
+                }
+              }
+            ]
+          }
+        ]
+      },
+      {
+        "rolls": 1,
+        "conditions": [
+          {
+            "condition": "block_state_property",
+            "properties": {
+              "growth": 3
+            }
+          }
+        ],
+        "entries": [
+          {
+            "type": "item",
+            "name": "minecraft:pumpkin_seeds",
+            "functions": [
+              {
+                "function": "set_count",
+                "count": {
+                  "type": "binomial",
+                  "n": 3,
+                  "p": 0.2666667
+                }
+              }
+            ]
+          }
+        ]
+      },
+      {
+        "rolls": 1,
+        "conditions": [
+          {
+            "condition": "block_state_property",
+            "properties": {
+              "growth": 4
+            }
+          }
+        ],
+        "entries": [
+          {
+            "type": "item",
+            "name": "minecraft:pumpkin_seeds",
+            "functions": [
+              {
+                "function": "set_count",
+                "count": {
+                  "type": "binomial",
+                  "n": 3,
+                  "p": 0.3333333
+                }
+              }
+            ]
+          }
+        ]
+      },
+      {
+        "rolls": 1,
+        "conditions": [
+          {
+            "condition": "block_state_property",
+            "properties": {
+              "growth": 5
+            }
+          }
+        ],
+        "entries": [
+          {
+            "type": "item",
+            "name": "minecraft:pumpkin_seeds",
+            "functions": [
+              {
+                "function": "set_count",
+                "count": {
+                  "type": "binomial",
+                  "n": 3,
+                  "p": 0.4
+                }
+              }
+            ]
+          }
+        ]
+      },
+      {
+        "rolls": 1,
+        "conditions": [
+          {
+            "condition": "block_state_property",
+            "properties": {
+              "growth": 6
+            }
+          }
+        ],
+        "entries": [
+          {
+            "type": "item",
+            "name": "minecraft:pumpkin_seeds",
+            "functions": [
+              {
+                "function": "set_count",
+                "count": {
+                  "type": "binomial",
+                  "n": 3,
+                  "p": 0.4666667
+                }
+              }
+            ]
+          }
+        ]
+      },
+      {
+        "rolls": 1,
+        "conditions": [
+          {
+            "condition": "block_state_property",
+            "properties": {
+              "growth": 7
+            }
+          }
+        ],
+        "entries": [
+          {
+            "type": "item",
+            "name": "minecraft:pumpkin_seeds",
+            "functions": [
+              {
+                "function": "set_count",
+                "count": {
+                  "type": "binomial",
+                  "n": 3,
+                  "p": 0.5333333
+                }
+              }
+            ]
+          }
+        ]
+      }
+    ]
+  },
+  "blocks/purple_candle_cake": {
+    "//source": "Java Edition vanilla loot table of the same block, with Bedrock identifiers (BDS ships no loot table for this block); not yet measured against BDS",
+    "pools": [
+      {
+        "rolls": 1,
+        "entries": [
+          {
+            "type": "item",
+            "name": "minecraft:purple_candle"
+          }
+        ]
+      }
+    ]
+  },
+  "blocks/purple_stained_glass": {
+    "//source": "Java Edition vanilla loot table of the same block, with Bedrock identifiers (BDS ships no loot table for this block); not yet measured against BDS",
+    "pools": [
+      {
+        "rolls": 1,
+        "entries": [
+          {
+            "type": "item",
+            "name": "minecraft:purple_stained_glass",
+            "conditions": [
+              {
+                "condition": "match_tool",
+                "enchantments": [
+                  {
+                    "enchantment": "silk_touch",
+                    "levels": {
+                      "range_min": 1
+                    }
+                  }
+                ]
+              }
+            ]
+          }
+        ]
+      }
+    ]
+  },
+  "blocks/purple_stained_glass_pane": {
+    "//source": "Java Edition vanilla loot table of the same block, with Bedrock identifiers (BDS ships no loot table for this block); not yet measured against BDS",
+    "pools": [
+      {
+        "rolls": 1,
+        "entries": [
+          {
+            "type": "item",
+            "name": "minecraft:purple_stained_glass_pane",
+            "conditions": [
+              {
+                "condition": "match_tool",
+                "enchantments": [
+                  {
+                    "enchantment": "silk_touch",
+                    "levels": {
+                      "range_min": 1
+                    }
+                  }
+                ]
+              }
+            ]
+          }
+        ]
+      }
+    ]
+  },
+  "blocks/quartz_ore": {
+    "//source": "Java Edition vanilla loot table of the same block, with Bedrock identifiers (BDS ships no loot table for this block); not yet measured against BDS",
+    "pools": [
+      {
+        "rolls": 1,
+        "entries": [
+          {
+            "type": "alternatives",
+            "children": [
+              {
+                "type": "item",
+                "name": "minecraft:quartz_ore",
+                "conditions": [
+                  {
+                    "condition": "match_tool",
+                    "enchantments": [
+                      {
+                        "enchantment": "silk_touch",
+                        "levels": {
+                          "range_min": 1
+                        }
+                      }
+                    ]
+                  }
+                ]
+              },
+              {
+                "type": "item",
+                "name": "minecraft:quartz",
+                "functions": [
+                  {
+                    "function": "apply_bonus",
+                    "enchantment": "fortune",
+                    "formula": "ore_drops"
+                  }
+                ]
+              }
+            ]
+          }
+        ]
+      }
+    ]
+  },
+  "blocks/red_candle_cake": {
+    "//source": "Java Edition vanilla loot table of the same block, with Bedrock identifiers (BDS ships no loot table for this block); not yet measured against BDS",
+    "pools": [
+      {
+        "rolls": 1,
+        "entries": [
+          {
+            "type": "item",
+            "name": "minecraft:red_candle"
+          }
+        ]
+      }
+    ]
+  },
+  "blocks/red_stained_glass": {
+    "//source": "Java Edition vanilla loot table of the same block, with Bedrock identifiers (BDS ships no loot table for this block); not yet measured against BDS",
+    "pools": [
+      {
+        "rolls": 1,
+        "entries": [
+          {
+            "type": "item",
+            "name": "minecraft:red_stained_glass",
+            "conditions": [
+              {
+                "condition": "match_tool",
+                "enchantments": [
+                  {
+                    "enchantment": "silk_touch",
+                    "levels": {
+                      "range_min": 1
+                    }
+                  }
+                ]
+              }
+            ]
+          }
+        ]
+      }
+    ]
+  },
+  "blocks/red_stained_glass_pane": {
+    "//source": "Java Edition vanilla loot table of the same block, with Bedrock identifiers (BDS ships no loot table for this block); not yet measured against BDS",
+    "pools": [
+      {
+        "rolls": 1,
+        "entries": [
+          {
+            "type": "item",
+            "name": "minecraft:red_stained_glass_pane",
+            "conditions": [
+              {
+                "condition": "match_tool",
+                "enchantments": [
+                  {
+                    "enchantment": "silk_touch",
+                    "levels": {
+                      "range_min": 1
+                    }
+                  }
+                ]
+              }
+            ]
+          }
+        ]
+      }
+    ]
+  },
+  "blocks/redstone_ore": {
+    "//source": "Java Edition vanilla loot table of the same block, with Bedrock identifiers (BDS ships no loot table for this block); not yet measured against BDS",
+    "pools": [
+      {
+        "rolls": 1,
+        "entries": [
+          {
+            "type": "alternatives",
+            "children": [
+              {
+                "type": "item",
+                "name": "minecraft:redstone_ore",
+                "conditions": [
+                  {
+                    "condition": "match_tool",
+                    "enchantments": [
+                      {
+                        "enchantment": "silk_touch",
+                        "levels": {
+                          "range_min": 1
+                        }
+                      }
+                    ]
+                  }
+                ]
+              },
+              {
+                "type": "item",
+                "name": "minecraft:redstone",
+                "functions": [
+                  {
+                    "function": "set_count",
+                    "count": {
+                      "min": 4,
+                      "max": 5
+                    }
+                  },
+                  {
+                    "function": "apply_bonus",
+                    "enchantment": "fortune",
+                    "formula": "uniform_bonus_count",
+                    "parameters": {
+                      "bonusMultiplier": 1
+                    }
+                  }
+                ]
+              }
+            ]
+          }
+        ]
+      }
+    ]
+  },
+  "blocks/redstone_wire": {
+    "//source": "Java Edition vanilla loot table of the same block, with Bedrock identifiers (BDS ships no loot table for this block); not yet measured against BDS",
+    "pools": [
+      {
+        "rolls": 1,
+        "entries": [
+          {
+            "type": "item",
+            "name": "minecraft:redstone"
+          }
+        ]
+      }
+    ]
+  },
+  "blocks/reeds": {
+    "//source": "Java Edition vanilla loot table of the same block, with Bedrock identifiers (BDS ships no loot table for this block); not yet measured against BDS",
+    "pools": [
+      {
+        "rolls": 1,
+        "entries": [
+          {
+            "type": "item",
+            "name": "minecraft:sugar_cane"
+          }
+        ]
+      }
+    ]
+  },
+  "blocks/reinforced_deepslate": {
+    "//source": "Java Edition vanilla loot table of the same block, with Bedrock identifiers (BDS ships no loot table for this block); not yet measured against BDS; drops nothing",
+    "pools": []
+  },
+  "blocks/sea_lantern": {
+    "//source": "Java Edition vanilla loot table of the same block, with Bedrock identifiers (BDS ships no loot table for this block); not yet measured against BDS",
+    "pools": [
+      {
+        "rolls": 1,
+        "entries": [
+          {
+            "type": "alternatives",
+            "children": [
+              {
+                "type": "item",
+                "name": "minecraft:sea_lantern",
+                "conditions": [
+                  {
+                    "condition": "match_tool",
+                    "enchantments": [
+                      {
+                        "enchantment": "silk_touch",
+                        "levels": {
+                          "range_min": 1
+                        }
+                      }
+                    ]
+                  }
+                ]
+              },
+              {
+                "type": "item",
+                "name": "minecraft:prismarine_crystals",
+                "functions": [
+                  {
+                    "function": "set_count",
+                    "count": {
+                      "min": 2,
+                      "max": 3
+                    }
+                  },
+                  {
+                    "function": "apply_bonus",
+                    "enchantment": "fortune",
+                    "formula": "uniform_bonus_count",
+                    "parameters": {
+                      "bonusMultiplier": 1
+                    }
+                  },
+                  {
+                    "function": "limit_count",
+                    "limit": {
+                      "min": 1,
+                      "max": 5
+                    }
+                  }
+                ]
+              }
+            ]
+          }
+        ]
+      }
+    ]
+  },
+  "blocks/seagrass": {
+    "//source": "Java Edition vanilla loot table of the same block, with Bedrock identifiers (BDS ships no loot table for this block); not yet measured against BDS",
+    "pools": [
+      {
+        "rolls": 1,
+        "entries": [
+          {
+            "type": "item",
+            "name": "minecraft:seagrass",
+            "conditions": [
+              {
+                "condition": "match_tool",
+                "item": "minecraft:shears"
+              }
+            ]
+          }
+        ]
+      }
+    ]
+  },
+  "blocks/short_grass": {
+    "//source": "Java Edition vanilla loot table of the same block, with Bedrock identifiers (BDS ships no loot table for this block); not yet measured against BDS",
+    "pools": [
+      {
+        "rolls": 1,
+        "entries": [
+          {
+            "type": "alternatives",
+            "children": [
+              {
+                "type": "item",
+                "name": "minecraft:short_grass",
+                "conditions": [
+                  {
+                    "condition": "match_tool",
+                    "item": "minecraft:shears"
+                  }
+                ]
+              },
+              {
+                "type": "item",
+                "name": "minecraft:wheat_seeds",
+                "functions": [
+                  {
+                    "function": "apply_bonus",
+                    "enchantment": "fortune",
+                    "formula": "uniform_bonus_count",
+                    "parameters": {
+                      "bonusMultiplier": 2
+                    }
+                  }
+                ],
+                "conditions": [
+                  {
+                    "condition": "random_chance",
+                    "chance": 0.125
+                  }
+                ]
+              }
+            ]
+          }
+        ]
+      }
+    ]
+  },
+  "blocks/small_amethyst_bud": {
+    "//source": "Java Edition vanilla loot table of the same block, with Bedrock identifiers (BDS ships no loot table for this block); not yet measured against BDS",
+    "pools": [
+      {
+        "rolls": 1,
+        "entries": [
+          {
+            "type": "item",
+            "name": "minecraft:small_amethyst_bud",
+            "conditions": [
+              {
+                "condition": "match_tool",
+                "enchantments": [
+                  {
+                    "enchantment": "silk_touch",
+                    "levels": {
+                      "range_min": 1
+                    }
+                  }
+                ]
+              }
+            ]
+          }
+        ]
+      }
+    ]
+  },
+  "blocks/snow": {
+    "//source": "Java Edition vanilla loot table of the same block, with Bedrock identifiers (BDS ships no loot table for this block); not yet measured against BDS",
+    "pools": [
+      {
+        "rolls": 1,
+        "entries": [
+          {
+            "type": "alternatives",
+            "children": [
+              {
+                "type": "item",
+                "name": "minecraft:snow",
+                "conditions": [
+                  {
+                    "condition": "match_tool",
+                    "enchantments": [
+                      {
+                        "enchantment": "silk_touch",
+                        "levels": {
+                          "range_min": 1
+                        }
+                      }
+                    ]
+                  }
+                ]
+              },
+              {
+                "type": "item",
+                "name": "minecraft:snowball",
+                "functions": [
+                  {
+                    "function": "set_count",
+                    "count": 4
+                  }
+                ]
+              }
+            ]
+          }
+        ]
+      }
+    ]
+  },
+  "blocks/snow_layer": {
+    "//source": "Java Edition vanilla loot table of the same block, with Bedrock identifiers (BDS ships no loot table for this block); not yet measured against BDS; count = layers",
+    "pools": [
+      {
+        "rolls": 1,
+        "conditions": [
+          {
+            "condition": "block_state_property",
+            "properties": {
+              "height": 0
+            }
+          }
+        ],
+        "entries": [
+          {
+            "type": "item",
+            "name": "minecraft:snowball",
+            "functions": [
+              {
+                "function": "set_count",
+                "count": 1
+              }
+            ]
+          }
+        ]
+      },
+      {
+        "rolls": 1,
+        "conditions": [
+          {
+            "condition": "block_state_property",
+            "properties": {
+              "height": 1
+            }
+          }
+        ],
+        "entries": [
+          {
+            "type": "item",
+            "name": "minecraft:snowball",
+            "functions": [
+              {
+                "function": "set_count",
+                "count": 2
+              }
+            ]
+          }
+        ]
+      },
+      {
+        "rolls": 1,
+        "conditions": [
+          {
+            "condition": "block_state_property",
+            "properties": {
+              "height": 2
+            }
+          }
+        ],
+        "entries": [
+          {
+            "type": "item",
+            "name": "minecraft:snowball",
+            "functions": [
+              {
+                "function": "set_count",
+                "count": 3
+              }
+            ]
+          }
+        ]
+      },
+      {
+        "rolls": 1,
+        "conditions": [
+          {
+            "condition": "block_state_property",
+            "properties": {
+              "height": 3
+            }
+          }
+        ],
+        "entries": [
+          {
+            "type": "item",
+            "name": "minecraft:snowball",
+            "functions": [
+              {
+                "function": "set_count",
+                "count": 4
+              }
+            ]
+          }
+        ]
+      },
+      {
+        "rolls": 1,
+        "conditions": [
+          {
+            "condition": "block_state_property",
+            "properties": {
+              "height": 4
+            }
+          }
+        ],
+        "entries": [
+          {
+            "type": "item",
+            "name": "minecraft:snowball",
+            "functions": [
+              {
+                "function": "set_count",
+                "count": 5
+              }
+            ]
+          }
+        ]
+      },
+      {
+        "rolls": 1,
+        "conditions": [
+          {
+            "condition": "block_state_property",
+            "properties": {
+              "height": 5
+            }
+          }
+        ],
+        "entries": [
+          {
+            "type": "item",
+            "name": "minecraft:snowball",
+            "functions": [
+              {
+                "function": "set_count",
+                "count": 6
+              }
+            ]
+          }
+        ]
+      },
+      {
+        "rolls": 1,
+        "conditions": [
+          {
+            "condition": "block_state_property",
+            "properties": {
+              "height": 6
+            }
+          }
+        ],
+        "entries": [
+          {
+            "type": "item",
+            "name": "minecraft:snowball",
+            "functions": [
+              {
+                "function": "set_count",
+                "count": 7
+              }
+            ]
+          }
+        ]
+      },
+      {
+        "rolls": 1,
+        "conditions": [
+          {
+            "condition": "block_state_property",
+            "properties": {
+              "height": 7
+            }
+          }
+        ],
+        "entries": [
+          {
+            "type": "item",
+            "name": "minecraft:snowball",
+            "functions": [
+              {
+                "function": "set_count",
+                "count": 8
+              }
+            ]
+          }
+        ]
+      }
+    ]
+  },
+  "blocks/soul_fire": {
+    "//source": "Java Edition vanilla loot table of the same block, with Bedrock identifiers (BDS ships no loot table for this block); not yet measured against BDS; drops nothing",
+    "pools": []
+  },
+  "blocks/spruce_leaves": {
+    "//source": "Java Edition vanilla loot table of the same block, with Bedrock identifiers (BDS ships no loot table for this block); not yet measured against BDS",
+    "pools": [
+      {
+        "rolls": 1,
+        "entries": [
+          {
+            "type": "alternatives",
+            "children": [
+              {
+                "type": "item",
+                "name": "minecraft:spruce_leaves",
+                "conditions": [
+                  {
+                    "condition": "match_tool",
+                    "item": "minecraft:shears"
+                  }
+                ]
+              },
+              {
+                "type": "item",
+                "name": "minecraft:spruce_leaves",
+                "conditions": [
+                  {
+                    "condition": "match_tool",
+                    "enchantments": [
+                      {
+                        "enchantment": "silk_touch",
+                        "levels": {
+                          "range_min": 1
+                        }
+                      }
+                    ]
+                  }
+                ]
+              },
+              {
+                "type": "item",
+                "name": "minecraft:spruce_sapling",
+                "conditions": [
+                  {
+                    "condition": "table_bonus",
+                    "enchantment": "fortune",
+                    "chances": [
+                      0.05,
+                      0.0625,
+                      0.083333336,
+                      0.1
+                    ]
+                  }
+                ]
+              }
+            ]
+          }
+        ]
+      },
+      {
+        "rolls": 1,
+        "conditions": [
+          {
+            "condition": "inverted",
+            "term": {
+              "condition": "match_tool",
+              "item": "minecraft:shears"
+            }
+          },
+          {
+            "condition": "inverted",
+            "term": {
+              "condition": "match_tool",
+              "enchantments": [
+                {
+                  "enchantment": "silk_touch",
+                  "levels": {
+                    "range_min": 1
+                  }
+                }
+              ]
+            }
+          }
+        ],
+        "entries": [
+          {
+            "type": "item",
+            "name": "minecraft:stick",
+            "functions": [
+              {
+                "function": "set_count",
+                "count": {
+                  "min": 1,
+                  "max": 2
+                }
+              }
+            ],
+            "conditions": [
+              {
+                "condition": "table_bonus",
+                "enchantment": "fortune",
+                "chances": [
+                  0.02,
+                  0.022222223,
+                  0.025,
+                  0.033333335,
+                  0.1
+                ]
+              }
+            ]
+          }
+        ]
+      }
+    ]
+  },
+  "blocks/spruce_standing_sign": {
+    "//source": "Java Edition vanilla loot table of the same block, with Bedrock identifiers (BDS ships no loot table for this block); not yet measured against BDS",
+    "pools": [
+      {
+        "rolls": 1,
+        "entries": [
+          {
+            "type": "item",
+            "name": "minecraft:spruce_sign"
+          }
+        ]
+      }
+    ]
+  },
+  "blocks/spruce_wall_sign": {
+    "//source": "Java Edition vanilla loot table of the same block, with Bedrock identifiers (BDS ships no loot table for this block); not yet measured against BDS",
+    "pools": [
+      {
+        "rolls": 1,
+        "entries": [
+          {
+            "type": "item",
+            "name": "minecraft:spruce_sign"
+          }
+        ]
+      }
+    ]
+  },
+  "blocks/standing_banner": {
+    "//source": "Java Edition vanilla loot table of the same block, with Bedrock identifiers (BDS ships no loot table for this block); not yet measured against BDS",
+    "pools": [
+      {
+        "rolls": 1,
+        "entries": [
+          {
+            "type": "item",
+            "name": "minecraft:banner"
+          }
+        ]
+      }
+    ]
+  },
+  "blocks/standing_sign": {
+    "//source": "Java Edition vanilla loot table of the same block, with Bedrock identifiers (BDS ships no loot table for this block); not yet measured against BDS",
+    "pools": [
+      {
+        "rolls": 1,
+        "entries": [
+          {
+            "type": "item",
+            "name": "minecraft:oak_sign"
+          }
+        ]
+      }
+    ]
+  },
+  "blocks/sticky_piston_arm_collision": {
+    "//source": "Java Edition vanilla loot table of the same block, with Bedrock identifiers (BDS ships no loot table for this block); not yet measured against BDS; drops nothing",
+    "pools": []
+  },
+  "blocks/stone": {
+    "//source": "Java Edition vanilla loot table of the same block, with Bedrock identifiers (BDS ships no loot table for this block); not yet measured against BDS",
+    "pools": [
+      {
+        "rolls": 1,
+        "entries": [
+          {
+            "type": "alternatives",
+            "children": [
+              {
+                "type": "item",
+                "name": "minecraft:stone",
+                "conditions": [
+                  {
+                    "condition": "match_tool",
+                    "enchantments": [
+                      {
+                        "enchantment": "silk_touch",
+                        "levels": {
+                          "range_min": 1
+                        }
+                      }
+                    ]
+                  }
+                ]
+              },
+              {
+                "type": "item",
+                "name": "minecraft:cobblestone"
+              }
+            ]
+          }
+        ]
+      }
+    ]
+  },
+  "blocks/sweet_berry_bush": {
+    "//source": "Java Edition vanilla loot table of the same block, with Bedrock identifiers (BDS ships no loot table for this block); not yet measured against BDS",
+    "pools": [
+      {
+        "rolls": 1,
+        "conditions": [
+          {
+            "condition": "block_state_property",
+            "properties": {
+              "growth": 3
+            }
+          }
+        ],
+        "entries": [
+          {
+            "type": "item",
+            "name": "minecraft:sweet_berries",
+            "functions": [
+              {
+                "function": "set_count",
+                "count": {
+                  "min": 2,
+                  "max": 3
+                }
+              },
+              {
+                "function": "apply_bonus",
+                "enchantment": "fortune",
+                "formula": "uniform_bonus_count",
+                "parameters": {
+                  "bonusMultiplier": 1
+                }
+              }
+            ]
+          }
+        ]
+      },
+      {
+        "rolls": 1,
+        "conditions": [
+          {
+            "condition": "block_state_property",
+            "properties": {
+              "growth": 2
+            }
+          }
+        ],
+        "entries": [
+          {
+            "type": "item",
+            "name": "minecraft:sweet_berries",
+            "functions": [
+              {
+                "function": "set_count",
+                "count": {
+                  "min": 1,
+                  "max": 2
+                }
+              },
+              {
+                "function": "apply_bonus",
+                "enchantment": "fortune",
+                "formula": "uniform_bonus_count",
+                "parameters": {
+                  "bonusMultiplier": 1
+                }
+              }
+            ]
+          }
+        ]
+      }
+    ]
+  },
+  "blocks/tall_grass": {
+    "//source": "Java Edition vanilla loot table of the same block, with Bedrock identifiers (BDS ships no loot table for this block); not yet measured against BDS",
+    "pools": [
+      {
+        "rolls": 1,
+        "entries": [
+          {
+            "type": "alternatives",
+            "children": [
+              {
+                "type": "item",
+                "name": "minecraft:short_grass",
+                "functions": [
+                  {
+                    "function": "set_count",
+                    "count": 2
+                  }
+                ],
+                "conditions": [
+                  {
+                    "condition": "match_tool",
+                    "item": "minecraft:shears"
+                  }
+                ]
+              },
+              {
+                "type": "item",
+                "name": "minecraft:wheat_seeds",
+                "functions": [
+                  {
+                    "function": "apply_bonus",
+                    "enchantment": "fortune",
+                    "formula": "uniform_bonus_count",
+                    "parameters": {
+                      "bonusMultiplier": 2
+                    }
+                  }
+                ],
+                "conditions": [
+                  {
+                    "condition": "random_chance",
+                    "chance": 0.125
+                  }
+                ]
+              }
+            ]
+          }
+        ]
+      }
+    ]
+  },
+  "blocks/tinted_glass": {
+    "//source": "Java Edition vanilla loot table of the same block, with Bedrock identifiers (BDS ships no loot table for this block); not yet measured against BDS",
+    "pools": [
+      {
+        "rolls": 1,
+        "entries": [
+          {
+            "type": "item",
+            "name": "minecraft:tinted_glass",
+            "conditions": [
+              {
+                "condition": "match_tool",
+                "enchantments": [
+                  {
+                    "enchantment": "silk_touch",
+                    "levels": {
+                      "range_min": 1
+                    }
+                  }
+                ]
+              }
+            ]
+          }
+        ]
+      }
+    ]
+  },
+  "blocks/torchflower_crop": {
+    "//source": "Java Edition vanilla loot table of the same block, with Bedrock identifiers (BDS ships no loot table for this block); not yet measured against BDS; growth stage drop simplified to seeds (torchflower only at full growth becomes a separate block)",
+    "pools": [
+      {
+        "rolls": 1,
+        "entries": [
+          {
+            "type": "item",
+            "name": "minecraft:torchflower_seeds"
+          }
+        ]
+      }
+    ]
+  },
+  "blocks/trip_wire": {
+    "//source": "Java Edition vanilla loot table of the same block, with Bedrock identifiers (BDS ships no loot table for this block); not yet measured against BDS",
+    "pools": [
+      {
+        "rolls": 1,
+        "entries": [
+          {
+            "type": "item",
+            "name": "minecraft:string"
+          }
+        ]
+      }
+    ]
+  },
+  "blocks/turtle_egg": {
+    "//source": "Java Edition vanilla loot table of the same block, with Bedrock identifiers (BDS ships no loot table for this block); not yet measured against BDS",
+    "pools": [
+      {
+        "rolls": 1,
+        "entries": [
+          {
+            "type": "item",
+            "name": "minecraft:turtle_egg",
+            "conditions": [
+              {
+                "condition": "match_tool",
+                "enchantments": [
+                  {
+                    "enchantment": "silk_touch",
+                    "levels": {
+                      "range_min": 1
+                    }
+                  }
+                ]
+              }
+            ]
+          }
+        ]
+      }
+    ]
+  },
+  "blocks/unlit_redstone_torch": {
+    "//source": "Java Edition vanilla loot table of the same block, with Bedrock identifiers (BDS ships no loot table for this block); not yet measured against BDS",
+    "pools": [
+      {
+        "rolls": 1,
+        "entries": [
+          {
+            "type": "item",
+            "name": "minecraft:redstone_torch"
+          }
+        ]
+      }
+    ]
+  },
+  "blocks/unpowered_comparator": {
+    "//source": "Java Edition vanilla loot table of the same block, with Bedrock identifiers (BDS ships no loot table for this block); not yet measured against BDS",
+    "pools": [
+      {
+        "rolls": 1,
+        "entries": [
+          {
+            "type": "item",
+            "name": "minecraft:comparator"
+          }
+        ]
+      }
+    ]
+  },
+  "blocks/unpowered_repeater": {
+    "//source": "Java Edition vanilla loot table of the same block, with Bedrock identifiers (BDS ships no loot table for this block); not yet measured against BDS",
+    "pools": [
+      {
+        "rolls": 1,
+        "entries": [
+          {
+            "type": "item",
+            "name": "minecraft:repeater"
+          }
+        ]
+      }
+    ]
+  },
+  "blocks/vine": {
+    "//source": "Java Edition vanilla loot table of the same block, with Bedrock identifiers (BDS ships no loot table for this block); not yet measured against BDS",
+    "pools": [
+      {
+        "rolls": 1,
+        "entries": [
+          {
+            "type": "item",
+            "name": "minecraft:vine",
+            "conditions": [
+              {
+                "condition": "match_tool",
+                "item": "minecraft:shears"
+              }
+            ]
+          }
+        ]
+      }
+    ]
+  },
+  "blocks/wall_banner": {
+    "//source": "Java Edition vanilla loot table of the same block, with Bedrock identifiers (BDS ships no loot table for this block); not yet measured against BDS",
+    "pools": [
+      {
+        "rolls": 1,
+        "entries": [
+          {
+            "type": "item",
+            "name": "minecraft:banner"
+          }
+        ]
+      }
+    ]
+  },
+  "blocks/wall_sign": {
+    "//source": "Java Edition vanilla loot table of the same block, with Bedrock identifiers (BDS ships no loot table for this block); not yet measured against BDS",
+    "pools": [
+      {
+        "rolls": 1,
+        "entries": [
+          {
+            "type": "item",
+            "name": "minecraft:oak_sign"
+          }
+        ]
+      }
+    ]
+  },
+  "blocks/warped_standing_sign": {
+    "//source": "Java Edition vanilla loot table of the same block, with Bedrock identifiers (BDS ships no loot table for this block); not yet measured against BDS",
+    "pools": [
+      {
+        "rolls": 1,
+        "entries": [
+          {
+            "type": "item",
+            "name": "minecraft:warped_sign"
+          }
+        ]
+      }
+    ]
+  },
+  "blocks/warped_wall_sign": {
+    "//source": "Java Edition vanilla loot table of the same block, with Bedrock identifiers (BDS ships no loot table for this block); not yet measured against BDS",
+    "pools": [
+      {
+        "rolls": 1,
+        "entries": [
+          {
+            "type": "item",
+            "name": "minecraft:warped_sign"
+          }
+        ]
+      }
+    ]
+  },
+  "blocks/water": {
+    "//source": "Java Edition vanilla loot table of the same block, with Bedrock identifiers (BDS ships no loot table for this block); not yet measured against BDS; drops nothing",
+    "pools": []
+  },
+  "blocks/web": {
+    "//source": "Java Edition vanilla loot table of the same block, with Bedrock identifiers (BDS ships no loot table for this block); not yet measured against BDS",
+    "pools": [
+      {
+        "rolls": 1,
+        "entries": [
+          {
+            "type": "alternatives",
+            "children": [
+              {
+                "type": "item",
+                "name": "minecraft:web",
+                "conditions": [
+                  {
+                    "condition": "match_tool",
+                    "item": "minecraft:shears"
+                  }
+                ]
+              },
+              {
+                "type": "item",
+                "name": "minecraft:web",
+                "conditions": [
+                  {
+                    "condition": "match_tool",
+                    "enchantments": [
+                      {
+                        "enchantment": "silk_touch",
+                        "levels": {
+                          "range_min": 1
+                        }
+                      }
+                    ]
+                  }
+                ]
+              },
+              {
+                "type": "item",
+                "name": "minecraft:string"
+              }
+            ]
+          }
+        ]
+      }
+    ]
+  },
+  "blocks/wheat": {
+    "//source": "Java Edition vanilla loot table of the same block, with Bedrock identifiers (BDS ships no loot table for this block); not yet measured against BDS; mature at growth 7",
+    "pools": [
+      {
+        "rolls": 1,
+        "entries": [
+          {
+            "type": "alternatives",
+            "children": [
+              {
+                "type": "item",
+                "name": "minecraft:wheat",
+                "conditions": [
+                  {
+                    "condition": "block_state_property",
+                    "properties": {
+                      "growth": 7
+                    }
+                  }
+                ]
+              },
+              {
+                "type": "item",
+                "name": "minecraft:wheat_seeds"
+              }
+            ]
+          }
+        ]
+      },
+      {
+        "rolls": 1,
+        "conditions": [
+          {
+            "condition": "block_state_property",
+            "properties": {
+              "growth": 7
+            }
+          }
+        ],
+        "entries": [
+          {
+            "type": "item",
+            "name": "minecraft:wheat_seeds",
+            "functions": [
+              {
+                "function": "apply_bonus",
+                "enchantment": "fortune",
+                "formula": "binomial_with_bonus_count",
+                "parameters": {
+                  "extra": 3,
+                  "probability": 0.5714286
+                }
+              }
+            ]
+          }
+        ]
+      }
+    ]
+  },
+  "blocks/white_candle_cake": {
+    "//source": "Java Edition vanilla loot table of the same block, with Bedrock identifiers (BDS ships no loot table for this block); not yet measured against BDS",
+    "pools": [
+      {
+        "rolls": 1,
+        "entries": [
+          {
+            "type": "item",
+            "name": "minecraft:white_candle"
+          }
+        ]
+      }
+    ]
+  },
+  "blocks/white_stained_glass": {
+    "//source": "Java Edition vanilla loot table of the same block, with Bedrock identifiers (BDS ships no loot table for this block); not yet measured against BDS",
+    "pools": [
+      {
+        "rolls": 1,
+        "entries": [
+          {
+            "type": "item",
+            "name": "minecraft:white_stained_glass",
+            "conditions": [
+              {
+                "condition": "match_tool",
+                "enchantments": [
+                  {
+                    "enchantment": "silk_touch",
+                    "levels": {
+                      "range_min": 1
+                    }
+                  }
+                ]
+              }
+            ]
+          }
+        ]
+      }
+    ]
+  },
+  "blocks/white_stained_glass_pane": {
+    "//source": "Java Edition vanilla loot table of the same block, with Bedrock identifiers (BDS ships no loot table for this block); not yet measured against BDS",
+    "pools": [
+      {
+        "rolls": 1,
+        "entries": [
+          {
+            "type": "item",
+            "name": "minecraft:white_stained_glass_pane",
+            "conditions": [
+              {
+                "condition": "match_tool",
+                "enchantments": [
+                  {
+                    "enchantment": "silk_touch",
+                    "levels": {
+                      "range_min": 1
+                    }
+                  }
+                ]
+              }
+            ]
+          }
+        ]
+      }
+    ]
+  },
+  "blocks/yellow_candle_cake": {
+    "//source": "Java Edition vanilla loot table of the same block, with Bedrock identifiers (BDS ships no loot table for this block); not yet measured against BDS",
+    "pools": [
+      {
+        "rolls": 1,
+        "entries": [
+          {
+            "type": "item",
+            "name": "minecraft:yellow_candle"
+          }
+        ]
+      }
+    ]
+  },
+  "blocks/yellow_stained_glass": {
+    "//source": "Java Edition vanilla loot table of the same block, with Bedrock identifiers (BDS ships no loot table for this block); not yet measured against BDS",
+    "pools": [
+      {
+        "rolls": 1,
+        "entries": [
+          {
+            "type": "item",
+            "name": "minecraft:yellow_stained_glass",
+            "conditions": [
+              {
+                "condition": "match_tool",
+                "enchantments": [
+                  {
+                    "enchantment": "silk_touch",
+                    "levels": {
+                      "range_min": 1
+                    }
+                  }
+                ]
+              }
+            ]
+          }
+        ]
+      }
+    ]
+  },
+  "blocks/yellow_stained_glass_pane": {
+    "//source": "Java Edition vanilla loot table of the same block, with Bedrock identifiers (BDS ships no loot table for this block); not yet measured against BDS",
+    "pools": [
+      {
+        "rolls": 1,
+        "entries": [
+          {
+            "type": "item",
+            "name": "minecraft:yellow_stained_glass_pane",
+            "conditions": [
+              {
+                "condition": "match_tool",
+                "enchantments": [
+                  {
+                    "enchantment": "silk_touch",
+                    "levels": {
+                      "range_min": 1
+                    }
+                  }
+                ]
+              }
+            ]
+          }
+        ]
+      }
+    ]
+  }
+}
