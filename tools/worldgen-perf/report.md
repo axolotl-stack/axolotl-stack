@@ -514,6 +514,19 @@ under `crates/unastar_noise/src/`.
 
 ### AOT, SIMD and scaling constraints discovered during review
 
+- **A concrete missed column invariant is the 16-octave jagged noise.**
+  `worldgen_data/density_function/overworld/sloped_cheese.json` samples
+  `minecraft:jagged` with Y scale zero; the generated final-density function
+  still calls it per Y evaluation. Its two octave groups each have sixteen
+  nonzero amplitudes. `CellInterpolator::fill_slice_aot` makes twelve four-Y
+  calls and one scalar call at each of 25 corner columns: 300 vector jagged
+  calls plus 25 scalar calls per standard proto. A lazy root-specific SIMD
+  column cache could reuse those identical inputs without evaluating unused branches.
+  Preserve signed-zero lane patterns as part of the key: the normal column
+  traversal has separate negative-Y and nonnegative-Y zero inputs, so a strict
+  two-pattern cache target is 50 vector calls, not 25. Keep scalar sampling
+  separate rather than substituting scalar results or splats with different FMA
+  rounding. This opportunity has not yet been implemented or measured.
 - **Do not blindly trust the current Y-invariance metadata for automatic hoisting.**
   `codegen/analyzer/mod.rs::visit_children` marks all `Noise` and `ShiftedNoise`
   nodes Y-dependent, missing zero-Y-scale opportunities; it also groups the
@@ -563,4 +576,60 @@ and the trunk-before-foliage boundary are observable. Actor scans are a sparse-p
 candidate for actor-rich fixtures, not a demonstrated whole-chunk bottleneck.
 All candidates still require unchanged output/RNG invariants and the established
 normal-build whole-chunk A/B protocol before any performance claim.
+
+
+### Bounded aquifer cache checkpoint
+
+The first map-retention draft passed the warm/cold fluid oracle and reduced Java
+fixture traffic from 98,369 allocations / 151,246,166 bytes to 97,423 / 143,319,222.
+However, carver-stage requested bytes rose from 9,563,628 to 9,749,948 despite its
+allocation count dropping from 1,399 to 1,396. That draft was rejected: no total
+or per-stage ceiling was relaxed. Raw rejected allocation snapshots are retained
+at `C:/Users/jvigu/orca/wg-perf-artifacts/aot-branches/warm-stages.json`.
+
+The replacement derives a bounded numeric cache from the actual aquifer-center
+range and the existing surface-sampling stencil. Stencil extrema are evaluated
+at compile time. With current bounds it reserves 35 neighbour-grid slots and
+513 quart-surface slots; values remain lazy, while constructor work is retained
+for later fill/carving. There is no hash lookup or capacity growth on these paths.
+Negative coordinates are translated before checked row-major indexing.
+
+Exercised on the bounded-cache source, before the shared-machine priority hold:
+
+- `cargo fmt --all`: pass.
+- Release `bootstrapped_caches_preserve_cold_fluid_decisions_at_negative_boundaries`
+  with both generators and `worldgen-profile`: **1 pass**.
+- Release `worldgen_output_hash` with the same features, `--test-threads=1`:
+  **2 pass**, preserving every original Java/Bedrock chunk and actor digest.
+- Stage-enabled release `worldgen_bench`: builds; its independent executable is
+  checkpointed as `aot-branches/worldgen_bench_grid_stages.exe`.
+
+The numeric-cache row-isolation unit check, bounded-cache allocation snapshots,
+normal-release A/B timing and full acceptance gates remain unrun at this
+checkpoint. ENT acceptance/release and bounded native captures have priority;
+no performance number or allocation ceiling for the bounded replacement is
+asserted before those checks.
+
+### Scaling diagnostic from retained charger-powered rounds
+
+Dividing each baseline process's lifetime CPU time by its reported cold elapsed
+time gives the following median **upper bounds** on average logical CPU
+equivalents within the timed interval. CPU time includes initialization/teardown
+outside that interval, so these are not exact per-worker utilization samples.
+
+| Configured workers | Lifetime CPU / cold wall, CPU equivalents |
+|---|---:|
+| 1 | 0.943 |
+| 4 | 1.700 |
+| 8 | 3.963 |
+| 16 | 8.749 |
+
+The 4-worker process therefore is not simply spending four fully occupied cores
+on expensive arithmetic. Waiting or external scheduling competition must be
+isolated before attributing the scaling gap. Candidate wait sources include
+single-flight dependencies and allocator-internal synchronization, not only
+the request queue. Both production Unastar and the counting benchmark currently
+use the system allocator; commented-out allocator declarations in `main.rs` are
+not active. An allocator A/B is a separate experiment, not evidence of a current
+production speedup. Shared pipeline/worker ownership remains unchanged.
 

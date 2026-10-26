@@ -23,8 +23,6 @@
 //! 3. Applies pressure-based blending at aquifer boundaries
 //! 4. Returns appropriate fluid or barrier blocks
 
-use std::collections::HashMap;
-
 use crate::world::chunk::blocks;
 use crate::world::generator::density::{
     ColumnContext,
@@ -107,6 +105,78 @@ const SURFACE_SAMPLING_OFFSETS_IN_CHUNKS: [[i32; 2]; 13] = [
     [0, 1],
     [1, 1],
 ];
+
+// Compile the sampling stencil's bounds rather than duplicating its extrema.
+const SURFACE_OFFSET_BOUNDS: [i32; 4] = {
+    let mut bounds = [0; 4];
+    let mut i = 0;
+    while i < SURFACE_SAMPLING_OFFSETS_IN_CHUNKS.len() {
+        let [x, z] = SURFACE_SAMPLING_OFFSETS_IN_CHUNKS[i];
+        if x < bounds[0] {
+            bounds[0] = x;
+        }
+        if x > bounds[1] {
+            bounds[1] = x;
+        }
+        if z < bounds[2] {
+            bounds[2] = z;
+        }
+        if z > bounds[3] {
+            bounds[3] = z;
+        }
+        i += 1;
+    }
+    bounds
+};
+
+/// A bounded numeric cache. Aquifer-center ranges plus the sampling stencil
+/// determine every possible key, so hashing and growth are unnecessary.
+struct GridCache<T> {
+    first_x: i32,
+    first_z: i32,
+    width: usize,
+    height: usize,
+    values: Box<[Option<T>]>,
+}
+
+impl<T> GridCache<T> {
+    fn new(first_x: i32, first_z: i32, last_x: i32, last_z: i32) -> Self {
+        assert!(first_x <= last_x && first_z <= last_z);
+        let width = (last_x - first_x + 1) as usize;
+        let height = (last_z - first_z + 1) as usize;
+        Self {
+            first_x,
+            first_z,
+            width,
+            height,
+            values: std::iter::repeat_with(|| None)
+                .take(width * height)
+                .collect(),
+        }
+    }
+
+    #[inline]
+    fn index(&self, x: i32, z: i32) -> usize {
+        let dx = (i64::from(x) - i64::from(self.first_x)) as usize;
+        let dz = (i64::from(z) - i64::from(self.first_z)) as usize;
+        assert!(
+            dx < self.width && dz < self.height,
+            "aquifer cache coordinate ({x},{z}) outside its sampling bounds"
+        );
+        dz * self.width + dx
+    }
+
+    #[inline]
+    fn get(&self, x: i32, z: i32) -> Option<&T> {
+        self.values[self.index(x, z)].as_ref()
+    }
+
+    #[inline]
+    fn entry(&mut self, x: i32, z: i32) -> &mut Option<T> {
+        let index = self.index(x, z);
+        &mut self.values[index]
+    }
+}
 
 // ========== Fluid Types ==========
 
@@ -341,18 +411,18 @@ pub struct NoiseBasedAquifer<'a, F: FluidPicker> {
     /// Performance optimization: aquifer surface sampling accesses up to 13 neighboring positions
     /// per aquifer center, each potentially in a different chunk. Without caching, each access
     /// creates a new FlatCacheGrid (~125 noise samples + ~75 spline evaluations).
-    neighbor_grid_cache: HashMap<(i32, i32), FlatCacheGrid>,
+    neighbor_grid_cache: GridCache<FlatCacheGrid>,
 
     /// The chunk coordinates for the main grid (used for fast path in get_or_create_grid)
     main_chunk_x: i32,
     main_chunk_z: i32,
 
-    /// Cache of preliminary surface levels per quart position.
-    /// Key: (quart_x, quart_z), Value: raw surface level (floor of density function result)
+    /// Cache of preliminary surface levels indexed by quart coordinates.
+    /// Values are raw surface levels (floor of the density function result).
     /// This is THE critical performance optimization: compute_fluid() samples 13 surface
     /// positions per aquifer center, each requiring an expensive ColumnContext + density eval.
     /// Caching these avoids redundant computation when multiple aquifer centers share quart positions.
-    preliminary_surface_cache: HashMap<(i32, i32), i32>,
+    preliminary_surface_cache: GridCache<i32>,
 }
 
 impl<'a, F: FluidPicker> NoiseBasedAquifer<'a, F> {
@@ -400,10 +470,25 @@ impl<'a, F: FluidPicker> NoiseBasedAquifer<'a, F> {
 
         let cache_size = (grid_size_x * grid_size_y * grid_size_z) as usize;
 
-        // Compute max preliminary surface level for skip optimization
-        // Java: this.adjustSurfaceLevel(noiseChunk.maxPreliminarySurfaceLevel(...))
-        // Sample the 4 corners of the grid to find max surface
-        // OPTIMIZATION: Use the passed col_grid for positions within the current chunk
+        // Bootstrap the lifetime caches while finding the skip threshold. Dropping
+        // temporary maps here would repeat these grid/surface samples during fill.
+        let [min_dx, max_dx, min_dz, max_dz] = SURFACE_OFFSET_BOUNDS;
+        let sample_min_x = from_grid_x(min_grid_x + min_dx, 0);
+        let sample_max_x = from_grid_x(max_grid_x + max_dx, X_RANGE - 1);
+        let sample_min_z = from_grid_z(min_grid_z + min_dz, 0);
+        let sample_max_z = from_grid_z(max_grid_z + max_dz, Z_RANGE - 1);
+        let mut neighbor_grid_cache = GridCache::new(
+            grid_x(sample_min_x),
+            grid_z(sample_min_z),
+            grid_x(sample_max_x),
+            grid_z(sample_max_z),
+        );
+        let mut preliminary_surface_cache = GridCache::new(
+            sample_min_x >> 2,
+            sample_min_z >> 2,
+            sample_max_x >> 2,
+            sample_max_z >> 2,
+        );
         let max_surface = Self::compute_max_preliminary_surface_with_cache(
             noises,
             grid,
@@ -414,6 +499,8 @@ impl<'a, F: FluidPicker> NoiseBasedAquifer<'a, F> {
             from_grid_z(min_grid_z, 0),
             from_grid_x(max_grid_x, X_RANGE - 1),
             from_grid_z(max_grid_z, Z_RANGE - 1),
+            &mut neighbor_grid_cache,
+            &mut preliminary_surface_cache,
         );
         // Java: int p = this.adjustSurfaceLevel(maxPreliminarySurfaceLevel) = max_surface + 8
         // Java: int q = gridY(p + 12) - -1 = gridY(p + 12) + 1
@@ -447,14 +534,10 @@ impl<'a, F: FluidPicker> NoiseBasedAquifer<'a, F> {
             global_fluid_picker: fluid_picker,
             should_schedule_fluid_update: false,
             skip_sampling_above_y,
-            // Initialize neighbor grid cache with capacity for ~16 entries
-            // (13 surface sampling offsets + some margin for other methods)
-            neighbor_grid_cache: HashMap::with_capacity(16),
+            neighbor_grid_cache,
             main_chunk_x: chunk_x,
             main_chunk_z: chunk_z,
-            // Initialize preliminary surface cache - this is the critical performance cache.
-            // Each aquifer center samples 13 quart positions, so we expect many cache hits.
-            preliminary_surface_cache: HashMap::with_capacity(64),
+            preliminary_surface_cache,
         }
     }
 
@@ -472,11 +555,9 @@ impl<'a, F: FluidPicker> NoiseBasedAquifer<'a, F> {
             return;
         }
 
-        // Insert into cache if not present
-        if !self.neighbor_grid_cache.contains_key(&(chunk_x, chunk_z)) {
-            let grid = FlatCacheGrid::new(chunk_x, chunk_z, self.noises);
-            self.neighbor_grid_cache.insert((chunk_x, chunk_z), grid);
-        }
+        self.neighbor_grid_cache
+            .entry(chunk_x, chunk_z)
+            .get_or_insert_with(|| FlatCacheGrid::new(chunk_x, chunk_z, self.noises));
     }
 
     /// Get a reference to a cached FlatCacheGrid for the given chunk coordinates.
@@ -491,7 +572,7 @@ impl<'a, F: FluidPicker> NoiseBasedAquifer<'a, F> {
 
         // Get from cache (must have been ensured first)
         self.neighbor_grid_cache
-            .get(&(chunk_x, chunk_z))
+            .get(chunk_x, chunk_z)
             .expect("Grid should have been ensured before get_cached_grid")
     }
 
@@ -517,16 +598,10 @@ impl<'a, F: FluidPicker> NoiseBasedAquifer<'a, F> {
         min_z: i32,
         max_x: i32,
         max_z: i32,
+        neighbor_grid_cache: &mut GridCache<FlatCacheGrid>,
+        surface_cache: &mut GridCache<i32>,
     ) -> i32 {
         let mut max_surface: i32 = i32::MIN;
-
-        // Local cache for FlatCacheGrids used for NEIGHBOR chunks only
-        let mut neighbor_grid_cache: HashMap<(i32, i32), FlatCacheGrid> = HashMap::with_capacity(8);
-
-        // Local cache for surface levels - this is THE critical optimization.
-        // Java uses NoiseChunk.preliminarySurfaceLevelCache (Long2IntOpenHashMap).
-        // Key: (quart_x, quart_z), Value: computed surface level
-        let mut surface_cache: HashMap<(i32, i32), i32> = HashMap::with_capacity(64);
 
         // Java: for (int n = j; n <= l; n += 4) { for (int o = i; o <= k; o += 4) { ... } }
         // Sample the entire grid region stepping by 4 (quart size)
@@ -540,26 +615,31 @@ impl<'a, F: FluidPicker> NoiseBasedAquifer<'a, F> {
                 let quart_z = (z >> 2) << 2;
 
                 // Check surface level cache first (like Java's preliminarySurfaceLevelCache)
-                let surface = *surface_cache.entry((quart_x, quart_z)).or_insert_with(|| {
-                    let ctx = FunctionContext::new(quart_x, 0, quart_z);
-                    let chunk_x = quart_x >> 4;
-                    let chunk_z = quart_z >> 4;
+                let surface = *surface_cache
+                    .entry(quart_x >> 2, quart_z >> 2)
+                    .get_or_insert_with(|| {
+                        let ctx = FunctionContext::new(quart_x, 0, quart_z);
+                        let chunk_x = quart_x >> 4;
+                        let chunk_z = quart_z >> 4;
 
-                    // FAST PATH: Position is in the current chunk - use pre-computed col_grid
-                    // Extract scalar from SIMD context (XZ are same in all lanes)
-                    if chunk_x == main_chunk_x && chunk_z == main_chunk_z {
-                        let col = col_grid.get_block(quart_x, quart_z).as_scalar();
-                        compute_preliminary_surface_level(&ctx, noises, grid, &col).floor() as i32
-                    } else {
-                        // SLOW PATH: Position is in a neighbor chunk - create on demand
-                        let sample_grid = neighbor_grid_cache
-                            .entry((chunk_x, chunk_z))
-                            .or_insert_with(|| FlatCacheGrid::new(chunk_x, chunk_z, noises));
-                        let col = ColumnContext::new(quart_x, quart_z, noises, sample_grid);
-                        compute_preliminary_surface_level(&ctx, noises, sample_grid, &col).floor()
-                            as i32
-                    }
-                });
+                        // FAST PATH: Position is in the current chunk - use pre-computed col_grid
+                        // Extract scalar from SIMD context (XZ are same in all lanes)
+                        if chunk_x == main_chunk_x && chunk_z == main_chunk_z {
+                            let col = col_grid.get_block(quart_x, quart_z).as_scalar();
+                            compute_preliminary_surface_level(&ctx, noises, grid, &col).floor()
+                                as i32
+                        } else {
+                            // SLOW PATH: Position is in a neighbor chunk - create on demand
+                            let sample_grid = neighbor_grid_cache
+                                .entry(chunk_x, chunk_z)
+                                .get_or_insert_with(|| {
+                                    FlatCacheGrid::new(chunk_x, chunk_z, noises)
+                                });
+                            let col = ColumnContext::new(quart_x, quart_z, noises, sample_grid);
+                            compute_preliminary_surface_level(&ctx, noises, sample_grid, &col)
+                                .floor() as i32
+                        }
+                    });
 
                 max_surface = max_surface.max(surface);
 
@@ -844,8 +924,9 @@ impl<'a, F: FluidPicker> NoiseBasedAquifer<'a, F> {
             let quart_z = (sample_z >> 2) << 2;
 
             // PERFORMANCE CRITICAL: Check cache first to avoid expensive ColumnContext creation
-            let raw_surface = if let Some(&cached) =
-                self.preliminary_surface_cache.get(&(quart_x, quart_z))
+            let raw_surface = if let Some(&cached) = self
+                .preliminary_surface_cache
+                .get(quart_x >> 2, quart_z >> 2)
             {
                 cached
             } else {
@@ -865,8 +946,9 @@ impl<'a, F: FluidPicker> NoiseBasedAquifer<'a, F> {
                         compute_preliminary_surface_level(&ctx, self.noises, sample_grid, &col)
                     }
                     .floor() as i32;
-                self.preliminary_surface_cache
-                    .insert((quart_x, quart_z), computed);
+                *self
+                    .preliminary_surface_cache
+                    .entry(quart_x >> 2, quart_z >> 2) = Some(computed);
                 computed
             };
             let adjusted_surface = raw_surface + 8; // Java: r = this.adjustSurfaceLevel(q)
@@ -1370,13 +1452,59 @@ mod tests {
         assert!(!aquifer.should_schedule_fluid_update());
     }
 
-    // TODO: Rewrite integration tests for NoiseBasedAquifer with new enum-based system
-    // The following tests were removed during migration from Arc<dyn DensityFunction>
-    // to the enum-based DensityFunction system:
-    // - test_cave_position_should_be_air_not_water
-    // - test_floodedness_distribution_at_y0
-    // - test_aquifer_trace_at_y0
-    // - test_aquifer_flooded_regions
-    // - test_aquifer_cell_consistency
-    // - test_aquifer_horizontal_consistency
+    #[test]
+    fn numeric_cache_keeps_negative_coordinate_rows_distinct() {
+        let mut cache = GridCache::new(-6, -2, 0, 2);
+        for z in -2..=2 {
+            for x in -6..=0 {
+                *cache.entry(x, z) = Some(x * 13 + z);
+            }
+        }
+        *cache.entry(-6, -2) = Some(99);
+        for z in (-2..=2).rev() {
+            for x in (-6..=0).rev() {
+                let expected = if (x, z) == (-6, -2) { 99 } else { x * 13 + z };
+                assert_eq!(cache.get(x, z), Some(&expected), "({x},{z})");
+            }
+        }
+    }
+
+    #[test]
+    fn bootstrapped_caches_preserve_cold_fluid_decisions_at_negative_boundaries() {
+        for (seed, chunk_x, chunk_z) in [(12345, -2, 3), (8500081009970950196, 0, -1)] {
+            let noises = NoiseRegistry::new(seed);
+            let grid = FlatCacheGrid::new(chunk_x, chunk_z, &noises);
+            let columns = ColumnContextGrid::new(chunk_x, chunk_z, &noises, &grid);
+            let make = || {
+                NoiseBasedAquifer::new(
+                    chunk_x,
+                    chunk_z,
+                    -64,
+                    384,
+                    &noises,
+                    &grid,
+                    &columns,
+                    seed,
+                    OverworldFluidPicker::new(63),
+                )
+            };
+            let mut warm = make();
+            let mut cold = make();
+            cold.neighbor_grid_cache.values.fill(None);
+            cold.preliminary_surface_cache.values.fill(None);
+            for gx in chunk_x..=chunk_x + 1 {
+                for gz in chunk_z..=chunk_z + 1 {
+                    for gy in [-4, -1, 0, 3, 6] {
+                        let pos = warm.compute_aquifer_location(gx, gy, gz);
+                        let (x, y, z) = (unpack_x(pos), unpack_y(pos), unpack_z(pos));
+                        assert_eq!(
+                            warm.compute_fluid(x, y, z),
+                            cold.compute_fluid(x, y, z),
+                            "seed={seed}, center=({x},{y},{z})"
+                        );
+                    }
+                }
+            }
+        }
+    }
 }
