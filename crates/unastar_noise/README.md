@@ -57,6 +57,13 @@ branch-local names. Arithmetic precision and expression order are unchanged.
 the integration chunk-byte/actor goldens remain the complete-output gate.
 See the performance report for measured results versus unmeasured candidates.
 
+### Runtime scratch storage
+
+Java tree position sets keep their initial 16 bucket heads and tree-bin flags
+inline. Logical table length still controls Java's load threshold, resizing,
+treeification and iteration order; node storage and ordering are unchanged.
+Block rotation snapshots the four original horizontal connection values into
+an array before writing rotated properties, without a per-block scratch Vec.
 
 ## Block identity
 

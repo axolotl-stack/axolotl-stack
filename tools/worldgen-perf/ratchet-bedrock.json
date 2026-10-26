@@ -4,78 +4,78 @@
   "instrumented": true,
   "seed": 12345,
   "chunks": 68,
-  "setup_ms": 0.5523,
-  "proto_ms": 937.9576,
-  "finished_ms": 3033.3233,
+  "setup_ms": 0.3178,
+  "proto_ms": 511.69149999999996,
+  "finished_ms": 2431.6371,
   "cached_protos": 264,
-  "allocations": 65729,
-  "bytes": 90025992,
+  "allocations": 64590,
+  "bytes": 69468288,
   "stages": {
     "aquifer_veins": {
       "calls": 6542658,
-      "allocations": 593,
-      "bytes": 16711680,
-      "ms": 1017.2528000000001
+      "allocations": 273,
+      "bytes": 2620800,
+      "ms": 760.6943
     },
     "bedrock_after_surface": {
       "calls": 164,
       "allocations": 7779,
       "bytes": 11153412,
-      "ms": 113.8956
+      "ms": 109.3499
     },
     "bedrock_after_underground": {
       "calls": 164,
       "allocations": 690,
       "bytes": 493872,
-      "ms": 20.7639
+      "ms": 21.220699999999997
     },
     "bedrock_before_surface": {
       "calls": 164,
       "allocations": 0,
       "bytes": 0,
-      "ms": 0.018099999999999998
+      "ms": 0.013699999999999999
     },
     "bedrock_before_underground": {
       "calls": 164,
       "allocations": 0,
       "bytes": 0,
-      "ms": 0.0084
+      "ms": 0.007500000000000001
     },
     "bedrock_final": {
       "calls": 164,
       "allocations": 0,
       "bytes": 0,
-      "ms": 0.0144
+      "ms": 0.0103
     },
     "bedrock_first": {
       "calls": 164,
       "allocations": 12,
       "bytes": 3368,
-      "ms": 0.11560000000000001
+      "ms": 0.0893
     },
     "bedrock_surface": {
       "calls": 164,
       "allocations": 555,
       "bytes": 976120,
-      "ms": 5.8561000000000005
+      "ms": 5.7739
     },
     "bedrock_underground": {
       "calls": 164,
       "allocations": 28002,
       "bytes": 27350176,
-      "ms": 280.6431
+      "ms": 254.68540000000002
     },
     "biomes": {
       "calls": 273,
       "allocations": 273,
       "bytes": 838656,
-      "ms": 285.6848
+      "ms": 253.8123
     },
     "carvers": {
       "calls": 264,
       "allocations": 158,
       "bytes": 116560,
-      "ms": 43.0863
+      "ms": 36.505
     },
     "decoration_0_raw_generation": {
       "calls": 0,
@@ -145,45 +145,45 @@
     },
     "noise": {
       "calls": 546,
-      "allocations": 1911,
-      "bytes": 24404016,
-      "ms": 1084.4265
+      "allocations": 1092,
+      "bytes": 17937192,
+      "ms": 836.2279
     },
     "packing": {
       "calls": 264,
       "allocations": 15223,
       "bytes": 2449864,
-      "ms": 48.1197
+      "ms": 42.892399999999995
     },
     "pipeline": {
       "calls": 1,
       "allocations": 10034,
       "bytes": 5281232,
-      "ms": 39.995400000000004
+      "ms": 32.3803
     },
     "region": {
       "calls": 164,
       "allocations": 0,
       "bytes": 0,
-      "ms": 0.1898
+      "ms": 0.1625
     },
     "structure_pieces": {
       "calls": 164,
       "allocations": 0,
       "bytes": 0,
-      "ms": 0.031
+      "ms": 0.0184
     },
     "structure_references": {
       "calls": 164,
       "allocations": 0,
       "bytes": 0,
-      "ms": 1.9456
+      "ms": 1.7374999999999998
     },
     "structure_starts": {
       "calls": 43,
       "allocations": 61,
       "bytes": 12268,
-      "ms": 4.1544
+      "ms": 3.5575
     },
     "structure_templates": {
       "calls": 0,
@@ -195,7 +195,7 @@
       "calls": 273,
       "allocations": 438,
       "bytes": 234768,
-      "ms": 87.11919999999999
+      "ms": 72.49650000000001
     }
   }
 }

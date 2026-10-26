@@ -594,21 +594,25 @@ at compile time. With current bounds it reserves 35 neighbour-grid slots and
 for later fill/carving. There is no hash lookup or capacity growth on these paths.
 Negative coordinates are translated before checked row-major indexing.
 
-Exercised on the bounded-cache source, before the shared-machine priority hold:
+Exercised on the bounded-cache source and subsequent scratch-allocation candidate:
 
 - `cargo fmt --all`: pass.
-- Release `bootstrapped_caches_preserve_cold_fluid_decisions_at_negative_boundaries`
-  with both generators and `worldgen-profile`: **1 pass**.
+- Release aquifer module with both generators and `worldgen-profile`:
+  **10 pass**, including warm/cold decisions and negative-coordinate row isolation.
 - Release `worldgen_output_hash` with the same features, `--test-threads=1`:
   **2 pass**, preserving every original Java/Bedrock chunk and actor digest.
 - Stage-enabled release `worldgen_bench`: builds; its independent executable is
   checkpointed as `aot-branches/worldgen_bench_grid_stages.exe`.
 
-The numeric-cache row-isolation unit check, bounded-cache allocation snapshots,
-normal-release A/B timing and full acceptance gates remain unrun at this
-checkpoint. ENT acceptance/release and bounded native captures have priority;
-no performance number or allocation ceiling for the bounded replacement is
-asserted before those checks.
+After native-free, both allocation CLI gates passed against the original total
+and every per-stage ceiling. The later tree/rotation candidate also passed twice,
+with identical allocation counts and requested bytes in every stage. See
+[`aquifer-cache-allocations.json`](aquifer-cache-allocations.json) for isolated
+aquifer evidence and
+[`tree-rotation-allocations.json`](tree-rotation-allocations.json) for the combined
+candidate. Stage times overlap announced untimed adapter validation and are not
+controlled wall-time evidence. Normal-release A/B and full acceptance follow
+separately; no parity floor or output golden has changed.
 
 ### Scaling diagnostic from retained charger-powered rounds
 
@@ -632,4 +636,33 @@ the request queue. Both production Unastar and the counting benchmark currently
 use the system allocator; commented-out allocator declarations in `main.rs` are
 not active. An allocator A/B is a separate experiment, not evidence of a current
 production speedup. Shared pipeline/worker ownership remains unchanged.
+
+### Inline Java tree and fixed-size rotation scratch
+
+`JavaPosSet` no longer allocates the initial 16-element bucket/flag buffers.
+Its logical lengths and every insertion, split, tree-bin and traversal algorithm
+are unchanged; the existing four position-set tests pass. This removes eager
+scratch requests even when tree placement rejects before producing positions.
+Rotation likewise snapshots the same four original connection values in the
+same direction order, but uses an array rather than a Vec. Complete Java/Bedrock
+chunk/actor hashes pass on both changes together.
+
+The following are cumulative successful allocation requests/bytes across the
+68 finished targets, seed 12345. Two combined-candidate runs reproduced every
+stage count and byte total exactly. Only changed stages are listed; all others
+remain identical. Counts are from instrumented release builds, affinity `0x4`,
+AC power, while another worker's untimed validation was announced; no time
+improvement is inferred from these rows.
+
+| Generator / path | Allocations before | After | Bytes before | After |
+|---|---:|---:|---:|---:|
+| Java total | 98,369 | 95,101 | 151,246,166 | 126,261,526 |
+| Java aquifer/veins | 577 | 264 | 16,401,552 | 2,534,400 |
+| Java noise | 1,848 | 1,056 | 23,599,488 | 17,345,856 |
+| Java carvers | 1,399 | 1,292 | 9,563,628 | 4,795,452 |
+| Java vegetal decoration | 12,313 | 10,817 | 12,514,188 | 12,454,348 |
+| Java structure pieces | 2,000 | 1,440 | 953,714 | 917,874 |
+| Bedrock total | 65,729 | 64,590 | 90,025,992 | 69,468,288 |
+| Bedrock aquifer/veins | 593 | 273 | 16,711,680 | 2,620,800 |
+| Bedrock noise | 1,911 | 1,092 | 24,404,016 | 17,937,192 |
 
