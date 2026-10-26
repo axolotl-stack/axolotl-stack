@@ -238,6 +238,14 @@ surface builders and cave subsurface ranges, then runs compiled carver rules.
 Decoration places data-driven structure sets before feature passes. Height
 oracles use two bounded 128-entry single-flight caches of column heights.
 
+The region adapter's non-air and solid query-height caches remain lazy for
+unqueried columns. Below-top writes preserve known heights; occupied top
+insertions update them directly, while removing a cached top requests a rescan.
+An old/new differential smoke at seed 12345, chunk `(6,-4)`, preserved ordered
+writes and encoded block/actor bytes across all 83 overworld biomes. It observed
+1.44% fewer block reads across that decoration workload (54 biomes improved,
+none increased); this is a work-count reduction, not a measured wall-time speedup.
+
 Molang `query.noise` is a stateless intrinsic in `molang_noise`, not a world-seeded
 Java noise instance. Its fixed permutation/hash gradients are evaluated at compile
 time; sampling keeps the measured native float32 operation order. Authored BDS
