@@ -176,6 +176,7 @@ alternating runs produce identical total and per-stage allocation counts and byt
 Controls: [`metadata-java-stages.json`](metadata-java-stages.json),
 [`metadata-bedrock-stages.json`](metadata-bedrock-stages.json). New ceilings:
 [`ratchet-java.json`](ratchet-java.json), [`ratchet-bedrock.json`](ratchet-bedrock.json).
+These are rolling head ceilings; the connector-list slice below tightens Java further.
 The normal Java control allocates 320 fewer bytes than the instrumented control
 because the old eager ring helpers carry profiling counters; use like-featured
 builds for allocation comparisons. Raw stage rounds are retained at
@@ -220,3 +221,38 @@ this is documented redistribution, not a removal or tolerance in the gate.
 Disk incident: a prior integration link failed with `no space on device`/LNK1108
 after the region tests passed. The coordinator reclaimed build caches and disabled
 incremental compilation machine-wide; the full acceptance above passed afterward.
+
+## Inline jigsaw connector scratch lists
+
+`element_jigsaws` now uses a short inline buffer instead of allocating a Vec on
+every candidate/rotation. Larger lists reserve their exact known size before
+extension, preserving heap support without geometric spill over-allocation.
+Shuffle calls and stable selection-priority sorting are unchanged.
+
+Release, same fixture, mask 4, turbo off, other workers active:
+
+| Java fixture-total allocation traffic | Section-COW/ring control | Inline connector lists |
+|---|---:|---:|
+| Finished allocations | 119232 | 98369 |
+| Finished requested bytes | 157672310 | 151246166 |
+| Structure-start allocations | 42031 | 21168 |
+
+All savings occur in structure starts; no stage's allocation count or bytes increase.
+The rolling Java ceiling is tightened to these exact values; Bedrock is unchanged
+at 65,729 allocations / 90,025,992 bytes. Both actual head-ceiling CLI runs pass.
+
+Three alternating instrumented rounds reproduce identical counts and bytes. Three
+additional alternating normal-release rounds have median 44.208 → 44.549 ms/chunk:
+no latency improvement is claimed. This slice is an allocation/memory improvement,
+the primary metric under shared load. Raw normal rounds:
+[`inline-normal-rounds.json`](inline-normal-rounds.json); raw stage rounds:
+`C:/Users/jvigu/orca/wg-perf-artifacts/metadata-control/inline-stage-rounds.json`.
+
+The first inline-buffer draft used `collect`, which cut allocation count but raised
+requested bytes to 163,809,590 due to geometric growth when spilling. The existing
+ceiling rejected it. Exact up-front reservation fixes the regression; no ceiling
+was relaxed.
+
+All 136 original block/biome hashes and canonical actor hashes remain unchanged.
+Requested fmt/clippy gates pass, and the full all-feature unastar + unastar_noise
+suite again passes **724 tests across 17 suites, 1 ignored**.

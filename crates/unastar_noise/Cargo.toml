@@ -17,7 +17,7 @@ worldgen-profile = []
 java-templates = []
 
 [dependencies]
-# Runtime dependencies - none for now, types are self-contained
+smallvec = "1.15"
 
 [dev-dependencies]
 serde = { workspace = true }

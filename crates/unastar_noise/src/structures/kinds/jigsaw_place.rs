@@ -42,6 +42,7 @@
 //!   and the pool element's data marker handler does nothing, so no blocks
 //!   change and no draws are made on the placement random; it is skipped.
 
+use smallvec::{SmallVec, smallvec};
 use std::borrow::Cow;
 use std::collections::{BTreeMap, VecDeque};
 use std::sync::{LazyLock, OnceLock};
@@ -326,33 +327,32 @@ fn element_jigsaws(
     pos: BlockPos,
     rotation: Rotation,
     rng: &mut LegacyRandom,
-) -> Vec<Jigsaw> {
+) -> SmallVec<[Jigsaw; 8]> {
     match *element {
         PoolElement::Single { template, .. } => {
             let (_, stored) = template_with_jigsaws(template);
-            let mut list: Vec<Jigsaw> = stored
-                .iter()
-                .map(|j| {
-                    let p = transform(j.pos, Mirror::None, rotation, BlockPos::new(0, 0, 0));
-                    Jigsaw {
-                        pos: p.offset(pos.x, pos.y, pos.z),
-                        front: rotation.rotate_dir(j.front),
-                        top: rotation.rotate_dir(j.top),
-                        joint: j.joint,
-                        name: static_str(&j.name),
-                        target: static_str(&j.target),
-                        pool: static_str(&j.pool),
-                        selection_priority: j.selection_priority,
-                        placement_priority: j.placement_priority,
-                    }
-                })
-                .collect();
+            // Reserve exactly: collecting from empty can geometrically overallocate on spill.
+            let mut list: SmallVec<[Jigsaw; 8]> = SmallVec::with_capacity(stored.len());
+            list.extend(stored.iter().map(|j| {
+                let p = transform(j.pos, Mirror::None, rotation, BlockPos::new(0, 0, 0));
+                Jigsaw {
+                    pos: p.offset(pos.x, pos.y, pos.z),
+                    front: rotation.rotate_dir(j.front),
+                    top: rotation.rotate_dir(j.top),
+                    joint: j.joint,
+                    name: static_str(&j.name),
+                    target: static_str(&j.target),
+                    pool: static_str(&j.pool),
+                    selection_priority: j.selection_priority,
+                    placement_priority: j.placement_priority,
+                }
+            }));
             shuffle(&mut list, rng);
             list.sort_by_key(|j| std::cmp::Reverse(j.selection_priority));
             list
         }
         // FeaturePoolElement's built-in jigsaw: facing down, pointing nowhere.
-        PoolElement::Feature { .. } => vec![Jigsaw {
+        PoolElement::Feature { .. } => smallvec![Jigsaw {
             pos,
             front: Direction::Down,
             top: Direction::South,
@@ -364,7 +364,7 @@ fn element_jigsaws(
             placement_priority: 0,
         }],
         PoolElement::List { elements, .. } => element_jigsaws(&elements[0], pos, rotation, rng),
-        PoolElement::Empty => Vec::new(),
+        PoolElement::Empty => SmallVec::new(),
     }
 }
 

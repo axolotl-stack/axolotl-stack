@@ -96,6 +96,8 @@ Bedrock ids at the region boundary (`unastar::world::generator::features`).
   is resolved on demand only for points within seven chunks of a placement query;
   the 112-block search cannot move a point farther on either axis. Results are
   single-flight per point and independent of query order or generation worker.
+- Short-lived jigsaw connector lists stay inline, with exact spill reservation for
+  larger templates. Shuffle draws and stable selection-priority ordering are unchanged.
 
 ## Performance instrumentation
 

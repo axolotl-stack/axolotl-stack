@@ -5441,6 +5441,7 @@ dependencies = [
  "quote",
  "serde",
  "serde_json",
+ "smallvec",
  "syn 2.0.112",
  "unastar-packs",
  "walkdir",

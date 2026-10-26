@@ -4,18 +4,18 @@
   "instrumented": true,
   "seed": 12345,
   "chunks": 68,
-  "setup_ms": 0.2779,
-  "proto_ms": 656.23,
-  "finished_ms": 4009.6456,
+  "setup_ms": 0.2581,
+  "proto_ms": 604.1216000000001,
+  "finished_ms": 3309.1116,
   "cached_protos": 264,
-  "allocations": 119232,
-  "bytes": 157672310,
+  "allocations": 98369,
+  "bytes": 151246166,
   "stages": {
     "aquifer_veins": {
       "calls": 6328289,
       "allocations": 577,
       "bytes": 16401552,
-      "ms": 1047.9753
+      "ms": 868.6789
     },
     "bedrock_after_surface": {
       "calls": 0,
@@ -69,133 +69,133 @@
       "calls": 264,
       "allocations": 264,
       "bytes": 811008,
-      "ms": 286.6355
+      "ms": 247.4448
     },
     "carvers": {
       "calls": 264,
       "allocations": 1399,
       "bytes": 9563628,
-      "ms": 118.7351
+      "ms": 95.3354
     },
     "decoration_0_raw_generation": {
       "calls": 164,
       "allocations": 0,
       "bytes": 0,
-      "ms": 0.0725
+      "ms": 0.0471
     },
     "decoration_10_top_layer_modification": {
       "calls": 164,
       "allocations": 134,
       "bytes": 147132,
-      "ms": 29.4734
+      "ms": 24.0869
     },
     "decoration_1_lakes": {
       "calls": 164,
       "allocations": 40,
       "bytes": 21260,
-      "ms": 2.0642
+      "ms": 1.5858
     },
     "decoration_2_local_modifications": {
       "calls": 164,
       "allocations": 631,
       "bytes": 678272,
-      "ms": 56.1592
+      "ms": 21.9373
     },
     "decoration_3_underground_structures": {
       "calls": 164,
       "allocations": 79,
       "bytes": 95254,
-      "ms": 3.6509
+      "ms": 2.7698
     },
     "decoration_4_surface_structures": {
       "calls": 164,
       "allocations": 149,
       "bytes": 61512,
-      "ms": 0.4885
+      "ms": 0.3735
     },
     "decoration_5_strongholds": {
       "calls": 164,
       "allocations": 0,
       "bytes": 0,
-      "ms": 0.016399999999999998
+      "ms": 0.0145
     },
     "decoration_6_underground_ores": {
       "calls": 164,
       "allocations": 30901,
       "bytes": 34969152,
-      "ms": 502.4164
+      "ms": 401.8539
     },
     "decoration_7_underground_decoration": {
       "calls": 164,
       "allocations": 149,
       "bytes": 151520,
-      "ms": 7.7111
+      "ms": 6.5857
     },
     "decoration_8_fluid_springs": {
       "calls": 164,
       "allocations": 9,
       "bytes": 8104,
-      "ms": 1.2593
+      "ms": 1.0659
     },
     "decoration_9_vegetal_decoration": {
       "calls": 164,
       "allocations": 12313,
       "bytes": 12514188,
-      "ms": 227.536
+      "ms": 179.0779
     },
     "noise": {
       "calls": 528,
       "allocations": 1848,
       "bytes": 23599488,
-      "ms": 1077.1607000000001
+      "ms": 902.5818
     },
     "packing": {
       "calls": 264,
       "allocations": 15444,
       "bytes": 2680664,
-      "ms": 53.0564
+      "ms": 43.7443
     },
     "pipeline": {
       "calls": 1,
       "allocations": 9501,
       "bytes": 3564652,
-      "ms": 32.1877
+      "ms": 26.4419
     },
     "region": {
       "calls": 164,
       "allocations": 0,
       "bytes": 0,
-      "ms": 0.2301
+      "ms": 0.1673
     },
     "structure_pieces": {
       "calls": 1804,
       "allocations": 2000,
       "bytes": 953714,
-      "ms": 25.2173
+      "ms": 20.7568
     },
     "structure_references": {
       "calls": 164,
       "allocations": 138,
       "bytes": 8832,
-      "ms": 2.2215
+      "ms": 2.0452
     },
     "structure_starts": {
       "calls": 1636,
-      "allocations": 42031,
-      "bytes": 50065222,
-      "ms": 245.71499999999997
+      "allocations": 21168,
+      "bytes": 43639078,
+      "ms": 221.80440000000002
     },
     "structure_templates": {
       "calls": 13,
       "allocations": 126,
       "bytes": 407156,
-      "ms": 0.4958
+      "ms": 0.3896
     },
     "surface": {
       "calls": 264,
       "allocations": 1499,
       "bytes": 970000,
-      "ms": 289.1653
+      "ms": 240.3212
     }
   }
 }
