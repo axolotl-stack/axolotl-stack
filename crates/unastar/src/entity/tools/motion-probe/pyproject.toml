@@ -1,0 +1,16 @@
+[build-system]
+requires = ["setuptools>=68"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "endstone-entity-motion-probe"
+version = "0.1.0"
+description = "Per-tick BDS item/falling-block motion and pickup boundary measurements"
+requires-python = ">=3.10"
+dependencies = ["endstone==0.11.12"]
+
+[project.entry-points.endstone]
+entity_motion_probe = "endstone_entity_motion_probe:EntityMotionProbe"
+
+[tool.setuptools.packages.find]
+where = ["src"]

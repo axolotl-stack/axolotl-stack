@@ -47,17 +47,15 @@ pub type BiomeRegistry = Registry<BiomeEntry>;
 impl BiomeRegistry {
     /// Load native biome identities and climate, with behavior-pack gameplay enrichment.
     pub fn load_vanilla(&mut self) {
-        use unastar_data::biomes::ALL_BIOMES;
-
-        for biome in &ALL_BIOMES {
+        for biome in unastar_data::biomes::vanilla() {
             let climate = biome.climate;
             let entry = BiomeEntry {
                 id: biome.id,
                 packet_id: None,
                 string_id: biome.identifier.to_string(),
-                name: biome_display_name(biome.identifier),
-                category: biome_category(biome.tags).to_string(),
-                dimension: biome_dimension(biome.tags).to_string(),
+                name: biome_display_name(&biome.identifier),
+                category: biome_category(&biome.tags).to_string(),
+                dimension: biome_dimension(&biome.tags).to_string(),
                 temperature: climate.map(|value| value.temperature).unwrap_or(0.5),
                 downfall: climate.map(|value| value.downfall).unwrap_or(0.0),
                 has_precipitation: climate.map(|value| value.downfall > 0.0).unwrap_or(false),
@@ -141,17 +139,17 @@ fn biome_display_name(identifier: &str) -> String {
         .replace('_', " ")
 }
 
-fn biome_dimension(tags: &[&str]) -> &'static str {
-    if tags.contains(&"nether") {
+fn biome_dimension(tags: &[String]) -> &'static str {
+    if tags.iter().any(|tag| tag == "nether") {
         "nether"
-    } else if tags.contains(&"the_end") {
+    } else if tags.iter().any(|tag| tag == "the_end") {
         "the_end"
     } else {
         "overworld"
     }
 }
 
-fn biome_category<'a>(tags: &'a [&'a str]) -> &'a str {
+fn biome_category(tags: &[String]) -> &str {
     const NON_CATEGORY_TAGS: &[&str] = &[
         "animal",
         "monster",
@@ -168,9 +166,9 @@ fn biome_category<'a>(tags: &'a [&'a str]) -> &'a str {
     ];
 
     tags.iter()
-        .copied()
+        .map(String::as_str)
         .find(|tag| !NON_CATEGORY_TAGS.contains(tag))
-        .or_else(|| tags.first().copied())
+        .or_else(|| tags.first().map(String::as_str))
         .unwrap_or("unknown")
 }
 
@@ -184,7 +182,7 @@ mod tests {
 
         registry.load_vanilla();
 
-        assert_eq!(registry.len(), unastar_data::biomes::ALL_BIOMES.len());
+        assert_eq!(registry.len(), unastar_data::biomes::vanilla().len());
         let plains = registry
             .get_by_name("minecraft:plains")
             .expect("plains biome");
@@ -209,7 +207,7 @@ mod tests {
 
         assert_eq!(
             packet.mapof_biomenamestodata.len(),
-            unastar_data::biomes::ALL_BIOMES.len()
+            unastar_data::biomes::vanilla().len()
         );
         for definition in &packet.mapof_biomenamestodata {
             let name = &packet.stringlist.strings[usize::from(definition.key)];

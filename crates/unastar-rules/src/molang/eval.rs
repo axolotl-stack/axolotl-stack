@@ -319,7 +319,7 @@ fn math(f: MathFn, [a, b, c]: [f32; 3], ctx: &mut dyn MolangContext) -> f32 {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::molang::{BuiltinQuery, QueryRegistry, parse};
+    use crate::molang::{BuiltinQuery, QueryContext, QueryRegistry, parse};
     use std::collections::HashMap;
 
     struct Ctx {
@@ -327,6 +327,7 @@ mod tests {
         hit_by_player: bool,
         equipment: f32,
         variables: HashMap<String, Value>,
+        saved_groups: Vec<&'static str>,
         rolls: Vec<f32>,
         other: Option<u64>,
         current: Vec<u64>,
@@ -341,6 +342,7 @@ mod tests {
                 equipment: 2.0,
                 variables: HashMap::new(),
                 rolls: Vec::new(),
+                saved_groups: Vec::new(),
                 other: None,
                 current: vec![0],
                 durability: HashMap::new(),
@@ -354,6 +356,16 @@ mod tests {
                 BuiltinQuery::IsBaby => Value::from_bool(self.baby),
                 BuiltinQuery::LastHitByPlayer => Value::from_bool(self.hit_by_player),
                 BuiltinQuery::EquipmentCount => Value::Num(self.equipment),
+                BuiltinQuery::HadComponentGroup => {
+                    let Some(Value::Str(name)) = args.first() else {
+                        return None;
+                    };
+                    Value::from_bool(
+                        self.saved_groups
+                            .iter()
+                            .any(|group| *group == name.as_ref()),
+                    )
+                }
                 BuiltinQuery::HasAnyFamily => {
                     Value::from_bool(args.iter().any(|a| *a == Value::Str(Arc::from("zombie"))))
                 }
@@ -389,7 +401,8 @@ mod tests {
 
     fn eval(src: &str, ctx: &mut Ctx) -> Value {
         let mut e = parse(src).unwrap();
-        e.bind(QueryRegistry::vanilla()).unwrap();
+        e.bind(QueryRegistry::vanilla(), QueryContext::Runtime)
+            .unwrap();
         evaluate(&e, ctx).unwrap()
     }
 
@@ -495,5 +508,40 @@ mod tests {
             evaluate(&e, &mut Ctx::default()),
             Err(EvalError::Unbound(_))
         ));
+    }
+
+    #[test]
+    fn query_context_separates_saved_property_defaults_from_live_actor_queries() {
+        let mut default = parse("Q.Had_Component_Group('has_nectar') ? 1 : 0").unwrap();
+        default
+            .bind(QueryRegistry::vanilla(), QueryContext::PropertyDefault)
+            .unwrap();
+        let mut ctx = Ctx::default();
+        assert_eq!(evaluate(&default, &mut ctx).unwrap(), Value::Num(0.0));
+        ctx.saved_groups.push("has_nectar");
+        assert_eq!(evaluate(&default, &mut ctx).unwrap(), Value::Num(1.0));
+        assert!(
+            default
+                .bind(QueryRegistry::vanilla(), QueryContext::Runtime)
+                .is_err()
+        );
+
+        ctx.baby = true;
+        let mut actor = parse("query.is_baby").unwrap();
+        actor
+            .bind(QueryRegistry::vanilla(), QueryContext::Runtime)
+            .unwrap();
+        assert_eq!(evaluate(&actor, &mut ctx).unwrap(), Value::Num(1.0));
+        assert!(
+            actor
+                .bind(QueryRegistry::vanilla(), QueryContext::PropertyDefault)
+                .is_err()
+        );
+        let mut unknown = parse("query.made_up").unwrap();
+        assert!(
+            unknown
+                .bind(QueryRegistry::vanilla(), QueryContext::Runtime)
+                .is_err()
+        );
     }
 }

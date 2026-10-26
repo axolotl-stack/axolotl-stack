@@ -2,9 +2,9 @@
 //!
 //! One loader for build time (vanilla, embedded per D2/D13) and for addon
 //! packs at startup (D5). It accepts, normalises and rejects pack documents
-//! the way BDS does (entities research §4.7); the runtime decodes only the
-//! normalised form, which is itself a valid input: loading it again yields
-//! the same definition and no diagnostics.
+//! according to the measured rules below (entities research §4.7). Supported
+//! vanilla input normalises to a fixed point. Retained legacy unknown data may
+//! still produce diagnostics when loaded again.
 //!
 //! # Rules
 //!
@@ -17,23 +17,210 @@
 //! | `format_version` upgrade | Before 1.26.10, `minecraft:pushable {is_pushable, is_pushable_by_piston}` (both default `true`) becomes `minecraft:pushable_by_entity {}` when `is_pushable` and `minecraft:pushable_by_block {}` when `is_pushable_by_piston`, in base components and in every group | 25 vanilla files on 1.26.0 still use `minecraft:pushable`; 1.26.10+ files use the pair (Mojang changelog for 1.26.10) |
 //! | Filters | Every filter inside a component (recognised by shape: an object with a string `test`, or an object of group keys) is parsed with every accepted spelling and written in canonical form | [`unastar_rules::filter`] |
 //! | Events | Parsed and written in canonical form, malformed vanilla nodes tolerated | [`unastar_rules::event`] |
-//! | Properties | `bool`, `int`/`float` (with `range`), `enum` (with `values`), `default` (literal or Molang string), `client_sync` (default `false`) | Mojang entity property documentation |
+//! | Properties | Typed bool/int/float/enum definitions with retained defaults/ranges. Numeric/bool expressions bind in property-default context; a bad default disables the entire property table without rejecting the actor. Runtime consumers use `Description::active_properties()` | Mojang property metadata and isolated BDS property-scope controls |
 //! | Overrides | Whole-file replacement by identifier across a pack stack, see [`resolve_stack`] | Pack layout of the BDS install |
+//! | Version ceiling | 1.26.51 accepted, 1.26.52 and 99.0.0 rejected | Crafted BDS 1.26.51 probes |
+//! | Unknown components | Warn/retain as inactive through 1.21.80; reject from 1.21.90. Names and patterns come from stable Mojang schemas plus its legacy form index; addon kinds register before load | Version-boundary BDS probes, pinned metadata |
+//! | Unknown entity members | Unregistered members reject in strict-schema formats; other schema-declared members (such as `upgrades`), top-level and description extras remain retained | Canonical ActorDocument schema and isolated BDS probes |
 //!
 //! Component bodies other than their filters are kept verbatim; component
 //! kinds parse their own fields when a runtime implementation exists.
 
 use crate::error::{Error, Result};
 use crate::json;
-use crate::packs::{Family, PackStack};
+use crate::packs::{BASE_GAME_VERSION, Family, PackStack};
 use serde_json::{Map, Value};
-use std::collections::BTreeMap;
+use std::collections::{BTreeMap, BTreeSet};
+use std::path::{Path, PathBuf};
 use unastar_rules::event::EventNode;
 use unastar_rules::filter::{Filter, FilterRegistry};
+use unastar_rules::molang::{self, Expr, QueryContext, QueryRegistry};
 use unastar_rules::{Diagnostic, Diagnostics, ParseError};
 
 /// Top-level schema key of an actor definition.
 pub const ENTITY_KEY: &str = "minecraft:entity";
+
+// Crafted BDS probes: unknown components warn through 1.21.80 and reject the
+// definition from 1.21.90. See the recorded fidelity baseline.
+const STRICT_ENTITY_SCHEMA_SINCE: [u32; 3] = [1, 21, 90];
+
+/// Parser bindings are assembled before loading addon definitions. Component
+/// names/patterns come from the pinned Mojang entity-component schema, not a
+/// hand-maintained allow-list. Addon/WASM component kinds may register first.
+pub struct ActorParser<'a> {
+    filters: &'a FilterRegistry,
+    components: BTreeSet<String>,
+    patterns: Vec<regex::Regex>,
+    entity_fields: BTreeSet<String>,
+    max_version: [u32; 3],
+}
+
+impl<'a> ActorParser<'a> {
+    pub fn from_schema(filters: &'a FilterRegistry, schema: Value) -> Result<Self> {
+        Self::from_schemas(filters, [Ok(schema)])
+    }
+
+    /// Older schemas retain legacy names still present in shipped definitions.
+    /// This is a parser-name registry, not a claim that every kind has runtime
+    /// behaviour. New pack names must still resolve to a registered kind.
+    pub fn from_schemas(
+        filters: &'a FilterRegistry,
+        schemas: impl IntoIterator<Item = Result<Value>>,
+    ) -> Result<Self> {
+        let origin = "actor component schema";
+        let mut components = BTreeSet::new();
+        let mut pattern_names = BTreeSet::new();
+        let mut entity_fields = BTreeSet::new();
+        let mut max_version = None;
+        for schema in schemas {
+            let Value::Object(mut schema) = schema? else {
+                return Err(Error::data(origin, "expected an object"));
+            };
+            let Some(Value::String(version)) = schema.remove("x-format-version") else {
+                return Err(Error::data(origin, "missing x-format-version"));
+            };
+            let version = parse_version(&version).map_err(|e| Error::data(origin, e))?;
+            max_version = Some(max_version.map_or(version, |v: [u32; 3]| v.max(version)));
+            let Some(Value::Object(properties)) = schema.remove("properties") else {
+                return Err(Error::data(origin, "missing component properties"));
+            };
+            components.extend(properties.into_iter().map(|(name, _)| name));
+            match schema.remove("patternProperties") {
+                None => {}
+                Some(Value::Object(patterns)) => {
+                    pattern_names.extend(patterns.into_iter().map(|(name, _)| name));
+                }
+                Some(_) => return Err(Error::data(origin, "patternProperties is not an object")),
+            }
+            if let Some(fields) = schema.remove("entity_fields") {
+                entity_fields.extend(
+                    serde_json::from_value::<BTreeSet<String>>(fields)
+                        .map_err(|e| Error::data(origin, format!("entity_fields: {e}")))?,
+                );
+            }
+        }
+        let max_version = max_version.ok_or_else(|| Error::data(origin, "no schemas supplied"))?;
+        let patterns = pattern_names
+            .into_iter()
+            .map(|pattern| {
+                regex::Regex::new(&pattern).map_err(|e| Error::data(origin, e.to_string()))
+            })
+            .collect::<Result<_>>()?;
+        Ok(Self {
+            filters,
+            components,
+            patterns,
+            entity_fields,
+            max_version,
+        })
+    }
+
+    pub fn register_component(&mut self, name: impl Into<String>) {
+        self.components.insert(name.into());
+    }
+
+    /// Merge the legacy Mojang form index (some internal vanilla kinds are
+    /// still absent from the newer public JSON-schema index).
+    pub fn register_form(&mut self, form: Value) -> Result<()> {
+        #[derive(serde::Deserialize)]
+        struct Form {
+            fields: Vec<Field>,
+        }
+        #[derive(serde::Deserialize)]
+        struct Field {
+            id: String,
+        }
+        let form: Form = serde_json::from_value(form)
+            .map_err(|e| Error::data("legacy actor component form", e.to_string()))?;
+        self.components
+            .extend(form.fields.into_iter().map(|field| field.id));
+        Ok(())
+    }
+
+    /// Include schema-declared root members that are retained rather than
+    /// interpreted by this envelope loader (for example `upgrades`).
+    pub fn register_document_schema(&mut self, document: Value) -> Result<()> {
+        let Value::Object(mut document) = document else {
+            return Err(Error::data("actor document schema", "expected an object"));
+        };
+        let Some(Value::Object(properties)) = document.remove("properties") else {
+            return Err(Error::data("actor document schema", "missing properties"));
+        };
+        self.entity_fields
+            .extend(properties.into_iter().map(|(name, _)| name));
+        Ok(())
+    }
+
+    pub fn schema_version(&self) -> [u32; 3] {
+        self.max_version
+    }
+
+    pub fn component_count(&self) -> usize {
+        self.components.len()
+    }
+
+    /// Minimal build artefact: retain the registry, not descriptions/examples.
+    pub fn to_schema(&self) -> Value {
+        serde_json::json!({
+            "x-format-version": format!("{}.{}.{}", self.max_version[0], self.max_version[1], self.max_version[2]),
+            "properties": self.components.iter().map(|name| (name.clone(), Value::Null)).collect::<Map<_, _>>(),
+            "patternProperties": self.patterns.iter().map(|pattern| (pattern.as_str().to_owned(), Value::Null)).collect::<Map<_, _>>(),
+            "entity_fields": self.entity_fields,
+        })
+    }
+
+    fn validate_components(
+        &self,
+        set: &BTreeMap<String, Value>,
+        path: &str,
+        version: [u32; 3],
+        diagnostics: &mut Diagnostics,
+        ignored: &mut BTreeSet<String>,
+    ) -> Result<()> {
+        for name in set.keys() {
+            if !self.components.contains(name) && !self.patterns.iter().any(|p| p.is_match(name)) {
+                if version >= STRICT_ENTITY_SCHEMA_SINCE {
+                    return Err(Error::data(
+                        path,
+                        format!("component {name:?} is not registered"),
+                    ));
+                }
+                diagnostics.push(
+                    format!("{path}/{name}"),
+                    "unregistered legacy component ignored",
+                );
+                ignored.insert(name.clone());
+            }
+        }
+        Ok(())
+    }
+}
+
+/// Stable versioned registry schemas in the pinned bedrock-samples metadata.
+/// Beta schemas are deliberately excluded from the vanilla parser.
+pub fn component_schema_files(root: &Path) -> Result<Vec<PathBuf>> {
+    let mut files = Vec::new();
+    for entry in std::fs::read_dir(root).map_err(|e| Error::io(root, e))? {
+        let entry = entry.map_err(|e| Error::io(root, e))?;
+        if !entry
+            .file_type()
+            .map_err(|e| Error::io(entry.path(), e))?
+            .is_dir()
+            || entry.file_name() == "beta"
+        {
+            continue;
+        }
+        files.push(entry.path().join("Entity component definitions.json"));
+    }
+    files.sort();
+    if files.is_empty() {
+        return Err(Error::data(
+            root.display().to_string(),
+            "no stable entity component schemas",
+        ));
+    }
+    Ok(files)
+}
 
 /// A normalised actor definition.
 #[derive(Debug, Clone, PartialEq)]
@@ -45,7 +232,13 @@ pub struct ActorDefinition {
     pub components: BTreeMap<String, Value>,
     /// Named component groups.
     pub component_groups: BTreeMap<String, BTreeMap<String, Value>>,
+    /// Legacy unknown bodies survive round-trips but must not become active
+    /// runtime components. Newer formats reject them instead.
+    pub ignored_components: BTreeSet<String>,
     pub events: BTreeMap<String, EventNode>,
+    /// Envelope and unmodelled entity fields retained for lossless round-trips.
+    pub document_other: BTreeMap<String, Value>,
+    pub entity_other: BTreeMap<String, Value>,
 }
 
 /// `description`.
@@ -58,8 +251,18 @@ pub struct Description {
     pub spawn_category: Option<String>,
     pub runtime_identifier: Option<String>,
     pub properties: BTreeMap<String, PropertyDef>,
+    /// A bad default leaves the actor loadable but disables its whole property
+    /// table, including otherwise valid siblings (crafted BDS controls).
+    pub properties_usable: bool,
     /// Keys kept verbatim for addons and clients (`aliases`, `animations`, `scripts`, ...).
     pub other: BTreeMap<String, Value>,
+}
+
+impl Description {
+    /// Runtime consumers use this table, not the retained source properties.
+    pub fn active_properties(&self) -> Option<&BTreeMap<String, PropertyDef>> {
+        self.properties_usable.then_some(&self.properties)
+    }
 }
 
 /// One entity property (`description.properties`).
@@ -68,7 +271,11 @@ pub struct PropertyDef {
     pub kind: PropertyKind,
     /// `default`: a literal, or a Molang string for numeric/boolean properties.
     pub default: Option<Value>,
+    /// Parsed and context-bound default, evaluated at actor creation/load.
+    /// Enum defaults are literal identifiers rather than Molang expressions.
+    pub default_expression: Option<Expr>,
     pub client_sync: bool,
+    pub other: BTreeMap<String, Value>,
 }
 
 /// Property type.
@@ -92,13 +299,14 @@ pub enum Loaded {
 }
 
 /// Load one entity file. `origin` names the file in errors and diagnostics.
-pub fn load(origin: &str, bytes: &[u8], registry: &FilterRegistry) -> Result<Loaded> {
+pub fn load(origin: &str, bytes: &[u8], parser: &ActorParser<'_>) -> Result<Loaded> {
     let value = json::parse(origin, bytes)?;
-    load_value(origin, &value, registry)
+    load_value(origin, &value, parser)
 }
 
 /// Load an already-parsed document.
-pub fn load_value(origin: &str, value: &Value, registry: &FilterRegistry) -> Result<Loaded> {
+pub fn load_value(origin: &str, value: &Value, parser: &ActorParser<'_>) -> Result<Loaded> {
+    let registry = parser.filters;
     let err = |e: ParseError| Error::data(origin, e.to_string());
     let mut diags = Diagnostics::default();
     let Value::Object(doc) = value else {
@@ -137,6 +345,12 @@ pub fn load_value(origin: &str, value: &Value, registry: &FilterRegistry) -> Res
     let description =
         parse_description(identifier, &entity["description"], &mut diags).map_err(err)?;
     let version = parse_version(&format_version).map_err(|m| Error::data(origin, m))?;
+    if version > BASE_GAME_VERSION {
+        return Err(Error::data(
+            origin,
+            format!("unsupported format_version {format_version}"),
+        ));
+    }
 
     let mut components = parse_component_set(
         entity.get("components"),
@@ -169,6 +383,23 @@ pub fn load_value(origin: &str, value: &Value, registry: &FilterRegistry) -> Res
         upgrade_pushable(&mut components);
         component_groups.values_mut().for_each(upgrade_pushable);
     }
+    let mut ignored_components = BTreeSet::new();
+    parser.validate_components(
+        &components,
+        &format!("{origin}/components"),
+        version,
+        &mut diags,
+        &mut ignored_components,
+    )?;
+    for (name, set) in &component_groups {
+        parser.validate_components(
+            set,
+            &format!("{origin}/component_groups/{name}"),
+            version,
+            &mut diags,
+            &mut ignored_components,
+        )?;
+    }
 
     let mut events = BTreeMap::new();
     match entity.get("events") {
@@ -191,7 +422,11 @@ pub fn load_value(origin: &str, value: &Value, registry: &FilterRegistry) -> Res
         if !matches!(
             key.as_str(),
             "description" | "components" | "component_groups" | "events"
-        ) {
+        ) && !parser.entity_fields.contains(key)
+        {
+            if version >= STRICT_ENTITY_SCHEMA_SINCE {
+                return Err(Error::data(origin, format!("unknown entity key {key:?}")));
+            }
             diags.push(format!("/{ENTITY_KEY}/{key}"), "unknown key ignored");
         }
     }
@@ -201,7 +436,23 @@ pub fn load_value(origin: &str, value: &Value, registry: &FilterRegistry) -> Res
             description,
             components,
             component_groups,
+            ignored_components,
             events,
+            document_other: doc
+                .iter()
+                .filter(|(k, _)| k.as_str() != "format_version" && k.as_str() != ENTITY_KEY)
+                .map(|(k, v)| (k.clone(), v.clone()))
+                .collect(),
+            entity_other: entity
+                .iter()
+                .filter(|(k, _)| {
+                    !matches!(
+                        k.as_str(),
+                        "description" | "components" | "component_groups" | "events"
+                    )
+                })
+                .map(|(k, v)| (k.clone(), v.clone()))
+                .collect(),
         }),
         diagnostics: diags.items,
     })
@@ -253,14 +504,32 @@ fn parse_description(
         }
     };
     let mut properties = BTreeMap::new();
+    let mut properties_usable = true;
     match map.get("properties") {
         None => {}
         Some(Value::Object(props)) => {
             for (name, body) in props {
-                properties.insert(
-                    name.clone(),
-                    parse_property(&format!("/description/properties/{name}"), body, diags)?,
-                );
+                let path = format!("/description/properties/{name}");
+                let mut property = parse_property(&path, body, diags)?;
+                if !matches!(&property.kind, PropertyKind::Enum { .. })
+                    && let Some(Value::String(source)) = &property.default
+                {
+                    let compiled = molang::parse(source).map_err(|e| e.to_string()).and_then(
+                        |mut expression| {
+                            expression
+                                .bind(QueryRegistry::vanilla(), QueryContext::PropertyDefault)?;
+                            Ok(expression)
+                        },
+                    );
+                    match compiled {
+                        Ok(expression) => property.default_expression = Some(expression),
+                        Err(error) => {
+                            properties_usable = false;
+                            diags.push(format!("{path}/default"), error);
+                        }
+                    }
+                }
+                properties.insert(name.clone(), property);
             }
         }
         Some(other) => {
@@ -292,6 +561,7 @@ fn parse_description(
         spawn_category: text("spawn_category")?,
         runtime_identifier: text("runtime_identifier")?,
         properties,
+        properties_usable,
         other,
     })
 }
@@ -379,7 +649,18 @@ fn parse_property(
     Ok(PropertyDef {
         kind,
         default: map.get("default").cloned(),
+        default_expression: None,
         client_sync,
+        other: map
+            .iter()
+            .filter(|(k, _)| {
+                !matches!(
+                    k.as_str(),
+                    "type" | "range" | "values" | "default" | "client_sync"
+                )
+            })
+            .map(|(k, v)| (k.clone(), v.clone()))
+            .collect(),
     })
 }
 
@@ -512,12 +793,22 @@ impl ActorDefinition {
                 .collect();
             entity.insert("events".into(), Value::Object(events));
         }
+        entity.extend(
+            self.entity_other
+                .iter()
+                .map(|(k, v)| (k.clone(), v.clone())),
+        );
         let mut doc = Map::new();
         doc.insert(
             "format_version".into(),
             Value::String(self.format_version.clone()),
         );
         doc.insert(ENTITY_KEY.into(), Value::Object(entity));
+        doc.extend(
+            self.document_other
+                .iter()
+                .map(|(k, v)| (k.clone(), v.clone())),
+        );
         Value::Object(doc)
     }
 
@@ -593,6 +884,7 @@ impl PropertyDef {
             map.insert("default".into(), default.clone());
         }
         map.insert("client_sync".into(), Value::Bool(self.client_sync));
+        map.extend(self.other.iter().map(|(k, v)| (k.clone(), v.clone())));
         Value::Object(map)
     }
 }
@@ -604,37 +896,52 @@ fn float(v: f64) -> Value {
 /// Resolve the `entities` family over a stack: the last layer defining an
 /// identifier replaces the whole definition; two files with the same
 /// identifier in one layer are an error.
-pub fn resolve_stack(stack: &PackStack, registry: &FilterRegistry) -> Result<Resolved> {
+pub fn resolve_stack(stack: &PackStack, parser: &ActorParser<'_>) -> Result<Resolved> {
     let mut out = Resolved::default();
     let mut layer_seen: BTreeMap<String, String> = BTreeMap::new();
     let mut current_layer = String::new();
+    let mut selected = BTreeMap::new();
     for file in stack.files(Family::Entities)? {
         if file.layer != current_layer {
             current_layer = file.layer.clone();
             layer_seen.clear();
         }
-        match load(&file.origin, &file.bytes, registry)? {
-            Loaded::Skipped { reason } => out.skipped.push((file.origin, reason)),
-            Loaded::Definition {
-                definition,
-                diagnostics,
-            } => {
-                let id = definition.identifier().to_owned();
-                if let Some(previous) = layer_seen.insert(id.clone(), file.origin.clone()) {
-                    return Err(Error::data(
-                        file.origin,
-                        format!("{id} already defined in the same layer by {previous}"),
-                    ));
-                }
-                out.definitions.insert(
-                    id,
-                    ResolvedDefinition {
-                        source: file.origin,
-                        definition: *definition,
-                        diagnostics,
-                    },
-                );
+        let document = json::parse(&file.origin, &file.bytes)?;
+        let identifier = document
+            .get(ENTITY_KEY)
+            .and_then(|v| v.get("description"))
+            .and_then(|v| v.get("identifier"))
+            .and_then(Value::as_str);
+        let Some(identifier) = identifier else {
+            if let Loaded::Skipped { reason } = load_value(&file.origin, &document, parser)? {
+                out.skipped.push((file.origin, reason));
             }
+            continue;
+        };
+        if let Some(previous) = layer_seen.insert(identifier.to_owned(), file.origin.clone()) {
+            return Err(Error::data(
+                file.origin,
+                format!("{identifier} already defined in the same layer by {previous}"),
+            ));
+        }
+        selected.insert(identifier.to_owned(), (file.origin, document));
+    }
+    // Whole-file selection precedes component parsing: an overridden legacy
+    // body is not combined with or validated as part of its replacement.
+    for (identifier, (origin, document)) in selected {
+        if let Loaded::Definition {
+            definition,
+            diagnostics,
+        } = load_value(&origin, &document, parser)?
+        {
+            out.definitions.insert(
+                identifier,
+                ResolvedDefinition {
+                    source: origin,
+                    definition: *definition,
+                    diagnostics,
+                },
+            );
         }
     }
     Ok(out)
@@ -696,8 +1003,162 @@ mod tests {
     use super::*;
     use serde_json::json;
 
+    pub(super) fn parser() -> ActorParser<'static> {
+        ActorParser::from_schema(
+            FilterRegistry::vanilla(),
+            json!({
+                "x-format-version": "1.26.50",
+                "properties": {
+                    "minecraft:pushable": null,
+                    "minecraft:pushable_by_entity": null,
+                    "minecraft:pushable_by_block": null,
+                    "minecraft:environment_sensor": null
+                },
+                "patternProperties": {
+                    "^minecraft:memory_behavior.move_to_position\\.[A-Za-z0-9_]{1,32}$": null
+                }
+            }),
+        )
+        .unwrap()
+    }
+
+    #[test]
+    fn rejects_unregistered_components_in_base_and_inactive_groups() {
+        for body in [
+            json!({"components": {"addon:custom": {"values": [1, 2]}}}),
+            json!({"component_groups": {"addon:unused": {"addon:custom": {"values": [1, 2]}}}}),
+        ] {
+            let mut body = body;
+            body["description"] = json!({"identifier": "addon:actor"});
+            let document = entity("1.26.50", body);
+            let mut parser = parser();
+            assert!(matches!(
+                load_value("addon.json", &document, &parser),
+                Err(Error::Data { .. })
+            ));
+            parser.register_component("addon:custom");
+            let Loaded::Definition { definition, .. } =
+                load_value("addon.json", &document, &parser).unwrap()
+            else {
+                panic!("registered addon definition skipped")
+            };
+            let normal = definition.to_json();
+            for key in ["components", "component_groups"] {
+                if let Some(expected) = document[ENTITY_KEY].get(key) {
+                    assert_eq!(&normal[ENTITY_KEY][key], expected);
+                }
+            }
+        }
+    }
+
+    #[test]
+    fn rejects_future_format_and_accepts_registered_component_patterns() {
+        let accepted = entity("1.26.51", json!({"description": {"identifier": "t:x"}}));
+        let Loaded::Definition { definition, .. } =
+            load_value("current.json", &accepted, &parser()).unwrap()
+        else {
+            panic!("current-format actor skipped")
+        };
+        assert_eq!(definition.format_version, "1.26.51");
+        for version in ["1.26.52", "99.0.0"] {
+            let future = entity(version, json!({"description": {"identifier": "t:x"}}));
+            assert!(matches!(
+                load_value("future.json", &future, &parser()),
+                Err(Error::Data { .. })
+            ));
+        }
+        let body = |name: &str| {
+            entity(
+                "1.26.50",
+                json!({
+                    "description": {"identifier": "t:x"}, "components": {name: {}}
+                }),
+            )
+        };
+        let Loaded::Definition { definition, .. } = load_value(
+            "pattern.json",
+            &body("minecraft:memory_behavior.move_to_position.target_1"),
+            &parser(),
+        )
+        .unwrap() else {
+            panic!("pattern component skipped")
+        };
+        assert!(
+            definition
+                .components
+                .contains_key("minecraft:memory_behavior.move_to_position.target_1")
+        );
+        let bad = body("minecraft:memory_behavior.move_to_position.");
+        assert!(matches!(
+            load_value("pattern.json", &bad, &parser()),
+            Err(Error::Data { .. })
+        ));
+    }
+
+    #[test]
+    fn legacy_unknown_components_warn_but_modern_ones_reject() {
+        let body = json!({
+            "description": {"identifier": "t:x"},
+            "components": {"addon:unknown": {"array": [1, 2]}}
+        });
+        let Loaded::Definition {
+            definition,
+            diagnostics,
+        } = load_value("legacy.json", &entity("1.21.80", body.clone()), &parser()).unwrap()
+        else {
+            panic!("legacy actor skipped")
+        };
+        assert!(definition.ignored_components.contains("addon:unknown"));
+        assert!(
+            diagnostics
+                .iter()
+                .any(|d| d.path.ends_with("/addon:unknown"))
+        );
+        assert_eq!(
+            definition.to_json()[ENTITY_KEY]["components"],
+            body["components"]
+        );
+        assert!(matches!(
+            load_value("modern.json", &entity("1.21.90", body), &parser()),
+            Err(Error::Data { .. })
+        ));
+    }
+
+    #[test]
+    fn modern_unknown_entity_member_rejects_but_envelope_and_description_survive() {
+        let document = entity(
+            "1.26.50",
+            json!({
+                "description": {"identifier": "t:x"},
+                "addon:entity": {"nested": [1, 2]}
+            }),
+        );
+        assert!(matches!(
+            load_value("entity.json", &document, &parser()),
+            Err(Error::Data { .. })
+        ));
+        let mut allowed = entity(
+            "1.26.50",
+            json!({
+                "description": {"identifier": "t:x", "addon:description": {"nested": [3, 4]}}
+            }),
+        );
+        allowed["addon:envelope"] = json!({"nested": [5, 6]});
+        let Loaded::Definition { definition, .. } =
+            load_value("envelope.json", &allowed, &parser()).unwrap()
+        else {
+            panic!("allowed actor skipped")
+        };
+        let output = definition.to_json();
+        assert_eq!(output["addon:envelope"], allowed["addon:envelope"]);
+        assert_eq!(
+            output[ENTITY_KEY]["description"]["addon:description"],
+            allowed[ENTITY_KEY]["description"]["addon:description"]
+        );
+    }
+
     fn load_ok(v: Value) -> (ActorDefinition, Vec<Diagnostic>) {
-        match load_value("t.json", &v, FilterRegistry::vanilla()).unwrap() {
+        match load_value("t.json", &v, &parser()).unwrap() {
             Loaded::Definition {
                 definition,
                 diagnostics,
@@ -764,11 +1225,50 @@ mod tests {
     }
 
     #[test]
+    fn invalid_property_default_diagnoses_without_rejecting_actor() {
+        let (definition, diagnostics) = load_ok(entity(
+            "1.26.50",
+            json!({
+                "description": {"identifier": "t:x", "properties": {
+                    "t:bad": {"type": "bool", "default": "query.is_baby"},
+                    "t:n": {"type": "int", "range": [-10, 10], "default": 3}
+                }}
+            }),
+        ));
+        assert_eq!(definition.description.identifier, "t:x");
+        assert!(
+            diagnostics
+                .iter()
+                .any(|d| d.path.ends_with("/t:bad/default"))
+        );
+        assert!(definition.description.active_properties().is_none());
+        assert_eq!(
+            definition.to_json()[ENTITY_KEY]["description"]["properties"]["t:n"]["default"],
+            3
+        );
+    }
+
+    #[test]
+    fn enum_defaults_are_literal_even_when_they_look_like_queries() {
+        let (definition, _) = load_ok(entity(
+            "1.26.50",
+            json!({
+                "description": {"identifier": "t:x", "properties": {
+                    "t:mode": {"type": "enum", "values": ["query.is_baby", "plain"], "default": "query.is_baby"}
+                }}
+            }),
+        ));
+        let property = &definition.description.active_properties().unwrap()["t:mode"];
+        assert_eq!(property.default.as_ref().unwrap(), "query.is_baby");
+        assert!(property.default_expression.is_none());
+    }
+
+    #[test]
     fn missing_identifier_and_null_events() {
         let skipped = load_value(
             "npc.json",
             &entity("1.16.100", json!({"components": {}})),
-            FilterRegistry::vanilla(),
+            &parser(),
         )
         .unwrap();
         assert!(matches!(skipped, Loaded::Skipped { .. }));
@@ -791,16 +1291,59 @@ mod tests {
                 "1.26.0",
                 json!({"description": {"identifier": "t:x", "properties": {"p": {"type": "int"}}}}),
             ),
-            entity(
-                "1.26.0",
-                json!({"description": {"identifier": "t:x"}, "components": {"c": {"filters": {"test": "on_fire", "subject": 7}}}}),
-            ),
             entity("one.two", json!({"description": {"identifier": "t:x"}})),
         ] {
-            assert!(
-                load_value("t.json", &bad, FilterRegistry::vanilla()).is_err(),
-                "{bad}"
-            );
+            assert!(load_value("t.json", &bad, &parser()).is_err(), "{bad}");
         }
+    }
+}
+
+#[cfg(test)]
+mod preservation_tests {
+    use super::*;
+    use serde_json::json;
+
+    #[test]
+    fn unknown_envelope_and_property_fields_survive_roundtrip() {
+        let input = json!({
+            "format_version": "1.26.50",
+            "addon:envelope": {"values": [1, 2]},
+            "minecraft:entity": {
+                "description": {
+                    "identifier": "addon:actor",
+                    "scripts": {"initialize": ["variable.x = 1;"]},
+                    "properties": {"addon:p": {"type": "bool", "default": true, "addon:metadata": [3, 4]}}
+                },
+                "components": {"addon:component": {"array": [{"x": 1}, {"x": 2}]}}
+            }
+        });
+        let mut parser = tests::parser();
+        parser.register_component("addon:component");
+        let Loaded::Definition { definition, .. } =
+            load_value("addon.json", &input, &parser).unwrap()
+        else {
+            panic!("actor skipped")
+        };
+        let output = definition.to_json();
+        assert_eq!(output["addon:envelope"], input["addon:envelope"]);
+        assert_eq!(
+            output[ENTITY_KEY]["description"]["scripts"],
+            input[ENTITY_KEY]["description"]["scripts"]
+        );
+        assert_eq!(
+            output[ENTITY_KEY]["description"]["properties"]["addon:p"]["addon:metadata"],
+            json!([3, 4])
+        );
+        assert_eq!(
+            output[ENTITY_KEY]["components"],
+            input[ENTITY_KEY]["components"]
+        );
+        let Loaded::Definition {
+            definition: again, ..
+        } = load_value("normalised.json", &output, &parser).unwrap()
+        else {
+            panic!("normalised actor skipped")
+        };
+        assert_eq!(again, definition);
     }
 }

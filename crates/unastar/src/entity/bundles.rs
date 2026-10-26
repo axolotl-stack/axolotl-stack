@@ -59,6 +59,7 @@ pub struct LivingBundle {
     pub velocity: Velocity,
     pub rotation: Rotation,
     pub on_ground: OnGround,
+    pub physics: PhysicsBody,
     pub runtime_id: RuntimeId,
     pub health: Health,
     pub effects: Effects,
@@ -76,6 +77,7 @@ pub struct MobBundle {
     pub velocity: Velocity,
     pub rotation: Rotation,
     pub on_ground: OnGround,
+    pub physics: PhysicsBody,
     pub runtime_id: RuntimeId,
     pub health: Health,
     pub effects: Effects,
@@ -85,20 +87,23 @@ pub struct MobBundle {
     pub age: Age,
 }
 
-/// Bundle for spawning a dropped item entity.
+/// Bundle for spawning a dropped item entity; spawn it through
+/// [`crate::entity::spawn_item_drop`].
 #[derive(Bundle)]
 pub struct ItemBundle {
     pub dropped_item: DroppedItem,
-    pub item_data: ItemStackData,
+    pub stack: ItemEntityStack,
     pub position: Position,
     pub velocity: Velocity,
     pub rotation: Rotation,
     pub on_ground: OnGround,
+    pub physics: PhysicsBody,
     pub runtime_id: RuntimeId,
     pub pickup_delay: PickupDelay,
     pub item_owner: ItemOwner,
     pub despawn_timer: DespawnTimer,
     pub age: Age,
+    pub viewers: ActorViewers,
 }
 
 /// Bundle for spawning a projectile entity.
@@ -109,6 +114,8 @@ pub struct ProjectileBundle {
     pub position: Position,
     pub velocity: Velocity,
     pub rotation: Rotation,
+    pub on_ground: OnGround,
+    pub physics: PhysicsBody,
     pub runtime_id: RuntimeId,
     pub hit_state: ProjectileHit,
     pub pickup_mode: PickupMode,

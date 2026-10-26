@@ -173,6 +173,9 @@ impl GameServer {
             McpePacketData::MovePlayerPacket(_) => {
                 // Intentionally ignored — use PlayerAuthInput instead
             }
+            McpePacketData::AnimatePacket(pk) => {
+                crate::server::broadcast::relay_player_swing(world, entity, &pk);
+            }
             _other => {
                 debug!(session_id, "Unhandled packet");
             }

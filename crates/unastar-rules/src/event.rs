@@ -11,12 +11,12 @@
 //!
 //! | Concern | Accepted | Canonical |
 //! |---|---|---|
-//! | `add` / `remove` | `{"component_groups": [..]}`; `{}`; any other key is ignored with a diagnostic (vanilla silverfish `become_angry` / `become_calm` write `"remove": {"minecraft:silverfish_calm": {}}`) | `{"component_groups": [..]}` |
+//! | `add` / `remove` | `{"component_groups": [..]}`; `{}`; any other key is ignored with a diagnostic (vanilla silverfish `become_angry` / `on_calm` write `"remove": {"minecraft:silverfish_calm": {}}`) | `{"component_groups": [..]}` |
 //! | `trigger` | an event name, or `{"event", "target"?, "filters"?}`; target defaults to `self` | `{"event", "target"}` (+ `filters`) |
 //! | `filters` | every filter spelling ([`crate::filter`]) | canonical filter |
 //! | `set_property` | property → literal or Molang string (resolved against the property's type when the definition is decoded) | unchanged |
 //! | Other actions | `queue_command`, `emit_vibration`, `play_sound`, `emit_particle`, `set_home_position`, `execute_event_on_home_block`, `reset_target`, `stop_movement`, `drop_item`, `run_command` | unchanged JSON |
-//! | Unknown keys | ignored with a diagnostic | dropped |
+//! | Unknown keys | inactive with a diagnostic; retained in `unknown_actions` | unchanged JSON |
 //!
 //! `randomize` children without `weight` are rejected (vanilla always writes
 //! one; the BDS default is unconfirmed).
@@ -42,10 +42,13 @@ pub struct EventNode {
     pub add: Option<Vec<String>>,
     pub remove: Option<Vec<String>>,
     pub trigger: Option<Trigger>,
-    /// `set_property` entries in document order, values unresolved.
+    /// `set_property` entries in canonical key order, values unresolved.
     pub set_property: Option<Vec<(String, Value)>>,
     /// Other actions by key, in key order.
     pub actions: Vec<(EventAction, Value)>,
+    /// Unknown actions retain their JSON, but invalidate the node, including
+    /// its known sibling actions (BDS 1.26.51 crafted-pack probe).
+    pub unknown_actions: Map<String, Value>,
     pub children: Option<Children>,
 }
 
@@ -136,6 +139,7 @@ impl EventNode {
             trigger: None,
             set_property: None,
             actions: Vec::new(),
+            unknown_actions: Map::new(),
             children: None,
         };
         for (key, member) in map {
@@ -199,7 +203,11 @@ impl EventNode {
                 }
                 other => match EventAction::from_key(other) {
                     Some(action) => node.actions.push((action, member.clone())),
-                    None => diags.push(at, "unknown event key ignored"),
+                    None => {
+                        diags.push(at, "unknown event key ignored");
+                        node.unknown_actions
+                            .insert(other.to_owned(), member.clone());
+                    }
                 },
             }
         }
@@ -241,6 +249,7 @@ impl EventNode {
         for (action, value) in &self.actions {
             map.insert(action.key().into(), value.clone());
         }
+        map.extend(self.unknown_actions.clone());
         if let Some(children) = &self.children {
             let (key, items) = match children {
                 Children::Sequence(items) => ("sequence", items),
@@ -278,7 +287,7 @@ impl EventNode {
     }
 
     fn passes(&self, ctx: &dyn FilterContext) -> bool {
-        self.filters.as_ref().is_none_or(|f| f.evaluate(ctx))
+        self.unknown_actions.is_empty() && self.filters.as_ref().is_none_or(|f| f.evaluate(ctx))
     }
 
     fn run<'a>(
@@ -590,5 +599,42 @@ mod tests {
         );
         let out = node.evaluate(&Families(&["zombie"]), &mut || 0.0);
         assert!(out.effects.is_empty() && out.triggers.is_empty());
+    }
+}
+
+#[cfg(test)]
+mod preservation_tests {
+    use super::*;
+    use serde_json::json;
+
+    #[test]
+    fn unknown_actions_survive_normalisation_without_executing() {
+        let input = json!({
+            "addon:action": {"nested": [1, {"x": 2}]},
+            "trigger": "known",
+            "set_property": {"addon:p": true},
+            "queue_command": {"command": "scoreboard players set probe fidelity 1"}
+        });
+        let mut diagnostics = Diagnostics::default();
+        let event =
+            EventNode::parse(&input, FilterRegistry::vanilla(), "event", &mut diagnostics).unwrap();
+        assert!(
+            !diagnostics.items.is_empty(),
+            "unknown action must be diagnosed"
+        );
+        assert_eq!(event.to_json()["addon:action"], input["addon:action"]);
+        struct EmptyContext;
+        impl FilterContext for EmptyContext {
+            fn fact(
+                &self,
+                _: Subject,
+                _: &crate::filter::FilterTest,
+            ) -> Option<crate::filter::Fact> {
+                None
+            }
+        }
+        let result = event.evaluate(&EmptyContext, &mut || panic!("leaf uses no randomness"));
+        assert!(result.effects.is_empty());
+        assert!(result.triggers.is_empty());
     }
 }

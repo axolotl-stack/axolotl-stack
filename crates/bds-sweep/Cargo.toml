@@ -10,6 +10,7 @@ path = "src/main.rs"
 
 [dependencies]
 jolyne = { workspace = true, features = ["client", "raknet"] }
+client-diff = { path = "../client-diff" }
 tokio = { workspace = true, features = ["rt-multi-thread", "macros", "time"] }
 clap.workspace = true
 anyhow.workspace = true

@@ -9,6 +9,15 @@ path = "src/lib.rs"
 
 [dependencies]
 serde = { workspace = true }
-bevy_ecs = { workspace = true }
 rand = { workspace = true }
 serde_json = { workspace = true }
+unastar-packs = { path = "../unastar-packs" }
+unastar-rules = { path = "../unastar-rules" }
+
+[build-dependencies]
+serde_json = { workspace = true }
+unastar-packs = { path = "../unastar-packs" }
+unastar-rules = { path = "../unastar-rules" }
+
+[dev-dependencies]
+sha2 = { workspace = true }

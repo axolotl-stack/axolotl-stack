@@ -4,13 +4,15 @@ Generated, source-attributed gameplay data for Unastar.
 
 The crate is the boundary between raw Bedrock data sources and the server runtime:
 
-1. `datagen` reads protocolgen's pinned native BDS 1.26.51 measurements, vanilla behavior-pack JSON, PMMP creative inventory, and local KDL overrides, then writes reviewable artifacts in `output/`.
-   The vanilla pack is the `data/vanilla_bp` submodule, Mojang/bedrock-samples release
-   `v1.26.50.4` (`46ba6ea`), the newest stable samples release for BDS 26.50/26.51
-   (26.51 is a hotfix without a samples release). Every entity file must parse; datagen
-   fails rather than drop one.
-2. `codegen` reads those golden artifacts and generates Rust types/tables under `src/`.
-3. `unastar` consumes generated APIs; it should not parse PMMP, Prismarine, BDS, or behavior-pack data directly in hot runtime paths.
+1. `datagen` reads protocolgen's native BDS 1.26.51 measurements and open-data
+   catalogues, then writes reviewable artefacts in `output/`. `codegen` builds
+   the existing native runtime tables from those artefacts.
+2. `build.rs` reads the pinned bedrock-samples submodule (`data/vanilla_bp`,
+   `v1.26.50.4`, `46ba6ea`) and native biome measurements. It writes normalised
+   actor definitions, enriched biomes and canonical loot JSON into Cargo's `OUT_DIR`, embeds it
+   and decodes it once at startup. Pack-derived JSON/KDL and per-entity Rust
+   are not committed (D2/D13); `output/pack-manifest.json` records counts/hashes.
+3. `unastar` consumes the decoded typed APIs, not raw pack files in tick paths.
 
 ## Source priority
 
@@ -49,19 +51,57 @@ against a capture by `unastar`'s `vanilla_item_registry_packet_matches_bds_captu
 
 Current golden artifacts:
 
-- `entities.kdl`: 128 vanilla entities and local overrides.
+- `actor_definitions.json` (**OUT_DIR only**): 128 normalised definitions,
+  including full component bodies, component groups, event trees, properties,
+  description metadata and format versions. `actor_definitions::{vanilla,get}`
+  decodes via the shared `unastar-packs::actor` loader. No `_defaults.kdl`,
+  per-entity bundles or generated spawn functions remain.
+- `actor_component_registry.json` (**OUT_DIR only**): 410 parser-kind names
+  plus canonical name patterns and `ActorDocument` member names from stable
+  Mojang schemas in the samples metadata and `data/upstream/mojang/entity_forms`.
+  Build/runtime actor loading uses the same registry
+  (`actor_definitions::parser()`); addon names register before loading. Only
+  its count/hash is committed in the manifest.
 - `blocks.kdl`: 1,477 native blocks and 22,091 states in **unaltered canonical
   NBT order**; each state retains typed properties, network hash and physical measurements.
   Native property tables and tags are also preserved. Generated block physical fields
   project the first state; state-dependent measurements remain in KDL.
-- `biomes.kdl`: 89 native IDs/definitions, enriched with explicitly attributed
-  behavior-pack components where available.
+- `biomes.json` (**OUT_DIR only**): 89 native IDs/definitions enriched with
+  complete pack components, tags and climate; `biomes::{vanilla,get,iter}`.
 - `items.kdl`: 2,076 native IDs/stack limits/properties/tags plus packet registry metadata.
   The 78 items whose registry component data is not the empty compound carry it as
   `component_nbt` (base64 of the exact network NBT, sliced from `items.nbt`, never
   re-encoded); codegen exposes it as `ItemData::component_nbt`.
 - `creative.kdl`: PMMP creative inventory.
+- `loot_tables.json` (**OUT_DIR only**): 508 canonical tables from the vanilla
+  pack plus `data/overrides/loot_tables/blocks.json`, decoded at startup by
+  `loot::vanilla() -> &unastar_rules::loot::LootTables`. Tables retain the
+  complete canonical JSON alongside typed pools/entries/conditions/functions;
+  unknown functions/conditions are explicit `Other` values and evaluation
+  returns an error rather than silently ignoring them.
+  The authored block tables retain per-table `//source` notes and Java-format
+  extensions (`alternatives`, `apply_bonus`, `limit_count`, binomial providers,
+  `table_bonus`, `block_state_property`, `inverted`). These block facts remain
+  a D4 deviation until E9 sweeps replace them; the D2 per-entry-static
+  deviation is removed. I11 owns vanilla loot completion and BDS RNG parity.
 - Optional `biome_packets.kdl` / `entity_identifiers.kdl`: validated BDS captures.
+- `actor_identifiers.json`: measured BDS 1.26.51 capture facts (137 rows,
+  protocol 2193), including JSON-less built-in actors. `actor_identifiers::vanilla`
+  retains `rid`, `id`, `bid`, `hasspawnegg`, `summonable` and capture row order.
+  The artefact records TOOLING's source path/commit and raw-packet SHA-256.
+- `shapes.json`: every state's collision, outline and liquid-clip geometry,
+  deduplicated by shape, from protocolgen `7b2e47c`. The geometry is
+  [CloudburstMC/Data](https://github.com/CloudburstMC/Data), Apache-2.0; its
+  pinned revision and the input hashes are recorded in the artefact and
+  `manifest.kdl` (see protocolgen `generated/data/semantic_sources.json` and
+  `data/NOTICE.md`). The 30 unavailable liquid-clip shapes remain explicitly
+  unavailable, distinct from known-empty shapes. Runtime `shapes` decodes once.
+
+Generated `blocks::BlockData` also carries the native block-level physics
+(`friction`, `material`, `blocks_motion`, `liquid`, `solid`, `falling`,
+`requires_correct_tool_for_drops`, `visual_shape`) and the per-state property
+table (`properties` + `state_values`, queried with `state_value` /
+`with_state_value`).
 
 Native data does **not** identify each block's placement/default state. As before,
 `default_state_id` selects the first canonical state, explicitly marked
@@ -73,7 +113,7 @@ hardness/resistance map directly to `destroySpeed`/`explosionResistance` without
 Jolyne negotiates sequential block IDs (`block_network_ids_are_hashes=false`);
 hashes are retained for validation, not substituted for ordinals.
 
-Initialize both source submodules before generation:
+Initialize both source submodules **before building**, not only generation:
 
 ```powershell
 git submodule update --init crates/valentine_gen/protocolgen crates/unastar-data/data/vanilla_bp
@@ -91,16 +131,37 @@ Refresh only native block data plus the manifest:
 cargo run -p unastar-data-gen -- --blocks-only
 ```
 
-Refresh native biome data with behavior-pack enrichment plus the manifest:
+Actor and biome artefacts regenerate automatically when their submodule inputs
+change. Refresh their committed hash/count manifest with `--manifest-only`.
+The D9 comparison uses the same pack-stack/brarchive reader as worldgen:
 
 ```powershell
-cargo run -p unastar-data-gen -- --biomes-only
+$env:UNASTAR_BDS_DIR = 'C:/path/to/BDS-1.26.51'
+cargo test -p unastar-packs --test vanilla bedrock_samples_match_the_bds_layer_stack
+```
+
+The samples' 128 entities equal the BDS layered definitions; BDS alone contains
+`minecraft:agent`. Without the environment variable the install test prints a
+skip message. This data comparison does not establish crafted-pack parser or
+gameplay parity with BDS.
+
+Regenerate the committed, openly licensed shape family:
+
+```powershell
+cargo run -p unastar-data-gen -- --shapes-only
 ```
 
 Refresh native items and PMMP creative data plus the manifest:
 
 ```powershell
 cargo run -p unastar-data-gen -- --pmmp-only
+```
+
+Loot tables regenerate on pack/override changes during the build. Refresh
+their committed hash/count manifest:
+
+```powershell
+cargo run -p unastar-data-gen -- --manifest-only
 ```
 
 Refresh only BDS-extractor packet/runtime facts plus the manifest:
