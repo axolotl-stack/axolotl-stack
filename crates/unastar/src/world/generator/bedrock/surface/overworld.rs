@@ -36,7 +36,7 @@ pub(super) fn build<C: SurfaceColumn>(
     } else {
         c.materials(base, c.sea_level - 1).sea
     };
-    fill_sea(col, c, sea);
+    let hi = fill_sea(col, c, sea);
     let depth = c.depth.max(0);
     let mut foundation = base.foundation;
     // -1: the next foundation block starts a run; > 0: mid blocks left.
@@ -44,7 +44,7 @@ pub(super) fn build<C: SurfaceColumn>(
     let mut mid = base.mid;
     let mut started = false;
     let mut lowest = None;
-    for y in (c.lo..c.hi).rev() {
+    for y in (c.lo..hi).rev() {
         if c.topmost_only && started && remaining == 0 {
             break;
         }

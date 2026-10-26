@@ -254,6 +254,14 @@ stream fingerprints pass before and after, and old/new carver and decoration
 bytes match across all 83 overworld biomes in each of two signed-seed worlds.
 This preserves the existing model; it does not establish native BDS seeding parity.
 
+Overworld surface scans reuse the occupied-height bound already discovered by
+sea filling rather than traversing the same empty sky twice. Column write
+bounds, non-overworld builders and cave ranges remain unchanged. An old/new
+differential across all 89 biomes, two signed-seed chunks and 1,780 real-terrain
+and boundary column cases preserved complete blocks, ordered writes and RNG
+continuation. It observed 854,362 -> 586,334 block reads (31.37% fewer in that
+surface-only workload, none increased), not a measured whole-chunk speedup.
+
 Molang `query.noise` is a stateless intrinsic in `molang_noise`, not a world-seeded
 Java noise instance. Its fixed permutation/hash gradients are evaluated at compile
 time; sampling keeps the measured native float32 operation order. Authored BDS
