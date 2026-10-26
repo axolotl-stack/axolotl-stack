@@ -394,3 +394,30 @@ pool smoke at 1/4 workers and human-readable output. Even side lengths and seed
 overrides outside area mode fail explicitly. All three requested fmt/clippy/test
 commands were rerun after the benchmark edit: **727 tests pass, 1 ignored**, with
 the original block/biome and actor hash gates unchanged.
+
+### Source-backed efficiency mechanisms, not measured root causes
+
+Inspection of pinned Steel `594baebc` identifies concrete mechanisms worth
+isolating, without copying its AGPL implementation into this workspace:
+
+- [Noise corner evaluation](https://github.com/Steel-Foundation/SteelMC/blob/594baebc687777f73fb7d79c0978fb82a55ca138/steel-worldgen/src/noise/noise_chunk.rs#L159-L218)
+  batches Y samples with SIMD and shares per-column work. Its
+  [slice loop](https://github.com/Steel-Foundation/SteelMC/blob/594baebc687777f73fb7d79c0978fb82a55ca138/steel-worldgen/src/noise/noise_chunk.rs#L248-L288)
+  reuses one cache sequentially rather than nesting Rayon jobs inside already
+  parallel chunk work. Observed `f32` paths are not permission to lower our
+  precision or alter output to gain speed.
+- The server defaults to
+  [mimalloc](https://github.com/Steel-Foundation/SteelMC/blob/594baebc687777f73fb7d79c0978fb82a55ca138/steel/src/main.rs#L110-L116);
+  our benchmark wraps `System`. That is a real allocator confounder, not proof
+  that allocator choice explains the measured CPU cost.
+- Its [pregeneration windows](https://github.com/Steel-Foundation/SteelMC/blob/594baebc687777f73fb7d79c0978fb82a55ca138/steel-core/src/server/pregen.rs)
+  retain dependency-expanded overlapping regions and use bounded active windows,
+  a different working-set policy from our per-origin FIFO caches.
+- The [Full-ready marker](https://github.com/Steel-Foundation/SteelMC/blob/594baebc687777f73fb7d79c0978fb82a55ca138/steel-core/src/server/pregen.rs#L475-L478)
+  releases windows but does **not** explicitly drain every final save. Saving
+  occurs during the benchmark; the completion line must not be strengthened
+  into a guarantee that every chunk is durably flushed.
+
+These observations justify targeted profiling/controlled comparisons, not a
+scheduler rewrite or a claimed speedup. Native CPU flags, toolchain version,
+allocator, generation stages and shutdown/save boundaries must all be recorded.
