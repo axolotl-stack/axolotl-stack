@@ -317,3 +317,80 @@ Known deviations: the explicitly approved one-time per-stage budget redistributi
 is documented above; all subsequent ceilings are strict. Wall-time claims are
 limited to the pinned alternating measurements, turbo off and other workers active.
 The final clean turbo-on window remains coordinator-owned.
+
+## User-authorized dense-area comparison
+
+The user explicitly authorized proceeding after the original dispatch settled.
+`4df67418` adds a cold row-major square workload through the unchanged production
+generation pool. This is a **measurement correction**, not a generator speedup.
+No output goldens, parity floors, allocation ceilings or generator code changed.
+
+### Repeated conditions and results
+
+- Same published Steel target seed: `8500081009970950196`.
+- Same target square: 101x101 centered on chunk 0,0, **10,201 chunks**.
+- Normal release with both edition features, without `worldgen-profile`.
+- i9-14900HX, Windows, AC processor maximum 99% / turbo off.
+- Three fresh-process rounds, worker orders `1,4,8,16`, `16,8,4,1`, `4,1,16,8`.
+- Windows processor topology confirms P-core masks: `0x4`, `0x55`, `0x5555`,
+  `0xffff` for the four worker counts. Sixteen workers use both SMT siblings of
+  the eight P-cores, not sixteen physical P-cores.
+- **Shared machine, not a certified quiet window.** WG-BEDROCK reported an
+  overlapping validation build during early samples; the 17-square pilot and
+  initial 101-square sample are retained separately, excluded from these medians.
+  Its build finished before the three repeated rounds, but other activity was
+  not eliminated or assumed absent.
+
+| Workers | Median generation chunks/s | Range chunks/s | Wall ms/target (elapsed/count) | Process CPU ms/target |
+|---|---:|---:|---:|---:|
+| 1 | 67.32 | 66.00–67.34 | 14.855 | 13.983 |
+| 4 | 109.58 | 107.60–109.69 | 9.125 | 14.583 |
+| 8 | 237.17 | 234.77–244.83 | 4.216 | 17.025 |
+| 16 | 414.99 | 396.49–427.55 | 2.410 | 25.681 |
+
+Raw samples, affinities and conditions:
+[`dense-steel-seed-rounds.json`](dense-steel-seed-rounds.json).
+Wall cost per target is reciprocal throughput, **not individual request latency**.
+Process CPU time is Windows `GetProcessTimes` kernel + user time across the
+process lifetime, sampled after exit while its handle remains open. It includes
+initialization/teardown; `generation_ms` separately measures request submission
+through receipt of all generated chunks.
+
+### What the comparison does and does not establish
+
+The earlier sparse fixture charged 264 cached terrain protos to 68 finished
+targets. Dense reuse materially changes its amortization. The new single-worker
+number cannot be described as a code optimization over the old 44.55 ms figure:
+the seed, area and workload changed. Final dense cache occupancy is 1024, not a
+count of all terrain computations after cache eviction.
+
+[Steel's published benchmark](https://steelmc.dev/reference/benchmarks/) reports
+2,581.8 chunks/s at 30.2 logical CPUs on a Ryzen 9950X, or 85.51 chunks per
+CPU-second (11.69 CPU-ms/target). It targets Java 26.2 at a different revision,
+uses a native build, and includes lighting plus serialization/compression/saving
+to `tmpfs`. Our Java input remains 1.21.11 and this harness returns in-memory
+generated chunks, without lighting, worldgen entities, persistence or sending.
+Neither the total-throughput ratio nor the CPU-cost ratio is a controlled
+same-machine, same-work comparison; no winner is claimed.
+
+Steel's [architecture account](https://steelmc.dev/blog/announcement/) describes
+stage-aware chunk-pyramid scheduling, overlapping-neighbor reuse and parallel
+lighting. Its stated omission is entity spawning, not terrain/features/structures.
+Its parity reference normalizes biome-cache state, feature generation order and
+hash-collection iteration order. That qualification matters, but is not evidence
+of low-detail terrain or omitted structures.
+
+Our synchronous per-target pipeline also reuses neighbors, using single-flight
+protos and decoration journals. **[INFERENCE]** Waiting on overlapping work,
+shared allocation/locking costs and SMT contention are candidate explanations
+for imperfect scaling; these rounds do not isolate a root cause. More workers
+increase throughput but also recorded CPU cost per target. The performance
+target is completed chunks/s and spawn readiness, not an allocation-only gain.
+
+### Exercised verification
+
+Release build and actual area-mode runs pass, including a negative-seed 3x3 flat
+pool smoke at 1/4 workers and human-readable output. Even side lengths and seed
+overrides outside area mode fail explicitly. All three requested fmt/clippy/test
+commands were rerun after the benchmark edit: **727 tests pass, 1 ignored**, with
+the original block/biome and actor hash gates unchanged.
