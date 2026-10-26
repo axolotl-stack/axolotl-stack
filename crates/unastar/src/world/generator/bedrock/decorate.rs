@@ -125,12 +125,33 @@ mod tests {
     use super::*;
 
     #[test]
-    fn chunk_seeds_differ_per_chunk_and_world() {
-        let s = |seed, x, z| chunk_seed(seed, x, z);
-        assert_ne!(s(12345, 0, 0), s(12345, 1, 0));
-        assert_ne!(s(12345, 1, 0), s(12345, 0, 1));
-        assert_ne!(s(12345, 3, 7), s(54321, 3, 7));
-        assert_eq!(s(12345, -4, 9), s(12345, -4, 9));
+    fn population_streams_preserve_signed_world_and_coordinate_boundaries() {
+        // Fingerprints from an independent MT19937 reference, established
+        // before moving world-seed setup out of the per-chunk paths.
+        let cases: [(i64, i32, i32, u64); 8] = [
+            (0, 0, 0, 0x4e75_1239_6bae_afd0),
+            (12345, -4, 9, 0xd05a_17f0_eeae_0866),
+            (-1, i32::MIN, i32::MAX, 0x343c_39b0_a986_0cef),
+            (i64::MIN, -30_000_000, 30_000_000, 0xde02_d8c8_6b1f_511e),
+            (i64::MAX, i32::MAX, i32::MIN, 0xb6ce_e0ba_4d9f_cea2),
+            (0x1_0000_0001, i32::MAX, -1, 0x24df_626a_f548_6861),
+            (-9_876_543_210_123, 64, 66, 0x4b0d_756f_2aad_ea28),
+            (54321, -128, 34, 0x94d2_7b74_e243_9f2c),
+        ];
+        for (world_seed, x, z, expected) in cases {
+            let seed = chunk_seed(world_seed, x, z);
+            let mut fingerprint = 0xcbf2_9ce4_8422_2325u64;
+            for salt in [0, 0x5bd1_e995, 0x7374_7275, 0x6261_7365] {
+                let mut stream = BedrockRandom::new(seed ^ salt);
+                for _ in 0..32 {
+                    for byte in stream.next_u32().to_le_bytes() {
+                        fingerprint ^= u64::from(byte);
+                        fingerprint = fingerprint.wrapping_mul(0x100_0000_01b3);
+                    }
+                }
+            }
+            assert_eq!(fingerprint, expected, "world {world_seed}, chunk {x},{z}");
+        }
     }
 
     #[test]
