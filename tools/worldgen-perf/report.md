@@ -666,3 +666,44 @@ improvement is inferred from these rows.
 | Bedrock aquifer/veins | 593 | 273 | 16,711,680 | 2,620,800 |
 | Bedrock noise | 1,911 | 1,092 | 24,404,016 | 17,937,192 |
 
+### Normal-release A/B after aquifer/tree/rotation changes
+
+Compared control `1bb6cee5` (lazy density branches already included) with candidate
+`d0bedbf5`. Both EXE/PDB pairs are retained outside `target`. Three rounds used
+AB, BA, AB order; worker-count ordering rotated between rounds. AC remained
+connected for every child process. Both AC/DC maximum processor states were
+verified at 99% (turbo disabled); the named build/native/client process guard
+was empty and ENT/WG-BEDROCK reported free. Ordinary OS background noise was
+not eliminated. These are normal release/native-CPU builds, not stage timings.
+Raw process results and lifetime CPU totals:
+[`aquifer-scratch-rounds.json`](aquifer-scratch-rounds.json).
+
+| 68-target fixture, seed 12345, affinity `0x4` | Control median ms/target (range) | Candidate median ms/target (range) |
+|---|---:|---:|
+| Java | 44.305 (44.109–44.442) | 44.434 (43.903–45.223) |
+| Bedrock | 32.483 (31.300–34.152) | 31.261 (30.241–33.248) |
+
+**Java fixture wall time is flat/no demonstrated win** despite its lower
+allocation traffic. Bedrock is faster in all three pairs; its median time
+reduction is 3.8%. Do not describe the allocation-byte reduction as a matching
+time reduction.
+
+Dense rows request the same cold 33×33 square (1,089 targets), seed
+8500081009970950196, through the real generation pool. Affinity masks are `0x4`,
+`0x55`, `0x5555`, `0xffff`; the last uses SMT on eight P-cores. Lifetime CPU
+includes initialization/teardown and is not CPU time solely within cold elapsed.
+
+| Java workers | Control median cold chunks/s (range) | Candidate median cold chunks/s (range) | Control CPU ms/target | Candidate CPU ms/target |
+|---|---:|---:|---:|---:|
+| 1 | 53.966 (53.822–55.666) | 54.372 (54.218–55.040) | 17.275 | 17.375 |
+| 4 | 97.695 (96.215–97.703) | 101.868 (101.617–102.026) | 17.734 | 17.634 |
+| 8 | 214.443 (212.679–221.382) | 218.454 (216.005–219.181) | 18.409 | 18.265 |
+| 16 | 347.116 (339.080–373.445) | 352.169 (348.015–374.562) | 26.257 | 25.884 |
+
+Four workers improve in every pair (+4.3% median throughput). One/eight-worker
+pairs are mixed; sixteen-worker pairs improve but the small median change and
+wide ranges limit the claim. Absolute rows must not be compared with earlier
+101-square Steel runs to infer a new speed ratio. Completion remains generated
+in-memory chunks without lighting, entity spawning, saving or network delivery.
+The quiet timing hold was explicitly released before full untimed acceptance.
+
