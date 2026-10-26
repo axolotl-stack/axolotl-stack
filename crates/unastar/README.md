@@ -265,6 +265,14 @@ Block-type replacement removes stale metadata; changes between states of the
 same block type preserve it. Generated loot/spawner metadata is AOT-encoded:
 runtime placement does not parse template NBT or draw additional random values.
 
+The shared build-time actor compiler accepts observed native identities and
+normalizes their Java aliases explicitly. A supported-block BDS 1.26.51 control
+verified `CreakingHeart`, `CopperGolemStatue` and `Shelf`; in particular,
+`minecraft:creaking_heart` must become `CreakingHeart`, not remain a namespaced
+Java id. Unknown identities fail compilation rather than becoming another
+actor kind. This identity conversion does not translate Java-only payload
+semantics.
+
 LevelDB stores concatenated fixed-little-endian roots under chunk key `0x31`.
 BlazeDB writes format v3 with an explicit metadata length and still reads v1/v2
 columns without actors. Flush and close drain queued writes before returning.
