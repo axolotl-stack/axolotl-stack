@@ -209,18 +209,6 @@ mod enabled {
         });
     }
 
-    /// Fold a joined helper thread's allocation traffic into the caller's stage.
-    /// Its CPU time is not added: the parent's elapsed time already includes the wait.
-    pub fn merge_allocations(counters: Counters) {
-        STATE.with(|state| {
-            let mut state = state.borrow_mut();
-            if let Some(stage) = state.current {
-                state.counters[stage as usize].allocations += counters.allocations;
-                state.counters[stage as usize].bytes += counters.bytes;
-            }
-        });
-    }
-
     /// Reset outside a profiling scope, before running a cold workload.
     pub fn reset() {
         STATE.with(|state| {
@@ -255,8 +243,6 @@ mod disabled {
     }
     #[inline(always)]
     pub fn allocation(_: usize) {}
-    #[inline(always)]
-    pub fn merge_allocations(_: Counters) {}
     pub fn reset() {}
     pub fn snapshot() -> [Counters; Stage::ALL.len()] {
         [Counters::default(); Stage::ALL.len()]
@@ -265,44 +251,6 @@ mod disabled {
 
 #[cfg(not(feature = "worldgen-profile"))]
 pub use disabled::*;
-
-/// Joined helper result; ordinary builds store only the original return value.
-pub struct ThreadResult<T> {
-    value: T,
-    #[cfg(feature = "worldgen-profile")]
-    allocations: Counters,
-}
-
-impl<T> ThreadResult<T> {
-    /// Join allocation traffic to the current stage without double-counting time.
-    #[inline]
-    pub fn into_inner(self) -> T {
-        #[cfg(feature = "worldgen-profile")]
-        merge_allocations(self.allocations);
-        self.value
-    }
-}
-
-/// Measure a fresh helper thread for attribution by its joining parent.
-#[inline]
-pub fn thread_allocations<T>(work: impl FnOnce() -> T) -> ThreadResult<T> {
-    let _stage = scope(Stage::StructureStarts);
-    let value = work();
-    #[cfg(feature = "worldgen-profile")]
-    let allocations = {
-        let mut total = Counters::default();
-        for counters in snapshot() {
-            total.allocations += counters.allocations;
-            total.bytes += counters.bytes;
-        }
-        total
-    };
-    ThreadResult {
-        value,
-        #[cfg(feature = "worldgen-profile")]
-        allocations,
-    }
-}
 
 #[cfg(all(test, feature = "worldgen-profile"))]
 mod tests {
@@ -331,34 +279,5 @@ mod tests {
         assert_eq!(counts[Stage::Noise as usize].bytes, 60);
         assert_eq!(counts[Stage::AquiferVeins as usize].allocations, 1);
         assert_eq!(counts[Stage::AquiferVeins as usize].bytes, 29);
-    }
-
-    #[test]
-    fn joined_helper_allocations_belong_to_parent_without_duplicate_time() {
-        reset();
-        {
-            let _parent = scope(Stage::StructureReferences);
-            let result = std::thread::spawn(|| {
-                thread_allocations(|| {
-                    allocation(61);
-                    {
-                        let _nested = scope(Stage::Noise);
-                        allocation(79);
-                    }
-                    42
-                })
-            })
-            .join()
-            .unwrap();
-            assert_eq!(result.into_inner(), 42);
-        }
-        let counts = snapshot();
-        assert_eq!(counts[Stage::StructureReferences as usize].allocations, 2);
-        assert_eq!(counts[Stage::StructureReferences as usize].bytes, 140);
-        assert_eq!(counts[Stage::Noise as usize].allocations, 0);
-        assert_eq!(
-            counts[Stage::Noise as usize].elapsed,
-            std::time::Duration::ZERO
-        );
     }
 }

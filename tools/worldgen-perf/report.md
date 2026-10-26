@@ -116,3 +116,107 @@ All savings are attributed to structure starts. Raw result:
 [`lazy-java-stages.json`](lazy-java-stages.json). The original stage ceilings and
 both 68-chunk exact-output hashes pass. Requested fmt/clippy gates pass; the full
 all-feature unastar + unastar_noise suite again passes 701 tests (1 ignored).
+
+## Section-granular decoration COW and demand-resolved stronghold rings
+
+Control: the metadata-aware main merge after the two Java allocation slices above,
+before section-COW and selective rings. Both build inputs and all generation behavior
+are identical between this control and the candidate.
+
+- Decoration clones only modified sub-chunks, not whole neighbour chunks, their
+  biome storage, or their unrelated block actors. Actors have an independent lazy
+  sparse overlay; actor invalidation and chronological block/actor replay are unchanged.
+- Stronghold ring points and RNG forks are still drawn sequentially. A 112-block
+  preferred-biome search can move each point by at most seven chunks per axis, so
+  only points in that square are resolved. Each result is single-flight; reversed
+  query order and concurrent queries match the eager relocation oracle.
+- The obsolete eager ring worker fan-out and its profiling-only thread aggregation
+  were removed. Throughput runs also bypass global allocation-counter increments,
+  avoiding a benchmark-only cache-line bottleneck between generation workers.
+
+### Exact-output integration boundary
+
+Main's metadata cutover intentionally appended actors to `encode_subchunk` network
+payloads. Four Java digests initially differed because the old block digest now
+included that suffix. Switching the block projection to `encode_subchunk_disk`
+restored **all 136 original SHA-256 values without changing any golden value**.
+A separate digest, captured before these optimizations, sorts actors by position
+and canonicalizes NBT compound keys; it also passes afterward. No geometry, RNG or
+vanilla-parity exception was needed.
+
+### Normal release A/B timing
+
+Three rounds alternate control/candidate for Java, then control/candidate for
+Bedrock. Windows i9-14900HX, affinity mask 4 (logical CPU 2, one P-core), turbo
+disabled (99% maximum processor state), other workers active. No stage timers
+are enabled in these builds. Each process uses the same cold 68-chunk workload.
+
+| Generator | Control median (range), ms/requested chunk | Candidate median (range), ms/requested chunk |
+|---|---:|---:|
+| Java-style | 101.264 (97.118–109.450) | 58.830 (53.278–68.113) |
+| Bedrock-style | 47.362 (40.156–49.274) | 42.073 (40.034–51.479) |
+
+Java improves in every paired round (median 1.72x faster). Bedrock has one slower
+round and substantial shared-load drift; treat its timing as provisional and its
+deterministic allocation reduction as the primary result. Raw normal-build results:
+[`cow-ring-normal-rounds.json`](cow-ring-normal-rounds.json).
+
+### Exact allocation ceilings
+
+Stage-enabled release builds, same inputs/fixture/affinity/power/load. All three
+alternating runs produce identical total and per-stage allocation counts and bytes.
+
+| Fixture-total allocation traffic | Metadata control | Candidate |
+|---|---:|---:|
+| Java allocations | 186438 | 119232 |
+| Java requested bytes | 166658996 | 157672310 |
+| Bedrock allocations | 132535 | 65729 |
+| Bedrock requested bytes | 98750284 | 90025992 |
+
+Controls: [`metadata-java-stages.json`](metadata-java-stages.json),
+[`metadata-bedrock-stages.json`](metadata-bedrock-stages.json). New ceilings:
+[`ratchet-java.json`](ratchet-java.json), [`ratchet-bedrock.json`](ratchet-bedrock.json).
+The normal Java control allocates 320 fewer bytes than the instrumented control
+because the old eager ring helpers carry profiling counters; use like-featured
+builds for allocation comparisons. Raw stage rounds are retained at
+`C:/Users/jvigu/orca/wg-perf-artifacts/metadata-control/stage-rounds.json`.
+
+### Explicit one-time stage-budget redistribution
+
+The coordinator approved this one-time rebaseline: lazy section copies shift a few
+allocations from early stages into later passes while reducing totals by 36.0%
+(Java) and 50.4% (Bedrock). These are all stage increases over the metadata control:
+
+| Stage | Allocations before → after | Requested bytes before → after |
+|---|---:|---:|
+| Java top-layer modification | 124 → 134 | 141320 → 147132 |
+| Bedrock after-underground | 462 → 690 | 399564 → 493872 |
+| Bedrock surface | 479 → 555 | 899884 → 976120 |
+
+Every stage, including these three, is pinned to the exact new head ceiling in
+the same change as the much tighter totals. Future increases remain forbidden;
+this is documented redistribution, not a removal or tolerance in the gate.
+
+### Exercised acceptance
+
+- `cargo fmt --all`: pass.
+- `cargo clippy -p unastar -p unastar_noise -p unastar_bedrock_codegen --all-targets --all-features -- -D warnings`: pass.
+- `cargo test -p unastar -p unastar_noise --all-features --no-fail-fast`:
+  **724 passed across 17 suites, 1 ignored**, including unchanged parity gates and
+  exact-output hashes with actor coverage.
+- Selective-ring eager-oracle/concurrency/coordinate-boundary checks: 2 pass.
+- Section-COW actor-interleaving and negative-neighbour section/height boundaries:
+  2 pass.
+- Actual stage-enabled release CLI with `--ratchet ratchet-java.json` and
+  `--ratchet ratchet-bedrock.json`: both pass at the exact pinned totals/stages.
+- Throwaway ceilings lowered by exactly one allocation: the actual CLI rejects
+  both the finished-total regression and the Bedrock underground-stage regression.
+  Temporary files were removed.
+- Actual `--kind flat --mode throughput --workers 1,4 --json`: both worker counts
+  complete all 68 fixture and 289 spawn-square requests after counter gating.
+  Scheduling smoke only; heavy terrain-throughput and vanilla baselines still
+  require the coordinator's benchmark window.
+
+Disk incident: a prior integration link failed with `no space on device`/LNK1108
+after the region tests passed. The coordinator reclaimed build caches and disabled
+incremental compilation machine-wide; the full acceptance above passed afterward.

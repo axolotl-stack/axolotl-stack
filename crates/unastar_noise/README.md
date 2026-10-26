@@ -80,6 +80,8 @@ Bedrock ids at the region boundary (`unastar::world::generator::features`).
   `java-templates` feature the build reads `data/minecraft/structure/*.nbt` from the jar
   named by `UNASTAR_JAVA_SERVER_JAR` (`unastar` forwards it as `java-worldgen`). Without it
   the template table is empty and `unastar` rejects `world.generator.kind = "java"`.
+  Runtime templates are decoded individually into stable single-flight slots,
+  avoiding eager allocation of every embedded template on the first structure.
 - Template block actors are compiled at build time to explicit Bedrock actor ids and
   NETWORK-endian NBT child tags. Root/coordinates and lifted loot/spawner identity
   are supplied at placement; marker/processor loot overrides retain other fields.
@@ -90,6 +92,10 @@ Bedrock ids at the region boundary (`unastar::world::generator::features`).
   Java's result depends on which chunk is decorated first, the code picks an
   order-independent rule; these and other deliberate deviations are listed in
   `thoughts/shared/research/java-quirks.md`.
+- Concentric-ring points retain Java's sequential RNG/fork order. Biome relocation
+  is resolved on demand only for points within seven chunks of a placement query;
+  the 112-block search cannot move a point farther on either axis. Results are
+  single-flight per point and independent of query order or generation worker.
 
 ## Performance instrumentation
 

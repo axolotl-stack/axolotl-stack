@@ -7,7 +7,8 @@
 //! pieces of every start within 8 chunks whose bounding box intersects it.
 
 use super::context::StructureContext;
-use super::placement::{RingPositions, is_structure_chunk};
+use super::placement::is_structure_chunk;
+use super::rings::RingPositions;
 use super::start::{GenContext, StructureStart};
 use super::transform::BoundingBox;
 use crate::features::decorate::StepHook;

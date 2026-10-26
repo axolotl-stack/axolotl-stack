@@ -1,7 +1,9 @@
 //! Optimization gate: exact generated chunk bytes, not statistical vanilla parity.
 //!
-//! SHA-256 covers coordinates, all 24 network subchunks (framed by length),
+//! SHA-256 covers coordinates, all 24 block-storage subchunks (framed by length),
 //! disk biome/heightmap bytes and network biome bytes in fixture request order.
+//! A separate digest covers block actors sorted by position with canonical NBT
+//! compound-key order, avoiding persistence hash-map iteration nondeterminism.
 //! Goldens must be captured before an optimization; correctness changes require
 //! separate evidence and an explicit golden update, never a performance exception.
 
@@ -29,6 +31,7 @@ struct ChunkHash {
     x: i32,
     z: i32,
     sha256: String,
+    block_entities_sha256: String,
 }
 
 fn verify(kind: &str, make_generator: fn(i64) -> Arc<dyn Generator>) {
@@ -49,7 +52,7 @@ fn verify(kind: &str, make_generator: fn(i64) -> Arc<dyn Generator>) {
                     digest.update(p.x.to_le_bytes());
                     digest.update(p.z.to_le_bytes());
                     for y in -4..20 {
-                        let bytes = chunk.encode_subchunk(y).unwrap();
+                        let bytes = chunk.encode_subchunk_disk(y).unwrap();
                         digest.update((bytes.len() as u64).to_le_bytes());
                         digest.update(bytes);
                     }
@@ -57,10 +60,29 @@ fn verify(kind: &str, make_generator: fn(i64) -> Arc<dyn Generator>) {
                         digest.update((bytes.len() as u64).to_le_bytes());
                         digest.update(bytes);
                     }
+                    let mut actors: Vec<_> = chunk.block_entities().iter().collect();
+                    actors.sort_by_key(|actor| actor.position());
+                    let mut actor_digest = Sha256::new();
+                    actor_digest.update((actors.len() as u64).to_le_bytes());
+                    for actor in actors {
+                        for coordinate in actor.position() {
+                            actor_digest.update(coordinate.to_le_bytes());
+                        }
+                        let tag = unastar_packs::nbt::read_compound(
+                            "worldgen output hash",
+                            actor.network_nbt().0.as_ref(),
+                            unastar_packs::nbt::Encoding::NetworkLittleEndian,
+                        )
+                        .unwrap();
+                        let bytes = unastar_packs::nbt::encode_java(&tag);
+                        actor_digest.update((bytes.len() as u64).to_le_bytes());
+                        actor_digest.update(bytes);
+                    }
                     ChunkHash {
                         x: p.x,
                         z: p.z,
                         sha256: format!("{:x}", digest.finalize()),
+                        block_entities_sha256: format!("{:x}", actor_digest.finalize()),
                     }
                 })
                 .collect::<Vec<_>>()

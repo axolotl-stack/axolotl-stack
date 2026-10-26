@@ -8,22 +8,24 @@ use std::alloc::{GlobalAlloc, Layout, System};
 use std::collections::BTreeMap;
 use std::path::Path;
 use std::sync::Arc;
-use std::sync::atomic::{AtomicU64, Ordering};
+use std::sync::atomic::{AtomicBool, AtomicU64, Ordering};
 use std::time::Instant;
 
 use anyhow::{Context, Result, bail, ensure};
 use serde::{Deserialize, Serialize};
 use unastar::world::ChunkPos;
 use unastar::world::ecs::generation_worker::ChunkGenerationWorker;
-use unastar::world::generator::{ChunkPipeline, FlatGenerator, Generator, JavaGenerator};
+use unastar::world::generator::{ChunkPipeline, FlatGenerator, Generator};
 use unastar_noise::profile::{self, Stage};
 
 struct CountingAlloc;
 static ALLOCS: AtomicU64 = AtomicU64::new(0);
 static BYTES: AtomicU64 = AtomicU64::new(0);
+// Throughput must not serialize workers on allocation-counter cache lines.
+static COUNTING: AtomicBool = AtomicBool::new(false);
 
 fn allocation(bytes: usize, ptr: *mut u8) {
-    if !ptr.is_null() {
+    if !ptr.is_null() && COUNTING.load(Ordering::Relaxed) {
         ALLOCS.fetch_add(1, Ordering::Relaxed);
         BYTES.fetch_add(bytes as u64, Ordering::Relaxed);
         profile::allocation(bytes);
@@ -125,13 +127,18 @@ impl Options {
     }
 }
 
-fn generator(kind: &str, seed: i64) -> Result<Arc<dyn Generator>> {
+fn generator(kind: &str, _seed: i64) -> Result<Arc<dyn Generator>> {
     Ok(match kind {
-        "java" => Arc::new(JavaGenerator::new(seed)),
+        #[cfg(feature = "java-worldgen")]
+        "java" => Arc::new(unastar::world::generator::JavaGenerator::new(_seed)),
+        #[cfg(not(feature = "java-worldgen"))]
+        "java" => {
+            bail!("--kind java requires --features java-worldgen and UNASTAR_JAVA_SERVER_JAR")
+        }
         "flat" => Arc::new(FlatGenerator),
         #[cfg(feature = "bedrock-worldgen")]
         "bedrock" => Arc::new(unastar::world::generator::bedrock::BedrockGenerator::new(
-            seed,
+            _seed,
         )),
         #[cfg(not(feature = "bedrock-worldgen"))]
         "bedrock" => {
@@ -186,6 +193,7 @@ fn serial(options: &Options, fixture: &Fixture) -> Result<()> {
     let pipeline = ChunkPipeline::new(generator);
     profile::reset();
     let (a0, b0) = counters();
+    COUNTING.store(true, Ordering::Relaxed);
     let started = Instant::now();
     {
         let _scope = profile::scope(Stage::Pipeline);
@@ -195,6 +203,7 @@ fn serial(options: &Options, fixture: &Fixture) -> Result<()> {
     }
     let finished_ms = started.elapsed().as_secs_f64() * 1e3;
     let (a1, b1) = counters();
+    COUNTING.store(false, Ordering::Relaxed);
     let snapshot = profile::snapshot();
     let result = SerialResult {
         kind: options.kind.clone(),

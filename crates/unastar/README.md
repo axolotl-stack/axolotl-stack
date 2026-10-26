@@ -68,11 +68,18 @@ workers (0 = half the cores, 1..=8), off the ECS tick thread. Chunk biomes are 3
 Generation runs through `world::generator::ChunkPipeline`: per-chunk terrain stages
 write a flat block buffer that is packed into paletted sub-chunks once; a 3x3
 decoration stage (features and structures) runs only for generators that decorate.
+Decoration overlays clone only modified sub-chunks, not whole neighbouring chunks
+or biome storage. Sparse block actors have an independent lazy overlay; ordered
+block/actor journals preserve the same invalidation and replay semantics.
 Parity with the Java reference world is ratcheted by
 `cargo test -p unastar --test worldgen_parity` (terrain/surface heights, proto voxels,
 biomes, and the world spawn); `cargo run -p unastar --example worldgen_parity_report`
-prints the metrics and `cargo run -p unastar --example worldgen_bench [--release]`
-the ms/chunk and allocations/chunk.
+prints the metrics. `cargo run -p unastar --features java-worldgen --example
+worldgen_bench --release` reports ms/chunk and allocations/chunk; edition benchmarks
+require their complete edition feature rather than silently omitting templates.
+The optional `worldgen-profile` feature adds exclusive stage counters. See
+[`tools/worldgen-perf`](../../tools/worldgen-perf/README.md) for allocation ceilings,
+exact-output hashes, real-pool throughput, cold spawn timing and profiling.
 
 ### Column-cache integration evidence
 

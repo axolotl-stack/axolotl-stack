@@ -16,7 +16,7 @@ use unastar_noise::block_class;
 use super::proto::{NativeBiome, ProtoChunk, QUARTS_Y, WORLD_HEIGHT};
 use crate::world::ChunkPos;
 use crate::world::block_entity::BlockEntity;
-use crate::world::chunk::{Chunk, MIN_Y, blocks};
+use crate::world::chunk::{Chunk, MIN_Y, SUBCHUNK_COUNT, SubChunk, blocks, same_native_block};
 
 /// Heightmap kinds, with Java's predicates over [`block_class`] flags.
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
@@ -192,8 +192,10 @@ pub struct DecorationRegion<'a> {
     seed: i64,
     origin: ChunkPos,
     protos: [&'a ProtoChunk; 9],
-    /// Copy of a proto chunk, made on the first write into it.
-    overlays: [Option<Box<Chunk>>; 9],
+    /// Clone only sections touched by this origin, not entire chunks/biomes.
+    overlays: [[Option<SubChunk>; SUBCHUNK_COUNT as usize]; 9],
+    /// Sparse actors are copied only when this origin actually changes one.
+    actor_overlays: [Option<Vec<BlockEntity>>; 9],
     heightmaps: [[OnceCell<ColumnHeights>; HeightmapKind::ALL.len()]; 9],
     classes: &'static [u8],
     writes: DecorationWrites,
@@ -221,6 +223,7 @@ impl<'a> DecorationRegion<'a> {
             origin,
             protos,
             overlays: Default::default(),
+            actor_overlays: Default::default(),
             heightmaps: Default::default(),
             classes,
             writes: DecorationWrites::default(),
@@ -240,9 +243,7 @@ impl<'a> DecorationRegion<'a> {
         if !(MIN_Y..MIN_Y + WORLD_HEIGHT).contains(&y) {
             return false;
         }
-        let proto = self.protos[slot];
-        let chunk = self.overlays[slot].get_or_insert_with(|| Box::new(proto.chunk.clone()));
-        let removed = chunk.remove_block_entity(x, y, z);
+        let removed = self.remove_actor(slot, [x, y, z]);
         // Record even if the origin's proto had no actor: a previous origin may
         // have supplied one by the time these cached edits are replayed.
         self.writes.entities[slot].push(EntityWrite {
@@ -265,11 +266,35 @@ impl<'a> DecorationRegion<'a> {
     }
 
     #[inline]
-    fn chunk(&self, slot: usize) -> &Chunk {
-        match &self.overlays[slot] {
-            Some(chunk) => chunk,
-            None => &self.protos[slot].chunk,
+    fn block_in_slot(&self, slot: usize, x: u8, y: i16, z: u8) -> u32 {
+        let section = ((i32::from(y) - MIN_Y) >> 4) as usize;
+        match &self.overlays[slot][section] {
+            Some(section) => section.get_block(x, (y & 15) as u8, z),
+            None => self.protos[slot].chunk.get_block(x, y, z),
         }
+    }
+
+    fn actors(&self, slot: usize) -> &[BlockEntity] {
+        self.actor_overlays[slot]
+            .as_deref()
+            .unwrap_or_else(|| self.protos[slot].chunk.block_entities())
+    }
+
+    fn actors_mut(&mut self, slot: usize) -> &mut Vec<BlockEntity> {
+        let proto = self.protos[slot];
+        self.actor_overlays[slot].get_or_insert_with(|| proto.chunk.block_entities().to_vec())
+    }
+
+    fn remove_actor(&mut self, slot: usize, position: [i32; 3]) -> bool {
+        let Some(index) = self
+            .actors(slot)
+            .iter()
+            .position(|actor| actor.position() == position)
+        else {
+            return false;
+        };
+        self.actors_mut(slot).remove(index);
+        true
     }
 
     #[inline]
@@ -281,14 +306,14 @@ impl<'a> DecorationRegion<'a> {
     }
 
     fn column_top(&self, slot: usize, kind: HeightmapKind, lx: u8, lz: u8, from_y: i32) -> i16 {
-        let chunk = self.chunk(slot);
         let mut y = from_y;
         while y >= MIN_Y {
-            let flags = self.class_of(chunk.get_block(lx, y as i16, lz));
+            let block = self.block_in_slot(slot, lx, y as i16, lz);
+            let flags = self.class_of(block);
             assert!(
                 flags & block_class::UNMAPPED == 0,
                 "block {} has no class in this generator's block-class table",
-                chunk.get_block(lx, y as i16, lz)
+                block
             );
             if kind.counts(flags) {
                 return (y + 1) as i16;
@@ -332,7 +357,7 @@ impl WorldGenRegion for DecorationRegion<'_> {
         if !(MIN_Y..MIN_Y + WORLD_HEIGHT).contains(&y) {
             return *blocks::AIR;
         }
-        self.chunk(slot).get_block(lx, y as i16, lz)
+        self.block_in_slot(slot, lx, y as i16, lz)
     }
 
     fn set_block(&mut self, x: i32, y: i32, z: i32, block: u32) -> bool {
@@ -343,8 +368,19 @@ impl WorldGenRegion for DecorationRegion<'_> {
             return false;
         }
         let proto = self.protos[slot];
-        let chunk = self.overlays[slot].get_or_insert_with(|| Box::new(proto.chunk.clone()));
-        chunk.set_block(lx, y as i16, lz, block);
+        let section_index = ((y - MIN_Y) >> 4) as usize;
+        let section = self.overlays[slot][section_index]
+            .get_or_insert_with(|| proto.chunk.sub_chunk(section_index).clone());
+        let old = section.set_block(lx, (y & 15) as u8, lz, block);
+        if old != block
+            && let Some(index) = self
+                .actors(slot)
+                .iter()
+                .position(|actor| actor.position() == [x, y, z])
+            && !same_native_block(old, block)
+        {
+            self.actors_mut(slot).remove(index);
+        }
         self.writes.per_slot[slot].push(BlockWrite {
             x: lx,
             z: lz,
@@ -384,10 +420,14 @@ impl WorldGenRegion for DecorationRegion<'_> {
         if !(MIN_Y..MIN_Y + WORLD_HEIGHT).contains(&y) {
             return false;
         }
-        let proto = self.protos[slot];
-        let chunk = self.overlays[slot].get_or_insert_with(|| Box::new(proto.chunk.clone()));
-        if !chunk.set_block_entity(entity.clone()) {
-            return false;
+        let actors = self.actors_mut(slot);
+        if let Some(old) = actors
+            .iter_mut()
+            .find(|actor| actor.position() == [x, y, z])
+        {
+            *old = entity.clone();
+        } else {
+            actors.push(entity.clone());
         }
         self.writes.entities[slot].push(EntityWrite {
             after_blocks: self.writes.per_slot[slot].len(),
@@ -438,9 +478,8 @@ mod tests {
         BlockEntity::generated(position, "Chest", &[1, 1, b'M', marker], None, None)
     }
 
-    fn semantics(chunk: &Chunk) -> Vec<([i32; 3], NBTTag)> {
-        let mut actors: Vec<_> = chunk
-            .block_entities()
+    fn semantics(actors: &[BlockEntity]) -> Vec<([i32; 3], NBTTag)> {
+        let mut actors: Vec<_> = actors
             .iter()
             .map(|entity| {
                 let mut bytes = Vec::new();
@@ -472,26 +511,26 @@ mod tests {
         let refs = std::array::from_fn(|slot| &protos[slot]);
         let mut region = DecorationRegion::new(7, origin, refs, &CLASSES);
         assert_eq!(
-            semantics(region.chunk(center)),
-            semantics(&protos[center].chunk)
+            semantics(region.actors(center)),
+            semantics(protos[center].chunk.block_entities())
         );
         // Metadata-only write at block offset zero, followed by a state-only update.
         assert!(region.set_block_entity(actor(position, 2)));
         region.set_block(-1, -1, -1, chest.max_state_id);
-        assert_eq!(region.chunk(center).block_entities().len(), 1);
-        let NBTTag::Compound(fields) = &semantics(region.chunk(center))[0].1 else {
+        assert_eq!(region.actors(center).len(), 1);
+        let NBTTag::Compound(fields) = &semantics(region.actors(center))[0].1 else {
             panic!()
         };
         assert_eq!(fields.0.get("M"), Some(&NBTTag::Byte(2.into())));
         // A different native block clears the actor, including during replay.
         region.set_block(-1, -1, -1, *blocks::STONE);
-        assert!(region.chunk(center).block_entities().is_empty());
+        assert!(region.actors(center).is_empty());
         region.set_block(-1, -1, -1, chest.min_state_id);
         region.set_block_entity(actor(position, 3));
         region.set_block_entity(actor(position, 4));
-        assert_eq!(region.chunk(center).block_entities().len(), 1);
+        assert_eq!(region.actors(center).len(), 1);
         assert!(region.remove_block_entity(-1, -1, -1));
-        assert!(region.chunk(center).block_entities().is_empty());
+        assert!(region.actors(center).is_empty());
         region.set_block_entity(actor(position, 5));
         // Removal must also apply to actors contributed by an earlier origin,
         // even when no actor was visible to this live origin.
@@ -504,7 +543,7 @@ mod tests {
         for position in [[16, 0, -1], [-33, 0, -1], [-1, -65, -1], [-1, 320, -1]] {
             assert!(!region.set_block_entity(actor(position, 7)));
         }
-        let expected = SLOT_OFFSETS.map(|(dx, dz)| semantics(region.chunk(slot_of(dx, dz))));
+        let expected = SLOT_OFFSETS.map(|(dx, dz)| semantics(region.actors(slot_of(dx, dz))));
         let writes = region.into_writes().clone();
         for (slot, (dx, dz)) in SLOT_OFFSETS.into_iter().enumerate() {
             let mut replay = protos[slot].chunk.clone();
@@ -512,10 +551,45 @@ mod tests {
                 replay.set_block_entity(actor([-2, -1, -1], 9));
             }
             writes.apply_to(dx, dz, &mut replay);
-            assert_eq!(semantics(&replay), expected[slot]);
+            assert_eq!(semantics(replay.block_entities()), expected[slot]);
             // Replaying the same cached origin is deterministic, not append-only.
             writes.apply_to(dx, dz, &mut replay);
-            assert_eq!(semantics(&replay), expected[slot]);
+            assert_eq!(semantics(replay.block_entities()), expected[slot]);
+        }
+    }
+
+    #[test]
+    fn section_edges_and_heightmaps_replay_at_negative_neighbor_coordinates() {
+        let origin = ChunkPos::new(-2, -3);
+        let protos = SLOT_OFFSETS
+            .map(|(dx, dz)| ProtoChunk::empty(ChunkPos::new(origin.x + dx, origin.z + dz), 1));
+        let refs = std::array::from_fn(|slot| &protos[slot]);
+        let mut region = DecorationRegion::new(7, origin, refs, &CLASSES);
+        let (x, z) = (-33, -49);
+        let levels = [-64, -49, -48, -1, 0, 15, 16, 319];
+        assert_eq!(region.heightmap(HeightmapKind::WorldSurfaceWg, x, z), MIN_Y);
+        for y in levels {
+            assert!(region.set_block(x, y, z, *blocks::DIRT));
+            assert_eq!(region.get_block(x, y, z), *blocks::DIRT);
+            assert_eq!(region.get_block(x - 1, y, z), *blocks::AIR);
+        }
+        assert_eq!(region.heightmap(HeightmapKind::WorldSurfaceWg, x, z), 320);
+        region.set_block(x, 319, z, *blocks::AIR);
+        assert_eq!(region.heightmap(HeightmapKind::WorldSurfaceWg, x, z), 17);
+        assert!(!region.set_block(x, -65, z, *blocks::STONE));
+        assert!(!region.set_block(x, 320, z, *blocks::STONE));
+        let writes = region.into_writes();
+        let mut replay = protos[slot_of(-1, -1)].chunk.clone();
+        writes.apply_to(-1, -1, &mut replay);
+        for y in levels {
+            assert_eq!(
+                replay.get_block(15, y as i16, 15),
+                if y == 319 {
+                    *blocks::AIR
+                } else {
+                    *blocks::DIRT
+                }
+            );
         }
     }
 }

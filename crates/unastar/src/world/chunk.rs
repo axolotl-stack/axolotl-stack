@@ -795,6 +795,11 @@ impl Chunk {
         &self.block_entities
     }
 
+    /// Borrow a section in array order (index zero begins at [`MIN_Y`]).
+    pub(crate) fn sub_chunk(&self, index: usize) -> &SubChunk {
+        &self.sub_chunks[index]
+    }
+
     /// Insert or replace an actor, rejecting another chunk or invalid world height.
     pub fn set_block_entity(&mut self, entity: BlockEntity) -> bool {
         let [x, y, z] = entity.position();
@@ -1429,7 +1434,7 @@ impl PalettedStorage {
     }
 }
 
-fn same_native_block(old: u32, new: u32) -> bool {
+pub(crate) fn same_native_block(old: u32, new: u32) -> bool {
     if old == new {
         return true;
     }
