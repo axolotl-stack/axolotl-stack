@@ -49,11 +49,24 @@ stage's allocation count or requested bytes increase. Time is recorded, never ga
 Do not regenerate a ceiling to hide a regression. Java templates and BDS input
 revisions must also match when comparing results.
 
+The checked-in head ceilings are `ratchet-java.json` and `ratchet-bedrock.json`:
+
+```powershell
+target\release\examples\worldgen_bench.exe --kind java --json --ratchet tools/worldgen-perf/ratchet-java.json
+target\release\examples\worldgen_bench.exe --kind bedrock --json --ratchet tools/worldgen-perf/ratchet-bedrock.json
+```
+
+The [slice report](report.md) records the approved one-time stage redistribution
+from lazy section copies. Every future total/stage allocation or byte increase
+still fails. Historical measurement files are evidence, not the current ceiling.
+
 ## Real generation pool and cold spawn
 
 Build without `worldgen-profile`, retaining the edition features. These modes drive
 `ChunkGenerationWorker`, the server's actual load-before-generate queue and bounded
 worker threads; there is no benchmark-only parallel scheduler or storage cache.
+Allocation counting is enabled only for the serial finished loop; throughput
+runs do not contend on global allocation-counter increments.
 
 ```powershell
 # Run only during a coordinator-approved heavy benchmark window.
@@ -83,8 +96,9 @@ wall time noisy; deterministic serial allocation deltas are the primary ratchet.
 cargo test -p unastar --all-features --test worldgen_output_hash -- --nocapture
 ```
 
-The test hashes every subchunk's encoded bytes, all biome sections, heightmaps and
-coordinates. These are implementation-output goldens, not a claim of perfect
+The test hashes every subchunk's block-storage bytes, all biome sections,
+heightmaps and coordinates, plus a separate canonical actor NBT digest. These
+are implementation-output goldens, not a claim of perfect
 vanilla parity; the existing Java/Bedrock parity tests remain separate unchanged
 gates. Capture/review the pre-optimization golden before editing behavior.
 

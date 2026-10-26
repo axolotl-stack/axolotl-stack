@@ -256,3 +256,64 @@ was relaxed.
 All 136 original block/biome hashes and canonical actor hashes remain unchanged.
 Requested fmt/clippy gates pass, and the full all-feature unastar + unastar_noise
 suite again passes **724 tests across 17 suites, 1 ignored**.
+
+## Final main integration
+
+`3aceb513` merges main cleanly after the optimization commits, including the native
+actor and LevelDB integrations. No fixture hash or allocation ceiling changes were
+needed. Exercised again on the merged source:
+
+```powershell
+cargo fmt --all
+cargo clippy -p unastar -p unastar_noise -p unastar_bedrock_codegen --all-targets --all-features -- -D warnings
+cargo test -p unastar -p unastar_noise --all-features --no-fail-fast
+```
+
+Both build-input environment variables from the tooling README were supplied.
+Fmt/clippy pass; tests pass **727 tests across 18 suites, 1 ignored**, including
+the original block/biome and canonical actor output gates.
+
+Fresh release artifacts were built with both generators, first with
+`worldgen-profile` and then without it. Actual instrumented `--ratchet` commands
+pass unchanged: Java 98,369 allocations / 151,246,166 bytes and Bedrock 65,729 /
+90,025,992 bytes for the fixture. These post-merge totals exactly match the
+pre-merge optimization results.
+
+Heavy real-terrain 1/4/8/16-worker throughput, cold radius-8 measurements, and
+Java/BDS native baselines still await a coordinator-approved window. No claim of
+beating either vanilla server is made without those measurements. The native
+baseline harness remains uncommitted until its actual server path is exercised.
+
+## Slice status and outstanding prerequisites
+
+| Slice | Status | Commits / exercised evidence |
+|---|---|---|
+| Exclusive stage timers and allocation attribution | Complete | `c4395412`; serial Java/Bedrock CLI runs |
+| Real-pool throughput and cold-spawn modes | Implemented; heavy measurements blocked | `c4395412`; actual flat 1/4-worker scheduling smoke only |
+| Original fixture-output and actor gates | Complete | `531c5e59`, `6ceb2f29`; both 68-chunk editions pass |
+| Empty starts, template scratch and lazy decoding | Complete | `e0e399d9`, `7276ffd4`; allocation reductions and exact-output gates |
+| Section COW and demand-resolved rings | Complete | `6ceb2f29`; three alternating normal/stage rounds, deterministic boundary/concurrency tests |
+| Inline connector scratch lists | Complete | `1d9fad5b`; three alternating normal/stage rounds, tighter allocation ceilings |
+| Allocation ratchets | Complete | Exact total + every-stage counts/bytes enforced by actual CLI |
+| Non-admin CPU profiling recipe | Documented, GUI not exercised | `c4395412`; Very Sleepy user-mode launch/PDB recipe |
+| Java 1.21.11 / BDS 1.26.51 baselines | Blocked; not run | Coordinator benchmark-window authorization missing |
+| Latest-main integration and final gates | Complete | `3aceb513`; requested fmt/clippy/test and fresh release artifacts |
+
+No heavy throughput/native benchmark window was assumed. The existing scheduling
+question is `msg_16fe52556b3c`; two blocking waits timed out and the missing
+authorization was escalated. This is an incomplete measurement goal, not evidence
+of beating vanilla, and terrain-specific tuning has not been claimed.
+
+The unverified native harness draft is preserved outside the repository at
+`C:/Users/jvigu/orca/wg-perf-artifacts/vanilla_baseline.py.draft`; restore it to
+`tools/worldgen-perf/vanilla_baseline.py` before further work. CLI help and both
+generated JavaScript variants were checked, but no native-server smoke is claimed.
+The BDS readiness API requires stable `@minecraft/server` 2.6.0, which introduced
+[`TickingAreaManager`](https://learn.microsoft.com/en-us/minecraft/creator/scriptapi/minecraft/server/changelog#260);
+the draft manifest now declares that minimum. Its recipe is intentionally withheld
+from the published tooling README until real server verification.
+
+Known deviations: the explicitly approved one-time per-stage budget redistribution
+is documented above; all subsequent ceilings are strict. Wall-time claims are
+limited to the pinned alternating measurements, turbo off and other workers active.
+The final clean turbo-on window remains coordinator-owned.
