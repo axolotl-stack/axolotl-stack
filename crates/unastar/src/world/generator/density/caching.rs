@@ -21,8 +21,8 @@ use super::lerp3;
 use super::types::NoiseRegistry;
 use std::simd::prelude::*;
 use unastar_noise::{
-    ColumnContextGrid, FlatCacheGrid, FunctionContext, FunctionContext4, compute_final_density,
-    compute_final_density_4,
+    ColumnContextGrid, FinalDensityCache4, FlatCacheGrid, FunctionContext, FunctionContext4,
+    compute_final_density, compute_final_density_4,
 };
 
 /// Pre-computed XZ grid for FlatCache (Y-independent functions).
@@ -179,6 +179,9 @@ impl CellInterpolator {
             // Use pre-computed ColumnContext from grid.
             // The grid is 17x17 to properly handle boundary positions (block 16) for cell interpolation.
             let col_ctx = col_grid.get_block(cell_start_x, cell_start_z);
+            // Keep SIMD results separate from scalar column values and reuse
+            // zero-Y noise inputs across this column's four-height batches.
+            let column_noise = FinalDensityCache4::default();
 
             // Process 4 Y values at a time using AOT compiled SIMD function
             let mut y_idx = 0;
@@ -190,7 +193,8 @@ impl CellInterpolator {
 
                 // Use AOT compiled function directly - no arena traversal
                 let ctx4 = FunctionContext4::new(cell_start_x, [y0, y1, y2, y3], cell_start_z);
-                let results = compute_final_density_4(&ctx4, noises, grid, col_ctx).to_array();
+                let results =
+                    compute_final_density_4(&ctx4, noises, grid, col_ctx, &column_noise).to_array();
 
                 slice[z_idx][y_idx] = results[0];
                 slice[z_idx][y_idx + 1] = results[1];
@@ -566,6 +570,53 @@ mod tests {
                                     );
                                 }
                             }
+                        }
+                    }
+                }
+            })
+            .unwrap()
+            .join()
+            .unwrap();
+    }
+
+    #[test]
+    fn simd_column_memo_preserves_density_bits_across_heights_and_columns() {
+        std::thread::Builder::new()
+            .stack_size(64 << 20)
+            .spawn(|| {
+                for seed in [12345, 8500081009970950196, -9876543210123] {
+                    let noises = NoiseRegistry::new(seed);
+                    let memo = FinalDensityCache4::default();
+                    for (x, z) in [(-32, 16), (-32, -16), (0, 0), (1600, 1600)] {
+                        let flat = FlatCacheGrid::new(x >> 4, z >> 4, &noises);
+                        let column = unastar_noise::ColumnContext4::splat(
+                            &unastar_noise::ColumnContext::new(x, z, &noises, &flat),
+                        );
+                        let batches = (-64..320)
+                            .step_by(32)
+                            .map(|y| [y, y + 8, y + 16, y + 24])
+                            .chain([
+                                [-1, 0, -2, 1],
+                                [-2, 0, -1, 2],
+                                [0, -1, 2, -2],
+                                [1, -2, 0, -1],
+                            ]);
+                        for heights in batches {
+                            let ctx = FunctionContext4::new(x, heights, z);
+                            let reused =
+                                compute_final_density_4(&ctx, &noises, &flat, &column, &memo);
+                            let fresh = compute_final_density_4(
+                                &ctx,
+                                &noises,
+                                &flat,
+                                &column,
+                                &FinalDensityCache4::default(),
+                            );
+                            assert_eq!(
+                                reused.to_array().map(f64::to_bits),
+                                fresh.to_array().map(f64::to_bits),
+                                "seed {seed}, column ({x}, {z}), heights {heights:?}"
+                            );
                         }
                     }
                 }

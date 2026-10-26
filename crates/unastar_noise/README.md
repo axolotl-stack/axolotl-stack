@@ -57,6 +57,16 @@ branch-local names. Arithmetic precision and expression order are unchanged.
 the integration chunk-byte/actor goldens remain the complete-output gate.
 See the performance report for measured results versus unmeasured candidates.
 
+### SIMD column memoization
+
+`compute_final_density_4` takes a `FinalDensityCache4` reference after its column
+context. Create one default cache per XZ column and reuse it across Y batches
+with the same immutable noise source. The generator assigns fixed stack slots
+to zero-Y-scale `Noise` leaves; there is no runtime hashing or allocation.
+Each slot retains the exact vector result and distinguishes signed-zero lane
+patterns and XZ coordinates. Scalar column values are not substituted for SIMD
+results, so existing FMA precision and expression order remain unchanged.
+
 ### Runtime scratch storage
 
 Java tree position sets keep their initial 16 bucket heads and tree-bin flags

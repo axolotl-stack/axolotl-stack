@@ -670,8 +670,8 @@ improvement is inferred from these rows.
 
 Compared control `1bb6cee5` (lazy density branches already included) with candidate
 `d0bedbf5`. Both EXE/PDB pairs are retained outside `target`. Three rounds used
-AB, BA, AB order; worker-count ordering rotated between rounds. AC remained
-connected for every child process. Both AC/DC maximum processor states were
+AB, BA, AB order; worker-count ordering rotated between rounds. The power guard
+reported AC1 immediately before and after every child. Both AC/DC processor caps were
 verified at 99% (turbo disabled); the named build/native/client process guard
 was empty and ENT/WG-BEDROCK reported free. Ordinary OS background noise was
 not eliminated. These are normal release/native-CPU builds, not stage timings.
@@ -725,4 +725,53 @@ includes unchanged terrain/biome, decoration and structure parity gates,
 Bedrock request-order coverage, and both original complete-output hash tests.
 The full command chain took 606.11 seconds under shared untimed validation load;
 that duration is not generator performance evidence.
+
+### SIMD-only zero-Y leaf memo (wall-time evidence pending)
+
+The generator now assigns fixed stack slots to `Noise` leaves whose Y scale is
+zero in the final-density SIMD root. `compute_final_density_4` takes a
+`FinalDensityCache4`; the interpolation caller creates one per XZ column and
+reuses it for Y batches. The cache stores complete `f64x4` results keyed by XZ
+and the four negative-Y lane bits. A key change resamples the original expression.
+No scalar sampling/splat substitution, float reordering or runtime allocation
+is introduced, and branch-local evaluation remains lazy.
+
+The new regression failed before with three Jagged vector samples rather than
+one over three positive-Y batches at fixed XZ. After implementation all six
+density tests passed, including mixed signed-zero lane patterns and coordinate
+changes. Both original 68-chunk Java/Bedrock block/biome/heightmap and actor
+hash gates passed. Every allocation count and byte total remains exactly equal
+to the tightened aquifer/tree/rotation ratchets:
+[`simd-memo-allocations.json`](simd-memo-allocations.json).
+
+Negative-Z coverage and a real-seeded hot/cold comparison of full SIMD density
+bits pass; the latter compares 768 lane values across three seeds, four XZ
+columns and uniform/mixed Y-sign batches. Latest all-target/all-feature
+three-crate clippy with `-D warnings` passes.
+
+The subsequent full test command is **not green**: seven LevelDB tests failed
+with `Unable to remove the file to be replaced` on distinct temporary `.dbtmp`
+files, and the command reached its timeout during the debug Java hash test.
+The failing targets were:
+
+- Unastar library: `legacy_network_data3d_loads_with_its_biomes`.
+- `bedrock_structure_block_entities`: rotated chest/spawner reopen.
+- `generated_block_entities`: both-provider actor reopen and fixed-LE roots.
+- `persistence`: biome reopen, corrupt-player fallback and synchronous world extension.
+
+The other 446 Unastar library tests passed, including the new full-precision
+test. Bedrock aggregate ratchets, decoration/structure parity and the debug
+Bedrock hash also passed before interruption. Remaining noise/Java hash/worldgen
+checks are being completed separately, without retrying or suppressing the
+failed storage cases. Storage code was not changed by this slice.
+
+WG-BEDROCK reported AC0/battery75% earlier; a post-timeout PERF guard later
+reported AC1/battery52%, 308.8 GB free on C: and about 6.5 GiB physical memory
+free. The remaining active release compiler belongs to `stab-wg-bedrock`.
+No new timed A/B round is authorized while peer heavy work remains active;
+instrumented diagnostic times are not speedup evidence. Earlier accepted A/B
+rounds checked AC1 before/after each child and do not include this SIMD memo.
+
+Review also confirmed `ColumnContextGrid` already fills exactly 25 cell corners;
+its legacy 289-position introduction is stale, not a new optimization opportunity.
 

@@ -183,6 +183,9 @@ pub struct AotEmitter<'a> {
     /// Tracker for FlatCache lookups used during ColumnContext generation.
     /// Uses RefCell for interior mutability during emission.
     cc_flat_cache_tracker: RefCell<FlatCacheLookupTracker>,
+    /// Root-local SIMD memo slots for zero-Y-scale noise leaves.
+    simd_column_noise_slots: HashMap<NodeId, usize>,
+    memoize_zero_y_noise: bool,
 }
 
 impl<'a> AotEmitter<'a> {
@@ -215,6 +218,8 @@ impl<'a> AotEmitter<'a> {
                 used_fields: HashSet::new(),
                 tracking_enabled: false,
             }),
+            simd_column_noise_slots: HashMap::new(),
+            memoize_zero_y_noise: false,
         }
     }
 
@@ -903,12 +908,19 @@ impl<'a> AotEmitter<'a> {
         self.var_names.clear();
         self.var_counter = 0;
         self.statements.clear();
+        let cache_column_noise = root_name == "final_density";
+        self.memoize_zero_y_noise = cache_column_noise;
+        self.simd_column_noise_slots.clear();
 
         let root_id = match self.graph.roots.get(root_name) {
             Some(id) => id.clone(),
             None => {
                 let func_name = format_ident!("compute_{}_4", root_name);
+                self.memoize_zero_y_noise = false;
+                let (cache_definition, cache_parameter) =
+                    self.emit_final_density_cache(cache_column_noise);
                 return quote! {
+                    #cache_definition
                     /// Compute #root_name at 4 Y positions (SIMD).
                     #[inline]
                     #[allow(dead_code)]
@@ -917,6 +929,7 @@ impl<'a> AotEmitter<'a> {
                         _noises: &impl NoiseSource,
                         _flat: &FlatCacheGrid,
                         _col: &ColumnContext4,
+                        #cache_parameter
                     ) -> f64x4 {
                         f64x4::splat(0.0)
                     }
@@ -927,8 +940,11 @@ impl<'a> AotEmitter<'a> {
         let result_expr = self.emit_node_simd(&root_id);
         let stmts = std::mem::take(&mut self.statements);
         let func_name = format_ident!("compute_{}_4", root_name);
+        self.memoize_zero_y_noise = false;
+        let (cache_definition, cache_parameter) = self.emit_final_density_cache(cache_column_noise);
 
         quote! {
+            #cache_definition
             /// Compute #root_name at 4 Y positions (pure SIMD).
             ///
             /// # SIMD-Native ColumnContext4
@@ -942,6 +958,7 @@ impl<'a> AotEmitter<'a> {
                 noises: &impl NoiseSource,
                 flat: &FlatCacheGrid,
                 col: &ColumnContext4,
+                #cache_parameter
             ) -> f64x4 {
                 // Pre-compute SIMD vectors for coordinates
                 let x_v = f64x4::splat(ctx.block_x as f64);
@@ -951,6 +968,79 @@ impl<'a> AotEmitter<'a> {
                 #result_expr
             }
         }
+    }
+
+    fn emit_final_density_cache(&self, enabled: bool) -> (TokenStream, TokenStream) {
+        if !enabled {
+            return (quote! {}, quote! {});
+        }
+        let count = self.simd_column_noise_slots.len();
+        if count == 0 {
+            return (
+                quote! {
+                    #[derive(Default)]
+                    pub struct FinalDensityCache4 {}
+                },
+                quote! { _column_noise: &FinalDensityCache4, },
+            );
+        }
+        (
+            quote! {
+                #[derive(Clone, Copy)]
+                struct FinalDensitySample4 {
+                    block_x: i32,
+                    block_z: i32,
+                    negative_y_lanes: u8,
+                    value: f64x4,
+                }
+
+                /// Column-local memo for final-density zero-Y-scale noise leaves.
+                ///
+                /// Reuse over Y batches with the same noise source. Exact SIMD
+                /// results and signed-zero lane patterns are kept independently
+                /// from scalar column-context values. No allocation is required.
+                pub struct FinalDensityCache4 {
+                    samples: [std::cell::Cell<Option<FinalDensitySample4>>; #count],
+                }
+
+                impl Default for FinalDensityCache4 {
+                    fn default() -> Self {
+                        Self {
+                            samples: [const { std::cell::Cell::new(None) }; #count],
+                        }
+                    }
+                }
+
+                impl FinalDensityCache4 {
+                    #[inline]
+                    fn get_or_sample(
+                        &self,
+                        slot: usize,
+                        ctx: &FunctionContext4,
+                        negative_y_lanes: u8,
+                        sample: impl FnOnce() -> f64x4,
+                    ) -> f64x4 {
+                        let cell = &self.samples[slot];
+                        if let Some(cached) = cell.get()
+                            && cached.block_x == ctx.block_x
+                            && cached.block_z == ctx.block_z
+                            && cached.negative_y_lanes == negative_y_lanes
+                        {
+                            return cached.value;
+                        }
+                        let value = sample();
+                        cell.set(Some(FinalDensitySample4 {
+                            block_x: ctx.block_x,
+                            block_z: ctx.block_z,
+                            negative_y_lanes,
+                            value,
+                        }));
+                        value
+                    }
+                }
+            },
+            quote! { column_noise: &FinalDensityCache4, },
+        )
     }
 
     // ========== Node emission (scalar) ==========
@@ -1401,8 +1491,25 @@ impl<'a> AotEmitter<'a> {
                 let noise_ref = noise_name_to_ident(noise);
                 let xzs = *xz_scale;
                 let ys = *y_scale;
-                quote! {
+                let sample = quote! {
                     noises.sample_4(NoiseRef::#noise_ref, x_v * f64x4::splat(#xzs), y_v * f64x4::splat(#ys), z_v * f64x4::splat(#xzs))
+                };
+                if self.memoize_zero_y_noise && ys == 0.0 {
+                    let next_slot = self.simd_column_noise_slots.len();
+                    let slot = *self
+                        .simd_column_noise_slots
+                        .entry(node.id.clone())
+                        .or_insert(next_slot);
+                    quote! {
+                        column_noise.get_or_sample(
+                            #slot,
+                            ctx,
+                            y_v.simd_lt(f64x4::splat(0.0)).to_bitmask() as u8,
+                            || #sample,
+                        )
+                    }
+                } else {
+                    sample
                 }
             }
 
