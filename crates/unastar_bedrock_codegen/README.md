@@ -73,6 +73,10 @@ Both template features and jigsaw pieces write the shared region's actor sink.
 Processors replacing an actor's block type discard that actor; state-only
 changes preserve it. Metadata introduces no RNG draws. Unknown actor identities
 fail generation rather than being silently omitted.
+The caller explicitly selects the actor source schema: Java loot paths/seeds
+are lifted for native placement, while native Bedrock loot stays in the static
+body unchanged. In particular, three captured natural BDS chests use NBT Int
+`LootTableSeed`; applying Java's Long-only schema would reject those records.
 
 Retaining Java-only fields does not establish that Bedrock interprets them.
 Template entities, legacy hard-coded structure assembly and native behavioral
@@ -187,11 +191,33 @@ rounding and nested scatter/height-query frames. It copies no Mojang assets.
 <TOOLING bds_runtime.py>` additionally runs a reserved BDS session, saves its
 world/logs outside the repository, and requests isolated oak and coal features
 with the [documented `/place feature` command](https://learn.microsoft.com/en-us/minecraft/creator/commands/commands/place).
-Acquire the coordinator's BDS slot and verify its loopback/isolation policy
-before using `--run`.
+Before `--run`, verify no `bedrock_server` process exists, announce
+`BDS taken, ~N min` to the other BDS users, and verify the shared installation's
+isolation policy. Restore properties/clean up and announce `BDS free` afterward.
 
 `bds_worldgen_reference --markers` exports marker coordinates;
 `--features` exports non-background blocks from the authored oak/coal control
 height band; `--geology` exports base-layer counts and bedrock topology.
 All modes snapshot `level.dat`/`db` before opening LevelDB, since even a
 read-only caller can otherwise trigger log compaction. Stop BDS first.
+
+`controls.py --coal-repeats 32` additionally resets an isolated stone volume
+between repeated native coal placements and saves named structure records;
+the manifest distinguishes successful console saves from verified exports and
+does not invent a feature RNG seed. Scoreboard objective add/remove responses
+bracket each command: `/say` does not provide a usable headless-console barrier.
+
+`tools/bds-worldgen-controls/structure_controls.py` plans bounded natural
+`locate structure` queries and saved volume tiles in disposable reference worlds.
+It records full commands, responses, dimension and source origins; a successful
+locate/save alone is not proof that a complete template was persisted.
+
+`cargo run -p unastar --example bds_structure_reference -- list --stopped <world>`
+lists persisted structure keys in a stopped-world snapshot.
+`export --stopped --controls <manifest.json> <world> <outside-output.json> <names...>`
+point-reads the selected records with checksums and exports complete typed NBT
+plus authoritative raw little-endian bytes. Output under the repository or
+source world is rejected. Format 1 has two List<Int> layers; observed native
+format 2 has one or two IntArray layers. Missing layers are not invented, and
+format-2 actor coordinates must match the absolute cell position. Corruption
+fails the export rather than publishing a partial volume.

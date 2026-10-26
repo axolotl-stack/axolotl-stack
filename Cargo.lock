@@ -5297,6 +5297,7 @@ dependencies = [
  "bitflags 2.10.0",
  "bleveldb",
  "bytes",
+ "crc32c",
  "crc32fast",
  "flate2",
  "glam 0.30.9",

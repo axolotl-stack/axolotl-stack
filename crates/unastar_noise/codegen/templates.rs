@@ -137,7 +137,8 @@ fn encode_template(origin: &str, blocks: &JavaBlocks, root: &Tag, out: &mut Vec<
                         );
                     }
                     _ => {
-                        let compiled = block_entity::compile(origin, tag)?;
+                        let compiled =
+                            block_entity::compile(origin, tag, block_entity::Source::Java)?;
                         rec.push(2);
                         put_str(&mut rec, compiled.id);
                         put_bytes(&mut rec, &compiled.fields);

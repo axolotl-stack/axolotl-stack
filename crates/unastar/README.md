@@ -283,3 +283,21 @@ authored Bedrock chest/spawner placement through real provider close/reopen,
 negative coordinates, section filtering, stale-data removal and old BlazeDB
 versions. This is metadata retention, not a claim of implemented container
 interaction, loot rolling, mob spawning or interpretation of Java-only fields.
+
+## LevelDB / BDS SST interoperability
+
+The vendored `bleveldb-sys` build invokes `cc` directly, not CMake. It explicitly
+enables zlib, Snappy and the fork's legacy-zlib enum compatibility; otherwise
+the linked libraries alone leave compressed SST reads compiled out. On Windows,
+set `VCPKG_ROOT` to the installation containing the static-md triplet's `include`
+and `lib` directories (`zs` and `snappy` remain statically linked). Unix builds
+use system include paths; only Windows was exercised for this correction.
+
+Readers accept raw-zlib id 4, legacy wrapped-zlib id 2 and Snappy id 1.
+The world provider explicitly writes raw-zlib id 4 for compressible SST blocks,
+with uncompressed id 0 when compression would not help, matching BDS's format.
+`tests/leveldb_compression.rs` builds authored checksummed SST fixtures independently
+of the native writer, reads all three codecs, and independently inflates/checksums
+the provider's actual compacted tables. This catches failures hidden by successful
+reads from an uncompressed write-ahead log. After changing native build flags,
+use `cargo clean -p bleveldb-sys` before the acceptance run.

@@ -57,15 +57,22 @@ fn native_id(id: &str) -> CompileResult<&'static str> {
     })
 }
 
+/// Actor field schema, independent of the generator that consumes the template.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum Source {
+    Java,
+    Bedrock,
+}
+
 /// Compile Java or native Bedrock actor metadata with contextual diagnostics.
-pub fn compile(origin: &str, tag: &Tag) -> Result<CompiledBlockEntity> {
-    compile_inner(tag).map_err(|error| Error::Data {
+pub fn compile(origin: &str, tag: &Tag, source: Source) -> Result<CompiledBlockEntity> {
+    compile_inner(tag, source).map_err(|error| Error::Data {
         origin: origin.to_owned(),
         reason: error.to_string(),
     })
 }
 
-fn compile_inner(tag: &Tag) -> CompileResult<CompiledBlockEntity> {
+fn compile_inner(tag: &Tag, source: Source) -> CompileResult<CompiledBlockEntity> {
     let mut fields = tag
         .as_compound()
         .ok_or("block actor is not a compound")?
@@ -75,22 +82,29 @@ fn compile_inner(tag: &Tag) -> CompileResult<CompiledBlockEntity> {
     for key in ["x", "y", "z"] {
         fields.remove(key);
     }
-    let loot = match fields.remove("LootTable") {
-        Some(Tag::String(table)) => {
-            let seed = match fields.remove("LootTableSeed") {
-                None => 0,
-                Some(Tag::Long(seed)) => seed,
-                Some(_) => return Err("LootTableSeed is not a Long".into()),
-            };
-            Some((table, seed))
-        }
-        Some(_) => return Err("LootTable is not a string".into()),
-        None => {
-            if fields.contains_key("LootTableSeed") {
-                return Err("LootTableSeed without LootTable".into());
+    // Native fields are already in the required schema. In particular, BDS
+    // stores LootTableSeed as Int, unlike Java's Long. Retain native loot in
+    // the pre-encoded body rather than widening it or reinterpreting its seed.
+    let loot = if source == Source::Java {
+        match fields.remove("LootTable") {
+            Some(Tag::String(table)) => {
+                let seed = match fields.remove("LootTableSeed") {
+                    None => 0,
+                    Some(Tag::Long(seed)) => seed,
+                    Some(_) => return Err("LootTableSeed is not a Long".into()),
+                };
+                Some((table, seed))
             }
-            None
+            Some(_) => return Err("LootTable is not a string".into()),
+            None => {
+                if fields.contains_key("LootTableSeed") {
+                    return Err("LootTableSeed without LootTable".into());
+                }
+                None
+            }
         }
+    } else {
+        None
     };
     let mut spawner_entity = match fields.remove("EntityIdentifier") {
         Some(Tag::String(entity)) => Some(entity),
@@ -139,4 +153,51 @@ fn compile_inner(tag: &Tag) -> CompileResult<CompiledBlockEntity> {
         loot,
         spawner_entity,
     })
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use std::collections::BTreeMap;
+
+    #[test]
+    fn native_chest_loot_keeps_observed_int_seed_in_compiled_fields() {
+        // Authored minimal input matching the tag types of three seed-12345
+        // natural chests captured from BDS 1.26.51 (not a copied template).
+        let source = Tag::Compound(BTreeMap::from([
+            ("id".into(), Tag::String("Chest".into())),
+            ("x".into(), Tag::Int(540)),
+            ("y".into(), Tag::Int(-35)),
+            ("z".into(), Tag::Int(645)),
+            (
+                "LootTable".into(),
+                Tag::String("loot_tables/chests/simple_dungeon.json".into()),
+            ),
+            ("LootTableSeed".into(), Tag::Int(1_278_802_385)),
+        ]));
+        let compiled = compile("authored-native-chest", &source, Source::Bedrock).unwrap();
+        assert_eq!(
+            compiled.loot, None,
+            "native static loot is not Java seed data"
+        );
+        let mut network = vec![10, 0];
+        network.extend_from_slice(&compiled.fields);
+        network.push(0);
+        let tag = nbt::read_compound(
+            "compiled fields",
+            &network,
+            nbt::Encoding::NetworkLittleEndian,
+        )
+        .unwrap();
+        assert_eq!(
+            tag,
+            Tag::Compound(BTreeMap::from([
+                (
+                    "LootTable".into(),
+                    Tag::String("loot_tables/chests/simple_dungeon.json".into())
+                ),
+                ("LootTableSeed".into(), Tag::Int(1_278_802_385)),
+            ]))
+        );
+    }
 }

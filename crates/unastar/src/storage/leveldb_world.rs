@@ -3,6 +3,7 @@
 //! Implements `WorldProvider` using `bleveldb` for Bedrock-compatible storage.
 
 use async_trait::async_trait;
+use bleveldb::options::Compression;
 use bleveldb::{DB, Options, ReadOptions, WriteBatch, WriteOptions};
 use std::path::Path;
 use std::sync::Arc;
@@ -37,6 +38,8 @@ impl LevelDBWorldProvider {
 
         let options = Options::new();
         options.create_if_missing(true);
+        // BDS stores compressible SST blocks as raw deflate, format id 4.
+        options.compression(Compression::ZlibRaw);
 
         let db =
             DB::open(path.as_ref(), &options).map_err(|e| StorageError::Database(e.to_string()))?;

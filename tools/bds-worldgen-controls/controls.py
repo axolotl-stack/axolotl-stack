@@ -1,7 +1,7 @@
 """Author-only marker pack for measuring BDS feature coordinate semantics.
 
 No Mojang pack files are copied. By default this only prepares the pack; --run
-uses TOOLING's exclusive Bds helper after the caller has acquired the BDS slot.
+uses the shared Bds helper after the caller has announced an exclusive BDS lease.
 The resulting world/logs stay outside the repository.
 Vanilla oak/coal probes use the documented `/place feature` command:
 https://learn.microsoft.com/en-us/minecraft/creator/commands/commands/place
@@ -11,10 +11,13 @@ from __future__ import annotations
 import argparse
 import importlib.util
 import json
+import re
 import shutil
 import time
 import uuid
 from pathlib import Path
+
+from bds_console import Console
 
 SEED = 12345
 ORIGINS = (-128, 0, 128)
@@ -26,7 +29,18 @@ def save(path: Path, value: object) -> None:
     path.write_text(json.dumps(value, indent=2) + "\n", encoding="utf-8")
 
 
-def prepare(root: Path) -> dict:
+def command_result(server, command: str, success: str) -> str:
+    """Collect one command between acknowledged headless console barriers."""
+    result = Console(server, time.monotonic() + 40).command({"command": command}, 20)
+    if any(" ERROR]" in line for line in result["response_lines"]) or not re.search(
+        success, result["response"], re.IGNORECASE
+    ):
+        raise RuntimeError(f"{command}: {result['response']}")
+    return result["response"]
+
+
+
+def prepare(root: Path, coal_repeats: int) -> dict:
     root.mkdir(parents=True, exist_ok=False)
     pack_id, module_id = str(uuid.uuid4()), str(uuid.uuid4())
     pack = root / "behavior_pack"
@@ -112,8 +126,15 @@ def prepare(root: Path) -> dict:
         descriptions.append({"case": name, "block": f"minecraft:{block}", "y": y, "x": x, "z": z, "iterations": count, "nested": nested})
     metadata = {"seed": SEED, "origin_blocks_x": ORIGINS, "origin_blocks_z": 0, "input_y": 0, "placement_api": "place featurerule", "pack_id": pack_id, "cases": descriptions}
     metadata["requested_features"] = [
-        {"feature": "minecraft:oak_tree_feature", "origin": [392, 200, 8], "box": [380, 198, -4, 404, 224, 20]},
-        {"feature": "minecraft:coal_ore_feature", "origin": [512, 204, 8], "box": [504, 188, 0, 535, 219, 31]},
+        {"feature": "minecraft:oak_tree_feature", "placement_api": "place feature", "origin": [392, 200, 8], "box": [380, 198, -4, 404, 224, 20]},
+        {"feature": "minecraft:coal_ore_feature", "placement_api": "place feature", "origin": [512, 204, 8], "box": [504, 188, 0, 535, 219, 31]},
+    ]
+    metadata["captures"] = [
+        {"name": f"wg:coal_{index:03d}", "dimension": "overworld",
+         "bounds": [504, 188, 0, 535, 219, 31], "status": "planned",
+         "feature": "minecraft:coal_ore_feature", "placement_api": "place feature", "origin": [512, 204, 8],
+         "feature_rng_seed": "unmeasured", "iteration": index}
+        for index in range(coal_repeats)
     ]
     save(root / "controls.json", metadata)
     return metadata
@@ -175,10 +196,27 @@ def run(root: Path, metadata: dict, helper_path: Path, settle_seconds: float) ->
             server.command("fill 380 198 -4 404 198 20 dirt")
             server.command("fill 380 199 -4 404 199 20 grass_block")
             server.command("place feature minecraft:oak_tree_feature 392 200 8")
-            server.command("fill 504 188 0 535 219 31 stone")
-            server.command("place feature minecraft:coal_ore_feature 512 204 8")
+            if metadata["captures"]:
+                for capture in metadata["captures"]:
+                    try:
+                        server.command("fill 504 188 0 535 219 31 stone")
+                        capture["placement_response"] = command_result(
+                            server, "place feature minecraft:coal_ore_feature 512 204 8",
+                            r"\bPlace command succeeded\b")
+                        capture["save_response"] = command_result(
+                            server, f"structure save {capture['name']} 504 188 0 535 219 31 true disk true",
+                            r"\bsaved\b.*\bstructure\b|\bstructure\b.*\bsaved\b")
+                        capture["status"] = "saved"
+                    except (RuntimeError, TimeoutError) as error:
+                        capture["status"] = "failed"
+                        capture["error"] = str(error)
+                        raise
+            else:
+                server.command("fill 504 188 0 535 219 31 stone")
+                server.command("place feature minecraft:coal_ore_feature 512 204 8")
             time.sleep(8)
     finally:
+        save(root / "controls.json", metadata)
         if world.exists():
             shutil.copytree(world, root / "world")
             shutil.rmtree(world)
@@ -190,14 +228,18 @@ def run(root: Path, metadata: dict, helper_path: Path, settle_seconds: float) ->
 def main() -> None:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--out", required=True, type=Path, help="new directory outside the repository for packs/world/logs")
-    parser.add_argument("--run", action="store_true", help="launch BDS only after the coordinator grants its slot")
-    parser.add_argument("--runtime-helper", type=Path, help="TOOLING tools/bds-sweep/bds_runtime.py")
+    parser.add_argument("--run", action="store_true", help="launch BDS only after announcing its exclusive lease")
+    parser.add_argument("--runtime-helper", type=Path, help="tools/bds-sweep/bds_runtime.py")
     parser.add_argument("--settle-seconds", type=float, default=30)
+    parser.add_argument("--coal-repeats", type=int, default=0,
+                        help="save 0..64 isolated coal realizations as named structures (feature RNG seed unmeasured)")
     args = parser.parse_args()
+    if not 0 <= args.coal_repeats <= 64:
+        parser.error("--coal-repeats must be between 0 and 64")
     if args.run and (args.runtime_helper is None or not args.runtime_helper.is_file()):
-        parser.error("--run needs --runtime-helper pointing at TOOLING's bds_runtime.py")
+        parser.error("--run needs --runtime-helper pointing at tools/bds-sweep/bds_runtime.py")
     root = args.out.resolve()
-    metadata = prepare(root)
+    metadata = prepare(root, args.coal_repeats)
     print(f"Prepared {len(metadata['cases'])} authored controls at {root}")
     if args.run:
         run(root, metadata, args.runtime_helper.resolve(), args.settle_seconds)
