@@ -38,6 +38,7 @@ mod geology;
 pub mod molang_noise;
 pub mod rng;
 pub mod scatter;
+mod simplex;
 pub mod structures;
 pub mod surface;
 pub mod world;

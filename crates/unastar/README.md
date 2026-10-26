@@ -245,6 +245,12 @@ controls cover seed independence and exact float patterns at signed/fractional/
 large inputs. This does not establish the still-unmeasured feature/pass RNG
 seeding or draw order.
 
+Frozen-ocean warm-water patches use fixed native MT3456 octave fields plus the
+shared MT2345 biome-info field. Their permutations/gradients are also compiled
+tables, not per-world allocations. This matches every measured sea-level
+water/ice column in the BDS fixture; iceberg geometry, snow placement and other
+surface-noise fields are not thereby established.
+
 `cargo run -p unastar --features bedrock-worldgen --example worldgen_parity_report -- --kind bedrock`
 prints metrics against the BDS fixture. `worldgen_bench --kind bedrock` reports
 the same single-threaded workload as the Java generator, including allocations.

@@ -20,7 +20,7 @@ and surface noise still require reference-world measurements. See
 | JSON ore feature coordinates | Count-4/17/32 coal controls establish the internal (+8,+8) horizontal translation; exact vein shapes and RNG streams remain unmeasured | More shapes per count and measured feature RNG initialization |
 | JSON tree/plant/geode/sculk/blob/decoration feature placement | unmeasured: to confirm by BDS fixture; one oak control is structurally consistent with the current crown model | Isolated features at known origins in controlled material |
 | Built-in aquatic/plants/terrain features and legacy selectors | unmeasured: to confirm by BDS fixture | One built-in identifier per control, fixed seed and biome |
-| Surface builders, noise seeds, mountain slopes and adjustment precedence | unmeasured: to confirm by BDS fixture | Matched columns for each builder with captured biome/material inputs |
+| Surface builders, noise seeds, mountain slopes and adjustment precedence | Fixed native frozen-ocean climate matches all 1,658 reference water/ice columns; iceberg shape and remaining builder fields are unmeasured | More seeds plus matched mesa/swamp/capped/end/gradient columns |
 | Cave/underwater/nether carver geometry and probability | unmeasured: to confirm by BDS fixture | Isolated carver rules in stone and underwater regions |
 | Template rotation, jigsaw expansion, structure placement and processors | unmeasured: to confirm by BDS fixture | Template/pool controls at known origins plus structure-set placements |
 | Hard-coded structures without shipped placement data | Not implemented | Reference-world placement captures and controlled templates |
@@ -169,18 +169,25 @@ roofed forest and two lush-cave surface columns). It does not validate mesa,
 swamp, capped, end or noise-gradient builders.
 
 For the 1,658 frozen-ocean columns whose reference surface is water or ice,
-the current BDS temperature-patch model and the shared Java
-`biome_climate::cold_enough_to_snow` predicate were sampled at identical
-coordinates:
+the previous world-seeded model, shared Java
+`biome_climate::cold_enough_to_snow` predicate and fixed native-MT model were
+sampled at identical coordinates:
 
 | Candidate freezing predicate | Correct water/ice classifications | Accuracy |
 |---|---:|---:|
-| Current Bedrock surface model | 672 | 40.53% |
+| Previous world-seeded Bedrock model | 672 | 40.53% |
 | Shared Java frozen temperature modifier | 575 | 34.68% |
+| Native MT fixed frozen modifier | 1658 | 100.00% |
 
-Neither predicate is established BDS behavior. Keep the BDS-data-backed builder
-path rather than adopt Java's predicate on this evidence; its warm-water patch
-noise and the final ice/snow placement still need controlled BDS measurements.
+Use the measured native model for this predicate: fixed MT3456 octaves
+`[-2,-1,0]` and the same MT2345 biome-info field independently established by
+Molang controls, with native float32 sampling. The public frozen-modifier
+formula is unchanged; no threshold/salt was fitted to these columns.
+The real `local_temperature` consumer regression fails at native ice column
+`(1029,62,1056)` before the correction and passes every reference case after.
+All cases are biome 46 at Y=62 across eight chunks. This validates the
+warm-water/ice predicate, not iceberg geometry, snow placement, altitude
+effects or another seed. Other surface fields remain explicitly unmeasured.
 
 ### Controlled worlds
 
@@ -296,22 +303,22 @@ literal ambiguity. Neither supplies the certified exact-float fixture: `...-05`
 uses an exact integer-ratio small calibration and validates every digit channel.
 These controls do not establish decoration population seeds or draw order.
 
-### Primitive-correction parity ablation (2026-10-26)
+### Primitive-correction parity measurements (2026-10-26)
 
 The same 68-chunk, 17,408-column seed-12345 fixture and `bedrock-worldgen`
-feature flag were used throughout. Only the indicated ore/noise primitives
-were temporarily disabled; both corrected implementations are restored.
-Values below are rounded for display.
+feature flag were used throughout. The first four columns isolate the ore/noise
+corrections; the last adds the measured fixed frozen-climate fields. Every
+corrected implementation is restored. Values are rounded for display.
 
-| Metric | Old ore / old noise | Corrected ore / old noise | Old ore / corrected noise | Both corrected |
-|---|---:|---:|---:|---:|
-| terrain exact | 0.835420 | 0.835593 | 0.833812 | 0.833869 |
-| terrain within 2 | 0.881951 | 0.882468 | 0.882813 | 0.881549 |
-| terrain mean absolute error | 1.935777 | 1.935087 | 1.929458 | 1.941234 |
-| surface exact | 0.857479 | 0.851333 | 0.857479 | 0.851448 |
-| surface block | 0.805779 | 0.801528 | 0.805779 | 0.801643 |
-| surface biome | 0.995002 | 0.994830 | 0.995002 | 0.994830 |
-| histogram L1 | 0.072667 | 0.072304 | 0.072387 | 0.072264 |
+| Metric | Old ore / old noise | Corrected ore / old noise | Old ore / corrected noise | Ore + noise | + native frozen climate |
+|---|---:|---:|---:|---:|---:|
+| terrain exact | 0.835420 | 0.835593 | 0.833812 | 0.833869 | 0.870290 |
+| terrain within 2 | 0.881951 | 0.882468 | 0.882813 | 0.881549 | 0.921530 |
+| terrain mean absolute error | 1.935777 | 1.935087 | 1.929458 | 1.941234 | 1.249253 |
+| surface exact | 0.857479 | 0.851333 | 0.857479 | 0.851448 | 0.851562 |
+| surface block | 0.805779 | 0.801528 | 0.805779 | 0.801643 | 0.842429 |
+| surface biome | 0.995002 | 0.994830 | 0.995002 | 0.994830 | 0.994830 |
+| histogram L1 | 0.072667 | 0.072304 | 0.072387 | 0.072264 | 0.071887 |
 
 The old/old row is the earlier offset-only ablation, which exactly recovered
 every full-precision prior metric before the fixed-noise cutover.
