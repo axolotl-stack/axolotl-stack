@@ -707,3 +707,22 @@ wide ranges limit the claim. Absolute rows must not be compared with earlier
 in-memory chunks without lighting, entity spawning, saving or network delivery.
 The quiet timing hold was explicitly released before full untimed acceptance.
 
+### Acceptance checkpoint before SIMD column memoization
+
+At `bd2080a9`, `git merge main` reported already up to date. Completed one-job
+untimed acceptance with `VCPKG_ROOT=C:\Users\jvigu\vcpkg`,
+`RAYON_NUM_THREADS=1` and serialized test execution:
+
+```text
+cargo fmt --all
+cargo clippy -p unastar -p unastar_noise -p unastar_bedrock_codegen --all-targets --all-features -j 1 -- -D warnings
+cargo test -p unastar -p unastar_noise --all-features --no-fail-fast -j 1 -- --test-threads=1
+```
+
+All pass: 479 Unastar unit/integration tests, 253 noise unit/integration tests
+and one noise doctest; one existing Unastar doctest remains ignored. This
+includes unchanged terrain/biome, decoration and structure parity gates,
+Bedrock request-order coverage, and both original complete-output hash tests.
+The full command chain took 606.11 seconds under shared untimed validation load;
+that duration is not generator performance evidence.
+
