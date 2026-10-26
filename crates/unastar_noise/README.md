@@ -46,6 +46,18 @@ Rust (decision D6). Runtime generators live in `crates/unastar/src/world/generat
 | `overworld_biome_source` | multi-noise R-tree search (`target`, `find`, `quantize`) |
 | `carvers` | `OVERWORLD_CARVERS` with replaceable-block bitsets |
 
+### Density branch specialization
+
+Density `range_choice` branches retain their own temporary scopes: unselected
+noise subtrees are not hoisted into eager root statements. Four-Y SIMD evaluates
+one branch for uniform lane masks, and both branches with per-lane selection for
+mixed masks. Enclosing common expressions remain reusable, without leaking
+branch-local names. Arithmetic precision and expression order are unchanged.
+`tests/density_laziness.rs` covers range boundaries and uniform/mixed SIMD masks;
+the integration chunk-byte/actor goldens remain the complete-output gate.
+See the performance report for measured results versus unmeasured candidates.
+
+
 ## Block identity
 
 Generated code works in Bedrock runtime ids (`u32`, the canonical 1.26.51 palette ordinals

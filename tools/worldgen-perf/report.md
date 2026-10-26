@@ -421,3 +421,146 @@ isolating, without copying its AGPL implementation into this workspace:
 These observations justify targeted profiling/controlled comparisons, not a
 scheduler rewrite or a claimed speedup. Native CPU flags, toolchain version,
 allocator, generation stages and shutdown/save boundaries must all be recorded.
+
+## 2026-10-26: lazy density branches and offline bottleneck inventory
+
+### Lazy AOT candidate: exact output and measured limits
+
+The density emitter previously appended branch-local noise calculations to the
+root's eager statement list before emitting `range_choice`. It now isolates the
+temporary-name and statement scopes of each branch. Enclosing common values
+remain reusable; names created inside one branch cannot escape into another.
+The four-Y SIMD emitter selects a single branch for uniform masks and retains
+both branch evaluations plus lane selection for mixed masks. Closures keep each
+subtree in one generated source scope; there is no heap allocation for them.
+No floating-point arithmetic, noise precision, RNG sequence or input data changed.
+
+Exercised before the charger pause:
+
+- `cargo test -p unastar_noise --test density_laziness -- --nocapture`:
+  the new unselected-vein test failed before the change (one noise call instead
+  of zero); all four tests pass afterward. Coverage includes inclusive/exclusive
+  range boundaries, uniform SIMD rejection and mixed-versus-uniform lane results.
+- Normal release `worldgen_bench` with `java-worldgen,bedrock-worldgen`: builds.
+- `cargo test --release -p unastar --test worldgen_output_hash --features
+  java-worldgen,bedrock-worldgen -- --test-threads=1`: **2 pass**. All original
+  68-chunk Java and 68-chunk Bedrock block/biome/heightmap hashes and canonical
+  block-actor digests remain unchanged; no golden or parity floor was edited.
+
+The first pilot was excluded from timing comparisons: Windows reported
+`ACLineStatus=0` (battery), while the power plan limited AC to 99% but DC to 100%.
+DC was set to the same thermal-safe 99%; both settings were verified afterward.
+The unmodified stage executable still met every existing Java allocation ceiling,
+but its pilot times are not an A/B result. Raw excluded evidence is retained at
+`C:/Users/jvigu/orca/wg-perf-artifacts/aot-branches/excluded-pilot.json`.
+Independent baseline and candidate EXE/PDB pairs are preserved in that directory.
+The user paused new heavy jobs until charger power was available, then explicitly
+authorized real benchmarks on AC. Windows power status was checked before and after
+each accepted run; both processor-state caps remained 99%. The initial battery pilot
+is not included in any result below.
+
+Three alternating fresh-process rounds used normal release executables, first
+baseline/candidate, then candidate/baseline, then baseline/candidate. Fixture runs
+used affinity 4. Dense runs used P-core masks 4/0x55/0x5555/0xffff at 1/4/8/16 workers,
+rotating worker-count order each round. WG-BEDROCK held native/build work; no competing
+cargo/rustc/BDS/Minecraft process was observed at the start, but background OS activity
+was not eliminated. Raw results: [`lazy-density-rounds.json`](lazy-density-rounds.json).
+
+| Finished fixture | Baseline median (range), ms/target | Lazy AOT median (range), ms/target |
+|---|---:|---:|
+| Java-style | 45.605 (45.447–47.056) | 43.896 (41.624–44.807) |
+| Bedrock-style | 33.315 (32.186–35.638) | 32.288 (30.846–32.935) |
+
+The candidate was faster in every fixture pair. Both editions' allocation counts and
+requested bytes were identical in all normal-build rounds: Java 98,369 / 151,246,166;
+Bedrock 65,729 / 90,025,992. Stage-enabled candidate ceilings are a separate check.
+
+The dense workload is a **33x33** square (1,089 targets), seed
+8500081009970950196; do not compare these absolute values with earlier 101-square
+Unastar or Steel results.
+
+| Workers | Baseline median (range), chunks/s | Lazy AOT median (range), chunks/s | Baseline process CPU-ms/target | Lazy process CPU-ms/target |
+|---|---:|---:|---:|---:|
+| 1 | 52.097 (51.482–53.063) | 52.087 (49.849–53.233) | 18.107 | 17.720 |
+| 4 | 92.036 (90.170–92.150) | 94.619 (93.554–95.727) | 18.480 | 18.208 |
+| 8 | 196.304 (186.915–212.156) | 205.004 (179.499–213.191) | 20.188 | 19.642 |
+| 16 | 283.736 (250.149–320.428) | 264.599 (230.497–303.234) | 32.240 | 32.843 |
+
+Dense 4-worker gains occur in every pair; 1-worker wall throughput is flat, and
+8/16-worker results are noisy, with a **worse 16-worker median**. No universal
+whole-chunk throughput win is claimed. CPU time covers the process lifetime,
+including initialization/teardown; completion is still in-memory generation
+without lighting, entity spawning, persistence or network delivery.
+
+### Source-proven opportunities to measure next
+
+The operations below are established by source; their share of CPU time and any
+speedup remain **[INFERENCE]** until isolated measurements. Priority is an experiment
+order, not a measured attribution of the Steel comparison.
+
+| Candidate | Source evidence | Conservative change | Output-preservation constraint |
+|---|---|---|---|
+| Retain aquifer constructor work | `generator/aquifer.rs::compute_max_preliminary_surface_with_cache` builds local surface/grid maps, then `NoiseBasedAquifer::new` discards them and creates empty lifetime maps. Current 16-block/X-range bounds visit 11x11 = 121 distinct quart positions across nine chunks, requiring eight neighbour grids. | Return and retain the already computed maps; assess bounded numeric-grid indexing separately. | Preserve surface quantization, all 121 samples, skip-threshold calculation, lazy fluid/status decisions and negative-coordinate bounds. Recheck every stage's allocation bytes: retaining caches changes lifetimes and can change growth. |
+| Inline small Java tree sets | `features/kinds/tree/pos_set.rs::JavaPosSet::new` allocates a 16-slot table and flags. `tree.rs::place` creates three before rejection checks; `update_leaves` creates seven more. | Inline the initial table/flags with overflow; six initial allocations per attempted tree and fourteen additional initial allocations in the leaf-update pass are candidates for removal. | Preserve logical capacity, resize/tree-bin thresholds, bucket iteration and pop order. Larger logical preallocation or retaining a prior tree's logical capacity can change RNG assignment. |
+| Fold immutable biome slices directly | `generator/features/mod.rs::decorate` queries 9x96x4x4 = 13,824 quart cells per origin through absolute-coordinate region addressing. `BiomeSet` is a u128 OR-set and iterates ascending indices. | Fold the nine contiguous quart-biome slices into the same set, keeping the overworld mask. | Include every neighbour and vertical quart; change set construction only, never feature order or RNG. |
+| Compile numeric state/property operations | `features/blocks.rs::{prop,value,try_with,with_int,int_value,fluid}` still scans property/value strings or formats/parses integers. Rotation providers and tree waterlogging call these helpers. | Emit packed fluid classifications and targeted numeric property transitions from the pinned block report; specialize fixed rotated-provider states. | Keep Java-state identity, property absence, canonical readback and provider RNG draws. Java-to-Bedrock conversion itself is already a numeric table, not a name lookup. |
+| Precompute ore size-only coefficients | `features/kinds/ore.rs::do_place` recomputes `k as f32 / size as f32` and a sine-derived multiplier for every admitted sphere. Its `mth_sin` recomputes the selected table entry using `f64::sin`; size is already in generated static configs. | Share exact per-size coefficients and bounding constants, without replacing the placement algorithm. | Keep f32/f64 rounding and expression order, header draws, one radius draw per sphere, pruning and visited-index behavior. Build-host transcendental output needs bitwise proof against target arithmetic; once-computed target coefficients are the safer alternative if that proof is unavailable. |
+| Reduce live heightmap work | `generator/region.rs::{heights,column_top,set_block}` initializes all 256 columns for a queried slot/kind and visits six optional maps on every write. WorldSurface/Wg and OceanFloor/Wg pairs currently use identical predicates. | Share predicate-equivalent storage where exercised; skip redundant maintenance for unchanged state while retaining the write; hoist section addressing in vertical scans. | Preserve live overlay reads, all predicate distinctions and top-removal rescans. Do not skip an unchanged local write in the replay journal: earlier origins can change its eventual target. |
+| Reduce palette work during replay | `DecorationWrites::apply_to` replays each chronological write through `Chunk::set_block`, repeating palette lookup/packing and heightmap maintenance after the overlay already processed it. | Try section-local lookup hints or a chronological bulk API that hoists addressing, rather than regrouping writes. | Preserve first-seen palette order, encoded bytes, block/actor interleaving and same-native-block actor retention. A final-state-only patch is not equivalent to the existing journal. |
+| Compile template state transforms | `structures/template.rs::place` calls `mirror_state` then `rotate_state` per processed block; procedural `piece.rs::place_block` uses the same transformations. | Compile state-by-rotation/mirror numeric transitions and preserve the same composition. | Apply transforms to processor-produced states at the existing point, retain waterlogging and actor ordering, and exhaustively compare all registered states/transforms before cutover. Template blobs are already compiled; the remaining candidate is state transformation, not per-block NBT parsing. |
+
+`generator/` paths above are under `crates/unastar/src/world/`; the other paths are
+under `crates/unastar_noise/src/`.
+
+### AOT, SIMD and scaling constraints discovered during review
+
+- **Do not blindly trust the current Y-invariance metadata for automatic hoisting.**
+  `codegen/analyzer/mod.rs::visit_children` marks all `Noise` and `ShiftedNoise`
+  nodes Y-dependent, missing zero-Y-scale opportunities; it also groups the
+  genuinely 3D `Shift` with Y-independent ShiftA/ShiftB. The emitter currently
+  uses explicit flat/2D wrappers rather than this flag for automatic hoisting.
+  Prove/fix the analysis before expanding caches; this is not a demonstrated
+  current-output regression.
+- **Scalar substitution is not a bit-preserving SIMD optimization by default.**
+  `noise.rs::smoothstep_simd` and `OctaveNoise::sample_4` explicitly use FMA
+  where the scalar counterparts contain separate operations. A zero-Y-scale
+  four-lane sample cannot simply become one scalar sample plus a splat.
+  Preserve lane arithmetic while investigating per-column X/Z preparation,
+  permutation reuse and fixed octave sampling plans. The existing code already
+  samples four Y positions, uses portable f64 SIMD, and builds with
+  `target-cpu=native`; there is no missing blanket SIMD enable switch.
+- **Min/max are still eager.** Both density operands are emitted before `.min`
+  or `.max`. A conservative value-bound pass could skip dominated subtrees,
+  but must preserve NaN/signed-zero behavior and branch-local CSE. Unknown
+  noise-provider bounds are not permission to assume vanilla amplitude limits.
+- **Whole-origin single-flight is not a stage scheduler.**
+  `generator/pipeline.rs::ChunkCache::get_or_compute` releases its mutex before
+  computing, then waits on an origin/proto `OnceLock`. FIFO eviction can remove
+  an in-flight entry, allowing a later lookup to create another cell. Whether
+  waits or duplicate computation affect the 101-square workload is unmeasured.
+  Count actual computations/wait intervals before changing scheduling or cache
+  capacity; final cache occupancy is not work performed.
+- **The receive mutex does not serialize chunk generation.**
+  `ecs/generation_worker.rs::run_worker` drops the receiver guard before storage
+  loading/generation. Replacing this mutex alone is not an established scaling
+  fix. The request channel is unbounded; bounded active-window scheduling is a
+  separate working-set experiment, not a free queue substitution.
+
+### Negative findings and deferred lower-priority work
+
+Ore sphere scratch (2,048 bytes) and visited bits (1,280 bytes) are already on
+the stack; ordinary placed-feature count expansion is already emitted loops.
+The ore stage's 30,901 allocation requests therefore cannot be attributed to a
+per-blob sphere Vec. Region COW, palette growth and journals execute in caller
+stages and need separate attribution. Tags are already numeric bitsets, neighbour
+copies are already section-granular, and actor metadata is already a separate
+lazy sparse overlay.
+
+Additional allocation candidates are inline-first trunk attachments, selective
+decorator position-list construction, and vegetation-patch backing reuse that
+preserves Java's logical table growth. Stable Y ties, hash iteration, shuffle draws
+and the trunk-before-foliage boundary are observable. Actor scans are a sparse-path
+candidate for actor-rich fixtures, not a demonstrated whole-chunk bottleneck.
+All candidates still require unchanged output/RNG invariants and the established
+normal-build whole-chunk A/B protocol before any performance claim.
+
