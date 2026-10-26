@@ -6,15 +6,15 @@
 //! [`Pass::ALL`] order with the 3x3 neighbourhood available.
 //!
 //! **unmeasured: to confirm by BDS fixture**: chunk seeding, pass stream
-//! separation, rule draw order and Molang noise. Each chunk currently has an
-//! independent deterministic stream. Neither statistical nor byte-exact
-//! decoration parity has been established.
+//! separation and rule draw order. Each chunk currently has an independent
+//! deterministic stream. The fixed Molang noise intrinsic is independently
+//! calibrated; statistical/byte-exact decoration parity is not established.
 
 use super::generated;
+use super::molang_noise::MolangNoise;
 use super::rng::BedrockRandom;
-use super::world::{BlockPos, BlockWorld, Ctx, NoiseSource};
+use super::world::{BlockPos, BlockWorld, Ctx};
 use super::{BiomeSet, Pass};
-use unastar_noise::{SimplexNoise, Xoroshiro128};
 
 /// Seed of a chunk's decoration random: two odd multipliers drawn from the
 /// world seed mix the chunk coordinates (the classic per-chunk population
@@ -29,28 +29,6 @@ pub fn chunk_seed(world_seed: i64, chunk_x: i32, chunk_z: i32) -> u32 {
         ^ world_seed as u32
 }
 
-/// Molang `query.noise(x, z)`: 2D simplex noise seeded from the world seed,
-/// in roughly `[-1, 1]` (vanilla rules compare it against thresholds such as
-/// `-0.8`, which only needs that range).
-pub struct MolangNoise {
-    simplex: SimplexNoise,
-}
-
-impl MolangNoise {
-    pub fn new(world_seed: i64) -> Self {
-        let mut rng = Xoroshiro128::from_seed(world_seed ^ 0x6d6f_6c61_6e67);
-        Self {
-            simplex: SimplexNoise::new(&mut rng),
-        }
-    }
-}
-
-impl NoiseSource for MolangNoise {
-    fn noise(&self, x: f32, z: f32) -> f32 {
-        self.simplex.get_value_2d(f64::from(x), f64::from(z)) as f32
-    }
-}
-
 /// Per-world decoration state.
 pub struct Decorator {
     seed: i64,
@@ -61,7 +39,7 @@ impl Decorator {
     pub fn new(seed: i64) -> Self {
         Self {
             seed,
-            noise: MolangNoise::new(seed),
+            noise: MolangNoise,
         }
     }
 
@@ -143,6 +121,7 @@ impl Decorator {
 
 #[cfg(test)]
 mod tests {
+    use super::super::world::NoiseSource;
     use super::*;
 
     #[test]
@@ -155,16 +134,38 @@ mod tests {
     }
 
     #[test]
-    fn molang_noise_is_bounded_and_seeded() {
-        let a = MolangNoise::new(1);
-        let b = MolangNoise::new(2);
-        let mut differs = false;
-        for i in 0..200 {
-            let (x, z) = (i as f32 * 0.37, i as f32 * -0.11);
-            let v = a.noise(x, z);
-            assert!((-1.0..=1.0).contains(&v), "{v}");
-            differs |= v != b.noise(x, z);
+    fn molang_noise_matches_authored_bds_scalar_and_float_controls() {
+        let fixture: serde_json::Value = serde_json::from_str(include_str!(concat!(
+            env!("CARGO_MANIFEST_DIR"),
+            "/tests/fixtures/bds_1_26_51_molang_noise.json"
+        )))
+        .unwrap();
+        for seed in fixture["seeds"].as_array().unwrap() {
+            let seed = seed.as_i64().unwrap();
+            let decorator = Decorator::new(seed);
+            for sample in fixture["samples"].as_array().unwrap() {
+                let x = sample["x"].as_f64().unwrap() as f32;
+                let z = sample["z"].as_f64().unwrap() as f32;
+                let actual_y = (192.0 + 64.0 * decorator.noise.noise(x, z)).round() as i64;
+                assert_eq!(
+                    actual_y,
+                    sample["marker_y"].as_i64().unwrap(),
+                    "native scalar carrier at seed {seed}, query.noise({x}, {z})"
+                );
+            }
         }
-        assert!(differs);
+        let exact = &fixture["exact_controls"];
+        let seed = exact["seed"].as_i64().unwrap();
+        let decorator = Decorator::new(seed);
+        for sample in exact["samples"].as_array().unwrap() {
+            let x = sample["x"].as_f64().unwrap() as f32;
+            let z = sample["z"].as_f64().unwrap() as f32;
+            let expected = u32::from_str_radix(sample["float_bits"].as_str().unwrap(), 16).unwrap();
+            assert_eq!(
+                decorator.noise.noise(x, z).to_bits(),
+                expected,
+                "calibrated native float at seed {seed}, query.noise({x}, {z})"
+            );
+        }
     }
 }

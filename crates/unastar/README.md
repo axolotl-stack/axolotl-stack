@@ -238,6 +238,13 @@ surface builders and cave subsurface ranges, then runs compiled carver rules.
 Decoration places data-driven structure sets before feature passes. Height
 oracles use two bounded 128-entry single-flight caches of column heights.
 
+Molang `query.noise` is a stateless intrinsic in `molang_noise`, not a world-seeded
+Java noise instance. Its fixed permutation/hash gradients are evaluated at compile
+time; sampling keeps the measured native float32 operation order. Authored BDS
+controls cover seed independence and exact float patterns at signed/fractional/
+large inputs. This does not establish the still-unmeasured feature/pass RNG
+seeding or draw order.
+
 `cargo run -p unastar --features bedrock-worldgen --example worldgen_parity_report -- --kind bedrock`
 prints metrics against the BDS fixture. `worldgen_bench --kind bedrock` reports
 the same single-threaded workload as the Java generator, including allocations.
