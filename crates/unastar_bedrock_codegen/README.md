@@ -189,6 +189,24 @@ All cases are biome 46 at Y=62 across eight chunks. This validates the
 warm-water/ice predicate, not iceberg geometry, snow placement, altitude
 effects or another seed. Other surface fields remain explicitly unmeasured.
 
+#### Iceberg geometry comparison
+
+A separate WD2 experiment used the public Java `iceberg_surface`/`iceberg_pillar`/
+`iceberg_pillar_roof` descriptors directly (first octaves -6/-6/-3 and
+amplitude counts 3/4/1) with the existing named-noise seeding and builder formula.
+The identical integrated CLI workload produced these displayed measurements:
+
+| Geometry candidate | Terrain exact | Surface-height exact | Surface block | Histogram L1 |
+|---|---:|---:|---:|---:|
+| Retained geometry + measured native climate | 87.0% | 85.2% | 84.2% | 0.072 |
+| Direct public Java iceberg descriptors | 85.8% | 83.5% | 82.8% | 0.077 |
+
+The Java-descriptor experiment is rejected and its runtime changes removed.
+The retained geometry is still unmeasured, not certified by winning this
+comparison. Native iceberg field seeding/geometry and snow support require
+isolated controls; no threshold or output golden was changed.
+
+
 ### Controlled worlds
 
 `tools/bds-worldgen-controls/controls.py --out <new outside-repo directory>`
