@@ -69,7 +69,7 @@ Allocation counting is enabled only for the serial finished loop; throughput
 runs do not contend on global allocation-counter increments.
 
 ```powershell
-# Run only during a coordinator-approved heavy benchmark window.
+# Run only during an explicitly authorized, coordinated heavy benchmark window.
 target\release\examples\worldgen_bench.exe --kind java --mode throughput --workers 1,4,8,16 --json
 target\release\examples\worldgen_bench.exe --kind bedrock --mode throughput --workers 1,4,8,16 --json
 ```
@@ -82,6 +82,35 @@ the chosen spawn chunk, submitted center-outward. No chunks are loaded from disk
 `--kind flat --mode throughput --workers 1,4`; these are not terrain performance data.
 Do not pin throughput to one core: record the multi-core affinity used, and the
 concurrent machine load. Keep the one-core A/B series separate.
+
+## Dense-area comparisons
+
+```powershell
+target\release\examples\worldgen_bench.exe --kind java --mode area --side 101 --seed 8500081009970950196 --workers 1,4,8,16 --json
+```
+
+`area` requests one cold, row-major square centered on chunk 0,0, without a spawn
+search or a second fixture workload. `--side` is positive and odd (default 101);
+`--seed` defaults to the fixture seed. Both options require area mode so an ignored
+seed cannot produce a misleading comparison. This command matches the seed and
+target square of SteelMC's [published benchmark](https://steelmc.dev/reference/benchmarks/),
+not its hardware, Minecraft version or complete timed work.
+
+Every pool row reports cold `elapsed_ms`/`chunks_per_second`, plus
+`generation_ms`/`generation_chunks_per_second` from request submission until all
+target results are received. The latter excludes generator/runtime/pool setup
+and spawn search. `cached_protos` is final cache occupancy, **not** total terrain
+work once the 1024-entry cache evicts. Use one worker-count row per process when
+collecting process CPU time externally; lifetime CPU time includes startup and
+teardown and must be labelled accordingly.
+
+**Completion boundary:** these modes return generated in-memory chunks: terrain,
+decoration, structure blocks/actors and biomes. They do not propagate lighting,
+serialize/compress/save worlds, deliver network chunks or spawn worldgen entities.
+Steel's benchmark includes lighting and saving to `tmpfs`, so equal area/seed
+alone does not make the timings equivalent. Allocation counts are diagnostic;
+completed-chunk throughput and readiness latency are the performance targets.
+
 
 ## Alternating A/B runs
 

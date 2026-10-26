@@ -73,6 +73,8 @@ struct Options {
     workers: Vec<usize>,
     json: bool,
     ratchet: Option<String>,
+    seed: Option<i64>,
+    side: Option<i32>,
 }
 
 impl Options {
@@ -83,6 +85,8 @@ impl Options {
             workers: vec![1, 4, 8, 16],
             json: false,
             ratchet: None,
+            seed: None,
+            side: None,
         };
         let mut args = std::env::args().skip(1);
         while let Some(arg) = args.next() {
@@ -90,6 +94,17 @@ impl Options {
                 "--json" => options.json = true,
                 "--kind" => options.kind = args.next().context("--kind needs a value")?,
                 "--mode" => options.mode = args.next().context("--mode needs a value")?,
+                "--seed" => {
+                    options.seed = Some(args.next().context("--seed needs a value")?.parse()?);
+                }
+                "--side" => {
+                    let side = args
+                        .next()
+                        .context("--side needs a value")?
+                        .parse::<i32>()?;
+                    ensure!(side > 0 && side % 2 == 1, "--side must be positive and odd");
+                    options.side = Some(side);
+                }
                 "--ratchet" => {
                     options.ratchet = Some(args.next().context("--ratchet needs a path")?)
                 }
@@ -107,7 +122,7 @@ impl Options {
                 }
                 "--help" | "-h" => {
                     println!(
-                        "worldgen_bench [--kind java|bedrock|flat] [--mode serial|throughput|spawn] [--workers 1,4,8,16] [--json] [--ratchet path]\nStage breakdown: build with --features worldgen-profile. Ratchets only accept serial stage-enabled runs."
+                        "worldgen_bench [--kind java|bedrock|flat] [--mode serial|throughput|spawn|area] [--workers 1,4,8,16] [--json] [--ratchet path]\nArea mode: [--seed N] [--side 101], a cold row-major square centered on chunk 0,0.\nStage breakdown: build with --features worldgen-profile. Ratchets only accept serial stage-enabled runs."
                     );
                     std::process::exit(0);
                 }
@@ -115,9 +130,16 @@ impl Options {
             }
         }
         ensure!(
-            matches!(options.mode.as_str(), "serial" | "throughput" | "spawn"),
+            matches!(
+                options.mode.as_str(),
+                "serial" | "throughput" | "spawn" | "area"
+            ),
             "unknown mode {}",
             options.mode
+        );
+        ensure!(
+            options.mode == "area" || (options.seed.is_none() && options.side.is_none()),
+            "--seed and --side require --mode area"
         );
         ensure!(
             options.ratchet.is_none() || (options.mode == "serial" && profile::ENABLED),
@@ -318,12 +340,16 @@ fn serial(options: &Options, fixture: &Fixture) -> Result<()> {
 #[derive(Serialize)]
 struct ThroughputResult {
     kind: String,
+    seed: i64,
     instrumented: bool,
     workers: usize,
     workload: &'static str,
     chunks: usize,
     elapsed_ms: f64,
     chunks_per_second: f64,
+    generation_ms: f64,
+    generation_chunks_per_second: f64,
+    cached_protos: usize,
     spawn: Option<(i32, i32, i32)>,
 }
 
@@ -352,11 +378,13 @@ fn pool_run(
     } else {
         fixture.chunks.iter().map(|p| (p.x, p.z)).collect()
     };
+    let mut generation_elapsed = std::time::Duration::ZERO;
     let runtime = tokio::runtime::Builder::new_current_thread()
         .enable_all()
         .build()?;
     runtime.block_on(async {
-        let pool = ChunkGenerationWorker::spawn(pipeline, workers);
+        let pool = ChunkGenerationWorker::spawn(pipeline.clone(), workers);
+        let generation_started = Instant::now();
         let receivers: Vec<_> = positions
             .iter()
             .map(|&(x, z)| {
@@ -369,21 +397,28 @@ fn pool_run(
             ensure!(!loaded, "cold benchmark unexpectedly loaded storage");
             std::hint::black_box(chunk);
         }
+        generation_elapsed = generation_started.elapsed();
         Ok::<_, anyhow::Error>(())
     })?;
     let elapsed = started.elapsed();
     Ok(ThroughputResult {
         kind: options.kind.clone(),
+        seed: fixture.seed,
         instrumented: profile::ENABLED,
         workers,
         workload: if spawn {
             "cold_spawn_radius_8_square"
+        } else if options.mode == "area" {
+            "cold_origin_square"
         } else {
             "cold_fixture"
         },
         chunks: positions.len(),
         elapsed_ms: elapsed.as_secs_f64() * 1e3,
         chunks_per_second: positions.len() as f64 / elapsed.as_secs_f64(),
+        generation_ms: generation_elapsed.as_secs_f64() * 1e3,
+        generation_chunks_per_second: positions.len() as f64 / generation_elapsed.as_secs_f64(),
+        cached_protos: pipeline.cached_protos(),
         spawn: center.map(|p| (p.x, p.y, p.z)),
     })
 }
@@ -392,34 +427,48 @@ fn run() -> Result<()> {
     let options = Options::parse()?;
     let path =
         Path::new(env!("CARGO_MANIFEST_DIR")).join("tests/fixtures/bds_1_26_51_seed_12345.json");
-    let fixture: Fixture = serde_json::from_slice(&std::fs::read(path)?)?;
+    let mut fixture: Fixture = serde_json::from_slice(&std::fs::read(path)?)?;
+    if options.mode == "area" {
+        let radius = options.side.unwrap_or(101) / 2;
+        fixture = Fixture {
+            seed: options.seed.unwrap_or(fixture.seed),
+            chunks: (-radius..=radius)
+                .flat_map(|z| (-radius..=radius).map(move |x| FixturePos { x, z }))
+                .collect(),
+        };
+    }
     match options.mode.as_str() {
         "serial" => serial(&options, &fixture),
         _ => {
             let mut results = Vec::new();
             for &workers in &options.workers {
-                if options.mode == "throughput" {
+                if options.mode != "spawn" {
                     results.push(pool_run(&options, &fixture, workers, false)?);
                 }
-                results.push(pool_run(&options, &fixture, workers, true)?);
+                if options.mode != "area" {
+                    results.push(pool_run(&options, &fixture, workers, true)?);
+                }
             }
             if options.json {
                 println!("{}", serde_json::to_string_pretty(&results)?);
             } else {
                 println!(
-                    "| kind | instrumented | workers | workload | chunks | elapsed ms | chunks/s | spawn |"
+                    "| kind | seed | instrumented | workers | workload | chunks | cold ms | generation ms | generation chunks/s | cached protos | spawn |"
                 );
-                println!("|---|---|---:|---|---:|---:|---:|---|");
+                println!("|---|---:|---|---:|---|---:|---:|---:|---:|---:|---|");
                 for r in results {
                     println!(
-                        "| {} | {} | {} | {} | {} | {:.2} | {:.2} | {:?} |",
+                        "| {} | {} | {} | {} | {} | {} | {:.2} | {:.2} | {:.2} | {} | {:?} |",
                         r.kind,
+                        r.seed,
                         r.instrumented,
                         r.workers,
                         r.workload,
                         r.chunks,
                         r.elapsed_ms,
-                        r.chunks_per_second,
+                        r.generation_ms,
+                        r.generation_chunks_per_second,
+                        r.cached_protos,
                         r.spawn
                     );
                 }
