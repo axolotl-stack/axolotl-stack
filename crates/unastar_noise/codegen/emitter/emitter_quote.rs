@@ -998,6 +998,22 @@ impl<'a> AotEmitter<'a> {
         }
     }
 
+    /// Keep branch-local temporaries inside the branch, not in the root's eager
+    /// statement list. Only values already computed by an enclosing scope may be
+    /// reused; names introduced here must not escape into a sibling or caller.
+    fn emit_scoped_node(&mut self, id: &NodeId, simd: bool) -> TokenStream {
+        let enclosing_names = self.var_names.clone();
+        let enclosing_statements = std::mem::take(&mut self.statements);
+        let value = if simd {
+            self.emit_node_simd(id)
+        } else {
+            self.emit_node(id)
+        };
+        let statements = std::mem::replace(&mut self.statements, enclosing_statements);
+        self.var_names = enclosing_names;
+        quote! { { #(#statements)* #value } }
+    }
+
     fn emit_node_expr(&mut self, node: &DensityNode) -> TokenStream {
         match &node.def {
             DensityFunctionDef::Constant { argument } => {
@@ -1165,8 +1181,8 @@ impl<'a> AotEmitter<'a> {
                 ..
             } => {
                 let inp = self.emit_node(&node.dependencies[0]);
-                let wir = self.emit_node(&node.dependencies[1]);
-                let wor = self.emit_node(&node.dependencies[2]);
+                let wir = self.emit_scoped_node(&node.dependencies[1], false);
+                let wor = self.emit_scoped_node(&node.dependencies[2], false);
                 let min_v = *min_inclusive;
                 let max_v = *max_exclusive;
                 quote! {
@@ -1454,15 +1470,25 @@ impl<'a> AotEmitter<'a> {
                 ..
             } => {
                 let inp = self.emit_node_simd(&node.dependencies[0]);
-                let wir = self.emit_node_simd(&node.dependencies[1]);
-                let wor = self.emit_node_simd(&node.dependencies[2]);
+                let wir = self.emit_scoped_node(&node.dependencies[1], true);
+                let wor = self.emit_scoped_node(&node.dependencies[2], true);
                 let min_v = *min_inclusive;
                 let max_v = *max_exclusive;
                 quote! {
                     {
                         let inp = #inp;
                         let in_range = inp.simd_ge(f64x4::splat(#min_v)) & inp.simd_lt(f64x4::splat(#max_v));
-                        in_range.select(#wir, #wor)
+                        // Closures keep each subtree in one generated scope, without
+                        // evaluating either until the lane mask requires it.
+                        let when_in_range = || #wir;
+                        let when_out_of_range = || #wor;
+                        if in_range.all() {
+                            when_in_range()
+                        } else if in_range.any() {
+                            in_range.select(when_in_range(), when_out_of_range())
+                        } else {
+                            when_out_of_range()
+                        }
                     }
                 }
             }

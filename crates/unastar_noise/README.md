@@ -58,6 +58,16 @@ The two native-bit regressions passed 528 measured Java 1.21.11 samples across
 eight seeds, including disjoint holdouts, signed division boundaries, distant
 float precision, wrapping radial squares and both i32 endpoints. This verifies
 the primitive, not End router wiring or finished End chunks.
+### Density branch specialization
+
+Density `range_choice` branches retain their own temporary scopes: unselected
+noise subtrees are not hoisted into eager root statements. Four-Y SIMD evaluates
+one branch for uniform lane masks, and both branches with per-lane selection for
+mixed masks. Enclosing common expressions remain reusable, without leaking
+branch-local names. Arithmetic precision and expression order are unchanged.
+`tests/density_laziness.rs` covers range boundaries and uniform/mixed SIMD masks;
+the integration chunk-byte/actor goldens remain the complete-output gate.
+See the performance report for measured results versus unmeasured candidates.
 
 ## Block identity
 
