@@ -136,7 +136,8 @@ pub fn place<W: BlockWorld>(
     let r = params.max_radius;
     let noise_multiplier = f64::from(params.noise_multiplier);
     let crack_point_offset = f64::from(params.crack_point_offset);
-    let mut potential = Vec::new();
+    // Keep common growth-candidate scratch inline; larger geodes still spill.
+    let mut potential: SmallVec<[BlockPos; 32]> = SmallVec::new();
     let mut placed = false;
     for dx in -r..=r {
         for dz in -r..=r {
