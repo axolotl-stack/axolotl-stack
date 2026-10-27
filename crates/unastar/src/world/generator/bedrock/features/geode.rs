@@ -36,6 +36,7 @@
 use super::super::generated::bb;
 use super::super::world::{BlockPos, BlockWorld, Ctx, OUT_OF_BOUNDS};
 use super::IntRange;
+use smallvec::SmallVec;
 use unastar_noise::{PerlinNoise, Xoroshiro128};
 
 /// Vanilla shell layer constants (not part of the pack data).
@@ -110,7 +111,8 @@ pub fn place<W: BlockWorld>(
     );
     let generate_crack = ctx.rng.probability(params.generate_crack_chance);
 
-    let mut centres: Vec<(BlockPos, f64)> = Vec::with_capacity(points as usize);
+    // Vanilla draws 3..=4 centres; larger custom counts retain growable storage.
+    let mut centres: SmallVec<[(BlockPos, f64); 4]> = SmallVec::with_capacity(points as usize);
     let mut invalid = 0;
     for _ in 0..points {
         let dx = params.outer_wall_distance.sample(ctx.rng);

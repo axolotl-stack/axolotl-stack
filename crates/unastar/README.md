@@ -382,6 +382,14 @@ and RNG continuation. The two changes observed 854,362 -> 562,221 block reads
 (34.19% fewer in that surface-only workload, none increased), not a measured
 whole-chunk speedup.
 
+Geode distribution centres stay inline for vanilla's three-to-four-point range;
+larger custom counts retain growable storage. An 85-case old/new differential
+preserved complete block volumes, ordered writes, read counts, return values
+and continued RNG draws, including heap-spill, early-abort and height boundaries.
+Scoped allocation counting confirmed the centre buffer no longer allocates for
+vanilla bounds; larger custom counts retain the original allocation counts and
+bytes. This is allocation evidence, not a wall-time or native geometry/RNG claim.
+
 Molang `query.noise` is a stateless intrinsic in `molang_noise`, not a world-seeded
 Java noise instance. Its fixed permutation/hash gradients are evaluated at compile
 time; sampling keeps the measured native float32 operation order. Authored BDS
