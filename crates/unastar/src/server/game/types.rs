@@ -25,6 +25,10 @@ pub struct ServerWorldTemplate(pub Arc<jolyne::WorldTemplate>);
 #[derive(Resource)]
 pub struct ItemRegistryResource(pub Arc<crate::registry::ItemRegistry>);
 
+/// Frozen, startup-compiled recipe snapshot shared by crafting and furnace loot.
+#[derive(Resource)]
+pub struct RecipeRegistryResource(pub Arc<unastar_data::recipes::RecipeRegistry>);
+
 /// Wrapper for BlockRegistry to serve as an ECS Resource.
 #[derive(Resource)]
 pub struct BlockRegistryResource(pub Arc<crate::registry::BlockRegistry>);

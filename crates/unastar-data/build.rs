@@ -9,6 +9,8 @@ mod actors;
 mod biomes;
 #[path = "build/component_defaults.rs"]
 mod component_defaults;
+#[path = "build/items_recipes.rs"]
+mod items_recipes;
 #[path = "build/loot.rs"]
 mod loot;
 
@@ -31,6 +33,7 @@ fn main() {
     actors::write(&pack, &out);
     actor_wire::write(&root.join("../bds-extractor/captures/1.26.51"), &out);
     biomes::write(&pack, &native, &out);
+    items_recipes::write(&pack, &out);
     loot::write(
         &pack,
         &root.join("data/overrides/loot_tables/blocks.json"),

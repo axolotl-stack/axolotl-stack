@@ -5334,12 +5334,14 @@ dependencies = [
 name = "unastar-data"
 version = "0.1.0"
 dependencies = [
+ "base64 0.22.1",
  "bytes",
  "rand 0.8.5",
  "serde",
  "serde_json",
  "sha2 0.10.9",
  "tempfile",
+ "thiserror 2.0.21",
  "unastar-packs",
  "unastar-rules",
  "valentine",

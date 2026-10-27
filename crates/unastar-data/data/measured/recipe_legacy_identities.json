@@ -1,0 +1,132 @@
+{
+  "source": "BDS 1.26.51 member/join/00054-CraftingDataPacket.bin",
+  "source_sha256": "68bbcbf58c0adc94edd90fbb4fbabf1420d5a388e14b8108c1c4aa907e594923",
+  "inputs": {
+    "minecraft:fish": {
+      "name": "minecraft:cod",
+      "data": null
+    },
+    "minecraft:horsearmorgold": {
+      "name": "minecraft:golden_horse_armor",
+      "data": null
+    },
+    "minecraft:horsearmoriron": {
+      "name": "minecraft:iron_horse_armor",
+      "data": null
+    },
+    "minecraft:log2:0": {
+      "name": "minecraft:acacia_log",
+      "data": 0
+    },
+    "minecraft:log2:1": {
+      "name": "minecraft:dark_oak_log",
+      "data": 0
+    },
+    "minecraft:log:0": {
+      "name": "minecraft:oak_log",
+      "data": 0
+    },
+    "minecraft:log:1": {
+      "name": "minecraft:spruce_log",
+      "data": 0
+    },
+    "minecraft:log:2": {
+      "name": "minecraft:birch_log",
+      "data": 0
+    },
+    "minecraft:log:3": {
+      "name": "minecraft:jungle_log",
+      "data": 0
+    },
+    "minecraft:muttonRaw": {
+      "name": "minecraft:mutton",
+      "data": null
+    },
+    "minecraft:quartz_block:0": {
+      "name": "minecraft:quartz_block",
+      "data": 0
+    },
+    "minecraft:stone:0": {
+      "name": "minecraft:stone",
+      "data": 0
+    },
+    "minecraft:wood:0": {
+      "name": "minecraft:oak_wood",
+      "data": 0
+    },
+    "minecraft:wood:1": {
+      "name": "minecraft:spruce_wood",
+      "data": 0
+    },
+    "minecraft:wood:10": {
+      "name": "minecraft:stripped_birch_wood",
+      "data": 0
+    },
+    "minecraft:wood:11": {
+      "name": "minecraft:stripped_jungle_wood",
+      "data": 0
+    },
+    "minecraft:wood:12": {
+      "name": "minecraft:stripped_acacia_wood",
+      "data": 0
+    },
+    "minecraft:wood:13": {
+      "name": "minecraft:stripped_dark_oak_wood",
+      "data": 0
+    },
+    "minecraft:wood:2": {
+      "name": "minecraft:birch_wood",
+      "data": 0
+    },
+    "minecraft:wood:3": {
+      "name": "minecraft:jungle_wood",
+      "data": 0
+    },
+    "minecraft:wood:4": {
+      "name": "minecraft:acacia_wood",
+      "data": 0
+    },
+    "minecraft:wood:5": {
+      "name": "minecraft:dark_oak_wood",
+      "data": 0
+    },
+    "minecraft:wood:8": {
+      "name": "minecraft:stripped_oak_wood",
+      "data": 0
+    },
+    "minecraft:wood:9": {
+      "name": "minecraft:stripped_spruce_wood",
+      "data": 0
+    }
+  },
+  "outputs": {
+    "minecraft:chorus_fruit_popped": {
+      "name": "minecraft:popped_chorus_fruit",
+      "data": 0
+    },
+    "minecraft:coal:1": {
+      "name": "minecraft:charcoal",
+      "data": 0
+    },
+    "minecraft:cooked_fish": {
+      "name": "minecraft:cooked_cod",
+      "data": 0
+    },
+    "minecraft:dye:10": {
+      "name": "minecraft:lime_dye",
+      "data": 0
+    },
+    "minecraft:dye:2": {
+      "name": "minecraft:green_dye",
+      "data": 0
+    },
+    "minecraft:dye:4": {
+      "name": "minecraft:lapis_lazuli",
+      "data": 0
+    },
+    "minecraft:muttonCooked": {
+      "name": "minecraft:cooked_mutton",
+      "data": 0
+    }
+  }
+}

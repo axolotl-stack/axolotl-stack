@@ -53,6 +53,10 @@ pub enum Family {
     Entities,
     /// `loot_tables`: loot tables, keyed by path rather than identifier.
     LootTables,
+    /// Native and addon item documents (`minecraft:item`).
+    Items,
+    /// Pack recipe documents (`minecraft:recipe_*`).
+    Recipes,
 }
 
 impl Family {
@@ -69,6 +73,8 @@ impl Family {
             Self::Processors => "worldgen/processors",
             Self::Entities => "entities",
             Self::LootTables => "loot_tables",
+            Self::Items => "items",
+            Self::Recipes => "recipes",
         }
     }
 

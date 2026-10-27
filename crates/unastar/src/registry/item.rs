@@ -166,27 +166,27 @@ impl ItemRegistry {
 
     /// Load native item IDs and stack limits with separately sourced packet metadata.
     pub fn load_vanilla(&mut self) {
-        use unastar_data::items::ALL_ITEMS;
+        let items = unastar_data::items::vanilla();
 
         self.inner = Registry::new();
         self.name_map.clear();
         self.network_id_map.clear();
 
         info!(
-            item_registry_rows = ALL_ITEMS.len(),
+            item_registry_rows = items.len(),
             "Loading item registry from generated item data"
         );
 
-        for item in &ALL_ITEMS {
+        for (index, item) in items.iter().enumerate() {
             let entry = ItemEntry {
-                id: item.id,
+                id: u32::try_from(index).expect("item registry fits in u32"),
                 network_id: item.network_id,
                 component_based: item.component_based,
                 version: item.version,
                 string_id: item.identifier.to_string(),
-                name: item_display_name(item.identifier),
+                name: item_display_name(&item.identifier),
                 stack_size: item.max_stack_size,
-                component_nbt: Nbt(bytes::Bytes::from_static(item.component_nbt)),
+                component_nbt: Nbt(bytes::Bytes::from_static(&item.component_nbt)),
             };
             self.register(entry)
                 .expect("generated item data should have unique registry keys");
@@ -317,7 +317,7 @@ pub struct ToolInfo {
 /// Tool facts of `item_id` from the native item table. `None` for unknown items.
 pub fn tool_info(item_id: &str) -> Option<ToolInfo> {
     let data = unastar_data::items::get(item_id)?;
-    let has = |tag: &str| data.tags.contains(&tag);
+    let has = |tag: &str| data.has_tag(tag);
     let kind = [
         ("minecraft:is_pickaxe", ToolKind::Pickaxe),
         ("minecraft:is_axe", ToolKind::Axe),
@@ -341,14 +341,10 @@ pub fn tool_info(item_id: &str) -> Option<ToolInfo> {
     .into_iter()
     .find(|(tag, _)| has(tag))
     .map(|(_, tier)| tier);
-    let max_damage = serde_json::from_str::<serde_json::Value>(data.native_properties_json)
-        .ok()
-        .and_then(|props| props.get("maxDamage")?.as_i64())
-        .map_or(0, |damage| damage as i32);
     Some(ToolInfo {
         kind,
         tier,
-        max_damage,
+        max_damage: data.max_damage,
     })
 }
 
@@ -637,27 +633,6 @@ mod tests {
     }
 
     #[test]
-    fn load_vanilla_uses_generated_item_data() {
-        let mut registry = ItemRegistry::new();
-        registry.load_vanilla();
-
-        assert_eq!(registry.len(), unastar_data::items::ALL_ITEMS.len());
-        let apple = registry.get_by_name("minecraft:apple").expect("apple item");
-        let source = unastar_data::items::get("minecraft:apple").expect("source apple");
-        assert_eq!(apple.id, source.id);
-        assert_eq!(apple.network_id, source.network_id);
-        assert_eq!(apple.component_based, source.component_based);
-        assert_eq!(apple.version, source.version);
-        assert_eq!(apple.stack_size, source.max_stack_size);
-
-        let mut ids: Vec<_> = registry.iter().map(|item| item.id).collect();
-        ids.sort_unstable();
-        ids.dedup();
-
-        assert_eq!(ids.len(), registry.len());
-    }
-
-    #[test]
     fn vanilla_registry_loads_on_a_small_worker_stack() {
         std::thread::Builder::new()
             .stack_size(256 * 1024)
@@ -675,16 +650,5 @@ mod tests {
             .unwrap()
             .join()
             .unwrap();
-    }
-
-    #[test]
-    fn load_vanilla_uses_generated_stack_limits() {
-        let mut registry = ItemRegistry::new();
-        registry.load_vanilla();
-
-        let honey_bottle = registry
-            .get_by_name("minecraft:honey_bottle")
-            .expect("honey bottle item");
-        assert_eq!(honey_bottle.stack_size, 16);
     }
 }

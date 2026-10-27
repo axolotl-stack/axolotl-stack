@@ -1,7 +1,7 @@
 //! Item registry code generation from normalized KDL artifacts.
 
 use base64::Engine;
-use heck::ToShoutySnakeCase;
+use heck::ToSnakeCase;
 use kdl::{KdlDocument, KdlNode};
 use proc_macro2::TokenStream;
 use quote::{format_ident, quote};
@@ -12,7 +12,47 @@ use tracing::info;
 /// The unnamed empty network NBT compound (`0a 00 00`).
 const EMPTY_COMPONENT_NBT: &[u8] = &[0x0a, 0x00, 0x00];
 
-#[derive(Debug, Clone, PartialEq, Eq)]
+/// One native item property value, typed as in `items.kdl`.
+#[derive(Debug, Clone, PartialEq)]
+enum NativeValue {
+    Bool(bool),
+    Integer(i64),
+    Float(f64),
+    String(String),
+}
+
+impl NativeValue {
+    fn kind(&self) -> NativeKind {
+        match self {
+            Self::Bool(_) => NativeKind::Bool,
+            Self::Integer(_) => NativeKind::Integer,
+            Self::Float(_) => NativeKind::Float,
+            Self::String(_) => NativeKind::String,
+        }
+    }
+
+    fn to_json(&self, kind: NativeKind) -> serde_json::Value {
+        match (self, kind) {
+            (Self::Bool(value), _) => serde_json::Value::Bool(*value),
+            (Self::Integer(value), NativeKind::Float) => serde_json::json!(*value as f64),
+            (Self::Integer(value), _) => serde_json::json!(*value),
+            (Self::Float(value), _) => serde_json::json!(*value),
+            (Self::String(value), _) => serde_json::Value::String(value.clone()),
+        }
+    }
+}
+
+/// Rust type of a native property column: the widest kind any item uses
+/// (an integer column with one fractional value becomes `f32`).
+#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord)]
+enum NativeKind {
+    Bool,
+    Integer,
+    Float,
+    String,
+}
+
+#[derive(Debug, Clone, PartialEq)]
 struct ParsedItem {
     identifier: String,
     network_id: i32,
@@ -21,7 +61,10 @@ struct ParsedItem {
     max_stack_size: u8,
     max_stack_size_source: String,
     tags: Vec<String>,
-    native_properties_json: String,
+    /// Inventory capability names (`minecraft:allow_offhand`, `minecraft:head`).
+    capabilities: Vec<String>,
+    /// Native gameplay properties keyed by their native spelling.
+    native_properties: BTreeMap<String, NativeValue>,
     /// Exact network NBT of the item's ItemRegistryPacket component data.
     component_nbt: Vec<u8>,
 }
@@ -29,8 +72,7 @@ struct ParsedItem {
 pub fn generate_items(input_dir: &Path, output_dir: &Path) -> miette::Result<()> {
     let path = input_dir.join("items.kdl");
     if !path.exists() {
-        info!("No items.kdl found at {}, skipping", path.display());
-        return Ok(());
+        return Err(miette::miette!("items.kdl not found at {}", path.display()));
     }
 
     let content = std::fs::read_to_string(&path)
@@ -46,17 +88,24 @@ pub fn generate_items(input_dir: &Path, output_dir: &Path) -> miette::Result<()>
         }
     }
 
-    items.sort_by(|a, b| {
-        a.identifier
-            .cmp(&b.identifier)
-            .then_with(|| a.network_id.cmp(&b.network_id))
-    });
+    items.sort_by(|a, b| a.identifier.cmp(&b.identifier));
     validate_items(&items)?;
+    let schema = ItemSchema::infer(&items)?;
 
     info!("Parsed {} item registry rows", items.len());
 
-    generate_items_module(&items, output_dir)
+    std::fs::write(output_dir.join("items.rs"), generate_items_module(&schema)?)
+        .map_err(|e| miette::miette!("Failed to write items.rs: {}", e))?;
+    std::fs::write(
+        output_dir.join(ITEMS_JSON),
+        generate_items_json(&items, &schema)?,
+    )
+    .map_err(|e| miette::miette!("Failed to write {ITEMS_JSON}: {}", e))?;
+    Ok(())
 }
+
+/// File name of the embedded item rows next to the generated schema.
+const ITEMS_JSON: &str = "items.json";
 
 fn parse_item_node(node: &KdlNode) -> miette::Result<ParsedItem> {
     let identifier = node
@@ -139,21 +188,33 @@ fn parse_item_node(node: &KdlNode) -> miette::Result<ParsedItem> {
         }
     };
     let mut tags = BTreeSet::new();
+    let mut capabilities = BTreeSet::new();
     if let Some(children) = node.children() {
         for child in children.nodes() {
-            let tag = child.get(0).and_then(|value| value.as_string());
-            if child.name().value() != "tag"
-                || child.entries().len() != 1
-                || child.entries()[0].name().is_some()
-                || child.children().is_some()
-                || tag.is_none_or(|tag| tag.trim().is_empty())
-            {
-                return Err(miette::miette!(
-                    "item {} has malformed native tag",
-                    identifier
-                ));
+            let value = child.get(0).and_then(|value| value.as_string());
+            let kind = child.name().value();
+            let well_formed = child.entries().first().is_some_and(|e| e.name().is_none())
+                && child.children().is_none()
+                && value.is_some_and(|value| !value.trim().is_empty());
+            match kind {
+                "tag" if well_formed && child.entries().len() == 1 => {
+                    tags.insert(value.expect("validated tag").to_string());
+                }
+                "capability"
+                    if well_formed
+                        && child.entries().len() == 2
+                        && child.get("source").and_then(|s| s.as_string()).is_some() =>
+                {
+                    capabilities.insert(value.expect("validated capability").to_string());
+                }
+                _ => {
+                    return Err(miette::miette!(
+                        "item {} has malformed {} child",
+                        identifier,
+                        kind
+                    ));
+                }
             }
-            tags.insert(tag.expect("validated tag").to_string());
         }
     }
 
@@ -174,35 +235,28 @@ fn parse_item_node(node: &KdlNode) -> miette::Result<ParsedItem> {
             continue;
         }
         let value = entry.value();
-        let json = if let Some(value) = value.as_string() {
-            serde_json::Value::String(value.to_string())
+        let native = if let Some(value) = value.as_string() {
+            NativeValue::String(value.to_string())
         } else if let Some(value) = value.as_bool() {
-            serde_json::Value::Bool(value)
+            NativeValue::Bool(value)
         } else if let Some(value) = value.as_integer() {
-            let value = i64::try_from(value).map_err(|_| {
+            NativeValue::Integer(i64::try_from(value).map_err(|_| {
                 miette::miette!(
-                    "item {} property {} exceeds JSON integer range",
-                    identifier,
-                    name
-                )
-            })?;
-            serde_json::Value::Number(value.into())
-        } else if let Some(value) = value.as_float() {
-            serde_json::Value::Number(serde_json::Number::from_f64(value).ok_or_else(|| {
-                miette::miette!(
-                    "item {} property {} is not a finite JSON number",
+                    "item {} property {} exceeds the integer range",
                     identifier,
                     name
                 )
             })?)
+        } else if let Some(value) = value.as_float().filter(|value| value.is_finite()) {
+            NativeValue::Float(value)
         } else {
             return Err(miette::miette!(
-                "item {} property {} must be a native scalar",
+                "item {} property {} must be a finite native scalar",
                 identifier,
                 name
             ));
         };
-        if native_properties.insert(name, json).is_some() {
+        if native_properties.insert(name.to_string(), native).is_some() {
             return Err(miette::miette!(
                 "item {} has duplicate native property {}",
                 identifier,
@@ -210,13 +264,6 @@ fn parse_item_node(node: &KdlNode) -> miette::Result<ParsedItem> {
             ));
         }
     }
-    let native_properties_json = serde_json::to_string(&native_properties).map_err(|error| {
-        miette::miette!(
-            "item {} properties cannot be serialized: {}",
-            identifier,
-            error
-        )
-    })?;
 
     Ok(ParsedItem {
         identifier,
@@ -226,7 +273,8 @@ fn parse_item_node(node: &KdlNode) -> miette::Result<ParsedItem> {
         max_stack_size,
         max_stack_size_source,
         tags: tags.into_iter().collect(),
-        native_properties_json,
+        capabilities: capabilities.into_iter().collect(),
+        native_properties,
         component_nbt,
     })
 }
@@ -272,151 +320,287 @@ fn validate_items(items: &[ParsedItem]) -> miette::Result<()> {
     Ok(())
 }
 
-fn generate_items_module(items: &[ParsedItem], output_dir: &Path) -> miette::Result<()> {
-    let entries: Vec<TokenStream> = items
+/// The typed schema inferred from every row: one column per native property
+/// (all items must carry all of them) and one flag per inventory capability.
+#[derive(Debug, Clone, PartialEq)]
+struct ItemSchema {
+    /// Native spelling → column kind, in native key order.
+    native: BTreeMap<String, NativeKind>,
+    capabilities: BTreeSet<String>,
+}
+
+impl ItemSchema {
+    fn infer(items: &[ParsedItem]) -> miette::Result<Self> {
+        let mut native: BTreeMap<String, NativeKind> = BTreeMap::new();
+        for item in items {
+            for (key, value) in &item.native_properties {
+                let kind = value.kind();
+                let column = native.entry(key.clone()).or_insert(kind);
+                *column = match (*column, kind) {
+                    (a, b) if a == b => a,
+                    (NativeKind::Integer, NativeKind::Float)
+                    | (NativeKind::Float, NativeKind::Integer) => NativeKind::Float,
+                    (a, b) => {
+                        return Err(miette::miette!(
+                            "native item property {key} mixes {a:?} and {b:?} values"
+                        ));
+                    }
+                };
+            }
+        }
+        for item in items {
+            if let Some(missing) = native
+                .keys()
+                .find(|key| !item.native_properties.contains_key(*key))
+            {
+                return Err(miette::miette!(
+                    "item {} lacks native property {missing}",
+                    item.identifier
+                ));
+            }
+        }
+        let capabilities = items
+            .iter()
+            .flat_map(|item| item.capabilities.iter().cloned())
+            .collect();
+        let schema = Self {
+            native,
+            capabilities,
+        };
+        let mut fields = HashSet::new();
+        for field in FIXED_FIELDS
+            .iter()
+            .map(|field| field.to_string())
+            .chain(schema.native.keys().map(|key| native_field_name(key)))
+            .chain(
+                schema
+                    .capabilities
+                    .iter()
+                    .map(|name| capability_field_name(name)),
+            )
+        {
+            if !fields.insert(field.clone()) {
+                return Err(miette::miette!(
+                    "item schema field {field} is defined twice"
+                ));
+            }
+        }
+        Ok(schema)
+    }
+}
+
+/// Fields every row has, independent of the native column set.
+const FIXED_FIELDS: [&str; 7] = [
+    "identifier",
+    "network_id",
+    "component_based",
+    "version",
+    "max_stack_size",
+    "tags",
+    "component_nbt",
+];
+
+fn native_field_name(key: &str) -> String {
+    key.to_snake_case()
+}
+
+fn capability_field_name(capability: &str) -> String {
+    capability
+        .strip_prefix("minecraft:")
+        .unwrap_or(capability)
+        .to_snake_case()
+}
+
+/// Rows as compact JSON. Defaults are left out (`tags: []`, the empty
+/// component compound, false capabilities) to keep the embedded data small.
+fn generate_items_json(items: &[ParsedItem], schema: &ItemSchema) -> miette::Result<String> {
+    let rows: Vec<serde_json::Value> = items
         .iter()
-        .enumerate()
-        .map(|(id, item)| {
-            let const_name = item_const_ident(&item.identifier);
-            let id = id as u32;
-            let identifier = &item.identifier;
-            let network_id = item.network_id;
-            let component_based = item.component_based;
-            let version = item.version;
-            let max_stack_size = item.max_stack_size;
-            let max_stack_size_source = &item.max_stack_size_source;
-            let tags = &item.tags;
-            let native_properties_json = &item.native_properties_json;
-            let component_nbt = if item.component_nbt == EMPTY_COMPONENT_NBT {
-                quote! { EMPTY_COMPONENT_NBT }
-            } else {
-                let literal = proc_macro2::Literal::byte_string(&item.component_nbt);
-                quote! { #literal }
+        .map(|item| {
+            let mut row = serde_json::Map::new();
+            row.insert("identifier".into(), item.identifier.clone().into());
+            row.insert("network_id".into(), item.network_id.into());
+            row.insert("component_based".into(), item.component_based.into());
+            row.insert("version".into(), item.version.into());
+            row.insert("max_stack_size".into(), item.max_stack_size.into());
+            if !item.tags.is_empty() {
+                row.insert("tags".into(), item.tags.clone().into());
+            }
+            for capability in &item.capabilities {
+                row.insert(capability_field_name(capability), true.into());
+            }
+            if item.component_nbt != EMPTY_COMPONENT_NBT {
+                row.insert(
+                    "component_nbt".into(),
+                    base64::engine::general_purpose::STANDARD
+                        .encode(&item.component_nbt)
+                        .into(),
+                );
+            }
+            for (key, kind) in &schema.native {
+                row.insert(
+                    native_field_name(key),
+                    item.native_properties[key].to_json(*kind),
+                );
+            }
+            serde_json::Value::Object(row)
+        })
+        .collect();
+    let mut json = serde_json::to_string(&rows)
+        .map_err(|e| miette::miette!("Failed to serialize item rows: {}", e))?;
+    json.push('\n');
+    Ok(json)
+}
+
+fn generate_items_module(schema: &ItemSchema) -> miette::Result<String> {
+    let native_fields: Vec<TokenStream> = schema
+        .native
+        .iter()
+        .map(|(key, kind)| {
+            let field = format_ident!("{}", native_field_name(key));
+            let doc = format!(" Native `{key}`.");
+            let ty = match kind {
+                NativeKind::Bool => quote! { bool },
+                NativeKind::Integer => quote! { i32 },
+                NativeKind::Float => quote! { f32 },
+                NativeKind::String => quote! { String },
             };
             quote! {
-                pub const #const_name: ItemData = ItemData {
-                    id: #id,
-                    identifier: #identifier,
-                    network_id: #network_id,
-                    component_based: #component_based,
-                    version: #version,
-                    max_stack_size: #max_stack_size,
-                    max_stack_size_source: #max_stack_size_source,
-                    tags: &[#(#tags),*],
-                    native_properties_json: #native_properties_json,
-                    component_nbt: #component_nbt,
-                };
+                #[doc = #doc]
+                pub #field: #ty,
+            }
+        })
+        .collect();
+    let capability_fields: Vec<TokenStream> = schema
+        .capabilities
+        .iter()
+        .map(|capability| {
+            let field = format_ident!("{}", capability_field_name(capability));
+            let doc = format!(
+                " Inventory capability `{capability}` (protocolgen capability table and corrections)."
+            );
+            quote! {
+                #[doc = #doc]
+                #[serde(default)]
+                pub #field: bool,
             }
         })
         .collect();
 
-    let all_refs: Vec<TokenStream> = items
-        .iter()
-        .map(|item| {
-            let const_name = item_const_ident(&item.identifier);
-            quote! { #const_name }
-        })
-        .collect();
-    let identifier_match_arms: Vec<TokenStream> = items
-        .iter()
-        .map(|item| {
-            let identifier = &item.identifier;
-            let const_name = item_const_ident(identifier);
-            quote! { #identifier => Some(&#const_name) }
-        })
-        .collect();
-    let network_id_match_arms: Vec<TokenStream> = items
-        .iter()
-        .map(|item| {
-            let network_id = item.network_id;
-            let const_name = item_const_ident(&item.identifier);
-            quote! { #network_id => Some(&#const_name) }
-        })
-        .collect();
-    let count = all_refs.len();
-
     let code = quote! {
-        //! Generated item registry data from normalized protocolgen artifacts.
+        //! Item data schema generated from normalized protocolgen artifacts.
         //!
         //! This module is auto-generated by `unastar-data-codegen`.
         //! Do not edit manually.
         //!
-        //! IDs, stack sizes and gameplay properties come from the native item
-        //! table; packet registry metadata and component NBT come from
-        //! protocolgen's items.nbt, which matches BDS 1.26.51's ItemRegistryPacket.
+        //! The rows themselves live in `items.json` next to this file and are
+        //! decoded once, on first use (D2: schemas are generated, data is
+        //! embedded and decoded at startup). IDs, stack sizes and gameplay
+        //! properties come from the native item table with protocolgen's
+        //! reviewed corrections; packet registry metadata and component NBT come
+        //! from protocolgen's items.nbt, which matches BDS 1.26.51's
+        //! ItemRegistryPacket.
+
+        use std::collections::HashMap;
+        use std::sync::LazyLock;
 
         /// The unnamed empty network NBT compound BDS sends for items without
         /// registry component data.
         pub const EMPTY_COMPONENT_NBT: &[u8] = b"\x0a\x00\x00";
 
-        /// Source-attributed item registry row.
-        #[derive(Debug, Clone, Copy, PartialEq, Eq)]
+        /// One vanilla item row.
+        #[derive(Debug, Clone, PartialEq, serde::Deserialize)]
+        #[serde(deny_unknown_fields)]
         pub struct ItemData {
-            /// Internal registry ID assigned by deterministic codegen order.
-            ///
-            /// This is not a Bedrock packet/network item ID.
-            pub id: u32,
             /// Namespaced item identifier.
-            pub identifier: &'static str,
+            pub identifier: String,
             /// Signed protocol network ID from the native item table.
             pub network_id: i32,
             /// Whether the item is component-based in Bedrock's item registry.
             pub component_based: bool,
             /// Bedrock item registry version discriminator.
             pub version: i32,
-            /// Maximum stack size from the native item properties table.
+            /// Effective maximum stack size: the native table value, or the
+            /// reviewed item-class correction where the native value is a base
+            /// value BDS overrides (buckets).
             pub max_stack_size: u8,
-            /// Field-level source for `max_stack_size`.
-            pub max_stack_size_source: &'static str,
             /// Sorted, deduplicated tags from the native item table and tag index.
-            pub tags: &'static [&'static str],
-            /// Canonical JSON object containing additional native gameplay properties.
-            ///
-            /// Keys retain their native spelling (for example, `maxDamage`).
-            /// Registry metadata and fields exposed above are excluded.
-            pub native_properties_json: &'static str,
+            #[serde(default)]
+            pub tags: Vec<String>,
             /// `ItemRegistryPacket` component data as exact network NBT: an unnamed
             /// root compound, `{}` for most items, and the component compound BDS
             /// sends for component-based and legacy-JSON items.
-            pub component_nbt: &'static [u8],
+            #[serde(default = "empty_component_nbt", deserialize_with = "base64_bytes")]
+            pub component_nbt: Vec<u8>,
+            #(#capability_fields)*
+            #(#native_fields)*
         }
 
-        #(#entries)*
+        impl ItemData {
+            /// Whether the item carries `tag`.
+            pub fn has_tag(&self, tag: &str) -> bool {
+                self.tags.binary_search_by(|t| t.as_str().cmp(tag)).is_ok()
+            }
+        }
 
-        /// All generated item registry rows sorted by identifier.
-        pub static ALL_ITEMS: [ItemData; #count] = [
-            #(#all_refs),*
-        ];
+        fn empty_component_nbt() -> Vec<u8> {
+            EMPTY_COMPONENT_NBT.to_vec()
+        }
 
-        /// Look up an item by namespaced identifier.
+        fn base64_bytes<'de, D: serde::Deserializer<'de>>(deserializer: D) -> Result<Vec<u8>, D::Error> {
+            use base64::Engine as _;
+            let encoded = <String as serde::Deserialize>::deserialize(deserializer)?;
+            base64::engine::general_purpose::STANDARD
+                .decode(encoded)
+                .map_err(serde::de::Error::custom)
+        }
+
+        /// Embedded vanilla rows, sorted by identifier.
+        const VANILLA_ITEMS_JSON: &str = include_str!("items.json");
+
+        /// Decode the embedded vanilla rows.
+        pub fn decode_vanilla() -> Result<Vec<ItemData>, serde_json::Error> {
+            serde_json::from_str(VANILLA_ITEMS_JSON)
+        }
+
+        struct Vanilla {
+            rows: Vec<ItemData>,
+            by_identifier: HashMap<String, usize>,
+            by_network_id: HashMap<i32, usize>,
+        }
+
+        static VANILLA: LazyLock<Vanilla> = LazyLock::new(|| {
+            let rows = decode_vanilla().expect("embedded vanilla item rows decode");
+            let by_identifier = rows
+                .iter()
+                .enumerate()
+                .map(|(index, row)| (row.identifier.clone(), index))
+                .collect();
+            let by_network_id = rows
+                .iter()
+                .enumerate()
+                .map(|(index, row)| (row.network_id, index))
+                .collect();
+            Vanilla { rows, by_identifier, by_network_id }
+        });
+
+        /// All vanilla item rows sorted by identifier, decoded on first use.
+        pub fn vanilla() -> &'static [ItemData] {
+            &VANILLA.rows
+        }
+
+        /// Look up a vanilla item by namespaced identifier.
         pub fn get(identifier: &str) -> Option<&'static ItemData> {
-            match identifier {
-                #(#identifier_match_arms,)*
-                _ => None,
-            }
+            VANILLA.by_identifier.get(identifier).map(|&index| &VANILLA.rows[index])
         }
 
-        /// Look up an item by signed protocol network ID.
+        /// Look up a vanilla item by signed protocol network ID.
         pub fn by_network_id(network_id: i32) -> Option<&'static ItemData> {
-            match network_id {
-                #(#network_id_match_arms,)*
-                _ => None,
-            }
+            VANILLA.by_network_id.get(&network_id).map(|&index| &VANILLA.rows[index])
         }
     };
 
-    std::fs::write(output_dir.join("items.rs"), format_code(code)?)
-        .map_err(|e| miette::miette!("Failed to write items.rs: {}", e))?;
-
-    Ok(())
-}
-
-fn item_const_ident(identifier: &str) -> proc_macro2::Ident {
-    let name = identifier
-        .strip_prefix("minecraft:")
-        .unwrap_or(identifier)
-        .to_shouty_snake_case();
-    format_ident!("{}", name)
+    format_code(code)
 }
 
 fn format_code(code: TokenStream) -> miette::Result<String> {
@@ -471,24 +655,78 @@ mod tests {
     }
 
     #[test]
-    fn preserves_native_properties_and_canonical_tags() {
+    fn infers_typed_native_columns_and_writes_compact_rows() {
         let doc: KdlDocument = r#"item minecraft:boat runtime_id=382 component_based=#false version=2 max_stack_size=1 max_stack_size_source=protocolgen_native registry_metadata_source=protocolgen_registry descriptionId="item.boat" maxDamage=0 fireResistant=#false furnaceBurnIntervalModifier=1.5 {
             tag minecraft:boats
             tag minecraft:boat
             tag minecraft:boats
-        }"#.parse().unwrap();
-        let item = parse_item_node(&doc.nodes()[0]).unwrap();
-        assert_eq!(item.tags, ["minecraft:boat", "minecraft:boats"]);
-        let properties: serde_json::Value =
-            serde_json::from_str(&item.native_properties_json).unwrap();
+            capability minecraft:allow_offhand source=test
+        }
+        item minecraft:stick runtime_id=1 component_based=#false version=2 max_stack_size=64 max_stack_size_source=protocolgen_native descriptionId="item.stick" maxDamage=3 fireResistant=#true furnaceBurnIntervalModifier=0"#.parse().unwrap();
+        let items: Vec<ParsedItem> = doc
+            .nodes()
+            .iter()
+            .map(|node| parse_item_node(node).unwrap())
+            .collect();
+        assert_eq!(items[0].tags, ["minecraft:boat", "minecraft:boats"]);
+        let schema = ItemSchema::infer(&items).unwrap();
         assert_eq!(
-            properties,
-            serde_json::json!({
-                "descriptionId": "item.boat",
-                "maxDamage": 0,
-                "fireResistant": false,
-                "furnaceBurnIntervalModifier": 1.5
-            })
+            schema.native.into_iter().collect::<Vec<_>>(),
+            [
+                ("descriptionId".to_string(), NativeKind::String),
+                ("fireResistant".to_string(), NativeKind::Bool),
+                ("furnaceBurnIntervalModifier".to_string(), NativeKind::Float),
+                ("maxDamage".to_string(), NativeKind::Integer),
+            ]
+        );
+        let schema = ItemSchema::infer(&items).unwrap();
+        let rows: serde_json::Value =
+            serde_json::from_str(&generate_items_json(&items, &schema).unwrap()).unwrap();
+        assert_eq!(
+            rows,
+            serde_json::json!([
+                {
+                    "identifier": "minecraft:boat", "network_id": 382, "component_based": false,
+                    "version": 2, "max_stack_size": 1, "tags": ["minecraft:boat", "minecraft:boats"],
+                    "allow_offhand": true, "description_id": "item.boat", "fire_resistant": false,
+                    "furnace_burn_interval_modifier": 1.5, "max_damage": 0
+                },
+                {
+                    "identifier": "minecraft:stick", "network_id": 1, "component_based": false,
+                    "version": 2, "max_stack_size": 64, "description_id": "item.stick",
+                    "fire_resistant": true, "furnace_burn_interval_modifier": 0.0, "max_damage": 3
+                }
+            ])
+        );
+    }
+
+    #[test]
+    fn schema_rejects_missing_or_conflicting_native_columns() {
+        let parse = |input: &str| -> Vec<ParsedItem> {
+            let doc: KdlDocument = input.parse().unwrap();
+            doc.nodes()
+                .iter()
+                .map(|node| parse_item_node(node).unwrap())
+                .collect()
+        };
+        let base = "component_based=#false version=2 max_stack_size=1 max_stack_size_source=t";
+        let missing = parse(&format!(
+            "item a runtime_id=1 {base} maxDamage=1\nitem b runtime_id=2 {base}"
+        ));
+        assert!(
+            ItemSchema::infer(&missing)
+                .unwrap_err()
+                .to_string()
+                .contains("lacks native property")
+        );
+        let mixed = parse(&format!(
+            "item a runtime_id=1 {base} glint=#true\nitem b runtime_id=2 {base} glint=1"
+        ));
+        assert!(
+            ItemSchema::infer(&mixed)
+                .unwrap_err()
+                .to_string()
+                .contains("mixes")
         );
     }
 
@@ -510,7 +748,7 @@ mod tests {
             item.component_nbt,
             [0x0a, 0x00, 0x01, 0x01, b'a', 0x07, 0x00]
         );
-        assert_eq!(item.native_properties_json, "{}");
+        assert!(item.native_properties.is_empty());
         for bad in [
             r#"component_nbt="!""#,
             r#"component_nbt="AQA=""#,
@@ -527,6 +765,7 @@ mod tests {
             "tag",
             "unknown minecraft:boat",
             "tag minecraft:boat extra",
+            "capability minecraft:head",
         ] {
             let doc: KdlDocument = format!(
                 "item minecraft:boat runtime_id=382 component_based=#false version=2 max_stack_size=1 max_stack_size_source=protocolgen_native {{ {child}; }}"
@@ -546,7 +785,8 @@ mod tests {
                 max_stack_size: 64,
                 max_stack_size_source: "test".to_string(),
                 tags: Vec::new(),
-                native_properties_json: "{}".to_string(),
+                capabilities: Vec::new(),
+                native_properties: BTreeMap::new(),
                 component_nbt: EMPTY_COMPONENT_NBT.to_vec(),
             },
             ParsedItem {
@@ -557,7 +797,8 @@ mod tests {
                 max_stack_size: 64,
                 max_stack_size_source: "test".to_string(),
                 tags: Vec::new(),
-                native_properties_json: "{}".to_string(),
+                capabilities: Vec::new(),
+                native_properties: BTreeMap::new(),
                 component_nbt: EMPTY_COMPONENT_NBT.to_vec(),
             },
         ];
@@ -577,7 +818,8 @@ mod tests {
             max_stack_size: 64,
             max_stack_size_source: "test".to_string(),
             tags: Vec::new(),
-            native_properties_json: "{}".to_string(),
+            capabilities: Vec::new(),
+            native_properties: BTreeMap::new(),
             component_nbt: EMPTY_COMPONENT_NBT.to_vec(),
         }];
 
