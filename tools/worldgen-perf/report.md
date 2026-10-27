@@ -963,3 +963,20 @@ native AQ constructor regression also passes: seed0/block(7,-1) noise origin
 No performance samples or full-suite green claim follows from this interface
 work; the seven known storage failures were neither retried nor suppressed.
 
+### Genuine native base-column engine
+
+The generated `NativeColumnSampler::new(block_x,block_z,source)` owns one cell's
+two-Z interpolation planes and four/nine quart corner evaluations. It floor-divides
+signed block origins and shares the bulk material implementation through a typed
+AST transformation, with a forced empty structure marker. It neither extracts a
+finished chunk nor silently calls the old point sampler.
+
+Strict noise all-target/all-feature clippy and nine native regressions pass.
+The actual emitted 4x8 and 8x4 samplers cover nonlinear material evaluation,
+plane reuse, negative cell/chunk boundaries, quart-cache lookup and both Z
+batches of an End-width cell; base-column results exclude a deliberately nonzero
+source influence while bulk results include it. This establishes kernel/layout
+behavior, not all canonical three-dimension chunk outputs. Canonical emitter
+geometry handoff was requested from the Java owner before touching its files.
+No new timing sample, storage retry or golden/floor change was made.
+

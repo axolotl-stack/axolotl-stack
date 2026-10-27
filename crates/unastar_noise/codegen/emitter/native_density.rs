@@ -84,7 +84,7 @@ impl AotEmitter<'_> {
         let material = self.emit_node(&root);
         let material_statements = std::mem::take(&mut self.statements);
         let material_column = if self.column_context_used {
-            quote! { ColumnContext::new_native(block_x, block_z, self.noises, self.flat) }
+            quote! { ColumnContext::new_native(block_x, block_z, self.noises, self.flat()) }
         } else {
             quote! { ColumnContext::default() }
         };
@@ -103,7 +103,7 @@ impl AotEmitter<'_> {
             let function = format_ident!("compute_{}_native_cell", name);
             let method = format_ident!("{}", name);
             let column = if self.column_context_used {
-                quote! { ColumnContext::new_native(ctx.block_x, ctx.block_z, self.noises, self.flat) }
+                quote! { ColumnContext::new_native(ctx.block_x, ctx.block_z, self.noises, self.flat()) }
             } else {
                 quote! { ColumnContext::default() }
             };
@@ -126,13 +126,13 @@ impl AotEmitter<'_> {
                         z_in_cell as f64 / #cell_width_f64,
                     );
                     let column = #column;
-                    #function(&ctx, self.noises, self.flat, &column, &interpolated)
+                    #function(&ctx, self.noises, self.flat(), &column, &interpolated)
                 }
             });
         }
         self.read_interpolated_values = false;
         self.native_math = previous_native;
-        quote! {
+        let cell_tokens = quote! {
             pub const NATIVE_GEOMETRY: crate::native_density::NoiseGeometry = crate::native_density::NoiseGeometry {
                 min_y: #min_y, height: #height, cell_width: #cell_width, cell_height: #cell_height,
             };
@@ -150,12 +150,11 @@ impl AotEmitter<'_> {
                 [#(#vector_sources),*]
             }
             #[inline]
-            fn native_material_density(ctx: &FunctionContext, noises: &impl NoiseSource,
+            fn native_router_density(ctx: &FunctionContext, noises: &impl NoiseSource,
                 flat: &FlatCacheGrid, col: &ColumnContext,
                 interpolated: &[f64; #source_count]) -> f64 {
                 #(#material_statements)*
-                // Material rule wraps the router exactly once before cell caching.
-                (#material) + noises.sample_beardifier(ctx.block_x, ctx.block_y, ctx.block_z)
+                #material
             }
             #(#vein_functions)*
 
@@ -178,8 +177,18 @@ impl AotEmitter<'_> {
                 block_y: i32,
             }
             impl<'a, N: NoiseSource> NativeCellSampler<'a, N> {
+                #[inline]
+                fn flat(&self) -> &FlatCacheGrid { self.flat }
+                #[inline]
+                fn material_density(ctx: &FunctionContext, noises: &impl NoiseSource,
+                    flat: &FlatCacheGrid, col: &ColumnContext,
+                    interpolated: &[f64; #source_count]) -> f64 {
+                    native_router_density(ctx, noises, flat, col, interpolated)
+                        + noises.sample_beardifier(ctx.block_x, ctx.block_y, ctx.block_z)
+                }
                 pub fn new(chunk_x: i32, chunk_z: i32, flat: &'a FlatCacheGrid,
                     columns: &'a ColumnContextGrid, noises: &'a N) -> Self {
+                    assert!(N::NATIVE_JAVA, "native sampler requires a native arithmetic source");
                     Self { noises, flat, columns, interpolation: Default::default(),
                         material: [0.0; #cell_blocks], first_block_x: chunk_x * 16,
                         first_block_z: chunk_z * 16, cell_x: 0, cell_y: 0, cell_z: 0,
@@ -221,8 +230,8 @@ impl AotEmitter<'_> {
                                 );
                                 let index = (x * #cell_width as usize + z) * #cell_height as usize
                                     + (#cell_height as usize - 1 - y);
-                                self.material[index] = native_material_density(
-                                    &ctx, self.noises, self.flat, &col, &interpolated);
+                                self.material[index] = Self::material_density(
+                                    &ctx, self.noises, self.flat(), &col, &interpolated);
                             }
                         }
                     }
@@ -250,21 +259,54 @@ impl AotEmitter<'_> {
                 }
                 #(#vein_methods)*
             }
-        }
+        };
+        let column_tokens = self.emit_native_column_sampler(&cell_tokens, source_count, y_count);
+        quote! { #cell_tokens #column_tokens }
     }
 
     pub(super) fn emit_native_cell_regression(&mut self) -> TokenStream {
+        let narrow = self.emit_native_cell_geometry_regression(4, 8);
+        let wide = self.emit_native_cell_geometry_regression(8, 4);
+        quote! { #narrow #wide }
+    }
+
+    fn emit_native_cell_geometry_regression(
+        &mut self,
+        cell_width: i32,
+        cell_height: i32,
+    ) -> TokenStream {
+        let module_name = format_ident!(
+            "native_cell_{}_{}_codegen_tests",
+            cell_width as u32,
+            cell_height as u32
+        );
+        let xz_cells = (16 / cell_width) as usize;
+        let y_cells = (64 / cell_height) as usize;
+        let cell_width_usize = cell_width as usize;
         let argument = DensityFunctionArg::Inline(Box::new(DensityFunctionDef::Square {
             argument: DensityFunctionArg::Inline(Box::new(DensityFunctionDef::Interpolated {
-                argument: DensityFunctionArg::Inline(Box::new(DensityFunctionDef::Noise {
-                    noise: "minecraft:temperature".into(),
-                    xz_scale: 1.0,
-                    y_scale: 1.0,
+                argument: DensityFunctionArg::Inline(Box::new(DensityFunctionDef::Add {
+                    argument1: DensityFunctionArg::Inline(Box::new(DensityFunctionDef::Noise {
+                        noise: "minecraft:temperature".into(),
+                        xz_scale: 1.0,
+                        y_scale: 1.0,
+                    })),
+                    argument2: DensityFunctionArg::Inline(Box::new(
+                        DensityFunctionDef::FlatCache {
+                            argument: DensityFunctionArg::Inline(Box::new(
+                                DensityFunctionDef::Noise {
+                                    noise: "minecraft:temperature".into(),
+                                    xz_scale: 1.0,
+                                    y_scale: 0.0,
+                                },
+                            )),
+                        },
+                    )),
                 })),
             })),
         }));
         let graph = DependencyGraph::build(&[("final_density", &argument)], &HashMap::new());
-        let mut emitter = AotEmitter::new(&graph).with_geometry(-32, 64, 4, 8);
+        let mut emitter = AotEmitter::new(&graph).with_geometry(-32, 64, cell_width, cell_height);
         let flat = emitter.emit_flat_cache_grid();
         let column = emitter.emit_column_context();
         emitter.native_math = true;
@@ -273,7 +315,7 @@ impl AotEmitter<'_> {
         let kernel = emitter.emit_native_cell_sampler();
         quote! {
             #[cfg(test)]
-            mod native_cell_codegen_tests {
+            mod #module_name {
                 use super::*;
                 #flat
                 #column
@@ -320,27 +362,59 @@ impl AotEmitter<'_> {
                         let columns = ColumnContextGrid::new_native(chunk_x, chunk_z, &source, &flat);
                         let mut sampler = NativeCellSampler::new(chunk_x, chunk_z, &flat, &columns, &source);
                         sampler.initialize();
-                        for cell_x in 0..4 {
+                        for cell_x in 0..#xz_cells {
                             sampler.advance_cell_x(cell_x);
-                            for cell_z in 0..4 {
-                                for cell_y in (0..8).rev() {
+                            for cell_z in 0..#xz_cells {
+                                for cell_y in (0..#y_cells).rev() {
                                     sampler.select_cell_yz(cell_y, cell_z);
-                                    for local_y in (0..8).rev() {
-                                        let y = -32 + cell_y as i32 * 8 + local_y;
+                                    for local_y in (0..#cell_height).rev() {
+                                        let y = -32 + cell_y as i32 * #cell_height + local_y;
                                         sampler.update_y(y);
-                                        for local_x in 0..4 {
-                                            let x = chunk_x * 16 + cell_x as i32 * 4 + local_x;
+                                        for local_x in 0..#cell_width {
+                                            let x = chunk_x * 16 + cell_x as i32 * #cell_width + local_x;
                                             sampler.update_x(x);
-                                            let actual = sampler.densities_4z(0).to_array();
+                                            for z_batch in (0..#cell_width_usize).step_by(4) {
+                                            let actual = sampler.densities_4z(z_batch).to_array();
                                             let expected = std::array::from_fn(|lane| {
-                                                let z = chunk_z * 16 + cell_z as i32 * 4 + lane as i32;
-                                                let value = affine(f64::from(x), f64::from(y), f64::from(z));
+                                                let z = chunk_z * 16 + cell_z as i32 * #cell_width + z_batch as i32 + lane as i32;
+                                                let value = affine(f64::from(x), f64::from(y), f64::from(z))
+                                                    + affine(f64::from(x), 0.0, f64::from(z));
                                                 (value * value + f64::from(y.rem_euclid(3)) * 0.125).to_bits()
                                             });
                                             assert_eq!(actual.map(f64::to_bits), expected,
                                                 "native material chunk=({chunk_x},{chunk_z}) block=({x},{y}) cell_z={cell_z}");
+                                            }
                                         }
                                     }
+                                }
+                            }
+                        }
+                    }
+                }
+
+                #[test]
+                fn one_cell_columns_align_negative_origins_and_force_empty_beardifier() {
+                    for (x, z) in [(7_i32, -1_i32), (8, 4), (16, 16), (-1, -1), (-16, 17), (31, -17)] {
+                        let source = AffineNoise;
+                        let mut sampler = NativeColumnSampler::new(x, z, &source);
+                        sampler.initialize();
+                        sampler.advance_cell_x(0);
+                        for cell_y in (0..#y_cells).rev() {
+                            sampler.select_cell_yz(cell_y, 0);
+                            for local_y in (0..#cell_height).rev() {
+                                let y = -32 + cell_y as i32 * #cell_height + local_y;
+                                sampler.update_y(y);
+                                sampler.update_x(x);
+                                for z_batch in (0..#cell_width_usize).step_by(4) {
+                                let actual = sampler.densities_4z(z_batch).to_array();
+                                let expected = std::array::from_fn(|lane| {
+                                    let sample_z = z.div_euclid(#cell_width) * #cell_width + z_batch as i32 + lane as i32;
+                                    let value = affine(f64::from(x), f64::from(y), f64::from(sample_z))
+                                        + affine(f64::from(x), 0.0, f64::from(sample_z));
+                                    (value * value).to_bits()
+                                });
+                                assert_eq!(actual.map(f64::to_bits), expected,
+                                    "native empty-marker column=({x},{z}), y={y}");
                                 }
                             }
                         }

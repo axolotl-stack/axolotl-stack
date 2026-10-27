@@ -11,6 +11,8 @@ use proc_macro2::TokenStream;
 use quote::{format_ident, quote};
 use std::collections::HashMap;
 
+#[path = "native_column.rs"]
+mod native_column;
 #[path = "native_density.rs"]
 mod native_density;
 
@@ -290,6 +292,7 @@ pub struct AotEmitter<'a> {
     native_geometry: Option<(i32, i32, i32, i32)>,
     native_interpolation_slots: HashMap<NodeId, usize>,
     read_interpolated_values: bool,
+    native_column_width: Option<i32>,
 }
 
 impl<'a> AotEmitter<'a> {
@@ -329,6 +332,7 @@ impl<'a> AotEmitter<'a> {
             native_geometry: None,
             native_interpolation_slots: HashMap::new(),
             read_interpolated_values: false,
+            native_column_width: None,
         }
     }
 
@@ -830,6 +834,15 @@ impl<'a> AotEmitter<'a> {
             .map(|node| format!("fc_{}", node.id.0))
             .collect();
         let num_fields = debug_field_names.len();
+        let (first_qx, first_qz, sample_count) = if let Some(width) = self.native_column_width {
+            (
+                quote! { chunk_x >> 2 },
+                quote! { chunk_z >> 2 },
+                width / 4 + 1,
+            )
+        } else {
+            (quote! { chunk_x * 4 }, quote! { chunk_z * 4 }, 5)
+        };
 
         quote! {
             /// Pre-computed Y-independent values for the chunk.
@@ -874,8 +887,8 @@ impl<'a> AotEmitter<'a> {
                 /// - grid[0][4] = quart (first_qx+4, first_qz+0)
                 /// - grid[4][4] = quart (first_qx+4, first_qz+4)
                 pub fn new(chunk_x: i32, chunk_z: i32, noises: &impl NoiseSource) -> Self {
-                    let first_qx = chunk_x * 4;
-                    let first_qz = chunk_z * 4;
+                    let first_qx = #first_qx;
+                    let first_qz = #first_qz;
 
                     // Debug verification: Log grid initialization parameters
                     #[cfg(feature = "debug-worldgen")]
@@ -895,8 +908,8 @@ impl<'a> AotEmitter<'a> {
                         ..Default::default()
                     };
 
-                    for qz in 0..5i32 {
-                        for qx in 0..5i32 {
+                    for qz in 0..#sample_count {
+                        for qx in 0..#sample_count {
                             let bx = (first_qx + qx) * 4;
                             let bz = (first_qz + qz) * 4;
                             #[allow(unused_variables)]

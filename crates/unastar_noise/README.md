@@ -156,8 +156,8 @@ sampler's nonlinear material evaluation across negative chunks, descending Y,
 SIMD source batches and plane reuse. Native material adds the mandatory
 `NoiseSource::sample_beardifier(x,y,z)` contribution once after the router root,
 inside the material cell cache. Plain sources explicitly return zero; structured
-sources must supply their engine. Full native structure influence, native column
-construction and the three-dimension runtime cutover remain separate gates.
+sources must supply their engine. Full native structure influence and the
+three-dimension runtime cutover remain separate gates.
 
 `NoiseSource::NATIVE_JAVA` is mandatory and statically selects the aquifer's
 native cache constructors and root functions. `NoiseBasedAquifer` accepts a typed
@@ -167,6 +167,16 @@ which retains only the positional factory, with a toggle value and lazy ridged/g
 callbacks from the active cell sampler. It allocates no second corner grid.
 Native richness comparison promotes the RNG's f32 draw to f64 rather than
 rounding the threshold down to f32.
+
+`NativeColumnSampler::new(block_x, block_z, source)` owns the genuine
+one-horizontal-cell profile: floor-divided block origins, two Z columns of source
+planes, and just four quart evaluations for 4-wide cells or nine for 8-wide cells.
+Its material engine is derived from the bulk sampler through typed AST changes,
+not a second hand-maintained implementation. Base columns always use the empty
+Beardifier marker, even if the supplied source also supports structures.
+`initialize`, `advance_cell_x(0)`, `select_cell_yz(y,0)`, absolute X/Y updates and
+`densities_4z` expose the same cell traversal contract; 8-wide cells use Z batches
+0 and 4. This is not full-chunk generation followed by column extraction.
 
 ## Block identity
 
