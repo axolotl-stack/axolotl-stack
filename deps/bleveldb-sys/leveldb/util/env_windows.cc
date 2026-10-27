@@ -556,32 +556,12 @@ class WindowsEnv : public Env {
   }
 
   Status RenameFile(const std::string& from, const std::string& to) override {
-    // Try a simple move first. It will only succeed when |to| doesn't already
-    // exist.
-    if (::MoveFileA(from.c_str(), to.c_str())) {
-      return Status::OK();
+    // Rename the source over the destination, without merging destination
+    // metadata or requiring write access to the source as ReplaceFile does.
+    if (!::MoveFileExA(from.c_str(), to.c_str(), MOVEFILE_REPLACE_EXISTING)) {
+      return WindowsError(from, ::GetLastError());
     }
-    DWORD move_error = ::GetLastError();
-
-    // Try the full-blown replace if the move fails, as ReplaceFile will only
-    // succeed when |to| does exist. When writing to a network share, we may not
-    // be able to change the ACLs. Ignore ACL errors then
-    // (REPLACEFILE_IGNORE_MERGE_ERRORS).
-    if (::ReplaceFileA(to.c_str(), from.c_str(), /*lpBackupFileName=*/nullptr,
-                       REPLACEFILE_IGNORE_MERGE_ERRORS,
-                       /*lpExclude=*/nullptr, /*lpReserved=*/nullptr)) {
-      return Status::OK();
-    }
-    DWORD replace_error = ::GetLastError();
-    // In the case of FILE_ERROR_NOT_FOUND from ReplaceFile, it is likely that
-    // |to| does not exist. In this case, the more relevant error comes from the
-    // call to MoveFile.
-    if (replace_error == ERROR_FILE_NOT_FOUND ||
-        replace_error == ERROR_PATH_NOT_FOUND) {
-      return WindowsError(from, move_error);
-    } else {
-      return WindowsError(from, replace_error);
-    }
+    return Status::OK();
   }
 
   Status LockFile(const std::string& filename, FileLock** lock) override {
