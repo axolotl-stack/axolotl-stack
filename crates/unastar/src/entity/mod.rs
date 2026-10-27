@@ -9,6 +9,7 @@ pub mod components;
 pub mod damage;
 pub mod definition;
 mod definition_stack;
+pub mod flags;
 pub mod item_drop;
 pub mod metadata;
 pub mod properties;

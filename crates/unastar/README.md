@@ -194,6 +194,16 @@ spawn/tick/session-channel smoke encoded/decoded all 13 native property schemas
 and an ECS attribute update from a replayed instance. This is not production
 cow/chicken/zombie gameplay or ten-summon acceptance.
 
+`entity::flags::ActorFlags` stores generated catalogue bit indices across three
+fixed words, with allocation-free numeric updates, independent snapshots and
+dirty revisions. `register_component_kinds` binds the baby/climb/hidden/legacy-
+friction/uniform-air-drag marker effects to the existing composition factories;
+apply/remove does no JSON or name lookup. Actual `GameServer` ticks exercised
+extended bits127/128/129, deferred group materialization, destructive shadowed-
+base removal and preservation of unrelated flags. Empty storage is not a
+vanilla constructor default; intrinsic class flags and third-word wire binding
+remain separate native-data decisions.
+
 
 ### Measured item and falling-block motion
 
