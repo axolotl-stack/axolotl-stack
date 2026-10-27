@@ -75,6 +75,19 @@ treeification and iteration order; node storage and ordering are unchanged.
 Block rotation snapshots the four original horizontal connection values into
 an array before writing rotated properties, without a per-block scratch Vec.
 
+## Native End density primitive
+
+`end_islands::EndIslands::new(seed)` constructs the native legacy stream and
+simplex permutation once. `sample(block_x, block_z)` returns the Y-independent
+horizontal density; `sample_array` preserves scalar bits per lane without heap
+allocation. Callers should initialize this only when an End router reaches it,
+not eagerly for every Overworld noise registry.
+
+The two native-bit regressions passed 528 measured Java 1.21.11 samples across
+eight seeds, including disjoint holdouts, signed division boundaries, distant
+float precision, wrapping radial squares and both i32 endpoints. This verifies
+the primitive, not End router wiring or finished End chunks.
+
 ## Block identity
 
 Generated code works in Bedrock runtime ids (`u32`, the canonical 1.26.51 palette ordinals
