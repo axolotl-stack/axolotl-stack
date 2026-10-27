@@ -693,7 +693,7 @@ fn add_cellar(pt: &Painter<'_>, w: &mut dyn FeatureWorld) {
     pt.set(w, stair, 13, -1, 17);
     pt.set(w, stair, 14, -2, 17);
     pt.set(w, stair, 15, -3, 17);
-    let flag = w.region_random().next_long() & 1 != 0;
+    let flag = w.region_random().next_bool();
     pt.set(w, sand, i - 4, j + 4, k + 4);
     pt.set(w, sand, i - 3, j + 4, k + 4);
     pt.set(w, sand, i - 2, j + 4, k + 4);

@@ -15,35 +15,32 @@
 //! Piece placement follows Java per chunk with the same random draws:
 //! air carving, cobwebs (spider corridors with a cave spider spawner), oak or
 //! dark oak supports, plank floors over non-sturdy ground, rails only over
-//! solid blocks, wooden pillars down to sturdy ground or chains up to a
-//! ceiling, and the liquid / `#mineshaft_blocking` biome bail-out.
+//! solid blocks, wooden pillars down to sturdy ground or chains up to native
+//! bottom-center support, and the liquid / `#mineshaft_blocking` biome bail-out.
 //!
-//! Approximations (framework limits):
+//! Runtime boundaries and placement state:
 //! - Chest minecarts are entities: the rail and the minecart's loot seed
 //!   (`nextLong()`) are drawn and placed as in Java, the entity itself is
 //!   spawned by the runtime later.
 //! - Spawners only record their entity (`minecraft:cave_spider`); spawn data
 //!   draws nothing in Java either.
-//! - `Block.canSupportCenter(DOWN)` (chain hanging) is approximated by a
-//!   sturdy bottom face.
 //! - Java marks placed fences and wall torches for neighbour-shape
 //!   post-processing when the chunk is promoted; that pass belongs to the
 //!   runtime.
-//! - Java remembers on the corridor that its cave spider spawner was placed,
-//!   so the first decorated chunk whose box holds the drawn position wins and
-//!   later chunks skip the draw. Decoration order is not fixed in unastar
-//!   (output is a pure function of seed and chunk), so the spawner is placed
-//!   only by the chunk containing the corridor's centre column; every chunk
-//!   makes the draws Java makes before a spawner exists.
+//! - Cave spider placement retains Java's mutable per-corridor flag: the first
+//!   decorated chunk containing an interior candidate wins, and later chunks
+//!   no longer consume the candidate-position random draw.
 
 use crate::features::eval::BlockEntityData;
 use crate::features::java_blocks::{blocks as b, states};
 use crate::features::random::{FeatureRandom, LegacyRandom};
+use crate::features::shape::supports_center;
 use crate::features::{BlockPos, Direction, FeatureWorld, Heightmap, JavaBlock, JavaState};
 use crate::structures::context::StructureContext;
 use crate::structures::piece::{PieceBase, StructurePiece, is_replaceable_by_structures};
 use crate::structures::start::{GenContext, GenerationStub, StructureKind};
 use crate::structures::transform::BoundingBox;
+use std::sync::atomic::{AtomicBool, Ordering};
 
 /// Highest generation depth a branch may start from (`MAX_DEPTH`).
 const MAX_DEPTH: i32 = 8;
@@ -1068,6 +1065,7 @@ pub struct MineshaftCorridor {
     shaft: Shaft,
     has_rails: bool,
     spider_corridor: bool,
+    has_placed_spider: AtomicBool,
     num_sections: i32,
 }
 
@@ -1092,6 +1090,7 @@ impl MineshaftCorridor {
             shaft: Shaft { base, ty },
             has_rails,
             spider_corridor,
+            has_placed_spider: AtomicBool::new(false),
             num_sections,
         }
     }
@@ -1340,12 +1339,13 @@ fn fill_column_between(
     }
 }
 
-/// `canHangChainBelow`: a supporting bottom face that is not a falling block.
+/// `canHangChainBelow`: native bottom-center support, excluding falling blocks.
 fn can_hang_chain_below(s: JavaState) -> bool {
-    s.is_face_sturdy(Direction::Down)
+    supports_center(s, Direction::Down)
         && !matches!(
             s.block().def().kind,
             "minecraft:colored_falling"
+                | "minecraft:sand"
                 | "minecraft:concrete_powder"
                 | "minecraft:anvil"
                 | "minecraft:dragon_egg"
@@ -1401,9 +1401,6 @@ impl StructurePiece for MineshaftCorridor {
             );
         }
 
-        let mut placed_spider = false;
-        let c = s.base.bbox.center();
-        let spawner_chunk_probe = BlockPos::new(c.x, bx.min_y, c.z);
         for n in 0..self.num_sections {
             let o = 2 + n * 5;
             self.place_support(world, bx, 0, 0, o, 2, 2, rng);
@@ -1421,15 +1418,15 @@ impl StructurePiece for MineshaftCorridor {
             if rng.next_int_bounded(100) == 0 {
                 self.create_minecart_chest(world, bx, rng, 0, 0, o + 1);
             }
-            if self.spider_corridor && !placed_spider {
+            if self.spider_corridor && !self.has_placed_spider.load(Ordering::Relaxed) {
                 let q = o - 1 + rng.next_int_bounded(3);
                 let pos = s.base.world_pos(1, 0, q);
                 if bx.is_inside(pos) && s.base.is_interior(world, 1, 0, q, bx) {
-                    placed_spider = true;
-                    // Java keeps a "placed" flag on the piece across chunks, so the
-                    // first decorated chunk wins. Decoration order is not fixed here,
-                    // so only the chunk holding the corridor's centre may place it.
-                    if bx.is_inside(spawner_chunk_probe) && world.set_state(pos, states::SPAWNER) {
+                    // Java sets the piece flag before attempting the block write.
+                    // It survives every subsequent chunk's decoration and gates
+                    // the nextInt(3) draw, not just placement of the spawner.
+                    self.has_placed_spider.store(true, Ordering::Relaxed);
+                    if world.set_state(pos, states::SPAWNER) {
                         world.set_block_entity(pos, BlockEntityData::spawner(SPAWNER_ENTITY));
                     }
                 }
@@ -1942,5 +1939,150 @@ mod tests {
         };
         place_all(&mut world, &ctx, &pieces);
         assert!(world.blocks.is_empty());
+    }
+
+    /// Native rows are copied unchanged from the pinned all-state physics
+    /// capture; `fhs$a.b(dwr,is,eoh)` additionally excludes FallingBlock.
+    #[test]
+    fn chain_hanging_matches_native_center_support_rows() {
+        let fixture: serde_json::Value = serde_json::from_str(include_str!(
+            "../../../tests/data/native_mineshaft_support_1_21_11.json"
+        ))
+        .unwrap();
+        for row in fixture["cases"].as_array().unwrap() {
+            let state = JavaState(row["id"].as_u64().unwrap() as u16);
+            assert_eq!(state.block().name(), row["block"].as_str().unwrap());
+            for property in row["properties"].as_array().unwrap() {
+                assert_eq!(
+                    state.value(property[0].as_str().unwrap()),
+                    property[1].as_str()
+                );
+            }
+            assert_eq!(
+                state.is_face_sturdy(Direction::Down),
+                row["flags"].as_u64().unwrap() & 1 != 0,
+                "{state}"
+            );
+            assert_eq!(
+                crate::java_blocks::SHAPE_CENTER_SUPPORT_FLAGS[state.0 as usize] as u64,
+                row["center_support_flags"].as_u64().unwrap(),
+                "{state}"
+            );
+            assert_eq!(
+                can_hang_chain_below(state),
+                row["can_hang_chain"].as_bool().unwrap(),
+                "{state}"
+            );
+        }
+    }
+
+    fn spider_corridor() -> MineshaftCorridor {
+        let mut corridor = MineshaftCorridor::new(
+            0,
+            &mut LegacyRandom::new(0),
+            BoundingBox::new(0, 10, 0, 2, 12, 19),
+            Direction::South,
+            MineshaftType::Normal,
+        );
+        corridor.has_rails = false;
+        corridor.spider_corridor = true;
+        corridor
+    }
+
+    #[test]
+    fn chain_hangs_from_native_dripstone_center_not_full_face() {
+        let corridor = spider_corridor();
+        let floor = corridor.shaft.base.world_pos(0, -1, 2);
+        let anchor = floor.offset(0, 5, 0);
+        let dripstone = states::POINTED_DRIPSTONE
+            .with("thickness", "base")
+            .with("vertical_direction", "down")
+            .with("waterlogged", "false");
+        assert!(!dripstone.is_face_sturdy(Direction::Down));
+        let mut world = TestWorld::default();
+        world.blocks.insert(floor, states::OAK_PLANKS);
+        world.blocks.insert(anchor, dripstone);
+        corridor.fill_pillar_down_or_chain_up(
+            &mut world,
+            states::OAK_LOG,
+            0,
+            -1,
+            2,
+            &BoundingBox::chunk(0, 0, -64, 319),
+        );
+        assert_eq!(world.get_state(floor.above()), states::OAK_FENCE);
+        for y in floor.y + 2..anchor.y {
+            assert_eq!(world.get_state(floor.with_y(y)), states::IRON_CHAIN);
+        }
+        assert_eq!(world.get_state(anchor), dripstone);
+        assert_eq!(world.get_state(floor.below()), states::AIR);
+    }
+
+    /// Pinned `fhs$a.postProcess` offsets 368..439 gate nextInt(3) on the
+    /// persistent piece flag and set that flag before the spawner write.
+    #[test]
+    fn first_decorated_spider_chunk_wins_and_later_chunks_skip_candidate_draws() {
+        let corridor = spider_corridor();
+        let ctx = Flat { seed: 0, surface: 80 };
+        let mut world = TestWorld::flat(80);
+        let first_box = BoundingBox::chunk(0, 1, -64, 319);
+        assert!(!first_box.is_inside(corridor.bbox().center()));
+        corridor.post_process(
+            &mut world,
+            &ctx,
+            &mut FeatureRandom::new(0),
+            &first_box,
+            (0, 1),
+            BlockPos::new(0, 0, 16),
+        );
+        assert!(corridor.has_placed_spider.load(Ordering::Relaxed));
+        assert_eq!(world.block_entities.len(), 1);
+        let (spawner, data) = &world.block_entities[0];
+        assert!(first_box.is_inside(*spawner));
+        assert_eq!(data.spawner_entity, Some(SPAWNER_ENTITY));
+
+        // A fresh loaded native piece with hps=true must consume the same
+        // random stream as the piece mutated by the first chunk above.
+        let loaded = spider_corridor();
+        loaded.has_placed_spider.store(true, Ordering::Relaxed);
+        let mut expected_world = world.clone();
+        let mut rng = FeatureRandom::new(1);
+        let mut expected_rng = rng.clone();
+        let second_box = BoundingBox::chunk(0, 0, -64, 319);
+        for (piece, target, random) in [
+            (&corridor, &mut world, &mut rng),
+            (&loaded, &mut expected_world, &mut expected_rng),
+        ] {
+            piece.post_process(
+                target,
+                &ctx,
+                random,
+                &second_box,
+                (0, 0),
+                BlockPos::new(0, 0, 0),
+            );
+        }
+        assert_eq!(world.block_entities.len(), 1);
+        assert_eq!(world.blocks, expected_world.blocks);
+        assert_eq!(rng.next_long(), expected_rng.next_long());
+    }
+
+    #[test]
+    fn spider_flag_commits_before_rejected_world_write() {
+        let corridor = spider_corridor();
+        let ctx = Flat { seed: 0, surface: 80 };
+        let mut world = TestWorld::flat(80);
+        world.writable = Some((0, 0, 2, 15));
+        corridor.post_process(
+            &mut world,
+            &ctx,
+            &mut FeatureRandom::new(0),
+            &BoundingBox::chunk(0, 1, -64, 319),
+            (0, 1),
+            BlockPos::new(0, 0, 16),
+        );
+        assert!(corridor.has_placed_spider.load(Ordering::Relaxed));
+        assert!(world.blocks.is_empty());
+        assert!(world.block_entities.is_empty());
     }
 }

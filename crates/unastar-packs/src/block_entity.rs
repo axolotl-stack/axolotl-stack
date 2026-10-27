@@ -23,6 +23,7 @@ fn native_id(id: &str) -> CompileResult<&'static str> {
     Ok(match id {
         "Chest" | "minecraft:chest" | "minecraft:trapped_chest" => "Chest",
         "Barrel" | "minecraft:barrel" => "Barrel",
+        "Beacon" | "minecraft:beacon" => "Beacon",
         "Dispenser" | "minecraft:dispenser" => "Dispenser",
         "Dropper" | "minecraft:dropper" => "Dropper",
         "MobSpawner" | "minecraft:mob_spawner" | "minecraft:spawner" => "MobSpawner",
@@ -44,8 +45,8 @@ fn native_id(id: &str) -> CompileResult<&'static str> {
         "Skull" | "minecraft:skull" => "Skull",
         "Comparator" | "minecraft:comparator" => "Comparator",
         "SculkSensor" | "minecraft:sculk_sensor" => "SculkSensor",
-        "SculkCatalyst" => "SculkCatalyst",
-        "SculkShrieker" => "SculkShrieker",
+        "SculkCatalyst" | "minecraft:sculk_catalyst" => "SculkCatalyst",
+        "SculkShrieker" | "minecraft:sculk_shrieker" => "SculkShrieker",
         // Native actor identifier: https://minecraft.wiki/w/Copper_Golem_Statue#ID
         "CopperGolemStatue" | "minecraft:copper_golem_statue" => "CopperGolemStatue",
         "minecraft:creaking_heart" => "minecraft:creaking_heart",
@@ -53,6 +54,23 @@ fn native_id(id: &str) -> CompileResult<&'static str> {
         "StructureBlock" | "minecraft:structure_block" => "StructureBlock",
         "BrushableBlock" | "minecraft:brushable_block" => "BrushableBlock",
         "ShulkerBox" | "minecraft:shulker_box" => "ShulkerBox",
+        // Explicit Bedrock actor identities, not casing rules applied to an
+        // arbitrary Java id. See https://minecraft.wiki/w/Block_entity and the
+        // Bedrock savegame-id tables on the corresponding block pages.
+        "Beehive" | "minecraft:beehive" => "Beehive",
+        "CalibratedSculkSensor" | "minecraft:calibrated_sculk_sensor" => "CalibratedSculkSensor",
+        "ChiseledBookshelf" | "minecraft:chiseled_bookshelf" => "ChiseledBookshelf",
+        "CommandBlock" | "minecraft:command_block" => "CommandBlock",
+        "Conduit" | "minecraft:conduit" => "Conduit",
+        "Crafter" | "minecraft:crafter" => "Crafter",
+        "DaylightDetector" | "minecraft:daylight_detector" => "DaylightDetector",
+        "EnchantTable" | "minecraft:enchanting_table" => "EnchantTable",
+        "EndGateway" | "minecraft:end_gateway" => "EndGateway",
+        "EndPortal" | "minecraft:end_portal" => "EndPortal",
+        "HangingSign" | "minecraft:hanging_sign" => "HangingSign",
+        "JigsawBlock" | "minecraft:jigsaw" => "JigsawBlock",
+        "Jukebox" | "minecraft:jukebox" => "Jukebox",
+        "Shelf" | "minecraft:shelf" => "Shelf",
         _ => return Err(format!("unsupported block actor id {id:?}").into()),
     })
 }

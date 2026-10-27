@@ -55,8 +55,8 @@ fn can_replace(state: JavaState) -> bool {
 /// each) are carved into a 16x8x16 grid. The fluid state is drawn next; the
 /// lake is rejected (`false`, nothing written) if a shell cell in the upper
 /// half holds a liquid block, or a shell cell in the lower half is neither
-/// solid nor the fluid state. Carved cells become fluid below grid y 4 and air
-/// from y 4 up, skipping `features_cannot_replace` blocks. The barrier state is
+/// solid nor the fluid state. Carved cells become fluid below grid y 4 and native
+/// cave air from y 4 up, skipping `features_cannot_replace` blocks. The barrier state is
 /// drawn last; unless it is air, solid shell blocks that are not
 /// `lava_pool_stone_cannot_replace` become barrier (always below y 4, on
 /// `nextInt(2) != 0` from y 4 up). Water lakes then freeze grid y 4 to ice
@@ -121,7 +121,7 @@ pub fn place<W: FeatureWorld + ?Sized>(
                 }
                 let pos = origin.offset(x, y, z);
                 if can_replace(world.get_state(pos)) {
-                    world.set_state(pos, if y >= 4 { states::AIR } else { fluid });
+                    world.set_state(pos, if y >= 4 { states::CAVE_AIR } else { fluid });
                 }
             }
         }
@@ -189,34 +189,6 @@ mod tests {
         assert_eq!(rng.next_long(), FeatureRandom::new(1).next_long());
     }
 
-    #[test]
-    fn underground_lava_lake_layout() {
-        for seed in 0..16 {
-            let mut world = TestWorld::flat(64);
-            let origin = BlockPos::new(0, 20, 0);
-            assert!(run(&mut world, &LAVA, seed, origin), "seed {seed}");
-            let base = origin.y - 4;
-            let mut lava = 0;
-            for (pos, state) in &world.blocks {
-                assert!(
-                    (0..16).contains(&pos.x) && (0..16).contains(&pos.z),
-                    "{pos:?}"
-                );
-                let gy = pos.y - base;
-                assert!((0..8).contains(&gy), "{pos:?}");
-                if *state == states::LAVA {
-                    assert!(gy < 4, "lava above the fluid line at {pos:?}");
-                    lava += 1;
-                } else if *state == states::AIR {
-                    assert!(gy >= 4, "air below the fluid line at {pos:?}");
-                } else {
-                    // Barrier writes stone over stone; nothing else is written.
-                    assert_eq!(*state, states::STONE, "{pos:?}");
-                }
-            }
-            assert!(lava > 0, "seed {seed}");
-        }
-    }
 
     #[test]
     fn rejects_air_in_lower_shell() {

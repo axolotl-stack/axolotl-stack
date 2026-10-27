@@ -1,14 +1,13 @@
-//! Build-time view of `java_data/`: Java block states, their Bedrock runtime ids and
-//! their block classes.
+//! Build-time canonical Java states, native physics, and the final Bedrock mapping.
 //!
-//! Emitters resolve Java block states (`{"Name": ..., "Properties": {...}}` in worldgen
-//! JSON) through [`JavaBlocks::resolve`] and emit the Bedrock runtime id as a literal, so
-//! generated code never looks a block up at run time.
+//! Worldgen JSON resolves to canonical Java state ids. Generation keeps every source
+//! property; the separate Bedrock table is consumed only at the edition boundary.
 
 use std::collections::{BTreeMap, HashMap};
 use std::path::Path;
 
 use serde::Deserialize;
+use sha2::{Digest, Sha256};
 
 /// Block-class bits; must match `src/block_class.rs`.
 pub mod class {
@@ -43,10 +42,26 @@ struct BedrockFile {
     bedrock_ordinals: Vec<u32>,
 }
 
+
 #[derive(Deserialize)]
-struct CollisionsFile {
-    shapes: Vec<Vec<[f64; 6]>>,
-    indices: Vec<u32>,
+struct PhysicsFile {
+    java_version: String,
+    flags_sha256: String,
+    wall_above_flags_sha256: String,
+    center_support_flags_sha256: String,
+    behavior_flags_sha256: String,
+    states: Vec<PhysicsState>,
+}
+
+#[derive(Deserialize)]
+struct PhysicsState {
+    id: u32,
+    block: String,
+    properties: Vec<(String, String)>,
+    flags: u8,
+    wall_above_flags: u8,
+    center_support_flags: u8,
+    behavior_flags: u8,
 }
 
 /// Java block states of the pinned version.
@@ -56,10 +71,14 @@ pub struct JavaBlocks {
     by_name: HashMap<String, usize>,
     bedrock: Vec<u32>,
     classes: Vec<u8>,
+    shape_support: Vec<u8>,
+    shape_wall_above: Vec<u8>,
+    shape_center_support: Vec<u8>,
+    state_physics: Vec<u8>,
 }
 
 impl JavaBlocks {
-    /// Load `blocks.json`, `bedrock_blocks.json` and `collisions.json` from `dir`.
+    /// Load canonical states, validated native physics, and the Bedrock mapping.
     pub fn load(dir: &Path) -> Result<Self, String> {
         let read = |name: &str| {
             std::fs::read_to_string(dir.join(name)).map_err(|e| format!("{name}: {e}"))
@@ -68,8 +87,8 @@ impl JavaBlocks {
             serde_json::from_str(&read("blocks.json")?).map_err(|e| format!("blocks.json: {e}"))?;
         let bedrock: BedrockFile = serde_json::from_str(&read("bedrock_blocks.json")?)
             .map_err(|e| format!("bedrock_blocks.json: {e}"))?;
-        let collisions: CollisionsFile = serde_json::from_str(&read("collisions.json")?)
-            .map_err(|e| format!("collisions.json: {e}"))?;
+        let physics: PhysicsFile = serde_json::from_str(&read("block_physics.json")?)
+            .map_err(|e| format!("block_physics.json: {e}"))?;
         if blocks.java_version != bedrock.java_version {
             return Err(format!(
                 "java_data mixes Java {} block states with a Java {} Bedrock mapping",
@@ -77,10 +96,28 @@ impl JavaBlocks {
             ));
         }
         let state_count = bedrock.bedrock_ordinals.len();
-        if collisions.indices.len() != state_count {
-            return Err(
-                "collisions.json and bedrock_blocks.json disagree on the state count".into(),
-            );
+        if physics.java_version != blocks.java_version || physics.states.len() != state_count {
+            return Err("block_physics.json disagrees with the pinned Java version/state count".into());
+        }
+        let mut shape_support = Vec::with_capacity(state_count);
+        let mut shape_wall_above = Vec::with_capacity(state_count);
+        let mut shape_center_support = Vec::with_capacity(state_count);
+        let mut state_physics = Vec::with_capacity(state_count);
+        for (id, state) in physics.states.iter().enumerate() {
+            if state.id as usize != id {
+                return Err(format!("block_physics.json has an invalid state id at {id}"));
+            }
+            shape_support.push(state.flags);
+            shape_wall_above.push(state.wall_above_flags);
+            shape_center_support.push(state.center_support_flags);
+            state_physics.push(state.behavior_flags);
+        }
+        if format!("{:x}", Sha256::digest(&shape_support)) != physics.flags_sha256
+            || format!("{:x}", Sha256::digest(&shape_wall_above)) != physics.wall_above_flags_sha256
+            || format!("{:x}", Sha256::digest(&shape_center_support)) != physics.center_support_flags_sha256
+            || format!("{:x}", Sha256::digest(&state_physics)) != physics.behavior_flags_sha256
+        {
+            return Err("block_physics.json native physics checksum mismatch".into());
         }
 
         let mut classes = vec![0u8; state_count];
@@ -91,8 +128,15 @@ impl JavaBlocks {
             for offset in 0..count {
                 let id = block.first_id as usize + offset;
                 let props = decode_state(block, offset);
-                let shape = &collisions.shapes[collisions.indices[id] as usize];
-                classes[id] = classify(&block.name, &props, shape);
+                let native = &physics.states[id];
+                if native.block != block.name || native.properties.len() != props.len()
+                    || !native.properties.iter().all(|(key, value)| props.get(key) == Some(value))
+                {
+                    return Err(format!("block_physics.json state {id} identity disagrees with blocks.json"));
+                }
+                classes[id] = classify(
+                    &block.name, &props, native.flags & 0x80 != 0, native.behavior_flags & 0x10 != 0,
+                );
             }
         }
         Ok(Self {
@@ -101,17 +145,16 @@ impl JavaBlocks {
             by_name,
             bedrock: bedrock.bedrock_ordinals,
             classes,
+            shape_support,
+            shape_wall_above,
+            shape_center_support,
+            state_physics,
         })
     }
 
     /// Number of Java block states.
     pub fn state_count(&self) -> usize {
         self.bedrock.len()
-    }
-
-    /// Bedrock runtime id of a Java state id.
-    pub fn bedrock(&self, java_id: u32) -> u32 {
-        self.bedrock[java_id as usize]
     }
 
     /// Every Java block, in state id order.
@@ -138,6 +181,26 @@ impl JavaBlocks {
     /// Class flags of every Java state, in Java state id order.
     pub fn class_table(&self) -> &[u8] {
         &self.classes
+    }
+
+    /// Actual native sturdy faces D/U/N/S/W/E, connection exception, and motion bits.
+    pub fn shape_support_table(&self) -> &[u8] {
+        &self.shape_support
+    }
+
+    /// Actual wall post/N/E/S/W test-shape coverage by the block above.
+    pub fn shape_wall_above_table(&self) -> &[u8] {
+        &self.shape_wall_above
+    }
+
+    /// Actual native CENTER sturdy faces D/U/N/S/W/E before tag-specific rules.
+    pub fn shape_center_support_table(&self) -> &[u8] {
+        &self.shape_center_support
+    }
+
+    /// Native legacy solidity, solid rendering, collision cube, and replaceability.
+    pub fn state_physics_table(&self) -> &[u8] {
+        &self.state_physics
     }
 
     /// Class flags per Bedrock runtime id (`UNMAPPED` where no Java state maps). When several
@@ -216,24 +279,17 @@ fn decode_state(block: &JavaBlock, mut offset: usize) -> BTreeMap<String, String
 
 /// Class flags of one Java state.
 ///
-/// `BLOCKS_MOTION` follows Java's "solid" test on the collision shape: a non-empty shape
-/// whose bounding box has an average edge of at least 0.7291666666666666 or a height of at
-/// least 1, excluding cobweb and bamboo saplings. Heightmaps built from it are checked
-/// against the Java reference world (`tests/fixtures/java_1_21_11_seed_12345.json`).
-/// `FULL_TOP_FACE`: see [`top_face_full`].
-fn classify(name: &str, props: &BTreeMap<String, String>, shape: &[[f64; 6]]) -> u8 {
+/// `BLOCKS_MOTION` is captured from native `BlockState.blocksMotion`, including explicit
+/// force-solid overrides that cannot be reconstructed from collision bounds.
+/// `FULL_TOP_FACE` is the actual native full upper collision face, not a sturdy face.
+fn classify(name: &str, props: &BTreeMap<String, String>, blocks_motion: bool, full_top_face: bool) -> u8 {
     let mut flags = 0u8;
     let short = name.trim_start_matches("minecraft:");
     if matches!(short, "air" | "cave_air" | "void_air") {
         flags |= class::AIR;
     }
     let waterlogged = props.get("waterlogged").is_some_and(|v| v == "true");
-    // Water plants and bubble columns always carry a water source.
-    let water_plant = matches!(
-        short,
-        "bubble_column" | "kelp" | "kelp_plant" | "seagrass" | "tall_seagrass"
-    );
-    if short == "water" || water_plant || waterlogged {
+    if short == "water" || unastar_packs::block_state::java_secondary_water(name, waterlogged) {
         flags |= class::FLUID | class::WATER;
     }
     if short == "lava" {
@@ -242,60 +298,12 @@ fn classify(name: &str, props: &BTreeMap<String, String>, shape: &[[f64; 6]]) ->
     if short.ends_with("_leaves") {
         flags |= class::LEAVES;
     }
-    if !shape.is_empty() && !matches!(short, "cobweb" | "bamboo_sapling") {
-        let mut bounds = [f64::MAX, f64::MAX, f64::MAX, f64::MIN, f64::MIN, f64::MIN];
-        for b in shape {
-            for axis in 0..3 {
-                bounds[axis] = bounds[axis].min(b[axis]);
-                bounds[axis + 3] = bounds[axis + 3].max(b[axis + 3]);
-            }
-        }
-        let (sx, sy, sz) = (
-            bounds[3] - bounds[0],
-            bounds[4] - bounds[1],
-            bounds[5] - bounds[2],
-        );
-        if (sx + sy + sz) / 3.0 >= 0.7291666666666666 || sy >= 1.0 {
-            flags |= class::BLOCKS_MOTION;
-        }
+    if blocks_motion {
+        flags |= class::BLOCKS_MOTION;
     }
-    if top_face_full(shape) {
+    if full_top_face {
         flags |= class::FULL_TOP_FACE;
     }
     flags
 }
 
-/// Whether the collision shape's top face covers the whole block: Java slices the shape
-/// just below y = 1 (at 1 - 1e-7) and the boxes cut by that plane must cover the unit
-/// square in x and z.
-fn top_face_full(shape: &[[f64; 6]]) -> bool {
-    const PLANE: f64 = 1.0 - 1.0e-7;
-    let cut: Vec<&[f64; 6]> = shape
-        .iter()
-        .filter(|b| b[1] < PLANE && b[4] > PLANE)
-        .collect();
-    if cut.is_empty() {
-        return false;
-    }
-    // Exact rectangle-union coverage: every cell of the grid spanned by the boxes' x and
-    // z edges must lie inside some box.
-    let edges = |lo: usize, hi: usize| {
-        let mut e: Vec<f64> = cut
-            .iter()
-            .flat_map(|b| [b[lo].clamp(0.0, 1.0), b[hi].clamp(0.0, 1.0)])
-            .chain([0.0, 1.0])
-            .collect();
-        e.sort_by(f64::total_cmp);
-        e.dedup();
-        e
-    };
-    let (xs, zs) = (edges(0, 3), edges(2, 5));
-    xs.windows(2).all(|x| {
-        let mx = (x[0] + x[1]) / 2.0;
-        zs.windows(2).all(|z| {
-            let mz = (z[0] + z[1]) / 2.0;
-            cut.iter()
-                .any(|b| b[0] <= mx && mx <= b[3] && b[2] <= mz && mz <= b[5])
-        })
-    })
-}

@@ -53,9 +53,14 @@
 //! always border decorated chunks whose features (ores, cave vegetation,
 //! seagrass) spill into them. Blocks are run-length encoded over the
 //! 16x384x16 volume in (y, z, x) order as `[palette index, run length, ...]`
-//! against a shared palette of block names (fluids keep `[level=N]` when
-//! N != 0); biomes are the 4x96x4 cells in (y, z, x) order as indices into
+//! against a shared palette of canonical Java states. Every property is retained,
+//! including default fluid levels and waterlogging; property keys are sorted.
+//! Biomes are the 4x96x4 cells in (y, z, x) order as indices into
 //! `biome_palette`; heightmaps are encoded as in the main fixture.
+
+mod java_canonical_inputs;
+#[path = "java_canonical_inputs/capture.rs"]
+mod java_canonical_capture;
 
 use std::collections::{BTreeMap, HashMap};
 use std::io::Read;
@@ -65,9 +70,6 @@ use flate2::read::{GzDecoder, ZlibDecoder};
 
 const MIN_Y: i32 = -64;
 const SECTIONS: i32 = 24;
-const HEIGHT: usize = (SECTIONS * 16) as usize;
-const VOLUME: usize = 16 * 16 * HEIGHT;
-const BIOME_CELLS: usize = 4 * 4 * HEIGHT / 4;
 /// Keeps both fixtures together under 1.5 MB (one proto chunk is ~17 KB).
 const PROTO_CHUNKS: usize = 18;
 const FULL: &str = "minecraft:full";
@@ -92,6 +94,14 @@ type Rect = (i32, i32, i32, i32);
 
 fn main() {
     let args: Vec<String> = std::env::args().collect();
+    if args.get(1).is_some_and(|arg| arg == "--canonical") {
+        export_canonical(&args[2..]);
+        return;
+    }
+    if args.get(1).is_some_and(|arg| arg == "--inventory") {
+        inventory(&args[2..]);
+        return;
+    }
     if args.len() < 6 {
         eprintln!(
             "usage: java_worldgen_reference <world dir> <out.json> <undecorated world dir> <out_proto.json> <x0:z0:x1:z1>..."
@@ -132,7 +142,7 @@ fn main() {
             for cz in z0..=z1 {
                 match chunks.get(&(cx, cz)) {
                     Some(nbt) if status_of(nbt) == FULL => {
-                        let col = Column::decode(nbt, cx, cz, air, &mut states, &mut biomes);
+                        let col = Column::decode(nbt, cx, cz, air, &mut states, &mut biomes, Layout::OVERWORLD);
                         chunks_json.push(col.to_json(cx, cz, &states, &biomes, &mut palette));
                     }
                     other => skipped.push((cx, cz, other.map_or("missing", status_of))),
@@ -184,6 +194,7 @@ fn main() {
             air,
             &mut states,
             &mut biomes,
+            Layout::OVERWORLD,
         );
         proto_json.push(col.to_proto_json(
             cx,
@@ -199,7 +210,7 @@ fn main() {
         .map(|(x0, z0, x1, z1)| format!("[{x0}, {z0}, {x1}, {z1}]"))
         .collect();
     let json = format!(
-        "{{\n\"edition\": \"java\",\n\"version\": \"{}\",\n\"seed\": {},\n\"decoration\": \"none (datapack empties biome features)\",\n\"structures\": {},\n\"datapacks\": [{}],\n\"areas\": [{}],\n\"palette\": [{}],\n\"biome_palette\": [{}],\n\"chunks\": [\n{}\n]\n}}\n",
+        "{{\n\"edition\": \"java\",\n\"state_encoding\": \"java-canonical-properties-v1\",\n\"dimension\": \"minecraft:overworld\",\n\"min_y\": -64,\n\"height\": 384,\n\"version\": \"{}\",\n\"seed\": {},\n\"decoration\": \"none (datapack empties biome features)\",\n\"structures\": {},\n\"datapacks\": [{}],\n\"areas\": [{}],\n\"palette\": [{}],\n\"biome_palette\": [{}],\n\"chunks\": [\n{}\n]\n}}\n",
         proto_info.version,
         proto_info.seed,
         proto_info.structures,
@@ -217,6 +228,101 @@ fn main() {
     );
 }
 
+/// Storage bounds, not the generation depth (the Nether also saves above its roof).
+#[derive(Clone, Copy)]
+struct Layout {
+    min_y: i32,
+    sections: i32,
+}
+
+impl Layout {
+    const OVERWORLD: Self = Self { min_y: MIN_Y, sections: SECTIONS };
+
+    fn height(self) -> usize {
+        self.sections as usize * 16
+    }
+}
+
+/// Export every requested voxel at the saved status; never sample or silently skip.
+fn export_canonical(args: &[String]) {
+    assert!(args.len() >= 6,
+        "usage: --canonical <world> <out.json> <dimension> <status> <capture-description> <x0:z0:x1:z1>...");
+    let world = Path::new(&args[0]);
+    let info = WorldInfo::load(world);
+    assert_eq!(info.version, "1.21.11", "reference version must remain pinned");
+    let (folder, layout) = dimension_layout(&args[2]);
+    assert!(STATUS_ORDER.contains(&args[3].as_str()), "unknown saved generation status");
+    assert!(!args[4].trim().is_empty(), "capture description must declare tick/datapack controls");
+    let chunks = load_region_chunks(&world.join(folder));
+    let mut states = Interner::new();
+    let air = states.id("minecraft:air");
+    let mut biomes = Interner::new();
+    let mut palette = Interner::new();
+    let mut biome_palette = Interner::new();
+    let mut selected = BTreeMap::new();
+    for rect in &args[5..] {
+        let bounds: Vec<i32> = rect.split(':').map(|v| v.parse().expect("integer bounds")).collect();
+        assert_eq!(bounds.len(), 4, "expected x0:z0:x1:z1");
+        let [x0, z0, x1, z1] = bounds[..] else { unreachable!() };
+        assert!(x0 <= x1 && z0 <= z1, "reversed chunk bounds");
+        for x in x0..=x1 {
+            for z in z0..=z1 {
+                let nbt = chunks.get(&(x, z)).unwrap_or_else(|| panic!("missing requested chunk {x},{z}"));
+                assert_eq!(status_of(nbt), args[3], "chunk {x},{z} status mismatch");
+                selected.insert((x, z), nbt);
+            }
+        }
+    }
+    let columns: Vec<_> = selected.into_iter().map(|((x, z), nbt)| {
+        Column::decode(nbt, x, z, air, &mut states, &mut biomes, layout)
+            .to_proto_json(x, z, &states, &biomes, &mut palette, &mut biome_palette)
+    }).collect();
+    let inputs = java_canonical_inputs::Inputs {
+        worldgen_settings: info.worldgen_settings,
+        enabled_features: info.enabled_features,
+        data_profile: java_canonical_capture::inspect_profile(world, &info.datapacks)
+            .expect("fingerprint actual native datapack inputs"),
+    };
+    let text = format!(
+        "{{\"edition\":\"java\",\"state_encoding\":\"java-canonical-properties-v1\",\"version\":\"{}\",\"seed\":{},\"dimension\":{},\"min_y\":{},\"height\":{},\"capture\":{},\"structures\":{},\"datapacks\":[{}],\"inputs\":{},\"palette\":[{}],\"biome_palette\":[{}],\"chunks\":[{}]}}\n",
+        info.version, info.seed, serde_json::to_string(&args[2]).unwrap(), layout.min_y,
+        layout.height(), serde_json::to_string(&args[4]).unwrap(), info.structures,
+        quoted(&info.datapacks), serde_json::to_string(&inputs).unwrap(),
+        quoted(&palette.names), quoted(&biome_palette.names), columns.join(",")
+    );
+    std::fs::write(&args[1], text).expect("write canonical fixture");
+    println!("wrote {} complete {} chunks at {} to {}", columns.len(), args[2], args[3], args[1]);
+}
+
+fn dimension_layout(dimension: &str) -> (&'static str, Layout) {
+    match dimension {
+        "minecraft:overworld" => ("region", Layout::OVERWORLD),
+        "minecraft:the_nether" => ("DIM-1/region", Layout { min_y: 0, sections: 16 }),
+        "minecraft:the_end" => ("DIM1/region", Layout { min_y: 0, sections: 16 }),
+        other => panic!("unsupported reference dimension {other}"),
+    }
+}
+
+/// Locate saved stage snapshots without guessing coordinates or changing a world.
+fn inventory(args: &[String]) {
+    assert!((2..=3).contains(&args.len()),
+        "usage: --inventory <world> <dimension> [saved-status]");
+    let world = Path::new(&args[0]);
+    let info = WorldInfo::load(world);
+    assert_eq!(info.version, "1.21.11", "reference version must remain pinned");
+    let (folder, _) = dimension_layout(&args[1]);
+    let chunks = load_region_chunks(&world.join(folder));
+    let rows: Vec<_> = chunks.iter()
+        .filter(|(_, nbt)| args.get(2).is_none_or(|status| status_of(nbt) == status))
+        .map(|(&(x, z), nbt)| serde_json::json!({"x":x,"z":z,"status":status_of(nbt)}))
+        .collect();
+    println!("{}", serde_json::json!({
+        "edition":"java", "version":info.version, "seed":info.seed,
+        "dimension":args[1], "structures":info.structures, "datapacks":info.datapacks,
+        "chunks":rows,
+    }));
+}
+
 /// World-level settings read from `level.dat`.
 struct WorldInfo {
     seed: i64,
@@ -224,6 +330,8 @@ struct WorldInfo {
     spawn: (i32, i32),
     structures: bool,
     datapacks: Vec<String>,
+    worldgen_settings: serde_json::Value,
+    enabled_features: Vec<String>,
 }
 
 impl WorldInfo {
@@ -267,6 +375,11 @@ impl WorldInfo {
             spawn,
             structures,
             datapacks,
+            worldgen_settings: serde_json::to_value(settings.expect("worldgen settings")).expect("typed native inputs"),
+            enabled_features: data.list("enabled_features").iter().map(|value| match value {
+                Nbt::Str(value) => value.clone(),
+                _ => panic!("non-string native feature flag"),
+            }).collect(),
         }
     }
 }
@@ -363,7 +476,7 @@ impl Interner {
     }
 }
 
-/// Block name without the fluid `[level=N]` suffix.
+/// Block name without its canonical property suffix.
 fn bare(name: &str) -> &str {
     name.split('[').next().unwrap_or(name)
 }
@@ -378,12 +491,14 @@ fn is_air(name: &str) -> bool {
 /// Decoded Java chunk column.
 struct Column {
     status: String,
-    /// State id per (y, z, x) over 16x384x16 (`Interner` of block names).
+    /// Canonical Java state id per (y, z, x) over 16x384x16.
     blocks: Vec<u16>,
     /// Biome id per 4x4x4 cell in (y, z, x) order over 4x96x4.
     biomes: Vec<u16>,
     /// Saved heightmaps as absolute Y per column (index `z * 16 + x`).
     heightmaps: Vec<(String, Vec<i32>)>,
+    layout: Layout,
+    block_entities: serde_json::Value,
 }
 
 fn idx(x: usize, y: usize, z: usize) -> usize {
@@ -398,21 +513,22 @@ impl Column {
         air: u16,
         states: &mut Interner,
         biome_names: &mut Interner,
+        layout: Layout,
     ) -> Column {
         assert_eq!(
             (nbt.int("xPos"), nbt.int("zPos")),
             (Some(cx), Some(cz)),
             "chunk position mismatch"
         );
-        let mut blocks = vec![air; VOLUME];
-        let mut biomes = vec![u16::MAX; BIOME_CELLS];
+        let mut blocks = vec![air; 16 * 16 * layout.height()];
+        let mut biomes = vec![u16::MAX; 4 * 4 * layout.height() / 4];
         let sections = match nbt.get("sections") {
-            Some(Nbt::List(s)) => s.as_slice(),
+            Some(Nbt::List(_, s)) => s.as_slice(),
             _ => &[],
         };
         for section in sections {
-            let sy = section.byte("Y").expect("section without Y") as i32 - (MIN_Y >> 4);
-            if !(0..SECTIONS).contains(&sy) {
+            let sy = section.byte("Y").expect("section without Y") as i32 - (layout.min_y >> 4);
+            if !(0..layout.sections).contains(&sy) {
                 continue;
             }
             let sy = sy as usize;
@@ -452,10 +568,10 @@ impl Column {
                 let Nbt::LongArray(data) = value else {
                     panic!("heightmap {name} is not a long array");
                 };
-                let bits = ceil_log2(HEIGHT + 1);
+                let bits = ceil_log2(layout.height() + 1);
                 let heights = unpack(data, bits, 256)
                     .into_iter()
-                    .map(|h| h as i32 + MIN_Y)
+                    .map(|h| h as i32 + layout.min_y)
                     .collect();
                 heightmaps.push((name.clone(), heights));
             }
@@ -466,6 +582,12 @@ impl Column {
             blocks,
             biomes,
             heightmaps,
+            layout,
+            block_entities: {
+                let mut entities: Vec<_> = nbt.list("block_entities").iter().collect();
+                entities.sort_by_key(|entity| (entity.int("x"), entity.int("y"), entity.int("z")));
+                serde_json::to_value(entities).expect("serialize typed Java block entities")
+            },
         }
     }
 
@@ -494,7 +616,7 @@ impl Column {
             for x in 0..16 {
                 let mut top = None;
                 let mut top_terrain = None;
-                for y in (0..HEIGHT).rev() {
+                for y in (0..self.layout.height()).rev() {
                     let name = bare(&states.names[self.blocks[idx(x, y, z)] as usize]);
                     if is_air(name) {
                         continue;
@@ -508,8 +630,8 @@ impl Column {
                     }
                 }
                 let (sy, sname) = top.unwrap_or((0, "minecraft:air"));
-                surface.push(sy as i32 + MIN_Y);
-                terrain.push(top_terrain.map_or(MIN_Y - 1, |y| y as i32 + MIN_Y));
+                surface.push(sy as i32 + self.layout.min_y);
+                terrain.push(top_terrain.map_or(self.layout.min_y - 1, |y| y as i32 + self.layout.min_y));
                 surface_block.push(i32::from(palette.id(sname)));
                 let biome = self.biomes[((sy >> 2) * 4 + (z >> 2)) * 4 + (x >> 2)];
                 surface_biome.push(format!("\"{}\"", biome_names.names[biome as usize]));
@@ -566,11 +688,12 @@ impl Column {
             .map(|&b| biome_palette.id(&biome_names.names[b as usize]).to_string())
             .collect();
         format!(
-            "{{\"x\": {cx}, \"z\": {cz}, \"status\": \"{}\", \"heightmaps\": {}, \"blocks\": [{}], \"biomes\": [{}]}}",
+            "{{\"x\": {cx}, \"z\": {cz}, \"status\": \"{}\", \"heightmaps\": {}, \"blocks\": [{}], \"biomes\": [{}], \"block_entities\": {}}}",
             self.status,
             self.heightmaps_json(),
             runs.join(","),
-            biomes.join(",")
+            biomes.join(","),
+            self.block_entities,
         )
     }
 }
@@ -579,16 +702,32 @@ fn join(v: &[i32]) -> String {
     v.iter().map(i32::to_string).collect::<Vec<_>>().join(",")
 }
 
-/// Block name of a palette entry; fluids keep a non-zero `level` property.
+/// Canonical Java identity, independent of NBT compound property order.
 fn state_name(entry: &Nbt) -> String {
-    let name = entry
+    let mut name = entry
         .string("Name")
         .expect("block palette entry without Name");
-    if matches!(name.as_str(), "minecraft:water" | "minecraft:lava")
-        && let Some(level) = entry.get("Properties").and_then(|p| p.string("level"))
-        && level != "0"
-    {
-        return format!("{name}[level={level}]");
+    if let Some(properties) = entry.get("Properties") {
+        let Nbt::Compound(properties) = properties else {
+            panic!("block Properties must be an NBT compound");
+        };
+        let mut sorted: Vec<_> = properties.iter().collect();
+        sorted.sort_unstable_by(|a, b| a.0.cmp(&b.0));
+        if !sorted.is_empty() {
+            name.push('[');
+            for (index, (key, value)) in sorted.into_iter().enumerate() {
+                let Nbt::Str(value) = value else {
+                    panic!("block property {key} must be an NBT string");
+                };
+                if index != 0 {
+                    name.push(',');
+                }
+                name.push_str(key);
+                name.push('=');
+                name.push_str(value);
+            }
+            name.push(']');
+        }
     }
     name
 }
@@ -730,17 +869,22 @@ fn load_region_chunks(dir: &Path) -> BTreeMap<(i32, i32), Nbt> {
     chunks
 }
 
-/// Minimal big-endian NBT tree: enough for level.dat and chunk data.
+/// Typed big-endian NBT; floating values retain their exact IEEE bits.
+#[derive(serde::Serialize)]
+#[serde(tag = "type", content = "value")]
 enum Nbt {
     Byte(i8),
+    Short(i16),
     Int(i32),
     Long(i64),
+    Float(u32),
+    Double(u64),
+    ByteArray(Vec<i8>),
     Str(String),
-    List(Vec<Nbt>),
+    List(u8, Vec<Nbt>),
     Compound(Vec<(String, Nbt)>),
     IntArray(Vec<i32>),
     LongArray(Vec<i64>),
-    Other,
 }
 
 impl Nbt {
@@ -759,7 +903,7 @@ impl Nbt {
 
     fn list(&self, key: &str) -> &[Nbt] {
         match self.get(key) {
-            Some(Nbt::List(v)) => v,
+            Some(Nbt::List(_, v)) => v,
             _ => &[],
         }
     }
@@ -811,44 +955,36 @@ impl Reader<'_> {
 
     fn string(&mut self) -> String {
         let n = u16::from_be_bytes(self.take()) as usize;
-        let s = String::from_utf8_lossy(&self.buf[self.off..self.off + n]).into_owned();
+        let s = decode_java_string(&self.buf[self.off..self.off + n]);
         self.off += n;
         s
     }
 
+
     fn payload(&mut self, tag: u8) -> Nbt {
         match tag {
             1 => Nbt::Byte(i8::from_be_bytes(self.take())),
-            2 => {
-                self.off += 2;
-                Nbt::Other
-            }
+            2 => Nbt::Short(i16::from_be_bytes(self.take())),
             3 => Nbt::Int(i32::from_be_bytes(self.take())),
             4 => Nbt::Long(i64::from_be_bytes(self.take())),
-            5 => {
-                self.off += 4;
-                Nbt::Other
-            }
-            6 => {
-                self.off += 8;
-                Nbt::Other
-            }
+            5 => Nbt::Float(u32::from_be_bytes(self.take())),
+            6 => Nbt::Double(u64::from_be_bytes(self.take())),
             7 => {
                 let n = self.count();
-                self.off += n;
-                Nbt::Other
+                Nbt::ByteArray((0..n).map(|_| i8::from_be_bytes(self.take())).collect())
             }
             8 => Nbt::Str(self.string()),
             9 => {
                 let [et] = self.take();
                 let n = self.count();
-                Nbt::List((0..n).map(|_| self.payload(et)).collect())
+                Nbt::List(et, (0..n).map(|_| self.payload(et)).collect())
             }
             10 => {
                 let mut entries = Vec::new();
                 loop {
                     let [t] = self.take();
                     if t == 0 {
+                        entries.sort_by(|a: &(String, Nbt), b| a.0.encode_utf16().cmp(b.0.encode_utf16()));
                         return Nbt::Compound(entries);
                     }
                     let name = self.string();
@@ -866,5 +1002,102 @@ impl Reader<'_> {
             }
             t => panic!("unknown NBT tag {t}"),
         }
+    }
+}
+/// Java NBT strings use modified UTF-8 over UTF-16 code units, not UTF-8.
+fn decode_java_string(bytes: &[u8]) -> String {
+    let mut index = 0;
+    let units = std::iter::from_fn(|| {
+        if index == bytes.len() {
+            return None;
+        }
+        let first = bytes[index];
+        let (unit, length) = match first {
+            0x00..=0x7f => (u16::from(first), 1),
+            0xc0..=0xdf => {
+                let second = *bytes.get(index + 1).expect("truncated Java NBT string");
+                assert_eq!(second & 0xc0, 0x80, "invalid Java NBT continuation");
+                ((u16::from(first & 0x1f) << 6) | u16::from(second & 0x3f), 2)
+            }
+            0xe0..=0xef => {
+                let second = *bytes.get(index + 1).expect("truncated Java NBT string");
+                let third = *bytes.get(index + 2).expect("truncated Java NBT string");
+                assert!(second & 0xc0 == 0x80 && third & 0xc0 == 0x80, "invalid Java NBT continuation");
+                ((u16::from(first & 0x0f) << 12) | (u16::from(second & 0x3f) << 6) | u16::from(third & 0x3f), 3)
+            }
+            _ => panic!("invalid Java NBT modified UTF-8 lead byte"),
+        };
+        index += length;
+        Some(unit)
+    });
+    let mut text = String::with_capacity(bytes.len());
+    for character in char::decode_utf16(units) {
+        text.push(character.expect("unpaired surrogate in Java NBT string cannot be represented as JSON text"));
+    }
+    text
+}
+
+#[cfg(test)]
+mod canonical_tests {
+    use super::*;
+
+    #[test]
+    fn java_string_preserves_encoded_null_and_supplementary_characters() {
+        assert_eq!(decode_java_string(&[b'a', 0xc0, 0x80, 0xed, 0xa0, 0xbd, 0xed, 0xb8, 0x80]), "a\0\u{1f600}");
+    }
+
+    #[test]
+    fn actor_compound_keys_use_native_utf16_order() {
+        // U+10000 sorts before U+E000 in Java's UTF-16 order, but after it
+        // in UTF-8/scalar order. The two valid modified-UTF-8 keys must agree
+        // with the runtime actor encoder and native snapshot helper.
+        let root = [
+            10, 0, 0,
+            1, 0, 3, 0xee, 0x80, 0x80, 1,
+            1, 0, 6, 0xed, 0xa0, 0x80, 0xed, 0xb0, 0x80, 2,
+            0,
+        ];
+        let actual = serde_json::to_value(Nbt::read_root(&root)).unwrap();
+        assert_eq!(actual, serde_json::json!({
+            "type": "Compound",
+            "value": [
+                ["\u{10000}", {"type": "Byte", "value": 2}],
+                ["\u{e000}", {"type": "Byte", "value": 1}],
+            ],
+        }));
+    }
+
+    fn palette_entry(properties: &[(&str, &str)]) -> Nbt {
+        Nbt::Compound(vec![
+            ("Name".into(), Nbt::Str("minecraft:oak_stairs".into())),
+            ("Properties".into(), Nbt::Compound(properties.iter().map(|(key, value)| {
+                ((*key).into(), Nbt::Str((*value).into()))
+            }).collect())),
+        ])
+    }
+
+    #[test]
+    fn palette_identity_keeps_all_properties_in_stable_order() {
+        let a = palette_entry(&[
+            ("waterlogged", "true"), ("shape", "straight"), ("half", "bottom"), ("facing", "north"),
+        ]);
+        let b = palette_entry(&[
+            ("facing", "north"), ("half", "bottom"), ("shape", "straight"), ("waterlogged", "true"),
+        ]);
+        let dry = palette_entry(&[
+            ("facing", "north"), ("half", "bottom"), ("shape", "straight"), ("waterlogged", "false"),
+        ]);
+        assert_eq!(state_name(&a), "minecraft:oak_stairs[facing=north,half=bottom,shape=straight,waterlogged=true]");
+        assert_eq!(state_name(&a), state_name(&b));
+        assert_ne!(state_name(&a), state_name(&dry));
+    }
+
+    #[test]
+    fn source_fluid_levels_are_not_elided() {
+        let water = Nbt::Compound(vec![
+            ("Name".into(), Nbt::Str("minecraft:water".into())),
+            ("Properties".into(), Nbt::Compound(vec![("level".into(), Nbt::Str("0".into()))])),
+        ]);
+        assert_eq!(state_name(&water), "minecraft:water[level=0]");
     }
 }

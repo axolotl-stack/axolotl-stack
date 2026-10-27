@@ -17,6 +17,12 @@ struct CountingNoise {
 
 #[allow(clippy::too_many_arguments)]
 impl NoiseSource for CountingNoise {
+    const NATIVE_JAVA: bool = false;
+
+    fn sample_beardifier(&self, _: i32, _: i32, _: i32) -> f64 {
+        0.0
+    }
+
     fn sample(&self, noise: NoiseRef, _x: f64, _y: f64, _z: f64) -> f64 {
         self.samples.set(self.samples.get() + 1);
         if noise == NoiseRef::Noodle {

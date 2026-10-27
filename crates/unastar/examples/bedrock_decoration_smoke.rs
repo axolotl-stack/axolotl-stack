@@ -79,9 +79,11 @@ fn run() {
     let t = Instant::now();
     let base: Vec<Chunk> = (0..9)
         .map(|i| {
-            terrain
+            let mut chunk = terrain
                 .generate_noise_proto(ChunkPos::new(cx + (i % 3) - 1, cz + (i / 3) - 1))
-                .chunk
+                .chunk;
+            chunk.convert_to_bedrock().expect("native terrain conversion");
+            chunk
         })
         .collect();
     println!("terrain 3x3: {:.1} ms", t.elapsed().as_secs_f64() * 1e3);
@@ -165,9 +167,7 @@ fn run() {
         drop(world);
         let writes = region.into_writes();
         let mut center = protos.swap_remove(4).chunk;
-        for write in writes.for_offset(0, 0) {
-            center.set_block(write.x, write.y, write.z, write.block);
-        }
+        writes.apply_to(0, 0, &mut center);
         let after = histogram(&center);
         let mut changes: Vec<(i64, String)> = after
             .iter()

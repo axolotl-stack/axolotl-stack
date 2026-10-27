@@ -1,0 +1,205 @@
+{
+  "version": "1.21.11",
+  "inner_sha256": "ec47239a8de246335e1d54f6ac319bd35641778eb4b6a6da06372840d02fcebc",
+  "native_physics_source_sha256": "7abb8e93df5bb8cffcbca607a3b5af200679be6001d3f0267f8d0be50c9b47c0",
+  "native_physics_capture": "native-structure-queries-20261027/native-physics-all-states-v4.json",
+  "native_physics_capture_sha256": "cefab62cddd8482d92dd96f10b6717304eff6dc5f9bfb228988b49d0eb7c3b8b",
+  "consumer": "MineshaftPieces$MineShaftCorridor.canHangChainBelow",
+  "consumer_bytecode": {
+    "class": "fhs$a",
+    "method": "b(dwr,is,eoh)",
+    "instructions": "0..26: Block.canSupportCenter(level,pos,DOWN) && !(state.getBlock() instanceof FallingBlock)",
+    "sand_inheritance": [
+      "egn (SandBlock)",
+      "eaz (ColoredFallingBlock)",
+      "ecr (FallingBlock)"
+    ]
+  },
+  "unstable_bottom_center_tag": [
+    "#minecraft:fence_gates"
+  ],
+  "cases": [
+    {
+      "id": 1,
+      "block": "minecraft:stone",
+      "properties": [],
+      "flags": 191,
+      "wall_above_flags": 31,
+      "center_support_flags": 63,
+      "behavior_flags": 23,
+      "unstable_bottom_center": false,
+      "falling_block": false,
+      "can_hang_chain": true
+    },
+    {
+      "id": 0,
+      "block": "minecraft:air",
+      "properties": [],
+      "flags": 0,
+      "wall_above_flags": 0,
+      "center_support_flags": 0,
+      "behavior_flags": 8,
+      "unstable_bottom_center": false,
+      "falling_block": false,
+      "can_hang_chain": false
+    },
+    {
+      "id": 118,
+      "block": "minecraft:sand",
+      "properties": [],
+      "flags": 191,
+      "wall_above_flags": 31,
+      "center_support_flags": 63,
+      "behavior_flags": 23,
+      "unstable_bottom_center": false,
+      "falling_block": true,
+      "can_hang_chain": false
+    },
+    {
+      "id": 10993,
+      "block": "minecraft:anvil",
+      "properties": [
+        [
+          "facing",
+          "north"
+        ]
+      ],
+      "flags": 128,
+      "wall_above_flags": 1,
+      "center_support_flags": 3,
+      "behavior_flags": 1,
+      "unstable_bottom_center": false,
+      "falling_block": true,
+      "can_hang_chain": false
+    },
+    {
+      "id": 6795,
+      "block": "minecraft:oak_fence",
+      "properties": [
+        [
+          "east",
+          "false"
+        ],
+        [
+          "north",
+          "false"
+        ],
+        [
+          "south",
+          "false"
+        ],
+        [
+          "waterlogged",
+          "false"
+        ],
+        [
+          "west",
+          "false"
+        ]
+      ],
+      "flags": 128,
+      "wall_above_flags": 1,
+      "center_support_flags": 3,
+      "behavior_flags": 1,
+      "unstable_bottom_center": false,
+      "falling_block": false,
+      "can_hang_chain": true
+    },
+    {
+      "id": 27552,
+      "block": "minecraft:pointed_dripstone",
+      "properties": [
+        [
+          "thickness",
+          "base"
+        ],
+        [
+          "vertical_direction",
+          "down"
+        ],
+        [
+          "waterlogged",
+          "false"
+        ]
+      ],
+      "flags": 128,
+      "wall_above_flags": 19,
+      "center_support_flags": 23,
+      "behavior_flags": 1,
+      "unstable_bottom_center": false,
+      "falling_block": false,
+      "can_hang_chain": true
+    },
+    {
+      "id": 8452,
+      "block": "minecraft:oak_fence_gate",
+      "properties": [
+        [
+          "facing",
+          "north"
+        ],
+        [
+          "in_wall",
+          "false"
+        ],
+        [
+          "open",
+          "false"
+        ],
+        [
+          "powered",
+          "false"
+        ]
+      ],
+      "flags": 128,
+      "wall_above_flags": 21,
+      "center_support_flags": 2,
+      "behavior_flags": 1,
+      "unstable_bottom_center": true,
+      "falling_block": false,
+      "can_hang_chain": false
+    },
+    {
+      "id": 13129,
+      "block": "minecraft:oak_slab",
+      "properties": [
+        [
+          "type",
+          "top"
+        ],
+        [
+          "waterlogged",
+          "false"
+        ]
+      ],
+      "flags": 130,
+      "wall_above_flags": 0,
+      "center_support_flags": 2,
+      "behavior_flags": 17,
+      "unstable_bottom_center": false,
+      "falling_block": false,
+      "can_hang_chain": false
+    },
+    {
+      "id": 13131,
+      "block": "minecraft:oak_slab",
+      "properties": [
+        [
+          "type",
+          "bottom"
+        ],
+        [
+          "waterlogged",
+          "false"
+        ]
+      ],
+      "flags": 129,
+      "wall_above_flags": 31,
+      "center_support_flags": 1,
+      "behavior_flags": 1,
+      "unstable_bottom_center": false,
+      "falling_block": false,
+      "can_hang_chain": true
+    }
+  ]
+}

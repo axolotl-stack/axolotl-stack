@@ -37,7 +37,7 @@ pub trait SurfaceEnv {
     fn min_surface_level(&mut self) -> i32;
     /// Whether the biome at this block is cold enough to snow.
     fn cold_enough_to_snow(&mut self) -> bool;
-    /// The badlands terracotta band at this block (Bedrock runtime id).
+    /// The badlands terracotta band at this block (canonical Java state id).
     fn band(&mut self) -> u32;
 }
 
@@ -47,7 +47,7 @@ pub fn map(value: f64, from_min: f64, from_max: f64, to_min: f64, to_max: f64) -
     to_min + (value - from_min) / (from_max - from_min) * (to_max - to_min)
 }
 
-/// Bedrock runtime ids of the terracotta colours the clay bands use.
+/// Canonical Java state ids of the terracotta colours the clay bands use.
 #[derive(Debug, Clone, Copy)]
 pub struct BandBlocks {
     pub terracotta: u32,
@@ -176,7 +176,10 @@ fn make_bands(
 pub fn clay_bands(random: &mut Xoroshiro128, blocks: &BandBlocks) -> [u32; BAND_COUNT] {
     let mut bands = [blocks.terracotta; BAND_COUNT];
     let mut i = 0usize;
-    loop {
+    // The native for-loop checks its cursor before drawing the next orange gap.
+    // If an orange band lands at 191, the loop increment reaches 192 exactly:
+    // another draw would shift every subsequent colour's random stream.
+    while i < BAND_COUNT {
         i += random.next_int(5) as usize + 1;
         if i >= BAND_COUNT {
             break;
@@ -202,4 +205,45 @@ pub fn clay_bands(random: &mut Xoroshiro128, blocks: &BandBlocks) -> [u32; BAND_
         k += random.next_int(16) as usize + 4;
     }
     bands
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::xoroshiro::PositionalRandomFactory;
+
+    #[test]
+    fn native_clay_bands_orange_cursor_reaches_array_end() {
+        // Actual pinned 1.21.11 SurfaceSystem.clayBands, captured with the
+        // constructor-only tools/nativebadlandsprobe/NativeBadlandsOracle.java.
+        // Delegating native generateBands through RandomSource reproduced the
+        // constructed array exactly: 53 orange-gap draws end at cursor 192,
+        // followed immediately by nextIntBetweenInclusive(6, 15) == 14.
+        let factory = PositionalRandomFactory::new(-734287144591);
+        let mut random = factory.from_hash(crate::random_hashes::CLAY_BANDS);
+        let blocks = BandBlocks {
+            terracotta: 0,
+            orange: 1,
+            yellow: 2,
+            brown: 3,
+            red: 4,
+            white: 5,
+            light_gray: 6,
+        };
+        let native = [
+            5, 6, 1, 0, 0, 0, 0, 0, 1, 0, 1, 6, 5, 6, 0, 0,
+            1, 6, 5, 6, 4, 2, 3, 3, 0, 0, 0, 0, 0, 1, 0, 0,
+            0, 0, 5, 2, 0, 1, 0, 6, 5, 6, 0, 0, 1, 4, 4, 2,
+            3, 3, 6, 5, 6, 3, 3, 3, 5, 6, 0, 0, 1, 0, 1, 0,
+            1, 0, 0, 0, 1, 0, 0, 6, 5, 6, 3, 3, 3, 0, 0, 1,
+            0, 2, 1, 0, 0, 0, 2, 0, 0, 0, 0, 5, 1, 0, 2, 2,
+            0, 1, 0, 2, 2, 0, 0, 1, 0, 4, 4, 6, 5, 6, 1, 0,
+            0, 0, 1, 0, 0, 4, 4, 1, 0, 0, 0, 2, 2, 5, 6, 3,
+            3, 3, 3, 4, 0, 0, 0, 1, 0, 1, 3, 3, 0, 0, 0, 5,
+            6, 3, 3, 0, 0, 1, 6, 5, 6, 0, 1, 0, 0, 3, 3, 3,
+            2, 0, 4, 5, 1, 0, 1, 4, 4, 1, 0, 0, 0, 1, 0, 0,
+            2, 4, 5, 6, 0, 0, 4, 4, 4, 2, 2, 1, 0, 3, 3, 2,
+        ];
+        assert_eq!(clay_bands(&mut random, &blocks), native);
+    }
 }

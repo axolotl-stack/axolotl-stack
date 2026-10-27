@@ -20,6 +20,7 @@
 
 pub mod actor;
 pub mod block_entity;
+pub mod block_state;
 pub mod brarchive;
 pub mod error;
 pub mod json;

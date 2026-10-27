@@ -8,9 +8,9 @@
 //! rule: a section is discarded when one of its pieces hits a piece of a
 //! different generation depth than the section's parent. Every random draw
 //! happens in the same order as Java's.
-//! Piece attachment follows cubiomes' (MIT) world-validated end city
-//! generator: tower bridges hang off the topmost tower piece, and the closing
-//! bridge end after a ship is placed relative to the ship.
+//! Bridges attach to the tower piece retained by the generation random, which
+//! may be below the topmost tower piece. Adding a ship does not move the
+//! bridge's closing-end anchor.
 //!
 //! Data markers: `Chest` sets the `minecraft:chests/end_city_treasure` loot
 //! table (with a fresh seed) on the container below the marker; `Sentry`
@@ -365,20 +365,20 @@ impl Assembly<'_> {
             true,
         );
         p = add(pieces, p, BlockPos::new(0, 7, 0), TOWER_PIECE, rot, true);
-        // Whether the tower gets bridges; bridges attach to the topmost tower
-        // piece (as cubiomes' world-validated generator does).
-        let mut has_bridges = self.rng.next_int_bounded(3) == 0;
+        // Retain the selected attachment piece separately from the growing
+        // tower: its topmost piece is still the anchor for the tower roof.
+        let mut bridge_anchor = (self.rng.next_int_bounded(3) == 0).then_some(p);
         let height = 1 + self.rng.next_int_bounded(3);
         for i in 0..height {
             p = add(pieces, p, BlockPos::new(0, 4, 0), TOWER_PIECE, rot, true);
             if i < height - 1 && self.rng.next_bool() {
-                has_bridges = true;
+                bridge_anchor = Some(p);
             }
         }
-        if has_bridges {
+        if let Some(bridge_anchor) = bridge_anchor {
             for (r, off) in TOWER_BRIDGES {
                 if self.rng.next_bool() {
-                    let start = add(pieces, p, off, BRIDGE_END, rot.then(r), true);
+                    let start = add(pieces, bridge_anchor, off, BRIDGE_END, rot.then(r), true);
                     self.recursive_children(Section::TowerBridge, depth + 1, start, None, pieces);
                 }
             }
@@ -438,8 +438,8 @@ impl Assembly<'_> {
         if !self.ship_created && self.rng.next_int_bounded(10 - depth) == 0 {
             let x = -8 + self.rng.next_int_bounded(8);
             let z = -70 + self.rng.next_int_bounded(10);
-            // The closing bridge end below is placed relative to the ship.
-            p = add(pieces, p, BlockPos::new(x, y, z), SHIP, rot, true);
+            // The ship branches from the bridge without replacing its anchor.
+            add(pieces, p, BlockPos::new(x, y, z), SHIP, rot, true);
             self.ship_created = true;
         } else if !self.recursive_children(
             Section::HouseTower,
@@ -599,6 +599,82 @@ mod tests {
             .iter()
             .find(|d| d.name == "minecraft:end_city")
             .expect("end city structure")
+    }
+
+    /// Actual native assembly at the corpus's End-city start and an independent
+    /// origin. Both include a ship, exposing the closing-end anchor as well as
+    /// the randomly retained tower bridge anchor.
+    #[test]
+    fn pinned_native_end_city_template_geometry_and_attachment_anchors() {
+        if !template_data::TEMPLATES_EMBEDDED {
+            return;
+        }
+        struct CapturedContext<'a> {
+            seed: i64,
+            heights: &'a serde_json::Value,
+        }
+        impl StructureContext for CapturedContext<'_> {
+            fn seed(&self) -> i64 { self.seed }
+            fn min_y(&self) -> i32 { 0 }
+            fn height(&self) -> i32 { 128 }
+            fn level_height(&self) -> i32 { 256 }
+            fn sea_level(&self) -> i32 { 0 }
+            fn noise_biome(&self, _: i32, _: i32, _: i32) -> u8 {
+                panic!("End-city assembly unexpectedly queried a biome")
+            }
+            fn base_height(&self, x: i32, z: i32, kind: Heightmap) -> i32 {
+                assert!(matches!(kind, Heightmap::WorldSurfaceWg));
+                self.heights.as_array().unwrap().iter()
+                    .find(|row| row["x"] == x && row["z"] == z && row["kind"] == "WORLD_SURFACE_WG")
+                    .unwrap_or_else(|| panic!("uncaptured native base-height query {x},{z}"))
+                    ["height"].as_i64().unwrap() as i32
+            }
+            fn base_column(&self, _: i32, _: i32, _: &mut [JavaState]) {
+                panic!("End-city assembly unexpectedly queried a column")
+            }
+        }
+        let capture: serde_json::Value = serde_json::from_str(include_str!(
+            "../../../tests/data/native_end_city_1_21_11.json"
+        )).unwrap();
+        assert_eq!(capture["denied_network_attempts"], serde_json::json!([]));
+        assert_eq!(capture["server_constructed"], false);
+        let mut count = 0;
+        for case in capture["cases"].as_array().unwrap() {
+            let ctx = CapturedContext {
+                seed: capture["seed"].as_i64().unwrap(),
+                heights: &case["height_queries"],
+            };
+            let cx = case["chunk"][0].as_i64().unwrap() as i32;
+            let cz = case["chunk"][1].as_i64().unwrap() as i32;
+            let mut g = GenContext::new(&ctx, end_city_def(), cx, cz);
+            let rotation = Rotation::random(&mut g.random.clone());
+            let stub = find_generation_point(&mut g);
+            assert_eq!(stub.is_some(), case["present"].as_bool().unwrap());
+            let Some(stub) = stub else { continue };
+            assert_eq!(serde_json::json!([stub.position.x, stub.position.y, stub.position.z]), case["position"]);
+            let pieces = assemble(&mut g.random, stub.position, rotation);
+            let native = case["pieces"].as_array().unwrap();
+            assert_eq!(pieces.len(), native.len(), "{cx},{cz}");
+            for (index, (piece, native)) in pieces.iter().zip(native).enumerate() {
+                let context = (cx, cz, index);
+                let pos = piece.template_position;
+                let b = piece.base.bbox;
+                assert_eq!(piece.template.name, native["template"].as_str().unwrap(), "{context:?} template");
+                assert_eq!(serde_json::json!([pos.x, pos.y, pos.z]), native["position"], "{context:?} origin");
+                assert_eq!(serde_json::json!([b.min_x, b.min_y, b.min_z, b.max_x, b.max_y, b.max_z]), native["bounds"], "{context:?} bounds");
+                assert_eq!(piece.base.gen_depth, native["depth"].as_i64().unwrap() as i32, "{context:?} collision group");
+                let rotation = match piece.placement.rotation {
+                    Rotation::None => "NONE",
+                    Rotation::Clockwise90 => "CLOCKWISE_90",
+                    Rotation::Clockwise180 => "CLOCKWISE_180",
+                    Rotation::CounterClockwise90 => "COUNTERCLOCKWISE_90",
+                };
+                assert_eq!(rotation, native["rotation"].as_str().unwrap(), "{context:?} rotation");
+            }
+            assert_eq!(pieces.iter().filter(|piece| piece.template.name == SHIP).count(), 1);
+            count += pieces.len();
+        }
+        assert_eq!(count, 148);
     }
 
     #[test]

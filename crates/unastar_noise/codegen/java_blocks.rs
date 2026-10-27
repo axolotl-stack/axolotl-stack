@@ -1,6 +1,6 @@
 //! Java block model for code generation: the pinned block registry
 //! (`java_data/blocks.json`, shared with the terrain toolchain), block types
-//! (`java_data/block_kinds.json`), collision shapes (`java_data/collisions.json`),
+//! (`java_data/block_kinds.json`), validated native physics,
 //! block tags (`java_data/tags/block`), state id resolution and block-set
 //! interning, plus the emitter for the generated `java_registry.rs` module
 //! (`features::java_blocks`).
@@ -9,13 +9,9 @@
 //! to its global Java state id; an unknown block, property or value fails the
 //! build.
 //!
-//! Per-state flags are derived from the collision boxes:
-//! - bit 0: Java "legacy solid": non-empty shape whose bounds have an average
-//!   edge >= 0.7291666 or a full height (signs, banners and pressure plates
-//!   force it on);
-//! - bits 1..=6: full-face collision in `Direction` order (down, up, north,
-//!   south, west, east), for `has_sturdy_face`;
-//! - bit 7: full-cube collision.
+//! The canonical data parser supplies actual native state physics. The feature
+//! flag byte keeps its existing layout: legacy solid (bit 0), sturdy faces in
+//! D/U/N/S/W/E order (bits 1..6), and collision-full-cube (bit 7).
 
 use proc_macro2::{Literal, TokenStream};
 use quote::{format_ident, quote};
@@ -36,80 +32,6 @@ struct BlockJson {
     properties: Vec<(String, Vec<String>)>,
 }
 
-#[derive(Debug, Deserialize)]
-struct CollisionsFile {
-    shapes: Vec<Vec<[f64; 6]>>,
-    indices: Vec<usize>,
-}
-
-/// Blocks whose block properties force `isSolid()` on regardless of shape.
-const FORCE_SOLID_ON_SUFFIXES: &[&str] = &["_sign", "_banner", "_pressure_plate"];
-
-const EPS: f64 = 1e-7;
-
-/// Whether the union of `boxes` covers one unit face (1/64 grid of cell
-/// centres; exact for vanilla's 1/16-step shapes).
-fn face_full(boxes: &[[f64; 6]], axis: usize, at_max: bool) -> bool {
-    let (u, v) = match axis {
-        0 => (1, 2),
-        1 => (0, 2),
-        _ => (0, 1),
-    };
-    let plane = if at_max { 1.0 } else { 0.0 };
-    let n = 64;
-    (0..n).all(|i| {
-        (0..n).all(|j| {
-            let pu = (i as f64 + 0.5) / n as f64;
-            let pv = (j as f64 + 0.5) / n as f64;
-            boxes.iter().any(|bx| {
-                let touches = if at_max {
-                    (bx[axis + 3] - plane).abs() < EPS
-                } else {
-                    (bx[axis] - plane).abs() < EPS
-                };
-                touches && bx[u] <= pu && pu <= bx[u + 3] && bx[v] <= pv && pv <= bx[v + 3]
-            })
-        })
-    })
-}
-
-fn shape_flags(boxes: &[[f64; 6]]) -> u8 {
-    let mut f = 0u8;
-    if !boxes.is_empty() {
-        let mut b = [f64::MAX, f64::MAX, f64::MAX, f64::MIN, f64::MIN, f64::MIN];
-        for bx in boxes {
-            for i in 0..3 {
-                b[i] = b[i].min(bx[i]);
-                b[i + 3] = b[i + 3].max(bx[i + 3]);
-            }
-        }
-        let (dx, dy, dz) = (b[3] - b[0], b[4] - b[1], b[5] - b[2]);
-        if (dx + dy + dz) / 3.0 >= 0.7291666666666666 || dy >= 1.0 {
-            f |= 1;
-        }
-        let faces = [
-            (1, false),
-            (1, true),
-            (2, false),
-            (2, true),
-            (0, false),
-            (0, true),
-        ];
-        for (i, (axis, max)) in faces.into_iter().enumerate() {
-            if face_full(boxes, axis, max) {
-                f |= 1 << (i + 1);
-            }
-        }
-        if boxes.iter().any(|bx| {
-            bx.iter()
-                .zip([0.0, 0.0, 0.0, 1.0, 1.0, 1.0])
-                .all(|(a, e)| (a - e).abs() < EPS)
-        }) {
-            f |= 1 << 7;
-        }
-    }
-    f
-}
 
 /// One Java block.
 #[derive(Debug, Clone)]
@@ -161,9 +83,8 @@ enum TagEntry {
 pub type Result<T, E = Box<dyn std::error::Error>> = std::result::Result<T, E>;
 
 impl JavaBlocks {
-    /// Load the block registry, block types, collision shapes and block tags
-    /// from `java_data`.
-    pub fn load(java_data: &Path) -> Result<Self> {
+    /// Load block identities, types, and tags, reusing validated canonical native physics.
+    pub fn load(java_data: &Path, support_flags: &[u8], behavior_flags: &[u8]) -> Result<Self> {
         let read = |name: &str| -> Result<String> {
             let p = java_data.join(name);
             std::fs::read_to_string(&p).map_err(|e| format!("{}: {e}", p.display()).into())
@@ -172,14 +93,6 @@ impl JavaBlocks {
             .map_err(|e| format!("java_data/blocks.json: {e}"))?;
         let kinds: BTreeMap<String, String> = serde_json::from_str(&read("block_kinds.json")?)
             .map_err(|e| format!("java_data/block_kinds.json: {e}"))?;
-        let collisions: CollisionsFile = serde_json::from_str(&read("collisions.json")?)
-            .map_err(|e| format!("java_data/collisions.json: {e}"))?;
-        // Shapes are shared by many states: classify each once.
-        let shape_bits: Vec<u8> = collisions
-            .shapes
-            .iter()
-            .map(|boxes| shape_flags(boxes))
-            .collect();
         let mut blocks = Vec::with_capacity(file.blocks.len());
         let mut by_name = HashMap::new();
         let mut first = 0;
@@ -192,18 +105,11 @@ impl JavaBlocks {
                 .get(&b.name)
                 .ok_or_else(|| format!("java_data/block_kinds.json has no type for {}", b.name))?
                 .clone();
-            let short = b.name.trim_start_matches("minecraft:");
-            let force_solid = FORCE_SOLID_ON_SUFFIXES.iter().any(|s| short.ends_with(s));
             let flags = (first..first + count)
                 .map(|s| {
-                    let shape = *collisions
-                        .indices
-                        .get(s)
-                        .ok_or_else(|| format!("collisions.json has no shape for state {s}"))?;
-                    let bits = *shape_bits
-                        .get(shape)
-                        .ok_or_else(|| format!("collisions.json: bad shape index {shape}"))?;
-                    Ok(if force_solid { bits | 1 } else { bits })
+                    let (&support, &behavior) = support_flags.get(s).zip(behavior_flags.get(s))
+                        .ok_or_else(|| format!("native physics has no state {s}"))?;
+                    Ok((behavior & 1) | ((support & 0x3f) << 1) | ((behavior & 4) << 5))
                 })
                 .collect::<Result<Vec<u8>>>()?;
             by_name.insert(b.name.clone(), blocks.len());
@@ -218,8 +124,8 @@ impl JavaBlocks {
             });
             first += count;
         }
-        if first != collisions.indices.len() {
-            return Err("java_data block and collision tables disagree on the state count".into());
+        if first != support_flags.len() || first != behavior_flags.len() {
+            return Err("java_data identities and native physics disagree on the state count".into());
         }
         let tags_dir = &java_data.join("tags/block");
 

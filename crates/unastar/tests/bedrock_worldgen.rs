@@ -112,10 +112,10 @@ fn bedrock_decoration_is_independent_of_chunk_request_order() {
             let forward = ChunkPipeline::new(Arc::new(BedrockGenerator::new(12345)));
             let reverse = ChunkPipeline::new(Arc::new(BedrockGenerator::new(12345)));
             let positions = [ChunkPos::new(6, -4), ChunkPos::new(7, -4)];
-            let a = positions.map(|p| forward.generate(p));
+            let a = positions.map(|p| forward.generate(p).unwrap());
             let b = [
-                reverse.generate(positions[1]),
-                reverse.generate(positions[0]),
+                reverse.generate(positions[1]).unwrap(),
+                reverse.generate(positions[0]).unwrap(),
             ];
             for i in 0..2 {
                 for y in -64..320 {

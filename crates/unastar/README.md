@@ -68,13 +68,136 @@ workers (0 = half the cores, 1..=8), off the ECS tick thread. Chunk biomes are 3
 Generation runs through `world::generator::ChunkPipeline`: per-chunk terrain stages
 write a flat block buffer that is packed into paletted sub-chunks once; a 3x3
 decoration stage (features and structures) runs only for generators that decorate.
-Parity with the Java reference world is ratcheted by
-`cargo test -p unastar --test worldgen_parity` (terrain/surface heights, proto voxels,
-biomes, and the world spawn); `cargo run -p unastar --example worldgen_parity_report`
-prints the metrics and `cargo run -p unastar --example worldgen_bench [--release]`
-the ms/chunk and allocations/chunk.
+Legacy projection gates run through `cargo test -p unastar --test worldgen_parity`.
+They cover terrain/surface metrics, projected proto voxels, biomes and spawn, not
+literal canonical Java-state equality. `worldgen_parity_report` prints those
+metrics; `worldgen_bench` reports performance separately.
 
-### Column-cache integration evidence
+### Canonical Java-state captures
+
+Legacy parity ratchets project Java states into Bedrock block types. They do not
+measure literal Java state equality: air variants, fluid levels, waterlogging and
+other properties can collapse in that projection. Their existing floors remain
+unchanged.
+
+Use the canonical exporter on a stopped Java 1.21.11 reference world:
+
+```text
+cargo run -p unastar --example java_worldgen_reference -- --canonical <world> <capture.json> minecraft:overworld minecraft:full "<actual tick and datapack controls>" -4:-4:3:3
+cargo run -p unastar --example java_canonical_compare -- <expected.json> <actual.json>
+```
+
+The exporter retains every property and every requested voxel, quart biome, saved
+heightmap and typed block-entity payload. Missing chunks and unequal requested
+saved statuses are errors, not skipped coverage. Dimension identifiers also accept
+`minecraft:the_nether` and `minecraft:the_end`. Extraction support and the presence
+of a runtime dimension branch are not evidence of exact native conformance.
+
+The comparator validates complete pinned Java registry states before comparison,
+rejects legacy name-only fixtures and mismatched coverage/settings/stages, reports
+integer mismatch counts and the first absolute block coordinate, and exits with
+`1` for differences or `2` for invalid/incomparable inputs. Capture descriptions
+must declare modifications and tick controls; a full chunk produced with an empty
+feature datapack is not an ordinary unmodified vanilla reference. Matching a
+capture against itself only exercises the comparator, not generator parity.
+
+An exercised smoke exported all 96 existing seed-12345 undecorated reference
+chunks (9,437,184 voxels); changing one native water voxel from `level=0` to
+`level=1` was reported as exactly one state difference at `(-2036,-42,520)`.
+Raw captures remain outside the repository.
+
+`java_canonical_compare --generate <reference.json> <actual.json>` selects the
+captured vanilla Overworld, Nether or End preset and checks its complete logical
+storage volume before generation. It validates captured world settings and the
+datapack recipe; unknown/custom generation inputs fail closed. The actor path
+retains native save recipes instead of reconstructing Java actors from Bedrock.
+Whole-runtime conformance still requires the native comparisons below; source
+dispatch alone is not a passing result.
+
+A native BIOMES-stage comparison of 174 saved seed-12345 chunks initially differed
+at three quart cells. A pinned native section-fill probe established equal climate
+fitness and previous-candidate tie retention as the cause. Generated R-tree
+per-thread history plus native section X/Y/Z traversal reduced those differences
+to zero across all 267,264 quart cells. All 17,104,896 BIOMES-stage block states
+also match, but these are still air: this is not terrain or finished-world parity.
+The cave-boundary regression fails before the fix and passes after it.
+
+Native biome ties are history-dependent, including across chunk calls on a worker.
+Request-order and parallel checks must match the reference's worker/query context
+or report that dependency; resetting tie history to force seed-only determinism
+would change native behavior. Bedrock keeps its current independent-nearest policy
+until a BDS reference establishes a different rule.
+
+`JavaGenerationOptions::dimension` selects the native preset. Java states, native
+biome identities and actor recipes remain intact through
+`ChunkPipeline::generate_native`; the ordinary output path converts to Bedrock
+only at its explicit final boundary. `BedrockGenerator` selects
+`JavaGenerator::for_bedrock_shared_terrain` to retain its calibrated arithmetic
+and independent-nearest biome policy, rather than inheriting the native cutover.
+
+Native decoration retains a mutable source world: later feature origins read
+earlier neighbor writes, and each origin completes once. `decorate_origin`
+advances one FEATURES origin; `native_snapshot` observes the current boundary
+without advancing others. `generate_native` completes the target's decoration
+halo before returning it. WG heightmaps freeze at CARVERS; subsequent decoration
+updates only the final heightmaps. Repeated observations retain their recorded
+request indices rather than overwriting an earlier snapshot of the same chunk.
+
+At the Bedrock boundary, waterlogged states and fluid-bearing aquatic plants
+produce a secondary source-water storage without changing their primary block.
+Ordinary water remains primary-only. Sections allocate secondary storage lazily;
+ordinary primary writes clear stale secondary liquid, including same-primary
+replacements. Disk and network sub-chunks share the version-8/9 two-storage codec,
+and decoding commits both layers only after both have validated.
+`ChunkPipeline::generate` returns an error if a native actor cannot be represented,
+before partially converting the source chunk.
+
+An actual native-generation boundary smoke exercised mixed wet/dry/aquatic states
+across negative and zero sections, then reopened disk bytes and decoded network
+payloads, checking both layers at every voxel. This is projection/codec evidence,
+not proof of native feature-placement or BDS template parity.
+
+
+### Independent native measurement profiles
+
+`unastar_noise/tools/NativeWorldgenOracle.java` verifies the pinned official assets
+and invokes real native generation APIs. The full-stage mode constructs genuine
+world resources, server/level objects and chunk-generation contexts without
+`initServer`, `runServer`, listeners, FULL/SPAWN promotion or ticks. Its completed
+captures observed zero network attempts and zero server ticks.
+
+| Native reference profile | Seeds | Complete snapshots | Canonical voxels |
+|---|---:|---:|---:|
+| Unblended NOISE, structures disabled | 8 | 180 | 13,762,560 |
+| Tagged-runtime SURFACE, structures disabled | 8 | 180 | 13,762,560 |
+| SURFACE/CARVERS/FEATURES/FEATURES halo closure, structures disabled plus order controls | 8 | 480 | 36,700,160 |
+| Structure-heavy SURFACE/CARVERS/FEATURES/FEATURES halo closure | 8 | 1,272 | 97,255,424 |
+
+These are independent reference coverage, **not Rust/native agreement counts**.
+The full-stage corpus separates immediate FEATURES completion from completed
+neighbor-decoration closure: neighboring feature origins make additional writes
+into a target chunk. Finished static comparisons must select the halo-closure
+profile. Typed actors, entities and scheduled ticks remain separate evidence.
+
+A seed-zero NOISE comparison previously found native stone replaced by source
+water or air at two positions in chunk `(0,0)`. The actual Rust native material
+kernel now reproduces both measured native density bit patterns exactly:
+
+| Absolute position | Previous consumed density bits | Native and corrected material bits |
+|---|---|---|
+| `(0,62,13)` | `bf10fd744ca3c800` | `3f426065381826f9` |
+| `(7,63,14)` | `bf3799ee0553d600` | `3f200bd1dded487e` |
+
+The correction preserves marked-source interpolation, native bulk XYZ rounding,
+and nonlinear post-interpolation evaluation. This is a material-kernel smoke,
+not a post-cutover whole-generator voxel or finished-world parity result.
+
+
+
+### Historical projected column-cache measurements
+
+These historical projected scores do not establish canonical state equality or
+authorize weakening current floors.
 
 The scalar column-cache correction in `6d8a9649` replaces the SIMD initializer's
 zero-valued noise/nested-input branches, not the decoration algorithms. Isolating
@@ -104,9 +227,9 @@ stone 670449/674068/673077, dirt 29869/28764/28840, sand 1061/979/999,
 short grass 3145/3358/3321, coal ore 5024/4759/4735, and oak leaves
 989/1010/1066. Individual decoration counts do not all improve when their
 supporting terrain changes; these aggregate scores are not placement accuracy.
-This evidence permits resetting only the ore/vegetation count floors to
-0.9678/0.8512, while raising the blob floor to 0.9705. All terrain floors stay
-unchanged. `column_grid_matches_scalar_density` guards the cache correction
+That historical run recorded ore/vegetation floors of 0.9678/0.8512 and a blob
+floor of 0.9705; it does not authorize changing current floors for the canonical
+cutover. `column_grid_matches_scalar_density` guards the older cache correction
 directly; the old initializer fails it at seed 0, column (0, 0), y=64.
 
 Print finished-chunk metrics with `cargo run -p unastar --all-features --example
@@ -231,8 +354,9 @@ seed = 12345
 ```
 
 Startup rejects this configuration if `bedrock-worldgen` was not compiled in.
-Both editions use the same `Generator`/`ChunkPipeline`, bounded generation pool
-and deterministic 3x3 decoration assembly. Bedrock's proto stage uses shared
+Both editions use the same `Generator`/`ChunkPipeline` and bounded generation pool.
+Native Java retains chronological source-world decoration; Bedrock retains
+independent cached decoration replay. Bedrock's proto stage uses shared
 noise/aquifers/veins, maps quart biomes to native Bedrock IDs, applies BDS-data
 surface builders and cave subsurface ranges, then runs compiled carver rules.
 Decoration places data-driven structure sets before feature passes. Height
@@ -250,20 +374,44 @@ per-chunk seeding). **BDS parity is not established**, including statistical
 decoration parity. The codegen crate's [measurement ledger](../unastar_bedrock_codegen/README.md)
 lists the unmeasured algorithms and required reference controls.
 
-The shared `JavaGenerator` exposes `generate_noise_proto` and its dense equivalent
-`generate_noise_blocks`: density, aquifers, ore veins and quart biomes before
-edition-specific surface/carver passes. `sample_biome` samples an absolute block
+The shared `JavaGenerator` exposes `generate_noise_proto` and its callback-based
+dense helper `generate_noise_with`: density, aquifers, ore veins and quart biomes
+before edition-specific surface/carver passes. `sample_biome` samples an absolute block
 position using the same seeded noise registry; `noise_heightmap` is a chunk-level
 motion-blocking height oracle before surface/carvers. Callers cache oracle
 results per placement run rather than regenerate a chunk for every queried column.
 
 ## Generated block entities
 
-Java and Bedrock structure placement retain sparse native block actors in
-`Chunk`, through proto generation, 3x3 decoration overlays and cached replay.
-Block-type replacement removes stale metadata; changes between states of the
-same block type preserve it. Generated loot/spawner metadata is AOT-encoded:
-runtime placement does not parse template NBT or draw additional random values.
+Java and Bedrock placement retain sparse actors in `Chunk`, through proto
+generation, decoration overlays and chronological replay. Native Java
+`WorldGenRegion` writes to actor blocks queue the exact uninstantiated ProtoChunk
+`{id:"DUMMY",x,y,z}` marker, not constructor-default NBT. An existing live actor
+survives property changes and replacement by another actor block; replacement
+with a nonactor removes it. Later explicit feature/template NBT replaces the
+pending marker. ProtoChunk live saves omit the later LevelChunk `keepPacked`
+flag. Native marker writes outside build height are retained even though the
+block state remains void air; ordinary Bedrock setters keep their bounded
+placement and block-type-removal behavior.
+
+Typed Java recipes and pending markers remain source-native until the explicit
+one-way Bedrock adapter. Generation does not inverse-map state IDs or draw extra
+random values for actor serialization. `NativePendingActorProbe.java` reproduces
+the controlled pending/live transition fixture, actual source actor identities,
+and all 889 pinned template actors saved through actual ProtoChunk APIs, using a
+constructor-only server context without ticks/listeners. Fullstage sculk
+witnesses additionally retain their original capture hash and complete states.
+The focused fixtures include nondefault loot, subsequent loot mutation after
+actor-block replacement, and explicit template overwrites; they do not establish
+whole-world feature parity.
+
+The final actor adapter is fallible and leaves its source unchanged on error.
+It maps measured native actor types, not arbitrary source block names. Java-only
+test actors and the native moving-piston null constructor are explicit errors,
+not fabricated empty actors. The ignored all-template conformance consumer uses
+both `UNASTAR_NATIVE_ACTOR_CAPTURE` (the original LevelChunk-boundary golden) and
+`UNASTAR_NATIVE_PROTO_ACTOR_CAPTURE` (the probe's `.proto-template-actors.json`
+output); both native captures remain unchanged.
 
 LevelDB stores concatenated fixed-little-endian roots under chunk key `0x31`.
 BlazeDB writes format v3 with an explicit metadata length and still reads v1/v2

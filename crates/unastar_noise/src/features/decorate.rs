@@ -153,4 +153,68 @@ mod tests {
         decorate(&mut b);
         assert_ne!(a.blocks, b.blocks);
     }
+
+    /// Exercise the generated modifier chain and real ore implementation, not
+    /// a copy of the height formula. Native inputs are isolated homogeneous
+    /// worlds, so neighboring decoration history cannot affect this regression.
+    #[test]
+    fn placed_quartz_matches_native_height_context_and_rng() {
+        let fixture: serde_json::Value = serde_json::from_str(include_str!(
+            "../../tests/data/native_placed_quartz_1_21_11.json"
+        ))
+        .unwrap();
+        let id = super::super::generated::PLACED_NAMES
+            .iter()
+            .position(|&name| name == "minecraft:ore_quartz_nether")
+            .unwrap() as u16;
+        for case in fixture["cases"].as_array().unwrap() {
+            let seed = case["seed"].as_i64().unwrap();
+            let cx = case["chunk_x"].as_i64().unwrap() as i32;
+            let cz = case["chunk_z"].as_i64().unwrap() as i32;
+            let mut world = TestWorld::flat(128);
+            world.min_y = 0;
+            world.height = 256;
+            world.gen_depth = 128;
+            world.fill = states::NETHERRACK;
+            world.seed = seed;
+            world.biome = biome_index("minecraft:nether_wastes").unwrap();
+            let mut rng = FeatureRandom::new(0);
+            let decoration_seed = rng.set_decoration_seed(seed, cx * 16, cz * 16);
+            assert_eq!(decoration_seed, case["decoration_seed"].as_i64().unwrap());
+            rng.set_feature_seed(
+                decoration_seed,
+                case["feature_index"].as_i64().unwrap() as i32,
+                case["step"].as_i64().unwrap() as i32,
+            );
+            let placed = super::super::generated::place_placed(
+                id,
+                &mut world,
+                &mut rng,
+                BlockPos::new(cx * 16, 0, cz * 16),
+            );
+            assert_eq!(placed, case["success"].as_bool().unwrap());
+            assert_eq!(
+                rng.next_int(),
+                case["next_int"].as_i64().unwrap() as i32,
+                "seed {seed} chunk ({cx},{cz}) RNG continuation"
+            );
+            let expected: std::collections::HashMap<_, _> = case["blocks"]
+                .as_array()
+                .unwrap()
+                .iter()
+                .map(|block| {
+                    assert_eq!(block["state"].as_str().unwrap(), "minecraft:nether_quartz_ore");
+                    (
+                        BlockPos::new(
+                            block["x"].as_i64().unwrap() as i32,
+                            block["y"].as_i64().unwrap() as i32,
+                            block["z"].as_i64().unwrap() as i32,
+                        ),
+                        states::NETHER_QUARTZ_ORE,
+                    )
+                })
+                .collect();
+            assert_eq!(world.blocks, expected, "seed {seed} chunk ({cx},{cz})");
+        }
+    }
 }

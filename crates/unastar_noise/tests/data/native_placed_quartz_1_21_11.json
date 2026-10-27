@@ -1,0 +1,8978 @@
+{
+  "cases": [
+    {
+      "success": true,
+      "decoration_seed": 0,
+      "feature_index": 20,
+      "chunk_z": 0,
+      "chunk_x": 0,
+      "step": 7,
+      "blocks": [
+        {
+          "x": -1,
+          "state": "minecraft:nether_quartz_ore",
+          "z": 11,
+          "y": 12
+        },
+        {
+          "x": -1,
+          "state": "minecraft:nether_quartz_ore",
+          "z": 12,
+          "y": 12
+        },
+        {
+          "x": -1,
+          "state": "minecraft:nether_quartz_ore",
+          "z": 13,
+          "y": 12
+        },
+        {
+          "x": -1,
+          "state": "minecraft:nether_quartz_ore",
+          "z": 14,
+          "y": 12
+        },
+        {
+          "x": -1,
+          "state": "minecraft:nether_quartz_ore",
+          "z": 11,
+          "y": 13
+        },
+        {
+          "x": -1,
+          "state": "minecraft:nether_quartz_ore",
+          "z": 12,
+          "y": 13
+        },
+        {
+          "x": -1,
+          "state": "minecraft:nether_quartz_ore",
+          "z": 13,
+          "y": 13
+        },
+        {
+          "x": -1,
+          "state": "minecraft:nether_quartz_ore",
+          "z": 14,
+          "y": 13
+        },
+        {
+          "x": -2,
+          "state": "minecraft:nether_quartz_ore",
+          "z": 8,
+          "y": 40
+        },
+        {
+          "x": -1,
+          "state": "minecraft:nether_quartz_ore",
+          "z": 8,
+          "y": 40
+        },
+        {
+          "x": -2,
+          "state": "minecraft:nether_quartz_ore",
+          "z": 9,
+          "y": 40
+        },
+        {
+          "x": -1,
+          "state": "minecraft:nether_quartz_ore",
+          "z": 9,
+          "y": 40
+        },
+        {
+          "x": -1,
+          "state": "minecraft:nether_quartz_ore",
+          "z": 10,
+          "y": 40
+        },
+        {
+          "x": -2,
+          "state": "minecraft:nether_quartz_ore",
+          "z": 8,
+          "y": 41
+        },
+        {
+          "x": -1,
+          "state": "minecraft:nether_quartz_ore",
+          "z": 8,
+          "y": 41
+        },
+        {
+          "x": -2,
+          "state": "minecraft:nether_quartz_ore",
+          "z": 9,
+          "y": 41
+        },
+        {
+          "x": -1,
+          "state": "minecraft:nether_quartz_ore",
+          "z": 9,
+          "y": 41
+        },
+        {
+          "x": -1,
+          "state": "minecraft:nether_quartz_ore",
+          "z": 10,
+          "y": 41
+        },
+        {
+          "x": -1,
+          "state": "minecraft:nether_quartz_ore",
+          "z": 11,
+          "y": 99
+        },
+        {
+          "x": -1,
+          "state": "minecraft:nether_quartz_ore",
+          "z": 12,
+          "y": 99
+        },
+        {
+          "x": -1,
+          "state": "minecraft:nether_quartz_ore",
+          "z": 13,
+          "y": 99
+        },
+        {
+          "x": -1,
+          "state": "minecraft:nether_quartz_ore",
+          "z": 11,
+          "y": 100
+        },
+        {
+          "x": -1,
+          "state": "minecraft:nether_quartz_ore",
+          "z": 12,
+          "y": 100
+        },
+        {
+          "x": -1,
+          "state": "minecraft:nether_quartz_ore",
+          "z": 13,
+          "y": 100
+        },
+        {
+          "x": 10,
+          "state": "minecraft:nether_quartz_ore",
+          "z": 3,
+          "y": 10
+        },
+        {
+          "x": 8,
+          "state": "minecraft:nether_quartz_ore",
+          "z": 4,
+          "y": 10
+        },
+        {
+          "x": 9,
+          "state": "minecraft:nether_quartz_ore",
+          "z": 4,
+          "y": 10
+        },
+        {
+          "x": 10,
+          "state": "minecraft:nether_quartz_ore",
+          "z": 4,
+          "y": 10
+        },
+        {
+          "x": 8,
+          "state": "minecraft:nether_quartz_ore",
+          "z": 5,
+          "y": 10
+        },
+        {
+          "x": 9,
+          "state": "minecraft:nether_quartz_ore",
+          "z": 5,
+          "y": 10
+        },
+        {
+          "x": 9,
+          "state": "minecraft:nether_quartz_ore",
+          "z": 3,
+          "y": 11
+        },
+        {
+          "x": 10,
+          "state": "minecraft:nether_quartz_ore",
+          "z": 3,
+          "y": 11
+        },
+        {
+          "x": 8,
+          "state": "minecraft:nether_quartz_ore",
+          "z": 4,
+          "y": 11
+        },
+        {
+          "x": 9,
+          "state": "minecraft:nether_quartz_ore",
+          "z": 4,
+          "y": 11
+        },
+        {
+          "x": 10,
+          "state": "minecraft:nether_quartz_ore",
+          "z": 4,
+          "y": 11
+        },
+        {
+          "x": 7,
+          "state": "minecraft:nether_quartz_ore",
+          "z": 5,
+          "y": 11
+        },
+        {
+          "x": 8,
+          "state": "minecraft:nether_quartz_ore",
+          "z": 5,
+          "y": 11
+        },
+        {
+          "x": 9,
+          "state": "minecraft:nether_quartz_ore",
+          "z": 5,
+          "y": 11
+        },
+        {
+          "x": 8,
+          "state": "minecraft:nether_quartz_ore",
+          "z": 4,
+          "y": 12
+        },
+        {
+          "x": 9,
+          "state": "minecraft:nether_quartz_ore",
+          "z": 4,
+          "y": 12
+        },
+        {
+          "x": 7,
+          "state": "minecraft:nether_quartz_ore",
+          "z": 5,
+          "y": 12
+        },
+        {
+          "x": 8,
+          "state": "minecraft:nether_quartz_ore",
+          "z": 5,
+          "y": 12
+        },
+        {
+          "x": 9,
+          "state": "minecraft:nether_quartz_ore",
+          "z": 5,
+          "y": 12
+        },
+        {
+          "x": 0,
+          "state": "minecraft:nether_quartz_ore",
+          "z": 11,
+          "y": 12
+        },
+        {
+          "x": 0,
+          "state": "minecraft:nether_quartz_ore",
+          "z": 12,
+          "y": 12
+        },
+        {
+          "x": 0,
+          "state": "minecraft:nether_quartz_ore",
+          "z": 13,
+          "y": 12
+        },
+        {
+          "x": 0,
+          "state": "minecraft:nether_quartz_ore",
+          "z": 14,
+          "y": 12
+        },
+        {
+          "x": 0,
+          "state": "minecraft:nether_quartz_ore",
+          "z": 11,
+          "y": 13
+        },
+        {
+          "x": 0,
+          "state": "minecraft:nether_quartz_ore",
+          "z": 12,
+          "y": 13
+        },
+        {
+          "x": 0,
+          "state": "minecraft:nether_quartz_ore",
+          "z": 13,
+          "y": 13
+        },
+        {
+          "x": 0,
+          "state": "minecraft:nether_quartz_ore",
+          "z": 14,
+          "y": 13
+        },
+        {
+          "x": 2,
+          "state": "minecraft:nether_quartz_ore",
+          "z": 14,
+          "y": 26
+        },
+        {
+          "x": 3,
+          "state": "minecraft:nether_quartz_ore",
+          "z": 14,
+          "y": 26
+        },
+        {
+          "x": 3,
+          "state": "minecraft:nether_quartz_ore",
+          "z": 13,
+          "y": 27
+        },
+        {
+          "x": 2,
+          "state": "minecraft:nether_quartz_ore",
+          "z": 14,
+          "y": 27
+        },
+        {
+          "x": 3,
+          "state": "minecraft:nether_quartz_ore",
+          "z": 14,
+          "y": 27
+        },
+        {
+          "x": 4,
+          "state": "minecraft:nether_quartz_ore",
+          "z": 14,
+          "y": 27
+        },
+        {
+          "x": 3,
+          "state": "minecraft:nether_quartz_ore",
+          "z": 15,
+          "y": 27
+        },
+        {
+          "x": 4,
+          "state": "minecraft:nether_quartz_ore",
+          "z": 15,
+          "y": 27
+        },
+        {
+          "x": 5,
+          "state": "minecraft:nether_quartz_ore",
+          "z": 15,
+          "y": 27
+        },
+        {
+          "x": 4,
+          "state": "minecraft:nether_quartz_ore",
+          "z": 15,
+          "y": 28
+        },
+        {
+          "x": 5,
+          "state": "minecraft:nether_quartz_ore",
+          "z": 15,
+          "y": 28
+        },
+        {
+          "x": 3,
+          "state": "minecraft:nether_quartz_ore",
+          "z": 14,
+          "y": 32
+        },
+        {
+          "x": 4,
+          "state": "minecraft:nether_quartz_ore",
+          "z": 14,
+          "y": 32
+        },
+        {
+          "x": 3,
+          "state": "minecraft:nether_quartz_ore",
+          "z": 14,
+          "y": 33
+        },
+        {
+          "x": 4,
+          "state": "minecraft:nether_quartz_ore",
+          "z": 14,
+          "y": 33
+        },
+        {
+          "x": 5,
+          "state": "minecraft:nether_quartz_ore",
+          "z": 14,
+          "y": 33
+        },
+        {
+          "x": 3,
+          "state": "minecraft:nether_quartz_ore",
+          "z": 15,
+          "y": 33
+        },
+        {
+          "x": 4,
+          "state": "minecraft:nether_quartz_ore",
+          "z": 15,
+          "y": 33
+        },
+        {
+          "x": 5,
+          "state": "minecraft:nether_quartz_ore",
+          "z": 15,
+          "y": 33
+        },
+        {
+          "x": 10,
+          "state": "minecraft:nether_quartz_ore",
+          "z": 10,
+          "y": 34
+        },
+        {
+          "x": 11,
+          "state": "minecraft:nether_quartz_ore",
+          "z": 10,
+          "y": 34
+        },
+        {
+          "x": 3,
+          "state": "minecraft:nether_quartz_ore",
+          "z": 14,
+          "y": 34
+        },
+        {
+          "x": 4,
+          "state": "minecraft:nether_quartz_ore",
+          "z": 14,
+          "y": 34
+        },
+        {
+          "x": 5,
+          "state": "minecraft:nether_quartz_ore",
+          "z": 14,
+          "y": 34
+        },
+        {
+          "x": 4,
+          "state": "minecraft:nether_quartz_ore",
+          "z": 15,
+          "y": 34
+        },
+        {
+          "x": 5,
+          "state": "minecraft:nether_quartz_ore",
+          "z": 15,
+          "y": 34
+        },
+        {
+          "x": 6,
+          "state": "minecraft:nether_quartz_ore",
+          "z": 15,
+          "y": 34
+        },
+        {
+          "x": 11,
+          "state": "minecraft:nether_quartz_ore",
+          "z": 9,
+          "y": 35
+        },
+        {
+          "x": 12,
+          "state": "minecraft:nether_quartz_ore",
+          "z": 9,
+          "y": 35
+        },
+        {
+          "x": 13,
+          "state": "minecraft:nether_quartz_ore",
+          "z": 9,
+          "y": 35
+        },
+        {
+          "x": 10,
+          "state": "minecraft:nether_quartz_ore",
+          "z": 10,
+          "y": 35
+        },
+        {
+          "x": 11,
+          "state": "minecraft:nether_quartz_ore",
+          "z": 10,
+          "y": 35
+        },
+        {
+          "x": 12,
+          "state": "minecraft:nether_quartz_ore",
+          "z": 10,
+          "y": 35
+        },
+        {
+          "x": 6,
+          "state": "minecraft:nether_quartz_ore",
+          "z": 15,
+          "y": 35
+        },
+        {
+          "x": 13,
+          "state": "minecraft:nether_quartz_ore",
+          "z": 9,
+          "y": 36
+        },
+        {
+          "x": 0,
+          "state": "minecraft:nether_quartz_ore",
+          "z": 9,
+          "y": 40
+        },
+        {
+          "x": 0,
+          "state": "minecraft:nether_quartz_ore",
+          "z": 10,
+          "y": 40
+        },
+        {
+          "x": 0,
+          "state": "minecraft:nether_quartz_ore",
+          "z": 11,
+          "y": 40
+        },
+        {
+          "x": 1,
+          "state": "minecraft:nether_quartz_ore",
+          "z": 11,
+          "y": 40
+        },
+        {
+          "x": 0,
+          "state": "minecraft:nether_quartz_ore",
+          "z": 9,
+          "y": 41
+        },
+        {
+          "x": 0,
+          "state": "minecraft:nether_quartz_ore",
+          "z": 10,
+          "y": 41
+        },
+        {
+          "x": 0,
+          "state": "minecraft:nether_quartz_ore",
+          "z": 11,
+          "y": 41
+        },
+        {
+          "x": 1,
+          "state": "minecraft:nether_quartz_ore",
+          "z": 11,
+          "y": 41
+        },
+        {
+          "x": 4,
+          "state": "minecraft:nether_quartz_ore",
+          "z": 7,
+          "y": 43
+        },
+        {
+          "x": 5,
+          "state": "minecraft:nether_quartz_ore",
+          "z": 7,
+          "y": 43
+        },
+        {
+          "x": 6,
+          "state": "minecraft:nether_quartz_ore",
+          "z": 7,
+          "y": 43
+        },
+        {
+          "x": 7,
+          "state": "minecraft:nether_quartz_ore",
+          "z": 7,
+          "y": 43
+        },
+        {
+          "x": 4,
+          "state": "minecraft:nether_quartz_ore",
+          "z": 8,
+          "y": 43
+        },
+        {
+          "x": 5,
+          "state": "minecraft:nether_quartz_ore",
+          "z": 8,
+          "y": 43
+        },
+        {
+          "x": 6,
+          "state": "minecraft:nether_quartz_ore",
+          "z": 8,
+          "y": 43
+        },
+        {
+          "x": 4,
+          "state": "minecraft:nether_quartz_ore",
+          "z": 7,
+          "y": 44
+        },
+        {
+          "x": 5,
+          "state": "minecraft:nether_quartz_ore",
+          "z": 7,
+          "y": 44
+        },
+        {
+          "x": 6,
+          "state": "minecraft:nether_quartz_ore",
+          "z": 7,
+          "y": 44
+        },
+        {
+          "x": 7,
+          "state": "minecraft:nether_quartz_ore",
+          "z": 7,
+          "y": 44
+        },
+        {
+          "x": 4,
+          "state": "minecraft:nether_quartz_ore",
+          "z": 8,
+          "y": 44
+        },
+        {
+          "x": 5,
+          "state": "minecraft:nether_quartz_ore",
+          "z": 8,
+          "y": 44
+        },
+        {
+          "x": 6,
+          "state": "minecraft:nether_quartz_ore",
+          "z": 8,
+          "y": 44
+        },
+        {
+          "x": 2,
+          "state": "minecraft:nether_quartz_ore",
+          "z": 13,
+          "y": 52
+        },
+        {
+          "x": 3,
+          "state": "minecraft:nether_quartz_ore",
+          "z": 13,
+          "y": 52
+        },
+        {
+          "x": 1,
+          "state": "minecraft:nether_quartz_ore",
+          "z": 13,
+          "y": 53
+        },
+        {
+          "x": 2,
+          "state": "minecraft:nether_quartz_ore",
+          "z": 13,
+          "y": 53
+        },
+        {
+          "x": 3,
+          "state": "minecraft:nether_quartz_ore",
+          "z": 13,
+          "y": 53
+        },
+        {
+          "x": 0,
+          "state": "minecraft:nether_quartz_ore",
+          "z": 14,
+          "y": 53
+        },
+        {
+          "x": 1,
+          "state": "minecraft:nether_quartz_ore",
+          "z": 14,
+          "y": 53
+        },
+        {
+          "x": 2,
+          "state": "minecraft:nether_quartz_ore",
+          "z": 14,
+          "y": 53
+        },
+        {
+          "x": 0,
+          "state": "minecraft:nether_quartz_ore",
+          "z": 14,
+          "y": 54
+        },
+        {
+          "x": 1,
+          "state": "minecraft:nether_quartz_ore",
+          "z": 14,
+          "y": 54
+        },
+        {
+          "x": 4,
+          "state": "minecraft:nether_quartz_ore",
+          "z": 5,
+          "y": 56
+        },
+        {
+          "x": 4,
+          "state": "minecraft:nether_quartz_ore",
+          "z": 6,
+          "y": 56
+        },
+        {
+          "x": 4,
+          "state": "minecraft:nether_quartz_ore",
+          "z": 5,
+          "y": 57
+        },
+        {
+          "x": 3,
+          "state": "minecraft:nether_quartz_ore",
+          "z": 6,
+          "y": 57
+        },
+        {
+          "x": 4,
+          "state": "minecraft:nether_quartz_ore",
+          "z": 6,
+          "y": 57
+        },
+        {
+          "x": 3,
+          "state": "minecraft:nether_quartz_ore",
+          "z": 7,
+          "y": 57
+        },
+        {
+          "x": 4,
+          "state": "minecraft:nether_quartz_ore",
+          "z": 7,
+          "y": 57
+        },
+        {
+          "x": 3,
+          "state": "minecraft:nether_quartz_ore",
+          "z": 8,
+          "y": 57
+        },
+        {
+          "x": 3,
+          "state": "minecraft:nether_quartz_ore",
+          "z": 7,
+          "y": 58
+        },
+        {
+          "x": 3,
+          "state": "minecraft:nether_quartz_ore",
+          "z": 8,
+          "y": 58
+        },
+        {
+          "x": 13,
+          "state": "minecraft:nether_quartz_ore",
+          "z": 13,
+          "y": 77
+        },
+        {
+          "x": 14,
+          "state": "minecraft:nether_quartz_ore",
+          "z": 13,
+          "y": 77
+        },
+        {
+          "x": 13,
+          "state": "minecraft:nether_quartz_ore",
+          "z": 14,
+          "y": 77
+        },
+        {
+          "x": 14,
+          "state": "minecraft:nether_quartz_ore",
+          "z": 14,
+          "y": 77
+        },
+        {
+          "x": 13,
+          "state": "minecraft:nether_quartz_ore",
+          "z": 15,
+          "y": 77
+        },
+        {
+          "x": 14,
+          "state": "minecraft:nether_quartz_ore",
+          "z": 15,
+          "y": 77
+        },
+        {
+          "x": 13,
+          "state": "minecraft:nether_quartz_ore",
+          "z": 13,
+          "y": 78
+        },
+        {
+          "x": 14,
+          "state": "minecraft:nether_quartz_ore",
+          "z": 13,
+          "y": 78
+        },
+        {
+          "x": 13,
+          "state": "minecraft:nether_quartz_ore",
+          "z": 14,
+          "y": 78
+        },
+        {
+          "x": 14,
+          "state": "minecraft:nether_quartz_ore",
+          "z": 14,
+          "y": 78
+        },
+        {
+          "x": 13,
+          "state": "minecraft:nether_quartz_ore",
+          "z": 15,
+          "y": 78
+        },
+        {
+          "x": 14,
+          "state": "minecraft:nether_quartz_ore",
+          "z": 15,
+          "y": 78
+        },
+        {
+          "x": 13,
+          "state": "minecraft:nether_quartz_ore",
+          "z": 14,
+          "y": 79
+        },
+        {
+          "x": 14,
+          "state": "minecraft:nether_quartz_ore",
+          "z": 14,
+          "y": 79
+        },
+        {
+          "x": 13,
+          "state": "minecraft:nether_quartz_ore",
+          "z": 15,
+          "y": 79
+        },
+        {
+          "x": 14,
+          "state": "minecraft:nether_quartz_ore",
+          "z": 15,
+          "y": 79
+        },
+        {
+          "x": 5,
+          "state": "minecraft:nether_quartz_ore",
+          "z": 0,
+          "y": 88
+        },
+        {
+          "x": 6,
+          "state": "minecraft:nether_quartz_ore",
+          "z": 0,
+          "y": 88
+        },
+        {
+          "x": 7,
+          "state": "minecraft:nether_quartz_ore",
+          "z": 0,
+          "y": 88
+        },
+        {
+          "x": 5,
+          "state": "minecraft:nether_quartz_ore",
+          "z": 1,
+          "y": 88
+        },
+        {
+          "x": 6,
+          "state": "minecraft:nether_quartz_ore",
+          "z": 1,
+          "y": 88
+        },
+        {
+          "x": 8,
+          "state": "minecraft:nether_quartz_ore",
+          "z": 11,
+          "y": 88
+        },
+        {
+          "x": 9,
+          "state": "minecraft:nether_quartz_ore",
+          "z": 11,
+          "y": 88
+        },
+        {
+          "x": 10,
+          "state": "minecraft:nether_quartz_ore",
+          "z": 11,
+          "y": 88
+        },
+        {
+          "x": 8,
+          "state": "minecraft:nether_quartz_ore",
+          "z": 12,
+          "y": 88
+        },
+        {
+          "x": 9,
+          "state": "minecraft:nether_quartz_ore",
+          "z": 12,
+          "y": 88
+        },
+        {
+          "x": 10,
+          "state": "minecraft:nether_quartz_ore",
+          "z": 12,
+          "y": 88
+        },
+        {
+          "x": 5,
+          "state": "minecraft:nether_quartz_ore",
+          "z": 0,
+          "y": 89
+        },
+        {
+          "x": 6,
+          "state": "minecraft:nether_quartz_ore",
+          "z": 0,
+          "y": 89
+        },
+        {
+          "x": 7,
+          "state": "minecraft:nether_quartz_ore",
+          "z": 0,
+          "y": 89
+        },
+        {
+          "x": 4,
+          "state": "minecraft:nether_quartz_ore",
+          "z": 1,
+          "y": 89
+        },
+        {
+          "x": 5,
+          "state": "minecraft:nether_quartz_ore",
+          "z": 1,
+          "y": 89
+        },
+        {
+          "x": 6,
+          "state": "minecraft:nether_quartz_ore",
+          "z": 1,
+          "y": 89
+        },
+        {
+          "x": 5,
+          "state": "minecraft:nether_quartz_ore",
+          "z": 2,
+          "y": 89
+        },
+        {
+          "x": 7,
+          "state": "minecraft:nether_quartz_ore",
+          "z": 11,
+          "y": 89
+        },
+        {
+          "x": 8,
+          "state": "minecraft:nether_quartz_ore",
+          "z": 11,
+          "y": 89
+        },
+        {
+          "x": 9,
+          "state": "minecraft:nether_quartz_ore",
+          "z": 11,
+          "y": 89
+        },
+        {
+          "x": 10,
+          "state": "minecraft:nether_quartz_ore",
+          "z": 11,
+          "y": 89
+        },
+        {
+          "x": 7,
+          "state": "minecraft:nether_quartz_ore",
+          "z": 12,
+          "y": 89
+        },
+        {
+          "x": 8,
+          "state": "minecraft:nether_quartz_ore",
+          "z": 12,
+          "y": 89
+        },
+        {
+          "x": 9,
+          "state": "minecraft:nether_quartz_ore",
+          "z": 12,
+          "y": 89
+        },
+        {
+          "x": 10,
+          "state": "minecraft:nether_quartz_ore",
+          "z": 12,
+          "y": 89
+        },
+        {
+          "x": 5,
+          "state": "minecraft:nether_quartz_ore",
+          "z": 0,
+          "y": 90
+        },
+        {
+          "x": 6,
+          "state": "minecraft:nether_quartz_ore",
+          "z": 0,
+          "y": 90
+        },
+        {
+          "x": 4,
+          "state": "minecraft:nether_quartz_ore",
+          "z": 1,
+          "y": 90
+        },
+        {
+          "x": 5,
+          "state": "minecraft:nether_quartz_ore",
+          "z": 1,
+          "y": 90
+        },
+        {
+          "x": 6,
+          "state": "minecraft:nether_quartz_ore",
+          "z": 1,
+          "y": 90
+        },
+        {
+          "x": 7,
+          "state": "minecraft:nether_quartz_ore",
+          "z": 11,
+          "y": 90
+        },
+        {
+          "x": 8,
+          "state": "minecraft:nether_quartz_ore",
+          "z": 11,
+          "y": 90
+        },
+        {
+          "x": 9,
+          "state": "minecraft:nether_quartz_ore",
+          "z": 11,
+          "y": 90
+        },
+        {
+          "x": 8,
+          "state": "minecraft:nether_quartz_ore",
+          "z": 12,
+          "y": 90
+        },
+        {
+          "x": 9,
+          "state": "minecraft:nether_quartz_ore",
+          "z": 12,
+          "y": 90
+        },
+        {
+          "x": 4,
+          "state": "minecraft:nether_quartz_ore",
+          "z": 1,
+          "y": 95
+        },
+        {
+          "x": 5,
+          "state": "minecraft:nether_quartz_ore",
+          "z": 1,
+          "y": 95
+        },
+        {
+          "x": 6,
+          "state": "minecraft:nether_quartz_ore",
+          "z": 1,
+          "y": 95
+        },
+        {
+          "x": 5,
+          "state": "minecraft:nether_quartz_ore",
+          "z": 2,
+          "y": 95
+        },
+        {
+          "x": 6,
+          "state": "minecraft:nether_quartz_ore",
+          "z": 2,
+          "y": 95
+        },
+        {
+          "x": 7,
+          "state": "minecraft:nether_quartz_ore",
+          "z": 2,
+          "y": 95
+        },
+        {
+          "x": 4,
+          "state": "minecraft:nether_quartz_ore",
+          "z": 1,
+          "y": 96
+        },
+        {
+          "x": 5,
+          "state": "minecraft:nether_quartz_ore",
+          "z": 1,
+          "y": 96
+        },
+        {
+          "x": 6,
+          "state": "minecraft:nether_quartz_ore",
+          "z": 1,
+          "y": 96
+        },
+        {
+          "x": 5,
+          "state": "minecraft:nether_quartz_ore",
+          "z": 2,
+          "y": 96
+        },
+        {
+          "x": 6,
+          "state": "minecraft:nether_quartz_ore",
+          "z": 2,
+          "y": 96
+        },
+        {
+          "x": 7,
+          "state": "minecraft:nether_quartz_ore",
+          "z": 2,
+          "y": 96
+        },
+        {
+          "x": 0,
+          "state": "minecraft:nether_quartz_ore",
+          "z": 10,
+          "y": 99
+        },
+        {
+          "x": 0,
+          "state": "minecraft:nether_quartz_ore",
+          "z": 11,
+          "y": 99
+        },
+        {
+          "x": 0,
+          "state": "minecraft:nether_quartz_ore",
+          "z": 12,
+          "y": 99
+        },
+        {
+          "x": 0,
+          "state": "minecraft:nether_quartz_ore",
+          "z": 10,
+          "y": 100
+        },
+        {
+          "x": 0,
+          "state": "minecraft:nether_quartz_ore",
+          "z": 11,
+          "y": 100
+        },
+        {
+          "x": 0,
+          "state": "minecraft:nether_quartz_ore",
+          "z": 12,
+          "y": 100
+        },
+        {
+          "x": 2,
+          "state": "minecraft:nether_quartz_ore",
+          "z": 0,
+          "y": 104
+        },
+        {
+          "x": 3,
+          "state": "minecraft:nether_quartz_ore",
+          "z": 0,
+          "y": 104
+        },
+        {
+          "x": 2,
+          "state": "minecraft:nether_quartz_ore",
+          "z": 1,
+          "y": 104
+        },
+        {
+          "x": 3,
+          "state": "minecraft:nether_quartz_ore",
+          "z": 1,
+          "y": 104
+        },
+        {
+          "x": 2,
+          "state": "minecraft:nether_quartz_ore",
+          "z": 2,
+          "y": 104
+        },
+        {
+          "x": 3,
+          "state": "minecraft:nether_quartz_ore",
+          "z": 2,
+          "y": 104
+        },
+        {
+          "x": 2,
+          "state": "minecraft:nether_quartz_ore",
+          "z": 3,
+          "y": 104
+        },
+        {
+          "x": 3,
+          "state": "minecraft:nether_quartz_ore",
+          "z": 3,
+          "y": 104
+        },
+        {
+          "x": 9,
+          "state": "minecraft:nether_quartz_ore",
+          "z": 6,
+          "y": 104
+        },
+        {
+          "x": 2,
+          "state": "minecraft:nether_quartz_ore",
+          "z": 0,
+          "y": 105
+        },
+        {
+          "x": 3,
+          "state": "minecraft:nether_quartz_ore",
+          "z": 0,
+          "y": 105
+        },
+        {
+          "x": 2,
+          "state": "minecraft:nether_quartz_ore",
+          "z": 1,
+          "y": 105
+        },
+        {
+          "x": 3,
+          "state": "minecraft:nether_quartz_ore",
+          "z": 1,
+          "y": 105
+        },
+        {
+          "x": 2,
+          "state": "minecraft:nether_quartz_ore",
+          "z": 2,
+          "y": 105
+        },
+        {
+          "x": 3,
+          "state": "minecraft:nether_quartz_ore",
+          "z": 2,
+          "y": 105
+        },
+        {
+          "x": 2,
+          "state": "minecraft:nether_quartz_ore",
+          "z": 3,
+          "y": 105
+        },
+        {
+          "x": 3,
+          "state": "minecraft:nether_quartz_ore",
+          "z": 3,
+          "y": 105
+        },
+        {
+          "x": 8,
+          "state": "minecraft:nether_quartz_ore",
+          "z": 4,
+          "y": 105
+        },
+        {
+          "x": 9,
+          "state": "minecraft:nether_quartz_ore",
+          "z": 4,
+          "y": 105
+        },
+        {
+          "x": 8,
+          "state": "minecraft:nether_quartz_ore",
+          "z": 5,
+          "y": 105
+        },
+        {
+          "x": 9,
+          "state": "minecraft:nether_quartz_ore",
+          "z": 5,
+          "y": 105
+        },
+        {
+          "x": 8,
+          "state": "minecraft:nether_quartz_ore",
+          "z": 6,
+          "y": 105
+        },
+        {
+          "x": 9,
+          "state": "minecraft:nether_quartz_ore",
+          "z": 6,
+          "y": 105
+        },
+        {
+          "x": 8,
+          "state": "minecraft:nether_quartz_ore",
+          "z": 3,
+          "y": 106
+        },
+        {
+          "x": 9,
+          "state": "minecraft:nether_quartz_ore",
+          "z": 3,
+          "y": 106
+        },
+        {
+          "x": 8,
+          "state": "minecraft:nether_quartz_ore",
+          "z": 4,
+          "y": 106
+        },
+        {
+          "x": 9,
+          "state": "minecraft:nether_quartz_ore",
+          "z": 4,
+          "y": 106
+        },
+        {
+          "x": 8,
+          "state": "minecraft:nether_quartz_ore",
+          "z": 5,
+          "y": 106
+        },
+        {
+          "x": 9,
+          "state": "minecraft:nether_quartz_ore",
+          "z": 5,
+          "y": 106
+        },
+        {
+          "x": 8,
+          "state": "minecraft:nether_quartz_ore",
+          "z": 3,
+          "y": 107
+        },
+        {
+          "x": 4,
+          "state": "minecraft:nether_quartz_ore",
+          "z": 16,
+          "y": 27
+        },
+        {
+          "x": 5,
+          "state": "minecraft:nether_quartz_ore",
+          "z": 16,
+          "y": 27
+        },
+        {
+          "x": 5,
+          "state": "minecraft:nether_quartz_ore",
+          "z": 16,
+          "y": 28
+        },
+        {
+          "x": 14,
+          "state": "minecraft:nether_quartz_ore",
+          "z": 16,
+          "y": 78
+        },
+        {
+          "x": 14,
+          "state": "minecraft:nether_quartz_ore",
+          "z": 16,
+          "y": 79
+        },
+        {
+          "x": 7,
+          "state": "minecraft:nether_quartz_ore",
+          "z": -1,
+          "y": 88
+        },
+        {
+          "x": 7,
+          "state": "minecraft:nether_quartz_ore",
+          "z": -1,
+          "y": 89
+        }
+      ],
+      "next_int": 934706462,
+      "seed": 0
+    },
+    {
+      "success": true,
+      "decoration_seed": 7069528835409849632,
+      "feature_index": 20,
+      "chunk_z": 1,
+      "chunk_x": -1,
+      "step": 7,
+      "blocks": [
+        {
+          "x": -8,
+          "state": "minecraft:nether_quartz_ore",
+          "z": 15,
+          "y": 97
+        },
+        {
+          "x": -7,
+          "state": "minecraft:nether_quartz_ore",
+          "z": 15,
+          "y": 97
+        },
+        {
+          "x": -8,
+          "state": "minecraft:nether_quartz_ore",
+          "z": 15,
+          "y": 98
+        },
+        {
+          "x": -7,
+          "state": "minecraft:nether_quartz_ore",
+          "z": 15,
+          "y": 98
+        },
+        {
+          "x": -9,
+          "state": "minecraft:nether_quartz_ore",
+          "z": 19,
+          "y": 9
+        },
+        {
+          "x": -10,
+          "state": "minecraft:nether_quartz_ore",
+          "z": 20,
+          "y": 9
+        },
+        {
+          "x": -9,
+          "state": "minecraft:nether_quartz_ore",
+          "z": 20,
+          "y": 9
+        },
+        {
+          "x": -8,
+          "state": "minecraft:nether_quartz_ore",
+          "z": 20,
+          "y": 9
+        },
+        {
+          "x": -9,
+          "state": "minecraft:nether_quartz_ore",
+          "z": 21,
+          "y": 9
+        },
+        {
+          "x": -8,
+          "state": "minecraft:nether_quartz_ore",
+          "z": 21,
+          "y": 9
+        },
+        {
+          "x": -7,
+          "state": "minecraft:nether_quartz_ore",
+          "z": 21,
+          "y": 9
+        },
+        {
+          "x": -8,
+          "state": "minecraft:nether_quartz_ore",
+          "z": 22,
+          "y": 9
+        },
+        {
+          "x": -7,
+          "state": "minecraft:nether_quartz_ore",
+          "z": 22,
+          "y": 9
+        },
+        {
+          "x": -9,
+          "state": "minecraft:nether_quartz_ore",
+          "z": 19,
+          "y": 10
+        },
+        {
+          "x": -10,
+          "state": "minecraft:nether_quartz_ore",
+          "z": 20,
+          "y": 10
+        },
+        {
+          "x": -9,
+          "state": "minecraft:nether_quartz_ore",
+          "z": 20,
+          "y": 10
+        },
+        {
+          "x": -8,
+          "state": "minecraft:nether_quartz_ore",
+          "z": 20,
+          "y": 10
+        },
+        {
+          "x": -9,
+          "state": "minecraft:nether_quartz_ore",
+          "z": 21,
+          "y": 10
+        },
+        {
+          "x": -8,
+          "state": "minecraft:nether_quartz_ore",
+          "z": 21,
+          "y": 10
+        },
+        {
+          "x": -7,
+          "state": "minecraft:nether_quartz_ore",
+          "z": 21,
+          "y": 10
+        },
+        {
+          "x": -8,
+          "state": "minecraft:nether_quartz_ore",
+          "z": 22,
+          "y": 10
+        },
+        {
+          "x": -7,
+          "state": "minecraft:nether_quartz_ore",
+          "z": 22,
+          "y": 10
+        },
+        {
+          "x": -12,
+          "state": "minecraft:nether_quartz_ore",
+          "z": 18,
+          "y": 22
+        },
+        {
+          "x": -11,
+          "state": "minecraft:nether_quartz_ore",
+          "z": 18,
+          "y": 22
+        },
+        {
+          "x": -10,
+          "state": "minecraft:nether_quartz_ore",
+          "z": 18,
+          "y": 22
+        },
+        {
+          "x": -11,
+          "state": "minecraft:nether_quartz_ore",
+          "z": 19,
+          "y": 22
+        },
+        {
+          "x": -10,
+          "state": "minecraft:nether_quartz_ore",
+          "z": 19,
+          "y": 22
+        },
+        {
+          "x": -9,
+          "state": "minecraft:nether_quartz_ore",
+          "z": 19,
+          "y": 22
+        },
+        {
+          "x": -12,
+          "state": "minecraft:nether_quartz_ore",
+          "z": 18,
+          "y": 23
+        },
+        {
+          "x": -11,
+          "state": "minecraft:nether_quartz_ore",
+          "z": 18,
+          "y": 23
+        },
+        {
+          "x": -10,
+          "state": "minecraft:nether_quartz_ore",
+          "z": 18,
+          "y": 23
+        },
+        {
+          "x": -11,
+          "state": "minecraft:nether_quartz_ore",
+          "z": 19,
+          "y": 23
+        },
+        {
+          "x": -10,
+          "state": "minecraft:nether_quartz_ore",
+          "z": 19,
+          "y": 23
+        },
+        {
+          "x": -9,
+          "state": "minecraft:nether_quartz_ore",
+          "z": 19,
+          "y": 23
+        },
+        {
+          "x": -6,
+          "state": "minecraft:nether_quartz_ore",
+          "z": 22,
+          "y": 32
+        },
+        {
+          "x": -5,
+          "state": "minecraft:nether_quartz_ore",
+          "z": 22,
+          "y": 32
+        },
+        {
+          "x": -4,
+          "state": "minecraft:nether_quartz_ore",
+          "z": 22,
+          "y": 32
+        },
+        {
+          "x": -6,
+          "state": "minecraft:nether_quartz_ore",
+          "z": 23,
+          "y": 32
+        },
+        {
+          "x": -5,
+          "state": "minecraft:nether_quartz_ore",
+          "z": 23,
+          "y": 32
+        },
+        {
+          "x": -4,
+          "state": "minecraft:nether_quartz_ore",
+          "z": 23,
+          "y": 32
+        },
+        {
+          "x": -3,
+          "state": "minecraft:nether_quartz_ore",
+          "z": 23,
+          "y": 32
+        },
+        {
+          "x": -6,
+          "state": "minecraft:nether_quartz_ore",
+          "z": 22,
+          "y": 33
+        },
+        {
+          "x": -5,
+          "state": "minecraft:nether_quartz_ore",
+          "z": 22,
+          "y": 33
+        },
+        {
+          "x": -4,
+          "state": "minecraft:nether_quartz_ore",
+          "z": 22,
+          "y": 33
+        },
+        {
+          "x": -6,
+          "state": "minecraft:nether_quartz_ore",
+          "z": 23,
+          "y": 33
+        },
+        {
+          "x": -5,
+          "state": "minecraft:nether_quartz_ore",
+          "z": 23,
+          "y": 33
+        },
+        {
+          "x": -4,
+          "state": "minecraft:nether_quartz_ore",
+          "z": 23,
+          "y": 33
+        },
+        {
+          "x": -3,
+          "state": "minecraft:nether_quartz_ore",
+          "z": 23,
+          "y": 33
+        },
+        {
+          "x": -6,
+          "state": "minecraft:nether_quartz_ore",
+          "z": 19,
+          "y": 37
+        },
+        {
+          "x": -6,
+          "state": "minecraft:nether_quartz_ore",
+          "z": 20,
+          "y": 37
+        },
+        {
+          "x": -5,
+          "state": "minecraft:nether_quartz_ore",
+          "z": 20,
+          "y": 37
+        },
+        {
+          "x": -5,
+          "state": "minecraft:nether_quartz_ore",
+          "z": 21,
+          "y": 37
+        },
+        {
+          "x": -7,
+          "state": "minecraft:nether_quartz_ore",
+          "z": 19,
+          "y": 38
+        },
+        {
+          "x": -6,
+          "state": "minecraft:nether_quartz_ore",
+          "z": 19,
+          "y": 38
+        },
+        {
+          "x": -6,
+          "state": "minecraft:nether_quartz_ore",
+          "z": 20,
+          "y": 38
+        },
+        {
+          "x": -5,
+          "state": "minecraft:nether_quartz_ore",
+          "z": 20,
+          "y": 38
+        },
+        {
+          "x": -6,
+          "state": "minecraft:nether_quartz_ore",
+          "z": 21,
+          "y": 38
+        },
+        {
+          "x": -5,
+          "state": "minecraft:nether_quartz_ore",
+          "z": 21,
+          "y": 38
+        },
+        {
+          "x": -4,
+          "state": "minecraft:nether_quartz_ore",
+          "z": 21,
+          "y": 38
+        },
+        {
+          "x": -6,
+          "state": "minecraft:nether_quartz_ore",
+          "z": 22,
+          "y": 38
+        },
+        {
+          "x": -5,
+          "state": "minecraft:nether_quartz_ore",
+          "z": 22,
+          "y": 38
+        },
+        {
+          "x": -6,
+          "state": "minecraft:nether_quartz_ore",
+          "z": 21,
+          "y": 39
+        },
+        {
+          "x": -5,
+          "state": "minecraft:nether_quartz_ore",
+          "z": 21,
+          "y": 39
+        },
+        {
+          "x": -5,
+          "state": "minecraft:nether_quartz_ore",
+          "z": 22,
+          "y": 39
+        },
+        {
+          "x": -16,
+          "state": "minecraft:nether_quartz_ore",
+          "z": 18,
+          "y": 46
+        },
+        {
+          "x": -15,
+          "state": "minecraft:nether_quartz_ore",
+          "z": 18,
+          "y": 46
+        },
+        {
+          "x": -16,
+          "state": "minecraft:nether_quartz_ore",
+          "z": 19,
+          "y": 46
+        },
+        {
+          "x": -15,
+          "state": "minecraft:nether_quartz_ore",
+          "z": 19,
+          "y": 46
+        },
+        {
+          "x": -14,
+          "state": "minecraft:nether_quartz_ore",
+          "z": 19,
+          "y": 46
+        },
+        {
+          "x": -15,
+          "state": "minecraft:nether_quartz_ore",
+          "z": 20,
+          "y": 46
+        },
+        {
+          "x": -14,
+          "state": "minecraft:nether_quartz_ore",
+          "z": 20,
+          "y": 46
+        },
+        {
+          "x": -16,
+          "state": "minecraft:nether_quartz_ore",
+          "z": 18,
+          "y": 47
+        },
+        {
+          "x": -15,
+          "state": "minecraft:nether_quartz_ore",
+          "z": 18,
+          "y": 47
+        },
+        {
+          "x": -16,
+          "state": "minecraft:nether_quartz_ore",
+          "z": 19,
+          "y": 47
+        },
+        {
+          "x": -15,
+          "state": "minecraft:nether_quartz_ore",
+          "z": 19,
+          "y": 47
+        },
+        {
+          "x": -14,
+          "state": "minecraft:nether_quartz_ore",
+          "z": 19,
+          "y": 47
+        },
+        {
+          "x": -15,
+          "state": "minecraft:nether_quartz_ore",
+          "z": 20,
+          "y": 47
+        },
+        {
+          "x": -14,
+          "state": "minecraft:nether_quartz_ore",
+          "z": 20,
+          "y": 47
+        },
+        {
+          "x": -14,
+          "state": "minecraft:nether_quartz_ore",
+          "z": 21,
+          "y": 47
+        },
+        {
+          "x": -13,
+          "state": "minecraft:nether_quartz_ore",
+          "z": 21,
+          "y": 47
+        },
+        {
+          "x": -14,
+          "state": "minecraft:nether_quartz_ore",
+          "z": 19,
+          "y": 48
+        },
+        {
+          "x": -15,
+          "state": "minecraft:nether_quartz_ore",
+          "z": 20,
+          "y": 48
+        },
+        {
+          "x": -14,
+          "state": "minecraft:nether_quartz_ore",
+          "z": 20,
+          "y": 48
+        },
+        {
+          "x": -14,
+          "state": "minecraft:nether_quartz_ore",
+          "z": 21,
+          "y": 48
+        },
+        {
+          "x": -13,
+          "state": "minecraft:nether_quartz_ore",
+          "z": 21,
+          "y": 48
+        },
+        {
+          "x": -8,
+          "state": "minecraft:nether_quartz_ore",
+          "z": 21,
+          "y": 51
+        },
+        {
+          "x": -7,
+          "state": "minecraft:nether_quartz_ore",
+          "z": 20,
+          "y": 52
+        },
+        {
+          "x": -6,
+          "state": "minecraft:nether_quartz_ore",
+          "z": 20,
+          "y": 52
+        },
+        {
+          "x": -8,
+          "state": "minecraft:nether_quartz_ore",
+          "z": 21,
+          "y": 52
+        },
+        {
+          "x": -7,
+          "state": "minecraft:nether_quartz_ore",
+          "z": 21,
+          "y": 52
+        },
+        {
+          "x": -6,
+          "state": "minecraft:nether_quartz_ore",
+          "z": 21,
+          "y": 52
+        },
+        {
+          "x": -7,
+          "state": "minecraft:nether_quartz_ore",
+          "z": 20,
+          "y": 53
+        },
+        {
+          "x": -6,
+          "state": "minecraft:nether_quartz_ore",
+          "z": 20,
+          "y": 53
+        },
+        {
+          "x": -5,
+          "state": "minecraft:nether_quartz_ore",
+          "z": 20,
+          "y": 53
+        },
+        {
+          "x": -7,
+          "state": "minecraft:nether_quartz_ore",
+          "z": 21,
+          "y": 53
+        },
+        {
+          "x": -6,
+          "state": "minecraft:nether_quartz_ore",
+          "z": 21,
+          "y": 53
+        },
+        {
+          "x": -5,
+          "state": "minecraft:nether_quartz_ore",
+          "z": 21,
+          "y": 53
+        },
+        {
+          "x": -6,
+          "state": "minecraft:nether_quartz_ore",
+          "z": 20,
+          "y": 54
+        },
+        {
+          "x": -5,
+          "state": "minecraft:nether_quartz_ore",
+          "z": 20,
+          "y": 54
+        },
+        {
+          "x": -8,
+          "state": "minecraft:nether_quartz_ore",
+          "z": 27,
+          "y": 56
+        },
+        {
+          "x": -9,
+          "state": "minecraft:nether_quartz_ore",
+          "z": 25,
+          "y": 57
+        },
+        {
+          "x": -8,
+          "state": "minecraft:nether_quartz_ore",
+          "z": 25,
+          "y": 57
+        },
+        {
+          "x": -9,
+          "state": "minecraft:nether_quartz_ore",
+          "z": 26,
+          "y": 57
+        },
+        {
+          "x": -8,
+          "state": "minecraft:nether_quartz_ore",
+          "z": 26,
+          "y": 57
+        },
+        {
+          "x": -9,
+          "state": "minecraft:nether_quartz_ore",
+          "z": 27,
+          "y": 57
+        },
+        {
+          "x": -8,
+          "state": "minecraft:nether_quartz_ore",
+          "z": 27,
+          "y": 57
+        },
+        {
+          "x": -9,
+          "state": "minecraft:nether_quartz_ore",
+          "z": 24,
+          "y": 58
+        },
+        {
+          "x": -8,
+          "state": "minecraft:nether_quartz_ore",
+          "z": 24,
+          "y": 58
+        },
+        {
+          "x": -9,
+          "state": "minecraft:nether_quartz_ore",
+          "z": 25,
+          "y": 58
+        },
+        {
+          "x": -8,
+          "state": "minecraft:nether_quartz_ore",
+          "z": 25,
+          "y": 58
+        },
+        {
+          "x": -9,
+          "state": "minecraft:nether_quartz_ore",
+          "z": 26,
+          "y": 58
+        },
+        {
+          "x": -8,
+          "state": "minecraft:nether_quartz_ore",
+          "z": 26,
+          "y": 58
+        },
+        {
+          "x": -9,
+          "state": "minecraft:nether_quartz_ore",
+          "z": 24,
+          "y": 59
+        },
+        {
+          "x": -14,
+          "state": "minecraft:nether_quartz_ore",
+          "z": 28,
+          "y": 65
+        },
+        {
+          "x": -14,
+          "state": "minecraft:nether_quartz_ore",
+          "z": 29,
+          "y": 65
+        },
+        {
+          "x": -13,
+          "state": "minecraft:nether_quartz_ore",
+          "z": 29,
+          "y": 65
+        },
+        {
+          "x": -12,
+          "state": "minecraft:nether_quartz_ore",
+          "z": 29,
+          "y": 65
+        },
+        {
+          "x": -12,
+          "state": "minecraft:nether_quartz_ore",
+          "z": 30,
+          "y": 65
+        },
+        {
+          "x": -11,
+          "state": "minecraft:nether_quartz_ore",
+          "z": 30,
+          "y": 65
+        },
+        {
+          "x": -11,
+          "state": "minecraft:nether_quartz_ore",
+          "z": 31,
+          "y": 65
+        },
+        {
+          "x": -14,
+          "state": "minecraft:nether_quartz_ore",
+          "z": 28,
+          "y": 66
+        },
+        {
+          "x": -14,
+          "state": "minecraft:nether_quartz_ore",
+          "z": 29,
+          "y": 66
+        },
+        {
+          "x": -13,
+          "state": "minecraft:nether_quartz_ore",
+          "z": 29,
+          "y": 66
+        },
+        {
+          "x": -12,
+          "state": "minecraft:nether_quartz_ore",
+          "z": 29,
+          "y": 66
+        },
+        {
+          "x": -12,
+          "state": "minecraft:nether_quartz_ore",
+          "z": 30,
+          "y": 66
+        },
+        {
+          "x": -11,
+          "state": "minecraft:nether_quartz_ore",
+          "z": 30,
+          "y": 66
+        },
+        {
+          "x": -11,
+          "state": "minecraft:nether_quartz_ore",
+          "z": 31,
+          "y": 66
+        },
+        {
+          "x": -15,
+          "state": "minecraft:nether_quartz_ore",
+          "z": 19,
+          "y": 73
+        },
+        {
+          "x": -15,
+          "state": "minecraft:nether_quartz_ore",
+          "z": 20,
+          "y": 73
+        },
+        {
+          "x": -14,
+          "state": "minecraft:nether_quartz_ore",
+          "z": 20,
+          "y": 73
+        },
+        {
+          "x": -14,
+          "state": "minecraft:nether_quartz_ore",
+          "z": 21,
+          "y": 73
+        },
+        {
+          "x": -16,
+          "state": "minecraft:nether_quartz_ore",
+          "z": 19,
+          "y": 74
+        },
+        {
+          "x": -15,
+          "state": "minecraft:nether_quartz_ore",
+          "z": 19,
+          "y": 74
+        },
+        {
+          "x": -15,
+          "state": "minecraft:nether_quartz_ore",
+          "z": 20,
+          "y": 74
+        },
+        {
+          "x": -14,
+          "state": "minecraft:nether_quartz_ore",
+          "z": 20,
+          "y": 74
+        },
+        {
+          "x": -15,
+          "state": "minecraft:nether_quartz_ore",
+          "z": 21,
+          "y": 74
+        },
+        {
+          "x": -14,
+          "state": "minecraft:nether_quartz_ore",
+          "z": 21,
+          "y": 74
+        },
+        {
+          "x": -13,
+          "state": "minecraft:nether_quartz_ore",
+          "z": 21,
+          "y": 74
+        },
+        {
+          "x": -15,
+          "state": "minecraft:nether_quartz_ore",
+          "z": 22,
+          "y": 74
+        },
+        {
+          "x": -14,
+          "state": "minecraft:nether_quartz_ore",
+          "z": 22,
+          "y": 74
+        },
+        {
+          "x": -13,
+          "state": "minecraft:nether_quartz_ore",
+          "z": 22,
+          "y": 74
+        },
+        {
+          "x": -15,
+          "state": "minecraft:nether_quartz_ore",
+          "z": 21,
+          "y": 75
+        },
+        {
+          "x": -14,
+          "state": "minecraft:nether_quartz_ore",
+          "z": 21,
+          "y": 75
+        },
+        {
+          "x": -14,
+          "state": "minecraft:nether_quartz_ore",
+          "z": 22,
+          "y": 75
+        },
+        {
+          "x": -13,
+          "state": "minecraft:nether_quartz_ore",
+          "z": 22,
+          "y": 75
+        },
+        {
+          "x": -2,
+          "state": "minecraft:nether_quartz_ore",
+          "z": 20,
+          "y": 80
+        },
+        {
+          "x": -2,
+          "state": "minecraft:nether_quartz_ore",
+          "z": 21,
+          "y": 80
+        },
+        {
+          "x": -15,
+          "state": "minecraft:nether_quartz_ore",
+          "z": 17,
+          "y": 81
+        },
+        {
+          "x": -14,
+          "state": "minecraft:nether_quartz_ore",
+          "z": 17,
+          "y": 81
+        },
+        {
+          "x": -13,
+          "state": "minecraft:nether_quartz_ore",
+          "z": 18,
+          "y": 81
+        },
+        {
+          "x": -2,
+          "state": "minecraft:nether_quartz_ore",
+          "z": 20,
+          "y": 81
+        },
+        {
+          "x": -1,
+          "state": "minecraft:nether_quartz_ore",
+          "z": 20,
+          "y": 81
+        },
+        {
+          "x": -2,
+          "state": "minecraft:nether_quartz_ore",
+          "z": 21,
+          "y": 81
+        },
+        {
+          "x": -1,
+          "state": "minecraft:nether_quartz_ore",
+          "z": 21,
+          "y": 81
+        },
+        {
+          "x": -2,
+          "state": "minecraft:nether_quartz_ore",
+          "z": 22,
+          "y": 81
+        },
+        {
+          "x": -1,
+          "state": "minecraft:nether_quartz_ore",
+          "z": 22,
+          "y": 81
+        },
+        {
+          "x": -15,
+          "state": "minecraft:nether_quartz_ore",
+          "z": 17,
+          "y": 82
+        },
+        {
+          "x": -14,
+          "state": "minecraft:nether_quartz_ore",
+          "z": 17,
+          "y": 82
+        },
+        {
+          "x": -13,
+          "state": "minecraft:nether_quartz_ore",
+          "z": 17,
+          "y": 82
+        },
+        {
+          "x": -14,
+          "state": "minecraft:nether_quartz_ore",
+          "z": 18,
+          "y": 82
+        },
+        {
+          "x": -13,
+          "state": "minecraft:nether_quartz_ore",
+          "z": 18,
+          "y": 82
+        },
+        {
+          "x": -12,
+          "state": "minecraft:nether_quartz_ore",
+          "z": 18,
+          "y": 82
+        },
+        {
+          "x": -2,
+          "state": "minecraft:nether_quartz_ore",
+          "z": 21,
+          "y": 82
+        },
+        {
+          "x": -1,
+          "state": "minecraft:nether_quartz_ore",
+          "z": 21,
+          "y": 82
+        },
+        {
+          "x": -2,
+          "state": "minecraft:nether_quartz_ore",
+          "z": 22,
+          "y": 82
+        },
+        {
+          "x": -1,
+          "state": "minecraft:nether_quartz_ore",
+          "z": 22,
+          "y": 82
+        },
+        {
+          "x": -2,
+          "state": "minecraft:nether_quartz_ore",
+          "z": 23,
+          "y": 82
+        },
+        {
+          "x": -1,
+          "state": "minecraft:nether_quartz_ore",
+          "z": 23,
+          "y": 82
+        },
+        {
+          "x": -13,
+          "state": "minecraft:nether_quartz_ore",
+          "z": 17,
+          "y": 83
+        },
+        {
+          "x": -13,
+          "state": "minecraft:nether_quartz_ore",
+          "z": 18,
+          "y": 83
+        },
+        {
+          "x": -12,
+          "state": "minecraft:nether_quartz_ore",
+          "z": 18,
+          "y": 83
+        },
+        {
+          "x": -1,
+          "state": "minecraft:nether_quartz_ore",
+          "z": 22,
+          "y": 83
+        },
+        {
+          "x": -1,
+          "state": "minecraft:nether_quartz_ore",
+          "z": 23,
+          "y": 83
+        },
+        {
+          "x": -10,
+          "state": "minecraft:nether_quartz_ore",
+          "z": 18,
+          "y": 90
+        },
+        {
+          "x": -11,
+          "state": "minecraft:nether_quartz_ore",
+          "z": 19,
+          "y": 90
+        },
+        {
+          "x": -10,
+          "state": "minecraft:nether_quartz_ore",
+          "z": 19,
+          "y": 90
+        },
+        {
+          "x": -9,
+          "state": "minecraft:nether_quartz_ore",
+          "z": 19,
+          "y": 90
+        },
+        {
+          "x": -10,
+          "state": "minecraft:nether_quartz_ore",
+          "z": 20,
+          "y": 90
+        },
+        {
+          "x": -9,
+          "state": "minecraft:nether_quartz_ore",
+          "z": 20,
+          "y": 90
+        },
+        {
+          "x": -8,
+          "state": "minecraft:nether_quartz_ore",
+          "z": 20,
+          "y": 90
+        },
+        {
+          "x": -9,
+          "state": "minecraft:nether_quartz_ore",
+          "z": 21,
+          "y": 90
+        },
+        {
+          "x": -10,
+          "state": "minecraft:nether_quartz_ore",
+          "z": 18,
+          "y": 91
+        },
+        {
+          "x": -11,
+          "state": "minecraft:nether_quartz_ore",
+          "z": 19,
+          "y": 91
+        },
+        {
+          "x": -10,
+          "state": "minecraft:nether_quartz_ore",
+          "z": 19,
+          "y": 91
+        },
+        {
+          "x": -9,
+          "state": "minecraft:nether_quartz_ore",
+          "z": 19,
+          "y": 91
+        },
+        {
+          "x": -10,
+          "state": "minecraft:nether_quartz_ore",
+          "z": 20,
+          "y": 91
+        },
+        {
+          "x": -9,
+          "state": "minecraft:nether_quartz_ore",
+          "z": 20,
+          "y": 91
+        },
+        {
+          "x": -8,
+          "state": "minecraft:nether_quartz_ore",
+          "z": 20,
+          "y": 91
+        },
+        {
+          "x": -9,
+          "state": "minecraft:nether_quartz_ore",
+          "z": 21,
+          "y": 91
+        },
+        {
+          "x": -8,
+          "state": "minecraft:nether_quartz_ore",
+          "z": 16,
+          "y": 97
+        },
+        {
+          "x": -7,
+          "state": "minecraft:nether_quartz_ore",
+          "z": 16,
+          "y": 97
+        },
+        {
+          "x": -8,
+          "state": "minecraft:nether_quartz_ore",
+          "z": 17,
+          "y": 97
+        },
+        {
+          "x": -7,
+          "state": "minecraft:nether_quartz_ore",
+          "z": 17,
+          "y": 97
+        },
+        {
+          "x": -8,
+          "state": "minecraft:nether_quartz_ore",
+          "z": 18,
+          "y": 97
+        },
+        {
+          "x": -7,
+          "state": "minecraft:nether_quartz_ore",
+          "z": 18,
+          "y": 97
+        },
+        {
+          "x": -8,
+          "state": "minecraft:nether_quartz_ore",
+          "z": 16,
+          "y": 98
+        },
+        {
+          "x": -7,
+          "state": "minecraft:nether_quartz_ore",
+          "z": 16,
+          "y": 98
+        },
+        {
+          "x": -8,
+          "state": "minecraft:nether_quartz_ore",
+          "z": 17,
+          "y": 98
+        },
+        {
+          "x": -7,
+          "state": "minecraft:nether_quartz_ore",
+          "z": 17,
+          "y": 98
+        },
+        {
+          "x": -8,
+          "state": "minecraft:nether_quartz_ore",
+          "z": 18,
+          "y": 98
+        },
+        {
+          "x": -7,
+          "state": "minecraft:nether_quartz_ore",
+          "z": 18,
+          "y": 98
+        },
+        {
+          "x": -6,
+          "state": "minecraft:nether_quartz_ore",
+          "z": 28,
+          "y": 104
+        },
+        {
+          "x": -6,
+          "state": "minecraft:nether_quartz_ore",
+          "z": 29,
+          "y": 104
+        },
+        {
+          "x": -7,
+          "state": "minecraft:nether_quartz_ore",
+          "z": 27,
+          "y": 105
+        },
+        {
+          "x": -6,
+          "state": "minecraft:nether_quartz_ore",
+          "z": 27,
+          "y": 105
+        },
+        {
+          "x": -7,
+          "state": "minecraft:nether_quartz_ore",
+          "z": 28,
+          "y": 105
+        },
+        {
+          "x": -6,
+          "state": "minecraft:nether_quartz_ore",
+          "z": 28,
+          "y": 105
+        },
+        {
+          "x": -5,
+          "state": "minecraft:nether_quartz_ore",
+          "z": 28,
+          "y": 105
+        },
+        {
+          "x": -6,
+          "state": "minecraft:nether_quartz_ore",
+          "z": 29,
+          "y": 105
+        },
+        {
+          "x": -5,
+          "state": "minecraft:nether_quartz_ore",
+          "z": 29,
+          "y": 105
+        },
+        {
+          "x": -8,
+          "state": "minecraft:nether_quartz_ore",
+          "z": 26,
+          "y": 106
+        },
+        {
+          "x": -7,
+          "state": "minecraft:nether_quartz_ore",
+          "z": 26,
+          "y": 106
+        },
+        {
+          "x": -8,
+          "state": "minecraft:nether_quartz_ore",
+          "z": 27,
+          "y": 106
+        },
+        {
+          "x": -7,
+          "state": "minecraft:nether_quartz_ore",
+          "z": 27,
+          "y": 106
+        },
+        {
+          "x": -6,
+          "state": "minecraft:nether_quartz_ore",
+          "z": 27,
+          "y": 106
+        },
+        {
+          "x": -7,
+          "state": "minecraft:nether_quartz_ore",
+          "z": 28,
+          "y": 106
+        },
+        {
+          "x": -6,
+          "state": "minecraft:nether_quartz_ore",
+          "z": 28,
+          "y": 106
+        },
+        {
+          "x": -7,
+          "state": "minecraft:nether_quartz_ore",
+          "z": 27,
+          "y": 107
+        },
+        {
+          "x": -3,
+          "state": "minecraft:nether_quartz_ore",
+          "z": 24,
+          "y": 110
+        },
+        {
+          "x": -2,
+          "state": "minecraft:nether_quartz_ore",
+          "z": 24,
+          "y": 110
+        },
+        {
+          "x": -1,
+          "state": "minecraft:nether_quartz_ore",
+          "z": 24,
+          "y": 110
+        },
+        {
+          "x": -3,
+          "state": "minecraft:nether_quartz_ore",
+          "z": 25,
+          "y": 110
+        },
+        {
+          "x": -2,
+          "state": "minecraft:nether_quartz_ore",
+          "z": 25,
+          "y": 110
+        },
+        {
+          "x": -1,
+          "state": "minecraft:nether_quartz_ore",
+          "z": 25,
+          "y": 110
+        },
+        {
+          "x": -3,
+          "state": "minecraft:nether_quartz_ore",
+          "z": 24,
+          "y": 111
+        },
+        {
+          "x": -2,
+          "state": "minecraft:nether_quartz_ore",
+          "z": 24,
+          "y": 111
+        },
+        {
+          "x": -1,
+          "state": "minecraft:nether_quartz_ore",
+          "z": 24,
+          "y": 111
+        },
+        {
+          "x": -3,
+          "state": "minecraft:nether_quartz_ore",
+          "z": 25,
+          "y": 111
+        },
+        {
+          "x": -2,
+          "state": "minecraft:nether_quartz_ore",
+          "z": 25,
+          "y": 111
+        },
+        {
+          "x": -1,
+          "state": "minecraft:nether_quartz_ore",
+          "z": 25,
+          "y": 111
+        },
+        {
+          "x": -6,
+          "state": "minecraft:nether_quartz_ore",
+          "z": 19,
+          "y": 112
+        },
+        {
+          "x": -5,
+          "state": "minecraft:nether_quartz_ore",
+          "z": 19,
+          "y": 112
+        },
+        {
+          "x": -7,
+          "state": "minecraft:nether_quartz_ore",
+          "z": 20,
+          "y": 112
+        },
+        {
+          "x": -6,
+          "state": "minecraft:nether_quartz_ore",
+          "z": 20,
+          "y": 112
+        },
+        {
+          "x": -5,
+          "state": "minecraft:nether_quartz_ore",
+          "z": 20,
+          "y": 112
+        },
+        {
+          "x": -7,
+          "state": "minecraft:nether_quartz_ore",
+          "z": 21,
+          "y": 112
+        },
+        {
+          "x": -6,
+          "state": "minecraft:nether_quartz_ore",
+          "z": 21,
+          "y": 112
+        },
+        {
+          "x": -7,
+          "state": "minecraft:nether_quartz_ore",
+          "z": 20,
+          "y": 113
+        },
+        {
+          "x": -6,
+          "state": "minecraft:nether_quartz_ore",
+          "z": 20,
+          "y": 113
+        },
+        {
+          "x": -8,
+          "state": "minecraft:nether_quartz_ore",
+          "z": 21,
+          "y": 113
+        },
+        {
+          "x": -7,
+          "state": "minecraft:nether_quartz_ore",
+          "z": 21,
+          "y": 113
+        },
+        {
+          "x": -6,
+          "state": "minecraft:nether_quartz_ore",
+          "z": 21,
+          "y": 113
+        },
+        {
+          "x": -8,
+          "state": "minecraft:nether_quartz_ore",
+          "z": 22,
+          "y": 113
+        },
+        {
+          "x": -7,
+          "state": "minecraft:nether_quartz_ore",
+          "z": 22,
+          "y": 113
+        },
+        {
+          "x": -8,
+          "state": "minecraft:nether_quartz_ore",
+          "z": 21,
+          "y": 114
+        },
+        {
+          "x": -7,
+          "state": "minecraft:nether_quartz_ore",
+          "z": 21,
+          "y": 114
+        },
+        {
+          "x": -8,
+          "state": "minecraft:nether_quartz_ore",
+          "z": 22,
+          "y": 114
+        },
+        {
+          "x": -7,
+          "state": "minecraft:nether_quartz_ore",
+          "z": 22,
+          "y": 114
+        },
+        {
+          "x": 0,
+          "state": "minecraft:nether_quartz_ore",
+          "z": 24,
+          "y": 110
+        },
+        {
+          "x": 0,
+          "state": "minecraft:nether_quartz_ore",
+          "z": 25,
+          "y": 110
+        },
+        {
+          "x": 0,
+          "state": "minecraft:nether_quartz_ore",
+          "z": 24,
+          "y": 111
+        },
+        {
+          "x": 0,
+          "state": "minecraft:nether_quartz_ore",
+          "z": 25,
+          "y": 111
+        }
+      ],
+      "next_int": 940311587,
+      "seed": 0
+    },
+    {
+      "success": true,
+      "decoration_seed": 12345,
+      "feature_index": 20,
+      "chunk_z": 0,
+      "chunk_x": 0,
+      "step": 7,
+      "blocks": [
+        {
+          "x": 2,
+          "state": "minecraft:nether_quartz_ore",
+          "z": 9,
+          "y": 8
+        },
+        {
+          "x": 2,
+          "state": "minecraft:nether_quartz_ore",
+          "z": 10,
+          "y": 8
+        },
+        {
+          "x": 3,
+          "state": "minecraft:nether_quartz_ore",
+          "z": 10,
+          "y": 8
+        },
+        {
+          "x": 0,
+          "state": "minecraft:nether_quartz_ore",
+          "z": 7,
+          "y": 9
+        },
+        {
+          "x": 1,
+          "state": "minecraft:nether_quartz_ore",
+          "z": 7,
+          "y": 9
+        },
+        {
+          "x": 0,
+          "state": "minecraft:nether_quartz_ore",
+          "z": 8,
+          "y": 9
+        },
+        {
+          "x": 1,
+          "state": "minecraft:nether_quartz_ore",
+          "z": 8,
+          "y": 9
+        },
+        {
+          "x": 2,
+          "state": "minecraft:nether_quartz_ore",
+          "z": 8,
+          "y": 9
+        },
+        {
+          "x": 1,
+          "state": "minecraft:nether_quartz_ore",
+          "z": 9,
+          "y": 9
+        },
+        {
+          "x": 2,
+          "state": "minecraft:nether_quartz_ore",
+          "z": 9,
+          "y": 9
+        },
+        {
+          "x": 3,
+          "state": "minecraft:nether_quartz_ore",
+          "z": 9,
+          "y": 9
+        },
+        {
+          "x": 2,
+          "state": "minecraft:nether_quartz_ore",
+          "z": 10,
+          "y": 9
+        },
+        {
+          "x": 3,
+          "state": "minecraft:nether_quartz_ore",
+          "z": 10,
+          "y": 9
+        },
+        {
+          "x": 1,
+          "state": "minecraft:nether_quartz_ore",
+          "z": 8,
+          "y": 10
+        },
+        {
+          "x": 0,
+          "state": "minecraft:nether_quartz_ore",
+          "z": 6,
+          "y": 14
+        },
+        {
+          "x": 1,
+          "state": "minecraft:nether_quartz_ore",
+          "z": 6,
+          "y": 14
+        },
+        {
+          "x": 2,
+          "state": "minecraft:nether_quartz_ore",
+          "z": 6,
+          "y": 14
+        },
+        {
+          "x": 0,
+          "state": "minecraft:nether_quartz_ore",
+          "z": 7,
+          "y": 14
+        },
+        {
+          "x": 1,
+          "state": "minecraft:nether_quartz_ore",
+          "z": 7,
+          "y": 14
+        },
+        {
+          "x": 2,
+          "state": "minecraft:nether_quartz_ore",
+          "z": 7,
+          "y": 14
+        },
+        {
+          "x": 0,
+          "state": "minecraft:nether_quartz_ore",
+          "z": 6,
+          "y": 15
+        },
+        {
+          "x": 1,
+          "state": "minecraft:nether_quartz_ore",
+          "z": 6,
+          "y": 15
+        },
+        {
+          "x": 2,
+          "state": "minecraft:nether_quartz_ore",
+          "z": 6,
+          "y": 15
+        },
+        {
+          "x": 3,
+          "state": "minecraft:nether_quartz_ore",
+          "z": 6,
+          "y": 15
+        },
+        {
+          "x": 0,
+          "state": "minecraft:nether_quartz_ore",
+          "z": 7,
+          "y": 15
+        },
+        {
+          "x": 1,
+          "state": "minecraft:nether_quartz_ore",
+          "z": 7,
+          "y": 15
+        },
+        {
+          "x": 2,
+          "state": "minecraft:nether_quartz_ore",
+          "z": 7,
+          "y": 15
+        },
+        {
+          "x": 3,
+          "state": "minecraft:nether_quartz_ore",
+          "z": 7,
+          "y": 15
+        },
+        {
+          "x": 1,
+          "state": "minecraft:nether_quartz_ore",
+          "z": 6,
+          "y": 16
+        },
+        {
+          "x": 2,
+          "state": "minecraft:nether_quartz_ore",
+          "z": 6,
+          "y": 16
+        },
+        {
+          "x": 3,
+          "state": "minecraft:nether_quartz_ore",
+          "z": 6,
+          "y": 16
+        },
+        {
+          "x": 1,
+          "state": "minecraft:nether_quartz_ore",
+          "z": 7,
+          "y": 16
+        },
+        {
+          "x": 2,
+          "state": "minecraft:nether_quartz_ore",
+          "z": 7,
+          "y": 16
+        },
+        {
+          "x": 3,
+          "state": "minecraft:nether_quartz_ore",
+          "z": 7,
+          "y": 16
+        },
+        {
+          "x": 13,
+          "state": "minecraft:nether_quartz_ore",
+          "z": 6,
+          "y": 33
+        },
+        {
+          "x": 14,
+          "state": "minecraft:nether_quartz_ore",
+          "z": 6,
+          "y": 33
+        },
+        {
+          "x": 12,
+          "state": "minecraft:nether_quartz_ore",
+          "z": 7,
+          "y": 33
+        },
+        {
+          "x": 13,
+          "state": "minecraft:nether_quartz_ore",
+          "z": 7,
+          "y": 33
+        },
+        {
+          "x": 14,
+          "state": "minecraft:nether_quartz_ore",
+          "z": 7,
+          "y": 33
+        },
+        {
+          "x": 11,
+          "state": "minecraft:nether_quartz_ore",
+          "z": 8,
+          "y": 33
+        },
+        {
+          "x": 12,
+          "state": "minecraft:nether_quartz_ore",
+          "z": 8,
+          "y": 33
+        },
+        {
+          "x": 13,
+          "state": "minecraft:nether_quartz_ore",
+          "z": 8,
+          "y": 33
+        },
+        {
+          "x": 11,
+          "state": "minecraft:nether_quartz_ore",
+          "z": 9,
+          "y": 33
+        },
+        {
+          "x": 12,
+          "state": "minecraft:nether_quartz_ore",
+          "z": 9,
+          "y": 33
+        },
+        {
+          "x": 13,
+          "state": "minecraft:nether_quartz_ore",
+          "z": 6,
+          "y": 34
+        },
+        {
+          "x": 14,
+          "state": "minecraft:nether_quartz_ore",
+          "z": 6,
+          "y": 34
+        },
+        {
+          "x": 12,
+          "state": "minecraft:nether_quartz_ore",
+          "z": 7,
+          "y": 34
+        },
+        {
+          "x": 13,
+          "state": "minecraft:nether_quartz_ore",
+          "z": 7,
+          "y": 34
+        },
+        {
+          "x": 14,
+          "state": "minecraft:nether_quartz_ore",
+          "z": 7,
+          "y": 34
+        },
+        {
+          "x": 11,
+          "state": "minecraft:nether_quartz_ore",
+          "z": 8,
+          "y": 34
+        },
+        {
+          "x": 12,
+          "state": "minecraft:nether_quartz_ore",
+          "z": 8,
+          "y": 34
+        },
+        {
+          "x": 13,
+          "state": "minecraft:nether_quartz_ore",
+          "z": 8,
+          "y": 34
+        },
+        {
+          "x": 11,
+          "state": "minecraft:nether_quartz_ore",
+          "z": 9,
+          "y": 34
+        },
+        {
+          "x": 12,
+          "state": "minecraft:nether_quartz_ore",
+          "z": 9,
+          "y": 34
+        },
+        {
+          "x": 13,
+          "state": "minecraft:nether_quartz_ore",
+          "z": 7,
+          "y": 53
+        },
+        {
+          "x": 13,
+          "state": "minecraft:nether_quartz_ore",
+          "z": 8,
+          "y": 53
+        },
+        {
+          "x": 14,
+          "state": "minecraft:nether_quartz_ore",
+          "z": 8,
+          "y": 53
+        },
+        {
+          "x": 13,
+          "state": "minecraft:nether_quartz_ore",
+          "z": 9,
+          "y": 53
+        },
+        {
+          "x": 14,
+          "state": "minecraft:nether_quartz_ore",
+          "z": 9,
+          "y": 53
+        },
+        {
+          "x": 13,
+          "state": "minecraft:nether_quartz_ore",
+          "z": 7,
+          "y": 54
+        },
+        {
+          "x": 14,
+          "state": "minecraft:nether_quartz_ore",
+          "z": 7,
+          "y": 54
+        },
+        {
+          "x": 13,
+          "state": "minecraft:nether_quartz_ore",
+          "z": 8,
+          "y": 54
+        },
+        {
+          "x": 14,
+          "state": "minecraft:nether_quartz_ore",
+          "z": 8,
+          "y": 54
+        },
+        {
+          "x": 13,
+          "state": "minecraft:nether_quartz_ore",
+          "z": 9,
+          "y": 54
+        },
+        {
+          "x": 14,
+          "state": "minecraft:nether_quartz_ore",
+          "z": 9,
+          "y": 54
+        },
+        {
+          "x": 13,
+          "state": "minecraft:nether_quartz_ore",
+          "z": 10,
+          "y": 54
+        },
+        {
+          "x": 14,
+          "state": "minecraft:nether_quartz_ore",
+          "z": 10,
+          "y": 54
+        },
+        {
+          "x": 13,
+          "state": "minecraft:nether_quartz_ore",
+          "z": 8,
+          "y": 55
+        },
+        {
+          "x": 14,
+          "state": "minecraft:nether_quartz_ore",
+          "z": 8,
+          "y": 55
+        },
+        {
+          "x": 13,
+          "state": "minecraft:nether_quartz_ore",
+          "z": 9,
+          "y": 55
+        },
+        {
+          "x": 14,
+          "state": "minecraft:nether_quartz_ore",
+          "z": 9,
+          "y": 55
+        },
+        {
+          "x": 14,
+          "state": "minecraft:nether_quartz_ore",
+          "z": 10,
+          "y": 55
+        },
+        {
+          "x": 10,
+          "state": "minecraft:nether_quartz_ore",
+          "z": 0,
+          "y": 58
+        },
+        {
+          "x": 11,
+          "state": "minecraft:nether_quartz_ore",
+          "z": 0,
+          "y": 58
+        },
+        {
+          "x": 12,
+          "state": "minecraft:nether_quartz_ore",
+          "z": 0,
+          "y": 58
+        },
+        {
+          "x": 13,
+          "state": "minecraft:nether_quartz_ore",
+          "z": 0,
+          "y": 58
+        },
+        {
+          "x": 10,
+          "state": "minecraft:nether_quartz_ore",
+          "z": 0,
+          "y": 59
+        },
+        {
+          "x": 11,
+          "state": "minecraft:nether_quartz_ore",
+          "z": 0,
+          "y": 59
+        },
+        {
+          "x": 12,
+          "state": "minecraft:nether_quartz_ore",
+          "z": 0,
+          "y": 59
+        },
+        {
+          "x": 13,
+          "state": "minecraft:nether_quartz_ore",
+          "z": 0,
+          "y": 59
+        },
+        {
+          "x": 7,
+          "state": "minecraft:nether_quartz_ore",
+          "z": 4,
+          "y": 68
+        },
+        {
+          "x": 8,
+          "state": "minecraft:nether_quartz_ore",
+          "z": 4,
+          "y": 68
+        },
+        {
+          "x": 9,
+          "state": "minecraft:nether_quartz_ore",
+          "z": 4,
+          "y": 68
+        },
+        {
+          "x": 6,
+          "state": "minecraft:nether_quartz_ore",
+          "z": 5,
+          "y": 68
+        },
+        {
+          "x": 7,
+          "state": "minecraft:nether_quartz_ore",
+          "z": 5,
+          "y": 68
+        },
+        {
+          "x": 8,
+          "state": "minecraft:nether_quartz_ore",
+          "z": 5,
+          "y": 68
+        },
+        {
+          "x": 7,
+          "state": "minecraft:nether_quartz_ore",
+          "z": 4,
+          "y": 69
+        },
+        {
+          "x": 8,
+          "state": "minecraft:nether_quartz_ore",
+          "z": 4,
+          "y": 69
+        },
+        {
+          "x": 9,
+          "state": "minecraft:nether_quartz_ore",
+          "z": 4,
+          "y": 69
+        },
+        {
+          "x": 6,
+          "state": "minecraft:nether_quartz_ore",
+          "z": 5,
+          "y": 69
+        },
+        {
+          "x": 7,
+          "state": "minecraft:nether_quartz_ore",
+          "z": 5,
+          "y": 69
+        },
+        {
+          "x": 8,
+          "state": "minecraft:nether_quartz_ore",
+          "z": 5,
+          "y": 69
+        },
+        {
+          "x": 10,
+          "state": "minecraft:nether_quartz_ore",
+          "z": 5,
+          "y": 83
+        },
+        {
+          "x": 10,
+          "state": "minecraft:nether_quartz_ore",
+          "z": 6,
+          "y": 83
+        },
+        {
+          "x": 9,
+          "state": "minecraft:nether_quartz_ore",
+          "z": 5,
+          "y": 84
+        },
+        {
+          "x": 10,
+          "state": "minecraft:nether_quartz_ore",
+          "z": 5,
+          "y": 84
+        },
+        {
+          "x": 9,
+          "state": "minecraft:nether_quartz_ore",
+          "z": 6,
+          "y": 84
+        },
+        {
+          "x": 10,
+          "state": "minecraft:nether_quartz_ore",
+          "z": 6,
+          "y": 84
+        },
+        {
+          "x": 9,
+          "state": "minecraft:nether_quartz_ore",
+          "z": 7,
+          "y": 84
+        },
+        {
+          "x": 10,
+          "state": "minecraft:nether_quartz_ore",
+          "z": 7,
+          "y": 84
+        },
+        {
+          "x": 9,
+          "state": "minecraft:nether_quartz_ore",
+          "z": 6,
+          "y": 85
+        },
+        {
+          "x": 10,
+          "state": "minecraft:nether_quartz_ore",
+          "z": 6,
+          "y": 85
+        },
+        {
+          "x": 9,
+          "state": "minecraft:nether_quartz_ore",
+          "z": 7,
+          "y": 85
+        },
+        {
+          "x": 10,
+          "state": "minecraft:nether_quartz_ore",
+          "z": 7,
+          "y": 85
+        },
+        {
+          "x": 9,
+          "state": "minecraft:nether_quartz_ore",
+          "z": 8,
+          "y": 85
+        },
+        {
+          "x": 10,
+          "state": "minecraft:nether_quartz_ore",
+          "z": 8,
+          "y": 85
+        },
+        {
+          "x": 9,
+          "state": "minecraft:nether_quartz_ore",
+          "z": 8,
+          "y": 86
+        },
+        {
+          "x": 10,
+          "state": "minecraft:nether_quartz_ore",
+          "z": 8,
+          "y": 86
+        },
+        {
+          "x": 9,
+          "state": "minecraft:nether_quartz_ore",
+          "z": 4,
+          "y": 90
+        },
+        {
+          "x": 10,
+          "state": "minecraft:nether_quartz_ore",
+          "z": 4,
+          "y": 90
+        },
+        {
+          "x": 11,
+          "state": "minecraft:nether_quartz_ore",
+          "z": 4,
+          "y": 90
+        },
+        {
+          "x": 12,
+          "state": "minecraft:nether_quartz_ore",
+          "z": 4,
+          "y": 90
+        },
+        {
+          "x": 9,
+          "state": "minecraft:nether_quartz_ore",
+          "z": 5,
+          "y": 90
+        },
+        {
+          "x": 10,
+          "state": "minecraft:nether_quartz_ore",
+          "z": 5,
+          "y": 90
+        },
+        {
+          "x": 11,
+          "state": "minecraft:nether_quartz_ore",
+          "z": 5,
+          "y": 90
+        },
+        {
+          "x": 12,
+          "state": "minecraft:nether_quartz_ore",
+          "z": 5,
+          "y": 90
+        },
+        {
+          "x": 9,
+          "state": "minecraft:nether_quartz_ore",
+          "z": 4,
+          "y": 91
+        },
+        {
+          "x": 10,
+          "state": "minecraft:nether_quartz_ore",
+          "z": 4,
+          "y": 91
+        },
+        {
+          "x": 11,
+          "state": "minecraft:nether_quartz_ore",
+          "z": 4,
+          "y": 91
+        },
+        {
+          "x": 12,
+          "state": "minecraft:nether_quartz_ore",
+          "z": 4,
+          "y": 91
+        },
+        {
+          "x": 9,
+          "state": "minecraft:nether_quartz_ore",
+          "z": 5,
+          "y": 91
+        },
+        {
+          "x": 10,
+          "state": "minecraft:nether_quartz_ore",
+          "z": 5,
+          "y": 91
+        },
+        {
+          "x": 11,
+          "state": "minecraft:nether_quartz_ore",
+          "z": 5,
+          "y": 91
+        },
+        {
+          "x": 12,
+          "state": "minecraft:nether_quartz_ore",
+          "z": 5,
+          "y": 91
+        },
+        {
+          "x": 3,
+          "state": "minecraft:nether_quartz_ore",
+          "z": 11,
+          "y": 91
+        },
+        {
+          "x": 4,
+          "state": "minecraft:nether_quartz_ore",
+          "z": 11,
+          "y": 91
+        },
+        {
+          "x": 2,
+          "state": "minecraft:nether_quartz_ore",
+          "z": 4,
+          "y": 92
+        },
+        {
+          "x": 2,
+          "state": "minecraft:nether_quartz_ore",
+          "z": 5,
+          "y": 92
+        },
+        {
+          "x": 2,
+          "state": "minecraft:nether_quartz_ore",
+          "z": 10,
+          "y": 92
+        },
+        {
+          "x": 3,
+          "state": "minecraft:nether_quartz_ore",
+          "z": 10,
+          "y": 92
+        },
+        {
+          "x": 4,
+          "state": "minecraft:nether_quartz_ore",
+          "z": 10,
+          "y": 92
+        },
+        {
+          "x": 2,
+          "state": "minecraft:nether_quartz_ore",
+          "z": 11,
+          "y": 92
+        },
+        {
+          "x": 3,
+          "state": "minecraft:nether_quartz_ore",
+          "z": 11,
+          "y": 92
+        },
+        {
+          "x": 4,
+          "state": "minecraft:nether_quartz_ore",
+          "z": 11,
+          "y": 92
+        },
+        {
+          "x": 3,
+          "state": "minecraft:nether_quartz_ore",
+          "z": 0,
+          "y": 93
+        },
+        {
+          "x": 4,
+          "state": "minecraft:nether_quartz_ore",
+          "z": 0,
+          "y": 93
+        },
+        {
+          "x": 4,
+          "state": "minecraft:nether_quartz_ore",
+          "z": 1,
+          "y": 93
+        },
+        {
+          "x": 2,
+          "state": "minecraft:nether_quartz_ore",
+          "z": 3,
+          "y": 93
+        },
+        {
+          "x": 3,
+          "state": "minecraft:nether_quartz_ore",
+          "z": 3,
+          "y": 93
+        },
+        {
+          "x": 1,
+          "state": "minecraft:nether_quartz_ore",
+          "z": 4,
+          "y": 93
+        },
+        {
+          "x": 2,
+          "state": "minecraft:nether_quartz_ore",
+          "z": 4,
+          "y": 93
+        },
+        {
+          "x": 3,
+          "state": "minecraft:nether_quartz_ore",
+          "z": 4,
+          "y": 93
+        },
+        {
+          "x": 1,
+          "state": "minecraft:nether_quartz_ore",
+          "z": 5,
+          "y": 93
+        },
+        {
+          "x": 2,
+          "state": "minecraft:nether_quartz_ore",
+          "z": 5,
+          "y": 93
+        },
+        {
+          "x": 1,
+          "state": "minecraft:nether_quartz_ore",
+          "z": 10,
+          "y": 93
+        },
+        {
+          "x": 2,
+          "state": "minecraft:nether_quartz_ore",
+          "z": 10,
+          "y": 93
+        },
+        {
+          "x": 3,
+          "state": "minecraft:nether_quartz_ore",
+          "z": 10,
+          "y": 93
+        },
+        {
+          "x": 1,
+          "state": "minecraft:nether_quartz_ore",
+          "z": 11,
+          "y": 93
+        },
+        {
+          "x": 2,
+          "state": "minecraft:nether_quartz_ore",
+          "z": 11,
+          "y": 93
+        },
+        {
+          "x": 3,
+          "state": "minecraft:nether_quartz_ore",
+          "z": 11,
+          "y": 93
+        },
+        {
+          "x": 3,
+          "state": "minecraft:nether_quartz_ore",
+          "z": 0,
+          "y": 94
+        },
+        {
+          "x": 4,
+          "state": "minecraft:nether_quartz_ore",
+          "z": 0,
+          "y": 94
+        },
+        {
+          "x": 4,
+          "state": "minecraft:nether_quartz_ore",
+          "z": 1,
+          "y": 94
+        },
+        {
+          "x": 3,
+          "state": "minecraft:nether_quartz_ore",
+          "z": 2,
+          "y": 94
+        },
+        {
+          "x": 4,
+          "state": "minecraft:nether_quartz_ore",
+          "z": 2,
+          "y": 94
+        },
+        {
+          "x": 2,
+          "state": "minecraft:nether_quartz_ore",
+          "z": 3,
+          "y": 94
+        },
+        {
+          "x": 3,
+          "state": "minecraft:nether_quartz_ore",
+          "z": 3,
+          "y": 94
+        },
+        {
+          "x": 4,
+          "state": "minecraft:nether_quartz_ore",
+          "z": 3,
+          "y": 94
+        },
+        {
+          "x": 2,
+          "state": "minecraft:nether_quartz_ore",
+          "z": 4,
+          "y": 94
+        },
+        {
+          "x": 3,
+          "state": "minecraft:nether_quartz_ore",
+          "z": 4,
+          "y": 94
+        },
+        {
+          "x": 1,
+          "state": "minecraft:nether_quartz_ore",
+          "z": 10,
+          "y": 94
+        },
+        {
+          "x": 2,
+          "state": "minecraft:nether_quartz_ore",
+          "z": 10,
+          "y": 94
+        },
+        {
+          "x": 3,
+          "state": "minecraft:nether_quartz_ore",
+          "z": 2,
+          "y": 95
+        },
+        {
+          "x": 4,
+          "state": "minecraft:nether_quartz_ore",
+          "z": 2,
+          "y": 95
+        },
+        {
+          "x": 3,
+          "state": "minecraft:nether_quartz_ore",
+          "z": 3,
+          "y": 95
+        },
+        {
+          "x": 0,
+          "state": "minecraft:nether_quartz_ore",
+          "z": 7,
+          "y": 95
+        },
+        {
+          "x": 0,
+          "state": "minecraft:nether_quartz_ore",
+          "z": 8,
+          "y": 95
+        },
+        {
+          "x": 1,
+          "state": "minecraft:nether_quartz_ore",
+          "z": 8,
+          "y": 95
+        },
+        {
+          "x": 0,
+          "state": "minecraft:nether_quartz_ore",
+          "z": 9,
+          "y": 95
+        },
+        {
+          "x": 1,
+          "state": "minecraft:nether_quartz_ore",
+          "z": 9,
+          "y": 95
+        },
+        {
+          "x": 0,
+          "state": "minecraft:nether_quartz_ore",
+          "z": 8,
+          "y": 96
+        },
+        {
+          "x": 1,
+          "state": "minecraft:nether_quartz_ore",
+          "z": 8,
+          "y": 96
+        },
+        {
+          "x": 0,
+          "state": "minecraft:nether_quartz_ore",
+          "z": 9,
+          "y": 96
+        },
+        {
+          "x": 1,
+          "state": "minecraft:nether_quartz_ore",
+          "z": 9,
+          "y": 96
+        },
+        {
+          "x": 0,
+          "state": "minecraft:nether_quartz_ore",
+          "z": 10,
+          "y": 96
+        },
+        {
+          "x": 1,
+          "state": "minecraft:nether_quartz_ore",
+          "z": 10,
+          "y": 96
+        },
+        {
+          "x": 1,
+          "state": "minecraft:nether_quartz_ore",
+          "z": 9,
+          "y": 97
+        },
+        {
+          "x": 1,
+          "state": "minecraft:nether_quartz_ore",
+          "z": 10,
+          "y": 97
+        },
+        {
+          "x": 14,
+          "state": "minecraft:nether_quartz_ore",
+          "z": 10,
+          "y": 99
+        },
+        {
+          "x": 14,
+          "state": "minecraft:nether_quartz_ore",
+          "z": 8,
+          "y": 100
+        },
+        {
+          "x": 15,
+          "state": "minecraft:nether_quartz_ore",
+          "z": 8,
+          "y": 100
+        },
+        {
+          "x": 14,
+          "state": "minecraft:nether_quartz_ore",
+          "z": 9,
+          "y": 100
+        },
+        {
+          "x": 15,
+          "state": "minecraft:nether_quartz_ore",
+          "z": 9,
+          "y": 100
+        },
+        {
+          "x": 14,
+          "state": "minecraft:nether_quartz_ore",
+          "z": 10,
+          "y": 100
+        },
+        {
+          "x": 15,
+          "state": "minecraft:nether_quartz_ore",
+          "z": 10,
+          "y": 100
+        },
+        {
+          "x": 14,
+          "state": "minecraft:nether_quartz_ore",
+          "z": 7,
+          "y": 101
+        },
+        {
+          "x": 15,
+          "state": "minecraft:nether_quartz_ore",
+          "z": 7,
+          "y": 101
+        },
+        {
+          "x": 14,
+          "state": "minecraft:nether_quartz_ore",
+          "z": 8,
+          "y": 101
+        },
+        {
+          "x": 15,
+          "state": "minecraft:nether_quartz_ore",
+          "z": 8,
+          "y": 101
+        },
+        {
+          "x": 14,
+          "state": "minecraft:nether_quartz_ore",
+          "z": 9,
+          "y": 101
+        },
+        {
+          "x": 15,
+          "state": "minecraft:nether_quartz_ore",
+          "z": 9,
+          "y": 101
+        },
+        {
+          "x": 15,
+          "state": "minecraft:nether_quartz_ore",
+          "z": 7,
+          "y": 102
+        },
+        {
+          "x": 13,
+          "state": "minecraft:nether_quartz_ore",
+          "z": 11,
+          "y": 102
+        },
+        {
+          "x": 14,
+          "state": "minecraft:nether_quartz_ore",
+          "z": 11,
+          "y": 102
+        },
+        {
+          "x": 13,
+          "state": "minecraft:nether_quartz_ore",
+          "z": 12,
+          "y": 102
+        },
+        {
+          "x": 14,
+          "state": "minecraft:nether_quartz_ore",
+          "z": 12,
+          "y": 102
+        },
+        {
+          "x": 14,
+          "state": "minecraft:nether_quartz_ore",
+          "z": 13,
+          "y": 102
+        },
+        {
+          "x": 13,
+          "state": "minecraft:nether_quartz_ore",
+          "z": 10,
+          "y": 103
+        },
+        {
+          "x": 14,
+          "state": "minecraft:nether_quartz_ore",
+          "z": 10,
+          "y": 103
+        },
+        {
+          "x": 13,
+          "state": "minecraft:nether_quartz_ore",
+          "z": 11,
+          "y": 103
+        },
+        {
+          "x": 14,
+          "state": "minecraft:nether_quartz_ore",
+          "z": 11,
+          "y": 103
+        },
+        {
+          "x": 13,
+          "state": "minecraft:nether_quartz_ore",
+          "z": 12,
+          "y": 103
+        },
+        {
+          "x": 14,
+          "state": "minecraft:nether_quartz_ore",
+          "z": 12,
+          "y": 103
+        },
+        {
+          "x": 14,
+          "state": "minecraft:nether_quartz_ore",
+          "z": 13,
+          "y": 103
+        },
+        {
+          "x": 1,
+          "state": "minecraft:nether_quartz_ore",
+          "z": 10,
+          "y": 104
+        },
+        {
+          "x": 2,
+          "state": "minecraft:nether_quartz_ore",
+          "z": 10,
+          "y": 104
+        },
+        {
+          "x": 13,
+          "state": "minecraft:nether_quartz_ore",
+          "z": 10,
+          "y": 104
+        },
+        {
+          "x": 1,
+          "state": "minecraft:nether_quartz_ore",
+          "z": 11,
+          "y": 104
+        },
+        {
+          "x": 2,
+          "state": "minecraft:nether_quartz_ore",
+          "z": 11,
+          "y": 104
+        },
+        {
+          "x": 13,
+          "state": "minecraft:nether_quartz_ore",
+          "z": 11,
+          "y": 104
+        },
+        {
+          "x": 14,
+          "state": "minecraft:nether_quartz_ore",
+          "z": 11,
+          "y": 104
+        },
+        {
+          "x": 1,
+          "state": "minecraft:nether_quartz_ore",
+          "z": 12,
+          "y": 104
+        },
+        {
+          "x": 13,
+          "state": "minecraft:nether_quartz_ore",
+          "z": 12,
+          "y": 104
+        },
+        {
+          "x": 14,
+          "state": "minecraft:nether_quartz_ore",
+          "z": 12,
+          "y": 104
+        },
+        {
+          "x": 2,
+          "state": "minecraft:nether_quartz_ore",
+          "z": 9,
+          "y": 105
+        },
+        {
+          "x": 3,
+          "state": "minecraft:nether_quartz_ore",
+          "z": 9,
+          "y": 105
+        },
+        {
+          "x": 1,
+          "state": "minecraft:nether_quartz_ore",
+          "z": 10,
+          "y": 105
+        },
+        {
+          "x": 2,
+          "state": "minecraft:nether_quartz_ore",
+          "z": 10,
+          "y": 105
+        },
+        {
+          "x": 0,
+          "state": "minecraft:nether_quartz_ore",
+          "z": 11,
+          "y": 105
+        },
+        {
+          "x": 1,
+          "state": "minecraft:nether_quartz_ore",
+          "z": 11,
+          "y": 105
+        },
+        {
+          "x": 2,
+          "state": "minecraft:nether_quartz_ore",
+          "z": 11,
+          "y": 105
+        },
+        {
+          "x": 1,
+          "state": "minecraft:nether_quartz_ore",
+          "z": 12,
+          "y": 105
+        },
+        {
+          "x": 2,
+          "state": "minecraft:nether_quartz_ore",
+          "z": 9,
+          "y": 106
+        },
+        {
+          "x": 3,
+          "state": "minecraft:nether_quartz_ore",
+          "z": 9,
+          "y": 106
+        },
+        {
+          "x": 1,
+          "state": "minecraft:nether_quartz_ore",
+          "z": 10,
+          "y": 106
+        },
+        {
+          "x": 2,
+          "state": "minecraft:nether_quartz_ore",
+          "z": 10,
+          "y": 106
+        },
+        {
+          "x": 1,
+          "state": "minecraft:nether_quartz_ore",
+          "z": 11,
+          "y": 106
+        },
+        {
+          "x": 2,
+          "state": "minecraft:nether_quartz_ore",
+          "z": 11,
+          "y": 106
+        },
+        {
+          "x": 6,
+          "state": "minecraft:nether_quartz_ore",
+          "z": 2,
+          "y": 111
+        },
+        {
+          "x": 7,
+          "state": "minecraft:nether_quartz_ore",
+          "z": 2,
+          "y": 111
+        },
+        {
+          "x": 6,
+          "state": "minecraft:nether_quartz_ore",
+          "z": 1,
+          "y": 112
+        },
+        {
+          "x": 7,
+          "state": "minecraft:nether_quartz_ore",
+          "z": 1,
+          "y": 112
+        },
+        {
+          "x": 8,
+          "state": "minecraft:nether_quartz_ore",
+          "z": 1,
+          "y": 112
+        },
+        {
+          "x": 9,
+          "state": "minecraft:nether_quartz_ore",
+          "z": 1,
+          "y": 112
+        },
+        {
+          "x": 6,
+          "state": "minecraft:nether_quartz_ore",
+          "z": 2,
+          "y": 112
+        },
+        {
+          "x": 7,
+          "state": "minecraft:nether_quartz_ore",
+          "z": 2,
+          "y": 112
+        },
+        {
+          "x": 8,
+          "state": "minecraft:nether_quartz_ore",
+          "z": 2,
+          "y": 112
+        },
+        {
+          "x": 7,
+          "state": "minecraft:nether_quartz_ore",
+          "z": 1,
+          "y": 113
+        },
+        {
+          "x": 8,
+          "state": "minecraft:nether_quartz_ore",
+          "z": 1,
+          "y": 113
+        },
+        {
+          "x": 9,
+          "state": "minecraft:nether_quartz_ore",
+          "z": 1,
+          "y": 113
+        },
+        {
+          "x": 7,
+          "state": "minecraft:nether_quartz_ore",
+          "z": 2,
+          "y": 113
+        },
+        {
+          "x": 8,
+          "state": "minecraft:nether_quartz_ore",
+          "z": 2,
+          "y": 113
+        },
+        {
+          "x": 9,
+          "state": "minecraft:nether_quartz_ore",
+          "z": 2,
+          "y": 113
+        },
+        {
+          "x": 8,
+          "state": "minecraft:nether_quartz_ore",
+          "z": 1,
+          "y": 114
+        },
+        {
+          "x": 9,
+          "state": "minecraft:nether_quartz_ore",
+          "z": 1,
+          "y": 114
+        },
+        {
+          "x": 11,
+          "state": "minecraft:nether_quartz_ore",
+          "z": -1,
+          "y": 58
+        },
+        {
+          "x": 12,
+          "state": "minecraft:nether_quartz_ore",
+          "z": -1,
+          "y": 58
+        },
+        {
+          "x": 13,
+          "state": "minecraft:nether_quartz_ore",
+          "z": -1,
+          "y": 58
+        },
+        {
+          "x": 11,
+          "state": "minecraft:nether_quartz_ore",
+          "z": -1,
+          "y": 59
+        },
+        {
+          "x": 12,
+          "state": "minecraft:nether_quartz_ore",
+          "z": -1,
+          "y": 59
+        },
+        {
+          "x": 13,
+          "state": "minecraft:nether_quartz_ore",
+          "z": -1,
+          "y": 59
+        },
+        {
+          "x": 3,
+          "state": "minecraft:nether_quartz_ore",
+          "z": -2,
+          "y": 93
+        },
+        {
+          "x": 3,
+          "state": "minecraft:nether_quartz_ore",
+          "z": -1,
+          "y": 93
+        },
+        {
+          "x": 4,
+          "state": "minecraft:nether_quartz_ore",
+          "z": -1,
+          "y": 93
+        },
+        {
+          "x": 3,
+          "state": "minecraft:nether_quartz_ore",
+          "z": -2,
+          "y": 94
+        },
+        {
+          "x": 3,
+          "state": "minecraft:nether_quartz_ore",
+          "z": -1,
+          "y": 94
+        },
+        {
+          "x": 4,
+          "state": "minecraft:nether_quartz_ore",
+          "z": -1,
+          "y": 94
+        }
+      ],
+      "next_int": 1673044625,
+      "seed": 12345
+    },
+    {
+      "success": true,
+      "decoration_seed": -6718339946738347815,
+      "feature_index": 20,
+      "chunk_z": 1,
+      "chunk_x": -1,
+      "step": 7,
+      "blocks": [
+        {
+          "x": -17,
+          "state": "minecraft:nether_quartz_ore",
+          "z": 17,
+          "y": 23
+        },
+        {
+          "x": -17,
+          "state": "minecraft:nether_quartz_ore",
+          "z": 27,
+          "y": 26
+        },
+        {
+          "x": -17,
+          "state": "minecraft:nether_quartz_ore",
+          "z": 28,
+          "y": 26
+        },
+        {
+          "x": -17,
+          "state": "minecraft:nether_quartz_ore",
+          "z": 28,
+          "y": 27
+        },
+        {
+          "x": -17,
+          "state": "minecraft:nether_quartz_ore",
+          "z": 21,
+          "y": 49
+        },
+        {
+          "x": -17,
+          "state": "minecraft:nether_quartz_ore",
+          "z": 23,
+          "y": 49
+        },
+        {
+          "x": -17,
+          "state": "minecraft:nether_quartz_ore",
+          "z": 20,
+          "y": 50
+        },
+        {
+          "x": -17,
+          "state": "minecraft:nether_quartz_ore",
+          "z": 21,
+          "y": 50
+        },
+        {
+          "x": -17,
+          "state": "minecraft:nether_quartz_ore",
+          "z": 22,
+          "y": 50
+        },
+        {
+          "x": -17,
+          "state": "minecraft:nether_quartz_ore",
+          "z": 23,
+          "y": 50
+        },
+        {
+          "x": -17,
+          "state": "minecraft:nether_quartz_ore",
+          "z": 20,
+          "y": 51
+        },
+        {
+          "x": -17,
+          "state": "minecraft:nether_quartz_ore",
+          "z": 21,
+          "y": 51
+        },
+        {
+          "x": -6,
+          "state": "minecraft:nether_quartz_ore",
+          "z": 15,
+          "y": 99
+        },
+        {
+          "x": -5,
+          "state": "minecraft:nether_quartz_ore",
+          "z": 15,
+          "y": 99
+        },
+        {
+          "x": -6,
+          "state": "minecraft:nether_quartz_ore",
+          "z": 15,
+          "y": 100
+        },
+        {
+          "x": -16,
+          "state": "minecraft:nether_quartz_ore",
+          "z": 17,
+          "y": 22
+        },
+        {
+          "x": -15,
+          "state": "minecraft:nether_quartz_ore",
+          "z": 17,
+          "y": 22
+        },
+        {
+          "x": -16,
+          "state": "minecraft:nether_quartz_ore",
+          "z": 18,
+          "y": 22
+        },
+        {
+          "x": -16,
+          "state": "minecraft:nether_quartz_ore",
+          "z": 16,
+          "y": 23
+        },
+        {
+          "x": -16,
+          "state": "minecraft:nether_quartz_ore",
+          "z": 17,
+          "y": 23
+        },
+        {
+          "x": -15,
+          "state": "minecraft:nether_quartz_ore",
+          "z": 17,
+          "y": 23
+        },
+        {
+          "x": -16,
+          "state": "minecraft:nether_quartz_ore",
+          "z": 18,
+          "y": 23
+        },
+        {
+          "x": -15,
+          "state": "minecraft:nether_quartz_ore",
+          "z": 18,
+          "y": 23
+        },
+        {
+          "x": -14,
+          "state": "minecraft:nether_quartz_ore",
+          "z": 18,
+          "y": 23
+        },
+        {
+          "x": -9,
+          "state": "minecraft:nether_quartz_ore",
+          "z": 18,
+          "y": 23
+        },
+        {
+          "x": -15,
+          "state": "minecraft:nether_quartz_ore",
+          "z": 19,
+          "y": 23
+        },
+        {
+          "x": -14,
+          "state": "minecraft:nether_quartz_ore",
+          "z": 19,
+          "y": 23
+        },
+        {
+          "x": -9,
+          "state": "minecraft:nether_quartz_ore",
+          "z": 19,
+          "y": 23
+        },
+        {
+          "x": -16,
+          "state": "minecraft:nether_quartz_ore",
+          "z": 17,
+          "y": 24
+        },
+        {
+          "x": -15,
+          "state": "minecraft:nether_quartz_ore",
+          "z": 18,
+          "y": 24
+        },
+        {
+          "x": -9,
+          "state": "minecraft:nether_quartz_ore",
+          "z": 18,
+          "y": 24
+        },
+        {
+          "x": -8,
+          "state": "minecraft:nether_quartz_ore",
+          "z": 18,
+          "y": 24
+        },
+        {
+          "x": -14,
+          "state": "minecraft:nether_quartz_ore",
+          "z": 19,
+          "y": 24
+        },
+        {
+          "x": -9,
+          "state": "minecraft:nether_quartz_ore",
+          "z": 19,
+          "y": 24
+        },
+        {
+          "x": -8,
+          "state": "minecraft:nether_quartz_ore",
+          "z": 19,
+          "y": 24
+        },
+        {
+          "x": -9,
+          "state": "minecraft:nether_quartz_ore",
+          "z": 20,
+          "y": 24
+        },
+        {
+          "x": -8,
+          "state": "minecraft:nether_quartz_ore",
+          "z": 20,
+          "y": 24
+        },
+        {
+          "x": -15,
+          "state": "minecraft:nether_quartz_ore",
+          "z": 27,
+          "y": 24
+        },
+        {
+          "x": -14,
+          "state": "minecraft:nether_quartz_ore",
+          "z": 27,
+          "y": 24
+        },
+        {
+          "x": -9,
+          "state": "minecraft:nether_quartz_ore",
+          "z": 19,
+          "y": 25
+        },
+        {
+          "x": -8,
+          "state": "minecraft:nether_quartz_ore",
+          "z": 19,
+          "y": 25
+        },
+        {
+          "x": -9,
+          "state": "minecraft:nether_quartz_ore",
+          "z": 20,
+          "y": 25
+        },
+        {
+          "x": -8,
+          "state": "minecraft:nether_quartz_ore",
+          "z": 20,
+          "y": 25
+        },
+        {
+          "x": -8,
+          "state": "minecraft:nether_quartz_ore",
+          "z": 21,
+          "y": 25
+        },
+        {
+          "x": -16,
+          "state": "minecraft:nether_quartz_ore",
+          "z": 27,
+          "y": 25
+        },
+        {
+          "x": -15,
+          "state": "minecraft:nether_quartz_ore",
+          "z": 27,
+          "y": 25
+        },
+        {
+          "x": -14,
+          "state": "minecraft:nether_quartz_ore",
+          "z": 27,
+          "y": 25
+        },
+        {
+          "x": -16,
+          "state": "minecraft:nether_quartz_ore",
+          "z": 28,
+          "y": 25
+        },
+        {
+          "x": -15,
+          "state": "minecraft:nether_quartz_ore",
+          "z": 28,
+          "y": 25
+        },
+        {
+          "x": -14,
+          "state": "minecraft:nether_quartz_ore",
+          "z": 28,
+          "y": 25
+        },
+        {
+          "x": -3,
+          "state": "minecraft:nether_quartz_ore",
+          "z": 19,
+          "y": 26
+        },
+        {
+          "x": -2,
+          "state": "minecraft:nether_quartz_ore",
+          "z": 19,
+          "y": 26
+        },
+        {
+          "x": -1,
+          "state": "minecraft:nether_quartz_ore",
+          "z": 19,
+          "y": 26
+        },
+        {
+          "x": -2,
+          "state": "minecraft:nether_quartz_ore",
+          "z": 20,
+          "y": 26
+        },
+        {
+          "x": -1,
+          "state": "minecraft:nether_quartz_ore",
+          "z": 20,
+          "y": 26
+        },
+        {
+          "x": -8,
+          "state": "minecraft:nether_quartz_ore",
+          "z": 21,
+          "y": 26
+        },
+        {
+          "x": -16,
+          "state": "minecraft:nether_quartz_ore",
+          "z": 27,
+          "y": 26
+        },
+        {
+          "x": -15,
+          "state": "minecraft:nether_quartz_ore",
+          "z": 27,
+          "y": 26
+        },
+        {
+          "x": -16,
+          "state": "minecraft:nether_quartz_ore",
+          "z": 28,
+          "y": 26
+        },
+        {
+          "x": -15,
+          "state": "minecraft:nether_quartz_ore",
+          "z": 28,
+          "y": 26
+        },
+        {
+          "x": -14,
+          "state": "minecraft:nether_quartz_ore",
+          "z": 28,
+          "y": 26
+        },
+        {
+          "x": -15,
+          "state": "minecraft:nether_quartz_ore",
+          "z": 29,
+          "y": 26
+        },
+        {
+          "x": -14,
+          "state": "minecraft:nether_quartz_ore",
+          "z": 29,
+          "y": 26
+        },
+        {
+          "x": -15,
+          "state": "minecraft:nether_quartz_ore",
+          "z": 30,
+          "y": 26
+        },
+        {
+          "x": -14,
+          "state": "minecraft:nether_quartz_ore",
+          "z": 30,
+          "y": 26
+        },
+        {
+          "x": -3,
+          "state": "minecraft:nether_quartz_ore",
+          "z": 19,
+          "y": 27
+        },
+        {
+          "x": -2,
+          "state": "minecraft:nether_quartz_ore",
+          "z": 19,
+          "y": 27
+        },
+        {
+          "x": -1,
+          "state": "minecraft:nether_quartz_ore",
+          "z": 19,
+          "y": 27
+        },
+        {
+          "x": -2,
+          "state": "minecraft:nether_quartz_ore",
+          "z": 20,
+          "y": 27
+        },
+        {
+          "x": -1,
+          "state": "minecraft:nether_quartz_ore",
+          "z": 20,
+          "y": 27
+        },
+        {
+          "x": -15,
+          "state": "minecraft:nether_quartz_ore",
+          "z": 29,
+          "y": 27
+        },
+        {
+          "x": -14,
+          "state": "minecraft:nether_quartz_ore",
+          "z": 29,
+          "y": 27
+        },
+        {
+          "x": -15,
+          "state": "minecraft:nether_quartz_ore",
+          "z": 30,
+          "y": 27
+        },
+        {
+          "x": -14,
+          "state": "minecraft:nether_quartz_ore",
+          "z": 30,
+          "y": 27
+        },
+        {
+          "x": -16,
+          "state": "minecraft:nether_quartz_ore",
+          "z": 31,
+          "y": 27
+        },
+        {
+          "x": -15,
+          "state": "minecraft:nether_quartz_ore",
+          "z": 31,
+          "y": 27
+        },
+        {
+          "x": -15,
+          "state": "minecraft:nether_quartz_ore",
+          "z": 30,
+          "y": 28
+        },
+        {
+          "x": -15,
+          "state": "minecraft:nether_quartz_ore",
+          "z": 31,
+          "y": 28
+        },
+        {
+          "x": -16,
+          "state": "minecraft:nether_quartz_ore",
+          "z": 21,
+          "y": 49
+        },
+        {
+          "x": -16,
+          "state": "minecraft:nether_quartz_ore",
+          "z": 23,
+          "y": 49
+        },
+        {
+          "x": -16,
+          "state": "minecraft:nether_quartz_ore",
+          "z": 20,
+          "y": 50
+        },
+        {
+          "x": -16,
+          "state": "minecraft:nether_quartz_ore",
+          "z": 21,
+          "y": 50
+        },
+        {
+          "x": -16,
+          "state": "minecraft:nether_quartz_ore",
+          "z": 22,
+          "y": 50
+        },
+        {
+          "x": -16,
+          "state": "minecraft:nether_quartz_ore",
+          "z": 23,
+          "y": 50
+        },
+        {
+          "x": -16,
+          "state": "minecraft:nether_quartz_ore",
+          "z": 20,
+          "y": 51
+        },
+        {
+          "x": -16,
+          "state": "minecraft:nether_quartz_ore",
+          "z": 21,
+          "y": 51
+        },
+        {
+          "x": -2,
+          "state": "minecraft:nether_quartz_ore",
+          "z": 22,
+          "y": 56
+        },
+        {
+          "x": -2,
+          "state": "minecraft:nether_quartz_ore",
+          "z": 23,
+          "y": 56
+        },
+        {
+          "x": -2,
+          "state": "minecraft:nether_quartz_ore",
+          "z": 22,
+          "y": 57
+        },
+        {
+          "x": -1,
+          "state": "minecraft:nether_quartz_ore",
+          "z": 22,
+          "y": 57
+        },
+        {
+          "x": -2,
+          "state": "minecraft:nether_quartz_ore",
+          "z": 23,
+          "y": 57
+        },
+        {
+          "x": -1,
+          "state": "minecraft:nether_quartz_ore",
+          "z": 23,
+          "y": 57
+        },
+        {
+          "x": -2,
+          "state": "minecraft:nether_quartz_ore",
+          "z": 24,
+          "y": 57
+        },
+        {
+          "x": -1,
+          "state": "minecraft:nether_quartz_ore",
+          "z": 24,
+          "y": 57
+        },
+        {
+          "x": -2,
+          "state": "minecraft:nether_quartz_ore",
+          "z": 23,
+          "y": 58
+        },
+        {
+          "x": -1,
+          "state": "minecraft:nether_quartz_ore",
+          "z": 23,
+          "y": 58
+        },
+        {
+          "x": -2,
+          "state": "minecraft:nether_quartz_ore",
+          "z": 24,
+          "y": 58
+        },
+        {
+          "x": -1,
+          "state": "minecraft:nether_quartz_ore",
+          "z": 24,
+          "y": 58
+        },
+        {
+          "x": -2,
+          "state": "minecraft:nether_quartz_ore",
+          "z": 25,
+          "y": 58
+        },
+        {
+          "x": -1,
+          "state": "minecraft:nether_quartz_ore",
+          "z": 25,
+          "y": 58
+        },
+        {
+          "x": -1,
+          "state": "minecraft:nether_quartz_ore",
+          "z": 24,
+          "y": 59
+        },
+        {
+          "x": -2,
+          "state": "minecraft:nether_quartz_ore",
+          "z": 25,
+          "y": 59
+        },
+        {
+          "x": -1,
+          "state": "minecraft:nether_quartz_ore",
+          "z": 25,
+          "y": 59
+        },
+        {
+          "x": -7,
+          "state": "minecraft:nether_quartz_ore",
+          "z": 22,
+          "y": 61
+        },
+        {
+          "x": -8,
+          "state": "minecraft:nether_quartz_ore",
+          "z": 23,
+          "y": 61
+        },
+        {
+          "x": -7,
+          "state": "minecraft:nether_quartz_ore",
+          "z": 23,
+          "y": 61
+        },
+        {
+          "x": -7,
+          "state": "minecraft:nether_quartz_ore",
+          "z": 22,
+          "y": 62
+        },
+        {
+          "x": -6,
+          "state": "minecraft:nether_quartz_ore",
+          "z": 22,
+          "y": 62
+        },
+        {
+          "x": -5,
+          "state": "minecraft:nether_quartz_ore",
+          "z": 22,
+          "y": 62
+        },
+        {
+          "x": -8,
+          "state": "minecraft:nether_quartz_ore",
+          "z": 23,
+          "y": 62
+        },
+        {
+          "x": -7,
+          "state": "minecraft:nether_quartz_ore",
+          "z": 23,
+          "y": 62
+        },
+        {
+          "x": -6,
+          "state": "minecraft:nether_quartz_ore",
+          "z": 23,
+          "y": 62
+        },
+        {
+          "x": -5,
+          "state": "minecraft:nether_quartz_ore",
+          "z": 23,
+          "y": 62
+        },
+        {
+          "x": -6,
+          "state": "minecraft:nether_quartz_ore",
+          "z": 22,
+          "y": 63
+        },
+        {
+          "x": -5,
+          "state": "minecraft:nether_quartz_ore",
+          "z": 22,
+          "y": 63
+        },
+        {
+          "x": -7,
+          "state": "minecraft:nether_quartz_ore",
+          "z": 23,
+          "y": 63
+        },
+        {
+          "x": -6,
+          "state": "minecraft:nether_quartz_ore",
+          "z": 23,
+          "y": 63
+        },
+        {
+          "x": -8,
+          "state": "minecraft:nether_quartz_ore",
+          "z": 29,
+          "y": 63
+        },
+        {
+          "x": -7,
+          "state": "minecraft:nether_quartz_ore",
+          "z": 29,
+          "y": 63
+        },
+        {
+          "x": -9,
+          "state": "minecraft:nether_quartz_ore",
+          "z": 28,
+          "y": 64
+        },
+        {
+          "x": -8,
+          "state": "minecraft:nether_quartz_ore",
+          "z": 28,
+          "y": 64
+        },
+        {
+          "x": -7,
+          "state": "minecraft:nether_quartz_ore",
+          "z": 28,
+          "y": 64
+        },
+        {
+          "x": -9,
+          "state": "minecraft:nether_quartz_ore",
+          "z": 29,
+          "y": 64
+        },
+        {
+          "x": -8,
+          "state": "minecraft:nether_quartz_ore",
+          "z": 29,
+          "y": 64
+        },
+        {
+          "x": -7,
+          "state": "minecraft:nether_quartz_ore",
+          "z": 29,
+          "y": 64
+        },
+        {
+          "x": -10,
+          "state": "minecraft:nether_quartz_ore",
+          "z": 28,
+          "y": 65
+        },
+        {
+          "x": -9,
+          "state": "minecraft:nether_quartz_ore",
+          "z": 28,
+          "y": 65
+        },
+        {
+          "x": -8,
+          "state": "minecraft:nether_quartz_ore",
+          "z": 28,
+          "y": 65
+        },
+        {
+          "x": -9,
+          "state": "minecraft:nether_quartz_ore",
+          "z": 29,
+          "y": 65
+        },
+        {
+          "x": -8,
+          "state": "minecraft:nether_quartz_ore",
+          "z": 29,
+          "y": 65
+        },
+        {
+          "x": -10,
+          "state": "minecraft:nether_quartz_ore",
+          "z": 28,
+          "y": 66
+        },
+        {
+          "x": -5,
+          "state": "minecraft:nether_quartz_ore",
+          "z": 21,
+          "y": 72
+        },
+        {
+          "x": -6,
+          "state": "minecraft:nether_quartz_ore",
+          "z": 22,
+          "y": 72
+        },
+        {
+          "x": -5,
+          "state": "minecraft:nether_quartz_ore",
+          "z": 22,
+          "y": 72
+        },
+        {
+          "x": -6,
+          "state": "minecraft:nether_quartz_ore",
+          "z": 21,
+          "y": 73
+        },
+        {
+          "x": -5,
+          "state": "minecraft:nether_quartz_ore",
+          "z": 21,
+          "y": 73
+        },
+        {
+          "x": -6,
+          "state": "minecraft:nether_quartz_ore",
+          "z": 22,
+          "y": 73
+        },
+        {
+          "x": -5,
+          "state": "minecraft:nether_quartz_ore",
+          "z": 22,
+          "y": 73
+        },
+        {
+          "x": -4,
+          "state": "minecraft:nether_quartz_ore",
+          "z": 22,
+          "y": 73
+        },
+        {
+          "x": -5,
+          "state": "minecraft:nether_quartz_ore",
+          "z": 23,
+          "y": 73
+        },
+        {
+          "x": -4,
+          "state": "minecraft:nether_quartz_ore",
+          "z": 23,
+          "y": 73
+        },
+        {
+          "x": -3,
+          "state": "minecraft:nether_quartz_ore",
+          "z": 23,
+          "y": 73
+        },
+        {
+          "x": -4,
+          "state": "minecraft:nether_quartz_ore",
+          "z": 24,
+          "y": 73
+        },
+        {
+          "x": -3,
+          "state": "minecraft:nether_quartz_ore",
+          "z": 24,
+          "y": 73
+        },
+        {
+          "x": -7,
+          "state": "minecraft:nether_quartz_ore",
+          "z": 21,
+          "y": 74
+        },
+        {
+          "x": -6,
+          "state": "minecraft:nether_quartz_ore",
+          "z": 21,
+          "y": 74
+        },
+        {
+          "x": -7,
+          "state": "minecraft:nether_quartz_ore",
+          "z": 22,
+          "y": 74
+        },
+        {
+          "x": -6,
+          "state": "minecraft:nether_quartz_ore",
+          "z": 22,
+          "y": 74
+        },
+        {
+          "x": -5,
+          "state": "minecraft:nether_quartz_ore",
+          "z": 22,
+          "y": 74
+        },
+        {
+          "x": -6,
+          "state": "minecraft:nether_quartz_ore",
+          "z": 23,
+          "y": 74
+        },
+        {
+          "x": -4,
+          "state": "minecraft:nether_quartz_ore",
+          "z": 23,
+          "y": 74
+        },
+        {
+          "x": -3,
+          "state": "minecraft:nether_quartz_ore",
+          "z": 23,
+          "y": 74
+        },
+        {
+          "x": -4,
+          "state": "minecraft:nether_quartz_ore",
+          "z": 24,
+          "y": 74
+        },
+        {
+          "x": -3,
+          "state": "minecraft:nether_quartz_ore",
+          "z": 24,
+          "y": 74
+        },
+        {
+          "x": -6,
+          "state": "minecraft:nether_quartz_ore",
+          "z": 22,
+          "y": 75
+        },
+        {
+          "x": -5,
+          "state": "minecraft:nether_quartz_ore",
+          "z": 22,
+          "y": 75
+        },
+        {
+          "x": -5,
+          "state": "minecraft:nether_quartz_ore",
+          "z": 23,
+          "y": 75
+        },
+        {
+          "x": -4,
+          "state": "minecraft:nether_quartz_ore",
+          "z": 23,
+          "y": 75
+        },
+        {
+          "x": -5,
+          "state": "minecraft:nether_quartz_ore",
+          "z": 24,
+          "y": 75
+        },
+        {
+          "x": -4,
+          "state": "minecraft:nether_quartz_ore",
+          "z": 24,
+          "y": 75
+        },
+        {
+          "x": -5,
+          "state": "minecraft:nether_quartz_ore",
+          "z": 23,
+          "y": 76
+        },
+        {
+          "x": -5,
+          "state": "minecraft:nether_quartz_ore",
+          "z": 24,
+          "y": 76
+        },
+        {
+          "x": -4,
+          "state": "minecraft:nether_quartz_ore",
+          "z": 24,
+          "y": 76
+        },
+        {
+          "x": -11,
+          "state": "minecraft:nether_quartz_ore",
+          "z": 28,
+          "y": 93
+        },
+        {
+          "x": -13,
+          "state": "minecraft:nether_quartz_ore",
+          "z": 29,
+          "y": 93
+        },
+        {
+          "x": -12,
+          "state": "minecraft:nether_quartz_ore",
+          "z": 29,
+          "y": 93
+        },
+        {
+          "x": -3,
+          "state": "minecraft:nether_quartz_ore",
+          "z": 21,
+          "y": 94
+        },
+        {
+          "x": -2,
+          "state": "minecraft:nether_quartz_ore",
+          "z": 21,
+          "y": 94
+        },
+        {
+          "x": -1,
+          "state": "minecraft:nether_quartz_ore",
+          "z": 21,
+          "y": 94
+        },
+        {
+          "x": -2,
+          "state": "minecraft:nether_quartz_ore",
+          "z": 22,
+          "y": 94
+        },
+        {
+          "x": -1,
+          "state": "minecraft:nether_quartz_ore",
+          "z": 22,
+          "y": 94
+        },
+        {
+          "x": -12,
+          "state": "minecraft:nether_quartz_ore",
+          "z": 28,
+          "y": 94
+        },
+        {
+          "x": -11,
+          "state": "minecraft:nether_quartz_ore",
+          "z": 28,
+          "y": 94
+        },
+        {
+          "x": -10,
+          "state": "minecraft:nether_quartz_ore",
+          "z": 28,
+          "y": 94
+        },
+        {
+          "x": -13,
+          "state": "minecraft:nether_quartz_ore",
+          "z": 29,
+          "y": 94
+        },
+        {
+          "x": -12,
+          "state": "minecraft:nether_quartz_ore",
+          "z": 29,
+          "y": 94
+        },
+        {
+          "x": -11,
+          "state": "minecraft:nether_quartz_ore",
+          "z": 29,
+          "y": 94
+        },
+        {
+          "x": -7,
+          "state": "minecraft:nether_quartz_ore",
+          "z": 18,
+          "y": 95
+        },
+        {
+          "x": -7,
+          "state": "minecraft:nether_quartz_ore",
+          "z": 19,
+          "y": 95
+        },
+        {
+          "x": -3,
+          "state": "minecraft:nether_quartz_ore",
+          "z": 20,
+          "y": 95
+        },
+        {
+          "x": -2,
+          "state": "minecraft:nether_quartz_ore",
+          "z": 20,
+          "y": 95
+        },
+        {
+          "x": -3,
+          "state": "minecraft:nether_quartz_ore",
+          "z": 21,
+          "y": 95
+        },
+        {
+          "x": -2,
+          "state": "minecraft:nether_quartz_ore",
+          "z": 21,
+          "y": 95
+        },
+        {
+          "x": -1,
+          "state": "minecraft:nether_quartz_ore",
+          "z": 21,
+          "y": 95
+        },
+        {
+          "x": -2,
+          "state": "minecraft:nether_quartz_ore",
+          "z": 22,
+          "y": 95
+        },
+        {
+          "x": -1,
+          "state": "minecraft:nether_quartz_ore",
+          "z": 22,
+          "y": 95
+        },
+        {
+          "x": -1,
+          "state": "minecraft:nether_quartz_ore",
+          "z": 23,
+          "y": 95
+        },
+        {
+          "x": -11,
+          "state": "minecraft:nether_quartz_ore",
+          "z": 28,
+          "y": 95
+        },
+        {
+          "x": -10,
+          "state": "minecraft:nether_quartz_ore",
+          "z": 28,
+          "y": 95
+        },
+        {
+          "x": -11,
+          "state": "minecraft:nether_quartz_ore",
+          "z": 29,
+          "y": 95
+        },
+        {
+          "x": -6,
+          "state": "minecraft:nether_quartz_ore",
+          "z": 16,
+          "y": 96
+        },
+        {
+          "x": -5,
+          "state": "minecraft:nether_quartz_ore",
+          "z": 16,
+          "y": 96
+        },
+        {
+          "x": -7,
+          "state": "minecraft:nether_quartz_ore",
+          "z": 17,
+          "y": 96
+        },
+        {
+          "x": -6,
+          "state": "minecraft:nether_quartz_ore",
+          "z": 17,
+          "y": 96
+        },
+        {
+          "x": -5,
+          "state": "minecraft:nether_quartz_ore",
+          "z": 17,
+          "y": 96
+        },
+        {
+          "x": -8,
+          "state": "minecraft:nether_quartz_ore",
+          "z": 18,
+          "y": 96
+        },
+        {
+          "x": -7,
+          "state": "minecraft:nether_quartz_ore",
+          "z": 18,
+          "y": 96
+        },
+        {
+          "x": -6,
+          "state": "minecraft:nether_quartz_ore",
+          "z": 18,
+          "y": 96
+        },
+        {
+          "x": -8,
+          "state": "minecraft:nether_quartz_ore",
+          "z": 19,
+          "y": 96
+        },
+        {
+          "x": -7,
+          "state": "minecraft:nether_quartz_ore",
+          "z": 19,
+          "y": 96
+        },
+        {
+          "x": -2,
+          "state": "minecraft:nether_quartz_ore",
+          "z": 21,
+          "y": 96
+        },
+        {
+          "x": -1,
+          "state": "minecraft:nether_quartz_ore",
+          "z": 21,
+          "y": 96
+        },
+        {
+          "x": -2,
+          "state": "minecraft:nether_quartz_ore",
+          "z": 22,
+          "y": 96
+        },
+        {
+          "x": -1,
+          "state": "minecraft:nether_quartz_ore",
+          "z": 22,
+          "y": 96
+        },
+        {
+          "x": -1,
+          "state": "minecraft:nether_quartz_ore",
+          "z": 23,
+          "y": 96
+        },
+        {
+          "x": -6,
+          "state": "minecraft:nether_quartz_ore",
+          "z": 16,
+          "y": 97
+        },
+        {
+          "x": -5,
+          "state": "minecraft:nether_quartz_ore",
+          "z": 16,
+          "y": 97
+        },
+        {
+          "x": -6,
+          "state": "minecraft:nether_quartz_ore",
+          "z": 17,
+          "y": 97
+        },
+        {
+          "x": -4,
+          "state": "minecraft:nether_quartz_ore",
+          "z": 17,
+          "y": 97
+        },
+        {
+          "x": -3,
+          "state": "minecraft:nether_quartz_ore",
+          "z": 18,
+          "y": 97
+        },
+        {
+          "x": -5,
+          "state": "minecraft:nether_quartz_ore",
+          "z": 16,
+          "y": 98
+        },
+        {
+          "x": -4,
+          "state": "minecraft:nether_quartz_ore",
+          "z": 16,
+          "y": 98
+        },
+        {
+          "x": -5,
+          "state": "minecraft:nether_quartz_ore",
+          "z": 17,
+          "y": 98
+        },
+        {
+          "x": -4,
+          "state": "minecraft:nether_quartz_ore",
+          "z": 17,
+          "y": 98
+        },
+        {
+          "x": -3,
+          "state": "minecraft:nether_quartz_ore",
+          "z": 17,
+          "y": 98
+        },
+        {
+          "x": -4,
+          "state": "minecraft:nether_quartz_ore",
+          "z": 18,
+          "y": 98
+        },
+        {
+          "x": -3,
+          "state": "minecraft:nether_quartz_ore",
+          "z": 18,
+          "y": 98
+        },
+        {
+          "x": -6,
+          "state": "minecraft:nether_quartz_ore",
+          "z": 16,
+          "y": 99
+        },
+        {
+          "x": -5,
+          "state": "minecraft:nether_quartz_ore",
+          "z": 16,
+          "y": 99
+        },
+        {
+          "x": -4,
+          "state": "minecraft:nether_quartz_ore",
+          "z": 16,
+          "y": 99
+        },
+        {
+          "x": -5,
+          "state": "minecraft:nether_quartz_ore",
+          "z": 17,
+          "y": 99
+        },
+        {
+          "x": -4,
+          "state": "minecraft:nether_quartz_ore",
+          "z": 17,
+          "y": 99
+        },
+        {
+          "x": -6,
+          "state": "minecraft:nether_quartz_ore",
+          "z": 16,
+          "y": 100
+        },
+        {
+          "x": -5,
+          "state": "minecraft:nether_quartz_ore",
+          "z": 16,
+          "y": 100
+        },
+        {
+          "x": -16,
+          "state": "minecraft:nether_quartz_ore",
+          "z": 25,
+          "y": 102
+        },
+        {
+          "x": -16,
+          "state": "minecraft:nether_quartz_ore",
+          "z": 26,
+          "y": 102
+        },
+        {
+          "x": -15,
+          "state": "minecraft:nether_quartz_ore",
+          "z": 26,
+          "y": 102
+        },
+        {
+          "x": -16,
+          "state": "minecraft:nether_quartz_ore",
+          "z": 27,
+          "y": 102
+        },
+        {
+          "x": -15,
+          "state": "minecraft:nether_quartz_ore",
+          "z": 27,
+          "y": 102
+        },
+        {
+          "x": -15,
+          "state": "minecraft:nether_quartz_ore",
+          "z": 28,
+          "y": 102
+        },
+        {
+          "x": -14,
+          "state": "minecraft:nether_quartz_ore",
+          "z": 28,
+          "y": 102
+        },
+        {
+          "x": -16,
+          "state": "minecraft:nether_quartz_ore",
+          "z": 25,
+          "y": 103
+        },
+        {
+          "x": -16,
+          "state": "minecraft:nether_quartz_ore",
+          "z": 26,
+          "y": 103
+        },
+        {
+          "x": -15,
+          "state": "minecraft:nether_quartz_ore",
+          "z": 26,
+          "y": 103
+        },
+        {
+          "x": -16,
+          "state": "minecraft:nether_quartz_ore",
+          "z": 27,
+          "y": 103
+        },
+        {
+          "x": -15,
+          "state": "minecraft:nether_quartz_ore",
+          "z": 27,
+          "y": 103
+        },
+        {
+          "x": -15,
+          "state": "minecraft:nether_quartz_ore",
+          "z": 28,
+          "y": 103
+        },
+        {
+          "x": -14,
+          "state": "minecraft:nether_quartz_ore",
+          "z": 28,
+          "y": 103
+        },
+        {
+          "x": 0,
+          "state": "minecraft:nether_quartz_ore",
+          "z": 20,
+          "y": 26
+        },
+        {
+          "x": 0,
+          "state": "minecraft:nether_quartz_ore",
+          "z": 20,
+          "y": 27
+        },
+        {
+          "x": 0,
+          "state": "minecraft:nether_quartz_ore",
+          "z": 22,
+          "y": 95
+        },
+        {
+          "x": 0,
+          "state": "minecraft:nether_quartz_ore",
+          "z": 23,
+          "y": 95
+        },
+        {
+          "x": 0,
+          "state": "minecraft:nether_quartz_ore",
+          "z": 22,
+          "y": 96
+        },
+        {
+          "x": 0,
+          "state": "minecraft:nether_quartz_ore",
+          "z": 23,
+          "y": 96
+        }
+      ],
+      "next_int": 1993266776,
+      "seed": 12345
+    },
+    {
+      "success": true,
+      "decoration_seed": -9223372036854775808,
+      "feature_index": 20,
+      "chunk_z": 0,
+      "chunk_x": 0,
+      "step": 7,
+      "blocks": [
+        {
+          "x": -1,
+          "state": "minecraft:nether_quartz_ore",
+          "z": 2,
+          "y": 22
+        },
+        {
+          "x": -1,
+          "state": "minecraft:nether_quartz_ore",
+          "z": 2,
+          "y": 23
+        },
+        {
+          "x": -1,
+          "state": "minecraft:nether_quartz_ore",
+          "z": 2,
+          "y": 51
+        },
+        {
+          "x": -1,
+          "state": "minecraft:nether_quartz_ore",
+          "z": 2,
+          "y": 52
+        },
+        {
+          "x": -1,
+          "state": "minecraft:nether_quartz_ore",
+          "z": 3,
+          "y": 52
+        },
+        {
+          "x": -2,
+          "state": "minecraft:nether_quartz_ore",
+          "z": 4,
+          "y": 52
+        },
+        {
+          "x": -1,
+          "state": "minecraft:nether_quartz_ore",
+          "z": 4,
+          "y": 52
+        },
+        {
+          "x": -1,
+          "state": "minecraft:nether_quartz_ore",
+          "z": 3,
+          "y": 53
+        },
+        {
+          "x": -1,
+          "state": "minecraft:nether_quartz_ore",
+          "z": 4,
+          "y": 53
+        },
+        {
+          "x": 0,
+          "state": "minecraft:nether_quartz_ore",
+          "z": 2,
+          "y": 22
+        },
+        {
+          "x": 1,
+          "state": "minecraft:nether_quartz_ore",
+          "z": 2,
+          "y": 22
+        },
+        {
+          "x": 0,
+          "state": "minecraft:nether_quartz_ore",
+          "z": 3,
+          "y": 22
+        },
+        {
+          "x": 1,
+          "state": "minecraft:nether_quartz_ore",
+          "z": 3,
+          "y": 22
+        },
+        {
+          "x": 2,
+          "state": "minecraft:nether_quartz_ore",
+          "z": 3,
+          "y": 22
+        },
+        {
+          "x": 9,
+          "state": "minecraft:nether_quartz_ore",
+          "z": 5,
+          "y": 22
+        },
+        {
+          "x": 10,
+          "state": "minecraft:nether_quartz_ore",
+          "z": 5,
+          "y": 22
+        },
+        {
+          "x": 9,
+          "state": "minecraft:nether_quartz_ore",
+          "z": 6,
+          "y": 22
+        },
+        {
+          "x": 0,
+          "state": "minecraft:nether_quartz_ore",
+          "z": 2,
+          "y": 23
+        },
+        {
+          "x": 1,
+          "state": "minecraft:nether_quartz_ore",
+          "z": 2,
+          "y": 23
+        },
+        {
+          "x": 0,
+          "state": "minecraft:nether_quartz_ore",
+          "z": 3,
+          "y": 23
+        },
+        {
+          "x": 1,
+          "state": "minecraft:nether_quartz_ore",
+          "z": 3,
+          "y": 23
+        },
+        {
+          "x": 2,
+          "state": "minecraft:nether_quartz_ore",
+          "z": 3,
+          "y": 23
+        },
+        {
+          "x": 9,
+          "state": "minecraft:nether_quartz_ore",
+          "z": 5,
+          "y": 23
+        },
+        {
+          "x": 10,
+          "state": "minecraft:nether_quartz_ore",
+          "z": 5,
+          "y": 23
+        },
+        {
+          "x": 11,
+          "state": "minecraft:nether_quartz_ore",
+          "z": 5,
+          "y": 23
+        },
+        {
+          "x": 8,
+          "state": "minecraft:nether_quartz_ore",
+          "z": 6,
+          "y": 23
+        },
+        {
+          "x": 9,
+          "state": "minecraft:nether_quartz_ore",
+          "z": 6,
+          "y": 23
+        },
+        {
+          "x": 10,
+          "state": "minecraft:nether_quartz_ore",
+          "z": 6,
+          "y": 23
+        },
+        {
+          "x": 3,
+          "state": "minecraft:nether_quartz_ore",
+          "z": 7,
+          "y": 23
+        },
+        {
+          "x": 4,
+          "state": "minecraft:nether_quartz_ore",
+          "z": 7,
+          "y": 23
+        },
+        {
+          "x": 8,
+          "state": "minecraft:nether_quartz_ore",
+          "z": 7,
+          "y": 23
+        },
+        {
+          "x": 9,
+          "state": "minecraft:nether_quartz_ore",
+          "z": 7,
+          "y": 23
+        },
+        {
+          "x": 3,
+          "state": "minecraft:nether_quartz_ore",
+          "z": 8,
+          "y": 23
+        },
+        {
+          "x": 4,
+          "state": "minecraft:nether_quartz_ore",
+          "z": 8,
+          "y": 23
+        },
+        {
+          "x": 5,
+          "state": "minecraft:nether_quartz_ore",
+          "z": 8,
+          "y": 23
+        },
+        {
+          "x": 5,
+          "state": "minecraft:nether_quartz_ore",
+          "z": 9,
+          "y": 23
+        },
+        {
+          "x": 9,
+          "state": "minecraft:nether_quartz_ore",
+          "z": 5,
+          "y": 24
+        },
+        {
+          "x": 8,
+          "state": "minecraft:nether_quartz_ore",
+          "z": 6,
+          "y": 24
+        },
+        {
+          "x": 9,
+          "state": "minecraft:nether_quartz_ore",
+          "z": 6,
+          "y": 24
+        },
+        {
+          "x": 10,
+          "state": "minecraft:nether_quartz_ore",
+          "z": 6,
+          "y": 24
+        },
+        {
+          "x": 2,
+          "state": "minecraft:nether_quartz_ore",
+          "z": 7,
+          "y": 24
+        },
+        {
+          "x": 3,
+          "state": "minecraft:nether_quartz_ore",
+          "z": 7,
+          "y": 24
+        },
+        {
+          "x": 4,
+          "state": "minecraft:nether_quartz_ore",
+          "z": 7,
+          "y": 24
+        },
+        {
+          "x": 8,
+          "state": "minecraft:nether_quartz_ore",
+          "z": 7,
+          "y": 24
+        },
+        {
+          "x": 3,
+          "state": "minecraft:nether_quartz_ore",
+          "z": 8,
+          "y": 24
+        },
+        {
+          "x": 4,
+          "state": "minecraft:nether_quartz_ore",
+          "z": 8,
+          "y": 24
+        },
+        {
+          "x": 5,
+          "state": "minecraft:nether_quartz_ore",
+          "z": 8,
+          "y": 24
+        },
+        {
+          "x": 5,
+          "state": "minecraft:nether_quartz_ore",
+          "z": 9,
+          "y": 24
+        },
+        {
+          "x": 3,
+          "state": "minecraft:nether_quartz_ore",
+          "z": 7,
+          "y": 25
+        },
+        {
+          "x": 4,
+          "state": "minecraft:nether_quartz_ore",
+          "z": 7,
+          "y": 25
+        },
+        {
+          "x": 3,
+          "state": "minecraft:nether_quartz_ore",
+          "z": 8,
+          "y": 25
+        },
+        {
+          "x": 4,
+          "state": "minecraft:nether_quartz_ore",
+          "z": 8,
+          "y": 25
+        },
+        {
+          "x": 6,
+          "state": "minecraft:nether_quartz_ore",
+          "z": 13,
+          "y": 26
+        },
+        {
+          "x": 6,
+          "state": "minecraft:nether_quartz_ore",
+          "z": 12,
+          "y": 27
+        },
+        {
+          "x": 5,
+          "state": "minecraft:nether_quartz_ore",
+          "z": 13,
+          "y": 27
+        },
+        {
+          "x": 6,
+          "state": "minecraft:nether_quartz_ore",
+          "z": 13,
+          "y": 27
+        },
+        {
+          "x": 7,
+          "state": "minecraft:nether_quartz_ore",
+          "z": 13,
+          "y": 27
+        },
+        {
+          "x": 6,
+          "state": "minecraft:nether_quartz_ore",
+          "z": 14,
+          "y": 27
+        },
+        {
+          "x": 7,
+          "state": "minecraft:nether_quartz_ore",
+          "z": 14,
+          "y": 27
+        },
+        {
+          "x": 8,
+          "state": "minecraft:nether_quartz_ore",
+          "z": 14,
+          "y": 27
+        },
+        {
+          "x": 7,
+          "state": "minecraft:nether_quartz_ore",
+          "z": 15,
+          "y": 27
+        },
+        {
+          "x": 8,
+          "state": "minecraft:nether_quartz_ore",
+          "z": 15,
+          "y": 27
+        },
+        {
+          "x": 7,
+          "state": "minecraft:nether_quartz_ore",
+          "z": 14,
+          "y": 28
+        },
+        {
+          "x": 8,
+          "state": "minecraft:nether_quartz_ore",
+          "z": 14,
+          "y": 28
+        },
+        {
+          "x": 8,
+          "state": "minecraft:nether_quartz_ore",
+          "z": 15,
+          "y": 28
+        },
+        {
+          "x": 11,
+          "state": "minecraft:nether_quartz_ore",
+          "z": 5,
+          "y": 37
+        },
+        {
+          "x": 12,
+          "state": "minecraft:nether_quartz_ore",
+          "z": 5,
+          "y": 37
+        },
+        {
+          "x": 13,
+          "state": "minecraft:nether_quartz_ore",
+          "z": 5,
+          "y": 37
+        },
+        {
+          "x": 10,
+          "state": "minecraft:nether_quartz_ore",
+          "z": 6,
+          "y": 37
+        },
+        {
+          "x": 11,
+          "state": "minecraft:nether_quartz_ore",
+          "z": 6,
+          "y": 37
+        },
+        {
+          "x": 12,
+          "state": "minecraft:nether_quartz_ore",
+          "z": 6,
+          "y": 37
+        },
+        {
+          "x": 11,
+          "state": "minecraft:nether_quartz_ore",
+          "z": 5,
+          "y": 38
+        },
+        {
+          "x": 12,
+          "state": "minecraft:nether_quartz_ore",
+          "z": 5,
+          "y": 38
+        },
+        {
+          "x": 13,
+          "state": "minecraft:nether_quartz_ore",
+          "z": 5,
+          "y": 38
+        },
+        {
+          "x": 10,
+          "state": "minecraft:nether_quartz_ore",
+          "z": 6,
+          "y": 38
+        },
+        {
+          "x": 11,
+          "state": "minecraft:nether_quartz_ore",
+          "z": 6,
+          "y": 38
+        },
+        {
+          "x": 12,
+          "state": "minecraft:nether_quartz_ore",
+          "z": 6,
+          "y": 38
+        },
+        {
+          "x": 0,
+          "state": "minecraft:nether_quartz_ore",
+          "z": 2,
+          "y": 51
+        },
+        {
+          "x": 0,
+          "state": "minecraft:nether_quartz_ore",
+          "z": 3,
+          "y": 51
+        },
+        {
+          "x": 0,
+          "state": "minecraft:nether_quartz_ore",
+          "z": 1,
+          "y": 52
+        },
+        {
+          "x": 0,
+          "state": "minecraft:nether_quartz_ore",
+          "z": 2,
+          "y": 52
+        },
+        {
+          "x": 0,
+          "state": "minecraft:nether_quartz_ore",
+          "z": 3,
+          "y": 52
+        },
+        {
+          "x": 0,
+          "state": "minecraft:nether_quartz_ore",
+          "z": 2,
+          "y": 53
+        },
+        {
+          "x": 4,
+          "state": "minecraft:nether_quartz_ore",
+          "z": 1,
+          "y": 54
+        },
+        {
+          "x": 5,
+          "state": "minecraft:nether_quartz_ore",
+          "z": 0,
+          "y": 55
+        },
+        {
+          "x": 6,
+          "state": "minecraft:nether_quartz_ore",
+          "z": 0,
+          "y": 55
+        },
+        {
+          "x": 4,
+          "state": "minecraft:nether_quartz_ore",
+          "z": 1,
+          "y": 55
+        },
+        {
+          "x": 5,
+          "state": "minecraft:nether_quartz_ore",
+          "z": 1,
+          "y": 55
+        },
+        {
+          "x": 6,
+          "state": "minecraft:nether_quartz_ore",
+          "z": 1,
+          "y": 55
+        },
+        {
+          "x": 4,
+          "state": "minecraft:nether_quartz_ore",
+          "z": 2,
+          "y": 55
+        },
+        {
+          "x": 9,
+          "state": "minecraft:nether_quartz_ore",
+          "z": 2,
+          "y": 55
+        },
+        {
+          "x": 10,
+          "state": "minecraft:nether_quartz_ore",
+          "z": 2,
+          "y": 55
+        },
+        {
+          "x": 9,
+          "state": "minecraft:nether_quartz_ore",
+          "z": 3,
+          "y": 55
+        },
+        {
+          "x": 10,
+          "state": "minecraft:nether_quartz_ore",
+          "z": 3,
+          "y": 55
+        },
+        {
+          "x": 9,
+          "state": "minecraft:nether_quartz_ore",
+          "z": 4,
+          "y": 55
+        },
+        {
+          "x": 10,
+          "state": "minecraft:nether_quartz_ore",
+          "z": 4,
+          "y": 55
+        },
+        {
+          "x": 5,
+          "state": "minecraft:nether_quartz_ore",
+          "z": 0,
+          "y": 56
+        },
+        {
+          "x": 6,
+          "state": "minecraft:nether_quartz_ore",
+          "z": 0,
+          "y": 56
+        },
+        {
+          "x": 7,
+          "state": "minecraft:nether_quartz_ore",
+          "z": 0,
+          "y": 56
+        },
+        {
+          "x": 5,
+          "state": "minecraft:nether_quartz_ore",
+          "z": 1,
+          "y": 56
+        },
+        {
+          "x": 6,
+          "state": "minecraft:nether_quartz_ore",
+          "z": 1,
+          "y": 56
+        },
+        {
+          "x": 7,
+          "state": "minecraft:nether_quartz_ore",
+          "z": 1,
+          "y": 56
+        },
+        {
+          "x": 9,
+          "state": "minecraft:nether_quartz_ore",
+          "z": 1,
+          "y": 56
+        },
+        {
+          "x": 10,
+          "state": "minecraft:nether_quartz_ore",
+          "z": 1,
+          "y": 56
+        },
+        {
+          "x": 9,
+          "state": "minecraft:nether_quartz_ore",
+          "z": 2,
+          "y": 56
+        },
+        {
+          "x": 10,
+          "state": "minecraft:nether_quartz_ore",
+          "z": 2,
+          "y": 56
+        },
+        {
+          "x": 9,
+          "state": "minecraft:nether_quartz_ore",
+          "z": 3,
+          "y": 56
+        },
+        {
+          "x": 10,
+          "state": "minecraft:nether_quartz_ore",
+          "z": 3,
+          "y": 56
+        },
+        {
+          "x": 9,
+          "state": "minecraft:nether_quartz_ore",
+          "z": 4,
+          "y": 56
+        },
+        {
+          "x": 10,
+          "state": "minecraft:nether_quartz_ore",
+          "z": 4,
+          "y": 56
+        },
+        {
+          "x": 6,
+          "state": "minecraft:nether_quartz_ore",
+          "z": 0,
+          "y": 57
+        },
+        {
+          "x": 7,
+          "state": "minecraft:nether_quartz_ore",
+          "z": 0,
+          "y": 57
+        },
+        {
+          "x": 9,
+          "state": "minecraft:nether_quartz_ore",
+          "z": 1,
+          "y": 57
+        },
+        {
+          "x": 10,
+          "state": "minecraft:nether_quartz_ore",
+          "z": 1,
+          "y": 57
+        },
+        {
+          "x": 9,
+          "state": "minecraft:nether_quartz_ore",
+          "z": 2,
+          "y": 57
+        },
+        {
+          "x": 10,
+          "state": "minecraft:nether_quartz_ore",
+          "z": 2,
+          "y": 57
+        },
+        {
+          "x": 9,
+          "state": "minecraft:nether_quartz_ore",
+          "z": 3,
+          "y": 57
+        },
+        {
+          "x": 10,
+          "state": "minecraft:nether_quartz_ore",
+          "z": 3,
+          "y": 57
+        },
+        {
+          "x": 9,
+          "state": "minecraft:nether_quartz_ore",
+          "z": 14,
+          "y": 62
+        },
+        {
+          "x": 10,
+          "state": "minecraft:nether_quartz_ore",
+          "z": 14,
+          "y": 62
+        },
+        {
+          "x": 10,
+          "state": "minecraft:nether_quartz_ore",
+          "z": 15,
+          "y": 62
+        },
+        {
+          "x": 9,
+          "state": "minecraft:nether_quartz_ore",
+          "z": 12,
+          "y": 63
+        },
+        {
+          "x": 10,
+          "state": "minecraft:nether_quartz_ore",
+          "z": 12,
+          "y": 63
+        },
+        {
+          "x": 9,
+          "state": "minecraft:nether_quartz_ore",
+          "z": 13,
+          "y": 63
+        },
+        {
+          "x": 10,
+          "state": "minecraft:nether_quartz_ore",
+          "z": 13,
+          "y": 63
+        },
+        {
+          "x": 9,
+          "state": "minecraft:nether_quartz_ore",
+          "z": 14,
+          "y": 63
+        },
+        {
+          "x": 10,
+          "state": "minecraft:nether_quartz_ore",
+          "z": 14,
+          "y": 63
+        },
+        {
+          "x": 9,
+          "state": "minecraft:nether_quartz_ore",
+          "z": 15,
+          "y": 63
+        },
+        {
+          "x": 10,
+          "state": "minecraft:nether_quartz_ore",
+          "z": 15,
+          "y": 63
+        },
+        {
+          "x": 9,
+          "state": "minecraft:nether_quartz_ore",
+          "z": 12,
+          "y": 64
+        },
+        {
+          "x": 9,
+          "state": "minecraft:nether_quartz_ore",
+          "z": 13,
+          "y": 64
+        },
+        {
+          "x": 10,
+          "state": "minecraft:nether_quartz_ore",
+          "z": 13,
+          "y": 64
+        },
+        {
+          "x": 2,
+          "state": "minecraft:nether_quartz_ore",
+          "z": 2,
+          "y": 66
+        },
+        {
+          "x": 3,
+          "state": "minecraft:nether_quartz_ore",
+          "z": 2,
+          "y": 66
+        },
+        {
+          "x": 2,
+          "state": "minecraft:nether_quartz_ore",
+          "z": 3,
+          "y": 66
+        },
+        {
+          "x": 3,
+          "state": "minecraft:nether_quartz_ore",
+          "z": 3,
+          "y": 66
+        },
+        {
+          "x": 2,
+          "state": "minecraft:nether_quartz_ore",
+          "z": 4,
+          "y": 66
+        },
+        {
+          "x": 3,
+          "state": "minecraft:nether_quartz_ore",
+          "z": 4,
+          "y": 66
+        },
+        {
+          "x": 2,
+          "state": "minecraft:nether_quartz_ore",
+          "z": 5,
+          "y": 66
+        },
+        {
+          "x": 3,
+          "state": "minecraft:nether_quartz_ore",
+          "z": 5,
+          "y": 66
+        },
+        {
+          "x": 2,
+          "state": "minecraft:nether_quartz_ore",
+          "z": 2,
+          "y": 67
+        },
+        {
+          "x": 3,
+          "state": "minecraft:nether_quartz_ore",
+          "z": 2,
+          "y": 67
+        },
+        {
+          "x": 2,
+          "state": "minecraft:nether_quartz_ore",
+          "z": 3,
+          "y": 67
+        },
+        {
+          "x": 3,
+          "state": "minecraft:nether_quartz_ore",
+          "z": 3,
+          "y": 67
+        },
+        {
+          "x": 8,
+          "state": "minecraft:nether_quartz_ore",
+          "z": 3,
+          "y": 67
+        },
+        {
+          "x": 2,
+          "state": "minecraft:nether_quartz_ore",
+          "z": 4,
+          "y": 67
+        },
+        {
+          "x": 3,
+          "state": "minecraft:nether_quartz_ore",
+          "z": 4,
+          "y": 67
+        },
+        {
+          "x": 2,
+          "state": "minecraft:nether_quartz_ore",
+          "z": 5,
+          "y": 67
+        },
+        {
+          "x": 3,
+          "state": "minecraft:nether_quartz_ore",
+          "z": 5,
+          "y": 67
+        },
+        {
+          "x": 7,
+          "state": "minecraft:nether_quartz_ore",
+          "z": 3,
+          "y": 68
+        },
+        {
+          "x": 8,
+          "state": "minecraft:nether_quartz_ore",
+          "z": 3,
+          "y": 68
+        },
+        {
+          "x": 9,
+          "state": "minecraft:nether_quartz_ore",
+          "z": 3,
+          "y": 68
+        },
+        {
+          "x": 8,
+          "state": "minecraft:nether_quartz_ore",
+          "z": 4,
+          "y": 68
+        },
+        {
+          "x": 9,
+          "state": "minecraft:nether_quartz_ore",
+          "z": 4,
+          "y": 68
+        },
+        {
+          "x": 10,
+          "state": "minecraft:nether_quartz_ore",
+          "z": 4,
+          "y": 68
+        },
+        {
+          "x": 10,
+          "state": "minecraft:nether_quartz_ore",
+          "z": 4,
+          "y": 69
+        },
+        {
+          "x": 10,
+          "state": "minecraft:nether_quartz_ore",
+          "z": 1,
+          "y": 74
+        },
+        {
+          "x": 9,
+          "state": "minecraft:nether_quartz_ore",
+          "z": 0,
+          "y": 75
+        },
+        {
+          "x": 10,
+          "state": "minecraft:nether_quartz_ore",
+          "z": 0,
+          "y": 75
+        },
+        {
+          "x": 10,
+          "state": "minecraft:nether_quartz_ore",
+          "z": 1,
+          "y": 75
+        },
+        {
+          "x": 9,
+          "state": "minecraft:nether_quartz_ore",
+          "z": 12,
+          "y": 82
+        },
+        {
+          "x": 10,
+          "state": "minecraft:nether_quartz_ore",
+          "z": 12,
+          "y": 82
+        },
+        {
+          "x": 11,
+          "state": "minecraft:nether_quartz_ore",
+          "z": 12,
+          "y": 82
+        },
+        {
+          "x": 9,
+          "state": "minecraft:nether_quartz_ore",
+          "z": 13,
+          "y": 82
+        },
+        {
+          "x": 10,
+          "state": "minecraft:nether_quartz_ore",
+          "z": 13,
+          "y": 82
+        },
+        {
+          "x": 11,
+          "state": "minecraft:nether_quartz_ore",
+          "z": 13,
+          "y": 82
+        },
+        {
+          "x": 12,
+          "state": "minecraft:nether_quartz_ore",
+          "z": 13,
+          "y": 82
+        },
+        {
+          "x": 9,
+          "state": "minecraft:nether_quartz_ore",
+          "z": 12,
+          "y": 83
+        },
+        {
+          "x": 10,
+          "state": "minecraft:nether_quartz_ore",
+          "z": 12,
+          "y": 83
+        },
+        {
+          "x": 11,
+          "state": "minecraft:nether_quartz_ore",
+          "z": 12,
+          "y": 83
+        },
+        {
+          "x": 9,
+          "state": "minecraft:nether_quartz_ore",
+          "z": 13,
+          "y": 83
+        },
+        {
+          "x": 10,
+          "state": "minecraft:nether_quartz_ore",
+          "z": 13,
+          "y": 83
+        },
+        {
+          "x": 11,
+          "state": "minecraft:nether_quartz_ore",
+          "z": 13,
+          "y": 83
+        },
+        {
+          "x": 12,
+          "state": "minecraft:nether_quartz_ore",
+          "z": 13,
+          "y": 83
+        },
+        {
+          "x": 14,
+          "state": "minecraft:nether_quartz_ore",
+          "z": 10,
+          "y": 86
+        },
+        {
+          "x": 13,
+          "state": "minecraft:nether_quartz_ore",
+          "z": 11,
+          "y": 86
+        },
+        {
+          "x": 14,
+          "state": "minecraft:nether_quartz_ore",
+          "z": 11,
+          "y": 86
+        },
+        {
+          "x": 15,
+          "state": "minecraft:nether_quartz_ore",
+          "z": 11,
+          "y": 86
+        },
+        {
+          "x": 14,
+          "state": "minecraft:nether_quartz_ore",
+          "z": 12,
+          "y": 86
+        },
+        {
+          "x": 15,
+          "state": "minecraft:nether_quartz_ore",
+          "z": 12,
+          "y": 86
+        },
+        {
+          "x": 13,
+          "state": "minecraft:nether_quartz_ore",
+          "z": 10,
+          "y": 87
+        },
+        {
+          "x": 14,
+          "state": "minecraft:nether_quartz_ore",
+          "z": 10,
+          "y": 87
+        },
+        {
+          "x": 13,
+          "state": "minecraft:nether_quartz_ore",
+          "z": 11,
+          "y": 87
+        },
+        {
+          "x": 14,
+          "state": "minecraft:nether_quartz_ore",
+          "z": 11,
+          "y": 87
+        },
+        {
+          "x": 15,
+          "state": "minecraft:nether_quartz_ore",
+          "z": 11,
+          "y": 87
+        },
+        {
+          "x": 14,
+          "state": "minecraft:nether_quartz_ore",
+          "z": 12,
+          "y": 87
+        },
+        {
+          "x": 15,
+          "state": "minecraft:nether_quartz_ore",
+          "z": 12,
+          "y": 87
+        },
+        {
+          "x": 15,
+          "state": "minecraft:nether_quartz_ore",
+          "z": 13,
+          "y": 87
+        },
+        {
+          "x": 13,
+          "state": "minecraft:nether_quartz_ore",
+          "z": 0,
+          "y": 88
+        },
+        {
+          "x": 14,
+          "state": "minecraft:nether_quartz_ore",
+          "z": 0,
+          "y": 88
+        },
+        {
+          "x": 13,
+          "state": "minecraft:nether_quartz_ore",
+          "z": 1,
+          "y": 88
+        },
+        {
+          "x": 14,
+          "state": "minecraft:nether_quartz_ore",
+          "z": 1,
+          "y": 88
+        },
+        {
+          "x": 14,
+          "state": "minecraft:nether_quartz_ore",
+          "z": 11,
+          "y": 88
+        },
+        {
+          "x": 15,
+          "state": "minecraft:nether_quartz_ore",
+          "z": 11,
+          "y": 88
+        },
+        {
+          "x": 14,
+          "state": "minecraft:nether_quartz_ore",
+          "z": 12,
+          "y": 88
+        },
+        {
+          "x": 15,
+          "state": "minecraft:nether_quartz_ore",
+          "z": 12,
+          "y": 88
+        },
+        {
+          "x": 13,
+          "state": "minecraft:nether_quartz_ore",
+          "z": 0,
+          "y": 89
+        },
+        {
+          "x": 14,
+          "state": "minecraft:nether_quartz_ore",
+          "z": 0,
+          "y": 89
+        },
+        {
+          "x": 13,
+          "state": "minecraft:nether_quartz_ore",
+          "z": 1,
+          "y": 89
+        },
+        {
+          "x": 14,
+          "state": "minecraft:nether_quartz_ore",
+          "z": 1,
+          "y": 89
+        },
+        {
+          "x": 13,
+          "state": "minecraft:nether_quartz_ore",
+          "z": 9,
+          "y": 99
+        },
+        {
+          "x": 14,
+          "state": "minecraft:nether_quartz_ore",
+          "z": 9,
+          "y": 99
+        },
+        {
+          "x": 13,
+          "state": "minecraft:nether_quartz_ore",
+          "z": 10,
+          "y": 99
+        },
+        {
+          "x": 13,
+          "state": "minecraft:nether_quartz_ore",
+          "z": 9,
+          "y": 100
+        },
+        {
+          "x": 14,
+          "state": "minecraft:nether_quartz_ore",
+          "z": 9,
+          "y": 100
+        },
+        {
+          "x": 12,
+          "state": "minecraft:nether_quartz_ore",
+          "z": 10,
+          "y": 100
+        },
+        {
+          "x": 13,
+          "state": "minecraft:nether_quartz_ore",
+          "z": 10,
+          "y": 100
+        },
+        {
+          "x": 14,
+          "state": "minecraft:nether_quartz_ore",
+          "z": 10,
+          "y": 100
+        },
+        {
+          "x": 12,
+          "state": "minecraft:nether_quartz_ore",
+          "z": 11,
+          "y": 100
+        },
+        {
+          "x": 13,
+          "state": "minecraft:nether_quartz_ore",
+          "z": 11,
+          "y": 100
+        },
+        {
+          "x": 12,
+          "state": "minecraft:nether_quartz_ore",
+          "z": 10,
+          "y": 101
+        },
+        {
+          "x": 13,
+          "state": "minecraft:nether_quartz_ore",
+          "z": 10,
+          "y": 101
+        },
+        {
+          "x": 11,
+          "state": "minecraft:nether_quartz_ore",
+          "z": 11,
+          "y": 101
+        },
+        {
+          "x": 12,
+          "state": "minecraft:nether_quartz_ore",
+          "z": 11,
+          "y": 101
+        },
+        {
+          "x": 13,
+          "state": "minecraft:nether_quartz_ore",
+          "z": 11,
+          "y": 101
+        },
+        {
+          "x": 11,
+          "state": "minecraft:nether_quartz_ore",
+          "z": 12,
+          "y": 101
+        },
+        {
+          "x": 12,
+          "state": "minecraft:nether_quartz_ore",
+          "z": 12,
+          "y": 101
+        },
+        {
+          "x": 12,
+          "state": "minecraft:nether_quartz_ore",
+          "z": 11,
+          "y": 102
+        },
+        {
+          "x": 11,
+          "state": "minecraft:nether_quartz_ore",
+          "z": 12,
+          "y": 102
+        },
+        {
+          "x": 12,
+          "state": "minecraft:nether_quartz_ore",
+          "z": 12,
+          "y": 102
+        },
+        {
+          "x": 6,
+          "state": "minecraft:nether_quartz_ore",
+          "z": -1,
+          "y": 56
+        },
+        {
+          "x": 7,
+          "state": "minecraft:nether_quartz_ore",
+          "z": -1,
+          "y": 56
+        },
+        {
+          "x": 9,
+          "state": "minecraft:nether_quartz_ore",
+          "z": -2,
+          "y": 75
+        },
+        {
+          "x": 9,
+          "state": "minecraft:nether_quartz_ore",
+          "z": -1,
+          "y": 75
+        },
+        {
+          "x": 10,
+          "state": "minecraft:nether_quartz_ore",
+          "z": -1,
+          "y": 75
+        },
+        {
+          "x": 13,
+          "state": "minecraft:nether_quartz_ore",
+          "z": -2,
+          "y": 88
+        },
+        {
+          "x": 14,
+          "state": "minecraft:nether_quartz_ore",
+          "z": -2,
+          "y": 88
+        },
+        {
+          "x": 13,
+          "state": "minecraft:nether_quartz_ore",
+          "z": -1,
+          "y": 88
+        },
+        {
+          "x": 14,
+          "state": "minecraft:nether_quartz_ore",
+          "z": -1,
+          "y": 88
+        },
+        {
+          "x": 13,
+          "state": "minecraft:nether_quartz_ore",
+          "z": -2,
+          "y": 89
+        },
+        {
+          "x": 14,
+          "state": "minecraft:nether_quartz_ore",
+          "z": -2,
+          "y": 89
+        },
+        {
+          "x": 13,
+          "state": "minecraft:nether_quartz_ore",
+          "z": -1,
+          "y": 89
+        },
+        {
+          "x": 14,
+          "state": "minecraft:nether_quartz_ore",
+          "z": -1,
+          "y": 89
+        },
+        {
+          "x": 16,
+          "state": "minecraft:nether_quartz_ore",
+          "z": 12,
+          "y": 87
+        }
+      ],
+      "next_int": 569148218,
+      "seed": -9223372036854775808
+    },
+    {
+      "success": true,
+      "decoration_seed": 5977109141121285184,
+      "feature_index": 20,
+      "chunk_z": 1,
+      "chunk_x": -1,
+      "step": 7,
+      "blocks": [
+        {
+          "x": -18,
+          "state": "minecraft:nether_quartz_ore",
+          "z": 20,
+          "y": 16
+        },
+        {
+          "x": -17,
+          "state": "minecraft:nether_quartz_ore",
+          "z": 20,
+          "y": 16
+        },
+        {
+          "x": -18,
+          "state": "minecraft:nether_quartz_ore",
+          "z": 21,
+          "y": 16
+        },
+        {
+          "x": -17,
+          "state": "minecraft:nether_quartz_ore",
+          "z": 21,
+          "y": 16
+        },
+        {
+          "x": -18,
+          "state": "minecraft:nether_quartz_ore",
+          "z": 20,
+          "y": 17
+        },
+        {
+          "x": -17,
+          "state": "minecraft:nether_quartz_ore",
+          "z": 20,
+          "y": 17
+        },
+        {
+          "x": -18,
+          "state": "minecraft:nether_quartz_ore",
+          "z": 21,
+          "y": 17
+        },
+        {
+          "x": -17,
+          "state": "minecraft:nether_quartz_ore",
+          "z": 21,
+          "y": 17
+        },
+        {
+          "x": -17,
+          "state": "minecraft:nether_quartz_ore",
+          "z": 21,
+          "y": 65
+        },
+        {
+          "x": -17,
+          "state": "minecraft:nether_quartz_ore",
+          "z": 22,
+          "y": 65
+        },
+        {
+          "x": -17,
+          "state": "minecraft:nether_quartz_ore",
+          "z": 21,
+          "y": 66
+        },
+        {
+          "x": -17,
+          "state": "minecraft:nether_quartz_ore",
+          "z": 22,
+          "y": 66
+        },
+        {
+          "x": -17,
+          "state": "minecraft:nether_quartz_ore",
+          "z": 29,
+          "y": 68
+        },
+        {
+          "x": -17,
+          "state": "minecraft:nether_quartz_ore",
+          "z": 29,
+          "y": 69
+        },
+        {
+          "x": -18,
+          "state": "minecraft:nether_quartz_ore",
+          "z": 30,
+          "y": 69
+        },
+        {
+          "x": -17,
+          "state": "minecraft:nether_quartz_ore",
+          "z": 30,
+          "y": 69
+        },
+        {
+          "x": -17,
+          "state": "minecraft:nether_quartz_ore",
+          "z": 31,
+          "y": 69
+        },
+        {
+          "x": -17,
+          "state": "minecraft:nether_quartz_ore",
+          "z": 30,
+          "y": 70
+        },
+        {
+          "x": -5,
+          "state": "minecraft:nether_quartz_ore",
+          "z": 15,
+          "y": 49
+        },
+        {
+          "x": -4,
+          "state": "minecraft:nether_quartz_ore",
+          "z": 15,
+          "y": 49
+        },
+        {
+          "x": -5,
+          "state": "minecraft:nether_quartz_ore",
+          "z": 15,
+          "y": 50
+        },
+        {
+          "x": -4,
+          "state": "minecraft:nether_quartz_ore",
+          "z": 15,
+          "y": 50
+        },
+        {
+          "x": -6,
+          "state": "minecraft:nether_quartz_ore",
+          "z": 16,
+          "y": 10
+        },
+        {
+          "x": -7,
+          "state": "minecraft:nether_quartz_ore",
+          "z": 17,
+          "y": 10
+        },
+        {
+          "x": -6,
+          "state": "minecraft:nether_quartz_ore",
+          "z": 17,
+          "y": 10
+        },
+        {
+          "x": -7,
+          "state": "minecraft:nether_quartz_ore",
+          "z": 18,
+          "y": 10
+        },
+        {
+          "x": -6,
+          "state": "minecraft:nether_quartz_ore",
+          "z": 18,
+          "y": 10
+        },
+        {
+          "x": -6,
+          "state": "minecraft:nether_quartz_ore",
+          "z": 16,
+          "y": 11
+        },
+        {
+          "x": -7,
+          "state": "minecraft:nether_quartz_ore",
+          "z": 17,
+          "y": 11
+        },
+        {
+          "x": -6,
+          "state": "minecraft:nether_quartz_ore",
+          "z": 17,
+          "y": 11
+        },
+        {
+          "x": -7,
+          "state": "minecraft:nether_quartz_ore",
+          "z": 18,
+          "y": 11
+        },
+        {
+          "x": -6,
+          "state": "minecraft:nether_quartz_ore",
+          "z": 18,
+          "y": 11
+        },
+        {
+          "x": -7,
+          "state": "minecraft:nether_quartz_ore",
+          "z": 19,
+          "y": 11
+        },
+        {
+          "x": -6,
+          "state": "minecraft:nether_quartz_ore",
+          "z": 19,
+          "y": 11
+        },
+        {
+          "x": -7,
+          "state": "minecraft:nether_quartz_ore",
+          "z": 17,
+          "y": 12
+        },
+        {
+          "x": -6,
+          "state": "minecraft:nether_quartz_ore",
+          "z": 17,
+          "y": 12
+        },
+        {
+          "x": -7,
+          "state": "minecraft:nether_quartz_ore",
+          "z": 18,
+          "y": 12
+        },
+        {
+          "x": -6,
+          "state": "minecraft:nether_quartz_ore",
+          "z": 18,
+          "y": 12
+        },
+        {
+          "x": -7,
+          "state": "minecraft:nether_quartz_ore",
+          "z": 19,
+          "y": 12
+        },
+        {
+          "x": -6,
+          "state": "minecraft:nether_quartz_ore",
+          "z": 19,
+          "y": 12
+        },
+        {
+          "x": -16,
+          "state": "minecraft:nether_quartz_ore",
+          "z": 20,
+          "y": 16
+        },
+        {
+          "x": -16,
+          "state": "minecraft:nether_quartz_ore",
+          "z": 21,
+          "y": 16
+        },
+        {
+          "x": -15,
+          "state": "minecraft:nether_quartz_ore",
+          "z": 21,
+          "y": 16
+        },
+        {
+          "x": -8,
+          "state": "minecraft:nether_quartz_ore",
+          "z": 18,
+          "y": 17
+        },
+        {
+          "x": -8,
+          "state": "minecraft:nether_quartz_ore",
+          "z": 19,
+          "y": 17
+        },
+        {
+          "x": -7,
+          "state": "minecraft:nether_quartz_ore",
+          "z": 19,
+          "y": 17
+        },
+        {
+          "x": -16,
+          "state": "minecraft:nether_quartz_ore",
+          "z": 20,
+          "y": 17
+        },
+        {
+          "x": -8,
+          "state": "minecraft:nether_quartz_ore",
+          "z": 20,
+          "y": 17
+        },
+        {
+          "x": -7,
+          "state": "minecraft:nether_quartz_ore",
+          "z": 20,
+          "y": 17
+        },
+        {
+          "x": -16,
+          "state": "minecraft:nether_quartz_ore",
+          "z": 21,
+          "y": 17
+        },
+        {
+          "x": -15,
+          "state": "minecraft:nether_quartz_ore",
+          "z": 21,
+          "y": 17
+        },
+        {
+          "x": -7,
+          "state": "minecraft:nether_quartz_ore",
+          "z": 21,
+          "y": 17
+        },
+        {
+          "x": -8,
+          "state": "minecraft:nether_quartz_ore",
+          "z": 18,
+          "y": 18
+        },
+        {
+          "x": -8,
+          "state": "minecraft:nether_quartz_ore",
+          "z": 19,
+          "y": 18
+        },
+        {
+          "x": -7,
+          "state": "minecraft:nether_quartz_ore",
+          "z": 19,
+          "y": 18
+        },
+        {
+          "x": -8,
+          "state": "minecraft:nether_quartz_ore",
+          "z": 20,
+          "y": 18
+        },
+        {
+          "x": -7,
+          "state": "minecraft:nether_quartz_ore",
+          "z": 20,
+          "y": 18
+        },
+        {
+          "x": -7,
+          "state": "minecraft:nether_quartz_ore",
+          "z": 21,
+          "y": 18
+        },
+        {
+          "x": -5,
+          "state": "minecraft:nether_quartz_ore",
+          "z": 24,
+          "y": 20
+        },
+        {
+          "x": -4,
+          "state": "minecraft:nether_quartz_ore",
+          "z": 24,
+          "y": 20
+        },
+        {
+          "x": -5,
+          "state": "minecraft:nether_quartz_ore",
+          "z": 25,
+          "y": 20
+        },
+        {
+          "x": -4,
+          "state": "minecraft:nether_quartz_ore",
+          "z": 25,
+          "y": 20
+        },
+        {
+          "x": -5,
+          "state": "minecraft:nether_quartz_ore",
+          "z": 26,
+          "y": 20
+        },
+        {
+          "x": -4,
+          "state": "minecraft:nether_quartz_ore",
+          "z": 26,
+          "y": 20
+        },
+        {
+          "x": -4,
+          "state": "minecraft:nether_quartz_ore",
+          "z": 27,
+          "y": 20
+        },
+        {
+          "x": -5,
+          "state": "minecraft:nether_quartz_ore",
+          "z": 24,
+          "y": 21
+        },
+        {
+          "x": -4,
+          "state": "minecraft:nether_quartz_ore",
+          "z": 24,
+          "y": 21
+        },
+        {
+          "x": -5,
+          "state": "minecraft:nether_quartz_ore",
+          "z": 25,
+          "y": 21
+        },
+        {
+          "x": -4,
+          "state": "minecraft:nether_quartz_ore",
+          "z": 25,
+          "y": 21
+        },
+        {
+          "x": -5,
+          "state": "minecraft:nether_quartz_ore",
+          "z": 26,
+          "y": 21
+        },
+        {
+          "x": -4,
+          "state": "minecraft:nether_quartz_ore",
+          "z": 26,
+          "y": 21
+        },
+        {
+          "x": -4,
+          "state": "minecraft:nether_quartz_ore",
+          "z": 27,
+          "y": 21
+        },
+        {
+          "x": -13,
+          "state": "minecraft:nether_quartz_ore",
+          "z": 21,
+          "y": 35
+        },
+        {
+          "x": -13,
+          "state": "minecraft:nether_quartz_ore",
+          "z": 22,
+          "y": 35
+        },
+        {
+          "x": -13,
+          "state": "minecraft:nether_quartz_ore",
+          "z": 21,
+          "y": 36
+        },
+        {
+          "x": -12,
+          "state": "minecraft:nether_quartz_ore",
+          "z": 21,
+          "y": 36
+        },
+        {
+          "x": -11,
+          "state": "minecraft:nether_quartz_ore",
+          "z": 21,
+          "y": 36
+        },
+        {
+          "x": -13,
+          "state": "minecraft:nether_quartz_ore",
+          "z": 22,
+          "y": 36
+        },
+        {
+          "x": -12,
+          "state": "minecraft:nether_quartz_ore",
+          "z": 22,
+          "y": 36
+        },
+        {
+          "x": -11,
+          "state": "minecraft:nether_quartz_ore",
+          "z": 22,
+          "y": 36
+        },
+        {
+          "x": -12,
+          "state": "minecraft:nether_quartz_ore",
+          "z": 21,
+          "y": 37
+        },
+        {
+          "x": -11,
+          "state": "minecraft:nether_quartz_ore",
+          "z": 21,
+          "y": 37
+        },
+        {
+          "x": -10,
+          "state": "minecraft:nether_quartz_ore",
+          "z": 21,
+          "y": 37
+        },
+        {
+          "x": -12,
+          "state": "minecraft:nether_quartz_ore",
+          "z": 22,
+          "y": 37
+        },
+        {
+          "x": -11,
+          "state": "minecraft:nether_quartz_ore",
+          "z": 22,
+          "y": 37
+        },
+        {
+          "x": -10,
+          "state": "minecraft:nether_quartz_ore",
+          "z": 22,
+          "y": 37
+        },
+        {
+          "x": -11,
+          "state": "minecraft:nether_quartz_ore",
+          "z": 21,
+          "y": 38
+        },
+        {
+          "x": -4,
+          "state": "minecraft:nether_quartz_ore",
+          "z": 29,
+          "y": 42
+        },
+        {
+          "x": -3,
+          "state": "minecraft:nether_quartz_ore",
+          "z": 29,
+          "y": 42
+        },
+        {
+          "x": -2,
+          "state": "minecraft:nether_quartz_ore",
+          "z": 29,
+          "y": 42
+        },
+        {
+          "x": -5,
+          "state": "minecraft:nether_quartz_ore",
+          "z": 30,
+          "y": 42
+        },
+        {
+          "x": -4,
+          "state": "minecraft:nether_quartz_ore",
+          "z": 30,
+          "y": 42
+        },
+        {
+          "x": -3,
+          "state": "minecraft:nether_quartz_ore",
+          "z": 30,
+          "y": 42
+        },
+        {
+          "x": -2,
+          "state": "minecraft:nether_quartz_ore",
+          "z": 30,
+          "y": 42
+        },
+        {
+          "x": -4,
+          "state": "minecraft:nether_quartz_ore",
+          "z": 29,
+          "y": 43
+        },
+        {
+          "x": -3,
+          "state": "minecraft:nether_quartz_ore",
+          "z": 29,
+          "y": 43
+        },
+        {
+          "x": -2,
+          "state": "minecraft:nether_quartz_ore",
+          "z": 29,
+          "y": 43
+        },
+        {
+          "x": -5,
+          "state": "minecraft:nether_quartz_ore",
+          "z": 30,
+          "y": 43
+        },
+        {
+          "x": -4,
+          "state": "minecraft:nether_quartz_ore",
+          "z": 30,
+          "y": 43
+        },
+        {
+          "x": -3,
+          "state": "minecraft:nether_quartz_ore",
+          "z": 30,
+          "y": 43
+        },
+        {
+          "x": -2,
+          "state": "minecraft:nether_quartz_ore",
+          "z": 30,
+          "y": 43
+        },
+        {
+          "x": -3,
+          "state": "minecraft:nether_quartz_ore",
+          "z": 25,
+          "y": 46
+        },
+        {
+          "x": -2,
+          "state": "minecraft:nether_quartz_ore",
+          "z": 25,
+          "y": 46
+        },
+        {
+          "x": -4,
+          "state": "minecraft:nether_quartz_ore",
+          "z": 26,
+          "y": 46
+        },
+        {
+          "x": -3,
+          "state": "minecraft:nether_quartz_ore",
+          "z": 26,
+          "y": 46
+        },
+        {
+          "x": -2,
+          "state": "minecraft:nether_quartz_ore",
+          "z": 26,
+          "y": 46
+        },
+        {
+          "x": -4,
+          "state": "minecraft:nether_quartz_ore",
+          "z": 25,
+          "y": 47
+        },
+        {
+          "x": -3,
+          "state": "minecraft:nether_quartz_ore",
+          "z": 25,
+          "y": 47
+        },
+        {
+          "x": -2,
+          "state": "minecraft:nether_quartz_ore",
+          "z": 25,
+          "y": 47
+        },
+        {
+          "x": -1,
+          "state": "minecraft:nether_quartz_ore",
+          "z": 25,
+          "y": 47
+        },
+        {
+          "x": -4,
+          "state": "minecraft:nether_quartz_ore",
+          "z": 26,
+          "y": 47
+        },
+        {
+          "x": -3,
+          "state": "minecraft:nether_quartz_ore",
+          "z": 26,
+          "y": 47
+        },
+        {
+          "x": -2,
+          "state": "minecraft:nether_quartz_ore",
+          "z": 26,
+          "y": 47
+        },
+        {
+          "x": -1,
+          "state": "minecraft:nether_quartz_ore",
+          "z": 26,
+          "y": 47
+        },
+        {
+          "x": -6,
+          "state": "minecraft:nether_quartz_ore",
+          "z": 16,
+          "y": 48
+        },
+        {
+          "x": -7,
+          "state": "minecraft:nether_quartz_ore",
+          "z": 17,
+          "y": 48
+        },
+        {
+          "x": -6,
+          "state": "minecraft:nether_quartz_ore",
+          "z": 17,
+          "y": 48
+        },
+        {
+          "x": -5,
+          "state": "minecraft:nether_quartz_ore",
+          "z": 17,
+          "y": 48
+        },
+        {
+          "x": -7,
+          "state": "minecraft:nether_quartz_ore",
+          "z": 18,
+          "y": 48
+        },
+        {
+          "x": -6,
+          "state": "minecraft:nether_quartz_ore",
+          "z": 18,
+          "y": 48
+        },
+        {
+          "x": -2,
+          "state": "minecraft:nether_quartz_ore",
+          "z": 25,
+          "y": 48
+        },
+        {
+          "x": -1,
+          "state": "minecraft:nether_quartz_ore",
+          "z": 25,
+          "y": 48
+        },
+        {
+          "x": -3,
+          "state": "minecraft:nether_quartz_ore",
+          "z": 26,
+          "y": 48
+        },
+        {
+          "x": -2,
+          "state": "minecraft:nether_quartz_ore",
+          "z": 26,
+          "y": 48
+        },
+        {
+          "x": -1,
+          "state": "minecraft:nether_quartz_ore",
+          "z": 26,
+          "y": 48
+        },
+        {
+          "x": -6,
+          "state": "minecraft:nether_quartz_ore",
+          "z": 16,
+          "y": 49
+        },
+        {
+          "x": -5,
+          "state": "minecraft:nether_quartz_ore",
+          "z": 16,
+          "y": 49
+        },
+        {
+          "x": -4,
+          "state": "minecraft:nether_quartz_ore",
+          "z": 16,
+          "y": 49
+        },
+        {
+          "x": -7,
+          "state": "minecraft:nether_quartz_ore",
+          "z": 17,
+          "y": 49
+        },
+        {
+          "x": -6,
+          "state": "minecraft:nether_quartz_ore",
+          "z": 17,
+          "y": 49
+        },
+        {
+          "x": -5,
+          "state": "minecraft:nether_quartz_ore",
+          "z": 17,
+          "y": 49
+        },
+        {
+          "x": -7,
+          "state": "minecraft:nether_quartz_ore",
+          "z": 18,
+          "y": 49
+        },
+        {
+          "x": -6,
+          "state": "minecraft:nether_quartz_ore",
+          "z": 18,
+          "y": 49
+        },
+        {
+          "x": -5,
+          "state": "minecraft:nether_quartz_ore",
+          "z": 16,
+          "y": 50
+        },
+        {
+          "x": -4,
+          "state": "minecraft:nether_quartz_ore",
+          "z": 16,
+          "y": 50
+        },
+        {
+          "x": -6,
+          "state": "minecraft:nether_quartz_ore",
+          "z": 17,
+          "y": 50
+        },
+        {
+          "x": -10,
+          "state": "minecraft:nether_quartz_ore",
+          "z": 28,
+          "y": 50
+        },
+        {
+          "x": -12,
+          "state": "minecraft:nether_quartz_ore",
+          "z": 28,
+          "y": 51
+        },
+        {
+          "x": -11,
+          "state": "minecraft:nether_quartz_ore",
+          "z": 28,
+          "y": 51
+        },
+        {
+          "x": -10,
+          "state": "minecraft:nether_quartz_ore",
+          "z": 28,
+          "y": 51
+        },
+        {
+          "x": -13,
+          "state": "minecraft:nether_quartz_ore",
+          "z": 29,
+          "y": 51
+        },
+        {
+          "x": -12,
+          "state": "minecraft:nether_quartz_ore",
+          "z": 29,
+          "y": 51
+        },
+        {
+          "x": -11,
+          "state": "minecraft:nether_quartz_ore",
+          "z": 29,
+          "y": 51
+        },
+        {
+          "x": -13,
+          "state": "minecraft:nether_quartz_ore",
+          "z": 29,
+          "y": 52
+        },
+        {
+          "x": -12,
+          "state": "minecraft:nether_quartz_ore",
+          "z": 29,
+          "y": 52
+        },
+        {
+          "x": -5,
+          "state": "minecraft:nether_quartz_ore",
+          "z": 27,
+          "y": 63
+        },
+        {
+          "x": -4,
+          "state": "minecraft:nether_quartz_ore",
+          "z": 27,
+          "y": 63
+        },
+        {
+          "x": -6,
+          "state": "minecraft:nether_quartz_ore",
+          "z": 28,
+          "y": 63
+        },
+        {
+          "x": -5,
+          "state": "minecraft:nether_quartz_ore",
+          "z": 28,
+          "y": 63
+        },
+        {
+          "x": -4,
+          "state": "minecraft:nether_quartz_ore",
+          "z": 28,
+          "y": 63
+        },
+        {
+          "x": -7,
+          "state": "minecraft:nether_quartz_ore",
+          "z": 29,
+          "y": 63
+        },
+        {
+          "x": -6,
+          "state": "minecraft:nether_quartz_ore",
+          "z": 29,
+          "y": 63
+        },
+        {
+          "x": -5,
+          "state": "minecraft:nether_quartz_ore",
+          "z": 29,
+          "y": 63
+        },
+        {
+          "x": -7,
+          "state": "minecraft:nether_quartz_ore",
+          "z": 30,
+          "y": 63
+        },
+        {
+          "x": -6,
+          "state": "minecraft:nether_quartz_ore",
+          "z": 30,
+          "y": 63
+        },
+        {
+          "x": -5,
+          "state": "minecraft:nether_quartz_ore",
+          "z": 27,
+          "y": 64
+        },
+        {
+          "x": -4,
+          "state": "minecraft:nether_quartz_ore",
+          "z": 27,
+          "y": 64
+        },
+        {
+          "x": -6,
+          "state": "minecraft:nether_quartz_ore",
+          "z": 28,
+          "y": 64
+        },
+        {
+          "x": -5,
+          "state": "minecraft:nether_quartz_ore",
+          "z": 28,
+          "y": 64
+        },
+        {
+          "x": -4,
+          "state": "minecraft:nether_quartz_ore",
+          "z": 28,
+          "y": 64
+        },
+        {
+          "x": -7,
+          "state": "minecraft:nether_quartz_ore",
+          "z": 29,
+          "y": 64
+        },
+        {
+          "x": -6,
+          "state": "minecraft:nether_quartz_ore",
+          "z": 29,
+          "y": 64
+        },
+        {
+          "x": -5,
+          "state": "minecraft:nether_quartz_ore",
+          "z": 29,
+          "y": 64
+        },
+        {
+          "x": -7,
+          "state": "minecraft:nether_quartz_ore",
+          "z": 30,
+          "y": 64
+        },
+        {
+          "x": -6,
+          "state": "minecraft:nether_quartz_ore",
+          "z": 30,
+          "y": 64
+        },
+        {
+          "x": -16,
+          "state": "minecraft:nether_quartz_ore",
+          "z": 21,
+          "y": 65
+        },
+        {
+          "x": -16,
+          "state": "minecraft:nether_quartz_ore",
+          "z": 22,
+          "y": 65
+        },
+        {
+          "x": -15,
+          "state": "minecraft:nether_quartz_ore",
+          "z": 22,
+          "y": 65
+        },
+        {
+          "x": -16,
+          "state": "minecraft:nether_quartz_ore",
+          "z": 23,
+          "y": 65
+        },
+        {
+          "x": -15,
+          "state": "minecraft:nether_quartz_ore",
+          "z": 23,
+          "y": 65
+        },
+        {
+          "x": -16,
+          "state": "minecraft:nether_quartz_ore",
+          "z": 21,
+          "y": 66
+        },
+        {
+          "x": -16,
+          "state": "minecraft:nether_quartz_ore",
+          "z": 22,
+          "y": 66
+        },
+        {
+          "x": -15,
+          "state": "minecraft:nether_quartz_ore",
+          "z": 22,
+          "y": 66
+        },
+        {
+          "x": -16,
+          "state": "minecraft:nether_quartz_ore",
+          "z": 23,
+          "y": 66
+        },
+        {
+          "x": -15,
+          "state": "minecraft:nether_quartz_ore",
+          "z": 23,
+          "y": 66
+        },
+        {
+          "x": -15,
+          "state": "minecraft:nether_quartz_ore",
+          "z": 28,
+          "y": 68
+        },
+        {
+          "x": -16,
+          "state": "minecraft:nether_quartz_ore",
+          "z": 29,
+          "y": 68
+        },
+        {
+          "x": -16,
+          "state": "minecraft:nether_quartz_ore",
+          "z": 30,
+          "y": 68
+        },
+        {
+          "x": -16,
+          "state": "minecraft:nether_quartz_ore",
+          "z": 28,
+          "y": 69
+        },
+        {
+          "x": -15,
+          "state": "minecraft:nether_quartz_ore",
+          "z": 28,
+          "y": 69
+        },
+        {
+          "x": -16,
+          "state": "minecraft:nether_quartz_ore",
+          "z": 29,
+          "y": 69
+        },
+        {
+          "x": -15,
+          "state": "minecraft:nether_quartz_ore",
+          "z": 29,
+          "y": 69
+        },
+        {
+          "x": -16,
+          "state": "minecraft:nether_quartz_ore",
+          "z": 30,
+          "y": 69
+        },
+        {
+          "x": -16,
+          "state": "minecraft:nether_quartz_ore",
+          "z": 29,
+          "y": 70
+        },
+        {
+          "x": -4,
+          "state": "minecraft:nether_quartz_ore",
+          "z": 26,
+          "y": 72
+        },
+        {
+          "x": -3,
+          "state": "minecraft:nether_quartz_ore",
+          "z": 26,
+          "y": 72
+        },
+        {
+          "x": -4,
+          "state": "minecraft:nether_quartz_ore",
+          "z": 27,
+          "y": 72
+        },
+        {
+          "x": -3,
+          "state": "minecraft:nether_quartz_ore",
+          "z": 27,
+          "y": 72
+        },
+        {
+          "x": -5,
+          "state": "minecraft:nether_quartz_ore",
+          "z": 28,
+          "y": 72
+        },
+        {
+          "x": -4,
+          "state": "minecraft:nether_quartz_ore",
+          "z": 28,
+          "y": 72
+        },
+        {
+          "x": -3,
+          "state": "minecraft:nether_quartz_ore",
+          "z": 25,
+          "y": 73
+        },
+        {
+          "x": -2,
+          "state": "minecraft:nether_quartz_ore",
+          "z": 25,
+          "y": 73
+        },
+        {
+          "x": -4,
+          "state": "minecraft:nether_quartz_ore",
+          "z": 26,
+          "y": 73
+        },
+        {
+          "x": -3,
+          "state": "minecraft:nether_quartz_ore",
+          "z": 26,
+          "y": 73
+        },
+        {
+          "x": -5,
+          "state": "minecraft:nether_quartz_ore",
+          "z": 27,
+          "y": 73
+        },
+        {
+          "x": -4,
+          "state": "minecraft:nether_quartz_ore",
+          "z": 27,
+          "y": 73
+        },
+        {
+          "x": -3,
+          "state": "minecraft:nether_quartz_ore",
+          "z": 27,
+          "y": 73
+        },
+        {
+          "x": -5,
+          "state": "minecraft:nether_quartz_ore",
+          "z": 28,
+          "y": 73
+        },
+        {
+          "x": -4,
+          "state": "minecraft:nether_quartz_ore",
+          "z": 28,
+          "y": 73
+        },
+        {
+          "x": -3,
+          "state": "minecraft:nether_quartz_ore",
+          "z": 25,
+          "y": 74
+        },
+        {
+          "x": -2,
+          "state": "minecraft:nether_quartz_ore",
+          "z": 25,
+          "y": 74
+        },
+        {
+          "x": -4,
+          "state": "minecraft:nether_quartz_ore",
+          "z": 26,
+          "y": 74
+        },
+        {
+          "x": -3,
+          "state": "minecraft:nether_quartz_ore",
+          "z": 26,
+          "y": 74
+        },
+        {
+          "x": -4,
+          "state": "minecraft:nether_quartz_ore",
+          "z": 27,
+          "y": 74
+        },
+        {
+          "x": -3,
+          "state": "minecraft:nether_quartz_ore",
+          "z": 27,
+          "y": 74
+        },
+        {
+          "x": -4,
+          "state": "minecraft:nether_quartz_ore",
+          "z": 29,
+          "y": 78
+        },
+        {
+          "x": -5,
+          "state": "minecraft:nether_quartz_ore",
+          "z": 30,
+          "y": 78
+        },
+        {
+          "x": -4,
+          "state": "minecraft:nether_quartz_ore",
+          "z": 30,
+          "y": 78
+        },
+        {
+          "x": -5,
+          "state": "minecraft:nether_quartz_ore",
+          "z": 31,
+          "y": 78
+        },
+        {
+          "x": -4,
+          "state": "minecraft:nether_quartz_ore",
+          "z": 31,
+          "y": 78
+        },
+        {
+          "x": -4,
+          "state": "minecraft:nether_quartz_ore",
+          "z": 29,
+          "y": 79
+        },
+        {
+          "x": -5,
+          "state": "minecraft:nether_quartz_ore",
+          "z": 30,
+          "y": 79
+        },
+        {
+          "x": -4,
+          "state": "minecraft:nether_quartz_ore",
+          "z": 30,
+          "y": 79
+        },
+        {
+          "x": -5,
+          "state": "minecraft:nether_quartz_ore",
+          "z": 31,
+          "y": 79
+        },
+        {
+          "x": -4,
+          "state": "minecraft:nether_quartz_ore",
+          "z": 31,
+          "y": 79
+        },
+        {
+          "x": -16,
+          "state": "minecraft:nether_quartz_ore",
+          "z": 21,
+          "y": 97
+        },
+        {
+          "x": -15,
+          "state": "minecraft:nether_quartz_ore",
+          "z": 21,
+          "y": 97
+        },
+        {
+          "x": -16,
+          "state": "minecraft:nether_quartz_ore",
+          "z": 22,
+          "y": 97
+        },
+        {
+          "x": -15,
+          "state": "minecraft:nether_quartz_ore",
+          "z": 22,
+          "y": 97
+        },
+        {
+          "x": -16,
+          "state": "minecraft:nether_quartz_ore",
+          "z": 23,
+          "y": 97
+        },
+        {
+          "x": -15,
+          "state": "minecraft:nether_quartz_ore",
+          "z": 23,
+          "y": 97
+        },
+        {
+          "x": -16,
+          "state": "minecraft:nether_quartz_ore",
+          "z": 21,
+          "y": 98
+        },
+        {
+          "x": -15,
+          "state": "minecraft:nether_quartz_ore",
+          "z": 21,
+          "y": 98
+        },
+        {
+          "x": -16,
+          "state": "minecraft:nether_quartz_ore",
+          "z": 22,
+          "y": 98
+        },
+        {
+          "x": -15,
+          "state": "minecraft:nether_quartz_ore",
+          "z": 22,
+          "y": 98
+        },
+        {
+          "x": -16,
+          "state": "minecraft:nether_quartz_ore",
+          "z": 23,
+          "y": 98
+        },
+        {
+          "x": -15,
+          "state": "minecraft:nether_quartz_ore",
+          "z": 23,
+          "y": 98
+        },
+        {
+          "x": -16,
+          "state": "minecraft:nether_quartz_ore",
+          "z": 24,
+          "y": 98
+        },
+        {
+          "x": -15,
+          "state": "minecraft:nether_quartz_ore",
+          "z": 24,
+          "y": 98
+        },
+        {
+          "x": -16,
+          "state": "minecraft:nether_quartz_ore",
+          "z": 22,
+          "y": 99
+        },
+        {
+          "x": -15,
+          "state": "minecraft:nether_quartz_ore",
+          "z": 22,
+          "y": 99
+        },
+        {
+          "x": -16,
+          "state": "minecraft:nether_quartz_ore",
+          "z": 23,
+          "y": 99
+        },
+        {
+          "x": -15,
+          "state": "minecraft:nether_quartz_ore",
+          "z": 23,
+          "y": 99
+        },
+        {
+          "x": -16,
+          "state": "minecraft:nether_quartz_ore",
+          "z": 24,
+          "y": 99
+        },
+        {
+          "x": -2,
+          "state": "minecraft:nether_quartz_ore",
+          "z": 28,
+          "y": 114
+        },
+        {
+          "x": -4,
+          "state": "minecraft:nether_quartz_ore",
+          "z": 29,
+          "y": 114
+        },
+        {
+          "x": -3,
+          "state": "minecraft:nether_quartz_ore",
+          "z": 29,
+          "y": 114
+        },
+        {
+          "x": -4,
+          "state": "minecraft:nether_quartz_ore",
+          "z": 30,
+          "y": 114
+        },
+        {
+          "x": -3,
+          "state": "minecraft:nether_quartz_ore",
+          "z": 30,
+          "y": 114
+        },
+        {
+          "x": -3,
+          "state": "minecraft:nether_quartz_ore",
+          "z": 28,
+          "y": 115
+        },
+        {
+          "x": -2,
+          "state": "minecraft:nether_quartz_ore",
+          "z": 28,
+          "y": 115
+        },
+        {
+          "x": -4,
+          "state": "minecraft:nether_quartz_ore",
+          "z": 29,
+          "y": 115
+        },
+        {
+          "x": -3,
+          "state": "minecraft:nether_quartz_ore",
+          "z": 29,
+          "y": 115
+        },
+        {
+          "x": -2,
+          "state": "minecraft:nether_quartz_ore",
+          "z": 29,
+          "y": 115
+        },
+        {
+          "x": -4,
+          "state": "minecraft:nether_quartz_ore",
+          "z": 30,
+          "y": 115
+        },
+        {
+          "x": -3,
+          "state": "minecraft:nether_quartz_ore",
+          "z": 30,
+          "y": 115
+        },
+        {
+          "x": -4,
+          "state": "minecraft:nether_quartz_ore",
+          "z": 31,
+          "y": 115
+        },
+        {
+          "x": -4,
+          "state": "minecraft:nether_quartz_ore",
+          "z": 29,
+          "y": 116
+        },
+        {
+          "x": -3,
+          "state": "minecraft:nether_quartz_ore",
+          "z": 29,
+          "y": 116
+        },
+        {
+          "x": -4,
+          "state": "minecraft:nether_quartz_ore",
+          "z": 30,
+          "y": 116
+        },
+        {
+          "x": -3,
+          "state": "minecraft:nether_quartz_ore",
+          "z": 30,
+          "y": 116
+        },
+        {
+          "x": -5,
+          "state": "minecraft:nether_quartz_ore",
+          "z": 32,
+          "y": 78
+        },
+        {
+          "x": -4,
+          "state": "minecraft:nether_quartz_ore",
+          "z": 32,
+          "y": 78
+        },
+        {
+          "x": -5,
+          "state": "minecraft:nether_quartz_ore",
+          "z": 32,
+          "y": 79
+        },
+        {
+          "x": -4,
+          "state": "minecraft:nether_quartz_ore",
+          "z": 32,
+          "y": 79
+        }
+      ],
+      "next_int": 394287149,
+      "seed": -9223372036854775808
+    }
+  ],
+  "profile": "actual tagged vanilla placed ore_quartz_nether; isolated all-netherrack y0..127, air128..255; native dimension build height256/generator depth128; no neighboring feature history",
+  "version": "1.21.11",
+  "provenance": {
+    "helper": "tools/NativeFeaturePrimitives.java",
+    "helper_sha256": "123d4234d2145785e5476437eeb66e897699164722be1285a91cb3f3a36dd9e5",
+    "oracle_source_sha256": "b03933c2eafcd703d6c88ac83f2dec7924614343264a00da2fca8c0f5ba51056",
+    "inner_sha256": "ec47239a8de246335e1d54f6ac319bd35641778eb4b6a6da06372840d02fcebc",
+    "mappings_sha1": "5621e9253f05fd57872bbe7f8ddf5f9a7d525955",
+    "capture_sha256": "9c2d32e5d3f0e674280f6bdccbb2a2e1082c041d41749873aaf550fc867fc621"
+  },
+  "fail_before_fullstage_report": {
+    "dimension": "minecraft:the_nether",
+    "seed": 0,
+    "chunks": 1,
+    "expected_capture": "actual native FEATURES snapshot after every possible neighboring FEATURES writer within observed native blockStateWriteRadius completed; constructor-only native server context; no FULL promotion, SPAWN stage, listeners or ticks",
+    "actual_capture": "Rust source-native in-memory generation using captured native world options/datapack recipe; no ticking or Bedrock block conversion",
+    "stages": [
+      "minecraft:features"
+    ],
+    "voxels": 65536,
+    "differing_states": 381,
+    "differing_quart_biomes": 0,
+    "differing_heightmap_columns": 0,
+    "chunks_with_differing_block_entities": 0,
+    "first_state_difference": {
+      "chunk": [
+        0,
+        0
+      ],
+      "block": [
+        10,
+        10,
+        3
+      ],
+      "stage": "minecraft:features",
+      "expected": "minecraft:nether_quartz_ore",
+      "actual": "minecraft:netherrack"
+    },
+    "first_quart_biome_difference": null
+  }
+}

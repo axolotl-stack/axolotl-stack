@@ -1,5 +1,5 @@
-//! Runtime types of the compiled carver configurations (`crate::carvers`) and the Java
-//! sampling helpers carvers use (legacy random, float/height providers, `Mth` sin/cos).
+//! Runtime types of the compiled `OVERWORLD_CARVERS`, `NETHER_CARVERS` and `END_CARVERS`
+//! tables in [`crate::carvers`], plus Java's legacy-random sampling helpers.
 
 use std::sync::LazyLock;
 
@@ -54,7 +54,7 @@ pub struct CaveConfig {
     pub y: HeightProvider,
     pub y_scale: FloatProvider,
     pub lava_level: i32,
-    /// Bitset over Bedrock runtime ids of the blocks it may carve.
+    /// Bitset over canonical Java state ids of the blocks it may carve.
     pub replaceable: &'static [u64],
     pub horizontal_radius_multiplier: FloatProvider,
     pub vertical_radius_multiplier: FloatProvider,
@@ -68,7 +68,7 @@ pub struct CanyonConfig {
     pub y: HeightProvider,
     pub y_scale: FloatProvider,
     pub lava_level: i32,
-    /// Bitset over Bedrock runtime ids of the blocks it may carve.
+    /// Bitset over canonical Java state ids of the blocks it may carve.
     pub replaceable: &'static [u64],
     pub vertical_rotation: FloatProvider,
     pub distance_factor: FloatProvider,
@@ -96,10 +96,10 @@ impl ConfiguredCarver {
     }
 }
 
-/// Whether a runtime id is in a carver's replaceable bitset.
+/// Whether a canonical Java state id is in a carver's replaceable bitset.
 #[inline]
-pub fn is_replaceable(bits: &[u64], runtime_id: u32) -> bool {
-    let index = runtime_id as usize;
+pub fn is_replaceable(bits: &[u64], state_id: u32) -> bool {
+    let index = state_id as usize;
     bits.get(index / 64)
         .is_some_and(|word| word & (1 << (index % 64)) != 0)
 }

@@ -11,6 +11,106 @@ use proc_macro2::TokenStream;
 use quote::{format_ident, quote};
 use std::collections::HashMap;
 
+#[path = "native_column.rs"]
+mod native_column;
+#[path = "native_density.rs"]
+mod native_density;
+
+/// One native f32 lowering for every coordinate environment. Values remain inside
+/// their selected interval, including nested splines; no Horner reassociation.
+fn emit_java_spline(
+    spline: &SplineDef,
+    emit_argument: &mut impl FnMut(&DensityFunctionArg) -> TokenStream,
+) -> TokenStream {
+    assert!(
+        !spline.points.is_empty(),
+        "native spline has no control points"
+    );
+    let coordinate = emit_argument(&spline.coordinate);
+    let locations: Vec<_> = spline
+        .points
+        .iter()
+        .map(|point| proc_macro2::Literal::f32_suffixed(point.location as f32))
+        .collect();
+    let derivatives: Vec<_> = spline
+        .points
+        .iter()
+        .map(|point| proc_macro2::Literal::f32_suffixed(point.derivative as f32))
+        .collect();
+    let values: Vec<_> = spline
+        .points
+        .iter()
+        .map(|point| match &point.value {
+            SplineValue::Constant(value) => {
+                let value = proc_macro2::Literal::f32_suffixed(*value as f32);
+                quote! { #value }
+            }
+            SplineValue::Nested(nested) => emit_java_spline(nested, emit_argument),
+        })
+        .collect();
+    let extrapolate = |index: usize| {
+        let value = &values[index];
+        if spline.points[index].derivative as f32 == 0.0 {
+            quote! { #value }
+        } else {
+            let derivative = &derivatives[index];
+            let location = &locations[index];
+            quote! { (#value) + #derivative * (coordinate - #location) }
+        }
+    };
+    let low = &locations[0];
+    let below = extrapolate(0);
+    let mut branches = vec![quote! { if coordinate < #low { #below } }];
+    for index in 0..spline.points.len() - 1 {
+        let low = &locations[index];
+        let high = &locations[index + 1];
+        let value_low = &values[index];
+        let value_high = &values[index + 1];
+        let derivative_low = &derivatives[index];
+        let derivative_high = &derivatives[index + 1];
+        branches.push(quote! {
+            else if coordinate < #high {
+                crate::native_density::spline_segment(
+                    coordinate, #low, #high, #value_low, #value_high,
+                    #derivative_low, #derivative_high,
+                )
+            }
+        });
+    }
+    let above = extrapolate(spline.points.len() - 1);
+    quote! {{
+        let coordinate = (#coordinate) as f32;
+        #(#branches)* else { #above }
+    }}
+}
+
+/// Reuse the same context schema and constructor generation, selecting only
+/// native constructor methods with Rust ASTs rather than rewriting source text.
+fn extract_native_constructors(tokens: TokenStream) -> TokenStream {
+    let file: syn::File = syn::parse2(tokens).expect("generated cache syntax");
+    let implementations = file.items.into_iter().filter_map(|item| {
+        let syn::Item::Impl(mut implementation) = item else {
+            return None;
+        };
+        if implementation.trait_.is_some() {
+            return None;
+        }
+        implementation.items.retain_mut(|item| {
+            let syn::ImplItem::Fn(function) = item else {
+                return false;
+            };
+            if function.sig.ident == "new" || function.sig.ident == "new_standalone" {
+                function.sig.ident = format_ident!("{}_native", function.sig.ident);
+                true
+            } else {
+                false
+            }
+        });
+        (!implementation.items.is_empty()).then_some(implementation)
+    });
+    quote! { #(#implementations)* }
+}
+
 /// Pre-computed spline segment with polynomial coefficients.
 /// The cubic polynomial is: a + b*t + c*t² + d*t³ where t = (x - x_min) / (x_max - x_min)
 #[derive(Debug, Clone, Copy)]
@@ -186,6 +286,13 @@ pub struct AotEmitter<'a> {
     /// Root-local SIMD memo slots for zero-Y-scale noise leaves.
     simd_column_noise_slots: HashMap<NodeId, usize>,
     memoize_zero_y_noise: bool,
+    /// Actual scalar lowering may reuse a Cache2D alias from another router root.
+    column_context_used: bool,
+    native_math: bool,
+    native_geometry: Option<(i32, i32, i32, i32)>,
+    native_interpolation_slots: HashMap<NodeId, usize>,
+    read_interpolated_values: bool,
+    native_column_width: Option<i32>,
 }
 
 impl<'a> AotEmitter<'a> {
@@ -220,7 +327,36 @@ impl<'a> AotEmitter<'a> {
             }),
             simd_column_noise_slots: HashMap::new(),
             memoize_zero_y_noise: false,
+            column_context_used: false,
+            native_math: false,
+            native_geometry: None,
+            native_interpolation_slots: HashMap::new(),
+            read_interpolated_values: false,
+            native_column_width: None,
         }
+    }
+
+    /// Bake validated native dimension geometry into fixed-size cell caches.
+    pub fn with_geometry(
+        mut self,
+        min_y: i32,
+        height: i32,
+        cell_width: i32,
+        cell_height: i32,
+    ) -> Self {
+        assert!(
+            height > 0 && cell_width > 0 && cell_height > 0,
+            "invalid native noise geometry"
+        );
+        assert!(
+            16 % cell_width == 0
+                && cell_width >= 4
+                && height % cell_height == 0
+                && min_y % cell_height == 0,
+            "unaligned native noise geometry"
+        );
+        self.native_geometry = Some((min_y, height, cell_width, cell_height));
+        self
     }
 
     /// Get a local variable name for a pre-computed FlatCache lookup in ColumnContext.
@@ -275,6 +411,25 @@ impl<'a> AotEmitter<'a> {
         .map(|name| self.emit_uncached_function(name))
         .collect();
         let end_islands_regression = self.emit_end_islands_regression();
+        self.native_math = true;
+        let native_flat_cache = extract_native_constructors(self.emit_flat_cache_grid());
+        let native_columns = extract_native_constructors(self.emit_column_context());
+        let native_inner = self.emit_find_top_surface_inner_functions();
+        let native_compute: Vec<_> = self
+            .graph
+            .roots
+            .keys()
+            .map(|name| self.emit_compute_function(name))
+            .collect();
+        let native_uncached: Vec<_> = self
+            .graph
+            .roots
+            .keys()
+            .map(|name| self.emit_uncached_function(name))
+            .collect();
+        let native_cell_sampler = self.emit_native_cell_sampler();
+        let native_cell_regression = self.emit_native_cell_regression();
+        self.native_math = false;
 
         let tokens = quote! {
             //! AOT-compiled overworld noise router (regenerated at build time from worldgen JSON).
@@ -315,6 +470,13 @@ impl<'a> AotEmitter<'a> {
             #simd_fn
             #(#uncached_fns)*
             #end_islands_regression
+            #native_flat_cache
+            #native_columns
+            #native_inner
+            #(#native_compute)*
+            #(#native_uncached)*
+            #native_cell_sampler
+            #native_cell_regression
         };
 
         tokens
@@ -338,14 +500,43 @@ impl<'a> AotEmitter<'a> {
         let flat = self.emit_flat_cache_inner(&node);
         let column = self.emit_column_context_inner(&node);
         let standalone = self.emit_fc_inner_for_standalone(&node);
+        let argument = DensityFunctionArg::Inline(Box::new(DensityFunctionDef::EndIslands {}));
+        let inline_scalar = self.emit_inline_def(&node.def);
+        let inline_simd = self.emit_inline_def_simd(&node.def);
+        let inline_lane = self.emit_inline_def_lane(&node.def, 3);
+        let inline_flat = self.emit_fc_inline_def(&node.def);
+        let inline_column = self.emit_cc_inline_def(&node.def);
+        let inline_standalone = self.emit_fc_standalone_arg(&argument);
+        let graph = DependencyGraph::build(&[("end_fixture", &argument)], &HashMap::new());
+        let mut empty = AotEmitter::new(&graph);
+        let empty_flat = empty.emit_flat_cache_grid();
+        let empty_columns = empty.emit_column_context();
+        let empty_scalar = empty.emit_compute_function("end_fixture");
+        let empty_simd = empty.emit_compute_function_simd("end_fixture");
+        let cached_argument = DensityFunctionArg::Inline(Box::new(DensityFunctionDef::Cache2D {
+            argument: argument.clone(),
+        }));
+        let alias_graph = DependencyGraph::build(
+            &[("end_fixture", &argument), ("continents", &cached_argument)],
+            &HashMap::new(),
+        );
+        let mut alias = AotEmitter::new(&alias_graph);
+        let alias_flat = alias.emit_flat_cache_grid();
+        let alias_columns = alias.emit_column_context();
+        let alias_scalar = alias.emit_compute_function("end_fixture");
         quote! {
             #[cfg(test)]
             mod end_islands_codegen_tests {
                 use super::*;
                 use crate::end_islands::EndIslands;
 
+                // Each generated dimension owns its adapter; no conflicting global impls.
+                struct EndNoise(EndIslands);
+
                 #[allow(clippy::too_many_arguments)]
-                impl NoiseSource for EndIslands {
+                impl NoiseSource for EndNoise {
+                    const NATIVE_JAVA: bool = true;
+                    fn sample_beardifier(&self, _: i32, _: i32, _: i32) -> f64 { 0.0 }
                     fn sample(&self, _: NoiseRef, _: f64, _: f64, _: f64) -> f64 {
                         panic!("End-node fixture sampled a regular noise")
                     }
@@ -353,7 +544,7 @@ impl<'a> AotEmitter<'a> {
                         panic!("End-node fixture sampled a regular SIMD noise")
                     }
                     fn sample_end_islands(&self, x: i32, z: i32) -> f64 {
-                        EndIslands::sample(self, x, z)
+                        self.0.sample(x, z)
                     }
                     fn sample_blended_noise(
                         &self, _: f64, _: f64, _: f64, _: f64, _: f64, _: f64, _: f64, _: f64,
@@ -367,6 +558,21 @@ impl<'a> AotEmitter<'a> {
                     }
                 }
 
+                mod empty_cache {
+                    use super::*;
+                    #empty_flat
+                    #empty_columns
+                    #empty_scalar
+                    #empty_simd
+                }
+
+                mod aliased_cache {
+                    use super::*;
+                    #alias_flat
+                    #alias_columns
+                    #alias_scalar
+                }
+
                 #[test]
                 fn native_end_node_matches_all_emission_modes() {
                     // Native Java 1.21.11 bits from end_islands::tests, not Rust output.
@@ -378,34 +584,55 @@ impl<'a> AotEmitter<'a> {
                         (0, -1032, 0, 0x3fc5_b52f_0000_0000),
                         (0, 370728, 0, 0xfff8_0000_0000_0000),
                     ] {
-                        let noises = EndIslands::new(seed);
-                        let direct = {
+                        let noises = EndNoise(EndIslands::new(seed));
+                        let (direct, direct_inline) = {
                             let ctx = FunctionContext::new(x, i32::MAX, z);
-                            #scalar
+                            (#scalar, #inline_scalar)
                         };
-                        let lanes = {
+                        let (lanes, lanes_inline, lane_inline) = {
                             let ctx = FunctionContext4::new(x, [i32::MIN, -1, 0, i32::MAX], z);
-                            #simd
-                        }.to_array();
-                        let flat_value = {
+                            ((#simd).to_array(), (#inline_simd).to_array(), #inline_lane)
+                        };
+                        let (flat_value, flat_inline) = {
                             let (bx, bz) = (x, z);
-                            #flat
+                            (#flat, #inline_flat)
                         };
-                        let column_value = {
+                        let (column_value, column_inline) = {
                             let (block_x, block_z) = (x, z);
-                            #column
+                            (#column, #inline_column)
                         };
-                        let standalone_value = {
+                        let (standalone_value, standalone_inline) = {
                             let (block_x, block_z) = (x, z);
-                            #standalone
+                            (#standalone, #inline_standalone)
                         };
+                        let empty_scalar_value = empty_cache::compute_end_fixture(
+                            &FunctionContext::new(x, i32::MIN, z), &noises,
+                        );
+                        let empty_flat = empty_cache::FlatCacheGrid::new(0, 0, &noises);
+                        let empty_grid = empty_cache::ColumnContextGrid::new(0, 0, &noises, &empty_flat);
+                        let empty_lanes = empty_cache::compute_end_fixture_4(
+                            &FunctionContext4::new(x, [i32::MIN, -1, 0, i32::MAX], z),
+                            &noises, &empty_flat, empty_grid.get_block(16, 16),
+                        ).to_array();
+                        assert_eq!(empty_scalar_value.to_bits(), expected);
+                        assert_eq!(empty_lanes.map(f64::to_bits), [expected; 4]);
+                        let alias_column = aliased_cache::ColumnContext::new_standalone(x, z, &noises);
+                        let alias_value = aliased_cache::compute_end_fixture(
+                            &FunctionContext::new(x, i32::MAX, z), &noises, &alias_column,
+                        );
+                        assert_eq!(alias_value.to_bits(), expected);
                         assert_eq!(
                             [
                                 direct.to_bits(), lanes[0].to_bits(), lanes[1].to_bits(),
                                 lanes[2].to_bits(), lanes[3].to_bits(), flat_value.to_bits(),
                                 column_value.to_bits(), standalone_value.to_bits(),
+                                direct_inline.to_bits(),
+                                lanes_inline[0].to_bits(), lanes_inline[1].to_bits(),
+                                lanes_inline[2].to_bits(), lanes_inline[3].to_bits(),
+                                lane_inline.to_bits(), flat_inline.to_bits(),
+                                column_inline.to_bits(), standalone_inline.to_bits(),
                             ],
-                            [expected; 8],
+                            [expected; 17],
                             "native End node seed={seed} block=({x},{z})"
                         );
                     }
@@ -607,6 +834,15 @@ impl<'a> AotEmitter<'a> {
             .map(|node| format!("fc_{}", node.id.0))
             .collect();
         let num_fields = debug_field_names.len();
+        let (first_qx, first_qz, sample_count) = if let Some(width) = self.native_column_width {
+            (
+                quote! { chunk_x >> 2 },
+                quote! { chunk_z >> 2 },
+                width / 4 + 1,
+            )
+        } else {
+            (quote! { chunk_x * 4 }, quote! { chunk_z * 4 }, 5)
+        };
 
         quote! {
             /// Pre-computed Y-independent values for the chunk.
@@ -651,8 +887,8 @@ impl<'a> AotEmitter<'a> {
                 /// - grid[0][4] = quart (first_qx+4, first_qz+0)
                 /// - grid[4][4] = quart (first_qx+4, first_qz+4)
                 pub fn new(chunk_x: i32, chunk_z: i32, noises: &impl NoiseSource) -> Self {
-                    let first_qx = chunk_x * 4;
-                    let first_qz = chunk_z * 4;
+                    let first_qx = #first_qx;
+                    let first_qz = #first_qz;
 
                     // Debug verification: Log grid initialization parameters
                     #[cfg(feature = "debug-worldgen")]
@@ -672,8 +908,8 @@ impl<'a> AotEmitter<'a> {
                         ..Default::default()
                     };
 
-                    for qz in 0..5i32 {
-                        for qx in 0..5i32 {
+                    for qz in 0..#sample_count {
+                        for qx in 0..#sample_count {
                             let bx = (first_qx + qx) * 4;
                             let bz = (first_qz + qz) * 4;
                             #[allow(unused_variables)]
@@ -819,7 +1055,11 @@ impl<'a> AotEmitter<'a> {
         self.expand_flat_cache_inline = false;
 
         let stmts = std::mem::take(&mut self.statements);
-        let func_name = format_ident!("compute_{}_inner_density", root_name);
+        let func_name = if self.native_math {
+            format_ident!("compute_{}_inner_density_native", root_name)
+        } else {
+            format_ident!("compute_{}_inner_density", root_name)
+        };
 
         quote! {
             /// Inner density function for #root_name (used by find_top_surface).
@@ -861,7 +1101,11 @@ impl<'a> AotEmitter<'a> {
             self.statements.clear();
             let inner_expr = self.emit_node(&node.dependencies[0]);
             let inner_stmts = std::mem::take(&mut self.statements);
-            let inner_name = format_ident!("compute_{}_inner_density_uncached", root_name);
+            let inner_name = if self.native_math {
+                format_ident!("compute_{}_inner_density_native_uncached", root_name)
+            } else {
+                format_ident!("compute_{}_inner_density_uncached", root_name)
+            };
             inner = quote! {
                 #[inline]
                 fn #inner_name(ctx: &FunctionContext, noises: &impl NoiseSource) -> f64 {
@@ -878,7 +1122,11 @@ impl<'a> AotEmitter<'a> {
         self.expand_flat_cache_inline = false;
         self.expand_all_caches_inline = false;
         let stmts = std::mem::take(&mut self.statements);
-        let func_name = format_ident!("compute_{}_uncached", root_name);
+        let func_name = if self.native_math {
+            format_ident!("compute_{}_native_uncached", root_name)
+        } else {
+            format_ident!("compute_{}_uncached", root_name)
+        };
         let doc = format!(
             "Router `{root_name}` at any position, every cache computed inline (slower than the chunk-cached `compute_{root_name}`)."
         );
@@ -899,17 +1147,29 @@ impl<'a> AotEmitter<'a> {
         // Find the root name for this node
         for (root_name, root_id) in &self.graph.roots {
             if root_id == node_id {
-                return format_ident!("compute_{}_inner_density", root_name);
+                return if self.native_math {
+                    format_ident!("compute_{}_inner_density_native", root_name)
+                } else {
+                    format_ident!("compute_{}_inner_density", root_name)
+                };
             }
         }
         // Fallback: use the node ID if not found in roots
-        format_ident!("compute_node_{}_inner_density", node_id.0.replace(':', "_"))
+        if self.native_math {
+            format_ident!(
+                "compute_node_{}_inner_density_native",
+                node_id.0.replace(':', "_")
+            )
+        } else {
+            format_ident!("compute_node_{}_inner_density", node_id.0.replace(':', "_"))
+        }
     }
 
     fn emit_compute_function(&mut self, root_name: &str) -> TokenStream {
         self.var_names.clear();
         self.var_counter = 0;
         self.statements.clear();
+        self.column_context_used = false;
 
         let root_id = self
             .graph
@@ -923,8 +1183,13 @@ impl<'a> AotEmitter<'a> {
         let uses_cache_2d = self.graph.root_uses_cache_2d(root_name);
 
         let result_expr = self.emit_node(&root_id);
+        let uses_cache_2d = uses_cache_2d || self.column_context_used;
         let stmts = std::mem::take(&mut self.statements);
-        let func_name = format_ident!("compute_{}", root_name);
+        let func_name = if self.native_math {
+            format_ident!("compute_{}_native", root_name)
+        } else {
+            format_ident!("compute_{}", root_name)
+        };
 
         // Generate function with minimal parameters based on what's actually used.
         // This is critical for performance: simple noise functions (barrier, lava, etc.)
@@ -1142,11 +1407,17 @@ impl<'a> AotEmitter<'a> {
     // ========== Node emission (scalar) ==========
 
     fn emit_node(&mut self, id: &NodeId) -> TokenStream {
+        if self.read_interpolated_values
+            && let Some(slot) = self.native_interpolation_slots.get(id)
+        {
+            return quote! { interpolated[#slot] };
+        }
         // Check if this node's value is cached in a Cache2D wrapper.
         // If so, use the pre-computed ColumnContext field instead of recomputing.
         if !self.expand_all_caches_inline
             && let Some(wrapper_id) = self.cache_2d_inner_to_wrapper.get(id).cloned()
         {
+            self.column_context_used = true;
             let field = self.column_context_field_ident(&wrapper_id);
             return quote! { col.#field };
         }
@@ -1165,6 +1436,7 @@ impl<'a> AotEmitter<'a> {
         // Early return for cache_2d nodes: reference the pre-computed ColumnContext field
         // This avoids recomputing expensive Y-independent expressions for every Y position.
         if node.is_cache_2d && !self.expand_all_caches_inline {
+            self.column_context_used = true;
             let field = self.column_context_field_ident(&node.id);
             return quote! { col.#field };
         }
@@ -1443,10 +1715,24 @@ impl<'a> AotEmitter<'a> {
                 let upper_bound = self.emit_node(&node.dependencies[1]);
                 let lb = *lower_bound;
                 let ch = *cell_height;
+                let inner = match (self.native_math, self.expand_all_caches_inline) {
+                    (false, false) => {
+                        format_ident!("compute_preliminary_surface_level_inner_density")
+                    }
+                    (false, true) => {
+                        format_ident!("compute_preliminary_surface_level_inner_density_uncached")
+                    }
+                    (true, false) => {
+                        format_ident!("compute_preliminary_surface_level_inner_density_native")
+                    }
+                    (true, true) => format_ident!(
+                        "compute_preliminary_surface_level_inner_density_native_uncached"
+                    ),
+                };
                 let inner_call = if self.expand_all_caches_inline {
-                    quote! { compute_preliminary_surface_level_inner_density_uncached(&inner_ctx, noises) }
+                    quote! { #inner(&inner_ctx, noises) }
                 } else {
-                    quote! { compute_preliminary_surface_level_inner_density(&inner_ctx, noises, col) }
+                    quote! { #inner(&inner_ctx, noises, col) }
                 };
                 quote! {
                     find_top_surface(ctx.block_x, ctx.block_z, #lb, #upper_bound, #ch, |y| {
@@ -1772,10 +2058,15 @@ impl<'a> AotEmitter<'a> {
                 let upper_bound = self.emit_node_simd(&node.dependencies[1]);
                 let lb = *lower_bound;
                 let ch = *cell_height;
+                let inner = if self.native_math {
+                    format_ident!("compute_preliminary_surface_level_inner_density_native")
+                } else {
+                    format_ident!("compute_preliminary_surface_level_inner_density")
+                };
                 quote! {
                     f64x4::splat(find_top_surface(ctx.block_x, ctx.block_z, #lb, #upper_bound[0], #ch, |y| {
                         let inner_ctx = FunctionContext::new(ctx.block_x, y, ctx.block_z);
-                        compute_preliminary_surface_level_inner_density(&inner_ctx, noises, col)
+                        #inner(&inner_ctx, noises, &col.as_scalar())
                     }))
                 }
             }
@@ -1785,6 +2076,10 @@ impl<'a> AotEmitter<'a> {
     // ========== Spline emission ==========
 
     fn emit_spline(&mut self, spline: &SplineDef) -> TokenStream {
+        if self.native_math {
+            let value = emit_java_spline(spline, &mut |argument| self.emit_arg_expr(argument));
+            return quote! { f64::from(#value) };
+        }
         let coord_expr = self.emit_arg_expr(&spline.coordinate);
 
         if spline.points.is_empty() {
@@ -1972,6 +2267,17 @@ impl<'a> AotEmitter<'a> {
     }
 
     fn emit_spline_simd(&mut self, spline: &SplineDef) -> TokenStream {
+        if self.native_math {
+            let lanes: Vec<_> = (0..4)
+                .map(|lane| {
+                    let value = emit_java_spline(spline, &mut |argument| {
+                        self.emit_arg_expr_lane(argument, lane)
+                    });
+                    quote! { f64::from(#value) }
+                })
+                .collect();
+            return quote! { f64x4::from_array([#(#lanes),*]) };
+        }
         let coord_expr = self.emit_arg_expr_simd(&spline.coordinate);
 
         if spline.points.is_empty() {
@@ -2204,6 +2510,9 @@ impl<'a> AotEmitter<'a> {
             DensityFunctionDef::FlatCache { argument } => self.emit_arg_expr(argument),
             DensityFunctionDef::Cache2D { argument }
             | DensityFunctionDef::CacheOnce { argument } => self.emit_arg_expr(argument),
+            DensityFunctionDef::EndIslands {} => {
+                quote! { noises.sample_end_islands(ctx.block_x, ctx.block_z) }
+            }
             _ => quote! { 0.0_f64 },
         }
     }
@@ -2229,6 +2538,9 @@ impl<'a> AotEmitter<'a> {
             DensityFunctionDef::FlatCache { argument } => self.emit_arg_expr_simd(argument),
             DensityFunctionDef::Cache2D { argument }
             | DensityFunctionDef::CacheOnce { argument } => self.emit_arg_expr_simd(argument),
+            DensityFunctionDef::EndIslands {} => {
+                quote! { f64x4::splat(noises.sample_end_islands(ctx.block_x, ctx.block_z)) }
+            }
             _ => quote! { f64x4::splat(0.0_f64) },
         }
     }
@@ -2256,6 +2568,9 @@ impl<'a> AotEmitter<'a> {
             DensityFunctionDef::FlatCache { argument } => self.emit_arg_expr_lane(argument, lane),
             DensityFunctionDef::Cache2D { argument }
             | DensityFunctionDef::CacheOnce { argument } => self.emit_arg_expr_lane(argument, lane),
+            DensityFunctionDef::EndIslands {} => {
+                quote! { noises.sample_end_islands(ctx.block_x, ctx.block_z) }
+            }
             _ => quote! { 0.0_f64 },
         }
     }
@@ -2449,7 +2764,10 @@ impl<'a> AotEmitter<'a> {
             }
 
             DensityFunctionDef::OldBlendedNoise { .. } => {
-                quote! { 0.0_f64 }
+                panic!(
+                    "Y-dependent OldBlendedNoise cannot be lowered into flat cache: {:?}",
+                    node.id
+                )
             }
 
             DensityFunctionDef::Invert { .. } => {
@@ -2491,6 +2809,10 @@ impl<'a> AotEmitter<'a> {
     }
 
     fn emit_fc_spline(&self, spline: &SplineDef) -> TokenStream {
+        if self.native_math {
+            let value = emit_java_spline(spline, &mut |argument| self.emit_fc_arg(argument));
+            return quote! { f64::from(#value) };
+        }
         if spline.points.is_empty() {
             return quote! { 0.0_f64 };
         }
@@ -2802,6 +3124,12 @@ impl<'a> AotEmitter<'a> {
             DensityFunctionDef::FlatCache { argument } => self.emit_fc_arg(argument),
             DensityFunctionDef::Cache2D { argument }
             | DensityFunctionDef::CacheOnce { argument } => self.emit_fc_arg(argument),
+            DensityFunctionDef::EndIslands {} => {
+                quote! { noises.sample_end_islands(bx, bz) }
+            }
+            DensityFunctionDef::OldBlendedNoise { .. } => {
+                panic!("Y-dependent OldBlendedNoise cannot be lowered into inline flat cache")
+            }
             _ => quote! { 0.0_f64 },
         }
     }
@@ -2837,55 +3165,12 @@ impl<'a> AotEmitter<'a> {
             .filter(|n| n.is_cache_2d)
             .collect();
 
-        if cache_2d_nodes.is_empty() {
-            return quote! {
-                /// Per-column cache for cache_2d nodes.
-                /// Empty because no cache_2d nodes exist in this worldgen configuration.
-                #[derive(Clone, Copy, Default)]
-                pub struct ColumnContext;
-
-                impl ColumnContext {
-                    #[inline(always)]
-                    pub fn new(
-                        _block_x: i32,
-                        _block_z: i32,
-                        _noises: &impl NoiseSource,
-                        _flat: &FlatCacheGrid,
-                    ) -> Self {
-                        Self
-                    }
-
-                    /// Create a ColumnContext for arbitrary world coordinates.
-                    ///
-                    /// Unlike `new()`, this method computes all values directly without
-                    /// using FlatCacheGrid lookups. Use this when computing values for
-                    /// positions outside the current chunk (e.g., in aquifer surface sampling).
-                    #[inline(always)]
-                    pub fn new_standalone(
-                        _block_x: i32,
-                        _block_z: i32,
-                        _noises: &impl NoiseSource,
-                    ) -> Self {
-                        Self
-                    }
-                }
-            };
-        }
-
         // Generate field names and definitions
         let field_defs: Vec<TokenStream> = cache_2d_nodes
             .iter()
             .map(|node| {
                 let field = self.column_context_field_ident(&node.id);
                 quote! { pub #field: f64 }
-            })
-            .collect();
-
-        let default_fields: Vec<TokenStream> = cache_2d_nodes
-            .iter()
-            .map(|node| {
-                let field = self.column_context_field_ident(&node.id);
-                quote! { #field: 0.0 }
             })
             .collect();
 
@@ -2991,6 +3276,11 @@ impl<'a> AotEmitter<'a> {
                 })
             })
             .collect();
+        let column_constructor = if self.native_math {
+            format_ident!("new_native")
+        } else {
+            format_ident!("new")
+        };
         self.column_context_standalone_mode = false;
 
         // Build the struct return expression with all fields
@@ -3026,42 +3316,21 @@ impl<'a> AotEmitter<'a> {
             .collect();
         let splat_impl = quote! { Self { #(#splat_fields,)* } };
 
-        // Generate default fields for ColumnContext4 (splat 0.0)
-        let default_fields_4: Vec<TokenStream> = cache_2d_nodes
-            .iter()
-            .map(|node| {
-                let field = self.column_context_field_ident(&node.id);
-                quote! { #field: f64x4::splat(0.0) }
-            })
-            .collect();
-
         // Generate as_scalar implementation (extract lane 0)
-        let as_scalar_impl = if field_names.is_empty() {
-            quote! { ColumnContext }
-        } else {
-            let extract_fields: Vec<_> = field_names
-                .iter()
-                .map(|f| quote! { #f: self.#f.to_array()[0] })
-                .collect();
-            quote! { ColumnContext { #(#extract_fields,)* } }
-        };
+        let extract_fields: Vec<_> = field_names
+            .iter()
+            .map(|f| quote! { #f: self.#f.to_array()[0] })
+            .collect();
+        let as_scalar_impl = quote! { ColumnContext { #(#extract_fields,)* } };
 
         quote! {
             /// Per-column cache for cache_2d nodes.
             ///
             /// cache_2d values are computed once per (X, Z) column and reused for all Y positions.
             /// This avoids recomputing Y-independent values for each of the 96 SIMD calls per column.
-            #[derive(Clone, Copy)]
+            #[derive(Clone, Copy, Default)]
             pub struct ColumnContext {
                 #(#field_defs,)*
-            }
-
-            impl Default for ColumnContext {
-                fn default() -> Self {
-                    Self {
-                        #(#default_fields,)*
-                    }
-                }
             }
 
             impl ColumnContext {
@@ -3165,7 +3434,7 @@ impl<'a> AotEmitter<'a> {
                         for (ix, slot) in row.iter_mut().enumerate() {
                             let block_x = base_x + ix as i32 * 4;
                             // Same column in all 4 lanes: values come out pre-splatted.
-                            let column = ColumnContext::new(block_x, block_z, noises, flat);
+                            let column = ColumnContext::#column_constructor(block_x, block_z, noises, flat);
                             *slot = ColumnContext4::splat(&column);
                         }
                     }
@@ -3201,17 +3470,9 @@ impl<'a> AotEmitter<'a> {
 
             /// A [`ColumnContext`] with every field splatted to `f64x4`, the form the
             /// SIMD density functions read.
-            #[derive(Clone, Copy)]
+            #[derive(Clone, Copy, Default)]
             pub struct ColumnContext4 {
                 #(#field_defs_4,)*
-            }
-
-            impl Default for ColumnContext4 {
-                fn default() -> Self {
-                    Self {
-                        #(#default_fields_4,)*
-                    }
-                }
             }
 
             impl ColumnContext4 {
@@ -3458,7 +3719,10 @@ impl<'a> AotEmitter<'a> {
             }
 
             DensityFunctionDef::OldBlendedNoise { .. } => {
-                quote! { 0.0_f64 }
+                panic!(
+                    "Y-dependent OldBlendedNoise cannot be lowered into column cache: {:?}",
+                    node.id
+                )
             }
 
             DensityFunctionDef::Invert { .. } => {
@@ -3635,6 +3899,12 @@ impl<'a> AotEmitter<'a> {
             DensityFunctionDef::EndIslands {} => {
                 quote! { noises.sample_end_islands(block_x, block_z) }
             }
+            DensityFunctionDef::OldBlendedNoise { .. } => {
+                panic!(
+                    "Y-dependent OldBlendedNoise cannot be lowered into standalone flat cache: {:?}",
+                    node.id
+                )
+            }
             DensityFunctionDef::YClampedGradient {
                 from_y,
                 to_y,
@@ -3694,6 +3964,12 @@ impl<'a> AotEmitter<'a> {
 
     /// Emit spline evaluation for standalone mode (used in flat_cache).
     fn emit_fc_standalone_spline(&self, spline: &SplineDef) -> TokenStream {
+        if self.native_math {
+            let value = emit_java_spline(spline, &mut |argument| {
+                self.emit_fc_standalone_arg(argument)
+            });
+            return quote! { f64::from(#value) };
+        }
         if spline.points.is_empty() {
             return quote! { 0.0_f64 };
         }
@@ -3749,6 +4025,14 @@ impl<'a> AotEmitter<'a> {
                     DensityFunctionDef::Constant { argument } => {
                         let v = *argument;
                         quote! { #v }
+                    }
+                    DensityFunctionDef::EndIslands {} => {
+                        quote! { noises.sample_end_islands(block_x, block_z) }
+                    }
+                    DensityFunctionDef::OldBlendedNoise { .. } => {
+                        panic!(
+                            "Y-dependent OldBlendedNoise cannot be lowered into inline standalone flat cache"
+                        )
                     }
                     _ => {
                         // For other inline types, create a minimal temp node
@@ -3919,6 +4203,10 @@ impl<'a> AotEmitter<'a> {
 
     /// Emit a spline within ColumnContext initialization.
     fn emit_cc_spline(&self, spline: &SplineDef) -> TokenStream {
+        if self.native_math {
+            let value = emit_java_spline(spline, &mut |argument| self.emit_cc_arg(argument));
+            return quote! { f64::from(#value) };
+        }
         if spline.points.is_empty() {
             return quote! { 0.0_f64 };
         }
@@ -4114,6 +4402,12 @@ impl<'a> AotEmitter<'a> {
             DensityFunctionDef::FlatCache { argument } => self.emit_cc_arg(argument),
             DensityFunctionDef::Cache2D { argument }
             | DensityFunctionDef::CacheOnce { argument } => self.emit_cc_arg(argument),
+            DensityFunctionDef::EndIslands {} => {
+                quote! { noises.sample_end_islands(block_x, block_z) }
+            }
+            DensityFunctionDef::OldBlendedNoise { .. } => {
+                panic!("Y-dependent OldBlendedNoise cannot be lowered into inline column cache")
+            }
             _ => quote! { 0.0_f64 },
         }
     }

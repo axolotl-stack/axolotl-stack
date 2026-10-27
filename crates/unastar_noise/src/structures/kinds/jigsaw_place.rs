@@ -51,7 +51,8 @@ use crate::features::random::{FeatureRandom, LegacyRandom};
 use crate::features::{BlockPos, Direction, FeatureWorld, Heightmap, JavaState};
 use crate::structures::context::StructureContext;
 use crate::structures::jigsaw::{
-    self, JigsawStructure, PoolAlias, PoolElement, Projection, TemplatePool,
+    self, JigsawJunction, JigsawStructure, PoolAlias, PoolElement, PoolPieceTerrain, Projection,
+    TemplatePool,
 };
 use crate::structures::piece::{PieceBase, StructurePiece};
 use crate::structures::processor::Processor;
@@ -63,6 +64,10 @@ use crate::structures::template_data::{
 use crate::structures::template_piece::record_block_entities;
 use crate::structures::transform::{BoundingBox, Mirror, Rotation, transform};
 use crate::structures::util::{pos_seed, shuffle};
+
+#[cfg(test)]
+#[path = "native_jigsaw_tests.rs"]
+mod native_tests;
 
 /// Id of Java's `Pools.EMPTY`, the only empty pool jigsaws may target.
 const EMPTY_POOL: &str = "minecraft:empty";
@@ -467,15 +472,6 @@ impl FreeShape {
 // ---------------------------------------------------------------------------
 // Pieces
 
-/// `JigsawJunction`: where two pieces meet, for terrain adaptation.
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub struct JigsawJunction {
-    pub source_x: i32,
-    pub source_ground_y: i32,
-    pub source_z: i32,
-    pub delta_y: i32,
-    pub dest_projection: Projection,
-}
 
 /// `PoolElementStructurePiece`: one pool element placed at a position and
 /// rotation (orientation-free piece, generation depth 0).
@@ -521,6 +517,14 @@ impl StructurePiece for PoolElementPiece {
 
     fn base_mut(&mut self) -> &mut PieceBase {
         &mut self.base
+    }
+
+    fn pool_terrain(&self) -> Option<PoolPieceTerrain<'_>> {
+        Some(PoolPieceTerrain {
+            projection: projection_of(self.element),
+            ground_level_delta: self.ground_level_delta,
+            junctions: &self.junctions,
+        })
     }
 
     fn translate(&mut self, dx: i32, dy: i32, dz: i32) {
@@ -578,6 +582,7 @@ fn place_element(
             let mut settings = PlaceSettings::new(t);
             settings.rotation = rotation;
             settings.bounding_box = Some(*chunk_box);
+            settings.known_shape = true;
             settings.ignore_entities = false;
             settings.apply_waterlogging = override_liquid.unwrap_or(apply_waterlogging);
             let mut list: Vec<&'static Processor> = Vec::with_capacity(processors.len() + 3);
@@ -723,8 +728,8 @@ fn start_too_close_to_limits(
     if padding == (0, 0) {
         return false;
     }
-    let bottom = ctx.min_y() + padding.0;
-    let top = ctx.min_y() + ctx.height() - padding.1;
+    let bottom = ctx.level_min_y() + padding.0;
+    let top = ctx.level_min_y() + ctx.level_height() - 1 - padding.1;
     bx.min_y < bottom || bx.max_y > top
 }
 
@@ -823,8 +828,8 @@ fn assemble(
     };
     if s.size > 0 {
         let d = s.max_distance_from_center;
-        let min_y = ctx.min_y();
-        let max_y_exclusive = min_y + ctx.height();
+        let min_y = ctx.level_min_y();
+        let max_y_exclusive = min_y + ctx.level_height();
         let low = (center.y - d).max(min_y + s.dimension_padding.0);
         let high = (center.y + d + 1).min(max_y_exclusive - s.dimension_padding.1);
         let mut global = FreeShape::new(BoundingBox::new(
@@ -1239,6 +1244,22 @@ mod tests {
         let (start, _) = assemble_at(&ctx, def("minecraft:village_plains"), 3, 4).expect("start");
         assert_eq!(start.piece.base.bbox.min_y, 79);
         assert_eq!(start.center.y, 80);
+    }
+
+    /// Native LevelHeightAccessor.getMaxY is inclusive, unlike the free-shape
+    /// AABB's upper coordinate. A padded start touching that limit fits; the
+    /// next block does not.
+    #[test]
+    fn start_padding_uses_the_last_buildable_block() {
+        let ctx = Flat { seed: 0, surface: 70 };
+        let at_top = BoundingBox::new(0, 300, 0, 4, 309, 4);
+        let above_top = BoundingBox::new(0, 300, 0, 4, 310, 4);
+        assert!(!start_too_close_to_limits(&ctx, (10, 10), &at_top));
+        assert!(start_too_close_to_limits(&ctx, (10, 10), &above_top));
+        let at_bottom = BoundingBox::new(0, -54, 0, 4, -45, 4);
+        let below_bottom = BoundingBox::new(0, -55, 0, 4, -45, 4);
+        assert!(!start_too_close_to_limits(&ctx, (10, 10), &at_bottom));
+        assert!(start_too_close_to_limits(&ctx, (10, 10), &below_bottom));
     }
 
     #[test]

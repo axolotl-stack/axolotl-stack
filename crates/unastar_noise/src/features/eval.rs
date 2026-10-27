@@ -15,9 +15,8 @@ pub struct BlockEntityData {
     pub loot: Option<(&'static str, i64)>,
     /// Spawner / trial spawner entity id (`minecraft:zombie`).
     pub spawner_entity: Option<&'static str>,
-    /// Native Bedrock actor id plus AOT-compiled NETWORK compound child tags.
-    /// Bytes exclude the root header/end, id, xyz, and lifted loot/spawner keys.
-    pub template_nbt: Option<(&'static str, &'static [u8])>,
+    /// Full Java template identity, typed source NBT and native save normalization.
+    pub template_nbt: Option<crate::structures::native_actor::TemplateActor>,
 }
 
 impl BlockEntityData {
@@ -51,6 +50,8 @@ pub trait FeatureWorld {
     fn height(&self) -> i32;
     /// Sea level of the dimension's noise settings.
     fn sea_level(&self) -> i32;
+    /// Native dimension skylight capability, independent of noise-fill height.
+    fn has_skylight(&self) -> bool;
     /// Level seed.
     fn seed(&self) -> i64;
 
@@ -67,11 +68,11 @@ pub trait FeatureWorld {
     /// `schedule_tick` (fluids, falling blocks). Runtimes that do not tick
     /// during generation may ignore it.
     fn schedule_tick(&mut self, pos: BlockPos);
-    /// The region's own random (`WorldGenRegion.getRandom()`): the positional
-    /// factory of `minecraft:worldgen_region_random` (from the level seed) at
-    /// the decorated chunk's minimum block position. Draws are Xoroshiro-native
-    /// (`nextBoolean` = `nextLong() & 1 != 0`), not bit-source draws.
-    fn region_random(&mut self) -> &mut crate::xoroshiro::Xoroshiro128;
+    /// The region's native random (`WorldGenRegion.getRandom()`), constructed
+    /// from the dimension's positional factory at the chunk's minimum block
+    /// position. Overworld uses native Xoroshiro draws; Nether/End use legacy
+    /// draws. This is deliberately not the decoration `WorldgenRandom`.
+    fn region_random(&mut self) -> &mut super::random::RegionRandom;
     /// `ChunkGenerator.getGenDepth()`: the noise settings' `height` (384 in the
     /// overworld, 128 in the nether), which can differ from [`Self::height`].
     fn gen_depth(&self) -> i32;

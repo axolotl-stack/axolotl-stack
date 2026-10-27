@@ -464,6 +464,12 @@ pub trait StructurePiece: Send + Sync + std::fmt::Debug {
     fn base(&self) -> &PieceBase;
     fn base_mut(&mut self) -> &mut PieceBase;
 
+    /// Ordinary pieces are not pool pieces. Pool pieces override this with
+    /// their actual projection, ground delta and source-side junctions.
+    fn pool_terrain(&self) -> Option<super::jigsaw::PoolPieceTerrain<'_>> {
+        None
+    }
+
     /// `postProcess(level, structureManager, generator, random, box, chunkPos, pivot)`.
     fn post_process(
         &self,
