@@ -1090,3 +1090,31 @@ neither whole ore module should be copied blindly across the state-domain
 cutover. Native two-point density proof and retained-domain output hashes do not
 establish complete native state parity.
 
+### Native AQ follow-up: dry-fluid sentinel, not pressure tuning
+
+The Java owner supplied a failed-before eight-chunk native state comparison:
+after its isolated ore producer-domain fix, 376 native stone positions in
+chunk(1024,-1025) became air/water. A local production sampler/AQ regression
+reproduced four of those cases, all returning runtime AIR with negative material
+density. Nearest-center positions/distances matched the native trace; the dry
+fluid level was `-2147483647` instead of native `-32512`, paired with WATER20.
+
+Actual pinned Java runtime field capture verifies
+`DimensionType.WAY_BELOW_MIN_Y=-32512`, with a matching dry FluidStatus.
+The native dry/wet pressures are exactly 14 at y9 and
+12.666666666666666 at y10. The old sentinel made the absolute integer distance
+negative after narrowing and yielded a huge negative pressure.
+
+Only the native source profile now selects the measured sentinel, at all three
+dry-return/type-check consumers. The calibrated sentinel, pressure algorithm,
+thresholds, RNG and state IDs are unchanged. The four-case regression failed
+before and passed after; the permanent test retains the distinct primary and
+second/third pressure paths, measured fluid levels and raw pressure bits.
+Strict three-crate all-target/all-feature clippy and all 12 AQ tests pass.
+
+These traces also exposed real far-coordinate raw density drift. A separate
+actual-router probe isolates it to continentalness normalization and some
+temperature ULPs; native raw depth, most router fields and several raw final
+density points already match exactly. Numeric investigation continues separately
+from the sentinel fix; no native full-corpus or timing claim is made here.
+

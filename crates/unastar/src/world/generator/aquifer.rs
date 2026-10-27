@@ -82,8 +82,8 @@ const SAMPLE_OFFSET_Z: i32 = -5;
 /// Y value below which lava can appear.
 const LAVA_THRESHOLD_Y: i32 = -10;
 
-/// Value indicating no aquifer exists at this position.
-/// Matches Java's DimensionType.WAY_BELOW_MIN_Y.
+/// Retained calibrated no-aquifer level; native sources select the measured
+/// DimensionType sentinel separately so existing Bedrock output is unchanged.
 const WAY_BELOW_MIN_Y: i32 = i32::MIN + 1;
 
 /// Erosion threshold for deep dark region detection.
@@ -433,6 +433,14 @@ pub struct NoiseBasedAquifer<'a, F: FluidPicker, N: NoiseSource = NoiseRegistry>
 }
 
 impl<'a, F: FluidPicker, N: NoiseSource> NoiseBasedAquifer<'a, F, N> {
+    /// Actual Java 1.21.11 DimensionType.WAY_BELOW_MIN_Y runtime capture.
+    /// A near-i32-minimum sentinel overflows dry/wet pressure differences.
+    const DRY_LEVEL: i32 = if N::NATIVE_JAVA {
+        -32512
+    } else {
+        WAY_BELOW_MIN_Y
+    };
+
     #[inline]
     fn cache_grid(chunk_x: i32, chunk_z: i32, noises: &N) -> FlatCacheGrid {
         if N::NATIVE_JAVA {
@@ -1078,7 +1086,7 @@ impl<'a, F: FluidPicker, N: NoiseSource> NoiseBasedAquifer<'a, F, N> {
         // When in deep dark region, both thresholds become -1.0, which with floodedness clamped to [-1,1]
         // means neither e>0 nor d>0 can be true, so we return WAY_BELOW_MIN_Y (no aquifer)
         if deep_dark {
-            return WAY_BELOW_MIN_Y;
+            return Self::DRY_LEVEL;
         }
 
         // Java: int m = l + 8 - j  (distance from adjusted min surface to current Y)
@@ -1134,7 +1142,7 @@ impl<'a, F: FluidPicker, N: NoiseSource> NoiseBasedAquifer<'a, F, N> {
             self.compute_randomized_fluid_level(x, y, z, min_surface_raw)
         } else {
             // Not flooded - no aquifer here
-            WAY_BELOW_MIN_Y
+            Self::DRY_LEVEL
         }
     }
 
@@ -1182,7 +1190,7 @@ impl<'a, F: FluidPicker, N: NoiseSource> NoiseBasedAquifer<'a, F, N> {
         }
 
         // Check for lava in deep regions
-        if fluid_level <= LAVA_THRESHOLD_Y && fluid_level != WAY_BELOW_MIN_Y {
+        if fluid_level <= LAVA_THRESHOLD_Y && fluid_level != Self::DRY_LEVEL {
             // Use coarser grid for lava noise
             let lx = x.div_euclid(64);
             let ly = y.div_euclid(40);
@@ -1613,5 +1621,87 @@ mod tests {
             (315, 315)
         );
         assert_eq!(aquifer.skip_sampling_above_y, 94);
+    }
+
+    #[test]
+    fn native_far_chunk_aquifer_preserves_measured_stone_barriers() {
+        std::thread::Builder::new()
+            .stack_size(64 << 20)
+            .spawn(|| {
+                use unastar_noise::{NATIVE_GEOMETRY, NativeCellSampler};
+                let p = unastar_noise::overworld_settings::BLENDED_NOISE;
+                let registry = NoiseRegistry::with_router_settings(
+                    0,
+                    false,
+                    [
+                        p.xz_scale,
+                        p.y_scale,
+                        p.xz_factor,
+                        p.y_factor,
+                        p.smear_scale_multiplier,
+                    ],
+                );
+                let source = registry.java_source();
+                let grid = FlatCacheGrid::new_native(1024, -1025, &source);
+                let columns = ColumnContextGrid::new_native(1024, -1025, &source, &grid);
+                let mut sampler = NativeCellSampler::new(1024, -1025, &grid, &columns, &source);
+                sampler.initialize();
+                sampler.advance_cell_x(0);
+                let mut aquifer = NoiseBasedAquifer::new(
+                    1024,
+                    -1025,
+                    NATIVE_GEOMETRY.min_y,
+                    NATIVE_GEOMETRY.height,
+                    &source,
+                    &grid,
+                    &columns,
+                    0,
+                    OverworldFluidPicker::new(63),
+                );
+                // Actual native trace: the first case reaches a second/third
+                // pressure pair; the second reaches the primary dry/wet pair.
+                let points: [(i32, i32, i32); 2] = [(16384, 9, -16392), (16384, 10, -16398)];
+                for (x, y, z) in points {
+                    let cell_y = (y - NATIVE_GEOMETRY.min_y).div_euclid(NATIVE_GEOMETRY.cell_height)
+                        as usize;
+                    let cell_z = (z + 16400).div_euclid(NATIVE_GEOMETRY.cell_width) as usize;
+                    sampler.select_cell_yz(cell_y, cell_z);
+                    sampler.update_y(y);
+                    sampler.update_x(x);
+                    let local_z = z.rem_euclid(NATIVE_GEOMETRY.cell_width) as usize;
+                    let density = sampler.densities_4z(local_z / 4 * 4).to_array()[local_z % 4];
+                    assert!(
+                        density < 0.0,
+                        "case must require the aquifer's stone barrier"
+                    );
+                    let ctx = FunctionContext::new(x, y, z);
+                    assert_eq!(
+                        aquifer.compute_substance(&ctx, density),
+                        None,
+                        "actual native stone barrier at ({x},{y},{z})"
+                    );
+                }
+                let dry = aquifer.compute_fluid(16388, 2, -16396);
+                let wet = aquifer.compute_fluid(16386, 19, -16395);
+                assert_eq!(dry, FluidStatus::new(-32512, FluidType::Water));
+                assert_eq!(wet, FluidStatus::new(20, FluidType::Water));
+                for (y, expected) in [(9, 0x402c_0000_0000_0000_u64), (10, 0x4029_5555_5555_5555)] {
+                    let mut barrier = f64::NAN;
+                    let pressure = aquifer.calculate_pressure(
+                        &FunctionContext::new(16384, y, -16392),
+                        &mut barrier,
+                        &dry,
+                        &wet,
+                    );
+                    assert_eq!(
+                        pressure.to_bits(),
+                        expected,
+                        "actual native dry/wet pressure at y={y}"
+                    );
+                }
+            })
+            .unwrap()
+            .join()
+            .unwrap();
     }
 }

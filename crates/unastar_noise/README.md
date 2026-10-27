@@ -173,6 +173,12 @@ A raw canonical Java-state consumer must use its emitted Java IDs at the produce
 the word “native” describes numeric/material decisions, not interchangeable
 integer state domains. Do not copy a whole ore module across that cutover.
 
+The native aquifer uses the measured Java 1.21.11 dry-fluid sentinel `-32512`.
+The calibrated profile retains its previous sentinel. This is a semantic state
+value, not pressure tuning: a near-i32-minimum dry level overflows the dry/wet
+integer distance and can erase native stone barriers. Native regressions cover
+both primary and second/third pressure-pair barriers and captured raw pressures.
+
 `NativeColumnSampler::new(block_x, block_z, source)` owns the genuine
 one-horizontal-cell profile: floor-divided block origins, two Z columns of source
 planes, and just four quart evaluations for 4-wide cells or nine for 8-wide cells.
