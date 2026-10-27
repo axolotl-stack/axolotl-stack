@@ -1126,6 +1126,11 @@ The remaining density drift had two independent causes in modern native noise:
   amplitudes the retained value was `0.5009775171065493`, not the native
   `256 / 511` expression. Native constructors now derive the rational expression;
   calibrated constructors retain the original table.
+  Its old length-11-and-up fallback also used `2^length / (2^length-1)`,
+  exactly twice the native value; the checked-in jagged noise has 16 amplitudes.
+  The native rational constructor fixes that boundary too. The suggested link
+  to the Java owner's remaining MIN-seed terrain cases is still an inference
+  until its post-normalization runtime comparison, not a local parity claim.
 - The amplitude had been multiplied into persistence before sampling. Native
   temperature uses amplitude `1.5`, for which `(amplitude * sample) * persistence`
   can differ from `(amplitude * persistence) * sample`. Native scalar/SIMD sums
@@ -1195,4 +1200,23 @@ still require their separate post-normalization run. No new time comparison has
 been collected. After this completed checkpoint, a precisely bounded source-only
 handback was granted to WG-BEDROCK's aquatic native capture for
 20:57-21:09 UTC; it is neither an extension nor a standing benchmark hold.
+
+### Source-only review during the bounded native handback
+
+Native interpolation source planes already evaluate four Y corners at a time:
+`native_density.rs` emits `native_interpolation_sources_4` and passes it to
+`InterpolationCache::fill`. Reimplementing that SIMD batching is not a new win.
+
+The existing zero-Y leaf memo has a narrower scope: `emitter_quote.rs` enables it
+for the named `final_density` SIMD compute function. Native source-plane helpers
+are emitted directly and receive no such cache in `NativeCellSampler::fill_plane`.
+The archived D0/EAD A-B pair therefore measures that existing memo integration,
+not a demonstrated speedup of the new canonical native cell source path.
+
+Potential next slice, not implemented or measured: reuse a separately scoped
+zero-Y vector-result cache across native source-plane Y batches, retaining
+negative-zero lane keys, lazy evaluation and the exact native scalar/SIMD math.
+It must preserve the measured native material/corner bits and runtime holdouts,
+then improve actual completed-chunk throughput. No pipeline scheduling or
+Java-owner state-domain changes are part of this candidate.
 
