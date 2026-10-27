@@ -404,4 +404,60 @@ mod tests {
             }
         }
     }
+
+    #[test]
+    fn native_material_cache_preserves_measured_stone_boundaries() {
+        std::thread::Builder::new()
+            .stack_size(64 << 20)
+            .spawn(|| {
+                use unastar_noise::{
+                    ColumnContextGrid, FlatCacheGrid, NATIVE_GEOMETRY, NativeCellSampler,
+                };
+                let p = unastar_noise::overworld_settings::BLENDED_NOISE;
+                let registry = NoiseRegistry::with_router_settings(
+                    0,
+                    false,
+                    [
+                        p.xz_scale,
+                        p.y_scale,
+                        p.xz_factor,
+                        p.y_factor,
+                        p.smear_scale_multiplier,
+                    ],
+                );
+                let source = registry.java_source();
+                let flat = FlatCacheGrid::new_native(0, 0, &source);
+                let columns = ColumnContextGrid::new_native(0, 0, &source, &flat);
+                let mut sampler = NativeCellSampler::new(0, 0, &flat, &columns, &source);
+                sampler.initialize();
+                // Actual Java 1.21.11 seed0 empty-Beardifier material captures.
+                // Interpolating the entire nonlinear root made these water/air.
+                let cases = [
+                    (0_i32, 62_i32, 13_i32, 0x3f42_6065_3818_26f9_u64),
+                    (7, 63, 14, 0x3f20_0bd1_dded_487e),
+                ];
+                for cell_x in 0..=1 {
+                    sampler.advance_cell_x(cell_x);
+                    for (x, y, z, expected) in cases {
+                        if x.div_euclid(NATIVE_GEOMETRY.cell_width) as usize != cell_x {
+                            continue;
+                        }
+                        let cell_y = (y - NATIVE_GEOMETRY.min_y)
+                            .div_euclid(NATIVE_GEOMETRY.cell_height)
+                            as usize;
+                        let cell_z = z.div_euclid(NATIVE_GEOMETRY.cell_width) as usize;
+                        sampler.select_cell_yz(cell_y, cell_z);
+                        sampler.update_y(y);
+                        sampler.update_x(x);
+                        let local_z = z.rem_euclid(NATIVE_GEOMETRY.cell_width) as usize;
+                        let batch = local_z / 4 * 4;
+                        let actual = sampler.densities_4z(batch).to_array()[local_z % 4].to_bits();
+                        assert_eq!(actual, expected, "native material ({x},{y},{z})");
+                    }
+                }
+            })
+            .unwrap()
+            .join()
+            .unwrap();
+    }
 }

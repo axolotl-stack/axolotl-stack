@@ -138,7 +138,12 @@ pub fn emit_all(output_dir: &Path, inputs: &Inputs<'_>) -> Result<(), Box<dyn st
         ("vein_toggle", &router.vein_toggle),
     ];
     let graph = DependencyGraph::build(&router_fields, inputs.density_functions);
-    let mut emitter = emitter_quote::AotEmitter::new(&graph);
+    let mut emitter = emitter_quote::AotEmitter::new(&graph).with_geometry(
+        overworld.noise.min_y,
+        overworld.noise.height,
+        overworld.noise.size_horizontal * 4,
+        overworld.noise.size_vertical * 4,
+    );
     modules.glob("overworld_compiled", emitter.emit_module())?;
 
     biome_features::emit_biome_features(output_dir, inputs.biomes)?;
