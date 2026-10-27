@@ -13,6 +13,7 @@ pub fn write(pack: &Path, out: &Path) {
     for input in &schema_files {
         println!("cargo:rerun-if-changed={}", input.display());
     }
+    crate::component_defaults::write(&schema_files, out);
     let mut parser = actor::ActorParser::from_schemas(
         FilterRegistry::vanilla(),
         schema_files.iter().map(|input| {

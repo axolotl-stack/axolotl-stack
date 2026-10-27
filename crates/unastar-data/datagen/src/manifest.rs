@@ -221,6 +221,11 @@ pub fn write_manifest(output_dir: &Path, inputs: &ManifestInputs<'_>) -> miette:
             unastar_data::actor_definitions::parser().component_count(),
         ),
         (
+            "component_schema_defaults",
+            unastar_data::actor_definitions::COMPONENT_DEFAULTS_JSON,
+            unastar_data::actor_definitions::component_defaults_count(),
+        ),
+        (
             "actor_definitions",
             unastar_data::actor_definitions::VANILLA_JSON,
             unastar_data::actor_definitions::vanilla().len(),

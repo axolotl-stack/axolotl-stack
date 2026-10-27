@@ -5,6 +5,8 @@
 mod actors;
 #[path = "build/biomes.rs"]
 mod biomes;
+#[path = "build/component_defaults.rs"]
+mod component_defaults;
 #[path = "build/loot.rs"]
 mod loot;
 

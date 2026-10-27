@@ -11,6 +11,10 @@
     "count": 89,
     "sha256": "74b478a47c39d26a40df9b95df08d565d7d56be7549af318cf40717f7593d79f"
   },
+  "component_schema_defaults": {
+    "count": 406,
+    "sha256": "2b13c3ad2913bd8311a5e18f76146b6d9751d9cd2a4424dc36761452ddbb3143"
+  },
   "loot_tables": {
     "count": 508,
     "sha256": "32256b600a7b33082618f8946f867ed171dad3f371b48acbf217cf24b7d8b07b"

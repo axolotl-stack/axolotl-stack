@@ -62,6 +62,13 @@ Current golden artifacts:
   Build/runtime actor loading uses the same registry
   (`actor_definitions::parser()`); addon names register before loading. Only
   its count/hash is committed in the manifest.
+- `component_schema_defaults.json` (**OUT_DIR only**): published field defaults
+  for 406 component schemas, selecting each kind's latest stable numeric schema
+  version. Local references and inline overrides are resolved at build time;
+  false/zero defaults remain values and an absent default remains absent.
+  `actor_definitions::component_field_default` exposes these to startup prototype
+  compilers without merging them into actor bodies. Dynamic-value descriptions
+  are not invented defaults. Only counts/hashes are committed.
 - `blocks.kdl`: 1,477 native blocks and 22,091 states in **unaltered canonical
   NBT order**; each state retains typed properties, network hash and physical measurements.
   Native property tables and tags are also preserved. Generated block physical fields
