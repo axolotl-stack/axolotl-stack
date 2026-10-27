@@ -1128,9 +1128,9 @@ The remaining density drift had two independent causes in modern native noise:
   calibrated constructors retain the original table.
   Its old length-11-and-up fallback also used `2^length / (2^length-1)`,
   exactly twice the native value; the checked-in jagged noise has 16 amplitudes.
-  The native rational constructor fixes that boundary too. The suggested link
-  to the Java owner's remaining MIN-seed terrain cases is still an inference
-  until its post-normalization runtime comparison, not a local parity claim.
+  The native rational constructor fixes that boundary too. The combined
+  normalization correction clears the owner's remaining MIN/seed1 cases below;
+  no isolated jagged-only ablation or performance claim is implied.
 - The amplitude had been multiplied into persistence before sampling. Native
   temperature uses amplitude `1.5`, for which `(amplitude * sample) * persistence`
   can differ from `(amplitude * persistence) * sample`. Native scalar/SIMD sums
@@ -1219,4 +1219,32 @@ negative-zero lane keys, lazy evaluation and the exact native scalar/SIMD math.
 It must preserve the measured native material/corner bits and runtime holdouts,
 then improve actual completed-chunk throughput. No pipeline scheduling or
 Java-owner state-domain changes are part of this candidate.
+
+### Production native runtime proof after both math fixes
+
+The Java owner rebuilt its canonical production CLI with `3cbe2160` and
+`018f2d76`, then reran its complete finite NOISE/SURFACE corpora. Local read-only
+aggregation of both actual `after-precision-results.json` files verifies every
+exit is zero and every listed metric is present:
+
+| Owner-executed stage | Profiles | Voxels compared | State differences | Quart-biome differences | Heightmap differences | Actor-chunk differences |
+|---|---:|---:|---:|---:|---:|---:|
+| NOISE | 27 | 15,597,568 | 0 | 0 | 0 | 0 |
+| SURFACE | 24 | 13,762,560 | 0 | 0 | 0 | 0 |
+
+Reports are retained under
+`C:/Users/jvigu/orca/java-runtime/1.21.11/rust-native-noise-corpus-20261027/`
+and `rust-native-surface-corpus-20261027/`, each named
+`after-precision-results.json`. The owner reports all three dimensions,
+signed/extreme seeds, disjoint holdouts and the NOISE reverse-order case. The
+prior 187 residual NOISE state differences are now zero without changing floors,
+goldens or state-domain conversions. These are the owner's actual runtime runs,
+not additional executions by this worker; the local normal-release 148-bit
+production-kernel proof remains separate. Neither establishes complete finished
+feature/structure parity or a throughput win.
+
+The proposed aquatic handback was explicitly abandoned/released at 20:57:58 UTC:
+its resource guard rejected two Cargo processes and fresh ENT/ITEMS readiness was
+missing. No BDS/client was launched. No old hold was inherited; ordinary jobs1
+release hash/allocation validation resumed, with no timing lease.
 
