@@ -182,6 +182,16 @@ player-owned flags while preserving physics/fire and other owners' bits; the
 transition has a deterministic regression and a separate generated-codec smoke.
 Production join routing is unchanged.
 
+`entity::metadata::EntityMetadata` stores generated `DataItemEntry` payloads
+directly, including signed byte values, rather than maintaining a second wire
+union. Numeric writes retain sorted keys, coalesce repeated changes and preserve
+unknown numeric keys. Full snapshots and reusable change buffers are independent;
+copying a buffer does not acknowledge delivery. Float/vector comparisons use
+wire bits so identical NaNs do not generate changes and signed zero is retained.
+The headless ECS smoke mutated a replayed 68-field native instance and round-tripped
+both full and changed-field payloads through the generated codec. This state is
+not yet wired into production mob replication.
+
 `entity::properties::ActorPropertyRegistry` compiles BP property schemas once and
 caches `SyncActorProperty` packets for join. All 13 retained native descriptors
 match the compiled NBT, including enum order/ranges and native packet order.
