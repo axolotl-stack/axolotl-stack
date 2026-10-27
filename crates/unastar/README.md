@@ -391,6 +391,15 @@ The 48-case vanilla-bounds bank needed no scoped heap allocations during feature
 calls with preallocated worlds; spill cases reduced allocations without changing
 output. This is allocation evidence, not a wall-time or native geometry/RNG claim.
 
+Structure-set selection keeps up to 32 weighted candidates inline; the shipped
+sets contain one or 18 entries. Larger custom sets retain growable storage with
+the original allocation size. A 264-case comparison over both compiled sets,
+three signed seeds, signed regions and flat/sloped terrain preserved every
+selected piece descriptor, oracle-query count and continued RNG draw. Empty,
+all-rejected and 32/33/64-entry cases exercise the inline/spill boundary without
+changing selection or imposing a new size limit. This preserves the current
+model; native structure-grid seeding and legacy placement remain unmeasured.
+
 Molang `query.noise` is a stateless intrinsic in `molang_noise`, not a world-seeded
 Java noise instance. Its fixed permutation/hash gradients are evaluated at compile
 time; sampling keeps the measured native float32 operation order. Authored BDS

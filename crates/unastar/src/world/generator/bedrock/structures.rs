@@ -48,6 +48,7 @@
 use super::generated::{self, bb, props};
 use super::rng::BedrockRandom;
 use super::world::{BlockPos, BlockWorld, Ctx, OUT_OF_BOUNDS};
+use smallvec::SmallVec;
 use std::cmp::Reverse;
 
 /// "No index" marker in the tables (empty pool, no processors, no feature).
@@ -841,7 +842,8 @@ pub fn generate_start(
     min_y: i32,
     max_y: i32,
 ) -> Option<(usize, Vec<Piece>)> {
-    let mut remaining: Vec<(u16, u16)> = set.structures.to_vec();
+    // Vanilla sets contain one or 18 entries; larger custom sets still spill.
+    let mut remaining: SmallVec<[(u16, u16); 32]> = SmallVec::from_slice(set.structures);
     while !remaining.is_empty() {
         let total: i32 = remaining.iter().map(|&(_, w)| i32::from(w)).sum();
         let mut r = rng.next_int(total.max(1));
