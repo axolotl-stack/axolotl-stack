@@ -1052,9 +1052,11 @@ was rerun or suppressed. Passing serial E2 validation does not discharge them.
 | Static native AQ, lazy veins and structure hook | Done | Native AQ constructor/culling fields; richness-boundary/lazy-gap regression | `22e506b6` |
 | Genuine one-cell columns | Done | Narrow/wide bulk/column layouts, negative origins, quart caches, empty marker | `36cc965d` |
 | Canonical material regression | Done | Actual normal-release CLI and production test preserve two native stone boundaries | `92ea4f21` |
+| Native dry-fluid sentinel | Done | Failed-before AIR cases become native stone barriers; raw dry/wet pressure bits match | `3cbe2160` |
+| Native normalization and static storage | Done | 144 router + four material bits exact; 68-target hashes and all allocation ceilings unchanged | `018f2d76`, `053bf2f` |
 | Local main integration | Done | Conflict-free merge; scoped gates rerun afterward | `769b942b` |
-| SIMD memo wall-time A-B | Blocked | No fresh peer quorum; no comparison samples started | Existing runtime `ead92b2e`; archived D0/EAD pair unchanged |
-| Seven LevelDB Temp replacement failures | Unresolved | Not rerun, suppressed or attributed to environment | No storage changes in this dispatch |
+| SIMD memo wall-time A-B | Blocked | Fresh 22:05-22:15 slot canceled on Java's explicit BUSY; zero timed children | Existing runtime `ead92b2e`; archived D0/EAD pair unchanged |
+| Seven LevelDB Temp replacement failures | Resolved after real fix | Rebuilt native library/consumers; direct Windows reopen and all seven default-parallel core regressions pass | `6a1295d5` imports owner `4038d329` |
 
 The canonical smoke geometry line in `codegen/emitter/mod.rs` is a scoped
 owner-approved branch change, **not** a file to restore over the Java owner's
@@ -1279,4 +1281,47 @@ requests / 126,261,526 B and Bedrock exactly 64,590 / 69,468,288 B. The 64 B
 regression is removed, not accepted or hidden. Printed wall times were collected
 under shared load with instrumentation and turbo disabled (99% cap); they are
 not accepted speedup evidence. No golden, parity floor or ceiling was changed.
+
+### Fresh timing request: explicitly canceled, no samples
+
+After the allocation-green checkpoint, the 22:05-22:15 UTC proposal requested
+fresh ENT, Java, Bedrock, ITEMS and coordinator clearance. Power guard at 21:59
+reported AC1/battery99 and AC/DC caps99 (turbo disabled). The named process
+guard observed Java plus two Cargo processes; the Java command was the owner's
+one-thread native moss-task witness, not a Minecraft client. Neither a quiet
+machine nor a timing lease was assumed from earlier handbacks.
+
+The Java owner explicitly reported BUSY with the witness, physics/CENTER
+controls and consumer-smoke prerequisites. The slot was canceled immediately
+and every associated hold released; zero timed children ran. ENT's crossed late
+READY did not override the missing Java clearance, and the crossed native
+proposal was also explicitly canceled. No standing hold remains.
+
+The archived normal-release control/candidate hashes were reverified:
+`c456ba74b2e7b0238dc36b7f03d5a27d6dabece6fa425ac381d90017c974a4be`
+and `fa43041ce4c1284388c1445a9d5f3a79a9d9195ae30be0553aa74e405f9e8540`.
+A throwaway runner smoke exercised actual flat CLI JSON, inherited affinity
+`0x4`, AC checks before/after, refusal of an already-expired lease and killing/
+reaping its owned blocking child at an absolute deadline. These utility checks
+are not generation timing evidence.
+
+The coordinator has been asked to choose the next bounded quiet slot after
+the current native/correctness checkpoint, or retain the explicit timing
+blocker. Allocation-only success is not being reported as a wall-time speedup.
+
+### Final local main/acceptance checkpoint
+
+After the storage checkpoint, `git merge main` again reports already up to date.
+`cargo fmt --all`, strict four-crate all-target/all-feature clippy and the full
+`cargo test -p unastar -p unastar_noise --all-features --no-fail-fast -j 1` gate
+pass again with default test parallelism: 531 unastar units, 33 integration
+tests, 271 noise tests and one noise doctest; the existing unastar doctest remains
+ignored. That chain took 317.73 s under shared load, not a generation timing.
+The normal-release 68-target hashes, actual 148-bit native CLI proof and exact
+total/per-stage allocation ceilings above cover the same unchanged source.
+
+The Java owner has imported the typed native storage and owns its backend-field
+migration. Its `lib.rs` handoff is only the native-type export hunk; this
+branch's older optional `profile` module must not be restored wholesale into a
+consumer that has not imported performance instrumentation.
 
