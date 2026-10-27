@@ -268,6 +268,11 @@ impl GameServer {
         // Send inventory contents to enable inventory UI
         // Without these packets, the client won't allow opening the inventory
         self.send_inventory_contents(entity, session);
+        let crafting = world
+            .resource::<super::types::CraftingCatalogResource>()
+            .0
+            .packet();
+        let _ = session.send(McpePacket::from(crafting.as_ref().clone()));
 
         // Creative content is sent via WorldTemplate during the StartGame sequence
         // (see jolyne::stream::server). Network IDs are now correct from required_item_list.json.

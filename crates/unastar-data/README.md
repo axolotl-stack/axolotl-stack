@@ -108,20 +108,32 @@ furnace, brewing and smithing documents. The game server freezes one
 `recipes::RecipeRegistry` at startup and shares it through `RecipeRegistryResource`.
 `furnace_result(identifier, aux)` borrows a canonical `ResultItem` without JSON
 parsing, allocations or tag walks. `with_items(recipes, items)` permits an
-addon-capable item snapshot before freeze. Lower numeric recipe priority wins;
-exact and wildcard furnace inputs share the same priority ordering.
+addon-capable item snapshot before freeze; duplicate identifiers keep the first
+loaded recipe. The built-in pack projection resolves duplicate source files by
+newest format version, then later path, before loading that snapshot. Lower
+numeric recipe priority wins; exact and wildcard furnace inputs share the same
+priority ordering.
 
-Legacy furnace spellings (`minecraft:coal:1`, `minecraft:fish`, etc.) normalize
+Legacy recipe spellings (`minecraft:coal:1`, `minecraft:fish`, etc.) normalize
 through `data/measured/recipe_legacy_identities.json`, a small projection of the
 pinned 1.26.51 CraftingData capture; no raw/cooked mob table is maintained.
-Regenerate from this crate directory with:
+`recipes::native` loads the other measured facts absent from pack JSON:
+159 native shaped recipes, 1,241 native shapeless recipes, 1,456 user-data
+recipes, 14 stable multi-recipe identities, native result NBT/state identities,
+and 46 potion aux identities. Native variant UUID groups are retained by stable
+group names rather than captured random UUID values. Potion aux values are
+uniquely solved from the complete captured reagent-labelled graph, not a
+hand-written numeric enum. These are D4 measurements, not committed copies of
+pack-derived recipe rows. Regenerate all three measured files from this crate
+directory with:
 
 ```powershell
 python tools/extract_recipe_identities.py C:/Users/jvigu/orca/bds-runtime/captures/1.26.51/20261025T172246Z/member/join/00054-CraftingDataPacket.json
 ```
 
-This registry prerequisite supplies furnace lookup; it does not advertise a
-CraftingData packet or execute crafting yet.
+Unastar's `crafting::CraftingCatalog` consumes these families into one frozen
+advertisement and recipe-network-id index. Crafting execution is a separate
+inventory-engine slice.
 
 Generated `blocks::BlockData` also carries the native block-level physics
 (`friction`, `material`, `blocks_motion`, `liquid`, `solid`, `falling`,

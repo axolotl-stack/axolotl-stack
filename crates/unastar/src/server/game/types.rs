@@ -29,6 +29,10 @@ pub struct ItemRegistryResource(pub Arc<crate::registry::ItemRegistry>);
 #[derive(Resource)]
 pub struct RecipeRegistryResource(pub Arc<unastar_data::recipes::RecipeRegistry>);
 
+/// Frozen advertisement and network-id/source index, built with the recipe snapshot.
+#[derive(Resource)]
+pub struct CraftingCatalogResource(pub crate::crafting::CraftingCatalog);
+
 /// Wrapper for BlockRegistry to serve as an ECS Resource.
 #[derive(Resource)]
 pub struct BlockRegistryResource(pub Arc<crate::registry::BlockRegistry>);

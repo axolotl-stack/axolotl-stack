@@ -30,6 +30,9 @@ $py = 'C:/Users/jvigu/orca/bds-runtime/venv/Scripts/python.exe'
 | `armor_values.json` | `{item: {slot, defense, toughness_range, per_hit}}`: health lost per hit for each damage amount; `defense` exact (from a 1000-point hit); `toughness_range` = interval per damage amount where the 1/hits read-out resolves it, else null (formula in `summarize.py`) | wearing only that (unbreakable) item, `/damage <player> D entity_attack` repeated past the hurt cooldown, max health 2000, natural regeneration off |
 | `attack_damage.json` | `{tool key: {tool_item, damage: [per trial], consistent}}` | the scripted player attacks a fresh pig (InventoryTransaction attack); Endstone `ActorDamageEvent` value |
 | `mining_ticks.json` | `{block state: {variant: {ticks: [3 trials], median, tool_item, commands, on_ground, in_water}}}`; variants: tool key plus `+efficiencyN`, `+haste1`, `+haste2`, `+mining_fatigue1`, `+underwater`. Airborne is not measured (levitation lifts the player out of reach) | the scripted player keeps mining (Start/ContinueDestroyBlock); ticks from the click event to the break event (±1 tick) |
+| `recipe_legacy_identities.json` | canonical input/output item and aux identities for legacy recipe spellings | pinned 1.26.51 CraftingData capture; `../../tools/extract_recipe_identities.py` |
+| `builtin_recipes.json` | native shaped/shapeless/user-data recipes absent from pack JSON, stable UUID groups/multi identities, result NBT and canonical block states (`null` explicitly means no block state) | same pinned capture; transient network ids/random UUID values discarded; source SHA-256 included |
+| `potion_types.json` | lowercase pack potion type identifier to measured aux | unique labelled-graph solution against all captured brewing edges; source SHA-256 included |
 
 `loot_table` uses the behaviour-pack loot-table schema (`pools`, `rolls`,
 `entries` of `type` `item`/`empty`, `weight`, `functions` `set_count` and

@@ -7,6 +7,7 @@
 
 pub mod command;
 pub mod config;
+pub mod crafting;
 pub mod ecs;
 pub mod entity;
 pub mod item;

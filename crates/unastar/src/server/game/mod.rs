@@ -146,6 +146,8 @@ impl GameServer {
         items.load_vanilla();
         let recipes = unastar_data::recipes::RecipeRegistry::vanilla()
             .expect("embedded vanilla recipes compile against the item registry");
+        let crafting_catalog = crate::crafting::CraftingCatalog::new(&recipes, &items)
+            .expect("vanilla crafting advertisement compiles");
         let definitions = crate::registry::entity::ActorDefinitionRegistry::vanilla();
         let mut entities = EntityRegistry::new();
         entities.load_vanilla(&definitions);
@@ -206,6 +208,8 @@ impl GameServer {
         ecs.world_mut().insert_resource(ItemEntityIdCounter(100000));
         ecs.world_mut()
             .insert_resource(types::RecipeRegistryResource(Arc::new(recipes)));
+        ecs.world_mut()
+            .insert_resource(types::CraftingCatalogResource(crafting_catalog));
         ecs.world_mut()
             .init_resource::<crate::entity::EntityRandom>();
         ecs.world_mut().init_resource::<falling::GravityChecks>();

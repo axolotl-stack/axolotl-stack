@@ -136,6 +136,30 @@ one frozen `server::game::types::RecipeRegistryResource`. Furnace consumers call
 source loot count is preserved by the caller. The lookup parses no JSON and
 does not use a hardcoded raw/cooked mob table.
 
+`CraftingCatalogResource` caches the complete `CraftingDataPacket` and a
+recipe-id/source index for inventory consumers. A player join advertises it
+after the initial inventory synchronization. Pack recipes include shaped,
+shapeless, furnace/station-tag rows, smithing, brewing and stonecutter recipes;
+typed measured facts supply native recipes absent from pack JSON. Every station
+tag gets its own recipe net id and UUID; native variant groups share UUIDs as BDS
+does. The catalog is compiled once, not rebuilt from JSON for each player.
+
+The full 1.26.51 capture acceptance test exercises a real `GameServer` player
+spawn and encodes/decodes the actual outbound advertisement. It compares every
+field after unordered-row matching, arbitrary recipe-id/UUID value normalization,
+and conversion of captured block hashes to negotiated canonical ordinals. UUID
+equivalence classes and nonzero unique recipe ids are checked before
+normalization. The capture stays in the untracked extractor cache, pinned by
+SHA-256; without the environment variable this external-oracle test skips.
+
+```powershell
+$env:UNASTAR_CRAFTING_DATA_CAPTURE = 'C:/Users/jvigu/orca/bds-runtime/captures/1.26.51/20261025T172246Z/member/join/00054-CraftingDataPacket.bin'
+cargo test -p unastar --test crafting_data_parity -- --nocapture
+```
+
+This packet-content gate does not claim whole join-sequence or crafting-execution
+parity.
+
 ## Actor registries and data
 
 `registry::entity::ActorDefinitionRegistryBuilder` accepts vanilla/addon rows
