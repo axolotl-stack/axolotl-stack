@@ -150,6 +150,17 @@ and decoded once at startup; see `../unastar-data/README.md` for prerequisites.
 Runtime rules/loot evaluation is in the bevy-free `unastar-rules` crate.
 These data/registry checks do not establish mob gameplay or crafted-pack parity.
 
+Actor metadata keys/flag indices come from Valentine's generated Mojang reference
+catalog, not a handwritten runtime table. Its protocol2168 provenance remains
+explicit; no complete2193 catalog claim is made. Retained 1.26.51 cow/chicken
+`AddActor` controls check the default air, dimensions and physics flags; the
+native member-join control checks initial player flags/air. Initial player
+metadata does not force `BREATHING` merely because air supply is300.
+Living health is an attribute, not actor-data key1 (structural integrity).
+An actual headless ECS spawn/tick and session-channel encode/decode smoke
+exercised the production join path without sockets or launching a server.
+
+
 ### Measured item and falling-block motion
 
 Grounded item drag applies default block friction (0.6) even when the

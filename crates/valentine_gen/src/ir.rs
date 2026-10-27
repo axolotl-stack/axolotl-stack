@@ -151,3 +151,14 @@ pub struct Packet {
     pub name: String, // "Login"
     pub body: Container,
 }
+
+/// Versioned numeric protocol symbols with no independent wire codec.
+/// Multiple names may intentionally identify the same numeric value.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct SymbolTable {
+    pub id: String,
+    pub name: String,
+    /// Reference source and version; not a claim of target-version wire shape.
+    pub documentation: String,
+    pub values: Vec<(String, u32)>,
+}

@@ -689,6 +689,7 @@ fn actor_spawn_packet(
     body: &PhysicsBody,
     items: &crate::registry::ItemRegistry,
 ) -> Option<McpePacket> {
+    use jolyne::valentine::actor_data_i_ds as actor_data_ids;
     use jolyne::valentine::types::{
         DataItemEntry, DataItemEntryPayload, DataItemInt64Payload, EnumsDataItemType,
     };
@@ -714,14 +715,14 @@ fn actor_spawn_packet(
             actor_data: SynchedActorDataCopyableDataList {
                 data: vec![
                     DataItemEntry {
-                        id: 2,
+                        id: actor_data_ids::VARIANT,
                         payload: DataItemEntryPayload::DataItemIntPayload(DataItemIntPayload {
                             type_: EnumsDataItemType::Int,
                             value: falling.state as i32,
                         }),
                     },
-                    float(53, body.width as f32),
-                    float(54, body.height as f32),
+                    float(actor_data_ids::RESERVED_053, body.width as f32),
+                    float(actor_data_ids::RESERVED_054, body.height as f32),
                 ],
             },
             ..Default::default()
@@ -741,7 +742,7 @@ fn actor_spawn_packet(
         velocity: wire_vec(velocity),
         entity_data: SynchedActorDataCopyableDataList {
             data: vec![DataItemEntry {
-                id: crate::entity::metadata::keys::OWNER,
+                id: actor_data_ids::OWNER,
                 payload: DataItemEntryPayload::DataItemInt64Payload(DataItemInt64Payload {
                     type_: EnumsDataItemType::Int64,
                     value: owner.0,

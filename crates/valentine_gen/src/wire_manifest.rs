@@ -365,6 +365,7 @@ mod tests {
     #[test]
     fn recursively_flattens_references_and_preserves_wire_structure() {
         let parsed = ParseResult {
+            symbols: Vec::new(),
             packets: vec![Packet {
                 id: 7,
                 name: "Fixture".to_string(),
@@ -444,6 +445,7 @@ mod tests {
     #[test]
     fn marks_recursive_references_without_recursing_forever() {
         let parsed = ParseResult {
+            symbols: Vec::new(),
             packets: vec![Packet {
                 id: 1,
                 name: "Recursive".to_string(),

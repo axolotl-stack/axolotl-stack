@@ -166,6 +166,7 @@ pub fn parse(
         "Parsed Mojang protocol schemas"
     );
     Ok(ParseResult {
+        symbols: Vec::new(),
         packets,
         types: lowerer.types,
     })
