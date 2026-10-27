@@ -6,8 +6,14 @@
 use crate::world::generator::noise::{BlendedNoise, DoublePerlinNoise};
 use crate::world::generator::xoroshiro::PositionalRandomFactory;
 use std::simd::prelude::*;
+use unastar_noise::features::random::LegacyRandom;
 
 use unastar_noise::{NOISE_PARAMS, NoiseRef, NoiseSource, overworld_settings, random_hashes};
+
+enum RouterRandomFactory {
+    Xoroshiro(PositionalRandomFactory),
+    Legacy(i64),
+}
 
 /// Registry of instantiated noise functions (created from seed).
 ///
@@ -23,12 +29,45 @@ pub struct NoiseRegistry {
     end_islands: std::sync::OnceLock<unastar_noise::end_islands::EndIslands>,
 }
 
+/// Borrowed native Java arithmetic, statically selected outside the material loop.
+/// The registry's ordinary NoiseSource implementation retains calibrated math.
+pub struct JavaNoiseSource<'a> {
+    registry: &'a NoiseRegistry,
+}
+
 impl NoiseRegistry {
     /// Instantiate every noise for a seed the way Java's `RandomState` does: each noise is
     /// seeded from the world's positional factory by `fromHashOf("minecraft:<noise>")`,
     /// the blended terrain noise by `fromHashOf("minecraft:terrain")`.
     pub fn new(seed: i64) -> Self {
-        let base = PositionalRandomFactory::new(seed);
+        let params = overworld_settings::BLENDED_NOISE;
+        Self::build(
+            seed,
+            false,
+            [
+                params.xz_scale,
+                params.y_scale,
+                params.xz_factor,
+                params.y_factor,
+                params.smear_scale_multiplier,
+            ],
+            false,
+        )
+    }
+
+    /// Seed a dimension router using its native RNG family and blended-noise scales.
+    /// `blended` is xz_scale, y_scale, xz_factor, y_factor, smear_scale_multiplier.
+    /// Sampling remains statically dispatched through the same numeric noise tables.
+    pub fn with_router_settings(seed: i64, legacy_random_source: bool, blended: [f64; 5]) -> Self {
+        Self::build(seed, legacy_random_source, blended, true)
+    }
+
+    fn build(seed: i64, legacy_random_source: bool, blended: [f64; 5], native: bool) -> Self {
+        let base = if legacy_random_source {
+            RouterRandomFactory::Legacy(LegacyRandom::new(seed).next_long())
+        } else {
+            RouterRandomFactory::Xoroshiro(PositionalRandomFactory::new(seed))
+        };
         let mut noises = Vec::with_capacity(NoiseRef::COUNT);
         for (noise_ref, params) in NOISE_PARAMS.iter() {
             debug_assert_eq!(
@@ -36,24 +75,56 @@ impl NoiseRegistry {
                 *noise_ref as usize,
                 "NOISE_PARAMS out of order"
             );
-            let mut rng = base.from_hash(params.hash);
-            noises.push(DoublePerlinNoise::new(
-                &mut rng,
-                params.amplitudes,
-                params.first_octave,
-            ));
+            let noise = match &base {
+                RouterRandomFactory::Xoroshiro(base) => {
+                    let mut rng = base.from_hash(params.hash);
+                    if native {
+                        DoublePerlinNoise::new_java(
+                            &mut rng,
+                            params.amplitudes,
+                            params.first_octave,
+                        )
+                    } else {
+                        DoublePerlinNoise::new(&mut rng, params.amplitudes, params.first_octave)
+                    }
+                }
+                RouterRandomFactory::Legacy(factory_seed) => match noise_ref {
+                    NoiseRef::Temperature => {
+                        DoublePerlinNoise::legacy_nether_biome(&mut LegacyRandom::new(seed))
+                    }
+                    NoiseRef::Vegetation => DoublePerlinNoise::legacy_nether_biome(
+                        &mut LegacyRandom::new(seed.wrapping_add(1)),
+                    ),
+                    _ => {
+                        let mut rng = LegacyRandom::new(
+                            factory_seed ^ i64::from(noise_ref.legacy_name_hash()),
+                        );
+                        if *noise_ref == NoiseRef::Offset {
+                            DoublePerlinNoise::new_legacy(&mut rng, &[0.0], 0)
+                        } else {
+                            DoublePerlinNoise::new_legacy(
+                                &mut rng,
+                                params.amplitudes,
+                                params.first_octave,
+                            )
+                        }
+                    }
+                },
+            };
+            noises.push(noise);
         }
 
-        let params = overworld_settings::BLENDED_NOISE;
-        let mut blended_rng = base.from_hash(random_hashes::TERRAIN);
-        let blended_noise = BlendedNoise::new(
-            &mut blended_rng,
-            params.xz_scale,
-            params.y_scale,
-            params.xz_factor,
-            params.y_factor,
-            params.smear_scale_multiplier,
-        );
+        let [xz_scale, y_scale, xz_factor, y_factor, smear] = blended;
+        let blended_noise = match &base {
+            RouterRandomFactory::Xoroshiro(base) => {
+                let mut rng = base.from_hash(random_hashes::TERRAIN);
+                BlendedNoise::new(&mut rng, xz_scale, y_scale, xz_factor, y_factor, smear)
+            }
+            RouterRandomFactory::Legacy(_) => {
+                let mut rng = LegacyRandom::new(seed);
+                BlendedNoise::new(&mut rng, xz_scale, y_scale, xz_factor, y_factor, smear)
+            }
+        };
 
         Self {
             noises,
@@ -61,6 +132,12 @@ impl NoiseRegistry {
             seed,
             end_islands: std::sync::OnceLock::new(),
         }
+    }
+
+    /// Select native Java scalar/SIMD arithmetic once, without hot-path dyn dispatch.
+    #[inline]
+    pub fn java_source(&self) -> JavaNoiseSource<'_> {
+        JavaNoiseSource { registry: self }
     }
 
     /// Get a noise by reference - O(1) array index.
@@ -129,6 +206,53 @@ impl NoiseSource for NoiseRegistry {
     }
 }
 
+impl NoiseSource for JavaNoiseSource<'_> {
+    #[inline]
+    fn sample(&self, noise_ref: NoiseRef, x: f64, y: f64, z: f64) -> f64 {
+        self.registry.get(noise_ref).sample_java(x, y, z)
+    }
+
+    #[inline]
+    fn sample_4(&self, noise_ref: NoiseRef, x: f64x4, y: f64x4, z: f64x4) -> f64x4 {
+        self.registry.get(noise_ref).sample_java_4(x, y, z)
+    }
+
+    #[inline]
+    fn sample_end_islands(&self, block_x: i32, block_z: i32) -> f64 {
+        self.registry.sample_end_islands(block_x, block_z)
+    }
+
+    #[inline]
+    fn sample_blended_noise(
+        &self,
+        x: f64,
+        y: f64,
+        z: f64,
+        _xz_scale: f64,
+        _y_scale: f64,
+        _xz_factor: f64,
+        _y_factor: f64,
+        _smear: f64,
+    ) -> f64 {
+        self.registry.blended_noise.sample_java(x, y, z)
+    }
+
+    #[inline]
+    fn sample_blended_noise_4(
+        &self,
+        x: f64,
+        y: f64x4,
+        z: f64,
+        _xz_scale: f64,
+        _y_scale: f64,
+        _xz_factor: f64,
+        _y_factor: f64,
+        _smear: f64,
+    ) -> f64x4 {
+        self.registry.blended_noise.sample_java_4(x, y, z)
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::{NoiseRegistry, NoiseSource};
@@ -150,6 +274,120 @@ mod tests {
                 expected,
                 "native registry End density seed={seed} block=({x},{z})"
             );
+        }
+    }
+
+    #[test]
+    fn legacy_java_climate_matches_native_scalar_and_simd_bits() {
+        #[derive(serde::Deserialize)]
+        struct Fixture {
+            cases: Vec<Case>,
+        }
+        #[derive(serde::Deserialize)]
+        struct Case {
+            seed: i64,
+            points: [Point; 4],
+        }
+        #[derive(serde::Deserialize)]
+        struct Point {
+            block: [i32; 3],
+            temperature: String,
+            vegetation: String,
+        }
+        let fixture: Fixture = serde_json::from_str(include_str!(concat!(
+            env!("CARGO_MANIFEST_DIR"),
+            "/tests/fixtures/java_legacy_climate_bits.json",
+        )))
+        .unwrap();
+        for case in fixture.cases {
+            let registry = NoiseRegistry::with_router_settings(
+                case.seed,
+                true,
+                [0.25, 0.375, 80.0, 60.0, 8.0],
+            );
+            let source = registry.java_source();
+            let xs = case.points.each_ref().map(|p| f64::from(p.block[0]) * 0.25);
+            let zs = case.points.each_ref().map(|p| f64::from(p.block[2]) * 0.25);
+            for (noise, bits) in [
+                (
+                    unastar_noise::NoiseRef::Temperature,
+                    case.points
+                        .each_ref()
+                        .map(|p| u64::from_str_radix(&p.temperature, 16).unwrap()),
+                ),
+                (
+                    unastar_noise::NoiseRef::Vegetation,
+                    case.points
+                        .each_ref()
+                        .map(|p| u64::from_str_radix(&p.vegetation, 16).unwrap()),
+                ),
+            ] {
+                for lane in 0..4 {
+                    assert_eq!(
+                        source.sample(noise, xs[lane], 0.0, zs[lane]).to_bits(),
+                        bits[lane],
+                        "native scalar climate seed={} noise={noise:?} block={:?}",
+                        case.seed,
+                        case.points[lane].block
+                    );
+                }
+                let vector = source.sample_4(
+                    noise,
+                    super::f64x4::from_array(xs),
+                    super::f64x4::splat(0.0),
+                    super::f64x4::from_array(zs),
+                );
+                assert_eq!(
+                    vector.to_array().map(f64::to_bits),
+                    bits,
+                    "native SIMD climate seed={} noise={noise:?}",
+                    case.seed
+                );
+            }
+        }
+    }
+
+    #[test]
+    fn java_blended_simd_preserves_scalar_bits_across_smear_and_height_boundaries() {
+        for seed in [0_i64, -1, i64::MAX] {
+            for parameters in [
+                [0.25, 0.375, 80.0, 60.0, 8.0],
+                [0.25, 0.25, 80.0, 160.0, 4.0],
+            ] {
+                let registry = NoiseRegistry::with_router_settings(seed, true, parameters);
+                let source = registry.java_source();
+                let [xz_scale, y_scale, xz_factor, y_factor, smear] = parameters;
+                for (x, z) in [
+                    (-29_999_999.0, 29_999_999.0),
+                    (-1.0, 1.0),
+                    (0.0, 0.0),
+                    (1024.0, -1024.0),
+                ] {
+                    let ys = [-64.0, 63.0, 64.0, 127.0];
+                    let expected = ys.map(|y| {
+                        source
+                            .sample_blended_noise(
+                                x, y, z, xz_scale, y_scale, xz_factor, y_factor, smear,
+                            )
+                            .to_bits()
+                    });
+                    let actual = source.sample_blended_noise_4(
+                        x,
+                        super::f64x4::from_array(ys),
+                        z,
+                        xz_scale,
+                        y_scale,
+                        xz_factor,
+                        y_factor,
+                        smear,
+                    );
+                    assert_eq!(
+                        actual.to_array().map(f64::to_bits),
+                        expected,
+                        "native blended SIMD seed={seed} block=({x},{z}) parameters={parameters:?}"
+                    );
+                }
+            }
         }
     }
 }

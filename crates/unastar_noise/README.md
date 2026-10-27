@@ -114,6 +114,28 @@ inner node may reuse a `cache_2d` wrapper registered by another root even when
 that wrapper is not a structural descendant. The compiled End regression covers
 this cross-root alias without substituting zero or recomputing cached values.
 
+## Native Java numeric source
+
+`NoiseRegistry::with_router_settings(seed, legacy_random_source, blended)` accepts
+the router's five blended-noise parameters in XZ scale, Y scale, XZ factor, Y
+factor, smear order. Use its borrowed `java_source()` adapter for statically
+dispatched Java scalar/SIMD arithmetic. The default `NoiseRegistry::new(seed)`
+and ordinary registry `NoiseSource` implementation preserve the calibrated
+terrain backend; selecting native Java math does not silently change Bedrock.
+
+Native constructors distinguish legacy positional string hashes, fixed legacy
+Nether temperature/vegetation streams, the zero legacy offset stream, and raw
+world-seeded legacy blended noise. Name/octave string hashes are generated at
+build time. Explicit `sample_java`/`sample_java_4` entrypoints use unfused
+interpolation, centered coordinate wrapping and the promoted native float smear
+epsilon; existing fused entrypoints keep their previous arithmetic.
+
+Pinned seed-boundary/holdout regressions cover raw native climate bits in scalar
+and SIMD lanes. A temporary actual-registry corpus smoke matched 984 native
+Nether climate fields in both modes and 492 native raw Nether density fields;
+1,968 blended SIMD lanes also matched their scalar bits. These numeric proofs do
+not establish finished three-dimension chunk parity or complete surface behavior.
+
 ## Block identity
 
 Generated code works in Bedrock runtime ids (`u32`, the canonical 1.26.51 palette ordinals

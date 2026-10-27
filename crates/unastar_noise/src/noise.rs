@@ -4,6 +4,7 @@
 //! Uses portable SIMD for cross-platform vectorization.
 
 use super::xoroshiro::Xoroshiro128;
+use crate::features::random::LegacyRandom;
 use std::simd::Select;
 use std::simd::StdFloat;
 use std::simd::prelude::*;
@@ -115,6 +116,18 @@ impl PerlinNoise {
     /// Sample 3D Perlin noise - cubiomes-accurate (scalar).
     #[inline]
     pub fn sample(&self, x: f64, y: f64, z: f64) -> f64 {
+        self.sample_with_lerp::<true>(x, y, z)
+    }
+
+    /// Native Java scalar arithmetic without fused interpolation. This is an
+    /// explicit edition entrypoint; the calibrated fused sampler stays unchanged.
+    #[inline]
+    pub fn sample_java(&self, x: f64, y: f64, z: f64) -> f64 {
+        self.sample_with_lerp::<false>(x, y, z)
+    }
+
+    #[inline]
+    fn sample_with_lerp<const FUSED: bool>(&self, x: f64, y: f64, z: f64) -> f64 {
         // Handle y=0 special case (use precomputed values)
         let (d2, h2, t2) = if y == 0.0 {
             (self.d2, self.h2, self.t2)
@@ -168,15 +181,15 @@ impl PerlinNoise {
         );
 
         // Trilinear interpolation
-        let l1 = lerp(t1, l1, l2);
-        let l3 = lerp(t1, l3, l4);
-        let l5 = lerp(t1, l5, l6);
-        let l7 = lerp(t1, l7, l8);
+        let l1 = lerp_with::<FUSED>(t1, l1, l2);
+        let l3 = lerp_with::<FUSED>(t1, l3, l4);
+        let l5 = lerp_with::<FUSED>(t1, l5, l6);
+        let l7 = lerp_with::<FUSED>(t1, l7, l8);
 
-        let l1 = lerp(t2, l1, l3);
-        let l5 = lerp(t2, l5, l7);
+        let l1 = lerp_with::<FUSED>(t2, l1, l3);
+        let l5 = lerp_with::<FUSED>(t2, l5, l7);
 
-        lerp(t3, l1, l5)
+        lerp_with::<FUSED>(t3, l1, l5)
     }
 
     /// Sample 2D noise (y=0).
@@ -210,6 +223,18 @@ impl PerlinNoise {
     /// ```
     #[inline]
     pub fn sample_smeared(&self, x: f64, y: f64, z: f64, y_scale: f64, y_orig: f64) -> f64 {
+        self.sample_smeared_with_lerp::<true>(x, y, z, y_scale, y_orig)
+    }
+
+    #[inline]
+    fn sample_smeared_with_lerp<const FUSED: bool>(
+        &self,
+        x: f64,
+        y: f64,
+        z: f64,
+        y_scale: f64,
+        y_orig: f64,
+    ) -> f64 {
         // Add offsets (only to the sampling coordinates, NOT to y_orig)
         let d1 = x + self.a;
         let d2_raw = y + self.b; // Java: j = e + this.yo
@@ -234,7 +259,12 @@ impl PerlinNoise {
         // s = floor(r / g + epsilon) * g
         let s = if y_scale != 0.0 {
             let r = if h >= 0.0 && h < d2 { h } else { d2 };
-            (r / y_scale + 1.0e-7_f64).floor() * y_scale
+            let epsilon = if FUSED {
+                1.0e-7_f64
+            } else {
+                f64::from(1.0e-7_f32)
+            };
+            (r / y_scale + epsilon).floor() * y_scale
         } else {
             0.0
         };
@@ -294,15 +324,15 @@ impl PerlinNoise {
         );
 
         // Trilinear interpolation
-        let l1 = lerp(t1, l1, l2);
-        let l3 = lerp(t1, l3, l4);
-        let l5 = lerp(t1, l5, l6);
-        let l7 = lerp(t1, l7, l8);
+        let l1 = lerp_with::<FUSED>(t1, l1, l2);
+        let l3 = lerp_with::<FUSED>(t1, l3, l4);
+        let l5 = lerp_with::<FUSED>(t1, l5, l6);
+        let l7 = lerp_with::<FUSED>(t1, l7, l8);
 
-        let l1 = lerp(t2, l1, l3);
-        let l5 = lerp(t2, l5, l7);
+        let l1 = lerp_with::<FUSED>(t2, l1, l3);
+        let l5 = lerp_with::<FUSED>(t2, l5, l7);
 
-        lerp(t3, l1, l5)
+        lerp_with::<FUSED>(t3, l1, l5)
     }
 
     /// Sample 4 noise values with Y-smearing using portable SIMD.
@@ -319,6 +349,18 @@ impl PerlinNoise {
     /// * `y_orig` - Original Y values for clamping comparison (NOT offset by yo)
     #[inline]
     pub fn sample_smeared_4(
+        &self,
+        x: f64x4,
+        y: f64x4,
+        z: f64x4,
+        y_scale: f64,
+        y_orig: f64x4,
+    ) -> f64x4 {
+        self.sample_smeared_4_with_lerp::<true>(x, y, z, y_scale, y_orig)
+    }
+
+    #[inline]
+    fn sample_smeared_4_with_lerp<const FUSED: bool>(
         &self,
         x: f64x4,
         y: f64x4,
@@ -351,7 +393,7 @@ impl PerlinNoise {
         // Java: s = floor(r / g + epsilon) * g
         let d2_smeared = if y_scale != 0.0 {
             let y_scale_v = f64x4::splat(y_scale);
-            let epsilon = f64x4::splat(1.0e-7);
+            let epsilon = f64x4::splat(if FUSED { 1.0e-7 } else { f64::from(1.0e-7_f32) });
 
             // Mask: h >= 0.0 && h < d2
             let mask_ge_zero = y_orig.simd_ge(zero);
@@ -375,9 +417,9 @@ impl PerlinNoise {
         let h3 = i3_vec.cast::<i32>() & mask_255;
 
         // Compute smoothstep using ORIGINAL d2 (not smeared)
-        let t1 = smoothstep_simd(d1);
-        let t2 = smoothstep_simd(d2); // Original d2 for smoothstep
-        let t3 = smoothstep_simd(d3);
+        let t1 = smoothstep_simd::<FUSED>(d1);
+        let t2 = smoothstep_simd::<FUSED>(d2); // Original d2 for smoothstep
+        let t3 = smoothstep_simd::<FUSED>(d3);
 
         // --- HASHING using gather ---
         let d_slice = &self.d;
@@ -434,15 +476,15 @@ impl PerlinNoise {
         let l8 = indexed_lerp_simd(grad_b3p1, d1_m1, d2_smeared_m1, d3_m1);
 
         // Trilinear interpolation using ORIGINAL d2's smoothstep
-        let l1 = lerp_simd(t1, l1, l2);
-        let l3 = lerp_simd(t1, l3, l4);
-        let l5 = lerp_simd(t1, l5, l6);
-        let l7 = lerp_simd(t1, l7, l8);
+        let l1 = lerp_simd::<FUSED>(t1, l1, l2);
+        let l3 = lerp_simd::<FUSED>(t1, l3, l4);
+        let l5 = lerp_simd::<FUSED>(t1, l5, l6);
+        let l7 = lerp_simd::<FUSED>(t1, l7, l8);
 
-        let l1 = lerp_simd(t2, l1, l3);
-        let l5 = lerp_simd(t2, l5, l7);
+        let l1 = lerp_simd::<FUSED>(t2, l1, l3);
+        let l5 = lerp_simd::<FUSED>(t2, l5, l7);
 
-        lerp_simd(t3, l1, l5)
+        lerp_simd::<FUSED>(t3, l1, l5)
     }
 
     /// Sample 4 noise values simultaneously using portable SIMD.
@@ -453,6 +495,17 @@ impl PerlinNoise {
     /// - Any arbitrary combination
     #[inline]
     pub fn sample_4(&self, x: f64x4, y: f64x4, z: f64x4) -> f64x4 {
+        self.sample_4_with_lerp::<true>(x, y, z)
+    }
+
+    /// Native Java arithmetic in four lanes, without scalar fallbacks or allocations.
+    #[inline]
+    pub fn sample_java_4(&self, x: f64x4, y: f64x4, z: f64x4) -> f64x4 {
+        self.sample_4_with_lerp::<false>(x, y, z)
+    }
+
+    #[inline]
+    fn sample_4_with_lerp<const FUSED: bool>(&self, x: f64x4, y: f64x4, z: f64x4) -> f64x4 {
         let one = f64x4::splat(1.0);
         let mask_255 = i32x4::splat(255);
         let mask_15 = i32x4::splat(15);
@@ -478,9 +531,9 @@ impl PerlinNoise {
         let h3 = i3_vec.cast::<i32>() & mask_255;
 
         // Compute smoothstep
-        let t1 = smoothstep_simd(d1);
-        let t2 = smoothstep_simd(d2);
-        let t3 = smoothstep_simd(d3);
+        let t1 = smoothstep_simd::<FUSED>(d1);
+        let t2 = smoothstep_simd::<FUSED>(d2);
+        let t3 = smoothstep_simd::<FUSED>(d3);
 
         // --- HASHING using gather ---
         let d_slice = &self.d;
@@ -538,15 +591,15 @@ impl PerlinNoise {
         let l8 = indexed_lerp_simd(grad_b3p1, d1_m1, d2_m1, d3_m1);
 
         // Trilinear interpolation
-        let l1 = lerp_simd(t1, l1, l2);
-        let l3 = lerp_simd(t1, l3, l4);
-        let l5 = lerp_simd(t1, l5, l6);
-        let l7 = lerp_simd(t1, l7, l8);
+        let l1 = lerp_simd::<FUSED>(t1, l1, l2);
+        let l3 = lerp_simd::<FUSED>(t1, l3, l4);
+        let l5 = lerp_simd::<FUSED>(t1, l5, l6);
+        let l7 = lerp_simd::<FUSED>(t1, l7, l8);
 
-        let l1 = lerp_simd(t2, l1, l3);
-        let l5 = lerp_simd(t2, l5, l7);
+        let l1 = lerp_simd::<FUSED>(t2, l1, l3);
+        let l5 = lerp_simd::<FUSED>(t2, l5, l7);
 
-        lerp_simd(t3, l1, l5)
+        lerp_simd::<FUSED>(t3, l1, l5)
     }
 
     /// Convenience: sample 4 points with arrays (converts to SIMD internally).
@@ -563,13 +616,17 @@ impl PerlinNoise {
 
 /// Smoothstep: t³(t(6t - 15) + 10)
 #[inline(always)]
-fn smoothstep_simd(d: f64x4) -> f64x4 {
+fn smoothstep_simd<const FUSED: bool>(d: f64x4) -> f64x4 {
     let six = f64x4::splat(6.0);
     let fifteen = f64x4::splat(15.0);
     let ten = f64x4::splat(10.0);
 
     // inner = (d * 6 - 15) * d + 10
-    let inner = (d * six - fifteen).mul_add(d, ten);
+    let inner = if FUSED {
+        (d * six - fifteen).mul_add(d, ten)
+    } else {
+        (d * six - fifteen) * d + ten
+    };
     // d³ * inner
     let d2 = d * d;
     d2 * d * inner
@@ -577,8 +634,12 @@ fn smoothstep_simd(d: f64x4) -> f64x4 {
 
 /// Linear interpolation: a + t * (b - a)
 #[inline(always)]
-fn lerp_simd(t: f64x4, a: f64x4, b: f64x4) -> f64x4 {
-    t.mul_add(b - a, a)
+fn lerp_simd<const FUSED: bool>(t: f64x4, a: f64x4, b: f64x4) -> f64x4 {
+    if FUSED {
+        t.mul_add(b - a, a)
+    } else {
+        a + t * (b - a)
+    }
 }
 
 /// Branchless gradient selection (SIMD).
@@ -644,10 +705,13 @@ fn indexed_lerp(idx: i32, x: f64, y: f64, z: f64) -> f64 {
     u_final + v_final
 }
 
-/// Linear interpolation (scalar).
 #[inline(always)]
-fn lerp(t: f64, a: f64, b: f64) -> f64 {
-    t.mul_add(b - a, a)
+fn lerp_with<const FUSED: bool>(t: f64, a: f64, b: f64) -> f64 {
+    if FUSED {
+        t.mul_add(b - a, a)
+    } else {
+        a + t * (b - a)
+    }
 }
 
 // =============================================================================
@@ -711,6 +775,45 @@ impl OctaveNoise {
         Self { octaves }
     }
 
+    /// Modern octave splitting over a legacy positional factory. The factory takes
+    /// one signed Java long, then XORs each generated `octave_<n>` string hash.
+    pub fn new_legacy(rng: &mut LegacyRandom, amplitudes: &[f64], omin: i32) -> Self {
+        let factory_seed = rng.next_long();
+        let count = amplitudes.iter().filter(|&&amp| amp != 0.0).count();
+        let mut octaves = Vec::with_capacity(count);
+        let len = amplitudes.len() as i32;
+        let mut persistence = 2.0_f64.powi(len - 1) / (2.0_f64.powi(len) - 1.0);
+        let mut lacunarity = 1.0;
+        for (index, &amp) in amplitudes.iter().enumerate() {
+            if amp != 0.0 {
+                let hash = crate::random_hashes::legacy_octave(omin + index as i32);
+                let mut octave_rng = LegacyRandom::new(factory_seed ^ i64::from(hash));
+                let mut noise = PerlinNoise::new(&mut octave_rng);
+                noise.amplitude = amp * persistence;
+                noise.lacunarity = lacunarity;
+                octaves.push(noise);
+            }
+            persistence /= 2.0;
+            lacunarity *= 2.0;
+        }
+        Self { octaves }
+    }
+
+    /// The fixed -7/[1,1] legacy Nether biome stream used by RandomState's
+    /// temperature and vegetation overrides. Draw order is descending octaves.
+    fn legacy_nether_biome(rng: &mut LegacyRandom) -> Self {
+        let _zero_octave = PerlinNoise::new(rng);
+        rng.consume_count(5 * 262);
+        let mut upper = PerlinNoise::new(rng);
+        let mut lower = PerlinNoise::new(rng);
+        lower.amplitude = 2.0 / 3.0;
+        upper.amplitude = 1.0 / 3.0;
+        upper.lacunarity = 2.0;
+        Self {
+            octaves: vec![lower, upper],
+        }
+    }
+
     /// Sample combined octave noise (scalar).
     #[inline]
     pub fn sample(&self, x: f64, y: f64, z: f64) -> f64 {
@@ -722,6 +825,22 @@ impl OctaveNoise {
             let az = z * lf;
             let pv = octave.sample(ax, ay, az);
             value += octave.amplitude * pv;
+        }
+        value
+    }
+
+    /// Java's scalar octave summation and per-octave coordinate wrapping.
+    #[inline]
+    pub fn sample_java(&self, x: f64, y: f64, z: f64) -> f64 {
+        let mut value = 0.0;
+        for octave in &self.octaves {
+            let lf = octave.lacunarity;
+            let sample = octave.sample_java(
+                wrap_coord_java(x * lf),
+                wrap_coord_java(y * lf),
+                wrap_coord_java(z * lf),
+            );
+            value += octave.amplitude * sample;
         }
         value
     }
@@ -742,6 +861,21 @@ impl OctaveNoise {
 
             // Accumulate with FMA
             values = amp.mul_add(octave.sample_4(ax, ay, az), values);
+        }
+        values
+    }
+
+    #[inline]
+    pub fn sample_java_4(&self, x: f64x4, y: f64x4, z: f64x4) -> f64x4 {
+        let mut values = f64x4::splat(0.0);
+        for octave in &self.octaves {
+            let lf = f64x4::splat(octave.lacunarity);
+            let sample = octave.sample_java_4(
+                wrap_coord_java_simd(x * lf),
+                wrap_coord_java_simd(y * lf),
+                wrap_coord_java_simd(z * lf),
+            );
+            values += f64x4::splat(octave.amplitude) * sample;
         }
         values
     }
@@ -825,6 +959,50 @@ impl DoublePerlinNoise {
         }
     }
 
+    /// Xoroshiro NormalNoise with native Java normalization rather than the
+    /// calibrated table used by the existing fused terrain backend.
+    pub fn new_java(rng: &mut Xoroshiro128, amplitudes: &[f64], omin: i32) -> Self {
+        Self {
+            oct_a: OctaveNoise::new(rng, amplitudes, omin),
+            oct_b: OctaveNoise::new(rng, amplitudes, omin),
+            amplitude: Self::native_amplitude(amplitudes),
+            frequency: 2.0_f64.powi(omin),
+        }
+    }
+
+    /// NormalNoise constructed from a legacy positional random source.
+    pub fn new_legacy(rng: &mut LegacyRandom, amplitudes: &[f64], omin: i32) -> Self {
+        Self {
+            oct_a: OctaveNoise::new_legacy(rng, amplitudes, omin),
+            oct_b: OctaveNoise::new_legacy(rng, amplitudes, omin),
+            amplitude: Self::native_amplitude(amplitudes),
+            frequency: 2.0_f64.powi(omin),
+        }
+    }
+
+    /// Native fixed legacy Nether climate override; not ordinary hashed NormalNoise.
+    pub fn legacy_nether_biome(rng: &mut LegacyRandom) -> Self {
+        Self {
+            oct_a: OctaveNoise::legacy_nether_biome(rng),
+            oct_b: OctaveNoise::legacy_nether_biome(rng),
+            amplitude: Self::native_amplitude(&[1.0, 1.0]),
+            frequency: 2.0_f64.powi(-7),
+        }
+    }
+
+    fn native_amplitude(amplitudes: &[f64]) -> f64 {
+        let first = amplitudes
+            .iter()
+            .position(|&amp| amp != 0.0)
+            .map_or(i32::MAX, |index| index as i32);
+        let last = amplitudes
+            .iter()
+            .rposition(|&amp| amp != 0.0)
+            .map_or(i32::MIN, |index| index as i32);
+        let span = last.wrapping_sub(first);
+        (1.0 / 6.0) / (0.1 * (1.0 + 1.0 / (f64::from(span) + 1.0)))
+    }
+
     /// Sample double Perlin noise (scalar).
     #[inline]
     pub fn sample(&self, x: f64, y: f64, z: f64) -> f64 {
@@ -835,6 +1013,17 @@ impl DoublePerlinNoise {
 
         let v = self.oct_a.sample(nx, ny, nz) + self.oct_b.sample(nx * F, ny * F, nz * F);
         v * self.amplitude
+    }
+
+    /// Native Java scalar normal-noise sampling, explicitly separate from fused math.
+    #[inline]
+    pub fn sample_java(&self, x: f64, y: f64, z: f64) -> f64 {
+        const F: f64 = 337.0 / 331.0;
+        let nx = x * self.frequency;
+        let ny = y * self.frequency;
+        let nz = z * self.frequency;
+        (self.oct_a.sample_java(nx, ny, nz) + self.oct_b.sample_java(nx * F, ny * F, nz * F))
+            * self.amplitude
     }
 
     /// Sample 4 double Perlin noise values simultaneously using portable SIMD.
@@ -858,6 +1047,18 @@ impl DoublePerlinNoise {
         let vb = self.oct_b.sample_4(nx_b, ny_b, nz_b);
 
         (va + vb) * amp
+    }
+
+    #[inline]
+    pub fn sample_java_4(&self, x: f64x4, y: f64x4, z: f64x4) -> f64x4 {
+        let frequency = f64x4::splat(self.frequency);
+        let factor = f64x4::splat(337.0 / 331.0);
+        let x = x * frequency;
+        let y = y * frequency;
+        let z = z * frequency;
+        (self.oct_a.sample_java_4(x, y, z)
+            + self.oct_b.sample_java_4(x * factor, y * factor, z * factor))
+            * f64x4::splat(self.amplitude)
     }
 
     /// Convenience: sample 4 points with arrays.
@@ -916,8 +1117,8 @@ impl BlendedNoise {
     ///
     /// This uses a simpler legacy initialization that directly creates Perlin noise
     /// for each octave without the MD5-based seeding used by DoublePerlinNoise.
-    pub fn new(
-        rng: &mut Xoroshiro128,
+    pub fn new<R: NoiseRandom>(
+        rng: &mut R,
         xz_scale: f64,
         y_scale: f64,
         xz_factor: f64,
@@ -952,7 +1153,7 @@ impl BlendedNoise {
     /// Create legacy octaves for BlendedNoise (no MD5 seeding).
     ///
     /// Java's createLegacyForBlendedNoise just creates sequential Perlin instances.
-    fn create_legacy_octaves(rng: &mut Xoroshiro128, count: usize) -> OctaveNoise {
+    fn create_legacy_octaves<R: NoiseRandom>(rng: &mut R, count: usize) -> OctaveNoise {
         let mut octaves = Vec::with_capacity(count);
 
         for _ in 0..count {
@@ -981,6 +1182,16 @@ impl BlendedNoise {
     /// - Limit noises: smear scale = j = yMultiplier * smear
     #[inline]
     pub fn sample(&self, x: f64, y: f64, z: f64) -> f64 {
+        self.sample_with_math::<true>(x, y, z)
+    }
+
+    #[inline]
+    pub fn sample_java(&self, x: f64, y: f64, z: f64) -> f64 {
+        self.sample_with_math::<false>(x, y, z)
+    }
+
+    #[inline]
+    fn sample_with_math<const FUSED: bool>(&self, x: f64, y: f64, z: f64) -> f64 {
         // Scale coordinates by base multiplier (684.412 * scale)
         // Java: d = x * xzMultiplier, e = y * yMultiplier, f = z * xzMultiplier
         let dx = x * self.xz_multiplier;
@@ -1003,10 +1214,10 @@ impl BlendedNoise {
         for p in 0..8 {
             if p < self.main.octaves.len() {
                 // Main noise uses smeared sampling with k*o as smear scale, h*o as y_orig
-                let sampled = self.main.octaves[p].sample_smeared(
-                    wrap_coord(gx * o),
-                    wrap_coord(gy * o),
-                    wrap_coord(gz * o),
+                let sampled = self.main.octaves[p].sample_smeared_with_lerp::<FUSED>(
+                    wrap_coord_with::<FUSED>(gx * o),
+                    wrap_coord_with::<FUSED>(gy * o),
+                    wrap_coord_with::<FUSED>(gz * o),
                     self.main_smear_scale * o, // k * o
                     gy * o,                    // h * o (not wrapped, used for clamping)
                 );
@@ -1034,20 +1245,20 @@ impl BlendedNoise {
         for r in 0..16 {
             // Limit noises use smeared sampling with j*o as smear scale, e*o as y_orig
             if !use_max_only && r < self.min_limit.octaves.len() {
-                l += self.min_limit.octaves[r].sample_smeared(
-                    wrap_coord(dx * o),
-                    wrap_coord(dy * o),
-                    wrap_coord(dz * o),
+                l += self.min_limit.octaves[r].sample_smeared_with_lerp::<FUSED>(
+                    wrap_coord_with::<FUSED>(dx * o),
+                    wrap_coord_with::<FUSED>(dy * o),
+                    wrap_coord_with::<FUSED>(dz * o),
                     self.limit_smear_scale * o, // j * o
                     dy * o,                     // e * o (not wrapped)
                 ) / o;
             }
 
             if !use_min_only && r < self.max_limit.octaves.len() {
-                m += self.max_limit.octaves[r].sample_smeared(
-                    wrap_coord(dx * o),
-                    wrap_coord(dy * o),
-                    wrap_coord(dz * o),
+                m += self.max_limit.octaves[r].sample_smeared_with_lerp::<FUSED>(
+                    wrap_coord_with::<FUSED>(dx * o),
+                    wrap_coord_with::<FUSED>(dy * o),
+                    wrap_coord_with::<FUSED>(dz * o),
                     self.limit_smear_scale * o, // j * o
                     dy * o,                     // e * o (not wrapped)
                 ) / o;
@@ -1057,7 +1268,11 @@ impl BlendedNoise {
         }
 
         // Java: return Mth.clampedLerp(q, l / 512.0, m / 512.0) / 128.0;
-        clamped_lerp(q, l / 512.0, m / 512.0) / 128.0
+        if FUSED {
+            clamped_lerp(q, l / 512.0, m / 512.0) / 128.0
+        } else {
+            clamped_lerp_java(q, l / 512.0, m / 512.0) / 128.0
+        }
     }
 
     /// Sample blended noise at 4 Y positions (SIMD).
@@ -1066,6 +1281,16 @@ impl BlendedNoise {
     /// all noise sampling across 4 Y positions.
     #[inline]
     pub fn sample_4(&self, x: f64, y: f64x4, z: f64) -> f64x4 {
+        self.sample_4_with_math::<true>(x, y, z)
+    }
+
+    #[inline]
+    pub fn sample_java_4(&self, x: f64, y: f64x4, z: f64) -> f64x4 {
+        self.sample_4_with_math::<false>(x, y, z)
+    }
+
+    #[inline]
+    fn sample_4_with_math<const FUSED: bool>(&self, x: f64, y: f64x4, z: f64) -> f64x4 {
         let one = f64x4::splat(1.0);
         let half = f64x4::splat(0.5);
         let ten = f64x4::splat(10.0);
@@ -1078,7 +1303,11 @@ impl BlendedNoise {
 
         // Coarser scale for main noise (divide by factor)
         let gx = f64x4::splat(x * self.xz_multiplier / self.xz_factor);
-        let gy = y * f64x4::splat(self.y_multiplier / self.y_factor);
+        let gy = if FUSED {
+            y * f64x4::splat(self.y_multiplier / self.y_factor)
+        } else {
+            dy / f64x4::splat(self.y_factor)
+        };
         let gz = f64x4::splat(z * self.xz_multiplier / self.xz_factor);
 
         // Sample main noise (8 octaves) - determines the blend factor
@@ -1088,10 +1317,10 @@ impl BlendedNoise {
             if p < self.main.octaves.len() {
                 let o_v = f64x4::splat(o);
                 // Main noise uses smeared sampling with k*o as smear scale, gy*o as y_orig
-                let sampled = self.main.octaves[p].sample_smeared_4(
-                    wrap_coord_simd(gx * o_v),
-                    wrap_coord_simd(gy * o_v),
-                    wrap_coord_simd(gz * o_v),
+                let sampled = self.main.octaves[p].sample_smeared_4_with_lerp::<FUSED>(
+                    wrap_coord_simd_with::<FUSED>(gx * o_v),
+                    wrap_coord_simd_with::<FUSED>(gy * o_v),
+                    wrap_coord_simd_with::<FUSED>(gz * o_v),
                     self.main_smear_scale * o, // k * o
                     gy * o_v,                  // h * o (not wrapped, used for clamping)
                 );
@@ -1121,10 +1350,10 @@ impl BlendedNoise {
 
             // Sample min_limit noise if any lane needs it
             if r < self.min_limit.octaves.len() && need_min.any() {
-                let sample = self.min_limit.octaves[r].sample_smeared_4(
-                    wrap_coord_simd(dx * o_v),
-                    wrap_coord_simd(dy * o_v),
-                    wrap_coord_simd(dz * o_v),
+                let sample = self.min_limit.octaves[r].sample_smeared_4_with_lerp::<FUSED>(
+                    wrap_coord_simd_with::<FUSED>(dx * o_v),
+                    wrap_coord_simd_with::<FUSED>(dy * o_v),
+                    wrap_coord_simd_with::<FUSED>(dz * o_v),
                     self.limit_smear_scale * o, // j * o
                     dy * o_v,                   // e * o (not wrapped)
                 );
@@ -1134,10 +1363,10 @@ impl BlendedNoise {
 
             // Sample max_limit noise if any lane needs it
             if r < self.max_limit.octaves.len() && need_max.any() {
-                let sample = self.max_limit.octaves[r].sample_smeared_4(
-                    wrap_coord_simd(dx * o_v),
-                    wrap_coord_simd(dy * o_v),
-                    wrap_coord_simd(dz * o_v),
+                let sample = self.max_limit.octaves[r].sample_smeared_4_with_lerp::<FUSED>(
+                    wrap_coord_simd_with::<FUSED>(dx * o_v),
+                    wrap_coord_simd_with::<FUSED>(dy * o_v),
+                    wrap_coord_simd_with::<FUSED>(dz * o_v),
                     self.limit_smear_scale * o, // j * o
                     dy * o_v,                   // e * o (not wrapped)
                 );
@@ -1151,16 +1380,36 @@ impl BlendedNoise {
         // Java: return Mth.clampedLerp(q, l / 512.0, m / 512.0) / 128.0;
         let l_scaled = l / f64x4::splat(512.0);
         let m_scaled = m / f64x4::splat(512.0);
-        clamped_lerp_simd(q, l_scaled, m_scaled) / f64x4::splat(128.0)
+        if FUSED {
+            clamped_lerp_simd(q, l_scaled, m_scaled) / f64x4::splat(128.0)
+        } else {
+            let result = l_scaled + q * (m_scaled - l_scaled);
+            q.simd_lt(zero)
+                .select(l_scaled, q.simd_gt(one).select(m_scaled, result))
+                / f64x4::splat(128.0)
+        }
     }
 }
 
-/// Wrap coordinate to Perlin noise range [-33554432, 33554432].
-/// Matches Java's PerlinNoise.wrap().
+/// Calibrated fused terrain coordinate mapping into [0, 2^25).
+/// Native Java entrypoints use the separate centered mapping below.
 #[inline]
 fn wrap_coord(value: f64) -> f64 {
     const RANGE: f64 = 33554432.0; // 2^25
     value - ((value / RANGE).floor() * RANGE)
+}
+
+/// Native centered wrapping, kept separate from the calibrated fused backend.
+#[inline]
+fn wrap_coord_java(value: f64) -> f64 {
+    const RANGE: f64 = 33_554_432.0;
+    value - (value / RANGE + 0.5).floor() * RANGE
+}
+
+#[inline]
+fn wrap_coord_java_simd(value: f64x4) -> f64x4 {
+    let range = f64x4::splat(33_554_432.0);
+    value - (value / range + f64x4::splat(0.5)).floor() * range
 }
 
 /// SIMD version of wrap_coord for 4 values.
@@ -1175,6 +1424,35 @@ fn wrap_coord_simd(value: f64x4) -> f64x4 {
 fn clamped_lerp(t: f64, a: f64, b: f64) -> f64 {
     let t = t.clamp(0.0, 1.0);
     a + t * (b - a)
+}
+
+#[inline]
+fn clamped_lerp_java(t: f64, a: f64, b: f64) -> f64 {
+    if t < 0.0 {
+        a
+    } else if t > 1.0 {
+        b
+    } else {
+        a + t * (b - a)
+    }
+}
+
+#[inline]
+fn wrap_coord_with<const FUSED: bool>(value: f64) -> f64 {
+    if FUSED {
+        wrap_coord(value)
+    } else {
+        wrap_coord_java(value)
+    }
+}
+
+#[inline]
+fn wrap_coord_simd_with<const FUSED: bool>(value: f64x4) -> f64x4 {
+    if FUSED {
+        wrap_coord_simd(value)
+    } else {
+        wrap_coord_java_simd(value)
+    }
 }
 
 /// SIMD clamped linear interpolation.

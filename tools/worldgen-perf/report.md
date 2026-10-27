@@ -884,3 +884,35 @@ calculation and its precision are unchanged. The compiled native regression adds
 a raw End root sharing a leaf with another root's `cache_2d`; all native seed
 cases and seven density IR tests pass. No generated file or golden was patched.
 
+### Native legacy registry and explicitly selected Java math
+
+Added `NoiseRegistry::with_router_settings` and borrowed `java_source()`:
+legacy positional/Nether climate seeding and normalization are distinct from
+the default calibrated constructor. Java math is a separate statically selected
+scalar/SIMD path; old entrypoints keep fused interpolation, old coordinate
+mapping and their normalization. No shared Bedrock arithmetic is switched.
+Name and octave Java string hashes are emitted at build time.
+
+The first actual corpus smoke with the existing fused sampler matched all 984
+quantized Nether climate targets but differed in 584 raw f64 values (maximum 569
+ULP). That was not accepted as exact proof. Unfused scalar sampling plus the
+native centered wrap `x-floor(x/2^25+0.5)*2^25` then matched **984/984 raw fields**.
+Blindly reusing the old negative-to-positive wrap was separately rejected because
+it introduces fractional precision loss for negative coordinates.
+
+The final actual-registry adapter smoke, across six grid and two held-out seeds,
+matched all 984 scalar climate fields, all corresponding SIMD lanes, and all 492
+native raw Nether final-density fields through the blended-noise path. Another
+1,968 blended SIMD lanes matched scalar bits across Y samples. Strict three-crate
+all-target/all-feature clippy and both retained 68-target complete-output hashes
+pass after these numeric additions. The temporary smoke was removed; compact
+native SHA-provenance fixtures and production-registry numeric regressions remain.
+The seven unrelated storage failures remain unresolved, not rerun or suppressed.
+
+Independent arithmetic checks against the Java owner's measured trace also match
+all 53 native f32 spline records. At native cached material points (0,62,13) and
+(7,63,14), bulk XYZ corner interpolation reproduces `3f426065381826f9` and
+`3f200bd1dded487e`; active YXZ order gives `3f200bd1dded45ef` at the latter.
+Those findings drive the separate native cell/spline implementation; no sampler
+runtime cutover or finished Java parity claim is made here.
+
