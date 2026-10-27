@@ -1,0 +1,4891 @@
+{
+  "readable": {
+    "format_version": "1.26.50",
+    "minecraft:entity": {
+      "description": {
+        "identifier": "fidelity:readable",
+        "runtime_identifier": "minecraft:pig",
+        "is_spawnable": false,
+        "is_summonable": true,
+        "properties": {
+          "fidelity:done": {
+            "type": "bool",
+            "default": false
+          },
+          "fidelity:molang": {
+            "type": "bool",
+            "default": "MaTh.ClAmP(1,0,2) == 1"
+          },
+          "fidelity:n": {
+            "type": "int",
+            "range": [
+              -10,
+              10
+            ],
+            "default": 3
+          }
+        }
+      },
+      "components": {
+        "minecraft:type_family": {
+          "family": [
+            "fidelity"
+          ]
+        },
+        "minecraft:health": {
+          "value": 10,
+          "max": 10
+        },
+        "minecraft:collision_box": {
+          "width": 0.6,
+          "height": 0.9
+        },
+        "minecraft:physics": {
+          "has_gravity": false,
+          "has_collision": true
+        },
+        "minecraft:environment_sensor": {
+          "triggers": [
+            {
+              "filters": {
+                "all_of": [
+                  {
+                    "test": "bool_property",
+                    "domain": "fidelity:done",
+                    "value": false
+                  },
+                  {
+                    "all_of": [
+                      {
+                        "test": "is_family",
+                        "value": "fidelity",
+                        "subject": "self",
+                        "operator": "=="
+                      }
+                    ]
+                  }
+                ]
+              },
+              "event": "fidelity:pass"
+            }
+          ]
+        }
+      },
+      "events": {
+        "fidelity:pass": {
+          "set_property": {
+            "fidelity:done": true
+          },
+          "queue_command": {
+            "command": "scoreboard players set readable fidelity 1"
+          }
+        }
+      }
+    }
+  },
+  "compact": {
+    "format_version": "1.26.50",
+    "minecraft:entity": {
+      "description": {
+        "identifier": "fidelity:compact",
+        "runtime_identifier": "minecraft:pig",
+        "is_spawnable": false,
+        "is_summonable": true,
+        "properties": {
+          "fidelity:done": {
+            "type": "bool",
+            "default": false
+          },
+          "fidelity:molang": {
+            "type": "bool",
+            "default": "MaTh.ClAmP(1,0,2) == 1"
+          },
+          "fidelity:n": {
+            "type": "int",
+            "range": [
+              -10,
+              10
+            ],
+            "default": 3
+          }
+        }
+      },
+      "components": {
+        "minecraft:type_family": {
+          "family": [
+            "fidelity"
+          ]
+        },
+        "minecraft:health": {
+          "value": 10,
+          "max": 10
+        },
+        "minecraft:collision_box": {
+          "width": 0.6,
+          "height": 0.9
+        },
+        "minecraft:physics": {
+          "has_gravity": false,
+          "has_collision": true
+        },
+        "minecraft:environment_sensor": {
+          "triggers": [
+            {
+              "filters": {
+                "all_of": [
+                  {
+                    "test": "bool_property",
+                    "domain": "fidelity:done",
+                    "value": false
+                  },
+                  {
+                    "AND": [
+                      {
+                        "test": "is_family",
+                        "value": "fidelity",
+                        "subject": 0,
+                        "operator": 0
+                      }
+                    ]
+                  }
+                ]
+              },
+              "event": "fidelity:pass"
+            }
+          ]
+        }
+      },
+      "events": {
+        "fidelity:pass": {
+          "set_property": {
+            "fidelity:done": true
+          },
+          "queue_command": {
+            "command": "scoreboard players set compact fidelity 1"
+          }
+        }
+      }
+    }
+  },
+  "compact_not": {
+    "format_version": "1.26.50",
+    "minecraft:entity": {
+      "description": {
+        "identifier": "fidelity:compact_not",
+        "runtime_identifier": "minecraft:pig",
+        "is_spawnable": false,
+        "is_summonable": true,
+        "properties": {
+          "fidelity:done": {
+            "type": "bool",
+            "default": false
+          },
+          "fidelity:molang": {
+            "type": "bool",
+            "default": "MaTh.ClAmP(1,0,2) == 1"
+          },
+          "fidelity:n": {
+            "type": "int",
+            "range": [
+              -10,
+              10
+            ],
+            "default": 3
+          }
+        }
+      },
+      "components": {
+        "minecraft:type_family": {
+          "family": [
+            "fidelity"
+          ]
+        },
+        "minecraft:health": {
+          "value": 10,
+          "max": 10
+        },
+        "minecraft:collision_box": {
+          "width": 0.6,
+          "height": 0.9
+        },
+        "minecraft:physics": {
+          "has_gravity": false,
+          "has_collision": true
+        },
+        "minecraft:environment_sensor": {
+          "triggers": [
+            {
+              "filters": {
+                "all_of": [
+                  {
+                    "test": "bool_property",
+                    "domain": "fidelity:done",
+                    "value": false
+                  },
+                  {
+                    "OR": [
+                      {
+                        "test": "is_family",
+                        "subject": 0,
+                        "operator": 1,
+                        "value": "absent"
+                      }
+                    ]
+                  }
+                ]
+              },
+              "event": "fidelity:pass"
+            }
+          ]
+        }
+      },
+      "events": {
+        "fidelity:pass": {
+          "set_property": {
+            "fidelity:done": true
+          },
+          "queue_command": {
+            "command": "scoreboard players set compact_not fidelity 1"
+          }
+        }
+      }
+    }
+  },
+  "all_alias": {
+    "format_version": "1.26.50",
+    "minecraft:entity": {
+      "description": {
+        "identifier": "fidelity:all_alias",
+        "runtime_identifier": "minecraft:pig",
+        "is_spawnable": false,
+        "is_summonable": true,
+        "properties": {
+          "fidelity:done": {
+            "type": "bool",
+            "default": false
+          },
+          "fidelity:molang": {
+            "type": "bool",
+            "default": "MaTh.ClAmP(1,0,2) == 1"
+          },
+          "fidelity:n": {
+            "type": "int",
+            "range": [
+              -10,
+              10
+            ],
+            "default": 3
+          }
+        }
+      },
+      "components": {
+        "minecraft:type_family": {
+          "family": [
+            "fidelity"
+          ]
+        },
+        "minecraft:health": {
+          "value": 10,
+          "max": 10
+        },
+        "minecraft:collision_box": {
+          "width": 0.6,
+          "height": 0.9
+        },
+        "minecraft:physics": {
+          "has_gravity": false,
+          "has_collision": true
+        },
+        "minecraft:environment_sensor": {
+          "triggers": [
+            {
+              "filters": {
+                "all_of": [
+                  {
+                    "test": "bool_property",
+                    "domain": "fidelity:done",
+                    "value": false
+                  },
+                  {
+                    "all": [
+                      {
+                        "test": "is_family",
+                        "value": "fidelity"
+                      }
+                    ]
+                  }
+                ]
+              },
+              "event": "fidelity:pass"
+            }
+          ]
+        }
+      },
+      "events": {
+        "fidelity:pass": {
+          "set_property": {
+            "fidelity:done": true
+          },
+          "queue_command": {
+            "command": "scoreboard players set all_alias fidelity 1"
+          }
+        }
+      }
+    }
+  },
+  "any_alias": {
+    "format_version": "1.26.50",
+    "minecraft:entity": {
+      "description": {
+        "identifier": "fidelity:any_alias",
+        "runtime_identifier": "minecraft:pig",
+        "is_spawnable": false,
+        "is_summonable": true,
+        "properties": {
+          "fidelity:done": {
+            "type": "bool",
+            "default": false
+          },
+          "fidelity:molang": {
+            "type": "bool",
+            "default": "MaTh.ClAmP(1,0,2) == 1"
+          },
+          "fidelity:n": {
+            "type": "int",
+            "range": [
+              -10,
+              10
+            ],
+            "default": 3
+          }
+        }
+      },
+      "components": {
+        "minecraft:type_family": {
+          "family": [
+            "fidelity"
+          ]
+        },
+        "minecraft:health": {
+          "value": 10,
+          "max": 10
+        },
+        "minecraft:collision_box": {
+          "width": 0.6,
+          "height": 0.9
+        },
+        "minecraft:physics": {
+          "has_gravity": false,
+          "has_collision": true
+        },
+        "minecraft:environment_sensor": {
+          "triggers": [
+            {
+              "filters": {
+                "all_of": [
+                  {
+                    "test": "bool_property",
+                    "domain": "fidelity:done",
+                    "value": false
+                  },
+                  {
+                    "any": [
+                      {
+                        "test": "is_family",
+                        "value": "fidelity"
+                      }
+                    ]
+                  }
+                ]
+              },
+              "event": "fidelity:pass"
+            }
+          ]
+        }
+      },
+      "events": {
+        "fidelity:pass": {
+          "set_property": {
+            "fidelity:done": true
+          },
+          "queue_command": {
+            "command": "scoreboard players set any_alias fidelity 1"
+          }
+        }
+      }
+    }
+  },
+  "not_alias": {
+    "format_version": "1.26.50",
+    "minecraft:entity": {
+      "description": {
+        "identifier": "fidelity:not_alias",
+        "runtime_identifier": "minecraft:pig",
+        "is_spawnable": false,
+        "is_summonable": true,
+        "properties": {
+          "fidelity:done": {
+            "type": "bool",
+            "default": false
+          },
+          "fidelity:molang": {
+            "type": "bool",
+            "default": "MaTh.ClAmP(1,0,2) == 1"
+          },
+          "fidelity:n": {
+            "type": "int",
+            "range": [
+              -10,
+              10
+            ],
+            "default": 3
+          }
+        }
+      },
+      "components": {
+        "minecraft:type_family": {
+          "family": [
+            "fidelity"
+          ]
+        },
+        "minecraft:health": {
+          "value": 10,
+          "max": 10
+        },
+        "minecraft:collision_box": {
+          "width": 0.6,
+          "height": 0.9
+        },
+        "minecraft:physics": {
+          "has_gravity": false,
+          "has_collision": true
+        },
+        "minecraft:environment_sensor": {
+          "triggers": [
+            {
+              "filters": {
+                "all_of": [
+                  {
+                    "test": "bool_property",
+                    "domain": "fidelity:done",
+                    "value": false
+                  },
+                  {
+                    "NOT": [
+                      {
+                        "test": "is_family",
+                        "value": "absent"
+                      }
+                    ]
+                  }
+                ]
+              },
+              "event": "fidelity:pass"
+            }
+          ]
+        }
+      },
+      "events": {
+        "fidelity:pass": {
+          "set_property": {
+            "fidelity:done": true
+          },
+          "queue_command": {
+            "command": "scoreboard players set not_alias fidelity 1"
+          }
+        }
+      }
+    }
+  },
+  "none_alias": {
+    "format_version": "1.26.50",
+    "minecraft:entity": {
+      "description": {
+        "identifier": "fidelity:none_alias",
+        "runtime_identifier": "minecraft:pig",
+        "is_spawnable": false,
+        "is_summonable": true,
+        "properties": {
+          "fidelity:done": {
+            "type": "bool",
+            "default": false
+          },
+          "fidelity:molang": {
+            "type": "bool",
+            "default": "MaTh.ClAmP(1,0,2) == 1"
+          },
+          "fidelity:n": {
+            "type": "int",
+            "range": [
+              -10,
+              10
+            ],
+            "default": 3
+          }
+        }
+      },
+      "components": {
+        "minecraft:type_family": {
+          "family": [
+            "fidelity"
+          ]
+        },
+        "minecraft:health": {
+          "value": 10,
+          "max": 10
+        },
+        "minecraft:collision_box": {
+          "width": 0.6,
+          "height": 0.9
+        },
+        "minecraft:physics": {
+          "has_gravity": false,
+          "has_collision": true
+        },
+        "minecraft:environment_sensor": {
+          "triggers": [
+            {
+              "filters": {
+                "all_of": [
+                  {
+                    "test": "bool_property",
+                    "domain": "fidelity:done",
+                    "value": false
+                  },
+                  {
+                    "none_of": [
+                      {
+                        "test": "is_family",
+                        "value": "absent"
+                      }
+                    ]
+                  }
+                ]
+              },
+              "event": "fidelity:pass"
+            }
+          ]
+        }
+      },
+      "events": {
+        "fidelity:pass": {
+          "set_property": {
+            "fidelity:done": true
+          },
+          "queue_command": {
+            "command": "scoreboard players set none_alias fidelity 1"
+          }
+        }
+      }
+    }
+  },
+  "equals_alias": {
+    "format_version": "1.26.50",
+    "minecraft:entity": {
+      "description": {
+        "identifier": "fidelity:equals_alias",
+        "runtime_identifier": "minecraft:pig",
+        "is_spawnable": false,
+        "is_summonable": true,
+        "properties": {
+          "fidelity:done": {
+            "type": "bool",
+            "default": false
+          },
+          "fidelity:molang": {
+            "type": "bool",
+            "default": "MaTh.ClAmP(1,0,2) == 1"
+          },
+          "fidelity:n": {
+            "type": "int",
+            "range": [
+              -10,
+              10
+            ],
+            "default": 3
+          }
+        }
+      },
+      "components": {
+        "minecraft:type_family": {
+          "family": [
+            "fidelity"
+          ]
+        },
+        "minecraft:health": {
+          "value": 10,
+          "max": 10
+        },
+        "minecraft:collision_box": {
+          "width": 0.6,
+          "height": 0.9
+        },
+        "minecraft:physics": {
+          "has_gravity": false,
+          "has_collision": true
+        },
+        "minecraft:environment_sensor": {
+          "triggers": [
+            {
+              "filters": {
+                "all_of": [
+                  {
+                    "test": "bool_property",
+                    "domain": "fidelity:done",
+                    "value": false
+                  },
+                  {
+                    "test": "is_family",
+                    "value": "fidelity",
+                    "operator": "equals"
+                  }
+                ]
+              },
+              "event": "fidelity:pass"
+            }
+          ]
+        }
+      },
+      "events": {
+        "fidelity:pass": {
+          "set_property": {
+            "fidelity:done": true
+          },
+          "queue_command": {
+            "command": "scoreboard players set equals_alias fidelity 1"
+          }
+        }
+      }
+    }
+  },
+  "single_equals": {
+    "format_version": "1.26.50",
+    "minecraft:entity": {
+      "description": {
+        "identifier": "fidelity:single_equals",
+        "runtime_identifier": "minecraft:pig",
+        "is_spawnable": false,
+        "is_summonable": true,
+        "properties": {
+          "fidelity:done": {
+            "type": "bool",
+            "default": false
+          },
+          "fidelity:molang": {
+            "type": "bool",
+            "default": "MaTh.ClAmP(1,0,2) == 1"
+          },
+          "fidelity:n": {
+            "type": "int",
+            "range": [
+              -10,
+              10
+            ],
+            "default": 3
+          }
+        }
+      },
+      "components": {
+        "minecraft:type_family": {
+          "family": [
+            "fidelity"
+          ]
+        },
+        "minecraft:health": {
+          "value": 10,
+          "max": 10
+        },
+        "minecraft:collision_box": {
+          "width": 0.6,
+          "height": 0.9
+        },
+        "minecraft:physics": {
+          "has_gravity": false,
+          "has_collision": true
+        },
+        "minecraft:environment_sensor": {
+          "triggers": [
+            {
+              "filters": {
+                "all_of": [
+                  {
+                    "test": "bool_property",
+                    "domain": "fidelity:done",
+                    "value": false
+                  },
+                  {
+                    "test": "is_family",
+                    "value": "fidelity",
+                    "operator": "="
+                  }
+                ]
+              },
+              "event": "fidelity:pass"
+            }
+          ]
+        }
+      },
+      "events": {
+        "fidelity:pass": {
+          "set_property": {
+            "fidelity:done": true
+          },
+          "queue_command": {
+            "command": "scoreboard players set single_equals fidelity 1"
+          }
+        }
+      }
+    }
+  },
+  "not_equals": {
+    "format_version": "1.26.50",
+    "minecraft:entity": {
+      "description": {
+        "identifier": "fidelity:not_equals",
+        "runtime_identifier": "minecraft:pig",
+        "is_spawnable": false,
+        "is_summonable": true,
+        "properties": {
+          "fidelity:done": {
+            "type": "bool",
+            "default": false
+          },
+          "fidelity:molang": {
+            "type": "bool",
+            "default": "MaTh.ClAmP(1,0,2) == 1"
+          },
+          "fidelity:n": {
+            "type": "int",
+            "range": [
+              -10,
+              10
+            ],
+            "default": 3
+          }
+        }
+      },
+      "components": {
+        "minecraft:type_family": {
+          "family": [
+            "fidelity"
+          ]
+        },
+        "minecraft:health": {
+          "value": 10,
+          "max": 10
+        },
+        "minecraft:collision_box": {
+          "width": 0.6,
+          "height": 0.9
+        },
+        "minecraft:physics": {
+          "has_gravity": false,
+          "has_collision": true
+        },
+        "minecraft:environment_sensor": {
+          "triggers": [
+            {
+              "filters": {
+                "all_of": [
+                  {
+                    "test": "bool_property",
+                    "domain": "fidelity:done",
+                    "value": false
+                  },
+                  {
+                    "test": "is_family",
+                    "operator": "<>",
+                    "value": "absent"
+                  }
+                ]
+              },
+              "event": "fidelity:pass"
+            }
+          ]
+        }
+      },
+      "events": {
+        "fidelity:pass": {
+          "set_property": {
+            "fidelity:done": true
+          },
+          "queue_command": {
+            "command": "scoreboard players set not_equals fidelity 1"
+          }
+        }
+      }
+    }
+  },
+  "missing_subject_negative": {
+    "format_version": "1.26.50",
+    "minecraft:entity": {
+      "description": {
+        "identifier": "fidelity:missing_subject_negative",
+        "runtime_identifier": "minecraft:pig",
+        "is_spawnable": false,
+        "is_summonable": true,
+        "properties": {
+          "fidelity:done": {
+            "type": "bool",
+            "default": false
+          },
+          "fidelity:molang": {
+            "type": "bool",
+            "default": "MaTh.ClAmP(1,0,2) == 1"
+          },
+          "fidelity:n": {
+            "type": "int",
+            "range": [
+              -10,
+              10
+            ],
+            "default": 3
+          }
+        }
+      },
+      "components": {
+        "minecraft:type_family": {
+          "family": [
+            "fidelity"
+          ]
+        },
+        "minecraft:health": {
+          "value": 10,
+          "max": 10
+        },
+        "minecraft:collision_box": {
+          "width": 0.6,
+          "height": 0.9
+        },
+        "minecraft:physics": {
+          "has_gravity": false,
+          "has_collision": true
+        },
+        "minecraft:environment_sensor": {
+          "triggers": [
+            {
+              "filters": {
+                "all_of": [
+                  {
+                    "test": "bool_property",
+                    "domain": "fidelity:done",
+                    "value": false
+                  },
+                  {
+                    "none_of": [
+                      {
+                        "test": "is_family",
+                        "subject": "other",
+                        "operator": "!=",
+                        "value": "absent"
+                      }
+                    ]
+                  }
+                ]
+              },
+              "event": "fidelity:pass"
+            }
+          ]
+        }
+      },
+      "events": {
+        "fidelity:pass": {
+          "set_property": {
+            "fidelity:done": true
+          },
+          "queue_command": {
+            "command": "scoreboard players set missing_subject_negative fidelity 1"
+          }
+        }
+      }
+    }
+  },
+  "unknown_test": {
+    "format_version": "1.26.50",
+    "minecraft:entity": {
+      "description": {
+        "identifier": "fidelity:unknown_test",
+        "runtime_identifier": "minecraft:pig",
+        "is_spawnable": false,
+        "is_summonable": true,
+        "properties": {
+          "fidelity:done": {
+            "type": "bool",
+            "default": false
+          },
+          "fidelity:molang": {
+            "type": "bool",
+            "default": "MaTh.ClAmP(1,0,2) == 1"
+          },
+          "fidelity:n": {
+            "type": "int",
+            "range": [
+              -10,
+              10
+            ],
+            "default": 3
+          }
+        }
+      },
+      "components": {
+        "minecraft:type_family": {
+          "family": [
+            "fidelity"
+          ]
+        },
+        "minecraft:health": {
+          "value": 10,
+          "max": 10
+        },
+        "minecraft:collision_box": {
+          "width": 0.6,
+          "height": 0.9
+        },
+        "minecraft:physics": {
+          "has_gravity": false,
+          "has_collision": true
+        },
+        "minecraft:environment_sensor": {
+          "triggers": [
+            {
+              "filters": {
+                "all_of": [
+                  {
+                    "test": "bool_property",
+                    "domain": "fidelity:done",
+                    "value": false
+                  },
+                  {
+                    "none_of": [
+                      {
+                        "test": "fidelity_unknown_filter",
+                        "operator": "!=",
+                        "value": true
+                      }
+                    ]
+                  }
+                ]
+              },
+              "event": "fidelity:pass"
+            }
+          ]
+        }
+      },
+      "events": {
+        "fidelity:pass": {
+          "set_property": {
+            "fidelity:done": true
+          },
+          "queue_command": {
+            "command": "scoreboard players set unknown_test fidelity 1"
+          }
+        }
+      }
+    }
+  },
+  "molang_names": {
+    "format_version": "1.26.50",
+    "minecraft:entity": {
+      "description": {
+        "identifier": "fidelity:molang_names",
+        "runtime_identifier": "minecraft:pig",
+        "is_spawnable": false,
+        "is_summonable": true,
+        "properties": {
+          "fidelity:done": {
+            "type": "bool",
+            "default": false
+          },
+          "fidelity:molang": {
+            "type": "bool",
+            "default": "MaTh.ClAmP(1,0,2) == 1"
+          },
+          "fidelity:n": {
+            "type": "int",
+            "range": [
+              -10,
+              10
+            ],
+            "default": 3
+          }
+        }
+      },
+      "components": {
+        "minecraft:type_family": {
+          "family": [
+            "fidelity"
+          ]
+        },
+        "minecraft:health": {
+          "value": 10,
+          "max": 10
+        },
+        "minecraft:collision_box": {
+          "width": 0.6,
+          "height": 0.9
+        },
+        "minecraft:physics": {
+          "has_gravity": false,
+          "has_collision": true
+        },
+        "minecraft:environment_sensor": {
+          "triggers": [
+            {
+              "filters": {
+                "all_of": [
+                  {
+                    "test": "bool_property",
+                    "domain": "fidelity:done",
+                    "value": false
+                  },
+                  {
+                    "test": "bool_property",
+                    "domain": "fidelity:molang",
+                    "value": true
+                  }
+                ]
+              },
+              "event": "fidelity:pass"
+            }
+          ]
+        }
+      },
+      "events": {
+        "fidelity:pass": {
+          "set_property": {
+            "fidelity:done": true
+          },
+          "queue_command": {
+            "command": "scoreboard players set molang_names fidelity 1"
+          }
+        }
+      }
+    }
+  },
+  "molang_q": {
+    "format_version": "1.26.50",
+    "minecraft:entity": {
+      "description": {
+        "identifier": "fidelity:molang_q",
+        "runtime_identifier": "minecraft:pig",
+        "is_spawnable": false,
+        "is_summonable": true,
+        "properties": {
+          "fidelity:done": {
+            "type": "bool",
+            "default": false
+          },
+          "fidelity:molang": {
+            "type": "bool",
+            "default": "Q.Is_Baby || !query.is_baby"
+          },
+          "fidelity:n": {
+            "type": "int",
+            "range": [
+              -10,
+              10
+            ],
+            "default": 3
+          }
+        }
+      },
+      "components": {
+        "minecraft:type_family": {
+          "family": [
+            "fidelity"
+          ]
+        },
+        "minecraft:health": {
+          "value": 10,
+          "max": 10
+        },
+        "minecraft:collision_box": {
+          "width": 0.6,
+          "height": 0.9
+        },
+        "minecraft:physics": {
+          "has_gravity": false,
+          "has_collision": true
+        },
+        "minecraft:environment_sensor": {
+          "triggers": [
+            {
+              "filters": {
+                "all_of": [
+                  {
+                    "test": "bool_property",
+                    "domain": "fidelity:done",
+                    "value": false
+                  },
+                  {
+                    "test": "bool_property",
+                    "domain": "fidelity:molang",
+                    "value": true
+                  }
+                ]
+              },
+              "event": "fidelity:pass"
+            }
+          ]
+        }
+      },
+      "events": {
+        "fidelity:pass": {
+          "set_property": {
+            "fidelity:done": true
+          },
+          "queue_command": {
+            "command": "scoreboard players set molang_q fidelity 1"
+          }
+        }
+      }
+    }
+  },
+  "molang_v": {
+    "format_version": "1.26.50",
+    "minecraft:entity": {
+      "description": {
+        "identifier": "fidelity:molang_v",
+        "runtime_identifier": "minecraft:pig",
+        "is_spawnable": false,
+        "is_summonable": true,
+        "properties": {
+          "fidelity:done": {
+            "type": "bool",
+            "default": false
+          },
+          "fidelity:molang": {
+            "type": "bool",
+            "default": "(V.unset ?? 0) == 0"
+          },
+          "fidelity:n": {
+            "type": "int",
+            "range": [
+              -10,
+              10
+            ],
+            "default": 3
+          }
+        }
+      },
+      "components": {
+        "minecraft:type_family": {
+          "family": [
+            "fidelity"
+          ]
+        },
+        "minecraft:health": {
+          "value": 10,
+          "max": 10
+        },
+        "minecraft:collision_box": {
+          "width": 0.6,
+          "height": 0.9
+        },
+        "minecraft:physics": {
+          "has_gravity": false,
+          "has_collision": true
+        },
+        "minecraft:environment_sensor": {
+          "triggers": [
+            {
+              "filters": {
+                "all_of": [
+                  {
+                    "test": "bool_property",
+                    "domain": "fidelity:done",
+                    "value": false
+                  },
+                  {
+                    "test": "bool_property",
+                    "domain": "fidelity:molang",
+                    "value": true
+                  }
+                ]
+              },
+              "event": "fidelity:pass"
+            }
+          ]
+        }
+      },
+      "events": {
+        "fidelity:pass": {
+          "set_property": {
+            "fidelity:done": true
+          },
+          "queue_command": {
+            "command": "scoreboard players set molang_v fidelity 1"
+          }
+        }
+      }
+    }
+  },
+  "molang_t": {
+    "format_version": "1.26.50",
+    "minecraft:entity": {
+      "description": {
+        "identifier": "fidelity:molang_t",
+        "runtime_identifier": "minecraft:pig",
+        "is_spawnable": false,
+        "is_summonable": true,
+        "properties": {
+          "fidelity:done": {
+            "type": "bool",
+            "default": false
+          },
+          "fidelity:molang": {
+            "type": "bool",
+            "default": "(T.unset ?? 0) == 0"
+          },
+          "fidelity:n": {
+            "type": "int",
+            "range": [
+              -10,
+              10
+            ],
+            "default": 3
+          }
+        }
+      },
+      "components": {
+        "minecraft:type_family": {
+          "family": [
+            "fidelity"
+          ]
+        },
+        "minecraft:health": {
+          "value": 10,
+          "max": 10
+        },
+        "minecraft:collision_box": {
+          "width": 0.6,
+          "height": 0.9
+        },
+        "minecraft:physics": {
+          "has_gravity": false,
+          "has_collision": true
+        },
+        "minecraft:environment_sensor": {
+          "triggers": [
+            {
+              "filters": {
+                "all_of": [
+                  {
+                    "test": "bool_property",
+                    "domain": "fidelity:done",
+                    "value": false
+                  },
+                  {
+                    "test": "bool_property",
+                    "domain": "fidelity:molang",
+                    "value": true
+                  }
+                ]
+              },
+              "event": "fidelity:pass"
+            }
+          ]
+        }
+      },
+      "events": {
+        "fidelity:pass": {
+          "set_property": {
+            "fidelity:done": true
+          },
+          "queue_command": {
+            "command": "scoreboard players set molang_t fidelity 1"
+          }
+        }
+      }
+    }
+  },
+  "molang_c": {
+    "format_version": "1.26.50",
+    "minecraft:entity": {
+      "description": {
+        "identifier": "fidelity:molang_c",
+        "runtime_identifier": "minecraft:pig",
+        "is_spawnable": false,
+        "is_summonable": true,
+        "properties": {
+          "fidelity:done": {
+            "type": "bool",
+            "default": false
+          },
+          "fidelity:molang": {
+            "type": "bool",
+            "default": "(C.unset ?? 0) == 0"
+          },
+          "fidelity:n": {
+            "type": "int",
+            "range": [
+              -10,
+              10
+            ],
+            "default": 3
+          }
+        }
+      },
+      "components": {
+        "minecraft:type_family": {
+          "family": [
+            "fidelity"
+          ]
+        },
+        "minecraft:health": {
+          "value": 10,
+          "max": 10
+        },
+        "minecraft:collision_box": {
+          "width": 0.6,
+          "height": 0.9
+        },
+        "minecraft:physics": {
+          "has_gravity": false,
+          "has_collision": true
+        },
+        "minecraft:environment_sensor": {
+          "triggers": [
+            {
+              "filters": {
+                "all_of": [
+                  {
+                    "test": "bool_property",
+                    "domain": "fidelity:done",
+                    "value": false
+                  },
+                  {
+                    "test": "bool_property",
+                    "domain": "fidelity:molang",
+                    "value": true
+                  }
+                ]
+              },
+              "event": "fidelity:pass"
+            }
+          ]
+        }
+      },
+      "events": {
+        "fidelity:pass": {
+          "set_property": {
+            "fidelity:done": true
+          },
+          "queue_command": {
+            "command": "scoreboard players set molang_c fidelity 1"
+          }
+        }
+      }
+    }
+  },
+  "event_nodes": {
+    "format_version": "1.26.50",
+    "minecraft:entity": {
+      "description": {
+        "identifier": "fidelity:event_nodes",
+        "runtime_identifier": "minecraft:pig",
+        "is_spawnable": false,
+        "is_summonable": true,
+        "properties": {
+          "fidelity:done": {
+            "type": "bool",
+            "default": false
+          },
+          "fidelity:molang": {
+            "type": "bool",
+            "default": "MaTh.ClAmP(1,0,2) == 1"
+          },
+          "fidelity:n": {
+            "type": "int",
+            "range": [
+              -10,
+              10
+            ],
+            "default": 3
+          }
+        }
+      },
+      "components": {
+        "minecraft:type_family": {
+          "family": [
+            "fidelity"
+          ]
+        },
+        "minecraft:health": {
+          "value": 10,
+          "max": 10
+        },
+        "minecraft:collision_box": {
+          "width": 0.6,
+          "height": 0.9
+        },
+        "minecraft:physics": {
+          "has_gravity": false,
+          "has_collision": true
+        },
+        "minecraft:environment_sensor": {
+          "triggers": [
+            {
+              "filters": {
+                "all_of": [
+                  {
+                    "test": "bool_property",
+                    "domain": "fidelity:done",
+                    "value": false
+                  },
+                  {
+                    "test": "is_family",
+                    "value": "fidelity"
+                  }
+                ]
+              },
+              "event": "fidelity:pass"
+            }
+          ]
+        }
+      },
+      "events": {
+        "fidelity:pass": {
+          "set_property": {
+            "fidelity:done": true
+          },
+          "queue_command": {
+            "command": "scoreboard players set event_nodes fidelity 1"
+          }
+        },
+        "fidelity:deferred": {
+          "queue_command": {
+            "command": [
+              "scoreboard players add serial fidelity 1",
+              "scoreboard players operation D fidelity = serial fidelity"
+            ]
+          }
+        },
+        "minecraft:entity_spawned": {
+          "sequence": [
+            {
+              "trigger": "fidelity:deferred"
+            },
+            {
+              "queue_command": {
+                "command": [
+                  "scoreboard players add serial fidelity 1",
+                  "scoreboard players operation A fidelity = serial fidelity"
+                ]
+              }
+            },
+            {
+              "randomize": [
+                {
+                  "weight": 1,
+                  "queue_command": {
+                    "command": [
+                      "scoreboard players add serial fidelity 1",
+                      "scoreboard players operation B fidelity = serial fidelity"
+                    ]
+                  }
+                }
+              ]
+            },
+            {
+              "first_valid": [
+                {
+                  "filters": {
+                    "test": "is_family",
+                    "value": "fidelity"
+                  },
+                  "queue_command": {
+                    "command": [
+                      "scoreboard players add serial fidelity 1",
+                      "scoreboard players operation C fidelity = serial fidelity"
+                    ]
+                  }
+                },
+                {
+                  "queue_command": {
+                    "command": [
+                      "scoreboard players add serial fidelity 1",
+                      "scoreboard players operation UNEXPECTED fidelity = serial fidelity"
+                    ]
+                  }
+                }
+              ]
+            }
+          ]
+        }
+      }
+    }
+  },
+  "legacy_pushable": {
+    "format_version": "1.26.0",
+    "minecraft:entity": {
+      "description": {
+        "identifier": "fidelity:legacy_pushable",
+        "runtime_identifier": "minecraft:pig",
+        "is_spawnable": false,
+        "is_summonable": true,
+        "properties": {
+          "fidelity:done": {
+            "type": "bool",
+            "default": false
+          },
+          "fidelity:molang": {
+            "type": "bool",
+            "default": "MaTh.ClAmP(1,0,2) == 1"
+          },
+          "fidelity:n": {
+            "type": "int",
+            "range": [
+              -10,
+              10
+            ],
+            "default": 3
+          }
+        }
+      },
+      "components": {
+        "minecraft:type_family": {
+          "family": [
+            "fidelity"
+          ]
+        },
+        "minecraft:health": {
+          "value": 10,
+          "max": 10
+        },
+        "minecraft:collision_box": {
+          "width": 0.6,
+          "height": 0.9
+        },
+        "minecraft:physics": {
+          "has_gravity": false,
+          "has_collision": true
+        },
+        "minecraft:environment_sensor": {
+          "triggers": [
+            {
+              "filters": {
+                "all_of": [
+                  {
+                    "test": "bool_property",
+                    "domain": "fidelity:done",
+                    "value": false
+                  },
+                  {
+                    "test": "has_component",
+                    "value": "minecraft:pushable_by_entity"
+                  }
+                ]
+              },
+              "event": "fidelity:pass"
+            }
+          ]
+        },
+        "minecraft:pushable": {
+          "is_pushable": true,
+          "is_pushable_by_piston": false
+        }
+      },
+      "events": {
+        "fidelity:pass": {
+          "set_property": {
+            "fidelity:done": true
+          },
+          "queue_command": {
+            "command": "scoreboard players set legacy_pushable fidelity 1"
+          }
+        }
+      }
+    }
+  },
+  "null_events": {
+    "format_version": "1.26.50",
+    "minecraft:entity": {
+      "description": {
+        "identifier": "fidelity:null_events",
+        "runtime_identifier": "minecraft:pig",
+        "is_spawnable": false,
+        "is_summonable": true,
+        "properties": {
+          "fidelity:done": {
+            "type": "bool",
+            "default": false
+          },
+          "fidelity:molang": {
+            "type": "bool",
+            "default": "MaTh.ClAmP(1,0,2) == 1"
+          },
+          "fidelity:n": {
+            "type": "int",
+            "range": [
+              -10,
+              10
+            ],
+            "default": 3
+          }
+        }
+      },
+      "components": {
+        "minecraft:type_family": {
+          "family": [
+            "fidelity"
+          ]
+        },
+        "minecraft:health": {
+          "value": 10,
+          "max": 10
+        },
+        "minecraft:collision_box": {
+          "width": 0.6,
+          "height": 0.9
+        },
+        "minecraft:physics": {
+          "has_gravity": false,
+          "has_collision": true
+        }
+      },
+      "events": null
+    }
+  },
+  "unknown_keys": {
+    "format_version": "1.26.50",
+    "minecraft:entity": {
+      "description": {
+        "identifier": "fidelity:unknown_keys",
+        "runtime_identifier": "minecraft:pig",
+        "is_spawnable": false,
+        "is_summonable": true,
+        "properties": {
+          "fidelity:done": {
+            "type": "bool",
+            "default": false
+          },
+          "fidelity:molang": {
+            "type": "bool",
+            "default": "MaTh.ClAmP(1,0,2) == 1"
+          },
+          "fidelity:n": {
+            "type": "int",
+            "range": [
+              -10,
+              10
+            ],
+            "default": 3
+          }
+        }
+      },
+      "components": {
+        "minecraft:type_family": {
+          "family": [
+            "fidelity"
+          ]
+        },
+        "minecraft:health": {
+          "value": 10,
+          "max": 10
+        },
+        "minecraft:collision_box": {
+          "width": 0.6,
+          "height": 0.9
+        },
+        "minecraft:physics": {
+          "has_gravity": false,
+          "has_collision": true
+        },
+        "minecraft:environment_sensor": {
+          "triggers": [
+            {
+              "filters": {
+                "all_of": [
+                  {
+                    "test": "bool_property",
+                    "domain": "fidelity:done",
+                    "value": false
+                  },
+                  {
+                    "test": "is_family",
+                    "value": "fidelity"
+                  }
+                ]
+              },
+              "event": "fidelity:pass"
+            }
+          ]
+        },
+        "fidelity:unknown_component": {}
+      },
+      "events": {
+        "fidelity:pass": {
+          "set_property": {
+            "fidelity:done": true
+          },
+          "queue_command": {
+            "command": "scoreboard players set unknown_keys fidelity 1"
+          },
+          "fidelity:unknown_action": {}
+        }
+      },
+      "fidelity:unknown_entity_key": {
+        "nested": [
+          1,
+          2
+        ]
+      }
+    }
+  },
+  "future_version": {
+    "format_version": "99.0.0",
+    "minecraft:entity": {
+      "description": {
+        "identifier": "fidelity:future_version",
+        "runtime_identifier": "minecraft:pig",
+        "is_spawnable": false,
+        "is_summonable": true,
+        "properties": {
+          "fidelity:done": {
+            "type": "bool",
+            "default": false
+          },
+          "fidelity:molang": {
+            "type": "bool",
+            "default": "MaTh.ClAmP(1,0,2) == 1"
+          },
+          "fidelity:n": {
+            "type": "int",
+            "range": [
+              -10,
+              10
+            ],
+            "default": 3
+          }
+        }
+      },
+      "components": {
+        "minecraft:type_family": {
+          "family": [
+            "fidelity"
+          ]
+        },
+        "minecraft:health": {
+          "value": 10,
+          "max": 10
+        },
+        "minecraft:collision_box": {
+          "width": 0.6,
+          "height": 0.9
+        },
+        "minecraft:physics": {
+          "has_gravity": false,
+          "has_collision": true
+        },
+        "minecraft:environment_sensor": {
+          "triggers": [
+            {
+              "filters": {
+                "all_of": [
+                  {
+                    "test": "bool_property",
+                    "domain": "fidelity:done",
+                    "value": false
+                  },
+                  {
+                    "test": "is_family",
+                    "value": "fidelity"
+                  }
+                ]
+              },
+              "event": "fidelity:pass"
+            }
+          ]
+        }
+      },
+      "events": {
+        "fidelity:pass": {
+          "set_property": {
+            "fidelity:done": true
+          },
+          "queue_command": {
+            "command": "scoreboard players set future_version fidelity 1"
+          }
+        }
+      }
+    }
+  },
+  "silverfish_remove": {
+    "format_version": "1.26.50",
+    "minecraft:entity": {
+      "description": {
+        "identifier": "fidelity:silverfish_remove",
+        "runtime_identifier": "minecraft:pig",
+        "is_spawnable": false,
+        "is_summonable": true,
+        "properties": {
+          "fidelity:done": {
+            "type": "bool",
+            "default": false
+          },
+          "fidelity:molang": {
+            "type": "bool",
+            "default": "MaTh.ClAmP(1,0,2) == 1"
+          },
+          "fidelity:n": {
+            "type": "int",
+            "range": [
+              -10,
+              10
+            ],
+            "default": 3
+          }
+        }
+      },
+      "components": {
+        "minecraft:type_family": {
+          "family": [
+            "fidelity"
+          ]
+        },
+        "minecraft:health": {
+          "value": 10,
+          "max": 10
+        },
+        "minecraft:collision_box": {
+          "width": 0.6,
+          "height": 0.9
+        },
+        "minecraft:physics": {
+          "has_gravity": false,
+          "has_collision": true
+        },
+        "minecraft:environment_sensor": {
+          "triggers": [
+            {
+              "filters": {
+                "all_of": [
+                  {
+                    "test": "bool_property",
+                    "domain": "fidelity:done",
+                    "value": false
+                  },
+                  {
+                    "test": "has_component",
+                    "value": "minecraft:is_baby"
+                  }
+                ]
+              },
+              "event": "fidelity:pass"
+            }
+          ]
+        }
+      },
+      "events": {
+        "fidelity:pass": {
+          "set_property": {
+            "fidelity:done": true
+          },
+          "queue_command": {
+            "command": "scoreboard players set silverfish_remove fidelity 1"
+          }
+        },
+        "minecraft:entity_spawned": {
+          "sequence": [
+            {
+              "add": {
+                "component_groups": [
+                  "fidelity:baby"
+                ]
+              }
+            },
+            {
+              "remove": {
+                "fidelity:baby": {}
+              }
+            }
+          ]
+        }
+      },
+      "component_groups": {
+        "fidelity:baby": {
+          "minecraft:is_baby": {}
+        }
+      }
+    }
+  },
+  "shadowed_base_remove": {
+    "format_version": "1.26.50",
+    "minecraft:entity": {
+      "description": {
+        "identifier": "fidelity:shadowed_base_remove",
+        "runtime_identifier": "minecraft:pig",
+        "is_spawnable": false,
+        "is_summonable": true,
+        "properties": {
+          "fidelity:done": {
+            "type": "bool",
+            "default": false
+          },
+          "fidelity:molang": {
+            "type": "bool",
+            "default": "MaTh.ClAmP(1,0,2) == 1"
+          },
+          "fidelity:n": {
+            "type": "int",
+            "range": [
+              -10,
+              10
+            ],
+            "default": 3
+          }
+        }
+      },
+      "components": {
+        "minecraft:type_family": {
+          "family": [
+            "fidelity"
+          ]
+        },
+        "minecraft:health": {
+          "value": 10,
+          "max": 10
+        },
+        "minecraft:collision_box": {
+          "width": 0.6,
+          "height": 0.9
+        },
+        "minecraft:physics": {
+          "has_gravity": false,
+          "has_collision": true
+        },
+        "minecraft:environment_sensor": {
+          "triggers": [
+            {
+              "filters": {
+                "all_of": [
+                  {
+                    "test": "bool_property",
+                    "domain": "fidelity:done",
+                    "value": false
+                  },
+                  {
+                    "test": "has_component",
+                    "operator": "!=",
+                    "value": "minecraft:is_baby"
+                  }
+                ]
+              },
+              "event": "fidelity:pass"
+            }
+          ]
+        },
+        "minecraft:is_baby": {}
+      },
+      "events": {
+        "fidelity:pass": {
+          "set_property": {
+            "fidelity:done": true
+          },
+          "queue_command": {
+            "command": "scoreboard players set shadowed_base_remove fidelity 1"
+          }
+        },
+        "minecraft:entity_spawned": {
+          "sequence": [
+            {
+              "add": {
+                "component_groups": [
+                  "fidelity:baby"
+                ]
+              }
+            },
+            {
+              "remove": {
+                "component_groups": [
+                  "fidelity:baby"
+                ]
+              }
+            }
+          ]
+        }
+      },
+      "component_groups": {
+        "fidelity:baby": {
+          "minecraft:is_baby": {}
+        }
+      }
+    }
+  },
+  "version_engine_patch": {
+    "format_version": "1.26.51",
+    "minecraft:entity": {
+      "description": {
+        "identifier": "fidelity:version_engine_patch",
+        "runtime_identifier": "minecraft:pig",
+        "is_spawnable": false,
+        "is_summonable": true,
+        "properties": {
+          "fidelity:done": {
+            "type": "bool",
+            "default": false
+          },
+          "fidelity:molang": {
+            "type": "bool",
+            "default": "MaTh.ClAmP(1,0,2) == 1"
+          },
+          "fidelity:n": {
+            "type": "int",
+            "range": [
+              -10,
+              10
+            ],
+            "default": 3
+          }
+        }
+      },
+      "components": {
+        "minecraft:type_family": {
+          "family": [
+            "fidelity"
+          ]
+        },
+        "minecraft:health": {
+          "value": 10,
+          "max": 10
+        },
+        "minecraft:collision_box": {
+          "width": 0.6,
+          "height": 0.9
+        },
+        "minecraft:physics": {
+          "has_gravity": false,
+          "has_collision": true
+        },
+        "minecraft:environment_sensor": {
+          "triggers": [
+            {
+              "filters": {
+                "all_of": [
+                  {
+                    "test": "bool_property",
+                    "domain": "fidelity:done",
+                    "value": false
+                  },
+                  {
+                    "test": "is_family",
+                    "value": "fidelity"
+                  }
+                ]
+              },
+              "event": "fidelity:pass"
+            }
+          ]
+        }
+      },
+      "events": {
+        "fidelity:pass": {
+          "set_property": {
+            "fidelity:done": true
+          },
+          "queue_command": {
+            "command": "scoreboard players set version_engine_patch fidelity 1"
+          }
+        }
+      }
+    }
+  },
+  "version_hotfix": {
+    "format_version": "1.26.52",
+    "minecraft:entity": {
+      "description": {
+        "identifier": "fidelity:version_hotfix",
+        "runtime_identifier": "minecraft:pig",
+        "is_spawnable": false,
+        "is_summonable": true,
+        "properties": {
+          "fidelity:done": {
+            "type": "bool",
+            "default": false
+          },
+          "fidelity:molang": {
+            "type": "bool",
+            "default": "MaTh.ClAmP(1,0,2) == 1"
+          },
+          "fidelity:n": {
+            "type": "int",
+            "range": [
+              -10,
+              10
+            ],
+            "default": 3
+          }
+        }
+      },
+      "components": {
+        "minecraft:type_family": {
+          "family": [
+            "fidelity"
+          ]
+        },
+        "minecraft:health": {
+          "value": 10,
+          "max": 10
+        },
+        "minecraft:collision_box": {
+          "width": 0.6,
+          "height": 0.9
+        },
+        "minecraft:physics": {
+          "has_gravity": false,
+          "has_collision": true
+        },
+        "minecraft:environment_sensor": {
+          "triggers": [
+            {
+              "filters": {
+                "all_of": [
+                  {
+                    "test": "bool_property",
+                    "domain": "fidelity:done",
+                    "value": false
+                  },
+                  {
+                    "test": "is_family",
+                    "value": "fidelity"
+                  }
+                ]
+              },
+              "event": "fidelity:pass"
+            }
+          ]
+        }
+      },
+      "events": {
+        "fidelity:pass": {
+          "set_property": {
+            "fidelity:done": true
+          },
+          "queue_command": {
+            "command": "scoreboard players set version_hotfix fidelity 1"
+          }
+        }
+      }
+    }
+  },
+  "version_next_minor": {
+    "format_version": "1.27.0",
+    "minecraft:entity": {
+      "description": {
+        "identifier": "fidelity:version_next_minor",
+        "runtime_identifier": "minecraft:pig",
+        "is_spawnable": false,
+        "is_summonable": true,
+        "properties": {
+          "fidelity:done": {
+            "type": "bool",
+            "default": false
+          },
+          "fidelity:molang": {
+            "type": "bool",
+            "default": "MaTh.ClAmP(1,0,2) == 1"
+          },
+          "fidelity:n": {
+            "type": "int",
+            "range": [
+              -10,
+              10
+            ],
+            "default": 3
+          }
+        }
+      },
+      "components": {
+        "minecraft:type_family": {
+          "family": [
+            "fidelity"
+          ]
+        },
+        "minecraft:health": {
+          "value": 10,
+          "max": 10
+        },
+        "minecraft:collision_box": {
+          "width": 0.6,
+          "height": 0.9
+        },
+        "minecraft:physics": {
+          "has_gravity": false,
+          "has_collision": true
+        },
+        "minecraft:environment_sensor": {
+          "triggers": [
+            {
+              "filters": {
+                "all_of": [
+                  {
+                    "test": "bool_property",
+                    "domain": "fidelity:done",
+                    "value": false
+                  },
+                  {
+                    "test": "is_family",
+                    "value": "fidelity"
+                  }
+                ]
+              },
+              "event": "fidelity:pass"
+            }
+          ]
+        }
+      },
+      "events": {
+        "fidelity:pass": {
+          "set_property": {
+            "fidelity:done": true
+          },
+          "queue_command": {
+            "command": "scoreboard players set version_next_minor fidelity 1"
+          }
+        }
+      }
+    }
+  },
+  "unknown_component": {
+    "format_version": "1.26.50",
+    "minecraft:entity": {
+      "description": {
+        "identifier": "fidelity:unknown_component",
+        "runtime_identifier": "minecraft:pig",
+        "is_spawnable": false,
+        "is_summonable": true,
+        "properties": {
+          "fidelity:done": {
+            "type": "bool",
+            "default": false
+          },
+          "fidelity:molang": {
+            "type": "bool",
+            "default": "MaTh.ClAmP(1,0,2) == 1"
+          },
+          "fidelity:n": {
+            "type": "int",
+            "range": [
+              -10,
+              10
+            ],
+            "default": 3
+          }
+        }
+      },
+      "components": {
+        "minecraft:type_family": {
+          "family": [
+            "fidelity"
+          ]
+        },
+        "minecraft:health": {
+          "value": 10,
+          "max": 10
+        },
+        "minecraft:collision_box": {
+          "width": 0.6,
+          "height": 0.9
+        },
+        "minecraft:physics": {
+          "has_gravity": false,
+          "has_collision": true
+        },
+        "minecraft:environment_sensor": {
+          "triggers": [
+            {
+              "filters": {
+                "all_of": [
+                  {
+                    "test": "bool_property",
+                    "domain": "fidelity:done",
+                    "value": false
+                  },
+                  {
+                    "test": "is_family",
+                    "value": "fidelity"
+                  }
+                ]
+              },
+              "event": "fidelity:pass"
+            }
+          ]
+        },
+        "fidelity:unknown_component": {}
+      },
+      "events": {
+        "fidelity:pass": {
+          "set_property": {
+            "fidelity:done": true
+          },
+          "queue_command": {
+            "command": "scoreboard players set unknown_component fidelity 1"
+          }
+        }
+      }
+    }
+  },
+  "unknown_component_old": {
+    "format_version": "1.26.0",
+    "minecraft:entity": {
+      "description": {
+        "identifier": "fidelity:unknown_component_old",
+        "runtime_identifier": "minecraft:pig",
+        "is_spawnable": false,
+        "is_summonable": true,
+        "properties": {
+          "fidelity:done": {
+            "type": "bool",
+            "default": false
+          },
+          "fidelity:molang": {
+            "type": "bool",
+            "default": "MaTh.ClAmP(1,0,2) == 1"
+          },
+          "fidelity:n": {
+            "type": "int",
+            "range": [
+              -10,
+              10
+            ],
+            "default": 3
+          }
+        }
+      },
+      "components": {
+        "minecraft:type_family": {
+          "family": [
+            "fidelity"
+          ]
+        },
+        "minecraft:health": {
+          "value": 10,
+          "max": 10
+        },
+        "minecraft:collision_box": {
+          "width": 0.6,
+          "height": 0.9
+        },
+        "minecraft:physics": {
+          "has_gravity": false,
+          "has_collision": true
+        },
+        "minecraft:environment_sensor": {
+          "triggers": [
+            {
+              "filters": {
+                "all_of": [
+                  {
+                    "test": "bool_property",
+                    "domain": "fidelity:done",
+                    "value": false
+                  },
+                  {
+                    "test": "is_family",
+                    "value": "fidelity"
+                  }
+                ]
+              },
+              "event": "fidelity:pass"
+            }
+          ]
+        },
+        "fidelity:unknown_component": {}
+      },
+      "events": {
+        "fidelity:pass": {
+          "set_property": {
+            "fidelity:done": true
+          },
+          "queue_command": {
+            "command": "scoreboard players set unknown_component_old fidelity 1"
+          }
+        }
+      }
+    }
+  },
+  "unknown_component_ancient": {
+    "format_version": "1.21.0",
+    "minecraft:entity": {
+      "description": {
+        "identifier": "fidelity:unknown_component_ancient",
+        "runtime_identifier": "minecraft:pig",
+        "is_spawnable": false,
+        "is_summonable": true,
+        "properties": {
+          "fidelity:done": {
+            "type": "bool",
+            "default": false
+          },
+          "fidelity:molang": {
+            "type": "bool",
+            "default": "MaTh.ClAmP(1,0,2) == 1"
+          },
+          "fidelity:n": {
+            "type": "int",
+            "range": [
+              -10,
+              10
+            ],
+            "default": 3
+          }
+        }
+      },
+      "components": {
+        "minecraft:type_family": {
+          "family": [
+            "fidelity"
+          ]
+        },
+        "minecraft:health": {
+          "value": 10,
+          "max": 10
+        },
+        "minecraft:collision_box": {
+          "width": 0.6,
+          "height": 0.9
+        },
+        "minecraft:physics": {
+          "has_gravity": false,
+          "has_collision": true
+        },
+        "minecraft:environment_sensor": {
+          "triggers": [
+            {
+              "filters": {
+                "all_of": [
+                  {
+                    "test": "bool_property",
+                    "domain": "fidelity:done",
+                    "value": false
+                  },
+                  {
+                    "test": "is_family",
+                    "value": "fidelity"
+                  }
+                ]
+              },
+              "event": "fidelity:pass"
+            }
+          ]
+        },
+        "fidelity:unknown_component": {}
+      },
+      "events": {
+        "fidelity:pass": {
+          "set_property": {
+            "fidelity:done": true
+          },
+          "queue_command": {
+            "command": "scoreboard players set unknown_component_ancient fidelity 1"
+          }
+        }
+      }
+    }
+  },
+  "unknown_event_action": {
+    "format_version": "1.26.50",
+    "minecraft:entity": {
+      "description": {
+        "identifier": "fidelity:unknown_event_action",
+        "runtime_identifier": "minecraft:pig",
+        "is_spawnable": false,
+        "is_summonable": true,
+        "properties": {
+          "fidelity:done": {
+            "type": "bool",
+            "default": false
+          },
+          "fidelity:molang": {
+            "type": "bool",
+            "default": "MaTh.ClAmP(1,0,2) == 1"
+          },
+          "fidelity:n": {
+            "type": "int",
+            "range": [
+              -10,
+              10
+            ],
+            "default": 3
+          }
+        }
+      },
+      "components": {
+        "minecraft:type_family": {
+          "family": [
+            "fidelity"
+          ]
+        },
+        "minecraft:health": {
+          "value": 10,
+          "max": 10
+        },
+        "minecraft:collision_box": {
+          "width": 0.6,
+          "height": 0.9
+        },
+        "minecraft:physics": {
+          "has_gravity": false,
+          "has_collision": true
+        },
+        "minecraft:environment_sensor": {
+          "triggers": [
+            {
+              "filters": {
+                "all_of": [
+                  {
+                    "test": "bool_property",
+                    "domain": "fidelity:done",
+                    "value": false
+                  },
+                  {
+                    "test": "is_family",
+                    "value": "fidelity"
+                  }
+                ]
+              },
+              "event": "fidelity:pass"
+            }
+          ]
+        }
+      },
+      "events": {
+        "fidelity:pass": {
+          "set_property": {
+            "fidelity:done": true
+          },
+          "queue_command": {
+            "command": "scoreboard players set unknown_event_action fidelity 1"
+          },
+          "fidelity:unknown_action": {}
+        }
+      }
+    }
+  },
+  "unknown_entity_key": {
+    "format_version": "1.26.50",
+    "minecraft:entity": {
+      "description": {
+        "identifier": "fidelity:unknown_entity_key",
+        "runtime_identifier": "minecraft:pig",
+        "is_spawnable": false,
+        "is_summonable": true,
+        "properties": {
+          "fidelity:done": {
+            "type": "bool",
+            "default": false
+          },
+          "fidelity:molang": {
+            "type": "bool",
+            "default": "MaTh.ClAmP(1,0,2) == 1"
+          },
+          "fidelity:n": {
+            "type": "int",
+            "range": [
+              -10,
+              10
+            ],
+            "default": 3
+          }
+        }
+      },
+      "components": {
+        "minecraft:type_family": {
+          "family": [
+            "fidelity"
+          ]
+        },
+        "minecraft:health": {
+          "value": 10,
+          "max": 10
+        },
+        "minecraft:collision_box": {
+          "width": 0.6,
+          "height": 0.9
+        },
+        "minecraft:physics": {
+          "has_gravity": false,
+          "has_collision": true
+        },
+        "minecraft:environment_sensor": {
+          "triggers": [
+            {
+              "filters": {
+                "all_of": [
+                  {
+                    "test": "bool_property",
+                    "domain": "fidelity:done",
+                    "value": false
+                  },
+                  {
+                    "test": "is_family",
+                    "value": "fidelity"
+                  }
+                ]
+              },
+              "event": "fidelity:pass"
+            }
+          ]
+        }
+      },
+      "events": {
+        "fidelity:pass": {
+          "set_property": {
+            "fidelity:done": true
+          },
+          "queue_command": {
+            "command": "scoreboard players set unknown_entity_key fidelity 1"
+          }
+        }
+      },
+      "fidelity:unknown_entity_key": {
+        "nested": [
+          1,
+          2
+        ]
+      }
+    }
+  },
+  "unknown_top_key": {
+    "format_version": "1.26.50",
+    "minecraft:entity": {
+      "description": {
+        "identifier": "fidelity:unknown_top_key",
+        "runtime_identifier": "minecraft:pig",
+        "is_spawnable": false,
+        "is_summonable": true,
+        "properties": {
+          "fidelity:done": {
+            "type": "bool",
+            "default": false
+          },
+          "fidelity:molang": {
+            "type": "bool",
+            "default": "MaTh.ClAmP(1,0,2) == 1"
+          },
+          "fidelity:n": {
+            "type": "int",
+            "range": [
+              -10,
+              10
+            ],
+            "default": 3
+          }
+        }
+      },
+      "components": {
+        "minecraft:type_family": {
+          "family": [
+            "fidelity"
+          ]
+        },
+        "minecraft:health": {
+          "value": 10,
+          "max": 10
+        },
+        "minecraft:collision_box": {
+          "width": 0.6,
+          "height": 0.9
+        },
+        "minecraft:physics": {
+          "has_gravity": false,
+          "has_collision": true
+        },
+        "minecraft:environment_sensor": {
+          "triggers": [
+            {
+              "filters": {
+                "all_of": [
+                  {
+                    "test": "bool_property",
+                    "domain": "fidelity:done",
+                    "value": false
+                  },
+                  {
+                    "test": "is_family",
+                    "value": "fidelity"
+                  }
+                ]
+              },
+              "event": "fidelity:pass"
+            }
+          ]
+        }
+      },
+      "events": {
+        "fidelity:pass": {
+          "set_property": {
+            "fidelity:done": true
+          },
+          "queue_command": {
+            "command": "scoreboard players set unknown_top_key fidelity 1"
+          }
+        }
+      }
+    },
+    "fidelity:unknown_top_key": {
+      "nested": [
+        1,
+        2
+      ]
+    }
+  },
+  "unknown_description_key": {
+    "format_version": "1.26.50",
+    "minecraft:entity": {
+      "description": {
+        "identifier": "fidelity:unknown_description_key",
+        "runtime_identifier": "minecraft:pig",
+        "is_spawnable": false,
+        "is_summonable": true,
+        "properties": {
+          "fidelity:done": {
+            "type": "bool",
+            "default": false
+          },
+          "fidelity:molang": {
+            "type": "bool",
+            "default": "MaTh.ClAmP(1,0,2) == 1"
+          },
+          "fidelity:n": {
+            "type": "int",
+            "range": [
+              -10,
+              10
+            ],
+            "default": 3
+          }
+        },
+        "fidelity:unknown_description_key": {
+          "nested": [
+            1,
+            2
+          ]
+        }
+      },
+      "components": {
+        "minecraft:type_family": {
+          "family": [
+            "fidelity"
+          ]
+        },
+        "minecraft:health": {
+          "value": 10,
+          "max": 10
+        },
+        "minecraft:collision_box": {
+          "width": 0.6,
+          "height": 0.9
+        },
+        "minecraft:physics": {
+          "has_gravity": false,
+          "has_collision": true
+        },
+        "minecraft:environment_sensor": {
+          "triggers": [
+            {
+              "filters": {
+                "all_of": [
+                  {
+                    "test": "bool_property",
+                    "domain": "fidelity:done",
+                    "value": false
+                  },
+                  {
+                    "test": "is_family",
+                    "value": "fidelity"
+                  }
+                ]
+              },
+              "event": "fidelity:pass"
+            }
+          ]
+        }
+      },
+      "events": {
+        "fidelity:pass": {
+          "set_property": {
+            "fidelity:done": true
+          },
+          "queue_command": {
+            "command": "scoreboard players set unknown_description_key fidelity 1"
+          }
+        }
+      }
+    }
+  },
+  "molang_q_default": {
+    "format_version": "1.26.50",
+    "minecraft:entity": {
+      "description": {
+        "identifier": "fidelity:molang_q_default",
+        "runtime_identifier": "minecraft:pig",
+        "is_spawnable": false,
+        "is_summonable": true,
+        "properties": {
+          "fidelity:done": {
+            "type": "bool",
+            "default": false
+          },
+          "fidelity:molang": {
+            "type": "bool",
+            "default": "Q.Had_Component_Group('fidelity:absent') || !query.had_component_group('fidelity:absent')"
+          },
+          "fidelity:n": {
+            "type": "int",
+            "range": [
+              -10,
+              10
+            ],
+            "default": 3
+          }
+        }
+      },
+      "components": {
+        "minecraft:type_family": {
+          "family": [
+            "fidelity"
+          ]
+        },
+        "minecraft:health": {
+          "value": 10,
+          "max": 10
+        },
+        "minecraft:collision_box": {
+          "width": 0.6,
+          "height": 0.9
+        },
+        "minecraft:physics": {
+          "has_gravity": false,
+          "has_collision": true
+        },
+        "minecraft:environment_sensor": {
+          "triggers": [
+            {
+              "filters": {
+                "all_of": [
+                  {
+                    "test": "bool_property",
+                    "domain": "fidelity:done",
+                    "value": false
+                  },
+                  {
+                    "test": "bool_property",
+                    "domain": "fidelity:molang",
+                    "value": true
+                  }
+                ]
+              },
+              "event": "fidelity:pass"
+            }
+          ]
+        }
+      },
+      "events": {
+        "fidelity:pass": {
+          "set_property": {
+            "fidelity:done": true
+          },
+          "queue_command": {
+            "command": "scoreboard players set molang_q_default fidelity 1"
+          }
+        }
+      }
+    }
+  },
+  "operator_not": {
+    "format_version": "1.26.50",
+    "minecraft:entity": {
+      "description": {
+        "identifier": "fidelity:operator_not",
+        "runtime_identifier": "minecraft:pig",
+        "is_spawnable": false,
+        "is_summonable": true,
+        "properties": {
+          "fidelity:done": {
+            "type": "bool",
+            "default": false
+          },
+          "fidelity:molang": {
+            "type": "bool",
+            "default": "MaTh.ClAmP(1,0,2) == 1"
+          },
+          "fidelity:n": {
+            "type": "int",
+            "range": [
+              -10,
+              10
+            ],
+            "default": 3
+          }
+        }
+      },
+      "components": {
+        "minecraft:type_family": {
+          "family": [
+            "fidelity"
+          ]
+        },
+        "minecraft:health": {
+          "value": 10,
+          "max": 10
+        },
+        "minecraft:collision_box": {
+          "width": 0.6,
+          "height": 0.9
+        },
+        "minecraft:physics": {
+          "has_gravity": false,
+          "has_collision": true
+        },
+        "minecraft:environment_sensor": {
+          "triggers": [
+            {
+              "filters": {
+                "all_of": [
+                  {
+                    "test": "bool_property",
+                    "domain": "fidelity:done",
+                    "value": false
+                  },
+                  {
+                    "test": "is_family",
+                    "operator": "not",
+                    "value": "absent"
+                  }
+                ]
+              },
+              "event": "fidelity:pass"
+            }
+          ]
+        }
+      },
+      "events": {
+        "fidelity:pass": {
+          "set_property": {
+            "fidelity:done": true
+          },
+          "queue_command": {
+            "command": "scoreboard players set operator_not fidelity 1"
+          }
+        }
+      }
+    }
+  },
+  "operator_lt": {
+    "format_version": "1.26.50",
+    "minecraft:entity": {
+      "description": {
+        "identifier": "fidelity:operator_lt",
+        "runtime_identifier": "minecraft:pig",
+        "is_spawnable": false,
+        "is_summonable": true,
+        "properties": {
+          "fidelity:done": {
+            "type": "bool",
+            "default": false
+          },
+          "fidelity:molang": {
+            "type": "bool",
+            "default": "MaTh.ClAmP(1,0,2) == 1"
+          },
+          "fidelity:n": {
+            "type": "int",
+            "range": [
+              -10,
+              10
+            ],
+            "default": 3
+          }
+        }
+      },
+      "components": {
+        "minecraft:type_family": {
+          "family": [
+            "fidelity"
+          ]
+        },
+        "minecraft:health": {
+          "value": 10,
+          "max": 10
+        },
+        "minecraft:collision_box": {
+          "width": 0.6,
+          "height": 0.9
+        },
+        "minecraft:physics": {
+          "has_gravity": false,
+          "has_collision": true
+        },
+        "minecraft:environment_sensor": {
+          "triggers": [
+            {
+              "filters": {
+                "all_of": [
+                  {
+                    "test": "bool_property",
+                    "domain": "fidelity:done",
+                    "value": false
+                  },
+                  {
+                    "test": "int_property",
+                    "domain": "fidelity:n",
+                    "operator": "<",
+                    "value": 4
+                  }
+                ]
+              },
+              "event": "fidelity:pass"
+            }
+          ]
+        }
+      },
+      "events": {
+        "fidelity:pass": {
+          "set_property": {
+            "fidelity:done": true
+          },
+          "queue_command": {
+            "command": "scoreboard players set operator_lt fidelity 1"
+          }
+        }
+      }
+    }
+  },
+  "operator_le": {
+    "format_version": "1.26.50",
+    "minecraft:entity": {
+      "description": {
+        "identifier": "fidelity:operator_le",
+        "runtime_identifier": "minecraft:pig",
+        "is_spawnable": false,
+        "is_summonable": true,
+        "properties": {
+          "fidelity:done": {
+            "type": "bool",
+            "default": false
+          },
+          "fidelity:molang": {
+            "type": "bool",
+            "default": "MaTh.ClAmP(1,0,2) == 1"
+          },
+          "fidelity:n": {
+            "type": "int",
+            "range": [
+              -10,
+              10
+            ],
+            "default": 3
+          }
+        }
+      },
+      "components": {
+        "minecraft:type_family": {
+          "family": [
+            "fidelity"
+          ]
+        },
+        "minecraft:health": {
+          "value": 10,
+          "max": 10
+        },
+        "minecraft:collision_box": {
+          "width": 0.6,
+          "height": 0.9
+        },
+        "minecraft:physics": {
+          "has_gravity": false,
+          "has_collision": true
+        },
+        "minecraft:environment_sensor": {
+          "triggers": [
+            {
+              "filters": {
+                "all_of": [
+                  {
+                    "test": "bool_property",
+                    "domain": "fidelity:done",
+                    "value": false
+                  },
+                  {
+                    "test": "int_property",
+                    "domain": "fidelity:n",
+                    "operator": "<=",
+                    "value": 3
+                  }
+                ]
+              },
+              "event": "fidelity:pass"
+            }
+          ]
+        }
+      },
+      "events": {
+        "fidelity:pass": {
+          "set_property": {
+            "fidelity:done": true
+          },
+          "queue_command": {
+            "command": "scoreboard players set operator_le fidelity 1"
+          }
+        }
+      }
+    }
+  },
+  "operator_gt": {
+    "format_version": "1.26.50",
+    "minecraft:entity": {
+      "description": {
+        "identifier": "fidelity:operator_gt",
+        "runtime_identifier": "minecraft:pig",
+        "is_spawnable": false,
+        "is_summonable": true,
+        "properties": {
+          "fidelity:done": {
+            "type": "bool",
+            "default": false
+          },
+          "fidelity:molang": {
+            "type": "bool",
+            "default": "MaTh.ClAmP(1,0,2) == 1"
+          },
+          "fidelity:n": {
+            "type": "int",
+            "range": [
+              -10,
+              10
+            ],
+            "default": 3
+          }
+        }
+      },
+      "components": {
+        "minecraft:type_family": {
+          "family": [
+            "fidelity"
+          ]
+        },
+        "minecraft:health": {
+          "value": 10,
+          "max": 10
+        },
+        "minecraft:collision_box": {
+          "width": 0.6,
+          "height": 0.9
+        },
+        "minecraft:physics": {
+          "has_gravity": false,
+          "has_collision": true
+        },
+        "minecraft:environment_sensor": {
+          "triggers": [
+            {
+              "filters": {
+                "all_of": [
+                  {
+                    "test": "bool_property",
+                    "domain": "fidelity:done",
+                    "value": false
+                  },
+                  {
+                    "test": "int_property",
+                    "domain": "fidelity:n",
+                    "operator": ">",
+                    "value": 2
+                  }
+                ]
+              },
+              "event": "fidelity:pass"
+            }
+          ]
+        }
+      },
+      "events": {
+        "fidelity:pass": {
+          "set_property": {
+            "fidelity:done": true
+          },
+          "queue_command": {
+            "command": "scoreboard players set operator_gt fidelity 1"
+          }
+        }
+      }
+    }
+  },
+  "operator_ge": {
+    "format_version": "1.26.50",
+    "minecraft:entity": {
+      "description": {
+        "identifier": "fidelity:operator_ge",
+        "runtime_identifier": "minecraft:pig",
+        "is_spawnable": false,
+        "is_summonable": true,
+        "properties": {
+          "fidelity:done": {
+            "type": "bool",
+            "default": false
+          },
+          "fidelity:molang": {
+            "type": "bool",
+            "default": "MaTh.ClAmP(1,0,2) == 1"
+          },
+          "fidelity:n": {
+            "type": "int",
+            "range": [
+              -10,
+              10
+            ],
+            "default": 3
+          }
+        }
+      },
+      "components": {
+        "minecraft:type_family": {
+          "family": [
+            "fidelity"
+          ]
+        },
+        "minecraft:health": {
+          "value": 10,
+          "max": 10
+        },
+        "minecraft:collision_box": {
+          "width": 0.6,
+          "height": 0.9
+        },
+        "minecraft:physics": {
+          "has_gravity": false,
+          "has_collision": true
+        },
+        "minecraft:environment_sensor": {
+          "triggers": [
+            {
+              "filters": {
+                "all_of": [
+                  {
+                    "test": "bool_property",
+                    "domain": "fidelity:done",
+                    "value": false
+                  },
+                  {
+                    "test": "int_property",
+                    "domain": "fidelity:n",
+                    "operator": ">=",
+                    "value": 3
+                  }
+                ]
+              },
+              "event": "fidelity:pass"
+            }
+          ]
+        }
+      },
+      "events": {
+        "fidelity:pass": {
+          "set_property": {
+            "fidelity:done": true
+          },
+          "queue_command": {
+            "command": "scoreboard players set operator_ge fidelity 1"
+          }
+        }
+      }
+    }
+  },
+  "bad_default_good_property": {
+    "format_version": "1.26.50",
+    "minecraft:entity": {
+      "description": {
+        "identifier": "fidelity:bad_default_good_property",
+        "runtime_identifier": "minecraft:pig",
+        "is_spawnable": false,
+        "is_summonable": true,
+        "properties": {
+          "fidelity:done": {
+            "type": "bool",
+            "default": false
+          },
+          "fidelity:molang": {
+            "type": "bool",
+            "default": "query.is_baby"
+          },
+          "fidelity:n": {
+            "type": "int",
+            "range": [
+              -10,
+              10
+            ],
+            "default": 3
+          }
+        }
+      },
+      "components": {
+        "minecraft:type_family": {
+          "family": [
+            "fidelity"
+          ]
+        },
+        "minecraft:health": {
+          "value": 10,
+          "max": 10
+        },
+        "minecraft:collision_box": {
+          "width": 0.6,
+          "height": 0.9
+        },
+        "minecraft:physics": {
+          "has_gravity": false,
+          "has_collision": true
+        },
+        "minecraft:environment_sensor": {
+          "triggers": [
+            {
+              "filters": {
+                "test": "int_property",
+                "domain": "fidelity:n",
+                "value": 3
+              },
+              "event": "fidelity:pass"
+            }
+          ]
+        }
+      },
+      "events": {
+        "fidelity:pass": {
+          "queue_command": {
+            "command": "scoreboard players set bad_default_good_property fidelity 1"
+          }
+        }
+      }
+    }
+  },
+  "bad_default_no_property_filter": {
+    "format_version": "1.26.50",
+    "minecraft:entity": {
+      "description": {
+        "identifier": "fidelity:bad_default_no_property_filter",
+        "runtime_identifier": "minecraft:pig",
+        "is_spawnable": false,
+        "is_summonable": true,
+        "properties": {
+          "fidelity:done": {
+            "type": "bool",
+            "default": false
+          },
+          "fidelity:molang": {
+            "type": "bool",
+            "default": "query.is_baby"
+          },
+          "fidelity:n": {
+            "type": "int",
+            "range": [
+              -10,
+              10
+            ],
+            "default": 3
+          }
+        }
+      },
+      "components": {
+        "minecraft:type_family": {
+          "family": [
+            "fidelity"
+          ]
+        },
+        "minecraft:health": {
+          "value": 10,
+          "max": 10
+        },
+        "minecraft:collision_box": {
+          "width": 0.6,
+          "height": 0.9
+        },
+        "minecraft:physics": {
+          "has_gravity": false,
+          "has_collision": true
+        },
+        "minecraft:environment_sensor": {
+          "triggers": [
+            {
+              "filters": {
+                "test": "is_family",
+                "value": "fidelity"
+              },
+              "event": "fidelity:pass"
+            }
+          ]
+        }
+      },
+      "events": {
+        "fidelity:pass": {
+          "queue_command": {
+            "command": "scoreboard players set bad_default_no_property_filter fidelity 1"
+          }
+        }
+      }
+    }
+  },
+  "subject_numeric_2": {
+    "format_version": "1.26.50",
+    "minecraft:entity": {
+      "description": {
+        "identifier": "fidelity:subject_numeric_2",
+        "runtime_identifier": "minecraft:pig",
+        "is_spawnable": false,
+        "is_summonable": true,
+        "properties": {
+          "fidelity:done": {
+            "type": "bool",
+            "default": false
+          },
+          "fidelity:molang": {
+            "type": "bool",
+            "default": "MaTh.ClAmP(1,0,2) == 1"
+          },
+          "fidelity:n": {
+            "type": "int",
+            "range": [
+              -10,
+              10
+            ],
+            "default": 3
+          }
+        }
+      },
+      "components": {
+        "minecraft:type_family": {
+          "family": [
+            "fidelity"
+          ]
+        },
+        "minecraft:health": {
+          "value": 10,
+          "max": 10
+        },
+        "minecraft:collision_box": {
+          "width": 0.6,
+          "height": 0.9
+        },
+        "minecraft:physics": {
+          "has_gravity": false,
+          "has_collision": true
+        },
+        "minecraft:environment_sensor": {
+          "triggers": [
+            {
+              "filters": {
+                "all_of": [
+                  {
+                    "test": "bool_property",
+                    "domain": "fidelity:done",
+                    "value": false
+                  },
+                  {
+                    "none_of": [
+                      {
+                        "test": "is_family",
+                        "subject": 2,
+                        "operator": "!=",
+                        "value": "absent"
+                      }
+                    ]
+                  }
+                ]
+              },
+              "event": "fidelity:pass"
+            }
+          ]
+        }
+      },
+      "events": {
+        "fidelity:pass": {
+          "set_property": {
+            "fidelity:done": true
+          },
+          "queue_command": {
+            "command": "scoreboard players set subject_numeric_2 fidelity 1"
+          }
+        }
+      }
+    }
+  },
+  "subject_numeric_3": {
+    "format_version": "1.26.50",
+    "minecraft:entity": {
+      "description": {
+        "identifier": "fidelity:subject_numeric_3",
+        "runtime_identifier": "minecraft:pig",
+        "is_spawnable": false,
+        "is_summonable": true,
+        "properties": {
+          "fidelity:done": {
+            "type": "bool",
+            "default": false
+          },
+          "fidelity:molang": {
+            "type": "bool",
+            "default": "MaTh.ClAmP(1,0,2) == 1"
+          },
+          "fidelity:n": {
+            "type": "int",
+            "range": [
+              -10,
+              10
+            ],
+            "default": 3
+          }
+        }
+      },
+      "components": {
+        "minecraft:type_family": {
+          "family": [
+            "fidelity"
+          ]
+        },
+        "minecraft:health": {
+          "value": 10,
+          "max": 10
+        },
+        "minecraft:collision_box": {
+          "width": 0.6,
+          "height": 0.9
+        },
+        "minecraft:physics": {
+          "has_gravity": false,
+          "has_collision": true
+        },
+        "minecraft:environment_sensor": {
+          "triggers": [
+            {
+              "filters": {
+                "all_of": [
+                  {
+                    "test": "bool_property",
+                    "domain": "fidelity:done",
+                    "value": false
+                  },
+                  {
+                    "none_of": [
+                      {
+                        "test": "is_family",
+                        "subject": 3,
+                        "operator": "!=",
+                        "value": "absent"
+                      }
+                    ]
+                  }
+                ]
+              },
+              "event": "fidelity:pass"
+            }
+          ]
+        }
+      },
+      "events": {
+        "fidelity:pass": {
+          "set_property": {
+            "fidelity:done": true
+          },
+          "queue_command": {
+            "command": "scoreboard players set subject_numeric_3 fidelity 1"
+          }
+        }
+      }
+    }
+  },
+  "subject_numeric_4": {
+    "format_version": "1.26.50",
+    "minecraft:entity": {
+      "description": {
+        "identifier": "fidelity:subject_numeric_4",
+        "runtime_identifier": "minecraft:pig",
+        "is_spawnable": false,
+        "is_summonable": true,
+        "properties": {
+          "fidelity:done": {
+            "type": "bool",
+            "default": false
+          },
+          "fidelity:molang": {
+            "type": "bool",
+            "default": "MaTh.ClAmP(1,0,2) == 1"
+          },
+          "fidelity:n": {
+            "type": "int",
+            "range": [
+              -10,
+              10
+            ],
+            "default": 3
+          }
+        }
+      },
+      "components": {
+        "minecraft:type_family": {
+          "family": [
+            "fidelity"
+          ]
+        },
+        "minecraft:health": {
+          "value": 10,
+          "max": 10
+        },
+        "minecraft:collision_box": {
+          "width": 0.6,
+          "height": 0.9
+        },
+        "minecraft:physics": {
+          "has_gravity": false,
+          "has_collision": true
+        },
+        "minecraft:environment_sensor": {
+          "triggers": [
+            {
+              "filters": {
+                "all_of": [
+                  {
+                    "test": "bool_property",
+                    "domain": "fidelity:done",
+                    "value": false
+                  },
+                  {
+                    "none_of": [
+                      {
+                        "test": "is_family",
+                        "subject": 4,
+                        "operator": "!=",
+                        "value": "absent"
+                      }
+                    ]
+                  }
+                ]
+              },
+              "event": "fidelity:pass"
+            }
+          ]
+        }
+      },
+      "events": {
+        "fidelity:pass": {
+          "set_property": {
+            "fidelity:done": true
+          },
+          "queue_command": {
+            "command": "scoreboard players set subject_numeric_4 fidelity 1"
+          }
+        }
+      }
+    }
+  },
+  "subject_numeric_5": {
+    "format_version": "1.26.50",
+    "minecraft:entity": {
+      "description": {
+        "identifier": "fidelity:subject_numeric_5",
+        "runtime_identifier": "minecraft:pig",
+        "is_spawnable": false,
+        "is_summonable": true,
+        "properties": {
+          "fidelity:done": {
+            "type": "bool",
+            "default": false
+          },
+          "fidelity:molang": {
+            "type": "bool",
+            "default": "MaTh.ClAmP(1,0,2) == 1"
+          },
+          "fidelity:n": {
+            "type": "int",
+            "range": [
+              -10,
+              10
+            ],
+            "default": 3
+          }
+        }
+      },
+      "components": {
+        "minecraft:type_family": {
+          "family": [
+            "fidelity"
+          ]
+        },
+        "minecraft:health": {
+          "value": 10,
+          "max": 10
+        },
+        "minecraft:collision_box": {
+          "width": 0.6,
+          "height": 0.9
+        },
+        "minecraft:physics": {
+          "has_gravity": false,
+          "has_collision": true
+        },
+        "minecraft:environment_sensor": {
+          "triggers": [
+            {
+              "filters": {
+                "all_of": [
+                  {
+                    "test": "bool_property",
+                    "domain": "fidelity:done",
+                    "value": false
+                  },
+                  {
+                    "none_of": [
+                      {
+                        "test": "is_family",
+                        "subject": 5,
+                        "operator": "!=",
+                        "value": "absent"
+                      }
+                    ]
+                  }
+                ]
+              },
+              "event": "fidelity:pass"
+            }
+          ]
+        }
+      },
+      "events": {
+        "fidelity:pass": {
+          "set_property": {
+            "fidelity:done": true
+          },
+          "queue_command": {
+            "command": "scoreboard players set subject_numeric_5 fidelity 1"
+          }
+        }
+      }
+    }
+  },
+  "subject_numeric_6": {
+    "format_version": "1.26.50",
+    "minecraft:entity": {
+      "description": {
+        "identifier": "fidelity:subject_numeric_6",
+        "runtime_identifier": "minecraft:pig",
+        "is_spawnable": false,
+        "is_summonable": true,
+        "properties": {
+          "fidelity:done": {
+            "type": "bool",
+            "default": false
+          },
+          "fidelity:molang": {
+            "type": "bool",
+            "default": "MaTh.ClAmP(1,0,2) == 1"
+          },
+          "fidelity:n": {
+            "type": "int",
+            "range": [
+              -10,
+              10
+            ],
+            "default": 3
+          }
+        }
+      },
+      "components": {
+        "minecraft:type_family": {
+          "family": [
+            "fidelity"
+          ]
+        },
+        "minecraft:health": {
+          "value": 10,
+          "max": 10
+        },
+        "minecraft:collision_box": {
+          "width": 0.6,
+          "height": 0.9
+        },
+        "minecraft:physics": {
+          "has_gravity": false,
+          "has_collision": true
+        },
+        "minecraft:environment_sensor": {
+          "triggers": [
+            {
+              "filters": {
+                "all_of": [
+                  {
+                    "test": "bool_property",
+                    "domain": "fidelity:done",
+                    "value": false
+                  },
+                  {
+                    "none_of": [
+                      {
+                        "test": "is_family",
+                        "subject": 6,
+                        "operator": "!=",
+                        "value": "absent"
+                      }
+                    ]
+                  }
+                ]
+              },
+              "event": "fidelity:pass"
+            }
+          ]
+        }
+      },
+      "events": {
+        "fidelity:pass": {
+          "set_property": {
+            "fidelity:done": true
+          },
+          "queue_command": {
+            "command": "scoreboard players set subject_numeric_6 fidelity 1"
+          }
+        }
+      }
+    }
+  },
+  "subject_numeric_7": {
+    "format_version": "1.26.50",
+    "minecraft:entity": {
+      "description": {
+        "identifier": "fidelity:subject_numeric_7",
+        "runtime_identifier": "minecraft:pig",
+        "is_spawnable": false,
+        "is_summonable": true,
+        "properties": {
+          "fidelity:done": {
+            "type": "bool",
+            "default": false
+          },
+          "fidelity:molang": {
+            "type": "bool",
+            "default": "MaTh.ClAmP(1,0,2) == 1"
+          },
+          "fidelity:n": {
+            "type": "int",
+            "range": [
+              -10,
+              10
+            ],
+            "default": 3
+          }
+        }
+      },
+      "components": {
+        "minecraft:type_family": {
+          "family": [
+            "fidelity"
+          ]
+        },
+        "minecraft:health": {
+          "value": 10,
+          "max": 10
+        },
+        "minecraft:collision_box": {
+          "width": 0.6,
+          "height": 0.9
+        },
+        "minecraft:physics": {
+          "has_gravity": false,
+          "has_collision": true
+        },
+        "minecraft:environment_sensor": {
+          "triggers": [
+            {
+              "filters": {
+                "all_of": [
+                  {
+                    "test": "bool_property",
+                    "domain": "fidelity:done",
+                    "value": false
+                  },
+                  {
+                    "none_of": [
+                      {
+                        "test": "is_family",
+                        "subject": 7,
+                        "operator": "!=",
+                        "value": "absent"
+                      }
+                    ]
+                  }
+                ]
+              },
+              "event": "fidelity:pass"
+            }
+          ]
+        }
+      },
+      "events": {
+        "fidelity:pass": {
+          "set_property": {
+            "fidelity:done": true
+          },
+          "queue_command": {
+            "command": "scoreboard players set subject_numeric_7 fidelity 1"
+          }
+        }
+      }
+    }
+  },
+  "subject_numeric_8": {
+    "format_version": "1.26.50",
+    "minecraft:entity": {
+      "description": {
+        "identifier": "fidelity:subject_numeric_8",
+        "runtime_identifier": "minecraft:pig",
+        "is_spawnable": false,
+        "is_summonable": true,
+        "properties": {
+          "fidelity:done": {
+            "type": "bool",
+            "default": false
+          },
+          "fidelity:molang": {
+            "type": "bool",
+            "default": "MaTh.ClAmP(1,0,2) == 1"
+          },
+          "fidelity:n": {
+            "type": "int",
+            "range": [
+              -10,
+              10
+            ],
+            "default": 3
+          }
+        }
+      },
+      "components": {
+        "minecraft:type_family": {
+          "family": [
+            "fidelity"
+          ]
+        },
+        "minecraft:health": {
+          "value": 10,
+          "max": 10
+        },
+        "minecraft:collision_box": {
+          "width": 0.6,
+          "height": 0.9
+        },
+        "minecraft:physics": {
+          "has_gravity": false,
+          "has_collision": true
+        },
+        "minecraft:environment_sensor": {
+          "triggers": [
+            {
+              "filters": {
+                "all_of": [
+                  {
+                    "test": "bool_property",
+                    "domain": "fidelity:done",
+                    "value": false
+                  },
+                  {
+                    "none_of": [
+                      {
+                        "test": "is_family",
+                        "subject": 8,
+                        "operator": "!=",
+                        "value": "absent"
+                      }
+                    ]
+                  }
+                ]
+              },
+              "event": "fidelity:pass"
+            }
+          ]
+        }
+      },
+      "events": {
+        "fidelity:pass": {
+          "set_property": {
+            "fidelity:done": true
+          },
+          "queue_command": {
+            "command": "scoreboard players set subject_numeric_8 fidelity 1"
+          }
+        }
+      }
+    }
+  },
+  "subject_numeric_9": {
+    "format_version": "1.26.50",
+    "minecraft:entity": {
+      "description": {
+        "identifier": "fidelity:subject_numeric_9",
+        "runtime_identifier": "minecraft:pig",
+        "is_spawnable": false,
+        "is_summonable": true,
+        "properties": {
+          "fidelity:done": {
+            "type": "bool",
+            "default": false
+          },
+          "fidelity:molang": {
+            "type": "bool",
+            "default": "MaTh.ClAmP(1,0,2) == 1"
+          },
+          "fidelity:n": {
+            "type": "int",
+            "range": [
+              -10,
+              10
+            ],
+            "default": 3
+          }
+        }
+      },
+      "components": {
+        "minecraft:type_family": {
+          "family": [
+            "fidelity"
+          ]
+        },
+        "minecraft:health": {
+          "value": 10,
+          "max": 10
+        },
+        "minecraft:collision_box": {
+          "width": 0.6,
+          "height": 0.9
+        },
+        "minecraft:physics": {
+          "has_gravity": false,
+          "has_collision": true
+        },
+        "minecraft:environment_sensor": {
+          "triggers": [
+            {
+              "filters": {
+                "all_of": [
+                  {
+                    "test": "bool_property",
+                    "domain": "fidelity:done",
+                    "value": false
+                  },
+                  {
+                    "none_of": [
+                      {
+                        "test": "is_family",
+                        "subject": 9,
+                        "operator": "!=",
+                        "value": "absent"
+                      }
+                    ]
+                  }
+                ]
+              },
+              "event": "fidelity:pass"
+            }
+          ]
+        }
+      },
+      "events": {
+        "fidelity:pass": {
+          "set_property": {
+            "fidelity:done": true
+          },
+          "queue_command": {
+            "command": "scoreboard players set subject_numeric_9 fidelity 1"
+          }
+        }
+      }
+    }
+  },
+  "unknown_component_v21_10": {
+    "format_version": "1.21.10",
+    "minecraft:entity": {
+      "description": {
+        "identifier": "fidelity:unknown_component_v21_10",
+        "runtime_identifier": "minecraft:pig",
+        "is_spawnable": false,
+        "is_summonable": true,
+        "properties": {
+          "fidelity:done": {
+            "type": "bool",
+            "default": false
+          },
+          "fidelity:molang": {
+            "type": "bool",
+            "default": "MaTh.ClAmP(1,0,2) == 1"
+          },
+          "fidelity:n": {
+            "type": "int",
+            "range": [
+              -10,
+              10
+            ],
+            "default": 3
+          }
+        }
+      },
+      "components": {
+        "minecraft:type_family": {
+          "family": [
+            "fidelity"
+          ]
+        },
+        "minecraft:health": {
+          "value": 10,
+          "max": 10
+        },
+        "minecraft:collision_box": {
+          "width": 0.6,
+          "height": 0.9
+        },
+        "minecraft:physics": {
+          "has_gravity": false,
+          "has_collision": true
+        },
+        "minecraft:environment_sensor": {
+          "triggers": [
+            {
+              "filters": {
+                "all_of": [
+                  {
+                    "test": "bool_property",
+                    "domain": "fidelity:done",
+                    "value": false
+                  },
+                  {
+                    "test": "is_family",
+                    "value": "fidelity"
+                  }
+                ]
+              },
+              "event": "fidelity:pass"
+            }
+          ]
+        },
+        "fidelity:unknown_component": {}
+      },
+      "events": {
+        "fidelity:pass": {
+          "set_property": {
+            "fidelity:done": true
+          },
+          "queue_command": {
+            "command": "scoreboard players set unknown_component_v21_10 fidelity 1"
+          }
+        }
+      }
+    }
+  },
+  "unknown_component_v21_20": {
+    "format_version": "1.21.20",
+    "minecraft:entity": {
+      "description": {
+        "identifier": "fidelity:unknown_component_v21_20",
+        "runtime_identifier": "minecraft:pig",
+        "is_spawnable": false,
+        "is_summonable": true,
+        "properties": {
+          "fidelity:done": {
+            "type": "bool",
+            "default": false
+          },
+          "fidelity:molang": {
+            "type": "bool",
+            "default": "MaTh.ClAmP(1,0,2) == 1"
+          },
+          "fidelity:n": {
+            "type": "int",
+            "range": [
+              -10,
+              10
+            ],
+            "default": 3
+          }
+        }
+      },
+      "components": {
+        "minecraft:type_family": {
+          "family": [
+            "fidelity"
+          ]
+        },
+        "minecraft:health": {
+          "value": 10,
+          "max": 10
+        },
+        "minecraft:collision_box": {
+          "width": 0.6,
+          "height": 0.9
+        },
+        "minecraft:physics": {
+          "has_gravity": false,
+          "has_collision": true
+        },
+        "minecraft:environment_sensor": {
+          "triggers": [
+            {
+              "filters": {
+                "all_of": [
+                  {
+                    "test": "bool_property",
+                    "domain": "fidelity:done",
+                    "value": false
+                  },
+                  {
+                    "test": "is_family",
+                    "value": "fidelity"
+                  }
+                ]
+              },
+              "event": "fidelity:pass"
+            }
+          ]
+        },
+        "fidelity:unknown_component": {}
+      },
+      "events": {
+        "fidelity:pass": {
+          "set_property": {
+            "fidelity:done": true
+          },
+          "queue_command": {
+            "command": "scoreboard players set unknown_component_v21_20 fidelity 1"
+          }
+        }
+      }
+    }
+  },
+  "unknown_component_v21_30": {
+    "format_version": "1.21.30",
+    "minecraft:entity": {
+      "description": {
+        "identifier": "fidelity:unknown_component_v21_30",
+        "runtime_identifier": "minecraft:pig",
+        "is_spawnable": false,
+        "is_summonable": true,
+        "properties": {
+          "fidelity:done": {
+            "type": "bool",
+            "default": false
+          },
+          "fidelity:molang": {
+            "type": "bool",
+            "default": "MaTh.ClAmP(1,0,2) == 1"
+          },
+          "fidelity:n": {
+            "type": "int",
+            "range": [
+              -10,
+              10
+            ],
+            "default": 3
+          }
+        }
+      },
+      "components": {
+        "minecraft:type_family": {
+          "family": [
+            "fidelity"
+          ]
+        },
+        "minecraft:health": {
+          "value": 10,
+          "max": 10
+        },
+        "minecraft:collision_box": {
+          "width": 0.6,
+          "height": 0.9
+        },
+        "minecraft:physics": {
+          "has_gravity": false,
+          "has_collision": true
+        },
+        "minecraft:environment_sensor": {
+          "triggers": [
+            {
+              "filters": {
+                "all_of": [
+                  {
+                    "test": "bool_property",
+                    "domain": "fidelity:done",
+                    "value": false
+                  },
+                  {
+                    "test": "is_family",
+                    "value": "fidelity"
+                  }
+                ]
+              },
+              "event": "fidelity:pass"
+            }
+          ]
+        },
+        "fidelity:unknown_component": {}
+      },
+      "events": {
+        "fidelity:pass": {
+          "set_property": {
+            "fidelity:done": true
+          },
+          "queue_command": {
+            "command": "scoreboard players set unknown_component_v21_30 fidelity 1"
+          }
+        }
+      }
+    }
+  },
+  "unknown_component_v21_40": {
+    "format_version": "1.21.40",
+    "minecraft:entity": {
+      "description": {
+        "identifier": "fidelity:unknown_component_v21_40",
+        "runtime_identifier": "minecraft:pig",
+        "is_spawnable": false,
+        "is_summonable": true,
+        "properties": {
+          "fidelity:done": {
+            "type": "bool",
+            "default": false
+          },
+          "fidelity:molang": {
+            "type": "bool",
+            "default": "MaTh.ClAmP(1,0,2) == 1"
+          },
+          "fidelity:n": {
+            "type": "int",
+            "range": [
+              -10,
+              10
+            ],
+            "default": 3
+          }
+        }
+      },
+      "components": {
+        "minecraft:type_family": {
+          "family": [
+            "fidelity"
+          ]
+        },
+        "minecraft:health": {
+          "value": 10,
+          "max": 10
+        },
+        "minecraft:collision_box": {
+          "width": 0.6,
+          "height": 0.9
+        },
+        "minecraft:physics": {
+          "has_gravity": false,
+          "has_collision": true
+        },
+        "minecraft:environment_sensor": {
+          "triggers": [
+            {
+              "filters": {
+                "all_of": [
+                  {
+                    "test": "bool_property",
+                    "domain": "fidelity:done",
+                    "value": false
+                  },
+                  {
+                    "test": "is_family",
+                    "value": "fidelity"
+                  }
+                ]
+              },
+              "event": "fidelity:pass"
+            }
+          ]
+        },
+        "fidelity:unknown_component": {}
+      },
+      "events": {
+        "fidelity:pass": {
+          "set_property": {
+            "fidelity:done": true
+          },
+          "queue_command": {
+            "command": "scoreboard players set unknown_component_v21_40 fidelity 1"
+          }
+        }
+      }
+    }
+  },
+  "unknown_component_v21_50": {
+    "format_version": "1.21.50",
+    "minecraft:entity": {
+      "description": {
+        "identifier": "fidelity:unknown_component_v21_50",
+        "runtime_identifier": "minecraft:pig",
+        "is_spawnable": false,
+        "is_summonable": true,
+        "properties": {
+          "fidelity:done": {
+            "type": "bool",
+            "default": false
+          },
+          "fidelity:molang": {
+            "type": "bool",
+            "default": "MaTh.ClAmP(1,0,2) == 1"
+          },
+          "fidelity:n": {
+            "type": "int",
+            "range": [
+              -10,
+              10
+            ],
+            "default": 3
+          }
+        }
+      },
+      "components": {
+        "minecraft:type_family": {
+          "family": [
+            "fidelity"
+          ]
+        },
+        "minecraft:health": {
+          "value": 10,
+          "max": 10
+        },
+        "minecraft:collision_box": {
+          "width": 0.6,
+          "height": 0.9
+        },
+        "minecraft:physics": {
+          "has_gravity": false,
+          "has_collision": true
+        },
+        "minecraft:environment_sensor": {
+          "triggers": [
+            {
+              "filters": {
+                "all_of": [
+                  {
+                    "test": "bool_property",
+                    "domain": "fidelity:done",
+                    "value": false
+                  },
+                  {
+                    "test": "is_family",
+                    "value": "fidelity"
+                  }
+                ]
+              },
+              "event": "fidelity:pass"
+            }
+          ]
+        },
+        "fidelity:unknown_component": {}
+      },
+      "events": {
+        "fidelity:pass": {
+          "set_property": {
+            "fidelity:done": true
+          },
+          "queue_command": {
+            "command": "scoreboard players set unknown_component_v21_50 fidelity 1"
+          }
+        }
+      }
+    }
+  },
+  "unknown_component_v21_60": {
+    "format_version": "1.21.60",
+    "minecraft:entity": {
+      "description": {
+        "identifier": "fidelity:unknown_component_v21_60",
+        "runtime_identifier": "minecraft:pig",
+        "is_spawnable": false,
+        "is_summonable": true,
+        "properties": {
+          "fidelity:done": {
+            "type": "bool",
+            "default": false
+          },
+          "fidelity:molang": {
+            "type": "bool",
+            "default": "MaTh.ClAmP(1,0,2) == 1"
+          },
+          "fidelity:n": {
+            "type": "int",
+            "range": [
+              -10,
+              10
+            ],
+            "default": 3
+          }
+        }
+      },
+      "components": {
+        "minecraft:type_family": {
+          "family": [
+            "fidelity"
+          ]
+        },
+        "minecraft:health": {
+          "value": 10,
+          "max": 10
+        },
+        "minecraft:collision_box": {
+          "width": 0.6,
+          "height": 0.9
+        },
+        "minecraft:physics": {
+          "has_gravity": false,
+          "has_collision": true
+        },
+        "minecraft:environment_sensor": {
+          "triggers": [
+            {
+              "filters": {
+                "all_of": [
+                  {
+                    "test": "bool_property",
+                    "domain": "fidelity:done",
+                    "value": false
+                  },
+                  {
+                    "test": "is_family",
+                    "value": "fidelity"
+                  }
+                ]
+              },
+              "event": "fidelity:pass"
+            }
+          ]
+        },
+        "fidelity:unknown_component": {}
+      },
+      "events": {
+        "fidelity:pass": {
+          "set_property": {
+            "fidelity:done": true
+          },
+          "queue_command": {
+            "command": "scoreboard players set unknown_component_v21_60 fidelity 1"
+          }
+        }
+      }
+    }
+  },
+  "unknown_component_v21_70": {
+    "format_version": "1.21.70",
+    "minecraft:entity": {
+      "description": {
+        "identifier": "fidelity:unknown_component_v21_70",
+        "runtime_identifier": "minecraft:pig",
+        "is_spawnable": false,
+        "is_summonable": true,
+        "properties": {
+          "fidelity:done": {
+            "type": "bool",
+            "default": false
+          },
+          "fidelity:molang": {
+            "type": "bool",
+            "default": "MaTh.ClAmP(1,0,2) == 1"
+          },
+          "fidelity:n": {
+            "type": "int",
+            "range": [
+              -10,
+              10
+            ],
+            "default": 3
+          }
+        }
+      },
+      "components": {
+        "minecraft:type_family": {
+          "family": [
+            "fidelity"
+          ]
+        },
+        "minecraft:health": {
+          "value": 10,
+          "max": 10
+        },
+        "minecraft:collision_box": {
+          "width": 0.6,
+          "height": 0.9
+        },
+        "minecraft:physics": {
+          "has_gravity": false,
+          "has_collision": true
+        },
+        "minecraft:environment_sensor": {
+          "triggers": [
+            {
+              "filters": {
+                "all_of": [
+                  {
+                    "test": "bool_property",
+                    "domain": "fidelity:done",
+                    "value": false
+                  },
+                  {
+                    "test": "is_family",
+                    "value": "fidelity"
+                  }
+                ]
+              },
+              "event": "fidelity:pass"
+            }
+          ]
+        },
+        "fidelity:unknown_component": {}
+      },
+      "events": {
+        "fidelity:pass": {
+          "set_property": {
+            "fidelity:done": true
+          },
+          "queue_command": {
+            "command": "scoreboard players set unknown_component_v21_70 fidelity 1"
+          }
+        }
+      }
+    }
+  },
+  "unknown_component_v21_80": {
+    "format_version": "1.21.80",
+    "minecraft:entity": {
+      "description": {
+        "identifier": "fidelity:unknown_component_v21_80",
+        "runtime_identifier": "minecraft:pig",
+        "is_spawnable": false,
+        "is_summonable": true,
+        "properties": {
+          "fidelity:done": {
+            "type": "bool",
+            "default": false
+          },
+          "fidelity:molang": {
+            "type": "bool",
+            "default": "MaTh.ClAmP(1,0,2) == 1"
+          },
+          "fidelity:n": {
+            "type": "int",
+            "range": [
+              -10,
+              10
+            ],
+            "default": 3
+          }
+        }
+      },
+      "components": {
+        "minecraft:type_family": {
+          "family": [
+            "fidelity"
+          ]
+        },
+        "minecraft:health": {
+          "value": 10,
+          "max": 10
+        },
+        "minecraft:collision_box": {
+          "width": 0.6,
+          "height": 0.9
+        },
+        "minecraft:physics": {
+          "has_gravity": false,
+          "has_collision": true
+        },
+        "minecraft:environment_sensor": {
+          "triggers": [
+            {
+              "filters": {
+                "all_of": [
+                  {
+                    "test": "bool_property",
+                    "domain": "fidelity:done",
+                    "value": false
+                  },
+                  {
+                    "test": "is_family",
+                    "value": "fidelity"
+                  }
+                ]
+              },
+              "event": "fidelity:pass"
+            }
+          ]
+        },
+        "fidelity:unknown_component": {}
+      },
+      "events": {
+        "fidelity:pass": {
+          "set_property": {
+            "fidelity:done": true
+          },
+          "queue_command": {
+            "command": "scoreboard players set unknown_component_v21_80 fidelity 1"
+          }
+        }
+      }
+    }
+  },
+  "unknown_component_v21_90": {
+    "format_version": "1.21.90",
+    "minecraft:entity": {
+      "description": {
+        "identifier": "fidelity:unknown_component_v21_90",
+        "runtime_identifier": "minecraft:pig",
+        "is_spawnable": false,
+        "is_summonable": true,
+        "properties": {
+          "fidelity:done": {
+            "type": "bool",
+            "default": false
+          },
+          "fidelity:molang": {
+            "type": "bool",
+            "default": "MaTh.ClAmP(1,0,2) == 1"
+          },
+          "fidelity:n": {
+            "type": "int",
+            "range": [
+              -10,
+              10
+            ],
+            "default": 3
+          }
+        }
+      },
+      "components": {
+        "minecraft:type_family": {
+          "family": [
+            "fidelity"
+          ]
+        },
+        "minecraft:health": {
+          "value": 10,
+          "max": 10
+        },
+        "minecraft:collision_box": {
+          "width": 0.6,
+          "height": 0.9
+        },
+        "minecraft:physics": {
+          "has_gravity": false,
+          "has_collision": true
+        },
+        "minecraft:environment_sensor": {
+          "triggers": [
+            {
+              "filters": {
+                "all_of": [
+                  {
+                    "test": "bool_property",
+                    "domain": "fidelity:done",
+                    "value": false
+                  },
+                  {
+                    "test": "is_family",
+                    "value": "fidelity"
+                  }
+                ]
+              },
+              "event": "fidelity:pass"
+            }
+          ]
+        },
+        "fidelity:unknown_component": {}
+      },
+      "events": {
+        "fidelity:pass": {
+          "set_property": {
+            "fidelity:done": true
+          },
+          "queue_command": {
+            "command": "scoreboard players set unknown_component_v21_90 fidelity 1"
+          }
+        }
+      }
+    }
+  },
+  "unknown_component_v21_100": {
+    "format_version": "1.21.100",
+    "minecraft:entity": {
+      "description": {
+        "identifier": "fidelity:unknown_component_v21_100",
+        "runtime_identifier": "minecraft:pig",
+        "is_spawnable": false,
+        "is_summonable": true,
+        "properties": {
+          "fidelity:done": {
+            "type": "bool",
+            "default": false
+          },
+          "fidelity:molang": {
+            "type": "bool",
+            "default": "MaTh.ClAmP(1,0,2) == 1"
+          },
+          "fidelity:n": {
+            "type": "int",
+            "range": [
+              -10,
+              10
+            ],
+            "default": 3
+          }
+        }
+      },
+      "components": {
+        "minecraft:type_family": {
+          "family": [
+            "fidelity"
+          ]
+        },
+        "minecraft:health": {
+          "value": 10,
+          "max": 10
+        },
+        "minecraft:collision_box": {
+          "width": 0.6,
+          "height": 0.9
+        },
+        "minecraft:physics": {
+          "has_gravity": false,
+          "has_collision": true
+        },
+        "minecraft:environment_sensor": {
+          "triggers": [
+            {
+              "filters": {
+                "all_of": [
+                  {
+                    "test": "bool_property",
+                    "domain": "fidelity:done",
+                    "value": false
+                  },
+                  {
+                    "test": "is_family",
+                    "value": "fidelity"
+                  }
+                ]
+              },
+              "event": "fidelity:pass"
+            }
+          ]
+        },
+        "fidelity:unknown_component": {}
+      },
+      "events": {
+        "fidelity:pass": {
+          "set_property": {
+            "fidelity:done": true
+          },
+          "queue_command": {
+            "command": "scoreboard players set unknown_component_v21_100 fidelity 1"
+          }
+        }
+      }
+    }
+  }
+}

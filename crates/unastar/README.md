@@ -137,6 +137,124 @@ Unastar's tactical compatibility gates live in [`ROADMAP.md`](ROADMAP.md). Curre
 
 Until those gates pass, describe Unastar as a Bedrock server implementation in progress rather than a fully vanilla-compatible server.
 
+## Actor registries and data
+
+`registry::entity::ActorDefinitionRegistryBuilder` accepts vanilla/addon rows
+by identifier, replacing the whole definition rather than merging components.
+`freeze()` consumes the builder and shares immutable definitions through `Arc`.
+Startup retains `ActorDefinitionRegistry` and `EntityRegistryResource` as ECS
+resources instead of discarding definitions after packet construction.
+
+The identifier registry joins pack metadata to the measured BDS 1.26.51
+identifier capture (137 entries, including item/falling-block/painting/leash-knot
+actors without pack JSON). Its cached `AvailableActorIdentifiers` includes all
+five captured NBT fields and preserves BDS row/member order. The independent
+fixture is `src/registry/testdata/bds-1.26.51-actor-identifiers.bin`, captured by
+TOOLING (`bds-extractor` capture commit `cbeabd2`).
+
+Actor definitions, biomes and loot are build-generated from pinned submodules
+and decoded once at startup; see `../unastar-data/README.md` for prerequisites.
+Runtime rules/loot evaluation is in the bevy-free `unastar-rules` crate.
+These data/registry checks do not establish mob gameplay or crafted-pack parity.
+
+### Measured item and falling-block motion
+
+Grounded item drag applies default block friction (0.6) even when the
+`floor(feet.y)-1` sample is air, such as on a bottom slab. The regression
+`grounded_item_uses_default_friction_when_sample_below_is_air` covers this
+boundary. Falling blocks stop all velocity on landing, including horizontal
+motion. `PhysicsBody` requires `Age`; `step_body` receives the actor's age
+before the lifecycle phase increments it. Dry grounded items below the measured
+speed threshold advance only on their own four-tick phase, including after
+their support is removed; zero-speed airborne items still advance each tick.
+Water contact bypasses this throttle even when the water is too shallow to
+float the item. Liquid current and flotation run before the throttle: a
+throttled lava tick changes velocity without moving or applying final drag.
+
+Water/lava material identity and `liquid_depth` are cached from the native block
+registry at startup. Actor motion performs no string-based liquid resolution.
+Currents are applied before flotation; source/depth sampling, falling-liquid
+suppression, neighbouring currents and ground friction use the captured cases.
+
+ECS tests that insert `ChunkData` themselves use
+`WorldConfig::void_spawn_platform(1)`. `WorldConfig::default()` creates a
+background generation pool and therefore requires a Tokio runtime, even when
+the test never requests generated chunks.
+
+The synthetic Endstone probe in `src/entity/tools/motion-probe` records
+per-tick item air/water/lava/slab motion, falling sand and pickup boundaries.
+Reserve the shared BDS slot first, install its package in the shared Endstone
+venv (`python -m pip install -e src/entity/tools/motion-probe`), then run
+`python src/entity/tools/motion-probe/run.py --harness PATH/TO/tools/bds-sweep
+--client PATH/TO/bds-sweep-client.exe --output NEW_DIR`. Uninstall
+`endstone-entity-motion-probe` afterwards. It is inert without its explicit
+environment gate and uses TOOLING's lifecycle helper and scripted client,
+never Minecraft. Actor wrappers are reacquired by runtime ID each tick because
+Endstone wrappers do not keep destroyed actors alive.
+
+For shallow-fluid contact/vertical-response bounds (all 16 liquid depths),
+grounded-item tick throttling/support removal, merge boundaries and a falling-block
+post-impulse trace, use `--probe fluid-contact`. Add `--wire-capture` and supply
+the existing `bds-extractor.exe` as `--client` to retain the corresponding
+packet capture under `OUTPUT/wire`; the runner waits for the recorder to flush.
+`--capture-seconds` overrides its 25-second fluid-probe or 60-second motion-probe
+window. `--probe kinematics` measures stacked fluids, directional currents and
+staggered actor-age phases; `--probe flow-corners` measures combined currents
+and stationary vertical pickup boundaries. `--probe ground-liquid` compares
+settled off-phase air/water/lava items, recording terrain before and after each
+step because native liquid updates can change the requested depth. These are
+measurement tools, not runtime parity assertions.
+
+The versioned `src/entity/systems/testdata/bds-1.26.51-*.json` fixtures retain
+native snapshots, terrain observations and raw-capture hashes. The dedicated
+`entity/systems/physics/bds_tests.rs` regressions compare each valid consecutive
+native snapshot pair against one update: position tolerance 0.00002 blocks,
+velocity tolerance 0.000001 blocks/tick, and exact grounded state. They also
+cover all 16 liquid depths, stacked/cross-cell currents, actor-age phases,
+support removal, wet-ground cadence/force ordering and post-impulse falling-block
+landing. An actual ECS smoke run exercises chunk-backed water movement,
+automatic `Age` insertion, the three captured off-phase ground cases and the
+delayed support-removal transition; mob gameplay and real-client parity remain
+separate gates.
+
+`entity::spawn_item_drop(world, position, stack, thrower)` accepts feet positions
+for popped items and the source player's eye position for throws. Hotbar Q,
+open-inventory Q and whole-stack ctrl-drop controls in
+`bds-1.26.51-player-drop.json` establish a half-block eye offset, zero vertical
+velocity for a level throw, and ordinary pickup delay 10 plus an independent
+global 40-update throw gate. All twelve thrower/other/zero-delay controls in the
+49-case native matrix retain that gate, for either player. The owner identity
+remains set after 60 updates even though the ordinary delay has expired.
+`PickupDelay::new` creates an ordinary delay; `PickupDelay::player_throw` sets
+both native gates. Their ticking and merge transfer stay together.
+
+The fixture also retains 16 fractional/wrapped-angle controls. An executable
+ECS constructor smoke and the permanent regression cover 19 distinct source
+orientations with vertical-velocity tolerance below `1e-7` blocks/tick.
+`unastar_rules::math::player_throw_direction` uses an immutable build-time
+f32 lookup table: sample indices divide by the rounded lookup scale, rather
+than multiplying by `TAU / 65536`. Captures calibrate stationary sources;
+moving-source inheritance and native RNG seed matching are not claimed.
+
+A source must carry `Rotation` and `RuntimeId`; otherwise spawning returns
+`None` without consuming its stack. `ItemOwner` snapshots that source's unique
+network identity (`-1` for popped items), and the viewer system sends it as
+int64 actor data key 5 even after the source ECS entity leaves. An actual ECS
+smoke exercises the viewer packet and the independent throw gate.
+
+`--probe player-drop --sweep-capture` uses the built `bds-sweep-client.exe`,
+starts `BDSSweep` and `BDSOther`, and records hotbar/inventory/whole-stack Drop
+controls. It uses `/replaceitem` to synchronize authoritative source stacks:
+direct Endstone inventory mutation did not send the required client update.
+Raw client captures are under `wire`/`observer-wire`; an installed ClientDiff
+plugin is given a fresh `CLIENT_DIFF_CAPTURE_DIR` under the same output.
+The first three native motion frames remain unmodified before timing-control
+teleports. Source eyes and angles come from the preceding `PlayerAuthInput`.
+Add `--drop-angle-controls` to select fractional/wrapped angle controls instead
+of the complete timing/motion matrix.
+
+
+
 ## Gameplay Permissions and Chat
 
 Player commands, including `/tp` and `/teleport`, execute through the command

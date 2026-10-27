@@ -29,66 +29,17 @@ use serde_json::{Map, Number, Value};
 use std::collections::HashMap;
 use std::sync::LazyLock;
 
-/// The entity (or block) a test is evaluated on.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
-pub enum Subject {
-    Self_,
-    Other,
-    Parent,
-    Player,
-    Target,
-    Block,
-    Damager,
-    Baby,
-    Holder,
-    Item,
-}
+include!(concat!(env!("OUT_DIR"), "/filter_subject.rs"));
 
 impl Subject {
-    pub const ALL: [Subject; 10] = [
-        Self::Self_,
-        Self::Other,
-        Self::Parent,
-        Self::Player,
-        Self::Target,
-        Self::Block,
-        Self::Damager,
-        Self::Baby,
-        Self::Holder,
-        Self::Item,
-    ];
-
-    pub fn name(self) -> &'static str {
-        match self {
-            Self::Self_ => "self",
-            Self::Other => "other",
-            Self::Parent => "parent",
-            Self::Player => "player",
-            Self::Target => "target",
-            Self::Block => "block",
-            Self::Damager => "damager",
-            Self::Baby => "baby",
-            Self::Holder => "holder",
-            Self::Item => "item",
-        }
-    }
-
-    pub fn from_name(name: &str) -> Option<Self> {
-        Self::ALL.into_iter().find(|s| s.name() == name)
-    }
-
     fn parse(value: &Value, path: &str) -> Result<Self, ParseError> {
         match value {
             Value::String(s) => Self::from_name(s)
                 .ok_or_else(|| ParseError::new(path, format!("unknown subject {s:?}"))),
-            Value::Number(n) => match n.as_u64() {
-                Some(0) => Ok(Self::Self_),
-                Some(1) => Ok(Self::Other),
-                _ => Err(ParseError::new(
-                    path,
-                    format!("compact subject {n} is not one vanilla uses (0 = self, 1 = other)"),
-                )),
-            },
+            Value::Number(n) => n
+                .as_i64()
+                .and_then(Self::from_id)
+                .ok_or_else(|| ParseError::new(path, format!("unknown compact subject {n}"))),
             other => Err(ParseError::new(
                 path,
                 format!("subject must be a string, got {other}"),
@@ -888,16 +839,20 @@ mod tests {
     }
 
     #[test]
-    fn rejects_unobserved_compact_integers() {
-        let mut diags = Diagnostics::default();
-        for bad in [
-            json!({"test": "on_fire", "subject": 2}),
-            json!({"test": "on_fire", "operator": 2}),
+    fn compact_subjects_normalise_using_canonical_enum_ids() {
+        for (id, name) in [
+            (2, "player"),
+            (3, "target"),
+            (4, "parent"),
+            (5, "baby"),
+            (6, "block"),
+            (7, "damager"),
+            (8, "holder"),
+            (9, "item"),
         ] {
-            assert!(
-                Filter::parse(&bad, FilterRegistry::vanilla(), "f", &mut diags).is_err(),
-                "{bad}"
-            );
+            let normal =
+                canonical(json!({"test": "is_family", "subject": id, "value": "fidelity"}));
+            assert_eq!(normal["subject"], name);
         }
     }
 

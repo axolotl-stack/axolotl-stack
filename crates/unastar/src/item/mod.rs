@@ -2,6 +2,7 @@
 //!
 //! This module provides the core item representation used throughout the server.
 
+pub mod enchant;
 mod stack;
 pub mod user_data;
 

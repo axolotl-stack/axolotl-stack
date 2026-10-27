@@ -1,30 +1,20 @@
 //! Generated game data for Minecraft Bedrock.
 //!
-//! This crate provides strongly-typed entity definitions, components,
-//! and game data generated from Bedrock behavior packs.
-//!
-//! ## Architecture
-//!
-//! Data flows through two stages:
-//!
-//! 1. **datagen**: Merges vanilla JSON + community overrides → `output/*.kdl`
-//! 2. **codegen**: Generates Rust code from KDL → `src/**/*.rs`
-//!
-//! The KDL output is the "golden artifact" - human-readable, versionable,
-//! and consumable by non-Rust tooling.
+//! Native open-data families use datagen/codegen. Pack-derived actor and biome
+//! families are generated from the pinned submodules into `OUT_DIR` at build
+//! time, embedded, and decoded once at startup. Only their hashes and counts
+//! are committed, never EULA-derived per-entry Rust or KDL.
 
-// Most entity component modules are generated from schemas that currently emit
-// explicit `Default` impls. Keep this scoped lint allowance here until the
-// generator learns to derive equivalent defaults safely.
-#![allow(clippy::derivable_impls)]
-
+pub mod actor_definitions;
+pub mod actor_identifiers;
 pub mod bds_packets;
 pub mod biomes;
 pub mod blocks;
 pub mod creative;
-pub mod entities;
 pub mod items;
+pub mod loot;
 pub mod pmmp;
+pub mod shapes;
 pub mod source;
 pub mod types;
 

@@ -645,3 +645,526 @@ pub fn broadcast_block_updates(
         );
     }
 }
+
+// =============================================================================
+// Non-player actor visibility (items, falling blocks)
+// =============================================================================
+
+use crate::entity::components::{
+    ActorViewers, FallingBlock, ItemEntityStack, ItemOwner, OnGround, PhysicsBody, RuntimeId,
+    Velocity,
+};
+use crate::server::game::types::ItemRegistryResource;
+use jolyne::valentine::types::{EnumsActorEvent, MoveActorAbsoluteData};
+use jolyne::valentine::{
+    ActorEventPacket, AddItemActorPacket, MoveActorAbsolutePacket, SetActorMotionPacket,
+};
+
+/// `MoveActorAbsoluteData` header bit: the actor is on the ground.
+const MOVE_ACTOR_ON_GROUND: u8 = 0x01;
+
+/// Squared position change (blocks) below which no move packet is sent.
+const ACTOR_MOVE_EPSILON_SQ: f64 = 1e-8;
+
+fn wire_vec(v: glam::DVec3) -> Vec3 {
+    Vec3 {
+        x: v.x as f32,
+        y: v.y as f32,
+        z: v.z as f32,
+    }
+}
+
+/// Spawn packet for an actor, or `None` if this entity kind has no
+/// network representation (or its item is not in the registry).
+///
+/// Falling blocks are `AddActor("minecraft:falling_block")` carrying the
+/// block runtime ID in actor data `VARIANT` (2) and their 0.98 box in
+/// `WIDTH`/`HEIGHT` (53/54), as dragonfly sends them.
+fn actor_spawn_packet(
+    runtime_id: i64,
+    wire_position: glam::DVec3,
+    velocity: glam::DVec3,
+    item: Option<(&ItemEntityStack, &ItemOwner)>,
+    falling: Option<&FallingBlock>,
+    body: &PhysicsBody,
+    items: &crate::registry::ItemRegistry,
+) -> Option<McpePacket> {
+    use jolyne::valentine::types::{
+        DataItemEntry, DataItemEntryPayload, DataItemInt64Payload, EnumsDataItemType,
+    };
+    if let Some(falling) = falling {
+        use jolyne::valentine::types::{DataItemFloatPayload, DataItemIntPayload};
+        let float = |id, value| DataItemEntry {
+            id,
+            payload: DataItemEntryPayload::DataItemFloatPayload(DataItemFloatPayload {
+                type_: EnumsDataItemType::Float,
+                value,
+            }),
+        };
+        return Some(McpePacket::from(jolyne::valentine::AddActorPacket {
+            target_actor_id: ActorUniqueId {
+                actor_unique_id: runtime_id,
+            },
+            target_runtime_id: ActorRuntimeId {
+                actor_runtime_id: runtime_id as u64,
+            },
+            actor_type: "minecraft:falling_block".into(),
+            position: wire_vec(wire_position),
+            velocity: wire_vec(velocity),
+            actor_data: SynchedActorDataCopyableDataList {
+                data: vec![
+                    DataItemEntry {
+                        id: 2,
+                        payload: DataItemEntryPayload::DataItemIntPayload(DataItemIntPayload {
+                            type_: EnumsDataItemType::Int,
+                            value: falling.state as i32,
+                        }),
+                    },
+                    float(53, body.width as f32),
+                    float(54, body.height as f32),
+                ],
+            },
+            ..Default::default()
+        }));
+    }
+    let (stack, owner) = item?;
+    let item = crate::server::game::item_descriptor(&stack.0, items)?;
+    Some(McpePacket::from(AddItemActorPacket {
+        target_actor_id: ActorUniqueId {
+            actor_unique_id: runtime_id,
+        },
+        target_runtime_id: ActorRuntimeId {
+            actor_runtime_id: runtime_id as u64,
+        },
+        item,
+        position: wire_vec(wire_position),
+        velocity: wire_vec(velocity),
+        entity_data: SynchedActorDataCopyableDataList {
+            data: vec![DataItemEntry {
+                id: crate::entity::metadata::keys::OWNER,
+                payload: DataItemEntryPayload::DataItemInt64Payload(DataItemInt64Payload {
+                    type_: EnumsDataItemType::Int64,
+                    value: owner.0,
+                }),
+            }],
+        },
+        is_from_fishing: false,
+    }))
+}
+
+/// System: keep every non-player actor spawned on exactly the clients that
+/// view its chunk, and stream its movement to them.
+///
+/// New viewers get the spawn packet (`AddItemActor` for items), players that
+/// no longer view the chunk get `RemoveActor`, and existing viewers get
+/// `MoveActorAbsolute` + `SetActorMotion` when the position or velocity
+/// changed and `ActorEvent(UpdateStackSize)` (event 69) when a merge or
+/// partial pickup changed an item's count.
+#[allow(clippy::type_complexity)]
+pub fn sync_actor_viewers(
+    chunk_manager: Res<ChunkManager>,
+    chunk_viewers: Query<&ChunkViewers>,
+    sessions: Query<&PlayerSession>,
+    items: Res<ItemRegistryResource>,
+    mut actors: Query<(
+        &RuntimeId,
+        &Position,
+        &Velocity,
+        &OnGround,
+        &PhysicsBody,
+        &mut ActorViewers,
+        Option<&ItemEntityStack>,
+        Option<&ItemOwner>,
+        Option<&FallingBlock>,
+    )>,
+) {
+    for (runtime_id, position, velocity, on_ground, body, mut viewers, stack, owner, falling) in
+        actors.iter_mut()
+    {
+        let (cx, cz) = crate::world::ecs::world_to_chunk_coords(
+            position.0.x.floor() as i32,
+            position.0.z.floor() as i32,
+        );
+        let desired: Vec<Entity> = chunk_manager
+            .get_by_coords(cx, cz)
+            .and_then(|chunk| chunk_viewers.get(chunk).ok())
+            .map(|v| v.iter().filter(|e| sessions.contains(*e)).collect())
+            .unwrap_or_default();
+        let wire_position = position.0 + glam::DVec3::new(0.0, body.network_y_offset, 0.0);
+
+        let gone: Vec<Entity> = viewers
+            .viewers
+            .iter()
+            .copied()
+            .filter(|v| !desired.contains(v))
+            .collect();
+        if !gone.is_empty() {
+            let remove = build_remove_actor_packet(runtime_id.0);
+            for viewer in &gone {
+                if let Ok(session) = sessions.get(*viewer) {
+                    let _ = session.send(McpePacket::from(remove.clone()));
+                }
+            }
+            viewers.viewers.retain(|v| !gone.contains(v));
+        }
+
+        let moved = position.0.distance_squared(viewers.last_position) > ACTOR_MOVE_EPSILON_SQ;
+        let accelerated = velocity.0 != viewers.last_velocity;
+        let count = stack.map_or(0, |s| s.0.count);
+        let resized = stack.is_some() && count != viewers.last_stack_size;
+        if (moved || accelerated || resized) && !viewers.viewers.is_empty() {
+            let rid = ActorRuntimeId {
+                actor_runtime_id: runtime_id.0 as u64,
+            };
+            let move_packet = moved.then(|| {
+                McpePacket::from(MoveActorAbsolutePacket {
+                    move_data: MoveActorAbsoluteData {
+                        actor_runtime_id: rid.clone(),
+                        header: if on_ground.0 { MOVE_ACTOR_ON_GROUND } else { 0 },
+                        position: wire_vec(wire_position),
+                        rotation_x: 0,
+                        rotation_y: 0,
+                        rotation_y_head: 0,
+                    },
+                })
+            });
+            let motion_packet = accelerated.then(|| {
+                McpePacket::from(SetActorMotionPacket {
+                    target_runtime_id: rid.clone(),
+                    motion: wire_vec(velocity.0),
+                    tick: PlayerInputTick { inputtick: 0 },
+                })
+            });
+            let size_packet = resized.then(|| {
+                McpePacket::from(ActorEventPacket {
+                    target_runtime_id: rid.clone(),
+                    event_id: EnumsActorEvent::UpdateStackSize,
+                    data: i32::from(count),
+                    fire_at_position: None,
+                })
+            });
+            for viewer in &viewers.viewers {
+                if let Ok(session) = sessions.get(*viewer) {
+                    for packet in [&move_packet, &motion_packet, &size_packet]
+                        .into_iter()
+                        .flatten()
+                    {
+                        let _ = session.send(packet.clone());
+                    }
+                }
+            }
+        }
+
+        let fresh: Vec<Entity> = desired
+            .iter()
+            .copied()
+            .filter(|v| !viewers.viewers.contains(v))
+            .collect();
+        if !fresh.is_empty()
+            && let Some(spawn) = actor_spawn_packet(
+                runtime_id.0,
+                wire_position,
+                velocity.0,
+                stack.zip(owner),
+                falling,
+                body,
+                &items.0,
+            )
+        {
+            for viewer in &fresh {
+                if let Ok(session) = sessions.get(*viewer) {
+                    let _ = session.send(spawn.clone());
+                }
+            }
+            viewers.viewers.extend(fresh);
+        }
+
+        if moved {
+            viewers.last_position = position.0;
+        }
+        if accelerated {
+            viewers.last_velocity = velocity.0;
+        }
+        if resized {
+            viewers.last_stack_size = count;
+        }
+    }
+}
+
+#[cfg(test)]
+mod actor_viewer_tests {
+    use super::*;
+    use crate::entity::spawn_item_drop;
+    use crate::item::ItemStack;
+    use crate::world::ecs::ChunkPosition;
+    use glam::DVec3;
+    use jolyne::valentine::McpePacketData;
+    use std::sync::Arc;
+
+    fn setup() -> (
+        World,
+        Entity,
+        Entity,
+        tokio::sync::mpsc::Receiver<McpePacket>,
+    ) {
+        let mut world = World::new();
+        let mut items = crate::registry::ItemRegistry::new();
+        items.load_vanilla();
+        world.insert_resource(ItemRegistryResource(Arc::new(items)));
+        world.insert_resource(ChunkManager::new(
+            crate::world::WorldConfig::void_spawn_platform(1),
+        ));
+        let chunk = world
+            .spawn(ChunkData::new(crate::world::chunk::Chunk::new(0, 0)))
+            .id();
+        world
+            .resource_mut::<ChunkManager>()
+            .insert(ChunkPosition::new(0, 0), chunk);
+        let (tx, rx) = tokio::sync::mpsc::channel(64);
+        let player = world
+            .spawn(PlayerSession::new(1, "viewer".into(), None, None, tx))
+            .id();
+        let mut viewers = ChunkViewers::default();
+        viewers.insert(player);
+        world.entity_mut(chunk).insert(viewers);
+        (world, chunk, player, rx)
+    }
+
+    fn sync(world: &mut World) {
+        let mut schedule = Schedule::default();
+        schedule.add_systems(sync_actor_viewers);
+        schedule.run(world);
+    }
+
+    fn drain(rx: &mut tokio::sync::mpsc::Receiver<McpePacket>) -> Vec<McpePacketData> {
+        std::iter::from_fn(|| rx.try_recv().ok().map(|p| p.data)).collect()
+    }
+
+    #[test]
+    fn falling_blocks_spawn_as_falling_block_actors_with_their_state() {
+        let (mut world, _, _, mut rx) = setup();
+        let sand = crate::registry::BlockRegistry::vanilla()
+            .default_state_id_by_name("minecraft:sand")
+            .unwrap();
+        world.spawn((
+            FallingBlock { state: sand },
+            Position(DVec3::new(4.5, 70.0, 4.5)),
+            Velocity::default(),
+            OnGround(false),
+            PhysicsBody::FALLING_BLOCK,
+            RuntimeId(7),
+            ActorViewers::default(),
+        ));
+        sync(&mut world);
+        let packets = drain(&mut rx);
+        let [McpePacketData::AddActorPacket(add)] = packets.as_slice() else {
+            panic!("expected AddActor, got {packets:?}");
+        };
+        assert_eq!(&*add.actor_type, "minecraft:falling_block");
+        assert_eq!(add.position.y, 70.49);
+        assert!(add.actor_data.data.iter().any(|entry| entry.id == 2
+            && matches!(&entry.payload,
+                jolyne::valentine::types::DataItemEntryPayload::DataItemIntPayload(v)
+                    if v.value == sand as i32)));
+    }
+
+    #[test]
+    fn items_spawn_move_resize_and_leave_with_their_chunk_viewers() {
+        let (mut world, chunk, player, mut rx) = setup();
+        let item = spawn_item_drop(
+            &mut world,
+            DVec3::new(4.5, 64.0, 4.5),
+            ItemStack::new("minecraft:dirt", 2).with_max_stack_size(64),
+            None,
+        )
+        .unwrap();
+        sync(&mut world);
+        let packets = drain(&mut rx);
+        let [McpePacketData::AddItemActorPacket(add)] = packets.as_slice() else {
+            panic!("expected one AddItemActor, got {packets:?}");
+        };
+        assert_eq!(add.item.stacksize, 2);
+        assert_eq!(add.position.y, 64.125, "wire position is the box centre");
+        assert_eq!(add.velocity.y, 0.2);
+
+        sync(&mut world);
+        assert!(drain(&mut rx).is_empty(), "nothing changed, nothing sent");
+
+        world.get_mut::<Position>(item).unwrap().0.y = 63.5;
+        world.get_mut::<ItemEntityStack>(item).unwrap().0.count = 5;
+        sync(&mut world);
+        let packets = drain(&mut rx);
+        assert!(packets.iter().any(|p| matches!(p,
+            McpePacketData::MoveActorAbsolutePacket(m) if m.move_data.position.y == 63.625)));
+        assert!(packets.iter().any(|p| matches!(p,
+            McpePacketData::ActorEventPacket(e)
+                if e.event_id == EnumsActorEvent::UpdateStackSize && e.data == 5)));
+
+        world.get_mut::<ChunkViewers>(chunk).unwrap().remove(player);
+        sync(&mut world);
+        assert!(matches!(
+            drain(&mut rx).as_slice(),
+            [McpePacketData::RemoveActorPacket(_)]
+        ));
+
+        world.get_mut::<ChunkViewers>(chunk).unwrap().insert(player);
+        sync(&mut world);
+        assert!(matches!(
+            drain(&mut rx).as_slice(),
+            [McpePacketData::AddItemActorPacket(_)]
+        ));
+        world.despawn(item);
+        assert!(matches!(
+            drain(&mut rx).as_slice(),
+            [McpePacketData::RemoveActorPacket(_)]
+        ));
+    }
+}
+
+// =============================================================================
+// Arm swings
+// =============================================================================
+
+/// Relay a player's arm swing (`Animate` with the swing action) to the
+/// players around them and raise the `on-player-swing` plugin event.
+///
+/// The client sends `Animate(Swing)` for its own swings; the server forwards
+/// it to the other players that can see the swinger. Packets for another actor or
+/// with a non-swing action are ignored: clients do not drive those.
+pub fn relay_player_swing(
+    world: &mut World,
+    player: Entity,
+    packet: &jolyne::valentine::AnimatePacket,
+) {
+    use jolyne::valentine::types::EnumsAnimatePacketPayloadAction;
+    if packet.action != EnumsAnimatePacketPayloadAction::Swing {
+        tracing::debug!(action = ?packet.action, "Ignoring non-swing Animate from client");
+        return;
+    }
+    let (Some(runtime_id), Some(position)) = (
+        world.get::<RuntimeEntityId>(player).map(|rid| rid.0),
+        world.get::<Position>(player).copied(),
+    ) else {
+        return;
+    };
+    if packet.target_actor_runtime_id.actor_runtime_id != runtime_id as u64 {
+        tracing::debug!(player = ?player, "Ignoring Animate for another actor");
+        return;
+    }
+    if let Some(mut events) = world.get_resource_mut::<crate::ecs::events::EventBuffer>() {
+        events.push(crate::ecs::events::ServerEvent::PlayerSwing { entity: player });
+    }
+    let chunk = (
+        (position.0.x.floor() as i32) >> 4,
+        (position.0.z.floor() as i32) >> 4,
+    );
+    let Some(nearby) = world
+        .get_resource::<EntityGrid>()
+        .map(|grid| grid.get_neighbors(chunk, 1))
+    else {
+        return;
+    };
+    let relay = McpePacket::from(jolyne::valentine::AnimatePacket {
+        action: EnumsAnimatePacketPayloadAction::Swing,
+        target_actor_runtime_id: ActorRuntimeId {
+            actor_runtime_id: runtime_id as u64,
+        },
+        data: packet.data,
+        swing_source: packet.swing_source.clone(),
+    });
+    for viewer in nearby {
+        if viewer == player {
+            continue;
+        }
+        if let Some(session) = world.get::<PlayerSession>(viewer) {
+            let _ = session.send(relay.clone());
+        }
+    }
+}
+
+#[cfg(test)]
+mod swing_tests {
+    use super::*;
+    use crate::ecs::events::{EventBuffer, ServerEvent};
+    use glam::DVec3;
+    use jolyne::valentine::types::EnumsAnimatePacketPayloadAction;
+    use jolyne::valentine::{AnimatePacket, McpePacketData};
+
+    fn player(
+        world: &mut World,
+        runtime_id: i64,
+        x: f64,
+    ) -> (Entity, tokio::sync::mpsc::Receiver<McpePacket>) {
+        let (tx, rx) = tokio::sync::mpsc::channel(8);
+        let position = Position(DVec3::new(x, 64.0, 0.0));
+        let entity = world
+            .spawn((
+                RuntimeEntityId(runtime_id),
+                position,
+                SpatialChunk::from_position(&position),
+                PlayerSession::new(runtime_id as u64, "p".into(), None, None, tx),
+            ))
+            .id();
+        (entity, rx)
+    }
+
+    fn swing(target: i64, action: EnumsAnimatePacketPayloadAction) -> AnimatePacket {
+        AnimatePacket {
+            action,
+            target_actor_runtime_id: ActorRuntimeId {
+                actor_runtime_id: target as u64,
+            },
+            data: 0.0,
+            swing_source: Some("attack".into()),
+        }
+    }
+
+    #[test]
+    fn swings_reach_nearby_players_and_fire_the_plugin_event() {
+        let mut world = World::new();
+        world.insert_resource(EntityGrid::default());
+        world.insert_resource(EventBuffer::default());
+        let (swinger, mut own) = player(&mut world, 1, 0.5);
+        let (_near, mut near) = player(&mut world, 2, 20.5);
+        let (_far, mut far) = player(&mut world, 3, 200.5);
+
+        relay_player_swing(
+            &mut world,
+            swinger,
+            &swing(1, EnumsAnimatePacketPayloadAction::Swing),
+        );
+
+        let McpePacketData::AnimatePacket(relayed) = near.try_recv().unwrap().data else {
+            panic!("nearby player sees the swing");
+        };
+        assert_eq!(relayed.target_actor_runtime_id.actor_runtime_id, 1);
+        assert_eq!(relayed.action, EnumsAnimatePacketPayloadAction::Swing);
+        assert!(own.try_recv().is_err(), "not echoed to the swinger");
+        assert!(far.try_recv().is_err(), "out of range");
+        assert!(matches!(
+            world.resource_mut::<EventBuffer>().drain().as_slice(),
+            [ServerEvent::PlayerSwing { entity }] if *entity == swinger
+        ));
+    }
+
+    #[test]
+    fn forged_or_non_swing_animations_are_ignored() {
+        let mut world = World::new();
+        world.insert_resource(EntityGrid::default());
+        world.insert_resource(EventBuffer::default());
+        let (swinger, _own) = player(&mut world, 1, 0.5);
+        let (_near, mut near) = player(&mut world, 2, 2.5);
+        relay_player_swing(
+            &mut world,
+            swinger,
+            &swing(2, EnumsAnimatePacketPayloadAction::Swing),
+        );
+        relay_player_swing(
+            &mut world,
+            swinger,
+            &swing(1, EnumsAnimatePacketPayloadAction::Criticalhit),
+        );
+        assert!(near.try_recv().is_err());
+        assert!(world.resource_mut::<EventBuffer>().drain().is_empty());
+    }
+}

@@ -3,21 +3,28 @@
 //! This module provides the pure ECS server implementation,
 //! replacing the legacy Server struct.
 
+mod block_drops;
 mod blocks;
 mod chunks;
 mod commands;
+mod falling;
 mod inventory;
+mod items;
 mod join;
 mod join_data;
+mod loot;
+mod mining;
 mod movement;
 mod packet_domains;
 mod packet_queues;
 mod packets;
+mod placement;
 mod plugins;
 pub mod types;
 
 use bevy_ecs::prelude::*;
 pub(crate) use blocks::{commit_block_event, reject_block_event};
+pub(crate) use items::item_descriptor;
 use jolyne::WorldTemplate;
 use jolyne::valentine::EnumsGameType;
 use jolyne::valentine::types::{BlockPos, Vec3};
@@ -36,16 +43,17 @@ use crate::entity::components::{
     PlayerName, PlayerSession, PlayerState, PlayerUuid, RuntimeEntityId, SpatialChunk,
 };
 use crate::entity::systems::{
-    apply_drag, apply_gravity, apply_poison, apply_regeneration, apply_velocity, apply_wither,
-    check_ground_collision, clamp_velocity, despawn_dead, tick_age, tick_air_supply,
-    tick_damage_immunity, tick_effects, tick_fire, tick_item_despawn, tick_item_pickup_delay,
-    tick_mob_age, tick_projectile_lifetime,
+    apply_poison, apply_regeneration, apply_wither, despawn_dead, despawn_out_of_world,
+    merge_item_entities, tick_age, tick_air_supply, tick_damage_immunity, tick_effects, tick_fire,
+    tick_item_despawn, tick_item_pickup_delay, tick_mob_age, tick_physics,
+    tick_projectile_lifetime,
 };
 use crate::network::SessionId;
 use crate::registry::{BiomeRegistry, BlockRegistry, EntityRegistry, ItemRegistry};
 use crate::server::broadcast::{
     EntityGrid, broadcast_block_updates, broadcast_despawn_system, broadcast_movement_system,
-    broadcast_spawn_system, cleanup_despawned_entities, sync_spatial_chunks, tick_block_breaking,
+    broadcast_spawn_system, cleanup_despawned_entities, sync_actor_viewers, sync_spatial_chunks,
+    tick_block_breaking,
 };
 use crate::storage::{ChunkColumn, PlayerData};
 use crate::world::ChunkManager;
@@ -136,8 +144,9 @@ impl GameServer {
     pub fn with_config(config: ServerConfig) -> Self {
         let mut items = ItemRegistry::new();
         items.load_vanilla();
+        let definitions = crate::registry::entity::ActorDefinitionRegistry::vanilla();
         let mut entities = EntityRegistry::new();
-        entities.load_vanilla();
+        entities.load_vanilla(&definitions);
         let mut biomes = BiomeRegistry::new();
         biomes.load_vanilla();
         let mut blocks = BlockRegistry::new();
@@ -181,6 +190,11 @@ impl GameServer {
         let mut ecs = UnastarEcs::new();
 
         // Insert all game state as ECS Resources
+        ecs.world_mut().insert_resource(definitions);
+        ecs.world_mut()
+            .insert_resource(crate::registry::entity::EntityRegistryResource(Arc::new(
+                entities,
+            )));
         ecs.world_mut()
             .insert_resource(types::ServerWorldTemplate(world_template.clone()));
         ecs.world_mut()
@@ -188,6 +202,9 @@ impl GameServer {
         ecs.world_mut()
             .insert_resource(CommandRegistryResource(CommandRegistry::with_defaults()));
         ecs.world_mut().insert_resource(ItemEntityIdCounter(100000));
+        ecs.world_mut()
+            .init_resource::<crate::entity::EntityRandom>();
+        ecs.world_mut().init_resource::<falling::GravityChecks>();
         ecs.world_mut().insert_resource(SessionEntityMap::default());
         ecs.world_mut().insert_resource(EntityGrid::default());
         ecs.world_mut()
@@ -249,17 +266,8 @@ impl GameServer {
                 .after(commands::apply_chat_and_commands),
         );
 
-        ecs.schedule_mut().add_systems(
-            (
-                apply_gravity,
-                clamp_velocity,
-                apply_velocity,
-                check_ground_collision,
-                apply_drag,
-            )
-                .chain()
-                .in_set(PhysicsSet),
-        );
+        ecs.schedule_mut()
+            .add_systems(tick_physics.in_set(PhysicsSet));
 
         ecs.schedule_mut().add_systems(
             (tick_block_breaking, plugins::process_plugin_actions).in_set(EntityLogicSet),
@@ -277,6 +285,9 @@ impl GameServer {
                 tick_effects,
                 tick_item_pickup_delay,
                 tick_item_despawn,
+                merge_item_entities,
+                items::pickup_items,
+                despawn_out_of_world,
                 tick_projectile_lifetime,
                 despawn_dead,
             )
@@ -285,6 +296,18 @@ impl GameServer {
                 .before(tick_block_breaking)
                 .before(plugins::process_plugin_actions),
         );
+        // Falling blocks: land the ones physics stopped this tick, then start
+        // new ones whose gravity check is due (exclusive: they edit chunks).
+        ecs.schedule_mut().add_systems(
+            (
+                falling::land_falling_blocks,
+                falling::process_gravity_checks,
+            )
+                .chain()
+                .in_set(EntityLogicSet)
+                .after(despawn_dead)
+                .before(tick_block_breaking),
+        );
         ecs.schedule_mut().add_systems(
             (
                 sync_spatial_chunks,
@@ -292,6 +315,7 @@ impl GameServer {
                 broadcast_movement_system,
                 broadcast_despawn_system,
                 broadcast_block_updates,
+                sync_actor_viewers,
             )
                 .chain()
                 .in_set(NetworkSendSet),
@@ -662,7 +686,88 @@ mod tests {
         Age, ChunkRadius, DroppedItem, Living, OnGround, PickupDelay, PlayerSession, Velocity,
     };
     use glam::DVec3;
-    use jolyne::valentine::McpePacketName;
+    use jolyne::valentine::{McpePacketData, McpePacketName};
+
+    /// A survival block break spawns a real item entity: viewers of the chunk
+    /// get `AddItemActor`, the item falls onto the floor under block physics,
+    /// and once its 10-tick pickup delay ran out the nearby player collects it
+    /// (`InventorySlot` + `TakeItemActor`) and every viewer gets `RemoveActor`.
+    #[test]
+    fn broken_block_drops_a_real_item_that_players_pick_up() {
+        let mut server = void_server();
+        let world = server.ecs.world_mut();
+        world.insert_resource(crate::entity::EntityRandom::seeded(9));
+        let mut column = crate::world::chunk::Chunk::new(0, 0);
+        for x in 0..16 {
+            for z in 0..16 {
+                column.set_block(x, 63, z, *crate::world::chunk::blocks::STONE);
+            }
+        }
+        let chunk = world.spawn(crate::world::ecs::ChunkData::new(column)).id();
+        world
+            .resource_mut::<ChunkManager>()
+            .insert(ChunkPosition::new(0, 0), chunk);
+        let (tx, mut rx) = tokio::sync::mpsc::channel(256);
+        let player = world
+            .spawn((
+                Player,
+                Position(DVec3::new(
+                    8.5,
+                    64.0 + crate::entity::PLAYER_EYE_HEIGHT,
+                    8.5,
+                )),
+                Rotation::default(),
+                GameMode::Survival,
+                MainInventory::default(),
+                RuntimeEntityId(1),
+                PlayerSession::new(1, "viewer".into(), None, None, tx),
+            ))
+            .id();
+        let mut viewers = crate::world::ecs::ChunkViewers::default();
+        viewers.insert(player);
+        world.entity_mut(chunk).insert(viewers);
+        // Dirt drops itself without a tool (stone would need a pickaxe).
+        let dirt = *crate::world::chunk::blocks::DIRT;
+        block_drops::drop_block_items(world, glam::IVec3::new(8, 64, 8), dirt, None);
+
+        let mut packets = Vec::new();
+        for _ in 0..30 {
+            server.tick();
+            while let Ok(packet) = rx.try_recv() {
+                packets.push(packet.data);
+            }
+        }
+        let added = packets
+            .iter()
+            .position(|p| matches!(p, McpePacketData::AddItemActorPacket(_)))
+            .expect("viewer saw the item spawn");
+        let taken = packets
+            .iter()
+            .position(|p| matches!(p, McpePacketData::TakeItemActorPacket(_)))
+            .expect("player picked the item up");
+        let removed = packets
+            .iter()
+            .position(|p| matches!(p, McpePacketData::RemoveActorPacket(_)))
+            .expect("item removed from viewers");
+        assert!(added < taken && taken < removed);
+        let world = server.ecs.world_mut();
+        assert_eq!(
+            world
+                .query_filtered::<Entity, With<DroppedItem>>()
+                .iter(world)
+                .count(),
+            0
+        );
+        let inventory = &world.get::<MainInventory>(player).unwrap().0;
+        assert_eq!(
+            inventory
+                .slots()
+                .iter()
+                .find(|s| !s.is_empty())
+                .map(|s| (s.item_id.as_str(), s.count)),
+            Some(("minecraft:dirt", 1))
+        );
+    }
 
     /// A server over a void world: no generation pool, so no tokio runtime needed.
     fn void_server() -> GameServer {
@@ -673,19 +778,32 @@ mod tests {
     }
 
     #[test]
-    fn game_tick_runs_physics_set_for_living_entities() {
+    fn game_tick_runs_physics_set_for_bodies_in_loaded_chunks() {
         let mut server = void_server();
-        let entity = server
-            .ecs
-            .world_mut()
+        let world = server.ecs.world_mut();
+        let chunk = world
+            .spawn(crate::world::ecs::ChunkData::new(
+                crate::world::chunk::Chunk::new(0, 0),
+            ))
+            .id();
+        world
+            .resource_mut::<ChunkManager>()
+            .insert(crate::world::ecs::ChunkPosition::new(0, 0), chunk);
+        let entity = world
             .spawn((
                 Living,
-                Position(DVec3::new(0.0, 10.0, 0.0)),
+                // Centred in the chunk: neighbouring chunks are unloaded and
+                // therefore solid.
+                Position(DVec3::new(8.0, 10.0, 8.0)),
                 Velocity(DVec3::ZERO),
                 OnGround(false),
+                crate::entity::components::PhysicsBody::living(0.6, 1.8),
             ))
             .id();
 
+        // Living bodies apply gravity after the move: the first tick only
+        // builds velocity, the second one moves.
+        server.tick();
         server.tick();
 
         let world = server.ecs.world();
@@ -734,7 +852,7 @@ mod tests {
         let entity = server
             .ecs
             .world_mut()
-            .spawn((Age(0), DroppedItem, PickupDelay(2)))
+            .spawn((Age(0), DroppedItem, PickupDelay::new(2)))
             .id();
 
         server.tick();

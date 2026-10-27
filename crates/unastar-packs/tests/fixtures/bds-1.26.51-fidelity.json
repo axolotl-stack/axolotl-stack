@@ -1,0 +1,270 @@
+{
+  "bds_version": "1.26.51",
+  "probe_count": 60,
+  "observations": {
+    "readable": {
+      "summon_succeeded": true,
+      "filter_pass": true
+    },
+    "compact": {
+      "summon_succeeded": true,
+      "filter_pass": true
+    },
+    "compact_not": {
+      "summon_succeeded": true,
+      "filter_pass": true
+    },
+    "all_alias": {
+      "summon_succeeded": true,
+      "filter_pass": true
+    },
+    "any_alias": {
+      "summon_succeeded": true,
+      "filter_pass": true
+    },
+    "not_alias": {
+      "summon_succeeded": true,
+      "filter_pass": true
+    },
+    "none_alias": {
+      "summon_succeeded": true,
+      "filter_pass": true
+    },
+    "equals_alias": {
+      "summon_succeeded": true,
+      "filter_pass": true
+    },
+    "single_equals": {
+      "summon_succeeded": true,
+      "filter_pass": true
+    },
+    "not_equals": {
+      "summon_succeeded": true,
+      "filter_pass": true
+    },
+    "missing_subject_negative": {
+      "summon_succeeded": true,
+      "filter_pass": true
+    },
+    "unknown_test": {
+      "summon_succeeded": true,
+      "filter_pass": true
+    },
+    "molang_names": {
+      "summon_succeeded": true,
+      "filter_pass": true
+    },
+    "molang_q": {
+      "summon_succeeded": true,
+      "filter_pass": false
+    },
+    "molang_v": {
+      "summon_succeeded": true,
+      "filter_pass": true
+    },
+    "molang_t": {
+      "summon_succeeded": true,
+      "filter_pass": true
+    },
+    "molang_c": {
+      "summon_succeeded": true,
+      "filter_pass": true
+    },
+    "event_nodes": {
+      "summon_succeeded": true,
+      "filter_pass": true
+    },
+    "legacy_pushable": {
+      "summon_succeeded": true,
+      "filter_pass": true
+    },
+    "null_events": {
+      "summon_succeeded": true,
+      "filter_pass": false
+    },
+    "unknown_keys": {
+      "summon_succeeded": false,
+      "filter_pass": false
+    },
+    "future_version": {
+      "summon_succeeded": false,
+      "filter_pass": false
+    },
+    "silverfish_remove": {
+      "summon_succeeded": true,
+      "filter_pass": true
+    },
+    "shadowed_base_remove": {
+      "summon_succeeded": true,
+      "filter_pass": true
+    },
+    "version_engine_patch": {
+      "summon_succeeded": true,
+      "filter_pass": true
+    },
+    "version_hotfix": {
+      "summon_succeeded": false,
+      "filter_pass": false
+    },
+    "version_next_minor": {
+      "summon_succeeded": false,
+      "filter_pass": false
+    },
+    "unknown_component": {
+      "summon_succeeded": false,
+      "filter_pass": false
+    },
+    "unknown_component_old": {
+      "summon_succeeded": false,
+      "filter_pass": false
+    },
+    "unknown_component_ancient": {
+      "summon_succeeded": true,
+      "filter_pass": true
+    },
+    "unknown_event_action": {
+      "summon_succeeded": true,
+      "filter_pass": false
+    },
+    "unknown_entity_key": {
+      "summon_succeeded": false,
+      "filter_pass": false
+    },
+    "unknown_top_key": {
+      "summon_succeeded": true,
+      "filter_pass": true
+    },
+    "unknown_description_key": {
+      "summon_succeeded": true,
+      "filter_pass": true
+    },
+    "molang_q_default": {
+      "summon_succeeded": true,
+      "filter_pass": true
+    },
+    "operator_not": {
+      "summon_succeeded": true,
+      "filter_pass": true
+    },
+    "operator_lt": {
+      "summon_succeeded": true,
+      "filter_pass": true
+    },
+    "operator_le": {
+      "summon_succeeded": true,
+      "filter_pass": true
+    },
+    "operator_gt": {
+      "summon_succeeded": true,
+      "filter_pass": true
+    },
+    "operator_ge": {
+      "summon_succeeded": true,
+      "filter_pass": true
+    },
+    "subject_numeric_2": {
+      "summon_succeeded": true,
+      "filter_pass": true
+    },
+    "subject_numeric_3": {
+      "summon_succeeded": true,
+      "filter_pass": true
+    },
+    "subject_numeric_4": {
+      "summon_succeeded": true,
+      "filter_pass": true
+    },
+    "subject_numeric_5": {
+      "summon_succeeded": true,
+      "filter_pass": false
+    },
+    "subject_numeric_6": {
+      "summon_succeeded": true,
+      "filter_pass": false
+    },
+    "subject_numeric_7": {
+      "summon_succeeded": true,
+      "filter_pass": true
+    },
+    "subject_numeric_8": {
+      "summon_succeeded": true,
+      "filter_pass": false
+    },
+    "subject_numeric_9": {
+      "summon_succeeded": true,
+      "filter_pass": false
+    },
+    "unknown_component_v21_10": {
+      "summon_succeeded": true,
+      "filter_pass": true
+    },
+    "unknown_component_v21_20": {
+      "summon_succeeded": true,
+      "filter_pass": true
+    },
+    "unknown_component_v21_30": {
+      "summon_succeeded": true,
+      "filter_pass": true
+    },
+    "unknown_component_v21_40": {
+      "summon_succeeded": true,
+      "filter_pass": true
+    },
+    "unknown_component_v21_50": {
+      "summon_succeeded": true,
+      "filter_pass": true
+    },
+    "unknown_component_v21_60": {
+      "summon_succeeded": true,
+      "filter_pass": true
+    },
+    "unknown_component_v21_70": {
+      "summon_succeeded": true,
+      "filter_pass": true
+    },
+    "unknown_component_v21_80": {
+      "summon_succeeded": true,
+      "filter_pass": true
+    },
+    "unknown_component_v21_90": {
+      "summon_succeeded": false,
+      "filter_pass": false
+    },
+    "unknown_component_v21_100": {
+      "summon_succeeded": false,
+      "filter_pass": false
+    },
+    "bad_default_good_property": {
+      "summon_succeeded": true,
+      "filter_pass": false
+    },
+    "bad_default_no_property_filter": {
+      "summon_succeeded": true,
+      "filter_pass": true
+    }
+  },
+  "event_order": {
+    "A": 1,
+    "B": 2,
+    "C": 3,
+    "D": 4,
+    "UNEXPECTED": null
+  },
+  "sources": [
+    {
+      "capture": "entity-fidelity-20261025-v5",
+      "protocol": 2193,
+      "console_sha256": "320d4986214b8802472cf84b9bd4447fc4711b91356c565954569497434dcbf6"
+    },
+    {
+      "capture": "entity-fidelity-20261025-v6",
+      "protocol": 2193,
+      "console_sha256": "95cab56850aec962f8c0d0dcdcf8257a9fad3cb8d26fd8f8958ae474b367bacd"
+    },
+    {
+      "capture": "entity-fidelity-20261025-v7",
+      "protocol": 2193,
+      "console_sha256": "d4a6b606d5048648e89e356a59770acd0d004e8319d61f17e2794aa707a4893d"
+    }
+  ]
+}

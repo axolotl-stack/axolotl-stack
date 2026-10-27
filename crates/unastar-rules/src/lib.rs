@@ -16,6 +16,9 @@
 //!   ahead-of-time worldgen compiler, with case-insensitive names and the
 //!   `q.`/`v.`/`t.`/`c.` aliases resolved at parse time.
 //!
+//! [`math`] also exposes calibrated scalar player-Drop direction math without
+//! bringing ECS or vector-library dependencies into shared consumers.
+//!
 //! Parse rules follow the parser-fidelity requirement of the entities research
 //! (`thoughts/shared/research/2026-10-24-data-driven-entities.md` §4.7): what a
 //! parser tolerates is listed next to it, and every tolerated oddity of vanilla
@@ -23,6 +26,8 @@
 
 pub mod event;
 pub mod filter;
+pub mod loot;
+pub mod math;
 pub mod molang;
 
 use std::fmt;

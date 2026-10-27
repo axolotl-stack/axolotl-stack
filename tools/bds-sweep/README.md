@@ -25,6 +25,29 @@ $py = 'C:/Users/jvigu/orca/bds-runtime/venv/Scripts/python.exe'
 cargo build -p bds-extractor -p bds-sweep
 ```
 
+## Scripted client controls
+
+The plugin sends these chat orders to `bds-sweep-client`:
+
+| Order | Behaviour |
+|---|---|
+| `bds-sweep:mine X Y Z FACE PREDICT` | Start/continue breaking; optional predicted break after `PREDICT` ticks |
+| `bds-sweep:stop` | Abort the current mining action |
+| `bds-sweep:attack RUNTIME_ID` | Attack using the synchronized held stack |
+| `bds-sweep:drop hotbar SLOT COUNT` | Closed-screen Drop from hotbar index 0..8; count 1 is Q, a full stack is ctrl-Q |
+| `bds-sweep:drop inventory SLOT COUNT` | Open the inventory, wait for its server-allocated window ID, then Drop from native inventory index 0..35 |
+| `bds-sweep:close-inventory` | Close the tracked native inventory window |
+
+Drop references come only from server `InventoryContent`/`InventorySlot`
+updates; missing/empty/idless slots and invalid counts fail rather than invent
+a stack net ID. Requests use negative odd IDs. `--capture-dir DIR` records
+both directions, including unhandled actor packets, to `DIR/packets.jsonl`;
+records are flushed individually and the recorder closes on normal/error exit.
+Windows debug startup uses the same enlarged codec stack as `bds-extractor`.
+The entity probe's `player-drop` mode drives the bounded two-client experiment;
+see `crates/unastar/README.md` for its setup and retained native evidence.
+
+
 ## Jobs
 
 | Kind | What one item measures | Arena / method |
