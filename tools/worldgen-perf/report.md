@@ -800,3 +800,77 @@ clearance are required; untimed jobs1 work is allowed without another coordinato
 gate under the global eight-job policy. Pipeline dependency deferral is analysis
 only and remains with the new canonical Java owner until a precise handoff.
 
+
+## 2026-10-27: native End density wiring, separate correctness track
+
+Imported Java owner's isolated native End primitive (`49b67614`, locally
+`38e96e4d`), then committed seeded production/emitter routing as `de617682`.
+The sampler is initialized on first End access from the original world seed;
+Overworld/Bedrock startup does not construct its legacy stream. Four-Y SIMD
+shares X/Z and splats one scalar sample under the primitive's exact-lane contract.
+This corrects previously zero End density; it is **not** an output-preserving
+optimization or a claim of finished End chunk parity.
+
+`cdcf51bb` completes genuine dimension-local empty-cache scalar/SIMD/grid types
+using the existing generic emitter rather than Overworld aliases. Unknown builtin
+references fail generation by name. Cached `OldBlendedNoise` fails closed because
+the 2D context loses its vertical coordinate; no guessed Y=0 substitution is used.
+Its compiled empty-cache End root and named input-rejection regressions pass.
+
+Observed checks, serialized jobs1 with `VCPKG_ROOT=C:\Users\jvigu\vcpkg`:
+
+```text
+cargo fmt --all
+cargo test -p unastar_noise --all-features -j 1 -- --test-threads=1
+cargo test -p unastar --release --test worldgen_output_hash --features java-worldgen,bedrock-worldgen -j 1 -- --test-threads=1
+cargo test -p unastar --lib end_density_registry_uses_legacy_world_seed --features java-worldgen,bedrock-worldgen -j 1 -- --test-threads=1
+cargo test -p unastar --lib simd_column_memo_preserves_density_bits_across_heights_and_columns --all-features -j 1 -- --test-threads=1
+cargo clippy -p unastar -p unastar_noise -p unastar_bedrock_codegen --all-targets --all-features -j 1 -- -D warnings
+cargo test -p unastar_noise --lib native_end_node_matches_all_emission_modes -j 1 -- --test-threads=1
+cargo test -p unastar_noise --test density_ir -j 1 -- --test-threads=1
+```
+
+The first complete noise run passed 258 unit/integration tests plus one doctest,
+including the primitive's 528 native scalar/array samples. Both original
+68-target Java/Bedrock block/biome/heightmap and canonical actor hash gates pass
+without golden changes. Production registry seed cases and the 768-lane real
+SIMD memo precision comparison pass. After the empty-cache patch, strict clippy,
+the compiled native End root and all five density IR tests pass. An earlier
+mistyped `real_seeded` filter selected zero tests; it supplies no evidence and was
+replaced by the exact named precision test above.
+
+These are untimed correctness checks under shared load, not benchmark samples.
+Turbo remains capped at 99%; no fresh AC-qualified timed result is claimed.
+WG-BEDROCK explicitly abandoned its earlier lease without starting samples.
+ENT's fresh metadata codegen chain cannot grant quiet until its explicit
+handback, and ITEMS resource state remains unconfirmed. Neither prepared
+benchmark pair has a standing hold. Ordinary untimed jobs1 work continues.
+The seven previously observed LevelDB replacement failures remain unresolved
+and were not rerun or suppressed; full-suite green is not claimed.
+
+### Inline End regression and completed reachable gates
+
+Review found six additional inline-expression paths used by spline coordinates.
+With the extended native regression and the old inline lowering, seed 0 at block
+(0,0) returned the correct `0x3fe2000000000000` in all eight direct-node lane
+results but zero in all nine inline lane results. The regression failed before;
+explicit End lowering in scalar, SIMD, extracted-lane, flat, column and standalone
+inline expressions now passes. Inline cached `OldBlendedNoise` also fails closed.
+
+Latest serialized all-feature noise run passes **265 unit/integration tests plus
+one doctest**, including seven density IR cases. All ten production density-module
+tests pass, including native registry seeds and the 768-lane memo precision gate.
+Strict three-crate all-target/all-feature clippy and both original normal-release
+complete-output hash gates pass after the inline fix. The instrumented release
+benchmark passes the unchanged total and per-stage allocation ratchets:
+
+| 68 finished targets, seed 12345 | Allocations | Requested bytes |
+|---|---:|---:|
+| Java | 95,101 | 126,261,526 |
+| Bedrock | 64,590 | 69,468,288 |
+
+No timing is accepted from those shared-load instrumented runs. The complete
+command chain took 454.64 seconds, which is validation cost, not chunk speed.
+No storage failure was retried and the seven outstanding LevelDB failures still
+prevent a full-suite green claim.
+

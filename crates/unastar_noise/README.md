@@ -103,8 +103,9 @@ scalar, four-Y SIMD, flat-cache, column-cache and standalone-cache emitter.
 `NoiseRegistry` initializes the sampler lazily from the unmodified world seed;
 ordinary Overworld/Bedrock registries do not construct the legacy End stream.
 Four-Y lanes share X/Z, so a single scalar sample is splatted without changing
-lane bits. A compiled generated regression checks all five expression environments
-against native seed-sensitive and wrapped-NaN fixtures; the production registry
+lane bits. A compiled generated regression checks direct nodes and inline spline
+coordinates in all five expression environments, plus a complete empty-cache
+root, against native seed-sensitive and wrapped-NaN fixtures. The production registry
 has a separate native-seed regression. These are End correctness changes, not
 output-preserving optimization speedups or proof of finished End chunk parity.
 

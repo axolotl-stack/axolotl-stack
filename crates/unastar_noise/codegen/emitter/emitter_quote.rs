@@ -339,6 +339,12 @@ impl<'a> AotEmitter<'a> {
         let column = self.emit_column_context_inner(&node);
         let standalone = self.emit_fc_inner_for_standalone(&node);
         let argument = DensityFunctionArg::Inline(Box::new(DensityFunctionDef::EndIslands {}));
+        let inline_scalar = self.emit_inline_def(&node.def);
+        let inline_simd = self.emit_inline_def_simd(&node.def);
+        let inline_lane = self.emit_inline_def_lane(&node.def, 3);
+        let inline_flat = self.emit_fc_inline_def(&node.def);
+        let inline_column = self.emit_cc_inline_def(&node.def);
+        let inline_standalone = self.emit_fc_standalone_arg(&argument);
         let graph = DependencyGraph::build(&[("end_fixture", &argument)], &HashMap::new());
         let mut empty = AotEmitter::new(&graph);
         let empty_flat = empty.emit_flat_cache_grid();
@@ -397,25 +403,25 @@ impl<'a> AotEmitter<'a> {
                         (0, 370728, 0, 0xfff8_0000_0000_0000),
                     ] {
                         let noises = EndNoise(EndIslands::new(seed));
-                        let direct = {
+                        let (direct, direct_inline) = {
                             let ctx = FunctionContext::new(x, i32::MAX, z);
-                            #scalar
+                            (#scalar, #inline_scalar)
                         };
-                        let lanes = {
+                        let (lanes, lanes_inline, lane_inline) = {
                             let ctx = FunctionContext4::new(x, [i32::MIN, -1, 0, i32::MAX], z);
-                            #simd
-                        }.to_array();
-                        let flat_value = {
+                            ((#simd).to_array(), (#inline_simd).to_array(), #inline_lane)
+                        };
+                        let (flat_value, flat_inline) = {
                             let (bx, bz) = (x, z);
-                            #flat
+                            (#flat, #inline_flat)
                         };
-                        let column_value = {
+                        let (column_value, column_inline) = {
                             let (block_x, block_z) = (x, z);
-                            #column
+                            (#column, #inline_column)
                         };
-                        let standalone_value = {
+                        let (standalone_value, standalone_inline) = {
                             let (block_x, block_z) = (x, z);
-                            #standalone
+                            (#standalone, #inline_standalone)
                         };
                         let empty_scalar_value = empty_cache::compute_end_fixture(
                             &FunctionContext::new(x, i32::MIN, z), &noises,
@@ -433,8 +439,13 @@ impl<'a> AotEmitter<'a> {
                                 direct.to_bits(), lanes[0].to_bits(), lanes[1].to_bits(),
                                 lanes[2].to_bits(), lanes[3].to_bits(), flat_value.to_bits(),
                                 column_value.to_bits(), standalone_value.to_bits(),
+                                direct_inline.to_bits(),
+                                lanes_inline[0].to_bits(), lanes_inline[1].to_bits(),
+                                lanes_inline[2].to_bits(), lanes_inline[3].to_bits(),
+                                lane_inline.to_bits(), flat_inline.to_bits(),
+                                column_inline.to_bits(), standalone_inline.to_bits(),
                             ],
-                            [expected; 8],
+                            [expected; 17],
                             "native End node seed={seed} block=({x},{z})"
                         );
                     }
@@ -2233,6 +2244,9 @@ impl<'a> AotEmitter<'a> {
             DensityFunctionDef::FlatCache { argument } => self.emit_arg_expr(argument),
             DensityFunctionDef::Cache2D { argument }
             | DensityFunctionDef::CacheOnce { argument } => self.emit_arg_expr(argument),
+            DensityFunctionDef::EndIslands {} => {
+                quote! { noises.sample_end_islands(ctx.block_x, ctx.block_z) }
+            }
             _ => quote! { 0.0_f64 },
         }
     }
@@ -2258,6 +2272,9 @@ impl<'a> AotEmitter<'a> {
             DensityFunctionDef::FlatCache { argument } => self.emit_arg_expr_simd(argument),
             DensityFunctionDef::Cache2D { argument }
             | DensityFunctionDef::CacheOnce { argument } => self.emit_arg_expr_simd(argument),
+            DensityFunctionDef::EndIslands {} => {
+                quote! { f64x4::splat(noises.sample_end_islands(ctx.block_x, ctx.block_z)) }
+            }
             _ => quote! { f64x4::splat(0.0_f64) },
         }
     }
@@ -2285,6 +2302,9 @@ impl<'a> AotEmitter<'a> {
             DensityFunctionDef::FlatCache { argument } => self.emit_arg_expr_lane(argument, lane),
             DensityFunctionDef::Cache2D { argument }
             | DensityFunctionDef::CacheOnce { argument } => self.emit_arg_expr_lane(argument, lane),
+            DensityFunctionDef::EndIslands {} => {
+                quote! { noises.sample_end_islands(ctx.block_x, ctx.block_z) }
+            }
             _ => quote! { 0.0_f64 },
         }
     }
@@ -2834,6 +2854,12 @@ impl<'a> AotEmitter<'a> {
             DensityFunctionDef::FlatCache { argument } => self.emit_fc_arg(argument),
             DensityFunctionDef::Cache2D { argument }
             | DensityFunctionDef::CacheOnce { argument } => self.emit_fc_arg(argument),
+            DensityFunctionDef::EndIslands {} => {
+                quote! { noises.sample_end_islands(bx, bz) }
+            }
+            DensityFunctionDef::OldBlendedNoise { .. } => {
+                panic!("Y-dependent OldBlendedNoise cannot be lowered into inline flat cache")
+            }
             _ => quote! { 0.0_f64 },
         }
     }
@@ -3719,6 +3745,14 @@ impl<'a> AotEmitter<'a> {
                         let v = *argument;
                         quote! { #v }
                     }
+                    DensityFunctionDef::EndIslands {} => {
+                        quote! { noises.sample_end_islands(block_x, block_z) }
+                    }
+                    DensityFunctionDef::OldBlendedNoise { .. } => {
+                        panic!(
+                            "Y-dependent OldBlendedNoise cannot be lowered into inline standalone flat cache"
+                        )
+                    }
                     _ => {
                         // For other inline types, create a minimal temp node
                         // This is a simplified approach - in practice inline defs
@@ -4083,6 +4117,12 @@ impl<'a> AotEmitter<'a> {
             DensityFunctionDef::FlatCache { argument } => self.emit_cc_arg(argument),
             DensityFunctionDef::Cache2D { argument }
             | DensityFunctionDef::CacheOnce { argument } => self.emit_cc_arg(argument),
+            DensityFunctionDef::EndIslands {} => {
+                quote! { noises.sample_end_islands(block_x, block_z) }
+            }
+            DensityFunctionDef::OldBlendedNoise { .. } => {
+                panic!("Y-dependent OldBlendedNoise cannot be lowered into inline column cache")
+            }
             _ => quote! { 0.0_f64 },
         }
     }
