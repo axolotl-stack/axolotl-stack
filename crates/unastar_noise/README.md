@@ -109,6 +109,11 @@ root, against native seed-sensitive and wrapped-NaN fixtures. The production reg
 has a separate native-seed regression. These are End correctness changes, not
 output-preserving optimization speedups or proof of finished End chunk parity.
 
+Scalar signatures also track actual column-cache use during lowering: a shared
+inner node may reuse a `cache_2d` wrapper registered by another root even when
+that wrapper is not a structural descendant. The compiled End regression covers
+this cross-root alias without substituting zero or recomputing cached values.
+
 ## Block identity
 
 Generated code works in Bedrock runtime ids (`u32`, the canonical 1.26.51 palette ordinals

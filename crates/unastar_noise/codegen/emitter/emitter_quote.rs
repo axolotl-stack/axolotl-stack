@@ -186,6 +186,8 @@ pub struct AotEmitter<'a> {
     /// Root-local SIMD memo slots for zero-Y-scale noise leaves.
     simd_column_noise_slots: HashMap<NodeId, usize>,
     memoize_zero_y_noise: bool,
+    /// Actual scalar lowering may reuse a Cache2D alias from another router root.
+    column_context_used: bool,
 }
 
 impl<'a> AotEmitter<'a> {
@@ -220,6 +222,7 @@ impl<'a> AotEmitter<'a> {
             }),
             simd_column_noise_slots: HashMap::new(),
             memoize_zero_y_noise: false,
+            column_context_used: false,
         }
     }
 
@@ -351,6 +354,17 @@ impl<'a> AotEmitter<'a> {
         let empty_columns = empty.emit_column_context();
         let empty_scalar = empty.emit_compute_function("end_fixture");
         let empty_simd = empty.emit_compute_function_simd("end_fixture");
+        let cached_argument = DensityFunctionArg::Inline(Box::new(DensityFunctionDef::Cache2D {
+            argument: argument.clone(),
+        }));
+        let alias_graph = DependencyGraph::build(
+            &[("end_fixture", &argument), ("continents", &cached_argument)],
+            &HashMap::new(),
+        );
+        let mut alias = AotEmitter::new(&alias_graph);
+        let alias_flat = alias.emit_flat_cache_grid();
+        let alias_columns = alias.emit_column_context();
+        let alias_scalar = alias.emit_compute_function("end_fixture");
         quote! {
             #[cfg(test)]
             mod end_islands_codegen_tests {
@@ -389,6 +403,13 @@ impl<'a> AotEmitter<'a> {
                     #empty_columns
                     #empty_scalar
                     #empty_simd
+                }
+
+                mod aliased_cache {
+                    use super::*;
+                    #alias_flat
+                    #alias_columns
+                    #alias_scalar
                 }
 
                 #[test]
@@ -434,6 +455,11 @@ impl<'a> AotEmitter<'a> {
                         ).to_array();
                         assert_eq!(empty_scalar_value.to_bits(), expected);
                         assert_eq!(empty_lanes.map(f64::to_bits), [expected; 4]);
+                        let alias_column = aliased_cache::ColumnContext::new_standalone(x, z, &noises);
+                        let alias_value = aliased_cache::compute_end_fixture(
+                            &FunctionContext::new(x, i32::MAX, z), &noises, &alias_column,
+                        );
+                        assert_eq!(alias_value.to_bits(), expected);
                         assert_eq!(
                             [
                                 direct.to_bits(), lanes[0].to_bits(), lanes[1].to_bits(),
@@ -950,6 +976,7 @@ impl<'a> AotEmitter<'a> {
         self.var_names.clear();
         self.var_counter = 0;
         self.statements.clear();
+        self.column_context_used = false;
 
         let root_id = self
             .graph
@@ -963,6 +990,7 @@ impl<'a> AotEmitter<'a> {
         let uses_cache_2d = self.graph.root_uses_cache_2d(root_name);
 
         let result_expr = self.emit_node(&root_id);
+        let uses_cache_2d = uses_cache_2d || self.column_context_used;
         let stmts = std::mem::take(&mut self.statements);
         let func_name = format_ident!("compute_{}", root_name);
 
@@ -1187,6 +1215,7 @@ impl<'a> AotEmitter<'a> {
         if !self.expand_all_caches_inline
             && let Some(wrapper_id) = self.cache_2d_inner_to_wrapper.get(id).cloned()
         {
+            self.column_context_used = true;
             let field = self.column_context_field_ident(&wrapper_id);
             return quote! { col.#field };
         }
@@ -1205,6 +1234,7 @@ impl<'a> AotEmitter<'a> {
         // Early return for cache_2d nodes: reference the pre-computed ColumnContext field
         // This avoids recomputing expensive Y-independent expressions for every Y position.
         if node.is_cache_2d && !self.expand_all_caches_inline {
+            self.column_context_used = true;
             let field = self.column_context_field_ident(&node.id);
             return quote! { col.#field };
         }

@@ -874,3 +874,13 @@ command chain took 454.64 seconds, which is validation cost, not chunk speed.
 No storage failure was retried and the seven outstanding LevelDB failures still
 prevent a full-suite green claim.
 
+### End cross-root cache alias signature
+
+Java owner's real three-dimension build exposed an End scalar root that read a
+shared `ColumnContext` field without declaring `col`. Global inner-node-to-cache
+reuse was invisible to the structural dependency walk. Scalar lowering now
+records real column accesses and includes the required parameter; the cached
+calculation and its precision are unchanged. The compiled native regression adds
+a raw End root sharing a leaf with another root's `cache_2d`; all native seed
+cases and seven density IR tests pass. No generated file or golden was patched.
+
