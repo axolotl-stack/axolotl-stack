@@ -123,6 +123,13 @@ dispatched Java scalar/SIMD arithmetic. The default `NoiseRegistry::new(seed)`
 and ordinary registry `NoiseSource` implementation preserve the calibrated
 terrain backend; selecting native Java math does not silently change Bedrock.
 
+`with_router_settings` returns `NativeNoiseRegistry`, the
+`NoiseRegistry<NativeDoublePerlinNoise>` specialization. Explicit native registry
+fields should use that alias; default `NoiseRegistry` fields remain calibrated.
+Native octave records keep their value factors outside the calibrated
+`PerlinNoise` layout. Each octave bank retains its single vector: no extra
+allocation, sampling-time profile branch or larger calibrated Perlin record.
+
 Native constructors distinguish legacy positional string hashes, fixed legacy
 Nether temperature/vegetation streams, the zero legacy offset stream, and raw
 world-seeded legacy blended noise. Name/octave string hashes are generated at

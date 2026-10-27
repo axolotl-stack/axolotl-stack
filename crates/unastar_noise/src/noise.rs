@@ -4,10 +4,12 @@
 //! Uses portable SIMD for cross-platform vectorization.
 
 use super::xoroshiro::Xoroshiro128;
-use crate::features::random::LegacyRandom;
 use std::simd::Select;
 use std::simd::StdFloat;
 use std::simd::prelude::*;
+
+mod native;
+pub use native::{NativeDoublePerlinNoise, NativeOctave, NativeOctaveNoise};
 
 /// The two draws noise initialisation needs (`nextDouble`, `nextInt(bound)`).
 ///
@@ -52,10 +54,6 @@ pub struct PerlinNoise {
     d2: f64,
     /// Precomputed smoothstep(d2)
     t2: f64,
-    /// Keep Java's amplitude and persistence separate: `(amplitude * sample) *
-    /// persistence` is not bit-equivalent to a precombined weight.
-    native_amplitude: f64,
-    native_value_factor: f64,
 }
 
 impl Default for PerlinNoise {
@@ -70,8 +68,6 @@ impl Default for PerlinNoise {
             h2: 0i32,
             d2: 0.0,
             t2: 0.0,
-            native_amplitude: 1.0,
-            native_value_factor: 1.0,
         }
     }
 }
@@ -116,8 +112,6 @@ impl PerlinNoise {
             h2,
             d2,
             t2,
-            native_amplitude: 1.0,
-            native_value_factor: 1.0,
         }
     }
 
@@ -730,22 +724,14 @@ fn lerp_with<const FUSED: bool>(t: f64, a: f64, b: f64) -> f64 {
 
 /// Multiple octaves of Perlin noise.
 #[derive(Debug, Clone, Default)]
-pub struct OctaveNoise {
+pub struct OctaveNoise<O = PerlinNoise> {
     /// Individual octaves
-    pub octaves: Vec<PerlinNoise>,
+    pub octaves: Vec<O>,
 }
 
 impl OctaveNoise {
     /// Create octave noise with given amplitudes (cubiomes-accurate xOctaveInit).
     pub fn new(rng: &mut Xoroshiro128, amplitudes: &[f64], omin: i32) -> Self {
-        Self::new_with_persistence::<false>(rng, amplitudes, omin)
-    }
-
-    fn new_with_persistence<const NATIVE: bool>(
-        rng: &mut Xoroshiro128,
-        amplitudes: &[f64],
-        omin: i32,
-    ) -> Self {
         // Precomputed persistence table for len = 0..10
         let persist_ini: [f64; 11] = [
             0.0,
@@ -762,81 +748,19 @@ impl OctaveNoise {
         ];
 
         let len = amplitudes.len();
-        let mut lacuna = 1.0;
 
-        let mut persist = if NATIVE {
-            let len = len as i32;
-            2.0_f64.powi(len - 1) / (2.0_f64.powi(len) - 1.0)
-        } else if len < persist_ini.len() {
+        let persist = if len < persist_ini.len() {
             persist_ini[len]
         } else {
             (1 << len) as f64 / ((1 << len) - 1) as f64
         };
 
-        let x_lo = rng.next_long();
-        let x_hi = rng.next_long();
-
-        let mut octaves = Vec::new();
-
-        for (i, &amp) in amplitudes.iter().enumerate() {
-            if amp != 0.0 {
-                let md5 = crate::random_hashes::octave(omin + i as i32);
-                let mut pxr = Xoroshiro128::from_state(x_lo ^ md5.0, x_hi ^ md5.1);
-                let mut noise = PerlinNoise::new(&mut pxr);
-                noise.amplitude = amp * persist;
-                noise.native_amplitude = amp;
-                noise.native_value_factor = persist;
-                noise.lacunarity = lacuna;
-                octaves.push(noise);
-            }
-            lacuna *= 2.0;
-            persist *= 0.5;
-        }
+        let octaves = seeded_octaves(rng, amplitudes, omin, persist, |mut noise, amp, persist| {
+            noise.amplitude = amp * persist;
+            noise
+        });
 
         Self { octaves }
-    }
-
-    /// Modern octave splitting over a legacy positional factory. The factory takes
-    /// one signed Java long, then XORs each generated `octave_<n>` string hash.
-    pub fn new_legacy(rng: &mut LegacyRandom, amplitudes: &[f64], omin: i32) -> Self {
-        let factory_seed = rng.next_long();
-        let count = amplitudes.iter().filter(|&&amp| amp != 0.0).count();
-        let mut octaves = Vec::with_capacity(count);
-        let len = amplitudes.len() as i32;
-        let mut persistence = 2.0_f64.powi(len - 1) / (2.0_f64.powi(len) - 1.0);
-        let mut lacunarity = 1.0;
-        for (index, &amp) in amplitudes.iter().enumerate() {
-            if amp != 0.0 {
-                let hash = crate::random_hashes::legacy_octave(omin + index as i32);
-                let mut octave_rng = LegacyRandom::new(factory_seed ^ i64::from(hash));
-                let mut noise = PerlinNoise::new(&mut octave_rng);
-                noise.amplitude = amp * persistence;
-                noise.native_amplitude = amp;
-                noise.native_value_factor = persistence;
-                noise.lacunarity = lacunarity;
-                octaves.push(noise);
-            }
-            persistence /= 2.0;
-            lacunarity *= 2.0;
-        }
-        Self { octaves }
-    }
-
-    /// The fixed -7/[1,1] legacy Nether biome stream used by RandomState's
-    /// temperature and vegetation overrides. Draw order is descending octaves.
-    fn legacy_nether_biome(rng: &mut LegacyRandom) -> Self {
-        let _zero_octave = PerlinNoise::new(rng);
-        rng.consume_count(5 * 262);
-        let mut upper = PerlinNoise::new(rng);
-        let mut lower = PerlinNoise::new(rng);
-        lower.amplitude = 2.0 / 3.0;
-        lower.native_value_factor = 2.0 / 3.0;
-        upper.amplitude = 1.0 / 3.0;
-        upper.native_value_factor = 1.0 / 3.0;
-        upper.lacunarity = 2.0;
-        Self {
-            octaves: vec![lower, upper],
-        }
     }
 
     /// Sample combined octave noise (scalar).
@@ -850,22 +774,6 @@ impl OctaveNoise {
             let az = z * lf;
             let pv = octave.sample(ax, ay, az);
             value += octave.amplitude * pv;
-        }
-        value
-    }
-
-    /// Java's scalar octave summation and per-octave coordinate wrapping.
-    #[inline]
-    pub fn sample_java(&self, x: f64, y: f64, z: f64) -> f64 {
-        let mut value = 0.0;
-        for octave in &self.octaves {
-            let lf = octave.lacunarity;
-            let sample = octave.sample_java(
-                wrap_coord_java(x * lf),
-                wrap_coord_java(y * lf),
-                wrap_coord_java(z * lf),
-            );
-            value += octave.native_amplitude * sample * octave.native_value_factor;
         }
         value
     }
@@ -890,23 +798,6 @@ impl OctaveNoise {
         values
     }
 
-    #[inline]
-    pub fn sample_java_4(&self, x: f64x4, y: f64x4, z: f64x4) -> f64x4 {
-        let mut values = f64x4::splat(0.0);
-        for octave in &self.octaves {
-            let lf = f64x4::splat(octave.lacunarity);
-            let sample = octave.sample_java_4(
-                wrap_coord_java_simd(x * lf),
-                wrap_coord_java_simd(y * lf),
-                wrap_coord_java_simd(z * lf),
-            );
-            values += f64x4::splat(octave.native_amplitude)
-                * sample
-                * f64x4::splat(octave.native_value_factor);
-        }
-        values
-    }
-
     /// Convenience: sample 4 points with arrays.
     #[inline]
     pub fn sample_4_arrays(&self, x: [f64; 4], y: f64, z: [f64; 4]) -> [f64; 4] {
@@ -915,20 +806,45 @@ impl OctaveNoise {
     }
 }
 
+fn seeded_octaves<O>(
+    rng: &mut Xoroshiro128,
+    amplitudes: &[f64],
+    omin: i32,
+    mut persistence: f64,
+    mut weight: impl FnMut(PerlinNoise, f64, f64) -> O,
+) -> Vec<O> {
+    let x_lo = rng.next_long();
+    let x_hi = rng.next_long();
+    let mut lacunarity = 1.0;
+    let mut octaves = Vec::new();
+    for (index, &amplitude) in amplitudes.iter().enumerate() {
+        if amplitude != 0.0 {
+            let hash = crate::random_hashes::octave(omin + index as i32);
+            let mut octave_rng = Xoroshiro128::from_state(x_lo ^ hash.0, x_hi ^ hash.1);
+            let mut perlin = PerlinNoise::new(&mut octave_rng);
+            perlin.lacunarity = lacunarity;
+            octaves.push(weight(perlin, amplitude, persistence));
+        }
+        lacunarity *= 2.0;
+        persistence *= 0.5;
+    }
+    octaves
+}
+
 // =============================================================================
 // Double Perlin Noise
 // =============================================================================
 
 /// Double Perlin noise (two octave noises combined) - cubiomes-accurate.
 #[derive(Debug, Clone, Default)]
-pub struct DoublePerlinNoise {
+pub struct DoublePerlinNoise<O = PerlinNoise> {
     /// Amplitude for combination
     pub amplitude: f64,
     pub frequency: f64,
     /// First octave noise
-    pub oct_a: OctaveNoise,
+    pub oct_a: OctaveNoise<O>,
     /// Second octave noise
-    pub oct_b: OctaveNoise,
+    pub oct_b: OctaveNoise<O>,
 }
 
 impl DoublePerlinNoise {
@@ -986,50 +902,6 @@ impl DoublePerlinNoise {
         }
     }
 
-    /// Xoroshiro NormalNoise with native Java normalization rather than the
-    /// calibrated table used by the existing fused terrain backend.
-    pub fn new_java(rng: &mut Xoroshiro128, amplitudes: &[f64], omin: i32) -> Self {
-        Self {
-            oct_a: OctaveNoise::new_with_persistence::<true>(rng, amplitudes, omin),
-            oct_b: OctaveNoise::new_with_persistence::<true>(rng, amplitudes, omin),
-            amplitude: Self::native_amplitude(amplitudes),
-            frequency: 2.0_f64.powi(omin),
-        }
-    }
-
-    /// NormalNoise constructed from a legacy positional random source.
-    pub fn new_legacy(rng: &mut LegacyRandom, amplitudes: &[f64], omin: i32) -> Self {
-        Self {
-            oct_a: OctaveNoise::new_legacy(rng, amplitudes, omin),
-            oct_b: OctaveNoise::new_legacy(rng, amplitudes, omin),
-            amplitude: Self::native_amplitude(amplitudes),
-            frequency: 2.0_f64.powi(omin),
-        }
-    }
-
-    /// Native fixed legacy Nether climate override; not ordinary hashed NormalNoise.
-    pub fn legacy_nether_biome(rng: &mut LegacyRandom) -> Self {
-        Self {
-            oct_a: OctaveNoise::legacy_nether_biome(rng),
-            oct_b: OctaveNoise::legacy_nether_biome(rng),
-            amplitude: Self::native_amplitude(&[1.0, 1.0]),
-            frequency: 2.0_f64.powi(-7),
-        }
-    }
-
-    fn native_amplitude(amplitudes: &[f64]) -> f64 {
-        let first = amplitudes
-            .iter()
-            .position(|&amp| amp != 0.0)
-            .map_or(i32::MAX, |index| index as i32);
-        let last = amplitudes
-            .iter()
-            .rposition(|&amp| amp != 0.0)
-            .map_or(i32::MIN, |index| index as i32);
-        let span = last.wrapping_sub(first);
-        (1.0 / 6.0) / (0.1 * (1.0 + 1.0 / (f64::from(span) + 1.0)))
-    }
-
     /// Sample double Perlin noise (scalar).
     #[inline]
     pub fn sample(&self, x: f64, y: f64, z: f64) -> f64 {
@@ -1040,17 +912,6 @@ impl DoublePerlinNoise {
 
         let v = self.oct_a.sample(nx, ny, nz) + self.oct_b.sample(nx * F, ny * F, nz * F);
         v * self.amplitude
-    }
-
-    /// Native Java scalar normal-noise sampling, explicitly separate from fused math.
-    #[inline]
-    pub fn sample_java(&self, x: f64, y: f64, z: f64) -> f64 {
-        const F: f64 = 337.0 / 331.0;
-        let nx = x * self.frequency;
-        let ny = y * self.frequency;
-        let nz = z * self.frequency;
-        (self.oct_a.sample_java(nx, ny, nz) + self.oct_b.sample_java(nx * F, ny * F, nz * F))
-            * self.amplitude
     }
 
     /// Sample 4 double Perlin noise values simultaneously using portable SIMD.
@@ -1074,18 +935,6 @@ impl DoublePerlinNoise {
         let vb = self.oct_b.sample_4(nx_b, ny_b, nz_b);
 
         (va + vb) * amp
-    }
-
-    #[inline]
-    pub fn sample_java_4(&self, x: f64x4, y: f64x4, z: f64x4) -> f64x4 {
-        let frequency = f64x4::splat(self.frequency);
-        let factor = f64x4::splat(337.0 / 331.0);
-        let x = x * frequency;
-        let y = y * frequency;
-        let z = z * frequency;
-        (self.oct_a.sample_java_4(x, y, z)
-            + self.oct_b.sample_java_4(x * factor, y * factor, z * factor))
-            * f64x4::splat(self.amplitude)
     }
 
     /// Convenience: sample 4 points with arrays.

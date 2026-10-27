@@ -1248,3 +1248,30 @@ its resource guard rejected two Cargo processes and fresh ENT/ITEMS readiness wa
 missing. No BDS/client was launched. No old hold was inherited; ordinary jobs1
 release hash/allocation validation resumed, with no timing lease.
 
+### Allocation-layout ratchet failure and static profile isolation
+
+The post-normalization normal-release 68-target hashes both pass. The subsequent
+instrumented Java CLI correctly rejects an allocation-byte regression:
+95,101 requests / 126,261,590 B versus its unchanged 95,101 / 126,261,526 B
+ceiling. The command stops before the Bedrock CLI; no post-change Bedrock ceiling
+pass is claimed from that chain. The ceiling was not raised or warmed away.
+
+The native weight fields had enlarged the shared `PerlinNoise` record. They are
+now isolated in `noise/native.rs`: generic octave/double-noise storage selects a
+native-only record with its separate value factor. The calibrated record layout
+and precombined weights are restored. Each octave bank still owns one vector;
+there is no second weight allocation or sampling-time profile switch.
+
+`NoiseRegistry` keeps its calibrated default type. `with_router_settings`
+returns the `NativeNoiseRegistry` specialization and `java_source()` borrows it,
+so indexed sampling remains statically typed and the unchecked-index invariant
+still holds for both complete 60-noise banks. Explicit native field annotations
+must use the exported alias; Java-owner pipeline migration is not edited here.
+
+Strict four-crate all-target/all-feature clippy passes after the move. The full
+default-parallel core gate passes again (531 unastar units plus 33 integration
+tests, 271 noise tests and one noise doctest), as do both normal-release 68-target
+hashes. The rebuilt normal-release native CLI matches all 144 router fields and
+four cached material-density bits again; its temporary source was removed.
+Both allocation ceilings are next, before the storage allocation fix is accepted.
+
