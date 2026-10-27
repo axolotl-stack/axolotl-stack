@@ -1325,3 +1325,22 @@ migration. Its `lib.rs` handoff is only the native-type export hunk; this
 branch's older optional `profile` module must not be restored wholesale into a
 consumer that has not imported performance instrumentation.
 
+### Remaining external blocker
+
+The same coordinator scheduling question `msg_6f0032af12c2` remained pending
+through four 600-second waits; it was resumed, never duplicated. Escalation and
+the supplied coordinator-terminal route were also used. No timing result was
+substituted for the missing resource clearance.
+
+The Java owner's 22:43:58 UTC handback confirms its native JVMs exited and
+native leases released, but its jobs1 build/strict-clippy chain is still active.
+It explicitly withholds all-heavy-zero readiness until actual exit. Fleet
+inspection also reports ENT liveness as unverifiable/missing-status, not stopped;
+no stop, release or stale readiness is inferred. A fresh bounded timing quorum
+therefore remains unavailable.
+
+Source implementation, caller handoff, final local main integration and all
+reachable acceptance/smoke/hash/allocation gates are complete. The requested
+three alternating SIMD-memo wall-time rounds remain incomplete and must be
+reported as blocked, not as a measured optimization success.
+
