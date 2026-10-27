@@ -130,6 +130,12 @@ Unastar's tactical compatibility gates live in [`ROADMAP.md`](ROADMAP.md). Curre
 
 Until those gates pass, describe Unastar as a Bedrock server implementation in progress rather than a fully vanilla-compatible server.
 
+The game server compiles the embedded pack recipes once at startup and shares
+one frozen `server::game::types::RecipeRegistryResource`. Furnace consumers call
+`registry.0.furnace_result(identifier, aux)` to borrow the canonical result;
+source loot count is preserved by the caller. The lookup parses no JSON and
+does not use a hardcoded raw/cooked mob table.
+
 ## Actor registries and data
 
 `registry::entity::ActorDefinitionRegistryBuilder` accepts vanilla/addon rows

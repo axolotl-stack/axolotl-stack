@@ -3,6 +3,7 @@ name = "unastar-data"
 version = "0.1.0"
 edition = "2024"
 description = "Generated game data for Minecraft Bedrock"
+build = "build.rs"
 
 [lib]
 path = "src/lib.rs"
@@ -13,6 +14,8 @@ rand = { workspace = true }
 serde_json = { workspace = true }
 unastar-packs = { path = "../unastar-packs" }
 unastar-rules = { path = "../unastar-rules" }
+base64 = { workspace = true }
+thiserror = { workspace = true }
 
 [build-dependencies]
 serde_json = { workspace = true }

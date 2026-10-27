@@ -9,7 +9,8 @@ The crate is the boundary between raw Bedrock data sources and the server runtim
    the existing native runtime tables from those artefacts.
 2. `build.rs` reads the pinned bedrock-samples submodule (`data/vanilla_bp`,
    `v1.26.50.4`, `46ba6ea`) and native biome measurements. It writes normalised
-   actor definitions, enriched biomes and canonical loot JSON into Cargo's `OUT_DIR`, embeds it
+   actor definitions, enriched biomes, canonical loot JSON and item/recipe document
+   bundles into Cargo's `OUT_DIR`, embeds them
    and decodes it once at startup. Pack-derived JSON/KDL and per-entity Rust
    are not committed (D2/D13); `output/pack-manifest.json` records counts/hashes.
 3. `unastar` consumes the decoded typed APIs, not raw pack files in tick paths.
@@ -71,7 +72,10 @@ Current golden artifacts:
 - `items.kdl`: 2,076 native IDs/stack limits/properties/tags plus packet registry metadata.
   The 78 items whose registry component data is not the empty compound carry it as
   `component_nbt` (base64 of the exact network NBT, sliced from `items.nbt`, never
-  re-encoded); codegen exposes it as `ItemData::component_nbt`.
+  re-encoded). Codegen emits the typed `ItemData` schema in `src/items.rs` and
+  compact rows in `src/items.json`, decoded once by `items::vanilla()`; no
+  per-item Rust constants remain. Native offhand/head capability tags and reviewed
+  effective bucket stack limits are applied by datagen, with drift checks.
 - `creative.kdl`: PMMP creative inventory.
 - `loot_tables.json` (**OUT_DIR only**): 508 canonical tables from the vanilla
   pack plus `data/overrides/loot_tables/blocks.json`, decoded at startup by
@@ -96,6 +100,28 @@ Current golden artifacts:
   `manifest.kdl` (see protocolgen `generated/data/semantic_sources.json` and
   `data/NOTICE.md`). The 30 unavailable liquid-clip shapes remain explicitly
   unavailable, distinct from known-empty shapes. Runtime `shapes` decodes once.
+
+Item/recipe pack families use the same shared `unastar-packs` reader as the
+actor/loot pipeline. `item_components::decode_vanilla()` retains typed legacy and
+modern item components; `recipes::decode_vanilla()` parses shaped, shapeless,
+furnace, brewing and smithing documents. The game server freezes one
+`recipes::RecipeRegistry` at startup and shares it through `RecipeRegistryResource`.
+`furnace_result(identifier, aux)` borrows a canonical `ResultItem` without JSON
+parsing, allocations or tag walks. `with_items(recipes, items)` permits an
+addon-capable item snapshot before freeze. Lower numeric recipe priority wins;
+exact and wildcard furnace inputs share the same priority ordering.
+
+Legacy furnace spellings (`minecraft:coal:1`, `minecraft:fish`, etc.) normalize
+through `data/measured/recipe_legacy_identities.json`, a small projection of the
+pinned 1.26.51 CraftingData capture; no raw/cooked mob table is maintained.
+Regenerate from this crate directory with:
+
+```powershell
+python tools/extract_recipe_identities.py C:/Users/jvigu/orca/bds-runtime/captures/1.26.51/20261025T172246Z/member/join/00054-CraftingDataPacket.json
+```
+
+This registry prerequisite supplies furnace lookup; it does not advertise a
+CraftingData packet or execute crafting yet.
 
 Generated `blocks::BlockData` also carries the native block-level physics
 (`friction`, `material`, `blocks_motion`, `liquid`, `solid`, `falling`,
