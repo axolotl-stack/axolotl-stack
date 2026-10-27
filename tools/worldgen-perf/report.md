@@ -1273,5 +1273,10 @@ default-parallel core gate passes again (531 unastar units plus 33 integration
 tests, 271 noise tests and one noise doctest), as do both normal-release 68-target
 hashes. The rebuilt normal-release native CLI matches all 144 router fields and
 four cached material-density bits again; its temporary source was removed.
-Both allocation ceilings are next, before the storage allocation fix is accepted.
+After `053bf2f`, both actual instrumented release CLIs pass every unchanged
+total/per-stage allocation and requested-byte ceiling: Java is exactly 95,101
+requests / 126,261,526 B and Bedrock exactly 64,590 / 69,468,288 B. The 64 B
+regression is removed, not accepted or hidden. Printed wall times were collected
+under shared load with instrumentation and turbo disabled (99% cap); they are
+not accepted speedup evidence. No golden, parity floor or ceiling was changed.
 
