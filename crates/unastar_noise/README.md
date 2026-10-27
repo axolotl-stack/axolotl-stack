@@ -168,6 +168,11 @@ callbacks from the active cell sampler. It allocates no second corner grid.
 Native richness comparison promotes the RNG's f32 draw to f64 rather than
 rounding the threshold down to f32.
 
+The ore producers in this retained-consumer branch return Bedrock runtime IDs.
+A raw canonical Java-state consumer must use its emitted Java IDs at the producer;
+the word “native” describes numeric/material decisions, not interchangeable
+integer state domains. Do not copy a whole ore module across that cutover.
+
 `NativeColumnSampler::new(block_x, block_z, source)` owns the genuine
 one-horizontal-cell profile: floor-divided block origins, two Z columns of source
 planes, and just four quart evaluations for 4-wide cells or nine for 8-wide cells.

@@ -1079,3 +1079,14 @@ offered no standing lease; Java had reported active native reference work and
 ITEMS remained unfenced without a current handback. No quiet window, timing
 sample, native/client launch, push or main-branch edit was performed here.
 
+Late handoff clarification: the Java owner observed its first full native NOISE
+comparison with 611 state differences over 786,432 voxels after importing the
+retained ore module: a Bedrock TUFF integer was being interpreted as a different
+canonical Java state. This is the owner's reported result, not a local full
+native parity run. The owner explicitly took its isolated producer-domain
+constant correction, without RNG/math/laziness changes, inverse mapping or golden
+rebaseline. This branch's existing raw consumers still require Bedrock IDs;
+neither whole ore module should be copied blindly across the state-domain
+cutover. Native two-point density proof and retained-domain output hashes do not
+establish complete native state parity.
+
