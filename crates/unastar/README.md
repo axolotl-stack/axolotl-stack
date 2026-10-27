@@ -432,6 +432,31 @@ position using the same seeded noise registry; `noise_heightmap` is a chunk-leve
 motion-blocking height oracle before surface/carvers. Callers cache oracle
 results per placement run rather than regenerate a chunk for every queried column.
 
+### Offline aquatic observations
+
+With BDS stopped, export primary-layer aquatic runs from an existing world:
+
+```sh
+cargo run -p unastar --all-features --example bds_worldgen_reference -- --aquatic <world-directory> <output.json> -4:-4:4:4
+```
+
+Ranges are inclusive chunk coordinates (`min_x:min_z:max_x:max_z`); multiple
+ranges are accepted. The reader opens a private temporary copy, not the source
+database. Missing chunks are reported rather than generated.
+
+This mode records contiguous vertical runs of kelp, seagrass, sea pickles and
+waterlilies across the full build height, with absolute coordinates, primary
+support/cap names, explicit build-height boundary flags, root biome and chunk
+finalization state. Separated runs remain separate; a run is not an inferred
+plant or placement origin. The output declares its layer-0, block-name-only
+scope: block states and secondary liquids are not retained. Other exporter
+modes keep their existing formats.
+
+Use world/control provenance before treating these observations as natural
+generation. Raw level metadata alone does not establish the generator mode;
+authored edits, ungenerated chunks and primary-only output cannot establish
+feature RNG, anchoring, complete aquatic density or full-layer parity.
+
 ### Aquatic origin controls
 
 `tools/bds-worldgen-controls/aquatic_controls.py` prepares authored kelp and

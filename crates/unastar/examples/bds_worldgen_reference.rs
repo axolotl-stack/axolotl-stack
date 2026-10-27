@@ -10,6 +10,8 @@
 //! 3. `cargo run -p unastar --example bds_worldgen_reference -- <world dir> <out.json> <x0:z0:x1:z1>...`
 //!    Add `--geology` before the world directory to export per-y block counts
 //!    from -64 through 16 instead, for measuring base-layer transitions.
+//!    Add `--aquatic` for contiguous primary-name kelp/seagrass/pickle/lily runs
+//!    and adjacent support names. States and secondary liquid layers are omitted.
 //!    Stop BDS first. The dumper opens a temporary snapshot because LevelDB
 //!    can compact logs even when the caller only reads.
 //!
@@ -26,18 +28,25 @@ use bleveldb::{DB, Options, ReadOptions};
 
 const MIN_Y: i32 = -64;
 const SUBCHUNKS: i32 = 24;
+const AQUATIC_BLOCKS: [&str; 4] = [
+    "minecraft:kelp",
+    "minecraft:seagrass",
+    "minecraft:sea_pickle",
+    "minecraft:waterlily",
+];
 
 fn main() {
     let mut args: Vec<String> = std::env::args().collect();
     let geology = args.get(1).is_some_and(|arg| arg == "--geology");
     let markers = args.get(1).is_some_and(|arg| arg == "--markers");
     let features = args.get(1).is_some_and(|arg| arg == "--features");
-    if geology || markers || features {
+    let aquatic = args.get(1).is_some_and(|arg| arg == "--aquatic");
+    if geology || markers || features || aquatic {
         args.remove(1);
     }
     if args.len() < 4 {
         eprintln!(
-            "usage: bds_worldgen_reference [--geology|--markers|--features] <world dir> <out.json> <x0:z0:x1:z1>..."
+            "usage: bds_worldgen_reference [--geology|--markers|--features|--aquatic] <world dir> <out.json> <x0:z0:x1:z1>..."
         );
         std::process::exit(2);
     }
@@ -85,6 +94,21 @@ fn main() {
         level_nbt.int("SpawnX").expect("SpawnX"),
         level_nbt.int("SpawnZ").expect("SpawnZ"),
     );
+    let observation_field = if aquatic {
+        format!(
+            "\"observation_scope\": {},\n",
+            serde_json::json!({
+                "kind": "contiguous_primary_aquatic_runs",
+                "included_block_names": AQUATIC_BLOCKS,
+                "observed_block_layers": [0],
+                "block_states_retained": false,
+                "generator": level_nbt.int("Generator"),
+                "source_world": args[1].as_str(),
+            })
+        )
+    } else {
+        String::new()
+    };
 
     let options = Options::new();
     options.create_if_missing(false);
@@ -105,6 +129,8 @@ fn main() {
                         col.markers_json(cx, cz)
                     } else if features {
                         col.feature_samples_json(cx, cz)
+                    } else if aquatic {
+                        col.aquatic_json(cx, cz)
                     } else {
                         col.to_json(cx, cz, &mut palette, &mut palette_index)
                     }),
@@ -122,7 +148,7 @@ fn main() {
 
     let palette_json: Vec<String> = palette.iter().map(|n| format!("\"{n}\"")).collect();
     let json = format!(
-        "{{\n\"seed\": {seed},\n\"spawn\": [{}, {}],\n\"palette\": [{}],\n{controls_field}\"chunks\": [\n{}\n]\n}}\n",
+        "{{\n\"seed\": {seed},\n\"spawn\": [{}, {}],\n\"palette\": [{}],\n{controls_field}{observation_field}\"chunks\": [\n{}\n]\n}}\n",
         spawn.0,
         spawn.1,
         palette_json.join(","),
@@ -161,6 +187,54 @@ fn idx(x: usize, y: usize, z: usize) -> usize {
 }
 
 impl Column {
+    /// Contiguous vertical runs, not an inferred feature origin or RNG trace.
+    fn aquatic_json(&self, cx: i32, cz: i32) -> String {
+        let height = (SUBCHUNKS * 16) as usize;
+        let mut runs = Vec::new();
+        for z in 0..16 {
+            for x in 0..16 {
+                let mut y = 0;
+                while y < height {
+                    let Some(block) = self.blocks[idx(x, y, z)].as_deref() else {
+                        y += 1;
+                        continue;
+                    };
+                    if !AQUATIC_BLOCKS.contains(&block) {
+                        y += 1;
+                        continue;
+                    }
+                    let start = y;
+                    y += 1;
+                    while y < height && self.blocks[idx(x, y, z)].as_deref() == Some(block) {
+                        y += 1;
+                    }
+                    let below = start
+                        .checked_sub(1)
+                        .and_then(|below| self.blocks[idx(x, below, z)].as_deref());
+                    let above = (y < height)
+                        .then(|| self.blocks[idx(x, y, z)].as_deref())
+                        .flatten();
+                    runs.push(serde_json::json!({
+                        "block": block,
+                        "x": cx * 16 + x as i32,
+                        "y": MIN_Y + start as i32,
+                        "z": cz * 16 + z as i32,
+                        "length": y - start,
+                        "below": below,
+                        "above": above,
+                        "below_in_bounds": start > 0,
+                        "above_in_bounds": y < height,
+                        "biome": self.biomes[idx(x, start, z)],
+                    }));
+                }
+            }
+        }
+        serde_json::json!({
+            "x": cx, "z": cz, "finalized": self.finalized, "aquatic_runs": runs,
+        })
+        .to_string()
+    }
+
     fn markers_json(&self, cx: i32, cz: i32) -> String {
         let mut markers = Vec::new();
         for y in 0..(SUBCHUNKS * 16) as usize {
@@ -631,5 +705,56 @@ fn read_payload(buf: &[u8], tag: u8, off: &mut usize) -> Nbt {
             Nbt::Other
         }
         t => panic!("unknown NBT tag {t}"),
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn aquatic_runs_keep_gaps_support_and_both_build_height_boundaries() {
+        let height = (SUBCHUNKS * 16) as usize;
+        let mut column = Column {
+            blocks: vec![None; 16 * 16 * height],
+            biomes: vec![0; 16 * 16 * height],
+            finalized: 2,
+        };
+        for (x, y, z, block, biome) in [
+            (0, 0, 0, "minecraft:kelp", 7),
+            (0, 1, 0, "minecraft:kelp", 7),
+            (0, 2, 0, "minecraft:water", 7),
+            (0, 3, 0, "minecraft:stone", 7),
+            (0, 4, 0, "minecraft:kelp", 8),
+            (0, 5, 0, "minecraft:water", 8),
+            (15, 382, 15, "minecraft:sand", 9),
+            (15, 383, 15, "minecraft:seagrass", 9),
+            (1, 8, 1, "minecraft:wheat", 3),
+        ] {
+            column.blocks[idx(x, y, z)] = Some(block.into());
+            column.biomes[idx(x, y, z)] = biome;
+        }
+        let exported: serde_json::Value =
+            serde_json::from_str(&column.aquatic_json(-2, 3)).unwrap();
+        assert_eq!(
+            exported["aquatic_runs"],
+            serde_json::json!([
+                {
+                    "block": "minecraft:kelp", "x": -32, "y": -64, "z": 48,
+                    "length": 2, "below": null, "above": "minecraft:water",
+                    "below_in_bounds": false, "above_in_bounds": true, "biome": 7,
+                },
+                {
+                    "block": "minecraft:kelp", "x": -32, "y": -60, "z": 48,
+                    "length": 1, "below": "minecraft:stone", "above": "minecraft:water",
+                    "below_in_bounds": true, "above_in_bounds": true, "biome": 8,
+                },
+                {
+                    "block": "minecraft:seagrass", "x": -17, "y": 319, "z": 63,
+                    "length": 1, "below": "minecraft:sand", "above": null,
+                    "below_in_bounds": true, "above_in_bounds": false, "biome": 9,
+                },
+            ])
+        );
     }
 }
