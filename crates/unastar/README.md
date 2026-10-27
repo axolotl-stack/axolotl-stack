@@ -177,6 +177,10 @@ metadata does not force `BREATHING` merely because air supply is300.
 Living health is an attribute, not actor-data key1 (structural integrity).
 An actual headless ECS spawn/tick and session-channel encode/decode smoke
 exercised the production join path without sockets or launching a server.
+Reusing the metadata helper for a changed player state clears the exited
+player-owned flags while preserving physics/fire and other owners' bits; the
+transition has a deterministic regression and a separate generated-codec smoke.
+Production join routing is unchanged.
 
 `entity::properties::ActorPropertyRegistry` compiles BP property schemas once and
 caches `SyncActorProperty` packets for join. All 13 retained native descriptors

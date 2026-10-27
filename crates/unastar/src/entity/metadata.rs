@@ -53,7 +53,13 @@ impl EntityMetadata {
 
     /// Add player state flags to metadata.
     pub fn with_player_state(mut self, state: &PlayerState) -> Self {
-        let mut entity_flags = self.get_long(actor_data_ids::RESERVED_0).unwrap_or(0) as u64;
+        let player_flags = (1u64 << actor_flags::SNEAKING)
+            | (1u64 << actor_flags::SPRINTING)
+            | (1u64 << actor_flags::SWIMMING)
+            | (1u64 << actor_flags::GLIDING)
+            | (1u64 << actor_flags::CANFLY);
+        let mut entity_flags =
+            self.get_long(actor_data_ids::RESERVED_0).unwrap_or(0) as u64 & !player_flags;
 
         if state.sneaking {
             entity_flags |= 1u64 << actor_flags::SNEAKING;
@@ -143,6 +149,29 @@ mod tests {
     use jolyne::valentine::AddActorPacket;
     use jolyne::valentine::types::DataItemEntryPayload;
     use valentine::bedrock::codec::BedrockCodec;
+
+    #[test]
+    fn leaving_player_states_clears_owned_flags_without_clearing_physics() {
+        let active = PlayerState {
+            sneaking: true,
+            sprinting: true,
+            swimming: true,
+            gliding: true,
+            flying: true,
+        };
+        let metadata = EntityMetadata::from_physics(true, true, None)
+            .with_player_state(&active)
+            .with_player_state(&PlayerState::default());
+        let actual = metadata.get_long(actor_data_ids::RESERVED_0).unwrap() as u64;
+        let player = (1u64 << actor_flags::SNEAKING)
+            | (1u64 << actor_flags::SPRINTING)
+            | (1u64 << actor_flags::SWIMMING)
+            | (1u64 << actor_flags::GLIDING)
+            | (1u64 << actor_flags::CANFLY);
+        let physics = (1u64 << actor_flags::HAS_COLLISION) | (1u64 << actor_flags::HAS_GRAVITY);
+        assert_eq!(actual & player, 0);
+        assert_eq!(actual & physics, physics);
+    }
 
     #[test]
     fn living_metadata_matches_native_cow_control() {
