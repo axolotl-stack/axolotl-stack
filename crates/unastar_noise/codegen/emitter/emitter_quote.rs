@@ -531,6 +531,8 @@ impl<'a> AotEmitter<'a> {
 
                 #[allow(clippy::too_many_arguments)]
                 impl NoiseSource for EndNoise {
+                    const NATIVE_JAVA: bool = true;
+                    fn sample_beardifier(&self, _: i32, _: i32, _: i32) -> f64 { 0.0 }
                     fn sample(&self, _: NoiseRef, _: f64, _: f64, _: f64) -> f64 {
                         panic!("End-node fixture sampled a regular noise")
                     }

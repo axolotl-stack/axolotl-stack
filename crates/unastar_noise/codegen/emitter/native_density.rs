@@ -154,9 +154,8 @@ impl AotEmitter<'_> {
                 flat: &FlatCacheGrid, col: &ColumnContext,
                 interpolated: &[f64; #source_count]) -> f64 {
                 #(#material_statements)*
-                // Native material sampling adds the empty Beardifier in the verified
-                // unstructured NOISE profile before storing CacheAllInCell values.
-                #material + 0.0_f64
+                // Material rule wraps the router exactly once before cell caching.
+                (#material) + noises.sample_beardifier(ctx.block_x, ctx.block_y, ctx.block_z)
             }
             #(#vein_functions)*
 
@@ -286,6 +285,10 @@ impl AotEmitter<'_> {
                 fn affine(x: f64, y: f64, z: f64) -> f64 { x * 0.25 + y * 0.5 + z * 0.75 }
                 #[allow(clippy::too_many_arguments)]
                 impl NoiseSource for AffineNoise {
+                    const NATIVE_JAVA: bool = true;
+                    fn sample_beardifier(&self, _: i32, y: i32, _: i32) -> f64 {
+                        f64::from(y.rem_euclid(3)) * 0.125
+                    }
                     fn sample(&self, noise: NoiseRef, x: f64, y: f64, z: f64) -> f64 {
                         assert_eq!(noise, NoiseRef::Temperature);
                         affine(x, y, z)
@@ -332,7 +335,7 @@ impl AotEmitter<'_> {
                                             let expected = std::array::from_fn(|lane| {
                                                 let z = chunk_z * 16 + cell_z as i32 * 4 + lane as i32;
                                                 let value = affine(f64::from(x), f64::from(y), f64::from(z));
-                                                (value * value).to_bits()
+                                                (value * value + f64::from(y.rem_euclid(3)) * 0.125).to_bits()
                                             });
                                             assert_eq!(actual.map(f64::to_bits), expected,
                                                 "native material chunk=({chunk_x},{chunk_z}) block=({x},{y}) cell_z={cell_z}");

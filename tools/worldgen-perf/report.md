@@ -940,3 +940,26 @@ checkpoint. The 17:30–17:42 UTC proposed BDS window was explicitly abandoned
 without a native launch; this was an ordinary untimed jobs1 check. The seven
 known LevelDB failures remain unresolved and were not rerun.
 
+### Static native aquifer/vein interfaces and structure hook
+
+The source contract now requires an explicit native-math constant and real
+Beardifier callback. Plain sources return zero deliberately; there is no default
+that silently erases a structured engine. The emitted regression checks a
+nonzero, per-Y influence outside nonlinear router arithmetic before caching.
+
+The aquifer source is generic and native constructors/root calls are selected
+statically. `NativeOreVeinifier` consumes active-cell toggle/ridged/gap values
+without a duplicate corner buffer; the latter two remain lazy callbacks.
+A richness-boundary regression distinguishes native double comparison from the
+retained calibrated float-narrowing behavior and verifies skipped gap samples.
+Two old copied-default/block-id sanity tests were removed rather than repinned.
+
+The serialized untimed jobs1 chain passed strict three-crate
+all-target/all-feature clippy, six native noise regressions, two ore material
+tests, ten aquifer tests and three actual-registry numeric tests. The subsequent
+native AQ constructor regression also passes: seed0/block(7,-1) noise origin
+(4,-4) uses enclosing AQ ChunkPos(0,-1), grid minimum(-1,-7,-2), shape(3,35,3),
+315 entries per cache and skipSamplingAboveY94, exactly as captured natively.
+No performance samples or full-suite green claim follows from this interface
+work; the seven known storage failures were neither retried nor suppressed.
+

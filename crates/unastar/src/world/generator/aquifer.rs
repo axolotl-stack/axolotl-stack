@@ -30,6 +30,7 @@ use crate::world::generator::density::{
     FlatCacheGrid,
     FunctionContext,
     NoiseRegistry,
+    NoiseSource,
     // These aquifer noise functions now have simplified signatures (ctx, noises) only
     // since they don't use FlatCache or Cache2D nodes
     compute_barrier,
@@ -41,6 +42,12 @@ use crate::world::generator::density::{
     compute_preliminary_surface_level,
 };
 use crate::world::generator::xoroshiro::PositionalRandomFactory;
+use unastar_noise::{
+    compute_barrier_native_uncached, compute_depth_native_uncached,
+    compute_erosion_native_uncached, compute_fluid_level_floodedness_native_uncached,
+    compute_fluid_level_spread_native_uncached, compute_lava_native_uncached,
+    compute_preliminary_surface_level_native,
+};
 
 // ========== Constants ==========
 
@@ -341,9 +348,9 @@ impl FluidPicker for OverworldFluidPicker {
 /// Java: OverworldBiomeBuilder.isDeepDarkRegion()
 /// Deep dark regions have erosion < -0.225 AND depth > 0.9
 #[inline]
-fn is_deep_dark_region(
+fn is_deep_dark_region<N: NoiseSource>(
     ctx: &FunctionContext,
-    noises: &NoiseRegistry,
+    noises: &N,
     grid: &FlatCacheGrid,
     col: &ColumnContext,
 ) -> bool {
@@ -361,9 +368,9 @@ fn is_deep_dark_region(
 ///
 /// Generic over `F: FluidPicker` to avoid Box allocation overhead.
 #[allow(dead_code)]
-pub struct NoiseBasedAquifer<'a, F: FluidPicker> {
+pub struct NoiseBasedAquifer<'a, F: FluidPicker, N: NoiseSource = NoiseRegistry> {
     // Noise registry for computing density functions
-    noises: &'a NoiseRegistry,
+    noises: &'a N,
 
     // FlatCacheGrid for Y-independent values
     grid: &'a FlatCacheGrid,
@@ -425,7 +432,38 @@ pub struct NoiseBasedAquifer<'a, F: FluidPicker> {
     preliminary_surface_cache: GridCache<i32>,
 }
 
-impl<'a, F: FluidPicker> NoiseBasedAquifer<'a, F> {
+impl<'a, F: FluidPicker, N: NoiseSource> NoiseBasedAquifer<'a, F, N> {
+    #[inline]
+    fn cache_grid(chunk_x: i32, chunk_z: i32, noises: &N) -> FlatCacheGrid {
+        if N::NATIVE_JAVA {
+            FlatCacheGrid::new_native(chunk_x, chunk_z, noises)
+        } else {
+            FlatCacheGrid::new(chunk_x, chunk_z, noises)
+        }
+    }
+
+    #[inline]
+    fn column(block_x: i32, block_z: i32, noises: &N, grid: &FlatCacheGrid) -> ColumnContext {
+        if N::NATIVE_JAVA {
+            ColumnContext::new_native(block_x, block_z, noises, grid)
+        } else {
+            ColumnContext::new(block_x, block_z, noises, grid)
+        }
+    }
+
+    #[inline]
+    fn preliminary_surface(
+        ctx: &FunctionContext,
+        noises: &N,
+        grid: &FlatCacheGrid,
+        col: &ColumnContext,
+    ) -> f64 {
+        if N::NATIVE_JAVA {
+            compute_preliminary_surface_level_native(ctx, noises, grid, col)
+        } else {
+            compute_preliminary_surface_level(ctx, noises, grid, col)
+        }
+    }
     /// Create a new noise-based aquifer using AOT-compiled density functions.
     ///
     /// # Arguments
@@ -444,7 +482,7 @@ impl<'a, F: FluidPicker> NoiseBasedAquifer<'a, F> {
         chunk_z: i32,
         min_y: i32,
         height: i32,
-        noises: &'a NoiseRegistry,
+        noises: &'a N,
         grid: &'a FlatCacheGrid,
         col_grid: &'a ColumnContextGrid,
         seed: i64,
@@ -557,7 +595,7 @@ impl<'a, F: FluidPicker> NoiseBasedAquifer<'a, F> {
 
         self.neighbor_grid_cache
             .entry(chunk_x, chunk_z)
-            .get_or_insert_with(|| FlatCacheGrid::new(chunk_x, chunk_z, self.noises));
+            .get_or_insert_with(|| Self::cache_grid(chunk_x, chunk_z, self.noises));
     }
 
     /// Get a reference to a cached FlatCacheGrid for the given chunk coordinates.
@@ -589,7 +627,7 @@ impl<'a, F: FluidPicker> NoiseBasedAquifer<'a, F> {
     /// Only neighbor chunk positions require new FlatCacheGrid/ColumnContext creation.
     #[allow(clippy::too_many_arguments)]
     fn compute_max_preliminary_surface_with_cache(
-        noises: &NoiseRegistry,
+        noises: &N,
         grid: &FlatCacheGrid,
         col_grid: &ColumnContextGrid,
         main_chunk_x: i32,
@@ -626,18 +664,15 @@ impl<'a, F: FluidPicker> NoiseBasedAquifer<'a, F> {
                         // Extract scalar from SIMD context (XZ are same in all lanes)
                         if chunk_x == main_chunk_x && chunk_z == main_chunk_z {
                             let col = col_grid.get_block(quart_x, quart_z).as_scalar();
-                            compute_preliminary_surface_level(&ctx, noises, grid, &col).floor()
-                                as i32
+                            Self::preliminary_surface(&ctx, noises, grid, &col).floor() as i32
                         } else {
                             // SLOW PATH: Position is in a neighbor chunk - create on demand
                             let sample_grid = neighbor_grid_cache
                                 .entry(chunk_x, chunk_z)
-                                .get_or_insert_with(|| {
-                                    FlatCacheGrid::new(chunk_x, chunk_z, noises)
-                                });
-                            let col = ColumnContext::new(quart_x, quart_z, noises, sample_grid);
-                            compute_preliminary_surface_level(&ctx, noises, sample_grid, &col)
-                                .floor() as i32
+                                .get_or_insert_with(|| Self::cache_grid(chunk_x, chunk_z, noises));
+                            let col = Self::column(quart_x, quart_z, noises, sample_grid);
+                            Self::preliminary_surface(&ctx, noises, sample_grid, &col).floor()
+                                as i32
                         }
                     });
 
@@ -938,12 +973,12 @@ impl<'a, F: FluidPicker> NoiseBasedAquifer<'a, F> {
                     if sample_chunk_x == self.main_chunk_x && sample_chunk_z == self.main_chunk_z {
                         // Quart corners of this chunk are cell corners of the column grid.
                         let col = self.col_grid.get_block(quart_x, quart_z).as_scalar();
-                        compute_preliminary_surface_level(&ctx, self.noises, self.grid, &col)
+                        Self::preliminary_surface(&ctx, self.noises, self.grid, &col)
                     } else {
                         self.ensure_grid_cached(sample_chunk_x, sample_chunk_z);
                         let sample_grid = self.get_cached_grid(sample_chunk_x, sample_chunk_z);
-                        let col = ColumnContext::new(quart_x, quart_z, self.noises, sample_grid);
-                        compute_preliminary_surface_level(&ctx, self.noises, sample_grid, &col)
+                        let col = Self::column(quart_x, quart_z, self.noises, sample_grid);
+                        Self::preliminary_surface(&ctx, self.noises, sample_grid, &col)
                     }
                     .floor() as i32;
                 *self
@@ -1025,19 +1060,24 @@ impl<'a, F: FluidPicker> NoiseBasedAquifer<'a, F> {
     ) -> i32 {
         let ctx = FunctionContext::new(x, y, z);
 
-        // The aquifer center can be anywhere (often outside this chunk), so its column
-        // context is computed here rather than read from the cell-corner grid.
-        let chunk_x = x >> 4;
-        let chunk_z = z >> 4;
-        self.ensure_grid_cached(chunk_x, chunk_z);
-        let grid = self.get_cached_grid(chunk_x, chunk_z);
-        let col = ColumnContext::new(x, z, self.noises, grid);
+        let deep_dark = if N::NATIVE_JAVA {
+            compute_erosion_native_uncached(&ctx, self.noises) < f64::from(-0.225_f32)
+                && compute_depth_native_uncached(&ctx, self.noises) > f64::from(0.9_f32)
+        } else {
+            // Calibrated aquifer centers reuse their owning chunk's 2D grid.
+            let chunk_x = x >> 4;
+            let chunk_z = z >> 4;
+            self.ensure_grid_cached(chunk_x, chunk_z);
+            let grid = self.get_cached_grid(chunk_x, chunk_z);
+            let col = Self::column(x, z, self.noises, grid);
+            is_deep_dark_region(&ctx, self.noises, grid, &col)
+        };
 
         // Check for deep dark region - disables aquifer flooding in these areas
         // Java: if (OverworldBiomeBuilder.isDeepDarkRegion(this.erosion, this.depth, singlePointContext)) { d=-1; e=-1; }
         // When in deep dark region, both thresholds become -1.0, which with floodedness clamped to [-1,1]
         // means neither e>0 nor d>0 can be true, so we return WAY_BELOW_MIN_Y (no aquifer)
-        if is_deep_dark_region(&ctx, self.noises, grid, &col) {
+        if deep_dark {
             return WAY_BELOW_MIN_Y;
         }
 
@@ -1056,7 +1096,12 @@ impl<'a, F: FluidPicker> NoiseBasedAquifer<'a, F> {
 
         // Java: double g = Mth.clamp(this.fluidLevelFloodednessNoise.compute(...), -1.0, 1.0)
         // This is a simple noise lookup - no FlatCache or Cache2D needed
-        let floodedness_noise = compute_fluid_level_floodedness(&ctx, self.noises).clamp(-1.0, 1.0);
+        let floodedness_noise = if N::NATIVE_JAVA {
+            compute_fluid_level_floodedness_native_uncached(&ctx, self.noises)
+        } else {
+            compute_fluid_level_floodedness(&ctx, self.noises)
+        }
+        .clamp(-1.0, 1.0);
 
         // Java: double h = Mth.map(f, 1.0, 0.0, -0.3, 0.8)
         // When f=1 (close to surface): h=-0.3, when f=0 (far): h=0.8
@@ -1107,7 +1152,11 @@ impl<'a, F: FluidPicker> NoiseBasedAquifer<'a, F> {
         let ctx = FunctionContext::new(grid_x, grid_y, grid_z);
 
         // Simple noise lookup - no FlatCache or Cache2D needed
-        let spread = compute_fluid_level_spread(&ctx, self.noises) * 10.0;
+        let spread = if N::NATIVE_JAVA {
+            compute_fluid_level_spread_native_uncached(&ctx, self.noises)
+        } else {
+            compute_fluid_level_spread(&ctx, self.noises)
+        } * 10.0;
         // Java: Mth.quantize(d, 3) = floor(d / 3) * 3
         let quantized = (spread / 3.0).floor() as i32 * 3;
 
@@ -1142,7 +1191,11 @@ impl<'a, F: FluidPicker> NoiseBasedAquifer<'a, F> {
             let ctx = FunctionContext::new(lx, ly, lz);
 
             // Simple noise lookup - no FlatCache or Cache2D needed
-            let lava_value = compute_lava(&ctx, self.noises);
+            let lava_value = if N::NATIVE_JAVA {
+                compute_lava_native_uncached(&ctx, self.noises)
+            } else {
+                compute_lava(&ctx, self.noises)
+            };
 
             if lava_value.abs() > 0.3 {
                 return FluidType::Lava;
@@ -1233,7 +1286,11 @@ impl<'a, F: FluidPicker> NoiseBasedAquifer<'a, F> {
         let barrier = if (-2.0..=2.0).contains(&q) {
             if barrier_value.is_nan() {
                 // Simple noise lookup - no FlatCache or Cache2D needed
-                *barrier_value = compute_barrier(ctx, self.noises);
+                *barrier_value = if N::NATIVE_JAVA {
+                    compute_barrier_native_uncached(ctx, self.noises)
+                } else {
+                    compute_barrier(ctx, self.noises)
+                };
             }
             *barrier_value
         } else {
@@ -1506,5 +1563,55 @@ mod tests {
                 }
             }
         }
+    }
+
+    #[test]
+    fn native_column_aquifer_matches_captured_constructor_and_surface_culling() {
+        // Actual Java 1.21.11 column constructor, seed 0, block (7,-1).
+        // Noise origin (4,-4) still selects AQ ChunkPos (0,-1), not 4-wide bounds.
+        // Capture source SHA256: 140e9c9c2a06bff2609a1991d5426415466a898df7934e98b4db9f7a1c231fb5.
+        let params = unastar_noise::overworld_settings::BLENDED_NOISE;
+        let registry = NoiseRegistry::with_router_settings(
+            0,
+            false,
+            [
+                params.xz_scale,
+                params.y_scale,
+                params.xz_factor,
+                params.y_factor,
+                params.smear_scale_multiplier,
+            ],
+        );
+        let source = registry.java_source();
+        let grid = FlatCacheGrid::new_native(0, -1, &source);
+        let columns = ColumnContextGrid::new_native(0, -1, &source, &grid);
+        let aquifer = NoiseBasedAquifer::new(
+            0,
+            -1,
+            -64,
+            384,
+            &source,
+            &grid,
+            &columns,
+            0,
+            OverworldFluidPicker::new(63),
+        );
+        assert_eq!(
+            (aquifer.min_grid_x, aquifer.min_grid_y, aquifer.min_grid_z),
+            (-1, -7, -2)
+        );
+        assert_eq!(
+            (
+                aquifer.grid_size_x,
+                aquifer.grid_size_y,
+                aquifer.grid_size_z
+            ),
+            (3, 35, 3)
+        );
+        assert_eq!(
+            (aquifer.aquifer_cache.len(), aquifer.location_cache.len()),
+            (315, 315)
+        );
+        assert_eq!(aquifer.skip_sampling_above_y, 94);
     }
 }

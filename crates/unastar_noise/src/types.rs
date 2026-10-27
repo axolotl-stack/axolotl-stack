@@ -54,6 +54,13 @@ pub enum RarityType {
 /// The generated code uses this trait to sample noise values. The actual implementation
 /// (`NoiseRegistry`) lives in the `unastar` crate since it depends on noise generation code.
 pub trait NoiseSource {
+    /// Select native Java root/cache arithmetic statically, never per-block dispatch.
+    const NATIVE_JAVA: bool;
+
+    /// Actual structure influence at this block. Plain/unstructured sources return
+    /// zero explicitly; structured native sources must provide their real engine.
+    fn sample_beardifier(&self, block_x: i32, block_y: i32, block_z: i32) -> f64;
+
     /// Sample noise at a 3D position.
     fn sample(&self, noise_ref: super::NoiseRef, x: f64, y: f64, z: f64) -> f64;
 

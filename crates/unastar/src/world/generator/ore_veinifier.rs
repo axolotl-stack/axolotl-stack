@@ -266,91 +266,103 @@ impl<'a> OreVeinifier<'a> {
     /// # Arguments
     /// * `ctx` - Function context with block position
     pub fn compute(&self, ctx: &FunctionContext) -> Option<u32> {
-        let y = ctx.block_y;
-
-        // Fast early exit: no ore veins possible outside the combined Y range
-        // Iron: -60 to -8, Copper: 0 to 50
-        // Combined range: -60 to 50
-        if !(-60..=50).contains(&y) {
+        if !(-60..=50).contains(&ctx.block_y) {
             return None;
         }
+        let [toggle, a, b] = self.interpolated(ctx.block_x, ctx.block_y, ctx.block_z);
+        compute_material::<false>(
+            ctx,
+            &self.ore_random,
+            toggle,
+            || VEIN_RIDGED_OFFSET + a.abs().max(b.abs()),
+            || compute_vein_gap(ctx, self.noises),
+        )
+    }
+}
 
-        // Step 1: Interpolated vein toggle decides the vein type
-        let [toggle_value, vein_a, vein_b] = self.interpolated(ctx.block_x, y, ctx.block_z);
+/// Native material decisions consume the active noise-cell sampler directly.
+/// No duplicate corner buffer or unused registry reference is retained.
+pub struct NativeOreVeinifier {
+    ore_random: PositionalRandomFactory,
+}
 
-        // Determine vein type from toggle sign
-        let vein_type = if toggle_value > 0.0 {
-            VeinType::Copper
+impl NativeOreVeinifier {
+    pub fn new(ore_random: PositionalRandomFactory) -> Self {
+        Self { ore_random }
+    }
+
+    /// `ridged` and `gap` remain lazy so failed thresholds do not sample them.
+    #[inline]
+    pub fn compute_with_samples(
+        &self,
+        ctx: &FunctionContext,
+        toggle: f64,
+        ridged: impl FnOnce() -> f64,
+        gap: impl FnOnce() -> f64,
+    ) -> Option<u32> {
+        if !(-60..=50).contains(&ctx.block_y) {
+            return None;
+        }
+        compute_material::<true>(ctx, &self.ore_random, toggle, ridged, gap)
+    }
+}
+
+#[inline]
+fn compute_material<const NATIVE: bool>(
+    ctx: &FunctionContext,
+    ore_random: &PositionalRandomFactory,
+    toggle: f64,
+    ridged: impl FnOnce() -> f64,
+    gap: impl FnOnce() -> f64,
+) -> Option<u32> {
+    let y = ctx.block_y;
+    let copper = if NATIVE { toggle >= 0.0 } else { toggle > 0.0 };
+    let vein_type = if copper {
+        VeinType::Copper
+    } else {
+        VeinType::Iron
+    };
+    let dist_to_max = vein_type.max_y() - y;
+    let dist_to_min = y - vein_type.min_y();
+    if dist_to_min < 0 || dist_to_max < 0 {
+        return None;
+    }
+    let edge_roundoff = clamp_map(
+        dist_to_min.min(dist_to_max) as f64,
+        0.0,
+        EDGE_ROUNDOFF_BEGIN as f64,
+        -MAX_EDGE_ROUNDOFF,
+        0.0,
+    );
+    let veininess = toggle.abs();
+    if veininess + edge_roundoff < VEININESS_THRESHOLD {
+        return None;
+    }
+    let mut rng = ore_random.at(ctx.block_x, y, ctx.block_z);
+    if rng.next_float() > VEIN_SOLIDNESS || ridged() >= 0.0 {
+        return None;
+    }
+    let richness = clamp_map(
+        veininess,
+        VEININESS_THRESHOLD,
+        MAX_RICHNESS_THRESHOLD,
+        MIN_RICHNESS,
+        MAX_RICHNESS,
+    );
+    let draw = rng.next_float();
+    let rich = if NATIVE {
+        f64::from(draw) < richness
+    } else {
+        draw < richness as f32
+    };
+    if rich && gap() > SKIP_ORE_IF_GAP_NOISE_IS_BELOW {
+        if rng.next_float() < CHANCE_OF_RAW_ORE_BLOCK {
+            Some(vein_type.raw_ore_block())
         } else {
-            VeinType::Iron
-        };
-
-        // Step 2: Check Y range for this vein type
-        let dist_to_max = vein_type.max_y() - y;
-        let dist_to_min = y - vein_type.min_y();
-
-        // Outside Y range - no vein
-        if dist_to_min < 0 || dist_to_max < 0 {
-            return None;
+            Some(vein_type.ore())
         }
-
-        // Step 3: Calculate edge roundoff
-        let min_dist = dist_to_min.min(dist_to_max);
-        let edge_roundoff = clamp_map(
-            min_dist as f64,
-            0.0,
-            EDGE_ROUNDOFF_BEGIN as f64,
-            -MAX_EDGE_ROUNDOFF,
-            0.0,
-        );
-
-        // Step 4: Check veininess threshold
-        let veininess = toggle_value.abs();
-        if veininess + edge_roundoff < VEININESS_THRESHOLD {
-            return None;
-        }
-
-        // Step 5: Positional random check for solidness
-        // Use the proper PositionalRandomFactory.at() matching Java's implementation
-        let mut rng = self.ore_random.at(ctx.block_x, y, ctx.block_z);
-
-        if rng.next_float() > VEIN_SOLIDNESS {
-            return None;
-        }
-
-        // Step 6: Check ridged noise for vein shape
-        let ridged = VEIN_RIDGED_OFFSET + vein_a.abs().max(vein_b.abs());
-        if ridged >= 0.0 {
-            return None;
-        }
-
-        // Step 7: Determine ore vs filler based on richness and gap
-        let richness = clamp_map(
-            veininess,
-            VEININESS_THRESHOLD,
-            MAX_RICHNESS_THRESHOLD,
-            MIN_RICHNESS,
-            MAX_RICHNESS,
-        );
-
-        if rng.next_float() < richness as f32 {
-            // Check gap noise - simple noise lookup
-            let gap = compute_vein_gap(ctx, self.noises);
-            if gap > SKIP_ORE_IF_GAP_NOISE_IS_BELOW {
-                // Place ore (small chance of raw ore block)
-                if rng.next_float() < CHANCE_OF_RAW_ORE_BLOCK {
-                    Some(vein_type.raw_ore_block())
-                } else {
-                    Some(vein_type.ore())
-                }
-            } else {
-                // Gap in vein - place filler
-                Some(vein_type.filler())
-            }
-        } else {
-            // Not rich enough for ore - place filler
-            Some(vein_type.filler())
-        }
+    } else {
+        Some(vein_type.filler())
     }
 }
 
@@ -371,11 +383,65 @@ mod tests {
     use super::*;
 
     #[test]
-    fn test_vein_type_y_ranges() {
-        assert_eq!(VeinType::Copper.min_y(), 0);
-        assert_eq!(VeinType::Copper.max_y(), 50);
-        assert_eq!(VeinType::Iron.min_y(), -60);
-        assert_eq!(VeinType::Iron.max_y(), -8);
+    fn native_richness_keeps_the_double_threshold_and_lazy_gap() {
+        let factory = PositionalRandomFactory::new(0);
+        let (ctx, draw, raw) = (0..4096)
+            .find_map(|x| {
+                let ctx = FunctionContext::new(x, 25, 0);
+                let mut rng = factory.at(x, 25, 0);
+                if rng.next_float() > VEIN_SOLIDNESS {
+                    return None;
+                }
+                let draw = rng.next_float();
+                (draw > 0.1 && draw < 0.3)
+                    .then(|| (ctx, draw, rng.next_float() < CHANCE_OF_RAW_ORE_BLOCK))
+            })
+            .expect("deterministic positional stream has a richness-boundary sample");
+        // A real f32 draw lies just below this f64 threshold, but rounding the
+        // threshold back to f32 makes equality and incorrectly chooses filler.
+        let richness = f64::from(draw) + 1e-10;
+        let toggle = VEININESS_THRESHOLD
+            + (richness - MIN_RICHNESS) / (MAX_RICHNESS - MIN_RICHNESS)
+                * (MAX_RICHNESS_THRESHOLD - VEININESS_THRESHOLD);
+        let gap_calls = std::cell::Cell::new(0);
+        let native = NativeOreVeinifier::new(factory.clone());
+        let actual = native.compute_with_samples(
+            &ctx,
+            toggle,
+            || -0.1,
+            || {
+                gap_calls.set(gap_calls.get() + 1);
+                1.0
+            },
+        );
+        assert_eq!(
+            actual,
+            Some(if raw {
+                *blocks::RAW_COPPER_BLOCK
+            } else {
+                *blocks::COPPER_ORE
+            })
+        );
+        assert_eq!(gap_calls.get(), 1);
+        assert_eq!(
+            compute_material::<false>(
+                &ctx,
+                &factory,
+                toggle,
+                || -0.1,
+                || panic!("rounded threshold must reject before the gap sample")
+            ),
+            Some(*blocks::GRANITE)
+        );
+        assert_eq!(
+            native.compute_with_samples(
+                &ctx,
+                0.0,
+                || panic!("failed veininess sampled ridged noise"),
+                || panic!("failed veininess sampled gap noise")
+            ),
+            None
+        );
     }
 
     #[test]
@@ -390,17 +456,5 @@ mod tests {
         assert!((clamp_map(-5.0, 0.0, 20.0, -0.2, 0.0) - (-0.2)).abs() < 0.001);
         // Above max: clamp to max
         assert!((clamp_map(30.0, 0.0, 20.0, -0.2, 0.0) - 0.0).abs() < 0.001);
-    }
-
-    #[test]
-    fn test_vein_blocks() {
-        // Just verify the blocks are valid (non-zero unless air)
-        // The actual values depend on runtime block registry
-        let copper = VeinType::Copper;
-        let iron = VeinType::Iron;
-
-        // These should be different blocks
-        assert_ne!(copper.filler(), iron.filler());
-        assert_ne!(copper.ore(), iron.ore());
     }
 }

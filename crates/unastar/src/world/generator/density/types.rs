@@ -156,6 +156,13 @@ impl NoiseRegistry {
 /// Implement the NoiseSource trait for NoiseRegistry so it can be used
 /// with the AOT-compiled density functions from unastar_noise.
 impl NoiseSource for NoiseRegistry {
+    const NATIVE_JAVA: bool = false;
+
+    #[inline]
+    fn sample_beardifier(&self, _: i32, _: i32, _: i32) -> f64 {
+        0.0
+    }
+
     #[inline]
     fn sample(&self, noise_ref: NoiseRef, x: f64, y: f64, z: f64) -> f64 {
         self.get(noise_ref).sample(x, y, z)
@@ -207,6 +214,13 @@ impl NoiseSource for NoiseRegistry {
 }
 
 impl NoiseSource for JavaNoiseSource<'_> {
+    const NATIVE_JAVA: bool = true;
+
+    #[inline]
+    fn sample_beardifier(&self, _: i32, _: i32, _: i32) -> f64 {
+        0.0
+    }
+
     #[inline]
     fn sample(&self, noise_ref: NoiseRef, x: f64, y: f64, z: f64) -> f64 {
         self.registry.get(noise_ref).sample_java(x, y, z)

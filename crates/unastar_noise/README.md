@@ -153,9 +153,20 @@ as a separate backend, not redirected.
 
 Regressions cover measured raw material/spline bits and an actual emitted
 sampler's nonlinear material evaluation across negative chunks, descending Y,
-SIMD source batches and plane reuse. This kernel is for the verified empty
-Beardifier profile; full structure influence, native column construction and the
-three-dimension runtime cutover are separate integration gates.
+SIMD source batches and plane reuse. Native material adds the mandatory
+`NoiseSource::sample_beardifier(x,y,z)` contribution once after the router root,
+inside the material cell cache. Plain sources explicitly return zero; structured
+sources must supply their engine. Full native structure influence, native column
+construction and the three-dimension runtime cutover remain separate gates.
+
+`NoiseSource::NATIVE_JAVA` is mandatory and statically selects the aquifer's
+native cache constructors and root functions. `NoiseBasedAquifer` accepts a typed
+source with the calibrated registry as its default type; existing calibrated
+callers keep their arithmetic. Native ore decisions use `NativeOreVeinifier`,
+which retains only the positional factory, with a toggle value and lazy ridged/gap
+callbacks from the active cell sampler. It allocates no second corner grid.
+Native richness comparison promotes the RNG's f32 draw to f64 rather than
+rounding the threshold down to f32.
 
 ## Block identity
 
