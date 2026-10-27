@@ -12,6 +12,13 @@ pub trait LootContext {
     fn block_state_matches(&self, property: &str, expected: &LootStateValue) -> bool;
     fn killed_by_player(&self) -> bool;
     fn looting(&self) -> u8;
+    /// None means no THIS actor, not an actor whose fire state is false.
+    fn on_fire(&self) -> Option<bool> {
+        None
+    }
+    fn furnace(&self) -> Option<&dyn FurnaceSmelt> {
+        None
+    }
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -31,6 +38,8 @@ pub enum LootError {
     UnknownTable(String),
     #[error("loot tables nest too deeply")]
     TooDeep,
+    #[error("loot context does not supply {0}")]
+    MissingContext(&'static str),
 }
 
 fn sample_int(number: LootNumber, rng: &mut impl Rng) -> i32 {
@@ -102,6 +111,7 @@ fn condition_passes(
             .iter()
             .all(|(p, v)| ctx.block_state_matches(p, v)),
         LootCondition::Inverted(inner) => !condition_passes(inner, ctx, rng)?,
+        LootCondition::ThisOnFire(expected) => ctx.on_fire() == Some(*expected),
         LootCondition::Other { name, .. } => return Err(LootError::Unsupported(name.clone())),
     })
 }
@@ -127,16 +137,19 @@ fn apply_functions(
 ) -> Result<(), LootError> {
     let mut count = i64::from(drop.count);
     for f in fs {
-        match f {
-            LootFunction::SetCount { count: n, add } => {
+        if !all_pass(&f.conditions, ctx, rng)? {
+            continue;
+        }
+        match &f.kind {
+            LootFunctionKind::SetCount { count: n, add } => {
                 let n = i64::from(sample_int(*n, rng));
                 count = if *add { count + n } else { n };
             }
-            LootFunction::SetData { data } => {
+            LootFunctionKind::SetData { data } => {
                 drop.data =
                     sample_int(*data, rng).clamp(i32::from(i16::MIN), i32::from(i16::MAX)) as i16
             }
-            LootFunction::LootingEnchant { count: n, limit } => {
+            LootFunctionKind::LootingEnchant { count: n, limit } => {
                 count += (0..ctx.looting())
                     .map(|_| i64::from(sample_int(*n, rng)))
                     .sum::<i64>();
@@ -144,7 +157,7 @@ fn apply_functions(
                     count = count.min(i64::from(*limit));
                 }
             }
-            LootFunction::ApplyBonus {
+            LootFunctionKind::ApplyBonus {
                 enchantment,
                 id,
                 formula,
@@ -167,7 +180,7 @@ fn apply_functions(
                     count += i64::from(binomial(*extra, *probability, rng));
                 }
             }
-            LootFunction::LimitCount { min, max } => {
+            LootFunctionKind::LimitCount { min, max } => {
                 if let Some(min) = min {
                     count = count.max(*min as i64);
                 }
@@ -177,8 +190,20 @@ fn apply_functions(
             }
             // No explosion caller exists on the parked gameplay path. This is
             // the existing non-explosion identity, not explosion support.
-            LootFunction::ExplosionDecay => {}
-            LootFunction::Other { name, .. } => return Err(LootError::Unsupported(name.clone())),
+            LootFunctionKind::ExplosionDecay => {}
+            LootFunctionKind::FurnaceSmelt => {
+                let furnace = ctx
+                    .furnace()
+                    .ok_or(LootError::MissingContext("furnace_smelt"))?;
+                if let Some(result) = furnace.smelt(&drop.item_id, drop.data) {
+                    drop.item_id.clear();
+                    drop.item_id.push_str(result.identifier);
+                    drop.data = result.data;
+                }
+            }
+            LootFunctionKind::Other { name, .. } => {
+                return Err(LootError::Unsupported(name.clone()));
+            }
         }
     }
     drop.count = count.max(0) as u32;

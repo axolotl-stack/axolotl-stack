@@ -76,6 +76,16 @@ through their item registry. `LootContext` supplies tool identity, pre-resolved
 enchantment ids, block-state matching, player-kill and looting facts. No ECS or
 item-stack implementation is imported here.
 
+Each `LootFunction` retains its typed `conditions` and `kind`; guards run before
+the action accesses context or consumes its own random draws. The implemented
+`entity_properties` subset is THIS actor's typed `on_fire` fact; no THIS actor
+does not match either fire state. Other predicates remain explicit unsupported
+features, not discarded clauses. `FurnaceSmelt` supplies a borrowed canonical
+recipe identifier/aux result, while `furnace_smelt` preserves the loot count.
+A missing provider returns `MissingContext`; a provider's recipe miss leaves the
+original item unchanged. The entity/item layer owns the actual frozen recipe
+registry and death context; no cooked-item-by-mob table is maintained here.
+
 The parked evaluator's seven regression scenarios still run in unastar with
 the real pack/block tables. Unsupported functions/conditions, tiered equipment
 pools and entry-level nested pools are retained in decoded data and fail
