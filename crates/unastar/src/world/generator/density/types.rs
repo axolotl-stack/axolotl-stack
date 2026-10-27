@@ -19,6 +19,8 @@ pub struct NoiseRegistry {
     /// BlendedNoise for base_3d_noise (OldBlendedNoise)
     blended_noise: BlendedNoise,
     seed: i64,
+    /// End-only legacy initialization stays off the Overworld/Bedrock startup path.
+    end_islands: std::sync::OnceLock<unastar_noise::end_islands::EndIslands>,
 }
 
 impl NoiseRegistry {
@@ -57,6 +59,7 @@ impl NoiseRegistry {
             noises,
             blended_noise,
             seed,
+            end_islands: std::sync::OnceLock::new(),
         }
     }
 
@@ -84,6 +87,13 @@ impl NoiseSource for NoiseRegistry {
     #[inline]
     fn sample_4(&self, noise_ref: NoiseRef, x: f64x4, y: f64x4, z: f64x4) -> f64x4 {
         self.get(noise_ref).sample_4(x, y, z)
+    }
+
+    #[inline]
+    fn sample_end_islands(&self, block_x: i32, block_z: i32) -> f64 {
+        self.end_islands
+            .get_or_init(|| unastar_noise::end_islands::EndIslands::new(self.seed))
+            .sample(block_x, block_z)
     }
 
     #[inline]
@@ -116,5 +126,30 @@ impl NoiseSource for NoiseRegistry {
         _smear_scale_multiplier: f64,
     ) -> f64x4 {
         self.blended_noise.sample_4(x, y, z)
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::{NoiseRegistry, NoiseSource};
+
+    #[test]
+    fn end_density_registry_uses_legacy_world_seed() {
+        // Pinned Java 1.21.11 API bits from end_islands::tests; seed-sensitive
+        // island edges distinguish the world seed from terrain/noise stream salts.
+        for (seed, x, z, expected) in [
+            (0, 0, 0, 0x3fe2_0000_0000_0000_u64),
+            (0, 1024, 0, 0xbfea_9026_8000_0000),
+            (-1, 1024, 0, 0xbfeb_0000_0000_0000),
+            (0, -1032, 0, 0x3fc5_b52f_0000_0000),
+            (0, 370728, 0, 0xfff8_0000_0000_0000),
+        ] {
+            let noises = NoiseRegistry::new(seed);
+            assert_eq!(
+                noises.sample_end_islands(x, z).to_bits(),
+                expected,
+                "native registry End density seed={seed} block=({x},{z})"
+            );
+        }
     }
 }

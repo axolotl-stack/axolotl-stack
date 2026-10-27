@@ -45,6 +45,10 @@ impl NoiseSource for CountingNoise {
         f64x4::splat(0.375)
     }
 
+    fn sample_end_islands(&self, _block_x: i32, _block_z: i32) -> f64 {
+        panic!("Overworld density fixture must not sample End islands")
+    }
+
     fn sample_blended_noise(
         &self,
         _x: f64,
