@@ -127,9 +127,10 @@ fn report_proto(path: &std::path::Path) {
         path.display(),
         fixture.chunks.len()
     );
+    println!("Legacy Bedrock block-type projection only; properties and Java air variants are collapsed. Not canonical Java-state parity.");
     println!("| metric | value |\n|---|---:|");
     println!("| voxels | {} |", m.voxels);
-    println!("| block exact | {:.2}% |", 100.0 * m.block_exact);
+    println!("| projected block type exact | {:.2}% |", 100.0 * m.block_exact);
     println!(
         "| class exact (air/water/lava/solid) | {:.2}% |",
         100.0 * m.class_exact

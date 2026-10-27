@@ -15,14 +15,9 @@
 //! reproduces that order exactly. Dirt placed under the trunk goes through
 //! the trunk setter and therefore counts as a log, as in Java.
 //!
-//! Edge shape update approximation: Java calls `BlockState.updateShape` on
-//! both sides of every face between the tree's blocks and the rest of the
-//! world. Only the updates that change states around natural trees are
-//! modelled: vegetation that can no longer survive (`canSurvive` from
-//! [`crate::features::survival`]) becomes air, double-plant halves that lost
-//! their other half become air, and snowy dirt (`snowy` property) follows the
-//! block above. Shape-only connections (fences, walls, panes, stairs) and
-//! scheduled ticks (leaf distance, water) are not reproduced.
+//! Edge shape transitions are shared with templates through
+//! [`crate::features::shape`], including native connection/support rules.
+//! Scheduled ticks remain separate from these immediate state transitions.
 //!
 //! The `place_on_ground` decorator's `isSolidRender` test is approximated
 //! (see `decorator::is_solid_render`), since the block data carries no
@@ -40,9 +35,9 @@ pub(crate) use pos_set::JavaPosSet;
 use crate::features::blocks::{BlockPos, Direction, JavaState};
 use crate::features::config::{FeatureSize, TreeConfig};
 use crate::features::eval::FeatureWorld;
-use crate::features::java_blocks::{blocks as b, states, tags};
+use crate::features::java_blocks::{blocks as b, tags};
 use crate::features::random::FeatureRandom;
-use crate::features::survival::can_survive;
+use crate::features::shape::{VoxelShape, update_shape_at_edge};
 
 /// Java `FoliagePlacer.FoliageAttachment`.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -263,7 +258,7 @@ where
         return false;
     };
     let shape = update_leaves(world, &bounds, &logs, &decorations, &roots);
-    update_shape_at_edge(world, &bounds, &shape);
+    update_shape_at_edge(world, &shape);
     true
 }
 
@@ -309,47 +304,6 @@ impl Bounds {
     }
 }
 
-/// `BitSetDiscreteVoxelShape` over the tree bounds.
-struct VoxelShape {
-    xs: i32,
-    ys: i32,
-    zs: i32,
-    bits: Vec<bool>,
-}
-
-impl VoxelShape {
-    fn new(b: &Bounds) -> Self {
-        let (xs, ys, zs) = b.span();
-        Self {
-            xs,
-            ys,
-            zs,
-            bits: vec![false; (xs * ys * zs) as usize],
-        }
-    }
-
-    #[inline]
-    fn index(&self, x: i32, y: i32, z: i32) -> usize {
-        ((x * self.ys + y) * self.zs + z) as usize
-    }
-
-    #[inline]
-    fn fill(&mut self, x: i32, y: i32, z: i32) {
-        let i = self.index(x, y, z);
-        self.bits[i] = true;
-    }
-
-    #[inline]
-    fn is_full(&self, x: i32, y: i32, z: i32) -> bool {
-        x >= 0
-            && y >= 0
-            && z >= 0
-            && x < self.xs
-            && y < self.ys
-            && z < self.zs
-            && self.bits[self.index(x, y, z)]
-    }
-}
 
 /// `LeavesBlock.getOptionalDistanceAt`: 0 for logs, the leaf `distance`,
 /// or none.
@@ -372,11 +326,11 @@ fn update_leaves<W: FeatureWorld + ?Sized>(
     decorations: &[BlockPos],
     roots: &JavaPosSet,
 ) -> VoxelShape {
-    let mut shape = VoxelShape::new(bounds);
-    let min = bounds.min;
+    let (xs, ys, zs) = bounds.span();
+    let mut shape = VoxelShape::new(bounds.min, [xs, ys, zs]);
     for p in decorations.iter().copied().chain(roots.iter()) {
         if bounds.inside(p) {
-            shape.fill(p.x - min.x, p.y - min.y, p.z - min.z);
+            shape.fill(p);
         }
     }
     let mut to_check: [JavaPosSet; 7] = std::array::from_fn(|_| JavaPosSet::new());
@@ -399,10 +353,10 @@ fn update_leaves<W: FeatureWorld + ?Sized>(
                 let state = world.get_state(pos);
                 world.set_state(pos, state.with_int("distance", smallest as i32));
             }
-            shape.fill(pos.x - min.x, pos.y - min.y, pos.z - min.z);
+            shape.fill(pos);
             for dir in Direction::ALL {
                 let n = pos.rel(dir);
-                if !bounds.inside(n) || shape.is_full(n.x - min.x, n.y - min.y, n.z - min.z) {
+                if !bounds.inside(n) || shape.contains(n) {
                     continue;
                 }
                 let Some(d) = optional_distance(world.get_state(n)) else {
@@ -419,149 +373,6 @@ fn update_leaves<W: FeatureWorld + ?Sized>(
     }
 }
 
-/// `StructureTemplate.updateShapeAtEdge(level, 3, shape, minX, minY, minZ)`
-/// restricted to the update rules listed in the module doc.
-///
-/// Faces are visited in `DiscreteVoxelShape.forAllFaces` order: runs along Z
-/// (x outer, y inner), then along Y (z outer, x inner), then along X (y
-/// outer, z inner); each run reports its negative face where it starts and
-/// its positive face where it ends.
-fn update_shape_at_edge<W: FeatureWorld + ?Sized>(
-    world: &mut W,
-    bounds: &Bounds,
-    shape: &VoxelShape,
-) {
-    let min = bounds.min;
-    let face = |world: &mut W, dir: Direction, x: i32, y: i32, z: i32| {
-        let pos = min.offset(x, y, z);
-        let npos = pos.rel(dir);
-        let state = world.get_state(pos);
-        let nstate = world.get_state(npos);
-        let new_state = update_shape(world, state, pos, dir, nstate);
-        if new_state != state {
-            world.set_state(pos, new_state);
-        }
-        let new_n = update_shape(world, nstate, npos, dir.opposite(), new_state);
-        if new_n != nstate {
-            world.set_state(npos, new_n);
-        }
-    };
-    // (outer size, middle size, run size, voxel coords, negative, positive)
-    type Map = fn(i32, i32, i32) -> (i32, i32, i32);
-    let passes: [(i32, i32, i32, Map, Direction, Direction); 3] = [
-        (
-            shape.xs,
-            shape.ys,
-            shape.zs,
-            |a, b, c| (a, b, c),
-            Direction::North,
-            Direction::South,
-        ),
-        (
-            shape.zs,
-            shape.xs,
-            shape.ys,
-            |a, b, c| (b, c, a),
-            Direction::Down,
-            Direction::Up,
-        ),
-        (
-            shape.ys,
-            shape.zs,
-            shape.xs,
-            |a, b, c| (c, a, b),
-            Direction::West,
-            Direction::East,
-        ),
-    ];
-    for (outer, middle, run, map, neg, pos) in passes {
-        for a in 0..outer {
-            for b_ in 0..middle {
-                let mut last_full = false;
-                for c in 0..=run {
-                    let full = c != run && {
-                        let (x, y, z) = map(a, b_, c);
-                        shape.is_full(x, y, z)
-                    };
-                    if !last_full && full {
-                        let (x, y, z) = map(a, b_, c);
-                        face(world, neg, x, y, z);
-                    }
-                    if last_full && !full {
-                        let (x, y, z) = map(a, b_, c - 1);
-                        face(world, pos, x, y, z);
-                    }
-                    last_full = full;
-                }
-            }
-        }
-    }
-}
-
-/// `BlockState.updateShape(level, pos, direction, neighbourState)` for the
-/// block families modelled here; every other state is returned unchanged.
-pub(crate) fn update_shape<W: FeatureWorld + ?Sized>(
-    world: &mut W,
-    state: JavaState,
-    pos: BlockPos,
-    dir: Direction,
-    neighbour: JavaState,
-) -> JavaState {
-    let block = state.block();
-    match block.def().kind {
-        "minecraft:double_plant"
-        | "minecraft:tall_flower"
-        | "minecraft:tall_seagrass"
-        | "minecraft:small_dripleaf" => {
-            let lower = state.value("half") == Some("lower");
-            let toward_other_half =
-                matches!(dir, Direction::Up | Direction::Down) && lower == (dir == Direction::Up);
-            let other_half_ok =
-                neighbour.is(block) && neighbour.value("half") != state.value("half");
-            if (toward_other_half && !other_half_ok) || !can_survive(world, state, pos) {
-                states::AIR
-            } else {
-                state
-            }
-        }
-        "minecraft:flower"
-        | "minecraft:tall_grass"
-        | "minecraft:bush"
-        | "minecraft:sapling"
-        | "minecraft:sweet_berry_bush"
-        | "minecraft:flower_bed"
-        | "minecraft:firefly_bush"
-        | "minecraft:eyeblossom"
-        | "minecraft:wither_rose"
-        | "minecraft:dry_vegetation"
-        | "minecraft:short_dry_grass"
-        | "minecraft:tall_dry_grass"
-        | "minecraft:leaf_litter"
-        | "minecraft:azalea"
-        | "minecraft:fungus"
-        | "minecraft:roots"
-        | "minecraft:nether_sprouts"
-        | "minecraft:mushroom"
-        | "minecraft:waterlily"
-        | "minecraft:seagrass"
-        | "minecraft:snow_layer"
-        | "minecraft:carpet"
-        | "minecraft:wool_carpet" => {
-            if can_survive(world, state, pos) {
-                state
-            } else {
-                states::AIR
-            }
-        }
-        _ => {
-            if dir == Direction::Up && state.has("snowy") {
-                state.with_bool("snowy", neighbour.is_in(tags::SNOW))
-            } else {
-                state
-            }
-        }
-    }
-}
 
 #[cfg(test)]
 mod tests {
@@ -570,6 +381,7 @@ mod tests {
     use crate::features::config::{
         FoliagePlacer, RootPlacer, TreeDecorator, TrunkHeights, TrunkPlacer,
     };
+    use crate::features::java_blocks::states;
     use crate::features::test_world::TestWorld;
     use crate::features::values::IntProvider;
 

@@ -175,7 +175,8 @@ fn run() {
     let (a0, b0) = counters();
     let started = Instant::now();
     for &(x, z) in CHUNKS {
-        std::hint::black_box(pipeline.generate(ChunkPos::new(x, z)));
+        std::hint::black_box(pipeline.generate(ChunkPos::new(x, z))
+            .expect("worldgen benchmark produced an unrepresentable native actor"));
     }
     let finished_ms = started.elapsed().as_secs_f64() * 1e3 / CHUNKS.len() as f64;
     let (a1, b1) = counters();

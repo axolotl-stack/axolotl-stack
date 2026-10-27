@@ -1,16 +1,13 @@
-//! Emits `carvers`: the overworld's configured carvers (`configured_carver/*.json`) as typed
-//! constants, with replaceable block tags compiled to Bedrock runtime-id bitsets.
+//! Emits dimension-specific configured carver tables, with replaceable block tags
+//! compiled to canonical Java state-id bitsets.
 //!
-//! Java picks a carver-start chunk's carvers from its biome. Every biome the overworld
-//! biome source can produce lists the same carvers, so the build checks that and emits one
-//! list; a data change that makes the lists differ fails the build instead of silently
-//! using the wrong carvers.
+//! Every biome a dimension's native biome source can produce must agree on its carver
+//! list. Differing lists fail the build rather than silently selecting the wrong list.
 
 use proc_macro2::{Ident, Literal, Span, TokenStream};
 use quote::quote;
 use std::collections::{BTreeMap, HashMap};
 
-use crate::codegen::data::biome_parameters::BiomeParameters;
 use crate::codegen::data::block_tags::BlockTags;
 use crate::codegen::data::java_blocks::JavaBlocks;
 use crate::codegen::parser::biome::BiomeJson;
@@ -18,6 +15,13 @@ use crate::codegen::parser::carver::{
     ConfiguredCarver, FloatProvider, HeightProvider, TypedFloatProvider,
 };
 use crate::codegen::parser::surface_rule::VerticalAnchor;
+pub struct Preset<'a> {
+    pub name: &'a str,
+    pub biomes: &'a [String],
+    pub min_y: i32,
+    pub height: i32,
+}
+
 
 struct Context<'a> {
     min_y: i32,
@@ -67,7 +71,13 @@ impl Context<'_> {
 
     fn replaceable(&mut self, tag: &str) -> Result<Ident, String> {
         if !self.bitsets.contains_key(tag) {
-            let bits = self.tags.bedrock_bitset(tag, self.blocks)?;
+            let mut bits = vec![0u64; self.blocks.state_count().div_ceil(64)];
+            for name in self.tags.resolve(tag)? {
+                for state in self.blocks.state_ids(&name)? {
+                    let state = state as usize;
+                    bits[state / 64] |= 1 << (state % 64);
+                }
+            }
             let ident = Ident::new(
                 &format!(
                     "REPLACEABLE_{}",
@@ -144,52 +154,69 @@ impl Context<'_> {
     }
 }
 
-#[allow(clippy::too_many_arguments)]
 pub fn emit(
     carvers: &BTreeMap<String, ConfiguredCarver>,
     biomes: &HashMap<String, BiomeJson>,
-    parameters: &BiomeParameters,
+    presets: &[Preset<'_>],
     tags: &BlockTags,
     blocks: &JavaBlocks,
-    min_y: i32,
-    height: i32,
 ) -> Result<TokenStream, String> {
-    // The carvers of every biome the overworld biome source can place.
-    let mut list: Option<(String, Vec<String>)> = None;
-    for name in &parameters.biomes {
-        let short = name.trim_start_matches("minecraft:");
-        let biome = biomes
-            .get(short)
-            .ok_or_else(|| format!("biome parameter list names unknown biome {name}"))?;
-        let carvers = biome.carvers.clone().into_vec();
-        match &list {
-            None => list = Some((name.clone(), carvers)),
-            Some((first, expected)) if *expected != carvers => {
-                return Err(format!(
-                    "overworld biomes {first} and {name} list different carvers; carver starts \
-                     would need their biome looked up per start chunk"
-                ));
-            }
-            Some(_) => {}
-        }
-    }
-    let (_, names) = list.ok_or("the overworld biome parameter list is empty")?;
-
+    let first = presets.first().ok_or("no carver presets supplied")?;
     let mut ctx = Context {
-        min_y,
-        height,
+        min_y: first.min_y,
+        height: first.height,
         tags,
         blocks,
         bitsets: BTreeMap::new(),
     };
-    let mut entries = Vec::new();
-    for name in &names {
-        let carver = carvers
-            .get(name)
-            .ok_or_else(|| format!("unknown configured carver {name}"))?;
-        entries.push(ctx.carver(carver)?);
+    let mut tables = Vec::new();
+    for preset in presets {
+        let mut list: Option<(&str, Vec<String>)> = None;
+        for name in preset.biomes {
+            let short = name
+                .strip_prefix("minecraft:")
+                .ok_or_else(|| format!("biome {name} is not namespaced"))?;
+            let biome = biomes
+                .get(short)
+                .ok_or_else(|| format!("{} source names unknown biome {name}", preset.name))?;
+            let carvers = biome.carvers.clone().into_vec();
+            match &list {
+                None => list = Some((name, carvers)),
+                Some((first, expected)) if *expected != carvers => {
+                    return Err(format!(
+                        "{} biomes {first} and {name} list different carvers; carver starts \
+                         need their biome looked up per start chunk",
+                        preset.name,
+                    ));
+                }
+                Some(_) => {}
+            }
+        }
+        let (_, names) =
+            list.ok_or_else(|| format!("{} biome source has no biomes", preset.name))?;
+        ctx.min_y = preset.min_y;
+        ctx.height = preset.height;
+        let mut entries = Vec::new();
+        for name in &names {
+            let carver = carvers
+                .get(name)
+                .ok_or_else(|| format!("unknown configured carver {name}"))?;
+            entries.push(ctx.carver(carver)?);
+        }
+        let count = entries.len();
+        let ident = Ident::new(
+            &format!("{}_CARVERS", preset.name.to_uppercase()),
+            Span::call_site(),
+        );
+        let doc = format!(
+            "The {} biomes' native carvers in list order (the index salts the start seed).",
+            preset.name,
+        );
+        tables.push(quote! {
+            #[doc = #doc]
+            pub static #ident: [ConfiguredCarver; #count] = [#(#entries),*];
+        });
     }
-    let count = entries.len();
     let bitsets = ctx.bitsets.values().map(|(ident, bits)| {
         let len = bits.len();
         let words = bits.iter().map(|&w| Literal::u64_suffixed(w));
@@ -197,16 +224,14 @@ pub fn emit(
     });
 
     Ok(quote! {
-        //! Overworld configured carvers (`configured_carver/*.json`), in the order every
-        //! overworld biome lists them. Generated by `codegen/emitter/carver.rs`.
+        //! Native dimension carver tables (`configured_carver/*.json`).
+        //! Generated by `codegen/emitter/carver.rs`.
 
         use crate::carver::{
             CanyonConfig, CaveConfig, ConfiguredCarver, FloatProvider, HeightProvider,
         };
 
         #(#bitsets)*
-
-        /// The overworld biomes' carvers, in list order (the index salts the start seed).
-        pub static OVERWORLD_CARVERS: [ConfiguredCarver; #count] = [#(#entries),*];
+        #(#tables)*
     })
 }

@@ -1,0 +1,294 @@
+{
+  "schema": "native-reference-order-v1",
+  "manifest_sha256": "4adc79865d050ad2d122833e4ee4bfc364b7c976bf6661dfb6697fd3726b7ebf",
+  "cases": [
+    {
+      "profile": "native-village-seed0-repo-current",
+      "capture": "fullstage-overworld-surface-seed0-chunk16_58.json",
+      "structure": "minecraft:mineshaft",
+      "native_order": [
+        266287972370,
+        257698037773
+      ],
+      "decoded_native_order": [
+        [
+          18,
+          62
+        ],
+        [
+          13,
+          60
+        ]
+      ],
+      "insertion_order": [
+        [
+          13,
+          60
+        ],
+        [
+          18,
+          62
+        ]
+      ],
+      "source_context_proof": "native-village-seed0-repo-current/context-proof.json",
+      "source_context_sha256": "f8e2c6a22a58623e5af8b3ca52ddcd8e113dc0832c76602d9e4d98efcefdf5a2"
+    },
+    {
+      "profile": "native-village-seed0-repo-current",
+      "capture": "fullstage-overworld-surface-seed0-chunk17_58.json",
+      "structure": "minecraft:mineshaft",
+      "native_order": [
+        266287972370,
+        257698037773
+      ],
+      "decoded_native_order": [
+        [
+          18,
+          62
+        ],
+        [
+          13,
+          60
+        ]
+      ],
+      "insertion_order": [
+        [
+          13,
+          60
+        ],
+        [
+          18,
+          62
+        ]
+      ],
+      "source_context_proof": "native-village-seed0-repo-current/context-proof.json",
+      "source_context_sha256": "f8e2c6a22a58623e5af8b3ca52ddcd8e113dc0832c76602d9e4d98efcefdf5a2"
+    },
+    {
+      "profile": "native-village-seed0-repo-current",
+      "capture": "fullstage-overworld-surface-seed0-chunk16_59.json",
+      "structure": "minecraft:mineshaft",
+      "native_order": [
+        266287972370,
+        257698037773
+      ],
+      "decoded_native_order": [
+        [
+          18,
+          62
+        ],
+        [
+          13,
+          60
+        ]
+      ],
+      "insertion_order": [
+        [
+          13,
+          60
+        ],
+        [
+          18,
+          62
+        ]
+      ],
+      "source_context_proof": "native-village-seed0-repo-current/context-proof.json",
+      "source_context_sha256": "f8e2c6a22a58623e5af8b3ca52ddcd8e113dc0832c76602d9e4d98efcefdf5a2"
+    },
+    {
+      "profile": "native-village-seed0-repo-current",
+      "capture": "fullstage-overworld-surface-seed0-chunk17_59.json",
+      "structure": "minecraft:mineshaft",
+      "native_order": [
+        266287972370,
+        257698037773
+      ],
+      "decoded_native_order": [
+        [
+          18,
+          62
+        ],
+        [
+          13,
+          60
+        ]
+      ],
+      "insertion_order": [
+        [
+          13,
+          60
+        ],
+        [
+          18,
+          62
+        ]
+      ],
+      "source_context_proof": "native-village-seed0-repo-current/context-proof.json",
+      "source_context_sha256": "f8e2c6a22a58623e5af8b3ca52ddcd8e113dc0832c76602d9e4d98efcefdf5a2"
+    },
+    {
+      "profile": "native-village-seed0-repo-current",
+      "capture": "fullstage-overworld-surface-seed0-chunk16_60.json",
+      "structure": "minecraft:mineshaft",
+      "native_order": [
+        266287972370,
+        257698037773
+      ],
+      "decoded_native_order": [
+        [
+          18,
+          62
+        ],
+        [
+          13,
+          60
+        ]
+      ],
+      "insertion_order": [
+        [
+          13,
+          60
+        ],
+        [
+          18,
+          62
+        ]
+      ],
+      "source_context_proof": "native-village-seed0-repo-current/context-proof.json",
+      "source_context_sha256": "f8e2c6a22a58623e5af8b3ca52ddcd8e113dc0832c76602d9e4d98efcefdf5a2"
+    },
+    {
+      "profile": "native-village-seed0-repo-current",
+      "capture": "fullstage-overworld-surface-seed0-chunk17_60.json",
+      "structure": "minecraft:mineshaft",
+      "native_order": [
+        266287972370,
+        257698037773
+      ],
+      "decoded_native_order": [
+        [
+          18,
+          62
+        ],
+        [
+          13,
+          60
+        ]
+      ],
+      "insertion_order": [
+        [
+          13,
+          60
+        ],
+        [
+          18,
+          62
+        ]
+      ],
+      "source_context_proof": "native-village-seed0-repo-current/context-proof.json",
+      "source_context_sha256": "f8e2c6a22a58623e5af8b3ca52ddcd8e113dc0832c76602d9e4d98efcefdf5a2"
+    },
+    {
+      "profile": "native-village-seed12345",
+      "capture": "fullstage-overworld-surface-seed12345-chunk0_0.json",
+      "structure": "minecraft:mineshaft",
+      "native_order": [
+        -4294967292,
+        8589934588
+      ],
+      "decoded_native_order": [
+        [
+          4,
+          -1
+        ],
+        [
+          -4,
+          1
+        ]
+      ],
+      "insertion_order": [
+        [
+          -4,
+          1
+        ],
+        [
+          4,
+          -1
+        ]
+      ],
+      "source_context_proof": "native-village-seed12345/context-proof.json",
+      "source_context_sha256": "a4118306f2c416c0e596524c16cbaf6ae62f14429f7b0dec1c4575c94f1aa81d"
+    },
+    {
+      "profile": "native-village-holdoutNEG",
+      "capture": "fullstage-overworld-surface-seed-7046029254386353131-chunk0_0.json",
+      "structure": "minecraft:mineshaft",
+      "native_order": [
+        -4294967296,
+        -8589934596,
+        12884901892
+      ],
+      "decoded_native_order": [
+        [
+          0,
+          -1
+        ],
+        [
+          -4,
+          -3
+        ],
+        [
+          4,
+          3
+        ]
+      ],
+      "insertion_order": [
+        [
+          -4,
+          -3
+        ],
+        [
+          0,
+          -1
+        ],
+        [
+          4,
+          3
+        ]
+      ],
+      "source_context_proof": "native-village-holdoutNEG/context-proof.json",
+      "source_context_sha256": "169ffeadbff2954ec03715e669722c236f538c60a35faa0358a0672d1fa0cb90"
+    },
+    {
+      "profile": "native-village-holdoutNEG",
+      "capture": "fullstage-overworld-surface-seed-7046029254386353131-chunk-1_-1.json",
+      "structure": "minecraft:mineshaft",
+      "native_order": [
+        -4294967296,
+        -8589934596
+      ],
+      "decoded_native_order": [
+        [
+          0,
+          -1
+        ],
+        [
+          -4,
+          -3
+        ]
+      ],
+      "insertion_order": [
+        [
+          -4,
+          -3
+        ],
+        [
+          0,
+          -1
+        ]
+      ],
+      "source_context_proof": "native-village-holdoutNEG/context-proof.json",
+      "source_context_sha256": "169ffeadbff2954ec03715e669722c236f538c60a35faa0358a0672d1fa0cb90"
+    }
+  ]
+}

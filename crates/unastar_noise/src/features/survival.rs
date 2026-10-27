@@ -99,7 +99,8 @@ pub fn can_survive<W: FeatureWorld + ?Sized>(
             if below.is_in(tags::MUSHROOM_GROW_BLOCK) {
                 return true;
             }
-            let sky_lit = pos.y >= world.get_height(Heightmap::WorldSurface, pos.x, pos.z);
+            let sky_lit = world.has_skylight()
+                && pos.y >= world.get_height(Heightmap::WorldSurface, pos.x, pos.z);
             !sky_lit && below.is_collision_full_cube() && below.is_solid()
         }
         "minecraft:waterlily" => {
@@ -149,7 +150,7 @@ pub fn can_survive<W: FeatureWorld + ?Sized>(
             } else if below.is_in(tags::SNOW_LAYER_CAN_SURVIVE_ON) {
                 true
             } else {
-                below.is_face_sturdy(Direction::Up)
+                below.has_full_top_collision_face()
                     || (below.is(b::SNOW) && below.int_value("layers") == Some(8))
             }
         }
@@ -263,4 +264,26 @@ pub fn facing_of(state: JavaState) -> Option<Direction> {
         "east" => Direction::East,
         _ => return None,
     })
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::features::{java_blocks::states, test_world::TestWorld};
+
+    #[test]
+    fn dimension_light_controls_mushrooms_above_the_noise_ceiling() {
+        // Native Nether holdout captures retain mushrooms on the bedrock roof:
+        // y=128 is valid storage and has no sky light, despite 128 noise blocks.
+        let pos = BlockPos::new(0, 128, 0);
+        let mut world = TestWorld {
+            min_y: 0, height: 256, gen_depth: 128, fill_y: 128,
+            fill: states::BEDROCK, has_skylight: false, ..Default::default()
+        };
+        assert!(can_survive(&mut world, states::BROWN_MUSHROOM, pos));
+        world.has_skylight = true;
+        assert!(!can_survive(&mut world, states::BROWN_MUSHROOM, pos));
+        world.blocks.insert(pos.below(), states::MYCELIUM);
+        assert!(can_survive(&mut world, states::BROWN_MUSHROOM, pos));
+    }
 }

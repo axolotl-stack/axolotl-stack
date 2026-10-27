@@ -90,13 +90,12 @@ impl TemplatePiece {
             );
             if at == pos {
                 if let Some(BlockEntityInfo::Other {
-                    id,
-                    nbt,
+                    actor,
                     spawner_entity,
                     ..
                 }) = self.template.block_entities.get(index as usize)
                 {
-                    data.template_nbt = Some((*id, *nbt));
+                    data.template_nbt = Some(*actor);
                     data.spawner_entity = *spawner_entity;
                 }
                 break;
@@ -155,11 +154,10 @@ pub fn record_block_entities(world: &mut dyn FeatureWorld, placed: &[PlacedBlock
     for be in placed {
         let (template_nbt, template_loot, spawner_entity) = match be.data {
             Some(BlockEntityInfo::Other {
-                id,
-                nbt,
+                actor,
                 loot,
                 spawner_entity,
-            }) => (Some((*id, *nbt)), *loot, *spawner_entity),
+            }) => (Some(*actor), *loot, *spawner_entity),
             _ => (None, None, None),
         };
         let loot = be

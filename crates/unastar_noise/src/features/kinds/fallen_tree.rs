@@ -11,23 +11,15 @@
 //! the upper half of a double plant whose lower half the log replaced. The
 //! runtime has no post-processing queue, so the same shape update is applied
 //! right away to the block above every log (see
-//! [`super::tree::update_shape`] for the modelled rules).
+//! [`crate::features::shape`] for the native rules).
 
-use super::tree::{JavaPosSet, run_decorators, update_shape, valid_tree_pos};
+use super::tree::{JavaPosSet, run_decorators, valid_tree_pos};
 use crate::features::blocks::{BlockPos, Direction};
 use crate::features::config::FallenTreeConfig;
 use crate::features::eval::{FeatureWorld, provide_state};
 use crate::features::random::FeatureRandom;
+use crate::features::shape::update_from_neighbour_shapes;
 
-/// `Direction.UPDATE_SHAPE_ORDER` (west, east, north, south, down, up).
-const UPDATE_SHAPE_ORDER: [Direction; 6] = [
-    Direction::West,
-    Direction::East,
-    Direction::North,
-    Direction::South,
-    Direction::Down,
-    Direction::Up,
-];
 
 /// Place a `minecraft:fallen_tree` feature. Always returns `true`, like Java.
 ///
@@ -153,14 +145,7 @@ fn place_log_block<W: FeatureWorld + ?Sized>(
 /// does to the positions a fallen log marks).
 fn post_process<W: FeatureWorld + ?Sized>(world: &mut W, pos: BlockPos) {
     let original = world.get_state(pos);
-    let mut state = original;
-    for dir in UPDATE_SHAPE_ORDER {
-        if state.is_air() {
-            break;
-        }
-        let n = world.get_state(pos.rel(dir));
-        state = update_shape(world, state, pos, dir, n);
-    }
+    let state = update_from_neighbour_shapes(world, pos, original);
     if state != original {
         world.set_state(pos, state);
     }

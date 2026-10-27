@@ -37,14 +37,80 @@ Rust (decision D6). Runtime generators live in `crates/unastar/src/world/generat
 | `overworld_compiled` (glob) | AOT overworld router: `compute_*`, `FlatCacheGrid`, `ColumnContext`, `ColumnContextGrid` (the 25 cell-corner columns of a chunk) |
 | `biome_features` (glob) | `BiomeFeatures`, `GenerationStep` |
 | `overworld_surface` | compiled overworld surface rule |
-| `java_blocks` | `JAVA_TO_BEDROCK`, `JAVA_STATE_CLASSES`, `BEDROCK_STATE_CLASSES` |
-| `features::java_blocks` (`java_registry.rs`) | Java block registry for decoration: per-block properties, `blocks::*`/`states::*`/`tags::*` consts, tags and inline block lists as bitsets, per-state solid / sturdy-face / full-cube flags derived from `collisions.json` |
+| `java_blocks` | Canonical-to-Bedrock boundary mapping, native/Bedrock class tables, secondary-water projection flags, and actual native support/wall/center/behavior arrays validated from `block_physics.json` |
+| `features::java_blocks` (`java_registry.rs`) | Java block/property registry, `blocks::*`/`states::*`/`tags::*` constants and interned sets; solid/sturdy/collision flags reuse the canonical native physics observations |
 | `features::generated` (`features.rs`, `features_code.rs`) | Biome table and climate, every configured feature as a `cf_*` fn with a static config, every placed feature as a `pf_*` fn with its placement modifiers inlined, per-dimension step order (`OVERWORLD_FEATURES`, ...) and biome filters |
 | `structures::generated` (`structures.rs`) | Processor lists, template pools, structures and structure sets as static data |
 | `structures::template_data` (`templates.rs` + `templates.bin`) | Structure templates from the local server jar (feature `java-templates`) |
 | `java_biomes` | `JavaBiome` with climate and Bedrock biome id |
 | `overworld_biome_source` | multi-noise R-tree search (`target`, `find`, `quantize`) |
 | `carvers` | `OVERWORLD_CARVERS` with replaceable-block bitsets |
+
+## Native badlands clay bands
+
+`surface::clay_bands` preserves the native orange-loop cursor check before
+consuming another random gap. An orange placement at the final array index
+advances the cursor to 192 and must end that loop without drawing again; an
+extra draw changes all subsequent colour bands.
+
+`tools/nativebadlandsprobe/NativeBadlandsOracle.java` captures the actual pinned
+1.21.11 tagged-runtime `RandomState.surfaceSystem` band array and offset noise.
+It also delegates native `generateBands` calls through the original native
+random source, records the draw sequence, and checks that the replayed array
+equals the constructor's array. Compile with the pinned runtime classpath;
+run `nativebadlandsprobe.NativeBadlandsOracle <runtime-root>
+<compiled-oracle-directory> <output.json> <seed> <x:y:z>...` with JDK21,
+`-XX:ActiveProcessorCount=1 -Xmx1G`. It uses the existing compiled
+`NativeWorldgenOracle` reflection support without changing that helper or
+starting a world/server.
+
+The regression retains the complete observed 192-band array for the signed
+holdout seed `-734287144591`; a generator regression separately checks actual
+SURFACE block consumers against immutable native chunk `(100,-100)` witnesses.
+These checks are not a claim of full-world parity.
+
+## Native End density primitive
+
+`end_islands::EndIslands::new(seed)` constructs the native legacy stream and
+simplex permutation once. `sample(block_x, block_z)` returns the Y-independent
+horizontal density; `sample_array` preserves scalar bits per lane without heap
+allocation. Callers should initialize this only when an End router reaches it,
+not eagerly for every Overworld noise registry.
+
+The two native-bit regressions passed 528 measured Java 1.21.11 samples across
+eight seeds, including disjoint holdouts, signed division boundaries, distant
+float precision, wrapping radial squares and both i32 endpoints. This verifies
+the primitive, not End router wiring or finished End chunks.
+### Density branch specialization
+
+Density `range_choice` branches retain their own temporary scopes: unselected
+noise subtrees are not hoisted into eager root statements. Four-Y SIMD evaluates
+one branch for uniform lane masks, and both branches with per-lane selection for
+mixed masks. Enclosing common expressions remain reusable, without leaking
+branch-local names. Arithmetic precision and expression order are unchanged.
+`tests/density_laziness.rs` covers range boundaries and uniform/mixed SIMD masks;
+the integration chunk-byte/actor goldens remain the complete-output gate.
+See the performance report for measured results versus unmeasured candidates.
+
+### SIMD column memoization
+
+`compute_final_density_4` takes a `FinalDensityCache4` reference after its column
+context. Create one default cache per XZ column and reuse it across Y batches
+with the same immutable noise source. The generator assigns fixed stack slots
+to zero-Y-scale `Noise` leaves; there is no runtime hashing or allocation.
+Each slot retains the exact vector result and distinguishes signed-zero lane
+patterns and XZ coordinates. Scalar column values are not substituted for SIMD
+results, so existing FMA precision and expression order remain unchanged.
+
+`NoiseSource::sample_end_islands` supplies block-coordinate samples to every
+scalar, four-Y SIMD, flat-cache, column-cache and standalone-cache emitter.
+`NoiseRegistry` initializes the sampler lazily from the unmodified world seed;
+ordinary Overworld/Bedrock registries do not construct the legacy End stream.
+Four-Y lanes share X/Z, so a single scalar sample is splatted without changing
+lane bits. A compiled generated regression checks all five expression environments
+against native seed-sensitive and wrapped-NaN fixtures; the production registry
+has a separate native-seed regression. These are End correctness changes, not
+output-preserving optimization speedups or proof of finished End chunk parity.
 
 ## Block identity
 
@@ -57,8 +123,9 @@ heightmaps and the world-spawn search; they come from the Java collision shapes.
 ## Java decoration and structures
 
 Features and structures run in **Java block-state space** (`features::JavaState`, the Java
-1.21.11 state id) against the `features::FeatureWorld` trait; the runtime converts to
-Bedrock ids at the region boundary (`unastar::world::generator::features`).
+1.21.11 state id) against the `features::FeatureWorld` trait. Canonical Java states and
+native actors survive all generation stages; Bedrock conversion is an explicit final
+output boundary, never a region read/write conversion.
 
 - `codegen/parser/feature.rs`, `codegen/parser/structure.rs`: typed IR of every vanilla
   configured/placed feature, structure, structure set, template pool and processor list,
@@ -70,12 +137,63 @@ Bedrock ids at the region boundary (`unastar::world::generator::features`).
 - `src/features/`: `WorldgenRandom` (Java bit-source semantics, decoration and feature
   seeds), value providers, predicates, survival rules, climate, the decoration driver
   (`decorate::decorate_chunk`) and one module per feature type in `kinds/`.
+  Compiled feature order and possible-biome masks are selected independently for
+  Overworld, Nether and End. Decoration's `WorldgenRandom` remains Xoroshiro in all
+  three; the distinct region-native random uses the preset's Xoroshiro/legacy
+  positional factory, including native boolean/float/bounded-integer semantics.
+  Region storage bounds are distinct from generator depth (Nether/End: 0..256
+  storage, 128 noise depth).
+  Placement height anchors use `WorldGenerationContext`: `below_top` is relative
+  to `min(build height, generator depth)`, not the storage ceiling. Nether quartz
+  therefore samples 10..117 even though the dimension stores blocks through Y255.
+  Native sorter fixtures in `tests/data/native_feature_order_1_21_11.json` retain
+  actual registered step indices for all three dimensions.
+  `native_placed_quartz_1_21_11.json` records complete native quartz coordinates
+  and RNG continuation for three signed seeds at two origins in isolated
+  homogeneous worlds. `tools/NativeFeaturePrimitives.java` regenerates those
+  observations through the actual tagged placed feature; the regression calls
+  the generated Rust placement consumer, independently of chunk replay order.
 - `src/structures/`: set placement (random spread, concentric rings, frequency reduction,
   exclusion zones), `StructureManager` (starts per chunk, references within 8 chunks,
   per-step placement hook), the `StructurePiece` base, template placement with processors,
   and every structure type in `kinds/` (jigsaw, stronghold, mineshaft, monument, temples,
   igloo, buried treasure, mansion, ocean ruins, shipwrecks, ruined portals, nether
   fossils, fortress, end city).
+  The generator's statically dispatched `NativeStructureSource` supplies unzoomed
+  biomes and actual no-structure base columns. Base heights use the native column
+  states and each heightmap's own predicate, without density-root point sampling,
+  eight-block skipping, or default-fluid substitutes. Native column primitives
+  use the one-horizontal-cell `iterateNoiseColumn` traversal, not bulk NOISE
+  chunk extraction; the dedicated oracle `columns` mode records those public
+  base-column/base-height calls independently of feature captures.
+  The `structure-order` oracle mode separately records actual runtime structure
+  registry order and native dimension-specific `possibleStructureSets`; seeding
+  still indexes the full registry's per-step order, not a dimension-filtered list.
+- `structures::beardifier::Beardifier::for_chunk(starts, chunk_x, chunk_z)` captures
+  native-ordered affecting starts once. `sample(x, y, z)` then uses compact boxes
+  and junctions without allocation, RNG changes, or piece virtual dispatch.
+  Ordinary pieces, rigid/terrain-matching pool projections, each piece's actual
+  ground-level delta, strict junction bounds, inclusive piece-radius culling, and
+  the Java 1.21.11 collected-geometry union inflated by 24 are retained. All five
+  terrain adjustments are implemented; structure selection must continue to use
+  **unadapted** native base columns to avoid a selection/density cycle.
+  `tools/NativeBeardifierOracle.java` is an independent pinned native-API capture
+  utility (package `nativebeardifier`, JDK21, one processor, `-Xmx1G`, no server
+  or sockets). Its arguments are the external runtime root and output JSON path.
+  The checked-in fixture records 15 deliberately constructed native collection
+  cases, 7,800 consumer samples and 1,225 primitive samples, covering signed
+  chunks, negative Y, nonzero ground deltas, projections, junction edges and
+  affected-box clipping. Regressions consume real runtime piece metadata and
+  that native capture; this does not establish generated-structure/full-world
+  parity or claim that Rust checks have been run.
+- Ruined-portal netherrack spread uses the native 14-entry distance table, with
+  seven guaranteed-probability entries before its thinning edge. The table length
+  bounds the diamond and therefore also controls subsequent random draws for
+  magma, drip columns and overgrowth. `native_portal_spread_1_21_11.json` retains
+  five native spread consumers covering warm/cold land, submerged ocean-floor
+  placement with overgrowth, underground placement and Nether lava replacement.
+  The regression checks ordered writes, final canonical states, live heightmap
+  queries and the next random long; this is not a claim of full-world parity.
 - Structure templates are Mojang assets and are never committed: with the
   `java-templates` feature the build reads `data/minecraft/structure/*.nbt` from the jar
   named by `UNASTAR_JAVA_SERVER_JAR` (`unastar` forwards it as `java-worldgen`). Without it

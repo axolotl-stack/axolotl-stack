@@ -218,7 +218,11 @@ impl<'a> Emitter<'a> {
         match *a {
             VerticalAnchor::Absolute(y) => quote! { #y },
             VerticalAnchor::AboveBottom(n) => quote! { (world.min_y() + #n) },
-            VerticalAnchor::BelowTop(n) => quote! { (world.min_y() + world.height() - 1 - #n) },
+            // PlacementContext inherits WorldGenerationContext, whose height is
+            // min(level height, generator depth), not the dimension build height.
+            VerticalAnchor::BelowTop(n) => {
+                quote! { (world.min_y() + world.height().min(world.gen_depth()) - 1 - #n) }
+            }
         }
     }
 

@@ -1,11 +1,9 @@
 //! `StructureTemplate.placeInWorld`: transforms, processors, palette choice,
 //! waterlogging and block-entity hand-off for one template placement.
 //!
-//! Neighbour shape updates at the template edge (`updateShapeAtEdge` and
-//! `Block.updateFromNeighbourShapes` when the shape is not "known") are not
-//! reproduced: connection states (fences, panes, walls) stay as stored in the
-//! template. Jigsaw pieces place with a known shape, so this only affects
-//! legacy template structures and fossils at their borders.
+//! Unknown-shape templates finalize the successful-write occupancy boundary,
+//! then each placed block's native neighbour shapes. Pool elements explicitly
+//! declare known shapes and skip both passes. Trees reuse the same shape engine.
 
 use super::processor::Processor;
 use super::template_data::{BlockEntityInfo, Template};
@@ -14,6 +12,7 @@ use super::util::pos_seed;
 use crate::features::java_blocks::states;
 use crate::features::random::{FeatureRandom, LegacyRandom};
 use crate::features::{BlockPos, Direction, FeatureWorld, JavaState};
+use crate::features::shape::{VoxelShape, update_from_neighbour_shapes, update_shape_at_edge};
 
 /// Where a placed block's block entity data comes from.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -76,6 +75,8 @@ pub struct PlaceSettings {
     pub rotation: Rotation,
     pub pivot: BlockPos,
     pub bounding_box: Option<BoundingBox>,
+    /// Native `setKnownShape`: skip edge and per-block neighbour finalization.
+    pub known_shape: bool,
     /// `setRandom(random)` was called with the placement random: processors
     /// and palette choice draw from it. Otherwise they use a legacy random
     /// seeded from each position (`RandomSource.create(Mth.getSeed(pos))`).
@@ -93,6 +94,7 @@ impl PlaceSettings {
             rotation: Rotation::None,
             pivot: BlockPos::new(0, 0, 0),
             bounding_box: None,
+            known_shape: false,
             shared_random: false,
             processors: Vec::new(),
             apply_waterlogging: true,
@@ -250,14 +252,16 @@ pub fn place_in_world<W: FeatureWorld + ?Sized>(
     if t.size.iter().any(|s| *s < 1) {
         return true;
     }
-    let infos = process_blocks(world, offset, pivot, settings, palette, rng);
+    let mut infos = process_blocks(world, offset, pivot, settings, palette, rng);
     let mut need_liquid: Vec<BlockPos> = Vec::new();
     let mut sources: Vec<BlockPos> = Vec::new();
-    for info in infos {
+    // Reuse the processed list for successful positions rather than allocating
+    // a second native placement-order list just for the final shape pass.
+    infos.retain(|info| {
         if let Some(bb) = settings.bounding_box
             && !bb.is_inside(info.pos)
         {
-            continue;
+            return false;
         }
         let fluid_before = settings
             .apply_waterlogging
@@ -268,7 +272,7 @@ pub fn place_in_world<W: FeatureWorld + ?Sized>(
             world.set_state(info.pos, states::BARRIER);
         }
         if !world.set_state(info.pos, state) {
-            continue;
+            return false;
         }
         if let Some(nbt) = info.nbt {
             let loot_seed = is_randomizable_container(state).then(|| rng.next_long());
@@ -305,7 +309,8 @@ pub fn place_in_world<W: FeatureWorld + ?Sized>(
                 }
             }
         }
-    }
+        true
+    });
     // Spread source water into waterloggable blocks next to sources placed
     // outside this template (Java's liquid propagation loop).
     let dirs = [
@@ -342,5 +347,59 @@ pub fn place_in_world<W: FeatureWorld + ?Sized>(
             true
         });
     }
+    if !settings.known_shape && let Some(first) = infos.first() {
+        let mut min = first.pos;
+        let mut max = first.pos;
+        for info in &infos[1..] {
+            min = BlockPos::new(min.x.min(info.pos.x), min.y.min(info.pos.y), min.z.min(info.pos.z));
+            max = BlockPos::new(max.x.max(info.pos.x), max.y.max(info.pos.y), max.z.max(info.pos.z));
+        }
+        let mut shape = VoxelShape::new(min, [max.x - min.x + 1, max.y - min.y + 1, max.z - min.z + 1]);
+        for info in &infos {
+            shape.fill(info.pos);
+        }
+        update_shape_at_edge(world, &shape);
+        for info in &infos {
+            let state = world.get_state(info.pos);
+            let changed = update_from_neighbour_shapes(world, info.pos, state);
+            if changed != state {
+                world.set_state(info.pos, changed);
+            }
+        }
+    }
     true
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::features::test_world::TestWorld;
+    use crate::structures::template_data::TemplateBlock;
+    use std::sync::LazyLock;
+
+    static STAIR: LazyLock<Template> = LazyLock::new(|| Template {
+        name: "test:known_shape_stair",
+        size: [1, 1, 1],
+        palettes: vec![vec![TemplateBlock {
+            x: 0, y: 0, z: 0,
+            state: states::PURPUR_STAIRS.with("shape", "outer_right"),
+            block_entity: None,
+        }]],
+        block_entities: Vec::new(),
+        entities: Vec::new(),
+    });
+
+    #[test]
+    fn native_template_known_shape_skips_both_neighbour_passes() {
+        let pos = BlockPos::new(0, 64, 0);
+        for known in [false, true] {
+            let mut world = TestWorld::default();
+            let mut settings = PlaceSettings::new(&STAIR);
+            settings.known_shape = known;
+            let mut random = FeatureRandom::new(0);
+            assert!(place_in_world(&mut world, pos, pos, &mut settings, &mut random, &mut |_| {}));
+            assert_eq!(world.get_state(pos).value("shape"),
+                Some(if known { "outer_right" } else { "straight" }));
+        }
+    }
 }

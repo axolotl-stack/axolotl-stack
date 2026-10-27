@@ -21,8 +21,11 @@ pub struct TestWorld {
     /// `(min_x, min_z, max_x, max_z)`; writes outside are rejected.
     pub writable: Option<(i32, i32, i32, i32)>,
     pub ticks: Vec<BlockPos>,
-    pub region_random: crate::xoroshiro::Xoroshiro128,
+    pub region_random: super::random::RegionRandom,
     pub gen_depth: i32,
+    pub min_y: i32,
+    pub height: i32,
+    pub has_skylight: bool,
     pub block_entities: Vec<(BlockPos, super::eval::BlockEntityData)>,
 }
 
@@ -36,8 +39,13 @@ impl Default for TestWorld {
             biome: 0,
             writable: None,
             ticks: Vec::new(),
-            region_random: crate::xoroshiro::Xoroshiro128::from_seed(0),
+            region_random: super::random::RegionRandom::Xoroshiro(
+                crate::xoroshiro::Xoroshiro128::from_seed(0),
+            ),
             gen_depth: 384,
+            min_y: -64,
+            height: 384,
+            has_skylight: true,
             block_entities: Vec::new(),
         }
     }
@@ -60,13 +68,16 @@ impl TestWorld {
 
 impl FeatureWorld for TestWorld {
     fn min_y(&self) -> i32 {
-        -64
+        self.min_y
     }
     fn height(&self) -> i32 {
-        384
+        self.height
     }
     fn sea_level(&self) -> i32 {
         63
+    }
+    fn has_skylight(&self) -> bool {
+        self.has_skylight
     }
     fn seed(&self) -> i64 {
         self.seed
@@ -75,7 +86,7 @@ impl FeatureWorld for TestWorld {
         if let Some(s) = self.blocks.get(&pos) {
             return *s;
         }
-        if pos.y < self.fill_y && pos.y >= -64 {
+        if pos.y < self.fill_y && pos.y >= self.min_y() {
             self.fill
         } else {
             states::AIR
@@ -109,7 +120,7 @@ impl FeatureWorld for TestWorld {
     fn schedule_tick(&mut self, pos: BlockPos) {
         self.ticks.push(pos);
     }
-    fn region_random(&mut self) -> &mut crate::xoroshiro::Xoroshiro128 {
+    fn region_random(&mut self) -> &mut super::random::RegionRandom {
         &mut self.region_random
     }
     fn gen_depth(&self) -> i32 {

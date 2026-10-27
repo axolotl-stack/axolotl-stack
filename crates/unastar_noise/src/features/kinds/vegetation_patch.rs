@@ -146,9 +146,10 @@ fn place_ground_patch<W: FeatureWorld + ?Sized>(
             let below = pos.rel(inward);
             let below_state = world.get_state(below);
             if world.is_air(pos) && below_state.is_face_sturdy(outward) {
+                let depth = cfg.depth.sample(rng);
                 let extra = cfg.extra_bottom_block_chance > 0.0
                     && rng.next_float() < cfg.extra_bottom_block_chance;
-                let depth = cfg.depth.sample(rng) + extra as i32;
+                let depth = depth + extra as i32;
                 if place_ground(world, cfg, rng, below, depth) {
                     result.insert(below);
                 }

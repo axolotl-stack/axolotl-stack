@@ -20,6 +20,12 @@ fn hash_tokens(name: &str) -> TokenStream {
     quote! { (#lo, #hi) }
 }
 
+fn legacy_hash(name: &str) -> i32 {
+    name.encode_utf16().fold(0_i32, |hash, unit| {
+        hash.wrapping_mul(31).wrapping_add(i32::from(unit))
+    })
+}
+
 pub fn emit_noise_params(noises: &HashMap<String, NoiseParams>) -> Result<TokenStream, String> {
     let mut names: Vec<&String> = noises.keys().collect();
     names.sort();
@@ -28,6 +34,7 @@ pub fn emit_noise_params(noises: &HashMap<String, NoiseParams>) -> Result<TokenS
         .iter()
         .map(|name| Ident::new(&noise_name_to_variant(name), Span::call_site()))
         .collect();
+    let legacy_hashes = names.iter().map(|name| legacy_hash(name));
     let mut rows = Vec::new();
     for (name, variant) in names.iter().zip(&variants) {
         let params = &noises[*name];
@@ -82,6 +89,14 @@ pub fn emit_noise_params(noises: &HashMap<String, NoiseParams>) -> Result<TokenS
             pub fn params(self) -> &'static NoiseParamsData {
                 &NOISE_PARAMS[self as usize].1
             }
+
+            /// Java string hash used by a legacy positional random factory.
+            /// Generated here; runtime noise construction performs no string hashing.
+            pub const fn legacy_name_hash(self) -> i32 {
+                match self {
+                    #(Self::#variants => #legacy_hashes),*
+                }
+            }
         }
 
         /// Every noise, in discriminant order.
@@ -120,6 +135,7 @@ pub fn emit_random_hashes() -> TokenStream {
         }
     });
     let octaves = (OCTAVE_MIN..=OCTAVE_MAX).map(|n| hash_tokens(&format!("octave_{n}")));
+    let legacy_octaves = (OCTAVE_MIN..=OCTAVE_MAX).map(|n| legacy_hash(&format!("octave_{n}")));
     let octave_count = (OCTAVE_MAX - OCTAVE_MIN + 1) as usize;
     quote! {
         //! `fromHashOf` seeds of named random streams (big-endian halves of `md5(name)`).
@@ -132,6 +148,14 @@ pub fn emit_random_hashes() -> TokenStream {
 
         /// `octave_<n>` seeds for `n` from `OCTAVE_MIN` upwards.
         pub static OCTAVES: [(u64, u64); #octave_count] = [#(#octaves),*];
+
+        /// Java string hashes of the same octave names for legacy positional streams.
+        pub static LEGACY_OCTAVES: [i32; #octave_count] = [#(#legacy_octaves),*];
+
+        #[inline]
+        pub fn legacy_octave(n: i32) -> i32 {
+            LEGACY_OCTAVES[(n - OCTAVE_MIN) as usize]
+        }
 
         /// Seed of the `octave_<n>` stream. Panics outside the generated range: the build
         /// checks every noise's octaves against it.

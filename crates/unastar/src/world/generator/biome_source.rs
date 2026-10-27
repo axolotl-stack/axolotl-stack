@@ -1,4 +1,4 @@
-//! Java-style overworld biome source.
+//! Native biome selection and fuzzy block-coordinate sampling.
 //!
 //! Biomes are chosen per quart (4x4x4 cell) at the quart's corner block: the noise
 //! router's climate functions (temperature, vegetation, continents, erosion, depth,
@@ -6,6 +6,17 @@
 //! (`unastar_noise::overworld_biome_source`). Block-level lookups go through Java's
 //! "fuzzy" zoom ([`zoomed_biome`]), which picks one of the 8 surrounding quarts with a
 //! seed-derived jitter.
+//!
+//! Native R-tree ties retain the previous candidate on the calling thread.
+//! Chunk filling follows native section order; isolated point queries can select
+//! a different equal-fitness biome from the same point in a section traversal.
+
+mod end;
+mod native;
+pub use native::{
+    fill_end_native, fill_nether_native, fill_overworld_native, sample_biome_native,
+};
+pub use end::sample_end_biome;
 
 use sha2::{Digest, Sha256};
 use unastar_noise::java_biomes::JavaBiome;
@@ -18,22 +29,31 @@ use unastar_noise::{
 };
 
 use super::density::NoiseRegistry;
-use super::proto::{NativeBiome, QUARTS_Y, QuartBiomes};
+use super::JavaDimension;
+use super::proto::QuartBiomes;
 use crate::world::ChunkPos;
-use crate::world::chunk::MIN_Y;
 
 /// Biome at an absolute quart position, without chunk caches.
 pub fn sample_biome(noises: &NoiseRegistry, quart_x: i32, quart_y: i32, quart_z: i32) -> JavaBiome {
+    overworld_biome_source::find(&sample_target(noises, quart_x, quart_y, quart_z))
+}
+
+/// Source climate coordinates, before a caller chooses its search-history policy.
+pub(crate) fn sample_target(
+    noises: &NoiseRegistry,
+    quart_x: i32,
+    quart_y: i32,
+    quart_z: i32,
+) -> [i64; overworld_biome_source::DIMS] {
     let ctx = FunctionContext::new(quart_x << 2, quart_y << 2, quart_z << 2);
-    let target = overworld_biome_source::target(
+    overworld_biome_source::target(
         compute_temperature_uncached(&ctx, noises),
         compute_vegetation_uncached(&ctx, noises),
         compute_continents_uncached(&ctx, noises),
         compute_erosion_uncached(&ctx, noises),
         compute_depth_uncached(&ctx, noises),
         compute_ridges_uncached(&ctx, noises),
-    );
-    overworld_biome_source::find(&target)
+    )
 }
 
 /// The 3D quart biomes of a chunk, using the chunk's flat and column caches.
@@ -43,34 +63,34 @@ pub fn fill_chunk(
     grid: &FlatCacheGrid,
     col_grid: &ColumnContextGrid,
 ) -> QuartBiomes {
-    let mut biomes = QuartBiomes::filled(0);
-    for qz in 0..4 {
-        for qx in 0..4 {
-            let x = pos.x * 16 + (qx as i32) * 4;
-            let z = pos.z * 16 + (qz as i32) * 4;
-            let col = col_grid.get(qx * 4, qz * 4).as_scalar();
-            let mut previous: Option<([i64; overworld_biome_source::DIMS], JavaBiome)> = None;
-            for qy in 0..QUARTS_Y {
-                let ctx = FunctionContext::new(x, MIN_Y + (qy as i32) * 4, z);
-                let target = overworld_biome_source::target(
-                    compute_temperature(&ctx, noises, grid, &col),
-                    compute_vegetation(&ctx, noises, grid, &col),
-                    compute_continents(&ctx, noises, grid, &col),
-                    compute_erosion(&ctx, noises, grid, &col),
-                    compute_depth(&ctx, noises, grid, &col),
-                    compute_ridges(&ctx, noises, grid, &col),
-                );
-                // The search is a pure function of the target; columns repeat targets.
-                let biome = match previous {
-                    Some((last, biome)) if last == target => biome,
-                    _ => overworld_biome_source::find(&target),
-                };
-                previous = Some((target, biome));
-                biomes.set(qx, qy, qz, biome as NativeBiome);
-            }
-        }
-    }
-    biomes
+    fill_chunk_with(noises, pos, grid, col_grid, overworld_biome_source::find)
+}
+
+/// Fill the shared climate lattice with an edition-owned lookup policy.
+pub(crate) fn fill_chunk_with(
+    noises: &NoiseRegistry,
+    pos: ChunkPos,
+    grid: &FlatCacheGrid,
+    col_grid: &ColumnContextGrid,
+    lookup: impl FnMut(&[i64; overworld_biome_source::DIMS]) -> JavaBiome,
+) -> QuartBiomes {
+    let columns: [_; 16] = std::array::from_fn(|i| {
+        col_grid.get((i % 4) * 4, (i / 4) * 4).as_scalar()
+    });
+    native::fill_lattice(JavaDimension::Overworld.block_bounds(), |qx, y, qz| {
+        let ctx = FunctionContext::new(
+            pos.x * 16 + qx as i32 * 4, y, pos.z * 16 + qz as i32 * 4,
+        );
+        let col = &columns[qz * 4 + qx];
+        overworld_biome_source::target(
+            compute_temperature(&ctx, noises, grid, col),
+            compute_vegetation(&ctx, noises, grid, col),
+            compute_continents(&ctx, noises, grid, col),
+            compute_erosion(&ctx, noises, grid, col),
+            compute_depth(&ctx, noises, grid, col),
+            compute_ridges(&ctx, noises, grid, col),
+        )
+    }, lookup)
 }
 
 /// Block column (x, z) where Java's world-spawn search starts: the position closest to
@@ -78,17 +98,28 @@ pub fn fill_chunk(
 /// `spawn_target`. Fitness is `distance² * 2048² + x² + z²`, minimised over the origin,
 /// a coarse ring search (radius 512..=2048, step 512) and a fine one around the best
 /// so far (radius 32..=512, step 32).
-pub fn spawn_search_start(noises: &NoiseRegistry) -> (i32, i32) {
+pub fn spawn_search_start<N: unastar_noise::NoiseSource>(noises: &N) -> (i32, i32) {
     let fitness = |x: i32, z: i32| -> i64 {
         let ctx = FunctionContext::new((x >> 2) << 2, 0, (z >> 2) << 2);
-        let target = overworld_biome_source::target(
-            compute_temperature_uncached(&ctx, noises),
-            compute_vegetation_uncached(&ctx, noises),
-            compute_continents_uncached(&ctx, noises),
-            compute_erosion_uncached(&ctx, noises),
-            0.0,
-            compute_ridges_uncached(&ctx, noises),
-        );
+        let target = if N::NATIVE_JAVA {
+            overworld_biome_source::target(
+                unastar_noise::compute_temperature_native_uncached(&ctx, noises),
+                unastar_noise::compute_vegetation_native_uncached(&ctx, noises),
+                unastar_noise::compute_continents_native_uncached(&ctx, noises),
+                unastar_noise::compute_erosion_native_uncached(&ctx, noises),
+                0.0,
+                unastar_noise::compute_ridges_native_uncached(&ctx, noises),
+            )
+        } else {
+            overworld_biome_source::target(
+                compute_temperature_uncached(&ctx, noises),
+                compute_vegetation_uncached(&ctx, noises),
+                compute_continents_uncached(&ctx, noises),
+                compute_erosion_uncached(&ctx, noises),
+                0.0,
+                compute_ridges_uncached(&ctx, noises),
+            )
+        };
         let distance = overworld_settings::SPAWN_TARGET
             .iter()
             .map(|point| {
@@ -214,45 +245,3 @@ pub fn zoomed_biome<B: Copy>(
     )
 }
 
-#[cfg(test)]
-mod tests {
-    use super::*;
-    use unastar_noise::{ColumnContext, compute_preliminary_surface_level};
-    use unastar_noise::{FunctionContext as Ctx, compute_preliminary_surface_level_uncached};
-
-    /// The cache-free roots (used outside a chunk's caches) must agree with the
-    /// chunk-cached ones; they once dropped the climate shift noise and returned the
-    /// preliminary surface's lower bound everywhere.
-    #[test]
-    fn uncached_roots_match_chunk_caches() {
-        std::thread::Builder::new()
-            .stack_size(64 << 20)
-            .spawn(|| {
-                let noises = NoiseRegistry::new(12345);
-                for pos in [ChunkPos::new(0, 0), ChunkPos::new(-128, 33)] {
-                    let grid = FlatCacheGrid::new(pos.x, pos.z, &noises);
-                    let cols = ColumnContextGrid::new(pos.x, pos.z, &noises, &grid);
-                    let biomes = fill_chunk(&noises, pos, &grid, &cols);
-                    for (qx, qy, qz) in [(0, 30, 0), (3, 20, 1), (2, 5, 3)] {
-                        let sampled = sample_biome(
-                            &noises,
-                            pos.x * 4 + qx as i32,
-                            (MIN_Y >> 2) + qy as i32,
-                            pos.z * 4 + qz as i32,
-                        );
-                        assert_eq!(sampled as NativeBiome, biomes.get(qx, qy, qz));
-                    }
-                    let (x, z) = (pos.x * 16 + 16, pos.z * 16);
-                    let ctx = Ctx::new(x, 0, z);
-                    let col = ColumnContext::new(x, z, &noises, &grid);
-                    assert_eq!(
-                        compute_preliminary_surface_level_uncached(&ctx, &noises),
-                        compute_preliminary_surface_level(&ctx, &noises, &grid, &col)
-                    );
-                }
-            })
-            .unwrap()
-            .join()
-            .unwrap();
-    }
-}

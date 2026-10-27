@@ -18,6 +18,17 @@ pub trait StructureContext: Sync {
     /// (384 in the overworld, 128 in the nether). Height providers resolve
     /// anchors against this and [`Self::min_y`].
     fn height(&self) -> i32;
+    /// Lowest buildable Y of the level, before the generator's height clamp.
+    /// Jigsaw dimension padding and assembly space use level bounds rather
+    /// than the height-provider `WorldGenerationContext` bounds.
+    fn level_min_y(&self) -> i32 {
+        self.min_y()
+    }
+    /// Full buildable level height (256 in the Nether, whose generator
+    /// depth and height-provider context are only 128 blocks).
+    fn level_height(&self) -> i32 {
+        self.height()
+    }
     fn sea_level(&self) -> i32;
     /// `BiomeSource.getNoiseBiome(qx, qy, qz, sampler)`: biome index (into
     /// `features::generated::BIOME_NAMES`) at a quart position, no zoom.

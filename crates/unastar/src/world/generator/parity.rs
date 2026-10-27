@@ -232,7 +232,8 @@ pub fn measure(fixture: &Fixture, pipeline: &ChunkPipeline) -> ParityReport {
     let mut histogram: BTreeMap<String, (u64, u64)> = BTreeMap::new();
 
     for reference in &fixture.chunks {
-        let chunk = pipeline.generate(reference.pos);
+        let chunk = pipeline.generate(reference.pos)
+            .expect("parity fixture contains an unrepresentable native actor");
         for (name, count) in &reference.histogram {
             histogram.entry(name.clone()).or_default().0 += count;
         }
@@ -449,7 +450,8 @@ pub fn measure_proto(fixture: &ProtoFixture, pipeline: &ChunkPipeline) -> ProtoR
                 for x in 0..16u8 {
                     let index = (((y - MIN_Y) as usize * 16) + z as usize) * 16 + x as usize;
                     let expected = reference.blocks[index].as_str();
-                    let generated = name_of(registry, proto.chunk.get_block(x, y as i16, z));
+                    let native = proto.chunk.get_block(x, y as i16, z);
+                    let generated = name_of(registry, proto.chunk.state_space().to_bedrock(native));
                     voxels += 1;
                     if expected == generated {
                         exact += 1;
