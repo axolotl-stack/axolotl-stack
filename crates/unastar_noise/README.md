@@ -67,6 +67,16 @@ Each slot retains the exact vector result and distinguishes signed-zero lane
 patterns and XZ coordinates. Scalar column values are not substituted for SIMD
 results, so existing FMA precision and expression order remain unchanged.
 
+### Density input correctness
+
+Routers without `cache_2d` nodes use the same generated context/grid implementation
+with zero fields, including local scalar and SIMD types; no Overworld aliases are
+needed. The compiled End regression exercises a complete empty-cache scalar/SIMD
+root against native bits. Unknown builtin references fail generation with their
+name. `OldBlendedNoise` cannot be lowered into a 2D cache that loses its vertical
+coordinate: these paths fail generation rather than fabricating zero or silently
+sampling at Y=0; ordinary scalar/SIMD evaluation remains available.
+
 ### Runtime scratch storage
 
 Java tree position sets keep their initial 16 bucket heads and tree-bin flags

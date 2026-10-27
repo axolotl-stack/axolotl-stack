@@ -24,6 +24,9 @@ serde = { workspace = true }
 serde_json = { workspace = true }
 walkdir = "2"
 unastar-packs = { path = "../unastar-packs" }
+syn = { version = "2", features = ["full", "extra-traits"] }
+quote = "1"
+proc-macro2 = "1"
 
 [build-dependencies]
 serde = { workspace = true }

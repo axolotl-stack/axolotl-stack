@@ -338,14 +338,24 @@ impl<'a> AotEmitter<'a> {
         let flat = self.emit_flat_cache_inner(&node);
         let column = self.emit_column_context_inner(&node);
         let standalone = self.emit_fc_inner_for_standalone(&node);
+        let argument = DensityFunctionArg::Inline(Box::new(DensityFunctionDef::EndIslands {}));
+        let graph = DependencyGraph::build(&[("end_fixture", &argument)], &HashMap::new());
+        let mut empty = AotEmitter::new(&graph);
+        let empty_flat = empty.emit_flat_cache_grid();
+        let empty_columns = empty.emit_column_context();
+        let empty_scalar = empty.emit_compute_function("end_fixture");
+        let empty_simd = empty.emit_compute_function_simd("end_fixture");
         quote! {
             #[cfg(test)]
             mod end_islands_codegen_tests {
                 use super::*;
                 use crate::end_islands::EndIslands;
 
+                // Each generated dimension owns its adapter; no conflicting global impls.
+                struct EndNoise(EndIslands);
+
                 #[allow(clippy::too_many_arguments)]
-                impl NoiseSource for EndIslands {
+                impl NoiseSource for EndNoise {
                     fn sample(&self, _: NoiseRef, _: f64, _: f64, _: f64) -> f64 {
                         panic!("End-node fixture sampled a regular noise")
                     }
@@ -353,7 +363,7 @@ impl<'a> AotEmitter<'a> {
                         panic!("End-node fixture sampled a regular SIMD noise")
                     }
                     fn sample_end_islands(&self, x: i32, z: i32) -> f64 {
-                        EndIslands::sample(self, x, z)
+                        self.0.sample(x, z)
                     }
                     fn sample_blended_noise(
                         &self, _: f64, _: f64, _: f64, _: f64, _: f64, _: f64, _: f64, _: f64,
@@ -367,6 +377,14 @@ impl<'a> AotEmitter<'a> {
                     }
                 }
 
+                mod empty_cache {
+                    use super::*;
+                    #empty_flat
+                    #empty_columns
+                    #empty_scalar
+                    #empty_simd
+                }
+
                 #[test]
                 fn native_end_node_matches_all_emission_modes() {
                     // Native Java 1.21.11 bits from end_islands::tests, not Rust output.
@@ -378,7 +396,7 @@ impl<'a> AotEmitter<'a> {
                         (0, -1032, 0, 0x3fc5_b52f_0000_0000),
                         (0, 370728, 0, 0xfff8_0000_0000_0000),
                     ] {
-                        let noises = EndIslands::new(seed);
+                        let noises = EndNoise(EndIslands::new(seed));
                         let direct = {
                             let ctx = FunctionContext::new(x, i32::MAX, z);
                             #scalar
@@ -399,6 +417,17 @@ impl<'a> AotEmitter<'a> {
                             let (block_x, block_z) = (x, z);
                             #standalone
                         };
+                        let empty_scalar_value = empty_cache::compute_end_fixture(
+                            &FunctionContext::new(x, i32::MIN, z), &noises,
+                        );
+                        let empty_flat = empty_cache::FlatCacheGrid::new(0, 0, &noises);
+                        let empty_grid = empty_cache::ColumnContextGrid::new(0, 0, &noises, &empty_flat);
+                        let empty_lanes = empty_cache::compute_end_fixture_4(
+                            &FunctionContext4::new(x, [i32::MIN, -1, 0, i32::MAX], z),
+                            &noises, &empty_flat, empty_grid.get_block(16, 16),
+                        ).to_array();
+                        assert_eq!(empty_scalar_value.to_bits(), expected);
+                        assert_eq!(empty_lanes.map(f64::to_bits), [expected; 4]);
                         assert_eq!(
                             [
                                 direct.to_bits(), lanes[0].to_bits(), lanes[1].to_bits(),
@@ -2449,7 +2478,10 @@ impl<'a> AotEmitter<'a> {
             }
 
             DensityFunctionDef::OldBlendedNoise { .. } => {
-                quote! { 0.0_f64 }
+                panic!(
+                    "Y-dependent OldBlendedNoise cannot be lowered into flat cache: {:?}",
+                    node.id
+                )
             }
 
             DensityFunctionDef::Invert { .. } => {
@@ -2837,55 +2869,12 @@ impl<'a> AotEmitter<'a> {
             .filter(|n| n.is_cache_2d)
             .collect();
 
-        if cache_2d_nodes.is_empty() {
-            return quote! {
-                /// Per-column cache for cache_2d nodes.
-                /// Empty because no cache_2d nodes exist in this worldgen configuration.
-                #[derive(Clone, Copy, Default)]
-                pub struct ColumnContext;
-
-                impl ColumnContext {
-                    #[inline(always)]
-                    pub fn new(
-                        _block_x: i32,
-                        _block_z: i32,
-                        _noises: &impl NoiseSource,
-                        _flat: &FlatCacheGrid,
-                    ) -> Self {
-                        Self
-                    }
-
-                    /// Create a ColumnContext for arbitrary world coordinates.
-                    ///
-                    /// Unlike `new()`, this method computes all values directly without
-                    /// using FlatCacheGrid lookups. Use this when computing values for
-                    /// positions outside the current chunk (e.g., in aquifer surface sampling).
-                    #[inline(always)]
-                    pub fn new_standalone(
-                        _block_x: i32,
-                        _block_z: i32,
-                        _noises: &impl NoiseSource,
-                    ) -> Self {
-                        Self
-                    }
-                }
-            };
-        }
-
         // Generate field names and definitions
         let field_defs: Vec<TokenStream> = cache_2d_nodes
             .iter()
             .map(|node| {
                 let field = self.column_context_field_ident(&node.id);
                 quote! { pub #field: f64 }
-            })
-            .collect();
-
-        let default_fields: Vec<TokenStream> = cache_2d_nodes
-            .iter()
-            .map(|node| {
-                let field = self.column_context_field_ident(&node.id);
-                quote! { #field: 0.0 }
             })
             .collect();
 
@@ -3026,42 +3015,21 @@ impl<'a> AotEmitter<'a> {
             .collect();
         let splat_impl = quote! { Self { #(#splat_fields,)* } };
 
-        // Generate default fields for ColumnContext4 (splat 0.0)
-        let default_fields_4: Vec<TokenStream> = cache_2d_nodes
-            .iter()
-            .map(|node| {
-                let field = self.column_context_field_ident(&node.id);
-                quote! { #field: f64x4::splat(0.0) }
-            })
-            .collect();
-
         // Generate as_scalar implementation (extract lane 0)
-        let as_scalar_impl = if field_names.is_empty() {
-            quote! { ColumnContext }
-        } else {
-            let extract_fields: Vec<_> = field_names
-                .iter()
-                .map(|f| quote! { #f: self.#f.to_array()[0] })
-                .collect();
-            quote! { ColumnContext { #(#extract_fields,)* } }
-        };
+        let extract_fields: Vec<_> = field_names
+            .iter()
+            .map(|f| quote! { #f: self.#f.to_array()[0] })
+            .collect();
+        let as_scalar_impl = quote! { ColumnContext { #(#extract_fields,)* } };
 
         quote! {
             /// Per-column cache for cache_2d nodes.
             ///
             /// cache_2d values are computed once per (X, Z) column and reused for all Y positions.
             /// This avoids recomputing Y-independent values for each of the 96 SIMD calls per column.
-            #[derive(Clone, Copy)]
+            #[derive(Clone, Copy, Default)]
             pub struct ColumnContext {
                 #(#field_defs,)*
-            }
-
-            impl Default for ColumnContext {
-                fn default() -> Self {
-                    Self {
-                        #(#default_fields,)*
-                    }
-                }
             }
 
             impl ColumnContext {
@@ -3201,17 +3169,9 @@ impl<'a> AotEmitter<'a> {
 
             /// A [`ColumnContext`] with every field splatted to `f64x4`, the form the
             /// SIMD density functions read.
-            #[derive(Clone, Copy)]
+            #[derive(Clone, Copy, Default)]
             pub struct ColumnContext4 {
                 #(#field_defs_4,)*
-            }
-
-            impl Default for ColumnContext4 {
-                fn default() -> Self {
-                    Self {
-                        #(#default_fields_4,)*
-                    }
-                }
             }
 
             impl ColumnContext4 {
@@ -3458,7 +3418,10 @@ impl<'a> AotEmitter<'a> {
             }
 
             DensityFunctionDef::OldBlendedNoise { .. } => {
-                quote! { 0.0_f64 }
+                panic!(
+                    "Y-dependent OldBlendedNoise cannot be lowered into column cache: {:?}",
+                    node.id
+                )
             }
 
             DensityFunctionDef::Invert { .. } => {
@@ -3634,6 +3597,12 @@ impl<'a> AotEmitter<'a> {
             }
             DensityFunctionDef::EndIslands {} => {
                 quote! { noises.sample_end_islands(block_x, block_z) }
+            }
+            DensityFunctionDef::OldBlendedNoise { .. } => {
+                panic!(
+                    "Y-dependent OldBlendedNoise cannot be lowered into standalone flat cache: {:?}",
+                    node.id
+                )
             }
             DensityFunctionDef::YClampedGradient {
                 from_y,
