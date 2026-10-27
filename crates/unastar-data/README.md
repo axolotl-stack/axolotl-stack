@@ -126,6 +126,13 @@ furnace, brewing and smithing documents. The game server freezes one
 parsing, allocations or tag walks. `with_items(recipes, items)` permits an
 addon-capable item snapshot before freeze. Lower numeric recipe priority wins;
 exact and wildcard furnace inputs share the same priority ordering.
+The registry also implements `unastar_rules::loot::FurnaceSmelt`: the evaluator
+borrows the canonical result identifier/aux and preserves its own source loot
+count rather than replacing it with the furnace recipe yield. The actual
+headless `GameServer` constructor/tick and 128 canonical cow/chicken raw/burning
+rolls exercised that provider against the frozen 1,881-recipe snapshot, including
+multi-item beef drops and unchanged secondary drops. This is not production
+mob-death or native-RNG parity evidence.
 
 Legacy furnace spellings (`minecraft:coal:1`, `minecraft:fish`, etc.) normalize
 through `data/measured/recipe_legacy_identities.json`, a small projection of the

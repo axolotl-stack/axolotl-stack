@@ -17,8 +17,7 @@
 //! `format_version` (the newest layer's) wins, and between copies of the same
 //! version the later file in path order wins (`barrel_deprecated.json` over
 //! `barrel.json`: BDS 1.26.51 sends the `deprecated` copies of the five
-//! barrel recipes). The BDS diff check (`tests/bds_pack_diff.rs`) resolves the
-//! same way and finds no differing recipe.
+//! barrel recipes).
 
 use std::collections::{BTreeMap, HashMap};
 
@@ -628,6 +627,16 @@ impl RecipeRegistry {
             RecipeKind::Furnace { output, .. } => Some(output),
             _ => unreachable!("furnace index only contains furnace recipes"),
         }
+    }
+}
+
+impl unastar_rules::loot::FurnaceSmelt for RecipeRegistry {
+    fn smelt(&self, identifier: &str, data: i16) -> Option<unastar_rules::loot::SmeltedItem<'_>> {
+        self.furnace_result(identifier, data)
+            .map(|result| unastar_rules::loot::SmeltedItem {
+                identifier: &result.name,
+                data: result.data,
+            })
     }
 }
 

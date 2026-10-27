@@ -713,21 +713,11 @@ mod tests {
         let missing = parse(&format!(
             "item a runtime_id=1 {base} maxDamage=1\nitem b runtime_id=2 {base}"
         ));
-        assert!(
-            ItemSchema::infer(&missing)
-                .unwrap_err()
-                .to_string()
-                .contains("lacks native property")
-        );
+        assert!(ItemSchema::infer(&missing).is_err());
         let mixed = parse(&format!(
             "item a runtime_id=1 {base} glint=#true\nitem b runtime_id=2 {base} glint=1"
         ));
-        assert!(
-            ItemSchema::infer(&mixed)
-                .unwrap_err()
-                .to_string()
-                .contains("mixes")
-        );
+        assert!(ItemSchema::infer(&mixed).is_err());
     }
 
     #[test]

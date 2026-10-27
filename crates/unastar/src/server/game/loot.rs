@@ -13,6 +13,9 @@ pub struct LootContext<'a> {
     pub block: Option<(&'a BlockEntry, u32)>,
     pub killed_by_player: bool,
     pub looting: u8,
+    /// None means this evaluation has no THIS actor.
+    pub on_fire: Option<bool>,
+    pub recipes: Option<&'a unastar_data::recipes::RecipeRegistry>,
 }
 
 impl unastar_rules::loot::LootContext for LootContext<'_> {
@@ -53,6 +56,15 @@ impl unastar_rules::loot::LootContext for LootContext<'_> {
     }
     fn looting(&self) -> u8 {
         self.looting
+    }
+
+    fn on_fire(&self) -> Option<bool> {
+        self.on_fire
+    }
+
+    fn furnace(&self) -> Option<&dyn unastar_rules::loot::FurnaceSmelt> {
+        self.recipes
+            .map(|recipes| recipes as &dyn unastar_rules::loot::FurnaceSmelt)
     }
 }
 
