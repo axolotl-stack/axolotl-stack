@@ -3,6 +3,7 @@
 //! Provides ECS components, systems, and bundles for Minecraft entities.
 //! This includes players, mobs, items, projectiles, and other game entities.
 
+pub mod attributes;
 pub mod bundles;
 pub mod components;
 pub mod damage;
@@ -10,6 +11,7 @@ pub mod definition;
 mod definition_stack;
 pub mod item_drop;
 pub mod metadata;
+pub mod properties;
 pub mod systems;
 
 pub use bundles::*;

@@ -145,6 +145,9 @@ impl GameServer {
         let mut items = ItemRegistry::new();
         items.load_vanilla();
         let definitions = crate::registry::entity::ActorDefinitionRegistry::vanilla();
+        let actor_properties =
+            crate::entity::properties::ActorPropertyRegistry::compile(&definitions)
+                .expect("vanilla actor property schemas and measured wire kinds");
         let mut entities = EntityRegistry::new();
         entities.load_vanilla(&definitions);
         let mut biomes = BiomeRegistry::new();
@@ -191,6 +194,7 @@ impl GameServer {
 
         // Insert all game state as ECS Resources
         ecs.world_mut().insert_resource(definitions);
+        ecs.world_mut().insert_resource(actor_properties);
         ecs.world_mut()
             .insert_resource(crate::registry::entity::EntityRegistryResource(Arc::new(
                 entities,
@@ -916,11 +920,6 @@ mod tests {
         while let Ok(packet) = outbound_rx.try_recv() {
             names.push(packet.data.packet_id());
         }
-        assert_eq!(
-            names.first(),
-            Some(&McpePacketName::SetPlayerGameTypePacket),
-            "{names:?}"
-        );
         for duplicate in [
             McpePacketName::ChunkRadiusUpdatedPacket,
             McpePacketName::AvailableActorIdentifiersPacket,

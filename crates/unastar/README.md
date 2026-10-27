@@ -172,6 +172,22 @@ Living health is an attribute, not actor-data key1 (structural integrity).
 An actual headless ECS spawn/tick and session-channel encode/decode smoke
 exercised the production join path without sockets or launching a server.
 
+`entity::properties::ActorPropertyRegistry` compiles BP property schemas once and
+caches `SyncActorProperty` packets for join. All 13 retained native descriptors
+match the compiled NBT, including enum order/ranges and native packet order.
+Descriptor type codes come from the measured `unastar-data::actor_wire` catalog,
+not a handwritten integer table; an unmeasured kind fails explicitly. Scoped
+property handles reject cross-layout assignments, and server-only changes do not
+advance the client-sync revision. Mixed-type/client-only value-index policy still
+needs the crafted native controls; descriptor equality does not prove that policy.
+
+`entity::attributes` retains caller-supplied ordered value triples and reusable,
+layout-scoped AddActor snapshots. It does not invent constructor defaults,
+clamping or modifier semantics from sampled packets. An actual GameServer
+spawn/tick/session-channel smoke encoded/decoded all 13 native property schemas
+and an ECS attribute update from a replayed instance. This is not production
+cow/chicken/zombie gameplay or ten-summon acceptance.
+
 
 ### Measured item and falling-block motion
 

@@ -69,6 +69,15 @@ Current golden artifacts:
   `actor_definitions::component_field_default` exposes these to startup prototype
   compilers without merging them into actor bodies. Dynamic-value descriptions
   are not invented defaults. Only counts/hashes are committed.
+- `actor_wire.json` (**OUT_DIR only**): 112 measured summon observations and
+  native property-descriptor order/type codes, decoded with the generated 2193
+  codec and shared NBT reader. All 126 consumed capture files are checked against
+  manifest byte counts/SHA-256; the two capture manifests are recorded trust roots.
+  Attribute names/order/bounds and actual actor aliases remain intact.
+  `observed_current` is sampled state, not a constructor default: the retained
+  zombie is baby-consistent, while adult movement comes from its BP group.
+  Type codes are joined to canonical BP declarations, never guessed for missing
+  kinds. `actor_wire::{vanilla,get}` decodes once; only hashes/counts are committed.
 - `blocks.kdl`: 1,477 native blocks and 22,091 states in **unaltered canonical
   NBT order**; each state retains typed properties, network hash and physical measurements.
   Native property tables and tags are also preserved. Generated block physical fields

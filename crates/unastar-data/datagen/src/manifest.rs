@@ -195,6 +195,18 @@ pub fn write_manifest(output_dir: &Path, inputs: &ManifestInputs<'_>) -> miette:
         "high",
         false,
     )?);
+    for role in ["operator", "member"] {
+        sources.push(source_from_path(
+            &format!("bds_actor_wire_{role}_1_26_51"),
+            "measured_actor_wire_capture_manifest",
+            &PathBuf::from(env!("CARGO_MANIFEST_DIR")).join(format!(
+                "../../bds-extractor/captures/1.26.51/{role}/manifest.json"
+            )),
+            Some("BDS-1.26.51;protocol-2193".into()),
+            "high",
+            false,
+        )?);
+    }
     if let Some(path) = inputs.bds_extraction_path {
         sources.push(source_from_path(
             "bds_extractor_capture",
@@ -229,6 +241,11 @@ pub fn write_manifest(output_dir: &Path, inputs: &ManifestInputs<'_>) -> miette:
             "actor_definitions",
             unastar_data::actor_definitions::VANILLA_JSON,
             unastar_data::actor_definitions::vanilla().len(),
+        ),
+        (
+            "actor_wire",
+            unastar_data::actor_wire::CATALOG_JSON,
+            unastar_data::actor_wire::vanilla().observations.len(),
         ),
         (
             "biomes",

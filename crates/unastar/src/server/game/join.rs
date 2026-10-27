@@ -55,6 +55,13 @@ impl GameServer {
             .unwrap()
             .current;
 
+        for packet in world
+            .resource::<crate::entity::properties::ActorPropertyRegistry>()
+            .packets()
+        {
+            let _ = session.send(McpePacket::from(packet.clone()));
+        }
+
         // Send gamemode to client (hides hunger bar in creative, etc.)
         let protocol_gamemode = match game_mode {
             GameMode::Survival => EnumsGameType::Survival,

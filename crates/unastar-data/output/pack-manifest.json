@@ -7,6 +7,10 @@
     "count": 128,
     "sha256": "1f33976096de6bd96220fdee35c4807ae17783f92a9aa53f1e1048251dfa79f6"
   },
+  "actor_wire": {
+    "count": 112,
+    "sha256": "a435f8684100bc5b3be5143c78fcf647f448b0f2ddf58f8c9e2d15596d983b46"
+  },
   "biomes": {
     "count": 89,
     "sha256": "74b478a47c39d26a40df9b95df08d565d7d56be7549af318cf40717f7593d79f"

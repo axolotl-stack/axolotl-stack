@@ -5334,6 +5334,7 @@ dependencies = [
 name = "unastar-data"
 version = "0.1.0"
 dependencies = [
+ "bytes",
  "rand 0.8.5",
  "serde",
  "serde_json",
@@ -5341,6 +5342,7 @@ dependencies = [
  "tempfile",
  "unastar-packs",
  "unastar-rules",
+ "valentine",
 ]
 
 [[package]]

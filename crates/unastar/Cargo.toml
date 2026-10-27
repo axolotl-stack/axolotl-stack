@@ -19,6 +19,7 @@ jolyne = { workspace = true, features = ["server", "raknet"] }
 unastar_noise.workspace = true
 unastar-data.workspace = true
 unastar-rules = { path = "../unastar-rules" }
+unastar-packs = { path = "../unastar-packs" }
 tokio = { workspace = true, features = ["full"] }
 tokio-raknet.workspace = true
 tracing.workspace = true
@@ -61,7 +62,6 @@ unastar_bedrock_codegen = { path = "../unastar_bedrock_codegen", optional = true
 flate2.workspace = true
 crc32c = "0.6"
 tempfile = "3"
-unastar-packs = { path = "../unastar-packs" }
 
 [[example]]
 name = "bedrock_decoration_smoke"

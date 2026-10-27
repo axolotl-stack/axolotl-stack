@@ -1,6 +1,8 @@
 //! EULA pack data is read from the pinned submodule, never from committed
 //! derived data (D13). Only its hashes/counts are checked in.
 
+#[path = "build/actor_wire.rs"]
+mod actor_wire;
 #[path = "build/actors.rs"]
 mod actors;
 #[path = "build/biomes.rs"]
@@ -27,6 +29,7 @@ fn main() {
     );
     let out = PathBuf::from(std::env::var_os("OUT_DIR").expect("Cargo output directory"));
     actors::write(&pack, &out);
+    actor_wire::write(&root.join("../bds-extractor/captures/1.26.51"), &out);
     biomes::write(&pack, &native, &out);
     loot::write(
         &pack,
