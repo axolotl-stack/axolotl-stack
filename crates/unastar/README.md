@@ -414,6 +414,35 @@ position using the same seeded noise registry; `noise_heightmap` is a chunk-leve
 motion-blocking height oracle before surface/carvers. Callers cache oracle
 results per placement run rather than regenerate a chunk for every queried column.
 
+### Aquatic origin controls
+
+`tools/bds-worldgen-controls/aquatic_controls.py` prepares authored kelp and
+shortest-seagrass origin controls without launching BDS or copying vanilla packs:
+
+```sh
+python tools/bds-worldgen-controls/aquatic_controls.py prepare --out <outside-repo-directory> --repeats 2
+```
+
+The control uses the seed-12345 fixture's native water-covered biome-0 site and
+contrasts floor water, mid-water, top water, first air, an air gap, the nested
+seagrass-query height, solid/buried inputs and a dry floor. Each attempt resets
+an authored stone/water column and saves
+paired before/after volumes. Fills stay below the native command block limit.
+Existing native marker measurements already establish that `query.heightmap`
+includes liquids and returns first air; this tool measures the separate builtin
+origin contract instead of changing that query speculatively.
+
+Only after coordinating shared-runtime/build safety, use the separate `run`
+mode with the same `--out` directory. It checks the sanctioned executable and
+observed competing processes, uses one BDS thread, stops via the shared runtime
+helper and preserves the stopped world outside the repository. Export exact
+saved names with `bds_structure_reference export --stopped --controls` before
+interpreting results. Verify the authored panel/corner marker and require a
+positive native floor-water placement before interpreting other origins;
+command responses alone, no edits or clipped captures establish no anchoring,
+RNG, density or natural-pass parity claim.
+
+
 ## Generated block entities
 
 Java and Bedrock structure placement retain sparse native block actors in
