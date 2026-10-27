@@ -30,6 +30,7 @@ mod types;
 pub use types::*;
 
 // Noise generation modules
+pub mod end_islands;
 pub mod noise;
 pub mod xoroshiro;
 
