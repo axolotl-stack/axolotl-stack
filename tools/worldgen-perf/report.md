@@ -1154,3 +1154,45 @@ pass. Retained hash/allocation/parity gates are next; no floor, golden or
 allocation ceiling was changed. The seven storage replacement failures remain
 unresolved pending import/rebuild of the owner's separately handed-off fix.
 
+### Storage prerequisite resolved after native rebuild
+
+The Java storage owner handed off `4038d329`; this worktree imported it as
+`6a1295d5`, without additional storage changes. Windows `Env::RenameFile` now uses
+one `MoveFileExA(..., MOVEFILE_REPLACE_EXISTING)` rather than a move followed by
+metadata-merging `ReplaceFileA`. There are no retries or broadened sharing flags.
+The owner's controlled held-reader native proof and C++ tests are separate
+evidence; the following consumer checks were exercised locally.
+
+`git merge main` reported already up to date. With the pinned Java/BDS inputs and
+`VCPKG_ROOT=C:\Users\jvigu\vcpkg`, these commands passed:
+
+```text
+cargo fmt --all
+cargo clippy -p unastar -p unastar_noise -p unastar_bedrock_codegen -p bleveldb-sys --all-targets --all-features -j 1 -- -D warnings
+cargo test -p bleveldb-sys -j 1 test_database_reopen_replaces_current_and_preserves_data
+cargo test -p unastar -p unastar_noise --all-features --no-fail-fast -j 1
+```
+
+The logs show native `bleveldb-sys` rebuilding and the unastar consumers
+relinking. The direct Windows DB reopen smoke passes; the full core command
+passes with default test parallelism, no thread-count override or failure
+suppression: 531 unastar library tests plus 33 integration tests, 271 noise tests
+and one noise doctest. The existing unastar doctest remains ignored. This
+includes both original 68-target output hashes and all ten retained parity gates.
+
+All seven previously failing cases now explicitly pass after the real fix:
+legacy Data3D loading; rotated Bedrock actor replay/reopen; both generated actor
+reopen/standard-root cases; and the biome reopen, corrupt-player fallback and
+synchronous world-extension cases. This supersedes the earlier unresolved
+checkpoint, not its recorded failed-before evidence; no environmental cause is
+assumed. The failed first sys command used `--all-features` on an
+outside-workspace package, which Cargo rejects; that flag was omitted for the
+featureless sys package, not for either workspace acceptance package.
+
+The full build/test chain took 681.59 s under shared load; this is validation
+cost, not chunk performance. Normal-release hashes and stage allocation ceilings
+still require their separate post-normalization run. No new time comparison has
+been collected. After this completed checkpoint, a precisely bounded source-only
+handback was granted to WG-BEDROCK's aquatic native capture for
+20:57-21:09 UTC; it is neither an extension nor a standing benchmark hold.
+
