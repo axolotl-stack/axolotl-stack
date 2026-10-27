@@ -129,6 +129,7 @@ def resource_guard() -> None:
     """Refuse observed competing build/server/client processes; not a substitute for a lease."""
     denied = {
         "cargo.exe", "rustc.exe", "java.exe", "javaw.exe", "bedrock_server.exe",
+        "go.exe", "compile.exe", "link.exe", "clippy-driver.exe", "rust-lld.exe", "lld-link.exe",
         "minecraft.windows.exe", "unastar.exe", "worldgen_bench.exe", "worldgen_bulk.exe",
         "baseline-debug.exe", "candidate-debug.exe", "baseline-release.exe", "candidate-release.exe",
     }
@@ -172,7 +173,7 @@ def run(root: Path, helper_path: Path, settle_seconds: float) -> None:
     # Importing Console here keeps prepare entirely offline and stdlib-only.
     from bds_console import Console
     try:
-        with helper.Bds(properties, root / "console.log", endstone=False) as server:
+        with helper.Bds(properties, root / "console.log", endstone=False, startup_timeout=60) as server:
             console = Console(server, time.monotonic() + 600)
 
             def command(value: str) -> dict:

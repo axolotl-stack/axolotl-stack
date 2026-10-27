@@ -434,8 +434,9 @@ origin contract instead of changing that query speculatively.
 
 Only after coordinating shared-runtime/build safety, use the separate `run`
 mode with the same `--out` directory. It checks the sanctioned executable and
-observed competing processes, uses one BDS thread, stops via the shared runtime
-helper and preserves the stopped world outside the repository. Export exact
+observed competing processes (including Go/Rust builds), uses one BDS thread
+with bounded startup/console deadlines, and stops via the shared runtime helper.
+It preserves the stopped world outside the repository. Export exact
 saved names with `bds_structure_reference export --stopped --controls` before
 interpreting results. Verify the authored panel/corner marker and require a
 positive native floor-water placement before interpreting other origins;
