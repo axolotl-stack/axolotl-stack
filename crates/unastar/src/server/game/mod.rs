@@ -266,8 +266,14 @@ impl GameServer {
                 .after(commands::apply_chat_and_commands),
         );
 
-        ecs.schedule_mut()
-            .add_systems(tick_physics.in_set(PhysicsSet));
+        ecs.schedule_mut().add_systems(
+            (
+                crate::entity::definition::apply_pending_definitions,
+                tick_physics,
+            )
+                .chain()
+                .in_set(PhysicsSet),
+        );
 
         ecs.schedule_mut().add_systems(
             (tick_block_breaking, plugins::process_plugin_actions).in_set(EntityLogicSet),

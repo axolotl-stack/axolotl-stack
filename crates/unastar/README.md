@@ -150,6 +150,18 @@ and decoded once at startup; see `../unastar-data/README.md` for prerequisites.
 Runtime rules/loot evaluation is in the bevy-free `unastar-rules` crate.
 These data/registry checks do not establish mob gameplay or crafted-pack parity.
 
+`entity::definition` compiles registered component kinds into shared typed
+prototypes. Resolve component/group names to scoped handles at startup; a handle
+from another frozen registry or definition is rejected before mutation.
+`attach_definition` and queued group changes materialize in the exclusive
+GameServer apply barrier before `tick_physics`. Per actor, every old component
+is removed before any replacement is inserted; transient selections do not
+produce ECS add notifications. Group removal is destructive, including a
+shadowed base component, rather than restoring a lower layer. Repeated-add/reset
+policy remains explicitly local until measured against BDS. The scheduled
+headless ECS smoke exercised base application, destructive removal and batch
+cancellation; this does not establish vanilla mob gameplay.
+
 Actor metadata keys/flag indices come from Valentine's generated Mojang reference
 catalog, not a handwritten runtime table. Its protocol2168 provenance remains
 explicit; no complete2193 catalog claim is made. Retained 1.26.51 cow/chicken
@@ -177,6 +189,11 @@ throttled lava tick changes velocity without moving or applying final drag.
 
 Water/lava material identity and `liquid_depth` are cached from the native block
 registry at startup. Actor motion performs no string-based liquid resolution.
+Neighbour connection families, face coverage and state transitions are likewise
+resolved into an immutable shared numeric cache at block-registry load.
+Collision queries iterate native shape boxes directly, without a temporary
+local-box vector. This preserves the existing connection rules; the BDS
+full-face/solidity distinction remains unconfirmed.
 Currents are applied before flotation; source/depth sampling, falling-liquid
 suppression, neighbouring currents and ground friction use the captured cases.
 

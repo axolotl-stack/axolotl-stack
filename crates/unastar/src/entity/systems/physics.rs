@@ -18,7 +18,7 @@ use glam::{DVec3, IVec3};
 use crate::entity::components::*;
 use crate::registry::BlockRegistry;
 use crate::registry::block::{LiquidKind, LiquidState};
-use crate::registry::collision::{Aabb, block_collision_boxes, connected_state};
+use crate::registry::collision::{Aabb, block_collision_aabbs, connected_state};
 use crate::server::game::types::BlockRegistryResource;
 use crate::world::chunk::{MIN_Y, SUBCHUNK_COUNT};
 use crate::world::ecs::{ChunkData, ChunkManager, world_to_chunk_coords, world_to_local_coords};
@@ -86,43 +86,56 @@ impl BlockSource for World {
 /// the connections their neighbours give them
 /// ([`crate::registry::collision::connected_state`]).
 pub fn collect_block_boxes(blocks: &impl BlockSource, area: Aabb, out: &mut Vec<Aabb>) {
+    any_block_box(blocks, area, |aabb| {
+        out.push(aabb);
+        false
+    });
+}
+
+/// Visit intersecting native geometry without a per-query local-box buffer.
+/// Returning true from `accept` stops immediately.
+fn any_block_box(
+    blocks: &impl BlockSource,
+    area: Aabb,
+    mut accept: impl FnMut(Aabb) -> bool,
+) -> bool {
     let min = area.min.floor().as_ivec3();
     let max = area.max.floor().as_ivec3();
     let registry = blocks.registry();
-    let mut local = Vec::new();
     // One extra layer below: fences and walls reach 0.5 into the block above.
     for y in (min.y - 1)..=max.y {
         for x in min.x..=max.x {
             for z in min.z..=max.z {
                 let pos = IVec3::new(x, y, z);
                 let origin = pos.as_dvec3();
-                local.clear();
                 match blocks.block_at(pos) {
-                    None => local.push(Aabb::new(DVec3::ZERO, DVec3::ONE)),
+                    None => {
+                        let aabb = Aabb::new(origin, origin + DVec3::ONE);
+                        if aabb.intersects(&area) && accept(aabb) {
+                            return true;
+                        }
+                    }
                     Some(runtime_id) => {
                         if registry.get_by_runtime_id(runtime_id).is_some() {
                             let state =
                                 connected_state(registry, pos, runtime_id, |p| blocks.block_at(p));
-                            block_collision_boxes(state, &mut local);
+                            for aabb in block_collision_aabbs(state).map(|b| b.offset(origin)) {
+                                if aabb.intersects(&area) && accept(aabb) {
+                                    return true;
+                                }
+                            }
                         }
                     }
                 }
-                out.extend(
-                    local
-                        .iter()
-                        .map(|b| b.offset(origin))
-                        .filter(|b| b.intersects(&area)),
-                );
             }
         }
     }
+    false
 }
 
 /// Whether any block collision box intersects `area`.
 pub fn collides_with_blocks(blocks: &impl BlockSource, area: Aabb) -> bool {
-    let mut boxes = Vec::new();
-    collect_block_boxes(blocks, area, &mut boxes);
-    !boxes.is_empty()
+    any_block_box(blocks, area, |_| true)
 }
 
 /// Outcome of one collision-resolved move.

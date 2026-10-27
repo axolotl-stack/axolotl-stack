@@ -5,7 +5,7 @@
 
 use super::RegistryEntry;
 use std::collections::HashMap;
-use std::sync::LazyLock;
+use std::sync::{Arc, LazyLock};
 pub use unastar_data::blocks::StateValue;
 
 const MISSING_INDEX: usize = usize::MAX;
@@ -113,6 +113,8 @@ pub struct BlockRegistry {
     runtime_id_map: Vec<usize>,
     /// Water/lava identity and depth, indexed by canonical runtime state.
     liquid_states: Vec<Option<LiquidState>>,
+    /// Neighbour connection facts and canonical transitions, resolved at load.
+    pub(super) connections: Arc<super::collision::ConnectionCache>,
 }
 
 impl BlockRegistry {
@@ -217,6 +219,7 @@ impl BlockRegistry {
             self.name_map.insert(entry.string_id.clone(), entry_index);
             self.entries.push(entry);
         }
+        self.connections = Arc::new(super::collision::ConnectionCache::new(self));
     }
 
     /// Get block entry by runtime ID (state ID). O(1).
