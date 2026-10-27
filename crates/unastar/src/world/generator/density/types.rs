@@ -460,4 +460,56 @@ mod tests {
             .join()
             .unwrap();
     }
+
+    #[test]
+    fn native_modern_router_uses_exact_octave_persistence() {
+        use unastar_noise::{
+            FunctionContext, compute_continents_native_uncached,
+            compute_temperature_native_uncached,
+        };
+        let p = unastar_noise::overworld_settings::BLENDED_NOISE;
+        let registry = NoiseRegistry::with_router_settings(
+            0,
+            false,
+            [
+                p.xz_scale,
+                p.y_scale,
+                p.xz_factor,
+                p.y_factor,
+                p.smear_scale_multiplier,
+            ],
+        );
+        let source = registry.java_source();
+        // Pinned native raw router fields: nine-octave continentalness exposes
+        // rounded persistence; temperature's 1.5 amplitude exposes reassociation.
+        let actual = [
+            compute_continents_native_uncached(&FunctionContext::new(16384, 9, -16392), &source)
+                .to_bits(),
+            compute_temperature_native_uncached(&FunctionContext::new(16384, 8, -16388), &source)
+                .to_bits(),
+        ];
+        assert_eq!(actual, [0x3fbb_4fa5_bced_103b, 0x3fe4_e671_c22a_3e5c]);
+
+        // The native SIMD leaf must preserve the scalar multiplication order,
+        // including temperature's non-power-of-two amplitude.
+        let xs = [4096.0, 4096.0, 4097.0, 4097.0];
+        let zs = [-4098.0, -4097.0, -4098.0, -4097.0];
+        let scalar = std::array::from_fn(|lane| {
+            source
+                .sample(
+                    unastar_noise::NoiseRef::Temperature,
+                    xs[lane],
+                    0.0,
+                    zs[lane],
+                )
+                .to_bits()
+        });
+        let vector = source.sample_4(
+            unastar_noise::NoiseRef::Temperature,
+            super::f64x4::from_array(xs),
+            super::f64x4::splat(0.0),
+            super::f64x4::from_array(zs),
+        );
+        assert_eq!(vector.to_array().map(f64::to_bits), scalar);
+    }
 }

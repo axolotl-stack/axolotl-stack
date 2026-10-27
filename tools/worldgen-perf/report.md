@@ -1118,3 +1118,39 @@ temperature ULPs; native raw depth, most router fields and several raw final
 density points already match exactly. Numeric investigation continues separately
 from the sentinel fix; no native full-corpus or timing claim is made here.
 
+### Native normalization follow-up: persistence and multiplication order
+
+The remaining density drift had two independent causes in modern native noise:
+
+- Native octaves inherited the calibrated decimal persistence table. For nine
+  amplitudes the retained value was `0.5009775171065493`, not the native
+  `256 / 511` expression. Native constructors now derive the rational expression;
+  calibrated constructors retain the original table.
+- The amplitude had been multiplied into persistence before sampling. Native
+  temperature uses amplitude `1.5`, for which `(amplitude * sample) * persistence`
+  can differ from `(amplitude * persistence) * sample`. Native scalar/SIMD sums
+  now keep both weights separate. Existing calibrated sums still use their
+  original precombined weight; no RNG draw, octave ordering or state ID changed.
+
+| Captured native raw router case | Failed-before bits | Native / passed-after bits |
+|---|---|---|
+| Continentalness at (16384,9,-16392) | `3fbb4fa2521da4bf` | `3fbb4fa5bced103b` |
+| Temperature at (16384,8,-16388) | `3fe4e671c22a3e5d` | `3fe4e671c22a3e5c` |
+
+A normal release CLI used the actual production registry, uncached generated
+router roots, native flat/column caches and `NativeCellSampler`. Programmatic
+comparison against the pinned native trace matched all 144 raw router fields
+(target plus eight cell corners) and all four actual material densities exactly.
+The four material bit patterns are `bf6b8bdcac2f8de6`, `bf27817025ec49e8`,
+`bf543e29000a9462`, `bf19c50752e5c995`. The temporary CLI was removed after the
+observed smoke. The production scalar regression failed before and passed after;
+modern SIMD/scalar invariance is covered alongside it.
+
+This is a separately isolated native correctness change, not a speedup claim or
+complete native chunk parity claim. Strict three-crate all-target/all-feature
+clippy passes, all five production source regressions pass (including native
+modern/legacy scalar-SIMD behavior), and all 271 noise tests plus one doctest
+pass. Retained hash/allocation/parity gates are next; no floor, golden or
+allocation ceiling was changed. The seven storage replacement failures remain
+unresolved pending import/rebuild of the owner's separately handed-off fix.
+

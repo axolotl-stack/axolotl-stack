@@ -130,11 +130,23 @@ build time. Explicit `sample_java`/`sample_java_4` entrypoints use unfused
 interpolation, centered coordinate wrapping and the promoted native float smear
 epsilon; existing fused entrypoints keep their previous arithmetic.
 
+Modern native octaves derive persistence from the exact
+`2^(length-1) / (2^length-1)` expression rather than the calibrated decimal table.
+Native weighted sums retain amplitude and persistence separately so their order
+is `(amplitude * sample) * persistence`; folding temperature's `1.5` amplitude
+into persistence changes raw bits. Calibrated scalar/SIMD sums retain their
+precombined weights and previous persistence table.
+
 Pinned seed-boundary/holdout regressions cover raw native climate bits in scalar
 and SIMD lanes. A temporary actual-registry corpus smoke matched 984 native
 Nether climate fields in both modes and 492 native raw Nether density fields;
 1,968 blended SIMD lanes also matched their scalar bits. These numeric proofs do
 not establish finished three-dimension chunk parity or complete surface behavior.
+
+The far Overworld aquifer trace also matched all 144 raw router fields across a
+target and its eight cell corners, plus four actual material-cell densities,
+bit-for-bit through a normal release CLI using the production registry and
+generated sampler. This is a numeric-source proof, not full-chunk native parity.
 
 ### Native cell interpolation
 

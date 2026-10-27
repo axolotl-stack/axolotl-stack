@@ -52,6 +52,10 @@ pub struct PerlinNoise {
     d2: f64,
     /// Precomputed smoothstep(d2)
     t2: f64,
+    /// Keep Java's amplitude and persistence separate: `(amplitude * sample) *
+    /// persistence` is not bit-equivalent to a precombined weight.
+    native_amplitude: f64,
+    native_value_factor: f64,
 }
 
 impl Default for PerlinNoise {
@@ -66,6 +70,8 @@ impl Default for PerlinNoise {
             h2: 0i32,
             d2: 0.0,
             t2: 0.0,
+            native_amplitude: 1.0,
+            native_value_factor: 1.0,
         }
     }
 }
@@ -110,6 +116,8 @@ impl PerlinNoise {
             h2,
             d2,
             t2,
+            native_amplitude: 1.0,
+            native_value_factor: 1.0,
         }
     }
 
@@ -730,6 +738,14 @@ pub struct OctaveNoise {
 impl OctaveNoise {
     /// Create octave noise with given amplitudes (cubiomes-accurate xOctaveInit).
     pub fn new(rng: &mut Xoroshiro128, amplitudes: &[f64], omin: i32) -> Self {
+        Self::new_with_persistence::<false>(rng, amplitudes, omin)
+    }
+
+    fn new_with_persistence<const NATIVE: bool>(
+        rng: &mut Xoroshiro128,
+        amplitudes: &[f64],
+        omin: i32,
+    ) -> Self {
         // Precomputed persistence table for len = 0..10
         let persist_ini: [f64; 11] = [
             0.0,
@@ -748,7 +764,10 @@ impl OctaveNoise {
         let len = amplitudes.len();
         let mut lacuna = 1.0;
 
-        let mut persist = if len < persist_ini.len() {
+        let mut persist = if NATIVE {
+            let len = len as i32;
+            2.0_f64.powi(len - 1) / (2.0_f64.powi(len) - 1.0)
+        } else if len < persist_ini.len() {
             persist_ini[len]
         } else {
             (1 << len) as f64 / ((1 << len) - 1) as f64
@@ -765,6 +784,8 @@ impl OctaveNoise {
                 let mut pxr = Xoroshiro128::from_state(x_lo ^ md5.0, x_hi ^ md5.1);
                 let mut noise = PerlinNoise::new(&mut pxr);
                 noise.amplitude = amp * persist;
+                noise.native_amplitude = amp;
+                noise.native_value_factor = persist;
                 noise.lacunarity = lacuna;
                 octaves.push(noise);
             }
@@ -790,6 +811,8 @@ impl OctaveNoise {
                 let mut octave_rng = LegacyRandom::new(factory_seed ^ i64::from(hash));
                 let mut noise = PerlinNoise::new(&mut octave_rng);
                 noise.amplitude = amp * persistence;
+                noise.native_amplitude = amp;
+                noise.native_value_factor = persistence;
                 noise.lacunarity = lacunarity;
                 octaves.push(noise);
             }
@@ -807,7 +830,9 @@ impl OctaveNoise {
         let mut upper = PerlinNoise::new(rng);
         let mut lower = PerlinNoise::new(rng);
         lower.amplitude = 2.0 / 3.0;
+        lower.native_value_factor = 2.0 / 3.0;
         upper.amplitude = 1.0 / 3.0;
+        upper.native_value_factor = 1.0 / 3.0;
         upper.lacunarity = 2.0;
         Self {
             octaves: vec![lower, upper],
@@ -840,7 +865,7 @@ impl OctaveNoise {
                 wrap_coord_java(y * lf),
                 wrap_coord_java(z * lf),
             );
-            value += octave.amplitude * sample;
+            value += octave.native_amplitude * sample * octave.native_value_factor;
         }
         value
     }
@@ -875,7 +900,9 @@ impl OctaveNoise {
                 wrap_coord_java_simd(y * lf),
                 wrap_coord_java_simd(z * lf),
             );
-            values += f64x4::splat(octave.amplitude) * sample;
+            values += f64x4::splat(octave.native_amplitude)
+                * sample
+                * f64x4::splat(octave.native_value_factor);
         }
         values
     }
@@ -963,8 +990,8 @@ impl DoublePerlinNoise {
     /// calibrated table used by the existing fused terrain backend.
     pub fn new_java(rng: &mut Xoroshiro128, amplitudes: &[f64], omin: i32) -> Self {
         Self {
-            oct_a: OctaveNoise::new(rng, amplitudes, omin),
-            oct_b: OctaveNoise::new(rng, amplitudes, omin),
+            oct_a: OctaveNoise::new_with_persistence::<true>(rng, amplitudes, omin),
+            oct_b: OctaveNoise::new_with_persistence::<true>(rng, amplitudes, omin),
             amplitude: Self::native_amplitude(amplitudes),
             frequency: 2.0_f64.powi(omin),
         }
