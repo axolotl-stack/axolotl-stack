@@ -980,3 +980,102 @@ behavior, not all canonical three-dimension chunk outputs. Canonical emitter
 geometry handoff was requested from the Java owner before touching its files.
 No new timing sample, storage retry or golden/floor change was made.
 
+### Canonical native material proof and main integration
+
+The Java owner granted only the existing Overworld emitter's geometry wiring for
+this branch's primitive smoke. Geometry comes directly from the parsed noise
+settings, not inferred from density nodes. The owner's three-dimension emitter
+must not be replaced by this older `emit_all` during protected-file imports.
+
+An actual normal-release CLI instantiated the production native registry,
+f32 flat/column caches and canonical schema-derived sampler. Both previously
+recorded seed0 material boundaries, (0,62,13) and (7,63,14), match their native raw
+bits exactly and are positive: the original whole-root interpolation had made
+these native stone positions water/air. The temporary CLI was removed and the
+same consumer-visible boundaries became a production-registry regression.
+The Java owner independently reported the same exact canonical primitive result;
+neither result is a claim that its whole three-dimension runtime cutover is green.
+
+Required local merge of `main` completed without conflicts as `769b942b`.
+Before the final geometry/regression addition, post-merge verification passed
+strict three-crate all-target/all-feature clippy, all 271 noise unit/integration
+tests plus the doc test, 188 generator units and both retained normal-release
+68-target complete-output hash tests. No storage failure was retried or hidden.
+
+Fresh availability was requested for a bounded SIMD-memo A-B window after source
+correctness work, with actual AC1/battery99 and AC/DC maximum processor state99
+verified. No hold or comparison run started: Bedrock was in ordinary acceptance,
+Java reported active sequential native captures, and ITEMS had no verifiable
+handback or fencing. Silence was not permission. The unchanged D0/EAD archived
+pair remains ready; no new SIMD-memo wall-time claim is made.
+
+### Final scoped gates after canonical geometry wiring
+
+All commands used `-j 1`, the existing target directory and
+`VCPKG_ROOT=C:\Users\jvigu\vcpkg`; no server/client process was launched:
+
+```text
+cargo fmt --all
+cargo clippy -p unastar -p unastar_noise -p unastar_bedrock_codegen --all-targets --all-features -j 1 -- -D warnings
+cargo test -p unastar_noise --all-features --no-fail-fast -j 1
+cargo test -p unastar --lib --all-features -j 1 world::generator -- --test-threads=1
+cargo test -p unastar --release --test worldgen_parity --test decoration_parity --all-features -j 1 -- --test-threads=1
+cargo test -p unastar --release --test worldgen_output_hash --features java-worldgen,bedrock-worldgen -j 1 -- --test-threads=1
+cargo build -p unastar --release --example worldgen_bench --features java-worldgen,bedrock-worldgen,worldgen-profile -j 1
+target\release\examples\worldgen_bench.exe --kind java --json --ratchet tools/worldgen-perf/ratchet-java.json
+target\release\examples\worldgen_bench.exe --kind bedrock --json --ratchet tools/worldgen-perf/ratchet-bedrock.json
+```
+
+Results: strict lint passes; 271 noise tests plus one doc test pass; 189 generator
+units pass, including the actual canonical material regression; four worldgen
+parity tests and one decoration parity test pass; both retained 68-target
+complete block/biome/heightmap/actor hash tests pass. Both instrumented CLIs pass
+every total/per-stage allocation and byte ceiling with exactly the previously
+reported Java 95,101/126,261,526 B and Bedrock 64,590/69,468,288 B totals.
+No floor, golden or ceiling was changed. The full command chain took 782.94 s;
+this is validation cost, not generation performance. Printed stage wall times
+were instrumented under shared machine load/turbo disabled (99% cap) and are not
+accepted A-B measurements.
+
+The full unastar suite is intentionally **not claimed green**: the seven
+previously observed LevelDB Temp replacement failures remain unresolved, and none
+was rerun or suppressed. Passing serial E2 validation does not discharge them.
+
+### Dispatch checkpoint map
+
+| Slice | Status | Verification | Source commits |
+|---|---|---|---|
+| Native End primitive and seeded density wiring | Done | 528 native scalar/array samples; emitted scalar/SIMD/cache/inline paths | `38e96e4d`, `de617682`, `d3973bca` |
+| Empty-cache routers and fail-closed inputs | Done | Empty contexts compile; seven IR checks; cross-root cache alias compiles | `cdcf51bb`, `2207a860` |
+| Native registry seeding and arithmetic | Done | 984 scalar/SIMD climate fields, 492 native density fields, 1,968 blended lane comparisons | `fff15d61` |
+| Schema-marked interpolation and f32 splines | Done | Measured material order and spline bits; emitted nonlinear material/cell tests | `1853433a` |
+| Static native AQ, lazy veins and structure hook | Done | Native AQ constructor/culling fields; richness-boundary/lazy-gap regression | `22e506b6` |
+| Genuine one-cell columns | Done | Narrow/wide bulk/column layouts, negative origins, quart caches, empty marker | `36cc965d` |
+| Canonical material regression | Done | Actual normal-release CLI and production test preserve two native stone boundaries | `92ea4f21` |
+| Local main integration | Done | Conflict-free merge; scoped gates rerun afterward | `769b942b` |
+| SIMD memo wall-time A-B | Blocked | No fresh peer quorum; no comparison samples started | Existing runtime `ead92b2e`; archived D0/EAD pair unchanged |
+| Seven LevelDB Temp replacement failures | Unresolved | Not rerun, suppressed or attributed to environment | No storage changes in this dispatch |
+
+The canonical smoke geometry line in `codegen/emitter/mod.rs` is a scoped
+owner-approved branch change, **not** a file to restore over the Java owner's
+three-dimension emitter. Protected implementations and regression data are the
+remaining handoff files; no parent-owned runtime cutover was copied.
+
+Additional retained-domain checks also pass after the same source checkpoint:
+
+```text
+cargo test -p unastar --release --test bedrock_worldgen --test structure_parity --all-features -j 1 -- --test-threads=1
+```
+
+All four Bedrock invariants/aggregate/frozen-ocean/order ratchets and the Java
+structure-start parity test pass. Combined with the earlier gates, this is ten
+passing parity/ratchet tests, not a replacement for the unresolved full-suite
+storage failures. Source checkpoint `92ea4f21` contains the canonical geometry
+wiring and production native material regression.
+
+At the final coordination checkpoint, ENT reported an active jobs1 composition
+acceptance chain; WG-BEDROCK had finished its ordinary checks but explicitly
+offered no standing lease; Java had reported active native reference work and
+ITEMS remained unfenced without a current handback. No quiet window, timing
+sample, native/client launch, push or main-branch edit was performed here.
+
