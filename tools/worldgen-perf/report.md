@@ -916,3 +916,27 @@ all 53 native f32 spline records. At native cached material points (0,62,13) and
 Those findings drive the separate native cell/spline implementation; no sampler
 runtime cutover or finished Java parity claim is made here.
 
+### Native interpolation kernel checkpoint
+
+The emitted native sampler now owns fixed-capacity source planes, swaps plane
+indices, interpolates only JSON-marked inputs, and fills the final material cell
+after nonlinear root evaluation. Native f32 spline lowering is shared by scalar,
+SIMD-lane, flat-cache and column-cache environments. Explicit native point and
+cache constructors leave calibrated entrypoints unchanged.
+
+`cargo test -p unastar_noise --all-features -j 1 native_` passes six regressions:
+native primitive scalar/array bits, all End expression environments, 27 distinct
+native spline segments, both material-order counterexamples, and an actual
+generated sampler's nonlinear material/plane-reuse behavior over two chunks.
+The latter uses an affine input and squared material with an independent
+closed-form expectation; interpolating the squared root instead fails it.
+The initial generated SIMD-source smoke failed because its coordinate vectors
+were not declared; the generator now emits them and the compiled regression
+passes.
+
+No new wall-time measurement, allocation reduction, complete native dimension
+parity, native column API or structure-influenced material claim is made at this
+checkpoint. The 17:30–17:42 UTC proposed BDS window was explicitly abandoned
+without a native launch; this was an ordinary untimed jobs1 check. The seven
+known LevelDB failures remain unresolved and were not rerun.
+

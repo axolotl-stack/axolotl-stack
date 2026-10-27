@@ -11,6 +11,104 @@ use proc_macro2::TokenStream;
 use quote::{format_ident, quote};
 use std::collections::HashMap;
 
+#[path = "native_density.rs"]
+mod native_density;
+
+/// One native f32 lowering for every coordinate environment. Values remain inside
+/// their selected interval, including nested splines; no Horner reassociation.
+fn emit_java_spline(
+    spline: &SplineDef,
+    emit_argument: &mut impl FnMut(&DensityFunctionArg) -> TokenStream,
+) -> TokenStream {
+    assert!(
+        !spline.points.is_empty(),
+        "native spline has no control points"
+    );
+    let coordinate = emit_argument(&spline.coordinate);
+    let locations: Vec<_> = spline
+        .points
+        .iter()
+        .map(|point| proc_macro2::Literal::f32_suffixed(point.location as f32))
+        .collect();
+    let derivatives: Vec<_> = spline
+        .points
+        .iter()
+        .map(|point| proc_macro2::Literal::f32_suffixed(point.derivative as f32))
+        .collect();
+    let values: Vec<_> = spline
+        .points
+        .iter()
+        .map(|point| match &point.value {
+            SplineValue::Constant(value) => {
+                let value = proc_macro2::Literal::f32_suffixed(*value as f32);
+                quote! { #value }
+            }
+            SplineValue::Nested(nested) => emit_java_spline(nested, emit_argument),
+        })
+        .collect();
+    let extrapolate = |index: usize| {
+        let value = &values[index];
+        if spline.points[index].derivative as f32 == 0.0 {
+            quote! { #value }
+        } else {
+            let derivative = &derivatives[index];
+            let location = &locations[index];
+            quote! { (#value) + #derivative * (coordinate - #location) }
+        }
+    };
+    let low = &locations[0];
+    let below = extrapolate(0);
+    let mut branches = vec![quote! { if coordinate < #low { #below } }];
+    for index in 0..spline.points.len() - 1 {
+        let low = &locations[index];
+        let high = &locations[index + 1];
+        let value_low = &values[index];
+        let value_high = &values[index + 1];
+        let derivative_low = &derivatives[index];
+        let derivative_high = &derivatives[index + 1];
+        branches.push(quote! {
+            else if coordinate < #high {
+                crate::native_density::spline_segment(
+                    coordinate, #low, #high, #value_low, #value_high,
+                    #derivative_low, #derivative_high,
+                )
+            }
+        });
+    }
+    let above = extrapolate(spline.points.len() - 1);
+    quote! {{
+        let coordinate = (#coordinate) as f32;
+        #(#branches)* else { #above }
+    }}
+}
+
+/// Reuse the same context schema and constructor generation, selecting only
+/// native constructor methods with Rust ASTs rather than rewriting source text.
+fn extract_native_constructors(tokens: TokenStream) -> TokenStream {
+    let file: syn::File = syn::parse2(tokens).expect("generated cache syntax");
+    let implementations = file.items.into_iter().filter_map(|item| {
+        let syn::Item::Impl(mut implementation) = item else {
+            return None;
+        };
+        if implementation.trait_.is_some() {
+            return None;
+        }
+        implementation.items.retain_mut(|item| {
+            let syn::ImplItem::Fn(function) = item else {
+                return false;
+            };
+            if function.sig.ident == "new" || function.sig.ident == "new_standalone" {
+                function.sig.ident = format_ident!("{}_native", function.sig.ident);
+                true
+            } else {
+                false
+            }
+        });
+        (!implementation.items.is_empty()).then_some(implementation)
+    });
+    quote! { #(#implementations)* }
+}
+
 /// Pre-computed spline segment with polynomial coefficients.
 /// The cubic polynomial is: a + b*t + c*t² + d*t³ where t = (x - x_min) / (x_max - x_min)
 #[derive(Debug, Clone, Copy)]
@@ -188,6 +286,10 @@ pub struct AotEmitter<'a> {
     memoize_zero_y_noise: bool,
     /// Actual scalar lowering may reuse a Cache2D alias from another router root.
     column_context_used: bool,
+    native_math: bool,
+    native_geometry: Option<(i32, i32, i32, i32)>,
+    native_interpolation_slots: HashMap<NodeId, usize>,
+    read_interpolated_values: bool,
 }
 
 impl<'a> AotEmitter<'a> {
@@ -223,7 +325,34 @@ impl<'a> AotEmitter<'a> {
             simd_column_noise_slots: HashMap::new(),
             memoize_zero_y_noise: false,
             column_context_used: false,
+            native_math: false,
+            native_geometry: None,
+            native_interpolation_slots: HashMap::new(),
+            read_interpolated_values: false,
         }
+    }
+
+    /// Bake validated native dimension geometry into fixed-size cell caches.
+    pub fn with_geometry(
+        mut self,
+        min_y: i32,
+        height: i32,
+        cell_width: i32,
+        cell_height: i32,
+    ) -> Self {
+        assert!(
+            height > 0 && cell_width > 0 && cell_height > 0,
+            "invalid native noise geometry"
+        );
+        assert!(
+            16 % cell_width == 0
+                && cell_width >= 4
+                && height % cell_height == 0
+                && min_y % cell_height == 0,
+            "unaligned native noise geometry"
+        );
+        self.native_geometry = Some((min_y, height, cell_width, cell_height));
+        self
     }
 
     /// Get a local variable name for a pre-computed FlatCache lookup in ColumnContext.
@@ -278,6 +407,25 @@ impl<'a> AotEmitter<'a> {
         .map(|name| self.emit_uncached_function(name))
         .collect();
         let end_islands_regression = self.emit_end_islands_regression();
+        self.native_math = true;
+        let native_flat_cache = extract_native_constructors(self.emit_flat_cache_grid());
+        let native_columns = extract_native_constructors(self.emit_column_context());
+        let native_inner = self.emit_find_top_surface_inner_functions();
+        let native_compute: Vec<_> = self
+            .graph
+            .roots
+            .keys()
+            .map(|name| self.emit_compute_function(name))
+            .collect();
+        let native_uncached: Vec<_> = self
+            .graph
+            .roots
+            .keys()
+            .map(|name| self.emit_uncached_function(name))
+            .collect();
+        let native_cell_sampler = self.emit_native_cell_sampler();
+        let native_cell_regression = self.emit_native_cell_regression();
+        self.native_math = false;
 
         let tokens = quote! {
             //! AOT-compiled overworld noise router (regenerated at build time from worldgen JSON).
@@ -318,6 +466,13 @@ impl<'a> AotEmitter<'a> {
             #simd_fn
             #(#uncached_fns)*
             #end_islands_regression
+            #native_flat_cache
+            #native_columns
+            #native_inner
+            #(#native_compute)*
+            #(#native_uncached)*
+            #native_cell_sampler
+            #native_cell_regression
         };
 
         tokens
@@ -885,7 +1040,11 @@ impl<'a> AotEmitter<'a> {
         self.expand_flat_cache_inline = false;
 
         let stmts = std::mem::take(&mut self.statements);
-        let func_name = format_ident!("compute_{}_inner_density", root_name);
+        let func_name = if self.native_math {
+            format_ident!("compute_{}_inner_density_native", root_name)
+        } else {
+            format_ident!("compute_{}_inner_density", root_name)
+        };
 
         quote! {
             /// Inner density function for #root_name (used by find_top_surface).
@@ -927,7 +1086,11 @@ impl<'a> AotEmitter<'a> {
             self.statements.clear();
             let inner_expr = self.emit_node(&node.dependencies[0]);
             let inner_stmts = std::mem::take(&mut self.statements);
-            let inner_name = format_ident!("compute_{}_inner_density_uncached", root_name);
+            let inner_name = if self.native_math {
+                format_ident!("compute_{}_inner_density_native_uncached", root_name)
+            } else {
+                format_ident!("compute_{}_inner_density_uncached", root_name)
+            };
             inner = quote! {
                 #[inline]
                 fn #inner_name(ctx: &FunctionContext, noises: &impl NoiseSource) -> f64 {
@@ -944,7 +1107,11 @@ impl<'a> AotEmitter<'a> {
         self.expand_flat_cache_inline = false;
         self.expand_all_caches_inline = false;
         let stmts = std::mem::take(&mut self.statements);
-        let func_name = format_ident!("compute_{}_uncached", root_name);
+        let func_name = if self.native_math {
+            format_ident!("compute_{}_native_uncached", root_name)
+        } else {
+            format_ident!("compute_{}_uncached", root_name)
+        };
         let doc = format!(
             "Router `{root_name}` at any position, every cache computed inline (slower than the chunk-cached `compute_{root_name}`)."
         );
@@ -965,11 +1132,22 @@ impl<'a> AotEmitter<'a> {
         // Find the root name for this node
         for (root_name, root_id) in &self.graph.roots {
             if root_id == node_id {
-                return format_ident!("compute_{}_inner_density", root_name);
+                return if self.native_math {
+                    format_ident!("compute_{}_inner_density_native", root_name)
+                } else {
+                    format_ident!("compute_{}_inner_density", root_name)
+                };
             }
         }
         // Fallback: use the node ID if not found in roots
-        format_ident!("compute_node_{}_inner_density", node_id.0.replace(':', "_"))
+        if self.native_math {
+            format_ident!(
+                "compute_node_{}_inner_density_native",
+                node_id.0.replace(':', "_")
+            )
+        } else {
+            format_ident!("compute_node_{}_inner_density", node_id.0.replace(':', "_"))
+        }
     }
 
     fn emit_compute_function(&mut self, root_name: &str) -> TokenStream {
@@ -992,7 +1170,11 @@ impl<'a> AotEmitter<'a> {
         let result_expr = self.emit_node(&root_id);
         let uses_cache_2d = uses_cache_2d || self.column_context_used;
         let stmts = std::mem::take(&mut self.statements);
-        let func_name = format_ident!("compute_{}", root_name);
+        let func_name = if self.native_math {
+            format_ident!("compute_{}_native", root_name)
+        } else {
+            format_ident!("compute_{}", root_name)
+        };
 
         // Generate function with minimal parameters based on what's actually used.
         // This is critical for performance: simple noise functions (barrier, lava, etc.)
@@ -1210,6 +1392,11 @@ impl<'a> AotEmitter<'a> {
     // ========== Node emission (scalar) ==========
 
     fn emit_node(&mut self, id: &NodeId) -> TokenStream {
+        if self.read_interpolated_values
+            && let Some(slot) = self.native_interpolation_slots.get(id)
+        {
+            return quote! { interpolated[#slot] };
+        }
         // Check if this node's value is cached in a Cache2D wrapper.
         // If so, use the pre-computed ColumnContext field instead of recomputing.
         if !self.expand_all_caches_inline
@@ -1513,10 +1700,24 @@ impl<'a> AotEmitter<'a> {
                 let upper_bound = self.emit_node(&node.dependencies[1]);
                 let lb = *lower_bound;
                 let ch = *cell_height;
+                let inner = match (self.native_math, self.expand_all_caches_inline) {
+                    (false, false) => {
+                        format_ident!("compute_preliminary_surface_level_inner_density")
+                    }
+                    (false, true) => {
+                        format_ident!("compute_preliminary_surface_level_inner_density_uncached")
+                    }
+                    (true, false) => {
+                        format_ident!("compute_preliminary_surface_level_inner_density_native")
+                    }
+                    (true, true) => format_ident!(
+                        "compute_preliminary_surface_level_inner_density_native_uncached"
+                    ),
+                };
                 let inner_call = if self.expand_all_caches_inline {
-                    quote! { compute_preliminary_surface_level_inner_density_uncached(&inner_ctx, noises) }
+                    quote! { #inner(&inner_ctx, noises) }
                 } else {
-                    quote! { compute_preliminary_surface_level_inner_density(&inner_ctx, noises, col) }
+                    quote! { #inner(&inner_ctx, noises, col) }
                 };
                 quote! {
                     find_top_surface(ctx.block_x, ctx.block_z, #lb, #upper_bound, #ch, |y| {
@@ -1842,10 +2043,15 @@ impl<'a> AotEmitter<'a> {
                 let upper_bound = self.emit_node_simd(&node.dependencies[1]);
                 let lb = *lower_bound;
                 let ch = *cell_height;
+                let inner = if self.native_math {
+                    format_ident!("compute_preliminary_surface_level_inner_density_native")
+                } else {
+                    format_ident!("compute_preliminary_surface_level_inner_density")
+                };
                 quote! {
                     f64x4::splat(find_top_surface(ctx.block_x, ctx.block_z, #lb, #upper_bound[0], #ch, |y| {
                         let inner_ctx = FunctionContext::new(ctx.block_x, y, ctx.block_z);
-                        compute_preliminary_surface_level_inner_density(&inner_ctx, noises, col)
+                        #inner(&inner_ctx, noises, &col.as_scalar())
                     }))
                 }
             }
@@ -1855,6 +2061,10 @@ impl<'a> AotEmitter<'a> {
     // ========== Spline emission ==========
 
     fn emit_spline(&mut self, spline: &SplineDef) -> TokenStream {
+        if self.native_math {
+            let value = emit_java_spline(spline, &mut |argument| self.emit_arg_expr(argument));
+            return quote! { f64::from(#value) };
+        }
         let coord_expr = self.emit_arg_expr(&spline.coordinate);
 
         if spline.points.is_empty() {
@@ -2042,6 +2252,17 @@ impl<'a> AotEmitter<'a> {
     }
 
     fn emit_spline_simd(&mut self, spline: &SplineDef) -> TokenStream {
+        if self.native_math {
+            let lanes: Vec<_> = (0..4)
+                .map(|lane| {
+                    let value = emit_java_spline(spline, &mut |argument| {
+                        self.emit_arg_expr_lane(argument, lane)
+                    });
+                    quote! { f64::from(#value) }
+                })
+                .collect();
+            return quote! { f64x4::from_array([#(#lanes),*]) };
+        }
         let coord_expr = self.emit_arg_expr_simd(&spline.coordinate);
 
         if spline.points.is_empty() {
@@ -2573,6 +2794,10 @@ impl<'a> AotEmitter<'a> {
     }
 
     fn emit_fc_spline(&self, spline: &SplineDef) -> TokenStream {
+        if self.native_math {
+            let value = emit_java_spline(spline, &mut |argument| self.emit_fc_arg(argument));
+            return quote! { f64::from(#value) };
+        }
         if spline.points.is_empty() {
             return quote! { 0.0_f64 };
         }
@@ -3036,6 +3261,11 @@ impl<'a> AotEmitter<'a> {
                 })
             })
             .collect();
+        let column_constructor = if self.native_math {
+            format_ident!("new_native")
+        } else {
+            format_ident!("new")
+        };
         self.column_context_standalone_mode = false;
 
         // Build the struct return expression with all fields
@@ -3189,7 +3419,7 @@ impl<'a> AotEmitter<'a> {
                         for (ix, slot) in row.iter_mut().enumerate() {
                             let block_x = base_x + ix as i32 * 4;
                             // Same column in all 4 lanes: values come out pre-splatted.
-                            let column = ColumnContext::new(block_x, block_z, noises, flat);
+                            let column = ColumnContext::#column_constructor(block_x, block_z, noises, flat);
                             *slot = ColumnContext4::splat(&column);
                         }
                     }
@@ -3719,6 +3949,12 @@ impl<'a> AotEmitter<'a> {
 
     /// Emit spline evaluation for standalone mode (used in flat_cache).
     fn emit_fc_standalone_spline(&self, spline: &SplineDef) -> TokenStream {
+        if self.native_math {
+            let value = emit_java_spline(spline, &mut |argument| {
+                self.emit_fc_standalone_arg(argument)
+            });
+            return quote! { f64::from(#value) };
+        }
         if spline.points.is_empty() {
             return quote! { 0.0_f64 };
         }
@@ -3952,6 +4188,10 @@ impl<'a> AotEmitter<'a> {
 
     /// Emit a spline within ColumnContext initialization.
     fn emit_cc_spline(&self, spline: &SplineDef) -> TokenStream {
+        if self.native_math {
+            let value = emit_java_spline(spline, &mut |argument| self.emit_cc_arg(argument));
+            return quote! { f64::from(#value) };
+        }
         if spline.points.is_empty() {
             return quote! { 0.0_f64 };
         }

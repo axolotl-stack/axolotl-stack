@@ -136,6 +136,27 @@ Nether climate fields in both modes and 492 native raw Nether density fields;
 1,968 blended SIMD lanes also matched their scalar bits. These numeric proofs do
 not establish finished three-dimension chunk parity or complete surface behavior.
 
+### Native cell interpolation
+
+`AotEmitter::with_geometry(min_y, height, cell_width, cell_height)` emits a
+dimension-specific `NativeCellSampler` with fixed-size, allocation-free source
+planes and final-material storage. Only schema-marked `interpolated` inputs are
+interpolated; nonlinear final-density operations execute afterward. Plane
+advancement swaps indices rather than copying plane arrays.
+
+Native cell-bulk evaluation uses XYZ interpolation order; active point/vein
+evaluation uses YXZ. These orders are numerically distinct at measured material
+boundaries. Native cache constructors and `compute_<root>_native_uncached`
+entrypoints also preserve native f32 spline evaluation rather than the calibrated
+backend's f64 polynomial lowering. Existing calibrated entrypoints are retained
+as a separate backend, not redirected.
+
+Regressions cover measured raw material/spline bits and an actual emitted
+sampler's nonlinear material evaluation across negative chunks, descending Y,
+SIMD source batches and plane reuse. This kernel is for the verified empty
+Beardifier profile; full structure influence, native column construction and the
+three-dimension runtime cutover are separate integration gates.
+
 ## Block identity
 
 Generated code works in Bedrock runtime ids (`u32`, the canonical 1.26.51 palette ordinals

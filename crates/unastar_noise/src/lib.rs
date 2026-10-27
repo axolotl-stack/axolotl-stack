@@ -31,6 +31,7 @@ pub use types::*;
 
 // Noise generation modules
 pub mod end_islands;
+pub mod native_density;
 pub mod noise;
 pub mod xoroshiro;
 
