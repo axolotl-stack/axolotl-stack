@@ -79,6 +79,16 @@ Each slot retains the exact vector result and distinguishes signed-zero lane
 patterns and XZ coordinates. Scalar column values are not substituted for SIMD
 results, so existing FMA precision and expression order remain unchanged.
 
+`NoiseSource::sample_end_islands` supplies block-coordinate samples to every
+scalar, four-Y SIMD, flat-cache, column-cache and standalone-cache emitter.
+`NoiseRegistry` initializes the sampler lazily from the unmodified world seed;
+ordinary Overworld/Bedrock registries do not construct the legacy End stream.
+Four-Y lanes share X/Z, so a single scalar sample is splatted without changing
+lane bits. A compiled generated regression checks all five expression environments
+against native seed-sensitive and wrapped-NaN fixtures; the production registry
+has a separate native-seed regression. These are End correctness changes, not
+output-preserving optimization speedups or proof of finished End chunk parity.
+
 ## Block identity
 
 Generated code works in Bedrock runtime ids (`u32`, the canonical 1.26.51 palette ordinals

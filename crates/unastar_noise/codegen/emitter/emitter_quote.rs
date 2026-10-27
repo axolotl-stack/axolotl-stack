@@ -274,6 +274,7 @@ impl<'a> AotEmitter<'a> {
         .iter()
         .map(|name| self.emit_uncached_function(name))
         .collect();
+        let end_islands_regression = self.emit_end_islands_regression();
 
         let tokens = quote! {
             //! AOT-compiled overworld noise router (regenerated at build time from worldgen JSON).
@@ -313,9 +314,104 @@ impl<'a> AotEmitter<'a> {
             #(#compute_fns)*
             #simd_fn
             #(#uncached_fns)*
+            #end_islands_regression
         };
 
         tokens
+    }
+
+    /// Compile the actual End-node expressions in every coordinate environment.
+    /// Kept under cfg(test) in generated output; no probe code ships at runtime.
+    fn emit_end_islands_regression(&mut self) -> TokenStream {
+        let node = DensityNode {
+            id: NodeId("end_islands_regression".into()),
+            def: DensityFunctionDef::EndIslands {},
+            dependencies: Vec::new(),
+            is_y_independent: true,
+            is_flat_cache: false,
+            is_cache_2d: false,
+            usage_count: 1,
+            ref_name: None,
+        };
+        let scalar = self.emit_node_expr(&node);
+        let simd = self.emit_node_expr_simd(&node);
+        let flat = self.emit_flat_cache_inner(&node);
+        let column = self.emit_column_context_inner(&node);
+        let standalone = self.emit_fc_inner_for_standalone(&node);
+        quote! {
+            #[cfg(test)]
+            mod end_islands_codegen_tests {
+                use super::*;
+                use crate::end_islands::EndIslands;
+
+                #[allow(clippy::too_many_arguments)]
+                impl NoiseSource for EndIslands {
+                    fn sample(&self, _: NoiseRef, _: f64, _: f64, _: f64) -> f64 {
+                        panic!("End-node fixture sampled a regular noise")
+                    }
+                    fn sample_4(&self, _: NoiseRef, _: f64x4, _: f64x4, _: f64x4) -> f64x4 {
+                        panic!("End-node fixture sampled a regular SIMD noise")
+                    }
+                    fn sample_end_islands(&self, x: i32, z: i32) -> f64 {
+                        EndIslands::sample(self, x, z)
+                    }
+                    fn sample_blended_noise(
+                        &self, _: f64, _: f64, _: f64, _: f64, _: f64, _: f64, _: f64, _: f64,
+                    ) -> f64 {
+                        panic!("End-node fixture sampled blended noise")
+                    }
+                    fn sample_blended_noise_4(
+                        &self, _: f64, _: f64x4, _: f64, _: f64, _: f64, _: f64, _: f64, _: f64,
+                    ) -> f64x4 {
+                        panic!("End-node fixture sampled blended SIMD noise")
+                    }
+                }
+
+                #[test]
+                fn native_end_node_matches_all_emission_modes() {
+                    // Native Java 1.21.11 bits from end_islands::tests, not Rust output.
+                    for (seed, x, z, expected) in [
+                        (0, 0, 0, 0x3fe2_0000_0000_0000_u64),
+                        (0, 1024, 0, 0xbfea_9026_8000_0000),
+                        (-1, 1024, 0, 0xbfeb_0000_0000_0000),
+                        (0, -1024, 0, 0x3fbf_43d3_0000_0000),
+                        (0, -1032, 0, 0x3fc5_b52f_0000_0000),
+                        (0, 370728, 0, 0xfff8_0000_0000_0000),
+                    ] {
+                        let noises = EndIslands::new(seed);
+                        let direct = {
+                            let ctx = FunctionContext::new(x, i32::MAX, z);
+                            #scalar
+                        };
+                        let lanes = {
+                            let ctx = FunctionContext4::new(x, [i32::MIN, -1, 0, i32::MAX], z);
+                            #simd
+                        }.to_array();
+                        let flat_value = {
+                            let (bx, bz) = (x, z);
+                            #flat
+                        };
+                        let column_value = {
+                            let (block_x, block_z) = (x, z);
+                            #column
+                        };
+                        let standalone_value = {
+                            let (block_x, block_z) = (x, z);
+                            #standalone
+                        };
+                        assert_eq!(
+                            [
+                                direct.to_bits(), lanes[0].to_bits(), lanes[1].to_bits(),
+                                lanes[2].to_bits(), lanes[3].to_bits(), flat_value.to_bits(),
+                                column_value.to_bits(), standalone_value.to_bits(),
+                            ],
+                            [expected; 8],
+                            "native End node seed={seed} block=({x},{z})"
+                        );
+                    }
+                }
+            }
+        }
     }
 
     fn emit_helpers(&self) -> TokenStream {
@@ -1330,7 +1426,9 @@ impl<'a> AotEmitter<'a> {
                 }
             }
 
-            DensityFunctionDef::EndIslands {} => quote! { 0.0_f64 },
+            DensityFunctionDef::EndIslands {} => {
+                quote! { noises.sample_end_islands(ctx.block_x, ctx.block_z) }
+            }
 
             DensityFunctionDef::Invert { .. } => {
                 let v = self.emit_node(&node.dependencies[0]);
@@ -1656,7 +1754,10 @@ impl<'a> AotEmitter<'a> {
                 }
             }
 
-            DensityFunctionDef::EndIslands {} => quote! { f64x4::splat(0.0_f64) },
+            DensityFunctionDef::EndIslands {} => {
+                // All four Y lanes share X/Z; End density is exactly scalar per lane.
+                quote! { f64x4::splat(noises.sample_end_islands(ctx.block_x, ctx.block_z)) }
+            }
 
             DensityFunctionDef::Invert { .. } => {
                 let v = self.emit_node_simd(&node.dependencies[0]);
@@ -2343,7 +2444,11 @@ impl<'a> AotEmitter<'a> {
 
             DensityFunctionDef::Interpolated { .. } => self.emit_fc_dep(0, node),
 
-            DensityFunctionDef::OldBlendedNoise { .. } | DensityFunctionDef::EndIslands {} => {
+            DensityFunctionDef::EndIslands {} => {
+                quote! { noises.sample_end_islands(bx, bz) }
+            }
+
+            DensityFunctionDef::OldBlendedNoise { .. } => {
                 quote! { 0.0_f64 }
             }
 
@@ -3348,7 +3453,11 @@ impl<'a> AotEmitter<'a> {
 
             DensityFunctionDef::Interpolated { .. } => self.emit_cc_dep(0, node),
 
-            DensityFunctionDef::OldBlendedNoise { .. } | DensityFunctionDef::EndIslands {} => {
+            DensityFunctionDef::EndIslands {} => {
+                quote! { noises.sample_end_islands(block_x, block_z) }
+            }
+
+            DensityFunctionDef::OldBlendedNoise { .. } => {
                 quote! { 0.0_f64 }
             }
 
@@ -3522,6 +3631,9 @@ impl<'a> AotEmitter<'a> {
                 // Splines are used extensively in flat_cache (continents, erosion, etc.)
                 // We need to evaluate them in standalone mode
                 self.emit_fc_standalone_spline(spline)
+            }
+            DensityFunctionDef::EndIslands {} => {
+                quote! { noises.sample_end_islands(block_x, block_z) }
             }
             DensityFunctionDef::YClampedGradient {
                 from_y,

@@ -60,6 +60,9 @@ pub trait NoiseSource {
     /// Sample noise at 4 Y positions (SIMD).
     fn sample_4(&self, noise_ref: super::NoiseRef, x: f64x4, y: f64x4, z: f64x4) -> f64x4;
 
+    /// Seeded End-islands density at block X/Z coordinates; independent of Y.
+    fn sample_end_islands(&self, block_x: i32, block_z: i32) -> f64;
+
     /// Sample old blended noise (base_3d_noise).
     ///
     /// This implements the legacy blended noise algorithm used for base terrain variation.
