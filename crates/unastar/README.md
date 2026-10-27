@@ -136,6 +136,15 @@ one frozen `server::game::types::RecipeRegistryResource`. Furnace consumers call
 source loot count is preserved by the caller. The lookup parses no JSON and
 does not use a hardcoded raw/cooked mob table.
 
+`ItemRegistry::resolve_identity` compiles item fields into
+`ResolvedItemIdentity { id, data }` against that server's frozen item snapshot.
+Exact registered identifiers, including numeric addon paths, win over legacy
+suffix parsing. Vanilla short names are qualified at compilation; measured
+aliases such as `bucket:1` resolve to milk bucket aux 0 through the shared
+`unastar_data::item_identity` source. Gameplay consumers use the compiled ID/aux,
+not strings or JSON. Unknown items and unmeasured legacy variants return `None`;
+ordinary canonical metadata, such as tool wear, is retained.
+
 `CraftingCatalogResource` caches the complete `CraftingDataPacket` and a
 recipe-id/source index for inventory consumers. A player join advertises it
 after the initial inventory synchronization. Pack recipes include shaped,

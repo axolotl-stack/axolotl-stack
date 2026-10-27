@@ -117,6 +117,13 @@ priority ordering.
 Legacy recipe spellings (`minecraft:coal:1`, `minecraft:fish`, etc.) normalize
 through `data/measured/recipe_legacy_identities.json`, a small projection of the
 pinned 1.26.51 CraftingData capture; no raw/cooked mob table is maintained.
+The shared `item_identity` module decodes this projection once for both recipe
+loading and entity/item-field compilation. Ingredient and result aliases remain
+separate because ingredient aux can be unrestricted. Numeric aux lookups use
+typed indexes without constructing temporary lookup strings. This projection is
+not a complete historical upgrader: unmeasured nonzero aux values in a known
+legacy alias family are rejected instead of inventing a base-item identity.
+
 `recipes::native` loads the other measured facts absent from pack JSON:
 159 native shaped recipes, 1,241 native shapeless recipes, 1,456 user-data
 recipes, 14 stable multi-recipe identities, native result NBT/state identities,

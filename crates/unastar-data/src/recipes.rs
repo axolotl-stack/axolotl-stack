@@ -28,6 +28,7 @@ use std::collections::{BTreeMap, HashMap};
 use serde_json::Value;
 
 use crate::item_components::FormatVersion;
+use crate::item_identity::LegacyIdentities;
 
 include!(concat!(env!("OUT_DIR"), "/vanilla_recipes.rs"));
 
@@ -165,19 +166,12 @@ fn data(origin: &str, value: Option<&Value>) -> Result<Option<i16>, RecipeError>
 }
 
 fn item_identity(name: &str, explicit_data: Option<i16>) -> (String, Option<i16>) {
-    let suffix = name
-        .rsplit_once(':')
-        .filter(|(base, _)| base.contains(':'))
-        .and_then(|(base, suffix)| suffix.parse::<i16>().ok().map(|data| (base, data)));
+    let suffix = crate::item_identity::split_aux(name).filter(|(base, _)| base.contains(':'));
     let (name, data) = match suffix {
         Some((base, suffix)) => (base, explicit_data.or(Some(suffix))),
         None => (name, explicit_data),
     };
-    let name = if name.contains(':') {
-        name.to_string()
-    } else {
-        format!("minecraft:{name}")
-    };
+    let name = crate::item_identity::qualify(name).into_owned();
     (name, data)
 }
 
@@ -516,31 +510,10 @@ struct FurnaceInputs {
     exact: HashMap<i16, usize>,
 }
 
-#[derive(serde::Deserialize)]
-struct LegacyIdentity {
-    name: String,
-    data: Option<i16>,
-}
-
-#[derive(serde::Deserialize)]
-struct LegacyIdentities {
-    inputs: HashMap<String, LegacyIdentity>,
-    outputs: HashMap<String, LegacyIdentity>,
-}
-
 impl LegacyIdentities {
-    fn lookup<'a>(
-        table: &'a HashMap<String, LegacyIdentity>,
-        name: &str,
-        data: Option<i16>,
-    ) -> Option<&'a LegacyIdentity> {
-        data.and_then(|data| table.get(&format!("{name}:{data}")))
-            .or_else(|| table.get(name))
-    }
-
     fn ingredient(&self, ingredient: &mut Ingredient) {
         if let Ingredient::Item { name, data, .. } = ingredient
-            && let Some(identity) = Self::lookup(&self.inputs, name, *data)
+            && let Some(identity) = self.input_alias(name, *data)
         {
             name.clone_from(&identity.name);
             *data = identity.data;
@@ -548,7 +521,7 @@ impl LegacyIdentities {
     }
 
     fn result(&self, output: &mut ResultItem) -> Result<(), RecipeError> {
-        if let Some(identity) = Self::lookup(&self.outputs, &output.name, Some(output.data)) {
+        if let Some(identity) = self.result_alias(&output.name, output.data) {
             output.name.clone_from(&identity.name);
             output.data = identity.data.ok_or_else(|| {
                 error(
@@ -612,7 +585,7 @@ impl LegacyIdentities {
             }
             RecipeKind::BrewingMix { reagent, .. }
             | RecipeKind::BrewingContainer { reagent, .. } => {
-                if let Some(identity) = Self::lookup(&self.outputs, reagent, Some(0)) {
+                if let Some(identity) = self.result_alias(reagent, 0) {
                     reagent.clone_from(&identity.name);
                 }
             }
@@ -651,10 +624,7 @@ impl RecipeRegistry {
             by_identifier.insert(recipe.identifier.clone(), by_identifier.len());
             true
         });
-        let legacy: LegacyIdentities = serde_json::from_str(include_str!(
-            "../data/measured/recipe_legacy_identities.json"
-        ))
-        .map_err(|e| error("recipe_legacy_identities.json", e.to_string()))?;
+        let legacy = crate::item_identity::vanilla();
         for recipe in &mut recipes {
             legacy.recipe(recipe)?;
         }

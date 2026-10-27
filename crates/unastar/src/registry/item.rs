@@ -28,8 +28,7 @@ pub struct ItemEntry {
     pub name: String,
     /// Maximum stack size.
     ///
-    /// This is generated from behavior-pack item components where available,
-    /// otherwise it remains an explicit unsourced default in `unastar-data`.
+    /// Native measured maximum, including reviewed item-class corrections.
     pub stack_size: u8,
     /// Component data sent for this item in `ItemRegistryPacket`, as network
     /// NBT. Vanilla items carry exactly what BDS sends: an empty compound for
@@ -45,6 +44,16 @@ impl RegistryEntry for ItemEntry {
     fn string_id(&self) -> &str {
         &self.string_id
     }
+}
+
+/// A compiled item constraint for one frozen registry snapshot.
+///
+/// Consumers compare internal IDs and aux values, not names or JSON. Missing
+/// aux means unrestricted aux; item production uses zero when it is absent.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub struct ResolvedItemIdentity {
+    pub id: u32,
+    pub data: Option<i16>,
 }
 
 /// Item registry with indexed protocol/network lookups.
@@ -142,6 +151,52 @@ impl ItemRegistry {
             .get(name)
             .and_then(|id| self.inner.get(*id))
             .filter(|entry| entry.string_id == name)
+    }
+
+    /// Compile a canonical name or measured legacy name/aux spelling.
+    ///
+    /// Exact registered names win, including numeric addon paths. Short names
+    /// belong to `minecraft`; after that exact lookup, `bucket:1` is a legacy
+    /// aux spelling. Aliases use the same cached BDS facts as recipe loading.
+    /// Unknown names/targets return `None`; canonical metadata is preserved.
+    pub fn resolve_identity(&self, value: &str) -> Option<ResolvedItemIdentity> {
+        if let Some(entry) = self.get_by_name(value) {
+            return Some(ResolvedItemIdentity {
+                id: entry.id,
+                data: None,
+            });
+        }
+        let (name, data) = match unastar_data::item_identity::split_aux(value) {
+            Some((name, data)) => (name, Some(data)),
+            None => (value, None),
+        };
+        let name = unastar_data::item_identity::qualify(name);
+        if data.is_none()
+            && let Some(entry) = self.get_by_name(&name)
+        {
+            return Some(ResolvedItemIdentity {
+                id: entry.id,
+                data: None,
+            });
+        }
+        let alias = unastar_data::item_identity::input_alias(&name, data)
+            .or_else(|| unastar_data::item_identity::result_alias(&name, data.unwrap_or(0)))
+            .or_else(|| {
+                data.is_none()
+                    .then(|| unastar_data::item_identity::input_alias(&name, Some(0)))
+                    .flatten()
+            });
+        let (name, data) = match alias {
+            Some(alias) => (alias.name, alias.data.or(data)),
+            None if data.is_some_and(|data| data != 0)
+                && unastar_data::item_identity::has_aux_aliases(&name) =>
+            {
+                return None;
+            }
+            None => (name.as_ref(), data),
+        };
+        self.get_by_name(name)
+            .map(|entry| ResolvedItemIdentity { id: entry.id, data })
     }
 
     /// Iterate over all entries.
@@ -351,6 +406,70 @@ pub fn tool_info(item_id: &str) -> Option<ToolInfo> {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn identity_resolution_keeps_legacy_variants_and_exact_numeric_addons_distinct() {
+        let mut registry = ItemRegistry::new();
+        registry.load_vanilla();
+        for (value, target, data) in [
+            ("bucket:0", "minecraft:bucket", Some(0)),
+            ("bucket:1", "minecraft:milk_bucket", Some(0)),
+            ("minecraft:bucket:1", "minecraft:milk_bucket", Some(0)),
+            ("milk_bucket", "minecraft:milk_bucket", None),
+            ("minecraft:fish", "minecraft:cod", None),
+            (
+                "minecraft:diamond_sword:17",
+                "minecraft:diamond_sword",
+                Some(17),
+            ),
+        ] {
+            let resolved = registry.resolve_identity(value).expect("resolved item");
+            assert_eq!(registry.get(resolved.id).unwrap().string_id, target);
+            assert_eq!(resolved.data, data);
+        }
+        assert_eq!(registry.resolve_identity("unknown:missing"), None);
+        assert_eq!(registry.resolve_identity("bucket:32768"), None);
+        for (id, name, network_id) in [
+            (10_000, "addon:123", 30_000),
+            (10_001, "minecraft:addon", 30_001),
+        ] {
+            registry
+                .register(ItemEntry {
+                    id,
+                    network_id,
+                    component_based: false,
+                    version: 1,
+                    string_id: name.into(),
+                    name: name.into(),
+                    stack_size: 64,
+                    component_nbt: Nbt::default(),
+                })
+                .unwrap();
+        }
+        assert_eq!(
+            registry.resolve_identity("addon:123"),
+            Some(ResolvedItemIdentity {
+                id: 10_000,
+                data: None
+            })
+        );
+        assert_eq!(
+            registry.resolve_identity("minecraft:addon:123"),
+            Some(ResolvedItemIdentity {
+                id: 10_001,
+                data: Some(123)
+            })
+        );
+    }
+
+    #[test]
+    fn unknown_legacy_aux_does_not_silently_become_the_base_item() {
+        let mut registry = ItemRegistry::new();
+        registry.load_vanilla();
+        // The current capture measures bucket:1, not the other legacy filled
+        // variants. Returning an empty bucket with damage 2 invents an identity.
+        assert_eq!(registry.resolve_identity("bucket:2"), None);
+    }
 
     #[test]
     fn item_registry_packet_preserves_required_item_metadata() {
