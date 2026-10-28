@@ -152,6 +152,27 @@ halo before returning it. WG heightmaps freeze at CARVERS; subsequent decoration
 updates only the final heightmaps. Repeated observations retain their recorded
 request indices rather than overwriting an earlier snapshot of the same chunk.
 
+Native INITIALIZE_LIGHT, LIGHT, SPAWN and FULL write no blocks (write radius -1).
+LIGHT depends on INITIALIZE_LIGHT, and therefore FEATURES, at radius one, so
+LIGHT, SPAWN and FULL captures must record their neighbor FEATURES order; the
+comparator rejects captures that do not. At FULL, Java promotes each pending
+ProtoChunk actor from the block currently at its position (`moving_piston`'s
+null constructor and out-of-height markers drop it), saves actors with
+`keepPacked`, and keeps only the four final heightmaps. `native_full_snapshot`
+and `generate_native` apply this promotion. All 78 native extended frames (two
+seed contexts, three dimensions, EMPTY through FULL) compare exactly.
+
+A native parallel batch submits every target's status future before pumping
+generation, and snapshots each target only after the whole batch completes. A
+FEATURES observation therefore includes later batch origins' neighbor writes.
+The comparator replays batch origins in the recorded native task order; it never
+substitutes coordinate order. In the measured two-worker capture (seed
+-7046029254386353131, three origins, all dimensions, SURFACE/CARVERS/FEATURES),
+each FEATURES task completed before the next started, and all 27 captures match
+exactly. Replaying each target at its own request boundary instead differed by
+303 states. The schedule records task starts only, so overlapping FEATURES tasks
+would need completion events before this model could describe them.
+
 At the Bedrock boundary, waterlogged states and fluid-bearing aquatic plants
 produce a secondary source-water storage without changing their primary block.
 Ordinary water remains primary-only. Sections allocate secondary storage lazily;

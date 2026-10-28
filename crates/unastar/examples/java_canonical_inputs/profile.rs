@@ -58,8 +58,13 @@ fn position(text: &str) -> Result<ChunkPos, String> {
 
 impl Profile {
     pub(super) fn validate_runtime_history(&self) -> Result<(), String> {
-        if self.parallel_batch.is_some() {
-            return Err("parallel native task/worker histories cannot be treated as serial FEATURES or halo requests".into());
+        if let Some(batch) = &self.parallel_batch {
+            if self.features_halo.is_some() {
+                return Err("a parallel batch observation cannot also be a halo closure".into());
+            }
+            if batch.coordinate_request_order != self.coordinate_request_order {
+                return Err("parallel batch targets differ from the capture's request order".into());
+            }
         }
         Ok(())
     }
@@ -97,6 +102,27 @@ impl Profile {
         }
         let requests = self.coordinate_request_order.iter().map(|s| position(s))
             .collect::<Result<Vec<_>, _>>()?;
+        if let Some(batch) = &self.parallel_batch {
+            self.validate_observation(target, observation)?;
+            // Native snapshots every target only after the whole batch's futures
+            // complete, so an observation includes later batch origins' neighbor
+            // writes. Origins replay in the recorded native task order, never a
+            // normalized coordinate order. Only task starts are recorded; the
+            // measured capture shows each FEATURES task completing before the
+            // next starts, which this sequential replay relies on.
+            let mut tasks: Vec<&NativeTask> = batch.native_task_schedule.iter()
+                .filter(|task| task.status == "minecraft:features").collect();
+            tasks.sort_by_key(|task| task.event_ordinal);
+            for request in &requests {
+                if !tasks.iter().any(|task| ChunkPos::new(task.chunk_x, task.chunk_z) == *request) {
+                    return Err(format!("parallel batch has no native FEATURES task for target {request:?}"));
+                }
+            }
+            for task in tasks {
+                pipeline.decorate_origin(ChunkPos::new(task.chunk_x, task.chunk_z));
+            }
+            return Ok(());
+        }
         if let Some(halo) = &self.features_halo {
             if halo.native_features_block_state_write_radius != 1 {
                 return Err("native FEATURES write radius is not the supported three-by-three region".into());
