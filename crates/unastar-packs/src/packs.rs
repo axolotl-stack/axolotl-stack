@@ -53,6 +53,10 @@ pub enum Family {
     Entities,
     /// `loot_tables`: loot tables, keyed by path rather than identifier.
     LootTables,
+    /// Native and addon item documents (`minecraft:item`).
+    Items,
+    /// Pack recipe documents (`minecraft:recipe_*`).
+    Recipes,
 }
 
 impl Family {
@@ -69,6 +73,8 @@ impl Family {
             Self::Processors => "worldgen/processors",
             Self::Entities => "entities",
             Self::LootTables => "loot_tables",
+            Self::Items => "items",
+            Self::Recipes => "recipes",
         }
     }
 
@@ -184,22 +190,15 @@ impl PackStack {
         }
     }
 
-    /// Every non-empty `.json` entry of `family`, layer by layer in stack order
-    /// (within a layer: archive, nested archives, loose files, each sorted).
+    /// Every non-empty `.json` entry of `family`, layer by layer in stack order.
+    /// Archives and loose paths are sorted; entries within an archive retain
+    /// their stored order. Nested archive names prefix their entries.
     /// The origin names layer, family and entry, e.g. `vanilla_1.26.50/entities:cow.json`.
     pub fn files(&self, family: Family) -> Result<Vec<PackFile>> {
         let mut out = Vec::new();
         for layer in &self.layers {
             for (path, source) in layer_sources(layer, family) {
-                for (entry_name, bytes) in source.read(&path)? {
-                    let entry_name = if matches!(source, SourceKind::LooseJson) {
-                        path.strip_prefix(layer.root.join(family.path()))
-                            .expect("loose family input is below the family directory")
-                            .to_string_lossy()
-                            .replace('\\', "/")
-                    } else {
-                        entry_name
-                    };
+                for (entry_name, bytes) in source.read(&path, layer, family)? {
                     if !entry_name.ends_with(".json") || bytes.is_empty() {
                         continue;
                     }
@@ -232,7 +231,7 @@ impl PackStack {
         for layer in &self.layers {
             let mut in_layer: BTreeMap<String, String> = BTreeMap::new();
             for (path, source) in layer_sources(layer, family) {
-                for (entry_name, bytes) in source.read(&path)? {
+                for (entry_name, bytes) in source.read(&path, layer, family)? {
                     let origin = format!("{}/{}:{}", layer.name, family.path(), entry_name);
                     if !entry_name.ends_with(".json") || bytes.is_empty() {
                         continue;
@@ -276,19 +275,35 @@ enum SourceKind {
 }
 
 impl SourceKind {
-    fn read(&self, path: &Path) -> Result<Vec<(String, Vec<u8>)>> {
+    fn read(&self, path: &Path, layer: &Layer, family: Family) -> Result<Vec<(String, Vec<u8>)>> {
         match self {
-            Self::Archive => Ok(brarchive::read_file(path)?
-                .into_iter()
-                .map(|e| (e.name, e.data))
-                .collect()),
+            Self::Archive => {
+                let nested_root = layer.root.join("__brarchive").join(family.path());
+                let prefix = path
+                    .strip_prefix(&nested_root)
+                    .ok()
+                    .map(|relative| {
+                        let relative = relative.with_extension("");
+                        format!("{}/", relative.to_string_lossy().replace('\\', "/"))
+                    })
+                    .unwrap_or_default();
+                Ok(brarchive::read_file(path)?
+                    .into_iter()
+                    .map(|entry| {
+                        (
+                            format!("{prefix}{}", entry.name.replace('\\', "/")),
+                            entry.data,
+                        )
+                    })
+                    .collect())
+            }
             Self::LooseJson => {
                 let bytes = std::fs::read(path).map_err(|e| Error::io(path, e))?;
                 let name = path
-                    .file_name()
-                    .unwrap_or_default()
+                    .strip_prefix(layer.root.join(family.path()))
+                    .expect("loose family input is below the family directory")
                     .to_string_lossy()
-                    .into_owned();
+                    .replace('\\', "/");
                 Ok(vec![(name, bytes)])
             }
         }
@@ -508,6 +523,62 @@ mod path_tests {
             .unwrap();
         let entries: Vec<_> = files.iter().map(|file| file.entry.as_str()).collect();
         assert_eq!(entries, ["chests/shared.json", "entities/shared.json"]);
+        std::fs::remove_dir_all(root).unwrap();
+    }
+
+    #[test]
+    fn nested_archives_and_loose_files_share_family_relative_paths() {
+        use crate::brarchive::{Entry, encode};
+
+        let root =
+            std::env::temp_dir().join(format!("unastar-packs-nested-paths-{}", std::process::id()));
+        let _ = std::fs::remove_dir_all(&root);
+        let archives = root.join("__brarchive/loot_tables");
+        std::fs::create_dir_all(archives.join("equipment")).unwrap();
+        for (archive, marker) in [
+            ("chests.brarchive", "chest"),
+            ("entities.brarchive", "entity"),
+            ("equipment/trials.brarchive", "equipment"),
+        ] {
+            let entries = [
+                Entry {
+                    name: "z.json".into(),
+                    data: format!("{{\"marker\":\"{marker}\"}}").into_bytes(),
+                },
+                Entry {
+                    name: "shared.json".into(),
+                    data: b"{}".to_vec(),
+                },
+            ];
+            std::fs::write(archives.join(archive), encode(&entries)).unwrap();
+        }
+        std::fs::create_dir_all(root.join("loot_tables/chests")).unwrap();
+        std::fs::write(
+            root.join("loot_tables/chests/shared.json"),
+            b"{\"loose\":true}",
+        )
+        .unwrap();
+        let files = PackStack::single_pack("test", &root)
+            .files(Family::LootTables)
+            .unwrap();
+        let entries: Vec<_> = files.iter().map(|file| file.entry.as_str()).collect();
+        assert_eq!(
+            entries,
+            [
+                "chests/z.json",
+                "chests/shared.json",
+                "entities/z.json",
+                "entities/shared.json",
+                "equipment/trials/z.json",
+                "equipment/trials/shared.json",
+                "chests/shared.json",
+            ]
+        );
+        assert_eq!(
+            crate::json::parse(&files[6].origin, &files[6].bytes).unwrap()["loose"],
+            true
+        );
+        assert_eq!(files[4].origin, "test/loot_tables:equipment/trials/z.json");
         std::fs::remove_dir_all(root).unwrap();
     }
 }

@@ -15,8 +15,8 @@ use crate::entity::components::{
     PickupDelay, Player, PlayerSession, Position, RuntimeEntityId, RuntimeId,
 };
 use crate::item::ItemStack;
+use crate::registry::ItemRegistry;
 use crate::registry::collision::Aabb;
-use crate::registry::{BlockRegistry, ItemRegistry};
 
 /// Width and height of a player's collision box.
 const PLAYER_WIDTH: f64 = 0.6;
@@ -36,37 +36,19 @@ pub(crate) fn item_descriptor(
     if stack.is_empty() {
         return Some(WireItem::default());
     }
+    let item = stack.item()?;
+    if items.get(item.id)?.network_id() != item.network_id() {
+        return None;
+    }
     Some(WireItem {
-        id: i16::try_from(items.get_by_name(&stack.item_id)?.network_id).ok()?,
+        id: i16::try_from(item.network_id()).ok()?,
         stacksize: u16::from(stack.count),
         auxvalue: u32::try_from(stack.damage).ok()?,
+        // World item actors do not advertise inventory stack network IDs.
         net_id_variant: None,
         block_runtime_id: block_ids.item_block_to_wire(u32::try_from(stack.runtime_id).ok()?),
-        user_data_buffer: crate::item::user_data::network_user_data(
-            &stack.item_id,
-            stack.nbt.as_deref(),
-        ),
+        user_data_buffer: stack.user_data(),
     })
-}
-
-/// A registry-backed stack of `count` x `item_id`: carries the registry
-/// stack limit and, for block items, the block's default runtime state.
-pub(crate) fn registry_stack(
-    item_id: &str,
-    count: u8,
-    items: &ItemRegistry,
-    blocks: &BlockRegistry,
-) -> Option<ItemStack> {
-    let entry = items.get_by_name(item_id)?;
-    let runtime_id = blocks
-        .default_state_id_by_name(item_id)
-        .map_or(Ok(0), i32::try_from)
-        .ok()?;
-    Some(
-        ItemStack::new(item_id, count)
-            .with_max_stack_size(entry.stack_size)
-            .with_runtime_id(runtime_id),
-    )
 }
 
 /// Feet position of a player whose `Position` is the eye position.
@@ -93,13 +75,10 @@ fn slot_packet(slot: usize, item: WireItem) -> InventorySlotPacket {
 
 /// Send the contents of main-inventory `slot` of `player` to its client.
 pub(crate) fn send_slot(world: &World, player: Entity, slot: usize, stack: &ItemStack) {
-    let (Some(session), Some(items)) = (
-        world.get::<PlayerSession>(player),
-        world.get_resource::<ItemRegistryResource>(),
-    ) else {
+    let Some(session) = world.get::<PlayerSession>(player) else {
         return;
     };
-    if let Some(wire) = item_descriptor(stack, &items.0, super::types::block_network_ids(world)) {
+    if let Some(wire) = super::inventory::wire_item(stack, super::types::block_network_ids(world)) {
         let _ = session.send(McpePacket::from(slot_packet(slot, wire)));
     }
 }
@@ -139,7 +118,6 @@ pub fn pickup_items(
         With<Player>,
     >,
     sessions: Query<&PlayerSession>,
-    registry: Res<ItemRegistryResource>,
     config: Res<super::types::ServerConfigResource>,
 ) {
     let mut taken: Vec<Entity> = Vec::new();
@@ -174,7 +152,7 @@ pub fn pickup_items(
                 for (slot, (old, new)) in before.iter().zip(inventory.0.slots()).enumerate() {
                     if old != new
                         && let Some(wire) =
-                            item_descriptor(new, &registry.0, config.0.block_network_ids)
+                            super::inventory::wire_item(new, config.0.block_network_ids)
                     {
                         let _ = session.send(McpePacket::from(slot_packet(slot, wire)));
                     }
@@ -211,12 +189,14 @@ pub fn pickup_items(
 
 /// Resolve the stack a broken block or container should drop.
 pub(crate) fn world_stack(world: &World, item_id: &str, count: u8) -> Option<ItemStack> {
-    registry_stack(
-        item_id,
-        count,
-        &world.get_resource::<ItemRegistryResource>()?.0,
-        &world.get_resource::<BlockRegistryResource>()?.0,
-    )
+    world
+        .get_resource::<ItemRegistryResource>()?
+        .0
+        .stack_with_block(
+            item_id,
+            count,
+            &world.get_resource::<BlockRegistryResource>()?.0,
+        )
 }
 
 #[cfg(test)]
@@ -224,6 +204,7 @@ mod tests {
     use super::*;
     use crate::entity::components::{Rotation, Velocity};
     use crate::entity::{EntityRandom, spawn_item_drop};
+    use crate::registry::BlockRegistry;
     use jolyne::valentine::McpePacketData;
     use std::sync::Arc;
 
@@ -280,7 +261,7 @@ mod tests {
             .0
             .slots()
             .iter()
-            .filter(|s| s.item_id == id)
+            .filter(|s| s.item_id() == id)
             .map(|s| usize::from(s.count))
             .sum()
     }

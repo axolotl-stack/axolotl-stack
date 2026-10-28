@@ -1,0 +1,468 @@
+{
+  "source": "BDS 1.26.51 member/join/00054-CraftingDataPacket.bin",
+  "source_sha256": "68bbcbf58c0adc94edd90fbb4fbabf1420d5a388e14b8108c1c4aa907e594923",
+  "inputs": {
+    "minecraft:appleenchanted": {
+      "name": "minecraft:enchanted_golden_apple",
+      "data": null
+    },
+    "minecraft:bamboo_planks:4": {
+      "name": "minecraft:bamboo_planks",
+      "data": 0
+    },
+    "minecraft:boat:0": {
+      "name": "minecraft:oak_boat",
+      "data": 0
+    },
+    "minecraft:boat:1": {
+      "name": "minecraft:spruce_boat",
+      "data": 0
+    },
+    "minecraft:boat:2": {
+      "name": "minecraft:birch_boat",
+      "data": 0
+    },
+    "minecraft:boat:3": {
+      "name": "minecraft:jungle_boat",
+      "data": 0
+    },
+    "minecraft:boat:4": {
+      "name": "minecraft:acacia_boat",
+      "data": 0
+    },
+    "minecraft:boat:5": {
+      "name": "minecraft:dark_oak_boat",
+      "data": 0
+    },
+    "minecraft:boat:6": {
+      "name": "minecraft:mangrove_boat",
+      "data": 0
+    },
+    "minecraft:boat:7": {
+      "name": "minecraft:bamboo_raft",
+      "data": 0
+    },
+    "minecraft:bucket:1": {
+      "name": "minecraft:milk_bucket",
+      "data": 0
+    },
+    "minecraft:chain": {
+      "name": "minecraft:iron_chain",
+      "data": null
+    },
+    "minecraft:chorus_fruit_popped": {
+      "name": "minecraft:popped_chorus_fruit",
+      "data": null
+    },
+    "minecraft:dye:0": {
+      "name": "minecraft:ink_sac",
+      "data": 0
+    },
+    "minecraft:dye:1": {
+      "name": "minecraft:red_dye",
+      "data": 0
+    },
+    "minecraft:dye:10": {
+      "name": "minecraft:lime_dye",
+      "data": 0
+    },
+    "minecraft:dye:11": {
+      "name": "minecraft:yellow_dye",
+      "data": 0
+    },
+    "minecraft:dye:12": {
+      "name": "minecraft:light_blue_dye",
+      "data": 0
+    },
+    "minecraft:dye:13": {
+      "name": "minecraft:magenta_dye",
+      "data": 0
+    },
+    "minecraft:dye:14": {
+      "name": "minecraft:orange_dye",
+      "data": 0
+    },
+    "minecraft:dye:15": {
+      "name": "minecraft:bone_meal",
+      "data": 0
+    },
+    "minecraft:dye:16": {
+      "name": "minecraft:black_dye",
+      "data": 0
+    },
+    "minecraft:dye:17": {
+      "name": "minecraft:brown_dye",
+      "data": 0
+    },
+    "minecraft:dye:18": {
+      "name": "minecraft:blue_dye",
+      "data": 0
+    },
+    "minecraft:dye:19": {
+      "name": "minecraft:white_dye",
+      "data": 0
+    },
+    "minecraft:dye:2": {
+      "name": "minecraft:green_dye",
+      "data": 0
+    },
+    "minecraft:dye:3": {
+      "name": "minecraft:cocoa_beans",
+      "data": 0
+    },
+    "minecraft:dye:4": {
+      "name": "minecraft:lapis_lazuli",
+      "data": 0
+    },
+    "minecraft:dye:5": {
+      "name": "minecraft:purple_dye",
+      "data": 0
+    },
+    "minecraft:dye:6": {
+      "name": "minecraft:cyan_dye",
+      "data": 0
+    },
+    "minecraft:dye:7": {
+      "name": "minecraft:light_gray_dye",
+      "data": 0
+    },
+    "minecraft:dye:8": {
+      "name": "minecraft:gray_dye",
+      "data": 0
+    },
+    "minecraft:dye:9": {
+      "name": "minecraft:pink_dye",
+      "data": 0
+    },
+    "minecraft:emptymap:0": {
+      "name": "minecraft:empty_map",
+      "data": 0
+    },
+    "minecraft:emptymap:1": {
+      "name": "minecraft:empty_map",
+      "data": 1
+    },
+    "minecraft:fish": {
+      "name": "minecraft:cod",
+      "data": null
+    },
+    "minecraft:horsearmorgold": {
+      "name": "minecraft:golden_horse_armor",
+      "data": null
+    },
+    "minecraft:horsearmoriron": {
+      "name": "minecraft:iron_horse_armor",
+      "data": null
+    },
+    "minecraft:log2:0": {
+      "name": "minecraft:acacia_log",
+      "data": 0
+    },
+    "minecraft:log2:1": {
+      "name": "minecraft:dark_oak_log",
+      "data": 0
+    },
+    "minecraft:log:0": {
+      "name": "minecraft:oak_log",
+      "data": 0
+    },
+    "minecraft:log:1": {
+      "name": "minecraft:spruce_log",
+      "data": 0
+    },
+    "minecraft:log:2": {
+      "name": "minecraft:birch_log",
+      "data": 0
+    },
+    "minecraft:log:3": {
+      "name": "minecraft:jungle_log",
+      "data": 0
+    },
+    "minecraft:mangrove_planks:4": {
+      "name": "minecraft:mangrove_planks",
+      "data": 0
+    },
+    "minecraft:melon": {
+      "name": "minecraft:melon_slice",
+      "data": null
+    },
+    "minecraft:muttonRaw": {
+      "name": "minecraft:mutton",
+      "data": null
+    },
+    "minecraft:netherstar": {
+      "name": "minecraft:nether_star",
+      "data": null
+    },
+    "minecraft:reeds": {
+      "name": "minecraft:sugar_cane",
+      "data": null
+    },
+    "minecraft:sandstone:3": {
+      "name": "minecraft:smooth_sandstone",
+      "data": 0
+    },
+    "minecraft:skull:1": {
+      "name": "minecraft:wither_skeleton_skull",
+      "data": 0
+    },
+    "minecraft:skull:4": {
+      "name": "minecraft:creeper_head",
+      "data": 0
+    },
+    "minecraft:turtle_shell_piece": {
+      "name": "minecraft:turtle_scute",
+      "data": null
+    },
+    "minecraft:wood:0": {
+      "name": "minecraft:oak_wood",
+      "data": 0
+    },
+    "minecraft:wood:1": {
+      "name": "minecraft:spruce_wood",
+      "data": 0
+    },
+    "minecraft:wood:10": {
+      "name": "minecraft:stripped_birch_wood",
+      "data": 0
+    },
+    "minecraft:wood:11": {
+      "name": "minecraft:stripped_jungle_wood",
+      "data": 0
+    },
+    "minecraft:wood:12": {
+      "name": "minecraft:stripped_acacia_wood",
+      "data": 0
+    },
+    "minecraft:wood:13": {
+      "name": "minecraft:stripped_dark_oak_wood",
+      "data": 0
+    },
+    "minecraft:wood:2": {
+      "name": "minecraft:birch_wood",
+      "data": 0
+    },
+    "minecraft:wood:3": {
+      "name": "minecraft:jungle_wood",
+      "data": 0
+    },
+    "minecraft:wood:4": {
+      "name": "minecraft:acacia_wood",
+      "data": 0
+    },
+    "minecraft:wood:5": {
+      "name": "minecraft:dark_oak_wood",
+      "data": 0
+    },
+    "minecraft:wood:8": {
+      "name": "minecraft:stripped_oak_wood",
+      "data": 0
+    },
+    "minecraft:wood:9": {
+      "name": "minecraft:stripped_spruce_wood",
+      "data": 0
+    }
+  },
+  "outputs": {
+    "minecraft:banner_pattern:0": {
+      "name": "minecraft:creeper_banner_pattern",
+      "data": 0
+    },
+    "minecraft:banner_pattern:1": {
+      "name": "minecraft:skull_banner_pattern",
+      "data": 0
+    },
+    "minecraft:banner_pattern:2": {
+      "name": "minecraft:flower_banner_pattern",
+      "data": 0
+    },
+    "minecraft:banner_pattern:3": {
+      "name": "minecraft:mojang_banner_pattern",
+      "data": 0
+    },
+    "minecraft:banner_pattern:4": {
+      "name": "minecraft:field_masoned_banner_pattern",
+      "data": 0
+    },
+    "minecraft:banner_pattern:5": {
+      "name": "minecraft:bordure_indented_banner_pattern",
+      "data": 0
+    },
+    "minecraft:carrotonastick:0": {
+      "name": "minecraft:carrot_on_a_stick",
+      "data": 0
+    },
+    "minecraft:chain:0": {
+      "name": "minecraft:iron_chain",
+      "data": 0
+    },
+    "minecraft:chest_boat:0": {
+      "name": "minecraft:oak_chest_boat",
+      "data": 0
+    },
+    "minecraft:chest_boat:1": {
+      "name": "minecraft:spruce_chest_boat",
+      "data": 0
+    },
+    "minecraft:chest_boat:2": {
+      "name": "minecraft:birch_chest_boat",
+      "data": 0
+    },
+    "minecraft:chest_boat:3": {
+      "name": "minecraft:jungle_chest_boat",
+      "data": 0
+    },
+    "minecraft:chest_boat:4": {
+      "name": "minecraft:acacia_chest_boat",
+      "data": 0
+    },
+    "minecraft:chest_boat:5": {
+      "name": "minecraft:dark_oak_chest_boat",
+      "data": 0
+    },
+    "minecraft:chest_boat:6": {
+      "name": "minecraft:mangrove_chest_boat",
+      "data": 0
+    },
+    "minecraft:chest_boat:7": {
+      "name": "minecraft:bamboo_chest_raft",
+      "data": 0
+    },
+    "minecraft:chorus_fruit_popped:0": {
+      "name": "minecraft:popped_chorus_fruit",
+      "data": 0
+    },
+    "minecraft:coal:1": {
+      "name": "minecraft:charcoal",
+      "data": 0
+    },
+    "minecraft:cooked_fish:0": {
+      "name": "minecraft:cooked_cod",
+      "data": 0
+    },
+    "minecraft:darkoak_sign:0": {
+      "name": "minecraft:dark_oak_sign",
+      "data": 0
+    },
+    "minecraft:dispenser:3": {
+      "name": "minecraft:dispenser",
+      "data": 0
+    },
+    "minecraft:dropper:3": {
+      "name": "minecraft:dropper",
+      "data": 0
+    },
+    "minecraft:dye:1": {
+      "name": "minecraft:red_dye",
+      "data": 0
+    },
+    "minecraft:dye:10": {
+      "name": "minecraft:lime_dye",
+      "data": 0
+    },
+    "minecraft:dye:11": {
+      "name": "minecraft:yellow_dye",
+      "data": 0
+    },
+    "minecraft:dye:12": {
+      "name": "minecraft:light_blue_dye",
+      "data": 0
+    },
+    "minecraft:dye:13": {
+      "name": "minecraft:magenta_dye",
+      "data": 0
+    },
+    "minecraft:dye:14": {
+      "name": "minecraft:orange_dye",
+      "data": 0
+    },
+    "minecraft:dye:15": {
+      "name": "minecraft:bone_meal",
+      "data": 0
+    },
+    "minecraft:dye:16": {
+      "name": "minecraft:black_dye",
+      "data": 0
+    },
+    "minecraft:dye:17": {
+      "name": "minecraft:brown_dye",
+      "data": 0
+    },
+    "minecraft:dye:18": {
+      "name": "minecraft:blue_dye",
+      "data": 0
+    },
+    "minecraft:dye:19": {
+      "name": "minecraft:white_dye",
+      "data": 0
+    },
+    "minecraft:dye:2": {
+      "name": "minecraft:green_dye",
+      "data": 0
+    },
+    "minecraft:dye:4": {
+      "name": "minecraft:lapis_lazuli",
+      "data": 0
+    },
+    "minecraft:dye:5": {
+      "name": "minecraft:purple_dye",
+      "data": 0
+    },
+    "minecraft:dye:6": {
+      "name": "minecraft:cyan_dye",
+      "data": 0
+    },
+    "minecraft:dye:7": {
+      "name": "minecraft:light_gray_dye",
+      "data": 0
+    },
+    "minecraft:dye:8": {
+      "name": "minecraft:gray_dye",
+      "data": 0
+    },
+    "minecraft:dye:9": {
+      "name": "minecraft:pink_dye",
+      "data": 0
+    },
+    "minecraft:emptymap:0": {
+      "name": "minecraft:empty_map",
+      "data": 0
+    },
+    "minecraft:emptymap:2": {
+      "name": "minecraft:empty_map",
+      "data": 2
+    },
+    "minecraft:horsearmorleather:0": {
+      "name": "minecraft:leather_horse_armor",
+      "data": 0
+    },
+    "minecraft:muttonCooked:0": {
+      "name": "minecraft:cooked_mutton",
+      "data": 0
+    },
+    "minecraft:piston:1": {
+      "name": "minecraft:piston",
+      "data": 0
+    },
+    "minecraft:record_5:0": {
+      "name": "minecraft:music_disc_5",
+      "data": 0
+    },
+    "minecraft:sealantern:0": {
+      "name": "minecraft:sea_lantern",
+      "data": 0
+    },
+    "minecraft:sign:0": {
+      "name": "minecraft:oak_sign",
+      "data": 0
+    },
+    "minecraft:speckled_melon:0": {
+      "name": "minecraft:glistering_melon_slice",
+      "data": 0
+    },
+    "minecraft:sticky_piston:1": {
+      "name": "minecraft:sticky_piston",
+      "data": 0
+    }
+  }
+}

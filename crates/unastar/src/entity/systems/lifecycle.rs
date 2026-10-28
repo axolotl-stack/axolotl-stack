@@ -175,13 +175,12 @@ pub fn tick_mob_age(mut query: Query<&mut MobAge, With<Mob>>) {
 mod tests {
     use super::*;
     use crate::entity::{EntityRandom, spawn_item_drop};
-    use crate::item::ItemStack;
 
     fn item(world: &mut World, x: f64, id: &str, count: u8, age: u64) -> Entity {
         let entity = spawn_item_drop(
             world,
             DVec3::new(x, 64.0, 0.5),
-            ItemStack::new(id, count).with_max_stack_size(64),
+            crate::item::test_support::stack(id, count),
             None,
         )
         .unwrap();

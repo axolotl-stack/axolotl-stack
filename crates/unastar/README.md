@@ -312,6 +312,45 @@ Unastar's tactical compatibility gates live in [`ROADMAP.md`](ROADMAP.md). Curre
 
 Until those gates pass, describe Unastar as a Bedrock server implementation in progress rather than a fully vanilla-compatible server.
 
+The game server compiles the embedded pack recipes once at startup and shares
+one frozen `server::game::types::RecipeRegistryResource`. Furnace consumers call
+`registry.0.furnace_result(identifier, aux)` to borrow the canonical result;
+source loot count is preserved by the caller. The lookup parses no JSON and
+does not use a hardcoded raw/cooked mob table.
+
+`ItemRegistry::resolve_identity` compiles item fields into
+`ResolvedItemIdentity { id, data }` against that server's frozen item snapshot.
+Exact registered identifiers, including numeric addon paths, win over legacy
+suffix parsing. Vanilla short names are qualified at compilation; measured
+aliases such as `bucket:1` resolve to milk bucket aux 0 through the shared
+`unastar_data::item_identity` source. Gameplay consumers use the compiled ID/aux,
+not strings or JSON. Unknown items and unmeasured legacy variants return `None`;
+ordinary canonical metadata, such as tool wear, is retained.
+
+`CraftingCatalogResource` caches the complete `CraftingDataPacket` and a
+recipe-id/source index for inventory consumers. A player join advertises it
+after the initial inventory synchronization. Pack recipes include shaped,
+shapeless, furnace/station-tag rows, smithing, brewing and stonecutter recipes;
+typed measured facts supply native recipes absent from pack JSON. Every station
+tag gets its own recipe net id and UUID; native variant groups share UUIDs as BDS
+does. The catalog is compiled once, not rebuilt from JSON for each player.
+
+The full 1.26.51 capture acceptance test exercises a real `GameServer` player
+spawn and encodes/decodes the actual outbound advertisement. It compares every
+field after unordered-row matching, arbitrary recipe-id/UUID value normalization,
+and conversion of captured block hashes to negotiated canonical ordinals. UUID
+equivalence classes and nonzero unique recipe ids are checked before
+normalization. The capture stays in the untracked extractor cache, pinned by
+SHA-256; without the environment variable this external-oracle test skips.
+
+```powershell
+$env:UNASTAR_CRAFTING_DATA_CAPTURE = 'C:/Users/jvigu/orca/bds-runtime/captures/1.26.51/20261025T172246Z/member/join/00054-CraftingDataPacket.bin'
+cargo test -p unastar --test crafting_data_parity -- --nocapture
+```
+
+This packet-content gate does not claim whole join-sequence or crafting-execution
+parity.
+
 ## Actor registries and data
 
 `registry::entity::ActorDefinitionRegistryBuilder` accepts vanilla/addon rows
@@ -478,6 +517,67 @@ corrections. Allowed intents revalidate current state before committing, and
 Survival placement consumes one server-owned selected item. Placement does not
 replace occupied blocks. Item-specific replacement, adventure CanPlaceOn/CanDestroy
 rules, and unsupported inventory operations are not implemented.
+
+Using a crafting table (unless sneaking with an item in hand) opens BDS's
+WORKBENCH screen (type 1 at the block, no actor) from the shared window-ID
+counter; ItemStackRequest crafting then uses the 3x3 grid. Closing any screen
+returns the cursor and crafting-grid items to the inventory and throws what
+does not fit (dragonfly's `MoveItemsToInventory`).
+
+`BlockPickRequest` follows BDS's `selectItem` rules (`server/game/inventory/pick.rs`):
+reach 14 blocks in Creative and 8.7 otherwise from the eye to the block corner,
+hotbar matches are selected, main-inventory matches swap into the hotbar, only
+Creative creates the item, and an `item_lock` held item is never displaced. The
+picked item is the block's own item when it is in the creative content; blocks
+whose pick item differs (wall signs, crops), picks with block-entity data and
+`GuiDataPickItem` wait for a measured pick-item table, I8 block entities and a
+BDS capture respectively.
+
+### Containers
+
+Chests (single and double), trapped chests, barrels, ender chests, furnaces,
+blast furnaces, smokers and hoppers have block actors
+(`crate::block_entity`, world integration in `server/game/containers.rs`):
+
+- Placing one creates its actor in the chunk; every committed change
+  re-encodes the BDS actor NBT into the chunk and marks it dirty, so contents
+  persist through LevelDB and BlazeDB and reach clients with the subchunk.
+  Unmodelled keys (`CustomName`, `LootTable`, `isMovable`) are kept.
+- Using one opens BDS's window (`ContainerOpen {id, type, clicked block, -1}`
+  then `InventoryContent`); the I4 engine moves items with BDS's per-screen
+  allow-lists (`LevelEntityContainer`, `BarrelContainer`, furnace ingredient,
+  fuel and result containers plus the player's hotbar/inventory/cursor).
+- Chests pair with an unpaired neighbour of the same type and facing, the
+  existing chest leading its 54-slot window; lids open for the first viewer
+  and close for the last (barrels flip `open_bit`).
+- Breaking drops the contents (random 10..30 item chunks, furnaces whole
+  stacks), unpairs the partner and closes viewers with a server-initiated close.
+- Furnaces tick per BDS (cook 200 or 100 ticks, measured fuel times scaled by
+  the cook interval, progress decay, lit/unlit swap, `ContainerSetData` 0..3)
+  and pay XP straight to the taking player. Follow-up: spawn XP orbs once the
+  entity lane's XP orb entity reaches main (also for breaking a furnace).
+- Hoppers move one item per 8 ticks between containers (furnace input from
+  above, fuel from the side, output from below) and collect dropped items.
+- Ender chests show the player's own 27 slots, saved in the player record.
+
+Generated chests unpack their loot table the first time they are opened,
+broken or reached by a hopper, with the saved seed and the Java `fill`
+spreading algorithm; BDS's random sequence is not reproduced, so a seed gives
+different (but table-valid) contents than BDS.
+
+Not implemented: chest obstruction (Bedrock's default `minecraft:chest_obstruction`
+rule is `shape`, and bottom slabs and sitting cats block opening, but which
+vanilla shapes obstruct needs native evidence the capture bot cannot produce
+yet), trapped-chest redstone, copper chests, redstone-driven hopper locking,
+furnace ambient sounds, and the `Block` compound BDS adds to saved block items.
+
+BDS evidence: the `BlockActorData` a newly placed chest is announced with is
+compared against a BDS 1.26.51 capture (`containers/testdata`). Windows, lids,
+`ContainerSetData` and hopper timing still follow the BDS research notes: BDS
+rejects every block click of the client-diff bot (see
+`tools/client-diff/README.md`), so no window capture exists yet. They are
+covered by `containers/tests.rs` and the loopback test
+`tests/container_loopback.rs` (take the native lock to run it).
 
 ## Plugin Isolation
 

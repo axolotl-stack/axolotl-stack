@@ -5,6 +5,8 @@
 mod actors;
 #[path = "build/biomes.rs"]
 mod biomes;
+#[path = "build/items_recipes.rs"]
+mod items_recipes;
 #[path = "build/loot.rs"]
 mod loot;
 
@@ -26,6 +28,7 @@ fn main() {
     let out = PathBuf::from(std::env::var_os("OUT_DIR").expect("Cargo output directory"));
     actors::write(&pack, &out);
     biomes::write(&pack, &native, &out);
+    items_recipes::write(&pack, &out);
     loot::write(
         &pack,
         &root.join("data/overrides/loot_tables/blocks.json"),

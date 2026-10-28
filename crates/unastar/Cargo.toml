@@ -62,6 +62,7 @@ bitflags = "2.6"
 unastar_bedrock_codegen = { path = "../unastar_bedrock_codegen", optional = true }
 
 [dev-dependencies]
+jolyne = { workspace = true, features = ["client", "raknet"] }
 flate2.workspace = true
 crc32c = "0.6"
 tempfile = "3"

@@ -7,6 +7,7 @@ mod block_drops;
 mod blocks;
 mod chunks;
 mod commands;
+mod containers;
 mod falling;
 mod inventory;
 mod items;
@@ -24,6 +25,7 @@ pub mod types;
 
 use bevy_ecs::prelude::*;
 pub(crate) use blocks::{commit_block_event, reject_block_event};
+pub use inventory::RequestIdAssignments;
 pub(crate) use items::item_descriptor;
 use jolyne::WorldTemplate;
 use jolyne::valentine::EnumsGameType;
@@ -38,9 +40,9 @@ use crate::ecs::{
 use crate::entity::bundles::PlayerBundle;
 use crate::entity::components::transform::{Position, Rotation};
 use crate::entity::components::{
-    ArmourInventory, BreakingState, ChunkRadius, CursorItem, GameMode, HeldSlot, InventoryOpened,
-    ItemStackRequestState, LastBroadcastPosition, MainInventory, OffhandSlot, Player, PlayerInput,
-    PlayerName, PlayerSession, PlayerState, PlayerUuid, RuntimeEntityId, SpatialChunk,
+    ArmourInventory, BreakingState, ChunkRadius, ContainerWindows, EnderChestInventory, GameMode,
+    HeldSlot, Inventory, LastBroadcastPosition, MainInventory, OffhandSlot, Player, PlayerInput,
+    PlayerName, PlayerSession, PlayerState, PlayerUi, PlayerUuid, RuntimeEntityId, SpatialChunk,
 };
 use crate::entity::systems::{
     apply_poison, apply_regeneration, apply_wither, despawn_dead, despawn_out_of_world,
@@ -125,14 +127,78 @@ fn player_record(world: &World, entity: Entity) -> Option<(uuid::Uuid, PlayerDat
                 .map(|slot| (&slot.0).into())
                 .unwrap_or_default(),
             cursor: world
-                .get::<CursorItem>(entity)
-                .map(|slot| (&slot.0).into())
+                .get::<PlayerUi>(entity)
+                .map(|ui| ui.cursor().into())
                 .unwrap_or_default(),
             held_slot: world
                 .get::<HeldSlot>(entity)
                 .map(|slot| slot.0)
                 .unwrap_or(0),
+            ender_chest: world
+                .get::<EnderChestInventory>(entity)
+                .map(|ender| ender.0.slots().iter().map(Into::into).collect())
+                .unwrap_or_default(),
         },
+    ))
+}
+
+/// Resolve every saved slot before assigning identities or publishing player state.
+fn restore_items(
+    saved: &mut PlayerData,
+    items: &ItemRegistry,
+) -> crate::storage::StorageResult<(
+    MainInventory,
+    ArmourInventory,
+    OffhandSlot,
+    PlayerUi,
+    EnderChestInventory,
+)> {
+    let mut main = Vec::with_capacity(36);
+    for item in std::mem::take(&mut saved.inventory) {
+        main.push(item.restore(items)?);
+    }
+    main.resize_with(36, crate::item::ItemStack::empty);
+    let [head, chest, legs, feet] =
+        std::mem::take(&mut saved.armour).map(|item| item.restore(items));
+    let armour_items = [head?, chest?, legs?, feet?];
+    let offhand = std::mem::take(&mut saved.offhand).restore(items)?;
+    let cursor = std::mem::take(&mut saved.cursor).restore(items)?;
+    let mut ender = Vec::with_capacity(crate::entity::components::ENDER_CHEST_SIZE);
+    for item in std::mem::take(&mut saved.ender_chest) {
+        ender.push(item.restore(items)?);
+    }
+    ender.resize_with(
+        crate::entity::components::ENDER_CHEST_SIZE,
+        crate::item::ItemStack::empty,
+    );
+    for (slot, item) in armour_items.iter().enumerate().skip(1) {
+        if item.count > 1 || !crate::item::equipment::accepts_armour(item, slot) {
+            return Err(crate::storage::StorageError::Deserialization(format!(
+                "invalid saved armour item {} in slot {slot}",
+                item.item_id()
+            )));
+        }
+    }
+
+    let main = MainInventory(Inventory::from_slots(main));
+    let mut armour = ArmourInventory::default();
+    // BDS admin commands can seed arbitrary head contents. Chest/legs/feet
+    // were checked above; the trusted restore path does not discard head items.
+    for (slot, item) in armour_items.into_iter().enumerate() {
+        armour
+            .inventory_mut()
+            .set_item(slot, item)
+            .expect("four saved armour slots");
+    }
+    let offhand = OffhandSlot(offhand.into_slot());
+    let mut ui = PlayerUi::default();
+    ui.set_cursor(cursor);
+    Ok((
+        main,
+        armour,
+        offhand,
+        ui,
+        EnderChestInventory(Inventory::from_slots(ender)),
     ))
 }
 
@@ -144,6 +210,8 @@ impl GameServer {
     pub fn with_config(config: ServerConfig) -> Self {
         let mut items = ItemRegistry::new();
         items.load_vanilla();
+        let recipes = unastar_data::recipes::RecipeRegistry::vanilla()
+            .expect("embedded vanilla recipes compile against the item registry");
         let definitions = crate::registry::entity::ActorDefinitionRegistry::vanilla();
         let mut entities = EntityRegistry::new();
         entities.load_vanilla(&definitions);
@@ -151,6 +219,11 @@ impl GameServer {
         biomes.load_vanilla();
         let mut blocks = BlockRegistry::new();
         blocks.load_vanilla();
+        let crafting_catalog = crate::crafting::CraftingCatalog::new(&recipes, &items, &blocks)
+            .expect("vanilla crafting advertisement compiles");
+        let crafting_executor =
+            crate::crafting::execution::CraftingExecutor::new(&crafting_catalog, &items)
+                .expect("advertised vanilla grid recipes compile for execution");
 
         let mut world_template = WorldTemplate::default();
         world_template.start_game_template.position = Vec3 {
@@ -208,6 +281,12 @@ impl GameServer {
             .insert_resource(CommandRegistryResource(CommandRegistry::with_defaults()));
         ecs.world_mut().insert_resource(ItemEntityIdCounter(100000));
         ecs.world_mut()
+            .insert_resource(types::RecipeRegistryResource(Arc::new(recipes)));
+        ecs.world_mut()
+            .insert_resource(types::CraftingCatalogResource(crafting_catalog));
+        ecs.world_mut()
+            .insert_resource(types::CraftingExecutorResource(Arc::new(crafting_executor)));
+        ecs.world_mut()
             .init_resource::<crate::entity::EntityRandom>();
         ecs.world_mut().init_resource::<falling::GravityChecks>();
         ecs.world_mut().insert_resource(SessionEntityMap::default());
@@ -243,6 +322,11 @@ impl GameServer {
         ecs.world_mut().init_resource::<packet_queues::ChatEvents>();
 
         ecs.world_mut().add_observer(on_block_changed);
+        ecs.world_mut()
+            .init_resource::<containers::BlockContainers>();
+        ecs.world_mut()
+            .add_observer(containers::register_chunk_tickers);
+        ecs.world_mut().add_observer(containers::forget_replaced);
         register_chunk_systems(ecs.schedule_mut());
 
         // Domain systems in PacketApplySet (movement, inventory, chunks run parallel)
@@ -311,6 +395,13 @@ impl GameServer {
                 .chain()
                 .in_set(EntityLogicSet)
                 .after(despawn_dead)
+                .before(tick_block_breaking),
+        );
+        // Furnaces, hoppers and container viewers (exclusive: edits chunks).
+        ecs.schedule_mut().add_systems(
+            containers::tick_block_containers
+                .in_set(EntityLogicSet)
+                .after(falling::process_gravity_checks)
                 .before(tick_block_breaking),
         );
         ecs.schedule_mut().add_systems(
@@ -457,7 +548,7 @@ impl GameServer {
         saved
     }
 
-    pub fn spawn_player(&mut self, data: PlayerSpawnData) -> Entity {
+    pub fn spawn_player(&mut self, data: PlayerSpawnData) -> crate::storage::StorageResult<Entity> {
         let player_uuid = data
             .uuid
             .as_ref()
@@ -485,15 +576,26 @@ impl GameServer {
 
         let mut rotation = Rotation::default();
         let mut game_mode = default_gamemode;
-        let mut main_inventory = MainInventory::default();
-        let mut armour = ArmourInventory::default();
-        let mut offhand = OffhandSlot::default();
-        let mut cursor = CursorItem::default();
+        let mut saved_data = data.saved_data;
+        let (main_inventory, armour, offhand, ui, ender_chest) = match saved_data.as_mut() {
+            Some(saved) => {
+                saved.validate(player_uuid)?;
+                let items = &self.ecs.world().resource::<types::ItemRegistryResource>().0;
+                restore_items(saved, items)?
+            }
+            None => (
+                MainInventory::default(),
+                ArmourInventory::default(),
+                OffhandSlot::default(),
+                PlayerUi::default(),
+                EnderChestInventory::default(),
+            ),
+        };
         let mut held_slot = HeldSlot::default();
         let mut health = crate::entity::components::Health::default();
         let mut hunger = crate::entity::components::Hunger::default();
         let mut experience = crate::entity::components::Experience::default();
-        if let Some(saved) = data.saved_data {
+        if let Some(saved) = saved_data {
             rotation = Rotation::new(saved.rotation[0], saved.rotation[1]);
             game_mode = match saved.game_mode {
                 0 => GameMode::Survival,
@@ -502,20 +604,6 @@ impl GameServer {
                 6 => GameMode::Spectator,
                 _ => unreachable!("saved player data was validated before spawning"),
             };
-            for (slot, item) in main_inventory.0.slots_mut().iter_mut().zip(saved.inventory) {
-                *slot = item.into();
-            }
-            let [helmet, chestplate, leggings, boots] = saved.armour.map(Into::into);
-            armour.set_helmet(helmet).expect("validated saved helmet");
-            armour
-                .set_chestplate(chestplate)
-                .expect("validated saved chestplate");
-            armour
-                .set_leggings(leggings)
-                .expect("validated saved leggings");
-            armour.set_boots(boots).expect("validated saved boots");
-            offhand.0 = saved.offhand.into();
-            cursor.0 = saved.cursor.into();
             held_slot.0 = saved.held_slot;
             health.current = saved.health;
             health.max = saved.max_health;
@@ -562,9 +650,10 @@ impl GameServer {
                 armour,
                 offhand,
                 held_slot,
-                cursor,
-                inventory_opened: InventoryOpened::default(),
-                item_stack_state: ItemStackRequestState::default(),
+                ui,
+                ender_chest,
+                windows: ContainerWindows::default(),
+                request_ids: RequestIdAssignments::default(),
             })
             .id();
         // The streamed spawn still owes `PlayStatus(PlayerSpawn)`; the chunk
@@ -587,7 +676,7 @@ impl GameServer {
         });
         self.send_join_packets(entity);
         info!(session_id = data.session_id, "Player spawned as ECS entity");
-        entity
+        Ok(entity)
     }
 
     pub fn despawn_player(&mut self, session_id: SessionId) {
@@ -649,7 +738,7 @@ impl GameServer {
                         // Skip items not in the registry (internal state blocks, etc.)
                         continue;
                     };
-                    let item_network_id = item_entry.network_id;
+                    let item_network_id = item_entry.network_id();
 
                     let block_runtime_id =
                         blocks.get_by_name(creative_item.item_id()).map_or(0, |b| {
@@ -775,7 +864,7 @@ mod tests {
                 .slots()
                 .iter()
                 .find(|s| !s.is_empty())
-                .map(|s| (s.item_id.as_str(), s.count)),
+                .map(|s| (s.item_id(), s.count)),
             Some(("minecraft:dirt", 1))
         );
     }
@@ -843,7 +932,7 @@ mod tests {
         let shield = items
             .get_by_name("minecraft:shield")
             .expect("vanilla shield")
-            .network_id;
+            .network_id();
         let content = GameServer::build_creative_content(
             &items,
             &blocks,
@@ -889,17 +978,19 @@ mod tests {
         });
         let (outbound_tx, mut outbound_rx) = tokio::sync::mpsc::channel(32);
 
-        let entity = server.spawn_player(PlayerSpawnData {
-            session_id: 42,
-            display_name: "smoke".to_string(),
-            xuid: None,
-            uuid: Some("00000000-0000-0000-0000-000000000042".to_string()),
-            runtime_id: 7,
-            position: DVec3::new(0.5, 17.0, 0.5),
-            outbound_tx,
-            saved_data: None,
-            chunk_radius: 2,
-        });
+        let entity = server
+            .spawn_player(PlayerSpawnData {
+                session_id: 42,
+                display_name: "smoke".to_string(),
+                xuid: None,
+                uuid: Some("00000000-0000-0000-0000-000000000042".to_string()),
+                runtime_id: 7,
+                position: DVec3::new(0.5, 17.0, 0.5),
+                outbound_tx,
+                saved_data: None,
+                chunk_radius: 2,
+            })
+            .expect("valid player spawn");
 
         {
             let world = server.ecs.world();
@@ -954,17 +1045,19 @@ mod tests {
             ..ServerConfig::default()
         });
         let (outbound_tx, mut outbound_rx) = tokio::sync::mpsc::channel(1024);
-        server.spawn_player(PlayerSpawnData {
-            session_id: 42,
-            display_name: "smoke".to_string(),
-            xuid: None,
-            uuid: Some("00000000-0000-0000-0000-000000000042".to_string()),
-            runtime_id: 7,
-            position: DVec3::new(0.5, 17.0, 0.5),
-            outbound_tx,
-            saved_data: None,
-            chunk_radius: 4,
-        });
+        server
+            .spawn_player(PlayerSpawnData {
+                session_id: 42,
+                display_name: "smoke".to_string(),
+                xuid: None,
+                uuid: Some("00000000-0000-0000-0000-000000000042".to_string()),
+                runtime_id: 7,
+                position: DVec3::new(0.5, 17.0, 0.5),
+                outbound_tx,
+                saved_data: None,
+                chunk_radius: 4,
+            })
+            .expect("fresh player spawns");
         let mut drain = || {
             let mut packets = Vec::new();
             while let Ok(packet) = outbound_rx.try_recv() {
@@ -1007,6 +1100,62 @@ mod tests {
         assert!(
             !second.contains(&McpePacketName::PlayStatusPacket),
             "PlayerSpawn is sent once"
+        );
+    }
+}
+
+#[cfg(test)]
+mod saved_inventory_validation_tests {
+    use super::*;
+    use crate::storage::{StorageError, StoredItemStack};
+
+    #[test]
+    fn unknown_late_saved_slot_cannot_publish_a_reset_or_partial_player() {
+        let mut server = GameServer::with_config(ServerConfig {
+            world: crate::world::WorldConfig::void_spawn_platform(1),
+            ..ServerConfig::default()
+        });
+        let uuid = uuid::Uuid::from_u128(42).to_string();
+        let saved = PlayerData {
+            uuid: uuid.clone(),
+            inventory: vec![StoredItemStack {
+                item_id: "minecraft:stick".into(),
+                count: 3,
+                ..Default::default()
+            }],
+            cursor: StoredItemStack {
+                item_id: "removed_addon:irreplaceable_item".into(),
+                count: 1,
+                ..Default::default()
+            },
+            ..Default::default()
+        };
+        let entities_before = server.ecs.world().entities().len();
+        let (outbound_tx, mut outbound_rx) = tokio::sync::mpsc::channel(32);
+        let result = server.spawn_player(PlayerSpawnData {
+            session_id: 42,
+            display_name: "saved-inventory".into(),
+            xuid: None,
+            uuid: Some(uuid),
+            runtime_id: 7,
+            position: glam::DVec3::new(0.5, 17.0, 0.5),
+            outbound_tx,
+            saved_data: Some(saved),
+            chunk_radius: 0,
+        });
+        assert!(matches!(result, Err(StorageError::Deserialization(_))));
+        assert_eq!(server.ecs.world().entities().len(), entities_before);
+        assert!(
+            server
+                .ecs
+                .world()
+                .resource::<SessionEntityMap>()
+                .get(42)
+                .is_none()
+        );
+        assert!(
+            outbound_rx.try_recv().is_err(),
+            "invalid saved state must not emit a successful join"
         );
     }
 }

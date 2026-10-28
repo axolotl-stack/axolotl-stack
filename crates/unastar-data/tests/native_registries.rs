@@ -39,16 +39,39 @@ fn block_physics_use_native_measurements_not_prismarine_scaling() {
 }
 
 #[test]
-fn native_items_preserve_signed_network_ids_and_measured_stacks() {
+fn native_items_preserve_signed_network_ids_and_typed_properties() {
+    assert_eq!(items::vanilla().len(), 2076);
     let button = items::get("minecraft:acacia_button").unwrap();
     assert_eq!(button.network_id, -140);
+    assert_eq!(items::by_network_id(-140), Some(button));
     assert_eq!(
         items::get("minecraft:honey_bottle").unwrap().max_stack_size,
         16
     );
-    let properties: serde_json::Value =
-        serde_json::from_str(button.native_properties_json).unwrap();
-    assert_eq!(properties["maxDamage"], 0);
+    let sword = items::get("minecraft:diamond_sword").unwrap();
+    assert_eq!(sword.max_damage, 1561);
+    assert!(sword.has_tag("minecraft:is_sword"));
+    assert_eq!(
+        items::get("minecraft:lava_bucket")
+            .unwrap()
+            .furnace_burn_interval_modifier,
+        100.0
+    );
+}
+
+/// Bucket classes override the native base `maxStackSize` of 64.
+#[test]
+fn item_class_stack_limits_and_inventory_capabilities_come_from_corrections() {
+    assert_eq!(items::get("minecraft:bucket").unwrap().max_stack_size, 16);
+    assert_eq!(
+        items::get("minecraft:water_bucket").unwrap().max_stack_size,
+        1
+    );
+    assert!(items::get("minecraft:shield").unwrap().allow_offhand);
+    assert!(items::get("minecraft:glow_stick").unwrap().allow_offhand);
+    assert!(!items::get("minecraft:stone").unwrap().allow_offhand);
+    assert!(items::get("minecraft:carved_pumpkin").unwrap().head);
+    assert!(items::get("minecraft:zombie_head").unwrap().head);
 }
 
 #[test]

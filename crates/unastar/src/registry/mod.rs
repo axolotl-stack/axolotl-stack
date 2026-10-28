@@ -28,8 +28,12 @@ pub enum RegistryError {
     StringIdConflict(String),
     /// Protocol/network ID already exists in registry.
     NetworkIdConflict(i32),
+    /// Item network ID cannot be encoded in the signed 16-bit registry field.
+    NetworkIdOutOfRange(i32),
     /// ID exceeds maximum capacity.
     IdOverflow(u32),
+    /// An item definition contradicts its typed equipment facts.
+    Equipment(crate::item::equipment::EquipmentError),
 }
 
 impl std::fmt::Display for RegistryError {
@@ -39,7 +43,9 @@ impl std::fmt::Display for RegistryError {
             Self::IdConflict(id) => write!(f, "registry ID {} already exists", id),
             Self::StringIdConflict(id) => write!(f, "registry string ID {id} already exists"),
             Self::NetworkIdConflict(id) => write!(f, "registry network ID {id} already exists"),
+            Self::NetworkIdOutOfRange(id) => write!(f, "item network ID {id} does not fit i16"),
             Self::IdOverflow(id) => write!(f, "registry ID {} exceeds capacity", id),
+            Self::Equipment(error) => std::fmt::Display::fmt(error, f),
         }
     }
 }

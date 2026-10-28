@@ -182,6 +182,28 @@ pub fn write_manifest(output_dir: &Path, inputs: &ManifestInputs<'_>) -> miette:
         true,
     )?);
     sources.push(source_from_path(
+        "protocolgen_inventory_capability_tags",
+        "allay_supplemental_capability_table",
+        &inputs
+            .native_path
+            .join("..")
+            .join(crate::pmmp::INVENTORY_CAPABILITY_TAGS_FILE),
+        Some("1.26.51".into()),
+        "medium",
+        true,
+    )?);
+    sources.push(source_from_path(
+        "protocolgen_item_corrections",
+        "reviewed_item_class_corrections",
+        &inputs
+            .native_path
+            .join("../../1.26.50")
+            .join(crate::pmmp::ITEM_CORRECTIONS_FILE),
+        Some("1.26.50".into()),
+        "medium",
+        true,
+    )?);
+    sources.push(source_from_path(
         "protocolgen_source_lock",
         "upstream_revision_and_input_digests",
         &inputs.native_path.join("../../../lock.json"),

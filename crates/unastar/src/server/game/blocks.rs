@@ -257,7 +257,7 @@ fn broadcast_block_crack_stop(world: &World, x: i32, y: i32, z: i32) {
     }
 }
 
-fn block_at(world: &World, position: (i32, i32, i32)) -> Option<u32> {
+pub(super) fn block_at(world: &World, position: (i32, i32, i32)) -> Option<u32> {
     let (x, y, z) = position;
     if !(crate::world::chunk::MIN_Y
         ..crate::world::chunk::MIN_Y + i32::from(crate::world::chunk::SUBCHUNK_COUNT) * 16)
@@ -305,6 +305,40 @@ fn can_interact(world: &World, entity: Entity, position: (i32, i32, i32)) -> boo
     origin.distance_squared(nearest) <= reach * reach
 }
 
+/// What `use` does on an interactive block.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+enum BlockUse {
+    Workbench,
+    Container,
+}
+
+/// An interactive block's `use` (crafting table, container) runs before item
+/// placement unless the player is sneaking with an item in hand.
+fn block_use(world: &World, entity: Entity, clicked: (i32, i32, i32)) -> Option<BlockUse> {
+    use crate::entity::components::{HeldSlot, MainInventory, PlayerState};
+    let block_use = block_at(world, clicked).and_then(|runtime_id| {
+        let entry = world
+            .get_resource::<super::types::BlockRegistryResource>()?
+            .0
+            .get_by_runtime_id(runtime_id)?;
+        if entry.string_id == "minecraft:crafting_table" {
+            Some(BlockUse::Workbench)
+        } else {
+            crate::block_entity::ContainerKind::from_block(&entry.string_id)
+                .map(|_| BlockUse::Container)
+        }
+    })?;
+    let sneaking = world
+        .get::<PlayerState>(entity)
+        .is_some_and(|state| state.sneaking);
+    let holding = world
+        .get::<HeldSlot>(entity)
+        .zip(world.get::<MainInventory>(entity))
+        .and_then(|(slot, main)| main.0.item(usize::from(slot.0)))
+        .is_some_and(|stack| !stack.is_empty());
+    (!(sneaking && holding)).then_some(block_use)
+}
+
 /// Resolve placeable content exclusively from the server's selected stack.
 fn held_block(world: &World, entity: Entity) -> Option<(u32, &crate::item::ItemStack, i32)> {
     use crate::entity::components::{HeldSlot, MainInventory};
@@ -319,18 +353,15 @@ fn held_block(world: &World, entity: Entity) -> Option<(u32, &crate::item::ItemS
     if stack.is_empty() {
         return None;
     }
-    let item = world
-        .get_resource::<super::types::ItemRegistryResource>()?
-        .0
-        .get_by_name(&stack.item_id)?;
-    if stack.count > item.stack_size {
+    let item = stack.item()?;
+    if stack.count > item.max_stack_size() {
         return None;
     }
     let block = world
         .get_resource::<super::types::BlockRegistryResource>()?
         .0
-        .get_by_name(&stack.item_id)?;
-    Some((block.default_state_id, stack, item.network_id))
+        .get_by_name(stack.item_id())?;
+    Some((block.default_state_id, stack, item.network_id()))
 }
 
 fn correct_block(world: &World, entity: Entity, position: (i32, i32, i32)) {
@@ -388,6 +419,7 @@ pub(crate) fn commit_block_event(world: &mut World, event: &ServerEvent) {
             if let Some((above, upper_state)) = upper {
                 place_block(world, above.x, above.y, above.z, upper_state);
             }
+            super::containers::placed(world, IVec3::new(position.0, position.1, position.2));
             if world.get::<crate::entity::components::GameMode>(*entity)
                 == Some(&crate::entity::components::GameMode::Survival)
             {
@@ -490,6 +522,9 @@ fn apply_break_block(world: &mut World, breaking_player: Entity, x: i32, y: i32,
         .map(|cd| cd.inner.get_block(local_x, local_y, local_z))
         .unwrap_or(0);
 
+    // A container hands its contents over before its actor goes with the block.
+    let broken = super::containers::breaking(world, IVec3::new(x, y, z));
+
     // Set block to air
     if let Some(mut chunk_data) = world.get_mut::<crate::world::ecs::ChunkData>(chunk_entity) {
         chunk_data
@@ -547,6 +582,9 @@ fn apply_break_block(world: &mut World, breaking_player: Entity, x: i32, y: i32,
         z,
         original_block_id,
     );
+    if let Some(broken) = broken {
+        super::containers::drop_contents(world, IVec3::new(x, y, z), broken);
+    }
 }
 
 /// Broadcast block break effects (UpdateBlock, particles, sound) to viewers.
@@ -695,8 +733,9 @@ fn wear_held_tool(world: &mut World, player: Entity, block_runtime_id: u32) {
         return;
     };
     let wear = super::mining::mining_wear(block, &tool);
-    let Some(max_damage) = crate::registry::item::tool_info(&tool.item_id)
-        .map(|info| info.max_damage)
+    let Some(max_damage) = tool
+        .item()
+        .map(|item| item.tool_info().max_damage)
         .filter(|max| *max > 0 && wear > 0)
     else {
         return;
@@ -773,6 +812,17 @@ fn handle_block_click(
             face: data.face,
         });
     }
+    match block_use(world, entity, clicked) {
+        Some(BlockUse::Workbench) => {
+            super::inventory::open_workbench(world, entity, clicked);
+            return;
+        }
+        Some(BlockUse::Container) => {
+            super::containers::open(world, entity, IVec3::new(clicked.0, clicked.1, clicked.2));
+            return;
+        }
+        None => {}
+    }
     let held = held_block(world, entity);
     let block_ids = super::types::block_network_ids(world);
     let matches_held = held.as_ref().is_some_and(|(_, stack, network_id)| {
@@ -783,8 +833,10 @@ fn handle_block_click(
             && i32::from(data.item.id) == *network_id
             && data.item.stacksize == u16::from(stack.count)
             && u32::try_from(stack.damage).ok() == Some(data.item.auxvalue)
-            && crate::item::user_data::stored_user_data(&stack.item_id, &data.item.user_data_buffer)
-                == stack.nbt
+            && crate::item::user_data::stored_user_data(
+                stack.item_id(),
+                &data.item.user_data_buffer,
+            ) == stack.nbt
             && u32::try_from(stack.runtime_id)
                 .ok()
                 .map(|id| block_ids.item_block_to_wire(id))
@@ -1049,6 +1101,50 @@ mod tests {
     }
 
     #[test]
+    fn crafting_table_use_wins_unless_sneaking_with_an_item() {
+        use crate::entity::components::PlayerState;
+        let (mut world, player, chunk) =
+            block_world(GameMode::Survival, DVec3::new(1.5, 65.62, 1.5));
+        let table = crate::registry::BlockRegistry::vanilla()
+            .default_state_id_by_name("minecraft:crafting_table")
+            .unwrap();
+        world
+            .get_mut::<ChunkData>(chunk)
+            .unwrap()
+            .inner
+            .set_block(1, 64, 1, table);
+        world.entity_mut(player).insert(PlayerState::default());
+        assert_eq!(
+            block_use(&world, player, (1, 64, 1)),
+            Some(BlockUse::Workbench)
+        );
+        world.get_mut::<PlayerState>(player).unwrap().sneaking = true;
+        assert!(
+            block_use(&world, player, (1, 64, 1)).is_some(),
+            "sneaking, empty hand"
+        );
+        world
+            .get_mut::<MainInventory>(player)
+            .unwrap()
+            .0
+            .set_item(0, crate::item::test_support::stack("minecraft:stone", 1))
+            .unwrap();
+        assert!(
+            block_use(&world, player, (1, 64, 1)).is_none(),
+            "sneaking with an item places"
+        );
+        world.get_mut::<PlayerState>(player).unwrap().sneaking = false;
+        assert_eq!(
+            block_use(&world, player, (1, 64, 1)),
+            Some(BlockUse::Workbench)
+        );
+        assert!(
+            block_use(&world, player, (1, 65, 1)).is_none(),
+            "air is not a table"
+        );
+    }
+
+    #[test]
     fn distant_break_leaves_block_unchanged() {
         let (mut world, player, chunk) =
             block_world(GameMode::Creative, DVec3::new(100.0, 64.0, 100.0));
@@ -1102,7 +1198,7 @@ mod tests {
         use std::sync::Arc;
         let mut items = ItemRegistry::new();
         items.load_vanilla();
-        let id = items.get_by_name("minecraft:stone").unwrap().network_id;
+        let id = items.get_by_name("minecraft:stone").unwrap().network_id();
         world.insert_resource(super::super::types::ItemRegistryResource(Arc::new(items)));
         world.insert_resource(super::super::types::BlockRegistryResource(Arc::new(
             BlockRegistry::vanilla().clone(),
@@ -1152,7 +1248,7 @@ mod tests {
             .get_mut::<MainInventory>(player)
             .unwrap()
             .0
-            .set_item(0, crate::item::ItemStack::new("minecraft:stone", 2))
+            .set_item(0, crate::item::test_support::stack("minecraft:stone", 2))
             .unwrap();
         handle_block_click(&mut world, player, &data);
         assert_eq!(
@@ -1196,7 +1292,7 @@ mod tests {
             .get_mut::<MainInventory>(player)
             .unwrap()
             .0
-            .set_item(0, crate::item::ItemStack::new("minecraft:stone", 2))
+            .set_item(0, crate::item::test_support::stack("minecraft:stone", 2))
             .unwrap();
         handle_block_click(&mut world, player, &data);
         assert!(
@@ -1230,10 +1326,9 @@ mod tests {
             .0
             .clone();
         let door_item = items.get_by_name("minecraft:wooden_door").unwrap();
-        let stack = crate::item::ItemStack::new("minecraft:wooden_door", 1)
-            .with_max_stack_size(door_item.stack_size)
+        let stack = crate::item::test_support::stack("minecraft:wooden_door", 1)
             .with_runtime_id(door.default_state_id as i32);
-        data.item.id = door_item.network_id as i16;
+        data.item.id = door_item.network_id() as i16;
         data.item.stacksize = 1;
         data.item.block_runtime_id =
             crate::registry::block::BlockNetworkIds::Hashed.to_wire(door.default_state_id);
@@ -1275,7 +1370,7 @@ mod tests {
             .get_mut::<MainInventory>(player)
             .unwrap()
             .0
-            .set_item(0, crate::item::ItemStack::new("minecraft:stone", 2))
+            .set_item(0, crate::item::test_support::stack("minecraft:stone", 2))
             .unwrap();
         handle_block_click(&mut world, player, &data);
         let event = world.resource_mut::<EventBuffer>().drain().pop().unwrap();
@@ -1321,7 +1416,7 @@ mod tests {
                 .get_mut::<MainInventory>(player)
                 .unwrap()
                 .0
-                .set_item(0, crate::item::ItemStack::new("minecraft:stone", 2))
+                .set_item(0, crate::item::test_support::stack("minecraft:stone", 2))
                 .unwrap();
             handle_block_click(&mut world, player, &data);
             let event = world.resource_mut::<EventBuffer>().drain().pop().unwrap();
@@ -1376,7 +1471,7 @@ mod tests {
         give(
             &mut world,
             player,
-            crate::item::ItemStack::new("minecraft:iron_pickaxe", 1),
+            crate::item::test_support::stack("minecraft:iron_pickaxe", 1),
         );
         assert_eq!(player_break_ticks(&world, player, (1, 64, 1)), 8);
         world
@@ -1405,7 +1500,7 @@ mod tests {
         give(
             &mut world,
             player,
-            crate::item::ItemStack::new("minecraft:iron_pickaxe", 1),
+            crate::item::test_support::stack("minecraft:iron_pickaxe", 1),
         );
         wear_held_tool(&mut world, player, *blocks::STONE);
         let held = held_item(&world, player).unwrap();

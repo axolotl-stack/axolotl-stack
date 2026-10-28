@@ -97,6 +97,9 @@ pub struct PlayerData {
     pub cursor: StoredItemStack,
     #[serde(default)]
     pub held_slot: u8,
+    /// Ender chest slots in order. Missing on records saved before ender chests.
+    #[serde(default)]
+    pub ender_chest: Vec<StoredItemStack>,
     #[serde(default = "default_max_health")]
     pub max_health: f32,
     #[serde(default = "default_saturation")]
@@ -123,6 +126,7 @@ impl Default for PlayerData {
             offhand: Default::default(),
             cursor: Default::default(),
             held_slot: 0,
+            ender_chest: Vec::new(),
             max_health: default_max_health(),
             saturation: default_saturation(),
             exhaustion: 0.0,
@@ -146,43 +150,58 @@ pub struct StoredItemStack {
     pub count: u8,
     pub damage: i16,
     pub nbt: Option<Vec<u8>>,
-    pub max_stack_size_override: Option<u8>,
 }
 
 impl From<&crate::item::ItemStack> for StoredItemStack {
     fn from(item: &crate::item::ItemStack) -> Self {
         Self {
-            item_id: item.item_id.clone(),
+            item_id: item.item_id().to_owned(),
             runtime_id: item.runtime_id,
             count: item.count,
             damage: item.damage,
-            nbt: item.nbt.clone(),
-            max_stack_size_override: item.max_stack_size_override,
+            nbt: item.nbt.as_ref().map(|data| data.to_vec()),
         }
     }
 }
 
-impl From<StoredItemStack> for crate::item::ItemStack {
-    fn from(item: StoredItemStack) -> Self {
-        Self {
-            item_id: item.item_id,
-            runtime_id: item.runtime_id,
-            count: item.count,
-            damage: item.damage,
-            nbt: item.nbt,
-            max_stack_size_override: item.max_stack_size_override,
+impl StoredItemStack {
+    /// Resolve against the frozen snapshot before creating any player state.
+    /// Consumes the saved user-data buffer without copying its contents.
+    pub fn restore(
+        self,
+        items: &crate::registry::ItemRegistry,
+    ) -> StorageResult<crate::item::ItemStack> {
+        if self.count == 0 || self.item_id.is_empty() {
+            return Ok(crate::item::ItemStack::empty());
         }
+        let item = items.item_type(&self.item_id).ok_or_else(|| {
+            StorageError::Deserialization(format!("saved item {} is not registered", self.item_id))
+        })?;
+        if self.count > item.max_stack_size() || self.damage < 0 || self.runtime_id < 0 {
+            return Err(StorageError::Deserialization(format!(
+                "saved item {} has invalid stack fields",
+                self.item_id
+            )));
+        }
+        let mut stack = crate::item::ItemStack::new(item, self.count)
+            .with_runtime_id(self.runtime_id)
+            .with_damage(self.damage);
+        if let Some(data) = self.nbt {
+            stack = stack.with_nbt(data);
+        }
+        Ok(stack)
     }
 }
 
 impl PlayerData {
-    /// Reject malformed records as a whole rather than partially restoring state.
+    /// Validate structural state; typed item resolution occurs atomically at spawn.
     pub fn validate(&self, uuid: Uuid) -> StorageResult<()> {
         if self.uuid != uuid.to_string()
             || !self.position.iter().all(|n| n.is_finite())
             || !self.rotation.iter().all(|n| n.is_finite())
             || !matches!(self.game_mode, 0 | 1 | 2 | 6)
             || self.inventory.len() > 36
+            || self.ender_chest.len() > crate::entity::components::ENDER_CHEST_SIZE
             || self.held_slot > 8
             || !self.health.is_finite()
             || !self.max_health.is_finite()
@@ -196,18 +215,6 @@ impl PlayerData {
         {
             return Err(StorageError::Deserialization("invalid player state".into()));
         }
-        let mut armour = crate::entity::components::ArmourInventory::default();
-        // Slot validators only need item identity/count, not the NBT payload.
-        let [helmet, chestplate, leggings, boots] = self
-            .armour
-            .each_ref()
-            .map(|item| crate::item::ItemStack::new(&item.item_id, item.count));
-        armour
-            .set_helmet(helmet)
-            .and_then(|_| armour.set_chestplate(chestplate))
-            .and_then(|_| armour.set_leggings(leggings))
-            .and_then(|_| armour.set_boots(boots))
-            .map_err(|error| StorageError::Deserialization(error.to_string()))?;
         Ok(())
     }
 }

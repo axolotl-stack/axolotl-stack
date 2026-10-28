@@ -17,9 +17,7 @@ pub struct LootContext<'a> {
 
 impl unastar_rules::loot::LootContext for LootContext<'_> {
     fn tool_item(&self) -> Option<&str> {
-        self.tool
-            .filter(|t| !t.is_empty())
-            .map(|t| t.item_id.as_str())
+        self.tool.filter(|t| !t.is_empty()).map(|t| t.item_id())
     }
 
     fn enchantment_level(&self, id: i16) -> u8 {
@@ -94,7 +92,7 @@ mod tests {
 
     #[test]
     fn stone_drops_cobblestone_unless_silk_touched() {
-        let pick = ItemStack::new("minecraft:iron_pickaxe", 1);
+        let pick = crate::item::test_support::stack("minecraft:iron_pickaxe", 1);
         let silk = with_enchantments(&pick, &[(Enchantment::SilkTouch, 1)]);
         let mut rng = StdRng::seed_from_u64(1);
         let plain = roll(
@@ -123,7 +121,7 @@ mod tests {
 
     #[test]
     fn fortune_multiplies_ore_drops_within_vanilla_bounds() {
-        let pick = ItemStack::new("minecraft:iron_pickaxe", 1);
+        let pick = crate::item::test_support::stack("minecraft:iron_pickaxe", 1);
         let fortune = with_enchantments(&pick, &[(Enchantment::Fortune, 3)]);
         let plain = counts(
             "blocks/diamond_ore",
@@ -164,7 +162,7 @@ mod tests {
             (10..=60).contains(&flint),
             "about 10% flint, got {flint}/300"
         );
-        let shears = ItemStack::new("minecraft:shears", 1);
+        let shears = crate::item::test_support::stack("minecraft:shears", 1);
         let sheared = roll(
             table("blocks/oak_leaves"),
             &block_ctx("minecraft:oak_leaves", Some(&shears)),
@@ -244,10 +242,10 @@ mod tests {
     /// referenced from block JSON); those roll without a block.
     #[test]
     fn block_tables_only_use_supported_features() {
-        let pick = ItemStack::new("minecraft:diamond_pickaxe", 1);
+        let pick = crate::item::test_support::stack("minecraft:diamond_pickaxe", 1);
         let silk = with_enchantments(&pick, &[(Enchantment::SilkTouch, 1)]);
         let fortune = with_enchantments(&pick, &[(Enchantment::Fortune, 3)]);
-        let shears = ItemStack::new("minecraft:shears", 1);
+        let shears = crate::item::test_support::stack("minecraft:shears", 1);
         let registry = BlockRegistry::vanilla();
         let mut items = crate::registry::ItemRegistry::new();
         items.load_vanilla();
