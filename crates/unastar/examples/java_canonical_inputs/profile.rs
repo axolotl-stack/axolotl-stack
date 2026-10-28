@@ -16,6 +16,8 @@ pub(super) struct Profile {
     requested_stage: Option<String>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     features_halo: Option<Halo>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    parallel_batch: Option<ParallelBatch>,
 }
 
 #[derive(Clone, Deserialize, Serialize, PartialEq, Eq)]
@@ -25,6 +27,29 @@ struct Halo {
     additional_native_features_request_order: Vec<String>,
 }
 
+/// Only native operations and worker identities, never native voxel/biome data.
+#[derive(Clone, Deserialize, Serialize, PartialEq, Eq)]
+struct ParallelBatch {
+    dimension: String,
+    status: String,
+    request_ordinals: Vec<usize>,
+    coordinate_request_order: Vec<String>,
+    pending_futures_before_native_pump: usize,
+    generation_worker_count: usize,
+    observation_boundary: String,
+    native_task_schedule: Vec<NativeTask>,
+}
+
+#[derive(Clone, Deserialize, Serialize, PartialEq, Eq)]
+struct NativeTask {
+    event_ordinal: usize,
+    status: String,
+    chunk_x: i32,
+    chunk_z: i32,
+    thread_id: u64,
+    thread_name: String,
+}
+
 fn position(text: &str) -> Result<ChunkPos, String> {
     let (x, z) = text.split_once(':').ok_or_else(|| format!("invalid native chunk request {text}"))?;
     Ok(ChunkPos::new(x.parse().map_err(|_| format!("invalid chunk x in {text}"))?,
@@ -32,6 +57,12 @@ fn position(text: &str) -> Result<ChunkPos, String> {
 }
 
 impl Profile {
+    pub(super) fn validate_runtime_history(&self) -> Result<(), String> {
+        if self.parallel_batch.is_some() {
+            return Err("parallel native task/worker histories cannot be treated as serial FEATURES or halo requests".into());
+        }
+        Ok(())
+    }
     pub(super) fn observation_index(&self, column_index: Option<usize>) -> Option<usize> {
         column_index.or(self.coordinate_request_index)
     }

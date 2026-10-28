@@ -281,6 +281,7 @@ fn compare(expected: &Capture, actual: &Capture) -> Result<Report, String> {
 }
 
 fn generate(reference: &Capture) -> Result<Capture, String> {
+    reference.profile.validate_runtime_history()?;
     let dimension = match reference.dimension.as_str() {
         "minecraft:overworld" => JavaDimension::Overworld,
         "minecraft:the_nether" => JavaDimension::Nether,

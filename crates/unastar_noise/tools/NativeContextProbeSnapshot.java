@@ -161,9 +161,11 @@ public final class NativeContextProbeSnapshot {
         result.put("palette",palette.keySet());result.put("biome_palette",biomePalette.keySet());result.put("chunks",List.of(row));
         result.put("structures",NativeContextProbe.structures);result.put("datapacks",List.of("vanilla"));
         result.put("inputs",NativeContextProbe.inputs(dimension.toLowerCase(Locale.ROOT)));
-        result.put("capture",stage.equals("FEATURES_HALO_CLOSURE")
-            ? "actual native FEATURES snapshot after every possible neighboring FEATURES writer within observed native blockStateWriteRadius completed; constructor-only native server context; no FULL promotion, SPAWN stage, listeners or ticks"
-            : "actual native ServerChunkCache getChunk requested "+stage+" using genuine constructor-only DedicatedServer, actual WorldStem/native registries/ServerLevel/WorldGenRegion/StructureManager; no initServer/runServer/listener/ticks; persisted status captured immediately, before any subsequent target request");
+        result.put("capture",NativeContextProbe.parallelOrigins
+            ? "actual native asynchronous status futures submitted as an origin batch; full-volume snapshot after every target future completed; original dependency scheduling retained, no neighboring FEATURES halo closure, higher status, listeners or ticks"
+            : stage.equals("FEATURES_HALO_CLOSURE")
+                ? "actual native FEATURES snapshot after every possible neighboring FEATURES writer within observed native blockStateWriteRadius completed; constructor-only native server context; no FULL promotion, SPAWN stage, listeners or ticks"
+                : "actual native ServerChunkCache getChunk requested "+stage+" using genuine constructor-only DedicatedServer, actual WorldStem/native registries/ServerLevel/WorldGenRegion/StructureManager; no initServer/runServer/listener/ticks; persisted status captured immediately, before any subsequent target request");
         result.put("actor_stage_truth","actual native chunk live block entity and pending NBT containers; getBlockEntityNbtForSaving with actual native server registry access; raw IEEE typed NBT retained, native ListTag wire element type (empty=END); native entities and packed block/fluid ticks captured separately at recorded game time; no ticks executed");
         result.put("actor_container_counts",Map.of("live",((Map<?,?>)NativeContextProbe.member(ch+"ChunkAccess","blockEntities",chunk)).size(),"pending_nbt",((Map<?,?>)NativeContextProbe.member(ch+"ChunkAccess","pendingBlockEntities",chunk)).size()));
         result.put("native_server_tick_count",call(MC+"server.MinecraftServer","getTickCount",server,new String[]{}));
@@ -174,6 +176,24 @@ public final class NativeContextProbeSnapshot {
         result.put("native_chunk_object_id",NativeContextProbe.objectId(chunk));
         result.put("context_profile",NativeContextProbe.evidence.get("native_levels_constructed"));
         result.put("requested_stage",stage);
+        if(NativeContextProbe.parallelOrigins){
+            Map<String,Object> batch=new LinkedHashMap<>((Map<String,Object>)NativeContextProbe.evidence.get("active_parallel_batch"));
+            List<Object> schedule=new ArrayList<>();
+            synchronized(NativeContextProbe.nativeTaskTrace){
+                for(Object entry:NativeContextProbe.nativeTaskTrace){
+                    Map<String,Object> event=(Map<String,Object>)entry;
+                    if(!result.get("dimension").equals(event.get("dimension")) ||
+                        !"before_native_task".equals(event.get("phase")))continue;
+                    // Operation metadata only: never feed native block/biome
+                    // payloads back into a generator as scheduling inputs.
+                    schedule.add(Map.of("event_ordinal",event.get("event_ordinal"),
+                        "status",event.get("target_status"),"chunk_x",event.get("chunk_x"),
+                        "chunk_z",event.get("chunk_z"),"thread_id",event.get("thread_id"),
+                        "thread_name",event.get("thread_name")));
+                }
+            }
+            batch.put("native_task_schedule",schedule);result.put("parallel_batch",batch);
+        }
         if(stage.equals("FEATURES_HALO_CLOSURE")||Set.of("INITIALIZE_LIGHT","LIGHT","SPAWN","FULL").contains(stage))
             result.put("features_halo",NativeContextProbe.evidence.get("features_halo"));
         result.put("native_chunk_context",Map.of("blending_data_absent",call(ch+"ChunkAccess","getBlendingData",chunk,new String[]{})==null,

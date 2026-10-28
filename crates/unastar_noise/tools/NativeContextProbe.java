@@ -40,6 +40,7 @@ public final class NativeContextProbe {
     static Object mossTaskProbe;
     static Method mossTaskObserve;
     static boolean structures=false;
+    static boolean parallelOrigins;
     static Object inputs(String lowerDimension)throws Exception {
         return invoke("declaredInputs",new Class[]{long.class,String.class,boolean.class},seed,lowerDimension,structures);
     }
@@ -56,6 +57,49 @@ public final class NativeContextProbe {
         nativeRequestOrder.add(Map.of("ordinal",nativeRequestOrder.size(),"dimension",dimension,"chunk_x",x,"chunk_z",z,"status",status));
         activeNativeRequest=nativeRequestOrder.size()-1;
         return call(MC+"world.level.Level","getChunk",level,new String[]{"int","int",MC+"world.level.chunk.status.ChunkStatus","boolean"},x,z,field(MC+"world.level.chunk.status.ChunkStatus",status),true);
+    }
+    /** Submit the complete origin batch before pumping native generation work. */
+    static void parallelStage(Object level,ary server,String dimension,String stage,
+        List<String> coordinates,List<String> captures,Path output,Map<String,Object> structureProofs)throws Exception {
+        Object source=call(MC+"server.level.ServerLevel","getChunkSource",level,new String[]{});
+        Object status=field(MC+"world.level.chunk.status.ChunkStatus",stage);
+        List<CompletableFuture<?>> futures=new ArrayList<>();
+        List<Integer> ordinals=new ArrayList<>();
+        for(String coordinate:coordinates){
+            String[] parts=coordinate.split(":");int x=Integer.parseInt(parts[0]),z=Integer.parseInt(parts[1]);
+            int ordinal=nativeRequestOrder.size();ordinals.add(ordinal);
+            nativeRequestOrder.add(Map.of("ordinal",ordinal,"dimension",dimension,"chunk_x",x,"chunk_z",z,
+                "status",stage,"submission","parallel-origin-batch"));
+            activeNativeRequest=ordinal;
+            futures.add((CompletableFuture<?>)call(MC+"server.level.ServerChunkCache","getChunkFutureMainThread",
+                source,new String[]{"int","int",MC+"world.level.chunk.status.ChunkStatus","boolean"},x,z,status,true));
+        }
+        long pending=futures.stream().filter(future->!future.isDone()).count();
+        if(stage.equals("SURFACE")&&coordinates.size()>1&&pending<2)
+            throw new IllegalStateException("native batch did not establish two outstanding status futures");
+        CompletableFuture<Void> completed=CompletableFuture.allOf(futures.toArray(CompletableFuture[]::new));
+        Object executor=member(MC+"server.level.ServerChunkCache","mainThreadProcessor",source);
+        call(MC+"server.level.ServerChunkCache$MainThreadExecutor","managedBlock",executor,
+            new String[]{"java.util.function.BooleanSupplier"},(java.util.function.BooleanSupplier)completed::isDone);
+        completed.join();
+        Map<String,Object> batch=Map.of("dimension",dimension,"status",stage,"request_ordinals",ordinals,
+            "coordinate_request_order",List.copyOf(coordinates),
+            "pending_futures_before_native_pump",pending,"generation_worker_count",2,
+            "observation_boundary","every target status future completed; not a neighboring FEATURES halo closure");
+        evidence.put("active_parallel_batch",batch);
+        for(int index=0;index<coordinates.size();index++){
+            activeCoordinateRequestIndex=index;activeNativeRequest=ordinals.get(index);
+            Object result=futures.get(index).join();
+            Object chunk=call(MC+"server.level.ChunkResult","orElse",result,new String[]{"java.lang.Object"},(Object)null);
+            if(chunk==null)throw new IllegalStateException("native parallel chunk failed: "+
+                call(MC+"server.level.ChunkResult","getError",result,new String[]{}));
+            String coordinate=coordinates.get(index).replace(':','_');
+            Path capture=output.getParent().resolve("parallel-"+dimension.toLowerCase(Locale.ROOT)+"-"+
+                stage.toLowerCase(Locale.ROOT)+"-seed"+seed+"-chunk"+coordinate+"-request"+activeNativeRequest+".json");
+            NativeContextProbeSnapshot.snapshot(chunk,server,dimension,stage,capture);captures.add(capture.toString());
+            if(structures)structureProofs.put(capture.getFileName().toString(),structureProof(chunk,level,server));
+        }
+        evidence.remove("active_parallel_batch");
     }
     static Object member(String owner,String name,Object instance)throws Exception {
         return invoke("instanceField",new Class[]{String.class,String.class,Object.class},owner,name,instance);
@@ -139,7 +183,7 @@ public final class NativeContextProbe {
         String target=statusName(call(statuses+"ChunkStep","targetStatus",step,new String[]{}));
         Map<String,Object> row=new LinkedHashMap<>();
         row.put("phase",phase);row.put("invocation",invocation);
-        row.put("active_synchronous_request_ordinal",request);
+        row.put(parallelOrigins?"active_parallel_submission_ordinal_hint":"active_synchronous_request_ordinal",request);
         row.put("dimension",call(MC+"resources.ResourceKey","identifier",dimension,new String[]{}).toString());
         row.put("chunk_x",member(MC+"world.level.ChunkPos","x",pos));
         row.put("chunk_z",member(MC+"world.level.ChunkPos","z",pos));
@@ -338,6 +382,10 @@ public final class NativeContextProbe {
         if(nativeVillageAnchors && !structures)throw new IllegalArgumentException("--native-village-anchors requires --structures=true");
         boolean extendedStages=args.length>coordinateStart && args[coordinateStart].equals("--extended-stages");
         if(extendedStages)coordinateStart++;
+        parallelOrigins=args.length>coordinateStart&&args[coordinateStart].equals("--parallel-origins");
+        if(parallelOrigins)coordinateStart++;
+        if(parallelOrigins&&!traceNativeTasks)throw new IllegalArgumentException("--parallel-origins requires --trace-native-tasks");
+        if(parallelOrigins&&extendedStages)throw new IllegalArgumentException("parallel origins and extended status sweeps require separate native contexts");
         List<String> coordinates=new ArrayList<>(args.length>coordinateStart?Arrays.asList(args).subList(coordinateStart,args.length):List.of("0:0"));
         for(String coordinate:coordinates)if(!coordinate.matches("-?\\d+:-?\\d+"))throw new IllegalArgumentException("expected chunk-x:chunk-z, got "+coordinate);
         Path root=Path.of(args[0]), output=Path.of(args[1]).toAbsolutePath();
@@ -374,6 +422,7 @@ public final class NativeContextProbe {
             public void checkListen(int port){deny("listen "+port);}
             public void checkAccept(String host,int port){deny("accept "+host+":"+port);}
         });
+        ExecutorService parallelExecutor=null;
         try {
             var loggingFactory=(org.apache.logging.log4j.core.impl.Log4jContextFactory)org.apache.logging.log4j.LogManager.getFactory();
             var loggingContext=loggingFactory.getSelector().getContext("NativeContextProbe",ClassLoader.getSystemClassLoader(),false);
@@ -409,6 +458,9 @@ public final class NativeContextProbe {
             Map<Object,Object> levels=(Map<Object,Object>)invoke("instanceField",new Class[]{String.class,String.class,Object.class},MC+"server.MinecraftServer","levels",server);
             Object stems=call(MC+"core.RegistryAccess","lookupOrThrow",server.bc(),new String[]{MC+"resources.ResourceKey"},field(MC+"core.registries.Registries","LEVEL_STEM"));
             List<Object> levelProofs=new ArrayList<>();
+            if(parallelOrigins)parallelExecutor=Executors.newFixedThreadPool(2,
+                Thread.ofPlatform().name("native-reference-generation-",0).factory());
+            Executor generationExecutor=parallelExecutor==null?direct:parallelExecutor;
             for(String dimension:new String[]{"OVERWORLD","NETHER","END"}){
                 Object stemKey=field(MC+"world.level.dimension.LevelStem",dimension);
                 Object nativeStem=call(MC+"core.Registry","getValueOrThrow",stems,new String[]{MC+"resources.ResourceKey"},stemKey);
@@ -416,7 +468,7 @@ public final class NativeContextProbe {
                 Object levelData=dimension.equals("OVERWORLD")?stem.d():make(MC+"world.level.storage.DerivedLevelData",new String[]{MC+"world.level.storage.WorldData",MC+"world.level.storage.ServerLevelData"},stem.d(),stem.d());
                 Object sequences=make(MC+"world.RandomSequences",new String[]{});
                 long zoomSeed=(long)call(MC+"world.level.biome.BiomeManager","obfuscateSeed",null,new String[]{"long"},seed);
-                Object level=make(MC+"server.level.ServerLevel",new String[]{MC+"server.MinecraftServer","java.util.concurrent.Executor",MC+"world.level.storage.LevelStorageSource$LevelStorageAccess",MC+"world.level.storage.ServerLevelData",MC+"resources.ResourceKey",MC+"world.level.dimension.LevelStem","boolean","long","java.util.List","boolean",MC+"world.RandomSequences"},server,direct,storage,levelData,levelKey,nativeStem,false,zoomSeed,List.of(),false,sequences);
+                Object level=make(MC+"server.level.ServerLevel",new String[]{MC+"server.MinecraftServer","java.util.concurrent.Executor",MC+"world.level.storage.LevelStorageSource$LevelStorageAccess",MC+"world.level.storage.ServerLevelData",MC+"resources.ResourceKey",MC+"world.level.dimension.LevelStem","boolean","long","java.util.List","boolean",MC+"world.RandomSequences"},server,generationExecutor,storage,levelData,levelKey,nativeStem,false,zoomSeed,List.of(),false,sequences);
                 levels.put(levelKey,level);
                 levelProofs.add(Map.of("dimension",dimension,"native_type",level.getClass().getName(),"biome_zoom_seed",zoomSeed,
                     "world_seed",call(MC+"server.level.ServerLevel","getSeed",level,new String[]{}),
@@ -446,6 +498,17 @@ public final class NativeContextProbe {
             List<String> captures=new ArrayList<>();
             evidence.put("coordinate_request_order",coordinates);
             evidence.put("query_profile","all requested SURFACE captures first, then CARVERS, then FEATURES; for each stage dimensions OW/Nether/End then coordinates in argument order; each snapshot immediately after its requested native status future resolves, before any subsequent target request; native dependency scheduling unchanged; snapshots are stage completion observations, not final neighbor-decoration closure");
+            if(parallelOrigins){
+                evidence.put("query_profile","native asynchronous origin batches; submit all target futures before managedBlock; observe all targets only after the whole status batch completes; original native dependency scheduling and worker histories retained; no FEATURES halo closure, higher status or ticks");
+                evidence.put("parallel_generation_runtime",Map.of(
+                    "available_processors",Runtime.getRuntime().availableProcessors(),
+                    "requested_max_background_threads",System.getProperty("max.bg.threads","native default"),
+                    "original_native_task_events","ordered_native_task_events"));
+                for(String stage:new String[]{"SURFACE","CARVERS","FEATURES"})
+                    for(String dimension:new String[]{"OVERWORLD","NETHER","END"})
+                        parallelStage(levels.get(field(MC+"world.level.Level",dimension)),server,dimension,stage,
+                            coordinates,captures,output,structureProofs);
+            }else{
             if(extendedStages){
                 evidence.put("extended_stage_request_order",List.of("EMPTY","STRUCTURE_STARTS","STRUCTURE_REFERENCES","BIOMES","NOISE","SURFACE","CARVERS","FEATURES","FEATURES_HALO_CLOSURE","INITIALIZE_LIGHT","LIGHT","SPAWN","FULL"));
                 for(String stage:new String[]{"EMPTY","STRUCTURE_STARTS","STRUCTURE_REFERENCES","BIOMES","NOISE"})for(String dimension:new String[]{"OVERWORLD","NETHER","END"})for(int coordinateIndex=0;coordinateIndex<coordinates.size();++coordinateIndex){
@@ -508,11 +571,19 @@ public final class NativeContextProbe {
                 Path capture=output.getParent().resolve("extended-"+dimension.toLowerCase(Locale.ROOT)+"-"+stage.toLowerCase(Locale.ROOT)+"-seed"+seed+"-chunk"+x+"_"+z+suffix+".json");
                 NativeContextProbeSnapshot.snapshot(chunk,server,dimension,stage,capture);captures.add(capture.toString());
             }
+            }
             evidence.put("captures",captures);
             evidence.put("server_tick_count_after_chunk_requests",call(MC+"server.MinecraftServer","getTickCount",server,new String[]{}));
         }catch(Throwable error){
             var stack=new java.io.StringWriter();error.printStackTrace(new java.io.PrintWriter(stack));evidence.put("failure",stack.toString());
         }finally{
+            if(parallelExecutor!=null){
+                parallelExecutor.shutdown();
+                if(!parallelExecutor.awaitTermination(30,TimeUnit.SECONDS)){
+                    parallelExecutor.shutdownNow();
+                    evidence.putIfAbsent("failure","native generation executor did not quiesce before cleanup deadline");
+                }
+            }
             evidence.put("denied_network_attempts",networkAttempts);
             if(!observerFailures.isEmpty())evidence.put("observer_failures",new ArrayList<>(observerFailures));
             if(traceNativeTasks)synchronized(nativeTaskTrace){evidence.put("ordered_native_task_events",new ArrayList<>(nativeTaskTrace));}
