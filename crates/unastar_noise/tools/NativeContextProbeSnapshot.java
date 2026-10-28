@@ -170,7 +170,7 @@ public final class NativeContextProbeSnapshot {
         result.put("actor_container_counts",Map.of("live",((Map<?,?>)NativeContextProbe.member(ch+"ChunkAccess","blockEntities",chunk)).size(),"pending_nbt",((Map<?,?>)NativeContextProbe.member(ch+"ChunkAccess","pendingBlockEntities",chunk)).size()));
         result.put("native_server_tick_count",call(MC+"server.MinecraftServer","getTickCount",server,new String[]{}));
         result.put("query_profile",NativeContextProbe.evidence.get("query_profile"));
-        result.put("coordinate_request_order",NativeContextProbe.evidence.get("coordinate_request_order"));
+        result.put("coordinate_request_order",NativeContextProbe.activeCoordinateOrder);
         result.put("coordinate_request_index",NativeContextProbe.activeCoordinateRequestIndex);
         result.put("native_request_ordinal",NativeContextProbe.activeNativeRequest);
         result.put("native_chunk_object_id",NativeContextProbe.objectId(chunk));
@@ -182,14 +182,19 @@ public final class NativeContextProbeSnapshot {
             synchronized(NativeContextProbe.nativeTaskTrace){
                 for(Object entry:NativeContextProbe.nativeTaskTrace){
                     Map<String,Object> event=(Map<String,Object>)entry;
+                    String phase=(String)event.get("phase");
                     if(!result.get("dimension").equals(event.get("dimension")) ||
-                        !"before_native_task".equals(event.get("phase")))continue;
+                        !("before_native_task".equals(phase)||"native_task_future_completed".equals(phase)))continue;
                     // Operation metadata only: never feed native block/biome
                     // payloads back into a generator as scheduling inputs.
-                    schedule.add(Map.of("event_ordinal",event.get("event_ordinal"),
-                        "status",event.get("target_status"),"chunk_x",event.get("chunk_x"),
-                        "chunk_z",event.get("chunk_z"),"thread_id",event.get("thread_id"),
-                        "thread_name",event.get("thread_name")));
+                    // Completion events let a consumer prove which tasks ran
+                    // concurrently instead of assuming start order.
+                    Map<String,Object> task=new LinkedHashMap<>();
+                    task.put("event_ordinal",event.get("event_ordinal"));task.put("phase",phase);
+                    task.put("invocation",event.get("invocation"));task.put("status",event.get("target_status"));
+                    task.put("chunk_x",event.get("chunk_x"));task.put("chunk_z",event.get("chunk_z"));
+                    task.put("thread_id",event.get("thread_id"));task.put("thread_name",event.get("thread_name"));
+                    schedule.add(task);
                 }
             }
             batch.put("native_task_schedule",schedule);result.put("parallel_batch",batch);
