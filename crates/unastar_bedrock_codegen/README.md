@@ -513,3 +513,33 @@ a water block, and the generated water deficit predates this change. Fixture
 chunk (-4,-4) stays low (325 vs 517) because half of its native kelp grows in
 a trench whose generated depth differs; that is terrain, not kelp.
 
+### Feature rules have independent, identifier-seeded randoms (2026-10-28)
+
+Two natural BDS 1.26.51 worlds of seed 12345 (chunks -5..4, no edits other
+than an authored pack) each ran single-marker probe rules: `iterations` 1,
+`x`/`z` uniform over the chunk, constant `y` in the air, one distinct marker
+block per rule. All three probes placed exactly one marker in every exported
+chunk.
+
+| World | `first_pass` probes | `final_pass` probe |
+|---|---|---|
+| 1 | `wg_seed:a_probe`, `wg_seed:b_probe` (identical definitions) | `wg_seed:c_probe` |
+| 2 | `wg_seed:x_probe` (the `a_probe` definition renamed), no `b_probe` | `wg_seed:c_probe` |
+
+- `a_probe` and `b_probe` never shared a position (0 of 69 chunks), so two
+  identical rules do not replay the same draws.
+- `c_probe` kept its exact position in all 61 chunks common to both worlds,
+  although world 2 removed one `first_pass` rule and renamed the other. A
+  rule's draws therefore do not depend on how many draws other rules make.
+- `x_probe` matched neither `a_probe` nor `b_probe` in any chunk (0 of 61),
+  although its definition and its place in identifier order were those of
+  `a_probe`. The seed depends on the rule identifier, not on a rule index.
+
+The current decorator runs every rule of every pass from one shared per-chunk
+stream, so any chance-based rule (geodes at 1 in 24, for example) lands in
+different chunks than BDS whatever its implementation; geode blocks are about
+twice BDS on the fixture for this reason. The exact seed formula is still
+unknown. The population seed combined with FNV-1a (64 or 32 bit), Java
+`hashCode` or CRC32 of the identifier, by xor or addition, read as `% 16` or
+high-bit draws, matches no probe.
+
