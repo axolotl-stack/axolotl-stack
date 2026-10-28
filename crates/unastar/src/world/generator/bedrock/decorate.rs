@@ -6,63 +6,45 @@
 //! [`Pass::ALL`] order with the 3x3 neighbourhood available.
 //!
 //! **unmeasured: to confirm by BDS fixture**: chunk seeding, pass stream
-//! separation, rule draw order and Molang noise. Each chunk currently has an
-//! independent deterministic stream. Neither statistical nor byte-exact
-//! decoration parity has been established.
+//! separation and rule draw order. Each chunk currently has an independent
+//! deterministic stream. The fixed Molang noise intrinsic is independently
+//! calibrated; statistical/byte-exact decoration parity is not established.
 
 use super::generated;
+use super::molang_noise::MolangNoise;
 use super::rng::BedrockRandom;
-use super::world::{BlockPos, BlockWorld, Ctx, NoiseSource};
+use super::world::{BlockPos, BlockWorld, Ctx};
 use super::{BiomeSet, Pass};
-use unastar_noise::{SimplexNoise, Xoroshiro128};
-
-/// Seed of a chunk's decoration random: two odd multipliers drawn from the
-/// world seed mix the chunk coordinates (the classic per-chunk population
-/// seed shape), folded to MT19937's 32-bit seed.
-pub fn chunk_seed(world_seed: i64, chunk_x: i32, chunk_z: i32) -> u32 {
-    let mut r = BedrockRandom::new(world_seed as u32 ^ (world_seed >> 32) as u32);
-    let a = r.next_u32() | 1;
-    let b = r.next_u32() | 1;
-    (chunk_x as u32)
-        .wrapping_mul(a)
-        .wrapping_add((chunk_z as u32).wrapping_mul(b))
-        ^ world_seed as u32
-}
-
-/// Molang `query.noise(x, z)`: 2D simplex noise seeded from the world seed,
-/// in roughly `[-1, 1]` (vanilla rules compare it against thresholds such as
-/// `-0.8`, which only needs that range).
-pub struct MolangNoise {
-    simplex: SimplexNoise,
-}
-
-impl MolangNoise {
-    pub fn new(world_seed: i64) -> Self {
-        let mut rng = Xoroshiro128::from_seed(world_seed ^ 0x6d6f_6c61_6e67);
-        Self {
-            simplex: SimplexNoise::new(&mut rng),
-        }
-    }
-}
-
-impl NoiseSource for MolangNoise {
-    fn noise(&self, x: f32, z: f32) -> f32 {
-        self.simplex.get_value_2d(f64::from(x), f64::from(z)) as f32
-    }
-}
 
 /// Per-world decoration state.
 pub struct Decorator {
     seed: i64,
+    population_x: u32,
+    population_z: u32,
     noise: MolangNoise,
 }
 
 impl Decorator {
     pub fn new(seed: i64) -> Self {
+        let mut population = BedrockRandom::new(seed as u32 ^ (seed >> 32) as u32);
+        let population_x = population.next_u32() | 1;
+        let population_z = population.next_u32() | 1;
         Self {
             seed,
-            noise: MolangNoise::new(seed),
+            population_x,
+            population_z,
+            noise: MolangNoise,
         }
+    }
+
+    /// Mix chunk coordinates with the world's two immutable odd population
+    /// multipliers. Keep wrapping arithmetic and the signed-world high-word fold
+    /// unchanged; each phase still constructs its own RNG from this seed.
+    pub(super) fn chunk_seed(&self, chunk_x: i32, chunk_z: i32) -> u32 {
+        (chunk_x as u32)
+            .wrapping_mul(self.population_x)
+            .wrapping_add((chunk_z as u32).wrapping_mul(self.population_z))
+            ^ self.seed as u32
     }
 
     fn run<W: BlockWorld>(
@@ -74,7 +56,7 @@ impl Decorator {
         passes: &[Pass],
         salt: u32,
     ) {
-        let mut rng = BedrockRandom::new(chunk_seed(self.seed, chunk_x, chunk_z) ^ salt);
+        let mut rng = BedrockRandom::new(self.chunk_seed(chunk_x, chunk_z) ^ salt);
         let mut ctx = Ctx {
             world,
             rng: &mut rng,
@@ -130,7 +112,7 @@ impl Decorator {
         surface: &dyn Fn(i32, i32) -> i32,
         biome: &dyn Fn(i32, i32, i32) -> u16,
     ) {
-        let mut rng = BedrockRandom::new(chunk_seed(self.seed, chunk_x, chunk_z) ^ 0x7374_7275);
+        let mut rng = BedrockRandom::new(self.chunk_seed(chunk_x, chunk_z) ^ 0x7374_7275);
         let mut ctx = Ctx {
             world,
             rng: &mut rng,
@@ -155,28 +137,72 @@ impl Decorator {
 
 #[cfg(test)]
 mod tests {
+    use super::super::world::NoiseSource;
     use super::*;
 
     #[test]
-    fn chunk_seeds_differ_per_chunk_and_world() {
-        let s = |seed, x, z| chunk_seed(seed, x, z);
-        assert_ne!(s(12345, 0, 0), s(12345, 1, 0));
-        assert_ne!(s(12345, 1, 0), s(12345, 0, 1));
-        assert_ne!(s(12345, 3, 7), s(54321, 3, 7));
-        assert_eq!(s(12345, -4, 9), s(12345, -4, 9));
+    fn population_streams_preserve_signed_world_and_coordinate_boundaries() {
+        // Fingerprints from an independent MT19937 reference, established
+        // before moving world-seed setup out of the per-chunk paths.
+        let cases: [(i64, i32, i32, u64); 8] = [
+            (0, 0, 0, 0x4e75_1239_6bae_afd0),
+            (12345, -4, 9, 0xd05a_17f0_eeae_0866),
+            (-1, i32::MIN, i32::MAX, 0x343c_39b0_a986_0cef),
+            (i64::MIN, -30_000_000, 30_000_000, 0xde02_d8c8_6b1f_511e),
+            (i64::MAX, i32::MAX, i32::MIN, 0xb6ce_e0ba_4d9f_cea2),
+            (0x1_0000_0001, i32::MAX, -1, 0x24df_626a_f548_6861),
+            (-9_876_543_210_123, 64, 66, 0x4b0d_756f_2aad_ea28),
+            (54321, -128, 34, 0x94d2_7b74_e243_9f2c),
+        ];
+        for (world_seed, x, z, expected) in cases {
+            let seed = Decorator::new(world_seed).chunk_seed(x, z);
+            let mut fingerprint = 0xcbf2_9ce4_8422_2325u64;
+            for salt in [0, 0x5bd1_e995, 0x7374_7275, 0x6261_7365] {
+                let mut stream = BedrockRandom::new(seed ^ salt);
+                for _ in 0..32 {
+                    for byte in stream.next_u32().to_le_bytes() {
+                        fingerprint ^= u64::from(byte);
+                        fingerprint = fingerprint.wrapping_mul(0x100_0000_01b3);
+                    }
+                }
+            }
+            assert_eq!(fingerprint, expected, "world {world_seed}, chunk {x},{z}");
+        }
     }
 
     #[test]
-    fn molang_noise_is_bounded_and_seeded() {
-        let a = MolangNoise::new(1);
-        let b = MolangNoise::new(2);
-        let mut differs = false;
-        for i in 0..200 {
-            let (x, z) = (i as f32 * 0.37, i as f32 * -0.11);
-            let v = a.noise(x, z);
-            assert!((-1.0..=1.0).contains(&v), "{v}");
-            differs |= v != b.noise(x, z);
+    fn molang_noise_matches_authored_bds_scalar_and_float_controls() {
+        let fixture: serde_json::Value = serde_json::from_str(include_str!(concat!(
+            env!("CARGO_MANIFEST_DIR"),
+            "/tests/fixtures/bds_1_26_51_molang_noise.json"
+        )))
+        .unwrap();
+        for seed in fixture["seeds"].as_array().unwrap() {
+            let seed = seed.as_i64().unwrap();
+            let decorator = Decorator::new(seed);
+            for sample in fixture["samples"].as_array().unwrap() {
+                let x = sample["x"].as_f64().unwrap() as f32;
+                let z = sample["z"].as_f64().unwrap() as f32;
+                let actual_y = (192.0 + 64.0 * decorator.noise.noise(x, z)).round() as i64;
+                assert_eq!(
+                    actual_y,
+                    sample["marker_y"].as_i64().unwrap(),
+                    "native scalar carrier at seed {seed}, query.noise({x}, {z})"
+                );
+            }
         }
-        assert!(differs);
+        let exact = &fixture["exact_controls"];
+        let seed = exact["seed"].as_i64().unwrap();
+        let decorator = Decorator::new(seed);
+        for sample in exact["samples"].as_array().unwrap() {
+            let x = sample["x"].as_f64().unwrap() as f32;
+            let z = sample["z"].as_f64().unwrap() as f32;
+            let expected = u32::from_str_radix(sample["float_bits"].as_str().unwrap(), 16).unwrap();
+            assert_eq!(
+                decorator.noise.noise(x, z).to_bits(),
+                expected,
+                "calibrated native float at seed {seed}, query.noise({x}, {z})"
+            );
+        }
     }
 }

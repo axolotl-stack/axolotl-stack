@@ -3,15 +3,15 @@
 //! underwater discs (clay, gravel, sand), the mangrove grass disc and lily
 //! pads.
 //!
-//! Positions come from the BDS rules: kelp and seagrass at
-//! `query.heightmap` (the water block on the floor), discs and reef features
-//! at `query.above_top_solid` (also the water block on the floor), lily pads
-//! from `fixup_waterlily_position_feature` (floor height plus a small
-//! gaussian offset) and sea anemones at a fixed `y = 62`.
+//! Vanilla kelp/seagrass rules and nested scatters use `query.heightmap`.
+//! The measured query includes fluids and returns the first air height, not
+//! the water block on the floor; `query.above_top_solid` skips fluids. Scatter
+//! expressions remain relative offsets. Built-in anchoring/projection is
+//! unmeasured; the rules alone do not establish a floor-origin contract.
 //!
-//! The world stores one block per position, so a placed plant replaces the
-//! water block it grows in; the world implementation owns Bedrock's extra
-//! water layer for blocks that need one (corals, pickles).
+//! The current world stores only one block per position. Placing a plant
+//! replaces that primary water block; Bedrock's secondary liquid layer is
+//! not retained by the shared chunk storage/persistence/network path.
 //!
 //! **unmeasured: to confirm by BDS fixture**: geometry, density, palettes and
 //! random draw order of built-in aquatic placements.
@@ -340,13 +340,12 @@ pub fn pickle_feature<W: BlockWorld>(ctx: &mut Ctx<'_, W>, pos: BlockPos) -> Opt
     first
 }
 
-/// `minecraft:waterlily_feature`: one lily pad on the water surface above
-/// `pos`. The input sits near the pond floor (the scatter projects it to the
-/// heightmap, which ignores liquids), so the feature climbs through at most
-/// [`WATERLILY_MAX_CLIMB`] water blocks; the lily pad goes into the air block
-/// above the top water block. Inputs in the ground or in air not above water
-/// place nothing. (Climbing is inferred from the BDS documents: without it the
-/// rule could only reach ponds one or two blocks deep.)
+/// `minecraft:waterlily_feature`: place a lily pad above the input's water column.
+///
+/// The current model climbs through at most [`WATERLILY_MAX_CLIMB`] water
+/// blocks and accepts air only when the block immediately below is water.
+/// Native input projection and the climb limit remain unmeasured; the
+/// fluid-inclusive heightmap query does not imply an input near the pond floor.
 pub fn waterlily_feature<W: BlockWorld>(ctx: &mut Ctx<'_, W>, pos: BlockPos) -> Option<BlockPos> {
     let mut at = pos;
     let mut climbed = 0;
@@ -821,7 +820,7 @@ mod tests {
         fn heightmap(&mut self, x: i32, z: i32) -> i32 {
             for y in (self.min_y()..self.max_y()).rev() {
                 let id = self.get(BlockPos::new(x, y, z));
-                if !bb::air(id) && !props::is_liquid(id) {
+                if !bb::air(id) {
                     return y + 1;
                 }
             }

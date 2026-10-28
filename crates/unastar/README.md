@@ -522,6 +522,80 @@ surface builders and cave subsurface ranges, then runs compiled carver rules.
 Decoration places data-driven structure sets before feature passes. Height
 oracles use two bounded 128-entry single-flight caches of column heights.
 
+The region adapter's non-air and solid query-height caches remain lazy for
+unqueried columns. Below-top writes preserve known heights; occupied top
+insertions update them directly, while removing a cached top requests a rescan.
+An old/new differential smoke at seed 12345, chunk `(6,-4)`, preserved ordered
+writes and encoded block/actor bytes across all 83 overworld biomes. It observed
+1.44% fewer block reads across that decoration workload (54 biomes improved,
+none increased); this is a work-count reduction, not a measured wall-time speedup.
+
+The decorator also stores the world's two population-seed multipliers once,
+sharing the same wrapping coordinate mix across geology, surfaces, carving,
+structures and decoration. Each phase retains its original RNG seed and salts;
+only repeated world-seed MT19937 setup is removed. Independent signed-boundary
+stream fingerprints pass before and after, and old/new carver and decoration
+bytes match across all 83 overworld biomes in each of two signed-seed worlds.
+This preserves the existing model; it does not establish native BDS seeding parity.
+
+Overworld and badlands surface scans reuse the occupied-height bound already
+discovered by sea filling rather than traversing the same empty sky twice.
+Badlands extend that bound when raising spires, so their new tops are dressed.
+Column write bounds, non-overworld builders and cave ranges remain unchanged.
+An old/new differential across all 89 biomes, two signed-seed chunks and 1,780
+real-terrain and boundary column cases preserved complete blocks, ordered writes
+and RNG continuation. The two changes observed 854,362 -> 562,221 block reads
+(34.19% fewer in that surface-only workload, none increased), not a measured
+whole-chunk speedup.
+
+Geode scratch keeps vanilla's three-to-four distribution centres and the first
+32 growth candidates inline; larger point counts or candidate clouds retain
+growable storage. A 93-case old/new differential preserved complete block
+volumes, ordered writes, read counts, return values and continued RNG draws,
+including explicit dense-candidate heap spills, early aborts and height edges.
+The 48-case vanilla-bounds bank needed no scoped heap allocations during feature
+calls with preallocated worlds; spill cases reduced allocations without changing
+output. This is allocation evidence, not a wall-time or native geometry/RNG claim.
+
+Structure-set selection keeps up to 32 weighted candidates inline; the shipped
+sets contain one or 18 entries. Larger custom sets retain growable storage with
+the original allocation size. A 264-case comparison over both compiled sets,
+three signed seeds, signed regions and flat/sloped terrain preserved every
+selected piece descriptor, oracle-query count and continued RNG draw. Empty,
+all-rejected and 32/33/64-entry cases exercise the inline/spill boundary without
+changing selection or imposing a new size limit. This preserves the current
+model; native structure-grid seeding and legacy placement remain unmeasured.
+
+Jigsaw assembly keeps parent/child connector orderings and pool/fallback
+candidates inline at 32 and 64 entries respectively; the compiled tables need
+at most 27 and 49. A 354-case differential preserves every ordered piece,
+surface/biome query count and 64 continued MT draws, including 90 authored
+boundary cases with oversized connectors, 65-entry pools and fallback-triggered
+spills. The 228 compiled-table starts produced this scoped heap traffic:
+
+| Quantity | Vec scratch | Inline scratch |
+|---|---:|---:|
+| Allocations | 2,526 | 1,778 |
+| Allocated bytes | 215,776 | 167,232 |
+
+The 36 all-rejected cases retain identical allocation counts and bytes.
+Larger custom tables remain growable without a new size limit; their allocator
+capacity can differ. This proves allocation and output preservation, not
+wall-time improvement or native structure placement/RNG parity.
+
+Molang `query.noise` is a stateless intrinsic in `molang_noise`, not a world-seeded
+Java noise instance. Its fixed permutation/hash gradients are evaluated at compile
+time; sampling keeps the measured native float32 operation order. Authored BDS
+controls cover seed independence and exact float patterns at signed/fractional/
+large inputs. This does not establish the still-unmeasured feature/pass RNG
+seeding or draw order.
+
+Frozen-ocean warm-water patches use fixed native MT3456 octave fields plus the
+shared MT2345 biome-info field. Their permutations/gradients are also compiled
+tables, not per-world allocations. This matches every measured sea-level
+water/ice column in the BDS fixture; iceberg geometry, snow placement and other
+surface-noise fields are not thereby established.
+
 `cargo run -p unastar --features bedrock-worldgen --example worldgen_parity_report -- --kind bedrock`
 prints metrics against the BDS fixture. `worldgen_bench --kind bedrock` reports
 the same single-threaded workload as the Java generator, including allocations.
@@ -561,6 +635,61 @@ provider reopens, 160 network roundtrips and 64 continued MT draws per case.
 No pack assets are committed. This proves source-to-AOT placement/storage retention, not BDS
 world-placement, feature RNG, jigsaw or terrain parity; no parity floors change.
 
+### Offline aquatic observations
+
+With BDS stopped, export primary-layer aquatic runs from an existing world:
+
+```sh
+cargo run -p unastar --all-features --example bds_worldgen_reference -- --aquatic <world-directory> <output.json> -4:-4:4:4
+```
+
+Ranges are inclusive chunk coordinates (`min_x:min_z:max_x:max_z`); multiple
+ranges are accepted. The reader opens a private temporary copy, not the source
+database. Missing chunks are reported rather than generated.
+
+This mode records contiguous vertical runs of kelp, seagrass, sea pickles and
+waterlilies across the full build height, with absolute coordinates, primary
+support/cap names, explicit build-height boundary flags, root biome and chunk
+finalization state. Separated runs remain separate; a run is not an inferred
+plant or placement origin. The output declares its layer-0, block-name-only
+scope: block states and secondary liquids are not retained. Other exporter
+modes keep their existing formats.
+
+Use world/control provenance before treating these observations as natural
+generation. Raw level metadata alone does not establish the generator mode;
+authored edits, ungenerated chunks and primary-only output cannot establish
+feature RNG, anchoring, complete aquatic density or full-layer parity.
+
+### Aquatic origin controls
+
+`tools/bds-worldgen-controls/aquatic_controls.py` prepares authored kelp and
+shortest-seagrass origin controls without launching BDS or copying vanilla packs:
+
+```sh
+python tools/bds-worldgen-controls/aquatic_controls.py prepare --out <outside-repo-directory> --repeats 2
+```
+
+The control uses the seed-12345 fixture's native water-covered biome-0 site and
+contrasts floor water, mid-water, top water, first air, an air gap, the nested
+seagrass-query height, solid/buried inputs and a dry floor. Each attempt resets
+an authored stone/water column and saves
+paired before/after volumes. Fills stay below the native command block limit.
+Existing native marker measurements already establish that `query.heightmap`
+includes liquids and returns first air; this tool measures the separate builtin
+origin contract instead of changing that query speculatively.
+
+Only after coordinating shared-runtime/build safety, use the separate `run`
+mode with the same `--out` directory. It checks the sanctioned executable and
+observed competing processes (including Go/Rust builds), uses one BDS thread
+with bounded startup/console deadlines, and stops via the shared runtime helper.
+It preserves the stopped world outside the repository. Export exact
+saved names with `bds_structure_reference export --stopped --controls` before
+interpreting results. Verify the authored panel/corner marker and require a
+positive native floor-water placement before interpreting other origins;
+command responses alone, no edits or clipped captures establish no anchoring,
+RNG, density or natural-pass parity claim.
+
+
 ## Generated block entities
 
 Java and Bedrock placement retain sparse actors in `Chunk`, through proto
@@ -592,6 +721,14 @@ not fabricated empty actors. The ignored all-template conformance consumer uses
 both `UNASTAR_NATIVE_ACTOR_CAPTURE` (the original LevelChunk-boundary golden) and
 `UNASTAR_NATIVE_PROTO_ACTOR_CAPTURE` (the probe's `.proto-template-actors.json`
 output); both native captures remain unchanged.
+
+The shared build-time actor compiler accepts observed native identities and
+normalizes their Java aliases explicitly. A supported-block BDS 1.26.51 control
+verified `CreakingHeart`, `CopperGolemStatue` and `Shelf`; in particular,
+`minecraft:creaking_heart` must become `CreakingHeart`, not remain a namespaced
+Java id. Unknown identities fail compilation rather than becoming another
+actor kind. This identity conversion does not translate Java-only payload
+semantics.
 
 LevelDB stores concatenated fixed-little-endian roots under chunk key `0x31`.
 BlazeDB writes format v3 with an explicit metadata length and still reads v1/v2

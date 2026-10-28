@@ -67,9 +67,9 @@ pub(super) fn build<C: SurfaceColumn>(col: &mut C, c: &Column<'_>, p: &Mesa) -> 
     } else {
         c.materials(base, c.sea_level - 1).sea
     };
-    fill_sea(col, c, sea);
+    let mut hi = fill_sea(col, c, sea);
     if p.bryce_pillars && c.surface {
-        erode(col, c, base.foundation);
+        hi = erode(col, c, base.foundation, hi);
     }
     // Vanilla's `cos(legacy_noise / 3 π) > 0`: the noise bands where plain
     // terracotta (and coarse dirt on plateaus) replaces the colours.
@@ -81,7 +81,7 @@ pub(super) fn build<C: SurfaceColumn>(col: &mut C, c: &Column<'_>, p: &Mesa) -> 
     let mut under_sand = false;
     let mut started = false;
     let mut lowest = None;
-    for y in (c.lo..c.hi).rev() {
+    for y in (c.lo..hi).rev() {
         if c.topmost_only && started && remaining == 0 {
             break;
         }
@@ -151,18 +151,23 @@ fn pillar_top(c: &Column<'_>) -> Option<i32> {
 
 /// Raise the spire: fill the air between the surface and the spire top with
 /// foundation (not over water, as in vanilla).
-fn erode<C: SurfaceColumn>(col: &mut C, c: &Column<'_>, foundation: u32) {
-    let Some(top) = pillar_top(c) else { return };
+/// Keep an occupied-height bound through this phase so the dressing scan sees
+/// any new spire without traversing the empty sky again.
+fn erode<C: SurfaceColumn>(col: &mut C, c: &Column<'_>, foundation: u32, occupied_hi: i32) -> i32 {
+    let Some(top) = pillar_top(c) else {
+        return occupied_hi;
+    };
     let top = top.min(c.hi);
-    let Some((surface, b)) = first_non_air(col, c.lo, c.hi) else {
-        return;
+    let Some((surface, b)) = first_non_air(col, c.lo, occupied_hi) else {
+        return occupied_hi;
     };
     if is_liquid(b) {
-        return;
+        return occupied_hi;
     }
     for y in surface + 1..top {
         col.set(y, foundation);
     }
+    occupied_hi.max(top)
 }
 
 #[cfg(test)]

@@ -8,7 +8,7 @@ use unastar::registry::BlockRegistry;
 use unastar::storage::{BlazeDBProvider, ChunkColumn, LevelDBWorldProvider, WorldProvider};
 use unastar::world::block_entity::BlockEntity;
 use unastar::world::generator::bedrock::adapter::RegionWorld;
-use unastar::world::generator::bedrock::decorate::MolangNoise;
+use unastar::world::generator::bedrock::molang_noise::MolangNoise;
 use unastar::world::generator::bedrock::rng::BedrockRandom;
 use unastar::world::generator::bedrock::structures::{
     KEEP_LAYER, Template, TemplateBlockEntity, TemplateState,
@@ -122,7 +122,7 @@ async fn rotated_bedrock_chest_and_spawner_survive_region_replay_and_provider_re
     let mut rng = BedrockRandom::new(9234);
     let mut expected_rng = rng.clone();
     {
-        let noise = MolangNoise::new(12345);
+        let noise = MolangNoise;
         let mut world = RegionWorld::new(&mut region);
         let mut ctx = Ctx {
             world: &mut world,
@@ -302,11 +302,10 @@ async fn template_layer_actions_survive_replay_reopen_network_and_dry_overwrite(
     {
         let mut world = RegionWorld::new(&mut region);
         let mut rng = BedrockRandom::new(12345);
-        let noise = MolangNoise::new(12345);
         let mut ctx = Ctx {
             world: &mut world,
             rng: &mut rng,
-            noise: &noise,
+            noise: &MolangNoise,
             seed: 12345,
         };
         for y in [-64, 318] {
