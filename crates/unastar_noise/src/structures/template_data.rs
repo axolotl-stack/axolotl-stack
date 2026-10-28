@@ -45,11 +45,9 @@ pub enum BlockEntityInfo {
     },
     /// Structure block in data mode (`metadata` names the marker).
     DataMarker { metadata: &'static str },
-    /// Native Bedrock id and AOT NETWORK compound children (no root/id/xyz or
-    /// lifted loot/spawner keys). Unknown source metadata is retained.
+    /// Source-native Java actor metadata and measured load/save normalization.
     Other {
-        id: &'static str,
-        nbt: &'static [u8],
+        actor: super::native_actor::TemplateActor,
         loot: Option<(&'static str, i64)>,
         spawner_entity: Option<&'static str>,
     },
@@ -155,8 +153,11 @@ fn decode(name: &'static str, data: &'static [u8], offset: usize) -> Template {
             },
             1 => BlockEntityInfo::DataMarker { metadata: c.str() },
             _ => BlockEntityInfo::Other {
-                id: c.str(),
-                nbt: c.blob(),
+                actor: super::native_actor::TemplateActor {
+                    id: c.str(),
+                    source: c.blob(),
+                    normalization: c.blob(),
+                },
                 loot: if c.u8() != 0 {
                     Some((c.str(), c.i64()))
                 } else {

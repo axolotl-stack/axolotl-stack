@@ -188,8 +188,7 @@ fn carpet_topper_with_side_chance<W: FeatureWorld + ?Sized>(
     );
     for dir in Direction::HORIZONTAL {
         let prop = dir.name();
-        // XoroshiroRandomSource.nextBoolean: lowest bit of the next long.
-        if topper.value(prop) != Some("none") && world.region_random().next_long() & 1 == 0 {
+        if topper.value(prop) != Some("none") && !world.region_random().next_bool() {
             topper = topper.with(prop, "none");
         }
     }

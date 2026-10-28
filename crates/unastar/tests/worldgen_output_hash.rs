@@ -47,7 +47,9 @@ fn verify(kind: &str, make_generator: fn(i64) -> Arc<dyn Generator>) {
                 .chunks
                 .iter()
                 .map(|p| {
-                    let chunk = pipeline.generate(ChunkPos::new(p.x, p.z));
+                    let chunk = pipeline
+                        .generate(ChunkPos::new(p.x, p.z))
+                        .expect("fixture chunk has representable actors");
                     let mut digest = Sha256::new();
                     digest.update(p.x.to_le_bytes());
                     digest.update(p.z.to_le_bytes());

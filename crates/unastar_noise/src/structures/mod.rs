@@ -1,9 +1,11 @@
 //! Java-style structures: templates, processors, placement and pieces.
 
+pub mod beardifier;
 pub mod context;
 pub mod jigsaw;
 pub mod kinds;
 pub mod manager;
+pub mod native_actor;
 pub mod piece;
 pub mod placement;
 pub mod processor;

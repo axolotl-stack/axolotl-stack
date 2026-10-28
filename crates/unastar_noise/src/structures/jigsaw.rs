@@ -14,6 +14,24 @@ pub enum Projection {
     TerrainMatching,
 }
 
+/// `JigsawJunction`: the two pieces retain their own source-side junction.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub struct JigsawJunction {
+    pub source_x: i32,
+    pub source_ground_y: i32,
+    pub source_z: i32,
+    pub delta_y: i32,
+    pub dest_projection: Projection,
+}
+
+/// Borrowed pool-piece geometry, captured by the beardifier once per chunk.
+#[derive(Debug, Clone, Copy)]
+pub struct PoolPieceTerrain<'a> {
+    pub projection: Projection,
+    pub ground_level_delta: i32,
+    pub junctions: &'a [JigsawJunction],
+}
+
 /// `StructurePoolElement`.
 #[derive(Debug, Clone, Copy)]
 pub enum PoolElement {

@@ -1142,11 +1142,15 @@ mod tests {
     }
 
     /// A 16x16 column of blocks from y 0 to 16, air by default.
-    struct Grid(Vec<u32>, Vec<crate::world::block_entity::BlockEntity>);
+    struct Grid(
+        Vec<u32>,
+        Vec<crate::world::block_entity::BlockEntity>,
+        std::collections::HashMap<BlockPos, u32>,
+    );
 
     impl Grid {
         fn new() -> Self {
-            Self(vec![bb::AIR; 16 * 16 * 16], Vec::new())
+            Self(vec![bb::AIR; 16 * 16 * 16], Vec::new(), Default::default())
         }
 
         fn index(pos: BlockPos) -> Option<usize> {
@@ -1169,8 +1173,29 @@ mod tests {
                 |i| self.0[i],
             )
         }
+        fn get_layer(&self, pos: BlockPos, layer: u8) -> u32 {
+            match (Self::index(pos), layer) {
+                (Some(i), 0) => self.0[i],
+                (Some(_), 1) => self.2.get(&pos).copied().unwrap_or(bb::AIR),
+                _ => crate::world::generator::bedrock::world::OUT_OF_BOUNDS,
+            }
+        }
         fn set(&mut self, pos: BlockPos, id: u32) -> bool {
-            Self::index(pos).map(|i| self.0[i] = id).is_some()
+            let Some(i) = Self::index(pos) else {
+                return false;
+            };
+            self.0[i] = id;
+            self.2.remove(&pos);
+            true
+        }
+        fn set_layers(&mut self, pos: BlockPos, primary: u32, secondary: Option<u32>) -> bool {
+            if !self.set(pos, primary) {
+                return false;
+            }
+            if let Some(id) = secondary.filter(|&id| id != bb::AIR) {
+                self.2.insert(pos, id);
+            }
+            true
         }
         fn set_block_entity(&mut self, entity: crate::world::block_entity::BlockEntity) -> bool {
             let position = entity.position();

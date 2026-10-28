@@ -220,7 +220,11 @@ fn serial(options: &Options, fixture: &Fixture) -> Result<()> {
     {
         let _scope = profile::scope(Stage::Pipeline);
         for pos in &fixture.chunks {
-            std::hint::black_box(pipeline.generate(ChunkPos::new(pos.x, pos.z)));
+            std::hint::black_box(
+                pipeline
+                    .generate(ChunkPos::new(pos.x, pos.z))
+                    .expect("worldgen benchmark produced an unrepresentable native actor"),
+            );
         }
     }
     let finished_ms = started.elapsed().as_secs_f64() * 1e3;

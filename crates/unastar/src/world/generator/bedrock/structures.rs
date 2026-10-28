@@ -52,6 +52,8 @@ use std::cmp::Reverse;
 
 /// "No index" marker in the tables (empty pool, no processors, no feature).
 pub const NONE: u16 = u16::MAX;
+/// Preserve this destination layer instead of placing a block.
+pub const KEEP_LAYER: u32 = u32::MAX;
 /// Bytes per template cell: `x, y, z` (u8) and the palette index (u16 LE).
 pub const CELL_BYTES: usize = 5;
 /// Largest `limit` of a capped processor (checked by the code generator).
@@ -306,12 +308,19 @@ fn actor_for_cell<'a>(
     }
 }
 
+/// A paired block permutation for each clockwise quarter turn.
+#[derive(Debug, Clone, Copy)]
+pub struct TemplateState {
+    pub primary: [u32; 4],
+    pub secondary: [u32; 4],
+}
+
 /// A compiled structure template.
 #[derive(Debug, Clone, Copy)]
 pub struct Template {
     pub size: [i32; 3],
-    /// Runtime id of each palette entry per clockwise quarter turn.
-    pub palette: &'static [[u32; 4]],
+    /// Paired layer runtime ids per clockwise quarter turn.
+    pub palette: &'static [TemplateState],
     /// Packed non-void cells, [`CELL_BYTES`] each.
     pub cells: &'static [u8],
     pub connectors: &'static [Connector],
@@ -334,10 +343,12 @@ impl Template {
             })
     }
 
-    /// Runtime id of palette `entry` in `rotation`.
+    /// Both layer ids in `rotation`; [`KEEP_LAYER`] retains that layer.
     #[inline]
-    pub fn state(&self, entry: u16, rotation: u8) -> u32 {
-        self.palette[entry as usize][(rotation % 4) as usize]
+    pub fn state(&self, entry: u16, rotation: u8) -> [u32; 2] {
+        let state = &self.palette[entry as usize];
+        let rotation = (rotation % 4) as usize;
+        [state.primary[rotation], state.secondary[rotation]]
     }
 
     /// Place unprocessed cells and their metadata, without a runtime NBT decoder.
@@ -359,11 +370,11 @@ impl Template {
         for (cell, local, entry) in self.cells() {
             let pos = world_pos(origin, local, rotation);
             let state = self.state(entry, rotation);
-            if ctx.set(pos, state)
+            if let Some(primary) = place_state(ctx, pos, state)
                 && ACTORS
                 && let Some(actor) = actor_for_cell(&mut actors, cell)
             {
-                actor.place(ctx, pos, state, state);
+                actor.place(ctx, pos, state[0], primary);
             }
         }
     }
@@ -378,6 +389,25 @@ impl Template {
             max: BlockPos::new(a.x.max(b.x), a.y.max(b.y), a.z.max(b.z)),
         }
     }
+}
+
+/// Apply a template's two independent layer actions with one atomic write.
+pub fn place_state<W: BlockWorld>(
+    ctx: &mut Ctx<'_, W>,
+    pos: BlockPos,
+    mut state: [u32; 2],
+) -> Option<u32> {
+    if state[0] == KEEP_LAYER {
+        state[0] = ctx.get(pos);
+    }
+    if state[1] == KEEP_LAYER {
+        state[1] = ctx.get_layer(pos, 1);
+    }
+    if state.contains(&OUT_OF_BOUNDS) {
+        return None;
+    }
+    let secondary = (state[1] != bb::AIR).then_some(state[1]);
+    ctx.set_layers(pos, state[0], secondary).then_some(state[0])
 }
 
 /// A weighted pool element. Template elements have `feature == NONE`;
@@ -1160,28 +1190,28 @@ impl Caps {
     }
 }
 
-/// State of a cell after `list[..upto]`.
+/// Layer actions after `list[..upto]`; processors replace only the primary id.
 fn process(
     list: &[Processor],
     caps: &Caps,
     upto: usize,
     cell: u32,
     pos: BlockPos,
-    state: u32,
+    state: [u32; 2],
     seed: i64,
-) -> u32 {
+) -> [u32; 2] {
     let mut state = state;
     let mut capped = 0;
     for (k, p) in list.iter().take(upto).enumerate() {
         match p {
             Processor::Rules(rules) => {
-                if let Some(out) = apply_rules(rules, state, seed, pos, k as u64) {
-                    state = out;
+                if let Some(out) = apply_rules(rules, state[0], seed, pos, k as u64) {
+                    state[0] = out;
                 }
             }
             Processor::Capped { .. } => {
                 if let Some(out) = caps.selected(capped, cell) {
-                    state = out;
+                    state[0] = out;
                 }
                 capped += 1;
             }
@@ -1235,8 +1265,8 @@ fn place_piece<W: BlockWorld>(
                 template.state(entry, piece.rotation),
                 seed,
             );
-            if let Some(output) = apply_rules(rules, before, seed, pos, k as u64)
-                && output != before
+            if let Some(output) = apply_rules(rules, before[0], seed, pos, k as u64)
+                && output != before[0]
             {
                 let key = mix64(piece_seed ^ u64::from(cell).wrapping_mul(0x2545_f491_4f6c_dd1d));
                 caps.offer(capped, *limit as usize, Pick { key, cell, output });
@@ -1267,11 +1297,11 @@ fn place_piece_cells<W: BlockWorld, const ACTORS: bool>(
         }
         let original = template.state(entry, piece.rotation);
         let state = process(list, caps, list.len(), cell, pos, original, ctx.seed);
-        if ctx.set(pos, state)
+        if let Some(primary) = place_state(ctx, pos, state)
             && ACTORS
             && let Some(actor) = actor_for_cell(&mut actors, cell)
         {
-            actor.place(ctx, pos, original, state);
+            actor.place(ctx, pos, original[0], primary);
         }
     }
 }

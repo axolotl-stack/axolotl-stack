@@ -15,9 +15,8 @@ pub struct BlockEntityData {
     pub loot: Option<(&'static str, i64)>,
     /// Spawner / trial spawner entity id (`minecraft:zombie`).
     pub spawner_entity: Option<&'static str>,
-    /// Native Bedrock actor id plus AOT-compiled NETWORK compound child tags.
-    /// Bytes exclude the root header/end, id, xyz, and lifted loot/spawner keys.
-    pub template_nbt: Option<(&'static str, &'static [u8])>,
+    /// Full Java template identity, typed source NBT and native save normalization.
+    pub template_nbt: Option<crate::structures::native_actor::TemplateActor>,
 }
 
 impl BlockEntityData {
@@ -51,6 +50,9 @@ pub trait FeatureWorld {
     fn height(&self) -> i32;
     /// Sea level of the dimension's noise settings.
     fn sea_level(&self) -> i32;
+    /// Native visible light at `pos`, including sky darkening. FEATURES runs
+    /// before light initialization; do not infer brightness from heightmaps.
+    fn raw_brightness(&mut self, pos: BlockPos, sky_darken: i32) -> i32;
     /// Level seed.
     fn seed(&self) -> i64;
 
@@ -67,11 +69,11 @@ pub trait FeatureWorld {
     /// `schedule_tick` (fluids, falling blocks). Runtimes that do not tick
     /// during generation may ignore it.
     fn schedule_tick(&mut self, pos: BlockPos);
-    /// The region's own random (`WorldGenRegion.getRandom()`): the positional
-    /// factory of `minecraft:worldgen_region_random` (from the level seed) at
-    /// the decorated chunk's minimum block position. Draws are Xoroshiro-native
-    /// (`nextBoolean` = `nextLong() & 1 != 0`), not bit-source draws.
-    fn region_random(&mut self) -> &mut crate::xoroshiro::Xoroshiro128;
+    /// The region's native random (`WorldGenRegion.getRandom()`), constructed
+    /// from the dimension's positional factory at the chunk's minimum block
+    /// position. Overworld uses native Xoroshiro draws; Nether/End use legacy
+    /// draws. This is deliberately not the decoration `WorldgenRandom`.
+    fn region_random(&mut self) -> &mut super::random::RegionRandom;
     /// `ChunkGenerator.getGenDepth()`: the noise settings' `height` (384 in the
     /// overworld, 128 in the nether), which can differ from [`Self::height`].
     fn gen_depth(&self) -> i32;
@@ -157,10 +159,10 @@ fn at(pos: BlockPos, offset: [i32; 3]) -> BlockPos {
 }
 
 /// Evaluate a [`RuleTest`] against a state.
-pub fn test_rule<S: BitSource>(
+pub fn test_rule<S: BitSource, const RETAIN_GAUSSIAN: bool>(
     rule: &RuleTest,
     state: JavaState,
-    rng: &mut WorldgenRandom<S>,
+    rng: &mut WorldgenRandom<S, RETAIN_GAUSSIAN>,
 ) -> bool {
     match *rule {
         RuleTest::AlwaysTrue => true,
@@ -174,7 +176,7 @@ pub fn test_rule<S: BitSource>(
 
 /// `Direction.Axis.getRandom(random)`.
 #[inline]
-pub fn random_axis<S: BitSource>(rng: &mut WorldgenRandom<S>) -> &'static str {
+pub fn random_axis<S: BitSource, const RETAIN_GAUSSIAN: bool>(rng: &mut WorldgenRandom<S, RETAIN_GAUSSIAN>) -> &'static str {
     ["x", "y", "z"][rng.next_int_bounded(3) as usize]
 }
 
@@ -219,17 +221,15 @@ pub fn provide_state(
             variety,
             states,
         } => {
-            let slow = noise_value(slow_noise, pos, slow_scale);
+            let slow = slow_noise_value(slow_noise, pos, slow_scale);
             let count =
-                clamped_map(slow, -1.0, 1.0, variety.0 as f64, (variety.1 + 1) as f64) as i32;
-            // Java builds the candidate list then picks from it with the main noise.
-            let mut candidates = [JavaState(0); 32];
-            let count = count.clamp(0, candidates.len() as i32) as usize;
-            for (j, slot) in candidates.iter_mut().enumerate().take(count) {
-                let offset = pos.offset(j as i32 * 54545, 0, j as i32 * 34234);
-                *slot = pick_by_noise(states, noise_value(noise, offset, scale));
-            }
-            pick_by_noise(&candidates[..count], noise_value(noise, pos, scale))
+                clamped_map(slow, -1.0, 1.0, variety.0 as f64, (variety.1 + 1) as f64) as usize;
+            // Candidate j uses the slow noise at its offset, while the main
+            // noise selects j. Both are pure samples, so no candidate list or
+            // arbitrary variety cap is needed.
+            let j = noise_index(count, noise_value(noise, pos, scale)) as i32;
+            let offset = pos.offset(j.wrapping_mul(54545), 0, j.wrapping_mul(34234));
+            pick_by_noise(states, slow_noise_value(slow_noise, offset, slow_scale))
         }
         StateProvider::NoiseThreshold {
             noise,
@@ -273,11 +273,27 @@ fn noise_value(noise: super::noise::NoiseRef, pos: BlockPos, scale: f32) -> f64 
     noise.get_value(pos.x as f64 * s, pos.y as f64 * s, pos.z as f64 * s)
 }
 
+/// `DualNoiseProvider.getSlowNoiseValue` multiplies in float before widening,
+/// unlike `NoiseBasedStateProvider.getNoiseValue`'s double multiplication.
+#[inline]
+fn slow_noise_value(noise: super::noise::NoiseRef, pos: BlockPos, scale: f32) -> f64 {
+    noise.get_value(
+        (pos.x as f32 * scale) as f64,
+        (pos.y as f32 * scale) as f64,
+        (pos.z as f32 * scale) as f64,
+    )
+}
+
 /// `NoiseBasedStateProvider.getRandomState(list, noiseValue)`.
 #[inline]
 fn pick_by_noise(states: &[JavaState], value: f64) -> JavaState {
+    states[noise_index(states.len(), value)]
+}
+
+#[inline]
+fn noise_index(count: usize, value: f64) -> usize {
     let d = ((1.0 + value) / 2.0).clamp(0.0, 0.9999);
-    states[(d * states.len() as f64) as usize]
+    (d * count as f64) as usize
 }
 
 /// `Mth.clampedMap`.
@@ -291,4 +307,53 @@ pub fn clamped_map(v: f64, from_lo: f64, from_hi: f64, to_lo: f64, to_hi: f64) -
 #[inline]
 pub fn face_sturdy<W: FeatureWorld + ?Sized>(world: &mut W, pos: BlockPos, dir: Direction) -> bool {
     world.get_state(pos).is_face_sturdy(dir)
+}
+
+#[cfg(test)]
+mod provider_tests {
+    use super::*;
+    use crate::features::blocks::NoiseSpec;
+    use crate::features::java_blocks::states;
+    use crate::features::noise::LegacyNoise;
+    use std::sync::LazyLock;
+
+    static MEADOW_NOISE: LazyLock<LegacyNoise> = LazyLock::new(|| {
+        LegacyNoise::new(2345, NoiseSpec { first_octave: -3, amplitudes: &[1.0] })
+    });
+    static MEADOW_SLOW_NOISE: LazyLock<LegacyNoise> = LazyLock::new(|| {
+        LegacyNoise::new(2345, NoiseSpec { first_octave: -10, amplitudes: &[1.0] })
+    });
+    static MEADOW_STATES: [JavaState; 8] = [
+        states::TALL_GRASS, states::ALLIUM, states::POPPY, states::AZURE_BLUET,
+        states::DANDELION, states::CORNFLOWER, states::OXEYE_DAISY, states::SHORT_GRASS,
+    ];
+
+    #[test]
+    fn native_meadow_provider_consumer_witnesses() {
+        let fixture: serde_json::Value = serde_json::from_str(include_str!(
+            "../../tests/data/native_vegetation_provider_1_21_11.json"
+        )).unwrap();
+        let provider = StateProvider::DualNoise {
+            noise: &MEADOW_NOISE,
+            slow_noise: &MEADOW_SLOW_NOISE,
+            scale: 1.0,
+            slow_scale: 1.0,
+            variety: (1, 3),
+            states: &MEADOW_STATES,
+        };
+        let mut rng = FeatureRandom::new(912345);
+        let mut unchanged_rng = rng.clone();
+        for case in fixture["cases"].as_array().unwrap() {
+            let xyz = case["pos"].as_array().unwrap();
+            let pos = BlockPos::new(
+                xyz[0].as_i64().unwrap() as i32,
+                xyz[1].as_i64().unwrap() as i32,
+                xyz[2].as_i64().unwrap() as i32,
+            );
+            let actual = provide_state(&provider, &mut rng, pos);
+            assert_eq!(actual.block().name(), case["expected"].as_str().unwrap(), "{pos:?}");
+        }
+        // Noise providers must not shift the enclosing feature's random stream.
+        assert_eq!(rng.next_long(), unchanged_rng.next_long());
+    }
 }

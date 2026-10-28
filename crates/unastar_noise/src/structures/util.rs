@@ -4,7 +4,7 @@ use crate::features::random::{BitSource, WorldgenRandom};
 
 /// `Util.shuffle(list, random)` / `Util.toShuffledList`: Fisher-Yates from the
 /// end, `nextInt(i)` for `i = len..2`.
-pub fn shuffle<T, S: BitSource>(list: &mut [T], rng: &mut WorldgenRandom<S>) {
+pub fn shuffle<T, S: BitSource, const RETAIN_GAUSSIAN: bool>(list: &mut [T], rng: &mut WorldgenRandom<S, RETAIN_GAUSSIAN>) {
     let mut i = list.len();
     while i > 1 {
         let k = rng.next_int_bounded(i as i32) as usize;

@@ -22,6 +22,7 @@ use super::analyzer::DependencyGraph;
 use super::data::java_blocks::JavaBlocks;
 use super::parser;
 use proc_macro2::TokenStream;
+use quote::quote;
 use std::collections::{BTreeMap, HashMap};
 use std::path::{Path, PathBuf};
 
@@ -30,12 +31,15 @@ pub struct Inputs<'a> {
     pub noises: &'a HashMap<String, parser::noise::NoiseParams>,
     pub density_functions: &'a HashMap<String, parser::density_function::DensityFunctionArg>,
     pub noise_settings: &'a HashMap<String, parser::noise_settings::NoiseSettings>,
+    pub dimension_types: &'a HashMap<String, parser::noise_settings::DimensionType>,
     pub biomes: &'a HashMap<String, parser::biome::BiomeJson>,
     pub java_blocks: &'a JavaBlocks,
     /// `java_data/bedrock_biomes.json`.
     pub bedrock_biome_ids: &'a BTreeMap<String, u32>,
     /// `java_data/biome_parameters_overworld.json`.
     pub biome_parameters: &'a super::data::biome_parameters::BiomeParameters,
+    /// `java_data/biome_parameters_nether.json`.
+    pub nether_biome_parameters: &'a super::data::biome_parameters::BiomeParameters,
     /// `worldgen_data/configured_carver`.
     pub carvers: &'a BTreeMap<String, parser::carver::ConfiguredCarver>,
     /// `java_data/tags/block`.
@@ -105,54 +109,72 @@ pub fn emit_all(output_dir: &Path, inputs: &Inputs<'_>) -> Result<(), Box<dyn st
     modules.glob("noise_params", noise::emit_noise_params(inputs.noises)?)?;
     modules.public("random_hashes", noise::emit_random_hashes())?;
 
-    let overworld = inputs
-        .noise_settings
-        .get("minecraft:overworld")
-        .ok_or("noise_settings/overworld.json is missing")?;
-    modules.public(
-        "overworld_settings",
-        settings::emit(overworld, inputs.density_functions, inputs.java_blocks)?,
-    )?;
+    let preset = |name: &str| {
+        inputs
+            .noise_settings
+            .get(&format!("minecraft:{name}"))
+            .ok_or_else(|| format!("noise_settings/{name}.json is missing"))
+    };
+    let overworld = preset("overworld")?;
+    let nether = preset("nether")?;
+    let end = preset("end")?;
+    for (name, settings) in [("overworld", overworld), ("nether", nether), ("end", end)] {
+        let dimension = inputs
+            .dimension_types
+            .get(&format!("minecraft:{name}"))
+            .ok_or_else(|| format!("dimension type for noise settings {name} is missing"))?;
+        modules.public(
+            &format!("{name}_settings"),
+            settings::emit(name, settings, dimension, inputs.density_functions, inputs.java_blocks)?,
+        )?;
 
-    // Overworld router, AOT compiled.
-    let router = &overworld.noise_router;
-    let router_fields: Vec<(&str, &parser::density_function::DensityFunctionArg)> = vec![
-        ("barrier", &router.barrier),
-        ("continents", &router.continents),
-        ("depth", &router.depth),
-        ("erosion", &router.erosion),
-        ("final_density", &router.final_density),
-        ("fluid_level_floodedness", &router.fluid_level_floodedness),
-        ("fluid_level_spread", &router.fluid_level_spread),
-        ("lava", &router.lava),
-        // preliminary_surface_level is a find_top_surface that computes surface Y level
-        (
-            "preliminary_surface_level",
-            &router.preliminary_surface_level,
-        ),
-        ("ridges", &router.ridges),
-        ("temperature", &router.temperature),
-        ("vegetation", &router.vegetation),
-        ("vein_gap", &router.vein_gap),
-        ("vein_ridged", &router.vein_ridged),
-        ("vein_toggle", &router.vein_toggle),
-    ];
-    let graph = DependencyGraph::build(&router_fields, inputs.density_functions);
-    let mut emitter = emitter_quote::AotEmitter::new(&graph).with_geometry(
-        overworld.noise.min_y,
-        overworld.noise.height,
-        overworld.noise.size_horizontal * 4,
-        overworld.noise.size_vertical * 4,
-    );
-    modules.glob("overworld_compiled", emitter.emit_module())?;
+        let router = &settings.noise_router;
+        let router_fields = [
+            ("barrier", &router.barrier),
+            ("continents", &router.continents),
+            ("depth", &router.depth),
+            ("erosion", &router.erosion),
+            ("final_density", &router.final_density),
+            ("fluid_level_floodedness", &router.fluid_level_floodedness),
+            ("fluid_level_spread", &router.fluid_level_spread),
+            ("lava", &router.lava),
+            ("preliminary_surface_level", &router.preliminary_surface_level),
+            ("ridges", &router.ridges),
+            ("temperature", &router.temperature),
+            ("vegetation", &router.vegetation),
+            ("vein_gap", &router.vein_gap),
+            ("vein_ridged", &router.vein_ridged),
+            ("vein_toggle", &router.vein_toggle),
+        ];
+        let graph = DependencyGraph::build(&router_fields, inputs.density_functions);
+        let mut emitter = emitter_quote::AotEmitter::new(&graph).with_geometry(
+            settings.noise.min_y,
+            settings.noise.height,
+            settings.noise.size_horizontal * 4,
+            settings.noise.size_vertical * 4,
+        );
+        let mut compiled: syn::File = syn::parse2(emitter.emit_module())?;
+        let module_doc = format!(
+            "AOT-compiled {name} noise router (regenerated at build time from worldgen JSON)."
+        );
+        compiled.attrs.retain(|attr| !attr.path().is_ident("doc"));
+        compiled.attrs.insert(0, syn::parse_quote!(#![doc = #module_doc]));
+        let compiled = quote! { #compiled };
+        if name == "overworld" {
+            // Preserve the existing root API; other dimensions are explicitly scoped.
+            modules.glob("overworld_compiled", compiled)?;
+        } else {
+            modules.public(&format!("{name}_compiled"), compiled)?;
+        }
+        modules.public(
+            &format!("{name}_surface"),
+            surface_rule::emit(name, settings, inputs.java_blocks)?,
+        )?;
+    }
 
     biome_features::emit_biome_features(output_dir, inputs.biomes)?;
     modules.glob_existing("biome_features");
 
-    modules.public(
-        "overworld_surface",
-        surface_rule::emit(overworld, inputs.java_blocks)?,
-    )?;
 
     modules.public("java_blocks", java_blocks::emit(inputs.java_blocks))?;
     modules.public(
@@ -161,18 +183,49 @@ pub fn emit_all(output_dir: &Path, inputs: &Inputs<'_>) -> Result<(), Box<dyn st
     )?;
     modules.public(
         "overworld_biome_source",
-        biome_source::emit(inputs.biome_parameters)?,
+        biome_source::emit("overworld", inputs.biome_parameters)?,
     )?;
+    modules.public(
+        "nether_biome_source",
+        biome_source::emit("nether", inputs.nether_biome_parameters)?,
+    )?;
+
+    // TheEndBiomeSource has five fixed biome slots, not multi-noise parameter points.
+    let end_biomes = [
+        "minecraft:the_end",
+        "minecraft:end_highlands",
+        "minecraft:end_midlands",
+        "minecraft:small_end_islands",
+        "minecraft:end_barrens",
+    ]
+    .map(str::to_owned);
     modules.public(
         "carvers",
         carver::emit(
             inputs.carvers,
             inputs.biomes,
-            inputs.biome_parameters,
+            &[
+                carver::Preset {
+                    name: "overworld",
+                    biomes: &inputs.biome_parameters.biomes,
+                    min_y: overworld.noise.min_y,
+                    height: overworld.noise.height,
+                },
+                carver::Preset {
+                    name: "nether",
+                    biomes: &inputs.nether_biome_parameters.biomes,
+                    min_y: nether.noise.min_y,
+                    height: nether.noise.height,
+                },
+                carver::Preset {
+                    name: "end",
+                    biomes: &end_biomes,
+                    min_y: end.noise.min_y,
+                    height: end.noise.height,
+                },
+            ],
             inputs.block_tags,
             inputs.java_blocks,
-            overworld.noise.min_y,
-            overworld.noise.height,
         )?,
     )?;
 

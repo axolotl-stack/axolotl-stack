@@ -28,7 +28,8 @@
 
 use std::cell::RefCell;
 
-use crate::world::chunk::{MIN_Y, blocks};
+use crate::world::chunk::MIN_Y;
+use unastar_noise::features::java_blocks::states;
 use crate::world::generator::density::{
     FunctionContext, NoiseRef, NoiseRegistry, NoiseSource, compute_vein_gap, compute_vein_toggle,
 };
@@ -171,27 +172,27 @@ pub enum VeinType {
 }
 
 impl VeinType {
-    /// Get the ore block for this vein type.
+    /// Canonical Java ore state; the edition conversion happens after generation.
     pub fn ore(&self) -> u32 {
         match self {
-            VeinType::Copper => *blocks::COPPER_ORE,
-            VeinType::Iron => *blocks::DEEPSLATE_IRON_ORE,
+            VeinType::Copper => u32::from(states::COPPER_ORE.0),
+            VeinType::Iron => u32::from(states::DEEPSLATE_IRON_ORE.0),
         }
     }
 
     /// Get the raw ore block for this vein type.
     pub fn raw_ore_block(&self) -> u32 {
         match self {
-            VeinType::Copper => *blocks::RAW_COPPER_BLOCK,
-            VeinType::Iron => *blocks::RAW_IRON_BLOCK,
+            VeinType::Copper => u32::from(states::RAW_COPPER_BLOCK.0),
+            VeinType::Iron => u32::from(states::RAW_IRON_BLOCK.0),
         }
     }
 
     /// Get the filler block for this vein type.
     pub fn filler(&self) -> u32 {
         match self {
-            VeinType::Copper => *blocks::GRANITE,
-            VeinType::Iron => *blocks::TUFF,
+            VeinType::Copper => u32::from(states::GRANITE.0),
+            VeinType::Iron => u32::from(states::TUFF.0),
         }
     }
 
@@ -417,9 +418,9 @@ mod tests {
         assert_eq!(
             actual,
             Some(if raw {
-                *blocks::RAW_COPPER_BLOCK
+                u32::from(states::RAW_COPPER_BLOCK.0)
             } else {
-                *blocks::COPPER_ORE
+                u32::from(states::COPPER_ORE.0)
             })
         );
         assert_eq!(gap_calls.get(), 1);
@@ -431,7 +432,7 @@ mod tests {
                 || -0.1,
                 || panic!("rounded threshold must reject before the gap sample")
             ),
-            Some(*blocks::GRANITE)
+            Some(u32::from(states::GRANITE.0))
         );
         assert_eq!(
             native.compute_with_samples(

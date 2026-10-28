@@ -4,6 +4,7 @@
 //! sub-chunk limit) to let clients request sub-chunks on demand.
 
 use bytes::{BufMut, BytesMut};
+use std::ops::Range;
 
 use crate::registry::BlockRegistry;
 use crate::world::block_entity::BlockEntity;
@@ -333,14 +334,73 @@ pub enum HeightMapType {
     HasData,
 }
 
-/// A single chunk (16x384x16 blocks) in Bedrock format.
+/// Identity domain of a chunk's single paletted block storage.
+///
+/// Java generation keeps canonical Java states through every stage. Conversion is
+/// deliberately one-way, at the Bedrock storage/network boundary.
+#[derive(Debug, Clone, Copy, Default, PartialEq, Eq)]
+pub enum BlockStateSpace {
+    #[default]
+    Bedrock,
+    Java,
+}
+
+impl BlockStateSpace {
+    pub fn air(self) -> u32 {
+        match self {
+            Self::Bedrock => *blocks::AIR,
+            Self::Java => u32::from(unastar_noise::features::java_blocks::states::AIR.0),
+        }
+    }
+
+    fn default_biome(self) -> u32 {
+        match self {
+            Self::Bedrock => DEFAULT_BIOME_ID,
+            Self::Java => u32::from(unastar_noise::java_biomes::JavaBiome::Plains as u16),
+        }
+    }
+
+    #[inline]
+    pub fn is_air(self, state: u32) -> bool {
+        match self {
+            Self::Bedrock => state == *blocks::AIR,
+            Self::Java => {
+                unastar_noise::java_blocks::JAVA_STATE_CLASSES[state as usize]
+                    & unastar_noise::block_class::AIR != 0
+            }
+        }
+    }
+
+    #[inline]
+    pub fn to_bedrock(self, state: u32) -> u32 {
+        match self {
+            Self::Bedrock => state,
+            Self::Java => unastar_noise::java_blocks::JAVA_TO_BEDROCK[state as usize],
+        }
+    }
+
+    pub(crate) fn same_block(self, old: u32, new: u32) -> bool {
+        match self {
+            Self::Bedrock => same_bedrock_block(old, new),
+            Self::Java => {
+                use unastar_noise::features::JavaState;
+                JavaState(u16::try_from(old).expect("Java state id overflow")).block()
+                    == JavaState(u16::try_from(new).expect("Java state id overflow")).block()
+            }
+        }
+    }
+}
+
+/// A chunk with fixed physical storage and explicit logical dimension build bounds.
 #[derive(Debug, Clone)]
 pub struct Chunk {
     pub x: i32,
     pub z: i32,
+    state_space: BlockStateSpace,
+    bounds: Range<i32>,
     /// Sub-chunks (index 0 = Y=-64 to Y=-48, etc.)
     sub_chunks: Vec<SubChunk>,
-    /// Biome ids per sub-chunk, 16x16x16 like Bedrock's 3D biome storage.
+    /// Source-edition biome ids per sub-chunk, using Bedrock's 16x16x16 layout.
     biomes: Vec<PalettedStorage>,
     /// Sparse actors; an empty chunk allocates no actor storage.
     block_entities: Vec<BlockEntity>,
@@ -351,11 +411,41 @@ pub struct Chunk {
     recalculate_height_map: bool,
 }
 
+#[derive(Debug, Clone)]
+struct SecondaryStorage {
+    storage: PalettedStorage,
+    non_air: u16,
+}
+
+impl SecondaryStorage {
+    fn decoded(storage: PalettedStorage) -> Result<Option<Box<Self>>, String> {
+        let non_air = if storage.size == PaletteSize::Bits0 {
+            if storage.palette[0] == *blocks::AIR { 0 } else { BLOCKS_PER_SUBCHUNK as u16 }
+        } else {
+            let mut count = 0u16;
+            for x in 0..16 {
+                for z in 0..16 {
+                    for y in 0..16 {
+                        let index = storage.get_palette_index(x, y, z) as usize;
+                        let block = storage.palette.get(index)
+                            .ok_or("secondary storage index is outside its palette")?;
+                        count += u16::from(*block != *blocks::AIR);
+                    }
+                }
+            }
+            count
+        };
+        Ok((non_air != 0).then(|| Box::new(Self { storage, non_air })))
+    }
+}
+
 /// A single 16x16x16 sub-chunk.
 #[derive(Debug, Clone)]
 pub struct SubChunk {
-    /// Block storage (single layer for now).
+    /// Primary block storage in this chunk's declared identity domain.
     storage: PalettedStorage,
+    /// Bedrock underlying liquid; absent sections allocate no secondary storage.
+    secondary: Option<Box<SecondaryStorage>>,
 }
 
 /// Valid bit widths for block storage (matches Bedrock protocol).
@@ -456,26 +546,56 @@ pub struct PalettedStorage {
 impl Chunk {
     /// Create a new empty chunk at the given coordinates.
     pub fn new(x: i32, z: i32) -> Self {
-        let sub_chunks = (0..SUBCHUNK_COUNT).map(|_| SubChunk::empty()).collect();
+        Self::new_in_space(x, z, BlockStateSpace::Bedrock)
+    }
+
+    /// Create an empty chunk in an explicit source-native block-state domain.
+    pub fn new_in_space(x: i32, z: i32, state_space: BlockStateSpace) -> Self {
+        Self::new_with_bounds(x, z, state_space, MIN_Y..MIN_Y + i32::from(SUBCHUNK_COUNT) * 16)
+    }
+
+    /// Empty native chunk with legal build bounds inside the shared physical storage.
+    pub fn new_with_bounds(x: i32, z: i32, state_space: BlockStateSpace, bounds: Range<i32>) -> Self {
+        Self::assert_bounds(&bounds);
+        let sub_chunks = (0..SUBCHUNK_COUNT).map(|_| SubChunk {
+            storage: PalettedStorage::single_block(state_space.air()),
+            secondary: None,
+        }).collect();
 
         let biomes = (0..SUBCHUNK_COUNT)
-            .map(|_| PalettedStorage::single_block(DEFAULT_BIOME_ID))
+            .map(|_| PalettedStorage::single_block(state_space.default_biome()))
             .collect();
 
         Self {
             x,
             z,
+            state_space,
+            height_map: HeightMap { data: [bounds.start as i16; 256] },
+            bounds,
             sub_chunks,
             biomes,
             block_entities: Vec::new(),
-            height_map: HeightMap::new(),
             recalculate_height_map: false,
         }
     }
 
     /// Build a chunk from a flat block array indexed `((y - MIN_Y) * 16 + z) * 16 + x`
-    /// (`SUBCHUNK_COUNT * 4096` entries); `air` is the air runtime id for the height map.
-    pub fn from_dense(x: i32, z: i32, blocks: &[u32], air: u32) -> Self {
+    /// (`SUBCHUNK_COUNT * 4096` entries), in the explicitly supplied identity domain.
+    pub fn from_dense(x: i32, z: i32, blocks: &[u32], state_space: BlockStateSpace) -> Self {
+        Self::from_dense_with_bounds(
+            x, z, blocks, state_space, MIN_Y..MIN_Y + i32::from(SUBCHUNK_COUNT) * 16,
+        )
+    }
+
+    /// Pack fixed-size dense storage, retaining only the actual dimension's sections.
+    pub fn from_dense_with_bounds(
+        x: i32,
+        z: i32,
+        blocks: &[u32],
+        state_space: BlockStateSpace,
+        bounds: Range<i32>,
+    ) -> Self {
+        Self::assert_bounds(&bounds);
         assert_eq!(
             blocks.len(),
             SUBCHUNK_COUNT as usize * BLOCKS_PER_SUBCHUNK,
@@ -483,27 +603,35 @@ impl Chunk {
         );
         let sub_chunks = blocks
             .chunks_exact(BLOCKS_PER_SUBCHUNK)
-            .map(|section| SubChunk {
-                storage: PalettedStorage::from_dense_yzx(section),
+            .enumerate()
+            .map(|(index, section)| SubChunk {
+                storage: if bounds.contains(&(MIN_Y + index as i32 * 16)) {
+                    PalettedStorage::from_dense_yzx(section)
+                } else {
+                    PalettedStorage::single_block(state_space.air())
+                },
+                secondary: None,
             })
             .collect();
-        let mut height_map = HeightMap::new();
+        let mut height_map = HeightMap { data: [bounds.start as i16; 256] };
         for lz in 0..16usize {
             for lx in 0..16usize {
-                let top = (0..SUBCHUNK_COUNT as usize * 16)
+                let top = ((bounds.start - MIN_Y) as usize..(bounds.end - MIN_Y) as usize)
                     .rev()
-                    .find(|&y| blocks[(y * 16 + lz) * 16 + lx] != air);
+                    .find(|&y| !state_space.is_air(blocks[(y * 16 + lz) * 16 + lx]));
                 if let Some(y) = top {
                     height_map.set(lx as u8, lz as u8, (y as i32 + MIN_Y + 1) as i16);
                 }
             }
         }
         let biomes = (0..SUBCHUNK_COUNT)
-            .map(|_| PalettedStorage::single_block(DEFAULT_BIOME_ID))
+            .map(|_| PalettedStorage::single_block(state_space.default_biome()))
             .collect();
         Self {
             x,
             z,
+            state_space,
+            bounds,
             sub_chunks,
             biomes,
             block_entities: Vec::new(),
@@ -512,11 +640,124 @@ impl Chunk {
         }
     }
 
+    /// The identity domain of every block id returned by this chunk.
+    pub fn state_space(&self) -> BlockStateSpace {
+        self.state_space
+    }
+
+    /// Actual legal build/storage blocks; physical padding is not world content.
+    pub fn block_bounds(&self) -> Range<i32> {
+        self.bounds.clone()
+    }
+
+    fn assert_bounds(bounds: &Range<i32>) {
+        assert!(
+            bounds.start >= MIN_Y && bounds.end <= MIN_Y + i32::from(SUBCHUNK_COUNT) * 16
+                && bounds.start < bounds.end
+                && bounds.start % 16 == 0 && bounds.end % 16 == 0,
+            "logical chunk bounds {bounds:?} exceed physical storage"
+        );
+    }
+
+    /// Adopt a generator's build bounds without reallocating or copying blocks.
+    /// Used at the pipeline boundary for generators that return shared-size storage.
+    pub fn set_block_bounds(&mut self, bounds: Range<i32>) {
+        Self::assert_bounds(&bounds);
+        if self.bounds == bounds {
+            return;
+        }
+        self.bounds = bounds;
+        for (index, section) in self.sub_chunks.iter_mut().enumerate() {
+            if !self.bounds.contains(&(MIN_Y + index as i32 * 16)) {
+                section.fill_solid(self.state_space.air());
+            }
+        }
+        self.block_entities.retain(|entity| self.bounds.contains(&entity.position()[1]));
+        self.rebuild_heightmap();
+    }
+
+    fn rebuild_heightmap(&mut self) {
+        self.height_map = HeightMap { data: [self.bounds.start as i16; 256] };
+        for z in 0..16 {
+            for x in 0..16 {
+                let top = (self.bounds.start as i16..self.bounds.end as i16)
+                    .rev()
+                    .find(|&y| self.occupied(x, y, z));
+                if let Some(y) = top {
+                    self.height_map.set(x, z, y + 1);
+                }
+            }
+        }
+    }
+
+    /// Convert source palettes once; synthesize underlying water only in sections
+    ///
+    /// containing fluid-bearing native blocks. Unrepresentable Java properties
+    /// remain exact before this boundary. Never invert this conversion.
+    pub fn convert_to_bedrock(&mut self) -> std::io::Result<()> {
+        if self.state_space == BlockStateSpace::Bedrock {
+            return Ok(());
+        }
+        // Validate/adapt every actor before mutating any source-world state.
+        // An unrepresentable actor must not leave mixed Java/Bedrock identities.
+        let mut actors = Vec::with_capacity(self.block_entities.len());
+        for actor in &self.block_entities {
+            if !self.bounds.contains(&actor.position()[1]) {
+                return Err(std::io::Error::new(std::io::ErrorKind::InvalidData, format!(
+                    "native actor at {:?} cannot be stored within Bedrock build bounds {:?}",
+                    actor.position(), self.bounds,
+                )));
+            }
+            let mut actor = actor.clone();
+            actor.convert_to_bedrock()?;
+            actors.push(actor);
+        }
+        self.block_entities = actors;
+        let mut air_changed = false;
+        for section in &mut self.sub_chunks {
+            section.project_native_secondary();
+            let storage = &mut section.storage;
+            for state in &mut storage.palette {
+                let mapped = BlockStateSpace::Java.to_bedrock(*state);
+                air_changed |= BlockStateSpace::Java.is_air(*state) != (mapped == *blocks::AIR);
+                *state = mapped;
+            }
+            if storage.palette.iter().all(|&state| state == storage.palette[0]) {
+                storage.palette.truncate(1);
+                storage.indices.clear();
+                storage.size = PaletteSize::Bits0;
+            }
+        }
+        for storage in &mut self.biomes {
+            for biome in &mut storage.palette {
+                *biome = unastar_noise::java_biomes::JavaBiome::from_index(
+                    u16::try_from(*biome).expect("native Java biome id overflow"),
+                ).expect("native Java biome id").data().bedrock_id;
+            }
+            if storage.palette.iter().all(|&biome| biome == storage.palette[0]) {
+                storage.palette.truncate(1);
+                storage.indices.clear();
+                storage.size = PaletteSize::Bits0;
+            }
+        }
+        self.state_space = BlockStateSpace::Bedrock;
+        if air_changed {
+            self.rebuild_heightmap();
+        }
+        Ok(())
+    }
+
+    fn assert_bedrock(&self) {
+        assert_eq!(self.state_space, BlockStateSpace::Bedrock,
+            "canonical Java chunk must be finalized before Bedrock storage/network encoding");
+    }
+
     /// Fill the bottom layers with blocks.
     ///
     /// # Arguments
     /// * `layers` - Number of Y layers to fill (from world Y=0 upward).
     pub fn fill_floor(&mut self, layers: u32, block_id: u32) {
+        let layers = layers.min(self.bounds.end.max(0) as u32);
         self.retain_block_entities_for_fill(0, layers.min(320) as i32, block_id);
         // Y=0 is at subchunk index 4 (since MIN_Y=-64, so subchunk 0 covers Y=-64 to -48)
         // Subchunk 4 covers Y=0 to Y=15
@@ -525,6 +766,9 @@ impl Chunk {
         // Fill the specified layers
         for layer_y in 0..layers {
             let world_y = layer_y as i32;
+            if !self.bounds.contains(&world_y) {
+                continue;
+            }
             let subchunk_idx = base_subchunk_idx + (world_y / 16) as usize;
             let local_y = (world_y % 16) as usize;
 
@@ -534,7 +778,7 @@ impl Chunk {
         }
 
         // Update heightmap to reflect the topmost layer if non-air
-        if layers > 0 && block_id != *blocks::AIR {
+        if layers > 0 && !self.state_space.is_air(block_id) {
             let top_y = (layers - 1) as i16 + 1; // Height is Y of first air above highest block
             for z in 0u8..16 {
                 for x in 0u8..16 {
@@ -544,6 +788,8 @@ impl Chunk {
                     }
                 }
             }
+        } else if layers > 0 {
+            self.refresh_subchunk_heightmap(((layers - 1) / 16) as i32);
         }
     }
 
@@ -554,13 +800,16 @@ impl Chunk {
     /// * `subchunk_idx` - Array index of subchunk to fill (0-23)
     /// * `block_id` - Runtime block ID to fill with
     pub fn fill_subchunk_solid(&mut self, subchunk_idx: usize, block_id: u32) {
-        if subchunk_idx < self.sub_chunks.len() {
-            let min_y = MIN_Y + subchunk_idx as i32 * 16;
+        if subchunk_idx >= self.sub_chunks.len() {
+            return;
+        }
+        let min_y = MIN_Y + subchunk_idx as i32 * 16;
+        if self.bounds.contains(&min_y) {
             self.retain_block_entities_for_fill(min_y, min_y + 16, block_id);
             self.sub_chunks[subchunk_idx].fill_solid(block_id);
 
             // Update height map if this is a non-air block
-            if block_id != *blocks::AIR {
+            if !self.state_space.is_air(block_id) {
                 // Calculate the world Y for the top of this subchunk
                 let subchunk_top_y = (MIN_Y + (subchunk_idx as i32 + 1) * 16) as i16;
 
@@ -573,12 +822,15 @@ impl Chunk {
                         }
                     }
                 }
+            } else {
+                self.refresh_subchunk_heightmap(min_y >> 4);
             }
         }
     }
 
     fn retain_block_entities_for_fill(&mut self, min_y: i32, max_y: i32, block: u32) {
         let sub_chunks = &self.sub_chunks;
+        let state_space = self.state_space;
         self.block_entities.retain(|entity| {
             let [x, y, z] = entity.position();
             if !(min_y..max_y).contains(&y) {
@@ -589,7 +841,7 @@ impl Chunk {
                 (y & 15) as u8,
                 (z & 15) as u8,
             );
-            same_native_block(old, block)
+            state_space.same_block(old, block)
         });
     }
 
@@ -597,7 +849,11 @@ impl Chunk {
     /// Returns 0 if all are empty, otherwise returns highest_index + 1.
     pub fn highest_subchunk(&self) -> u16 {
         for (i, sub) in self.sub_chunks.iter().enumerate().rev() {
-            if !sub.is_empty() {
+            if !self.bounds.contains(&(MIN_Y + i as i32 * 16)) {
+                continue;
+            }
+            if sub.secondary.is_some()
+                || !sub.storage.palette.iter().all(|&state| self.state_space.is_air(state)) {
                 return (i + 1) as u16; // Return count, not index
             }
         }
@@ -612,12 +868,18 @@ impl Chunk {
         }
     }
 
-    /// Bedrock biome id at a block (local x/z, absolute y); `None` outside the height range.
+    /// Source-edition biome at a block. Native Java y clamps to build bounds;
+    /// Bedrock reads retain `None` outside the legal storage range.
     pub fn biome_at(&self, x: u8, y: i16, z: u8) -> Option<u32> {
-        let adjusted_y = (y as i32) - MIN_Y;
-        if adjusted_y < 0 || adjusted_y >= (SUBCHUNK_COUNT as i32 * 16) {
-            return None;
-        }
+        let y = if self.state_space == BlockStateSpace::Java {
+            i32::from(y).clamp(self.bounds.start, self.bounds.end - 1)
+        } else {
+            if !self.bounds.contains(&i32::from(y)) {
+                return None;
+            }
+            i32::from(y)
+        };
+        let adjusted_y = y - MIN_Y;
         let section = &self.biomes[(adjusted_y >> 4) as usize];
         Some(section.get_block(x as usize & 15, adjusted_y as usize & 15, z as usize & 15))
     }
@@ -655,6 +917,7 @@ impl Chunk {
     /// packets. The caller supplies the zero sub-chunk count and optional
     /// limit; this payload contains the biome sections and border count.
     pub fn encode_biomes(&self) -> Vec<u8> {
+        self.assert_bedrock();
         let mut buf = BytesMut::with_capacity(SUBCHUNK_COUNT as usize * 2 + 1);
 
         // One network-format paletted storage per section, like block storage.
@@ -680,6 +943,7 @@ impl Chunk {
     ///   (`bits == 0`) is the header plus one i32 id, without a length. Header
     ///   `0xFF` repeats the section below; BDS uses it for identical sections.
     pub fn encode_biomes_disk(&self) -> Vec<u8> {
+        self.assert_bedrock();
         let mut out = Vec::with_capacity(DATA3D_HEIGHTMAP_LEN + SUBCHUNK_COUNT as usize * 5);
         for height in self.height_map.data {
             out.extend_from_slice(&(height - MIN_Y as i16).to_le_bytes());
@@ -777,6 +1041,10 @@ impl Chunk {
     /// Encode block storage only, without the network actor suffix.
     /// Providers persist actors separately under Bedrock tag 0x31.
     pub fn encode_subchunk_disk(&self, y_index: i32) -> Option<Vec<u8>> {
+        self.assert_bedrock();
+        if !((self.bounds.start >> 4)..(self.bounds.end >> 4)).contains(&y_index) {
+            return None;
+        }
         let array_idx = y_index.checked_sub(MIN_Y >> 4)? as usize;
         let sub = self.sub_chunks.get(array_idx)?;
         let mut buf = BytesMut::with_capacity(1024);
@@ -805,14 +1073,30 @@ impl Chunk {
         let [x, y, z] = entity.position();
         if x >> 4 != self.x
             || z >> 4 != self.z
-            || !(MIN_Y..MIN_Y + SUBCHUNK_COUNT as i32 * 16).contains(&y)
+            || !self.bounds.contains(&y)
         {
             return false;
         }
+        self.insert_block_entity(entity)
+    }
+
+    /// ProtoChunk retains pending actor NBT even when its block write is outside
+    /// build height. This source-native path never relaxes Bedrock/storage input.
+    pub(crate) fn set_native_block_entity(&mut self, entity: BlockEntity) -> bool {
+        assert_eq!(self.state_space, BlockStateSpace::Java);
+        let [x, _, z] = entity.position();
+        if x >> 4 != self.x || z >> 4 != self.z {
+            return false;
+        }
+        self.insert_block_entity(entity)
+    }
+
+    fn insert_block_entity(&mut self, entity: BlockEntity) -> bool {
+        let position = entity.position();
         if let Some(old) = self
             .block_entities
             .iter_mut()
-            .find(|old| old.position() == [x, y, z])
+            .find(|old| old.position() == position)
         {
             *old = entity;
         } else {
@@ -821,8 +1105,31 @@ impl Chunk {
         true
     }
 
+    /// FULL-status promotion of native pending actors. Markers outside build
+    /// height are dropped; the rest instantiate from the current block state.
+    pub(crate) fn promote_java_pending_actors(&mut self) {
+        assert_eq!(self.state_space, BlockStateSpace::Java);
+        let mut actors = std::mem::take(&mut self.block_entities);
+        actors.retain_mut(|actor| {
+            if !actor.is_java_pending() {
+                return true;
+            }
+            let [x, y, z] = actor.position();
+            if !self.bounds.contains(&y) {
+                return false;
+            }
+            let state = self.get_block((x & 15) as u8, y as i16, (z & 15) as u8);
+            let state = unastar_noise::features::JavaState(u16::try_from(state).expect("canonical Java state id"));
+            actor.promote_java_pending(state.block().name())
+        });
+        self.block_entities = actors;
+    }
+
     /// Remove an actor at an absolute position; returns whether one existed.
     pub fn remove_block_entity(&mut self, x: i32, y: i32, z: i32) -> bool {
+        if !self.bounds.contains(&y) {
+            return false;
+        }
         let Some(index) = self
             .block_entities
             .iter()
@@ -836,10 +1143,14 @@ impl Chunk {
 
     /// Check if sub-chunk at given Y index is all air.
     pub fn is_subchunk_empty(&self, y_index: i32) -> bool {
+        if !((self.bounds.start >> 4)..(self.bounds.end >> 4)).contains(&y_index) {
+            return true;
+        }
         let array_idx = (y_index - (MIN_Y >> 4)) as usize;
         self.sub_chunks
             .get(array_idx)
-            .map(|s| s.is_empty())
+            .map(|s| s.secondary.is_none()
+                && s.storage.palette.iter().all(|&state| self.state_space.is_air(state)))
             .unwrap_or(true)
     }
 
@@ -859,14 +1170,14 @@ impl Chunk {
     ///
     /// # Arguments
     /// * `x` - Local X coordinate (0-15)
-    /// * `y` - World Y coordinate (-64 to 319)
+    /// * `y` - Absolute block Y within this chunk's logical build bounds
     /// * `z` - Local Z coordinate (0-15)
     ///
     /// Returns the block runtime ID, or AIR if out of bounds.
     pub fn get_block(&self, x: u8, y: i16, z: u8) -> u32 {
         let adjusted_y = (y as i32) - MIN_Y;
-        if adjusted_y < 0 || adjusted_y >= (SUBCHUNK_COUNT as i32 * 16) {
-            return *blocks::AIR;
+        if x >= 16 || z >= 16 || !self.bounds.contains(&i32::from(y)) {
+            return self.state_space.air();
         }
 
         let subchunk_idx = (adjusted_y / 16) as usize;
@@ -875,28 +1186,59 @@ impl Chunk {
         self.sub_chunks
             .get(subchunk_idx)
             .map(|s| s.get_block(x, local_y, z))
-            .unwrap_or(*blocks::AIR)
+            .unwrap_or_else(|| self.state_space.air())
+    }
+
+    /// Read primary (0) or underlying-liquid (1) storage. Absent/out-of-height
+    /// cells are air in the chunk's identity domain; Java has no separate layer.
+    pub fn get_block_layer(&self, x: u8, y: i16, z: u8, layer: u8) -> u32 {
+        assert!(layer <= 1, "only primary and secondary block layers exist");
+        if layer == 0 {
+            return self.get_block(x, y, z);
+        }
+        if x >= 16 || z >= 16 || !self.bounds.contains(&i32::from(y)) {
+            return self.state_space.air();
+        }
+        let adjusted_y = i32::from(y) - MIN_Y;
+        self.sub_chunks[(adjusted_y / 16) as usize].secondary.as_ref()
+            .map(|layer| layer.storage.get_block(x as usize, (adjusted_y % 16) as usize, z as usize))
+            .unwrap_or_else(|| self.state_space.air())
+    }
+
+    /// Atomically replace both Bedrock storages at one cell. Source Java states
+    /// retain waterlogging in their primary identity until conversion instead.
+    pub fn set_block_layers(
+        &mut self, x: u8, y: i16, z: u8, primary: u32, secondary: Option<u32>,
+    ) -> Option<u32> {
+        self.assert_bedrock();
+        self.set_block_inner(x, y, z, primary, secondary)
     }
 
     /// Set the block at world coordinates.
     ///
     /// # Arguments
     /// * `x` - Local X coordinate (0-15)
-    /// * `y` - World Y coordinate (-64 to 319)
+    /// * `y` - Absolute block Y within this chunk's logical build bounds
     /// * `z` - Local Z coordinate (0-15)
     /// * `block_id` - Block runtime ID to set
     ///
     /// Returns the previous block runtime ID, or None if out of bounds.
     pub fn set_block(&mut self, x: u8, y: i16, z: u8, block_id: u32) -> Option<u32> {
+        self.set_block_inner(x, y, z, block_id, None)
+    }
+
+    fn set_block_inner(
+        &mut self, x: u8, y: i16, z: u8, block_id: u32, secondary: Option<u32>,
+    ) -> Option<u32> {
         let adjusted_y = (y as i32) - MIN_Y;
-        if x >= 16 || z >= 16 || adjusted_y < 0 || adjusted_y >= (SUBCHUNK_COUNT as i32 * 16) {
+        if x >= 16 || z >= 16 || !self.bounds.contains(&i32::from(y)) {
             return None;
         }
 
         let subchunk_idx = (adjusted_y / 16) as usize;
         let local_y = (adjusted_y % 16) as u8;
 
-        let old = self.sub_chunks[subchunk_idx].set_block(x, local_y, z, block_id);
+        let old = self.sub_chunks[subchunk_idx].set_block_layers(x, local_y, z, block_id, secondary);
         if old != block_id && !self.block_entities.is_empty() {
             let position = [(self.x << 4) | x as i32, y as i32, (self.z << 4) | z as i32];
             if let Some(index) = self
@@ -906,15 +1248,19 @@ impl Chunk {
             {
                 // Resolve native identity only at an occupied actor cell. State-only
                 // changes (e.g. chest facing) must not destroy its persistent contents.
-                let same_type = same_native_block(old, block_id);
+                let same_type = self.state_space.same_block(old, block_id);
                 if !same_type {
                     self.block_entities.remove(index);
                 }
             }
         }
 
-        // Update height map if needed
-        self.update_heightmap_for_block(x, y, z, block_id);
+        let occupied = if self.state_space.is_air(block_id) {
+            secondary.unwrap_or(block_id)
+        } else {
+            block_id
+        };
+        self.update_heightmap_for_block(x, y, z, occupied);
 
         Some(old)
     }
@@ -923,7 +1269,7 @@ impl Chunk {
     fn update_heightmap_for_block(&mut self, x: u8, y: i16, z: u8, block_id: u32) {
         let current_height = self.height_map.at(x, z);
 
-        if block_id != *blocks::AIR {
+        if !self.state_space.is_air(block_id) {
             // Non-air block: update height if higher than current
             if y >= current_height {
                 self.height_map.set(x, z, y + 1);
@@ -931,15 +1277,20 @@ impl Chunk {
         } else if y + 1 == current_height {
             // Air block at the current height - need to recalculate
             // Scan downward to find new highest non-air block
-            let mut new_height = MIN_Y as i16;
-            for check_y in (MIN_Y as i16..y).rev() {
-                if self.get_block(x, check_y, z) != *blocks::AIR {
+            let mut new_height = self.bounds.start as i16;
+            for check_y in (self.bounds.start as i16..y).rev() {
+                if self.occupied(x, check_y, z) {
                     new_height = check_y + 1;
                     break;
                 }
             }
             self.height_map.set(x, z, new_height);
         }
+    }
+
+    fn occupied(&self, x: u8, y: i16, z: u8) -> bool {
+        !self.state_space.is_air(self.get_block(x, y, z))
+            || !self.state_space.is_air(self.get_block_layer(x, y, z, 1))
     }
 
     /// Decode a subchunk from disk/network format.
@@ -950,9 +1301,12 @@ impl Chunk {
     ///
     /// Returns an error string if decoding failed.
     pub fn decode_subchunk(&mut self, y_index: i32, data: &[u8]) -> Result<(), String> {
+        self.assert_bedrock();
         // Convert absolute Y index to array index
         let array_idx = (y_index - (MIN_Y >> 4)) as usize;
-        if array_idx >= self.sub_chunks.len() {
+        if array_idx >= self.sub_chunks.len()
+            || !((self.bounds.start >> 4)..(self.bounds.end >> 4)).contains(&y_index)
+        {
             return Err(format!("Y index {} out of range", y_index));
         }
 
@@ -966,43 +1320,62 @@ impl Chunk {
             return Err(format!("Unsupported subchunk version: {}", version));
         }
 
-        if data.len() < 3 {
+        let mut offset = if version == 8 { 2 } else { 3 };
+        if data.len() < offset {
             return Err("Subchunk data too short".to_string());
         }
-
         let storage_count = data[1];
-        // Skip y_index byte (data[2]) - we already know the Y from the key
-
-        let offset = 3;
-
-        // Decode first storage layer (we only use the first one)
-        if storage_count > 0 && offset < data.len() {
-            let storage = PalettedStorage::decode(&data[offset..])?;
-            let _ = storage.1; // bytes consumed (only first layer used)
-
-            // Replace the subchunk's storage with the decoded one
-            self.sub_chunks[array_idx].storage = storage.0;
+        if storage_count > 2 {
+            return Err(format!("Unsupported subchunk storage count: {storage_count}"));
         }
-
-        // Update heightmap for this subchunk
-        let base_y = y_index * 16;
-        for x in 0u8..16 {
-            for z in 0u8..16 {
-                for local_y in (0..16).rev() {
-                    let block = self.sub_chunks[array_idx].get_block(x, local_y, z);
-                    if block != *blocks::AIR {
-                        let world_y = (base_y + local_y as i32) as i16;
-                        let current = self.height_map.at(x, z);
-                        if world_y + 1 > current {
-                            self.height_map.set(x, z, world_y + 1);
-                        }
-                        break;
-                    }
-                }
-            }
-        }
+        let storage = if storage_count == 0 {
+            PalettedStorage::single_block(*blocks::AIR)
+        } else {
+            let (storage, consumed) = PalettedStorage::decode(&data[offset..])?;
+            offset += consumed;
+            storage
+        };
+        let secondary = if storage_count == 2 {
+            let (storage, _) = PalettedStorage::decode(&data[offset..])?;
+            SecondaryStorage::decoded(storage)?
+        } else {
+            None
+        };
+        // Commit only after both layers decode. A later single-layer snapshot
+        // replaces, rather than accidentally retaining, an older liquid layer.
+        self.sub_chunks[array_idx] = SubChunk { storage, secondary };
+        self.refresh_subchunk_heightmap(y_index);
 
         Ok(())
+    }
+
+    fn refresh_subchunk_heightmap(&mut self, y_index: i32) {
+        let base = y_index * 16;
+        for x in 0u8..16 {
+            for z in 0u8..16 {
+                let current = self.height_map.at(x, z);
+                if i32::from(current) > base + 16 {
+                    continue;
+                }
+                let top = (0..16).rev()
+                    .map(|y| (base + y) as i16)
+                    .find(|&y| self.occupied(x, y, z));
+                let height = if let Some(top) = top {
+                    (top + 1).max(if i32::from(current) <= base {
+                        current
+                    } else {
+                        self.bounds.start as i16
+                    })
+                } else if i32::from(current) > base {
+                    (self.bounds.start as i16..base as i16).rev()
+                        .find(|&y| self.occupied(x, y, z))
+                        .map_or(self.bounds.start as i16, |y| y + 1)
+                } else {
+                    current
+                };
+                self.height_map.set(x, z, height);
+            }
+        }
     }
 }
 
@@ -1017,23 +1390,37 @@ impl SubChunk {
     pub fn empty() -> Self {
         Self {
             storage: PalettedStorage::single_block(*blocks::AIR),
+            secondary: None,
         }
     }
 
     /// Check if this subchunk is all air.
     pub fn is_empty(&self) -> bool {
-        self.storage.palette.len() == 1 && self.storage.palette[0] == *blocks::AIR
+        self.secondary.is_none()
+            && self.storage.palette.len() == 1 && self.storage.palette[0] == *blocks::AIR
     }
 
     /// Fill an entire Y layer with a block.
     pub fn fill_layer(&mut self, y: usize, block_id: u32) {
         self.storage.fill_layer(y, block_id);
+        if let Some(layer) = &mut self.secondary {
+            for x in 0..16 {
+                for z in 0..16 {
+                    let old = layer.storage.set_block(x, y, z, *blocks::AIR);
+                    layer.non_air -= u16::from(old != *blocks::AIR);
+                }
+            }
+            if layer.non_air == 0 {
+                self.secondary = None;
+            }
+        }
     }
 
     /// Fill the entire subchunk with a single block type.
     /// Uses single-value palette for maximum efficiency.
     pub fn fill_solid(&mut self, block_id: u32) {
         self.storage = PalettedStorage::single_block(block_id);
+        self.secondary = None;
     }
 
     /// Get the block at local coordinates (0-15 for each axis).
@@ -1046,8 +1433,62 @@ impl SubChunk {
     /// Returns the previous block runtime ID.
     #[inline]
     pub fn set_block(&mut self, x: u8, y: u8, z: u8, block_id: u32) -> u32 {
-        self.storage
-            .set_block(x as usize, y as usize, z as usize, block_id)
+        self.set_block_layers(x, y, z, block_id, None)
+    }
+
+    /// Atomically write both storages, exactly as [`Chunk::set_block_layers`]
+    /// does for this section; returns the previous primary block.
+    pub(crate) fn set_block_layers(&mut self, x: u8, y: u8, z: u8, primary: u32, secondary: Option<u32>) -> u32 {
+        let old = self.storage.set_block(x as usize, y as usize, z as usize, primary);
+        if self.secondary.is_some() || secondary.is_some() {
+            self.set_secondary(x, y, z, secondary.unwrap_or(*blocks::AIR));
+        }
+        old
+    }
+
+    /// Underlying-liquid block, or `None` when this section has no secondary storage.
+    pub(crate) fn secondary_block(&self, x: u8, y: u8, z: u8) -> Option<u32> {
+        self.secondary.as_ref()
+            .map(|layer| layer.storage.get_block(x as usize, y as usize, z as usize))
+    }
+
+    fn set_secondary(&mut self, x: u8, y: u8, z: u8, block: u32) {
+        if let Some(layer) = &mut self.secondary {
+            let old = layer.storage.set_block(x as usize, y as usize, z as usize, block);
+            layer.non_air = layer.non_air + u16::from(block != *blocks::AIR)
+                - u16::from(old != *blocks::AIR);
+            if layer.non_air == 0 {
+                self.secondary = None;
+            }
+        } else if block != *blocks::AIR {
+            let mut storage = PalettedStorage::single_block(*blocks::AIR);
+            storage.set_block(x as usize, y as usize, z as usize, block);
+            self.secondary = Some(Box::new(SecondaryStorage { storage, non_air: 1 }));
+        }
+    }
+
+    fn project_native_secondary(&mut self) {
+        let water = &unastar_noise::java_blocks::JAVA_SECONDARY_WATER;
+        if !self.storage.palette.iter().any(|&id| water[id as usize]) {
+            return;
+        }
+        if self.storage.palette.iter().all(|&id| water[id as usize]) {
+            self.secondary = Some(Box::new(SecondaryStorage {
+                storage: PalettedStorage::single_block(*blocks::WATER),
+                non_air: BLOCKS_PER_SUBCHUNK as u16,
+            }));
+            return;
+        }
+        for x in 0..16u8 {
+            for z in 0..16u8 {
+                for y in 0..16u8 {
+                    let state = self.storage.get_block(x as usize, y as usize, z as usize);
+                    if water[state as usize] {
+                        self.set_secondary(x, y, z, *blocks::WATER);
+                    }
+                }
+            }
+        }
     }
 
     /// Encode this sub-chunk for network transmission.
@@ -1059,10 +1500,13 @@ impl SubChunk {
         // - For each storage: paletted data
 
         buf.put_u8(SUBCHUNK_VERSION);
-        buf.put_u8(1); // Single storage layer
+        buf.put_u8(1 + u8::from(self.secondary.is_some()));
         buf.put_i8(y_index);
 
         self.storage.encode(buf);
+        if let Some(layer) = &self.secondary {
+            layer.storage.encode(buf);
+        }
     }
 }
 
@@ -1147,10 +1591,7 @@ impl PalettedStorage {
         }
 
         let palette_idx = self.get_palette_index(x, y, z);
-        self.palette
-            .get(palette_idx as usize)
-            .copied()
-            .unwrap_or(*blocks::AIR)
+        self.palette[palette_idx as usize]
     }
 
     /// Get palette index using bit unpacking.
@@ -1434,7 +1875,7 @@ impl PalettedStorage {
     }
 }
 
-pub(crate) fn same_native_block(old: u32, new: u32) -> bool {
+fn same_bedrock_block(old: u32, new: u32) -> bool {
     if old == new {
         return true;
     }
@@ -1661,7 +2102,7 @@ mod tests {
                 expected.set_block(x, (y + MIN_Y) as i16, z, block);
             }
         }
-        let packed = Chunk::from_dense(3, -2, &dense, air);
+        let packed = Chunk::from_dense(3, -2, &dense, BlockStateSpace::Bedrock);
         for y in MIN_Y..MIN_Y + SUBCHUNK_COUNT as i32 * 16 {
             for z in 0..16u8 {
                 for x in 0..16u8 {
@@ -1958,5 +2399,187 @@ mod tests {
                 assert_eq!(storage.get_block(x, 1, z), *blocks::AIR);
             }
         }
+    }
+}
+
+#[cfg(test)]
+mod native_state_tests {
+    use super::*;
+    use unastar_noise::features::java_blocks::states;
+
+    #[test]
+    fn native_air_identity_survives_until_the_mapping_boundary_without_raising_height() {
+        let mut chunk = Chunk::new_in_space(-1, -1, BlockStateSpace::Java);
+        chunk.set_block(15, 319, 15, u32::from(states::VOID_AIR.0));
+        assert_eq!(chunk.highest_subchunk(), 0);
+        chunk.set_block(15, 10, 15, u32::from(states::STONE.0));
+        assert_eq!(chunk.height_map().at(15, 15), 11);
+        chunk.set_block(15, 10, 15, u32::from(states::CAVE_AIR.0));
+        assert_eq!(chunk.height_map().at(15, 15), MIN_Y as i16);
+        assert_eq!(chunk.get_block(15, 10, 15), u32::from(states::CAVE_AIR.0));
+        assert_eq!(chunk.get_block(15, 319, 15), u32::from(states::VOID_AIR.0));
+        chunk.convert_to_bedrock().unwrap();
+        assert_eq!(chunk.state_space(), BlockStateSpace::Bedrock);
+        assert_eq!(chunk.get_block(15, 10, 15), *blocks::AIR);
+        assert_eq!(chunk.get_block(15, 320, 15), *blocks::AIR);
+        assert_eq!(chunk.height_map().at(15, 15), MIN_Y as i16);
+    }
+
+    #[test]
+    fn java_chest_property_changes_retain_contents_but_block_changes_remove_them() {
+        let mut chunk = Chunk::new_in_space(0, 0, BlockStateSpace::Java);
+        let actor = BlockEntity::generated([15, 10, 15], "Chest", &[], None, None);
+        let east = states::CHEST.with("facing", "east");
+        chunk.set_block(15, 10, 15, u32::from(states::CHEST.0));
+        chunk.set_block_entity(actor.clone());
+        chunk.set_block(15, 10, 15, u32::from(east.0));
+        assert_eq!(chunk.block_entities(), std::slice::from_ref(&actor));
+        chunk.set_block(15, 10, 15, u32::from(states::STONE.0));
+        assert!(chunk.block_entities().is_empty());
+        chunk.set_block(15, 10, 15, u32::from(east.0));
+        chunk.set_block_entity(actor.clone());
+        chunk.convert_to_bedrock().unwrap();
+        assert_eq!(chunk.block_entities(), std::slice::from_ref(&actor));
+        chunk.set_block(15, 10, 15, *blocks::STONE);
+        assert!(chunk.block_entities().is_empty());
+    }
+
+    #[test]
+    #[should_panic]
+    fn canonical_ids_cannot_leak_into_bedrock_block_encoding() {
+        let chunk = Chunk::new_in_space(0, 0, BlockStateSpace::Java);
+        let _ = chunk.encode_subchunk_disk(0);
+    }
+}
+
+#[cfg(test)]
+mod layered_state_tests {
+    use super::*;
+    use unastar_noise::features::JavaBlock;
+
+    #[test]
+    fn java_waterlogging_and_aquatic_fluid_survive_the_single_projection_boundary() {
+        let bars = JavaBlock::by_name("minecraft:iron_bars").unwrap().default_state();
+        let wet = bars.with("waterlogged", "true");
+        let dry = bars.with("waterlogged", "false");
+        let plant = JavaBlock::by_name("minecraft:seagrass").unwrap().default_state();
+        let flowing = JavaBlock::by_name("minecraft:water").unwrap().default_state().with("level", "7");
+        let mut chunk = Chunk::new_in_space(-1, -1, BlockStateSpace::Java);
+        chunk.set_block(15, -1, 15, u32::from(wet.0));
+        chunk.set_block(15, 0, 15, u32::from(dry.0));
+        chunk.set_block(14, 0, 15, u32::from(plant.0));
+        chunk.set_block(13, 0, 15, u32::from(flowing.0));
+        assert_eq!(chunk.get_block(15, -1, 15), u32::from(wet.0));
+        assert_eq!(chunk.get_block_layer(15, -1, 15, 1), BlockStateSpace::Java.air());
+        chunk.convert_to_bedrock().unwrap();
+        assert_eq!(chunk.get_block(15, -1, 15), blocks::get_block_id("minecraft:iron_bars"));
+        assert_eq!(chunk.get_block(15, 0, 15), blocks::get_block_id("minecraft:iron_bars"));
+        assert_eq!(chunk.get_block_layer(15, -1, 15, 1), *blocks::WATER);
+        assert_eq!(chunk.get_block_layer(15, 0, 15, 1), *blocks::AIR);
+        assert_eq!(chunk.get_block_layer(14, 0, 15, 1), *blocks::WATER);
+        assert_eq!(chunk.get_block_layer(13, 0, 15, 1), *blocks::AIR);
+        for section in [-1, 0] {
+            let wire = chunk.encode_subchunk(section).unwrap();
+            assert_eq!(wire[1], 2);
+            let mut decoded = Chunk::new(-1, -1);
+            decoded.decode_subchunk(section, &wire).unwrap();
+            let (x, y) = if section == -1 { (15, -1) } else { (14, 0) };
+            assert_eq!(decoded.get_block_layer(x, y, 15, 1), *blocks::WATER);
+            assert_eq!(decoded.get_block(x, y, 15), chunk.get_block(x, y, 15));
+        }
+        chunk.convert_to_bedrock().unwrap();
+        assert_eq!(chunk.get_block_layer(15, -1, 15, 1), *blocks::WATER);
+    }
+
+    fn uniform_packet(version: u8, primary: u32, secondary: Option<u32>) -> Vec<u8> {
+        let mut wire = BytesMut::new();
+        wire.put_u8(version);
+        wire.put_u8(1 + u8::from(secondary.is_some()));
+        if version == 9 {
+            wire.put_i8(-1);
+        }
+        wire.put_u8(1); // Runtime palette, zero bits per block.
+        write_signed_varint32(&mut wire, primary as i32);
+        if let Some(secondary) = secondary {
+            wire.put_u8(1);
+            write_signed_varint32(&mut wire, secondary as i32);
+        }
+        wire.to_vec()
+    }
+
+    #[test]
+    fn two_storage_wire_versions_replace_both_layers_and_reject_partial_commits() {
+        let primary = blocks::get_block_id("minecraft:iron_bars");
+        let mut chunk = Chunk::new(0, 0);
+        for version in [8, 9] {
+            let wire = uniform_packet(version, primary, Some(*blocks::WATER));
+            chunk.decode_subchunk(-1, &wire).unwrap();
+            for (x, y, z) in [(0, -16, 0), (15, -1, 15)] {
+                assert_eq!(chunk.get_block(x, y, z), primary);
+                assert_eq!(chunk.get_block_layer(x, y, z, 1), *blocks::WATER);
+            }
+            assert!(chunk.decode_subchunk(-1, &wire[..wire.len() - 1]).is_err());
+            assert_eq!(chunk.get_block_layer(15, -1, 15, 1), *blocks::WATER);
+            chunk.decode_subchunk(-1, &uniform_packet(version, *blocks::AIR, None)).unwrap();
+            assert_eq!(chunk.get_block(15, -1, 15), *blocks::AIR);
+            assert_eq!(chunk.get_block_layer(15, -1, 15, 1), *blocks::AIR);
+            assert_eq!(chunk.height_map().at(15, 15), MIN_Y as i16);
+        }
+        chunk.set_block_layers(15, -1, 15, primary, Some(*blocks::WATER)).unwrap();
+        assert!(chunk.decode_subchunk(-1, &[9, 3, 255]).is_err());
+        assert_eq!(chunk.get_block_layer(15, -1, 15, 1), *blocks::WATER);
+        chunk.decode_subchunk(-1, &[9, 0, 255]).unwrap();
+        assert_eq!(chunk.get_block_layer(15, -1, 15, 1), *blocks::AIR);
+        assert_eq!(chunk.highest_subchunk(), 0);
+    }
+
+    #[test]
+    fn primary_replacement_and_bulk_clear_remove_liquid_without_hiding_other_layers() {
+        let mut chunk = Chunk::new(0, 0);
+        chunk.set_block_layers(15, 0, 15, *blocks::AIR, Some(*blocks::WATER)).unwrap();
+        chunk.set_block_layers(15, 319, 15, *blocks::AIR, Some(*blocks::WATER)).unwrap();
+        assert_eq!(chunk.highest_subchunk(), 24);
+        assert!(!chunk.is_subchunk_empty(19));
+        assert_eq!(chunk.height_map().at(15, 15), 320);
+        chunk.set_block(15, 319, 15, *blocks::AIR).unwrap();
+        assert_eq!(chunk.get_block_layer(15, 319, 15, 1), *blocks::AIR);
+        assert_eq!(chunk.encode_subchunk_disk(19).unwrap()[1], 1);
+        assert_eq!(chunk.height_map().at(15, 15), 1);
+        assert_eq!(chunk.highest_subchunk(), 5);
+        chunk.fill_subchunk_solid(4, *blocks::AIR);
+        assert_eq!(chunk.get_block_layer(15, 0, 15, 1), *blocks::AIR);
+        assert_eq!(chunk.height_map().at(15, 15), MIN_Y as i16);
+        assert_eq!(chunk.highest_subchunk(), 0);
+        chunk.set_block_layers(15, 1, 15, *blocks::AIR, Some(*blocks::WATER)).unwrap();
+        chunk.fill_floor(2, *blocks::AIR);
+        assert_eq!(chunk.height_map().at(15, 15), MIN_Y as i16);
+        assert_eq!(chunk.encode_subchunk_disk(0).unwrap()[1], 1);
+    }
+
+    #[test]
+    fn clipping_world_bounds_cannot_reveal_old_secondary_water_after_expansion() {
+        let mut chunk = Chunk::new(0, 0);
+        chunk.set_block_layers(0, 319, 0, *blocks::AIR, Some(*blocks::WATER)).unwrap();
+        chunk.set_block_bounds(0..256);
+        chunk.set_block_bounds(MIN_Y..320);
+        assert_eq!(chunk.get_block_layer(0, 319, 0, 1), *blocks::AIR);
+        assert_eq!(chunk.encode_subchunk_disk(19).unwrap()[1], 1);
+        assert_eq!(chunk.highest_subchunk(), 0);
+    }
+
+    #[test]
+    fn unrepresentable_native_actor_bounds_leave_the_entire_source_chunk_unchanged() {
+        let bars = JavaBlock::by_name("minecraft:iron_bars").unwrap()
+            .default_state().with("waterlogged", "true");
+        let mut chunk = Chunk::new_in_space(0, 0, BlockStateSpace::Java);
+        chunk.set_block(0, 10, 0, u32::from(bars.0));
+        chunk.set_native_block_entity(BlockEntity::pending_java([1, 10, 0], "minecraft:chest"));
+        chunk.set_native_block_entity(BlockEntity::pending_java([1, 320, 0], "minecraft:chest"));
+        let actors = chunk.block_entities().to_vec();
+        assert!(chunk.convert_to_bedrock().is_err());
+        assert_eq!(chunk.state_space(), BlockStateSpace::Java);
+        assert_eq!(chunk.get_block(0, 10, 0), u32::from(bars.0));
+        assert_eq!(chunk.get_block_layer(0, 10, 0, 1), BlockStateSpace::Java.air());
+        assert_eq!(chunk.block_entities(), actors.as_slice());
     }
 }

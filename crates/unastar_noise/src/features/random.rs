@@ -77,17 +77,75 @@ impl BitSource for LegacyBits {
 
 /// Java `WorldgenRandom` over a bit source.
 #[derive(Debug, Clone)]
-pub struct WorldgenRandom<S: BitSource> {
+pub struct WorldgenRandom<S: BitSource, const RETAIN_GAUSSIAN: bool = true> {
     source: S,
     next_gaussian: Option<f64>,
 }
 
 /// Decoration-time random (`WorldgenRandom(XoroshiroRandomSource)`).
 pub type FeatureRandom = WorldgenRandom<XoroshiroBits>;
-/// Legacy random (`WorldgenRandom(LegacyRandomSource)` / `RandomSource.create(seed)`).
-pub type LegacyRandom = WorldgenRandom<LegacyBits>;
+/// Bare `LegacyRandomSource` / `RandomSource.create(seed)`: reseeding clears
+/// its Gaussian cache. A wrapped legacy source uses `WorldgenRandom<LegacyBits>`.
+pub type LegacyRandom = WorldgenRandom<LegacyBits, false>;
 
-impl<S: BitSource> WorldgenRandom<S> {
+/// Native `WorldGenRegion.getRandom()`, not a `WorldgenRandom` bit wrapper.
+/// The preset selects the source once when the region is constructed.
+#[derive(Debug, Clone)]
+pub enum RegionRandom {
+    Xoroshiro(Xoroshiro128),
+    Legacy(LegacyRandom),
+}
+
+impl RegionRandom {
+    /// `RandomState.getOrCreateRandomFactory(worldgen_region_random).at(origin)`.
+    /// Both positional forks consume native longs, including the legacy branch.
+    pub fn new(seed: i64, legacy: bool, chunk_x: i32, chunk_z: i32) -> Self {
+        if legacy {
+            let mut root = LegacyRandom::new(seed);
+            let positional_seed = root.next_long();
+            let mut named = LegacyRandom::new(
+                positional_seed ^ i64::from(java_string_hash("minecraft:worldgen_region_random")),
+            );
+            let region_seed = named.next_long();
+            Self::Legacy(LegacyRandom::new(
+                region_seed ^ crate::xoroshiro::get_seed(chunk_x * 16, 0, chunk_z * 16),
+            ))
+        } else {
+            Self::Xoroshiro(
+                crate::xoroshiro::PositionalRandomFactory::new(seed)
+                    .fork_from_hash(crate::random_hashes::WORLDGEN_REGION_RANDOM)
+                    .at(chunk_x * 16, 0, chunk_z * 16),
+            )
+        }
+    }
+
+    /// Native `RandomSource.nextBoolean`: each algorithm has different draws.
+    #[inline]
+    pub fn next_bool(&mut self) -> bool {
+        match self {
+            Self::Xoroshiro(random) => random.next_boolean(),
+            Self::Legacy(random) => random.next_bool(),
+        }
+    }
+
+    #[inline]
+    pub fn next_float(&mut self) -> f32 {
+        match self {
+            Self::Xoroshiro(random) => random.next_float(),
+            Self::Legacy(random) => random.next_float(),
+        }
+    }
+
+    #[inline]
+    pub fn next_int(&mut self, bound: u32) -> u32 {
+        match self {
+            Self::Xoroshiro(random) => random.next_int(bound),
+            Self::Legacy(random) => random.next_int_bounded(bound as i32) as u32,
+        }
+    }
+}
+
+impl<S: BitSource, const RETAIN_GAUSSIAN: bool> WorldgenRandom<S, RETAIN_GAUSSIAN> {
     /// A generator seeded with `seed` (`setSeed`).
     #[inline]
     pub fn new(seed: i64) -> Self {
@@ -106,11 +164,14 @@ impl<S: BitSource> WorldgenRandom<S> {
         }
     }
 
-    /// `setSeed(seed)`: reseeds the source and drops the cached gaussian.
+    /// Reseed the bit source. WorldgenRandom's inherited Gaussian cache survives
+    /// feature reseeds; a bare LegacyRandomSource clears its own cache.
     #[inline]
     pub fn set_seed(&mut self, seed: i64) {
         self.source = S::from_seed(seed);
-        self.next_gaussian = None;
+        if !RETAIN_GAUSSIAN {
+            self.next_gaussian = None;
+        }
     }
 
     /// `next(bits)`.
@@ -281,7 +342,9 @@ impl ForkSource for LegacyBits {
     }
 }
 
-impl<S: BitSource> crate::noise::NoiseRandom for WorldgenRandom<S> {
+impl<S: BitSource, const RETAIN_GAUSSIAN: bool> crate::noise::NoiseRandom
+    for WorldgenRandom<S, RETAIN_GAUSSIAN>
+{
     #[inline]
     fn noise_next_double(&mut self) -> f64 {
         self.next_double()
@@ -304,6 +367,72 @@ pub fn java_string_hash(s: &str) -> i32 {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn native_gaussian_reseed_preserves_wrapper_cache_and_continuation() {
+        fn check<S: BitSource, const RETAIN_GAUSSIAN: bool>(case: &serde_json::Value) {
+            let mut random = WorldgenRandom::<S, RETAIN_GAUSSIAN>::new(
+                case["first_seed"].as_i64().unwrap(),
+            );
+            for expected in case["initial_gaussian_bits"].as_array().unwrap() {
+                assert_eq!(
+                    random.next_gaussian().to_bits(),
+                    expected.as_str().unwrap().parse::<u64>().unwrap(),
+                    "initial Gaussian: {case}",
+                );
+            }
+            random.set_seed(case["second_seed"].as_i64().unwrap());
+            assert_eq!(
+                random.next_gaussian().to_bits(),
+                case["gaussian_after_reseed_bits"].as_str().unwrap().parse::<u64>().unwrap(),
+                "Gaussian after reseed: {case}",
+            );
+            for expected in case["next_ints"].as_array().unwrap() {
+                assert_eq!(i64::from(random.next_int()), expected.as_i64().unwrap(),
+                    "continuation after reseed: {case}");
+            }
+        }
+        let fixture: serde_json::Value = serde_json::from_str(include_str!(
+            "../../tests/data/native_gaussian_reseed_1_21_11.json"
+        )).unwrap();
+        for case in fixture["cases"].as_array().unwrap() {
+            match case["algorithm"].as_str().unwrap() {
+                "worldgen_xoroshiro" => check::<XoroshiroBits, true>(case),
+                "worldgen_legacy" => check::<LegacyBits, true>(case),
+                "legacy" => check::<LegacyBits, false>(case),
+                other => panic!("unmeasured native random algorithm {other}"),
+            }
+        }
+    }
+
+    /// Native 1.21.11 RandomState positional region stream observations:
+    /// native-column-corpus-20261027/columns-{dimension}-seed{seed}.json.
+    /// Each tuple is nextBoolean, nextFloat raw f32 bits, nextInt(3).
+    #[test]
+    fn region_stream_matches_native_dimension_sources() {
+        let cases = [
+            (0_i64, false, 0, 0, [(true, 1044136244, 1), (true, 1062540261, 0), (false, 1059860540, 1), (false, 1050665236, 1)]),
+            (0_i64, false, -1, -1, [(true, 1046372152, 0), (true, 1062444189, 2), (true, 1059300077, 0), (true, 1045930116, 2)]),
+            (0_i64, true, 0, 0, [(true, 1059351337, 0), (true, 1044964440, 0), (false, 1057639355, 0), (false, 1063198417, 1)]),
+            (0_i64, true, -1, -1, [(false, 1057640546, 0), (true, 1056643492, 2), (false, 1052133062, 0), (true, 1044943764, 1)]),
+            (12345_i64, false, 0, 0, [(true, 1055095394, 2), (true, 1060382677, 0), (false, 1058479631, 0), (true, 1064573554, 0)]),
+            (12345_i64, false, -1, -1, [(true, 1057253039, 0), (false, 1032799560, 1), (true, 1064303708, 2), (true, 1063928557, 2)]),
+            (12345_i64, true, 0, 0, [(false, 1060887882, 0), (true, 1048116300, 0), (false, 1062769422, 1), (false, 1039774104, 0)]),
+            (12345_i64, true, -1, -1, [(false, 1064150167, 2), (false, 1061115056, 2), (true, 1047642276, 0), (true, 1050082240, 2)]),
+            (987654321_i64, false, 0, 0, [(false, 1055886994, 1), (false, 1059101805, 2), (false, 1046739660, 1), (false, 1058270747, 1)]),
+            (987654321_i64, false, -1, -1, [(false, 1062297281, 1), (true, 1064267042, 0), (false, 1040087160, 2), (true, 1045794568, 2)]),
+            (987654321_i64, true, 0, 0, [(true, 1036552104, 2), (true, 1056253428, 0), (false, 1054179556, 2), (true, 1058612099, 2)]),
+            (987654321_i64, true, -1, -1, [(false, 1057201008, 2), (true, 1051809232, 1), (true, 1057335793, 2), (false, 1053390844, 0)]),
+        ];
+        for (seed, legacy, cx, cz, expected) in cases {
+            let mut random = RegionRandom::new(seed, legacy, cx, cz);
+            for (boolean, float_bits, bounded) in expected {
+                assert_eq!(random.next_bool(), boolean, "{seed}/{legacy}/{cx}/{cz}");
+                assert_eq!(random.next_float().to_bits(), float_bits, "{seed}/{legacy}/{cx}/{cz}");
+                assert_eq!(random.next_int(3), bounded, "{seed}/{legacy}/{cx}/{cz}");
+            }
+        }
+    }
 
     /// `new java.util.Random(42)`: nextInt() = -1170105035 then 234785527, so
     /// nextLong() = (-1170105035 << 32) + 234785527; nextInt(10) = 0.

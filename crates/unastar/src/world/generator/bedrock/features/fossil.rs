@@ -14,7 +14,7 @@
 //!    replaced.
 
 use super::super::generated::{self, bb, props};
-use super::super::structures::world_pos;
+use super::super::structures::{place_state, world_pos};
 use super::super::world::{BlockPos, BlockWorld, Ctx, OUT_OF_BOUNDS};
 
 /// Compiled feature parameters.
@@ -80,7 +80,7 @@ pub fn place<W: BlockWorld>(ctx: &mut Ctx<'_, W>, pos: BlockPos, p: &Params) -> 
         if ore {
             ctx.set(at, p.ore_block);
         } else if bone {
-            ctx.set(at, t.state(entry, rotation));
+            let _ = place_state(ctx, at, t.state(entry, rotation));
         }
     }
     Some(pos)

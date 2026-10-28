@@ -1,12 +1,9 @@
-//! Build-time Java block tags (`java_data/tags/block`), resolved to block names and to
-//! Bedrock runtime-id bitsets.
+//! Build-time Java block tags (`java_data/tags/block`), resolved to block names.
 
 use std::collections::{BTreeMap, BTreeSet};
 use std::path::Path;
 
 use serde::Deserialize;
-
-use super::java_blocks::JavaBlocks;
 
 #[derive(Deserialize)]
 struct TagFile {
@@ -95,17 +92,4 @@ impl BlockTags {
         Ok(())
     }
 
-    /// Bitset over Bedrock runtime ids of every state of every block in `tag`.
-    pub fn bedrock_bitset(&self, tag: &str, blocks: &JavaBlocks) -> Result<Vec<u64>, String> {
-        let names = self.resolve(tag)?;
-        let len = blocks.bedrock_table().iter().copied().max().unwrap_or(0) as usize + 1;
-        let mut bits = vec![0u64; len.div_ceil(64)];
-        for name in &names {
-            for id in blocks.state_ids(name)? {
-                let runtime = blocks.bedrock(id) as usize;
-                bits[runtime / 64] |= 1 << (runtime % 64);
-            }
-        }
-        Ok(bits)
-    }
 }

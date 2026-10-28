@@ -1,0 +1,1507 @@
+{
+  "schema": "native-worldgen-actor-transitions-v1",
+  "server_sha1": "64bb6d763bed0a9f1d632ec347938594144943ed",
+  "mappings_sha1": "5621e9253f05fd57872bbe7f8ddf5f9a7d525955",
+  "inner_sha256": "ec47239a8de246335e1d54f6ac319bd35641778eb4b6a6da06372840d02fcebc",
+  "context": "genuine constructor-only native server and CARVERS chunks, actual WorldGenRegion FEATURES step/cache/holders, no listeners, ticks, FULL promotion or SPAWN",
+  "native_tick_count": 0,
+  "actor_blocks": [
+    "minecraft:acacia_hanging_sign",
+    "minecraft:acacia_shelf",
+    "minecraft:acacia_sign",
+    "minecraft:acacia_wall_hanging_sign",
+    "minecraft:acacia_wall_sign",
+    "minecraft:bamboo_hanging_sign",
+    "minecraft:bamboo_shelf",
+    "minecraft:bamboo_sign",
+    "minecraft:bamboo_wall_hanging_sign",
+    "minecraft:bamboo_wall_sign",
+    "minecraft:barrel",
+    "minecraft:beacon",
+    "minecraft:bee_nest",
+    "minecraft:beehive",
+    "minecraft:bell",
+    "minecraft:birch_hanging_sign",
+    "minecraft:birch_shelf",
+    "minecraft:birch_sign",
+    "minecraft:birch_wall_hanging_sign",
+    "minecraft:birch_wall_sign",
+    "minecraft:black_banner",
+    "minecraft:black_bed",
+    "minecraft:black_shulker_box",
+    "minecraft:black_wall_banner",
+    "minecraft:blast_furnace",
+    "minecraft:blue_banner",
+    "minecraft:blue_bed",
+    "minecraft:blue_shulker_box",
+    "minecraft:blue_wall_banner",
+    "minecraft:brewing_stand",
+    "minecraft:brown_banner",
+    "minecraft:brown_bed",
+    "minecraft:brown_shulker_box",
+    "minecraft:brown_wall_banner",
+    "minecraft:calibrated_sculk_sensor",
+    "minecraft:campfire",
+    "minecraft:chain_command_block",
+    "minecraft:cherry_hanging_sign",
+    "minecraft:cherry_shelf",
+    "minecraft:cherry_sign",
+    "minecraft:cherry_wall_hanging_sign",
+    "minecraft:cherry_wall_sign",
+    "minecraft:chest",
+    "minecraft:chiseled_bookshelf",
+    "minecraft:command_block",
+    "minecraft:comparator",
+    "minecraft:conduit",
+    "minecraft:copper_chest",
+    "minecraft:copper_golem_statue",
+    "minecraft:crafter",
+    "minecraft:creaking_heart",
+    "minecraft:creeper_head",
+    "minecraft:creeper_wall_head",
+    "minecraft:crimson_hanging_sign",
+    "minecraft:crimson_shelf",
+    "minecraft:crimson_sign",
+    "minecraft:crimson_wall_hanging_sign",
+    "minecraft:crimson_wall_sign",
+    "minecraft:cyan_banner",
+    "minecraft:cyan_bed",
+    "minecraft:cyan_shulker_box",
+    "minecraft:cyan_wall_banner",
+    "minecraft:dark_oak_hanging_sign",
+    "minecraft:dark_oak_shelf",
+    "minecraft:dark_oak_sign",
+    "minecraft:dark_oak_wall_hanging_sign",
+    "minecraft:dark_oak_wall_sign",
+    "minecraft:daylight_detector",
+    "minecraft:decorated_pot",
+    "minecraft:dispenser",
+    "minecraft:dragon_head",
+    "minecraft:dragon_wall_head",
+    "minecraft:dropper",
+    "minecraft:enchanting_table",
+    "minecraft:end_gateway",
+    "minecraft:end_portal",
+    "minecraft:ender_chest",
+    "minecraft:exposed_copper_chest",
+    "minecraft:exposed_copper_golem_statue",
+    "minecraft:furnace",
+    "minecraft:gray_banner",
+    "minecraft:gray_bed",
+    "minecraft:gray_shulker_box",
+    "minecraft:gray_wall_banner",
+    "minecraft:green_banner",
+    "minecraft:green_bed",
+    "minecraft:green_shulker_box",
+    "minecraft:green_wall_banner",
+    "minecraft:hopper",
+    "minecraft:jigsaw",
+    "minecraft:jukebox",
+    "minecraft:jungle_hanging_sign",
+    "minecraft:jungle_shelf",
+    "minecraft:jungle_sign",
+    "minecraft:jungle_wall_hanging_sign",
+    "minecraft:jungle_wall_sign",
+    "minecraft:lectern",
+    "minecraft:light_blue_banner",
+    "minecraft:light_blue_bed",
+    "minecraft:light_blue_shulker_box",
+    "minecraft:light_blue_wall_banner",
+    "minecraft:light_gray_banner",
+    "minecraft:light_gray_bed",
+    "minecraft:light_gray_shulker_box",
+    "minecraft:light_gray_wall_banner",
+    "minecraft:lime_banner",
+    "minecraft:lime_bed",
+    "minecraft:lime_shulker_box",
+    "minecraft:lime_wall_banner",
+    "minecraft:magenta_banner",
+    "minecraft:magenta_bed",
+    "minecraft:magenta_shulker_box",
+    "minecraft:magenta_wall_banner",
+    "minecraft:mangrove_hanging_sign",
+    "minecraft:mangrove_shelf",
+    "minecraft:mangrove_sign",
+    "minecraft:mangrove_wall_hanging_sign",
+    "minecraft:mangrove_wall_sign",
+    "minecraft:moving_piston",
+    "minecraft:oak_hanging_sign",
+    "minecraft:oak_shelf",
+    "minecraft:oak_sign",
+    "minecraft:oak_wall_hanging_sign",
+    "minecraft:oak_wall_sign",
+    "minecraft:orange_banner",
+    "minecraft:orange_bed",
+    "minecraft:orange_shulker_box",
+    "minecraft:orange_wall_banner",
+    "minecraft:oxidized_copper_chest",
+    "minecraft:oxidized_copper_golem_statue",
+    "minecraft:pale_oak_hanging_sign",
+    "minecraft:pale_oak_shelf",
+    "minecraft:pale_oak_sign",
+    "minecraft:pale_oak_wall_hanging_sign",
+    "minecraft:pale_oak_wall_sign",
+    "minecraft:piglin_head",
+    "minecraft:piglin_wall_head",
+    "minecraft:pink_banner",
+    "minecraft:pink_bed",
+    "minecraft:pink_shulker_box",
+    "minecraft:pink_wall_banner",
+    "minecraft:player_head",
+    "minecraft:player_wall_head",
+    "minecraft:purple_banner",
+    "minecraft:purple_bed",
+    "minecraft:purple_shulker_box",
+    "minecraft:purple_wall_banner",
+    "minecraft:red_banner",
+    "minecraft:red_bed",
+    "minecraft:red_shulker_box",
+    "minecraft:red_wall_banner",
+    "minecraft:repeating_command_block",
+    "minecraft:sculk_catalyst",
+    "minecraft:sculk_sensor",
+    "minecraft:sculk_shrieker",
+    "minecraft:shulker_box",
+    "minecraft:skeleton_skull",
+    "minecraft:skeleton_wall_skull",
+    "minecraft:smoker",
+    "minecraft:soul_campfire",
+    "minecraft:spawner",
+    "minecraft:spruce_hanging_sign",
+    "minecraft:spruce_shelf",
+    "minecraft:spruce_sign",
+    "minecraft:spruce_wall_hanging_sign",
+    "minecraft:spruce_wall_sign",
+    "minecraft:structure_block",
+    "minecraft:suspicious_gravel",
+    "minecraft:suspicious_sand",
+    "minecraft:test_block",
+    "minecraft:test_instance_block",
+    "minecraft:trapped_chest",
+    "minecraft:trial_spawner",
+    "minecraft:vault",
+    "minecraft:warped_hanging_sign",
+    "minecraft:warped_shelf",
+    "minecraft:warped_sign",
+    "minecraft:warped_wall_hanging_sign",
+    "minecraft:warped_wall_sign",
+    "minecraft:waxed_copper_chest",
+    "minecraft:waxed_copper_golem_statue",
+    "minecraft:waxed_exposed_copper_chest",
+    "minecraft:waxed_exposed_copper_golem_statue",
+    "minecraft:waxed_oxidized_copper_chest",
+    "minecraft:waxed_oxidized_copper_golem_statue",
+    "minecraft:waxed_weathered_copper_chest",
+    "minecraft:waxed_weathered_copper_golem_statue",
+    "minecraft:weathered_copper_chest",
+    "minecraft:weathered_copper_golem_statue",
+    "minecraft:white_banner",
+    "minecraft:white_bed",
+    "minecraft:white_shulker_box",
+    "minecraft:white_wall_banner",
+    "minecraft:wither_skeleton_skull",
+    "minecraft:wither_skeleton_wall_skull",
+    "minecraft:yellow_banner",
+    "minecraft:yellow_bed",
+    "minecraft:yellow_shulker_box",
+    "minecraft:yellow_wall_banner",
+    "minecraft:zombie_head",
+    "minecraft:zombie_wall_head"
+  ],
+  "transitions": [
+    {
+      "operation": "new_chest:true",
+      "state": "minecraft:chest[facing=north,type=single,waterlogged=false]",
+      "saved": {
+        "value": [
+          [
+            "id",
+            {
+              "value": "DUMMY",
+              "type": "Str"
+            }
+          ],
+          [
+            "x",
+            {
+              "value": 1,
+              "type": "Int"
+            }
+          ],
+          [
+            "y",
+            {
+              "value": 200,
+              "type": "Int"
+            }
+          ],
+          [
+            "z",
+            {
+              "value": 1,
+              "type": "Int"
+            }
+          ]
+        ],
+        "type": "Compound"
+      },
+      "live": 0,
+      "pending": 1
+    },
+    {
+      "operation": "same_chest:true",
+      "state": "minecraft:chest[facing=north,type=single,waterlogged=false]",
+      "saved": {
+        "value": [
+          [
+            "id",
+            {
+              "value": "DUMMY",
+              "type": "Str"
+            }
+          ],
+          [
+            "x",
+            {
+              "value": 1,
+              "type": "Int"
+            }
+          ],
+          [
+            "y",
+            {
+              "value": 200,
+              "type": "Int"
+            }
+          ],
+          [
+            "z",
+            {
+              "value": 1,
+              "type": "Int"
+            }
+          ]
+        ],
+        "type": "Compound"
+      },
+      "live": 0,
+      "pending": 1
+    },
+    {
+      "operation": "wet_chest:true",
+      "state": "minecraft:chest[facing=north,type=single,waterlogged=true]",
+      "saved": {
+        "value": [
+          [
+            "id",
+            {
+              "value": "DUMMY",
+              "type": "Str"
+            }
+          ],
+          [
+            "x",
+            {
+              "value": 1,
+              "type": "Int"
+            }
+          ],
+          [
+            "y",
+            {
+              "value": 200,
+              "type": "Int"
+            }
+          ],
+          [
+            "z",
+            {
+              "value": 1,
+              "type": "Int"
+            }
+          ]
+        ],
+        "type": "Compound"
+      },
+      "live": 0,
+      "pending": 1
+    },
+    {
+      "operation": "pending_chest_to_barrel:true",
+      "state": "minecraft:barrel[facing=north,open=false]",
+      "saved": {
+        "value": [
+          [
+            "id",
+            {
+              "value": "DUMMY",
+              "type": "Str"
+            }
+          ],
+          [
+            "x",
+            {
+              "value": 1,
+              "type": "Int"
+            }
+          ],
+          [
+            "y",
+            {
+              "value": 200,
+              "type": "Int"
+            }
+          ],
+          [
+            "z",
+            {
+              "value": 1,
+              "type": "Int"
+            }
+          ]
+        ],
+        "type": "Compound"
+      },
+      "live": 0,
+      "pending": 1
+    },
+    {
+      "operation": "pending_to_stone:true",
+      "state": "minecraft:stone",
+      "saved": null,
+      "live": 0,
+      "pending": 0
+    },
+    {
+      "operation": "stone_to_chest:true",
+      "state": "minecraft:chest[facing=north,type=single,waterlogged=false]",
+      "saved": {
+        "value": [
+          [
+            "id",
+            {
+              "value": "DUMMY",
+              "type": "Str"
+            }
+          ],
+          [
+            "x",
+            {
+              "value": 1,
+              "type": "Int"
+            }
+          ],
+          [
+            "y",
+            {
+              "value": 200,
+              "type": "Int"
+            }
+          ],
+          [
+            "z",
+            {
+              "value": 1,
+              "type": "Int"
+            }
+          ]
+        ],
+        "type": "Compound"
+      },
+      "live": 0,
+      "pending": 1
+    },
+    {
+      "operation": "explicit_loot",
+      "state": "minecraft:chest[facing=north,type=single,waterlogged=false]",
+      "saved": {
+        "value": [
+          [
+            "LootTable",
+            {
+              "value": "minecraft:chests/simple_dungeon",
+              "type": "Str"
+            }
+          ],
+          [
+            "LootTableSeed",
+            {
+              "value": -9223372036854775808,
+              "type": "Long"
+            }
+          ],
+          [
+            "components",
+            {
+              "value": [],
+              "type": "Compound"
+            }
+          ],
+          [
+            "id",
+            {
+              "value": "minecraft:chest",
+              "type": "Str"
+            }
+          ],
+          [
+            "x",
+            {
+              "value": 1,
+              "type": "Int"
+            }
+          ],
+          [
+            "y",
+            {
+              "value": 200,
+              "type": "Int"
+            }
+          ],
+          [
+            "z",
+            {
+              "value": 1,
+              "type": "Int"
+            }
+          ]
+        ],
+        "type": "Compound"
+      },
+      "live": 1,
+      "pending": 0
+    },
+    {
+      "operation": "live_chest_property_change:true",
+      "state": "minecraft:chest[facing=north,type=single,waterlogged=true]",
+      "saved": {
+        "value": [
+          [
+            "LootTable",
+            {
+              "value": "minecraft:chests/simple_dungeon",
+              "type": "Str"
+            }
+          ],
+          [
+            "LootTableSeed",
+            {
+              "value": -9223372036854775808,
+              "type": "Long"
+            }
+          ],
+          [
+            "components",
+            {
+              "value": [],
+              "type": "Compound"
+            }
+          ],
+          [
+            "id",
+            {
+              "value": "minecraft:chest",
+              "type": "Str"
+            }
+          ],
+          [
+            "x",
+            {
+              "value": 1,
+              "type": "Int"
+            }
+          ],
+          [
+            "y",
+            {
+              "value": 200,
+              "type": "Int"
+            }
+          ],
+          [
+            "z",
+            {
+              "value": 1,
+              "type": "Int"
+            }
+          ]
+        ],
+        "type": "Compound"
+      },
+      "live": 1,
+      "pending": 0
+    },
+    {
+      "operation": "live_chest_to_barrel:true",
+      "state": "minecraft:barrel[facing=north,open=false]",
+      "saved": {
+        "value": [
+          [
+            "LootTable",
+            {
+              "value": "minecraft:chests/simple_dungeon",
+              "type": "Str"
+            }
+          ],
+          [
+            "LootTableSeed",
+            {
+              "value": -9223372036854775808,
+              "type": "Long"
+            }
+          ],
+          [
+            "components",
+            {
+              "value": [],
+              "type": "Compound"
+            }
+          ],
+          [
+            "id",
+            {
+              "value": "minecraft:chest",
+              "type": "Str"
+            }
+          ],
+          [
+            "x",
+            {
+              "value": 1,
+              "type": "Int"
+            }
+          ],
+          [
+            "y",
+            {
+              "value": 200,
+              "type": "Int"
+            }
+          ],
+          [
+            "z",
+            {
+              "value": 1,
+              "type": "Int"
+            }
+          ]
+        ],
+        "type": "Compound"
+      },
+      "live": 1,
+      "pending": 0
+    },
+    {
+      "operation": "explicit_loot_after_actor_replacement",
+      "state": "minecraft:barrel[facing=north,open=false]",
+      "saved": {
+        "value": [
+          [
+            "LootTable",
+            {
+              "value": "minecraft:chests/simple_dungeon",
+              "type": "Str"
+            }
+          ],
+          [
+            "components",
+            {
+              "value": [],
+              "type": "Compound"
+            }
+          ],
+          [
+            "id",
+            {
+              "value": "minecraft:chest",
+              "type": "Str"
+            }
+          ],
+          [
+            "x",
+            {
+              "value": 1,
+              "type": "Int"
+            }
+          ],
+          [
+            "y",
+            {
+              "value": 200,
+              "type": "Int"
+            }
+          ],
+          [
+            "z",
+            {
+              "value": 1,
+              "type": "Int"
+            }
+          ]
+        ],
+        "type": "Compound"
+      },
+      "live": 1,
+      "pending": 0
+    },
+    {
+      "operation": "live_to_stone:true",
+      "state": "minecraft:stone",
+      "saved": null,
+      "live": 0,
+      "pending": 0
+    },
+    {
+      "operation": "stone_to_barrel:true",
+      "state": "minecraft:barrel[facing=north,open=false]",
+      "saved": {
+        "value": [
+          [
+            "id",
+            {
+              "value": "DUMMY",
+              "type": "Str"
+            }
+          ],
+          [
+            "x",
+            {
+              "value": 1,
+              "type": "Int"
+            }
+          ],
+          [
+            "y",
+            {
+              "value": 200,
+              "type": "Int"
+            }
+          ],
+          [
+            "z",
+            {
+              "value": 1,
+              "type": "Int"
+            }
+          ]
+        ],
+        "type": "Compound"
+      },
+      "live": 0,
+      "pending": 1
+    },
+    {
+      "operation": "explicit_template",
+      "state": "minecraft:barrel[facing=north,open=false]",
+      "saved": {
+        "value": [
+          [
+            "LootTable",
+            {
+              "value": "minecraft:chests/shipwreck_supply",
+              "type": "Str"
+            }
+          ],
+          [
+            "LootTableSeed",
+            {
+              "value": 17,
+              "type": "Long"
+            }
+          ],
+          [
+            "components",
+            {
+              "value": [],
+              "type": "Compound"
+            }
+          ],
+          [
+            "id",
+            {
+              "value": "minecraft:barrel",
+              "type": "Str"
+            }
+          ],
+          [
+            "x",
+            {
+              "value": 1,
+              "type": "Int"
+            }
+          ],
+          [
+            "y",
+            {
+              "value": 200,
+              "type": "Int"
+            }
+          ],
+          [
+            "z",
+            {
+              "value": 1,
+              "type": "Int"
+            }
+          ]
+        ],
+        "type": "Compound"
+      },
+      "live": 1,
+      "pending": 0
+    },
+    {
+      "operation": "template_barrel_same_state:true",
+      "state": "minecraft:barrel[facing=north,open=false]",
+      "saved": {
+        "value": [
+          [
+            "LootTable",
+            {
+              "value": "minecraft:chests/shipwreck_supply",
+              "type": "Str"
+            }
+          ],
+          [
+            "LootTableSeed",
+            {
+              "value": 17,
+              "type": "Long"
+            }
+          ],
+          [
+            "components",
+            {
+              "value": [],
+              "type": "Compound"
+            }
+          ],
+          [
+            "id",
+            {
+              "value": "minecraft:barrel",
+              "type": "Str"
+            }
+          ],
+          [
+            "x",
+            {
+              "value": 1,
+              "type": "Int"
+            }
+          ],
+          [
+            "y",
+            {
+              "value": 200,
+              "type": "Int"
+            }
+          ],
+          [
+            "z",
+            {
+              "value": 1,
+              "type": "Int"
+            }
+          ]
+        ],
+        "type": "Compound"
+      },
+      "live": 1,
+      "pending": 0
+    },
+    {
+      "operation": "explicit_template_over_live",
+      "state": "minecraft:barrel[facing=north,open=false]",
+      "saved": {
+        "value": [
+          [
+            "LootTable",
+            {
+              "value": "minecraft:chests/shipwreck_supply",
+              "type": "Str"
+            }
+          ],
+          [
+            "LootTableSeed",
+            {
+              "value": -29,
+              "type": "Long"
+            }
+          ],
+          [
+            "components",
+            {
+              "value": [],
+              "type": "Compound"
+            }
+          ],
+          [
+            "id",
+            {
+              "value": "minecraft:barrel",
+              "type": "Str"
+            }
+          ],
+          [
+            "x",
+            {
+              "value": 1,
+              "type": "Int"
+            }
+          ],
+          [
+            "y",
+            {
+              "value": 200,
+              "type": "Int"
+            }
+          ],
+          [
+            "z",
+            {
+              "value": 1,
+              "type": "Int"
+            }
+          ]
+        ],
+        "type": "Compound"
+      },
+      "live": 1,
+      "pending": 0
+    },
+    {
+      "operation": "template_to_air:true",
+      "state": "minecraft:air",
+      "saved": null,
+      "live": 0,
+      "pending": 0
+    },
+    {
+      "operation": "above_bounds_chest:true",
+      "state": "minecraft:void_air",
+      "saved": {
+        "value": [
+          [
+            "id",
+            {
+              "value": "DUMMY",
+              "type": "Str"
+            }
+          ],
+          [
+            "x",
+            {
+              "value": 1,
+              "type": "Int"
+            }
+          ],
+          [
+            "y",
+            {
+              "value": 320,
+              "type": "Int"
+            }
+          ],
+          [
+            "z",
+            {
+              "value": 1,
+              "type": "Int"
+            }
+          ]
+        ],
+        "type": "Compound"
+      },
+      "live": 0,
+      "pending": 1
+    }
+  ],
+  "features_witnesses": {
+    "capture": "grid-seed-9223372036854775808/fullstage-overworld-features-halo-seed-9223372036854775808-chunk-1_-1.json",
+    "capture_sha256": "987bb104439fd0aaa8c32e030b74728ff4d0eb8854098ce904327b184a20cf3a",
+    "seed": -9223372036854775808,
+    "dimension": "minecraft:overworld",
+    "requested_stage": "FEATURES_HALO_CLOSURE",
+    "chunk": [
+      -1,
+      -1
+    ],
+    "actors": [
+      {
+        "position": [
+          -14,
+          -41,
+          -13
+        ],
+        "state": "minecraft:sculk_shrieker[can_summon=true,shrieking=false,waterlogged=false]",
+        "canonical_nbt": {
+          "type": "Compound",
+          "value": [
+            [
+              "id",
+              {
+                "type": "Str",
+                "value": "DUMMY"
+              }
+            ],
+            [
+              "x",
+              {
+                "type": "Int",
+                "value": -14
+              }
+            ],
+            [
+              "y",
+              {
+                "type": "Int",
+                "value": -41
+              }
+            ],
+            [
+              "z",
+              {
+                "type": "Int",
+                "value": -13
+              }
+            ]
+          ]
+        }
+      },
+      {
+        "position": [
+          -11,
+          -48,
+          -7
+        ],
+        "state": "minecraft:sculk_shrieker[can_summon=true,shrieking=false,waterlogged=false]",
+        "canonical_nbt": {
+          "type": "Compound",
+          "value": [
+            [
+              "id",
+              {
+                "type": "Str",
+                "value": "DUMMY"
+              }
+            ],
+            [
+              "x",
+              {
+                "type": "Int",
+                "value": -11
+              }
+            ],
+            [
+              "y",
+              {
+                "type": "Int",
+                "value": -48
+              }
+            ],
+            [
+              "z",
+              {
+                "type": "Int",
+                "value": -7
+              }
+            ]
+          ]
+        }
+      },
+      {
+        "position": [
+          -11,
+          -48,
+          -8
+        ],
+        "state": "minecraft:sculk_sensor[power=0,sculk_sensor_phase=inactive,waterlogged=false]",
+        "canonical_nbt": {
+          "type": "Compound",
+          "value": [
+            [
+              "id",
+              {
+                "type": "Str",
+                "value": "DUMMY"
+              }
+            ],
+            [
+              "x",
+              {
+                "type": "Int",
+                "value": -11
+              }
+            ],
+            [
+              "y",
+              {
+                "type": "Int",
+                "value": -48
+              }
+            ],
+            [
+              "z",
+              {
+                "type": "Int",
+                "value": -8
+              }
+            ]
+          ]
+        }
+      },
+      {
+        "position": [
+          -12,
+          -49,
+          -8
+        ],
+        "state": "minecraft:sculk_sensor[power=0,sculk_sensor_phase=inactive,waterlogged=false]",
+        "canonical_nbt": {
+          "type": "Compound",
+          "value": [
+            [
+              "id",
+              {
+                "type": "Str",
+                "value": "DUMMY"
+              }
+            ],
+            [
+              "x",
+              {
+                "type": "Int",
+                "value": -12
+              }
+            ],
+            [
+              "y",
+              {
+                "type": "Int",
+                "value": -49
+              }
+            ],
+            [
+              "z",
+              {
+                "type": "Int",
+                "value": -8
+              }
+            ]
+          ]
+        }
+      },
+      {
+        "position": [
+          -16,
+          -42,
+          -14
+        ],
+        "state": "minecraft:sculk_sensor[power=0,sculk_sensor_phase=inactive,waterlogged=false]",
+        "canonical_nbt": {
+          "type": "Compound",
+          "value": [
+            [
+              "id",
+              {
+                "type": "Str",
+                "value": "DUMMY"
+              }
+            ],
+            [
+              "x",
+              {
+                "type": "Int",
+                "value": -16
+              }
+            ],
+            [
+              "y",
+              {
+                "type": "Int",
+                "value": -42
+              }
+            ],
+            [
+              "z",
+              {
+                "type": "Int",
+                "value": -14
+              }
+            ]
+          ]
+        }
+      },
+      {
+        "position": [
+          -8,
+          -12,
+          -10
+        ],
+        "state": "minecraft:sculk_catalyst[bloom=false]",
+        "canonical_nbt": {
+          "type": "Compound",
+          "value": [
+            [
+              "id",
+              {
+                "type": "Str",
+                "value": "DUMMY"
+              }
+            ],
+            [
+              "x",
+              {
+                "type": "Int",
+                "value": -8
+              }
+            ],
+            [
+              "y",
+              {
+                "type": "Int",
+                "value": -12
+              }
+            ],
+            [
+              "z",
+              {
+                "type": "Int",
+                "value": -10
+              }
+            ]
+          ]
+        }
+      },
+      {
+        "position": [
+          -14,
+          -44,
+          -12
+        ],
+        "state": "minecraft:sculk_sensor[power=0,sculk_sensor_phase=inactive,waterlogged=false]",
+        "canonical_nbt": {
+          "type": "Compound",
+          "value": [
+            [
+              "id",
+              {
+                "type": "Str",
+                "value": "DUMMY"
+              }
+            ],
+            [
+              "x",
+              {
+                "type": "Int",
+                "value": -14
+              }
+            ],
+            [
+              "y",
+              {
+                "type": "Int",
+                "value": -44
+              }
+            ],
+            [
+              "z",
+              {
+                "type": "Int",
+                "value": -12
+              }
+            ]
+          ]
+        }
+      },
+      {
+        "position": [
+          -13,
+          -41,
+          -12
+        ],
+        "state": "minecraft:sculk_sensor[power=0,sculk_sensor_phase=inactive,waterlogged=false]",
+        "canonical_nbt": {
+          "type": "Compound",
+          "value": [
+            [
+              "id",
+              {
+                "type": "Str",
+                "value": "DUMMY"
+              }
+            ],
+            [
+              "x",
+              {
+                "type": "Int",
+                "value": -13
+              }
+            ],
+            [
+              "y",
+              {
+                "type": "Int",
+                "value": -41
+              }
+            ],
+            [
+              "z",
+              {
+                "type": "Int",
+                "value": -12
+              }
+            ]
+          ]
+        }
+      },
+      {
+        "position": [
+          -3,
+          -12,
+          -9
+        ],
+        "state": "minecraft:sculk_sensor[power=0,sculk_sensor_phase=inactive,waterlogged=false]",
+        "canonical_nbt": {
+          "type": "Compound",
+          "value": [
+            [
+              "id",
+              {
+                "type": "Str",
+                "value": "DUMMY"
+              }
+            ],
+            [
+              "x",
+              {
+                "type": "Int",
+                "value": -3
+              }
+            ],
+            [
+              "y",
+              {
+                "type": "Int",
+                "value": -12
+              }
+            ],
+            [
+              "z",
+              {
+                "type": "Int",
+                "value": -9
+              }
+            ]
+          ]
+        }
+      }
+    ]
+  },
+  "actor_ids": {
+    "minecraft:acacia_hanging_sign": "minecraft:hanging_sign",
+    "minecraft:acacia_shelf": "minecraft:shelf",
+    "minecraft:acacia_sign": "minecraft:sign",
+    "minecraft:acacia_wall_hanging_sign": "minecraft:hanging_sign",
+    "minecraft:acacia_wall_sign": "minecraft:sign",
+    "minecraft:bamboo_hanging_sign": "minecraft:hanging_sign",
+    "minecraft:bamboo_shelf": "minecraft:shelf",
+    "minecraft:bamboo_sign": "minecraft:sign",
+    "minecraft:bamboo_wall_hanging_sign": "minecraft:hanging_sign",
+    "minecraft:bamboo_wall_sign": "minecraft:sign",
+    "minecraft:barrel": "minecraft:barrel",
+    "minecraft:beacon": "minecraft:beacon",
+    "minecraft:bee_nest": "minecraft:beehive",
+    "minecraft:beehive": "minecraft:beehive",
+    "minecraft:bell": "minecraft:bell",
+    "minecraft:birch_hanging_sign": "minecraft:hanging_sign",
+    "minecraft:birch_shelf": "minecraft:shelf",
+    "minecraft:birch_sign": "minecraft:sign",
+    "minecraft:birch_wall_hanging_sign": "minecraft:hanging_sign",
+    "minecraft:birch_wall_sign": "minecraft:sign",
+    "minecraft:black_banner": "minecraft:banner",
+    "minecraft:black_bed": "minecraft:bed",
+    "minecraft:black_shulker_box": "minecraft:shulker_box",
+    "minecraft:black_wall_banner": "minecraft:banner",
+    "minecraft:blast_furnace": "minecraft:blast_furnace",
+    "minecraft:blue_banner": "minecraft:banner",
+    "minecraft:blue_bed": "minecraft:bed",
+    "minecraft:blue_shulker_box": "minecraft:shulker_box",
+    "minecraft:blue_wall_banner": "minecraft:banner",
+    "minecraft:brewing_stand": "minecraft:brewing_stand",
+    "minecraft:brown_banner": "minecraft:banner",
+    "minecraft:brown_bed": "minecraft:bed",
+    "minecraft:brown_shulker_box": "minecraft:shulker_box",
+    "minecraft:brown_wall_banner": "minecraft:banner",
+    "minecraft:calibrated_sculk_sensor": "minecraft:calibrated_sculk_sensor",
+    "minecraft:campfire": "minecraft:campfire",
+    "minecraft:chain_command_block": "minecraft:command_block",
+    "minecraft:cherry_hanging_sign": "minecraft:hanging_sign",
+    "minecraft:cherry_shelf": "minecraft:shelf",
+    "minecraft:cherry_sign": "minecraft:sign",
+    "minecraft:cherry_wall_hanging_sign": "minecraft:hanging_sign",
+    "minecraft:cherry_wall_sign": "minecraft:sign",
+    "minecraft:chest": "minecraft:chest",
+    "minecraft:chiseled_bookshelf": "minecraft:chiseled_bookshelf",
+    "minecraft:command_block": "minecraft:command_block",
+    "minecraft:comparator": "minecraft:comparator",
+    "minecraft:conduit": "minecraft:conduit",
+    "minecraft:copper_chest": "minecraft:chest",
+    "minecraft:copper_golem_statue": "minecraft:copper_golem_statue",
+    "minecraft:crafter": "minecraft:crafter",
+    "minecraft:creaking_heart": "minecraft:creaking_heart",
+    "minecraft:creeper_head": "minecraft:skull",
+    "minecraft:creeper_wall_head": "minecraft:skull",
+    "minecraft:crimson_hanging_sign": "minecraft:hanging_sign",
+    "minecraft:crimson_shelf": "minecraft:shelf",
+    "minecraft:crimson_sign": "minecraft:sign",
+    "minecraft:crimson_wall_hanging_sign": "minecraft:hanging_sign",
+    "minecraft:crimson_wall_sign": "minecraft:sign",
+    "minecraft:cyan_banner": "minecraft:banner",
+    "minecraft:cyan_bed": "minecraft:bed",
+    "minecraft:cyan_shulker_box": "minecraft:shulker_box",
+    "minecraft:cyan_wall_banner": "minecraft:banner",
+    "minecraft:dark_oak_hanging_sign": "minecraft:hanging_sign",
+    "minecraft:dark_oak_shelf": "minecraft:shelf",
+    "minecraft:dark_oak_sign": "minecraft:sign",
+    "minecraft:dark_oak_wall_hanging_sign": "minecraft:hanging_sign",
+    "minecraft:dark_oak_wall_sign": "minecraft:sign",
+    "minecraft:daylight_detector": "minecraft:daylight_detector",
+    "minecraft:decorated_pot": "minecraft:decorated_pot",
+    "minecraft:dispenser": "minecraft:dispenser",
+    "minecraft:dragon_head": "minecraft:skull",
+    "minecraft:dragon_wall_head": "minecraft:skull",
+    "minecraft:dropper": "minecraft:dropper",
+    "minecraft:enchanting_table": "minecraft:enchanting_table",
+    "minecraft:end_gateway": "minecraft:end_gateway",
+    "minecraft:end_portal": "minecraft:end_portal",
+    "minecraft:ender_chest": "minecraft:ender_chest",
+    "minecraft:exposed_copper_chest": "minecraft:chest",
+    "minecraft:exposed_copper_golem_statue": "minecraft:copper_golem_statue",
+    "minecraft:furnace": "minecraft:furnace",
+    "minecraft:gray_banner": "minecraft:banner",
+    "minecraft:gray_bed": "minecraft:bed",
+    "minecraft:gray_shulker_box": "minecraft:shulker_box",
+    "minecraft:gray_wall_banner": "minecraft:banner",
+    "minecraft:green_banner": "minecraft:banner",
+    "minecraft:green_bed": "minecraft:bed",
+    "minecraft:green_shulker_box": "minecraft:shulker_box",
+    "minecraft:green_wall_banner": "minecraft:banner",
+    "minecraft:hopper": "minecraft:hopper",
+    "minecraft:jigsaw": "minecraft:jigsaw",
+    "minecraft:jukebox": "minecraft:jukebox",
+    "minecraft:jungle_hanging_sign": "minecraft:hanging_sign",
+    "minecraft:jungle_shelf": "minecraft:shelf",
+    "minecraft:jungle_sign": "minecraft:sign",
+    "minecraft:jungle_wall_hanging_sign": "minecraft:hanging_sign",
+    "minecraft:jungle_wall_sign": "minecraft:sign",
+    "minecraft:lectern": "minecraft:lectern",
+    "minecraft:light_blue_banner": "minecraft:banner",
+    "minecraft:light_blue_bed": "minecraft:bed",
+    "minecraft:light_blue_shulker_box": "minecraft:shulker_box",
+    "minecraft:light_blue_wall_banner": "minecraft:banner",
+    "minecraft:light_gray_banner": "minecraft:banner",
+    "minecraft:light_gray_bed": "minecraft:bed",
+    "minecraft:light_gray_shulker_box": "minecraft:shulker_box",
+    "minecraft:light_gray_wall_banner": "minecraft:banner",
+    "minecraft:lime_banner": "minecraft:banner",
+    "minecraft:lime_bed": "minecraft:bed",
+    "minecraft:lime_shulker_box": "minecraft:shulker_box",
+    "minecraft:lime_wall_banner": "minecraft:banner",
+    "minecraft:magenta_banner": "minecraft:banner",
+    "minecraft:magenta_bed": "minecraft:bed",
+    "minecraft:magenta_shulker_box": "minecraft:shulker_box",
+    "minecraft:magenta_wall_banner": "minecraft:banner",
+    "minecraft:mangrove_hanging_sign": "minecraft:hanging_sign",
+    "minecraft:mangrove_shelf": "minecraft:shelf",
+    "minecraft:mangrove_sign": "minecraft:sign",
+    "minecraft:mangrove_wall_hanging_sign": "minecraft:hanging_sign",
+    "minecraft:mangrove_wall_sign": "minecraft:sign",
+    "minecraft:moving_piston": null,
+    "minecraft:oak_hanging_sign": "minecraft:hanging_sign",
+    "minecraft:oak_shelf": "minecraft:shelf",
+    "minecraft:oak_sign": "minecraft:sign",
+    "minecraft:oak_wall_hanging_sign": "minecraft:hanging_sign",
+    "minecraft:oak_wall_sign": "minecraft:sign",
+    "minecraft:orange_banner": "minecraft:banner",
+    "minecraft:orange_bed": "minecraft:bed",
+    "minecraft:orange_shulker_box": "minecraft:shulker_box",
+    "minecraft:orange_wall_banner": "minecraft:banner",
+    "minecraft:oxidized_copper_chest": "minecraft:chest",
+    "minecraft:oxidized_copper_golem_statue": "minecraft:copper_golem_statue",
+    "minecraft:pale_oak_hanging_sign": "minecraft:hanging_sign",
+    "minecraft:pale_oak_shelf": "minecraft:shelf",
+    "minecraft:pale_oak_sign": "minecraft:sign",
+    "minecraft:pale_oak_wall_hanging_sign": "minecraft:hanging_sign",
+    "minecraft:pale_oak_wall_sign": "minecraft:sign",
+    "minecraft:piglin_head": "minecraft:skull",
+    "minecraft:piglin_wall_head": "minecraft:skull",
+    "minecraft:pink_banner": "minecraft:banner",
+    "minecraft:pink_bed": "minecraft:bed",
+    "minecraft:pink_shulker_box": "minecraft:shulker_box",
+    "minecraft:pink_wall_banner": "minecraft:banner",
+    "minecraft:player_head": "minecraft:skull",
+    "minecraft:player_wall_head": "minecraft:skull",
+    "minecraft:purple_banner": "minecraft:banner",
+    "minecraft:purple_bed": "minecraft:bed",
+    "minecraft:purple_shulker_box": "minecraft:shulker_box",
+    "minecraft:purple_wall_banner": "minecraft:banner",
+    "minecraft:red_banner": "minecraft:banner",
+    "minecraft:red_bed": "minecraft:bed",
+    "minecraft:red_shulker_box": "minecraft:shulker_box",
+    "minecraft:red_wall_banner": "minecraft:banner",
+    "minecraft:repeating_command_block": "minecraft:command_block",
+    "minecraft:sculk_catalyst": "minecraft:sculk_catalyst",
+    "minecraft:sculk_sensor": "minecraft:sculk_sensor",
+    "minecraft:sculk_shrieker": "minecraft:sculk_shrieker",
+    "minecraft:shulker_box": "minecraft:shulker_box",
+    "minecraft:skeleton_skull": "minecraft:skull",
+    "minecraft:skeleton_wall_skull": "minecraft:skull",
+    "minecraft:smoker": "minecraft:smoker",
+    "minecraft:soul_campfire": "minecraft:campfire",
+    "minecraft:spawner": "minecraft:mob_spawner",
+    "minecraft:spruce_hanging_sign": "minecraft:hanging_sign",
+    "minecraft:spruce_shelf": "minecraft:shelf",
+    "minecraft:spruce_sign": "minecraft:sign",
+    "minecraft:spruce_wall_hanging_sign": "minecraft:hanging_sign",
+    "minecraft:spruce_wall_sign": "minecraft:sign",
+    "minecraft:structure_block": "minecraft:structure_block",
+    "minecraft:suspicious_gravel": "minecraft:brushable_block",
+    "minecraft:suspicious_sand": "minecraft:brushable_block",
+    "minecraft:test_block": "minecraft:test_block",
+    "minecraft:test_instance_block": "minecraft:test_instance_block",
+    "minecraft:trapped_chest": "minecraft:trapped_chest",
+    "minecraft:trial_spawner": "minecraft:trial_spawner",
+    "minecraft:vault": "minecraft:vault",
+    "minecraft:warped_hanging_sign": "minecraft:hanging_sign",
+    "minecraft:warped_shelf": "minecraft:shelf",
+    "minecraft:warped_sign": "minecraft:sign",
+    "minecraft:warped_wall_hanging_sign": "minecraft:hanging_sign",
+    "minecraft:warped_wall_sign": "minecraft:sign",
+    "minecraft:waxed_copper_chest": "minecraft:chest",
+    "minecraft:waxed_copper_golem_statue": "minecraft:copper_golem_statue",
+    "minecraft:waxed_exposed_copper_chest": "minecraft:chest",
+    "minecraft:waxed_exposed_copper_golem_statue": "minecraft:copper_golem_statue",
+    "minecraft:waxed_oxidized_copper_chest": "minecraft:chest",
+    "minecraft:waxed_oxidized_copper_golem_statue": "minecraft:copper_golem_statue",
+    "minecraft:waxed_weathered_copper_chest": "minecraft:chest",
+    "minecraft:waxed_weathered_copper_golem_statue": "minecraft:copper_golem_statue",
+    "minecraft:weathered_copper_chest": "minecraft:chest",
+    "minecraft:weathered_copper_golem_statue": "minecraft:copper_golem_statue",
+    "minecraft:white_banner": "minecraft:banner",
+    "minecraft:white_bed": "minecraft:bed",
+    "minecraft:white_shulker_box": "minecraft:shulker_box",
+    "minecraft:white_wall_banner": "minecraft:banner",
+    "minecraft:wither_skeleton_skull": "minecraft:skull",
+    "minecraft:wither_skeleton_wall_skull": "minecraft:skull",
+    "minecraft:yellow_banner": "minecraft:banner",
+    "minecraft:yellow_bed": "minecraft:bed",
+    "minecraft:yellow_shulker_box": "minecraft:shulker_box",
+    "minecraft:yellow_wall_banner": "minecraft:banner",
+    "minecraft:zombie_head": "minecraft:skull",
+    "minecraft:zombie_wall_head": "minecraft:skull"
+  },
+  "native_transition_capture_sha256": "a90c9904604b4fe72d3a9ed0c9d7ac33e947eb3a1df66091af337f5e3a0a8ff8",
+  "probe_source_sha256": "5d13ab0689aa6b1326671ad8f54bbe2c4699a8dfbf4ea01c66d0a3eeb7b63e6f"
+}

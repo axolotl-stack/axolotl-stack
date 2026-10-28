@@ -6,31 +6,119 @@
 //! above/below, water height, surface depth and lazily sampled context. Eroded badlands
 //! columns first grow stone pillars; frozen-ocean columns get icebergs afterwards.
 
-use std::collections::HashMap;
-
 use unastar_noise::java_biomes::JavaBiome;
 use unastar_noise::surface::{BAND_COUNT, SurfaceEnv, clay_bands};
-use unastar_noise::xoroshiro::PositionalRandomFactory;
+use unastar_noise::xoroshiro::{JavaRandom, PositionalRandomFactory, get_seed};
 use unastar_noise::{
-    ColumnContext, FlatCacheGrid, FunctionContext, NoiseRef, NoiseSource, biome_climate,
-    block_class, compute_preliminary_surface_level, java_blocks, overworld_settings,
-    overworld_surface, random_hashes,
+    NoiseRef, NoiseSource, biome_climate, block_class, end_settings, end_surface,
+    java_blocks, nether_settings, nether_surface, overworld_settings, overworld_surface,
+    random_hashes,
 };
 
 use crate::world::ChunkPos;
-use crate::world::chunk::MIN_Y;
-use crate::world::generator::biome_source::{sample_biome, zoom_seed, zoomed_biome};
-use crate::world::generator::density::NoiseRegistry;
-use crate::world::generator::proto::{DenseBlocks, QUARTS_Y, QuartBiomes, WORLD_HEIGHT};
+use crate::world::generator::JavaDimension;
+use crate::world::generator::proto::DenseBlocks;
 
-const MAX_Y: i32 = MIN_Y + WORLD_HEIGHT - 1;
+/// The rule implementation is chosen outside the voxel loop.
+trait Preset {
+    const MIN_Y: i32;
+    const HEIGHT: i32;
+    const SEA_LEVEL: i32;
+    const DEFAULT_BLOCK: u32;
+    const PACKED_ICE: u32;
+    const SNOW_BLOCK: u32;
+    const LEGACY_BIOME_INITIALIZATION: bool;
+    fn apply<E: SurfaceEnv>(env: &mut E) -> Option<u32>;
+}
+
+macro_rules! preset {
+    ($name:ident, $settings:ident, $rules:ident) => {
+        struct $name;
+        impl Preset for $name {
+            const MIN_Y: i32 = $settings::MIN_Y;
+            const HEIGHT: i32 = $settings::HEIGHT;
+            const SEA_LEVEL: i32 = $settings::SEA_LEVEL;
+            const DEFAULT_BLOCK: u32 = $settings::DEFAULT_BLOCK;
+            const PACKED_ICE: u32 = $rules::PACKED_ICE;
+            const SNOW_BLOCK: u32 = $rules::SNOW_BLOCK;
+            const LEGACY_BIOME_INITIALIZATION: bool = $settings::LEGACY_RANDOM_SOURCE;
+            #[inline]
+            fn apply<E: SurfaceEnv>(env: &mut E) -> Option<u32> {
+                $rules::apply(env)
+            }
+        }
+    };
+}
+preset!(Overworld, overworld_settings, overworld_surface);
+preset!(Nether, nether_settings, nether_surface);
+preset!(End, end_settings, end_surface);
+
+/// Surface and rule-gradient factories use the preset's random-source algorithm.
+enum SurfaceRandom {
+    Xoroshiro(PositionalRandomFactory),
+    Legacy(i64),
+}
+
+impl SurfaceRandom {
+    fn new(seed: i64, legacy: bool) -> Self {
+        if legacy {
+            Self::Legacy(JavaRandom::from_seed(seed).next_long())
+        } else {
+            Self::Xoroshiro(PositionalRandomFactory::new(seed))
+        }
+    }
+
+    fn fork(&self, hash: (u64, u64), java_hash: i32) -> Self {
+        match self {
+            Self::Xoroshiro(factory) => Self::Xoroshiro(factory.fork_from_hash(hash)),
+            Self::Legacy(seed) => {
+                Self::Legacy(JavaRandom::from_seed(*seed ^ java_hash as i64).next_long())
+            }
+        }
+    }
+
+    fn double_at(&self, x: i32, y: i32, z: i32) -> f64 {
+        match self {
+            Self::Xoroshiro(factory) => factory.at(x, y, z).next_double(),
+            Self::Legacy(seed) => JavaRandom::from_seed(*seed ^ get_seed(x, y, z)).next_double(),
+        }
+    }
+
+    fn float_at(&self, x: i32, y: i32, z: i32) -> f32 {
+        match self {
+            Self::Xoroshiro(factory) => factory.at(x, y, z).next_float(),
+            Self::Legacy(seed) => JavaRandom::from_seed(*seed ^ get_seed(x, y, z)).next_float(),
+        }
+    }
+}
+
+enum ColumnRandom {
+    Xoroshiro(unastar_noise::xoroshiro::Xoroshiro128),
+    Legacy(JavaRandom),
+}
+
+impl ColumnRandom {
+    fn next_int(&mut self, bound: u32) -> u32 {
+        match self {
+            Self::Xoroshiro(random) => random.next_int(bound),
+            Self::Legacy(random) => random.next_int(bound) as u32,
+        }
+    }
+
+    fn next_double(&mut self) -> f64 {
+        match self {
+            Self::Xoroshiro(random) => random.next_double(),
+            Self::Legacy(random) => random.next_double(),
+        }
+    }
+}
 
 #[inline]
 fn class(block: u32) -> u8 {
-    java_blocks::BEDROCK_STATE_CLASSES
+    java_blocks::JAVA_STATE_CLASSES
         .get(block as usize)
         .copied()
-        .unwrap_or(block_class::UNMAPPED)
+        .expect("surface pass requires canonical Java block states")
 }
 
 #[inline]
@@ -56,44 +144,75 @@ fn is_solid(block: u32) -> bool {
 
 /// Seed-derived state of the surface pass.
 pub struct SurfaceSystem {
-    /// World base positional random (surface depth jitter, iceberg randoms).
-    noise_random: PositionalRandomFactory,
-    /// Positional randoms of the rule's vertical gradients, by gradient index.
-    gradient_randoms: Vec<PositionalRandomFactory>,
-    clay_bands: [u32; BAND_COUNT],
-    zoom_seed: i64,
+    dimension: JavaDimension,
+    noise_random: SurfaceRandom,
+    gradient_randoms: Vec<SurfaceRandom>,
+    /// Only the Overworld's compiled rule consumes clay bands or iceberg randomness.
+    clay_bands: Option<[u32; BAND_COUNT]>,
 }
 
 impl SurfaceSystem {
-    pub fn new(seed: i64) -> Self {
-        let noise_random = PositionalRandomFactory::new(seed);
-        let gradient_randoms = overworld_surface::GRADIENT_HASHES
-            .iter()
-            .map(|&hash| noise_random.fork_from_hash(hash))
+    pub fn new(seed: i64, dimension: JavaDimension) -> Self {
+        let (legacy, hashes, java_hashes, bands) = match dimension {
+            JavaDimension::Overworld => (
+                overworld_settings::LEGACY_RANDOM_SOURCE,
+                overworld_surface::GRADIENT_HASHES.as_slice(),
+                overworld_surface::GRADIENT_JAVA_HASHES.as_slice(),
+                &overworld_surface::BAND_BLOCKS,
+            ),
+            JavaDimension::Nether => (
+                nether_settings::LEGACY_RANDOM_SOURCE,
+                nether_surface::GRADIENT_HASHES.as_slice(),
+                nether_surface::GRADIENT_JAVA_HASHES.as_slice(),
+                &nether_surface::BAND_BLOCKS,
+            ),
+            JavaDimension::End => (
+                end_settings::LEGACY_RANDOM_SOURCE,
+                end_surface::GRADIENT_HASHES.as_slice(),
+                end_surface::GRADIENT_JAVA_HASHES.as_slice(),
+                &end_surface::BAND_BLOCKS,
+            ),
+        };
+        let noise_random = SurfaceRandom::new(seed, legacy);
+        let gradient_randoms = hashes.iter().zip(java_hashes)
+            .map(|(&hash, &java_hash)| noise_random.fork(hash, java_hash))
             .collect();
-        let mut band_random = noise_random.from_hash(random_hashes::CLAY_BANDS);
-        let clay_bands = clay_bands(&mut band_random, &overworld_surface::BAND_BLOCKS);
-        Self {
-            noise_random,
-            gradient_randoms,
-            clay_bands,
-            zoom_seed: zoom_seed(seed),
-        }
+        let clay_bands = if let SurfaceRandom::Xoroshiro(factory) = &noise_random {
+            let mut random = factory.from_hash(random_hashes::CLAY_BANDS);
+            Some(clay_bands(&mut random, bands))
+        } else {
+            None
+        };
+        Self { dimension, noise_random, gradient_randoms, clay_bands }
     }
 
-    /// Apply the surface pass to a proto chunk with its quart biomes. `grid` is the
-    /// chunk's flat cache, which also covers the +16 corners of the chunk.
-    pub fn build_surface(
+    /// Apply the selected preset's compiled surface rules. `corners` contains floored
+    /// preliminary levels at (0,0), (16,0), (0,16), (16,16). The resolver supplies the
+    /// edition-owned fuzzy biome at absolute block coordinates, including chunk borders.
+    pub fn build_surface<N: NoiseSource, B: FnMut(i32, i32, i32) -> JavaBiome>(
         &self,
         chunk: &mut DenseBlocks,
         pos: ChunkPos,
-        noises: &NoiseRegistry,
-        grid: &FlatCacheGrid,
-        biomes: &QuartBiomes,
+        noises: &N,
+        corners: [f64; 4],
+        biome_at: &mut B,
     ) {
-        let mut heights = column_heights(chunk);
-        let corners = preliminary_corners(pos, noises, grid);
-        let mut border_biomes = HashMap::new();
+        match self.dimension {
+            JavaDimension::Overworld => self.build_surface_for::<Overworld, N, B>(chunk, pos, noises, corners, biome_at),
+            JavaDimension::Nether => self.build_surface_for::<Nether, N, B>(chunk, pos, noises, corners, biome_at),
+            JavaDimension::End => self.build_surface_for::<End, N, B>(chunk, pos, noises, corners, biome_at),
+        }
+    }
+
+    fn build_surface_for<P: Preset, N: NoiseSource, B: FnMut(i32, i32, i32) -> JavaBiome>(
+        &self,
+        chunk: &mut DenseBlocks,
+        pos: ChunkPos,
+        noises: &N,
+        corners: [f64; 4],
+        biome_at: &mut B,
+    ) {
+        let mut heights = column_heights::<P>(chunk);
 
         for local_x in 0..16u8 {
             for local_z in 0..16u8 {
@@ -103,9 +222,8 @@ impl SurfaceSystem {
                 let mut env = ColumnEnv {
                     system: self,
                     noises,
-                    pos,
-                    biomes,
-                    border_biomes: &mut border_biomes,
+                    biome_at: &mut *biome_at,
+                    sea_level: P::SEA_LEVEL,
                     heights: &heights,
                     corners: &corners,
                     local_x,
@@ -123,17 +241,17 @@ impl SurfaceSystem {
                     stone_depth_below: 0,
                     water_height: i32::MIN,
                 };
-                let column_biome = env.biome_at(top);
+                let column_biome = env.biome_at(if P::LEGACY_BIOME_INITIALIZATION { 0 } else { top });
                 if column_biome == JavaBiome::ErodedBadlands {
-                    self.eroded_badlands_extension(chunk, noises, local_x, local_z, x, z, top);
+                    self.eroded_badlands_extension::<P, N>(chunk, noises, local_x, local_z, x, z, top);
                 }
-                let top = top_non_air(chunk, local_x, local_z) + 1;
+                let top = top_non_air::<P>(chunk, local_x, local_z) + 1;
 
                 let mut stone_depth_above = 0;
                 let mut water_height = i32::MIN;
                 let mut solid_below_until = i32::MAX;
                 let mut y = top;
-                while y >= MIN_Y {
+                while y >= P::MIN_Y {
                     let block = chunk.get_block(local_x, y as i16, local_z);
                     if is_air(block) {
                         stone_depth_above = 0;
@@ -151,8 +269,8 @@ impl SurfaceSystem {
                     if solid_below_until >= y {
                         solid_below_until = i32::MIN;
                         let mut below = y - 1;
-                        while below >= MIN_Y - 1 {
-                            let solid = below >= MIN_Y
+                        while below >= P::MIN_Y - 1 {
+                            let solid = below >= P::MIN_Y
                                 && is_solid(chunk.get_block(local_x, below as i16, local_z));
                             if !solid {
                                 solid_below_until = below + 1;
@@ -167,8 +285,8 @@ impl SurfaceSystem {
                     env.stone_depth_above = stone_depth_above;
                     env.stone_depth_below = y - solid_below_until + 1;
                     env.water_height = water_height;
-                    if block == overworld_settings::DEFAULT_BLOCK
-                        && let Some(replacement) = overworld_surface::apply(&mut env)
+                    if block == P::DEFAULT_BLOCK
+                        && let Some(replacement) = P::apply(&mut env)
                     {
                         chunk.set_block(local_x, y as i16, local_z, replacement);
                     }
@@ -180,7 +298,7 @@ impl SurfaceSystem {
                     JavaBiome::FrozenOcean | JavaBiome::DeepFrozenOcean
                 ) {
                     let min_surface_level = env.min_surface_level();
-                    self.frozen_ocean_extension(
+                    self.frozen_ocean_extension::<P, N>(
                         chunk,
                         noises,
                         column_biome,
@@ -193,7 +311,7 @@ impl SurfaceSystem {
                     );
                 }
                 heights[column_index(local_x, local_z)] =
-                    top_non_air(chunk, local_x, local_z) as i16;
+                    top_non_air::<P>(chunk, local_x, local_z) as i16;
             }
         }
     }
@@ -201,27 +319,44 @@ impl SurfaceSystem {
     /// Java's carver `topMaterial`: the surface rule's block for exposed dirt at
     /// `(x, y, z)` under a carved surface block, with stone depth 1 above and below.
     #[allow(clippy::too_many_arguments)]
-    pub fn top_material(
+    pub fn top_material<N: NoiseSource, B: FnMut(i32, i32, i32) -> JavaBiome>(
         &self,
         chunk: &DenseBlocks,
         pos: ChunkPos,
-        noises: &NoiseRegistry,
-        grid: &FlatCacheGrid,
-        biomes: &QuartBiomes,
+        noises: &N,
+        corners: [f64; 4],
+        biome_at: &mut B,
         x: i32,
         y: i32,
         z: i32,
         has_fluid: bool,
     ) -> Option<u32> {
-        let heights = column_heights(chunk);
-        let corners = preliminary_corners(pos, noises, grid);
-        let mut border_biomes = HashMap::new();
+        match self.dimension {
+            JavaDimension::Overworld => self.top_material_for::<Overworld, N, B>(chunk, pos, noises, corners, biome_at, x, y, z, has_fluid),
+            JavaDimension::Nether => self.top_material_for::<Nether, N, B>(chunk, pos, noises, corners, biome_at, x, y, z, has_fluid),
+            JavaDimension::End => self.top_material_for::<End, N, B>(chunk, pos, noises, corners, biome_at, x, y, z, has_fluid),
+        }
+    }
+
+    #[allow(clippy::too_many_arguments)]
+    fn top_material_for<P: Preset, N: NoiseSource, B: FnMut(i32, i32, i32) -> JavaBiome>(
+        &self,
+        chunk: &DenseBlocks,
+        _pos: ChunkPos,
+        noises: &N,
+        corners: [f64; 4],
+        biome_at: &mut B,
+        x: i32,
+        y: i32,
+        z: i32,
+        has_fluid: bool,
+    ) -> Option<u32> {
+        let heights = column_heights::<P>(chunk);
         let mut env = ColumnEnv {
             system: self,
             noises,
-            pos,
-            biomes,
-            border_biomes: &mut border_biomes,
+            biome_at: &mut *biome_at,
+            sea_level: P::SEA_LEVEL,
             heights: &heights,
             corners: &corners,
             local_x: (x & 15) as u8,
@@ -239,28 +374,29 @@ impl SurfaceSystem {
             stone_depth_below: 1,
             water_height: if has_fluid { y + 1 } else { i32::MIN },
         };
-        overworld_surface::apply(&mut env)
+        P::apply(&mut env)
     }
 
     /// `(int)(surface * 2.75 + 3 + random(x, 0, z) * 0.25)`.
-    fn surface_depth(&self, noises: &NoiseRegistry, x: i32, z: i32) -> i32 {
+    fn surface_depth<N: NoiseSource>(&self, noises: &N, x: i32, z: i32) -> i32 {
         let noise = noises.sample(NoiseRef::Surface, x as f64, 0.0, z as f64);
-        let jitter = self.noise_random.at(x, 0, z).next_double();
+        let jitter = self.noise_random.double_at(x, 0, z);
         (noise * 2.75 + 3.0 + jitter * 0.25) as i32
     }
 
-    fn band(&self, noises: &NoiseRegistry, x: i32, y: i32, z: i32) -> u32 {
+    fn band<N: NoiseSource>(&self, noises: &N, x: i32, y: i32, z: i32) -> u32 {
         let offset = (noises.sample(NoiseRef::ClayBandsOffset, x as f64, 0.0, z as f64) * 4.0 + 0.5)
             .floor() as i32;
-        self.clay_bands[((y + offset + BAND_COUNT as i32) % BAND_COUNT as i32) as usize]
+        self.clay_bands.as_ref().expect("preset surface rule has no clay bands")
+            [(y + offset).rem_euclid(BAND_COUNT as i32) as usize]
     }
 
     /// Stone pillars of eroded badlands, grown from y=64 up to a noise-driven height.
     #[allow(clippy::too_many_arguments)]
-    fn eroded_badlands_extension(
+    fn eroded_badlands_extension<P: Preset, N: NoiseSource>(
         &self,
         chunk: &mut DenseBlocks,
-        noises: &NoiseRegistry,
+        noises: &N,
         local_x: u8,
         local_z: u8,
         x: i32,
@@ -292,9 +428,9 @@ impl SurfaceSystem {
             return;
         }
         let mut y = pillar_top;
-        while y >= MIN_Y {
+        while y >= P::MIN_Y {
             let block = chunk.get_block(local_x, y as i16, local_z);
-            if block == overworld_settings::DEFAULT_BLOCK {
+            if block == P::DEFAULT_BLOCK {
                 break;
             }
             if is_water(block) {
@@ -303,12 +439,12 @@ impl SurfaceSystem {
             y -= 1;
         }
         let mut y = pillar_top;
-        while y >= MIN_Y && is_air(chunk.get_block(local_x, y as i16, local_z)) {
+        while y >= P::MIN_Y && is_air(chunk.get_block(local_x, y as i16, local_z)) {
             chunk.set_block(
                 local_x,
                 y as i16,
                 local_z,
-                overworld_settings::DEFAULT_BLOCK,
+                P::DEFAULT_BLOCK,
             );
             y -= 1;
         }
@@ -316,10 +452,10 @@ impl SurfaceSystem {
 
     /// Packed-ice icebergs with snow caps in frozen oceans.
     #[allow(clippy::too_many_arguments)]
-    fn frozen_ocean_extension(
+    fn frozen_ocean_extension<P: Preset, N: NoiseSource>(
         &self,
         chunk: &mut DenseBlocks,
-        noises: &NoiseRegistry,
+        noises: &N,
         biome: JavaBiome,
         min_surface_level: i32,
         local_x: u8,
@@ -328,7 +464,7 @@ impl SurfaceSystem {
         z: i32,
         height: i32,
     ) {
-        let sea_level = overworld_settings::SEA_LEVEL;
+        let sea_level = P::SEA_LEVEL;
         let surface =
             (noises.sample(NoiseRef::IcebergSurface, x as f64, 0.0, z as f64) * 8.25).abs();
         let pillar = noises.sample(
@@ -362,7 +498,10 @@ impl SurfaceSystem {
             top = 0.0;
             bottom = 0.0;
         }
-        let mut random = self.noise_random.at(x, 0, z);
+        let mut random = match &self.noise_random {
+            SurfaceRandom::Xoroshiro(factory) => ColumnRandom::Xoroshiro(factory.at(x, 0, z)),
+            SurfaceRandom::Legacy(seed) => ColumnRandom::Legacy(JavaRandom::from_seed(*seed ^ get_seed(x, 0, z))),
+        };
         let snow_depth = 2 + random.next_int(4) as i32;
         let snow_min_y = sea_level + 18 + random.next_int(10) as i32;
         let mut snow_placed = 0;
@@ -377,10 +516,10 @@ impl SurfaceSystem {
                     && random.next_double() > 0.15);
             if place {
                 if snow_placed <= snow_depth && y > snow_min_y {
-                    chunk.set_block(local_x, y as i16, local_z, overworld_surface::SNOW_BLOCK);
+                    chunk.set_block(local_x, y as i16, local_z, P::SNOW_BLOCK);
                     snow_placed += 1;
                 } else {
-                    chunk.set_block(local_x, y as i16, local_z, overworld_surface::PACKED_ICE);
+                    chunk.set_block(local_x, y as i16, local_z, P::PACKED_ICE);
                 }
             }
             y -= 1;
@@ -394,47 +533,34 @@ fn column_index(x: u8, z: u8) -> usize {
 }
 
 /// Top non-air block of every column (`z * 16 + x`), the generation surface heightmap.
-fn column_heights(chunk: &DenseBlocks) -> [i16; 256] {
-    let mut heights = [MIN_Y as i16; 256];
+fn column_heights<P: Preset>(chunk: &DenseBlocks) -> [i16; 256] {
+    let mut heights = [P::MIN_Y as i16; 256];
     for z in 0..16u8 {
         for x in 0..16u8 {
-            heights[column_index(x, z)] = top_non_air(chunk, x, z) as i16;
+            heights[column_index(x, z)] = top_non_air::<P>(chunk, x, z) as i16;
         }
     }
     heights
 }
 
-/// Preliminary surface at the chunk's section corners (x, x+16) x (z, z+16); the chunk's
-/// flat cache covers the +16 corners.
-fn preliminary_corners(pos: ChunkPos, noises: &NoiseRegistry, grid: &FlatCacheGrid) -> [f64; 4] {
-    [(0, 0), (16, 0), (0, 16), (16, 16)].map(|(dx, dz)| {
-        let (x, z) = (pos.x * 16 + dx, pos.z * 16 + dz);
-        let ctx = FunctionContext::new(x, 0, z);
-        let col = ColumnContext::new(x, z, noises, grid);
-        compute_preliminary_surface_level(&ctx, noises, grid, &col).floor()
-    })
-}
-
-/// y of the highest non-air block (`MIN_Y - 1` if none).
-fn top_non_air(chunk: &DenseBlocks, x: u8, z: u8) -> i32 {
-    let mut y = MAX_Y;
-    while y >= MIN_Y {
+/// y of the highest non-air block, or one below the preset's generation volume.
+fn top_non_air<P: Preset>(chunk: &DenseBlocks, x: u8, z: u8) -> i32 {
+    let mut y = P::MIN_Y + P::HEIGHT - 1;
+    while y >= P::MIN_Y {
         if !is_air(chunk.get_block(x, y as i16, z)) {
             return y;
         }
         y -= 1;
     }
-    MIN_Y - 1
+    P::MIN_Y - 1
 }
 
 /// [`SurfaceEnv`] for one column of the pass.
-struct ColumnEnv<'a> {
+struct ColumnEnv<'a, N, B> {
     system: &'a SurfaceSystem,
-    noises: &'a NoiseRegistry,
-    pos: ChunkPos,
-    biomes: &'a QuartBiomes,
-    /// Quart biomes outside the chunk, sampled on demand.
-    border_biomes: &'a mut HashMap<(i32, i32, i32), JavaBiome>,
+    noises: &'a N,
+    biome_at: &'a mut B,
+    sea_level: i32,
     /// `WORLD_SURFACE_WG` top block per column (`z * 16 + x`).
     heights: &'a [i16; 256],
     /// Preliminary surface level at the chunk's four corners (x, x+16) x (z, z+16).
@@ -455,24 +581,9 @@ struct ColumnEnv<'a> {
     water_height: i32,
 }
 
-impl ColumnEnv<'_> {
+impl<N: NoiseSource, B: FnMut(i32, i32, i32) -> JavaBiome> ColumnEnv<'_, N, B> {
     fn biome_at(&mut self, y: i32) -> JavaBiome {
-        let (pos, biomes, noises) = (self.pos, self.biomes, self.noises);
-        let border = &mut *self.border_biomes;
-        zoomed_biome(self.system.zoom_seed, self.x, y, self.z, |qx, qy, qz| {
-            let qy = qy.clamp(
-                MIN_Y >> 2,
-                (MAX_Y >> 2).min((MIN_Y >> 2) + QUARTS_Y as i32 - 1),
-            );
-            let (lx, lz) = (qx - pos.x * 4, qz - pos.z * 4);
-            if (0..4).contains(&lx) && (0..4).contains(&lz) {
-                let native = biomes.get(lx as usize, (qy - (MIN_Y >> 2)) as usize, lz as usize);
-                return JavaBiome::from_index(native).expect("Java-style quart biome");
-            }
-            *border
-                .entry((qx, qy, qz))
-                .or_insert_with(|| sample_biome(noises, qx, qy, qz))
-        })
+        (self.biome_at)(self.x, y, self.z)
     }
 
     fn height_at(&self, x: u8, z: u8) -> i32 {
@@ -481,7 +592,7 @@ impl ColumnEnv<'_> {
     }
 }
 
-impl SurfaceEnv for ColumnEnv<'_> {
+impl<N: NoiseSource, B: FnMut(i32, i32, i32) -> JavaBiome> SurfaceEnv for ColumnEnv<'_, N, B> {
     fn block_y(&self) -> i32 {
         self.y
     }
@@ -525,9 +636,7 @@ impl SurfaceEnv for ColumnEnv<'_> {
     }
 
     fn gradient_float(&mut self, gradient: usize) -> f32 {
-        self.system.gradient_randoms[gradient]
-            .at(self.x, self.y, self.z)
-            .next_float()
+        self.system.gradient_randoms[gradient].float_at(self.x, self.y, self.z)
     }
 
     fn steep(&mut self) -> bool {
@@ -575,11 +684,123 @@ impl SurfaceEnv for ColumnEnv<'_> {
             self.x,
             self.y,
             self.z,
-            overworld_settings::SEA_LEVEL,
+            self.sea_level,
         )
     }
 
     fn band(&mut self) -> u32 {
         self.system.band(self.noises, self.x, self.y, self.z)
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::world::chunk::BlockStateSpace;
+    use crate::world::generator::{JavaGenerationOptions, JavaGenerator, JavaTerrainStage};
+
+    #[test]
+    fn native_badlands_bands_reach_surface_consumer() {
+        // Immutable native full-stage SURFACE capture, seed -734287144591,
+        // chunk (100,-100), structures=false; canonical Java state properties.
+        // This exercises real noise, biome lookup and compiled rule dispatch,
+        // not just a separately constructed colour table.
+        std::thread::Builder::new()
+            .stack_size(64 << 20)
+            .spawn(|| {
+                let generated = JavaGenerator::with_options(
+                    -734287144591,
+                    JavaGenerationOptions {
+                        dimension: JavaDimension::Overworld,
+                        generate_structures: false,
+                        biome_features: false,
+                    },
+                )
+                .generate_stage(ChunkPos::new(100, -100), JavaTerrainStage::Surface);
+                assert_eq!(generated.chunk.state_space(), BlockStateSpace::Java);
+                for (x, y, z, expected) in [
+                    (0, 75, 0, "minecraft:light_gray_terracotta"),
+                    (0, 76, 0, "minecraft:brown_terracotta"),
+                    (0, 77, 0, "minecraft:brown_terracotta"),
+                    (0, 80, 0, "minecraft:terracotta"),
+                    (0, 83, 0, "minecraft:yellow_terracotta"),
+                    (0, 93, 0, "minecraft:white_terracotta"),
+                    (0, 98, 0, "minecraft:air"),
+                    (15, 75, 15, "minecraft:light_gray_terracotta"),
+                    (15, 82, 15, "minecraft:terracotta"),
+                    (15, 98, 15, "minecraft:air"),
+                    (7, 89, 8, "minecraft:terracotta"),
+                    (7, 95, 8, "minecraft:terracotta"),
+                ] {
+                    assert_eq!(
+                        generated.chunk.get_block(x, y, z),
+                        java_blocks::default_state(expected).unwrap(),
+                        "native badlands SURFACE block=({},{y},{})",
+                        1600 + i32::from(x),
+                        -1600 + i32::from(z),
+                    );
+                }
+            })
+            .unwrap()
+            .join()
+            .unwrap();
+    }
+
+    #[test]
+    fn native_dimension_surface_boundaries() {
+        // Pinned 1.21.11 actual NOISE -> SURFACE captures, seed 0 / chunk (0,0):
+        // native-surface-corpus-20261027/surface-{nether,end}-seed0-smoke.json.
+        // Native generator, registries, tags and nine-chunk biome neighborhood;
+        // unblended, no structures, carvers, features or ticks. These are native
+        // consumer-visible block states, not hashes of this implementation.
+        std::thread::Builder::new()
+            .stack_size(64 << 20)
+            .spawn(|| {
+                let options = |dimension| JavaGenerationOptions {
+                    dimension,
+                    generate_structures: false,
+                    biome_features: false,
+                };
+                let bedrock = java_blocks::default_state("minecraft:bedrock").unwrap();
+                let air = java_blocks::default_state("minecraft:air").unwrap();
+                let nether = JavaGenerator::with_options(0, options(JavaDimension::Nether))
+                    .generate_stage(ChunkPos::new(0, 0), JavaTerrainStage::Surface);
+                assert_eq!(nether.chunk.state_space(), BlockStateSpace::Java);
+                let ys = [0, 1, 2, 3, 4, 5, 122, 123, 124, 125, 126, 127];
+                for (x, z, expected_bedrock) in [
+                    (0, 0, [true, true, true, true, false, false, false, false, true, true, false, true]),
+                    (15, 15, [true, true, false, false, false, false, false, false, true, false, true, true]),
+                ] {
+                    for (y, is_bedrock) in ys.into_iter().zip(expected_bedrock) {
+                        assert_eq!(
+                            nether.chunk.get_block(x, y, z),
+                            if is_bedrock { bedrock } else { nether_settings::DEFAULT_BLOCK },
+                            "native Nether SURFACE seed=0 block=({x},{y},{z})"
+                        );
+                    }
+                    assert_eq!(nether.chunk.get_block(x, 128, z), air);
+                    assert_eq!(nether.chunk.get_block(x, 255, z), air);
+                }
+
+                let end = JavaGenerator::with_options(0, options(JavaDimension::End))
+                    .generate_stage(ChunkPos::new(0, 0), JavaTerrainStage::Surface);
+                assert_eq!(end.chunk.state_space(), BlockStateSpace::Java);
+                for (x, z, top) in [(0, 0, 62), (15, 15, 64)] {
+                    assert_eq!(end.chunk.get_block(x, 0, z), air);
+                    for y in [32, 48, 60, top] {
+                        assert_eq!(
+                            end.chunk.get_block(x, y, z),
+                            end_settings::DEFAULT_BLOCK,
+                            "native End SURFACE seed=0 block=({x},{y},{z})"
+                        );
+                    }
+                    for y in [top + 1, 127, 128, 255] {
+                        assert_eq!(end.chunk.get_block(x, y, z), air);
+                    }
+                }
+            })
+            .unwrap()
+            .join()
+            .unwrap();
     }
 }

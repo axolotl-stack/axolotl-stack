@@ -19,6 +19,7 @@ worldgen-profile = ["unastar_noise/worldgen-profile"]
 bytes.workspace = true
 jolyne = { workspace = true, features = ["server", "raknet"] }
 unastar_noise.workspace = true
+unastar-packs = { path = "../unastar-packs" }
 unastar-data.workspace = true
 unastar-rules = { path = "../unastar-rules" }
 tokio = { workspace = true, features = ["full"] }
@@ -63,7 +64,6 @@ unastar_bedrock_codegen = { path = "../unastar_bedrock_codegen", optional = true
 flate2.workspace = true
 crc32c = "0.6"
 tempfile = "3"
-unastar-packs = { path = "../unastar-packs" }
 
 [[example]]
 name = "bedrock_decoration_smoke"

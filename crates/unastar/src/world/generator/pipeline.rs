@@ -1,19 +1,16 @@
 //! Generator trait and the chunk pipeline shared by every world generator.
 //!
-//! ```text
-//! generate(c):
-//!   proto(p)       for p in the 5x5 around c      (noise -> aquifers/veins -> 3D biomes
-//!                                                   -> surface -> carvers; cached)
-//!   decoration(o)  for o in the 3x3 around c      (features + structure pieces on a
-//!                                                   DecorationRegion over o's 3x3 protos;
-//!                                                   cached as per-target write lists)
-//!   chunk(c) = proto(c).chunk + writes of the 9 origins targeting c, in SLOT_OFFSETS order
-//!              + Bedrock 3D biomes from proto(c).biomes
-//! ```
+//! Independent generators cache per-chunk terrain and origin-relative decoration
+//! write lists, replaying the nine origins that can affect each target.
 //!
-//! Both caches are single-flight: concurrent workers asking for the same proto or
-//! decoration wait for one computation instead of repeating it. Eviction only costs time;
-//! every finished chunk is a pure function of `(seed, position)` (see [`super::region`]).
+//! Native Java instead retains one mutable source world. Each FEATURES origin
+//! completes once, observing all preceding writes; snapshots preserve the current
+//! request boundary. Full native generation completes the target's nine-origin
+//! halo before the explicit, fallible Bedrock conversion.
+//!
+//! Native biome ties retain the calling thread's previous search candidate.
+//! Request order, worker assignment and source-cache history are part of the
+//! comparison context, not normalized into seed-only deterministic output.
 
 use std::collections::{HashMap, VecDeque};
 use std::sync::{Arc, Mutex, OnceLock};
@@ -22,6 +19,9 @@ use super::proto::{NativeBiome, ProtoChunk};
 use super::region::{DecorationRegion, DecorationWrites, SLOT_OFFSETS};
 use crate::world::ChunkPos;
 use crate::world::chunk::Chunk;
+
+mod native;
+use native::NativeSession;
 
 /// A spawn position chosen by a generator.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
@@ -36,11 +36,18 @@ pub struct SpawnPoint {
 
 /// A world generator: terrain stages per chunk plus an optional 3x3 decoration stage.
 ///
-/// Implementations must be pure: the same `(seed, position)` always gives the same
-/// output, independent of call order or thread.
+/// Stateful source-native sampling must retain its original history semantics.
+/// In particular, Java climate ties depend on the calling thread's previous
+/// candidate; `(seed, position)` alone does not describe that native context.
 pub trait Generator: Send + Sync + 'static {
     /// World seed.
     fn seed(&self) -> i64;
+
+    /// Legal build/storage blocks. The default preserves Bedrock/flat Overworld geometry.
+    fn world_bounds(&self) -> std::ops::Range<i32> {
+        crate::world::chunk::MIN_Y
+            ..crate::world::chunk::MIN_Y + super::proto::WORLD_HEIGHT
+    }
 
     /// Terrain stages for one chunk: noise, aquifers, ore veins, 3D biomes, surface, carvers.
     fn generate_proto(&self, pos: ChunkPos) -> ProtoChunk;
@@ -52,7 +59,13 @@ pub trait Generator: Send + Sync + 'static {
     /// Decorate the region's origin chunk (features and structure pieces).
     fn decorate(&self, region: &mut DecorationRegion<'_>);
 
-    /// Block-class flags (`unastar_noise::block_class`) indexed by runtime id, used for
+    /// Native decoration mutates its source world: later origins must observe
+    /// earlier neighbor writes. Independent generators keep cached replay.
+    fn decorates_in_order(&self) -> bool {
+        false
+    }
+
+    /// Block-class flags (`unastar_noise::block_class`) indexed by native state id, used for
     /// the region's heightmaps.
     fn block_classes(&self) -> &'static [u8];
 
@@ -120,6 +133,7 @@ pub struct ChunkPipeline {
     generator: Arc<dyn Generator>,
     protos: ChunkCache<ProtoChunk>,
     decorations: ChunkCache<DecorationWrites>,
+    native: Option<Mutex<NativeSession>>,
 }
 
 impl ChunkPipeline {
@@ -130,10 +144,13 @@ impl ChunkPipeline {
 
     /// Pipeline caching up to `proto_capacity` protos and as many decorations.
     pub fn with_capacity(generator: Arc<dyn Generator>, proto_capacity: usize) -> Self {
+        let native = generator.decorates_in_order()
+            .then(|| Mutex::new(NativeSession::default()));
         Self {
             generator,
             protos: ChunkCache::new(proto_capacity),
             decorations: ChunkCache::new(proto_capacity),
+            native,
         }
     }
 
@@ -144,22 +161,27 @@ impl ChunkPipeline {
 
     /// Cached (or freshly generated) proto chunk.
     pub fn proto(&self, pos: ChunkPos) -> Arc<ProtoChunk> {
-        self.protos
-            .get_or_compute(pos, || self.generator.generate_proto(pos))
+        self.protos.get_or_compute(pos, || {
+            let mut proto = self.generator.generate_proto(pos);
+            proto.chunk.set_block_bounds(self.generator.world_bounds());
+            proto.biomes.set_block_bounds(self.generator.world_bounds());
+            proto
+        })
     }
 
-    /// Cached (or freshly computed) decoration writes of an origin chunk.
-    pub fn decoration(&self, origin: ChunkPos) -> Arc<DecorationWrites> {
+    /// Independent-generator decoration, evaluated over unmodified proto chunks.
+    fn decoration(&self, origin: ChunkPos) -> Arc<DecorationWrites> {
         self.decorations.get_or_compute(origin, || {
             let protos: [Arc<ProtoChunk>; 9] = SLOT_OFFSETS
                 .map(|(dx, dz)| self.proto(ChunkPos::new(origin.x + dx, origin.z + dz)));
             let refs: [&ProtoChunk; 9] = std::array::from_fn(|slot| &*protos[slot]);
             let region_stage = unastar_noise::profile::scope(unastar_noise::profile::Stage::Region);
-            let mut region = DecorationRegion::new(
+            let mut region = DecorationRegion::new_with_bounds(
                 self.generator.seed(),
                 origin,
                 refs,
                 self.generator.block_classes(),
+                self.generator.world_bounds(),
             );
             drop(region_stage);
             self.generator.decorate(&mut region);
@@ -167,16 +189,67 @@ impl ChunkPipeline {
         })
     }
 
-    /// Finished chunk: proto blocks, decoration from the 9 surrounding origins, and
-    /// Bedrock 3D biomes. Generators without decoration need no neighbours, so their protos
-    /// are used directly instead of being cached and copied.
-    pub fn generate(&self, pos: ChunkPos) -> Chunk {
+    /// Complete precisely one FEATURES origin. Native origins mutate their
+    /// shared source world once; repeated requests preserve the existing state.
+    pub fn decorate_origin(&self, origin: ChunkPos) {
+        if let Some(session) = &self.native {
+            session.lock().expect("native generation session poisoned")
+                .decorate(&*self.generator, origin);
+        } else {
+            self.decoration(origin);
+        }
+    }
+
+    /// Observe native state at the current request boundary, without completing
+    /// new neighboring feature origins. Independent replay has no such world.
+    pub fn native_snapshot(&self, pos: ChunkPos) -> Option<Chunk> {
+        self.native.as_ref()?.lock().expect("native generation session poisoned")
+            .snapshot(&*self.generator, pos)
+    }
+
+    /// WG maps freeze when CARVERS commits, while native FEATURES and later
+    /// neighbor writes update the four final maps. Do not rescan finished blocks
+    /// to invent new WG values at an observation boundary.
+    pub fn native_worldgen_heightmaps(&self, pos: ChunkPos) -> Option<[[i16; 256]; 2]> {
+        self.native.as_ref()?.lock().expect("native generation session poisoned")
+            .worldgen_heightmaps(pos)
+    }
+
+    /// Finished chunk converted once to Bedrock state ids for storage/network consumers.
+    pub fn generate(&self, pos: ChunkPos) -> std::io::Result<Chunk> {
+        let mut chunk = self.generate_native(pos);
+        chunk.convert_to_bedrock()?;
+        Ok(chunk)
+    }
+
+    /// Finished source-native chunk, before any lossy Java-to-Bedrock block mapping.
+    ///
+    /// Blocks, biome ids and actor recipes retain their source-edition identities.
+    /// Native chunks complete their FEATURES halo and FULL actor promotion here.
+    /// All lossy adaptation happens in the final `generate` boundary.
+    pub fn generate_native(&self, pos: ChunkPos) -> Chunk {
+        if let Some(session) = &self.native {
+            let mut session = session.lock().expect("native generation session poisoned");
+            session.decorate(&*self.generator, pos);
+            for (dx, dz) in SLOT_OFFSETS {
+                session.decorate(&*self.generator, ChunkPos::new(pos.x + dx, pos.z + dz));
+            }
+            let mut chunk = session.snapshot(&*self.generator, pos)
+                .expect("completed native origin has no source chunk");
+            chunk.promote_java_pending_actors();
+            return chunk;
+        }
         let generator = &self.generator;
         if !generator.decorates() {
             let ProtoChunk {
-                mut chunk, biomes, ..
+                mut chunk, mut biomes, ..
             } = generator.generate_proto(pos);
-            chunk.set_biomes_from_quarts(&biomes, |biome| generator.bedrock_biome(biome));
+            chunk.set_block_bounds(generator.world_bounds());
+            biomes.set_block_bounds(generator.world_bounds());
+            let java = chunk.state_space() == crate::world::chunk::BlockStateSpace::Java;
+            chunk.set_biomes_from_quarts(&biomes, |biome| {
+                if java { u32::from(biome) } else { generator.bedrock_biome(biome) }
+            });
             chunk.x = pos.x;
             chunk.z = pos.z;
             return chunk;
@@ -189,7 +262,10 @@ impl ChunkPipeline {
             // `pos` seen from `origin` is at (-dx, -dz).
             writes.apply_to(-dx, -dz, &mut chunk);
         }
-        chunk.set_biomes_from_quarts(&proto.biomes, |biome| generator.bedrock_biome(biome));
+        let java = chunk.state_space() == crate::world::chunk::BlockStateSpace::Java;
+        chunk.set_biomes_from_quarts(&proto.biomes, |biome| {
+            if java { u32::from(biome) } else { generator.bedrock_biome(biome) }
+        });
         chunk.x = pos.x;
         chunk.z = pos.z;
         chunk
@@ -197,7 +273,8 @@ impl ChunkPipeline {
 
     /// World spawn chosen by the generator over this pipeline's finished chunks.
     pub fn find_spawn(&self) -> SpawnPoint {
-        self.generator.find_spawn(&|pos| self.generate(pos))
+        self.generator.find_spawn(&|pos| self.generate(pos)
+            .expect("spawn chunk contains an unrepresentable native actor"))
     }
 
     /// Number of cached protos (for benchmarks and tests).
@@ -285,12 +362,12 @@ mod tests {
     #[test]
     fn decoration_spills_into_neighbours_and_is_order_independent() {
         let forward = ChunkPipeline::new(Arc::new(PillarGenerator::new()));
-        let a = forward.generate(ChunkPos::new(0, 0));
-        let b = forward.generate(ChunkPos::new(1, 1));
+        let a = forward.generate(ChunkPos::new(0, 0)).unwrap();
+        let b = forward.generate(ChunkPos::new(1, 1)).unwrap();
 
         let backward = ChunkPipeline::new(Arc::new(PillarGenerator::new()));
-        let b2 = backward.generate(ChunkPos::new(1, 1));
-        let a2 = backward.generate(ChunkPos::new(0, 0));
+        let b2 = backward.generate(ChunkPos::new(1, 1)).unwrap();
+        let a2 = backward.generate(ChunkPos::new(0, 0)).unwrap();
 
         assert_eq!(snapshot(&a), snapshot(&a2));
         assert_eq!(snapshot(&b), snapshot(&b2));
@@ -307,10 +384,10 @@ mod tests {
     fn protos_are_generated_once_per_position() {
         let generator = Arc::new(PillarGenerator::new());
         let pipeline = ChunkPipeline::new(generator.clone());
-        pipeline.generate(ChunkPos::new(0, 0));
+        pipeline.generate(ChunkPos::new(0, 0)).unwrap();
         // 5x5 protos for one finished chunk.
         assert_eq!(generator.protos_made.load(Ordering::SeqCst), 25);
-        pipeline.generate(ChunkPos::new(1, 0));
+        pipeline.generate(ChunkPos::new(1, 0)).unwrap();
         // Only the new column of 5.
         assert_eq!(generator.protos_made.load(Ordering::SeqCst), 30);
     }
@@ -418,14 +495,14 @@ mod tests {
         let pos = ChunkPos::new(-1, -1);
         let next = ChunkPos::new(0, 0);
         let forward = ChunkPipeline::new(Arc::new(ActorGenerator));
-        let a = forward.generate(pos);
-        let b = forward.generate(next);
+        let a = forward.generate(pos).unwrap();
+        let b = forward.generate(next).unwrap();
         let backward = ChunkPipeline::new(Arc::new(ActorGenerator));
-        let b2 = backward.generate(next);
-        let a2 = backward.generate(pos);
+        let b2 = backward.generate(next).unwrap();
+        let a2 = backward.generate(pos).unwrap();
         assert_eq!(actor_semantics(&a), actor_semantics(&a2));
         assert_eq!(actor_semantics(&b), actor_semantics(&b2));
-        assert_eq!(actor_semantics(&a), actor_semantics(&forward.generate(pos)));
+        assert_eq!(actor_semantics(&a), actor_semantics(&forward.generate(pos).unwrap()));
         let positions: Vec<_> = actor_semantics(&a)
             .into_iter()
             .map(|(position, _)| position)
