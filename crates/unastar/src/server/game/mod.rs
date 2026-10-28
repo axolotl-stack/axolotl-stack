@@ -23,11 +23,14 @@ mod plugins;
 pub mod types;
 
 use bevy_ecs::prelude::*;
+pub(crate) use block_drops::loot_stacks;
 pub(crate) use blocks::{commit_block_event, reject_block_event};
-pub(crate) use items::item_descriptor;
+pub(crate) use items::{PICKUP_REACH, item_descriptor, player_box};
+pub(crate) use items::{send_slot, world_stack};
 use jolyne::WorldTemplate;
 use jolyne::valentine::EnumsGameType;
 use jolyne::valentine::types::{BlockPos, Vec3};
+pub(crate) use loot::LootContext;
 use std::sync::Arc;
 use tracing::{info, warn};
 
@@ -45,8 +48,7 @@ use crate::entity::components::{
 use crate::entity::systems::{
     apply_poison, apply_regeneration, apply_wither, despawn_dead, despawn_out_of_world,
     merge_item_entities, tick_age, tick_air_supply, tick_damage_immunity, tick_effects, tick_fire,
-    tick_item_despawn, tick_item_pickup_delay, tick_mob_age, tick_physics,
-    tick_projectile_lifetime,
+    tick_item_despawn, tick_item_pickup_delay, tick_physics, tick_projectile_lifetime,
 };
 use crate::network::SessionId;
 use crate::registry::{BiomeRegistry, BlockRegistry, EntityRegistry, ItemRegistry};
@@ -55,12 +57,12 @@ use crate::server::broadcast::{
     broadcast_spawn_system, cleanup_despawned_entities, sync_actor_viewers, sync_spatial_chunks,
     tick_block_breaking,
 };
-use crate::storage::{ChunkColumn, PlayerData};
+use crate::storage::PlayerData;
 use crate::world::ChunkManager;
 use crate::world::ecs::{
-    BlockBroadcastEvent, ChunkData, ChunkLoadConfig, ChunkLoader, ChunkPosition, ChunkStateFlags,
-    ChunkTickingState, LastPublisherState, PendingChunkGenerations, PlayerDespawnedEvent,
-    PlayerSpawnedEvent, on_block_changed, register_chunk_systems,
+    BlockBroadcastEvent, ChunkLoadConfig, ChunkLoader, ChunkPosition, ChunkTickingState,
+    LastPublisherState, PendingChunkGenerations, PlayerDespawnedEvent, PlayerSpawnedEvent,
+    on_block_changed, register_chunk_systems,
 };
 
 // Re-export public types
@@ -317,7 +319,6 @@ impl GameServer {
         ecs.schedule_mut().add_systems(
             (
                 tick_age,
-                tick_mob_age,
                 apply_regeneration,
                 apply_poison,
                 apply_wither,
@@ -349,6 +350,37 @@ impl GameServer {
                 .in_set(EntityLogicSet)
                 .after(despawn_dead)
                 .before(tick_block_breaking),
+        );
+        // Mob condition damage and death, then experience orbs. After the
+        // entity chain so deaths from fire/effects are caught the same tick.
+        ecs.schedule_mut().add_systems(
+            (
+                crate::entity::mob::combat::hurt_on_condition,
+                crate::entity::mob::death::die_at_zero_health,
+                crate::entity::mob::death::tick_dying,
+                crate::entity::xp_orb::tick_xp_orbs,
+            )
+                .chain()
+                .in_set(EntityLogicSet)
+                .after(despawn_dead)
+                .before(tick_block_breaking),
+        );
+        // Love and breed-cooldown timers and mating, then baby growth.
+        ecs.schedule_mut().add_systems(
+            (
+                crate::entity::mob::breeding::tick_breeding,
+                crate::entity::mob::ageing::tick_baby_growth,
+            )
+                .chain()
+                .in_set(EntityLogicSet)
+                .after(despawn_dead)
+                .before(tick_block_breaking),
+        );
+        // Natural despawning of mobs far from every player.
+        ecs.schedule_mut().add_systems(
+            crate::entity::mob::despawn::despawn_mobs
+                .in_set(EntityLogicSet)
+                .after(despawn_dead),
         );
         ecs.schedule_mut().add_systems(
             (
@@ -409,37 +441,26 @@ impl GameServer {
             return 0;
         };
 
-        let records = {
+        // Every chunk with something to write: dirty terrain, mobs standing in
+        // it, or actors stored with it earlier.
+        let snapshots = {
             let world = self.ecs.world_mut();
-            let mut query = world.query::<(Entity, &ChunkPosition, &ChunkData, &ChunkStateFlags)>();
-            query
-                .iter(world)
-                .filter(|(_, _, _, flags)| flags.is_dirty())
-                .map(|(entity, position, data, _)| {
-                    (
-                        entity,
-                        position.to_chunk_pos(),
-                        ChunkColumn::new(data.inner.clone()),
-                    )
-                })
-                .collect::<Vec<_>>()
+            let mut query = world.query_filtered::<Entity, With<ChunkPosition>>();
+            let chunks: Vec<Entity> = query.iter(world).collect();
+            crate::entity::mob::persistence::snapshot_chunks(world, &chunks, false)
         };
 
         let mut saved = 0;
-        let mut saved_entities = Vec::new();
-        for (entity, position, column) in records {
-            match provider.save_column(position, dimension, &column).await {
+        for snapshot in snapshots {
+            let Some(column) = &snapshot.column else {
+                continue;
+            };
+            match provider.save_column(snapshot.pos, dimension, column).await {
                 Ok(()) => {
                     saved += 1;
-                    saved_entities.push(entity);
+                    crate::entity::mob::persistence::mark_saved(self.ecs.world_mut(), &snapshot);
                 }
-                Err(e) => warn!(chunk = ?position, error = %e, "Failed to save chunk"),
-            }
-        }
-
-        for entity in saved_entities {
-            if let Some(mut flags) = self.ecs.world_mut().get_mut::<ChunkStateFlags>(entity) {
-                flags.clear_dirty();
+                Err(e) => warn!(chunk = ?snapshot.pos, error = %e, "Failed to save chunk"),
             }
         }
 
@@ -515,13 +536,18 @@ impl GameServer {
             chunk_loader.force_reload();
         }
 
-        let default_gamemode = self
+        let config = &self
             .ecs
             .world()
             .get_resource::<ServerConfigResource>()
             .unwrap()
-            .0
-            .default_gamemode;
+            .0;
+        let default_gamemode = config.default_gamemode;
+        let operator = config.operators.iter().any(|entry| {
+            !entry.is_empty()
+                && (entry.eq_ignore_ascii_case(&data.display_name)
+                    || data.xuid.as_deref() == Some(entry.as_str()))
+        });
 
         let mut rotation = Rotation::default();
         let mut game_mode = default_gamemode;
@@ -611,6 +637,12 @@ impl GameServer {
             .world_mut()
             .entity_mut(entity)
             .insert((health, hunger, experience));
+        if operator {
+            self.ecs
+                .world_mut()
+                .entity_mut(entity)
+                .insert(crate::command::Operator);
+        }
 
         if let Some(mut session_map) = self.ecs.world_mut().get_resource_mut::<SessionEntityMap>() {
             session_map.insert(data.session_id, entity);
@@ -907,6 +939,38 @@ mod tests {
         let pickup_delay = world.get::<PickupDelay>(entity).expect("pickup delay");
         assert_eq!(age.0, 1);
         assert_eq!(pickup_delay.0, 1);
+    }
+
+    #[test]
+    fn configured_operators_are_granted_on_join_by_name_or_xuid() {
+        let mut server = GameServer::with_config(ServerConfig {
+            world: crate::world::WorldConfig::void_spawn_platform(1),
+            operators: vec!["MobBot".into(), "2535400000000042".into()],
+            ..ServerConfig::default()
+        });
+        let mut join = |session_id: u64, name: &str, xuid: Option<&str>| {
+            let (outbound_tx, _rx) = tokio::sync::mpsc::channel(256);
+            let entity = server.spawn_player(PlayerSpawnData {
+                session_id,
+                display_name: name.to_string(),
+                xuid: xuid.map(str::to_owned),
+                uuid: None,
+                runtime_id: session_id as i64,
+                position: DVec3::new(0.5, 17.0, 0.5),
+                outbound_tx,
+                saved_data: None,
+                chunk_radius: 2,
+            });
+            server
+                .ecs
+                .world()
+                .get::<crate::command::Operator>(entity)
+                .is_some()
+        };
+        assert!(join(1, "mobbot", None), "names match case-insensitively");
+        assert!(join(2, "Someone", Some("2535400000000042")));
+        assert!(!join(3, "Someone", Some("2535400000000043")));
+        assert!(!join(4, "MobBot2", None));
     }
 
     #[test]

@@ -95,8 +95,14 @@ mod tests {
     #[test]
     fn single_elements_and_lists_both_decode() {
         let body = |value| serde_json::from_value::<Body>(value).unwrap().sounds;
-        assert_eq!(body(json!({"sounds": "milk"})), Some(vec!["milk".to_owned()]));
-        assert_eq!(body(json!({"sounds": ["a", "b"]})), Some(vec!["a".into(), "b".into()]));
+        assert_eq!(
+            body(json!({"sounds": "milk"})),
+            Some(vec!["milk".to_owned()])
+        );
+        assert_eq!(
+            body(json!({"sounds": ["a", "b"]})),
+            Some(vec!["a".into(), "b".into()])
+        );
         assert_eq!(body(json!({})), None);
         assert!(serde_json::from_value::<Body>(json!({"sounds": 3})).is_err());
     }

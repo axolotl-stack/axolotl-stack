@@ -9,12 +9,13 @@
 use std::sync::{Arc, Mutex, mpsc};
 use tokio::sync::oneshot;
 
-use crate::storage::{StorageResult, WorldProvider};
+use crate::storage::{ChunkColumn, StorageResult, WorldProvider};
+use crate::world::ChunkPos;
 use crate::world::generator::ChunkPipeline;
-use crate::world::{Chunk, ChunkPos};
 
-/// Chunk data plus its storage provenance (`true` means loaded, not generated).
-pub type ChunkLoadResult = StorageResult<(Chunk, bool)>;
+/// The chunk column (with its stored actors) plus its storage provenance
+/// (`true` means loaded, not generated).
+pub type ChunkLoadResult = StorageResult<(ChunkColumn, bool)>;
 
 const CHUNK_GENERATION_STACK_SIZE: usize = 16 * 1024 * 1024;
 
@@ -108,10 +109,10 @@ impl ChunkGenerationWorker {
                         runtime.block_on(provider.load_column(pos, req.dimension))?
                 {
                     tracing::debug!(chunk = ?(pos.x, pos.z), dimension = req.dimension, "Loaded chunk from storage");
-                    return Ok((column.chunk, true));
+                    return Ok((column, true));
                 }
                 tracing::debug!(chunk = ?(pos.x, pos.z), dimension = req.dimension, "Generating missing chunk");
-                Ok((pipeline.generate(pos), false))
+                Ok((ChunkColumn::new(pipeline.generate(pos)), false))
             })();
             let _ = req.response_tx.send(result);
         }
@@ -133,8 +134,8 @@ mod tests {
             .map(|(x, z)| (x, z, worker.generate(x, z, None, 0).unwrap()))
             .collect();
         for (x, z, receiver) in receivers {
-            let (chunk, loaded) = receiver.await.unwrap().unwrap();
-            assert_eq!((chunk.x, chunk.z), (x, z));
+            let (column, loaded) = receiver.await.unwrap().unwrap();
+            assert_eq!((column.chunk.x, column.chunk.z), (x, z));
             assert!(!loaded);
         }
     }

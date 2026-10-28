@@ -107,6 +107,8 @@ pub struct CompiledDefinition {
     kinds: Arc<ComponentKinds>,
     composition: DefinitionComposition,
     groups: Arc<BTreeMap<Arc<str>, usize>>,
+    /// Group names by group index.
+    group_names: Box<[Arc<str>]>,
     prototypes: Vec<Box<dyn Prototype>>,
 }
 
@@ -142,9 +144,12 @@ impl CompiledDefinition {
         };
         let base = compile_set(&source.components)?;
         let mut groups = BTreeMap::new();
+        let mut group_names = Vec::with_capacity(source.component_groups.len());
         let mut group_bindings = Vec::with_capacity(source.component_groups.len());
         for (name, components) in &source.component_groups {
-            groups.insert(Arc::from(name.as_str()), group_bindings.len());
+            let name: Arc<str> = Arc::from(name.as_str());
+            groups.insert(Arc::clone(&name), group_bindings.len());
+            group_names.push(name);
             group_bindings.push(compile_set(components)?);
         }
         let composition = DefinitionComposition::new(kinds.kinds.len(), base, group_bindings);
@@ -153,6 +158,7 @@ impl CompiledDefinition {
             kinds,
             composition,
             groups: Arc::new(groups),
+            group_names: group_names.into_boxed_slice(),
             prototypes,
         }))
     }
@@ -176,6 +182,9 @@ pub struct DefinitionState {
     stack: DefinitionStack,
     changes: Vec<CompositionChange>,
     queued: bool,
+    /// Every group added or removed since attachment, once each, in order of
+    /// its latest change (`true` = added).
+    group_history: Vec<(usize, bool)>,
 }
 
 impl DefinitionState {
@@ -186,6 +195,19 @@ impl DefinitionState {
             return Err("component kind belongs to another registry".into());
         }
         Ok(self.stack.component(kind.index).is_some())
+    }
+
+    /// The component groups added (`true`) or removed (`false`) since the
+    /// definition was attached, each once, ordered by its latest change.
+    ///
+    /// Groups are destructive patches, so a kind's final selection is set by
+    /// the last change touching it; replaying this list over the base
+    /// selection with [`queue_group_change`] reproduces the current
+    /// composition. This is the `definitions` list actors persist.
+    pub fn group_history(&self) -> impl Iterator<Item = (&str, bool)> + '_ {
+        self.group_history
+            .iter()
+            .map(|&(group, added)| (&*self.definition.group_names[group], added))
     }
 }
 
@@ -224,6 +246,7 @@ pub fn attach_definition(
         stack,
         changes: Vec::with_capacity(kind_count),
         queued: true,
+        group_history: Vec::new(),
     });
     world.init_resource::<DefinitionApplyQueue>();
     world.resource_mut::<DefinitionApplyQueue>().0.push(entity);
@@ -245,14 +268,22 @@ pub fn queue_group_change(
     if !Arc::ptr_eq(&group.owner, &state.definition.groups) {
         return Err("component group belongs to another definition".into());
     }
-    match change {
-        GroupChange::Add(group) => state
-            .stack
-            .add_group(&state.definition.composition, group.index),
-        GroupChange::Remove(group) => state
-            .stack
-            .remove_group(&state.definition.composition, group.index),
-    }
+    let (index, added) = match change {
+        GroupChange::Add(group) => {
+            state
+                .stack
+                .add_group(&state.definition.composition, group.index);
+            (group.index, true)
+        }
+        GroupChange::Remove(group) => {
+            state
+                .stack
+                .remove_group(&state.definition.composition, group.index);
+            (group.index, false)
+        }
+    };
+    state.group_history.retain(|&(group, _)| group != index);
+    state.group_history.push((index, added));
     let enqueue = !state.queued;
     state.queued = true;
     if enqueue {
@@ -515,5 +546,56 @@ mod tests {
         apply_pending_definitions(&mut world);
         assert_eq!(world.get::<A>(actor).unwrap().0, 2);
         assert_eq!(world.get::<B>(actor).unwrap().0, 2);
+    }
+
+    #[test]
+    fn group_history_replays_to_the_same_composition() {
+        let definition = CompiledDefinition::compile(
+            &source(
+                json!({}),
+                json!({"baby": {"minecraft:is_baby": {}}, "grown": {"minecraft:is_baby": {}}}),
+            ),
+            kinds(),
+        )
+        .unwrap();
+        let baby = definition.group("baby").unwrap();
+        let grown = definition.group("grown").unwrap();
+        let mut world = World::new();
+        let actor = world.spawn_empty().id();
+        attach_definition(&mut world, actor, Arc::clone(&definition)).unwrap();
+        for change in [
+            GroupChange::Add(baby.clone()),
+            GroupChange::Add(grown.clone()),
+            GroupChange::Remove(grown),
+            GroupChange::Add(baby),
+        ] {
+            queue_group_change(&mut world, actor, change).unwrap();
+            apply_pending_definitions(&mut world);
+        }
+        let history: Vec<(String, bool)> = world
+            .get::<DefinitionState>(actor)
+            .unwrap()
+            .group_history()
+            .map(|(name, added)| (name.to_owned(), added))
+            .collect();
+        assert_eq!(
+            history,
+            [("grown".to_owned(), false), ("baby".to_owned(), true)]
+        );
+
+        let replayed = world.spawn_empty().id();
+        attach_definition(&mut world, replayed, Arc::clone(&definition)).unwrap();
+        for (name, added) in &history {
+            let group = definition.group(name).unwrap();
+            let change = if *added {
+                GroupChange::Add(group)
+            } else {
+                GroupChange::Remove(group)
+            };
+            queue_group_change(&mut world, replayed, change).unwrap();
+        }
+        apply_pending_definitions(&mut world);
+        assert!(world.get::<Baby>(actor).is_some());
+        assert!(world.get::<Baby>(replayed).is_some());
     }
 }

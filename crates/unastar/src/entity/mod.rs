@@ -20,6 +20,7 @@ pub mod mob;
 pub(crate) mod navigation;
 pub mod properties;
 pub mod systems;
+pub mod xp_orb;
 
 pub use bundles::*;
 pub use components::*;

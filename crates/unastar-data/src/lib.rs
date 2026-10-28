@@ -16,6 +16,7 @@ pub mod creative;
 pub mod item_components;
 pub mod items;
 pub mod loot;
+pub mod melee;
 pub mod pmmp;
 pub mod recipes;
 pub mod shapes;

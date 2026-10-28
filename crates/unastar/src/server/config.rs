@@ -19,6 +19,9 @@ pub struct ServerConfig {
     pub max_chunk_radius: i32,
     /// Default game mode for new players.
     pub default_gamemode: GameMode,
+    /// Players given operator permission on join: display names
+    /// (ASCII case-insensitive) or XUIDs.
+    pub operators: Vec<String>,
     /// Simulation distance in chunks.
     /// Chunks within this range of ANY player get random ticks and entity updates.
     /// Should typically be 1-2 larger than default_chunk_radius to avoid
@@ -40,6 +43,7 @@ impl Default for ServerConfig {
             default_chunk_radius: 4,
             max_chunk_radius: 12,
             default_gamemode: GameMode::Survival,
+            operators: Vec::new(),
             simulation_distance: 6,  // 2 more than default view
             chunk_unload_ticks: 100, // 5 second grace period
             world: WorldConfig::default(),

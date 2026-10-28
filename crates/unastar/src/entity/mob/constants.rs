@@ -151,6 +151,36 @@ pub const KNOCKBACK_RETAIN: f64 = 0.5;
 pub const DEATH_TICKS: u32 = 20;
 /// Experience orb sizes, largest first.
 pub const XP_ORB_SIZES: [u32; 11] = [2477, 1237, 617, 307, 149, 73, 37, 17, 7, 3, 1];
+/// Knockback adds `KNOCKBACK_VERTICAL × this` to the vertical velocity
+/// (before the cap), so a grounded mob leaves at the 0.4 cap.
+pub const KNOCKBACK_VERTICAL_SCALE: f64 = 1.2;
+/// Farthest a player's eye may be from the nearest point of a mob's box to
+/// land a melee hit (provisional: the client reaches 3 blocks in survival
+/// and 5 in creative per the Minecraft Wiki "Reach" page; this bound adds
+/// latency tolerance on top).
+pub const MELEE_REACH: f64 = 6.0;
+/// A mob counts as "last hit by a player" (loot `killed_by_player`,
+/// `query.last_hit_by_player`) for this many ticks after a player's hit
+/// (provisional: Java Edition `lastHurtByPlayerTime`).
+pub const LAST_HIT_BY_PLAYER_TICKS: u64 = 100;
+
+// --- Experience orbs (provisional: Java Edition `ExperienceOrb`; the spawn
+// velocity range is consistent with the native summon capture) -------------
+
+/// Orbs are removed this many ticks after spawning.
+pub const XP_ORB_LIFETIME_TICKS: u64 = 6000;
+/// Gravity subtracted before the move.
+pub const XP_ORB_GRAVITY: f64 = 0.03;
+/// Per-tick velocity multiplier (block friction also applies on the ground).
+pub const XP_ORB_DRAG: f64 = 0.98;
+/// Spawn velocity: x/z uniform in `±XP_ORB_SPAWN_HORIZONTAL`, y uniform in
+/// `[0, XP_ORB_SPAWN_VERTICAL)`.
+pub const XP_ORB_SPAWN_HORIZONTAL: f64 = 0.2;
+pub const XP_ORB_SPAWN_VERTICAL: f64 = 0.4;
+/// Orbs fly towards the nearest player within this distance …
+pub const XP_ORB_FOLLOW_RANGE: f64 = 8.0;
+/// … accelerating by `(1 − distance / range)² × this` per tick.
+pub const XP_ORB_FOLLOW_ACCELERATION: f64 = 0.1;
 
 // --- Breeding / ageing --------------------------------------------------------
 
@@ -158,9 +188,35 @@ pub const LOVE_TICKS: u32 = 600;
 /// Growth fraction per feed when `feed_items` gives none (provisional:
 /// Microsoft Learn `minecraft:ageable`).
 pub const AGEABLE_FEED_GROWTH: f32 = 0.1;
+/// Authored `ageable.duration` and `breedable.breed_cooldown` are seconds;
+/// the runtime counters are ticks at this rate.
+pub const TICKS_PER_SECOND: f32 = 20.0;
+
+// --- Legacy item names --------------------------------------------------------
+
+/// Modern item behind a legacy `bucket:<aux>` name in behaviour-pack data
+/// (the cow's milking row turns `bucket:0` into `bucket:1`). Provisional:
+/// Minecraft Wiki "Bucket" Bedrock data values, which pmmp's
+/// BedrockItemUpgradeSchema maps to the same flattened identifiers.
+pub const LEGACY_BUCKET_ITEMS: [(i16, &str); 11] = [
+    (0, "minecraft:bucket"),
+    (1, "minecraft:milk_bucket"),
+    (2, "minecraft:cod_bucket"),
+    (3, "minecraft:salmon_bucket"),
+    (4, "minecraft:tropical_fish_bucket"),
+    (5, "minecraft:pufferfish_bucket"),
+    (8, "minecraft:water_bucket"),
+    (10, "minecraft:lava_bucket"),
+    (11, "minecraft:powder_snow_bucket"),
+    (12, "minecraft:axolotl_bucket"),
+    (13, "minecraft:tadpole_bucket"),
+];
 
 // --- Despawn ------------------------------------------------------------------
 
+/// A chunk tick range (simulation distance, chunks) below this caps the
+/// instant-despawn distance at [`DESPAWN_SHORT_TICK_RANGE_DISTANCE`].
+pub const DESPAWN_SHORT_TICK_RANGE: i32 = 5;
 /// Instant-despawn distance when the chunk tick range is below 5.
 pub const DESPAWN_SHORT_TICK_RANGE_DISTANCE: f64 = 44.0;
 

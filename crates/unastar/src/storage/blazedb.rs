@@ -20,7 +20,7 @@ use tracing::{debug, error, info, warn};
 
 use super::cache::ShardedCache;
 use super::morton;
-use super::provider::{ChunkColumn, StorageError, StorageResult, WorldProvider};
+use super::provider::{ChunkColumn, StorageError, StorageResult, StoredActor, WorldProvider};
 use crate::world::block_entity::BlockEntity;
 use crate::world::{Chunk, ChunkPos};
 
@@ -30,9 +30,16 @@ const ENTRY_HEADER_LEN: usize = 24;
 const ENTRY_DATA_PREFIX_LEN: usize = 4;
 const MIN_ENTRY_SIZE: u32 = (ENTRY_HEADER_LEN + ENTRY_DATA_PREFIX_LEN) as u32;
 
+/// Version 4 appends the chunk's actors: count, then per actor its unique ID,
+/// NBT length and fixed-LE actor NBT.
 /// Version 3 appends length-prefixed concatenated fixed-LE block-entity NBT.
 /// Version 2 stores Data3D biomes; version 1's network biomes are skipped.
-const FORMAT_VERSION: u8 = 3;
+const FORMAT_VERSION: u8 = 4;
+
+/// First format version carrying block entities.
+const BLOCK_ENTITIES_VERSION: u8 = 3;
+/// First format version carrying actors.
+const ACTORS_VERSION: u8 = 4;
 
 /// First format version whose biome field is a Data3D value.
 const DATA3D_BIOMES_VERSION: u8 = 2;
@@ -579,6 +586,17 @@ impl BlazeDBProvider {
             .map_err(|_| StorageError::Serialization("block entities too large".into()))?;
         out[length_offset..length_offset + 4].copy_from_slice(&length.to_le_bytes());
 
+        let count = u32::try_from(col.actors.len())
+            .map_err(|_| StorageError::Serialization("too many actors".into()))?;
+        out.extend_from_slice(&count.to_le_bytes());
+        for actor in &col.actors {
+            let len = u32::try_from(actor.nbt.len())
+                .map_err(|_| StorageError::Serialization("actor NBT too large".into()))?;
+            out.extend_from_slice(&actor.unique_id.to_le_bytes());
+            out.extend_from_slice(&len.to_le_bytes());
+            out.extend_from_slice(&actor.nbt);
+        }
+
         Ok(out)
     }
 
@@ -647,7 +665,7 @@ impl BlazeDBProvider {
                 .map_err(|e| StorageError::Deserialization(format!("subchunk y={y}: {e}")))?;
             cursor += len;
         }
-        if version >= 3 {
+        if version >= BLOCK_ENTITIES_VERSION {
             if data.len() - cursor < 4 {
                 return Err(StorageError::Deserialization(
                     "Missing block-entity length".into(),
@@ -655,12 +673,18 @@ impl BlazeDBProvider {
             }
             let len = u32::from_le_bytes(data[cursor..cursor + 4].try_into().unwrap()) as usize;
             cursor += 4;
-            if len != data.len() - cursor {
+            // Before actors, the block-entity section ends the entry.
+            let invalid = if version >= ACTORS_VERSION {
+                len > data.len() - cursor
+            } else {
+                len != data.len() - cursor
+            };
+            if invalid {
                 return Err(StorageError::Deserialization(
                     "Invalid block-entity length".into(),
                 ));
             }
-            let mut input = &data[cursor..];
+            let mut input = &data[cursor..cursor + len];
             while !input.is_empty() {
                 let entity = BlockEntity::read_disk_nbt(&mut input)
                     .map_err(|e| StorageError::Deserialization(format!("block entity: {e}")))?;
@@ -673,11 +697,30 @@ impl BlazeDBProvider {
             }
             cursor += len;
         }
+        let mut column = ChunkColumn::new(chunk);
+        if version >= ACTORS_VERSION {
+            let truncated = || StorageError::Deserialization("Truncated actor data".into());
+            let count = data.get(cursor..cursor + 4).ok_or_else(truncated)?;
+            let count = u32::from_le_bytes(count.try_into().unwrap());
+            cursor += 4;
+            for _ in 0..count {
+                let header = data.get(cursor..cursor + 12).ok_or_else(truncated)?;
+                let unique_id = i64::from_le_bytes(header[..8].try_into().unwrap());
+                let len = u32::from_le_bytes(header[8..].try_into().unwrap()) as usize;
+                cursor += 12;
+                let nbt = data.get(cursor..cursor + len).ok_or_else(truncated)?;
+                column.actors.push(StoredActor {
+                    unique_id,
+                    nbt: nbt.to_vec(),
+                });
+                cursor += len;
+            }
+        }
         if cursor != data.len() {
             return Err(StorageError::Deserialization("Trailing chunk data".into()));
         }
 
-        Ok(ChunkColumn::new(chunk))
+        Ok(column)
     }
 }
 
@@ -839,7 +882,11 @@ impl WorldProvider for BlazeDBProvider {
         self.write_tx
             .send(WriteCommand::Save(req))
             .map_err(|_| StorageError::Database("Write channel closed".to_string()))?;
-        self.cache.put(morton, col.clone());
+        // Cache what a load returns: actors live inside the entry, so the
+        // save-only removal list has nothing to address.
+        let mut cached = col.clone();
+        cached.removed_actors.clear();
+        self.cache.put(morton, cached);
 
         Ok(())
     }
@@ -900,6 +947,10 @@ mod tests {
         }
     }
 
+    /// Bytes after the subchunk records of an entry without block entities
+    /// or actors: empty block-entity length plus zero actor count.
+    const EMPTY_TAIL_LEN: usize = 8;
+
     fn test_column(pos: ChunkPos) -> ChunkColumn {
         let mut chunk = Chunk::new(pos.x, pos.z);
         chunk
@@ -912,7 +963,7 @@ mod tests {
         std::fs::create_dir_all(dir).expect("create legacy db dir");
         let mut raw_data =
             BlazeDBProvider::serialize_chunk(&test_column(pos)).expect("serialize chunk");
-        raw_data.truncate(raw_data.len() - 4);
+        raw_data.truncate(raw_data.len() - EMPTY_TAIL_LEN);
         let morton = morton::encode(pos.x, pos.z, dim);
         let legacy_size = (ENTRY_HEADER_LEN + raw_data.len()) as u32;
 
@@ -1037,7 +1088,7 @@ mod tests {
         let mut column = test_column(ChunkPos::new(-2, 5));
         column.chunk.set_biome(7);
         let mut data = BlazeDBProvider::serialize_chunk(&column).expect("serialize");
-        data.truncate(data.len() - 4); // Version 2 ends after the subchunk records.
+        data.truncate(data.len() - EMPTY_TAIL_LEN); // Version 2 ends after the subchunk records.
         let restored = BlazeDBProvider::deserialize_chunk(-2, 5, 2, &data).expect("version 2");
         assert_eq!(restored.chunk.get_block(1, 0, 2), 42);
         assert_eq!(restored.chunk.biome_at(0, 0, 0), Some(7));
@@ -1050,10 +1101,12 @@ mod tests {
     fn malformed_block_entity_payloads_fail_without_partial_chunk_fallback() {
         let column = test_column(ChunkPos::new(0, 0));
         let empty = BlazeDBProvider::serialize_chunk(&column).expect("serialize");
-        let length_offset = empty.len() - 4;
+        let length_offset = empty.len() - EMPTY_TAIL_LEN;
         let actor = BlockEntity::generated([1, 70, 2], "Chest", &[], None, None);
         let mut nbt = Vec::new();
         actor.write_disk_nbt(&mut nbt).expect("disk nbt");
+        // Version 3 layout: the block-entity section ends the entry.
+        let version = BLOCK_ENTITIES_VERSION;
         let payload = |bytes: &[u8]| {
             let mut data = empty[..length_offset].to_vec();
             data.extend_from_slice(&(bytes.len() as u32).to_le_bytes());
@@ -1062,30 +1115,54 @@ mod tests {
         };
         let valid = payload(&nbt);
         let restored =
-            BlazeDBProvider::deserialize_chunk(0, 0, FORMAT_VERSION, &valid).expect("valid actor");
+            BlazeDBProvider::deserialize_chunk(0, 0, version, &valid).expect("valid actor");
         assert_eq!(restored.chunk.block_entities()[0].position(), [1, 70, 2]);
         for bytes in [&nbt[..nbt.len() - 1], &[0xff][..]] {
-            assert!(
-                BlazeDBProvider::deserialize_chunk(0, 0, FORMAT_VERSION, &payload(bytes)).is_err()
-            );
+            assert!(BlazeDBProvider::deserialize_chunk(0, 0, version, &payload(bytes)).is_err());
         }
         for position in [[16, 70, 2], [1, 320, 2], [1, -65, 2]] {
             let actor = BlockEntity::generated(position, "Chest", &[], None, None);
             let mut bytes = Vec::new();
             actor.write_disk_nbt(&mut bytes).expect("disk nbt");
-            assert!(
-                BlazeDBProvider::deserialize_chunk(0, 0, FORMAT_VERSION, &payload(&bytes)).is_err()
-            );
+            assert!(BlazeDBProvider::deserialize_chunk(0, 0, version, &payload(&bytes)).is_err());
         }
         let mut trailing = valid.clone();
         trailing.push(0);
-        assert!(BlazeDBProvider::deserialize_chunk(0, 0, FORMAT_VERSION, &trailing).is_err());
+        assert!(BlazeDBProvider::deserialize_chunk(0, 0, version, &trailing).is_err());
         for len in [length_offset, length_offset + 1, valid.len() - 1] {
-            assert!(
-                BlazeDBProvider::deserialize_chunk(0, 0, FORMAT_VERSION, &valid[..len]).is_err()
-            );
+            assert!(BlazeDBProvider::deserialize_chunk(0, 0, version, &valid[..len]).is_err());
         }
         assert!(BlazeDBProvider::deserialize_chunk(0, 0, FORMAT_VERSION + 1, &valid).is_err());
+    }
+
+    #[test]
+    fn actors_round_trip_inside_the_chunk_entry() {
+        let mut column = test_column(ChunkPos::new(4, -1));
+        column.actors = vec![
+            StoredActor {
+                unique_id: -4294967295,
+                nbt: vec![10, 0, 0, 0, 1],
+            },
+            StoredActor {
+                unique_id: 9,
+                nbt: vec![10, 0, 0],
+            },
+        ];
+        column.removed_actors = vec![5];
+        let data = BlazeDBProvider::serialize_chunk(&column).expect("serialize");
+        let restored =
+            BlazeDBProvider::deserialize_chunk(4, -1, FORMAT_VERSION, &data).expect("version 4");
+        assert_eq!(restored.actors, column.actors);
+        assert!(restored.removed_actors.is_empty());
+        assert_eq!(restored.chunk.get_block(1, 0, 2), 42);
+        for len in [data.len() - 1, data.len() - 4] {
+            assert!(
+                BlazeDBProvider::deserialize_chunk(4, -1, FORMAT_VERSION, &data[..len]).is_err()
+            );
+        }
+        let mut trailing = data.clone();
+        trailing.push(0);
+        assert!(BlazeDBProvider::deserialize_chunk(4, -1, FORMAT_VERSION, &trailing).is_err());
     }
 
     #[tokio::test]

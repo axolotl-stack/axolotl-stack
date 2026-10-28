@@ -149,7 +149,7 @@ impl GameServer {
         let health = world.get::<Health>(entity).cloned().unwrap_or_default();
         let hunger = world.get::<Hunger>(entity).cloned().unwrap_or_default();
         let experience = world.get::<Experience>(entity).cloned().unwrap_or_default();
-        let attributes = vec![
+        let mut attributes = vec![
             attr(
                 "minecraft:health",
                 health.current,
@@ -180,21 +180,8 @@ impl GameServer {
                 0.0,
                 5.0,
             ),
-            attr(
-                "minecraft:player.level",
-                experience.level as f32,
-                i32::MAX as f32,
-                0.0,
-                i32::MAX as f32,
-            ),
-            attr(
-                "minecraft:player.experience",
-                experience.progress,
-                1.0,
-                0.0,
-                1.0,
-            ),
         ];
+        attributes.extend(crate::entity::xp_orb::experience_attributes(&experience));
 
         let _ = session.send(McpePacket::from(UpdateAttributesPacket {
             target_runtime_id: ActorRuntimeId {

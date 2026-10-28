@@ -16,9 +16,11 @@ use bevy_ecs::prelude::*;
 use tracing::{debug, trace, warn};
 
 use crate::entity::components::{ChunkRadius, Player, PlayerSession, Position};
+use crate::entity::mob::persistence::{restore_chunk_actors, snapshot_chunks};
+use crate::world::ecs::manager::{block_on_storage, chunk_entity_components};
 use crate::world::ecs::{
-    ChunkData, ChunkEntities, ChunkLoader, ChunkManager, ChunkPendingUnload, ChunkPosition,
-    ChunkState, ChunkStateFlags, ChunkTickingState, ChunkViewers, PendingChunkGenerations,
+    ChunkData, ChunkLoader, ChunkManager, ChunkPendingUnload, ChunkPosition, ChunkState,
+    ChunkStateFlags, ChunkTickingState, ChunkViewers, PendingChunkGenerations,
 };
 use jolyne::valentine::types::{BlockPos, ChunkPos, DimensionType};
 use jolyne::valentine::{
@@ -489,8 +491,8 @@ pub fn process_completed_generations(
     // Check for completed generations (non-blocking)
     pending_gens.pending.retain_mut(|pending| {
         match pending.receiver.try_recv() {
-            Ok(Ok((chunk, was_loaded))) => {
-                completed.push((pending.x, pending.z, chunk, was_loaded));
+            Ok(Ok((column, was_loaded))) => {
+                completed.push((pending.x, pending.z, column, was_loaded));
                 false
             }
             Ok(Err(error)) => {
@@ -523,30 +525,22 @@ pub fn process_completed_generations(
     }
 
     // Process completed chunks
-    for (x, z, chunk, was_loaded) in completed {
+    for (x, z, column, was_loaded) in completed {
         // Get viewers that were waiting for this chunk
         let viewers = chunk_manager.complete_generation(x, z).unwrap_or_default();
 
         // Encode BEFORE spawning to avoid clone
-        let biome_data = chunk.encode_biomes();
-        let highest_subchunk = chunk.highest_subchunk();
+        let biome_data = column.chunk.encode_biomes();
+        let highest_subchunk = column.chunk.highest_subchunk();
 
-        // Spawn chunk entity
+        // Spawn chunk entity; stored actors are restored by `restore_chunk_actors`.
         let pos = ChunkPosition::new(x, z);
-        let entity = commands
-            .spawn((
-                pos,
-                ChunkData::new(chunk), // Move, not clone
-                ChunkState::Loaded,
-                ChunkViewers::default(),
-                ChunkEntities::default(),
-                if was_loaded {
-                    ChunkStateFlags::default()
-                } else {
-                    ChunkStateFlags::new_generated()
-                },
-            ))
-            .id();
+        let (components, actors) = chunk_entity_components(pos, column, was_loaded);
+        let mut spawned = commands.spawn(components);
+        if let Some(actors) = actors {
+            spawned.insert(actors);
+        }
+        let entity = spawned.id();
 
         chunk_manager.insert(pos, entity);
 
@@ -656,81 +650,42 @@ pub fn cancel_chunk_unloads(
 }
 
 /// System: Process pending chunk unloads.
-/// Ticks down grace period, saves modified chunks, and despawns when expired.
-#[allow(clippy::type_complexity)]
-pub fn process_chunk_unloads(
-    mut commands: Commands,
-    mut chunk_manager: ResMut<ChunkManager>,
-    mut chunks: Query<(
-        Entity,
-        &ChunkPosition,
-        &mut ChunkPendingUnload,
-        Option<&ChunkEntities>,
-        Option<&ChunkData>,
-        Option<&ChunkStateFlags>,
-    )>,
-) {
-    for (entity, pos, mut pending, chunk_entities, chunk_data, state_flags) in chunks.iter_mut() {
-        if pending.tick() {
-            // Grace period expired - unload the chunk
-
-            // First, freeze any non-player entities in the chunk
-            if let Some(entities) = chunk_entities
-                && !entities.is_empty()
-            {
-                trace!(
+/// Ticks down grace periods. An expired chunk is saved together with the mobs
+/// standing in it (when anything changed), then the mobs and the chunk are
+/// removed from the world.
+pub fn process_chunk_unloads(world: &mut World) {
+    let mut pending = world.query::<(Entity, &mut ChunkPendingUnload)>();
+    let expired: Vec<Entity> = pending
+        .iter_mut(world)
+        .filter_map(|(entity, mut grace)| grace.tick().then_some(entity))
+        .collect();
+    if expired.is_empty() {
+        return;
+    }
+    let (provider, dim) = {
+        let chunk_manager = world.resource::<ChunkManager>();
+        (chunk_manager.provider(), chunk_manager.dimension())
+    };
+    for snapshot in snapshot_chunks(world, &expired, true) {
+        let pos = snapshot.pos;
+        if let (Some(column), Some(provider)) = (snapshot.column, provider.clone()) {
+            match block_on_storage(async move { provider.save_column(pos, dim, &column).await }) {
+                Ok(()) => debug!(chunk = ?(pos.x, pos.z), "Saved chunk before unload"),
+                Err(e) => warn!(
                     chunk = ?(pos.x, pos.z),
-                    entity_count = entities.len(),
-                    "TODO: Freeze entities before chunk unload"
-                );
+                    error = %e,
+                    "Failed to save chunk before unload"
+                ),
             }
-
-            // Save modified chunks before despawning (check dirty flag)
-            let is_dirty = state_flags.map(|f| f.is_dirty()).unwrap_or(false);
-            if is_dirty
-                && let Some(chunk_data) = chunk_data
-                && let Some(provider) = chunk_manager.provider()
-            {
-                let chunk_pos = crate::world::ChunkPos::new(pos.x, pos.z);
-                let dim = chunk_manager.dimension();
-                let column = crate::storage::ChunkColumn::new(chunk_data.inner.clone());
-
-                // Block on async save (same pattern as load_or_generate_chunk)
-                if let Ok(handle) = tokio::runtime::Handle::try_current() {
-                    let save_result = std::thread::spawn(move || {
-                        handle.block_on(provider.save_column(chunk_pos, dim, &column))
-                    })
-                    .join();
-
-                    match save_result {
-                        Ok(Ok(())) => {
-                            debug!(chunk = ?(pos.x, pos.z), "Saved modified chunk before unload");
-                        }
-                        Ok(Err(e)) => {
-                            tracing::warn!(
-                                chunk = ?(pos.x, pos.z),
-                                error = %e,
-                                "Failed to save chunk before unload"
-                            );
-                        }
-                        Err(_) => {
-                            tracing::warn!(
-                                chunk = ?(pos.x, pos.z),
-                                "Thread panic while saving chunk"
-                            );
-                        }
-                    }
-                }
-            }
-
-            // Remove from chunk manager
-            chunk_manager.remove_by_coords(pos.x, pos.z);
-
-            // Despawn the chunk entity
-            commands.entity(entity).despawn();
-
-            debug!(chunk = ?(pos.x, pos.z), "Chunk unloaded");
         }
+        for mob in snapshot.mobs {
+            world.despawn(mob);
+        }
+        world
+            .resource_mut::<ChunkManager>()
+            .remove_by_coords(pos.x, pos.z);
+        world.despawn(snapshot.chunk);
+        debug!(chunk = ?(pos.x, pos.z), "Chunk unloaded");
     }
 }
 
@@ -970,6 +925,7 @@ pub fn register_chunk_systems(schedule: &mut bevy_ecs::schedule::Schedule) {
             request_chunk_generation,      // NEW: Non-blocking async request
             process_completed_generations, // NEW: Process async results
             process_chunk_load_queues,     // Handles sync cases + existing chunks
+            restore_chunk_actors,          // Mobs stored with chunks loaded above
             handle_radius_changes,
             schedule_chunk_unloads,
             cancel_chunk_unloads,

@@ -35,6 +35,15 @@ pub enum PropertyValue {
     Enum(i32),
 }
 
+/// A property value with enum values by label: how actors persist them.
+#[derive(Debug, Clone, Copy, PartialEq)]
+pub enum NamedPropertyValue<'a> {
+    Bool(bool),
+    Int(i32),
+    Float(f32),
+    Enum(&'a str),
+}
+
 #[derive(Debug, Clone)]
 enum Source {
     Literal(PropertyValue),
@@ -370,6 +379,75 @@ impl ActorProperties {
                 }
             }
         }
+    }
+
+    /// Every property by name with enum values by label, in layout order.
+    pub fn named_values(&self) -> impl Iterator<Item = (&str, NamedPropertyValue<'_>)> + '_ {
+        self.layout
+            .slots
+            .iter()
+            .zip(self.values.iter())
+            .map(|(slot, value)| {
+                let named = match (*value, &slot.kind) {
+                    (PropertyValue::Bool(value), _) => NamedPropertyValue::Bool(value),
+                    (PropertyValue::Int(value), _) => NamedPropertyValue::Int(value),
+                    (PropertyValue::Float(value), _) => NamedPropertyValue::Float(value),
+                    (PropertyValue::Enum(index), PropertyKind::Enum { values }) => {
+                        NamedPropertyValue::Enum(&values[index as usize])
+                    }
+                    (PropertyValue::Enum(_), _) => {
+                        unreachable!("enum values only live in enum slots")
+                    }
+                };
+                (&*slot.name, named)
+            })
+    }
+
+    /// Set a property by name from a persisted value. Numbers clamp into the
+    /// declared range; an undeclared name, a value of another kind or an
+    /// unknown enum label is an error. Returns whether the value changed.
+    pub fn set_named(
+        &mut self,
+        name: &str,
+        value: NamedPropertyValue<'_>,
+    ) -> Result<bool, PropertyError> {
+        let index = self
+            .layout
+            .slots
+            .binary_search_by(|slot| slot.name.as_ref().cmp(name))
+            .map_err(|_| error(&Arc::from(name), "not declared"))?;
+        let slot = &self.layout.slots[index];
+        let value = match (&slot.kind, value) {
+            (PropertyKind::Bool, NamedPropertyValue::Bool(value)) => PropertyValue::Bool(value),
+            (PropertyKind::Int { .. }, NamedPropertyValue::Int(value)) => {
+                coerce(&slot.name, &slot.kind, f64::from(value))?
+            }
+            (PropertyKind::Float { .. }, NamedPropertyValue::Float(value)) => {
+                coerce(&slot.name, &slot.kind, f64::from(value))?
+            }
+            (PropertyKind::Enum { values }, NamedPropertyValue::Enum(label)) => {
+                let index = values
+                    .iter()
+                    .position(|value| value == label)
+                    .ok_or_else(|| error(&slot.name, format!("unknown enum value {label:?}")))?;
+                PropertyValue::Enum(index as i32)
+            }
+            (_, value) => {
+                return Err(error(
+                    &slot.name,
+                    format!("{value:?} does not match the declared kind"),
+                ));
+            }
+        };
+        if value == self.values[index] {
+            return Ok(false);
+        }
+        self.values[index] = value;
+        self.revision = self.revision.wrapping_add(1);
+        if slot.sync_index.is_some() {
+            self.sync_revision = self.sync_revision.wrapping_add(1);
+        }
+        Ok(true)
     }
 }
 

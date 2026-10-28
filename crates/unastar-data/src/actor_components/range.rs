@@ -88,7 +88,10 @@ mod tests {
     #[test]
     fn every_authored_range_shape_decodes() {
         let range = |value| serde_json::from_value::<FloatRange>(value).unwrap();
-        assert_eq!(range(json!({"min": 2, "max": 4})), FloatRange { max: 4.0, min: 2.0 });
+        assert_eq!(
+            range(json!({"min": 2, "max": 4})),
+            FloatRange { max: 4.0, min: 2.0 }
+        );
         assert_eq!(range(json!({"max": 4})), FloatRange { max: 4.0, min: 0.0 });
         assert_eq!(range(json!(3.5)), FloatRange { max: 3.5, min: 3.5 });
         assert_eq!(range(json!([1, 7])), FloatRange { max: 7.0, min: 1.0 });

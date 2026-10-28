@@ -23,6 +23,7 @@ use unastar_data::actor_components::{ActorComponent, ComponentBody, FilterJson};
 use unastar_rules::filter::{Filter, FilterRegistry};
 use unastar_rules::molang::{Expr, QueryContext, QueryRegistry, parse};
 
+use super::ageing::BabyAge;
 use super::constants;
 use crate::entity::components::AirSupply;
 use crate::entity::definition::ComponentKindsBuilder;
@@ -529,20 +530,30 @@ pub fn register_component_kinds(builder: &mut ComponentKindsBuilder) -> Result<(
             conditions: conditions.into(),
         })
     })?;
-    insert(builder, |b: body::Despawn| {
-        if b.filters.is_some() {
-            return Err("despawn filters are not implemented".into());
-        }
-        Ok(DespawnConfig {
-            from_distance: b
-                .despawn_from_distance
-                .map(|d| (d.min_distance, d.max_distance)),
-            from_chance: b.despawn_from_chance,
-            from_inactivity: b.despawn_from_inactivity,
-            inactivity_seconds: b.min_range_inactivity_timer,
-            random_chance: b.min_range_random_chance,
-        })
-    })?;
+    // The inactivity anchor comes and goes with the despawn rules.
+    builder.register(
+        |b: body::Despawn| {
+            if b.filters.is_some() {
+                return Err("despawn filters are not implemented".into());
+            }
+            Ok(DespawnConfig {
+                from_distance: b
+                    .despawn_from_distance
+                    .map(|d| (d.min_distance, d.max_distance)),
+                from_chance: b.despawn_from_chance,
+                from_inactivity: b.despawn_from_inactivity,
+                inactivity_seconds: b.min_range_inactivity_timer,
+                random_chance: b.min_range_random_chance,
+            })
+        },
+        |config: &DespawnConfig, entity| {
+            let inactivity = super::despawn::Inactivity::starting_now(entity.world());
+            entity.insert((*config, inactivity));
+        },
+        |entity| {
+            entity.remove::<(DespawnConfig, super::despawn::Inactivity)>();
+        },
+    )?;
     builder.register(
         |_: body::PushableByEntity| Ok(()),
         |_, entity| set_pushable(entity, |p| p.by_entity = true),
@@ -553,42 +564,67 @@ pub fn register_component_kinds(builder: &mut ComponentKindsBuilder) -> Result<(
         |_, entity| set_pushable(entity, |p| p.by_block = true),
         |entity| set_pushable(entity, |p| p.by_block = false),
     )?;
-    insert(builder, |b: body::Ageable| {
-        let feed_items = b
-            .feed_items
-            .unwrap_or_default()
-            .iter()
-            .map(|entry| {
-                Ok(match entry {
-                    FeedItem::Item(name) => FeedEntry {
-                        item: ItemMatcher::parse(name)?,
-                        growth: constants::AGEABLE_FEED_GROWTH,
-                    },
-                    FeedItem::Entry(entry) => {
-                        if entry.result_item.is_some() {
-                            return Err("feed result items are not implemented".to_owned());
+    builder.register(
+        |b: body::Ageable| {
+            let feed_items = b
+                .feed_items
+                .unwrap_or_default()
+                .iter()
+                .map(|entry| {
+                    Ok(match entry {
+                        FeedItem::Item(name) => FeedEntry {
+                            item: ItemMatcher::parse(name)?,
+                            growth: constants::AGEABLE_FEED_GROWTH,
+                        },
+                        FeedItem::Entry(entry) => {
+                            if entry.result_item.is_some() {
+                                return Err("feed result items are not implemented".to_owned());
+                            }
+                            FeedEntry {
+                                item: ItemMatcher::parse(&entry.item)?,
+                                growth: entry.growth.unwrap_or(constants::AGEABLE_FEED_GROWTH),
+                            }
                         }
-                        FeedEntry {
-                            item: ItemMatcher::parse(&entry.item)?,
-                            growth: entry.growth.unwrap_or(constants::AGEABLE_FEED_GROWTH),
-                        }
-                    }
+                    })
                 })
+                .collect::<Result<Vec<_>, String>>()?;
+            if b.drop_items.is_some()
+                || b.transform_to_item.is_some()
+                || b.interact_filters.is_some()
+            {
+                return Err(
+                    "ageable drop/transform items and interact filters are not implemented".into(),
+                );
+            }
+            Ok(AgeableConfig {
+                duration: b.duration,
+                feed_items: feed_items.into(),
+                pause_growth_items: items(
+                    b.pause_growth_items.iter().flatten().map(String::as_str),
+                )?,
+                reset_growth_items: items(
+                    b.reset_growth_items.iter().flatten().map(String::as_str),
+                )?,
+                grow_up: b.grow_up.as_ref().map(self_event).transpose()?,
             })
-            .collect::<Result<Vec<_>, String>>()?;
-        if b.drop_items.is_some() || b.transform_to_item.is_some() || b.interact_filters.is_some() {
-            return Err(
-                "ageable drop/transform items and interact filters are not implemented".into(),
-            );
-        }
-        Ok(AgeableConfig {
-            duration: b.duration,
-            feed_items: feed_items.into(),
-            pause_growth_items: items(b.pause_growth_items.iter().flatten().map(String::as_str))?,
-            reset_growth_items: items(b.reset_growth_items.iter().flatten().map(String::as_str))?,
-            grow_up: b.grow_up.as_ref().map(self_event).transpose()?,
-        })
-    })?;
+        },
+        // Growth starts with the component; a re-applied composition (or a
+        // restored save) keeps the running deadline. A world without the
+        // server tick clock counts from tick 0.
+        |value: &AgeableConfig, entity| {
+            entity.insert(value.clone());
+            if !entity.contains::<BabyAge>() {
+                let now = entity
+                    .world()
+                    .get_resource::<crate::ecs::resources::TickCounter>()
+                    .map_or(0, |tick| tick.current);
+                entity.insert(BabyAge::new(value, now));
+            }
+        },
+        |entity| {
+            entity.remove::<(AgeableConfig, BabyAge)>();
+        },
+    )?;
     insert(builder, |b: body::Breedable| {
         let breed_items = b
             .breed_items

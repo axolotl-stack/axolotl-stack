@@ -22,9 +22,10 @@ use crate::registry::{BlockRegistry, ItemRegistry};
 const PLAYER_WIDTH: f64 = 0.6;
 const PLAYER_HEIGHT: f64 = 1.8;
 
-/// How far around the player's box items are touched (1 block horizontally,
-/// half a block vertically, as in dragonfly's player item collection).
-const PICKUP_REACH: DVec3 = DVec3::new(1.0, 0.5, 1.0);
+/// How far around the player's box items and experience orbs are touched
+/// (1 block horizontally, half a block vertically, as in dragonfly's player
+/// item collection).
+pub(crate) const PICKUP_REACH: DVec3 = DVec3::new(1.0, 0.5, 1.0);
 
 /// Network descriptor of a server stack. `None` if the item is not in the
 /// registry or its fields do not fit the wire types.
@@ -66,7 +67,7 @@ pub(crate) fn registry_stack(
 }
 
 /// Feet position of a player whose `Position` is the eye position.
-fn player_box(eye: DVec3) -> Aabb {
+pub(crate) fn player_box(eye: DVec3) -> Aabb {
     Aabb::from_feet(
         eye - DVec3::new(0.0, PLAYER_EYE_HEIGHT, 0.0),
         PLAYER_WIDTH,

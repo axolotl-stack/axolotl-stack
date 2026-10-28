@@ -1,5 +1,6 @@
 //! Chunk ECS components.
 
+use crate::storage::StoredActor;
 use crate::world::Chunk;
 use bevy_ecs::prelude::*;
 use bitflags::bitflags;
@@ -234,55 +235,27 @@ impl ChunkViewers {
     }
 }
 
-/// Component tracking entities currently inside this chunk.
-///
-/// Updated when entities cross chunk boundaries.
-/// Used for:
-/// - Entity save/freeze on chunk unload
-/// - Spatial queries (entities within a chunk)
-/// - Entity visibility broadcasts to chunk viewers
-///
-/// Note: This tracks entities by their physical position, not view radius.
+/// Actors read from storage with this chunk, waiting to be restored into the
+/// world by `entity::mob::persistence::restore_chunk_actors`. Transient, so
+/// sparse-set storage.
 #[derive(Component, Debug, Default)]
-pub struct ChunkEntities {
-    /// Non-player entities in this chunk (mobs, items, projectiles, etc.)
-    pub entities: Vec<Entity>,
+#[component(storage = "SparseSet")]
+pub struct PendingActorRestore(pub Vec<StoredActor>);
+
+/// What storage holds for this chunk's actors.
+#[derive(Component, Debug, Default)]
+pub struct ChunkActorStore {
+    /// Unique IDs in the chunk's stored actor list as of the last load or save.
+    pub stored: Vec<i64>,
+    /// Stored actors this server does not simulate (unknown or unsupported
+    /// identifiers): kept and written back unchanged.
+    pub foreign: Vec<StoredActor>,
 }
 
-impl ChunkEntities {
-    pub fn insert(&mut self, entity: Entity) {
-        if !self.entities.contains(&entity) {
-            self.entities.push(entity);
-        }
-    }
-
-    pub fn remove(&mut self, entity: Entity) {
-        self.entities.retain(|&e| e != entity);
-    }
-
-    pub fn contains(&self, entity: Entity) -> bool {
-        self.entities.contains(&entity)
-    }
-
-    pub fn iter(&self) -> impl Iterator<Item = Entity> + '_ {
-        self.entities.iter().copied()
-    }
-
-    pub fn len(&self) -> usize {
-        self.entities.len()
-    }
-
+impl ChunkActorStore {
+    /// Whether storage lists actors for this chunk or will have to.
     pub fn is_empty(&self) -> bool {
-        self.entities.is_empty()
-    }
-
-    pub fn clear(&mut self) {
-        self.entities.clear();
-    }
-
-    /// Take all entities, leaving the list empty.
-    pub fn take(&mut self) -> Vec<Entity> {
-        std::mem::take(&mut self.entities)
+        self.stored.is_empty() && self.foreign.is_empty()
     }
 }
 
@@ -419,24 +392,5 @@ mod tests {
         assert!(!viewers.contains(e1));
         assert!(viewers.contains(e2));
         assert!(!viewers.remove(e1)); // returns false when not present
-    }
-
-    #[test]
-    fn test_chunk_entities() {
-        use bevy_ecs::world::World;
-
-        let mut world = World::new();
-        let e1 = world.spawn_empty().id();
-        let e2 = world.spawn_empty().id();
-
-        let mut entities = ChunkEntities::default();
-
-        entities.insert(e1);
-        entities.insert(e2);
-        assert_eq!(entities.len(), 2);
-
-        let taken = entities.take();
-        assert_eq!(taken.len(), 2);
-        assert!(entities.is_empty());
     }
 }

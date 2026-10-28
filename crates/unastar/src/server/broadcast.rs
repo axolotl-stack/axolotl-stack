@@ -756,7 +756,8 @@ fn actor_spawn_packet(
 /// System: keep every non-player actor spawned on exactly the clients that
 /// view its chunk, and stream its movement to them.
 ///
-/// New viewers get the spawn packet (`AddItemActor` for items), players that
+/// New viewers get the spawn packet (`AddItemActor` for items, `AddActor`
+/// for falling blocks and experience orbs), players that
 /// no longer view the chunk get `RemoveActor`, and existing viewers get
 /// `MoveActorAbsolute` + `SetActorMotion` when the position or velocity
 /// changed and `ActorEvent(UpdateStackSize)` (event 69) when a merge or
@@ -778,13 +779,24 @@ pub fn sync_actor_viewers(
             Option<&ItemEntityStack>,
             Option<&ItemOwner>,
             Option<&FallingBlock>,
+            Option<&crate::entity::xp_orb::XpOrb>,
         ),
         // Mobs replicate through `entity::mob::network::sync_mob_viewers`.
         Without<crate::entity::components::Mob>,
     >,
 ) {
-    for (runtime_id, position, velocity, on_ground, body, mut viewers, stack, owner, falling) in
-        actors.iter_mut()
+    for (
+        runtime_id,
+        position,
+        velocity,
+        on_ground,
+        body,
+        mut viewers,
+        stack,
+        owner,
+        falling,
+        orb,
+    ) in actors.iter_mut()
     {
         let (cx, cz) = crate::world::ecs::world_to_chunk_coords(
             position.0.x.floor() as i32,
@@ -865,8 +877,14 @@ pub fn sync_actor_viewers(
             .copied()
             .filter(|v| !viewers.viewers.contains(v))
             .collect();
-        if !fresh.is_empty()
-            && let Some(spawn) = actor_spawn_packet(
+        let spawn = || match orb {
+            Some(orb) => Some(McpePacket::from(crate::entity::xp_orb::add_actor_packet(
+                runtime_id.0,
+                wire_position,
+                velocity.0,
+                orb,
+            ))),
+            None => actor_spawn_packet(
                 runtime_id.0,
                 wire_position,
                 velocity.0,
@@ -874,7 +892,10 @@ pub fn sync_actor_viewers(
                 falling,
                 body,
                 &items.0,
-            )
+            ),
+        };
+        if !fresh.is_empty()
+            && let Some(spawn) = spawn()
         {
             for viewer in &fresh {
                 if let Ok(session) = sessions.get(*viewer)

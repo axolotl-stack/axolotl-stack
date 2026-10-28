@@ -12,14 +12,19 @@
 //! `network::sync_mob_viewers`.
 
 pub mod actions;
+pub mod ageing;
 pub mod ai;
 pub mod archetype;
+pub mod breeding;
 pub mod combat;
 pub mod config;
 pub mod constants;
+pub mod death;
+pub mod despawn;
 pub mod events;
 pub mod interact;
 pub mod network;
+pub mod persistence;
 pub mod state;
 
 #[cfg(test)]
@@ -293,27 +298,26 @@ fn store(
     }
 }
 
+/// Derived-state outputs written by [`store`].
+type DeriveOutputs<'a> = (
+    &'a mut PhysicsBody,
+    &'a mut ActorFlags,
+    &'a mut EntityMetadata,
+    &'a mut ActorAttributes,
+);
+
+/// Changes that require re-deriving a mob's state.
+type DeriveTrigger = Or<(
+    Changed<crate::entity::definition::DefinitionState>,
+    Changed<Health>,
+    Changed<AirSupply>,
+)>;
+
 /// System: re-derive body, flags, metadata and attributes of mobs whose
 /// composition, health or air changed. Runs right after the definition
 /// apply barrier, before physics.
-#[allow(clippy::type_complexity)]
-pub fn derive_mob_state(
-    mut mobs: Query<
-        (
-            DeriveInputs<'_>,
-            &mut PhysicsBody,
-            &mut ActorFlags,
-            &mut EntityMetadata,
-            &mut ActorAttributes,
-        ),
-        Or<(
-            Changed<crate::entity::definition::DefinitionState>,
-            Changed<Health>,
-            Changed<AirSupply>,
-        )>,
-    >,
-) {
-    for (inputs, mut body, mut flags, mut metadata, mut attributes) in &mut mobs {
+pub fn derive_mob_state(mut mobs: Query<(DeriveInputs<'_>, DeriveOutputs<'_>), DeriveTrigger>) {
+    for (inputs, (mut body, mut flags, mut metadata, mut attributes)) in &mut mobs {
         let archetype = Arc::clone(&inputs.0.0);
         let derived = derive(inputs);
         store(
@@ -327,19 +331,12 @@ pub fn derive_mob_state(
     }
 }
 
-/// Derive one mob immediately (spawn path).
-fn derive_entity(world: &mut World, entity: Entity) {
-    let mut state: SystemState<
-        Query<(
-            DeriveInputs<'_>,
-            &mut PhysicsBody,
-            &mut ActorFlags,
-            &mut EntityMetadata,
-            &mut ActorAttributes,
-        )>,
-    > = SystemState::new(world);
-    let mut query = state.get_mut(world);
-    if let Ok((inputs, mut body, mut flags, mut metadata, mut attributes)) = query.get_mut(entity) {
+/// Derive one mob immediately (spawn and restore paths).
+pub(crate) fn derive_entity(world: &mut World, entity: Entity) {
+    let mut query = world.query::<(DeriveInputs<'_>, DeriveOutputs<'_>)>();
+    if let Ok((inputs, (mut body, mut flags, mut metadata, mut attributes))) =
+        query.get_mut(world, entity)
+    {
         let archetype = Arc::clone(&inputs.0.0);
         let derived = derive(inputs);
         store(
@@ -352,5 +349,3 @@ fn derive_entity(world: &mut World, entity: Entity) {
         );
     }
 }
-
-use bevy_ecs::system::SystemState;

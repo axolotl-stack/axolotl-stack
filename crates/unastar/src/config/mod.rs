@@ -98,6 +98,7 @@ impl UnastarConfig {
             default_chunk_radius: self.server.default_chunk_radius,
             max_chunk_radius: self.server.max_chunk_radius,
             default_gamemode: gamemode,
+            operators: self.server.operators.clone(),
             // Use defaults for new fields not in config file yet
             simulation_distance: defaults.simulation_distance,
             chunk_unload_ticks: defaults.chunk_unload_ticks,
@@ -162,6 +163,10 @@ pub struct ServerConfigFile {
     pub encryption_enabled: bool,
     /// Require clients to accept advertised resource packs.
     pub require_resource_packs: bool,
+    /// Players granted operator permission (`/tp`, `/summon`) when they
+    /// join, by display name (case-insensitive) or XUID. Without
+    /// `online_mode` names and XUIDs are not verified.
+    pub operators: Vec<String>,
 }
 
 impl Default for ServerConfigFile {
@@ -177,6 +182,7 @@ impl Default for ServerConfigFile {
             allow_legacy_auth: true,
             encryption_enabled: true,
             require_resource_packs: false,
+            operators: Vec::new(),
         }
     }
 }

@@ -2,14 +2,15 @@
 //!
 //! Chunks are ECS entities with components for global state (loaded, dirty, ticking).
 //! - `ChunkViewers` tracks player sessions with this chunk in their view radius.
-//! - `ChunkEntities` tracks non-player entities physically inside the chunk.
+//! - `ChunkActorStore` records which actors storage holds for the chunk;
+//!   `PendingActorRestore` carries loaded actors until they are restored.
 //! - Per-player sent chunks are tracked via `ChunkLoader` on player entities.
 //!
 //! ## Systems
 //! - `update_chunk_loaders` - Handles player movement across chunks
 //! - `process_chunk_load_queues` - Sends chunks to players center-outward
 //! - `schedule_chunk_unloads` - Marks chunks with no viewers for unload
-//! - `process_chunk_unloads` - Despawns chunks after grace period
+//! - `process_chunk_unloads` - Saves chunks with their mobs, then despawns both
 //!
 //! Note: `initialize_chunk_loaders` has been removed. ChunkLoader and LastPublisherState
 //! are now included in PlayerBundle at spawn time to avoid archetype changes.
@@ -32,8 +33,9 @@ pub mod manager;
 pub mod systems;
 
 pub use components::{
-    ChunkData, ChunkEntities, ChunkFlags, ChunkPendingUnload, ChunkPosition, ChunkState,
-    ChunkStateFlags, ChunkTickingState, ChunkViewers, PendingChunkGenerations, PendingGeneration,
+    ChunkActorStore, ChunkData, ChunkFlags, ChunkPendingUnload, ChunkPosition, ChunkState,
+    ChunkStateFlags, ChunkTickingState, ChunkViewers, PendingActorRestore, PendingChunkGenerations,
+    PendingGeneration,
 };
 pub use events::{BlockBroadcastEvent, BlockChanged, PlayerDespawnedEvent, PlayerSpawnedEvent};
 pub use loader::ChunkLoader;
