@@ -17,7 +17,7 @@ use super::nearby::{MobView, Nearby, PlayerView};
 use super::path::{PathBlockTable, WalkPolicy, find_path, ground_below, random_targets};
 use crate::entity::components::PhysicsBody;
 use crate::entity::goal_selector::{GoalCallbacks, GoalControls, GoalId, GoalKind, GoalSpec};
-use crate::entity::mob::config::{
+use crate::entity::mob::components::{
     BreedGoal, BreedableConfig, EatBlockGoal, FloatGoal, FollowParentGoal, LookAtPlayerGoal,
     PanicGoal, RandomLookAroundGoal, RandomStrollGoal, TemptGoal, WalkNavigationConfig,
 };

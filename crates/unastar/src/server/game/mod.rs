@@ -151,7 +151,7 @@ impl GameServer {
             .expect("embedded vanilla recipes compile against the item registry");
         let definitions = crate::registry::entity::ActorDefinitionRegistry::vanilla();
         let actor_properties =
-            crate::entity::properties::ActorPropertyRegistry::compile(&definitions)
+            crate::entity::definition::properties::ActorPropertyRegistry::compile(&definitions)
                 .expect("vanilla actor property schemas and measured wire kinds");
         let mobs =
             crate::entity::mob::MobRegistry::compile(&definitions, &actor_properties, &items)
@@ -252,9 +252,9 @@ impl GameServer {
             .init_resource::<packet_queues::InventoryEvents>();
         ecs.world_mut().init_resource::<packet_queues::ChatEvents>();
         ecs.world_mut()
-            .init_resource::<crate::entity::mob::actions::MobActionQueue>();
+            .init_resource::<crate::entity::mob::interaction::actions::MobActionQueue>();
         ecs.world_mut()
-            .init_resource::<crate::entity::mob::projectile::ThrowQueue>();
+            .init_resource::<crate::entity::projectile::ThrowQueue>();
         ecs.world_mut()
             .init_resource::<bevy_ecs::message::Messages<crate::entity::mob::state::MateRequest>>();
 
@@ -280,14 +280,14 @@ impl GameServer {
         // Player attacks/interactions with mobs (exclusive), after inventory
         // so the held item reflects this tick's slot changes.
         ecs.schedule_mut().add_systems(
-            crate::entity::mob::actions::apply_mob_actions
+            crate::entity::mob::interaction::actions::apply_mob_actions
                 .in_set(PacketApplySet)
                 .after(inventory::apply_inventory)
                 .after(blocks::apply_block_actions),
         );
         // Thrown items (eggs) queued by the inventory system's item use.
         ecs.schedule_mut().add_systems(
-            crate::entity::mob::projectile::apply_throws
+            crate::entity::projectile::apply_throws
                 .in_set(PacketApplySet)
                 .after(inventory::apply_inventory),
         );
@@ -312,7 +312,7 @@ impl GameServer {
         );
         // Projectiles fly after the living bodies moved.
         ecs.schedule_mut().add_systems(
-            crate::entity::mob::projectile::tick_projectiles
+            crate::entity::projectile::tick_projectiles
                 .in_set(PhysicsSet)
                 .after(tick_physics),
         );
@@ -372,10 +372,10 @@ impl GameServer {
         // same tick.
         ecs.schedule_mut().add_systems(
             (
-                crate::entity::mob::fall::apply_fall_damage,
+                crate::entity::mob::combat::fall::apply_fall_damage,
                 crate::entity::mob::combat::hurt_on_condition,
-                crate::entity::mob::death::die_at_zero_health,
-                crate::entity::mob::death::tick_dying,
+                crate::entity::mob::combat::death::die_at_zero_health,
+                crate::entity::mob::combat::death::tick_dying,
                 crate::entity::xp_orb::tick_xp_orbs,
             )
                 .chain()
@@ -386,8 +386,8 @@ impl GameServer {
         // Love and breed-cooldown timers and mating, then baby growth.
         ecs.schedule_mut().add_systems(
             (
-                crate::entity::mob::breeding::tick_breeding,
-                crate::entity::mob::ageing::tick_baby_growth,
+                crate::entity::mob::life::breeding::tick_breeding,
+                crate::entity::mob::life::ageing::tick_baby_growth,
             )
                 .chain()
                 .in_set(EntityLogicSet)
@@ -397,8 +397,8 @@ impl GameServer {
         // `minecraft:spawn_entity` (egg laying) and ambient sound names.
         ecs.schedule_mut().add_systems(
             (
-                crate::entity::mob::spawn_entity::tick_spawn_entity,
-                crate::entity::mob::ambient::update_ambient_sound_names,
+                crate::entity::mob::life::spawn_entity::tick_spawn_entity,
+                crate::entity::mob::net::ambient::update_ambient_sound_names,
             )
                 .chain()
                 .in_set(EntityLogicSet)
@@ -407,7 +407,7 @@ impl GameServer {
         );
         // Natural despawning of mobs far from every player.
         ecs.schedule_mut().add_systems(
-            crate::entity::mob::despawn::despawn_mobs
+            crate::entity::mob::life::despawn::despawn_mobs
                 .in_set(EntityLogicSet)
                 .after(despawn_dead),
         );
@@ -415,7 +415,7 @@ impl GameServer {
         ecs.schedule_mut().add_systems(
             crate::entity::spawning::natural_spawning
                 .in_set(EntityLogicSet)
-                .after(crate::entity::mob::despawn::despawn_mobs),
+                .after(crate::entity::mob::life::despawn::despawn_mobs),
         );
         ecs.schedule_mut().add_systems(
             (
@@ -425,7 +425,7 @@ impl GameServer {
                 broadcast_despawn_system,
                 broadcast_block_updates,
                 sync_actor_viewers,
-                crate::entity::mob::network::sync_mob_viewers,
+                crate::entity::mob::net::network::sync_mob_viewers,
             )
                 .chain()
                 .in_set(NetworkSendSet),

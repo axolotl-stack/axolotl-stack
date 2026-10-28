@@ -779,7 +779,7 @@ fn handle_block_click(
             .is_some_and(|slot| data.slot == i32::from(slot.0));
     if main_hand_selected
         && block_at(world, clicked).is_some_and(|block| block != *blocks::AIR)
-        && crate::entity::mob::interact::use_spawn_egg_on_block(
+        && crate::entity::mob::interaction::interact::use_spawn_egg_on_block(
             world,
             entity,
             IVec3::new(position.0, position.1, position.2),

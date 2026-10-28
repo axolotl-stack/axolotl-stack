@@ -220,9 +220,13 @@ pub struct NaturalSpawnRules {
 #[derive(Debug, thiserror::Error)]
 pub enum RuleError {
     #[error("{0} is not implemented")]
-    Unimplemented(String),
+    Unimplemented(&'static str),
     #[error("biome filter: {0}")]
-    BiomeFilter(String),
+    BiomeFilterParse(#[from] unastar_rules::ParseError),
+    #[error("biome filter: {0:?}")]
+    BiomeFilterDiagnostics(Vec<unastar_rules::Diagnostic>),
+    #[error("biome filter: test {0} is not implemented")]
+    BiomeFilterTest(String),
 }
 
 impl NaturalSpawnRules {
@@ -304,8 +308,7 @@ fn compile_entry(
 ) -> Result<(SpawnEntry, Option<Filter>), RuleError> {
     if condition.is_experimental.is_some() {
         return Err(RuleError::Unimplemented(
-            "minecraft:is_experimental (experimental gameplay is off, the condition never applies)"
-                .into(),
+            "minecraft:is_experimental (experimental gameplay is off, the condition never applies)",
         ));
     }
     for (present, name) in [
@@ -324,7 +327,7 @@ fn compile_entry(
         ),
     ] {
         if present {
-            return Err(RuleError::Unimplemented(name.into()));
+            return Err(RuleError::Unimplemented(name));
         }
     }
     let filter = condition
@@ -465,19 +468,18 @@ fn compile_biome_filter(json: &serde_json::Value) -> Result<Filter, RuleError> {
         FilterRegistry::vanilla(),
         "biome_filter",
         &mut diagnostics,
-    )
-    .map_err(|e| RuleError::BiomeFilter(e.to_string()))?;
+    )?;
     if !diagnostics.items.is_empty() {
-        return Err(RuleError::BiomeFilter(format!("{:?}", diagnostics.items)));
+        return Err(RuleError::BiomeFilterDiagnostics(diagnostics.items));
     }
     let mut failure = None;
     filter.for_each_test(&mut |test| {
         if failure.is_none() && test.builtin() != Some(BuiltinTest::HasBiomeTag) {
-            failure = Some(format!("test {} is not implemented", test.name));
+            failure = Some(test.name.clone());
         }
     });
     match failure {
-        Some(failure) => Err(RuleError::BiomeFilter(failure)),
+        Some(test) => Err(RuleError::BiomeFilterTest(test)),
         None => Ok(filter),
     }
 }
@@ -537,7 +539,7 @@ fn block_set(
             body::BlockDescriptor::BlockDescriptorProxy(proxy) => {
                 if !proxy.states.is_empty() || !proxy.tags.is_empty() {
                     return Err(RuleError::Unimplemented(
-                        "block descriptors with states or tags".into(),
+                        "block descriptors with states or tags",
                     ));
                 }
                 proxy.name.as_str()

@@ -171,7 +171,7 @@ impl GameServer {
                 ) = pk.transaction
                 {
                     if let Some(mut q) =
-                        world.get_resource_mut::<crate::entity::mob::actions::MobActionQueue>()
+                        world.get_resource_mut::<crate::entity::mob::interaction::actions::MobActionQueue>()
                     {
                         q.0.push((entity, on_actor));
                     }

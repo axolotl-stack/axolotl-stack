@@ -25,7 +25,7 @@ pub struct LastHurt {
 }
 
 /// The mob has died and is playing its death animation (see
-/// `mob::death`). Written by combat when health reaches zero; AI,
+/// `mob::combat::death`). Written by combat when health reaches zero; AI,
 /// movement, interaction and despawn systems skip mobs carrying it. The
 /// entity is removed `constants::DEATH_TICKS` later.
 #[derive(Component, Debug, Clone, Copy, PartialEq, Eq, Default)]

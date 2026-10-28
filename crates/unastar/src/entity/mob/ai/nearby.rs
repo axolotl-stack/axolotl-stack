@@ -6,7 +6,7 @@ use glam::DVec3;
 use jolyne::valentine::actor_flags;
 
 use crate::entity::components::{PhysicsBody, Player, Position, Rotation};
-use crate::entity::flags::ActorFlags;
+use crate::entity::definition::flags::ActorFlags;
 use crate::entity::item_drop::PLAYER_EYE_HEIGHT;
 use crate::entity::mob::state::{Dead, InLove};
 use crate::registry::collision::Aabb;

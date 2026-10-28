@@ -23,7 +23,7 @@ use unastar_rules::molang::{BuiltinQuery, QueryId};
 
 use crate::entity::components::{PlayerSession, Position};
 use crate::entity::mob::MobKind;
-use crate::entity::mob::config::EatBlockGoal;
+use crate::entity::mob::components::EatBlockGoal;
 use crate::entity::mob::constants::{
     LEVEL_EVENT_PARTICLES_DESTROY_BLOCK, MOB_GRIEFING_DEFAULT, MOB_GRIEFING_RULE,
 };

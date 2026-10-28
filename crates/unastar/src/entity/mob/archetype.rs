@@ -12,6 +12,7 @@ use std::sync::Arc;
 
 use bevy_ecs::prelude::Resource;
 use serde_json::Value;
+use thiserror::Error;
 use unastar_data::actor_components::ActorComponent;
 use unastar_data::actor_definitions::ActorDefinition;
 use unastar_data::actor_identifiers::ActorType;
@@ -19,35 +20,85 @@ use unastar_rules::event::EventAction;
 use unastar_rules::filter::{BuiltinTest, Filter, Subject};
 use unastar_rules::molang::QueryRegistry;
 
-use crate::entity::attributes::{AttributeId, AttributeLayout, AttributeValue};
-use crate::entity::definition::{CompiledDefinition, ComponentKinds, ComponentKindsBuilder};
-use crate::entity::events::{
-    ActionBinding, CompiledEvents, EventBindings, EventHandle, ExternalEventBinding, FilterBinding,
+use super::native::NativeTraits;
+use crate::entity::definition::attributes::{
+    AttributeError, AttributeId, AttributeLayout, AttributeValue,
 };
-use crate::entity::families::{FamilyRegistry, FamilyRegistryBuilder};
-use crate::entity::properties::{ActorPropertyRegistry, PropertyLayout};
+use crate::entity::definition::events::{
+    ActionBinding, CompiledEvents, EventBindings, EventCompileError, EventHandle,
+    ExternalEventBinding, FilterBinding,
+};
+use crate::entity::definition::families::{FamilyError, FamilyRegistry, FamilyRegistryBuilder};
+use crate::entity::definition::properties::{ActorPropertyRegistry, PropertyError, PropertyLayout};
+use crate::entity::definition::{
+    CompiledDefinition, ComponentKinds, ComponentKindsBuilder, DefinitionError,
+};
+use crate::entity::projectile::{self, ProjectileError};
 use crate::registry::ItemRegistry;
 use crate::registry::entity::ActorDefinitionRegistry;
 
-use super::native::NativeTraits;
+/// A filter test the mob runtime cannot answer (see [`check_filter`]).
+#[derive(Debug, Error)]
+#[error("filter test {test} on {subject} is not implemented")]
+pub struct UnsupportedFilterTest {
+    pub test: String,
+    pub subject: &'static str,
+}
+
+/// Why an archetype's events cannot bind a filter, action or external event.
+#[derive(Debug, Error)]
+pub enum BindingError {
+    #[error(transparent)]
+    Filter(#[from] UnsupportedFilterTest),
+    #[error("event action {0} is not implemented")]
+    Action(&'static str),
+    #[error("event {event} targeting {target} is not implemented")]
+    ExternalEvent { event: String, target: &'static str },
+}
+
+/// Why a definition cannot become a spawnable archetype.
+#[derive(Debug, Error)]
+pub enum ArchetypeError {
+    #[error("{0} is not a native actor type")]
+    NotNativeActor(String),
+    #[error(transparent)]
+    Definition(#[from] DefinitionError),
+    #[error("a projectile component in a component group is not implemented")]
+    ProjectileInGroup,
+    #[error(transparent)]
+    Properties(#[from] PropertyError),
+    #[error(transparent)]
+    Events(#[from] EventCompileError<BindingError>),
+    #[error("{0}: no native AddActor attribute observation")]
+    NoAttributeObservation(String),
+    #[error(transparent)]
+    Attributes(#[from] AttributeError),
+    /// What the projectile spawns on hit is not spawnable.
+    #[error(transparent)]
+    Projectile(#[from] ProjectileError),
+}
+
+/// Why the mob registry cannot be built at all (as opposed to one
+/// definition being unsupported, which [`MobRegistry`] records).
+#[derive(Debug, Error)]
+pub enum MobRegistryError {
+    #[error(transparent)]
+    Families(#[from] FamilyError),
+    #[error(transparent)]
+    Kinds(#[from] DefinitionError),
+}
 
 /// Every component kind a mob can use, frozen once for the process.
 pub fn component_kinds(
     families: &Arc<FamilyRegistry>,
     items: &Arc<ItemRegistry>,
-) -> Result<Arc<ComponentKinds>, String> {
+) -> Result<Arc<ComponentKinds>, DefinitionError> {
     let mut builder = ComponentKindsBuilder::default();
-    crate::entity::definition_components::register_component_kinds(&mut builder)?;
-    crate::entity::flags::register_component_kinds(&mut builder)?;
+    crate::entity::definition::components::register_component_kinds(&mut builder)?;
+    crate::entity::definition::flags::register_component_kinds(&mut builder)?;
     families.register_component_kind(&mut builder)?;
-    super::config::register_component_kinds(&mut builder)?;
-    super::color::register_component_kinds(&mut builder)?;
-    super::shearing::register_component_kinds(&mut builder)?;
-    super::damage_sensor::register_component_kinds(&mut builder)?;
-    super::ambient::register_component_kinds(&mut builder)?;
-    super::spawn_entity::register_component_kinds(&mut builder, items)?;
-    super::combat::register_component_kinds(&mut builder)?;
-    super::projectile::register_component_kinds(&mut builder, items)?;
+    super::components::register_component_kinds(&mut builder, items)?;
+    projectile::register_component_kinds(&mut builder, items)?;
     Ok(builder.freeze())
 }
 
@@ -79,30 +130,32 @@ struct MobBindings {
 }
 
 impl EventBindings for MobBindings {
-    fn filter(&mut self, filter: &Filter) -> Result<FilterBinding, String> {
+    type Error = BindingError;
+
+    fn filter(&mut self, filter: &Filter) -> Result<FilterBinding, BindingError> {
         check_filter(filter)?;
         self.filters.push(filter.clone());
         Ok(FilterBinding((self.filters.len() - 1) as u32))
     }
 
-    fn action(&mut self, action: EventAction, _: &Value) -> Result<ActionBinding, String> {
-        Err(format!("event action {} is not implemented", action.key()))
+    fn action(&mut self, action: EventAction, _: &Value) -> Result<ActionBinding, BindingError> {
+        Err(BindingError::Action(action.key()))
     }
 
     fn external_event(
         &mut self,
         target: Subject,
         event: &str,
-    ) -> Result<ExternalEventBinding, String> {
-        Err(format!(
-            "event {event} targeting {} is not implemented",
-            target.name()
-        ))
+    ) -> Result<ExternalEventBinding, BindingError> {
+        Err(BindingError::ExternalEvent {
+            event: event.to_owned(),
+            target: target.name(),
+        })
     }
 }
 
 /// Reject a filter containing any test the runtime cannot answer.
-pub(super) fn check_filter(filter: &Filter) -> Result<(), String> {
+pub(super) fn check_filter(filter: &Filter) -> Result<(), UnsupportedFilterTest> {
     let mut failure = None;
     filter.for_each_test(&mut |test| {
         if failure.is_some() {
@@ -111,11 +164,10 @@ pub(super) fn check_filter(filter: &Filter) -> Result<(), String> {
         match test.builtin() {
             Some(builtin) if supported_test(builtin, test.subject) => {}
             _ => {
-                failure = Some(format!(
-                    "filter test {} on {} is not implemented",
-                    test.name,
-                    test.subject.name()
-                ))
+                failure = Some(UnsupportedFilterTest {
+                    test: test.name.clone(),
+                    subject: test.subject.name(),
+                })
             }
         }
     });
@@ -163,7 +215,7 @@ impl MobArchetype {
         source: &Arc<ActorDefinition>,
         kinds: &Arc<ComponentKinds>,
         properties: &ActorPropertyRegistry,
-    ) -> Result<Self, String> {
+    ) -> Result<Self, ArchetypeError> {
         let identifier = source.identifier();
         let runtime_identifier = source
             .description
@@ -171,7 +223,7 @@ impl MobArchetype {
             .as_deref()
             .unwrap_or(identifier);
         let actor_type = ActorType::from_name(runtime_identifier)
-            .ok_or_else(|| format!("{runtime_identifier} is not a native actor type"))?;
+            .ok_or_else(|| ArchetypeError::NotNativeActor(runtime_identifier.to_owned()))?;
         let definition = CompiledDefinition::compile(source, Arc::clone(kinds))?;
         let projectile_name = ActorComponent::Projectile.name();
         let projectile = source.components.contains_key(projectile_name);
@@ -181,13 +233,11 @@ impl MobArchetype {
                 .values()
                 .any(|group| group.contains_key(projectile_name))
         {
-            return Err("a projectile component in a component group is not implemented".into());
+            return Err(ArchetypeError::ProjectileInGroup);
         }
         let layout = match properties.get(identifier) {
             Some(layout) => Arc::clone(layout),
-            None => {
-                Arc::new(PropertyLayout::compile(&source.description).map_err(|e| e.to_string())?)
-            }
+            None => Arc::new(PropertyLayout::compile(&source.description)?),
         };
         let mut bindings = MobBindings::default();
         let events = CompiledEvents::compile(
@@ -196,8 +246,7 @@ impl MobArchetype {
             &layout,
             QueryRegistry::vanilla(),
             &mut bindings,
-        )
-        .map_err(|e| e.to_string())?;
+        )?;
         let (attributes, attribute_seed) = attribute_seed(identifier)?;
         let attributes = Arc::new(attributes);
         Ok(Self {
@@ -228,16 +277,17 @@ impl MobArchetype {
 /// (`minecraft:health`, `minecraft:movement`) after composition; the other
 /// rows keep the observed value, which matches their constructor state
 /// (absorption 0, luck 0, modifiers 1, bounciness 0).
-fn attribute_seed(identifier: &str) -> Result<(AttributeLayout, Box<[AttributeValue]>), String> {
+fn attribute_seed(
+    identifier: &str,
+) -> Result<(AttributeLayout, Box<[AttributeValue]>), ArchetypeError> {
     let observed = unastar_data::actor_wire::get(identifier)
-        .ok_or_else(|| format!("{identifier}: no native AddActor attribute observation"))?;
+        .ok_or_else(|| ArchetypeError::NoAttributeObservation(identifier.to_owned()))?;
     let layout = AttributeLayout::new(
         observed
             .attributes
             .iter()
             .map(|row| Arc::<str>::from(row.name.as_str())),
-    )
-    .map_err(|e| e.to_string())?;
+    )?;
     let values = observed
         .attributes
         .iter()
@@ -265,7 +315,7 @@ fn format_before(version: &str, limit: [u32; 3]) -> bool {
 #[derive(Resource, Clone)]
 pub struct MobRegistry {
     archetypes: Arc<BTreeMap<Arc<str>, Arc<MobArchetype>>>,
-    unsupported: Arc<BTreeMap<Arc<str>, String>>,
+    unsupported: Arc<BTreeMap<Arc<str>, Arc<ArchetypeError>>>,
     families: Arc<FamilyRegistry>,
 }
 
@@ -274,7 +324,7 @@ impl MobRegistry {
         definitions: &ActorDefinitionRegistry,
         properties: &ActorPropertyRegistry,
         items: &Arc<ItemRegistry>,
-    ) -> Result<Self, String> {
+    ) -> Result<Self, MobRegistryError> {
         let mut family_builder = FamilyRegistryBuilder::default();
         for definition in definitions.iter() {
             family_builder.register_definition(definition)?;
@@ -290,26 +340,26 @@ impl MobRegistry {
                     archetypes.insert(id, Arc::new(archetype));
                 }
                 Err(reason) => {
-                    unsupported.insert(id, reason);
+                    unsupported.insert(id, Arc::new(reason));
                 }
             }
         }
         // What a projectile spawns on hit must itself be spawnable; checked
         // once every archetype is compiled.
-        let broken: Vec<(Arc<str>, String)> = archetypes
+        let broken: Vec<(Arc<str>, ArchetypeError)> = archetypes
             .iter()
             .filter(|(_, archetype)| archetype.projectile)
             .filter_map(|(id, archetype)| {
-                super::projectile::check_spawns(archetype, items, |name| {
+                projectile::check_spawns(archetype, items, |name| {
                     archetypes.get(name).map(Arc::clone)
                 })
                 .err()
-                .map(|error| (Arc::clone(id), error.to_string()))
+                .map(|error| (Arc::clone(id), error.into()))
             })
             .collect();
         for (id, reason) in broken {
             archetypes.remove(&id);
-            unsupported.insert(id, reason);
+            unsupported.insert(id, Arc::new(reason));
         }
         Ok(Self {
             archetypes: Arc::new(archetypes),
@@ -323,8 +373,13 @@ impl MobRegistry {
     }
 
     /// Why a known definition cannot be spawned, if it cannot.
-    pub fn unsupported_reason(&self, identifier: &str) -> Option<&str> {
-        self.unsupported.get(identifier).map(String::as_str)
+    pub fn unsupported(&self, identifier: &str) -> Option<&Arc<ArchetypeError>> {
+        self.unsupported.get(identifier)
+    }
+
+    /// [`Self::unsupported`], rendered for messages.
+    pub fn unsupported_reason(&self, identifier: &str) -> Option<String> {
+        self.unsupported(identifier).map(ToString::to_string)
     }
 
     pub fn families(&self) -> &Arc<FamilyRegistry> {

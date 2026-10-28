@@ -29,9 +29,9 @@ use crate::entity::components::{
     PhysicsBody, PhysicsModel, Player, PlayerSession, Position, Rotation, RuntimeEntityId,
     RuntimeId, Velocity,
 };
-use crate::entity::flags::ActorFlags;
+use crate::entity::definition::flags::ActorFlags;
+use crate::entity::definition::metadata::EntityMetadata;
 use crate::entity::item_drop::{EntityRandom, PLAYER_EYE_HEIGHT, next_actor_id};
-use crate::entity::metadata::EntityMetadata;
 use crate::entity::mob::constants;
 use crate::registry::collision::Aabb;
 use crate::server::game::{PICKUP_REACH, player_box};

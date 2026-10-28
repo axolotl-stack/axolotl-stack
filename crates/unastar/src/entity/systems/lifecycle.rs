@@ -14,7 +14,7 @@ pub fn tick_age(mut query: Query<&mut Age>) {
 }
 
 /// System: remove dead living entities that are not mobs. Mobs die through
-/// `entity::mob::death` (death animation, loot, experience).
+/// `entity::mob::combat::death` (death animation, loot, experience).
 #[allow(clippy::type_complexity)]
 pub fn despawn_dead(
     mut commands: Commands,

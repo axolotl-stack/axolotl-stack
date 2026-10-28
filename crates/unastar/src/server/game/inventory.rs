@@ -12,7 +12,7 @@ use crate::entity::components::{
     GameMode, HeldSlot, Inventory, InventoryOpened, ItemStackRequestState, MainInventory,
     PlayerSession,
 };
-use crate::entity::mob::projectile::{ThrowQueue, thrown_by};
+use crate::entity::projectile::{ThrowQueue, thrown_by};
 use crate::item::{ItemStack, user_data};
 use crate::registry::ItemRegistry;
 use jolyne::valentine::{

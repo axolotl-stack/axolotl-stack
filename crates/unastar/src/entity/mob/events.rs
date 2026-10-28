@@ -9,6 +9,7 @@ use bevy_ecs::prelude::*;
 use glam::IVec3;
 use rand::rngs::StdRng;
 use rand::{Rng, SeedableRng};
+use thiserror::Error;
 use unastar_data::actor_components::ActorComponent;
 use unastar_rules::filter::{BuiltinTest, Fact, FilterContext, FilterTest, Subject};
 use unastar_rules::molang::QueryId;
@@ -18,16 +19,41 @@ use super::MobKind;
 use super::archetype::MobArchetype;
 use crate::entity::EntityRandom;
 use crate::entity::components::{PlayerState, Position};
+use crate::entity::definition::events::{
+    EventContext, EventEffect, EventEvaluationError, EventHandle, EventOutcome, FilterBinding,
+    TriggerEvent,
+};
+use crate::entity::definition::flags::ActorFlags;
+use crate::entity::definition::properties::{ActorProperties, PropertyError, PropertyValue};
 use crate::entity::definition::{DefinitionState, GroupChange, queue_group_change};
-use crate::entity::events::{EventContext, EventEffect, EventHandle, EventOutcome, TriggerEvent};
-use crate::entity::flags::ActorFlags;
-use crate::entity::properties::{ActorProperties, PropertyValue};
 use crate::entity::systems::BlockSource;
 use crate::world::ecs::{ChunkData, ChunkManager, world_to_chunk_coords, world_to_local_coords};
 
 /// Bound on nested `trigger` dispatch. Vanilla chains are at most three deep;
 /// a cycle in addon data stops here instead of hanging the tick.
 const MAX_TRIGGER_DEPTH: usize = 16;
+
+/// Why a bound filter cannot be answered for a mob.
+#[derive(Debug, PartialEq, Eq, Error)]
+pub enum MobFilterError {
+    #[error("filter evaluated on an actor without a mob archetype")]
+    NotAMob,
+    #[error("unknown filter binding {0}")]
+    UnknownBinding(u32),
+}
+
+/// Why firing an event failed.
+#[derive(Debug, Error)]
+pub enum EventError {
+    #[error("actor has no mob archetype")]
+    NotAMob,
+    #[error("{identifier}: event triggers nested deeper than {MAX_TRIGGER_DEPTH}")]
+    TooDeep { identifier: std::sync::Arc<str> },
+    #[error(transparent)]
+    Evaluation(#[from] EventEvaluationError<MobFilterError>),
+    #[error(transparent)]
+    Property(#[from] PropertyError),
+}
 
 /// Facts about a mob (and optionally the other actor of an interaction) for
 /// filter evaluation.
@@ -141,7 +167,7 @@ impl FilterContext for MobFacts<'_> {
                 Fact::Matches(world_difficulty(self.world)? == want)
             }
             BuiltinTest::HasEquipment => {
-                let want = super::config::ItemMatcher::parse(test.value.as_str()?).ok()?;
+                let want = super::components::ItemMatcher::parse(test.value.as_str()?).ok()?;
                 let domain = test.domain_str().unwrap_or("any");
                 if !matches!(domain, "hand" | "any") {
                     return None;
@@ -155,16 +181,18 @@ impl FilterContext for MobFacts<'_> {
 }
 
 impl EventContext for MobFacts<'_> {
-    fn filter(&self, binding: crate::entity::events::FilterBinding) -> Result<bool, String> {
+    type Error = MobFilterError;
+
+    fn filter(&self, binding: FilterBinding) -> Result<bool, MobFilterError> {
         let kind = self
             .world
             .get::<MobKind>(self.entity)
-            .ok_or_else(|| "filter evaluated on an actor without a mob archetype".to_owned())?;
+            .ok_or(MobFilterError::NotAMob)?;
         let filter = kind
             .0
             .filters
             .get(binding.0 as usize)
-            .ok_or_else(|| format!("unknown filter binding {}", binding.0))?;
+            .ok_or(MobFilterError::UnknownBinding(binding.0))?;
         Ok(filter.evaluate(self))
     }
 }
@@ -177,7 +205,8 @@ pub fn is_family(world: &World, entity: Entity, family: &str) -> bool {
     {
         return family == "player";
     }
-    let Some(families) = world.get::<crate::entity::families::ActorFamilies>(entity) else {
+    let Some(families) = world.get::<crate::entity::definition::families::ActorFamilies>(entity)
+    else {
         return false;
     };
     let Some(id) = world
@@ -251,15 +280,19 @@ pub fn fire_event(
     entity: Entity,
     event: &EventHandle,
     other: Option<Entity>,
-) -> Result<(), String> {
+) -> Result<(), EventError> {
     let archetype = world
         .get::<MobKind>(entity)
         .map(|kind| std::sync::Arc::clone(&kind.0))
-        .ok_or_else(|| "actor has no mob archetype".to_owned())?;
+        .ok_or(EventError::NotAMob)?;
     let seed = world.resource_mut::<EntityRandom>().0.r#gen::<u64>();
     let mut rng = StdRng::seed_from_u64(seed);
     fire_inner(world, entity, &archetype, event, other, &mut rng, 0)
 }
+
+/// The groups an event changes come from the archetype's own definition,
+/// which `spawn_mob` attached to the mob before any event could fire.
+const SAME_DEFINITION: &str = "a mob's definition stack is its archetype's definition";
 
 fn fire_inner(
     world: &mut World,
@@ -269,12 +302,11 @@ fn fire_inner(
     other: Option<Entity>,
     rng: &mut StdRng,
     depth: usize,
-) -> Result<(), String> {
+) -> Result<(), EventError> {
     if depth > MAX_TRIGGER_DEPTH {
-        return Err(format!(
-            "{}: event triggers nested deeper than {MAX_TRIGGER_DEPTH}",
-            archetype.identifier
-        ));
+        return Err(EventError::TooDeep {
+            identifier: std::sync::Arc::clone(&archetype.identifier),
+        });
     }
     let mut outcome = EventOutcome::default();
     let mut scratch = Vec::new();
@@ -284,38 +316,35 @@ fn fire_inner(
             entity,
             other,
         };
-        archetype
-            .events
-            .evaluate(
-                event,
-                &facts,
-                &mut || rng.r#gen(),
-                &mut outcome,
-                &mut scratch,
-            )
-            .map_err(|e| e.to_string())?;
+        archetype.events.evaluate(
+            event,
+            &facts,
+            &mut || rng.r#gen(),
+            &mut outcome,
+            &mut scratch,
+        )?;
     }
     for effect in &outcome.effects {
         match *effect {
             EventEffect::AddGroup(group) => {
-                queue_group_change(world, entity, GroupChange::Add(group.clone()))?
+                queue_group_change(world, entity, GroupChange::Add(group.clone()))
+                    .expect(SAME_DEFINITION);
             }
             EventEffect::RemoveGroup(group) => {
-                queue_group_change(world, entity, GroupChange::Remove(group.clone()))?
+                queue_group_change(world, entity, GroupChange::Remove(group.clone()))
+                    .expect(SAME_DEFINITION);
             }
             EventEffect::SetProperty(assignment) => {
-                let mut properties = world
+                world
                     .get_mut::<ActorProperties>(entity)
-                    .ok_or_else(|| "actor has no property state".to_owned())?;
-                properties
-                    .apply(assignment, &mut PropertyMolang { rng })
-                    .map_err(|e| e.to_string())?;
+                    .expect("every mob carries ActorProperties from spawn_mob")
+                    .apply(assignment, &mut PropertyMolang { rng })?;
             }
             EventEffect::Action { kind, .. } => {
-                return Err(format!(
-                    "event action {} has no runtime binding",
+                unreachable!(
+                    "event action {} was bound, but mob archetypes bind no actions",
                     kind.key()
-                ));
+                );
             }
         }
     }
@@ -327,11 +356,11 @@ fn fire_inner(
             other,
         };
         for trigger in &outcome.triggers {
-            if trigger.passes(&facts).map_err(|e| e.to_string())? {
+            if trigger.passes(&facts)? {
                 match &trigger.event {
                     TriggerEvent::Internal(handle) => due.push(handle.clone()),
                     TriggerEvent::External(_) => {
-                        return Err("external event triggers are not bound".into());
+                        unreachable!("mob archetypes bind no external event triggers")
                     }
                 }
             }

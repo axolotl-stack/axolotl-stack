@@ -11,7 +11,7 @@ use rand::Rng;
 use rand::rngs::StdRng;
 
 use crate::entity::components::PhysicsBody;
-use crate::entity::mob::config::WalkNavigationConfig;
+use crate::entity::mob::components::WalkNavigationConfig;
 use crate::entity::mob::constants::{
     GRASS_WALK_TARGET_SCORE, PATH_DAMAGING_BLOCKS, PATH_MAX_DROP, PATH_MAX_RANGE,
     RANDOM_POS_ATTEMPTS,

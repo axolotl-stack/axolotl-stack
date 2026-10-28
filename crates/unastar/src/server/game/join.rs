@@ -56,7 +56,7 @@ impl GameServer {
             .current;
 
         for packet in world
-            .resource::<crate::entity::properties::ActorPropertyRegistry>()
+            .resource::<crate::entity::definition::properties::ActorPropertyRegistry>()
             .packets()
         {
             let _ = session.send(McpePacket::from(packet.clone()));

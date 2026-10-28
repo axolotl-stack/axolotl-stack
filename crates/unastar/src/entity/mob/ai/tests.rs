@@ -13,8 +13,8 @@ use crate::entity::components::{
     GameMode, HeldSlot, MainInventory, OnGround, PhysicsBody, Player, PlayerSession, Position,
     Rotation, RuntimeEntityId, RuntimeId, Velocity,
 };
-use crate::entity::flags::ActorFlags;
-use crate::entity::mob::config::{RandomLookAroundGoal, RandomStrollGoal};
+use crate::entity::definition::flags::ActorFlags;
+use crate::entity::mob::components::{RandomLookAroundGoal, RandomStrollGoal};
 use crate::entity::mob::state::{InLove, LastHurt, Persistent};
 use crate::entity::mob::{SpawnCause, spawn_mob};
 use crate::entity::systems::physics::collides_with_blocks;

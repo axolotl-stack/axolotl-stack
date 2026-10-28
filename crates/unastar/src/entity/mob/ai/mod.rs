@@ -29,7 +29,7 @@ use self::goals::{Effects, GoalContext, GoalStates, goal_specs};
 use self::nearby::{MobView, Nearby, PlayerView};
 use self::path::WalkPolicy;
 use super::MobKind;
-use super::config::{BasicMovementConfig, JumpConfig, Pushable, WalkNavigationConfig};
+use super::components::{BasicMovementConfig, JumpConfig, Pushable, WalkNavigationConfig};
 use super::constants::{
     DEFAULT_JUMP_POWER, DEFAULT_MAX_TURN, ENTITY_PUSH_STRENGTH, PLAYER_BOX_HEIGHT, PLAYER_BOX_WIDTH,
 };
@@ -38,11 +38,11 @@ use crate::ecs::TickCounter;
 use crate::entity::EntityRandom;
 use crate::entity::components::{OnGround, PhysicsBody, Player, Position, Rotation, Velocity};
 use crate::entity::definition::DefinitionState;
-use crate::entity::definition_components::MovementConfig;
-use crate::entity::flags::ActorFlags;
+use crate::entity::definition::components::MovementConfig;
+use crate::entity::definition::flags::ActorFlags;
+use crate::entity::definition::metadata::EntityMetadata;
 use crate::entity::goal_selector::{GoalSelector, GoalSpec};
 use crate::entity::item_drop::PLAYER_EYE_HEIGHT;
-use crate::entity::metadata::EntityMetadata;
 use crate::entity::systems::physics::{living_block_friction, living_liquid};
 use crate::registry::collision::Aabb;
 
@@ -325,7 +325,7 @@ fn apply(world: &mut World, entity: Entity, output: Output, eaten: &mut Vec<Enti
         messages.write(request);
     }
     if effects.eat_started {
-        super::interact::broadcast_actor_event(
+        super::interaction::interact::broadcast_actor_event(
             world,
             entity,
             jolyne::valentine::types::EnumsActorEvent::EatGrass,

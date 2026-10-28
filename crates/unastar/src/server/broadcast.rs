@@ -781,7 +781,7 @@ pub fn sync_actor_viewers(
             Option<&FallingBlock>,
             Option<&crate::entity::xp_orb::XpOrb>,
         ),
-        // Mobs replicate through `entity::mob::network::sync_mob_viewers`.
+        // Mobs replicate through `entity::mob::net::network::sync_mob_viewers`.
         Without<crate::entity::components::Mob>,
     >,
 ) {

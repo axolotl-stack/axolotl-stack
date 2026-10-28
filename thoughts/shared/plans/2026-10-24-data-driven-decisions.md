@@ -85,7 +85,7 @@ fields that have no published schema). Status per group:
 | Component field defaults without a published schema | 124 consts in `provisional.rs` | Provisional: Microsoft Learn component pages (sources per const) |
 
 Components accepted without server behaviour so the vanilla cow, pig and
-sheep compile (`entity/mob/config.rs` `ACCEPTED_WITHOUT_BEHAVIOUR`):
+sheep compile (`entity/mob/components/mod.rs` `ACCEPTED_WITHOUT_BEHAVIOUR`):
 `leashable`, `leashable_to`, `balloonable`, `rideable`,
 `behavior.mount_pathing`, `conditional_bandwidth_optimization`,
 `game_event_movement_tracking` (only vibration listeners consume its game
