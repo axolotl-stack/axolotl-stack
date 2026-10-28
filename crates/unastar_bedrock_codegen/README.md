@@ -490,3 +490,26 @@ small dripleaf 80 vs 20, clay 31591 vs 26162, and the geode blocks (calcite
 1097 vs 538, smooth basalt 1310 vs 721, amethyst 888 vs 366, budding
 amethyst 106 vs 27), about twice BDS each. Surface metrics did not move.
 
+### Kelp height measured from a natural BDS world (2026-10-28)
+
+A fresh natural BDS 1.26.51 world of seed 12345 (ticking area over chunks
+-5..4, no edits; preserved outside the repository with
+`bds_worldgen_reference --aquatic` exports) reproduces the fixture's kelp
+count in every exported chunk exactly. Across 39 chunks it has 407 kelp
+columns of 3..25 blocks (mean 10.26), never shorter than 3 and never taller
+than the water above the floor allows. Normalized by that room, lengths are
+uniform: the model "uniform in `3..=min(25, room)`" predicts a mean of 10.10.
+Our columns matched in number (414) but used the legacy `2..=11` heights
+(mean 6.9, 2866 blocks against native 4175). With the measured rule the same
+chunks hold 4065 blocks in the same 3..25 shape.
+
+| Block (68-chunk fixture) | BDS | Legacy heights | Measured heights |
+|---|---:|---:|---:|
+| kelp | 4506 | 3152 | 4462 |
+| water | 264317 | 249074 | 247764 |
+
+Histogram L1 is unchanged to full precision: every added kelp block replaces
+a water block, and the generated water deficit predates this change. Fixture
+chunk (-4,-4) stays low (325 vs 517) because half of its native kelp grows in
+a trench whose generated depth differs; that is terrain, not kelp.
+

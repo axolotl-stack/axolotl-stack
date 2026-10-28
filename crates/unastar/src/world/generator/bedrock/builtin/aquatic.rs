@@ -228,17 +228,36 @@ fn sea_floor<W: BlockWorld>(ctx: &mut Ctx<'_, W>, pos: BlockPos) -> BlockPos {
     BlockPos::new(pos.x, y, pos.z)
 }
 
+/// Shortest and tallest worldgen kelp column, in blocks.
+const KELP_MIN_HEIGHT: i32 = 3;
+const KELP_MAX_HEIGHT: i32 = 25;
+
 /// `minecraft:kelp_feature`: a kelp column from the sea floor below `pos`
-/// ([`sea_floor`]) with 2..=11 segments (vanilla `1 + rand(10)` extra
-/// segments), stopping early so that the top segment always has water above
-/// it. The top segment is a tip aged 20..=23; stems are age 0 (Bedrock kelp
-/// segments are all `kelp`).
+/// ([`sea_floor`]). Its height is uniform in
+/// `KELP_MIN_HEIGHT..=min(KELP_MAX_HEIGHT, room)`, where `room` is the number
+/// of segments that still leave water above the top one. Measured in a
+/// natural BDS 1.26.51 world of the fixture seed (407 kelp columns across 39
+/// chunks): lengths 3..25, never shorter than 3, never above the room, and
+/// uniformly spread between those bounds (mean 10.26 against the model's
+/// 10.10). The legacy `2..=11` heights produced 30% too little kelp. With
+/// less than three segments of room, BDS behaviour is unobserved; the column
+/// then fills the room. The draw order (height, then tip age) is unmeasured.
+/// The top segment is a tip aged 20..=23; stems are age 0.
 pub fn kelp_feature<W: BlockWorld>(ctx: &mut Ctx<'_, W>, pos: BlockPos) -> Option<BlockPos> {
     let pos = sea_floor(ctx, pos);
     if !bb::water(ctx.get(pos)) {
         return None;
     }
-    let extra = 1 + ctx.rng.next_int(10);
+    let mut room = 0;
+    while room < KELP_MAX_HEIGHT && bb::water(ctx.get(pos.offset(0, room + 1, 0))) {
+        room += 1;
+    }
+    if room == 0 {
+        return None;
+    }
+    let low = KELP_MIN_HEIGHT.min(room);
+    let height = low + ctx.rng.next_int(room - low + 1);
+    let extra = height - 1;
     let mut placed = false;
     let mut at = pos;
     for i in 0..=extra {
@@ -921,27 +940,32 @@ mod tests {
 
     #[test]
     fn kelp_grows_from_the_floor_with_a_tip() {
-        let mut any = false;
-        for seed in 0..64 {
-            let mut world = Flat::new(40, 62, bb::SAND);
-            let base = BlockPos::new(0, 41, 0);
-            if run(&mut world, seed, |ctx| kelp_feature(ctx, base)).is_none() {
-                continue;
+        // Water 41..=62 leaves room for 21 segments; a 120-deep sea is capped
+        // at the 25-block maximum.
+        for (floor, cap) in [(40, 21), (-60, KELP_MAX_HEIGHT)] {
+            let mut tallest = 0;
+            for seed in 0..64 {
+                let mut world = Flat::new(floor, 62, bb::SAND);
+                let base = BlockPos::new(0, floor + 1, 0);
+                assert_eq!(
+                    run(&mut world, seed, |ctx| kelp_feature(ctx, base)),
+                    Some(base)
+                );
+                let mut top = base.y;
+                while bb::kelp(world.get(BlockPos::new(0, top + 1, 0))) {
+                    top += 1;
+                }
+                let len = top - base.y + 1;
+                assert!((KELP_MIN_HEIGHT..=cap).contains(&len), "length {len}");
+                tallest = tallest.max(len);
+                assert!(KELP_TIPS.contains(&world.get(BlockPos::new(0, top, 0))));
+                for y in base.y..top {
+                    assert_eq!(world.get(BlockPos::new(0, y, 0)), bb::KELP_AGE_0);
+                }
+                assert_eq!(world.edits.len() as i32, len);
             }
-            any = true;
-            let mut top = base.y;
-            while bb::kelp(world.get(BlockPos::new(0, top + 1, 0))) {
-                top += 1;
-            }
-            let len = top - base.y + 1;
-            assert!((2..=11).contains(&len), "length {len}");
-            assert!(KELP_TIPS.contains(&world.get(BlockPos::new(0, top, 0))));
-            for y in base.y..top {
-                assert_eq!(world.get(BlockPos::new(0, y, 0)), bb::KELP_AGE_0);
-            }
-            assert_eq!(world.edits.len() as i32, len);
+            assert!(tallest > 11, "legacy 2..=11 heights: tallest {tallest}");
         }
-        assert!(any);
     }
 
     #[test]
