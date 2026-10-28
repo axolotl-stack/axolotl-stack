@@ -511,7 +511,10 @@ impl Request<'_, '_> {
         self.consumption = std::array::from_fn(|index| {
             let remaining = plan.consumption[index];
             (remaining != 0).then(|| {
-                let ui_slot = plan.grid_size.ui_slot(index).expect("bounded occupied cell");
+                let ui_slot = plan
+                    .grid_size
+                    .ui_slot(index)
+                    .expect("bounded occupied cell");
                 ExpectedConsumption {
                     ui_slot,
                     stack: self
@@ -567,7 +570,8 @@ impl Request<'_, '_> {
         let remaining = from.count - amount;
         let from = from.clone().with_count(remaining);
         self.touch(source, slot.key);
-        self.staging.set(slot.key.expect("validated UI input"), from);
+        self.staging
+            .set(slot.key.expect("validated UI input"), from);
         self.consumption[expected_index]
             .as_mut()
             .expect("matched expected input")
@@ -607,7 +611,9 @@ impl Request<'_, '_> {
             | Action::CraftRecipeOptionalActionData(_)
             | Action::CraftRepairAndDisenchantActionData(_)
             | Action::CraftLoomActionData(_)
-            | Action::CraftNonImplementedActionData(_) if self.crafted => {
+            | Action::CraftNonImplementedActionData(_)
+                if self.crafted =>
+            {
                 Err(Status::Actionrequestnotallowed)
             }
             Action::CraftCreativeActionData(craft) => {
@@ -621,12 +627,12 @@ impl Request<'_, '_> {
                     u32::from(craft.numberofrequestedcrafts),
                 )
             }
-            Action::CraftRecipeAutoActionData(_) => {
-                Err(GridCraftError::AutomaticSources.status())
-            }
+            Action::CraftRecipeAutoActionData(_) => Err(GridCraftError::AutomaticSources.status()),
             Action::ConsumeActionData(_)
             | Action::CreateActionData(_)
-            | Action::CraftResultsActionData(_) if !self.crafted => {
+            | Action::CraftResultsActionData(_)
+                if !self.crafted =>
+            {
                 Err(Status::Actionrequestnotallowed)
             }
             Action::ConsumeActionData(consume) => self.consume(consume.amount, &consume.source),
@@ -637,7 +643,9 @@ impl Request<'_, '_> {
             Action::CraftRecipeOptionalActionData(_)
             | Action::CraftRepairAndDisenchantActionData(_)
             | Action::CraftLoomActionData(_)
-            | Action::CraftNonImplementedActionData(_) => Err(Status::Invalidrequestcraftactiontype),
+            | Action::CraftNonImplementedActionData(_) => {
+                Err(Status::Invalidrequestcraftactiontype)
+            }
             _ => Err(Status::Error),
         }
     }
@@ -1552,253 +1560,379 @@ mod regressions {
         }
     }
 
-#[cfg(test)]
-mod grid_crafting_tests {
-    use super::*;
-    use crate::item::test_support::stack;
-    use jolyne::valentine::{
-        ItemStackRequestCerealConsumeActionData, ItemStackRequestCerealCraftRecipeActionData,
-        ItemStackRequestCerealCraftResultsActionData, McpePacketData,
-        TypedServerNetIdstructRecipeNetIdTag,
-    };
-
-    use super::super::super::{capture, test_support};
-
-    fn craft(net_id: u32, count: u8) -> Action {
-        Action::CraftRecipeActionData(ItemStackRequestCerealCraftRecipeActionData {
-            recipe_net_id: TypedServerNetIdstructRecipeNetIdTag { raw_id: net_id },
-            numberofrequestedcrafts: count,
-            ..Default::default()
-        })
-    }
-
-    fn consume(count: u8, index: u8, net_id: i32) -> Action {
-        Action::ConsumeActionData(ItemStackRequestCerealConsumeActionData {
-            amount: count,
-            source: slot(Name::Craftinginputcontainer, index, net_id),
-            ..Default::default()
-        })
-    }
-
-    fn output(count: u8, request_id: i32, destination: u8) -> Action {
-        take(count, slot(Name::Createdoutputcontainer, 50, request_id), main(destination, 0))
-    }
-
-    fn seed(h: &mut Harness, index: usize, name: &str, count: u8) -> i32 {
-        h.ui.set_item(index, stack(name, count)).unwrap();
-        h.ui.item(index).unwrap().net_id
-    }
-
-    fn planks() -> u32 {
-        test_support::recipe_id("minecraft:oak_planks")
-    }
-
-    #[test]
-    fn recorded_plank_actions_succeed_with_matched_grid_and_exact_consume_source() {
-        let entry: serde_json::Value = capture::BDS_INVENTORY_MOVES.lines()
-            .map(|line| serde_json::from_str::<serde_json::Value>(line).unwrap())
-            .find(|entry| entry["seq"] == 645).unwrap();
-        let McpePacketData::ItemStackRequestPacket(packet) =
-            capture::decode(entry["hex"].as_str().unwrap())
-        else {
-            panic!("recorded craft request")
+    #[cfg(test)]
+    mod grid_crafting_tests {
+        use super::*;
+        use crate::item::test_support::stack;
+        use jolyne::valentine::{
+            ItemStackRequestCerealConsumeActionData, ItemStackRequestCerealCraftRecipeActionData,
+            ItemStackRequestCerealCraftResultsActionData, McpePacketData,
+            TypedServerNetIdstructRecipeNetIdTag,
         };
-        let mut request = packet.requests[0].clone();
-        let mut h = Harness::new();
-        let input_id = seed(&mut h, 28, "minecraft:oak_log", 2);
-        // The capture did not move main9 into the grid: BDS answered 35.
-        // Repair only that setup/address, not action order, count or destination.
-        for action in &mut request.actions {
-            match action {
-                Action::CraftRecipeActionData(action) => action.recipe_net_id.raw_id = planks(),
-                Action::ConsumeActionData(action) => {
-                    action.source = slot(Name::Craftinginputcontainer, 28, input_id);
+
+        use super::super::super::{capture, test_support};
+
+        fn craft(net_id: u32, count: u8) -> Action {
+            Action::CraftRecipeActionData(ItemStackRequestCerealCraftRecipeActionData {
+                recipe_net_id: TypedServerNetIdstructRecipeNetIdTag { raw_id: net_id },
+                numberofrequestedcrafts: count,
+                ..Default::default()
+            })
+        }
+
+        fn consume(count: u8, index: u8, net_id: i32) -> Action {
+            Action::ConsumeActionData(ItemStackRequestCerealConsumeActionData {
+                amount: count,
+                source: slot(Name::Craftinginputcontainer, index, net_id),
+                ..Default::default()
+            })
+        }
+
+        fn output(count: u8, request_id: i32, destination: u8) -> Action {
+            take(
+                count,
+                slot(Name::Createdoutputcontainer, 50, request_id),
+                main(destination, 0),
+            )
+        }
+
+        fn seed(h: &mut Harness, index: usize, name: &str, count: u8) -> i32 {
+            h.ui.set_item(index, stack(name, count)).unwrap();
+            h.ui.item(index).unwrap().net_id
+        }
+
+        fn planks() -> u32 {
+            test_support::recipe_id("minecraft:oak_planks")
+        }
+
+        #[test]
+        fn recorded_plank_actions_succeed_with_matched_grid_and_exact_consume_source() {
+            let entry: serde_json::Value = capture::BDS_INVENTORY_MOVES
+                .lines()
+                .map(|line| serde_json::from_str::<serde_json::Value>(line).unwrap())
+                .find(|entry| entry["seq"] == 645)
+                .unwrap();
+            let McpePacketData::ItemStackRequestPacket(packet) =
+                capture::decode(entry["hex"].as_str().unwrap())
+            else {
+                panic!("recorded craft request")
+            };
+            let mut request = packet.requests[0].clone();
+            let mut h = Harness::new();
+            let input_id = seed(&mut h, 28, "minecraft:oak_log", 2);
+            // The capture did not move main9 into the grid: BDS answered 35.
+            // Repair only that setup/address, not action order, count or destination.
+            for action in &mut request.actions {
+                match action {
+                    Action::CraftRecipeActionData(action) => action.recipe_net_id.raw_id = planks(),
+                    Action::ConsumeActionData(action) => {
+                        action.source = slot(Name::Craftinginputcontainer, 28, input_id);
+                    }
+                    _ => {}
                 }
-                _ => {}
+            }
+            let outcome = h.run(request.client_request_id.id, request.actions);
+            assert_eq!(status(&outcome), Status::Success);
+            assert_eq!(
+                (h.ui.item(28).unwrap().count, h.ui.item(28).unwrap().net_id),
+                (1, input_id)
+            );
+            let result = h.main.item(13).unwrap();
+            assert_eq!(
+                (result.item_id(), result.count),
+                ("minecraft:oak_planks", 4)
+            );
+            assert!(result.net_id > 0);
+            assert_ne!(result.net_id, input_id);
+            assert!(h.ui.item(CREATED_OUTPUT_SLOT).unwrap().is_empty());
+            let containers = outcome.response.unwrap().containers.unwrap();
+            assert_eq!(containers.len(), 2);
+            assert_eq!(
+                containers[0].full_container_name.container_name,
+                Name::Craftinginputcontainer
+            );
+            assert_eq!(containers[0].slots[0].slot, 28);
+            // The recorded destination addresses InventoryContainer slot 13; BDS
+            // echoes the requested container name (seq 591/592), it does not
+            // normalise to the combined container.
+            assert_eq!(
+                containers[1].full_container_name.container_name,
+                Name::Inventorycontainer
+            );
+            assert_eq!(containers[1].slots[0].slot, 13);
+        }
+
+        #[test]
+        fn wrong_recipe_grid_size_and_insufficient_input_reject_without_mutation() {
+            for (net_id, name, count, crafts, expected) in [
+                (
+                    u32::MAX,
+                    "minecraft:oak_log",
+                    2,
+                    1,
+                    Status::Failedtofindrecipebynetid,
+                ),
+                (
+                    planks(),
+                    "minecraft:stone",
+                    2,
+                    1,
+                    Status::Mismatchedrecipeforinputgriditems,
+                ),
+                (
+                    planks(),
+                    "minecraft:oak_log",
+                    1,
+                    2,
+                    Status::Mismatchedrecipeforinputgriditems,
+                ),
+            ] {
+                let mut h = Harness::new();
+                let id = seed(&mut h, 28, name, count);
+                let outcome = h.run(-1, vec![craft(net_id, crafts)]);
+                assert_eq!(status(&outcome), expected);
+                assert_eq!(
+                    (h.ui.item(28).unwrap().count, h.ui.item(28).unwrap().net_id),
+                    (count, id)
+                );
+                assert!(h.cache.entries.is_empty());
+            }
+            let packet = test_support::CRAFTING.0.packet();
+            let large = packet
+                .shaped_recipes
+                .iter()
+                .find(|recipe| recipe.width == 3)
+                .unwrap();
+            let mut h = Harness::new();
+            assert_eq!(
+                status(&h.run(-1, vec![craft(large.net_id.raw_id, 1)])),
+                Status::Mismatchedcraftingsize
+            );
+            assert_eq!(
+                status(&h.run(-3, vec![craft(packet.multi_recipes[0].net_id.raw_id, 1)])),
+                Status::Invalidrequestcraftactiontype
+            );
+            assert_eq!(
+                status(&h.run(-5, vec![craft(planks(), 0)])),
+                Status::Invalidnumcrafts
+            );
+        }
+
+        #[test]
+        fn missing_partial_extra_and_unrelated_consume_never_commit() {
+            for mode in 0..5 {
+                let mut h = Harness::new();
+                let id = seed(&mut h, 28, "minecraft:oak_log", 4);
+                let unrelated = h.seed(0, 3);
+                let mut actions = vec![craft(planks(), 2)];
+                let expected = match mode {
+                    0 => Status::Expecteditemslotnotfullyconsumed,
+                    1 => {
+                        actions.push(consume(1, 28, id));
+                        Status::Expecteditemslotnotfullyconsumed
+                    }
+                    2 => {
+                        actions.extend([consume(2, 28, id), consume(1, 28, -1)]);
+                        Status::Itemalreadyconsumedfromslot
+                    }
+                    3 => {
+                        actions.push(consume(3, 28, id));
+                        Status::Consumedtoomuchfromslot
+                    }
+                    _ => {
+                        actions.push(Action::ConsumeActionData(
+                            ItemStackRequestCerealConsumeActionData {
+                                amount: 2,
+                                source: main(0, unrelated),
+                                ..Default::default()
+                            },
+                        ));
+                        Status::Consumeditemoutofallowedslotrange
+                    }
+                };
+                actions.push(output(8, -1, 1));
+                let outcome = h.run(-1, actions);
+                assert_eq!(status(&outcome), expected, "mode {mode}");
+                assert!(outcome.response.unwrap().containers.is_none());
+                assert_eq!(h.ui.item(28).unwrap().count, 4);
+                assert_eq!(h.main.item(0).unwrap().count, 3);
+                assert!(h.main.item(1).unwrap().is_empty());
+                assert!(h.cache.entries.is_empty());
             }
         }
-        let outcome = h.run(request.client_request_id.id, request.actions);
-        assert_eq!(status(&outcome), Status::Success);
-        assert_eq!((h.ui.item(28).unwrap().count, h.ui.item(28).unwrap().net_id), (1, input_id));
-        let result = h.main.item(13).unwrap();
-        assert_eq!((result.item_id(), result.count), ("minecraft:oak_planks", 4));
-        assert!(result.net_id > 0);
-        assert_ne!(result.net_id, input_id);
-        assert!(h.ui.item(CREATED_OUTPUT_SLOT).unwrap().is_empty());
-        let containers = outcome.response.unwrap().containers.unwrap();
-        assert_eq!(containers.len(), 2);
-        assert_eq!(containers[0].full_container_name.container_name, Name::Craftinginputcontainer);
-        assert_eq!(containers[0].slots[0].slot, 28);
-        // The recorded destination addresses InventoryContainer slot 13; BDS
-        // echoes the requested container name (seq 591/592), it does not
-        // normalise to the combined container.
-        assert_eq!(containers[1].full_container_name.container_name, Name::Inventorycontainer);
-        assert_eq!(containers[1].slots[0].slot, 13);
-    }
 
-    #[test]
-    fn wrong_recipe_grid_size_and_insufficient_input_reject_without_mutation() {
-        for (net_id, name, count, crafts, expected) in [
-            (u32::MAX, "minecraft:oak_log", 2, 1, Status::Failedtofindrecipebynetid),
-            (planks(), "minecraft:stone", 2, 1, Status::Mismatchedrecipeforinputgriditems),
-            (planks(), "minecraft:oak_log", 1, 2, Status::Mismatchedrecipeforinputgriditems),
-        ] {
+        #[test]
+        fn exact_multiple_crafts_consume_once_and_keep_first_touch_order() {
             let mut h = Harness::new();
-            let id = seed(&mut h, 28, name, count);
-            let outcome = h.run(-1, vec![craft(net_id, crafts)]);
-            assert_eq!(status(&outcome), expected);
-            assert_eq!((h.ui.item(28).unwrap().count, h.ui.item(28).unwrap().net_id), (count, id));
-            assert!(h.cache.entries.is_empty());
+            let input = seed(&mut h, 29, "minecraft:oak_log", 4);
+            let first = h.seed(0, 3);
+            let outcome = h.run(
+                -1,
+                vec![
+                    take(1, main(0, first), slot(Name::Cursorcontainer, 0, 0)),
+                    craft(planks(), 2),
+                    consume(2, 29, input),
+                    output(8, -1, 2),
+                ],
+            );
+            assert_eq!(status(&outcome), Status::Success);
+            assert_eq!(h.ui.item(29).unwrap().count, 2);
+            assert_eq!(h.main.item(2).unwrap().count, 8);
+            let containers = outcome.response.unwrap().containers.unwrap();
+            assert_eq!(
+                containers
+                    .iter()
+                    .map(|container| container.full_container_name.container_name)
+                    .collect::<Vec<_>>(),
+                [
+                    Name::Combinedhotbarandinventorycontainer,
+                    Name::Cursorcontainer,
+                    Name::Craftinginputcontainer
+                ]
+            );
+            assert_eq!(
+                containers[0]
+                    .slots
+                    .iter()
+                    .map(|slot| slot.slot)
+                    .collect::<Vec<_>>(),
+                [0, 2]
+            );
+            assert_eq!(containers[2].slots[0].slot, 29);
         }
-        let packet = test_support::CRAFTING.0.packet();
-        let large = packet.shaped_recipes.iter().find(|recipe| recipe.width == 3).unwrap();
-        let mut h = Harness::new();
-        assert_eq!(status(&h.run(-1, vec![craft(large.net_id.raw_id, 1)])), Status::Mismatchedcraftingsize);
-        assert_eq!(status(&h.run(-3, vec![craft(packet.multi_recipes[0].net_id.raw_id, 1)])),
-            Status::Invalidrequestcraftactiontype);
-        assert_eq!(status(&h.run(-5, vec![craft(planks(), 0)])), Status::Invalidnumcrafts);
-    }
 
-    #[test]
-    fn missing_partial_extra_and_unrelated_consume_never_commit() {
-        for mode in 0..5 {
+        #[test]
+        fn input_identity_second_craft_and_late_failure_discard_the_whole_frame() {
             let mut h = Harness::new();
-            let id = seed(&mut h, 28, "minecraft:oak_log", 4);
-            let unrelated = h.seed(0, 3);
-            let mut actions = vec![craft(planks(), 2)];
-            let expected = match mode {
-                0 => Status::Expecteditemslotnotfullyconsumed,
-                1 => {
-                    actions.push(consume(1, 28, id));
-                    Status::Expecteditemslotnotfullyconsumed
-                }
-                2 => {
-                    actions.extend([consume(2, 28, id), consume(1, 28, -1)]);
-                    Status::Itemalreadyconsumedfromslot
-                }
-                3 => {
-                    actions.push(consume(3, 28, id));
-                    Status::Consumedtoomuchfromslot
-                }
-                _ => {
-                    actions.push(Action::ConsumeActionData(ItemStackRequestCerealConsumeActionData {
-                        amount: 2, source: main(0, unrelated), ..Default::default()
-                    }));
-                    Status::Consumeditemoutofallowedslotrange
-                }
-            };
-            actions.push(output(8, -1, 1));
-            let outcome = h.run(-1, actions);
-            assert_eq!(status(&outcome), expected, "mode {mode}");
-            assert!(outcome.response.unwrap().containers.is_none());
-            assert_eq!(h.ui.item(28).unwrap().count, 4);
-            assert_eq!(h.main.item(0).unwrap().count, 3);
+            let input = seed(&mut h, 28, "minecraft:oak_log", 3);
+            let dropped = h.seed(0, 5);
+            let outcome = h.run(
+                -1,
+                vec![
+                    super::drop_action(2, main(0, dropped)),
+                    craft(planks(), 1),
+                    consume(1, 28, input),
+                    output(4, -1, 1),
+                    take(0, main(1, -1), main(2, 0)),
+                ],
+            );
+            assert_eq!(status(&outcome), Status::Invalidadjustedamount);
+            assert!(outcome.drops.is_empty());
+            assert!(h.cache.entries.is_empty());
+            assert_eq!(h.main.item(0).unwrap().count, 5);
             assert!(h.main.item(1).unwrap().is_empty());
-            assert!(h.cache.entries.is_empty());
+            assert_eq!(h.ui.item(28).unwrap().count, 3);
+            assert_eq!(
+                status(&h.run(-3, vec![craft(planks(), 1), consume(1, 28, input + 10_000)])),
+                Status::Mismatchslotexpectedconsumeditemnetidvariant
+            );
+            assert_eq!(
+                status(&h.run(-5, vec![craft(planks(), 1), craft(planks(), 1)])),
+                Status::Actionrequestnotallowed
+            );
+            assert_eq!(
+                status(&h.run(
+                    -7,
+                    vec![
+                        craft(planks(), 1),
+                        Action::SwapActionData(Default::default())
+                    ]
+                )),
+                Status::Actionrequestnotallowed
+            );
+        }
+
+        #[test]
+        fn packet_output_metadata_survives_and_client_predictions_cannot_replace_it() {
+            let packet = test_support::CRAFTING.0.packet();
+            // Native builtin_recipes.json bed_color_0 is 3x2: black wool over
+            // planks, yielding bed aux 15. No client result supplies this aux.
+            let recipe = packet
+                .shaped_recipes
+                .iter()
+                .find(|recipe| &*recipe.recipe_id == "bed_color_0")
+                .unwrap();
+            let mut h = Harness::new();
+            h.screen = ScreenKind::Workbench;
+            let mut actions = vec![craft(recipe.net_id.raw_id, 1)];
+            for index in 0..6 {
+                let id = seed(
+                    &mut h,
+                    32 + index,
+                    if index < 3 {
+                        "minecraft:black_wool"
+                    } else {
+                        "minecraft:oak_planks"
+                    },
+                    2,
+                );
+                actions.push(consume(1, u8::try_from(32 + index).unwrap(), id));
+            }
+            let expected = &recipe.results[0];
+            actions.extend([
+                output(u8::try_from(expected.stacksize).unwrap(), -1, 0),
+                Action::CraftResultsActionData(ItemStackRequestCerealCraftResultsActionData {
+                    num_crafts: 255,
+                    craft_results: vec![Default::default()],
+                    ..Default::default()
+                }),
+            ]);
+            let outcome = h.run(-1, actions);
+            assert_eq!(status(&outcome), Status::Success);
+            let actual = h.main.item(0).unwrap();
+            assert_eq!(actual.item().unwrap().network_id(), expected.id);
+            assert_eq!(u32::try_from(actual.damage).unwrap(), expected.auxvalue);
+            assert_eq!(actual.runtime_id, expected.block_runtime_id);
+            assert_eq!(
+                actual.nbt.as_deref(),
+                Some(expected.user_data_buffer.as_ref())
+            );
+            assert_eq!(u16::from(actual.count), expected.stacksize);
+            assert_eq!(actual.damage, 15);
+            assert!(!expected.user_data_buffer.is_empty());
+        }
+
+        #[test]
+        fn small_recipe_uses_the_open_workbench_grid_including_bottom_right_offset() {
+            let mut h = Harness::new();
+            h.screen = ScreenKind::Workbench;
+            let input = seed(&mut h, 40, "minecraft:oak_log", 2);
+            // These inactive inventory-grid contents must not participate.
+            seed(&mut h, 28, "minecraft:stone", 2);
+            let outcome = h.run(
+                -1,
+                vec![craft(planks(), 1), consume(1, 40, input), output(4, -1, 0)],
+            );
+            assert_eq!(status(&outcome), Status::Success);
+            assert_eq!(h.ui.item(40).unwrap().count, 1);
+            assert_eq!(h.ui.item(28).unwrap().count, 2);
+            assert_eq!(h.main.item(0).unwrap().count, 4);
+        }
+
+        #[test]
+        fn unrepresentable_output_auto_and_remainder_create_fail_closed() {
+            let mut h = Harness::new();
+            seed(&mut h, 28, "minecraft:oak_log", 64);
+            assert_eq!(status(&h.run(-1, vec![craft(planks(), 64)])), Status::Error);
+            assert_eq!(h.ui.item(28).unwrap().count, 64);
+            assert_eq!(
+                status(&h.run(
+                    -3,
+                    vec![Action::CraftRecipeAutoActionData(Default::default())]
+                )),
+                Status::Invalidrequestcraftactiontype
+            );
+            assert_eq!(
+                status(&h.run(
+                    -5,
+                    vec![
+                        craft(planks(), 1),
+                        Action::CreateActionData(Default::default())
+                    ]
+                )),
+                Status::Invalidrequestcraftactiontype
+            );
+            assert_eq!(h.ui.item(28).unwrap().count, 64);
         }
     }
-
-    #[test]
-    fn exact_multiple_crafts_consume_once_and_keep_first_touch_order() {
-        let mut h = Harness::new();
-        let input = seed(&mut h, 29, "minecraft:oak_log", 4);
-        let first = h.seed(0, 3);
-        let outcome = h.run(-1, vec![
-            take(1, main(0, first), slot(Name::Cursorcontainer, 0, 0)),
-            craft(planks(), 2), consume(2, 29, input), output(8, -1, 2),
-        ]);
-        assert_eq!(status(&outcome), Status::Success);
-        assert_eq!(h.ui.item(29).unwrap().count, 2);
-        assert_eq!(h.main.item(2).unwrap().count, 8);
-        let containers = outcome.response.unwrap().containers.unwrap();
-        assert_eq!(containers.iter().map(|container| container.full_container_name.container_name).collect::<Vec<_>>(),
-            [Name::Combinedhotbarandinventorycontainer, Name::Cursorcontainer, Name::Craftinginputcontainer]);
-        assert_eq!(containers[0].slots.iter().map(|slot| slot.slot).collect::<Vec<_>>(), [0, 2]);
-        assert_eq!(containers[2].slots[0].slot, 29);
-    }
-
-    #[test]
-    fn input_identity_second_craft_and_late_failure_discard_the_whole_frame() {
-        let mut h = Harness::new();
-        let input = seed(&mut h, 28, "minecraft:oak_log", 3);
-        let dropped = h.seed(0, 5);
-        let outcome = h.run(-1, vec![
-            super::drop_action(2, main(0, dropped)),
-            craft(planks(), 1), consume(1, 28, input), output(4, -1, 1),
-            take(0, main(1, -1), main(2, 0)),
-        ]);
-        assert_eq!(status(&outcome), Status::Invalidadjustedamount);
-        assert!(outcome.drops.is_empty());
-        assert!(h.cache.entries.is_empty());
-        assert_eq!(h.main.item(0).unwrap().count, 5);
-        assert!(h.main.item(1).unwrap().is_empty());
-        assert_eq!(h.ui.item(28).unwrap().count, 3);
-        assert_eq!(status(&h.run(-3, vec![craft(planks(), 1), consume(1, 28, input + 10_000)])),
-            Status::Mismatchslotexpectedconsumeditemnetidvariant);
-        assert_eq!(status(&h.run(-5, vec![craft(planks(), 1), craft(planks(), 1)])), Status::Actionrequestnotallowed);
-        assert_eq!(status(&h.run(-7, vec![craft(planks(), 1), Action::SwapActionData(Default::default())])),
-            Status::Actionrequestnotallowed);
-    }
-
-    #[test]
-    fn packet_output_metadata_survives_and_client_predictions_cannot_replace_it() {
-        let packet = test_support::CRAFTING.0.packet();
-        // Native builtin_recipes.json bed_color_0 is 3x2: black wool over
-        // planks, yielding bed aux 15. No client result supplies this aux.
-        let recipe = packet.shaped_recipes.iter()
-            .find(|recipe| &*recipe.recipe_id == "bed_color_0").unwrap();
-        let mut h = Harness::new();
-        h.screen = ScreenKind::Workbench;
-        let mut actions = vec![craft(recipe.net_id.raw_id, 1)];
-        for index in 0..6 {
-            let id = seed(&mut h, 32 + index,
-                if index < 3 { "minecraft:black_wool" } else { "minecraft:oak_planks" }, 2);
-            actions.push(consume(1, u8::try_from(32 + index).unwrap(), id));
-        }
-        let expected = &recipe.results[0];
-        actions.extend([
-            output(u8::try_from(expected.stacksize).unwrap(), -1, 0),
-            Action::CraftResultsActionData(ItemStackRequestCerealCraftResultsActionData {
-                num_crafts: 255, craft_results: vec![Default::default()], ..Default::default()
-            }),
-        ]);
-        let outcome = h.run(-1, actions);
-        assert_eq!(status(&outcome), Status::Success);
-        let actual = h.main.item(0).unwrap();
-        assert_eq!(actual.item().unwrap().network_id(), expected.id);
-        assert_eq!(u32::try_from(actual.damage).unwrap(), expected.auxvalue);
-        assert_eq!(actual.runtime_id, expected.block_runtime_id);
-        assert_eq!(actual.nbt.as_deref(), Some(expected.user_data_buffer.as_ref()));
-        assert_eq!(u16::from(actual.count), expected.stacksize);
-        assert_eq!(actual.damage, 15);
-        assert!(!expected.user_data_buffer.is_empty());
-    }
-
-    #[test]
-    fn small_recipe_uses_the_open_workbench_grid_including_bottom_right_offset() {
-        let mut h = Harness::new();
-        h.screen = ScreenKind::Workbench;
-        let input = seed(&mut h, 40, "minecraft:oak_log", 2);
-        // These inactive inventory-grid contents must not participate.
-        seed(&mut h, 28, "minecraft:stone", 2);
-        let outcome = h.run(-1, vec![craft(planks(), 1), consume(1, 40, input), output(4, -1, 0)]);
-        assert_eq!(status(&outcome), Status::Success);
-        assert_eq!(h.ui.item(40).unwrap().count, 1);
-        assert_eq!(h.ui.item(28).unwrap().count, 2);
-        assert_eq!(h.main.item(0).unwrap().count, 4);
-    }
-
-    #[test]
-    fn unrepresentable_output_auto_and_remainder_create_fail_closed() {
-        let mut h = Harness::new();
-        seed(&mut h, 28, "minecraft:oak_log", 64);
-        assert_eq!(status(&h.run(-1, vec![craft(planks(), 64)])), Status::Error);
-        assert_eq!(h.ui.item(28).unwrap().count, 64);
-        assert_eq!(status(&h.run(-3, vec![Action::CraftRecipeAutoActionData(Default::default())])),
-            Status::Invalidrequestcraftactiontype);
-        assert_eq!(status(&h.run(-5, vec![craft(planks(), 1), Action::CreateActionData(Default::default())])),
-            Status::Invalidrequestcraftactiontype);
-        assert_eq!(h.ui.item(28).unwrap().count, 64);
-    }
-}
 }
