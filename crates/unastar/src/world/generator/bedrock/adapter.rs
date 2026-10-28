@@ -12,7 +12,7 @@ use crate::world::generator::{ProtoChunk, WorldGenRegion};
 const SPAN: usize = 48;
 const UNKNOWN: i16 = i16::MIN;
 
-/// Mutable region adapter; cached query heights are invalidated by every write.
+/// Mutable region adapter; writes update or invalidate cached query heights.
 pub struct RegionWorld<'a, R: WorldGenRegion> {
     region: &'a mut R,
     min_x: i32,
@@ -30,6 +30,26 @@ impl<'a, R: WorldGenRegion> RegionWorld<'a, R> {
             min_z: (origin.z - 1) * 16,
             heightmap: Box::new([UNKNOWN; SPAN * SPAN]),
             top_solid: Box::new([UNKNOWN; SPAN * SPAN]),
+        }
+    }
+
+    /// Below-top writes cannot change a known height. A new occupied top is
+    /// known immediately; removing the current top needs a downward rescan.
+    #[inline]
+    fn update_height(height: &mut i16, y: i32, id: u32, solid: bool) {
+        let top = y + 1;
+        if *height == UNKNOWN || top < i32::from(*height) {
+            return;
+        }
+        let occupied = if solid {
+            props::is_solid(id)
+        } else {
+            id != bb::AIR
+        };
+        if occupied {
+            *height = top as i16;
+        } else if top == i32::from(*height) {
+            *height = UNKNOWN;
         }
     }
 

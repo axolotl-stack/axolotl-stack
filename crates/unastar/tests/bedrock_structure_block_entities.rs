@@ -302,10 +302,11 @@ async fn template_layer_actions_survive_replay_reopen_network_and_dry_overwrite(
     {
         let mut world = RegionWorld::new(&mut region);
         let mut rng = BedrockRandom::new(12345);
+        let noise = MolangNoise::new(12345);
         let mut ctx = Ctx {
             world: &mut world,
             rng: &mut rng,
-            noise: &MolangNoise,
+            noise: &noise,
             seed: 12345,
         };
         for y in [-64, 318] {

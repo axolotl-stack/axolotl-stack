@@ -423,6 +423,9 @@ chunk-coordinate boundary at both build-height edges; LevelDB and BlazeDB
 close/reopen, network decoding and same-primary dry overwrites retain the
 expected states. A controlled primary-only placement ablation fails that
 regression by replacing required secondary water with air.
+Secondary-only liquid participates in the region's occupied-height query while
+the solid-height query remains primary-only. Layered writes below a known top
+retain its cached height; removing that top triggers a downward rescan.
 
 A separate local-install smoke independently decoded ten shipped sulfur-spring
 templates: 29 source-water cells survived all four rotations at both height
