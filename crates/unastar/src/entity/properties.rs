@@ -589,6 +589,57 @@ mod tests {
     }
 
     #[test]
+    fn native_integer_snapshots_exclude_interleaved_server_only_properties() {
+        let definitions = ActorDefinitionRegistry::vanilla();
+        for (identifier, bytes, observed_enum) in [
+            (
+                "minecraft:wolf",
+                include_bytes!("../../../bds-extractor/captures/1.26.51/operator/summons/wolf.bin")
+                    .as_slice(),
+                Some(("minecraft:sound_variant", "cute")),
+            ),
+            (
+                "minecraft:copper_golem",
+                include_bytes!(
+                    "../../../bds-extractor/captures/1.26.51/operator/summons/copper_golem.bin"
+                )
+                .as_slice(),
+                None,
+            ),
+        ] {
+            let mut input = bytes;
+            let _header = VarUInt::decode(&mut input, ()).unwrap();
+            let native = jolyne::valentine::AddActorPacket::decode(&mut input, ()).unwrap();
+            assert!(input.is_empty());
+            let definition = definitions.get(identifier).unwrap();
+            let layout = Arc::new(PropertyLayout::compile(&definition.description).unwrap());
+            let mut state = ActorProperties::new(Arc::clone(&layout), &mut LiteralOnly).unwrap();
+            // Reproduce the sampled enum, not a claim about the spawn default.
+            if let Some((name, value)) = observed_enum {
+                let assignment = layout
+                    .compile_assignment(name, &json!(value), QueryRegistry::vanilla())
+                    .unwrap();
+                state.apply(&assignment, &mut LiteralOnly).unwrap();
+            }
+            for (name, _) in definition
+                .description
+                .active_properties()
+                .unwrap()
+                .iter()
+                .filter(|(_, property)| !property.client_sync)
+            {
+                let assignment = layout
+                    .compile_assignment(name, &json!(true), QueryRegistry::vanilla())
+                    .unwrap();
+                state.apply(&assignment, &mut LiteralOnly).unwrap();
+            }
+            let mut actual = PropertySyncData::default();
+            state.copy_synced(&mut actual);
+            assert_eq!(actual, native.synched_properties, "{identifier}");
+        }
+    }
+
+    #[test]
     fn vanilla_descriptors_equal_all_retained_native_property_schemas() {
         let registry = ActorPropertyRegistry::compile(&ActorDefinitionRegistry::vanilla()).unwrap();
         let root = std::path::PathBuf::from(env!("CARGO_MANIFEST_DIR"))

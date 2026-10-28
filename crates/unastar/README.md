@@ -198,8 +198,11 @@ match the compiled NBT, including enum order/ranges and native packet order.
 Descriptor type codes come from the measured `unastar-data::actor_wire` catalog,
 not a handwritten integer table; an unmeasured kind fails explicitly. Scoped
 property handles reject cross-layout assignments, and server-only changes do not
-advance the client-sync revision. Mixed-type/client-only value-index policy still
-needs the crafted native controls; descriptor equality does not prove that policy.
+advance the client-sync revision. Retained wolf/copper-golem `AddActor` controls
+verify that interleaved server-only fields consume no integer sync indices;
+the wolf's sampled enum is assigned explicitly rather than treated as a default.
+Mixed integer/float indexing and dynamic update policy still need the crafted
+native controls; descriptor equality alone does not prove those policies.
 
 `entity::attributes` retains caller-supplied ordered value triples and reusable,
 layout-scoped AddActor snapshots. It does not invent constructor defaults,
