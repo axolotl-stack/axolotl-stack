@@ -495,6 +495,17 @@ pub enum ScreenKind {
     Inventory,
     /// Crafting table (3x3 crafting).
     Workbench,
+    /// A container block's window (chest, barrel, furnace, hopper, ...).
+    Block(BlockScreen),
+}
+
+/// The container block a window shows: the clicked block, its kind and the
+/// window's slot count (54 for a double chest).
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub struct BlockScreen {
+    pub kind: crate::block_entity::ContainerKind,
+    pub at: glam::IVec3,
+    pub size: u8,
 }
 
 /// The player's open container window and window-ID counter.
@@ -545,6 +556,20 @@ impl ContainerWindows {
     }
 }
 
+/// The player's ender chest contents. Every ender chest shows the opener's
+/// own 27 slots; they are saved with the player, not the block.
+#[derive(Component, Clone, Debug)]
+pub struct EnderChestInventory(pub Inventory);
+
+/// Slots of [`EnderChestInventory`].
+pub const ENDER_CHEST_SIZE: usize = 27;
+
+impl Default for EnderChestInventory {
+    fn default() -> Self {
+        Self(Inventory::new(ENDER_CHEST_SIZE))
+    }
+}
+
 /// Bundle for all player inventory components.
 #[derive(Bundle, Default)]
 pub struct PlayerInventoryBundle {
@@ -553,6 +578,7 @@ pub struct PlayerInventoryBundle {
     pub offhand: OffhandSlot,
     pub held_slot: HeldSlot,
     pub ui: PlayerUi,
+    pub ender_chest: EnderChestInventory,
     pub windows: ContainerWindows,
     pub request_ids: crate::server::game::RequestIdAssignments,
 }

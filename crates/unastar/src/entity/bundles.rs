@@ -47,6 +47,7 @@ pub struct PlayerBundle {
     pub offhand: OffhandSlot,
     pub held_slot: HeldSlot,
     pub ui: PlayerUi,
+    pub ender_chest: EnderChestInventory,
     pub windows: ContainerWindows,
     pub request_ids: crate::server::game::RequestIdAssignments,
 }

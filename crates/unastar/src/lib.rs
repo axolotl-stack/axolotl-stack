@@ -5,6 +5,7 @@
 
 #![feature(portable_simd)]
 
+pub mod block_entity;
 pub mod command;
 pub mod config;
 pub mod crafting;

@@ -501,7 +501,33 @@ pub fn decode_vanilla() -> Result<Vec<PackRecipe>, RecipeError> {
 pub struct RecipeRegistry {
     recipes: Vec<PackRecipe>,
     by_identifier: HashMap<String, usize>,
-    furnace: HashMap<String, FurnaceInputs>,
+    /// Input lookup per smelting station, indexed by [`SmeltingStation`].
+    smelting: [HashMap<String, FurnaceInputs>; 3],
+}
+
+/// A block that smelts `minecraft:recipe_furnace` rows carrying its tag.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+pub enum SmeltingStation {
+    Furnace,
+    BlastFurnace,
+    Smoker,
+}
+
+impl SmeltingStation {
+    pub const ALL: [Self; 3] = [Self::Furnace, Self::BlastFurnace, Self::Smoker];
+
+    /// The recipe tag BDS looks results up with for this block.
+    pub const fn tag(self) -> &'static str {
+        match self {
+            Self::Furnace => "furnace",
+            Self::BlastFurnace => "blast_furnace",
+            Self::Smoker => "smoker",
+        }
+    }
+
+    const fn index(self) -> usize {
+        self as usize
+    }
 }
 
 #[derive(Debug, Default)]
@@ -628,19 +654,23 @@ impl RecipeRegistry {
         for recipe in &mut recipes {
             legacy.recipe(recipe)?;
         }
-        let mut furnace: HashMap<String, FurnaceInputs> = HashMap::new();
+        let mut smelting: [HashMap<String, FurnaceInputs>; 3] = Default::default();
         // Lower numeric priority wins, then registry load order. Inserting the
         // first candidate preserves a deterministic tie without per-tick sorting.
         let mut order: Vec<_> = (0..recipes.len()).collect();
         order.sort_by_key(|&index| (recipes[index].priority, index));
-        for index in order {
+        for (index, station) in order
+            .into_iter()
+            .flat_map(|index| SmeltingStation::ALL.map(|station| (index, station)))
+        {
             let recipe = &recipes[index];
-            if !recipe.tags.iter().any(|tag| tag == "furnace") {
+            if !recipe.tags.iter().any(|tag| tag == station.tag()) {
                 continue;
             }
             let RecipeKind::Furnace { input, .. } = &recipe.kind else {
                 continue;
             };
+            let furnace = &mut smelting[station.index()];
             let mut insert = |name: &str, data: Option<i16>| {
                 let slots = furnace.entry(name.to_string()).or_default();
                 match data {
@@ -672,7 +702,7 @@ impl RecipeRegistry {
         Ok(Self {
             recipes,
             by_identifier,
-            furnace,
+            smelting,
         })
     }
 
@@ -692,7 +722,17 @@ impl RecipeRegistry {
     /// unchanged. Consumers preserve the source loot count, not this recipe's
     /// yield. Exact and wildcard candidates share the same priority ordering.
     pub fn furnace_result(&self, identifier: &str, data: i16) -> Option<&ResultItem> {
-        let slots = self.furnace.get(identifier)?;
+        self.smelting_result(SmeltingStation::Furnace, identifier, data)
+    }
+
+    /// [`Self::furnace_result`] for the recipes tagged for `station`.
+    pub fn smelting_result(
+        &self,
+        station: SmeltingStation,
+        identifier: &str,
+        data: i16,
+    ) -> Option<&ResultItem> {
+        let slots = self.smelting[station.index()].get(identifier)?;
         let exact = slots.exact.get(&data).copied();
         let index = match (exact, slots.wildcard) {
             (Some(a), Some(b)) => {

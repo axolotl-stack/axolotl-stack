@@ -7,6 +7,7 @@ mod block_drops;
 mod blocks;
 mod chunks;
 mod commands;
+mod containers;
 mod falling;
 mod inventory;
 mod items;
@@ -39,7 +40,7 @@ use crate::ecs::{
 use crate::entity::bundles::PlayerBundle;
 use crate::entity::components::transform::{Position, Rotation};
 use crate::entity::components::{
-    ArmourInventory, BreakingState, ChunkRadius, ContainerWindows, GameMode, HeldSlot, Inventory,
+    ArmourInventory, BreakingState, ChunkRadius, ContainerWindows, EnderChestInventory, GameMode, HeldSlot, Inventory,
     LastBroadcastPosition, MainInventory, OffhandSlot, Player, PlayerInput, PlayerName,
     PlayerSession, PlayerState, PlayerUi, PlayerUuid, RuntimeEntityId, SpatialChunk,
 };
@@ -133,6 +134,10 @@ fn player_record(world: &World, entity: Entity) -> Option<(uuid::Uuid, PlayerDat
                 .get::<HeldSlot>(entity)
                 .map(|slot| slot.0)
                 .unwrap_or(0),
+            ender_chest: world
+                .get::<EnderChestInventory>(entity)
+                .map(|ender| ender.0.slots().iter().map(Into::into).collect())
+                .unwrap_or_default(),
         },
     ))
 }
@@ -141,7 +146,13 @@ fn player_record(world: &World, entity: Entity) -> Option<(uuid::Uuid, PlayerDat
 fn restore_items(
     saved: &mut PlayerData,
     items: &ItemRegistry,
-) -> crate::storage::StorageResult<(MainInventory, ArmourInventory, OffhandSlot, PlayerUi)> {
+) -> crate::storage::StorageResult<(
+    MainInventory,
+    ArmourInventory,
+    OffhandSlot,
+    PlayerUi,
+    EnderChestInventory,
+)> {
     let mut main = Vec::with_capacity(36);
     for item in std::mem::take(&mut saved.inventory) {
         main.push(item.restore(items)?);
@@ -152,6 +163,11 @@ fn restore_items(
     let armour_items = [head?, chest?, legs?, feet?];
     let offhand = std::mem::take(&mut saved.offhand).restore(items)?;
     let cursor = std::mem::take(&mut saved.cursor).restore(items)?;
+    let mut ender = Vec::with_capacity(crate::entity::components::ENDER_CHEST_SIZE);
+    for item in std::mem::take(&mut saved.ender_chest) {
+        ender.push(item.restore(items)?);
+    }
+    ender.resize_with(crate::entity::components::ENDER_CHEST_SIZE, crate::item::ItemStack::empty);
     for (slot, item) in armour_items.iter().enumerate().skip(1) {
         if item.count > 1 || !crate::item::equipment::accepts_armour(item, slot) {
             return Err(crate::storage::StorageError::Deserialization(format!(
@@ -174,7 +190,13 @@ fn restore_items(
     let offhand = OffhandSlot(offhand.into_slot());
     let mut ui = PlayerUi::default();
     ui.set_cursor(cursor);
-    Ok((main, armour, offhand, ui))
+    Ok((
+        main,
+        armour,
+        offhand,
+        ui,
+        EnderChestInventory(Inventory::from_slots(ender)),
+    ))
 }
 
 impl GameServer {
@@ -292,6 +314,11 @@ impl GameServer {
         ecs.world_mut().init_resource::<packet_queues::ChatEvents>();
 
         ecs.world_mut().add_observer(on_block_changed);
+        ecs.world_mut()
+            .init_resource::<containers::BlockContainers>();
+        ecs.world_mut()
+            .add_observer(containers::register_chunk_tickers);
+        ecs.world_mut().add_observer(containers::forget_replaced);
         register_chunk_systems(ecs.schedule_mut());
 
         // Domain systems in PacketApplySet (movement, inventory, chunks run parallel)
@@ -360,6 +387,13 @@ impl GameServer {
                 .chain()
                 .in_set(EntityLogicSet)
                 .after(despawn_dead)
+                .before(tick_block_breaking),
+        );
+        // Furnaces, hoppers and container viewers (exclusive: edits chunks).
+        ecs.schedule_mut().add_systems(
+            containers::tick_block_containers
+                .in_set(EntityLogicSet)
+                .after(falling::process_gravity_checks)
                 .before(tick_block_breaking),
         );
         ecs.schedule_mut().add_systems(
@@ -535,7 +569,7 @@ impl GameServer {
         let mut rotation = Rotation::default();
         let mut game_mode = default_gamemode;
         let mut saved_data = data.saved_data;
-        let (main_inventory, armour, offhand, ui) = match saved_data.as_mut() {
+        let (main_inventory, armour, offhand, ui, ender_chest) = match saved_data.as_mut() {
             Some(saved) => {
                 saved.validate(player_uuid)?;
                 let items = &self.ecs.world().resource::<types::ItemRegistryResource>().0;
@@ -546,6 +580,7 @@ impl GameServer {
                 ArmourInventory::default(),
                 OffhandSlot::default(),
                 PlayerUi::default(),
+                EnderChestInventory::default(),
             ),
         };
         let mut held_slot = HeldSlot::default();
@@ -608,6 +643,7 @@ impl GameServer {
                 offhand,
                 held_slot,
                 ui,
+                ender_chest,
                 windows: ContainerWindows::default(),
                 request_ids: RequestIdAssignments::default(),
             })

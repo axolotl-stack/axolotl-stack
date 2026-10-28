@@ -42,6 +42,8 @@ pub struct Stores<'a> {
     pub armor: &'a mut ArmourInventory,
     pub offhand: &'a mut ItemStack,
     pub ui: &'a mut Inventory,
+    /// The open container block's window slots, when one is open.
+    pub block: Option<&'a mut Inventory>,
 }
 
 static EMPTY: ItemStack = ItemStack::EMPTY;
@@ -53,6 +55,7 @@ impl Stores<'_> {
             Store::Armor => self.armor.slot(index),
             Store::Offhand => Some(&*self.offhand),
             Store::Ui => self.ui.item(index),
+            Store::Block => self.block.as_deref().and_then(|block| block.item(index)),
         }
         .unwrap_or(&EMPTY)
     }
@@ -73,6 +76,13 @@ impl Stores<'_> {
             Store::Offhand => *self.offhand = stack.into_slot(),
             Store::Ui => {
                 self.ui.set_item(index, stack).expect("validated UI slot");
+            }
+            Store::Block => {
+                self.block
+                    .as_deref_mut()
+                    .expect("block rules exist only while a block window is open")
+                    .set_item(index, stack)
+                    .expect("validated block slot");
             }
         }
     }
@@ -771,7 +781,7 @@ pub fn process(
         match store {
             Store::Armor => equipment.armor.push(index),
             Store::Offhand => equipment.offhand = true,
-            Store::Main | Store::Ui => {}
+            Store::Main | Store::Ui | Store::Block => {}
         }
         stores.set(store, index, stack);
     }
@@ -919,6 +929,7 @@ mod tests {
             armor: &mut armor,
             offhand: &mut offhand,
             ui: &mut ui,
+            block: None,
         };
         let mut cache = RequestIdAssignments::default();
         let mut ids = IdMap::default();
@@ -1041,6 +1052,7 @@ mod regressions {
         armor: ArmourInventory,
         offhand: ItemStack,
         ui: Inventory,
+        block: Option<Inventory>,
         cache: RequestIdAssignments,
         now: Instant,
         screen: ScreenKind,
@@ -1055,6 +1067,7 @@ mod regressions {
                 armor: ArmourInventory::default(),
                 offhand: ItemStack::empty(),
                 ui: Inventory::new(54),
+                block: None,
                 cache: RequestIdAssignments::default(),
                 now: Instant::now(),
                 screen: ScreenKind::Inventory,
@@ -1069,6 +1082,7 @@ mod regressions {
                 armor: &mut self.armor,
                 offhand: &mut self.offhand,
                 ui: &mut self.ui,
+                block: self.block.as_mut(),
             };
             process(
                 &ItemStackRequestPacketDataRequestData {

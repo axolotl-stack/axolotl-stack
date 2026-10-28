@@ -12,6 +12,7 @@ pub mod biomes;
 pub mod blocks;
 pub mod creative;
 pub mod equipment;
+pub mod fuel;
 pub mod item_components;
 pub mod item_identity;
 pub mod items;

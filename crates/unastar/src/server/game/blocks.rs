@@ -305,19 +305,29 @@ fn can_interact(world: &World, entity: Entity, position: (i32, i32, i32)) -> boo
     origin.distance_squared(nearest) <= reach * reach
 }
 
-/// A crafting table's `use` runs before item placement unless the player is
-/// sneaking with an item in hand, as for every interactive block.
-fn uses_crafting_table(world: &World, entity: Entity, clicked: (i32, i32, i32)) -> bool {
+/// What `use` does on an interactive block.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+enum BlockUse {
+    Workbench,
+    Container,
+}
+
+/// An interactive block's `use` (crafting table, container) runs before item
+/// placement unless the player is sneaking with an item in hand.
+fn block_use(world: &World, entity: Entity, clicked: (i32, i32, i32)) -> Option<BlockUse> {
     use crate::entity::components::{HeldSlot, MainInventory, PlayerState};
-    let is_table = block_at(world, clicked).is_some_and(|runtime_id| {
-        world
-            .get_resource::<super::types::BlockRegistryResource>()
-            .and_then(|registry| registry.0.get_by_runtime_id(runtime_id))
-            .is_some_and(|entry| entry.string_id == "minecraft:crafting_table")
-    });
-    if !is_table {
-        return false;
-    }
+    let block_use = block_at(world, clicked).and_then(|runtime_id| {
+        let entry = world
+            .get_resource::<super::types::BlockRegistryResource>()?
+            .0
+            .get_by_runtime_id(runtime_id)?;
+        if entry.string_id == "minecraft:crafting_table" {
+            Some(BlockUse::Workbench)
+        } else {
+            crate::block_entity::ContainerKind::from_block(&entry.string_id)
+                .map(|_| BlockUse::Container)
+        }
+    })?;
     let sneaking = world
         .get::<PlayerState>(entity)
         .is_some_and(|state| state.sneaking);
@@ -326,7 +336,7 @@ fn uses_crafting_table(world: &World, entity: Entity, clicked: (i32, i32, i32)) 
         .zip(world.get::<MainInventory>(entity))
         .and_then(|(slot, main)| main.0.item(usize::from(slot.0)))
         .is_some_and(|stack| !stack.is_empty());
-    !(sneaking && holding)
+    (!(sneaking && holding)).then_some(block_use)
 }
 
 /// Resolve placeable content exclusively from the server's selected stack.
@@ -409,6 +419,7 @@ pub(crate) fn commit_block_event(world: &mut World, event: &ServerEvent) {
             if let Some((above, upper_state)) = upper {
                 place_block(world, above.x, above.y, above.z, upper_state);
             }
+            super::containers::placed(world, IVec3::new(position.0, position.1, position.2));
             if world.get::<crate::entity::components::GameMode>(*entity)
                 == Some(&crate::entity::components::GameMode::Survival)
             {
@@ -511,6 +522,9 @@ fn apply_break_block(world: &mut World, breaking_player: Entity, x: i32, y: i32,
         .map(|cd| cd.inner.get_block(local_x, local_y, local_z))
         .unwrap_or(0);
 
+    // A container hands its contents over before its actor goes with the block.
+    let broken = super::containers::breaking(world, IVec3::new(x, y, z));
+
     // Set block to air
     if let Some(mut chunk_data) = world.get_mut::<crate::world::ecs::ChunkData>(chunk_entity) {
         chunk_data
@@ -568,6 +582,9 @@ fn apply_break_block(world: &mut World, breaking_player: Entity, x: i32, y: i32,
         z,
         original_block_id,
     );
+    if let Some(broken) = broken {
+        super::containers::drop_contents(world, IVec3::new(x, y, z), broken);
+    }
 }
 
 /// Broadcast block break effects (UpdateBlock, particles, sound) to viewers.
@@ -794,9 +811,16 @@ fn handle_block_click(
             face: data.face,
         });
     }
-    if uses_crafting_table(world, entity, clicked) {
-        super::inventory::open_workbench(world, entity, clicked);
-        return;
+    match block_use(world, entity, clicked) {
+        Some(BlockUse::Workbench) => {
+            super::inventory::open_workbench(world, entity, clicked);
+            return;
+        }
+        Some(BlockUse::Container) => {
+            super::containers::open(world, entity, IVec3::new(clicked.0, clicked.1, clicked.2));
+            return;
+        }
+        None => {}
     }
     let held = held_block(world, entity);
     let matches_held = held.as_ref().is_some_and(|(_, stack, network_id)| {
@@ -1083,10 +1107,10 @@ mod tests {
             .inner
             .set_block(1, 64, 1, table);
         world.entity_mut(player).insert(PlayerState::default());
-        assert!(uses_crafting_table(&world, player, (1, 64, 1)));
+        assert_eq!(block_use(&world, player, (1, 64, 1)), Some(BlockUse::Workbench));
         world.get_mut::<PlayerState>(player).unwrap().sneaking = true;
         assert!(
-            uses_crafting_table(&world, player, (1, 64, 1)),
+            block_use(&world, player, (1, 64, 1)).is_some(),
             "sneaking, empty hand"
         );
         world
@@ -1096,13 +1120,13 @@ mod tests {
             .set_item(0, crate::item::test_support::stack("minecraft:stone", 1))
             .unwrap();
         assert!(
-            !uses_crafting_table(&world, player, (1, 64, 1)),
+            block_use(&world, player, (1, 64, 1)).is_none(),
             "sneaking with an item places"
         );
         world.get_mut::<PlayerState>(player).unwrap().sneaking = false;
-        assert!(uses_crafting_table(&world, player, (1, 64, 1)));
+        assert_eq!(block_use(&world, player, (1, 64, 1)), Some(BlockUse::Workbench));
         assert!(
-            !uses_crafting_table(&world, player, (1, 65, 1)),
+            block_use(&world, player, (1, 65, 1)).is_none(),
             "air is not a table"
         );
     }

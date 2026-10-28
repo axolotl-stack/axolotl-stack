@@ -1,6 +1,9 @@
-//! Slot validators and screen allow-lists for player-owned containers.
+//! Slot validators and screen allow-lists for player-owned containers and the
+//! container block a window shows.
 
 pub use crate::entity::components::ScreenKind;
+use crate::block_entity::ContainerKind;
+use crate::entity::components::BlockScreen;
 use crate::item::{ItemStack, equipment};
 use jolyne::valentine::EnumsContainerEnumName as Name;
 
@@ -10,6 +13,9 @@ pub enum Store {
     Armor,
     Offhand,
     Ui,
+    /// The open container block's slots (both halves of a double chest, or
+    /// the player's ender chest).
+    Block,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -18,6 +24,8 @@ pub enum SlotKind {
     Armor,
     Offhand,
     CreatedOutput,
+    /// Furnace-family fuel slot (BDS `FurnaceFuelContainerValidation`).
+    FurnaceFuel,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -46,12 +54,20 @@ impl ContainerRule {
             SlotKind::Armor => equipment::accepts_armour(stack, usize::from(requested)),
             SlotKind::Offhand => requested == 1 && equipment::allows_offhand(stack),
             SlotKind::CreatedOutput => false,
+            // An empty bucket has no burn time; a furnace leaves it behind
+            // after lava, from where it can only be taken.
+            SlotKind::FurnaceFuel => crate::block_entity::burn_ticks(stack, 200) > 0,
         }
     }
 
     pub fn set_count(self, stack: &ItemStack) -> u8 {
         match self.kind {
             SlotKind::Armor => 1,
+            SlotKind::FurnaceFuel
+                if matches!(stack.item_id(), "minecraft:bucket" | "minecraft:lava_bucket") =>
+            {
+                1
+            }
             _ => stack.max_stack_size(),
         }
     }
@@ -143,15 +159,59 @@ const SCREENS: &[ScreenPolicy] = &[
     },
 ];
 
+/// Player containers every block-container screen also allows (BDS "+std").
+const BLOCK_SCREEN_STANDARD: &[Name] = &[
+    Name::Combinedhotbarandinventorycontainer,
+    Name::Hotbarcontainer,
+    Name::Inventorycontainer,
+    Name::Cursorcontainer,
+];
+
+/// The block's own containers on its screen: chest, ender chest and hopper
+/// windows address `LevelEntityContainer`, the barrel `BarrelContainer`, and
+/// furnaces their ingredient (by block), fuel and result containers.
+fn block_rule(screen: BlockScreen, name: Name) -> Option<ContainerRule> {
+    let block = |first, len, kind| Some(rule(Store::Block, first, len, kind));
+    match screen.kind {
+        ContainerKind::Chest
+        | ContainerKind::TrappedChest
+        | ContainerKind::EnderChest
+        | ContainerKind::Hopper => {
+            (name == Name::Levelentitycontainer).then_some(())?;
+            block(0, screen.size, SlotKind::Plain)
+        }
+        ContainerKind::Barrel => {
+            (name == Name::Barrelcontainer).then_some(())?;
+            block(0, screen.size, SlotKind::Plain)
+        }
+        ContainerKind::Furnace | ContainerKind::BlastFurnace | ContainerKind::Smoker => {
+            let smelter = screen.kind.smelter().expect("furnace kinds smelt");
+            match name {
+                _ if name == smelter.ingredient => block(0, 1, SlotKind::Plain),
+                Name::Furnacefuelcontainer => block(1, 1, SlotKind::FurnaceFuel),
+                // BDS does not forbid placing into the result slot.
+                Name::Furnaceresultcontainer => block(2, 1, SlotKind::Plain),
+                _ => None,
+            }
+        }
+    }
+}
+
 impl ScreenKind {
     fn policy(self) -> &'static ScreenPolicy {
         SCREENS
             .iter()
             .find(|row| row.screen == self)
-            .expect("every screen has a policy")
+            .expect("every player screen has a policy")
     }
 
     pub fn rule(self, name: Name) -> Option<ContainerRule> {
+        if let ScreenKind::Block(screen) = self {
+            if BLOCK_SCREEN_STANDARD.contains(&name) {
+                return VALIDATORS.iter().find(|(kind, _)| *kind == name).map(|row| row.1);
+            }
+            return block_rule(screen, name);
+        }
         let screen = self.policy();
         if !screen.allowed.contains(&name) {
             return None;
@@ -164,8 +224,9 @@ impl ScreenKind {
         Some(rule)
     }
 
+    /// Destroy is only legal on the inventory and crafting-table screens.
     pub fn allows_destroy(self) -> bool {
-        self.policy().destroy
+        !matches!(self, ScreenKind::Block(_)) && self.policy().destroy
     }
 }
 

@@ -153,6 +153,20 @@ pub fn apply_inventory(world: &mut World, state: &mut InventorySystemState) {
             InventoryAction::BlockPick(pk) => pick::picked_item(world, entity, pk),
             _ => None,
         };
+        // A block window's slots are copied out for the request and committed
+        // back afterwards; a close releases the block's viewer.
+        let block_screen = match world.get::<ContainerWindows>(entity).map(|w| w.screen()) {
+            Some(ScreenKind::Block(screen)) => Some(screen),
+            _ => None,
+        };
+        let mut block_window = match (&action, block_screen) {
+            (InventoryAction::ItemStackRequest(_), Some(screen)) => {
+                super::containers::window_slots(world, entity, screen)
+                    .map(|slots| (screen, slots.clone(), slots))
+            }
+            _ => None,
+        };
+        let closing = matches!(action, InventoryAction::ContainerClose(_));
         let mut drops = Vec::new();
         let mut fatal = false;
         {
@@ -167,6 +181,7 @@ pub fn apply_inventory(world: &mut World, state: &mut InventorySystemState) {
                             &world_template,
                             &mut player,
                             can_drop,
+                            block_window.as_mut().map(|(_, _, slots)| slots),
                         );
                     }
                 }
@@ -203,6 +218,12 @@ pub fn apply_inventory(world: &mut World, state: &mut InventorySystemState) {
                 }
             }
         }
+        if let Some((screen, before, after)) = block_window {
+            super::containers::commit_window(world, entity, screen, &before, after);
+        }
+        if closing && let Some(screen) = block_screen {
+            super::containers::stop_viewing(world, entity, screen);
+        }
         for stack in drops {
             let spawned = crate::entity::item_drop::spawn_item_drop(
                 world,
@@ -231,6 +252,7 @@ fn handle_item_stack_request(
     world_template: &super::types::ServerWorldTemplate,
     player: &mut PlayerInventoryItem<'_, '_>,
     can_drop: bool,
+    mut block: Option<&mut Inventory>,
 ) -> (Vec<ItemStack>, bool) {
     let creative_item = |net_id: u32| creative_stack(items, world_template, net_id);
     let ctx = engine::Context {
@@ -250,6 +272,7 @@ fn handle_item_stack_request(
             armor: &mut player.armor,
             offhand: &mut player.offhand.0,
             ui: &mut player.ui.0,
+            block: block.as_deref_mut(),
         };
         let outcome = engine::process(request, &mut stores, &mut player.request_ids, &ctx);
         if outcome.fatal_invalid_id {

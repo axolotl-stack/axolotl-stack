@@ -97,6 +97,9 @@ pub struct PlayerData {
     pub cursor: StoredItemStack,
     #[serde(default)]
     pub held_slot: u8,
+    /// Ender chest slots in order. Missing on records saved before ender chests.
+    #[serde(default)]
+    pub ender_chest: Vec<StoredItemStack>,
     #[serde(default = "default_max_health")]
     pub max_health: f32,
     #[serde(default = "default_saturation")]
@@ -123,6 +126,7 @@ impl Default for PlayerData {
             offhand: Default::default(),
             cursor: Default::default(),
             held_slot: 0,
+            ender_chest: Vec::new(),
             max_health: default_max_health(),
             saturation: default_saturation(),
             exhaustion: 0.0,
@@ -197,6 +201,7 @@ impl PlayerData {
             || !self.rotation.iter().all(|n| n.is_finite())
             || !matches!(self.game_mode, 0 | 1 | 2 | 6)
             || self.inventory.len() > 36
+            || self.ender_chest.len() > crate::entity::components::ENDER_CHEST_SIZE
             || self.held_slot > 8
             || !self.health.is_finite()
             || !self.max_health.is_finite()
