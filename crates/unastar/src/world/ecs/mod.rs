@@ -43,6 +43,6 @@ pub use events::{BlockBroadcastEvent, BlockChanged, PlayerDespawnedEvent, Player
 pub use loader::ChunkLoader;
 pub use manager::{ChunkManager, ChunkManagerWorldExt};
 pub use systems::{
-    AwaitingSpawnStatus, ChunkLoadConfig, LastPublisherState, broadcast_block_update,
-    on_block_changed, register_chunk_systems, world_to_chunk_coords, world_to_local_coords,
+    AwaitingSpawnStatus, ChunkLoadConfig, LastPublisherState, on_block_changed,
+    register_chunk_systems, world_to_chunk_coords, world_to_local_coords,
 };

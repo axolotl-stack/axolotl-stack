@@ -33,6 +33,11 @@ pub struct BlockRegistryResource(pub Arc<crate::registry::BlockRegistry>);
 #[derive(Resource, Clone)]
 pub struct ServerConfigResource(pub super::ServerConfig);
 
+/// The configured wire numbering of block states (see [`crate::registry::block::BlockNetworkIds`]).
+pub(crate) fn block_network_ids(world: &World) -> crate::registry::block::BlockNetworkIds {
+    world.resource::<ServerConfigResource>().0.block_network_ids
+}
+
 /// Command registry as an ECS Resource.
 #[derive(Resource)]
 pub struct CommandRegistryResource(pub crate::command::CommandRegistry);

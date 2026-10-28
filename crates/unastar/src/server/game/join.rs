@@ -280,6 +280,7 @@ impl GameServer {
         let world = self.ecs.world();
         let items = &world.resource::<super::types::ItemRegistryResource>().0;
         let blocks = &world.resource::<super::types::BlockRegistryResource>().0;
+        let block_ids = super::types::block_network_ids(world);
         let encode = |stack: &crate::item::ItemStack| {
             if stack.is_empty() {
                 return CerealizerNetworkItemStackDescriptorSerializedData::default();
@@ -297,14 +298,14 @@ impl GameServer {
                 stacksize: u16::from(stack.count),
                 auxvalue: stack.damage as u32,
                 net_id_variant: None,
-                block_runtime_id: if stack.runtime_id != 0 {
+                block_runtime_id: block_ids.item_block_to_wire(if stack.runtime_id != 0 {
                     stack.runtime_id as u32
                 } else {
                     blocks
                         .get_by_name(&stack.item_id)
                         .map(|block| block.min_state_id)
                         .unwrap_or(0)
-                },
+                }),
                 user_data_buffer: crate::item::user_data::network_user_data(
                     &stack.item_id,
                     stack.nbt.as_deref(),

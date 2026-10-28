@@ -113,6 +113,79 @@ pub struct BlockRegistry {
     runtime_id_map: Vec<usize>,
     /// Water/lava identity and depth, indexed by canonical runtime state.
     liquid_states: Vec<Option<LiquidState>>,
+    /// Hashed network id of each canonical runtime state. Index = runtime_id.
+    network_hashes: Vec<u32>,
+    /// Canonical runtime state of each hashed network id.
+    runtime_by_hash: HashMap<u32, u32>,
+}
+
+/// How block states are numbered on the wire, as `StartGame`'s
+/// `block_network_ids_are_hashes` advertises to the client.
+///
+/// Internally (chunks, storage, items, plugins) a block state is always its
+/// canonical palette ordinal; only packet encoding and decoding translate.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Default, serde::Serialize, serde::Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub enum BlockNetworkIds {
+    /// Each state's 32-bit FNV-1a hash of its `{name, states}` NBT, independent
+    /// of palette order. BDS 1.26.51 advertises this.
+    #[default]
+    Hashed,
+    /// The canonical palette ordinal. The client numbers its built-in blocks
+    /// plus the blocks `StartGame` defines, so this requires
+    /// [`BlockRegistry::to_block_properties`] to define every data-driven block.
+    Sequential,
+}
+
+impl BlockNetworkIds {
+    /// `StartGame.block_network_ids_are_hashes`.
+    pub fn is_hashed(self) -> bool {
+        self == Self::Hashed
+    }
+
+    /// Wire id of a canonical runtime state of the vanilla palette.
+    ///
+    /// # Panics
+    /// If `runtime_id` is not a vanilla canonical state; internal block ids
+    /// always are.
+    pub fn to_wire(self, runtime_id: u32) -> u32 {
+        match self {
+            Self::Sequential => runtime_id,
+            Self::Hashed => BlockRegistry::vanilla()
+                .network_hash(runtime_id)
+                .unwrap_or_else(|| {
+                    panic!("block runtime id {runtime_id} is not a canonical state")
+                }),
+        }
+    }
+
+    /// Canonical runtime state of a wire id a client sent, if it names one.
+    pub fn from_wire(self, wire_id: u32) -> Option<u32> {
+        let registry = BlockRegistry::vanilla();
+        match self {
+            Self::Sequential => registry.get_by_runtime_id(wire_id).map(|_| wire_id),
+            Self::Hashed => registry.runtime_by_hash.get(&wire_id).copied(),
+        }
+    }
+
+    /// [`Self::to_wire`] for an item descriptor's `block_runtime_id`, where 0
+    /// means "not a block" in both modes.
+    pub fn item_block_to_wire(self, runtime_id: u32) -> u32 {
+        if runtime_id == 0 {
+            0
+        } else {
+            self.to_wire(runtime_id)
+        }
+    }
+
+    /// [`Self::from_wire`] for an item descriptor's `block_runtime_id`.
+    pub fn item_block_from_wire(self, wire_id: u32) -> Option<u32> {
+        if wire_id == 0 {
+            Some(0)
+        } else {
+            self.from_wire(wire_id)
+        }
+    }
 }
 
 impl BlockRegistry {
@@ -148,6 +221,8 @@ impl BlockRegistry {
             .unwrap_or(0);
         self.runtime_id_map = vec![MISSING_INDEX; (max_rid + 1) as usize];
         self.liquid_states = vec![None; self.runtime_id_map.len()];
+        self.network_hashes = vec![0; self.runtime_id_map.len()];
+        self.runtime_by_hash.clear();
         let material = |identifier| {
             ALL_BLOCKS
                 .iter()
@@ -182,6 +257,12 @@ impl BlockRegistry {
             // Fill the runtime_id -> entry mapping for every state.
             for rid in entry.min_state_id..=entry.max_state_id {
                 self.runtime_id_map[rid as usize] = entry_index;
+                let hash = block.network_hashes[(rid - entry.min_state_id) as usize];
+                self.network_hashes[rid as usize] = hash;
+                assert!(
+                    self.runtime_by_hash.insert(hash, rid).is_none(),
+                    "duplicate block network hash {hash}"
+                );
             }
 
             let kind = if block.liquid && block.material == water_material {
@@ -236,6 +317,13 @@ impl BlockRegistry {
             .get(runtime_id as usize)
             .copied()
             .flatten()
+    }
+
+    /// Hashed network id of a canonical runtime state.
+    #[inline]
+    pub fn network_hash(&self, runtime_id: u32) -> Option<u32> {
+        self.get_by_runtime_id(runtime_id)?;
+        self.network_hashes.get(runtime_id as usize).copied()
     }
 
     /// Get entry by registry ID (the first canonical state ID). O(1).

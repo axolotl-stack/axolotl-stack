@@ -88,8 +88,8 @@ fn write_blocks_artifact(input: &Path, filter_light: u8) {
         input.join("blocks.kdl"),
         format!(
             r#"block "minecraft:stone" id=1 name="Stone" hardness=1.5 resistance=6.0 is_transparent=#false emit_light=0 filter_light={filter_light} min_state_id=0 max_state_id=1 default_state_id=0 state_id_count=2 native_properties_json="{{\"friction\":0.6,\"material\":{{\"type\":23,\"blocksMotion\":true,\"liquid\":false}},\"solid\":true,\"falling\":false,\"requiresCorrectToolForDrops\":true,\"visualShape\":[0,0,0,1,1,1]}}" {{
-    state 0 properties_json="{{\"lit\":{{\"byte\":0}}}}"
-    state 1 properties_json="{{\"lit\":{{\"byte\":1}}}}"
+    state 0 network_hash=21 properties_json="{{\"lit\":{{\"byte\":0}}}}"
+    state 1 network_hash=22 properties_json="{{\"lit\":{{\"byte\":1}}}}"
 }}
 block "minecraft:air" id=0 name="Air" hardness=0.0 resistance=0.0 is_transparent=#true emit_light=0 filter_light=0 min_state_id=2 max_state_id=2 default_state_id=2 state_id_count=1 native_properties_json="{{\"friction\":0.9,\"material\":{{\"type\":0,\"blocksMotion\":false,\"liquid\":false}},\"solid\":false,\"falling\":false,\"requiresCorrectToolForDrops\":false,\"visualShape\":[0,0,0,1,1,1]}}"
 "#

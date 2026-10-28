@@ -98,6 +98,7 @@ impl UnastarConfig {
             default_chunk_radius: self.server.default_chunk_radius,
             max_chunk_radius: self.server.max_chunk_radius,
             default_gamemode: gamemode,
+            block_network_ids: self.server.block_network_ids,
             // Use defaults for new fields not in config file yet
             simulation_distance: defaults.simulation_distance,
             chunk_unload_ticks: defaults.chunk_unload_ticks,
@@ -162,6 +163,8 @@ pub struct ServerConfigFile {
     pub encryption_enabled: bool,
     /// Require clients to accept advertised resource packs.
     pub require_resource_packs: bool,
+    /// Block state numbering on the wire: "hashed" (BDS default) or "sequential".
+    pub block_network_ids: crate::registry::block::BlockNetworkIds,
 }
 
 impl Default for ServerConfigFile {
@@ -177,6 +180,7 @@ impl Default for ServerConfigFile {
             allow_legacy_auth: true,
             encryption_enabled: true,
             require_resource_packs: false,
+            block_network_ids: crate::registry::block::BlockNetworkIds::Hashed,
         }
     }
 }
