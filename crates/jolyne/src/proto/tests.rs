@@ -256,7 +256,7 @@ fn finish_spawn(
     pump(&mut spawn, &mut client); // StartGame .. CreativeContent
     let mut client = wait(client); // sends RequestChunkRadius
     pump(&mut client, &mut spawn);
-    let mut spawn = wait(spawn); // radius, publisher, PlayerSpawn
+    let mut spawn = wait(spawn); // radius, PlayerSpawn
     pump(&mut spawn, &mut client);
     let mut joined = next(client); // sends SetLocalPlayerAsInitialized
     pump(&mut joined.session, &mut spawn);
@@ -361,9 +361,8 @@ async fn join_sequence_follows_the_bds_capture() {
 
 /// BDS sends `StartGame` with the structure and definition packets in one
 /// batch, and gophertunnel answers `RequestChunkRadius` with
-/// `ChunkRadiusUpdated`, `NetworkChunkPublisherUpdate` and
-/// `PlayStatus(PlayerSpawn)` in one flush; under the default immediate flush
-/// mode each packet used to leave in its own batch.
+/// `ChunkRadiusUpdated` and `PlayStatus(PlayerSpawn)` in one flush; under the
+/// default immediate flush mode each packet used to leave in its own batch.
 #[tokio::test]
 async fn start_game_and_spawn_answers_leave_as_single_batches() {
     let harness = Harness::new(BedrockListenerConfig {
@@ -381,8 +380,109 @@ async fn start_game_and_spawn_answers_leave_as_single_batches() {
     let mut client = wait(client);
     pump(&mut client, &mut spawn);
     let mut spawn = wait(spawn);
-    assert_eq!(pump(&mut spawn, &mut client), 1); // radius, publisher, PlayerSpawn
+    assert_eq!(pump(&mut spawn, &mut client), 1); // radius, PlayerSpawn
     let _joined = next(client);
+}
+
+/// The startup rule of clients that wait for announced terrain (Cinnabar's
+/// login startup, matching BDS, which sends the publisher update and the
+/// spawn-area `LevelChunk`s before `PlayStatus(PlayerSpawn)`): a
+/// `NetworkChunkPublisherUpdate` or terrain packet before `PlayerSpawn` means
+/// the server is streaming that view, so `SetLocalPlayerAsInitialized` waits
+/// until terrain has arrived. Without such an announcement the client starts
+/// with an empty view, as against gophertunnel/Dragonfly.
+#[derive(Default)]
+struct TerrainGatedStartup {
+    spawned: bool,
+    terrain_announced: bool,
+    terrain_received: bool,
+}
+
+impl TerrainGatedStartup {
+    fn receive_all(&mut self, conn: &mut Connection) {
+        use crate::valentine::McpePacketData;
+        while let Some(packet) = conn.next_packet().unwrap() {
+            let name = packet.name().expect("known packet");
+            let terrain = matches!(
+                name,
+                McpePacketName::LevelChunkPacket | McpePacketName::SubChunkPacket
+            );
+            if !self.spawned {
+                self.terrain_announced |=
+                    terrain || name == McpePacketName::NetworkChunkPublisherUpdatePacket;
+            }
+            self.terrain_received |= terrain;
+            if name == McpePacketName::PlayStatusPacket
+                && let McpePacketData::PlayStatusPacket(status) = packet.decode().unwrap().data
+            {
+                self.spawned |= status.status == PlayStatusPacketStatus::Playerspawn;
+            }
+        }
+    }
+
+    fn may_initialize(&self) -> bool {
+        self.spawned && (!self.terrain_announced || self.terrain_received)
+    }
+}
+
+/// The spawn answer must not announce a view the server only streams after
+/// `SetLocalPlayerAsInitialized`: a client that waits for announced terrain
+/// then never initializes, and the join ends in `Timeout(Spawn)` (Cinnabar
+/// against Unastar, 2026-10-28). jolyne answers like gophertunnel: no
+/// `NetworkChunkPublisherUpdate` before spawn; the application publishes the
+/// view and streams chunks once the session is in play.
+#[tokio::test]
+async fn spawn_does_not_announce_terrain_it_does_not_send() {
+    let harness = Harness::new(BedrockListenerConfig {
+        online_mode: false,
+        ..Default::default()
+    });
+    let (mut spawn, mut client) = harness.through_packs(params(9)).await;
+    let mut startup = TerrainGatedStartup::default();
+    pump(&mut spawn, &mut client); // StartGame .. CreativeContent
+    startup.receive_all(client.connection());
+    client
+        .connection()
+        .queue_packet(
+            &McpePacket::from(RequestChunkRadiusPacket {
+                chunk_radius: 8,
+                max_chunk_radius: 8,
+            }),
+            Instant::now(),
+        )
+        .unwrap();
+    pump(&mut client, &mut spawn);
+    let mut spawn = wait(spawn);
+    pump(&mut spawn, &mut client); // the spawn answer
+    startup.receive_all(client.connection());
+    assert!(
+        startup.spawned,
+        "PlayStatus(PlayerSpawn) answers the radius"
+    );
+    // The server sends nothing more until the client initializes.
+    let mut spawn = wait(spawn);
+    assert_eq!(pump(&mut spawn, &mut client), 0);
+    if !startup.may_initialize() {
+        let late = Instant::now() + harness.config.spawn_timeout + Duration::from_secs(1);
+        panic!(
+            "deadlock: terrain announced before PlayerSpawn but none sent; the join ends in {:?}",
+            error_of(spawn, late)
+        );
+    }
+    client
+        .connection()
+        .queue_packet(
+            &McpePacket::from(SetLocalPlayerAsInitializedPacket {
+                player_id: ActorRuntimeId {
+                    actor_runtime_id: 9,
+                },
+            }),
+            Instant::now(),
+        )
+        .unwrap();
+    pump(&mut client, &mut spawn);
+    let server = next(spawn);
+    assert_eq!(server.session.runtime_id(), 9);
 }
 
 /// The real 26.52 client dropped the connection with `BadPacket`
@@ -445,7 +545,6 @@ async fn packets_before_their_phase_are_replayed_into_play_in_order() {
             McpePacketName::AvailableActorIdentifiersPacket,
             McpePacketName::CreativeContentPacket,
             McpePacketName::ChunkRadiusUpdatedPacket,
-            McpePacketName::NetworkChunkPublisherUpdatePacket,
         ]
     );
 }
