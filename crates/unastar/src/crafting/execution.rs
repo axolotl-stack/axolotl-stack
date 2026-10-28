@@ -137,15 +137,14 @@ impl CraftPlan<'_> {
         self.consumption
             .iter()
             .enumerate()
-            .filter_map(|(index, &count)| {
-                (count != 0).then(|| {
-                    (
-                        self.grid_size
-                            .ui_slot(index)
-                            .expect("occupied bounded grid cell"),
-                        count,
-                    )
-                })
+            .filter(|&(_, &count)| count != 0)
+            .map(|(index, &count)| {
+                (
+                    self.grid_size
+                        .ui_slot(index)
+                        .expect("occupied bounded grid cell"),
+                    count,
+                )
             })
     }
 }
@@ -1023,7 +1022,7 @@ mod tests {
         items.load_vanilla();
         let blocks = crate::registry::BlockRegistry::vanilla();
         let recipes = unastar_data::recipes::RecipeRegistry::vanilla().unwrap();
-        let catalog = CraftingCatalog::new(&recipes, &items, &blocks).unwrap();
+        let catalog = CraftingCatalog::new(&recipes, &items, blocks).unwrap();
         let executor = CraftingExecutor::new(&catalog, &items).unwrap();
         let packet = catalog.packet();
         assert_eq!(

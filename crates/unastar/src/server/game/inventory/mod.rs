@@ -51,7 +51,7 @@ pub(crate) mod test_support {
 
     pub static CRAFTING: LazyLock<(CraftingCatalog, Arc<CraftingExecutor>)> = LazyLock::new(|| {
         let recipes = unastar_data::recipes::RecipeRegistry::vanilla().unwrap();
-        let catalog = CraftingCatalog::new(&recipes, &VANILLA, &BlockRegistry::vanilla()).unwrap();
+        let catalog = CraftingCatalog::new(&recipes, &VANILLA, BlockRegistry::vanilla()).unwrap();
         let executor = Arc::new(CraftingExecutor::new(&catalog, &VANILLA).unwrap());
         (catalog, executor)
     });

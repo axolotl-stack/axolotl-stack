@@ -440,7 +440,7 @@ mod tests {
             items.load_vanilla();
             let blocks = BlockRegistry::vanilla();
             let recipes = RecipeRegistry::vanilla().unwrap();
-            let catalog = CraftingCatalog::new(&recipes, &items, &blocks).unwrap();
+            let catalog = CraftingCatalog::new(&recipes, &items, blocks).unwrap();
             (recipes, catalog)
         });
         &SNAPSHOT.1
@@ -545,7 +545,7 @@ mod authority_tests {
         let mut items = ItemRegistry::new();
         items.load_vanilla();
         let blocks = BlockRegistry::vanilla();
-        let catalog = CraftingCatalog::new(&recipes, &items, &blocks).unwrap();
+        let catalog = CraftingCatalog::new(&recipes, &items, blocks).unwrap();
         let mut bytes = Vec::new();
         catalog.packet().encode(&mut bytes).unwrap();
         let mut input = bytes.as_slice();
