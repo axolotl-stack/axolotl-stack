@@ -33,6 +33,10 @@ pub struct RecipeRegistryResource(pub Arc<unastar_data::recipes::RecipeRegistry>
 #[derive(Resource)]
 pub struct CraftingCatalogResource(pub crate::crafting::CraftingCatalog);
 
+/// Mandatory packet-authoritative grid execution index, frozen after the catalog.
+#[derive(Resource)]
+pub struct CraftingExecutorResource(pub Arc<crate::crafting::execution::CraftingExecutor>);
+
 /// Wrapper for BlockRegistry to serve as an ECS Resource.
 #[derive(Resource)]
 pub struct BlockRegistryResource(pub Arc<crate::registry::BlockRegistry>);

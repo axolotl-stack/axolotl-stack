@@ -1,5 +1,7 @@
 //! Frozen recipe catalog: one source of network ids for advertisement/execution.
 
+pub mod execution;
+
 use std::collections::HashMap;
 use std::sync::Arc;
 
@@ -20,7 +22,7 @@ use unastar_data::recipes::native::{
 use unastar_data::recipes::{Ingredient, RecipeKind, RecipeRegistry, ResultItem, Unlock};
 
 use crate::item::user_data::network_user_data;
-use crate::registry::ItemRegistry;
+use crate::registry::{BlockRegistry, ItemRegistry};
 
 /// Index into the same frozen source snapshot used to construct the packet.
 #[derive(Debug, Clone, Copy)]
@@ -38,7 +40,11 @@ pub struct CraftingCatalog {
 }
 
 impl CraftingCatalog {
-    pub fn new(recipes: &RecipeRegistry, items: &ItemRegistry) -> Result<Self> {
+    pub fn new(
+        recipes: &RecipeRegistry,
+        items: &ItemRegistry,
+        blocks: &BlockRegistry,
+    ) -> Result<Self> {
         let measured = native::builtins();
         let mut packet = CraftingDataPacket {
             clear_recipes: true,
@@ -85,7 +91,7 @@ impl CraftingCatalog {
                             width: width as i32,
                             height: pattern.len() as i32,
                             ingredients,
-                            results: wire_results(&recipe.identifier, results, items)?,
+                            results: wire_results(&recipe.identifier, results, items, blocks)?,
                             uuid: uuid::Uuid::new_v4(),
                             tag: tag_wire,
                             priority: recipe.priority,
@@ -112,7 +118,7 @@ impl CraftingCatalog {
                         packet.shapeless_recipes.push(ShapelessRecipePayload {
                             recipe_id: id,
                             ingredients,
-                            results: wire_results(&recipe.identifier, results, items)?,
+                            results: wire_results(&recipe.identifier, results, items, blocks)?,
                             uuid: uuid::Uuid::new_v4(),
                             tag: tag_wire,
                             priority: recipe.priority,
@@ -128,6 +134,7 @@ impl CraftingCatalog {
                                 &recipe.identifier,
                                 std::slice::from_ref(output),
                                 items,
+                                blocks,
                             )?,
                             uuid: uuid::Uuid::new_v4(),
                             tag: tag_wire,
@@ -149,7 +156,7 @@ impl CraftingCatalog {
                                 template_ingredient: wire_ingredient(template),
                                 base_ingredient: wire_ingredient(base),
                                 addition_ingredient: wire_ingredient(addition),
-                                result: wire_result(result, items)?,
+                                result: wire_result(result, items, blocks)?,
                                 tag: tag_wire,
                                 net_id: net_id(RecipeOrigin::Pack(index)),
                             });
@@ -260,7 +267,7 @@ impl CraftingCatalog {
 fn item_id(items: &ItemRegistry, name: &str) -> Result<i32> {
     items
         .get_by_name(name)
-        .map(|item| item.network_id)
+        .map(|item| item.network_id())
         .with_context(|| format!("recipe references unknown item {name}"))
 }
 
@@ -340,33 +347,49 @@ fn wire_results(
     origin: &str,
     results: &[ResultItem],
     items: &ItemRegistry,
+    blocks: &BlockRegistry,
 ) -> Result<Vec<WireResult>> {
-    if let Some(measured) = native::builtins().result_user_data.get(origin) {
-        measured
-            .iter()
-            .map(|result| native_result(result, items))
-            .collect()
-    } else {
-        results
-            .iter()
-            .map(|result| wire_result(result, items))
-            .collect()
-    }
+    let metadata = native::builtins().result_user_data.get(origin);
+    results
+        .iter()
+        .map(|result| {
+            let mut wire = wire_result(result, items, blocks)?;
+            // Constructor metadata may enrich a matching result, never replace the
+            // authoritative loaded identity, count or number of result stacks.
+            if let Some(data) = metadata
+                .and_then(|rows| {
+                    rows.iter()
+                        .find(|row| row.0 == result.name && row.1 == result.data)
+                })
+                .and_then(|row| row.4.as_ref())
+            {
+                wire.user_data_buffer = bytes::Bytes::from_static(data);
+            }
+            Ok(wire)
+        })
+        .collect()
 }
 
-fn wire_result(result: &ResultItem, items: &ItemRegistry) -> Result<WireResult> {
+fn wire_result(
+    result: &ResultItem,
+    items: &ItemRegistry,
+    blocks: &BlockRegistry,
+) -> Result<WireResult> {
+    let stack = items
+        .stack_with_block(&result.name, result.count, blocks)
+        .with_context(|| format!("recipe references unknown item {}", result.name))?
+        .with_damage(result.data);
     let key = format!("{}:{}", result.name, result.data);
-    let block_runtime_id = native::builtins()
-        .result_block_states
-        .get(&key)
-        .with_context(|| format!("missing measured recipe result state for {key}"))?
-        .map_or(0, |state| state as i32);
+    let block_runtime_id = match native::builtins().result_block_states.get(&key) {
+        Some(measured) => measured.map_or(0, |state| state as i32),
+        None => stack.runtime_id,
+    };
     Ok(WireResult {
-        id: item_id(items, &result.name)?,
+        id: stack.item().expect("registered result type").network_id(),
         auxvalue: result.data as u32,
         stacksize: u16::from(result.count),
         block_runtime_id,
-        user_data_buffer: network_user_data(&result.name, None),
+        user_data_buffer: stack.user_data(),
     })
 }
 
@@ -415,8 +438,9 @@ mod tests {
         static SNAPSHOT: LazyLock<(RecipeRegistry, CraftingCatalog)> = LazyLock::new(|| {
             let mut items = ItemRegistry::new();
             items.load_vanilla();
+            let blocks = BlockRegistry::vanilla();
             let recipes = RecipeRegistry::vanilla().unwrap();
-            let catalog = CraftingCatalog::new(&recipes, &items).unwrap();
+            let catalog = CraftingCatalog::new(&recipes, &items, &blocks).unwrap();
             (recipes, catalog)
         });
         &SNAPSHOT.1
@@ -508,5 +532,117 @@ mod tests {
             .find(|recipe| recipe.recipe_id == "minecraft:furnace_beef" && recipe.tag == "smoker")
             .unwrap();
         assert_ne!(furnace.uuid, smoker.uuid);
+    }
+}
+
+#[cfg(test)]
+mod authority_tests {
+    use super::*;
+    use jolyne::valentine::bedrock::codec::BedrockCodec;
+    use unastar_data::recipes::parse_recipe_document;
+
+    fn advertised(recipes: RecipeRegistry) -> CraftingDataPacket {
+        let mut items = ItemRegistry::new();
+        items.load_vanilla();
+        let blocks = BlockRegistry::vanilla();
+        let catalog = CraftingCatalog::new(&recipes, &items, &blocks).unwrap();
+        let mut bytes = Vec::new();
+        catalog.packet().encode(&mut bytes).unwrap();
+        let mut input = bytes.as_slice();
+        let packet = CraftingDataPacket::decode(&mut input, ()).unwrap();
+        assert!(input.is_empty());
+        packet
+    }
+
+    #[test]
+    fn measured_banner_metadata_cannot_replace_loaded_results_or_their_counts() {
+        let mut recipes = unastar_data::recipes::decode_vanilla().unwrap();
+        let banner = recipes
+            .iter_mut()
+            .find(|recipe| recipe.identifier == "minecraft:black_banner")
+            .unwrap();
+        let RecipeKind::Shaped { results, .. } = &mut banner.kind else {
+            panic!("shaped banner recipe");
+        };
+        *results = vec![
+            ResultItem {
+                name: "minecraft:banner".into(),
+                data: 0,
+                count: 2,
+            },
+            ResultItem {
+                name: "minecraft:egg".into(),
+                data: 0,
+                count: 3,
+            },
+        ];
+        let packet = advertised(RecipeRegistry::from_recipes(recipes).unwrap());
+        let banner = packet
+            .shaped_recipes
+            .iter()
+            .find(|recipe| recipe.recipe_id == "minecraft:black_banner")
+            .unwrap();
+        assert_eq!(
+            banner
+                .results
+                .iter()
+                .map(|result| (
+                    result.id,
+                    result.stacksize,
+                    result.auxvalue,
+                    result.block_runtime_id
+                ))
+                .collect::<Vec<_>>(),
+            [(577, 2, 0, 0), (393, 3, 0, 0)]
+        );
+        assert_eq!(
+            banner.results[0].user_data_buffer.as_ref(),
+            [
+                255, 255, 1, 10, 0, 0, 3, 4, 0, 84, 121, 112, 101, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+                0, 0,
+            ]
+        );
+        // Egg construction is independently present in the pinned native
+        // CreativeContent capture, but absent from its CraftingData results.
+        assert_eq!(banner.results[1].user_data_buffer.as_ref(), [0; 10]);
+    }
+
+    #[test]
+    fn uncaptured_outputs_use_shared_block_and_nonblock_constructors() {
+        let recipe = parse_recipe_document(
+            "addon.json",
+            &serde_json::json!({
+                "format_version": "1.26.50",
+                "minecraft:recipe_shapeless": {
+                    "description": {"identifier": "addon:constructor_outputs"},
+                    "tags": ["crafting_table"],
+                    "ingredients": [{"item": "minecraft:stone"}],
+                    "unlock": [{"item": "minecraft:stone"}],
+                    "result": [
+                        {"item": "minecraft:egg", "count": 4},
+                        {"item": "minecraft:barrier", "count": 5}
+                    ]
+                }
+            }),
+        )
+        .unwrap();
+        let packet = advertised(RecipeRegistry::from_recipes(vec![recipe]).unwrap());
+        let recipe = packet
+            .shapeless_recipes
+            .iter()
+            .find(|recipe| recipe.recipe_id == "addon:constructor_outputs")
+            .unwrap();
+        assert_eq!(recipe.results[0].id, 393);
+        assert_eq!(recipe.results[0].stacksize, 4);
+        assert_eq!(recipe.results[0].block_runtime_id, 0);
+        assert_eq!(recipe.results[0].user_data_buffer.as_ref(), [0; 10]);
+        let blocks = BlockRegistry::vanilla();
+        let state = blocks
+            .default_state_id_by_name("minecraft:barrier")
+            .unwrap() as i32;
+        assert_ne!(state, 0);
+        assert_eq!(recipe.results[1].id, -161);
+        assert_eq!(recipe.results[1].stacksize, 5);
+        assert_eq!(recipe.results[1].block_runtime_id, state);
     }
 }
