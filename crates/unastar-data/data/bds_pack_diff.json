@@ -1,0 +1,80 @@
+{
+  "pins": {
+    "samples_version": "1.26.50.4",
+    "samples_commit": "46ba6ea985fb5a92d79a9419198f10dda14c199d",
+    "bds_base_game_version": [
+      1,
+      26,
+      51
+    ]
+  },
+  "comparison_status": "Reviewed 2026-10-28. Readable documents are compared as canonical JSON and every remaining difference is listed by identifier below; any new, removed or changed difference fails. The 23 BDS item documents stored as binary 7fMCB payloads are not decoded: they are listed by exact origin and SHA-256 so a changed or additional binary document fails, but their contents are not claimed equal. The server reads item documents from bedrock-samples, not from these binary payloads.",
+  "reviewed_notes": {
+    "items/minecraft:breeze_rod": "BDS 1.21.0 layer keeps a readable format 1.10 document; the newer 1.21.10 layer is binary, so the readable selection is the older one.",
+    "items/only_in_samples": "Each identifier is defined only by a binary BDS document (see opaque_documents).",
+    "recipes/*_from_*_slab, cobweb_to_string": "BDS loads a deprecated-tagged document with the same identifier first; first identifier wins.",
+    "recipes/*__carpet_from_white, pillar_quartz_block, stonecutter_*_lines": "BDS documents use flattened item names where the samples use legacy aux values."
+  },
+  "canonical_differences": {
+    "items": {
+      "differing": [
+        "minecraft:breeze_rod"
+      ],
+      "only_in_bds": [],
+      "only_in_samples": [
+        "minecraft:ominous_trial_key",
+        "minecraft:red_shrub",
+        "minecraft:shelf_mushroom",
+        "minecraft:trial_key",
+        "minecraft:wind_charge"
+      ]
+    },
+    "loot_tables": {
+      "differing": [],
+      "only_in_bds": [],
+      "only_in_samples": []
+    },
+    "recipes": {
+      "differing": [
+        "minecraft:barrel_from_crimson_slab",
+        "minecraft:barrel_from_mangrove_slab",
+        "minecraft:barrel_from_warped_slab",
+        "minecraft:cobweb_to_string",
+        "minecraft:light_gray__carpet_from_white",
+        "minecraft:lime__carpet_from_white",
+        "minecraft:pillar_quartz_block",
+        "minecraft:stonecutter_purpur_lines",
+        "minecraft:stonecutter_quartz_lines"
+      ],
+      "only_in_bds": [],
+      "only_in_samples": []
+    }
+  },
+  "opaque_documents": {
+    "items": {
+      "vanilla_1.21.0/items:ominous_trial_key.json": "bf2cbcd8357a41b38ee14946e8ef4f4649d5baf7eed3ef0250a4ea5c62170d72",
+      "vanilla_1.21.0/items:trial_key.json": "52109456426e95775b79b922c3233a07405b62ff6134277f9e9fa4336728b7be",
+      "vanilla_1.21.0/items:wind_charge.json": "1719f5743037d77bc7397e92d9439da3c3c485b53289eaa46c7dc8d6a32a976b",
+      "vanilla_1.21.10/items:breeze_rod.json": "9bdf97877bb68fd361df1432c98db1c9698a6b135efc950956c24f6d3a55b246",
+      "vanilla_1.21.40/items:black_bundle.json": "02e724a33ef65fa4c009aa8fc78525308a1205fd773f28bf833d0859488aa613",
+      "vanilla_1.21.40/items:blue_bundle.json": "2bc98e35914c93c3b39aa19e5b0f4d2ad1232456c243fb1828fd7ff2a47c3ec0",
+      "vanilla_1.21.40/items:brown_bundle.json": "ecc4397a42e7f80769eb56d2a68774be5c762f9a022e8e543f26b11b15989c6f",
+      "vanilla_1.21.40/items:bundle.json": "b66f2342525b42c012732fa9663ad4df624f5fa9713cd6e740ee45921a4892a4",
+      "vanilla_1.21.40/items:cyan_bundle.json": "fb0ef6170e7a746c14b61b621db0be56b4133cb1691cefcd66478b358efb5789",
+      "vanilla_1.21.40/items:gray_bundle.json": "7479d757422212d9e2c790e26d8933858a424f2e2e5b51ad4c2cc6abbe09a37a",
+      "vanilla_1.21.40/items:green_bundle.json": "7b5c4009ad6bb353afded071e553c6601e8026d5e148d05ead537efc24a8dc36",
+      "vanilla_1.21.40/items:light_blue_bundle.json": "4c37050d7324d7e14a1e1f23db401dc62cfedee5587c0ae03574969b3c355283",
+      "vanilla_1.21.40/items:light_gray_bundle.json": "7debe055ab24ee4c8af6c73179f40876ae6834b71bdde3b05b4baf087287b577",
+      "vanilla_1.21.40/items:lime_bundle.json": "31d3270a8855cba2b4074f715ea00df60dad78366fffd4748591812736b7b1c6",
+      "vanilla_1.21.40/items:magenta_bundle.json": "1f55764dc4d77dea6106b810af7876f973e4cc1c623711c9eec2d5639ea7a02c",
+      "vanilla_1.21.40/items:orange_bundle.json": "65edf415beec7d127b4dea59bb303c736e269ec3dea25758d84b51cb58addc4d",
+      "vanilla_1.21.40/items:pink_bundle.json": "d2c87e220b85d0d18248beb2b9105af193bd8faa54b4071d83b6600ab92b3e22",
+      "vanilla_1.21.40/items:purple_bundle.json": "4f2475f2cd88e05d93d64a5bd5d8562ca54709d95df5444198efcedaadec5cc0",
+      "vanilla_1.21.40/items:red_bundle.json": "cc2b2f2f66a65bf4c57bd3608ee287b0141797dd4e98ef1617925a0bfd9b9989",
+      "vanilla_1.21.40/items:white_bundle.json": "505f07e92be1607cd18cb8e2a4e5b815c062e865df9d953f50fb967c72d32d79",
+      "vanilla_1.21.40/items:yellow_bundle.json": "de80defd3a88b54bf87d59ca06aec601d24a551667d092020b6e8ca827c270b1",
+      "vanilla_1.26.50/items:red_shrub.json": "c48100a58112753233b87168cd203458982fd7c732171643fbb9efdeefa9eae8",
+      "vanilla_1.26.50/items:shelf_mushroom.json": "ef677c6e46668502213740710be17ccd5d66a210c1c88496a97663a5372fd15a"
+    }
+  }
+}
