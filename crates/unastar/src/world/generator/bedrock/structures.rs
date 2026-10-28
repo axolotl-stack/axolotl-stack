@@ -640,6 +640,11 @@ fn pick_weighted(rng: &mut BedrockRandom, elements: &[Element]) -> Option<usize>
     None
 }
 
+// Compiled vanilla tables need at most 27 connectors and 49 pool/fallback entries.
+// Keep their orderings inline; larger custom tables retain growable storage.
+type ConnectorOrder = SmallVec<[u16; 32]>;
+type ElementOrder = SmallVec<[(u16, u16); 64]>;
+
 /// Append `(pool, element)` for every element of `pool` in weighted random
 /// order (sequential weighted draws without replacement, which orders
 /// elements like the first occurrences of a shuffled weight-repeated list).
@@ -647,7 +652,7 @@ fn weighted_order(
     rng: &mut BedrockRandom,
     elements: &[Element],
     pool: u16,
-    out: &mut Vec<(u16, u16)>,
+    out: &mut ElementOrder,
 ) {
     let start = out.len();
     out.extend((0..elements.len() as u16).map(|i| (pool, i)));
@@ -674,7 +679,7 @@ fn weighted_order(
 
 /// Connector indices of `template` shuffled, then stably ordered by
 /// descending selection priority.
-fn ordered_connectors(rng: &mut BedrockRandom, template: &Template, out: &mut Vec<u16>) {
+fn ordered_connectors(rng: &mut BedrockRandom, template: &Template, out: &mut ConnectorOrder) {
     out.clear();
     out.extend(0..template.connectors.len() as u16);
     shuffle(rng, out);
@@ -761,9 +766,9 @@ pub fn assemble(
     let mut interiors: Vec<Option<usize>> = vec![None];
     // (piece, free space, placement priority); highest priority first, FIFO.
     let mut queue: Vec<(usize, usize, i32)> = vec![(0, 0, 0)];
-    let mut parent_connectors: Vec<u16> = Vec::new();
-    let mut child_connectors: Vec<u16> = Vec::new();
-    let mut candidates: Vec<(u16, u16)> = Vec::new();
+    let mut parent_connectors = ConnectorOrder::new();
+    let mut child_connectors = ConnectorOrder::new();
+    let mut candidates = ElementOrder::new();
 
     while !queue.is_empty() {
         let mut best = 0;

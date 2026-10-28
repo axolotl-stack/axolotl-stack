@@ -557,6 +557,23 @@ all-rejected and 32/33/64-entry cases exercise the inline/spill boundary without
 changing selection or imposing a new size limit. This preserves the current
 model; native structure-grid seeding and legacy placement remain unmeasured.
 
+Jigsaw assembly keeps parent/child connector orderings and pool/fallback
+candidates inline at 32 and 64 entries respectively; the compiled tables need
+at most 27 and 49. A 354-case differential preserves every ordered piece,
+surface/biome query count and 64 continued MT draws, including 90 authored
+boundary cases with oversized connectors, 65-entry pools and fallback-triggered
+spills. The 228 compiled-table starts produced this scoped heap traffic:
+
+| Quantity | Vec scratch | Inline scratch |
+|---|---:|---:|
+| Allocations | 2,526 | 1,778 |
+| Allocated bytes | 215,776 | 167,232 |
+
+The 36 all-rejected cases retain identical allocation counts and bytes.
+Larger custom tables remain growable without a new size limit; their allocator
+capacity can differ. This proves allocation and output preservation, not
+wall-time improvement or native structure placement/RNG parity.
+
 Molang `query.noise` is a stateless intrinsic in `molang_noise`, not a world-seeded
 Java noise instance. Its fixed permutation/hash gradients are evaluated at compile
 time; sampling keeps the measured native float32 operation order. Authored BDS
