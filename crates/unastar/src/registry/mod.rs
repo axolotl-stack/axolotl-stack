@@ -4,6 +4,7 @@
 
 pub mod biome;
 pub mod block;
+pub mod collision;
 pub mod creative;
 pub mod entity;
 pub mod item;

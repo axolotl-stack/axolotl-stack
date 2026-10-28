@@ -192,6 +192,14 @@ impl PackStack {
         for layer in &self.layers {
             for (path, source) in layer_sources(layer, family) {
                 for (entry_name, bytes) in source.read(&path)? {
+                    let entry_name = if matches!(source, SourceKind::LooseJson) {
+                        path.strip_prefix(layer.root.join(family.path()))
+                            .expect("loose family input is below the family directory")
+                            .to_string_lossy()
+                            .replace('\\', "/")
+                    } else {
+                        entry_name
+                    };
                     if !entry_name.ends_with(".json") || bytes.is_empty() {
                         continue;
                     }
@@ -479,5 +487,27 @@ mod tests {
         let err = PackStack::open(&dir).unwrap_err().to_string();
         assert!(err.contains("definitions"), "{err}");
         std::fs::remove_dir_all(dir).unwrap();
+    }
+}
+
+#[cfg(test)]
+mod path_tests {
+    use super::*;
+
+    #[test]
+    fn loose_path_keyed_families_preserve_subdirectories() {
+        let root = std::env::temp_dir().join(format!("unastar-packs-paths-{}", std::process::id()));
+        let _ = std::fs::remove_dir_all(&root);
+        for family in ["entities", "chests"] {
+            let dir = root.join("loot_tables").join(family);
+            std::fs::create_dir_all(&dir).unwrap();
+            std::fs::write(dir.join("shared.json"), "{}").unwrap();
+        }
+        let files = PackStack::single_pack("test", &root)
+            .files(Family::LootTables)
+            .unwrap();
+        let entries: Vec<_> = files.iter().map(|file| file.entry.as_str()).collect();
+        assert_eq!(entries, ["chests/shared.json", "entities/shared.json"]);
+        std::fs::remove_dir_all(root).unwrap();
     }
 }

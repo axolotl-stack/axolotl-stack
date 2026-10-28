@@ -22,6 +22,40 @@ struct ParsedBlock {
     default_state_id: u32,
     state_id_count: u32,
     tags: Vec<String>,
+    physics: NativePhysics,
+    states: StateTable,
+}
+
+/// Block-level physical facts projected from the native properties table
+/// (`native_properties_json` on each KDL block node).
+#[derive(Debug, Clone, PartialEq)]
+struct NativePhysics {
+    friction: f32,
+    material: u8,
+    blocks_motion: bool,
+    liquid: bool,
+    solid: bool,
+    falling: bool,
+    requires_correct_tool_for_drops: bool,
+    visual_shape: [f32; 6],
+}
+
+/// Typed native block-state value (`{"byte":..}`, `{"int":..}`, `{"string":..}`).
+#[derive(Debug, Clone, PartialEq, Eq)]
+enum StateValue {
+    Byte(u8),
+    Int(i32),
+    Str(String),
+}
+
+/// Per-block state property table: property names (sorted), the distinct
+/// values of each property in first-appearance canonical order, and for every
+/// canonical state (in runtime-ID order) the index of its value per property.
+#[derive(Debug, Clone, Default, PartialEq)]
+struct StateTable {
+    properties: Vec<(String, Vec<StateValue>)>,
+    /// Row-major: `state_offset * properties.len() + property_index`.
+    value_indices: Vec<u8>,
 }
 
 pub fn generate_blocks(input_dir: &Path, output_dir: &Path) -> miette::Result<()> {
@@ -94,6 +128,12 @@ fn parse_block_node(node: &KdlNode) -> miette::Result<ParsedBlock> {
                 .ok_or_else(|| miette::miette!("block {identifier} has invalid tag"))
         })
         .collect::<miette::Result<Vec<_>>>()?;
+    let physics_json = node
+        .get("native_properties_json")
+        .and_then(|entry| entry.as_string())
+        .ok_or_else(|| miette::miette!("block {identifier} missing native_properties_json"))?;
+    let physics = parse_native_physics(physics_json, &identifier)?;
+    let states = parse_state_table(node, &identifier, min_state_id, state_id_count)?;
 
     Ok(ParsedBlock {
         identifier,
@@ -109,7 +149,148 @@ fn parse_block_node(node: &KdlNode) -> miette::Result<ParsedBlock> {
         default_state_id,
         state_id_count,
         tags,
+        physics,
+        states,
     })
+}
+
+fn parse_native_physics(json: &str, identifier: &str) -> miette::Result<NativePhysics> {
+    let value: serde_json::Value = serde_json::from_str(json)
+        .map_err(|e| miette::miette!("block {identifier} native_properties_json: {e}"))?;
+    let field = |name: &str| {
+        value
+            .get(name)
+            .ok_or_else(|| miette::miette!("block {identifier} native properties lack {name}"))
+    };
+    let flag = |v: &serde_json::Value, name: &str| {
+        v.get(name)
+            .and_then(serde_json::Value::as_bool)
+            .ok_or_else(|| miette::miette!("block {identifier} native {name} is not a bool"))
+    };
+    let material = field("material")?;
+    let shape = field("visualShape")?
+        .as_array()
+        .filter(|values| values.len() == 6)
+        .ok_or_else(|| miette::miette!("block {identifier} visualShape is not six numbers"))?;
+    let mut visual_shape = [0.0f32; 6];
+    for (slot, value) in visual_shape.iter_mut().zip(shape) {
+        *slot = value
+            .as_f64()
+            .ok_or_else(|| miette::miette!("block {identifier} visualShape is not numeric"))?
+            as f32;
+    }
+    Ok(NativePhysics {
+        friction: field("friction")?
+            .as_f64()
+            .ok_or_else(|| miette::miette!("block {identifier} friction is not numeric"))?
+            as f32,
+        material: material
+            .get("type")
+            .and_then(serde_json::Value::as_u64)
+            .and_then(|ty| u8::try_from(ty).ok())
+            .ok_or_else(|| miette::miette!("block {identifier} material.type is not a u8"))?,
+        blocks_motion: flag(material, "blocksMotion")?,
+        liquid: flag(material, "liquid")?,
+        solid: flag(&value, "solid")?,
+        falling: flag(&value, "falling")?,
+        requires_correct_tool_for_drops: flag(&value, "requiresCorrectToolForDrops")?,
+        visual_shape,
+    })
+}
+
+fn parse_state_value(value: &serde_json::Value, identifier: &str) -> miette::Result<StateValue> {
+    let object = value
+        .as_object()
+        .filter(|object| object.len() == 1)
+        .ok_or_else(|| miette::miette!("block {identifier} has a malformed state value"))?;
+    let (kind, raw) = object.iter().next().expect("one entry");
+    match kind.as_str() {
+        "byte" => raw
+            .as_u64()
+            .and_then(|v| u8::try_from(v).ok())
+            .map(StateValue::Byte),
+        "int" => raw
+            .as_i64()
+            .and_then(|v| i32::try_from(v).ok())
+            .map(StateValue::Int),
+        "string" => raw.as_str().map(|v| StateValue::Str(v.to_owned())),
+        _ => None,
+    }
+    .ok_or_else(|| miette::miette!("block {identifier} has unsupported state value {value}"))
+}
+
+/// Build the per-block state table from the `state` children, which are in
+/// canonical runtime-ID order. Fails if a state ID is out of order or a
+/// state's property set differs from the block's first state.
+fn parse_state_table(
+    node: &KdlNode,
+    identifier: &str,
+    min_state_id: u32,
+    state_id_count: u32,
+) -> miette::Result<StateTable> {
+    let mut table = StateTable::default();
+    let state_nodes: Vec<&KdlNode> = node
+        .children()
+        .into_iter()
+        .flat_map(|doc| doc.nodes())
+        .filter(|n| n.name().value() == "state")
+        .collect();
+    if state_nodes.is_empty() {
+        return Ok(table);
+    }
+    if state_nodes.len() != state_id_count as usize {
+        return Err(miette::miette!(
+            "block {identifier} lists {} states, expected {state_id_count}",
+            state_nodes.len()
+        ));
+    }
+    for (offset, state) in state_nodes.into_iter().enumerate() {
+        let state_id = state
+            .get(0)
+            .and_then(|v| v.as_integer())
+            .ok_or_else(|| miette::miette!("block {identifier} state without ID"))?;
+        if state_id != i128::from(min_state_id) + offset as i128 {
+            return Err(miette::miette!(
+                "block {identifier} state {state_id} is out of canonical order"
+            ));
+        }
+        let json = state
+            .get("properties_json")
+            .and_then(|v| v.as_string())
+            .ok_or_else(|| miette::miette!("block {identifier} state {state_id} properties"))?;
+        let properties: serde_json::Map<String, serde_json::Value> = serde_json::from_str(json)
+            .map_err(|e| miette::miette!("block {identifier} state {state_id}: {e}"))?;
+        if offset == 0 {
+            let mut names: Vec<&String> = properties.keys().collect();
+            names.sort();
+            table.properties = names
+                .into_iter()
+                .map(|name| (name.clone(), Vec::new()))
+                .collect();
+        }
+        if properties.len() != table.properties.len() {
+            return Err(miette::miette!(
+                "block {identifier} state {state_id} has a different property set"
+            ));
+        }
+        for (name, values) in &mut table.properties {
+            let raw = properties.get(name).ok_or_else(|| {
+                miette::miette!("block {identifier} state {state_id} lacks property {name}")
+            })?;
+            let value = parse_state_value(raw, identifier)?;
+            let index = match values.iter().position(|known| *known == value) {
+                Some(index) => index,
+                None => {
+                    values.push(value);
+                    values.len() - 1
+                }
+            };
+            table.value_indices.push(u8::try_from(index).map_err(|_| {
+                miette::miette!("block {identifier} property {name} has more than 256 values")
+            })?);
+        }
+    }
+    Ok(table)
 }
 
 fn property_u32(node: &KdlNode, name: &str, identifier: &str) -> miette::Result<u32> {
@@ -256,6 +437,25 @@ fn generate_blocks_module(blocks: &[ParsedBlock], output_dir: &Path) -> miette::
             let max_state_id = block.max_state_id;
             let default_state_id = block.default_state_id;
             let state_id_count = block.state_id_count;
+            let NativePhysics {
+                friction,
+                material,
+                blocks_motion,
+                liquid,
+                solid,
+                falling,
+                requires_correct_tool_for_drops,
+                visual_shape,
+            } = &block.physics;
+            let properties = block.states.properties.iter().map(|(name, values)| {
+                let values = values.iter().map(|value| match value {
+                    StateValue::Byte(v) => quote! { StateValue::Byte(#v) },
+                    StateValue::Int(v) => quote! { StateValue::Int(#v) },
+                    StateValue::Str(v) => quote! { StateValue::Str(#v) },
+                });
+                quote! { BlockProperty { name: #name, values: &[#(#values),*] } }
+            });
+            let state_values = proc_macro2::Literal::byte_string(&block.states.value_indices);
             quote! {
                 BlockData {
                     id: #id,
@@ -272,6 +472,16 @@ fn generate_blocks_module(blocks: &[ParsedBlock], output_dir: &Path) -> miette::
                     is_transparent: #is_transparent,
                     emit_light: #emit_light,
                     filter_light: #filter_light,
+                    friction: #friction,
+                    material: #material,
+                    blocks_motion: #blocks_motion,
+                    liquid: #liquid,
+                    solid: #solid,
+                    falling: #falling,
+                    requires_correct_tool_for_drops: #requires_correct_tool_for_drops,
+                    visual_shape: [#(#visual_shape),*],
+                    properties: &[#(#properties),*],
+                    state_values: #state_values,
                 }
             }
         })
@@ -338,6 +548,91 @@ fn generate_blocks_module(blocks: &[ParsedBlock], output_dir: &Path) -> miette::
             pub emit_light: u8,
             /// Native light damping of the first canonical state.
             pub filter_light: u8,
+            /// Native block friction (`friction`; 0.6 for ordinary blocks, 0.98 ice).
+            pub friction: f32,
+            /// Native material type ordinal (`material.type`).
+            pub material: u8,
+            /// Native `material.blocksMotion`: entities collide with this block.
+            pub blocks_motion: bool,
+            /// Native `material.liquid`.
+            pub liquid: bool,
+            /// Native block-level `solid` flag.
+            pub solid: bool,
+            /// Native `falling` flag (sand, gravel, concrete powder, ...).
+            pub falling: bool,
+            /// Native `requiresCorrectToolForDrops`.
+            pub requires_correct_tool_for_drops: bool,
+            /// Native `visualShape` of the first canonical state as
+            /// `[min_x, min_y, min_z, max_x, max_y, max_z]` in block units.
+            pub visual_shape: [f32; 6],
+            /// State properties sorted by name, each with its values in
+            /// first-appearance canonical order.
+            pub properties: &'static [BlockProperty],
+            /// Row-major value indices: for canonical state offset `s` and
+            /// property index `p`, `state_values[s * properties.len() + p]`
+            /// indexes `properties[p].values`.
+            pub state_values: &'static [u8],
+        }
+
+        /// One native block-state property.
+        #[derive(Debug, Clone, Copy, PartialEq)]
+        pub struct BlockProperty {
+            /// Native property name, e.g. `minecraft:cardinal_direction`.
+            pub name: &'static str,
+            /// Distinct values in first-appearance canonical order.
+            pub values: &'static [StateValue],
+        }
+
+        /// Typed native block-state value.
+        #[derive(Debug, Clone, Copy, PartialEq, Eq)]
+        pub enum StateValue {
+            /// NBT byte property (booleans such as `open_bit`).
+            Byte(u8),
+            /// NBT int property.
+            Int(i32),
+            /// NBT string property.
+            Str(&'static str),
+        }
+
+        impl BlockData {
+            fn state_row(&self, runtime_id: u32) -> Option<&'static [u8]> {
+                if !(self.min_state_id..=self.max_state_id).contains(&runtime_id) {
+                    return None;
+                }
+                let width = self.properties.len();
+                let start = (runtime_id - self.min_state_id) as usize * width;
+                self.state_values.get(start..start + width)
+            }
+
+            /// Value of `property` in canonical state `runtime_id` of this block.
+            pub fn state_value(&self, runtime_id: u32, property: &str) -> Option<StateValue> {
+                let row = self.state_row(runtime_id)?;
+                let index = self.properties.iter().position(|p| p.name == property)?;
+                self.properties[index].values.get(usize::from(row[index])).copied()
+            }
+
+            /// The state equal to `runtime_id` except that `property` is `value`.
+            /// `None` if the block lacks the property or no canonical state matches.
+            pub fn with_state_value(
+                &self,
+                runtime_id: u32,
+                property: &str,
+                value: StateValue,
+            ) -> Option<u32> {
+                let row = self.state_row(runtime_id)?;
+                let index = self.properties.iter().position(|p| p.name == property)?;
+                let wanted = u8::try_from(
+                    self.properties[index].values.iter().position(|v| *v == value)?,
+                )
+                .ok()?;
+                (self.min_state_id..=self.max_state_id).find(|&candidate| {
+                    self.state_row(candidate).is_some_and(|other| {
+                        other.iter().enumerate().all(|(i, v)| {
+                            if i == index { *v == wanted } else { *v == row[i] }
+                        })
+                    })
+                })
+            }
         }
 
         /// All generated block registry rows sorted by canonical runtime state range.
@@ -378,9 +673,11 @@ fn format_code(code: TokenStream) -> miette::Result<String> {
 mod tests {
     use super::*;
 
+    const NATIVE: &str = r#"native_properties_json="{\"friction\":0.98,\"material\":{\"type\":13,\"blocksMotion\":true,\"liquid\":false},\"solid\":true,\"falling\":false,\"requiresCorrectToolForDrops\":true,\"visualShape\":[0,0,0,1,0.5,1]}""#;
+
     #[test]
     fn parses_block_node_with_default_state_id() {
-        let doc: KdlDocument = r#"block "minecraft:stone" id=1 name="Stone" hardness=1.5 resistance=6.0 is_transparent=#false emit_light=0 filter_light=15 min_state_id=0 max_state_id=1 default_state_id=0 state_id_count=2"#
+        let doc: KdlDocument = format!(r#"block "minecraft:stone" id=1 name="Stone" hardness=1.5 resistance=6.0 is_transparent=#false emit_light=0 filter_light=15 min_state_id=0 max_state_id=1 default_state_id=0 state_id_count=2 {NATIVE}"#)
             .parse()
             .expect("parse block");
 
@@ -390,6 +687,61 @@ mod tests {
         assert_eq!(block.id, 1);
         assert_eq!(block.default_state_id, 0);
         assert_eq!(block.state_id_count, 2);
+        assert_eq!(block.physics.friction, 0.98);
+        assert!(block.physics.blocks_motion && block.physics.requires_correct_tool_for_drops);
+        assert_eq!(block.physics.visual_shape[4], 0.5);
+    }
+
+    #[test]
+    fn block_without_native_properties_is_rejected() {
+        let doc: KdlDocument = r#"block "minecraft:stone" id=1 name="Stone" hardness=1.5 resistance=6.0 is_transparent=#false emit_light=0 filter_light=15 min_state_id=0 max_state_id=1 default_state_id=0 state_id_count=2"#
+            .parse()
+            .expect("parse block");
+        let error = parse_block_node(&doc.nodes()[0]).expect_err("native properties required");
+        assert!(error.to_string().contains("native_properties_json"));
+    }
+
+    #[test]
+    fn state_table_indexes_values_in_canonical_order() {
+        let doc: KdlDocument = format!(
+            r#"block "minecraft:candle" id=2 name="c" hardness=0.1 resistance=0.1 is_transparent=#true emit_light=0 filter_light=0 min_state_id=2 max_state_id=5 default_state_id=2 state_id_count=4 {NATIVE} {{
+    state 2 properties_json="{{\"lit\":{{\"byte\":0}},\"candles\":{{\"int\":0}}}}"
+    state 3 properties_json="{{\"lit\":{{\"byte\":0}},\"candles\":{{\"int\":1}}}}"
+    state 4 properties_json="{{\"lit\":{{\"byte\":1}},\"candles\":{{\"int\":0}}}}"
+    state 5 properties_json="{{\"lit\":{{\"byte\":1}},\"candles\":{{\"int\":1}}}}"
+}}"#
+        )
+        .parse()
+        .expect("parse block");
+        let block = parse_block_node(&doc.nodes()[0]).expect("parse block node");
+        assert_eq!(
+            block.states.properties,
+            vec![
+                (
+                    "candles".to_string(),
+                    vec![StateValue::Int(0), StateValue::Int(1)]
+                ),
+                (
+                    "lit".to_string(),
+                    vec![StateValue::Byte(0), StateValue::Byte(1)]
+                ),
+            ]
+        );
+        assert_eq!(block.states.value_indices, vec![0, 0, 1, 0, 0, 1, 1, 1]);
+    }
+
+    #[test]
+    fn out_of_order_states_are_rejected() {
+        let doc: KdlDocument = format!(
+            r#"block "minecraft:candle" id=0 name="c" hardness=0.1 resistance=0.1 is_transparent=#true emit_light=0 filter_light=0 min_state_id=0 max_state_id=1 default_state_id=0 state_id_count=2 {NATIVE} {{
+    state 1 properties_json="{{}}"
+    state 0 properties_json="{{}}"
+}}"#
+        )
+        .parse()
+        .expect("parse block");
+        let error = parse_block_node(&doc.nodes()[0]).expect_err("order is enforced");
+        assert!(error.to_string().contains("out of canonical order"));
     }
 
     #[test]
@@ -454,6 +806,17 @@ mod tests {
             default_state_id: min_state_id,
             tags: Vec::new(),
             state_id_count: max_state_id - min_state_id + 1,
+            physics: NativePhysics {
+                friction: 0.6,
+                material: 0,
+                blocks_motion: false,
+                liquid: false,
+                solid: false,
+                falling: false,
+                requires_correct_tool_for_drops: false,
+                visual_shape: [0.0, 0.0, 0.0, 1.0, 1.0, 1.0],
+            },
+            states: StateTable::default(),
         }
     }
 }

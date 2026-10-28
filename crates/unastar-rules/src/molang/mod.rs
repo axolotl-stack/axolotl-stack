@@ -154,6 +154,13 @@ impl MathFn {
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub struct QueryId(pub u16);
 
+/// Query availability is expression-context dependent in BDS.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord)]
+pub enum QueryContext {
+    Runtime,
+    PropertyDefault,
+}
+
 /// A query reference: the normalised name (without `query.`) and, once bound,
 /// its id.
 #[derive(Debug, Clone, PartialEq)]
@@ -580,15 +587,23 @@ impl Expr {
         out
     }
 
-    /// Bind every query to `registry`; fails on the first unknown name.
-    pub fn bind(&mut self, registry: &QueryRegistry) -> Result<(), String> {
+    /// Bind queries before evaluation, rejecting names unavailable in this
+    /// context. `had_component_group` is property-default-only; runtime actor
+    /// queries are unavailable while those defaults are being determined.
+    pub fn bind(&mut self, registry: &QueryRegistry, context: QueryContext) -> Result<(), String> {
         self.walk_mut(&mut |e| {
             if let Expr::Query(q, _) = e {
-                q.id = Some(
-                    registry
-                        .lookup(&q.name)
-                        .ok_or_else(|| format!("unknown query query.{}", q.name))?,
+                let id = registry
+                    .lookup(&q.name)
+                    .ok_or_else(|| format!("unknown query query.{}", q.name))?;
+                let property_only = matches!(
+                    BuiltinQuery::from_id(id),
+                    Some(BuiltinQuery::HadComponentGroup)
                 );
+                if (context == QueryContext::PropertyDefault) != property_only {
+                    return Err(format!("query.{} is unavailable in {context:?}", q.name));
+                }
+                q.id = Some(id);
             }
             Ok(())
         })
@@ -803,28 +818,5 @@ mod tests {
         ] {
             assert!(parse(bad).is_err(), "{bad}");
         }
-    }
-
-    #[test]
-    fn bind_resolves_builtin_queries_and_reports_unknown() {
-        let mut e = parse("query.is_baby ? query.variant : 0").unwrap();
-        e.bind(QueryRegistry::vanilla()).unwrap();
-        let mut ids = Vec::new();
-        e.walk(&mut |n| {
-            if let Expr::Query(q, _) = n {
-                ids.push(q.id.and_then(BuiltinQuery::from_id));
-            }
-        });
-        assert_eq!(
-            ids,
-            [Some(BuiltinQuery::IsBaby), Some(BuiltinQuery::Variant)]
-        );
-        let mut unknown = parse("query.made_up").unwrap();
-        assert!(
-            unknown
-                .bind(QueryRegistry::vanilla())
-                .unwrap_err()
-                .contains("made_up")
-        );
     }
 }

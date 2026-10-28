@@ -1,0 +1,18 @@
+{
+  "actor_component_registry": {
+    "count": 410,
+    "sha256": "960b7f9ae82479a36c9ff83b5a2c7fe9b98261ddcf2ed5cf966d5e1055fb97c5"
+  },
+  "actor_definitions": {
+    "count": 128,
+    "sha256": "1f33976096de6bd96220fdee35c4807ae17783f92a9aa53f1e1048251dfa79f6"
+  },
+  "biomes": {
+    "count": 89,
+    "sha256": "74b478a47c39d26a40df9b95df08d565d7d56be7549af318cf40717f7593d79f"
+  },
+  "loot_tables": {
+    "count": 508,
+    "sha256": "32256b600a7b33082618f8946f867ed171dad3f371b48acbf217cf24b7d8b07b"
+  }
+}

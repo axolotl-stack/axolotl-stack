@@ -4,12 +4,12 @@
 use serde_json::Value;
 use std::collections::{BTreeMap, BTreeSet};
 use std::path::{Path, PathBuf};
-use unastar_packs::actor::{self, Loaded};
+use unastar_packs::actor::{self, ActorParser, Loaded};
 use unastar_packs::json;
 use unastar_packs::packs::PackStack;
 use unastar_rules::Diagnostics;
 use unastar_rules::filter::{Filter, FilterRegistry};
-use unastar_rules::molang::{self, QueryRegistry};
+use unastar_rules::molang::{self, QueryContext, QueryRegistry};
 
 fn samples_pack() -> PathBuf {
     let dir =
@@ -21,10 +21,92 @@ fn samples_pack() -> PathBuf {
     dir
 }
 
+fn parser() -> &'static ActorParser<'static> {
+    static PARSER: std::sync::LazyLock<ActorParser<'static>> = std::sync::LazyLock::new(|| {
+        let schema_dir = samples_pack()
+            .parent()
+            .unwrap()
+            .join("metadata/json_schemas/server/entity");
+        let files = actor::component_schema_files(&schema_dir).unwrap();
+        let mut parser = ActorParser::from_schemas(
+            FilterRegistry::vanilla(),
+            files.iter().map(|path| {
+                json::parse(&path.display().to_string(), &std::fs::read(path).unwrap())
+            }),
+        )
+        .unwrap();
+        let version = parser.schema_version();
+        let document = schema_dir
+            .join(format!("{}.{}.{}", version[0], version[1], version[2]))
+            .join("ActorDocument.json");
+        parser
+            .register_document_schema(
+                json::parse("actor document schema", &std::fs::read(document).unwrap()).unwrap(),
+            )
+            .unwrap();
+        let legacy = Path::new(env!("CARGO_MANIFEST_DIR"))
+            .join("../unastar-data/data/upstream/mojang/entity_forms/entity_component_definitions.form.json");
+        parser
+            .register_form(
+                json::parse("legacy component form", &std::fs::read(legacy).unwrap()).unwrap(),
+            )
+            .unwrap();
+        parser
+    });
+    &PARSER
+}
+
+#[test]
+fn canonical_entity_member_is_not_rejected_as_an_unknown_extension() {
+    let mut document = serde_json::json!({
+        "format_version": "1.26.50",
+        "minecraft:entity": {"description": {"identifier": "test:actor"}, "upgrades": {}}
+    });
+    let Loaded::Definition { definition, .. } =
+        actor::load_value("document.json", &document, parser()).unwrap()
+    else {
+        panic!("schema-declared actor skipped")
+    };
+    assert!(definition.entity_other.contains_key("upgrades"));
+    document["minecraft:entity"]["test:unregistered"] = serde_json::json!({});
+    assert!(actor::load_value("unknown.json", &document, parser()).is_err());
+}
+
+#[test]
+fn crafted_actor_acceptance_matches_the_recorded_bds_matrix() {
+    let inputs: BTreeMap<String, Value> =
+        serde_json::from_str(include_str!("fixtures/bds-1.26.51-fidelity-inputs.json")).unwrap();
+    let reference: Value =
+        serde_json::from_str(include_str!("fixtures/bds-1.26.51-fidelity.json")).unwrap();
+    let observations = reference["observations"].as_object().unwrap();
+    assert_eq!(
+        inputs.keys().collect::<BTreeSet<_>>(),
+        observations.keys().collect::<BTreeSet<_>>()
+    );
+    for (name, document) in inputs {
+        let registered = observations[&name]["summon_succeeded"].as_bool().unwrap();
+        match actor::load_value(&name, &document, parser()) {
+            Ok(Loaded::Definition { definition, .. }) => {
+                assert!(registered, "{name}: BDS rejected this definition");
+                let normal = definition.to_json();
+                let Loaded::Definition {
+                    definition: again, ..
+                } = actor::load_value(&name, &normal, parser()).unwrap()
+                else {
+                    panic!("{name}: normalised definition skipped")
+                };
+                assert_eq!(again, definition, "{name}: normalisation loses data");
+            }
+            Ok(Loaded::Skipped { reason }) => panic!("{name}: unexpected skip: {reason}"),
+            Err(error) => assert!(!registered, "{name}: BDS accepted this definition: {error}"),
+        }
+    }
+}
+
 fn samples() -> actor::Resolved {
     actor::resolve_stack(
         &PackStack::single_pack("bedrock-samples", samples_pack()),
-        FilterRegistry::vanilla(),
+        parser(),
     )
     .expect("every vanilla entity file loads")
 }
@@ -47,7 +129,7 @@ fn every_vanilla_entity_loads_and_normalises_to_a_fixed_point() {
         }
         let normal = def.definition.to_json();
         let bytes = serde_json::to_vec(&normal).unwrap();
-        match actor::load(id, &bytes, FilterRegistry::vanilla()).unwrap() {
+        match actor::load(id, &bytes, parser()).unwrap() {
             Loaded::Definition {
                 definition,
                 diagnostics,
@@ -181,7 +263,11 @@ fn every_vanilla_filter_test_is_implemented() {
     assert!(used.len() >= 87, "{} distinct tests", used.len());
 }
 
-fn molang_strings(value: &Value, out: &mut BTreeSet<String>) {
+fn molang_strings(
+    value: &Value,
+    context: QueryContext,
+    out: &mut BTreeSet<(String, QueryContext)>,
+) {
     match value {
         Value::String(s) => {
             let lower = s.to_ascii_lowercase();
@@ -202,11 +288,11 @@ fn molang_strings(value: &Value, out: &mut BTreeSet<String>) {
                     .split(|c: char| !(c.is_ascii_alphanumeric() || c == '_' || c == '.'))
                     .any(|w| w.starts_with(ns) && w.len() > ns.len())
             }) {
-                out.insert(s.clone());
+                out.insert((s.clone(), context));
             }
         }
-        Value::Object(map) => map.values().for_each(|v| molang_strings(v, out)),
-        Value::Array(items) => items.iter().for_each(|v| molang_strings(v, out)),
+        Value::Object(map) => map.values().for_each(|v| molang_strings(v, context, out)),
+        Value::Array(items) => items.iter().for_each(|v| molang_strings(v, context, out)),
         _ => {}
     }
 }
@@ -226,15 +312,32 @@ fn every_vanilla_molang_string_parses_and_binds() {
         "recipes",
         "loot_tables",
     ] {
-        for (_, doc) in family_documents(family) {
-            molang_strings(&doc, &mut strings);
+        for (_, mut doc) in family_documents(family) {
+            if family == "entities"
+                && let Some(Value::Object(properties)) =
+                    doc.pointer_mut("/minecraft:entity/description/properties")
+            {
+                for property in properties.values_mut() {
+                    if let Value::Object(fields) = property {
+                        let expression_default = matches!(
+                            fields.get("type").and_then(Value::as_str),
+                            Some("bool" | "int" | "float")
+                        );
+                        if let Some(default) = fields.remove("default")
+                            && expression_default
+                        {
+                            molang_strings(&default, QueryContext::PropertyDefault, &mut strings);
+                        }
+                    }
+                }
+            }
+            molang_strings(&doc, QueryContext::Runtime, &mut strings);
         }
     }
-    assert!(strings.len() >= 40, "{} Molang strings", strings.len());
     let mut unbound = BTreeSet::new();
-    for src in &strings {
+    for (src, context) in &strings {
         let mut expr = molang::parse(src).unwrap_or_else(|e| panic!("{src}: {e}"));
-        if let Err(e) = expr.bind(QueryRegistry::vanilla()) {
+        if let Err(e) = expr.bind(QueryRegistry::vanilla(), *context) {
             unbound.insert(e);
         }
     }
@@ -250,7 +353,7 @@ fn bedrock_samples_match_the_bds_layer_stack() {
         return;
     };
     let stack = PackStack::open(Path::new(&server)).unwrap();
-    let bds = actor::resolve_stack(&stack, FilterRegistry::vanilla()).unwrap();
+    let bds = actor::resolve_stack(&stack, parser()).unwrap();
     let diff = actor::diff(&samples(), &bds);
     // `minecraft:agent` (Education Edition) ships only in the BDS packs.
     assert_eq!(diff.only_right, ["minecraft:agent"], "{diff:?}");

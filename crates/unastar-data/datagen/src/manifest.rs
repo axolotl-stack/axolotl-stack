@@ -54,6 +54,8 @@ struct ManifestArtifact {
 pub struct ManifestInputs<'a> {
     pub vanilla_path: &'a Path,
     pub vanilla_biomes_path: &'a Path,
+    pub vanilla_loot_path: &'a Path,
+    pub block_loot_path: &'a Path,
     pub overrides_path: &'a Path,
     pub upstream_path: &'a Path,
     pub pmmp_path: &'a Path,
@@ -78,6 +80,22 @@ pub fn write_manifest(output_dir: &Path, inputs: &ManifestInputs<'_>) -> miette:
             vanilla_version(inputs.vanilla_biomes_path)?,
             "high",
             true,
+        )?,
+        source_from_path(
+            "vanilla_behavior_pack_loot_tables",
+            "behavior_pack_loot_tables",
+            inputs.vanilla_loot_path,
+            vanilla_version(inputs.vanilla_loot_path)?,
+            "high",
+            true,
+        )?,
+        source_from_path(
+            "unastar_block_loot_tables",
+            "authored_block_loot_tables",
+            inputs.block_loot_path,
+            Some("java-vanilla-block-loot-v1".to_string()),
+            "medium",
+            false,
         )?,
         source_from_path(
             "project_overrides",
@@ -134,6 +152,25 @@ pub fn write_manifest(output_dir: &Path, inputs: &ManifestInputs<'_>) -> miette:
         "high",
         true,
     )?);
+    // Per-state block shapes: geometry from CloudburstMC/Data (Apache-2.0),
+    // projected by protocolgen; the revision is in `semantic_sources.json`.
+    let protocolgen_data = inputs.native_path.join("../../../../../generated/data");
+    sources.push(source_from_path(
+        "protocolgen_block_shape_catalog",
+        "cloudburst_block_geometry_apache_2_0",
+        &protocolgen_data.join("block"),
+        Some("1.26.51".into()),
+        "high",
+        true,
+    )?);
+    sources.push(source_from_path(
+        "protocolgen_semantic_sources",
+        "upstream_revisions_and_liquid_clip_omissions",
+        &protocolgen_data.join("semantic_sources.json"),
+        Some("1.26.51".into()),
+        "high",
+        true,
+    )?);
     sources.push(source_from_path(
         "protocolgen_source_lock",
         "upstream_revision_and_input_digests",
@@ -148,6 +185,14 @@ pub fn write_manifest(output_dir: &Path, inputs: &ManifestInputs<'_>) -> miette:
         &PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("src/blocks.rs"),
         Some("first-canonical-state-v1".into()),
         "weak",
+        false,
+    )?);
+    sources.push(source_from_path(
+        "bds_actor_identifiers_1_26_51",
+        "measured_available_actor_identifiers",
+        &PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../output/actor_identifiers.json"),
+        Some("BDS-1.26.51;protocol-2193;capture-cbeabd2".into()),
+        "high",
         false,
     )?);
     if let Some(path) = inputs.bds_extraction_path {
@@ -166,6 +211,51 @@ pub fn write_manifest(output_dir: &Path, inputs: &ManifestInputs<'_>) -> miette:
             .validate()
             .map_err(|e| miette::miette!("Invalid source manifest: {}", e))?;
     }
+
+    // Pack-derived data itself lives only in Cargo's OUT_DIR. Commit just
+    // counts and hashes so pack bumps have an explicit reviewable ratchet.
+    let families = [
+        (
+            "actor_component_registry",
+            unastar_data::actor_definitions::COMPONENT_SCHEMA_JSON,
+            unastar_data::actor_definitions::parser().component_count(),
+        ),
+        (
+            "actor_definitions",
+            unastar_data::actor_definitions::VANILLA_JSON,
+            unastar_data::actor_definitions::vanilla().len(),
+        ),
+        (
+            "biomes",
+            unastar_data::biomes::VANILLA_JSON,
+            unastar_data::biomes::vanilla().len(),
+        ),
+        (
+            "loot_tables",
+            unastar_data::loot::VANILLA_JSON,
+            unastar_data::loot::vanilla().len(),
+        ),
+    ];
+    let mut pack_manifest = serde_json::Map::new();
+    for (name, bytes, count) in families {
+        info!("Decoded {count} embedded {name} rows");
+        pack_manifest.insert(
+            name.to_owned(),
+            serde_json::json!({
+                "count": count,
+                "sha256": format!("{:x}", Sha256::digest(bytes)),
+            }),
+        );
+    }
+    let pack_path = output_dir.join("pack-manifest.json");
+    std::fs::write(
+        &pack_path,
+        format!(
+            "{}\n",
+            serde_json::to_string_pretty(&pack_manifest).expect("manifest serializes")
+        ),
+    )
+    .map_err(|e| miette::miette!("{}: {e}", pack_path.display()))?;
 
     let bds_artifact_names = inputs
         .bds_extraction_path
@@ -231,11 +321,11 @@ fn collect_artifacts(
     }
 
     for name in [
-        "entities.kdl",
         "blocks.kdl",
-        "biomes.kdl",
         "items.kdl",
         "creative.kdl",
+        "pack-manifest.json",
+        "actor_identifiers.json",
     ] {
         let path = output_dir.join(name);
         if path.exists() {
@@ -245,6 +335,14 @@ fn collect_artifacts(
                 hash: hash_path(&path)?,
             });
         }
+    }
+    let shapes = output_dir.join(crate::shapes::ARTIFACT);
+    if shapes.exists() {
+        artifacts.push(ManifestArtifact {
+            name: "shapes".to_string(),
+            path: crate::shapes::ARTIFACT.to_string(),
+            hash: hash_path(&shapes)?,
+        });
     }
     if let Some(bds_artifact_names) = bds_artifact_names {
         for name in bds_artifact_names {

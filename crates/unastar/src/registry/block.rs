@@ -6,6 +6,7 @@
 use super::RegistryEntry;
 use std::collections::HashMap;
 use std::sync::LazyLock;
+pub use unastar_data::blocks::StateValue;
 
 const MISSING_INDEX: usize = usize::MAX;
 
@@ -14,6 +15,21 @@ static VANILLA_BLOCK_REGISTRY: LazyLock<BlockRegistry> = LazyLock::new(|| {
     registry.load_vanilla();
     registry
 });
+
+/// Native liquid material identity, resolved once when the registry loads.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum LiquidKind {
+    Water,
+    Lava,
+}
+
+/// Cached per-state facts used by actor liquid motion without string lookups.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub struct LiquidState {
+    pub kind: LiquidKind,
+    /// Native `liquid_depth`, including the falling states 8 through 15.
+    pub depth: u8,
+}
 
 /// Runtime block entry in the registry.
 #[derive(Debug, Clone)]
@@ -48,6 +64,31 @@ pub struct BlockEntry {
     pub emit_light: u8,
     /// Native light damping of the first canonical state.
     pub filter_light: u8,
+    /// Generated native row: tags, physics flags, friction, shape and the
+    /// per-state property table.
+    pub data: &'static unastar_data::blocks::BlockData,
+}
+
+impl BlockEntry {
+    /// Whether the native block tag list contains `tag`.
+    pub fn has_tag(&self, tag: &str) -> bool {
+        self.data.tags.contains(&tag)
+    }
+
+    /// Value of a state property in this block's canonical state `runtime_id`.
+    pub fn state_value(&self, runtime_id: u32, property: &str) -> Option<StateValue> {
+        self.data.state_value(runtime_id, property)
+    }
+
+    /// The canonical state equal to `runtime_id` except for `property`.
+    pub fn with_state_value(
+        &self,
+        runtime_id: u32,
+        property: &str,
+        value: StateValue,
+    ) -> Option<u32> {
+        self.data.with_state_value(runtime_id, property, value)
+    }
 }
 
 impl RegistryEntry for BlockEntry {
@@ -70,6 +111,8 @@ pub struct BlockRegistry {
     name_map: HashMap<String, usize>,
     /// Maps runtime state ID to entry index. Index = runtime_id.
     runtime_id_map: Vec<usize>,
+    /// Water/lava identity and depth, indexed by canonical runtime state.
+    liquid_states: Vec<Option<LiquidState>>,
 }
 
 impl BlockRegistry {
@@ -104,6 +147,17 @@ impl BlockRegistry {
             .max()
             .unwrap_or(0);
         self.runtime_id_map = vec![MISSING_INDEX; (max_rid + 1) as usize];
+        self.liquid_states = vec![None; self.runtime_id_map.len()];
+        let material = |identifier| {
+            ALL_BLOCKS
+                .iter()
+                .find(|block| block.identifier == identifier)
+                .expect("native liquid archetype")
+                .material
+        };
+        let water_material = material("minecraft:water");
+        let lava_material = material("minecraft:lava");
+        assert_ne!(water_material, lava_material, "distinct native liquids");
 
         for block in ALL_BLOCKS.iter() {
             let entry = BlockEntry {
@@ -120,6 +174,7 @@ impl BlockRegistry {
                 is_transparent: block.is_transparent,
                 emit_light: block.emit_light,
                 filter_light: block.filter_light,
+                data: block,
             };
 
             let entry_index = self.entries.len();
@@ -127,6 +182,34 @@ impl BlockRegistry {
             // Fill the runtime_id -> entry mapping for every state.
             for rid in entry.min_state_id..=entry.max_state_id {
                 self.runtime_id_map[rid as usize] = entry_index;
+            }
+
+            let kind = if block.liquid && block.material == water_material {
+                Some(LiquidKind::Water)
+            } else if block.liquid && block.material == lava_material {
+                Some(LiquidKind::Lava)
+            } else {
+                None
+            };
+            if let Some(kind) = kind {
+                let column = block
+                    .properties
+                    .iter()
+                    .position(|property| property.name == "liquid_depth")
+                    .expect("native water/lava depth property");
+                let property = &block.properties[column];
+                for rid in block.min_state_id..=block.max_state_id {
+                    let row = (rid - block.min_state_id) as usize * block.properties.len();
+                    let index = usize::from(block.state_values[row + column]);
+                    let StateValue::Int(value) = property.values[index] else {
+                        panic!("native liquid depth must be an integer");
+                    };
+                    let depth = u8::try_from(value)
+                        .ok()
+                        .filter(|depth| *depth <= 15)
+                        .expect("native liquid depth must be in 0..=15");
+                    self.liquid_states[rid as usize] = Some(LiquidState { kind, depth });
+                }
             }
 
             // Registry IDs are unique first-palette ordinals.
@@ -144,6 +227,15 @@ impl BlockRegistry {
             return None;
         }
         self.entries.get(entry_index)
+    }
+
+    /// Water/lava state facts; unknown or non-liquid states return `None`.
+    #[inline]
+    pub fn liquid_state(&self, runtime_id: u32) -> Option<LiquidState> {
+        self.liquid_states
+            .get(runtime_id as usize)
+            .copied()
+            .flatten()
     }
 
     /// Get entry by registry ID (the first canonical state ID). O(1).

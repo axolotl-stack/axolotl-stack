@@ -236,6 +236,122 @@ fn item_display_name(identifier: &str) -> String {
         .replace('_', " ")
 }
 
+/// Tool family of a mining item, from native item tags (`minecraft:is_*`).
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum ToolKind {
+    Pickaxe,
+    Axe,
+    Shovel,
+    Hoe,
+    Sword,
+    Shears,
+}
+
+impl ToolKind {
+    /// Block tag naming the blocks this tool mines efficiently
+    /// (`minecraft:is_pickaxe_item_destructible`, ...).
+    pub fn destructible_tag(self) -> &'static str {
+        match self {
+            Self::Pickaxe => "minecraft:is_pickaxe_item_destructible",
+            Self::Axe => "minecraft:is_axe_item_destructible",
+            Self::Shovel => "minecraft:is_shovel_item_destructible",
+            Self::Hoe => "minecraft:is_hoe_item_destructible",
+            Self::Sword => "minecraft:is_sword_item_destructible",
+            Self::Shears => "minecraft:is_shears_item_destructible",
+        }
+    }
+}
+
+/// Material tier of a tool, from native item tags (`minecraft:*_tier`).
+///
+/// Ordered by harvest level: gold mines like wood, copper like stone. The
+/// speeds and levels are vanilla constants (dragonfly `item.ToolTier`), not
+/// shipped as BDS data; the planned BDS mining sweep is to confirm them.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum ToolTier {
+    Wooden,
+    Golden,
+    Stone,
+    Copper,
+    Iron,
+    Diamond,
+    Netherite,
+}
+
+impl ToolTier {
+    /// Harvest level compared against the block's `minecraft:*_tier_destructible` tag.
+    pub fn harvest_level(self) -> u8 {
+        match self {
+            Self::Wooden | Self::Golden => 0,
+            Self::Stone | Self::Copper => 1,
+            Self::Iron => 2,
+            Self::Diamond => 3,
+            Self::Netherite => 4,
+        }
+    }
+
+    /// Digger mining speed on matching blocks (vanilla tier speeds: wood 2,
+    /// stone 4, copper 5, iron 6, diamond 8, netherite 9, gold 12).
+    pub fn speed(self) -> f32 {
+        match self {
+            Self::Wooden => 2.0,
+            Self::Stone => 4.0,
+            Self::Copper => 5.0,
+            Self::Iron => 6.0,
+            Self::Diamond => 8.0,
+            Self::Netherite => 9.0,
+            Self::Golden => 12.0,
+        }
+    }
+}
+
+/// Mining-relevant facts about an item.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub struct ToolInfo {
+    pub kind: Option<ToolKind>,
+    pub tier: Option<ToolTier>,
+    /// Native `maxDamage` (0 for items without durability).
+    pub max_damage: i32,
+}
+
+/// Tool facts of `item_id` from the native item table. `None` for unknown items.
+pub fn tool_info(item_id: &str) -> Option<ToolInfo> {
+    let data = unastar_data::items::get(item_id)?;
+    let has = |tag: &str| data.tags.contains(&tag);
+    let kind = [
+        ("minecraft:is_pickaxe", ToolKind::Pickaxe),
+        ("minecraft:is_axe", ToolKind::Axe),
+        ("minecraft:is_shovel", ToolKind::Shovel),
+        ("minecraft:is_hoe", ToolKind::Hoe),
+        ("minecraft:is_sword", ToolKind::Sword),
+        ("minecraft:is_shears", ToolKind::Shears),
+    ]
+    .into_iter()
+    .find(|(tag, _)| has(tag))
+    .map(|(_, kind)| kind);
+    let tier = [
+        ("minecraft:wooden_tier", ToolTier::Wooden),
+        ("minecraft:golden_tier", ToolTier::Golden),
+        ("minecraft:stone_tier", ToolTier::Stone),
+        ("minecraft:copper_tier", ToolTier::Copper),
+        ("minecraft:iron_tier", ToolTier::Iron),
+        ("minecraft:diamond_tier", ToolTier::Diamond),
+        ("minecraft:netherite_tier", ToolTier::Netherite),
+    ]
+    .into_iter()
+    .find(|(tag, _)| has(tag))
+    .map(|(_, tier)| tier);
+    let max_damage = serde_json::from_str::<serde_json::Value>(data.native_properties_json)
+        .ok()
+        .and_then(|props| props.get("maxDamage")?.as_i64())
+        .map_or(0, |damage| damage as i32);
+    Some(ToolInfo {
+        kind,
+        tier,
+        max_damage,
+    })
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;

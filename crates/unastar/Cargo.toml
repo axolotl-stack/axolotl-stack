@@ -19,6 +19,7 @@ jolyne = { workspace = true, features = ["server", "raknet"] }
 unastar_noise.workspace = true
 unastar-packs = { path = "../unastar-packs" }
 unastar-data.workspace = true
+unastar-rules = { path = "../unastar-rules" }
 tokio = { workspace = true, features = ["full"] }
 tokio-raknet.workspace = true
 tracing.workspace = true
