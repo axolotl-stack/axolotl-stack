@@ -59,7 +59,7 @@ fn run(capture: &str) -> Result<()> {
         saved_data: None,
         outbound_tx: tx,
         chunk_radius: 0,
-    });
+    })?;
     let mut advertised = None;
     let mut order = Vec::new();
     while let Ok(packet) = rx.try_recv() {

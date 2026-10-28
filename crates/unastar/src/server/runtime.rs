@@ -299,6 +299,7 @@ impl UnastarServer {
                                 saved_data,
                                 outbound_tx,
                             } => {
+                                let reject_tx = outbound_tx.clone();
                                 let spawn_data = PlayerSpawnData {
                                     session_id,
                                     display_name,
@@ -310,7 +311,23 @@ impl UnastarServer {
                                     outbound_tx,
                                     chunk_radius: default_chunk_radius,
                                 };
-                                self.server.spawn_player(spawn_data);
+                                if let Err(error) = self.server.spawn_player(spawn_data) {
+                                    use jolyne::valentine::{
+                                        DisconnectPacket, DisconnectPacketMessages,
+                                        DisconnectPacketMessagesUnion, EnumsConnectionDisconnectFailReason, McpePacket,
+                                    };
+                                    warn!(session_id, %error, "Rejecting player with invalid saved inventory");
+                                    let message = "Unable to restore player inventory.".into();
+                                    let _ = reject_tx.try_send(McpePacket::from(DisconnectPacket {
+                                        reason: EnumsConnectionDisconnectFailReason::Disconnected,
+                                        messages: DisconnectPacketMessagesUnion::DisconnectPacketMessages(
+                                            DisconnectPacketMessages {
+                                                message,
+                                                filtered_message: "Unable to restore player inventory.".into(),
+                                            }
+                                        ),
+                                    }));
+                                }
                             }
                             NetworkEvent::Packet {
                                 session_id,

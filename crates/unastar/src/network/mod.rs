@@ -4,12 +4,22 @@ pub mod events;
 
 use jolyne::BedrockStream;
 use jolyne::stream::{Play, Server as ServerRole};
-use jolyne::valentine::{McpePacket, McpePacketArgs};
+use jolyne::valentine::{EnumsPacketViolationSeverity, McpePacket, McpePacketArgs, McpePacketData};
 use tokio::sync::{broadcast, mpsc};
 use tracing::{info, trace, warn};
 
 // Re-export types
 pub use events::{NetworkEvent, SessionId};
+
+fn terminates_connection(packet: &McpePacket) -> bool {
+    match &packet.data {
+        McpePacketData::DisconnectPacket(_) => true,
+        McpePacketData::PacketViolationWarningPacket(warning) => {
+            warning.violation_severity == EnumsPacketViolationSeverity::Terminatingconnection
+        }
+        _ => false,
+    }
+}
 
 /// Network loop: shuttle packets between network and main thread.
 ///
@@ -20,15 +30,15 @@ pub use events::{NetworkEvent, SessionId};
 /// Uses manual flushing for efficient batching:
 /// - `send_packet()` queues packets without sending
 /// - `flush()` sends all queued packets as a single batch on tick
-pub async fn run_network_loop(
-    stream: BedrockStream<Play, ServerRole, jolyne::stream::transport::RakNetTransport>,
+pub async fn run_network_loop<T: jolyne::stream::Transport>(
+    stream: BedrockStream<Play, ServerRole, T>,
     session_id: SessionId,
     event_tx: mpsc::Sender<NetworkEvent>,
     mut outbound_rx: mpsc::Receiver<McpePacket>,
     mut tick_rx: broadcast::Receiver<()>,
 ) {
     let mut stream = stream;
-    loop {
+    'network: loop {
         tokio::select! {
             biased;
 
@@ -38,15 +48,19 @@ pub async fn run_network_loop(
                     Ok(()) => {
                         // Drain any remaining packets and queue them
                         while let Ok(packet) = outbound_rx.try_recv() {
+                            let terminating = terminates_connection(&packet);
                             if let Err(e) = stream.send_packet(packet).await {
                                 tracing::error!(session_id, "Send failed (tick flush): {:?}", e);
-                                return;
+                                break 'network;
+                            }
+                            if terminating {
+                                break 'network;
                             }
                         }
                         // Flush all queued packets as a single batch
                         if let Err(e) = stream.flush().await {
                             tracing::error!(session_id, "Flush failed: {:?}", e);
-                            return;
+                            break 'network;
                         }
                     }
                     Err(broadcast::error::RecvError::Lagged(n)) => {
@@ -108,15 +122,23 @@ pub async fn run_network_loop(
 
             // Priority 3: Queue outbound packets (batched flush on tick signal)
             Some(packet) = outbound_rx.recv() => {
+                let terminating = terminates_connection(&packet);
                 if let Err(e) = stream.send_packet(packet).await {
                     tracing::error!(session_id, "Send failed (immediate): {:?}", e);
                     break;
                 }
+                if terminating {
+                    break 'network;
+                }
                 // Drain any other pending packets into buffer
                 while let Ok(p) = outbound_rx.try_recv() {
+                    let terminating = terminates_connection(&p);
                     if let Err(e) = stream.send_packet(p).await {
                         warn!(session_id, "Send failed: {:?}", e);
-                        return;
+                        break 'network;
+                    }
+                    if terminating {
+                        break 'network;
                     }
                 }
                 // NO flush here - packets accumulate until tick signal for efficient batching
@@ -125,7 +147,8 @@ pub async fn run_network_loop(
         }
     }
 
-    // Flush whatever is still queued and close the transport.
+    // Close drains the terminal packet and earlier buffered output, never
+    // packets queued after it. Every failure path also reaches this epilogue.
     if let Err(e) = stream.close().await {
         trace!(session_id, "Closing connection failed: {e}");
     }

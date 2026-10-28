@@ -319,18 +319,15 @@ fn held_block(world: &World, entity: Entity) -> Option<(u32, &crate::item::ItemS
     if stack.is_empty() {
         return None;
     }
-    let item = world
-        .get_resource::<super::types::ItemRegistryResource>()?
-        .0
-        .get_by_name(&stack.item_id)?;
-    if stack.count > item.stack_size {
+    let item = stack.item()?;
+    if stack.count > item.max_stack_size() {
         return None;
     }
     let block = world
         .get_resource::<super::types::BlockRegistryResource>()?
         .0
-        .get_by_name(&stack.item_id)?;
-    Some((block.default_state_id, stack, item.network_id))
+        .get_by_name(stack.item_id())?;
+    Some((block.default_state_id, stack, item.network_id()))
 }
 
 fn correct_block(world: &World, entity: Entity, position: (i32, i32, i32)) {
@@ -694,8 +691,9 @@ fn wear_held_tool(world: &mut World, player: Entity, block_runtime_id: u32) {
         return;
     };
     let wear = super::mining::mining_wear(block, &tool);
-    let Some(max_damage) = crate::registry::item::tool_info(&tool.item_id)
-        .map(|info| info.max_damage)
+    let Some(max_damage) = tool
+        .item()
+        .map(|item| item.tool_info().max_damage)
         .filter(|max| *max > 0 && wear > 0)
     else {
         return;
@@ -781,8 +779,10 @@ fn handle_block_click(
             && i32::from(data.item.id) == *network_id
             && data.item.stacksize == u16::from(stack.count)
             && u32::try_from(stack.damage).ok() == Some(data.item.auxvalue)
-            && crate::item::user_data::stored_user_data(&stack.item_id, &data.item.user_data_buffer)
-                == stack.nbt
+            && crate::item::user_data::stored_user_data(
+                stack.item_id(),
+                &data.item.user_data_buffer,
+            ) == stack.nbt
             && u32::try_from(stack.runtime_id).ok() == Some(data.item.block_runtime_id)
     });
     let placement = held
@@ -1095,7 +1095,7 @@ mod tests {
         use std::sync::Arc;
         let mut items = ItemRegistry::new();
         items.load_vanilla();
-        let id = items.get_by_name("minecraft:stone").unwrap().network_id;
+        let id = items.get_by_name("minecraft:stone").unwrap().network_id();
         world.insert_resource(super::super::types::ItemRegistryResource(Arc::new(items)));
         world.insert_resource(super::super::types::BlockRegistryResource(Arc::new(
             BlockRegistry::vanilla().clone(),
@@ -1145,7 +1145,7 @@ mod tests {
             .get_mut::<MainInventory>(player)
             .unwrap()
             .0
-            .set_item(0, crate::item::ItemStack::new("minecraft:stone", 2))
+            .set_item(0, crate::item::test_support::stack("minecraft:stone", 2))
             .unwrap();
         handle_block_click(&mut world, player, &data);
         assert_eq!(
@@ -1189,7 +1189,7 @@ mod tests {
             .get_mut::<MainInventory>(player)
             .unwrap()
             .0
-            .set_item(0, crate::item::ItemStack::new("minecraft:stone", 2))
+            .set_item(0, crate::item::test_support::stack("minecraft:stone", 2))
             .unwrap();
         handle_block_click(&mut world, player, &data);
         assert!(
@@ -1223,10 +1223,9 @@ mod tests {
             .0
             .clone();
         let door_item = items.get_by_name("minecraft:wooden_door").unwrap();
-        let stack = crate::item::ItemStack::new("minecraft:wooden_door", 1)
-            .with_max_stack_size(door_item.stack_size)
+        let stack = crate::item::test_support::stack("minecraft:wooden_door", 1)
             .with_runtime_id(door.default_state_id as i32);
-        data.item.id = door_item.network_id as i16;
+        data.item.id = door_item.network_id() as i16;
         data.item.stacksize = 1;
         data.item.block_runtime_id = door.default_state_id;
         world
@@ -1267,7 +1266,7 @@ mod tests {
             .get_mut::<MainInventory>(player)
             .unwrap()
             .0
-            .set_item(0, crate::item::ItemStack::new("minecraft:stone", 2))
+            .set_item(0, crate::item::test_support::stack("minecraft:stone", 2))
             .unwrap();
         handle_block_click(&mut world, player, &data);
         let event = world.resource_mut::<EventBuffer>().drain().pop().unwrap();
@@ -1313,7 +1312,7 @@ mod tests {
                 .get_mut::<MainInventory>(player)
                 .unwrap()
                 .0
-                .set_item(0, crate::item::ItemStack::new("minecraft:stone", 2))
+                .set_item(0, crate::item::test_support::stack("minecraft:stone", 2))
                 .unwrap();
             handle_block_click(&mut world, player, &data);
             let event = world.resource_mut::<EventBuffer>().drain().pop().unwrap();
@@ -1368,7 +1367,7 @@ mod tests {
         give(
             &mut world,
             player,
-            crate::item::ItemStack::new("minecraft:iron_pickaxe", 1),
+            crate::item::test_support::stack("minecraft:iron_pickaxe", 1),
         );
         assert_eq!(player_break_ticks(&world, player, (1, 64, 1)), 8);
         world
@@ -1397,7 +1396,7 @@ mod tests {
         give(
             &mut world,
             player,
-            crate::item::ItemStack::new("minecraft:iron_pickaxe", 1),
+            crate::item::test_support::stack("minecraft:iron_pickaxe", 1),
         );
         wear_held_tool(&mut world, player, *blocks::STONE);
         let held = held_item(&world, player).unwrap();

@@ -99,7 +99,7 @@ pub(crate) fn block_drops(
         };
         let mut template = template.with_damage(drop.data);
         if drop.nbt.is_some() {
-            template.nbt = drop.nbt;
+            template.nbt = drop.nbt.map(bytes::Bytes::from);
         }
         // Split oversized counts into full stacks.
         let mut left = drop.count;
@@ -153,22 +153,22 @@ mod tests {
     }
 
     fn ids(stacks: &[ItemStack]) -> Vec<(&str, u8)> {
-        stacks
-            .iter()
-            .map(|s| (s.item_id.as_str(), s.count))
-            .collect()
+        stacks.iter().map(|s| (s.item_id(), s.count)).collect()
     }
 
     #[test]
     fn stone_needs_a_pickaxe_and_drops_cobblestone() {
         let mut world = world();
-        let pick = ItemStack::new("minecraft:wooden_pickaxe", 1);
+        let pick = crate::item::test_support::stack("minecraft:wooden_pickaxe", 1);
         assert!(block_drops(&mut world, state("minecraft:stone"), None).is_empty());
         assert!(
             block_drops(
                 &mut world,
                 state("minecraft:stone"),
-                Some(&ItemStack::new("minecraft:iron_shovel", 1))
+                Some(&crate::item::test_support::stack(
+                    "minecraft:iron_shovel",
+                    1
+                ))
             )
             .is_empty()
         );
@@ -194,8 +194,8 @@ mod tests {
     #[test]
     fn ores_drop_items_and_tier_gates_them() {
         let mut world = world();
-        let stone_pick = ItemStack::new("minecraft:stone_pickaxe", 1);
-        let iron_pick = ItemStack::new("minecraft:iron_pickaxe", 1);
+        let stone_pick = crate::item::test_support::stack("minecraft:stone_pickaxe", 1);
+        let iron_pick = crate::item::test_support::stack("minecraft:iron_pickaxe", 1);
         assert_eq!(
             ids(&block_drops(
                 &mut world,
@@ -265,7 +265,10 @@ mod tests {
             ids(&block_drops(
                 &mut world,
                 state("minecraft:lit_furnace"),
-                Some(&ItemStack::new("minecraft:wooden_pickaxe", 1))
+                Some(&crate::item::test_support::stack(
+                    "minecraft:wooden_pickaxe",
+                    1
+                ))
             )),
             vec![("minecraft:furnace", 1)]
         );
@@ -274,7 +277,7 @@ mod tests {
     #[test]
     fn dropped_stacks_carry_registry_data() {
         let mut world = world();
-        let pick = ItemStack::new("minecraft:iron_pickaxe", 1);
+        let pick = crate::item::test_support::stack("minecraft:iron_pickaxe", 1);
         let stacks = block_drops(&mut world, state("minecraft:stone"), Some(&pick));
         let cobble = &stacks[0];
         assert_eq!(cobble.max_stack_size(), 64);

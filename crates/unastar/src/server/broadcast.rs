@@ -895,7 +895,6 @@ pub fn sync_actor_viewers(
 mod actor_viewer_tests {
     use super::*;
     use crate::entity::spawn_item_drop;
-    use crate::item::ItemStack;
     use crate::world::ecs::ChunkPosition;
     use glam::DVec3;
     use jolyne::valentine::McpePacketData;
@@ -974,7 +973,7 @@ mod actor_viewer_tests {
         let item = spawn_item_drop(
             &mut world,
             DVec3::new(4.5, 64.0, 4.5),
-            ItemStack::new("minecraft:dirt", 2).with_max_stack_size(64),
+            crate::item::test_support::stack("minecraft:dirt", 2),
             None,
         )
         .unwrap();

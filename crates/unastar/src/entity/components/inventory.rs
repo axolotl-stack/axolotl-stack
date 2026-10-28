@@ -60,6 +60,14 @@ impl Inventory {
         }
     }
 
+    /// Adopt a fully validated saved inventory without allocating a second buffer.
+    pub(crate) fn from_slots(mut slots: Vec<ItemStack>) -> Self {
+        for stack in &mut slots {
+            *stack = std::mem::take(stack).into_slot();
+        }
+        Self { slots }
+    }
+
     /// Get the number of slots in this inventory.
     #[inline]
     pub fn size(&self) -> usize {
@@ -91,7 +99,7 @@ impl Inventory {
             });
         }
 
-        let old = std::mem::replace(&mut self.slots[slot], item);
+        let old = std::mem::replace(&mut self.slots[slot], item.into_slot());
         Ok(old)
     }
 
@@ -127,8 +135,12 @@ impl Inventory {
         for slot in &mut self.slots {
             if slot.is_empty() {
                 let take = item.count.min(item.max_stack_size());
-                let (taken, remaining) = item.split(take);
-                *slot = taken;
+                let (mut taken, remaining) = item.split(take);
+                if !remaining.is_empty() {
+                    // A split part is a new stack.
+                    taken.net_id = 0;
+                }
+                *slot = taken.into_slot();
                 added += take as usize;
                 item = remaining;
 
@@ -155,7 +167,7 @@ impl Inventory {
         for slot in &mut self.slots {
             if slot.comparable(item) {
                 let remove = (slot.count as usize).min(remaining);
-                *slot = slot.grow(-(remove as i16));
+                *slot = slot.grow(-(remove as i16)).into_slot();
                 remaining -= remove;
 
                 if remaining == 0 {
@@ -297,13 +309,7 @@ impl ArmourInventory {
 
     /// Set the helmet slot.
     pub fn set_helmet(&mut self, item: ItemStack) -> Result<ItemStack, InventoryError> {
-        if !item.is_empty() && !Self::is_helmet(&item) {
-            return Err(InventoryError::InvalidSlotItem {
-                slot: armor_slots::HELMET,
-                item_id: item.item_id.clone(),
-            });
-        }
-        self.inner.set_item(armor_slots::HELMET, item)
+        self.set_slot(armor_slots::HELMET, item)
     }
 
     /// Get the chestplate slot.
@@ -314,13 +320,7 @@ impl ArmourInventory {
 
     /// Set the chestplate slot.
     pub fn set_chestplate(&mut self, item: ItemStack) -> Result<ItemStack, InventoryError> {
-        if !item.is_empty() && !Self::is_chestplate(&item) {
-            return Err(InventoryError::InvalidSlotItem {
-                slot: armor_slots::CHESTPLATE,
-                item_id: item.item_id.clone(),
-            });
-        }
-        self.inner.set_item(armor_slots::CHESTPLATE, item)
+        self.set_slot(armor_slots::CHESTPLATE, item)
     }
 
     /// Get the leggings slot.
@@ -331,13 +331,7 @@ impl ArmourInventory {
 
     /// Set the leggings slot.
     pub fn set_leggings(&mut self, item: ItemStack) -> Result<ItemStack, InventoryError> {
-        if !item.is_empty() && !Self::is_leggings(&item) {
-            return Err(InventoryError::InvalidSlotItem {
-                slot: armor_slots::LEGGINGS,
-                item_id: item.item_id.clone(),
-            });
-        }
-        self.inner.set_item(armor_slots::LEGGINGS, item)
+        self.set_slot(armor_slots::LEGGINGS, item)
     }
 
     /// Get the boots slot.
@@ -348,13 +342,7 @@ impl ArmourInventory {
 
     /// Set the boots slot.
     pub fn set_boots(&mut self, item: ItemStack) -> Result<ItemStack, InventoryError> {
-        if !item.is_empty() && !Self::is_boots(&item) {
-            return Err(InventoryError::InvalidSlotItem {
-                slot: armor_slots::BOOTS,
-                item_id: item.item_id.clone(),
-            });
-        }
-        self.inner.set_item(armor_slots::BOOTS, item)
+        self.set_slot(armor_slots::BOOTS, item)
     }
 
     /// Get all armor slots as a slice.
@@ -384,21 +372,29 @@ impl ArmourInventory {
         &self.inner
     }
 
-    // Validation helpers
-    fn is_helmet(item: &ItemStack) -> bool {
-        item.item_id.ends_with("_helmet") || item.item_id.contains("turtle_shell")
+    /// Item in armour slot `slot` (0 head .. 3 feet).
+    #[inline]
+    pub fn slot(&self, slot: usize) -> Option<&ItemStack> {
+        self.inner.item(slot)
     }
 
-    fn is_chestplate(item: &ItemStack) -> bool {
-        item.item_id.ends_with("_chestplate") || item.item_id.contains("elytra")
+    /// Put `item` into armour slot `slot` if the slot accepts it.
+    pub fn set_slot(&mut self, slot: usize, item: ItemStack) -> Result<ItemStack, InventoryError> {
+        if !item.is_empty()
+            && (!crate::item::equipment::accepts_armour(&item, slot) || item.count > 1)
+        {
+            return Err(InventoryError::InvalidSlotItem {
+                slot,
+                item_id: item.item_id().to_string(),
+            });
+        }
+        self.inner.set_item(slot, item)
     }
 
-    fn is_leggings(item: &ItemStack) -> bool {
-        item.item_id.ends_with("_leggings")
-    }
-
-    fn is_boots(item: &ItemStack) -> bool {
-        item.item_id.ends_with("_boots")
+    /// Trusted save/admin access. Client insertions must use `set_slot`,
+    /// while arbitrary existing head contents remain valid removal sources.
+    pub fn inventory_mut(&mut self) -> &mut Inventory {
+        &mut self.inner
     }
 }
 
@@ -457,56 +453,95 @@ impl HeldSlot {
     }
 }
 
-/// UI cursor item (for drag operations during inventory transactions).
-#[derive(Component, Clone, Debug, Default)]
-pub struct CursorItem(pub ItemStack);
+/// The player UI container (window 124): cursor in slot 0, crafting grid in
+/// 28-40, created output in 50; 54 slots as BDS sends it at join.
+#[derive(Component, Clone, Debug)]
+pub struct PlayerUi(pub Inventory);
 
-/// Marker component indicating the player's inventory UI is currently open.
-///
-/// This prevents duplicate ContainerOpen packets which would crash the client.
-#[derive(Component, Clone, Debug, Default)]
-pub struct InventoryOpened(pub bool);
-
-/// Per-player state for ItemStackRequest handling.
-///
-/// Tracks response changes for client prediction reconciliation.
-/// When clients send negative StackNetworkIDs, they reference previous request results.
-#[derive(Component, Clone, Debug, Default)]
-pub struct ItemStackRequestState {
-    /// Maps request_id -> (container_id -> (slot -> stack_network_id)).
-    /// Used to resolve negative prediction IDs pointing to earlier requests.
-    pub response_changes: std::collections::HashMap<
-        i32,
-        std::collections::HashMap<u8, std::collections::HashMap<u8, i32>>,
-    >,
-    /// Monotonically increasing stack network ID counter.
-    /// Each new item placed gets a unique ID for client tracking.
-    pub next_stack_id: i32,
+impl Default for PlayerUi {
+    fn default() -> Self {
+        Self(Inventory::new(PLAYER_UI_SIZE))
+    }
 }
 
-impl ItemStackRequestState {
-    /// Get the next unique stack network ID.
-    pub fn next_id(&mut self) -> i32 {
-        self.next_stack_id += 1;
-        self.next_stack_id
+impl PlayerUi {
+    /// The stack held by the cursor.
+    #[inline]
+    pub fn cursor(&self) -> &ItemStack {
+        &self.0.slots[CURSOR_SLOT]
     }
 
-    /// Clear old response changes to prevent unbounded growth.
-    /// Called periodically or when response changes exceed a threshold.
-    pub fn cleanup_old_responses(&mut self) {
-        // Keep only the last 256 requests
-        if self.response_changes.len() > 256 {
-            let oldest_to_remove = self.response_changes.len() - 256;
-            let keys_to_remove: Vec<i32> = self
-                .response_changes
-                .keys()
-                .take(oldest_to_remove)
-                .cloned()
-                .collect();
-            for key in keys_to_remove {
-                self.response_changes.remove(&key);
-            }
+    /// Replace the cursor stack.
+    pub fn set_cursor(&mut self, item: ItemStack) {
+        self.0
+            .set_item(CURSOR_SLOT, item)
+            .expect("cursor slot exists");
+    }
+}
+
+/// Size of the player UI container.
+pub const PLAYER_UI_SIZE: usize = 54;
+/// UI slot of the cursor.
+pub const CURSOR_SLOT: usize = 0;
+
+/// The screen a player has open; it decides which containers ItemStackRequests
+/// may address (see `server::game::inventory::containers`).
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
+pub enum ScreenKind {
+    /// No container screen (HUD).
+    #[default]
+    None,
+    /// The player's own inventory (2x2 crafting).
+    Inventory,
+    /// Crafting table (3x3 crafting).
+    Workbench,
+}
+
+/// The player's open container window and window-ID counter.
+///
+/// BDS numbers windows per player with a counter that wraps from 99 to 1;
+/// on a fresh connection the first window it opens (the player's own
+/// inventory) is 2, the next 3 (captured, `bds-quirks.md`).
+#[derive(Component, Debug, Clone)]
+pub struct ContainerWindows {
+    last_id: u8,
+    open: Option<(u8, ScreenKind)>,
+}
+
+impl Default for ContainerWindows {
+    fn default() -> Self {
+        Self {
+            last_id: 1,
+            open: None,
         }
+    }
+}
+
+impl ContainerWindows {
+    /// The open screen, [`ScreenKind::None`] when nothing is open.
+    pub fn screen(&self) -> ScreenKind {
+        self.open.map_or(ScreenKind::None, |(_, screen)| screen)
+    }
+
+    /// The open window's ID.
+    pub fn open_id(&self) -> Option<u8> {
+        self.open.map(|(id, _)| id)
+    }
+
+    /// Open `screen` under the next window ID and return the ID.
+    pub fn open(&mut self, screen: ScreenKind) -> u8 {
+        self.last_id = if self.last_id >= 99 {
+            1
+        } else {
+            self.last_id + 1
+        };
+        self.open = Some((self.last_id, screen));
+        self.last_id
+    }
+
+    /// Close the open window, returning its ID.
+    pub fn close(&mut self) -> Option<u8> {
+        self.open.take().map(|(id, _)| id)
     }
 }
 
@@ -517,68 +552,9 @@ pub struct PlayerInventoryBundle {
     pub armour: ArmourInventory,
     pub offhand: OffhandSlot,
     pub held_slot: HeldSlot,
-    pub cursor: CursorItem,
-    pub inventory_opened: InventoryOpened,
-    pub item_stack_state: ItemStackRequestState,
-}
-
-// ============================================================================
-// Container Components (for open container tracking)
-// ============================================================================
-
-/// Component tracking an open container session.
-///
-/// Present on a player when they have a container open.
-#[derive(Component, Debug, Clone)]
-pub struct OpenContainer {
-    /// The block position of the container (for chests, furnaces, etc.)
-    /// None for non-block containers (crafting table 2x2, player crafting)
-    pub position: Option<(i32, i32, i32)>,
-    /// Window ID sent to client.
-    pub window_id: u8,
-    /// Container type.
-    pub container_type: ContainerType,
-}
-
-/// Type of container being interacted with.
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub enum ContainerType {
-    /// Crafting table 3x3 grid.
-    CraftingTable,
-    /// Chest or trapped chest (27 slots).
-    Chest,
-    /// Double chest (54 slots).
-    DoubleChest,
-    /// Furnace (input, fuel, output).
-    Furnace,
-    /// Blast furnace.
-    BlastFurnace,
-    /// Smoker.
-    Smoker,
-    /// Brewing stand.
-    BrewingStand,
-    /// Enchanting table.
-    EnchantingTable,
-    /// Anvil.
-    Anvil,
-    /// Grindstone.
-    Grindstone,
-    /// Stonecutter.
-    Stonecutter,
-    /// Loom.
-    Loom,
-    /// Smithing table.
-    SmithingTable,
-    /// Shulker box.
-    ShulkerBox,
-    /// Barrel.
-    Barrel,
-    /// Hopper.
-    Hopper,
-    /// Dispenser.
-    Dispenser,
-    /// Dropper.
-    Dropper,
+    pub ui: PlayerUi,
+    pub windows: ContainerWindows,
+    pub request_ids: crate::server::game::RequestIdAssignments,
 }
 
 // ============================================================================
@@ -588,6 +564,7 @@ pub enum ContainerType {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::item::test_support::stack;
 
     #[test]
     fn test_inventory_new() {
@@ -599,7 +576,7 @@ mod tests {
     #[test]
     fn test_inventory_set_item() {
         let mut inv = Inventory::new(9);
-        let diamond = ItemStack::new("minecraft:diamond", 64);
+        let diamond = stack("minecraft:diamond", 64);
 
         let old = inv.set_item(0, diamond.clone()).unwrap();
         assert!(old.is_empty());
@@ -614,25 +591,25 @@ mod tests {
         let mut inv = Inventory::new(3);
 
         // Add 64 diamonds
-        let diamond = ItemStack::new("minecraft:diamond", 64);
+        let diamond = stack("minecraft:diamond", 64);
         let (added, leftover) = inv.add_item(diamond);
         assert_eq!(added, 64);
         assert!(leftover.is_empty());
 
         // Add 64 more - fills second slot
-        let diamond = ItemStack::new("minecraft:diamond", 64);
+        let diamond = stack("minecraft:diamond", 64);
         let (added, leftover) = inv.add_item(diamond);
         assert_eq!(added, 64);
         assert!(leftover.is_empty());
 
         // Add 64 more - fills third slot
-        let diamond = ItemStack::new("minecraft:diamond", 64);
+        let diamond = stack("minecraft:diamond", 64);
         let (added, leftover) = inv.add_item(diamond);
         assert_eq!(added, 64);
         assert!(leftover.is_empty());
 
         // Add 32 more - no room, all leftover
-        let diamond = ItemStack::new("minecraft:diamond", 32);
+        let diamond = stack("minecraft:diamond", 32);
         let (added, leftover) = inv.add_item(diamond);
         assert_eq!(added, 0);
         assert_eq!(leftover.count, 32);
@@ -643,10 +620,10 @@ mod tests {
         let mut inv = Inventory::new(2);
 
         // Add 32 diamonds to first slot
-        let _ = inv.set_item(0, ItemStack::new("minecraft:diamond", 32));
+        let _ = inv.set_item(0, stack("minecraft:diamond", 32));
 
         // Add 48 more - should fill first slot and create second
-        let diamond = ItemStack::new("minecraft:diamond", 48);
+        let diamond = stack("minecraft:diamond", 48);
         let (added, leftover) = inv.add_item(diamond);
         assert_eq!(added, 48);
         assert!(leftover.is_empty());
@@ -659,10 +636,10 @@ mod tests {
     #[test]
     fn test_inventory_remove_item() {
         let mut inv = Inventory::new(2);
-        let _ = inv.set_item(0, ItemStack::new("minecraft:diamond", 64));
-        let _ = inv.set_item(1, ItemStack::new("minecraft:diamond", 32));
+        let _ = inv.set_item(0, stack("minecraft:diamond", 64));
+        let _ = inv.set_item(1, stack("minecraft:diamond", 32));
 
-        let to_remove = ItemStack::new("minecraft:diamond", 80);
+        let to_remove = stack("minecraft:diamond", 80);
         let removed = inv.remove_item(&to_remove);
         assert_eq!(removed, 80);
 
@@ -676,11 +653,11 @@ mod tests {
         let mut armour = ArmourInventory::new();
 
         // Set valid items
-        let helmet = ItemStack::new("minecraft:diamond_helmet", 1);
+        let helmet = stack("minecraft:diamond_helmet", 1);
         assert!(armour.set_helmet(helmet).is_ok());
 
         // Invalid item for slot
-        let boots = ItemStack::new("minecraft:diamond_boots", 1);
+        let boots = stack("minecraft:diamond_boots", 1);
         assert!(armour.set_helmet(boots).is_err());
     }
 
@@ -690,7 +667,7 @@ mod tests {
         assert_eq!(main.0.size(), 36);
 
         // Hotbar access
-        let _ = main.0.set_item(0, ItemStack::new("minecraft:diamond", 1));
+        let _ = main.0.set_item(0, stack("minecraft:diamond", 1));
         assert_eq!(main.hotbar(0).unwrap().count, 1);
         assert!(main.hotbar(10).is_none()); // Invalid hotbar slot
     }
@@ -703,5 +680,70 @@ mod tests {
 
         held.set(100); // Should clamp to 8
         assert_eq!(held.0, 8);
+    }
+}
+
+#[cfg(test)]
+mod transition_tests {
+    use super::*;
+    use crate::item::test_support::stack;
+
+    #[test]
+    fn storing_items_assigns_ids_and_normalizes_empty_stacks() {
+        let mut inventory = Inventory::new(2);
+        inventory.set_item(0, stack("minecraft:stone", 8)).unwrap();
+        let id = inventory.item(0).unwrap().net_id;
+        assert!(id > 0);
+        let remaining = inventory.item(0).unwrap().clone().with_count(0);
+        inventory.set_item(0, remaining).unwrap();
+        let empty = inventory.item(0).unwrap();
+        assert!(empty.is_empty());
+        assert_eq!((empty.count, empty.net_id), (0, 0));
+        assert!(empty.item().is_none());
+        inventory.set_item(0, stack("minecraft:stone", 8)).unwrap();
+        assert_eq!(inventory.remove_item(&stack("minecraft:stone", 8)), 8);
+        let empty = inventory.item(0).unwrap();
+        assert_eq!((empty.count, empty.net_id), (0, 0));
+        assert!(empty.item().is_none());
+    }
+
+    #[test]
+    fn player_ui_payload_size_and_window_counter_match_bds() {
+        let ui = PlayerUi::default();
+        assert_eq!(ui.0.size(), 54);
+        assert!(ui.cursor().is_empty());
+        let mut windows = ContainerWindows::default();
+        assert_eq!(windows.screen(), ScreenKind::None);
+        assert_eq!(windows.open(ScreenKind::Inventory), 2);
+        assert_eq!(windows.close(), Some(2));
+        assert_eq!(windows.open(ScreenKind::Workbench), 3);
+        for _ in 3..99 {
+            windows.open(ScreenKind::Inventory);
+        }
+        assert_eq!(windows.open_id(), Some(99));
+        assert_eq!(windows.open(ScreenKind::Inventory), 1);
+    }
+
+    #[test]
+    fn armor_insertions_enforce_compiled_slot_permission_and_single_item() {
+        let mut armor = ArmourInventory::default();
+        assert!(armor.set_slot(0, stack("minecraft:iron_helmet", 1)).is_ok());
+        assert!(
+            armor
+                .set_slot(1, stack("minecraft:iron_helmet", 1))
+                .is_err()
+        );
+        assert!(
+            armor
+                .set_slot(0, stack("minecraft:iron_helmet", 2))
+                .is_err()
+        );
+        assert!(armor.set_slot(0, stack("minecraft:stone", 1)).is_err());
+        assert!(armor.set_slot(9, ItemStack::empty()).is_err());
+        armor
+            .inventory_mut()
+            .set_item(0, stack("minecraft:stone", 1))
+            .unwrap();
+        assert!(armor.set_slot(0, ItemStack::empty()).is_ok());
     }
 }

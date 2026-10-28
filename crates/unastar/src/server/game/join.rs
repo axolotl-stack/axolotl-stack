@@ -4,16 +4,15 @@
 
 use super::GameServer;
 use crate::entity::components::{
-    ArmourInventory, CursorItem, Experience, GameMode, Health, HeldSlot, Hunger, MainInventory,
-    OffhandSlot, PlayerSession, RuntimeEntityId,
+    ArmourInventory, Experience, GameMode, Health, HeldSlot, Hunger, MainInventory, OffhandSlot,
+    PlayerSession, PlayerUi, RuntimeEntityId,
 };
 use jolyne::valentine::types::{
     ActorRuntimeId, AttributeData, CerealizerNetworkItemStackDescriptorSerializedData,
     DataItemEntry, DataItemEntryPayload, DataItemFloatPayload, DataItemInt64Payload,
-    DataItemShortPayload, EnumsCommandPermissionLevel, EnumsContainerEnumName, EnumsDataItemType,
-    EnumsGameType, EnumsPlayerPermissionLevel, FullContainerName, PlayerInputTick,
-    PropertySyncData, SerializedAbilitiesData, SerializedAbilitiesDataSerializedLayer,
-    SynchedActorDataCopyableDataList,
+    DataItemShortPayload, EnumsCommandPermissionLevel, EnumsDataItemType, EnumsGameType,
+    EnumsPlayerPermissionLevel, PlayerInputTick, PropertySyncData, SerializedAbilitiesData,
+    SerializedAbilitiesDataSerializedLayer, SynchedActorDataCopyableDataList,
 };
 use jolyne::valentine::{InventoryContentPacket, McpePacket, SetPlayerGameTypePacket};
 use jolyne::valentine::{SetActorDataPacket, UpdateAbilitiesPacket, UpdateAttributesPacket};
@@ -278,93 +277,47 @@ impl GameServer {
         // (see jolyne::stream::server). Network IDs are now correct from required_item_list.json.
     }
 
-    /// Send initial inventory contents to the client.
-    ///
-    /// Sends restored inventory state, not an empty client-side replacement.
+    /// Initial item state matches BDS: main 36, armour 5, UI 54, offhand 1,
+    /// then the selected hotbar slot. The fifth armour slot is empty for players.
     fn send_inventory_contents(&self, entity: bevy_ecs::entity::Entity, session: &PlayerSession) {
+        use super::inventory::{
+            ARMOR_WINDOW, INVENTORY_WINDOW, OFFHAND_WINDOW, UI_WINDOW, UNNAMED_CONTAINER, wire_item,
+        };
         let world = self.ecs.world();
-        let items = &world.resource::<super::types::ItemRegistryResource>().0;
-        let blocks = &world.resource::<super::types::BlockRegistryResource>().0;
         let encode = |stack: &crate::item::ItemStack| {
-            if stack.is_empty() {
-                return CerealizerNetworkItemStackDescriptorSerializedData::default();
-            }
-            let Some(network_id) = items
-                .get_by_name(&stack.item_id)
-                .map(|item| item.network_id)
-                .and_then(|id| i16::try_from(id).ok())
-            else {
-                tracing::warn!(item = %stack.item_id, "Stored inventory item has no protocol ID");
-                return CerealizerNetworkItemStackDescriptorSerializedData::default();
-            };
-            CerealizerNetworkItemStackDescriptorSerializedData {
-                id: network_id,
-                stacksize: u16::from(stack.count),
-                auxvalue: stack.damage as u32,
-                net_id_variant: None,
-                block_runtime_id: if stack.runtime_id != 0 {
-                    stack.runtime_id as u32
-                } else {
-                    blocks
-                        .get_by_name(&stack.item_id)
-                        .map(|block| block.min_state_id)
-                        .unwrap_or(0)
-                },
-                user_data_buffer: crate::item::user_data::network_user_data(
-                    &stack.item_id,
-                    stack.nbt.as_deref(),
-                ),
-            }
+            wire_item(stack).expect("registered player stack has encodable fields")
         };
         let main = world
             .get::<MainInventory>(entity)
             .expect("player inventory");
         let armour = world.get::<ArmourInventory>(entity).expect("player armour");
         let offhand = world.get::<OffhandSlot>(entity).expect("player offhand");
-        let cursor = world.get::<CursorItem>(entity).expect("player cursor");
+        let ui = world.get::<PlayerUi>(entity).expect("player UI");
         let empty_item = CerealizerNetworkItemStackDescriptorSerializedData::default();
-        let mut ui = vec![empty_item.clone(); 51];
-        ui[0] = encode(&cursor.0);
-        for (container_id, container_name, slots) in [
+        let mut armour_slots = Vec::with_capacity(5);
+        armour_slots.extend(armour.slots().iter().map(&encode));
+        armour_slots.push(empty_item.clone());
+        for (container_id, slots) in [
             (
-                0,
-                EnumsContainerEnumName::Inventorycontainer,
+                INVENTORY_WINDOW,
                 main.0.slots().iter().map(&encode).collect(),
             ),
-            (
-                119,
-                EnumsContainerEnumName::Offhandcontainer,
-                vec![encode(&offhand.0)],
-            ),
-            (
-                120,
-                EnumsContainerEnumName::Armorcontainer,
-                armour.slots().iter().map(&encode).collect(),
-            ),
-            (124, EnumsContainerEnumName::Cursorcontainer, ui),
+            (ARMOR_WINDOW, armour_slots),
+            (UI_WINDOW, ui.0.slots().iter().map(&encode).collect()),
+            (OFFHAND_WINDOW, vec![encode(&offhand.0)]),
         ] {
             let _ = session.send(McpePacket::from(InventoryContentPacket {
-                container_id,
+                container_id: container_id.into(),
                 slots,
-                full_container_name: FullContainerName {
-                    container_name,
-                    dynamic_id: None,
-                },
+                full_container_name: UNNAMED_CONTAINER,
                 storage_item: empty_item.clone(),
             }));
         }
         let held_slot = world.get::<HeldSlot>(entity).expect("player held slot").0;
-        let _ = session.send(McpePacket::from(jolyne::valentine::MobEquipmentPacket {
-            target_runtime_id: ActorRuntimeId {
-                actor_runtime_id: world
-                    .get::<RuntimeEntityId>(entity)
-                    .expect("player runtime ID")
-                    .0 as u64,
-            },
-            item: encode(main.hotbar(held_slot).expect("valid saved hotbar slot")),
-            slot: held_slot,
-            selected_slot: held_slot,
-            container_id: 0,
+        let _ = session.send(McpePacket::from(jolyne::valentine::PlayerHotbarPacket {
+            selected_slot: u32::from(held_slot),
+            container_id: INVENTORY_WINDOW,
+            shouldselectslot: true,
         }));
     }
 }

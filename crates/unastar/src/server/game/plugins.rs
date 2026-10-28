@@ -8,11 +8,10 @@ use crate::world::ecs::{
 use bevy_ecs::prelude::*;
 use glam::DVec3;
 use jolyne::valentine::{
-    ActorRuntimeId, CerealizerNetworkItemStackDescriptorSerializedData, DisconnectPacket,
-    DisconnectPacketMessages, DisconnectPacketMessagesUnion, EnumsConnectionDisconnectFailReason,
-    EnumsContainerEnumName, EnumsPlayerPositionModeComponentPositionMode, FullContainerName,
-    InventorySlotPacket, McpePacket, MovePlayerPacket, MovePlayerTeleportData, PlayerInputTick,
-    Vec2, Vec3,
+    ActorRuntimeId, DisconnectPacket, DisconnectPacketMessages, DisconnectPacketMessagesUnion,
+    EnumsConnectionDisconnectFailReason, EnumsContainerEnumName,
+    EnumsPlayerPositionModeComponentPositionMode, FullContainerName, InventorySlotPacket,
+    McpePacket, MovePlayerPacket, MovePlayerTeleportData, PlayerInputTick, Vec2, Vec3,
 };
 use tracing::{info, warn};
 
@@ -97,14 +96,14 @@ pub fn process_plugin_actions(
                 use crate::item::ItemStack;
 
                 if let Ok((_, _, _, session, mut inv)) = players.get_mut(entity) {
-                    let Some(entry) = item_registry.0.get_by_name(&item_id) else {
+                    let Some(item) = item_registry.0.item_type(&item_id) else {
                         warn!(item_id, "Plugin requested an unknown item");
                         continue;
                     };
-                    let Ok(network_id) = i16::try_from(entry.network_id) else {
+                    if i16::try_from(item.network_id()).is_err() {
                         warn!(
                             item_id,
-                            network_id = entry.network_id,
+                            network_id = item.network_id(),
                             "Item network ID exceeds protocol range"
                         );
                         continue;
@@ -120,9 +119,9 @@ pub fn process_plugin_actions(
                         );
                         continue;
                     };
-                    let item_stack = ItemStack::new(item_id.clone(), count)
-                        .with_max_stack_size(entry.stack_size)
-                        .with_runtime_id(runtime_id);
+                    let effective_count = count.min(item.max_stack_size());
+                    let item_stack =
+                        ItemStack::new(item, effective_count).with_runtime_id(runtime_id);
 
                     if let Some(empty_slot) =
                         (0..inv.0.size()).find(|&i| inv.0.item(i).is_some_and(ItemStack::is_empty))
@@ -133,16 +132,10 @@ pub fn process_plugin_actions(
                             .expect("validated inventory slot");
                         info!(entity=?entity, item=%item_id, count = effective_count, requested_count = count, slot=empty_slot, "Plugin gave item");
 
-                        let protocol_item = CerealizerNetworkItemStackDescriptorSerializedData {
-                            id: network_id,
-                            stacksize: effective_count as u16,
-                            auxvalue: 0,
-                            net_id_variant: None,
-                            block_runtime_id,
-                            user_data_buffer: crate::item::user_data::network_user_data(
-                                &item_id, None,
-                            ),
-                        };
+                        let protocol_item = super::inventory::wire_item(
+                            inv.0.item(empty_slot).expect("committed inventory slot"),
+                        )
+                        .expect("item fields checked before insertion");
 
                         let slot_packet = InventorySlotPacket {
                             container_id: 0,
@@ -217,7 +210,7 @@ mod tests {
     use crate::ecs::events::PluginAction;
     use crate::entity::components::{MainInventory, PlayerSession, Rotation, RuntimeEntityId};
     use crate::registry::block::BlockRegistry;
-    use crate::registry::item::{ItemEntry, ItemRegistry};
+    use crate::registry::item::{ItemRegistry, test_support};
     use crate::server::game::types::{BlockRegistryResource, ItemRegistryResource};
     use crate::world::{WorldConfig, ecs::ChunkManager};
     use jolyne::valentine::McpePacketData;
@@ -257,7 +250,7 @@ mod tests {
 
         let inventory = world.get::<MainInventory>(player).expect("main inventory");
         let stack = inventory.0.item(0).expect("slot 0 stack");
-        assert_eq!(stack.item_id, "minecraft:honey_bottle");
+        assert_eq!(stack.item_id(), "minecraft:honey_bottle");
         assert_eq!(stack.count, 16);
         assert_eq!(stack.max_stack_size(), 16);
 
@@ -271,16 +264,7 @@ mod tests {
     fn limited_item_registry() -> ItemRegistry {
         let mut registry = ItemRegistry::new();
         registry
-            .register(ItemEntry {
-                id: 1,
-                network_id: 77,
-                component_based: false,
-                version: 0,
-                string_id: "minecraft:honey_bottle".to_string(),
-                name: "honey bottle".to_string(),
-                stack_size: 16,
-                component_nbt: jolyne::valentine::bedrock::codec::Nbt::default(),
-            })
+            .register(test_support::entry(1, 77, "minecraft:honey_bottle", 16))
             .expect("register limited item");
         registry
     }
