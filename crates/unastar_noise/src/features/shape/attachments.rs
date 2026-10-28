@@ -71,8 +71,28 @@ pub(super) fn update_shape<W: FeatureWorld + ?Sized>(
         | "minecraft:untinted_particle_leaves"
         | "minecraft:mangrove_leaves" => state,
         "minecraft:vine" => vine(world, state, pos, dir),
+        "minecraft:mossy_carpet" => super::super::kinds::simple_block::update_carpet_shape(world, state, pos),
+        "minecraft:glow_lichen" | "minecraft:sculk_vein" | "minecraft:multiface" => multiface(state, dir, neighbour),
         _ => return None,
     })
+}
+
+/// `MultifaceBlock.updateShape`: drop the face toward the updated neighbour
+/// when it can no longer carry it, and become air without faces. A native
+/// mansion halo frame (seed 7245333257873427137) shows a glow lichen removed
+/// by a neighbouring shape update that Rust kept.
+fn multiface(state: JavaState, dir: Direction, neighbour: JavaState) -> JavaState {
+    use super::super::kinds::multiface_growth::can_attach_to;
+    const FACES: [&str; 6] = ["down", "up", "north", "south", "west", "east"];
+    let has_any = |s: JavaState| FACES.iter().any(|f| s.value(f) == Some("true"));
+    if !has_any(state) {
+        return super::super::java_blocks::states::AIR;
+    }
+    if state.value(dir.name()) != Some("true") || can_attach_to(neighbour, dir) {
+        return state;
+    }
+    let removed = state.with_bool(dir.name(), false);
+    if has_any(removed) { removed } else { super::super::java_blocks::states::AIR }
 }
 
 /// `VineBlock.updateShape`: except from below, recompute every face

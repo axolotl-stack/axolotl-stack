@@ -721,7 +721,7 @@ fn shipwreck_marker(
     pos: BlockPos,
     world: &mut dyn FeatureWorld,
     rng: &mut FeatureRandom,
-    _bx: &BoundingBox,
+    bx: &BoundingBox,
 ) {
     let table = match metadata {
         "map_chest" => "minecraft:chests/shipwreck_map",
@@ -729,8 +729,11 @@ fn shipwreck_marker(
         "supply_chest" => "minecraft:chests/shipwreck_supply",
         _ => return,
     };
+    // Only containers in the decorated chunk: a native wreck spanning two
+    // chunks kept the first chunk's loot seeds after the neighbouring chunk
+    // was decorated (seed 4432651951229459881, chunks 13,12 and 13,13).
     let below = pos.below();
-    if is_loot_container(world.get_state(below)) {
+    if bx.is_inside(below) && is_loot_container(world.get_state(below)) {
         world.set_block_entity(below, piece.loot_data_at(below, table, rng.next_long()));
     }
 }
