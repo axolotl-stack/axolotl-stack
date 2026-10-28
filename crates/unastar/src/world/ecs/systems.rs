@@ -106,10 +106,7 @@ pub struct AwaitingSpawnStatus;
 /// and sends `SetLocalPlayerAsInitialized` when it is ready.
 pub fn send_spawn_status(
     mut commands: Commands,
-    players: Query<
-        (Entity, &PlayerSession, &LastPublisherState),
-        (With<Player>, With<AwaitingSpawnStatus>),
-    >,
+    players: Query<(Entity, &PlayerSession, &LastPublisherState), With<AwaitingSpawnStatus>>,
 ) {
     for (player_entity, session, publisher_state) in players.iter() {
         if !publisher_state.published() {
