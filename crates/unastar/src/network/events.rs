@@ -13,7 +13,9 @@ pub type SessionId = u64;
 /// reducing channel proliferation while maintaining parallel I/O.
 #[derive(Debug)]
 pub enum NetworkEvent {
-    /// Player completed handshake and joined the server.
+    /// Player requested its chunk radius at the end of the join (streamed
+    /// spawn: `PlayStatus(PlayerSpawn)` and the client's
+    /// `SetLocalPlayerAsInitialized` are still to come).
     Joined {
         session_id: SessionId,
         display_name: String,
@@ -22,6 +24,8 @@ pub enum NetworkEvent {
         runtime_id: i64,
         initial_position: DVec3,
         saved_data: Option<Box<crate::storage::PlayerData>>,
+        /// The chunk radius granted to the client (`ChunkRadiusUpdated`).
+        chunk_radius: i32,
         /// Bounded channel to send packets to this player.
         /// Uses bounded capacity to prevent memory explosion on slow connections.
         outbound_tx: mpsc::Sender<McpePacket>,

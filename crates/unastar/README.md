@@ -49,6 +49,23 @@ directory. The old sample's `[world.storage]` table and its `data_dir`,
 a configuration error: remove that table and use the supported `[world]` keys.
 Player storage remains configured separately under `[players]`.
 
+## Joining
+
+Players join through jolyne's streamed spawn (`start_game_streamed`, BDS order):
+the player enters the ECS at its `RequestChunkRadius` with the granted radius
+(`server.default_chunk_radius`), and the chunk systems send the view
+(`NetworkChunkPublisherUpdate`), the chunks available that tick, and then
+`PlayStatus(PlayerSpawn)` once, never waiting for generation. The rest of the
+view streams through the same `ChunkLoader` while the client loads, so nothing
+is resent after it initializes; jolyne's receive path enforces
+`SetLocalPlayerAsInitialized` and the 60 s spawn timeout. Clients that withhold
+initialization until their announced view has loaded (BDS-style, Cinnabar)
+therefore never wait on terrain that is not coming. Loopback timing with the
+jolyne client (connect to `PlayerSpawn` / to the whole radius-disk view loaded):
+Java world radius 4, about 0.5 s / 3.0 s fresh and 0.16 s / 0.45 s when the area
+is already generated; radius 12, about 0.6 s / 17 s fresh and 0.14 s / 2.9 s
+generated (8 chunks per player per tick bound the generated case).
+
 ## World Generation
 
 `[world.generator]` selects the generator; new configs default to Java-style terrain:
@@ -466,6 +483,19 @@ stack-request operations return an error and resend inventory instead of reporti
 success or accepting client item grants.
 Creative acquisition retains the advertised damage, block runtime ID, and NBT;
 plugin item grants store the same block runtime ID they send to the client.
+
+Block states are always canonical 1.26.51 palette ordinals inside the server
+(chunks, storage, items, plugins). `server.block_network_ids` picks how they are
+numbered on the wire and advertised by `StartGame.block_network_ids_are_hashes`:
+`hashed` (default, as BDS 1.26.51 advertises) sends each state's FNV-1a hash of
+its `{name, states}` NBT; `sequential` sends the ordinal, which the client only
+matches because `StartGame` defines the 98 vanilla data-driven blocks (see
+`unastar-data`). Every packet that carries a block state translates at the wire
+(`BlockNetworkIds::to_wire`/`from_wire`): sub-chunk palettes, `UpdateBlock`,
+block `LevelEvent`/`LevelSoundEvent` data, falling-block actor data, and item
+descriptor `block_runtime_id` (where 0 stays "not a block").
+`tests/wire_block_identity.rs` decodes generated chunks from their wire bytes
+through independent client models of both schemes.
 Every non-air item the server sends carries Bedrock item user data
 (`item::user_data`): the default is BDS's empty encoding (ten zero bytes,
 eighteen for the shield). The client drops the connection with `BadPacket`

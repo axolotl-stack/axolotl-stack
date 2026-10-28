@@ -344,7 +344,7 @@ fn correct_block(world: &World, entity: Entity, position: (i32, i32, i32)) {
                 y: position.1,
                 z: position.2,
             },
-            block_runtime_id,
+            block_runtime_id: super::types::block_network_ids(world).to_wire(block_runtime_id),
             flags: BLOCK_UPDATE_NEIGHBOURS | BLOCK_UPDATE_NETWORK,
             layer: 0,
         }));
@@ -561,9 +561,10 @@ fn broadcast_block_break(
 ) {
     use jolyne::valentine::{LevelSoundEventPacket, UpdateBlockPacket};
 
+    let ids = super::types::block_network_ids(world);
     let update_packet = UpdateBlockPacket {
         block_position: BlockPos { x, y, z },
-        block_runtime_id: *blocks::AIR,
+        block_runtime_id: ids.to_wire(*blocks::AIR),
         flags: BLOCK_UPDATE_NEIGHBOURS | BLOCK_UPDATE_NETWORK,
         layer: 0,
     };
@@ -575,7 +576,7 @@ fn broadcast_block_break(
             y: y as f32 + 0.5,
             z: z as f32 + 0.5,
         },
-        data: original_block_id as i32,
+        data: ids.to_wire(original_block_id) as i32,
     };
 
     let sound_packet = LevelSoundEventPacket {
@@ -585,7 +586,7 @@ fn broadcast_block_break(
             y: y as f32 + 0.5,
             z: z as f32 + 0.5,
         },
-        data: original_block_id as i32,
+        data: ids.to_wire(original_block_id) as i32,
         actor_identifier: "".into(),
         is_baby: false,
         is_global: false,
@@ -773,6 +774,7 @@ fn handle_block_click(
         });
     }
     let held = held_block(world, entity);
+    let block_ids = super::types::block_network_ids(world);
     let matches_held = held.as_ref().is_some_and(|(_, stack, network_id)| {
         data.hand == jolyne::valentine::EnumsHandSlot::Mainhand
             && world
@@ -783,7 +785,10 @@ fn handle_block_click(
             && u32::try_from(stack.damage).ok() == Some(data.item.auxvalue)
             && crate::item::user_data::stored_user_data(&stack.item_id, &data.item.user_data_buffer)
                 == stack.nbt
-            && u32::try_from(stack.runtime_id).ok() == Some(data.item.block_runtime_id)
+            && u32::try_from(stack.runtime_id)
+                .ok()
+                .map(|id| block_ids.item_block_to_wire(id))
+                == Some(data.item.block_runtime_id)
     });
     let placement = held
         .as_ref()
@@ -974,9 +979,10 @@ pub(super) fn set_block(world: &mut World, pos: IVec3, block_runtime_id: u32, pl
     if let Some(chunk_viewers) = world.get::<ChunkViewers>(chunk_entity) {
         use jolyne::valentine::{LevelSoundEventPacket, UpdateBlockPacket};
 
+        let wire_block = super::types::block_network_ids(world).to_wire(block_runtime_id);
         let update_packet = UpdateBlockPacket {
             block_position: BlockPos { x, y, z },
-            block_runtime_id,
+            block_runtime_id: wire_block,
             flags: BLOCK_UPDATE_NEIGHBOURS | BLOCK_UPDATE_NETWORK,
             layer: 0,
         };
@@ -988,7 +994,7 @@ pub(super) fn set_block(world: &mut World, pos: IVec3, block_runtime_id: u32, pl
                 y: y as f32 + 0.5,
                 z: z as f32 + 0.5,
             },
-            data: block_runtime_id as i32,
+            data: wire_block as i32,
             actor_identifier: "".into(),
             is_baby: false,
             is_global: false,
@@ -1020,6 +1026,7 @@ mod tests {
             crate::world::WorldConfig::void_spawn_platform(1),
         ));
         world.insert_resource(EventBuffer::default());
+        world.insert_resource(super::super::types::ServerConfigResource(Default::default()));
         world.insert_resource(super::super::types::BlockRegistryResource(
             std::sync::Arc::new(crate::registry::BlockRegistry::vanilla().clone()),
         ));
@@ -1228,7 +1235,8 @@ mod tests {
             .with_runtime_id(door.default_state_id as i32);
         data.item.id = door_item.network_id as i16;
         data.item.stacksize = 1;
-        data.item.block_runtime_id = door.default_state_id;
+        data.item.block_runtime_id =
+            crate::registry::block::BlockNetworkIds::Hashed.to_wire(door.default_state_id);
         world
             .get_mut::<MainInventory>(player)
             .unwrap()
@@ -1451,12 +1459,13 @@ mod tests {
             panic!("clicked block correction")
         };
         assert_eq!(clicked.block_position, data.position);
-        assert_eq!(clicked.block_runtime_id, *blocks::STONE);
+        let ids = crate::registry::block::BlockNetworkIds::Hashed;
+        assert_eq!(clicked.block_runtime_id, ids.to_wire(*blocks::STONE));
         let McpePacketData::UpdateBlockPacket(placed) = rx.try_recv().unwrap().data else {
             panic!("predicted block correction")
         };
         assert_eq!(placed.block_position, BlockPos { x: 1, y: 65, z: 1 });
-        assert_eq!(placed.block_runtime_id, *blocks::AIR);
+        assert_eq!(placed.block_runtime_id, ids.to_wire(*blocks::AIR));
         let McpePacketData::InventoryContentPacket(inventory) = rx.try_recv().unwrap().data else {
             panic!("inventory correction")
         };

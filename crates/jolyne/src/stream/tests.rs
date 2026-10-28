@@ -130,6 +130,98 @@ where
     }
 }
 
+/// The server side of a streamed spawn (`start_game_streamed`), back in
+/// play at the client's radius request.
+async fn streamed_server(
+    server_io: Memory,
+    config: Arc<BedrockListenerConfig>,
+) -> Result<BedrockStream<Play, Server, Memory>, JolyneError> {
+    let key = SecretKey::random(&mut rand::thread_rng());
+    let stream = BedrockStream::<Handshake, Server, _>::from_transport(server_io, config);
+    let login = stream
+        .accept_network_settings()
+        .await
+        .map_err(Failed::into_error)?;
+    let secure = login.authenticate().await.map_err(Failed::into_error)?;
+    let packs = secure
+        .finish_handshake(&key)
+        .await
+        .map_err(Failed::into_error)?;
+    let start = packs.negotiate_packs().await.map_err(Failed::into_error)?;
+    start
+        .start_game_streamed(WorldTemplate::default().to_join_params(5))
+        .await
+        .map_err(Failed::into_error)
+}
+
+/// A streamed spawn enters play before the client initializes: the
+/// application sends `PlayStatus(PlayerSpawn)`, and the play receive path
+/// ends the spawn on `SetLocalPlayerAsInitialized` (still delivered).
+#[tokio::test]
+async fn streamed_spawn_completes_on_the_play_receive_path() {
+    use crate::valentine::{PlayStatusPacket, PlayStatusPacketStatus};
+    let (server_io, client_io) = pipe(64);
+    let server = tokio::spawn(async move {
+        let mut play = streamed_server(server_io, offline()).await?;
+        assert!(!play.is_initialized());
+        assert_eq!(play.chunk_radius(), Some(16));
+        play.send_packet(
+            PlayStatusPacket {
+                status: PlayStatusPacketStatus::Playerspawn,
+            }
+            .into(),
+        )
+        .await?;
+        let initialized =
+            next_named(&mut play, McpePacketName::SetLocalPlayerAsInitializedPacket).await;
+        assert!(play.is_initialized());
+        Ok::<_, JolyneError>((play, initialized))
+    });
+    let client =
+        BedrockStream::<Handshake, Client, _>::from_transport(client_io, ClientConfig::default())
+            .await
+            .unwrap();
+    let (client, _) = client
+        .join(ClientHandshakeConfig::random(
+            SocketAddr::from((Ipv4Addr::LOCALHOST, 19132)),
+            "Tester",
+        ))
+        .await
+        .unwrap();
+    let (server, _) = server.await.unwrap().unwrap();
+    assert_eq!(server.runtime_id(), client.runtime_id());
+}
+
+/// A streamed spawn whose client never initializes ends in
+/// `Timeout(Spawn)` on the play receive path, at the spawn deadline.
+#[tokio::test(start_paused = true)]
+async fn streamed_spawn_times_out_on_the_play_receive_path() {
+    let (server_io, client_io) = pipe(64);
+    let server = tokio::spawn(async move {
+        let mut play = streamed_server(server_io, offline()).await?;
+        // No PlayerSpawn: the client never initializes.
+        loop {
+            play.recv_packet_raw().await?;
+        }
+    });
+    let client =
+        BedrockStream::<Handshake, Client, _>::from_transport(client_io, ClientConfig::default())
+            .await
+            .unwrap();
+    let joining = tokio::spawn(client.join(ClientHandshakeConfig::random(
+        SocketAddr::from((Ipv4Addr::LOCALHOST, 19132)),
+        "Tester",
+    )));
+    let result: Result<(), JolyneError> = server.await.unwrap();
+    assert!(matches!(
+        result,
+        Err(JolyneError::Protocol(ProtocolError::Timeout(
+            HandshakePhase::Spawn
+        )))
+    ));
+    joining.abort();
+}
+
 #[tokio::test]
 async fn join_echo_and_typed_disconnect() {
     let (mut server, mut client) = joined(offline()).await;

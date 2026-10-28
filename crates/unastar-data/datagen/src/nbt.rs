@@ -208,6 +208,184 @@ impl<'a> SpanCursor<'a> {
     }
 }
 
+/// Extracts each block's definition from protocolgen's `data_driven_blocks.nbt`
+/// (a little-endian root compound holding a `blocks` list of `{name, components}`),
+/// transcoded to the network NBT that `StartGame` block definitions carry.
+///
+/// These are the vanilla data-driven blocks (behavior pack `blocks/`). The
+/// client numbers sequential block ids over its built-in blocks plus the blocks
+/// a server defines, so the definitions are required for canonical-palette ids.
+/// Transcoding keeps key order and every value; only integer, string and length
+/// encodings change between the two NBT flavours.
+pub fn data_driven_block_definitions(
+    bytes: &[u8],
+) -> Result<std::collections::BTreeMap<String, Vec<u8>>, String> {
+    let mut cursor = LeCursor { bytes, pos: 0 };
+    if cursor.u8()? != TAG_COMPOUND {
+        return Err("data_driven_blocks.nbt root must be a compound".into());
+    }
+    cursor.string()?;
+    let mut blocks = std::collections::BTreeMap::new();
+    loop {
+        let tag = cursor.u8()?;
+        if tag == TAG_END {
+            break;
+        }
+        let key = cursor.string()?;
+        if key != "blocks" || tag != TAG_LIST || cursor.u8()? != TAG_COMPOUND {
+            return Err(format!(
+                "data_driven_blocks.nbt has unexpected root field {key}"
+            ));
+        }
+        for _ in 0..cursor.length()? {
+            let (mut name, mut definition) = (None, None);
+            loop {
+                let field = cursor.u8()?;
+                if field == TAG_END {
+                    break;
+                }
+                match (cursor.string()?, field) {
+                    ("name", 8) => name = Some(cursor.string()?.to_owned()),
+                    ("components", TAG_COMPOUND) => {
+                        let mut network = vec![TAG_COMPOUND, 0];
+                        cursor.transcode_payload(TAG_COMPOUND, &mut network)?;
+                        definition = Some(network);
+                    }
+                    (other, _) => {
+                        return Err(format!("data-driven block has unexpected field {other}"));
+                    }
+                }
+            }
+            let name = name.ok_or("data-driven block without a name")?;
+            let definition =
+                definition.ok_or_else(|| format!("data-driven block {name} has no components"))?;
+            if blocks.insert(name.clone(), definition).is_some() {
+                return Err(format!("data_driven_blocks.nbt repeats {name}"));
+            }
+        }
+    }
+    if cursor.pos != bytes.len() {
+        return Err("data_driven_blocks.nbt contains trailing bytes".into());
+    }
+    Ok(blocks)
+}
+
+const TAG_LIST: u8 = 9;
+
+/// Reads little-endian (disk) NBT and re-emits it as network little-endian NBT.
+struct LeCursor<'a> {
+    bytes: &'a [u8],
+    pos: usize,
+}
+
+impl<'a> LeCursor<'a> {
+    fn take(&mut self, len: usize) -> Result<&'a [u8], String> {
+        let end = self
+            .pos
+            .checked_add(len)
+            .filter(|&end| end <= self.bytes.len())
+            .ok_or_else(|| format!("NBT truncated at byte {}", self.pos))?;
+        let slice = &self.bytes[self.pos..end];
+        self.pos = end;
+        Ok(slice)
+    }
+
+    fn u8(&mut self) -> Result<u8, String> {
+        Ok(self.take(1)?[0])
+    }
+
+    fn i32(&mut self) -> Result<i32, String> {
+        Ok(i32::from_le_bytes(self.take(4)?.try_into().unwrap()))
+    }
+
+    fn i64(&mut self) -> Result<i64, String> {
+        Ok(i64::from_le_bytes(self.take(8)?.try_into().unwrap()))
+    }
+
+    fn length(&mut self) -> Result<usize, String> {
+        let value = self.i32()?;
+        usize::try_from(value).map_err(|_| format!("negative NBT length {value}"))
+    }
+
+    fn string(&mut self) -> Result<&'a str, String> {
+        let len = u16::from_le_bytes(self.take(2)?.try_into().unwrap());
+        std::str::from_utf8(self.take(len.into())?).map_err(|e| format!("NBT string: {e}"))
+    }
+
+    fn transcode_payload(&mut self, tag: u8, out: &mut Vec<u8>) -> Result<(), String> {
+        match tag {
+            1 | 2 | 5 | 6 => {
+                let width = [0, 1, 2, 0, 0, 4, 8][tag as usize];
+                out.extend_from_slice(self.take(width)?);
+            }
+            3 => put_varint(out, zigzag(self.i32()?.into())),
+            4 => put_varint(out, zigzag(self.i64()?)),
+            7 => {
+                let len = self.length()?;
+                put_length(out, len);
+                out.extend_from_slice(self.take(len)?);
+            }
+            8 => put_string(out, self.string()?),
+            TAG_LIST => {
+                let element = self.u8()?;
+                out.push(element);
+                let len = self.length()?;
+                put_length(out, len);
+                for _ in 0..len {
+                    self.transcode_payload(element, out)?;
+                }
+            }
+            TAG_COMPOUND => loop {
+                let field = self.u8()?;
+                out.push(field);
+                if field == TAG_END {
+                    return Ok(());
+                }
+                put_string(out, self.string()?);
+                self.transcode_payload(field, out)?;
+            },
+            11 => {
+                let len = self.length()?;
+                put_length(out, len);
+                for _ in 0..len {
+                    put_varint(out, zigzag(self.i32()?.into()));
+                }
+            }
+            12 => {
+                let len = self.length()?;
+                put_length(out, len);
+                for _ in 0..len {
+                    put_varint(out, zigzag(self.i64()?));
+                }
+            }
+            other => return Err(format!("unknown NBT tag {other} at byte {}", self.pos)),
+        }
+        Ok(())
+    }
+}
+
+fn zigzag(value: i64) -> u64 {
+    ((value << 1) ^ (value >> 63)) as u64
+}
+
+fn put_varint(out: &mut Vec<u8>, mut value: u64) {
+    while value >= 0x80 {
+        out.push(value as u8 | 0x80);
+        value >>= 7;
+    }
+    out.push(value as u8);
+}
+
+/// Network list/array lengths are zig-zag encoded signed `int`s.
+fn put_length(out: &mut Vec<u8>, len: usize) {
+    put_varint(out, zigzag(len as i64));
+}
+
+fn put_string(out: &mut Vec<u8>, value: &str) {
+    put_varint(out, value.len() as u64);
+    out.extend_from_slice(value.as_bytes());
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -255,6 +433,37 @@ mod tests {
             &[0x80][..],
         ] {
             assert!(NetworkLittleEndian.i64(&mut &bytes[..]).is_err());
+        }
+    }
+
+    #[test]
+    fn data_driven_definitions_transcode_every_value_to_network_nbt() {
+        use zuri_nbt::encoding::LittleEndian;
+        let path = std::path::Path::new(env!("CARGO_MANIFEST_DIR"))
+            .join("../../valentine_gen/protocolgen/generated/data/registry/data_driven_blocks.nbt");
+        let bytes = std::fs::read(&path).unwrap();
+        let definitions = data_driven_block_definitions(&bytes).unwrap();
+        let zuri_nbt::NBTTag::Compound(root) =
+            zuri_nbt::NBTTag::read(&mut bytes.as_slice(), LittleEndian).unwrap()
+        else {
+            panic!("root compound");
+        };
+        let Some(zuri_nbt::NBTTag::List(blocks)) = root.0.get("blocks") else {
+            panic!("blocks list");
+        };
+        assert_eq!(blocks.0.len(), definitions.len());
+        for block in &blocks.0 {
+            let zuri_nbt::NBTTag::Compound(block) = block else {
+                panic!("block compound");
+            };
+            let Some(zuri_nbt::NBTTag::String(name)) = block.0.get("name") else {
+                panic!("block name");
+            };
+            let network = &definitions[&name.0];
+            let mut input = network.as_slice();
+            let decoded = zuri_nbt::NBTTag::read(&mut input, NetworkLittleEndian).unwrap();
+            assert!(input.is_empty(), "{} has trailing bytes", name.0);
+            assert_eq!(Some(&decoded), block.0.get("components"), "{}", name.0);
         }
     }
 }

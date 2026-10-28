@@ -110,8 +110,22 @@ Block `id` is now the first canonical state ordinal, **not** a Prismarine legacy
 identifiers and `by_runtime_id` are the stable lookup contracts. Names are identifiers,
 not unsourced translated display names. Opacity is native `opaqueFullBlock`;
 hardness/resistance map directly to `destroySpeed`/`explosionResistance` without Java scaling.
-Jolyne negotiates sequential block IDs (`block_network_ids_are_hashes=false`);
-hashes are retained for validation, not substituted for ordinals.
+Runtime IDs are ordinals. `BlockData::network_hashes` carries each state's native
+hashed network ID (`block_network_ids_are_hashes=true`, BDS's default): 32-bit
+FNV-1a of the state's little-endian `{name, states}` NBT. `tests/network_hashes.rs`
+re-derives all 22,091 from the palette. Unastar translates ordinals to whichever
+scheme its `StartGame` advertises only at the wire.
+
+With sequential IDs the client numbers its built-in blocks **plus the blocks
+`StartGame` defines**, not over the full canonical palette. The 98 vanilla
+data-driven blocks (behavior pack `blocks/`: concrete/wool slabs and stairs)
+are canonical palette entries that the client only knows from a definition, so
+each carries `server_definition_nbt` in `blocks.kdl` (`BlockData::server_definition`):
+the network NBT definition BDS sends, transcoded from protocolgen
+`generated/data/registry/data_driven_blocks.nbt` (CloudburstMC/Data). All 98
+are byte-identical to a BDS 1.26.51 `StartGame` capture. Omitting them shifts
+every later client ID (air becomes 15844 instead of 17025) and the client
+renders a wrong block almost everywhere.
 
 Initialize both source submodules **before building**, not only generation:
 

@@ -38,6 +38,9 @@ allow_legacy_auth = true
 encryption_enabled = true
 # Require clients to accept advertised resource packs.
 require_resource_packs = false
+# Block state numbering on the wire: "hashed" (each state's FNV-1a NBT hash,
+# what BDS advertises) or "sequential" (canonical palette ordinal).
+block_network_ids = "hashed"
 
 [world]
 # Dimension ID: 0 = Overworld, 1 = Nether, 2 = End
