@@ -77,12 +77,13 @@ fn bedrock_style_vs_bds_reference_ratchets() {
             // frame alone lowers surface height exact (0.857479 -> 0.851333);
             // see the primitive-correction ablation in
             // unastar_bedrock_codegen/README.md. That floor was re-baselined;
-            // per-position rule biome checks then raised every metric, so all
-            // floors (including the original surface-biome floor) track the
-            // current measurement.
+            // per-position rule biome checks then raised every metric. The
+            // single-block deep sea floor (coordinator-approved, 2026-10-28)
+            // halves histogram error but re-baselines terrain within 2 and
+            // terrain error: see "Single-block deep sea floor" in that README.
             for (name, value, floor) in [
                 ("terrain_exact", m.terrain_exact, 0.8741),
-                ("terrain_within_2", m.terrain_within_2, 0.9241),
+                ("terrain_within_2", m.terrain_within_2, 0.9227),
                 ("surface_exact", m.surface_exact, 0.8526),
                 ("surface_block", m.surface_block, 0.8432),
                 ("surface_biome", m.surface_biome, 0.9950),
@@ -90,12 +91,12 @@ fn bedrock_style_vs_bds_reference_ratchets() {
                 assert!(value >= floor, "{name} {value:.6} fell below {floor:.6}");
             }
             assert!(
-                m.terrain_mean_abs_error <= 1.2272,
+                m.terrain_mean_abs_error <= 1.2328,
                 "terrain error rose: {}",
                 m.terrain_mean_abs_error
             );
             assert!(
-                m.histogram_l1 <= 0.0685,
+                m.histogram_l1 <= 0.0405,
                 "histogram error rose: {}",
                 m.histogram_l1
             );

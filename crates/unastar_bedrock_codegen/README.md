@@ -416,6 +416,45 @@ improved, and the surface-biome floor returns to its pre-D8 value of 0.9950:
 | granite | 47344 | 42951 | 46185 |
 
 Clay, moss (23132 vs 14031), cave vines (5335 vs 2217) and big dripleaf
-(1067 vs 190) are still over-generated, and gravel (73185 vs 38197) is
-unchanged; those remain open.
+(1067 vs 190) are still over-generated; those remain open.
+
+### Single-block deep sea floor (2026-10-28)
+
+The overworld builder covered every deep ocean floor (below
+`sea_level - sea_floor_depth - depth`) with a `depth`-thick layer of
+`sea_floor_material`. The classic builder's deep-water branch places one
+`sea_floor_material` block with foundation stone below, and the BDS fixture
+agrees: ocean chunk (64,66) holds 495 gravel in total, most of it ore blobs,
+where we generated 1389. The builder now places a single block.
+
+| Metric | Gravel layer | Single block |
+|---|---:|---:|
+| terrain exact | 0.874138 | 0.874311 |
+| terrain within 2 | 0.924173 | 0.922794 |
+| terrain mean absolute error | 1.227194 | 1.232709 |
+| surface exact | 0.852654 | 0.852654 |
+| surface block | 0.843290 | 0.843290 |
+| surface biome | 0.995060 | 0.995060 |
+| histogram L1 | 0.068492 | 0.040459 |
+
+| Block (68-chunk fixture) | BDS | Gravel layer | Single block |
+|---|---:|---:|---:|
+| gravel | 38197 | 73185 | 37412 |
+| stone | 508985 | 478106 | 504814 |
+| andesite | 54169 | 58233 | 61246 |
+
+The coordinator approved re-baselining exactly `terrain_within_2` (0.9227)
+and `terrain_mean_abs_error` (1.2328) to the measured values; every other
+floor stays or rises (histogram L1 tightened to 0.0405).
+
+**Second cause, still open.** Exactly 24 columns moved beyond two blocks, and
+all 24 share one shape: an `underwater_magma_feature` blob replaced the single
+gravel block (often the block below as well), exposing andesite, diorite or
+coal ore, which the parity metric does not count as terrain, so measured
+height drops to the first stone below. BDS reports a terrain block at the
+magma's height in every one of those columns, so our underwater magma
+(`partially_exposed_blob_feature`, radius 1 around the floor) is placed where
+BDS keeps the floor; its position, replace set or density is unverified. The
+old gravel layer had hidden this. The broader andesite/diorite excess is the
+ore blobs now reaching stone directly under the floor.
 
