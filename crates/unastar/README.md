@@ -168,6 +168,13 @@ policy remains explicitly local until measured against BDS. The scheduled
 headless ECS smoke exercised base application, destructive removal and batch
 cancellation; this does not establish vanilla mob gameplay.
 
+Non-player actors enter their viewer set only after the outbound spawn packet
+is accepted by that session's bounded queue. A full queue leaves the actor
+unregistered for the next desired-viewer reconciliation. A failing-before/
+passing-after regression and a two-viewer headless ECS/codec smoke cover a
+blocked viewer without duplicating another viewer's accepted spawn. Queue
+acceptance is local bookkeeping, not a client-delivery acknowledgment.
+
 Actor metadata keys/flag indices come from Valentine's generated Mojang reference
 catalog, not a handwritten runtime table. Its protocol2168 provenance remains
 explicit; no complete2193 catalog claim is made. Retained 1.26.51 cow/chicken

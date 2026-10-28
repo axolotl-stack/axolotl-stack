@@ -873,11 +873,12 @@ pub fn sync_actor_viewers(
             )
         {
             for viewer in &fresh {
-                if let Ok(session) = sessions.get(*viewer) {
-                    let _ = session.send(spawn.clone());
+                if let Ok(session) = sessions.get(*viewer)
+                    && session.send(spawn.clone())
+                {
+                    viewers.viewers.push(*viewer);
                 }
             }
-            viewers.viewers.extend(fresh);
         }
 
         if moved {
@@ -967,6 +968,43 @@ mod actor_viewer_tests {
             && matches!(&entry.payload,
                 jolyne::valentine::types::DataItemEntryPayload::DataItemIntPayload(v)
                     if v.value == sand as i32)));
+    }
+
+    #[test]
+    fn rejected_spawn_is_not_recorded_as_visible_and_reconciles_after_backpressure() {
+        let (mut world, _, player, mut rx) = setup();
+        let session = world.get::<PlayerSession>(player).unwrap();
+        let filler = McpePacket::from(build_remove_actor_packet(99));
+        while session.send(filler.clone()) {}
+        let sand = crate::registry::BlockRegistry::vanilla()
+            .default_state_id_by_name("minecraft:sand")
+            .unwrap();
+        let actor = world
+            .spawn((
+                FallingBlock { state: sand },
+                Position(DVec3::new(4.5, 70.0, 4.5)),
+                Velocity::default(),
+                OnGround(false),
+                PhysicsBody::FALLING_BLOCK,
+                RuntimeId(7),
+                ActorViewers::default(),
+            ))
+            .id();
+        sync(&mut world);
+        assert!(
+            world.get::<ActorViewers>(actor).unwrap().viewers.is_empty(),
+            "a rejected AddActor must not make an actor visible"
+        );
+        drain(&mut rx);
+        sync(&mut world);
+        let packets = drain(&mut rx);
+        let [McpePacketData::AddActorPacket(add)] = packets.as_slice() else {
+            panic!("expected deferred AddActor, got {packets:?}");
+        };
+        assert_eq!(add.target_runtime_id.actor_runtime_id, 7);
+        assert_eq!(world.get::<ActorViewers>(actor).unwrap().viewers, [player]);
+        sync(&mut world);
+        assert!(drain(&mut rx).is_empty(), "accepted spawn must not repeat");
     }
 
     #[test]
