@@ -31,7 +31,7 @@ manifest schema_version="1" generated_at="unknown" {
     artifact "blocks" path="blocks.kdl" hash="85973df38550bf91d6ebc189b7846d3c9ff43c656058a0890fdddb96f108d957"
     artifact "items" path="items.kdl" hash="6f86fc1a5d95b59bc5aa154d69757bcc9b10433c322bb1ea822e6761ea6ec771"
     artifact "creative" path="creative.kdl" hash="35112ee9b3d22de086b43f8b828386dd3c06145b3e557d043de22291457a3d55"
-    artifact "pack-manifest.json" path="pack-manifest.json" hash="8b1bd5564adc1007eaf8d9b6a73a7ab3e04bdc0c4fca233baec216034d7756ab"
+    artifact "pack-manifest.json" path="pack-manifest.json" hash="74da0d5ab4e92f3c36eb2df9a66e3afcd33108ebf6ca426730b30e96d58411f3"
     artifact "actor_identifiers.json" path="actor_identifiers.json" hash="e12f78fc4affebb3f72fc6d567b18a5163ba7eb6bbb00082f533dbf74206c5a6"
     artifact "shapes" path="shapes.json" hash="8bc709528442796dc0df691b7f57dc2a0759bb21e26fa016573db03baa21930d"
 }
