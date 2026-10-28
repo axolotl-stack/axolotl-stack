@@ -74,27 +74,28 @@ fn bedrock_style_vs_bds_reference_ratchets() {
             let m = measure(&fixture, &pipeline).metrics;
             println!("Bedrock BDS seed12345: {m:#?}");
             // D8 (coordinator-delegated, 2026-10-28): the native-calibrated ore
-            // frame alone lowers surface height exact (0.857479 -> 0.851333)
-            // and surface biome (0.995002 -> 0.994830); see the
-            // primitive-correction ablation in unastar_bedrock_codegen/README.md.
-            // Those two floors are re-baselined to the measured values; every
-            // other floor is raised to the current measurement.
+            // frame alone lowers surface height exact (0.857479 -> 0.851333);
+            // see the primitive-correction ablation in
+            // unastar_bedrock_codegen/README.md. That floor was re-baselined;
+            // per-position rule biome checks then raised every metric, so all
+            // floors (including the original surface-biome floor) track the
+            // current measurement.
             for (name, value, floor) in [
-                ("terrain_exact", m.terrain_exact, 0.8729),
-                ("terrain_within_2", m.terrain_within_2, 0.9225),
-                ("surface_exact", m.surface_exact, 0.8515),
-                ("surface_block", m.surface_block, 0.8424),
-                ("surface_biome", m.surface_biome, 0.9948),
+                ("terrain_exact", m.terrain_exact, 0.8741),
+                ("terrain_within_2", m.terrain_within_2, 0.9241),
+                ("surface_exact", m.surface_exact, 0.8526),
+                ("surface_block", m.surface_block, 0.8432),
+                ("surface_biome", m.surface_biome, 0.9950),
             ] {
                 assert!(value >= floor, "{name} {value:.6} fell below {floor:.6}");
             }
             assert!(
-                m.terrain_mean_abs_error <= 1.2363,
+                m.terrain_mean_abs_error <= 1.2272,
                 "terrain error rose: {}",
                 m.terrain_mean_abs_error
             );
             assert!(
-                m.histogram_l1 <= 0.0726,
+                m.histogram_l1 <= 0.0685,
                 "histogram error rose: {}",
                 m.histogram_l1
             );

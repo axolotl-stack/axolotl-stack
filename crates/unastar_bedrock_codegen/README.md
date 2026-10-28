@@ -388,3 +388,34 @@ exact 0.872989, within two 0.922564, error 1.236271, surface exact 0.851563,
 surface block 0.842429, surface biome 0.994830, histogram L1 0.072594. Kelp
 density stays about 27% low; feature RNG seeding remains unmeasured.
 
+### Per-position rule biome checks (2026-10-28)
+
+Rules used to run once per chunk when any of the chunk's 3D biomes matched
+their filter, and every distributed placement then ran regardless of its own
+biome. One pocket of lush caves therefore decorated the whole chunk volume:
+in generated chunk (6,-4) lush-cave clay ore filled mountain stone up to
+y 145. Each placement is now checked against the biome at its own position
+(the chunk-level check remains a cheap prefilter). Every aggregate metric
+improved, and the surface-biome floor returns to its pre-D8 value of 0.9950:
+
+| Metric | Chunk-wide check | Per-position check |
+|---|---:|---:|
+| terrain exact | 0.872989 | 0.874138 |
+| terrain within 2 | 0.922564 | 0.924173 |
+| terrain mean absolute error | 1.236271 | 1.227194 |
+| surface exact | 0.851563 | 0.852654 |
+| surface block | 0.842429 | 0.843290 |
+| surface biome | 0.994830 | 0.995060 |
+| histogram L1 | 0.072594 | 0.068492 |
+
+| Block (68-chunk fixture) | BDS | Chunk-wide | Per-position |
+|---|---:|---:|---:|
+| clay | 26162 | 48455 | 42540 |
+| calcite | 538 | 1480 | under 914 |
+| andesite | 54169 | 52163 | 58233 |
+| granite | 47344 | 42951 | 46185 |
+
+Clay, moss (23132 vs 14031), cave vines (5335 vs 2217) and big dripleaf
+(1067 vs 190) are still over-generated, and gravel (73185 vs 38197) is
+unchanged; those remain open.
+
