@@ -647,12 +647,15 @@ pub struct ShipwreckPiece {
 
 impl ShipwreckPiece {
     fn new(name: &str, pos: BlockPos, rotation: Rotation, beached: bool) -> Self {
+        // A native ocean shipwreck (seed -55506848734215641, chunk 9,-24)
+        // waterlogged its submerged stairs, slabs and fences. Beached wrecks
+        // ignore waterlogging; no beached wreck has been captured natively yet.
         let placement = TemplatePlacement {
             rotation,
             mirror: Mirror::None,
             pivot: SHIPWRECK_PIVOT,
             processors: vec![&IGNORE_STRUCTURE_AND_AIR],
-            apply_waterlogging: false,
+            apply_waterlogging: !beached,
             shared_random: false,
         };
         Self {
