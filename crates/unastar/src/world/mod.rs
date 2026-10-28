@@ -4,6 +4,7 @@ pub mod block_entity;
 pub mod chunk;
 pub mod ecs;
 pub mod generator;
+pub mod rules;
 
 pub use chunk::{Chunk, HeightMapType, SUBCHUNK_COUNT, request_mode};
 pub use ecs::{ChunkData, ChunkManager, ChunkPosition, ChunkState};

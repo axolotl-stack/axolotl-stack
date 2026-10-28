@@ -213,6 +213,12 @@ impl GameServer {
         ecs.world_mut()
             .insert_resource(ServerConfigResource(config.clone()));
         ecs.world_mut()
+            .insert_resource(crate::world::rules::Difficulty::default());
+        ecs.world_mut()
+            .insert_resource(crate::world::rules::GameRules::default());
+        ecs.world_mut()
+            .insert_resource(crate::world::rules::WorldTime::default());
+        ecs.world_mut()
             .insert_resource(CommandRegistryResource(CommandRegistry::with_defaults()));
         ecs.world_mut().insert_resource(ItemEntityIdCounter(100000));
         ecs.world_mut()
