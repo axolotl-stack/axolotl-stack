@@ -5,6 +5,8 @@
 //! InventoryTransaction packets.
 
 pub mod containers;
+#[cfg(test)]
+mod creative_tests;
 pub mod engine;
 mod pick;
 
