@@ -353,8 +353,38 @@ corrected implementation is restored. Values are rounded for display.
 The old/old row is the earlier offset-only ablation, which exactly recovered
 every full-precision prior metric before the fixed-noise cutover.
 Independent primitive controls disprove both old implementations; aggregate
-surface/terrain metrics nevertheless contain compensating errors. Existing
-ratchets and output goldens remain unchanged: the corrected aggregate gate is
-currently three passing tests and one failing ratchet, pending an explicit D8
-decision. No exception or replacement floors have been assumed.
+surface/terrain metrics nevertheless contain compensating errors.
+
+### D8 decision (2026-10-28)
+
+The coordinator delegated D8. The ore-only column above shows the native-
+calibrated ore frame alone lowers surface height exact (0.857479 to 0.851333)
+and surface biome match (0.995002 to 0.994830); the frozen-climate fix leaves
+both unchanged. Both regressions therefore come from a correction proven
+against isolated native coal controls, so exactly those two floors were
+re-baselined to the measured values (0.8515 and 0.9948). Every other floor of
+`bedrock_style_vs_bds_reference_ratchets` was raised to the current
+measurement, and the test is back in the gate.
+
+### Kelp and seagrass sea-floor anchoring (2026-10-28)
+
+Every vanilla rule feeding `kelp_feature` and the seagrass built-ins passes
+`query.heightmap` (the first air above the water) as the input height, and the
+nested seagrass scatters add a second heightmap on top. The built-ins used that
+input directly, found air, and placed nothing in any ocean. They now start
+above the column's highest motion-blocking block, as BDS evidently does (all
+fixture kelp and seagrass is rooted on the floor). Plant support also uses
+motion blocking, because the palette `solid` flag marks seagrass itself.
+
+| Block (68-chunk fixture) | BDS | Before | After |
+|---|---:|---:|---:|
+| kelp | 4506 | 0 | 3272 |
+| seagrass | 2584 | 0 | 2529 |
+| water | 264317 | 255644 | 249843 |
+
+Water falls because plants replace the primary water block; its remaining
+deficit predates this change. Full-precision metrics after the change: terrain
+exact 0.872989, within two 0.922564, error 1.236271, surface exact 0.851563,
+surface block 0.842429, surface biome 0.994830, histogram L1 0.072594. Kelp
+density stays about 27% low; feature RNG seeding remains unmeasured.
 
