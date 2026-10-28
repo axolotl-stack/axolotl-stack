@@ -432,6 +432,32 @@ public final class NativeContextProbe {
             evidence.put("logging_hostname","explicit native Log4j ContextProperties hostName=localhost; avoids logger DNS without weakening network guard");
             call(MC+"SharedConstants","tryDetectVersion",null,new String[]{});
             call(MC+"server.Bootstrap","bootStrap",null,new String[]{});
+            if(Boolean.getBoolean("native.dryRun")){
+                // Argument parsing, pins, offline bootstrap and every reflective
+                // member the parallel path resolves; no server or level is built.
+                String level=MC+"server.level.",chunk=MC+"world.level.chunk.status.ChunkStatus";
+                String[][] members={
+                    {level+"ServerLevel","getChunkSource"},
+                    {level+"ServerChunkCache","getChunkFutureMainThread","int","int",chunk,"boolean"},
+                    {level+"ServerChunkCache$MainThreadExecutor","managedBlock","java.util.function.BooleanSupplier"},
+                    {level+"ChunkResult","orElse","java.lang.Object"},
+                    {level+"ChunkResult","getError"},
+                    {MC+"world.level.Level","getChunk","int","int",chunk,"boolean"}};
+                List<Object> resolved=new ArrayList<>();
+                for(String[] member:members){
+                    Method method=(Method)invoke("method",new Class[]{String.class,String.class,String[].class},
+                        member[0],member[1],Arrays.copyOfRange(member,2,member.length));
+                    resolved.add(Map.of("owner",member[0],"name",member[1],"declaring_class",method.getDeclaringClass().getName(),
+                        "declaring_class_public",java.lang.reflect.Modifier.isPublic(method.getDeclaringClass().getModifiers())));
+                }
+                evidence.put("dry_run",Map.of("coordinates",coordinates,"parallel_origins",parallelOrigins,
+                    "trace_native_tasks",traceNativeTasks,"structures",structures,"resolved_members",resolved,
+                    "native_context_constructed",false));
+                evidence.put("denied_network_attempts",networkAttempts);
+                Files.delete(work.resolve("server.properties"));Files.delete(work);evidence.remove("fresh_world_directory");
+                Files.writeString(output,new Gson().toJson(evidence));
+                System.exit(0);
+            }
             observeNativePyramid(traceNativeTasks);
             Files.writeString(output.resolveSibling("native-pyramid-metadata.json"),new Gson().toJson(evidence));
             bak packs=(bak)call(MC+"server.packs.repository.ServerPacksSource","createVanillaTrustedRepository",null,new String[]{});
