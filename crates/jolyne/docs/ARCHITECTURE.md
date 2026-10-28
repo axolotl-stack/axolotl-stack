@@ -77,8 +77,8 @@ where the Tier 2 API gets its seams:
 | `ServerEncryption` (Phase) | `ClientToServerHandshake` | `PacksReady` |
 | `PacksReady` | the pack set: `start_packs` / `start_packs_with` | `ServerPacksPhase` |
 | `ServerPacksPhase` (Phase) | the pack exchange to complete | `WorldReady` |
-| `WorldReady` | the world: `start_game(WorldJoinParams, now)` | `ServerSpawn` |
-| `ServerSpawn` (Phase) | `RequestChunkRadius`, then `SetLocalPlayerAsInitialized` with the `StartGame` runtime ID | `ServerSession` |
+| `WorldReady` | the world: `start_game(WorldJoinParams, now)` or `start_game_streamed(WorldJoinParams, now)` | `ServerSpawn` |
+| `ServerSpawn` (Phase) | `RequestChunkRadius`, then `SetLocalPlayerAsInitialized` with the `StartGame` runtime ID; a streamed spawn completes at `RequestChunkRadius` and leaves that check to `Session::next_packet` | `ServerSession` |
 
 | Client owner | Waits for | Next |
 |---|---|---|
@@ -89,7 +89,10 @@ where the Tier 2 API gets its seams:
 | `ClientSpawn` (Phase) | `StartGame`, `ItemRegistry`, `ChunkRadiusUpdated`, `PlayStatus(PlayerSpawn)` | `ClientJoined` (`ClientSession` + `GameData`) |
 
 Both roles end in a `proto::session::Session`: the connection plus the runtime
-ID and chunk radius agreed while spawning.
+ID and chunk radius agreed while spawning. A streamed spawn's session starts
+before `SetLocalPlayerAsInitialized` (see `docs/LOGIN_SEQUENCE.md`): until it
+arrives, `Session::next_packet` and the async play receive path check its
+runtime ID and the spawn deadline.
 
 ### Deferred packets
 
@@ -173,7 +176,7 @@ The intermediate server owners run inside a step: `authenticate` drives
 `ServerLogin`, takes a player slot, verifies the login (`LoginRequest`, under
 the login deadline) and runs the admission hook; `finish_handshake` drives
 `ServerEncryption`; `negotiate_packs` drives `ServerPacksPhase`; `start_game`
-drives `ServerSpawn`.
+and `start_game_streamed` drive `ServerSpawn`.
 
 Client (`stream::client`):
 
@@ -290,7 +293,7 @@ so a peer that stops reading or answering cannot hold a join open.
 |---|---|---|
 | Server | `login_timeout` (30 s), from accept | network settings, login, authentication (including any OpenID key fetch), admission, encryption handshake |
 | Server | `resource_pack_timeout` (5 min), from `negotiate_packs` | the pack exchange |
-| Server | `spawn_timeout` (60 s), from `start_game` | `StartGame` to `SetLocalPlayerAsInitialized` |
+| Server | `spawn_timeout` (60 s), from `start_game`/`start_game_streamed` | `StartGame` to `SetLocalPlayerAsInitialized` (for a streamed spawn, enforced by the play receive path) |
 | Client | `join_timeout` (120 s), from `from_transport` (after connecting) | every phase, including building login tokens |
 
 A missed deadline is `ProtocolError::Timeout(HandshakePhase)`; huge configured
