@@ -1,7 +1,8 @@
 //! Chat and command domain system.
 //!
 //! Processes Text (chat broadcast) and CommandRequest packets, including
-//! the /tp command which writes Position.
+//! the /tp command which writes Position and /summon, which spawns its mob
+//! from the command buffer (spawning needs exclusive world access).
 
 use bevy_ecs::prelude::*;
 use glam::DVec3;
@@ -10,11 +11,12 @@ use tracing::{debug, info, trace};
 use super::packet_queues::{ChatAction, ChatEvents, ChatPacketQueue};
 use super::types::{CommandRegistryResource, system_text};
 use crate::command::{
-    CommandContext, CommandOutput, CommandParseError, Operator, parse_command_line,
+    CommandContext, CommandOutput, CommandParseError, Operator, SummonRequest, parse_command_line,
 };
 use crate::ecs::events::ServerEvent;
 use crate::entity::components::transform::Position;
 use crate::entity::components::{PlayerName, PlayerSession, PlayerUuid, RuntimeEntityId};
+use crate::entity::mob::{SpawnCause, spawn_mob};
 use crate::world::ecs::ChunkLoader;
 use jolyne::valentine::types::{
     ActorRuntimeId, EnumsPlayerPositionModeComponentPositionMode, EnumsTextPacketType,
@@ -37,6 +39,7 @@ pub fn apply_chat_and_commands(
     runtime_ids: Query<&RuntimeEntityId>,
     operators: Query<(), With<Operator>>,
     mut tp_targets: Query<(&mut Position, Option<&mut ChunkLoader>)>,
+    mut deferred: Commands,
 ) {
     let _span = tracing::info_span!("apply_chat_and_commands", count = queue.0.len()).entered();
     for (entity, _session_id, action) in queue.0.drain(..) {
@@ -54,6 +57,7 @@ pub fn apply_chat_and_commands(
                     &runtime_ids,
                     &operators,
                     &mut tp_targets,
+                    &mut deferred,
                 );
             }
         }
@@ -122,6 +126,7 @@ fn handle_command_request(
     runtime_ids: &Query<&RuntimeEntityId>,
     operators: &Query<(), With<Operator>>,
     tp_targets: &mut Query<(&mut Position, Option<&mut ChunkLoader>)>,
+    deferred: &mut Commands,
 ) {
     if req.is_internal {
         trace!("Ignoring internal CommandRequest");
@@ -154,7 +159,7 @@ fn handle_command_request(
         return;
     };
     let context = CommandContext::new(session.session_id, operators.contains(entity));
-    let output = commands.0.execute(&context, &mut invocation);
+    let mut output = commands.0.execute(&context, &mut invocation);
     if let Some(target) = output.teleport {
         handle_teleport_command(
             entity,
@@ -164,6 +169,9 @@ fn handle_command_request(
             runtime_ids,
             tp_targets,
         );
+    }
+    if let Some(summon) = output.summon.take() {
+        deferred.queue(move |world: &mut World| apply_summon(world, entity, &summon));
     }
     if !output.is_empty() {
         send_command_output(entity, sessions, output);
@@ -233,11 +241,37 @@ fn handle_teleport_command(
     );
 }
 
-fn send_command_output(entity: Entity, sessions: &Query<&PlayerSession>, output: CommandOutput) {
-    let Ok(session) = sessions.get(entity) else {
+/// Spawn a `/summon`ed mob (relative coordinates resolve against the
+/// executor's feet) and reply with the outcome.
+fn apply_summon(world: &mut World, executor: Entity, request: &SummonRequest) {
+    let Some(eye) = world.get::<Position>(executor).map(|p| p.0) else {
         return;
     };
+    let feet = eye - DVec3::new(0.0, crate::entity::PLAYER_EYE_HEIGHT, 0.0);
+    let position = request.resolve(feet);
+    let mut output = CommandOutput::default();
+    match spawn_mob(
+        world,
+        &request.identifier,
+        position,
+        0.0,
+        SpawnCause::Spawned,
+    ) {
+        Ok(_) => output.message("Object successfully summoned"),
+        Err(error) => output.error(format!("Unable to summon object: {error}")),
+    }
+    if let Some(session) = world.get::<PlayerSession>(executor) {
+        send_output(session, output);
+    }
+}
 
+fn send_command_output(entity: Entity, sessions: &Query<&PlayerSession>, output: CommandOutput) {
+    if let Ok(session) = sessions.get(entity) {
+        send_output(session, output);
+    }
+}
+
+fn send_output(session: &PlayerSession, output: CommandOutput) {
     for message in output.messages {
         let _ = session.send(McpePacket::from(system_text(&message)));
     }
@@ -355,6 +389,134 @@ mod tests {
         world.entity_mut(entity).insert(Operator);
         command(&mut world, entity, "/restricted");
         assert!(format!("{:?}", rx.try_recv().unwrap()).contains("actual execution"));
+    }
+
+    /// A game server with one player standing (eye height) at x 3.5,
+    /// feet y 64, z 3.5 over a loaded empty chunk.
+    fn summon_server(
+        operator: bool,
+    ) -> (super::super::GameServer, Entity, mpsc::Receiver<McpePacket>) {
+        let mut server = super::super::GameServer::with_config(super::super::ServerConfig {
+            world: crate::world::WorldConfig::void_spawn_platform(1),
+            ..Default::default()
+        });
+        let world = server.ecs.world_mut();
+        world.insert_resource(crate::entity::EntityRandom::seeded(5));
+        let chunk = world
+            .spawn(crate::world::ecs::ChunkData::new(
+                crate::world::chunk::Chunk::new(0, 0),
+            ))
+            .id();
+        world
+            .resource_mut::<crate::world::ecs::ChunkManager>()
+            .insert(crate::world::ecs::ChunkPosition::new(0, 0), chunk);
+        let (tx, rx) = mpsc::channel(256);
+        let player = world
+            .spawn((
+                PlayerSession::new(1, "Alice".into(), None, None, tx),
+                Position(DVec3::new(
+                    3.5,
+                    64.0 + crate::entity::PLAYER_EYE_HEIGHT,
+                    3.5,
+                )),
+                RuntimeEntityId(1),
+            ))
+            .id();
+        if operator {
+            world.entity_mut(player).insert(Operator);
+        }
+        (server, player, rx)
+    }
+
+    fn summon(server: &mut super::super::GameServer, player: Entity, line: &str) {
+        server
+            .ecs
+            .world_mut()
+            .resource_mut::<ChatPacketQueue>()
+            .0
+            .push((
+                player,
+                1,
+                ChatAction::Command(jolyne::valentine::CommandRequestPacket {
+                    command: line.into(),
+                    ..Default::default()
+                }),
+            ));
+        server.tick();
+    }
+
+    fn mob_positions(server: &mut super::super::GameServer) -> Vec<DVec3> {
+        let world = server.ecs.world_mut();
+        world
+            .query_filtered::<&Position, With<crate::entity::mob::MobKind>>()
+            .iter(world)
+            .map(|position| position.0)
+            .collect()
+    }
+
+    fn texts(rx: &mut mpsc::Receiver<McpePacket>) -> Vec<String> {
+        let mut texts = Vec::new();
+        while let Ok(packet) = rx.try_recv() {
+            if let McpePacketData::TextPacket(TextPacket {
+                body: TextPacketBody::AuthorAndMessage(body),
+                ..
+            }) = packet.data
+            {
+                texts.push(body.message.to_string());
+            }
+        }
+        texts
+    }
+
+    #[test]
+    fn operators_summon_cows_at_absolute_relative_and_own_positions() {
+        let (mut server, player, mut rx) = summon_server(true);
+        summon(&mut server, player, "/summon minecraft:cow 6 70 9");
+        assert_eq!(mob_positions(&mut server), [DVec3::new(6.5, 70.0, 9.5)]);
+        assert!(
+            texts(&mut rx)
+                .iter()
+                .any(|t| t.contains("Object successfully summoned"))
+        );
+
+        let (mut server, player, _rx) = summon_server(true);
+        summon(&mut server, player, "/summon cow ~2 ~ ~-1.5");
+        assert_eq!(mob_positions(&mut server), [DVec3::new(5.5, 64.0, 2.0)]);
+
+        let (mut server, player, _rx) = summon_server(true);
+        summon(&mut server, player, "/summon cow");
+        assert_eq!(mob_positions(&mut server), [DVec3::new(3.5, 64.0, 3.5)]);
+    }
+
+    #[test]
+    fn summon_refuses_nonoperators_and_reports_unknown_actors() {
+        let (mut server, player, mut rx) = summon_server(false);
+        summon(&mut server, player, "/summon minecraft:cow 6 70 9");
+        assert!(mob_positions(&mut server).is_empty());
+        assert!(texts(&mut rx).iter().any(|t| t.contains("permission")));
+
+        let (mut server, player, mut rx) = summon_server(true);
+        summon(&mut server, player, "/summon minecraft:not_a_mob");
+        assert!(mob_positions(&mut server).is_empty());
+        assert!(texts(&mut rx).iter().any(|t| t.contains("Unable to summon object")
+            && t.contains("minecraft:not_a_mob")));
+
+        // A known actor the mob runtime cannot run yet reports why.
+        let (mut server, player, mut rx) = summon_server(true);
+        let reason = server
+            .ecs
+            .world()
+            .resource::<crate::entity::mob::MobRegistry>()
+            .unsupported_reason("minecraft:ender_dragon")
+            .expect("the ender dragon is not spawnable yet")
+            .to_owned();
+        summon(&mut server, player, "/summon ender_dragon");
+        assert!(mob_positions(&mut server).is_empty());
+        assert!(
+            texts(&mut rx)
+                .iter()
+                .any(|t| t.contains("not supported yet") && t.contains(&reason))
+        );
     }
 
     #[test]

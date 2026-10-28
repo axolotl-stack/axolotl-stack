@@ -63,6 +63,34 @@ Current golden artifacts:
   Build/runtime actor loading uses the same registry
   (`actor_definitions::parser()`); addon names register before loading. Only
   its count/hash is committed in the manifest.
+- `component_schema_defaults.json` (**OUT_DIR only**): published field defaults
+  for 406 component schemas, selecting each kind's latest stable numeric schema
+  version. Local references and inline overrides are resolved at build time;
+  false/zero defaults remain values and an absent default remains absent.
+  `actor_definitions::component_field_default` exposes these to startup prototype
+  compilers without merging them into actor bodies. Dynamic-value descriptions
+  are not invented defaults. Only counts/hashes are committed.
+- `actor_components.rs` (**OUT_DIR only**, `build/actor_components.rs`):
+  `actor_components::ActorComponent` (one variant per registered component,
+  410) and 264 typed component bodies generated from the same selected stable
+  schemas (343 types; `$ref` definitions deduplicated, filters kept as
+  `FilterJson`, enums/unions typed, published defaults as serde defaults,
+  `deny_unknown_fields` everywhere, no untyped holes). Older-version and
+  form-only fields vanilla still authors are appended as optional legacy
+  fields. The "Dynamic value" components the cow and chicken use have
+  hand-written bodies (`src/actor_components/dynamic.rs`) whose unpublished
+  defaults live in `actor_components::provisional` (D12).
+  `actor_components::decode`/`decode_component` decode authored bodies;
+  `tests/actor_components.rs` decodes every typed vanilla component instance.
+- `actor_wire.json` (**OUT_DIR only**): 112 measured summon observations and
+  native property-descriptor order/type codes, decoded with the generated 2193
+  codec and shared NBT reader. All 126 consumed capture files are checked against
+  manifest byte counts/SHA-256; the two capture manifests are recorded trust roots.
+  Attribute names/order/bounds and actual actor aliases remain intact.
+  `observed_current` is sampled state, not a constructor default: the retained
+  zombie is baby-consistent, while adult movement comes from its BP group.
+  Type codes are joined to canonical BP declarations, never guessed for missing
+  kinds. `actor_wire::{vanilla,get}` decodes once; only hashes/counts are committed.
 - `blocks.kdl`: 1,477 native blocks and 22,091 states in **unaltered canonical
   NBT order**; each state retains typed properties, network hash and physical measurements.
   Native property tables and tags are also preserved. Generated block physical fields
@@ -113,6 +141,13 @@ loaded recipe. The built-in pack projection resolves duplicate source files by
 newest format version, then later path, before loading that snapshot. Lower
 numeric recipe priority wins; exact and wildcard furnace inputs share the same
 priority ordering.
+The registry also implements `unastar_rules::loot::FurnaceSmelt`: the evaluator
+borrows the canonical result identifier/aux and preserves its own source loot
+count rather than replacing it with the furnace recipe yield. The actual
+headless `GameServer` constructor/tick and 128 canonical cow/chicken raw/burning
+rolls exercised that provider against the frozen 1,881-recipe snapshot, including
+multi-item beef drops and unchanged secondary drops. This is not production
+mob-death or native-RNG parity evidence.
 
 Legacy recipe spellings (`minecraft:coal:1`, `minecraft:fish`, etc.) normalize
 through `data/measured/recipe_legacy_identities.json`, a small projection of the

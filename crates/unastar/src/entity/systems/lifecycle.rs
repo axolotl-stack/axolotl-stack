@@ -13,11 +13,15 @@ pub fn tick_age(mut query: Query<&mut Age>) {
     }
 }
 
-/// System: Despawn dead entities.
-pub fn despawn_dead(mut commands: Commands, query: Query<(Entity, &Health), With<Living>>) {
+/// System: remove dead living entities that are not mobs. Mobs die through
+/// `entity::mob::combat::death` (death animation, loot, experience).
+#[allow(clippy::type_complexity)]
+pub fn despawn_dead(
+    mut commands: Commands,
+    query: Query<(Entity, &Health), (With<Living>, Without<Mob>)>,
+) {
     for (entity, health) in query.iter() {
         if health.is_dead() {
-            // TODO: Send death event, play death animation, drop items
             commands.entity(entity).despawn();
         }
     }
@@ -161,13 +165,6 @@ pub fn tick_projectile_lifetime(
         if age.0 > MAX_PROJECTILE_AGE || hit.stuck_ticks > MAX_STUCK_TICKS {
             commands.entity(entity).despawn();
         }
-    }
-}
-
-/// System: Tick mob age (for baby growth).
-pub fn tick_mob_age(mut query: Query<&mut MobAge, With<Mob>>) {
-    for mut mob_age in query.iter_mut() {
-        mob_age.tick();
     }
 }
 

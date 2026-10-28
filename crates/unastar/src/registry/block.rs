@@ -5,7 +5,7 @@
 
 use super::RegistryEntry;
 use std::collections::HashMap;
-use std::sync::LazyLock;
+use std::sync::{Arc, LazyLock};
 pub use unastar_data::blocks::StateValue;
 
 const MISSING_INDEX: usize = usize::MAX;
@@ -117,6 +117,8 @@ pub struct BlockRegistry {
     network_hashes: Vec<u32>,
     /// Canonical runtime state of each hashed network id.
     runtime_by_hash: HashMap<u32, u32>,
+    /// Neighbour connection facts and canonical transitions, resolved at load.
+    pub(super) connections: Arc<super::collision::ConnectionCache>,
 }
 
 /// How block states are numbered on the wire, as `StartGame`'s
@@ -298,6 +300,7 @@ impl BlockRegistry {
             self.name_map.insert(entry.string_id.clone(), entry_index);
             self.entries.push(entry);
         }
+        self.connections = Arc::new(super::collision::ConnectionCache::new(self));
     }
 
     /// Get block entry by runtime ID (state ID). O(1).

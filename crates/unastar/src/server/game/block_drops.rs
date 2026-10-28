@@ -26,7 +26,7 @@ use crate::entity::components::PhysicsBody;
 use crate::entity::{EntityRandom, spawn_item_drop};
 use crate::item::ItemStack;
 use crate::registry::block::StateValue;
-use unastar_rules::loot::roll;
+use unastar_rules::loot::{LootDrop, roll};
 
 /// Spawn `stack` as an item popping out of the block at `pos`: the item's
 /// centre lands within ±0.25 of the block centre (dragonfly
@@ -84,21 +84,17 @@ pub(crate) fn block_drops(
         let mut rng = world.get_resource_or_init::<EntityRandom>();
         roll(unastar_data::loot::vanilla(), table, &ctx, &mut rng.0)
     };
-    let drops = match rolled {
-        Ok(drops) => drops,
+    match rolled {
+        Ok(drops) => loot_stacks(world, drops),
         Err(error) => {
             warn!(table = table.name, %error, "Block loot table cannot be evaluated");
-            return Vec::new();
+            Vec::new()
         }
-    };
-    loot_stacks(world, drops)
+    }
 }
 
 /// Item stacks for rolled loot, oversized counts split into full stacks.
-pub(crate) fn loot_stacks(
-    world: &World,
-    drops: Vec<unastar_rules::loot::LootDrop>,
-) -> Vec<ItemStack> {
+pub(crate) fn loot_stacks(world: &World, drops: Vec<LootDrop>) -> Vec<ItemStack> {
     let mut stacks = Vec::new();
     for drop in drops {
         let Some(template) = world_stack(world, &drop.item_id, 1) else {
@@ -109,7 +105,6 @@ pub(crate) fn loot_stacks(
         if drop.nbt.is_some() {
             template.nbt = drop.nbt.map(bytes::Bytes::from);
         }
-        // Split oversized counts into full stacks.
         let mut left = drop.count;
         while left > 0 {
             let take = left.min(u32::from(template.max_stack_size()));

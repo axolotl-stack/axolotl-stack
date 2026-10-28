@@ -135,6 +135,7 @@ pub type InventorySystemState = SystemState<(
     Res<'static, super::types::ServerConfigResource>,
     Query<'static, 'static, PlayerInventory>,
     ResMut<'static, InventoryEvents>,
+    ResMut<'static, crate::entity::projectile::ThrowQueue>,
 )>;
 
 /// Exclusive PacketApplySet system. A complete request validates before its
@@ -173,7 +174,7 @@ pub fn apply_inventory(world: &mut World, state: &mut InventorySystemState) {
         let mut drops = Vec::new();
         let mut fatal = false;
         {
-            let (items, crafting, world_template, config, mut players, mut events) =
+            let (items, crafting, world_template, config, mut players, mut events, mut throws) =
                 state.get_mut(world);
             let block_ids = config.0.block_network_ids;
             match action {
@@ -217,6 +218,7 @@ pub fn apply_inventory(world: &mut World, state: &mut InventorySystemState) {
                         block_ids,
                         &mut players,
                         &mut events,
+                        &mut throws,
                     );
                 }
                 InventoryAction::BlockPick(_) => {
@@ -564,6 +566,7 @@ fn handle_inventory_transaction(
     block_ids: BlockNetworkIds,
     players: &mut Query<PlayerInventory>,
     events: &mut ResMut<InventoryEvents>,
+    throws: &mut ResMut<crate::entity::projectile::ThrowQueue>,
 ) {
     let transaction = &pk.transaction;
 
@@ -588,6 +591,18 @@ fn handle_inventory_transaction(
         InventoryTransactionPacketTransaction::ItemUseInventoryTransaction(use_item) => {
             match use_item.action_type {
                 EnumsItemUseInventoryTransactionActionType::Use => {
+                    // Using a throwable item (the eggs) in the air throws it.
+                    if let Ok(player) = players.get(entity)
+                        && player
+                            .main
+                            .0
+                            .item(usize::from(player.held_slot.0))
+                            .is_some_and(|stack| {
+                                crate::entity::projectile::thrown_by(stack.item_id()).is_some()
+                            })
+                    {
+                        throws.0.push(entity);
+                    }
                     events.0.push(ServerEvent::PlayerItemUse { entity });
                 }
                 _ => {
@@ -1009,6 +1024,7 @@ mod tests {
         world.insert_resource(super::super::types::ServerConfigResource(Default::default()));
         world.insert_resource(ServerWorldTemplate(Arc::new(template)));
         world.insert_resource(InventoryEvents::default());
+        world.insert_resource(crate::entity::projectile::ThrowQueue::default());
         let (tx, rx) = tokio::sync::mpsc::channel(8);
         let entity = world.spawn(player(mode, tx)).id();
         let actions = vec![
@@ -1154,6 +1170,7 @@ mod tests {
             jolyne::WorldTemplate::default(),
         )));
         world.insert_resource(InventoryEvents::default());
+        world.insert_resource(crate::entity::projectile::ThrowQueue::default());
         let (tx, mut rx) = tokio::sync::mpsc::channel(8);
         let entity = world.spawn(player(GameMode::Creative, tx)).id();
         *world.get_mut::<ContainerWindows>(entity).unwrap() = ContainerWindows::default();
@@ -1225,6 +1242,7 @@ mod tests {
         }
         let mut world = World::new();
         world.insert_resource(InventoryEvents::default());
+        world.insert_resource(crate::entity::projectile::ThrowQueue::default());
         let (tx, _rx) = tokio::sync::mpsc::channel(4);
         let entity = world.spawn(player(GameMode::Survival, tx)).id();
         world.get_mut::<HeldSlot>(entity).unwrap().0 = 0;
@@ -1270,6 +1288,7 @@ mod tests {
             jolyne::WorldTemplate::default(),
         )));
         world.insert_resource(InventoryEvents::default());
+        world.insert_resource(crate::entity::projectile::ThrowQueue::default());
         let (tx, rx) = tokio::sync::mpsc::channel(8);
         let entity = world.spawn(player(mode, tx)).id();
         (world, entity, rx)
@@ -1408,6 +1427,7 @@ mod drop_tests {
             jolyne::WorldTemplate::default(),
         )));
         world.insert_resource(InventoryEvents::default());
+        world.insert_resource(crate::entity::projectile::ThrowQueue::default());
         let (tx, rx) = tokio::sync::mpsc::channel(16);
         let mut windows = ContainerWindows::default();
         windows.open(ScreenKind::Inventory);
@@ -1821,6 +1841,7 @@ mod grid_transaction_tests {
             jolyne::WorldTemplate::default(),
         )));
         world.insert_resource(InventoryEvents::default());
+        world.insert_resource(crate::entity::projectile::ThrowQueue::default());
         let (tx, rx) = tokio::sync::mpsc::channel(16);
         let mut windows = ContainerWindows::default();
         windows.open(ScreenKind::Inventory);

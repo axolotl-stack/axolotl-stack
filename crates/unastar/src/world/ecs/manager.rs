@@ -5,12 +5,76 @@ use std::collections::HashMap;
 use std::sync::Arc;
 
 use super::components::{
-    ChunkData, ChunkEntities, ChunkPosition, ChunkState, ChunkStateFlags, ChunkViewers,
+    ChunkActorStore, ChunkData, ChunkPosition, ChunkState, ChunkStateFlags, ChunkViewers,
+    PendingActorRestore,
 };
 use super::generation_worker::{ChunkGenerationWorker, generation_threads};
-use crate::storage::WorldProvider;
+use crate::storage::{ChunkColumn, WorldProvider};
 use crate::world::generator::ChunkPipeline;
 use crate::world::{Chunk, ChunkPos, WorldConfig};
+
+/// Run a storage future to completion from synchronous ECS code. It runs on a
+/// helper thread, on the current tokio runtime when there is one (so a caller
+/// inside the runtime does not block one of its workers) and on a private one
+/// otherwise.
+pub(crate) fn block_on_storage<F>(future: F) -> F::Output
+where
+    F: Future + Send + 'static,
+    F::Output: Send + 'static,
+{
+    let handle = tokio::runtime::Handle::try_current().ok();
+    std::thread::spawn(move || match handle {
+        Some(handle) => handle.block_on(future),
+        None => tokio::runtime::Builder::new_current_thread()
+            .enable_all()
+            .build()
+            .expect("chunk storage runtime")
+            .block_on(future),
+    })
+    .join()
+    .expect("chunk storage thread panicked")
+}
+
+/// The components every chunk entity spawns with.
+pub(crate) type ChunkEntityComponents = (
+    ChunkPosition,
+    ChunkData,
+    ChunkState,
+    ChunkViewers,
+    ChunkActorStore,
+    ChunkStateFlags,
+);
+
+/// Components of a chunk entity for a column fresh from storage or the
+/// generator. Generated chunks start dirty; stored actors are recorded in the
+/// chunk's [`ChunkActorStore`] and returned for restoring.
+pub(crate) fn chunk_entity_components(
+    pos: ChunkPosition,
+    column: ChunkColumn,
+    was_loaded: bool,
+) -> (ChunkEntityComponents, Option<PendingActorRestore>) {
+    let state_flags = if was_loaded {
+        ChunkStateFlags::default()
+    } else {
+        ChunkStateFlags::new_generated()
+    };
+    let store = ChunkActorStore {
+        stored: column.actors.iter().map(|actor| actor.unique_id).collect(),
+        foreign: Vec::new(),
+    };
+    let restore = (!column.actors.is_empty()).then_some(PendingActorRestore(column.actors));
+    (
+        (
+            pos,
+            ChunkData::new(column.chunk),
+            ChunkState::Loaded,
+            ChunkViewers::default(),
+            store,
+            state_flags,
+        ),
+        restore,
+    )
+}
 
 /// Global resource for chunk entity management.
 ///
@@ -157,41 +221,27 @@ impl ChunkManager {
             .expect("chunk contains an unrepresentable native actor")
     }
 
-    /// Load or generate a chunk at the given position.
+    /// Load or generate a chunk column at the given position.
     ///
-    /// Returns (chunk, was_loaded) where was_loaded indicates if the chunk
-    /// was loaded from disk (true) or newly generated (false).
-    ///
-    /// Newly generated chunks have the DIRTY flag set in ChunkStateFlags for persistence.
-    pub fn load_or_generate_chunk(&self, x: i32, z: i32) -> (Chunk, bool) {
+    /// Returns (column, was_loaded) where was_loaded indicates if the column
+    /// was loaded from disk (true, with its stored actors) or newly generated
+    /// (false).
+    pub fn load_or_generate_chunk(&self, x: i32, z: i32) -> (ChunkColumn, bool) {
         let pos = ChunkPos::new(x, z);
         let dim = self.world_config.dimension;
 
         // Try to load from provider if available
         if let Some(provider) = &self.provider {
             let provider = provider.clone();
-            let handle = tokio::runtime::Handle::try_current().ok();
-            let column = std::thread::spawn(move || {
-                if let Some(handle) = handle {
-                    handle.block_on(provider.load_column(pos, dim))
-                } else {
-                    tokio::runtime::Builder::new_current_thread()
-                        .enable_all()
-                        .build()
-                        .expect("chunk storage runtime")
-                        .block_on(provider.load_column(pos, dim))
-                }
-            })
-            .join()
-            .expect("chunk storage thread panicked")
-            .expect("chunk storage read failed; refusing to generate replacement terrain");
+            let column = block_on_storage(async move { provider.load_column(pos, dim).await })
+                .expect("chunk storage read failed; refusing to generate replacement terrain");
             if let Some(column) = column {
-                return (column.chunk, true);
+                return (column, true);
             }
         }
 
         // Fall through to generation
-        (self.generate_chunk(x, z), false)
+        (ChunkColumn::new(self.generate_chunk(x, z)), false)
     }
 
     /// Get or create a chunk entity using deferred Commands.
@@ -220,31 +270,22 @@ impl ChunkManager {
         }
 
         // Chunk doesn't exist - try to load from disk, otherwise generate
-        let (chunk_data, was_loaded) = self.load_or_generate_chunk(x, z);
+        let (column, was_loaded) = self.load_or_generate_chunk(x, z);
         let pos = ChunkPosition::new(x, z);
 
         // Encode BEFORE spawning to avoid clone (Phase 3 optimization)
         // This saves ~200KB allocation per new chunk
-        let encoded_biomes = chunk_data.encode_biomes();
-        let highest_subchunk = chunk_data.highest_subchunk();
+        let encoded_biomes = column.chunk.encode_biomes();
+        let highest_subchunk = column.chunk.highest_subchunk();
 
-        // Build entity with components
-        // If newly generated (not loaded from disk), mark dirty for persistence
-        let mut state_flags = ChunkStateFlags::default();
-        if !was_loaded {
-            state_flags.mark_dirty();
+        // Newly generated (not loaded from disk) chunks are dirty for
+        // persistence; stored actors are restored by the chunk systems.
+        let (components, actors) = chunk_entity_components(pos, column, was_loaded);
+        let mut spawned = commands.spawn(components);
+        if let Some(actors) = actors {
+            spawned.insert(actors);
         }
-
-        let entity = commands
-            .spawn((
-                pos,
-                ChunkData::new(chunk_data), // Move, not clone!
-                ChunkState::Loaded,
-                ChunkViewers::default(),
-                ChunkEntities::default(),
-                state_flags,
-            ))
-            .id();
+        let entity = spawned.id();
 
         // Register the entity in our lookup map
         self.insert(pos, entity);
@@ -324,7 +365,8 @@ impl ChunkManager {
 /// This is needed for synchronous chunk creation outside of ECS systems.
 pub trait ChunkManagerWorldExt {
     /// Get or create a chunk entity synchronously.
-    /// Unlike get_or_create(), this spawns immediately without deferral.
+    /// Unlike get_or_create(), this spawns immediately without deferral and
+    /// restores the chunk's stored actors before returning.
     fn get_or_create_chunk(&mut self, x: i32, z: i32) -> Entity;
 }
 
@@ -340,32 +382,17 @@ impl ChunkManagerWorldExt for bevy_ecs::world::World {
             }
         }
 
-        // Generate chunk data and spawn entity
-        let (chunk_data, was_loaded, pos) = {
-            let chunk_manager = self
-                .get_resource::<ChunkManager>()
-                .expect("ChunkManager must exist");
-            let (chunk, was_loaded) = chunk_manager.load_or_generate_chunk(x, z);
-            (chunk, was_loaded, ChunkPosition::new(x, z))
-        };
-
-        // Spawn entity with components
-        // Mark newly generated chunks as dirty for persistence
-        let mut state_flags = ChunkStateFlags::default();
-        if !was_loaded {
-            state_flags.mark_dirty();
+        let (column, was_loaded) = self
+            .get_resource::<ChunkManager>()
+            .expect("ChunkManager must exist")
+            .load_or_generate_chunk(x, z);
+        let pos = ChunkPosition::new(x, z);
+        let (components, actors) = chunk_entity_components(pos, column, was_loaded);
+        let mut spawned = self.spawn(components);
+        if let Some(actors) = actors {
+            spawned.insert(actors);
         }
-
-        let entity = self
-            .spawn((
-                pos,
-                ChunkData::new(chunk_data),
-                ChunkState::Loaded,
-                ChunkViewers::default(),
-                ChunkEntities::default(),
-                state_flags,
-            ))
-            .id();
+        let entity = spawned.id();
 
         // Register in ChunkManager
         let mut chunk_manager = self
@@ -373,6 +400,7 @@ impl ChunkManagerWorldExt for bevy_ecs::world::World {
             .expect("ChunkManager must exist");
         chunk_manager.insert(pos, entity);
 
+        crate::entity::mob::persistence::restore_actors_of_chunk(self, entity);
         entity
     }
 }

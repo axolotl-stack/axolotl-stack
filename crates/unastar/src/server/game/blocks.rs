@@ -823,6 +823,21 @@ fn handle_block_click(
         }
         None => {}
     }
+    // Spawn eggs spawn their mob on the clicked face instead of placing.
+    let main_hand_selected = data.hand == jolyne::valentine::EnumsHandSlot::Mainhand
+        && world
+            .get::<crate::entity::components::HeldSlot>(entity)
+            .is_some_and(|slot| data.slot == i32::from(slot.0));
+    if main_hand_selected
+        && block_at(world, clicked).is_some_and(|block| block != *blocks::AIR)
+        && crate::entity::mob::interaction::interact::use_spawn_egg_on_block(
+            world,
+            entity,
+            IVec3::new(position.0, position.1, position.2),
+        )
+    {
+        return;
+    }
     let held = held_block(world, entity);
     let block_ids = super::types::block_network_ids(world);
     let matches_held = held.as_ref().is_some_and(|(_, stack, network_id)| {
@@ -1623,5 +1638,102 @@ mod tests {
                 .count,
             1
         );
+    }
+
+    /// A cow spawn egg used on the top face of grass spawns a cow standing on
+    /// that block, and uses one egg in survival but none in creative.
+    #[test]
+    fn cow_spawn_egg_on_grass_spawns_a_cow_on_top() {
+        use crate::entity::mob::MobKind;
+        for (mode, eggs_left) in [(GameMode::Survival, 1), (GameMode::Creative, 2)] {
+            let mut server = super::super::GameServer::with_config(super::super::ServerConfig {
+                world: crate::world::WorldConfig::void_spawn_platform(1),
+                ..Default::default()
+            });
+            let world = server.ecs.world_mut();
+            world.insert_resource(crate::entity::EntityRandom::seeded(3));
+            let mut column = crate::world::chunk::Chunk::new(0, 0);
+            for x in 0..16 {
+                for z in 0..16 {
+                    column.set_block(x, 63, z, *blocks::GRASS_BLOCK);
+                }
+            }
+            let chunk = world.spawn(ChunkData::new(column)).id();
+            world
+                .resource_mut::<ChunkManager>()
+                .insert(ChunkPosition::new(0, 0), chunk);
+            let egg = super::super::world_stack(world, "minecraft:cow_spawn_egg", 2).unwrap();
+            let egg_id = world
+                .resource::<super::super::types::ItemRegistryResource>()
+                .0
+                .get_by_name("minecraft:cow_spawn_egg")
+                .unwrap()
+                .network_id();
+            let mut inventory = MainInventory::default();
+            inventory.0.set_item(0, egg).unwrap();
+            let player = world
+                .spawn((
+                    Position(DVec3::new(
+                        5.5,
+                        64.0 + crate::entity::PLAYER_EYE_HEIGHT,
+                        5.5,
+                    )),
+                    mode,
+                    inventory,
+                    HeldSlot(0),
+                ))
+                .id();
+            let click = jolyne::valentine::ItemUseInventoryTransaction {
+                position: BlockPos { x: 7, y: 63, z: 8 },
+                face: 1,
+                slot: 0,
+                item: jolyne::valentine::CerealizerNetworkItemStackDescriptorSerializedData {
+                    id: i16::try_from(egg_id).unwrap(),
+                    stacksize: 2,
+                    ..Default::default()
+                },
+                ..Default::default()
+            };
+            world
+                .resource_mut::<BlockPacketQueue>()
+                .0
+                .push((player, BlockAction::BlockClick(click)));
+            server.tick();
+
+            let world = server.ecs.world_mut();
+            let cows: Vec<DVec3> = world
+                .query_filtered::<&Position, With<MobKind>>()
+                .iter(world)
+                .map(|position| position.0)
+                .collect();
+            assert_eq!(cows.len(), 1, "{mode:?}: one cow spawned");
+            assert_eq!(cows[0].x, 7.5);
+            assert_eq!(cows[0].z, 8.5);
+            assert!(
+                (64.0..64.01).contains(&cows[0].y),
+                "{mode:?}: standing on the grass, at {}",
+                cows[0].y
+            );
+            assert_eq!(
+                world
+                    .get::<MainInventory>(player)
+                    .unwrap()
+                    .0
+                    .item(0)
+                    .unwrap()
+                    .count,
+                eggs_left,
+                "{mode:?}"
+            );
+            assert_eq!(
+                world
+                    .get::<ChunkData>(chunk)
+                    .unwrap()
+                    .inner
+                    .get_block(7, 64, 8),
+                *blocks::AIR,
+                "nothing placed"
+            );
+        }
     }
 }

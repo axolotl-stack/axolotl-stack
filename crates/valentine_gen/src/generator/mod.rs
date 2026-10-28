@@ -8,6 +8,7 @@ pub mod packet;
 pub mod primitives;
 pub mod resolver;
 pub mod structs;
+mod symbols;
 pub mod utils;
 
 use crate::generator::analysis::{OWNED_PACKET_INLINE_LIMIT, estimated_inline_size};
@@ -50,6 +51,22 @@ pub fn generate_protocol_module(
     if !version_dir.exists() {
         fs::create_dir_all(&version_dir)?;
     }
+
+    // Symbols are versioned numeric names, not wire types. Always replace the
+    // module (including an empty result) so a removed source cannot leave stale
+    // constants exported from an earlier generation.
+    let symbol_tokens = symbols::generate(&parse_result.symbols)?;
+    write_rust_file(
+        &version_dir.join("symbols.rs"),
+        generated_module_tokens(
+            Some(
+                "Canonical numeric protocol symbols. Actor flag values are bit indices, not masks.",
+            ),
+            quote! {},
+            &symbol_tokens,
+        ),
+        Some("debug_gen_error_symbols.rs"),
+    )?;
 
     let current_local_path = if protocol_module_name.is_empty() {
         "crate".to_string()
@@ -311,6 +328,11 @@ pub fn generate_protocol_module(
             pub mod common;
             pub use common::*;
         });
+    }
+
+    mod_tokens.extend(quote! { pub mod symbols; });
+    if !parse_result.symbols.is_empty() {
+        mod_tokens.extend(quote! { pub use symbols::*; });
     }
 
     // Include generated data modules if they exist

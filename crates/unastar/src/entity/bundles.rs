@@ -68,26 +68,6 @@ pub struct LivingBundle {
     pub age: Age,
 }
 
-/// Bundle for spawning a mob entity.
-#[derive(Bundle)]
-pub struct MobBundle {
-    pub mob: Mob,
-    pub mob_type: MobType,
-    pub living: Living,
-    pub position: Position,
-    pub velocity: Velocity,
-    pub rotation: Rotation,
-    pub on_ground: OnGround,
-    pub physics: PhysicsBody,
-    pub runtime_id: RuntimeId,
-    pub health: Health,
-    pub effects: Effects,
-    pub speed: Speed,
-    pub ai_state: AiState,
-    pub hostile: Hostile,
-    pub age: Age,
-}
-
 /// Bundle for spawning a dropped item entity; spawn it through
 /// [`crate::entity::spawn_item_drop`].
 #[derive(Bundle)]

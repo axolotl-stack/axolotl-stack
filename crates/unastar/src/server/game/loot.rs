@@ -2,6 +2,7 @@
 //! Evaluation and typed loot schemas live in the bevy-free `unastar-rules`
 //! crate; this adapter alone knows about ItemStack and the block registry.
 
+use crate::entity::mob::constants::{LEGACY_ITEM_NAMES, LEGACY_WOOL, WOOL_ITEMS};
 use crate::item::ItemStack;
 use crate::item::enchant::{Enchantment, enchantment_level};
 use crate::registry::block::{BlockEntry, StateValue};
@@ -13,6 +14,11 @@ pub struct LootContext<'a> {
     pub block: Option<(&'a BlockEntry, u32)>,
     pub killed_by_player: bool,
     pub looting: u8,
+    /// None means this evaluation has no THIS actor.
+    pub on_fire: Option<bool>,
+    pub recipes: Option<&'a unastar_data::recipes::RecipeRegistry>,
+    /// Palette colour of the THIS actor, when it has one.
+    pub color_index: Option<u8>,
 }
 
 impl unastar_rules::loot::LootContext for LootContext<'_> {
@@ -51,6 +57,36 @@ impl unastar_rules::loot::LootContext for LootContext<'_> {
     }
     fn looting(&self) -> u8 {
         self.looting
+    }
+
+    fn on_fire(&self) -> Option<bool> {
+        self.on_fire
+    }
+
+    fn furnace(&self) -> Option<&dyn unastar_rules::loot::FurnaceSmelt> {
+        self.recipes
+            .map(|recipes| recipes as &dyn unastar_rules::loot::FurnaceSmelt)
+    }
+
+    fn this_color_index(&self) -> Option<u8> {
+        self.color_index
+    }
+
+    fn item_alias(&self, name: &str) -> Option<&str> {
+        LEGACY_ITEM_NAMES
+            .iter()
+            .find(|(legacy, _)| legacy.eq_ignore_ascii_case(name))
+            .map(|(_, modern)| *modern)
+    }
+
+    fn data_alias(&self, name: &str, data: i16) -> Option<&str> {
+        if !LEGACY_WOOL.eq_ignore_ascii_case(name) {
+            return None;
+        }
+        usize::try_from(data)
+            .ok()
+            .and_then(|colour| WOOL_ITEMS.get(colour))
+            .copied()
     }
 }
 

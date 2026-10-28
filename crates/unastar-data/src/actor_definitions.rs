@@ -5,6 +5,7 @@
 //! properties and description data. No per-entity Rust is generated and no
 //! unmeasured defaults are merged into pack components.
 
+use std::collections::BTreeMap;
 use std::sync::{Arc, LazyLock};
 use unastar_packs::actor::{self, Loaded};
 use unastar_rules::filter::FilterRegistry;
@@ -18,6 +19,27 @@ pub const VANILLA_JSON: &[u8] = include_bytes!(concat!(env!("OUT_DIR"), "/actor_
 /// Build-generated component registry from pinned stable Mojang schemas.
 pub const COMPONENT_SCHEMA_JSON: &[u8] =
     include_bytes!(concat!(env!("OUT_DIR"), "/actor_component_registry.json"));
+
+/// Published component field defaults, resolved from the pinned stable schemas
+/// at build time. This is not an invented per-actor default layer.
+pub const COMPONENT_DEFAULTS_JSON: &[u8] =
+    include_bytes!(concat!(env!("OUT_DIR"), "/component_schema_defaults.json"));
+
+type ComponentDefaults = BTreeMap<String, BTreeMap<String, serde_json::Value>>;
+
+static COMPONENT_DEFAULTS: LazyLock<ComponentDefaults> = LazyLock::new(|| {
+    serde_json::from_slice(COMPONENT_DEFAULTS_JSON).expect("embedded component schema defaults")
+});
+
+/// Startup compiler input only: resolve omitted fields before creating typed
+/// prototypes. Explicit pack values, including false/zero, take precedence.
+pub fn component_field_default(component: &str, field: &str) -> Option<&'static serde_json::Value> {
+    COMPONENT_DEFAULTS.get(component)?.get(field)
+}
+
+pub fn component_defaults_count() -> usize {
+    COMPONENT_DEFAULTS.len()
+}
 
 static PARSER: LazyLock<actor::ActorParser<'static>> = LazyLock::new(|| {
     actor::ActorParser::from_schema(

@@ -752,6 +752,16 @@ impl RecipeRegistry {
     }
 }
 
+impl unastar_rules::loot::FurnaceSmelt for RecipeRegistry {
+    fn smelt(&self, identifier: &str, data: i16) -> Option<unastar_rules::loot::SmeltedItem<'_>> {
+        self.furnace_result(identifier, data)
+            .map(|result| unastar_rules::loot::SmeltedItem {
+                identifier: &result.name,
+                data: result.data,
+            })
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;

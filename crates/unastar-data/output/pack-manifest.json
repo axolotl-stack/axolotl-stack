@@ -1,15 +1,23 @@
 {
   "actor_component_registry": {
     "count": 410,
-    "sha256": "960b7f9ae82479a36c9ff83b5a2c7fe9b98261ddcf2ed5cf966d5e1055fb97c5"
+    "sha256": "5fef0c2aa5f408eda6b856c479809d7c303d6616d2ac46626148b347d3526cb8"
   },
   "actor_definitions": {
     "count": 128,
     "sha256": "1f33976096de6bd96220fdee35c4807ae17783f92a9aa53f1e1048251dfa79f6"
   },
+  "actor_wire": {
+    "count": 112,
+    "sha256": "a435f8684100bc5b3be5143c78fcf647f448b0f2ddf58f8c9e2d15596d983b46"
+  },
   "biomes": {
     "count": 89,
     "sha256": "74b478a47c39d26a40df9b95df08d565d7d56be7549af318cf40717f7593d79f"
+  },
+  "component_schema_defaults": {
+    "count": 406,
+    "sha256": "2b13c3ad2913bd8311a5e18f76146b6d9751d9cd2a4424dc36761452ddbb3143"
   },
   "loot_tables": {
     "count": 508,

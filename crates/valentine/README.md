@@ -69,6 +69,25 @@ The legacy schema frontends remain available through `--source endstone`,
 schemas, so block, item, entity, and biome data generation must still select the
 appropriate data source explicitly.
 
+Actor reference constants are generated alongside the codecs:
+
+```rust
+use valentine::bedrock::version::v1_26_51::{
+    actor_data_i_ds as actor_data_ids, actor_flags,
+};
+
+let fuse_field_id = actor_data_ids::FUSE_TIME;
+let gravity_mask = 1u64 << actor_flags::HAS_GRAVITY;
+```
+
+These are the exact published Mojang reference names, including
+`RESERVED_038`, `RESERVED_053` and `RESERVED_054`. Their catalog is protocol2168;
+module documentation records its version/revision rather than claiming a complete
+2193 vocabulary. Native compatibility checks are separate. Flag values are bit
+indices, not masks; indices above63 require the corresponding bitset word.
+`FUSE_TIME` identifies a field, not a fuse duration from behavior-pack data.
+
+
 Generate multiple versions when you want cross-version type/packet dedup to be considered in a single run:
 
 ```bash

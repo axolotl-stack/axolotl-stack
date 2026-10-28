@@ -28,21 +28,35 @@ pub enum StorageError {
     NotFound,
 }
 
+/// One saved actor: its unique ID and its Bedrock actor NBT (a rooted,
+/// fixed-width little-endian compound, as Bedrock stores actors).
+#[derive(Debug, Clone, PartialEq)]
+pub struct StoredActor {
+    pub unique_id: i64,
+    pub nbt: Vec<u8>,
+}
+
 /// Data stored for a chunk column.
 #[derive(Debug, Clone)]
 pub struct ChunkColumn {
     /// The authoritative chunk block data and sparse block-entity metadata.
     pub chunk: Chunk,
-    /// Entities in this chunk (serialized NBT).
-    pub entities: Vec<Vec<u8>>,
+    /// Actors whose feet are in this chunk. Saving replaces the chunk's
+    /// previous actor list.
+    pub actors: Vec<StoredActor>,
+    /// Save only: unique IDs of actors this chunk listed earlier that no longer
+    /// exist anywhere (killed or despawned). Providers that store actor records
+    /// apart from the chunk delete these records.
+    pub removed_actors: Vec<i64>,
 }
 
 impl ChunkColumn {
-    /// Create a new column with just chunk data (no entities).
+    /// Create a new column with just chunk data (no actors).
     pub fn new(chunk: Chunk) -> Self {
         Self {
             chunk,
-            entities: Vec::new(),
+            actors: Vec::new(),
+            removed_actors: Vec::new(),
         }
     }
 }
