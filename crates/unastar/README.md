@@ -556,6 +556,23 @@ position using the same seeded noise registry; `noise_heightmap` is a chunk-leve
 motion-blocking height oracle before surface/carvers. Callers cache oracle
 results per placement run rather than regenerate a chunk for every queried column.
 
+### Template liquid layers
+
+Bedrock template placement carries both compiled layers through the shared
+region journal and disk/network codecs. The placement regression exercises
+wet, preserve, secondary-only and explicit-dry actions across a negative
+chunk-coordinate boundary at both build-height edges; LevelDB and BlazeDB
+close/reopen, network decoding and same-primary dry overwrites retain the
+expected states. A controlled primary-only placement ablation fails that
+regression by replacing required secondary water with air.
+
+A separate local-install smoke independently decoded ten shipped sulfur-spring
+templates: 29 source-water cells survived all four rotations at both height
+edges (80 full-volume placements, 232 verified water placements), 160 real
+provider reopens, 160 network roundtrips and 64 continued MT draws per case.
+No pack assets are committed. This proves source-to-AOT placement/storage retention, not BDS
+world-placement, feature RNG, jigsaw or terrain parity; no parity floors change.
+
 ### Offline aquatic observations
 
 With BDS stopped, export primary-layer aquatic runs from an existing world:

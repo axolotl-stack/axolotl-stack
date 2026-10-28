@@ -733,6 +733,7 @@ mod tests {
         surface: i32,
         floor_block: u32,
         edits: HashMap<BlockPos, u32>,
+        secondary: HashMap<BlockPos, u32>,
         block_entities: Vec<crate::world::block_entity::BlockEntity>,
     }
 
@@ -743,6 +744,7 @@ mod tests {
                 surface,
                 floor_block,
                 edits: HashMap::new(),
+                secondary: HashMap::new(),
                 block_entities: Vec::new(),
             }
         }
@@ -769,11 +771,31 @@ mod tests {
                 bb::AIR
             }
         }
+        fn get_layer(&self, pos: BlockPos, layer: u8) -> u32 {
+            let primary = self.get(pos);
+            match layer {
+                0 => primary,
+                1 if primary != OUT_OF_BOUNDS => {
+                    self.secondary.get(&pos).copied().unwrap_or(bb::AIR)
+                }
+                _ => OUT_OF_BOUNDS,
+            }
+        }
         fn set(&mut self, pos: BlockPos, id: u32) -> bool {
             if pos.y < self.min_y() || pos.y >= self.max_y() {
                 return false;
             }
             self.edits.insert(pos, id);
+            self.secondary.remove(&pos);
+            true
+        }
+        fn set_layers(&mut self, pos: BlockPos, primary: u32, secondary: Option<u32>) -> bool {
+            if !self.set(pos, primary) {
+                return false;
+            }
+            if let Some(id) = secondary.filter(|&id| id != bb::AIR) {
+                self.secondary.insert(pos, id);
+            }
             true
         }
         fn set_block_entity(&mut self, entity: crate::world::block_entity::BlockEntity) -> bool {

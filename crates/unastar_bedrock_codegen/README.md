@@ -66,6 +66,18 @@ Legacy Java-format templates shipped with BDS can retain older identifiers:
 resolution, preserving its axis under rotation. The conversion is exercised on
 the local bastion stage templates; placement/pool behavior remains unmeasured.
 
+Template palettes deduplicate **paired** primary/secondary permutations for all
+four rotations; packed cells remain five bytes. Both native layer arrays must
+match the template volume. A native `-1` index preserves its destination layer
+independently, rather than becoming air
+([format reference](https://wiki.bedrock.dev/nbt/mcstructure#block-indices)).
+Java-template lowering uses shared
+`unastar_packs::block_state::java_secondary_water` before primary projection:
+wet states and intrinsic water plants retain source water, dry states explicitly
+clear it, and primary water does not gain a duplicate liquid layer.
+`KEEP_LAYER` and air remain distinct actions through emission and one atomic
+runtime pair write; placement does not parse NBT or consume extra RNG draws.
+
 Template block actors are decoded at build time through shared
 `unastar_packs::{nbt,block_entity}`. The emitter stores sparse cell-indexed
 actor records with native IDs and pre-encoded network NBT children; placement
