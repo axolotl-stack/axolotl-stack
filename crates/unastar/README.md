@@ -114,6 +114,15 @@ retains native save recipes instead of reconstructing Java actors from Bedrock.
 Whole-runtime conformance still requires the native comparisons below; source
 dispatch alone is not a passing result.
 
+The runtime capture path also implements EMPTY, STRUCTURE_STARTS and
+STRUCTURE_REFERENCES. Before BIOMES, native section palettes contain plains in
+all three dimensions; querying climate noise to fill them would incorrectly
+advance nearest-candidate history. Eighteen native early-stage snapshots across
+seed zero and the negative dungeon holdout matched every stored voxel/quart.
+Heightmap container presence is derived from native stage semantics, not copied
+from reference keys: a synthetic extra EMPTY heightmap is rejected rather than
+manufactured by the producer.
+
 A native BIOMES-stage comparison of 174 saved seed-12345 chunks initially differed
 at three quart cells. A pinned native section-fill probe established equal climate
 fitness and previous-candidate tie retention as the cause. Generated R-tree
@@ -163,8 +172,12 @@ not proof of native feature-placement or BDS template parity.
 `unastar_noise/tools/NativeWorldgenOracle.java` verifies the pinned official assets
 and invokes real native generation APIs. The full-stage mode constructs genuine
 world resources, server/level objects and chunk-generation contexts without
-`initServer`, `runServer`, listeners, FULL/SPAWN promotion or ticks. Its completed
-captures observed zero network attempts and zero server ticks.
+`initServer`, `runServer`, listeners or ticks. Optional `--extended-stages` requests
+actual EMPTY through FULL statuses, including native LevelChunk promotion; it
+does not relabel FEATURES as FULL. Two completed extended captures produced
+39 snapshots each across all dimensions with zero network attempts and ticks.
+Rust's later LIGHT/SPAWN/FULL capture path remains explicitly unsupported until
+its native container/save transitions are implemented and exercised.
 
 | Native reference profile | Seeds | Complete snapshots | Canonical voxels |
 |---|---:|---:|---:|
@@ -178,6 +191,26 @@ The full-stage corpus separates immediate FEATURES completion from completed
 neighbor-decoration closure: neighboring feature origins make additional writes
 into a target chunk. Finished static comparisons must select the halo-closure
 profile. Typed actors, entities and scheduled ticks remain separate evidence.
+
+The final residual scenarios were regenerated and compared independently against
+unchanged native full-volume FEATURES and halo observations:
+
+| Native scenario | State differences before | State differences after | Compared voxels |
+|---|---:|---:|---:|
+| Dripstone holdout, seed 987654321 | 300 | 0 | 1,966,080 |
+| Vegetation, minimum signed seed | 20 | 0 | 2,949,120 |
+| Nether fortress, maximum signed seed | 8 | 0 | 1,966,080 |
+
+WorldgenRandom preserves its inherited Gaussian across feature reseeds, unlike a
+bare LegacyRandomSource. DualNoise candidates use slow noise and float coordinate
+multiplication. Mushroom survival reads native virgin visible-light storage and
+solid-render support, not a guessed heightmap shadow. MonsterThrone's apex authors
+three fences rather than overwriting its neighboring shoulders.
+The consumer regressions include native Gaussian IEEE bits and continuation,
+native light reads, original cornflower witnesses and fortress placement.
+These observations do not establish every seed, initialized-light history or
+post-generation entity behavior; remaining status/order coverage is tracked
+separately rather than inferred from a rounded percentage.
 
 A seed-zero NOISE comparison previously found native stone replaced by source
 water or air at two positions in chunk `(0,0)`. The actual Rust native material

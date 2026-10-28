@@ -61,6 +61,9 @@ fn java_aquifer_substance(state: u32) -> u32 {
 /// Native block-affecting terrain stages, in Java chunk-status order.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord)]
 pub enum JavaTerrainStage {
+    Empty,
+    StructureStarts,
+    StructureReferences,
     Biomes,
     Noise,
     Surface,
@@ -204,6 +207,21 @@ impl JavaGenerator {
     /// Snapshot the exact requested native stage without running later stages.
     pub fn generate_stage(&self, pos: ChunkPos, stage: JavaTerrainStage) -> ProtoChunk {
         match &self.backend {
+            TerrainBackend::NativeJava(_) if stage < JavaTerrainStage::Biomes => {
+                if stage >= JavaTerrainStage::StructureStarts {
+                    self.structure_starts(pos.x, pos.z);
+                }
+                if stage == JavaTerrainStage::StructureReferences && self.options.generate_structures {
+                    let context = self.structures.context(self.seed, self);
+                    self.structures.manager.references(&context, pos.x, pos.z);
+                }
+                // Empty section palettes are plains in every native dimension.
+                // Noise-biome queries before BIOMES would mutate search history.
+                self.biomes_stage(
+                    pos,
+                    super::proto::QuartBiomes::filled(JavaBiome::Plains as NativeBiome),
+                )
+            }
             TerrainBackend::NativeJava(_) => match self.options.dimension {
                 JavaDimension::Overworld => self.generate_overworld_native(pos, stage),
                 JavaDimension::Nether => self.generate_nether_native(pos, stage),
@@ -216,8 +234,8 @@ impl JavaGenerator {
 
     #[cfg(feature = "bedrock-worldgen")]
     fn generate_shared_stage(&self, pos: ChunkPos, stage: JavaTerrainStage) -> ProtoChunk {
-        assert!(stage <= JavaTerrainStage::Noise,
-            "the calibrated shared backend does not run native Java post-noise stages");
+        assert!((JavaTerrainStage::Biomes..=JavaTerrainStage::Noise).contains(&stage),
+            "the calibrated shared backend only exposes biome and noise stages");
         let noises = self.shared_noises();
         let grid = FlatCacheGrid::new(pos.x, pos.z, noises);
         let col_grid = ColumnContextGrid::new(pos.x, pos.z, noises, &grid);

@@ -58,7 +58,7 @@ fn load(name: &str) -> &'static Template {
 
 /// `Mth.nextInt(random, min, max)` (no draw when `min >= max`).
 #[inline]
-fn mth_next_int<S: BitSource>(rng: &mut WorldgenRandom<S>, min: i32, max: i32) -> i32 {
+fn mth_next_int<S: BitSource, const RETAIN_GAUSSIAN: bool>(rng: &mut WorldgenRandom<S, RETAIN_GAUSSIAN>, min: i32, max: i32) -> i32 {
     if min >= max {
         min
     } else {
@@ -669,7 +669,7 @@ impl ShipwreckPiece {
     }
 
     /// `calculateBeachedPosition(maxHeight, random)`.
-    fn beached_y<S: BitSource>(&self, max_height: i32, rng: &mut WorldgenRandom<S>) -> i32 {
+    fn beached_y<S: BitSource, const RETAIN_GAUSSIAN: bool>(&self, max_height: i32, rng: &mut WorldgenRandom<S, RETAIN_GAUSSIAN>) -> i32 {
         max_height - self.inner.template.size[1] / 2 - rng.next_int_bounded(3)
     }
 }
@@ -1830,7 +1830,9 @@ mod tests {
             fn min_y(&self) -> i32 { self.inner.min_y() }
             fn height(&self) -> i32 { self.inner.height() }
             fn sea_level(&self) -> i32 { self.inner.sea_level() }
-            fn has_skylight(&self) -> bool { self.inner.has_skylight() }
+            fn raw_brightness(&mut self, pos: BlockPos, sky_darken: i32) -> i32 {
+                self.inner.raw_brightness(pos, sky_darken)
+            }
             fn seed(&self) -> i64 { self.inner.seed() }
             fn get_state(&mut self, pos: BlockPos) -> JavaState { self.inner.get_state(pos) }
             fn set_state(&mut self, pos: BlockPos, state: JavaState) -> bool {

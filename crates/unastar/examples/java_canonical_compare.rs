@@ -322,6 +322,9 @@ fn generate(reference: &Capture) -> Result<Capture, String> {
     for column in columns {
         let pos = ChunkPos::new(column.x, column.z);
         let stage = match column.status.as_str() {
+            "minecraft:empty" => Some(JavaTerrainStage::Empty),
+            "minecraft:structure_starts" => Some(JavaTerrainStage::StructureStarts),
+            "minecraft:structure_references" => Some(JavaTerrainStage::StructureReferences),
             "minecraft:biomes" => Some(JavaTerrainStage::Biomes),
             "minecraft:noise" => Some(JavaTerrainStage::Noise),
             "minecraft:surface" => Some(JavaTerrainStage::Surface),
@@ -351,18 +354,27 @@ fn generate(reference: &Capture) -> Result<Capture, String> {
                 .map_err(|error| format!("chunk {pos:?}: native actor export failed: {error}"))
         }).collect::<Result<Vec<_>, _>>()?;
         actors.sort_by_key(|(position, _)| *position);
-        let mut maps = column.heightmaps.keys().map(|name| {
-            let kind = match name.as_str() {
-                "WORLD_SURFACE_WG" => HeightmapKind::WorldSurfaceWg,
-                "WORLD_SURFACE" => HeightmapKind::WorldSurface,
-                "OCEAN_FLOOR_WG" => HeightmapKind::OceanFloorWg,
-                "OCEAN_FLOOR" => HeightmapKind::OceanFloor,
-                "MOTION_BLOCKING" => HeightmapKind::MotionBlocking,
-                "MOTION_BLOCKING_NO_LEAVES" => HeightmapKind::MotionBlockingNoLeaves,
-                other => return Err(format!("unknown Java heightmap {other}")),
-            };
-            Ok((name.clone(), kind, vec![reference.min_y; 256]))
-        }).collect::<Result<Vec<_>, String>>()?;
+        // Retained containers belong to the requested native stage, not to the
+        // reference's chosen keys. Otherwise a corrupt reference can manufacture
+        // an EMPTY heightmap, or hide a missing runtime container.
+        let stage_maps: &[(&str, HeightmapKind)] = match stage {
+            Some(stage) if stage < JavaTerrainStage::Noise => &[],
+            Some(_) => &[
+                ("OCEAN_FLOOR_WG", HeightmapKind::OceanFloorWg),
+                ("WORLD_SURFACE_WG", HeightmapKind::WorldSurfaceWg),
+            ],
+            None => &[
+                ("MOTION_BLOCKING", HeightmapKind::MotionBlocking),
+                ("MOTION_BLOCKING_NO_LEAVES", HeightmapKind::MotionBlockingNoLeaves),
+                ("OCEAN_FLOOR", HeightmapKind::OceanFloor),
+                ("OCEAN_FLOOR_WG", HeightmapKind::OceanFloorWg),
+                ("WORLD_SURFACE", HeightmapKind::WorldSurface),
+                ("WORLD_SURFACE_WG", HeightmapKind::WorldSurfaceWg),
+            ],
+        };
+        let mut maps: Vec<_> = stage_maps.iter().map(|&(name, kind)| {
+            (name.to_owned(), kind, vec![reference.min_y; 256])
+        }).collect();
         let mut blocks: Vec<usize> = Vec::new();
         for y in reference.min_y..reference.min_y + reference.height as i32 {
             for z in 0..16u8 {

@@ -77,15 +77,16 @@ impl BitSource for LegacyBits {
 
 /// Java `WorldgenRandom` over a bit source.
 #[derive(Debug, Clone)]
-pub struct WorldgenRandom<S: BitSource> {
+pub struct WorldgenRandom<S: BitSource, const RETAIN_GAUSSIAN: bool = true> {
     source: S,
     next_gaussian: Option<f64>,
 }
 
 /// Decoration-time random (`WorldgenRandom(XoroshiroRandomSource)`).
 pub type FeatureRandom = WorldgenRandom<XoroshiroBits>;
-/// Legacy random (`WorldgenRandom(LegacyRandomSource)` / `RandomSource.create(seed)`).
-pub type LegacyRandom = WorldgenRandom<LegacyBits>;
+/// Bare `LegacyRandomSource` / `RandomSource.create(seed)`: reseeding clears
+/// its Gaussian cache. A wrapped legacy source uses `WorldgenRandom<LegacyBits>`.
+pub type LegacyRandom = WorldgenRandom<LegacyBits, false>;
 
 /// Native `WorldGenRegion.getRandom()`, not a `WorldgenRandom` bit wrapper.
 /// The preset selects the source once when the region is constructed.
@@ -144,7 +145,7 @@ impl RegionRandom {
     }
 }
 
-impl<S: BitSource> WorldgenRandom<S> {
+impl<S: BitSource, const RETAIN_GAUSSIAN: bool> WorldgenRandom<S, RETAIN_GAUSSIAN> {
     /// A generator seeded with `seed` (`setSeed`).
     #[inline]
     pub fn new(seed: i64) -> Self {
@@ -163,11 +164,14 @@ impl<S: BitSource> WorldgenRandom<S> {
         }
     }
 
-    /// `setSeed(seed)`: reseeds the source and drops the cached gaussian.
+    /// Reseed the bit source. WorldgenRandom's inherited Gaussian cache survives
+    /// feature reseeds; a bare LegacyRandomSource clears its own cache.
     #[inline]
     pub fn set_seed(&mut self, seed: i64) {
         self.source = S::from_seed(seed);
-        self.next_gaussian = None;
+        if !RETAIN_GAUSSIAN {
+            self.next_gaussian = None;
+        }
     }
 
     /// `next(bits)`.
@@ -338,7 +342,9 @@ impl ForkSource for LegacyBits {
     }
 }
 
-impl<S: BitSource> crate::noise::NoiseRandom for WorldgenRandom<S> {
+impl<S: BitSource, const RETAIN_GAUSSIAN: bool> crate::noise::NoiseRandom
+    for WorldgenRandom<S, RETAIN_GAUSSIAN>
+{
     #[inline]
     fn noise_next_double(&mut self) -> f64 {
         self.next_double()
@@ -361,6 +367,43 @@ pub fn java_string_hash(s: &str) -> i32 {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn native_gaussian_reseed_preserves_wrapper_cache_and_continuation() {
+        fn check<S: BitSource, const RETAIN_GAUSSIAN: bool>(case: &serde_json::Value) {
+            let mut random = WorldgenRandom::<S, RETAIN_GAUSSIAN>::new(
+                case["first_seed"].as_i64().unwrap(),
+            );
+            for expected in case["initial_gaussian_bits"].as_array().unwrap() {
+                assert_eq!(
+                    random.next_gaussian().to_bits(),
+                    expected.as_str().unwrap().parse::<u64>().unwrap(),
+                    "initial Gaussian: {case}",
+                );
+            }
+            random.set_seed(case["second_seed"].as_i64().unwrap());
+            assert_eq!(
+                random.next_gaussian().to_bits(),
+                case["gaussian_after_reseed_bits"].as_str().unwrap().parse::<u64>().unwrap(),
+                "Gaussian after reseed: {case}",
+            );
+            for expected in case["next_ints"].as_array().unwrap() {
+                assert_eq!(i64::from(random.next_int()), expected.as_i64().unwrap(),
+                    "continuation after reseed: {case}");
+            }
+        }
+        let fixture: serde_json::Value = serde_json::from_str(include_str!(
+            "../../tests/data/native_gaussian_reseed_1_21_11.json"
+        )).unwrap();
+        for case in fixture["cases"].as_array().unwrap() {
+            match case["algorithm"].as_str().unwrap() {
+                "worldgen_xoroshiro" => check::<XoroshiroBits, true>(case),
+                "worldgen_legacy" => check::<LegacyBits, true>(case),
+                "legacy" => check::<LegacyBits, false>(case),
+                other => panic!("unmeasured native random algorithm {other}"),
+            }
+        }
+    }
 
     /// Native 1.21.11 RandomState positional region stream observations:
     /// native-column-corpus-20261027/columns-{dimension}-seed{seed}.json.

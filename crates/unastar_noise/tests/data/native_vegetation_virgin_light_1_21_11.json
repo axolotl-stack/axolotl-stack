@@ -1,0 +1,571 @@
+{
+  "version": "1.21.11",
+  "server_sha1": "64bb6d763bed0a9f1d632ec347938594144943ed",
+  "mappings_sha1": "5621e9253f05fd57872bbe7f8ddf5f9a7d525955",
+  "profile": "Pure native virgin LevelLightEngine after global static registries; no server/world construction or section initialization; not a natural-world lighting snapshot",
+  "cases": [
+    {
+      "raw_brightness": 0,
+      "has_skylight": false,
+      "pos": [
+        0,
+        -65,
+        0
+      ],
+      "sky_darken": 0
+    },
+    {
+      "raw_brightness": 0,
+      "has_skylight": false,
+      "pos": [
+        0,
+        -65,
+        0
+      ],
+      "sky_darken": 2
+    },
+    {
+      "raw_brightness": 0,
+      "has_skylight": false,
+      "pos": [
+        0,
+        -65,
+        0
+      ],
+      "sky_darken": 13
+    },
+    {
+      "raw_brightness": 0,
+      "has_skylight": false,
+      "pos": [
+        0,
+        -65,
+        0
+      ],
+      "sky_darken": 15
+    },
+    {
+      "raw_brightness": 0,
+      "has_skylight": false,
+      "pos": [
+        0,
+        -64,
+        0
+      ],
+      "sky_darken": 0
+    },
+    {
+      "raw_brightness": 0,
+      "has_skylight": false,
+      "pos": [
+        0,
+        -64,
+        0
+      ],
+      "sky_darken": 2
+    },
+    {
+      "raw_brightness": 0,
+      "has_skylight": false,
+      "pos": [
+        0,
+        -64,
+        0
+      ],
+      "sky_darken": 13
+    },
+    {
+      "raw_brightness": 0,
+      "has_skylight": false,
+      "pos": [
+        0,
+        -64,
+        0
+      ],
+      "sky_darken": 15
+    },
+    {
+      "raw_brightness": 0,
+      "has_skylight": false,
+      "pos": [
+        0,
+        0,
+        0
+      ],
+      "sky_darken": 0
+    },
+    {
+      "raw_brightness": 0,
+      "has_skylight": false,
+      "pos": [
+        0,
+        0,
+        0
+      ],
+      "sky_darken": 2
+    },
+    {
+      "raw_brightness": 0,
+      "has_skylight": false,
+      "pos": [
+        0,
+        0,
+        0
+      ],
+      "sky_darken": 13
+    },
+    {
+      "raw_brightness": 0,
+      "has_skylight": false,
+      "pos": [
+        0,
+        0,
+        0
+      ],
+      "sky_darken": 15
+    },
+    {
+      "raw_brightness": 0,
+      "has_skylight": false,
+      "pos": [
+        0,
+        319,
+        0
+      ],
+      "sky_darken": 0
+    },
+    {
+      "raw_brightness": 0,
+      "has_skylight": false,
+      "pos": [
+        0,
+        319,
+        0
+      ],
+      "sky_darken": 2
+    },
+    {
+      "raw_brightness": 0,
+      "has_skylight": false,
+      "pos": [
+        0,
+        319,
+        0
+      ],
+      "sky_darken": 13
+    },
+    {
+      "raw_brightness": 0,
+      "has_skylight": false,
+      "pos": [
+        0,
+        319,
+        0
+      ],
+      "sky_darken": 15
+    },
+    {
+      "raw_brightness": 0,
+      "has_skylight": false,
+      "pos": [
+        0,
+        320,
+        0
+      ],
+      "sky_darken": 0
+    },
+    {
+      "raw_brightness": 0,
+      "has_skylight": false,
+      "pos": [
+        0,
+        320,
+        0
+      ],
+      "sky_darken": 2
+    },
+    {
+      "raw_brightness": 0,
+      "has_skylight": false,
+      "pos": [
+        0,
+        320,
+        0
+      ],
+      "sky_darken": 13
+    },
+    {
+      "raw_brightness": 0,
+      "has_skylight": false,
+      "pos": [
+        0,
+        320,
+        0
+      ],
+      "sky_darken": 15
+    },
+    {
+      "raw_brightness": 0,
+      "has_skylight": false,
+      "pos": [
+        1606,
+        69,
+        -1594
+      ],
+      "sky_darken": 0
+    },
+    {
+      "raw_brightness": 0,
+      "has_skylight": false,
+      "pos": [
+        1606,
+        69,
+        -1594
+      ],
+      "sky_darken": 2
+    },
+    {
+      "raw_brightness": 0,
+      "has_skylight": false,
+      "pos": [
+        1606,
+        69,
+        -1594
+      ],
+      "sky_darken": 13
+    },
+    {
+      "raw_brightness": 0,
+      "has_skylight": false,
+      "pos": [
+        1606,
+        69,
+        -1594
+      ],
+      "sky_darken": 15
+    },
+    {
+      "raw_brightness": 0,
+      "has_skylight": false,
+      "pos": [
+        1611,
+        73,
+        -1585
+      ],
+      "sky_darken": 0
+    },
+    {
+      "raw_brightness": 0,
+      "has_skylight": false,
+      "pos": [
+        1611,
+        73,
+        -1585
+      ],
+      "sky_darken": 2
+    },
+    {
+      "raw_brightness": 0,
+      "has_skylight": false,
+      "pos": [
+        1611,
+        73,
+        -1585
+      ],
+      "sky_darken": 13
+    },
+    {
+      "raw_brightness": 0,
+      "has_skylight": false,
+      "pos": [
+        1611,
+        73,
+        -1585
+      ],
+      "sky_darken": 15
+    },
+    {
+      "raw_brightness": 15,
+      "has_skylight": true,
+      "pos": [
+        0,
+        -65,
+        0
+      ],
+      "sky_darken": 0
+    },
+    {
+      "raw_brightness": 13,
+      "has_skylight": true,
+      "pos": [
+        0,
+        -65,
+        0
+      ],
+      "sky_darken": 2
+    },
+    {
+      "raw_brightness": 2,
+      "has_skylight": true,
+      "pos": [
+        0,
+        -65,
+        0
+      ],
+      "sky_darken": 13
+    },
+    {
+      "raw_brightness": 0,
+      "has_skylight": true,
+      "pos": [
+        0,
+        -65,
+        0
+      ],
+      "sky_darken": 15
+    },
+    {
+      "raw_brightness": 15,
+      "has_skylight": true,
+      "pos": [
+        0,
+        -64,
+        0
+      ],
+      "sky_darken": 0
+    },
+    {
+      "raw_brightness": 13,
+      "has_skylight": true,
+      "pos": [
+        0,
+        -64,
+        0
+      ],
+      "sky_darken": 2
+    },
+    {
+      "raw_brightness": 2,
+      "has_skylight": true,
+      "pos": [
+        0,
+        -64,
+        0
+      ],
+      "sky_darken": 13
+    },
+    {
+      "raw_brightness": 0,
+      "has_skylight": true,
+      "pos": [
+        0,
+        -64,
+        0
+      ],
+      "sky_darken": 15
+    },
+    {
+      "raw_brightness": 15,
+      "has_skylight": true,
+      "pos": [
+        0,
+        0,
+        0
+      ],
+      "sky_darken": 0
+    },
+    {
+      "raw_brightness": 13,
+      "has_skylight": true,
+      "pos": [
+        0,
+        0,
+        0
+      ],
+      "sky_darken": 2
+    },
+    {
+      "raw_brightness": 2,
+      "has_skylight": true,
+      "pos": [
+        0,
+        0,
+        0
+      ],
+      "sky_darken": 13
+    },
+    {
+      "raw_brightness": 0,
+      "has_skylight": true,
+      "pos": [
+        0,
+        0,
+        0
+      ],
+      "sky_darken": 15
+    },
+    {
+      "raw_brightness": 15,
+      "has_skylight": true,
+      "pos": [
+        0,
+        319,
+        0
+      ],
+      "sky_darken": 0
+    },
+    {
+      "raw_brightness": 13,
+      "has_skylight": true,
+      "pos": [
+        0,
+        319,
+        0
+      ],
+      "sky_darken": 2
+    },
+    {
+      "raw_brightness": 2,
+      "has_skylight": true,
+      "pos": [
+        0,
+        319,
+        0
+      ],
+      "sky_darken": 13
+    },
+    {
+      "raw_brightness": 0,
+      "has_skylight": true,
+      "pos": [
+        0,
+        319,
+        0
+      ],
+      "sky_darken": 15
+    },
+    {
+      "raw_brightness": 15,
+      "has_skylight": true,
+      "pos": [
+        0,
+        320,
+        0
+      ],
+      "sky_darken": 0
+    },
+    {
+      "raw_brightness": 13,
+      "has_skylight": true,
+      "pos": [
+        0,
+        320,
+        0
+      ],
+      "sky_darken": 2
+    },
+    {
+      "raw_brightness": 2,
+      "has_skylight": true,
+      "pos": [
+        0,
+        320,
+        0
+      ],
+      "sky_darken": 13
+    },
+    {
+      "raw_brightness": 0,
+      "has_skylight": true,
+      "pos": [
+        0,
+        320,
+        0
+      ],
+      "sky_darken": 15
+    },
+    {
+      "raw_brightness": 15,
+      "has_skylight": true,
+      "pos": [
+        1606,
+        69,
+        -1594
+      ],
+      "sky_darken": 0
+    },
+    {
+      "raw_brightness": 13,
+      "has_skylight": true,
+      "pos": [
+        1606,
+        69,
+        -1594
+      ],
+      "sky_darken": 2
+    },
+    {
+      "raw_brightness": 2,
+      "has_skylight": true,
+      "pos": [
+        1606,
+        69,
+        -1594
+      ],
+      "sky_darken": 13
+    },
+    {
+      "raw_brightness": 0,
+      "has_skylight": true,
+      "pos": [
+        1606,
+        69,
+        -1594
+      ],
+      "sky_darken": 15
+    },
+    {
+      "raw_brightness": 15,
+      "has_skylight": true,
+      "pos": [
+        1611,
+        73,
+        -1585
+      ],
+      "sky_darken": 0
+    },
+    {
+      "raw_brightness": 13,
+      "has_skylight": true,
+      "pos": [
+        1611,
+        73,
+        -1585
+      ],
+      "sky_darken": 2
+    },
+    {
+      "raw_brightness": 2,
+      "has_skylight": true,
+      "pos": [
+        1611,
+        73,
+        -1585
+      ],
+      "sky_darken": 13
+    },
+    {
+      "raw_brightness": 0,
+      "has_skylight": true,
+      "pos": [
+        1611,
+        73,
+        -1585
+      ],
+      "sky_darken": 15
+    }
+  ],
+  "inner_sha256": "ec47239a8de246335e1d54f6ac319bd35641778eb4b6a6da06372840d02fcebc",
+  "raw_brightness_declared_by": "net.minecraft.world.level.BlockAndTintGetter",
+  "denied_network_attempts": []
+}
