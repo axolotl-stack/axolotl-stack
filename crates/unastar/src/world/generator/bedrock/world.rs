@@ -97,8 +97,14 @@ pub trait BlockWorld {
     fn max_y(&self) -> i32;
     /// Runtime id at `pos`, or [`OUT_OF_BOUNDS`].
     fn get(&self, pos: BlockPos) -> u32;
+    /// Runtime id in layer 0 or 1; absent secondary storage reads as air.
+    /// Positions outside the readable region return [`OUT_OF_BOUNDS`].
+    fn get_layer(&self, pos: BlockPos, layer: u8) -> u32;
     /// Set `pos`; `false` (and no change) outside the writable region.
     fn set(&mut self, pos: BlockPos, id: u32) -> bool;
+    /// Atomically replace both layers; `None` clears the secondary layer.
+    /// Reject unwritable positions without changing either layer.
+    fn set_layers(&mut self, pos: BlockPos, primary: u32, secondary: Option<u32>) -> bool;
     /// Retain a generated actor at its absolute position; reject unwritable positions.
     fn set_block_entity(&mut self, entity: crate::world::block_entity::BlockEntity) -> bool;
     /// Numeric Bedrock biome id at `pos`.
@@ -132,8 +138,18 @@ impl<W: BlockWorld> Ctx<'_, W> {
     }
 
     #[inline]
+    pub fn get_layer(&self, pos: BlockPos, layer: u8) -> u32 {
+        self.world.get_layer(pos, layer)
+    }
+
+    #[inline]
     pub fn set(&mut self, pos: BlockPos, id: u32) -> bool {
         self.world.set(pos, id)
+    }
+
+    #[inline]
+    pub fn set_layers(&mut self, pos: BlockPos, primary: u32, secondary: Option<u32>) -> bool {
+        self.world.set_layers(pos, primary, secondary)
     }
 
     #[inline]
