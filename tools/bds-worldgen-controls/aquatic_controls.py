@@ -4,6 +4,12 @@
 launches the sanctioned BDS only after the caller coordinates runtime/build safety.
 Export stopped captures with the existing bds_structure_reference example before
 interpreting placement: a command response alone does not prove block changes.
+
+BDS 1.26.51 rejects `place feature minecraft:kelp_feature` as a syntax error:
+engine built-ins are not in /place's feature enum. Each built-in is therefore
+placed through an authored `scatter_feature` with one constant zero offset,
+registered by an inert feature rule (feature files alone are not registered;
+see controls.py). Whether the wrapper itself draws feature RNG is unmeasured.
 """
 from __future__ import annotations
 
@@ -29,6 +35,7 @@ FEATURES = (
     ("kelp", "minecraft:kelp_feature"),
     ("seagrass_shortest", "minecraft:shortest_seagrass_feature"),
 )
+NAMESPACE = "wg_aquatic"
 ORIGINS = (
     ("floor", 41, True),
     ("mid_water", 52, True),
@@ -65,11 +72,50 @@ def outside_repo(root: Path) -> Path:
     return root
 
 
+def wrapper(label: str) -> str:
+    return f"{NAMESPACE}:{label}_probe"
+
+
+def write_pack(pack: Path) -> str:
+    """Author the zero-offset wrappers and their inert registering rules."""
+    pack_id = str(uuid.uuid4())
+    (pack / "features").mkdir(parents=True)
+    (pack / "feature_rules").mkdir()
+    save(pack / "manifest.json", {
+        "format_version": 2,
+        "header": {"name": "WG aquatic origin controls",
+                   "description": "Authored built-in wrappers, not vanilla assets",
+                   "uuid": pack_id, "version": [1, 0, 0], "min_engine_version": [1, 26, 50]},
+        "modules": [{"type": "data", "uuid": str(uuid.uuid4()), "version": [1, 0, 0]}],
+    })
+    for label, feature in FEATURES:
+        save(pack / "features" / f"{label}_probe.json", {
+            "format_version": "1.13.0",
+            "minecraft:scatter_feature": {
+                "description": {"identifier": wrapper(label)},
+                "places_feature": feature, "iterations": 1,
+                "coordinate_eval_order": "xzy", "x": 0, "y": 0, "z": 0,
+            },
+        })
+        # Zero iterations: registers the wrapper without natural placement.
+        save(pack / "feature_rules" / f"{label}_probe.json", {
+            "format_version": "1.13.0",
+            "minecraft:feature_rules": {
+                "description": {"identifier": f"{NAMESPACE}:{label}_rule", "places_feature": wrapper(label)},
+                "conditions": {"placement_pass": "after_surface_pass",
+                               "minecraft:biome_filter": {"test": "has_biome_tag", "value": "overworld"}},
+                "distribution": {"iterations": 0, "coordinate_eval_order": "xzy", "x": 0, "y": 0, "z": 0},
+            },
+        })
+    return pack_id
+
+
 def prepare(root: Path, repeats: int) -> dict:
     root = outside_repo(root)
     if not 1 <= repeats <= 32:
         raise ValueError("repeats must be between 1 and 32")
     root.mkdir(parents=True, exist_ok=False)
+    pack_id = write_pack(root / "behavior_pack")
     cases, captures = [], []
     for label, feature in FEATURES:
         for anchor, y, wet in ORIGINS:
@@ -81,11 +127,12 @@ def prepare(root: Path, repeats: int) -> dict:
                 # An asymmetric corner marker verifies the exported volume's frame.
                 setup.append(f"setblock {PANEL[0]} {FLOOR} {PANEL[1]} gold_block")
                 case = {
-                    "case": name, "feature": feature, "origin": [X, y, Z],
+                    "case": name, "feature": feature, "wrapper": wrapper(label),
+                    "origin": [X, y, Z],
                     "water_top": WATER_TOP if wet else None,
                     "iteration": iteration, "feature_rng_seed": "unmeasured",
                     "setup_commands": setup,
-                    "placement_command": f"place feature {feature} {X} {y} {Z}",
+                    "placement_command": f"place feature {wrapper(label)} {X} {y} {Z}",
                     "status": "planned",
                 }
                 cases.append(case)
@@ -96,8 +143,8 @@ def prepare(root: Path, repeats: int) -> dict:
                         "bounds": BOUNDS, "status": "planned",
                     })
     metadata = {
-        "kind": "bedrock-aquatic-origin-controls", "schema_version": 1,
-        "session_id": str(uuid.uuid4()), "seed": SEED,
+        "kind": "bedrock-aquatic-origin-controls", "schema_version": 2,
+        "session_id": str(uuid.uuid4()), "seed": SEED, "pack_id": pack_id,
         "cases": cases, "captures": captures, "commands": [],
         "reference_context": {
             "fixture": "crates/unastar/tests/fixtures/bds_1_26_51_seed_12345.json",
@@ -118,6 +165,7 @@ def prepare(root: Path, repeats: int) -> dict:
             "A failed command or no edits is not proof of unsupported terrain or anchoring.",
             "Require at least one positive native floor-water placement before interpreting other origins.",
             "Feature RNG seed/draw order, density and natural-pass equivalence remain unmeasured.",
+            "Placement goes through an authored zero-offset scatter wrapper; it is not a bare built-in call.",
             "Writes touching capture boundaries require a larger capture before geometry claims.",
         ],
     }
@@ -144,7 +192,7 @@ def resource_guard() -> None:
 def run(root: Path, helper_path: Path, settle_seconds: float) -> None:
     root = outside_repo(root)
     metadata = json.loads((root / "controls.json").read_text(encoding="utf-8"))
-    if metadata.get("kind") != "bedrock-aquatic-origin-controls" or metadata.get("schema_version") != 1:
+    if metadata.get("kind") != "bedrock-aquatic-origin-controls" or metadata.get("schema_version") != 2:
         raise ValueError("expected a prepared aquatic-origin controls document")
     if any(case["status"] != "planned" for case in metadata["cases"]) or (root / "world").exists():
         raise RuntimeError("refusing to overwrite an attempted capture; preserve it and prepare a new session")
@@ -162,9 +210,9 @@ def run(root: Path, helper_path: Path, settle_seconds: float) -> None:
         raise RuntimeError("BDS runtime is occupied; never override another owner's session")
     session = str(uuid.UUID(metadata["session_id"]))
     world = helper.SERVER / "worlds" / f"wg-aquatic-{session}"
-    if world.exists():
-        raise RuntimeError("owned world destination already exists; inspect instead of deleting")
-    world.mkdir()
+    installed = helper.SERVER / "development_behavior_packs" / f"wg_aquatic_{session}"
+    if world.exists() or installed.exists():
+        raise RuntimeError("owned world or pack destination already exists; inspect instead of deleting")
     properties = helper.base_properties(
         world.name, level_seed=metadata["seed"], level_type="DEFAULT", max_threads=1,
         tick_distance=4, view_distance=8,
@@ -173,6 +221,10 @@ def run(root: Path, helper_path: Path, settle_seconds: float) -> None:
     # Importing Console here keeps prepare entirely offline and stdlib-only.
     from bds_console import Console
     try:
+        installed.parent.mkdir(parents=True, exist_ok=True)
+        shutil.copytree(root / "behavior_pack", installed)
+        world.mkdir()
+        save(world / "world_behavior_packs.json", [{"pack_id": metadata["pack_id"], "version": [1, 0, 0]}])
         with helper.Bds(properties, root / "console.log", endstone=False, startup_timeout=60) as server:
             console = Console(server, time.monotonic() + 600)
 
@@ -226,6 +278,8 @@ def run(root: Path, helper_path: Path, settle_seconds: float) -> None:
             # Failed copies preserve the live-directory path for recovery.
             shutil.copytree(world, root / "world")
             shutil.rmtree(world)
+        if installed.exists():
+            shutil.rmtree(installed)
 
 
 def main() -> None:
