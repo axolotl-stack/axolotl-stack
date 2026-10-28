@@ -73,26 +73,31 @@ fn bedrock_style_vs_bds_reference_ratchets() {
             );
             let m = measure(&fixture, &pipeline).metrics;
             println!("Bedrock BDS seed12345: {m:#?}");
-            // Authorized measured-correctness exception, 2026-10-25:
-            // reverting only four disproven scatter/query assumptions exactly
-            // recovers the old metrics. Preserve the controlled BDS behavior;
-            // see unastar_bedrock_codegen/README.md's complete ablation table.
+            // D8 (coordinator-delegated, 2026-10-28): the native-calibrated ore
+            // frame alone lowers surface height exact (0.857479 -> 0.851333);
+            // see the primitive-correction ablation in
+            // unastar_bedrock_codegen/README.md. That floor was re-baselined;
+            // per-position rule biome checks then raised every metric. The
+            // single-block deep sea floor (coordinator-approved, 2026-10-28)
+            // halves histogram error but re-baselines terrain within 2 and
+            // terrain error: see "Single-block deep sea floor" in that README.
+            // Open-space snapping then raised the terrain floors again.
             for (name, value, floor) in [
-                ("terrain_exact", m.terrain_exact, 0.8354),
-                ("terrain_within_2", m.terrain_within_2, 0.8819),
-                ("surface_exact", m.surface_exact, 0.8574),
-                ("surface_block", m.surface_block, 0.8057),
+                ("terrain_exact", m.terrain_exact, 0.8782),
+                ("terrain_within_2", m.terrain_within_2, 0.9240),
+                ("surface_exact", m.surface_exact, 0.8526),
+                ("surface_block", m.surface_block, 0.8432),
                 ("surface_biome", m.surface_biome, 0.9950),
             ] {
                 assert!(value >= floor, "{name} {value:.6} fell below {floor:.6}");
             }
             assert!(
-                m.terrain_mean_abs_error <= 1.9358,
+                m.terrain_mean_abs_error <= 1.2217,
                 "terrain error rose: {}",
                 m.terrain_mean_abs_error
             );
             assert!(
-                m.histogram_l1 <= 0.0727,
+                m.histogram_l1 <= 0.0277,
                 "histogram error rose: {}",
                 m.histogram_l1
             );
@@ -180,4 +185,63 @@ fn frozen_ocean_temperature_patches_ratchet_against_bds() {
     // Separate class floors prevent an always-water predicate from passing.
     assert!(ice >= 111, "reference ice matches regressed to {ice}");
     assert!(water >= 561, "reference water matches regressed to {water}");
+}
+
+/// BDS fixture chunk (-4,-4) is ocean with 517 kelp and 65 seagrass blocks.
+/// The vanilla rules pass `query.heightmap` (the first air above the water)
+/// as the input height, so the built-ins must find the sea floor themselves.
+/// Feature RNG seeding is unmeasured: the counts are a density band, and the
+/// anchoring is checked structurally (plants stand on a solid floor block).
+#[test]
+fn ocean_kelp_and_seagrass_grow_from_the_floor_like_bds() {
+    std::thread::Builder::new()
+        .stack_size(64 << 20)
+        .spawn(|| {
+            use std::sync::Arc;
+            use unastar::registry::BlockRegistry;
+            use unastar::world::generator::ChunkPipeline;
+            let registry = BlockRegistry::vanilla();
+            let pipeline = ChunkPipeline::new(Arc::new(BedrockGenerator::new(12345)));
+            let chunk = pipeline.generate(ChunkPos::new(-4, -4)).unwrap();
+            let name = |id: u32| {
+                registry
+                    .get_by_runtime_id(id)
+                    .map_or("?", |entry| entry.string_id.as_str())
+            };
+            let (mut kelp, mut seagrass) = (0, 0);
+            for z in 0..16 {
+                for x in 0..16 {
+                    for y in -63..320 {
+                        let block = name(chunk.get_block(x, y, z));
+                        let below = name(chunk.get_block(x, y - 1, z));
+                        let plant = match block {
+                            "minecraft:kelp" => &mut kelp,
+                            "minecraft:seagrass" => &mut seagrass,
+                            _ => continue,
+                        };
+                        *plant += 1;
+                        // A plant may sit on another plant: seagrass scattered
+                        // from a neighbouring chunk's decoration region can
+                        // replace a kelp base when the regions are merged.
+                        // It must never hang in water or air.
+                        assert!(
+                            !["minecraft:air", "minecraft:water"].contains(&below),
+                            "{block} at ({x},{y},{z}) floats above {below}"
+                        );
+                    }
+                }
+            }
+            println!("chunk (-4,-4): kelp {kelp} (BDS 517), seagrass {seagrass} (BDS 65)");
+            assert!(
+                (259..=1034).contains(&kelp),
+                "kelp {kelp} outside 0.5x..2x of BDS 517"
+            );
+            assert!(
+                (22..=195).contains(&seagrass),
+                "seagrass {seagrass} outside 1/3x..3x of BDS 65"
+            );
+        })
+        .unwrap()
+        .join()
+        .unwrap();
 }

@@ -6,12 +6,20 @@
 //! Vanilla kelp/seagrass rules and nested scatters use `query.heightmap`.
 //! The measured query includes fluids and returns the first air height, not
 //! the water block on the floor; `query.above_top_solid` skips fluids. Scatter
-//! expressions remain relative offsets. Built-in anchoring/projection is
-//! unmeasured; the rules alone do not establish a floor-origin contract.
+//! expressions remain relative offsets, so nested seagrass scatters arrive
+//! well above the water.
 //!
-//! The current world stores only one block per position. Placing a plant
-//! replaces that primary water block; Bedrock's secondary liquid layer is
-//! not retained by the shared chunk storage/persistence/network path.
+//! **Sea-floor projection.** Every rule feeding `kelp_feature` and the
+//! seagrass built-ins passes such an above-water height, yet BDS 1.26.51 grows
+//! both from the sea floor (fixture chunk (-4,-4): 517 kelp, 65 seagrass, all
+//! rooted on the floor). The built-ins therefore ignore the input height and
+//! start above the column's highest motion-blocking block ([`sea_floor`]),
+//! like the ocean-floor heightmap of the legacy features they port; existing
+//! plants do not raise it. Placement density and random draw order remain
+//! unmeasured.
+//!
+//! Plants replace the primary water block; these built-ins write no
+//! secondary liquid layer.
 //!
 //! **unmeasured: to confirm by BDS fixture**: geometry, density, palettes and
 //! random draw order of built-in aquatic placements.
@@ -177,13 +185,14 @@ const fn mushroom_shell(x: i32, y: i32, z: i32, sx: i32, sy: i32, sz: i32) -> bo
 }
 
 /// Block a rooted underwater plant (kelp base, seagrass, coral, pickle) can
-/// stand on: a solid block other than magma (which bubbles). Sea pickles are
-/// excluded explicitly (vanilla needs a full top face) so repeated pickle
-/// attempts in one column never stack, whatever the palette `solid` flag of
-/// a pickle says.
+/// stand on: a motion-blocking block other than magma (which bubbles). The
+/// palette `solid` flag also marks plants such as seagrass, so it would let
+/// kelp root on seagrass; motion blocking matches the legacy sturdy-face
+/// check. Sea pickles stay excluded explicitly so repeated pickle attempts in
+/// one column never stack.
 #[inline]
 fn supports_water_plant(id: u32) -> bool {
-    props::is_solid(id) && id != bb::MAGMA && !SEA_PICKLES.contains(&id)
+    props::blocks_motion(id) && id != bb::MAGMA && !SEA_PICKLES.contains(&id)
 }
 
 /// Random standing coral or floor fan of a random colour (vanilla picks from
@@ -207,15 +216,48 @@ fn coral_colour(id: u32) -> Option<usize> {
 // Kelp and seagrass
 // ---------------------------------------------------------------------------
 
-/// `minecraft:kelp_feature`: a kelp column from the sea floor at `pos` with
-/// 2..=11 segments (vanilla `1 + rand(10)` extra segments), stopping early so
-/// that the top segment always has water above it. The top segment is a tip
-/// aged 20..=23; stems are age 0 (Bedrock kelp segments are all `kelp`).
+/// The first position above the highest motion-blocking block of `pos`'s
+/// column (the legacy ocean-floor heightmap): where kelp and seagrass start
+/// regardless of the input height. Existing plants do not raise it.
+fn sea_floor<W: BlockWorld>(ctx: &mut Ctx<'_, W>, pos: BlockPos) -> BlockPos {
+    let min_y = ctx.world.min_y();
+    let mut y = ctx.heightmap(pos.x, pos.z);
+    while y > min_y && !props::blocks_motion(ctx.get(BlockPos::new(pos.x, y - 1, pos.z))) {
+        y -= 1;
+    }
+    BlockPos::new(pos.x, y, pos.z)
+}
+
+/// Shortest and tallest worldgen kelp column, in blocks.
+const KELP_MIN_HEIGHT: i32 = 3;
+const KELP_MAX_HEIGHT: i32 = 25;
+
+/// `minecraft:kelp_feature`: a kelp column from the sea floor below `pos`
+/// ([`sea_floor`]). Its height is uniform in
+/// `KELP_MIN_HEIGHT..=min(KELP_MAX_HEIGHT, room)`, where `room` is the number
+/// of segments that still leave water above the top one. Measured in a
+/// natural BDS 1.26.51 world of the fixture seed (407 kelp columns across 39
+/// chunks): lengths 3..25, never shorter than 3, never above the room, and
+/// uniformly spread between those bounds (mean 10.26 against the model's
+/// 10.10). The legacy `2..=11` heights produced 30% too little kelp. With
+/// less than three segments of room, BDS behaviour is unobserved; the column
+/// then fills the room. The draw order (height, then tip age) is unmeasured.
+/// The top segment is a tip aged 20..=23; stems are age 0.
 pub fn kelp_feature<W: BlockWorld>(ctx: &mut Ctx<'_, W>, pos: BlockPos) -> Option<BlockPos> {
+    let pos = sea_floor(ctx, pos);
     if !bb::water(ctx.get(pos)) {
         return None;
     }
-    let extra = 1 + ctx.rng.next_int(10);
+    let mut room = 0;
+    while room < KELP_MAX_HEIGHT && bb::water(ctx.get(pos.offset(0, room + 1, 0))) {
+        room += 1;
+    }
+    if room == 0 {
+        return None;
+    }
+    let low = KELP_MIN_HEIGHT.min(room);
+    let height = low + ctx.rng.next_int(room - low + 1);
+    let extra = height - 1;
     let mut placed = false;
     let mut at = pos;
     for i in 0..=extra {
@@ -250,15 +292,16 @@ pub fn kelp_feature<W: BlockWorld>(ctx: &mut Ctx<'_, W>, pos: BlockPos) -> Optio
     placed.then_some(pos)
 }
 
-/// One seagrass placement at `pos`: double seagrass with probability
-/// `tall_chance` (needs water above too), else short seagrass. Only in
-/// water on a solid non-magma floor. The tall roll comes before the floor
-/// check, as in vanilla.
+/// One seagrass placement on the sea floor below `pos` ([`sea_floor`]):
+/// double seagrass with probability `tall_chance` (needs water above too),
+/// else short seagrass. Only in water on a solid non-magma floor. The tall
+/// roll comes before the floor check, as in vanilla.
 fn place_seagrass<W: BlockWorld>(
     ctx: &mut Ctx<'_, W>,
     pos: BlockPos,
     tall_chance: f32,
 ) -> Option<BlockPos> {
+    let pos = sea_floor(ctx, pos);
     if !bb::water(ctx.get(pos)) {
         return None;
     }
@@ -897,27 +940,32 @@ mod tests {
 
     #[test]
     fn kelp_grows_from_the_floor_with_a_tip() {
-        let mut any = false;
-        for seed in 0..64 {
-            let mut world = Flat::new(40, 62, bb::SAND);
-            let base = BlockPos::new(0, 41, 0);
-            if run(&mut world, seed, |ctx| kelp_feature(ctx, base)).is_none() {
-                continue;
+        // Water 41..=62 leaves room for 21 segments; a 120-deep sea is capped
+        // at the 25-block maximum.
+        for (floor, cap) in [(40, 21), (-60, KELP_MAX_HEIGHT)] {
+            let mut tallest = 0;
+            for seed in 0..64 {
+                let mut world = Flat::new(floor, 62, bb::SAND);
+                let base = BlockPos::new(0, floor + 1, 0);
+                assert_eq!(
+                    run(&mut world, seed, |ctx| kelp_feature(ctx, base)),
+                    Some(base)
+                );
+                let mut top = base.y;
+                while bb::kelp(world.get(BlockPos::new(0, top + 1, 0))) {
+                    top += 1;
+                }
+                let len = top - base.y + 1;
+                assert!((KELP_MIN_HEIGHT..=cap).contains(&len), "length {len}");
+                tallest = tallest.max(len);
+                assert!(KELP_TIPS.contains(&world.get(BlockPos::new(0, top, 0))));
+                for y in base.y..top {
+                    assert_eq!(world.get(BlockPos::new(0, y, 0)), bb::KELP_AGE_0);
+                }
+                assert_eq!(world.edits.len() as i32, len);
             }
-            any = true;
-            let mut top = base.y;
-            while bb::kelp(world.get(BlockPos::new(0, top + 1, 0))) {
-                top += 1;
-            }
-            let len = top - base.y + 1;
-            assert!((2..=11).contains(&len), "length {len}");
-            assert!(KELP_TIPS.contains(&world.get(BlockPos::new(0, top, 0))));
-            for y in base.y..top {
-                assert_eq!(world.get(BlockPos::new(0, y, 0)), bb::KELP_AGE_0);
-            }
-            assert_eq!(world.edits.len() as i32, len);
+            assert!(tallest > 11, "legacy 2..=11 heights: tallest {tallest}");
         }
-        assert!(any);
     }
 
     #[test]
@@ -995,16 +1043,17 @@ mod tests {
             ))
             .is_none()
         );
-        // Floating in mid-water (floor far below): no support.
+        // A mid-water (or above-water) input height is projected onto the
+        // floor, like the BDS rules' `query.heightmap` inputs.
         let mut deep = Flat::new(30, 62, bb::SAND);
-        assert!(
+        assert_eq!(
             run(&mut deep, 3, |ctx| seagrass_feature(
                 ctx,
                 BlockPos::new(0, 50, 0)
-            ))
-            .is_none()
+            )),
+            Some(BlockPos::new(0, 31, 0))
         );
-        assert!(deep.edits.is_empty());
+        assert!(deep.edits.keys().all(|p| p.y == 31 || p.y == 32));
     }
 
     #[test]

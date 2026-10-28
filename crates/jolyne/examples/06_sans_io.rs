@@ -191,7 +191,7 @@ async fn main() -> anyhow::Result<()> {
     pump(&mut spawn, &mut client)?;
     let mut client = wait(client)?; // sends `RequestChunkRadius`
     pump(&mut client, &mut spawn)?;
-    let mut spawn = wait(spawn)?; // radius, chunk publisher, `PlayerSpawn`
+    let mut spawn = wait(spawn)?; // radius, `PlayerSpawn`
     pump(&mut spawn, &mut client)?;
     let mut joined = next(client)?; // sends `SetLocalPlayerAsInitialized`
     pump(&mut joined.session, &mut spawn)?;

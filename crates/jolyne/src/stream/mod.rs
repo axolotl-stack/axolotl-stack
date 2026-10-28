@@ -28,7 +28,7 @@ use std::marker::PhantomData;
 use std::time::Duration;
 
 use crate::config::FlushMode;
-use crate::error::JolyneError;
+use crate::error::{HandshakePhase, JolyneError, ProtocolError};
 use crate::proto::conn::Connection;
 use crate::proto::custom::CustomPacket;
 use crate::proto::observe::ConnectionMetrics;
@@ -237,14 +237,14 @@ impl<S: PhaseOf<R>, R: Role, T: Transport> BedrockStream<S, R, T> {
     }
 }
 
-/// Play-state packet I/O, shared by [`BedrockStream<Play, _, _>`] and
-/// [`BedrockTransport`].
-macro_rules! packet_io {
+/// Play-state packet receiving, shared by [`BedrockStream<Play, _, _>`] and
+/// [`BedrockTransport`]. Each type supplies `next_raw`, the receive path
+/// (a streamed server spawn checks `SetLocalPlayerAsInitialized` there).
+macro_rules! packet_recv {
     () => {
         /// The next packet with only its header parsed.
         pub async fn recv_packet_raw(&mut self) -> Result<RawPacket, JolyneError> {
-            let (transport, conn) = self.io();
-            driver::recv_raw(transport, conn).await
+            self.next_raw().await
         }
 
         /// The next packet as a borrowed view (no payload allocation).
@@ -272,7 +272,14 @@ macro_rules! packet_io {
             }
             result
         }
+    };
+}
+pub(crate) use packet_recv;
 
+/// Play-state packet sending, shared by [`BedrockStream<Play, _, _>`] and
+/// [`BedrockTransport`].
+macro_rules! packet_send {
+    () => {
         /// Queues a packet; writes immediately unless a buffering flush mode
         /// is active (or the pending batch hit its limits).
         pub async fn send_packet(&mut self, packet: McpePacket) -> Result<(), JolyneError> {
@@ -329,13 +336,38 @@ macro_rules! packet_io {
         }
     };
 }
-pub(crate) use packet_io;
+pub(crate) use packet_send;
 
 impl<R: Role, T: Transport> BedrockStream<Play, R, T>
 where
     Play: PhaseOf<R>,
 {
-    packet_io!();
+    packet_recv!();
+    packet_send!();
+
+    /// Play receive path. While a streamed server spawn waits for
+    /// `SetLocalPlayerAsInitialized`, the spawn deadline bounds the wait and
+    /// that packet's runtime ID is checked.
+    async fn next_raw(&mut self) -> Result<RawPacket, JolyneError> {
+        let parts = self.parts_mut();
+        let deadline = parts
+            .owner
+            .play_session()
+            .and_then(|session| session.spawn_deadline());
+        let recv = driver::recv_raw(&mut parts.transport, parts.owner.connection());
+        let packet = match deadline {
+            None => return recv.await,
+            Some(deadline) => {
+                tokio::time::timeout_at(tokio::time::Instant::from_std(deadline), recv)
+                    .await
+                    .map_err(|_| ProtocolError::Timeout(HandshakePhase::Spawn))??
+            }
+        };
+        if let Some(session) = parts.owner.play_session() {
+            session.check_initialized(&packet)?;
+        }
+        Ok(packet)
+    }
 }
 
 #[cfg(feature = "raknet")]

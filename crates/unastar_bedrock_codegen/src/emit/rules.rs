@@ -1,9 +1,14 @@
 //! Feature rules: one function per active rule plus the per-pass dispatcher.
 //!
 //! A chunk runs, per placement pass, every rule whose biome filter matches
-//! any biome present in the chunk, each once, in identifier order. Biome
-//! filters are resolved at build time into 256-bit masks over numeric biome
-//! ids, so the runtime check is four `u64` ANDs per rule.
+//! any biome present in the chunk, each once, in identifier order. Each
+//! distributed placement is then checked again against the biome at its own
+//! position: a rule for an underground biome (lush caves) must not decorate
+//! the whole chunk volume just because one pocket of that biome exists. A
+//! chunk-wide check scattered lush-cave clay ore through mountain stone up to
+//! y 145 and generated about twice the BDS fixture's clay, moss and cave vines
+//! (see the codegen README). Biome filters are resolved at build time into
+//! 256-bit masks over numeric biome ids.
 
 use super::{Emitter, sanitize, scatter};
 use crate::error::{Error, Result};
@@ -61,7 +66,14 @@ pub fn emit(em: &mut Emitter<'_>) -> Result<TokenStream> {
     }
     for rule in &active {
         let name = rule_fn(rule);
-        let call = |pos: TokenStream| em.call(&rule.places_feature, pos);
+        let [a, b, c, d] = mask(em, rule)?;
+        let call = |pos: TokenStream| {
+            let place = em.call(&rule.places_feature, quote!(p));
+            quote!({
+                let p = #pos;
+                if biome_allowed(&[#a, #b, #c, #d], ctx.world.biome(p)) { #place } else { None }
+            })
+        };
         let body = scatter::emit(em, &rule.source, &rule.scatter, call)?;
         let doc = format!(
             " `{}` from `{}`: places `{}`.",
@@ -82,6 +94,11 @@ pub fn emit(em: &mut Emitter<'_>) -> Result<TokenStream> {
                 #(#arms)*
                 _ => {}
             }
+        }
+        /// Whether numeric biome `id` is in the 256-bit `mask`.
+        #[inline]
+        fn biome_allowed(mask: &[u64; 4], id: u16) -> bool {
+            mask.get(usize::from(id) / 64).is_some_and(|w| w >> (id % 64) & 1 == 1)
         }
         #(#fns)*
     })
