@@ -175,6 +175,14 @@ wins. Missing unpublished fields, dynamic values and unsupported bounds fail
 rather than becoming invented constructor values. Geometry remains unscaled
 until the runtime's independently verified derivation.
 
+`entity::families` collects pack and addon type-family names before freeze and
+resolves filter operands to layout-scoped numeric handles. Effective component
+prototypes share immutable membership bitsets; definition barriers replace or
+remove them without unioning or restoring earlier groups. Membership matching
+does no hot-path string lookup. A headless GameServer smoke loaded every
+canonical family body and applied cow/chicken family-only projections; this
+does not establish native implicit families or complete mob behavior.
+
 `entity::events::CompiledEvents` binds group/property handles and caller-owned
 numeric filter/action/external-event operands at startup. It shares one tree
 traversal with `unastar-rules`, emits typed borrowed effects into reusable buffers,
