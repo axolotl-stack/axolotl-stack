@@ -458,3 +458,35 @@ BDS keeps the floor; its position, replace set or density is unverified. The
 old gravel layer had hidden this. The broader andesite/diorite excess is the
 ore blobs now reaching stone directly under the floor.
 
+### Open-space snap to surface (2026-10-28)
+
+`snap_to_surface_feature` searched up to `vertical_search_range` blocks
+through solid rock, first towards the surface and then away from it. Inputs
+embedded in rock (most of the uniform -64..256 lush-cave placements, and the
+underwater-magma inputs, which are at least two blocks below the surface)
+therefore snapped onto any cave or ocean floor within reach. The walk now
+starts at the input, only moves through open blocks (air, plus water where
+allowed) towards the surface, and places nothing from inside rock, like the
+equivalent Java environment scan. This is inferred from the fixture
+histogram, not from a controlled native capture.
+
+| Metric | Through-rock search | Open-space walk |
+|---|---:|---:|
+| terrain exact | 0.874311 | 0.878217 |
+| terrain within 2 | 0.922794 | 0.924058 |
+| terrain mean absolute error | 1.232709 | 1.221680 |
+| histogram L1 | 0.040459 | 0.027691 |
+
+| Block (68-chunk fixture) | BDS | Through-rock | Open-space |
+|---|---:|---:|---:|
+| moss_block | 14031 | 23124 | 15879 |
+| cave_vines | 2217 | 5343 | 2547 |
+| clay | 26162 | 42616 | 31591 |
+| big_dripleaf | 190 | 1068 | 439 |
+| moss_carpet | 924 | 1039 | 767 |
+
+Still open after this change: magma 393 vs 142, big dripleaf 439 vs 190,
+small dripleaf 80 vs 20, clay 31591 vs 26162, and the geode blocks (calcite
+1097 vs 538, smooth basalt 1310 vs 721, amethyst 888 vs 366, budding
+amethyst 106 vs 27), about twice BDS each. Surface metrics did not move.
+
