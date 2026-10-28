@@ -77,6 +77,7 @@ pub fn decorate_chunk<W: FeatureWorld + ?Sized, H: StepHook<W>>(
     let mut indices: Vec<u16> = Vec::with_capacity(64);
     for step in 0..dimension.steps.len() {
         hook.place_structures(world, &mut rng, decoration_seed, step);
+        let _stage = crate::profile::scope(crate::profile::Stage::decoration(step));
         indices.clear();
         for b in biomes.iter() {
             indices.extend_from_slice(dimension.biome_steps[b as usize][step]);

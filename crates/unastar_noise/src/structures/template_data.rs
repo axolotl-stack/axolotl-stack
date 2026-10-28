@@ -1,7 +1,7 @@
 //! Decoded structure templates (see `codegen/templates.rs` for the blob layout).
 
 use crate::features::JavaState;
-use std::sync::LazyLock;
+use std::sync::{LazyLock, OnceLock};
 
 /// Generated template table.
 #[allow(clippy::all, missing_docs)]
@@ -188,7 +188,9 @@ fn decode(name: &'static str, data: &'static [u8], offset: usize) -> Template {
     }
 }
 
-static TEMPLATES: LazyLock<Vec<Template>> = LazyLock::new(|| {
+// The first structure must not decode every template in the dimension. Slots
+// keep returned references stable and single-flight across generation workers.
+static TEMPLATES: LazyLock<Vec<OnceLock<Template>>> = LazyLock::new(|| {
     let data = generated::TEMPLATE_DATA;
     let mut c = Cursor { data, o: 0 };
     let count = c.u32() as usize;
@@ -197,13 +199,7 @@ static TEMPLATES: LazyLock<Vec<Template>> = LazyLock::new(|| {
         TEMPLATE_NAMES.len(),
         "template blob does not match the name table"
     );
-    (0..count)
-        .map(|i| {
-            let off =
-                u32::from_le_bytes(data[4 + 4 * i..8 + 4 * i].try_into().expect("offset")) as usize;
-            decode(TEMPLATE_NAMES[i], data, off)
-        })
-        .collect()
+    (0..count).map(|_| OnceLock::new()).collect()
 });
 
 static EMPTY: Template = Template {
@@ -234,8 +230,12 @@ pub fn template(name: &str) -> Option<&'static Template> {
              feature and UNASTAR_JAVA_SERVER_JAR set"
         );
     }
-    TEMPLATE_NAMES
-        .binary_search(&name)
-        .ok()
-        .map(|i| &TEMPLATES[i])
+    TEMPLATE_NAMES.binary_search(&name).ok().map(|i| {
+        TEMPLATES[i].get_or_init(|| {
+            let data = generated::TEMPLATE_DATA;
+            let offset =
+                u32::from_le_bytes(data[4 + 4 * i..8 + 4 * i].try_into().expect("offset")) as usize;
+            decode(TEMPLATE_NAMES[i], data, offset)
+        })
+    })
 }

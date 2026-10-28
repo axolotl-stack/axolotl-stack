@@ -12,6 +12,8 @@ bedrock-worldgen = ["dep:unastar_bedrock_codegen", "dep:smallvec"]
 # time from the server jar named by UNASTAR_JAVA_SERVER_JAR (Mojang assets,
 # never committed). Without it `world.generator.kind = "java"` is rejected.
 java-worldgen = ["unastar_noise/java-templates"]
+# Opt-in instrumentation; ordinary builds have no timers or TLS callbacks.
+worldgen-profile = ["unastar_noise/worldgen-profile"]
 
 [dependencies]
 bytes.workspace = true

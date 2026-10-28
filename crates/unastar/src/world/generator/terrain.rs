@@ -41,6 +41,8 @@ use crate::world::generator::proto::DenseBlocks;
 use std::simd::prelude::*;
 use unastar_noise::java_biomes::JavaBiome;
 use unastar_noise::overworld_settings;
+#[cfg(feature = "bedrock-worldgen")]
+use unastar_noise::profile::{self, Stage};
 use unastar_noise::features::java_blocks::states;
 
 /// The shared aquifer's output domain is exactly ordinary air and source water/lava.
@@ -264,6 +266,7 @@ impl JavaGenerator {
         pos: ChunkPos,
         fill: impl FnOnce(&NoiseRegistry, ChunkPos, &FlatCacheGrid, &ColumnContextGrid) -> T,
     ) -> (DenseBlocks, T) {
+        let _noise = profile::scope(Stage::Noise);
         let noises = self.shared_noises();
         let grid = FlatCacheGrid::new(pos.x, pos.z, noises);
         let col_grid = ColumnContextGrid::new(pos.x, pos.z, noises, &grid);
@@ -420,6 +423,7 @@ impl JavaGenerator {
                                 // Fast path: all 4 blocks are solid
                                 if in_vein_range {
                                     // Check veinifier for ore veins
+                                    let _fluids = profile::scope(Stage::AquiferVeins);
                                     for z_in_cell in 0..4i32 {
                                         let local_z =
                                             ((cell_z as i32) * cell_width + z_in_cell) as u8;
@@ -444,6 +448,7 @@ impl JavaGenerator {
                                 }
                             } else {
                                 // Process each block - use aquifer for non-solid, veinifier for solid
+                                let _fluids = profile::scope(Stage::AquiferVeins);
                                 for z_in_cell in 0..4i32 {
                                     let density = densities_arr[z_in_cell as usize];
                                     let local_z = ((cell_z as i32) * cell_width + z_in_cell) as u8;

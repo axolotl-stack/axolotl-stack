@@ -22,7 +22,9 @@ public final class NativePendingActorProbe {
     static Object worldData(anr.a context)throws Exception{return NativeContextProbe.worldData(context);}
     static final String CH=MC+"world.level.chunk.", POS=MC+"core.BlockPos", STATE=MC+"world.level.block.state.BlockState";
     static final List<Object> observations=new ArrayList<>();
+    static final List<String> deniedNetwork=Collections.synchronizedList(new ArrayList<>());
     static Object region,chunk,position,server;
+    static boolean fullBoundary;
     static Object state(String name)throws Exception {
         Object registry=field(MC+"core.registries.BuiltInRegistries","BLOCK");
         Object id=call(MC+"resources.Identifier","parse",null,new String[]{"java.lang.String"},name);
@@ -108,6 +110,7 @@ public final class NativePendingActorProbe {
         evidence.put("transitions",observations);
         evidence.put("native_tick_count",call(MC+"server.MinecraftServer","getTickCount",nativeServer,new String[]{}));
         captureTemplates(runtime,nativeServer);
+        if(fullBoundary)captureFullBoundary(level,nativeServer,actorBlocks);
     }
     static Object get(Object tag,String name)throws Exception {
         return call(MC+"nbt.CompoundTag","get",tag,new String[]{"java.lang.String"},name);
@@ -154,12 +157,50 @@ public final class NativePendingActorProbe {
         evidence.put("proto_template_actors",records);
         evidence.put("proto_template_actor_count",records.size());
     }
+    static void captureFullBoundary(Object level,ary nativeServer,List<String> actorBlocks)throws Exception {
+        // Quiesce every possible FEATURES writer before injecting the controlled
+        // actor grid. Otherwise its artificial roof would change later features.
+        for(int z=-1;z<=1;z++)for(int x=-1;x<=1;x++)requestChunk(level,"OVERWORLD",x,z,"FEATURES");
+        if(actorBlocks.size()>256)throw new IllegalStateException("actor grid exceeds one chunk");
+        List<String> blocks=new ArrayList<>(actorBlocks);
+        List<int[]> positions=new ArrayList<>();
+        for(int i=0;i<blocks.size();i++)positions.add(new int[]{i&15,200,i>>4});
+        blocks.add("minecraft:chest");positions.add(new int[]{4,400,1});
+        List<Object> rows=new ArrayList<>();
+        for(int i=0;i<positions.size();i++) {
+            int[] xyz=positions.get(i);position=make(POS,new String[]{"int","int","int"},xyz[0],xyz[1],xyz[2]);
+            boolean placed=(boolean)call(MC+"server.level.WorldGenRegion","setBlock",region,new String[]{POS,STATE,"int","int"},position,state(blocks.get(i)),2,512);
+            Object saved=call(CH+"ChunkAccess","getBlockEntityNbtForSaving",chunk,new String[]{POS,MC+"core.HolderLookup$Provider"},position,nativeServer.bc());
+            Map<String,Object> row=new LinkedHashMap<>();row.put("position",xyz);row.put("block",blocks.get(i));row.put("set_result",placed);
+            row.put("proto_state",invoke("canonicalState",new Class[]{Object.class},call(MC+"world.level.BlockGetter","getBlockState",chunk,new String[]{POS},position)));
+            row.put("proto_saved",saved==null?null:NativeContextProbeSnapshot.nbt(saved));rows.add(row);
+        }
+        Object full=requestChunk(level,"OVERWORLD",0,0,"FULL");
+        evidence.put("full_chunk_class",full.getClass().getName());
+        for(int i=0;i<positions.size();i++) {
+            int[] xyz=positions.get(i);position=make(POS,new String[]{"int","int","int"},xyz[0],xyz[1],xyz[2]);
+            Object saved=call(CH+"ChunkAccess","getBlockEntityNbtForSaving",full,new String[]{POS,MC+"core.HolderLookup$Provider"},position,nativeServer.bc());
+            Map<String,Object> row=(Map<String,Object>)rows.get(i);
+            row.put("full_saved",saved==null?null:NativeContextProbeSnapshot.nbt(saved));
+            row.put("full_state",invoke("canonicalState",new Class[]{Object.class},call(MC+"world.level.BlockGetter","getBlockState",full,new String[]{POS},position)));
+        }
+        evidence.put("full_boundary_actors",rows);
+        evidence.put("full_boundary_registered_actor_count",actorBlocks.size());
+        evidence.put("native_tick_count",call(MC+"server.MinecraftServer","getTickCount",nativeServer,new String[]{}));
+    }
     @SuppressWarnings("removal")
     public static void main(String[] args)throws Exception {
         Path root=Path.of(args[0]),output=Path.of(args[1]);NativeContextProbe.seed=0;NativeContextProbe.structures=false;
+        fullBoundary=args.length>2&&args[2].equals("--full-boundary");
         var ctor=NativeWorldgenOracle.class.getDeclaredConstructor(Path.class);ctor.setAccessible(true);NativeContextProbe.oracle=ctor.newInstance(root.resolve("server-mappings.txt"));
         for(String[] pin:new String[][]{{"server.jar","64bb6d763bed0a9f1d632ec347938594144943ed","SHA-1"},{"server-mappings.txt","5621e9253f05fd57872bbe7f8ddf5f9a7d525955","SHA-1"},{"versions/1.21.11/server-1.21.11.jar","ec47239a8de246335e1d54f6ac319bd35641778eb4b6a6da06372840d02fcebc","SHA-256"}})invoke("verify",new Class[]{Path.class,String.class,String.class},root.resolve(pin[0]),pin[1],pin[2]);
-        System.setSecurityManager(new SecurityManager(){public void checkPermission(java.security.Permission p){}public void checkConnect(String h,int p){throw new SecurityException("network forbidden");}public void checkListen(int p){throw new SecurityException("listen forbidden");}public void checkAccept(String h,int p){throw new SecurityException("accept forbidden");}});
+        System.setSecurityManager(new SecurityManager(){
+            public void checkPermission(java.security.Permission p){}
+            private void deny(String operation){deniedNetwork.add(operation);throw new SecurityException("network forbidden: "+operation);}
+            public void checkConnect(String h,int p){deny("connect "+h+":"+p);}
+            public void checkListen(int p){deny("listen "+p);}
+            public void checkAccept(String h,int p){deny("accept "+h+":"+p);}
+        });
         try {
             var ctx=((org.apache.logging.log4j.core.impl.Log4jContextFactory)org.apache.logging.log4j.LogManager.getFactory()).getSelector().getContext("NativePendingActorProbe",ClassLoader.getSystemClassLoader(),false);
             var logging=new org.apache.logging.log4j.core.config.DefaultConfiguration();((Map<String,String>)logging.getComponent("ContextProperties")).put("hostName","localhost");ctx.start(logging);
@@ -179,8 +220,14 @@ public final class NativePendingActorProbe {
             Object nativeStem=call(MC+"core.Registry","getValueOrThrow",stems,new String[]{MC+"resources.ResourceKey"},field(MC+"world.level.dimension.LevelStem","OVERWORLD"));
             Object level=make(MC+"server.level.ServerLevel",new String[]{MC+"server.MinecraftServer","java.util.concurrent.Executor",MC+"world.level.storage.LevelStorageSource$LevelStorageAccess",MC+"world.level.storage.ServerLevelData",MC+"resources.ResourceKey",MC+"world.level.dimension.LevelStem","boolean","long","java.util.List","boolean",MC+"world.RandomSequences"},nativeServer,direct,storage,stem.d(),field(MC+"world.level.Level","OVERWORLD"),nativeStem,false,0L,List.of(),false,make(MC+"world.RandomSequences",new String[]{}));
             ((Map<Object,Object>)member(MC+"server.MinecraftServer","levels",nativeServer)).put(field(MC+"world.level.Level","OVERWORLD"),level);
-            evidence.put("schema","native-worldgen-actor-transitions-v1");evidence.put("pins_verified",true);evidence.put("context","genuine constructor-only native server and CARVERS chunks, actual WorldGenRegion FEATURES step/cache/holders, no listeners, ticks, FULL promotion or SPAWN");capture(root,nativeServer,level);
+            evidence.put("schema","native-worldgen-actor-transitions-v1");evidence.put("pins_verified",true);
+            evidence.put("context",fullBoundary
+                ? "genuine constructor-only native server, CARVERS chunks and WorldGenRegion FEATURES context, controlled pending placements followed by actual FULL request; no listeners, server loop or ticks"
+                : "genuine constructor-only native server and CARVERS chunks, actual WorldGenRegion FEATURES step/cache/holders, no listeners, ticks, FULL promotion or SPAWN");
+            capture(root,nativeServer,level);
+            if(fullBoundary)evidence.put("full_boundary_context","actual native FULL request after controlled pending placements; no server loop or ticks");
         } catch(Throwable e){e.printStackTrace();evidence.put("failure",e.toString());}
+        evidence.put("denied_network_attempts",deniedNetwork);
         var gson=new com.google.gson.GsonBuilder().serializeNulls().create();
         Files.writeString(output,gson.toJson(evidence));
         if(!evidence.containsKey("failure")) {

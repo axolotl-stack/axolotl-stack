@@ -379,7 +379,7 @@ impl BlockStateSpace {
         }
     }
 
-    fn same_block(self, old: u32, new: u32) -> bool {
+    pub(crate) fn same_block(self, old: u32, new: u32) -> bool {
         match self {
             Self::Bedrock => same_bedrock_block(old, new),
             Self::Java => {
@@ -1063,6 +1063,11 @@ impl Chunk {
         &self.block_entities
     }
 
+    /// Borrow a section in array order (index zero begins at [`MIN_Y`]).
+    pub(crate) fn sub_chunk(&self, index: usize) -> &SubChunk {
+        &self.sub_chunks[index]
+    }
+
     /// Insert or replace an actor, rejecting another chunk or invalid world height.
     pub fn set_block_entity(&mut self, entity: BlockEntity) -> bool {
         let [x, y, z] = entity.position();
@@ -1098,6 +1103,26 @@ impl Chunk {
             self.block_entities.push(entity);
         }
         true
+    }
+
+    /// FULL-status promotion of native pending actors. Markers outside build
+    /// height are dropped; the rest instantiate from the current block state.
+    pub(crate) fn promote_java_pending_actors(&mut self) {
+        assert_eq!(self.state_space, BlockStateSpace::Java);
+        let mut actors = std::mem::take(&mut self.block_entities);
+        actors.retain_mut(|actor| {
+            if !actor.is_java_pending() {
+                return true;
+            }
+            let [x, y, z] = actor.position();
+            if !self.bounds.contains(&y) {
+                return false;
+            }
+            let state = self.get_block((x & 15) as u8, y as i16, (z & 15) as u8);
+            let state = unastar_noise::features::JavaState(u16::try_from(state).expect("canonical Java state id"));
+            actor.promote_java_pending(state.block().name())
+        });
+        self.block_entities = actors;
     }
 
     /// Remove an actor at an absolute position; returns whether one existed.
@@ -1411,12 +1436,20 @@ impl SubChunk {
         self.set_block_layers(x, y, z, block_id, None)
     }
 
-    fn set_block_layers(&mut self, x: u8, y: u8, z: u8, primary: u32, secondary: Option<u32>) -> u32 {
+    /// Atomically write both storages, exactly as [`Chunk::set_block_layers`]
+    /// does for this section; returns the previous primary block.
+    pub(crate) fn set_block_layers(&mut self, x: u8, y: u8, z: u8, primary: u32, secondary: Option<u32>) -> u32 {
         let old = self.storage.set_block(x as usize, y as usize, z as usize, primary);
         if self.secondary.is_some() || secondary.is_some() {
             self.set_secondary(x, y, z, secondary.unwrap_or(*blocks::AIR));
         }
         old
+    }
+
+    /// Underlying-liquid block, or `None` when this section has no secondary storage.
+    pub(crate) fn secondary_block(&self, x: u8, y: u8, z: u8) -> Option<u32> {
+        self.secondary.as_ref()
+            .map(|layer| layer.storage.get_block(x as usize, y as usize, z as usize))
     }
 
     fn set_secondary(&mut self, x: u8, y: u8, z: u8, block: u32) {

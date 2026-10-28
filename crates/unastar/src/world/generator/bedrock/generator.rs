@@ -82,10 +82,15 @@ impl BedrockGenerator {
         let (mut blocks, mut biomes) = self.core.generate_noise_with(
             pos,
             |noises, pos, grid, columns| {
+                let _biomes = unastar_noise::profile::scope(unastar_noise::profile::Stage::Biomes);
                 biome_source::fill_chunk_with(noises, pos, grid, columns, Self::lookup_climate)
             },
         );
-        blocks.convert_to_bedrock();
+        {
+            let _noise = unastar_noise::profile::scope(unastar_noise::profile::Stage::Noise);
+            blocks.convert_to_bedrock();
+        }
+        let _surface = unastar_noise::profile::scope(unastar_noise::profile::Stage::Surface);
         for qy in 0..QUARTS_Y {
             for qz in 0..4 {
                 for qx in 0..4 {
@@ -215,7 +220,10 @@ impl Generator for BedrockGenerator {
         let (blocks, biomes) = self.surface_blocks(pos);
         self.surface_heights
             .get_or_compute(pos, || column_heights(&blocks, |id| id != bb::AIR));
-        let chunk = blocks.to_chunk(pos);
+        let chunk = {
+            let _packing = unastar_noise::profile::scope(unastar_noise::profile::Stage::Packing);
+            blocks.to_chunk(pos)
+        };
         let mut set = BiomeSet::default();
         for &id in biomes.as_slice() {
             set.insert(id);

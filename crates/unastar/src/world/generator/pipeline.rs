@@ -175,6 +175,7 @@ impl ChunkPipeline {
             let protos: [Arc<ProtoChunk>; 9] = SLOT_OFFSETS
                 .map(|(dx, dz)| self.proto(ChunkPos::new(origin.x + dx, origin.z + dz)));
             let refs: [&ProtoChunk; 9] = std::array::from_fn(|slot| &*protos[slot]);
+            let region_stage = unastar_noise::profile::scope(unastar_noise::profile::Stage::Region);
             let mut region = DecorationRegion::new_with_bounds(
                 self.generator.seed(),
                 origin,
@@ -182,6 +183,7 @@ impl ChunkPipeline {
                 self.generator.block_classes(),
                 self.generator.world_bounds(),
             );
+            drop(region_stage);
             self.generator.decorate(&mut region);
             region.into_writes()
         })
@@ -223,6 +225,7 @@ impl ChunkPipeline {
     /// Finished source-native chunk, before any lossy Java-to-Bedrock block mapping.
     ///
     /// Blocks, biome ids and actor recipes retain their source-edition identities.
+    /// Native chunks complete their FEATURES halo and FULL actor promotion here.
     /// All lossy adaptation happens in the final `generate` boundary.
     pub fn generate_native(&self, pos: ChunkPos) -> Chunk {
         if let Some(session) = &self.native {
@@ -231,8 +234,10 @@ impl ChunkPipeline {
             for (dx, dz) in SLOT_OFFSETS {
                 session.decorate(&*self.generator, ChunkPos::new(pos.x + dx, pos.z + dz));
             }
-            return session.snapshot(&*self.generator, pos)
+            let mut chunk = session.snapshot(&*self.generator, pos)
                 .expect("completed native origin has no source chunk");
+            chunk.promote_java_pending_actors();
+            return chunk;
         }
         let generator = &self.generator;
         if !generator.decorates() {

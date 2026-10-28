@@ -1,0 +1,661 @@
+{
+  "version": "1.21.11",
+  "server_sha1": "64bb6d763bed0a9f1d632ec347938594144943ed",
+  "mappings_sha1": "5621e9253f05fd57872bbe7f8ddf5f9a7d525955",
+  "proto_capture_sha256": "82f39249cdb5045fcfb3777b2ef45f99514565caa5ac39472ccd61a7139ec9d2",
+  "level_capture_sha256": "c90a1b7525c0c168678f5c4406e57d4cee206ad0b40224aa9fa2baea524e71d1",
+  "seed": -7046029254386353131,
+  "chunk": [
+    -1,
+    -1
+  ],
+  "dimension": "minecraft:overworld",
+  "profile": "actual native SPAWN ProtoChunk and FULL LevelChunk save observations after FEATURES halo closure, zero ticks; live actors only, pending promotion is a separate measurement",
+  "records": [
+    {
+      "position": [
+        -10,
+        -13,
+        -5
+      ],
+      "block": "minecraft:spawner",
+      "proto_saved": {
+        "value": [
+          [
+            "Delay",
+            {
+              "value": 20,
+              "type": "Short"
+            }
+          ],
+          [
+            "MaxNearbyEntities",
+            {
+              "value": 6,
+              "type": "Short"
+            }
+          ],
+          [
+            "MaxSpawnDelay",
+            {
+              "value": 800,
+              "type": "Short"
+            }
+          ],
+          [
+            "MinSpawnDelay",
+            {
+              "value": 200,
+              "type": "Short"
+            }
+          ],
+          [
+            "RequiredPlayerRange",
+            {
+              "value": 16,
+              "type": "Short"
+            }
+          ],
+          [
+            "SpawnCount",
+            {
+              "value": 4,
+              "type": "Short"
+            }
+          ],
+          [
+            "SpawnData",
+            {
+              "value": [
+                [
+                  "entity",
+                  {
+                    "value": [
+                      [
+                        "id",
+                        {
+                          "value": "minecraft:zombie",
+                          "type": "Str"
+                        }
+                      ]
+                    ],
+                    "type": "Compound"
+                  }
+                ]
+              ],
+              "type": "Compound"
+            }
+          ],
+          [
+            "SpawnPotentials",
+            {
+              "value": [
+                0,
+                []
+              ],
+              "type": "List"
+            }
+          ],
+          [
+            "SpawnRange",
+            {
+              "value": 4,
+              "type": "Short"
+            }
+          ],
+          [
+            "components",
+            {
+              "value": [],
+              "type": "Compound"
+            }
+          ],
+          [
+            "id",
+            {
+              "value": "minecraft:mob_spawner",
+              "type": "Str"
+            }
+          ],
+          [
+            "x",
+            {
+              "value": -10,
+              "type": "Int"
+            }
+          ],
+          [
+            "y",
+            {
+              "value": -13,
+              "type": "Int"
+            }
+          ],
+          [
+            "z",
+            {
+              "value": -5,
+              "type": "Int"
+            }
+          ]
+        ],
+        "type": "Compound"
+      },
+      "level_saved": {
+        "value": [
+          [
+            "Delay",
+            {
+              "value": 20,
+              "type": "Short"
+            }
+          ],
+          [
+            "MaxNearbyEntities",
+            {
+              "value": 6,
+              "type": "Short"
+            }
+          ],
+          [
+            "MaxSpawnDelay",
+            {
+              "value": 800,
+              "type": "Short"
+            }
+          ],
+          [
+            "MinSpawnDelay",
+            {
+              "value": 200,
+              "type": "Short"
+            }
+          ],
+          [
+            "RequiredPlayerRange",
+            {
+              "value": 16,
+              "type": "Short"
+            }
+          ],
+          [
+            "SpawnCount",
+            {
+              "value": 4,
+              "type": "Short"
+            }
+          ],
+          [
+            "SpawnData",
+            {
+              "value": [
+                [
+                  "entity",
+                  {
+                    "value": [
+                      [
+                        "id",
+                        {
+                          "value": "minecraft:zombie",
+                          "type": "Str"
+                        }
+                      ]
+                    ],
+                    "type": "Compound"
+                  }
+                ]
+              ],
+              "type": "Compound"
+            }
+          ],
+          [
+            "SpawnPotentials",
+            {
+              "value": [
+                0,
+                []
+              ],
+              "type": "List"
+            }
+          ],
+          [
+            "SpawnRange",
+            {
+              "value": 4,
+              "type": "Short"
+            }
+          ],
+          [
+            "components",
+            {
+              "value": [],
+              "type": "Compound"
+            }
+          ],
+          [
+            "id",
+            {
+              "value": "minecraft:mob_spawner",
+              "type": "Str"
+            }
+          ],
+          [
+            "keepPacked",
+            {
+              "value": 0,
+              "type": "Byte"
+            }
+          ],
+          [
+            "x",
+            {
+              "value": -10,
+              "type": "Int"
+            }
+          ],
+          [
+            "y",
+            {
+              "value": -13,
+              "type": "Int"
+            }
+          ],
+          [
+            "z",
+            {
+              "value": -5,
+              "type": "Int"
+            }
+          ]
+        ],
+        "type": "Compound"
+      },
+      "spawner_entity": "minecraft:zombie"
+    },
+    {
+      "position": [
+        -6,
+        -12,
+        -13
+      ],
+      "block": "minecraft:spawner",
+      "proto_saved": {
+        "value": [
+          [
+            "Delay",
+            {
+              "value": 20,
+              "type": "Short"
+            }
+          ],
+          [
+            "MaxNearbyEntities",
+            {
+              "value": 6,
+              "type": "Short"
+            }
+          ],
+          [
+            "MaxSpawnDelay",
+            {
+              "value": 800,
+              "type": "Short"
+            }
+          ],
+          [
+            "MinSpawnDelay",
+            {
+              "value": 200,
+              "type": "Short"
+            }
+          ],
+          [
+            "RequiredPlayerRange",
+            {
+              "value": 16,
+              "type": "Short"
+            }
+          ],
+          [
+            "SpawnCount",
+            {
+              "value": 4,
+              "type": "Short"
+            }
+          ],
+          [
+            "SpawnData",
+            {
+              "value": [
+                [
+                  "entity",
+                  {
+                    "value": [
+                      [
+                        "id",
+                        {
+                          "value": "minecraft:cave_spider",
+                          "type": "Str"
+                        }
+                      ]
+                    ],
+                    "type": "Compound"
+                  }
+                ]
+              ],
+              "type": "Compound"
+            }
+          ],
+          [
+            "SpawnPotentials",
+            {
+              "value": [
+                0,
+                []
+              ],
+              "type": "List"
+            }
+          ],
+          [
+            "SpawnRange",
+            {
+              "value": 4,
+              "type": "Short"
+            }
+          ],
+          [
+            "components",
+            {
+              "value": [],
+              "type": "Compound"
+            }
+          ],
+          [
+            "id",
+            {
+              "value": "minecraft:mob_spawner",
+              "type": "Str"
+            }
+          ],
+          [
+            "x",
+            {
+              "value": -6,
+              "type": "Int"
+            }
+          ],
+          [
+            "y",
+            {
+              "value": -12,
+              "type": "Int"
+            }
+          ],
+          [
+            "z",
+            {
+              "value": -13,
+              "type": "Int"
+            }
+          ]
+        ],
+        "type": "Compound"
+      },
+      "level_saved": {
+        "value": [
+          [
+            "Delay",
+            {
+              "value": 20,
+              "type": "Short"
+            }
+          ],
+          [
+            "MaxNearbyEntities",
+            {
+              "value": 6,
+              "type": "Short"
+            }
+          ],
+          [
+            "MaxSpawnDelay",
+            {
+              "value": 800,
+              "type": "Short"
+            }
+          ],
+          [
+            "MinSpawnDelay",
+            {
+              "value": 200,
+              "type": "Short"
+            }
+          ],
+          [
+            "RequiredPlayerRange",
+            {
+              "value": 16,
+              "type": "Short"
+            }
+          ],
+          [
+            "SpawnCount",
+            {
+              "value": 4,
+              "type": "Short"
+            }
+          ],
+          [
+            "SpawnData",
+            {
+              "value": [
+                [
+                  "entity",
+                  {
+                    "value": [
+                      [
+                        "id",
+                        {
+                          "value": "minecraft:cave_spider",
+                          "type": "Str"
+                        }
+                      ]
+                    ],
+                    "type": "Compound"
+                  }
+                ]
+              ],
+              "type": "Compound"
+            }
+          ],
+          [
+            "SpawnPotentials",
+            {
+              "value": [
+                0,
+                []
+              ],
+              "type": "List"
+            }
+          ],
+          [
+            "SpawnRange",
+            {
+              "value": 4,
+              "type": "Short"
+            }
+          ],
+          [
+            "components",
+            {
+              "value": [],
+              "type": "Compound"
+            }
+          ],
+          [
+            "id",
+            {
+              "value": "minecraft:mob_spawner",
+              "type": "Str"
+            }
+          ],
+          [
+            "keepPacked",
+            {
+              "value": 0,
+              "type": "Byte"
+            }
+          ],
+          [
+            "x",
+            {
+              "value": -6,
+              "type": "Int"
+            }
+          ],
+          [
+            "y",
+            {
+              "value": -12,
+              "type": "Int"
+            }
+          ],
+          [
+            "z",
+            {
+              "value": -13,
+              "type": "Int"
+            }
+          ]
+        ],
+        "type": "Compound"
+      },
+      "spawner_entity": "minecraft:cave_spider"
+    },
+    {
+      "position": [
+        -11,
+        -13,
+        -2
+      ],
+      "block": "minecraft:chest",
+      "proto_saved": {
+        "value": [
+          [
+            "LootTable",
+            {
+              "value": "minecraft:chests/simple_dungeon",
+              "type": "Str"
+            }
+          ],
+          [
+            "LootTableSeed",
+            {
+              "value": 7807364882080267195,
+              "type": "Long"
+            }
+          ],
+          [
+            "components",
+            {
+              "value": [],
+              "type": "Compound"
+            }
+          ],
+          [
+            "id",
+            {
+              "value": "minecraft:chest",
+              "type": "Str"
+            }
+          ],
+          [
+            "x",
+            {
+              "value": -11,
+              "type": "Int"
+            }
+          ],
+          [
+            "y",
+            {
+              "value": -13,
+              "type": "Int"
+            }
+          ],
+          [
+            "z",
+            {
+              "value": -2,
+              "type": "Int"
+            }
+          ]
+        ],
+        "type": "Compound"
+      },
+      "level_saved": {
+        "value": [
+          [
+            "LootTable",
+            {
+              "value": "minecraft:chests/simple_dungeon",
+              "type": "Str"
+            }
+          ],
+          [
+            "LootTableSeed",
+            {
+              "value": 7807364882080267195,
+              "type": "Long"
+            }
+          ],
+          [
+            "components",
+            {
+              "value": [],
+              "type": "Compound"
+            }
+          ],
+          [
+            "id",
+            {
+              "value": "minecraft:chest",
+              "type": "Str"
+            }
+          ],
+          [
+            "keepPacked",
+            {
+              "value": 0,
+              "type": "Byte"
+            }
+          ],
+          [
+            "x",
+            {
+              "value": -11,
+              "type": "Int"
+            }
+          ],
+          [
+            "y",
+            {
+              "value": -13,
+              "type": "Int"
+            }
+          ],
+          [
+            "z",
+            {
+              "value": -2,
+              "type": "Int"
+            }
+          ]
+        ],
+        "type": "Compound"
+      },
+      "loot_table": "minecraft:chests/simple_dungeon",
+      "loot_seed": 7807364882080267195
+    }
+  ]
+}

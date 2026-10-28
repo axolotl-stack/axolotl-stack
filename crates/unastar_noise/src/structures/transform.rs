@@ -490,10 +490,7 @@ pub fn rotate_state(state: JavaState, rotation: Rotation) -> JavaState {
         Direction::West,
     ];
     if sides.iter().all(|d| s.has(d.name())) {
-        let vals: Vec<&'static str> = sides
-            .iter()
-            .map(|d| state.value(d.name()).expect("side"))
-            .collect();
+        let vals = sides.map(|d| state.value(d.name()).expect("side"));
         for (i, d) in sides.iter().enumerate() {
             let to = rotation.rotate_dir(*d);
             s = s.try_with(to.name(), vals[i]);

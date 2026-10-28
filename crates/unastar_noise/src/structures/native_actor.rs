@@ -164,6 +164,8 @@ pub fn apply_normalization(source: &mut Tag, patch: &[u8]) -> io::Result<()> {
 
 // Captured constructor/setEntityId defaults, not Java template assets.
 include!("../../java_data/native_actor_defaults.rs");
+// Captured LevelChunk FULL promotions of pending actors, keyed by block id.
+include!("../../java_data/native_promoted_actor_defaults.rs");
 
 #[cfg(test)]
 mod tests {
@@ -176,6 +178,24 @@ mod tests {
             (key("seed"), Tag::Long(i64::MIN)),
         ]));
         assert_eq!(Tag::read_root(&tag.write_root().unwrap()).unwrap(), tag);
+    }
+
+    /// Two independent native observations, direct `BlockEntityType.create`
+    /// and FULL pending promotion, must describe the same constructor save.
+    #[test]
+    fn promoted_defaults_agree_with_direct_constructor_saves() {
+        let normalized = |bytes| {
+            let mut tag = Tag::read_root(bytes).unwrap();
+            for name in ["x", "y", "z", "keepPacked"] { tag.compound_mut().unwrap().remove(&key(name)); }
+            tag
+        };
+        for block in ["chest", "trapped_chest", "barrel", "dispenser", "dropper", "spawner",
+            "trial_spawner", "suspicious_sand", "suspicious_gravel", "decorated_pot"]
+        {
+            let promoted = promoted_default(&format!("minecraft:{block}")).unwrap();
+            assert_eq!(normalized(promoted), normalized(runtime_default(block).unwrap()), "{block}");
+        }
+        assert!(promoted_default("minecraft:moving_piston").is_none());
     }
 }
 

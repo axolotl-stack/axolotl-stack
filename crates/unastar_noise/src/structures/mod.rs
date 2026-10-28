@@ -9,6 +9,7 @@ pub mod native_actor;
 pub mod piece;
 pub mod placement;
 pub mod processor;
+pub mod rings;
 pub mod ruined;
 pub mod start;
 pub mod template;

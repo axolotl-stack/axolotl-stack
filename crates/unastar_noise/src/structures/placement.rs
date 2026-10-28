@@ -2,8 +2,8 @@
 //! start of a set, with frequency reduction and exclusion zones.
 
 use super::context::StructureContext;
+use super::rings::RingPositions;
 use crate::features::random::LegacyRandom;
-use std::sync::OnceLock;
 
 /// `StructurePlacement.FrequencyReductionMethod`.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -89,143 +89,6 @@ pub struct StructureSetDef {
     pub placement: Placement,
 }
 
-/// Lazily computed concentric ring positions per set (strongholds).
-pub struct RingPositions {
-    cells: Vec<OnceLock<Vec<(i32, i32)>>>,
-}
-
-impl RingPositions {
-    pub fn new(set_count: usize) -> Self {
-        Self {
-            cells: (0..set_count).map(|_| OnceLock::new()).collect(),
-        }
-    }
-
-    /// Ring chunk positions of set `set` (computed on first use).
-    pub fn get(&self, set: usize, ctx: &dyn StructureContext) -> &[(i32, i32)] {
-        self.cells[set].get_or_init(|| {
-            let def = &super::generated::STRUCTURE_SETS[set];
-            match def.placement.kind {
-                PlacementKind::ConcentricRings {
-                    distance,
-                    spread,
-                    count,
-                    preferred_biomes,
-                } => ring_positions(ctx, distance, spread, count, preferred_biomes),
-                PlacementKind::RandomSpread { .. } => Vec::new(),
-            }
-        })
-    }
-}
-
-/// `ChunkGeneratorStructureState.generateRingPositions` (concentric rings
-/// seed = level seed). Each position is moved to a preferred biome found by
-/// `findBiomeHorizontal` within 112 blocks of the ring point.
-///
-/// The ring points and their forked randoms come from one sequential random,
-/// as in Java; the biome searches are independent (Java runs them as parallel
-/// tasks too) and run on up to 8 threads.
-pub fn ring_positions(
-    ctx: &dyn StructureContext,
-    distance: i32,
-    spread: i32,
-    count: i32,
-    preferred: u128,
-) -> Vec<(i32, i32)> {
-    if count == 0 {
-        return Vec::new();
-    }
-    let mut points: Vec<(i32, i32, LegacyRandom)> = Vec::with_capacity(count as usize);
-    let mut random = LegacyRandom::new(ctx.seed());
-    let mut angle = random.next_double() * std::f64::consts::PI * 2.0;
-    let mut in_ring = 0;
-    let mut ring = 0;
-    let mut per_ring = spread;
-    for j in 0..count {
-        let dist = (4 * distance + distance * ring * 6) as f64
-            + (random.next_double() - 0.5) * distance as f64 * 2.5;
-        // Java Math.round: floor(x + 0.5).
-        let cx = (angle.cos() * dist + 0.5).floor() as i32;
-        let cz = (angle.sin() * dist + 0.5).floor() as i32;
-        points.push((cx, cz, random.fork()));
-        angle += std::f64::consts::PI * 2.0 / per_ring as f64;
-        in_ring += 1;
-        if in_ring == per_ring {
-            ring += 1;
-            in_ring = 0;
-            per_ring += 2 * per_ring / (ring + 1);
-            per_ring = per_ring.min(count - j);
-            angle += random.next_double() * std::f64::consts::PI * 2.0;
-        }
-    }
-    let search = |(cx, cz, mut fork): (i32, i32, LegacyRandom)| -> (i32, i32) {
-        match find_biome_horizontal(
-            ctx,
-            (cx << 4) + 8,
-            0,
-            (cz << 4) + 8,
-            112,
-            preferred,
-            &mut fork,
-        ) {
-            Some((x, _, z)) => (x >> 4, z >> 4),
-            None => (cx, cz),
-        }
-    };
-    let threads = std::thread::available_parallelism()
-        .map_or(1, |n| n.get())
-        .clamp(1, 8);
-    let per = points.len().div_ceil(threads);
-    let mut out = Vec::with_capacity(points.len());
-    std::thread::scope(|s| {
-        let handles: Vec<_> = points
-            .chunks(per)
-            .map(|part| {
-                let part = part.to_vec();
-                s.spawn(move || part.into_iter().map(search).collect::<Vec<_>>())
-            })
-            .collect();
-        for h in handles {
-            out.extend(h.join().expect("ring search thread"));
-        }
-    });
-    out
-}
-
-/// `BiomeSource.findBiomeHorizontal(x, y, z, radius, 1, predicate, random, false)`:
-/// a uniformly random matching quart on the ring at `radius` (reservoir
-/// sampling over the square's outline and interior as Java iterates it).
-pub fn find_biome_horizontal(
-    ctx: &dyn StructureContext,
-    x: i32,
-    y: i32,
-    z: i32,
-    radius: i32,
-    biomes: u128,
-    random: &mut LegacyRandom,
-) -> Option<(i32, i32, i32)> {
-    let qx = x >> 2;
-    let qz = z >> 2;
-    let r = radius >> 2;
-    let qy = y >> 2;
-    let mut found = None;
-    let mut matches = 0;
-    for dz in -r..=r {
-        for dx in -r..=r {
-            let bx = qx + dx;
-            let bz = qz + dz;
-            let biome = ctx.noise_biome(bx, qy, bz);
-            if biomes & (1u128 << biome) != 0 {
-                if found.is_none() || random.next_int_bounded(matches + 1) == 0 {
-                    found = Some((bx << 2, y, bz << 2));
-                }
-                matches += 1;
-            }
-        }
-    }
-    found
-}
-
 impl Placement {
     /// `RandomSpreadStructurePlacement.getPotentialStructureChunk`.
     pub fn potential_chunk(&self, seed: i64, x: i32, z: i32) -> (i32, i32) {
@@ -262,7 +125,7 @@ impl Placement {
     ) -> bool {
         match self.kind {
             PlacementKind::RandomSpread { .. } => self.potential_chunk(ctx.seed(), x, z) == (x, z),
-            PlacementKind::ConcentricRings { .. } => rings.get(set, ctx).contains(&(x, z)),
+            PlacementKind::ConcentricRings { .. } => rings.contains(set, ctx, x, z),
         }
     }
 }

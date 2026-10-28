@@ -17,7 +17,7 @@ use unastar_noise::block_class;
 use super::proto::{NativeBiome, ProtoChunk, WORLD_HEIGHT};
 use crate::world::ChunkPos;
 use crate::world::block_entity::BlockEntity;
-use crate::world::chunk::{BlockStateSpace, Chunk, MIN_Y};
+use crate::world::chunk::{BlockStateSpace, Chunk, MIN_Y, SUBCHUNK_COUNT, SubChunk};
 
 /// Heightmap kinds, with Java's predicates over [`block_class`] flags.
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
@@ -226,13 +226,17 @@ impl RegionProtos<'_> {
     }
 }
 
-/// [`WorldGenRegion`] over 9 cached proto chunks with copy-on-write overlays.
+/// [`WorldGenRegion`] over 9 proto chunks. Shared (cached) protos are read
+/// through copy-on-write overlays; native session protos are mutated in place.
 pub struct DecorationRegion<'a> {
     seed: i64,
     origin: ChunkPos,
     protos: RegionProtos<'a>,
-    /// Copy of a proto chunk, made on the first write into it.
-    overlays: [Option<Box<Chunk>>; 9],
+    /// Shared protos only: clone just the sections this origin writes, never
+    /// whole chunks or their biomes.
+    overlays: [[Option<SubChunk>; SUBCHUNK_COUNT as usize]; 9],
+    /// Shared protos only: sparse actors are copied when this origin changes one.
+    actor_overlays: [Option<Vec<BlockEntity>>; 9],
     heightmaps: [[OnceCell<ColumnHeights>; HeightmapKind::ALL.len()]; 9],
     classes: &'static [u8],
     writes: DecorationWrites,
@@ -305,6 +309,7 @@ impl<'a> DecorationRegion<'a> {
             protos,
             bounds,
             overlays: Default::default(),
+            actor_overlays: Default::default(),
             heightmaps: Default::default(),
             classes,
             writes: DecorationWrites {
@@ -331,8 +336,7 @@ impl<'a> DecorationRegion<'a> {
         if !self.bounds.contains(&y) && self.state_space() != BlockStateSpace::Java {
             return None;
         }
-        self.chunk(slot).block_entities().iter()
-            .find(|entity| entity.position() == [x, y, z])
+        self.actors(slot).iter().find(|entity| entity.position() == [x, y, z])
     }
 
     /// Native WorldGenRegion can install pending NBT after a height-rejected block
@@ -352,11 +356,26 @@ impl<'a> DecorationRegion<'a> {
         }
         let record = matches!(self.protos, RegionProtos::Shared(_));
         let recorded = record.then(|| entity.clone());
-        let chunk = self.chunk_mut(slot);
-        let inserted = if native {
-            chunk.set_native_block_entity(entity)
-        } else {
-            chunk.set_block_entity(entity)
+        let inserted = match &mut self.protos {
+            RegionProtos::Mutable(protos) => {
+                let chunk = &mut protos[slot].0.chunk;
+                if native { chunk.set_native_block_entity(entity) } else { chunk.set_block_entity(entity) }
+            }
+            RegionProtos::Shared(protos) => {
+                // Mirror Chunk::{set_block_entity, set_native_block_entity}: the
+                // slot already fixes the chunk; only ordinary actors are height checked.
+                if native || protos[slot].chunk.block_bounds().contains(&y) {
+                    let actors = self.actor_overlays[slot]
+                        .get_or_insert_with(|| protos[slot].chunk.block_entities().to_vec());
+                    match actors.iter_mut().find(|old| old.position() == [x, y, z]) {
+                        Some(old) => *old = entity,
+                        None => actors.push(entity),
+                    }
+                    true
+                } else {
+                    false
+                }
+            }
         };
         if inserted && let Some(entity) = recorded {
             self.writes.entities[slot].push(EntityWrite {
@@ -376,7 +395,24 @@ impl<'a> DecorationRegion<'a> {
         if !self.bounds.contains(&y) {
             return false;
         }
-        let removed = self.chunk_mut(slot).remove_block_entity(x, y, z);
+        let removed = match &mut self.protos {
+            RegionProtos::Mutable(protos) => protos[slot].0.chunk.remove_block_entity(x, y, z),
+            RegionProtos::Shared(protos) => {
+                let chunk = &protos[slot].chunk;
+                match chunk.block_bounds().contains(&y).then(|| {
+                    self.actor_overlays[slot].as_deref().unwrap_or(chunk.block_entities())
+                        .iter().position(|actor| actor.position() == [x, y, z])
+                }).flatten() {
+                    Some(index) => {
+                        self.actor_overlays[slot]
+                            .get_or_insert_with(|| chunk.block_entities().to_vec())
+                            .remove(index);
+                        true
+                    }
+                    None => false,
+                }
+            }
+        };
         // Independent replay must record removals even if this proto had no actor.
         if matches!(self.protos, RegionProtos::Shared(_)) {
             self.writes.entities[slot].push(EntityWrite {
@@ -399,19 +435,62 @@ impl<'a> DecorationRegion<'a> {
         Some((slot_of(dx, dz), (x & 15) as u8, (z & 15) as u8))
     }
 
+    /// Current block in one storage layer: the session chunk, or a shared proto
+    /// seen through this origin's section overlay.
     #[inline]
-    fn chunk(&self, slot: usize) -> &Chunk {
-        match &self.overlays[slot] {
-            Some(chunk) => chunk,
-            None => &self.protos.get(slot).chunk,
+    fn block_layer(&self, slot: usize, x: u8, y: i16, z: u8, layer: u8) -> u32 {
+        let chunk = &self.protos.get(slot).chunk;
+        if matches!(self.protos, RegionProtos::Shared(_))
+            && chunk.block_bounds().contains(&i32::from(y))
+            && let Some(section) = &self.overlays[slot][((i32::from(y) - MIN_Y) >> 4) as usize]
+        {
+            let local_y = (y & 15) as u8;
+            return if layer == 0 {
+                section.get_block(x, local_y, z)
+            } else {
+                section.secondary_block(x, local_y, z).unwrap_or_else(|| chunk.state_space().air())
+            };
         }
+        chunk.get_block_layer(x, y, z, layer)
     }
 
-    fn chunk_mut(&mut self, slot: usize) -> &mut Chunk {
-        match &mut self.protos {
-            RegionProtos::Shared(protos) => self.overlays[slot]
-                .get_or_insert_with(|| Box::new(protos[slot].chunk.clone())),
-            RegionProtos::Mutable(protos) => &mut protos[slot].0.chunk,
+    fn actors(&self, slot: usize) -> &[BlockEntity] {
+        self.actor_overlays[slot]
+            .as_deref()
+            .unwrap_or_else(|| self.protos.get(slot).chunk.block_entities())
+    }
+
+    /// Apply one block write with exactly the chunk's storage/actor semantics.
+    fn write_block(&mut self, slot: usize, x: u8, y: i16, z: u8, block: u32, secondary: Option<u32>) {
+        let space = self.state_space();
+        let protos = match &mut self.protos {
+            RegionProtos::Mutable(protos) => {
+                let chunk = &mut protos[slot].0.chunk;
+                if space == BlockStateSpace::Java {
+                    chunk.set_block(x, y, z, block);
+                } else {
+                    chunk.set_block_layers(x, y, z, block, secondary);
+                }
+                return;
+            }
+            RegionProtos::Shared(protos) => protos,
+        };
+        let chunk = &protos[slot].chunk;
+        if !chunk.block_bounds().contains(&i32::from(y)) {
+            return;
+        }
+        let section_index = ((i32::from(y) - MIN_Y) >> 4) as usize;
+        let old = self.overlays[slot][section_index]
+            .get_or_insert_with(|| chunk.sub_chunk(section_index).clone())
+            .set_block_layers(x, (y & 15) as u8, z, block, secondary);
+        if old != block && !space.same_block(old, block) {
+            let position = [(chunk.x << 4) | i32::from(x), i32::from(y), (chunk.z << 4) | i32::from(z)];
+            let actors = self.actor_overlays[slot].as_deref().unwrap_or(chunk.block_entities());
+            if let Some(index) = actors.iter().position(|actor| actor.position() == position) {
+                self.actor_overlays[slot]
+                    .get_or_insert_with(|| chunk.block_entities().to_vec())
+                    .remove(index);
+            }
         }
     }
 
@@ -423,10 +502,16 @@ impl<'a> DecorationRegion<'a> {
             .unwrap_or(block_class::UNMAPPED)
     }
 
-    fn cell_flags(&self, chunk: &Chunk, x: u8, y: i16, z: u8) -> u8 {
-        let mut flags = self.class_of(chunk.get_block(x, y, z));
-        let secondary = chunk.get_block_layer(x, y, z, 1);
-        if !chunk.state_space().is_air(secondary) {
+    /// Combined layer flags; `frozen` reads the unmodified proto (Java WG maps).
+    fn cell_flags(&self, slot: usize, frozen: bool, x: u8, y: i16, z: u8) -> u8 {
+        let (primary, secondary) = if frozen {
+            let chunk = &self.protos.get(slot).chunk;
+            (chunk.get_block(x, y, z), chunk.get_block_layer(x, y, z, 1))
+        } else {
+            (self.block_layer(slot, x, y, z, 0), self.block_layer(slot, x, y, z, 1))
+        };
+        let mut flags = self.class_of(primary);
+        if !self.state_space().is_air(secondary) {
             flags = (flags | self.class_of(secondary)) & !block_class::AIR;
         }
         flags
@@ -435,14 +520,13 @@ impl<'a> DecorationRegion<'a> {
     fn column_top(&self, slot: usize, kind: HeightmapKind, lx: u8, lz: u8, from_y: i32) -> i16 {
         let frozen = self.state_space() == BlockStateSpace::Java
             && matches!(kind, HeightmapKind::WorldSurfaceWg | HeightmapKind::OceanFloorWg);
-        let chunk = if frozen { &self.protos.get(slot).chunk } else { self.chunk(slot) };
         let mut y = from_y.min(self.bounds.end - 1);
         while y >= self.bounds.start {
-            let flags = self.cell_flags(chunk, lx, y as i16, lz);
+            let flags = self.cell_flags(slot, frozen, lx, y as i16, lz);
             assert!(
                 flags & block_class::UNMAPPED == 0,
                 "block {} has no class in this generator's block-class table",
-                chunk.get_block(lx, y as i16, lz)
+                self.block_layer(slot, lx, y as i16, lz, 0)
             );
             if kind.counts(flags) {
                 return (y + 1) as i16;
@@ -503,7 +587,7 @@ impl WorldGenRegion for DecorationRegion<'_> {
         if !self.bounds.contains(&y) {
             return self.state_space().air();
         }
-        self.chunk(slot).get_block_layer(lx, y as i16, lz, layer)
+        self.block_layer(slot, lx, y as i16, lz, layer)
     }
 
     fn set_block(&mut self, x: i32, y: i32, z: i32, block: u32) -> bool {
@@ -523,10 +607,8 @@ impl WorldGenRegion for DecorationRegion<'_> {
         let secondary_state = secondary.unwrap_or_else(|| space.air());
         if space == BlockStateSpace::Java {
             assert!(secondary.is_none(), "Java waterlogging must remain in its canonical primary state");
-            self.chunk_mut(slot).set_block(lx, y as i16, lz, block);
-        } else {
-            self.chunk_mut(slot).set_block_layers(lx, y as i16, lz, block, secondary);
         }
+        self.write_block(slot, lx, y as i16, lz, block, secondary);
         if matches!(self.protos, RegionProtos::Shared(_)) {
             self.writes.per_slot[slot].push(BlockWrite {
                 x: lx,
@@ -538,7 +620,7 @@ impl WorldGenRegion for DecorationRegion<'_> {
         }
 
         // Keep initialised heightmaps current, the way Java updates them on every set.
-        let flags = self.cell_flags(self.chunk(slot), lx, y as i16, lz);
+        let flags = self.cell_flags(slot, false, lx, y as i16, lz);
         let column = (lz as usize) << 4 | lx as usize;
         for kind in HeightmapKind::ALL {
             // Persisted CARVERS selects the four final maps. The WG maps remain
@@ -615,9 +697,8 @@ mod tests {
         BlockEntity::generated(position, "Chest", &[1, 1, b'M', marker], None, None)
     }
 
-    fn semantics(chunk: &Chunk) -> Vec<([i32; 3], NBTTag)> {
-        let mut actors: Vec<_> = chunk
-            .block_entities()
+    fn semantics(actors: &[BlockEntity]) -> Vec<([i32; 3], NBTTag)> {
+        let mut actors: Vec<_> = actors
             .iter()
             .map(|entity| {
                 let mut bytes = Vec::new();
@@ -649,26 +730,26 @@ mod tests {
         let refs = std::array::from_fn(|slot| &protos[slot]);
         let mut region = DecorationRegion::new(7, origin, refs, &CLASSES);
         assert_eq!(
-            semantics(region.chunk(center)),
-            semantics(&protos[center].chunk)
+            semantics(region.actors(center)),
+            semantics(protos[center].chunk.block_entities())
         );
         // Metadata-only write at block offset zero, followed by a state-only update.
         assert!(region.set_block_entity(actor(position, 2)));
         region.set_block(-1, -1, -1, chest.max_state_id);
-        assert_eq!(region.chunk(center).block_entities().len(), 1);
-        let NBTTag::Compound(fields) = &semantics(region.chunk(center))[0].1 else {
+        assert_eq!(region.actors(center).len(), 1);
+        let NBTTag::Compound(fields) = &semantics(region.actors(center))[0].1 else {
             panic!()
         };
         assert_eq!(fields.0.get("M"), Some(&NBTTag::Byte(2.into())));
         // A different native block clears the actor, including during replay.
         region.set_block(-1, -1, -1, *blocks::STONE);
-        assert!(region.chunk(center).block_entities().is_empty());
+        assert!(region.actors(center).is_empty());
         region.set_block(-1, -1, -1, chest.min_state_id);
         region.set_block_entity(actor(position, 3));
         region.set_block_entity(actor(position, 4));
-        assert_eq!(region.chunk(center).block_entities().len(), 1);
+        assert_eq!(region.actors(center).len(), 1);
         assert!(region.remove_block_entity(-1, -1, -1));
-        assert!(region.chunk(center).block_entities().is_empty());
+        assert!(region.actors(center).is_empty());
         region.set_block_entity(actor(position, 5));
         // Removal must also apply to actors contributed by an earlier origin,
         // even when no actor was visible to this live origin.
@@ -681,7 +762,7 @@ mod tests {
         for position in [[16, 0, -1], [-33, 0, -1], [-1, -65, -1], [-1, 320, -1]] {
             assert!(!region.set_block_entity(actor(position, 7)));
         }
-        let expected = SLOT_OFFSETS.map(|(dx, dz)| semantics(region.chunk(slot_of(dx, dz))));
+        let expected = SLOT_OFFSETS.map(|(dx, dz)| semantics(region.actors(slot_of(dx, dz))));
         let writes = region.into_writes().clone();
         for (slot, (dx, dz)) in SLOT_OFFSETS.into_iter().enumerate() {
             let mut replay = protos[slot].chunk.clone();
@@ -689,10 +770,10 @@ mod tests {
                 replay.set_block_entity(actor([-2, -1, -1], 9));
             }
             writes.apply_to(dx, dz, &mut replay);
-            assert_eq!(semantics(&replay), expected[slot]);
+            assert_eq!(semantics(replay.block_entities()), expected[slot]);
             // Replaying the same cached origin is deterministic, not append-only.
             writes.apply_to(dx, dz, &mut replay);
-            assert_eq!(semantics(&replay), expected[slot]);
+            assert_eq!(semantics(replay.block_entities()), expected[slot]);
         }
     }
 
@@ -796,4 +877,32 @@ mod tests {
         assert_eq!(replay.encode_subchunk_disk(0).unwrap()[1], 2);
     }
 
+    #[test]
+    fn section_edges_and_heightmaps_replay_at_negative_neighbor_coordinates() {
+        let origin = ChunkPos::new(-2, -3);
+        let protos = SLOT_OFFSETS
+            .map(|(dx, dz)| ProtoChunk::empty(ChunkPos::new(origin.x + dx, origin.z + dz), 1));
+        let refs = std::array::from_fn(|slot| &protos[slot]);
+        let mut region = DecorationRegion::new(7, origin, refs, &CLASSES);
+        let (x, z) = (-33, -49);
+        let levels = [-64, -49, -48, -1, 0, 15, 16, 319];
+        assert_eq!(region.heightmap(HeightmapKind::WorldSurfaceWg, x, z), MIN_Y);
+        for y in levels {
+            assert!(region.set_block(x, y, z, *blocks::DIRT));
+            assert_eq!(region.get_block(x, y, z), *blocks::DIRT);
+            assert_eq!(region.get_block(x - 1, y, z), *blocks::AIR);
+        }
+        assert_eq!(region.heightmap(HeightmapKind::WorldSurfaceWg, x, z), 320);
+        region.set_block(x, 319, z, *blocks::AIR);
+        assert_eq!(region.heightmap(HeightmapKind::WorldSurfaceWg, x, z), 17);
+        assert!(!region.set_block(x, -65, z, *blocks::STONE));
+        assert!(!region.set_block(x, 320, z, *blocks::STONE));
+        let writes = region.into_writes();
+        let mut replay = protos[slot_of(-1, -1)].chunk.clone();
+        writes.apply_to(-1, -1, &mut replay);
+        for y in levels {
+            let expected = if y == 319 { *blocks::AIR } else { *blocks::DIRT };
+            assert_eq!(replay.get_block(15, y as i16, 15), expected);
+        }
+    }
 }

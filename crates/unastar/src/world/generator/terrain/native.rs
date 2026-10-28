@@ -4,6 +4,7 @@ use unastar_noise as noise;
 use noise::NoiseSource;
 use noise::java_biomes::JavaBiome;
 use noise::features::java_blocks::states;
+use noise::profile::{self, Stage};
 
 use super::{JavaDimension, JavaGenerator, JavaTerrainStage, java_aquifer_substance};
 use crate::world::ChunkPos;
@@ -32,8 +33,12 @@ macro_rules! secondary_stage {
         pub(super) fn $method(&self, pos: ChunkPos, stage: JavaTerrainStage) -> ProtoChunk {
             use noise::$router as router;
             use noise::$settings as settings;
+            let _noise = profile::scope(Stage::Noise);
             let source = self.terrain_source(pos);
-            let biomes = biome_source::$biomes(&source, pos);
+            let biomes = {
+                let _biomes = profile::scope(Stage::Biomes);
+                biome_source::$biomes(&source, pos)
+            };
             if stage == JavaTerrainStage::Biomes {
                 return self.biomes_stage(pos, biomes);
             }
@@ -100,10 +105,14 @@ impl JavaGenerator {
         &self, pos: ChunkPos, stage: JavaTerrainStage,
     ) -> ProtoChunk {
         use noise::overworld_settings as settings;
+        let _noise = profile::scope(Stage::Noise);
         let source = self.terrain_source(pos);
         let flat = noise::FlatCacheGrid::new_native(pos.x, pos.z, &source);
         let columns = noise::ColumnContextGrid::new_native(pos.x, pos.z, &source, &flat);
-        let biomes = biome_source::fill_overworld_native(&source, pos, &flat, &columns);
+        let biomes = {
+            let _biomes = profile::scope(Stage::Biomes);
+            biome_source::fill_overworld_native(&source, pos, &flat, &columns)
+        };
         if stage == JavaTerrainStage::Biomes {
             return self.biomes_stage(pos, biomes);
         }
@@ -136,6 +145,7 @@ impl JavaGenerator {
                             sampler.update_x(block_x);
                             for z_batch in (0..width).step_by(4) {
                                 let densities = sampler.densities_4z(z_batch).to_array();
+                                let _fluids = profile::scope(Stage::AquiferVeins);
                                 for (lane, density) in densities.into_iter().enumerate() {
                                     let in_z = z_batch + lane;
                                     let z = cell_z * width + in_z;
@@ -223,6 +233,7 @@ impl JavaGenerator {
         A: FnMut(i32, i32, i32) -> Option<u32>,
     {
         if stage >= JavaTerrainStage::Surface {
+            let surface = profile::scope(Stage::Surface);
             // Native reference profile: center BIOMES/NOISE, then additional
             // BIOMES chunks dz-outer/dx-inner. The center is borrowed, not copied.
             let neighbors: [Option<QuartBiomes>; 9] = std::array::from_fn(|slot| {
@@ -246,7 +257,9 @@ impl JavaGenerator {
             };
             let corners = self.preliminary_corners(pos, source);
             self.surface_system.build_surface(&mut dense, pos, source, corners, &mut biome_at);
+            drop(surface);
             if stage == JavaTerrainStage::Carvers {
+                let _carvers = profile::scope(Stage::Carvers);
                 let mut carving = NativeCarveContext {
                     generator: self,
                     surface: &self.surface_system, source, pos, corners,
@@ -255,6 +268,7 @@ impl JavaGenerator {
                 carver::carve_chunk(self.options.dimension, self.seed, &mut dense, pos, &mut carving);
             }
         }
+        let _packing = profile::scope(Stage::Packing);
         ProtoChunk { pos, chunk: dense.to_chunk(pos), biomes }
     }
 }

@@ -68,10 +68,19 @@ workers (0 = half the cores, 1..=8), off the ECS tick thread. Chunk biomes are 3
 Generation runs through `world::generator::ChunkPipeline`: per-chunk terrain stages
 write a flat block buffer that is packed into paletted sub-chunks once; a 3x3
 decoration stage (features and structures) runs only for generators that decorate.
+Decoration overlays over shared (cached) protos clone only modified sub-chunks,
+not whole neighbouring chunks or biome storage. Sparse block actors have an
+independent lazy overlay; ordered block/actor journals preserve the same
+invalidation and replay semantics. Native in-order sessions mutate their chunks
+directly.
 Legacy projection gates run through `cargo test -p unastar --test worldgen_parity`.
 They cover terrain/surface metrics, projected proto voxels, biomes and spawn, not
 literal canonical Java-state equality. `worldgen_parity_report` prints those
-metrics; `worldgen_bench` reports performance separately.
+metrics; `worldgen_bench` reports performance separately (edition benchmarks
+require their complete edition feature). The optional `worldgen-profile` feature
+adds exclusive stage counters. See
+[`tools/worldgen-perf`](../../tools/worldgen-perf/README.md) for allocation ceilings,
+exact-output hashes, real-pool throughput, cold spawn timing and profiling.
 
 ### Canonical Java-state captures
 
@@ -615,6 +624,9 @@ chunk-coordinate boundary at both build-height edges; LevelDB and BlazeDB
 close/reopen, network decoding and same-primary dry overwrites retain the
 expected states. A controlled primary-only placement ablation fails that
 regression by replacing required secondary water with air.
+Secondary-only liquid participates in the region's occupied-height query while
+the solid-height query remains primary-only. Layered writes below a known top
+retain its cached height; removing that top triggers a downward rescan.
 
 A separate local-install smoke independently decoded ten shipped sulfur-spring
 templates: 29 source-water cells survived all four rotations at both height
