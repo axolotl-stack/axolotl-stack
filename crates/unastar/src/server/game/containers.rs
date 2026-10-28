@@ -238,6 +238,10 @@ fn lid(world: &mut World, pos: IVec3) -> Option<IVec3> {
 /// The slots a window on `pos` shows, `None` if the block cannot hold them.
 fn view(world: &mut World, pos: IVec3) -> Option<(ContainerKind, Inventory)> {
     let (lead, other) = halves(world, pos)?;
+    unpack_loot(world, lead);
+    if let Some(other) = other {
+        unpack_loot(world, other);
+    }
     let first = container(world, lead)?;
     let kind = first.kind;
     let mut slots = first.items.slots().to_vec();
@@ -265,6 +269,78 @@ fn store_view(world: &mut World, pos: IVec3, slots: &Inventory) {
             }
         }
         save(world, half);
+    }
+}
+
+/// A generated container's loot table is unpacked the first time it is
+/// opened, broken or reached by a hopper: items are rolled from the table
+/// with the saved seed and spread over random empty slots, splitting stacks
+/// while slots remain (the Java `LootTable.fill` algorithm; BDS's random
+/// sequence is not reproduced, so the same seed gives different contents).
+fn unpack_loot(world: &mut World, pos: IVec3) {
+    let Some((path, seed)) = container_mut(world, pos).and_then(|mut c| c.take_loot_table()) else {
+        return;
+    };
+    let name = path.strip_prefix("loot_tables/").unwrap_or(&path);
+    let name = name.strip_suffix(".json").unwrap_or(name);
+    let mut rng = <rand::rngs::StdRng as rand::SeedableRng>::seed_from_u64(seed as u64);
+    let stacks = match unastar_data::loot::get(name) {
+        Some(table) => match unastar_rules::loot::roll(
+            unastar_data::loot::vanilla(),
+            table,
+            &super::loot::LootContext::default(),
+            &mut rng,
+        ) {
+            Ok(drops) => super::block_drops::loot_stacks(world, drops),
+            Err(error) => {
+                warn!(table = name, %error, "container loot table cannot be evaluated");
+                Vec::new()
+            }
+        },
+        None => {
+            warn!(table = name, ?pos, "container names an unknown loot table");
+            Vec::new()
+        }
+    };
+    if let Some(mut container) = container_mut(world, pos) {
+        fill(&mut container.items, stacks, &mut rng);
+    }
+    save(world, pos);
+}
+
+/// Spread `items` over random empty slots of `slots`, splitting stacks in
+/// two at random while more empty slots remain than items.
+fn fill(slots: &mut Inventory, items: Vec<ItemStack>, rng: &mut impl Rng) {
+    use rand::seq::SliceRandom;
+    let mut free: Vec<usize> = (0..slots.size())
+        .filter(|&slot| slots.item(slot).is_some_and(ItemStack::is_empty))
+        .collect();
+    free.shuffle(rng);
+    let (mut splittable, mut placed): (Vec<_>, Vec<_>) = items
+        .into_iter()
+        .filter(|stack| !stack.is_empty())
+        .partition(|stack| stack.count > 1);
+    while free.len() > placed.len() + splittable.len() && !splittable.is_empty() {
+        let mut stack = splittable.swap_remove(rng.gen_range(0..splittable.len()));
+        let take = rng.gen_range(1..=stack.count / 2);
+        let (part, rest) = stack.split(take);
+        stack = rest;
+        for piece in [stack, part] {
+            if piece.count > 1 && rng.r#gen::<bool>() {
+                splittable.push(piece);
+            } else {
+                placed.push(piece);
+            }
+        }
+    }
+    placed.extend(splittable);
+    placed.shuffle(rng);
+    for stack in placed {
+        let Some(slot) = free.pop() else {
+            warn!("loot does not fit the container; the rest is discarded (Java fill)");
+            break;
+        };
+        let _ = slots.set_item(slot, stack.with_net_id(0).into_slot());
     }
 }
 
@@ -839,6 +915,7 @@ pub(super) struct BrokenContainer {
 /// chest and take its contents out.
 pub(super) fn breaking(world: &mut World, pos: IVec3) -> Option<BrokenContainer> {
     let kind = load(world, pos)?;
+    unpack_loot(world, pos);
     close_viewers(world, pos, kind);
     if let Some((_, Some(_))) = halves(world, pos) {
         let other = container(world, pos).and_then(pair_pos)?;

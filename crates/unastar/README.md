@@ -529,8 +529,12 @@ blast furnaces, smokers and hoppers have block actors
   above, fuel from the side, output from below) and collect dropped items.
 - Ender chests show the player's own 27 slots, saved in the player record.
 
-Not implemented: loot-table unpacking of generated chests (contents appear
-empty until it lands; the table is preserved), chest obstruction checks,
+Generated chests unpack their loot table the first time they are opened,
+broken or reached by a hopper, with the saved seed and the Java `fill`
+spreading algorithm; BDS's random sequence is not reproduced, so a seed gives
+different (but table-valid) contents than BDS.
+
+Not implemented: chest obstruction checks,
 trapped-chest redstone, copper chests, redstone-driven hopper locking, furnace
 ambient sounds, and the `Block` compound BDS adds to saved block items. No BDS
 container capture exists yet; window/lid/data packet shapes follow the BDS

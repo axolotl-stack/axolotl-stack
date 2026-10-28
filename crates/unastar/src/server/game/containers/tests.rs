@@ -861,3 +861,50 @@ fn furnaces_in_a_chunk_that_loads_later_keep_smelting() {
         assert_eq!((live.furnace.lit_time, live.furnace.cook_time), (49, 6));
     });
 }
+
+#[test]
+fn generated_loot_unpacks_once_on_first_open() {
+    use crate::world::block_entity::LootTable;
+    with_world(GameMode::Survival, |h| {
+        let pos = IVec3::new(12, 64, 12);
+        let state = h.state("minecraft:chest", &[north()]);
+        let chunk = h.chunk;
+        let world = h.world();
+        super::super::blocks::set_block(world, pos, state, false);
+        world
+            .get_mut::<ChunkData>(chunk)
+            .unwrap()
+            .inner
+            .set_block_entity(BlockEntity::generated(
+                pos.to_array(),
+                "Chest",
+                &[],
+                Some(LootTable::Bedrock(
+                    "loot_tables/chests/simple_dungeon.json",
+                    4242,
+                )),
+                None,
+            ));
+        h.open(pos);
+        let first: Vec<String> = h
+            .saved(pos)
+            .items
+            .items()
+            .filter(|(_, stack)| !stack.is_empty())
+            .map(|(slot, stack)| format!("{slot}:{}x{}", stack.item_id(), stack.count))
+            .collect();
+        assert!(!first.is_empty(), "the dungeon table rolled items");
+        let encoded = h.saved(pos).encode();
+        assert!(!encoded.0.contains_key("LootTable") && !encoded.0.contains_key("LootTableSeed"));
+        h.close();
+        h.open(pos);
+        let second: Vec<String> = h
+            .saved(pos)
+            .items
+            .items()
+            .filter(|(_, stack)| !stack.is_empty())
+            .map(|(slot, stack)| format!("{slot}:{}x{}", stack.item_id(), stack.count))
+            .collect();
+        assert_eq!(first, second, "reopening does not roll again");
+    });
+}

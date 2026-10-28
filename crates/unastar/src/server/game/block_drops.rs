@@ -91,6 +91,14 @@ pub(crate) fn block_drops(
             return Vec::new();
         }
     };
+    loot_stacks(world, drops)
+}
+
+/// Item stacks for rolled loot, oversized counts split into full stacks.
+pub(crate) fn loot_stacks(
+    world: &World,
+    drops: Vec<unastar_rules::loot::LootDrop>,
+) -> Vec<ItemStack> {
     let mut stacks = Vec::new();
     for drop in drops {
         let Some(template) = world_stack(world, &drop.item_id, 1) else {

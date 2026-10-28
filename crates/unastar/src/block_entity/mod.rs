@@ -284,6 +284,20 @@ impl BlockContainer {
         container
     }
 
+    /// Remove a pending loot table (`LootTable` path and `LootTableSeed`,
+    /// Int or Long) so it is unpacked exactly once.
+    pub fn take_loot_table(&mut self) -> Option<(String, i64)> {
+        let Some(NBTTag::String(path)) = self.extra.remove("LootTable") else {
+            return None;
+        };
+        let seed = match self.extra.remove("LootTableSeed") {
+            Some(NBTTag::Long(seed)) => seed.0,
+            Some(NBTTag::Int(seed)) => i64::from(seed.0),
+            _ => 0,
+        };
+        Some((path.0, seed))
+    }
+
     /// The header and pair state BDS also sends in `BlockActorData`.
     pub fn client_state(&self) -> tag::Compound {
         let mut out: HashMap<String, NBTTag> = HashMap::new();
