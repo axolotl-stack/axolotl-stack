@@ -541,7 +541,8 @@ blast furnaces, smokers and hoppers have block actors
   stacks), unpairs the partner and closes viewers with a server-initiated close.
 - Furnaces tick per BDS (cook 200 or 100 ticks, measured fuel times scaled by
   the cook interval, progress decay, lit/unlit swap, `ContainerSetData` 0..3)
-  and pay XP to the taking player (no XP orb entity yet).
+  and pay XP straight to the taking player. Follow-up: spawn XP orbs once the
+  entity lane's XP orb entity reaches main (also for breaking a furnace).
 - Hoppers move one item per 8 ticks between containers (furnace input from
   above, fuel from the side, output from below) and collect dropped items.
 - Ender chests show the player's own 27 slots, saved in the player record.
@@ -551,11 +552,18 @@ broken or reached by a hopper, with the saved seed and the Java `fill`
 spreading algorithm; BDS's random sequence is not reproduced, so a seed gives
 different (but table-valid) contents than BDS.
 
-Not implemented: chest obstruction checks,
-trapped-chest redstone, copper chests, redstone-driven hopper locking, furnace
-ambient sounds, and the `Block` compound BDS adds to saved block items. No BDS
-container capture exists yet; window/lid/data packet shapes follow the BDS
-research notes and are covered by `containers/tests.rs` and the loopback test
+Not implemented: chest obstruction (Bedrock's default `minecraft:chest_obstruction`
+rule is `shape`, and bottom slabs and sitting cats block opening, but which
+vanilla shapes obstruct needs native evidence the capture bot cannot produce
+yet), trapped-chest redstone, copper chests, redstone-driven hopper locking,
+furnace ambient sounds, and the `Block` compound BDS adds to saved block items.
+
+BDS evidence: the `BlockActorData` a newly placed chest is announced with is
+compared against a BDS 1.26.51 capture (`containers/testdata`). Windows, lids,
+`ContainerSetData` and hopper timing still follow the BDS research notes: BDS
+rejects every block click of the client-diff bot (see
+`tools/client-diff/README.md`), so no window capture exists yet. They are
+covered by `containers/tests.rs` and the loopback test
 `tests/container_loopback.rs` (take the native lock to run it).
 
 ## Plugin Isolation
