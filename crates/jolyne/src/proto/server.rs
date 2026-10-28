@@ -584,11 +584,39 @@ impl WorldReady {
     /// Sends `DimensionData` (when set), `JigsawStructureData`, `VoxelShapes`,
     /// `StartGame`, `ItemRegistry` and the definition lists as one batch
     /// whatever the flush mode (BDS order and batching; definitions precede
-    /// the client's `RequestChunkRadius`).
+    /// the client's `RequestChunkRadius`). jolyne answers the radius request
+    /// with `ChunkRadiusUpdated` and `PlayStatus(PlayerSpawn)` and hands over
+    /// the session at `SetLocalPlayerAsInitialized`; it sends no terrain, so
+    /// it announces none (see [`ServerSpawn`]).
     pub fn start_game(
+        self,
+        params: WorldJoinParams,
+        now: Instant,
+    ) -> Result<ServerSpawn, Failure<Self>> {
+        self.send_start_game(params, now, false)
+    }
+
+    /// [`Self::start_game`] for a server that streams the spawn area itself
+    /// (BDS order): jolyne answers the first `RequestChunkRadius` with
+    /// `ChunkRadiusUpdated` only and hands over a [`ServerSession`] that is
+    /// not yet initialized. The application then sends
+    /// `NetworkChunkPublisherUpdate`, the chunks it has, and
+    /// `PlayStatus(PlayerSpawn)`, and keeps streaming while the client loads;
+    /// [`Session::next_packet`] checks `SetLocalPlayerAsInitialized` and the
+    /// spawn deadline.
+    pub fn start_game_streamed(
+        self,
+        params: WorldJoinParams,
+        now: Instant,
+    ) -> Result<ServerSpawn, Failure<Self>> {
+        self.send_start_game(params, now, true)
+    }
+
+    fn send_start_game(
         mut self,
         params: WorldJoinParams,
         now: Instant,
+        streamed: bool,
     ) -> Result<ServerSpawn, Failure<Self>> {
         let result = self.conn.queue_group(|conn| {
             if let Some(dimensions) = &params.dimension_data {
@@ -640,12 +668,13 @@ impl WorldReady {
         if let Err(error) = result {
             return Err(Failure::new(error, self));
         }
-        tracing::debug!("start game sent");
+        tracing::debug!(streamed, "start game sent");
         Ok(ServerSpawn {
             deadline: deadline_after(now, self.config.spawn_timeout),
             runtime_id: params.start_game.runtime_id.actor_runtime_id,
             radius_override: params.chunk_radius,
             chunk_radius: None,
+            streamed,
             conn: self.conn,
             login: self.login,
             deferred: self.deferred,
@@ -655,6 +684,14 @@ impl WorldReady {
 
 /// Phase 5: `StartGame` sent; waiting for `RequestChunkRadius` and
 /// `SetLocalPlayerAsInitialized`.
+///
+/// A client reads a `NetworkChunkPublisherUpdate` before
+/// `PlayStatus(PlayerSpawn)` as terrain on its way and may withhold
+/// `SetLocalPlayerAsInitialized` until those columns arrive (BDS follows its
+/// pre-spawn publisher update with the spawn-area `LevelChunk`s). jolyne has
+/// no terrain, so it never announces a view itself: the plain spawn answers
+/// like gophertunnel `handleRequestChunkRadius` (empty initial view), and the
+/// streamed spawn leaves the view and its chunks to the application.
 pub struct ServerSpawn {
     conn: Connection,
     login: AuthenticatedLogin,
@@ -663,32 +700,51 @@ pub struct ServerSpawn {
     runtime_id: u64,
     radius_override: Option<i32>,
     chunk_radius: Option<i32>,
+    /// Hand the session over at the first `RequestChunkRadius`.
+    streamed: bool,
 }
 owner!(ServerSpawn);
 
 impl ServerSpawn {
-    /// Answers the first `RequestChunkRadius` with `ChunkRadiusUpdated` and
-    /// `PlayStatus(PlayerSpawn)` in one batch.
-    ///
-    /// No `NetworkChunkPublisherUpdate` precedes `PlayerSpawn` (gophertunnel
-    /// `handleRequestChunkRadius` order): clients treat a pre-spawn publisher
-    /// update as terrain on its way and withhold `SetLocalPlayerAsInitialized`
-    /// until those columns arrive, but the application only streams chunks
-    /// once the session is in play. The client starts with an empty view; the
-    /// application publishes the view with its first chunks.
-    fn on_radius(&mut self, requested: i32, now: Instant) -> Result<(), JolyneError> {
+    /// Answers the first `RequestChunkRadius` with `ChunkRadiusUpdated`, and
+    /// for a plain spawn `PlayStatus(PlayerSpawn)`, in one batch.
+    fn on_radius(&mut self, requested: i32, now: Instant) -> Result<i32, JolyneError> {
         if requested < 1 {
             return Err(ProtocolError::InvalidChunkRadius(requested).into());
         }
         let radius = self.radius_override.unwrap_or(requested);
         self.chunk_radius = Some(radius);
-        let packets = [
-            McpePacket::from(ChunkRadiusUpdatedPacket {
-                chunk_radius: radius,
-            }),
-            status_packet(PlayStatusPacketStatus::Playerspawn),
-        ];
-        self.conn.send_batch(&packets, true, now)
+        let updated = McpePacket::from(ChunkRadiusUpdatedPacket {
+            chunk_radius: radius,
+        });
+        if self.streamed {
+            self.conn.send_batch(&[updated], true, now)?;
+        } else {
+            let spawn = status_packet(PlayStatusPacketStatus::Playerspawn);
+            self.conn.send_batch(&[updated, spawn], true, now)?;
+        }
+        Ok(radius)
+    }
+
+    /// The session after the spawn, with the packets deferred during the
+    /// join replayed into it. `streamed_radius` hands over a session that
+    /// waits for `SetLocalPlayerAsInitialized`.
+    fn into_session(self, streamed_radius: Option<i32>) -> ServerSession {
+        let ServerSpawn {
+            mut conn,
+            login,
+            deferred,
+            runtime_id,
+            chunk_radius,
+            deadline,
+            ..
+        } = self;
+        deferred.replay_into(&mut conn);
+        let session = match streamed_radius {
+            Some(radius) => Session::spawning(conn, runtime_id, radius, deadline),
+            None => Session::new(conn, runtime_id, chunk_radius),
+        };
+        ServerSession { session, login }
     }
 }
 
@@ -721,7 +777,11 @@ impl Phase for ServerSpawn {
         match decoded.data {
             McpePacketData::RequestChunkRadiusPacket(request) => {
                 match self.on_radius(request.chunk_radius, now) {
-                    Ok(()) => Ok(Step::Wait(self)),
+                    Ok(radius) if self.streamed => {
+                        tracing::debug!(radius, "spawn handed to the application");
+                        Ok(Step::Next(self.into_session(Some(radius))))
+                    }
+                    Ok(_) => Ok(Step::Wait(self)),
                     Err(error) => Err(Failure::new(error, self)),
                 }
             }
@@ -734,20 +794,8 @@ impl Phase for ServerSpawn {
                     };
                     return Err(Failure::new(error, self));
                 }
-                let ServerSpawn {
-                    mut conn,
-                    login,
-                    deferred,
-                    runtime_id,
-                    chunk_radius,
-                    ..
-                } = self;
-                deferred.replay_into(&mut conn);
-                tracing::debug!(runtime_id, "player initialized");
-                Ok(Step::Next(ServerSession {
-                    session: Session::new(conn, runtime_id, chunk_radius),
-                    login,
-                }))
+                tracing::debug!(runtime_id = got, "player initialized");
+                Ok(Step::Next(self.into_session(None)))
             }
             // Filtered above; anything else waits for the play session.
             _ => match self.deferred.push(packet) {
@@ -775,5 +823,8 @@ impl Owner for ServerSession {
     }
     fn into_connection(self) -> Connection {
         self.session.into_connection()
+    }
+    fn play_session(&mut self) -> Option<&mut Session> {
+        Some(&mut self.session)
     }
 }

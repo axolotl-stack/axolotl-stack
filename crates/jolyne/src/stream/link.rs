@@ -107,5 +107,10 @@ impl<T: Transport> BedrockTransport<T> {
         driver::close(&mut self.transport, &mut self.conn).await
     }
 
-    super::packet_io!();
+    super::packet_recv!();
+    super::packet_send!();
+
+    async fn next_raw(&mut self) -> Result<RawPacket, JolyneError> {
+        driver::recv_raw(&mut self.transport, &mut self.conn).await
+    }
 }

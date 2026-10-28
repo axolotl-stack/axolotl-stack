@@ -58,15 +58,21 @@ sequenceDiagram
     Client->>Server: RequestChunkRadius
     Note right of Server: radius must be >= 1; the server may override it
 
-    Server->>Client: ChunkRadiusUpdated
-    Server->>Client: PlayStatus (PlayerSpawn)
-    Note right of Server: no NetworkChunkPublisherUpdate before spawn
+    alt start_game (gophertunnel order)
+        Server->>Client: ChunkRadiusUpdated + PlayStatus (PlayerSpawn)
+        Note right of Server: no NetworkChunkPublisherUpdate: jolyne has no terrain
+    else start_game_streamed (BDS order)
+        Server->>Client: ChunkRadiusUpdated
+        Note right of Server: session handed to the application
+        Server->>Client: NetworkChunkPublisherUpdate, LevelChunk*, PlayStatus (PlayerSpawn)
+        Server->>Client: LevelChunk* (streaming while the client loads)
+    end
 
     Client->>Server: ServerboundLoadingScreen (End)
     Client->>Server: SetLocalPlayerAsInitialized
-    Note right of Server: runtime ID must match StartGame
+    Note right of Server: runtime ID must match StartGame; spawn_timeout applies
 
-    Note over Client, Server: In-Game Loop: the application publishes the view and streams chunks
+    Note over Client, Server: In-Game Loop (Tick Sync, MovePlayer, etc.)
 ```
 
 ## Implementation Details
@@ -83,8 +89,9 @@ sequenceDiagram
 
 ### 3. Spawn Sequence
 - `DimensionData` (only for custom dimensions), `JigsawStructureData` and `VoxelShapes` precede `StartGame`, followed by `ItemRegistry` and the definition lists, in one batch in BDS/gophertunnel order. The client disconnects with "Missing structure data from server." when `JigsawStructureData` is missing (gophertunnel sends empty lists; BDS sends its full definitions).
-- The client requests its chunk radius after `StartGame`; the server answers with `ChunkRadiusUpdated` and `PlayStatus(PlayerSpawn)` in one batch (gophertunnel `handleRequestChunkRadius` order).
-- No `NetworkChunkPublisherUpdate` precedes `PlayerSpawn`. BDS sends one, but follows it with the spawn-area `LevelChunk`s before `PlayerSpawn`; clients such as Cinnabar read a pre-spawn publisher update as "terrain for this view is coming" and withhold `SetLocalPlayerAsInitialized` until it arrives. jolyne hands the session to the application only after `SetLocalPlayerAsInitialized`, so announcing a view it cannot fill deadlocked those clients into `Timeout(Spawn)`. The client starts with an empty view; the application sends the publisher update before its first chunk once the session is in play (Dragonfly does the same).
+- The client requests its chunk radius after `StartGame`. A client reads a `NetworkChunkPublisherUpdate` before `PlayStatus(PlayerSpawn)` as "terrain for this view is coming" and may withhold `SetLocalPlayerAsInitialized` until every column of it has arrived (Cinnabar does; BDS follows its pre-spawn publisher update with the spawn-area `LevelChunk`s). Announcing a view without sending it deadlocks such clients into `Timeout(Spawn)` (Unastar, 2026-10-28), so the view is only ever announced by whoever sends the chunks:
+  - `start_game` (gophertunnel `handleRequestChunkRadius` order): jolyne answers with `ChunkRadiusUpdated` and `PlayStatus(PlayerSpawn)` in one batch, no publisher update, and hands over the session at `SetLocalPlayerAsInitialized`. The client starts with an empty view; the application publishes it with its first chunks (Dragonfly does the same).
+  - `start_game_streamed` (BDS order): jolyne answers with `ChunkRadiusUpdated` alone and hands over the session at once, not yet initialized (`is_initialized()` is false). The application sends `NetworkChunkPublisherUpdate`, the chunks it already has, and `PlayStatus(PlayerSpawn)`; it never holds `PlayerSpawn` back for chunk generation, and keeps streaming while the client loads. The play receive path (`Session::next_packet`, `BedrockStream::recv_packet*`) checks `SetLocalPlayerAsInitialized` and fails with `Timeout(Spawn)` at the spawn deadline; packets the client sent during the join are replayed into the session first.
 - `SetLocalPlayerAsInitialized` ends the spawn; its runtime ID must equal the `StartGame` runtime ID.
 
 ### Timeouts
@@ -95,7 +102,7 @@ sequenceDiagram
 
 This sequence is the contract for compatibility smoke tests, not just documentation.
 
-- `proto::tests::join_sequence_follows_the_bds_capture` checks the server-side packet order through `PlayStatus(PlayerSpawn)` against a recorded BDS 1.26.51 trace; `proto::tests::start_game_and_spawn_answers_leave_as_single_batches` pins the batching; `proto::tests::spawn_does_not_announce_terrain_it_does_not_send` joins with a client that waits for announced terrain.
+- `proto::tests::join_sequence_follows_the_bds_capture` checks the server-side packet order through `PlayStatus(PlayerSpawn)` against a recorded BDS 1.26.51 trace; `proto::tests::start_game_and_spawn_answers_leave_as_single_batches` pins the batching; `proto::tests::spawn_does_not_announce_terrain_it_does_not_send` and `proto::tests::streamed_spawn_lets_the_application_deliver_the_view_first` join with a client that waits for its announced view; `proto::tests::streamed_spawn_keeps_the_spawn_deadline_and_runtime_id_check` and `stream::tests::streamed_spawn_{completes,times_out}_on_the_play_receive_path` cover the streamed spawn's checks.
 - `proto::tests::post_encryption_packets_match_bds_bytes` pins the `PlayStatus(LoginSuccess)` and `ResourcePacksInfo` payloads to a BDS 1.26.51 capture and `ResourcePackStack` to the bytes real clients accepted before the sans-IO rewrite (base game version `1.26.51`; BDS sends `*`).
 - An Unastar smoke test should boot the server, complete this sequence with real registry data, request a chunk radius, and remain connected.
 - Resource-pack negotiation must wait for the correct completed client response before `StartGame`.

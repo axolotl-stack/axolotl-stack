@@ -28,6 +28,9 @@ pub async fn run_network_loop(
     mut tick_rx: broadcast::Receiver<()>,
 ) {
     let mut stream = stream;
+    // An inbound failure the client should be told about (e.g. a streamed
+    // spawn's `Timeout(Spawn)` or runtime ID mismatch).
+    let mut failure = None;
     loop {
         tokio::select! {
             biased;
@@ -101,6 +104,7 @@ pub async fn run_network_loop(
                     }
                     Err(e) => {
                         tracing::error!(session_id, "Connection failed: {e}");
+                        failure = Some(e);
                         break;
                     }
                 }
@@ -125,8 +129,16 @@ pub async fn run_network_loop(
         }
     }
 
-    // Flush whatever is still queued and close the transport.
-    if let Err(e) = stream.close().await {
+    // Flush whatever is still queued and close the transport, with the
+    // failure's reasoned `Disconnect` when it has one.
+    let reason = failure
+        .as_ref()
+        .and_then(|e| Some((e.disconnect_reason()?, e.disconnect_message())));
+    let closed = match reason {
+        Some((reason, message)) => stream.disconnect(reason, message).await,
+        None => stream.close().await,
+    };
+    if let Err(e) = closed {
         trace!(session_id, "Closing connection failed: {e}");
     }
     let _ = event_tx

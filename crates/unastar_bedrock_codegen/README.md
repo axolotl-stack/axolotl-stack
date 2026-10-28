@@ -353,8 +353,163 @@ corrected implementation is restored. Values are rounded for display.
 The old/old row is the earlier offset-only ablation, which exactly recovered
 every full-precision prior metric before the fixed-noise cutover.
 Independent primitive controls disprove both old implementations; aggregate
-surface/terrain metrics nevertheless contain compensating errors. Existing
-ratchets and output goldens remain unchanged: the corrected aggregate gate is
-currently three passing tests and one failing ratchet, pending an explicit D8
-decision. No exception or replacement floors have been assumed.
+surface/terrain metrics nevertheless contain compensating errors.
+
+### D8 decision (2026-10-28)
+
+The coordinator delegated D8. The ore-only column above shows the native-
+calibrated ore frame alone lowers surface height exact (0.857479 to 0.851333)
+and surface biome match (0.995002 to 0.994830); the frozen-climate fix leaves
+both unchanged. Both regressions therefore come from a correction proven
+against isolated native coal controls, so exactly those two floors were
+re-baselined to the measured values (0.8515 and 0.9948). Every other floor of
+`bedrock_style_vs_bds_reference_ratchets` was raised to the current
+measurement, and the test is back in the gate.
+
+### Kelp and seagrass sea-floor anchoring (2026-10-28)
+
+Every vanilla rule feeding `kelp_feature` and the seagrass built-ins passes
+`query.heightmap` (the first air above the water) as the input height, and the
+nested seagrass scatters add a second heightmap on top. The built-ins used that
+input directly, found air, and placed nothing in any ocean. They now start
+above the column's highest motion-blocking block, as BDS evidently does (all
+fixture kelp and seagrass is rooted on the floor). Plant support also uses
+motion blocking, because the palette `solid` flag marks seagrass itself.
+
+| Block (68-chunk fixture) | BDS | Before | After |
+|---|---:|---:|---:|
+| kelp | 4506 | 0 | 3272 |
+| seagrass | 2584 | 0 | 2529 |
+| water | 264317 | 255644 | 249843 |
+
+Water falls because plants replace the primary water block; its remaining
+deficit predates this change. Full-precision metrics after the change: terrain
+exact 0.872989, within two 0.922564, error 1.236271, surface exact 0.851563,
+surface block 0.842429, surface biome 0.994830, histogram L1 0.072594. Kelp
+density stays about 27% low; feature RNG seeding remains unmeasured.
+
+### Per-position rule biome checks (2026-10-28)
+
+Rules used to run once per chunk when any of the chunk's 3D biomes matched
+their filter, and every distributed placement then ran regardless of its own
+biome. One pocket of lush caves therefore decorated the whole chunk volume:
+in generated chunk (6,-4) lush-cave clay ore filled mountain stone up to
+y 145. Each placement is now checked against the biome at its own position
+(the chunk-level check remains a cheap prefilter). Every aggregate metric
+improved, and the surface-biome floor returns to its pre-D8 value of 0.9950:
+
+| Metric | Chunk-wide check | Per-position check |
+|---|---:|---:|
+| terrain exact | 0.872989 | 0.874138 |
+| terrain within 2 | 0.922564 | 0.924173 |
+| terrain mean absolute error | 1.236271 | 1.227194 |
+| surface exact | 0.851563 | 0.852654 |
+| surface block | 0.842429 | 0.843290 |
+| surface biome | 0.994830 | 0.995060 |
+| histogram L1 | 0.072594 | 0.068492 |
+
+| Block (68-chunk fixture) | BDS | Chunk-wide | Per-position |
+|---|---:|---:|---:|
+| clay | 26162 | 48455 | 42540 |
+| calcite | 538 | 1480 | under 914 |
+| andesite | 54169 | 52163 | 58233 |
+| granite | 47344 | 42951 | 46185 |
+
+Clay, moss (23132 vs 14031), cave vines (5335 vs 2217) and big dripleaf
+(1067 vs 190) are still over-generated; those remain open.
+
+### Single-block deep sea floor (2026-10-28)
+
+The overworld builder covered every deep ocean floor (below
+`sea_level - sea_floor_depth - depth`) with a `depth`-thick layer of
+`sea_floor_material`. The classic builder's deep-water branch places one
+`sea_floor_material` block with foundation stone below, and the BDS fixture
+agrees: ocean chunk (64,66) holds 495 gravel in total, most of it ore blobs,
+where we generated 1389. The builder now places a single block.
+
+| Metric | Gravel layer | Single block |
+|---|---:|---:|
+| terrain exact | 0.874138 | 0.874311 |
+| terrain within 2 | 0.924173 | 0.922794 |
+| terrain mean absolute error | 1.227194 | 1.232709 |
+| surface exact | 0.852654 | 0.852654 |
+| surface block | 0.843290 | 0.843290 |
+| surface biome | 0.995060 | 0.995060 |
+| histogram L1 | 0.068492 | 0.040459 |
+
+| Block (68-chunk fixture) | BDS | Gravel layer | Single block |
+|---|---:|---:|---:|
+| gravel | 38197 | 73185 | 37412 |
+| stone | 508985 | 478106 | 504814 |
+| andesite | 54169 | 58233 | 61246 |
+
+The coordinator approved re-baselining exactly `terrain_within_2` (0.9227)
+and `terrain_mean_abs_error` (1.2328) to the measured values; every other
+floor stays or rises (histogram L1 tightened to 0.0405).
+
+**Second cause, still open.** Exactly 24 columns moved beyond two blocks, and
+all 24 share one shape: an `underwater_magma_feature` blob replaced the single
+gravel block (often the block below as well), exposing andesite, diorite or
+coal ore, which the parity metric does not count as terrain, so measured
+height drops to the first stone below. BDS reports a terrain block at the
+magma's height in every one of those columns, so our underwater magma
+(`partially_exposed_blob_feature`, radius 1 around the floor) is placed where
+BDS keeps the floor; its position, replace set or density is unverified. The
+old gravel layer had hidden this. The broader andesite/diorite excess is the
+ore blobs now reaching stone directly under the floor.
+
+### Open-space snap to surface (2026-10-28)
+
+`snap_to_surface_feature` searched up to `vertical_search_range` blocks
+through solid rock, first towards the surface and then away from it. Inputs
+embedded in rock (most of the uniform -64..256 lush-cave placements, and the
+underwater-magma inputs, which are at least two blocks below the surface)
+therefore snapped onto any cave or ocean floor within reach. The walk now
+starts at the input, only moves through open blocks (air, plus water where
+allowed) towards the surface, and places nothing from inside rock, like the
+equivalent Java environment scan. This is inferred from the fixture
+histogram, not from a controlled native capture.
+
+| Metric | Through-rock search | Open-space walk |
+|---|---:|---:|
+| terrain exact | 0.874311 | 0.878217 |
+| terrain within 2 | 0.922794 | 0.924058 |
+| terrain mean absolute error | 1.232709 | 1.221680 |
+| histogram L1 | 0.040459 | 0.027691 |
+
+| Block (68-chunk fixture) | BDS | Through-rock | Open-space |
+|---|---:|---:|---:|
+| moss_block | 14031 | 23124 | 15879 |
+| cave_vines | 2217 | 5343 | 2547 |
+| clay | 26162 | 42616 | 31591 |
+| big_dripleaf | 190 | 1068 | 439 |
+| moss_carpet | 924 | 1039 | 767 |
+
+Still open after this change: magma 393 vs 142, big dripleaf 439 vs 190,
+small dripleaf 80 vs 20, clay 31591 vs 26162, and the geode blocks (calcite
+1097 vs 538, smooth basalt 1310 vs 721, amethyst 888 vs 366, budding
+amethyst 106 vs 27), about twice BDS each. Surface metrics did not move.
+
+### Kelp height measured from a natural BDS world (2026-10-28)
+
+A fresh natural BDS 1.26.51 world of seed 12345 (ticking area over chunks
+-5..4, no edits; preserved outside the repository with
+`bds_worldgen_reference --aquatic` exports) reproduces the fixture's kelp
+count in every exported chunk exactly. Across 39 chunks it has 407 kelp
+columns of 3..25 blocks (mean 10.26), never shorter than 3 and never taller
+than the water above the floor allows. Normalized by that room, lengths are
+uniform: the model "uniform in `3..=min(25, room)`" predicts a mean of 10.10.
+Our columns matched in number (414) but used the legacy `2..=11` heights
+(mean 6.9, 2866 blocks against native 4175). With the measured rule the same
+chunks hold 4065 blocks in the same 3..25 shape.
+
+| Block (68-chunk fixture) | BDS | Legacy heights | Measured heights |
+|---|---:|---:|---:|
+| kelp | 4506 | 3152 | 4462 |
+| water | 264317 | 249074 | 247764 |
+
+Histogram L1 is unchanged to full precision: every added kelp block replaces
+a water block, and the generated water deficit predates this change. Fixture
+chunk (-4,-4) stays low (325 vs 517) because half of its native kelp grows in
+a trench whose generated depth differs; that is terrain, not kelp.
 
