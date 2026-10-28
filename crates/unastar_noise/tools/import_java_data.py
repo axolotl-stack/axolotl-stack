@@ -220,12 +220,10 @@ def main() -> None:
         for state in block["states"]
     }
     geyser_blocks = read_nbt(args.geyser_dir / "blocks.nbt")["bedrock_mappings"]
-    collisions = read_nbt(args.geyser_dir / "collisions.nbt")
     palette = read_canonical_palette(args.canonical_palette)
     canonical = {state_key(s["name"], s["states"]): i for i, s in enumerate(palette)}
 
     ordinals = []
-    collision_index = []
     failures = []
     for java_id, (name, props) in enumerate(pinned):
         mapped = mapping_ids.get(state_key(name, props))
@@ -241,7 +239,6 @@ def main() -> None:
             failures.append(f"{name}{props}: {bedrock_name}{entry.get('state', {})} not canonical")
             continue
         ordinals.append(ordinal)
-        collision_index.append(collisions["indices"][mapped])
     if failures:
         print("\n".join(failures[:50]), file=sys.stderr)
         raise SystemExit(f"{len(failures)} Java states do not map to Bedrock canonical states")
@@ -258,17 +255,6 @@ def main() -> None:
             separators=(",", ":"),
         )
         + "\n"
-    )
-
-    # Collision boxes as [min_x, min_y, min_z, max_x, max_y, max_z] (Geyser stores centre + size).
-    shapes = []
-    for shape in collisions["shapes"]:
-        boxes = []
-        for cx, cy, cz, sx, sy, sz in shape:
-            boxes.append([cx - sx / 2, cy - sy / 2, cz - sz / 2, cx + sx / 2, cy + sy / 2, cz + sz / 2])
-        shapes.append(boxes)
-    (out / "collisions.json").write_text(
-        json.dumps({"shapes": shapes, "indices": collision_index}, separators=(",", ":")) + "\n"
     )
 
     # Java -> Bedrock biome ids.

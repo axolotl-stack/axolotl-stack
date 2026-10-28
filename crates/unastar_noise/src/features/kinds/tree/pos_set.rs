@@ -20,6 +20,7 @@
 //! one place where Java itself is not deterministic.
 
 use crate::features::blocks::BlockPos;
+use smallvec::{SmallVec, smallvec};
 
 const NIL: u32 = u32::MAX;
 const TREEIFY_THRESHOLD: usize = 8;
@@ -43,9 +44,11 @@ struct Node {
 /// `HashSet<BlockPos>` with Java's iteration order.
 #[derive(Debug, Clone)]
 pub(crate) struct JavaPosSet {
-    table: Vec<u32>,
+    // Keep Java's initial 16 buckets inline; the logical length still governs
+    // resizing and treeification, not the backing allocation capacity.
+    table: SmallVec<[u32; 16]>,
     /// Whether each bucket is a tree bin.
-    tree: Vec<bool>,
+    tree: SmallVec<[bool; 16]>,
     nodes: Vec<Node>,
     len: usize,
     /// Lowest bucket index that may be non-empty (search hint for `pop_first`).
@@ -75,8 +78,8 @@ fn spread(h: i32) -> i32 {
 impl JavaPosSet {
     pub(crate) fn new() -> Self {
         Self {
-            table: vec![NIL; 16],
-            tree: vec![false; 16],
+            table: SmallVec::from_buf([NIL; 16]),
+            tree: SmallVec::from_buf([false; 16]),
             nodes: Vec::new(),
             len: 0,
             first_hint: 0,
@@ -217,8 +220,8 @@ impl JavaPosSet {
     fn resize(&mut self) {
         let old_cap = self.table.len();
         let new_cap = old_cap * 2;
-        let old_table = std::mem::replace(&mut self.table, vec![NIL; new_cap]);
-        let old_tree = std::mem::replace(&mut self.tree, vec![false; new_cap]);
+        let old_table = std::mem::replace(&mut self.table, smallvec![NIL; new_cap]);
+        let old_tree = std::mem::replace(&mut self.tree, smallvec![false; new_cap]);
         for (j, &head) in old_table.iter().enumerate() {
             if head == NIL {
                 continue;

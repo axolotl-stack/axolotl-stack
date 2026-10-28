@@ -80,6 +80,68 @@ fn test_database_lifecycle() {
     }
 }
 
+#[cfg(windows)]
+#[test]
+fn test_database_reopen_replaces_current_and_preserves_data() {
+    unsafe {
+        let db_path = test_db_path("windows_reopen_current");
+        let current_path = Path::new(db_path.to_str().unwrap()).join("CURRENT");
+        let options = create_default_options();
+        let mut err = ptr::null_mut();
+        let db = leveldb_open(options, db_path.as_ptr(), &mut err);
+        assert_no_error(err);
+        assert!(!db.is_null());
+
+        let key = b"persisted-key";
+        let value = b"\0persisted-value\xff";
+        let write_opts = leveldb_writeoptions_create();
+        leveldb_writeoptions_set_sync(write_opts, 1);
+        leveldb_put(
+            db,
+            write_opts,
+            key.as_ptr().cast(),
+            key.len(),
+            value.as_ptr().cast(),
+            value.len(),
+            &mut err,
+        );
+        assert_no_error(err);
+        leveldb_close(db);
+        let previous_current = fs::read(&current_path).unwrap();
+
+        // Opening an existing DB installs a new manifest over CURRENT, rather
+        // than taking the initial creation path where the target is absent.
+        leveldb_options_set_create_if_missing(options, 0);
+        let reopened = leveldb_open(options, db_path.as_ptr(), &mut err);
+        assert_no_error(err);
+        assert!(!reopened.is_null());
+        assert_ne!(previous_current, fs::read(&current_path).unwrap());
+        let read_opts = leveldb_readoptions_create();
+        let mut value_len = 0;
+        let result = leveldb_get(
+            reopened,
+            read_opts,
+            key.as_ptr().cast(),
+            key.len(),
+            &mut value_len,
+            &mut err,
+        );
+        assert_no_error(err);
+        assert!(!result.is_null());
+        assert_eq!(
+            slice::from_raw_parts(result.cast::<u8>(), value_len),
+            value
+        );
+
+        leveldb_free(result.cast());
+        leveldb_close(reopened);
+        leveldb_readoptions_destroy(read_opts);
+        leveldb_writeoptions_destroy(write_opts);
+        leveldb_options_destroy(options);
+        cleanup_db_path("windows_reopen_current");
+    }
+}
+
 #[test]
 fn test_database_open_nonexistent_without_create() {
     unsafe {

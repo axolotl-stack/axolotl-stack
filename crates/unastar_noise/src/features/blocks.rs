@@ -16,6 +16,26 @@ pub struct JavaBlock(pub u16);
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, PartialOrd, Ord)]
 pub struct JavaState(pub u16);
 
+impl std::fmt::Display for JavaState {
+    fn fmt(&self, out: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        let def = self.block().def();
+        out.write_str(def.name)?;
+        if !def.props.is_empty() {
+            out.write_str("[")?;
+            let offset = self.0 - def.first_state;
+            for (index, property) in def.props.iter().enumerate() {
+                if index != 0 {
+                    out.write_str(",")?;
+                }
+                let value = property.values[(offset / property.stride) as usize % property.values.len()];
+                write!(out, "{}={value}", property.name)?;
+            }
+            out.write_str("]")?;
+        }
+        Ok(())
+    }
+}
+
 /// A set of Java blocks (a tag or an inline block list).
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub struct BlockSet(pub u16);
@@ -103,7 +123,7 @@ impl JavaState {
         self.flags() & flag::SOLID != 0
     }
 
-    /// Full-square collision on `dir` (`isFaceSturdy(..., SupportType.FULL)`).
+    /// Actual native `isFaceSturdy(..., SupportType.FULL)`.
     #[inline]
     pub fn is_face_sturdy(self, dir: Direction) -> bool {
         self.flags() & flag::face(dir) != 0
@@ -115,13 +135,16 @@ impl JavaState {
         self.flags() & flag::FULL_CUBE != 0
     }
 
-    /// `BlockState.blocksMotion()`: solid, except cobweb and bamboo sapling.
+    /// Actual full upper collision face; distinct from FULL sturdy support.
+    #[inline]
+    pub fn has_full_top_collision_face(self) -> bool {
+        crate::java_blocks::STATE_PHYSICS_FLAGS[self.0 as usize] & 0x10 != 0
+    }
+
+    /// Actual native `BlockState.blocksMotion`, including force-solid overrides.
     #[inline]
     pub fn blocks_motion(self) -> bool {
-        let b = self.block();
-        b != super::java_blocks::blocks::COBWEB
-            && b != super::java_blocks::blocks::BAMBOO_SAPLING
-            && self.is_solid()
+        crate::java_blocks::SHAPE_SUPPORT_FLAGS[self.0 as usize] & 0x80 != 0
     }
 
     /// `isAir()` (air, cave air, void air).
@@ -142,41 +165,16 @@ impl JavaState {
         self.block().is_in(set)
     }
 
-    /// `canBeReplaced()`: membership of the `minecraft:replaceable` tag.
+    /// Actual context-free native `BlockState.canBeReplaced()`.
     #[inline]
     pub fn can_be_replaced(self) -> bool {
-        self.is_in(super::java_blocks::tags::REPLACEABLE)
+        crate::java_blocks::STATE_PHYSICS_FLAGS[self.0 as usize] & 8 != 0
     }
 
-    /// `isSolidRender()`, approximated: a full-cube collision shape that is not
-    /// leaves, glass, ice or another see-through block family (the block data
-    /// has no occlusion shapes).
+    /// Actual native `BlockState.isSolidRender()`.
+    #[inline]
     pub fn is_solid_render(self) -> bool {
-        if !self.is_collision_full_cube() {
-            return false;
-        }
-        !matches!(
-            self.block().def().kind,
-            "minecraft:leaves"
-                | "minecraft:tinted_particle_leaves"
-                | "minecraft:untinted_particle_leaves"
-                | "minecraft:mangrove_leaves"
-                | "minecraft:transparent"
-                | "minecraft:stained_glass"
-                | "minecraft:tinted_glass"
-                | "minecraft:half_transparent"
-                | "minecraft:ice"
-                | "minecraft:frosted_ice"
-                | "minecraft:waterlogged_transparent"
-                | "minecraft:slime"
-                | "minecraft:honey"
-                | "minecraft:barrier"
-                | "minecraft:light"
-                | "minecraft:structure_void"
-                | "minecraft:spawner"
-                | "minecraft:trial_spawner"
-                | "minecraft:vault"
-        )
+        crate::java_blocks::STATE_PHYSICS_FLAGS[self.0 as usize] & 2 != 0
     }
 
     fn prop(self, name: &str) -> Option<&'static PropDef> {

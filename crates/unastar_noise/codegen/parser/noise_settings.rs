@@ -8,6 +8,7 @@ use std::path::Path;
 pub struct NoiseSettings {
     pub aquifers_enabled: bool,
     pub ore_veins_enabled: bool,
+    pub disable_mob_generation: bool,
     pub sea_level: i32,
     pub legacy_random_source: bool,
     pub noise: NoiseShape,
@@ -48,6 +49,55 @@ pub struct NoiseShape {
     pub height: i32,
     pub size_horizontal: i32,
     pub size_vertical: i32,
+}
+
+/// Build/storage geometry from `dimension_type`, not noise generation geometry or
+/// the dimension type's separate portal `logical_height`.
+#[derive(Debug, Clone, Deserialize)]
+pub struct DimensionType {
+    pub min_y: i32,
+    pub height: i32,
+    pub has_skylight: bool,
+}
+
+/// Resolve the normal world preset's noise-settings -> dimension-type links at
+/// build time, retaining the pinned dimension JSON as the authority for storage.
+pub fn parse_dimension_types(
+    preset_path: &Path,
+    dimension_dir: &Path,
+) -> Result<HashMap<String, DimensionType>, Box<dyn std::error::Error>> {
+    #[derive(Deserialize)]
+    struct Preset {
+        dimensions: HashMap<String, Dimension>,
+    }
+    #[derive(Deserialize)]
+    struct Dimension {
+        #[serde(rename = "type")]
+        dimension_type: String,
+        generator: NoiseGenerator,
+    }
+    #[derive(Deserialize)]
+    struct NoiseGenerator {
+        settings: String,
+    }
+    let preset: Preset = serde_json::from_str(&std::fs::read_to_string(preset_path)?)?;
+    let mut dimensions = HashMap::new();
+    for dimension in preset.dimensions.into_values() {
+        let name = dimension
+            .dimension_type
+            .strip_prefix("minecraft:")
+            .ok_or("non-vanilla dimension type in normal preset")?;
+        let path = dimension_dir.join(format!("{name}.json"));
+        let parsed: DimensionType = serde_json::from_str(&std::fs::read_to_string(&path)?)
+            .map_err(|e| format!("{}: {e}", path.display()))?;
+        if parsed.height <= 0 || parsed.min_y % 16 != 0 || parsed.height % 16 != 0 {
+            return Err(format!("{}: invalid dimension build geometry", path.display()).into());
+        }
+        if dimensions.insert(dimension.generator.settings, parsed).is_some() {
+            return Err("normal preset reuses noise settings across dimension types".into());
+        }
+    }
+    Ok(dimensions)
 }
 
 /// A block state as written in worldgen JSON.

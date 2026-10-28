@@ -14,10 +14,10 @@
 //!
 //! **Java palettes.** `.nbt` templates use Java block names and properties.
 //! [`java_descriptor`] maps each `(name, properties)` to a Bedrock 1.26.51
-//! block state; every property is either mapped or explicitly dropped with a
-//! reason, anything else fails the build naming the template. Dropped:
-//! `waterlogged` (a second, liquid block layer that one block id cannot
-//! represent), leaves `distance` (Bedrock leaves do not store it), `snowy`
+//! primary state. Template lowering retains `waterlogged` and intrinsic plant
+//! water in a separate layer before projection collapses dry/wet primary ids.
+//! Other properties are mapped or explicitly dropped with a reason; unknown
+//! properties fail the build. Dropped: leaves `distance` (not stored), and `snowy`
 //! (Bedrock derives the snowy look from the block above), campfire
 //! `signal_fire` (derived from the block below), chest `type` (Bedrock pairs
 //! chests through block entities), copper golem statue pose and vine `up`
@@ -31,13 +31,14 @@
 //! palettes are rotated directly ([`rotate_bedrock`]). Positions rotate as
 //! `(x, z) -> (-z, x)` per quarter turn ([`rotate_offset`]).
 //!
-//! **Special cells.** `structure_void` cells are not stored (the world keeps
-//! its block), `structure_block` data blocks are skipped, `jigsaw` blocks
+//! **Special cells.** Native void indices preserve each destination layer
+//! independently; cells with two void layers are omitted. `structure_block`
+//! data blocks are skipped; Java `structure_void` leaves the world unchanged. Jigsaws
 //! become their `final_state` and are recorded as [`Connector`]s for assembly.
 //! Block actors are compiled to native identities and static network-NBT fields;
 //! template entities and processor loot modifiers remain separate concerns.
-//! The secondary block layer of `.mcstructure` files (waterlogging liquid) is
-//! dropped for the same reason as `waterlogged`.
+//! Both native layers are retained in paired, rotation-resolved palette entries;
+//! packed cells stay five bytes. No runtime NBT parsing or liquid inference.
 
 use crate::blocks::{self, BlockDescriptor, BlockPalette, StateValue};
 use crate::error::{Error, Result};
@@ -56,6 +57,9 @@ pub const EMPTY: &str = "minecraft:empty";
 pub const MAX_CAPPED_LIMIT: u32 = 64;
 /// Largest number of `minecraft:capped` processors in one list.
 pub const MAX_CAPPED_PER_LIST: usize = 4;
+
+/// A template layer left unchanged at placement; never a block runtime id.
+pub const KEEP_LAYER: u32 = u32::MAX;
 
 /// Generation steps a jigsaw structure may name, in execution order.
 pub const STEPS: [&str; 11] = [
@@ -170,6 +174,16 @@ pub struct TemplateBlockEntity {
     pub java_loot: bool,
 }
 
+/// One deduplicated pair of layers, resolved for all clockwise quarter turns.
+///
+/// Native `-1` indices retain the destination layer, independently of the other
+/// layer. Palette pairs keep the packed cell format at five bytes per cell.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord)]
+pub struct TemplateState {
+    pub primary: [u32; 4],
+    pub secondary: [u32; 4],
+}
+
 /// A decoded structure template.
 #[derive(Debug, Clone)]
 pub struct Template {
@@ -179,8 +193,8 @@ pub struct Template {
     /// File the template was read from (for errors and docs).
     pub origin: String,
     pub size: [i32; 3],
-    /// Runtime id of each palette entry per clockwise quarter turn.
-    pub palette: Vec<[u32; 4]>,
+    /// Paired layer runtime ids per clockwise quarter turn.
+    pub palette: Vec<TemplateState>,
     /// Non-void cells: template-local position and palette index.
     pub cells: Vec<([u8; 3], u16)>,
     pub connectors: Vec<Connector>,
@@ -190,7 +204,7 @@ pub struct Template {
 /// Accumulates a template's palette and cells.
 struct TemplateBuilder {
     template: Template,
-    dedupe: BTreeMap<[u32; 4], u16>,
+    dedupe: BTreeMap<TemplateState, u16>,
 }
 
 impl TemplateBuilder {
@@ -215,7 +229,7 @@ impl TemplateBuilder {
         })
     }
 
-    fn entry(&mut self, ids: [u32; 4]) -> Result<u16> {
+    fn entry(&mut self, ids: TemplateState) -> Result<u16> {
         if let Some(&i) = self.dedupe.get(&ids) {
             return Ok(i);
         }
@@ -445,11 +459,11 @@ fn load_java_template(
     }
     let mut builder = TemplateBuilder::new(key, origin, size)?;
     // Every palette entry must convert, used or not; special blocks have no state.
-    let mut converted: Vec<Option<[u32; 4]>> = Vec::with_capacity(entries.len());
+    let mut converted: Vec<Option<TemplateState>> = Vec::with_capacity(entries.len());
     for (name, props) in &entries {
         converted.push(match name.as_str() {
             "minecraft:structure_void" | "minecraft:structure_block" | "minecraft:jigsaw" => None,
-            _ => Some(java_rotations(palette, origin, name, props)?),
+            _ => Some(java_template_state(palette, origin, name, props)?),
         });
     }
     for b in list(origin, child(origin, map, "blocks")?, "blocks")? {
@@ -469,7 +483,7 @@ fn load_java_template(
                 let data = compound(origin, child(origin, m, "nbt")?, "jigsaw nbt")?;
                 let (connector, final_state) = jigsaw(origin, pos, props, data)?;
                 let (fname, fprops) = parse_state_string(origin, &final_state)?;
-                let ids = java_rotations(palette, origin, &fname, &fprops)?;
+                let ids = java_template_state(palette, origin, &fname, &fprops)?;
                 let entry = builder.entry(ids)?;
                 builder.cell(pos, entry)?;
                 builder.template.connectors.push(connector);
@@ -595,6 +609,36 @@ pub fn java_rotations(
         *id = palette.resolve(origin, &desc)?;
     }
     Ok(ids)
+}
+
+/// Preserve a Java template's fluid alongside its rotated primary permutation.
+fn java_template_state(
+    palette: &BlockPalette,
+    origin: &str,
+    name: &str,
+    props: &BTreeMap<String, String>,
+) -> Result<TemplateState> {
+    let primary = java_rotations(palette, origin, name, props)?;
+    let waterlogged = props
+        .get("waterlogged")
+        .map(|value| java_flag(origin, name, "waterlogged", value))
+        .transpose()?
+        .unwrap_or(false);
+    let carries_water = unastar_packs::block_state::java_secondary_water(name, waterlogged);
+    let mut secondary = BlockDescriptor::named(if carries_water {
+        "minecraft:water"
+    } else {
+        "minecraft:air"
+    });
+    if carries_water {
+        secondary
+            .states
+            .insert("liquid_depth".to_owned(), StateValue::Int(0));
+    }
+    Ok(TemplateState {
+        primary,
+        secondary: [palette.resolve(origin, &secondary)?; 4],
+    })
 }
 
 /// Rotate Java block properties clockwise by `quarter_turns`: `facing`,
@@ -1078,12 +1122,14 @@ fn load_bedrock_template(
         child(origin, structure, "block_indices")?,
         "block_indices",
     )?;
-    // Layer 1 holds the waterlogging liquid of layer-0 blocks, which one block
-    // id per cell cannot represent: only layer 0 is placed.
-    let primary = layers
-        .first()
-        .ok_or_else(|| Error::data(origin, "no block layer"))
-        .and_then(|l| list(origin, l, "block layer"))?;
+    if layers.len() != 2 {
+        return Err(Error::data(
+            origin,
+            "block_indices must contain exactly two layers",
+        ));
+    }
+    let primary = list(origin, &layers[0], "primary block layer")?;
+    let secondary = list(origin, &layers[1], "secondary block layer")?;
     let palettes = compound(origin, child(origin, structure, "palette")?, "palette")?;
     check_keys(origin, palettes, &["default"], "palette")?;
     let default = compound(
@@ -1098,7 +1144,7 @@ fn load_bedrock_template(
         "default palette",
     )?;
     let mut builder = TemplateBuilder::new(key, origin, size)?;
-    let mut entries: Vec<Option<u16>> = Vec::new();
+    let mut entries: Vec<Option<[u32; 4]>> = Vec::new();
     for e in list(
         origin,
         child(origin, default, "block_palette")?,
@@ -1134,15 +1180,20 @@ fn load_bedrock_template(
         for (r, id) in ids.iter_mut().enumerate() {
             *id = palette.resolve(origin, &rotate_bedrock(origin, &desc, r as u8)?)?;
         }
-        entries.push(Some(builder.entry(ids)?));
+        entries.push(Some(ids));
     }
     let [sx, sy, sz] = size;
     let volume = (sx * sy * sz) as usize;
-    if primary.len() != volume {
-        return Err(Error::data(
-            origin,
-            format!("{} block indices for size {size:?}", primary.len()),
-        ));
+    for (layer, indices) in [primary, secondary].into_iter().enumerate() {
+        if indices.len() != volume {
+            return Err(Error::data(
+                origin,
+                format!(
+                    "layer {layer}: {} block indices for size {size:?}",
+                    indices.len()
+                ),
+            ));
+        }
     }
     let mut actors = BTreeMap::new();
     if let Some(positions) = default.get("block_position_data") {
@@ -1174,25 +1225,22 @@ fn load_bedrock_template(
             }
         }
     }
-    for (i, t) in primary.iter().enumerate() {
-        let index = integer(origin, t, "block index")?;
-        if index < 0 {
+    for (i, (primary, secondary)) in primary.iter().zip(secondary).enumerate() {
+        let state = TemplateState {
+            primary: bedrock_template_layer(origin, primary, &entries)?,
+            secondary: bedrock_template_layer(origin, secondary, &entries)?,
+        };
+        if state.primary == [KEEP_LAYER; 4] && state.secondary == [KEEP_LAYER; 4] {
             continue;
         }
-        let entry = usize::try_from(index)
-            .ok()
-            .and_then(|i| entries.get(i))
-            .ok_or_else(|| {
-                Error::data(origin, format!("block index {index} outside the palette"))
-            })?;
-        let Some(entry) = *entry else {
-            continue;
-        };
+        let entry = builder.entry(state)?;
         // Index order: x outermost, then y, then z.
         let i = i as i32;
         let pos = [i / (sy * sz), (i / sz) % sy, i % sz];
         builder.cell(pos, entry)?;
-        if let Some(actor) = actors.remove(&(i as usize)) {
+        if state.primary != [KEEP_LAYER; 4]
+            && let Some(actor) = actors.remove(&(i as usize))
+        {
             builder.block_entity(actor, false)?;
         }
     }
@@ -1203,6 +1251,22 @@ fn load_bedrock_template(
         ));
     }
     Ok(builder.template)
+}
+
+fn bedrock_template_layer(
+    origin: &str,
+    index: &Tag,
+    entries: &[Option<[u32; 4]>],
+) -> Result<[u32; 4]> {
+    let index = integer(origin, index, "block index")?;
+    if index == -1 {
+        return Ok([KEEP_LAYER; 4]);
+    }
+    let entry = usize::try_from(index)
+        .ok()
+        .and_then(|index| entries.get(index))
+        .ok_or_else(|| Error::data(origin, format!("block index {index} outside the palette")))?;
+    Ok(entry.unwrap_or([KEEP_LAYER; 4]))
 }
 
 // ---------------------------------------------------------------------------
@@ -2010,6 +2074,7 @@ mod tests {
     fn palette() -> BlockPalette {
         let mut states = Vec::new();
         states.extend(block("minecraft:air", &[]));
+        states.extend(block("minecraft:water", &[("liquid_depth", ints(16))]));
         states.extend(block(
             "minecraft:oak_stairs",
             &[
@@ -2071,6 +2136,36 @@ mod tests {
             d.states.insert(k.to_string(), v.clone());
         }
         p.resolve("t", &d).unwrap()
+    }
+
+    #[test]
+    fn collapsed_java_primaries_keep_distinct_wet_and_dry_palette_actions() {
+        let p = palette();
+        let mut properties = props(&[
+            ("facing", "north"),
+            ("half", "bottom"),
+            ("shape", "straight"),
+            ("waterlogged", "false"),
+        ]);
+        let dry = java_template_state(&p, "authored", "minecraft:oak_stairs", &properties).unwrap();
+        properties.insert("waterlogged".to_owned(), "true".to_owned());
+        let wet = java_template_state(&p, "authored", "minecraft:oak_stairs", &properties).unwrap();
+        assert_eq!(dry.primary, wet.primary);
+        let mut builder = TemplateBuilder::new("authored", "authored", [2, 1, 1]).unwrap();
+        let dry_entry = builder.entry(dry).unwrap();
+        let wet_entry = builder.entry(wet).unwrap();
+        assert_eq!(
+            builder.template.palette[dry_entry as usize].secondary,
+            [expect(&p, "minecraft:air", &[]); 4],
+        );
+        assert_eq!(
+            builder.template.palette[wet_entry as usize].secondary,
+            [expect(
+                &p,
+                "minecraft:water",
+                &[("liquid_depth", StateValue::Int(0))]
+            ); 4],
+        );
     }
 
     #[test]

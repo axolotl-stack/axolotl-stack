@@ -16,7 +16,7 @@ mod context;
 mod types;
 
 // Re-export core types (static, hand-written code)
-pub use types::NoiseRegistry;
+pub use types::{JavaNoiseSource, NativeNoiseRegistry, NoiseRegistry};
 
 // Re-export types from unastar_noise
 pub use unastar_noise::{FunctionContext, FunctionContext4, NoiseSource, RarityType};

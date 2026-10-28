@@ -15,7 +15,7 @@
 //! template: `size: [i32; 3]`, `palettes: u16`, per palette
 //! `blocks: u32` and `blocks` records of `x, y, z: u8, state: u16, entity: u16`
 //! (`0xFFFF` = none); `entities: u16` block-entity records (kind byte:
-//! 0 jigsaw, 1 data marker, 2 native id + NETWORK child fields + lifted loot/spawner);
+//! 0 jigsaw, 1 data marker, 2 Java id + typed source + native normalization + loot/spawner);
 //! `entity_count: u16` entity records (`pos: [f64; 3]`, `block_pos: [i32; 3]`,
 //! `id`, raw Java NBT).
 
@@ -27,6 +27,9 @@ use unastar_packs::{
     block_entity,
     nbt::{self, Tag},
 };
+
+#[path = "native_actors.rs"]
+mod native_actors;
 
 fn put_str(out: &mut Vec<u8>, s: &str) {
     out.extend_from_slice(&(s.len() as u16).to_le_bytes());
@@ -76,7 +79,14 @@ fn state_of(blocks: &JavaBlocks, entry: &Tag) -> Result<u16> {
     blocks.state(name, &props)
 }
 
-fn encode_template(origin: &str, blocks: &JavaBlocks, root: &Tag, out: &mut Vec<u8>) -> Result<()> {
+fn encode_template(
+    origin: &str,
+    blocks: &JavaBlocks,
+    root: &Tag,
+    actors: &BTreeMap<usize, Vec<u8>>,
+    snapshots: &native_actors::Snapshots,
+    out: &mut Vec<u8>,
+) -> Result<()> {
     let size = root
         .get("size")
         .and_then(Tag::as_list)
@@ -97,7 +107,7 @@ fn encode_template(origin: &str, blocks: &JavaBlocks, root: &Tag, out: &mut Vec<
     // Block entities are shared by every palette (they come from the block list).
     let mut be_records: Vec<Vec<u8>> = Vec::new();
     let mut be_of_block: Vec<u16> = Vec::with_capacity(block_list.len());
-    for b in block_list {
+    for (block_index, b) in block_list.iter().enumerate() {
         match b.get("nbt") {
             None => be_of_block.push(u16::MAX),
             Some(tag) => {
@@ -140,8 +150,11 @@ fn encode_template(origin: &str, blocks: &JavaBlocks, root: &Tag, out: &mut Vec<
                         let compiled =
                             block_entity::compile(origin, tag, block_entity::Source::Java)?;
                         rec.push(2);
-                        put_str(&mut rec, compiled.id);
-                        put_bytes(&mut rec, &compiled.fields);
+                        let source = actors.get(&block_index).ok_or("missing lossless native template actor")?;
+                        let patch = snapshots.patch(origin, block_index, source)?;
+                        put_str(&mut rec, id);
+                        put_bytes(&mut rec, source);
+                        put_bytes(&mut rec, patch);
                         match compiled.loot {
                             Some((table, seed)) => {
                                 rec.push(1);
@@ -245,6 +258,7 @@ pub fn emit(out_dir: &Path, blocks: &JavaBlocks, jar: Option<&Path>) -> Result<V
     let mut names = Vec::new();
     let mut blob = Vec::new();
     if let Some(jar) = jar {
+        let snapshots = native_actors::Snapshots::load()?;
         let zip = crate::codegen::jar::open_server_data(jar)?;
         let prefix = "data/minecraft/structure/";
         let members: Vec<String> = zip
@@ -260,7 +274,9 @@ pub fn emit(out_dir: &Path, blocks: &JavaBlocks, jar: Option<&Path>) -> Result<V
             let gz = zip.read(m)?;
             let root = nbt::read_gzip_java(m, &gz)?;
             let mut rec = Vec::new();
-            encode_template(m, blocks, &root, &mut rec).map_err(|e| format!("{m}: {e}"))?;
+            let actors = native_actors::source_actors(&gz)?;
+            encode_template(m, blocks, &root, &actors, &snapshots, &mut rec)
+                .map_err(|e| format!("{m}: {e}"))?;
             let name = format!("minecraft:{}", &m[prefix.len()..m.len() - 4]);
             names.push(name);
             records.push(rec);

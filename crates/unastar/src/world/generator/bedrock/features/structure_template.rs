@@ -18,7 +18,7 @@
 //!   non-solid block above must exist within `max_steepness` of the input y.
 
 use super::super::generated::{self, bb, props};
-use super::super::structures::{BoundingBox, Template, world_pos};
+use super::super::structures::{BoundingBox, KEEP_LAYER, Template, world_pos};
 use super::super::world::{BlockPos, BlockWorld, Ctx};
 
 /// Rotation choice.
@@ -160,7 +160,8 @@ fn fits<W: BlockWorld>(
     }
     if let Some(i) = p.intersection {
         for (_, cell, entry) in t.cells() {
-            if i.motion_blocking_only && !props::blocks_motion(t.state(entry, rotation)) {
+            let primary = t.state(entry, rotation)[0];
+            if i.motion_blocking_only && (primary == KEEP_LAYER || !props::blocks_motion(primary)) {
                 continue;
             }
             if !(i.allowed)(ctx.get(world_pos(origin, cell, rotation))) {

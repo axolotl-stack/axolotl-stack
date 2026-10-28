@@ -590,15 +590,7 @@ impl<'a> GraphBuilder<'a> {
                 }
                 flat_cache_id
             }
-            _ => {
-                eprintln!("Warning: Unknown builtin reference: {}", name);
-                self.make_node(
-                    DensityFunctionDef::Constant { argument: 0.0 },
-                    vec![],
-                    true,
-                    Some(name.to_string()),
-                )
-            }
+            _ => panic!("Unknown density builtin reference: {name}"),
         };
 
         self.ref_cache.insert(name.to_string(), id.clone());

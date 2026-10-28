@@ -1,13 +1,8 @@
 //! `minecraft:monster_room`: the cobblestone dungeon with a spawner and up to
 //! two chests.
-//!
-//! Approximation: chest orientation (`StructurePiece.reorient`) tests
-//! neighbours with Java's `isSolidRender`; the block data has no occlusion
-//! flag, so a full-cube collision shape stands in for it (exact for the stone,
-//! ores, cobblestone and air a dungeon is surrounded by).
 
 use crate::features::blocks::{BlockPos, Direction, JavaState};
-use crate::features::eval::FeatureWorld;
+use crate::features::eval::{BlockEntityData, FeatureWorld};
 use crate::features::java_blocks::{blocks as b, states, tags};
 use crate::features::random::FeatureRandom;
 use crate::features::survival::facing_of;
@@ -117,7 +112,8 @@ pub fn place<W: FeatureWorld + ?Sized>(
                 // RandomizableContainer.setBlockEntityLootTable: the seed is
                 // drawn only when a chest block entity exists there.
                 if world.is_block(p, b::CHEST) {
-                    rng.next_long();
+                    let seed = rng.next_long();
+                    world.set_block_entity(p, BlockEntityData::loot("minecraft:chests/simple_dungeon", seed));
                 }
                 break;
             }
@@ -128,7 +124,8 @@ pub fn place<W: FeatureWorld + ?Sized>(
         world.set_state(origin, states::SPAWNER);
     }
     if world.is_block(origin, b::SPAWNER) {
-        let _mob = MOBS[rng.next_int_bounded(MOBS.len() as i32) as usize];
+        let mob = MOBS[rng.next_int_bounded(MOBS.len() as i32) as usize];
+        world.set_block_entity(origin, BlockEntityData::spawner(mob));
     }
     true
 }
@@ -142,7 +139,7 @@ fn reorient<W: FeatureWorld + ?Sized>(world: &mut W, pos: BlockPos, state: JavaS
         if s.is(b::CHEST) {
             return state;
         }
-        if solid_render(s) {
+        if s.is_solid_render() {
             if single.is_some() {
                 single = None;
                 break;
@@ -154,23 +151,18 @@ fn reorient<W: FeatureWorld + ?Sized>(world: &mut W, pos: BlockPos, state: JavaS
         return state.with("facing", dir.opposite().name());
     }
     let mut dir = facing_of(state).unwrap_or(Direction::North);
-    if solid_render(world.get_state(pos.rel(dir))) {
+    if world.get_state(pos.rel(dir)).is_solid_render() {
         dir = dir.opposite();
     }
-    if solid_render(world.get_state(pos.rel(dir))) {
+    if world.get_state(pos.rel(dir)).is_solid_render() {
         dir = dir.clockwise();
     }
-    if solid_render(world.get_state(pos.rel(dir))) {
+    if world.get_state(pos.rel(dir)).is_solid_render() {
         dir = dir.opposite();
     }
     state.with("facing", dir.name())
 }
 
-/// Stand-in for `isSolidRender` (see the module doc).
-#[inline]
-fn solid_render(s: JavaState) -> bool {
-    s.is_collision_full_cube()
-}
 
 #[cfg(test)]
 mod tests {

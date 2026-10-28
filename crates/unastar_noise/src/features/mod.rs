@@ -20,6 +20,7 @@ pub mod kinds;
 pub mod noise;
 pub mod placement;
 pub mod random;
+pub mod shape;
 pub mod survival;
 #[cfg(test)]
 pub mod test_world;

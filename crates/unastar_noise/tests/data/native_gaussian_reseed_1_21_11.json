@@ -1,0 +1,453 @@
+{
+  "version": "1.21.11",
+  "profile": "actual native wrapped Xoroshiro and Legacy reseed with inherited MarsagliaPolarGaussian; bare LegacyRandomSource reset control",
+  "server_sha1": "64bb6d763bed0a9f1d632ec347938594144943ed",
+  "mappings_sha1": "5621e9253f05fd57872bbe7f8ddf5f9a7d525955",
+  "inner_sha256": "ec47239a8de246335e1d54f6ac319bd35641778eb4b6a6da06372840d02fcebc",
+  "server_constructed": false,
+  "cases": [
+    {
+      "second_seed": 1,
+      "next_ints": [
+        -240669518,
+        1502147075,
+        -424191883,
+        207239448
+      ],
+      "cache_after_reseed": {
+        "value_bits": "13826106316787475259",
+        "present": true
+      },
+      "drain_before_reseed": false,
+      "algorithm": "worldgen_xoroshiro",
+      "first_seed": 0,
+      "cache_before_reseed": {
+        "value_bits": "13826106316787475259",
+        "present": true
+      },
+      "initial_gaussian_bits": [
+        "13827690464673767050"
+      ],
+      "gaussian_after_reseed_bits": "13826106316787475259"
+    },
+    {
+      "second_seed": 1,
+      "next_ints": [
+        312376166,
+        -671978070,
+        472329105,
+        -1386631930
+      ],
+      "cache_after_reseed": {
+        "value_bits": "13826106316787475259",
+        "present": false
+      },
+      "drain_before_reseed": true,
+      "algorithm": "worldgen_xoroshiro",
+      "first_seed": 0,
+      "cache_before_reseed": {
+        "value_bits": "13826106316787475259",
+        "present": false
+      },
+      "initial_gaussian_bits": [
+        "13827690464673767050",
+        "13826106316787475259"
+      ],
+      "gaussian_after_reseed_bits": "13818257021198436978"
+    },
+    {
+      "second_seed": 12345,
+      "next_ints": [
+        -1890232152,
+        1918887194,
+        964793151,
+        285566761
+      ],
+      "cache_after_reseed": {
+        "value_bits": "4605498991601865114",
+        "present": true
+      },
+      "drain_before_reseed": false,
+      "algorithm": "worldgen_xoroshiro",
+      "first_seed": 987654321,
+      "cache_before_reseed": {
+        "value_bits": "4605498991601865114",
+        "present": true
+      },
+      "initial_gaussian_bits": [
+        "4609908053318283557"
+      ],
+      "gaussian_after_reseed_bits": "4605498991601865114"
+    },
+    {
+      "second_seed": 12345,
+      "next_ints": [
+        -1874832368,
+        822141483,
+        258106067,
+        -810554829
+      ],
+      "cache_after_reseed": {
+        "value_bits": "4605498991601865114",
+        "present": false
+      },
+      "drain_before_reseed": true,
+      "algorithm": "worldgen_xoroshiro",
+      "first_seed": 987654321,
+      "cache_before_reseed": {
+        "value_bits": "4605498991601865114",
+        "present": false
+      },
+      "initial_gaussian_bits": [
+        "4609908053318283557",
+        "4605498991601865114"
+      ],
+      "gaussian_after_reseed_bits": "4599470230656061210"
+    },
+    {
+      "second_seed": -9223372036854775808,
+      "next_ints": [
+        1294413048,
+        963314743,
+        -900309942,
+        -1045469190
+      ],
+      "cache_after_reseed": {
+        "value_bits": "13827793027241117211",
+        "present": true
+      },
+      "drain_before_reseed": false,
+      "algorithm": "worldgen_xoroshiro",
+      "first_seed": 9223372036854775807,
+      "cache_before_reseed": {
+        "value_bits": "13827793027241117211",
+        "present": true
+      },
+      "initial_gaussian_bits": [
+        "4608208017079419234"
+      ],
+      "gaussian_after_reseed_bits": "13827793027241117211"
+    },
+    {
+      "second_seed": -9223372036854775808,
+      "next_ints": [
+        -31901517,
+        -1198092379,
+        28671351,
+        1782283339
+      ],
+      "cache_after_reseed": {
+        "value_bits": "13827793027241117211",
+        "present": false
+      },
+      "drain_before_reseed": true,
+      "algorithm": "worldgen_xoroshiro",
+      "first_seed": 9223372036854775807,
+      "cache_before_reseed": {
+        "value_bits": "13827793027241117211",
+        "present": false
+      },
+      "initial_gaussian_bits": [
+        "4608208017079419234",
+        "13827793027241117211"
+      ],
+      "gaussian_after_reseed_bits": "13827577109528546561"
+    },
+    {
+      "second_seed": 1,
+      "next_ints": [
+        -1155869325,
+        431529176,
+        1761283695,
+        1749940626
+      ],
+      "cache_after_reseed": {
+        "value_bits": "13829667661655761096",
+        "present": true
+      },
+      "drain_before_reseed": false,
+      "algorithm": "worldgen_legacy",
+      "first_seed": 0,
+      "cache_before_reseed": {
+        "value_bits": "13829667661655761096",
+        "present": true
+      },
+      "initial_gaussian_bits": [
+        "4605403794758891617"
+      ],
+      "gaussian_after_reseed_bits": "13829667661655761096"
+    },
+    {
+      "second_seed": 1,
+      "next_ints": [
+        892128508,
+        155629808,
+        1429008869,
+        -1465154083
+      ],
+      "cache_after_reseed": {
+        "value_bits": "13829667661655761096",
+        "present": false
+      },
+      "drain_before_reseed": true,
+      "algorithm": "worldgen_legacy",
+      "first_seed": 0,
+      "cache_before_reseed": {
+        "value_bits": "13829667661655761096",
+        "present": false
+      },
+      "initial_gaussian_bits": [
+        "4605403794758891617",
+        "13829667661655761096"
+      ],
+      "gaussian_after_reseed_bits": "4609711554963350721"
+    },
+    {
+      "second_seed": 12345,
+      "next_ints": [
+        1553932502,
+        -2090749135,
+        -287790814,
+        -355989640
+      ],
+      "cache_after_reseed": {
+        "value_bits": "4606497135811763817",
+        "present": true
+      },
+      "drain_before_reseed": false,
+      "algorithm": "worldgen_legacy",
+      "first_seed": 987654321,
+      "cache_before_reseed": {
+        "value_bits": "4606497135811763817",
+        "present": true
+      },
+      "initial_gaussian_bits": [
+        "13826613344517489011"
+      ],
+      "gaussian_after_reseed_bits": "4606497135811763817"
+    },
+    {
+      "second_seed": 12345,
+      "next_ints": [
+        -716867186,
+        161804169,
+        1402202751,
+        535445604
+      ],
+      "cache_after_reseed": {
+        "value_bits": "4606497135811763817",
+        "present": false
+      },
+      "drain_before_reseed": true,
+      "algorithm": "worldgen_legacy",
+      "first_seed": 987654321,
+      "cache_before_reseed": {
+        "value_bits": "4606497135811763817",
+        "present": false
+      },
+      "initial_gaussian_bits": [
+        "13826613344517489011",
+        "4606497135811763817"
+      ],
+      "gaussian_after_reseed_bits": "13819306589112068875"
+    },
+    {
+      "second_seed": -9223372036854775808,
+      "next_ints": [
+        -1155484576,
+        -723955400,
+        1033096058,
+        -1690734402
+      ],
+      "cache_after_reseed": {
+        "value_bits": "13829837634871490876",
+        "present": true
+      },
+      "drain_before_reseed": false,
+      "algorithm": "worldgen_legacy",
+      "first_seed": 9223372036854775807,
+      "cache_before_reseed": {
+        "value_bits": "13829837634871490876",
+        "present": true
+      },
+      "initial_gaussian_bits": [
+        "4610719237185014330"
+      ],
+      "gaussian_after_reseed_bits": "13829837634871490876"
+    },
+    {
+      "second_seed": -9223372036854775808,
+      "next_ints": [
+        -1557280266,
+        1327362106,
+        -1930858313,
+        502539523
+      ],
+      "cache_after_reseed": {
+        "value_bits": "13829837634871490876",
+        "present": false
+      },
+      "drain_before_reseed": true,
+      "algorithm": "worldgen_legacy",
+      "first_seed": 9223372036854775807,
+      "cache_before_reseed": {
+        "value_bits": "13829837634871490876",
+        "present": false
+      },
+      "initial_gaussian_bits": [
+        "4610719237185014330",
+        "13829837634871490876"
+      ],
+      "gaussian_after_reseed_bits": "4605403794758891617"
+    },
+    {
+      "second_seed": 1,
+      "next_ints": [
+        892128508,
+        155629808,
+        1429008869,
+        -1465154083
+      ],
+      "cache_after_reseed": {
+        "value_bits": "13829667661655761096",
+        "present": false
+      },
+      "drain_before_reseed": false,
+      "algorithm": "legacy",
+      "first_seed": 0,
+      "cache_before_reseed": {
+        "value_bits": "13829667661655761096",
+        "present": true
+      },
+      "initial_gaussian_bits": [
+        "4605403794758891617"
+      ],
+      "gaussian_after_reseed_bits": "4609711554963350721"
+    },
+    {
+      "second_seed": 1,
+      "next_ints": [
+        892128508,
+        155629808,
+        1429008869,
+        -1465154083
+      ],
+      "cache_after_reseed": {
+        "value_bits": "13829667661655761096",
+        "present": false
+      },
+      "drain_before_reseed": true,
+      "algorithm": "legacy",
+      "first_seed": 0,
+      "cache_before_reseed": {
+        "value_bits": "13829667661655761096",
+        "present": false
+      },
+      "initial_gaussian_bits": [
+        "4605403794758891617",
+        "13829667661655761096"
+      ],
+      "gaussian_after_reseed_bits": "4609711554963350721"
+    },
+    {
+      "second_seed": 12345,
+      "next_ints": [
+        -716867186,
+        161804169,
+        1402202751,
+        535445604
+      ],
+      "cache_after_reseed": {
+        "value_bits": "4606497135811763817",
+        "present": false
+      },
+      "drain_before_reseed": false,
+      "algorithm": "legacy",
+      "first_seed": 987654321,
+      "cache_before_reseed": {
+        "value_bits": "4606497135811763817",
+        "present": true
+      },
+      "initial_gaussian_bits": [
+        "13826613344517489011"
+      ],
+      "gaussian_after_reseed_bits": "13819306589112068875"
+    },
+    {
+      "second_seed": 12345,
+      "next_ints": [
+        -716867186,
+        161804169,
+        1402202751,
+        535445604
+      ],
+      "cache_after_reseed": {
+        "value_bits": "4606497135811763817",
+        "present": false
+      },
+      "drain_before_reseed": true,
+      "algorithm": "legacy",
+      "first_seed": 987654321,
+      "cache_before_reseed": {
+        "value_bits": "4606497135811763817",
+        "present": false
+      },
+      "initial_gaussian_bits": [
+        "13826613344517489011",
+        "4606497135811763817"
+      ],
+      "gaussian_after_reseed_bits": "13819306589112068875"
+    },
+    {
+      "second_seed": -9223372036854775808,
+      "next_ints": [
+        -1557280266,
+        1327362106,
+        -1930858313,
+        502539523
+      ],
+      "cache_after_reseed": {
+        "value_bits": "13829837634871490876",
+        "present": false
+      },
+      "drain_before_reseed": false,
+      "algorithm": "legacy",
+      "first_seed": 9223372036854775807,
+      "cache_before_reseed": {
+        "value_bits": "13829837634871490876",
+        "present": true
+      },
+      "initial_gaussian_bits": [
+        "4610719237185014330"
+      ],
+      "gaussian_after_reseed_bits": "4605403794758891617"
+    },
+    {
+      "second_seed": -9223372036854775808,
+      "next_ints": [
+        -1557280266,
+        1327362106,
+        -1930858313,
+        502539523
+      ],
+      "cache_after_reseed": {
+        "value_bits": "13829837634871490876",
+        "present": false
+      },
+      "drain_before_reseed": true,
+      "algorithm": "legacy",
+      "first_seed": 9223372036854775807,
+      "cache_before_reseed": {
+        "value_bits": "13829837634871490876",
+        "present": false
+      },
+      "initial_gaussian_bits": [
+        "4610719237185014330",
+        "13829837634871490876"
+      ],
+      "gaussian_after_reseed_bits": "4605403794758891617"
+    }
+  ],
+  "native_capture_sha256": "22ee6a0de4ffea7622e3fce2a37a8da668fbed5f6e19640e50285050f33cb6c4",
+  "denied_network_attempt_count": 1
+}

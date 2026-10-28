@@ -1,0 +1,337 @@
+{
+  "version": "1.21.11",
+  "server_sha1": "64bb6d763bed0a9f1d632ec347938594144943ed",
+  "mappings_sha1": "5621e9253f05fd57872bbe7f8ddf5f9a7d525955",
+  "inner_sha256": "ec47239a8de246335e1d54f6ac319bd35641778eb4b6a6da06372840d02fcebc",
+  "source": "Native RandomState Nether router captures; raw f64 bits, six grid seeds plus two independently held-out seeds.",
+  "cases": [
+    {
+      "seed": 0,
+      "points": [
+        {
+          "block": [
+            0,
+            0,
+            0
+          ],
+          "temperature": "3fbe0cb1a8afb3ec",
+          "vegetation": "bfa75e19cd6e74b2"
+        },
+        {
+          "block": [
+            -1,
+            -64,
+            -1
+          ],
+          "temperature": "3fbd2acb5b251f54",
+          "vegetation": "bfa84e9925c02105"
+        },
+        {
+          "block": [
+            1,
+            63,
+            -1
+          ],
+          "temperature": "3fbe5e39eed525c5",
+          "vegetation": "bfa64ebdfd44df99"
+        },
+        {
+          "block": [
+            -16,
+            64,
+            16
+          ],
+          "temperature": "3fb71c3697db67b6",
+          "vegetation": "bfb6bd11409563d3"
+        }
+      ]
+    },
+    {
+      "seed": 1,
+      "points": [
+        {
+          "block": [
+            0,
+            0,
+            0
+          ],
+          "temperature": "bfa75e19cd6e74b2",
+          "vegetation": "3f85af3bf7732fdb"
+        },
+        {
+          "block": [
+            -1,
+            -64,
+            -1
+          ],
+          "temperature": "bfa84e9925c02105",
+          "vegetation": "3f8cdefa6dd1320d"
+        },
+        {
+          "block": [
+            1,
+            63,
+            -1
+          ],
+          "temperature": "bfa64ebdfd44df99",
+          "vegetation": "3f86a655ef6522a3"
+        },
+        {
+          "block": [
+            -16,
+            64,
+            16
+          ],
+          "temperature": "bfb6bd11409563d3",
+          "vegetation": "bf6368e685e426c6"
+        }
+      ]
+    },
+    {
+      "seed": -1,
+      "points": [
+        {
+          "block": [
+            0,
+            0,
+            0
+          ],
+          "temperature": "3fdc3741885bfd8d",
+          "vegetation": "3fbe0cb1a8afb3ec"
+        },
+        {
+          "block": [
+            -1,
+            -64,
+            -1
+          ],
+          "temperature": "3fdc0d161c6fcbbc",
+          "vegetation": "3fbd2acb5b251f54"
+        },
+        {
+          "block": [
+            1,
+            63,
+            -1
+          ],
+          "temperature": "3fdc39cb559b0433",
+          "vegetation": "3fbe5e39eed525c5"
+        },
+        {
+          "block": [
+            -16,
+            64,
+            16
+          ],
+          "temperature": "3fdbac5f9c912dff",
+          "vegetation": "3fb71c3697db67b6"
+        }
+      ]
+    },
+    {
+      "seed": 12345,
+      "points": [
+        {
+          "block": [
+            0,
+            0,
+            0
+          ],
+          "temperature": "3fafbffa40ba8b36",
+          "vegetation": "bfb7f7238ac0abdb"
+        },
+        {
+          "block": [
+            -1,
+            -64,
+            -1
+          ],
+          "temperature": "3fafafa112acec28",
+          "vegetation": "bfb80328254e3f8d"
+        },
+        {
+          "block": [
+            1,
+            63,
+            -1
+          ],
+          "temperature": "3fadc258a1b18782",
+          "vegetation": "bfb715c3e0dfda75"
+        },
+        {
+          "block": [
+            -16,
+            64,
+            16
+          ],
+          "temperature": "3fc0742994ffd597",
+          "vegetation": "bfc0fbaa301936cc"
+        }
+      ]
+    },
+    {
+      "seed": -9223372036854775808,
+      "points": [
+        {
+          "block": [
+            0,
+            0,
+            0
+          ],
+          "temperature": "3fbe0cb1a8afb3ec",
+          "vegetation": "bfa75e19cd6e74b2"
+        },
+        {
+          "block": [
+            -1,
+            -64,
+            -1
+          ],
+          "temperature": "3fbd2acb5b251f54",
+          "vegetation": "bfa84e9925c02105"
+        },
+        {
+          "block": [
+            1,
+            63,
+            -1
+          ],
+          "temperature": "3fbe5e39eed525c5",
+          "vegetation": "bfa64ebdfd44df99"
+        },
+        {
+          "block": [
+            -16,
+            64,
+            16
+          ],
+          "temperature": "3fb71c3697db67b6",
+          "vegetation": "bfb6bd11409563d3"
+        }
+      ]
+    },
+    {
+      "seed": 9223372036854775807,
+      "points": [
+        {
+          "block": [
+            0,
+            0,
+            0
+          ],
+          "temperature": "3fdc3741885bfd8d",
+          "vegetation": "3fbe0cb1a8afb3ec"
+        },
+        {
+          "block": [
+            -1,
+            -64,
+            -1
+          ],
+          "temperature": "3fdc0d161c6fcbbc",
+          "vegetation": "3fbd2acb5b251f54"
+        },
+        {
+          "block": [
+            1,
+            63,
+            -1
+          ],
+          "temperature": "3fdc39cb559b0433",
+          "vegetation": "3fbe5e39eed525c5"
+        },
+        {
+          "block": [
+            -16,
+            64,
+            16
+          ],
+          "temperature": "3fdbac5f9c912dff",
+          "vegetation": "3fb71c3697db67b6"
+        }
+      ]
+    },
+    {
+      "seed": 987654321,
+      "points": [
+        {
+          "block": [
+            -65553,
+            -63,
+            131089
+          ],
+          "temperature": "bfc0e882af3fb4a0",
+          "vegetation": "3fd359a44e3cdfe0"
+        },
+        {
+          "block": [
+            -1081,
+            -63,
+            -31
+          ],
+          "temperature": "bfa188956a1c5df6",
+          "vegetation": "3fc7af94a486c0dd"
+        },
+        {
+          "block": [
+            -273,
+            -63,
+            471
+          ],
+          "temperature": "bf9645caa6f811ed",
+          "vegetation": "3fe0dba630783241"
+        },
+        {
+          "block": [
+            503,
+            -63,
+            -519
+          ],
+          "temperature": "3fd48fb8512e38fa",
+          "vegetation": "bfcf9fe175fc1ba7"
+        }
+      ]
+    },
+    {
+      "seed": -7046029254386353131,
+      "points": [
+        {
+          "block": [
+            -65553,
+            -63,
+            131089
+          ],
+          "temperature": "bfc36454111f8c7d",
+          "vegetation": "3fe00ad50bfe6fc1"
+        },
+        {
+          "block": [
+            -1081,
+            -63,
+            -31
+          ],
+          "temperature": "bfb2332c9e325f5c",
+          "vegetation": "bfc34658e22d0248"
+        },
+        {
+          "block": [
+            -273,
+            -63,
+            471
+          ],
+          "temperature": "bfd5649857c745c6",
+          "vegetation": "3fde6e76a7404ff1"
+        },
+        {
+          "block": [
+            503,
+            -63,
+            -519
+          ],
+          "temperature": "3f8c28f69206963f",
+          "vegetation": "3fcd37f43e8e893a"
+        }
+      ]
+    }
+  ]
+}

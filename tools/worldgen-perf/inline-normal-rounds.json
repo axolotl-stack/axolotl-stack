@@ -1,0 +1,95 @@
+[
+  {
+    "round": 1,
+    "base": {
+      "kind": "java",
+      "profile": "release",
+      "instrumented": false,
+      "seed": 12345,
+      "chunks": 68,
+      "setup_ms": 0.2578,
+      "proto_ms": 530.7071,
+      "finished_ms": 2998.4177999999997,
+      "cached_protos": 264,
+      "allocations": 119232,
+      "bytes": 157672310,
+      "stages": {}
+    },
+    "candidate": {
+      "kind": "java",
+      "profile": "release",
+      "instrumented": false,
+      "seed": 12345,
+      "chunks": 68,
+      "setup_ms": 0.37629999999999997,
+      "proto_ms": 539.8100000000001,
+      "finished_ms": 3029.3609,
+      "cached_protos": 264,
+      "allocations": 98369,
+      "bytes": 151246166,
+      "stages": {}
+    }
+  },
+  {
+    "round": 2,
+    "base": {
+      "kind": "java",
+      "profile": "release",
+      "instrumented": false,
+      "seed": 12345,
+      "chunks": 68,
+      "setup_ms": 0.2325,
+      "proto_ms": 537.6115,
+      "finished_ms": 3032.8801,
+      "cached_protos": 264,
+      "allocations": 119232,
+      "bytes": 157672310,
+      "stages": {}
+    },
+    "candidate": {
+      "kind": "java",
+      "profile": "release",
+      "instrumented": false,
+      "seed": 12345,
+      "chunks": 68,
+      "setup_ms": 0.27690000000000003,
+      "proto_ms": 534.2141,
+      "finished_ms": 3030.8935,
+      "cached_protos": 264,
+      "allocations": 98369,
+      "bytes": 151246166,
+      "stages": {}
+    }
+  },
+  {
+    "round": 3,
+    "base": {
+      "kind": "java",
+      "profile": "release",
+      "instrumented": false,
+      "seed": 12345,
+      "chunks": 68,
+      "setup_ms": 0.38230000000000003,
+      "proto_ms": 545.1202000000001,
+      "finished_ms": 3006.1461999999997,
+      "cached_protos": 264,
+      "allocations": 119232,
+      "bytes": 157672310,
+      "stages": {}
+    },
+    "candidate": {
+      "kind": "java",
+      "profile": "release",
+      "instrumented": false,
+      "seed": 12345,
+      "chunks": 68,
+      "setup_ms": 0.29750000000000004,
+      "proto_ms": 527.2192,
+      "finished_ms": 3006.5503,
+      "cached_protos": 264,
+      "allocations": 98369,
+      "bytes": 151246166,
+      "stages": {}
+    }
+  }
+]

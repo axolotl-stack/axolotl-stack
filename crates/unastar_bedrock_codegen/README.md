@@ -16,10 +16,11 @@ and surface noise still require reference-world measurements. See
 | Base bedrock/deepslate layers | Topology and transition boundaries measured in 1,024 columns; RNG/distribution unmeasured: to confirm by BDS fixture | `bds_1_26_51_seed_12345_geology.json`: contiguous bedrock thickness 2–5, stone absent through y=0, deepslate absent from y=8; capture more seeds and exact random draws |
 | Chunk/pass RNG seeding and feature draw order | unmeasured: to confirm by BDS fixture | Marker placements across positive/negative chunks for one fixed seed |
 | Scatter coordinate frames and distribution endpoints | BDS marker fixture confirms numeric/Molang offsets, nearest/half-away offset rounding and upper-exclusive uniform extents; other distributions remain unmeasured | Gaussian and grid controls |
-| Molang noise and query height semantics | Stone/water controls confirm world-space heights: heightmap includes water, above-top-solid skips water; noise and other material classes remain unmeasured | Noise threshold controls and foliage/material height queries |
-| JSON ore/tree/plant/geode/sculk/blob/decoration feature placement | unmeasured: to confirm by BDS fixture | One isolated feature at a known origin in controlled material |
+| Molang noise and query height semantics | World-independent noise model matches 32 scalar carriers and 16 independent exact float patterns; stone/water controls confirm world-space heights and fluid distinction | Broader noise inputs and foliage/material height queries |
+| JSON ore feature coordinates | Count-4/17/32 coal controls establish the internal (+8,+8) horizontal translation; exact vein shapes and RNG streams remain unmeasured | More shapes per count and measured feature RNG initialization |
+| JSON tree/plant/geode/sculk/blob/decoration feature placement | unmeasured: to confirm by BDS fixture; one oak control is structurally consistent with the current crown model | Isolated features at known origins in controlled material |
 | Built-in aquatic/plants/terrain features and legacy selectors | unmeasured: to confirm by BDS fixture | One built-in identifier per control, fixed seed and biome |
-| Surface builders, noise seeds, mountain slopes and adjustment precedence | unmeasured: to confirm by BDS fixture | Matched columns for each builder with captured biome/material inputs |
+| Surface builders, noise seeds, mountain slopes and adjustment precedence | Fixed native frozen-ocean climate matches all 1,658 reference water/ice columns; iceberg shape and remaining builder fields are unmeasured | More seeds plus matched mesa/swamp/capped/end/gradient columns |
 | Cave/underwater/nether carver geometry and probability | unmeasured: to confirm by BDS fixture | Isolated carver rules in stone and underwater regions |
 | Template rotation, jigsaw expansion, structure placement and processors | unmeasured: to confirm by BDS fixture | Template/pool controls at known origins plus structure-set placements |
 | Hard-coded structures without shipped placement data | Not implemented | Reference-world placement captures and controlled templates |
@@ -64,6 +65,18 @@ Legacy Java-format templates shipped with BDS can retain older identifiers:
 `minecraft:chain` is upgraded to native `minecraft:iron_chain` before palette
 resolution, preserving its axis under rotation. The conversion is exercised on
 the local bastion stage templates; placement/pool behavior remains unmeasured.
+
+Template palettes deduplicate **paired** primary/secondary permutations for all
+four rotations; packed cells remain five bytes. Both native layer arrays must
+match the template volume. A native `-1` index preserves its destination layer
+independently, rather than becoming air
+([format reference](https://wiki.bedrock.dev/nbt/mcstructure#block-indices)).
+Java-template lowering uses shared
+`unastar_packs::block_state::java_secondary_water` before primary projection:
+wet states and intrinsic water plants retain source water, dry states explicitly
+clear it, and primary water does not gain a duplicate liquid layer.
+`KEEP_LAYER` and air remain distinct actions through emission and one atomic
+runtime pair write; placement does not parse NBT or consume extra RNG draws.
 
 Template block actors are decoded at build time through shared
 `unastar_packs::{nbt,block_entity}`. The emitter stores sparse cell-indexed
@@ -168,18 +181,43 @@ roofed forest and two lush-cave surface columns). It does not validate mesa,
 swamp, capped, end or noise-gradient builders.
 
 For the 1,658 frozen-ocean columns whose reference surface is water or ice,
-the current BDS temperature-patch model and the shared Java
-`biome_climate::cold_enough_to_snow` predicate were sampled at identical
-coordinates:
+the previous world-seeded model, shared Java
+`biome_climate::cold_enough_to_snow` predicate and fixed native-MT model were
+sampled at identical coordinates:
 
 | Candidate freezing predicate | Correct water/ice classifications | Accuracy |
 |---|---:|---:|
-| Current Bedrock surface model | 672 | 40.53% |
+| Previous world-seeded Bedrock model | 672 | 40.53% |
 | Shared Java frozen temperature modifier | 575 | 34.68% |
+| Native MT fixed frozen modifier | 1658 | 100.00% |
 
-Neither predicate is established BDS behavior. Keep the BDS-data-backed builder
-path rather than adopt Java's predicate on this evidence; its warm-water patch
-noise and the final ice/snow placement still need controlled BDS measurements.
+Use the measured native model for this predicate: fixed MT3456 octaves
+`[-2,-1,0]` and the same MT2345 biome-info field independently established by
+Molang controls, with native float32 sampling. The public frozen-modifier
+formula is unchanged; no threshold/salt was fitted to these columns.
+The real `local_temperature` consumer regression fails at native ice column
+`(1029,62,1056)` before the correction and passes every reference case after.
+All cases are biome 46 at Y=62 across eight chunks. This validates the
+warm-water/ice predicate, not iceberg geometry, snow placement, altitude
+effects or another seed. Other surface fields remain explicitly unmeasured.
+
+#### Iceberg geometry comparison
+
+A separate WD2 experiment used the public Java `iceberg_surface`/`iceberg_pillar`/
+`iceberg_pillar_roof` descriptors directly (first octaves -6/-6/-3 and
+amplitude counts 3/4/1) with the existing named-noise seeding and builder formula.
+The identical integrated CLI workload produced these displayed measurements:
+
+| Geometry candidate | Terrain exact | Surface-height exact | Surface block | Histogram L1 |
+|---|---:|---:|---:|---:|
+| Retained geometry + measured native climate | 87.0% | 85.2% | 84.2% | 0.072 |
+| Direct public Java iceberg descriptors | 85.8% | 83.5% | 82.8% | 0.077 |
+
+The Java-descriptor experiment is rejected and its runtime changes removed.
+The retained geometry is still unmeasured, not certified by winning this
+comparison. Native iceberg field seeding/geometry and snow support require
+isolated controls; no threshold or output golden was changed.
+
 
 ### Controlled worlds
 
@@ -221,3 +259,102 @@ source world is rejected. Format 1 has two List<Int> layers; observed native
 format 2 has one or two IntArray layers. Missing layers are not invented, and
 format-2 actor coordinates must match the absolute cell position. Corruption
 fails the export rather than publishing a partial volume.
+
+### Native ore coordinate controls
+
+The local `minecraft:coal_ore_feature` has `count = 17`. Verified stopped-world
+structure volumes contain the entire ore set inside a reset 32³ stone box,
+with feature input Y=204, Z=8. The accepted captures are:
+
+| Input X | Verified trials | Ore blocks per trial | X offsets | Z offsets |
+|---:|---:|---:|---:|---:|
+| -128 | 3 | 20–24 | 5–10 | 6–9 |
+| 0 | 3 | 18–26 | 5–10 | 6–10 |
+| 128 | 3 | 19–27 | 5–10 | 5–9 |
+| 512 | 32 | 16–28 | 5–10 | 5–10 |
+
+These are measured positions, not invented feature seeds. The old runtime's
+horizontal support was disjoint from every observed voxel regardless of seed.
+`bedrock::features::ore::place` now applies the internal legacy (+8,+8)
+translation, preserving the feature input/return frame and existing RNG calls.
+The signed-origin regression fails before that correction and passes after it.
+Exact native RNG replay and the full sphere/discard algorithm are not established.
+
+Full raw volumes and console manifests stay outside the repository under
+`worldgen-controls/run-20261025-coal32-v2` and
+`worldgen-controls/run-20261025-ore-count-origin-02`. Only the nine successfully
+saved and independently exported native-count captures from the latter run
+contribute evidence; its unregistered authored-count attempts do not.
+
+Five further complete volumes from directly referenced authored ore features
+vary only `count`, keeping the coal/stone replacement rule and input Y/Z:
+
+| Count | Input X | Verified trials | Ore blocks | X offsets | Z offsets |
+|---:|---|---:|---:|---:|---:|
+| 4 | -128, 0 | 2 | 3 each | 7–8 | 7–8 |
+| 4 | 128 | 1 | 0 | — | — |
+| 32 | -128 | 1 | 89 | 3–12 | 5–9 |
+| 32 | 0 | 1 | 99 | 3–11 | 6–9 |
+
+These support the same translated horizontal frame and establish that `count`
+is not a block budget. The zero-block count-4 trial returned the native
+`Feature could not be placed at this location` outcome; its saved volume is
+still complete. Raw manifests/volumes are outside the repo in
+`worldgen-controls/run-20261025-ore-count-origin-05`. Its last planned count-32
+trial was not captured: the strict repeated-fill guard stopped on native
+`0 blocks filled`. The earlier rule-placement attempt in `...-04` supplies
+no ore geometry evidence. These few additional shapes do not establish exact
+sphere/discard behavior or RNG replay.
+
+### Native Molang noise controls
+
+`bds_1_26_51_molang_noise.json` contains authored measurements, not vanilla pack
+or structure payloads:
+
+| Control | Independently checked world seeds | Input pairs | Measurement |
+|---|---|---:|---|
+| Marker height `round(192 + 64 * query.noise(x,z))` | 12345 and 54321 | 16 per world | Identical 1/64-wide noise bins |
+| Hexadecimal scalar carrier with sign/adaptive scale | -9876543210123 | 16 new pairs | Exact binary32 patterns; four independent literal calibrations passed |
+
+The matching model is MT19937(2345), three constructor offset draws and a
+forward modulo shuffle. Native float32 sampling uses left-associated
+`t*t*t*t*dot`; regrouping as Java's `(t*t)*(t*t)*dot` or sampling in f64 changes
+observed bits. `bedrock::molang_noise` const-evaluates the permutation and final
+hash gradients, with no runtime RNG initialization, world-seed mix or per-world
+table copy. The obsolete seed-variation assertion was removed, not repinned.
+The real decorator regression failed at Y=217 versus native Y=207 before the
+fix and now passes the scalar and exact-float controls.
+
+Source manifests, authored packs, console logs and complete saved volumes stay
+outside the repo in `worldgen-controls/run-20261026-noise-01` and `...-05`.
+The precision-band run `...-02` independently disproved f64 sampling at large
+inputs. `...-03` failed literal calibration; `...-04` exposed a tiny decimal
+literal ambiguity. Neither supplies the certified exact-float fixture: `...-05`
+uses an exact integer-ratio small calibration and validates every digit channel.
+These controls do not establish decoration population seeds or draw order.
+
+### Primitive-correction parity measurements (2026-10-26)
+
+The same 68-chunk, 17,408-column seed-12345 fixture and `bedrock-worldgen`
+feature flag were used throughout. The first four columns isolate the ore/noise
+corrections; the last adds the measured fixed frozen-climate fields. Every
+corrected implementation is restored. Values are rounded for display.
+
+| Metric | Old ore / old noise | Corrected ore / old noise | Old ore / corrected noise | Ore + noise | + native frozen climate |
+|---|---:|---:|---:|---:|---:|
+| terrain exact | 0.835420 | 0.835593 | 0.833812 | 0.833869 | 0.870290 |
+| terrain within 2 | 0.881951 | 0.882468 | 0.882813 | 0.881549 | 0.921530 |
+| terrain mean absolute error | 1.935777 | 1.935087 | 1.929458 | 1.941234 | 1.249253 |
+| surface exact | 0.857479 | 0.851333 | 0.857479 | 0.851448 | 0.851562 |
+| surface block | 0.805779 | 0.801528 | 0.805779 | 0.801643 | 0.842429 |
+| surface biome | 0.995002 | 0.994830 | 0.995002 | 0.994830 | 0.994830 |
+| histogram L1 | 0.072667 | 0.072304 | 0.072387 | 0.072264 | 0.071887 |
+
+The old/old row is the earlier offset-only ablation, which exactly recovered
+every full-precision prior metric before the fixed-noise cutover.
+Independent primitive controls disprove both old implementations; aggregate
+surface/terrain metrics nevertheless contain compensating errors. Existing
+ratchets and output goldens remain unchanged: the corrected aggregate gate is
+currently three passing tests and one failing ratchet, pending an explicit D8
+decision. No exception or replacement floors have been assumed.
+

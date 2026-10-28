@@ -37,7 +37,7 @@ pub enum IntProvider {
 
 impl IntProvider {
     /// `sample(random)`.
-    pub fn sample<S: BitSource>(&self, rng: &mut WorldgenRandom<S>) -> i32 {
+    pub fn sample<S: BitSource, const RETAIN_GAUSSIAN: bool>(&self, rng: &mut WorldgenRandom<S, RETAIN_GAUSSIAN>) -> i32 {
         match *self {
             IntProvider::Constant(v) => v,
             IntProvider::Uniform { min, max } => rng.next_int_between_inclusive(min, max),
@@ -99,10 +99,10 @@ impl IntProvider {
 /// `WeightedList.getRandomOrThrow`: `nextInt(totalWeight)` walked over the
 /// cumulative weights.
 #[inline]
-pub fn weighted_pick<'a, T, S: BitSource>(
+pub fn weighted_pick<'a, T, S: BitSource, const RETAIN_GAUSSIAN: bool>(
     entries: &'a [(T, i32)],
     total_weight: i32,
-    rng: &mut WorldgenRandom<S>,
+    rng: &mut WorldgenRandom<S, RETAIN_GAUSSIAN>,
 ) -> &'a T {
     let mut roll = rng.next_int_bounded(total_weight);
     for (item, weight) in entries {
@@ -138,7 +138,7 @@ pub enum FloatProvider {
 
 impl FloatProvider {
     /// `sample(random)`.
-    pub fn sample<S: BitSource>(&self, rng: &mut WorldgenRandom<S>) -> f32 {
+    pub fn sample<S: BitSource, const RETAIN_GAUSSIAN: bool>(&self, rng: &mut WorldgenRandom<S, RETAIN_GAUSSIAN>) -> f32 {
         match *self {
             FloatProvider::Constant(v) => v,
             FloatProvider::Uniform { min, max_exclusive } => {
@@ -188,7 +188,7 @@ pub mod height {
 
     /// `UniformHeight.sample`.
     #[inline]
-    pub fn uniform<S: BitSource>(rng: &mut WorldgenRandom<S>, min: i32, max: i32) -> i32 {
+    pub fn uniform<S: BitSource, const RETAIN_GAUSSIAN: bool>(rng: &mut WorldgenRandom<S, RETAIN_GAUSSIAN>, min: i32, max: i32) -> i32 {
         if min > max {
             return min;
         }
@@ -197,8 +197,8 @@ pub mod height {
 
     /// `TrapezoidHeight.sample`.
     #[inline]
-    pub fn trapezoid<S: BitSource>(
-        rng: &mut WorldgenRandom<S>,
+    pub fn trapezoid<S: BitSource, const RETAIN_GAUSSIAN: bool>(
+        rng: &mut WorldgenRandom<S, RETAIN_GAUSSIAN>,
         min: i32,
         max: i32,
         plateau: i32,
@@ -217,8 +217,8 @@ pub mod height {
 
     /// `BiasedToBottomHeight.sample`.
     #[inline]
-    pub fn biased_to_bottom<S: BitSource>(
-        rng: &mut WorldgenRandom<S>,
+    pub fn biased_to_bottom<S: BitSource, const RETAIN_GAUSSIAN: bool>(
+        rng: &mut WorldgenRandom<S, RETAIN_GAUSSIAN>,
         min: i32,
         max: i32,
         inner: i32,
@@ -232,8 +232,8 @@ pub mod height {
 
     /// `VeryBiasedToBottomHeight.sample`.
     #[inline]
-    pub fn very_biased_to_bottom<S: BitSource>(
-        rng: &mut WorldgenRandom<S>,
+    pub fn very_biased_to_bottom<S: BitSource, const RETAIN_GAUSSIAN: bool>(
+        rng: &mut WorldgenRandom<S, RETAIN_GAUSSIAN>,
         min: i32,
         max: i32,
         inner: i32,

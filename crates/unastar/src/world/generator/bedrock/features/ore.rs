@@ -1,6 +1,6 @@
-//! `minecraft:ore_feature`: a blob of `count` blocks stretched along a random
-//! horizontal line, the classic vanilla vein shape shared by both editions
-//! (a chain of spheres whose radius peaks mid-way).
+//! `minecraft:ore_feature`: a chain of `count` overlapping spheres.
+//! Bedrock's internal horizontal center is input + (8, 0, 8), as observed in
+//! isolated native coal controls; `count` is not a resulting block budget.
 //!
 //! `replace` maps a target block to the replacement of the first matching
 //! `replace_rules` entry; `discard_chance_on_air_exposure` skips a candidate
@@ -18,7 +18,7 @@ const NEIGHBOURS: [(i32, i32, i32); 6] = [
     (0, 0, -1),
 ];
 
-/// Place one ore blob centred on `pos`; `Some(pos)` when any block changed.
+/// Place a vein with Bedrock's internal (+8, 0, +8) translation; return the input on success.
 pub fn place<W: BlockWorld>(
     ctx: &mut Ctx<'_, W>,
     pos: BlockPos,
@@ -34,8 +34,10 @@ pub fn place<W: BlockWorld>(
     let angle = ctx.rng.next_float() * PI;
     let reach = size / 8.0;
     let (sin, cos) = angle.sin_cos();
-    let (x0, x1) = (pos.x as f32 + sin * reach, pos.x as f32 - sin * reach);
-    let (z0, z1) = (pos.z as f32 + cos * reach, pos.z as f32 - cos * reach);
+    let origin_x = pos.x as f32 + 8.0;
+    let origin_z = pos.z as f32 + 8.0;
+    let (x0, x1) = (origin_x + sin * reach, origin_x - sin * reach);
+    let (z0, z1) = (origin_z + cos * reach, origin_z - cos * reach);
     let y0 = (pos.y + ctx.rng.next_int(3) - 2) as f32;
     let y1 = (pos.y + ctx.rng.next_int(3) - 2) as f32;
     let mut placed = false;
@@ -82,4 +84,87 @@ pub fn place<W: BlockWorld>(
         }
     }
     placed.then_some(pos)
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::registry::BlockRegistry;
+    use crate::world::ChunkPos;
+    use crate::world::generator::bedrock::{molang_noise::MolangNoise, rng::BedrockRandom};
+    use crate::world::generator::proto::ProtoChunk;
+    use std::sync::LazyLock;
+
+    static IDS: LazyLock<(u32, u32, u32)> = LazyLock::new(|| {
+        let registry = BlockRegistry::vanilla();
+        (
+            registry
+                .default_state_id_by_name("minecraft:stone")
+                .unwrap(),
+            registry
+                .default_state_id_by_name("minecraft:coal_ore")
+                .unwrap(),
+            registry.default_state_id_by_name("minecraft:air").unwrap(),
+        )
+    });
+
+    fn replace_stone(id: u32) -> Option<u32> {
+        (id == IDS.0).then_some(IDS.1)
+    }
+
+    fn is_air(id: u32) -> bool {
+        id == IDS.2
+    }
+
+    #[test]
+    fn count_17_ore_uses_the_observed_positive_horizontal_offset_at_signed_origins() {
+        // BDS 1.26.51: 32 full stone-box controls, then three controls each at
+        // input X=-128,0,128. All count-17 coal cells have X/Z offsets 5..10;
+        // voxel-center means are approximately +8/+8, not the input position.
+        // Feature RNG seeds are unmeasured: test the coordinate convention,
+        // not a fabricated exact replay of one of those native voxel sets.
+        let noise = MolangNoise;
+        for chunk_coordinate in [-1, 0] {
+            for seed in 0..16 {
+                let mut proto =
+                    ProtoChunk::empty(ChunkPos::new(chunk_coordinate, chunk_coordinate), 0);
+                proto.chunk.fill_subchunk_solid(16, IDS.0); // Y=192..207.
+                let input =
+                    BlockPos::new(chunk_coordinate * 16 + 4, 204, chunk_coordinate * 16 + 4);
+                let mut rng = BedrockRandom::new(seed);
+                assert_eq!(
+                    place(
+                        &mut Ctx {
+                            world: &mut proto,
+                            rng: &mut rng,
+                            noise: &noise,
+                            seed: 12345
+                        },
+                        input,
+                        17,
+                        0.0,
+                        replace_stone,
+                        is_air,
+                    ),
+                    Some(input)
+                );
+                let mut ore_cells = 0;
+                for x in 0..16 {
+                    for z in 0..16 {
+                        for y in 192..208 {
+                            if proto.chunk.get_block(x, y, z) != IDS.1 {
+                                continue;
+                            }
+                            let dx = chunk_coordinate * 16 + i32::from(x) - input.x;
+                            let dz = chunk_coordinate * 16 + i32::from(z) - input.z;
+                            assert!((5..=10).contains(&dx), "ore x offset {dx}, seed {seed}");
+                            assert!((5..=10).contains(&dz), "ore z offset {dz}, seed {seed}");
+                            ore_cells += 1;
+                        }
+                    }
+                }
+                assert!(ore_cells > 0, "full stone target must produce a vein");
+            }
+        }
+    }
 }

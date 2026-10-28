@@ -7,7 +7,7 @@ mod feature;
 
 use feature::{ConfiguredFeature, PlacedFeatureJson};
 use unastar_noise::features::generated::{
-    BIOME_NAMES, NETHER_FEATURES, OVERWORLD_BIOMES, OVERWORLD_FEATURES, PLACED_NAMES,
+    BIOME_NAMES, END_FEATURES, NETHER_FEATURES, OVERWORLD_BIOMES, OVERWORLD_FEATURES, PLACED_NAMES,
 };
 
 #[test]
@@ -98,4 +98,59 @@ fn overworld_biomes_decorate_only_overworld_features() {
             .iter()
             .all(|s| s.is_empty())
     );
+}
+
+/// Relative biome constraints alone do not establish the feature indices used
+/// for seeding. Compare the compiled consumer tables with the actual native
+/// generator's memoized sorter, including features absent from the local biome.
+#[test]
+fn registered_step_indices_match_native_all_dimensions() {
+    let fixture: serde_json::Value = serde_json::from_str(include_str!(
+        "data/native_feature_order_1_21_11.json"
+    ))
+    .unwrap();
+    for (dim, generated) in [
+        ("overworld", &OVERWORLD_FEATURES),
+        ("nether", &NETHER_FEATURES),
+        ("end", &END_FEATURES),
+    ] {
+        let native = &fixture["dimensions"][dim];
+        for step in native["global_steps"].as_array().unwrap() {
+            let s = step["step"].as_u64().unwrap() as usize;
+            let expected: Vec<_> = step["features"]
+                .as_array()
+                .unwrap()
+                .iter()
+                .enumerate()
+                .map(|(index, entry)| {
+                    assert_eq!(entry["native_index_mapping"].as_u64().unwrap(), index as u64);
+                    entry["placed_feature"].as_str().unwrap()
+                })
+                .collect();
+            let actual: Vec<_> = generated.steps[s]
+                .iter()
+                .map(|&id| PLACED_NAMES[id as usize])
+                .collect();
+            assert_eq!(actual, expected, "{dim} step {s}");
+        }
+        for biome in native["possible_biomes_in_native_source_iteration_order"]
+            .as_array()
+            .unwrap()
+        {
+            let name = biome["biome"].as_str().unwrap();
+            let b = BIOME_NAMES.iter().position(|&n| n == name).unwrap();
+            for step in biome["steps"].as_array().unwrap() {
+                let s = step["step"].as_u64().unwrap() as usize;
+                let mut expected: Vec<_> = step["features_in_biome_order"]
+                    .as_array()
+                    .unwrap()
+                    .iter()
+                    .map(|entry| entry["native_global_step_index"].as_u64().unwrap() as u16)
+                    .collect();
+                expected.sort_unstable();
+                expected.dedup();
+                assert_eq!(generated.biome_steps[b][s], expected, "{dim} {name} step {s}");
+            }
+        }
+    }
 }

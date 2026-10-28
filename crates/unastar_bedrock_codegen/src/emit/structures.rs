@@ -48,10 +48,14 @@ fn template_tokens(
     data: &StructureData,
 ) -> Result<TokenStream> {
     let [sx, sy, sz] = t.size;
-    let palette = t
-        .palette
-        .iter()
-        .map(|[a, b, c, d]| quote!([#a, #b, #c, #d]));
+    let palette = t.palette.iter().map(|state| {
+        let [a, b, c, d] = state.primary;
+        let [e, f, g, h] = state.secondary;
+        quote!(structures::TemplateState {
+            primary: [#a, #b, #c, #d],
+            secondary: [#e, #f, #g, #h],
+        })
+    });
     let mut bytes = Vec::with_capacity(t.cells.len() * 5);
     for ([x, y, z], entry) in &t.cells {
         bytes.extend_from_slice(&[*x, *y, *z]);

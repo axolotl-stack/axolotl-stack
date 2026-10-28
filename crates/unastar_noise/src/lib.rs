@@ -30,10 +30,15 @@ mod types;
 pub use types::*;
 
 // Noise generation modules
+pub mod end_islands;
+pub mod native_density;
 pub mod noise;
 pub mod xoroshiro;
 
-pub use noise::{BlendedNoise, DoublePerlinNoise, OctaveNoise, PerlinNoise, SimplexNoise};
+pub use noise::{
+    BlendedNoise, DoublePerlinNoise, NativeDoublePerlinNoise, NativeOctaveNoise, OctaveNoise,
+    PerlinNoise, SimplexNoise,
+};
 pub use xoroshiro::{JavaRandom, PositionalRandomFactory, Xoroshiro128, get_seed};
 
 // Biome temperature (surface rules, snow/ice, icebergs)
@@ -47,6 +52,9 @@ pub mod features;
 
 // Java-style structures
 pub mod structures;
+
+// Optional benchmark instrumentation (zero-sized scopes in production builds).
+pub mod profile;
 
 // Runtime types of the compiled carvers (`carvers`)
 pub mod carver;

@@ -30,32 +30,36 @@ impl std::fmt::Debug for BedrockRandom {
 
 impl BedrockRandom {
     /// Seed exactly like the reference `init_genrand`.
-    pub fn new(seed: u32) -> Self {
+    pub const fn new(seed: u32) -> Self {
         let mut state = [0u32; N];
         state[0] = seed;
-        for i in 1..N {
+        let mut i = 1;
+        while i < N {
             state[i] = 1_812_433_253u32
                 .wrapping_mul(state[i - 1] ^ (state[i - 1] >> 30))
                 .wrapping_add(i as u32);
+            i += 1;
         }
         Self { state, index: N }
     }
 
-    fn twist(&mut self) {
-        for i in 0..N {
+    const fn twist(&mut self) {
+        let mut i = 0;
+        while i < N {
             let y = (self.state[i] & UPPER_MASK) | (self.state[(i + 1) % N] & LOWER_MASK);
             let mut next = self.state[(i + M) % N] ^ (y >> 1);
             if y & 1 != 0 {
                 next ^= MATRIX_A;
             }
             self.state[i] = next;
+            i += 1;
         }
         self.index = 0;
     }
 
     /// Next tempered 32-bit output (`genrand_int32`).
     #[inline]
-    pub fn next_u32(&mut self) -> u32 {
+    pub const fn next_u32(&mut self) -> u32 {
         if self.index >= N {
             self.twist();
         }

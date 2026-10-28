@@ -36,6 +36,7 @@
 use super::super::generated::bb;
 use super::super::world::{BlockPos, BlockWorld, Ctx, OUT_OF_BOUNDS};
 use super::IntRange;
+use smallvec::SmallVec;
 use unastar_noise::{PerlinNoise, Xoroshiro128};
 
 /// Vanilla shell layer constants (not part of the pack data).
@@ -110,7 +111,8 @@ pub fn place<W: BlockWorld>(
     );
     let generate_crack = ctx.rng.probability(params.generate_crack_chance);
 
-    let mut centres: Vec<(BlockPos, f64)> = Vec::with_capacity(points as usize);
+    // Vanilla draws 3..=4 centres; larger custom counts retain growable storage.
+    let mut centres: SmallVec<[(BlockPos, f64); 4]> = SmallVec::with_capacity(points as usize);
     let mut invalid = 0;
     for _ in 0..points {
         let dx = params.outer_wall_distance.sample(ctx.rng);
@@ -134,7 +136,8 @@ pub fn place<W: BlockWorld>(
     let r = params.max_radius;
     let noise_multiplier = f64::from(params.noise_multiplier);
     let crack_point_offset = f64::from(params.crack_point_offset);
-    let mut potential = Vec::new();
+    // Keep common growth-candidate scratch inline; larger geodes still spill.
+    let mut potential: SmallVec<[BlockPos; 32]> = SmallVec::new();
     let mut placed = false;
     for dx in -r..=r {
         for dz in -r..=r {
@@ -306,6 +309,7 @@ mod tests {
     struct Cube {
         half: i32,
         blocks: Vec<u32>,
+        secondary: std::collections::HashMap<BlockPos, u32>,
         block_entities: Vec<crate::world::block_entity::BlockEntity>,
     }
 
@@ -315,6 +319,7 @@ mod tests {
             Self {
                 half,
                 blocks: vec![id; side * side * side],
+                secondary: Default::default(),
                 block_entities: Vec::new(),
             }
         }
@@ -341,14 +346,31 @@ mod tests {
         fn get(&self, pos: BlockPos) -> u32 {
             self.index(pos).map_or(OUT_OF_BOUNDS, |i| self.blocks[i])
         }
+        fn get_layer(&self, pos: BlockPos, layer: u8) -> u32 {
+            match (self.index(pos), layer) {
+                (Some(i), 0) => self.blocks[i],
+                (Some(_), 1) => self.secondary.get(&pos).copied().unwrap_or(bb::AIR),
+                _ => OUT_OF_BOUNDS,
+            }
+        }
         fn set(&mut self, pos: BlockPos, id: u32) -> bool {
             match self.index(pos) {
                 Some(i) => {
                     self.blocks[i] = id;
+                    self.secondary.remove(&pos);
                     true
                 }
                 None => false,
             }
+        }
+        fn set_layers(&mut self, pos: BlockPos, primary: u32, secondary: Option<u32>) -> bool {
+            if !self.set(pos, primary) {
+                return false;
+            }
+            if let Some(id) = secondary.filter(|&id| id != bb::AIR) {
+                self.secondary.insert(pos, id);
+            }
+            true
         }
         fn set_block_entity(&mut self, entity: crate::world::block_entity::BlockEntity) -> bool {
             let position = entity.position();

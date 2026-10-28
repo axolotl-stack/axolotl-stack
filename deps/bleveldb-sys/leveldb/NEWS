@@ -1,3 +1,10 @@
+Local Windows fixes
+-------------------
+
+Use a replace-existing rename for Env::RenameFile, including CURRENT manifest
+updates on database reopen. Do not merge destination metadata or require write
+sharing on the source file through ReplaceFile.
+
 Release 1.2 2011-05-16
 ----------------------
 
