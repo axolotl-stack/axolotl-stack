@@ -14,6 +14,7 @@ use crate::entity::components::{
 };
 use crate::item::{ItemStack, user_data};
 use crate::registry::ItemRegistry;
+use crate::registry::block::BlockNetworkIds;
 use jolyne::valentine::{
     ActorUniqueId, BlockPos, ContainerClosePacket, ContainerOpenPacket, EnumsContainerEnumName,
     EnumsInteractPacketPayloadAction, EnumsInventorySourceType, EnumsItemStackNetResult,
@@ -32,6 +33,7 @@ pub fn apply_inventory(
     mut events: ResMut<InventoryEvents>,
     items: Res<super::types::ItemRegistryResource>,
     world_template: Res<super::types::ServerWorldTemplate>,
+    config: Res<super::types::ServerConfigResource>,
     modes: Query<&GameMode>,
     mut players: Query<(
         &mut MainInventory,
@@ -42,11 +44,20 @@ pub fn apply_inventory(
     )>,
 ) {
     let _span = tracing::info_span!("apply_inventory", count = queue.0.len()).entered();
+    let block_ids = config.0.block_network_ids;
     for (entity, action) in queue.0.drain(..) {
         match action {
             InventoryAction::ItemStackRequest(pk) => {
                 let mode = modes.get(entity).copied().unwrap_or_default();
-                handle_item_stack_request(entity, &pk, &items, &world_template, mode, &mut players);
+                handle_item_stack_request(
+                    entity,
+                    &pk,
+                    &items,
+                    block_ids,
+                    &world_template,
+                    mode,
+                    &mut players,
+                );
             }
             InventoryAction::ContainerClose(pk) => {
                 handle_container_close(entity, &pk, &mut players);
@@ -59,7 +70,15 @@ pub fn apply_inventory(
             }
             InventoryAction::Transaction(pk) => {
                 let mode = modes.get(entity).copied().unwrap_or_default();
-                handle_inventory_transaction(entity, &pk, &items, mode, &mut players, &mut events);
+                handle_inventory_transaction(
+                    entity,
+                    &pk,
+                    &items,
+                    block_ids,
+                    mode,
+                    &mut players,
+                    &mut events,
+                );
             }
         }
     }
@@ -69,6 +88,7 @@ fn handle_item_stack_request(
     entity: Entity,
     pk: &jolyne::valentine::ItemStackRequestPacket,
     items: &Res<super::types::ItemRegistryResource>,
+    block_ids: BlockNetworkIds,
     world_template: &Res<super::types::ServerWorldTemplate>,
     mode: GameMode,
     players: &mut Query<(
@@ -92,17 +112,18 @@ fn handle_item_stack_request(
         };
         // Only the fully implemented creative-output -> empty main slot operation
         // is accepted. Validate the complete request before changing any state.
-        let placement = validate_creative_request(&inv.0, &request.actions, &items.0, mode, |id| {
-            Some(
-                &world_template
-                    .0
-                    .creative_content
-                    .entries
-                    .iter()
-                    .find(|entry| entry.creative_net_id.id == id)?
-                    .item_instance,
-            )
-        });
+        let placement =
+            validate_creative_request(&inv.0, &request.actions, &items.0, block_ids, mode, |id| {
+                Some(
+                    &world_template
+                        .0
+                        .creative_content
+                        .entries
+                        .iter()
+                        .find(|entry| entry.creative_net_id.id == id)?
+                        .item_instance,
+                )
+            });
         let mut containers = None;
         let result = if let Some((slot, item)) = placement {
             let amount = item.count;
@@ -131,7 +152,7 @@ fn handle_item_stack_request(
             }]);
             EnumsItemStackNetResult::Success
         } else {
-            send_inventory(&inv.0, session, &items.0);
+            send_inventory(&inv.0, session, &items.0, block_ids);
             EnumsItemStackNetResult::Error
         };
         let _ = session.send(McpePacket::from(ItemStackResponsePacket {
@@ -269,6 +290,7 @@ fn handle_inventory_transaction(
     entity: Entity,
     pk: &jolyne::valentine::InventoryTransactionPacket,
     items: &Res<super::types::ItemRegistryResource>,
+    block_ids: BlockNetworkIds,
     mode: GameMode,
     players: &mut Query<(
         &mut MainInventory,
@@ -285,11 +307,18 @@ fn handle_inventory_transaction(
 
     match transaction {
         InventoryTransactionPacketTransaction::NormalTransactionData(normal) => {
-            handle_normal_transaction(entity, &normal.actions.actions, items, mode, players);
+            handle_normal_transaction(
+                entity,
+                &normal.actions.actions,
+                items,
+                block_ids,
+                mode,
+                players,
+            );
         }
         InventoryTransactionPacketTransaction::InventoryMismatchData(_) => {
             if let Ok((inv, _, _, _, session)) = players.get(entity) {
-                send_inventory(&inv.0, session, &items.0);
+                send_inventory(&inv.0, session, &items.0, block_ids);
             }
         }
         InventoryTransactionPacketTransaction::ItemUseInventoryTransaction(use_item) => {
@@ -315,6 +344,7 @@ fn handle_normal_transaction(
     entity: Entity,
     actions: &[jolyne::valentine::InventoryAction],
     items: &Res<super::types::ItemRegistryResource>,
+    block_ids: BlockNetworkIds,
     mode: GameMode,
     players: &mut Query<(
         &mut MainInventory,
@@ -325,30 +355,20 @@ fn handle_normal_transaction(
     )>,
 ) {
     if let Ok((mut inv, _, _, _, session)) = players.get_mut(entity)
-        && !apply_normal_actions(&mut inv.0, actions, &items.0, mode)
+        && !apply_normal_actions(&mut inv.0, actions, &items.0, block_ids, mode)
     {
-        send_inventory(&inv.0, session, &items.0);
+        send_inventory(&inv.0, session, &items.0, block_ids);
     }
 }
 
 type WireItem = jolyne::valentine::CerealizerNetworkItemStackDescriptorSerializedData;
 type CreativeItem = jolyne::valentine::CerealizerNetworkItemInstanceDescriptorSerializedData;
 
-fn wire_item(stack: &ItemStack, items: &ItemRegistry) -> Option<WireItem> {
-    if stack.is_empty() {
-        return Some(WireItem::default());
-    }
-    Some(WireItem {
-        id: i16::try_from(items.get_by_name(&stack.item_id)?.network_id).ok()?,
-        stacksize: u16::from(stack.count),
-        auxvalue: u32::try_from(stack.damage).ok()?,
-        net_id_variant: None,
-        block_runtime_id: u32::try_from(stack.runtime_id).ok()?,
-        user_data_buffer: user_data::network_user_data(&stack.item_id, stack.nbt.as_deref()),
-    })
-}
-
-fn validated_item(wire: &WireItem, items: &ItemRegistry) -> Option<ItemStack> {
+fn validated_item(
+    wire: &WireItem,
+    items: &ItemRegistry,
+    block_ids: BlockNetworkIds,
+) -> Option<ItemStack> {
     if wire.id == 0 {
         return (wire.stacksize == 0
             && wire.auxvalue == 0
@@ -362,7 +382,7 @@ fn validated_item(wire: &WireItem, items: &ItemRegistry) -> Option<ItemStack> {
     }
     Some(ItemStack {
         item_id: entry.string_id.clone(),
-        runtime_id: i32::try_from(wire.block_runtime_id).ok()?,
+        runtime_id: i32::try_from(block_ids.item_block_from_wire(wire.block_runtime_id)?).ok()?,
         count: u8::try_from(wire.stacksize).ok()?,
         damage: i16::try_from(wire.auxvalue).ok()?,
         nbt: user_data::stored_user_data(&entry.string_id, &wire.user_data_buffer),
@@ -376,6 +396,7 @@ fn apply_normal_actions(
     inv: &mut Inventory,
     actions: &[jolyne::valentine::InventoryAction],
     items: &ItemRegistry,
+    block_ids: BlockNetworkIds,
     mode: GameMode,
 ) -> bool {
     let mut changes: Vec<(usize, ItemStack)> = Vec::with_capacity(actions.len().min(inv.size()));
@@ -398,7 +419,7 @@ fn apply_normal_actions(
         if changes.iter().any(|(previous, _)| *previous == slot) {
             return false;
         }
-        let Some(expected) = wire_item(actual, items) else {
+        let Some(expected) = super::items::item_descriptor(actual, items, block_ids) else {
             return false;
         };
         // Stack prediction IDs are transport bookkeeping, not item identity;
@@ -411,11 +432,11 @@ fn apply_normal_actions(
         if expected != action.from_item
             || user_data::stored_user_data(&actual.item_id, &action.from_item.user_data_buffer)
                 != actual.nbt
-            || validated_item(&action.from_item, items).is_none()
+            || validated_item(&action.from_item, items, block_ids).is_none()
         {
             return false;
         }
-        let Some(item) = validated_item(&action.to_item, items) else {
+        let Some(item) = validated_item(&action.to_item, items, block_ids) else {
             return false;
         };
         changes.push((slot, item));
@@ -473,6 +494,7 @@ fn validate_creative_request<'a>(
     inv: &Inventory,
     actions: &[ItemStackRequestPacketDataRequestDataActionsItem],
     items: &ItemRegistry,
+    block_ids: BlockNetworkIds,
     mode: GameMode,
     creative_item: impl FnOnce(u32) -> Option<&'a CreativeItem>,
 ) -> Option<(usize, ItemStack)> {
@@ -500,16 +522,22 @@ fn validate_creative_request<'a>(
     }
     let source = creative_item(craft.creative_item_net_id)?;
     let mut item = creative_stack(items, source.id, place.amount, mode)?;
-    u32::try_from(source.block_runtime_id).ok()?;
-    item.runtime_id = source.block_runtime_id;
+    // The instance descriptor carries the wire id as an i32; hashes use all 32 bits.
+    let wire_block = source.block_runtime_id as u32;
+    item.runtime_id = i32::try_from(block_ids.item_block_from_wire(wire_block)?).ok()?;
     item.damage = i16::try_from(source.auxvalue).ok()?;
     item.nbt = user_data::stored_user_data(&item.item_id, &source.user_data_buffer);
     Some((slot, item))
 }
 
-fn send_inventory(inv: &Inventory, session: &PlayerSession, items: &ItemRegistry) {
+fn send_inventory(
+    inv: &Inventory,
+    session: &PlayerSession,
+    items: &ItemRegistry,
+    block_ids: BlockNetworkIds,
+) {
     let Some(slots) = (0..inv.size())
-        .map(|slot| wire_item(inv.item(slot).unwrap(), items))
+        .map(|slot| super::items::item_descriptor(inv.item(slot).unwrap(), items, block_ids))
         .collect::<Option<Vec<_>>>()
     else {
         tracing::warn!("Cannot resync inventory containing an unrepresentable server item");
@@ -535,7 +563,12 @@ pub(super) fn resync_inventory(world: &World, entity: Entity) {
         world.get::<PlayerSession>(entity),
         world.get_resource::<super::types::ItemRegistryResource>(),
     ) {
-        send_inventory(&inv.0, session, &items.0);
+        send_inventory(
+            &inv.0,
+            session,
+            &items.0,
+            super::types::block_network_ids(world),
+        );
     }
 }
 
@@ -594,6 +627,7 @@ mod tests {
                 &mut inv,
                 &[action(0, 0, count)],
                 &items,
+                BlockNetworkIds::Hashed,
                 GameMode::Creative
             ));
             assert!(inv.item(0).unwrap().is_empty());
@@ -605,6 +639,7 @@ mod tests {
             &mut inv,
             &[forged],
             &items,
+            BlockNetworkIds::Hashed,
             GameMode::Creative
         ));
     }
@@ -620,6 +655,7 @@ mod tests {
             &mut inv,
             &actions,
             &items,
+            BlockNetworkIds::Hashed,
             GameMode::Survival
         ));
         assert_eq!(inv.item(0).unwrap().count, 8);
@@ -636,12 +672,14 @@ mod tests {
             &mut inv,
             &[action(1, 0, 8)],
             &items,
+            BlockNetworkIds::Hashed,
             GameMode::Survival
         ));
         assert!(apply_normal_actions(
             &mut inv,
             &[action(0, 8, 0), action(1, 0, 8)],
             &items,
+            BlockNetworkIds::Hashed,
             GameMode::Survival
         ));
         assert!(inv.item(0).unwrap().is_empty());
@@ -671,6 +709,7 @@ mod tests {
                 &mut inv,
                 &[action(0, 0, 1), bad],
                 &items,
+                BlockNetworkIds::Hashed,
                 GameMode::Creative
             ));
             assert!(inv.item(0).unwrap().is_empty());
@@ -686,6 +725,7 @@ mod tests {
                 &mut inv,
                 &[action(0, 0, 16)],
                 &items,
+                BlockNetworkIds::Hashed,
                 mode
             ));
             assert!(creative_stack(&items, 77, 16, mode).is_none());
@@ -738,21 +778,22 @@ mod tests {
                 },
             ),
         ];
+        let ids = BlockNetworkIds::Hashed;
         assert!(
-            validate_creative_request(&inv, &actions, &items, GameMode::Survival, |_| Some(
+            validate_creative_request(&inv, &actions, &items, ids, GameMode::Survival, |_| Some(
                 &creative
             ))
             .is_none()
         );
         let (slot, stack) =
-            validate_creative_request(&inv, &actions, &items, GameMode::Creative, |_| {
+            validate_creative_request(&inv, &actions, &items, ids, GameMode::Creative, |_| {
                 Some(&creative)
             })
             .unwrap();
         assert_eq!((slot, stack.count, stack.max_stack_size()), (0, 16, 16));
         actions.push(actions[1].clone());
         assert!(
-            validate_creative_request(&inv, &actions, &items, GameMode::Creative, |_| Some(
+            validate_creative_request(&inv, &actions, &items, ids, GameMode::Creative, |_| Some(
                 &creative
             ))
             .is_none()
@@ -788,6 +829,7 @@ mod tests {
                 &mut inv,
                 &[forged],
                 &items,
+                BlockNetworkIds::Hashed,
                 GameMode::Survival
             ));
             assert_eq!(inv.item(0).unwrap().count, 8);
@@ -803,6 +845,7 @@ mod tests {
         use std::sync::Arc;
         let mut world = World::new();
         world.insert_resource(ItemRegistryResource(Arc::new(registry())));
+        world.insert_resource(super::super::types::ServerConfigResource(Default::default()));
         let mut template = jolyne::WorldTemplate::default();
         let mut content = CreativeContentPacket::default();
         content.entries.push(CreativeItemEntryPayload {
@@ -811,7 +854,7 @@ mod tests {
                 id: 77,
                 stacksize: 1,
                 auxvalue: 7,
-                block_runtime_id: 33,
+                block_runtime_id: BlockNetworkIds::Hashed.to_wire(33) as i32,
                 user_data_buffer: vec![1, 2].into(),
             },
             ..Default::default()
@@ -898,7 +941,7 @@ mod tests {
             (33, 7, Some([1, 2].as_slice()))
         );
         let mut from = descriptor(16);
-        from.block_runtime_id = 33;
+        from.block_runtime_id = BlockNetworkIds::Hashed.to_wire(33);
         from.auxvalue = 7;
         from.user_data_buffer = vec![1, 2].into();
         let mut remove = action(0, 16, 0);
@@ -911,6 +954,7 @@ mod tests {
             &mut inventory.0,
             &[remove, insert],
             &items,
+            BlockNetworkIds::Hashed,
             GameMode::Survival
         ));
         assert!(inventory.0.item(0).unwrap().is_empty());
@@ -961,6 +1005,7 @@ mod tests {
         use std::sync::Arc;
         let mut world = World::new();
         world.insert_resource(ItemRegistryResource(Arc::new(registry())));
+        world.insert_resource(super::super::types::ServerConfigResource(Default::default()));
         world.insert_resource(ServerWorldTemplate(Arc::new(
             jolyne::WorldTemplate::default(),
         )));

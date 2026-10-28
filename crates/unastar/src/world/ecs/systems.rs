@@ -21,16 +21,7 @@ use crate::world::ecs::{
     ChunkState, ChunkStateFlags, ChunkTickingState, ChunkViewers, PendingChunkGenerations,
 };
 use jolyne::valentine::types::{BlockPos, ChunkPos, DimensionType};
-use jolyne::valentine::{
-    LevelChunkPacket, McpePacket, NetworkChunkPublisherUpdatePacket, UpdateBlockPacket,
-};
-
-// Protocol 2168 replaced the legacy negative LevelChunk request-mode sentinel
-// with `SubChunksCount = 0` and an optional sub-chunk limit. These are the
-// canonical values used by protocolgen and Dragonfly for the same on-demand
-// loading behavior.
-const BLOCK_UPDATE_NEIGHBOURS: u32 = 1;
-const BLOCK_UPDATE_NETWORK: u32 = 1 << 1;
+use jolyne::valentine::{LevelChunkPacket, McpePacket, NetworkChunkPublisherUpdatePacket};
 
 /// Configuration for chunk loading behavior.
 #[derive(Resource, Debug, Clone)]
@@ -825,63 +816,6 @@ pub fn update_chunk_ticking(
 // ChunkLoader's on_remove hook now handles cleanup automatically when
 // the entity is despawned. This eliminates the need for the
 // PlayerDisconnecting marker and the explicit cleanup system.
-
-// ============================================================================
-// Block Update Broadcasting
-// ============================================================================
-
-/// Broadcast a block update to all viewers of a chunk.
-///
-/// This should be called after a block is changed in the chunk data.
-/// Sends `PacketUpdateBlock` to all players currently viewing the chunk.
-///
-/// # Arguments
-/// * `chunk_entity` - The ECS entity of the chunk that was modified
-/// * `world_x` - World X coordinate of the block
-/// * `world_y` - World Y coordinate of the block  
-/// * `world_z` - World Z coordinate of the block
-/// * `block_runtime_id` - The new block runtime ID
-/// * `viewers` - Query for chunk viewers
-/// * `sessions` - Query for player sessions
-#[allow(dead_code)]
-pub fn broadcast_block_update(
-    chunk_entity: Entity,
-    world_x: i32,
-    world_y: i32,
-    world_z: i32,
-    block_runtime_id: i32,
-    viewers: &Query<&ChunkViewers>,
-    sessions: &Query<&PlayerSession>,
-) {
-    let Ok(chunk_viewers) = viewers.get(chunk_entity) else {
-        return;
-    };
-
-    let packet = UpdateBlockPacket {
-        block_position: BlockPos {
-            x: world_x,
-            y: world_y,
-            z: world_z,
-        },
-        block_runtime_id: block_runtime_id as u32,
-        flags: BLOCK_UPDATE_NEIGHBOURS | BLOCK_UPDATE_NETWORK,
-        layer: 0u32,
-    };
-
-    for viewer_entity in chunk_viewers.iter() {
-        if let Ok(session) = sessions.get(viewer_entity) {
-            let _ = session.send(McpePacket::from(packet.clone()));
-        }
-    }
-
-    trace!(
-        chunk = ?chunk_entity,
-        pos = ?(world_x, world_y, world_z),
-        rid = block_runtime_id,
-        viewers = chunk_viewers.len(),
-        "Broadcast block update"
-    );
-}
 
 /// Helper to compute chunk coordinates from world coordinates.
 #[inline]

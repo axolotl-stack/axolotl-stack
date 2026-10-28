@@ -180,8 +180,13 @@ impl GameServer {
         world_template.biome_definitions = Arc::new(biomes.to_packet());
         world_template.available_entities =
             Arc::new(entities.to_available_entity_identifiers_packet());
-        world_template.creative_content = Arc::new(Self::build_creative_content(&items, &blocks));
+        let block_ids = config.block_network_ids;
+        world_template.creative_content =
+            Arc::new(Self::build_creative_content(&items, &blocks, block_ids));
         world_template.start_game_template.block_properties = blocks.to_block_properties();
+        world_template
+            .start_game_template
+            .block_network_ids_are_hashes = block_ids.is_hashed();
         world_template.jigsaw_structures = Arc::new(join_data::jigsaw_structures());
         world_template.voxel_shapes = Arc::new(join_data::voxel_shapes());
 
@@ -602,6 +607,7 @@ impl GameServer {
     fn build_creative_content(
         items: &ItemRegistry,
         blocks: &BlockRegistry,
+        block_ids: crate::registry::block::BlockNetworkIds,
     ) -> jolyne::valentine::CreativeContentPacket {
         use crate::registry::CreativeInventoryData;
         use jolyne::valentine::{
@@ -641,9 +647,10 @@ impl GameServer {
                     };
                     let item_network_id = item_entry.network_id;
 
-                    let block_runtime_id = blocks
-                        .get_by_name(creative_item.item_id())
-                        .map_or(0, |b| b.default_state_id as i32);
+                    let block_runtime_id =
+                        blocks.get_by_name(creative_item.item_id()).map_or(0, |b| {
+                            block_ids.item_block_to_wire(b.default_state_id) as i32
+                        });
 
                     items_list.push(CreativeItemEntryPayload {
                         creative_net_id: TypedServerNetIdstructCreativeItemNetIdTag {
@@ -833,7 +840,11 @@ mod tests {
             .get_by_name("minecraft:shield")
             .expect("vanilla shield")
             .network_id;
-        let content = GameServer::build_creative_content(&items, &blocks);
+        let content = GameServer::build_creative_content(
+            &items,
+            &blocks,
+            crate::registry::block::BlockNetworkIds::Hashed,
+        );
         assert!(content.entries.len() > 1000);
         for entry in &content.entries {
             let item = &entry.item_instance;

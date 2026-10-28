@@ -43,6 +43,7 @@ pub fn apply_chunk_requests(
                 handle_subchunk_request(
                     entity,
                     &req,
+                    config.0.block_network_ids,
                     &chunk_manager,
                     &sessions,
                     &chunk_data_q,
@@ -80,6 +81,7 @@ fn handle_chunk_radius_request(
 fn handle_subchunk_request(
     entity: Entity,
     req: &jolyne::valentine::SubChunkRequestPacket,
+    block_ids: crate::registry::block::BlockNetworkIds,
     chunk_manager: &Res<ChunkManager>,
     sessions: &Query<&PlayerSession>,
     chunk_data_q: &Query<&ChunkData>,
@@ -163,7 +165,10 @@ fn handle_subchunk_request(
         // Always encode the live chunk: a per-generator template cache would serve
         // stale data after a player edits a chunk.
         let subchunk_data = if !is_empty {
-            chunk_data.inner.encode_subchunk(sub_y).unwrap_or_default()
+            chunk_data
+                .inner
+                .encode_subchunk(sub_y, block_ids)
+                .unwrap_or_default()
         } else {
             vec![]
         };
@@ -276,7 +281,9 @@ mod tests {
         let edited = {
             let mut data = world.get_mut::<ChunkData>(chunk).unwrap();
             data.inner.set_block(1, 3, 1, *blocks::STONE);
-            data.inner.encode_subchunk(0).unwrap()
+            data.inner
+                .encode_subchunk(0, crate::registry::block::BlockNetworkIds::Hashed)
+                .unwrap()
         };
 
         let (tx, mut rx) = tokio::sync::mpsc::channel(8);
@@ -314,6 +321,12 @@ mod tests {
             &crate::world::generator::FlatGenerator,
             crate::world::ChunkPos::new(0, 0),
         );
-        assert_ne!(template.chunk.encode_subchunk(0).unwrap(), edited);
+        assert_ne!(
+            template
+                .chunk
+                .encode_subchunk(0, crate::registry::block::BlockNetworkIds::Hashed)
+                .unwrap(),
+            edited
+        );
     }
 }
