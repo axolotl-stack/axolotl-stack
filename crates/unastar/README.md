@@ -168,6 +168,21 @@ policy remains explicitly local until measured against BDS. The scheduled
 headless ECS smoke exercised base application, destructive removal and batch
 cancellation; this does not establish vanilla mob gameplay.
 
+`entity::definition_components` registers authored health, movement, raw collision
+dimensions, scale and physics switches through that same factory registry.
+Omitted fields use only pinned published schema defaults; explicit false/zero
+wins. Missing unpublished fields, dynamic values and unsupported bounds fail
+rather than becoming invented constructor values. Geometry remains unscaled
+until the runtime's independently verified derivation.
+
+`entity::events::CompiledEvents` binds group/property handles and caller-owned
+numeric filter/action/external-event operands at startup. It shares one tree
+traversal with `unastar-rules`, emits typed borrowed effects into reusable buffers,
+and retains deferred triggers without inventing their ECS-barrier timing.
+An executable Bevy barrier/codec smoke applied an authored cow core/event
+projection, baby flag/scale and deferred sound property. This is not production
+mob spawning, navigation, native constructor defaults or ten-summon parity.
+
 Non-player actors enter their viewer set only after the outbound spawn packet
 is accepted by that session's bounded queue. A full queue leaves the actor
 unregistered for the next desired-viewer reconciliation. A failing-before/

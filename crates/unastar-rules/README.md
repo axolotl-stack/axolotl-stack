@@ -34,6 +34,12 @@ the second first-valid child. Unknown action keys are retained verbatim and
 diagnosed, but invalidate their node: known sibling actions and triggers do
 not execute either. This matches the isolated BDS unknown-action probe.
 
+`EventTree` and `evaluate_tree` share that traversal with startup-bound entity
+events. Leaf emission stays caller-owned; reusable scratch holds random-child
+selection without retaining JSON in a bound tree. Typed runtime filter failures
+propagate to the caller. Trigger filters remain deferred for an explicit caller
+check; timing relative to ECS composition is not inferred from tree evaluation.
+
 ## Molang
 
 `molang::parse` is the single lexer/parser. It normalises case and q./v./t./c.
