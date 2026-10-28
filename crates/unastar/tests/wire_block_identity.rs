@@ -288,7 +288,9 @@ fn bedrock_wire_blocks_are_natural_terrain() {
             WireChunk::generate(WorldGenerator::Bedrock { seed: 12345 }, ChunkPos::new(0, 0))
         {
             assert_eq!(wire.name(0, -64, 0), "minecraft:bedrock");
-            assert_eq!(wire.name(5, -20, 5), "minecraft:deepslate");
+            // Deepslate or an ore embedded in it; generator detail is not under test.
+            let deep = wire.name(5, -20, 5);
+            assert!(deep.starts_with("minecraft:deepslate"), "{deep}");
             assert_eq!(wire.surface(8, 8), (62, "minecraft:water"));
         }
     });
