@@ -205,6 +205,15 @@ impl ChunkPipeline {
             .snapshot(&*self.generator, pos)
     }
 
+    /// Observe a native chunk as Java's FULL status saves it: the current
+    /// request boundary with pending ProtoChunk actors promoted from the block
+    /// now at their position. Completes no new feature origins.
+    pub fn native_full_snapshot(&self, pos: ChunkPos) -> Option<Chunk> {
+        let mut chunk = self.native_snapshot(pos)?;
+        chunk.promote_java_pending_actors();
+        Some(chunk)
+    }
+
     /// WG maps freeze when CARVERS commits, while native FEATURES and later
     /// neighbor writes update the four final maps. Do not rescan finished blocks
     /// to invent new WG values at an observation boundary.
@@ -227,15 +236,15 @@ impl ChunkPipeline {
     /// All lossy adaptation happens in the final `generate` boundary.
     pub fn generate_native(&self, pos: ChunkPos) -> Chunk {
         if let Some(session) = &self.native {
-            let mut session = session.lock().expect("native generation session poisoned");
-            session.decorate(&*self.generator, pos);
-            for (dx, dz) in SLOT_OFFSETS {
-                session.decorate(&*self.generator, ChunkPos::new(pos.x + dx, pos.z + dz));
+            {
+                let mut session = session.lock().expect("native generation session poisoned");
+                session.decorate(&*self.generator, pos);
+                for (dx, dz) in SLOT_OFFSETS {
+                    session.decorate(&*self.generator, ChunkPos::new(pos.x + dx, pos.z + dz));
+                }
             }
-            let mut chunk = session.snapshot(&*self.generator, pos)
+            return self.native_full_snapshot(pos)
                 .expect("completed native origin has no source chunk");
-            chunk.promote_java_pending_actors();
-            return chunk;
         }
         let generator = &self.generator;
         if !generator.decorates() {

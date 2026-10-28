@@ -67,6 +67,11 @@ impl Profile {
         column_index.or(self.coordinate_request_index)
     }
 
+    /// Whether the capture recorded every neighboring FEATURES writer it ran.
+    pub(super) fn closes_features_halo(&self) -> bool {
+        self.features_halo.is_some()
+    }
+
     pub(super) fn validate_observation(&self, target: ChunkPos, index: Option<usize>) -> Result<(), String> {
         if let Some(index) = self.observation_index(index) {
             let request = self.coordinate_request_order.get(index)
