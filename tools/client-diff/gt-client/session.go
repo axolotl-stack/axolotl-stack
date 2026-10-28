@@ -505,7 +505,10 @@ func (s *session) packets(st step) ([]packet.Packet, error) {
 		s.mu.Lock()
 		defer s.mu.Unlock()
 		if s.window == 0 {
-			return nil, fmt.Errorf("close_container: no block window is open")
+			// The server refused to open it (e.g. an obstructed chest): the
+			// capture shows the refusal, there is nothing to close.
+			fmt.Fprintln(os.Stderr, "close_container: no block window is open")
+			return nil, nil
 		}
 		window, kind := s.window, s.windowType
 		s.window = 0

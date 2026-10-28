@@ -860,6 +860,9 @@ pub(super) fn placed(world: &mut World, pos: IVec3) {
     if load(world, pos).is_none() {
         return;
     }
+    // BDS announces a new container actor with its client-side state
+    // (`{BlockEntityVersion, id, x, y, z}` after `/setblock chest`).
+    send_client_state(world, pos);
     if kind.pairs() {
         try_pair(world, pos, kind);
     }

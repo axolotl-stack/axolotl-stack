@@ -309,6 +309,14 @@ impl BlockContainer {
         ] {
             out.insert(name.into(), NBTTag::Int(tag::Int(value)));
         }
+        // BDS 1.26.51 writes version 0 (its BlockActorData after `/setblock chest`).
+        out.insert(
+            "BlockEntityVersion".into(),
+            self.extra
+                .get("BlockEntityVersion")
+                .cloned()
+                .unwrap_or(NBTTag::Int(tag::Int(0))),
+        );
         if let Some(pair) = self.pair {
             out.insert("pairlead".into(), byte(u8::from(pair.lead)));
             out.insert("pairx".into(), NBTTag::Int(tag::Int(pair.x)));

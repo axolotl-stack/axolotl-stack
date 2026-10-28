@@ -908,3 +908,45 @@ fn generated_loot_unpacks_once_on_first_open() {
         assert_eq!(first, second, "reopening does not roll again");
     });
 }
+
+/// BDS 1.26.51 announces a chest set with `/setblock ~2 ~ ~ chest` with a
+/// `BlockActorData` of its client-side state (client-diff `containers-dry`
+/// capture, seq 281; the bot stood at feet block (0, -60, 0)).
+#[test]
+fn placing_a_container_announces_the_same_client_state_as_bds() {
+    const BDS: &str = include_str!("testdata/bds-setblock-chest-actor.jsonl");
+    let row: serde_json::Value = serde_json::from_str(BDS.trim()).unwrap();
+    let McpePacketData::BlockActorDataPacket(bds) =
+        super::super::inventory::capture::decode(row["hex"].as_str().unwrap())
+    else {
+        panic!("BlockActorData fixture");
+    };
+    let compound = |nbt| {
+        BlockEntity::from_network_nbt(nbt)
+            .unwrap()
+            .bedrock_compound()
+            .unwrap()
+            .unwrap()
+    };
+    with_world(GameMode::Survival, move |h| {
+        let pos = IVec3::new(
+            bds.block_position.x,
+            bds.block_position.y,
+            bds.block_position.z,
+        );
+        h.place(pos, "minecraft:chest", &[]);
+        let ours = h
+            .packets()
+            .into_iter()
+            .find_map(|packet| match packet {
+                McpePacketData::BlockActorDataPacket(data) => Some(data),
+                _ => None,
+            })
+            .expect("BlockActorData");
+        assert_eq!(ours.block_position, bds.block_position);
+        assert_eq!(
+            compound(ours.actor_data_tags),
+            compound(bds.actor_data_tags)
+        );
+    });
+}
