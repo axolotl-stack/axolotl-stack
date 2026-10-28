@@ -273,21 +273,65 @@ impl BlockRegistry {
         self.entries.is_empty()
     }
 
-    /// Return the custom block-property entries for `StartGame`.
+    /// `StartGame` block definitions: every vanilla data-driven block (behavior
+    /// pack `blocks/`, e.g. concrete and wool slabs/stairs), as BDS sends them.
     ///
-    /// In 1.26.40 this field is the server's custom block-definition list;
-    /// vanilla block state palettes are no longer represented by the old
-    /// `BlockPropertiesItem` payload. This registry currently contains only
-    /// vanilla entries, so emitting an empty list is the exact wire meaning.
+    /// With sequential network ids the client numbers its built-in blocks plus
+    /// the blocks defined here, sorted by name hash. Runtime ids here are the
+    /// full canonical palette, which includes the data-driven blocks, so leaving
+    /// any out shifts every later client id and the client renders wrong blocks.
     pub fn to_block_properties(&self) -> Vec<jolyne::valentine::ServerBlockProperty> {
-        let _ = self;
-        Vec::new()
+        self.entries
+            .iter()
+            .filter_map(|entry| {
+                let definition = entry.data.server_definition?;
+                Some(jolyne::valentine::ServerBlockProperty {
+                    block_name: entry.string_id.as_str().into(),
+                    block_definition: valentine::bedrock::codec::Nbt(bytes::Bytes::from_static(
+                        definition,
+                    )),
+                })
+            })
+            .collect()
     }
 }
 
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    /// The client's sequential palette is its built-in blocks plus the blocks
+    /// `StartGame` defines. That union must be exactly the canonical palette
+    /// behind unastar's runtime ids, or every block after a gap is misnumbered.
+    #[test]
+    fn start_game_defines_every_vanilla_data_driven_block() {
+        let defined: std::collections::BTreeSet<String> = BlockRegistry::vanilla()
+            .to_block_properties()
+            .iter()
+            .map(|property| property.block_name.to_string())
+            .collect();
+        let pack_dir = concat!(
+            env!("CARGO_MANIFEST_DIR"),
+            "/../unastar-data/data/vanilla_bp/behavior_pack/blocks"
+        );
+        let mut data_driven = std::collections::BTreeSet::new();
+        for entry in std::fs::read_dir(pack_dir).expect("vanilla behavior pack blocks") {
+            let path = entry.unwrap().path();
+            if path
+                .extension()
+                .is_some_and(|extension| extension == "json")
+            {
+                let definition: serde_json::Value =
+                    serde_json::from_slice(&std::fs::read(&path).unwrap()).unwrap();
+                let name = definition["minecraft:block"]["description"]["identifier"]
+                    .as_str()
+                    .unwrap_or_else(|| panic!("{} has no block identifier", path.display()));
+                data_driven.insert(name.to_owned());
+            }
+        }
+        assert_eq!(data_driven.len(), 98);
+        assert_eq!(defined, data_driven);
+    }
 
     #[test]
     fn vanilla_registry_preserves_block_properties() {
