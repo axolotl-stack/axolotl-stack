@@ -257,6 +257,7 @@ pub fn apply_inventory(world: &mut World, state: &mut InventorySystemState) {
 /// One response packet per incoming packet, in request order. The returned
 /// drops belong only to committed frames and are spawned by the exclusive
 /// caller before the next input packet can mutate the thrower.
+#[allow(clippy::too_many_arguments)]
 fn handle_item_stack_request(
     pk: &jolyne::valentine::ItemStackRequestPacket,
     items: &ItemRegistry,
@@ -560,6 +561,7 @@ fn handle_interact(entity: Entity, pk: &InteractPacket, player: &mut PlayerInven
     }
 }
 
+#[allow(clippy::too_many_arguments)]
 fn handle_inventory_transaction(
     entity: Entity,
     pk: &jolyne::valentine::InventoryTransactionPacket,
