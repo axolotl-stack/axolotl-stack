@@ -516,7 +516,7 @@ impl LegacyIdentities {
             && let Some(identity) = self.input_alias(name, *data)
         {
             name.clone_from(&identity.name);
-            *data = identity.data;
+            *data = identity.data.or(*data);
         }
     }
 
@@ -895,5 +895,22 @@ mod tests {
                 .map(|result| result.name.as_str()),
             Some("addon:first_ingot"),
         );
+    }
+
+    #[test]
+    fn bare_legacy_rename_preserves_an_explicit_furnace_aux_constraint() {
+        let recipe = furnace(
+            "addon:fish_variant",
+            json!({"item": "minecraft:fish", "data": 2}),
+            "minecraft:cooked_cod",
+            0,
+        );
+        let registry = RecipeRegistry::from_recipes(vec![recipe]).unwrap();
+        assert_eq!(
+            registry.furnace_result("minecraft:cod", 2).unwrap().name,
+            "minecraft:cooked_cod"
+        );
+        assert_eq!(registry.furnace_result("minecraft:cod", 0), None);
+        assert_eq!(registry.furnace_result("minecraft:cod", 3), None);
     }
 }

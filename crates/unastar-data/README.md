@@ -124,6 +124,9 @@ typed indexes without constructing temporary lookup strings. This projection is
 not a complete historical upgrader: unmeasured nonzero aux values in a known
 legacy alias family are rejected instead of inventing a base-item identity.
 
+Name-only aliases preserve an explicit ingredient aux; only an alias with a
+measured aux replaces that constraint.
+
 `recipes::native` loads the other measured facts absent from pack JSON:
 159 native shaped recipes, 1,241 native shapeless recipes, 1,456 user-data
 recipes, 14 stable multi-recipe identities, native result NBT/state identities,
