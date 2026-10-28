@@ -62,6 +62,11 @@ pub struct BlockData {
     /// property index `p`, `state_values[s * properties.len() + p]`
     /// indexes `properties[p].values`.
     pub state_values: &'static [u8],
+    /// Network NBT block definition `StartGame` sends for a vanilla
+    /// data-driven block (behavior pack `blocks/`); `None` for built-in
+    /// blocks. The client's sequential block ids cover built-in blocks
+    /// plus defined blocks only.
+    pub server_definition: Option<&'static [u8]>,
 }
 /// One native block-state property.
 #[derive(Debug, Clone, Copy, PartialEq)]
@@ -156,6 +161,7 @@ pub static ALL_BLOCKS: [BlockData; 1477usize] = [
         visual_shape: [0f32, 0f32, 0f32, 1f32, 1f32, 1f32],
         properties: &[],
         state_values: b"",
+        server_definition: None,
     },
     BlockData {
         id: 1u32,
@@ -182,6 +188,7 @@ pub static ALL_BLOCKS: [BlockData; 1477usize] = [
         visual_shape: [0f32, 0f32, 0f32, 1f32, 1f32, 1f32],
         properties: &[],
         state_values: b"",
+        server_definition: None,
     },
     BlockData {
         id: 2u32,
@@ -222,6 +229,7 @@ pub static ALL_BLOCKS: [BlockData; 1477usize] = [
             },
         ],
         state_values: b"\0\0\x01\0\x02\0\x03\0\0\x01\x01\x01\x02\x01\x03\x01",
+        server_definition: None,
     },
     BlockData {
         id: 10u32,
@@ -257,6 +265,7 @@ pub static ALL_BLOCKS: [BlockData; 1477usize] = [
             },
         ],
         state_values: b"\0\x01\x02",
+        server_definition: None,
     },
     BlockData {
         id: 13u32,
@@ -305,6 +314,7 @@ pub static ALL_BLOCKS: [BlockData; 1477usize] = [
             },
         ],
         state_values: b"\0\x01\x02\x03\x04\x05\x06\x07\x08\t\n\x0B\x0C\r\x0E\x0F",
+        server_definition: None,
     },
     BlockData {
         id: 29u32,
@@ -340,6 +350,7 @@ pub static ALL_BLOCKS: [BlockData; 1477usize] = [
             },
         ],
         state_values: b"\0\x01\x02",
+        server_definition: None,
     },
     BlockData {
         id: 32u32,
@@ -366,6 +377,7 @@ pub static ALL_BLOCKS: [BlockData; 1477usize] = [
         visual_shape: [0f32, 0f32, 0f32, 1f32, 1f32, 1f32],
         properties: &[],
         state_values: b"",
+        server_definition: None,
     },
     BlockData {
         id: 33u32,
@@ -404,6 +416,7 @@ pub static ALL_BLOCKS: [BlockData; 1477usize] = [
             },
         ],
         state_values: b"\0\x01\x02\x03\x04\x05",
+        server_definition: None,
     },
     BlockData {
         id: 39u32,
@@ -439,6 +452,7 @@ pub static ALL_BLOCKS: [BlockData; 1477usize] = [
             },
         ],
         state_values: b"\0\x01\x02",
+        server_definition: None,
     },
     BlockData {
         id: 42u32,
@@ -480,6 +494,7 @@ pub static ALL_BLOCKS: [BlockData; 1477usize] = [
             },
         ],
         state_values: b"\0\x01\x02\x03",
+        server_definition: None,
     },
     BlockData {
         id: 46u32,
@@ -529,6 +544,7 @@ pub static ALL_BLOCKS: [BlockData; 1477usize] = [
             },
         ],
         state_values: b"\0\0\x01\0\x02\0\x03\0\x04\0\x05\0\x06\0\x07\0\0\x01\x01\x01\x02\x01\x03\x01\x04\x01\x05\x01\x06\x01\x07\x01\0\x02\x01\x02\x02\x02\x03\x02\x04\x02\x05\x02\x06\x02\x07\x02\0\x03\x01\x03\x02\x03\x03\x03\x04\x03\x05\x03\x06\x03\x07\x03",
+        server_definition: None,
     },
     BlockData {
         id: 78u32,
@@ -577,6 +593,7 @@ pub static ALL_BLOCKS: [BlockData; 1477usize] = [
             },
         ],
         state_values: b"\0\0\0\0\0\x01\0\0\0\x02\0\0\0\x03\0\0\0\0\x01\0\0\x01\x01\0\0\x02\x01\0\0\x03\x01\0\0\0\0\x01\0\x01\0\x01\0\x02\0\x01\0\x03\0\x01\0\0\x01\x01\0\x01\x01\x01\0\x02\x01\x01\0\x03\x01\x01\x01\0\0\0\x01\x01\0\0\x01\x02\0\0\x01\x03\0\0\x01\0\x01\0\x01\x01\x01\0\x01\x02\x01\0\x01\x03\x01\0\x01\0\0\x01\x01\x01\0\x01\x01\x02\0\x01\x01\x03\0\x01\x01\0\x01\x01\x01\x01\x01\x01\x01\x02\x01\x01\x01\x03\x01\x01",
+        server_definition: None,
     },
     BlockData {
         id: 110u32,
@@ -603,6 +620,7 @@ pub static ALL_BLOCKS: [BlockData; 1477usize] = [
         visual_shape: [0f32, 0f32, 0f32, 1f32, 1f32, 1f32],
         properties: &[],
         state_values: b"",
+        server_definition: None,
     },
     BlockData {
         id: 111u32,
@@ -638,6 +656,7 @@ pub static ALL_BLOCKS: [BlockData; 1477usize] = [
             },
         ],
         state_values: b"\0\x01\x02",
+        server_definition: None,
     },
     BlockData {
         id: 114u32,
@@ -676,6 +695,7 @@ pub static ALL_BLOCKS: [BlockData; 1477usize] = [
             },
         ],
         state_values: b"\0\x01\x02\x03\x04\x05",
+        server_definition: None,
     },
     BlockData {
         id: 120u32,
@@ -706,6 +726,7 @@ pub static ALL_BLOCKS: [BlockData; 1477usize] = [
         visual_shape: [0f32, 0f32, 0f32, 1f32, 1f32, 1f32],
         properties: &[],
         state_values: b"",
+        server_definition: None,
     },
     BlockData {
         id: 121u32,
@@ -732,6 +753,7 @@ pub static ALL_BLOCKS: [BlockData; 1477usize] = [
         visual_shape: [0f32, 0f32, 0f32, 1f32, 1f32, 1f32],
         properties: &[],
         state_values: b"",
+        server_definition: None,
     },
     BlockData {
         id: 122u32,
@@ -795,6 +817,7 @@ pub static ALL_BLOCKS: [BlockData; 1477usize] = [
             },
         ],
         state_values: b"\0\0\0\0\0\0\0\0\0\x01\0\x01\0\0\0\0\x01\0\0\x01\0\x02\0\0\0\0\x02\0\0\x01\x01\0\0\0\0\x01\0\0\0\x01\x01\x01\0\0\0\x01\x01\0\0\x01\x01\x02\0\0\0\x01\x02\0\0\x01\x02\0\0\0\0\x02\0\0\0\x01\x02\x01\0\0\0\x02\x01\0\0\x01\x02\x02\0\0\0\x02\x02\0\0\x01\0\0\x01\0\0\0\0\x01\0\x01\0\x01\x01\0\0\0\x01\x01\0\x01\0\x02\x01\0\0\0\x02\x01\0\x01\x01\0\x01\0\0\x01\0\x01\0\x01\x01\x01\x01\0\0\x01\x01\x01\0\x01\x01\x02\x01\0\0\x01\x02\x01\0\x01\x02\0\x01\0\0\x02\0\x01\0\x01\x02\x01\x01\0\0\x02\x01\x01\0\x01\x02\x02\x01\0\0\x02\x02\x01\0\x01\0\0\x02\0\0\0\0\x02\0\x01\0\x01\x02\0\0\0\x01\x02\0\x01\0\x02\x02\0\0\0\x02\x02\0\x01\x01\0\x02\0\0\x01\0\x02\0\x01\x01\x01\x02\0\0\x01\x01\x02\0\x01\x01\x02\x02\0\0\x01\x02\x02\0\x01\x02\0\x02\0\0\x02\0\x02\0\x01\x02\x01\x02\0\0\x02\x01\x02\0\x01\x02\x02\x02\0\0\x02\x02\x02\0\x01\0\0\0\x01\0\0\0\0\x01\x01\0\x01\0\x01\0\0\x01\0\x01\x01\0\x02\0\x01\0\0\x02\0\x01\x01\x01\0\0\x01\0\x01\0\0\x01\x01\x01\x01\0\x01\0\x01\x01\0\x01\x01\x01\x02\0\x01\0\x01\x02\0\x01\x01\x02\0\0\x01\0\x02\0\0\x01\x01\x02\x01\0\x01\0\x02\x01\0\x01\x01\x02\x02\0\x01\0\x02\x02\0\x01\x01\0\0\x01\x01\0\0\0\x01\x01\x01\0\x01\x01\x01\0\0\x01\x01\x01\x01\0\x02\x01\x01\0\0\x02\x01\x01\x01\x01\0\x01\x01\0\x01\0\x01\x01\x01\x01\x01\x01\x01\0\x01\x01\x01\x01\x01\x01\x02\x01\x01\0\x01\x02\x01\x01\x01\x02\0\x01\x01\0\x02\0\x01\x01\x01\x02\x01\x01\x01\0\x02\x01\x01\x01\x01\x02\x02\x01\x01\0\x02\x02\x01\x01\x01\0\0\x02\x01\0\0\0\x02\x01\x01\0\x01\x02\x01\0\0\x01\x02\x01\x01\0\x02\x02\x01\0\0\x02\x02\x01\x01\x01\0\x02\x01\0\x01\0\x02\x01\x01\x01\x01\x02\x01\0\x01\x01\x02\x01\x01\x01\x02\x02\x01\0\x01\x02\x02\x01\x01\x02\0\x02\x01\0\x02\0\x02\x01\x01\x02\x01\x02\x01\0\x02\x01\x02\x01\x01\x02\x02\x02\x01\0\x02\x02\x02\x01\x01\0\0\0\x02\0\0\0\0\x02\x01\0\x01\0\x02\0\0\x01\0\x02\x01\0\x02\0\x02\0\0\x02\0\x02\x01\x01\0\0\x02\0\x01\0\0\x02\x01\x01\x01\0\x02\0\x01\x01\0\x02\x01\x01\x02\0\x02\0\x01\x02\0\x02\x01\x02\0\0\x02\0\x02\0\0\x02\x01\x02\x01\0\x02\0\x02\x01\0\x02\x01\x02\x02\0\x02\0\x02\x02\0\x02\x01\0\0\x01\x02\0\0\0\x01\x02\x01\0\x01\x01\x02\0\0\x01\x01\x02\x01\0\x02\x01\x02\0\0\x02\x01\x02\x01\x01\0\x01\x02\0\x01\0\x01\x02\x01\x01\x01\x01\x02\0\x01\x01\x01\x02\x01\x01\x02\x01\x02\0\x01\x02\x01\x02\x01\x02\0\x01\x02\0\x02\0\x01\x02\x01\x02\x01\x01\x02\0\x02\x01\x01\x02\x01\x02\x02\x01\x02\0\x02\x02\x01\x02\x01\0\0\x02\x02\0\0\0\x02\x02\x01\0\x01\x02\x02\0\0\x01\x02\x02\x01\0\x02\x02\x02\0\0\x02\x02\x02\x01\x01\0\x02\x02\0\x01\0\x02\x02\x01\x01\x01\x02\x02\0\x01\x01\x02\x02\x01\x01\x02\x02\x02\0\x01\x02\x02\x02\x01\x02\0\x02\x02\0\x02\0\x02\x02\x01\x02\x01\x02\x02\0\x02\x01\x02\x02\x01\x02\x02\x02\x02\0\x02\x02\x02\x02\x01",
+        server_definition: None,
     },
     BlockData {
         id: 284u32,
@@ -821,6 +844,7 @@ pub static ALL_BLOCKS: [BlockData; 1477usize] = [
         visual_shape: [0f32, 0f32, 0f32, 1f32, 1f32, 1f32],
         properties: &[],
         state_values: b"",
+        server_definition: None,
     },
     BlockData {
         id: 285u32,
@@ -852,6 +876,9 @@ pub static ALL_BLOCKS: [BlockData; 1477usize] = [
             },
         ],
         state_values: b"\0\x01",
+        server_definition: Some(
+            b"\n\0\t\tblockTags\x08\x02%minecraft:is_shears_item_destructible\n\ncomponents\n minecraft:destructible_by_mining\x05\x05value\xCD\xCCL?\0\n\x1Fminecraft:redstone_conductivity\x01\x14allowsWireToStepDown\x01\x01\x11redstoneConductor\x01\0\0\n\rmenu_category\x08\x08category\x04none\x08\x05group\0\x01\x15is_hidden_in_commands\x01\0\x03\rmolangVersion\x1A\n\x12vanilla_block_data\n\x0Fblock_archetype\x08\x11double_slab_block\x18minecraft:cyan_wool_slab\x01\tis_double\x01\x08\x04type\nslab_block\0\x03\x08block_id\xCC\x16\x01\x15can_dampen_vibrations\x01\x01\x16can_occlude_vibrations\x01\x08\x08material\x05solid\0\0",
+        ),
     },
     BlockData {
         id: 287u32,
@@ -895,6 +922,7 @@ pub static ALL_BLOCKS: [BlockData; 1477usize] = [
             },
         ],
         state_values: b"\0\0\0\0\0\x01\0\0\x01\0\0\0\x01\x01\0\0\0\0\x01\0\0\x01\x01\0\x01\0\x01\0\x01\x01\x01\0\0\0\0\x01\0\x01\0\x01\x01\0\0\x01\x01\x01\0\x01\0\0\x01\x01\0\x01\x01\x01\x01\0\x01\x01\x01\x01\x01\x01",
+        server_definition: None,
     },
     BlockData {
         id: 303u32,
@@ -939,6 +967,7 @@ pub static ALL_BLOCKS: [BlockData; 1477usize] = [
             },
         ],
         state_values: b"\0\0\0\0\x01\0\0\x02\0\0\x03\0\0\0\x01\0\x01\x01\0\x02\x01\0\x03\x01\x01\0\0\x01\x01\0\x01\x02\0\x01\x03\0\x01\0\x01\x01\x01\x01\x01\x02\x01\x01\x03\x01",
+        server_definition: None,
     },
     BlockData {
         id: 319u32,
@@ -988,6 +1017,7 @@ pub static ALL_BLOCKS: [BlockData; 1477usize] = [
             },
         ],
         state_values: b"\0\0\0\0\0\x01\0\0\x02\0\0\x03\0\x01\0\0\x01\x01\0\x01\x02\0\x01\x03\x01\0\0\x01\0\x01\x01\0\x02\x01\0\x03\x01\x01\0\x01\x01\x01\x01\x01\x02\x01\x01\x03\x02\0\0\x02\0\x01\x02\0\x02\x02\0\x03\x02\x01\0\x02\x01\x01\x02\x01\x02\x02\x01\x03\x03\0\0\x03\0\x01\x03\0\x02\x03\0\x03\x03\x01\0\x03\x01\x01\x03\x01\x02\x03\x01\x03",
+        server_definition: None,
     },
     BlockData {
         id: 351u32,
@@ -1014,6 +1044,7 @@ pub static ALL_BLOCKS: [BlockData; 1477usize] = [
         visual_shape: [0f32, 0f32, 0f32, 1f32, 1f32, 1f32],
         properties: &[],
         state_values: b"",
+        server_definition: None,
     },
     BlockData {
         id: 352u32,
@@ -1056,6 +1087,7 @@ pub static ALL_BLOCKS: [BlockData; 1477usize] = [
             },
         ],
         state_values: b"\0\0\0\x01\0\x02\0\x03\0\x04\0\x05\x01\0\x01\x01\x01\x02\x01\x03\x01\x04\x01\x05",
+        server_definition: None,
     },
     BlockData {
         id: 364u32,
@@ -1086,6 +1118,7 @@ pub static ALL_BLOCKS: [BlockData; 1477usize] = [
         visual_shape: [0f32, 0f32, 0f32, 1f32, 1f32, 1f32],
         properties: &[],
         state_values: b"",
+        server_definition: None,
     },
     BlockData {
         id: 365u32,
@@ -1112,6 +1145,7 @@ pub static ALL_BLOCKS: [BlockData; 1477usize] = [
         visual_shape: [0f32, 0f32, 0f32, 1f32, 1f32, 1f32],
         properties: &[],
         state_values: b"",
+        server_definition: None,
     },
     BlockData {
         id: 366u32,
@@ -1143,6 +1177,9 @@ pub static ALL_BLOCKS: [BlockData; 1477usize] = [
             },
         ],
         state_values: b"\0\x01",
+        server_definition: Some(
+            b"\n\0\t\tblockTags\x08\x02%minecraft:is_shears_item_destructible\n\ncomponents\n minecraft:destructible_by_mining\x05\x05value\xCD\xCCL?\0\n\x1Fminecraft:redstone_conductivity\x01\x14allowsWireToStepDown\x01\x01\x11redstoneConductor\x01\0\0\n\rmenu_category\x08\x08category\x04none\x08\x05group\0\x01\x15is_hidden_in_commands\x01\0\x03\rmolangVersion\x1A\n\x12vanilla_block_data\n\x0Fblock_archetype\x08\x11double_slab_block\x1Eminecraft:light_blue_wool_slab\x01\tis_double\x01\x08\x04type\nslab_block\0\x03\x08block_id\xCE\x16\x01\x15can_dampen_vibrations\x01\x01\x16can_occlude_vibrations\x01\x08\x08material\x05solid\0\0",
+        ),
     },
     BlockData {
         id: 368u32,
@@ -1193,6 +1230,7 @@ pub static ALL_BLOCKS: [BlockData; 1477usize] = [
             },
         ],
         state_values: b"\0\0\0\0\0\x01\0\0\x02\0\0\x03\0\x01\0\0\x01\x01\0\x01\x02\0\x01\x03\x01\0\0\x01\0\x01\x01\0\x02\x01\0\x03\x01\x01\0\x01\x01\x01\x01\x01\x02\x01\x01\x03\x02\0\0\x02\0\x01\x02\0\x02\x02\0\x03\x02\x01\0\x02\x01\x01\x02\x01\x02\x02\x01\x03\x03\0\0\x03\0\x01\x03\0\x02\x03\0\x03\x03\x01\0\x03\x01\x01\x03\x01\x02\x03\x01\x03\x04\0\0\x04\0\x01\x04\0\x02\x04\0\x03\x04\x01\0\x04\x01\x01\x04\x01\x02\x04\x01\x03",
+        server_definition: None,
     },
     BlockData {
         id: 408u32,
@@ -1219,6 +1257,7 @@ pub static ALL_BLOCKS: [BlockData; 1477usize] = [
         visual_shape: [0f32, 0f32, 0f32, 1f32, 1f32, 1f32],
         properties: &[],
         state_values: b"",
+        server_definition: None,
     },
     BlockData {
         id: 409u32,
@@ -1250,6 +1289,7 @@ pub static ALL_BLOCKS: [BlockData; 1477usize] = [
             },
         ],
         state_values: b"\0\x01",
+        server_definition: None,
     },
     BlockData {
         id: 411u32,
@@ -1276,6 +1316,7 @@ pub static ALL_BLOCKS: [BlockData; 1477usize] = [
         visual_shape: [0f32, 0f32, 0f32, 1f32, 1f32, 1f32],
         properties: &[],
         state_values: b"",
+        server_definition: None,
     },
     BlockData {
         id: 412u32,
@@ -1302,6 +1343,7 @@ pub static ALL_BLOCKS: [BlockData; 1477usize] = [
         visual_shape: [0f32, 0f32, 0f32, 1f32, 1f32, 1f32],
         properties: &[],
         state_values: b"",
+        server_definition: None,
     },
     BlockData {
         id: 413u32,
@@ -1344,6 +1386,7 @@ pub static ALL_BLOCKS: [BlockData; 1477usize] = [
             },
         ],
         state_values: b"\0\0\0\x01\0\x02\0\x03\0\x04\0\x05\x01\0\x01\x01\x01\x02\x01\x03\x01\x04\x01\x05",
+        server_definition: None,
     },
     BlockData {
         id: 425u32,
@@ -1386,6 +1429,7 @@ pub static ALL_BLOCKS: [BlockData; 1477usize] = [
             },
         ],
         state_values: b"\0\0\0\x01\0\x02\0\x03\0\x04\0\x05\x01\0\x01\x01\x01\x02\x01\x03\x01\x04\x01\x05",
+        server_definition: None,
     },
     BlockData {
         id: 437u32,
@@ -1440,6 +1484,7 @@ pub static ALL_BLOCKS: [BlockData; 1477usize] = [
             },
         ],
         state_values: b"\0\0\0\0\0\x01\0\0\x02\0\0\x03\0\x01\0\0\x01\x01\0\x01\x02\0\x01\x03\x01\0\0\x01\0\x01\x01\0\x02\x01\0\x03\x01\x01\0\x01\x01\x01\x01\x01\x02\x01\x01\x03\x02\0\0\x02\0\x01\x02\0\x02\x02\0\x03\x02\x01\0\x02\x01\x01\x02\x01\x02\x02\x01\x03\x03\0\0\x03\0\x01\x03\0\x02\x03\0\x03\x03\x01\0\x03\x01\x01\x03\x01\x02\x03\x01\x03\x04\0\0\x04\0\x01\x04\0\x02\x04\0\x03\x04\x01\0\x04\x01\x01\x04\x01\x02\x04\x01\x03",
+        server_definition: None,
     },
     BlockData {
         id: 477u32,
@@ -1483,6 +1528,7 @@ pub static ALL_BLOCKS: [BlockData; 1477usize] = [
             },
         ],
         state_values: b"\0\0\0\0\0\x01\0\0\x01\0\0\0\x01\x01\0\0\0\0\x01\0\0\x01\x01\0\x01\0\x01\0\x01\x01\x01\0\0\0\0\x01\0\x01\0\x01\x01\0\0\x01\x01\x01\0\x01\0\0\x01\x01\0\x01\x01\x01\x01\0\x01\x01\x01\x01\x01\x01",
+        server_definition: None,
     },
     BlockData {
         id: 493u32,
@@ -1532,6 +1578,7 @@ pub static ALL_BLOCKS: [BlockData; 1477usize] = [
             },
         ],
         state_values: b"\0\0\0\0\0\x01\0\0\x02\0\0\x03\0\x01\0\0\x01\x01\0\x01\x02\0\x01\x03\x01\0\0\x01\0\x01\x01\0\x02\x01\0\x03\x01\x01\0\x01\x01\x01\x01\x01\x02\x01\x01\x03\x02\0\0\x02\0\x01\x02\0\x02\x02\0\x03\x02\x01\0\x02\x01\x01\x02\x01\x02\x02\x01\x03\x03\0\0\x03\0\x01\x03\0\x02\x03\0\x03\x03\x01\0\x03\x01\x01\x03\x01\x02\x03\x01\x03",
+        server_definition: None,
     },
     BlockData {
         id: 525u32,
@@ -1558,6 +1605,7 @@ pub static ALL_BLOCKS: [BlockData; 1477usize] = [
         visual_shape: [0f32, 0f32, 0f32, 1f32, 1f32, 1f32],
         properties: &[],
         state_values: b"",
+        server_definition: None,
     },
     BlockData {
         id: 526u32,
@@ -1602,6 +1650,7 @@ pub static ALL_BLOCKS: [BlockData; 1477usize] = [
             },
         ],
         state_values: b"\0\0\0\0\x01\0\0\x02\0\0\x03\0\0\0\x01\0\x01\x01\0\x02\x01\0\x03\x01\x01\0\0\x01\x01\0\x01\x02\0\x01\x03\0\x01\0\x01\x01\x01\x01\x01\x02\x01\x01\x03\x01",
+        server_definition: None,
     },
     BlockData {
         id: 542u32,
@@ -1633,6 +1682,7 @@ pub static ALL_BLOCKS: [BlockData; 1477usize] = [
             },
         ],
         state_values: b"\0\x01",
+        server_definition: None,
     },
     BlockData {
         id: 544u32,
@@ -1664,6 +1714,7 @@ pub static ALL_BLOCKS: [BlockData; 1477usize] = [
             },
         ],
         state_values: b"\0\x01",
+        server_definition: None,
     },
     BlockData {
         id: 546u32,
@@ -1695,6 +1746,9 @@ pub static ALL_BLOCKS: [BlockData; 1477usize] = [
             },
         ],
         state_values: b"\0\x01",
+        server_definition: Some(
+            b"\n\0\t\tblockTags\x08\x02%minecraft:is_shears_item_destructible\n\ncomponents\n minecraft:destructible_by_mining\x05\x05value\xCD\xCCL?\0\n\x1Fminecraft:redstone_conductivity\x01\x14allowsWireToStepDown\x01\x01\x11redstoneConductor\x01\0\0\n\rmenu_category\x08\x08category\x04none\x08\x05group\0\x01\x15is_hidden_in_commands\x01\0\x03\rmolangVersion\x1A\n\x12vanilla_block_data\n\x0Fblock_archetype\x08\x11double_slab_block\x19minecraft:white_wool_slab\x01\tis_double\x01\x08\x04type\nslab_block\0\x03\x08block_id\xB8\x16\x01\x15can_dampen_vibrations\x01\x01\x16can_occlude_vibrations\x01\x08\x08material\x05solid\0\0",
+        ),
     },
     BlockData {
         id: 548u32,
@@ -1743,6 +1797,7 @@ pub static ALL_BLOCKS: [BlockData; 1477usize] = [
             },
         ],
         state_values: b"\0\x01\x02\x03\x04\x05\x06\x07\x08\t\n\x0B\x0C\r\x0E\x0F",
+        server_definition: None,
     },
     BlockData {
         id: 564u32,
@@ -1810,6 +1865,7 @@ pub static ALL_BLOCKS: [BlockData; 1477usize] = [
             },
         ],
         state_values: b"\0\0\0\0\0\x01\0\0\0\x02\0\0\0\x03\0\0\0\x04\0\0\0\x05\0\0\0\0\x01\0\0\x01\x01\0\0\x02\x01\0\0\x03\x01\0\0\x04\x01\0\0\x05\x01\0\0\0\x02\0\0\x01\x02\0\0\x02\x02\0\0\x03\x02\0\0\x04\x02\0\0\x05\x02\0\0\0\x03\0\0\x01\x03\0\0\x02\x03\0\0\x03\x03\0\0\x04\x03\0\0\x05\x03\0\0\0\x04\0\0\x01\x04\0\0\x02\x04\0\0\x03\x04\0\0\x04\x04\0\0\x05\x04\0\0\0\x05\0\0\x01\x05\0\0\x02\x05\0\0\x03\x05\0\0\x04\x05\0\0\x05\x05\0\0\0\x06\0\0\x01\x06\0\0\x02\x06\0\0\x03\x06\0\0\x04\x06\0\0\x05\x06\0\0\0\x07\0\0\x01\x07\0\0\x02\x07\0\0\x03\x07\0\0\x04\x07\0\0\x05\x07\0\0\0\x08\0\0\x01\x08\0\0\x02\x08\0\0\x03\x08\0\0\x04\x08\0\0\x05\x08\0\0\0\t\0\0\x01\t\0\0\x02\t\0\0\x03\t\0\0\x04\t\0\0\x05\t\0\0\0\n\0\0\x01\n\0\0\x02\n\0\0\x03\n\0\0\x04\n\0\0\x05\n\0\0\0\x0B\0\0\x01\x0B\0\0\x02\x0B\0\0\x03\x0B\0\0\x04\x0B\0\0\x05\x0B\0\0\0\x0C\0\0\x01\x0C\0\0\x02\x0C\0\0\x03\x0C\0\0\x04\x0C\0\0\x05\x0C\0\0\0\r\0\0\x01\r\0\0\x02\r\0\0\x03\r\0\0\x04\r\0\0\x05\r\0\0\0\x0E\0\0\x01\x0E\0\0\x02\x0E\0\0\x03\x0E\0\0\x04\x0E\0\0\x05\x0E\0\0\0\x0F\0\0\x01\x0F\0\0\x02\x0F\0\0\x03\x0F\0\0\x04\x0F\0\0\x05\x0F\0\0\0\0\x01\0\x01\0\x01\0\x02\0\x01\0\x03\0\x01\0\x04\0\x01\0\x05\0\x01\0\0\x01\x01\0\x01\x01\x01\0\x02\x01\x01\0\x03\x01\x01\0\x04\x01\x01\0\x05\x01\x01\0\0\x02\x01\0\x01\x02\x01\0\x02\x02\x01\0\x03\x02\x01\0\x04\x02\x01\0\x05\x02\x01\0\0\x03\x01\0\x01\x03\x01\0\x02\x03\x01\0\x03\x03\x01\0\x04\x03\x01\0\x05\x03\x01\0\0\x04\x01\0\x01\x04\x01\0\x02\x04\x01\0\x03\x04\x01\0\x04\x04\x01\0\x05\x04\x01\0\0\x05\x01\0\x01\x05\x01\0\x02\x05\x01\0\x03\x05\x01\0\x04\x05\x01\0\x05\x05\x01\0\0\x06\x01\0\x01\x06\x01\0\x02\x06\x01\0\x03\x06\x01\0\x04\x06\x01\0\x05\x06\x01\0\0\x07\x01\0\x01\x07\x01\0\x02\x07\x01\0\x03\x07\x01\0\x04\x07\x01\0\x05\x07\x01\0\0\x08\x01\0\x01\x08\x01\0\x02\x08\x01\0\x03\x08\x01\0\x04\x08\x01\0\x05\x08\x01\0\0\t\x01\0\x01\t\x01\0\x02\t\x01\0\x03\t\x01\0\x04\t\x01\0\x05\t\x01\0\0\n\x01\0\x01\n\x01\0\x02\n\x01\0\x03\n\x01\0\x04\n\x01\0\x05\n\x01\0\0\x0B\x01\0\x01\x0B\x01\0\x02\x0B\x01\0\x03\x0B\x01\0\x04\x0B\x01\0\x05\x0B\x01\0\0\x0C\x01\0\x01\x0C\x01\0\x02\x0C\x01\0\x03\x0C\x01\0\x04\x0C\x01\0\x05\x0C\x01\0\0\r\x01\0\x01\r\x01\0\x02\r\x01\0\x03\r\x01\0\x04\r\x01\0\x05\r\x01\0\0\x0E\x01\0\x01\x0E\x01\0\x02\x0E\x01\0\x03\x0E\x01\0\x04\x0E\x01\0\x05\x0E\x01\0\0\x0F\x01\0\x01\x0F\x01\0\x02\x0F\x01\0\x03\x0F\x01\0\x04\x0F\x01\0\x05\x0F\x01\x01\0\0\0\x01\x01\0\0\x01\x02\0\0\x01\x03\0\0\x01\x04\0\0\x01\x05\0\0\x01\0\x01\0\x01\x01\x01\0\x01\x02\x01\0\x01\x03\x01\0\x01\x04\x01\0\x01\x05\x01\0\x01\0\x02\0\x01\x01\x02\0\x01\x02\x02\0\x01\x03\x02\0\x01\x04\x02\0\x01\x05\x02\0\x01\0\x03\0\x01\x01\x03\0\x01\x02\x03\0\x01\x03\x03\0\x01\x04\x03\0\x01\x05\x03\0\x01\0\x04\0\x01\x01\x04\0\x01\x02\x04\0\x01\x03\x04\0\x01\x04\x04\0\x01\x05\x04\0\x01\0\x05\0\x01\x01\x05\0\x01\x02\x05\0\x01\x03\x05\0\x01\x04\x05\0\x01\x05\x05\0\x01\0\x06\0\x01\x01\x06\0\x01\x02\x06\0\x01\x03\x06\0\x01\x04\x06\0\x01\x05\x06\0\x01\0\x07\0\x01\x01\x07\0\x01\x02\x07\0\x01\x03\x07\0\x01\x04\x07\0\x01\x05\x07\0\x01\0\x08\0\x01\x01\x08\0\x01\x02\x08\0\x01\x03\x08\0\x01\x04\x08\0\x01\x05\x08\0\x01\0\t\0\x01\x01\t\0\x01\x02\t\0\x01\x03\t\0\x01\x04\t\0\x01\x05\t\0\x01\0\n\0\x01\x01\n\0\x01\x02\n\0\x01\x03\n\0\x01\x04\n\0\x01\x05\n\0\x01\0\x0B\0\x01\x01\x0B\0\x01\x02\x0B\0\x01\x03\x0B\0\x01\x04\x0B\0\x01\x05\x0B\0\x01\0\x0C\0\x01\x01\x0C\0\x01\x02\x0C\0\x01\x03\x0C\0\x01\x04\x0C\0\x01\x05\x0C\0\x01\0\r\0\x01\x01\r\0\x01\x02\r\0\x01\x03\r\0\x01\x04\r\0\x01\x05\r\0\x01\0\x0E\0\x01\x01\x0E\0\x01\x02\x0E\0\x01\x03\x0E\0\x01\x04\x0E\0\x01\x05\x0E\0\x01\0\x0F\0\x01\x01\x0F\0\x01\x02\x0F\0\x01\x03\x0F\0\x01\x04\x0F\0\x01\x05\x0F\0\x01\0\0\x01\x01\x01\0\x01\x01\x02\0\x01\x01\x03\0\x01\x01\x04\0\x01\x01\x05\0\x01\x01\0\x01\x01\x01\x01\x01\x01\x01\x02\x01\x01\x01\x03\x01\x01\x01\x04\x01\x01\x01\x05\x01\x01\x01\0\x02\x01\x01\x01\x02\x01\x01\x02\x02\x01\x01\x03\x02\x01\x01\x04\x02\x01\x01\x05\x02\x01\x01\0\x03\x01\x01\x01\x03\x01\x01\x02\x03\x01\x01\x03\x03\x01\x01\x04\x03\x01\x01\x05\x03\x01\x01\0\x04\x01\x01\x01\x04\x01\x01\x02\x04\x01\x01\x03\x04\x01\x01\x04\x04\x01\x01\x05\x04\x01\x01\0\x05\x01\x01\x01\x05\x01\x01\x02\x05\x01\x01\x03\x05\x01\x01\x04\x05\x01\x01\x05\x05\x01\x01\0\x06\x01\x01\x01\x06\x01\x01\x02\x06\x01\x01\x03\x06\x01\x01\x04\x06\x01\x01\x05\x06\x01\x01\0\x07\x01\x01\x01\x07\x01\x01\x02\x07\x01\x01\x03\x07\x01\x01\x04\x07\x01\x01\x05\x07\x01\x01\0\x08\x01\x01\x01\x08\x01\x01\x02\x08\x01\x01\x03\x08\x01\x01\x04\x08\x01\x01\x05\x08\x01\x01\0\t\x01\x01\x01\t\x01\x01\x02\t\x01\x01\x03\t\x01\x01\x04\t\x01\x01\x05\t\x01\x01\0\n\x01\x01\x01\n\x01\x01\x02\n\x01\x01\x03\n\x01\x01\x04\n\x01\x01\x05\n\x01\x01\0\x0B\x01\x01\x01\x0B\x01\x01\x02\x0B\x01\x01\x03\x0B\x01\x01\x04\x0B\x01\x01\x05\x0B\x01\x01\0\x0C\x01\x01\x01\x0C\x01\x01\x02\x0C\x01\x01\x03\x0C\x01\x01\x04\x0C\x01\x01\x05\x0C\x01\x01\0\r\x01\x01\x01\r\x01\x01\x02\r\x01\x01\x03\r\x01\x01\x04\r\x01\x01\x05\r\x01\x01\0\x0E\x01\x01\x01\x0E\x01\x01\x02\x0E\x01\x01\x03\x0E\x01\x01\x04\x0E\x01\x01\x05\x0E\x01\x01\0\x0F\x01\x01\x01\x0F\x01\x01\x02\x0F\x01\x01\x03\x0F\x01\x01\x04\x0F\x01\x01\x05\x0F\x01",
+        server_definition: None,
     },
     BlockData {
         id: 948u32,
@@ -1836,6 +1892,7 @@ pub static ALL_BLOCKS: [BlockData; 1477usize] = [
         visual_shape: [0f32, 0f32, 0f32, 1f32, 1f32, 1f32],
         properties: &[],
         state_values: b"",
+        server_definition: None,
     },
     BlockData {
         id: 949u32,
@@ -1874,6 +1931,7 @@ pub static ALL_BLOCKS: [BlockData; 1477usize] = [
             },
         ],
         state_values: b"\0\x01\x02\x03\x04\x05",
+        server_definition: None,
     },
     BlockData {
         id: 955u32,
@@ -1917,6 +1975,7 @@ pub static ALL_BLOCKS: [BlockData; 1477usize] = [
             },
         ],
         state_values: b"\0\0\0\0\0\x01\0\0\x01\0\0\0\x01\x01\0\0\0\0\x01\0\0\x01\x01\0\x01\0\x01\0\x01\x01\x01\0\0\0\0\x01\0\x01\0\x01\x01\0\0\x01\x01\x01\0\x01\0\0\x01\x01\0\x01\x01\x01\x01\0\x01\x01\x01\x01\x01\x01",
+        server_definition: None,
     },
     BlockData {
         id: 971u32,
@@ -1943,6 +2002,7 @@ pub static ALL_BLOCKS: [BlockData; 1477usize] = [
         visual_shape: [0f32, 0f32, 0f32, 1f32, 1f32, 1f32],
         properties: &[],
         state_values: b"",
+        server_definition: None,
     },
     BlockData {
         id: 972u32,
@@ -1969,6 +2029,7 @@ pub static ALL_BLOCKS: [BlockData; 1477usize] = [
         visual_shape: [0.15f32, 0f32, 0.15f32, 0.7f32, 0.6f32, 0.7f32],
         properties: &[],
         state_values: b"",
+        server_definition: None,
     },
     BlockData {
         id: 973u32,
@@ -1995,6 +2056,7 @@ pub static ALL_BLOCKS: [BlockData; 1477usize] = [
         visual_shape: [0f32, 0f32, 0f32, 1f32, 1f32, 1f32],
         properties: &[],
         state_values: b"",
+        server_definition: None,
     },
     BlockData {
         id: 974u32,
@@ -2021,6 +2083,7 @@ pub static ALL_BLOCKS: [BlockData; 1477usize] = [
         visual_shape: [0f32, 0f32, 0f32, 1f32, 1f32, 1f32],
         properties: &[],
         state_values: b"",
+        server_definition: None,
     },
     BlockData {
         id: 975u32,
@@ -2084,6 +2147,7 @@ pub static ALL_BLOCKS: [BlockData; 1477usize] = [
             },
         ],
         state_values: b"\0\0\0\0\0\0\0\0\0\x01\0\x01\0\0\0\0\x01\0\0\x01\0\x02\0\0\0\0\x02\0\0\x01\x01\0\0\0\0\x01\0\0\0\x01\x01\x01\0\0\0\x01\x01\0\0\x01\x01\x02\0\0\0\x01\x02\0\0\x01\x02\0\0\0\0\x02\0\0\0\x01\x02\x01\0\0\0\x02\x01\0\0\x01\x02\x02\0\0\0\x02\x02\0\0\x01\0\0\x01\0\0\0\0\x01\0\x01\0\x01\x01\0\0\0\x01\x01\0\x01\0\x02\x01\0\0\0\x02\x01\0\x01\x01\0\x01\0\0\x01\0\x01\0\x01\x01\x01\x01\0\0\x01\x01\x01\0\x01\x01\x02\x01\0\0\x01\x02\x01\0\x01\x02\0\x01\0\0\x02\0\x01\0\x01\x02\x01\x01\0\0\x02\x01\x01\0\x01\x02\x02\x01\0\0\x02\x02\x01\0\x01\0\0\x02\0\0\0\0\x02\0\x01\0\x01\x02\0\0\0\x01\x02\0\x01\0\x02\x02\0\0\0\x02\x02\0\x01\x01\0\x02\0\0\x01\0\x02\0\x01\x01\x01\x02\0\0\x01\x01\x02\0\x01\x01\x02\x02\0\0\x01\x02\x02\0\x01\x02\0\x02\0\0\x02\0\x02\0\x01\x02\x01\x02\0\0\x02\x01\x02\0\x01\x02\x02\x02\0\0\x02\x02\x02\0\x01\0\0\0\x01\0\0\0\0\x01\x01\0\x01\0\x01\0\0\x01\0\x01\x01\0\x02\0\x01\0\0\x02\0\x01\x01\x01\0\0\x01\0\x01\0\0\x01\x01\x01\x01\0\x01\0\x01\x01\0\x01\x01\x01\x02\0\x01\0\x01\x02\0\x01\x01\x02\0\0\x01\0\x02\0\0\x01\x01\x02\x01\0\x01\0\x02\x01\0\x01\x01\x02\x02\0\x01\0\x02\x02\0\x01\x01\0\0\x01\x01\0\0\0\x01\x01\x01\0\x01\x01\x01\0\0\x01\x01\x01\x01\0\x02\x01\x01\0\0\x02\x01\x01\x01\x01\0\x01\x01\0\x01\0\x01\x01\x01\x01\x01\x01\x01\0\x01\x01\x01\x01\x01\x01\x02\x01\x01\0\x01\x02\x01\x01\x01\x02\0\x01\x01\0\x02\0\x01\x01\x01\x02\x01\x01\x01\0\x02\x01\x01\x01\x01\x02\x02\x01\x01\0\x02\x02\x01\x01\x01\0\0\x02\x01\0\0\0\x02\x01\x01\0\x01\x02\x01\0\0\x01\x02\x01\x01\0\x02\x02\x01\0\0\x02\x02\x01\x01\x01\0\x02\x01\0\x01\0\x02\x01\x01\x01\x01\x02\x01\0\x01\x01\x02\x01\x01\x01\x02\x02\x01\0\x01\x02\x02\x01\x01\x02\0\x02\x01\0\x02\0\x02\x01\x01\x02\x01\x02\x01\0\x02\x01\x02\x01\x01\x02\x02\x02\x01\0\x02\x02\x02\x01\x01\0\0\0\x02\0\0\0\0\x02\x01\0\x01\0\x02\0\0\x01\0\x02\x01\0\x02\0\x02\0\0\x02\0\x02\x01\x01\0\0\x02\0\x01\0\0\x02\x01\x01\x01\0\x02\0\x01\x01\0\x02\x01\x01\x02\0\x02\0\x01\x02\0\x02\x01\x02\0\0\x02\0\x02\0\0\x02\x01\x02\x01\0\x02\0\x02\x01\0\x02\x01\x02\x02\0\x02\0\x02\x02\0\x02\x01\0\0\x01\x02\0\0\0\x01\x02\x01\0\x01\x01\x02\0\0\x01\x01\x02\x01\0\x02\x01\x02\0\0\x02\x01\x02\x01\x01\0\x01\x02\0\x01\0\x01\x02\x01\x01\x01\x01\x02\0\x01\x01\x01\x02\x01\x01\x02\x01\x02\0\x01\x02\x01\x02\x01\x02\0\x01\x02\0\x02\0\x01\x02\x01\x02\x01\x01\x02\0\x02\x01\x01\x02\x01\x02\x02\x01\x02\0\x02\x02\x01\x02\x01\0\0\x02\x02\0\0\0\x02\x02\x01\0\x01\x02\x02\0\0\x01\x02\x02\x01\0\x02\x02\x02\0\0\x02\x02\x02\x01\x01\0\x02\x02\0\x01\0\x02\x02\x01\x01\x01\x02\x02\0\x01\x01\x02\x02\x01\x01\x02\x02\x02\0\x01\x02\x02\x02\x01\x02\0\x02\x02\0\x02\0\x02\x02\x01\x02\x01\x02\x02\0\x02\x01\x02\x02\x01\x02\x02\x02\x02\0\x02\x02\x02\x02\x01",
+        server_definition: None,
     },
     BlockData {
         id: 1137u32,
@@ -2110,6 +2174,7 @@ pub static ALL_BLOCKS: [BlockData; 1477usize] = [
         visual_shape: [0f32, 0f32, 0f32, 1f32, 1f32, 1f32],
         properties: &[],
         state_values: b"",
+        server_definition: None,
     },
     BlockData {
         id: 1138u32,
@@ -2160,6 +2225,7 @@ pub static ALL_BLOCKS: [BlockData; 1477usize] = [
             },
         ],
         state_values: b"\0\0\0\0\0\x01\0\0\x02\0\0\x03\0\x01\0\0\x01\x01\0\x01\x02\0\x01\x03\x01\0\0\x01\0\x01\x01\0\x02\x01\0\x03\x01\x01\0\x01\x01\x01\x01\x01\x02\x01\x01\x03\x02\0\0\x02\0\x01\x02\0\x02\x02\0\x03\x02\x01\0\x02\x01\x01\x02\x01\x02\x02\x01\x03\x03\0\0\x03\0\x01\x03\0\x02\x03\0\x03\x03\x01\0\x03\x01\x01\x03\x01\x02\x03\x01\x03\x04\0\0\x04\0\x01\x04\0\x02\x04\0\x03\x04\x01\0\x04\x01\x01\x04\x01\x02\x04\x01\x03",
+        server_definition: None,
     },
     BlockData {
         id: 1178u32,
@@ -2186,6 +2252,7 @@ pub static ALL_BLOCKS: [BlockData; 1477usize] = [
         visual_shape: [0f32, 0f32, 0f32, 1f32, 1f32, 1f32],
         properties: &[],
         state_values: b"",
+        server_definition: None,
     },
     BlockData {
         id: 1179u32,
@@ -2230,6 +2297,7 @@ pub static ALL_BLOCKS: [BlockData; 1477usize] = [
             },
         ],
         state_values: b"\0\0\0\x01\0\x02\0\x03\0\x04\0\x05\0\x06\0\x07\x01\0\x01\x01\x01\x02\x01\x03\x01\x04\x01\x05\x01\x06\x01\x07",
+        server_definition: None,
     },
     BlockData {
         id: 1195u32,
@@ -2261,6 +2329,7 @@ pub static ALL_BLOCKS: [BlockData; 1477usize] = [
             },
         ],
         state_values: b"\0\x01",
+        server_definition: None,
     },
     BlockData {
         id: 1197u32,
@@ -2301,6 +2370,7 @@ pub static ALL_BLOCKS: [BlockData; 1477usize] = [
             },
         ],
         state_values: b"\0\0\x01\0\x02\0\x03\0\0\x01\x01\x01\x02\x01\x03\x01",
+        server_definition: None,
     },
     BlockData {
         id: 1205u32,
@@ -2332,6 +2402,9 @@ pub static ALL_BLOCKS: [BlockData; 1477usize] = [
             },
         ],
         state_values: b"\0\x01",
+        server_definition: Some(
+            b"\n\0\t\tblockTags\x08\x02&minecraft:is_pickaxe_item_destructible\n\ncomponents\n minecraft:destructible_by_mining\x05\x05valueff\xE6?\0\n\x1Fminecraft:destruction_particles\x03\x0Eparticle_count`\x08\x07texture\0\x08\x0Btint_method\x04none\0\n\x1Aminecraft:liquid_detection\t\x0EdetectionRules\n\x02\x01\x10canContainLiquid\x01\x08\nliquidType\x05water\x08\x0FonLiquidTouches\x08blocking\x01\x18stopsLiquidFromDirection\0\x01\x13use_liquid_clipping\0\0\0\n\x1Fminecraft:redstone_conductivity\x01\x14allowsWireToStepDown\x01\x01\x11redstoneConductor\0\0\0\n\rmenu_category\x08\x08category\x0Cconstruction\x08\x05group\x1Dminecraft:itemGroup.name.slab\x01\x15is_hidden_in_commands\0\0\x03\rmolangVersion\x1A\n\x12vanilla_block_data\n\x0Fblock_archetype\x08\x11double_slab_block$minecraft:black_concrete_double_slab\x01\tis_double\0\x08\x04type\nslab_block\0\x03\x08block_id\x82\x17\x08\x08material\x05solid\x01\x1Frequires_correct_tool_for_drops\x01\0\0",
+        ),
     },
     BlockData {
         id: 1207u32,
@@ -2358,6 +2431,7 @@ pub static ALL_BLOCKS: [BlockData; 1477usize] = [
         visual_shape: [0f32, 0f32, 0f32, 1f32, 0.0625f32, 1f32],
         properties: &[],
         state_values: b"",
+        server_definition: None,
     },
     BlockData {
         id: 1208u32,
@@ -2404,6 +2478,7 @@ pub static ALL_BLOCKS: [BlockData; 1477usize] = [
             },
         ],
         state_values: b"\0\0\0\x01\0\0\x02\0\0\x03\0\0\x04\0\0\x05\0\0\0\x01\0\x01\x01\0\x02\x01\0\x03\x01\0\x04\x01\0\x05\x01\0\0\0\x01\x01\0\x01\x02\0\x01\x03\0\x01\x04\0\x01\x05\0\x01\0\x01\x01\x01\x01\x01\x02\x01\x01\x03\x01\x01\x04\x01\x01\x05\x01\x01",
+        server_definition: None,
     },
     BlockData {
         id: 1232u32,
@@ -2435,6 +2510,7 @@ pub static ALL_BLOCKS: [BlockData; 1477usize] = [
             },
         ],
         state_values: b"\0\x01",
+        server_definition: None,
     },
     BlockData {
         id: 1234u32,
@@ -2466,6 +2542,9 @@ pub static ALL_BLOCKS: [BlockData; 1477usize] = [
             },
         ],
         state_values: b"\0\x01",
+        server_definition: Some(
+            b"\n\0\t\tblockTags\x08\x02&minecraft:is_pickaxe_item_destructible\n\ncomponents\n minecraft:destructible_by_mining\x05\x05valueff\xE6?\0\n\x1Fminecraft:destruction_particles\x03\x0Eparticle_count`\x08\x07texture\0\x08\x0Btint_method\x04none\0\n\x1Aminecraft:liquid_detection\t\x0EdetectionRules\n\x02\x01\x10canContainLiquid\x01\x08\nliquidType\x05water\x08\x0FonLiquidTouches\x08blocking\x01\x18stopsLiquidFromDirection\0\x01\x13use_liquid_clipping\0\0\0\n\x1Fminecraft:redstone_conductivity\x01\x14allowsWireToStepDown\x01\x01\x11redstoneConductor\0\0\0\n\rmenu_category\x08\x08category\x0Cconstruction\x08\x05group\x1Dminecraft:itemGroup.name.slab\x01\x15is_hidden_in_commands\0\0\x03\rmolangVersion\x1A\n\x12vanilla_block_data\n\x0Fblock_archetype\x08\x11double_slab_block#minecraft:gray_concrete_double_slab\x01\tis_double\0\x08\x04type\nslab_block\0\x03\x08block_id\x80\x17\x08\x08material\x05solid\x01\x1Frequires_correct_tool_for_drops\x01\0\0",
+        ),
     },
     BlockData {
         id: 1236u32,
@@ -2492,6 +2571,7 @@ pub static ALL_BLOCKS: [BlockData; 1477usize] = [
         visual_shape: [0.15f32, 0.7f32, 0.15f32, 0.85f32, 1f32, 0.85f32],
         properties: &[],
         state_values: b"",
+        server_definition: None,
     },
     BlockData {
         id: 1237u32,
@@ -2555,6 +2635,7 @@ pub static ALL_BLOCKS: [BlockData; 1477usize] = [
             },
         ],
         state_values: b"\0\0\0\0\0\0\0\0\0\x01\0\x01\0\0\0\0\x01\0\0\x01\0\x02\0\0\0\0\x02\0\0\x01\x01\0\0\0\0\x01\0\0\0\x01\x01\x01\0\0\0\x01\x01\0\0\x01\x01\x02\0\0\0\x01\x02\0\0\x01\x02\0\0\0\0\x02\0\0\0\x01\x02\x01\0\0\0\x02\x01\0\0\x01\x02\x02\0\0\0\x02\x02\0\0\x01\0\0\x01\0\0\0\0\x01\0\x01\0\x01\x01\0\0\0\x01\x01\0\x01\0\x02\x01\0\0\0\x02\x01\0\x01\x01\0\x01\0\0\x01\0\x01\0\x01\x01\x01\x01\0\0\x01\x01\x01\0\x01\x01\x02\x01\0\0\x01\x02\x01\0\x01\x02\0\x01\0\0\x02\0\x01\0\x01\x02\x01\x01\0\0\x02\x01\x01\0\x01\x02\x02\x01\0\0\x02\x02\x01\0\x01\0\0\x02\0\0\0\0\x02\0\x01\0\x01\x02\0\0\0\x01\x02\0\x01\0\x02\x02\0\0\0\x02\x02\0\x01\x01\0\x02\0\0\x01\0\x02\0\x01\x01\x01\x02\0\0\x01\x01\x02\0\x01\x01\x02\x02\0\0\x01\x02\x02\0\x01\x02\0\x02\0\0\x02\0\x02\0\x01\x02\x01\x02\0\0\x02\x01\x02\0\x01\x02\x02\x02\0\0\x02\x02\x02\0\x01\0\0\0\x01\0\0\0\0\x01\x01\0\x01\0\x01\0\0\x01\0\x01\x01\0\x02\0\x01\0\0\x02\0\x01\x01\x01\0\0\x01\0\x01\0\0\x01\x01\x01\x01\0\x01\0\x01\x01\0\x01\x01\x01\x02\0\x01\0\x01\x02\0\x01\x01\x02\0\0\x01\0\x02\0\0\x01\x01\x02\x01\0\x01\0\x02\x01\0\x01\x01\x02\x02\0\x01\0\x02\x02\0\x01\x01\0\0\x01\x01\0\0\0\x01\x01\x01\0\x01\x01\x01\0\0\x01\x01\x01\x01\0\x02\x01\x01\0\0\x02\x01\x01\x01\x01\0\x01\x01\0\x01\0\x01\x01\x01\x01\x01\x01\x01\0\x01\x01\x01\x01\x01\x01\x02\x01\x01\0\x01\x02\x01\x01\x01\x02\0\x01\x01\0\x02\0\x01\x01\x01\x02\x01\x01\x01\0\x02\x01\x01\x01\x01\x02\x02\x01\x01\0\x02\x02\x01\x01\x01\0\0\x02\x01\0\0\0\x02\x01\x01\0\x01\x02\x01\0\0\x01\x02\x01\x01\0\x02\x02\x01\0\0\x02\x02\x01\x01\x01\0\x02\x01\0\x01\0\x02\x01\x01\x01\x01\x02\x01\0\x01\x01\x02\x01\x01\x01\x02\x02\x01\0\x01\x02\x02\x01\x01\x02\0\x02\x01\0\x02\0\x02\x01\x01\x02\x01\x02\x01\0\x02\x01\x02\x01\x01\x02\x02\x02\x01\0\x02\x02\x02\x01\x01\0\0\0\x02\0\0\0\0\x02\x01\0\x01\0\x02\0\0\x01\0\x02\x01\0\x02\0\x02\0\0\x02\0\x02\x01\x01\0\0\x02\0\x01\0\0\x02\x01\x01\x01\0\x02\0\x01\x01\0\x02\x01\x01\x02\0\x02\0\x01\x02\0\x02\x01\x02\0\0\x02\0\x02\0\0\x02\x01\x02\x01\0\x02\0\x02\x01\0\x02\x01\x02\x02\0\x02\0\x02\x02\0\x02\x01\0\0\x01\x02\0\0\0\x01\x02\x01\0\x01\x01\x02\0\0\x01\x01\x02\x01\0\x02\x01\x02\0\0\x02\x01\x02\x01\x01\0\x01\x02\0\x01\0\x01\x02\x01\x01\x01\x01\x02\0\x01\x01\x01\x02\x01\x01\x02\x01\x02\0\x01\x02\x01\x02\x01\x02\0\x01\x02\0\x02\0\x01\x02\x01\x02\x01\x01\x02\0\x02\x01\x01\x02\x01\x02\x02\x01\x02\0\x02\x02\x01\x02\x01\0\0\x02\x02\0\0\0\x02\x02\x01\0\x01\x02\x02\0\0\x01\x02\x02\x01\0\x02\x02\x02\0\0\x02\x02\x02\x01\x01\0\x02\x02\0\x01\0\x02\x02\x01\x01\x01\x02\x02\0\x01\x01\x02\x02\x01\x01\x02\x02\x02\0\x01\x02\x02\x02\x01\x02\0\x02\x02\0\x02\0\x02\x02\x01\x02\x01\x02\x02\0\x02\x01\x02\x02\x01\x02\x02\x02\x02\0\x02\x02\x02\x02\x01",
+        server_definition: None,
     },
     BlockData {
         id: 1399u32,
@@ -2605,6 +2686,7 @@ pub static ALL_BLOCKS: [BlockData; 1477usize] = [
             },
         ],
         state_values: b"\0\0\0\0\0\x01\0\0\x02\0\0\x03\0\x01\0\0\x01\x01\0\x01\x02\0\x01\x03\x01\0\0\x01\0\x01\x01\0\x02\x01\0\x03\x01\x01\0\x01\x01\x01\x01\x01\x02\x01\x01\x03\x02\0\0\x02\0\x01\x02\0\x02\x02\0\x03\x02\x01\0\x02\x01\x01\x02\x01\x02\x02\x01\x03\x03\0\0\x03\0\x01\x03\0\x02\x03\0\x03\x03\x01\0\x03\x01\x01\x03\x01\x02\x03\x01\x03\x04\0\0\x04\0\x01\x04\0\x02\x04\0\x03\x04\x01\0\x04\x01\x01\x04\x01\x02\x04\x01\x03",
+        server_definition: None,
     },
     BlockData {
         id: 1439u32,
@@ -2635,6 +2717,7 @@ pub static ALL_BLOCKS: [BlockData; 1477usize] = [
         visual_shape: [0f32, 0f32, 0f32, 1f32, 1f32, 1f32],
         properties: &[],
         state_values: b"",
+        server_definition: None,
     },
     BlockData {
         id: 1440u32,
@@ -2670,6 +2753,7 @@ pub static ALL_BLOCKS: [BlockData; 1477usize] = [
             },
         ],
         state_values: b"\0\x01\x02",
+        server_definition: None,
     },
     BlockData {
         id: 1443u32,
@@ -2711,6 +2795,7 @@ pub static ALL_BLOCKS: [BlockData; 1477usize] = [
             },
         ],
         state_values: b"\0\x01\x02\x03",
+        server_definition: None,
     },
     BlockData {
         id: 1447u32,
@@ -2737,6 +2822,7 @@ pub static ALL_BLOCKS: [BlockData; 1477usize] = [
         visual_shape: [0f32, 0f32, 0f32, 1f32, 1f32, 1f32],
         properties: &[],
         state_values: b"",
+        server_definition: None,
     },
     BlockData {
         id: 1448u32,
@@ -2768,6 +2854,7 @@ pub static ALL_BLOCKS: [BlockData; 1477usize] = [
             },
         ],
         state_values: b"\0\x01",
+        server_definition: None,
     },
     BlockData {
         id: 1450u32,
@@ -2818,6 +2905,9 @@ pub static ALL_BLOCKS: [BlockData; 1477usize] = [
             },
         ],
         state_values: b"\0\0\0\0\0\x01\0\0\x02\0\0\x03\0\x01\0\0\x01\x01\0\x01\x02\0\x01\x03\x01\0\0\x01\0\x01\x01\0\x02\x01\0\x03\x01\x01\0\x01\x01\x01\x01\x01\x02\x01\x01\x03\x02\0\0\x02\0\x01\x02\0\x02\x02\0\x03\x02\x01\0\x02\x01\x01\x02\x01\x02\x02\x01\x03\x03\0\0\x03\0\x01\x03\0\x02\x03\0\x03\x03\x01\0\x03\x01\x01\x03\x01\x02\x03\x01\x03\x04\0\0\x04\0\x01\x04\0\x02\x04\0\x03\x04\x01\0\x04\x01\x01\x04\x01\x02\x04\x01\x03",
+        server_definition: Some(
+            b"\n\0\t\tblockTags\x08\x02%minecraft:is_shears_item_destructible\n\ncomponents\n minecraft:destructible_by_mining\x05\x05value\xCD\xCCL?\0\n\x1Fminecraft:destruction_particles\x03\x0Eparticle_count`\x08\x07texture\0\x08\x0Btint_method\x04none\0\n\x1Aminecraft:liquid_detection\t\x0EdetectionRules\n\x02\x01\x10canContainLiquid\x01\x08\nliquidType\x05water\x08\x0FonLiquidTouches\x08blocking\x01\x18stopsLiquidFromDirection\0\x01\x13use_liquid_clipping\0\0\0\n\x1Fminecraft:redstone_conductivity\x01\x14allowsWireToStepDown\x01\x01\x11redstoneConductor\0\0\n\x11minecraft:support\x08\x05shape\x05stair\0\0\n\rmenu_category\x08\x08category\x0Cconstruction\x08\x05group\x1Fminecraft:itemGroup.name.stairs\x01\x15is_hidden_in_commands\0\0\x03\rmolangVersion\x1A\n\x12vanilla_block_data\n\x0Fblock_archetype\x08\nbase_block\x13minecraft:lime_wool\x08\x04type\x0Bstair_block\0\x03\x08block_id\x86\x16\x01\x15can_dampen_vibrations\x01\x01\x16can_occlude_vibrations\x01\x08\x08material\x05solid\x05\x0Ctranslucency\xCD\xCCL?\0\0",
+        ),
     },
     BlockData {
         id: 1490u32,
@@ -2853,6 +2943,7 @@ pub static ALL_BLOCKS: [BlockData; 1477usize] = [
             },
         ],
         state_values: b"\0\x01\x02",
+        server_definition: None,
     },
     BlockData {
         id: 1493u32,
@@ -2896,6 +2987,7 @@ pub static ALL_BLOCKS: [BlockData; 1477usize] = [
             },
         ],
         state_values: b"\0\0\0\0\0\x01\0\0\x01\0\0\0\x01\x01\0\0\0\0\x01\0\0\x01\x01\0\x01\0\x01\0\x01\x01\x01\0\0\0\0\x01\0\x01\0\x01\x01\0\0\x01\x01\x01\0\x01\0\0\x01\x01\0\x01\x01\x01\x01\0\x01\x01\x01\x01\x01\x01",
+        server_definition: None,
     },
     BlockData {
         id: 1509u32,
@@ -2927,6 +3019,7 @@ pub static ALL_BLOCKS: [BlockData; 1477usize] = [
             },
         ],
         state_values: b"\0\x01",
+        server_definition: None,
     },
     BlockData {
         id: 1511u32,
@@ -2962,6 +3055,7 @@ pub static ALL_BLOCKS: [BlockData; 1477usize] = [
             },
         ],
         state_values: b"\0\x01\x02",
+        server_definition: None,
     },
     BlockData {
         id: 1514u32,
@@ -2993,6 +3087,7 @@ pub static ALL_BLOCKS: [BlockData; 1477usize] = [
             },
         ],
         state_values: b"\0\x01",
+        server_definition: None,
     },
     BlockData {
         id: 1516u32,
@@ -3019,6 +3114,7 @@ pub static ALL_BLOCKS: [BlockData; 1477usize] = [
         visual_shape: [0f32, 0f32, 0f32, 1f32, 1f32, 1f32],
         properties: &[],
         state_values: b"",
+        server_definition: None,
     },
     BlockData {
         id: 1517u32,
@@ -3054,6 +3150,7 @@ pub static ALL_BLOCKS: [BlockData; 1477usize] = [
             },
         ],
         state_values: b"\0\0\x01\0\0\x01\x01\x01",
+        server_definition: None,
     },
     BlockData {
         id: 1521u32,
@@ -3080,6 +3177,7 @@ pub static ALL_BLOCKS: [BlockData; 1477usize] = [
         visual_shape: [0f32, 0f32, 0f32, 1f32, 1f32, 1f32],
         properties: &[],
         state_values: b"",
+        server_definition: None,
     },
     BlockData {
         id: 1522u32,
@@ -3123,6 +3221,7 @@ pub static ALL_BLOCKS: [BlockData; 1477usize] = [
             },
         ],
         state_values: b"\0\0\0\0\0\x01\0\0\x01\0\0\0\x01\x01\0\0\0\0\x01\0\0\x01\x01\0\x01\0\x01\0\x01\x01\x01\0\0\0\0\x01\0\x01\0\x01\x01\0\0\x01\x01\x01\0\x01\0\0\x01\x01\0\x01\x01\x01\x01\0\x01\x01\x01\x01\x01\x01",
+        server_definition: None,
     },
     BlockData {
         id: 1538u32,
@@ -3166,6 +3265,7 @@ pub static ALL_BLOCKS: [BlockData; 1477usize] = [
             },
         ],
         state_values: b"\0\0\0\0\0\x01\0\0\x01\0\0\0\x01\x01\0\0\0\0\x01\0\0\x01\x01\0\x01\0\x01\0\x01\x01\x01\0\0\0\0\x01\0\x01\0\x01\x01\0\0\x01\x01\x01\0\x01\0\0\x01\x01\0\x01\x01\x01\x01\0\x01\x01\x01\x01\x01\x01",
+        server_definition: None,
     },
     BlockData {
         id: 1554u32,
@@ -3192,6 +3292,7 @@ pub static ALL_BLOCKS: [BlockData; 1477usize] = [
         visual_shape: [0f32, 0f32, 0f32, 1f32, 0.0625f32, 1f32],
         properties: &[],
         state_values: b"",
+        server_definition: None,
     },
     BlockData {
         id: 1555u32,
@@ -3218,6 +3319,7 @@ pub static ALL_BLOCKS: [BlockData; 1477usize] = [
         visual_shape: [0.15f32, 0f32, 0.15f32, 0.7f32, 0.6f32, 0.7f32],
         properties: &[],
         state_values: b"",
+        server_definition: None,
     },
     BlockData {
         id: 1556u32,
@@ -3256,6 +3358,7 @@ pub static ALL_BLOCKS: [BlockData; 1477usize] = [
             },
         ],
         state_values: b"\0\x01\x02\x03\x04\x05",
+        server_definition: None,
     },
     BlockData {
         id: 1562u32,
@@ -3305,6 +3408,7 @@ pub static ALL_BLOCKS: [BlockData; 1477usize] = [
             },
         ],
         state_values: b"\0\0\0\x01\0\0\x02\0\0\x03\0\0\0\0\x01\x01\0\x01\x02\0\x01\x03\0\x01\0\x01\0\x01\x01\0\x02\x01\0\x03\x01\0\0\x01\x01\x01\x01\x01\x02\x01\x01\x03\x01\x01",
+        server_definition: None,
     },
     BlockData {
         id: 1578u32,
@@ -3331,6 +3435,7 @@ pub static ALL_BLOCKS: [BlockData; 1477usize] = [
         visual_shape: [0.0625f32, 0f32, 0.0625f32, 0.9375f32, 0.875f32, 0.9375f32],
         properties: &[],
         state_values: b"",
+        server_definition: None,
     },
     BlockData {
         id: 1579u32,
@@ -3381,6 +3486,9 @@ pub static ALL_BLOCKS: [BlockData; 1477usize] = [
             },
         ],
         state_values: b"\0\0\0\0\0\x01\0\0\x02\0\0\x03\0\x01\0\0\x01\x01\0\x01\x02\0\x01\x03\x01\0\0\x01\0\x01\x01\0\x02\x01\0\x03\x01\x01\0\x01\x01\x01\x01\x01\x02\x01\x01\x03\x02\0\0\x02\0\x01\x02\0\x02\x02\0\x03\x02\x01\0\x02\x01\x01\x02\x01\x02\x02\x01\x03\x03\0\0\x03\0\x01\x03\0\x02\x03\0\x03\x03\x01\0\x03\x01\x01\x03\x01\x02\x03\x01\x03\x04\0\0\x04\0\x01\x04\0\x02\x04\0\x03\x04\x01\0\x04\x01\x01\x04\x01\x02\x04\x01\x03",
+        server_definition: Some(
+            b"\n\0\t\tblockTags\x08\x02&minecraft:is_pickaxe_item_destructible\n\ncomponents\n minecraft:destructible_by_mining\x05\x05valueff\xE6?\0\n\x1Fminecraft:destruction_particles\x03\x0Eparticle_count`\x08\x07texture\0\x08\x0Btint_method\x04none\0\n\x1Aminecraft:liquid_detection\t\x0EdetectionRules\n\x02\x01\x10canContainLiquid\x01\x08\nliquidType\x05water\x08\x0FonLiquidTouches\x08blocking\x01\x18stopsLiquidFromDirection\0\x01\x13use_liquid_clipping\0\0\0\n\x1Fminecraft:redstone_conductivity\x01\x14allowsWireToStepDown\x01\x01\x11redstoneConductor\0\0\n\x11minecraft:support\x08\x05shape\x05stair\0\0\n\rmenu_category\x08\x08category\x0Cconstruction\x08\x05group\x1Fminecraft:itemGroup.name.stairs\x01\x15is_hidden_in_commands\0\0\x03\rmolangVersion\x1A\n\x12vanilla_block_data\n\x0Fblock_archetype\x08\nbase_block\x19minecraft:purple_concrete\x08\x04type\x0Bstair_block\0\x03\x08block_id\xF4\x16\x08\x08material\x05solid\x01\x1Frequires_correct_tool_for_drops\x01\0\0",
+        ),
     },
     BlockData {
         id: 1619u32,
@@ -3412,6 +3520,9 @@ pub static ALL_BLOCKS: [BlockData; 1477usize] = [
             },
         ],
         state_values: b"\0\x01",
+        server_definition: Some(
+            b"\n\0\t\tblockTags\x08\x02&minecraft:is_pickaxe_item_destructible\n\ncomponents\n minecraft:destructible_by_mining\x05\x05valueff\xE6?\0\n\x1Fminecraft:redstone_conductivity\x01\x14allowsWireToStepDown\x01\x01\x11redstoneConductor\x01\0\0\n\rmenu_category\x08\x08category\x04none\x08\x05group\0\x01\x15is_hidden_in_commands\x01\0\x03\rmolangVersion\x1A\n\x12vanilla_block_data\n\x0Fblock_archetype\x08\x11double_slab_block\x1Cminecraft:blue_concrete_slab\x01\tis_double\x01\x08\x04type\nslab_block\0\x03\x08block_id\xB4\x17\x08\x08material\x05solid\x01\x1Frequires_correct_tool_for_drops\x01\0\0",
+        ),
     },
     BlockData {
         id: 1621u32,
@@ -3443,6 +3554,7 @@ pub static ALL_BLOCKS: [BlockData; 1477usize] = [
             },
         ],
         state_values: b"\0\x01",
+        server_definition: None,
     },
     BlockData {
         id: 1623u32,
@@ -3469,6 +3581,7 @@ pub static ALL_BLOCKS: [BlockData; 1477usize] = [
         visual_shape: [0f32, 0f32, 0f32, 1f32, 1f32, 1f32],
         properties: &[],
         state_values: b"",
+        server_definition: None,
     },
     BlockData {
         id: 1624u32,
@@ -3504,6 +3617,7 @@ pub static ALL_BLOCKS: [BlockData; 1477usize] = [
             },
         ],
         state_values: b"\0\x01\x02",
+        server_definition: None,
     },
     BlockData {
         id: 1627u32,
@@ -3535,6 +3649,7 @@ pub static ALL_BLOCKS: [BlockData; 1477usize] = [
             },
         ],
         state_values: b"\0\x01",
+        server_definition: None,
     },
     BlockData {
         id: 1629u32,
@@ -3569,6 +3684,7 @@ pub static ALL_BLOCKS: [BlockData; 1477usize] = [
             },
         ],
         state_values: b"\0\x01",
+        server_definition: None,
     },
     BlockData {
         id: 1631u32,
@@ -3595,6 +3711,7 @@ pub static ALL_BLOCKS: [BlockData; 1477usize] = [
         visual_shape: [0f32, 0f32, 0f32, 1f32, 1f32, 1f32],
         properties: &[],
         state_values: b"",
+        server_definition: None,
     },
     BlockData {
         id: 1632u32,
@@ -3621,6 +3738,7 @@ pub static ALL_BLOCKS: [BlockData; 1477usize] = [
         visual_shape: [0f32, 0f32, 0f32, 1f32, 1f32, 1f32],
         properties: &[],
         state_values: b"",
+        server_definition: None,
     },
     BlockData {
         id: 1633u32,
@@ -3656,6 +3774,7 @@ pub static ALL_BLOCKS: [BlockData; 1477usize] = [
             },
         ],
         state_values: b"\0\x01\x02",
+        server_definition: None,
     },
     BlockData {
         id: 1636u32,
@@ -3705,6 +3824,7 @@ pub static ALL_BLOCKS: [BlockData; 1477usize] = [
             },
         ],
         state_values: b"\0\0\0\x01\0\0\x02\0\0\x03\0\0\0\0\x01\x01\0\x01\x02\0\x01\x03\0\x01\0\x01\0\x01\x01\0\x02\x01\0\x03\x01\0\0\x01\x01\x01\x01\x01\x02\x01\x01\x03\x01\x01",
+        server_definition: None,
     },
     BlockData {
         id: 1652u32,
@@ -3731,6 +3851,7 @@ pub static ALL_BLOCKS: [BlockData; 1477usize] = [
         visual_shape: [0f32, 0f32, 0f32, 1f32, 0.0625f32, 1f32],
         properties: &[],
         state_values: b"",
+        server_definition: None,
     },
     BlockData {
         id: 1653u32,
@@ -3775,6 +3896,7 @@ pub static ALL_BLOCKS: [BlockData; 1477usize] = [
             },
         ],
         state_values: b"\0\0\0\x01\x01\0\x01\x01\x02\0\x02\x01\x03\0\x03\x01\x04\0\x04\x01\x05\0\x05\x01\x06\0\x06\x01\x07\0\x07\x01",
+        server_definition: None,
     },
     BlockData {
         id: 1669u32,
@@ -3801,6 +3923,7 @@ pub static ALL_BLOCKS: [BlockData; 1477usize] = [
         visual_shape: [0f32, 0f32, 0f32, 1f32, 1f32, 1f32],
         properties: &[],
         state_values: b"",
+        server_definition: None,
     },
     BlockData {
         id: 1670u32,
@@ -3831,6 +3954,7 @@ pub static ALL_BLOCKS: [BlockData; 1477usize] = [
         visual_shape: [0f32, 0f32, 0f32, 1f32, 1f32, 1f32],
         properties: &[],
         state_values: b"",
+        server_definition: None,
     },
     BlockData {
         id: 1671u32,
@@ -3862,6 +3986,7 @@ pub static ALL_BLOCKS: [BlockData; 1477usize] = [
             },
         ],
         state_values: b"\0\x01",
+        server_definition: None,
     },
     BlockData {
         id: 1673u32,
@@ -3925,6 +4050,7 @@ pub static ALL_BLOCKS: [BlockData; 1477usize] = [
             },
         ],
         state_values: b"\0\0\0\0\0\0\0\0\0\x01\0\x01\0\0\0\0\x01\0\0\x01\0\x02\0\0\0\0\x02\0\0\x01\x01\0\0\0\0\x01\0\0\0\x01\x01\x01\0\0\0\x01\x01\0\0\x01\x01\x02\0\0\0\x01\x02\0\0\x01\x02\0\0\0\0\x02\0\0\0\x01\x02\x01\0\0\0\x02\x01\0\0\x01\x02\x02\0\0\0\x02\x02\0\0\x01\0\0\x01\0\0\0\0\x01\0\x01\0\x01\x01\0\0\0\x01\x01\0\x01\0\x02\x01\0\0\0\x02\x01\0\x01\x01\0\x01\0\0\x01\0\x01\0\x01\x01\x01\x01\0\0\x01\x01\x01\0\x01\x01\x02\x01\0\0\x01\x02\x01\0\x01\x02\0\x01\0\0\x02\0\x01\0\x01\x02\x01\x01\0\0\x02\x01\x01\0\x01\x02\x02\x01\0\0\x02\x02\x01\0\x01\0\0\x02\0\0\0\0\x02\0\x01\0\x01\x02\0\0\0\x01\x02\0\x01\0\x02\x02\0\0\0\x02\x02\0\x01\x01\0\x02\0\0\x01\0\x02\0\x01\x01\x01\x02\0\0\x01\x01\x02\0\x01\x01\x02\x02\0\0\x01\x02\x02\0\x01\x02\0\x02\0\0\x02\0\x02\0\x01\x02\x01\x02\0\0\x02\x01\x02\0\x01\x02\x02\x02\0\0\x02\x02\x02\0\x01\0\0\0\x01\0\0\0\0\x01\x01\0\x01\0\x01\0\0\x01\0\x01\x01\0\x02\0\x01\0\0\x02\0\x01\x01\x01\0\0\x01\0\x01\0\0\x01\x01\x01\x01\0\x01\0\x01\x01\0\x01\x01\x01\x02\0\x01\0\x01\x02\0\x01\x01\x02\0\0\x01\0\x02\0\0\x01\x01\x02\x01\0\x01\0\x02\x01\0\x01\x01\x02\x02\0\x01\0\x02\x02\0\x01\x01\0\0\x01\x01\0\0\0\x01\x01\x01\0\x01\x01\x01\0\0\x01\x01\x01\x01\0\x02\x01\x01\0\0\x02\x01\x01\x01\x01\0\x01\x01\0\x01\0\x01\x01\x01\x01\x01\x01\x01\0\x01\x01\x01\x01\x01\x01\x02\x01\x01\0\x01\x02\x01\x01\x01\x02\0\x01\x01\0\x02\0\x01\x01\x01\x02\x01\x01\x01\0\x02\x01\x01\x01\x01\x02\x02\x01\x01\0\x02\x02\x01\x01\x01\0\0\x02\x01\0\0\0\x02\x01\x01\0\x01\x02\x01\0\0\x01\x02\x01\x01\0\x02\x02\x01\0\0\x02\x02\x01\x01\x01\0\x02\x01\0\x01\0\x02\x01\x01\x01\x01\x02\x01\0\x01\x01\x02\x01\x01\x01\x02\x02\x01\0\x01\x02\x02\x01\x01\x02\0\x02\x01\0\x02\0\x02\x01\x01\x02\x01\x02\x01\0\x02\x01\x02\x01\x01\x02\x02\x02\x01\0\x02\x02\x02\x01\x01\0\0\0\x02\0\0\0\0\x02\x01\0\x01\0\x02\0\0\x01\0\x02\x01\0\x02\0\x02\0\0\x02\0\x02\x01\x01\0\0\x02\0\x01\0\0\x02\x01\x01\x01\0\x02\0\x01\x01\0\x02\x01\x01\x02\0\x02\0\x01\x02\0\x02\x01\x02\0\0\x02\0\x02\0\0\x02\x01\x02\x01\0\x02\0\x02\x01\0\x02\x01\x02\x02\0\x02\0\x02\x02\0\x02\x01\0\0\x01\x02\0\0\0\x01\x02\x01\0\x01\x01\x02\0\0\x01\x01\x02\x01\0\x02\x01\x02\0\0\x02\x01\x02\x01\x01\0\x01\x02\0\x01\0\x01\x02\x01\x01\x01\x01\x02\0\x01\x01\x01\x02\x01\x01\x02\x01\x02\0\x01\x02\x01\x02\x01\x02\0\x01\x02\0\x02\0\x01\x02\x01\x02\x01\x01\x02\0\x02\x01\x01\x02\x01\x02\x02\x01\x02\0\x02\x02\x01\x02\x01\0\0\x02\x02\0\0\0\x02\x02\x01\0\x01\x02\x02\0\0\x01\x02\x02\x01\0\x02\x02\x02\0\0\x02\x02\x02\x01\x01\0\x02\x02\0\x01\0\x02\x02\x01\x01\x01\x02\x02\0\x01\x01\x02\x02\x01\x01\x02\x02\x02\0\x01\x02\x02\x02\x01\x02\0\x02\x02\0\x02\0\x02\x02\x01\x02\x01\x02\x02\0\x02\x01\x02\x02\x01\x02\x02\x02\x02\0\x02\x02\x02\x02\x01",
+        server_definition: None,
     },
     BlockData {
         id: 1835u32,
@@ -3973,6 +4099,7 @@ pub static ALL_BLOCKS: [BlockData; 1477usize] = [
             },
         ],
         state_values: b"\0\x01\x02\x03\x04\x05\x06\x07\x08\t\n\x0B\x0C\r\x0E\x0F",
+        server_definition: None,
     },
     BlockData {
         id: 1851u32,
@@ -4008,6 +4135,7 @@ pub static ALL_BLOCKS: [BlockData; 1477usize] = [
             },
         ],
         state_values: b"\0\x01\x02",
+        server_definition: None,
     },
     BlockData {
         id: 1854u32,
@@ -4034,6 +4162,7 @@ pub static ALL_BLOCKS: [BlockData; 1477usize] = [
         visual_shape: [0f32, 0f32, 0f32, 1f32, 1f32, 1f32],
         properties: &[],
         state_values: b"",
+        server_definition: None,
     },
     BlockData {
         id: 1855u32,
@@ -4063,6 +4192,7 @@ pub static ALL_BLOCKS: [BlockData; 1477usize] = [
         visual_shape: [0f32, 0f32, 0f32, 1f32, 1f32, 1f32],
         properties: &[],
         state_values: b"",
+        server_definition: None,
     },
     BlockData {
         id: 1856u32,
@@ -4094,6 +4224,7 @@ pub static ALL_BLOCKS: [BlockData; 1477usize] = [
             },
         ],
         state_values: b"\0\x01",
+        server_definition: None,
     },
     BlockData {
         id: 1858u32,
@@ -4148,6 +4279,7 @@ pub static ALL_BLOCKS: [BlockData; 1477usize] = [
             },
         ],
         state_values: b"\0\0\0\0\0\x01\0\0\x02\0\0\x03\0\x01\0\0\x01\x01\0\x01\x02\0\x01\x03\x01\0\0\x01\0\x01\x01\0\x02\x01\0\x03\x01\x01\0\x01\x01\x01\x01\x01\x02\x01\x01\x03\x02\0\0\x02\0\x01\x02\0\x02\x02\0\x03\x02\x01\0\x02\x01\x01\x02\x01\x02\x02\x01\x03\x03\0\0\x03\0\x01\x03\0\x02\x03\0\x03\x03\x01\0\x03\x01\x01\x03\x01\x02\x03\x01\x03\x04\0\0\x04\0\x01\x04\0\x02\x04\0\x03\x04\x01\0\x04\x01\x01\x04\x01\x02\x04\x01\x03",
+        server_definition: None,
     },
     BlockData {
         id: 1898u32,
@@ -4174,6 +4306,7 @@ pub static ALL_BLOCKS: [BlockData; 1477usize] = [
         visual_shape: [0f32, 0f32, 0f32, 1f32, 1f32, 1f32],
         properties: &[],
         state_values: b"",
+        server_definition: None,
     },
     BlockData {
         id: 1899u32,
@@ -4209,6 +4342,7 @@ pub static ALL_BLOCKS: [BlockData; 1477usize] = [
             },
         ],
         state_values: b"\0\x01\x02",
+        server_definition: None,
     },
     BlockData {
         id: 1902u32,
@@ -4252,6 +4386,7 @@ pub static ALL_BLOCKS: [BlockData; 1477usize] = [
             },
         ],
         state_values: b"\0\0\0\0\0\x01\0\0\x01\0\0\0\x01\x01\0\0\0\0\x01\0\0\x01\x01\0\x01\0\x01\0\x01\x01\x01\0\0\0\0\x01\0\x01\0\x01\x01\0\0\x01\x01\x01\0\x01\0\0\x01\x01\0\x01\x01\x01\x01\0\x01\x01\x01\x01\x01\x01",
+        server_definition: None,
     },
     BlockData {
         id: 1918u32,
@@ -4293,6 +4428,7 @@ pub static ALL_BLOCKS: [BlockData; 1477usize] = [
             },
         ],
         state_values: b"\0\0\x01\0\x02\0\x03\0\x04\0\0\x01\x01\x01\x02\x01\x03\x01\x04\x01",
+        server_definition: None,
     },
     BlockData {
         id: 1928u32,
@@ -4319,6 +4455,7 @@ pub static ALL_BLOCKS: [BlockData; 1477usize] = [
         visual_shape: [0f32, 0f32, 0f32, 1f32, 1f32, 1f32],
         properties: &[],
         state_values: b"",
+        server_definition: None,
     },
     BlockData {
         id: 1929u32,
@@ -4345,6 +4482,7 @@ pub static ALL_BLOCKS: [BlockData; 1477usize] = [
         visual_shape: [0f32, 0f32, 0f32, 1f32, 1f32, 1f32],
         properties: &[],
         state_values: b"",
+        server_definition: None,
     },
     BlockData {
         id: 1930u32,
@@ -4376,6 +4514,9 @@ pub static ALL_BLOCKS: [BlockData; 1477usize] = [
             },
         ],
         state_values: b"\0\x01",
+        server_definition: Some(
+            b"\n\0\t\tblockTags\x08\x02&minecraft:is_pickaxe_item_destructible\n\ncomponents\n minecraft:destructible_by_mining\x05\x05valueff\xE6?\0\n\x1Fminecraft:destruction_particles\x03\x0Eparticle_count`\x08\x07texture\0\x08\x0Btint_method\x04none\0\n\x1Aminecraft:liquid_detection\t\x0EdetectionRules\n\x02\x01\x10canContainLiquid\x01\x08\nliquidType\x05water\x08\x0FonLiquidTouches\x08blocking\x01\x18stopsLiquidFromDirection\0\x01\x13use_liquid_clipping\0\0\0\n\x1Fminecraft:redstone_conductivity\x01\x14allowsWireToStepDown\x01\x01\x11redstoneConductor\0\0\0\n\rmenu_category\x08\x08category\x0Cconstruction\x08\x05group\x1Dminecraft:itemGroup.name.slab\x01\x15is_hidden_in_commands\0\0\x03\rmolangVersion\x1A\n\x12vanilla_block_data\n\x0Fblock_archetype\x08\x11double_slab_block&minecraft:magenta_concrete_double_slab\x01\tis_double\0\x08\x04type\nslab_block\0\x03\x08block_id\x98\x17\x08\x08material\x05solid\x01\x1Frequires_correct_tool_for_drops\x01\0\0",
+        ),
     },
     BlockData {
         id: 1932u32,
@@ -4402,6 +4543,7 @@ pub static ALL_BLOCKS: [BlockData; 1477usize] = [
         visual_shape: [0f32, 0f32, 0f32, 1f32, 1f32, 1f32],
         properties: &[],
         state_values: b"",
+        server_definition: None,
     },
     BlockData {
         id: 1933u32,
@@ -4428,6 +4570,7 @@ pub static ALL_BLOCKS: [BlockData; 1477usize] = [
         visual_shape: [0f32, 0f32, 0f32, 1f32, 1f32, 1f32],
         properties: &[],
         state_values: b"",
+        server_definition: None,
     },
     BlockData {
         id: 1934u32,
@@ -4459,6 +4602,7 @@ pub static ALL_BLOCKS: [BlockData; 1477usize] = [
             },
         ],
         state_values: b"\0\x01",
+        server_definition: None,
     },
     BlockData {
         id: 1936u32,
@@ -4485,6 +4629,7 @@ pub static ALL_BLOCKS: [BlockData; 1477usize] = [
         visual_shape: [0f32, 0f32, 0f32, 1f32, 0.0625f32, 1f32],
         properties: &[],
         state_values: b"",
+        server_definition: None,
     },
     BlockData {
         id: 1937u32,
@@ -4511,6 +4656,7 @@ pub static ALL_BLOCKS: [BlockData; 1477usize] = [
         visual_shape: [0.26999998f32, 0f32, 0.26999998f32, 0.73f32, 0.58f32, 0.73f32],
         properties: &[],
         state_values: b"",
+        server_definition: None,
     },
     BlockData {
         id: 1938u32,
@@ -4556,6 +4702,7 @@ pub static ALL_BLOCKS: [BlockData; 1477usize] = [
             },
         ],
         state_values: b"\0\0\x01\0\x02\0\x03\0\x04\0\x05\0\0\x01\x01\x01\x02\x01\x03\x01\x04\x01\x05\x01",
+        server_definition: None,
     },
     BlockData {
         id: 1950u32,
@@ -4587,6 +4734,7 @@ pub static ALL_BLOCKS: [BlockData; 1477usize] = [
             },
         ],
         state_values: b"\0\x01",
+        server_definition: None,
     },
     BlockData {
         id: 1952u32,
@@ -4635,6 +4783,7 @@ pub static ALL_BLOCKS: [BlockData; 1477usize] = [
             },
         ],
         state_values: b"\0\0\0\0\0\x01\0\0\0\x02\0\0\0\x03\0\0\0\0\x01\0\0\x01\x01\0\0\x02\x01\0\0\x03\x01\0\0\0\0\x01\0\x01\0\x01\0\x02\0\x01\0\x03\0\x01\0\0\x01\x01\0\x01\x01\x01\0\x02\x01\x01\0\x03\x01\x01\x01\0\0\0\x01\x01\0\0\x01\x02\0\0\x01\x03\0\0\x01\0\x01\0\x01\x01\x01\0\x01\x02\x01\0\x01\x03\x01\0\x01\0\0\x01\x01\x01\0\x01\x01\x02\0\x01\x01\x03\0\x01\x01\0\x01\x01\x01\x01\x01\x01\x01\x02\x01\x01\x01\x03\x01\x01",
+        server_definition: None,
     },
     BlockData {
         id: 1984u32,
@@ -4661,6 +4810,7 @@ pub static ALL_BLOCKS: [BlockData; 1477usize] = [
         visual_shape: [0f32, 0f32, 0f32, 1f32, 1f32, 1f32],
         properties: &[],
         state_values: b"",
+        server_definition: None,
     },
     BlockData {
         id: 1985u32,
@@ -4697,6 +4847,7 @@ pub static ALL_BLOCKS: [BlockData; 1477usize] = [
             },
         ],
         state_values: b"\0\x01\x02\x03",
+        server_definition: None,
     },
     BlockData {
         id: 1989u32,
@@ -4727,6 +4878,7 @@ pub static ALL_BLOCKS: [BlockData; 1477usize] = [
         visual_shape: [0f32, 0f32, 0f32, 1f32, 1f32, 1f32],
         properties: &[],
         state_values: b"",
+        server_definition: None,
     },
     BlockData {
         id: 1990u32,
@@ -4758,6 +4910,7 @@ pub static ALL_BLOCKS: [BlockData; 1477usize] = [
             },
         ],
         state_values: b"\0\x01",
+        server_definition: None,
     },
     BlockData {
         id: 1992u32,
@@ -4863,6 +5016,7 @@ pub static ALL_BLOCKS: [BlockData; 1477usize] = [
             },
         ],
         state_values: b"\0\0\0\x01\0\x02\0\x03\x01\0\x01\x01\x01\x02\x01\x03\x02\0\x02\x01\x02\x02\x02\x03\x03\0\x03\x01\x03\x02\x03\x03\x04\0\x04\x01\x04\x02\x04\x03\x05\0\x05\x01\x05\x02\x05\x03\x06\0\x06\x01\x06\x02\x06\x03\x07\0\x07\x01\x07\x02\x07\x03\x08\0\x08\x01\x08\x02\x08\x03\t\0\t\x01\t\x02\t\x03\n\0\n\x01\n\x02\n\x03\x0B\0\x0B\x01\x0B\x02\x0B\x03\x0C\0\x0C\x01\x0C\x02\x0C\x03\r\0\r\x01\r\x02\r\x03\x0E\0\x0E\x01\x0E\x02\x0E\x03\x0F\0\x0F\x01\x0F\x02\x0F\x03\x10\0\x10\x01\x10\x02\x10\x03\x11\0\x11\x01\x11\x02\x11\x03\x12\0\x12\x01\x12\x02\x12\x03\x13\0\x13\x01\x13\x02\x13\x03\x14\0\x14\x01\x14\x02\x14\x03\x15\0\x15\x01\x15\x02\x15\x03\x16\0\x16\x01\x16\x02\x16\x03\x17\0\x17\x01\x17\x02\x17\x03\x18\0\x18\x01\x18\x02\x18\x03\x19\0\x19\x01\x19\x02\x19\x03\x1A\0\x1A\x01\x1A\x02\x1A\x03\x1B\0\x1B\x01\x1B\x02\x1B\x03\x1C\0\x1C\x01\x1C\x02\x1C\x03\x1D\0\x1D\x01\x1D\x02\x1D\x03\x1E\0\x1E\x01\x1E\x02\x1E\x03\x1F\0\x1F\x01\x1F\x02\x1F\x03 \0 \x01 \x02 \x03!\0!\x01!\x02!\x03\"\0\"\x01\"\x02\"\x03#\0#\x01#\x02#\x03$\0$\x01$\x02$\x03%\0%\x01%\x02%\x03&\0&\x01&\x02&\x03'\0'\x01'\x02'\x03(\0(\x01(\x02(\x03)\0)\x01)\x02)\x03*\0*\x01*\x02*\x03+\0+\x01+\x02+\x03,\0,\x01,\x02,\x03-\0-\x01-\x02-\x03.\0.\x01.\x02.\x03/\0/\x01/\x02/\x030\x000\x010\x020\x031\x001\x011\x021\x032\x002\x012\x022\x033\x003\x013\x023\x034\x004\x014\x024\x035\x005\x015\x025\x036\x006\x016\x026\x037\x007\x017\x027\x038\08\x018\x028\x039\09\x019\x029\x03:\0:\x01:\x02:\x03;\0;\x01;\x02;\x03<\0<\x01<\x02<\x03=\0=\x01=\x02=\x03>\0>\x01>\x02>\x03?\0?\x01?\x02?\x03",
+        server_definition: None,
     },
     BlockData {
         id: 2248u32,
@@ -4913,6 +5067,7 @@ pub static ALL_BLOCKS: [BlockData; 1477usize] = [
             },
         ],
         state_values: b"\0\0\0\0\0\x01\0\0\x02\0\0\x03\0\x01\0\0\x01\x01\0\x01\x02\0\x01\x03\x01\0\0\x01\0\x01\x01\0\x02\x01\0\x03\x01\x01\0\x01\x01\x01\x01\x01\x02\x01\x01\x03\x02\0\0\x02\0\x01\x02\0\x02\x02\0\x03\x02\x01\0\x02\x01\x01\x02\x01\x02\x02\x01\x03\x03\0\0\x03\0\x01\x03\0\x02\x03\0\x03\x03\x01\0\x03\x01\x01\x03\x01\x02\x03\x01\x03\x04\0\0\x04\0\x01\x04\0\x02\x04\0\x03\x04\x01\0\x04\x01\x01\x04\x01\x02\x04\x01\x03",
+        server_definition: None,
     },
     BlockData {
         id: 2288u32,
@@ -4939,6 +5094,7 @@ pub static ALL_BLOCKS: [BlockData; 1477usize] = [
         visual_shape: [0f32, 0f32, 0f32, 1f32, 1f32, 1f32],
         properties: &[],
         state_values: b"",
+        server_definition: None,
     },
     BlockData {
         id: 2289u32,
@@ -4969,6 +5125,7 @@ pub static ALL_BLOCKS: [BlockData; 1477usize] = [
         visual_shape: [0f32, 0f32, 0f32, 1f32, 1f32, 1f32],
         properties: &[],
         state_values: b"",
+        server_definition: None,
     },
     BlockData {
         id: 2290u32,
@@ -5007,6 +5164,7 @@ pub static ALL_BLOCKS: [BlockData; 1477usize] = [
             },
         ],
         state_values: b"\0\x01\x02\x03\x04\x05",
+        server_definition: None,
     },
     BlockData {
         id: 2296u32,
@@ -5033,6 +5191,7 @@ pub static ALL_BLOCKS: [BlockData; 1477usize] = [
         visual_shape: [0.15f32, 0f32, 0.15f32, 0.7f32, 0.6f32, 0.7f32],
         properties: &[],
         state_values: b"",
+        server_definition: None,
     },
     BlockData {
         id: 2297u32,
@@ -5075,6 +5234,7 @@ pub static ALL_BLOCKS: [BlockData; 1477usize] = [
             },
         ],
         state_values: b"\0\0\0\x01\0\x02\0\x03\0\x04\0\x05\x01\0\x01\x01\x01\x02\x01\x03\x01\x04\x01\x05",
+        server_definition: None,
     },
     BlockData {
         id: 2309u32,
@@ -5123,6 +5283,7 @@ pub static ALL_BLOCKS: [BlockData; 1477usize] = [
             },
         ],
         state_values: b"\0\0\0\x01\0\0\x02\0\0\x03\0\0\0\0\x01\x01\0\x01\x02\0\x01\x03\0\x01\0\x01\0\x01\x01\0\x02\x01\0\x03\x01\0\0\x01\x01\x01\x01\x01\x02\x01\x01\x03\x01\x01",
+        server_definition: None,
     },
     BlockData {
         id: 2325u32,
@@ -5163,6 +5324,7 @@ pub static ALL_BLOCKS: [BlockData; 1477usize] = [
             },
         ],
         state_values: b"\0\x01\x02\x03\x04\x05\x06\x07",
+        server_definition: None,
     },
     BlockData {
         id: 2333u32,
@@ -5194,6 +5356,9 @@ pub static ALL_BLOCKS: [BlockData; 1477usize] = [
             },
         ],
         state_values: b"\0\x01",
+        server_definition: Some(
+            b"\n\0\t\tblockTags\x08\x02&minecraft:is_pickaxe_item_destructible\n\ncomponents\n minecraft:destructible_by_mining\x05\x05valueff\xE6?\0\n\x1Fminecraft:redstone_conductivity\x01\x14allowsWireToStepDown\x01\x01\x11redstoneConductor\x01\0\0\n\rmenu_category\x08\x08category\x04none\x08\x05group\0\x01\x15is_hidden_in_commands\x01\0\x03\rmolangVersion\x1A\n\x12vanilla_block_data\n\x0Fblock_archetype\x08\x11double_slab_block\x1Eminecraft:purple_concrete_slab\x01\tis_double\x01\x08\x04type\nslab_block\0\x03\x08block_id\xB6\x17\x08\x08material\x05solid\x01\x1Frequires_correct_tool_for_drops\x01\0\0",
+        ),
     },
     BlockData {
         id: 2335u32,
@@ -5229,6 +5394,7 @@ pub static ALL_BLOCKS: [BlockData; 1477usize] = [
             },
         ],
         state_values: b"\0\x01\x02",
+        server_definition: None,
     },
     BlockData {
         id: 2338u32,
@@ -5277,6 +5443,7 @@ pub static ALL_BLOCKS: [BlockData; 1477usize] = [
             },
         ],
         state_values: b"\0\x01\x02\x03\x04\x05\x06\x07\x08\t\n\x0B\x0C\r\x0E\x0F",
+        server_definition: None,
     },
     BlockData {
         id: 2354u32,
@@ -5308,6 +5475,9 @@ pub static ALL_BLOCKS: [BlockData; 1477usize] = [
             },
         ],
         state_values: b"\0\x01",
+        server_definition: Some(
+            b"\n\0\t\tblockTags\x08\x02%minecraft:is_shears_item_destructible\n\ncomponents\n minecraft:destructible_by_mining\x05\x05value\xCD\xCCL?\0\n\x1Fminecraft:redstone_conductivity\x01\x14allowsWireToStepDown\x01\x01\x11redstoneConductor\x01\0\0\n\rmenu_category\x08\x08category\x04none\x08\x05group\0\x01\x15is_hidden_in_commands\x01\0\x03\rmolangVersion\x1A\n\x12vanilla_block_data\n\x0Fblock_archetype\x08\x11double_slab_block\x19minecraft:green_wool_slab\x01\tis_double\x01\x08\x04type\nslab_block\0\x03\x08block_id\xCA\x16\x01\x15can_dampen_vibrations\x01\x01\x16can_occlude_vibrations\x01\x08\x08material\x05solid\0\0",
+        ),
     },
     BlockData {
         id: 2356u32,
@@ -5343,6 +5513,7 @@ pub static ALL_BLOCKS: [BlockData; 1477usize] = [
             },
         ],
         state_values: b"\0\x01\x02",
+        server_definition: None,
     },
     BlockData {
         id: 2359u32,
@@ -5369,6 +5540,7 @@ pub static ALL_BLOCKS: [BlockData; 1477usize] = [
         visual_shape: [0f32, 0f32, 0f32, 1f32, 1f32, 1f32],
         properties: &[],
         state_values: b"",
+        server_definition: None,
     },
     BlockData {
         id: 2360u32,
@@ -5395,6 +5567,7 @@ pub static ALL_BLOCKS: [BlockData; 1477usize] = [
         visual_shape: [0f32, 0f32, 0f32, 1f32, 1f32, 1f32],
         properties: &[],
         state_values: b"",
+        server_definition: None,
     },
     BlockData {
         id: 2361u32,
@@ -5430,6 +5603,7 @@ pub static ALL_BLOCKS: [BlockData; 1477usize] = [
             },
         ],
         state_values: b"\0\x01\x02",
+        server_definition: None,
     },
     BlockData {
         id: 2364u32,
@@ -5485,6 +5659,7 @@ pub static ALL_BLOCKS: [BlockData; 1477usize] = [
             },
         ],
         state_values: b"\0\0\0\0\0\x01\0\0\x02\0\0\x03\0\x01\0\0\x01\x01\0\x01\x02\0\x01\x03\x01\0\0\x01\0\x01\x01\0\x02\x01\0\x03\x01\x01\0\x01\x01\x01\x01\x01\x02\x01\x01\x03\x02\0\0\x02\0\x01\x02\0\x02\x02\0\x03\x02\x01\0\x02\x01\x01\x02\x01\x02\x02\x01\x03\x03\0\0\x03\0\x01\x03\0\x02\x03\0\x03\x03\x01\0\x03\x01\x01\x03\x01\x02\x03\x01\x03\x04\0\0\x04\0\x01\x04\0\x02\x04\0\x03\x04\x01\0\x04\x01\x01\x04\x01\x02\x04\x01\x03",
+        server_definition: None,
     },
     BlockData {
         id: 2404u32,
@@ -5528,6 +5703,7 @@ pub static ALL_BLOCKS: [BlockData; 1477usize] = [
             },
         ],
         state_values: b"\0\0\0\0\0\x01\0\0\x01\0\0\0\x01\x01\0\0\0\0\x01\0\0\x01\x01\0\x01\0\x01\0\x01\x01\x01\0\0\0\0\x01\0\x01\0\x01\x01\0\0\x01\x01\x01\0\x01\0\0\x01\x01\0\x01\x01\x01\x01\0\x01\x01\x01\x01\x01\x01",
+        server_definition: None,
     },
     BlockData {
         id: 2420u32,
@@ -5563,6 +5739,7 @@ pub static ALL_BLOCKS: [BlockData; 1477usize] = [
             },
         ],
         state_values: b"\0\0\0\x01\x01\0\x01\x01",
+        server_definition: None,
     },
     BlockData {
         id: 2424u32,
@@ -5594,6 +5771,7 @@ pub static ALL_BLOCKS: [BlockData; 1477usize] = [
             },
         ],
         state_values: b"\0\x01",
+        server_definition: None,
     },
     BlockData {
         id: 2426u32,
@@ -5625,6 +5803,7 @@ pub static ALL_BLOCKS: [BlockData; 1477usize] = [
             },
         ],
         state_values: b"\0\x01",
+        server_definition: None,
     },
     BlockData {
         id: 2428u32,
@@ -5656,6 +5835,7 @@ pub static ALL_BLOCKS: [BlockData; 1477usize] = [
             },
         ],
         state_values: b"\0\x01",
+        server_definition: None,
     },
     BlockData {
         id: 2430u32,
@@ -5687,6 +5867,7 @@ pub static ALL_BLOCKS: [BlockData; 1477usize] = [
         visual_shape: [0f32, 0f32, 0f32, 1f32, 1f32, 1f32],
         properties: &[],
         state_values: b"",
+        server_definition: None,
     },
     BlockData {
         id: 2431u32,
@@ -5713,6 +5894,7 @@ pub static ALL_BLOCKS: [BlockData; 1477usize] = [
         visual_shape: [0.15f32, 0f32, 0.15f32, 0.7f32, 0.6f32, 0.7f32],
         properties: &[],
         state_values: b"",
+        server_definition: None,
     },
     BlockData {
         id: 2432u32,
@@ -5739,6 +5921,7 @@ pub static ALL_BLOCKS: [BlockData; 1477usize] = [
         visual_shape: [0f32, 0f32, 0f32, 1f32, 1f32, 1f32],
         properties: &[],
         state_values: b"",
+        server_definition: None,
     },
     BlockData {
         id: 2433u32,
@@ -5769,6 +5952,7 @@ pub static ALL_BLOCKS: [BlockData; 1477usize] = [
         visual_shape: [0f32, 0f32, 0f32, 1f32, 1f32, 1f32],
         properties: &[],
         state_values: b"",
+        server_definition: None,
     },
     BlockData {
         id: 2434u32,
@@ -5795,6 +5979,7 @@ pub static ALL_BLOCKS: [BlockData; 1477usize] = [
         visual_shape: [0f32, 0f32, 0f32, 1f32, 1f32, 1f32],
         properties: &[],
         state_values: b"",
+        server_definition: None,
     },
     BlockData {
         id: 2435u32,
@@ -5835,6 +6020,7 @@ pub static ALL_BLOCKS: [BlockData; 1477usize] = [
             },
         ],
         state_values: b"\0\0\x01\0\x02\0\x03\0\0\x01\x01\x01\x02\x01\x03\x01",
+        server_definition: None,
     },
     BlockData {
         id: 2443u32,
@@ -5879,6 +6065,7 @@ pub static ALL_BLOCKS: [BlockData; 1477usize] = [
             },
         ],
         state_values: b"\0\0\0\x01\0\0\x02\0\0\x03\0\0\0\0\x01\x01\0\x01\x02\0\x01\x03\0\x01\0\x01\0\x01\x01\0\x02\x01\0\x03\x01\0\0\x01\x01\x01\x01\x01\x02\x01\x01\x03\x01\x01",
+        server_definition: None,
     },
     BlockData {
         id: 2459u32,
@@ -5922,6 +6109,7 @@ pub static ALL_BLOCKS: [BlockData; 1477usize] = [
             },
         ],
         state_values: b"\0\0\0\0\0\x01\0\0\x01\0\0\0\x01\x01\0\0\0\0\x01\0\0\x01\x01\0\x01\0\x01\0\x01\x01\x01\0\0\0\0\x01\0\x01\0\x01\x01\0\0\x01\x01\x01\0\x01\0\0\x01\x01\0\x01\x01\x01\x01\0\x01\x01\x01\x01\x01\x01",
+        server_definition: None,
     },
     BlockData {
         id: 2475u32,
@@ -5953,6 +6141,7 @@ pub static ALL_BLOCKS: [BlockData; 1477usize] = [
             },
         ],
         state_values: b"\0\x01",
+        server_definition: None,
     },
     BlockData {
         id: 2477u32,
@@ -5991,6 +6180,7 @@ pub static ALL_BLOCKS: [BlockData; 1477usize] = [
             },
         ],
         state_values: b"\0\x01\x02\x03\x04\x05",
+        server_definition: None,
     },
     BlockData {
         id: 2483u32,
@@ -6034,6 +6224,7 @@ pub static ALL_BLOCKS: [BlockData; 1477usize] = [
             },
         ],
         state_values: b"\0\0\0\0\0\x01\0\0\x01\0\0\0\x01\x01\0\0\0\0\x01\0\0\x01\x01\0\x01\0\x01\0\x01\x01\x01\0\0\0\0\x01\0\x01\0\x01\x01\0\0\x01\x01\x01\0\x01\0\0\x01\x01\0\x01\x01\x01\x01\0\x01\x01\x01\x01\x01\x01",
+        server_definition: None,
     },
     BlockData {
         id: 2499u32,
@@ -6065,6 +6256,7 @@ pub static ALL_BLOCKS: [BlockData; 1477usize] = [
             },
         ],
         state_values: b"\0\x01",
+        server_definition: None,
     },
     BlockData {
         id: 2501u32,
@@ -6091,6 +6283,7 @@ pub static ALL_BLOCKS: [BlockData; 1477usize] = [
         visual_shape: [0f32, 0f32, 0f32, 1f32, 1f32, 1f32],
         properties: &[],
         state_values: b"",
+        server_definition: None,
     },
     BlockData {
         id: 2502u32,
@@ -6117,6 +6310,7 @@ pub static ALL_BLOCKS: [BlockData; 1477usize] = [
         visual_shape: [0f32, 0f32, 0f32, 1f32, 1f32, 1f32],
         properties: &[],
         state_values: b"",
+        server_definition: None,
     },
     BlockData {
         id: 2503u32,
@@ -6148,6 +6342,7 @@ pub static ALL_BLOCKS: [BlockData; 1477usize] = [
             },
         ],
         state_values: b"\0\x01",
+        server_definition: None,
     },
     BlockData {
         id: 2505u32,
@@ -6203,6 +6398,7 @@ pub static ALL_BLOCKS: [BlockData; 1477usize] = [
             },
         ],
         state_values: b"\0\0\0\0\0\x01\0\0\x02\0\0\x03\0\x01\0\0\x01\x01\0\x01\x02\0\x01\x03\x01\0\0\x01\0\x01\x01\0\x02\x01\0\x03\x01\x01\0\x01\x01\x01\x01\x01\x02\x01\x01\x03\x02\0\0\x02\0\x01\x02\0\x02\x02\0\x03\x02\x01\0\x02\x01\x01\x02\x01\x02\x02\x01\x03\x03\0\0\x03\0\x01\x03\0\x02\x03\0\x03\x03\x01\0\x03\x01\x01\x03\x01\x02\x03\x01\x03\x04\0\0\x04\0\x01\x04\0\x02\x04\0\x03\x04\x01\0\x04\x01\x01\x04\x01\x02\x04\x01\x03",
+        server_definition: None,
     },
     BlockData {
         id: 2545u32,
@@ -6229,6 +6425,7 @@ pub static ALL_BLOCKS: [BlockData; 1477usize] = [
         visual_shape: [0.15f32, 0f32, 0.15f32, 0.7f32, 0.6f32, 0.7f32],
         properties: &[],
         state_values: b"",
+        server_definition: None,
     },
     BlockData {
         id: 2546u32,
@@ -6259,6 +6456,7 @@ pub static ALL_BLOCKS: [BlockData; 1477usize] = [
         visual_shape: [0.0001f32, 0.0001f32, 0.0001f32, 0.9999f32, 0.9999f32, 0.9999f32],
         properties: &[],
         state_values: b"",
+        server_definition: None,
     },
     BlockData {
         id: 2547u32,
@@ -6290,6 +6488,7 @@ pub static ALL_BLOCKS: [BlockData; 1477usize] = [
             },
         ],
         state_values: b"\0\x01",
+        server_definition: None,
     },
     BlockData {
         id: 2549u32,
@@ -6316,6 +6515,7 @@ pub static ALL_BLOCKS: [BlockData; 1477usize] = [
         visual_shape: [0f32, 0f32, 0f32, 1f32, 1f32, 1f32],
         properties: &[],
         state_values: b"",
+        server_definition: None,
     },
     BlockData {
         id: 2550u32,
@@ -6354,6 +6554,7 @@ pub static ALL_BLOCKS: [BlockData; 1477usize] = [
             },
         ],
         state_values: b"\0\x01\x02\x03\x04\x05",
+        server_definition: None,
     },
     BlockData {
         id: 2556u32,
@@ -6385,6 +6586,7 @@ pub static ALL_BLOCKS: [BlockData; 1477usize] = [
             },
         ],
         state_values: b"\0\x01",
+        server_definition: None,
     },
     BlockData {
         id: 2558u32,
@@ -6433,6 +6635,7 @@ pub static ALL_BLOCKS: [BlockData; 1477usize] = [
             },
         ],
         state_values: b"\0\x01\x02\x03\x04\x05\x06\x07\x08\t\n\x0B\x0C\r\x0E\x0F",
+        server_definition: None,
     },
     BlockData {
         id: 2574u32,
@@ -6473,6 +6676,7 @@ pub static ALL_BLOCKS: [BlockData; 1477usize] = [
             },
         ],
         state_values: b"\0\0\x01\0\x02\0\x03\0\0\x01\x01\x01\x02\x01\x03\x01",
+        server_definition: None,
     },
     BlockData {
         id: 2582u32,
@@ -6504,6 +6708,7 @@ pub static ALL_BLOCKS: [BlockData; 1477usize] = [
             },
         ],
         state_values: b"\0\x01",
+        server_definition: None,
     },
     BlockData {
         id: 2584u32,
@@ -6535,6 +6740,7 @@ pub static ALL_BLOCKS: [BlockData; 1477usize] = [
             },
         ],
         state_values: b"\0\x01",
+        server_definition: None,
     },
     BlockData {
         id: 2586u32,
@@ -6561,6 +6767,7 @@ pub static ALL_BLOCKS: [BlockData; 1477usize] = [
         visual_shape: [0f32, 0f32, 0f32, 1f32, 1f32, 1f32],
         properties: &[],
         state_values: b"",
+        server_definition: None,
     },
     BlockData {
         id: 2587u32,
@@ -6591,6 +6798,7 @@ pub static ALL_BLOCKS: [BlockData; 1477usize] = [
         visual_shape: [0f32, 0f32, 0f32, 1f32, 1f32, 1f32],
         properties: &[],
         state_values: b"",
+        server_definition: None,
     },
     BlockData {
         id: 2588u32,
@@ -6634,6 +6842,7 @@ pub static ALL_BLOCKS: [BlockData; 1477usize] = [
             },
         ],
         state_values: b"\0\0\0\0\0\x01\0\0\x01\0\0\0\x01\x01\0\0\0\0\x01\0\0\x01\x01\0\x01\0\x01\0\x01\x01\x01\0\0\0\0\x01\0\x01\0\x01\x01\0\0\x01\x01\x01\0\x01\0\0\x01\x01\0\x01\x01\x01\x01\0\x01\x01\x01\x01\x01\x01",
+        server_definition: None,
     },
     BlockData {
         id: 2604u32,
@@ -6665,6 +6874,7 @@ pub static ALL_BLOCKS: [BlockData; 1477usize] = [
             },
         ],
         state_values: b"\0\x01",
+        server_definition: None,
     },
     BlockData {
         id: 2606u32,
@@ -6728,6 +6938,7 @@ pub static ALL_BLOCKS: [BlockData; 1477usize] = [
             },
         ],
         state_values: b"\0\0\0\0\0\0\0\0\0\x01\0\x01\0\0\0\0\x01\0\0\x01\0\x02\0\0\0\0\x02\0\0\x01\x01\0\0\0\0\x01\0\0\0\x01\x01\x01\0\0\0\x01\x01\0\0\x01\x01\x02\0\0\0\x01\x02\0\0\x01\x02\0\0\0\0\x02\0\0\0\x01\x02\x01\0\0\0\x02\x01\0\0\x01\x02\x02\0\0\0\x02\x02\0\0\x01\0\0\x01\0\0\0\0\x01\0\x01\0\x01\x01\0\0\0\x01\x01\0\x01\0\x02\x01\0\0\0\x02\x01\0\x01\x01\0\x01\0\0\x01\0\x01\0\x01\x01\x01\x01\0\0\x01\x01\x01\0\x01\x01\x02\x01\0\0\x01\x02\x01\0\x01\x02\0\x01\0\0\x02\0\x01\0\x01\x02\x01\x01\0\0\x02\x01\x01\0\x01\x02\x02\x01\0\0\x02\x02\x01\0\x01\0\0\x02\0\0\0\0\x02\0\x01\0\x01\x02\0\0\0\x01\x02\0\x01\0\x02\x02\0\0\0\x02\x02\0\x01\x01\0\x02\0\0\x01\0\x02\0\x01\x01\x01\x02\0\0\x01\x01\x02\0\x01\x01\x02\x02\0\0\x01\x02\x02\0\x01\x02\0\x02\0\0\x02\0\x02\0\x01\x02\x01\x02\0\0\x02\x01\x02\0\x01\x02\x02\x02\0\0\x02\x02\x02\0\x01\0\0\0\x01\0\0\0\0\x01\x01\0\x01\0\x01\0\0\x01\0\x01\x01\0\x02\0\x01\0\0\x02\0\x01\x01\x01\0\0\x01\0\x01\0\0\x01\x01\x01\x01\0\x01\0\x01\x01\0\x01\x01\x01\x02\0\x01\0\x01\x02\0\x01\x01\x02\0\0\x01\0\x02\0\0\x01\x01\x02\x01\0\x01\0\x02\x01\0\x01\x01\x02\x02\0\x01\0\x02\x02\0\x01\x01\0\0\x01\x01\0\0\0\x01\x01\x01\0\x01\x01\x01\0\0\x01\x01\x01\x01\0\x02\x01\x01\0\0\x02\x01\x01\x01\x01\0\x01\x01\0\x01\0\x01\x01\x01\x01\x01\x01\x01\0\x01\x01\x01\x01\x01\x01\x02\x01\x01\0\x01\x02\x01\x01\x01\x02\0\x01\x01\0\x02\0\x01\x01\x01\x02\x01\x01\x01\0\x02\x01\x01\x01\x01\x02\x02\x01\x01\0\x02\x02\x01\x01\x01\0\0\x02\x01\0\0\0\x02\x01\x01\0\x01\x02\x01\0\0\x01\x02\x01\x01\0\x02\x02\x01\0\0\x02\x02\x01\x01\x01\0\x02\x01\0\x01\0\x02\x01\x01\x01\x01\x02\x01\0\x01\x01\x02\x01\x01\x01\x02\x02\x01\0\x01\x02\x02\x01\x01\x02\0\x02\x01\0\x02\0\x02\x01\x01\x02\x01\x02\x01\0\x02\x01\x02\x01\x01\x02\x02\x02\x01\0\x02\x02\x02\x01\x01\0\0\0\x02\0\0\0\0\x02\x01\0\x01\0\x02\0\0\x01\0\x02\x01\0\x02\0\x02\0\0\x02\0\x02\x01\x01\0\0\x02\0\x01\0\0\x02\x01\x01\x01\0\x02\0\x01\x01\0\x02\x01\x01\x02\0\x02\0\x01\x02\0\x02\x01\x02\0\0\x02\0\x02\0\0\x02\x01\x02\x01\0\x02\0\x02\x01\0\x02\x01\x02\x02\0\x02\0\x02\x02\0\x02\x01\0\0\x01\x02\0\0\0\x01\x02\x01\0\x01\x01\x02\0\0\x01\x01\x02\x01\0\x02\x01\x02\0\0\x02\x01\x02\x01\x01\0\x01\x02\0\x01\0\x01\x02\x01\x01\x01\x01\x02\0\x01\x01\x01\x02\x01\x01\x02\x01\x02\0\x01\x02\x01\x02\x01\x02\0\x01\x02\0\x02\0\x01\x02\x01\x02\x01\x01\x02\0\x02\x01\x01\x02\x01\x02\x02\x01\x02\0\x02\x02\x01\x02\x01\0\0\x02\x02\0\0\0\x02\x02\x01\0\x01\x02\x02\0\0\x01\x02\x02\x01\0\x02\x02\x02\0\0\x02\x02\x02\x01\x01\0\x02\x02\0\x01\0\x02\x02\x01\x01\x01\x02\x02\0\x01\x01\x02\x02\x01\x01\x02\x02\x02\0\x01\x02\x02\x02\x01\x02\0\x02\x02\0\x02\0\x02\x02\x01\x02\x01\x02\x02\0\x02\x01\x02\x02\x01\x02\x02\x02\x02\0\x02\x02\x02\x02\x01",
+        server_definition: None,
     },
     BlockData {
         id: 2768u32,
@@ -6758,6 +6969,7 @@ pub static ALL_BLOCKS: [BlockData; 1477usize] = [
         visual_shape: [0f32, 0f32, 0f32, 1f32, 1f32, 1f32],
         properties: &[],
         state_values: b"",
+        server_definition: None,
     },
     BlockData {
         id: 2769u32,
@@ -6792,6 +7004,7 @@ pub static ALL_BLOCKS: [BlockData; 1477usize] = [
             },
         ],
         state_values: b"\0\x01",
+        server_definition: None,
     },
     BlockData {
         id: 2771u32,
@@ -6822,6 +7035,7 @@ pub static ALL_BLOCKS: [BlockData; 1477usize] = [
         visual_shape: [0f32, 0f32, 0f32, 1f32, 1f32, 1f32],
         properties: &[],
         state_values: b"",
+        server_definition: None,
     },
     BlockData {
         id: 2772u32,
@@ -6853,6 +7067,7 @@ pub static ALL_BLOCKS: [BlockData; 1477usize] = [
             },
         ],
         state_values: b"\0\x01",
+        server_definition: None,
     },
     BlockData {
         id: 2774u32,
@@ -6896,6 +7111,7 @@ pub static ALL_BLOCKS: [BlockData; 1477usize] = [
             },
         ],
         state_values: b"\0\0\0\0\0\x01\0\0\x01\0\0\0\x01\x01\0\0\0\0\x01\0\0\x01\x01\0\x01\0\x01\0\x01\x01\x01\0\0\0\0\x01\0\x01\0\x01\x01\0\0\x01\x01\x01\0\x01\0\0\x01\x01\0\x01\x01\x01\x01\0\x01\x01\x01\x01\x01\x01",
+        server_definition: None,
     },
     BlockData {
         id: 2790u32,
@@ -6938,6 +7154,7 @@ pub static ALL_BLOCKS: [BlockData; 1477usize] = [
             },
         ],
         state_values: b"\0\0\0\x01\0\x02\0\x03\0\x04\0\x05\x01\0\x01\x01\x01\x02\x01\x03\x01\x04\x01\x05",
+        server_definition: None,
     },
     BlockData {
         id: 2802u32,
@@ -6969,6 +7186,7 @@ pub static ALL_BLOCKS: [BlockData; 1477usize] = [
             },
         ],
         state_values: b"\0\x01",
+        server_definition: None,
     },
     BlockData {
         id: 2804u32,
@@ -7008,6 +7226,7 @@ pub static ALL_BLOCKS: [BlockData; 1477usize] = [
             },
         ],
         state_values: b"\0\0\x01\0\0\x01\x01\x01",
+        server_definition: None,
     },
     BlockData {
         id: 2808u32,
@@ -7034,6 +7253,7 @@ pub static ALL_BLOCKS: [BlockData; 1477usize] = [
         visual_shape: [0f32, 0f32, 0f32, 1f32, 1f32, 1f32],
         properties: &[],
         state_values: b"",
+        server_definition: None,
     },
     BlockData {
         id: 2809u32,
@@ -7068,6 +7288,7 @@ pub static ALL_BLOCKS: [BlockData; 1477usize] = [
             },
         ],
         state_values: b"\0\x01",
+        server_definition: None,
     },
     BlockData {
         id: 2811u32,
@@ -7111,6 +7332,7 @@ pub static ALL_BLOCKS: [BlockData; 1477usize] = [
             },
         ],
         state_values: b"\0\0\0\0\0\x01\0\0\x01\0\0\0\x01\x01\0\0\0\0\x01\0\0\x01\x01\0\x01\0\x01\0\x01\x01\x01\0\0\0\0\x01\0\x01\0\x01\x01\0\0\x01\x01\x01\0\x01\0\0\x01\x01\0\x01\x01\x01\x01\0\x01\x01\x01\x01\x01\x01",
+        server_definition: None,
     },
     BlockData {
         id: 2827u32,
@@ -7161,6 +7383,7 @@ pub static ALL_BLOCKS: [BlockData; 1477usize] = [
             },
         ],
         state_values: b"\0\0\0\0\0\x01\0\0\x02\0\0\x03\0\x01\0\0\x01\x01\0\x01\x02\0\x01\x03\x01\0\0\x01\0\x01\x01\0\x02\x01\0\x03\x01\x01\0\x01\x01\x01\x01\x01\x02\x01\x01\x03\x02\0\0\x02\0\x01\x02\0\x02\x02\0\x03\x02\x01\0\x02\x01\x01\x02\x01\x02\x02\x01\x03\x03\0\0\x03\0\x01\x03\0\x02\x03\0\x03\x03\x01\0\x03\x01\x01\x03\x01\x02\x03\x01\x03\x04\0\0\x04\0\x01\x04\0\x02\x04\0\x03\x04\x01\0\x04\x01\x01\x04\x01\x02\x04\x01\x03",
+        server_definition: None,
     },
     BlockData {
         id: 2867u32,
@@ -7192,6 +7415,7 @@ pub static ALL_BLOCKS: [BlockData; 1477usize] = [
             },
         ],
         state_values: b"\0\x01",
+        server_definition: None,
     },
     BlockData {
         id: 2869u32,
@@ -7223,6 +7447,7 @@ pub static ALL_BLOCKS: [BlockData; 1477usize] = [
             },
         ],
         state_values: b"\0\x01",
+        server_definition: None,
     },
     BlockData {
         id: 2871u32,
@@ -7249,6 +7474,7 @@ pub static ALL_BLOCKS: [BlockData; 1477usize] = [
         visual_shape: [0f32, 0f32, 0f32, 1f32, 1f32, 1f32],
         properties: &[],
         state_values: b"",
+        server_definition: None,
     },
     BlockData {
         id: 2872u32,
@@ -7316,6 +7542,7 @@ pub static ALL_BLOCKS: [BlockData; 1477usize] = [
             },
         ],
         state_values: b"\0\0\0\0\0\x01\0\0\0\x02\0\0\0\x03\0\0\0\x04\0\0\0\x05\0\0\0\0\x01\0\0\x01\x01\0\0\x02\x01\0\0\x03\x01\0\0\x04\x01\0\0\x05\x01\0\0\0\x02\0\0\x01\x02\0\0\x02\x02\0\0\x03\x02\0\0\x04\x02\0\0\x05\x02\0\0\0\x03\0\0\x01\x03\0\0\x02\x03\0\0\x03\x03\0\0\x04\x03\0\0\x05\x03\0\0\0\x04\0\0\x01\x04\0\0\x02\x04\0\0\x03\x04\0\0\x04\x04\0\0\x05\x04\0\0\0\x05\0\0\x01\x05\0\0\x02\x05\0\0\x03\x05\0\0\x04\x05\0\0\x05\x05\0\0\0\x06\0\0\x01\x06\0\0\x02\x06\0\0\x03\x06\0\0\x04\x06\0\0\x05\x06\0\0\0\x07\0\0\x01\x07\0\0\x02\x07\0\0\x03\x07\0\0\x04\x07\0\0\x05\x07\0\0\0\x08\0\0\x01\x08\0\0\x02\x08\0\0\x03\x08\0\0\x04\x08\0\0\x05\x08\0\0\0\t\0\0\x01\t\0\0\x02\t\0\0\x03\t\0\0\x04\t\0\0\x05\t\0\0\0\n\0\0\x01\n\0\0\x02\n\0\0\x03\n\0\0\x04\n\0\0\x05\n\0\0\0\x0B\0\0\x01\x0B\0\0\x02\x0B\0\0\x03\x0B\0\0\x04\x0B\0\0\x05\x0B\0\0\0\x0C\0\0\x01\x0C\0\0\x02\x0C\0\0\x03\x0C\0\0\x04\x0C\0\0\x05\x0C\0\0\0\r\0\0\x01\r\0\0\x02\r\0\0\x03\r\0\0\x04\r\0\0\x05\r\0\0\0\x0E\0\0\x01\x0E\0\0\x02\x0E\0\0\x03\x0E\0\0\x04\x0E\0\0\x05\x0E\0\0\0\x0F\0\0\x01\x0F\0\0\x02\x0F\0\0\x03\x0F\0\0\x04\x0F\0\0\x05\x0F\0\0\0\0\x01\0\x01\0\x01\0\x02\0\x01\0\x03\0\x01\0\x04\0\x01\0\x05\0\x01\0\0\x01\x01\0\x01\x01\x01\0\x02\x01\x01\0\x03\x01\x01\0\x04\x01\x01\0\x05\x01\x01\0\0\x02\x01\0\x01\x02\x01\0\x02\x02\x01\0\x03\x02\x01\0\x04\x02\x01\0\x05\x02\x01\0\0\x03\x01\0\x01\x03\x01\0\x02\x03\x01\0\x03\x03\x01\0\x04\x03\x01\0\x05\x03\x01\0\0\x04\x01\0\x01\x04\x01\0\x02\x04\x01\0\x03\x04\x01\0\x04\x04\x01\0\x05\x04\x01\0\0\x05\x01\0\x01\x05\x01\0\x02\x05\x01\0\x03\x05\x01\0\x04\x05\x01\0\x05\x05\x01\0\0\x06\x01\0\x01\x06\x01\0\x02\x06\x01\0\x03\x06\x01\0\x04\x06\x01\0\x05\x06\x01\0\0\x07\x01\0\x01\x07\x01\0\x02\x07\x01\0\x03\x07\x01\0\x04\x07\x01\0\x05\x07\x01\0\0\x08\x01\0\x01\x08\x01\0\x02\x08\x01\0\x03\x08\x01\0\x04\x08\x01\0\x05\x08\x01\0\0\t\x01\0\x01\t\x01\0\x02\t\x01\0\x03\t\x01\0\x04\t\x01\0\x05\t\x01\0\0\n\x01\0\x01\n\x01\0\x02\n\x01\0\x03\n\x01\0\x04\n\x01\0\x05\n\x01\0\0\x0B\x01\0\x01\x0B\x01\0\x02\x0B\x01\0\x03\x0B\x01\0\x04\x0B\x01\0\x05\x0B\x01\0\0\x0C\x01\0\x01\x0C\x01\0\x02\x0C\x01\0\x03\x0C\x01\0\x04\x0C\x01\0\x05\x0C\x01\0\0\r\x01\0\x01\r\x01\0\x02\r\x01\0\x03\r\x01\0\x04\r\x01\0\x05\r\x01\0\0\x0E\x01\0\x01\x0E\x01\0\x02\x0E\x01\0\x03\x0E\x01\0\x04\x0E\x01\0\x05\x0E\x01\0\0\x0F\x01\0\x01\x0F\x01\0\x02\x0F\x01\0\x03\x0F\x01\0\x04\x0F\x01\0\x05\x0F\x01\x01\0\0\0\x01\x01\0\0\x01\x02\0\0\x01\x03\0\0\x01\x04\0\0\x01\x05\0\0\x01\0\x01\0\x01\x01\x01\0\x01\x02\x01\0\x01\x03\x01\0\x01\x04\x01\0\x01\x05\x01\0\x01\0\x02\0\x01\x01\x02\0\x01\x02\x02\0\x01\x03\x02\0\x01\x04\x02\0\x01\x05\x02\0\x01\0\x03\0\x01\x01\x03\0\x01\x02\x03\0\x01\x03\x03\0\x01\x04\x03\0\x01\x05\x03\0\x01\0\x04\0\x01\x01\x04\0\x01\x02\x04\0\x01\x03\x04\0\x01\x04\x04\0\x01\x05\x04\0\x01\0\x05\0\x01\x01\x05\0\x01\x02\x05\0\x01\x03\x05\0\x01\x04\x05\0\x01\x05\x05\0\x01\0\x06\0\x01\x01\x06\0\x01\x02\x06\0\x01\x03\x06\0\x01\x04\x06\0\x01\x05\x06\0\x01\0\x07\0\x01\x01\x07\0\x01\x02\x07\0\x01\x03\x07\0\x01\x04\x07\0\x01\x05\x07\0\x01\0\x08\0\x01\x01\x08\0\x01\x02\x08\0\x01\x03\x08\0\x01\x04\x08\0\x01\x05\x08\0\x01\0\t\0\x01\x01\t\0\x01\x02\t\0\x01\x03\t\0\x01\x04\t\0\x01\x05\t\0\x01\0\n\0\x01\x01\n\0\x01\x02\n\0\x01\x03\n\0\x01\x04\n\0\x01\x05\n\0\x01\0\x0B\0\x01\x01\x0B\0\x01\x02\x0B\0\x01\x03\x0B\0\x01\x04\x0B\0\x01\x05\x0B\0\x01\0\x0C\0\x01\x01\x0C\0\x01\x02\x0C\0\x01\x03\x0C\0\x01\x04\x0C\0\x01\x05\x0C\0\x01\0\r\0\x01\x01\r\0\x01\x02\r\0\x01\x03\r\0\x01\x04\r\0\x01\x05\r\0\x01\0\x0E\0\x01\x01\x0E\0\x01\x02\x0E\0\x01\x03\x0E\0\x01\x04\x0E\0\x01\x05\x0E\0\x01\0\x0F\0\x01\x01\x0F\0\x01\x02\x0F\0\x01\x03\x0F\0\x01\x04\x0F\0\x01\x05\x0F\0\x01\0\0\x01\x01\x01\0\x01\x01\x02\0\x01\x01\x03\0\x01\x01\x04\0\x01\x01\x05\0\x01\x01\0\x01\x01\x01\x01\x01\x01\x01\x02\x01\x01\x01\x03\x01\x01\x01\x04\x01\x01\x01\x05\x01\x01\x01\0\x02\x01\x01\x01\x02\x01\x01\x02\x02\x01\x01\x03\x02\x01\x01\x04\x02\x01\x01\x05\x02\x01\x01\0\x03\x01\x01\x01\x03\x01\x01\x02\x03\x01\x01\x03\x03\x01\x01\x04\x03\x01\x01\x05\x03\x01\x01\0\x04\x01\x01\x01\x04\x01\x01\x02\x04\x01\x01\x03\x04\x01\x01\x04\x04\x01\x01\x05\x04\x01\x01\0\x05\x01\x01\x01\x05\x01\x01\x02\x05\x01\x01\x03\x05\x01\x01\x04\x05\x01\x01\x05\x05\x01\x01\0\x06\x01\x01\x01\x06\x01\x01\x02\x06\x01\x01\x03\x06\x01\x01\x04\x06\x01\x01\x05\x06\x01\x01\0\x07\x01\x01\x01\x07\x01\x01\x02\x07\x01\x01\x03\x07\x01\x01\x04\x07\x01\x01\x05\x07\x01\x01\0\x08\x01\x01\x01\x08\x01\x01\x02\x08\x01\x01\x03\x08\x01\x01\x04\x08\x01\x01\x05\x08\x01\x01\0\t\x01\x01\x01\t\x01\x01\x02\t\x01\x01\x03\t\x01\x01\x04\t\x01\x01\x05\t\x01\x01\0\n\x01\x01\x01\n\x01\x01\x02\n\x01\x01\x03\n\x01\x01\x04\n\x01\x01\x05\n\x01\x01\0\x0B\x01\x01\x01\x0B\x01\x01\x02\x0B\x01\x01\x03\x0B\x01\x01\x04\x0B\x01\x01\x05\x0B\x01\x01\0\x0C\x01\x01\x01\x0C\x01\x01\x02\x0C\x01\x01\x03\x0C\x01\x01\x04\x0C\x01\x01\x05\x0C\x01\x01\0\r\x01\x01\x01\r\x01\x01\x02\r\x01\x01\x03\r\x01\x01\x04\r\x01\x01\x05\r\x01\x01\0\x0E\x01\x01\x01\x0E\x01\x01\x02\x0E\x01\x01\x03\x0E\x01\x01\x04\x0E\x01\x01\x05\x0E\x01\x01\0\x0F\x01\x01\x01\x0F\x01\x01\x02\x0F\x01\x01\x03\x0F\x01\x01\x04\x0F\x01\x01\x05\x0F\x01",
+        server_definition: None,
     },
     BlockData {
         id: 3256u32,
@@ -7351,6 +7578,7 @@ pub static ALL_BLOCKS: [BlockData; 1477usize] = [
             },
         ],
         state_values: b"\0\x01\x02",
+        server_definition: None,
     },
     BlockData {
         id: 3259u32,
@@ -7387,6 +7615,7 @@ pub static ALL_BLOCKS: [BlockData; 1477usize] = [
             },
         ],
         state_values: b"\0\x01\x02\x03",
+        server_definition: None,
     },
     BlockData {
         id: 3263u32,
@@ -7413,6 +7642,7 @@ pub static ALL_BLOCKS: [BlockData; 1477usize] = [
         visual_shape: [0f32, 0f32, 0f32, 1f32, 1f32, 1f32],
         properties: &[],
         state_values: b"",
+        server_definition: None,
     },
     BlockData {
         id: 3264u32,
@@ -7439,6 +7669,7 @@ pub static ALL_BLOCKS: [BlockData; 1477usize] = [
         visual_shape: [0f32, 0f32, 0f32, 1f32, 1f32, 1f32],
         properties: &[],
         state_values: b"",
+        server_definition: None,
     },
     BlockData {
         id: 3265u32,
@@ -7465,6 +7696,7 @@ pub static ALL_BLOCKS: [BlockData; 1477usize] = [
         visual_shape: [0f32, 0f32, 0f32, 1f32, 1f32, 1f32],
         properties: &[],
         state_values: b"",
+        server_definition: None,
     },
     BlockData {
         id: 3266u32,
@@ -7491,6 +7723,7 @@ pub static ALL_BLOCKS: [BlockData; 1477usize] = [
         visual_shape: [0f32, 0f32, 0f32, 1f32, 1f32, 1f32],
         properties: &[],
         state_values: b"",
+        server_definition: None,
     },
     BlockData {
         id: 3267u32,
@@ -7517,6 +7750,7 @@ pub static ALL_BLOCKS: [BlockData; 1477usize] = [
         visual_shape: [0f32, 0f32, 0f32, 1f32, 1f32, 1f32],
         properties: &[],
         state_values: b"",
+        server_definition: None,
     },
     BlockData {
         id: 3268u32,
@@ -7543,6 +7777,7 @@ pub static ALL_BLOCKS: [BlockData; 1477usize] = [
         visual_shape: [0f32, 0f32, 0f32, 1f32, 1f32, 1f32],
         properties: &[],
         state_values: b"",
+        server_definition: None,
     },
     BlockData {
         id: 3269u32,
@@ -7569,6 +7804,7 @@ pub static ALL_BLOCKS: [BlockData; 1477usize] = [
         visual_shape: [0f32, 0f32, 0f32, 1f32, 1f32, 1f32],
         properties: &[],
         state_values: b"",
+        server_definition: None,
     },
     BlockData {
         id: 3270u32,
@@ -7595,6 +7831,7 @@ pub static ALL_BLOCKS: [BlockData; 1477usize] = [
         visual_shape: [0f32, 0f32, 0f32, 1f32, 1f32, 1f32],
         properties: &[],
         state_values: b"",
+        server_definition: None,
     },
     BlockData {
         id: 3271u32,
@@ -7621,6 +7858,7 @@ pub static ALL_BLOCKS: [BlockData; 1477usize] = [
         visual_shape: [0f32, 0f32, 0f32, 1f32, 1f32, 1f32],
         properties: &[],
         state_values: b"",
+        server_definition: None,
     },
     BlockData {
         id: 3272u32,
@@ -7647,6 +7885,7 @@ pub static ALL_BLOCKS: [BlockData; 1477usize] = [
         visual_shape: [0f32, 0f32, 0f32, 1f32, 1f32, 1f32],
         properties: &[],
         state_values: b"",
+        server_definition: None,
     },
     BlockData {
         id: 3273u32,
@@ -7695,6 +7934,7 @@ pub static ALL_BLOCKS: [BlockData; 1477usize] = [
             },
         ],
         state_values: b"\0\0\0\0\0\x01\0\0\0\x02\0\0\0\x03\0\0\0\0\x01\0\0\x01\x01\0\0\x02\x01\0\0\x03\x01\0\0\0\0\x01\0\x01\0\x01\0\x02\0\x01\0\x03\0\x01\0\0\x01\x01\0\x01\x01\x01\0\x02\x01\x01\0\x03\x01\x01\x01\0\0\0\x01\x01\0\0\x01\x02\0\0\x01\x03\0\0\x01\0\x01\0\x01\x01\x01\0\x01\x02\x01\0\x01\x03\x01\0\x01\0\0\x01\x01\x01\0\x01\x01\x02\0\x01\x01\x03\0\x01\x01\0\x01\x01\x01\x01\x01\x01\x01\x02\x01\x01\x01\x03\x01\x01",
+        server_definition: None,
     },
     BlockData {
         id: 3305u32,
@@ -7726,6 +7966,7 @@ pub static ALL_BLOCKS: [BlockData; 1477usize] = [
             },
         ],
         state_values: b"\0\x01",
+        server_definition: None,
     },
     BlockData {
         id: 3307u32,
@@ -7757,6 +7998,7 @@ pub static ALL_BLOCKS: [BlockData; 1477usize] = [
             },
         ],
         state_values: b"\0\x01",
+        server_definition: None,
     },
     BlockData {
         id: 3309u32,
@@ -7783,6 +8025,7 @@ pub static ALL_BLOCKS: [BlockData; 1477usize] = [
         visual_shape: [0f32, 0f32, 0f32, 1f32, 1f32, 1f32],
         properties: &[],
         state_values: b"",
+        server_definition: None,
     },
     BlockData {
         id: 3310u32,
@@ -7819,6 +8062,7 @@ pub static ALL_BLOCKS: [BlockData; 1477usize] = [
             },
         ],
         state_values: b"\0\x01\x02\x03",
+        server_definition: None,
     },
     BlockData {
         id: 3314u32,
@@ -7845,6 +8089,7 @@ pub static ALL_BLOCKS: [BlockData; 1477usize] = [
         visual_shape: [0f32, 0f32, 0f32, 1f32, 1f32, 1f32],
         properties: &[],
         state_values: b"",
+        server_definition: None,
     },
     BlockData {
         id: 3315u32,
@@ -7871,6 +8116,7 @@ pub static ALL_BLOCKS: [BlockData; 1477usize] = [
         visual_shape: [0f32, 0f32, 0f32, 1f32, 1f32, 1f32],
         properties: &[],
         state_values: b"",
+        server_definition: None,
     },
     BlockData {
         id: 3316u32,
@@ -7897,6 +8143,7 @@ pub static ALL_BLOCKS: [BlockData; 1477usize] = [
         visual_shape: [0.099999994f32, 0f32, 0.099999994f32, 0.9f32, 0.8f32, 0.9f32],
         properties: &[],
         state_values: b"",
+        server_definition: None,
     },
     BlockData {
         id: 3317u32,
@@ -7923,6 +8170,7 @@ pub static ALL_BLOCKS: [BlockData; 1477usize] = [
         visual_shape: [0f32, 0f32, 0f32, 1f32, 1f32, 1f32],
         properties: &[],
         state_values: b"",
+        server_definition: None,
     },
     BlockData {
         id: 3318u32,
@@ -7954,6 +8202,7 @@ pub static ALL_BLOCKS: [BlockData; 1477usize] = [
             },
         ],
         state_values: b"\0\x01",
+        server_definition: None,
     },
     BlockData {
         id: 3320u32,
@@ -7989,6 +8238,7 @@ pub static ALL_BLOCKS: [BlockData; 1477usize] = [
             },
         ],
         state_values: b"\0\x01\x02",
+        server_definition: None,
     },
     BlockData {
         id: 3323u32,
@@ -8032,6 +8282,7 @@ pub static ALL_BLOCKS: [BlockData; 1477usize] = [
             },
         ],
         state_values: b"\0\0\0\0\0\x01\0\0\x01\0\0\0\x01\x01\0\0\0\0\x01\0\0\x01\x01\0\x01\0\x01\0\x01\x01\x01\0\0\0\0\x01\0\x01\0\x01\x01\0\0\x01\x01\x01\0\x01\0\0\x01\x01\0\x01\x01\x01\x01\0\x01\x01\x01\x01\x01\x01",
+        server_definition: None,
     },
     BlockData {
         id: 3339u32,
@@ -8095,6 +8346,7 @@ pub static ALL_BLOCKS: [BlockData; 1477usize] = [
             },
         ],
         state_values: b"\0\0\0\0\0\0\0\0\0\x01\0\x01\0\0\0\0\x01\0\0\x01\0\x02\0\0\0\0\x02\0\0\x01\x01\0\0\0\0\x01\0\0\0\x01\x01\x01\0\0\0\x01\x01\0\0\x01\x01\x02\0\0\0\x01\x02\0\0\x01\x02\0\0\0\0\x02\0\0\0\x01\x02\x01\0\0\0\x02\x01\0\0\x01\x02\x02\0\0\0\x02\x02\0\0\x01\0\0\x01\0\0\0\0\x01\0\x01\0\x01\x01\0\0\0\x01\x01\0\x01\0\x02\x01\0\0\0\x02\x01\0\x01\x01\0\x01\0\0\x01\0\x01\0\x01\x01\x01\x01\0\0\x01\x01\x01\0\x01\x01\x02\x01\0\0\x01\x02\x01\0\x01\x02\0\x01\0\0\x02\0\x01\0\x01\x02\x01\x01\0\0\x02\x01\x01\0\x01\x02\x02\x01\0\0\x02\x02\x01\0\x01\0\0\x02\0\0\0\0\x02\0\x01\0\x01\x02\0\0\0\x01\x02\0\x01\0\x02\x02\0\0\0\x02\x02\0\x01\x01\0\x02\0\0\x01\0\x02\0\x01\x01\x01\x02\0\0\x01\x01\x02\0\x01\x01\x02\x02\0\0\x01\x02\x02\0\x01\x02\0\x02\0\0\x02\0\x02\0\x01\x02\x01\x02\0\0\x02\x01\x02\0\x01\x02\x02\x02\0\0\x02\x02\x02\0\x01\0\0\0\x01\0\0\0\0\x01\x01\0\x01\0\x01\0\0\x01\0\x01\x01\0\x02\0\x01\0\0\x02\0\x01\x01\x01\0\0\x01\0\x01\0\0\x01\x01\x01\x01\0\x01\0\x01\x01\0\x01\x01\x01\x02\0\x01\0\x01\x02\0\x01\x01\x02\0\0\x01\0\x02\0\0\x01\x01\x02\x01\0\x01\0\x02\x01\0\x01\x01\x02\x02\0\x01\0\x02\x02\0\x01\x01\0\0\x01\x01\0\0\0\x01\x01\x01\0\x01\x01\x01\0\0\x01\x01\x01\x01\0\x02\x01\x01\0\0\x02\x01\x01\x01\x01\0\x01\x01\0\x01\0\x01\x01\x01\x01\x01\x01\x01\0\x01\x01\x01\x01\x01\x01\x02\x01\x01\0\x01\x02\x01\x01\x01\x02\0\x01\x01\0\x02\0\x01\x01\x01\x02\x01\x01\x01\0\x02\x01\x01\x01\x01\x02\x02\x01\x01\0\x02\x02\x01\x01\x01\0\0\x02\x01\0\0\0\x02\x01\x01\0\x01\x02\x01\0\0\x01\x02\x01\x01\0\x02\x02\x01\0\0\x02\x02\x01\x01\x01\0\x02\x01\0\x01\0\x02\x01\x01\x01\x01\x02\x01\0\x01\x01\x02\x01\x01\x01\x02\x02\x01\0\x01\x02\x02\x01\x01\x02\0\x02\x01\0\x02\0\x02\x01\x01\x02\x01\x02\x01\0\x02\x01\x02\x01\x01\x02\x02\x02\x01\0\x02\x02\x02\x01\x01\0\0\0\x02\0\0\0\0\x02\x01\0\x01\0\x02\0\0\x01\0\x02\x01\0\x02\0\x02\0\0\x02\0\x02\x01\x01\0\0\x02\0\x01\0\0\x02\x01\x01\x01\0\x02\0\x01\x01\0\x02\x01\x01\x02\0\x02\0\x01\x02\0\x02\x01\x02\0\0\x02\0\x02\0\0\x02\x01\x02\x01\0\x02\0\x02\x01\0\x02\x01\x02\x02\0\x02\0\x02\x02\0\x02\x01\0\0\x01\x02\0\0\0\x01\x02\x01\0\x01\x01\x02\0\0\x01\x01\x02\x01\0\x02\x01\x02\0\0\x02\x01\x02\x01\x01\0\x01\x02\0\x01\0\x01\x02\x01\x01\x01\x01\x02\0\x01\x01\x01\x02\x01\x01\x02\x01\x02\0\x01\x02\x01\x02\x01\x02\0\x01\x02\0\x02\0\x01\x02\x01\x02\x01\x01\x02\0\x02\x01\x01\x02\x01\x02\x02\x01\x02\0\x02\x02\x01\x02\x01\0\0\x02\x02\0\0\0\x02\x02\x01\0\x01\x02\x02\0\0\x01\x02\x02\x01\0\x02\x02\x02\0\0\x02\x02\x02\x01\x01\0\x02\x02\0\x01\0\x02\x02\x01\x01\x01\x02\x02\0\x01\x01\x02\x02\x01\x01\x02\x02\x02\0\x01\x02\x02\x02\x01\x02\0\x02\x02\0\x02\0\x02\x02\x01\x02\x01\x02\x02\0\x02\x01\x02\x02\x01\x02\x02\x02\x02\0\x02\x02\x02\x02\x01",
+        server_definition: None,
     },
     BlockData {
         id: 3501u32,
@@ -8126,6 +8378,7 @@ pub static ALL_BLOCKS: [BlockData; 1477usize] = [
             },
         ],
         state_values: b"\0\x01",
+        server_definition: None,
     },
     BlockData {
         id: 3503u32,
@@ -8152,6 +8405,7 @@ pub static ALL_BLOCKS: [BlockData; 1477usize] = [
         visual_shape: [0.099999994f32, 0f32, 0.099999994f32, 0.9f32, 0.8f32, 0.9f32],
         properties: &[],
         state_values: b"",
+        server_definition: None,
     },
     BlockData {
         id: 3504u32,
@@ -8187,6 +8441,7 @@ pub static ALL_BLOCKS: [BlockData; 1477usize] = [
             },
         ],
         state_values: b"\0\x01\x02",
+        server_definition: None,
     },
     BlockData {
         id: 3507u32,
@@ -8213,6 +8468,7 @@ pub static ALL_BLOCKS: [BlockData; 1477usize] = [
         visual_shape: [0f32, 0f32, 0f32, 1f32, 1f32, 1f32],
         properties: &[],
         state_values: b"",
+        server_definition: None,
     },
     BlockData {
         id: 3508u32,
@@ -8244,6 +8500,9 @@ pub static ALL_BLOCKS: [BlockData; 1477usize] = [
             },
         ],
         state_values: b"\0\x01",
+        server_definition: Some(
+            b"\n\0\t\tblockTags\x08\x02%minecraft:is_shears_item_destructible\n\ncomponents\n minecraft:destructible_by_mining\x05\x05value\xCD\xCCL?\0\n\x1Fminecraft:redstone_conductivity\x01\x14allowsWireToStepDown\x01\x01\x11redstoneConductor\x01\0\0\n\rmenu_category\x08\x08category\x04none\x08\x05group\0\x01\x15is_hidden_in_commands\x01\0\x03\rmolangVersion\x1A\n\x12vanilla_block_data\n\x0Fblock_archetype\x08\x11double_slab_block\x19minecraft:black_wool_slab\x01\tis_double\x01\x08\x04type\nslab_block\0\x03\x08block_id\xBE\x16\x01\x15can_dampen_vibrations\x01\x01\x16can_occlude_vibrations\x01\x08\x08material\x05solid\0\0",
+        ),
     },
     BlockData {
         id: 3510u32,
@@ -8275,6 +8534,7 @@ pub static ALL_BLOCKS: [BlockData; 1477usize] = [
             },
         ],
         state_values: b"\0\x01",
+        server_definition: None,
     },
     BlockData {
         id: 3512u32,
@@ -8306,6 +8566,9 @@ pub static ALL_BLOCKS: [BlockData; 1477usize] = [
             },
         ],
         state_values: b"\0\x01",
+        server_definition: Some(
+            b"\n\0\t\tblockTags\x08\x02%minecraft:is_shears_item_destructible\n\ncomponents\n minecraft:destructible_by_mining\x05\x05value\xCD\xCCL?\0\n\x1Fminecraft:destruction_particles\x03\x0Eparticle_count`\x08\x07texture\0\x08\x0Btint_method\x04none\0\n\x1Aminecraft:liquid_detection\t\x0EdetectionRules\n\x02\x01\x10canContainLiquid\x01\x08\nliquidType\x05water\x08\x0FonLiquidTouches\x08blocking\x01\x18stopsLiquidFromDirection\0\x01\x13use_liquid_clipping\0\0\0\n\x1Fminecraft:redstone_conductivity\x01\x14allowsWireToStepDown\x01\x01\x11redstoneConductor\0\0\0\n\rmenu_category\x08\x08category\x0Cconstruction\x08\x05group\x1Dminecraft:itemGroup.name.slab\x01\x15is_hidden_in_commands\0\0\x03\rmolangVersion\x1A\n\x12vanilla_block_data\n\x0Fblock_archetype\x08\x11double_slab_block!minecraft:purple_wool_double_slab\x01\tis_double\0\x08\x04type\nslab_block\0\x03\x08block_id\xB2\x16\x01\x15can_dampen_vibrations\x01\x01\x16can_occlude_vibrations\x01\x08\x08material\x05solid\x05\x0Ctranslucency\xCD\xCCL?\0\0",
+        ),
     },
     BlockData {
         id: 3514u32,
@@ -8337,6 +8600,7 @@ pub static ALL_BLOCKS: [BlockData; 1477usize] = [
             },
         ],
         state_values: b"\0\x01",
+        server_definition: None,
     },
     BlockData {
         id: 3516u32,
@@ -8377,6 +8641,7 @@ pub static ALL_BLOCKS: [BlockData; 1477usize] = [
             },
         ],
         state_values: b"\0\x01\x02\x03\x04",
+        server_definition: None,
     },
     BlockData {
         id: 3521u32,
@@ -8403,6 +8668,7 @@ pub static ALL_BLOCKS: [BlockData; 1477usize] = [
         visual_shape: [0f32, 0f32, 0f32, 1f32, 1f32, 1f32],
         properties: &[],
         state_values: b"",
+        server_definition: None,
     },
     BlockData {
         id: 3522u32,
@@ -8443,6 +8709,7 @@ pub static ALL_BLOCKS: [BlockData; 1477usize] = [
             },
         ],
         state_values: b"\0\0\x01\0\x02\0\x03\0\0\x01\x01\x01\x02\x01\x03\x01",
+        server_definition: None,
     },
     BlockData {
         id: 3530u32,
@@ -8473,6 +8740,7 @@ pub static ALL_BLOCKS: [BlockData; 1477usize] = [
         visual_shape: [0f32, 0f32, 0f32, 1f32, 1f32, 1f32],
         properties: &[],
         state_values: b"",
+        server_definition: None,
     },
     BlockData {
         id: 3531u32,
@@ -8504,6 +8772,7 @@ pub static ALL_BLOCKS: [BlockData; 1477usize] = [
             },
         ],
         state_values: b"\0\x01",
+        server_definition: None,
     },
     BlockData {
         id: 3533u32,
@@ -8539,6 +8808,7 @@ pub static ALL_BLOCKS: [BlockData; 1477usize] = [
             },
         ],
         state_values: b"\0\x01\x02",
+        server_definition: None,
     },
     BlockData {
         id: 3536u32,
@@ -8565,6 +8835,7 @@ pub static ALL_BLOCKS: [BlockData; 1477usize] = [
         visual_shape: [0f32, 0f32, 0f32, 1f32, 1f32, 1f32],
         properties: &[],
         state_values: b"",
+        server_definition: None,
     },
     BlockData {
         id: 3537u32,
@@ -8609,6 +8880,7 @@ pub static ALL_BLOCKS: [BlockData; 1477usize] = [
             },
         ],
         state_values: b"\0\0\x01\0\x02\0\x03\0\0\x01\x01\x01\x02\x01\x03\x01\0\x02\x01\x02\x02\x02\x03\x02",
+        server_definition: None,
     },
     BlockData {
         id: 3549u32,
@@ -8659,6 +8931,9 @@ pub static ALL_BLOCKS: [BlockData; 1477usize] = [
             },
         ],
         state_values: b"\0\0\0\0\0\x01\0\0\x02\0\0\x03\0\x01\0\0\x01\x01\0\x01\x02\0\x01\x03\x01\0\0\x01\0\x01\x01\0\x02\x01\0\x03\x01\x01\0\x01\x01\x01\x01\x01\x02\x01\x01\x03\x02\0\0\x02\0\x01\x02\0\x02\x02\0\x03\x02\x01\0\x02\x01\x01\x02\x01\x02\x02\x01\x03\x03\0\0\x03\0\x01\x03\0\x02\x03\0\x03\x03\x01\0\x03\x01\x01\x03\x01\x02\x03\x01\x03\x04\0\0\x04\0\x01\x04\0\x02\x04\0\x03\x04\x01\0\x04\x01\x01\x04\x01\x02\x04\x01\x03",
+        server_definition: Some(
+            b"\n\0\t\tblockTags\x08\x02&minecraft:is_pickaxe_item_destructible\n\ncomponents\n minecraft:destructible_by_mining\x05\x05valueff\xE6?\0\n\x1Fminecraft:destruction_particles\x03\x0Eparticle_count`\x08\x07texture\0\x08\x0Btint_method\x04none\0\n\x1Aminecraft:liquid_detection\t\x0EdetectionRules\n\x02\x01\x10canContainLiquid\x01\x08\nliquidType\x05water\x08\x0FonLiquidTouches\x08blocking\x01\x18stopsLiquidFromDirection\0\x01\x13use_liquid_clipping\0\0\0\n\x1Fminecraft:redstone_conductivity\x01\x14allowsWireToStepDown\x01\x01\x11redstoneConductor\0\0\n\x11minecraft:support\x08\x05shape\x05stair\0\0\n\rmenu_category\x08\x08category\x0Cconstruction\x08\x05group\x1Fminecraft:itemGroup.name.stairs\x01\x15is_hidden_in_commands\0\0\x03\rmolangVersion\x1A\n\x12vanilla_block_data\n\x0Fblock_archetype\x08\nbase_block\x17minecraft:gray_concrete\x08\x04type\x0Bstair_block\0\x03\x08block_id\xEE\x16\x08\x08material\x05solid\x01\x1Frequires_correct_tool_for_drops\x01\0\0",
+        ),
     },
     BlockData {
         id: 3589u32,
@@ -8694,6 +8969,7 @@ pub static ALL_BLOCKS: [BlockData; 1477usize] = [
             },
         ],
         state_values: b"\0\x01\x02",
+        server_definition: None,
     },
     BlockData {
         id: 3592u32,
@@ -8724,6 +9000,7 @@ pub static ALL_BLOCKS: [BlockData; 1477usize] = [
         visual_shape: [0f32, 0f32, 0f32, 1f32, 1f32, 1f32],
         properties: &[],
         state_values: b"",
+        server_definition: None,
     },
     BlockData {
         id: 3593u32,
@@ -8750,6 +9027,7 @@ pub static ALL_BLOCKS: [BlockData; 1477usize] = [
         visual_shape: [0f32, 0f32, 0f32, 1f32, 1f32, 1f32],
         properties: &[],
         state_values: b"",
+        server_definition: None,
     },
     BlockData {
         id: 3594u32,
@@ -8785,6 +9063,7 @@ pub static ALL_BLOCKS: [BlockData; 1477usize] = [
             },
         ],
         state_values: b"\0\x01",
+        server_definition: None,
     },
     BlockData {
         id: 3596u32,
@@ -8820,6 +9099,7 @@ pub static ALL_BLOCKS: [BlockData; 1477usize] = [
             },
         ],
         state_values: b"\0\0\0\x01\x01\0\x01\x01",
+        server_definition: None,
     },
     BlockData {
         id: 3600u32,
@@ -8916,6 +9196,7 @@ pub static ALL_BLOCKS: [BlockData; 1477usize] = [
             },
         ],
         state_values: b"\0\x01\x02\x03\x04\x05\x06\x07\x08\t\n\x0B\x0C\r\x0E\x0F\x10\x11\x12\x13\x14\x15\x16\x17\x18\x19\x1A\x1B\x1C\x1D\x1E\x1F !\"#$%&'()*+,-./0123456789:;<=>?",
+        server_definition: None,
     },
     BlockData {
         id: 3664u32,
@@ -8947,6 +9228,7 @@ pub static ALL_BLOCKS: [BlockData; 1477usize] = [
             },
         ],
         state_values: b"\0\x01",
+        server_definition: None,
     },
     BlockData {
         id: 3666u32,
@@ -8978,6 +9260,7 @@ pub static ALL_BLOCKS: [BlockData; 1477usize] = [
             },
         ],
         state_values: b"\0\x01",
+        server_definition: None,
     },
     BlockData {
         id: 3668u32,
@@ -9041,6 +9324,7 @@ pub static ALL_BLOCKS: [BlockData; 1477usize] = [
             },
         ],
         state_values: b"\0\0\0\0\0\0\0\0\0\x01\0\x01\0\0\0\0\x01\0\0\x01\0\x02\0\0\0\0\x02\0\0\x01\x01\0\0\0\0\x01\0\0\0\x01\x01\x01\0\0\0\x01\x01\0\0\x01\x01\x02\0\0\0\x01\x02\0\0\x01\x02\0\0\0\0\x02\0\0\0\x01\x02\x01\0\0\0\x02\x01\0\0\x01\x02\x02\0\0\0\x02\x02\0\0\x01\0\0\x01\0\0\0\0\x01\0\x01\0\x01\x01\0\0\0\x01\x01\0\x01\0\x02\x01\0\0\0\x02\x01\0\x01\x01\0\x01\0\0\x01\0\x01\0\x01\x01\x01\x01\0\0\x01\x01\x01\0\x01\x01\x02\x01\0\0\x01\x02\x01\0\x01\x02\0\x01\0\0\x02\0\x01\0\x01\x02\x01\x01\0\0\x02\x01\x01\0\x01\x02\x02\x01\0\0\x02\x02\x01\0\x01\0\0\x02\0\0\0\0\x02\0\x01\0\x01\x02\0\0\0\x01\x02\0\x01\0\x02\x02\0\0\0\x02\x02\0\x01\x01\0\x02\0\0\x01\0\x02\0\x01\x01\x01\x02\0\0\x01\x01\x02\0\x01\x01\x02\x02\0\0\x01\x02\x02\0\x01\x02\0\x02\0\0\x02\0\x02\0\x01\x02\x01\x02\0\0\x02\x01\x02\0\x01\x02\x02\x02\0\0\x02\x02\x02\0\x01\0\0\0\x01\0\0\0\0\x01\x01\0\x01\0\x01\0\0\x01\0\x01\x01\0\x02\0\x01\0\0\x02\0\x01\x01\x01\0\0\x01\0\x01\0\0\x01\x01\x01\x01\0\x01\0\x01\x01\0\x01\x01\x01\x02\0\x01\0\x01\x02\0\x01\x01\x02\0\0\x01\0\x02\0\0\x01\x01\x02\x01\0\x01\0\x02\x01\0\x01\x01\x02\x02\0\x01\0\x02\x02\0\x01\x01\0\0\x01\x01\0\0\0\x01\x01\x01\0\x01\x01\x01\0\0\x01\x01\x01\x01\0\x02\x01\x01\0\0\x02\x01\x01\x01\x01\0\x01\x01\0\x01\0\x01\x01\x01\x01\x01\x01\x01\0\x01\x01\x01\x01\x01\x01\x02\x01\x01\0\x01\x02\x01\x01\x01\x02\0\x01\x01\0\x02\0\x01\x01\x01\x02\x01\x01\x01\0\x02\x01\x01\x01\x01\x02\x02\x01\x01\0\x02\x02\x01\x01\x01\0\0\x02\x01\0\0\0\x02\x01\x01\0\x01\x02\x01\0\0\x01\x02\x01\x01\0\x02\x02\x01\0\0\x02\x02\x01\x01\x01\0\x02\x01\0\x01\0\x02\x01\x01\x01\x01\x02\x01\0\x01\x01\x02\x01\x01\x01\x02\x02\x01\0\x01\x02\x02\x01\x01\x02\0\x02\x01\0\x02\0\x02\x01\x01\x02\x01\x02\x01\0\x02\x01\x02\x01\x01\x02\x02\x02\x01\0\x02\x02\x02\x01\x01\0\0\0\x02\0\0\0\0\x02\x01\0\x01\0\x02\0\0\x01\0\x02\x01\0\x02\0\x02\0\0\x02\0\x02\x01\x01\0\0\x02\0\x01\0\0\x02\x01\x01\x01\0\x02\0\x01\x01\0\x02\x01\x01\x02\0\x02\0\x01\x02\0\x02\x01\x02\0\0\x02\0\x02\0\0\x02\x01\x02\x01\0\x02\0\x02\x01\0\x02\x01\x02\x02\0\x02\0\x02\x02\0\x02\x01\0\0\x01\x02\0\0\0\x01\x02\x01\0\x01\x01\x02\0\0\x01\x01\x02\x01\0\x02\x01\x02\0\0\x02\x01\x02\x01\x01\0\x01\x02\0\x01\0\x01\x02\x01\x01\x01\x01\x02\0\x01\x01\x01\x02\x01\x01\x02\x01\x02\0\x01\x02\x01\x02\x01\x02\0\x01\x02\0\x02\0\x01\x02\x01\x02\x01\x01\x02\0\x02\x01\x01\x02\x01\x02\x02\x01\x02\0\x02\x02\x01\x02\x01\0\0\x02\x02\0\0\0\x02\x02\x01\0\x01\x02\x02\0\0\x01\x02\x02\x01\0\x02\x02\x02\0\0\x02\x02\x02\x01\x01\0\x02\x02\0\x01\0\x02\x02\x01\x01\x01\x02\x02\0\x01\x01\x02\x02\x01\x01\x02\x02\x02\0\x01\x02\x02\x02\x01\x02\0\x02\x02\0\x02\0\x02\x02\x01\x02\x01\x02\x02\0\x02\x01\x02\x02\x01\x02\x02\x02\x02\0\x02\x02\x02\x02\x01",
+        server_definition: None,
     },
     BlockData {
         id: 3830u32,
@@ -9091,6 +9375,7 @@ pub static ALL_BLOCKS: [BlockData; 1477usize] = [
             },
         ],
         state_values: b"\0\0\0\0\0\x01\0\0\x02\0\0\x03\0\x01\0\0\x01\x01\0\x01\x02\0\x01\x03\x01\0\0\x01\0\x01\x01\0\x02\x01\0\x03\x01\x01\0\x01\x01\x01\x01\x01\x02\x01\x01\x03\x02\0\0\x02\0\x01\x02\0\x02\x02\0\x03\x02\x01\0\x02\x01\x01\x02\x01\x02\x02\x01\x03\x03\0\0\x03\0\x01\x03\0\x02\x03\0\x03\x03\x01\0\x03\x01\x01\x03\x01\x02\x03\x01\x03\x04\0\0\x04\0\x01\x04\0\x02\x04\0\x03\x04\x01\0\x04\x01\x01\x04\x01\x02\x04\x01\x03",
+        server_definition: None,
     },
     BlockData {
         id: 3870u32,
@@ -9117,6 +9402,7 @@ pub static ALL_BLOCKS: [BlockData; 1477usize] = [
         visual_shape: [0f32, 0f32, 0f32, 1f32, 1f32, 1f32],
         properties: &[],
         state_values: b"",
+        server_definition: None,
     },
     BlockData {
         id: 3871u32,
@@ -9155,6 +9441,7 @@ pub static ALL_BLOCKS: [BlockData; 1477usize] = [
             },
         ],
         state_values: b"\0\x01\x02\x03\x04\x05",
+        server_definition: None,
     },
     BlockData {
         id: 3877u32,
@@ -9181,6 +9468,7 @@ pub static ALL_BLOCKS: [BlockData; 1477usize] = [
         visual_shape: [0f32, 0f32, 0f32, 1f32, 1f32, 1f32],
         properties: &[],
         state_values: b"",
+        server_definition: None,
     },
     BlockData {
         id: 3878u32,
@@ -9244,6 +9532,7 @@ pub static ALL_BLOCKS: [BlockData; 1477usize] = [
             },
         ],
         state_values: b"\0\0\0\0\0\0\0\0\0\x01\0\x01\0\0\0\0\x01\0\0\x01\0\x02\0\0\0\0\x02\0\0\x01\x01\0\0\0\0\x01\0\0\0\x01\x01\x01\0\0\0\x01\x01\0\0\x01\x01\x02\0\0\0\x01\x02\0\0\x01\x02\0\0\0\0\x02\0\0\0\x01\x02\x01\0\0\0\x02\x01\0\0\x01\x02\x02\0\0\0\x02\x02\0\0\x01\0\0\x01\0\0\0\0\x01\0\x01\0\x01\x01\0\0\0\x01\x01\0\x01\0\x02\x01\0\0\0\x02\x01\0\x01\x01\0\x01\0\0\x01\0\x01\0\x01\x01\x01\x01\0\0\x01\x01\x01\0\x01\x01\x02\x01\0\0\x01\x02\x01\0\x01\x02\0\x01\0\0\x02\0\x01\0\x01\x02\x01\x01\0\0\x02\x01\x01\0\x01\x02\x02\x01\0\0\x02\x02\x01\0\x01\0\0\x02\0\0\0\0\x02\0\x01\0\x01\x02\0\0\0\x01\x02\0\x01\0\x02\x02\0\0\0\x02\x02\0\x01\x01\0\x02\0\0\x01\0\x02\0\x01\x01\x01\x02\0\0\x01\x01\x02\0\x01\x01\x02\x02\0\0\x01\x02\x02\0\x01\x02\0\x02\0\0\x02\0\x02\0\x01\x02\x01\x02\0\0\x02\x01\x02\0\x01\x02\x02\x02\0\0\x02\x02\x02\0\x01\0\0\0\x01\0\0\0\0\x01\x01\0\x01\0\x01\0\0\x01\0\x01\x01\0\x02\0\x01\0\0\x02\0\x01\x01\x01\0\0\x01\0\x01\0\0\x01\x01\x01\x01\0\x01\0\x01\x01\0\x01\x01\x01\x02\0\x01\0\x01\x02\0\x01\x01\x02\0\0\x01\0\x02\0\0\x01\x01\x02\x01\0\x01\0\x02\x01\0\x01\x01\x02\x02\0\x01\0\x02\x02\0\x01\x01\0\0\x01\x01\0\0\0\x01\x01\x01\0\x01\x01\x01\0\0\x01\x01\x01\x01\0\x02\x01\x01\0\0\x02\x01\x01\x01\x01\0\x01\x01\0\x01\0\x01\x01\x01\x01\x01\x01\x01\0\x01\x01\x01\x01\x01\x01\x02\x01\x01\0\x01\x02\x01\x01\x01\x02\0\x01\x01\0\x02\0\x01\x01\x01\x02\x01\x01\x01\0\x02\x01\x01\x01\x01\x02\x02\x01\x01\0\x02\x02\x01\x01\x01\0\0\x02\x01\0\0\0\x02\x01\x01\0\x01\x02\x01\0\0\x01\x02\x01\x01\0\x02\x02\x01\0\0\x02\x02\x01\x01\x01\0\x02\x01\0\x01\0\x02\x01\x01\x01\x01\x02\x01\0\x01\x01\x02\x01\x01\x01\x02\x02\x01\0\x01\x02\x02\x01\x01\x02\0\x02\x01\0\x02\0\x02\x01\x01\x02\x01\x02\x01\0\x02\x01\x02\x01\x01\x02\x02\x02\x01\0\x02\x02\x02\x01\x01\0\0\0\x02\0\0\0\0\x02\x01\0\x01\0\x02\0\0\x01\0\x02\x01\0\x02\0\x02\0\0\x02\0\x02\x01\x01\0\0\x02\0\x01\0\0\x02\x01\x01\x01\0\x02\0\x01\x01\0\x02\x01\x01\x02\0\x02\0\x01\x02\0\x02\x01\x02\0\0\x02\0\x02\0\0\x02\x01\x02\x01\0\x02\0\x02\x01\0\x02\x01\x02\x02\0\x02\0\x02\x02\0\x02\x01\0\0\x01\x02\0\0\0\x01\x02\x01\0\x01\x01\x02\0\0\x01\x01\x02\x01\0\x02\x01\x02\0\0\x02\x01\x02\x01\x01\0\x01\x02\0\x01\0\x01\x02\x01\x01\x01\x01\x02\0\x01\x01\x01\x02\x01\x01\x02\x01\x02\0\x01\x02\x01\x02\x01\x02\0\x01\x02\0\x02\0\x01\x02\x01\x02\x01\x01\x02\0\x02\x01\x01\x02\x01\x02\x02\x01\x02\0\x02\x02\x01\x02\x01\0\0\x02\x02\0\0\0\x02\x02\x01\0\x01\x02\x02\0\0\x01\x02\x02\x01\0\x02\x02\x02\0\0\x02\x02\x02\x01\x01\0\x02\x02\0\x01\0\x02\x02\x01\x01\x01\x02\x02\0\x01\x01\x02\x02\x01\x01\x02\x02\x02\0\x01\x02\x02\x02\x01\x02\0\x02\x02\0\x02\0\x02\x02\x01\x02\x01\x02\x02\0\x02\x01\x02\x02\x01\x02\x02\x02\x02\0\x02\x02\x02\x02\x01",
+        server_definition: None,
     },
     BlockData {
         id: 4040u32,
@@ -9275,6 +9564,9 @@ pub static ALL_BLOCKS: [BlockData; 1477usize] = [
             },
         ],
         state_values: b"\0\x01",
+        server_definition: Some(
+            b"\n\0\t\tblockTags\x08\x02&minecraft:is_pickaxe_item_destructible\n\ncomponents\n minecraft:destructible_by_mining\x05\x05valueff\xE6?\0\n\x1Fminecraft:destruction_particles\x03\x0Eparticle_count`\x08\x07texture\0\x08\x0Btint_method\x04none\0\n\x1Aminecraft:liquid_detection\t\x0EdetectionRules\n\x02\x01\x10canContainLiquid\x01\x08\nliquidType\x05water\x08\x0FonLiquidTouches\x08blocking\x01\x18stopsLiquidFromDirection\0\x01\x13use_liquid_clipping\0\0\0\n\x1Fminecraft:redstone_conductivity\x01\x14allowsWireToStepDown\x01\x01\x11redstoneConductor\0\0\0\n\rmenu_category\x08\x08category\x0Cconstruction\x08\x05group\x1Dminecraft:itemGroup.name.slab\x01\x15is_hidden_in_commands\0\0\x03\rmolangVersion\x1A\n\x12vanilla_block_data\n\x0Fblock_archetype\x08\x11double_slab_block%minecraft:yellow_concrete_double_slab\x01\tis_double\0\x08\x04type\nslab_block\0\x03\x08block_id\x8A\x17\x08\x08material\x05solid\x01\x1Frequires_correct_tool_for_drops\x01\0\0",
+        ),
     },
     BlockData {
         id: 4042u32,
@@ -9301,6 +9593,7 @@ pub static ALL_BLOCKS: [BlockData; 1477usize] = [
         visual_shape: [0f32, 0f32, 0f32, 1f32, 1f32, 1f32],
         properties: &[],
         state_values: b"",
+        server_definition: None,
     },
     BlockData {
         id: 4043u32,
@@ -9332,6 +9625,7 @@ pub static ALL_BLOCKS: [BlockData; 1477usize] = [
             },
         ],
         state_values: b"\0\x01",
+        server_definition: None,
     },
     BlockData {
         id: 4045u32,
@@ -9358,6 +9652,7 @@ pub static ALL_BLOCKS: [BlockData; 1477usize] = [
         visual_shape: [0f32, 0f32, 0f32, 1f32, 1f32, 1f32],
         properties: &[],
         state_values: b"",
+        server_definition: None,
     },
     BlockData {
         id: 4046u32,
@@ -9406,6 +9701,7 @@ pub static ALL_BLOCKS: [BlockData; 1477usize] = [
             },
         ],
         state_values: b"\0\x01\x02\x03\x04\x05\x06\x07\x08\t\n\x0B\x0C\r\x0E\x0F",
+        server_definition: None,
     },
     BlockData {
         id: 4062u32,
@@ -9437,6 +9733,9 @@ pub static ALL_BLOCKS: [BlockData; 1477usize] = [
             },
         ],
         state_values: b"\0\x01",
+        server_definition: Some(
+            b"\n\0\t\tblockTags\x08\x02%minecraft:is_shears_item_destructible\n\ncomponents\n minecraft:destructible_by_mining\x05\x05value\xCD\xCCL?\0\n\x1Fminecraft:destruction_particles\x03\x0Eparticle_count`\x08\x07texture\0\x08\x0Btint_method\x04none\0\n\x1Aminecraft:liquid_detection\t\x0EdetectionRules\n\x02\x01\x10canContainLiquid\x01\x08\nliquidType\x05water\x08\x0FonLiquidTouches\x08blocking\x01\x18stopsLiquidFromDirection\0\x01\x13use_liquid_clipping\0\0\0\n\x1Fminecraft:redstone_conductivity\x01\x14allowsWireToStepDown\x01\x01\x11redstoneConductor\0\0\0\n\rmenu_category\x08\x08category\x0Cconstruction\x08\x05group\x1Dminecraft:itemGroup.name.slab\x01\x15is_hidden_in_commands\0\0\x03\rmolangVersion\x1A\n\x12vanilla_block_data\n\x0Fblock_archetype\x08\x11double_slab_block minecraft:white_wool_double_slab\x01\tis_double\0\x08\x04type\nslab_block\0\x03\x08block_id\x98\x16\x01\x15can_dampen_vibrations\x01\x01\x16can_occlude_vibrations\x01\x08\x08material\x05solid\x05\x0Ctranslucency\xCD\xCCL?\0\0",
+        ),
     },
     BlockData {
         id: 4064u32,
@@ -9468,6 +9767,7 @@ pub static ALL_BLOCKS: [BlockData; 1477usize] = [
             },
         ],
         state_values: b"\0\x01",
+        server_definition: None,
     },
     BlockData {
         id: 4066u32,
@@ -9517,6 +9817,7 @@ pub static ALL_BLOCKS: [BlockData; 1477usize] = [
             },
         ],
         state_values: b"\0\0\0\x01\0\0\x02\0\0\x03\0\0\0\0\x01\x01\0\x01\x02\0\x01\x03\0\x01\0\x01\0\x01\x01\0\x02\x01\0\x03\x01\0\0\x01\x01\x01\x01\x01\x02\x01\x01\x03\x01\x01",
+        server_definition: None,
     },
     BlockData {
         id: 4082u32,
@@ -9548,6 +9849,7 @@ pub static ALL_BLOCKS: [BlockData; 1477usize] = [
             },
         ],
         state_values: b"\0\x01",
+        server_definition: None,
     },
     BlockData {
         id: 4084u32,
@@ -9579,6 +9881,7 @@ pub static ALL_BLOCKS: [BlockData; 1477usize] = [
         visual_shape: [0f32, 0f32, 0f32, 1f32, 1f32, 1f32],
         properties: &[],
         state_values: b"",
+        server_definition: None,
     },
     BlockData {
         id: 4085u32,
@@ -9617,6 +9920,7 @@ pub static ALL_BLOCKS: [BlockData; 1477usize] = [
             },
         ],
         state_values: b"\0\x01\x02\x03\x04\x05",
+        server_definition: None,
     },
     BlockData {
         id: 4091u32,
@@ -9648,6 +9952,9 @@ pub static ALL_BLOCKS: [BlockData; 1477usize] = [
             },
         ],
         state_values: b"\0\x01",
+        server_definition: Some(
+            b"\n\0\t\tblockTags\x08\x02&minecraft:is_pickaxe_item_destructible\n\ncomponents\n minecraft:destructible_by_mining\x05\x05valueff\xE6?\0\n\x1Fminecraft:redstone_conductivity\x01\x14allowsWireToStepDown\x01\x01\x11redstoneConductor\x01\0\0\n\rmenu_category\x08\x08category\x04none\x08\x05group\0\x01\x15is_hidden_in_commands\x01\0\x03\rmolangVersion\x1A\n\x12vanilla_block_data\n\x0Fblock_archetype\x08\x11double_slab_block\x1Dminecraft:white_concrete_slab\x01\tis_double\x01\x08\x04type\nslab_block\0\x03\x08block_id\x9C\x17\x08\x08material\x05solid\x01\x1Frequires_correct_tool_for_drops\x01\0\0",
+        ),
     },
     BlockData {
         id: 4093u32,
@@ -9674,6 +9981,7 @@ pub static ALL_BLOCKS: [BlockData; 1477usize] = [
         visual_shape: [0f32, 0f32, 0f32, 1f32, 1f32, 1f32],
         properties: &[],
         state_values: b"",
+        server_definition: None,
     },
     BlockData {
         id: 4094u32,
@@ -9722,6 +10030,7 @@ pub static ALL_BLOCKS: [BlockData; 1477usize] = [
             },
         ],
         state_values: b"\0\x01\x02\x03\x04\x05\x06\x07\x08\t\n\x0B\x0C\r\x0E\x0F",
+        server_definition: None,
     },
     BlockData {
         id: 4110u32,
@@ -9767,6 +10076,7 @@ pub static ALL_BLOCKS: [BlockData; 1477usize] = [
             },
         ],
         state_values: b"\0\0\x01\0\x02\0\x03\0\0\x01\x01\x01\x02\x01\x03\x01\0\x02\x01\x02\x02\x02\x03\x02\0\x03\x01\x03\x02\x03\x03\x03",
+        server_definition: None,
     },
     BlockData {
         id: 4126u32,
@@ -9793,6 +10103,7 @@ pub static ALL_BLOCKS: [BlockData; 1477usize] = [
         visual_shape: [0f32, 0f32, 0f32, 1f32, 1f32, 1f32],
         properties: &[],
         state_values: b"",
+        server_definition: None,
     },
     BlockData {
         id: 4127u32,
@@ -9831,6 +10142,7 @@ pub static ALL_BLOCKS: [BlockData; 1477usize] = [
             },
         ],
         state_values: b"\0\x01\x02\x03\x04\x05",
+        server_definition: None,
     },
     BlockData {
         id: 4133u32,
@@ -9857,6 +10169,7 @@ pub static ALL_BLOCKS: [BlockData; 1477usize] = [
         visual_shape: [0f32, 0f32, 0f32, 1f32, 0.0625f32, 1f32],
         properties: &[],
         state_values: b"",
+        server_definition: None,
     },
     BlockData {
         id: 4134u32,
@@ -9907,6 +10220,7 @@ pub static ALL_BLOCKS: [BlockData; 1477usize] = [
             },
         ],
         state_values: b"\0\0\0\0\0\x01\0\0\x02\0\0\x03\0\x01\0\0\x01\x01\0\x01\x02\0\x01\x03\x01\0\0\x01\0\x01\x01\0\x02\x01\0\x03\x01\x01\0\x01\x01\x01\x01\x01\x02\x01\x01\x03\x02\0\0\x02\0\x01\x02\0\x02\x02\0\x03\x02\x01\0\x02\x01\x01\x02\x01\x02\x02\x01\x03\x03\0\0\x03\0\x01\x03\0\x02\x03\0\x03\x03\x01\0\x03\x01\x01\x03\x01\x02\x03\x01\x03\x04\0\0\x04\0\x01\x04\0\x02\x04\0\x03\x04\x01\0\x04\x01\x01\x04\x01\x02\x04\x01\x03",
+        server_definition: None,
     },
     BlockData {
         id: 4174u32,
@@ -9933,6 +10247,7 @@ pub static ALL_BLOCKS: [BlockData; 1477usize] = [
         visual_shape: [0f32, 0f32, 0f32, 1f32, 1f32, 1f32],
         properties: &[],
         state_values: b"",
+        server_definition: None,
     },
     BlockData {
         id: 4175u32,
@@ -9973,6 +10288,7 @@ pub static ALL_BLOCKS: [BlockData; 1477usize] = [
             },
         ],
         state_values: b"\0\0\x01\0\x02\0\x03\0\0\x01\x01\x01\x02\x01\x03\x01",
+        server_definition: None,
     },
     BlockData {
         id: 4183u32,
@@ -10016,6 +10332,7 @@ pub static ALL_BLOCKS: [BlockData; 1477usize] = [
             },
         ],
         state_values: b"\0\0\0\0\0\x01\0\0\x01\0\0\0\x01\x01\0\0\0\0\x01\0\0\x01\x01\0\x01\0\x01\0\x01\x01\x01\0\0\0\0\x01\0\x01\0\x01\x01\0\0\x01\x01\x01\0\x01\0\0\x01\x01\0\x01\x01\x01\x01\0\x01\x01\x01\x01\x01\x01",
+        server_definition: None,
     },
     BlockData {
         id: 4199u32,
@@ -10047,6 +10364,9 @@ pub static ALL_BLOCKS: [BlockData; 1477usize] = [
             },
         ],
         state_values: b"\0\x01",
+        server_definition: Some(
+            b"\n\0\t\tblockTags\x08\x02%minecraft:is_shears_item_destructible\n\ncomponents\n minecraft:destructible_by_mining\x05\x05value\xCD\xCCL?\0\n\x1Fminecraft:destruction_particles\x03\x0Eparticle_count`\x08\x07texture\0\x08\x0Btint_method\x04none\0\n\x1Aminecraft:liquid_detection\t\x0EdetectionRules\n\x02\x01\x10canContainLiquid\x01\x08\nliquidType\x05water\x08\x0FonLiquidTouches\x08blocking\x01\x18stopsLiquidFromDirection\0\x01\x13use_liquid_clipping\0\0\0\n\x1Fminecraft:redstone_conductivity\x01\x14allowsWireToStepDown\x01\x01\x11redstoneConductor\0\0\0\n\rmenu_category\x08\x08category\x0Cconstruction\x08\x05group\x1Dminecraft:itemGroup.name.slab\x01\x15is_hidden_in_commands\0\0\x03\rmolangVersion\x1A\n\x12vanilla_block_data\n\x0Fblock_archetype\x08\x11double_slab_block\x1Fminecraft:pink_wool_double_slab\x01\tis_double\0\x08\x04type\nslab_block\0\x03\x08block_id\xB6\x16\x01\x15can_dampen_vibrations\x01\x01\x16can_occlude_vibrations\x01\x08\x08material\x05solid\x05\x0Ctranslucency\xCD\xCCL?\0\0",
+        ),
     },
     BlockData {
         id: 4201u32,
@@ -10073,6 +10393,7 @@ pub static ALL_BLOCKS: [BlockData; 1477usize] = [
         visual_shape: [0f32, 0f32, 0f32, 1f32, 1f32, 1f32],
         properties: &[],
         state_values: b"",
+        server_definition: None,
     },
     BlockData {
         id: 4202u32,
@@ -10099,6 +10420,7 @@ pub static ALL_BLOCKS: [BlockData; 1477usize] = [
         visual_shape: [0f32, 0f32, 0f32, 1f32, 1f32, 1f32],
         properties: &[],
         state_values: b"",
+        server_definition: None,
     },
     BlockData {
         id: 4203u32,
@@ -10125,6 +10447,7 @@ pub static ALL_BLOCKS: [BlockData; 1477usize] = [
         visual_shape: [0f32, 0f32, 0f32, 1f32, 1f32, 1f32],
         properties: &[],
         state_values: b"",
+        server_definition: None,
     },
     BlockData {
         id: 4204u32,
@@ -10188,6 +10511,7 @@ pub static ALL_BLOCKS: [BlockData; 1477usize] = [
             },
         ],
         state_values: b"\0\0\0\0\0\0\0\0\0\x01\0\x01\0\0\0\0\x01\0\0\x01\0\x02\0\0\0\0\x02\0\0\x01\x01\0\0\0\0\x01\0\0\0\x01\x01\x01\0\0\0\x01\x01\0\0\x01\x01\x02\0\0\0\x01\x02\0\0\x01\x02\0\0\0\0\x02\0\0\0\x01\x02\x01\0\0\0\x02\x01\0\0\x01\x02\x02\0\0\0\x02\x02\0\0\x01\0\0\x01\0\0\0\0\x01\0\x01\0\x01\x01\0\0\0\x01\x01\0\x01\0\x02\x01\0\0\0\x02\x01\0\x01\x01\0\x01\0\0\x01\0\x01\0\x01\x01\x01\x01\0\0\x01\x01\x01\0\x01\x01\x02\x01\0\0\x01\x02\x01\0\x01\x02\0\x01\0\0\x02\0\x01\0\x01\x02\x01\x01\0\0\x02\x01\x01\0\x01\x02\x02\x01\0\0\x02\x02\x01\0\x01\0\0\x02\0\0\0\0\x02\0\x01\0\x01\x02\0\0\0\x01\x02\0\x01\0\x02\x02\0\0\0\x02\x02\0\x01\x01\0\x02\0\0\x01\0\x02\0\x01\x01\x01\x02\0\0\x01\x01\x02\0\x01\x01\x02\x02\0\0\x01\x02\x02\0\x01\x02\0\x02\0\0\x02\0\x02\0\x01\x02\x01\x02\0\0\x02\x01\x02\0\x01\x02\x02\x02\0\0\x02\x02\x02\0\x01\0\0\0\x01\0\0\0\0\x01\x01\0\x01\0\x01\0\0\x01\0\x01\x01\0\x02\0\x01\0\0\x02\0\x01\x01\x01\0\0\x01\0\x01\0\0\x01\x01\x01\x01\0\x01\0\x01\x01\0\x01\x01\x01\x02\0\x01\0\x01\x02\0\x01\x01\x02\0\0\x01\0\x02\0\0\x01\x01\x02\x01\0\x01\0\x02\x01\0\x01\x01\x02\x02\0\x01\0\x02\x02\0\x01\x01\0\0\x01\x01\0\0\0\x01\x01\x01\0\x01\x01\x01\0\0\x01\x01\x01\x01\0\x02\x01\x01\0\0\x02\x01\x01\x01\x01\0\x01\x01\0\x01\0\x01\x01\x01\x01\x01\x01\x01\0\x01\x01\x01\x01\x01\x01\x02\x01\x01\0\x01\x02\x01\x01\x01\x02\0\x01\x01\0\x02\0\x01\x01\x01\x02\x01\x01\x01\0\x02\x01\x01\x01\x01\x02\x02\x01\x01\0\x02\x02\x01\x01\x01\0\0\x02\x01\0\0\0\x02\x01\x01\0\x01\x02\x01\0\0\x01\x02\x01\x01\0\x02\x02\x01\0\0\x02\x02\x01\x01\x01\0\x02\x01\0\x01\0\x02\x01\x01\x01\x01\x02\x01\0\x01\x01\x02\x01\x01\x01\x02\x02\x01\0\x01\x02\x02\x01\x01\x02\0\x02\x01\0\x02\0\x02\x01\x01\x02\x01\x02\x01\0\x02\x01\x02\x01\x01\x02\x02\x02\x01\0\x02\x02\x02\x01\x01\0\0\0\x02\0\0\0\0\x02\x01\0\x01\0\x02\0\0\x01\0\x02\x01\0\x02\0\x02\0\0\x02\0\x02\x01\x01\0\0\x02\0\x01\0\0\x02\x01\x01\x01\0\x02\0\x01\x01\0\x02\x01\x01\x02\0\x02\0\x01\x02\0\x02\x01\x02\0\0\x02\0\x02\0\0\x02\x01\x02\x01\0\x02\0\x02\x01\0\x02\x01\x02\x02\0\x02\0\x02\x02\0\x02\x01\0\0\x01\x02\0\0\0\x01\x02\x01\0\x01\x01\x02\0\0\x01\x01\x02\x01\0\x02\x01\x02\0\0\x02\x01\x02\x01\x01\0\x01\x02\0\x01\0\x01\x02\x01\x01\x01\x01\x02\0\x01\x01\x01\x02\x01\x01\x02\x01\x02\0\x01\x02\x01\x02\x01\x02\0\x01\x02\0\x02\0\x01\x02\x01\x02\x01\x01\x02\0\x02\x01\x01\x02\x01\x02\x02\x01\x02\0\x02\x02\x01\x02\x01\0\0\x02\x02\0\0\0\x02\x02\x01\0\x01\x02\x02\0\0\x01\x02\x02\x01\0\x02\x02\x02\0\0\x02\x02\x02\x01\x01\0\x02\x02\0\x01\0\x02\x02\x01\x01\x01\x02\x02\0\x01\x01\x02\x02\x01\x01\x02\x02\x02\0\x01\x02\x02\x02\x01\x02\0\x02\x02\0\x02\0\x02\x02\x01\x02\x01\x02\x02\0\x02\x01\x02\x02\x01\x02\x02\x02\x02\0\x02\x02\x02\x02\x01",
+        server_definition: None,
     },
     BlockData {
         id: 4366u32,
@@ -10238,6 +10562,9 @@ pub static ALL_BLOCKS: [BlockData; 1477usize] = [
             },
         ],
         state_values: b"\0\0\0\0\0\x01\0\0\x02\0\0\x03\0\x01\0\0\x01\x01\0\x01\x02\0\x01\x03\x01\0\0\x01\0\x01\x01\0\x02\x01\0\x03\x01\x01\0\x01\x01\x01\x01\x01\x02\x01\x01\x03\x02\0\0\x02\0\x01\x02\0\x02\x02\0\x03\x02\x01\0\x02\x01\x01\x02\x01\x02\x02\x01\x03\x03\0\0\x03\0\x01\x03\0\x02\x03\0\x03\x03\x01\0\x03\x01\x01\x03\x01\x02\x03\x01\x03\x04\0\0\x04\0\x01\x04\0\x02\x04\0\x03\x04\x01\0\x04\x01\x01\x04\x01\x02\x04\x01\x03",
+        server_definition: Some(
+            b"\n\0\t\tblockTags\x08\x02&minecraft:is_pickaxe_item_destructible\n\ncomponents\n minecraft:destructible_by_mining\x05\x05valueff\xE6?\0\n\x1Fminecraft:destruction_particles\x03\x0Eparticle_count`\x08\x07texture\0\x08\x0Btint_method\x04none\0\n\x1Aminecraft:liquid_detection\t\x0EdetectionRules\n\x02\x01\x10canContainLiquid\x01\x08\nliquidType\x05water\x08\x0FonLiquidTouches\x08blocking\x01\x18stopsLiquidFromDirection\0\x01\x13use_liquid_clipping\0\0\0\n\x1Fminecraft:redstone_conductivity\x01\x14allowsWireToStepDown\x01\x01\x11redstoneConductor\0\0\n\x11minecraft:support\x08\x05shape\x05stair\0\0\n\rmenu_category\x08\x08category\x0Cconstruction\x08\x05group\x1Fminecraft:itemGroup.name.stairs\x01\x15is_hidden_in_commands\0\0\x03\rmolangVersion\x1A\n\x12vanilla_block_data\n\x0Fblock_archetype\x08\nbase_block\x17minecraft:lime_concrete\x08\x04type\x0Bstair_block\0\x03\x08block_id\xEA\x16\x08\x08material\x05solid\x01\x1Frequires_correct_tool_for_drops\x01\0\0",
+        ),
     },
     BlockData {
         id: 4406u32,
@@ -10264,6 +10591,7 @@ pub static ALL_BLOCKS: [BlockData; 1477usize] = [
         visual_shape: [0f32, 0f32, 0f32, 1f32, 1f32, 1f32],
         properties: &[],
         state_values: b"",
+        server_definition: None,
     },
     BlockData {
         id: 4407u32,
@@ -10295,6 +10623,9 @@ pub static ALL_BLOCKS: [BlockData; 1477usize] = [
             },
         ],
         state_values: b"\0\x01",
+        server_definition: Some(
+            b"\n\0\t\tblockTags\x08\x02&minecraft:is_pickaxe_item_destructible\n\ncomponents\n minecraft:destructible_by_mining\x05\x05valueff\xE6?\0\n\x1Fminecraft:redstone_conductivity\x01\x14allowsWireToStepDown\x01\x01\x11redstoneConductor\x01\0\0\n\rmenu_category\x08\x08category\x04none\x08\x05group\0\x01\x15is_hidden_in_commands\x01\0\x03\rmolangVersion\x1A\n\x12vanilla_block_data\n\x0Fblock_archetype\x08\x11double_slab_block\"minecraft:light_blue_concrete_slab\x01\tis_double\x01\x08\x04type\nslab_block\0\x03\x08block_id\xB2\x17\x08\x08material\x05solid\x01\x1Frequires_correct_tool_for_drops\x01\0\0",
+        ),
     },
     BlockData {
         id: 4409u32,
@@ -10334,6 +10665,7 @@ pub static ALL_BLOCKS: [BlockData; 1477usize] = [
             },
         ],
         state_values: b"\0\0\x01\0\0\x01\x01\x01",
+        server_definition: None,
     },
     BlockData {
         id: 4413u32,
@@ -10360,6 +10692,7 @@ pub static ALL_BLOCKS: [BlockData; 1477usize] = [
         visual_shape: [0f32, 0f32, 0f32, 1f32, 1f32, 1f32],
         properties: &[],
         state_values: b"",
+        server_definition: None,
     },
     BlockData {
         id: 4414u32,
@@ -10403,6 +10736,7 @@ pub static ALL_BLOCKS: [BlockData; 1477usize] = [
             },
         ],
         state_values: b"\0\0\0\0\0\x01\0\0\x01\0\0\0\x01\x01\0\0\0\0\x01\0\0\x01\x01\0\x01\0\x01\0\x01\x01\x01\0\0\0\0\x01\0\x01\0\x01\x01\0\0\x01\x01\x01\0\x01\0\0\x01\x01\0\x01\x01\x01\x01\0\x01\x01\x01\x01\x01\x01",
+        server_definition: None,
     },
     BlockData {
         id: 4430u32,
@@ -10441,6 +10775,7 @@ pub static ALL_BLOCKS: [BlockData; 1477usize] = [
             },
         ],
         state_values: b"\0\x01\x02\x03\x04\x05",
+        server_definition: None,
     },
     BlockData {
         id: 4436u32,
@@ -10472,6 +10807,7 @@ pub static ALL_BLOCKS: [BlockData; 1477usize] = [
             },
         ],
         state_values: b"\0\x01",
+        server_definition: None,
     },
     BlockData {
         id: 4438u32,
@@ -10535,6 +10871,7 @@ pub static ALL_BLOCKS: [BlockData; 1477usize] = [
             },
         ],
         state_values: b"\0\0\0\0\0\0\0\0\0\x01\0\x01\0\0\0\0\x01\0\0\x01\0\x02\0\0\0\0\x02\0\0\x01\x01\0\0\0\0\x01\0\0\0\x01\x01\x01\0\0\0\x01\x01\0\0\x01\x01\x02\0\0\0\x01\x02\0\0\x01\x02\0\0\0\0\x02\0\0\0\x01\x02\x01\0\0\0\x02\x01\0\0\x01\x02\x02\0\0\0\x02\x02\0\0\x01\0\0\x01\0\0\0\0\x01\0\x01\0\x01\x01\0\0\0\x01\x01\0\x01\0\x02\x01\0\0\0\x02\x01\0\x01\x01\0\x01\0\0\x01\0\x01\0\x01\x01\x01\x01\0\0\x01\x01\x01\0\x01\x01\x02\x01\0\0\x01\x02\x01\0\x01\x02\0\x01\0\0\x02\0\x01\0\x01\x02\x01\x01\0\0\x02\x01\x01\0\x01\x02\x02\x01\0\0\x02\x02\x01\0\x01\0\0\x02\0\0\0\0\x02\0\x01\0\x01\x02\0\0\0\x01\x02\0\x01\0\x02\x02\0\0\0\x02\x02\0\x01\x01\0\x02\0\0\x01\0\x02\0\x01\x01\x01\x02\0\0\x01\x01\x02\0\x01\x01\x02\x02\0\0\x01\x02\x02\0\x01\x02\0\x02\0\0\x02\0\x02\0\x01\x02\x01\x02\0\0\x02\x01\x02\0\x01\x02\x02\x02\0\0\x02\x02\x02\0\x01\0\0\0\x01\0\0\0\0\x01\x01\0\x01\0\x01\0\0\x01\0\x01\x01\0\x02\0\x01\0\0\x02\0\x01\x01\x01\0\0\x01\0\x01\0\0\x01\x01\x01\x01\0\x01\0\x01\x01\0\x01\x01\x01\x02\0\x01\0\x01\x02\0\x01\x01\x02\0\0\x01\0\x02\0\0\x01\x01\x02\x01\0\x01\0\x02\x01\0\x01\x01\x02\x02\0\x01\0\x02\x02\0\x01\x01\0\0\x01\x01\0\0\0\x01\x01\x01\0\x01\x01\x01\0\0\x01\x01\x01\x01\0\x02\x01\x01\0\0\x02\x01\x01\x01\x01\0\x01\x01\0\x01\0\x01\x01\x01\x01\x01\x01\x01\0\x01\x01\x01\x01\x01\x01\x02\x01\x01\0\x01\x02\x01\x01\x01\x02\0\x01\x01\0\x02\0\x01\x01\x01\x02\x01\x01\x01\0\x02\x01\x01\x01\x01\x02\x02\x01\x01\0\x02\x02\x01\x01\x01\0\0\x02\x01\0\0\0\x02\x01\x01\0\x01\x02\x01\0\0\x01\x02\x01\x01\0\x02\x02\x01\0\0\x02\x02\x01\x01\x01\0\x02\x01\0\x01\0\x02\x01\x01\x01\x01\x02\x01\0\x01\x01\x02\x01\x01\x01\x02\x02\x01\0\x01\x02\x02\x01\x01\x02\0\x02\x01\0\x02\0\x02\x01\x01\x02\x01\x02\x01\0\x02\x01\x02\x01\x01\x02\x02\x02\x01\0\x02\x02\x02\x01\x01\0\0\0\x02\0\0\0\0\x02\x01\0\x01\0\x02\0\0\x01\0\x02\x01\0\x02\0\x02\0\0\x02\0\x02\x01\x01\0\0\x02\0\x01\0\0\x02\x01\x01\x01\0\x02\0\x01\x01\0\x02\x01\x01\x02\0\x02\0\x01\x02\0\x02\x01\x02\0\0\x02\0\x02\0\0\x02\x01\x02\x01\0\x02\0\x02\x01\0\x02\x01\x02\x02\0\x02\0\x02\x02\0\x02\x01\0\0\x01\x02\0\0\0\x01\x02\x01\0\x01\x01\x02\0\0\x01\x01\x02\x01\0\x02\x01\x02\0\0\x02\x01\x02\x01\x01\0\x01\x02\0\x01\0\x01\x02\x01\x01\x01\x01\x02\0\x01\x01\x01\x02\x01\x01\x02\x01\x02\0\x01\x02\x01\x02\x01\x02\0\x01\x02\0\x02\0\x01\x02\x01\x02\x01\x01\x02\0\x02\x01\x01\x02\x01\x02\x02\x01\x02\0\x02\x02\x01\x02\x01\0\0\x02\x02\0\0\0\x02\x02\x01\0\x01\x02\x02\0\0\x01\x02\x02\x01\0\x02\x02\x02\0\0\x02\x02\x02\x01\x01\0\x02\x02\0\x01\0\x02\x02\x01\x01\x01\x02\x02\0\x01\x01\x02\x02\x01\x01\x02\x02\x02\0\x01\x02\x02\x02\x01\x02\0\x02\x02\0\x02\0\x02\x02\x01\x02\x01\x02\x02\0\x02\x01\x02\x02\x01\x02\x02\x02\x02\0\x02\x02\x02\x02\x01",
+        server_definition: None,
     },
     BlockData {
         id: 4600u32,
@@ -10566,6 +10903,7 @@ pub static ALL_BLOCKS: [BlockData; 1477usize] = [
             },
         ],
         state_values: b"\0\x01",
+        server_definition: None,
     },
     BlockData {
         id: 4602u32,
@@ -10604,6 +10942,7 @@ pub static ALL_BLOCKS: [BlockData; 1477usize] = [
             },
         ],
         state_values: b"\0\x01\x02\x03\x04\x05",
+        server_definition: None,
     },
     BlockData {
         id: 4608u32,
@@ -10647,6 +10986,7 @@ pub static ALL_BLOCKS: [BlockData; 1477usize] = [
             },
         ],
         state_values: b"\0\0\0\0\0\x01\0\0\x01\0\0\0\x01\x01\0\0\0\0\x01\0\0\x01\x01\0\x01\0\x01\0\x01\x01\x01\0\0\0\0\x01\0\x01\0\x01\x01\0\0\x01\x01\x01\0\x01\0\0\x01\x01\0\x01\x01\x01\x01\0\x01\x01\x01\x01\x01\x01",
+        server_definition: None,
     },
     BlockData {
         id: 4624u32,
@@ -10673,6 +11013,7 @@ pub static ALL_BLOCKS: [BlockData; 1477usize] = [
         visual_shape: [0f32, 0f32, 0f32, 1f32, 1f32, 1f32],
         properties: &[],
         state_values: b"",
+        server_definition: None,
     },
     BlockData {
         id: 4625u32,
@@ -10699,6 +11040,7 @@ pub static ALL_BLOCKS: [BlockData; 1477usize] = [
         visual_shape: [0.0625f32, 0f32, 0.0625f32, 0.9375f32, 0.09375f32, 0.9375f32],
         properties: &[],
         state_values: b"",
+        server_definition: None,
     },
     BlockData {
         id: 4626u32,
@@ -10730,6 +11072,9 @@ pub static ALL_BLOCKS: [BlockData; 1477usize] = [
             },
         ],
         state_values: b"\0\x01",
+        server_definition: Some(
+            b"\n\0\t\tblockTags\x08\x02%minecraft:is_shears_item_destructible\n\ncomponents\n minecraft:destructible_by_mining\x05\x05value\xCD\xCCL?\0\n\x1Fminecraft:redstone_conductivity\x01\x14allowsWireToStepDown\x01\x01\x11redstoneConductor\x01\0\0\n\rmenu_category\x08\x08category\x04none\x08\x05group\0\x01\x15is_hidden_in_commands\x01\0\x03\rmolangVersion\x1A\n\x12vanilla_block_data\n\x0Fblock_archetype\x08\x11double_slab_block\x1Aminecraft:orange_wool_slab\x01\tis_double\x01\x08\x04type\nslab_block\0\x03\x08block_id\xC4\x16\x01\x15can_dampen_vibrations\x01\x01\x16can_occlude_vibrations\x01\x08\x08material\x05solid\0\0",
+        ),
     },
     BlockData {
         id: 4628u32,
@@ -10765,6 +11110,7 @@ pub static ALL_BLOCKS: [BlockData; 1477usize] = [
             },
         ],
         state_values: b"\0\x01\x02",
+        server_definition: None,
     },
     BlockData {
         id: 4631u32,
@@ -10791,6 +11137,7 @@ pub static ALL_BLOCKS: [BlockData; 1477usize] = [
         visual_shape: [0f32, 0f32, 0f32, 1f32, 1f32, 1f32],
         properties: &[],
         state_values: b"",
+        server_definition: None,
     },
     BlockData {
         id: 4632u32,
@@ -10820,6 +11167,7 @@ pub static ALL_BLOCKS: [BlockData; 1477usize] = [
         visual_shape: [0f32, 0f32, 0f32, 1f32, 1f32, 1f32],
         properties: &[],
         state_values: b"",
+        server_definition: None,
     },
     BlockData {
         id: 4633u32,
@@ -10860,6 +11208,7 @@ pub static ALL_BLOCKS: [BlockData; 1477usize] = [
             },
         ],
         state_values: b"\0\0\0\x01\x01\0\x01\x01\x02\0\x02\x01\x03\0\x03\x01",
+        server_definition: None,
     },
     BlockData {
         id: 4641u32,
@@ -10923,6 +11272,7 @@ pub static ALL_BLOCKS: [BlockData; 1477usize] = [
             },
         ],
         state_values: b"\0\0\0\0\0\0\0\0\0\x01\0\x01\0\0\0\0\x01\0\0\x01\0\x02\0\0\0\0\x02\0\0\x01\x01\0\0\0\0\x01\0\0\0\x01\x01\x01\0\0\0\x01\x01\0\0\x01\x01\x02\0\0\0\x01\x02\0\0\x01\x02\0\0\0\0\x02\0\0\0\x01\x02\x01\0\0\0\x02\x01\0\0\x01\x02\x02\0\0\0\x02\x02\0\0\x01\0\0\x01\0\0\0\0\x01\0\x01\0\x01\x01\0\0\0\x01\x01\0\x01\0\x02\x01\0\0\0\x02\x01\0\x01\x01\0\x01\0\0\x01\0\x01\0\x01\x01\x01\x01\0\0\x01\x01\x01\0\x01\x01\x02\x01\0\0\x01\x02\x01\0\x01\x02\0\x01\0\0\x02\0\x01\0\x01\x02\x01\x01\0\0\x02\x01\x01\0\x01\x02\x02\x01\0\0\x02\x02\x01\0\x01\0\0\x02\0\0\0\0\x02\0\x01\0\x01\x02\0\0\0\x01\x02\0\x01\0\x02\x02\0\0\0\x02\x02\0\x01\x01\0\x02\0\0\x01\0\x02\0\x01\x01\x01\x02\0\0\x01\x01\x02\0\x01\x01\x02\x02\0\0\x01\x02\x02\0\x01\x02\0\x02\0\0\x02\0\x02\0\x01\x02\x01\x02\0\0\x02\x01\x02\0\x01\x02\x02\x02\0\0\x02\x02\x02\0\x01\0\0\0\x01\0\0\0\0\x01\x01\0\x01\0\x01\0\0\x01\0\x01\x01\0\x02\0\x01\0\0\x02\0\x01\x01\x01\0\0\x01\0\x01\0\0\x01\x01\x01\x01\0\x01\0\x01\x01\0\x01\x01\x01\x02\0\x01\0\x01\x02\0\x01\x01\x02\0\0\x01\0\x02\0\0\x01\x01\x02\x01\0\x01\0\x02\x01\0\x01\x01\x02\x02\0\x01\0\x02\x02\0\x01\x01\0\0\x01\x01\0\0\0\x01\x01\x01\0\x01\x01\x01\0\0\x01\x01\x01\x01\0\x02\x01\x01\0\0\x02\x01\x01\x01\x01\0\x01\x01\0\x01\0\x01\x01\x01\x01\x01\x01\x01\0\x01\x01\x01\x01\x01\x01\x02\x01\x01\0\x01\x02\x01\x01\x01\x02\0\x01\x01\0\x02\0\x01\x01\x01\x02\x01\x01\x01\0\x02\x01\x01\x01\x01\x02\x02\x01\x01\0\x02\x02\x01\x01\x01\0\0\x02\x01\0\0\0\x02\x01\x01\0\x01\x02\x01\0\0\x01\x02\x01\x01\0\x02\x02\x01\0\0\x02\x02\x01\x01\x01\0\x02\x01\0\x01\0\x02\x01\x01\x01\x01\x02\x01\0\x01\x01\x02\x01\x01\x01\x02\x02\x01\0\x01\x02\x02\x01\x01\x02\0\x02\x01\0\x02\0\x02\x01\x01\x02\x01\x02\x01\0\x02\x01\x02\x01\x01\x02\x02\x02\x01\0\x02\x02\x02\x01\x01\0\0\0\x02\0\0\0\0\x02\x01\0\x01\0\x02\0\0\x01\0\x02\x01\0\x02\0\x02\0\0\x02\0\x02\x01\x01\0\0\x02\0\x01\0\0\x02\x01\x01\x01\0\x02\0\x01\x01\0\x02\x01\x01\x02\0\x02\0\x01\x02\0\x02\x01\x02\0\0\x02\0\x02\0\0\x02\x01\x02\x01\0\x02\0\x02\x01\0\x02\x01\x02\x02\0\x02\0\x02\x02\0\x02\x01\0\0\x01\x02\0\0\0\x01\x02\x01\0\x01\x01\x02\0\0\x01\x01\x02\x01\0\x02\x01\x02\0\0\x02\x01\x02\x01\x01\0\x01\x02\0\x01\0\x01\x02\x01\x01\x01\x01\x02\0\x01\x01\x01\x02\x01\x01\x02\x01\x02\0\x01\x02\x01\x02\x01\x02\0\x01\x02\0\x02\0\x01\x02\x01\x02\x01\x01\x02\0\x02\x01\x01\x02\x01\x02\x02\x01\x02\0\x02\x02\x01\x02\x01\0\0\x02\x02\0\0\0\x02\x02\x01\0\x01\x02\x02\0\0\x01\x02\x02\x01\0\x02\x02\x02\0\0\x02\x02\x02\x01\x01\0\x02\x02\0\x01\0\x02\x02\x01\x01\x01\x02\x02\0\x01\x01\x02\x02\x01\x01\x02\x02\x02\0\x01\x02\x02\x02\x01\x02\0\x02\x02\0\x02\0\x02\x02\x01\x02\x01\x02\x02\0\x02\x01\x02\x02\x01\x02\x02\x02\x02\0\x02\x02\x02\x02\x01",
+        server_definition: None,
     },
     BlockData {
         id: 4803u32,
@@ -10971,6 +11321,7 @@ pub static ALL_BLOCKS: [BlockData; 1477usize] = [
             },
         ],
         state_values: b"\0\x01\x02\x03\x04\x05\x06\x07\x08\t\n\x0B\x0C\r\x0E\x0F",
+        server_definition: None,
     },
     BlockData {
         id: 4819u32,
@@ -11021,6 +11372,9 @@ pub static ALL_BLOCKS: [BlockData; 1477usize] = [
             },
         ],
         state_values: b"\0\0\0\0\0\x01\0\0\x02\0\0\x03\0\x01\0\0\x01\x01\0\x01\x02\0\x01\x03\x01\0\0\x01\0\x01\x01\0\x02\x01\0\x03\x01\x01\0\x01\x01\x01\x01\x01\x02\x01\x01\x03\x02\0\0\x02\0\x01\x02\0\x02\x02\0\x03\x02\x01\0\x02\x01\x01\x02\x01\x02\x02\x01\x03\x03\0\0\x03\0\x01\x03\0\x02\x03\0\x03\x03\x01\0\x03\x01\x01\x03\x01\x02\x03\x01\x03\x04\0\0\x04\0\x01\x04\0\x02\x04\0\x03\x04\x01\0\x04\x01\x01\x04\x01\x02\x04\x01\x03",
+        server_definition: Some(
+            b"\n\0\t\tblockTags\x08\x02%minecraft:is_shears_item_destructible\n\ncomponents\n minecraft:destructible_by_mining\x05\x05value\xCD\xCCL?\0\n\x1Fminecraft:destruction_particles\x03\x0Eparticle_count`\x08\x07texture\0\x08\x0Btint_method\x04none\0\n\x1Aminecraft:liquid_detection\t\x0EdetectionRules\n\x02\x01\x10canContainLiquid\x01\x08\nliquidType\x05water\x08\x0FonLiquidTouches\x08blocking\x01\x18stopsLiquidFromDirection\0\x01\x13use_liquid_clipping\0\0\0\n\x1Fminecraft:redstone_conductivity\x01\x14allowsWireToStepDown\x01\x01\x11redstoneConductor\0\0\n\x11minecraft:support\x08\x05shape\x05stair\0\0\n\rmenu_category\x08\x08category\x0Cconstruction\x08\x05group\x1Fminecraft:itemGroup.name.stairs\x01\x15is_hidden_in_commands\0\0\x03\rmolangVersion\x1A\n\x12vanilla_block_data\n\x0Fblock_archetype\x08\nbase_block\x14minecraft:black_wool\x08\x04type\x0Bstair_block\0\x03\x08block_id\x96\x16\x01\x15can_dampen_vibrations\x01\x01\x16can_occlude_vibrations\x01\x08\x08material\x05solid\x05\x0Ctranslucency\xCD\xCCL?\0\0",
+        ),
     },
     BlockData {
         id: 4859u32,
@@ -11088,6 +11442,7 @@ pub static ALL_BLOCKS: [BlockData; 1477usize] = [
             },
         ],
         state_values: b"\0\0\0\0\0\x01\0\0\0\x02\0\0\0\x03\0\0\0\x04\0\0\0\x05\0\0\0\0\x01\0\0\x01\x01\0\0\x02\x01\0\0\x03\x01\0\0\x04\x01\0\0\x05\x01\0\0\0\x02\0\0\x01\x02\0\0\x02\x02\0\0\x03\x02\0\0\x04\x02\0\0\x05\x02\0\0\0\x03\0\0\x01\x03\0\0\x02\x03\0\0\x03\x03\0\0\x04\x03\0\0\x05\x03\0\0\0\x04\0\0\x01\x04\0\0\x02\x04\0\0\x03\x04\0\0\x04\x04\0\0\x05\x04\0\0\0\x05\0\0\x01\x05\0\0\x02\x05\0\0\x03\x05\0\0\x04\x05\0\0\x05\x05\0\0\0\x06\0\0\x01\x06\0\0\x02\x06\0\0\x03\x06\0\0\x04\x06\0\0\x05\x06\0\0\0\x07\0\0\x01\x07\0\0\x02\x07\0\0\x03\x07\0\0\x04\x07\0\0\x05\x07\0\0\0\x08\0\0\x01\x08\0\0\x02\x08\0\0\x03\x08\0\0\x04\x08\0\0\x05\x08\0\0\0\t\0\0\x01\t\0\0\x02\t\0\0\x03\t\0\0\x04\t\0\0\x05\t\0\0\0\n\0\0\x01\n\0\0\x02\n\0\0\x03\n\0\0\x04\n\0\0\x05\n\0\0\0\x0B\0\0\x01\x0B\0\0\x02\x0B\0\0\x03\x0B\0\0\x04\x0B\0\0\x05\x0B\0\0\0\x0C\0\0\x01\x0C\0\0\x02\x0C\0\0\x03\x0C\0\0\x04\x0C\0\0\x05\x0C\0\0\0\r\0\0\x01\r\0\0\x02\r\0\0\x03\r\0\0\x04\r\0\0\x05\r\0\0\0\x0E\0\0\x01\x0E\0\0\x02\x0E\0\0\x03\x0E\0\0\x04\x0E\0\0\x05\x0E\0\0\0\x0F\0\0\x01\x0F\0\0\x02\x0F\0\0\x03\x0F\0\0\x04\x0F\0\0\x05\x0F\0\0\0\0\x01\0\x01\0\x01\0\x02\0\x01\0\x03\0\x01\0\x04\0\x01\0\x05\0\x01\0\0\x01\x01\0\x01\x01\x01\0\x02\x01\x01\0\x03\x01\x01\0\x04\x01\x01\0\x05\x01\x01\0\0\x02\x01\0\x01\x02\x01\0\x02\x02\x01\0\x03\x02\x01\0\x04\x02\x01\0\x05\x02\x01\0\0\x03\x01\0\x01\x03\x01\0\x02\x03\x01\0\x03\x03\x01\0\x04\x03\x01\0\x05\x03\x01\0\0\x04\x01\0\x01\x04\x01\0\x02\x04\x01\0\x03\x04\x01\0\x04\x04\x01\0\x05\x04\x01\0\0\x05\x01\0\x01\x05\x01\0\x02\x05\x01\0\x03\x05\x01\0\x04\x05\x01\0\x05\x05\x01\0\0\x06\x01\0\x01\x06\x01\0\x02\x06\x01\0\x03\x06\x01\0\x04\x06\x01\0\x05\x06\x01\0\0\x07\x01\0\x01\x07\x01\0\x02\x07\x01\0\x03\x07\x01\0\x04\x07\x01\0\x05\x07\x01\0\0\x08\x01\0\x01\x08\x01\0\x02\x08\x01\0\x03\x08\x01\0\x04\x08\x01\0\x05\x08\x01\0\0\t\x01\0\x01\t\x01\0\x02\t\x01\0\x03\t\x01\0\x04\t\x01\0\x05\t\x01\0\0\n\x01\0\x01\n\x01\0\x02\n\x01\0\x03\n\x01\0\x04\n\x01\0\x05\n\x01\0\0\x0B\x01\0\x01\x0B\x01\0\x02\x0B\x01\0\x03\x0B\x01\0\x04\x0B\x01\0\x05\x0B\x01\0\0\x0C\x01\0\x01\x0C\x01\0\x02\x0C\x01\0\x03\x0C\x01\0\x04\x0C\x01\0\x05\x0C\x01\0\0\r\x01\0\x01\r\x01\0\x02\r\x01\0\x03\r\x01\0\x04\r\x01\0\x05\r\x01\0\0\x0E\x01\0\x01\x0E\x01\0\x02\x0E\x01\0\x03\x0E\x01\0\x04\x0E\x01\0\x05\x0E\x01\0\0\x0F\x01\0\x01\x0F\x01\0\x02\x0F\x01\0\x03\x0F\x01\0\x04\x0F\x01\0\x05\x0F\x01\x01\0\0\0\x01\x01\0\0\x01\x02\0\0\x01\x03\0\0\x01\x04\0\0\x01\x05\0\0\x01\0\x01\0\x01\x01\x01\0\x01\x02\x01\0\x01\x03\x01\0\x01\x04\x01\0\x01\x05\x01\0\x01\0\x02\0\x01\x01\x02\0\x01\x02\x02\0\x01\x03\x02\0\x01\x04\x02\0\x01\x05\x02\0\x01\0\x03\0\x01\x01\x03\0\x01\x02\x03\0\x01\x03\x03\0\x01\x04\x03\0\x01\x05\x03\0\x01\0\x04\0\x01\x01\x04\0\x01\x02\x04\0\x01\x03\x04\0\x01\x04\x04\0\x01\x05\x04\0\x01\0\x05\0\x01\x01\x05\0\x01\x02\x05\0\x01\x03\x05\0\x01\x04\x05\0\x01\x05\x05\0\x01\0\x06\0\x01\x01\x06\0\x01\x02\x06\0\x01\x03\x06\0\x01\x04\x06\0\x01\x05\x06\0\x01\0\x07\0\x01\x01\x07\0\x01\x02\x07\0\x01\x03\x07\0\x01\x04\x07\0\x01\x05\x07\0\x01\0\x08\0\x01\x01\x08\0\x01\x02\x08\0\x01\x03\x08\0\x01\x04\x08\0\x01\x05\x08\0\x01\0\t\0\x01\x01\t\0\x01\x02\t\0\x01\x03\t\0\x01\x04\t\0\x01\x05\t\0\x01\0\n\0\x01\x01\n\0\x01\x02\n\0\x01\x03\n\0\x01\x04\n\0\x01\x05\n\0\x01\0\x0B\0\x01\x01\x0B\0\x01\x02\x0B\0\x01\x03\x0B\0\x01\x04\x0B\0\x01\x05\x0B\0\x01\0\x0C\0\x01\x01\x0C\0\x01\x02\x0C\0\x01\x03\x0C\0\x01\x04\x0C\0\x01\x05\x0C\0\x01\0\r\0\x01\x01\r\0\x01\x02\r\0\x01\x03\r\0\x01\x04\r\0\x01\x05\r\0\x01\0\x0E\0\x01\x01\x0E\0\x01\x02\x0E\0\x01\x03\x0E\0\x01\x04\x0E\0\x01\x05\x0E\0\x01\0\x0F\0\x01\x01\x0F\0\x01\x02\x0F\0\x01\x03\x0F\0\x01\x04\x0F\0\x01\x05\x0F\0\x01\0\0\x01\x01\x01\0\x01\x01\x02\0\x01\x01\x03\0\x01\x01\x04\0\x01\x01\x05\0\x01\x01\0\x01\x01\x01\x01\x01\x01\x01\x02\x01\x01\x01\x03\x01\x01\x01\x04\x01\x01\x01\x05\x01\x01\x01\0\x02\x01\x01\x01\x02\x01\x01\x02\x02\x01\x01\x03\x02\x01\x01\x04\x02\x01\x01\x05\x02\x01\x01\0\x03\x01\x01\x01\x03\x01\x01\x02\x03\x01\x01\x03\x03\x01\x01\x04\x03\x01\x01\x05\x03\x01\x01\0\x04\x01\x01\x01\x04\x01\x01\x02\x04\x01\x01\x03\x04\x01\x01\x04\x04\x01\x01\x05\x04\x01\x01\0\x05\x01\x01\x01\x05\x01\x01\x02\x05\x01\x01\x03\x05\x01\x01\x04\x05\x01\x01\x05\x05\x01\x01\0\x06\x01\x01\x01\x06\x01\x01\x02\x06\x01\x01\x03\x06\x01\x01\x04\x06\x01\x01\x05\x06\x01\x01\0\x07\x01\x01\x01\x07\x01\x01\x02\x07\x01\x01\x03\x07\x01\x01\x04\x07\x01\x01\x05\x07\x01\x01\0\x08\x01\x01\x01\x08\x01\x01\x02\x08\x01\x01\x03\x08\x01\x01\x04\x08\x01\x01\x05\x08\x01\x01\0\t\x01\x01\x01\t\x01\x01\x02\t\x01\x01\x03\t\x01\x01\x04\t\x01\x01\x05\t\x01\x01\0\n\x01\x01\x01\n\x01\x01\x02\n\x01\x01\x03\n\x01\x01\x04\n\x01\x01\x05\n\x01\x01\0\x0B\x01\x01\x01\x0B\x01\x01\x02\x0B\x01\x01\x03\x0B\x01\x01\x04\x0B\x01\x01\x05\x0B\x01\x01\0\x0C\x01\x01\x01\x0C\x01\x01\x02\x0C\x01\x01\x03\x0C\x01\x01\x04\x0C\x01\x01\x05\x0C\x01\x01\0\r\x01\x01\x01\r\x01\x01\x02\r\x01\x01\x03\r\x01\x01\x04\r\x01\x01\x05\r\x01\x01\0\x0E\x01\x01\x01\x0E\x01\x01\x02\x0E\x01\x01\x03\x0E\x01\x01\x04\x0E\x01\x01\x05\x0E\x01\x01\0\x0F\x01\x01\x01\x0F\x01\x01\x02\x0F\x01\x01\x03\x0F\x01\x01\x04\x0F\x01\x01\x05\x0F\x01",
+        server_definition: None,
     },
     BlockData {
         id: 5243u32,
@@ -11114,6 +11469,7 @@ pub static ALL_BLOCKS: [BlockData; 1477usize] = [
         visual_shape: [0f32, 0f32, 0f32, 1f32, 1f32, 1f32],
         properties: &[],
         state_values: b"",
+        server_definition: None,
     },
     BlockData {
         id: 5244u32,
@@ -11159,6 +11515,7 @@ pub static ALL_BLOCKS: [BlockData; 1477usize] = [
             },
         ],
         state_values: b"\0\0\x01\0\x02\0\x03\0\x04\0\x05\0\0\x01\x01\x01\x02\x01\x03\x01\x04\x01\x05\x01",
+        server_definition: None,
     },
     BlockData {
         id: 5256u32,
@@ -11194,6 +11551,7 @@ pub static ALL_BLOCKS: [BlockData; 1477usize] = [
             },
         ],
         state_values: b"\0\0\0\x01\x01\0\x01\x01",
+        server_definition: None,
     },
     BlockData {
         id: 5260u32,
@@ -11237,6 +11595,7 @@ pub static ALL_BLOCKS: [BlockData; 1477usize] = [
             },
         ],
         state_values: b"\0\0\0\0\0\x01\0\0\x01\0\0\0\x01\x01\0\0\0\0\x01\0\0\x01\x01\0\x01\0\x01\0\x01\x01\x01\0\0\0\0\x01\0\x01\0\x01\x01\0\0\x01\x01\x01\0\x01\0\0\x01\x01\0\x01\x01\x01\x01\0\x01\x01\x01\x01\x01\x01",
+        server_definition: None,
     },
     BlockData {
         id: 5276u32,
@@ -11300,6 +11659,7 @@ pub static ALL_BLOCKS: [BlockData; 1477usize] = [
             },
         ],
         state_values: b"\0\0\0\0\0\0\0\0\0\x01\0\x01\0\0\0\0\x01\0\0\x01\0\x02\0\0\0\0\x02\0\0\x01\x01\0\0\0\0\x01\0\0\0\x01\x01\x01\0\0\0\x01\x01\0\0\x01\x01\x02\0\0\0\x01\x02\0\0\x01\x02\0\0\0\0\x02\0\0\0\x01\x02\x01\0\0\0\x02\x01\0\0\x01\x02\x02\0\0\0\x02\x02\0\0\x01\0\0\x01\0\0\0\0\x01\0\x01\0\x01\x01\0\0\0\x01\x01\0\x01\0\x02\x01\0\0\0\x02\x01\0\x01\x01\0\x01\0\0\x01\0\x01\0\x01\x01\x01\x01\0\0\x01\x01\x01\0\x01\x01\x02\x01\0\0\x01\x02\x01\0\x01\x02\0\x01\0\0\x02\0\x01\0\x01\x02\x01\x01\0\0\x02\x01\x01\0\x01\x02\x02\x01\0\0\x02\x02\x01\0\x01\0\0\x02\0\0\0\0\x02\0\x01\0\x01\x02\0\0\0\x01\x02\0\x01\0\x02\x02\0\0\0\x02\x02\0\x01\x01\0\x02\0\0\x01\0\x02\0\x01\x01\x01\x02\0\0\x01\x01\x02\0\x01\x01\x02\x02\0\0\x01\x02\x02\0\x01\x02\0\x02\0\0\x02\0\x02\0\x01\x02\x01\x02\0\0\x02\x01\x02\0\x01\x02\x02\x02\0\0\x02\x02\x02\0\x01\0\0\0\x01\0\0\0\0\x01\x01\0\x01\0\x01\0\0\x01\0\x01\x01\0\x02\0\x01\0\0\x02\0\x01\x01\x01\0\0\x01\0\x01\0\0\x01\x01\x01\x01\0\x01\0\x01\x01\0\x01\x01\x01\x02\0\x01\0\x01\x02\0\x01\x01\x02\0\0\x01\0\x02\0\0\x01\x01\x02\x01\0\x01\0\x02\x01\0\x01\x01\x02\x02\0\x01\0\x02\x02\0\x01\x01\0\0\x01\x01\0\0\0\x01\x01\x01\0\x01\x01\x01\0\0\x01\x01\x01\x01\0\x02\x01\x01\0\0\x02\x01\x01\x01\x01\0\x01\x01\0\x01\0\x01\x01\x01\x01\x01\x01\x01\0\x01\x01\x01\x01\x01\x01\x02\x01\x01\0\x01\x02\x01\x01\x01\x02\0\x01\x01\0\x02\0\x01\x01\x01\x02\x01\x01\x01\0\x02\x01\x01\x01\x01\x02\x02\x01\x01\0\x02\x02\x01\x01\x01\0\0\x02\x01\0\0\0\x02\x01\x01\0\x01\x02\x01\0\0\x01\x02\x01\x01\0\x02\x02\x01\0\0\x02\x02\x01\x01\x01\0\x02\x01\0\x01\0\x02\x01\x01\x01\x01\x02\x01\0\x01\x01\x02\x01\x01\x01\x02\x02\x01\0\x01\x02\x02\x01\x01\x02\0\x02\x01\0\x02\0\x02\x01\x01\x02\x01\x02\x01\0\x02\x01\x02\x01\x01\x02\x02\x02\x01\0\x02\x02\x02\x01\x01\0\0\0\x02\0\0\0\0\x02\x01\0\x01\0\x02\0\0\x01\0\x02\x01\0\x02\0\x02\0\0\x02\0\x02\x01\x01\0\0\x02\0\x01\0\0\x02\x01\x01\x01\0\x02\0\x01\x01\0\x02\x01\x01\x02\0\x02\0\x01\x02\0\x02\x01\x02\0\0\x02\0\x02\0\0\x02\x01\x02\x01\0\x02\0\x02\x01\0\x02\x01\x02\x02\0\x02\0\x02\x02\0\x02\x01\0\0\x01\x02\0\0\0\x01\x02\x01\0\x01\x01\x02\0\0\x01\x01\x02\x01\0\x02\x01\x02\0\0\x02\x01\x02\x01\x01\0\x01\x02\0\x01\0\x01\x02\x01\x01\x01\x01\x02\0\x01\x01\x01\x02\x01\x01\x02\x01\x02\0\x01\x02\x01\x02\x01\x02\0\x01\x02\0\x02\0\x01\x02\x01\x02\x01\x01\x02\0\x02\x01\x01\x02\x01\x02\x02\x01\x02\0\x02\x02\x01\x02\x01\0\0\x02\x02\0\0\0\x02\x02\x01\0\x01\x02\x02\0\0\x01\x02\x02\x01\0\x02\x02\x02\0\0\x02\x02\x02\x01\x01\0\x02\x02\0\x01\0\x02\x02\x01\x01\x01\x02\x02\0\x01\x01\x02\x02\x01\x01\x02\x02\x02\0\x01\x02\x02\x02\x01\x02\0\x02\x02\0\x02\0\x02\x02\x01\x02\x01\x02\x02\0\x02\x01\x02\x02\x01\x02\x02\x02\x02\0\x02\x02\x02\x02\x01",
+        server_definition: None,
     },
     BlockData {
         id: 5438u32,
@@ -11350,6 +11710,9 @@ pub static ALL_BLOCKS: [BlockData; 1477usize] = [
             },
         ],
         state_values: b"\0\0\0\0\0\x01\0\0\x02\0\0\x03\0\x01\0\0\x01\x01\0\x01\x02\0\x01\x03\x01\0\0\x01\0\x01\x01\0\x02\x01\0\x03\x01\x01\0\x01\x01\x01\x01\x01\x02\x01\x01\x03\x02\0\0\x02\0\x01\x02\0\x02\x02\0\x03\x02\x01\0\x02\x01\x01\x02\x01\x02\x02\x01\x03\x03\0\0\x03\0\x01\x03\0\x02\x03\0\x03\x03\x01\0\x03\x01\x01\x03\x01\x02\x03\x01\x03\x04\0\0\x04\0\x01\x04\0\x02\x04\0\x03\x04\x01\0\x04\x01\x01\x04\x01\x02\x04\x01\x03",
+        server_definition: Some(
+            b"\n\0\t\tblockTags\x08\x02%minecraft:is_shears_item_destructible\n\ncomponents\n minecraft:destructible_by_mining\x05\x05value\xCD\xCCL?\0\n\x1Fminecraft:destruction_particles\x03\x0Eparticle_count`\x08\x07texture\0\x08\x0Btint_method\x04none\0\n\x1Aminecraft:liquid_detection\t\x0EdetectionRules\n\x02\x01\x10canContainLiquid\x01\x08\nliquidType\x05water\x08\x0FonLiquidTouches\x08blocking\x01\x18stopsLiquidFromDirection\0\x01\x13use_liquid_clipping\0\0\0\n\x1Fminecraft:redstone_conductivity\x01\x14allowsWireToStepDown\x01\x01\x11redstoneConductor\0\0\n\x11minecraft:support\x08\x05shape\x05stair\0\0\n\rmenu_category\x08\x08category\x0Cconstruction\x08\x05group\x1Fminecraft:itemGroup.name.stairs\x01\x15is_hidden_in_commands\0\0\x03\rmolangVersion\x1A\n\x12vanilla_block_data\n\x0Fblock_archetype\x08\nbase_block\x14minecraft:green_wool\x08\x04type\x0Bstair_block\0\x03\x08block_id\x92\x16\x01\x15can_dampen_vibrations\x01\x01\x16can_occlude_vibrations\x01\x08\x08material\x05solid\x05\x0Ctranslucency\xCD\xCCL?\0\0",
+        ),
     },
     BlockData {
         id: 5478u32,
@@ -11388,6 +11751,7 @@ pub static ALL_BLOCKS: [BlockData; 1477usize] = [
             },
         ],
         state_values: b"\0\x01\x02\x03\x04\x05",
+        server_definition: None,
     },
     BlockData {
         id: 5484u32,
@@ -11419,6 +11783,7 @@ pub static ALL_BLOCKS: [BlockData; 1477usize] = [
             },
         ],
         state_values: b"\0\x01",
+        server_definition: None,
     },
     BlockData {
         id: 5486u32,
@@ -11450,6 +11815,7 @@ pub static ALL_BLOCKS: [BlockData; 1477usize] = [
             },
         ],
         state_values: b"\0\x01",
+        server_definition: None,
     },
     BlockData {
         id: 5488u32,
@@ -11481,6 +11847,7 @@ pub static ALL_BLOCKS: [BlockData; 1477usize] = [
             },
         ],
         state_values: b"\0\x01",
+        server_definition: None,
     },
     BlockData {
         id: 5490u32,
@@ -11516,6 +11883,7 @@ pub static ALL_BLOCKS: [BlockData; 1477usize] = [
             },
         ],
         state_values: b"\0\x01\x02",
+        server_definition: None,
     },
     BlockData {
         id: 5493u32,
@@ -11583,6 +11951,7 @@ pub static ALL_BLOCKS: [BlockData; 1477usize] = [
             },
         ],
         state_values: b"\0\0\0\0\0\x01\0\0\0\x02\0\0\0\x03\0\0\0\x04\0\0\0\x05\0\0\0\0\x01\0\0\x01\x01\0\0\x02\x01\0\0\x03\x01\0\0\x04\x01\0\0\x05\x01\0\0\0\x02\0\0\x01\x02\0\0\x02\x02\0\0\x03\x02\0\0\x04\x02\0\0\x05\x02\0\0\0\x03\0\0\x01\x03\0\0\x02\x03\0\0\x03\x03\0\0\x04\x03\0\0\x05\x03\0\0\0\x04\0\0\x01\x04\0\0\x02\x04\0\0\x03\x04\0\0\x04\x04\0\0\x05\x04\0\0\0\x05\0\0\x01\x05\0\0\x02\x05\0\0\x03\x05\0\0\x04\x05\0\0\x05\x05\0\0\0\x06\0\0\x01\x06\0\0\x02\x06\0\0\x03\x06\0\0\x04\x06\0\0\x05\x06\0\0\0\x07\0\0\x01\x07\0\0\x02\x07\0\0\x03\x07\0\0\x04\x07\0\0\x05\x07\0\0\0\x08\0\0\x01\x08\0\0\x02\x08\0\0\x03\x08\0\0\x04\x08\0\0\x05\x08\0\0\0\t\0\0\x01\t\0\0\x02\t\0\0\x03\t\0\0\x04\t\0\0\x05\t\0\0\0\n\0\0\x01\n\0\0\x02\n\0\0\x03\n\0\0\x04\n\0\0\x05\n\0\0\0\x0B\0\0\x01\x0B\0\0\x02\x0B\0\0\x03\x0B\0\0\x04\x0B\0\0\x05\x0B\0\0\0\x0C\0\0\x01\x0C\0\0\x02\x0C\0\0\x03\x0C\0\0\x04\x0C\0\0\x05\x0C\0\0\0\r\0\0\x01\r\0\0\x02\r\0\0\x03\r\0\0\x04\r\0\0\x05\r\0\0\0\x0E\0\0\x01\x0E\0\0\x02\x0E\0\0\x03\x0E\0\0\x04\x0E\0\0\x05\x0E\0\0\0\x0F\0\0\x01\x0F\0\0\x02\x0F\0\0\x03\x0F\0\0\x04\x0F\0\0\x05\x0F\0\0\0\0\x01\0\x01\0\x01\0\x02\0\x01\0\x03\0\x01\0\x04\0\x01\0\x05\0\x01\0\0\x01\x01\0\x01\x01\x01\0\x02\x01\x01\0\x03\x01\x01\0\x04\x01\x01\0\x05\x01\x01\0\0\x02\x01\0\x01\x02\x01\0\x02\x02\x01\0\x03\x02\x01\0\x04\x02\x01\0\x05\x02\x01\0\0\x03\x01\0\x01\x03\x01\0\x02\x03\x01\0\x03\x03\x01\0\x04\x03\x01\0\x05\x03\x01\0\0\x04\x01\0\x01\x04\x01\0\x02\x04\x01\0\x03\x04\x01\0\x04\x04\x01\0\x05\x04\x01\0\0\x05\x01\0\x01\x05\x01\0\x02\x05\x01\0\x03\x05\x01\0\x04\x05\x01\0\x05\x05\x01\0\0\x06\x01\0\x01\x06\x01\0\x02\x06\x01\0\x03\x06\x01\0\x04\x06\x01\0\x05\x06\x01\0\0\x07\x01\0\x01\x07\x01\0\x02\x07\x01\0\x03\x07\x01\0\x04\x07\x01\0\x05\x07\x01\0\0\x08\x01\0\x01\x08\x01\0\x02\x08\x01\0\x03\x08\x01\0\x04\x08\x01\0\x05\x08\x01\0\0\t\x01\0\x01\t\x01\0\x02\t\x01\0\x03\t\x01\0\x04\t\x01\0\x05\t\x01\0\0\n\x01\0\x01\n\x01\0\x02\n\x01\0\x03\n\x01\0\x04\n\x01\0\x05\n\x01\0\0\x0B\x01\0\x01\x0B\x01\0\x02\x0B\x01\0\x03\x0B\x01\0\x04\x0B\x01\0\x05\x0B\x01\0\0\x0C\x01\0\x01\x0C\x01\0\x02\x0C\x01\0\x03\x0C\x01\0\x04\x0C\x01\0\x05\x0C\x01\0\0\r\x01\0\x01\r\x01\0\x02\r\x01\0\x03\r\x01\0\x04\r\x01\0\x05\r\x01\0\0\x0E\x01\0\x01\x0E\x01\0\x02\x0E\x01\0\x03\x0E\x01\0\x04\x0E\x01\0\x05\x0E\x01\0\0\x0F\x01\0\x01\x0F\x01\0\x02\x0F\x01\0\x03\x0F\x01\0\x04\x0F\x01\0\x05\x0F\x01\x01\0\0\0\x01\x01\0\0\x01\x02\0\0\x01\x03\0\0\x01\x04\0\0\x01\x05\0\0\x01\0\x01\0\x01\x01\x01\0\x01\x02\x01\0\x01\x03\x01\0\x01\x04\x01\0\x01\x05\x01\0\x01\0\x02\0\x01\x01\x02\0\x01\x02\x02\0\x01\x03\x02\0\x01\x04\x02\0\x01\x05\x02\0\x01\0\x03\0\x01\x01\x03\0\x01\x02\x03\0\x01\x03\x03\0\x01\x04\x03\0\x01\x05\x03\0\x01\0\x04\0\x01\x01\x04\0\x01\x02\x04\0\x01\x03\x04\0\x01\x04\x04\0\x01\x05\x04\0\x01\0\x05\0\x01\x01\x05\0\x01\x02\x05\0\x01\x03\x05\0\x01\x04\x05\0\x01\x05\x05\0\x01\0\x06\0\x01\x01\x06\0\x01\x02\x06\0\x01\x03\x06\0\x01\x04\x06\0\x01\x05\x06\0\x01\0\x07\0\x01\x01\x07\0\x01\x02\x07\0\x01\x03\x07\0\x01\x04\x07\0\x01\x05\x07\0\x01\0\x08\0\x01\x01\x08\0\x01\x02\x08\0\x01\x03\x08\0\x01\x04\x08\0\x01\x05\x08\0\x01\0\t\0\x01\x01\t\0\x01\x02\t\0\x01\x03\t\0\x01\x04\t\0\x01\x05\t\0\x01\0\n\0\x01\x01\n\0\x01\x02\n\0\x01\x03\n\0\x01\x04\n\0\x01\x05\n\0\x01\0\x0B\0\x01\x01\x0B\0\x01\x02\x0B\0\x01\x03\x0B\0\x01\x04\x0B\0\x01\x05\x0B\0\x01\0\x0C\0\x01\x01\x0C\0\x01\x02\x0C\0\x01\x03\x0C\0\x01\x04\x0C\0\x01\x05\x0C\0\x01\0\r\0\x01\x01\r\0\x01\x02\r\0\x01\x03\r\0\x01\x04\r\0\x01\x05\r\0\x01\0\x0E\0\x01\x01\x0E\0\x01\x02\x0E\0\x01\x03\x0E\0\x01\x04\x0E\0\x01\x05\x0E\0\x01\0\x0F\0\x01\x01\x0F\0\x01\x02\x0F\0\x01\x03\x0F\0\x01\x04\x0F\0\x01\x05\x0F\0\x01\0\0\x01\x01\x01\0\x01\x01\x02\0\x01\x01\x03\0\x01\x01\x04\0\x01\x01\x05\0\x01\x01\0\x01\x01\x01\x01\x01\x01\x01\x02\x01\x01\x01\x03\x01\x01\x01\x04\x01\x01\x01\x05\x01\x01\x01\0\x02\x01\x01\x01\x02\x01\x01\x02\x02\x01\x01\x03\x02\x01\x01\x04\x02\x01\x01\x05\x02\x01\x01\0\x03\x01\x01\x01\x03\x01\x01\x02\x03\x01\x01\x03\x03\x01\x01\x04\x03\x01\x01\x05\x03\x01\x01\0\x04\x01\x01\x01\x04\x01\x01\x02\x04\x01\x01\x03\x04\x01\x01\x04\x04\x01\x01\x05\x04\x01\x01\0\x05\x01\x01\x01\x05\x01\x01\x02\x05\x01\x01\x03\x05\x01\x01\x04\x05\x01\x01\x05\x05\x01\x01\0\x06\x01\x01\x01\x06\x01\x01\x02\x06\x01\x01\x03\x06\x01\x01\x04\x06\x01\x01\x05\x06\x01\x01\0\x07\x01\x01\x01\x07\x01\x01\x02\x07\x01\x01\x03\x07\x01\x01\x04\x07\x01\x01\x05\x07\x01\x01\0\x08\x01\x01\x01\x08\x01\x01\x02\x08\x01\x01\x03\x08\x01\x01\x04\x08\x01\x01\x05\x08\x01\x01\0\t\x01\x01\x01\t\x01\x01\x02\t\x01\x01\x03\t\x01\x01\x04\t\x01\x01\x05\t\x01\x01\0\n\x01\x01\x01\n\x01\x01\x02\n\x01\x01\x03\n\x01\x01\x04\n\x01\x01\x05\n\x01\x01\0\x0B\x01\x01\x01\x0B\x01\x01\x02\x0B\x01\x01\x03\x0B\x01\x01\x04\x0B\x01\x01\x05\x0B\x01\x01\0\x0C\x01\x01\x01\x0C\x01\x01\x02\x0C\x01\x01\x03\x0C\x01\x01\x04\x0C\x01\x01\x05\x0C\x01\x01\0\r\x01\x01\x01\r\x01\x01\x02\r\x01\x01\x03\r\x01\x01\x04\r\x01\x01\x05\r\x01\x01\0\x0E\x01\x01\x01\x0E\x01\x01\x02\x0E\x01\x01\x03\x0E\x01\x01\x04\x0E\x01\x01\x05\x0E\x01\x01\0\x0F\x01\x01\x01\x0F\x01\x01\x02\x0F\x01\x01\x03\x0F\x01\x01\x04\x0F\x01\x01\x05\x0F\x01",
+        server_definition: None,
     },
     BlockData {
         id: 5877u32,
@@ -11618,6 +11987,7 @@ pub static ALL_BLOCKS: [BlockData; 1477usize] = [
             },
         ],
         state_values: b"\0\x01\x02",
+        server_definition: None,
     },
     BlockData {
         id: 5880u32,
@@ -11681,6 +12051,7 @@ pub static ALL_BLOCKS: [BlockData; 1477usize] = [
             },
         ],
         state_values: b"\0\0\0\0\0\0\0\0\0\x01\0\x01\0\0\0\0\x01\0\0\x01\0\x02\0\0\0\0\x02\0\0\x01\x01\0\0\0\0\x01\0\0\0\x01\x01\x01\0\0\0\x01\x01\0\0\x01\x01\x02\0\0\0\x01\x02\0\0\x01\x02\0\0\0\0\x02\0\0\0\x01\x02\x01\0\0\0\x02\x01\0\0\x01\x02\x02\0\0\0\x02\x02\0\0\x01\0\0\x01\0\0\0\0\x01\0\x01\0\x01\x01\0\0\0\x01\x01\0\x01\0\x02\x01\0\0\0\x02\x01\0\x01\x01\0\x01\0\0\x01\0\x01\0\x01\x01\x01\x01\0\0\x01\x01\x01\0\x01\x01\x02\x01\0\0\x01\x02\x01\0\x01\x02\0\x01\0\0\x02\0\x01\0\x01\x02\x01\x01\0\0\x02\x01\x01\0\x01\x02\x02\x01\0\0\x02\x02\x01\0\x01\0\0\x02\0\0\0\0\x02\0\x01\0\x01\x02\0\0\0\x01\x02\0\x01\0\x02\x02\0\0\0\x02\x02\0\x01\x01\0\x02\0\0\x01\0\x02\0\x01\x01\x01\x02\0\0\x01\x01\x02\0\x01\x01\x02\x02\0\0\x01\x02\x02\0\x01\x02\0\x02\0\0\x02\0\x02\0\x01\x02\x01\x02\0\0\x02\x01\x02\0\x01\x02\x02\x02\0\0\x02\x02\x02\0\x01\0\0\0\x01\0\0\0\0\x01\x01\0\x01\0\x01\0\0\x01\0\x01\x01\0\x02\0\x01\0\0\x02\0\x01\x01\x01\0\0\x01\0\x01\0\0\x01\x01\x01\x01\0\x01\0\x01\x01\0\x01\x01\x01\x02\0\x01\0\x01\x02\0\x01\x01\x02\0\0\x01\0\x02\0\0\x01\x01\x02\x01\0\x01\0\x02\x01\0\x01\x01\x02\x02\0\x01\0\x02\x02\0\x01\x01\0\0\x01\x01\0\0\0\x01\x01\x01\0\x01\x01\x01\0\0\x01\x01\x01\x01\0\x02\x01\x01\0\0\x02\x01\x01\x01\x01\0\x01\x01\0\x01\0\x01\x01\x01\x01\x01\x01\x01\0\x01\x01\x01\x01\x01\x01\x02\x01\x01\0\x01\x02\x01\x01\x01\x02\0\x01\x01\0\x02\0\x01\x01\x01\x02\x01\x01\x01\0\x02\x01\x01\x01\x01\x02\x02\x01\x01\0\x02\x02\x01\x01\x01\0\0\x02\x01\0\0\0\x02\x01\x01\0\x01\x02\x01\0\0\x01\x02\x01\x01\0\x02\x02\x01\0\0\x02\x02\x01\x01\x01\0\x02\x01\0\x01\0\x02\x01\x01\x01\x01\x02\x01\0\x01\x01\x02\x01\x01\x01\x02\x02\x01\0\x01\x02\x02\x01\x01\x02\0\x02\x01\0\x02\0\x02\x01\x01\x02\x01\x02\x01\0\x02\x01\x02\x01\x01\x02\x02\x02\x01\0\x02\x02\x02\x01\x01\0\0\0\x02\0\0\0\0\x02\x01\0\x01\0\x02\0\0\x01\0\x02\x01\0\x02\0\x02\0\0\x02\0\x02\x01\x01\0\0\x02\0\x01\0\0\x02\x01\x01\x01\0\x02\0\x01\x01\0\x02\x01\x01\x02\0\x02\0\x01\x02\0\x02\x01\x02\0\0\x02\0\x02\0\0\x02\x01\x02\x01\0\x02\0\x02\x01\0\x02\x01\x02\x02\0\x02\0\x02\x02\0\x02\x01\0\0\x01\x02\0\0\0\x01\x02\x01\0\x01\x01\x02\0\0\x01\x01\x02\x01\0\x02\x01\x02\0\0\x02\x01\x02\x01\x01\0\x01\x02\0\x01\0\x01\x02\x01\x01\x01\x01\x02\0\x01\x01\x01\x02\x01\x01\x02\x01\x02\0\x01\x02\x01\x02\x01\x02\0\x01\x02\0\x02\0\x01\x02\x01\x02\x01\x01\x02\0\x02\x01\x01\x02\x01\x02\x02\x01\x02\0\x02\x02\x01\x02\x01\0\0\x02\x02\0\0\0\x02\x02\x01\0\x01\x02\x02\0\0\x01\x02\x02\x01\0\x02\x02\x02\0\0\x02\x02\x02\x01\x01\0\x02\x02\0\x01\0\x02\x02\x01\x01\x01\x02\x02\0\x01\x01\x02\x02\x01\x01\x02\x02\x02\0\x01\x02\x02\x02\x01\x02\0\x02\x02\0\x02\0\x02\x02\x01\x02\x01\x02\x02\0\x02\x01\x02\x02\x01\x02\x02\x02\x02\0\x02\x02\x02\x02\x01",
+        server_definition: None,
     },
     BlockData {
         id: 6042u32,
@@ -11723,6 +12094,7 @@ pub static ALL_BLOCKS: [BlockData; 1477usize] = [
             },
         ],
         state_values: b"\0\0\x01\0\x02\0\x03\0\x04\0\x05\0\0\x01\x01\x01\x02\x01\x03\x01\x04\x01\x05\x01",
+        server_definition: None,
     },
     BlockData {
         id: 6054u32,
@@ -11761,6 +12133,7 @@ pub static ALL_BLOCKS: [BlockData; 1477usize] = [
             },
         ],
         state_values: b"\0\x01\x02\x03\x04\x05",
+        server_definition: None,
     },
     BlockData {
         id: 6060u32,
@@ -11799,6 +12172,7 @@ pub static ALL_BLOCKS: [BlockData; 1477usize] = [
             },
         ],
         state_values: b"\0\x01\x02\x03\x04\x05",
+        server_definition: None,
     },
     BlockData {
         id: 6066u32,
@@ -11849,6 +12223,7 @@ pub static ALL_BLOCKS: [BlockData; 1477usize] = [
             },
         ],
         state_values: b"\0\0\0\0\0\x01\0\0\x02\0\0\x03\0\x01\0\0\x01\x01\0\x01\x02\0\x01\x03\x01\0\0\x01\0\x01\x01\0\x02\x01\0\x03\x01\x01\0\x01\x01\x01\x01\x01\x02\x01\x01\x03\x02\0\0\x02\0\x01\x02\0\x02\x02\0\x03\x02\x01\0\x02\x01\x01\x02\x01\x02\x02\x01\x03\x03\0\0\x03\0\x01\x03\0\x02\x03\0\x03\x03\x01\0\x03\x01\x01\x03\x01\x02\x03\x01\x03\x04\0\0\x04\0\x01\x04\0\x02\x04\0\x03\x04\x01\0\x04\x01\x01\x04\x01\x02\x04\x01\x03",
+        server_definition: None,
     },
     BlockData {
         id: 6106u32,
@@ -11875,6 +12250,7 @@ pub static ALL_BLOCKS: [BlockData; 1477usize] = [
         visual_shape: [0f32, 0f32, 0f32, 1f32, 1f32, 1f32],
         properties: &[],
         state_values: b"",
+        server_definition: None,
     },
     BlockData {
         id: 6107u32,
@@ -11942,6 +12318,7 @@ pub static ALL_BLOCKS: [BlockData; 1477usize] = [
             },
         ],
         state_values: b"\0\0\0\0\0\x01\0\0\0\x02\0\0\0\x03\0\0\0\x04\0\0\0\x05\0\0\0\0\x01\0\0\x01\x01\0\0\x02\x01\0\0\x03\x01\0\0\x04\x01\0\0\x05\x01\0\0\0\x02\0\0\x01\x02\0\0\x02\x02\0\0\x03\x02\0\0\x04\x02\0\0\x05\x02\0\0\0\x03\0\0\x01\x03\0\0\x02\x03\0\0\x03\x03\0\0\x04\x03\0\0\x05\x03\0\0\0\x04\0\0\x01\x04\0\0\x02\x04\0\0\x03\x04\0\0\x04\x04\0\0\x05\x04\0\0\0\x05\0\0\x01\x05\0\0\x02\x05\0\0\x03\x05\0\0\x04\x05\0\0\x05\x05\0\0\0\x06\0\0\x01\x06\0\0\x02\x06\0\0\x03\x06\0\0\x04\x06\0\0\x05\x06\0\0\0\x07\0\0\x01\x07\0\0\x02\x07\0\0\x03\x07\0\0\x04\x07\0\0\x05\x07\0\0\0\x08\0\0\x01\x08\0\0\x02\x08\0\0\x03\x08\0\0\x04\x08\0\0\x05\x08\0\0\0\t\0\0\x01\t\0\0\x02\t\0\0\x03\t\0\0\x04\t\0\0\x05\t\0\0\0\n\0\0\x01\n\0\0\x02\n\0\0\x03\n\0\0\x04\n\0\0\x05\n\0\0\0\x0B\0\0\x01\x0B\0\0\x02\x0B\0\0\x03\x0B\0\0\x04\x0B\0\0\x05\x0B\0\0\0\x0C\0\0\x01\x0C\0\0\x02\x0C\0\0\x03\x0C\0\0\x04\x0C\0\0\x05\x0C\0\0\0\r\0\0\x01\r\0\0\x02\r\0\0\x03\r\0\0\x04\r\0\0\x05\r\0\0\0\x0E\0\0\x01\x0E\0\0\x02\x0E\0\0\x03\x0E\0\0\x04\x0E\0\0\x05\x0E\0\0\0\x0F\0\0\x01\x0F\0\0\x02\x0F\0\0\x03\x0F\0\0\x04\x0F\0\0\x05\x0F\0\0\0\0\x01\0\x01\0\x01\0\x02\0\x01\0\x03\0\x01\0\x04\0\x01\0\x05\0\x01\0\0\x01\x01\0\x01\x01\x01\0\x02\x01\x01\0\x03\x01\x01\0\x04\x01\x01\0\x05\x01\x01\0\0\x02\x01\0\x01\x02\x01\0\x02\x02\x01\0\x03\x02\x01\0\x04\x02\x01\0\x05\x02\x01\0\0\x03\x01\0\x01\x03\x01\0\x02\x03\x01\0\x03\x03\x01\0\x04\x03\x01\0\x05\x03\x01\0\0\x04\x01\0\x01\x04\x01\0\x02\x04\x01\0\x03\x04\x01\0\x04\x04\x01\0\x05\x04\x01\0\0\x05\x01\0\x01\x05\x01\0\x02\x05\x01\0\x03\x05\x01\0\x04\x05\x01\0\x05\x05\x01\0\0\x06\x01\0\x01\x06\x01\0\x02\x06\x01\0\x03\x06\x01\0\x04\x06\x01\0\x05\x06\x01\0\0\x07\x01\0\x01\x07\x01\0\x02\x07\x01\0\x03\x07\x01\0\x04\x07\x01\0\x05\x07\x01\0\0\x08\x01\0\x01\x08\x01\0\x02\x08\x01\0\x03\x08\x01\0\x04\x08\x01\0\x05\x08\x01\0\0\t\x01\0\x01\t\x01\0\x02\t\x01\0\x03\t\x01\0\x04\t\x01\0\x05\t\x01\0\0\n\x01\0\x01\n\x01\0\x02\n\x01\0\x03\n\x01\0\x04\n\x01\0\x05\n\x01\0\0\x0B\x01\0\x01\x0B\x01\0\x02\x0B\x01\0\x03\x0B\x01\0\x04\x0B\x01\0\x05\x0B\x01\0\0\x0C\x01\0\x01\x0C\x01\0\x02\x0C\x01\0\x03\x0C\x01\0\x04\x0C\x01\0\x05\x0C\x01\0\0\r\x01\0\x01\r\x01\0\x02\r\x01\0\x03\r\x01\0\x04\r\x01\0\x05\r\x01\0\0\x0E\x01\0\x01\x0E\x01\0\x02\x0E\x01\0\x03\x0E\x01\0\x04\x0E\x01\0\x05\x0E\x01\0\0\x0F\x01\0\x01\x0F\x01\0\x02\x0F\x01\0\x03\x0F\x01\0\x04\x0F\x01\0\x05\x0F\x01\x01\0\0\0\x01\x01\0\0\x01\x02\0\0\x01\x03\0\0\x01\x04\0\0\x01\x05\0\0\x01\0\x01\0\x01\x01\x01\0\x01\x02\x01\0\x01\x03\x01\0\x01\x04\x01\0\x01\x05\x01\0\x01\0\x02\0\x01\x01\x02\0\x01\x02\x02\0\x01\x03\x02\0\x01\x04\x02\0\x01\x05\x02\0\x01\0\x03\0\x01\x01\x03\0\x01\x02\x03\0\x01\x03\x03\0\x01\x04\x03\0\x01\x05\x03\0\x01\0\x04\0\x01\x01\x04\0\x01\x02\x04\0\x01\x03\x04\0\x01\x04\x04\0\x01\x05\x04\0\x01\0\x05\0\x01\x01\x05\0\x01\x02\x05\0\x01\x03\x05\0\x01\x04\x05\0\x01\x05\x05\0\x01\0\x06\0\x01\x01\x06\0\x01\x02\x06\0\x01\x03\x06\0\x01\x04\x06\0\x01\x05\x06\0\x01\0\x07\0\x01\x01\x07\0\x01\x02\x07\0\x01\x03\x07\0\x01\x04\x07\0\x01\x05\x07\0\x01\0\x08\0\x01\x01\x08\0\x01\x02\x08\0\x01\x03\x08\0\x01\x04\x08\0\x01\x05\x08\0\x01\0\t\0\x01\x01\t\0\x01\x02\t\0\x01\x03\t\0\x01\x04\t\0\x01\x05\t\0\x01\0\n\0\x01\x01\n\0\x01\x02\n\0\x01\x03\n\0\x01\x04\n\0\x01\x05\n\0\x01\0\x0B\0\x01\x01\x0B\0\x01\x02\x0B\0\x01\x03\x0B\0\x01\x04\x0B\0\x01\x05\x0B\0\x01\0\x0C\0\x01\x01\x0C\0\x01\x02\x0C\0\x01\x03\x0C\0\x01\x04\x0C\0\x01\x05\x0C\0\x01\0\r\0\x01\x01\r\0\x01\x02\r\0\x01\x03\r\0\x01\x04\r\0\x01\x05\r\0\x01\0\x0E\0\x01\x01\x0E\0\x01\x02\x0E\0\x01\x03\x0E\0\x01\x04\x0E\0\x01\x05\x0E\0\x01\0\x0F\0\x01\x01\x0F\0\x01\x02\x0F\0\x01\x03\x0F\0\x01\x04\x0F\0\x01\x05\x0F\0\x01\0\0\x01\x01\x01\0\x01\x01\x02\0\x01\x01\x03\0\x01\x01\x04\0\x01\x01\x05\0\x01\x01\0\x01\x01\x01\x01\x01\x01\x01\x02\x01\x01\x01\x03\x01\x01\x01\x04\x01\x01\x01\x05\x01\x01\x01\0\x02\x01\x01\x01\x02\x01\x01\x02\x02\x01\x01\x03\x02\x01\x01\x04\x02\x01\x01\x05\x02\x01\x01\0\x03\x01\x01\x01\x03\x01\x01\x02\x03\x01\x01\x03\x03\x01\x01\x04\x03\x01\x01\x05\x03\x01\x01\0\x04\x01\x01\x01\x04\x01\x01\x02\x04\x01\x01\x03\x04\x01\x01\x04\x04\x01\x01\x05\x04\x01\x01\0\x05\x01\x01\x01\x05\x01\x01\x02\x05\x01\x01\x03\x05\x01\x01\x04\x05\x01\x01\x05\x05\x01\x01\0\x06\x01\x01\x01\x06\x01\x01\x02\x06\x01\x01\x03\x06\x01\x01\x04\x06\x01\x01\x05\x06\x01\x01\0\x07\x01\x01\x01\x07\x01\x01\x02\x07\x01\x01\x03\x07\x01\x01\x04\x07\x01\x01\x05\x07\x01\x01\0\x08\x01\x01\x01\x08\x01\x01\x02\x08\x01\x01\x03\x08\x01\x01\x04\x08\x01\x01\x05\x08\x01\x01\0\t\x01\x01\x01\t\x01\x01\x02\t\x01\x01\x03\t\x01\x01\x04\t\x01\x01\x05\t\x01\x01\0\n\x01\x01\x01\n\x01\x01\x02\n\x01\x01\x03\n\x01\x01\x04\n\x01\x01\x05\n\x01\x01\0\x0B\x01\x01\x01\x0B\x01\x01\x02\x0B\x01\x01\x03\x0B\x01\x01\x04\x0B\x01\x01\x05\x0B\x01\x01\0\x0C\x01\x01\x01\x0C\x01\x01\x02\x0C\x01\x01\x03\x0C\x01\x01\x04\x0C\x01\x01\x05\x0C\x01\x01\0\r\x01\x01\x01\r\x01\x01\x02\r\x01\x01\x03\r\x01\x01\x04\r\x01\x01\x05\r\x01\x01\0\x0E\x01\x01\x01\x0E\x01\x01\x02\x0E\x01\x01\x03\x0E\x01\x01\x04\x0E\x01\x01\x05\x0E\x01\x01\0\x0F\x01\x01\x01\x0F\x01\x01\x02\x0F\x01\x01\x03\x0F\x01\x01\x04\x0F\x01\x01\x05\x0F\x01",
+        server_definition: None,
     },
     BlockData {
         id: 6491u32,
@@ -11971,6 +12348,7 @@ pub static ALL_BLOCKS: [BlockData; 1477usize] = [
         visual_shape: [0f32, 0f32, 0f32, 1f32, 1f32, 1f32],
         properties: &[],
         state_values: b"",
+        server_definition: None,
     },
     BlockData {
         id: 6492u32,
@@ -11997,6 +12375,7 @@ pub static ALL_BLOCKS: [BlockData; 1477usize] = [
         visual_shape: [0.3f32, 0f32, 0.3f32, 0.7f32, 0.4f32, 0.7f32],
         properties: &[],
         state_values: b"",
+        server_definition: None,
     },
     BlockData {
         id: 6493u32,
@@ -12023,6 +12402,7 @@ pub static ALL_BLOCKS: [BlockData; 1477usize] = [
         visual_shape: [0f32, 0f32, 0f32, 1f32, 1f32, 1f32],
         properties: &[],
         state_values: b"",
+        server_definition: None,
     },
     BlockData {
         id: 6494u32,
@@ -12059,6 +12439,7 @@ pub static ALL_BLOCKS: [BlockData; 1477usize] = [
             },
         ],
         state_values: b"\0\x01\x02\x03",
+        server_definition: None,
     },
     BlockData {
         id: 6498u32,
@@ -12097,6 +12478,7 @@ pub static ALL_BLOCKS: [BlockData; 1477usize] = [
             },
         ],
         state_values: b"\0\x01\x02\x03\x04\x05",
+        server_definition: None,
     },
     BlockData {
         id: 6504u32,
@@ -12146,6 +12528,7 @@ pub static ALL_BLOCKS: [BlockData; 1477usize] = [
             },
         ],
         state_values: b"\0\0\0\x01\0\0\x02\0\0\x03\0\0\0\0\x01\x01\0\x01\x02\0\x01\x03\0\x01\0\x01\0\x01\x01\0\x02\x01\0\x03\x01\0\0\x01\x01\x01\x01\x01\x02\x01\x01\x03\x01\x01",
+        server_definition: None,
     },
     BlockData {
         id: 6520u32,
@@ -12195,6 +12578,7 @@ pub static ALL_BLOCKS: [BlockData; 1477usize] = [
             },
         ],
         state_values: b"\0\0\0\0\0\x01\0\0\x02\0\0\x03\0\x01\0\0\x01\x01\0\x01\x02\0\x01\x03\x01\0\0\x01\0\x01\x01\0\x02\x01\0\x03\x01\x01\0\x01\x01\x01\x01\x01\x02\x01\x01\x03\x02\0\0\x02\0\x01\x02\0\x02\x02\0\x03\x02\x01\0\x02\x01\x01\x02\x01\x02\x02\x01\x03\x03\0\0\x03\0\x01\x03\0\x02\x03\0\x03\x03\x01\0\x03\x01\x01\x03\x01\x02\x03\x01\x03",
+        server_definition: None,
     },
     BlockData {
         id: 6552u32,
@@ -12226,6 +12610,7 @@ pub static ALL_BLOCKS: [BlockData; 1477usize] = [
             },
         ],
         state_values: b"\0\x01",
+        server_definition: None,
     },
     BlockData {
         id: 6554u32,
@@ -12257,6 +12642,9 @@ pub static ALL_BLOCKS: [BlockData; 1477usize] = [
             },
         ],
         state_values: b"\0\x01",
+        server_definition: Some(
+            b"\n\0\t\tblockTags\x08\x02&minecraft:is_pickaxe_item_destructible\n\ncomponents\n minecraft:destructible_by_mining\x05\x05valueff\xE6?\0\n\x1Fminecraft:redstone_conductivity\x01\x14allowsWireToStepDown\x01\x01\x11redstoneConductor\x01\0\0\n\rmenu_category\x08\x08category\x04none\x08\x05group\0\x01\x15is_hidden_in_commands\x01\0\x03\rmolangVersion\x1A\n\x12vanilla_block_data\n\x0Fblock_archetype\x08\x11double_slab_block\x1Fminecraft:magenta_concrete_slab\x01\tis_double\x01\x08\x04type\nslab_block\0\x03\x08block_id\xB8\x17\x08\x08material\x05solid\x01\x1Frequires_correct_tool_for_drops\x01\0\0",
+        ),
     },
     BlockData {
         id: 6556u32,
@@ -12287,6 +12675,7 @@ pub static ALL_BLOCKS: [BlockData; 1477usize] = [
         visual_shape: [0f32, 0f32, 0f32, 1f32, 1f32, 1f32],
         properties: &[],
         state_values: b"",
+        server_definition: None,
     },
     BlockData {
         id: 6557u32,
@@ -12317,6 +12706,7 @@ pub static ALL_BLOCKS: [BlockData; 1477usize] = [
         visual_shape: [0f32, 0f32, 0f32, 1f32, 1f32, 1f32],
         properties: &[],
         state_values: b"",
+        server_definition: None,
     },
     BlockData {
         id: 6558u32,
@@ -12343,6 +12733,7 @@ pub static ALL_BLOCKS: [BlockData; 1477usize] = [
         visual_shape: [0f32, 0f32, 0f32, 1f32, 1f32, 1f32],
         properties: &[],
         state_values: b"",
+        server_definition: None,
     },
     BlockData {
         id: 6559u32,
@@ -12374,6 +12765,7 @@ pub static ALL_BLOCKS: [BlockData; 1477usize] = [
             },
         ],
         state_values: b"\0\x01",
+        server_definition: None,
     },
     BlockData {
         id: 6561u32,
@@ -12424,6 +12816,9 @@ pub static ALL_BLOCKS: [BlockData; 1477usize] = [
             },
         ],
         state_values: b"\0\0\0\0\0\x01\0\0\x02\0\0\x03\0\x01\0\0\x01\x01\0\x01\x02\0\x01\x03\x01\0\0\x01\0\x01\x01\0\x02\x01\0\x03\x01\x01\0\x01\x01\x01\x01\x01\x02\x01\x01\x03\x02\0\0\x02\0\x01\x02\0\x02\x02\0\x03\x02\x01\0\x02\x01\x01\x02\x01\x02\x02\x01\x03\x03\0\0\x03\0\x01\x03\0\x02\x03\0\x03\x03\x01\0\x03\x01\x01\x03\x01\x02\x03\x01\x03\x04\0\0\x04\0\x01\x04\0\x02\x04\0\x03\x04\x01\0\x04\x01\x01\x04\x01\x02\x04\x01\x03",
+        server_definition: Some(
+            b"\n\0\t\tblockTags\x08\x02&minecraft:is_pickaxe_item_destructible\n\ncomponents\n minecraft:destructible_by_mining\x05\x05valueff\xE6?\0\n\x1Fminecraft:destruction_particles\x03\x0Eparticle_count`\x08\x07texture\0\x08\x0Btint_method\x04none\0\n\x1Aminecraft:liquid_detection\t\x0EdetectionRules\n\x02\x01\x10canContainLiquid\x01\x08\nliquidType\x05water\x08\x0FonLiquidTouches\x08blocking\x01\x18stopsLiquidFromDirection\0\x01\x13use_liquid_clipping\0\0\0\n\x1Fminecraft:redstone_conductivity\x01\x14allowsWireToStepDown\x01\x01\x11redstoneConductor\0\0\n\x11minecraft:support\x08\x05shape\x05stair\0\0\n\rmenu_category\x08\x08category\x0Cconstruction\x08\x05group\x1Fminecraft:itemGroup.name.stairs\x01\x15is_hidden_in_commands\0\0\x03\rmolangVersion\x1A\n\x12vanilla_block_data\n\x0Fblock_archetype\x08\nbase_block\x17minecraft:pink_concrete\x08\x04type\x0Bstair_block\0\x03\x08block_id\xEC\x16\x08\x08material\x05solid\x01\x1Frequires_correct_tool_for_drops\x01\0\0",
+        ),
     },
     BlockData {
         id: 6601u32,
@@ -12472,6 +12867,7 @@ pub static ALL_BLOCKS: [BlockData; 1477usize] = [
             },
         ],
         state_values: b"\0\x01\x02\x03\x04\x05\x06\x07\x08\t\n\x0B\x0C\r\x0E\x0F",
+        server_definition: None,
     },
     BlockData {
         id: 6617u32,
@@ -12516,6 +12912,7 @@ pub static ALL_BLOCKS: [BlockData; 1477usize] = [
             },
         ],
         state_values: b"\0\0\x01\0\x02\0\x03\0\x04\0\x05\0\x06\0\x07\0\0\x01\x01\x01\x02\x01\x03\x01\x04\x01\x05\x01\x06\x01\x07\x01",
+        server_definition: None,
     },
     BlockData {
         id: 6633u32,
@@ -12566,6 +12963,7 @@ pub static ALL_BLOCKS: [BlockData; 1477usize] = [
             },
         ],
         state_values: b"\0\0\0\0\0\x01\0\0\x02\0\0\x03\0\x01\0\0\x01\x01\0\x01\x02\0\x01\x03\x01\0\0\x01\0\x01\x01\0\x02\x01\0\x03\x01\x01\0\x01\x01\x01\x01\x01\x02\x01\x01\x03\x02\0\0\x02\0\x01\x02\0\x02\x02\0\x03\x02\x01\0\x02\x01\x01\x02\x01\x02\x02\x01\x03\x03\0\0\x03\0\x01\x03\0\x02\x03\0\x03\x03\x01\0\x03\x01\x01\x03\x01\x02\x03\x01\x03\x04\0\0\x04\0\x01\x04\0\x02\x04\0\x03\x04\x01\0\x04\x01\x01\x04\x01\x02\x04\x01\x03",
+        server_definition: None,
     },
     BlockData {
         id: 6673u32,
@@ -12597,6 +12995,7 @@ pub static ALL_BLOCKS: [BlockData; 1477usize] = [
             },
         ],
         state_values: b"\0\x01",
+        server_definition: None,
     },
     BlockData {
         id: 6675u32,
@@ -12632,6 +13031,7 @@ pub static ALL_BLOCKS: [BlockData; 1477usize] = [
             },
         ],
         state_values: b"\0\x01\x02",
+        server_definition: None,
     },
     BlockData {
         id: 6678u32,
@@ -12682,6 +13082,9 @@ pub static ALL_BLOCKS: [BlockData; 1477usize] = [
             },
         ],
         state_values: b"\0\0\0\0\0\x01\0\0\x02\0\0\x03\0\x01\0\0\x01\x01\0\x01\x02\0\x01\x03\x01\0\0\x01\0\x01\x01\0\x02\x01\0\x03\x01\x01\0\x01\x01\x01\x01\x01\x02\x01\x01\x03\x02\0\0\x02\0\x01\x02\0\x02\x02\0\x03\x02\x01\0\x02\x01\x01\x02\x01\x02\x02\x01\x03\x03\0\0\x03\0\x01\x03\0\x02\x03\0\x03\x03\x01\0\x03\x01\x01\x03\x01\x02\x03\x01\x03\x04\0\0\x04\0\x01\x04\0\x02\x04\0\x03\x04\x01\0\x04\x01\x01\x04\x01\x02\x04\x01\x03",
+        server_definition: Some(
+            b"\n\0\t\tblockTags\x08\x02%minecraft:is_shears_item_destructible\n\ncomponents\n minecraft:destructible_by_mining\x05\x05value\xCD\xCCL?\0\n\x1Fminecraft:destruction_particles\x03\x0Eparticle_count`\x08\x07texture\0\x08\x0Btint_method\x04none\0\n\x1Aminecraft:liquid_detection\t\x0EdetectionRules\n\x02\x01\x10canContainLiquid\x01\x08\nliquidType\x05water\x08\x0FonLiquidTouches\x08blocking\x01\x18stopsLiquidFromDirection\0\x01\x13use_liquid_clipping\0\0\0\n\x1Fminecraft:redstone_conductivity\x01\x14allowsWireToStepDown\x01\x01\x11redstoneConductor\0\0\n\x11minecraft:support\x08\x05shape\x05stair\0\0\n\rmenu_category\x08\x08category\x0Cconstruction\x08\x05group\x1Fminecraft:itemGroup.name.stairs\x01\x15is_hidden_in_commands\0\0\x03\rmolangVersion\x1A\n\x12vanilla_block_data\n\x0Fblock_archetype\x08\nbase_block\x14minecraft:brown_wool\x08\x04type\x0Bstair_block\0\x03\x08block_id\x94\x16\x01\x15can_dampen_vibrations\x01\x01\x16can_occlude_vibrations\x01\x08\x08material\x05solid\x05\x0Ctranslucency\xCD\xCCL?\0\0",
+        ),
     },
     BlockData {
         id: 6718u32,
@@ -12730,6 +13133,7 @@ pub static ALL_BLOCKS: [BlockData; 1477usize] = [
             },
         ],
         state_values: b"\0\x01\x02\x03\x04\x05\x06\x07\x08\t\n\x0B\x0C\r\x0E\x0F",
+        server_definition: None,
     },
     BlockData {
         id: 6734u32,
@@ -12780,6 +13184,9 @@ pub static ALL_BLOCKS: [BlockData; 1477usize] = [
             },
         ],
         state_values: b"\0\0\0\0\0\x01\0\0\x02\0\0\x03\0\x01\0\0\x01\x01\0\x01\x02\0\x01\x03\x01\0\0\x01\0\x01\x01\0\x02\x01\0\x03\x01\x01\0\x01\x01\x01\x01\x01\x02\x01\x01\x03\x02\0\0\x02\0\x01\x02\0\x02\x02\0\x03\x02\x01\0\x02\x01\x01\x02\x01\x02\x02\x01\x03\x03\0\0\x03\0\x01\x03\0\x02\x03\0\x03\x03\x01\0\x03\x01\x01\x03\x01\x02\x03\x01\x03\x04\0\0\x04\0\x01\x04\0\x02\x04\0\x03\x04\x01\0\x04\x01\x01\x04\x01\x02\x04\x01\x03",
+        server_definition: Some(
+            b"\n\0\t\tblockTags\x08\x02%minecraft:is_shears_item_destructible\n\ncomponents\n minecraft:destructible_by_mining\x05\x05value\xCD\xCCL?\0\n\x1Fminecraft:destruction_particles\x03\x0Eparticle_count`\x08\x07texture\0\x08\x0Btint_method\x04none\0\n\x1Aminecraft:liquid_detection\t\x0EdetectionRules\n\x02\x01\x10canContainLiquid\x01\x08\nliquidType\x05water\x08\x0FonLiquidTouches\x08blocking\x01\x18stopsLiquidFromDirection\0\x01\x13use_liquid_clipping\0\0\0\n\x1Fminecraft:redstone_conductivity\x01\x14allowsWireToStepDown\x01\x01\x11redstoneConductor\0\0\n\x11minecraft:support\x08\x05shape\x05stair\0\0\n\rmenu_category\x08\x08category\x0Cconstruction\x08\x05group\x1Fminecraft:itemGroup.name.stairs\x01\x15is_hidden_in_commands\0\0\x03\rmolangVersion\x1A\n\x12vanilla_block_data\n\x0Fblock_archetype\x08\nbase_block\x19minecraft:light_gray_wool\x08\x04type\x0Bstair_block\0\x03\x08block_id\x8C\x16\x01\x15can_dampen_vibrations\x01\x01\x16can_occlude_vibrations\x01\x08\x08material\x05solid\x05\x0Ctranslucency\xCD\xCCL?\0\0",
+        ),
     },
     BlockData {
         id: 6774u32,
@@ -12806,6 +13213,7 @@ pub static ALL_BLOCKS: [BlockData; 1477usize] = [
         visual_shape: [0f32, 0f32, 0f32, 1f32, 1f32, 1f32],
         properties: &[],
         state_values: b"",
+        server_definition: None,
     },
     BlockData {
         id: 6775u32,
@@ -12837,6 +13245,7 @@ pub static ALL_BLOCKS: [BlockData; 1477usize] = [
             },
         ],
         state_values: b"\0\x01",
+        server_definition: None,
     },
     BlockData {
         id: 6777u32,
@@ -12863,6 +13272,7 @@ pub static ALL_BLOCKS: [BlockData; 1477usize] = [
         visual_shape: [0f32, 0f32, 0f32, 1f32, 1f32, 1f32],
         properties: &[],
         state_values: b"",
+        server_definition: None,
     },
     BlockData {
         id: 6778u32,
@@ -12908,6 +13318,7 @@ pub static ALL_BLOCKS: [BlockData; 1477usize] = [
             },
         ],
         state_values: b"\0\0\x01\0\x02\0\x03\0\x04\0\x05\0\0\x01\x01\x01\x02\x01\x03\x01\x04\x01\x05\x01",
+        server_definition: None,
     },
     BlockData {
         id: 6790u32,
@@ -12934,6 +13345,7 @@ pub static ALL_BLOCKS: [BlockData; 1477usize] = [
         visual_shape: [0.099999994f32, 0f32, 0.099999994f32, 0.9f32, 0.8f32, 0.9f32],
         properties: &[],
         state_values: b"",
+        server_definition: None,
     },
     BlockData {
         id: 6791u32,
@@ -12960,6 +13372,7 @@ pub static ALL_BLOCKS: [BlockData; 1477usize] = [
         visual_shape: [0f32, 0f32, 0f32, 1f32, 1f32, 1f32],
         properties: &[],
         state_values: b"",
+        server_definition: None,
     },
     BlockData {
         id: 6792u32,
@@ -13009,6 +13422,7 @@ pub static ALL_BLOCKS: [BlockData; 1477usize] = [
             },
         ],
         state_values: b"\0\0\0\0\0\x01\0\0\x02\0\0\x03\0\x01\0\0\x01\x01\0\x01\x02\0\x01\x03\x01\0\0\x01\0\x01\x01\0\x02\x01\0\x03\x01\x01\0\x01\x01\x01\x01\x01\x02\x01\x01\x03\x02\0\0\x02\0\x01\x02\0\x02\x02\0\x03\x02\x01\0\x02\x01\x01\x02\x01\x02\x02\x01\x03\x03\0\0\x03\0\x01\x03\0\x02\x03\0\x03\x03\x01\0\x03\x01\x01\x03\x01\x02\x03\x01\x03",
+        server_definition: None,
     },
     BlockData {
         id: 6824u32,
@@ -13035,6 +13449,7 @@ pub static ALL_BLOCKS: [BlockData; 1477usize] = [
         visual_shape: [0f32, 0f32, 0f32, 1f32, 0.0625f32, 1f32],
         properties: &[],
         state_values: b"",
+        server_definition: None,
     },
     BlockData {
         id: 6825u32,
@@ -13084,6 +13499,7 @@ pub static ALL_BLOCKS: [BlockData; 1477usize] = [
             },
         ],
         state_values: b"\0\0\0\0\0\x01\0\0\x02\0\0\x03\0\x01\0\0\x01\x01\0\x01\x02\0\x01\x03\x01\0\0\x01\0\x01\x01\0\x02\x01\0\x03\x01\x01\0\x01\x01\x01\x01\x01\x02\x01\x01\x03\x02\0\0\x02\0\x01\x02\0\x02\x02\0\x03\x02\x01\0\x02\x01\x01\x02\x01\x02\x02\x01\x03\x03\0\0\x03\0\x01\x03\0\x02\x03\0\x03\x03\x01\0\x03\x01\x01\x03\x01\x02\x03\x01\x03",
+        server_definition: None,
     },
     BlockData {
         id: 6857u32,
@@ -13115,6 +13531,7 @@ pub static ALL_BLOCKS: [BlockData; 1477usize] = [
             },
         ],
         state_values: b"\0\x01",
+        server_definition: None,
     },
     BlockData {
         id: 6859u32,
@@ -13165,6 +13582,7 @@ pub static ALL_BLOCKS: [BlockData; 1477usize] = [
             },
         ],
         state_values: b"\0\0\0\0\0\x01\0\0\x02\0\0\x03\0\x01\0\0\x01\x01\0\x01\x02\0\x01\x03\x01\0\0\x01\0\x01\x01\0\x02\x01\0\x03\x01\x01\0\x01\x01\x01\x01\x01\x02\x01\x01\x03\x02\0\0\x02\0\x01\x02\0\x02\x02\0\x03\x02\x01\0\x02\x01\x01\x02\x01\x02\x02\x01\x03\x03\0\0\x03\0\x01\x03\0\x02\x03\0\x03\x03\x01\0\x03\x01\x01\x03\x01\x02\x03\x01\x03\x04\0\0\x04\0\x01\x04\0\x02\x04\0\x03\x04\x01\0\x04\x01\x01\x04\x01\x02\x04\x01\x03",
+        server_definition: None,
     },
     BlockData {
         id: 6899u32,
@@ -13213,6 +13631,7 @@ pub static ALL_BLOCKS: [BlockData; 1477usize] = [
             },
         ],
         state_values: b"\0\x01\x02\x03\x04\x05\x06\x07\x08\t\n\x0B\x0C\r\x0E\x0F",
+        server_definition: None,
     },
     BlockData {
         id: 6915u32,
@@ -13247,6 +13666,7 @@ pub static ALL_BLOCKS: [BlockData; 1477usize] = [
             },
         ],
         state_values: b"\0\x01",
+        server_definition: None,
     },
     BlockData {
         id: 6917u32,
@@ -13295,6 +13715,7 @@ pub static ALL_BLOCKS: [BlockData; 1477usize] = [
             },
         ],
         state_values: b"\0\x01\x02\x03\x04\x05\x06\x07\x08\t\n\x0B\x0C\r\x0E\x0F",
+        server_definition: None,
     },
     BlockData {
         id: 6933u32,
@@ -13321,6 +13742,7 @@ pub static ALL_BLOCKS: [BlockData; 1477usize] = [
         visual_shape: [0f32, 0f32, 0f32, 1f32, 1f32, 1f32],
         properties: &[],
         state_values: b"",
+        server_definition: None,
     },
     BlockData {
         id: 6934u32,
@@ -13371,6 +13793,9 @@ pub static ALL_BLOCKS: [BlockData; 1477usize] = [
             },
         ],
         state_values: b"\0\0\0\0\0\x01\0\0\x02\0\0\x03\0\x01\0\0\x01\x01\0\x01\x02\0\x01\x03\x01\0\0\x01\0\x01\x01\0\x02\x01\0\x03\x01\x01\0\x01\x01\x01\x01\x01\x02\x01\x01\x03\x02\0\0\x02\0\x01\x02\0\x02\x02\0\x03\x02\x01\0\x02\x01\x01\x02\x01\x02\x02\x01\x03\x03\0\0\x03\0\x01\x03\0\x02\x03\0\x03\x03\x01\0\x03\x01\x01\x03\x01\x02\x03\x01\x03\x04\0\0\x04\0\x01\x04\0\x02\x04\0\x03\x04\x01\0\x04\x01\x01\x04\x01\x02\x04\x01\x03",
+        server_definition: Some(
+            b"\n\0\t\tblockTags\x08\x02&minecraft:is_pickaxe_item_destructible\n\ncomponents\n minecraft:destructible_by_mining\x05\x05valueff\xE6?\0\n\x1Fminecraft:destruction_particles\x03\x0Eparticle_count`\x08\x07texture\0\x08\x0Btint_method\x04none\0\n\x1Aminecraft:liquid_detection\t\x0EdetectionRules\n\x02\x01\x10canContainLiquid\x01\x08\nliquidType\x05water\x08\x0FonLiquidTouches\x08blocking\x01\x18stopsLiquidFromDirection\0\x01\x13use_liquid_clipping\0\0\0\n\x1Fminecraft:redstone_conductivity\x01\x14allowsWireToStepDown\x01\x01\x11redstoneConductor\0\0\n\x11minecraft:support\x08\x05shape\x05stair\0\0\n\rmenu_category\x08\x08category\x0Cconstruction\x08\x05group\x1Fminecraft:itemGroup.name.stairs\x01\x15is_hidden_in_commands\0\0\x03\rmolangVersion\x1A\n\x12vanilla_block_data\n\x0Fblock_archetype\x08\nbase_block\x1Dminecraft:light_blue_concrete\x08\x04type\x0Bstair_block\0\x03\x08block_id\xE6\x16\x08\x08material\x05solid\x01\x1Frequires_correct_tool_for_drops\x01\0\0",
+        ),
     },
     BlockData {
         id: 6974u32,
@@ -13397,6 +13822,7 @@ pub static ALL_BLOCKS: [BlockData; 1477usize] = [
         visual_shape: [0f32, 0f32, 0f32, 1f32, 1f32, 1f32],
         properties: &[],
         state_values: b"",
+        server_definition: None,
     },
     BlockData {
         id: 6975u32,
@@ -13428,6 +13854,7 @@ pub static ALL_BLOCKS: [BlockData; 1477usize] = [
             },
         ],
         state_values: b"\0\x01",
+        server_definition: None,
     },
     BlockData {
         id: 6977u32,
@@ -13466,6 +13893,7 @@ pub static ALL_BLOCKS: [BlockData; 1477usize] = [
             },
         ],
         state_values: b"\0\x01\x02\x03\x04\x05",
+        server_definition: None,
     },
     BlockData {
         id: 6983u32,
@@ -13516,6 +13944,9 @@ pub static ALL_BLOCKS: [BlockData; 1477usize] = [
             },
         ],
         state_values: b"\0\0\0\0\0\x01\0\0\x02\0\0\x03\0\x01\0\0\x01\x01\0\x01\x02\0\x01\x03\x01\0\0\x01\0\x01\x01\0\x02\x01\0\x03\x01\x01\0\x01\x01\x01\x01\x01\x02\x01\x01\x03\x02\0\0\x02\0\x01\x02\0\x02\x02\0\x03\x02\x01\0\x02\x01\x01\x02\x01\x02\x02\x01\x03\x03\0\0\x03\0\x01\x03\0\x02\x03\0\x03\x03\x01\0\x03\x01\x01\x03\x01\x02\x03\x01\x03\x04\0\0\x04\0\x01\x04\0\x02\x04\0\x03\x04\x01\0\x04\x01\x01\x04\x01\x02\x04\x01\x03",
+        server_definition: Some(
+            b"\n\0\t\tblockTags\x08\x02%minecraft:is_shears_item_destructible\n\ncomponents\n minecraft:destructible_by_mining\x05\x05value\xCD\xCCL?\0\n\x1Fminecraft:destruction_particles\x03\x0Eparticle_count`\x08\x07texture\0\x08\x0Btint_method\x04none\0\n\x1Aminecraft:liquid_detection\t\x0EdetectionRules\n\x02\x01\x10canContainLiquid\x01\x08\nliquidType\x05water\x08\x0FonLiquidTouches\x08blocking\x01\x18stopsLiquidFromDirection\0\x01\x13use_liquid_clipping\0\0\0\n\x1Fminecraft:redstone_conductivity\x01\x14allowsWireToStepDown\x01\x01\x11redstoneConductor\0\0\n\x11minecraft:support\x08\x05shape\x05stair\0\0\n\rmenu_category\x08\x08category\x0Cconstruction\x08\x05group\x1Fminecraft:itemGroup.name.stairs\x01\x15is_hidden_in_commands\0\0\x03\rmolangVersion\x1A\n\x12vanilla_block_data\n\x0Fblock_archetype\x08\nbase_block\x16minecraft:magenta_wool\x08\x04type\x0Bstair_block\0\x03\x08block_id\x80\x16\x01\x15can_dampen_vibrations\x01\x01\x16can_occlude_vibrations\x01\x08\x08material\x05solid\x05\x0Ctranslucency\xCD\xCCL?\0\0",
+        ),
     },
     BlockData {
         id: 7023u32,
@@ -13564,6 +13995,7 @@ pub static ALL_BLOCKS: [BlockData; 1477usize] = [
             },
         ],
         state_values: b"\0\x01\x02\x03\x04\x05\x06\x07\x08\t\n\x0B\x0C\r\x0E\x0F",
+        server_definition: None,
     },
     BlockData {
         id: 7039u32,
@@ -13590,6 +14022,7 @@ pub static ALL_BLOCKS: [BlockData; 1477usize] = [
         visual_shape: [0f32, 0f32, 0f32, 1f32, 1f32, 1f32],
         properties: &[],
         state_values: b"",
+        server_definition: None,
     },
     BlockData {
         id: 7040u32,
@@ -13616,6 +14049,7 @@ pub static ALL_BLOCKS: [BlockData; 1477usize] = [
         visual_shape: [0f32, 0f32, 0f32, 1f32, 1f32, 1f32],
         properties: &[],
         state_values: b"",
+        server_definition: None,
     },
     BlockData {
         id: 7041u32,
@@ -13642,6 +14076,7 @@ pub static ALL_BLOCKS: [BlockData; 1477usize] = [
         visual_shape: [0f32, 0f32, 0f32, 1f32, 1f32, 1f32],
         properties: &[],
         state_values: b"",
+        server_definition: None,
     },
     BlockData {
         id: 7042u32,
@@ -13687,6 +14122,7 @@ pub static ALL_BLOCKS: [BlockData; 1477usize] = [
             },
         ],
         state_values: b"\0\0\x01\0\x02\0\x03\0\x04\0\x05\0\0\x01\x01\x01\x02\x01\x03\x01\x04\x01\x05\x01",
+        server_definition: None,
     },
     BlockData {
         id: 7054u32,
@@ -13730,6 +14166,7 @@ pub static ALL_BLOCKS: [BlockData; 1477usize] = [
             },
         ],
         state_values: b"\0\0\0\0\0\x01\0\x01\0\0\x01\x01\0\x02\0\0\x02\x01\x01\0\0\x01\0\x01\x01\x01\0\x01\x01\x01\x01\x02\0\x01\x02\x01",
+        server_definition: None,
     },
     BlockData {
         id: 7066u32,
@@ -13765,6 +14202,7 @@ pub static ALL_BLOCKS: [BlockData; 1477usize] = [
             },
         ],
         state_values: b"\0\x01\x02",
+        server_definition: None,
     },
     BlockData {
         id: 7069u32,
@@ -13791,6 +14229,7 @@ pub static ALL_BLOCKS: [BlockData; 1477usize] = [
         visual_shape: [0f32, 0f32, 0f32, 1f32, 1f32, 1f32],
         properties: &[],
         state_values: b"",
+        server_definition: None,
     },
     BlockData {
         id: 7070u32,
@@ -13845,6 +14284,7 @@ pub static ALL_BLOCKS: [BlockData; 1477usize] = [
             },
         ],
         state_values: b"\0\0\0\0\0\x01\0\0\x02\0\0\x03\0\x01\0\0\x01\x01\0\x01\x02\0\x01\x03\x01\0\0\x01\0\x01\x01\0\x02\x01\0\x03\x01\x01\0\x01\x01\x01\x01\x01\x02\x01\x01\x03\x02\0\0\x02\0\x01\x02\0\x02\x02\0\x03\x02\x01\0\x02\x01\x01\x02\x01\x02\x02\x01\x03\x03\0\0\x03\0\x01\x03\0\x02\x03\0\x03\x03\x01\0\x03\x01\x01\x03\x01\x02\x03\x01\x03\x04\0\0\x04\0\x01\x04\0\x02\x04\0\x03\x04\x01\0\x04\x01\x01\x04\x01\x02\x04\x01\x03",
+        server_definition: None,
     },
     BlockData {
         id: 7110u32,
@@ -13875,6 +14315,7 @@ pub static ALL_BLOCKS: [BlockData; 1477usize] = [
         visual_shape: [0f32, 0f32, 0f32, 1f32, 1f32, 1f32],
         properties: &[],
         state_values: b"",
+        server_definition: None,
     },
     BlockData {
         id: 7111u32,
@@ -13901,6 +14342,7 @@ pub static ALL_BLOCKS: [BlockData; 1477usize] = [
         visual_shape: [0f32, 0f32, 0f32, 1f32, 1f32, 1f32],
         properties: &[],
         state_values: b"",
+        server_definition: None,
     },
     BlockData {
         id: 7112u32,
@@ -13927,6 +14369,7 @@ pub static ALL_BLOCKS: [BlockData; 1477usize] = [
         visual_shape: [0f32, 0f32, 0f32, 1f32, 1f32, 1f32],
         properties: &[],
         state_values: b"",
+        server_definition: None,
     },
     BlockData {
         id: 7113u32,
@@ -13958,6 +14401,7 @@ pub static ALL_BLOCKS: [BlockData; 1477usize] = [
             },
         ],
         state_values: b"\0\x01",
+        server_definition: None,
     },
     BlockData {
         id: 7115u32,
@@ -14008,6 +14452,7 @@ pub static ALL_BLOCKS: [BlockData; 1477usize] = [
             },
         ],
         state_values: b"\0\0\0\0\0\x01\0\0\x02\0\0\x03\0\x01\0\0\x01\x01\0\x01\x02\0\x01\x03\x01\0\0\x01\0\x01\x01\0\x02\x01\0\x03\x01\x01\0\x01\x01\x01\x01\x01\x02\x01\x01\x03\x02\0\0\x02\0\x01\x02\0\x02\x02\0\x03\x02\x01\0\x02\x01\x01\x02\x01\x02\x02\x01\x03\x03\0\0\x03\0\x01\x03\0\x02\x03\0\x03\x03\x01\0\x03\x01\x01\x03\x01\x02\x03\x01\x03\x04\0\0\x04\0\x01\x04\0\x02\x04\0\x03\x04\x01\0\x04\x01\x01\x04\x01\x02\x04\x01\x03",
+        server_definition: None,
     },
     BlockData {
         id: 7155u32,
@@ -14058,6 +14503,9 @@ pub static ALL_BLOCKS: [BlockData; 1477usize] = [
             },
         ],
         state_values: b"\0\0\0\0\0\x01\0\0\x02\0\0\x03\0\x01\0\0\x01\x01\0\x01\x02\0\x01\x03\x01\0\0\x01\0\x01\x01\0\x02\x01\0\x03\x01\x01\0\x01\x01\x01\x01\x01\x02\x01\x01\x03\x02\0\0\x02\0\x01\x02\0\x02\x02\0\x03\x02\x01\0\x02\x01\x01\x02\x01\x02\x02\x01\x03\x03\0\0\x03\0\x01\x03\0\x02\x03\0\x03\x03\x01\0\x03\x01\x01\x03\x01\x02\x03\x01\x03\x04\0\0\x04\0\x01\x04\0\x02\x04\0\x03\x04\x01\0\x04\x01\x01\x04\x01\x02\x04\x01\x03",
+        server_definition: Some(
+            b"\n\0\t\tblockTags\x08\x02%minecraft:is_shears_item_destructible\n\ncomponents\n minecraft:destructible_by_mining\x05\x05value\xCD\xCCL?\0\n\x1Fminecraft:destruction_particles\x03\x0Eparticle_count`\x08\x07texture\0\x08\x0Btint_method\x04none\0\n\x1Aminecraft:liquid_detection\t\x0EdetectionRules\n\x02\x01\x10canContainLiquid\x01\x08\nliquidType\x05water\x08\x0FonLiquidTouches\x08blocking\x01\x18stopsLiquidFromDirection\0\x01\x13use_liquid_clipping\0\0\0\n\x1Fminecraft:redstone_conductivity\x01\x14allowsWireToStepDown\x01\x01\x11redstoneConductor\0\0\n\x11minecraft:support\x08\x05shape\x05stair\0\0\n\rmenu_category\x08\x08category\x0Cconstruction\x08\x05group\x1Fminecraft:itemGroup.name.stairs\x01\x15is_hidden_in_commands\0\0\x03\rmolangVersion\x1A\n\x12vanilla_block_data\n\x0Fblock_archetype\x08\nbase_block\x15minecraft:yellow_wool\x08\x04type\x0Bstair_block\0\x03\x08block_id\x84\x16\x01\x15can_dampen_vibrations\x01\x01\x16can_occlude_vibrations\x01\x08\x08material\x05solid\x05\x0Ctranslucency\xCD\xCCL?\0\0",
+        ),
     },
     BlockData {
         id: 7195u32,
@@ -14108,6 +14556,9 @@ pub static ALL_BLOCKS: [BlockData; 1477usize] = [
             },
         ],
         state_values: b"\0\0\0\0\0\x01\0\0\x02\0\0\x03\0\x01\0\0\x01\x01\0\x01\x02\0\x01\x03\x01\0\0\x01\0\x01\x01\0\x02\x01\0\x03\x01\x01\0\x01\x01\x01\x01\x01\x02\x01\x01\x03\x02\0\0\x02\0\x01\x02\0\x02\x02\0\x03\x02\x01\0\x02\x01\x01\x02\x01\x02\x02\x01\x03\x03\0\0\x03\0\x01\x03\0\x02\x03\0\x03\x03\x01\0\x03\x01\x01\x03\x01\x02\x03\x01\x03\x04\0\0\x04\0\x01\x04\0\x02\x04\0\x03\x04\x01\0\x04\x01\x01\x04\x01\x02\x04\x01\x03",
+        server_definition: Some(
+            b"\n\0\t\tblockTags\x08\x02%minecraft:is_shears_item_destructible\n\ncomponents\n minecraft:destructible_by_mining\x05\x05value\xCD\xCCL?\0\n\x1Fminecraft:destruction_particles\x03\x0Eparticle_count`\x08\x07texture\0\x08\x0Btint_method\x04none\0\n\x1Aminecraft:liquid_detection\t\x0EdetectionRules\n\x02\x01\x10canContainLiquid\x01\x08\nliquidType\x05water\x08\x0FonLiquidTouches\x08blocking\x01\x18stopsLiquidFromDirection\0\x01\x13use_liquid_clipping\0\0\0\n\x1Fminecraft:redstone_conductivity\x01\x14allowsWireToStepDown\x01\x01\x11redstoneConductor\0\0\n\x11minecraft:support\x08\x05shape\x05stair\0\0\n\rmenu_category\x08\x08category\x0Cconstruction\x08\x05group\x1Fminecraft:itemGroup.name.stairs\x01\x15is_hidden_in_commands\0\0\x03\rmolangVersion\x1A\n\x12vanilla_block_data\n\x0Fblock_archetype\x08\nbase_block\x13minecraft:gray_wool\x08\x04type\x0Bstair_block\0\x03\x08block_id\x8A\x16\x01\x15can_dampen_vibrations\x01\x01\x16can_occlude_vibrations\x01\x08\x08material\x05solid\x05\x0Ctranslucency\xCD\xCCL?\0\0",
+        ),
     },
     BlockData {
         id: 7235u32,
@@ -14134,6 +14585,7 @@ pub static ALL_BLOCKS: [BlockData; 1477usize] = [
         visual_shape: [0f32, 0f32, 0f32, 1f32, 1f32, 1f32],
         properties: &[],
         state_values: b"",
+        server_definition: None,
     },
     BlockData {
         id: 7236u32,
@@ -14184,6 +14636,9 @@ pub static ALL_BLOCKS: [BlockData; 1477usize] = [
             },
         ],
         state_values: b"\0\0\0\0\0\x01\0\0\x02\0\0\x03\0\x01\0\0\x01\x01\0\x01\x02\0\x01\x03\x01\0\0\x01\0\x01\x01\0\x02\x01\0\x03\x01\x01\0\x01\x01\x01\x01\x01\x02\x01\x01\x03\x02\0\0\x02\0\x01\x02\0\x02\x02\0\x03\x02\x01\0\x02\x01\x01\x02\x01\x02\x02\x01\x03\x03\0\0\x03\0\x01\x03\0\x02\x03\0\x03\x03\x01\0\x03\x01\x01\x03\x01\x02\x03\x01\x03\x04\0\0\x04\0\x01\x04\0\x02\x04\0\x03\x04\x01\0\x04\x01\x01\x04\x01\x02\x04\x01\x03",
+        server_definition: Some(
+            b"\n\0\t\tblockTags\x08\x02&minecraft:is_pickaxe_item_destructible\n\ncomponents\n minecraft:destructible_by_mining\x05\x05valueff\xE6?\0\n\x1Fminecraft:destruction_particles\x03\x0Eparticle_count`\x08\x07texture\0\x08\x0Btint_method\x04none\0\n\x1Aminecraft:liquid_detection\t\x0EdetectionRules\n\x02\x01\x10canContainLiquid\x01\x08\nliquidType\x05water\x08\x0FonLiquidTouches\x08blocking\x01\x18stopsLiquidFromDirection\0\x01\x13use_liquid_clipping\0\0\0\n\x1Fminecraft:redstone_conductivity\x01\x14allowsWireToStepDown\x01\x01\x11redstoneConductor\0\0\n\x11minecraft:support\x08\x05shape\x05stair\0\0\n\rmenu_category\x08\x08category\x0Cconstruction\x08\x05group\x1Fminecraft:itemGroup.name.stairs\x01\x15is_hidden_in_commands\0\0\x03\rmolangVersion\x1A\n\x12vanilla_block_data\n\x0Fblock_archetype\x08\nbase_block\x1Aminecraft:magenta_concrete\x08\x04type\x0Bstair_block\0\x03\x08block_id\xE4\x16\x08\x08material\x05solid\x01\x1Frequires_correct_tool_for_drops\x01\0\0",
+        ),
     },
     BlockData {
         id: 7276u32,
@@ -14222,6 +14677,7 @@ pub static ALL_BLOCKS: [BlockData; 1477usize] = [
             },
         ],
         state_values: b"\0\x01\x02\x03\x04\x05",
+        server_definition: None,
     },
     BlockData {
         id: 7282u32,
@@ -14252,6 +14708,7 @@ pub static ALL_BLOCKS: [BlockData; 1477usize] = [
         visual_shape: [0f32, 0f32, 0f32, 1f32, 1f32, 1f32],
         properties: &[],
         state_values: b"",
+        server_definition: None,
     },
     BlockData {
         id: 7283u32,
@@ -14278,6 +14735,7 @@ pub static ALL_BLOCKS: [BlockData; 1477usize] = [
         visual_shape: [0.15f32, 0f32, 0.15f32, 0.7f32, 0.6f32, 0.7f32],
         properties: &[],
         state_values: b"",
+        server_definition: None,
     },
     BlockData {
         id: 7284u32,
@@ -14328,6 +14786,9 @@ pub static ALL_BLOCKS: [BlockData; 1477usize] = [
             },
         ],
         state_values: b"\0\0\0\0\0\x01\0\0\x02\0\0\x03\0\x01\0\0\x01\x01\0\x01\x02\0\x01\x03\x01\0\0\x01\0\x01\x01\0\x02\x01\0\x03\x01\x01\0\x01\x01\x01\x01\x01\x02\x01\x01\x03\x02\0\0\x02\0\x01\x02\0\x02\x02\0\x03\x02\x01\0\x02\x01\x01\x02\x01\x02\x02\x01\x03\x03\0\0\x03\0\x01\x03\0\x02\x03\0\x03\x03\x01\0\x03\x01\x01\x03\x01\x02\x03\x01\x03\x04\0\0\x04\0\x01\x04\0\x02\x04\0\x03\x04\x01\0\x04\x01\x01\x04\x01\x02\x04\x01\x03",
+        server_definition: Some(
+            b"\n\0\t\tblockTags\x08\x02%minecraft:is_shears_item_destructible\n\ncomponents\n minecraft:destructible_by_mining\x05\x05value\xCD\xCCL?\0\n\x1Fminecraft:destruction_particles\x03\x0Eparticle_count`\x08\x07texture\0\x08\x0Btint_method\x04none\0\n\x1Aminecraft:liquid_detection\t\x0EdetectionRules\n\x02\x01\x10canContainLiquid\x01\x08\nliquidType\x05water\x08\x0FonLiquidTouches\x08blocking\x01\x18stopsLiquidFromDirection\0\x01\x13use_liquid_clipping\0\0\0\n\x1Fminecraft:redstone_conductivity\x01\x14allowsWireToStepDown\x01\x01\x11redstoneConductor\0\0\n\x11minecraft:support\x08\x05shape\x05stair\0\0\n\rmenu_category\x08\x08category\x0Cconstruction\x08\x05group\x1Fminecraft:itemGroup.name.stairs\x01\x15is_hidden_in_commands\0\0\x03\rmolangVersion\x1A\n\x12vanilla_block_data\n\x0Fblock_archetype\x08\nbase_block\x12minecraft:red_wool\x08\x04type\x0Bstair_block\0\x03\x08block_id\xF8\x15\x01\x15can_dampen_vibrations\x01\x01\x16can_occlude_vibrations\x01\x08\x08material\x05solid\x05\x0Ctranslucency\xCD\xCCL?\0\0",
+        ),
     },
     BlockData {
         id: 7324u32,
@@ -14359,6 +14820,7 @@ pub static ALL_BLOCKS: [BlockData; 1477usize] = [
             },
         ],
         state_values: b"\0\x01",
+        server_definition: None,
     },
     BlockData {
         id: 7326u32,
@@ -14390,6 +14852,7 @@ pub static ALL_BLOCKS: [BlockData; 1477usize] = [
             },
         ],
         state_values: b"\0\x01",
+        server_definition: None,
     },
     BlockData {
         id: 7328u32,
@@ -14425,6 +14888,7 @@ pub static ALL_BLOCKS: [BlockData; 1477usize] = [
             },
         ],
         state_values: b"\0\x01\x02",
+        server_definition: None,
     },
     BlockData {
         id: 7331u32,
@@ -14466,6 +14930,7 @@ pub static ALL_BLOCKS: [BlockData; 1477usize] = [
             },
         ],
         state_values: b"\0\x01\x02\x03",
+        server_definition: None,
     },
     BlockData {
         id: 7335u32,
@@ -14492,6 +14957,7 @@ pub static ALL_BLOCKS: [BlockData; 1477usize] = [
         visual_shape: [0f32, 0f32, 0f32, 1f32, 1f32, 1f32],
         properties: &[],
         state_values: b"",
+        server_definition: None,
     },
     BlockData {
         id: 7336u32,
@@ -14542,6 +15008,9 @@ pub static ALL_BLOCKS: [BlockData; 1477usize] = [
             },
         ],
         state_values: b"\0\0\0\0\0\x01\0\0\x02\0\0\x03\0\x01\0\0\x01\x01\0\x01\x02\0\x01\x03\x01\0\0\x01\0\x01\x01\0\x02\x01\0\x03\x01\x01\0\x01\x01\x01\x01\x01\x02\x01\x01\x03\x02\0\0\x02\0\x01\x02\0\x02\x02\0\x03\x02\x01\0\x02\x01\x01\x02\x01\x02\x02\x01\x03\x03\0\0\x03\0\x01\x03\0\x02\x03\0\x03\x03\x01\0\x03\x01\x01\x03\x01\x02\x03\x01\x03\x04\0\0\x04\0\x01\x04\0\x02\x04\0\x03\x04\x01\0\x04\x01\x01\x04\x01\x02\x04\x01\x03",
+        server_definition: Some(
+            b"\n\0\t\tblockTags\x08\x02&minecraft:is_pickaxe_item_destructible\n\ncomponents\n minecraft:destructible_by_mining\x05\x05valueff\xE6?\0\n\x1Fminecraft:destruction_particles\x03\x0Eparticle_count`\x08\x07texture\0\x08\x0Btint_method\x04none\0\n\x1Aminecraft:liquid_detection\t\x0EdetectionRules\n\x02\x01\x10canContainLiquid\x01\x08\nliquidType\x05water\x08\x0FonLiquidTouches\x08blocking\x01\x18stopsLiquidFromDirection\0\x01\x13use_liquid_clipping\0\0\0\n\x1Fminecraft:redstone_conductivity\x01\x14allowsWireToStepDown\x01\x01\x11redstoneConductor\0\0\n\x11minecraft:support\x08\x05shape\x05stair\0\0\n\rmenu_category\x08\x08category\x0Cconstruction\x08\x05group\x1Fminecraft:itemGroup.name.stairs\x01\x15is_hidden_in_commands\0\0\x03\rmolangVersion\x1A\n\x12vanilla_block_data\n\x0Fblock_archetype\x08\nbase_block\x18minecraft:brown_concrete\x08\x04type\x0Bstair_block\0\x03\x08block_id\xF8\x16\x08\x08material\x05solid\x01\x1Frequires_correct_tool_for_drops\x01\0\0",
+        ),
     },
     BlockData {
         id: 7376u32,
@@ -14568,6 +15037,7 @@ pub static ALL_BLOCKS: [BlockData; 1477usize] = [
         visual_shape: [0f32, 0f32, 0f32, 1f32, 1f32, 1f32],
         properties: &[],
         state_values: b"",
+        server_definition: None,
     },
     BlockData {
         id: 7377u32,
@@ -14594,6 +15064,7 @@ pub static ALL_BLOCKS: [BlockData; 1477usize] = [
         visual_shape: [0f32, 0f32, 0f32, 1f32, 0.0625f32, 1f32],
         properties: &[],
         state_values: b"",
+        server_definition: None,
     },
     BlockData {
         id: 7378u32,
@@ -14625,6 +15096,7 @@ pub static ALL_BLOCKS: [BlockData; 1477usize] = [
             },
         ],
         state_values: b"\0\x01",
+        server_definition: None,
     },
     BlockData {
         id: 7380u32,
@@ -14673,6 +15145,7 @@ pub static ALL_BLOCKS: [BlockData; 1477usize] = [
             },
         ],
         state_values: b"\0\0\0\0\0\x01\0\0\0\x02\0\0\0\x03\0\0\0\0\x01\0\0\x01\x01\0\0\x02\x01\0\0\x03\x01\0\0\0\0\x01\0\x01\0\x01\0\x02\0\x01\0\x03\0\x01\0\0\x01\x01\0\x01\x01\x01\0\x02\x01\x01\0\x03\x01\x01\x01\0\0\0\x01\x01\0\0\x01\x02\0\0\x01\x03\0\0\x01\0\x01\0\x01\x01\x01\0\x01\x02\x01\0\x01\x03\x01\0\x01\0\0\x01\x01\x01\0\x01\x01\x02\0\x01\x01\x03\0\x01\x01\0\x01\x01\x01\x01\x01\x01\x01\x02\x01\x01\x01\x03\x01\x01",
+        server_definition: None,
     },
     BlockData {
         id: 7412u32,
@@ -14704,6 +15177,7 @@ pub static ALL_BLOCKS: [BlockData; 1477usize] = [
             },
         ],
         state_values: b"\0\x01",
+        server_definition: None,
     },
     BlockData {
         id: 7414u32,
@@ -14740,6 +15214,7 @@ pub static ALL_BLOCKS: [BlockData; 1477usize] = [
             },
         ],
         state_values: b"\0\x01\x02\x03",
+        server_definition: None,
     },
     BlockData {
         id: 7418u32,
@@ -14788,6 +15263,7 @@ pub static ALL_BLOCKS: [BlockData; 1477usize] = [
             },
         ],
         state_values: b"\0\x01\x02\x03\x04\x05\x06\x07\x08\t\n\x0B\x0C\r\x0E\x0F",
+        server_definition: None,
     },
     BlockData {
         id: 7434u32,
@@ -14817,6 +15293,7 @@ pub static ALL_BLOCKS: [BlockData; 1477usize] = [
         visual_shape: [0f32, 0f32, 0f32, 1f32, 1f32, 1f32],
         properties: &[],
         state_values: b"",
+        server_definition: None,
     },
     BlockData {
         id: 7435u32,
@@ -14843,6 +15320,7 @@ pub static ALL_BLOCKS: [BlockData; 1477usize] = [
         visual_shape: [0f32, 0f32, 0f32, 1f32, 1f32, 1f32],
         properties: &[],
         state_values: b"",
+        server_definition: None,
     },
     BlockData {
         id: 7436u32,
@@ -14869,6 +15347,7 @@ pub static ALL_BLOCKS: [BlockData; 1477usize] = [
         visual_shape: [0f32, 0f32, 0f32, 1f32, 1f32, 1f32],
         properties: &[],
         state_values: b"",
+        server_definition: None,
     },
     BlockData {
         id: 7437u32,
@@ -14913,6 +15392,7 @@ pub static ALL_BLOCKS: [BlockData; 1477usize] = [
             },
         ],
         state_values: b"\0\0\0\0\x01\0\0\x02\0\0\x03\0\0\0\x01\0\x01\x01\0\x02\x01\0\x03\x01\x01\0\0\x01\x01\0\x01\x02\0\x01\x03\0\x01\0\x01\x01\x01\x01\x01\x02\x01\x01\x03\x01",
+        server_definition: None,
     },
     BlockData {
         id: 7453u32,
@@ -14961,6 +15441,7 @@ pub static ALL_BLOCKS: [BlockData; 1477usize] = [
             },
         ],
         state_values: b"\0\x01\x02\x03\x04\x05\x06\x07\x08\t\n\x0B\x0C\r\x0E\x0F",
+        server_definition: None,
     },
     BlockData {
         id: 7469u32,
@@ -14996,6 +15477,7 @@ pub static ALL_BLOCKS: [BlockData; 1477usize] = [
             },
         ],
         state_values: b"\0\x01\x02",
+        server_definition: None,
     },
     BlockData {
         id: 7472u32,
@@ -15026,6 +15508,7 @@ pub static ALL_BLOCKS: [BlockData; 1477usize] = [
         visual_shape: [0f32, 0f32, 0f32, 1f32, 1f32, 1f32],
         properties: &[],
         state_values: b"",
+        server_definition: None,
     },
     BlockData {
         id: 7473u32,
@@ -15074,6 +15557,7 @@ pub static ALL_BLOCKS: [BlockData; 1477usize] = [
             },
         ],
         state_values: b"\0\x01\x02\x03\x04\x05\x06\x07\x08\t\n\x0B\x0C\r\x0E\x0F",
+        server_definition: None,
     },
     BlockData {
         id: 7489u32,
@@ -15141,6 +15625,7 @@ pub static ALL_BLOCKS: [BlockData; 1477usize] = [
             },
         ],
         state_values: b"\0\0\0\0\0\x01\0\0\0\x02\0\0\0\x03\0\0\0\x04\0\0\0\x05\0\0\0\0\x01\0\0\x01\x01\0\0\x02\x01\0\0\x03\x01\0\0\x04\x01\0\0\x05\x01\0\0\0\x02\0\0\x01\x02\0\0\x02\x02\0\0\x03\x02\0\0\x04\x02\0\0\x05\x02\0\0\0\x03\0\0\x01\x03\0\0\x02\x03\0\0\x03\x03\0\0\x04\x03\0\0\x05\x03\0\0\0\x04\0\0\x01\x04\0\0\x02\x04\0\0\x03\x04\0\0\x04\x04\0\0\x05\x04\0\0\0\x05\0\0\x01\x05\0\0\x02\x05\0\0\x03\x05\0\0\x04\x05\0\0\x05\x05\0\0\0\x06\0\0\x01\x06\0\0\x02\x06\0\0\x03\x06\0\0\x04\x06\0\0\x05\x06\0\0\0\x07\0\0\x01\x07\0\0\x02\x07\0\0\x03\x07\0\0\x04\x07\0\0\x05\x07\0\0\0\x08\0\0\x01\x08\0\0\x02\x08\0\0\x03\x08\0\0\x04\x08\0\0\x05\x08\0\0\0\t\0\0\x01\t\0\0\x02\t\0\0\x03\t\0\0\x04\t\0\0\x05\t\0\0\0\n\0\0\x01\n\0\0\x02\n\0\0\x03\n\0\0\x04\n\0\0\x05\n\0\0\0\x0B\0\0\x01\x0B\0\0\x02\x0B\0\0\x03\x0B\0\0\x04\x0B\0\0\x05\x0B\0\0\0\x0C\0\0\x01\x0C\0\0\x02\x0C\0\0\x03\x0C\0\0\x04\x0C\0\0\x05\x0C\0\0\0\r\0\0\x01\r\0\0\x02\r\0\0\x03\r\0\0\x04\r\0\0\x05\r\0\0\0\x0E\0\0\x01\x0E\0\0\x02\x0E\0\0\x03\x0E\0\0\x04\x0E\0\0\x05\x0E\0\0\0\x0F\0\0\x01\x0F\0\0\x02\x0F\0\0\x03\x0F\0\0\x04\x0F\0\0\x05\x0F\0\0\0\0\x01\0\x01\0\x01\0\x02\0\x01\0\x03\0\x01\0\x04\0\x01\0\x05\0\x01\0\0\x01\x01\0\x01\x01\x01\0\x02\x01\x01\0\x03\x01\x01\0\x04\x01\x01\0\x05\x01\x01\0\0\x02\x01\0\x01\x02\x01\0\x02\x02\x01\0\x03\x02\x01\0\x04\x02\x01\0\x05\x02\x01\0\0\x03\x01\0\x01\x03\x01\0\x02\x03\x01\0\x03\x03\x01\0\x04\x03\x01\0\x05\x03\x01\0\0\x04\x01\0\x01\x04\x01\0\x02\x04\x01\0\x03\x04\x01\0\x04\x04\x01\0\x05\x04\x01\0\0\x05\x01\0\x01\x05\x01\0\x02\x05\x01\0\x03\x05\x01\0\x04\x05\x01\0\x05\x05\x01\0\0\x06\x01\0\x01\x06\x01\0\x02\x06\x01\0\x03\x06\x01\0\x04\x06\x01\0\x05\x06\x01\0\0\x07\x01\0\x01\x07\x01\0\x02\x07\x01\0\x03\x07\x01\0\x04\x07\x01\0\x05\x07\x01\0\0\x08\x01\0\x01\x08\x01\0\x02\x08\x01\0\x03\x08\x01\0\x04\x08\x01\0\x05\x08\x01\0\0\t\x01\0\x01\t\x01\0\x02\t\x01\0\x03\t\x01\0\x04\t\x01\0\x05\t\x01\0\0\n\x01\0\x01\n\x01\0\x02\n\x01\0\x03\n\x01\0\x04\n\x01\0\x05\n\x01\0\0\x0B\x01\0\x01\x0B\x01\0\x02\x0B\x01\0\x03\x0B\x01\0\x04\x0B\x01\0\x05\x0B\x01\0\0\x0C\x01\0\x01\x0C\x01\0\x02\x0C\x01\0\x03\x0C\x01\0\x04\x0C\x01\0\x05\x0C\x01\0\0\r\x01\0\x01\r\x01\0\x02\r\x01\0\x03\r\x01\0\x04\r\x01\0\x05\r\x01\0\0\x0E\x01\0\x01\x0E\x01\0\x02\x0E\x01\0\x03\x0E\x01\0\x04\x0E\x01\0\x05\x0E\x01\0\0\x0F\x01\0\x01\x0F\x01\0\x02\x0F\x01\0\x03\x0F\x01\0\x04\x0F\x01\0\x05\x0F\x01\x01\0\0\0\x01\x01\0\0\x01\x02\0\0\x01\x03\0\0\x01\x04\0\0\x01\x05\0\0\x01\0\x01\0\x01\x01\x01\0\x01\x02\x01\0\x01\x03\x01\0\x01\x04\x01\0\x01\x05\x01\0\x01\0\x02\0\x01\x01\x02\0\x01\x02\x02\0\x01\x03\x02\0\x01\x04\x02\0\x01\x05\x02\0\x01\0\x03\0\x01\x01\x03\0\x01\x02\x03\0\x01\x03\x03\0\x01\x04\x03\0\x01\x05\x03\0\x01\0\x04\0\x01\x01\x04\0\x01\x02\x04\0\x01\x03\x04\0\x01\x04\x04\0\x01\x05\x04\0\x01\0\x05\0\x01\x01\x05\0\x01\x02\x05\0\x01\x03\x05\0\x01\x04\x05\0\x01\x05\x05\0\x01\0\x06\0\x01\x01\x06\0\x01\x02\x06\0\x01\x03\x06\0\x01\x04\x06\0\x01\x05\x06\0\x01\0\x07\0\x01\x01\x07\0\x01\x02\x07\0\x01\x03\x07\0\x01\x04\x07\0\x01\x05\x07\0\x01\0\x08\0\x01\x01\x08\0\x01\x02\x08\0\x01\x03\x08\0\x01\x04\x08\0\x01\x05\x08\0\x01\0\t\0\x01\x01\t\0\x01\x02\t\0\x01\x03\t\0\x01\x04\t\0\x01\x05\t\0\x01\0\n\0\x01\x01\n\0\x01\x02\n\0\x01\x03\n\0\x01\x04\n\0\x01\x05\n\0\x01\0\x0B\0\x01\x01\x0B\0\x01\x02\x0B\0\x01\x03\x0B\0\x01\x04\x0B\0\x01\x05\x0B\0\x01\0\x0C\0\x01\x01\x0C\0\x01\x02\x0C\0\x01\x03\x0C\0\x01\x04\x0C\0\x01\x05\x0C\0\x01\0\r\0\x01\x01\r\0\x01\x02\r\0\x01\x03\r\0\x01\x04\r\0\x01\x05\r\0\x01\0\x0E\0\x01\x01\x0E\0\x01\x02\x0E\0\x01\x03\x0E\0\x01\x04\x0E\0\x01\x05\x0E\0\x01\0\x0F\0\x01\x01\x0F\0\x01\x02\x0F\0\x01\x03\x0F\0\x01\x04\x0F\0\x01\x05\x0F\0\x01\0\0\x01\x01\x01\0\x01\x01\x02\0\x01\x01\x03\0\x01\x01\x04\0\x01\x01\x05\0\x01\x01\0\x01\x01\x01\x01\x01\x01\x01\x02\x01\x01\x01\x03\x01\x01\x01\x04\x01\x01\x01\x05\x01\x01\x01\0\x02\x01\x01\x01\x02\x01\x01\x02\x02\x01\x01\x03\x02\x01\x01\x04\x02\x01\x01\x05\x02\x01\x01\0\x03\x01\x01\x01\x03\x01\x01\x02\x03\x01\x01\x03\x03\x01\x01\x04\x03\x01\x01\x05\x03\x01\x01\0\x04\x01\x01\x01\x04\x01\x01\x02\x04\x01\x01\x03\x04\x01\x01\x04\x04\x01\x01\x05\x04\x01\x01\0\x05\x01\x01\x01\x05\x01\x01\x02\x05\x01\x01\x03\x05\x01\x01\x04\x05\x01\x01\x05\x05\x01\x01\0\x06\x01\x01\x01\x06\x01\x01\x02\x06\x01\x01\x03\x06\x01\x01\x04\x06\x01\x01\x05\x06\x01\x01\0\x07\x01\x01\x01\x07\x01\x01\x02\x07\x01\x01\x03\x07\x01\x01\x04\x07\x01\x01\x05\x07\x01\x01\0\x08\x01\x01\x01\x08\x01\x01\x02\x08\x01\x01\x03\x08\x01\x01\x04\x08\x01\x01\x05\x08\x01\x01\0\t\x01\x01\x01\t\x01\x01\x02\t\x01\x01\x03\t\x01\x01\x04\t\x01\x01\x05\t\x01\x01\0\n\x01\x01\x01\n\x01\x01\x02\n\x01\x01\x03\n\x01\x01\x04\n\x01\x01\x05\n\x01\x01\0\x0B\x01\x01\x01\x0B\x01\x01\x02\x0B\x01\x01\x03\x0B\x01\x01\x04\x0B\x01\x01\x05\x0B\x01\x01\0\x0C\x01\x01\x01\x0C\x01\x01\x02\x0C\x01\x01\x03\x0C\x01\x01\x04\x0C\x01\x01\x05\x0C\x01\x01\0\r\x01\x01\x01\r\x01\x01\x02\r\x01\x01\x03\r\x01\x01\x04\r\x01\x01\x05\r\x01\x01\0\x0E\x01\x01\x01\x0E\x01\x01\x02\x0E\x01\x01\x03\x0E\x01\x01\x04\x0E\x01\x01\x05\x0E\x01\x01\0\x0F\x01\x01\x01\x0F\x01\x01\x02\x0F\x01\x01\x03\x0F\x01\x01\x04\x0F\x01\x01\x05\x0F\x01",
+        server_definition: None,
     },
     BlockData {
         id: 7873u32,
@@ -15172,6 +15657,7 @@ pub static ALL_BLOCKS: [BlockData; 1477usize] = [
             },
         ],
         state_values: b"\0\x01",
+        server_definition: None,
     },
     BlockData {
         id: 7875u32,
@@ -15208,6 +15694,7 @@ pub static ALL_BLOCKS: [BlockData; 1477usize] = [
             },
         ],
         state_values: b"\0\x01\x02\x03",
+        server_definition: None,
     },
     BlockData {
         id: 7879u32,
@@ -15239,6 +15726,7 @@ pub static ALL_BLOCKS: [BlockData; 1477usize] = [
             },
         ],
         state_values: b"\0\x01",
+        server_definition: None,
     },
     BlockData {
         id: 7881u32,
@@ -15270,6 +15758,9 @@ pub static ALL_BLOCKS: [BlockData; 1477usize] = [
             },
         ],
         state_values: b"\0\x01",
+        server_definition: Some(
+            b"\n\0\t\tblockTags\x08\x02%minecraft:is_shears_item_destructible\n\ncomponents\n minecraft:destructible_by_mining\x05\x05value\xCD\xCCL?\0\n\x1Fminecraft:destruction_particles\x03\x0Eparticle_count`\x08\x07texture\0\x08\x0Btint_method\x04none\0\n\x1Aminecraft:liquid_detection\t\x0EdetectionRules\n\x02\x01\x10canContainLiquid\x01\x08\nliquidType\x05water\x08\x0FonLiquidTouches\x08blocking\x01\x18stopsLiquidFromDirection\0\x01\x13use_liquid_clipping\0\0\0\n\x1Fminecraft:redstone_conductivity\x01\x14allowsWireToStepDown\x01\x01\x11redstoneConductor\0\0\0\n\rmenu_category\x08\x08category\x0Cconstruction\x08\x05group\x1Dminecraft:itemGroup.name.slab\x01\x15is_hidden_in_commands\0\0\x03\rmolangVersion\x1A\n\x12vanilla_block_data\n\x0Fblock_archetype\x08\x11double_slab_block!minecraft:yellow_wool_double_slab\x01\tis_double\0\x08\x04type\nslab_block\0\x03\x08block_id\xA6\x16\x01\x15can_dampen_vibrations\x01\x01\x16can_occlude_vibrations\x01\x08\x08material\x05solid\x05\x0Ctranslucency\xCD\xCCL?\0\0",
+        ),
     },
     BlockData {
         id: 7883u32,
@@ -15296,6 +15787,7 @@ pub static ALL_BLOCKS: [BlockData; 1477usize] = [
         visual_shape: [0f32, 0f32, 0f32, 1f32, 1f32, 1f32],
         properties: &[],
         state_values: b"",
+        server_definition: None,
     },
     BlockData {
         id: 7884u32,
@@ -15322,6 +15814,7 @@ pub static ALL_BLOCKS: [BlockData; 1477usize] = [
         visual_shape: [0f32, 0f32, 0f32, 1f32, 1f32, 1f32],
         properties: &[],
         state_values: b"",
+        server_definition: None,
     },
     BlockData {
         id: 7885u32,
@@ -15353,6 +15846,7 @@ pub static ALL_BLOCKS: [BlockData; 1477usize] = [
             },
         ],
         state_values: b"\0\x01",
+        server_definition: None,
     },
     BlockData {
         id: 7887u32,
@@ -15401,6 +15895,7 @@ pub static ALL_BLOCKS: [BlockData; 1477usize] = [
             },
         ],
         state_values: b"\0\0\0\0\0\x01\0\0\0\x02\0\0\0\x03\0\0\0\0\x01\0\0\x01\x01\0\0\x02\x01\0\0\x03\x01\0\0\0\0\x01\0\x01\0\x01\0\x02\0\x01\0\x03\0\x01\0\0\x01\x01\0\x01\x01\x01\0\x02\x01\x01\0\x03\x01\x01\x01\0\0\0\x01\x01\0\0\x01\x02\0\0\x01\x03\0\0\x01\0\x01\0\x01\x01\x01\0\x01\x02\x01\0\x01\x03\x01\0\x01\0\0\x01\x01\x01\0\x01\x01\x02\0\x01\x01\x03\0\x01\x01\0\x01\x01\x01\x01\x01\x01\x01\x02\x01\x01\x01\x03\x01\x01",
+        server_definition: None,
     },
     BlockData {
         id: 7919u32,
@@ -15449,6 +15944,7 @@ pub static ALL_BLOCKS: [BlockData; 1477usize] = [
             },
         ],
         state_values: b"\0\x01\x02\x03\x04\x05\x06\x07\x08\t\n\x0B\x0C\r\x0E\x0F",
+        server_definition: None,
     },
     BlockData {
         id: 7935u32,
@@ -15498,6 +15994,7 @@ pub static ALL_BLOCKS: [BlockData; 1477usize] = [
             },
         ],
         state_values: b"\0\0\0\0\0\x01\0\0\x02\0\0\x03\0\x01\0\0\x01\x01\0\x01\x02\0\x01\x03\x01\0\0\x01\0\x01\x01\0\x02\x01\0\x03\x01\x01\0\x01\x01\x01\x01\x01\x02\x01\x01\x03\x02\0\0\x02\0\x01\x02\0\x02\x02\0\x03\x02\x01\0\x02\x01\x01\x02\x01\x02\x02\x01\x03\x03\0\0\x03\0\x01\x03\0\x02\x03\0\x03\x03\x01\0\x03\x01\x01\x03\x01\x02\x03\x01\x03",
+        server_definition: None,
     },
     BlockData {
         id: 7967u32,
@@ -15529,6 +16026,7 @@ pub static ALL_BLOCKS: [BlockData; 1477usize] = [
             },
         ],
         state_values: b"\0\x01",
+        server_definition: None,
     },
     BlockData {
         id: 7969u32,
@@ -15572,6 +16070,7 @@ pub static ALL_BLOCKS: [BlockData; 1477usize] = [
             },
         ],
         state_values: b"\0\0\0\0\0\x01\0\0\x01\0\0\0\x01\x01\0\0\0\0\x01\0\0\x01\x01\0\x01\0\x01\0\x01\x01\x01\0\0\0\0\x01\0\x01\0\x01\x01\0\0\x01\x01\x01\0\x01\0\0\x01\x01\0\x01\x01\x01\x01\0\x01\x01\x01\x01\x01\x01",
+        server_definition: None,
     },
     BlockData {
         id: 7985u32,
@@ -15603,6 +16102,9 @@ pub static ALL_BLOCKS: [BlockData; 1477usize] = [
             },
         ],
         state_values: b"\0\x01",
+        server_definition: Some(
+            b"\n\0\t\tblockTags\x08\x02%minecraft:is_shears_item_destructible\n\ncomponents\n minecraft:destructible_by_mining\x05\x05value\xCD\xCCL?\0\n\x1Fminecraft:destruction_particles\x03\x0Eparticle_count`\x08\x07texture\0\x08\x0Btint_method\x04none\0\n\x1Aminecraft:liquid_detection\t\x0EdetectionRules\n\x02\x01\x10canContainLiquid\x01\x08\nliquidType\x05water\x08\x0FonLiquidTouches\x08blocking\x01\x18stopsLiquidFromDirection\0\x01\x13use_liquid_clipping\0\0\0\n\x1Fminecraft:redstone_conductivity\x01\x14allowsWireToStepDown\x01\x01\x11redstoneConductor\0\0\0\n\rmenu_category\x08\x08category\x0Cconstruction\x08\x05group\x1Dminecraft:itemGroup.name.slab\x01\x15is_hidden_in_commands\0\0\x03\rmolangVersion\x1A\n\x12vanilla_block_data\n\x0Fblock_archetype\x08\x11double_slab_block minecraft:brown_wool_double_slab\x01\tis_double\0\x08\x04type\nslab_block\0\x03\x08block_id\xA0\x16\x01\x15can_dampen_vibrations\x01\x01\x16can_occlude_vibrations\x01\x08\x08material\x05solid\x05\x0Ctranslucency\xCD\xCCL?\0\0",
+        ),
     },
     BlockData {
         id: 7987u32,
@@ -15629,6 +16131,7 @@ pub static ALL_BLOCKS: [BlockData; 1477usize] = [
         visual_shape: [0f32, 0f32, 0f32, 1f32, 1f32, 1f32],
         properties: &[],
         state_values: b"",
+        server_definition: None,
     },
     BlockData {
         id: 7988u32,
@@ -15677,6 +16180,7 @@ pub static ALL_BLOCKS: [BlockData; 1477usize] = [
             },
         ],
         state_values: b"\0\x01\x02\x03\x04\x05\x06\x07\x08\t\n\x0B\x0C\r\x0E\x0F",
+        server_definition: None,
     },
     BlockData {
         id: 8004u32,
@@ -15732,6 +16236,7 @@ pub static ALL_BLOCKS: [BlockData; 1477usize] = [
             },
         ],
         state_values: b"\0\0\0\0\0\x01\0\0\x02\0\0\x03\0\x01\0\0\x01\x01\0\x01\x02\0\x01\x03\x01\0\0\x01\0\x01\x01\0\x02\x01\0\x03\x01\x01\0\x01\x01\x01\x01\x01\x02\x01\x01\x03\x02\0\0\x02\0\x01\x02\0\x02\x02\0\x03\x02\x01\0\x02\x01\x01\x02\x01\x02\x02\x01\x03\x03\0\0\x03\0\x01\x03\0\x02\x03\0\x03\x03\x01\0\x03\x01\x01\x03\x01\x02\x03\x01\x03\x04\0\0\x04\0\x01\x04\0\x02\x04\0\x03\x04\x01\0\x04\x01\x01\x04\x01\x02\x04\x01\x03",
+        server_definition: None,
     },
     BlockData {
         id: 8044u32,
@@ -15758,6 +16263,7 @@ pub static ALL_BLOCKS: [BlockData; 1477usize] = [
         visual_shape: [0f32, 0f32, 0f32, 1f32, 1f32, 1f32],
         properties: &[],
         state_values: b"",
+        server_definition: None,
     },
     BlockData {
         id: 8045u32,
@@ -15789,6 +16295,7 @@ pub static ALL_BLOCKS: [BlockData; 1477usize] = [
             },
         ],
         state_values: b"\0\x01",
+        server_definition: None,
     },
     BlockData {
         id: 8047u32,
@@ -15834,6 +16341,7 @@ pub static ALL_BLOCKS: [BlockData; 1477usize] = [
             },
         ],
         state_values: b"\0\0\x01\0\x02\0\x03\0\x04\0\x05\0\0\x01\x01\x01\x02\x01\x03\x01\x04\x01\x05\x01",
+        server_definition: None,
     },
     BlockData {
         id: 8059u32,
@@ -15865,6 +16373,7 @@ pub static ALL_BLOCKS: [BlockData; 1477usize] = [
             },
         ],
         state_values: b"\0\x01",
+        server_definition: None,
     },
     BlockData {
         id: 8061u32,
@@ -15905,6 +16414,7 @@ pub static ALL_BLOCKS: [BlockData; 1477usize] = [
             },
         ],
         state_values: b"\0\x01\x02\x03\x04\x05\x06\x07",
+        server_definition: None,
     },
     BlockData {
         id: 8069u32,
@@ -15941,6 +16451,7 @@ pub static ALL_BLOCKS: [BlockData; 1477usize] = [
             },
         ],
         state_values: b"\0\x01\x02\x03",
+        server_definition: None,
     },
     BlockData {
         id: 8073u32,
@@ -15972,6 +16483,9 @@ pub static ALL_BLOCKS: [BlockData; 1477usize] = [
             },
         ],
         state_values: b"\0\x01",
+        server_definition: Some(
+            b"\n\0\t\tblockTags\x08\x02%minecraft:is_shears_item_destructible\n\ncomponents\n minecraft:destructible_by_mining\x05\x05value\xCD\xCCL?\0\n\x1Fminecraft:redstone_conductivity\x01\x14allowsWireToStepDown\x01\x01\x11redstoneConductor\x01\0\0\n\rmenu_category\x08\x08category\x04none\x08\x05group\0\x01\x15is_hidden_in_commands\x01\0\x03\rmolangVersion\x1A\n\x12vanilla_block_data\n\x0Fblock_archetype\x08\x11double_slab_block\x18minecraft:pink_wool_slab\x01\tis_double\x01\x08\x04type\nslab_block\0\x03\x08block_id\xD6\x16\x01\x15can_dampen_vibrations\x01\x01\x16can_occlude_vibrations\x01\x08\x08material\x05solid\0\0",
+        ),
     },
     BlockData {
         id: 8075u32,
@@ -15998,6 +16512,7 @@ pub static ALL_BLOCKS: [BlockData; 1477usize] = [
         visual_shape: [0f32, 0f32, 0f32, 1f32, 1f32, 1f32],
         properties: &[],
         state_values: b"",
+        server_definition: None,
     },
     BlockData {
         id: 8076u32,
@@ -16040,6 +16555,7 @@ pub static ALL_BLOCKS: [BlockData; 1477usize] = [
             },
         ],
         state_values: b"\0\x01\x02\x03\x04\x05\x06\x07\x08\t",
+        server_definition: None,
     },
     BlockData {
         id: 8086u32,
@@ -16103,6 +16619,7 @@ pub static ALL_BLOCKS: [BlockData; 1477usize] = [
             },
         ],
         state_values: b"\0\0\0\0\0\0\0\0\0\x01\0\x01\0\0\0\0\x01\0\0\x01\0\x02\0\0\0\0\x02\0\0\x01\x01\0\0\0\0\x01\0\0\0\x01\x01\x01\0\0\0\x01\x01\0\0\x01\x01\x02\0\0\0\x01\x02\0\0\x01\x02\0\0\0\0\x02\0\0\0\x01\x02\x01\0\0\0\x02\x01\0\0\x01\x02\x02\0\0\0\x02\x02\0\0\x01\0\0\x01\0\0\0\0\x01\0\x01\0\x01\x01\0\0\0\x01\x01\0\x01\0\x02\x01\0\0\0\x02\x01\0\x01\x01\0\x01\0\0\x01\0\x01\0\x01\x01\x01\x01\0\0\x01\x01\x01\0\x01\x01\x02\x01\0\0\x01\x02\x01\0\x01\x02\0\x01\0\0\x02\0\x01\0\x01\x02\x01\x01\0\0\x02\x01\x01\0\x01\x02\x02\x01\0\0\x02\x02\x01\0\x01\0\0\x02\0\0\0\0\x02\0\x01\0\x01\x02\0\0\0\x01\x02\0\x01\0\x02\x02\0\0\0\x02\x02\0\x01\x01\0\x02\0\0\x01\0\x02\0\x01\x01\x01\x02\0\0\x01\x01\x02\0\x01\x01\x02\x02\0\0\x01\x02\x02\0\x01\x02\0\x02\0\0\x02\0\x02\0\x01\x02\x01\x02\0\0\x02\x01\x02\0\x01\x02\x02\x02\0\0\x02\x02\x02\0\x01\0\0\0\x01\0\0\0\0\x01\x01\0\x01\0\x01\0\0\x01\0\x01\x01\0\x02\0\x01\0\0\x02\0\x01\x01\x01\0\0\x01\0\x01\0\0\x01\x01\x01\x01\0\x01\0\x01\x01\0\x01\x01\x01\x02\0\x01\0\x01\x02\0\x01\x01\x02\0\0\x01\0\x02\0\0\x01\x01\x02\x01\0\x01\0\x02\x01\0\x01\x01\x02\x02\0\x01\0\x02\x02\0\x01\x01\0\0\x01\x01\0\0\0\x01\x01\x01\0\x01\x01\x01\0\0\x01\x01\x01\x01\0\x02\x01\x01\0\0\x02\x01\x01\x01\x01\0\x01\x01\0\x01\0\x01\x01\x01\x01\x01\x01\x01\0\x01\x01\x01\x01\x01\x01\x02\x01\x01\0\x01\x02\x01\x01\x01\x02\0\x01\x01\0\x02\0\x01\x01\x01\x02\x01\x01\x01\0\x02\x01\x01\x01\x01\x02\x02\x01\x01\0\x02\x02\x01\x01\x01\0\0\x02\x01\0\0\0\x02\x01\x01\0\x01\x02\x01\0\0\x01\x02\x01\x01\0\x02\x02\x01\0\0\x02\x02\x01\x01\x01\0\x02\x01\0\x01\0\x02\x01\x01\x01\x01\x02\x01\0\x01\x01\x02\x01\x01\x01\x02\x02\x01\0\x01\x02\x02\x01\x01\x02\0\x02\x01\0\x02\0\x02\x01\x01\x02\x01\x02\x01\0\x02\x01\x02\x01\x01\x02\x02\x02\x01\0\x02\x02\x02\x01\x01\0\0\0\x02\0\0\0\0\x02\x01\0\x01\0\x02\0\0\x01\0\x02\x01\0\x02\0\x02\0\0\x02\0\x02\x01\x01\0\0\x02\0\x01\0\0\x02\x01\x01\x01\0\x02\0\x01\x01\0\x02\x01\x01\x02\0\x02\0\x01\x02\0\x02\x01\x02\0\0\x02\0\x02\0\0\x02\x01\x02\x01\0\x02\0\x02\x01\0\x02\x01\x02\x02\0\x02\0\x02\x02\0\x02\x01\0\0\x01\x02\0\0\0\x01\x02\x01\0\x01\x01\x02\0\0\x01\x01\x02\x01\0\x02\x01\x02\0\0\x02\x01\x02\x01\x01\0\x01\x02\0\x01\0\x01\x02\x01\x01\x01\x01\x02\0\x01\x01\x01\x02\x01\x01\x02\x01\x02\0\x01\x02\x01\x02\x01\x02\0\x01\x02\0\x02\0\x01\x02\x01\x02\x01\x01\x02\0\x02\x01\x01\x02\x01\x02\x02\x01\x02\0\x02\x02\x01\x02\x01\0\0\x02\x02\0\0\0\x02\x02\x01\0\x01\x02\x02\0\0\x01\x02\x02\x01\0\x02\x02\x02\0\0\x02\x02\x02\x01\x01\0\x02\x02\0\x01\0\x02\x02\x01\x01\x01\x02\x02\0\x01\x01\x02\x02\x01\x01\x02\x02\x02\0\x01\x02\x02\x02\x01\x02\0\x02\x02\0\x02\0\x02\x02\x01\x02\x01\x02\x02\0\x02\x01\x02\x02\x01\x02\x02\x02\x02\0\x02\x02\x02\x02\x01",
+        server_definition: None,
     },
     BlockData {
         id: 8248u32,
@@ -16129,6 +16646,7 @@ pub static ALL_BLOCKS: [BlockData; 1477usize] = [
         visual_shape: [0f32, 0f32, 0f32, 1f32, 1f32, 1f32],
         properties: &[],
         state_values: b"",
+        server_definition: None,
     },
     BlockData {
         id: 8249u32,
@@ -16179,6 +16697,7 @@ pub static ALL_BLOCKS: [BlockData; 1477usize] = [
             },
         ],
         state_values: b"\0\0\0\0\0\x01\0\0\x02\0\0\x03\0\x01\0\0\x01\x01\0\x01\x02\0\x01\x03\x01\0\0\x01\0\x01\x01\0\x02\x01\0\x03\x01\x01\0\x01\x01\x01\x01\x01\x02\x01\x01\x03\x02\0\0\x02\0\x01\x02\0\x02\x02\0\x03\x02\x01\0\x02\x01\x01\x02\x01\x02\x02\x01\x03\x03\0\0\x03\0\x01\x03\0\x02\x03\0\x03\x03\x01\0\x03\x01\x01\x03\x01\x02\x03\x01\x03\x04\0\0\x04\0\x01\x04\0\x02\x04\0\x03\x04\x01\0\x04\x01\x01\x04\x01\x02\x04\x01\x03",
+        server_definition: None,
     },
     BlockData {
         id: 8289u32,
@@ -16205,6 +16724,7 @@ pub static ALL_BLOCKS: [BlockData; 1477usize] = [
         visual_shape: [0f32, 0f32, 0f32, 1f32, 1f32, 1f32],
         properties: &[],
         state_values: b"",
+        server_definition: None,
     },
     BlockData {
         id: 8290u32,
@@ -16247,6 +16767,7 @@ pub static ALL_BLOCKS: [BlockData; 1477usize] = [
             },
         ],
         state_values: b"\0\0\0\x01\0\x02\0\x03\0\x04\0\x05\x01\0\x01\x01\x01\x02\x01\x03\x01\x04\x01\x05",
+        server_definition: None,
     },
     BlockData {
         id: 8302u32,
@@ -16273,6 +16794,7 @@ pub static ALL_BLOCKS: [BlockData; 1477usize] = [
         visual_shape: [0.15f32, 0f32, 0.15f32, 0.7f32, 0.6f32, 0.7f32],
         properties: &[],
         state_values: b"",
+        server_definition: None,
     },
     BlockData {
         id: 8303u32,
@@ -16316,6 +16838,7 @@ pub static ALL_BLOCKS: [BlockData; 1477usize] = [
             },
         ],
         state_values: b"\0\0\0\0\0\x01\0\0\x01\0\0\0\x01\x01\0\0\0\0\x01\0\0\x01\x01\0\x01\0\x01\0\x01\x01\x01\0\0\0\0\x01\0\x01\0\x01\x01\0\0\x01\x01\x01\0\x01\0\0\x01\x01\0\x01\x01\x01\x01\0\x01\x01\x01\x01\x01\x01",
+        server_definition: None,
     },
     BlockData {
         id: 8319u32,
@@ -16366,6 +16889,7 @@ pub static ALL_BLOCKS: [BlockData; 1477usize] = [
             },
         ],
         state_values: b"\0\0\0\0\0\x01\0\0\x02\0\0\x03\0\x01\0\0\x01\x01\0\x01\x02\0\x01\x03\x01\0\0\x01\0\x01\x01\0\x02\x01\0\x03\x01\x01\0\x01\x01\x01\x01\x01\x02\x01\x01\x03\x02\0\0\x02\0\x01\x02\0\x02\x02\0\x03\x02\x01\0\x02\x01\x01\x02\x01\x02\x02\x01\x03\x03\0\0\x03\0\x01\x03\0\x02\x03\0\x03\x03\x01\0\x03\x01\x01\x03\x01\x02\x03\x01\x03\x04\0\0\x04\0\x01\x04\0\x02\x04\0\x03\x04\x01\0\x04\x01\x01\x04\x01\x02\x04\x01\x03",
+        server_definition: None,
     },
     BlockData {
         id: 8359u32,
@@ -16401,6 +16925,7 @@ pub static ALL_BLOCKS: [BlockData; 1477usize] = [
             },
         ],
         state_values: b"\0\0\0\x01\x01\0\x01\x01",
+        server_definition: None,
     },
     BlockData {
         id: 8363u32,
@@ -16427,6 +16952,7 @@ pub static ALL_BLOCKS: [BlockData; 1477usize] = [
         visual_shape: [0f32, 0f32, 0f32, 1f32, 1f32, 1f32],
         properties: &[],
         state_values: b"",
+        server_definition: None,
     },
     BlockData {
         id: 8364u32,
@@ -16458,6 +16984,7 @@ pub static ALL_BLOCKS: [BlockData; 1477usize] = [
             },
         ],
         state_values: b"\0\x01",
+        server_definition: None,
     },
     BlockData {
         id: 8366u32,
@@ -16484,6 +17011,7 @@ pub static ALL_BLOCKS: [BlockData; 1477usize] = [
         visual_shape: [0f32, 0f32, 0f32, 1f32, 1f32, 1f32],
         properties: &[],
         state_values: b"",
+        server_definition: None,
     },
     BlockData {
         id: 8367u32,
@@ -16515,6 +17043,7 @@ pub static ALL_BLOCKS: [BlockData; 1477usize] = [
             },
         ],
         state_values: b"\0\x01",
+        server_definition: None,
     },
     BlockData {
         id: 8369u32,
@@ -16546,6 +17075,9 @@ pub static ALL_BLOCKS: [BlockData; 1477usize] = [
             },
         ],
         state_values: b"\0\x01",
+        server_definition: Some(
+            b"\n\0\t\tblockTags\x08\x02%minecraft:is_shears_item_destructible\n\ncomponents\n minecraft:destructible_by_mining\x05\x05value\xCD\xCCL?\0\n\x1Fminecraft:destruction_particles\x03\x0Eparticle_count`\x08\x07texture\0\x08\x0Btint_method\x04none\0\n\x1Aminecraft:liquid_detection\t\x0EdetectionRules\n\x02\x01\x10canContainLiquid\x01\x08\nliquidType\x05water\x08\x0FonLiquidTouches\x08blocking\x01\x18stopsLiquidFromDirection\0\x01\x13use_liquid_clipping\0\0\0\n\x1Fminecraft:redstone_conductivity\x01\x14allowsWireToStepDown\x01\x01\x11redstoneConductor\0\0\0\n\rmenu_category\x08\x08category\x0Cconstruction\x08\x05group\x1Dminecraft:itemGroup.name.slab\x01\x15is_hidden_in_commands\0\0\x03\rmolangVersion\x1A\n\x12vanilla_block_data\n\x0Fblock_archetype\x08\x11double_slab_block\"minecraft:magenta_wool_double_slab\x01\tis_double\0\x08\x04type\nslab_block\0\x03\x08block_id\xB4\x16\x01\x15can_dampen_vibrations\x01\x01\x16can_occlude_vibrations\x01\x08\x08material\x05solid\x05\x0Ctranslucency\xCD\xCCL?\0\0",
+        ),
     },
     BlockData {
         id: 8371u32,
@@ -16572,6 +17104,7 @@ pub static ALL_BLOCKS: [BlockData; 1477usize] = [
         visual_shape: [0f32, 0f32, 0f32, 1f32, 1f32, 1f32],
         properties: &[],
         state_values: b"",
+        server_definition: None,
     },
     BlockData {
         id: 8372u32,
@@ -16608,6 +17141,7 @@ pub static ALL_BLOCKS: [BlockData; 1477usize] = [
             },
         ],
         state_values: b"\0\x01\x02\x03",
+        server_definition: None,
     },
     BlockData {
         id: 8376u32,
@@ -16643,6 +17177,7 @@ pub static ALL_BLOCKS: [BlockData; 1477usize] = [
             },
         ],
         state_values: b"\0\x01\x02",
+        server_definition: None,
     },
     BlockData {
         id: 8379u32,
@@ -16679,6 +17214,7 @@ pub static ALL_BLOCKS: [BlockData; 1477usize] = [
             },
         ],
         state_values: b"\0\x01\x02\x03",
+        server_definition: None,
     },
     BlockData {
         id: 8383u32,
@@ -16717,6 +17253,7 @@ pub static ALL_BLOCKS: [BlockData; 1477usize] = [
             },
         ],
         state_values: b"\0\x01\x02\x03\x04\x05",
+        server_definition: None,
     },
     BlockData {
         id: 8389u32,
@@ -16758,6 +17295,7 @@ pub static ALL_BLOCKS: [BlockData; 1477usize] = [
             },
         ],
         state_values: b"\0\x01\x02\x03",
+        server_definition: None,
     },
     BlockData {
         id: 8393u32,
@@ -16793,6 +17331,7 @@ pub static ALL_BLOCKS: [BlockData; 1477usize] = [
             },
         ],
         state_values: b"\0\x01\x02",
+        server_definition: None,
     },
     BlockData {
         id: 8396u32,
@@ -16837,6 +17376,7 @@ pub static ALL_BLOCKS: [BlockData; 1477usize] = [
             },
         ],
         state_values: b"\0\0\0\0\x01\0\0\x02\0\0\x03\0\0\0\x01\0\x01\x01\0\x02\x01\0\x03\x01\x01\0\0\x01\x01\0\x01\x02\0\x01\x03\0\x01\0\x01\x01\x01\x01\x01\x02\x01\x01\x03\x01",
+        server_definition: None,
     },
     BlockData {
         id: 8412u32,
@@ -16868,6 +17408,7 @@ pub static ALL_BLOCKS: [BlockData; 1477usize] = [
             },
         ],
         state_values: b"\0\x01",
+        server_definition: None,
     },
     BlockData {
         id: 8414u32,
@@ -16899,6 +17440,7 @@ pub static ALL_BLOCKS: [BlockData; 1477usize] = [
             },
         ],
         state_values: b"\0\x01",
+        server_definition: None,
     },
     BlockData {
         id: 8416u32,
@@ -16930,6 +17472,7 @@ pub static ALL_BLOCKS: [BlockData; 1477usize] = [
             },
         ],
         state_values: b"\0\x01",
+        server_definition: None,
     },
     BlockData {
         id: 8418u32,
@@ -16956,6 +17499,7 @@ pub static ALL_BLOCKS: [BlockData; 1477usize] = [
         visual_shape: [0f32, 0f32, 0f32, 1f32, 1f32, 1f32],
         properties: &[],
         state_values: b"",
+        server_definition: None,
     },
     BlockData {
         id: 8419u32,
@@ -16982,6 +17526,7 @@ pub static ALL_BLOCKS: [BlockData; 1477usize] = [
         visual_shape: [0f32, 0f32, 0f32, 1f32, 1f32, 1f32],
         properties: &[],
         state_values: b"",
+        server_definition: None,
     },
     BlockData {
         id: 8420u32,
@@ -17025,6 +17570,7 @@ pub static ALL_BLOCKS: [BlockData; 1477usize] = [
             },
         ],
         state_values: b"\0\0\0\0\0\x01\0\0\x01\0\0\0\x01\x01\0\0\0\0\x01\0\0\x01\x01\0\x01\0\x01\0\x01\x01\x01\0\0\0\0\x01\0\x01\0\x01\x01\0\0\x01\x01\x01\0\x01\0\0\x01\x01\0\x01\x01\x01\x01\0\x01\x01\x01\x01\x01\x01",
+        server_definition: None,
     },
     BlockData {
         id: 8436u32,
@@ -17051,6 +17597,7 @@ pub static ALL_BLOCKS: [BlockData; 1477usize] = [
         visual_shape: [0f32, 0f32, 0f32, 1f32, 1f32, 1f32],
         properties: &[],
         state_values: b"",
+        server_definition: None,
     },
     BlockData {
         id: 8437u32,
@@ -17090,6 +17637,7 @@ pub static ALL_BLOCKS: [BlockData; 1477usize] = [
             },
         ],
         state_values: b"\0\0\x01\0\0\x01\x01\x01",
+        server_definition: None,
     },
     BlockData {
         id: 8441u32,
@@ -17121,6 +17669,9 @@ pub static ALL_BLOCKS: [BlockData; 1477usize] = [
             },
         ],
         state_values: b"\0\x01",
+        server_definition: Some(
+            b"\n\0\t\tblockTags\x08\x02&minecraft:is_pickaxe_item_destructible\n\ncomponents\n minecraft:destructible_by_mining\x05\x05valueff\xE6?\0\n\x1Fminecraft:destruction_particles\x03\x0Eparticle_count`\x08\x07texture\0\x08\x0Btint_method\x04none\0\n\x1Aminecraft:liquid_detection\t\x0EdetectionRules\n\x02\x01\x10canContainLiquid\x01\x08\nliquidType\x05water\x08\x0FonLiquidTouches\x08blocking\x01\x18stopsLiquidFromDirection\0\x01\x13use_liquid_clipping\0\0\0\n\x1Fminecraft:redstone_conductivity\x01\x14allowsWireToStepDown\x01\x01\x11redstoneConductor\0\0\0\n\rmenu_category\x08\x08category\x0Cconstruction\x08\x05group\x1Dminecraft:itemGroup.name.slab\x01\x15is_hidden_in_commands\0\0\x03\rmolangVersion\x1A\n\x12vanilla_block_data\n\x0Fblock_archetype\x08\x11double_slab_block%minecraft:purple_concrete_double_slab\x01\tis_double\0\x08\x04type\nslab_block\0\x03\x08block_id\x96\x17\x08\x08material\x05solid\x01\x1Frequires_correct_tool_for_drops\x01\0\0",
+        ),
     },
     BlockData {
         id: 8443u32,
@@ -17152,6 +17703,7 @@ pub static ALL_BLOCKS: [BlockData; 1477usize] = [
             },
         ],
         state_values: b"\0\x01",
+        server_definition: None,
     },
     BlockData {
         id: 8445u32,
@@ -17183,6 +17735,7 @@ pub static ALL_BLOCKS: [BlockData; 1477usize] = [
             },
         ],
         state_values: b"\0\x01",
+        server_definition: None,
     },
     BlockData {
         id: 8447u32,
@@ -17233,6 +17786,7 @@ pub static ALL_BLOCKS: [BlockData; 1477usize] = [
             },
         ],
         state_values: b"\0\0\0\0\0\x01\0\0\x02\0\0\x03\0\x01\0\0\x01\x01\0\x01\x02\0\x01\x03\x01\0\0\x01\0\x01\x01\0\x02\x01\0\x03\x01\x01\0\x01\x01\x01\x01\x01\x02\x01\x01\x03\x02\0\0\x02\0\x01\x02\0\x02\x02\0\x03\x02\x01\0\x02\x01\x01\x02\x01\x02\x02\x01\x03\x03\0\0\x03\0\x01\x03\0\x02\x03\0\x03\x03\x01\0\x03\x01\x01\x03\x01\x02\x03\x01\x03\x04\0\0\x04\0\x01\x04\0\x02\x04\0\x03\x04\x01\0\x04\x01\x01\x04\x01\x02\x04\x01\x03",
+        server_definition: None,
     },
     BlockData {
         id: 8487u32,
@@ -17276,6 +17830,7 @@ pub static ALL_BLOCKS: [BlockData; 1477usize] = [
             },
         ],
         state_values: b"\0\0\0\0\0\x01\0\0\x01\0\0\0\x01\x01\0\0\0\0\x01\0\0\x01\x01\0\x01\0\x01\0\x01\x01\x01\0\0\0\0\x01\0\x01\0\x01\x01\0\0\x01\x01\x01\0\x01\0\0\x01\x01\0\x01\x01\x01\x01\0\x01\x01\x01\x01\x01\x01",
+        server_definition: None,
     },
     BlockData {
         id: 8503u32,
@@ -17307,6 +17862,7 @@ pub static ALL_BLOCKS: [BlockData; 1477usize] = [
             },
         ],
         state_values: b"\0\x01",
+        server_definition: None,
     },
     BlockData {
         id: 8505u32,
@@ -17333,6 +17889,7 @@ pub static ALL_BLOCKS: [BlockData; 1477usize] = [
         visual_shape: [0f32, 0f32, 0f32, 1f32, 1f32, 1f32],
         properties: &[],
         state_values: b"",
+        server_definition: None,
     },
     BlockData {
         id: 8506u32,
@@ -17359,6 +17916,7 @@ pub static ALL_BLOCKS: [BlockData; 1477usize] = [
         visual_shape: [0f32, 0f32, 0f32, 1f32, 1f32, 1f32],
         properties: &[],
         state_values: b"",
+        server_definition: None,
     },
     BlockData {
         id: 8507u32,
@@ -17385,6 +17943,7 @@ pub static ALL_BLOCKS: [BlockData; 1477usize] = [
         visual_shape: [0f32, 0f32, 0f32, 1f32, 1f32, 1f32],
         properties: &[],
         state_values: b"",
+        server_definition: None,
     },
     BlockData {
         id: 8508u32,
@@ -17433,6 +17992,7 @@ pub static ALL_BLOCKS: [BlockData; 1477usize] = [
             },
         ],
         state_values: b"\0\x01\x02\x03\x04\x05\x06\x07\x08\t\n\x0B\x0C\r\x0E\x0F",
+        server_definition: None,
     },
     BlockData {
         id: 8524u32,
@@ -17481,6 +18041,7 @@ pub static ALL_BLOCKS: [BlockData; 1477usize] = [
             },
         ],
         state_values: b"\0\x01\x02\x03\x04\x05\x06\x07\x08\t\n\x0B\x0C\r\x0E\x0F",
+        server_definition: None,
     },
     BlockData {
         id: 8540u32,
@@ -17516,6 +18077,7 @@ pub static ALL_BLOCKS: [BlockData; 1477usize] = [
             },
         ],
         state_values: b"\0\x01\x02",
+        server_definition: None,
     },
     BlockData {
         id: 8543u32,
@@ -17542,6 +18104,7 @@ pub static ALL_BLOCKS: [BlockData; 1477usize] = [
         visual_shape: [0.25f32, 0f32, 0.25f32, 0.75f32, 0.5f32, 0.75f32],
         properties: &[],
         state_values: b"",
+        server_definition: None,
     },
     BlockData {
         id: 8544u32,
@@ -17568,6 +18131,7 @@ pub static ALL_BLOCKS: [BlockData; 1477usize] = [
         visual_shape: [0f32, 0f32, 0f32, 1f32, 1f32, 1f32],
         properties: &[],
         state_values: b"",
+        server_definition: None,
     },
     BlockData {
         id: 8545u32,
@@ -17606,6 +18170,7 @@ pub static ALL_BLOCKS: [BlockData; 1477usize] = [
             },
         ],
         state_values: b"\0\x01\x02\x03\x04\x05",
+        server_definition: None,
     },
     BlockData {
         id: 8551u32,
@@ -17650,6 +18215,7 @@ pub static ALL_BLOCKS: [BlockData; 1477usize] = [
             },
         ],
         state_values: b"\0\0\x01\0\x02\0\x03\0\0\x01\x01\x01\x02\x01\x03\x01\0\x02\x01\x02\x02\x02\x03\x02",
+        server_definition: None,
     },
     BlockData {
         id: 8563u32,
@@ -17696,6 +18262,7 @@ pub static ALL_BLOCKS: [BlockData; 1477usize] = [
             },
         ],
         state_values: b"\0\0\0\x01\0\0\x02\0\0\x03\0\0\x04\0\0\x05\0\0\0\x01\0\x01\x01\0\x02\x01\0\x03\x01\0\x04\x01\0\x05\x01\0\0\0\x01\x01\0\x01\x02\0\x01\x03\0\x01\x04\0\x01\x05\0\x01\0\x01\x01\x01\x01\x01\x02\x01\x01\x03\x01\x01\x04\x01\x01\x05\x01\x01",
+        server_definition: None,
     },
     BlockData {
         id: 8587u32,
@@ -17731,6 +18298,7 @@ pub static ALL_BLOCKS: [BlockData; 1477usize] = [
             },
         ],
         state_values: b"\0\x01\x02",
+        server_definition: None,
     },
     BlockData {
         id: 8590u32,
@@ -17760,6 +18328,7 @@ pub static ALL_BLOCKS: [BlockData; 1477usize] = [
         visual_shape: [0f32, 0f32, 0f32, 1f32, 1f32, 1f32],
         properties: &[],
         state_values: b"",
+        server_definition: None,
     },
     BlockData {
         id: 8591u32,
@@ -17790,6 +18359,7 @@ pub static ALL_BLOCKS: [BlockData; 1477usize] = [
         visual_shape: [0f32, 0f32, 0f32, 1f32, 1f32, 1f32],
         properties: &[],
         state_values: b"",
+        server_definition: None,
     },
     BlockData {
         id: 8592u32,
@@ -17821,6 +18391,7 @@ pub static ALL_BLOCKS: [BlockData; 1477usize] = [
             },
         ],
         state_values: b"\0\x01",
+        server_definition: None,
     },
     BlockData {
         id: 8594u32,
@@ -17852,6 +18423,7 @@ pub static ALL_BLOCKS: [BlockData; 1477usize] = [
             },
         ],
         state_values: b"\0\x01",
+        server_definition: None,
     },
     BlockData {
         id: 8596u32,
@@ -17883,6 +18455,7 @@ pub static ALL_BLOCKS: [BlockData; 1477usize] = [
             },
         ],
         state_values: b"\0\x01",
+        server_definition: None,
     },
     BlockData {
         id: 8598u32,
@@ -17909,6 +18482,7 @@ pub static ALL_BLOCKS: [BlockData; 1477usize] = [
         visual_shape: [0f32, 0f32, 0f32, 1f32, 1f32, 1f32],
         properties: &[],
         state_values: b"",
+        server_definition: None,
     },
     BlockData {
         id: 8599u32,
@@ -17958,6 +18532,7 @@ pub static ALL_BLOCKS: [BlockData; 1477usize] = [
             },
         ],
         state_values: b"\0\0\0\0\0\x01\0\0\x02\0\0\x03\0\x01\0\0\x01\x01\0\x01\x02\0\x01\x03\x01\0\0\x01\0\x01\x01\0\x02\x01\0\x03\x01\x01\0\x01\x01\x01\x01\x01\x02\x01\x01\x03\x02\0\0\x02\0\x01\x02\0\x02\x02\0\x03\x02\x01\0\x02\x01\x01\x02\x01\x02\x02\x01\x03\x03\0\0\x03\0\x01\x03\0\x02\x03\0\x03\x03\x01\0\x03\x01\x01\x03\x01\x02\x03\x01\x03",
+        server_definition: None,
     },
     BlockData {
         id: 8631u32,
@@ -17989,6 +18564,7 @@ pub static ALL_BLOCKS: [BlockData; 1477usize] = [
         visual_shape: [0f32, 0f32, 0f32, 1f32, 1f32, 1f32],
         properties: &[],
         state_values: b"",
+        server_definition: None,
     },
     BlockData {
         id: 8632u32,
@@ -18020,6 +18596,9 @@ pub static ALL_BLOCKS: [BlockData; 1477usize] = [
             },
         ],
         state_values: b"\0\x01",
+        server_definition: Some(
+            b"\n\0\t\tblockTags\x08\x02%minecraft:is_shears_item_destructible\n\ncomponents\n minecraft:destructible_by_mining\x05\x05value\xCD\xCCL?\0\n\x1Fminecraft:destruction_particles\x03\x0Eparticle_count`\x08\x07texture\0\x08\x0Btint_method\x04none\0\n\x1Aminecraft:liquid_detection\t\x0EdetectionRules\n\x02\x01\x10canContainLiquid\x01\x08\nliquidType\x05water\x08\x0FonLiquidTouches\x08blocking\x01\x18stopsLiquidFromDirection\0\x01\x13use_liquid_clipping\0\0\0\n\x1Fminecraft:redstone_conductivity\x01\x14allowsWireToStepDown\x01\x01\x11redstoneConductor\0\0\0\n\rmenu_category\x08\x08category\x0Cconstruction\x08\x05group\x1Dminecraft:itemGroup.name.slab\x01\x15is_hidden_in_commands\0\0\x03\rmolangVersion\x1A\n\x12vanilla_block_data\n\x0Fblock_archetype\x08\x11double_slab_block\x1Fminecraft:lime_wool_double_slab\x01\tis_double\0\x08\x04type\nslab_block\0\x03\x08block_id\xA8\x16\x01\x15can_dampen_vibrations\x01\x01\x16can_occlude_vibrations\x01\x08\x08material\x05solid\x05\x0Ctranslucency\xCD\xCCL?\0\0",
+        ),
     },
     BlockData {
         id: 8634u32,
@@ -18051,6 +18630,7 @@ pub static ALL_BLOCKS: [BlockData; 1477usize] = [
             },
         ],
         state_values: b"\0\x01",
+        server_definition: None,
     },
     BlockData {
         id: 8636u32,
@@ -18092,6 +18672,7 @@ pub static ALL_BLOCKS: [BlockData; 1477usize] = [
             },
         ],
         state_values: b"\0\x01\x02\x03",
+        server_definition: None,
     },
     BlockData {
         id: 8640u32,
@@ -18118,6 +18699,7 @@ pub static ALL_BLOCKS: [BlockData; 1477usize] = [
         visual_shape: [0f32, 0f32, 0f32, 1f32, 1f32, 1f32],
         properties: &[],
         state_values: b"",
+        server_definition: None,
     },
     BlockData {
         id: 8641u32,
@@ -18153,6 +18735,7 @@ pub static ALL_BLOCKS: [BlockData; 1477usize] = [
             },
         ],
         state_values: b"\0\x01\x02",
+        server_definition: None,
     },
     BlockData {
         id: 8644u32,
@@ -18179,6 +18762,7 @@ pub static ALL_BLOCKS: [BlockData; 1477usize] = [
         visual_shape: [0f32, 0f32, 0f32, 1f32, 1f32, 1f32],
         properties: &[],
         state_values: b"",
+        server_definition: None,
     },
     BlockData {
         id: 8645u32,
@@ -18205,6 +18789,7 @@ pub static ALL_BLOCKS: [BlockData; 1477usize] = [
         visual_shape: [0f32, 0f32, 0f32, 1f32, 1f32, 1f32],
         properties: &[],
         state_values: b"",
+        server_definition: None,
     },
     BlockData {
         id: 8646u32,
@@ -18268,6 +18853,7 @@ pub static ALL_BLOCKS: [BlockData; 1477usize] = [
             },
         ],
         state_values: b"\0\0\0\0\0\0\0\0\0\x01\0\x01\0\0\0\0\x01\0\0\x01\0\x02\0\0\0\0\x02\0\0\x01\x01\0\0\0\0\x01\0\0\0\x01\x01\x01\0\0\0\x01\x01\0\0\x01\x01\x02\0\0\0\x01\x02\0\0\x01\x02\0\0\0\0\x02\0\0\0\x01\x02\x01\0\0\0\x02\x01\0\0\x01\x02\x02\0\0\0\x02\x02\0\0\x01\0\0\x01\0\0\0\0\x01\0\x01\0\x01\x01\0\0\0\x01\x01\0\x01\0\x02\x01\0\0\0\x02\x01\0\x01\x01\0\x01\0\0\x01\0\x01\0\x01\x01\x01\x01\0\0\x01\x01\x01\0\x01\x01\x02\x01\0\0\x01\x02\x01\0\x01\x02\0\x01\0\0\x02\0\x01\0\x01\x02\x01\x01\0\0\x02\x01\x01\0\x01\x02\x02\x01\0\0\x02\x02\x01\0\x01\0\0\x02\0\0\0\0\x02\0\x01\0\x01\x02\0\0\0\x01\x02\0\x01\0\x02\x02\0\0\0\x02\x02\0\x01\x01\0\x02\0\0\x01\0\x02\0\x01\x01\x01\x02\0\0\x01\x01\x02\0\x01\x01\x02\x02\0\0\x01\x02\x02\0\x01\x02\0\x02\0\0\x02\0\x02\0\x01\x02\x01\x02\0\0\x02\x01\x02\0\x01\x02\x02\x02\0\0\x02\x02\x02\0\x01\0\0\0\x01\0\0\0\0\x01\x01\0\x01\0\x01\0\0\x01\0\x01\x01\0\x02\0\x01\0\0\x02\0\x01\x01\x01\0\0\x01\0\x01\0\0\x01\x01\x01\x01\0\x01\0\x01\x01\0\x01\x01\x01\x02\0\x01\0\x01\x02\0\x01\x01\x02\0\0\x01\0\x02\0\0\x01\x01\x02\x01\0\x01\0\x02\x01\0\x01\x01\x02\x02\0\x01\0\x02\x02\0\x01\x01\0\0\x01\x01\0\0\0\x01\x01\x01\0\x01\x01\x01\0\0\x01\x01\x01\x01\0\x02\x01\x01\0\0\x02\x01\x01\x01\x01\0\x01\x01\0\x01\0\x01\x01\x01\x01\x01\x01\x01\0\x01\x01\x01\x01\x01\x01\x02\x01\x01\0\x01\x02\x01\x01\x01\x02\0\x01\x01\0\x02\0\x01\x01\x01\x02\x01\x01\x01\0\x02\x01\x01\x01\x01\x02\x02\x01\x01\0\x02\x02\x01\x01\x01\0\0\x02\x01\0\0\0\x02\x01\x01\0\x01\x02\x01\0\0\x01\x02\x01\x01\0\x02\x02\x01\0\0\x02\x02\x01\x01\x01\0\x02\x01\0\x01\0\x02\x01\x01\x01\x01\x02\x01\0\x01\x01\x02\x01\x01\x01\x02\x02\x01\0\x01\x02\x02\x01\x01\x02\0\x02\x01\0\x02\0\x02\x01\x01\x02\x01\x02\x01\0\x02\x01\x02\x01\x01\x02\x02\x02\x01\0\x02\x02\x02\x01\x01\0\0\0\x02\0\0\0\0\x02\x01\0\x01\0\x02\0\0\x01\0\x02\x01\0\x02\0\x02\0\0\x02\0\x02\x01\x01\0\0\x02\0\x01\0\0\x02\x01\x01\x01\0\x02\0\x01\x01\0\x02\x01\x01\x02\0\x02\0\x01\x02\0\x02\x01\x02\0\0\x02\0\x02\0\0\x02\x01\x02\x01\0\x02\0\x02\x01\0\x02\x01\x02\x02\0\x02\0\x02\x02\0\x02\x01\0\0\x01\x02\0\0\0\x01\x02\x01\0\x01\x01\x02\0\0\x01\x01\x02\x01\0\x02\x01\x02\0\0\x02\x01\x02\x01\x01\0\x01\x02\0\x01\0\x01\x02\x01\x01\x01\x01\x02\0\x01\x01\x01\x02\x01\x01\x02\x01\x02\0\x01\x02\x01\x02\x01\x02\0\x01\x02\0\x02\0\x01\x02\x01\x02\x01\x01\x02\0\x02\x01\x01\x02\x01\x02\x02\x01\x02\0\x02\x02\x01\x02\x01\0\0\x02\x02\0\0\0\x02\x02\x01\0\x01\x02\x02\0\0\x01\x02\x02\x01\0\x02\x02\x02\0\0\x02\x02\x02\x01\x01\0\x02\x02\0\x01\0\x02\x02\x01\x01\x01\x02\x02\0\x01\x01\x02\x02\x01\x01\x02\x02\x02\0\x01\x02\x02\x02\x01\x02\0\x02\x02\0\x02\0\x02\x02\x01\x02\x01\x02\x02\0\x02\x01\x02\x02\x01\x02\x02\x02\x02\0\x02\x02\x02\x02\x01",
+        server_definition: None,
     },
     BlockData {
         id: 8808u32,
@@ -18311,6 +18897,7 @@ pub static ALL_BLOCKS: [BlockData; 1477usize] = [
             },
         ],
         state_values: b"\0\0\0\0\0\x01\0\0\x01\0\0\0\x01\x01\0\0\0\0\x01\0\0\x01\x01\0\x01\0\x01\0\x01\x01\x01\0\0\0\0\x01\0\x01\0\x01\x01\0\0\x01\x01\x01\0\x01\0\0\x01\x01\0\x01\x01\x01\x01\0\x01\x01\x01\x01\x01\x01",
+        server_definition: None,
     },
     BlockData {
         id: 8824u32,
@@ -18361,6 +18948,9 @@ pub static ALL_BLOCKS: [BlockData; 1477usize] = [
             },
         ],
         state_values: b"\0\0\0\0\0\x01\0\0\x02\0\0\x03\0\x01\0\0\x01\x01\0\x01\x02\0\x01\x03\x01\0\0\x01\0\x01\x01\0\x02\x01\0\x03\x01\x01\0\x01\x01\x01\x01\x01\x02\x01\x01\x03\x02\0\0\x02\0\x01\x02\0\x02\x02\0\x03\x02\x01\0\x02\x01\x01\x02\x01\x02\x02\x01\x03\x03\0\0\x03\0\x01\x03\0\x02\x03\0\x03\x03\x01\0\x03\x01\x01\x03\x01\x02\x03\x01\x03\x04\0\0\x04\0\x01\x04\0\x02\x04\0\x03\x04\x01\0\x04\x01\x01\x04\x01\x02\x04\x01\x03",
+        server_definition: Some(
+            b"\n\0\t\tblockTags\x08\x02%minecraft:is_shears_item_destructible\n\ncomponents\n minecraft:destructible_by_mining\x05\x05value\xCD\xCCL?\0\n\x1Fminecraft:destruction_particles\x03\x0Eparticle_count`\x08\x07texture\0\x08\x0Btint_method\x04none\0\n\x1Aminecraft:liquid_detection\t\x0EdetectionRules\n\x02\x01\x10canContainLiquid\x01\x08\nliquidType\x05water\x08\x0FonLiquidTouches\x08blocking\x01\x18stopsLiquidFromDirection\0\x01\x13use_liquid_clipping\0\0\0\n\x1Fminecraft:redstone_conductivity\x01\x14allowsWireToStepDown\x01\x01\x11redstoneConductor\0\0\n\x11minecraft:support\x08\x05shape\x05stair\0\0\n\rmenu_category\x08\x08category\x0Cconstruction\x08\x05group\x1Fminecraft:itemGroup.name.stairs\x01\x15is_hidden_in_commands\0\0\x03\rmolangVersion\x1A\n\x12vanilla_block_data\n\x0Fblock_archetype\x08\nbase_block\x13minecraft:blue_wool\x08\x04type\x0Bstair_block\0\x03\x08block_id\xFC\x15\x01\x15can_dampen_vibrations\x01\x01\x16can_occlude_vibrations\x01\x08\x08material\x05solid\x05\x0Ctranslucency\xCD\xCCL?\0\0",
+        ),
     },
     BlockData {
         id: 8864u32,
@@ -18387,6 +18977,7 @@ pub static ALL_BLOCKS: [BlockData; 1477usize] = [
         visual_shape: [0.15f32, 0f32, 0.15f32, 0.7f32, 0.6f32, 0.7f32],
         properties: &[],
         state_values: b"",
+        server_definition: None,
     },
     BlockData {
         id: 8865u32,
@@ -18418,6 +19009,7 @@ pub static ALL_BLOCKS: [BlockData; 1477usize] = [
             },
         ],
         state_values: b"\0\x01",
+        server_definition: None,
     },
     BlockData {
         id: 8867u32,
@@ -18453,6 +19045,7 @@ pub static ALL_BLOCKS: [BlockData; 1477usize] = [
             },
         ],
         state_values: b"\0\x01\x02",
+        server_definition: None,
     },
     BlockData {
         id: 8870u32,
@@ -18484,6 +19077,7 @@ pub static ALL_BLOCKS: [BlockData; 1477usize] = [
             },
         ],
         state_values: b"\0\x01",
+        server_definition: None,
     },
     BlockData {
         id: 8872u32,
@@ -18510,6 +19104,7 @@ pub static ALL_BLOCKS: [BlockData; 1477usize] = [
         visual_shape: [0f32, 0f32, 0f32, 1f32, 1f32, 1f32],
         properties: &[],
         state_values: b"",
+        server_definition: None,
     },
     BlockData {
         id: 8873u32,
@@ -18541,6 +19136,7 @@ pub static ALL_BLOCKS: [BlockData; 1477usize] = [
             },
         ],
         state_values: b"\0\x01",
+        server_definition: None,
     },
     BlockData {
         id: 8875u32,
@@ -18572,6 +19168,9 @@ pub static ALL_BLOCKS: [BlockData; 1477usize] = [
             },
         ],
         state_values: b"\0\x01",
+        server_definition: Some(
+            b"\n\0\t\tblockTags\x08\x02%minecraft:is_shears_item_destructible\n\ncomponents\n minecraft:destructible_by_mining\x05\x05value\xCD\xCCL?\0\n\x1Fminecraft:destruction_particles\x03\x0Eparticle_count`\x08\x07texture\0\x08\x0Btint_method\x04none\0\n\x1Aminecraft:liquid_detection\t\x0EdetectionRules\n\x02\x01\x10canContainLiquid\x01\x08\nliquidType\x05water\x08\x0FonLiquidTouches\x08blocking\x01\x18stopsLiquidFromDirection\0\x01\x13use_liquid_clipping\0\0\0\n\x1Fminecraft:redstone_conductivity\x01\x14allowsWireToStepDown\x01\x01\x11redstoneConductor\0\0\0\n\rmenu_category\x08\x08category\x0Cconstruction\x08\x05group\x1Dminecraft:itemGroup.name.slab\x01\x15is_hidden_in_commands\0\0\x03\rmolangVersion\x1A\n\x12vanilla_block_data\n\x0Fblock_archetype\x08\x11double_slab_block\x1Eminecraft:red_wool_double_slab\x01\tis_double\0\x08\x04type\nslab_block\0\x03\x08block_id\xA2\x16\x01\x15can_dampen_vibrations\x01\x01\x16can_occlude_vibrations\x01\x08\x08material\x05solid\x05\x0Ctranslucency\xCD\xCCL?\0\0",
+        ),
     },
     BlockData {
         id: 8877u32,
@@ -18598,6 +19197,7 @@ pub static ALL_BLOCKS: [BlockData; 1477usize] = [
         visual_shape: [0.099999994f32, 0f32, 0.099999994f32, 0.9f32, 0.8f32, 0.9f32],
         properties: &[],
         state_values: b"",
+        server_definition: None,
     },
     BlockData {
         id: 8878u32,
@@ -18624,6 +19224,7 @@ pub static ALL_BLOCKS: [BlockData; 1477usize] = [
         visual_shape: [0f32, 0f32, 0f32, 1f32, 1f32, 1f32],
         properties: &[],
         state_values: b"",
+        server_definition: None,
     },
     BlockData {
         id: 8879u32,
@@ -18655,6 +19256,7 @@ pub static ALL_BLOCKS: [BlockData; 1477usize] = [
             },
         ],
         state_values: b"\0\x01",
+        server_definition: None,
     },
     BlockData {
         id: 8881u32,
@@ -18686,6 +19288,7 @@ pub static ALL_BLOCKS: [BlockData; 1477usize] = [
             },
         ],
         state_values: b"\0\x01",
+        server_definition: None,
     },
     BlockData {
         id: 8883u32,
@@ -18734,6 +19337,7 @@ pub static ALL_BLOCKS: [BlockData; 1477usize] = [
             },
         ],
         state_values: b"\0\0\0\0\0\x01\0\0\0\x02\0\0\0\x03\0\0\0\0\x01\0\0\x01\x01\0\0\x02\x01\0\0\x03\x01\0\0\0\0\x01\0\x01\0\x01\0\x02\0\x01\0\x03\0\x01\0\0\x01\x01\0\x01\x01\x01\0\x02\x01\x01\0\x03\x01\x01\x01\0\0\0\x01\x01\0\0\x01\x02\0\0\x01\x03\0\0\x01\0\x01\0\x01\x01\x01\0\x01\x02\x01\0\x01\x03\x01\0\x01\0\0\x01\x01\x01\0\x01\x01\x02\0\x01\x01\x03\0\x01\x01\0\x01\x01\x01\x01\x01\x01\x01\x02\x01\x01\x01\x03\x01\x01",
+        server_definition: None,
     },
     BlockData {
         id: 8915u32,
@@ -18772,6 +19376,7 @@ pub static ALL_BLOCKS: [BlockData; 1477usize] = [
             },
         ],
         state_values: b"\0\x01\x02\x03\x04\x05",
+        server_definition: None,
     },
     BlockData {
         id: 8921u32,
@@ -18807,6 +19412,7 @@ pub static ALL_BLOCKS: [BlockData; 1477usize] = [
             },
         ],
         state_values: b"\0\x01\x02",
+        server_definition: None,
     },
     BlockData {
         id: 8924u32,
@@ -18857,6 +19463,7 @@ pub static ALL_BLOCKS: [BlockData; 1477usize] = [
             },
         ],
         state_values: b"\0\0\0\0\0\x01\0\0\x02\0\0\x03\0\x01\0\0\x01\x01\0\x01\x02\0\x01\x03\x01\0\0\x01\0\x01\x01\0\x02\x01\0\x03\x01\x01\0\x01\x01\x01\x01\x01\x02\x01\x01\x03\x02\0\0\x02\0\x01\x02\0\x02\x02\0\x03\x02\x01\0\x02\x01\x01\x02\x01\x02\x02\x01\x03\x03\0\0\x03\0\x01\x03\0\x02\x03\0\x03\x03\x01\0\x03\x01\x01\x03\x01\x02\x03\x01\x03\x04\0\0\x04\0\x01\x04\0\x02\x04\0\x03\x04\x01\0\x04\x01\x01\x04\x01\x02\x04\x01\x03",
+        server_definition: None,
     },
     BlockData {
         id: 8964u32,
@@ -18912,6 +19519,7 @@ pub static ALL_BLOCKS: [BlockData; 1477usize] = [
             },
         ],
         state_values: b"\0\0\0\0\0\x01\0\0\x02\0\0\x03\0\x01\0\0\x01\x01\0\x01\x02\0\x01\x03\x01\0\0\x01\0\x01\x01\0\x02\x01\0\x03\x01\x01\0\x01\x01\x01\x01\x01\x02\x01\x01\x03\x02\0\0\x02\0\x01\x02\0\x02\x02\0\x03\x02\x01\0\x02\x01\x01\x02\x01\x02\x02\x01\x03\x03\0\0\x03\0\x01\x03\0\x02\x03\0\x03\x03\x01\0\x03\x01\x01\x03\x01\x02\x03\x01\x03\x04\0\0\x04\0\x01\x04\0\x02\x04\0\x03\x04\x01\0\x04\x01\x01\x04\x01\x02\x04\x01\x03",
+        server_definition: None,
     },
     BlockData {
         id: 9004u32,
@@ -18952,6 +19560,7 @@ pub static ALL_BLOCKS: [BlockData; 1477usize] = [
             },
         ],
         state_values: b"\0\0\0\x01\x01\0\x01\x01\x02\0\x02\x01\x03\0\x03\x01",
+        server_definition: None,
     },
     BlockData {
         id: 9012u32,
@@ -19002,6 +19611,7 @@ pub static ALL_BLOCKS: [BlockData; 1477usize] = [
             },
         ],
         state_values: b"\0\0\0\0\0\x01\0\0\x02\0\0\x03\0\x01\0\0\x01\x01\0\x01\x02\0\x01\x03\x01\0\0\x01\0\x01\x01\0\x02\x01\0\x03\x01\x01\0\x01\x01\x01\x01\x01\x02\x01\x01\x03\x02\0\0\x02\0\x01\x02\0\x02\x02\0\x03\x02\x01\0\x02\x01\x01\x02\x01\x02\x02\x01\x03\x03\0\0\x03\0\x01\x03\0\x02\x03\0\x03\x03\x01\0\x03\x01\x01\x03\x01\x02\x03\x01\x03\x04\0\0\x04\0\x01\x04\0\x02\x04\0\x03\x04\x01\0\x04\x01\x01\x04\x01\x02\x04\x01\x03",
+        server_definition: None,
     },
     BlockData {
         id: 9052u32,
@@ -19028,6 +19638,7 @@ pub static ALL_BLOCKS: [BlockData; 1477usize] = [
         visual_shape: [0f32, 0f32, 0f32, 1f32, 1f32, 1f32],
         properties: &[],
         state_values: b"",
+        server_definition: None,
     },
     BlockData {
         id: 9053u32,
@@ -19058,6 +19669,7 @@ pub static ALL_BLOCKS: [BlockData; 1477usize] = [
         visual_shape: [0f32, 0f32, 0f32, 1f32, 1f32, 1f32],
         properties: &[],
         state_values: b"",
+        server_definition: None,
     },
     BlockData {
         id: 9054u32,
@@ -19100,6 +19712,7 @@ pub static ALL_BLOCKS: [BlockData; 1477usize] = [
             },
         ],
         state_values: b"\0\0\0\x01\0\x02\0\x03\0\x04\0\x05\x01\0\x01\x01\x01\x02\x01\x03\x01\x04\x01\x05",
+        server_definition: None,
     },
     BlockData {
         id: 9066u32,
@@ -19135,6 +19748,7 @@ pub static ALL_BLOCKS: [BlockData; 1477usize] = [
             },
         ],
         state_values: b"\0\x01\x02",
+        server_definition: None,
     },
     BlockData {
         id: 9069u32,
@@ -19179,6 +19793,7 @@ pub static ALL_BLOCKS: [BlockData; 1477usize] = [
             },
         ],
         state_values: b"\0\0\0\x01\0\0\x02\0\0\x03\0\0\0\0\x01\x01\0\x01\x02\0\x01\x03\0\x01\0\x01\0\x01\x01\0\x02\x01\0\x03\x01\0\0\x01\x01\x01\x01\x01\x02\x01\x01\x03\x01\x01",
+        server_definition: None,
     },
     BlockData {
         id: 9085u32,
@@ -19214,6 +19829,7 @@ pub static ALL_BLOCKS: [BlockData; 1477usize] = [
             },
         ],
         state_values: b"\0\x01\x02",
+        server_definition: None,
     },
     BlockData {
         id: 9088u32,
@@ -19240,6 +19856,7 @@ pub static ALL_BLOCKS: [BlockData; 1477usize] = [
         visual_shape: [0f32, 0f32, 0f32, 1f32, 1f32, 1f32],
         properties: &[],
         state_values: b"",
+        server_definition: None,
     },
     BlockData {
         id: 9089u32,
@@ -19290,6 +19907,9 @@ pub static ALL_BLOCKS: [BlockData; 1477usize] = [
             },
         ],
         state_values: b"\0\0\0\0\0\x01\0\0\x02\0\0\x03\0\x01\0\0\x01\x01\0\x01\x02\0\x01\x03\x01\0\0\x01\0\x01\x01\0\x02\x01\0\x03\x01\x01\0\x01\x01\x01\x01\x01\x02\x01\x01\x03\x02\0\0\x02\0\x01\x02\0\x02\x02\0\x03\x02\x01\0\x02\x01\x01\x02\x01\x02\x02\x01\x03\x03\0\0\x03\0\x01\x03\0\x02\x03\0\x03\x03\x01\0\x03\x01\x01\x03\x01\x02\x03\x01\x03\x04\0\0\x04\0\x01\x04\0\x02\x04\0\x03\x04\x01\0\x04\x01\x01\x04\x01\x02\x04\x01\x03",
+        server_definition: Some(
+            b"\n\0\t\tblockTags\x08\x02&minecraft:is_pickaxe_item_destructible\n\ncomponents\n minecraft:destructible_by_mining\x05\x05valueff\xE6?\0\n\x1Fminecraft:destruction_particles\x03\x0Eparticle_count`\x08\x07texture\0\x08\x0Btint_method\x04none\0\n\x1Aminecraft:liquid_detection\t\x0EdetectionRules\n\x02\x01\x10canContainLiquid\x01\x08\nliquidType\x05water\x08\x0FonLiquidTouches\x08blocking\x01\x18stopsLiquidFromDirection\0\x01\x13use_liquid_clipping\0\0\0\n\x1Fminecraft:redstone_conductivity\x01\x14allowsWireToStepDown\x01\x01\x11redstoneConductor\0\0\n\x11minecraft:support\x08\x05shape\x05stair\0\0\n\rmenu_category\x08\x08category\x0Cconstruction\x08\x05group\x1Fminecraft:itemGroup.name.stairs\x01\x15is_hidden_in_commands\0\0\x03\rmolangVersion\x1A\n\x12vanilla_block_data\n\x0Fblock_archetype\x08\nbase_block\x1Dminecraft:light_gray_concrete\x08\x04type\x0Bstair_block\0\x03\x08block_id\xF0\x16\x08\x08material\x05solid\x01\x1Frequires_correct_tool_for_drops\x01\0\0",
+        ),
     },
     BlockData {
         id: 9129u32,
@@ -19321,6 +19941,7 @@ pub static ALL_BLOCKS: [BlockData; 1477usize] = [
             },
         ],
         state_values: b"\0\x01",
+        server_definition: None,
     },
     BlockData {
         id: 9131u32,
@@ -19352,6 +19973,9 @@ pub static ALL_BLOCKS: [BlockData; 1477usize] = [
             },
         ],
         state_values: b"\0\x01",
+        server_definition: Some(
+            b"\n\0\t\tblockTags\x08\x02%minecraft:is_shears_item_destructible\n\ncomponents\n minecraft:destructible_by_mining\x05\x05value\xCD\xCCL?\0\n\x1Fminecraft:destruction_particles\x03\x0Eparticle_count`\x08\x07texture\0\x08\x0Btint_method\x04none\0\n\x1Aminecraft:liquid_detection\t\x0EdetectionRules\n\x02\x01\x10canContainLiquid\x01\x08\nliquidType\x05water\x08\x0FonLiquidTouches\x08blocking\x01\x18stopsLiquidFromDirection\0\x01\x13use_liquid_clipping\0\0\0\n\x1Fminecraft:redstone_conductivity\x01\x14allowsWireToStepDown\x01\x01\x11redstoneConductor\0\0\0\n\rmenu_category\x08\x08category\x0Cconstruction\x08\x05group\x1Dminecraft:itemGroup.name.slab\x01\x15is_hidden_in_commands\0\0\x03\rmolangVersion\x1A\n\x12vanilla_block_data\n\x0Fblock_archetype\x08\x11double_slab_block%minecraft:light_gray_wool_double_slab\x01\tis_double\0\x08\x04type\nslab_block\0\x03\x08block_id\x9A\x16\x01\x15can_dampen_vibrations\x01\x01\x16can_occlude_vibrations\x01\x08\x08material\x05solid\x05\x0Ctranslucency\xCD\xCCL?\0\0",
+        ),
     },
     BlockData {
         id: 9133u32,
@@ -19383,6 +20007,7 @@ pub static ALL_BLOCKS: [BlockData; 1477usize] = [
             },
         ],
         state_values: b"\0\x01",
+        server_definition: None,
     },
     BlockData {
         id: 9135u32,
@@ -19409,6 +20034,7 @@ pub static ALL_BLOCKS: [BlockData; 1477usize] = [
         visual_shape: [0f32, 0f32, 0f32, 1f32, 1f32, 1f32],
         properties: &[],
         state_values: b"",
+        server_definition: None,
     },
     BlockData {
         id: 9136u32,
@@ -19459,6 +20085,9 @@ pub static ALL_BLOCKS: [BlockData; 1477usize] = [
             },
         ],
         state_values: b"\0\0\0\0\0\x01\0\0\x02\0\0\x03\0\x01\0\0\x01\x01\0\x01\x02\0\x01\x03\x01\0\0\x01\0\x01\x01\0\x02\x01\0\x03\x01\x01\0\x01\x01\x01\x01\x01\x02\x01\x01\x03\x02\0\0\x02\0\x01\x02\0\x02\x02\0\x03\x02\x01\0\x02\x01\x01\x02\x01\x02\x02\x01\x03\x03\0\0\x03\0\x01\x03\0\x02\x03\0\x03\x03\x01\0\x03\x01\x01\x03\x01\x02\x03\x01\x03\x04\0\0\x04\0\x01\x04\0\x02\x04\0\x03\x04\x01\0\x04\x01\x01\x04\x01\x02\x04\x01\x03",
+        server_definition: Some(
+            b"\n\0\t\tblockTags\x08\x02&minecraft:is_pickaxe_item_destructible\n\ncomponents\n minecraft:destructible_by_mining\x05\x05valueff\xE6?\0\n\x1Fminecraft:destruction_particles\x03\x0Eparticle_count`\x08\x07texture\0\x08\x0Btint_method\x04none\0\n\x1Aminecraft:liquid_detection\t\x0EdetectionRules\n\x02\x01\x10canContainLiquid\x01\x08\nliquidType\x05water\x08\x0FonLiquidTouches\x08blocking\x01\x18stopsLiquidFromDirection\0\x01\x13use_liquid_clipping\0\0\0\n\x1Fminecraft:redstone_conductivity\x01\x14allowsWireToStepDown\x01\x01\x11redstoneConductor\0\0\n\x11minecraft:support\x08\x05shape\x05stair\0\0\n\rmenu_category\x08\x08category\x0Cconstruction\x08\x05group\x1Fminecraft:itemGroup.name.stairs\x01\x15is_hidden_in_commands\0\0\x03\rmolangVersion\x1A\n\x12vanilla_block_data\n\x0Fblock_archetype\x08\nbase_block\x18minecraft:green_concrete\x08\x04type\x0Bstair_block\0\x03\x08block_id\xF6\x16\x08\x08material\x05solid\x01\x1Frequires_correct_tool_for_drops\x01\0\0",
+        ),
     },
     BlockData {
         id: 9176u32,
@@ -19485,6 +20114,7 @@ pub static ALL_BLOCKS: [BlockData; 1477usize] = [
         visual_shape: [0f32, 0f32, 0f32, 1f32, 1f32, 1f32],
         properties: &[],
         state_values: b"",
+        server_definition: None,
     },
     BlockData {
         id: 9177u32,
@@ -19521,6 +20151,7 @@ pub static ALL_BLOCKS: [BlockData; 1477usize] = [
             },
         ],
         state_values: b"\0\x01\x02\x03",
+        server_definition: None,
     },
     BlockData {
         id: 9181u32,
@@ -19547,6 +20178,7 @@ pub static ALL_BLOCKS: [BlockData; 1477usize] = [
         visual_shape: [0f32, 0f32, 0f32, 1f32, 1f32, 1f32],
         properties: &[],
         state_values: b"",
+        server_definition: None,
     },
     BlockData {
         id: 9182u32,
@@ -19573,6 +20205,7 @@ pub static ALL_BLOCKS: [BlockData; 1477usize] = [
         visual_shape: [0f32, 0f32, 0f32, 1f32, 1f32, 1f32],
         properties: &[],
         state_values: b"",
+        server_definition: None,
     },
     BlockData {
         id: 9183u32,
@@ -19604,6 +20237,7 @@ pub static ALL_BLOCKS: [BlockData; 1477usize] = [
         visual_shape: [0f32, 0f32, 0f32, 1f32, 1f32, 1f32],
         properties: &[],
         state_values: b"",
+        server_definition: None,
     },
     BlockData {
         id: 9184u32,
@@ -19630,6 +20264,7 @@ pub static ALL_BLOCKS: [BlockData; 1477usize] = [
         visual_shape: [0.15f32, 0f32, 0.15f32, 0.7f32, 0.6f32, 0.7f32],
         properties: &[],
         state_values: b"",
+        server_definition: None,
     },
     BlockData {
         id: 9185u32,
@@ -19656,6 +20291,7 @@ pub static ALL_BLOCKS: [BlockData; 1477usize] = [
         visual_shape: [0f32, 0f32, 0f32, 1f32, 1f32, 1f32],
         properties: &[],
         state_values: b"",
+        server_definition: None,
     },
     BlockData {
         id: 9186u32,
@@ -19682,6 +20318,7 @@ pub static ALL_BLOCKS: [BlockData; 1477usize] = [
         visual_shape: [0f32, 0f32, 0f32, 1f32, 1f32, 1f32],
         properties: &[],
         state_values: b"",
+        server_definition: None,
     },
     BlockData {
         id: 9187u32,
@@ -19720,6 +20357,7 @@ pub static ALL_BLOCKS: [BlockData; 1477usize] = [
             },
         ],
         state_values: b"\0\x01\x02\x03\x04\x05",
+        server_definition: None,
     },
     BlockData {
         id: 9193u32,
@@ -19756,6 +20394,7 @@ pub static ALL_BLOCKS: [BlockData; 1477usize] = [
             },
         ],
         state_values: b"\0\x01\x02\x03",
+        server_definition: None,
     },
     BlockData {
         id: 9197u32,
@@ -19794,6 +20433,7 @@ pub static ALL_BLOCKS: [BlockData; 1477usize] = [
             },
         ],
         state_values: b"\0\x01\x02\x03\x04\x05",
+        server_definition: None,
     },
     BlockData {
         id: 9203u32,
@@ -19820,6 +20460,7 @@ pub static ALL_BLOCKS: [BlockData; 1477usize] = [
         visual_shape: [0f32, 0f32, 0f32, 1f32, 1f32, 1f32],
         properties: &[],
         state_values: b"",
+        server_definition: None,
     },
     BlockData {
         id: 9204u32,
@@ -19851,6 +20492,7 @@ pub static ALL_BLOCKS: [BlockData; 1477usize] = [
             },
         ],
         state_values: b"\0\x01",
+        server_definition: None,
     },
     BlockData {
         id: 9206u32,
@@ -19889,6 +20531,7 @@ pub static ALL_BLOCKS: [BlockData; 1477usize] = [
             },
         ],
         state_values: b"\0\x01\x02\x03\x04\x05",
+        server_definition: None,
     },
     BlockData {
         id: 9212u32,
@@ -19924,6 +20567,7 @@ pub static ALL_BLOCKS: [BlockData; 1477usize] = [
             },
         ],
         state_values: b"\0\x01\x02",
+        server_definition: None,
     },
     BlockData {
         id: 9215u32,
@@ -19963,6 +20607,7 @@ pub static ALL_BLOCKS: [BlockData; 1477usize] = [
             },
         ],
         state_values: b"\0\0\x01\0\0\x01\x01\x01",
+        server_definition: None,
     },
     BlockData {
         id: 9219u32,
@@ -20006,6 +20651,7 @@ pub static ALL_BLOCKS: [BlockData; 1477usize] = [
             },
         ],
         state_values: b"\0\0\0\0\0\x01\0\0\x01\0\0\0\x01\x01\0\0\0\0\x01\0\0\x01\x01\0\x01\0\x01\0\x01\x01\x01\0\0\0\0\x01\0\x01\0\x01\x01\0\0\x01\x01\x01\0\x01\0\0\x01\x01\0\x01\x01\x01\x01\0\x01\x01\x01\x01\x01\x01",
+        server_definition: None,
     },
     BlockData {
         id: 9235u32,
@@ -20055,6 +20701,7 @@ pub static ALL_BLOCKS: [BlockData; 1477usize] = [
             },
         ],
         state_values: b"\0\0\0\0\0\x01\0\0\x02\0\0\x03\0\x01\0\0\x01\x01\0\x01\x02\0\x01\x03\x01\0\0\x01\0\x01\x01\0\x02\x01\0\x03\x01\x01\0\x01\x01\x01\x01\x01\x02\x01\x01\x03\x02\0\0\x02\0\x01\x02\0\x02\x02\0\x03\x02\x01\0\x02\x01\x01\x02\x01\x02\x02\x01\x03\x03\0\0\x03\0\x01\x03\0\x02\x03\0\x03\x03\x01\0\x03\x01\x01\x03\x01\x02\x03\x01\x03",
+        server_definition: None,
     },
     BlockData {
         id: 9267u32,
@@ -20105,6 +20752,7 @@ pub static ALL_BLOCKS: [BlockData; 1477usize] = [
             },
         ],
         state_values: b"\0\0\0\0\0\x01\0\0\x02\0\0\x03\0\x01\0\0\x01\x01\0\x01\x02\0\x01\x03\x01\0\0\x01\0\x01\x01\0\x02\x01\0\x03\x01\x01\0\x01\x01\x01\x01\x01\x02\x01\x01\x03\x02\0\0\x02\0\x01\x02\0\x02\x02\0\x03\x02\x01\0\x02\x01\x01\x02\x01\x02\x02\x01\x03\x03\0\0\x03\0\x01\x03\0\x02\x03\0\x03\x03\x01\0\x03\x01\x01\x03\x01\x02\x03\x01\x03\x04\0\0\x04\0\x01\x04\0\x02\x04\0\x03\x04\x01\0\x04\x01\x01\x04\x01\x02\x04\x01\x03",
+        server_definition: None,
     },
     BlockData {
         id: 9307u32,
@@ -20140,6 +20788,7 @@ pub static ALL_BLOCKS: [BlockData; 1477usize] = [
             },
         ],
         state_values: b"\0\0\0\x01\x01\0\x01\x01",
+        server_definition: None,
     },
     BlockData {
         id: 9311u32,
@@ -20166,6 +20815,7 @@ pub static ALL_BLOCKS: [BlockData; 1477usize] = [
         visual_shape: [0f32, 0f32, 0f32, 1f32, 0.015625f32, 1f32],
         properties: &[],
         state_values: b"",
+        server_definition: None,
     },
     BlockData {
         id: 9312u32,
@@ -20214,6 +20864,7 @@ pub static ALL_BLOCKS: [BlockData; 1477usize] = [
             },
         ],
         state_values: b"\0\0\0\0\0\x01\0\0\0\x02\0\0\0\x03\0\0\0\0\x01\0\0\x01\x01\0\0\x02\x01\0\0\x03\x01\0\0\0\0\x01\0\x01\0\x01\0\x02\0\x01\0\x03\0\x01\0\0\x01\x01\0\x01\x01\x01\0\x02\x01\x01\0\x03\x01\x01\x01\0\0\0\x01\x01\0\0\x01\x02\0\0\x01\x03\0\0\x01\0\x01\0\x01\x01\x01\0\x01\x02\x01\0\x01\x03\x01\0\x01\0\0\x01\x01\x01\0\x01\x01\x02\0\x01\x01\x03\0\x01\x01\0\x01\x01\x01\x01\x01\x01\x01\x02\x01\x01\x01\x03\x01\x01",
+        server_definition: None,
     },
     BlockData {
         id: 9344u32,
@@ -20245,6 +20896,7 @@ pub static ALL_BLOCKS: [BlockData; 1477usize] = [
             },
         ],
         state_values: b"\0\x01",
+        server_definition: None,
     },
     BlockData {
         id: 9346u32,
@@ -20271,6 +20923,7 @@ pub static ALL_BLOCKS: [BlockData; 1477usize] = [
         visual_shape: [0f32, 0f32, 0f32, 1f32, 1f32, 1f32],
         properties: &[],
         state_values: b"",
+        server_definition: None,
     },
     BlockData {
         id: 9347u32,
@@ -20306,6 +20959,7 @@ pub static ALL_BLOCKS: [BlockData; 1477usize] = [
             },
         ],
         state_values: b"\0\x01\x02",
+        server_definition: None,
     },
     BlockData {
         id: 9350u32,
@@ -20348,6 +21002,7 @@ pub static ALL_BLOCKS: [BlockData; 1477usize] = [
             },
         ],
         state_values: b"\0\0\0\x01\0\x02\0\x03\0\x04\0\x05\x01\0\x01\x01\x01\x02\x01\x03\x01\x04\x01\x05",
+        server_definition: None,
     },
     BlockData {
         id: 9362u32,
@@ -20374,6 +21029,7 @@ pub static ALL_BLOCKS: [BlockData; 1477usize] = [
         visual_shape: [0f32, 0f32, 0f32, 1f32, 1f32, 1f32],
         properties: &[],
         state_values: b"",
+        server_definition: None,
     },
     BlockData {
         id: 9363u32,
@@ -20400,6 +21056,7 @@ pub static ALL_BLOCKS: [BlockData; 1477usize] = [
         visual_shape: [0f32, 0f32, 0f32, 1f32, 1f32, 1f32],
         properties: &[],
         state_values: b"",
+        server_definition: None,
     },
     BlockData {
         id: 9364u32,
@@ -20426,6 +21083,7 @@ pub static ALL_BLOCKS: [BlockData; 1477usize] = [
         visual_shape: [0f32, 0f32, 0f32, 1f32, 1f32, 1f32],
         properties: &[],
         state_values: b"",
+        server_definition: None,
     },
     BlockData {
         id: 9365u32,
@@ -20474,6 +21132,7 @@ pub static ALL_BLOCKS: [BlockData; 1477usize] = [
             },
         ],
         state_values: b"\0\0\0\0\0\x01\0\0\0\x02\0\0\0\x03\0\0\0\0\x01\0\0\x01\x01\0\0\x02\x01\0\0\x03\x01\0\0\0\0\x01\0\x01\0\x01\0\x02\0\x01\0\x03\0\x01\0\0\x01\x01\0\x01\x01\x01\0\x02\x01\x01\0\x03\x01\x01\x01\0\0\0\x01\x01\0\0\x01\x02\0\0\x01\x03\0\0\x01\0\x01\0\x01\x01\x01\0\x01\x02\x01\0\x01\x03\x01\0\x01\0\0\x01\x01\x01\0\x01\x01\x02\0\x01\x01\x03\0\x01\x01\0\x01\x01\x01\x01\x01\x01\x01\x02\x01\x01\x01\x03\x01\x01",
+        server_definition: None,
     },
     BlockData {
         id: 9397u32,
@@ -20500,6 +21159,7 @@ pub static ALL_BLOCKS: [BlockData; 1477usize] = [
         visual_shape: [0f32, 0f32, 0f32, 1f32, 1f32, 1f32],
         properties: &[],
         state_values: b"",
+        server_definition: None,
     },
     BlockData {
         id: 9398u32,
@@ -20550,6 +21210,7 @@ pub static ALL_BLOCKS: [BlockData; 1477usize] = [
             },
         ],
         state_values: b"\0\0\0\0\0\x01\0\0\x02\0\0\x03\0\x01\0\0\x01\x01\0\x01\x02\0\x01\x03\x01\0\0\x01\0\x01\x01\0\x02\x01\0\x03\x01\x01\0\x01\x01\x01\x01\x01\x02\x01\x01\x03\x02\0\0\x02\0\x01\x02\0\x02\x02\0\x03\x02\x01\0\x02\x01\x01\x02\x01\x02\x02\x01\x03\x03\0\0\x03\0\x01\x03\0\x02\x03\0\x03\x03\x01\0\x03\x01\x01\x03\x01\x02\x03\x01\x03\x04\0\0\x04\0\x01\x04\0\x02\x04\0\x03\x04\x01\0\x04\x01\x01\x04\x01\x02\x04\x01\x03",
+        server_definition: None,
     },
     BlockData {
         id: 9438u32,
@@ -20599,6 +21260,7 @@ pub static ALL_BLOCKS: [BlockData; 1477usize] = [
             },
         ],
         state_values: b"\0\0\0\x01\0\0\x02\0\0\x03\0\0\0\0\x01\x01\0\x01\x02\0\x01\x03\0\x01\0\x01\0\x01\x01\0\x02\x01\0\x03\x01\0\0\x01\x01\x01\x01\x01\x02\x01\x01\x03\x01\x01",
+        server_definition: None,
     },
     BlockData {
         id: 9454u32,
@@ -20625,6 +21287,7 @@ pub static ALL_BLOCKS: [BlockData; 1477usize] = [
         visual_shape: [0f32, 0f32, 0f32, 1f32, 1f32, 1f32],
         properties: &[],
         state_values: b"",
+        server_definition: None,
     },
     BlockData {
         id: 9455u32,
@@ -20673,6 +21336,7 @@ pub static ALL_BLOCKS: [BlockData; 1477usize] = [
             },
         ],
         state_values: b"\0\x01\x02\x03\x04\x05\x06\x07\x08\t\n\x0B\x0C\r\x0E\x0F",
+        server_definition: None,
     },
     BlockData {
         id: 9471u32,
@@ -20715,6 +21379,7 @@ pub static ALL_BLOCKS: [BlockData; 1477usize] = [
             },
         ],
         state_values: b"\0\0\x01\0\x02\0\x03\0\x04\0\x05\0\0\x01\x01\x01\x02\x01\x03\x01\x04\x01\x05\x01",
+        server_definition: None,
     },
     BlockData {
         id: 9483u32,
@@ -20750,6 +21415,7 @@ pub static ALL_BLOCKS: [BlockData; 1477usize] = [
             },
         ],
         state_values: b"\0\x01\x02",
+        server_definition: None,
     },
     BlockData {
         id: 9486u32,
@@ -20776,6 +21442,7 @@ pub static ALL_BLOCKS: [BlockData; 1477usize] = [
         visual_shape: [0f32, 0f32, 0f32, 1f32, 1f32, 1f32],
         properties: &[],
         state_values: b"",
+        server_definition: None,
     },
     BlockData {
         id: 9487u32,
@@ -20814,6 +21481,7 @@ pub static ALL_BLOCKS: [BlockData; 1477usize] = [
             },
         ],
         state_values: b"\0\x01\x02\x03\x04\x05",
+        server_definition: None,
     },
     BlockData {
         id: 9493u32,
@@ -20840,6 +21508,7 @@ pub static ALL_BLOCKS: [BlockData; 1477usize] = [
         visual_shape: [0f32, 0f32, 0f32, 1f32, 1f32, 1f32],
         properties: &[],
         state_values: b"",
+        server_definition: None,
     },
     BlockData {
         id: 9494u32,
@@ -20883,6 +21552,7 @@ pub static ALL_BLOCKS: [BlockData; 1477usize] = [
             },
         ],
         state_values: b"\0\0\0\0\0\x01\0\0\x01\0\0\0\x01\x01\0\0\0\0\x01\0\0\x01\x01\0\x01\0\x01\0\x01\x01\x01\0\0\0\0\x01\0\x01\0\x01\x01\0\0\x01\x01\x01\0\x01\0\0\x01\x01\0\x01\x01\x01\x01\0\x01\x01\x01\x01\x01\x01",
+        server_definition: None,
     },
     BlockData {
         id: 9510u32,
@@ -20914,6 +21584,7 @@ pub static ALL_BLOCKS: [BlockData; 1477usize] = [
             },
         ],
         state_values: b"\0\x01",
+        server_definition: None,
     },
     BlockData {
         id: 9512u32,
@@ -20945,6 +21616,7 @@ pub static ALL_BLOCKS: [BlockData; 1477usize] = [
             },
         ],
         state_values: b"\0\x01",
+        server_definition: None,
     },
     BlockData {
         id: 9514u32,
@@ -21008,6 +21680,7 @@ pub static ALL_BLOCKS: [BlockData; 1477usize] = [
             },
         ],
         state_values: b"\0\0\0\0\0\0\0\0\0\x01\0\x01\0\0\0\0\x01\0\0\x01\0\x02\0\0\0\0\x02\0\0\x01\x01\0\0\0\0\x01\0\0\0\x01\x01\x01\0\0\0\x01\x01\0\0\x01\x01\x02\0\0\0\x01\x02\0\0\x01\x02\0\0\0\0\x02\0\0\0\x01\x02\x01\0\0\0\x02\x01\0\0\x01\x02\x02\0\0\0\x02\x02\0\0\x01\0\0\x01\0\0\0\0\x01\0\x01\0\x01\x01\0\0\0\x01\x01\0\x01\0\x02\x01\0\0\0\x02\x01\0\x01\x01\0\x01\0\0\x01\0\x01\0\x01\x01\x01\x01\0\0\x01\x01\x01\0\x01\x01\x02\x01\0\0\x01\x02\x01\0\x01\x02\0\x01\0\0\x02\0\x01\0\x01\x02\x01\x01\0\0\x02\x01\x01\0\x01\x02\x02\x01\0\0\x02\x02\x01\0\x01\0\0\x02\0\0\0\0\x02\0\x01\0\x01\x02\0\0\0\x01\x02\0\x01\0\x02\x02\0\0\0\x02\x02\0\x01\x01\0\x02\0\0\x01\0\x02\0\x01\x01\x01\x02\0\0\x01\x01\x02\0\x01\x01\x02\x02\0\0\x01\x02\x02\0\x01\x02\0\x02\0\0\x02\0\x02\0\x01\x02\x01\x02\0\0\x02\x01\x02\0\x01\x02\x02\x02\0\0\x02\x02\x02\0\x01\0\0\0\x01\0\0\0\0\x01\x01\0\x01\0\x01\0\0\x01\0\x01\x01\0\x02\0\x01\0\0\x02\0\x01\x01\x01\0\0\x01\0\x01\0\0\x01\x01\x01\x01\0\x01\0\x01\x01\0\x01\x01\x01\x02\0\x01\0\x01\x02\0\x01\x01\x02\0\0\x01\0\x02\0\0\x01\x01\x02\x01\0\x01\0\x02\x01\0\x01\x01\x02\x02\0\x01\0\x02\x02\0\x01\x01\0\0\x01\x01\0\0\0\x01\x01\x01\0\x01\x01\x01\0\0\x01\x01\x01\x01\0\x02\x01\x01\0\0\x02\x01\x01\x01\x01\0\x01\x01\0\x01\0\x01\x01\x01\x01\x01\x01\x01\0\x01\x01\x01\x01\x01\x01\x02\x01\x01\0\x01\x02\x01\x01\x01\x02\0\x01\x01\0\x02\0\x01\x01\x01\x02\x01\x01\x01\0\x02\x01\x01\x01\x01\x02\x02\x01\x01\0\x02\x02\x01\x01\x01\0\0\x02\x01\0\0\0\x02\x01\x01\0\x01\x02\x01\0\0\x01\x02\x01\x01\0\x02\x02\x01\0\0\x02\x02\x01\x01\x01\0\x02\x01\0\x01\0\x02\x01\x01\x01\x01\x02\x01\0\x01\x01\x02\x01\x01\x01\x02\x02\x01\0\x01\x02\x02\x01\x01\x02\0\x02\x01\0\x02\0\x02\x01\x01\x02\x01\x02\x01\0\x02\x01\x02\x01\x01\x02\x02\x02\x01\0\x02\x02\x02\x01\x01\0\0\0\x02\0\0\0\0\x02\x01\0\x01\0\x02\0\0\x01\0\x02\x01\0\x02\0\x02\0\0\x02\0\x02\x01\x01\0\0\x02\0\x01\0\0\x02\x01\x01\x01\0\x02\0\x01\x01\0\x02\x01\x01\x02\0\x02\0\x01\x02\0\x02\x01\x02\0\0\x02\0\x02\0\0\x02\x01\x02\x01\0\x02\0\x02\x01\0\x02\x01\x02\x02\0\x02\0\x02\x02\0\x02\x01\0\0\x01\x02\0\0\0\x01\x02\x01\0\x01\x01\x02\0\0\x01\x01\x02\x01\0\x02\x01\x02\0\0\x02\x01\x02\x01\x01\0\x01\x02\0\x01\0\x01\x02\x01\x01\x01\x01\x02\0\x01\x01\x01\x02\x01\x01\x02\x01\x02\0\x01\x02\x01\x02\x01\x02\0\x01\x02\0\x02\0\x01\x02\x01\x02\x01\x01\x02\0\x02\x01\x01\x02\x01\x02\x02\x01\x02\0\x02\x02\x01\x02\x01\0\0\x02\x02\0\0\0\x02\x02\x01\0\x01\x02\x02\0\0\x01\x02\x02\x01\0\x02\x02\x02\0\0\x02\x02\x02\x01\x01\0\x02\x02\0\x01\0\x02\x02\x01\x01\x01\x02\x02\0\x01\x01\x02\x02\x01\x01\x02\x02\x02\0\x01\x02\x02\x02\x01\x02\0\x02\x02\0\x02\0\x02\x02\x01\x02\x01\x02\x02\0\x02\x01\x02\x02\x01\x02\x02\x02\x02\0\x02\x02\x02\x02\x01",
+        server_definition: None,
     },
     BlockData {
         id: 9676u32,
@@ -21058,6 +21731,7 @@ pub static ALL_BLOCKS: [BlockData; 1477usize] = [
             },
         ],
         state_values: b"\0\0\0\0\0\x01\0\0\x02\0\0\x03\0\x01\0\0\x01\x01\0\x01\x02\0\x01\x03\x01\0\0\x01\0\x01\x01\0\x02\x01\0\x03\x01\x01\0\x01\x01\x01\x01\x01\x02\x01\x01\x03\x02\0\0\x02\0\x01\x02\0\x02\x02\0\x03\x02\x01\0\x02\x01\x01\x02\x01\x02\x02\x01\x03\x03\0\0\x03\0\x01\x03\0\x02\x03\0\x03\x03\x01\0\x03\x01\x01\x03\x01\x02\x03\x01\x03\x04\0\0\x04\0\x01\x04\0\x02\x04\0\x03\x04\x01\0\x04\x01\x01\x04\x01\x02\x04\x01\x03",
+        server_definition: None,
     },
     BlockData {
         id: 9716u32,
@@ -21093,6 +21767,7 @@ pub static ALL_BLOCKS: [BlockData; 1477usize] = [
             },
         ],
         state_values: b"\0\x01\x02",
+        server_definition: None,
     },
     BlockData {
         id: 9719u32,
@@ -21119,6 +21794,7 @@ pub static ALL_BLOCKS: [BlockData; 1477usize] = [
         visual_shape: [0f32, 0f32, 0f32, 1f32, 1f32, 1f32],
         properties: &[],
         state_values: b"",
+        server_definition: None,
     },
     BlockData {
         id: 9720u32,
@@ -21164,6 +21840,7 @@ pub static ALL_BLOCKS: [BlockData; 1477usize] = [
             },
         ],
         state_values: b"\0\0\x01\0\x02\0\x03\0\0\x01\x01\x01\x02\x01\x03\x01\0\x02\x01\x02\x02\x02\x03\x02\0\x03\x01\x03\x02\x03\x03\x03",
+        server_definition: None,
     },
     BlockData {
         id: 9736u32,
@@ -21204,6 +21881,7 @@ pub static ALL_BLOCKS: [BlockData; 1477usize] = [
             },
         ],
         state_values: b"\0\0\x01\0\x02\0\x03\0\0\x01\x01\x01\x02\x01\x03\x01",
+        server_definition: None,
     },
     BlockData {
         id: 9744u32,
@@ -21247,6 +21925,7 @@ pub static ALL_BLOCKS: [BlockData; 1477usize] = [
             },
         ],
         state_values: b"\0\0\0\0\0\x01\0\0\x01\0\0\0\x01\x01\0\0\0\0\x01\0\0\x01\x01\0\x01\0\x01\0\x01\x01\x01\0\0\0\0\x01\0\x01\0\x01\x01\0\0\x01\x01\x01\0\x01\0\0\x01\x01\0\x01\x01\x01\x01\0\x01\x01\x01\x01\x01\x01",
+        server_definition: None,
     },
     BlockData {
         id: 9760u32,
@@ -21283,6 +21962,7 @@ pub static ALL_BLOCKS: [BlockData; 1477usize] = [
             },
         ],
         state_values: b"\0\x01\x02\x03",
+        server_definition: None,
     },
     BlockData {
         id: 9764u32,
@@ -21319,6 +21999,7 @@ pub static ALL_BLOCKS: [BlockData; 1477usize] = [
             },
         ],
         state_values: b"\0\x01\x02\x03",
+        server_definition: None,
     },
     BlockData {
         id: 9768u32,
@@ -21345,6 +22026,7 @@ pub static ALL_BLOCKS: [BlockData; 1477usize] = [
         visual_shape: [0f32, 0f32, 0f32, 1f32, 1f32, 1f32],
         properties: &[],
         state_values: b"",
+        server_definition: None,
     },
     BlockData {
         id: 9769u32,
@@ -21371,6 +22053,7 @@ pub static ALL_BLOCKS: [BlockData; 1477usize] = [
         visual_shape: [0f32, 0f32, 0f32, 1f32, 1f32, 1f32],
         properties: &[],
         state_values: b"",
+        server_definition: None,
     },
     BlockData {
         id: 9770u32,
@@ -21414,6 +22097,7 @@ pub static ALL_BLOCKS: [BlockData; 1477usize] = [
             },
         ],
         state_values: b"\0\0\0\0\0\x01\0\0\x01\0\0\0\x01\x01\0\0\0\0\x01\0\0\x01\x01\0\x01\0\x01\0\x01\x01\x01\0\0\0\0\x01\0\x01\0\x01\x01\0\0\x01\x01\x01\0\x01\0\0\x01\x01\0\x01\x01\x01\x01\0\x01\x01\x01\x01\x01\x01",
+        server_definition: None,
     },
     BlockData {
         id: 9786u32,
@@ -21440,6 +22124,7 @@ pub static ALL_BLOCKS: [BlockData; 1477usize] = [
         visual_shape: [0f32, 0f32, 0f32, 1f32, 1f32, 1f32],
         properties: &[],
         state_values: b"",
+        server_definition: None,
     },
     BlockData {
         id: 9787u32,
@@ -21489,6 +22174,7 @@ pub static ALL_BLOCKS: [BlockData; 1477usize] = [
             },
         ],
         state_values: b"\0\0\0\x01\0\0\x02\0\0\x03\0\0\0\0\x01\x01\0\x01\x02\0\x01\x03\0\x01\0\x01\0\x01\x01\0\x02\x01\0\x03\x01\0\0\x01\x01\x01\x01\x01\x02\x01\x01\x03\x01\x01",
+        server_definition: None,
     },
     BlockData {
         id: 9803u32,
@@ -21520,6 +22206,7 @@ pub static ALL_BLOCKS: [BlockData; 1477usize] = [
             },
         ],
         state_values: b"\0\x01",
+        server_definition: None,
     },
     BlockData {
         id: 9805u32,
@@ -21546,6 +22233,7 @@ pub static ALL_BLOCKS: [BlockData; 1477usize] = [
         visual_shape: [0.15f32, 0f32, 0.15f32, 0.7f32, 0.6f32, 0.7f32],
         properties: &[],
         state_values: b"",
+        server_definition: None,
     },
     BlockData {
         id: 9806u32,
@@ -21572,6 +22260,7 @@ pub static ALL_BLOCKS: [BlockData; 1477usize] = [
         visual_shape: [0f32, 0f32, 0f32, 1f32, 1f32, 1f32],
         properties: &[],
         state_values: b"",
+        server_definition: None,
     },
     BlockData {
         id: 9807u32,
@@ -21603,6 +22292,7 @@ pub static ALL_BLOCKS: [BlockData; 1477usize] = [
             },
         ],
         state_values: b"\0\x01",
+        server_definition: None,
     },
     BlockData {
         id: 9809u32,
@@ -21634,6 +22324,9 @@ pub static ALL_BLOCKS: [BlockData; 1477usize] = [
             },
         ],
         state_values: b"\0\x01",
+        server_definition: Some(
+            b"\n\0\t\tblockTags\x08\x02&minecraft:is_pickaxe_item_destructible\n\ncomponents\n minecraft:destructible_by_mining\x05\x05valueff\xE6?\0\n\x1Fminecraft:destruction_particles\x03\x0Eparticle_count`\x08\x07texture\0\x08\x0Btint_method\x04none\0\n\x1Aminecraft:liquid_detection\t\x0EdetectionRules\n\x02\x01\x10canContainLiquid\x01\x08\nliquidType\x05water\x08\x0FonLiquidTouches\x08blocking\x01\x18stopsLiquidFromDirection\0\x01\x13use_liquid_clipping\0\0\0\n\x1Fminecraft:redstone_conductivity\x01\x14allowsWireToStepDown\x01\x01\x11redstoneConductor\0\0\0\n\rmenu_category\x08\x08category\x0Cconstruction\x08\x05group\x1Dminecraft:itemGroup.name.slab\x01\x15is_hidden_in_commands\0\0\x03\rmolangVersion\x1A\n\x12vanilla_block_data\n\x0Fblock_archetype\x08\x11double_slab_block#minecraft:lime_concrete_double_slab\x01\tis_double\0\x08\x04type\nslab_block\0\x03\x08block_id\x8C\x17\x08\x08material\x05solid\x01\x1Frequires_correct_tool_for_drops\x01\0\0",
+        ),
     },
     BlockData {
         id: 9811u32,
@@ -21660,6 +22353,7 @@ pub static ALL_BLOCKS: [BlockData; 1477usize] = [
         visual_shape: [0.3f32, 0f32, 0.3f32, 0.7f32, 0.4f32, 0.7f32],
         properties: &[],
         state_values: b"",
+        server_definition: None,
     },
     BlockData {
         id: 9812u32,
@@ -21686,6 +22380,7 @@ pub static ALL_BLOCKS: [BlockData; 1477usize] = [
         visual_shape: [0f32, 0f32, 0f32, 1f32, 1f32, 1f32],
         properties: &[],
         state_values: b"",
+        server_definition: None,
     },
     BlockData {
         id: 9813u32,
@@ -21712,6 +22407,7 @@ pub static ALL_BLOCKS: [BlockData; 1477usize] = [
         visual_shape: [0f32, 0f32, 0f32, 1f32, 1f32, 1f32],
         properties: &[],
         state_values: b"",
+        server_definition: None,
     },
     BlockData {
         id: 9814u32,
@@ -21738,6 +22434,7 @@ pub static ALL_BLOCKS: [BlockData; 1477usize] = [
         visual_shape: [0f32, 0f32, 0f32, 1f32, 1f32, 1f32],
         properties: &[],
         state_values: b"",
+        server_definition: None,
     },
     BlockData {
         id: 9815u32,
@@ -21793,6 +22490,7 @@ pub static ALL_BLOCKS: [BlockData; 1477usize] = [
             },
         ],
         state_values: b"\0\0\0\0\0\x01\0\0\x02\0\0\x03\0\x01\0\0\x01\x01\0\x01\x02\0\x01\x03\x01\0\0\x01\0\x01\x01\0\x02\x01\0\x03\x01\x01\0\x01\x01\x01\x01\x01\x02\x01\x01\x03\x02\0\0\x02\0\x01\x02\0\x02\x02\0\x03\x02\x01\0\x02\x01\x01\x02\x01\x02\x02\x01\x03\x03\0\0\x03\0\x01\x03\0\x02\x03\0\x03\x03\x01\0\x03\x01\x01\x03\x01\x02\x03\x01\x03\x04\0\0\x04\0\x01\x04\0\x02\x04\0\x03\x04\x01\0\x04\x01\x01\x04\x01\x02\x04\x01\x03",
+        server_definition: None,
     },
     BlockData {
         id: 9855u32,
@@ -21843,6 +22541,7 @@ pub static ALL_BLOCKS: [BlockData; 1477usize] = [
             },
         ],
         state_values: b"\0\0\0\0\0\x01\0\0\x02\0\0\x03\0\x01\0\0\x01\x01\0\x01\x02\0\x01\x03\x01\0\0\x01\0\x01\x01\0\x02\x01\0\x03\x01\x01\0\x01\x01\x01\x01\x01\x02\x01\x01\x03\x02\0\0\x02\0\x01\x02\0\x02\x02\0\x03\x02\x01\0\x02\x01\x01\x02\x01\x02\x02\x01\x03\x03\0\0\x03\0\x01\x03\0\x02\x03\0\x03\x03\x01\0\x03\x01\x01\x03\x01\x02\x03\x01\x03\x04\0\0\x04\0\x01\x04\0\x02\x04\0\x03\x04\x01\0\x04\x01\x01\x04\x01\x02\x04\x01\x03",
+        server_definition: None,
     },
     BlockData {
         id: 9895u32,
@@ -21874,6 +22573,7 @@ pub static ALL_BLOCKS: [BlockData; 1477usize] = [
             },
         ],
         state_values: b"\0\x01",
+        server_definition: None,
     },
     BlockData {
         id: 9897u32,
@@ -21900,6 +22600,7 @@ pub static ALL_BLOCKS: [BlockData; 1477usize] = [
         visual_shape: [0f32, 0f32, 0f32, 1f32, 1f32, 1f32],
         properties: &[],
         state_values: b"",
+        server_definition: None,
     },
     BlockData {
         id: 9898u32,
@@ -21955,6 +22656,7 @@ pub static ALL_BLOCKS: [BlockData; 1477usize] = [
             },
         ],
         state_values: b"\0\0\0\0\0\x01\0\0\x02\0\0\x03\0\x01\0\0\x01\x01\0\x01\x02\0\x01\x03\x01\0\0\x01\0\x01\x01\0\x02\x01\0\x03\x01\x01\0\x01\x01\x01\x01\x01\x02\x01\x01\x03\x02\0\0\x02\0\x01\x02\0\x02\x02\0\x03\x02\x01\0\x02\x01\x01\x02\x01\x02\x02\x01\x03\x03\0\0\x03\0\x01\x03\0\x02\x03\0\x03\x03\x01\0\x03\x01\x01\x03\x01\x02\x03\x01\x03\x04\0\0\x04\0\x01\x04\0\x02\x04\0\x03\x04\x01\0\x04\x01\x01\x04\x01\x02\x04\x01\x03",
+        server_definition: None,
     },
     BlockData {
         id: 9938u32,
@@ -21981,6 +22683,7 @@ pub static ALL_BLOCKS: [BlockData; 1477usize] = [
         visual_shape: [0f32, 0f32, 0f32, 1f32, 1f32, 1f32],
         properties: &[],
         state_values: b"",
+        server_definition: None,
     },
     BlockData {
         id: 9939u32,
@@ -22017,6 +22720,7 @@ pub static ALL_BLOCKS: [BlockData; 1477usize] = [
             },
         ],
         state_values: b"\0\x01\x02\x03",
+        server_definition: None,
     },
     BlockData {
         id: 9943u32,
@@ -22048,6 +22752,7 @@ pub static ALL_BLOCKS: [BlockData; 1477usize] = [
             },
         ],
         state_values: b"\0\x01",
+        server_definition: None,
     },
     BlockData {
         id: 9945u32,
@@ -22090,6 +22795,7 @@ pub static ALL_BLOCKS: [BlockData; 1477usize] = [
             },
         ],
         state_values: b"\0\0\0\x01\0\x02\0\x03\0\x04\0\x05\x01\0\x01\x01\x01\x02\x01\x03\x01\x04\x01\x05",
+        server_definition: None,
     },
     BlockData {
         id: 9957u32,
@@ -22121,6 +22827,7 @@ pub static ALL_BLOCKS: [BlockData; 1477usize] = [
             },
         ],
         state_values: b"\0\x01",
+        server_definition: None,
     },
     BlockData {
         id: 9959u32,
@@ -22165,6 +22872,7 @@ pub static ALL_BLOCKS: [BlockData; 1477usize] = [
             },
         ],
         state_values: b"\0\0\0\0\x01\0\0\x02\0\0\x03\0\0\0\x01\0\x01\x01\0\x02\x01\0\x03\x01\x01\0\0\x01\x01\0\x01\x02\0\x01\x03\0\x01\0\x01\x01\x01\x01\x01\x02\x01\x01\x03\x01",
+        server_definition: None,
     },
     BlockData {
         id: 9975u32,
@@ -22196,6 +22904,7 @@ pub static ALL_BLOCKS: [BlockData; 1477usize] = [
             },
         ],
         state_values: b"\0\x01",
+        server_definition: None,
     },
     BlockData {
         id: 9977u32,
@@ -22245,6 +22954,7 @@ pub static ALL_BLOCKS: [BlockData; 1477usize] = [
             },
         ],
         state_values: b"\0\0\x01\0\x02\0\x03\0\x04\0\x05\0\x06\0\x07\0\0\x01\x01\x01\x02\x01\x03\x01\x04\x01\x05\x01\x06\x01\x07\x01\0\x02\x01\x02\x02\x02\x03\x02\x04\x02\x05\x02\x06\x02\x07\x02\0\x03\x01\x03\x02\x03\x03\x03\x04\x03\x05\x03\x06\x03\x07\x03",
+        server_definition: None,
     },
     BlockData {
         id: 10009u32,
@@ -22276,6 +22986,9 @@ pub static ALL_BLOCKS: [BlockData; 1477usize] = [
             },
         ],
         state_values: b"\0\x01",
+        server_definition: Some(
+            b"\n\0\t\tblockTags\x08\x02&minecraft:is_pickaxe_item_destructible\n\ncomponents\n minecraft:destructible_by_mining\x05\x05valueff\xE6?\0\n\x1Fminecraft:destruction_particles\x03\x0Eparticle_count`\x08\x07texture\0\x08\x0Btint_method\x04none\0\n\x1Aminecraft:liquid_detection\t\x0EdetectionRules\n\x02\x01\x10canContainLiquid\x01\x08\nliquidType\x05water\x08\x0FonLiquidTouches\x08blocking\x01\x18stopsLiquidFromDirection\0\x01\x13use_liquid_clipping\0\0\0\n\x1Fminecraft:redstone_conductivity\x01\x14allowsWireToStepDown\x01\x01\x11redstoneConductor\0\0\0\n\rmenu_category\x08\x08category\x0Cconstruction\x08\x05group\x1Dminecraft:itemGroup.name.slab\x01\x15is_hidden_in_commands\0\0\x03\rmolangVersion\x1A\n\x12vanilla_block_data\n\x0Fblock_archetype\x08\x11double_slab_block#minecraft:blue_concrete_double_slab\x01\tis_double\0\x08\x04type\nslab_block\0\x03\x08block_id\x94\x17\x08\x08material\x05solid\x01\x1Frequires_correct_tool_for_drops\x01\0\0",
+        ),
     },
     BlockData {
         id: 10011u32,
@@ -22307,6 +23020,9 @@ pub static ALL_BLOCKS: [BlockData; 1477usize] = [
             },
         ],
         state_values: b"\0\x01",
+        server_definition: Some(
+            b"\n\0\t\tblockTags\x08\x02&minecraft:is_pickaxe_item_destructible\n\ncomponents\n minecraft:destructible_by_mining\x05\x05valueff\xE6?\0\n\x1Fminecraft:destruction_particles\x03\x0Eparticle_count`\x08\x07texture\0\x08\x0Btint_method\x04none\0\n\x1Aminecraft:liquid_detection\t\x0EdetectionRules\n\x02\x01\x10canContainLiquid\x01\x08\nliquidType\x05water\x08\x0FonLiquidTouches\x08blocking\x01\x18stopsLiquidFromDirection\0\x01\x13use_liquid_clipping\0\0\0\n\x1Fminecraft:redstone_conductivity\x01\x14allowsWireToStepDown\x01\x01\x11redstoneConductor\0\0\0\n\rmenu_category\x08\x08category\x0Cconstruction\x08\x05group\x1Dminecraft:itemGroup.name.slab\x01\x15is_hidden_in_commands\0\0\x03\rmolangVersion\x1A\n\x12vanilla_block_data\n\x0Fblock_archetype\x08\x11double_slab_block$minecraft:white_concrete_double_slab\x01\tis_double\0\x08\x04type\nslab_block\0\x03\x08block_id\xFC\x16\x08\x08material\x05solid\x01\x1Frequires_correct_tool_for_drops\x01\0\0",
+        ),
     },
     BlockData {
         id: 10013u32,
@@ -22374,6 +23090,7 @@ pub static ALL_BLOCKS: [BlockData; 1477usize] = [
             },
         ],
         state_values: b"\0\0\0\0\0\x01\0\0\0\x02\0\0\0\x03\0\0\0\x04\0\0\0\x05\0\0\0\0\x01\0\0\x01\x01\0\0\x02\x01\0\0\x03\x01\0\0\x04\x01\0\0\x05\x01\0\0\0\x02\0\0\x01\x02\0\0\x02\x02\0\0\x03\x02\0\0\x04\x02\0\0\x05\x02\0\0\0\x03\0\0\x01\x03\0\0\x02\x03\0\0\x03\x03\0\0\x04\x03\0\0\x05\x03\0\0\0\x04\0\0\x01\x04\0\0\x02\x04\0\0\x03\x04\0\0\x04\x04\0\0\x05\x04\0\0\0\x05\0\0\x01\x05\0\0\x02\x05\0\0\x03\x05\0\0\x04\x05\0\0\x05\x05\0\0\0\x06\0\0\x01\x06\0\0\x02\x06\0\0\x03\x06\0\0\x04\x06\0\0\x05\x06\0\0\0\x07\0\0\x01\x07\0\0\x02\x07\0\0\x03\x07\0\0\x04\x07\0\0\x05\x07\0\0\0\x08\0\0\x01\x08\0\0\x02\x08\0\0\x03\x08\0\0\x04\x08\0\0\x05\x08\0\0\0\t\0\0\x01\t\0\0\x02\t\0\0\x03\t\0\0\x04\t\0\0\x05\t\0\0\0\n\0\0\x01\n\0\0\x02\n\0\0\x03\n\0\0\x04\n\0\0\x05\n\0\0\0\x0B\0\0\x01\x0B\0\0\x02\x0B\0\0\x03\x0B\0\0\x04\x0B\0\0\x05\x0B\0\0\0\x0C\0\0\x01\x0C\0\0\x02\x0C\0\0\x03\x0C\0\0\x04\x0C\0\0\x05\x0C\0\0\0\r\0\0\x01\r\0\0\x02\r\0\0\x03\r\0\0\x04\r\0\0\x05\r\0\0\0\x0E\0\0\x01\x0E\0\0\x02\x0E\0\0\x03\x0E\0\0\x04\x0E\0\0\x05\x0E\0\0\0\x0F\0\0\x01\x0F\0\0\x02\x0F\0\0\x03\x0F\0\0\x04\x0F\0\0\x05\x0F\0\0\0\0\x01\0\x01\0\x01\0\x02\0\x01\0\x03\0\x01\0\x04\0\x01\0\x05\0\x01\0\0\x01\x01\0\x01\x01\x01\0\x02\x01\x01\0\x03\x01\x01\0\x04\x01\x01\0\x05\x01\x01\0\0\x02\x01\0\x01\x02\x01\0\x02\x02\x01\0\x03\x02\x01\0\x04\x02\x01\0\x05\x02\x01\0\0\x03\x01\0\x01\x03\x01\0\x02\x03\x01\0\x03\x03\x01\0\x04\x03\x01\0\x05\x03\x01\0\0\x04\x01\0\x01\x04\x01\0\x02\x04\x01\0\x03\x04\x01\0\x04\x04\x01\0\x05\x04\x01\0\0\x05\x01\0\x01\x05\x01\0\x02\x05\x01\0\x03\x05\x01\0\x04\x05\x01\0\x05\x05\x01\0\0\x06\x01\0\x01\x06\x01\0\x02\x06\x01\0\x03\x06\x01\0\x04\x06\x01\0\x05\x06\x01\0\0\x07\x01\0\x01\x07\x01\0\x02\x07\x01\0\x03\x07\x01\0\x04\x07\x01\0\x05\x07\x01\0\0\x08\x01\0\x01\x08\x01\0\x02\x08\x01\0\x03\x08\x01\0\x04\x08\x01\0\x05\x08\x01\0\0\t\x01\0\x01\t\x01\0\x02\t\x01\0\x03\t\x01\0\x04\t\x01\0\x05\t\x01\0\0\n\x01\0\x01\n\x01\0\x02\n\x01\0\x03\n\x01\0\x04\n\x01\0\x05\n\x01\0\0\x0B\x01\0\x01\x0B\x01\0\x02\x0B\x01\0\x03\x0B\x01\0\x04\x0B\x01\0\x05\x0B\x01\0\0\x0C\x01\0\x01\x0C\x01\0\x02\x0C\x01\0\x03\x0C\x01\0\x04\x0C\x01\0\x05\x0C\x01\0\0\r\x01\0\x01\r\x01\0\x02\r\x01\0\x03\r\x01\0\x04\r\x01\0\x05\r\x01\0\0\x0E\x01\0\x01\x0E\x01\0\x02\x0E\x01\0\x03\x0E\x01\0\x04\x0E\x01\0\x05\x0E\x01\0\0\x0F\x01\0\x01\x0F\x01\0\x02\x0F\x01\0\x03\x0F\x01\0\x04\x0F\x01\0\x05\x0F\x01\x01\0\0\0\x01\x01\0\0\x01\x02\0\0\x01\x03\0\0\x01\x04\0\0\x01\x05\0\0\x01\0\x01\0\x01\x01\x01\0\x01\x02\x01\0\x01\x03\x01\0\x01\x04\x01\0\x01\x05\x01\0\x01\0\x02\0\x01\x01\x02\0\x01\x02\x02\0\x01\x03\x02\0\x01\x04\x02\0\x01\x05\x02\0\x01\0\x03\0\x01\x01\x03\0\x01\x02\x03\0\x01\x03\x03\0\x01\x04\x03\0\x01\x05\x03\0\x01\0\x04\0\x01\x01\x04\0\x01\x02\x04\0\x01\x03\x04\0\x01\x04\x04\0\x01\x05\x04\0\x01\0\x05\0\x01\x01\x05\0\x01\x02\x05\0\x01\x03\x05\0\x01\x04\x05\0\x01\x05\x05\0\x01\0\x06\0\x01\x01\x06\0\x01\x02\x06\0\x01\x03\x06\0\x01\x04\x06\0\x01\x05\x06\0\x01\0\x07\0\x01\x01\x07\0\x01\x02\x07\0\x01\x03\x07\0\x01\x04\x07\0\x01\x05\x07\0\x01\0\x08\0\x01\x01\x08\0\x01\x02\x08\0\x01\x03\x08\0\x01\x04\x08\0\x01\x05\x08\0\x01\0\t\0\x01\x01\t\0\x01\x02\t\0\x01\x03\t\0\x01\x04\t\0\x01\x05\t\0\x01\0\n\0\x01\x01\n\0\x01\x02\n\0\x01\x03\n\0\x01\x04\n\0\x01\x05\n\0\x01\0\x0B\0\x01\x01\x0B\0\x01\x02\x0B\0\x01\x03\x0B\0\x01\x04\x0B\0\x01\x05\x0B\0\x01\0\x0C\0\x01\x01\x0C\0\x01\x02\x0C\0\x01\x03\x0C\0\x01\x04\x0C\0\x01\x05\x0C\0\x01\0\r\0\x01\x01\r\0\x01\x02\r\0\x01\x03\r\0\x01\x04\r\0\x01\x05\r\0\x01\0\x0E\0\x01\x01\x0E\0\x01\x02\x0E\0\x01\x03\x0E\0\x01\x04\x0E\0\x01\x05\x0E\0\x01\0\x0F\0\x01\x01\x0F\0\x01\x02\x0F\0\x01\x03\x0F\0\x01\x04\x0F\0\x01\x05\x0F\0\x01\0\0\x01\x01\x01\0\x01\x01\x02\0\x01\x01\x03\0\x01\x01\x04\0\x01\x01\x05\0\x01\x01\0\x01\x01\x01\x01\x01\x01\x01\x02\x01\x01\x01\x03\x01\x01\x01\x04\x01\x01\x01\x05\x01\x01\x01\0\x02\x01\x01\x01\x02\x01\x01\x02\x02\x01\x01\x03\x02\x01\x01\x04\x02\x01\x01\x05\x02\x01\x01\0\x03\x01\x01\x01\x03\x01\x01\x02\x03\x01\x01\x03\x03\x01\x01\x04\x03\x01\x01\x05\x03\x01\x01\0\x04\x01\x01\x01\x04\x01\x01\x02\x04\x01\x01\x03\x04\x01\x01\x04\x04\x01\x01\x05\x04\x01\x01\0\x05\x01\x01\x01\x05\x01\x01\x02\x05\x01\x01\x03\x05\x01\x01\x04\x05\x01\x01\x05\x05\x01\x01\0\x06\x01\x01\x01\x06\x01\x01\x02\x06\x01\x01\x03\x06\x01\x01\x04\x06\x01\x01\x05\x06\x01\x01\0\x07\x01\x01\x01\x07\x01\x01\x02\x07\x01\x01\x03\x07\x01\x01\x04\x07\x01\x01\x05\x07\x01\x01\0\x08\x01\x01\x01\x08\x01\x01\x02\x08\x01\x01\x03\x08\x01\x01\x04\x08\x01\x01\x05\x08\x01\x01\0\t\x01\x01\x01\t\x01\x01\x02\t\x01\x01\x03\t\x01\x01\x04\t\x01\x01\x05\t\x01\x01\0\n\x01\x01\x01\n\x01\x01\x02\n\x01\x01\x03\n\x01\x01\x04\n\x01\x01\x05\n\x01\x01\0\x0B\x01\x01\x01\x0B\x01\x01\x02\x0B\x01\x01\x03\x0B\x01\x01\x04\x0B\x01\x01\x05\x0B\x01\x01\0\x0C\x01\x01\x01\x0C\x01\x01\x02\x0C\x01\x01\x03\x0C\x01\x01\x04\x0C\x01\x01\x05\x0C\x01\x01\0\r\x01\x01\x01\r\x01\x01\x02\r\x01\x01\x03\r\x01\x01\x04\r\x01\x01\x05\r\x01\x01\0\x0E\x01\x01\x01\x0E\x01\x01\x02\x0E\x01\x01\x03\x0E\x01\x01\x04\x0E\x01\x01\x05\x0E\x01\x01\0\x0F\x01\x01\x01\x0F\x01\x01\x02\x0F\x01\x01\x03\x0F\x01\x01\x04\x0F\x01\x01\x05\x0F\x01",
+        server_definition: None,
     },
     BlockData {
         id: 10397u32,
@@ -22409,6 +23126,7 @@ pub static ALL_BLOCKS: [BlockData; 1477usize] = [
             },
         ],
         state_values: b"\0\x01\x02",
+        server_definition: None,
     },
     BlockData {
         id: 10400u32,
@@ -22447,6 +23165,7 @@ pub static ALL_BLOCKS: [BlockData; 1477usize] = [
             },
         ],
         state_values: b"\0\x01\x02\x03\x04\x05",
+        server_definition: None,
     },
     BlockData {
         id: 10406u32,
@@ -22473,6 +23192,7 @@ pub static ALL_BLOCKS: [BlockData; 1477usize] = [
         visual_shape: [0f32, 0f32, 0f32, 1f32, 1f32, 1f32],
         properties: &[],
         state_values: b"",
+        server_definition: None,
     },
     BlockData {
         id: 10407u32,
@@ -22503,6 +23223,7 @@ pub static ALL_BLOCKS: [BlockData; 1477usize] = [
         visual_shape: [0f32, 0f32, 0f32, 1f32, 1f32, 1f32],
         properties: &[],
         state_values: b"",
+        server_definition: None,
     },
     BlockData {
         id: 10408u32,
@@ -22534,6 +23255,7 @@ pub static ALL_BLOCKS: [BlockData; 1477usize] = [
         visual_shape: [0f32, 0f32, 0f32, 1f32, 1f32, 1f32],
         properties: &[],
         state_values: b"",
+        server_definition: None,
     },
     BlockData {
         id: 10409u32,
@@ -22584,6 +23306,7 @@ pub static ALL_BLOCKS: [BlockData; 1477usize] = [
             },
         ],
         state_values: b"\0\0\0\0\0\x01\0\0\x02\0\0\x03\0\x01\0\0\x01\x01\0\x01\x02\0\x01\x03\x01\0\0\x01\0\x01\x01\0\x02\x01\0\x03\x01\x01\0\x01\x01\x01\x01\x01\x02\x01\x01\x03\x02\0\0\x02\0\x01\x02\0\x02\x02\0\x03\x02\x01\0\x02\x01\x01\x02\x01\x02\x02\x01\x03\x03\0\0\x03\0\x01\x03\0\x02\x03\0\x03\x03\x01\0\x03\x01\x01\x03\x01\x02\x03\x01\x03\x04\0\0\x04\0\x01\x04\0\x02\x04\0\x03\x04\x01\0\x04\x01\x01\x04\x01\x02\x04\x01\x03",
+        server_definition: None,
     },
     BlockData {
         id: 10449u32,
@@ -22628,6 +23351,7 @@ pub static ALL_BLOCKS: [BlockData; 1477usize] = [
             },
         ],
         state_values: b"\0\0\0\0\x01\0\0\x02\0\0\x03\0\0\0\x01\0\x01\x01\0\x02\x01\0\x03\x01\x01\0\0\x01\x01\0\x01\x02\0\x01\x03\0\x01\0\x01\x01\x01\x01\x01\x02\x01\x01\x03\x01",
+        server_definition: None,
     },
     BlockData {
         id: 10465u32,
@@ -22654,6 +23378,7 @@ pub static ALL_BLOCKS: [BlockData; 1477usize] = [
         visual_shape: [0.1f32, 0f32, 0.1f32, 0.9f32, 1f32, 0.9f32],
         properties: &[],
         state_values: b"",
+        server_definition: None,
     },
     BlockData {
         id: 10466u32,
@@ -22685,6 +23410,9 @@ pub static ALL_BLOCKS: [BlockData; 1477usize] = [
             },
         ],
         state_values: b"\0\x01",
+        server_definition: Some(
+            b"\n\0\t\tblockTags\x08\x02&minecraft:is_pickaxe_item_destructible\n\ncomponents\n minecraft:destructible_by_mining\x05\x05valueff\xE6?\0\n\x1Fminecraft:redstone_conductivity\x01\x14allowsWireToStepDown\x01\x01\x11redstoneConductor\x01\0\0\n\rmenu_category\x08\x08category\x04none\x08\x05group\0\x01\x15is_hidden_in_commands\x01\0\x03\rmolangVersion\x1A\n\x12vanilla_block_data\n\x0Fblock_archetype\x08\x11double_slab_block\x1Dminecraft:green_concrete_slab\x01\tis_double\x01\x08\x04type\nslab_block\0\x03\x08block_id\xAE\x17\x08\x08material\x05solid\x01\x1Frequires_correct_tool_for_drops\x01\0\0",
+        ),
     },
     BlockData {
         id: 10468u32,
@@ -22716,6 +23444,9 @@ pub static ALL_BLOCKS: [BlockData; 1477usize] = [
             },
         ],
         state_values: b"\0\x01",
+        server_definition: Some(
+            b"\n\0\t\tblockTags\x08\x02%minecraft:is_shears_item_destructible\n\ncomponents\n minecraft:destructible_by_mining\x05\x05value\xCD\xCCL?\0\n\x1Fminecraft:destruction_particles\x03\x0Eparticle_count`\x08\x07texture\0\x08\x0Btint_method\x04none\0\n\x1Aminecraft:liquid_detection\t\x0EdetectionRules\n\x02\x01\x10canContainLiquid\x01\x08\nliquidType\x05water\x08\x0FonLiquidTouches\x08blocking\x01\x18stopsLiquidFromDirection\0\x01\x13use_liquid_clipping\0\0\0\n\x1Fminecraft:redstone_conductivity\x01\x14allowsWireToStepDown\x01\x01\x11redstoneConductor\0\0\0\n\rmenu_category\x08\x08category\x0Cconstruction\x08\x05group\x1Dminecraft:itemGroup.name.slab\x01\x15is_hidden_in_commands\0\0\x03\rmolangVersion\x1A\n\x12vanilla_block_data\n\x0Fblock_archetype\x08\x11double_slab_block%minecraft:light_blue_wool_double_slab\x01\tis_double\0\x08\x04type\nslab_block\0\x03\x08block_id\xAE\x16\x01\x15can_dampen_vibrations\x01\x01\x16can_occlude_vibrations\x01\x08\x08material\x05solid\x05\x0Ctranslucency\xCD\xCCL?\0\0",
+        ),
     },
     BlockData {
         id: 10470u32,
@@ -22750,6 +23481,7 @@ pub static ALL_BLOCKS: [BlockData; 1477usize] = [
             },
         ],
         state_values: b"\0\x01",
+        server_definition: None,
     },
     BlockData {
         id: 10472u32,
@@ -22776,6 +23508,7 @@ pub static ALL_BLOCKS: [BlockData; 1477usize] = [
         visual_shape: [0f32, 0f32, 0f32, 1f32, 1f32, 1f32],
         properties: &[],
         state_values: b"",
+        server_definition: None,
     },
     BlockData {
         id: 10473u32,
@@ -22816,6 +23549,7 @@ pub static ALL_BLOCKS: [BlockData; 1477usize] = [
             },
         ],
         state_values: b"\0\0\x01\0\x02\0\x03\0\0\x01\x01\x01\x02\x01\x03\x01",
+        server_definition: None,
     },
     BlockData {
         id: 10481u32,
@@ -22847,6 +23581,9 @@ pub static ALL_BLOCKS: [BlockData; 1477usize] = [
             },
         ],
         state_values: b"\0\x01",
+        server_definition: Some(
+            b"\n\0\t\tblockTags\x08\x02%minecraft:is_shears_item_destructible\n\ncomponents\n minecraft:destructible_by_mining\x05\x05value\xCD\xCCL?\0\n\x1Fminecraft:redstone_conductivity\x01\x14allowsWireToStepDown\x01\x01\x11redstoneConductor\x01\0\0\n\rmenu_category\x08\x08category\x04none\x08\x05group\0\x01\x15is_hidden_in_commands\x01\0\x03\rmolangVersion\x1A\n\x12vanilla_block_data\n\x0Fblock_archetype\x08\x11double_slab_block\x1Aminecraft:purple_wool_slab\x01\tis_double\x01\x08\x04type\nslab_block\0\x03\x08block_id\xD2\x16\x01\x15can_dampen_vibrations\x01\x01\x16can_occlude_vibrations\x01\x08\x08material\x05solid\0\0",
+        ),
     },
     BlockData {
         id: 10483u32,
@@ -22877,6 +23614,7 @@ pub static ALL_BLOCKS: [BlockData; 1477usize] = [
         visual_shape: [0f32, 0f32, 0f32, 1f32, 1f32, 1f32],
         properties: &[],
         state_values: b"",
+        server_definition: None,
     },
     BlockData {
         id: 10484u32,
@@ -22913,6 +23651,7 @@ pub static ALL_BLOCKS: [BlockData; 1477usize] = [
             },
         ],
         state_values: b"\0\x01\x02\x03",
+        server_definition: None,
     },
     BlockData {
         id: 10488u32,
@@ -22944,6 +23683,7 @@ pub static ALL_BLOCKS: [BlockData; 1477usize] = [
         visual_shape: [0f32, 0f32, 0f32, 1f32, 1f32, 1f32],
         properties: &[],
         state_values: b"",
+        server_definition: None,
     },
     BlockData {
         id: 10489u32,
@@ -22975,6 +23715,9 @@ pub static ALL_BLOCKS: [BlockData; 1477usize] = [
             },
         ],
         state_values: b"\0\x01",
+        server_definition: Some(
+            b"\n\0\t\tblockTags\x08\x02%minecraft:is_shears_item_destructible\n\ncomponents\n minecraft:destructible_by_mining\x05\x05value\xCD\xCCL?\0\n\x1Fminecraft:redstone_conductivity\x01\x14allowsWireToStepDown\x01\x01\x11redstoneConductor\x01\0\0\n\rmenu_category\x08\x08category\x04none\x08\x05group\0\x01\x15is_hidden_in_commands\x01\0\x03\rmolangVersion\x1A\n\x12vanilla_block_data\n\x0Fblock_archetype\x08\x11double_slab_block\x17minecraft:red_wool_slab\x01\tis_double\x01\x08\x04type\nslab_block\0\x03\x08block_id\xC2\x16\x01\x15can_dampen_vibrations\x01\x01\x16can_occlude_vibrations\x01\x08\x08material\x05solid\0\0",
+        ),
     },
     BlockData {
         id: 10491u32,
@@ -23023,6 +23766,7 @@ pub static ALL_BLOCKS: [BlockData; 1477usize] = [
             },
         ],
         state_values: b"\0\0\0\0\0\x01\0\0\0\x02\0\0\0\x03\0\0\0\0\x01\0\0\x01\x01\0\0\x02\x01\0\0\x03\x01\0\0\0\0\x01\0\x01\0\x01\0\x02\0\x01\0\x03\0\x01\0\0\x01\x01\0\x01\x01\x01\0\x02\x01\x01\0\x03\x01\x01\x01\0\0\0\x01\x01\0\0\x01\x02\0\0\x01\x03\0\0\x01\0\x01\0\x01\x01\x01\0\x01\x02\x01\0\x01\x03\x01\0\x01\0\0\x01\x01\x01\0\x01\x01\x02\0\x01\x01\x03\0\x01\x01\0\x01\x01\x01\x01\x01\x01\x01\x02\x01\x01\x01\x03\x01\x01",
+        server_definition: None,
     },
     BlockData {
         id: 10523u32,
@@ -23059,6 +23803,7 @@ pub static ALL_BLOCKS: [BlockData; 1477usize] = [
             },
         ],
         state_values: b"\0\x01\x02\x03",
+        server_definition: None,
     },
     BlockData {
         id: 10527u32,
@@ -23095,6 +23840,7 @@ pub static ALL_BLOCKS: [BlockData; 1477usize] = [
             },
         ],
         state_values: b"\0\x01\x02\x03",
+        server_definition: None,
     },
     BlockData {
         id: 10531u32,
@@ -23133,6 +23879,7 @@ pub static ALL_BLOCKS: [BlockData; 1477usize] = [
             },
         ],
         state_values: b"\0\x01\x02\x03\x04\x05",
+        server_definition: None,
     },
     BlockData {
         id: 10537u32,
@@ -23181,6 +23928,7 @@ pub static ALL_BLOCKS: [BlockData; 1477usize] = [
             },
         ],
         state_values: b"\0\0\0\0\0\x01\0\0\0\x02\0\0\0\x03\0\0\0\0\x01\0\0\x01\x01\0\0\x02\x01\0\0\x03\x01\0\0\0\0\x01\0\x01\0\x01\0\x02\0\x01\0\x03\0\x01\0\0\x01\x01\0\x01\x01\x01\0\x02\x01\x01\0\x03\x01\x01\x01\0\0\0\x01\x01\0\0\x01\x02\0\0\x01\x03\0\0\x01\0\x01\0\x01\x01\x01\0\x01\x02\x01\0\x01\x03\x01\0\x01\0\0\x01\x01\x01\0\x01\x01\x02\0\x01\x01\x03\0\x01\x01\0\x01\x01\x01\x01\x01\x01\x01\x02\x01\x01\x01\x03\x01\x01",
+        server_definition: None,
     },
     BlockData {
         id: 10569u32,
@@ -23221,6 +23969,7 @@ pub static ALL_BLOCKS: [BlockData; 1477usize] = [
             },
         ],
         state_values: b"\0\0\0\x01\x01\0\x01\x01\x02\0\x02\x01\x03\0\x03\x01",
+        server_definition: None,
     },
     BlockData {
         id: 10577u32,
@@ -23265,6 +24014,7 @@ pub static ALL_BLOCKS: [BlockData; 1477usize] = [
             },
         ],
         state_values: b"\0\0\0\x01\0\0\x02\0\0\x03\0\0\0\0\x01\x01\0\x01\x02\0\x01\x03\0\x01\0\x01\0\x01\x01\0\x02\x01\0\x03\x01\0\0\x01\x01\x01\x01\x01\x02\x01\x01\x03\x01\x01",
+        server_definition: None,
     },
     BlockData {
         id: 10593u32,
@@ -23313,6 +24063,7 @@ pub static ALL_BLOCKS: [BlockData; 1477usize] = [
             },
         ],
         state_values: b"\0\x01\x02\x03\x04\x05\x06\x07\x08\t\n\x0B\x0C\r\x0E\x0F",
+        server_definition: None,
     },
     BlockData {
         id: 10609u32,
@@ -23339,6 +24090,7 @@ pub static ALL_BLOCKS: [BlockData; 1477usize] = [
         visual_shape: [0f32, 0f32, 0f32, 1f32, 1f32, 1f32],
         properties: &[],
         state_values: b"",
+        server_definition: None,
     },
     BlockData {
         id: 10610u32,
@@ -23365,6 +24117,7 @@ pub static ALL_BLOCKS: [BlockData; 1477usize] = [
         visual_shape: [0f32, 0f32, 0f32, 1f32, 1f32, 1f32],
         properties: &[],
         state_values: b"",
+        server_definition: None,
     },
     BlockData {
         id: 10611u32,
@@ -23414,6 +24167,7 @@ pub static ALL_BLOCKS: [BlockData; 1477usize] = [
             },
         ],
         state_values: b"\0\0\0\x01\0\0\x02\0\0\x03\0\0\0\0\x01\x01\0\x01\x02\0\x01\x03\0\x01\0\x01\0\x01\x01\0\x02\x01\0\x03\x01\0\0\x01\x01\x01\x01\x01\x02\x01\x01\x03\x01\x01",
+        server_definition: None,
     },
     BlockData {
         id: 10627u32,
@@ -23445,6 +24199,9 @@ pub static ALL_BLOCKS: [BlockData; 1477usize] = [
             },
         ],
         state_values: b"\0\x01",
+        server_definition: Some(
+            b"\n\0\t\tblockTags\x08\x02%minecraft:is_shears_item_destructible\n\ncomponents\n minecraft:destructible_by_mining\x05\x05value\xCD\xCCL?\0\n\x1Fminecraft:destruction_particles\x03\x0Eparticle_count`\x08\x07texture\0\x08\x0Btint_method\x04none\0\n\x1Aminecraft:liquid_detection\t\x0EdetectionRules\n\x02\x01\x10canContainLiquid\x01\x08\nliquidType\x05water\x08\x0FonLiquidTouches\x08blocking\x01\x18stopsLiquidFromDirection\0\x01\x13use_liquid_clipping\0\0\0\n\x1Fminecraft:redstone_conductivity\x01\x14allowsWireToStepDown\x01\x01\x11redstoneConductor\0\0\0\n\rmenu_category\x08\x08category\x0Cconstruction\x08\x05group\x1Dminecraft:itemGroup.name.slab\x01\x15is_hidden_in_commands\0\0\x03\rmolangVersion\x1A\n\x12vanilla_block_data\n\x0Fblock_archetype\x08\x11double_slab_block!minecraft:orange_wool_double_slab\x01\tis_double\0\x08\x04type\nslab_block\0\x03\x08block_id\xA4\x16\x01\x15can_dampen_vibrations\x01\x01\x16can_occlude_vibrations\x01\x08\x08material\x05solid\x05\x0Ctranslucency\xCD\xCCL?\0\0",
+        ),
     },
     BlockData {
         id: 10629u32,
@@ -23495,6 +24252,9 @@ pub static ALL_BLOCKS: [BlockData; 1477usize] = [
             },
         ],
         state_values: b"\0\0\0\0\0\x01\0\0\x02\0\0\x03\0\x01\0\0\x01\x01\0\x01\x02\0\x01\x03\x01\0\0\x01\0\x01\x01\0\x02\x01\0\x03\x01\x01\0\x01\x01\x01\x01\x01\x02\x01\x01\x03\x02\0\0\x02\0\x01\x02\0\x02\x02\0\x03\x02\x01\0\x02\x01\x01\x02\x01\x02\x02\x01\x03\x03\0\0\x03\0\x01\x03\0\x02\x03\0\x03\x03\x01\0\x03\x01\x01\x03\x01\x02\x03\x01\x03\x04\0\0\x04\0\x01\x04\0\x02\x04\0\x03\x04\x01\0\x04\x01\x01\x04\x01\x02\x04\x01\x03",
+        server_definition: Some(
+            b"\n\0\t\tblockTags\x08\x02&minecraft:is_pickaxe_item_destructible\n\ncomponents\n minecraft:destructible_by_mining\x05\x05valueff\xE6?\0\n\x1Fminecraft:destruction_particles\x03\x0Eparticle_count`\x08\x07texture\0\x08\x0Btint_method\x04none\0\n\x1Aminecraft:liquid_detection\t\x0EdetectionRules\n\x02\x01\x10canContainLiquid\x01\x08\nliquidType\x05water\x08\x0FonLiquidTouches\x08blocking\x01\x18stopsLiquidFromDirection\0\x01\x13use_liquid_clipping\0\0\0\n\x1Fminecraft:redstone_conductivity\x01\x14allowsWireToStepDown\x01\x01\x11redstoneConductor\0\0\n\x11minecraft:support\x08\x05shape\x05stair\0\0\n\rmenu_category\x08\x08category\x0Cconstruction\x08\x05group\x1Fminecraft:itemGroup.name.stairs\x01\x15is_hidden_in_commands\0\0\x03\rmolangVersion\x1A\n\x12vanilla_block_data\n\x0Fblock_archetype\x08\nbase_block\x18minecraft:black_concrete\x08\x04type\x0Bstair_block\0\x03\x08block_id\xFA\x16\x08\x08material\x05solid\x01\x1Frequires_correct_tool_for_drops\x01\0\0",
+        ),
     },
     BlockData {
         id: 10669u32,
@@ -23545,6 +24305,7 @@ pub static ALL_BLOCKS: [BlockData; 1477usize] = [
             },
         ],
         state_values: b"\0\0\0\0\0\x01\0\0\x02\0\0\x03\0\x01\0\0\x01\x01\0\x01\x02\0\x01\x03\x01\0\0\x01\0\x01\x01\0\x02\x01\0\x03\x01\x01\0\x01\x01\x01\x01\x01\x02\x01\x01\x03\x02\0\0\x02\0\x01\x02\0\x02\x02\0\x03\x02\x01\0\x02\x01\x01\x02\x01\x02\x02\x01\x03\x03\0\0\x03\0\x01\x03\0\x02\x03\0\x03\x03\x01\0\x03\x01\x01\x03\x01\x02\x03\x01\x03\x04\0\0\x04\0\x01\x04\0\x02\x04\0\x03\x04\x01\0\x04\x01\x01\x04\x01\x02\x04\x01\x03",
+        server_definition: None,
     },
     BlockData {
         id: 10709u32,
@@ -23603,6 +24364,7 @@ pub static ALL_BLOCKS: [BlockData; 1477usize] = [
             },
         ],
         state_values: b"\0\x01\x02\x03\x04\x05\x06\x07\x08\t\n\x0B\x0C\r\x0E\x0F\x10\x11\x12\x13\x14\x15\x16\x17\x18\x19",
+        server_definition: None,
     },
     BlockData {
         id: 10735u32,
@@ -23646,6 +24408,7 @@ pub static ALL_BLOCKS: [BlockData; 1477usize] = [
             },
         ],
         state_values: b"\0\0\0\0\0\x01\0\0\x01\0\0\0\x01\x01\0\0\0\0\x01\0\0\x01\x01\0\x01\0\x01\0\x01\x01\x01\0\0\0\0\x01\0\x01\0\x01\x01\0\0\x01\x01\x01\0\x01\0\0\x01\x01\0\x01\x01\x01\x01\0\x01\x01\x01\x01\x01\x01",
+        server_definition: None,
     },
     BlockData {
         id: 10751u32,
@@ -23689,6 +24452,7 @@ pub static ALL_BLOCKS: [BlockData; 1477usize] = [
             },
         ],
         state_values: b"\0\0\0\0\0\x01\0\0\x01\0\0\0\x01\x01\0\0\0\0\x01\0\0\x01\x01\0\x01\0\x01\0\x01\x01\x01\0\0\0\0\x01\0\x01\0\x01\x01\0\0\x01\x01\x01\0\x01\0\0\x01\x01\0\x01\x01\x01\x01\0\x01\x01\x01\x01\x01\x01",
+        server_definition: None,
     },
     BlockData {
         id: 10767u32,
@@ -23715,6 +24479,7 @@ pub static ALL_BLOCKS: [BlockData; 1477usize] = [
         visual_shape: [0f32, 0f32, 0f32, 1f32, 1f32, 1f32],
         properties: &[],
         state_values: b"",
+        server_definition: None,
     },
     BlockData {
         id: 10768u32,
@@ -23750,6 +24515,7 @@ pub static ALL_BLOCKS: [BlockData; 1477usize] = [
             },
         ],
         state_values: b"\0\x01\x02",
+        server_definition: None,
     },
     BlockData {
         id: 10771u32,
@@ -23776,6 +24542,7 @@ pub static ALL_BLOCKS: [BlockData; 1477usize] = [
         visual_shape: [0f32, 0f32, 0f32, 1f32, 0.0625f32, 1f32],
         properties: &[],
         state_values: b"",
+        server_definition: None,
     },
     BlockData {
         id: 10772u32,
@@ -23843,6 +24610,7 @@ pub static ALL_BLOCKS: [BlockData; 1477usize] = [
             },
         ],
         state_values: b"\0\0\0\0\0\x01\0\0\0\x02\0\0\0\x03\0\0\0\x04\0\0\0\x05\0\0\0\0\x01\0\0\x01\x01\0\0\x02\x01\0\0\x03\x01\0\0\x04\x01\0\0\x05\x01\0\0\0\x02\0\0\x01\x02\0\0\x02\x02\0\0\x03\x02\0\0\x04\x02\0\0\x05\x02\0\0\0\x03\0\0\x01\x03\0\0\x02\x03\0\0\x03\x03\0\0\x04\x03\0\0\x05\x03\0\0\0\x04\0\0\x01\x04\0\0\x02\x04\0\0\x03\x04\0\0\x04\x04\0\0\x05\x04\0\0\0\x05\0\0\x01\x05\0\0\x02\x05\0\0\x03\x05\0\0\x04\x05\0\0\x05\x05\0\0\0\x06\0\0\x01\x06\0\0\x02\x06\0\0\x03\x06\0\0\x04\x06\0\0\x05\x06\0\0\0\x07\0\0\x01\x07\0\0\x02\x07\0\0\x03\x07\0\0\x04\x07\0\0\x05\x07\0\0\0\x08\0\0\x01\x08\0\0\x02\x08\0\0\x03\x08\0\0\x04\x08\0\0\x05\x08\0\0\0\t\0\0\x01\t\0\0\x02\t\0\0\x03\t\0\0\x04\t\0\0\x05\t\0\0\0\n\0\0\x01\n\0\0\x02\n\0\0\x03\n\0\0\x04\n\0\0\x05\n\0\0\0\x0B\0\0\x01\x0B\0\0\x02\x0B\0\0\x03\x0B\0\0\x04\x0B\0\0\x05\x0B\0\0\0\x0C\0\0\x01\x0C\0\0\x02\x0C\0\0\x03\x0C\0\0\x04\x0C\0\0\x05\x0C\0\0\0\r\0\0\x01\r\0\0\x02\r\0\0\x03\r\0\0\x04\r\0\0\x05\r\0\0\0\x0E\0\0\x01\x0E\0\0\x02\x0E\0\0\x03\x0E\0\0\x04\x0E\0\0\x05\x0E\0\0\0\x0F\0\0\x01\x0F\0\0\x02\x0F\0\0\x03\x0F\0\0\x04\x0F\0\0\x05\x0F\0\0\0\0\x01\0\x01\0\x01\0\x02\0\x01\0\x03\0\x01\0\x04\0\x01\0\x05\0\x01\0\0\x01\x01\0\x01\x01\x01\0\x02\x01\x01\0\x03\x01\x01\0\x04\x01\x01\0\x05\x01\x01\0\0\x02\x01\0\x01\x02\x01\0\x02\x02\x01\0\x03\x02\x01\0\x04\x02\x01\0\x05\x02\x01\0\0\x03\x01\0\x01\x03\x01\0\x02\x03\x01\0\x03\x03\x01\0\x04\x03\x01\0\x05\x03\x01\0\0\x04\x01\0\x01\x04\x01\0\x02\x04\x01\0\x03\x04\x01\0\x04\x04\x01\0\x05\x04\x01\0\0\x05\x01\0\x01\x05\x01\0\x02\x05\x01\0\x03\x05\x01\0\x04\x05\x01\0\x05\x05\x01\0\0\x06\x01\0\x01\x06\x01\0\x02\x06\x01\0\x03\x06\x01\0\x04\x06\x01\0\x05\x06\x01\0\0\x07\x01\0\x01\x07\x01\0\x02\x07\x01\0\x03\x07\x01\0\x04\x07\x01\0\x05\x07\x01\0\0\x08\x01\0\x01\x08\x01\0\x02\x08\x01\0\x03\x08\x01\0\x04\x08\x01\0\x05\x08\x01\0\0\t\x01\0\x01\t\x01\0\x02\t\x01\0\x03\t\x01\0\x04\t\x01\0\x05\t\x01\0\0\n\x01\0\x01\n\x01\0\x02\n\x01\0\x03\n\x01\0\x04\n\x01\0\x05\n\x01\0\0\x0B\x01\0\x01\x0B\x01\0\x02\x0B\x01\0\x03\x0B\x01\0\x04\x0B\x01\0\x05\x0B\x01\0\0\x0C\x01\0\x01\x0C\x01\0\x02\x0C\x01\0\x03\x0C\x01\0\x04\x0C\x01\0\x05\x0C\x01\0\0\r\x01\0\x01\r\x01\0\x02\r\x01\0\x03\r\x01\0\x04\r\x01\0\x05\r\x01\0\0\x0E\x01\0\x01\x0E\x01\0\x02\x0E\x01\0\x03\x0E\x01\0\x04\x0E\x01\0\x05\x0E\x01\0\0\x0F\x01\0\x01\x0F\x01\0\x02\x0F\x01\0\x03\x0F\x01\0\x04\x0F\x01\0\x05\x0F\x01\x01\0\0\0\x01\x01\0\0\x01\x02\0\0\x01\x03\0\0\x01\x04\0\0\x01\x05\0\0\x01\0\x01\0\x01\x01\x01\0\x01\x02\x01\0\x01\x03\x01\0\x01\x04\x01\0\x01\x05\x01\0\x01\0\x02\0\x01\x01\x02\0\x01\x02\x02\0\x01\x03\x02\0\x01\x04\x02\0\x01\x05\x02\0\x01\0\x03\0\x01\x01\x03\0\x01\x02\x03\0\x01\x03\x03\0\x01\x04\x03\0\x01\x05\x03\0\x01\0\x04\0\x01\x01\x04\0\x01\x02\x04\0\x01\x03\x04\0\x01\x04\x04\0\x01\x05\x04\0\x01\0\x05\0\x01\x01\x05\0\x01\x02\x05\0\x01\x03\x05\0\x01\x04\x05\0\x01\x05\x05\0\x01\0\x06\0\x01\x01\x06\0\x01\x02\x06\0\x01\x03\x06\0\x01\x04\x06\0\x01\x05\x06\0\x01\0\x07\0\x01\x01\x07\0\x01\x02\x07\0\x01\x03\x07\0\x01\x04\x07\0\x01\x05\x07\0\x01\0\x08\0\x01\x01\x08\0\x01\x02\x08\0\x01\x03\x08\0\x01\x04\x08\0\x01\x05\x08\0\x01\0\t\0\x01\x01\t\0\x01\x02\t\0\x01\x03\t\0\x01\x04\t\0\x01\x05\t\0\x01\0\n\0\x01\x01\n\0\x01\x02\n\0\x01\x03\n\0\x01\x04\n\0\x01\x05\n\0\x01\0\x0B\0\x01\x01\x0B\0\x01\x02\x0B\0\x01\x03\x0B\0\x01\x04\x0B\0\x01\x05\x0B\0\x01\0\x0C\0\x01\x01\x0C\0\x01\x02\x0C\0\x01\x03\x0C\0\x01\x04\x0C\0\x01\x05\x0C\0\x01\0\r\0\x01\x01\r\0\x01\x02\r\0\x01\x03\r\0\x01\x04\r\0\x01\x05\r\0\x01\0\x0E\0\x01\x01\x0E\0\x01\x02\x0E\0\x01\x03\x0E\0\x01\x04\x0E\0\x01\x05\x0E\0\x01\0\x0F\0\x01\x01\x0F\0\x01\x02\x0F\0\x01\x03\x0F\0\x01\x04\x0F\0\x01\x05\x0F\0\x01\0\0\x01\x01\x01\0\x01\x01\x02\0\x01\x01\x03\0\x01\x01\x04\0\x01\x01\x05\0\x01\x01\0\x01\x01\x01\x01\x01\x01\x01\x02\x01\x01\x01\x03\x01\x01\x01\x04\x01\x01\x01\x05\x01\x01\x01\0\x02\x01\x01\x01\x02\x01\x01\x02\x02\x01\x01\x03\x02\x01\x01\x04\x02\x01\x01\x05\x02\x01\x01\0\x03\x01\x01\x01\x03\x01\x01\x02\x03\x01\x01\x03\x03\x01\x01\x04\x03\x01\x01\x05\x03\x01\x01\0\x04\x01\x01\x01\x04\x01\x01\x02\x04\x01\x01\x03\x04\x01\x01\x04\x04\x01\x01\x05\x04\x01\x01\0\x05\x01\x01\x01\x05\x01\x01\x02\x05\x01\x01\x03\x05\x01\x01\x04\x05\x01\x01\x05\x05\x01\x01\0\x06\x01\x01\x01\x06\x01\x01\x02\x06\x01\x01\x03\x06\x01\x01\x04\x06\x01\x01\x05\x06\x01\x01\0\x07\x01\x01\x01\x07\x01\x01\x02\x07\x01\x01\x03\x07\x01\x01\x04\x07\x01\x01\x05\x07\x01\x01\0\x08\x01\x01\x01\x08\x01\x01\x02\x08\x01\x01\x03\x08\x01\x01\x04\x08\x01\x01\x05\x08\x01\x01\0\t\x01\x01\x01\t\x01\x01\x02\t\x01\x01\x03\t\x01\x01\x04\t\x01\x01\x05\t\x01\x01\0\n\x01\x01\x01\n\x01\x01\x02\n\x01\x01\x03\n\x01\x01\x04\n\x01\x01\x05\n\x01\x01\0\x0B\x01\x01\x01\x0B\x01\x01\x02\x0B\x01\x01\x03\x0B\x01\x01\x04\x0B\x01\x01\x05\x0B\x01\x01\0\x0C\x01\x01\x01\x0C\x01\x01\x02\x0C\x01\x01\x03\x0C\x01\x01\x04\x0C\x01\x01\x05\x0C\x01\x01\0\r\x01\x01\x01\r\x01\x01\x02\r\x01\x01\x03\r\x01\x01\x04\r\x01\x01\x05\r\x01\x01\0\x0E\x01\x01\x01\x0E\x01\x01\x02\x0E\x01\x01\x03\x0E\x01\x01\x04\x0E\x01\x01\x05\x0E\x01\x01\0\x0F\x01\x01\x01\x0F\x01\x01\x02\x0F\x01\x01\x03\x0F\x01\x01\x04\x0F\x01\x01\x05\x0F\x01",
+        server_definition: None,
     },
     BlockData {
         id: 11156u32,
@@ -23869,6 +24637,7 @@ pub static ALL_BLOCKS: [BlockData; 1477usize] = [
         visual_shape: [0f32, 0f32, 0f32, 1f32, 1f32, 1f32],
         properties: &[],
         state_values: b"",
+        server_definition: None,
     },
     BlockData {
         id: 11157u32,
@@ -23920,6 +24689,7 @@ pub static ALL_BLOCKS: [BlockData; 1477usize] = [
             },
         ],
         state_values: b"\0\0\0\x01\0\x02\0\x03\0\x04\0\x05\0\x06\0\x07\x01\0\x01\x01\x01\x02\x01\x03\x01\x04\x01\x05\x01\x06\x01\x07\x02\0\x02\x01\x02\x02\x02\x03\x02\x04\x02\x05\x02\x06\x02\x07\x03\0\x03\x01\x03\x02\x03\x03\x03\x04\x03\x05\x03\x06\x03\x07\x04\0\x04\x01\x04\x02\x04\x03\x04\x04\x04\x05\x04\x06\x04\x07\x05\0\x05\x01\x05\x02\x05\x03\x05\x04\x05\x05\x05\x06\x05\x07",
+        server_definition: None,
     },
     BlockData {
         id: 11205u32,
@@ -23946,6 +24716,7 @@ pub static ALL_BLOCKS: [BlockData; 1477usize] = [
         visual_shape: [0f32, 0f32, 0f32, 1f32, 1f32, 1f32],
         properties: &[],
         state_values: b"",
+        server_definition: None,
     },
     BlockData {
         id: 11206u32,
@@ -23981,6 +24752,7 @@ pub static ALL_BLOCKS: [BlockData; 1477usize] = [
             },
         ],
         state_values: b"\0\x01\x02",
+        server_definition: None,
     },
     BlockData {
         id: 11209u32,
@@ -24011,6 +24783,7 @@ pub static ALL_BLOCKS: [BlockData; 1477usize] = [
         visual_shape: [0f32, 0f32, 0f32, 1f32, 1f32, 1f32],
         properties: &[],
         state_values: b"",
+        server_definition: None,
     },
     BlockData {
         id: 11210u32,
@@ -24037,6 +24810,7 @@ pub static ALL_BLOCKS: [BlockData; 1477usize] = [
         visual_shape: [0f32, 0f32, 0f32, 1f32, 1f32, 1f32],
         properties: &[],
         state_values: b"",
+        server_definition: None,
     },
     BlockData {
         id: 11211u32,
@@ -24073,6 +24847,7 @@ pub static ALL_BLOCKS: [BlockData; 1477usize] = [
             },
         ],
         state_values: b"\0\x01\x02\x03",
+        server_definition: None,
     },
     BlockData {
         id: 11215u32,
@@ -24108,6 +24883,7 @@ pub static ALL_BLOCKS: [BlockData; 1477usize] = [
             },
         ],
         state_values: b"\0\x01\x02",
+        server_definition: None,
     },
     BlockData {
         id: 11218u32,
@@ -24151,6 +24927,7 @@ pub static ALL_BLOCKS: [BlockData; 1477usize] = [
             },
         ],
         state_values: b"\0\0\0\0\0\x01\0\0\x01\0\0\0\x01\x01\0\0\0\0\x01\0\0\x01\x01\0\x01\0\x01\0\x01\x01\x01\0\0\0\0\x01\0\x01\0\x01\x01\0\0\x01\x01\x01\0\x01\0\0\x01\x01\0\x01\x01\x01\x01\0\x01\x01\x01\x01\x01\x01",
+        server_definition: None,
     },
     BlockData {
         id: 11234u32,
@@ -24200,6 +24977,7 @@ pub static ALL_BLOCKS: [BlockData; 1477usize] = [
             },
         ],
         state_values: b"\0\0\0\x01\0\0\x02\0\0\x03\0\0\0\0\x01\x01\0\x01\x02\0\x01\x03\0\x01\0\x01\0\x01\x01\0\x02\x01\0\x03\x01\0\0\x01\x01\x01\x01\x01\x02\x01\x01\x03\x01\x01",
+        server_definition: None,
     },
     BlockData {
         id: 11250u32,
@@ -24231,6 +25009,9 @@ pub static ALL_BLOCKS: [BlockData; 1477usize] = [
             },
         ],
         state_values: b"\0\x01",
+        server_definition: Some(
+            b"\n\0\t\tblockTags\x08\x02&minecraft:is_pickaxe_item_destructible\n\ncomponents\n minecraft:destructible_by_mining\x05\x05valueff\xE6?\0\n\x1Fminecraft:destruction_particles\x03\x0Eparticle_count`\x08\x07texture\0\x08\x0Btint_method\x04none\0\n\x1Aminecraft:liquid_detection\t\x0EdetectionRules\n\x02\x01\x10canContainLiquid\x01\x08\nliquidType\x05water\x08\x0FonLiquidTouches\x08blocking\x01\x18stopsLiquidFromDirection\0\x01\x13use_liquid_clipping\0\0\0\n\x1Fminecraft:redstone_conductivity\x01\x14allowsWireToStepDown\x01\x01\x11redstoneConductor\0\0\0\n\rmenu_category\x08\x08category\x0Cconstruction\x08\x05group\x1Dminecraft:itemGroup.name.slab\x01\x15is_hidden_in_commands\0\0\x03\rmolangVersion\x1A\n\x12vanilla_block_data\n\x0Fblock_archetype\x08\x11double_slab_block\"minecraft:red_concrete_double_slab\x01\tis_double\0\x08\x04type\nslab_block\0\x03\x08block_id\x86\x17\x08\x08material\x05solid\x01\x1Frequires_correct_tool_for_drops\x01\0\0",
+        ),
     },
     BlockData {
         id: 11252u32,
@@ -24269,6 +25050,7 @@ pub static ALL_BLOCKS: [BlockData; 1477usize] = [
             },
         ],
         state_values: b"\0\x01\x02\x03\x04\x05",
+        server_definition: None,
     },
     BlockData {
         id: 11258u32,
@@ -24295,6 +25077,7 @@ pub static ALL_BLOCKS: [BlockData; 1477usize] = [
         visual_shape: [0f32, 0f32, 0f32, 1f32, 1f32, 1f32],
         properties: &[],
         state_values: b"",
+        server_definition: None,
     },
     BlockData {
         id: 11259u32,
@@ -24330,6 +25113,7 @@ pub static ALL_BLOCKS: [BlockData; 1477usize] = [
             },
         ],
         state_values: b"\0\x01\x02",
+        server_definition: None,
     },
     BlockData {
         id: 11262u32,
@@ -24377,6 +25161,7 @@ pub static ALL_BLOCKS: [BlockData; 1477usize] = [
             },
         ],
         state_values: b"\0\0\x01\0\x02\0\x03\0\x04\0\x05\0\0\x01\x01\x01\x02\x01\x03\x01\x04\x01\x05\x01\0\x02\x01\x02\x02\x02\x03\x02\x04\x02\x05\x02\0\x03\x01\x03\x02\x03\x03\x03\x04\x03\x05\x03",
+        server_definition: None,
     },
     BlockData {
         id: 11286u32,
@@ -24413,6 +25198,7 @@ pub static ALL_BLOCKS: [BlockData; 1477usize] = [
             },
         ],
         state_values: b"\0\x01\x02\x03",
+        server_definition: None,
     },
     BlockData {
         id: 11290u32,
@@ -24439,6 +25225,7 @@ pub static ALL_BLOCKS: [BlockData; 1477usize] = [
         visual_shape: [0f32, 0f32, 0f32, 1f32, 1f32, 1f32],
         properties: &[],
         state_values: b"",
+        server_definition: None,
     },
     BlockData {
         id: 11291u32,
@@ -24470,6 +25257,9 @@ pub static ALL_BLOCKS: [BlockData; 1477usize] = [
             },
         ],
         state_values: b"\0\x01",
+        server_definition: Some(
+            b"\n\0\t\tblockTags\x08\x02&minecraft:is_pickaxe_item_destructible\n\ncomponents\n minecraft:destructible_by_mining\x05\x05valueff\xE6?\0\n\x1Fminecraft:redstone_conductivity\x01\x14allowsWireToStepDown\x01\x01\x11redstoneConductor\x01\0\0\n\rmenu_category\x08\x08category\x04none\x08\x05group\0\x01\x15is_hidden_in_commands\x01\0\x03\rmolangVersion\x1A\n\x12vanilla_block_data\n\x0Fblock_archetype\x08\x11double_slab_block\x1Dminecraft:black_concrete_slab\x01\tis_double\x01\x08\x04type\nslab_block\0\x03\x08block_id\xA2\x17\x08\x08material\x05solid\x01\x1Frequires_correct_tool_for_drops\x01\0\0",
+        ),
     },
     BlockData {
         id: 11293u32,
@@ -24501,6 +25291,7 @@ pub static ALL_BLOCKS: [BlockData; 1477usize] = [
             },
         ],
         state_values: b"\0\x01",
+        server_definition: None,
     },
     BlockData {
         id: 11295u32,
@@ -24564,6 +25355,7 @@ pub static ALL_BLOCKS: [BlockData; 1477usize] = [
             },
         ],
         state_values: b"\0\0\0\0\0\0\0\0\0\x01\0\x01\0\0\0\0\x01\0\0\x01\0\x02\0\0\0\0\x02\0\0\x01\x01\0\0\0\0\x01\0\0\0\x01\x01\x01\0\0\0\x01\x01\0\0\x01\x01\x02\0\0\0\x01\x02\0\0\x01\x02\0\0\0\0\x02\0\0\0\x01\x02\x01\0\0\0\x02\x01\0\0\x01\x02\x02\0\0\0\x02\x02\0\0\x01\0\0\x01\0\0\0\0\x01\0\x01\0\x01\x01\0\0\0\x01\x01\0\x01\0\x02\x01\0\0\0\x02\x01\0\x01\x01\0\x01\0\0\x01\0\x01\0\x01\x01\x01\x01\0\0\x01\x01\x01\0\x01\x01\x02\x01\0\0\x01\x02\x01\0\x01\x02\0\x01\0\0\x02\0\x01\0\x01\x02\x01\x01\0\0\x02\x01\x01\0\x01\x02\x02\x01\0\0\x02\x02\x01\0\x01\0\0\x02\0\0\0\0\x02\0\x01\0\x01\x02\0\0\0\x01\x02\0\x01\0\x02\x02\0\0\0\x02\x02\0\x01\x01\0\x02\0\0\x01\0\x02\0\x01\x01\x01\x02\0\0\x01\x01\x02\0\x01\x01\x02\x02\0\0\x01\x02\x02\0\x01\x02\0\x02\0\0\x02\0\x02\0\x01\x02\x01\x02\0\0\x02\x01\x02\0\x01\x02\x02\x02\0\0\x02\x02\x02\0\x01\0\0\0\x01\0\0\0\0\x01\x01\0\x01\0\x01\0\0\x01\0\x01\x01\0\x02\0\x01\0\0\x02\0\x01\x01\x01\0\0\x01\0\x01\0\0\x01\x01\x01\x01\0\x01\0\x01\x01\0\x01\x01\x01\x02\0\x01\0\x01\x02\0\x01\x01\x02\0\0\x01\0\x02\0\0\x01\x01\x02\x01\0\x01\0\x02\x01\0\x01\x01\x02\x02\0\x01\0\x02\x02\0\x01\x01\0\0\x01\x01\0\0\0\x01\x01\x01\0\x01\x01\x01\0\0\x01\x01\x01\x01\0\x02\x01\x01\0\0\x02\x01\x01\x01\x01\0\x01\x01\0\x01\0\x01\x01\x01\x01\x01\x01\x01\0\x01\x01\x01\x01\x01\x01\x02\x01\x01\0\x01\x02\x01\x01\x01\x02\0\x01\x01\0\x02\0\x01\x01\x01\x02\x01\x01\x01\0\x02\x01\x01\x01\x01\x02\x02\x01\x01\0\x02\x02\x01\x01\x01\0\0\x02\x01\0\0\0\x02\x01\x01\0\x01\x02\x01\0\0\x01\x02\x01\x01\0\x02\x02\x01\0\0\x02\x02\x01\x01\x01\0\x02\x01\0\x01\0\x02\x01\x01\x01\x01\x02\x01\0\x01\x01\x02\x01\x01\x01\x02\x02\x01\0\x01\x02\x02\x01\x01\x02\0\x02\x01\0\x02\0\x02\x01\x01\x02\x01\x02\x01\0\x02\x01\x02\x01\x01\x02\x02\x02\x01\0\x02\x02\x02\x01\x01\0\0\0\x02\0\0\0\0\x02\x01\0\x01\0\x02\0\0\x01\0\x02\x01\0\x02\0\x02\0\0\x02\0\x02\x01\x01\0\0\x02\0\x01\0\0\x02\x01\x01\x01\0\x02\0\x01\x01\0\x02\x01\x01\x02\0\x02\0\x01\x02\0\x02\x01\x02\0\0\x02\0\x02\0\0\x02\x01\x02\x01\0\x02\0\x02\x01\0\x02\x01\x02\x02\0\x02\0\x02\x02\0\x02\x01\0\0\x01\x02\0\0\0\x01\x02\x01\0\x01\x01\x02\0\0\x01\x01\x02\x01\0\x02\x01\x02\0\0\x02\x01\x02\x01\x01\0\x01\x02\0\x01\0\x01\x02\x01\x01\x01\x01\x02\0\x01\x01\x01\x02\x01\x01\x02\x01\x02\0\x01\x02\x01\x02\x01\x02\0\x01\x02\0\x02\0\x01\x02\x01\x02\x01\x01\x02\0\x02\x01\x01\x02\x01\x02\x02\x01\x02\0\x02\x02\x01\x02\x01\0\0\x02\x02\0\0\0\x02\x02\x01\0\x01\x02\x02\0\0\x01\x02\x02\x01\0\x02\x02\x02\0\0\x02\x02\x02\x01\x01\0\x02\x02\0\x01\0\x02\x02\x01\x01\x01\x02\x02\0\x01\x01\x02\x02\x01\x01\x02\x02\x02\0\x01\x02\x02\x02\x01\x02\0\x02\x02\0\x02\0\x02\x02\x01\x02\x01\x02\x02\0\x02\x01\x02\x02\x01\x02\x02\x02\x02\0\x02\x02\x02\x02\x01",
+        server_definition: None,
     },
     BlockData {
         id: 11457u32,
@@ -24627,6 +25419,7 @@ pub static ALL_BLOCKS: [BlockData; 1477usize] = [
             },
         ],
         state_values: b"\0\0\0\0\0\0\0\0\0\x01\0\x01\0\0\0\0\x01\0\0\x01\0\x02\0\0\0\0\x02\0\0\x01\x01\0\0\0\0\x01\0\0\0\x01\x01\x01\0\0\0\x01\x01\0\0\x01\x01\x02\0\0\0\x01\x02\0\0\x01\x02\0\0\0\0\x02\0\0\0\x01\x02\x01\0\0\0\x02\x01\0\0\x01\x02\x02\0\0\0\x02\x02\0\0\x01\0\0\x01\0\0\0\0\x01\0\x01\0\x01\x01\0\0\0\x01\x01\0\x01\0\x02\x01\0\0\0\x02\x01\0\x01\x01\0\x01\0\0\x01\0\x01\0\x01\x01\x01\x01\0\0\x01\x01\x01\0\x01\x01\x02\x01\0\0\x01\x02\x01\0\x01\x02\0\x01\0\0\x02\0\x01\0\x01\x02\x01\x01\0\0\x02\x01\x01\0\x01\x02\x02\x01\0\0\x02\x02\x01\0\x01\0\0\x02\0\0\0\0\x02\0\x01\0\x01\x02\0\0\0\x01\x02\0\x01\0\x02\x02\0\0\0\x02\x02\0\x01\x01\0\x02\0\0\x01\0\x02\0\x01\x01\x01\x02\0\0\x01\x01\x02\0\x01\x01\x02\x02\0\0\x01\x02\x02\0\x01\x02\0\x02\0\0\x02\0\x02\0\x01\x02\x01\x02\0\0\x02\x01\x02\0\x01\x02\x02\x02\0\0\x02\x02\x02\0\x01\0\0\0\x01\0\0\0\0\x01\x01\0\x01\0\x01\0\0\x01\0\x01\x01\0\x02\0\x01\0\0\x02\0\x01\x01\x01\0\0\x01\0\x01\0\0\x01\x01\x01\x01\0\x01\0\x01\x01\0\x01\x01\x01\x02\0\x01\0\x01\x02\0\x01\x01\x02\0\0\x01\0\x02\0\0\x01\x01\x02\x01\0\x01\0\x02\x01\0\x01\x01\x02\x02\0\x01\0\x02\x02\0\x01\x01\0\0\x01\x01\0\0\0\x01\x01\x01\0\x01\x01\x01\0\0\x01\x01\x01\x01\0\x02\x01\x01\0\0\x02\x01\x01\x01\x01\0\x01\x01\0\x01\0\x01\x01\x01\x01\x01\x01\x01\0\x01\x01\x01\x01\x01\x01\x02\x01\x01\0\x01\x02\x01\x01\x01\x02\0\x01\x01\0\x02\0\x01\x01\x01\x02\x01\x01\x01\0\x02\x01\x01\x01\x01\x02\x02\x01\x01\0\x02\x02\x01\x01\x01\0\0\x02\x01\0\0\0\x02\x01\x01\0\x01\x02\x01\0\0\x01\x02\x01\x01\0\x02\x02\x01\0\0\x02\x02\x01\x01\x01\0\x02\x01\0\x01\0\x02\x01\x01\x01\x01\x02\x01\0\x01\x01\x02\x01\x01\x01\x02\x02\x01\0\x01\x02\x02\x01\x01\x02\0\x02\x01\0\x02\0\x02\x01\x01\x02\x01\x02\x01\0\x02\x01\x02\x01\x01\x02\x02\x02\x01\0\x02\x02\x02\x01\x01\0\0\0\x02\0\0\0\0\x02\x01\0\x01\0\x02\0\0\x01\0\x02\x01\0\x02\0\x02\0\0\x02\0\x02\x01\x01\0\0\x02\0\x01\0\0\x02\x01\x01\x01\0\x02\0\x01\x01\0\x02\x01\x01\x02\0\x02\0\x01\x02\0\x02\x01\x02\0\0\x02\0\x02\0\0\x02\x01\x02\x01\0\x02\0\x02\x01\0\x02\x01\x02\x02\0\x02\0\x02\x02\0\x02\x01\0\0\x01\x02\0\0\0\x01\x02\x01\0\x01\x01\x02\0\0\x01\x01\x02\x01\0\x02\x01\x02\0\0\x02\x01\x02\x01\x01\0\x01\x02\0\x01\0\x01\x02\x01\x01\x01\x01\x02\0\x01\x01\x01\x02\x01\x01\x02\x01\x02\0\x01\x02\x01\x02\x01\x02\0\x01\x02\0\x02\0\x01\x02\x01\x02\x01\x01\x02\0\x02\x01\x01\x02\x01\x02\x02\x01\x02\0\x02\x02\x01\x02\x01\0\0\x02\x02\0\0\0\x02\x02\x01\0\x01\x02\x02\0\0\x01\x02\x02\x01\0\x02\x02\x02\0\0\x02\x02\x02\x01\x01\0\x02\x02\0\x01\0\x02\x02\x01\x01\x01\x02\x02\0\x01\x01\x02\x02\x01\x01\x02\x02\x02\0\x01\x02\x02\x02\x01\x02\0\x02\x02\0\x02\0\x02\x02\x01\x02\x01\x02\x02\0\x02\x01\x02\x02\x01\x02\x02\x02\x02\0\x02\x02\x02\x02\x01",
+        server_definition: None,
     },
     BlockData {
         id: 11619u32,
@@ -24653,6 +25446,7 @@ pub static ALL_BLOCKS: [BlockData; 1477usize] = [
         visual_shape: [0f32, 0f32, 0f32, 1f32, 1f32, 1f32],
         properties: &[],
         state_values: b"",
+        server_definition: None,
     },
     BlockData {
         id: 11620u32,
@@ -24697,6 +25491,7 @@ pub static ALL_BLOCKS: [BlockData; 1477usize] = [
             },
         ],
         state_values: b"\0\0\0\0\x01\0\0\x02\0\0\x03\0\0\0\x01\0\x01\x01\0\x02\x01\0\x03\x01\x01\0\0\x01\x01\0\x01\x02\0\x01\x03\0\x01\0\x01\x01\x01\x01\x01\x02\x01\x01\x03\x01",
+        server_definition: None,
     },
     BlockData {
         id: 11636u32,
@@ -24723,6 +25518,7 @@ pub static ALL_BLOCKS: [BlockData; 1477usize] = [
         visual_shape: [0.15f32, 0f32, 0.15f32, 0.7f32, 0.6f32, 0.7f32],
         properties: &[],
         state_values: b"",
+        server_definition: None,
     },
     BlockData {
         id: 11637u32,
@@ -24749,6 +25545,7 @@ pub static ALL_BLOCKS: [BlockData; 1477usize] = [
         visual_shape: [0f32, 0f32, 0f32, 1f32, 1f32, 1f32],
         properties: &[],
         state_values: b"",
+        server_definition: None,
     },
     BlockData {
         id: 11638u32,
@@ -24803,6 +25600,7 @@ pub static ALL_BLOCKS: [BlockData; 1477usize] = [
             },
         ],
         state_values: b"\0\0\0\0\0\x01\0\0\x02\0\0\x03\0\x01\0\0\x01\x01\0\x01\x02\0\x01\x03\x01\0\0\x01\0\x01\x01\0\x02\x01\0\x03\x01\x01\0\x01\x01\x01\x01\x01\x02\x01\x01\x03\x02\0\0\x02\0\x01\x02\0\x02\x02\0\x03\x02\x01\0\x02\x01\x01\x02\x01\x02\x02\x01\x03\x03\0\0\x03\0\x01\x03\0\x02\x03\0\x03\x03\x01\0\x03\x01\x01\x03\x01\x02\x03\x01\x03\x04\0\0\x04\0\x01\x04\0\x02\x04\0\x03\x04\x01\0\x04\x01\x01\x04\x01\x02\x04\x01\x03",
+        server_definition: None,
     },
     BlockData {
         id: 11678u32,
@@ -24866,6 +25664,7 @@ pub static ALL_BLOCKS: [BlockData; 1477usize] = [
             },
         ],
         state_values: b"\0\0\0\0\0\0\0\0\0\x01\0\x01\0\0\0\0\x01\0\0\x01\0\x02\0\0\0\0\x02\0\0\x01\x01\0\0\0\0\x01\0\0\0\x01\x01\x01\0\0\0\x01\x01\0\0\x01\x01\x02\0\0\0\x01\x02\0\0\x01\x02\0\0\0\0\x02\0\0\0\x01\x02\x01\0\0\0\x02\x01\0\0\x01\x02\x02\0\0\0\x02\x02\0\0\x01\0\0\x01\0\0\0\0\x01\0\x01\0\x01\x01\0\0\0\x01\x01\0\x01\0\x02\x01\0\0\0\x02\x01\0\x01\x01\0\x01\0\0\x01\0\x01\0\x01\x01\x01\x01\0\0\x01\x01\x01\0\x01\x01\x02\x01\0\0\x01\x02\x01\0\x01\x02\0\x01\0\0\x02\0\x01\0\x01\x02\x01\x01\0\0\x02\x01\x01\0\x01\x02\x02\x01\0\0\x02\x02\x01\0\x01\0\0\x02\0\0\0\0\x02\0\x01\0\x01\x02\0\0\0\x01\x02\0\x01\0\x02\x02\0\0\0\x02\x02\0\x01\x01\0\x02\0\0\x01\0\x02\0\x01\x01\x01\x02\0\0\x01\x01\x02\0\x01\x01\x02\x02\0\0\x01\x02\x02\0\x01\x02\0\x02\0\0\x02\0\x02\0\x01\x02\x01\x02\0\0\x02\x01\x02\0\x01\x02\x02\x02\0\0\x02\x02\x02\0\x01\0\0\0\x01\0\0\0\0\x01\x01\0\x01\0\x01\0\0\x01\0\x01\x01\0\x02\0\x01\0\0\x02\0\x01\x01\x01\0\0\x01\0\x01\0\0\x01\x01\x01\x01\0\x01\0\x01\x01\0\x01\x01\x01\x02\0\x01\0\x01\x02\0\x01\x01\x02\0\0\x01\0\x02\0\0\x01\x01\x02\x01\0\x01\0\x02\x01\0\x01\x01\x02\x02\0\x01\0\x02\x02\0\x01\x01\0\0\x01\x01\0\0\0\x01\x01\x01\0\x01\x01\x01\0\0\x01\x01\x01\x01\0\x02\x01\x01\0\0\x02\x01\x01\x01\x01\0\x01\x01\0\x01\0\x01\x01\x01\x01\x01\x01\x01\0\x01\x01\x01\x01\x01\x01\x02\x01\x01\0\x01\x02\x01\x01\x01\x02\0\x01\x01\0\x02\0\x01\x01\x01\x02\x01\x01\x01\0\x02\x01\x01\x01\x01\x02\x02\x01\x01\0\x02\x02\x01\x01\x01\0\0\x02\x01\0\0\0\x02\x01\x01\0\x01\x02\x01\0\0\x01\x02\x01\x01\0\x02\x02\x01\0\0\x02\x02\x01\x01\x01\0\x02\x01\0\x01\0\x02\x01\x01\x01\x01\x02\x01\0\x01\x01\x02\x01\x01\x01\x02\x02\x01\0\x01\x02\x02\x01\x01\x02\0\x02\x01\0\x02\0\x02\x01\x01\x02\x01\x02\x01\0\x02\x01\x02\x01\x01\x02\x02\x02\x01\0\x02\x02\x02\x01\x01\0\0\0\x02\0\0\0\0\x02\x01\0\x01\0\x02\0\0\x01\0\x02\x01\0\x02\0\x02\0\0\x02\0\x02\x01\x01\0\0\x02\0\x01\0\0\x02\x01\x01\x01\0\x02\0\x01\x01\0\x02\x01\x01\x02\0\x02\0\x01\x02\0\x02\x01\x02\0\0\x02\0\x02\0\0\x02\x01\x02\x01\0\x02\0\x02\x01\0\x02\x01\x02\x02\0\x02\0\x02\x02\0\x02\x01\0\0\x01\x02\0\0\0\x01\x02\x01\0\x01\x01\x02\0\0\x01\x01\x02\x01\0\x02\x01\x02\0\0\x02\x01\x02\x01\x01\0\x01\x02\0\x01\0\x01\x02\x01\x01\x01\x01\x02\0\x01\x01\x01\x02\x01\x01\x02\x01\x02\0\x01\x02\x01\x02\x01\x02\0\x01\x02\0\x02\0\x01\x02\x01\x02\x01\x01\x02\0\x02\x01\x01\x02\x01\x02\x02\x01\x02\0\x02\x02\x01\x02\x01\0\0\x02\x02\0\0\0\x02\x02\x01\0\x01\x02\x02\0\0\x01\x02\x02\x01\0\x02\x02\x02\0\0\x02\x02\x02\x01\x01\0\x02\x02\0\x01\0\x02\x02\x01\x01\x01\x02\x02\0\x01\x01\x02\x02\x01\x01\x02\x02\x02\0\x01\x02\x02\x02\x01\x02\0\x02\x02\0\x02\0\x02\x02\x01\x02\x01\x02\x02\0\x02\x01\x02\x02\x01\x02\x02\x02\x02\0\x02\x02\x02\x02\x01",
+        server_definition: None,
     },
     BlockData {
         id: 11840u32,
@@ -24909,6 +25708,7 @@ pub static ALL_BLOCKS: [BlockData; 1477usize] = [
             },
         ],
         state_values: b"\0\0\0\0\0\x01\0\0\x01\0\0\0\x01\x01\0\0\0\0\x01\0\0\x01\x01\0\x01\0\x01\0\x01\x01\x01\0\0\0\0\x01\0\x01\0\x01\x01\0\0\x01\x01\x01\0\x01\0\0\x01\x01\0\x01\x01\x01\x01\0\x01\x01\x01\x01\x01\x01",
+        server_definition: None,
     },
     BlockData {
         id: 11856u32,
@@ -24935,6 +25735,7 @@ pub static ALL_BLOCKS: [BlockData; 1477usize] = [
         visual_shape: [0f32, 0f32, 0f32, 1f32, 1f32, 1f32],
         properties: &[],
         state_values: b"",
+        server_definition: None,
     },
     BlockData {
         id: 11857u32,
@@ -24969,6 +25770,7 @@ pub static ALL_BLOCKS: [BlockData; 1477usize] = [
             },
         ],
         state_values: b"\0\x01",
+        server_definition: None,
     },
     BlockData {
         id: 11859u32,
@@ -25000,6 +25802,9 @@ pub static ALL_BLOCKS: [BlockData; 1477usize] = [
             },
         ],
         state_values: b"\0\x01",
+        server_definition: Some(
+            b"\n\0\t\tblockTags\x08\x02%minecraft:is_shears_item_destructible\n\ncomponents\n minecraft:destructible_by_mining\x05\x05value\xCD\xCCL?\0\n\x1Fminecraft:redstone_conductivity\x01\x14allowsWireToStepDown\x01\x01\x11redstoneConductor\x01\0\0\n\rmenu_category\x08\x08category\x04none\x08\x05group\0\x01\x15is_hidden_in_commands\x01\0\x03\rmolangVersion\x1A\n\x12vanilla_block_data\n\x0Fblock_archetype\x08\x11double_slab_block\x18minecraft:gray_wool_slab\x01\tis_double\x01\x08\x04type\nslab_block\0\x03\x08block_id\xBC\x16\x01\x15can_dampen_vibrations\x01\x01\x16can_occlude_vibrations\x01\x08\x08material\x05solid\0\0",
+        ),
     },
     BlockData {
         id: 11861u32,
@@ -25031,6 +25836,7 @@ pub static ALL_BLOCKS: [BlockData; 1477usize] = [
             },
         ],
         state_values: b"\0\x01",
+        server_definition: None,
     },
     BlockData {
         id: 11863u32,
@@ -25057,6 +25863,7 @@ pub static ALL_BLOCKS: [BlockData; 1477usize] = [
         visual_shape: [0f32, 0f32, 0f32, 1f32, 1f32, 1f32],
         properties: &[],
         state_values: b"",
+        server_definition: None,
     },
     BlockData {
         id: 11864u32,
@@ -25092,6 +25899,7 @@ pub static ALL_BLOCKS: [BlockData; 1477usize] = [
             },
         ],
         state_values: b"\0\x01\x02",
+        server_definition: None,
     },
     BlockData {
         id: 11867u32,
@@ -25118,6 +25926,7 @@ pub static ALL_BLOCKS: [BlockData; 1477usize] = [
         visual_shape: [0f32, 0f32, 0f32, 1f32, 1f32, 1f32],
         properties: &[],
         state_values: b"",
+        server_definition: None,
     },
     BlockData {
         id: 11868u32,
@@ -25166,6 +25975,7 @@ pub static ALL_BLOCKS: [BlockData; 1477usize] = [
             },
         ],
         state_values: b"\0\x01\x02\x03\x04\x05\x06\x07\x08\t\n\x0B\x0C\r\x0E\x0F",
+        server_definition: None,
     },
     BlockData {
         id: 11884u32,
@@ -25211,6 +26021,7 @@ pub static ALL_BLOCKS: [BlockData; 1477usize] = [
             },
         ],
         state_values: b"\0\0\x01\0\x02\0\x03\0\x04\0\x05\0\0\x01\x01\x01\x02\x01\x03\x01\x04\x01\x05\x01",
+        server_definition: None,
     },
     BlockData {
         id: 11896u32,
@@ -25260,6 +26071,7 @@ pub static ALL_BLOCKS: [BlockData; 1477usize] = [
             },
         ],
         state_values: b"\0\0\0\x01\0\0\x02\0\0\x03\0\0\0\0\x01\x01\0\x01\x02\0\x01\x03\0\x01\0\x01\0\x01\x01\0\x02\x01\0\x03\x01\0\0\x01\x01\x01\x01\x01\x02\x01\x01\x03\x01\x01",
+        server_definition: None,
     },
     BlockData {
         id: 11912u32,
@@ -25290,6 +26102,7 @@ pub static ALL_BLOCKS: [BlockData; 1477usize] = [
         visual_shape: [0f32, 0f32, 0f32, 1f32, 1f32, 1f32],
         properties: &[],
         state_values: b"",
+        server_definition: None,
     },
     BlockData {
         id: 11913u32,
@@ -25328,6 +26141,7 @@ pub static ALL_BLOCKS: [BlockData; 1477usize] = [
             },
         ],
         state_values: b"\0\x01\x02\x03\x04\x05",
+        server_definition: None,
     },
     BlockData {
         id: 11919u32,
@@ -25358,6 +26172,7 @@ pub static ALL_BLOCKS: [BlockData; 1477usize] = [
         visual_shape: [0f32, 0f32, 0f32, 1f32, 1f32, 1f32],
         properties: &[],
         state_values: b"",
+        server_definition: None,
     },
     BlockData {
         id: 11920u32,
@@ -25384,6 +26199,7 @@ pub static ALL_BLOCKS: [BlockData; 1477usize] = [
         visual_shape: [0.0625f32, 0f32, 0.0625f32, 0.9375f32, 1f32, 0.9375f32],
         properties: &[],
         state_values: b"",
+        server_definition: None,
     },
     BlockData {
         id: 11921u32,
@@ -25418,6 +26234,7 @@ pub static ALL_BLOCKS: [BlockData; 1477usize] = [
             },
         ],
         state_values: b"\0\x01",
+        server_definition: None,
     },
     BlockData {
         id: 11923u32,
@@ -25444,6 +26261,7 @@ pub static ALL_BLOCKS: [BlockData; 1477usize] = [
         visual_shape: [0f32, 0f32, 0f32, 1f32, 1f32, 1f32],
         properties: &[],
         state_values: b"",
+        server_definition: None,
     },
     BlockData {
         id: 11924u32,
@@ -25493,6 +26311,7 @@ pub static ALL_BLOCKS: [BlockData; 1477usize] = [
             },
         ],
         state_values: b"\0\0\0\0\0\x01\0\0\x02\0\0\x03\0\x01\0\0\x01\x01\0\x01\x02\0\x01\x03\x01\0\0\x01\0\x01\x01\0\x02\x01\0\x03\x01\x01\0\x01\x01\x01\x01\x01\x02\x01\x01\x03\x02\0\0\x02\0\x01\x02\0\x02\x02\0\x03\x02\x01\0\x02\x01\x01\x02\x01\x02\x02\x01\x03\x03\0\0\x03\0\x01\x03\0\x02\x03\0\x03\x03\x01\0\x03\x01\x01\x03\x01\x02\x03\x01\x03",
+        server_definition: None,
     },
     BlockData {
         id: 11956u32,
@@ -25533,6 +26352,7 @@ pub static ALL_BLOCKS: [BlockData; 1477usize] = [
             },
         ],
         state_values: b"\0\x01\x02\x03\x04\x05\x06\x07",
+        server_definition: None,
     },
     BlockData {
         id: 11964u32,
@@ -25564,6 +26384,7 @@ pub static ALL_BLOCKS: [BlockData; 1477usize] = [
             },
         ],
         state_values: b"\0\x01",
+        server_definition: None,
     },
     BlockData {
         id: 11966u32,
@@ -25604,6 +26425,7 @@ pub static ALL_BLOCKS: [BlockData; 1477usize] = [
             },
         ],
         state_values: b"\0\0\x01\0\x02\0\x03\0\0\x01\x01\x01\x02\x01\x03\x01",
+        server_definition: None,
     },
     BlockData {
         id: 11974u32,
@@ -25654,6 +26476,7 @@ pub static ALL_BLOCKS: [BlockData; 1477usize] = [
             },
         ],
         state_values: b"\0\0\0\0\0\x01\0\0\x02\0\0\x03\0\x01\0\0\x01\x01\0\x01\x02\0\x01\x03\x01\0\0\x01\0\x01\x01\0\x02\x01\0\x03\x01\x01\0\x01\x01\x01\x01\x01\x02\x01\x01\x03\x02\0\0\x02\0\x01\x02\0\x02\x02\0\x03\x02\x01\0\x02\x01\x01\x02\x01\x02\x02\x01\x03\x03\0\0\x03\0\x01\x03\0\x02\x03\0\x03\x03\x01\0\x03\x01\x01\x03\x01\x02\x03\x01\x03\x04\0\0\x04\0\x01\x04\0\x02\x04\0\x03\x04\x01\0\x04\x01\x01\x04\x01\x02\x04\x01\x03",
+        server_definition: None,
     },
     BlockData {
         id: 12014u32,
@@ -25680,6 +26503,7 @@ pub static ALL_BLOCKS: [BlockData; 1477usize] = [
         visual_shape: [0f32, 0f32, 0f32, 1f32, 1f32, 1f32],
         properties: &[],
         state_values: b"",
+        server_definition: None,
     },
     BlockData {
         id: 12015u32,
@@ -25722,6 +26546,7 @@ pub static ALL_BLOCKS: [BlockData; 1477usize] = [
             },
         ],
         state_values: b"\0\0\0\x01\0\x02\0\x03\0\x04\0\x05\x01\0\x01\x01\x01\x02\x01\x03\x01\x04\x01\x05",
+        server_definition: None,
     },
     BlockData {
         id: 12027u32,
@@ -25748,6 +26573,7 @@ pub static ALL_BLOCKS: [BlockData; 1477usize] = [
         visual_shape: [0f32, 0f32, 0f32, 1f32, 1f32, 1f32],
         properties: &[],
         state_values: b"",
+        server_definition: None,
     },
     BlockData {
         id: 12028u32,
@@ -25779,6 +26605,7 @@ pub static ALL_BLOCKS: [BlockData; 1477usize] = [
             },
         ],
         state_values: b"\0\x01",
+        server_definition: None,
     },
     BlockData {
         id: 12030u32,
@@ -25815,6 +26642,7 @@ pub static ALL_BLOCKS: [BlockData; 1477usize] = [
             },
         ],
         state_values: b"\0\x01\x02\x03",
+        server_definition: None,
     },
     BlockData {
         id: 12034u32,
@@ -25841,6 +26669,9 @@ pub static ALL_BLOCKS: [BlockData; 1477usize] = [
         visual_shape: [0f32, 0f32, 0f32, 1f32, 0.8f32, 1f32],
         properties: &[],
         state_values: b"",
+        server_definition: Some(
+            b"\n\0\n\ncomponents\n\x17minecraft:collision_box\t\x05boxes\0\0\x01\x07enabled\0\0\n\x19minecraft:connection_rule\x08\x18accepts_connections_from\x04none\t\x12enabled_directions\x08\x08\x05south\x05north\x04east\x04west\0\n minecraft:destructible_by_mining\x05\x05value\0\0\0\0\0\n\x1Fminecraft:destruction_particles\x03\x0Eparticle_count`\x08\x07texture\0\x08\x0Btint_method\x04none\0\n\x12minecraft:geometry\n\x0Fbone_visibility\0\x08\x07culling\0\x08\rculling_layer!minecraft:culling_layer.undefined\x08\rculling_shape\0\x08\nidentifier\x18minecraft:geometry.cross\x01\x18ignoreGeometryForIsSolid\0\x01\risV1Fullblock\0\x01\x16needsLegacyTopRotation\0\x01\x1BuseBlockTypeLightAbsorption\0\x01\x07uv_lock\0\0\n\x1Aminecraft:liquid_detection\t\x0EdetectionRules\n\x02\x01\x10canContainLiquid\0\x08\nliquidType\x05water\x08\x0FonLiquidTouches\x06popped\x01\x18stopsLiquidFromDirection\0\x01\x13use_liquid_clipping\0\0\0\n\x1Cminecraft:material_instances\n\x08mappings\0\n\tmaterials\n\x01*\x05\x11ambient_occlusion\0\0\0\0\x01\x0Cpacked_bools\x05\x08\rrender_method\x17alpha_test_single_sided\x08\x07texture\tred_shrub\x08\x0Btint_method\x04none\0\0\0\n$minecraft:precipitation_interactions\x08\x16precipitation_behavior\x0Bsnowlogging\0\n\x15minecraft:replaceable\0\n\x17minecraft:selection_box\x01\x07enabled\x01\t\x06origin\x05\x06\0\0\0\xC1\0\0\0\0\0\0\0\xC1\t\x04size\x05\x06\0\0\x80A\0\0\x80A\0\0\x80A\0\0\n\rmenu_category\x08\x08category\x06nature\x08\x05group\0\x01\x15is_hidden_in_commands\0\0\x03\rmolangVersion\x1A\n\x12vanilla_block_data\n\x0Fblock_archetype\x08\x04type\nbush_block\0\x03\x08block_id\xF6\x15\x08\x08material\x05plant\0\0",
+        ),
     },
     BlockData {
         id: 12035u32,
@@ -25879,6 +26710,7 @@ pub static ALL_BLOCKS: [BlockData; 1477usize] = [
             },
         ],
         state_values: b"\0\x01\x02\x03\x04\x05",
+        server_definition: None,
     },
     BlockData {
         id: 12041u32,
@@ -25914,6 +26746,7 @@ pub static ALL_BLOCKS: [BlockData; 1477usize] = [
             },
         ],
         state_values: b"\0\0\0\x01\x01\0\x01\x01",
+        server_definition: None,
     },
     BlockData {
         id: 12045u32,
@@ -25940,6 +26773,7 @@ pub static ALL_BLOCKS: [BlockData; 1477usize] = [
         visual_shape: [0f32, 0f32, 0f32, 1f32, 1f32, 1f32],
         properties: &[],
         state_values: b"",
+        server_definition: None,
     },
     BlockData {
         id: 12046u32,
@@ -25990,6 +26824,7 @@ pub static ALL_BLOCKS: [BlockData; 1477usize] = [
             },
         ],
         state_values: b"\0\0\0\0\0\x01\0\0\x02\0\0\x03\0\x01\0\0\x01\x01\0\x01\x02\0\x01\x03\x01\0\0\x01\0\x01\x01\0\x02\x01\0\x03\x01\x01\0\x01\x01\x01\x01\x01\x02\x01\x01\x03\x02\0\0\x02\0\x01\x02\0\x02\x02\0\x03\x02\x01\0\x02\x01\x01\x02\x01\x02\x02\x01\x03\x03\0\0\x03\0\x01\x03\0\x02\x03\0\x03\x03\x01\0\x03\x01\x01\x03\x01\x02\x03\x01\x03\x04\0\0\x04\0\x01\x04\0\x02\x04\0\x03\x04\x01\0\x04\x01\x01\x04\x01\x02\x04\x01\x03",
+        server_definition: None,
     },
     BlockData {
         id: 12086u32,
@@ -26028,6 +26863,7 @@ pub static ALL_BLOCKS: [BlockData; 1477usize] = [
             },
         ],
         state_values: b"\0\x01\x02\x03\x04\x05",
+        server_definition: None,
     },
     BlockData {
         id: 12092u32,
@@ -26054,6 +26890,7 @@ pub static ALL_BLOCKS: [BlockData; 1477usize] = [
         visual_shape: [0f32, 0f32, 0f32, 1f32, 1f32, 1f32],
         properties: &[],
         state_values: b"",
+        server_definition: None,
     },
     BlockData {
         id: 12093u32,
@@ -26090,6 +26927,7 @@ pub static ALL_BLOCKS: [BlockData; 1477usize] = [
             },
         ],
         state_values: b"\0\x01\x02\x03",
+        server_definition: None,
     },
     BlockData {
         id: 12097u32,
@@ -26134,6 +26972,7 @@ pub static ALL_BLOCKS: [BlockData; 1477usize] = [
             },
         ],
         state_values: b"\0\0\0\0\x01\0\0\x02\0\0\x03\0\0\0\x01\0\x01\x01\0\x02\x01\0\x03\x01\x01\0\0\x01\x01\0\x01\x02\0\x01\x03\0\x01\0\x01\x01\x01\x01\x01\x02\x01\x01\x03\x01",
+        server_definition: None,
     },
     BlockData {
         id: 12113u32,
@@ -26164,6 +27003,7 @@ pub static ALL_BLOCKS: [BlockData; 1477usize] = [
         visual_shape: [0f32, 0f32, 0f32, 1f32, 1f32, 1f32],
         properties: &[],
         state_values: b"",
+        server_definition: None,
     },
     BlockData {
         id: 12114u32,
@@ -26194,6 +27034,7 @@ pub static ALL_BLOCKS: [BlockData; 1477usize] = [
         visual_shape: [0f32, 0f32, 0f32, 1f32, 1f32, 1f32],
         properties: &[],
         state_values: b"",
+        server_definition: None,
     },
     BlockData {
         id: 12115u32,
@@ -26237,6 +27078,7 @@ pub static ALL_BLOCKS: [BlockData; 1477usize] = [
             },
         ],
         state_values: b"\0\0\0\0\0\x01\0\0\x01\0\0\0\x01\x01\0\0\0\0\x01\0\0\x01\x01\0\x01\0\x01\0\x01\x01\x01\0\0\0\0\x01\0\x01\0\x01\x01\0\0\x01\x01\x01\0\x01\0\0\x01\x01\0\x01\x01\x01\x01\0\x01\x01\x01\x01\x01\x01",
+        server_definition: None,
     },
     BlockData {
         id: 12131u32,
@@ -26286,6 +27128,7 @@ pub static ALL_BLOCKS: [BlockData; 1477usize] = [
             },
         ],
         state_values: b"\0\0\0\x01\0\0\x02\0\0\x03\0\0\0\0\x01\x01\0\x01\x02\0\x01\x03\0\x01\0\x01\0\x01\x01\0\x02\x01\0\x03\x01\0\0\x01\x01\x01\x01\x01\x02\x01\x01\x03\x01\x01",
+        server_definition: None,
     },
     BlockData {
         id: 12147u32,
@@ -26312,6 +27155,7 @@ pub static ALL_BLOCKS: [BlockData; 1477usize] = [
         visual_shape: [0f32, 0f32, 0f32, 1f32, 1f32, 1f32],
         properties: &[],
         state_values: b"",
+        server_definition: None,
     },
     BlockData {
         id: 12148u32,
@@ -26338,6 +27182,7 @@ pub static ALL_BLOCKS: [BlockData; 1477usize] = [
         visual_shape: [0f32, 0f32, 0f32, 1f32, 1f32, 1f32],
         properties: &[],
         state_values: b"",
+        server_definition: None,
     },
     BlockData {
         id: 12149u32,
@@ -26364,6 +27209,7 @@ pub static ALL_BLOCKS: [BlockData; 1477usize] = [
         visual_shape: [0f32, 0f32, 0f32, 1f32, 1f32, 1f32],
         properties: &[],
         state_values: b"",
+        server_definition: None,
     },
     BlockData {
         id: 12150u32,
@@ -26408,6 +27254,7 @@ pub static ALL_BLOCKS: [BlockData; 1477usize] = [
             },
         ],
         state_values: b"\0\0\0\0\x01\0\0\x02\0\0\x03\0\0\0\x01\0\x01\x01\0\x02\x01\0\x03\x01\x01\0\0\x01\x01\0\x01\x02\0\x01\x03\0\x01\0\x01\x01\x01\x01\x01\x02\x01\x01\x03\x01",
+        server_definition: None,
     },
     BlockData {
         id: 12166u32,
@@ -26439,6 +27286,7 @@ pub static ALL_BLOCKS: [BlockData; 1477usize] = [
             },
         ],
         state_values: b"\0\x01",
+        server_definition: None,
     },
     BlockData {
         id: 12168u32,
@@ -26477,6 +27325,7 @@ pub static ALL_BLOCKS: [BlockData; 1477usize] = [
             },
         ],
         state_values: b"\0\x01\x02\x03\x04\x05",
+        server_definition: None,
     },
     BlockData {
         id: 12174u32,
@@ -26518,6 +27367,7 @@ pub static ALL_BLOCKS: [BlockData; 1477usize] = [
             },
         ],
         state_values: b"\0\x01\x02\x03",
+        server_definition: None,
     },
     BlockData {
         id: 12178u32,
@@ -26553,6 +27403,7 @@ pub static ALL_BLOCKS: [BlockData; 1477usize] = [
             },
         ],
         state_values: b"\0\x01\x02",
+        server_definition: None,
     },
     BlockData {
         id: 12181u32,
@@ -26603,6 +27454,9 @@ pub static ALL_BLOCKS: [BlockData; 1477usize] = [
             },
         ],
         state_values: b"\0\0\0\0\0\x01\0\0\x02\0\0\x03\0\x01\0\0\x01\x01\0\x01\x02\0\x01\x03\x01\0\0\x01\0\x01\x01\0\x02\x01\0\x03\x01\x01\0\x01\x01\x01\x01\x01\x02\x01\x01\x03\x02\0\0\x02\0\x01\x02\0\x02\x02\0\x03\x02\x01\0\x02\x01\x01\x02\x01\x02\x02\x01\x03\x03\0\0\x03\0\x01\x03\0\x02\x03\0\x03\x03\x01\0\x03\x01\x01\x03\x01\x02\x03\x01\x03\x04\0\0\x04\0\x01\x04\0\x02\x04\0\x03\x04\x01\0\x04\x01\x01\x04\x01\x02\x04\x01\x03",
+        server_definition: Some(
+            b"\n\0\t\tblockTags\x08\x02&minecraft:is_pickaxe_item_destructible\n\ncomponents\n minecraft:destructible_by_mining\x05\x05valueff\xE6?\0\n\x1Fminecraft:destruction_particles\x03\x0Eparticle_count`\x08\x07texture\0\x08\x0Btint_method\x04none\0\n\x1Aminecraft:liquid_detection\t\x0EdetectionRules\n\x02\x01\x10canContainLiquid\x01\x08\nliquidType\x05water\x08\x0FonLiquidTouches\x08blocking\x01\x18stopsLiquidFromDirection\0\x01\x13use_liquid_clipping\0\0\0\n\x1Fminecraft:redstone_conductivity\x01\x14allowsWireToStepDown\x01\x01\x11redstoneConductor\0\0\n\x11minecraft:support\x08\x05shape\x05stair\0\0\n\rmenu_category\x08\x08category\x0Cconstruction\x08\x05group\x1Fminecraft:itemGroup.name.stairs\x01\x15is_hidden_in_commands\0\0\x03\rmolangVersion\x1A\n\x12vanilla_block_data\n\x0Fblock_archetype\x08\nbase_block\x18minecraft:white_concrete\x08\x04type\x0Bstair_block\0\x03\x08block_id\xDE\x16\x08\x08material\x05solid\x01\x1Frequires_correct_tool_for_drops\x01\0\0",
+        ),
     },
     BlockData {
         id: 12221u32,
@@ -26644,6 +27498,7 @@ pub static ALL_BLOCKS: [BlockData; 1477usize] = [
             },
         ],
         state_values: b"\0\x01\x02\x03\x04\x05\x06\x07\x08",
+        server_definition: None,
     },
     BlockData {
         id: 12230u32,
@@ -26678,6 +27533,7 @@ pub static ALL_BLOCKS: [BlockData; 1477usize] = [
             },
         ],
         state_values: b"\0\x01",
+        server_definition: None,
     },
     BlockData {
         id: 12232u32,
@@ -26736,6 +27592,7 @@ pub static ALL_BLOCKS: [BlockData; 1477usize] = [
             },
         ],
         state_values: b"\0\x01\x02\x03\x04\x05\x06\x07\x08\t\n\x0B\x0C\r\x0E\x0F\x10\x11\x12\x13\x14\x15\x16\x17\x18\x19",
+        server_definition: None,
     },
     BlockData {
         id: 12258u32,
@@ -26767,6 +27624,7 @@ pub static ALL_BLOCKS: [BlockData; 1477usize] = [
             },
         ],
         state_values: b"\0\x01",
+        server_definition: None,
     },
     BlockData {
         id: 12260u32,
@@ -26815,6 +27673,7 @@ pub static ALL_BLOCKS: [BlockData; 1477usize] = [
             },
         ],
         state_values: b"\0\0\0\0\0\x01\0\0\0\x02\0\0\0\x03\0\0\0\0\x01\0\0\x01\x01\0\0\x02\x01\0\0\x03\x01\0\0\0\0\x01\0\x01\0\x01\0\x02\0\x01\0\x03\0\x01\0\0\x01\x01\0\x01\x01\x01\0\x02\x01\x01\0\x03\x01\x01\x01\0\0\0\x01\x01\0\0\x01\x02\0\0\x01\x03\0\0\x01\0\x01\0\x01\x01\x01\0\x01\x02\x01\0\x01\x03\x01\0\x01\0\0\x01\x01\x01\0\x01\x01\x02\0\x01\x01\x03\0\x01\x01\0\x01\x01\x01\x01\x01\x01\x01\x02\x01\x01\x01\x03\x01\x01",
+        server_definition: None,
     },
     BlockData {
         id: 12292u32,
@@ -26841,6 +27700,7 @@ pub static ALL_BLOCKS: [BlockData; 1477usize] = [
         visual_shape: [0f32, 0f32, 0f32, 1f32, 1f32, 1f32],
         properties: &[],
         state_values: b"",
+        server_definition: None,
     },
     BlockData {
         id: 12293u32,
@@ -26879,6 +27739,7 @@ pub static ALL_BLOCKS: [BlockData; 1477usize] = [
             },
         ],
         state_values: b"\0\x01\x02\x03\x04\x05",
+        server_definition: None,
     },
     BlockData {
         id: 12299u32,
@@ -26917,6 +27778,7 @@ pub static ALL_BLOCKS: [BlockData; 1477usize] = [
             },
         ],
         state_values: b"\0\x01\x02\x03\x04\x05",
+        server_definition: None,
     },
     BlockData {
         id: 12305u32,
@@ -26948,6 +27810,7 @@ pub static ALL_BLOCKS: [BlockData; 1477usize] = [
             },
         ],
         state_values: b"\0\x01",
+        server_definition: None,
     },
     BlockData {
         id: 12307u32,
@@ -26974,6 +27837,7 @@ pub static ALL_BLOCKS: [BlockData; 1477usize] = [
         visual_shape: [0f32, 0f32, 0f32, 1f32, 1f32, 1f32],
         properties: &[],
         state_values: b"",
+        server_definition: None,
     },
     BlockData {
         id: 12308u32,
@@ -27004,6 +27868,7 @@ pub static ALL_BLOCKS: [BlockData; 1477usize] = [
         visual_shape: [0f32, 0f32, 0f32, 1f32, 1f32, 1f32],
         properties: &[],
         state_values: b"",
+        server_definition: None,
     },
     BlockData {
         id: 12309u32,
@@ -27053,6 +27918,7 @@ pub static ALL_BLOCKS: [BlockData; 1477usize] = [
             },
         ],
         state_values: b"\0\0\0\0\0\x01\0\0\x02\0\0\x03\0\x01\0\0\x01\x01\0\x01\x02\0\x01\x03\x01\0\0\x01\0\x01\x01\0\x02\x01\0\x03\x01\x01\0\x01\x01\x01\x01\x01\x02\x01\x01\x03\x02\0\0\x02\0\x01\x02\0\x02\x02\0\x03\x02\x01\0\x02\x01\x01\x02\x01\x02\x02\x01\x03\x03\0\0\x03\0\x01\x03\0\x02\x03\0\x03\x03\x01\0\x03\x01\x01\x03\x01\x02\x03\x01\x03",
+        server_definition: None,
     },
     BlockData {
         id: 12341u32,
@@ -27079,6 +27945,7 @@ pub static ALL_BLOCKS: [BlockData; 1477usize] = [
         visual_shape: [0f32, 0f32, 0f32, 1f32, 1f32, 1f32],
         properties: &[],
         state_values: b"",
+        server_definition: None,
     },
     BlockData {
         id: 12342u32,
@@ -27146,6 +28013,7 @@ pub static ALL_BLOCKS: [BlockData; 1477usize] = [
             },
         ],
         state_values: b"\0\0\0\0\0\x01\0\0\0\x02\0\0\0\x03\0\0\0\x04\0\0\0\x05\0\0\0\0\x01\0\0\x01\x01\0\0\x02\x01\0\0\x03\x01\0\0\x04\x01\0\0\x05\x01\0\0\0\x02\0\0\x01\x02\0\0\x02\x02\0\0\x03\x02\0\0\x04\x02\0\0\x05\x02\0\0\0\x03\0\0\x01\x03\0\0\x02\x03\0\0\x03\x03\0\0\x04\x03\0\0\x05\x03\0\0\0\x04\0\0\x01\x04\0\0\x02\x04\0\0\x03\x04\0\0\x04\x04\0\0\x05\x04\0\0\0\x05\0\0\x01\x05\0\0\x02\x05\0\0\x03\x05\0\0\x04\x05\0\0\x05\x05\0\0\0\x06\0\0\x01\x06\0\0\x02\x06\0\0\x03\x06\0\0\x04\x06\0\0\x05\x06\0\0\0\x07\0\0\x01\x07\0\0\x02\x07\0\0\x03\x07\0\0\x04\x07\0\0\x05\x07\0\0\0\x08\0\0\x01\x08\0\0\x02\x08\0\0\x03\x08\0\0\x04\x08\0\0\x05\x08\0\0\0\t\0\0\x01\t\0\0\x02\t\0\0\x03\t\0\0\x04\t\0\0\x05\t\0\0\0\n\0\0\x01\n\0\0\x02\n\0\0\x03\n\0\0\x04\n\0\0\x05\n\0\0\0\x0B\0\0\x01\x0B\0\0\x02\x0B\0\0\x03\x0B\0\0\x04\x0B\0\0\x05\x0B\0\0\0\x0C\0\0\x01\x0C\0\0\x02\x0C\0\0\x03\x0C\0\0\x04\x0C\0\0\x05\x0C\0\0\0\r\0\0\x01\r\0\0\x02\r\0\0\x03\r\0\0\x04\r\0\0\x05\r\0\0\0\x0E\0\0\x01\x0E\0\0\x02\x0E\0\0\x03\x0E\0\0\x04\x0E\0\0\x05\x0E\0\0\0\x0F\0\0\x01\x0F\0\0\x02\x0F\0\0\x03\x0F\0\0\x04\x0F\0\0\x05\x0F\0\0\0\0\x01\0\x01\0\x01\0\x02\0\x01\0\x03\0\x01\0\x04\0\x01\0\x05\0\x01\0\0\x01\x01\0\x01\x01\x01\0\x02\x01\x01\0\x03\x01\x01\0\x04\x01\x01\0\x05\x01\x01\0\0\x02\x01\0\x01\x02\x01\0\x02\x02\x01\0\x03\x02\x01\0\x04\x02\x01\0\x05\x02\x01\0\0\x03\x01\0\x01\x03\x01\0\x02\x03\x01\0\x03\x03\x01\0\x04\x03\x01\0\x05\x03\x01\0\0\x04\x01\0\x01\x04\x01\0\x02\x04\x01\0\x03\x04\x01\0\x04\x04\x01\0\x05\x04\x01\0\0\x05\x01\0\x01\x05\x01\0\x02\x05\x01\0\x03\x05\x01\0\x04\x05\x01\0\x05\x05\x01\0\0\x06\x01\0\x01\x06\x01\0\x02\x06\x01\0\x03\x06\x01\0\x04\x06\x01\0\x05\x06\x01\0\0\x07\x01\0\x01\x07\x01\0\x02\x07\x01\0\x03\x07\x01\0\x04\x07\x01\0\x05\x07\x01\0\0\x08\x01\0\x01\x08\x01\0\x02\x08\x01\0\x03\x08\x01\0\x04\x08\x01\0\x05\x08\x01\0\0\t\x01\0\x01\t\x01\0\x02\t\x01\0\x03\t\x01\0\x04\t\x01\0\x05\t\x01\0\0\n\x01\0\x01\n\x01\0\x02\n\x01\0\x03\n\x01\0\x04\n\x01\0\x05\n\x01\0\0\x0B\x01\0\x01\x0B\x01\0\x02\x0B\x01\0\x03\x0B\x01\0\x04\x0B\x01\0\x05\x0B\x01\0\0\x0C\x01\0\x01\x0C\x01\0\x02\x0C\x01\0\x03\x0C\x01\0\x04\x0C\x01\0\x05\x0C\x01\0\0\r\x01\0\x01\r\x01\0\x02\r\x01\0\x03\r\x01\0\x04\r\x01\0\x05\r\x01\0\0\x0E\x01\0\x01\x0E\x01\0\x02\x0E\x01\0\x03\x0E\x01\0\x04\x0E\x01\0\x05\x0E\x01\0\0\x0F\x01\0\x01\x0F\x01\0\x02\x0F\x01\0\x03\x0F\x01\0\x04\x0F\x01\0\x05\x0F\x01\x01\0\0\0\x01\x01\0\0\x01\x02\0\0\x01\x03\0\0\x01\x04\0\0\x01\x05\0\0\x01\0\x01\0\x01\x01\x01\0\x01\x02\x01\0\x01\x03\x01\0\x01\x04\x01\0\x01\x05\x01\0\x01\0\x02\0\x01\x01\x02\0\x01\x02\x02\0\x01\x03\x02\0\x01\x04\x02\0\x01\x05\x02\0\x01\0\x03\0\x01\x01\x03\0\x01\x02\x03\0\x01\x03\x03\0\x01\x04\x03\0\x01\x05\x03\0\x01\0\x04\0\x01\x01\x04\0\x01\x02\x04\0\x01\x03\x04\0\x01\x04\x04\0\x01\x05\x04\0\x01\0\x05\0\x01\x01\x05\0\x01\x02\x05\0\x01\x03\x05\0\x01\x04\x05\0\x01\x05\x05\0\x01\0\x06\0\x01\x01\x06\0\x01\x02\x06\0\x01\x03\x06\0\x01\x04\x06\0\x01\x05\x06\0\x01\0\x07\0\x01\x01\x07\0\x01\x02\x07\0\x01\x03\x07\0\x01\x04\x07\0\x01\x05\x07\0\x01\0\x08\0\x01\x01\x08\0\x01\x02\x08\0\x01\x03\x08\0\x01\x04\x08\0\x01\x05\x08\0\x01\0\t\0\x01\x01\t\0\x01\x02\t\0\x01\x03\t\0\x01\x04\t\0\x01\x05\t\0\x01\0\n\0\x01\x01\n\0\x01\x02\n\0\x01\x03\n\0\x01\x04\n\0\x01\x05\n\0\x01\0\x0B\0\x01\x01\x0B\0\x01\x02\x0B\0\x01\x03\x0B\0\x01\x04\x0B\0\x01\x05\x0B\0\x01\0\x0C\0\x01\x01\x0C\0\x01\x02\x0C\0\x01\x03\x0C\0\x01\x04\x0C\0\x01\x05\x0C\0\x01\0\r\0\x01\x01\r\0\x01\x02\r\0\x01\x03\r\0\x01\x04\r\0\x01\x05\r\0\x01\0\x0E\0\x01\x01\x0E\0\x01\x02\x0E\0\x01\x03\x0E\0\x01\x04\x0E\0\x01\x05\x0E\0\x01\0\x0F\0\x01\x01\x0F\0\x01\x02\x0F\0\x01\x03\x0F\0\x01\x04\x0F\0\x01\x05\x0F\0\x01\0\0\x01\x01\x01\0\x01\x01\x02\0\x01\x01\x03\0\x01\x01\x04\0\x01\x01\x05\0\x01\x01\0\x01\x01\x01\x01\x01\x01\x01\x02\x01\x01\x01\x03\x01\x01\x01\x04\x01\x01\x01\x05\x01\x01\x01\0\x02\x01\x01\x01\x02\x01\x01\x02\x02\x01\x01\x03\x02\x01\x01\x04\x02\x01\x01\x05\x02\x01\x01\0\x03\x01\x01\x01\x03\x01\x01\x02\x03\x01\x01\x03\x03\x01\x01\x04\x03\x01\x01\x05\x03\x01\x01\0\x04\x01\x01\x01\x04\x01\x01\x02\x04\x01\x01\x03\x04\x01\x01\x04\x04\x01\x01\x05\x04\x01\x01\0\x05\x01\x01\x01\x05\x01\x01\x02\x05\x01\x01\x03\x05\x01\x01\x04\x05\x01\x01\x05\x05\x01\x01\0\x06\x01\x01\x01\x06\x01\x01\x02\x06\x01\x01\x03\x06\x01\x01\x04\x06\x01\x01\x05\x06\x01\x01\0\x07\x01\x01\x01\x07\x01\x01\x02\x07\x01\x01\x03\x07\x01\x01\x04\x07\x01\x01\x05\x07\x01\x01\0\x08\x01\x01\x01\x08\x01\x01\x02\x08\x01\x01\x03\x08\x01\x01\x04\x08\x01\x01\x05\x08\x01\x01\0\t\x01\x01\x01\t\x01\x01\x02\t\x01\x01\x03\t\x01\x01\x04\t\x01\x01\x05\t\x01\x01\0\n\x01\x01\x01\n\x01\x01\x02\n\x01\x01\x03\n\x01\x01\x04\n\x01\x01\x05\n\x01\x01\0\x0B\x01\x01\x01\x0B\x01\x01\x02\x0B\x01\x01\x03\x0B\x01\x01\x04\x0B\x01\x01\x05\x0B\x01\x01\0\x0C\x01\x01\x01\x0C\x01\x01\x02\x0C\x01\x01\x03\x0C\x01\x01\x04\x0C\x01\x01\x05\x0C\x01\x01\0\r\x01\x01\x01\r\x01\x01\x02\r\x01\x01\x03\r\x01\x01\x04\r\x01\x01\x05\r\x01\x01\0\x0E\x01\x01\x01\x0E\x01\x01\x02\x0E\x01\x01\x03\x0E\x01\x01\x04\x0E\x01\x01\x05\x0E\x01\x01\0\x0F\x01\x01\x01\x0F\x01\x01\x02\x0F\x01\x01\x03\x0F\x01\x01\x04\x0F\x01\x01\x05\x0F\x01",
+        server_definition: None,
     },
     BlockData {
         id: 12726u32,
@@ -27204,6 +28072,7 @@ pub static ALL_BLOCKS: [BlockData; 1477usize] = [
             },
         ],
         state_values: b"\0\x01\x02\x03\x04\x05\x06\x07\x08\t\n\x0B\x0C\r\x0E\x0F\x10\x11\x12\x13\x14\x15\x16\x17\x18\x19",
+        server_definition: None,
     },
     BlockData {
         id: 12752u32,
@@ -27230,6 +28099,7 @@ pub static ALL_BLOCKS: [BlockData; 1477usize] = [
         visual_shape: [0f32, 0f32, 0f32, 1f32, 1f32, 1f32],
         properties: &[],
         state_values: b"",
+        server_definition: None,
     },
     BlockData {
         id: 12753u32,
@@ -27278,6 +28148,7 @@ pub static ALL_BLOCKS: [BlockData; 1477usize] = [
             },
         ],
         state_values: b"\0\x01\x02\x03\x04\x05\x06\x07\x08\t\n\x0B\x0C\r\x0E\x0F",
+        server_definition: None,
     },
     BlockData {
         id: 12769u32,
@@ -27328,6 +28199,7 @@ pub static ALL_BLOCKS: [BlockData; 1477usize] = [
             },
         ],
         state_values: b"\0\0\0\0\0\x01\0\0\x02\0\0\x03\0\x01\0\0\x01\x01\0\x01\x02\0\x01\x03\x01\0\0\x01\0\x01\x01\0\x02\x01\0\x03\x01\x01\0\x01\x01\x01\x01\x01\x02\x01\x01\x03\x02\0\0\x02\0\x01\x02\0\x02\x02\0\x03\x02\x01\0\x02\x01\x01\x02\x01\x02\x02\x01\x03\x03\0\0\x03\0\x01\x03\0\x02\x03\0\x03\x03\x01\0\x03\x01\x01\x03\x01\x02\x03\x01\x03\x04\0\0\x04\0\x01\x04\0\x02\x04\0\x03\x04\x01\0\x04\x01\x01\x04\x01\x02\x04\x01\x03",
+        server_definition: None,
     },
     BlockData {
         id: 12809u32,
@@ -27373,6 +28245,7 @@ pub static ALL_BLOCKS: [BlockData; 1477usize] = [
             },
         ],
         state_values: b"\0\0\x01\0\x02\0\x03\0\0\x01\x01\x01\x02\x01\x03\x01\0\x02\x01\x02\x02\x02\x03\x02\0\x03\x01\x03\x02\x03\x03\x03",
+        server_definition: None,
     },
     BlockData {
         id: 12825u32,
@@ -27436,6 +28309,7 @@ pub static ALL_BLOCKS: [BlockData; 1477usize] = [
             },
         ],
         state_values: b"\0\0\0\0\0\0\0\0\0\x01\0\x01\0\0\0\0\x01\0\0\x01\0\x02\0\0\0\0\x02\0\0\x01\x01\0\0\0\0\x01\0\0\0\x01\x01\x01\0\0\0\x01\x01\0\0\x01\x01\x02\0\0\0\x01\x02\0\0\x01\x02\0\0\0\0\x02\0\0\0\x01\x02\x01\0\0\0\x02\x01\0\0\x01\x02\x02\0\0\0\x02\x02\0\0\x01\0\0\x01\0\0\0\0\x01\0\x01\0\x01\x01\0\0\0\x01\x01\0\x01\0\x02\x01\0\0\0\x02\x01\0\x01\x01\0\x01\0\0\x01\0\x01\0\x01\x01\x01\x01\0\0\x01\x01\x01\0\x01\x01\x02\x01\0\0\x01\x02\x01\0\x01\x02\0\x01\0\0\x02\0\x01\0\x01\x02\x01\x01\0\0\x02\x01\x01\0\x01\x02\x02\x01\0\0\x02\x02\x01\0\x01\0\0\x02\0\0\0\0\x02\0\x01\0\x01\x02\0\0\0\x01\x02\0\x01\0\x02\x02\0\0\0\x02\x02\0\x01\x01\0\x02\0\0\x01\0\x02\0\x01\x01\x01\x02\0\0\x01\x01\x02\0\x01\x01\x02\x02\0\0\x01\x02\x02\0\x01\x02\0\x02\0\0\x02\0\x02\0\x01\x02\x01\x02\0\0\x02\x01\x02\0\x01\x02\x02\x02\0\0\x02\x02\x02\0\x01\0\0\0\x01\0\0\0\0\x01\x01\0\x01\0\x01\0\0\x01\0\x01\x01\0\x02\0\x01\0\0\x02\0\x01\x01\x01\0\0\x01\0\x01\0\0\x01\x01\x01\x01\0\x01\0\x01\x01\0\x01\x01\x01\x02\0\x01\0\x01\x02\0\x01\x01\x02\0\0\x01\0\x02\0\0\x01\x01\x02\x01\0\x01\0\x02\x01\0\x01\x01\x02\x02\0\x01\0\x02\x02\0\x01\x01\0\0\x01\x01\0\0\0\x01\x01\x01\0\x01\x01\x01\0\0\x01\x01\x01\x01\0\x02\x01\x01\0\0\x02\x01\x01\x01\x01\0\x01\x01\0\x01\0\x01\x01\x01\x01\x01\x01\x01\0\x01\x01\x01\x01\x01\x01\x02\x01\x01\0\x01\x02\x01\x01\x01\x02\0\x01\x01\0\x02\0\x01\x01\x01\x02\x01\x01\x01\0\x02\x01\x01\x01\x01\x02\x02\x01\x01\0\x02\x02\x01\x01\x01\0\0\x02\x01\0\0\0\x02\x01\x01\0\x01\x02\x01\0\0\x01\x02\x01\x01\0\x02\x02\x01\0\0\x02\x02\x01\x01\x01\0\x02\x01\0\x01\0\x02\x01\x01\x01\x01\x02\x01\0\x01\x01\x02\x01\x01\x01\x02\x02\x01\0\x01\x02\x02\x01\x01\x02\0\x02\x01\0\x02\0\x02\x01\x01\x02\x01\x02\x01\0\x02\x01\x02\x01\x01\x02\x02\x02\x01\0\x02\x02\x02\x01\x01\0\0\0\x02\0\0\0\0\x02\x01\0\x01\0\x02\0\0\x01\0\x02\x01\0\x02\0\x02\0\0\x02\0\x02\x01\x01\0\0\x02\0\x01\0\0\x02\x01\x01\x01\0\x02\0\x01\x01\0\x02\x01\x01\x02\0\x02\0\x01\x02\0\x02\x01\x02\0\0\x02\0\x02\0\0\x02\x01\x02\x01\0\x02\0\x02\x01\0\x02\x01\x02\x02\0\x02\0\x02\x02\0\x02\x01\0\0\x01\x02\0\0\0\x01\x02\x01\0\x01\x01\x02\0\0\x01\x01\x02\x01\0\x02\x01\x02\0\0\x02\x01\x02\x01\x01\0\x01\x02\0\x01\0\x01\x02\x01\x01\x01\x01\x02\0\x01\x01\x01\x02\x01\x01\x02\x01\x02\0\x01\x02\x01\x02\x01\x02\0\x01\x02\0\x02\0\x01\x02\x01\x02\x01\x01\x02\0\x02\x01\x01\x02\x01\x02\x02\x01\x02\0\x02\x02\x01\x02\x01\0\0\x02\x02\0\0\0\x02\x02\x01\0\x01\x02\x02\0\0\x01\x02\x02\x01\0\x02\x02\x02\0\0\x02\x02\x02\x01\x01\0\x02\x02\0\x01\0\x02\x02\x01\x01\x01\x02\x02\0\x01\x01\x02\x02\x01\x01\x02\x02\x02\0\x01\x02\x02\x02\x01\x02\0\x02\x02\0\x02\0\x02\x02\x01\x02\x01\x02\x02\0\x02\x01\x02\x02\x01\x02\x02\x02\x02\0\x02\x02\x02\x02\x01",
+        server_definition: None,
     },
     BlockData {
         id: 12987u32,
@@ -27486,6 +28360,7 @@ pub static ALL_BLOCKS: [BlockData; 1477usize] = [
             },
         ],
         state_values: b"\0\0\0\0\0\x01\0\0\x02\0\0\x03\0\x01\0\0\x01\x01\0\x01\x02\0\x01\x03\x01\0\0\x01\0\x01\x01\0\x02\x01\0\x03\x01\x01\0\x01\x01\x01\x01\x01\x02\x01\x01\x03\x02\0\0\x02\0\x01\x02\0\x02\x02\0\x03\x02\x01\0\x02\x01\x01\x02\x01\x02\x02\x01\x03\x03\0\0\x03\0\x01\x03\0\x02\x03\0\x03\x03\x01\0\x03\x01\x01\x03\x01\x02\x03\x01\x03\x04\0\0\x04\0\x01\x04\0\x02\x04\0\x03\x04\x01\0\x04\x01\x01\x04\x01\x02\x04\x01\x03",
+        server_definition: None,
     },
     BlockData {
         id: 13027u32,
@@ -27512,6 +28387,7 @@ pub static ALL_BLOCKS: [BlockData; 1477usize] = [
         visual_shape: [0f32, 0f32, 0f32, 1f32, 1f32, 1f32],
         properties: &[],
         state_values: b"",
+        server_definition: None,
     },
     BlockData {
         id: 13028u32,
@@ -27538,6 +28414,7 @@ pub static ALL_BLOCKS: [BlockData; 1477usize] = [
         visual_shape: [0f32, 0f32, 0f32, 1f32, 1f32, 1f32],
         properties: &[],
         state_values: b"",
+        server_definition: None,
     },
     BlockData {
         id: 13029u32,
@@ -27564,6 +28441,7 @@ pub static ALL_BLOCKS: [BlockData; 1477usize] = [
         visual_shape: [0f32, 0f32, 0f32, 1f32, 1f32, 1f32],
         properties: &[],
         state_values: b"",
+        server_definition: None,
     },
     BlockData {
         id: 13030u32,
@@ -27590,6 +28468,7 @@ pub static ALL_BLOCKS: [BlockData; 1477usize] = [
         visual_shape: [0f32, 0f32, 0f32, 1f32, 1f32, 1f32],
         properties: &[],
         state_values: b"",
+        server_definition: None,
     },
     BlockData {
         id: 13031u32,
@@ -27616,6 +28495,7 @@ pub static ALL_BLOCKS: [BlockData; 1477usize] = [
         visual_shape: [0f32, 0f32, 0f32, 1f32, 1f32, 1f32],
         properties: &[],
         state_values: b"",
+        server_definition: None,
     },
     BlockData {
         id: 13032u32,
@@ -27642,6 +28522,7 @@ pub static ALL_BLOCKS: [BlockData; 1477usize] = [
         visual_shape: [0f32, 0f32, 0f32, 1f32, 1f32, 1f32],
         properties: &[],
         state_values: b"",
+        server_definition: None,
     },
     BlockData {
         id: 13033u32,
@@ -27668,6 +28549,7 @@ pub static ALL_BLOCKS: [BlockData; 1477usize] = [
         visual_shape: [0f32, 0f32, 0f32, 1f32, 1f32, 1f32],
         properties: &[],
         state_values: b"",
+        server_definition: None,
     },
     BlockData {
         id: 13034u32,
@@ -27694,6 +28576,7 @@ pub static ALL_BLOCKS: [BlockData; 1477usize] = [
         visual_shape: [0f32, 0f32, 0f32, 1f32, 1f32, 1f32],
         properties: &[],
         state_values: b"",
+        server_definition: None,
     },
     BlockData {
         id: 13035u32,
@@ -27720,6 +28603,7 @@ pub static ALL_BLOCKS: [BlockData; 1477usize] = [
         visual_shape: [0f32, 0f32, 0f32, 1f32, 1f32, 1f32],
         properties: &[],
         state_values: b"",
+        server_definition: None,
     },
     BlockData {
         id: 13036u32,
@@ -27746,6 +28630,7 @@ pub static ALL_BLOCKS: [BlockData; 1477usize] = [
         visual_shape: [0f32, 0f32, 0f32, 1f32, 1f32, 1f32],
         properties: &[],
         state_values: b"",
+        server_definition: None,
     },
     BlockData {
         id: 13037u32,
@@ -27772,6 +28657,7 @@ pub static ALL_BLOCKS: [BlockData; 1477usize] = [
         visual_shape: [0f32, 0f32, 0f32, 1f32, 1f32, 1f32],
         properties: &[],
         state_values: b"",
+        server_definition: None,
     },
     BlockData {
         id: 13038u32,
@@ -27798,6 +28684,7 @@ pub static ALL_BLOCKS: [BlockData; 1477usize] = [
         visual_shape: [0f32, 0f32, 0f32, 1f32, 1f32, 1f32],
         properties: &[],
         state_values: b"",
+        server_definition: None,
     },
     BlockData {
         id: 13039u32,
@@ -27824,6 +28711,7 @@ pub static ALL_BLOCKS: [BlockData; 1477usize] = [
         visual_shape: [0f32, 0f32, 0f32, 1f32, 1f32, 1f32],
         properties: &[],
         state_values: b"",
+        server_definition: None,
     },
     BlockData {
         id: 13040u32,
@@ -27850,6 +28738,7 @@ pub static ALL_BLOCKS: [BlockData; 1477usize] = [
         visual_shape: [0f32, 0f32, 0f32, 1f32, 1f32, 1f32],
         properties: &[],
         state_values: b"",
+        server_definition: None,
     },
     BlockData {
         id: 13041u32,
@@ -27876,6 +28765,7 @@ pub static ALL_BLOCKS: [BlockData; 1477usize] = [
         visual_shape: [0f32, 0f32, 0f32, 1f32, 1f32, 1f32],
         properties: &[],
         state_values: b"",
+        server_definition: None,
     },
     BlockData {
         id: 13042u32,
@@ -27902,6 +28792,7 @@ pub static ALL_BLOCKS: [BlockData; 1477usize] = [
         visual_shape: [0f32, 0f32, 0f32, 1f32, 1f32, 1f32],
         properties: &[],
         state_values: b"",
+        server_definition: None,
     },
     BlockData {
         id: 13043u32,
@@ -27928,6 +28819,7 @@ pub static ALL_BLOCKS: [BlockData; 1477usize] = [
         visual_shape: [0f32, 0f32, 0f32, 1f32, 1f32, 1f32],
         properties: &[],
         state_values: b"",
+        server_definition: None,
     },
     BlockData {
         id: 13044u32,
@@ -27954,6 +28846,7 @@ pub static ALL_BLOCKS: [BlockData; 1477usize] = [
         visual_shape: [0f32, 0f32, 0f32, 1f32, 1f32, 1f32],
         properties: &[],
         state_values: b"",
+        server_definition: None,
     },
     BlockData {
         id: 13045u32,
@@ -27980,6 +28873,7 @@ pub static ALL_BLOCKS: [BlockData; 1477usize] = [
         visual_shape: [0f32, 0f32, 0f32, 1f32, 1f32, 1f32],
         properties: &[],
         state_values: b"",
+        server_definition: None,
     },
     BlockData {
         id: 13046u32,
@@ -28043,6 +28937,7 @@ pub static ALL_BLOCKS: [BlockData; 1477usize] = [
             },
         ],
         state_values: b"\0\0\0\0\0\0\0\0\0\x01\0\x01\0\0\0\0\x01\0\0\x01\0\x02\0\0\0\0\x02\0\0\x01\x01\0\0\0\0\x01\0\0\0\x01\x01\x01\0\0\0\x01\x01\0\0\x01\x01\x02\0\0\0\x01\x02\0\0\x01\x02\0\0\0\0\x02\0\0\0\x01\x02\x01\0\0\0\x02\x01\0\0\x01\x02\x02\0\0\0\x02\x02\0\0\x01\0\0\x01\0\0\0\0\x01\0\x01\0\x01\x01\0\0\0\x01\x01\0\x01\0\x02\x01\0\0\0\x02\x01\0\x01\x01\0\x01\0\0\x01\0\x01\0\x01\x01\x01\x01\0\0\x01\x01\x01\0\x01\x01\x02\x01\0\0\x01\x02\x01\0\x01\x02\0\x01\0\0\x02\0\x01\0\x01\x02\x01\x01\0\0\x02\x01\x01\0\x01\x02\x02\x01\0\0\x02\x02\x01\0\x01\0\0\x02\0\0\0\0\x02\0\x01\0\x01\x02\0\0\0\x01\x02\0\x01\0\x02\x02\0\0\0\x02\x02\0\x01\x01\0\x02\0\0\x01\0\x02\0\x01\x01\x01\x02\0\0\x01\x01\x02\0\x01\x01\x02\x02\0\0\x01\x02\x02\0\x01\x02\0\x02\0\0\x02\0\x02\0\x01\x02\x01\x02\0\0\x02\x01\x02\0\x01\x02\x02\x02\0\0\x02\x02\x02\0\x01\0\0\0\x01\0\0\0\0\x01\x01\0\x01\0\x01\0\0\x01\0\x01\x01\0\x02\0\x01\0\0\x02\0\x01\x01\x01\0\0\x01\0\x01\0\0\x01\x01\x01\x01\0\x01\0\x01\x01\0\x01\x01\x01\x02\0\x01\0\x01\x02\0\x01\x01\x02\0\0\x01\0\x02\0\0\x01\x01\x02\x01\0\x01\0\x02\x01\0\x01\x01\x02\x02\0\x01\0\x02\x02\0\x01\x01\0\0\x01\x01\0\0\0\x01\x01\x01\0\x01\x01\x01\0\0\x01\x01\x01\x01\0\x02\x01\x01\0\0\x02\x01\x01\x01\x01\0\x01\x01\0\x01\0\x01\x01\x01\x01\x01\x01\x01\0\x01\x01\x01\x01\x01\x01\x02\x01\x01\0\x01\x02\x01\x01\x01\x02\0\x01\x01\0\x02\0\x01\x01\x01\x02\x01\x01\x01\0\x02\x01\x01\x01\x01\x02\x02\x01\x01\0\x02\x02\x01\x01\x01\0\0\x02\x01\0\0\0\x02\x01\x01\0\x01\x02\x01\0\0\x01\x02\x01\x01\0\x02\x02\x01\0\0\x02\x02\x01\x01\x01\0\x02\x01\0\x01\0\x02\x01\x01\x01\x01\x02\x01\0\x01\x01\x02\x01\x01\x01\x02\x02\x01\0\x01\x02\x02\x01\x01\x02\0\x02\x01\0\x02\0\x02\x01\x01\x02\x01\x02\x01\0\x02\x01\x02\x01\x01\x02\x02\x02\x01\0\x02\x02\x02\x01\x01\0\0\0\x02\0\0\0\0\x02\x01\0\x01\0\x02\0\0\x01\0\x02\x01\0\x02\0\x02\0\0\x02\0\x02\x01\x01\0\0\x02\0\x01\0\0\x02\x01\x01\x01\0\x02\0\x01\x01\0\x02\x01\x01\x02\0\x02\0\x01\x02\0\x02\x01\x02\0\0\x02\0\x02\0\0\x02\x01\x02\x01\0\x02\0\x02\x01\0\x02\x01\x02\x02\0\x02\0\x02\x02\0\x02\x01\0\0\x01\x02\0\0\0\x01\x02\x01\0\x01\x01\x02\0\0\x01\x01\x02\x01\0\x02\x01\x02\0\0\x02\x01\x02\x01\x01\0\x01\x02\0\x01\0\x01\x02\x01\x01\x01\x01\x02\0\x01\x01\x01\x02\x01\x01\x02\x01\x02\0\x01\x02\x01\x02\x01\x02\0\x01\x02\0\x02\0\x01\x02\x01\x02\x01\x01\x02\0\x02\x01\x01\x02\x01\x02\x02\x01\x02\0\x02\x02\x01\x02\x01\0\0\x02\x02\0\0\0\x02\x02\x01\0\x01\x02\x02\0\0\x01\x02\x02\x01\0\x02\x02\x02\0\0\x02\x02\x02\x01\x01\0\x02\x02\0\x01\0\x02\x02\x01\x01\x01\x02\x02\0\x01\x01\x02\x02\x01\x01\x02\x02\x02\0\x01\x02\x02\x02\x01\x02\0\x02\x02\0\x02\0\x02\x02\x01\x02\x01\x02\x02\0\x02\x01\x02\x02\x01\x02\x02\x02\x02\0\x02\x02\x02\x02\x01",
+        server_definition: None,
     },
     BlockData {
         id: 13208u32,
@@ -28081,6 +28976,7 @@ pub static ALL_BLOCKS: [BlockData; 1477usize] = [
             },
         ],
         state_values: b"\0\x01\x02\x03\x04\x05",
+        server_definition: None,
     },
     BlockData {
         id: 13214u32,
@@ -28116,6 +29012,7 @@ pub static ALL_BLOCKS: [BlockData; 1477usize] = [
             },
         ],
         state_values: b"\0\x01\x02",
+        server_definition: None,
     },
     BlockData {
         id: 13217u32,
@@ -28142,6 +29039,7 @@ pub static ALL_BLOCKS: [BlockData; 1477usize] = [
         visual_shape: [0f32, 0f32, 0f32, 0f32, 0f32, 0f32],
         properties: &[],
         state_values: b"",
+        server_definition: None,
     },
     BlockData {
         id: 13218u32,
@@ -28192,6 +29090,9 @@ pub static ALL_BLOCKS: [BlockData; 1477usize] = [
             },
         ],
         state_values: b"\0\0\0\0\0\x01\0\0\x02\0\0\x03\0\x01\0\0\x01\x01\0\x01\x02\0\x01\x03\x01\0\0\x01\0\x01\x01\0\x02\x01\0\x03\x01\x01\0\x01\x01\x01\x01\x01\x02\x01\x01\x03\x02\0\0\x02\0\x01\x02\0\x02\x02\0\x03\x02\x01\0\x02\x01\x01\x02\x01\x02\x02\x01\x03\x03\0\0\x03\0\x01\x03\0\x02\x03\0\x03\x03\x01\0\x03\x01\x01\x03\x01\x02\x03\x01\x03\x04\0\0\x04\0\x01\x04\0\x02\x04\0\x03\x04\x01\0\x04\x01\x01\x04\x01\x02\x04\x01\x03",
+        server_definition: Some(
+            b"\n\0\t\tblockTags\x08\x02&minecraft:is_pickaxe_item_destructible\n\ncomponents\n minecraft:destructible_by_mining\x05\x05valueff\xE6?\0\n\x1Fminecraft:destruction_particles\x03\x0Eparticle_count`\x08\x07texture\0\x08\x0Btint_method\x04none\0\n\x1Aminecraft:liquid_detection\t\x0EdetectionRules\n\x02\x01\x10canContainLiquid\x01\x08\nliquidType\x05water\x08\x0FonLiquidTouches\x08blocking\x01\x18stopsLiquidFromDirection\0\x01\x13use_liquid_clipping\0\0\0\n\x1Fminecraft:redstone_conductivity\x01\x14allowsWireToStepDown\x01\x01\x11redstoneConductor\0\0\n\x11minecraft:support\x08\x05shape\x05stair\0\0\n\rmenu_category\x08\x08category\x0Cconstruction\x08\x05group\x1Fminecraft:itemGroup.name.stairs\x01\x15is_hidden_in_commands\0\0\x03\rmolangVersion\x1A\n\x12vanilla_block_data\n\x0Fblock_archetype\x08\nbase_block\x16minecraft:red_concrete\x08\x04type\x0Bstair_block\0\x03\x08block_id\xDC\x16\x08\x08material\x05solid\x01\x1Frequires_correct_tool_for_drops\x01\0\0",
+        ),
     },
     BlockData {
         id: 13258u32,
@@ -28228,6 +29129,7 @@ pub static ALL_BLOCKS: [BlockData; 1477usize] = [
             },
         ],
         state_values: b"\0\x01\x02\x03",
+        server_definition: None,
     },
     BlockData {
         id: 13262u32,
@@ -28277,6 +29179,7 @@ pub static ALL_BLOCKS: [BlockData; 1477usize] = [
             },
         ],
         state_values: b"\0\0\0\x01\0\0\x02\0\0\x03\0\0\0\0\x01\x01\0\x01\x02\0\x01\x03\0\x01\0\x01\0\x01\x01\0\x02\x01\0\x03\x01\0\0\x01\x01\x01\x01\x01\x02\x01\x01\x03\x01\x01",
+        server_definition: None,
     },
     BlockData {
         id: 13278u32,
@@ -28318,6 +29221,7 @@ pub static ALL_BLOCKS: [BlockData; 1477usize] = [
             },
         ],
         state_values: b"\0\x01\x02\x03",
+        server_definition: None,
     },
     BlockData {
         id: 13282u32,
@@ -28344,6 +29248,7 @@ pub static ALL_BLOCKS: [BlockData; 1477usize] = [
         visual_shape: [0f32, 0f32, 0f32, 1f32, 1f32, 1f32],
         properties: &[],
         state_values: b"",
+        server_definition: None,
     },
     BlockData {
         id: 13283u32,
@@ -28379,6 +29284,7 @@ pub static ALL_BLOCKS: [BlockData; 1477usize] = [
             },
         ],
         state_values: b"\0\x01\x02",
+        server_definition: None,
     },
     BlockData {
         id: 13286u32,
@@ -28427,6 +29333,7 @@ pub static ALL_BLOCKS: [BlockData; 1477usize] = [
             },
         ],
         state_values: b"\0\x01\x02\x03\x04\x05\x06\x07\x08\t\n\x0B\x0C\r\x0E\x0F",
+        server_definition: None,
     },
     BlockData {
         id: 13302u32,
@@ -28453,6 +29360,7 @@ pub static ALL_BLOCKS: [BlockData; 1477usize] = [
         visual_shape: [0f32, 0f32, 0f32, 1f32, 1f32, 1f32],
         properties: &[],
         state_values: b"",
+        server_definition: None,
     },
     BlockData {
         id: 13303u32,
@@ -28549,6 +29457,7 @@ pub static ALL_BLOCKS: [BlockData; 1477usize] = [
             },
         ],
         state_values: b"\0\x01\x02\x03\x04\x05\x06\x07\x08\t\n\x0B\x0C\r\x0E\x0F\x10\x11\x12\x13\x14\x15\x16\x17\x18\x19\x1A\x1B\x1C\x1D\x1E\x1F !\"#$%&'()*+,-./0123456789:;<=>?",
+        server_definition: None,
     },
     BlockData {
         id: 13367u32,
@@ -28584,6 +29493,7 @@ pub static ALL_BLOCKS: [BlockData; 1477usize] = [
             },
         ],
         state_values: b"\0\x01\x02",
+        server_definition: None,
     },
     BlockData {
         id: 13370u32,
@@ -28622,6 +29532,7 @@ pub static ALL_BLOCKS: [BlockData; 1477usize] = [
             },
         ],
         state_values: b"\0\x01\x02\x03\x04\x05",
+        server_definition: None,
     },
     BlockData {
         id: 13376u32,
@@ -28680,6 +29591,7 @@ pub static ALL_BLOCKS: [BlockData; 1477usize] = [
             },
         ],
         state_values: b"\0\x01\x02\x03\x04\x05\x06\x07\x08\t\n\x0B\x0C\r\x0E\x0F\x10\x11\x12\x13\x14\x15\x16\x17\x18\x19",
+        server_definition: None,
     },
     BlockData {
         id: 13402u32,
@@ -28710,6 +29622,7 @@ pub static ALL_BLOCKS: [BlockData; 1477usize] = [
         visual_shape: [0f32, 0f32, 0f32, 1f32, 1f32, 1f32],
         properties: &[],
         state_values: b"",
+        server_definition: None,
     },
     BlockData {
         id: 13403u32,
@@ -28741,6 +29654,7 @@ pub static ALL_BLOCKS: [BlockData; 1477usize] = [
             },
         ],
         state_values: b"\0\x01",
+        server_definition: None,
     },
     BlockData {
         id: 13405u32,
@@ -28789,6 +29703,7 @@ pub static ALL_BLOCKS: [BlockData; 1477usize] = [
             },
         ],
         state_values: b"\0\0\0\0\0\x01\0\0\0\x02\0\0\0\x03\0\0\0\0\x01\0\0\x01\x01\0\0\x02\x01\0\0\x03\x01\0\0\0\0\x01\0\x01\0\x01\0\x02\0\x01\0\x03\0\x01\0\0\x01\x01\0\x01\x01\x01\0\x02\x01\x01\0\x03\x01\x01\x01\0\0\0\x01\x01\0\0\x01\x02\0\0\x01\x03\0\0\x01\0\x01\0\x01\x01\x01\0\x01\x02\x01\0\x01\x03\x01\0\x01\0\0\x01\x01\x01\0\x01\x01\x02\0\x01\x01\x03\0\x01\x01\0\x01\x01\x01\x01\x01\x01\x01\x02\x01\x01\x01\x03\x01\x01",
+        server_definition: None,
     },
     BlockData {
         id: 13437u32,
@@ -28832,6 +29747,7 @@ pub static ALL_BLOCKS: [BlockData; 1477usize] = [
             },
         ],
         state_values: b"\0\0\0\0\0\x01\0\0\x01\0\0\0\x01\x01\0\0\0\0\x01\0\0\x01\x01\0\x01\0\x01\0\x01\x01\x01\0\0\0\0\x01\0\x01\0\x01\x01\0\0\x01\x01\x01\0\x01\0\0\x01\x01\0\x01\x01\x01\x01\0\x01\x01\x01\x01\x01\x01",
+        server_definition: None,
     },
     BlockData {
         id: 13453u32,
@@ -28858,6 +29774,7 @@ pub static ALL_BLOCKS: [BlockData; 1477usize] = [
         visual_shape: [0f32, 0f32, 0f32, 1f32, 1f32, 1f32],
         properties: &[],
         state_values: b"",
+        server_definition: None,
     },
     BlockData {
         id: 13454u32,
@@ -28889,6 +29806,7 @@ pub static ALL_BLOCKS: [BlockData; 1477usize] = [
             },
         ],
         state_values: b"\0\x01",
+        server_definition: None,
     },
     BlockData {
         id: 13456u32,
@@ -28915,6 +29833,7 @@ pub static ALL_BLOCKS: [BlockData; 1477usize] = [
         visual_shape: [0f32, 0f32, 0f32, 1f32, 1f32, 1f32],
         properties: &[],
         state_values: b"",
+        server_definition: None,
     },
     BlockData {
         id: 13457u32,
@@ -28941,6 +29860,7 @@ pub static ALL_BLOCKS: [BlockData; 1477usize] = [
         visual_shape: [0f32, 0f32, 0f32, 1f32, 1f32, 1f32],
         properties: &[],
         state_values: b"",
+        server_definition: None,
     },
     BlockData {
         id: 13458u32,
@@ -28967,6 +29887,7 @@ pub static ALL_BLOCKS: [BlockData; 1477usize] = [
         visual_shape: [0f32, 0f32, 0f32, 1f32, 1f32, 1f32],
         properties: &[],
         state_values: b"",
+        server_definition: None,
     },
     BlockData {
         id: 13459u32,
@@ -29014,6 +29935,7 @@ pub static ALL_BLOCKS: [BlockData; 1477usize] = [
             },
         ],
         state_values: b"\0\0\x01\0\x02\0\x03\0\0\x01\x01\x01\x02\x01\x03\x01\0\x02\x01\x02\x02\x02\x03\x02\0\x03\x01\x03\x02\x03\x03\x03\0\x04\x01\x04\x02\x04\x03\x04\0\x05\x01\x05\x02\x05\x03\x05",
+        server_definition: None,
     },
     BlockData {
         id: 13483u32,
@@ -29054,6 +29976,9 @@ pub static ALL_BLOCKS: [BlockData; 1477usize] = [
             },
         ],
         state_values: b"\0\0\0\x01\0\x02\0\x03\x01\0\x01\x01\x01\x02\x01\x03",
+        server_definition: Some(
+            b"\n\0\n\ncomponents\n\x17minecraft:collision_box\t\x05boxes\n\x02\x05\x04maxX\0\0PA\x05\x04maxY\0\x000A\x05\x04maxZ\0\0\x80A\x05\x04minX\0\0@@\x05\x04minY\0\0\x80@\x05\x04minZ\0\0\x10A\0\x01\x07enabled\x01\0\n\x19minecraft:connection_rule\x08\x18accepts_connections_from\x04none\t\x12enabled_directions\x08\x08\x05south\x05north\x04east\x04west\0\n minecraft:destructible_by_mining\x05\x05value\0\0\0\0\0\n\x1Fminecraft:destruction_particles\x03\x0Eparticle_count`\x08\x07texture\x17shelf_mushroom_particle\x08\x0Btint_method\x04none\0\n\x12minecraft:geometry\n\x0Fbone_visibility\0\x08\x07culling&minecraft:culling.shelf_mushroom_small\x08\rculling_layer!minecraft:culling_layer.undefined\x08\rculling_shape\0\x08\nidentifier'minecraft:geometry.shelf_mushroom_small\x01\x18ignoreGeometryForIsSolid\0\x01\risV1Fullblock\0\x01\x16needsLegacyTopRotation\0\x01\x1BuseBlockTypeLightAbsorption\0\x01\x07uv_lock\0\0\n\x1Aminecraft:liquid_detection\t\x0EdetectionRules\n\x02\x01\x10canContainLiquid\0\x08\nliquidType\x05water\x08\x0FonLiquidTouches\x06popped\x01\x18stopsLiquidFromDirection\0\x01\x13use_liquid_clipping\0\0\0\n\x1Cminecraft:material_instances\n\x08mappings\0\n\tmaterials\n\x05small\x05\x11ambient_occlusion\0\0\0\0\x01\x0Cpacked_bools\x05\x08\rrender_method\x17alpha_test_single_sided\x08\x07texture\x14shelf_mushroom_small\x08\x0Btint_method\x04none\0\0\0\n$minecraft:precipitation_interactions\x08\x16precipitation_behavior\x04none\0\n\x17minecraft:selection_box\x01\x07enabled\x01\t\x06origin\x05\x06\0\0\xA0\xC0\0\0\0A\0\0\x80?\t\x04size\x05\x06\0\0 A\0\0@@\0\0\xE0@\0\0\n\rmenu_category\x08\x08category\x06nature\x08\x05group\0\x01\x15is_hidden_in_commands\0\0\x03\rmolangVersion\x1A\t\x0Cpermutations\n\x0E\n\ncomponents\n\x18minecraft:transformation\x03\x02RX\0\x05\x03RXP\0\0\0\0\x03\x02RY\x04\x05\x03RYP\0\0\0\0\x03\x02RZ\0\x05\x03RZP\0\0\0\0\x05\x02SX\0\0\x80?\x05\x03SXP\0\0\0\0\x05\x02SY\0\0\x80?\x05\x03SYP\0\0\0\0\x05\x02SZ\0\0\x80?\x05\x03SZP\0\0\0\0\x05\x02TX\0\0\0\0\x05\x02TY\0\0\0\0\x05\x02TZ\0\0\0\0\x01\x1EhasJsonVersionBeforeValidation\0\0\0\x08\tcondition`query.block_state('growth') == 0 && query.block_state('minecraft:cardinal_direction') == 'south'\0\n\ncomponents\n\x18minecraft:transformation\x03\x02RX\0\x05\x03RXP\0\0\0\0\x03\x02RY\x02\x05\x03RYP\0\0\0\0\x03\x02RZ\0\x05\x03RZP\0\0\0\0\x05\x02SX\0\0\x80?\x05\x03SXP\0\0\0\0\x05\x02SY\0\0\x80?\x05\x03SYP\0\0\0\0\x05\x02SZ\0\0\x80?\x05\x03SZP\0\0\0\0\x05\x02TX\0\0\0\0\x05\x02TY\0\0\0\0\x05\x02TZ\0\0\0\0\x01\x1EhasJsonVersionBeforeValidation\0\0\0\x08\tcondition_query.block_state('growth') == 0 && query.block_state('minecraft:cardinal_direction') == 'west'\0\n\ncomponents\n\x18minecraft:transformation\x03\x02RX\0\x05\x03RXP\0\0\0\0\x03\x02RY\x06\x05\x03RYP\0\0\0\0\x03\x02RZ\0\x05\x03RZP\0\0\0\0\x05\x02SX\0\0\x80?\x05\x03SXP\0\0\0\0\x05\x02SY\0\0\x80?\x05\x03SYP\0\0\0\0\x05\x02SZ\0\0\x80?\x05\x03SZP\0\0\0\0\x05\x02TX\0\0\0\0\x05\x02TY\0\0\0\0\x05\x02TZ\0\0\0\0\x01\x1EhasJsonVersionBeforeValidation\0\0\0\x08\tcondition_query.block_state('growth') == 0 && query.block_state('minecraft:cardinal_direction') == 'east'\0\n\ncomponents\n\x17minecraft:collision_box\t\x05boxes\n\x02\x05\x04maxX\0\0pA\x05\x04maxY\0\x000A\x05\x04maxZ\0\0\x80A\x05\x04minX\0\0\x80?\x05\x04minY\0\0\x80@\x05\x04minZ\0\0\xC0@\0\x01\x07enabled\x01\0\n\x12minecraft:geometry\n\x0Fbone_visibility\0\x08\x07culling&minecraft:culling.shelf_mushroom_large\x08\rculling_layer!minecraft:culling_layer.undefined\x08\rculling_shape\0\x08\nidentifier'minecraft:geometry.shelf_mushroom_large\x01\x18ignoreGeometryForIsSolid\0\x01\risV1Fullblock\0\x01\x16needsLegacyTopRotation\0\x01\x1BuseBlockTypeLightAbsorption\0\x01\x07uv_lock\0\0\n\x1Cminecraft:material_instances\n\x08mappings\0\n\tmaterials\n\x05large\x05\x11ambient_occlusion\0\0\0\0\x01\x0Cpacked_bools\x05\x08\rrender_method\x17alpha_test_single_sided\x08\x07texture\x14shelf_mushroom_large\x08\x0Btint_method\x04none\0\0\0\n\x17minecraft:selection_box\x01\x07enabled\x01\t\x06origin\x05\x06\0\0\xE0\xC0\0\0\xC0@\0\0\0\xC0\t\x04size\x05\x06\0\0`A\0\0\xA0@\0\0 A\0\0\x08\tcondition`query.block_state('growth') == 1 && query.block_state('minecraft:cardinal_direction') == 'north'\0\n\ncomponents\n\x17minecraft:collision_box\t\x05boxes\n\x02\x05\x04maxX\0\0pA\x05\x04maxY\0\x000A\x05\x04maxZ\0\0\x80A\x05\x04minX\0\0\x80?\x05\x04minY\0\0\x80@\x05\x04minZ\0\0\xC0@\0\x01\x07enabled\x01\0\n\x12minecraft:geometry\n\x0Fbone_visibility\0\x08\x07culling&minecraft:culling.shelf_mushroom_large\x08\rculling_layer!minecraft:culling_layer.undefined\x08\rculling_shape\0\x08\nidentifier'minecraft:geometry.shelf_mushroom_large\x01\x18ignoreGeometryForIsSolid\0\x01\risV1Fullblock\0\x01\x16needsLegacyTopRotation\0\x01\x1BuseBlockTypeLightAbsorption\0\x01\x07uv_lock\0\0\n\x1Cminecraft:material_instances\n\x08mappings\0\n\tmaterials\n\x05large\x05\x11ambient_occlusion\0\0\0\0\x01\x0Cpacked_bools\x05\x08\rrender_method\x17alpha_test_single_sided\x08\x07texture\x14shelf_mushroom_large\x08\x0Btint_method\x04none\0\0\0\n\x17minecraft:selection_box\x01\x07enabled\x01\t\x06origin\x05\x06\0\0\xE0\xC0\0\0\xC0@\0\0\0\xC0\t\x04size\x05\x06\0\0`A\0\0\xA0@\0\0 A\0\n\x18minecraft:transformation\x03\x02RX\0\x05\x03RXP\0\0\0\0\x03\x02RY\x04\x05\x03RYP\0\0\0\0\x03\x02RZ\0\x05\x03RZP\0\0\0\0\x05\x02SX\0\0\x80?\x05\x03SXP\0\0\0\0\x05\x02SY\0\0\x80?\x05\x03SYP\0\0\0\0\x05\x02SZ\0\0\x80?\x05\x03SZP\0\0\0\0\x05\x02TX\0\0\0\0\x05\x02TY\0\0\0\0\x05\x02TZ\0\0\0\0\x01\x1EhasJsonVersionBeforeValidation\0\0\0\x08\tcondition`query.block_state('growth') == 1 && query.block_state('minecraft:cardinal_direction') == 'south'\0\n\ncomponents\n\x17minecraft:collision_box\t\x05boxes\n\x02\x05\x04maxX\0\0pA\x05\x04maxY\0\x000A\x05\x04maxZ\0\0\x80A\x05\x04minX\0\0\x80?\x05\x04minY\0\0\x80@\x05\x04minZ\0\0\xC0@\0\x01\x07enabled\x01\0\n\x12minecraft:geometry\n\x0Fbone_visibility\0\x08\x07culling&minecraft:culling.shelf_mushroom_large\x08\rculling_layer!minecraft:culling_layer.undefined\x08\rculling_shape\0\x08\nidentifier'minecraft:geometry.shelf_mushroom_large\x01\x18ignoreGeometryForIsSolid\0\x01\risV1Fullblock\0\x01\x16needsLegacyTopRotation\0\x01\x1BuseBlockTypeLightAbsorption\0\x01\x07uv_lock\0\0\n\x1Cminecraft:material_instances\n\x08mappings\0\n\tmaterials\n\x05large\x05\x11ambient_occlusion\0\0\0\0\x01\x0Cpacked_bools\x05\x08\rrender_method\x17alpha_test_single_sided\x08\x07texture\x14shelf_mushroom_large\x08\x0Btint_method\x04none\0\0\0\n\x17minecraft:selection_box\x01\x07enabled\x01\t\x06origin\x05\x06\0\0\xE0\xC0\0\0\xC0@\0\0\0\xC0\t\x04size\x05\x06\0\0`A\0\0\xA0@\0\0 A\0\n\x18minecraft:transformation\x03\x02RX\0\x05\x03RXP\0\0\0\0\x03\x02RY\x02\x05\x03RYP\0\0\0\0\x03\x02RZ\0\x05\x03RZP\0\0\0\0\x05\x02SX\0\0\x80?\x05\x03SXP\0\0\0\0\x05\x02SY\0\0\x80?\x05\x03SYP\0\0\0\0\x05\x02SZ\0\0\x80?\x05\x03SZP\0\0\0\0\x05\x02TX\0\0\0\0\x05\x02TY\0\0\0\0\x05\x02TZ\0\0\0\0\x01\x1EhasJsonVersionBeforeValidation\0\0\0\x08\tcondition_query.block_state('growth') == 1 && query.block_state('minecraft:cardinal_direction') == 'west'\0\n\ncomponents\n\x17minecraft:collision_box\t\x05boxes\n\x02\x05\x04maxX\0\0pA\x05\x04maxY\0\x000A\x05\x04maxZ\0\0\x80A\x05\x04minX\0\0\x80?\x05\x04minY\0\0\x80@\x05\x04minZ\0\0\xC0@\0\x01\x07enabled\x01\0\n\x12minecraft:geometry\n\x0Fbone_visibility\0\x08\x07culling&minecraft:culling.shelf_mushroom_large\x08\rculling_layer!minecraft:culling_layer.undefined\x08\rculling_shape\0\x08\nidentifier'minecraft:geometry.shelf_mushroom_large\x01\x18ignoreGeometryForIsSolid\0\x01\risV1Fullblock\0\x01\x16needsLegacyTopRotation\0\x01\x1BuseBlockTypeLightAbsorption\0\x01\x07uv_lock\0\0\n\x1Cminecraft:material_instances\n\x08mappings\0\n\tmaterials\n\x05large\x05\x11ambient_occlusion\0\0\0\0\x01\x0Cpacked_bools\x05\x08\rrender_method\x17alpha_test_single_sided\x08\x07texture\x14shelf_mushroom_large\x08\x0Btint_method\x04none\0\0\0\n\x17minecraft:selection_box\x01\x07enabled\x01\t\x06origin\x05\x06\0\0\xE0\xC0\0\0\xC0@\0\0\0\xC0\t\x04size\x05\x06\0\0`A\0\0\xA0@\0\0 A\0\n\x18minecraft:transformation\x03\x02RX\0\x05\x03RXP\0\0\0\0\x03\x02RY\x06\x05\x03RYP\0\0\0\0\x03\x02RZ\0\x05\x03RZP\0\0\0\0\x05\x02SX\0\0\x80?\x05\x03SXP\0\0\0\0\x05\x02SY\0\0\x80?\x05\x03SYP\0\0\0\0\x05\x02SZ\0\0\x80?\x05\x03SZP\0\0\0\0\x05\x02TX\0\0\0\0\x05\x02TY\0\0\0\0\x05\x02TZ\0\0\0\0\x01\x1EhasJsonVersionBeforeValidation\0\0\0\x08\tcondition_query.block_state('growth') == 1 && query.block_state('minecraft:cardinal_direction') == 'east'\0\n\x12vanilla_block_data\n\x0Fblock_archetype\x05\nbounciness\0\0@?\x05\x16fall_damage_multiplier\0\0\0?\x01\x0Fis_bonemealable\x01\x03\nsize_count\x04\x08\x04type\x12wall_foliage_block\0\x03\x08block_id\xD8\x16\x08\x08material\x0Bsolid_plant\0\0",
+        ),
     },
     BlockData {
         id: 13491u32,
@@ -29085,6 +30010,7 @@ pub static ALL_BLOCKS: [BlockData; 1477usize] = [
             },
         ],
         state_values: b"\0\x01",
+        server_definition: None,
     },
     BlockData {
         id: 13493u32,
@@ -29125,6 +30051,7 @@ pub static ALL_BLOCKS: [BlockData; 1477usize] = [
             },
         ],
         state_values: b"\0\0\0\x01\0\x02\0\x03\x01\0\x01\x01\x01\x02\x01\x03",
+        server_definition: None,
     },
     BlockData {
         id: 13501u32,
@@ -29156,6 +30083,7 @@ pub static ALL_BLOCKS: [BlockData; 1477usize] = [
             },
         ],
         state_values: b"\0\x01",
+        server_definition: None,
     },
     BlockData {
         id: 13503u32,
@@ -29182,6 +30110,7 @@ pub static ALL_BLOCKS: [BlockData; 1477usize] = [
         visual_shape: [0f32, 0f32, 0f32, 1f32, 1f32, 1f32],
         properties: &[],
         state_values: b"",
+        server_definition: None,
     },
     BlockData {
         id: 13504u32,
@@ -29208,6 +30137,7 @@ pub static ALL_BLOCKS: [BlockData; 1477usize] = [
         visual_shape: [0f32, 0f32, 0f32, 1f32, 1f32, 1f32],
         properties: &[],
         state_values: b"",
+        server_definition: None,
     },
     BlockData {
         id: 13505u32,
@@ -29234,6 +30164,7 @@ pub static ALL_BLOCKS: [BlockData; 1477usize] = [
         visual_shape: [0f32, 0f32, 0f32, 1f32, 1f32, 1f32],
         properties: &[],
         state_values: b"",
+        server_definition: None,
     },
     BlockData {
         id: 13506u32,
@@ -29297,6 +30228,7 @@ pub static ALL_BLOCKS: [BlockData; 1477usize] = [
             },
         ],
         state_values: b"\0\0\0\0\0\0\0\0\0\x01\0\x01\0\0\0\0\x01\0\0\x01\0\x02\0\0\0\0\x02\0\0\x01\x01\0\0\0\0\x01\0\0\0\x01\x01\x01\0\0\0\x01\x01\0\0\x01\x01\x02\0\0\0\x01\x02\0\0\x01\x02\0\0\0\0\x02\0\0\0\x01\x02\x01\0\0\0\x02\x01\0\0\x01\x02\x02\0\0\0\x02\x02\0\0\x01\0\0\x01\0\0\0\0\x01\0\x01\0\x01\x01\0\0\0\x01\x01\0\x01\0\x02\x01\0\0\0\x02\x01\0\x01\x01\0\x01\0\0\x01\0\x01\0\x01\x01\x01\x01\0\0\x01\x01\x01\0\x01\x01\x02\x01\0\0\x01\x02\x01\0\x01\x02\0\x01\0\0\x02\0\x01\0\x01\x02\x01\x01\0\0\x02\x01\x01\0\x01\x02\x02\x01\0\0\x02\x02\x01\0\x01\0\0\x02\0\0\0\0\x02\0\x01\0\x01\x02\0\0\0\x01\x02\0\x01\0\x02\x02\0\0\0\x02\x02\0\x01\x01\0\x02\0\0\x01\0\x02\0\x01\x01\x01\x02\0\0\x01\x01\x02\0\x01\x01\x02\x02\0\0\x01\x02\x02\0\x01\x02\0\x02\0\0\x02\0\x02\0\x01\x02\x01\x02\0\0\x02\x01\x02\0\x01\x02\x02\x02\0\0\x02\x02\x02\0\x01\0\0\0\x01\0\0\0\0\x01\x01\0\x01\0\x01\0\0\x01\0\x01\x01\0\x02\0\x01\0\0\x02\0\x01\x01\x01\0\0\x01\0\x01\0\0\x01\x01\x01\x01\0\x01\0\x01\x01\0\x01\x01\x01\x02\0\x01\0\x01\x02\0\x01\x01\x02\0\0\x01\0\x02\0\0\x01\x01\x02\x01\0\x01\0\x02\x01\0\x01\x01\x02\x02\0\x01\0\x02\x02\0\x01\x01\0\0\x01\x01\0\0\0\x01\x01\x01\0\x01\x01\x01\0\0\x01\x01\x01\x01\0\x02\x01\x01\0\0\x02\x01\x01\x01\x01\0\x01\x01\0\x01\0\x01\x01\x01\x01\x01\x01\x01\0\x01\x01\x01\x01\x01\x01\x02\x01\x01\0\x01\x02\x01\x01\x01\x02\0\x01\x01\0\x02\0\x01\x01\x01\x02\x01\x01\x01\0\x02\x01\x01\x01\x01\x02\x02\x01\x01\0\x02\x02\x01\x01\x01\0\0\x02\x01\0\0\0\x02\x01\x01\0\x01\x02\x01\0\0\x01\x02\x01\x01\0\x02\x02\x01\0\0\x02\x02\x01\x01\x01\0\x02\x01\0\x01\0\x02\x01\x01\x01\x01\x02\x01\0\x01\x01\x02\x01\x01\x01\x02\x02\x01\0\x01\x02\x02\x01\x01\x02\0\x02\x01\0\x02\0\x02\x01\x01\x02\x01\x02\x01\0\x02\x01\x02\x01\x01\x02\x02\x02\x01\0\x02\x02\x02\x01\x01\0\0\0\x02\0\0\0\0\x02\x01\0\x01\0\x02\0\0\x01\0\x02\x01\0\x02\0\x02\0\0\x02\0\x02\x01\x01\0\0\x02\0\x01\0\0\x02\x01\x01\x01\0\x02\0\x01\x01\0\x02\x01\x01\x02\0\x02\0\x01\x02\0\x02\x01\x02\0\0\x02\0\x02\0\0\x02\x01\x02\x01\0\x02\0\x02\x01\0\x02\x01\x02\x02\0\x02\0\x02\x02\0\x02\x01\0\0\x01\x02\0\0\0\x01\x02\x01\0\x01\x01\x02\0\0\x01\x01\x02\x01\0\x02\x01\x02\0\0\x02\x01\x02\x01\x01\0\x01\x02\0\x01\0\x01\x02\x01\x01\x01\x01\x02\0\x01\x01\x01\x02\x01\x01\x02\x01\x02\0\x01\x02\x01\x02\x01\x02\0\x01\x02\0\x02\0\x01\x02\x01\x02\x01\x01\x02\0\x02\x01\x01\x02\x01\x02\x02\x01\x02\0\x02\x02\x01\x02\x01\0\0\x02\x02\0\0\0\x02\x02\x01\0\x01\x02\x02\0\0\x01\x02\x02\x01\0\x02\x02\x02\0\0\x02\x02\x02\x01\x01\0\x02\x02\0\x01\0\x02\x02\x01\x01\x01\x02\x02\0\x01\x01\x02\x02\x01\x01\x02\x02\x02\0\x01\x02\x02\x02\x01\x02\0\x02\x02\0\x02\0\x02\x02\x01\x02\x01\x02\x02\0\x02\x01\x02\x02\x01\x02\x02\x02\x02\0\x02\x02\x02\x02\x01",
+        server_definition: None,
     },
     BlockData {
         id: 13668u32,
@@ -29364,6 +30296,7 @@ pub static ALL_BLOCKS: [BlockData; 1477usize] = [
             },
         ],
         state_values: b"\0\0\0\0\0\x01\0\0\0\x02\0\0\0\x03\0\0\0\x04\0\0\0\x05\0\0\0\0\x01\0\0\x01\x01\0\0\x02\x01\0\0\x03\x01\0\0\x04\x01\0\0\x05\x01\0\0\0\x02\0\0\x01\x02\0\0\x02\x02\0\0\x03\x02\0\0\x04\x02\0\0\x05\x02\0\0\0\x03\0\0\x01\x03\0\0\x02\x03\0\0\x03\x03\0\0\x04\x03\0\0\x05\x03\0\0\0\x04\0\0\x01\x04\0\0\x02\x04\0\0\x03\x04\0\0\x04\x04\0\0\x05\x04\0\0\0\x05\0\0\x01\x05\0\0\x02\x05\0\0\x03\x05\0\0\x04\x05\0\0\x05\x05\0\0\0\x06\0\0\x01\x06\0\0\x02\x06\0\0\x03\x06\0\0\x04\x06\0\0\x05\x06\0\0\0\x07\0\0\x01\x07\0\0\x02\x07\0\0\x03\x07\0\0\x04\x07\0\0\x05\x07\0\0\0\x08\0\0\x01\x08\0\0\x02\x08\0\0\x03\x08\0\0\x04\x08\0\0\x05\x08\0\0\0\t\0\0\x01\t\0\0\x02\t\0\0\x03\t\0\0\x04\t\0\0\x05\t\0\0\0\n\0\0\x01\n\0\0\x02\n\0\0\x03\n\0\0\x04\n\0\0\x05\n\0\0\0\x0B\0\0\x01\x0B\0\0\x02\x0B\0\0\x03\x0B\0\0\x04\x0B\0\0\x05\x0B\0\0\0\x0C\0\0\x01\x0C\0\0\x02\x0C\0\0\x03\x0C\0\0\x04\x0C\0\0\x05\x0C\0\0\0\r\0\0\x01\r\0\0\x02\r\0\0\x03\r\0\0\x04\r\0\0\x05\r\0\0\0\x0E\0\0\x01\x0E\0\0\x02\x0E\0\0\x03\x0E\0\0\x04\x0E\0\0\x05\x0E\0\0\0\x0F\0\0\x01\x0F\0\0\x02\x0F\0\0\x03\x0F\0\0\x04\x0F\0\0\x05\x0F\0\0\0\0\x01\0\x01\0\x01\0\x02\0\x01\0\x03\0\x01\0\x04\0\x01\0\x05\0\x01\0\0\x01\x01\0\x01\x01\x01\0\x02\x01\x01\0\x03\x01\x01\0\x04\x01\x01\0\x05\x01\x01\0\0\x02\x01\0\x01\x02\x01\0\x02\x02\x01\0\x03\x02\x01\0\x04\x02\x01\0\x05\x02\x01\0\0\x03\x01\0\x01\x03\x01\0\x02\x03\x01\0\x03\x03\x01\0\x04\x03\x01\0\x05\x03\x01\0\0\x04\x01\0\x01\x04\x01\0\x02\x04\x01\0\x03\x04\x01\0\x04\x04\x01\0\x05\x04\x01\0\0\x05\x01\0\x01\x05\x01\0\x02\x05\x01\0\x03\x05\x01\0\x04\x05\x01\0\x05\x05\x01\0\0\x06\x01\0\x01\x06\x01\0\x02\x06\x01\0\x03\x06\x01\0\x04\x06\x01\0\x05\x06\x01\0\0\x07\x01\0\x01\x07\x01\0\x02\x07\x01\0\x03\x07\x01\0\x04\x07\x01\0\x05\x07\x01\0\0\x08\x01\0\x01\x08\x01\0\x02\x08\x01\0\x03\x08\x01\0\x04\x08\x01\0\x05\x08\x01\0\0\t\x01\0\x01\t\x01\0\x02\t\x01\0\x03\t\x01\0\x04\t\x01\0\x05\t\x01\0\0\n\x01\0\x01\n\x01\0\x02\n\x01\0\x03\n\x01\0\x04\n\x01\0\x05\n\x01\0\0\x0B\x01\0\x01\x0B\x01\0\x02\x0B\x01\0\x03\x0B\x01\0\x04\x0B\x01\0\x05\x0B\x01\0\0\x0C\x01\0\x01\x0C\x01\0\x02\x0C\x01\0\x03\x0C\x01\0\x04\x0C\x01\0\x05\x0C\x01\0\0\r\x01\0\x01\r\x01\0\x02\r\x01\0\x03\r\x01\0\x04\r\x01\0\x05\r\x01\0\0\x0E\x01\0\x01\x0E\x01\0\x02\x0E\x01\0\x03\x0E\x01\0\x04\x0E\x01\0\x05\x0E\x01\0\0\x0F\x01\0\x01\x0F\x01\0\x02\x0F\x01\0\x03\x0F\x01\0\x04\x0F\x01\0\x05\x0F\x01\x01\0\0\0\x01\x01\0\0\x01\x02\0\0\x01\x03\0\0\x01\x04\0\0\x01\x05\0\0\x01\0\x01\0\x01\x01\x01\0\x01\x02\x01\0\x01\x03\x01\0\x01\x04\x01\0\x01\x05\x01\0\x01\0\x02\0\x01\x01\x02\0\x01\x02\x02\0\x01\x03\x02\0\x01\x04\x02\0\x01\x05\x02\0\x01\0\x03\0\x01\x01\x03\0\x01\x02\x03\0\x01\x03\x03\0\x01\x04\x03\0\x01\x05\x03\0\x01\0\x04\0\x01\x01\x04\0\x01\x02\x04\0\x01\x03\x04\0\x01\x04\x04\0\x01\x05\x04\0\x01\0\x05\0\x01\x01\x05\0\x01\x02\x05\0\x01\x03\x05\0\x01\x04\x05\0\x01\x05\x05\0\x01\0\x06\0\x01\x01\x06\0\x01\x02\x06\0\x01\x03\x06\0\x01\x04\x06\0\x01\x05\x06\0\x01\0\x07\0\x01\x01\x07\0\x01\x02\x07\0\x01\x03\x07\0\x01\x04\x07\0\x01\x05\x07\0\x01\0\x08\0\x01\x01\x08\0\x01\x02\x08\0\x01\x03\x08\0\x01\x04\x08\0\x01\x05\x08\0\x01\0\t\0\x01\x01\t\0\x01\x02\t\0\x01\x03\t\0\x01\x04\t\0\x01\x05\t\0\x01\0\n\0\x01\x01\n\0\x01\x02\n\0\x01\x03\n\0\x01\x04\n\0\x01\x05\n\0\x01\0\x0B\0\x01\x01\x0B\0\x01\x02\x0B\0\x01\x03\x0B\0\x01\x04\x0B\0\x01\x05\x0B\0\x01\0\x0C\0\x01\x01\x0C\0\x01\x02\x0C\0\x01\x03\x0C\0\x01\x04\x0C\0\x01\x05\x0C\0\x01\0\r\0\x01\x01\r\0\x01\x02\r\0\x01\x03\r\0\x01\x04\r\0\x01\x05\r\0\x01\0\x0E\0\x01\x01\x0E\0\x01\x02\x0E\0\x01\x03\x0E\0\x01\x04\x0E\0\x01\x05\x0E\0\x01\0\x0F\0\x01\x01\x0F\0\x01\x02\x0F\0\x01\x03\x0F\0\x01\x04\x0F\0\x01\x05\x0F\0\x01\0\0\x01\x01\x01\0\x01\x01\x02\0\x01\x01\x03\0\x01\x01\x04\0\x01\x01\x05\0\x01\x01\0\x01\x01\x01\x01\x01\x01\x01\x02\x01\x01\x01\x03\x01\x01\x01\x04\x01\x01\x01\x05\x01\x01\x01\0\x02\x01\x01\x01\x02\x01\x01\x02\x02\x01\x01\x03\x02\x01\x01\x04\x02\x01\x01\x05\x02\x01\x01\0\x03\x01\x01\x01\x03\x01\x01\x02\x03\x01\x01\x03\x03\x01\x01\x04\x03\x01\x01\x05\x03\x01\x01\0\x04\x01\x01\x01\x04\x01\x01\x02\x04\x01\x01\x03\x04\x01\x01\x04\x04\x01\x01\x05\x04\x01\x01\0\x05\x01\x01\x01\x05\x01\x01\x02\x05\x01\x01\x03\x05\x01\x01\x04\x05\x01\x01\x05\x05\x01\x01\0\x06\x01\x01\x01\x06\x01\x01\x02\x06\x01\x01\x03\x06\x01\x01\x04\x06\x01\x01\x05\x06\x01\x01\0\x07\x01\x01\x01\x07\x01\x01\x02\x07\x01\x01\x03\x07\x01\x01\x04\x07\x01\x01\x05\x07\x01\x01\0\x08\x01\x01\x01\x08\x01\x01\x02\x08\x01\x01\x03\x08\x01\x01\x04\x08\x01\x01\x05\x08\x01\x01\0\t\x01\x01\x01\t\x01\x01\x02\t\x01\x01\x03\t\x01\x01\x04\t\x01\x01\x05\t\x01\x01\0\n\x01\x01\x01\n\x01\x01\x02\n\x01\x01\x03\n\x01\x01\x04\n\x01\x01\x05\n\x01\x01\0\x0B\x01\x01\x01\x0B\x01\x01\x02\x0B\x01\x01\x03\x0B\x01\x01\x04\x0B\x01\x01\x05\x0B\x01\x01\0\x0C\x01\x01\x01\x0C\x01\x01\x02\x0C\x01\x01\x03\x0C\x01\x01\x04\x0C\x01\x01\x05\x0C\x01\x01\0\r\x01\x01\x01\r\x01\x01\x02\r\x01\x01\x03\r\x01\x01\x04\r\x01\x01\x05\r\x01\x01\0\x0E\x01\x01\x01\x0E\x01\x01\x02\x0E\x01\x01\x03\x0E\x01\x01\x04\x0E\x01\x01\x05\x0E\x01\x01\0\x0F\x01\x01\x01\x0F\x01\x01\x02\x0F\x01\x01\x03\x0F\x01\x01\x04\x0F\x01\x01\x05\x0F\x01",
+        server_definition: None,
     },
     BlockData {
         id: 14052u32,
@@ -29390,6 +30323,7 @@ pub static ALL_BLOCKS: [BlockData; 1477usize] = [
         visual_shape: [0f32, 0f32, 0f32, 1f32, 1f32, 1f32],
         properties: &[],
         state_values: b"",
+        server_definition: None,
     },
     BlockData {
         id: 14053u32,
@@ -29416,6 +30350,7 @@ pub static ALL_BLOCKS: [BlockData; 1477usize] = [
         visual_shape: [0f32, 0f32, 0f32, 1f32, 1f32, 1f32],
         properties: &[],
         state_values: b"",
+        server_definition: None,
     },
     BlockData {
         id: 14054u32,
@@ -29442,6 +30377,7 @@ pub static ALL_BLOCKS: [BlockData; 1477usize] = [
         visual_shape: [0f32, 0f32, 0f32, 1f32, 1f32, 1f32],
         properties: &[],
         state_values: b"",
+        server_definition: None,
     },
     BlockData {
         id: 14055u32,
@@ -29477,6 +30413,7 @@ pub static ALL_BLOCKS: [BlockData; 1477usize] = [
             },
         ],
         state_values: b"\0\0\0\x01\x01\0\x01\x01",
+        server_definition: None,
     },
     BlockData {
         id: 14059u32,
@@ -29515,6 +30452,7 @@ pub static ALL_BLOCKS: [BlockData; 1477usize] = [
             },
         ],
         state_values: b"\0\x01\x02\x03\x04\x05",
+        server_definition: None,
     },
     BlockData {
         id: 14065u32,
@@ -29553,6 +30491,7 @@ pub static ALL_BLOCKS: [BlockData; 1477usize] = [
             },
         ],
         state_values: b"\0\x01\x02\x03\x04\x05",
+        server_definition: None,
     },
     BlockData {
         id: 14071u32,
@@ -29608,6 +30547,7 @@ pub static ALL_BLOCKS: [BlockData; 1477usize] = [
             },
         ],
         state_values: b"\0\0\0\0\0\x01\0\0\x02\0\0\x03\0\x01\0\0\x01\x01\0\x01\x02\0\x01\x03\x01\0\0\x01\0\x01\x01\0\x02\x01\0\x03\x01\x01\0\x01\x01\x01\x01\x01\x02\x01\x01\x03\x02\0\0\x02\0\x01\x02\0\x02\x02\0\x03\x02\x01\0\x02\x01\x01\x02\x01\x02\x02\x01\x03\x03\0\0\x03\0\x01\x03\0\x02\x03\0\x03\x03\x01\0\x03\x01\x01\x03\x01\x02\x03\x01\x03\x04\0\0\x04\0\x01\x04\0\x02\x04\0\x03\x04\x01\0\x04\x01\x01\x04\x01\x02\x04\x01\x03",
+        server_definition: None,
     },
     BlockData {
         id: 14111u32,
@@ -29647,6 +30587,7 @@ pub static ALL_BLOCKS: [BlockData; 1477usize] = [
             },
         ],
         state_values: b"\0\0\x01\0\0\x01\x01\x01",
+        server_definition: None,
     },
     BlockData {
         id: 14115u32,
@@ -29685,6 +30626,7 @@ pub static ALL_BLOCKS: [BlockData; 1477usize] = [
             },
         ],
         state_values: b"\0\x01\x02\x03\x04\x05",
+        server_definition: None,
     },
     BlockData {
         id: 14121u32,
@@ -29728,6 +30670,7 @@ pub static ALL_BLOCKS: [BlockData; 1477usize] = [
             },
         ],
         state_values: b"\0\0\0\0\0\x01\0\0\x01\0\0\0\x01\x01\0\0\0\0\x01\0\0\x01\x01\0\x01\0\x01\0\x01\x01\x01\0\0\0\0\x01\0\x01\0\x01\x01\0\0\x01\x01\x01\0\x01\0\0\x01\x01\0\x01\x01\x01\x01\0\x01\x01\x01\x01\x01\x01",
+        server_definition: None,
     },
     BlockData {
         id: 14137u32,
@@ -29772,6 +30715,7 @@ pub static ALL_BLOCKS: [BlockData; 1477usize] = [
             },
         ],
         state_values: b"\0\0\0\x01\0\x02\x01\0\x01\x01\x01\x02\x02\0\x02\x01\x02\x02\x03\0\x03\x01\x03\x02",
+        server_definition: None,
     },
     BlockData {
         id: 14149u32,
@@ -29803,6 +30747,7 @@ pub static ALL_BLOCKS: [BlockData; 1477usize] = [
             },
         ],
         state_values: b"\0\x01",
+        server_definition: None,
     },
     BlockData {
         id: 14151u32,
@@ -29852,6 +30797,7 @@ pub static ALL_BLOCKS: [BlockData; 1477usize] = [
             },
         ],
         state_values: b"\0\0\0\x01\0\0\x02\0\0\x03\0\0\0\0\x01\x01\0\x01\x02\0\x01\x03\0\x01\0\x01\0\x01\x01\0\x02\x01\0\x03\x01\0\0\x01\x01\x01\x01\x01\x02\x01\x01\x03\x01\x01",
+        server_definition: None,
     },
     BlockData {
         id: 14167u32,
@@ -29887,6 +30833,7 @@ pub static ALL_BLOCKS: [BlockData; 1477usize] = [
             },
         ],
         state_values: b"\0\x01\x02",
+        server_definition: None,
     },
     BlockData {
         id: 14170u32,
@@ -29913,6 +30860,7 @@ pub static ALL_BLOCKS: [BlockData; 1477usize] = [
         visual_shape: [0f32, 0f32, 0f32, 1f32, 1f32, 1f32],
         properties: &[],
         state_values: b"",
+        server_definition: None,
     },
     BlockData {
         id: 14171u32,
@@ -29944,6 +30892,7 @@ pub static ALL_BLOCKS: [BlockData; 1477usize] = [
             },
         ],
         state_values: b"\0\x01",
+        server_definition: None,
     },
     BlockData {
         id: 14173u32,
@@ -29987,6 +30936,7 @@ pub static ALL_BLOCKS: [BlockData; 1477usize] = [
             },
         ],
         state_values: b"\0\0\0\0\0\x01\0\0\x01\0\0\0\x01\x01\0\0\0\0\x01\0\0\x01\x01\0\x01\0\x01\0\x01\x01\x01\0\0\0\0\x01\0\x01\0\x01\x01\0\0\x01\x01\x01\0\x01\0\0\x01\x01\0\x01\x01\x01\x01\0\x01\x01\x01\x01\x01\x01",
+        server_definition: None,
     },
     BlockData {
         id: 14189u32,
@@ -30013,6 +30963,7 @@ pub static ALL_BLOCKS: [BlockData; 1477usize] = [
         visual_shape: [0f32, 0f32, 0f32, 1f32, 1f32, 1f32],
         properties: &[],
         state_values: b"",
+        server_definition: None,
     },
     BlockData {
         id: 14190u32,
@@ -30053,6 +31004,7 @@ pub static ALL_BLOCKS: [BlockData; 1477usize] = [
             },
         ],
         state_values: b"\0\0\x01\0\x02\0\x03\0\0\x01\x01\x01\x02\x01\x03\x01",
+        server_definition: None,
     },
     BlockData {
         id: 14198u32,
@@ -30101,6 +31053,7 @@ pub static ALL_BLOCKS: [BlockData; 1477usize] = [
             },
         ],
         state_values: b"\0\x01\x02\x03\x04\x05\x06\x07\x08\t\n\x0B\x0C\r\x0E\x0F",
+        server_definition: None,
     },
     BlockData {
         id: 14214u32,
@@ -30150,6 +31103,7 @@ pub static ALL_BLOCKS: [BlockData; 1477usize] = [
             },
         ],
         state_values: b"\0\0\0\0\0\x01\0\0\x02\0\0\x03\0\x01\0\0\x01\x01\0\x01\x02\0\x01\x03\x01\0\0\x01\0\x01\x01\0\x02\x01\0\x03\x01\x01\0\x01\x01\x01\x01\x01\x02\x01\x01\x03\x02\0\0\x02\0\x01\x02\0\x02\x02\0\x03\x02\x01\0\x02\x01\x01\x02\x01\x02\x02\x01\x03\x03\0\0\x03\0\x01\x03\0\x02\x03\0\x03\x03\x01\0\x03\x01\x01\x03\x01\x02\x03\x01\x03",
+        server_definition: None,
     },
     BlockData {
         id: 14246u32,
@@ -30187,6 +31141,7 @@ pub static ALL_BLOCKS: [BlockData; 1477usize] = [
             },
         ],
         state_values: b"\0\x01\x02\x03\x04",
+        server_definition: None,
     },
     BlockData {
         id: 14251u32,
@@ -30213,6 +31168,7 @@ pub static ALL_BLOCKS: [BlockData; 1477usize] = [
         visual_shape: [0f32, 0f32, 0f32, 1f32, 1f32, 1f32],
         properties: &[],
         state_values: b"",
+        server_definition: None,
     },
     BlockData {
         id: 14252u32,
@@ -30280,6 +31236,7 @@ pub static ALL_BLOCKS: [BlockData; 1477usize] = [
             },
         ],
         state_values: b"\0\0\0\0\0\x01\0\0\0\x02\0\0\0\x03\0\0\0\x04\0\0\0\x05\0\0\0\0\x01\0\0\x01\x01\0\0\x02\x01\0\0\x03\x01\0\0\x04\x01\0\0\x05\x01\0\0\0\x02\0\0\x01\x02\0\0\x02\x02\0\0\x03\x02\0\0\x04\x02\0\0\x05\x02\0\0\0\x03\0\0\x01\x03\0\0\x02\x03\0\0\x03\x03\0\0\x04\x03\0\0\x05\x03\0\0\0\x04\0\0\x01\x04\0\0\x02\x04\0\0\x03\x04\0\0\x04\x04\0\0\x05\x04\0\0\0\x05\0\0\x01\x05\0\0\x02\x05\0\0\x03\x05\0\0\x04\x05\0\0\x05\x05\0\0\0\x06\0\0\x01\x06\0\0\x02\x06\0\0\x03\x06\0\0\x04\x06\0\0\x05\x06\0\0\0\x07\0\0\x01\x07\0\0\x02\x07\0\0\x03\x07\0\0\x04\x07\0\0\x05\x07\0\0\0\x08\0\0\x01\x08\0\0\x02\x08\0\0\x03\x08\0\0\x04\x08\0\0\x05\x08\0\0\0\t\0\0\x01\t\0\0\x02\t\0\0\x03\t\0\0\x04\t\0\0\x05\t\0\0\0\n\0\0\x01\n\0\0\x02\n\0\0\x03\n\0\0\x04\n\0\0\x05\n\0\0\0\x0B\0\0\x01\x0B\0\0\x02\x0B\0\0\x03\x0B\0\0\x04\x0B\0\0\x05\x0B\0\0\0\x0C\0\0\x01\x0C\0\0\x02\x0C\0\0\x03\x0C\0\0\x04\x0C\0\0\x05\x0C\0\0\0\r\0\0\x01\r\0\0\x02\r\0\0\x03\r\0\0\x04\r\0\0\x05\r\0\0\0\x0E\0\0\x01\x0E\0\0\x02\x0E\0\0\x03\x0E\0\0\x04\x0E\0\0\x05\x0E\0\0\0\x0F\0\0\x01\x0F\0\0\x02\x0F\0\0\x03\x0F\0\0\x04\x0F\0\0\x05\x0F\0\0\0\0\x01\0\x01\0\x01\0\x02\0\x01\0\x03\0\x01\0\x04\0\x01\0\x05\0\x01\0\0\x01\x01\0\x01\x01\x01\0\x02\x01\x01\0\x03\x01\x01\0\x04\x01\x01\0\x05\x01\x01\0\0\x02\x01\0\x01\x02\x01\0\x02\x02\x01\0\x03\x02\x01\0\x04\x02\x01\0\x05\x02\x01\0\0\x03\x01\0\x01\x03\x01\0\x02\x03\x01\0\x03\x03\x01\0\x04\x03\x01\0\x05\x03\x01\0\0\x04\x01\0\x01\x04\x01\0\x02\x04\x01\0\x03\x04\x01\0\x04\x04\x01\0\x05\x04\x01\0\0\x05\x01\0\x01\x05\x01\0\x02\x05\x01\0\x03\x05\x01\0\x04\x05\x01\0\x05\x05\x01\0\0\x06\x01\0\x01\x06\x01\0\x02\x06\x01\0\x03\x06\x01\0\x04\x06\x01\0\x05\x06\x01\0\0\x07\x01\0\x01\x07\x01\0\x02\x07\x01\0\x03\x07\x01\0\x04\x07\x01\0\x05\x07\x01\0\0\x08\x01\0\x01\x08\x01\0\x02\x08\x01\0\x03\x08\x01\0\x04\x08\x01\0\x05\x08\x01\0\0\t\x01\0\x01\t\x01\0\x02\t\x01\0\x03\t\x01\0\x04\t\x01\0\x05\t\x01\0\0\n\x01\0\x01\n\x01\0\x02\n\x01\0\x03\n\x01\0\x04\n\x01\0\x05\n\x01\0\0\x0B\x01\0\x01\x0B\x01\0\x02\x0B\x01\0\x03\x0B\x01\0\x04\x0B\x01\0\x05\x0B\x01\0\0\x0C\x01\0\x01\x0C\x01\0\x02\x0C\x01\0\x03\x0C\x01\0\x04\x0C\x01\0\x05\x0C\x01\0\0\r\x01\0\x01\r\x01\0\x02\r\x01\0\x03\r\x01\0\x04\r\x01\0\x05\r\x01\0\0\x0E\x01\0\x01\x0E\x01\0\x02\x0E\x01\0\x03\x0E\x01\0\x04\x0E\x01\0\x05\x0E\x01\0\0\x0F\x01\0\x01\x0F\x01\0\x02\x0F\x01\0\x03\x0F\x01\0\x04\x0F\x01\0\x05\x0F\x01\x01\0\0\0\x01\x01\0\0\x01\x02\0\0\x01\x03\0\0\x01\x04\0\0\x01\x05\0\0\x01\0\x01\0\x01\x01\x01\0\x01\x02\x01\0\x01\x03\x01\0\x01\x04\x01\0\x01\x05\x01\0\x01\0\x02\0\x01\x01\x02\0\x01\x02\x02\0\x01\x03\x02\0\x01\x04\x02\0\x01\x05\x02\0\x01\0\x03\0\x01\x01\x03\0\x01\x02\x03\0\x01\x03\x03\0\x01\x04\x03\0\x01\x05\x03\0\x01\0\x04\0\x01\x01\x04\0\x01\x02\x04\0\x01\x03\x04\0\x01\x04\x04\0\x01\x05\x04\0\x01\0\x05\0\x01\x01\x05\0\x01\x02\x05\0\x01\x03\x05\0\x01\x04\x05\0\x01\x05\x05\0\x01\0\x06\0\x01\x01\x06\0\x01\x02\x06\0\x01\x03\x06\0\x01\x04\x06\0\x01\x05\x06\0\x01\0\x07\0\x01\x01\x07\0\x01\x02\x07\0\x01\x03\x07\0\x01\x04\x07\0\x01\x05\x07\0\x01\0\x08\0\x01\x01\x08\0\x01\x02\x08\0\x01\x03\x08\0\x01\x04\x08\0\x01\x05\x08\0\x01\0\t\0\x01\x01\t\0\x01\x02\t\0\x01\x03\t\0\x01\x04\t\0\x01\x05\t\0\x01\0\n\0\x01\x01\n\0\x01\x02\n\0\x01\x03\n\0\x01\x04\n\0\x01\x05\n\0\x01\0\x0B\0\x01\x01\x0B\0\x01\x02\x0B\0\x01\x03\x0B\0\x01\x04\x0B\0\x01\x05\x0B\0\x01\0\x0C\0\x01\x01\x0C\0\x01\x02\x0C\0\x01\x03\x0C\0\x01\x04\x0C\0\x01\x05\x0C\0\x01\0\r\0\x01\x01\r\0\x01\x02\r\0\x01\x03\r\0\x01\x04\r\0\x01\x05\r\0\x01\0\x0E\0\x01\x01\x0E\0\x01\x02\x0E\0\x01\x03\x0E\0\x01\x04\x0E\0\x01\x05\x0E\0\x01\0\x0F\0\x01\x01\x0F\0\x01\x02\x0F\0\x01\x03\x0F\0\x01\x04\x0F\0\x01\x05\x0F\0\x01\0\0\x01\x01\x01\0\x01\x01\x02\0\x01\x01\x03\0\x01\x01\x04\0\x01\x01\x05\0\x01\x01\0\x01\x01\x01\x01\x01\x01\x01\x02\x01\x01\x01\x03\x01\x01\x01\x04\x01\x01\x01\x05\x01\x01\x01\0\x02\x01\x01\x01\x02\x01\x01\x02\x02\x01\x01\x03\x02\x01\x01\x04\x02\x01\x01\x05\x02\x01\x01\0\x03\x01\x01\x01\x03\x01\x01\x02\x03\x01\x01\x03\x03\x01\x01\x04\x03\x01\x01\x05\x03\x01\x01\0\x04\x01\x01\x01\x04\x01\x01\x02\x04\x01\x01\x03\x04\x01\x01\x04\x04\x01\x01\x05\x04\x01\x01\0\x05\x01\x01\x01\x05\x01\x01\x02\x05\x01\x01\x03\x05\x01\x01\x04\x05\x01\x01\x05\x05\x01\x01\0\x06\x01\x01\x01\x06\x01\x01\x02\x06\x01\x01\x03\x06\x01\x01\x04\x06\x01\x01\x05\x06\x01\x01\0\x07\x01\x01\x01\x07\x01\x01\x02\x07\x01\x01\x03\x07\x01\x01\x04\x07\x01\x01\x05\x07\x01\x01\0\x08\x01\x01\x01\x08\x01\x01\x02\x08\x01\x01\x03\x08\x01\x01\x04\x08\x01\x01\x05\x08\x01\x01\0\t\x01\x01\x01\t\x01\x01\x02\t\x01\x01\x03\t\x01\x01\x04\t\x01\x01\x05\t\x01\x01\0\n\x01\x01\x01\n\x01\x01\x02\n\x01\x01\x03\n\x01\x01\x04\n\x01\x01\x05\n\x01\x01\0\x0B\x01\x01\x01\x0B\x01\x01\x02\x0B\x01\x01\x03\x0B\x01\x01\x04\x0B\x01\x01\x05\x0B\x01\x01\0\x0C\x01\x01\x01\x0C\x01\x01\x02\x0C\x01\x01\x03\x0C\x01\x01\x04\x0C\x01\x01\x05\x0C\x01\x01\0\r\x01\x01\x01\r\x01\x01\x02\r\x01\x01\x03\r\x01\x01\x04\r\x01\x01\x05\r\x01\x01\0\x0E\x01\x01\x01\x0E\x01\x01\x02\x0E\x01\x01\x03\x0E\x01\x01\x04\x0E\x01\x01\x05\x0E\x01\x01\0\x0F\x01\x01\x01\x0F\x01\x01\x02\x0F\x01\x01\x03\x0F\x01\x01\x04\x0F\x01\x01\x05\x0F\x01",
+        server_definition: None,
     },
     BlockData {
         id: 14636u32,
@@ -30311,6 +31268,9 @@ pub static ALL_BLOCKS: [BlockData; 1477usize] = [
             },
         ],
         state_values: b"\0\x01",
+        server_definition: Some(
+            b"\n\0\t\tblockTags\x08\x02&minecraft:is_pickaxe_item_destructible\n\ncomponents\n minecraft:destructible_by_mining\x05\x05valueff\xE6?\0\n\x1Fminecraft:redstone_conductivity\x01\x14allowsWireToStepDown\x01\x01\x11redstoneConductor\x01\0\0\n\rmenu_category\x08\x08category\x04none\x08\x05group\0\x01\x15is_hidden_in_commands\x01\0\x03\rmolangVersion\x1A\n\x12vanilla_block_data\n\x0Fblock_archetype\x08\x11double_slab_block\x1Dminecraft:brown_concrete_slab\x01\tis_double\x01\x08\x04type\nslab_block\0\x03\x08block_id\xA4\x17\x08\x08material\x05solid\x01\x1Frequires_correct_tool_for_drops\x01\0\0",
+        ),
     },
     BlockData {
         id: 14638u32,
@@ -30360,6 +31320,7 @@ pub static ALL_BLOCKS: [BlockData; 1477usize] = [
             },
         ],
         state_values: b"\0\0\0\x01\0\0\x02\0\0\x03\0\0\0\0\x01\x01\0\x01\x02\0\x01\x03\0\x01\0\x01\0\x01\x01\0\x02\x01\0\x03\x01\0\0\x01\x01\x01\x01\x01\x02\x01\x01\x03\x01\x01",
+        server_definition: None,
     },
     BlockData {
         id: 14654u32,
@@ -30400,6 +31361,7 @@ pub static ALL_BLOCKS: [BlockData; 1477usize] = [
             },
         ],
         state_values: b"\0\0\x01\0\x02\0\x03\0\0\x01\x01\x01\x02\x01\x03\x01",
+        server_definition: None,
     },
     BlockData {
         id: 14662u32,
@@ -30450,6 +31412,9 @@ pub static ALL_BLOCKS: [BlockData; 1477usize] = [
             },
         ],
         state_values: b"\0\0\0\0\0\x01\0\0\x02\0\0\x03\0\x01\0\0\x01\x01\0\x01\x02\0\x01\x03\x01\0\0\x01\0\x01\x01\0\x02\x01\0\x03\x01\x01\0\x01\x01\x01\x01\x01\x02\x01\x01\x03\x02\0\0\x02\0\x01\x02\0\x02\x02\0\x03\x02\x01\0\x02\x01\x01\x02\x01\x02\x02\x01\x03\x03\0\0\x03\0\x01\x03\0\x02\x03\0\x03\x03\x01\0\x03\x01\x01\x03\x01\x02\x03\x01\x03\x04\0\0\x04\0\x01\x04\0\x02\x04\0\x03\x04\x01\0\x04\x01\x01\x04\x01\x02\x04\x01\x03",
+        server_definition: Some(
+            b"\n\0\t\tblockTags\x08\x02&minecraft:is_pickaxe_item_destructible\n\ncomponents\n minecraft:destructible_by_mining\x05\x05valueff\xE6?\0\n\x1Fminecraft:destruction_particles\x03\x0Eparticle_count`\x08\x07texture\0\x08\x0Btint_method\x04none\0\n\x1Aminecraft:liquid_detection\t\x0EdetectionRules\n\x02\x01\x10canContainLiquid\x01\x08\nliquidType\x05water\x08\x0FonLiquidTouches\x08blocking\x01\x18stopsLiquidFromDirection\0\x01\x13use_liquid_clipping\0\0\0\n\x1Fminecraft:redstone_conductivity\x01\x14allowsWireToStepDown\x01\x01\x11redstoneConductor\0\0\n\x11minecraft:support\x08\x05shape\x05stair\0\0\n\rmenu_category\x08\x08category\x0Cconstruction\x08\x05group\x1Fminecraft:itemGroup.name.stairs\x01\x15is_hidden_in_commands\0\0\x03\rmolangVersion\x1A\n\x12vanilla_block_data\n\x0Fblock_archetype\x08\nbase_block\x17minecraft:blue_concrete\x08\x04type\x0Bstair_block\0\x03\x08block_id\xE0\x16\x08\x08material\x05solid\x01\x1Frequires_correct_tool_for_drops\x01\0\0",
+        ),
     },
     BlockData {
         id: 14702u32,
@@ -30500,6 +31465,7 @@ pub static ALL_BLOCKS: [BlockData; 1477usize] = [
             },
         ],
         state_values: b"\0\0\0\0\0\x01\0\0\x02\0\0\x03\0\x01\0\0\x01\x01\0\x01\x02\0\x01\x03\x01\0\0\x01\0\x01\x01\0\x02\x01\0\x03\x01\x01\0\x01\x01\x01\x01\x01\x02\x01\x01\x03\x02\0\0\x02\0\x01\x02\0\x02\x02\0\x03\x02\x01\0\x02\x01\x01\x02\x01\x02\x02\x01\x03\x03\0\0\x03\0\x01\x03\0\x02\x03\0\x03\x03\x01\0\x03\x01\x01\x03\x01\x02\x03\x01\x03\x04\0\0\x04\0\x01\x04\0\x02\x04\0\x03\x04\x01\0\x04\x01\x01\x04\x01\x02\x04\x01\x03",
+        server_definition: None,
     },
     BlockData {
         id: 14742u32,
@@ -30538,6 +31504,7 @@ pub static ALL_BLOCKS: [BlockData; 1477usize] = [
             },
         ],
         state_values: b"\0\x01\x02\x03\x04\x05",
+        server_definition: None,
     },
     BlockData {
         id: 14748u32,
@@ -30573,6 +31540,7 @@ pub static ALL_BLOCKS: [BlockData; 1477usize] = [
             },
         ],
         state_values: b"\0\x01\x02",
+        server_definition: None,
     },
     BlockData {
         id: 14751u32,
@@ -30599,6 +31567,7 @@ pub static ALL_BLOCKS: [BlockData; 1477usize] = [
         visual_shape: [0f32, 0f32, 0f32, 1f32, 1f32, 1f32],
         properties: &[],
         state_values: b"",
+        server_definition: None,
     },
     BlockData {
         id: 14752u32,
@@ -30630,6 +31599,7 @@ pub static ALL_BLOCKS: [BlockData; 1477usize] = [
             },
         ],
         state_values: b"\0\x01",
+        server_definition: None,
     },
     BlockData {
         id: 14754u32,
@@ -30661,6 +31631,7 @@ pub static ALL_BLOCKS: [BlockData; 1477usize] = [
             },
         ],
         state_values: b"\0\x01",
+        server_definition: None,
     },
     BlockData {
         id: 14756u32,
@@ -30696,6 +31667,7 @@ pub static ALL_BLOCKS: [BlockData; 1477usize] = [
             },
         ],
         state_values: b"\0\x01\x02",
+        server_definition: None,
     },
     BlockData {
         id: 14759u32,
@@ -30746,6 +31718,9 @@ pub static ALL_BLOCKS: [BlockData; 1477usize] = [
             },
         ],
         state_values: b"\0\0\0\0\0\x01\0\0\x02\0\0\x03\0\x01\0\0\x01\x01\0\x01\x02\0\x01\x03\x01\0\0\x01\0\x01\x01\0\x02\x01\0\x03\x01\x01\0\x01\x01\x01\x01\x01\x02\x01\x01\x03\x02\0\0\x02\0\x01\x02\0\x02\x02\0\x03\x02\x01\0\x02\x01\x01\x02\x01\x02\x02\x01\x03\x03\0\0\x03\0\x01\x03\0\x02\x03\0\x03\x03\x01\0\x03\x01\x01\x03\x01\x02\x03\x01\x03\x04\0\0\x04\0\x01\x04\0\x02\x04\0\x03\x04\x01\0\x04\x01\x01\x04\x01\x02\x04\x01\x03",
+        server_definition: Some(
+            b"\n\0\t\tblockTags\x08\x02%minecraft:is_shears_item_destructible\n\ncomponents\n minecraft:destructible_by_mining\x05\x05value\xCD\xCCL?\0\n\x1Fminecraft:destruction_particles\x03\x0Eparticle_count`\x08\x07texture\0\x08\x0Btint_method\x04none\0\n\x1Aminecraft:liquid_detection\t\x0EdetectionRules\n\x02\x01\x10canContainLiquid\x01\x08\nliquidType\x05water\x08\x0FonLiquidTouches\x08blocking\x01\x18stopsLiquidFromDirection\0\x01\x13use_liquid_clipping\0\0\0\n\x1Fminecraft:redstone_conductivity\x01\x14allowsWireToStepDown\x01\x01\x11redstoneConductor\0\0\n\x11minecraft:support\x08\x05shape\x05stair\0\0\n\rmenu_category\x08\x08category\x0Cconstruction\x08\x05group\x1Fminecraft:itemGroup.name.stairs\x01\x15is_hidden_in_commands\0\0\x03\rmolangVersion\x1A\n\x12vanilla_block_data\n\x0Fblock_archetype\x08\nbase_block\x13minecraft:cyan_wool\x08\x04type\x0Bstair_block\0\x03\x08block_id\x8E\x16\x01\x15can_dampen_vibrations\x01\x01\x16can_occlude_vibrations\x01\x08\x08material\x05solid\x05\x0Ctranslucency\xCD\xCCL?\0\0",
+        ),
     },
     BlockData {
         id: 14799u32,
@@ -30772,6 +31747,7 @@ pub static ALL_BLOCKS: [BlockData; 1477usize] = [
         visual_shape: [0f32, 0f32, 0f32, 1f32, 1f32, 1f32],
         properties: &[],
         state_values: b"",
+        server_definition: None,
     },
     BlockData {
         id: 14800u32,
@@ -30820,6 +31796,7 @@ pub static ALL_BLOCKS: [BlockData; 1477usize] = [
             },
         ],
         state_values: b"\0\x01\x02\x03\x04\x05\x06\x07\x08\t\n\x0B\x0C\r\x0E\x0F",
+        server_definition: None,
     },
     BlockData {
         id: 14816u32,
@@ -30846,6 +31823,7 @@ pub static ALL_BLOCKS: [BlockData; 1477usize] = [
         visual_shape: [0f32, 0f32, 0f32, 1f32, 1f32, 1f32],
         properties: &[],
         state_values: b"",
+        server_definition: None,
     },
     BlockData {
         id: 14817u32,
@@ -30872,6 +31850,7 @@ pub static ALL_BLOCKS: [BlockData; 1477usize] = [
         visual_shape: [0f32, 0f32, 0f32, 1f32, 1f32, 1f32],
         properties: &[],
         state_values: b"",
+        server_definition: None,
     },
     BlockData {
         id: 14818u32,
@@ -30912,6 +31891,7 @@ pub static ALL_BLOCKS: [BlockData; 1477usize] = [
             },
         ],
         state_values: b"\0\x01\x02\x03\x04\x05\x06\x07",
+        server_definition: None,
     },
     BlockData {
         id: 14826u32,
@@ -30962,6 +31942,7 @@ pub static ALL_BLOCKS: [BlockData; 1477usize] = [
             },
         ],
         state_values: b"\0\0\0\0\0\x01\0\0\x02\0\0\x03\0\x01\0\0\x01\x01\0\x01\x02\0\x01\x03\x01\0\0\x01\0\x01\x01\0\x02\x01\0\x03\x01\x01\0\x01\x01\x01\x01\x01\x02\x01\x01\x03\x02\0\0\x02\0\x01\x02\0\x02\x02\0\x03\x02\x01\0\x02\x01\x01\x02\x01\x02\x02\x01\x03\x03\0\0\x03\0\x01\x03\0\x02\x03\0\x03\x03\x01\0\x03\x01\x01\x03\x01\x02\x03\x01\x03\x04\0\0\x04\0\x01\x04\0\x02\x04\0\x03\x04\x01\0\x04\x01\x01\x04\x01\x02\x04\x01\x03",
+        server_definition: None,
     },
     BlockData {
         id: 14866u32,
@@ -30988,6 +31969,7 @@ pub static ALL_BLOCKS: [BlockData; 1477usize] = [
         visual_shape: [0f32, 0f32, 0f32, 1f32, 0.0625f32, 1f32],
         properties: &[],
         state_values: b"",
+        server_definition: None,
     },
     BlockData {
         id: 14867u32,
@@ -31014,6 +31996,7 @@ pub static ALL_BLOCKS: [BlockData; 1477usize] = [
         visual_shape: [0f32, 0f32, 0f32, 1f32, 1f32, 1f32],
         properties: &[],
         state_values: b"",
+        server_definition: None,
     },
     BlockData {
         id: 14868u32,
@@ -31040,6 +32023,7 @@ pub static ALL_BLOCKS: [BlockData; 1477usize] = [
         visual_shape: [0f32, 0f32, 0f32, 1f32, 1f32, 1f32],
         properties: &[],
         state_values: b"",
+        server_definition: None,
     },
     BlockData {
         id: 14869u32,
@@ -31088,6 +32072,7 @@ pub static ALL_BLOCKS: [BlockData; 1477usize] = [
             },
         ],
         state_values: b"\0\0\0\0\0\x01\0\0\0\x02\0\0\0\x03\0\0\0\0\x01\0\0\x01\x01\0\0\x02\x01\0\0\x03\x01\0\0\0\0\x01\0\x01\0\x01\0\x02\0\x01\0\x03\0\x01\0\0\x01\x01\0\x01\x01\x01\0\x02\x01\x01\0\x03\x01\x01\x01\0\0\0\x01\x01\0\0\x01\x02\0\0\x01\x03\0\0\x01\0\x01\0\x01\x01\x01\0\x01\x02\x01\0\x01\x03\x01\0\x01\0\0\x01\x01\x01\0\x01\x01\x02\0\x01\x01\x03\0\x01\x01\0\x01\x01\x01\x01\x01\x01\x01\x02\x01\x01\x01\x03\x01\x01",
+        server_definition: None,
     },
     BlockData {
         id: 14901u32,
@@ -31138,6 +32123,9 @@ pub static ALL_BLOCKS: [BlockData; 1477usize] = [
             },
         ],
         state_values: b"\0\0\0\0\0\x01\0\0\x02\0\0\x03\0\x01\0\0\x01\x01\0\x01\x02\0\x01\x03\x01\0\0\x01\0\x01\x01\0\x02\x01\0\x03\x01\x01\0\x01\x01\x01\x01\x01\x02\x01\x01\x03\x02\0\0\x02\0\x01\x02\0\x02\x02\0\x03\x02\x01\0\x02\x01\x01\x02\x01\x02\x02\x01\x03\x03\0\0\x03\0\x01\x03\0\x02\x03\0\x03\x03\x01\0\x03\x01\x01\x03\x01\x02\x03\x01\x03\x04\0\0\x04\0\x01\x04\0\x02\x04\0\x03\x04\x01\0\x04\x01\x01\x04\x01\x02\x04\x01\x03",
+        server_definition: Some(
+            b"\n\0\t\tblockTags\x08\x02%minecraft:is_shears_item_destructible\n\ncomponents\n minecraft:destructible_by_mining\x05\x05value\xCD\xCCL?\0\n\x1Fminecraft:destruction_particles\x03\x0Eparticle_count`\x08\x07texture\0\x08\x0Btint_method\x04none\0\n\x1Aminecraft:liquid_detection\t\x0EdetectionRules\n\x02\x01\x10canContainLiquid\x01\x08\nliquidType\x05water\x08\x0FonLiquidTouches\x08blocking\x01\x18stopsLiquidFromDirection\0\x01\x13use_liquid_clipping\0\0\0\n\x1Fminecraft:redstone_conductivity\x01\x14allowsWireToStepDown\x01\x01\x11redstoneConductor\0\0\n\x11minecraft:support\x08\x05shape\x05stair\0\0\n\rmenu_category\x08\x08category\x0Cconstruction\x08\x05group\x1Fminecraft:itemGroup.name.stairs\x01\x15is_hidden_in_commands\0\0\x03\rmolangVersion\x1A\n\x12vanilla_block_data\n\x0Fblock_archetype\x08\nbase_block\x15minecraft:purple_wool\x08\x04type\x0Bstair_block\0\x03\x08block_id\x90\x16\x01\x15can_dampen_vibrations\x01\x01\x16can_occlude_vibrations\x01\x08\x08material\x05solid\x05\x0Ctranslucency\xCD\xCCL?\0\0",
+        ),
     },
     BlockData {
         id: 14941u32,
@@ -31164,6 +32152,7 @@ pub static ALL_BLOCKS: [BlockData; 1477usize] = [
         visual_shape: [0.099999994f32, 0f32, 0.099999994f32, 0.9f32, 0.8f32, 0.9f32],
         properties: &[],
         state_values: b"",
+        server_definition: None,
     },
     BlockData {
         id: 14942u32,
@@ -31195,6 +32184,7 @@ pub static ALL_BLOCKS: [BlockData; 1477usize] = [
             },
         ],
         state_values: b"\0\x01",
+        server_definition: None,
     },
     BlockData {
         id: 14944u32,
@@ -31226,6 +32216,7 @@ pub static ALL_BLOCKS: [BlockData; 1477usize] = [
         visual_shape: [0f32, 0f32, 0f32, 1f32, 1f32, 1f32],
         properties: &[],
         state_values: b"",
+        server_definition: None,
     },
     BlockData {
         id: 14945u32,
@@ -31270,6 +32261,7 @@ pub static ALL_BLOCKS: [BlockData; 1477usize] = [
             },
         ],
         state_values: b"\0\0\0\0\x01\0\0\x02\0\0\x03\0\x01\0\0\x01\x01\0\x01\x02\0\x01\x03\0\0\0\x01\0\x01\x01\0\x02\x01\0\x03\x01\x01\0\x01\x01\x01\x01\x01\x02\x01\x01\x03\x01",
+        server_definition: None,
     },
     BlockData {
         id: 14961u32,
@@ -31328,6 +32320,7 @@ pub static ALL_BLOCKS: [BlockData; 1477usize] = [
             },
         ],
         state_values: b"\0\x01\x02\x03\x04\x05\x06\x07\x08\t\n\x0B\x0C\r\x0E\x0F\x10\x11\x12\x13\x14\x15\x16\x17\x18\x19",
+        server_definition: None,
     },
     BlockData {
         id: 14987u32,
@@ -31376,6 +32369,7 @@ pub static ALL_BLOCKS: [BlockData; 1477usize] = [
             },
         ],
         state_values: b"\0\x01\x02\x03\x04\x05\x06\x07\x08\t\n\x0B\x0C\r\x0E\x0F",
+        server_definition: None,
     },
     BlockData {
         id: 15003u32,
@@ -31424,6 +32418,7 @@ pub static ALL_BLOCKS: [BlockData; 1477usize] = [
             },
         ],
         state_values: b"\0\0\0\0\0\x01\0\0\0\x02\0\0\0\x03\0\0\0\0\x01\0\0\x01\x01\0\0\x02\x01\0\0\x03\x01\0\0\0\0\x01\0\x01\0\x01\0\x02\0\x01\0\x03\0\x01\0\0\x01\x01\0\x01\x01\x01\0\x02\x01\x01\0\x03\x01\x01\x01\0\0\0\x01\x01\0\0\x01\x02\0\0\x01\x03\0\0\x01\0\x01\0\x01\x01\x01\0\x01\x02\x01\0\x01\x03\x01\0\x01\0\0\x01\x01\x01\0\x01\x01\x02\0\x01\x01\x03\0\x01\x01\0\x01\x01\x01\x01\x01\x01\x01\x02\x01\x01\x01\x03\x01\x01",
+        server_definition: None,
     },
     BlockData {
         id: 15035u32,
@@ -31450,6 +32445,7 @@ pub static ALL_BLOCKS: [BlockData; 1477usize] = [
         visual_shape: [0f32, 0f32, 0f32, 1f32, 1f32, 1f32],
         properties: &[],
         state_values: b"",
+        server_definition: None,
     },
     BlockData {
         id: 15036u32,
@@ -31485,6 +32481,7 @@ pub static ALL_BLOCKS: [BlockData; 1477usize] = [
             },
         ],
         state_values: b"\0\x01\x02",
+        server_definition: None,
     },
     BlockData {
         id: 15039u32,
@@ -31511,6 +32508,7 @@ pub static ALL_BLOCKS: [BlockData; 1477usize] = [
         visual_shape: [0f32, 0f32, 0f32, 1f32, 1f32, 1f32],
         properties: &[],
         state_values: b"",
+        server_definition: None,
     },
     BlockData {
         id: 15040u32,
@@ -31560,6 +32558,7 @@ pub static ALL_BLOCKS: [BlockData; 1477usize] = [
             },
         ],
         state_values: b"\0\0\0\0\x01\0\0\x02\0\0\x03\0\x01\0\0\x01\x01\0\x01\x02\0\x01\x03\0\0\0\x01\0\x01\x01\0\x02\x01\0\x03\x01\x01\0\x01\x01\x01\x01\x01\x02\x01\x01\x03\x01\0\0\x02\0\x01\x02\0\x02\x02\0\x03\x02\x01\0\x02\x01\x01\x02\x01\x02\x02\x01\x03\x02\0\0\x03\0\x01\x03\0\x02\x03\0\x03\x03\x01\0\x03\x01\x01\x03\x01\x02\x03\x01\x03\x03",
+        server_definition: None,
     },
     BlockData {
         id: 15072u32,
@@ -31586,6 +32585,7 @@ pub static ALL_BLOCKS: [BlockData; 1477usize] = [
         visual_shape: [0f32, 0f32, 0f32, 1f32, 1f32, 1f32],
         properties: &[],
         state_values: b"",
+        server_definition: None,
     },
     BlockData {
         id: 15073u32,
@@ -31653,6 +32653,7 @@ pub static ALL_BLOCKS: [BlockData; 1477usize] = [
             },
         ],
         state_values: b"\0\0\0\0\0\x01\0\0\0\x02\0\0\0\x03\0\0\0\x04\0\0\0\x05\0\0\0\0\x01\0\0\x01\x01\0\0\x02\x01\0\0\x03\x01\0\0\x04\x01\0\0\x05\x01\0\0\0\x02\0\0\x01\x02\0\0\x02\x02\0\0\x03\x02\0\0\x04\x02\0\0\x05\x02\0\0\0\x03\0\0\x01\x03\0\0\x02\x03\0\0\x03\x03\0\0\x04\x03\0\0\x05\x03\0\0\0\x04\0\0\x01\x04\0\0\x02\x04\0\0\x03\x04\0\0\x04\x04\0\0\x05\x04\0\0\0\x05\0\0\x01\x05\0\0\x02\x05\0\0\x03\x05\0\0\x04\x05\0\0\x05\x05\0\0\0\x06\0\0\x01\x06\0\0\x02\x06\0\0\x03\x06\0\0\x04\x06\0\0\x05\x06\0\0\0\x07\0\0\x01\x07\0\0\x02\x07\0\0\x03\x07\0\0\x04\x07\0\0\x05\x07\0\0\0\x08\0\0\x01\x08\0\0\x02\x08\0\0\x03\x08\0\0\x04\x08\0\0\x05\x08\0\0\0\t\0\0\x01\t\0\0\x02\t\0\0\x03\t\0\0\x04\t\0\0\x05\t\0\0\0\n\0\0\x01\n\0\0\x02\n\0\0\x03\n\0\0\x04\n\0\0\x05\n\0\0\0\x0B\0\0\x01\x0B\0\0\x02\x0B\0\0\x03\x0B\0\0\x04\x0B\0\0\x05\x0B\0\0\0\x0C\0\0\x01\x0C\0\0\x02\x0C\0\0\x03\x0C\0\0\x04\x0C\0\0\x05\x0C\0\0\0\r\0\0\x01\r\0\0\x02\r\0\0\x03\r\0\0\x04\r\0\0\x05\r\0\0\0\x0E\0\0\x01\x0E\0\0\x02\x0E\0\0\x03\x0E\0\0\x04\x0E\0\0\x05\x0E\0\0\0\x0F\0\0\x01\x0F\0\0\x02\x0F\0\0\x03\x0F\0\0\x04\x0F\0\0\x05\x0F\0\0\0\0\x01\0\x01\0\x01\0\x02\0\x01\0\x03\0\x01\0\x04\0\x01\0\x05\0\x01\0\0\x01\x01\0\x01\x01\x01\0\x02\x01\x01\0\x03\x01\x01\0\x04\x01\x01\0\x05\x01\x01\0\0\x02\x01\0\x01\x02\x01\0\x02\x02\x01\0\x03\x02\x01\0\x04\x02\x01\0\x05\x02\x01\0\0\x03\x01\0\x01\x03\x01\0\x02\x03\x01\0\x03\x03\x01\0\x04\x03\x01\0\x05\x03\x01\0\0\x04\x01\0\x01\x04\x01\0\x02\x04\x01\0\x03\x04\x01\0\x04\x04\x01\0\x05\x04\x01\0\0\x05\x01\0\x01\x05\x01\0\x02\x05\x01\0\x03\x05\x01\0\x04\x05\x01\0\x05\x05\x01\0\0\x06\x01\0\x01\x06\x01\0\x02\x06\x01\0\x03\x06\x01\0\x04\x06\x01\0\x05\x06\x01\0\0\x07\x01\0\x01\x07\x01\0\x02\x07\x01\0\x03\x07\x01\0\x04\x07\x01\0\x05\x07\x01\0\0\x08\x01\0\x01\x08\x01\0\x02\x08\x01\0\x03\x08\x01\0\x04\x08\x01\0\x05\x08\x01\0\0\t\x01\0\x01\t\x01\0\x02\t\x01\0\x03\t\x01\0\x04\t\x01\0\x05\t\x01\0\0\n\x01\0\x01\n\x01\0\x02\n\x01\0\x03\n\x01\0\x04\n\x01\0\x05\n\x01\0\0\x0B\x01\0\x01\x0B\x01\0\x02\x0B\x01\0\x03\x0B\x01\0\x04\x0B\x01\0\x05\x0B\x01\0\0\x0C\x01\0\x01\x0C\x01\0\x02\x0C\x01\0\x03\x0C\x01\0\x04\x0C\x01\0\x05\x0C\x01\0\0\r\x01\0\x01\r\x01\0\x02\r\x01\0\x03\r\x01\0\x04\r\x01\0\x05\r\x01\0\0\x0E\x01\0\x01\x0E\x01\0\x02\x0E\x01\0\x03\x0E\x01\0\x04\x0E\x01\0\x05\x0E\x01\0\0\x0F\x01\0\x01\x0F\x01\0\x02\x0F\x01\0\x03\x0F\x01\0\x04\x0F\x01\0\x05\x0F\x01\x01\0\0\0\x01\x01\0\0\x01\x02\0\0\x01\x03\0\0\x01\x04\0\0\x01\x05\0\0\x01\0\x01\0\x01\x01\x01\0\x01\x02\x01\0\x01\x03\x01\0\x01\x04\x01\0\x01\x05\x01\0\x01\0\x02\0\x01\x01\x02\0\x01\x02\x02\0\x01\x03\x02\0\x01\x04\x02\0\x01\x05\x02\0\x01\0\x03\0\x01\x01\x03\0\x01\x02\x03\0\x01\x03\x03\0\x01\x04\x03\0\x01\x05\x03\0\x01\0\x04\0\x01\x01\x04\0\x01\x02\x04\0\x01\x03\x04\0\x01\x04\x04\0\x01\x05\x04\0\x01\0\x05\0\x01\x01\x05\0\x01\x02\x05\0\x01\x03\x05\0\x01\x04\x05\0\x01\x05\x05\0\x01\0\x06\0\x01\x01\x06\0\x01\x02\x06\0\x01\x03\x06\0\x01\x04\x06\0\x01\x05\x06\0\x01\0\x07\0\x01\x01\x07\0\x01\x02\x07\0\x01\x03\x07\0\x01\x04\x07\0\x01\x05\x07\0\x01\0\x08\0\x01\x01\x08\0\x01\x02\x08\0\x01\x03\x08\0\x01\x04\x08\0\x01\x05\x08\0\x01\0\t\0\x01\x01\t\0\x01\x02\t\0\x01\x03\t\0\x01\x04\t\0\x01\x05\t\0\x01\0\n\0\x01\x01\n\0\x01\x02\n\0\x01\x03\n\0\x01\x04\n\0\x01\x05\n\0\x01\0\x0B\0\x01\x01\x0B\0\x01\x02\x0B\0\x01\x03\x0B\0\x01\x04\x0B\0\x01\x05\x0B\0\x01\0\x0C\0\x01\x01\x0C\0\x01\x02\x0C\0\x01\x03\x0C\0\x01\x04\x0C\0\x01\x05\x0C\0\x01\0\r\0\x01\x01\r\0\x01\x02\r\0\x01\x03\r\0\x01\x04\r\0\x01\x05\r\0\x01\0\x0E\0\x01\x01\x0E\0\x01\x02\x0E\0\x01\x03\x0E\0\x01\x04\x0E\0\x01\x05\x0E\0\x01\0\x0F\0\x01\x01\x0F\0\x01\x02\x0F\0\x01\x03\x0F\0\x01\x04\x0F\0\x01\x05\x0F\0\x01\0\0\x01\x01\x01\0\x01\x01\x02\0\x01\x01\x03\0\x01\x01\x04\0\x01\x01\x05\0\x01\x01\0\x01\x01\x01\x01\x01\x01\x01\x02\x01\x01\x01\x03\x01\x01\x01\x04\x01\x01\x01\x05\x01\x01\x01\0\x02\x01\x01\x01\x02\x01\x01\x02\x02\x01\x01\x03\x02\x01\x01\x04\x02\x01\x01\x05\x02\x01\x01\0\x03\x01\x01\x01\x03\x01\x01\x02\x03\x01\x01\x03\x03\x01\x01\x04\x03\x01\x01\x05\x03\x01\x01\0\x04\x01\x01\x01\x04\x01\x01\x02\x04\x01\x01\x03\x04\x01\x01\x04\x04\x01\x01\x05\x04\x01\x01\0\x05\x01\x01\x01\x05\x01\x01\x02\x05\x01\x01\x03\x05\x01\x01\x04\x05\x01\x01\x05\x05\x01\x01\0\x06\x01\x01\x01\x06\x01\x01\x02\x06\x01\x01\x03\x06\x01\x01\x04\x06\x01\x01\x05\x06\x01\x01\0\x07\x01\x01\x01\x07\x01\x01\x02\x07\x01\x01\x03\x07\x01\x01\x04\x07\x01\x01\x05\x07\x01\x01\0\x08\x01\x01\x01\x08\x01\x01\x02\x08\x01\x01\x03\x08\x01\x01\x04\x08\x01\x01\x05\x08\x01\x01\0\t\x01\x01\x01\t\x01\x01\x02\t\x01\x01\x03\t\x01\x01\x04\t\x01\x01\x05\t\x01\x01\0\n\x01\x01\x01\n\x01\x01\x02\n\x01\x01\x03\n\x01\x01\x04\n\x01\x01\x05\n\x01\x01\0\x0B\x01\x01\x01\x0B\x01\x01\x02\x0B\x01\x01\x03\x0B\x01\x01\x04\x0B\x01\x01\x05\x0B\x01\x01\0\x0C\x01\x01\x01\x0C\x01\x01\x02\x0C\x01\x01\x03\x0C\x01\x01\x04\x0C\x01\x01\x05\x0C\x01\x01\0\r\x01\x01\x01\r\x01\x01\x02\r\x01\x01\x03\r\x01\x01\x04\r\x01\x01\x05\r\x01\x01\0\x0E\x01\x01\x01\x0E\x01\x01\x02\x0E\x01\x01\x03\x0E\x01\x01\x04\x0E\x01\x01\x05\x0E\x01\x01\0\x0F\x01\x01\x01\x0F\x01\x01\x02\x0F\x01\x01\x03\x0F\x01\x01\x04\x0F\x01\x01\x05\x0F\x01",
+        server_definition: None,
     },
     BlockData {
         id: 15457u32,
@@ -31679,6 +32680,7 @@ pub static ALL_BLOCKS: [BlockData; 1477usize] = [
         visual_shape: [0f32, 0f32, 0f32, 1f32, 1f32, 1f32],
         properties: &[],
         state_values: b"",
+        server_definition: None,
     },
     BlockData {
         id: 15458u32,
@@ -31710,6 +32712,7 @@ pub static ALL_BLOCKS: [BlockData; 1477usize] = [
             },
         ],
         state_values: b"\0\x01",
+        server_definition: None,
     },
     BlockData {
         id: 15460u32,
@@ -31750,6 +32753,7 @@ pub static ALL_BLOCKS: [BlockData; 1477usize] = [
             },
         ],
         state_values: b"\0\x01\x02\x03\x04\x05\x06\x07",
+        server_definition: None,
     },
     BlockData {
         id: 15468u32,
@@ -31781,6 +32785,7 @@ pub static ALL_BLOCKS: [BlockData; 1477usize] = [
             },
         ],
         state_values: b"\0\x01",
+        server_definition: None,
     },
     BlockData {
         id: 15470u32,
@@ -31829,6 +32834,7 @@ pub static ALL_BLOCKS: [BlockData; 1477usize] = [
             },
         ],
         state_values: b"\0\x01\x02\x03\x04\x05\x06\x07\x08\t\n\x0B\x0C\r\x0E\x0F",
+        server_definition: None,
     },
     BlockData {
         id: 15486u32,
@@ -31855,6 +32861,7 @@ pub static ALL_BLOCKS: [BlockData; 1477usize] = [
         visual_shape: [0f32, 0f32, 0f32, 1f32, 1f32, 1f32],
         properties: &[],
         state_values: b"",
+        server_definition: None,
     },
     BlockData {
         id: 15487u32,
@@ -31891,6 +32898,7 @@ pub static ALL_BLOCKS: [BlockData; 1477usize] = [
             },
         ],
         state_values: b"\0\x01\x02\x03",
+        server_definition: None,
     },
     BlockData {
         id: 15491u32,
@@ -31941,6 +32949,9 @@ pub static ALL_BLOCKS: [BlockData; 1477usize] = [
             },
         ],
         state_values: b"\0\0\0\0\0\x01\0\0\x02\0\0\x03\0\x01\0\0\x01\x01\0\x01\x02\0\x01\x03\x01\0\0\x01\0\x01\x01\0\x02\x01\0\x03\x01\x01\0\x01\x01\x01\x01\x01\x02\x01\x01\x03\x02\0\0\x02\0\x01\x02\0\x02\x02\0\x03\x02\x01\0\x02\x01\x01\x02\x01\x02\x02\x01\x03\x03\0\0\x03\0\x01\x03\0\x02\x03\0\x03\x03\x01\0\x03\x01\x01\x03\x01\x02\x03\x01\x03\x04\0\0\x04\0\x01\x04\0\x02\x04\0\x03\x04\x01\0\x04\x01\x01\x04\x01\x02\x04\x01\x03",
+        server_definition: Some(
+            b"\n\0\t\tblockTags\x08\x02%minecraft:is_shears_item_destructible\n\ncomponents\n minecraft:destructible_by_mining\x05\x05value\xCD\xCCL?\0\n\x1Fminecraft:destruction_particles\x03\x0Eparticle_count`\x08\x07texture\0\x08\x0Btint_method\x04none\0\n\x1Aminecraft:liquid_detection\t\x0EdetectionRules\n\x02\x01\x10canContainLiquid\x01\x08\nliquidType\x05water\x08\x0FonLiquidTouches\x08blocking\x01\x18stopsLiquidFromDirection\0\x01\x13use_liquid_clipping\0\0\0\n\x1Fminecraft:redstone_conductivity\x01\x14allowsWireToStepDown\x01\x01\x11redstoneConductor\0\0\n\x11minecraft:support\x08\x05shape\x05stair\0\0\n\rmenu_category\x08\x08category\x0Cconstruction\x08\x05group\x1Fminecraft:itemGroup.name.stairs\x01\x15is_hidden_in_commands\0\0\x03\rmolangVersion\x1A\n\x12vanilla_block_data\n\x0Fblock_archetype\x08\nbase_block\x19minecraft:light_blue_wool\x08\x04type\x0Bstair_block\0\x03\x08block_id\x82\x16\x01\x15can_dampen_vibrations\x01\x01\x16can_occlude_vibrations\x01\x08\x08material\x05solid\x05\x0Ctranslucency\xCD\xCCL?\0\0",
+        ),
     },
     BlockData {
         id: 15531u32,
@@ -31972,6 +32983,7 @@ pub static ALL_BLOCKS: [BlockData; 1477usize] = [
             },
         ],
         state_values: b"\0\x01",
+        server_definition: None,
     },
     BlockData {
         id: 15533u32,
@@ -31998,6 +33010,7 @@ pub static ALL_BLOCKS: [BlockData; 1477usize] = [
         visual_shape: [0f32, 0f32, 0f32, 1f32, 1f32, 1f32],
         properties: &[],
         state_values: b"",
+        server_definition: None,
     },
     BlockData {
         id: 15534u32,
@@ -32024,6 +33037,7 @@ pub static ALL_BLOCKS: [BlockData; 1477usize] = [
         visual_shape: [0f32, 0f32, 0f32, 1f32, 1f32, 1f32],
         properties: &[],
         state_values: b"",
+        server_definition: None,
     },
     BlockData {
         id: 15535u32,
@@ -32064,6 +33078,7 @@ pub static ALL_BLOCKS: [BlockData; 1477usize] = [
             },
         ],
         state_values: b"\0\x01\x02\x03\x04\x05\x06\x07",
+        server_definition: None,
     },
     BlockData {
         id: 15543u32,
@@ -32090,6 +33105,7 @@ pub static ALL_BLOCKS: [BlockData; 1477usize] = [
         visual_shape: [0f32, 0f32, 0f32, 1f32, 0.0625f32, 1f32],
         properties: &[],
         state_values: b"",
+        server_definition: None,
     },
     BlockData {
         id: 15544u32,
@@ -32125,6 +33141,7 @@ pub static ALL_BLOCKS: [BlockData; 1477usize] = [
             },
         ],
         state_values: b"\0\x01\x02",
+        server_definition: None,
     },
     BlockData {
         id: 15547u32,
@@ -32173,6 +33190,7 @@ pub static ALL_BLOCKS: [BlockData; 1477usize] = [
             },
         ],
         state_values: b"\0\x01\x02\x03\x04\x05\x06\x07\x08\t\n\x0B\x0C\r\x0E\x0F",
+        server_definition: None,
     },
     BlockData {
         id: 15563u32,
@@ -32204,6 +33222,7 @@ pub static ALL_BLOCKS: [BlockData; 1477usize] = [
             },
         ],
         state_values: b"\0\x01",
+        server_definition: None,
     },
     BlockData {
         id: 15565u32,
@@ -32238,6 +33257,7 @@ pub static ALL_BLOCKS: [BlockData; 1477usize] = [
             },
         ],
         state_values: b"\0\x01",
+        server_definition: None,
     },
     BlockData {
         id: 15567u32,
@@ -32286,6 +33306,7 @@ pub static ALL_BLOCKS: [BlockData; 1477usize] = [
             },
         ],
         state_values: b"\0\0\0\0\0\x01\0\0\0\x02\0\0\0\x03\0\0\0\0\x01\0\0\x01\x01\0\0\x02\x01\0\0\x03\x01\0\0\0\0\x01\0\x01\0\x01\0\x02\0\x01\0\x03\0\x01\0\0\x01\x01\0\x01\x01\x01\0\x02\x01\x01\0\x03\x01\x01\x01\0\0\0\x01\x01\0\0\x01\x02\0\0\x01\x03\0\0\x01\0\x01\0\x01\x01\x01\0\x01\x02\x01\0\x01\x03\x01\0\x01\0\0\x01\x01\x01\0\x01\x01\x02\0\x01\x01\x03\0\x01\x01\0\x01\x01\x01\x01\x01\x01\x01\x02\x01\x01\x01\x03\x01\x01",
+        server_definition: None,
     },
     BlockData {
         id: 15599u32,
@@ -32317,6 +33338,7 @@ pub static ALL_BLOCKS: [BlockData; 1477usize] = [
             },
         ],
         state_values: b"\0\x01",
+        server_definition: None,
     },
     BlockData {
         id: 15601u32,
@@ -32348,6 +33370,9 @@ pub static ALL_BLOCKS: [BlockData; 1477usize] = [
             },
         ],
         state_values: b"\0\x01",
+        server_definition: Some(
+            b"\n\0\t\tblockTags\x08\x02%minecraft:is_shears_item_destructible\n\ncomponents\n minecraft:destructible_by_mining\x05\x05value\xCD\xCCL?\0\n\x1Fminecraft:redstone_conductivity\x01\x14allowsWireToStepDown\x01\x01\x11redstoneConductor\x01\0\0\n\rmenu_category\x08\x08category\x04none\x08\x05group\0\x01\x15is_hidden_in_commands\x01\0\x03\rmolangVersion\x1A\n\x12vanilla_block_data\n\x0Fblock_archetype\x08\x11double_slab_block\x1Aminecraft:yellow_wool_slab\x01\tis_double\x01\x08\x04type\nslab_block\0\x03\x08block_id\xC6\x16\x01\x15can_dampen_vibrations\x01\x01\x16can_occlude_vibrations\x01\x08\x08material\x05solid\0\0",
+        ),
     },
     BlockData {
         id: 15603u32,
@@ -32383,6 +33408,7 @@ pub static ALL_BLOCKS: [BlockData; 1477usize] = [
             },
         ],
         state_values: b"\0\0\0\x01\x01\0\x01\x01",
+        server_definition: None,
     },
     BlockData {
         id: 15607u32,
@@ -32414,6 +33440,7 @@ pub static ALL_BLOCKS: [BlockData; 1477usize] = [
             },
         ],
         state_values: b"\0\x01",
+        server_definition: None,
     },
     BlockData {
         id: 15609u32,
@@ -32462,6 +33489,7 @@ pub static ALL_BLOCKS: [BlockData; 1477usize] = [
             },
         ],
         state_values: b"\0\x01\x02\x03\x04\x05\x06\x07\x08\t\n\x0B\x0C\r\x0E\x0F",
+        server_definition: None,
     },
     BlockData {
         id: 15625u32,
@@ -32493,6 +33521,9 @@ pub static ALL_BLOCKS: [BlockData; 1477usize] = [
             },
         ],
         state_values: b"\0\x01",
+        server_definition: Some(
+            b"\n\0\t\tblockTags\x08\x02&minecraft:is_pickaxe_item_destructible\n\ncomponents\n minecraft:destructible_by_mining\x05\x05valueff\xE6?\0\n\x1Fminecraft:redstone_conductivity\x01\x14allowsWireToStepDown\x01\x01\x11redstoneConductor\x01\0\0\n\rmenu_category\x08\x08category\x04none\x08\x05group\0\x01\x15is_hidden_in_commands\x01\0\x03\rmolangVersion\x1A\n\x12vanilla_block_data\n\x0Fblock_archetype\x08\x11double_slab_block\x1Cminecraft:gray_concrete_slab\x01\tis_double\x01\x08\x04type\nslab_block\0\x03\x08block_id\xA0\x17\x08\x08material\x05solid\x01\x1Frequires_correct_tool_for_drops\x01\0\0",
+        ),
     },
     BlockData {
         id: 15627u32,
@@ -32519,6 +33550,7 @@ pub static ALL_BLOCKS: [BlockData; 1477usize] = [
         visual_shape: [0.1f32, 0f32, 0.1f32, 0.9f32, 0.8f32, 0.9f32],
         properties: &[],
         state_values: b"",
+        server_definition: None,
     },
     BlockData {
         id: 15628u32,
@@ -32550,6 +33582,7 @@ pub static ALL_BLOCKS: [BlockData; 1477usize] = [
             },
         ],
         state_values: b"\0\x01",
+        server_definition: None,
     },
     BlockData {
         id: 15630u32,
@@ -32576,6 +33609,7 @@ pub static ALL_BLOCKS: [BlockData; 1477usize] = [
         visual_shape: [0.15f32, 0f32, 0.15f32, 0.7f32, 0.6f32, 0.7f32],
         properties: &[],
         state_values: b"",
+        server_definition: None,
     },
     BlockData {
         id: 15631u32,
@@ -32602,6 +33636,7 @@ pub static ALL_BLOCKS: [BlockData; 1477usize] = [
         visual_shape: [0.125f32, 0f32, 0.125f32, 0.875f32, 0.625f32, 0.875f32],
         properties: &[],
         state_values: b"",
+        server_definition: None,
     },
     BlockData {
         id: 15632u32,
@@ -32628,6 +33663,7 @@ pub static ALL_BLOCKS: [BlockData; 1477usize] = [
         visual_shape: [0f32, 0f32, 0f32, 1f32, 1f32, 1f32],
         properties: &[],
         state_values: b"",
+        server_definition: None,
     },
     BlockData {
         id: 15633u32,
@@ -32659,6 +33695,7 @@ pub static ALL_BLOCKS: [BlockData; 1477usize] = [
             },
         ],
         state_values: b"\0\x01",
+        server_definition: None,
     },
     BlockData {
         id: 15635u32,
@@ -32722,6 +33759,7 @@ pub static ALL_BLOCKS: [BlockData; 1477usize] = [
             },
         ],
         state_values: b"\0\0\0\0\0\0\0\0\0\x01\0\x01\0\0\0\0\x01\0\0\x01\0\x02\0\0\0\0\x02\0\0\x01\x01\0\0\0\0\x01\0\0\0\x01\x01\x01\0\0\0\x01\x01\0\0\x01\x01\x02\0\0\0\x01\x02\0\0\x01\x02\0\0\0\0\x02\0\0\0\x01\x02\x01\0\0\0\x02\x01\0\0\x01\x02\x02\0\0\0\x02\x02\0\0\x01\0\0\x01\0\0\0\0\x01\0\x01\0\x01\x01\0\0\0\x01\x01\0\x01\0\x02\x01\0\0\0\x02\x01\0\x01\x01\0\x01\0\0\x01\0\x01\0\x01\x01\x01\x01\0\0\x01\x01\x01\0\x01\x01\x02\x01\0\0\x01\x02\x01\0\x01\x02\0\x01\0\0\x02\0\x01\0\x01\x02\x01\x01\0\0\x02\x01\x01\0\x01\x02\x02\x01\0\0\x02\x02\x01\0\x01\0\0\x02\0\0\0\0\x02\0\x01\0\x01\x02\0\0\0\x01\x02\0\x01\0\x02\x02\0\0\0\x02\x02\0\x01\x01\0\x02\0\0\x01\0\x02\0\x01\x01\x01\x02\0\0\x01\x01\x02\0\x01\x01\x02\x02\0\0\x01\x02\x02\0\x01\x02\0\x02\0\0\x02\0\x02\0\x01\x02\x01\x02\0\0\x02\x01\x02\0\x01\x02\x02\x02\0\0\x02\x02\x02\0\x01\0\0\0\x01\0\0\0\0\x01\x01\0\x01\0\x01\0\0\x01\0\x01\x01\0\x02\0\x01\0\0\x02\0\x01\x01\x01\0\0\x01\0\x01\0\0\x01\x01\x01\x01\0\x01\0\x01\x01\0\x01\x01\x01\x02\0\x01\0\x01\x02\0\x01\x01\x02\0\0\x01\0\x02\0\0\x01\x01\x02\x01\0\x01\0\x02\x01\0\x01\x01\x02\x02\0\x01\0\x02\x02\0\x01\x01\0\0\x01\x01\0\0\0\x01\x01\x01\0\x01\x01\x01\0\0\x01\x01\x01\x01\0\x02\x01\x01\0\0\x02\x01\x01\x01\x01\0\x01\x01\0\x01\0\x01\x01\x01\x01\x01\x01\x01\0\x01\x01\x01\x01\x01\x01\x02\x01\x01\0\x01\x02\x01\x01\x01\x02\0\x01\x01\0\x02\0\x01\x01\x01\x02\x01\x01\x01\0\x02\x01\x01\x01\x01\x02\x02\x01\x01\0\x02\x02\x01\x01\x01\0\0\x02\x01\0\0\0\x02\x01\x01\0\x01\x02\x01\0\0\x01\x02\x01\x01\0\x02\x02\x01\0\0\x02\x02\x01\x01\x01\0\x02\x01\0\x01\0\x02\x01\x01\x01\x01\x02\x01\0\x01\x01\x02\x01\x01\x01\x02\x02\x01\0\x01\x02\x02\x01\x01\x02\0\x02\x01\0\x02\0\x02\x01\x01\x02\x01\x02\x01\0\x02\x01\x02\x01\x01\x02\x02\x02\x01\0\x02\x02\x02\x01\x01\0\0\0\x02\0\0\0\0\x02\x01\0\x01\0\x02\0\0\x01\0\x02\x01\0\x02\0\x02\0\0\x02\0\x02\x01\x01\0\0\x02\0\x01\0\0\x02\x01\x01\x01\0\x02\0\x01\x01\0\x02\x01\x01\x02\0\x02\0\x01\x02\0\x02\x01\x02\0\0\x02\0\x02\0\0\x02\x01\x02\x01\0\x02\0\x02\x01\0\x02\x01\x02\x02\0\x02\0\x02\x02\0\x02\x01\0\0\x01\x02\0\0\0\x01\x02\x01\0\x01\x01\x02\0\0\x01\x01\x02\x01\0\x02\x01\x02\0\0\x02\x01\x02\x01\x01\0\x01\x02\0\x01\0\x01\x02\x01\x01\x01\x01\x02\0\x01\x01\x01\x02\x01\x01\x02\x01\x02\0\x01\x02\x01\x02\x01\x02\0\x01\x02\0\x02\0\x01\x02\x01\x02\x01\x01\x02\0\x02\x01\x01\x02\x01\x02\x02\x01\x02\0\x02\x02\x01\x02\x01\0\0\x02\x02\0\0\0\x02\x02\x01\0\x01\x02\x02\0\0\x01\x02\x02\x01\0\x02\x02\x02\0\0\x02\x02\x02\x01\x01\0\x02\x02\0\x01\0\x02\x02\x01\x01\x01\x02\x02\0\x01\x01\x02\x02\x01\x01\x02\x02\x02\0\x01\x02\x02\x02\x01\x02\0\x02\x02\0\x02\0\x02\x02\x01\x02\x01\x02\x02\0\x02\x01\x02\x02\x01\x02\x02\x02\x02\0\x02\x02\x02\x02\x01",
+        server_definition: None,
     },
     BlockData {
         id: 15797u32,
@@ -32762,6 +33800,7 @@ pub static ALL_BLOCKS: [BlockData; 1477usize] = [
             },
         ],
         state_values: b"\0\0\0\x01\0\x02\0\x03\x01\0\x01\x01\x01\x02\x01\x03",
+        server_definition: None,
     },
     BlockData {
         id: 15805u32,
@@ -32810,6 +33849,7 @@ pub static ALL_BLOCKS: [BlockData; 1477usize] = [
             },
         ],
         state_values: b"\0\x01\x02\x03\x04\x05\x06\x07\x08\t\n\x0B\x0C\r\x0E\x0F",
+        server_definition: None,
     },
     BlockData {
         id: 15821u32,
@@ -32836,6 +33876,7 @@ pub static ALL_BLOCKS: [BlockData; 1477usize] = [
         visual_shape: [0f32, 0f32, 0f32, 1f32, 1f32, 1f32],
         properties: &[],
         state_values: b"",
+        server_definition: None,
     },
     BlockData {
         id: 15822u32,
@@ -32867,6 +33908,7 @@ pub static ALL_BLOCKS: [BlockData; 1477usize] = [
             },
         ],
         state_values: b"\0\x01",
+        server_definition: None,
     },
     BlockData {
         id: 15824u32,
@@ -32916,6 +33958,7 @@ pub static ALL_BLOCKS: [BlockData; 1477usize] = [
             },
         ],
         state_values: b"\0\0\0\x01\0\0\x02\0\0\x03\0\0\0\0\x01\x01\0\x01\x02\0\x01\x03\0\x01\0\x01\0\x01\x01\0\x02\x01\0\x03\x01\0\0\x01\x01\x01\x01\x01\x02\x01\x01\x03\x01\x01",
+        server_definition: None,
     },
     BlockData {
         id: 15840u32,
@@ -32964,6 +34007,7 @@ pub static ALL_BLOCKS: [BlockData; 1477usize] = [
             },
         ],
         state_values: b"\0\x01\x02\x03\x04\x05\x06\x07\x08\t\n\x0B\x0C\r\x0E\x0F",
+        server_definition: None,
     },
     BlockData {
         id: 15856u32,
@@ -32990,6 +34034,7 @@ pub static ALL_BLOCKS: [BlockData; 1477usize] = [
         visual_shape: [0f32, 0f32, 0f32, 1f32, 1f32, 1f32],
         properties: &[],
         state_values: b"",
+        server_definition: None,
     },
     BlockData {
         id: 15857u32,
@@ -33040,6 +34085,7 @@ pub static ALL_BLOCKS: [BlockData; 1477usize] = [
             },
         ],
         state_values: b"\0\0\0\0\0\x01\0\0\x02\0\0\x03\0\x01\0\0\x01\x01\0\x01\x02\0\x01\x03\x01\0\0\x01\0\x01\x01\0\x02\x01\0\x03\x01\x01\0\x01\x01\x01\x01\x01\x02\x01\x01\x03\x02\0\0\x02\0\x01\x02\0\x02\x02\0\x03\x02\x01\0\x02\x01\x01\x02\x01\x02\x02\x01\x03\x03\0\0\x03\0\x01\x03\0\x02\x03\0\x03\x03\x01\0\x03\x01\x01\x03\x01\x02\x03\x01\x03\x04\0\0\x04\0\x01\x04\0\x02\x04\0\x03\x04\x01\0\x04\x01\x01\x04\x01\x02\x04\x01\x03",
+        server_definition: None,
     },
     BlockData {
         id: 15897u32,
@@ -33090,6 +34136,7 @@ pub static ALL_BLOCKS: [BlockData; 1477usize] = [
             },
         ],
         state_values: b"\0\0\0\0\0\x01\0\0\x02\0\0\x03\0\x01\0\0\x01\x01\0\x01\x02\0\x01\x03\x01\0\0\x01\0\x01\x01\0\x02\x01\0\x03\x01\x01\0\x01\x01\x01\x01\x01\x02\x01\x01\x03\x02\0\0\x02\0\x01\x02\0\x02\x02\0\x03\x02\x01\0\x02\x01\x01\x02\x01\x02\x02\x01\x03\x03\0\0\x03\0\x01\x03\0\x02\x03\0\x03\x03\x01\0\x03\x01\x01\x03\x01\x02\x03\x01\x03\x04\0\0\x04\0\x01\x04\0\x02\x04\0\x03\x04\x01\0\x04\x01\x01\x04\x01\x02\x04\x01\x03",
+        server_definition: None,
     },
     BlockData {
         id: 15937u32,
@@ -33121,6 +34168,7 @@ pub static ALL_BLOCKS: [BlockData; 1477usize] = [
         visual_shape: [0f32, 0f32, 0f32, 1f32, 1f32, 1f32],
         properties: &[],
         state_values: b"",
+        server_definition: None,
     },
     BlockData {
         id: 15938u32,
@@ -33150,6 +34198,7 @@ pub static ALL_BLOCKS: [BlockData; 1477usize] = [
         visual_shape: [0f32, 0f32, 0f32, 1f32, 1f32, 1f32],
         properties: &[],
         state_values: b"",
+        server_definition: None,
     },
     BlockData {
         id: 15939u32,
@@ -33199,6 +34248,7 @@ pub static ALL_BLOCKS: [BlockData; 1477usize] = [
             },
         ],
         state_values: b"\0\0\0\x01\0\0\x02\0\0\x03\0\0\0\0\x01\x01\0\x01\x02\0\x01\x03\0\x01\0\0\x02\x01\0\x02\x02\0\x02\x03\0\x02\0\0\x03\x01\0\x03\x02\0\x03\x03\0\x03\0\x01\0\x01\x01\0\x02\x01\0\x03\x01\0\0\x01\x01\x01\x01\x01\x02\x01\x01\x03\x01\x01\0\x01\x02\x01\x01\x02\x02\x01\x02\x03\x01\x02\0\x01\x03\x01\x01\x03\x02\x01\x03\x03\x01\x03",
+        server_definition: None,
     },
     BlockData {
         id: 15971u32,
@@ -33246,6 +34296,7 @@ pub static ALL_BLOCKS: [BlockData; 1477usize] = [
             },
         ],
         state_values: b"\0\0\x01\0\x02\0\x03\0\0\x01\x01\x01\x02\x01\x03\x01\0\x02\x01\x02\x02\x02\x03\x02\0\x03\x01\x03\x02\x03\x03\x03\0\x04\x01\x04\x02\x04\x03\x04\0\x05\x01\x05\x02\x05\x03\x05",
+        server_definition: None,
     },
     BlockData {
         id: 15995u32,
@@ -33281,6 +34332,7 @@ pub static ALL_BLOCKS: [BlockData; 1477usize] = [
             },
         ],
         state_values: b"\0\x01\x02",
+        server_definition: None,
     },
     BlockData {
         id: 15998u32,
@@ -33307,6 +34359,7 @@ pub static ALL_BLOCKS: [BlockData; 1477usize] = [
         visual_shape: [0f32, 0f32, 0f32, 1f32, 1f32, 1f32],
         properties: &[],
         state_values: b"",
+        server_definition: None,
     },
     BlockData {
         id: 15999u32,
@@ -33355,6 +34408,7 @@ pub static ALL_BLOCKS: [BlockData; 1477usize] = [
             },
         ],
         state_values: b"\0\0\0\0\0\x01\0\0\0\x02\0\0\0\x03\0\0\0\0\x01\0\0\x01\x01\0\0\x02\x01\0\0\x03\x01\0\0\0\0\x01\0\x01\0\x01\0\x02\0\x01\0\x03\0\x01\0\0\x01\x01\0\x01\x01\x01\0\x02\x01\x01\0\x03\x01\x01\x01\0\0\0\x01\x01\0\0\x01\x02\0\0\x01\x03\0\0\x01\0\x01\0\x01\x01\x01\0\x01\x02\x01\0\x01\x03\x01\0\x01\0\0\x01\x01\x01\0\x01\x01\x02\0\x01\x01\x03\0\x01\x01\0\x01\x01\x01\x01\x01\x01\x01\x02\x01\x01\x01\x03\x01\x01",
+        server_definition: None,
     },
     BlockData {
         id: 16031u32,
@@ -33381,6 +34435,7 @@ pub static ALL_BLOCKS: [BlockData; 1477usize] = [
         visual_shape: [0f32, 0f32, 0f32, 1f32, 1f32, 1f32],
         properties: &[],
         state_values: b"",
+        server_definition: None,
     },
     BlockData {
         id: 16032u32,
@@ -33407,6 +34462,7 @@ pub static ALL_BLOCKS: [BlockData; 1477usize] = [
         visual_shape: [0.15f32, 0f32, 0.15f32, 0.7f32, 0.6f32, 0.7f32],
         properties: &[],
         state_values: b"",
+        server_definition: None,
     },
     BlockData {
         id: 16033u32,
@@ -33438,6 +34494,7 @@ pub static ALL_BLOCKS: [BlockData; 1477usize] = [
             },
         ],
         state_values: b"\0\x01",
+        server_definition: None,
     },
     BlockData {
         id: 16035u32,
@@ -33473,6 +34530,7 @@ pub static ALL_BLOCKS: [BlockData; 1477usize] = [
             },
         ],
         state_values: b"\0\x01\x02",
+        server_definition: None,
     },
     BlockData {
         id: 16038u32,
@@ -33503,6 +34561,7 @@ pub static ALL_BLOCKS: [BlockData; 1477usize] = [
         visual_shape: [0f32, 0f32, 0f32, 1f32, 1f32, 1f32],
         properties: &[],
         state_values: b"",
+        server_definition: None,
     },
     BlockData {
         id: 16039u32,
@@ -33558,6 +34617,7 @@ pub static ALL_BLOCKS: [BlockData; 1477usize] = [
             },
         ],
         state_values: b"\0\0\0\0\0\x01\0\0\x02\0\0\x03\0\x01\0\0\x01\x01\0\x01\x02\0\x01\x03\x01\0\0\x01\0\x01\x01\0\x02\x01\0\x03\x01\x01\0\x01\x01\x01\x01\x01\x02\x01\x01\x03\x02\0\0\x02\0\x01\x02\0\x02\x02\0\x03\x02\x01\0\x02\x01\x01\x02\x01\x02\x02\x01\x03\x03\0\0\x03\0\x01\x03\0\x02\x03\0\x03\x03\x01\0\x03\x01\x01\x03\x01\x02\x03\x01\x03\x04\0\0\x04\0\x01\x04\0\x02\x04\0\x03\x04\x01\0\x04\x01\x01\x04\x01\x02\x04\x01\x03",
+        server_definition: None,
     },
     BlockData {
         id: 16079u32,
@@ -33584,6 +34644,7 @@ pub static ALL_BLOCKS: [BlockData; 1477usize] = [
         visual_shape: [0f32, 0f32, 0f32, 1f32, 1f32, 1f32],
         properties: &[],
         state_values: b"",
+        server_definition: None,
     },
     BlockData {
         id: 16080u32,
@@ -33615,6 +34676,9 @@ pub static ALL_BLOCKS: [BlockData; 1477usize] = [
             },
         ],
         state_values: b"\0\x01",
+        server_definition: Some(
+            b"\n\0\t\tblockTags\x08\x02&minecraft:is_pickaxe_item_destructible\n\ncomponents\n minecraft:destructible_by_mining\x05\x05valueff\xE6?\0\n\x1Fminecraft:redstone_conductivity\x01\x14allowsWireToStepDown\x01\x01\x11redstoneConductor\x01\0\0\n\rmenu_category\x08\x08category\x04none\x08\x05group\0\x01\x15is_hidden_in_commands\x01\0\x03\rmolangVersion\x1A\n\x12vanilla_block_data\n\x0Fblock_archetype\x08\x11double_slab_block\x1Cminecraft:cyan_concrete_slab\x01\tis_double\x01\x08\x04type\nslab_block\0\x03\x08block_id\xB0\x17\x08\x08material\x05solid\x01\x1Frequires_correct_tool_for_drops\x01\0\0",
+        ),
     },
     BlockData {
         id: 16082u32,
@@ -33655,6 +34719,7 @@ pub static ALL_BLOCKS: [BlockData; 1477usize] = [
             },
         ],
         state_values: b"\0\0\x01\0\x02\0\x03\0\0\x01\x01\x01\x02\x01\x03\x01",
+        server_definition: None,
     },
     BlockData {
         id: 16090u32,
@@ -33709,6 +34774,7 @@ pub static ALL_BLOCKS: [BlockData; 1477usize] = [
             },
         ],
         state_values: b"\0\0\0\0\0\x01\0\0\x02\0\0\x03\0\x01\0\0\x01\x01\0\x01\x02\0\x01\x03\x01\0\0\x01\0\x01\x01\0\x02\x01\0\x03\x01\x01\0\x01\x01\x01\x01\x01\x02\x01\x01\x03\x02\0\0\x02\0\x01\x02\0\x02\x02\0\x03\x02\x01\0\x02\x01\x01\x02\x01\x02\x02\x01\x03\x03\0\0\x03\0\x01\x03\0\x02\x03\0\x03\x03\x01\0\x03\x01\x01\x03\x01\x02\x03\x01\x03\x04\0\0\x04\0\x01\x04\0\x02\x04\0\x03\x04\x01\0\x04\x01\x01\x04\x01\x02\x04\x01\x03",
+        server_definition: None,
     },
     BlockData {
         id: 16130u32,
@@ -33759,6 +34825,7 @@ pub static ALL_BLOCKS: [BlockData; 1477usize] = [
             },
         ],
         state_values: b"\0\0\0\0\0\x01\0\0\x02\0\0\x03\0\x01\0\0\x01\x01\0\x01\x02\0\x01\x03\x01\0\0\x01\0\x01\x01\0\x02\x01\0\x03\x01\x01\0\x01\x01\x01\x01\x01\x02\x01\x01\x03\x02\0\0\x02\0\x01\x02\0\x02\x02\0\x03\x02\x01\0\x02\x01\x01\x02\x01\x02\x02\x01\x03\x03\0\0\x03\0\x01\x03\0\x02\x03\0\x03\x03\x01\0\x03\x01\x01\x03\x01\x02\x03\x01\x03\x04\0\0\x04\0\x01\x04\0\x02\x04\0\x03\x04\x01\0\x04\x01\x01\x04\x01\x02\x04\x01\x03",
+        server_definition: None,
     },
     BlockData {
         id: 16170u32,
@@ -33785,6 +34852,7 @@ pub static ALL_BLOCKS: [BlockData; 1477usize] = [
         visual_shape: [0f32, 0f32, 0f32, 1f32, 1f32, 1f32],
         properties: &[],
         state_values: b"",
+        server_definition: None,
     },
     BlockData {
         id: 16171u32,
@@ -33816,6 +34884,7 @@ pub static ALL_BLOCKS: [BlockData; 1477usize] = [
             },
         ],
         state_values: b"\0\x01",
+        server_definition: None,
     },
     BlockData {
         id: 16173u32,
@@ -33842,6 +34911,7 @@ pub static ALL_BLOCKS: [BlockData; 1477usize] = [
         visual_shape: [0f32, 0f32, 0f32, 1f32, 1f32, 1f32],
         properties: &[],
         state_values: b"",
+        server_definition: None,
     },
     BlockData {
         id: 16174u32,
@@ -33868,6 +34938,7 @@ pub static ALL_BLOCKS: [BlockData; 1477usize] = [
         visual_shape: [0.099999994f32, 0f32, 0.099999994f32, 0.9f32, 0.8f32, 0.9f32],
         properties: &[],
         state_values: b"",
+        server_definition: None,
     },
     BlockData {
         id: 16175u32,
@@ -33894,6 +34965,7 @@ pub static ALL_BLOCKS: [BlockData; 1477usize] = [
         visual_shape: [0f32, 0f32, 0f32, 1f32, 1f32, 1f32],
         properties: &[],
         state_values: b"",
+        server_definition: None,
     },
     BlockData {
         id: 16176u32,
@@ -33934,6 +35006,7 @@ pub static ALL_BLOCKS: [BlockData; 1477usize] = [
             },
         ],
         state_values: b"\0\0\x01\0\x02\0\x03\0\0\x01\x01\x01\x02\x01\x03\x01",
+        server_definition: None,
     },
     BlockData {
         id: 16184u32,
@@ -33982,6 +35055,7 @@ pub static ALL_BLOCKS: [BlockData; 1477usize] = [
             },
         ],
         state_values: b"\0\x01\x02\x03\x04\x05\x06\x07\x08\t\n\x0B\x0C\r\x0E\x0F",
+        server_definition: None,
     },
     BlockData {
         id: 16200u32,
@@ -34030,6 +35104,7 @@ pub static ALL_BLOCKS: [BlockData; 1477usize] = [
             },
         ],
         state_values: b"\0\x01\x02\x03\x04\x05\x06\x07\x08\t\n\x0B\x0C\r\x0E\x0F",
+        server_definition: None,
     },
     BlockData {
         id: 16216u32,
@@ -34061,6 +35136,7 @@ pub static ALL_BLOCKS: [BlockData; 1477usize] = [
             },
         ],
         state_values: b"\0\x01",
+        server_definition: None,
     },
     BlockData {
         id: 16218u32,
@@ -34087,6 +35163,7 @@ pub static ALL_BLOCKS: [BlockData; 1477usize] = [
         visual_shape: [0f32, 0f32, 0f32, 1f32, 1f32, 1f32],
         properties: &[],
         state_values: b"",
+        server_definition: None,
     },
     BlockData {
         id: 16219u32,
@@ -34118,6 +35195,7 @@ pub static ALL_BLOCKS: [BlockData; 1477usize] = [
             },
         ],
         state_values: b"\0\x01",
+        server_definition: None,
     },
     BlockData {
         id: 16221u32,
@@ -34168,6 +35246,7 @@ pub static ALL_BLOCKS: [BlockData; 1477usize] = [
             },
         ],
         state_values: b"\0\0\0\0\0\x01\0\0\x02\0\0\x03\0\x01\0\0\x01\x01\0\x01\x02\0\x01\x03\x01\0\0\x01\0\x01\x01\0\x02\x01\0\x03\x01\x01\0\x01\x01\x01\x01\x01\x02\x01\x01\x03\x02\0\0\x02\0\x01\x02\0\x02\x02\0\x03\x02\x01\0\x02\x01\x01\x02\x01\x02\x02\x01\x03\x03\0\0\x03\0\x01\x03\0\x02\x03\0\x03\x03\x01\0\x03\x01\x01\x03\x01\x02\x03\x01\x03\x04\0\0\x04\0\x01\x04\0\x02\x04\0\x03\x04\x01\0\x04\x01\x01\x04\x01\x02\x04\x01\x03",
+        server_definition: None,
     },
     BlockData {
         id: 16261u32,
@@ -34194,6 +35273,7 @@ pub static ALL_BLOCKS: [BlockData; 1477usize] = [
         visual_shape: [0f32, 0f32, 0f32, 1f32, 1f32, 1f32],
         properties: &[],
         state_values: b"",
+        server_definition: None,
     },
     BlockData {
         id: 16262u32,
@@ -34233,6 +35313,7 @@ pub static ALL_BLOCKS: [BlockData; 1477usize] = [
             },
         ],
         state_values: b"\0\0\x01\0\0\x01\x01\x01",
+        server_definition: None,
     },
     BlockData {
         id: 16266u32,
@@ -34276,6 +35357,7 @@ pub static ALL_BLOCKS: [BlockData; 1477usize] = [
             },
         ],
         state_values: b"\0\0\0\0\0\x01\0\0\x01\0\0\0\x01\x01\0\0\0\0\x01\0\0\x01\x01\0\x01\0\x01\0\x01\x01\x01\0\0\0\0\x01\0\x01\0\x01\x01\0\0\x01\x01\x01\0\x01\0\0\x01\x01\0\x01\x01\x01\x01\0\x01\x01\x01\x01\x01\x01",
+        server_definition: None,
     },
     BlockData {
         id: 16282u32,
@@ -34302,6 +35384,7 @@ pub static ALL_BLOCKS: [BlockData; 1477usize] = [
         visual_shape: [0.099999994f32, 0f32, 0.099999994f32, 0.9f32, 0.8f32, 0.9f32],
         properties: &[],
         state_values: b"",
+        server_definition: None,
     },
     BlockData {
         id: 16283u32,
@@ -34333,6 +35416,7 @@ pub static ALL_BLOCKS: [BlockData; 1477usize] = [
             },
         ],
         state_values: b"\0\x01",
+        server_definition: None,
     },
     BlockData {
         id: 16285u32,
@@ -34364,6 +35448,9 @@ pub static ALL_BLOCKS: [BlockData; 1477usize] = [
             },
         ],
         state_values: b"\0\x01",
+        server_definition: Some(
+            b"\n\0\t\tblockTags\x08\x02&minecraft:is_pickaxe_item_destructible\n\ncomponents\n minecraft:destructible_by_mining\x05\x05valueff\xE6?\0\n\x1Fminecraft:destruction_particles\x03\x0Eparticle_count`\x08\x07texture\0\x08\x0Btint_method\x04none\0\n\x1Aminecraft:liquid_detection\t\x0EdetectionRules\n\x02\x01\x10canContainLiquid\x01\x08\nliquidType\x05water\x08\x0FonLiquidTouches\x08blocking\x01\x18stopsLiquidFromDirection\0\x01\x13use_liquid_clipping\0\0\0\n\x1Fminecraft:redstone_conductivity\x01\x14allowsWireToStepDown\x01\x01\x11redstoneConductor\0\0\0\n\rmenu_category\x08\x08category\x0Cconstruction\x08\x05group\x1Dminecraft:itemGroup.name.slab\x01\x15is_hidden_in_commands\0\0\x03\rmolangVersion\x1A\n\x12vanilla_block_data\n\x0Fblock_archetype\x08\x11double_slab_block)minecraft:light_blue_concrete_double_slab\x01\tis_double\0\x08\x04type\nslab_block\0\x03\x08block_id\x92\x17\x08\x08material\x05solid\x01\x1Frequires_correct_tool_for_drops\x01\0\0",
+        ),
     },
     BlockData {
         id: 16287u32,
@@ -34414,6 +35501,7 @@ pub static ALL_BLOCKS: [BlockData; 1477usize] = [
             },
         ],
         state_values: b"\0\0\0\0\0\x01\0\0\x02\0\0\x03\0\x01\0\0\x01\x01\0\x01\x02\0\x01\x03\x01\0\0\x01\0\x01\x01\0\x02\x01\0\x03\x01\x01\0\x01\x01\x01\x01\x01\x02\x01\x01\x03\x02\0\0\x02\0\x01\x02\0\x02\x02\0\x03\x02\x01\0\x02\x01\x01\x02\x01\x02\x02\x01\x03\x03\0\0\x03\0\x01\x03\0\x02\x03\0\x03\x03\x01\0\x03\x01\x01\x03\x01\x02\x03\x01\x03\x04\0\0\x04\0\x01\x04\0\x02\x04\0\x03\x04\x01\0\x04\x01\x01\x04\x01\x02\x04\x01\x03",
+        server_definition: None,
     },
     BlockData {
         id: 16327u32,
@@ -34457,6 +35545,7 @@ pub static ALL_BLOCKS: [BlockData; 1477usize] = [
             },
         ],
         state_values: b"\0\0\0\0\0\x01\0\0\x01\0\0\0\x01\x01\0\0\0\0\x01\0\0\x01\x01\0\x01\0\x01\0\x01\x01\x01\0\0\0\0\x01\0\x01\0\x01\x01\0\0\x01\x01\x01\0\x01\0\0\x01\x01\0\x01\x01\x01\x01\0\x01\x01\x01\x01\x01\x01",
+        server_definition: None,
     },
     BlockData {
         id: 16343u32,
@@ -34492,6 +35581,7 @@ pub static ALL_BLOCKS: [BlockData; 1477usize] = [
             },
         ],
         state_values: b"\0\x01\x02",
+        server_definition: None,
     },
     BlockData {
         id: 16346u32,
@@ -34531,6 +35621,7 @@ pub static ALL_BLOCKS: [BlockData; 1477usize] = [
             },
         ],
         state_values: b"\0\0\x01\0\0\x01\x01\x01",
+        server_definition: None,
     },
     BlockData {
         id: 16350u32,
@@ -34557,6 +35648,7 @@ pub static ALL_BLOCKS: [BlockData; 1477usize] = [
         visual_shape: [0f32, 0f32, 0f32, 1f32, 1f32, 1f32],
         properties: &[],
         state_values: b"",
+        server_definition: None,
     },
     BlockData {
         id: 16351u32,
@@ -34608,6 +35700,7 @@ pub static ALL_BLOCKS: [BlockData; 1477usize] = [
             },
         ],
         state_values: b"\0\0\0\x01\0\x02\0\x03\0\x04\0\x05\0\x06\0\x07\x01\0\x01\x01\x01\x02\x01\x03\x01\x04\x01\x05\x01\x06\x01\x07\x02\0\x02\x01\x02\x02\x02\x03\x02\x04\x02\x05\x02\x06\x02\x07\x03\0\x03\x01\x03\x02\x03\x03\x03\x04\x03\x05\x03\x06\x03\x07\x04\0\x04\x01\x04\x02\x04\x03\x04\x04\x04\x05\x04\x06\x04\x07\x05\0\x05\x01\x05\x02\x05\x03\x05\x04\x05\x05\x05\x06\x05\x07",
+        server_definition: None,
     },
     BlockData {
         id: 16399u32,
@@ -34643,6 +35736,7 @@ pub static ALL_BLOCKS: [BlockData; 1477usize] = [
             },
         ],
         state_values: b"\0\0\0\x01\x01\0\x01\x01",
+        server_definition: None,
     },
     BlockData {
         id: 16403u32,
@@ -34674,6 +35768,9 @@ pub static ALL_BLOCKS: [BlockData; 1477usize] = [
             },
         ],
         state_values: b"\0\x01",
+        server_definition: Some(
+            b"\n\0\t\tblockTags\x08\x02&minecraft:is_pickaxe_item_destructible\n\ncomponents\n minecraft:destructible_by_mining\x05\x05valueff\xE6?\0\n\x1Fminecraft:redstone_conductivity\x01\x14allowsWireToStepDown\x01\x01\x11redstoneConductor\x01\0\0\n\rmenu_category\x08\x08category\x04none\x08\x05group\0\x01\x15is_hidden_in_commands\x01\0\x03\rmolangVersion\x1A\n\x12vanilla_block_data\n\x0Fblock_archetype\x08\x11double_slab_block\"minecraft:light_gray_concrete_slab\x01\tis_double\x01\x08\x04type\nslab_block\0\x03\x08block_id\x9E\x17\x08\x08material\x05solid\x01\x1Frequires_correct_tool_for_drops\x01\0\0",
+        ),
     },
     BlockData {
         id: 16405u32,
@@ -34717,6 +35814,7 @@ pub static ALL_BLOCKS: [BlockData; 1477usize] = [
             },
         ],
         state_values: b"\0\0\0\0\0\x01\0\0\x01\0\0\0\x01\x01\0\0\0\0\x01\0\0\x01\x01\0\x01\0\x01\0\x01\x01\x01\0\0\0\0\x01\0\x01\0\x01\x01\0\0\x01\x01\x01\0\x01\0\0\x01\x01\0\x01\x01\x01\x01\0\x01\x01\x01\x01\x01\x01",
+        server_definition: None,
     },
     BlockData {
         id: 16421u32,
@@ -34755,6 +35853,7 @@ pub static ALL_BLOCKS: [BlockData; 1477usize] = [
             },
         ],
         state_values: b"\0\x01\x02\x03\x04\x05",
+        server_definition: None,
     },
     BlockData {
         id: 16427u32,
@@ -34781,6 +35880,7 @@ pub static ALL_BLOCKS: [BlockData; 1477usize] = [
         visual_shape: [0f32, 0f32, 0f32, 1f32, 1f32, 1f32],
         properties: &[],
         state_values: b"",
+        server_definition: None,
     },
     BlockData {
         id: 16428u32,
@@ -34807,6 +35907,7 @@ pub static ALL_BLOCKS: [BlockData; 1477usize] = [
         visual_shape: [0f32, 0f32, 0f32, 1f32, 1f32, 1f32],
         properties: &[],
         state_values: b"",
+        server_definition: None,
     },
     BlockData {
         id: 16429u32,
@@ -34838,6 +35939,7 @@ pub static ALL_BLOCKS: [BlockData; 1477usize] = [
         visual_shape: [0f32, 0f32, 0f32, 1f32, 1f32, 1f32],
         properties: &[],
         state_values: b"",
+        server_definition: None,
     },
     BlockData {
         id: 16430u32,
@@ -34888,6 +35990,9 @@ pub static ALL_BLOCKS: [BlockData; 1477usize] = [
             },
         ],
         state_values: b"\0\0\0\0\0\x01\0\0\x02\0\0\x03\0\x01\0\0\x01\x01\0\x01\x02\0\x01\x03\x01\0\0\x01\0\x01\x01\0\x02\x01\0\x03\x01\x01\0\x01\x01\x01\x01\x01\x02\x01\x01\x03\x02\0\0\x02\0\x01\x02\0\x02\x02\0\x03\x02\x01\0\x02\x01\x01\x02\x01\x02\x02\x01\x03\x03\0\0\x03\0\x01\x03\0\x02\x03\0\x03\x03\x01\0\x03\x01\x01\x03\x01\x02\x03\x01\x03\x04\0\0\x04\0\x01\x04\0\x02\x04\0\x03\x04\x01\0\x04\x01\x01\x04\x01\x02\x04\x01\x03",
+        server_definition: Some(
+            b"\n\0\t\tblockTags\x08\x02&minecraft:is_pickaxe_item_destructible\n\ncomponents\n minecraft:destructible_by_mining\x05\x05valueff\xE6?\0\n\x1Fminecraft:destruction_particles\x03\x0Eparticle_count`\x08\x07texture\0\x08\x0Btint_method\x04none\0\n\x1Aminecraft:liquid_detection\t\x0EdetectionRules\n\x02\x01\x10canContainLiquid\x01\x08\nliquidType\x05water\x08\x0FonLiquidTouches\x08blocking\x01\x18stopsLiquidFromDirection\0\x01\x13use_liquid_clipping\0\0\0\n\x1Fminecraft:redstone_conductivity\x01\x14allowsWireToStepDown\x01\x01\x11redstoneConductor\0\0\n\x11minecraft:support\x08\x05shape\x05stair\0\0\n\rmenu_category\x08\x08category\x0Cconstruction\x08\x05group\x1Fminecraft:itemGroup.name.stairs\x01\x15is_hidden_in_commands\0\0\x03\rmolangVersion\x1A\n\x12vanilla_block_data\n\x0Fblock_archetype\x08\nbase_block\x17minecraft:cyan_concrete\x08\x04type\x0Bstair_block\0\x03\x08block_id\xF2\x16\x08\x08material\x05solid\x01\x1Frequires_correct_tool_for_drops\x01\0\0",
+        ),
     },
     BlockData {
         id: 16470u32,
@@ -34919,6 +36024,7 @@ pub static ALL_BLOCKS: [BlockData; 1477usize] = [
             },
         ],
         state_values: b"\0\x01",
+        server_definition: None,
     },
     BlockData {
         id: 16472u32,
@@ -34945,6 +36051,7 @@ pub static ALL_BLOCKS: [BlockData; 1477usize] = [
         visual_shape: [0f32, 0f32, 0f32, 1f32, 1f32, 1f32],
         properties: &[],
         state_values: b"",
+        server_definition: None,
     },
     BlockData {
         id: 16473u32,
@@ -34976,6 +36083,9 @@ pub static ALL_BLOCKS: [BlockData; 1477usize] = [
             },
         ],
         state_values: b"\0\x01",
+        server_definition: Some(
+            b"\n\0\t\tblockTags\x08\x02%minecraft:is_shears_item_destructible\n\ncomponents\n minecraft:destructible_by_mining\x05\x05value\xCD\xCCL?\0\n\x1Fminecraft:destruction_particles\x03\x0Eparticle_count`\x08\x07texture\0\x08\x0Btint_method\x04none\0\n\x1Aminecraft:liquid_detection\t\x0EdetectionRules\n\x02\x01\x10canContainLiquid\x01\x08\nliquidType\x05water\x08\x0FonLiquidTouches\x08blocking\x01\x18stopsLiquidFromDirection\0\x01\x13use_liquid_clipping\0\0\0\n\x1Fminecraft:redstone_conductivity\x01\x14allowsWireToStepDown\x01\x01\x11redstoneConductor\0\0\0\n\rmenu_category\x08\x08category\x0Cconstruction\x08\x05group\x1Dminecraft:itemGroup.name.slab\x01\x15is_hidden_in_commands\0\0\x03\rmolangVersion\x1A\n\x12vanilla_block_data\n\x0Fblock_archetype\x08\x11double_slab_block minecraft:black_wool_double_slab\x01\tis_double\0\x08\x04type\nslab_block\0\x03\x08block_id\x9E\x16\x01\x15can_dampen_vibrations\x01\x01\x16can_occlude_vibrations\x01\x08\x08material\x05solid\x05\x0Ctranslucency\xCD\xCCL?\0\0",
+        ),
     },
     BlockData {
         id: 16475u32,
@@ -35007,6 +36117,7 @@ pub static ALL_BLOCKS: [BlockData; 1477usize] = [
             },
         ],
         state_values: b"\0\x01",
+        server_definition: None,
     },
     BlockData {
         id: 16477u32,
@@ -35051,6 +36162,7 @@ pub static ALL_BLOCKS: [BlockData; 1477usize] = [
             },
         ],
         state_values: b"\0\0\0\x01\0\0\x02\0\0\x03\0\0\0\0\x01\x01\0\x01\x02\0\x01\x03\0\x01\0\x01\0\x01\x01\0\x02\x01\0\x03\x01\0\0\x01\x01\x01\x01\x01\x02\x01\x01\x03\x01\x01",
+        server_definition: None,
     },
     BlockData {
         id: 16493u32,
@@ -35091,6 +36203,7 @@ pub static ALL_BLOCKS: [BlockData; 1477usize] = [
             },
         ],
         state_values: b"\0\0\x01\0\x02\0\x03\0\0\x01\x01\x01\x02\x01\x03\x01",
+        server_definition: None,
     },
     BlockData {
         id: 16501u32,
@@ -35129,6 +36242,7 @@ pub static ALL_BLOCKS: [BlockData; 1477usize] = [
             },
         ],
         state_values: b"\0\x01\x02\x03\x04\x05",
+        server_definition: None,
     },
     BlockData {
         id: 16507u32,
@@ -35179,6 +36293,7 @@ pub static ALL_BLOCKS: [BlockData; 1477usize] = [
             },
         ],
         state_values: b"\0\0\0\0\0\x01\0\0\x02\0\0\x03\0\x01\0\0\x01\x01\0\x01\x02\0\x01\x03\x01\0\0\x01\0\x01\x01\0\x02\x01\0\x03\x01\x01\0\x01\x01\x01\x01\x01\x02\x01\x01\x03\x02\0\0\x02\0\x01\x02\0\x02\x02\0\x03\x02\x01\0\x02\x01\x01\x02\x01\x02\x02\x01\x03\x03\0\0\x03\0\x01\x03\0\x02\x03\0\x03\x03\x01\0\x03\x01\x01\x03\x01\x02\x03\x01\x03\x04\0\0\x04\0\x01\x04\0\x02\x04\0\x03\x04\x01\0\x04\x01\x01\x04\x01\x02\x04\x01\x03",
+        server_definition: None,
     },
     BlockData {
         id: 16547u32,
@@ -35205,6 +36320,7 @@ pub static ALL_BLOCKS: [BlockData; 1477usize] = [
         visual_shape: [0f32, 0f32, 0f32, 1f32, 1f32, 1f32],
         properties: &[],
         state_values: b"",
+        server_definition: None,
     },
     BlockData {
         id: 16548u32,
@@ -35231,6 +36347,7 @@ pub static ALL_BLOCKS: [BlockData; 1477usize] = [
         visual_shape: [0f32, 0f32, 0f32, 1f32, 1f32, 1f32],
         properties: &[],
         state_values: b"",
+        server_definition: None,
     },
     BlockData {
         id: 16549u32,
@@ -35273,6 +36390,7 @@ pub static ALL_BLOCKS: [BlockData; 1477usize] = [
             },
         ],
         state_values: b"\0\0\0\x01\0\x02\0\x03\0\x04\0\x05\x01\0\x01\x01\x01\x02\x01\x03\x01\x04\x01\x05",
+        server_definition: None,
     },
     BlockData {
         id: 16561u32,
@@ -35321,6 +36439,7 @@ pub static ALL_BLOCKS: [BlockData; 1477usize] = [
             },
         ],
         state_values: b"\0\0\0\0\0\x01\0\0\0\x02\0\0\0\x03\0\0\0\0\x01\0\0\x01\x01\0\0\x02\x01\0\0\x03\x01\0\0\0\0\x01\0\x01\0\x01\0\x02\0\x01\0\x03\0\x01\0\0\x01\x01\0\x01\x01\x01\0\x02\x01\x01\0\x03\x01\x01\x01\0\0\0\x01\x01\0\0\x01\x02\0\0\x01\x03\0\0\x01\0\x01\0\x01\x01\x01\0\x01\x02\x01\0\x01\x03\x01\0\x01\0\0\x01\x01\x01\0\x01\x01\x02\0\x01\x01\x03\0\x01\x01\0\x01\x01\x01\x01\x01\x01\x01\x02\x01\x01\x01\x03\x01\x01",
+        server_definition: None,
     },
     BlockData {
         id: 16593u32,
@@ -35352,6 +36471,9 @@ pub static ALL_BLOCKS: [BlockData; 1477usize] = [
             },
         ],
         state_values: b"\0\x01",
+        server_definition: Some(
+            b"\n\0\t\tblockTags\x08\x02&minecraft:is_pickaxe_item_destructible\n\ncomponents\n minecraft:destructible_by_mining\x05\x05valueff\xE6?\0\n\x1Fminecraft:destruction_particles\x03\x0Eparticle_count`\x08\x07texture\0\x08\x0Btint_method\x04none\0\n\x1Aminecraft:liquid_detection\t\x0EdetectionRules\n\x02\x01\x10canContainLiquid\x01\x08\nliquidType\x05water\x08\x0FonLiquidTouches\x08blocking\x01\x18stopsLiquidFromDirection\0\x01\x13use_liquid_clipping\0\0\0\n\x1Fminecraft:redstone_conductivity\x01\x14allowsWireToStepDown\x01\x01\x11redstoneConductor\0\0\0\n\rmenu_category\x08\x08category\x0Cconstruction\x08\x05group\x1Dminecraft:itemGroup.name.slab\x01\x15is_hidden_in_commands\0\0\x03\rmolangVersion\x1A\n\x12vanilla_block_data\n\x0Fblock_archetype\x08\x11double_slab_block%minecraft:orange_concrete_double_slab\x01\tis_double\0\x08\x04type\nslab_block\0\x03\x08block_id\x88\x17\x08\x08material\x05solid\x01\x1Frequires_correct_tool_for_drops\x01\0\0",
+        ),
     },
     BlockData {
         id: 16595u32,
@@ -35383,6 +36505,9 @@ pub static ALL_BLOCKS: [BlockData; 1477usize] = [
             },
         ],
         state_values: b"\0\x01",
+        server_definition: Some(
+            b"\n\0\t\tblockTags\x08\x02%minecraft:is_shears_item_destructible\n\ncomponents\n minecraft:destructible_by_mining\x05\x05value\xCD\xCCL?\0\n\x1Fminecraft:redstone_conductivity\x01\x14allowsWireToStepDown\x01\x01\x11redstoneConductor\x01\0\0\n\rmenu_category\x08\x08category\x04none\x08\x05group\0\x01\x15is_hidden_in_commands\x01\0\x03\rmolangVersion\x1A\n\x12vanilla_block_data\n\x0Fblock_archetype\x08\x11double_slab_block\x18minecraft:lime_wool_slab\x01\tis_double\x01\x08\x04type\nslab_block\0\x03\x08block_id\xC8\x16\x01\x15can_dampen_vibrations\x01\x01\x16can_occlude_vibrations\x01\x08\x08material\x05solid\0\0",
+        ),
     },
     BlockData {
         id: 16597u32,
@@ -35414,6 +36539,7 @@ pub static ALL_BLOCKS: [BlockData; 1477usize] = [
             },
         ],
         state_values: b"\0\x01",
+        server_definition: None,
     },
     BlockData {
         id: 16599u32,
@@ -35440,6 +36566,7 @@ pub static ALL_BLOCKS: [BlockData; 1477usize] = [
         visual_shape: [0f32, 0f32, 0f32, 1f32, 1f32, 1f32],
         properties: &[],
         state_values: b"",
+        server_definition: None,
     },
     BlockData {
         id: 16600u32,
@@ -35488,6 +36615,7 @@ pub static ALL_BLOCKS: [BlockData; 1477usize] = [
             },
         ],
         state_values: b"\0\0\0\0\0\x01\0\0\0\x02\0\0\0\x03\0\0\0\0\x01\0\0\x01\x01\0\0\x02\x01\0\0\x03\x01\0\0\0\0\x01\0\x01\0\x01\0\x02\0\x01\0\x03\0\x01\0\0\x01\x01\0\x01\x01\x01\0\x02\x01\x01\0\x03\x01\x01\x01\0\0\0\x01\x01\0\0\x01\x02\0\0\x01\x03\0\0\x01\0\x01\0\x01\x01\x01\0\x01\x02\x01\0\x01\x03\x01\0\x01\0\0\x01\x01\x01\0\x01\x01\x02\0\x01\x01\x03\0\x01\x01\0\x01\x01\x01\x01\x01\x01\x01\x02\x01\x01\x01\x03\x01\x01",
+        server_definition: None,
     },
     BlockData {
         id: 16632u32,
@@ -35523,6 +36651,7 @@ pub static ALL_BLOCKS: [BlockData; 1477usize] = [
             },
         ],
         state_values: b"\0\x01\x02",
+        server_definition: None,
     },
     BlockData {
         id: 16635u32,
@@ -35565,6 +36694,7 @@ pub static ALL_BLOCKS: [BlockData; 1477usize] = [
             },
         ],
         state_values: b"\0\0\0\x01\0\x02\0\x03\0\x04\0\x05\x01\0\x01\x01\x01\x02\x01\x03\x01\x04\x01\x05",
+        server_definition: None,
     },
     BlockData {
         id: 16647u32,
@@ -35596,6 +36726,7 @@ pub static ALL_BLOCKS: [BlockData; 1477usize] = [
             },
         ],
         state_values: b"\0\x01",
+        server_definition: None,
     },
     BlockData {
         id: 16649u32,
@@ -35627,6 +36758,7 @@ pub static ALL_BLOCKS: [BlockData; 1477usize] = [
             },
         ],
         state_values: b"\0\x01",
+        server_definition: None,
     },
     BlockData {
         id: 16651u32,
@@ -35653,6 +36785,7 @@ pub static ALL_BLOCKS: [BlockData; 1477usize] = [
         visual_shape: [0f32, 0f32, 0f32, 1f32, 1f32, 1f32],
         properties: &[],
         state_values: b"",
+        server_definition: None,
     },
     BlockData {
         id: 16652u32,
@@ -35679,6 +36812,7 @@ pub static ALL_BLOCKS: [BlockData; 1477usize] = [
         visual_shape: [0f32, 0f32, 0f32, 1f32, 1f32, 1f32],
         properties: &[],
         state_values: b"",
+        server_definition: None,
     },
     BlockData {
         id: 16653u32,
@@ -35705,6 +36839,7 @@ pub static ALL_BLOCKS: [BlockData; 1477usize] = [
         visual_shape: [0f32, 0f32, 0f32, 1f32, 1f32, 1f32],
         properties: &[],
         state_values: b"",
+        server_definition: None,
     },
     BlockData {
         id: 16654u32,
@@ -35731,6 +36866,7 @@ pub static ALL_BLOCKS: [BlockData; 1477usize] = [
         visual_shape: [0f32, 0f32, 0f32, 1f32, 1f32, 1f32],
         properties: &[],
         state_values: b"",
+        server_definition: None,
     },
     BlockData {
         id: 16655u32,
@@ -35757,6 +36893,7 @@ pub static ALL_BLOCKS: [BlockData; 1477usize] = [
         visual_shape: [0f32, 0f32, 0f32, 1f32, 1f32, 1f32],
         properties: &[],
         state_values: b"",
+        server_definition: None,
     },
     BlockData {
         id: 16656u32,
@@ -35783,6 +36920,7 @@ pub static ALL_BLOCKS: [BlockData; 1477usize] = [
         visual_shape: [0f32, 0f32, 0f32, 1f32, 1f32, 1f32],
         properties: &[],
         state_values: b"",
+        server_definition: None,
     },
     BlockData {
         id: 16657u32,
@@ -35809,6 +36947,7 @@ pub static ALL_BLOCKS: [BlockData; 1477usize] = [
         visual_shape: [0.15f32, 0f32, 0.15f32, 0.85f32, 0.3f32, 0.85f32],
         properties: &[],
         state_values: b"",
+        server_definition: None,
     },
     BlockData {
         id: 16658u32,
@@ -35852,6 +36991,7 @@ pub static ALL_BLOCKS: [BlockData; 1477usize] = [
             },
         ],
         state_values: b"\0\0\0\0\0\x01\0\0\x01\0\0\0\x01\x01\0\0\0\0\x01\0\0\x01\x01\0\x01\0\x01\0\x01\x01\x01\0\0\0\0\x01\0\x01\0\x01\x01\0\0\x01\x01\x01\0\x01\0\0\x01\x01\0\x01\x01\x01\x01\0\x01\x01\x01\x01\x01\x01",
+        server_definition: None,
     },
     BlockData {
         id: 16674u32,
@@ -35878,6 +37018,7 @@ pub static ALL_BLOCKS: [BlockData; 1477usize] = [
         visual_shape: [0f32, 0f32, 0f32, 1f32, 1f32, 1f32],
         properties: &[],
         state_values: b"",
+        server_definition: None,
     },
     BlockData {
         id: 16675u32,
@@ -35913,6 +37054,7 @@ pub static ALL_BLOCKS: [BlockData; 1477usize] = [
             },
         ],
         state_values: b"\0\x01\x02",
+        server_definition: None,
     },
     BlockData {
         id: 16678u32,
@@ -35956,6 +37098,7 @@ pub static ALL_BLOCKS: [BlockData; 1477usize] = [
             },
         ],
         state_values: b"\0\0\0\0\0\x01\0\0\x01\0\0\0\x01\x01\0\0\0\0\x01\0\0\x01\x01\0\x01\0\x01\0\x01\x01\x01\0\0\0\0\x01\0\x01\0\x01\x01\0\0\x01\x01\x01\0\x01\0\0\x01\x01\0\x01\x01\x01\x01\0\x01\x01\x01\x01\x01\x01",
+        server_definition: None,
     },
     BlockData {
         id: 16694u32,
@@ -35982,6 +37125,7 @@ pub static ALL_BLOCKS: [BlockData; 1477usize] = [
         visual_shape: [0f32, 0f32, 0f32, 1f32, 1f32, 1f32],
         properties: &[],
         state_values: b"",
+        server_definition: None,
     },
     BlockData {
         id: 16695u32,
@@ -36013,6 +37157,7 @@ pub static ALL_BLOCKS: [BlockData; 1477usize] = [
             },
         ],
         state_values: b"\0\x01",
+        server_definition: None,
     },
     BlockData {
         id: 16697u32,
@@ -36048,6 +37193,7 @@ pub static ALL_BLOCKS: [BlockData; 1477usize] = [
             },
         ],
         state_values: b"\0\x01\x02",
+        server_definition: None,
     },
     BlockData {
         id: 16700u32,
@@ -36079,6 +37225,7 @@ pub static ALL_BLOCKS: [BlockData; 1477usize] = [
             },
         ],
         state_values: b"\0\x01",
+        server_definition: None,
     },
     BlockData {
         id: 16702u32,
@@ -36105,6 +37252,7 @@ pub static ALL_BLOCKS: [BlockData; 1477usize] = [
         visual_shape: [0f32, 0f32, 0f32, 1f32, 1f32, 1f32],
         properties: &[],
         state_values: b"",
+        server_definition: None,
     },
     BlockData {
         id: 16703u32,
@@ -36136,6 +37284,7 @@ pub static ALL_BLOCKS: [BlockData; 1477usize] = [
             },
         ],
         state_values: b"\0\x01",
+        server_definition: None,
     },
     BlockData {
         id: 16705u32,
@@ -36171,6 +37320,7 @@ pub static ALL_BLOCKS: [BlockData; 1477usize] = [
             },
         ],
         state_values: b"\0\x01\x02",
+        server_definition: None,
     },
     BlockData {
         id: 16708u32,
@@ -36215,6 +37365,7 @@ pub static ALL_BLOCKS: [BlockData; 1477usize] = [
             },
         ],
         state_values: b"\0\0\0\x01\0\x02\0\x03\x01\0\x01\x01\x01\x02\x01\x03\x02\0\x02\x01\x02\x02\x02\x03",
+        server_definition: None,
     },
     BlockData {
         id: 16720u32,
@@ -36259,6 +37410,7 @@ pub static ALL_BLOCKS: [BlockData; 1477usize] = [
             },
         ],
         state_values: b"\0\0\x01\0\x02\0\x03\0\x04\0\x05\0\x06\0\x07\0\0\x01\x01\x01\x02\x01\x03\x01\x04\x01\x05\x01\x06\x01\x07\x01",
+        server_definition: None,
     },
     BlockData {
         id: 16736u32,
@@ -36309,6 +37461,7 @@ pub static ALL_BLOCKS: [BlockData; 1477usize] = [
             },
         ],
         state_values: b"\0\0\0\0\0\x01\0\0\x02\0\0\x03\0\x01\0\0\x01\x01\0\x01\x02\0\x01\x03\x01\0\0\x01\0\x01\x01\0\x02\x01\0\x03\x01\x01\0\x01\x01\x01\x01\x01\x02\x01\x01\x03\x02\0\0\x02\0\x01\x02\0\x02\x02\0\x03\x02\x01\0\x02\x01\x01\x02\x01\x02\x02\x01\x03\x03\0\0\x03\0\x01\x03\0\x02\x03\0\x03\x03\x01\0\x03\x01\x01\x03\x01\x02\x03\x01\x03\x04\0\0\x04\0\x01\x04\0\x02\x04\0\x03\x04\x01\0\x04\x01\x01\x04\x01\x02\x04\x01\x03",
+        server_definition: None,
     },
     BlockData {
         id: 16776u32,
@@ -36340,6 +37493,7 @@ pub static ALL_BLOCKS: [BlockData; 1477usize] = [
             },
         ],
         state_values: b"\0\x01",
+        server_definition: None,
     },
     BlockData {
         id: 16778u32,
@@ -36366,6 +37520,7 @@ pub static ALL_BLOCKS: [BlockData; 1477usize] = [
         visual_shape: [0f32, 0f32, 0f32, 1f32, 1f32, 1f32],
         properties: &[],
         state_values: b"",
+        server_definition: None,
     },
     BlockData {
         id: 16779u32,
@@ -36416,6 +37571,7 @@ pub static ALL_BLOCKS: [BlockData; 1477usize] = [
             },
         ],
         state_values: b"\0\0\0\0\0\x01\0\0\x02\0\0\x03\0\x01\0\0\x01\x01\0\x01\x02\0\x01\x03\x01\0\0\x01\0\x01\x01\0\x02\x01\0\x03\x01\x01\0\x01\x01\x01\x01\x01\x02\x01\x01\x03\x02\0\0\x02\0\x01\x02\0\x02\x02\0\x03\x02\x01\0\x02\x01\x01\x02\x01\x02\x02\x01\x03\x03\0\0\x03\0\x01\x03\0\x02\x03\0\x03\x03\x01\0\x03\x01\x01\x03\x01\x02\x03\x01\x03\x04\0\0\x04\0\x01\x04\0\x02\x04\0\x03\x04\x01\0\x04\x01\x01\x04\x01\x02\x04\x01\x03",
+        server_definition: None,
     },
     BlockData {
         id: 16819u32,
@@ -36454,6 +37610,7 @@ pub static ALL_BLOCKS: [BlockData; 1477usize] = [
             },
         ],
         state_values: b"\0\x01\x02\x03\x04\x05",
+        server_definition: None,
     },
     BlockData {
         id: 16825u32,
@@ -36503,6 +37660,7 @@ pub static ALL_BLOCKS: [BlockData; 1477usize] = [
             },
         ],
         state_values: b"\0\0\0\x01\0\0\x02\0\0\x03\0\0\0\0\x01\x01\0\x01\x02\0\x01\x03\0\x01\0\x01\0\x01\x01\0\x02\x01\0\x03\x01\0\0\x01\x01\x01\x01\x01\x02\x01\x01\x03\x01\x01",
+        server_definition: None,
     },
     BlockData {
         id: 16841u32,
@@ -36534,6 +37692,7 @@ pub static ALL_BLOCKS: [BlockData; 1477usize] = [
             },
         ],
         state_values: b"\0\x01",
+        server_definition: None,
     },
     BlockData {
         id: 16843u32,
@@ -36560,6 +37719,7 @@ pub static ALL_BLOCKS: [BlockData; 1477usize] = [
         visual_shape: [0f32, 0f32, 0f32, 1f32, 1f32, 1f32],
         properties: &[],
         state_values: b"",
+        server_definition: None,
     },
     BlockData {
         id: 16844u32,
@@ -36586,6 +37746,7 @@ pub static ALL_BLOCKS: [BlockData; 1477usize] = [
         visual_shape: [0f32, 0f32, 0f32, 1f32, 1f32, 1f32],
         properties: &[],
         state_values: b"",
+        server_definition: None,
     },
     BlockData {
         id: 16845u32,
@@ -36624,6 +37785,7 @@ pub static ALL_BLOCKS: [BlockData; 1477usize] = [
             },
         ],
         state_values: b"\0\x01\x02\x03\x04\x05",
+        server_definition: None,
     },
     BlockData {
         id: 16851u32,
@@ -36650,6 +37812,7 @@ pub static ALL_BLOCKS: [BlockData; 1477usize] = [
         visual_shape: [0.1f32, 0f32, 0.1f32, 0.9f32, 0.8f32, 0.9f32],
         properties: &[],
         state_values: b"",
+        server_definition: None,
     },
     BlockData {
         id: 16852u32,
@@ -36684,6 +37847,7 @@ pub static ALL_BLOCKS: [BlockData; 1477usize] = [
             },
         ],
         state_values: b"\0\x01",
+        server_definition: None,
     },
     BlockData {
         id: 16854u32,
@@ -36715,6 +37879,7 @@ pub static ALL_BLOCKS: [BlockData; 1477usize] = [
             },
         ],
         state_values: b"\0\x01",
+        server_definition: None,
     },
     BlockData {
         id: 16856u32,
@@ -36764,6 +37929,7 @@ pub static ALL_BLOCKS: [BlockData; 1477usize] = [
             },
         ],
         state_values: b"\0\0\0\x01\0\0\x02\0\0\x03\0\0\0\0\x01\x01\0\x01\x02\0\x01\x03\0\x01\0\x01\0\x01\x01\0\x02\x01\0\x03\x01\0\0\x01\x01\x01\x01\x01\x02\x01\x01\x03\x01\x01",
+        server_definition: None,
     },
     BlockData {
         id: 16872u32,
@@ -36806,6 +37972,7 @@ pub static ALL_BLOCKS: [BlockData; 1477usize] = [
             },
         ],
         state_values: b"\0\0\0\x01\0\x02\0\x03\0\x04\0\x05\x01\0\x01\x01\x01\x02\x01\x03\x01\x04\x01\x05",
+        server_definition: None,
     },
     BlockData {
         id: 16884u32,
@@ -36832,6 +37999,7 @@ pub static ALL_BLOCKS: [BlockData; 1477usize] = [
         visual_shape: [0f32, 0f32, 0f32, 1f32, 1f32, 1f32],
         properties: &[],
         state_values: b"",
+        server_definition: None,
     },
     BlockData {
         id: 16885u32,
@@ -36863,6 +38031,7 @@ pub static ALL_BLOCKS: [BlockData; 1477usize] = [
             },
         ],
         state_values: b"\0\x01",
+        server_definition: None,
     },
     BlockData {
         id: 16887u32,
@@ -36893,6 +38062,7 @@ pub static ALL_BLOCKS: [BlockData; 1477usize] = [
         visual_shape: [0f32, 0f32, 0f32, 1f32, 1f32, 1f32],
         properties: &[],
         state_values: b"",
+        server_definition: None,
     },
     BlockData {
         id: 16888u32,
@@ -36937,6 +38107,7 @@ pub static ALL_BLOCKS: [BlockData; 1477usize] = [
             },
         ],
         state_values: b"\0\0\0\0\x01\0\0\x02\0\0\x03\0\0\0\x01\0\x01\x01\0\x02\x01\0\x03\x01\x01\0\0\x01\x01\0\x01\x02\0\x01\x03\0\x01\0\x01\x01\x01\x01\x01\x02\x01\x01\x03\x01",
+        server_definition: None,
     },
     BlockData {
         id: 16904u32,
@@ -36971,6 +38142,7 @@ pub static ALL_BLOCKS: [BlockData; 1477usize] = [
             },
         ],
         state_values: b"\0\x01",
+        server_definition: None,
     },
     BlockData {
         id: 16906u32,
@@ -37021,6 +38193,7 @@ pub static ALL_BLOCKS: [BlockData; 1477usize] = [
             },
         ],
         state_values: b"\0\0\0\0\0\x01\0\0\x02\0\0\x03\0\x01\0\0\x01\x01\0\x01\x02\0\x01\x03\x01\0\0\x01\0\x01\x01\0\x02\x01\0\x03\x01\x01\0\x01\x01\x01\x01\x01\x02\x01\x01\x03\x02\0\0\x02\0\x01\x02\0\x02\x02\0\x03\x02\x01\0\x02\x01\x01\x02\x01\x02\x02\x01\x03\x03\0\0\x03\0\x01\x03\0\x02\x03\0\x03\x03\x01\0\x03\x01\x01\x03\x01\x02\x03\x01\x03\x04\0\0\x04\0\x01\x04\0\x02\x04\0\x03\x04\x01\0\x04\x01\x01\x04\x01\x02\x04\x01\x03",
+        server_definition: None,
     },
     BlockData {
         id: 16946u32,
@@ -37059,6 +38232,7 @@ pub static ALL_BLOCKS: [BlockData; 1477usize] = [
             },
         ],
         state_values: b"\0\x01\x02\x03\x04\x05",
+        server_definition: None,
     },
     BlockData {
         id: 16952u32,
@@ -37085,6 +38259,7 @@ pub static ALL_BLOCKS: [BlockData; 1477usize] = [
         visual_shape: [0f32, 0f32, 0f32, 1f32, 1f32, 1f32],
         properties: &[],
         state_values: b"",
+        server_definition: None,
     },
     BlockData {
         id: 16953u32,
@@ -37116,6 +38291,7 @@ pub static ALL_BLOCKS: [BlockData; 1477usize] = [
         visual_shape: [0f32, 0f32, 0f32, 1f32, 1f32, 1f32],
         properties: &[],
         state_values: b"",
+        server_definition: None,
     },
     BlockData {
         id: 16954u32,
@@ -37142,6 +38318,7 @@ pub static ALL_BLOCKS: [BlockData; 1477usize] = [
         visual_shape: [0f32, 0f32, 0f32, 1f32, 1f32, 1f32],
         properties: &[],
         state_values: b"",
+        server_definition: None,
     },
     BlockData {
         id: 16955u32,
@@ -37185,6 +38362,7 @@ pub static ALL_BLOCKS: [BlockData; 1477usize] = [
             },
         ],
         state_values: b"\0\0\0\0\0\x01\0\0\x01\0\0\0\x01\x01\0\0\0\0\x01\0\0\x01\x01\0\x01\0\x01\0\x01\x01\x01\0\0\0\0\x01\0\x01\0\x01\x01\0\0\x01\x01\x01\0\x01\0\0\x01\x01\0\x01\x01\x01\x01\0\x01\x01\x01\x01\x01\x01",
+        server_definition: None,
     },
     BlockData {
         id: 16971u32,
@@ -37215,6 +38393,7 @@ pub static ALL_BLOCKS: [BlockData; 1477usize] = [
         visual_shape: [0f32, 0f32, 0f32, 1f32, 1f32, 1f32],
         properties: &[],
         state_values: b"",
+        server_definition: None,
     },
     BlockData {
         id: 16972u32,
@@ -37251,6 +38430,7 @@ pub static ALL_BLOCKS: [BlockData; 1477usize] = [
             },
         ],
         state_values: b"\0\x01\x02\x03",
+        server_definition: None,
     },
     BlockData {
         id: 16976u32,
@@ -37300,6 +38480,7 @@ pub static ALL_BLOCKS: [BlockData; 1477usize] = [
             },
         ],
         state_values: b"\0\0\0\x01\0\0\x02\0\0\x03\0\0\0\0\x01\x01\0\x01\x02\0\x01\x03\0\x01\0\x01\0\x01\x01\0\x02\x01\0\x03\x01\0\0\x01\x01\x01\x01\x01\x02\x01\x01\x03\x01\x01",
+        server_definition: None,
     },
     BlockData {
         id: 16992u32,
@@ -37326,6 +38507,7 @@ pub static ALL_BLOCKS: [BlockData; 1477usize] = [
         visual_shape: [0f32, 0f32, 0f32, 1f32, 1f32, 1f32],
         properties: &[],
         state_values: b"",
+        server_definition: None,
     },
     BlockData {
         id: 16993u32,
@@ -37361,6 +38543,7 @@ pub static ALL_BLOCKS: [BlockData; 1477usize] = [
             },
         ],
         state_values: b"\0\0\0\x01\x01\0\x01\x01",
+        server_definition: None,
     },
     BlockData {
         id: 16997u32,
@@ -37405,6 +38588,7 @@ pub static ALL_BLOCKS: [BlockData; 1477usize] = [
             },
         ],
         state_values: b"\0\0\0\0\0\x01\x01\0\0\x01\0\x01\0\x01\0\0\x01\x01\x01\x01\0\x01\x01\x01\0\x02\0\0\x02\x01\x01\x02\0\x01\x02\x01\0\x03\0\0\x03\x01\x01\x03\0\x01\x03\x01",
+        server_definition: None,
     },
     BlockData {
         id: 17013u32,
@@ -37431,6 +38615,7 @@ pub static ALL_BLOCKS: [BlockData; 1477usize] = [
         visual_shape: [0f32, 0f32, 0f32, 1f32, 1f32, 1f32],
         properties: &[],
         state_values: b"",
+        server_definition: None,
     },
     BlockData {
         id: 17014u32,
@@ -37462,6 +38647,7 @@ pub static ALL_BLOCKS: [BlockData; 1477usize] = [
             },
         ],
         state_values: b"\0\x01",
+        server_definition: None,
     },
     BlockData {
         id: 17016u32,
@@ -37493,6 +38679,7 @@ pub static ALL_BLOCKS: [BlockData; 1477usize] = [
             },
         ],
         state_values: b"\0\x01",
+        server_definition: None,
     },
     BlockData {
         id: 17018u32,
@@ -37519,6 +38706,7 @@ pub static ALL_BLOCKS: [BlockData; 1477usize] = [
         visual_shape: [0f32, 0f32, 0f32, 1f32, 1f32, 1f32],
         properties: &[],
         state_values: b"",
+        server_definition: None,
     },
     BlockData {
         id: 17019u32,
@@ -37545,6 +38733,7 @@ pub static ALL_BLOCKS: [BlockData; 1477usize] = [
         visual_shape: [0f32, 0f32, 0f32, 1f32, 1f32, 1f32],
         properties: &[],
         state_values: b"",
+        server_definition: None,
     },
     BlockData {
         id: 17020u32,
@@ -37581,6 +38770,7 @@ pub static ALL_BLOCKS: [BlockData; 1477usize] = [
             },
         ],
         state_values: b"\0\x01\x02\x03",
+        server_definition: None,
     },
     BlockData {
         id: 17024u32,
@@ -37607,6 +38797,7 @@ pub static ALL_BLOCKS: [BlockData; 1477usize] = [
         visual_shape: [0f32, 0f32, 0f32, 1f32, 1f32, 1f32],
         properties: &[],
         state_values: b"",
+        server_definition: None,
     },
     BlockData {
         id: 17025u32,
@@ -37633,6 +38824,7 @@ pub static ALL_BLOCKS: [BlockData; 1477usize] = [
         visual_shape: [0f32, 0f32, 0f32, 1f32, 1f32, 1f32],
         properties: &[],
         state_values: b"",
+        server_definition: None,
     },
     BlockData {
         id: 17026u32,
@@ -37677,6 +38869,7 @@ pub static ALL_BLOCKS: [BlockData; 1477usize] = [
             },
         ],
         state_values: b"\0\0\0\x01\0\0\x02\0\0\x03\0\0\0\0\x01\x01\0\x01\x02\0\x01\x03\0\x01\0\x01\0\x01\x01\0\x02\x01\0\x03\x01\0\0\x01\x01\x01\x01\x01\x02\x01\x01\x03\x01\x01",
+        server_definition: None,
     },
     BlockData {
         id: 17042u32,
@@ -37703,6 +38896,7 @@ pub static ALL_BLOCKS: [BlockData; 1477usize] = [
         visual_shape: [0f32, 0f32, 0f32, 1f32, 1f32, 1f32],
         properties: &[],
         state_values: b"",
+        server_definition: None,
     },
     BlockData {
         id: 17043u32,
@@ -37734,6 +38928,7 @@ pub static ALL_BLOCKS: [BlockData; 1477usize] = [
             },
         ],
         state_values: b"\0\x01",
+        server_definition: None,
     },
     BlockData {
         id: 17045u32,
@@ -37765,6 +38960,7 @@ pub static ALL_BLOCKS: [BlockData; 1477usize] = [
             },
         ],
         state_values: b"\0\x01",
+        server_definition: None,
     },
     BlockData {
         id: 17047u32,
@@ -37794,6 +38990,7 @@ pub static ALL_BLOCKS: [BlockData; 1477usize] = [
         visual_shape: [0f32, 0f32, 0f32, 1f32, 1f32, 1f32],
         properties: &[],
         state_values: b"",
+        server_definition: None,
     },
     BlockData {
         id: 17048u32,
@@ -37825,6 +39022,7 @@ pub static ALL_BLOCKS: [BlockData; 1477usize] = [
             },
         ],
         state_values: b"\0\x01",
+        server_definition: None,
     },
     BlockData {
         id: 17050u32,
@@ -37866,6 +39064,7 @@ pub static ALL_BLOCKS: [BlockData; 1477usize] = [
             },
         ],
         state_values: b"\0\x01\x02\x03",
+        server_definition: None,
     },
     BlockData {
         id: 17054u32,
@@ -37901,6 +39100,7 @@ pub static ALL_BLOCKS: [BlockData; 1477usize] = [
             },
         ],
         state_values: b"\0\x01\x02",
+        server_definition: None,
     },
     BlockData {
         id: 17057u32,
@@ -37949,6 +39149,7 @@ pub static ALL_BLOCKS: [BlockData; 1477usize] = [
             },
         ],
         state_values: b"\0\x01\x02\x03\x04\x05\x06\x07\x08\t\n\x0B\x0C\r\x0E\x0F",
+        server_definition: None,
     },
     BlockData {
         id: 17073u32,
@@ -37999,6 +39200,7 @@ pub static ALL_BLOCKS: [BlockData; 1477usize] = [
             },
         ],
         state_values: b"\0\0\0\0\0\x01\0\0\x02\0\0\x03\0\x01\0\0\x01\x01\0\x01\x02\0\x01\x03\x01\0\0\x01\0\x01\x01\0\x02\x01\0\x03\x01\x01\0\x01\x01\x01\x01\x01\x02\x01\x01\x03\x02\0\0\x02\0\x01\x02\0\x02\x02\0\x03\x02\x01\0\x02\x01\x01\x02\x01\x02\x02\x01\x03\x03\0\0\x03\0\x01\x03\0\x02\x03\0\x03\x03\x01\0\x03\x01\x01\x03\x01\x02\x03\x01\x03\x04\0\0\x04\0\x01\x04\0\x02\x04\0\x03\x04\x01\0\x04\x01\x01\x04\x01\x02\x04\x01\x03",
+        server_definition: None,
     },
     BlockData {
         id: 17113u32,
@@ -38025,6 +39227,7 @@ pub static ALL_BLOCKS: [BlockData; 1477usize] = [
         visual_shape: [0f32, 0f32, 0f32, 1f32, 1f32, 1f32],
         properties: &[],
         state_values: b"",
+        server_definition: None,
     },
     BlockData {
         id: 17114u32,
@@ -38051,6 +39254,7 @@ pub static ALL_BLOCKS: [BlockData; 1477usize] = [
         visual_shape: [0f32, 0f32, 0f32, 1f32, 1f32, 1f32],
         properties: &[],
         state_values: b"",
+        server_definition: None,
     },
     BlockData {
         id: 17115u32,
@@ -38082,6 +39286,9 @@ pub static ALL_BLOCKS: [BlockData; 1477usize] = [
             },
         ],
         state_values: b"\0\x01",
+        server_definition: Some(
+            b"\n\0\t\tblockTags\x08\x02&minecraft:is_pickaxe_item_destructible\n\ncomponents\n minecraft:destructible_by_mining\x05\x05valueff\xE6?\0\n\x1Fminecraft:redstone_conductivity\x01\x14allowsWireToStepDown\x01\x01\x11redstoneConductor\x01\0\0\n\rmenu_category\x08\x08category\x04none\x08\x05group\0\x01\x15is_hidden_in_commands\x01\0\x03\rmolangVersion\x1A\n\x12vanilla_block_data\n\x0Fblock_archetype\x08\x11double_slab_block\x1Eminecraft:orange_concrete_slab\x01\tis_double\x01\x08\x04type\nslab_block\0\x03\x08block_id\xA8\x17\x08\x08material\x05solid\x01\x1Frequires_correct_tool_for_drops\x01\0\0",
+        ),
     },
     BlockData {
         id: 17117u32,
@@ -38111,6 +39318,7 @@ pub static ALL_BLOCKS: [BlockData; 1477usize] = [
         visual_shape: [0f32, 0f32, 0f32, 1f32, 1f32, 1f32],
         properties: &[],
         state_values: b"",
+        server_definition: None,
     },
     BlockData {
         id: 17118u32,
@@ -38137,6 +39345,7 @@ pub static ALL_BLOCKS: [BlockData; 1477usize] = [
         visual_shape: [0f32, 0f32, 0f32, 1f32, 0.0625f32, 1f32],
         properties: &[],
         state_values: b"",
+        server_definition: None,
     },
     BlockData {
         id: 17119u32,
@@ -38163,6 +39372,7 @@ pub static ALL_BLOCKS: [BlockData; 1477usize] = [
         visual_shape: [0.15f32, 0f32, 0.15f32, 0.7f32, 0.6f32, 0.7f32],
         properties: &[],
         state_values: b"",
+        server_definition: None,
     },
     BlockData {
         id: 17120u32,
@@ -38194,6 +39404,7 @@ pub static ALL_BLOCKS: [BlockData; 1477usize] = [
             },
         ],
         state_values: b"\0\x01",
+        server_definition: None,
     },
     BlockData {
         id: 17122u32,
@@ -38230,6 +39441,7 @@ pub static ALL_BLOCKS: [BlockData; 1477usize] = [
             },
         ],
         state_values: b"\0\x01\x02\x03",
+        server_definition: None,
     },
     BlockData {
         id: 17126u32,
@@ -38261,6 +39473,7 @@ pub static ALL_BLOCKS: [BlockData; 1477usize] = [
             },
         ],
         state_values: b"\0\x01",
+        server_definition: None,
     },
     BlockData {
         id: 17128u32,
@@ -38287,6 +39500,7 @@ pub static ALL_BLOCKS: [BlockData; 1477usize] = [
         visual_shape: [0f32, 0f32, 0f32, 1f32, 0.75f32, 1f32],
         properties: &[],
         state_values: b"",
+        server_definition: None,
     },
     BlockData {
         id: 17129u32,
@@ -38350,6 +39564,7 @@ pub static ALL_BLOCKS: [BlockData; 1477usize] = [
             },
         ],
         state_values: b"\0\0\0\0\0\0\0\0\0\x01\0\x01\0\0\0\0\x01\0\0\x01\0\x02\0\0\0\0\x02\0\0\x01\x01\0\0\0\0\x01\0\0\0\x01\x01\x01\0\0\0\x01\x01\0\0\x01\x01\x02\0\0\0\x01\x02\0\0\x01\x02\0\0\0\0\x02\0\0\0\x01\x02\x01\0\0\0\x02\x01\0\0\x01\x02\x02\0\0\0\x02\x02\0\0\x01\0\0\x01\0\0\0\0\x01\0\x01\0\x01\x01\0\0\0\x01\x01\0\x01\0\x02\x01\0\0\0\x02\x01\0\x01\x01\0\x01\0\0\x01\0\x01\0\x01\x01\x01\x01\0\0\x01\x01\x01\0\x01\x01\x02\x01\0\0\x01\x02\x01\0\x01\x02\0\x01\0\0\x02\0\x01\0\x01\x02\x01\x01\0\0\x02\x01\x01\0\x01\x02\x02\x01\0\0\x02\x02\x01\0\x01\0\0\x02\0\0\0\0\x02\0\x01\0\x01\x02\0\0\0\x01\x02\0\x01\0\x02\x02\0\0\0\x02\x02\0\x01\x01\0\x02\0\0\x01\0\x02\0\x01\x01\x01\x02\0\0\x01\x01\x02\0\x01\x01\x02\x02\0\0\x01\x02\x02\0\x01\x02\0\x02\0\0\x02\0\x02\0\x01\x02\x01\x02\0\0\x02\x01\x02\0\x01\x02\x02\x02\0\0\x02\x02\x02\0\x01\0\0\0\x01\0\0\0\0\x01\x01\0\x01\0\x01\0\0\x01\0\x01\x01\0\x02\0\x01\0\0\x02\0\x01\x01\x01\0\0\x01\0\x01\0\0\x01\x01\x01\x01\0\x01\0\x01\x01\0\x01\x01\x01\x02\0\x01\0\x01\x02\0\x01\x01\x02\0\0\x01\0\x02\0\0\x01\x01\x02\x01\0\x01\0\x02\x01\0\x01\x01\x02\x02\0\x01\0\x02\x02\0\x01\x01\0\0\x01\x01\0\0\0\x01\x01\x01\0\x01\x01\x01\0\0\x01\x01\x01\x01\0\x02\x01\x01\0\0\x02\x01\x01\x01\x01\0\x01\x01\0\x01\0\x01\x01\x01\x01\x01\x01\x01\0\x01\x01\x01\x01\x01\x01\x02\x01\x01\0\x01\x02\x01\x01\x01\x02\0\x01\x01\0\x02\0\x01\x01\x01\x02\x01\x01\x01\0\x02\x01\x01\x01\x01\x02\x02\x01\x01\0\x02\x02\x01\x01\x01\0\0\x02\x01\0\0\0\x02\x01\x01\0\x01\x02\x01\0\0\x01\x02\x01\x01\0\x02\x02\x01\0\0\x02\x02\x01\x01\x01\0\x02\x01\0\x01\0\x02\x01\x01\x01\x01\x02\x01\0\x01\x01\x02\x01\x01\x01\x02\x02\x01\0\x01\x02\x02\x01\x01\x02\0\x02\x01\0\x02\0\x02\x01\x01\x02\x01\x02\x01\0\x02\x01\x02\x01\x01\x02\x02\x02\x01\0\x02\x02\x02\x01\x01\0\0\0\x02\0\0\0\0\x02\x01\0\x01\0\x02\0\0\x01\0\x02\x01\0\x02\0\x02\0\0\x02\0\x02\x01\x01\0\0\x02\0\x01\0\0\x02\x01\x01\x01\0\x02\0\x01\x01\0\x02\x01\x01\x02\0\x02\0\x01\x02\0\x02\x01\x02\0\0\x02\0\x02\0\0\x02\x01\x02\x01\0\x02\0\x02\x01\0\x02\x01\x02\x02\0\x02\0\x02\x02\0\x02\x01\0\0\x01\x02\0\0\0\x01\x02\x01\0\x01\x01\x02\0\0\x01\x01\x02\x01\0\x02\x01\x02\0\0\x02\x01\x02\x01\x01\0\x01\x02\0\x01\0\x01\x02\x01\x01\x01\x01\x02\0\x01\x01\x01\x02\x01\x01\x02\x01\x02\0\x01\x02\x01\x02\x01\x02\0\x01\x02\0\x02\0\x01\x02\x01\x02\x01\x01\x02\0\x02\x01\x01\x02\x01\x02\x02\x01\x02\0\x02\x02\x01\x02\x01\0\0\x02\x02\0\0\0\x02\x02\x01\0\x01\x02\x02\0\0\x01\x02\x02\x01\0\x02\x02\x02\0\0\x02\x02\x02\x01\x01\0\x02\x02\0\x01\0\x02\x02\x01\x01\x01\x02\x02\0\x01\x01\x02\x02\x01\x01\x02\x02\x02\0\x01\x02\x02\x02\x01\x02\0\x02\x02\0\x02\0\x02\x02\x01\x02\x01\x02\x02\0\x02\x01\x02\x02\x01\x02\x02\x02\x02\0\x02\x02\x02\x02\x01",
+        server_definition: None,
     },
     BlockData {
         id: 17291u32,
@@ -38384,6 +39599,7 @@ pub static ALL_BLOCKS: [BlockData; 1477usize] = [
             },
         ],
         state_values: b"\0\x01",
+        server_definition: None,
     },
     BlockData {
         id: 17293u32,
@@ -38420,6 +39636,7 @@ pub static ALL_BLOCKS: [BlockData; 1477usize] = [
             },
         ],
         state_values: b"\0\x01\x02\x03",
+        server_definition: None,
     },
     BlockData {
         id: 17297u32,
@@ -38446,6 +39663,7 @@ pub static ALL_BLOCKS: [BlockData; 1477usize] = [
         visual_shape: [0.15f32, 0f32, 0.15f32, 0.7f32, 0.6f32, 0.7f32],
         properties: &[],
         state_values: b"",
+        server_definition: None,
     },
     BlockData {
         id: 17298u32,
@@ -38472,6 +39690,7 @@ pub static ALL_BLOCKS: [BlockData; 1477usize] = [
         visual_shape: [0f32, 0f32, 0f32, 1f32, 1f32, 1f32],
         properties: &[],
         state_values: b"",
+        server_definition: None,
     },
     BlockData {
         id: 17299u32,
@@ -38503,6 +39722,9 @@ pub static ALL_BLOCKS: [BlockData; 1477usize] = [
             },
         ],
         state_values: b"\0\x01",
+        server_definition: Some(
+            b"\n\0\t\tblockTags\x08\x02%minecraft:is_shears_item_destructible\n\ncomponents\n minecraft:destructible_by_mining\x05\x05value\xCD\xCCL?\0\n\x1Fminecraft:redstone_conductivity\x01\x14allowsWireToStepDown\x01\x01\x11redstoneConductor\x01\0\0\n\rmenu_category\x08\x08category\x04none\x08\x05group\0\x01\x15is_hidden_in_commands\x01\0\x03\rmolangVersion\x1A\n\x12vanilla_block_data\n\x0Fblock_archetype\x08\x11double_slab_block\x1Eminecraft:light_gray_wool_slab\x01\tis_double\x01\x08\x04type\nslab_block\0\x03\x08block_id\xBA\x16\x01\x15can_dampen_vibrations\x01\x01\x16can_occlude_vibrations\x01\x08\x08material\x05solid\0\0",
+        ),
     },
     BlockData {
         id: 17301u32,
@@ -38553,6 +39775,7 @@ pub static ALL_BLOCKS: [BlockData; 1477usize] = [
             },
         ],
         state_values: b"\0\0\0\0\0\x01\0\0\x02\0\0\x03\0\x01\0\0\x01\x01\0\x01\x02\0\x01\x03\x01\0\0\x01\0\x01\x01\0\x02\x01\0\x03\x01\x01\0\x01\x01\x01\x01\x01\x02\x01\x01\x03\x02\0\0\x02\0\x01\x02\0\x02\x02\0\x03\x02\x01\0\x02\x01\x01\x02\x01\x02\x02\x01\x03\x03\0\0\x03\0\x01\x03\0\x02\x03\0\x03\x03\x01\0\x03\x01\x01\x03\x01\x02\x03\x01\x03\x04\0\0\x04\0\x01\x04\0\x02\x04\0\x03\x04\x01\0\x04\x01\x01\x04\x01\x02\x04\x01\x03",
+        server_definition: None,
     },
     BlockData {
         id: 17341u32,
@@ -38579,6 +39802,7 @@ pub static ALL_BLOCKS: [BlockData; 1477usize] = [
         visual_shape: [0f32, 0f32, 0f32, 1f32, 1f32, 1f32],
         properties: &[],
         state_values: b"",
+        server_definition: None,
     },
     BlockData {
         id: 17342u32,
@@ -38610,6 +39834,9 @@ pub static ALL_BLOCKS: [BlockData; 1477usize] = [
             },
         ],
         state_values: b"\0\x01",
+        server_definition: Some(
+            b"\n\0\t\tblockTags\x08\x02%minecraft:is_shears_item_destructible\n\ncomponents\n minecraft:destructible_by_mining\x05\x05value\xCD\xCCL?\0\n\x1Fminecraft:destruction_particles\x03\x0Eparticle_count`\x08\x07texture\0\x08\x0Btint_method\x04none\0\n\x1Aminecraft:liquid_detection\t\x0EdetectionRules\n\x02\x01\x10canContainLiquid\x01\x08\nliquidType\x05water\x08\x0FonLiquidTouches\x08blocking\x01\x18stopsLiquidFromDirection\0\x01\x13use_liquid_clipping\0\0\0\n\x1Fminecraft:redstone_conductivity\x01\x14allowsWireToStepDown\x01\x01\x11redstoneConductor\0\0\0\n\rmenu_category\x08\x08category\x0Cconstruction\x08\x05group\x1Dminecraft:itemGroup.name.slab\x01\x15is_hidden_in_commands\0\0\x03\rmolangVersion\x1A\n\x12vanilla_block_data\n\x0Fblock_archetype\x08\x11double_slab_block\x1Fminecraft:gray_wool_double_slab\x01\tis_double\0\x08\x04type\nslab_block\0\x03\x08block_id\x9C\x16\x01\x15can_dampen_vibrations\x01\x01\x16can_occlude_vibrations\x01\x08\x08material\x05solid\x05\x0Ctranslucency\xCD\xCCL?\0\0",
+        ),
     },
     BlockData {
         id: 17344u32,
@@ -38636,6 +39863,7 @@ pub static ALL_BLOCKS: [BlockData; 1477usize] = [
         visual_shape: [0f32, 0f32, 0f32, 1f32, 1f32, 1f32],
         properties: &[],
         state_values: b"",
+        server_definition: None,
     },
     BlockData {
         id: 17345u32,
@@ -38674,6 +39902,7 @@ pub static ALL_BLOCKS: [BlockData; 1477usize] = [
             },
         ],
         state_values: b"\0\x01\x02\x03\x04\x05",
+        server_definition: None,
     },
     BlockData {
         id: 17351u32,
@@ -38712,6 +39941,7 @@ pub static ALL_BLOCKS: [BlockData; 1477usize] = [
             },
         ],
         state_values: b"\0\x01\x02\x03\x04\x05",
+        server_definition: None,
     },
     BlockData {
         id: 17357u32,
@@ -38743,6 +39973,9 @@ pub static ALL_BLOCKS: [BlockData; 1477usize] = [
             },
         ],
         state_values: b"\0\x01",
+        server_definition: Some(
+            b"\n\0\t\tblockTags\x08\x02&minecraft:is_pickaxe_item_destructible\n\ncomponents\n minecraft:destructible_by_mining\x05\x05valueff\xE6?\0\n\x1Fminecraft:destruction_particles\x03\x0Eparticle_count`\x08\x07texture\0\x08\x0Btint_method\x04none\0\n\x1Aminecraft:liquid_detection\t\x0EdetectionRules\n\x02\x01\x10canContainLiquid\x01\x08\nliquidType\x05water\x08\x0FonLiquidTouches\x08blocking\x01\x18stopsLiquidFromDirection\0\x01\x13use_liquid_clipping\0\0\0\n\x1Fminecraft:redstone_conductivity\x01\x14allowsWireToStepDown\x01\x01\x11redstoneConductor\0\0\0\n\rmenu_category\x08\x08category\x0Cconstruction\x08\x05group\x1Dminecraft:itemGroup.name.slab\x01\x15is_hidden_in_commands\0\0\x03\rmolangVersion\x1A\n\x12vanilla_block_data\n\x0Fblock_archetype\x08\x11double_slab_block$minecraft:green_concrete_double_slab\x01\tis_double\0\x08\x04type\nslab_block\0\x03\x08block_id\x8E\x17\x08\x08material\x05solid\x01\x1Frequires_correct_tool_for_drops\x01\0\0",
+        ),
     },
     BlockData {
         id: 17359u32,
@@ -38778,6 +40011,7 @@ pub static ALL_BLOCKS: [BlockData; 1477usize] = [
             },
         ],
         state_values: b"\0\x01\x02",
+        server_definition: None,
     },
     BlockData {
         id: 17362u32,
@@ -38809,6 +40043,9 @@ pub static ALL_BLOCKS: [BlockData; 1477usize] = [
             },
         ],
         state_values: b"\0\x01",
+        server_definition: Some(
+            b"\n\0\t\tblockTags\x08\x02%minecraft:is_shears_item_destructible\n\ncomponents\n minecraft:destructible_by_mining\x05\x05value\xCD\xCCL?\0\n\x1Fminecraft:redstone_conductivity\x01\x14allowsWireToStepDown\x01\x01\x11redstoneConductor\x01\0\0\n\rmenu_category\x08\x08category\x04none\x08\x05group\0\x01\x15is_hidden_in_commands\x01\0\x03\rmolangVersion\x1A\n\x12vanilla_block_data\n\x0Fblock_archetype\x08\x11double_slab_block\x19minecraft:brown_wool_slab\x01\tis_double\x01\x08\x04type\nslab_block\0\x03\x08block_id\xC0\x16\x01\x15can_dampen_vibrations\x01\x01\x16can_occlude_vibrations\x01\x08\x08material\x05solid\0\0",
+        ),
     },
     BlockData {
         id: 17364u32,
@@ -38872,6 +40109,7 @@ pub static ALL_BLOCKS: [BlockData; 1477usize] = [
             },
         ],
         state_values: b"\0\0\0\0\0\0\0\0\0\x01\0\x01\0\0\0\0\x01\0\0\x01\0\x02\0\0\0\0\x02\0\0\x01\x01\0\0\0\0\x01\0\0\0\x01\x01\x01\0\0\0\x01\x01\0\0\x01\x01\x02\0\0\0\x01\x02\0\0\x01\x02\0\0\0\0\x02\0\0\0\x01\x02\x01\0\0\0\x02\x01\0\0\x01\x02\x02\0\0\0\x02\x02\0\0\x01\0\0\x01\0\0\0\0\x01\0\x01\0\x01\x01\0\0\0\x01\x01\0\x01\0\x02\x01\0\0\0\x02\x01\0\x01\x01\0\x01\0\0\x01\0\x01\0\x01\x01\x01\x01\0\0\x01\x01\x01\0\x01\x01\x02\x01\0\0\x01\x02\x01\0\x01\x02\0\x01\0\0\x02\0\x01\0\x01\x02\x01\x01\0\0\x02\x01\x01\0\x01\x02\x02\x01\0\0\x02\x02\x01\0\x01\0\0\x02\0\0\0\0\x02\0\x01\0\x01\x02\0\0\0\x01\x02\0\x01\0\x02\x02\0\0\0\x02\x02\0\x01\x01\0\x02\0\0\x01\0\x02\0\x01\x01\x01\x02\0\0\x01\x01\x02\0\x01\x01\x02\x02\0\0\x01\x02\x02\0\x01\x02\0\x02\0\0\x02\0\x02\0\x01\x02\x01\x02\0\0\x02\x01\x02\0\x01\x02\x02\x02\0\0\x02\x02\x02\0\x01\0\0\0\x01\0\0\0\0\x01\x01\0\x01\0\x01\0\0\x01\0\x01\x01\0\x02\0\x01\0\0\x02\0\x01\x01\x01\0\0\x01\0\x01\0\0\x01\x01\x01\x01\0\x01\0\x01\x01\0\x01\x01\x01\x02\0\x01\0\x01\x02\0\x01\x01\x02\0\0\x01\0\x02\0\0\x01\x01\x02\x01\0\x01\0\x02\x01\0\x01\x01\x02\x02\0\x01\0\x02\x02\0\x01\x01\0\0\x01\x01\0\0\0\x01\x01\x01\0\x01\x01\x01\0\0\x01\x01\x01\x01\0\x02\x01\x01\0\0\x02\x01\x01\x01\x01\0\x01\x01\0\x01\0\x01\x01\x01\x01\x01\x01\x01\0\x01\x01\x01\x01\x01\x01\x02\x01\x01\0\x01\x02\x01\x01\x01\x02\0\x01\x01\0\x02\0\x01\x01\x01\x02\x01\x01\x01\0\x02\x01\x01\x01\x01\x02\x02\x01\x01\0\x02\x02\x01\x01\x01\0\0\x02\x01\0\0\0\x02\x01\x01\0\x01\x02\x01\0\0\x01\x02\x01\x01\0\x02\x02\x01\0\0\x02\x02\x01\x01\x01\0\x02\x01\0\x01\0\x02\x01\x01\x01\x01\x02\x01\0\x01\x01\x02\x01\x01\x01\x02\x02\x01\0\x01\x02\x02\x01\x01\x02\0\x02\x01\0\x02\0\x02\x01\x01\x02\x01\x02\x01\0\x02\x01\x02\x01\x01\x02\x02\x02\x01\0\x02\x02\x02\x01\x01\0\0\0\x02\0\0\0\0\x02\x01\0\x01\0\x02\0\0\x01\0\x02\x01\0\x02\0\x02\0\0\x02\0\x02\x01\x01\0\0\x02\0\x01\0\0\x02\x01\x01\x01\0\x02\0\x01\x01\0\x02\x01\x01\x02\0\x02\0\x01\x02\0\x02\x01\x02\0\0\x02\0\x02\0\0\x02\x01\x02\x01\0\x02\0\x02\x01\0\x02\x01\x02\x02\0\x02\0\x02\x02\0\x02\x01\0\0\x01\x02\0\0\0\x01\x02\x01\0\x01\x01\x02\0\0\x01\x01\x02\x01\0\x02\x01\x02\0\0\x02\x01\x02\x01\x01\0\x01\x02\0\x01\0\x01\x02\x01\x01\x01\x01\x02\0\x01\x01\x01\x02\x01\x01\x02\x01\x02\0\x01\x02\x01\x02\x01\x02\0\x01\x02\0\x02\0\x01\x02\x01\x02\x01\x01\x02\0\x02\x01\x01\x02\x01\x02\x02\x01\x02\0\x02\x02\x01\x02\x01\0\0\x02\x02\0\0\0\x02\x02\x01\0\x01\x02\x02\0\0\x01\x02\x02\x01\0\x02\x02\x02\0\0\x02\x02\x02\x01\x01\0\x02\x02\0\x01\0\x02\x02\x01\x01\x01\x02\x02\0\x01\x01\x02\x02\x01\x01\x02\x02\x02\0\x01\x02\x02\x02\x01\x02\0\x02\x02\0\x02\0\x02\x02\x01\x02\x01\x02\x02\0\x02\x01\x02\x02\x01\x02\x02\x02\x02\0\x02\x02\x02\x02\x01",
+        server_definition: None,
     },
     BlockData {
         id: 17526u32,
@@ -38915,6 +40153,7 @@ pub static ALL_BLOCKS: [BlockData; 1477usize] = [
             },
         ],
         state_values: b"\0\0\0\0\0\x01\0\0\x01\0\0\0\x01\x01\0\0\0\0\x01\0\0\x01\x01\0\x01\0\x01\0\x01\x01\x01\0\0\0\0\x01\0\x01\0\x01\x01\0\0\x01\x01\x01\0\x01\0\0\x01\x01\0\x01\x01\x01\x01\0\x01\x01\x01\x01\x01\x01",
+        server_definition: None,
     },
     BlockData {
         id: 17542u32,
@@ -38957,6 +40196,7 @@ pub static ALL_BLOCKS: [BlockData; 1477usize] = [
             },
         ],
         state_values: b"\0\0\x01\0\x02\0\x03\0\x04\0\x05\0\0\x01\x01\x01\x02\x01\x03\x01\x04\x01\x05\x01",
+        server_definition: None,
     },
     BlockData {
         id: 17554u32,
@@ -38983,6 +40223,7 @@ pub static ALL_BLOCKS: [BlockData; 1477usize] = [
         visual_shape: [0f32, 0f32, 0f32, 1f32, 1f32, 1f32],
         properties: &[],
         state_values: b"",
+        server_definition: None,
     },
     BlockData {
         id: 17555u32,
@@ -39032,6 +40273,7 @@ pub static ALL_BLOCKS: [BlockData; 1477usize] = [
             },
         ],
         state_values: b"\0\0\0\0\x01\0\0\x02\0\0\x03\0\x01\0\0\x01\x01\0\x01\x02\0\x01\x03\0\x02\0\0\x02\x01\0\x02\x02\0\x02\x03\0\x03\0\0\x03\x01\0\x03\x02\0\x03\x03\0\0\0\x01\0\x01\x01\0\x02\x01\0\x03\x01\x01\0\x01\x01\x01\x01\x01\x02\x01\x01\x03\x01\x02\0\x01\x02\x01\x01\x02\x02\x01\x02\x03\x01\x03\0\x01\x03\x01\x01\x03\x02\x01\x03\x03\x01",
+        server_definition: None,
     },
     BlockData {
         id: 17587u32,
@@ -39072,6 +40314,7 @@ pub static ALL_BLOCKS: [BlockData; 1477usize] = [
             },
         ],
         state_values: b"\0\0\x01\0\x02\0\x03\0\0\x01\x01\x01\x02\x01\x03\x01",
+        server_definition: None,
     },
     BlockData {
         id: 17595u32,
@@ -39098,6 +40341,7 @@ pub static ALL_BLOCKS: [BlockData; 1477usize] = [
         visual_shape: [0f32, 0f32, 0f32, 1f32, 0.8f32, 1f32],
         properties: &[],
         state_values: b"",
+        server_definition: None,
     },
     BlockData {
         id: 17596u32,
@@ -39133,6 +40377,7 @@ pub static ALL_BLOCKS: [BlockData; 1477usize] = [
             },
         ],
         state_values: b"\0\x01\x02",
+        server_definition: None,
     },
     BlockData {
         id: 17599u32,
@@ -39164,6 +40409,9 @@ pub static ALL_BLOCKS: [BlockData; 1477usize] = [
             },
         ],
         state_values: b"\0\x01",
+        server_definition: Some(
+            b"\n\0\t\tblockTags\x08\x02%minecraft:is_shears_item_destructible\n\ncomponents\n minecraft:destructible_by_mining\x05\x05value\xCD\xCCL?\0\n\x1Fminecraft:destruction_particles\x03\x0Eparticle_count`\x08\x07texture\0\x08\x0Btint_method\x04none\0\n\x1Aminecraft:liquid_detection\t\x0EdetectionRules\n\x02\x01\x10canContainLiquid\x01\x08\nliquidType\x05water\x08\x0FonLiquidTouches\x08blocking\x01\x18stopsLiquidFromDirection\0\x01\x13use_liquid_clipping\0\0\0\n\x1Fminecraft:redstone_conductivity\x01\x14allowsWireToStepDown\x01\x01\x11redstoneConductor\0\0\0\n\rmenu_category\x08\x08category\x0Cconstruction\x08\x05group\x1Dminecraft:itemGroup.name.slab\x01\x15is_hidden_in_commands\0\0\x03\rmolangVersion\x1A\n\x12vanilla_block_data\n\x0Fblock_archetype\x08\x11double_slab_block\x1Fminecraft:cyan_wool_double_slab\x01\tis_double\0\x08\x04type\nslab_block\0\x03\x08block_id\xAC\x16\x01\x15can_dampen_vibrations\x01\x01\x16can_occlude_vibrations\x01\x08\x08material\x05solid\x05\x0Ctranslucency\xCD\xCCL?\0\0",
+        ),
     },
     BlockData {
         id: 17601u32,
@@ -39212,6 +40460,7 @@ pub static ALL_BLOCKS: [BlockData; 1477usize] = [
             },
         ],
         state_values: b"\0\x01\x02\x03\x04\x05\x06\x07\x08\t\n\x0B\x0C\r\x0E\x0F",
+        server_definition: None,
     },
     BlockData {
         id: 17617u32,
@@ -39238,6 +40487,7 @@ pub static ALL_BLOCKS: [BlockData; 1477usize] = [
         visual_shape: [0f32, 0f32, 0f32, 1f32, 1f32, 1f32],
         properties: &[],
         state_values: b"",
+        server_definition: None,
     },
     BlockData {
         id: 17618u32,
@@ -39269,6 +40519,9 @@ pub static ALL_BLOCKS: [BlockData; 1477usize] = [
             },
         ],
         state_values: b"\0\x01",
+        server_definition: Some(
+            b"\n\0\t\tblockTags\x08\x02%minecraft:is_shears_item_destructible\n\ncomponents\n minecraft:destructible_by_mining\x05\x05value\xCD\xCCL?\0\n\x1Fminecraft:redstone_conductivity\x01\x14allowsWireToStepDown\x01\x01\x11redstoneConductor\x01\0\0\n\rmenu_category\x08\x08category\x04none\x08\x05group\0\x01\x15is_hidden_in_commands\x01\0\x03\rmolangVersion\x1A\n\x12vanilla_block_data\n\x0Fblock_archetype\x08\x11double_slab_block\x1Bminecraft:magenta_wool_slab\x01\tis_double\x01\x08\x04type\nslab_block\0\x03\x08block_id\xD4\x16\x01\x15can_dampen_vibrations\x01\x01\x16can_occlude_vibrations\x01\x08\x08material\x05solid\0\0",
+        ),
     },
     BlockData {
         id: 17620u32,
@@ -39323,6 +40576,7 @@ pub static ALL_BLOCKS: [BlockData; 1477usize] = [
             },
         ],
         state_values: b"\0\0\0\0\0\x01\0\0\x02\0\0\x03\0\x01\0\0\x01\x01\0\x01\x02\0\x01\x03\x01\0\0\x01\0\x01\x01\0\x02\x01\0\x03\x01\x01\0\x01\x01\x01\x01\x01\x02\x01\x01\x03\x02\0\0\x02\0\x01\x02\0\x02\x02\0\x03\x02\x01\0\x02\x01\x01\x02\x01\x02\x02\x01\x03\x03\0\0\x03\0\x01\x03\0\x02\x03\0\x03\x03\x01\0\x03\x01\x01\x03\x01\x02\x03\x01\x03\x04\0\0\x04\0\x01\x04\0\x02\x04\0\x03\x04\x01\0\x04\x01\x01\x04\x01\x02\x04\x01\x03",
+        server_definition: None,
     },
     BlockData {
         id: 17660u32,
@@ -39364,6 +40618,7 @@ pub static ALL_BLOCKS: [BlockData; 1477usize] = [
             },
         ],
         state_values: b"\0\0\0\x01\0\x02\0\x03\0\x04\x01\0\x01\x01\x01\x02\x01\x03\x01\x04",
+        server_definition: None,
     },
     BlockData {
         id: 17670u32,
@@ -39412,6 +40667,7 @@ pub static ALL_BLOCKS: [BlockData; 1477usize] = [
             },
         ],
         state_values: b"\0\x01\x02\x03\x04\x05\x06\x07\x08\t\n\x0B\x0C\r\x0E\x0F",
+        server_definition: None,
     },
     BlockData {
         id: 17686u32,
@@ -39438,6 +40694,7 @@ pub static ALL_BLOCKS: [BlockData; 1477usize] = [
         visual_shape: [0f32, 0f32, 0f32, 1f32, 1f32, 1f32],
         properties: &[],
         state_values: b"",
+        server_definition: None,
     },
     BlockData {
         id: 17687u32,
@@ -39473,6 +40730,7 @@ pub static ALL_BLOCKS: [BlockData; 1477usize] = [
             },
         ],
         state_values: b"\0\x01\x02",
+        server_definition: None,
     },
     BlockData {
         id: 17690u32,
@@ -39504,6 +40762,7 @@ pub static ALL_BLOCKS: [BlockData; 1477usize] = [
             },
         ],
         state_values: b"\0\x01",
+        server_definition: None,
     },
     BlockData {
         id: 17692u32,
@@ -39558,6 +40817,7 @@ pub static ALL_BLOCKS: [BlockData; 1477usize] = [
             },
         ],
         state_values: b"\0\0\0\0\0\x01\0\0\x02\0\0\x03\0\x01\0\0\x01\x01\0\x01\x02\0\x01\x03\x01\0\0\x01\0\x01\x01\0\x02\x01\0\x03\x01\x01\0\x01\x01\x01\x01\x01\x02\x01\x01\x03\x02\0\0\x02\0\x01\x02\0\x02\x02\0\x03\x02\x01\0\x02\x01\x01\x02\x01\x02\x02\x01\x03\x03\0\0\x03\0\x01\x03\0\x02\x03\0\x03\x03\x01\0\x03\x01\x01\x03\x01\x02\x03\x01\x03\x04\0\0\x04\0\x01\x04\0\x02\x04\0\x03\x04\x01\0\x04\x01\x01\x04\x01\x02\x04\x01\x03",
+        server_definition: None,
     },
     BlockData {
         id: 17732u32,
@@ -39621,6 +40881,7 @@ pub static ALL_BLOCKS: [BlockData; 1477usize] = [
             },
         ],
         state_values: b"\0\0\0\0\0\0\0\0\0\x01\0\x01\0\0\0\0\x01\0\0\x01\0\x02\0\0\0\0\x02\0\0\x01\x01\0\0\0\0\x01\0\0\0\x01\x01\x01\0\0\0\x01\x01\0\0\x01\x01\x02\0\0\0\x01\x02\0\0\x01\x02\0\0\0\0\x02\0\0\0\x01\x02\x01\0\0\0\x02\x01\0\0\x01\x02\x02\0\0\0\x02\x02\0\0\x01\0\0\x01\0\0\0\0\x01\0\x01\0\x01\x01\0\0\0\x01\x01\0\x01\0\x02\x01\0\0\0\x02\x01\0\x01\x01\0\x01\0\0\x01\0\x01\0\x01\x01\x01\x01\0\0\x01\x01\x01\0\x01\x01\x02\x01\0\0\x01\x02\x01\0\x01\x02\0\x01\0\0\x02\0\x01\0\x01\x02\x01\x01\0\0\x02\x01\x01\0\x01\x02\x02\x01\0\0\x02\x02\x01\0\x01\0\0\x02\0\0\0\0\x02\0\x01\0\x01\x02\0\0\0\x01\x02\0\x01\0\x02\x02\0\0\0\x02\x02\0\x01\x01\0\x02\0\0\x01\0\x02\0\x01\x01\x01\x02\0\0\x01\x01\x02\0\x01\x01\x02\x02\0\0\x01\x02\x02\0\x01\x02\0\x02\0\0\x02\0\x02\0\x01\x02\x01\x02\0\0\x02\x01\x02\0\x01\x02\x02\x02\0\0\x02\x02\x02\0\x01\0\0\0\x01\0\0\0\0\x01\x01\0\x01\0\x01\0\0\x01\0\x01\x01\0\x02\0\x01\0\0\x02\0\x01\x01\x01\0\0\x01\0\x01\0\0\x01\x01\x01\x01\0\x01\0\x01\x01\0\x01\x01\x01\x02\0\x01\0\x01\x02\0\x01\x01\x02\0\0\x01\0\x02\0\0\x01\x01\x02\x01\0\x01\0\x02\x01\0\x01\x01\x02\x02\0\x01\0\x02\x02\0\x01\x01\0\0\x01\x01\0\0\0\x01\x01\x01\0\x01\x01\x01\0\0\x01\x01\x01\x01\0\x02\x01\x01\0\0\x02\x01\x01\x01\x01\0\x01\x01\0\x01\0\x01\x01\x01\x01\x01\x01\x01\0\x01\x01\x01\x01\x01\x01\x02\x01\x01\0\x01\x02\x01\x01\x01\x02\0\x01\x01\0\x02\0\x01\x01\x01\x02\x01\x01\x01\0\x02\x01\x01\x01\x01\x02\x02\x01\x01\0\x02\x02\x01\x01\x01\0\0\x02\x01\0\0\0\x02\x01\x01\0\x01\x02\x01\0\0\x01\x02\x01\x01\0\x02\x02\x01\0\0\x02\x02\x01\x01\x01\0\x02\x01\0\x01\0\x02\x01\x01\x01\x01\x02\x01\0\x01\x01\x02\x01\x01\x01\x02\x02\x01\0\x01\x02\x02\x01\x01\x02\0\x02\x01\0\x02\0\x02\x01\x01\x02\x01\x02\x01\0\x02\x01\x02\x01\x01\x02\x02\x02\x01\0\x02\x02\x02\x01\x01\0\0\0\x02\0\0\0\0\x02\x01\0\x01\0\x02\0\0\x01\0\x02\x01\0\x02\0\x02\0\0\x02\0\x02\x01\x01\0\0\x02\0\x01\0\0\x02\x01\x01\x01\0\x02\0\x01\x01\0\x02\x01\x01\x02\0\x02\0\x01\x02\0\x02\x01\x02\0\0\x02\0\x02\0\0\x02\x01\x02\x01\0\x02\0\x02\x01\0\x02\x01\x02\x02\0\x02\0\x02\x02\0\x02\x01\0\0\x01\x02\0\0\0\x01\x02\x01\0\x01\x01\x02\0\0\x01\x01\x02\x01\0\x02\x01\x02\0\0\x02\x01\x02\x01\x01\0\x01\x02\0\x01\0\x01\x02\x01\x01\x01\x01\x02\0\x01\x01\x01\x02\x01\x01\x02\x01\x02\0\x01\x02\x01\x02\x01\x02\0\x01\x02\0\x02\0\x01\x02\x01\x02\x01\x01\x02\0\x02\x01\x01\x02\x01\x02\x02\x01\x02\0\x02\x02\x01\x02\x01\0\0\x02\x02\0\0\0\x02\x02\x01\0\x01\x02\x02\0\0\x01\x02\x02\x01\0\x02\x02\x02\0\0\x02\x02\x02\x01\x01\0\x02\x02\0\x01\0\x02\x02\x01\x01\x01\x02\x02\0\x01\x01\x02\x02\x01\x01\x02\x02\x02\0\x01\x02\x02\x02\x01\x02\0\x02\x02\0\x02\0\x02\x02\x01\x02\x01\x02\x02\0\x02\x01\x02\x02\x01\x02\x02\x02\x02\0\x02\x02\x02\x02\x01",
+        server_definition: None,
     },
     BlockData {
         id: 17894u32,
@@ -39659,6 +40920,7 @@ pub static ALL_BLOCKS: [BlockData; 1477usize] = [
             },
         ],
         state_values: b"\0\x01\x02\x03\x04\x05",
+        server_definition: None,
     },
     BlockData {
         id: 17900u32,
@@ -39685,6 +40947,7 @@ pub static ALL_BLOCKS: [BlockData; 1477usize] = [
         visual_shape: [0f32, 0f32, 0f32, 1f32, 1f32, 1f32],
         properties: &[],
         state_values: b"",
+        server_definition: None,
     },
     BlockData {
         id: 17901u32,
@@ -39716,6 +40979,7 @@ pub static ALL_BLOCKS: [BlockData; 1477usize] = [
             },
         ],
         state_values: b"\0\x01",
+        server_definition: None,
     },
     BlockData {
         id: 17903u32,
@@ -39766,6 +41030,9 @@ pub static ALL_BLOCKS: [BlockData; 1477usize] = [
             },
         ],
         state_values: b"\0\0\0\0\0\x01\0\0\x02\0\0\x03\0\x01\0\0\x01\x01\0\x01\x02\0\x01\x03\x01\0\0\x01\0\x01\x01\0\x02\x01\0\x03\x01\x01\0\x01\x01\x01\x01\x01\x02\x01\x01\x03\x02\0\0\x02\0\x01\x02\0\x02\x02\0\x03\x02\x01\0\x02\x01\x01\x02\x01\x02\x02\x01\x03\x03\0\0\x03\0\x01\x03\0\x02\x03\0\x03\x03\x01\0\x03\x01\x01\x03\x01\x02\x03\x01\x03\x04\0\0\x04\0\x01\x04\0\x02\x04\0\x03\x04\x01\0\x04\x01\x01\x04\x01\x02\x04\x01\x03",
+        server_definition: Some(
+            b"\n\0\t\tblockTags\x08\x02&minecraft:is_pickaxe_item_destructible\n\ncomponents\n minecraft:destructible_by_mining\x05\x05valueff\xE6?\0\n\x1Fminecraft:destruction_particles\x03\x0Eparticle_count`\x08\x07texture\0\x08\x0Btint_method\x04none\0\n\x1Aminecraft:liquid_detection\t\x0EdetectionRules\n\x02\x01\x10canContainLiquid\x01\x08\nliquidType\x05water\x08\x0FonLiquidTouches\x08blocking\x01\x18stopsLiquidFromDirection\0\x01\x13use_liquid_clipping\0\0\0\n\x1Fminecraft:redstone_conductivity\x01\x14allowsWireToStepDown\x01\x01\x11redstoneConductor\0\0\n\x11minecraft:support\x08\x05shape\x05stair\0\0\n\rmenu_category\x08\x08category\x0Cconstruction\x08\x05group\x1Fminecraft:itemGroup.name.stairs\x01\x15is_hidden_in_commands\0\0\x03\rmolangVersion\x1A\n\x12vanilla_block_data\n\x0Fblock_archetype\x08\nbase_block\x19minecraft:yellow_concrete\x08\x04type\x0Bstair_block\0\x03\x08block_id\xE8\x16\x08\x08material\x05solid\x01\x1Frequires_correct_tool_for_drops\x01\0\0",
+        ),
     },
     BlockData {
         id: 17943u32,
@@ -39797,6 +41064,7 @@ pub static ALL_BLOCKS: [BlockData; 1477usize] = [
             },
         ],
         state_values: b"\0\x01",
+        server_definition: None,
     },
     BlockData {
         id: 17945u32,
@@ -39847,6 +41115,7 @@ pub static ALL_BLOCKS: [BlockData; 1477usize] = [
             },
         ],
         state_values: b"\0\0\0\0\0\x01\0\0\x02\0\0\x03\0\x01\0\0\x01\x01\0\x01\x02\0\x01\x03\x01\0\0\x01\0\x01\x01\0\x02\x01\0\x03\x01\x01\0\x01\x01\x01\x01\x01\x02\x01\x01\x03\x02\0\0\x02\0\x01\x02\0\x02\x02\0\x03\x02\x01\0\x02\x01\x01\x02\x01\x02\x02\x01\x03\x03\0\0\x03\0\x01\x03\0\x02\x03\0\x03\x03\x01\0\x03\x01\x01\x03\x01\x02\x03\x01\x03\x04\0\0\x04\0\x01\x04\0\x02\x04\0\x03\x04\x01\0\x04\x01\x01\x04\x01\x02\x04\x01\x03",
+        server_definition: None,
     },
     BlockData {
         id: 17985u32,
@@ -39873,6 +41142,7 @@ pub static ALL_BLOCKS: [BlockData; 1477usize] = [
         visual_shape: [0f32, 0f32, 0f32, 1f32, 1f32, 1f32],
         properties: &[],
         state_values: b"",
+        server_definition: None,
     },
     BlockData {
         id: 17986u32,
@@ -39899,6 +41169,7 @@ pub static ALL_BLOCKS: [BlockData; 1477usize] = [
         visual_shape: [0f32, 0f32, 0f32, 1f32, 1f32, 1f32],
         properties: &[],
         state_values: b"",
+        server_definition: None,
     },
     BlockData {
         id: 17987u32,
@@ -39942,6 +41213,7 @@ pub static ALL_BLOCKS: [BlockData; 1477usize] = [
             },
         ],
         state_values: b"\0\0\0\0\0\x01\0\0\x01\0\0\0\x01\x01\0\0\0\0\x01\0\0\x01\x01\0\x01\0\x01\0\x01\x01\x01\0\0\0\0\x01\0\x01\0\x01\x01\0\0\x01\x01\x01\0\x01\0\0\x01\x01\0\x01\x01\x01\x01\0\x01\x01\x01\x01\x01\x01",
+        server_definition: None,
     },
     BlockData {
         id: 18003u32,
@@ -39992,6 +41264,7 @@ pub static ALL_BLOCKS: [BlockData; 1477usize] = [
             },
         ],
         state_values: b"\0\0\0\0\0\x01\0\0\x02\0\0\x03\0\x01\0\0\x01\x01\0\x01\x02\0\x01\x03\x01\0\0\x01\0\x01\x01\0\x02\x01\0\x03\x01\x01\0\x01\x01\x01\x01\x01\x02\x01\x01\x03\x02\0\0\x02\0\x01\x02\0\x02\x02\0\x03\x02\x01\0\x02\x01\x01\x02\x01\x02\x02\x01\x03\x03\0\0\x03\0\x01\x03\0\x02\x03\0\x03\x03\x01\0\x03\x01\x01\x03\x01\x02\x03\x01\x03\x04\0\0\x04\0\x01\x04\0\x02\x04\0\x03\x04\x01\0\x04\x01\x01\x04\x01\x02\x04\x01\x03",
+        server_definition: None,
     },
     BlockData {
         id: 18043u32,
@@ -40028,6 +41301,7 @@ pub static ALL_BLOCKS: [BlockData; 1477usize] = [
             },
         ],
         state_values: b"\0\x01\x02\x03",
+        server_definition: None,
     },
     BlockData {
         id: 18047u32,
@@ -40066,6 +41340,7 @@ pub static ALL_BLOCKS: [BlockData; 1477usize] = [
             },
         ],
         state_values: b"\0\x01\x02\x03\x04\x05",
+        server_definition: None,
     },
     BlockData {
         id: 18053u32,
@@ -40092,6 +41367,7 @@ pub static ALL_BLOCKS: [BlockData; 1477usize] = [
         visual_shape: [0f32, 0f32, 0f32, 1f32, 1f32, 1f32],
         properties: &[],
         state_values: b"",
+        server_definition: None,
     },
     BlockData {
         id: 18054u32,
@@ -40135,6 +41411,7 @@ pub static ALL_BLOCKS: [BlockData; 1477usize] = [
             },
         ],
         state_values: b"\0\0\0\0\0\x01\0\0\x01\0\0\0\x01\x01\0\0\0\0\x01\0\0\x01\x01\0\x01\0\x01\0\x01\x01\x01\0\0\0\0\x01\0\x01\0\x01\x01\0\0\x01\x01\x01\0\x01\0\0\x01\x01\0\x01\x01\x01\x01\0\x01\x01\x01\x01\x01\x01",
+        server_definition: None,
     },
     BlockData {
         id: 18070u32,
@@ -40161,6 +41438,7 @@ pub static ALL_BLOCKS: [BlockData; 1477usize] = [
         visual_shape: [0f32, 0f32, 0f32, 1f32, 1f32, 1f32],
         properties: &[],
         state_values: b"",
+        server_definition: None,
     },
     BlockData {
         id: 18071u32,
@@ -40201,6 +41479,7 @@ pub static ALL_BLOCKS: [BlockData; 1477usize] = [
             },
         ],
         state_values: b"\0\0\x01\0\x02\0\x03\0\0\x01\x01\x01\x02\x01\x03\x01",
+        server_definition: None,
     },
     BlockData {
         id: 18079u32,
@@ -40249,6 +41528,7 @@ pub static ALL_BLOCKS: [BlockData; 1477usize] = [
             },
         ],
         state_values: b"\0\x01\x02\x03\x04\x05\x06\x07\x08\t\n\x0B\x0C\r\x0E\x0F",
+        server_definition: None,
     },
     BlockData {
         id: 18095u32,
@@ -40291,6 +41571,7 @@ pub static ALL_BLOCKS: [BlockData; 1477usize] = [
             },
         ],
         state_values: b"\0\0\0\x01\0\x02\0\x03\0\x04\0\x05\x01\0\x01\x01\x01\x02\x01\x03\x01\x04\x01\x05",
+        server_definition: None,
     },
     BlockData {
         id: 18107u32,
@@ -40317,6 +41598,7 @@ pub static ALL_BLOCKS: [BlockData; 1477usize] = [
         visual_shape: [0f32, 0f32, 0f32, 1f32, 0.0625f32, 1f32],
         properties: &[],
         state_values: b"",
+        server_definition: None,
     },
     BlockData {
         id: 18108u32,
@@ -40348,6 +41630,7 @@ pub static ALL_BLOCKS: [BlockData; 1477usize] = [
             },
         ],
         state_values: b"\0\x01",
+        server_definition: None,
     },
     BlockData {
         id: 18110u32,
@@ -40379,6 +41662,7 @@ pub static ALL_BLOCKS: [BlockData; 1477usize] = [
             },
         ],
         state_values: b"\0\x01",
+        server_definition: None,
     },
     BlockData {
         id: 18112u32,
@@ -40428,6 +41712,7 @@ pub static ALL_BLOCKS: [BlockData; 1477usize] = [
             },
         ],
         state_values: b"\0\0\0\0\0\x01\0\0\x02\0\0\x03\0\x01\0\0\x01\x01\0\x01\x02\0\x01\x03\x01\0\0\x01\0\x01\x01\0\x02\x01\0\x03\x01\x01\0\x01\x01\x01\x01\x01\x02\x01\x01\x03\x02\0\0\x02\0\x01\x02\0\x02\x02\0\x03\x02\x01\0\x02\x01\x01\x02\x01\x02\x02\x01\x03\x03\0\0\x03\0\x01\x03\0\x02\x03\0\x03\x03\x01\0\x03\x01\x01\x03\x01\x02\x03\x01\x03",
+        server_definition: None,
     },
     BlockData {
         id: 18144u32,
@@ -40476,6 +41761,7 @@ pub static ALL_BLOCKS: [BlockData; 1477usize] = [
             },
         ],
         state_values: b"\0\0\0\0\0\x01\0\0\0\x02\0\0\0\x03\0\0\0\0\x01\0\0\x01\x01\0\0\x02\x01\0\0\x03\x01\0\0\0\0\x01\0\x01\0\x01\0\x02\0\x01\0\x03\0\x01\0\0\x01\x01\0\x01\x01\x01\0\x02\x01\x01\0\x03\x01\x01\x01\0\0\0\x01\x01\0\0\x01\x02\0\0\x01\x03\0\0\x01\0\x01\0\x01\x01\x01\0\x01\x02\x01\0\x01\x03\x01\0\x01\0\0\x01\x01\x01\0\x01\x01\x02\0\x01\x01\x03\0\x01\x01\0\x01\x01\x01\x01\x01\x01\x01\x02\x01\x01\x01\x03\x01\x01",
+        server_definition: None,
     },
     BlockData {
         id: 18176u32,
@@ -40519,6 +41805,7 @@ pub static ALL_BLOCKS: [BlockData; 1477usize] = [
             },
         ],
         state_values: b"\0\0\0\0\0\x01\0\0\x01\0\0\0\x01\x01\0\0\0\0\x01\0\0\x01\x01\0\x01\0\x01\0\x01\x01\x01\0\0\0\0\x01\0\x01\0\x01\x01\0\0\x01\x01\x01\0\x01\0\0\x01\x01\0\x01\x01\x01\x01\0\x01\x01\x01\x01\x01\x01",
+        server_definition: None,
     },
     BlockData {
         id: 18192u32,
@@ -40555,6 +41842,7 @@ pub static ALL_BLOCKS: [BlockData; 1477usize] = [
             },
         ],
         state_values: b"\0\x01\x02\x03",
+        server_definition: None,
     },
     BlockData {
         id: 18196u32,
@@ -40600,6 +41888,7 @@ pub static ALL_BLOCKS: [BlockData; 1477usize] = [
             },
         ],
         state_values: b"\0\0\x01\0\x02\0\x03\0\x04\0\x05\0\0\x01\x01\x01\x02\x01\x03\x01\x04\x01\x05\x01",
+        server_definition: None,
     },
     BlockData {
         id: 18208u32,
@@ -40631,6 +41920,7 @@ pub static ALL_BLOCKS: [BlockData; 1477usize] = [
             },
         ],
         state_values: b"\0\x01",
+        server_definition: None,
     },
     BlockData {
         id: 18210u32,
@@ -40674,6 +41964,7 @@ pub static ALL_BLOCKS: [BlockData; 1477usize] = [
             },
         ],
         state_values: b"\0\0\0\0\0\x01\0\0\x01\0\0\0\x01\x01\0\0\0\0\x01\0\0\x01\x01\0\x01\0\x01\0\x01\x01\x01\0\0\0\0\x01\0\x01\0\x01\x01\0\0\x01\x01\x01\0\x01\0\0\x01\x01\0\x01\x01\x01\x01\0\x01\x01\x01\x01\x01\x01",
+        server_definition: None,
     },
     BlockData {
         id: 18226u32,
@@ -40700,6 +41991,7 @@ pub static ALL_BLOCKS: [BlockData; 1477usize] = [
         visual_shape: [0f32, 0f32, 0f32, 1f32, 1f32, 1f32],
         properties: &[],
         state_values: b"",
+        server_definition: None,
     },
     BlockData {
         id: 18227u32,
@@ -40726,6 +42018,7 @@ pub static ALL_BLOCKS: [BlockData; 1477usize] = [
         visual_shape: [0f32, 0f32, 0f32, 1f32, 1f32, 1f32],
         properties: &[],
         state_values: b"",
+        server_definition: None,
     },
     BlockData {
         id: 18228u32,
@@ -40769,6 +42062,7 @@ pub static ALL_BLOCKS: [BlockData; 1477usize] = [
             },
         ],
         state_values: b"\0\0\0\0\0\x01\0\0\x01\0\0\0\x01\x01\0\0\0\0\x01\0\0\x01\x01\0\x01\0\x01\0\x01\x01\x01\0\0\0\0\x01\0\x01\0\x01\x01\0\0\x01\x01\x01\0\x01\0\0\x01\x01\0\x01\x01\x01\x01\0\x01\x01\x01\x01\x01\x01",
+        server_definition: None,
     },
     BlockData {
         id: 18244u32,
@@ -40804,6 +42098,7 @@ pub static ALL_BLOCKS: [BlockData; 1477usize] = [
             },
         ],
         state_values: b"\0\x01\x02",
+        server_definition: None,
     },
     BlockData {
         id: 18247u32,
@@ -40839,6 +42134,7 @@ pub static ALL_BLOCKS: [BlockData; 1477usize] = [
             },
         ],
         state_values: b"\0\x01\x02",
+        server_definition: None,
     },
     BlockData {
         id: 18250u32,
@@ -40887,6 +42183,7 @@ pub static ALL_BLOCKS: [BlockData; 1477usize] = [
             },
         ],
         state_values: b"\0\0\0\0\0\x01\0\0\0\x02\0\0\0\x03\0\0\0\0\x01\0\0\x01\x01\0\0\x02\x01\0\0\x03\x01\0\0\0\0\x01\0\x01\0\x01\0\x02\0\x01\0\x03\0\x01\0\0\x01\x01\0\x01\x01\x01\0\x02\x01\x01\0\x03\x01\x01\x01\0\0\0\x01\x01\0\0\x01\x02\0\0\x01\x03\0\0\x01\0\x01\0\x01\x01\x01\0\x01\x02\x01\0\x01\x03\x01\0\x01\0\0\x01\x01\x01\0\x01\x01\x02\0\x01\x01\x03\0\x01\x01\0\x01\x01\x01\x01\x01\x01\x01\x02\x01\x01\x01\x03\x01\x01",
+        server_definition: None,
     },
     BlockData {
         id: 18282u32,
@@ -40936,6 +42233,7 @@ pub static ALL_BLOCKS: [BlockData; 1477usize] = [
             },
         ],
         state_values: b"\0\0\0\0\0\x01\0\0\x02\0\0\x03\0\x01\0\0\x01\x01\0\x01\x02\0\x01\x03\x01\0\0\x01\0\x01\x01\0\x02\x01\0\x03\x01\x01\0\x01\x01\x01\x01\x01\x02\x01\x01\x03\x02\0\0\x02\0\x01\x02\0\x02\x02\0\x03\x02\x01\0\x02\x01\x01\x02\x01\x02\x02\x01\x03\x03\0\0\x03\0\x01\x03\0\x02\x03\0\x03\x03\x01\0\x03\x01\x01\x03\x01\x02\x03\x01\x03",
+        server_definition: None,
     },
     BlockData {
         id: 18314u32,
@@ -40972,6 +42270,7 @@ pub static ALL_BLOCKS: [BlockData; 1477usize] = [
             },
         ],
         state_values: b"\0\x01\x02\x03",
+        server_definition: None,
     },
     BlockData {
         id: 18318u32,
@@ -41007,6 +42306,7 @@ pub static ALL_BLOCKS: [BlockData; 1477usize] = [
             },
         ],
         state_values: b"\0\x01\x02",
+        server_definition: None,
     },
     BlockData {
         id: 18321u32,
@@ -41033,6 +42333,7 @@ pub static ALL_BLOCKS: [BlockData; 1477usize] = [
         visual_shape: [0f32, 0f32, 0f32, 1f32, 1f32, 1f32],
         properties: &[],
         state_values: b"",
+        server_definition: None,
     },
     BlockData {
         id: 18322u32,
@@ -41083,6 +42384,7 @@ pub static ALL_BLOCKS: [BlockData; 1477usize] = [
             },
         ],
         state_values: b"\0\0\0\0\0\x01\0\0\x02\0\0\x03\0\x01\0\0\x01\x01\0\x01\x02\0\x01\x03\x01\0\0\x01\0\x01\x01\0\x02\x01\0\x03\x01\x01\0\x01\x01\x01\x01\x01\x02\x01\x01\x03\x02\0\0\x02\0\x01\x02\0\x02\x02\0\x03\x02\x01\0\x02\x01\x01\x02\x01\x02\x02\x01\x03\x03\0\0\x03\0\x01\x03\0\x02\x03\0\x03\x03\x01\0\x03\x01\x01\x03\x01\x02\x03\x01\x03\x04\0\0\x04\0\x01\x04\0\x02\x04\0\x03\x04\x01\0\x04\x01\x01\x04\x01\x02\x04\x01\x03",
+        server_definition: None,
     },
     BlockData {
         id: 18362u32,
@@ -41122,6 +42424,7 @@ pub static ALL_BLOCKS: [BlockData; 1477usize] = [
             },
         ],
         state_values: b"\0\x01\x02\x03\x04\x05\x06",
+        server_definition: None,
     },
     BlockData {
         id: 18369u32,
@@ -41189,6 +42492,7 @@ pub static ALL_BLOCKS: [BlockData; 1477usize] = [
             },
         ],
         state_values: b"\0\0\0\0\0\x01\0\0\0\x02\0\0\0\x03\0\0\0\x04\0\0\0\x05\0\0\0\0\x01\0\0\x01\x01\0\0\x02\x01\0\0\x03\x01\0\0\x04\x01\0\0\x05\x01\0\0\0\x02\0\0\x01\x02\0\0\x02\x02\0\0\x03\x02\0\0\x04\x02\0\0\x05\x02\0\0\0\x03\0\0\x01\x03\0\0\x02\x03\0\0\x03\x03\0\0\x04\x03\0\0\x05\x03\0\0\0\x04\0\0\x01\x04\0\0\x02\x04\0\0\x03\x04\0\0\x04\x04\0\0\x05\x04\0\0\0\x05\0\0\x01\x05\0\0\x02\x05\0\0\x03\x05\0\0\x04\x05\0\0\x05\x05\0\0\0\x06\0\0\x01\x06\0\0\x02\x06\0\0\x03\x06\0\0\x04\x06\0\0\x05\x06\0\0\0\x07\0\0\x01\x07\0\0\x02\x07\0\0\x03\x07\0\0\x04\x07\0\0\x05\x07\0\0\0\x08\0\0\x01\x08\0\0\x02\x08\0\0\x03\x08\0\0\x04\x08\0\0\x05\x08\0\0\0\t\0\0\x01\t\0\0\x02\t\0\0\x03\t\0\0\x04\t\0\0\x05\t\0\0\0\n\0\0\x01\n\0\0\x02\n\0\0\x03\n\0\0\x04\n\0\0\x05\n\0\0\0\x0B\0\0\x01\x0B\0\0\x02\x0B\0\0\x03\x0B\0\0\x04\x0B\0\0\x05\x0B\0\0\0\x0C\0\0\x01\x0C\0\0\x02\x0C\0\0\x03\x0C\0\0\x04\x0C\0\0\x05\x0C\0\0\0\r\0\0\x01\r\0\0\x02\r\0\0\x03\r\0\0\x04\r\0\0\x05\r\0\0\0\x0E\0\0\x01\x0E\0\0\x02\x0E\0\0\x03\x0E\0\0\x04\x0E\0\0\x05\x0E\0\0\0\x0F\0\0\x01\x0F\0\0\x02\x0F\0\0\x03\x0F\0\0\x04\x0F\0\0\x05\x0F\0\0\0\0\x01\0\x01\0\x01\0\x02\0\x01\0\x03\0\x01\0\x04\0\x01\0\x05\0\x01\0\0\x01\x01\0\x01\x01\x01\0\x02\x01\x01\0\x03\x01\x01\0\x04\x01\x01\0\x05\x01\x01\0\0\x02\x01\0\x01\x02\x01\0\x02\x02\x01\0\x03\x02\x01\0\x04\x02\x01\0\x05\x02\x01\0\0\x03\x01\0\x01\x03\x01\0\x02\x03\x01\0\x03\x03\x01\0\x04\x03\x01\0\x05\x03\x01\0\0\x04\x01\0\x01\x04\x01\0\x02\x04\x01\0\x03\x04\x01\0\x04\x04\x01\0\x05\x04\x01\0\0\x05\x01\0\x01\x05\x01\0\x02\x05\x01\0\x03\x05\x01\0\x04\x05\x01\0\x05\x05\x01\0\0\x06\x01\0\x01\x06\x01\0\x02\x06\x01\0\x03\x06\x01\0\x04\x06\x01\0\x05\x06\x01\0\0\x07\x01\0\x01\x07\x01\0\x02\x07\x01\0\x03\x07\x01\0\x04\x07\x01\0\x05\x07\x01\0\0\x08\x01\0\x01\x08\x01\0\x02\x08\x01\0\x03\x08\x01\0\x04\x08\x01\0\x05\x08\x01\0\0\t\x01\0\x01\t\x01\0\x02\t\x01\0\x03\t\x01\0\x04\t\x01\0\x05\t\x01\0\0\n\x01\0\x01\n\x01\0\x02\n\x01\0\x03\n\x01\0\x04\n\x01\0\x05\n\x01\0\0\x0B\x01\0\x01\x0B\x01\0\x02\x0B\x01\0\x03\x0B\x01\0\x04\x0B\x01\0\x05\x0B\x01\0\0\x0C\x01\0\x01\x0C\x01\0\x02\x0C\x01\0\x03\x0C\x01\0\x04\x0C\x01\0\x05\x0C\x01\0\0\r\x01\0\x01\r\x01\0\x02\r\x01\0\x03\r\x01\0\x04\r\x01\0\x05\r\x01\0\0\x0E\x01\0\x01\x0E\x01\0\x02\x0E\x01\0\x03\x0E\x01\0\x04\x0E\x01\0\x05\x0E\x01\0\0\x0F\x01\0\x01\x0F\x01\0\x02\x0F\x01\0\x03\x0F\x01\0\x04\x0F\x01\0\x05\x0F\x01\x01\0\0\0\x01\x01\0\0\x01\x02\0\0\x01\x03\0\0\x01\x04\0\0\x01\x05\0\0\x01\0\x01\0\x01\x01\x01\0\x01\x02\x01\0\x01\x03\x01\0\x01\x04\x01\0\x01\x05\x01\0\x01\0\x02\0\x01\x01\x02\0\x01\x02\x02\0\x01\x03\x02\0\x01\x04\x02\0\x01\x05\x02\0\x01\0\x03\0\x01\x01\x03\0\x01\x02\x03\0\x01\x03\x03\0\x01\x04\x03\0\x01\x05\x03\0\x01\0\x04\0\x01\x01\x04\0\x01\x02\x04\0\x01\x03\x04\0\x01\x04\x04\0\x01\x05\x04\0\x01\0\x05\0\x01\x01\x05\0\x01\x02\x05\0\x01\x03\x05\0\x01\x04\x05\0\x01\x05\x05\0\x01\0\x06\0\x01\x01\x06\0\x01\x02\x06\0\x01\x03\x06\0\x01\x04\x06\0\x01\x05\x06\0\x01\0\x07\0\x01\x01\x07\0\x01\x02\x07\0\x01\x03\x07\0\x01\x04\x07\0\x01\x05\x07\0\x01\0\x08\0\x01\x01\x08\0\x01\x02\x08\0\x01\x03\x08\0\x01\x04\x08\0\x01\x05\x08\0\x01\0\t\0\x01\x01\t\0\x01\x02\t\0\x01\x03\t\0\x01\x04\t\0\x01\x05\t\0\x01\0\n\0\x01\x01\n\0\x01\x02\n\0\x01\x03\n\0\x01\x04\n\0\x01\x05\n\0\x01\0\x0B\0\x01\x01\x0B\0\x01\x02\x0B\0\x01\x03\x0B\0\x01\x04\x0B\0\x01\x05\x0B\0\x01\0\x0C\0\x01\x01\x0C\0\x01\x02\x0C\0\x01\x03\x0C\0\x01\x04\x0C\0\x01\x05\x0C\0\x01\0\r\0\x01\x01\r\0\x01\x02\r\0\x01\x03\r\0\x01\x04\r\0\x01\x05\r\0\x01\0\x0E\0\x01\x01\x0E\0\x01\x02\x0E\0\x01\x03\x0E\0\x01\x04\x0E\0\x01\x05\x0E\0\x01\0\x0F\0\x01\x01\x0F\0\x01\x02\x0F\0\x01\x03\x0F\0\x01\x04\x0F\0\x01\x05\x0F\0\x01\0\0\x01\x01\x01\0\x01\x01\x02\0\x01\x01\x03\0\x01\x01\x04\0\x01\x01\x05\0\x01\x01\0\x01\x01\x01\x01\x01\x01\x01\x02\x01\x01\x01\x03\x01\x01\x01\x04\x01\x01\x01\x05\x01\x01\x01\0\x02\x01\x01\x01\x02\x01\x01\x02\x02\x01\x01\x03\x02\x01\x01\x04\x02\x01\x01\x05\x02\x01\x01\0\x03\x01\x01\x01\x03\x01\x01\x02\x03\x01\x01\x03\x03\x01\x01\x04\x03\x01\x01\x05\x03\x01\x01\0\x04\x01\x01\x01\x04\x01\x01\x02\x04\x01\x01\x03\x04\x01\x01\x04\x04\x01\x01\x05\x04\x01\x01\0\x05\x01\x01\x01\x05\x01\x01\x02\x05\x01\x01\x03\x05\x01\x01\x04\x05\x01\x01\x05\x05\x01\x01\0\x06\x01\x01\x01\x06\x01\x01\x02\x06\x01\x01\x03\x06\x01\x01\x04\x06\x01\x01\x05\x06\x01\x01\0\x07\x01\x01\x01\x07\x01\x01\x02\x07\x01\x01\x03\x07\x01\x01\x04\x07\x01\x01\x05\x07\x01\x01\0\x08\x01\x01\x01\x08\x01\x01\x02\x08\x01\x01\x03\x08\x01\x01\x04\x08\x01\x01\x05\x08\x01\x01\0\t\x01\x01\x01\t\x01\x01\x02\t\x01\x01\x03\t\x01\x01\x04\t\x01\x01\x05\t\x01\x01\0\n\x01\x01\x01\n\x01\x01\x02\n\x01\x01\x03\n\x01\x01\x04\n\x01\x01\x05\n\x01\x01\0\x0B\x01\x01\x01\x0B\x01\x01\x02\x0B\x01\x01\x03\x0B\x01\x01\x04\x0B\x01\x01\x05\x0B\x01\x01\0\x0C\x01\x01\x01\x0C\x01\x01\x02\x0C\x01\x01\x03\x0C\x01\x01\x04\x0C\x01\x01\x05\x0C\x01\x01\0\r\x01\x01\x01\r\x01\x01\x02\r\x01\x01\x03\r\x01\x01\x04\r\x01\x01\x05\r\x01\x01\0\x0E\x01\x01\x01\x0E\x01\x01\x02\x0E\x01\x01\x03\x0E\x01\x01\x04\x0E\x01\x01\x05\x0E\x01\x01\0\x0F\x01\x01\x01\x0F\x01\x01\x02\x0F\x01\x01\x03\x0F\x01\x01\x04\x0F\x01\x01\x05\x0F\x01",
+        server_definition: None,
     },
     BlockData {
         id: 18753u32,
@@ -41285,6 +42589,7 @@ pub static ALL_BLOCKS: [BlockData; 1477usize] = [
             },
         ],
         state_values: b"\0\x01\x02\x03\x04\x05\x06\x07\x08\t\n\x0B\x0C\r\x0E\x0F\x10\x11\x12\x13\x14\x15\x16\x17\x18\x19\x1A\x1B\x1C\x1D\x1E\x1F !\"#$%&'()*+,-./0123456789:;<=>?",
+        server_definition: None,
     },
     BlockData {
         id: 18817u32,
@@ -41311,6 +42616,7 @@ pub static ALL_BLOCKS: [BlockData; 1477usize] = [
         visual_shape: [0.099999994f32, 0f32, 0.099999994f32, 0.9f32, 0.8f32, 0.9f32],
         properties: &[],
         state_values: b"",
+        server_definition: None,
     },
     BlockData {
         id: 18818u32,
@@ -41341,6 +42647,7 @@ pub static ALL_BLOCKS: [BlockData; 1477usize] = [
         visual_shape: [0f32, 0f32, 0f32, 1f32, 1f32, 1f32],
         properties: &[],
         state_values: b"",
+        server_definition: None,
     },
     BlockData {
         id: 18819u32,
@@ -41372,6 +42679,9 @@ pub static ALL_BLOCKS: [BlockData; 1477usize] = [
             },
         ],
         state_values: b"\0\x01",
+        server_definition: Some(
+            b"\n\0\t\tblockTags\x08\x02&minecraft:is_pickaxe_item_destructible\n\ncomponents\n minecraft:destructible_by_mining\x05\x05valueff\xE6?\0\n\x1Fminecraft:redstone_conductivity\x01\x14allowsWireToStepDown\x01\x01\x11redstoneConductor\x01\0\0\n\rmenu_category\x08\x08category\x04none\x08\x05group\0\x01\x15is_hidden_in_commands\x01\0\x03\rmolangVersion\x1A\n\x12vanilla_block_data\n\x0Fblock_archetype\x08\x11double_slab_block\x1Cminecraft:pink_concrete_slab\x01\tis_double\x01\x08\x04type\nslab_block\0\x03\x08block_id\xBA\x17\x08\x08material\x05solid\x01\x1Frequires_correct_tool_for_drops\x01\0\0",
+        ),
     },
     BlockData {
         id: 18821u32,
@@ -41402,6 +42712,7 @@ pub static ALL_BLOCKS: [BlockData; 1477usize] = [
         visual_shape: [0f32, 0f32, 0f32, 1f32, 1f32, 1f32],
         properties: &[],
         state_values: b"",
+        server_definition: None,
     },
     BlockData {
         id: 18822u32,
@@ -41450,6 +42761,7 @@ pub static ALL_BLOCKS: [BlockData; 1477usize] = [
             },
         ],
         state_values: b"\0\x01\x02\x03\x04\x05\x06\x07\x08\t\n\x0B\x0C\r\x0E\x0F",
+        server_definition: None,
     },
     BlockData {
         id: 18838u32,
@@ -41481,6 +42793,7 @@ pub static ALL_BLOCKS: [BlockData; 1477usize] = [
             },
         ],
         state_values: b"\0\x01",
+        server_definition: None,
     },
     BlockData {
         id: 18840u32,
@@ -41507,6 +42820,7 @@ pub static ALL_BLOCKS: [BlockData; 1477usize] = [
         visual_shape: [0f32, 0f32, 0f32, 1f32, 1f32, 1f32],
         properties: &[],
         state_values: b"",
+        server_definition: None,
     },
     BlockData {
         id: 18841u32,
@@ -41533,6 +42847,7 @@ pub static ALL_BLOCKS: [BlockData; 1477usize] = [
         visual_shape: [0f32, 0f32, 0f32, 1f32, 1f32, 1f32],
         properties: &[],
         state_values: b"",
+        server_definition: None,
     },
     BlockData {
         id: 18842u32,
@@ -41581,6 +42896,7 @@ pub static ALL_BLOCKS: [BlockData; 1477usize] = [
             },
         ],
         state_values: b"\0\x01\x02\x03\x04\x05\x06\x07\x08\t\n\x0B\x0C\r\x0E\x0F",
+        server_definition: None,
     },
     BlockData {
         id: 18858u32,
@@ -41629,6 +42945,7 @@ pub static ALL_BLOCKS: [BlockData; 1477usize] = [
             },
         ],
         state_values: b"\0\x01\x02\x03\x04\x05\x06\x07\x08\t\n\x0B\x0C\r\x0E\x0F",
+        server_definition: None,
     },
     BlockData {
         id: 18874u32,
@@ -41660,6 +42977,9 @@ pub static ALL_BLOCKS: [BlockData; 1477usize] = [
             },
         ],
         state_values: b"\0\x01",
+        server_definition: Some(
+            b"\n\0\t\tblockTags\x08\x02%minecraft:is_shears_item_destructible\n\ncomponents\n minecraft:destructible_by_mining\x05\x05value\xCD\xCCL?\0\n\x1Fminecraft:destruction_particles\x03\x0Eparticle_count`\x08\x07texture\0\x08\x0Btint_method\x04none\0\n\x1Aminecraft:liquid_detection\t\x0EdetectionRules\n\x02\x01\x10canContainLiquid\x01\x08\nliquidType\x05water\x08\x0FonLiquidTouches\x08blocking\x01\x18stopsLiquidFromDirection\0\x01\x13use_liquid_clipping\0\0\0\n\x1Fminecraft:redstone_conductivity\x01\x14allowsWireToStepDown\x01\x01\x11redstoneConductor\0\0\0\n\rmenu_category\x08\x08category\x0Cconstruction\x08\x05group\x1Dminecraft:itemGroup.name.slab\x01\x15is_hidden_in_commands\0\0\x03\rmolangVersion\x1A\n\x12vanilla_block_data\n\x0Fblock_archetype\x08\x11double_slab_block minecraft:green_wool_double_slab\x01\tis_double\0\x08\x04type\nslab_block\0\x03\x08block_id\xAA\x16\x01\x15can_dampen_vibrations\x01\x01\x16can_occlude_vibrations\x01\x08\x08material\x05solid\x05\x0Ctranslucency\xCD\xCCL?\0\0",
+        ),
     },
     BlockData {
         id: 18876u32,
@@ -41698,6 +43018,7 @@ pub static ALL_BLOCKS: [BlockData; 1477usize] = [
             },
         ],
         state_values: b"\0\x01\x02\x03\x04\x05",
+        server_definition: None,
     },
     BlockData {
         id: 18882u32,
@@ -41724,6 +43045,7 @@ pub static ALL_BLOCKS: [BlockData; 1477usize] = [
         visual_shape: [0f32, 0f32, 0f32, 1f32, 1f32, 1f32],
         properties: &[],
         state_values: b"",
+        server_definition: None,
     },
     BlockData {
         id: 18883u32,
@@ -41750,6 +43072,7 @@ pub static ALL_BLOCKS: [BlockData; 1477usize] = [
         visual_shape: [0f32, 0f32, 0f32, 1f32, 1f32, 1f32],
         properties: &[],
         state_values: b"",
+        server_definition: None,
     },
     BlockData {
         id: 18884u32,
@@ -41793,6 +43116,7 @@ pub static ALL_BLOCKS: [BlockData; 1477usize] = [
             },
         ],
         state_values: b"\0\0\0\0\0\x01\0\0\x01\0\0\0\x01\x01\0\0\0\0\x01\0\0\x01\x01\0\x01\0\x01\0\x01\x01\x01\0\0\0\0\x01\0\x01\0\x01\x01\0\0\x01\x01\x01\0\x01\0\0\x01\x01\0\x01\x01\x01\x01\0\x01\x01\x01\x01\x01\x01",
+        server_definition: None,
     },
     BlockData {
         id: 18900u32,
@@ -41835,6 +43159,7 @@ pub static ALL_BLOCKS: [BlockData; 1477usize] = [
             },
         ],
         state_values: b"\0\0\0\x01\0\x02\0\x03\0\x04\0\x05\x01\0\x01\x01\x01\x02\x01\x03\x01\x04\x01\x05",
+        server_definition: None,
     },
     BlockData {
         id: 18912u32,
@@ -41866,6 +43191,9 @@ pub static ALL_BLOCKS: [BlockData; 1477usize] = [
             },
         ],
         state_values: b"\0\x01",
+        server_definition: Some(
+            b"\n\0\t\tblockTags\x08\x02&minecraft:is_pickaxe_item_destructible\n\ncomponents\n minecraft:destructible_by_mining\x05\x05valueff\xE6?\0\n\x1Fminecraft:destruction_particles\x03\x0Eparticle_count`\x08\x07texture\0\x08\x0Btint_method\x04none\0\n\x1Aminecraft:liquid_detection\t\x0EdetectionRules\n\x02\x01\x10canContainLiquid\x01\x08\nliquidType\x05water\x08\x0FonLiquidTouches\x08blocking\x01\x18stopsLiquidFromDirection\0\x01\x13use_liquid_clipping\0\0\0\n\x1Fminecraft:redstone_conductivity\x01\x14allowsWireToStepDown\x01\x01\x11redstoneConductor\0\0\0\n\rmenu_category\x08\x08category\x0Cconstruction\x08\x05group\x1Dminecraft:itemGroup.name.slab\x01\x15is_hidden_in_commands\0\0\x03\rmolangVersion\x1A\n\x12vanilla_block_data\n\x0Fblock_archetype\x08\x11double_slab_block#minecraft:cyan_concrete_double_slab\x01\tis_double\0\x08\x04type\nslab_block\0\x03\x08block_id\x90\x17\x08\x08material\x05solid\x01\x1Frequires_correct_tool_for_drops\x01\0\0",
+        ),
     },
     BlockData {
         id: 18914u32,
@@ -41909,6 +43237,7 @@ pub static ALL_BLOCKS: [BlockData; 1477usize] = [
             },
         ],
         state_values: b"\0\0\0\0\0\x01\0\0\x01\0\0\0\x01\x01\0\0\0\0\x01\0\0\x01\x01\0\x01\0\x01\0\x01\x01\x01\0\0\0\0\x01\0\x01\0\x01\x01\0\0\x01\x01\x01\0\x01\0\0\x01\x01\0\x01\x01\x01\x01\0\x01\x01\x01\x01\x01\x01",
+        server_definition: None,
     },
     BlockData {
         id: 18930u32,
@@ -41945,6 +43274,7 @@ pub static ALL_BLOCKS: [BlockData; 1477usize] = [
             },
         ],
         state_values: b"\0\x01\x02\x03",
+        server_definition: None,
     },
     BlockData {
         id: 18934u32,
@@ -41971,6 +43301,7 @@ pub static ALL_BLOCKS: [BlockData; 1477usize] = [
         visual_shape: [0f32, 0f32, 0f32, 1f32, 1f32, 1f32],
         properties: &[],
         state_values: b"",
+        server_definition: None,
     },
     BlockData {
         id: 18935u32,
@@ -42013,6 +43344,7 @@ pub static ALL_BLOCKS: [BlockData; 1477usize] = [
             },
         ],
         state_values: b"\0\0\0\x01\0\x02\0\x03\0\x04\0\x05\x01\0\x01\x01\x01\x02\x01\x03\x01\x04\x01\x05",
+        server_definition: None,
     },
     BlockData {
         id: 18947u32,
@@ -42039,6 +43371,7 @@ pub static ALL_BLOCKS: [BlockData; 1477usize] = [
         visual_shape: [0f32, 0f32, 0f32, 1f32, 1f32, 1f32],
         properties: &[],
         state_values: b"",
+        server_definition: None,
     },
     BlockData {
         id: 18948u32,
@@ -42065,6 +43398,7 @@ pub static ALL_BLOCKS: [BlockData; 1477usize] = [
         visual_shape: [0f32, 0f32, 0f32, 1f32, 1f32, 1f32],
         properties: &[],
         state_values: b"",
+        server_definition: None,
     },
     BlockData {
         id: 18949u32,
@@ -42094,6 +43428,7 @@ pub static ALL_BLOCKS: [BlockData; 1477usize] = [
         visual_shape: [0f32, 0f32, 0f32, 1f32, 1f32, 1f32],
         properties: &[],
         state_values: b"",
+        server_definition: None,
     },
     BlockData {
         id: 18950u32,
@@ -42120,6 +43455,7 @@ pub static ALL_BLOCKS: [BlockData; 1477usize] = [
         visual_shape: [0.099999994f32, 0f32, 0.099999994f32, 0.9f32, 0.8f32, 0.9f32],
         properties: &[],
         state_values: b"",
+        server_definition: None,
     },
     BlockData {
         id: 18951u32,
@@ -42151,6 +43487,7 @@ pub static ALL_BLOCKS: [BlockData; 1477usize] = [
             },
         ],
         state_values: b"\0\x01",
+        server_definition: None,
     },
     BlockData {
         id: 18953u32,
@@ -42186,6 +43523,7 @@ pub static ALL_BLOCKS: [BlockData; 1477usize] = [
             },
         ],
         state_values: b"\0\x01\x02",
+        server_definition: None,
     },
     BlockData {
         id: 18956u32,
@@ -42236,6 +43574,7 @@ pub static ALL_BLOCKS: [BlockData; 1477usize] = [
             },
         ],
         state_values: b"\0\0\0\0\0\x01\0\0\x02\0\0\x03\0\x01\0\0\x01\x01\0\x01\x02\0\x01\x03\x01\0\0\x01\0\x01\x01\0\x02\x01\0\x03\x01\x01\0\x01\x01\x01\x01\x01\x02\x01\x01\x03\x02\0\0\x02\0\x01\x02\0\x02\x02\0\x03\x02\x01\0\x02\x01\x01\x02\x01\x02\x02\x01\x03\x03\0\0\x03\0\x01\x03\0\x02\x03\0\x03\x03\x01\0\x03\x01\x01\x03\x01\x02\x03\x01\x03\x04\0\0\x04\0\x01\x04\0\x02\x04\0\x03\x04\x01\0\x04\x01\x01\x04\x01\x02\x04\x01\x03",
+        server_definition: None,
     },
     BlockData {
         id: 18996u32,
@@ -42262,6 +43601,7 @@ pub static ALL_BLOCKS: [BlockData; 1477usize] = [
         visual_shape: [0f32, 0f32, 0f32, 1f32, 0.0625f32, 1f32],
         properties: &[],
         state_values: b"",
+        server_definition: None,
     },
     BlockData {
         id: 18997u32,
@@ -42293,6 +43633,7 @@ pub static ALL_BLOCKS: [BlockData; 1477usize] = [
             },
         ],
         state_values: b"\0\x01",
+        server_definition: None,
     },
     BlockData {
         id: 18999u32,
@@ -42319,6 +43660,7 @@ pub static ALL_BLOCKS: [BlockData; 1477usize] = [
         visual_shape: [0f32, 0f32, 0f32, 1f32, 1f32, 1f32],
         properties: &[],
         state_values: b"",
+        server_definition: None,
     },
     BlockData {
         id: 19000u32,
@@ -42369,6 +43711,7 @@ pub static ALL_BLOCKS: [BlockData; 1477usize] = [
             },
         ],
         state_values: b"\0\0\0\0\0\x01\0\0\x02\0\0\x03\0\x01\0\0\x01\x01\0\x01\x02\0\x01\x03\x01\0\0\x01\0\x01\x01\0\x02\x01\0\x03\x01\x01\0\x01\x01\x01\x01\x01\x02\x01\x01\x03\x02\0\0\x02\0\x01\x02\0\x02\x02\0\x03\x02\x01\0\x02\x01\x01\x02\x01\x02\x02\x01\x03\x03\0\0\x03\0\x01\x03\0\x02\x03\0\x03\x03\x01\0\x03\x01\x01\x03\x01\x02\x03\x01\x03\x04\0\0\x04\0\x01\x04\0\x02\x04\0\x03\x04\x01\0\x04\x01\x01\x04\x01\x02\x04\x01\x03",
+        server_definition: None,
     },
     BlockData {
         id: 19040u32,
@@ -42395,6 +43738,7 @@ pub static ALL_BLOCKS: [BlockData; 1477usize] = [
         visual_shape: [0f32, 0f32, 0f32, 1f32, 1f32, 1f32],
         properties: &[],
         state_values: b"",
+        server_definition: None,
     },
     BlockData {
         id: 19041u32,
@@ -42421,6 +43765,7 @@ pub static ALL_BLOCKS: [BlockData; 1477usize] = [
         visual_shape: [0f32, 0f32, 0f32, 1f32, 1f32, 1f32],
         properties: &[],
         state_values: b"",
+        server_definition: None,
     },
     BlockData {
         id: 19042u32,
@@ -42447,6 +43792,7 @@ pub static ALL_BLOCKS: [BlockData; 1477usize] = [
         visual_shape: [0f32, 0f32, 0f32, 1f32, 1f32, 1f32],
         properties: &[],
         state_values: b"",
+        server_definition: None,
     },
     BlockData {
         id: 19043u32,
@@ -42478,6 +43824,7 @@ pub static ALL_BLOCKS: [BlockData; 1477usize] = [
         visual_shape: [0f32, 0f32, 0f32, 1f32, 1f32, 1f32],
         properties: &[],
         state_values: b"",
+        server_definition: None,
     },
     BlockData {
         id: 19044u32,
@@ -42504,6 +43851,7 @@ pub static ALL_BLOCKS: [BlockData; 1477usize] = [
         visual_shape: [0f32, 0f32, 0f32, 1f32, 1f32, 1f32],
         properties: &[],
         state_values: b"",
+        server_definition: None,
     },
     BlockData {
         id: 19045u32,
@@ -42530,6 +43878,7 @@ pub static ALL_BLOCKS: [BlockData; 1477usize] = [
         visual_shape: [0f32, 0f32, 0f32, 1f32, 1f32, 1f32],
         properties: &[],
         state_values: b"",
+        server_definition: None,
     },
     BlockData {
         id: 19046u32,
@@ -42556,6 +43905,7 @@ pub static ALL_BLOCKS: [BlockData; 1477usize] = [
         visual_shape: [0f32, 0f32, 0f32, 1f32, 1f32, 1f32],
         properties: &[],
         state_values: b"",
+        server_definition: None,
     },
     BlockData {
         id: 19047u32,
@@ -42582,6 +43932,7 @@ pub static ALL_BLOCKS: [BlockData; 1477usize] = [
         visual_shape: [0f32, 0f32, 0f32, 1f32, 1f32, 1f32],
         properties: &[],
         state_values: b"",
+        server_definition: None,
     },
     BlockData {
         id: 19048u32,
@@ -42608,6 +43959,7 @@ pub static ALL_BLOCKS: [BlockData; 1477usize] = [
         visual_shape: [0f32, 0f32, 0f32, 1f32, 1f32, 1f32],
         properties: &[],
         state_values: b"",
+        server_definition: None,
     },
     BlockData {
         id: 19049u32,
@@ -42634,6 +43986,7 @@ pub static ALL_BLOCKS: [BlockData; 1477usize] = [
         visual_shape: [0f32, 0f32, 0f32, 1f32, 1f32, 1f32],
         properties: &[],
         state_values: b"",
+        server_definition: None,
     },
     BlockData {
         id: 19050u32,
@@ -42660,6 +44013,7 @@ pub static ALL_BLOCKS: [BlockData; 1477usize] = [
         visual_shape: [0f32, 0f32, 0f32, 1f32, 1f32, 1f32],
         properties: &[],
         state_values: b"",
+        server_definition: None,
     },
     BlockData {
         id: 19051u32,
@@ -42686,6 +44040,7 @@ pub static ALL_BLOCKS: [BlockData; 1477usize] = [
         visual_shape: [0f32, 0f32, 0f32, 1f32, 1f32, 1f32],
         properties: &[],
         state_values: b"",
+        server_definition: None,
     },
     BlockData {
         id: 19052u32,
@@ -42712,6 +44067,7 @@ pub static ALL_BLOCKS: [BlockData; 1477usize] = [
         visual_shape: [0f32, 0f32, 0f32, 1f32, 1f32, 1f32],
         properties: &[],
         state_values: b"",
+        server_definition: None,
     },
     BlockData {
         id: 19053u32,
@@ -42738,6 +44094,7 @@ pub static ALL_BLOCKS: [BlockData; 1477usize] = [
         visual_shape: [0f32, 0f32, 0f32, 1f32, 1f32, 1f32],
         properties: &[],
         state_values: b"",
+        server_definition: None,
     },
     BlockData {
         id: 19054u32,
@@ -42764,6 +44121,7 @@ pub static ALL_BLOCKS: [BlockData; 1477usize] = [
         visual_shape: [0.15f32, 0f32, 0.15f32, 0.7f32, 0.6f32, 0.7f32],
         properties: &[],
         state_values: b"",
+        server_definition: None,
     },
     BlockData {
         id: 19055u32,
@@ -42790,6 +44148,7 @@ pub static ALL_BLOCKS: [BlockData; 1477usize] = [
         visual_shape: [0f32, 0f32, 0f32, 1f32, 1f32, 1f32],
         properties: &[],
         state_values: b"",
+        server_definition: None,
     },
     BlockData {
         id: 19056u32,
@@ -42830,6 +44189,7 @@ pub static ALL_BLOCKS: [BlockData; 1477usize] = [
             },
         ],
         state_values: b"\0\x01\x02\x03\x04\x05\x06\x07",
+        server_definition: None,
     },
     BlockData {
         id: 19064u32,
@@ -42860,6 +44220,7 @@ pub static ALL_BLOCKS: [BlockData; 1477usize] = [
         visual_shape: [0f32, 0f32, 0f32, 1f32, 1f32, 1f32],
         properties: &[],
         state_values: b"",
+        server_definition: None,
     },
     BlockData {
         id: 19065u32,
@@ -42886,6 +44247,7 @@ pub static ALL_BLOCKS: [BlockData; 1477usize] = [
         visual_shape: [0f32, 0f32, 0f32, 1f32, 1f32, 1f32],
         properties: &[],
         state_values: b"",
+        server_definition: None,
     },
     BlockData {
         id: 19066u32,
@@ -42921,6 +44283,7 @@ pub static ALL_BLOCKS: [BlockData; 1477usize] = [
             },
         ],
         state_values: b"\0\x01\x02",
+        server_definition: None,
     },
     BlockData {
         id: 19069u32,
@@ -42952,6 +44315,7 @@ pub static ALL_BLOCKS: [BlockData; 1477usize] = [
             },
         ],
         state_values: b"\0\x01",
+        server_definition: None,
     },
     BlockData {
         id: 19071u32,
@@ -42978,6 +44342,7 @@ pub static ALL_BLOCKS: [BlockData; 1477usize] = [
         visual_shape: [0.25f32, 0f32, 0.25f32, 0.75f32, 0.5f32, 0.75f32],
         properties: &[],
         state_values: b"",
+        server_definition: None,
     },
     BlockData {
         id: 19072u32,
@@ -43009,6 +44374,7 @@ pub static ALL_BLOCKS: [BlockData; 1477usize] = [
             },
         ],
         state_values: b"\0\x01",
+        server_definition: None,
     },
     BlockData {
         id: 19074u32,
@@ -43040,6 +44406,7 @@ pub static ALL_BLOCKS: [BlockData; 1477usize] = [
             },
         ],
         state_values: b"\0\x01",
+        server_definition: None,
     },
     BlockData {
         id: 19076u32,
@@ -43089,6 +44456,7 @@ pub static ALL_BLOCKS: [BlockData; 1477usize] = [
             },
         ],
         state_values: b"\0\0\0\x01\0\0\x02\0\0\x03\0\0\0\0\x01\x01\0\x01\x02\0\x01\x03\0\x01\0\x01\0\x01\x01\0\x02\x01\0\x03\x01\0\0\x01\x01\x01\x01\x01\x02\x01\x01\x03\x01\x01",
+        server_definition: None,
     },
     BlockData {
         id: 19092u32,
@@ -43124,6 +44492,7 @@ pub static ALL_BLOCKS: [BlockData; 1477usize] = [
             },
         ],
         state_values: b"\0\x01\x02",
+        server_definition: None,
     },
     BlockData {
         id: 19095u32,
@@ -43150,6 +44519,7 @@ pub static ALL_BLOCKS: [BlockData; 1477usize] = [
         visual_shape: [0.15f32, 0.75f32, 0.15f32, 0.85f32, 1f32, 0.85f32],
         properties: &[],
         state_values: b"",
+        server_definition: None,
     },
     BlockData {
         id: 19096u32,
@@ -43181,6 +44551,7 @@ pub static ALL_BLOCKS: [BlockData; 1477usize] = [
             },
         ],
         state_values: b"\0\x01",
+        server_definition: None,
     },
     BlockData {
         id: 19098u32,
@@ -43229,6 +44600,7 @@ pub static ALL_BLOCKS: [BlockData; 1477usize] = [
             },
         ],
         state_values: b"\0\x01\x02\x03\x04\x05\x06\x07\x08\t\n\x0B\x0C\r\x0E\x0F",
+        server_definition: None,
     },
     BlockData {
         id: 19114u32,
@@ -43277,6 +44649,7 @@ pub static ALL_BLOCKS: [BlockData; 1477usize] = [
             },
         ],
         state_values: b"\0\x01\x02\x03\x04\x05\x06\x07\x08\t\n\x0B\x0C\r\x0E\x0F",
+        server_definition: None,
     },
     BlockData {
         id: 19130u32,
@@ -43311,6 +44684,7 @@ pub static ALL_BLOCKS: [BlockData; 1477usize] = [
             },
         ],
         state_values: b"\0\x01",
+        server_definition: None,
     },
     BlockData {
         id: 19132u32,
@@ -43361,6 +44735,7 @@ pub static ALL_BLOCKS: [BlockData; 1477usize] = [
             },
         ],
         state_values: b"\0\0\0\0\0\x01\0\0\x02\0\0\x03\0\x01\0\0\x01\x01\0\x01\x02\0\x01\x03\x01\0\0\x01\0\x01\x01\0\x02\x01\0\x03\x01\x01\0\x01\x01\x01\x01\x01\x02\x01\x01\x03\x02\0\0\x02\0\x01\x02\0\x02\x02\0\x03\x02\x01\0\x02\x01\x01\x02\x01\x02\x02\x01\x03\x03\0\0\x03\0\x01\x03\0\x02\x03\0\x03\x03\x01\0\x03\x01\x01\x03\x01\x02\x03\x01\x03\x04\0\0\x04\0\x01\x04\0\x02\x04\0\x03\x04\x01\0\x04\x01\x01\x04\x01\x02\x04\x01\x03",
+        server_definition: None,
     },
     BlockData {
         id: 19172u32,
@@ -43392,6 +44767,7 @@ pub static ALL_BLOCKS: [BlockData; 1477usize] = [
         visual_shape: [0f32, 0f32, 0f32, 1f32, 1f32, 1f32],
         properties: &[],
         state_values: b"",
+        server_definition: None,
     },
     BlockData {
         id: 19173u32,
@@ -43423,6 +44799,9 @@ pub static ALL_BLOCKS: [BlockData; 1477usize] = [
             },
         ],
         state_values: b"\0\x01",
+        server_definition: Some(
+            b"\n\0\t\tblockTags\x08\x02&minecraft:is_pickaxe_item_destructible\n\ncomponents\n minecraft:destructible_by_mining\x05\x05valueff\xE6?\0\n\x1Fminecraft:destruction_particles\x03\x0Eparticle_count`\x08\x07texture\0\x08\x0Btint_method\x04none\0\n\x1Aminecraft:liquid_detection\t\x0EdetectionRules\n\x02\x01\x10canContainLiquid\x01\x08\nliquidType\x05water\x08\x0FonLiquidTouches\x08blocking\x01\x18stopsLiquidFromDirection\0\x01\x13use_liquid_clipping\0\0\0\n\x1Fminecraft:redstone_conductivity\x01\x14allowsWireToStepDown\x01\x01\x11redstoneConductor\0\0\0\n\rmenu_category\x08\x08category\x0Cconstruction\x08\x05group\x1Dminecraft:itemGroup.name.slab\x01\x15is_hidden_in_commands\0\0\x03\rmolangVersion\x1A\n\x12vanilla_block_data\n\x0Fblock_archetype\x08\x11double_slab_block)minecraft:light_gray_concrete_double_slab\x01\tis_double\0\x08\x04type\nslab_block\0\x03\x08block_id\xFE\x16\x08\x08material\x05solid\x01\x1Frequires_correct_tool_for_drops\x01\0\0",
+        ),
     },
     BlockData {
         id: 19175u32,
@@ -43473,6 +44852,9 @@ pub static ALL_BLOCKS: [BlockData; 1477usize] = [
             },
         ],
         state_values: b"\0\0\0\0\0\x01\0\0\x02\0\0\x03\0\x01\0\0\x01\x01\0\x01\x02\0\x01\x03\x01\0\0\x01\0\x01\x01\0\x02\x01\0\x03\x01\x01\0\x01\x01\x01\x01\x01\x02\x01\x01\x03\x02\0\0\x02\0\x01\x02\0\x02\x02\0\x03\x02\x01\0\x02\x01\x01\x02\x01\x02\x02\x01\x03\x03\0\0\x03\0\x01\x03\0\x02\x03\0\x03\x03\x01\0\x03\x01\x01\x03\x01\x02\x03\x01\x03\x04\0\0\x04\0\x01\x04\0\x02\x04\0\x03\x04\x01\0\x04\x01\x01\x04\x01\x02\x04\x01\x03",
+        server_definition: Some(
+            b"\n\0\t\tblockTags\x08\x02%minecraft:is_shears_item_destructible\n\ncomponents\n minecraft:destructible_by_mining\x05\x05value\xCD\xCCL?\0\n\x1Fminecraft:destruction_particles\x03\x0Eparticle_count`\x08\x07texture\0\x08\x0Btint_method\x04none\0\n\x1Aminecraft:liquid_detection\t\x0EdetectionRules\n\x02\x01\x10canContainLiquid\x01\x08\nliquidType\x05water\x08\x0FonLiquidTouches\x08blocking\x01\x18stopsLiquidFromDirection\0\x01\x13use_liquid_clipping\0\0\0\n\x1Fminecraft:redstone_conductivity\x01\x14allowsWireToStepDown\x01\x01\x11redstoneConductor\0\0\n\x11minecraft:support\x08\x05shape\x05stair\0\0\n\rmenu_category\x08\x08category\x0Cconstruction\x08\x05group\x1Fminecraft:itemGroup.name.stairs\x01\x15is_hidden_in_commands\0\0\x03\rmolangVersion\x1A\n\x12vanilla_block_data\n\x0Fblock_archetype\x08\nbase_block\x13minecraft:pink_wool\x08\x04type\x0Bstair_block\0\x03\x08block_id\x88\x16\x01\x15can_dampen_vibrations\x01\x01\x16can_occlude_vibrations\x01\x08\x08material\x05solid\x05\x0Ctranslucency\xCD\xCCL?\0\0",
+        ),
     },
     BlockData {
         id: 19215u32,
@@ -43521,6 +44903,7 @@ pub static ALL_BLOCKS: [BlockData; 1477usize] = [
             },
         ],
         state_values: b"\0\x01\x02\x03\x04\x05\x06\x07\x08\t\n\x0B\x0C\r\x0E\x0F",
+        server_definition: None,
     },
     BlockData {
         id: 19231u32,
@@ -43547,6 +44930,7 @@ pub static ALL_BLOCKS: [BlockData; 1477usize] = [
         visual_shape: [0f32, 0f32, 0f32, 1f32, 1f32, 1f32],
         properties: &[],
         state_values: b"",
+        server_definition: None,
     },
     BlockData {
         id: 19232u32,
@@ -43578,6 +44962,7 @@ pub static ALL_BLOCKS: [BlockData; 1477usize] = [
             },
         ],
         state_values: b"\0\x01",
+        server_definition: None,
     },
     BlockData {
         id: 19234u32,
@@ -43604,6 +44989,7 @@ pub static ALL_BLOCKS: [BlockData; 1477usize] = [
         visual_shape: [0f32, 0f32, 0f32, 1f32, 1f32, 1f32],
         properties: &[],
         state_values: b"",
+        server_definition: None,
     },
     BlockData {
         id: 19235u32,
@@ -43644,6 +45030,7 @@ pub static ALL_BLOCKS: [BlockData; 1477usize] = [
             },
         ],
         state_values: b"\0\0\x01\0\x02\0\x03\0\0\x01\x01\x01\x02\x01\x03\x01",
+        server_definition: None,
     },
     BlockData {
         id: 19243u32,
@@ -43707,6 +45094,7 @@ pub static ALL_BLOCKS: [BlockData; 1477usize] = [
             },
         ],
         state_values: b"\0\0\0\0\0\0\0\0\0\x01\0\x01\0\0\0\0\x01\0\0\x01\0\x02\0\0\0\0\x02\0\0\x01\x01\0\0\0\0\x01\0\0\0\x01\x01\x01\0\0\0\x01\x01\0\0\x01\x01\x02\0\0\0\x01\x02\0\0\x01\x02\0\0\0\0\x02\0\0\0\x01\x02\x01\0\0\0\x02\x01\0\0\x01\x02\x02\0\0\0\x02\x02\0\0\x01\0\0\x01\0\0\0\0\x01\0\x01\0\x01\x01\0\0\0\x01\x01\0\x01\0\x02\x01\0\0\0\x02\x01\0\x01\x01\0\x01\0\0\x01\0\x01\0\x01\x01\x01\x01\0\0\x01\x01\x01\0\x01\x01\x02\x01\0\0\x01\x02\x01\0\x01\x02\0\x01\0\0\x02\0\x01\0\x01\x02\x01\x01\0\0\x02\x01\x01\0\x01\x02\x02\x01\0\0\x02\x02\x01\0\x01\0\0\x02\0\0\0\0\x02\0\x01\0\x01\x02\0\0\0\x01\x02\0\x01\0\x02\x02\0\0\0\x02\x02\0\x01\x01\0\x02\0\0\x01\0\x02\0\x01\x01\x01\x02\0\0\x01\x01\x02\0\x01\x01\x02\x02\0\0\x01\x02\x02\0\x01\x02\0\x02\0\0\x02\0\x02\0\x01\x02\x01\x02\0\0\x02\x01\x02\0\x01\x02\x02\x02\0\0\x02\x02\x02\0\x01\0\0\0\x01\0\0\0\0\x01\x01\0\x01\0\x01\0\0\x01\0\x01\x01\0\x02\0\x01\0\0\x02\0\x01\x01\x01\0\0\x01\0\x01\0\0\x01\x01\x01\x01\0\x01\0\x01\x01\0\x01\x01\x01\x02\0\x01\0\x01\x02\0\x01\x01\x02\0\0\x01\0\x02\0\0\x01\x01\x02\x01\0\x01\0\x02\x01\0\x01\x01\x02\x02\0\x01\0\x02\x02\0\x01\x01\0\0\x01\x01\0\0\0\x01\x01\x01\0\x01\x01\x01\0\0\x01\x01\x01\x01\0\x02\x01\x01\0\0\x02\x01\x01\x01\x01\0\x01\x01\0\x01\0\x01\x01\x01\x01\x01\x01\x01\0\x01\x01\x01\x01\x01\x01\x02\x01\x01\0\x01\x02\x01\x01\x01\x02\0\x01\x01\0\x02\0\x01\x01\x01\x02\x01\x01\x01\0\x02\x01\x01\x01\x01\x02\x02\x01\x01\0\x02\x02\x01\x01\x01\0\0\x02\x01\0\0\0\x02\x01\x01\0\x01\x02\x01\0\0\x01\x02\x01\x01\0\x02\x02\x01\0\0\x02\x02\x01\x01\x01\0\x02\x01\0\x01\0\x02\x01\x01\x01\x01\x02\x01\0\x01\x01\x02\x01\x01\x01\x02\x02\x01\0\x01\x02\x02\x01\x01\x02\0\x02\x01\0\x02\0\x02\x01\x01\x02\x01\x02\x01\0\x02\x01\x02\x01\x01\x02\x02\x02\x01\0\x02\x02\x02\x01\x01\0\0\0\x02\0\0\0\0\x02\x01\0\x01\0\x02\0\0\x01\0\x02\x01\0\x02\0\x02\0\0\x02\0\x02\x01\x01\0\0\x02\0\x01\0\0\x02\x01\x01\x01\0\x02\0\x01\x01\0\x02\x01\x01\x02\0\x02\0\x01\x02\0\x02\x01\x02\0\0\x02\0\x02\0\0\x02\x01\x02\x01\0\x02\0\x02\x01\0\x02\x01\x02\x02\0\x02\0\x02\x02\0\x02\x01\0\0\x01\x02\0\0\0\x01\x02\x01\0\x01\x01\x02\0\0\x01\x01\x02\x01\0\x02\x01\x02\0\0\x02\x01\x02\x01\x01\0\x01\x02\0\x01\0\x01\x02\x01\x01\x01\x01\x02\0\x01\x01\x01\x02\x01\x01\x02\x01\x02\0\x01\x02\x01\x02\x01\x02\0\x01\x02\0\x02\0\x01\x02\x01\x02\x01\x01\x02\0\x02\x01\x01\x02\x01\x02\x02\x01\x02\0\x02\x02\x01\x02\x01\0\0\x02\x02\0\0\0\x02\x02\x01\0\x01\x02\x02\0\0\x01\x02\x02\x01\0\x02\x02\x02\0\0\x02\x02\x02\x01\x01\0\x02\x02\0\x01\0\x02\x02\x01\x01\x01\x02\x02\0\x01\x01\x02\x02\x01\x01\x02\x02\x02\0\x01\x02\x02\x02\x01\x02\0\x02\x02\0\x02\0\x02\x02\x01\x02\x01\x02\x02\0\x02\x01\x02\x02\x01\x02\x02\x02\x02\0\x02\x02\x02\x02\x01",
+        server_definition: None,
     },
     BlockData {
         id: 19405u32,
@@ -43733,6 +45121,7 @@ pub static ALL_BLOCKS: [BlockData; 1477usize] = [
         visual_shape: [0f32, 0f32, 0f32, 1f32, 1f32, 1f32],
         properties: &[],
         state_values: b"",
+        server_definition: None,
     },
     BlockData {
         id: 19406u32,
@@ -43769,6 +45158,7 @@ pub static ALL_BLOCKS: [BlockData; 1477usize] = [
             },
         ],
         state_values: b"\0\x01\x02\x03",
+        server_definition: None,
     },
     BlockData {
         id: 19410u32,
@@ -43811,6 +45201,7 @@ pub static ALL_BLOCKS: [BlockData; 1477usize] = [
             },
         ],
         state_values: b"\0\0\x01\0\x02\0\x03\0\x04\0\x05\0\0\x01\x01\x01\x02\x01\x03\x01\x04\x01\x05\x01",
+        server_definition: None,
     },
     BlockData {
         id: 19422u32,
@@ -43842,6 +45233,9 @@ pub static ALL_BLOCKS: [BlockData; 1477usize] = [
             },
         ],
         state_values: b"\0\x01",
+        server_definition: Some(
+            b"\n\0\t\tblockTags\x08\x02%minecraft:is_shears_item_destructible\n\ncomponents\n minecraft:destructible_by_mining\x05\x05value\xCD\xCCL?\0\n\x1Fminecraft:destruction_particles\x03\x0Eparticle_count`\x08\x07texture\0\x08\x0Btint_method\x04none\0\n\x1Aminecraft:liquid_detection\t\x0EdetectionRules\n\x02\x01\x10canContainLiquid\x01\x08\nliquidType\x05water\x08\x0FonLiquidTouches\x08blocking\x01\x18stopsLiquidFromDirection\0\x01\x13use_liquid_clipping\0\0\0\n\x1Fminecraft:redstone_conductivity\x01\x14allowsWireToStepDown\x01\x01\x11redstoneConductor\0\0\0\n\rmenu_category\x08\x08category\x0Cconstruction\x08\x05group\x1Dminecraft:itemGroup.name.slab\x01\x15is_hidden_in_commands\0\0\x03\rmolangVersion\x1A\n\x12vanilla_block_data\n\x0Fblock_archetype\x08\x11double_slab_block\x1Fminecraft:blue_wool_double_slab\x01\tis_double\0\x08\x04type\nslab_block\0\x03\x08block_id\xB0\x16\x01\x15can_dampen_vibrations\x01\x01\x16can_occlude_vibrations\x01\x08\x08material\x05solid\x05\x0Ctranslucency\xCD\xCCL?\0\0",
+        ),
     },
     BlockData {
         id: 19424u32,
@@ -43892,6 +45286,9 @@ pub static ALL_BLOCKS: [BlockData; 1477usize] = [
             },
         ],
         state_values: b"\0\0\0\0\0\x01\0\0\x02\0\0\x03\0\x01\0\0\x01\x01\0\x01\x02\0\x01\x03\x01\0\0\x01\0\x01\x01\0\x02\x01\0\x03\x01\x01\0\x01\x01\x01\x01\x01\x02\x01\x01\x03\x02\0\0\x02\0\x01\x02\0\x02\x02\0\x03\x02\x01\0\x02\x01\x01\x02\x01\x02\x02\x01\x03\x03\0\0\x03\0\x01\x03\0\x02\x03\0\x03\x03\x01\0\x03\x01\x01\x03\x01\x02\x03\x01\x03\x04\0\0\x04\0\x01\x04\0\x02\x04\0\x03\x04\x01\0\x04\x01\x01\x04\x01\x02\x04\x01\x03",
+        server_definition: Some(
+            b"\n\0\t\tblockTags\x08\x02%minecraft:is_shears_item_destructible\n\ncomponents\n minecraft:destructible_by_mining\x05\x05value\xCD\xCCL?\0\n\x1Fminecraft:destruction_particles\x03\x0Eparticle_count`\x08\x07texture\0\x08\x0Btint_method\x04none\0\n\x1Aminecraft:liquid_detection\t\x0EdetectionRules\n\x02\x01\x10canContainLiquid\x01\x08\nliquidType\x05water\x08\x0FonLiquidTouches\x08blocking\x01\x18stopsLiquidFromDirection\0\x01\x13use_liquid_clipping\0\0\0\n\x1Fminecraft:redstone_conductivity\x01\x14allowsWireToStepDown\x01\x01\x11redstoneConductor\0\0\n\x11minecraft:support\x08\x05shape\x05stair\0\0\n\rmenu_category\x08\x08category\x0Cconstruction\x08\x05group\x1Fminecraft:itemGroup.name.stairs\x01\x15is_hidden_in_commands\0\0\x03\rmolangVersion\x1A\n\x12vanilla_block_data\n\x0Fblock_archetype\x08\nbase_block\x15minecraft:orange_wool\x08\x04type\x0Bstair_block\0\x03\x08block_id\xFE\x15\x01\x15can_dampen_vibrations\x01\x01\x16can_occlude_vibrations\x01\x08\x08material\x05solid\x05\x0Ctranslucency\xCD\xCCL?\0\0",
+        ),
     },
     BlockData {
         id: 19464u32,
@@ -43930,6 +45327,7 @@ pub static ALL_BLOCKS: [BlockData; 1477usize] = [
             },
         ],
         state_values: b"\0\x01\x02\x03\x04\x05",
+        server_definition: None,
     },
     BlockData {
         id: 19470u32,
@@ -43965,6 +45363,7 @@ pub static ALL_BLOCKS: [BlockData; 1477usize] = [
             },
         ],
         state_values: b"\0\x01\x02",
+        server_definition: None,
     },
     BlockData {
         id: 19473u32,
@@ -44005,6 +45404,7 @@ pub static ALL_BLOCKS: [BlockData; 1477usize] = [
             },
         ],
         state_values: b"\0\0\x01\0\x02\0\x03\0\0\x01\x01\x01\x02\x01\x03\x01",
+        server_definition: None,
     },
     BlockData {
         id: 19481u32,
@@ -44036,6 +45436,7 @@ pub static ALL_BLOCKS: [BlockData; 1477usize] = [
             },
         ],
         state_values: b"\0\x01",
+        server_definition: None,
     },
     BlockData {
         id: 19483u32,
@@ -44067,6 +45468,9 @@ pub static ALL_BLOCKS: [BlockData; 1477usize] = [
             },
         ],
         state_values: b"\0\x01",
+        server_definition: Some(
+            b"\n\0\t\tblockTags\x08\x02&minecraft:is_pickaxe_item_destructible\n\ncomponents\n minecraft:destructible_by_mining\x05\x05valueff\xE6?\0\n\x1Fminecraft:redstone_conductivity\x01\x14allowsWireToStepDown\x01\x01\x11redstoneConductor\x01\0\0\n\rmenu_category\x08\x08category\x04none\x08\x05group\0\x01\x15is_hidden_in_commands\x01\0\x03\rmolangVersion\x1A\n\x12vanilla_block_data\n\x0Fblock_archetype\x08\x11double_slab_block\x1Cminecraft:lime_concrete_slab\x01\tis_double\x01\x08\x04type\nslab_block\0\x03\x08block_id\xAC\x17\x08\x08material\x05solid\x01\x1Frequires_correct_tool_for_drops\x01\0\0",
+        ),
     },
     BlockData {
         id: 19485u32,
@@ -44108,6 +45512,7 @@ pub static ALL_BLOCKS: [BlockData; 1477usize] = [
             },
         ],
         state_values: b"\0\0\x01\0\x02\0\x03\0\x04\0\0\x01\x01\x01\x02\x01\x03\x01\x04\x01",
+        server_definition: None,
     },
     BlockData {
         id: 19495u32,
@@ -44134,6 +45539,7 @@ pub static ALL_BLOCKS: [BlockData; 1477usize] = [
         visual_shape: [0f32, 0f32, 0f32, 1f32, 0.0625f32, 1f32],
         properties: &[],
         state_values: b"",
+        server_definition: None,
     },
     BlockData {
         id: 19496u32,
@@ -44160,6 +45566,7 @@ pub static ALL_BLOCKS: [BlockData; 1477usize] = [
         visual_shape: [0f32, 0f32, 0f32, 1f32, 1f32, 1f32],
         properties: &[],
         state_values: b"",
+        server_definition: None,
     },
     BlockData {
         id: 19497u32,
@@ -44191,6 +45598,7 @@ pub static ALL_BLOCKS: [BlockData; 1477usize] = [
             },
         ],
         state_values: b"\0\x01",
+        server_definition: None,
     },
     BlockData {
         id: 19499u32,
@@ -44241,6 +45649,7 @@ pub static ALL_BLOCKS: [BlockData; 1477usize] = [
             },
         ],
         state_values: b"\0\0\0\0\0\x01\0\0\x02\0\0\x03\0\x01\0\0\x01\x01\0\x01\x02\0\x01\x03\x01\0\0\x01\0\x01\x01\0\x02\x01\0\x03\x01\x01\0\x01\x01\x01\x01\x01\x02\x01\x01\x03\x02\0\0\x02\0\x01\x02\0\x02\x02\0\x03\x02\x01\0\x02\x01\x01\x02\x01\x02\x02\x01\x03\x03\0\0\x03\0\x01\x03\0\x02\x03\0\x03\x03\x01\0\x03\x01\x01\x03\x01\x02\x03\x01\x03\x04\0\0\x04\0\x01\x04\0\x02\x04\0\x03\x04\x01\0\x04\x01\x01\x04\x01\x02\x04\x01\x03",
+        server_definition: None,
     },
     BlockData {
         id: 19539u32,
@@ -44284,6 +45693,7 @@ pub static ALL_BLOCKS: [BlockData; 1477usize] = [
             },
         ],
         state_values: b"\0\0\0\0\0\x01\0\0\x01\0\0\0\x01\x01\0\0\0\0\x01\0\0\x01\x01\0\x01\0\x01\0\x01\x01\x01\0\0\0\0\x01\0\x01\0\x01\x01\0\0\x01\x01\x01\0\x01\0\0\x01\x01\0\x01\x01\x01\x01\0\x01\x01\x01\x01\x01\x01",
+        server_definition: None,
     },
     BlockData {
         id: 19555u32,
@@ -44334,6 +45744,7 @@ pub static ALL_BLOCKS: [BlockData; 1477usize] = [
             },
         ],
         state_values: b"\0\0\0\0\0\x01\0\0\x02\0\0\x03\0\x01\0\0\x01\x01\0\x01\x02\0\x01\x03\x01\0\0\x01\0\x01\x01\0\x02\x01\0\x03\x01\x01\0\x01\x01\x01\x01\x01\x02\x01\x01\x03\x02\0\0\x02\0\x01\x02\0\x02\x02\0\x03\x02\x01\0\x02\x01\x01\x02\x01\x02\x02\x01\x03\x03\0\0\x03\0\x01\x03\0\x02\x03\0\x03\x03\x01\0\x03\x01\x01\x03\x01\x02\x03\x01\x03\x04\0\0\x04\0\x01\x04\0\x02\x04\0\x03\x04\x01\0\x04\x01\x01\x04\x01\x02\x04\x01\x03",
+        server_definition: None,
     },
     BlockData {
         id: 19595u32,
@@ -44381,6 +45792,7 @@ pub static ALL_BLOCKS: [BlockData; 1477usize] = [
             },
         ],
         state_values: b"\0\0\0\0\0\x01\0\0\x02\x01\0\0\x01\0\x01\x01\0\x02\x02\0\0\x02\0\x01\x02\0\x02\0\x01\0\0\x01\x01\0\x01\x02\x01\x01\0\x01\x01\x01\x01\x01\x02\x02\x01\0\x02\x01\x01\x02\x01\x02",
+        server_definition: None,
     },
     BlockData {
         id: 19613u32,
@@ -44412,6 +45824,9 @@ pub static ALL_BLOCKS: [BlockData; 1477usize] = [
             },
         ],
         state_values: b"\0\x01",
+        server_definition: Some(
+            b"\n\0\t\tblockTags\x08\x02&minecraft:is_pickaxe_item_destructible\n\ncomponents\n minecraft:destructible_by_mining\x05\x05valueff\xE6?\0\n\x1Fminecraft:destruction_particles\x03\x0Eparticle_count`\x08\x07texture\0\x08\x0Btint_method\x04none\0\n\x1Aminecraft:liquid_detection\t\x0EdetectionRules\n\x02\x01\x10canContainLiquid\x01\x08\nliquidType\x05water\x08\x0FonLiquidTouches\x08blocking\x01\x18stopsLiquidFromDirection\0\x01\x13use_liquid_clipping\0\0\0\n\x1Fminecraft:redstone_conductivity\x01\x14allowsWireToStepDown\x01\x01\x11redstoneConductor\0\0\0\n\rmenu_category\x08\x08category\x0Cconstruction\x08\x05group\x1Dminecraft:itemGroup.name.slab\x01\x15is_hidden_in_commands\0\0\x03\rmolangVersion\x1A\n\x12vanilla_block_data\n\x0Fblock_archetype\x08\x11double_slab_block$minecraft:brown_concrete_double_slab\x01\tis_double\0\x08\x04type\nslab_block\0\x03\x08block_id\x84\x17\x08\x08material\x05solid\x01\x1Frequires_correct_tool_for_drops\x01\0\0",
+        ),
     },
     BlockData {
         id: 19615u32,
@@ -44454,6 +45869,7 @@ pub static ALL_BLOCKS: [BlockData; 1477usize] = [
             },
         ],
         state_values: b"\0\0\0\x01\0\x02\0\x03\0\x04\0\x05\x01\0\x01\x01\x01\x02\x01\x03\x01\x04\x01\x05",
+        server_definition: None,
     },
     BlockData {
         id: 19627u32,
@@ -44480,6 +45896,7 @@ pub static ALL_BLOCKS: [BlockData; 1477usize] = [
         visual_shape: [0f32, 0f32, 0f32, 1f32, 1f32, 1f32],
         properties: &[],
         state_values: b"",
+        server_definition: None,
     },
     BlockData {
         id: 19628u32,
@@ -44506,6 +45923,7 @@ pub static ALL_BLOCKS: [BlockData; 1477usize] = [
         visual_shape: [0f32, 0f32, 0f32, 1f32, 1f32, 1f32],
         properties: &[],
         state_values: b"",
+        server_definition: None,
     },
     BlockData {
         id: 19629u32,
@@ -44542,6 +45960,7 @@ pub static ALL_BLOCKS: [BlockData; 1477usize] = [
             },
         ],
         state_values: b"\0\x01\x02\x03",
+        server_definition: None,
     },
     BlockData {
         id: 19633u32,
@@ -44577,6 +45996,7 @@ pub static ALL_BLOCKS: [BlockData; 1477usize] = [
             },
         ],
         state_values: b"\0\0\0\x01\x01\0\x01\x01",
+        server_definition: None,
     },
     BlockData {
         id: 19637u32,
@@ -44603,6 +46023,7 @@ pub static ALL_BLOCKS: [BlockData; 1477usize] = [
         visual_shape: [0.15f32, 0f32, 0.15f32, 0.7f32, 0.6f32, 0.7f32],
         properties: &[],
         state_values: b"",
+        server_definition: None,
     },
     BlockData {
         id: 19638u32,
@@ -44629,6 +46050,7 @@ pub static ALL_BLOCKS: [BlockData; 1477usize] = [
         visual_shape: [0f32, 0f32, 0f32, 1f32, 1f32, 1f32],
         properties: &[],
         state_values: b"",
+        server_definition: None,
     },
     BlockData {
         id: 19639u32,
@@ -44688,6 +46110,7 @@ pub static ALL_BLOCKS: [BlockData; 1477usize] = [
             },
         ],
         state_values: b"\0\0\0\0\0\0\0\0\0\0\0\x01\0\0\0\0\0\0\x01\0\0\0\0\0\0\0\x01\x01\0\0\0\0\0\0\0\0\x01\0\0\0\0\0\0\x01\x01\0\0\0\0\0\x01\0\x01\0\0\0\0\0\x01\x01\x01\0\0\0\0\0\0\0\0\x01\0\0\0\0\0\x01\0\x01\0\0\0\0\x01\0\0\x01\0\0\0\0\x01\x01\0\x01\0\0\0\0\0\0\x01\x01\0\0\0\0\0\x01\x01\x01\0\0\0\0\x01\0\x01\x01\0\0\0\0\x01\x01\x01\x01\0\0\0\0\0\0\0\0\x01\0\0\0\0\x01\0\0\x01\0\0\0\x01\0\0\0\x01\0\0\0\x01\x01\0\0\x01\0\0\0\0\0\x01\0\x01\0\0\0\0\x01\x01\0\x01\0\0\0\x01\0\x01\0\x01\0\0\0\x01\x01\x01\0\x01\0\0\0\0\0\0\x01\x01\0\0\0\0\x01\0\x01\x01\0\0\0\x01\0\0\x01\x01\0\0\0\x01\x01\0\x01\x01\0\0\0\0\0\x01\x01\x01\0\0\0\0\x01\x01\x01\x01\0\0\0\x01\0\x01\x01\x01\0\0\0\x01\x01\x01\x01\x01\0\0\0\0\0\0\0\0\x01\0\0\0\x01\0\0\0\x01\0\0\x01\0\0\0\0\x01\0\0\x01\x01\0\0\0\x01\0\0\0\0\x01\0\0\x01\0\0\0\x01\x01\0\0\x01\0\0\x01\0\x01\0\0\x01\0\0\x01\x01\x01\0\0\x01\0\0\0\0\0\x01\0\x01\0\0\0\x01\0\x01\0\x01\0\0\x01\0\0\x01\0\x01\0\0\x01\x01\0\x01\0\x01\0\0\0\0\x01\x01\0\x01\0\0\0\x01\x01\x01\0\x01\0\0\x01\0\x01\x01\0\x01\0\0\x01\x01\x01\x01\0\x01\0\0\0\0\0\0\x01\x01\0\0\0\x01\0\0\x01\x01\0\0\x01\0\0\0\x01\x01\0\0\x01\x01\0\0\x01\x01\0\0\0\0\x01\0\x01\x01\0\0\0\x01\x01\0\x01\x01\0\0\x01\0\x01\0\x01\x01\0\0\x01\x01\x01\0\x01\x01\0\0\0\0\0\x01\x01\x01\0\0\0\x01\0\x01\x01\x01\0\0\x01\0\0\x01\x01\x01\0\0\x01\x01\0\x01\x01\x01\0\0\0\0\x01\x01\x01\x01\0\0\0\x01\x01\x01\x01\x01\0\0\x01\0\x01\x01\x01\x01\0\0\x01\x01\x01\x01\x01\x01\x01\0\0\0\0\0\0\0\x01\0\0\x01\0\0\0\0\x01\0\x01\0\0\0\0\0\x01\0\x01\x01\0\0\0\0\x01\0\0\0\x01\0\0\0\x01\0\0\x01\x01\0\0\0\x01\0\x01\0\x01\0\0\0\x01\0\x01\x01\x01\0\0\0\x01\0\0\0\0\x01\0\0\x01\0\0\x01\0\x01\0\0\x01\0\x01\0\0\x01\0\0\x01\0\x01\x01\0\x01\0\0\x01\0\0\0\x01\x01\0\0\x01\0\0\x01\x01\x01\0\0\x01\0\x01\0\x01\x01\0\0\x01\0\x01\x01\x01\x01\0\0\x01\0\0\0\0\0\x01\0\x01\0\0\x01\0\0\x01\0\x01\0\x01\0\0\0\x01\0\x01\0\x01\x01\0\0\x01\0\x01\0\0\0\x01\0\x01\0\x01\0\0\x01\x01\0\x01\0\x01\0\x01\0\x01\0\x01\0\x01\0\x01\x01\x01\0\x01\0\x01\0\0\0\0\x01\x01\0\x01\0\0\x01\0\x01\x01\0\x01\0\x01\0\0\x01\x01\0\x01\0\x01\x01\0\x01\x01\0\x01\0\0\0\x01\x01\x01\0\x01\0\0\x01\x01\x01\x01\0\x01\0\x01\0\x01\x01\x01\0\x01\0\x01\x01\x01\x01\x01\0\x01\0\0\0\0\0\0\x01\x01\0\0\x01\0\0\0\x01\x01\0\x01\0\0\0\0\x01\x01\0\x01\x01\0\0\0\x01\x01\0\0\0\x01\0\0\x01\x01\0\0\x01\x01\0\0\x01\x01\0\x01\0\x01\0\0\x01\x01\0\x01\x01\x01\0\0\x01\x01\0\0\0\0\x01\0\x01\x01\0\0\x01\0\x01\0\x01\x01\0\x01\0\0\x01\0\x01\x01\0\x01\x01\0\x01\0\x01\x01\0\0\0\x01\x01\0\x01\x01\0\0\x01\x01\x01\0\x01\x01\0\x01\0\x01\x01\0\x01\x01\0\x01\x01\x01\x01\0\x01\x01\0\0\0\0\0\x01\x01\x01\0\0\x01\0\0\x01\x01\x01\0\x01\0\0\0\x01\x01\x01\0\x01\x01\0\0\x01\x01\x01\0\0\0\x01\0\x01\x01\x01\0\0\x01\x01\0\x01\x01\x01\0\x01\0\x01\0\x01\x01\x01\0\x01\x01\x01\0\x01\x01\x01\0\0\0\0\x01\x01\x01\x01\0\0\x01\0\x01\x01\x01\x01\0\x01\0\0\x01\x01\x01\x01\0\x01\x01\0\x01\x01\x01\x01\0\0\0\x01\x01\x01\x01\x01\0\0\x01\x01\x01\x01\x01\x01\0\x01\0\x01\x01\x01\x01\x01\0\x01\x01\x01\x01\x01\x01\0\x01\0\0\0\0\0\0\0\x01\0\x01\0\0\0\0\0\x01\x01\0\0\0\0\0\0\x01\x01\x01\0\0\0\0\0\x01\0\0\x01\0\0\0\0\x01\0\x01\x01\0\0\0\0\x01\x01\0\x01\0\0\0\0\x01\x01\x01\x01\0\0\0\0\x01\0\0\0\x01\0\0\0\x01\0\x01\0\x01\0\0\0\x01\x01\0\0\x01\0\0\0\x01\x01\x01\0\x01\0\0\0\x01\0\0\x01\x01\0\0\0\x01\0\x01\x01\x01\0\0\0\x01\x01\0\x01\x01\0\0\0\x01\x01\x01\x01\x01\0\0\0\x01\0\0\0\0\x01\0\0\x01\0\x01\0\0\x01\0\0\x01\x01\0\0\0\x01\0\0\x01\x01\x01\0\0\x01\0\0\x01\0\0\x01\0\x01\0\0\x01\0\x01\x01\0\x01\0\0\x01\x01\0\x01\0\x01\0\0\x01\x01\x01\x01\0\x01\0\0\x01\0\0\0\x01\x01\0\0\x01\0\x01\0\x01\x01\0\0\x01\x01\0\0\x01\x01\0\0\x01\x01\x01\0\x01\x01\0\0\x01\0\0\x01\x01\x01\0\0\x01\0\x01\x01\x01\x01\0\0\x01\x01\0\x01\x01\x01\0\0\x01\x01\x01\x01\x01\x01\0\0\x01\0\0\0\0\0\x01\0\x01\0\x01\0\0\0\x01\0\x01\x01\0\0\0\0\x01\0\x01\x01\x01\0\0\0\x01\0\x01\0\0\x01\0\0\x01\0\x01\0\x01\x01\0\0\x01\0\x01\x01\0\x01\0\0\x01\0\x01\x01\x01\x01\0\0\x01\0\x01\0\0\0\x01\0\x01\0\x01\0\x01\0\x01\0\x01\0\x01\x01\0\0\x01\0\x01\0\x01\x01\x01\0\x01\0\x01\0\x01\0\0\x01\x01\0\x01\0\x01\0\x01\x01\x01\0\x01\0\x01\x01\0\x01\x01\0\x01\0\x01\x01\x01\x01\x01\0\x01\0\x01\0\0\0\0\x01\x01\0\x01\0\x01\0\0\x01\x01\0\x01\x01\0\0\0\x01\x01\0\x01\x01\x01\0\0\x01\x01\0\x01\0\0\x01\0\x01\x01\0\x01\0\x01\x01\0\x01\x01\0\x01\x01\0\x01\0\x01\x01\0\x01\x01\x01\x01\0\x01\x01\0\x01\0\0\0\x01\x01\x01\0\x01\0\x01\0\x01\x01\x01\0\x01\x01\0\0\x01\x01\x01\0\x01\x01\x01\0\x01\x01\x01\0\x01\0\0\x01\x01\x01\x01\0\x01\0\x01\x01\x01\x01\x01\0\x01\x01\0\x01\x01\x01\x01\0\x01\x01\x01\x01\x01\x01\x01\x01\x01\0\0\0\0\0\0\x01\x01\0\x01\0\0\0\0\x01\x01\x01\0\0\0\0\0\x01\x01\x01\x01\0\0\0\0\x01\x01\0\0\x01\0\0\0\x01\x01\0\x01\x01\0\0\0\x01\x01\x01\0\x01\0\0\0\x01\x01\x01\x01\x01\0\0\0\x01\x01\0\0\0\x01\0\0\x01\x01\0\x01\0\x01\0\0\x01\x01\x01\0\0\x01\0\0\x01\x01\x01\x01\0\x01\0\0\x01\x01\0\0\x01\x01\0\0\x01\x01\0\x01\x01\x01\0\0\x01\x01\x01\0\x01\x01\0\0\x01\x01\x01\x01\x01\x01\0\0\x01\x01\0\0\0\0\x01\0\x01\x01\0\x01\0\0\x01\0\x01\x01\x01\0\0\0\x01\0\x01\x01\x01\x01\0\0\x01\0\x01\x01\0\0\x01\0\x01\0\x01\x01\0\x01\x01\0\x01\0\x01\x01\x01\0\x01\0\x01\0\x01\x01\x01\x01\x01\0\x01\0\x01\x01\0\0\0\x01\x01\0\x01\x01\0\x01\0\x01\x01\0\x01\x01\x01\0\0\x01\x01\0\x01\x01\x01\x01\0\x01\x01\0\x01\x01\0\0\x01\x01\x01\0\x01\x01\0\x01\x01\x01\x01\0\x01\x01\x01\0\x01\x01\x01\0\x01\x01\x01\x01\x01\x01\x01\0\x01\x01\0\0\0\0\0\x01\x01\x01\0\x01\0\0\0\x01\x01\x01\x01\0\0\0\0\x01\x01\x01\x01\x01\0\0\0\x01\x01\x01\0\0\x01\0\0\x01\x01\x01\0\x01\x01\0\0\x01\x01\x01\x01\0\x01\0\0\x01\x01\x01\x01\x01\x01\0\0\x01\x01\x01\0\0\0\x01\0\x01\x01\x01\0\x01\0\x01\0\x01\x01\x01\x01\0\0\x01\0\x01\x01\x01\x01\x01\0\x01\0\x01\x01\x01\0\0\x01\x01\0\x01\x01\x01\0\x01\x01\x01\0\x01\x01\x01\x01\0\x01\x01\0\x01\x01\x01\x01\x01\x01\x01\0\x01\x01\x01\0\0\0\0\x01\x01\x01\x01\0\x01\0\0\x01\x01\x01\x01\x01\0\0\0\x01\x01\x01\x01\x01\x01\0\0\x01\x01\x01\x01\0\0\x01\0\x01\x01\x01\x01\0\x01\x01\0\x01\x01\x01\x01\x01\0\x01\0\x01\x01\x01\x01\x01\x01\x01\0\x01\x01\x01\x01\0\0\0\x01\x01\x01\x01\x01\0\x01\0\x01\x01\x01\x01\x01\x01\0\0\x01\x01\x01\x01\x01\x01\x01\0\x01\x01\x01\x01\x01\0\0\x01\x01\x01\x01\x01\x01\0\x01\x01\x01\x01\x01\x01\x01\x01\0\x01\x01\x01\x01\x01\x01\x01\x01\x01\x01\x01\x01",
+        server_definition: None,
     },
     BlockData {
         id: 19895u32,
@@ -44719,6 +46142,9 @@ pub static ALL_BLOCKS: [BlockData; 1477usize] = [
             },
         ],
         state_values: b"\0\x01",
+        server_definition: Some(
+            b"\n\0\t\tblockTags\x08\x02&minecraft:is_pickaxe_item_destructible\n\ncomponents\n minecraft:destructible_by_mining\x05\x05valueff\xE6?\0\n\x1Fminecraft:destruction_particles\x03\x0Eparticle_count`\x08\x07texture\0\x08\x0Btint_method\x04none\0\n\x1Aminecraft:liquid_detection\t\x0EdetectionRules\n\x02\x01\x10canContainLiquid\x01\x08\nliquidType\x05water\x08\x0FonLiquidTouches\x08blocking\x01\x18stopsLiquidFromDirection\0\x01\x13use_liquid_clipping\0\0\0\n\x1Fminecraft:redstone_conductivity\x01\x14allowsWireToStepDown\x01\x01\x11redstoneConductor\0\0\0\n\rmenu_category\x08\x08category\x0Cconstruction\x08\x05group\x1Dminecraft:itemGroup.name.slab\x01\x15is_hidden_in_commands\0\0\x03\rmolangVersion\x1A\n\x12vanilla_block_data\n\x0Fblock_archetype\x08\x11double_slab_block#minecraft:pink_concrete_double_slab\x01\tis_double\0\x08\x04type\nslab_block\0\x03\x08block_id\x9A\x17\x08\x08material\x05solid\x01\x1Frequires_correct_tool_for_drops\x01\0\0",
+        ),
     },
     BlockData {
         id: 19897u32,
@@ -44750,6 +46176,7 @@ pub static ALL_BLOCKS: [BlockData; 1477usize] = [
             },
         ],
         state_values: b"\0\x01",
+        server_definition: None,
     },
     BlockData {
         id: 19899u32,
@@ -44797,6 +46224,7 @@ pub static ALL_BLOCKS: [BlockData; 1477usize] = [
             },
         ],
         state_values: b"\0\0\0\x01\0\x02\0\x03\0\x04\0\x05\0\x06\x01\0\x01\x01\x01\x02\x01\x03\x01\x04\x01\x05\x01\x06\x02\0\x02\x01\x02\x02\x02\x03\x02\x04\x02\x05\x02\x06",
+        server_definition: None,
     },
     BlockData {
         id: 19920u32,
@@ -44855,6 +46283,7 @@ pub static ALL_BLOCKS: [BlockData; 1477usize] = [
             },
         ],
         state_values: b"\0\x01\x02\x03\x04\x05\x06\x07\x08\t\n\x0B\x0C\r\x0E\x0F\x10\x11\x12\x13\x14\x15\x16\x17\x18\x19",
+        server_definition: None,
     },
     BlockData {
         id: 19946u32,
@@ -44881,6 +46310,7 @@ pub static ALL_BLOCKS: [BlockData; 1477usize] = [
         visual_shape: [0f32, 0f32, 0f32, 1f32, 1f32, 1f32],
         properties: &[],
         state_values: b"",
+        server_definition: None,
     },
     BlockData {
         id: 19947u32,
@@ -44907,6 +46337,7 @@ pub static ALL_BLOCKS: [BlockData; 1477usize] = [
         visual_shape: [0f32, 0f32, 0f32, 1f32, 1f32, 1f32],
         properties: &[],
         state_values: b"",
+        server_definition: None,
     },
     BlockData {
         id: 19948u32,
@@ -44943,6 +46374,7 @@ pub static ALL_BLOCKS: [BlockData; 1477usize] = [
             },
         ],
         state_values: b"\0\x01\x02\x03",
+        server_definition: None,
     },
     BlockData {
         id: 19952u32,
@@ -44974,6 +46406,7 @@ pub static ALL_BLOCKS: [BlockData; 1477usize] = [
             },
         ],
         state_values: b"\0\x01",
+        server_definition: None,
     },
     BlockData {
         id: 19954u32,
@@ -45023,6 +46456,7 @@ pub static ALL_BLOCKS: [BlockData; 1477usize] = [
             },
         ],
         state_values: b"\0\0\0\x01\0\0\x02\0\0\x03\0\0\0\0\x01\x01\0\x01\x02\0\x01\x03\0\x01\0\x01\0\x01\x01\0\x02\x01\0\x03\x01\0\0\x01\x01\x01\x01\x01\x02\x01\x01\x03\x01\x01",
+        server_definition: None,
     },
     BlockData {
         id: 19970u32,
@@ -45066,6 +46500,7 @@ pub static ALL_BLOCKS: [BlockData; 1477usize] = [
             },
         ],
         state_values: b"\0\0\0\0\0\x01\0\0\x01\0\0\0\x01\x01\0\0\0\0\x01\0\0\x01\x01\0\x01\0\x01\0\x01\x01\x01\0\0\0\0\x01\0\x01\0\x01\x01\0\0\x01\x01\x01\0\x01\0\0\x01\x01\0\x01\x01\x01\x01\0\x01\x01\x01\x01\x01\x01",
+        server_definition: None,
     },
     BlockData {
         id: 19986u32,
@@ -45092,6 +46527,7 @@ pub static ALL_BLOCKS: [BlockData; 1477usize] = [
         visual_shape: [0f32, 0f32, 0f32, 1f32, 1f32, 1f32],
         properties: &[],
         state_values: b"",
+        server_definition: None,
     },
     BlockData {
         id: 19987u32,
@@ -45123,6 +46559,7 @@ pub static ALL_BLOCKS: [BlockData; 1477usize] = [
             },
         ],
         state_values: b"\0\x01",
+        server_definition: None,
     },
     BlockData {
         id: 19989u32,
@@ -45173,6 +46610,9 @@ pub static ALL_BLOCKS: [BlockData; 1477usize] = [
             },
         ],
         state_values: b"\0\0\0\0\0\x01\0\0\x02\0\0\x03\0\x01\0\0\x01\x01\0\x01\x02\0\x01\x03\x01\0\0\x01\0\x01\x01\0\x02\x01\0\x03\x01\x01\0\x01\x01\x01\x01\x01\x02\x01\x01\x03\x02\0\0\x02\0\x01\x02\0\x02\x02\0\x03\x02\x01\0\x02\x01\x01\x02\x01\x02\x02\x01\x03\x03\0\0\x03\0\x01\x03\0\x02\x03\0\x03\x03\x01\0\x03\x01\x01\x03\x01\x02\x03\x01\x03\x04\0\0\x04\0\x01\x04\0\x02\x04\0\x03\x04\x01\0\x04\x01\x01\x04\x01\x02\x04\x01\x03",
+        server_definition: Some(
+            b"\n\0\t\tblockTags\x08\x02%minecraft:is_shears_item_destructible\n\ncomponents\n minecraft:destructible_by_mining\x05\x05value\xCD\xCCL?\0\n\x1Fminecraft:destruction_particles\x03\x0Eparticle_count`\x08\x07texture\0\x08\x0Btint_method\x04none\0\n\x1Aminecraft:liquid_detection\t\x0EdetectionRules\n\x02\x01\x10canContainLiquid\x01\x08\nliquidType\x05water\x08\x0FonLiquidTouches\x08blocking\x01\x18stopsLiquidFromDirection\0\x01\x13use_liquid_clipping\0\0\0\n\x1Fminecraft:redstone_conductivity\x01\x14allowsWireToStepDown\x01\x01\x11redstoneConductor\0\0\n\x11minecraft:support\x08\x05shape\x05stair\0\0\n\rmenu_category\x08\x08category\x0Cconstruction\x08\x05group\x1Fminecraft:itemGroup.name.stairs\x01\x15is_hidden_in_commands\0\0\x03\rmolangVersion\x1A\n\x12vanilla_block_data\n\x0Fblock_archetype\x08\nbase_block\x14minecraft:white_wool\x08\x04type\x0Bstair_block\0\x03\x08block_id\xFA\x15\x01\x15can_dampen_vibrations\x01\x01\x16can_occlude_vibrations\x01\x08\x08material\x05solid\x05\x0Ctranslucency\xCD\xCCL?\0\0",
+        ),
     },
     BlockData {
         id: 20029u32,
@@ -45203,6 +46643,7 @@ pub static ALL_BLOCKS: [BlockData; 1477usize] = [
         visual_shape: [0f32, 0f32, 0f32, 1f32, 1f32, 1f32],
         properties: &[],
         state_values: b"",
+        server_definition: None,
     },
     BlockData {
         id: 20030u32,
@@ -45229,6 +46670,7 @@ pub static ALL_BLOCKS: [BlockData; 1477usize] = [
         visual_shape: [0f32, 0f32, 0f32, 1f32, 1f32, 1f32],
         properties: &[],
         state_values: b"",
+        server_definition: None,
     },
     BlockData {
         id: 20031u32,
@@ -45264,6 +46706,7 @@ pub static ALL_BLOCKS: [BlockData; 1477usize] = [
             },
         ],
         state_values: b"\0\x01\x02",
+        server_definition: None,
     },
     BlockData {
         id: 20034u32,
@@ -45295,6 +46738,7 @@ pub static ALL_BLOCKS: [BlockData; 1477usize] = [
             },
         ],
         state_values: b"\0\x01",
+        server_definition: None,
     },
     BlockData {
         id: 20036u32,
@@ -45321,6 +46765,7 @@ pub static ALL_BLOCKS: [BlockData; 1477usize] = [
         visual_shape: [0f32, 0f32, 0f32, 1f32, 1f32, 1f32],
         properties: &[],
         state_values: b"",
+        server_definition: None,
     },
     BlockData {
         id: 20037u32,
@@ -45347,6 +46792,7 @@ pub static ALL_BLOCKS: [BlockData; 1477usize] = [
         visual_shape: [0f32, 0f32, 0f32, 1f32, 1f32, 1f32],
         properties: &[],
         state_values: b"",
+        server_definition: None,
     },
     BlockData {
         id: 20038u32,
@@ -45386,6 +46832,7 @@ pub static ALL_BLOCKS: [BlockData; 1477usize] = [
             },
         ],
         state_values: b"\0\0\0\x01\0\0\0\x01\0\x01\x01\0\0\0\x01\x01\0\x01\0\x01\x01\x01\x01\x01",
+        server_definition: None,
     },
     BlockData {
         id: 20046u32,
@@ -45417,6 +46864,7 @@ pub static ALL_BLOCKS: [BlockData; 1477usize] = [
             },
         ],
         state_values: b"\0\x01",
+        server_definition: None,
     },
     BlockData {
         id: 20048u32,
@@ -45456,6 +46904,7 @@ pub static ALL_BLOCKS: [BlockData; 1477usize] = [
             },
         ],
         state_values: b"\0\0\x01\0\0\x01\x01\x01",
+        server_definition: None,
     },
     BlockData {
         id: 20052u32,
@@ -45499,6 +46948,7 @@ pub static ALL_BLOCKS: [BlockData; 1477usize] = [
             },
         ],
         state_values: b"\0\0\0\0\0\x01\0\0\x01\0\0\0\x01\x01\0\0\0\0\x01\0\0\x01\x01\0\x01\0\x01\0\x01\x01\x01\0\0\0\0\x01\0\x01\0\x01\x01\0\0\x01\x01\x01\0\x01\0\0\x01\x01\0\x01\x01\x01\x01\0\x01\x01\x01\x01\x01\x01",
+        server_definition: None,
     },
     BlockData {
         id: 20068u32,
@@ -45535,6 +46985,7 @@ pub static ALL_BLOCKS: [BlockData; 1477usize] = [
             },
         ],
         state_values: b"\0\x01\x02\x03",
+        server_definition: None,
     },
     BlockData {
         id: 20072u32,
@@ -45561,6 +47012,7 @@ pub static ALL_BLOCKS: [BlockData; 1477usize] = [
         visual_shape: [0.15f32, 0f32, 0.15f32, 0.7f32, 0.6f32, 0.7f32],
         properties: &[],
         state_values: b"",
+        server_definition: None,
     },
     BlockData {
         id: 20073u32,
@@ -45592,6 +47044,7 @@ pub static ALL_BLOCKS: [BlockData; 1477usize] = [
             },
         ],
         state_values: b"\0\x01",
+        server_definition: None,
     },
     BlockData {
         id: 20075u32,
@@ -45628,6 +47081,7 @@ pub static ALL_BLOCKS: [BlockData; 1477usize] = [
             },
         ],
         state_values: b"\0\x01\x02\x03",
+        server_definition: None,
     },
     BlockData {
         id: 20079u32,
@@ -45666,6 +47120,7 @@ pub static ALL_BLOCKS: [BlockData; 1477usize] = [
             },
         ],
         state_values: b"\0\x01\x02\x03\x04\x05",
+        server_definition: None,
     },
     BlockData {
         id: 20085u32,
@@ -45697,6 +47152,7 @@ pub static ALL_BLOCKS: [BlockData; 1477usize] = [
             },
         ],
         state_values: b"\0\x01",
+        server_definition: None,
     },
     BlockData {
         id: 20087u32,
@@ -45728,6 +47184,7 @@ pub static ALL_BLOCKS: [BlockData; 1477usize] = [
             },
         ],
         state_values: b"\0\x01",
+        server_definition: None,
     },
     BlockData {
         id: 20089u32,
@@ -45754,6 +47211,7 @@ pub static ALL_BLOCKS: [BlockData; 1477usize] = [
         visual_shape: [0f32, 0f32, 0f32, 1f32, 1f32, 1f32],
         properties: &[],
         state_values: b"",
+        server_definition: None,
     },
     BlockData {
         id: 20090u32,
@@ -45785,6 +47243,7 @@ pub static ALL_BLOCKS: [BlockData; 1477usize] = [
             },
         ],
         state_values: b"\0\x01",
+        server_definition: None,
     },
     BlockData {
         id: 20092u32,
@@ -45816,6 +47275,7 @@ pub static ALL_BLOCKS: [BlockData; 1477usize] = [
             },
         ],
         state_values: b"\0\x01",
+        server_definition: None,
     },
     BlockData {
         id: 20094u32,
@@ -45859,6 +47319,7 @@ pub static ALL_BLOCKS: [BlockData; 1477usize] = [
             },
         ],
         state_values: b"\0\0\0\0\0\x01\0\0\x01\0\0\0\x01\x01\0\0\0\0\x01\0\0\x01\x01\0\x01\0\x01\0\x01\x01\x01\0\0\0\0\x01\0\x01\0\x01\x01\0\0\x01\x01\x01\0\x01\0\0\x01\x01\0\x01\x01\x01\x01\0\x01\x01\x01\x01\x01\x01",
+        server_definition: None,
     },
     BlockData {
         id: 20110u32,
@@ -45885,6 +47346,7 @@ pub static ALL_BLOCKS: [BlockData; 1477usize] = [
         visual_shape: [0f32, 0f32, 0f32, 1f32, 0.25f32, 1f32],
         properties: &[],
         state_values: b"",
+        server_definition: None,
     },
     BlockData {
         id: 20111u32,
@@ -45911,6 +47373,7 @@ pub static ALL_BLOCKS: [BlockData; 1477usize] = [
         visual_shape: [0f32, 0f32, 0f32, 1f32, 1f32, 1f32],
         properties: &[],
         state_values: b"",
+        server_definition: None,
     },
     BlockData {
         id: 20112u32,
@@ -45942,6 +47405,9 @@ pub static ALL_BLOCKS: [BlockData; 1477usize] = [
             },
         ],
         state_values: b"\0\x01",
+        server_definition: Some(
+            b"\n\0\t\tblockTags\x08\x02&minecraft:is_pickaxe_item_destructible\n\ncomponents\n minecraft:destructible_by_mining\x05\x05valueff\xE6?\0\n\x1Fminecraft:redstone_conductivity\x01\x14allowsWireToStepDown\x01\x01\x11redstoneConductor\x01\0\0\n\rmenu_category\x08\x08category\x04none\x08\x05group\0\x01\x15is_hidden_in_commands\x01\0\x03\rmolangVersion\x1A\n\x12vanilla_block_data\n\x0Fblock_archetype\x08\x11double_slab_block\x1Eminecraft:yellow_concrete_slab\x01\tis_double\x01\x08\x04type\nslab_block\0\x03\x08block_id\xAA\x17\x08\x08material\x05solid\x01\x1Frequires_correct_tool_for_drops\x01\0\0",
+        ),
     },
     BlockData {
         id: 20114u32,
@@ -45992,6 +47458,7 @@ pub static ALL_BLOCKS: [BlockData; 1477usize] = [
             },
         ],
         state_values: b"\0\0\0\0\0\x01\0\0\x02\0\0\x03\0\x01\0\0\x01\x01\0\x01\x02\0\x01\x03\x01\0\0\x01\0\x01\x01\0\x02\x01\0\x03\x01\x01\0\x01\x01\x01\x01\x01\x02\x01\x01\x03\x02\0\0\x02\0\x01\x02\0\x02\x02\0\x03\x02\x01\0\x02\x01\x01\x02\x01\x02\x02\x01\x03\x03\0\0\x03\0\x01\x03\0\x02\x03\0\x03\x03\x01\0\x03\x01\x01\x03\x01\x02\x03\x01\x03\x04\0\0\x04\0\x01\x04\0\x02\x04\0\x03\x04\x01\0\x04\x01\x01\x04\x01\x02\x04\x01\x03",
+        server_definition: None,
     },
     BlockData {
         id: 20154u32,
@@ -46023,6 +47490,7 @@ pub static ALL_BLOCKS: [BlockData; 1477usize] = [
             },
         ],
         state_values: b"\0\x01",
+        server_definition: None,
     },
     BlockData {
         id: 20156u32,
@@ -46054,6 +47522,7 @@ pub static ALL_BLOCKS: [BlockData; 1477usize] = [
             },
         ],
         state_values: b"\0\x01",
+        server_definition: None,
     },
     BlockData {
         id: 20158u32,
@@ -46089,6 +47558,7 @@ pub static ALL_BLOCKS: [BlockData; 1477usize] = [
             },
         ],
         state_values: b"\0\x01\x02",
+        server_definition: None,
     },
     BlockData {
         id: 20161u32,
@@ -46115,6 +47585,7 @@ pub static ALL_BLOCKS: [BlockData; 1477usize] = [
         visual_shape: [0f32, 0f32, 0f32, 1f32, 1f32, 1f32],
         properties: &[],
         state_values: b"",
+        server_definition: None,
     },
     BlockData {
         id: 20162u32,
@@ -46159,6 +47630,7 @@ pub static ALL_BLOCKS: [BlockData; 1477usize] = [
             },
         ],
         state_values: b"\0\0\0\0\x01\0\0\x02\0\0\x03\0\0\0\x01\0\x01\x01\0\x02\x01\0\x03\x01\x01\0\0\x01\x01\0\x01\x02\0\x01\x03\0\x01\0\x01\x01\x01\x01\x01\x02\x01\x01\x03\x01",
+        server_definition: None,
     },
     BlockData {
         id: 20178u32,
@@ -46190,6 +47662,7 @@ pub static ALL_BLOCKS: [BlockData; 1477usize] = [
         visual_shape: [0f32, 0f32, 0f32, 1f32, 1f32, 1f32],
         properties: &[],
         state_values: b"",
+        server_definition: None,
     },
     BlockData {
         id: 20179u32,
@@ -46239,6 +47712,7 @@ pub static ALL_BLOCKS: [BlockData; 1477usize] = [
             },
         ],
         state_values: b"\0\0\x01\0\x02\0\x03\0\x04\0\x05\0\x06\0\x07\0\0\x01\x01\x01\x02\x01\x03\x01\x04\x01\x05\x01\x06\x01\x07\x01\0\x02\x01\x02\x02\x02\x03\x02\x04\x02\x05\x02\x06\x02\x07\x02\0\x03\x01\x03\x02\x03\x03\x03\x04\x03\x05\x03\x06\x03\x07\x03",
+        server_definition: None,
     },
     BlockData {
         id: 20211u32,
@@ -46265,6 +47739,7 @@ pub static ALL_BLOCKS: [BlockData; 1477usize] = [
         visual_shape: [0f32, 0f32, 0f32, 1f32, 1f32, 1f32],
         properties: &[],
         state_values: b"",
+        server_definition: None,
     },
     BlockData {
         id: 20212u32,
@@ -46291,6 +47766,7 @@ pub static ALL_BLOCKS: [BlockData; 1477usize] = [
         visual_shape: [0f32, 0f32, 0f32, 1f32, 1f32, 1f32],
         properties: &[],
         state_values: b"",
+        server_definition: None,
     },
     BlockData {
         id: 20213u32,
@@ -46317,6 +47793,7 @@ pub static ALL_BLOCKS: [BlockData; 1477usize] = [
         visual_shape: [0f32, 0f32, 0f32, 1f32, 1f32, 1f32],
         properties: &[],
         state_values: b"",
+        server_definition: None,
     },
     BlockData {
         id: 20214u32,
@@ -46343,6 +47820,7 @@ pub static ALL_BLOCKS: [BlockData; 1477usize] = [
         visual_shape: [0f32, 0f32, 0f32, 1f32, 1f32, 1f32],
         properties: &[],
         state_values: b"",
+        server_definition: None,
     },
     BlockData {
         id: 20215u32,
@@ -46369,6 +47847,7 @@ pub static ALL_BLOCKS: [BlockData; 1477usize] = [
         visual_shape: [0f32, 0f32, 0f32, 1f32, 1f32, 1f32],
         properties: &[],
         state_values: b"",
+        server_definition: None,
     },
     BlockData {
         id: 20216u32,
@@ -46395,6 +47874,7 @@ pub static ALL_BLOCKS: [BlockData; 1477usize] = [
         visual_shape: [0f32, 0f32, 0f32, 1f32, 1f32, 1f32],
         properties: &[],
         state_values: b"",
+        server_definition: None,
     },
     BlockData {
         id: 20217u32,
@@ -46421,6 +47901,7 @@ pub static ALL_BLOCKS: [BlockData; 1477usize] = [
         visual_shape: [0f32, 0f32, 0f32, 1f32, 1f32, 1f32],
         properties: &[],
         state_values: b"",
+        server_definition: None,
     },
     BlockData {
         id: 20218u32,
@@ -46447,6 +47928,7 @@ pub static ALL_BLOCKS: [BlockData; 1477usize] = [
         visual_shape: [0f32, 0f32, 0f32, 1f32, 1f32, 1f32],
         properties: &[],
         state_values: b"",
+        server_definition: None,
     },
     BlockData {
         id: 20219u32,
@@ -46473,6 +47955,7 @@ pub static ALL_BLOCKS: [BlockData; 1477usize] = [
         visual_shape: [0f32, 0f32, 0f32, 1f32, 1f32, 1f32],
         properties: &[],
         state_values: b"",
+        server_definition: None,
     },
     BlockData {
         id: 20220u32,
@@ -46499,6 +47982,7 @@ pub static ALL_BLOCKS: [BlockData; 1477usize] = [
         visual_shape: [0f32, 0f32, 0f32, 1f32, 1f32, 1f32],
         properties: &[],
         state_values: b"",
+        server_definition: None,
     },
     BlockData {
         id: 20221u32,
@@ -46525,6 +48009,7 @@ pub static ALL_BLOCKS: [BlockData; 1477usize] = [
         visual_shape: [0f32, 0f32, 0f32, 1f32, 1f32, 1f32],
         properties: &[],
         state_values: b"",
+        server_definition: None,
     },
     BlockData {
         id: 20222u32,
@@ -46551,6 +48036,7 @@ pub static ALL_BLOCKS: [BlockData; 1477usize] = [
         visual_shape: [0f32, 0f32, 0f32, 1f32, 1f32, 1f32],
         properties: &[],
         state_values: b"",
+        server_definition: None,
     },
     BlockData {
         id: 20223u32,
@@ -46577,6 +48063,7 @@ pub static ALL_BLOCKS: [BlockData; 1477usize] = [
         visual_shape: [0f32, 0f32, 0f32, 1f32, 1f32, 1f32],
         properties: &[],
         state_values: b"",
+        server_definition: None,
     },
     BlockData {
         id: 20224u32,
@@ -46603,6 +48090,7 @@ pub static ALL_BLOCKS: [BlockData; 1477usize] = [
         visual_shape: [0f32, 0f32, 0f32, 1f32, 1f32, 1f32],
         properties: &[],
         state_values: b"",
+        server_definition: None,
     },
     BlockData {
         id: 20225u32,
@@ -46629,6 +48117,7 @@ pub static ALL_BLOCKS: [BlockData; 1477usize] = [
         visual_shape: [0f32, 0f32, 0f32, 1f32, 1f32, 1f32],
         properties: &[],
         state_values: b"",
+        server_definition: None,
     },
     BlockData {
         id: 20226u32,
@@ -46655,6 +48144,7 @@ pub static ALL_BLOCKS: [BlockData; 1477usize] = [
         visual_shape: [0f32, 0f32, 0f32, 1f32, 1f32, 1f32],
         properties: &[],
         state_values: b"",
+        server_definition: None,
     },
     BlockData {
         id: 20227u32,
@@ -46681,6 +48171,7 @@ pub static ALL_BLOCKS: [BlockData; 1477usize] = [
         visual_shape: [0f32, 0f32, 0f32, 1f32, 1f32, 1f32],
         properties: &[],
         state_values: b"",
+        server_definition: None,
     },
     BlockData {
         id: 20228u32,
@@ -46707,6 +48198,7 @@ pub static ALL_BLOCKS: [BlockData; 1477usize] = [
         visual_shape: [0f32, 0f32, 0f32, 1f32, 1f32, 1f32],
         properties: &[],
         state_values: b"",
+        server_definition: None,
     },
     BlockData {
         id: 20229u32,
@@ -46733,6 +48225,7 @@ pub static ALL_BLOCKS: [BlockData; 1477usize] = [
         visual_shape: [0f32, 0f32, 0f32, 1f32, 1f32, 1f32],
         properties: &[],
         state_values: b"",
+        server_definition: None,
     },
     BlockData {
         id: 20230u32,
@@ -46759,6 +48252,7 @@ pub static ALL_BLOCKS: [BlockData; 1477usize] = [
         visual_shape: [0f32, 0f32, 0f32, 1f32, 1f32, 1f32],
         properties: &[],
         state_values: b"",
+        server_definition: None,
     },
     BlockData {
         id: 20231u32,
@@ -46785,6 +48279,7 @@ pub static ALL_BLOCKS: [BlockData; 1477usize] = [
         visual_shape: [0f32, 0f32, 0f32, 1f32, 1f32, 1f32],
         properties: &[],
         state_values: b"",
+        server_definition: None,
     },
     BlockData {
         id: 20232u32,
@@ -46811,6 +48306,7 @@ pub static ALL_BLOCKS: [BlockData; 1477usize] = [
         visual_shape: [0f32, 0f32, 0f32, 1f32, 1f32, 1f32],
         properties: &[],
         state_values: b"",
+        server_definition: None,
     },
     BlockData {
         id: 20233u32,
@@ -46837,6 +48333,7 @@ pub static ALL_BLOCKS: [BlockData; 1477usize] = [
         visual_shape: [0f32, 0f32, 0f32, 1f32, 1f32, 1f32],
         properties: &[],
         state_values: b"",
+        server_definition: None,
     },
     BlockData {
         id: 20234u32,
@@ -46863,6 +48360,7 @@ pub static ALL_BLOCKS: [BlockData; 1477usize] = [
         visual_shape: [0f32, 0f32, 0f32, 1f32, 1f32, 1f32],
         properties: &[],
         state_values: b"",
+        server_definition: None,
     },
     BlockData {
         id: 20235u32,
@@ -46889,6 +48387,7 @@ pub static ALL_BLOCKS: [BlockData; 1477usize] = [
         visual_shape: [0f32, 0f32, 0f32, 1f32, 1f32, 1f32],
         properties: &[],
         state_values: b"",
+        server_definition: None,
     },
     BlockData {
         id: 20236u32,
@@ -46915,6 +48414,7 @@ pub static ALL_BLOCKS: [BlockData; 1477usize] = [
         visual_shape: [0f32, 0f32, 0f32, 1f32, 1f32, 1f32],
         properties: &[],
         state_values: b"",
+        server_definition: None,
     },
     BlockData {
         id: 20237u32,
@@ -46941,6 +48441,7 @@ pub static ALL_BLOCKS: [BlockData; 1477usize] = [
         visual_shape: [0f32, 0f32, 0f32, 1f32, 1f32, 1f32],
         properties: &[],
         state_values: b"",
+        server_definition: None,
     },
     BlockData {
         id: 20238u32,
@@ -46967,6 +48468,7 @@ pub static ALL_BLOCKS: [BlockData; 1477usize] = [
         visual_shape: [0f32, 0f32, 0f32, 1f32, 1f32, 1f32],
         properties: &[],
         state_values: b"",
+        server_definition: None,
     },
     BlockData {
         id: 20239u32,
@@ -46993,6 +48495,7 @@ pub static ALL_BLOCKS: [BlockData; 1477usize] = [
         visual_shape: [0f32, 0f32, 0f32, 1f32, 1f32, 1f32],
         properties: &[],
         state_values: b"",
+        server_definition: None,
     },
     BlockData {
         id: 20240u32,
@@ -47019,6 +48522,7 @@ pub static ALL_BLOCKS: [BlockData; 1477usize] = [
         visual_shape: [0f32, 0f32, 0f32, 1f32, 1f32, 1f32],
         properties: &[],
         state_values: b"",
+        server_definition: None,
     },
     BlockData {
         id: 20241u32,
@@ -47045,6 +48549,7 @@ pub static ALL_BLOCKS: [BlockData; 1477usize] = [
         visual_shape: [0f32, 0f32, 0f32, 1f32, 1f32, 1f32],
         properties: &[],
         state_values: b"",
+        server_definition: None,
     },
     BlockData {
         id: 20242u32,
@@ -47071,6 +48576,7 @@ pub static ALL_BLOCKS: [BlockData; 1477usize] = [
         visual_shape: [0f32, 0f32, 0f32, 1f32, 1f32, 1f32],
         properties: &[],
         state_values: b"",
+        server_definition: None,
     },
     BlockData {
         id: 20243u32,
@@ -47097,6 +48603,7 @@ pub static ALL_BLOCKS: [BlockData; 1477usize] = [
         visual_shape: [0f32, 0f32, 0f32, 1f32, 1f32, 1f32],
         properties: &[],
         state_values: b"",
+        server_definition: None,
     },
     BlockData {
         id: 20244u32,
@@ -47123,6 +48630,7 @@ pub static ALL_BLOCKS: [BlockData; 1477usize] = [
         visual_shape: [0f32, 0f32, 0f32, 1f32, 1f32, 1f32],
         properties: &[],
         state_values: b"",
+        server_definition: None,
     },
     BlockData {
         id: 20245u32,
@@ -47149,6 +48657,7 @@ pub static ALL_BLOCKS: [BlockData; 1477usize] = [
         visual_shape: [0f32, 0f32, 0f32, 1f32, 1f32, 1f32],
         properties: &[],
         state_values: b"",
+        server_definition: None,
     },
     BlockData {
         id: 20246u32,
@@ -47175,6 +48684,7 @@ pub static ALL_BLOCKS: [BlockData; 1477usize] = [
         visual_shape: [0f32, 0f32, 0f32, 1f32, 1f32, 1f32],
         properties: &[],
         state_values: b"",
+        server_definition: None,
     },
     BlockData {
         id: 20247u32,
@@ -47201,6 +48711,7 @@ pub static ALL_BLOCKS: [BlockData; 1477usize] = [
         visual_shape: [0f32, 0f32, 0f32, 1f32, 1f32, 1f32],
         properties: &[],
         state_values: b"",
+        server_definition: None,
     },
     BlockData {
         id: 20248u32,
@@ -47227,6 +48738,7 @@ pub static ALL_BLOCKS: [BlockData; 1477usize] = [
         visual_shape: [0f32, 0f32, 0f32, 1f32, 1f32, 1f32],
         properties: &[],
         state_values: b"",
+        server_definition: None,
     },
     BlockData {
         id: 20249u32,
@@ -47253,6 +48765,7 @@ pub static ALL_BLOCKS: [BlockData; 1477usize] = [
         visual_shape: [0f32, 0f32, 0f32, 1f32, 1f32, 1f32],
         properties: &[],
         state_values: b"",
+        server_definition: None,
     },
     BlockData {
         id: 20250u32,
@@ -47279,6 +48792,7 @@ pub static ALL_BLOCKS: [BlockData; 1477usize] = [
         visual_shape: [0f32, 0f32, 0f32, 1f32, 1f32, 1f32],
         properties: &[],
         state_values: b"",
+        server_definition: None,
     },
     BlockData {
         id: 20251u32,
@@ -47305,6 +48819,7 @@ pub static ALL_BLOCKS: [BlockData; 1477usize] = [
         visual_shape: [0f32, 0f32, 0f32, 1f32, 1f32, 1f32],
         properties: &[],
         state_values: b"",
+        server_definition: None,
     },
     BlockData {
         id: 20252u32,
@@ -47331,6 +48846,7 @@ pub static ALL_BLOCKS: [BlockData; 1477usize] = [
         visual_shape: [0f32, 0f32, 0f32, 1f32, 1f32, 1f32],
         properties: &[],
         state_values: b"",
+        server_definition: None,
     },
     BlockData {
         id: 20253u32,
@@ -47357,6 +48873,7 @@ pub static ALL_BLOCKS: [BlockData; 1477usize] = [
         visual_shape: [0f32, 0f32, 0f32, 1f32, 1f32, 1f32],
         properties: &[],
         state_values: b"",
+        server_definition: None,
     },
     BlockData {
         id: 20254u32,
@@ -47383,6 +48900,7 @@ pub static ALL_BLOCKS: [BlockData; 1477usize] = [
         visual_shape: [0f32, 0f32, 0f32, 1f32, 1f32, 1f32],
         properties: &[],
         state_values: b"",
+        server_definition: None,
     },
     BlockData {
         id: 20255u32,
@@ -47409,6 +48927,7 @@ pub static ALL_BLOCKS: [BlockData; 1477usize] = [
         visual_shape: [0f32, 0f32, 0f32, 1f32, 1f32, 1f32],
         properties: &[],
         state_values: b"",
+        server_definition: None,
     },
     BlockData {
         id: 20256u32,
@@ -47435,6 +48954,7 @@ pub static ALL_BLOCKS: [BlockData; 1477usize] = [
         visual_shape: [0f32, 0f32, 0f32, 1f32, 1f32, 1f32],
         properties: &[],
         state_values: b"",
+        server_definition: None,
     },
     BlockData {
         id: 20257u32,
@@ -47461,6 +48981,7 @@ pub static ALL_BLOCKS: [BlockData; 1477usize] = [
         visual_shape: [0f32, 0f32, 0f32, 1f32, 1f32, 1f32],
         properties: &[],
         state_values: b"",
+        server_definition: None,
     },
     BlockData {
         id: 20258u32,
@@ -47487,6 +49008,7 @@ pub static ALL_BLOCKS: [BlockData; 1477usize] = [
         visual_shape: [0f32, 0f32, 0f32, 1f32, 1f32, 1f32],
         properties: &[],
         state_values: b"",
+        server_definition: None,
     },
     BlockData {
         id: 20259u32,
@@ -47513,6 +49035,7 @@ pub static ALL_BLOCKS: [BlockData; 1477usize] = [
         visual_shape: [0f32, 0f32, 0f32, 1f32, 1f32, 1f32],
         properties: &[],
         state_values: b"",
+        server_definition: None,
     },
     BlockData {
         id: 20260u32,
@@ -47539,6 +49062,7 @@ pub static ALL_BLOCKS: [BlockData; 1477usize] = [
         visual_shape: [0f32, 0f32, 0f32, 1f32, 1f32, 1f32],
         properties: &[],
         state_values: b"",
+        server_definition: None,
     },
     BlockData {
         id: 20261u32,
@@ -47565,6 +49089,7 @@ pub static ALL_BLOCKS: [BlockData; 1477usize] = [
         visual_shape: [0f32, 0f32, 0f32, 1f32, 1f32, 1f32],
         properties: &[],
         state_values: b"",
+        server_definition: None,
     },
     BlockData {
         id: 20262u32,
@@ -47591,6 +49116,7 @@ pub static ALL_BLOCKS: [BlockData; 1477usize] = [
         visual_shape: [0f32, 0f32, 0f32, 1f32, 1f32, 1f32],
         properties: &[],
         state_values: b"",
+        server_definition: None,
     },
     BlockData {
         id: 20263u32,
@@ -47617,6 +49143,7 @@ pub static ALL_BLOCKS: [BlockData; 1477usize] = [
         visual_shape: [0f32, 0f32, 0f32, 1f32, 1f32, 1f32],
         properties: &[],
         state_values: b"",
+        server_definition: None,
     },
     BlockData {
         id: 20264u32,
@@ -47643,6 +49170,7 @@ pub static ALL_BLOCKS: [BlockData; 1477usize] = [
         visual_shape: [0f32, 0f32, 0f32, 1f32, 1f32, 1f32],
         properties: &[],
         state_values: b"",
+        server_definition: None,
     },
     BlockData {
         id: 20265u32,
@@ -47669,6 +49197,7 @@ pub static ALL_BLOCKS: [BlockData; 1477usize] = [
         visual_shape: [0f32, 0f32, 0f32, 1f32, 1f32, 1f32],
         properties: &[],
         state_values: b"",
+        server_definition: None,
     },
     BlockData {
         id: 20266u32,
@@ -47695,6 +49224,7 @@ pub static ALL_BLOCKS: [BlockData; 1477usize] = [
         visual_shape: [0f32, 0f32, 0f32, 1f32, 1f32, 1f32],
         properties: &[],
         state_values: b"",
+        server_definition: None,
     },
     BlockData {
         id: 20267u32,
@@ -47721,6 +49251,7 @@ pub static ALL_BLOCKS: [BlockData; 1477usize] = [
         visual_shape: [0f32, 0f32, 0f32, 1f32, 1f32, 1f32],
         properties: &[],
         state_values: b"",
+        server_definition: None,
     },
     BlockData {
         id: 20268u32,
@@ -47747,6 +49278,7 @@ pub static ALL_BLOCKS: [BlockData; 1477usize] = [
         visual_shape: [0f32, 0f32, 0f32, 1f32, 1f32, 1f32],
         properties: &[],
         state_values: b"",
+        server_definition: None,
     },
     BlockData {
         id: 20269u32,
@@ -47773,6 +49305,7 @@ pub static ALL_BLOCKS: [BlockData; 1477usize] = [
         visual_shape: [0f32, 0f32, 0f32, 1f32, 1f32, 1f32],
         properties: &[],
         state_values: b"",
+        server_definition: None,
     },
     BlockData {
         id: 20270u32,
@@ -47799,6 +49332,7 @@ pub static ALL_BLOCKS: [BlockData; 1477usize] = [
         visual_shape: [0f32, 0f32, 0f32, 1f32, 1f32, 1f32],
         properties: &[],
         state_values: b"",
+        server_definition: None,
     },
     BlockData {
         id: 20271u32,
@@ -47825,6 +49359,7 @@ pub static ALL_BLOCKS: [BlockData; 1477usize] = [
         visual_shape: [0f32, 0f32, 0f32, 1f32, 1f32, 1f32],
         properties: &[],
         state_values: b"",
+        server_definition: None,
     },
     BlockData {
         id: 20272u32,
@@ -47851,6 +49386,7 @@ pub static ALL_BLOCKS: [BlockData; 1477usize] = [
         visual_shape: [0f32, 0f32, 0f32, 1f32, 1f32, 1f32],
         properties: &[],
         state_values: b"",
+        server_definition: None,
     },
     BlockData {
         id: 20273u32,
@@ -47877,6 +49413,7 @@ pub static ALL_BLOCKS: [BlockData; 1477usize] = [
         visual_shape: [0f32, 0f32, 0f32, 1f32, 1f32, 1f32],
         properties: &[],
         state_values: b"",
+        server_definition: None,
     },
     BlockData {
         id: 20274u32,
@@ -47903,6 +49440,7 @@ pub static ALL_BLOCKS: [BlockData; 1477usize] = [
         visual_shape: [0f32, 0f32, 0f32, 1f32, 1f32, 1f32],
         properties: &[],
         state_values: b"",
+        server_definition: None,
     },
     BlockData {
         id: 20275u32,
@@ -47929,6 +49467,7 @@ pub static ALL_BLOCKS: [BlockData; 1477usize] = [
         visual_shape: [0f32, 0f32, 0f32, 1f32, 1f32, 1f32],
         properties: &[],
         state_values: b"",
+        server_definition: None,
     },
     BlockData {
         id: 20276u32,
@@ -47955,6 +49494,7 @@ pub static ALL_BLOCKS: [BlockData; 1477usize] = [
         visual_shape: [0f32, 0f32, 0f32, 1f32, 1f32, 1f32],
         properties: &[],
         state_values: b"",
+        server_definition: None,
     },
     BlockData {
         id: 20277u32,
@@ -47981,6 +49521,7 @@ pub static ALL_BLOCKS: [BlockData; 1477usize] = [
         visual_shape: [0f32, 0f32, 0f32, 1f32, 1f32, 1f32],
         properties: &[],
         state_values: b"",
+        server_definition: None,
     },
     BlockData {
         id: 20278u32,
@@ -48007,6 +49548,7 @@ pub static ALL_BLOCKS: [BlockData; 1477usize] = [
         visual_shape: [0f32, 0f32, 0f32, 1f32, 1f32, 1f32],
         properties: &[],
         state_values: b"",
+        server_definition: None,
     },
     BlockData {
         id: 20279u32,
@@ -48033,6 +49575,7 @@ pub static ALL_BLOCKS: [BlockData; 1477usize] = [
         visual_shape: [0f32, 0f32, 0f32, 1f32, 1f32, 1f32],
         properties: &[],
         state_values: b"",
+        server_definition: None,
     },
     BlockData {
         id: 20280u32,
@@ -48059,6 +49602,7 @@ pub static ALL_BLOCKS: [BlockData; 1477usize] = [
         visual_shape: [0f32, 0f32, 0f32, 1f32, 1f32, 1f32],
         properties: &[],
         state_values: b"",
+        server_definition: None,
     },
     BlockData {
         id: 20281u32,
@@ -48085,6 +49629,7 @@ pub static ALL_BLOCKS: [BlockData; 1477usize] = [
         visual_shape: [0f32, 0f32, 0f32, 1f32, 1f32, 1f32],
         properties: &[],
         state_values: b"",
+        server_definition: None,
     },
     BlockData {
         id: 20282u32,
@@ -48111,6 +49656,7 @@ pub static ALL_BLOCKS: [BlockData; 1477usize] = [
         visual_shape: [0f32, 0f32, 0f32, 1f32, 1f32, 1f32],
         properties: &[],
         state_values: b"",
+        server_definition: None,
     },
     BlockData {
         id: 20283u32,
@@ -48137,6 +49683,7 @@ pub static ALL_BLOCKS: [BlockData; 1477usize] = [
         visual_shape: [0f32, 0f32, 0f32, 1f32, 1f32, 1f32],
         properties: &[],
         state_values: b"",
+        server_definition: None,
     },
     BlockData {
         id: 20284u32,
@@ -48163,6 +49710,7 @@ pub static ALL_BLOCKS: [BlockData; 1477usize] = [
         visual_shape: [0f32, 0f32, 0f32, 1f32, 1f32, 1f32],
         properties: &[],
         state_values: b"",
+        server_definition: None,
     },
     BlockData {
         id: 20285u32,
@@ -48189,6 +49737,7 @@ pub static ALL_BLOCKS: [BlockData; 1477usize] = [
         visual_shape: [0f32, 0f32, 0f32, 1f32, 1f32, 1f32],
         properties: &[],
         state_values: b"",
+        server_definition: None,
     },
     BlockData {
         id: 20286u32,
@@ -48215,6 +49764,7 @@ pub static ALL_BLOCKS: [BlockData; 1477usize] = [
         visual_shape: [0f32, 0f32, 0f32, 1f32, 1f32, 1f32],
         properties: &[],
         state_values: b"",
+        server_definition: None,
     },
     BlockData {
         id: 20287u32,
@@ -48241,6 +49791,7 @@ pub static ALL_BLOCKS: [BlockData; 1477usize] = [
         visual_shape: [0f32, 0f32, 0f32, 1f32, 1f32, 1f32],
         properties: &[],
         state_values: b"",
+        server_definition: None,
     },
     BlockData {
         id: 20288u32,
@@ -48267,6 +49818,7 @@ pub static ALL_BLOCKS: [BlockData; 1477usize] = [
         visual_shape: [0f32, 0f32, 0f32, 1f32, 1f32, 1f32],
         properties: &[],
         state_values: b"",
+        server_definition: None,
     },
     BlockData {
         id: 20289u32,
@@ -48293,6 +49845,7 @@ pub static ALL_BLOCKS: [BlockData; 1477usize] = [
         visual_shape: [0f32, 0f32, 0f32, 1f32, 1f32, 1f32],
         properties: &[],
         state_values: b"",
+        server_definition: None,
     },
     BlockData {
         id: 20290u32,
@@ -48319,6 +49872,7 @@ pub static ALL_BLOCKS: [BlockData; 1477usize] = [
         visual_shape: [0f32, 0f32, 0f32, 1f32, 1f32, 1f32],
         properties: &[],
         state_values: b"",
+        server_definition: None,
     },
     BlockData {
         id: 20291u32,
@@ -48345,6 +49899,7 @@ pub static ALL_BLOCKS: [BlockData; 1477usize] = [
         visual_shape: [0f32, 0f32, 0f32, 1f32, 1f32, 1f32],
         properties: &[],
         state_values: b"",
+        server_definition: None,
     },
     BlockData {
         id: 20292u32,
@@ -48371,6 +49926,7 @@ pub static ALL_BLOCKS: [BlockData; 1477usize] = [
         visual_shape: [0f32, 0f32, 0f32, 1f32, 1f32, 1f32],
         properties: &[],
         state_values: b"",
+        server_definition: None,
     },
     BlockData {
         id: 20293u32,
@@ -48397,6 +49953,7 @@ pub static ALL_BLOCKS: [BlockData; 1477usize] = [
         visual_shape: [0f32, 0f32, 0f32, 1f32, 1f32, 1f32],
         properties: &[],
         state_values: b"",
+        server_definition: None,
     },
     BlockData {
         id: 20294u32,
@@ -48423,6 +49980,7 @@ pub static ALL_BLOCKS: [BlockData; 1477usize] = [
         visual_shape: [0f32, 0f32, 0f32, 1f32, 1f32, 1f32],
         properties: &[],
         state_values: b"",
+        server_definition: None,
     },
     BlockData {
         id: 20295u32,
@@ -48449,6 +50007,7 @@ pub static ALL_BLOCKS: [BlockData; 1477usize] = [
         visual_shape: [0f32, 0f32, 0f32, 1f32, 1f32, 1f32],
         properties: &[],
         state_values: b"",
+        server_definition: None,
     },
     BlockData {
         id: 20296u32,
@@ -48475,6 +50034,7 @@ pub static ALL_BLOCKS: [BlockData; 1477usize] = [
         visual_shape: [0f32, 0f32, 0f32, 1f32, 1f32, 1f32],
         properties: &[],
         state_values: b"",
+        server_definition: None,
     },
     BlockData {
         id: 20297u32,
@@ -48501,6 +50061,7 @@ pub static ALL_BLOCKS: [BlockData; 1477usize] = [
         visual_shape: [0f32, 0f32, 0f32, 1f32, 1f32, 1f32],
         properties: &[],
         state_values: b"",
+        server_definition: None,
     },
     BlockData {
         id: 20298u32,
@@ -48527,6 +50088,7 @@ pub static ALL_BLOCKS: [BlockData; 1477usize] = [
         visual_shape: [0f32, 0f32, 0f32, 1f32, 1f32, 1f32],
         properties: &[],
         state_values: b"",
+        server_definition: None,
     },
     BlockData {
         id: 20299u32,
@@ -48553,6 +50115,7 @@ pub static ALL_BLOCKS: [BlockData; 1477usize] = [
         visual_shape: [0f32, 0f32, 0f32, 1f32, 1f32, 1f32],
         properties: &[],
         state_values: b"",
+        server_definition: None,
     },
     BlockData {
         id: 20300u32,
@@ -48579,6 +50142,7 @@ pub static ALL_BLOCKS: [BlockData; 1477usize] = [
         visual_shape: [0f32, 0f32, 0f32, 1f32, 1f32, 1f32],
         properties: &[],
         state_values: b"",
+        server_definition: None,
     },
     BlockData {
         id: 20301u32,
@@ -48615,6 +50179,7 @@ pub static ALL_BLOCKS: [BlockData; 1477usize] = [
             },
         ],
         state_values: b"\0\x01\x02\x03",
+        server_definition: None,
     },
     BlockData {
         id: 20305u32,
@@ -48646,6 +50211,7 @@ pub static ALL_BLOCKS: [BlockData; 1477usize] = [
         visual_shape: [0f32, 0f32, 0f32, 1f32, 1f32, 1f32],
         properties: &[],
         state_values: b"",
+        server_definition: None,
     },
     BlockData {
         id: 20306u32,
@@ -48672,6 +50238,7 @@ pub static ALL_BLOCKS: [BlockData; 1477usize] = [
         visual_shape: [0f32, 0f32, 0f32, 1f32, 1f32, 1f32],
         properties: &[],
         state_values: b"",
+        server_definition: None,
     },
     BlockData {
         id: 20307u32,
@@ -48698,6 +50265,7 @@ pub static ALL_BLOCKS: [BlockData; 1477usize] = [
         visual_shape: [0f32, 0f32, 0f32, 1f32, 0.0625f32, 1f32],
         properties: &[],
         state_values: b"",
+        server_definition: None,
     },
     BlockData {
         id: 20308u32,
@@ -48748,6 +50316,7 @@ pub static ALL_BLOCKS: [BlockData; 1477usize] = [
             },
         ],
         state_values: b"\0\0\0\0\0\x01\0\0\x02\0\0\x03\0\x01\0\0\x01\x01\0\x01\x02\0\x01\x03\x01\0\0\x01\0\x01\x01\0\x02\x01\0\x03\x01\x01\0\x01\x01\x01\x01\x01\x02\x01\x01\x03\x02\0\0\x02\0\x01\x02\0\x02\x02\0\x03\x02\x01\0\x02\x01\x01\x02\x01\x02\x02\x01\x03\x03\0\0\x03\0\x01\x03\0\x02\x03\0\x03\x03\x01\0\x03\x01\x01\x03\x01\x02\x03\x01\x03\x04\0\0\x04\0\x01\x04\0\x02\x04\0\x03\x04\x01\0\x04\x01\x01\x04\x01\x02\x04\x01\x03",
+        server_definition: None,
     },
     BlockData {
         id: 20348u32,
@@ -48779,6 +50348,7 @@ pub static ALL_BLOCKS: [BlockData; 1477usize] = [
             },
         ],
         state_values: b"\0\x01",
+        server_definition: None,
     },
     BlockData {
         id: 20350u32,
@@ -48810,6 +50380,9 @@ pub static ALL_BLOCKS: [BlockData; 1477usize] = [
             },
         ],
         state_values: b"\0\x01",
+        server_definition: Some(
+            b"\n\0\t\tblockTags\x08\x02%minecraft:is_shears_item_destructible\n\ncomponents\n minecraft:destructible_by_mining\x05\x05value\xCD\xCCL?\0\n\x1Fminecraft:redstone_conductivity\x01\x14allowsWireToStepDown\x01\x01\x11redstoneConductor\x01\0\0\n\rmenu_category\x08\x08category\x04none\x08\x05group\0\x01\x15is_hidden_in_commands\x01\0\x03\rmolangVersion\x1A\n\x12vanilla_block_data\n\x0Fblock_archetype\x08\x11double_slab_block\x18minecraft:blue_wool_slab\x01\tis_double\x01\x08\x04type\nslab_block\0\x03\x08block_id\xD0\x16\x01\x15can_dampen_vibrations\x01\x01\x16can_occlude_vibrations\x01\x08\x08material\x05solid\0\0",
+        ),
     },
     BlockData {
         id: 20352u32,
@@ -48841,6 +50414,7 @@ pub static ALL_BLOCKS: [BlockData; 1477usize] = [
             },
         ],
         state_values: b"\0\x01",
+        server_definition: None,
     },
     BlockData {
         id: 20354u32,
@@ -48876,6 +50450,7 @@ pub static ALL_BLOCKS: [BlockData; 1477usize] = [
             },
         ],
         state_values: b"\0\0\0\x01\x01\0\x01\x01",
+        server_definition: None,
     },
     BlockData {
         id: 20358u32,
@@ -48911,6 +50486,7 @@ pub static ALL_BLOCKS: [BlockData; 1477usize] = [
             },
         ],
         state_values: b"\0\x01\x02",
+        server_definition: None,
     },
     BlockData {
         id: 20361u32,
@@ -48949,6 +50525,7 @@ pub static ALL_BLOCKS: [BlockData; 1477usize] = [
             },
         ],
         state_values: b"\0\x01\x02\x03\x04\x05",
+        server_definition: None,
     },
     BlockData {
         id: 20367u32,
@@ -48989,6 +50566,7 @@ pub static ALL_BLOCKS: [BlockData; 1477usize] = [
             },
         ],
         state_values: b"\0\0\x01\0\x02\0\x03\0\0\x01\x01\x01\x02\x01\x03\x01",
+        server_definition: None,
     },
     BlockData {
         id: 20375u32,
@@ -49019,6 +50597,7 @@ pub static ALL_BLOCKS: [BlockData; 1477usize] = [
         visual_shape: [0f32, 0f32, 0f32, 1f32, 1f32, 1f32],
         properties: &[],
         state_values: b"",
+        server_definition: None,
     },
     BlockData {
         id: 20376u32,
@@ -49061,6 +50640,7 @@ pub static ALL_BLOCKS: [BlockData; 1477usize] = [
             },
         ],
         state_values: b"\0\0\0\x01\0\x02\0\x03\0\x04\0\x05\x01\0\x01\x01\x01\x02\x01\x03\x01\x04\x01\x05",
+        server_definition: None,
     },
     BlockData {
         id: 20388u32,
@@ -49099,6 +50679,7 @@ pub static ALL_BLOCKS: [BlockData; 1477usize] = [
             },
         ],
         state_values: b"\0\x01\x02\x03\x04\x05",
+        server_definition: None,
     },
     BlockData {
         id: 20394u32,
@@ -49135,6 +50716,7 @@ pub static ALL_BLOCKS: [BlockData; 1477usize] = [
             },
         ],
         state_values: b"\0\x01\x02\x03",
+        server_definition: None,
     },
     BlockData {
         id: 20398u32,
@@ -49170,6 +50752,7 @@ pub static ALL_BLOCKS: [BlockData; 1477usize] = [
             },
         ],
         state_values: b"\0\0\0\x01\x01\0\x01\x01",
+        server_definition: None,
     },
     BlockData {
         id: 20402u32,
@@ -49196,6 +50779,7 @@ pub static ALL_BLOCKS: [BlockData; 1477usize] = [
         visual_shape: [0f32, 0f32, 0f32, 1f32, 0.0625f32, 1f32],
         properties: &[],
         state_values: b"",
+        server_definition: None,
     },
     BlockData {
         id: 20403u32,
@@ -49231,6 +50815,7 @@ pub static ALL_BLOCKS: [BlockData; 1477usize] = [
             },
         ],
         state_values: b"\0\0\0\x01\x01\0\x01\x01",
+        server_definition: None,
     },
     BlockData {
         id: 20407u32,
@@ -49266,6 +50851,7 @@ pub static ALL_BLOCKS: [BlockData; 1477usize] = [
             },
         ],
         state_values: b"\0\x01",
+        server_definition: None,
     },
     BlockData {
         id: 20409u32,
@@ -49292,6 +50878,7 @@ pub static ALL_BLOCKS: [BlockData; 1477usize] = [
         visual_shape: [0.26999998f32, 0f32, 0.26999998f32, 0.73f32, 0.75f32, 0.73f32],
         properties: &[],
         state_values: b"",
+        server_definition: None,
     },
     BlockData {
         id: 20410u32,
@@ -49318,6 +50905,7 @@ pub static ALL_BLOCKS: [BlockData; 1477usize] = [
         visual_shape: [0f32, 0f32, 0f32, 1f32, 1f32, 1f32],
         properties: &[],
         state_values: b"",
+        server_definition: None,
     },
     BlockData {
         id: 20411u32,
@@ -49344,6 +50932,7 @@ pub static ALL_BLOCKS: [BlockData; 1477usize] = [
         visual_shape: [0f32, 0f32, 0f32, 1f32, 1f32, 1f32],
         properties: &[],
         state_values: b"",
+        server_definition: None,
     },
     BlockData {
         id: 20412u32,
@@ -49375,6 +50964,7 @@ pub static ALL_BLOCKS: [BlockData; 1477usize] = [
             },
         ],
         state_values: b"\0\x01",
+        server_definition: None,
     },
     BlockData {
         id: 20414u32,
@@ -49401,6 +50991,7 @@ pub static ALL_BLOCKS: [BlockData; 1477usize] = [
         visual_shape: [0f32, 0f32, 0f32, 1f32, 1f32, 1f32],
         properties: &[],
         state_values: b"",
+        server_definition: None,
     },
     BlockData {
         id: 20415u32,
@@ -49451,6 +51042,7 @@ pub static ALL_BLOCKS: [BlockData; 1477usize] = [
             },
         ],
         state_values: b"\0\0\0\0\0\x01\0\0\x02\0\0\x03\0\x01\0\0\x01\x01\0\x01\x02\0\x01\x03\x01\0\0\x01\0\x01\x01\0\x02\x01\0\x03\x01\x01\0\x01\x01\x01\x01\x01\x02\x01\x01\x03\x02\0\0\x02\0\x01\x02\0\x02\x02\0\x03\x02\x01\0\x02\x01\x01\x02\x01\x02\x02\x01\x03\x03\0\0\x03\0\x01\x03\0\x02\x03\0\x03\x03\x01\0\x03\x01\x01\x03\x01\x02\x03\x01\x03\x04\0\0\x04\0\x01\x04\0\x02\x04\0\x03\x04\x01\0\x04\x01\x01\x04\x01\x02\x04\x01\x03",
+        server_definition: None,
     },
     BlockData {
         id: 20455u32,
@@ -49477,6 +51069,7 @@ pub static ALL_BLOCKS: [BlockData; 1477usize] = [
         visual_shape: [0.099999994f32, 0f32, 0.099999994f32, 0.9f32, 0.8f32, 0.9f32],
         properties: &[],
         state_values: b"",
+        server_definition: None,
     },
     BlockData {
         id: 20456u32,
@@ -49525,6 +51118,7 @@ pub static ALL_BLOCKS: [BlockData; 1477usize] = [
             },
         ],
         state_values: b"\0\0\0\0\0\x01\0\0\0\x02\0\0\0\x03\0\0\0\0\x01\0\0\x01\x01\0\0\x02\x01\0\0\x03\x01\0\0\0\0\x01\0\x01\0\x01\0\x02\0\x01\0\x03\0\x01\0\0\x01\x01\0\x01\x01\x01\0\x02\x01\x01\0\x03\x01\x01\x01\0\0\0\x01\x01\0\0\x01\x02\0\0\x01\x03\0\0\x01\0\x01\0\x01\x01\x01\0\x01\x02\x01\0\x01\x03\x01\0\x01\0\0\x01\x01\x01\0\x01\x01\x02\0\x01\x01\x03\0\x01\x01\0\x01\x01\x01\x01\x01\x01\x01\x02\x01\x01\x01\x03\x01\x01",
+        server_definition: None,
     },
     BlockData {
         id: 20488u32,
@@ -49560,6 +51154,7 @@ pub static ALL_BLOCKS: [BlockData; 1477usize] = [
             },
         ],
         state_values: b"\0\x01\x02",
+        server_definition: None,
     },
     BlockData {
         id: 20491u32,
@@ -49623,6 +51218,7 @@ pub static ALL_BLOCKS: [BlockData; 1477usize] = [
             },
         ],
         state_values: b"\0\0\0\0\0\0\0\0\0\x01\0\x01\0\0\0\0\x01\0\0\x01\0\x02\0\0\0\0\x02\0\0\x01\x01\0\0\0\0\x01\0\0\0\x01\x01\x01\0\0\0\x01\x01\0\0\x01\x01\x02\0\0\0\x01\x02\0\0\x01\x02\0\0\0\0\x02\0\0\0\x01\x02\x01\0\0\0\x02\x01\0\0\x01\x02\x02\0\0\0\x02\x02\0\0\x01\0\0\x01\0\0\0\0\x01\0\x01\0\x01\x01\0\0\0\x01\x01\0\x01\0\x02\x01\0\0\0\x02\x01\0\x01\x01\0\x01\0\0\x01\0\x01\0\x01\x01\x01\x01\0\0\x01\x01\x01\0\x01\x01\x02\x01\0\0\x01\x02\x01\0\x01\x02\0\x01\0\0\x02\0\x01\0\x01\x02\x01\x01\0\0\x02\x01\x01\0\x01\x02\x02\x01\0\0\x02\x02\x01\0\x01\0\0\x02\0\0\0\0\x02\0\x01\0\x01\x02\0\0\0\x01\x02\0\x01\0\x02\x02\0\0\0\x02\x02\0\x01\x01\0\x02\0\0\x01\0\x02\0\x01\x01\x01\x02\0\0\x01\x01\x02\0\x01\x01\x02\x02\0\0\x01\x02\x02\0\x01\x02\0\x02\0\0\x02\0\x02\0\x01\x02\x01\x02\0\0\x02\x01\x02\0\x01\x02\x02\x02\0\0\x02\x02\x02\0\x01\0\0\0\x01\0\0\0\0\x01\x01\0\x01\0\x01\0\0\x01\0\x01\x01\0\x02\0\x01\0\0\x02\0\x01\x01\x01\0\0\x01\0\x01\0\0\x01\x01\x01\x01\0\x01\0\x01\x01\0\x01\x01\x01\x02\0\x01\0\x01\x02\0\x01\x01\x02\0\0\x01\0\x02\0\0\x01\x01\x02\x01\0\x01\0\x02\x01\0\x01\x01\x02\x02\0\x01\0\x02\x02\0\x01\x01\0\0\x01\x01\0\0\0\x01\x01\x01\0\x01\x01\x01\0\0\x01\x01\x01\x01\0\x02\x01\x01\0\0\x02\x01\x01\x01\x01\0\x01\x01\0\x01\0\x01\x01\x01\x01\x01\x01\x01\0\x01\x01\x01\x01\x01\x01\x02\x01\x01\0\x01\x02\x01\x01\x01\x02\0\x01\x01\0\x02\0\x01\x01\x01\x02\x01\x01\x01\0\x02\x01\x01\x01\x01\x02\x02\x01\x01\0\x02\x02\x01\x01\x01\0\0\x02\x01\0\0\0\x02\x01\x01\0\x01\x02\x01\0\0\x01\x02\x01\x01\0\x02\x02\x01\0\0\x02\x02\x01\x01\x01\0\x02\x01\0\x01\0\x02\x01\x01\x01\x01\x02\x01\0\x01\x01\x02\x01\x01\x01\x02\x02\x01\0\x01\x02\x02\x01\x01\x02\0\x02\x01\0\x02\0\x02\x01\x01\x02\x01\x02\x01\0\x02\x01\x02\x01\x01\x02\x02\x02\x01\0\x02\x02\x02\x01\x01\0\0\0\x02\0\0\0\0\x02\x01\0\x01\0\x02\0\0\x01\0\x02\x01\0\x02\0\x02\0\0\x02\0\x02\x01\x01\0\0\x02\0\x01\0\0\x02\x01\x01\x01\0\x02\0\x01\x01\0\x02\x01\x01\x02\0\x02\0\x01\x02\0\x02\x01\x02\0\0\x02\0\x02\0\0\x02\x01\x02\x01\0\x02\0\x02\x01\0\x02\x01\x02\x02\0\x02\0\x02\x02\0\x02\x01\0\0\x01\x02\0\0\0\x01\x02\x01\0\x01\x01\x02\0\0\x01\x01\x02\x01\0\x02\x01\x02\0\0\x02\x01\x02\x01\x01\0\x01\x02\0\x01\0\x01\x02\x01\x01\x01\x01\x02\0\x01\x01\x01\x02\x01\x01\x02\x01\x02\0\x01\x02\x01\x02\x01\x02\0\x01\x02\0\x02\0\x01\x02\x01\x02\x01\x01\x02\0\x02\x01\x01\x02\x01\x02\x02\x01\x02\0\x02\x02\x01\x02\x01\0\0\x02\x02\0\0\0\x02\x02\x01\0\x01\x02\x02\0\0\x01\x02\x02\x01\0\x02\x02\x02\0\0\x02\x02\x02\x01\x01\0\x02\x02\0\x01\0\x02\x02\x01\x01\x01\x02\x02\0\x01\x01\x02\x02\x01\x01\x02\x02\x02\0\x01\x02\x02\x02\x01\x02\0\x02\x02\0\x02\0\x02\x02\x01\x02\x01\x02\x02\0\x02\x01\x02\x02\x01\x02\x02\x02\x02\0\x02\x02\x02\x02\x01",
+        server_definition: None,
     },
     BlockData {
         id: 20653u32,
@@ -49665,6 +51261,7 @@ pub static ALL_BLOCKS: [BlockData; 1477usize] = [
             },
         ],
         state_values: b"\0\0\0\x01\0\x02\0\x03\0\x04\0\x05\x01\0\x01\x01\x01\x02\x01\x03\x01\x04\x01\x05",
+        server_definition: None,
     },
     BlockData {
         id: 20665u32,
@@ -49696,6 +51293,7 @@ pub static ALL_BLOCKS: [BlockData; 1477usize] = [
             },
         ],
         state_values: b"\0\x01",
+        server_definition: None,
     },
     BlockData {
         id: 20667u32,
@@ -49738,6 +51336,7 @@ pub static ALL_BLOCKS: [BlockData; 1477usize] = [
             },
         ],
         state_values: b"\0\0\0\x01\0\x02\0\x03\0\x04\0\x05\x01\0\x01\x01\x01\x02\x01\x03\x01\x04\x01\x05",
+        server_definition: None,
     },
     BlockData {
         id: 20679u32,
@@ -49780,6 +51379,7 @@ pub static ALL_BLOCKS: [BlockData; 1477usize] = [
             },
         ],
         state_values: b"\0\0\0\x01\0\x02\0\x03\0\x04\0\x05\x01\0\x01\x01\x01\x02\x01\x03\x01\x04\x01\x05",
+        server_definition: None,
     },
     BlockData {
         id: 20691u32,
@@ -49832,6 +51432,7 @@ pub static ALL_BLOCKS: [BlockData; 1477usize] = [
             },
         ],
         state_values: b"\0\0\0\0\x01\0\0\x02\0\0\x03\0\0\x04\0\0\x05\0\0\x06\0\0\x07\0\0\x08\0\0\t\0\0\n\0\0\x0B\0\0\0\x01\0\x01\x01\0\x02\x01\0\x03\x01\0\x04\x01\0\x05\x01\0\x06\x01\0\x07\x01\0\x08\x01\0\t\x01\0\n\x01\0\x0B\x01\x01\0\0\x01\x01\0\x01\x02\0\x01\x03\0\x01\x04\0\x01\x05\0\x01\x06\0\x01\x07\0\x01\x08\0\x01\t\0\x01\n\0\x01\x0B\0\x01\0\x01\x01\x01\x01\x01\x02\x01\x01\x03\x01\x01\x04\x01\x01\x05\x01\x01\x06\x01\x01\x07\x01\x01\x08\x01\x01\t\x01\x01\n\x01\x01\x0B\x01",
+        server_definition: None,
     },
     BlockData {
         id: 20739u32,
@@ -49858,6 +51459,7 @@ pub static ALL_BLOCKS: [BlockData; 1477usize] = [
         visual_shape: [0f32, 0f32, 0f32, 1f32, 1f32, 1f32],
         properties: &[],
         state_values: b"",
+        server_definition: None,
     },
     BlockData {
         id: 20740u32,
@@ -49889,6 +51491,7 @@ pub static ALL_BLOCKS: [BlockData; 1477usize] = [
             },
         ],
         state_values: b"\0\x01",
+        server_definition: None,
     },
     BlockData {
         id: 20742u32,
@@ -49925,6 +51528,7 @@ pub static ALL_BLOCKS: [BlockData; 1477usize] = [
             },
         ],
         state_values: b"\0\x01\x02\x03",
+        server_definition: None,
     },
     BlockData {
         id: 20746u32,
@@ -49951,6 +51555,7 @@ pub static ALL_BLOCKS: [BlockData; 1477usize] = [
         visual_shape: [0f32, 0f32, 0f32, 1f32, 1f32, 1f32],
         properties: &[],
         state_values: b"",
+        server_definition: None,
     },
     BlockData {
         id: 20747u32,
@@ -49989,6 +51594,7 @@ pub static ALL_BLOCKS: [BlockData; 1477usize] = [
             },
         ],
         state_values: b"\0\x01\x02\x03\x04\x05",
+        server_definition: None,
     },
     BlockData {
         id: 20753u32,
@@ -50019,6 +51625,7 @@ pub static ALL_BLOCKS: [BlockData; 1477usize] = [
         visual_shape: [0f32, 0f32, 0f32, 1f32, 1f32, 1f32],
         properties: &[],
         state_values: b"",
+        server_definition: None,
     },
     BlockData {
         id: 20754u32,
@@ -50053,6 +51660,7 @@ pub static ALL_BLOCKS: [BlockData; 1477usize] = [
             },
         ],
         state_values: b"\0\x01",
+        server_definition: None,
     },
     BlockData {
         id: 20756u32,
@@ -50116,6 +51724,7 @@ pub static ALL_BLOCKS: [BlockData; 1477usize] = [
             },
         ],
         state_values: b"\0\0\0\0\0\0\0\0\0\x01\0\x01\0\0\0\0\x01\0\0\x01\0\x02\0\0\0\0\x02\0\0\x01\x01\0\0\0\0\x01\0\0\0\x01\x01\x01\0\0\0\x01\x01\0\0\x01\x01\x02\0\0\0\x01\x02\0\0\x01\x02\0\0\0\0\x02\0\0\0\x01\x02\x01\0\0\0\x02\x01\0\0\x01\x02\x02\0\0\0\x02\x02\0\0\x01\0\0\x01\0\0\0\0\x01\0\x01\0\x01\x01\0\0\0\x01\x01\0\x01\0\x02\x01\0\0\0\x02\x01\0\x01\x01\0\x01\0\0\x01\0\x01\0\x01\x01\x01\x01\0\0\x01\x01\x01\0\x01\x01\x02\x01\0\0\x01\x02\x01\0\x01\x02\0\x01\0\0\x02\0\x01\0\x01\x02\x01\x01\0\0\x02\x01\x01\0\x01\x02\x02\x01\0\0\x02\x02\x01\0\x01\0\0\x02\0\0\0\0\x02\0\x01\0\x01\x02\0\0\0\x01\x02\0\x01\0\x02\x02\0\0\0\x02\x02\0\x01\x01\0\x02\0\0\x01\0\x02\0\x01\x01\x01\x02\0\0\x01\x01\x02\0\x01\x01\x02\x02\0\0\x01\x02\x02\0\x01\x02\0\x02\0\0\x02\0\x02\0\x01\x02\x01\x02\0\0\x02\x01\x02\0\x01\x02\x02\x02\0\0\x02\x02\x02\0\x01\0\0\0\x01\0\0\0\0\x01\x01\0\x01\0\x01\0\0\x01\0\x01\x01\0\x02\0\x01\0\0\x02\0\x01\x01\x01\0\0\x01\0\x01\0\0\x01\x01\x01\x01\0\x01\0\x01\x01\0\x01\x01\x01\x02\0\x01\0\x01\x02\0\x01\x01\x02\0\0\x01\0\x02\0\0\x01\x01\x02\x01\0\x01\0\x02\x01\0\x01\x01\x02\x02\0\x01\0\x02\x02\0\x01\x01\0\0\x01\x01\0\0\0\x01\x01\x01\0\x01\x01\x01\0\0\x01\x01\x01\x01\0\x02\x01\x01\0\0\x02\x01\x01\x01\x01\0\x01\x01\0\x01\0\x01\x01\x01\x01\x01\x01\x01\0\x01\x01\x01\x01\x01\x01\x02\x01\x01\0\x01\x02\x01\x01\x01\x02\0\x01\x01\0\x02\0\x01\x01\x01\x02\x01\x01\x01\0\x02\x01\x01\x01\x01\x02\x02\x01\x01\0\x02\x02\x01\x01\x01\0\0\x02\x01\0\0\0\x02\x01\x01\0\x01\x02\x01\0\0\x01\x02\x01\x01\0\x02\x02\x01\0\0\x02\x02\x01\x01\x01\0\x02\x01\0\x01\0\x02\x01\x01\x01\x01\x02\x01\0\x01\x01\x02\x01\x01\x01\x02\x02\x01\0\x01\x02\x02\x01\x01\x02\0\x02\x01\0\x02\0\x02\x01\x01\x02\x01\x02\x01\0\x02\x01\x02\x01\x01\x02\x02\x02\x01\0\x02\x02\x02\x01\x01\0\0\0\x02\0\0\0\0\x02\x01\0\x01\0\x02\0\0\x01\0\x02\x01\0\x02\0\x02\0\0\x02\0\x02\x01\x01\0\0\x02\0\x01\0\0\x02\x01\x01\x01\0\x02\0\x01\x01\0\x02\x01\x01\x02\0\x02\0\x01\x02\0\x02\x01\x02\0\0\x02\0\x02\0\0\x02\x01\x02\x01\0\x02\0\x02\x01\0\x02\x01\x02\x02\0\x02\0\x02\x02\0\x02\x01\0\0\x01\x02\0\0\0\x01\x02\x01\0\x01\x01\x02\0\0\x01\x01\x02\x01\0\x02\x01\x02\0\0\x02\x01\x02\x01\x01\0\x01\x02\0\x01\0\x01\x02\x01\x01\x01\x01\x02\0\x01\x01\x01\x02\x01\x01\x02\x01\x02\0\x01\x02\x01\x02\x01\x02\0\x01\x02\0\x02\0\x01\x02\x01\x02\x01\x01\x02\0\x02\x01\x01\x02\x01\x02\x02\x01\x02\0\x02\x02\x01\x02\x01\0\0\x02\x02\0\0\0\x02\x02\x01\0\x01\x02\x02\0\0\x01\x02\x02\x01\0\x02\x02\x02\0\0\x02\x02\x02\x01\x01\0\x02\x02\0\x01\0\x02\x02\x01\x01\x01\x02\x02\0\x01\x01\x02\x02\x01\x01\x02\x02\x02\0\x01\x02\x02\x02\x01\x02\0\x02\x02\0\x02\0\x02\x02\x01\x02\x01\x02\x02\0\x02\x01\x02\x02\x01\x02\x02\x02\x02\0\x02\x02\x02\x02\x01",
+        server_definition: None,
     },
     BlockData {
         id: 20918u32,
@@ -50147,6 +51756,7 @@ pub static ALL_BLOCKS: [BlockData; 1477usize] = [
             },
         ],
         state_values: b"\0\x01",
+        server_definition: None,
     },
     BlockData {
         id: 20920u32,
@@ -50173,6 +51783,7 @@ pub static ALL_BLOCKS: [BlockData; 1477usize] = [
         visual_shape: [0f32, 0f32, 0f32, 1f32, 1f32, 1f32],
         properties: &[],
         state_values: b"",
+        server_definition: None,
     },
     BlockData {
         id: 20921u32,
@@ -50208,6 +51819,7 @@ pub static ALL_BLOCKS: [BlockData; 1477usize] = [
             },
         ],
         state_values: b"\0\x01\x02",
+        server_definition: None,
     },
     BlockData {
         id: 20924u32,
@@ -50234,6 +51846,7 @@ pub static ALL_BLOCKS: [BlockData; 1477usize] = [
         visual_shape: [0f32, 0f32, 0f32, 1f32, 1f32, 1f32],
         properties: &[],
         state_values: b"",
+        server_definition: None,
     },
     BlockData {
         id: 20925u32,
@@ -50277,6 +51890,7 @@ pub static ALL_BLOCKS: [BlockData; 1477usize] = [
             },
         ],
         state_values: b"\0\0\0\0\0\x01\0\0\x01\0\0\0\x01\x01\0\0\0\0\x01\0\0\x01\x01\0\x01\0\x01\0\x01\x01\x01\0\0\0\0\x01\0\x01\0\x01\x01\0\0\x01\x01\x01\0\x01\0\0\x01\x01\0\x01\x01\x01\x01\0\x01\x01\x01\x01\x01\x01",
+        server_definition: None,
     },
     BlockData {
         id: 20941u32,
@@ -50308,6 +51922,7 @@ pub static ALL_BLOCKS: [BlockData; 1477usize] = [
             },
         ],
         state_values: b"\0\x01",
+        server_definition: None,
     },
     BlockData {
         id: 20943u32,
@@ -50334,6 +51949,7 @@ pub static ALL_BLOCKS: [BlockData; 1477usize] = [
         visual_shape: [0f32, 0f32, 0f32, 1f32, 1f32, 1f32],
         properties: &[],
         state_values: b"",
+        server_definition: None,
     },
     BlockData {
         id: 20944u32,
@@ -50360,6 +51976,7 @@ pub static ALL_BLOCKS: [BlockData; 1477usize] = [
         visual_shape: [0f32, 0f32, 0f32, 1f32, 1f32, 1f32],
         properties: &[],
         state_values: b"",
+        server_definition: None,
     },
     BlockData {
         id: 20945u32,
@@ -50411,6 +52028,7 @@ pub static ALL_BLOCKS: [BlockData; 1477usize] = [
             },
         ],
         state_values: b"\0\0\0\x01\0\x02\0\x03\x01\0\x01\x01\x01\x02\x01\x03\x02\0\x02\x01\x02\x02\x02\x03",
+        server_definition: None,
     },
     BlockData {
         id: 20957u32,
@@ -50437,6 +52055,7 @@ pub static ALL_BLOCKS: [BlockData; 1477usize] = [
         visual_shape: [0f32, 0f32, 0f32, 1f32, 1f32, 1f32],
         properties: &[],
         state_values: b"",
+        server_definition: None,
     },
     BlockData {
         id: 20958u32,
@@ -50479,6 +52098,7 @@ pub static ALL_BLOCKS: [BlockData; 1477usize] = [
             },
         ],
         state_values: b"\0\0\x01\0\x02\0\x03\0\x04\0\x05\0\0\x01\x01\x01\x02\x01\x03\x01\x04\x01\x05\x01",
+        server_definition: None,
     },
     BlockData {
         id: 20970u32,
@@ -50505,6 +52125,7 @@ pub static ALL_BLOCKS: [BlockData; 1477usize] = [
         visual_shape: [0f32, 0f32, 0f32, 1f32, 1f32, 1f32],
         properties: &[],
         state_values: b"",
+        server_definition: None,
     },
     BlockData {
         id: 20971u32,
@@ -50536,6 +52157,7 @@ pub static ALL_BLOCKS: [BlockData; 1477usize] = [
             },
         ],
         state_values: b"\0\x01",
+        server_definition: None,
     },
     BlockData {
         id: 20973u32,
@@ -50567,6 +52189,7 @@ pub static ALL_BLOCKS: [BlockData; 1477usize] = [
         visual_shape: [0f32, 0f32, 0f32, 1f32, 1f32, 1f32],
         properties: &[],
         state_values: b"",
+        server_definition: None,
     },
     BlockData {
         id: 20974u32,
@@ -50612,6 +52235,7 @@ pub static ALL_BLOCKS: [BlockData; 1477usize] = [
             },
         ],
         state_values: b"\0\0\0\x01\0\x02\0\x03\x01\0\x01\x01\x01\x02\x01\x03\x02\0\x02\x01\x02\x02\x02\x03\x03\0\x03\x01\x03\x02\x03\x03",
+        server_definition: None,
     },
     BlockData {
         id: 20990u32,
@@ -50648,6 +52272,7 @@ pub static ALL_BLOCKS: [BlockData; 1477usize] = [
             },
         ],
         state_values: b"\0\x01\x02\x03",
+        server_definition: None,
     },
     BlockData {
         id: 20994u32,
@@ -50674,6 +52299,7 @@ pub static ALL_BLOCKS: [BlockData; 1477usize] = [
         visual_shape: [0f32, 0f32, 0f32, 1f32, 1f32, 1f32],
         properties: &[],
         state_values: b"",
+        server_definition: None,
     },
     BlockData {
         id: 20995u32,
@@ -50714,6 +52340,7 @@ pub static ALL_BLOCKS: [BlockData; 1477usize] = [
             },
         ],
         state_values: b"\0\0\0\x01\0\x02\0\x03\x01\0\x01\x01\x01\x02\x01\x03",
+        server_definition: None,
     },
     BlockData {
         id: 21003u32,
@@ -50740,6 +52367,7 @@ pub static ALL_BLOCKS: [BlockData; 1477usize] = [
         visual_shape: [0f32, 0f32, 0f32, 1f32, 1f32, 1f32],
         properties: &[],
         state_values: b"",
+        server_definition: None,
     },
     BlockData {
         id: 21004u32,
@@ -50784,6 +52412,7 @@ pub static ALL_BLOCKS: [BlockData; 1477usize] = [
             },
         ],
         state_values: b"\0\0\0\0\x01\0\0\x02\0\0\x03\0\0\0\x01\0\x01\x01\0\x02\x01\0\x03\x01\x01\0\0\x01\x01\0\x01\x02\0\x01\x03\0\x01\0\x01\x01\x01\x01\x01\x02\x01\x01\x03\x01",
+        server_definition: None,
     },
     BlockData {
         id: 21020u32,
@@ -50832,6 +52461,7 @@ pub static ALL_BLOCKS: [BlockData; 1477usize] = [
             },
         ],
         state_values: b"\0\x01\x02\x03\x04\x05\x06\x07\x08\t\n\x0B\x0C\r\x0E\x0F",
+        server_definition: None,
     },
     BlockData {
         id: 21036u32,
@@ -50895,6 +52525,7 @@ pub static ALL_BLOCKS: [BlockData; 1477usize] = [
             },
         ],
         state_values: b"\0\0\0\0\0\0\0\0\0\x01\0\x01\0\0\0\0\x01\0\0\x01\0\x02\0\0\0\0\x02\0\0\x01\x01\0\0\0\0\x01\0\0\0\x01\x01\x01\0\0\0\x01\x01\0\0\x01\x01\x02\0\0\0\x01\x02\0\0\x01\x02\0\0\0\0\x02\0\0\0\x01\x02\x01\0\0\0\x02\x01\0\0\x01\x02\x02\0\0\0\x02\x02\0\0\x01\0\0\x01\0\0\0\0\x01\0\x01\0\x01\x01\0\0\0\x01\x01\0\x01\0\x02\x01\0\0\0\x02\x01\0\x01\x01\0\x01\0\0\x01\0\x01\0\x01\x01\x01\x01\0\0\x01\x01\x01\0\x01\x01\x02\x01\0\0\x01\x02\x01\0\x01\x02\0\x01\0\0\x02\0\x01\0\x01\x02\x01\x01\0\0\x02\x01\x01\0\x01\x02\x02\x01\0\0\x02\x02\x01\0\x01\0\0\x02\0\0\0\0\x02\0\x01\0\x01\x02\0\0\0\x01\x02\0\x01\0\x02\x02\0\0\0\x02\x02\0\x01\x01\0\x02\0\0\x01\0\x02\0\x01\x01\x01\x02\0\0\x01\x01\x02\0\x01\x01\x02\x02\0\0\x01\x02\x02\0\x01\x02\0\x02\0\0\x02\0\x02\0\x01\x02\x01\x02\0\0\x02\x01\x02\0\x01\x02\x02\x02\0\0\x02\x02\x02\0\x01\0\0\0\x01\0\0\0\0\x01\x01\0\x01\0\x01\0\0\x01\0\x01\x01\0\x02\0\x01\0\0\x02\0\x01\x01\x01\0\0\x01\0\x01\0\0\x01\x01\x01\x01\0\x01\0\x01\x01\0\x01\x01\x01\x02\0\x01\0\x01\x02\0\x01\x01\x02\0\0\x01\0\x02\0\0\x01\x01\x02\x01\0\x01\0\x02\x01\0\x01\x01\x02\x02\0\x01\0\x02\x02\0\x01\x01\0\0\x01\x01\0\0\0\x01\x01\x01\0\x01\x01\x01\0\0\x01\x01\x01\x01\0\x02\x01\x01\0\0\x02\x01\x01\x01\x01\0\x01\x01\0\x01\0\x01\x01\x01\x01\x01\x01\x01\0\x01\x01\x01\x01\x01\x01\x02\x01\x01\0\x01\x02\x01\x01\x01\x02\0\x01\x01\0\x02\0\x01\x01\x01\x02\x01\x01\x01\0\x02\x01\x01\x01\x01\x02\x02\x01\x01\0\x02\x02\x01\x01\x01\0\0\x02\x01\0\0\0\x02\x01\x01\0\x01\x02\x01\0\0\x01\x02\x01\x01\0\x02\x02\x01\0\0\x02\x02\x01\x01\x01\0\x02\x01\0\x01\0\x02\x01\x01\x01\x01\x02\x01\0\x01\x01\x02\x01\x01\x01\x02\x02\x01\0\x01\x02\x02\x01\x01\x02\0\x02\x01\0\x02\0\x02\x01\x01\x02\x01\x02\x01\0\x02\x01\x02\x01\x01\x02\x02\x02\x01\0\x02\x02\x02\x01\x01\0\0\0\x02\0\0\0\0\x02\x01\0\x01\0\x02\0\0\x01\0\x02\x01\0\x02\0\x02\0\0\x02\0\x02\x01\x01\0\0\x02\0\x01\0\0\x02\x01\x01\x01\0\x02\0\x01\x01\0\x02\x01\x01\x02\0\x02\0\x01\x02\0\x02\x01\x02\0\0\x02\0\x02\0\0\x02\x01\x02\x01\0\x02\0\x02\x01\0\x02\x01\x02\x02\0\x02\0\x02\x02\0\x02\x01\0\0\x01\x02\0\0\0\x01\x02\x01\0\x01\x01\x02\0\0\x01\x01\x02\x01\0\x02\x01\x02\0\0\x02\x01\x02\x01\x01\0\x01\x02\0\x01\0\x01\x02\x01\x01\x01\x01\x02\0\x01\x01\x01\x02\x01\x01\x02\x01\x02\0\x01\x02\x01\x02\x01\x02\0\x01\x02\0\x02\0\x01\x02\x01\x02\x01\x01\x02\0\x02\x01\x01\x02\x01\x02\x02\x01\x02\0\x02\x02\x01\x02\x01\0\0\x02\x02\0\0\0\x02\x02\x01\0\x01\x02\x02\0\0\x01\x02\x02\x01\0\x02\x02\x02\0\0\x02\x02\x02\x01\x01\0\x02\x02\0\x01\0\x02\x02\x01\x01\x01\x02\x02\0\x01\x01\x02\x02\x01\x01\x02\x02\x02\0\x01\x02\x02\x02\x01\x02\0\x02\x02\0\x02\0\x02\x02\x01\x02\x01\x02\x02\0\x02\x01\x02\x02\x01\x02\x02\x02\x02\0\x02\x02\x02\x02\x01",
+        server_definition: None,
     },
     BlockData {
         id: 21198u32,
@@ -50938,6 +52569,7 @@ pub static ALL_BLOCKS: [BlockData; 1477usize] = [
             },
         ],
         state_values: b"\0\0\0\0\0\x01\0\0\x01\0\0\0\x01\x01\0\0\0\0\x01\0\0\x01\x01\0\x01\0\x01\0\x01\x01\x01\0\0\0\0\x01\0\x01\0\x01\x01\0\0\x01\x01\x01\0\x01\0\0\x01\x01\0\x01\x01\x01\x01\0\x01\x01\x01\x01\x01\x01",
+        server_definition: None,
     },
     BlockData {
         id: 21214u32,
@@ -50969,6 +52601,7 @@ pub static ALL_BLOCKS: [BlockData; 1477usize] = [
             },
         ],
         state_values: b"\0\x01",
+        server_definition: None,
     },
     BlockData {
         id: 21216u32,
@@ -50999,6 +52632,7 @@ pub static ALL_BLOCKS: [BlockData; 1477usize] = [
         visual_shape: [0f32, 0f32, 0f32, 1f32, 1f32, 1f32],
         properties: &[],
         state_values: b"",
+        server_definition: None,
     },
     BlockData {
         id: 21217u32,
@@ -51035,6 +52669,7 @@ pub static ALL_BLOCKS: [BlockData; 1477usize] = [
             },
         ],
         state_values: b"\0\x01\x02\x03",
+        server_definition: None,
     },
     BlockData {
         id: 21221u32,
@@ -51066,6 +52701,7 @@ pub static ALL_BLOCKS: [BlockData; 1477usize] = [
             },
         ],
         state_values: b"\0\x01",
+        server_definition: None,
     },
     BlockData {
         id: 21223u32,
@@ -51092,6 +52728,7 @@ pub static ALL_BLOCKS: [BlockData; 1477usize] = [
         visual_shape: [0f32, 0f32, 0f32, 1f32, 1f32, 1f32],
         properties: &[],
         state_values: b"",
+        server_definition: None,
     },
     BlockData {
         id: 21224u32,
@@ -51128,6 +52765,7 @@ pub static ALL_BLOCKS: [BlockData; 1477usize] = [
             },
         ],
         state_values: b"\0\x01\x02\x03",
+        server_definition: None,
     },
     BlockData {
         id: 21228u32,
@@ -51170,6 +52808,7 @@ pub static ALL_BLOCKS: [BlockData; 1477usize] = [
             },
         ],
         state_values: b"\0\0\0\x01\0\x02\0\x03\0\x04\0\x05\x01\0\x01\x01\x01\x02\x01\x03\x01\x04\x01\x05",
+        server_definition: None,
     },
     BlockData {
         id: 21240u32,
@@ -51220,6 +52859,9 @@ pub static ALL_BLOCKS: [BlockData; 1477usize] = [
             },
         ],
         state_values: b"\0\0\0\0\0\x01\0\0\x02\0\0\x03\0\x01\0\0\x01\x01\0\x01\x02\0\x01\x03\x01\0\0\x01\0\x01\x01\0\x02\x01\0\x03\x01\x01\0\x01\x01\x01\x01\x01\x02\x01\x01\x03\x02\0\0\x02\0\x01\x02\0\x02\x02\0\x03\x02\x01\0\x02\x01\x01\x02\x01\x02\x02\x01\x03\x03\0\0\x03\0\x01\x03\0\x02\x03\0\x03\x03\x01\0\x03\x01\x01\x03\x01\x02\x03\x01\x03\x04\0\0\x04\0\x01\x04\0\x02\x04\0\x03\x04\x01\0\x04\x01\x01\x04\x01\x02\x04\x01\x03",
+        server_definition: Some(
+            b"\n\0\t\tblockTags\x08\x02&minecraft:is_pickaxe_item_destructible\n\ncomponents\n minecraft:destructible_by_mining\x05\x05valueff\xE6?\0\n\x1Fminecraft:destruction_particles\x03\x0Eparticle_count`\x08\x07texture\0\x08\x0Btint_method\x04none\0\n\x1Aminecraft:liquid_detection\t\x0EdetectionRules\n\x02\x01\x10canContainLiquid\x01\x08\nliquidType\x05water\x08\x0FonLiquidTouches\x08blocking\x01\x18stopsLiquidFromDirection\0\x01\x13use_liquid_clipping\0\0\0\n\x1Fminecraft:redstone_conductivity\x01\x14allowsWireToStepDown\x01\x01\x11redstoneConductor\0\0\n\x11minecraft:support\x08\x05shape\x05stair\0\0\n\rmenu_category\x08\x08category\x0Cconstruction\x08\x05group\x1Fminecraft:itemGroup.name.stairs\x01\x15is_hidden_in_commands\0\0\x03\rmolangVersion\x1A\n\x12vanilla_block_data\n\x0Fblock_archetype\x08\nbase_block\x19minecraft:orange_concrete\x08\x04type\x0Bstair_block\0\x03\x08block_id\xE2\x16\x08\x08material\x05solid\x01\x1Frequires_correct_tool_for_drops\x01\0\0",
+        ),
     },
     BlockData {
         id: 21280u32,
@@ -51263,6 +52905,7 @@ pub static ALL_BLOCKS: [BlockData; 1477usize] = [
             },
         ],
         state_values: b"\0\0\0\0\0\x01\0\0\x01\0\0\0\x01\x01\0\0\0\0\x01\0\0\x01\x01\0\x01\0\x01\0\x01\x01\x01\0\0\0\0\x01\0\x01\0\x01\x01\0\0\x01\x01\x01\0\x01\0\0\x01\x01\0\x01\x01\x01\x01\0\x01\x01\x01\x01\x01\x01",
+        server_definition: None,
     },
     BlockData {
         id: 21296u32,
@@ -51289,6 +52932,7 @@ pub static ALL_BLOCKS: [BlockData; 1477usize] = [
         visual_shape: [0f32, 0f32, 0f32, 1f32, 0.9375f32, 1f32],
         properties: &[],
         state_values: b"",
+        server_definition: None,
     },
     BlockData {
         id: 21297u32,
@@ -51352,6 +52996,7 @@ pub static ALL_BLOCKS: [BlockData; 1477usize] = [
             },
         ],
         state_values: b"\0\0\0\0\0\0\0\0\0\x01\0\x01\0\0\0\0\x01\0\0\x01\0\x02\0\0\0\0\x02\0\0\x01\x01\0\0\0\0\x01\0\0\0\x01\x01\x01\0\0\0\x01\x01\0\0\x01\x01\x02\0\0\0\x01\x02\0\0\x01\x02\0\0\0\0\x02\0\0\0\x01\x02\x01\0\0\0\x02\x01\0\0\x01\x02\x02\0\0\0\x02\x02\0\0\x01\0\0\x01\0\0\0\0\x01\0\x01\0\x01\x01\0\0\0\x01\x01\0\x01\0\x02\x01\0\0\0\x02\x01\0\x01\x01\0\x01\0\0\x01\0\x01\0\x01\x01\x01\x01\0\0\x01\x01\x01\0\x01\x01\x02\x01\0\0\x01\x02\x01\0\x01\x02\0\x01\0\0\x02\0\x01\0\x01\x02\x01\x01\0\0\x02\x01\x01\0\x01\x02\x02\x01\0\0\x02\x02\x01\0\x01\0\0\x02\0\0\0\0\x02\0\x01\0\x01\x02\0\0\0\x01\x02\0\x01\0\x02\x02\0\0\0\x02\x02\0\x01\x01\0\x02\0\0\x01\0\x02\0\x01\x01\x01\x02\0\0\x01\x01\x02\0\x01\x01\x02\x02\0\0\x01\x02\x02\0\x01\x02\0\x02\0\0\x02\0\x02\0\x01\x02\x01\x02\0\0\x02\x01\x02\0\x01\x02\x02\x02\0\0\x02\x02\x02\0\x01\0\0\0\x01\0\0\0\0\x01\x01\0\x01\0\x01\0\0\x01\0\x01\x01\0\x02\0\x01\0\0\x02\0\x01\x01\x01\0\0\x01\0\x01\0\0\x01\x01\x01\x01\0\x01\0\x01\x01\0\x01\x01\x01\x02\0\x01\0\x01\x02\0\x01\x01\x02\0\0\x01\0\x02\0\0\x01\x01\x02\x01\0\x01\0\x02\x01\0\x01\x01\x02\x02\0\x01\0\x02\x02\0\x01\x01\0\0\x01\x01\0\0\0\x01\x01\x01\0\x01\x01\x01\0\0\x01\x01\x01\x01\0\x02\x01\x01\0\0\x02\x01\x01\x01\x01\0\x01\x01\0\x01\0\x01\x01\x01\x01\x01\x01\x01\0\x01\x01\x01\x01\x01\x01\x02\x01\x01\0\x01\x02\x01\x01\x01\x02\0\x01\x01\0\x02\0\x01\x01\x01\x02\x01\x01\x01\0\x02\x01\x01\x01\x01\x02\x02\x01\x01\0\x02\x02\x01\x01\x01\0\0\x02\x01\0\0\0\x02\x01\x01\0\x01\x02\x01\0\0\x01\x02\x01\x01\0\x02\x02\x01\0\0\x02\x02\x01\x01\x01\0\x02\x01\0\x01\0\x02\x01\x01\x01\x01\x02\x01\0\x01\x01\x02\x01\x01\x01\x02\x02\x01\0\x01\x02\x02\x01\x01\x02\0\x02\x01\0\x02\0\x02\x01\x01\x02\x01\x02\x01\0\x02\x01\x02\x01\x01\x02\x02\x02\x01\0\x02\x02\x02\x01\x01\0\0\0\x02\0\0\0\0\x02\x01\0\x01\0\x02\0\0\x01\0\x02\x01\0\x02\0\x02\0\0\x02\0\x02\x01\x01\0\0\x02\0\x01\0\0\x02\x01\x01\x01\0\x02\0\x01\x01\0\x02\x01\x01\x02\0\x02\0\x01\x02\0\x02\x01\x02\0\0\x02\0\x02\0\0\x02\x01\x02\x01\0\x02\0\x02\x01\0\x02\x01\x02\x02\0\x02\0\x02\x02\0\x02\x01\0\0\x01\x02\0\0\0\x01\x02\x01\0\x01\x01\x02\0\0\x01\x01\x02\x01\0\x02\x01\x02\0\0\x02\x01\x02\x01\x01\0\x01\x02\0\x01\0\x01\x02\x01\x01\x01\x01\x02\0\x01\x01\x01\x02\x01\x01\x02\x01\x02\0\x01\x02\x01\x02\x01\x02\0\x01\x02\0\x02\0\x01\x02\x01\x02\x01\x01\x02\0\x02\x01\x01\x02\x01\x02\x02\x01\x02\0\x02\x02\x01\x02\x01\0\0\x02\x02\0\0\0\x02\x02\x01\0\x01\x02\x02\0\0\x01\x02\x02\x01\0\x02\x02\x02\0\0\x02\x02\x02\x01\x01\0\x02\x02\0\x01\0\x02\x02\x01\x01\x01\x02\x02\0\x01\x01\x02\x02\x01\x01\x02\x02\x02\0\x01\x02\x02\x02\x01\x02\0\x02\x02\0\x02\0\x02\x02\x01\x02\x01\x02\x02\0\x02\x01\x02\x02\x01\x02\x02\x02\x02\0\x02\x02\x02\x02\x01",
+        server_definition: None,
     },
     BlockData {
         id: 21459u32,
@@ -51415,6 +53060,7 @@ pub static ALL_BLOCKS: [BlockData; 1477usize] = [
             },
         ],
         state_values: b"\0\0\0\0\0\0\0\0\0\x01\0\x01\0\0\0\0\x01\0\0\x01\0\x02\0\0\0\0\x02\0\0\x01\x01\0\0\0\0\x01\0\0\0\x01\x01\x01\0\0\0\x01\x01\0\0\x01\x01\x02\0\0\0\x01\x02\0\0\x01\x02\0\0\0\0\x02\0\0\0\x01\x02\x01\0\0\0\x02\x01\0\0\x01\x02\x02\0\0\0\x02\x02\0\0\x01\0\0\x01\0\0\0\0\x01\0\x01\0\x01\x01\0\0\0\x01\x01\0\x01\0\x02\x01\0\0\0\x02\x01\0\x01\x01\0\x01\0\0\x01\0\x01\0\x01\x01\x01\x01\0\0\x01\x01\x01\0\x01\x01\x02\x01\0\0\x01\x02\x01\0\x01\x02\0\x01\0\0\x02\0\x01\0\x01\x02\x01\x01\0\0\x02\x01\x01\0\x01\x02\x02\x01\0\0\x02\x02\x01\0\x01\0\0\x02\0\0\0\0\x02\0\x01\0\x01\x02\0\0\0\x01\x02\0\x01\0\x02\x02\0\0\0\x02\x02\0\x01\x01\0\x02\0\0\x01\0\x02\0\x01\x01\x01\x02\0\0\x01\x01\x02\0\x01\x01\x02\x02\0\0\x01\x02\x02\0\x01\x02\0\x02\0\0\x02\0\x02\0\x01\x02\x01\x02\0\0\x02\x01\x02\0\x01\x02\x02\x02\0\0\x02\x02\x02\0\x01\0\0\0\x01\0\0\0\0\x01\x01\0\x01\0\x01\0\0\x01\0\x01\x01\0\x02\0\x01\0\0\x02\0\x01\x01\x01\0\0\x01\0\x01\0\0\x01\x01\x01\x01\0\x01\0\x01\x01\0\x01\x01\x01\x02\0\x01\0\x01\x02\0\x01\x01\x02\0\0\x01\0\x02\0\0\x01\x01\x02\x01\0\x01\0\x02\x01\0\x01\x01\x02\x02\0\x01\0\x02\x02\0\x01\x01\0\0\x01\x01\0\0\0\x01\x01\x01\0\x01\x01\x01\0\0\x01\x01\x01\x01\0\x02\x01\x01\0\0\x02\x01\x01\x01\x01\0\x01\x01\0\x01\0\x01\x01\x01\x01\x01\x01\x01\0\x01\x01\x01\x01\x01\x01\x02\x01\x01\0\x01\x02\x01\x01\x01\x02\0\x01\x01\0\x02\0\x01\x01\x01\x02\x01\x01\x01\0\x02\x01\x01\x01\x01\x02\x02\x01\x01\0\x02\x02\x01\x01\x01\0\0\x02\x01\0\0\0\x02\x01\x01\0\x01\x02\x01\0\0\x01\x02\x01\x01\0\x02\x02\x01\0\0\x02\x02\x01\x01\x01\0\x02\x01\0\x01\0\x02\x01\x01\x01\x01\x02\x01\0\x01\x01\x02\x01\x01\x01\x02\x02\x01\0\x01\x02\x02\x01\x01\x02\0\x02\x01\0\x02\0\x02\x01\x01\x02\x01\x02\x01\0\x02\x01\x02\x01\x01\x02\x02\x02\x01\0\x02\x02\x02\x01\x01\0\0\0\x02\0\0\0\0\x02\x01\0\x01\0\x02\0\0\x01\0\x02\x01\0\x02\0\x02\0\0\x02\0\x02\x01\x01\0\0\x02\0\x01\0\0\x02\x01\x01\x01\0\x02\0\x01\x01\0\x02\x01\x01\x02\0\x02\0\x01\x02\0\x02\x01\x02\0\0\x02\0\x02\0\0\x02\x01\x02\x01\0\x02\0\x02\x01\0\x02\x01\x02\x02\0\x02\0\x02\x02\0\x02\x01\0\0\x01\x02\0\0\0\x01\x02\x01\0\x01\x01\x02\0\0\x01\x01\x02\x01\0\x02\x01\x02\0\0\x02\x01\x02\x01\x01\0\x01\x02\0\x01\0\x01\x02\x01\x01\x01\x01\x02\0\x01\x01\x01\x02\x01\x01\x02\x01\x02\0\x01\x02\x01\x02\x01\x02\0\x01\x02\0\x02\0\x01\x02\x01\x02\x01\x01\x02\0\x02\x01\x01\x02\x01\x02\x02\x01\x02\0\x02\x02\x01\x02\x01\0\0\x02\x02\0\0\0\x02\x02\x01\0\x01\x02\x02\0\0\x01\x02\x02\x01\0\x02\x02\x02\0\0\x02\x02\x02\x01\x01\0\x02\x02\0\x01\0\x02\x02\x01\x01\x01\x02\x02\0\x01\x01\x02\x02\x01\x01\x02\x02\x02\0\x01\x02\x02\x02\x01\x02\0\x02\x02\0\x02\0\x02\x02\x01\x02\x01\x02\x02\0\x02\x01\x02\x02\x01\x02\x02\x02\x02\0\x02\x02\x02\x02\x01",
+        server_definition: None,
     },
     BlockData {
         id: 21621u32,
@@ -51460,6 +53106,7 @@ pub static ALL_BLOCKS: [BlockData; 1477usize] = [
             },
         ],
         state_values: b"\0\0\x01\0\x02\0\x03\0\x04\0\x05\0\0\x01\x01\x01\x02\x01\x03\x01\x04\x01\x05\x01",
+        server_definition: None,
     },
     BlockData {
         id: 21633u32,
@@ -51486,6 +53133,7 @@ pub static ALL_BLOCKS: [BlockData; 1477usize] = [
         visual_shape: [0f32, 0f32, 0f32, 1f32, 1f32, 1f32],
         properties: &[],
         state_values: b"",
+        server_definition: None,
     },
     BlockData {
         id: 21634u32,
@@ -51517,6 +53165,7 @@ pub static ALL_BLOCKS: [BlockData; 1477usize] = [
             },
         ],
         state_values: b"\0\x01",
+        server_definition: None,
     },
     BlockData {
         id: 21636u32,
@@ -51547,6 +53196,7 @@ pub static ALL_BLOCKS: [BlockData; 1477usize] = [
         visual_shape: [0f32, 0f32, 0f32, 1f32, 1f32, 1f32],
         properties: &[],
         state_values: b"",
+        server_definition: None,
     },
     BlockData {
         id: 21637u32,
@@ -51610,6 +53260,7 @@ pub static ALL_BLOCKS: [BlockData; 1477usize] = [
             },
         ],
         state_values: b"\0\0\0\0\0\0\0\0\0\x01\0\x01\0\0\0\0\x01\0\0\x01\0\x02\0\0\0\0\x02\0\0\x01\x01\0\0\0\0\x01\0\0\0\x01\x01\x01\0\0\0\x01\x01\0\0\x01\x01\x02\0\0\0\x01\x02\0\0\x01\x02\0\0\0\0\x02\0\0\0\x01\x02\x01\0\0\0\x02\x01\0\0\x01\x02\x02\0\0\0\x02\x02\0\0\x01\0\0\x01\0\0\0\0\x01\0\x01\0\x01\x01\0\0\0\x01\x01\0\x01\0\x02\x01\0\0\0\x02\x01\0\x01\x01\0\x01\0\0\x01\0\x01\0\x01\x01\x01\x01\0\0\x01\x01\x01\0\x01\x01\x02\x01\0\0\x01\x02\x01\0\x01\x02\0\x01\0\0\x02\0\x01\0\x01\x02\x01\x01\0\0\x02\x01\x01\0\x01\x02\x02\x01\0\0\x02\x02\x01\0\x01\0\0\x02\0\0\0\0\x02\0\x01\0\x01\x02\0\0\0\x01\x02\0\x01\0\x02\x02\0\0\0\x02\x02\0\x01\x01\0\x02\0\0\x01\0\x02\0\x01\x01\x01\x02\0\0\x01\x01\x02\0\x01\x01\x02\x02\0\0\x01\x02\x02\0\x01\x02\0\x02\0\0\x02\0\x02\0\x01\x02\x01\x02\0\0\x02\x01\x02\0\x01\x02\x02\x02\0\0\x02\x02\x02\0\x01\0\0\0\x01\0\0\0\0\x01\x01\0\x01\0\x01\0\0\x01\0\x01\x01\0\x02\0\x01\0\0\x02\0\x01\x01\x01\0\0\x01\0\x01\0\0\x01\x01\x01\x01\0\x01\0\x01\x01\0\x01\x01\x01\x02\0\x01\0\x01\x02\0\x01\x01\x02\0\0\x01\0\x02\0\0\x01\x01\x02\x01\0\x01\0\x02\x01\0\x01\x01\x02\x02\0\x01\0\x02\x02\0\x01\x01\0\0\x01\x01\0\0\0\x01\x01\x01\0\x01\x01\x01\0\0\x01\x01\x01\x01\0\x02\x01\x01\0\0\x02\x01\x01\x01\x01\0\x01\x01\0\x01\0\x01\x01\x01\x01\x01\x01\x01\0\x01\x01\x01\x01\x01\x01\x02\x01\x01\0\x01\x02\x01\x01\x01\x02\0\x01\x01\0\x02\0\x01\x01\x01\x02\x01\x01\x01\0\x02\x01\x01\x01\x01\x02\x02\x01\x01\0\x02\x02\x01\x01\x01\0\0\x02\x01\0\0\0\x02\x01\x01\0\x01\x02\x01\0\0\x01\x02\x01\x01\0\x02\x02\x01\0\0\x02\x02\x01\x01\x01\0\x02\x01\0\x01\0\x02\x01\x01\x01\x01\x02\x01\0\x01\x01\x02\x01\x01\x01\x02\x02\x01\0\x01\x02\x02\x01\x01\x02\0\x02\x01\0\x02\0\x02\x01\x01\x02\x01\x02\x01\0\x02\x01\x02\x01\x01\x02\x02\x02\x01\0\x02\x02\x02\x01\x01\0\0\0\x02\0\0\0\0\x02\x01\0\x01\0\x02\0\0\x01\0\x02\x01\0\x02\0\x02\0\0\x02\0\x02\x01\x01\0\0\x02\0\x01\0\0\x02\x01\x01\x01\0\x02\0\x01\x01\0\x02\x01\x01\x02\0\x02\0\x01\x02\0\x02\x01\x02\0\0\x02\0\x02\0\0\x02\x01\x02\x01\0\x02\0\x02\x01\0\x02\x01\x02\x02\0\x02\0\x02\x02\0\x02\x01\0\0\x01\x02\0\0\0\x01\x02\x01\0\x01\x01\x02\0\0\x01\x01\x02\x01\0\x02\x01\x02\0\0\x02\x01\x02\x01\x01\0\x01\x02\0\x01\0\x01\x02\x01\x01\x01\x01\x02\0\x01\x01\x01\x02\x01\x01\x02\x01\x02\0\x01\x02\x01\x02\x01\x02\0\x01\x02\0\x02\0\x01\x02\x01\x02\x01\x01\x02\0\x02\x01\x01\x02\x01\x02\x02\x01\x02\0\x02\x02\x01\x02\x01\0\0\x02\x02\0\0\0\x02\x02\x01\0\x01\x02\x02\0\0\x01\x02\x02\x01\0\x02\x02\x02\0\0\x02\x02\x02\x01\x01\0\x02\x02\0\x01\0\x02\x02\x01\x01\x01\x02\x02\0\x01\x01\x02\x02\x01\x01\x02\x02\x02\0\x01\x02\x02\x02\x01\x02\0\x02\x02\0\x02\0\x02\x02\x01\x02\x01\x02\x02\0\x02\x01\x02\x02\x01\x02\x02\x02\x02\0\x02\x02\x02\x02\x01",
+        server_definition: None,
     },
     BlockData {
         id: 21799u32,
@@ -51648,6 +53299,7 @@ pub static ALL_BLOCKS: [BlockData; 1477usize] = [
             },
         ],
         state_values: b"\0\x01\x02\x03\x04\x05",
+        server_definition: None,
     },
     BlockData {
         id: 21805u32,
@@ -51711,6 +53363,7 @@ pub static ALL_BLOCKS: [BlockData; 1477usize] = [
             },
         ],
         state_values: b"\0\0\0\0\0\0\0\0\0\x01\0\x01\0\0\0\0\x01\0\0\x01\0\x02\0\0\0\0\x02\0\0\x01\x01\0\0\0\0\x01\0\0\0\x01\x01\x01\0\0\0\x01\x01\0\0\x01\x01\x02\0\0\0\x01\x02\0\0\x01\x02\0\0\0\0\x02\0\0\0\x01\x02\x01\0\0\0\x02\x01\0\0\x01\x02\x02\0\0\0\x02\x02\0\0\x01\0\0\x01\0\0\0\0\x01\0\x01\0\x01\x01\0\0\0\x01\x01\0\x01\0\x02\x01\0\0\0\x02\x01\0\x01\x01\0\x01\0\0\x01\0\x01\0\x01\x01\x01\x01\0\0\x01\x01\x01\0\x01\x01\x02\x01\0\0\x01\x02\x01\0\x01\x02\0\x01\0\0\x02\0\x01\0\x01\x02\x01\x01\0\0\x02\x01\x01\0\x01\x02\x02\x01\0\0\x02\x02\x01\0\x01\0\0\x02\0\0\0\0\x02\0\x01\0\x01\x02\0\0\0\x01\x02\0\x01\0\x02\x02\0\0\0\x02\x02\0\x01\x01\0\x02\0\0\x01\0\x02\0\x01\x01\x01\x02\0\0\x01\x01\x02\0\x01\x01\x02\x02\0\0\x01\x02\x02\0\x01\x02\0\x02\0\0\x02\0\x02\0\x01\x02\x01\x02\0\0\x02\x01\x02\0\x01\x02\x02\x02\0\0\x02\x02\x02\0\x01\0\0\0\x01\0\0\0\0\x01\x01\0\x01\0\x01\0\0\x01\0\x01\x01\0\x02\0\x01\0\0\x02\0\x01\x01\x01\0\0\x01\0\x01\0\0\x01\x01\x01\x01\0\x01\0\x01\x01\0\x01\x01\x01\x02\0\x01\0\x01\x02\0\x01\x01\x02\0\0\x01\0\x02\0\0\x01\x01\x02\x01\0\x01\0\x02\x01\0\x01\x01\x02\x02\0\x01\0\x02\x02\0\x01\x01\0\0\x01\x01\0\0\0\x01\x01\x01\0\x01\x01\x01\0\0\x01\x01\x01\x01\0\x02\x01\x01\0\0\x02\x01\x01\x01\x01\0\x01\x01\0\x01\0\x01\x01\x01\x01\x01\x01\x01\0\x01\x01\x01\x01\x01\x01\x02\x01\x01\0\x01\x02\x01\x01\x01\x02\0\x01\x01\0\x02\0\x01\x01\x01\x02\x01\x01\x01\0\x02\x01\x01\x01\x01\x02\x02\x01\x01\0\x02\x02\x01\x01\x01\0\0\x02\x01\0\0\0\x02\x01\x01\0\x01\x02\x01\0\0\x01\x02\x01\x01\0\x02\x02\x01\0\0\x02\x02\x01\x01\x01\0\x02\x01\0\x01\0\x02\x01\x01\x01\x01\x02\x01\0\x01\x01\x02\x01\x01\x01\x02\x02\x01\0\x01\x02\x02\x01\x01\x02\0\x02\x01\0\x02\0\x02\x01\x01\x02\x01\x02\x01\0\x02\x01\x02\x01\x01\x02\x02\x02\x01\0\x02\x02\x02\x01\x01\0\0\0\x02\0\0\0\0\x02\x01\0\x01\0\x02\0\0\x01\0\x02\x01\0\x02\0\x02\0\0\x02\0\x02\x01\x01\0\0\x02\0\x01\0\0\x02\x01\x01\x01\0\x02\0\x01\x01\0\x02\x01\x01\x02\0\x02\0\x01\x02\0\x02\x01\x02\0\0\x02\0\x02\0\0\x02\x01\x02\x01\0\x02\0\x02\x01\0\x02\x01\x02\x02\0\x02\0\x02\x02\0\x02\x01\0\0\x01\x02\0\0\0\x01\x02\x01\0\x01\x01\x02\0\0\x01\x01\x02\x01\0\x02\x01\x02\0\0\x02\x01\x02\x01\x01\0\x01\x02\0\x01\0\x01\x02\x01\x01\x01\x01\x02\0\x01\x01\x01\x02\x01\x01\x02\x01\x02\0\x01\x02\x01\x02\x01\x02\0\x01\x02\0\x02\0\x01\x02\x01\x02\x01\x01\x02\0\x02\x01\x01\x02\x01\x02\x02\x01\x02\0\x02\x02\x01\x02\x01\0\0\x02\x02\0\0\0\x02\x02\x01\0\x01\x02\x02\0\0\x01\x02\x02\x01\0\x02\x02\x02\0\0\x02\x02\x02\x01\x01\0\x02\x02\0\x01\0\x02\x02\x01\x01\x01\x02\x02\0\x01\x01\x02\x02\x01\x01\x02\x02\x02\0\x01\x02\x02\x02\x01\x02\0\x02\x02\0\x02\0\x02\x02\x01\x02\x01\x02\x02\0\x02\x01\x02\x02\x01\x02\x02\x02\x02\0\x02\x02\x02\x02\x01",
+        server_definition: None,
     },
     BlockData {
         id: 21967u32,
@@ -51742,6 +53395,7 @@ pub static ALL_BLOCKS: [BlockData; 1477usize] = [
             },
         ],
         state_values: b"\0\x01",
+        server_definition: None,
     },
     BlockData {
         id: 21969u32,
@@ -51768,6 +53422,7 @@ pub static ALL_BLOCKS: [BlockData; 1477usize] = [
         visual_shape: [0f32, 0f32, 0f32, 1f32, 1f32, 1f32],
         properties: &[],
         state_values: b"",
+        server_definition: None,
     },
     BlockData {
         id: 21970u32,
@@ -51812,6 +53467,7 @@ pub static ALL_BLOCKS: [BlockData; 1477usize] = [
             },
         ],
         state_values: b"\0\0\0\0\x01\0\0\x02\0\0\x03\0\0\0\x01\0\x01\x01\0\x02\x01\0\x03\x01\x01\0\0\x01\x01\0\x01\x02\0\x01\x03\0\x01\0\x01\x01\x01\x01\x01\x02\x01\x01\x03\x01",
+        server_definition: None,
     },
     BlockData {
         id: 21986u32,
@@ -51850,6 +53506,7 @@ pub static ALL_BLOCKS: [BlockData; 1477usize] = [
             },
         ],
         state_values: b"\0\x01\x02\x03\x04\x05",
+        server_definition: None,
     },
     BlockData {
         id: 21992u32,
@@ -51888,6 +53545,7 @@ pub static ALL_BLOCKS: [BlockData; 1477usize] = [
             },
         ],
         state_values: b"\0\x01\x02\x03\x04\x05",
+        server_definition: None,
     },
     BlockData {
         id: 21998u32,
@@ -51914,6 +53572,7 @@ pub static ALL_BLOCKS: [BlockData; 1477usize] = [
         visual_shape: [0f32, 0f32, 0f32, 1f32, 1f32, 1f32],
         properties: &[],
         state_values: b"",
+        server_definition: None,
     },
     BlockData {
         id: 21999u32,
@@ -51940,6 +53599,7 @@ pub static ALL_BLOCKS: [BlockData; 1477usize] = [
         visual_shape: [0f32, 0f32, 0f32, 1f32, 1f32, 1f32],
         properties: &[],
         state_values: b"",
+        server_definition: None,
     },
     BlockData {
         id: 22000u32,
@@ -51983,6 +53643,7 @@ pub static ALL_BLOCKS: [BlockData; 1477usize] = [
             },
         ],
         state_values: b"\0\0\0\0\0\x01\0\0\x01\0\0\0\x01\x01\0\0\0\0\x01\0\0\x01\x01\0\x01\0\x01\0\x01\x01\x01\0\0\0\0\x01\0\x01\0\x01\x01\0\0\x01\x01\x01\0\x01\0\0\x01\x01\0\x01\x01\x01\x01\0\x01\x01\x01\x01\x01\x01",
+        server_definition: None,
     },
     BlockData {
         id: 22016u32,
@@ -52014,6 +53675,7 @@ pub static ALL_BLOCKS: [BlockData; 1477usize] = [
         visual_shape: [0f32, 0f32, 0f32, 1f32, 1f32, 1f32],
         properties: &[],
         state_values: b"",
+        server_definition: None,
     },
     BlockData {
         id: 22017u32,
@@ -52049,6 +53711,7 @@ pub static ALL_BLOCKS: [BlockData; 1477usize] = [
             },
         ],
         state_values: b"\0\x01\x02",
+        server_definition: None,
     },
     BlockData {
         id: 22020u32,
@@ -52075,6 +53738,7 @@ pub static ALL_BLOCKS: [BlockData; 1477usize] = [
         visual_shape: [0f32, 0f32, 0f32, 1f32, 0.0625f32, 1f32],
         properties: &[],
         state_values: b"",
+        server_definition: None,
     },
     BlockData {
         id: 22021u32,
@@ -52101,6 +53765,7 @@ pub static ALL_BLOCKS: [BlockData; 1477usize] = [
         visual_shape: [0f32, 0f32, 0f32, 1f32, 1f32, 1f32],
         properties: &[],
         state_values: b"",
+        server_definition: None,
     },
     BlockData {
         id: 22022u32,
@@ -52131,6 +53796,7 @@ pub static ALL_BLOCKS: [BlockData; 1477usize] = [
         visual_shape: [0f32, 0f32, 0f32, 1f32, 1f32, 1f32],
         properties: &[],
         state_values: b"",
+        server_definition: None,
     },
     BlockData {
         id: 22023u32,
@@ -52169,6 +53835,7 @@ pub static ALL_BLOCKS: [BlockData; 1477usize] = [
             },
         ],
         state_values: b"\0\x01\x02\x03\x04\x05",
+        server_definition: None,
     },
     BlockData {
         id: 22029u32,
@@ -52217,6 +53884,7 @@ pub static ALL_BLOCKS: [BlockData; 1477usize] = [
             },
         ],
         state_values: b"\0\x01\x02\x03\x04\x05\x06\x07\x08\t\n\x0B\x0C\r\x0E\x0F",
+        server_definition: None,
     },
     BlockData {
         id: 22045u32,
@@ -52252,6 +53920,7 @@ pub static ALL_BLOCKS: [BlockData; 1477usize] = [
             },
         ],
         state_values: b"\0\x01\x02",
+        server_definition: None,
     },
     BlockData {
         id: 22048u32,
@@ -52283,6 +53952,7 @@ pub static ALL_BLOCKS: [BlockData; 1477usize] = [
             },
         ],
         state_values: b"\0\x01",
+        server_definition: None,
     },
     BlockData {
         id: 22050u32,
@@ -52309,6 +53979,7 @@ pub static ALL_BLOCKS: [BlockData; 1477usize] = [
         visual_shape: [0f32, 0f32, 0f32, 1f32, 1f32, 1f32],
         properties: &[],
         state_values: b"",
+        server_definition: None,
     },
     BlockData {
         id: 22051u32,
@@ -52340,6 +54011,9 @@ pub static ALL_BLOCKS: [BlockData; 1477usize] = [
             },
         ],
         state_values: b"\0\x01",
+        server_definition: Some(
+            b"\n\0\t\tblockTags\x08\x02&minecraft:is_pickaxe_item_destructible\n\ncomponents\n minecraft:destructible_by_mining\x05\x05valueff\xE6?\0\n\x1Fminecraft:redstone_conductivity\x01\x14allowsWireToStepDown\x01\x01\x11redstoneConductor\x01\0\0\n\rmenu_category\x08\x08category\x04none\x08\x05group\0\x01\x15is_hidden_in_commands\x01\0\x03\rmolangVersion\x1A\n\x12vanilla_block_data\n\x0Fblock_archetype\x08\x11double_slab_block\x1Bminecraft:red_concrete_slab\x01\tis_double\x01\x08\x04type\nslab_block\0\x03\x08block_id\xA6\x17\x08\x08material\x05solid\x01\x1Frequires_correct_tool_for_drops\x01\0\0",
+        ),
     },
     BlockData {
         id: 22053u32,
@@ -52366,6 +54040,7 @@ pub static ALL_BLOCKS: [BlockData; 1477usize] = [
         visual_shape: [0f32, 0f32, 0f32, 1f32, 1f32, 1f32],
         properties: &[],
         state_values: b"",
+        server_definition: None,
     },
     BlockData {
         id: 22054u32,
@@ -52414,6 +54089,7 @@ pub static ALL_BLOCKS: [BlockData; 1477usize] = [
             },
         ],
         state_values: b"\0\0\0\0\0\x01\0\0\0\x02\0\0\0\x03\0\0\0\0\x01\0\0\x01\x01\0\0\x02\x01\0\0\x03\x01\0\0\0\0\x01\0\x01\0\x01\0\x02\0\x01\0\x03\0\x01\0\0\x01\x01\0\x01\x01\x01\0\x02\x01\x01\0\x03\x01\x01\x01\0\0\0\x01\x01\0\0\x01\x02\0\0\x01\x03\0\0\x01\0\x01\0\x01\x01\x01\0\x01\x02\x01\0\x01\x03\x01\0\x01\0\0\x01\x01\x01\0\x01\x01\x02\0\x01\x01\x03\0\x01\x01\0\x01\x01\x01\x01\x01\x01\x01\x02\x01\x01\x01\x03\x01\x01",
+        server_definition: None,
     },
     BlockData {
         id: 22086u32,
@@ -52450,6 +54126,7 @@ pub static ALL_BLOCKS: [BlockData; 1477usize] = [
             },
         ],
         state_values: b"\0\x01\x02\x03",
+        server_definition: None,
     },
     BlockData {
         id: 22090u32,
@@ -52476,6 +54153,7 @@ pub static ALL_BLOCKS: [BlockData; 1477usize] = [
         visual_shape: [0.15f32, 0f32, 0.15f32, 0.7f32, 0.6f32, 0.7f32],
         properties: &[],
         state_values: b"",
+        server_definition: None,
     },
 ];
 /// Look up a block by namespaced identifier.

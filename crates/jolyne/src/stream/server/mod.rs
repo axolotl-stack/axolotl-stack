@@ -320,18 +320,48 @@ impl<T: Transport> BedrockStream<StartGame, Server, T> {
     }
 
     /// Sends `StartGame` and the definitions, answers `RequestChunkRadius`,
-    /// and enters play on a matching `SetLocalPlayerAsInitialized`.
+    /// and enters play on a matching `SetLocalPlayerAsInitialized`. jolyne
+    /// sends no terrain, so the client starts with an empty view.
     #[tracing::instrument(skip_all, level = "debug", fields(peer = %self.peer_addr()))]
     pub async fn start_game(
         self,
         params: WorldJoinParams,
+    ) -> Result<BedrockStream<Play, Server, T>, Failed<T>> {
+        self.spawn(params, false).await
+    }
+
+    /// Sends `StartGame` and the definitions and enters play at the first
+    /// `RequestChunkRadius`, answered with `ChunkRadiusUpdated` only (see
+    /// [`core::WorldReady::start_game_streamed`]). The application then sends
+    /// `NetworkChunkPublisherUpdate`, the chunks it has and
+    /// `PlayStatus(PlayerSpawn)`, and streams the rest while the client loads,
+    /// as BDS does. Until the client sends `SetLocalPlayerAsInitialized`
+    /// ([`BedrockStream::is_initialized`]), receiving checks its runtime ID
+    /// and fails with `Timeout(Spawn)` at the spawn deadline.
+    #[tracing::instrument(skip_all, level = "debug", fields(peer = %self.peer_addr()))]
+    pub async fn start_game_streamed(
+        self,
+        params: WorldJoinParams,
+    ) -> Result<BedrockStream<Play, Server, T>, Failed<T>> {
+        self.spawn(params, true).await
+    }
+
+    async fn spawn(
+        self,
+        params: WorldJoinParams,
+        streamed: bool,
     ) -> Result<BedrockStream<Play, Server, T>, Failed<T>> {
         let super::Parts {
             transport,
             owner,
             seat,
         } = self.take();
-        let spawn = match owner.start_game(params, driver::now()) {
+        let started = if streamed {
+            owner.start_game_streamed(params, driver::now())
+        } else {
+            owner.start_game(params, driver::now())
+        };
+        let spawn = match started {
             Ok(spawn) => spawn,
             Err(failure) => return Err(failed(failure, transport, seat)),
         };
@@ -364,5 +394,12 @@ impl<T: Transport> BedrockStream<Play, Server, T> {
     /// before requesting one).
     pub fn chunk_radius(&self) -> Option<i32> {
         self.owner().session.chunk_radius()
+    }
+
+    /// Whether the client has sent `SetLocalPlayerAsInitialized`; only a
+    /// streamed spawn ([`BedrockStream::start_game_streamed`]) enters play
+    /// before it.
+    pub fn is_initialized(&self) -> bool {
+        self.owner().session.is_initialized()
     }
 }

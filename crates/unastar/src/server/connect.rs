@@ -21,7 +21,8 @@ use crate::storage::{PlayerData, PlayerProvider};
 /// 3. Encryption handshake
 /// 4. Resource pack negotiation
 /// 5. Spawn location resolution
-/// 6. Start game packet
+/// 6. Start game packet, returning at the client's chunk radius request
+///    (streamed spawn: the client has not initialized yet)
 ///
 /// A failed step sends the client a reasoned disconnect before returning.
 pub async fn accept_join_sequence(
@@ -110,8 +111,11 @@ pub async fn accept_join_sequence(
         y: spawn.yaw,
     };
 
-    // 7. Join.
-    let play = reasoned(start_game_state.start_game(join_params)).await?;
+    // 7. Join. The streamed spawn returns at the client's radius request, before
+    // it initializes: the chunk systems send the view, the chunks they have and
+    // `PlayStatus(PlayerSpawn)`, and keep streaming while the client loads (BDS
+    // order). The play receive path enforces `SetLocalPlayerAsInitialized`.
+    let play = reasoned(start_game_state.start_game_streamed(join_params)).await?;
     Ok((play, identity, initial_position, saved_data))
 }
 

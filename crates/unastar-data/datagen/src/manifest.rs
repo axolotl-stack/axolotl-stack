@@ -152,6 +152,16 @@ pub fn write_manifest(output_dir: &Path, inputs: &ManifestInputs<'_>) -> miette:
         "high",
         true,
     )?);
+    sources.push(source_from_path(
+        "protocolgen_data_driven_blocks",
+        "cloudburst_start_game_block_definitions",
+        &inputs
+            .native_path
+            .join("../../../../../generated/data/registry/data_driven_blocks.nbt"),
+        Some("1.26.51".into()),
+        "high",
+        true,
+    )?);
     // Per-state block shapes: geometry from CloudburstMC/Data (Apache-2.0),
     // projected by protocolgen; the revision is in `semantic_sources.json`.
     let protocolgen_data = inputs.native_path.join("../../../../../generated/data");

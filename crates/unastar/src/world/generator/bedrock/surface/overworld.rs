@@ -4,8 +4,10 @@
 //! - above water: `top_material`, then `depth` blocks of `mid_material`
 //!   (both the steep material on flagged steep slopes);
 //! - underwater (covered by liquid, or below the water surface level):
-//!   - deep floors, below `sea_level - sea_floor_depth - depth`:
-//!     `sea_floor_material` for the top and the `depth` blocks below;
+//!   - deep floors, below `sea_level - sea_floor_depth - depth`: a single
+//!     `sea_floor_material` block with `foundation_material` below it, as the
+//!     classic builder's deep-water branch (BDS ocean chunks in the fixture
+//!     hold roughly one gravel per deep column, not a `depth`-thick layer);
 //!   - shallow floors: `mid_material` (grass never generates underwater);
 //! - a sand mid layer is followed by `rng(4) + max(0, y - sea_level)`
 //!   blocks of sandstone (red sand: red sandstone) when `depth > 1`.
@@ -64,7 +66,7 @@ pub(super) fn build<C: SurfaceColumn>(
             foundation = m.foundation;
             let (top, layer) = if underwater(col, y, c.sea_level) {
                 if y < c.sea_level - m.sea_floor_depth - depth {
-                    (m.sea_floor, m.sea_floor)
+                    (m.sea_floor, m.foundation)
                 } else {
                     (m.mid, m.mid)
                 }

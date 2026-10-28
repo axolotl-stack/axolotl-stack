@@ -181,6 +181,9 @@ impl GameServer {
             McpePacketData::AnimatePacket(pk) => {
                 crate::server::broadcast::relay_player_swing(world, entity, &pk);
             }
+            McpePacketData::SetLocalPlayerAsInitializedPacket(_) => {
+                // Ends the streamed spawn; jolyne's receive path checked its runtime ID.
+            }
             _other => {
                 debug!(session_id, "Unhandled packet");
             }

@@ -60,9 +60,9 @@ use crate::server::broadcast::{
 use crate::storage::{ChunkColumn, PlayerData};
 use crate::world::ChunkManager;
 use crate::world::ecs::{
-    BlockBroadcastEvent, ChunkData, ChunkLoadConfig, ChunkLoader, ChunkPosition, ChunkStateFlags,
-    ChunkTickingState, LastPublisherState, PendingChunkGenerations, PlayerDespawnedEvent,
-    PlayerSpawnedEvent, on_block_changed, register_chunk_systems,
+    AwaitingSpawnStatus, BlockBroadcastEvent, ChunkData, ChunkLoadConfig, ChunkLoader,
+    ChunkPosition, ChunkStateFlags, ChunkTickingState, LastPublisherState, PendingChunkGenerations,
+    PlayerDespawnedEvent, PlayerSpawnedEvent, on_block_changed, register_chunk_systems,
 };
 
 // Re-export public types
@@ -648,10 +648,14 @@ impl GameServer {
                 request_ids: RequestIdAssignments::default(),
             })
             .id();
-        self.ecs
-            .world_mut()
-            .entity_mut(entity)
-            .insert((health, hunger, experience));
+        // The streamed spawn still owes `PlayStatus(PlayerSpawn)`; the chunk
+        // systems send it after the player's first view and chunks.
+        self.ecs.world_mut().entity_mut(entity).insert((
+            health,
+            hunger,
+            experience,
+            AwaitingSpawnStatus,
+        ));
 
         if let Some(mut session_map) = self.ecs.world_mut().get_resource_mut::<SessionEntityMap>() {
             session_map.insert(data.session_id, entity);
@@ -1012,6 +1016,76 @@ mod tests {
                 "{duplicate:?} resent: {names:?}"
             );
         }
+    }
+
+    /// The streamed spawn hands the player over at its radius request, before
+    /// `PlayStatus(PlayerSpawn)`. The first tick sends BDS's order: the view
+    /// (`NetworkChunkPublisherUpdate`), the chunks it has, then `PlayerSpawn`
+    /// once; the rest of the view keeps streaming on later ticks.
+    #[test]
+    fn first_tick_after_join_sends_view_chunks_then_player_spawn() {
+        let mut server = GameServer::with_config(ServerConfig {
+            default_chunk_radius: 4,
+            max_chunk_radius: 4,
+            world: crate::world::WorldConfig::void_spawn_platform(1),
+            ..ServerConfig::default()
+        });
+        let (outbound_tx, mut outbound_rx) = tokio::sync::mpsc::channel(1024);
+        server.spawn_player(PlayerSpawnData {
+            session_id: 42,
+            display_name: "smoke".to_string(),
+            xuid: None,
+            uuid: Some("00000000-0000-0000-0000-000000000042".to_string()),
+            runtime_id: 7,
+            position: DVec3::new(0.5, 17.0, 0.5),
+            outbound_tx,
+            saved_data: None,
+            chunk_radius: 4,
+        })
+        .expect("fresh player spawns");
+        let mut drain = || {
+            let mut packets = Vec::new();
+            while let Ok(packet) = outbound_rx.try_recv() {
+                packets.push(packet);
+            }
+            packets
+        };
+        let names = |packets: &[jolyne::valentine::McpePacket]| -> Vec<_> {
+            packets
+                .iter()
+                .map(|packet| packet.data.packet_id())
+                .collect()
+        };
+        let joined = drain();
+        assert!(
+            !names(&joined).contains(&McpePacketName::PlayStatusPacket),
+            "PlayerSpawn waits for the first view"
+        );
+
+        server.tick();
+        let first = names(&drain());
+        let position = |name| first.iter().position(|sent| *sent == name);
+        let publisher = position(McpePacketName::NetworkChunkPublisherUpdatePacket)
+            .unwrap_or_else(|| panic!("no publisher update on the first tick: {first:?}"));
+        let first_chunk = position(McpePacketName::LevelChunkPacket)
+            .unwrap_or_else(|| panic!("no chunk on the first tick: {first:?}"));
+        let spawn = position(McpePacketName::PlayStatusPacket)
+            .unwrap_or_else(|| panic!("no PlayerSpawn on the first tick: {first:?}"));
+        assert!(publisher < first_chunk && first_chunk < spawn, "{first:?}");
+        let chunks = |names: &[McpePacketName]| {
+            names
+                .iter()
+                .filter(|name| **name == McpePacketName::LevelChunkPacket)
+                .count()
+        };
+
+        server.tick();
+        let second = names(&drain());
+        assert!(chunks(&second) > 0, "the view keeps streaming: {second:?}");
+        assert!(
+            !second.contains(&McpePacketName::PlayStatusPacket),
+            "PlayerSpawn is sent once"
+        );
     }
 }
 

@@ -83,6 +83,13 @@ pub trait Owner: Sized {
     ) -> Result<(), JolyneError> {
         self.connection().queue_disconnect(reason, message, now)
     }
+
+    /// The play session, for owners that hold one. The play receive path
+    /// uses it to finish a streamed spawn (`SetLocalPlayerAsInitialized`
+    /// check and spawn deadline); join phases have none.
+    fn play_session(&mut self) -> Option<&mut super::session::Session> {
+        None
+    }
 }
 
 /// A handshake phase waiting for packets.

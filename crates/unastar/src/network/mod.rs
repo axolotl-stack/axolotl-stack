@@ -38,6 +38,9 @@ pub async fn run_network_loop<T: jolyne::stream::Transport>(
     mut tick_rx: broadcast::Receiver<()>,
 ) {
     let mut stream = stream;
+    // An inbound failure the client should be told about (e.g. a streamed
+    // spawn's `Timeout(Spawn)` or runtime ID mismatch).
+    let mut failure = None;
     'network: loop {
         tokio::select! {
             biased;
@@ -115,6 +118,7 @@ pub async fn run_network_loop<T: jolyne::stream::Transport>(
                     }
                     Err(e) => {
                         tracing::error!(session_id, "Connection failed: {e}");
+                        failure = Some(e);
                         break;
                     }
                 }
@@ -148,8 +152,16 @@ pub async fn run_network_loop<T: jolyne::stream::Transport>(
     }
 
     // Close drains the terminal packet and earlier buffered output, never
-    // packets queued after it. Every failure path also reaches this epilogue.
-    if let Err(e) = stream.close().await {
+    // packets queued after it. Every failure path also reaches this epilogue,
+    // with the failure's reasoned `Disconnect` when it has one.
+    let reason = failure
+        .as_ref()
+        .and_then(|e| Some((e.disconnect_reason()?, e.disconnect_message())));
+    let closed = match reason {
+        Some((reason, message)) => stream.disconnect(reason, message).await,
+        None => stream.close().await,
+    };
+    if let Err(e) = closed {
         trace!(session_id, "Closing connection failed: {e}");
     }
     let _ = event_tx

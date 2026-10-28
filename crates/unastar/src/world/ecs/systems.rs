@@ -22,7 +22,8 @@ use crate::world::ecs::{
 };
 use jolyne::valentine::types::{BlockPos, ChunkPos, DimensionType};
 use jolyne::valentine::{
-    LevelChunkPacket, McpePacket, NetworkChunkPublisherUpdatePacket, UpdateBlockPacket,
+    LevelChunkPacket, McpePacket, NetworkChunkPublisherUpdatePacket, PlayStatusPacket,
+    PlayStatusPacketStatus, UpdateBlockPacket,
 };
 
 // Protocol 2168 replaced the legacy negative LevelChunk request-mode sentinel
@@ -82,6 +83,92 @@ pub struct LastPublisherState {
     pub radius: i32,
     /// True if we've sent the final update after queue emptied.
     pub queue_was_empty: bool,
+}
+
+impl LastPublisherState {
+    /// Whether the player has been sent a view. Players join with an empty
+    /// view (jolyne sends no `NetworkChunkPublisherUpdate`), so no chunk may
+    /// be sent before this view.
+    pub fn published(&self) -> bool {
+        self.radius != 0
+    }
+}
+
+/// Marks a player whose join still owes `PlayStatus(PlayerSpawn)`: the
+/// streamed spawn hands the player over at its `RequestChunkRadius`, and the
+/// spawn status follows the view and the chunks of the player's first tick
+/// (BDS order) without waiting for chunk generation.
+#[derive(Component, Debug, Default)]
+pub struct AwaitingSpawnStatus;
+
+/// System: Send `PlayStatus(PlayerSpawn)` once, after this tick's publisher
+/// update and chunks. The client then loads the terrain still streaming in
+/// and sends `SetLocalPlayerAsInitialized` when it is ready.
+pub fn send_spawn_status(
+    mut commands: Commands,
+    players: Query<(Entity, &PlayerSession, &LastPublisherState), With<AwaitingSpawnStatus>>,
+) {
+    for (player_entity, session, publisher_state) in players.iter() {
+        if !publisher_state.published() {
+            continue; // the view comes first
+        }
+        let spawned = session.send(McpePacket::from(PlayStatusPacket {
+            status: PlayStatusPacketStatus::Playerspawn,
+        }));
+        if spawned {
+            debug!(player = ?player_entity, "Sent PlayStatus(PlayerSpawn)");
+            commands
+                .entity(player_entity)
+                .remove::<AwaitingSpawnStatus>();
+        } else {
+            debug!(player = ?player_entity, "Failed to send PlayStatus(PlayerSpawn) (channel full or closed); retrying next tick");
+        }
+    }
+}
+
+/// System: Send `NetworkChunkPublisherUpdate` when a player's chunk or radius
+/// changes, including the first tick after join. Runs before every system
+/// that sends chunks, so the view always precedes its terrain.
+pub fn send_chunk_publisher_updates(
+    mut players: Query<
+        (
+            Entity,
+            &Position,
+            &PlayerSession,
+            &ChunkLoader,
+            &mut LastPublisherState,
+        ),
+        With<Player>,
+    >,
+) {
+    for (player_entity, position, session, loader, mut publisher_state) in players.iter_mut() {
+        let chunk_x = (position.0.x.floor() as i32) >> 4;
+        let chunk_z = (position.0.z.floor() as i32) >> 4;
+        let publisher_radius = loader.radius().saturating_mul(16);
+        if publisher_state.chunk_x == chunk_x
+            && publisher_state.chunk_z == chunk_z
+            && publisher_state.radius == publisher_radius
+        {
+            continue;
+        }
+        debug!(player=?player_entity, old_pos = ?(publisher_state.chunk_x, publisher_state.chunk_z), new_pos = ?(chunk_x, chunk_z), "Player moved, sending NetworkChunkPublisherUpdate");
+        let sent = session.send(McpePacket::from(NetworkChunkPublisherUpdatePacket {
+            newpositionforview: BlockPos {
+                x: position.0.x.floor() as i32,
+                y: position.0.y.floor() as i32,
+                z: position.0.z.floor() as i32,
+            },
+            newradiusforview: publisher_radius as u32,
+            server_built_chunks_list: vec![],
+        }));
+        if !sent {
+            debug!(player = ?player_entity, "Failed to send NetworkChunkPublisherUpdate (channel full or closed)");
+            continue;
+        }
+        publisher_state.chunk_x = chunk_x;
+        publisher_state.chunk_z = chunk_z;
+        publisher_state.radius = publisher_radius;
+    }
 }
 
 // NOTE: initialize_chunk_loaders has been removed.
@@ -157,8 +244,8 @@ pub fn update_chunk_loaders(
             }
         }
 
-        // NOTE: Don't update publisher_state here - let process_chunk_load_queues
-        // detect the change and send the NetworkChunkPublisherUpdate
+        // NOTE: Don't update publisher_state here - send_chunk_publisher_updates
+        // detects the change and sends the NetworkChunkPublisherUpdate
         publisher_state.queue_was_empty = false;
 
         trace!(
@@ -181,7 +268,6 @@ pub fn process_chunk_load_queues(
     mut players: Query<
         (
             Entity,
-            &Position,
             &PlayerSession,
             &mut ChunkLoader,
             &mut LastPublisherState,
@@ -190,48 +276,17 @@ pub fn process_chunk_load_queues(
     >,
     chunks: Query<(&mut ChunkViewers, &ChunkData)>,
 ) {
-    for (player_entity, position, session, mut loader, mut publisher_state) in players.iter_mut() {
+    for (player_entity, session, mut loader, mut publisher_state) in players.iter_mut() {
         let sent_this_tick = loader.sent_this_tick;
         loader.sent_this_tick = 0; // Reset for this tick
 
-        // Send publisher update if needed
-        let chunk_x = (position.0.x.floor() as i32) >> 4;
-        let chunk_z = (position.0.z.floor() as i32) >> 4;
-        let radius = loader.radius();
-        let publisher_radius = radius.saturating_mul(16);
-
-        // Check if publisher update is needed
-        let need_publisher_update = publisher_state.chunk_x != chunk_x
-            || publisher_state.chunk_z != chunk_z
-            || publisher_state.radius != publisher_radius;
-
-        if need_publisher_update {
-            debug!(player=?player_entity, old_pos = ?(publisher_state.chunk_x, publisher_state.chunk_z), new_pos = ?(chunk_x, chunk_z), "Player moved, sending NetworkChunkPublisherUpdate");
-            let block_x = position.0.x.floor() as i32;
-            let block_y = position.0.y.floor() as i32;
-            let block_z = position.0.z.floor() as i32;
-
-            if !session.send(McpePacket::from(NetworkChunkPublisherUpdatePacket {
-                newpositionforview: BlockPos {
-                    x: block_x,
-                    y: block_y,
-                    z: block_z,
-                },
-                newradiusforview: publisher_radius as u32,
-                server_built_chunks_list: vec![],
-            })) {
-                debug!(player = ?player_entity, "Failed to send NetworkChunkPublisherUpdate (channel full or closed)");
-                continue;
-            }
-
-            publisher_state.chunk_x = chunk_x;
-            publisher_state.chunk_z = chunk_z;
-            publisher_state.radius = publisher_radius;
+        // `send_chunk_publisher_updates` ran first; terrain waits for the view.
+        if !publisher_state.published() {
+            continue;
         }
 
         // If async generation is enabled, this system is a no-op for chunk loading.
         // request_chunk_generation handles everything for vanilla worlds.
-        // We still update publisher state above, but skip chunk processing.
         if chunk_manager.has_async_generation() {
             let has_pending = loader.has_pending();
             if publisher_state.queue_was_empty == has_pending {
@@ -383,7 +438,15 @@ pub fn request_chunk_generation(
     mut chunk_manager: ResMut<ChunkManager>,
     mut pending_gens: ResMut<PendingChunkGenerations>,
     config: Res<ChunkLoadConfig>,
-    mut players: Query<(Entity, &PlayerSession, &mut ChunkLoader), With<Player>>,
+    mut players: Query<
+        (
+            Entity,
+            &PlayerSession,
+            &mut ChunkLoader,
+            &LastPublisherState,
+        ),
+        With<Player>,
+    >,
     chunks: Query<&ChunkData>,
 ) {
     // Skip if no async generation available (non-vanilla worlds)
@@ -394,7 +457,11 @@ pub fn request_chunk_generation(
     // Limit total pending generations to prevent memory growth
     const MAX_PENDING: usize = 64;
 
-    for (player_entity, session, mut loader) in players.iter_mut() {
+    for (player_entity, session, mut loader, publisher_state) in players.iter_mut() {
+        // Terrain waits for the view `send_chunk_publisher_updates` publishes.
+        if !publisher_state.published() {
+            continue;
+        }
         let mut processed = 0;
 
         while processed < config.chunks_per_tick {
@@ -966,10 +1033,12 @@ pub fn register_chunk_systems(schedule: &mut bevy_ecs::schedule::Schedule) {
         (
             // NOTE: initialize_chunk_loaders removed - components now in PlayerBundle
             update_chunk_loaders,
+            send_chunk_publisher_updates, // the view precedes every chunk below
             flush_pending_viewers,
             request_chunk_generation,      // NEW: Non-blocking async request
             process_completed_generations, // NEW: Process async results
             process_chunk_load_queues,     // Handles sync cases + existing chunks
+            send_spawn_status,             // after the first view and chunks
             handle_radius_changes,
             schedule_chunk_unloads,
             cancel_chunk_unloads,

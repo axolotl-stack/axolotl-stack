@@ -627,6 +627,12 @@ mod tests {
             &mut BedrockRandom::new(1),
         );
         assert_eq!(col.get(30), bb::GRAVEL);
+        assert_eq!(
+            col.count(|id| id == bb::GRAVEL),
+            1,
+            "one sea-floor block, not a layer"
+        );
+        assert_eq!(col.get(29), bb::STONE);
         assert_eq!(col.count(|id| id == bb::GRASS_BLOCK || id == bb::DIRT), 0);
         assert_eq!(col.count(|id| id == bb::WATER), (SEA - 31) as usize);
     }

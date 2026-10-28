@@ -10,8 +10,8 @@
 //! - `weighted_random_feature`: one child picked by weight;
 //! - `search_feature`: sweeps `search_volume` along `search_axis` (outer loop)
 //!   and stops once `required_successes` placements succeeded;
-//! - `snap_to_surface_feature`: moves the input to the nearest floor/ceiling
-//!   within `vertical_search_range` (down/up first, then the other way);
+//! - `snap_to_surface_feature`: walks from the input through open blocks
+//!   towards the floor/ceiling for up to `vertical_search_range` blocks;
 //! - `surface_relative_threshold_feature`: places only at least
 //!   `minimum_distance_below_surface` blocks below the heightmap surface.
 //!
@@ -286,6 +286,11 @@ fn snap_to_surface(em: &mut Emitter<'_>, o: &Obj<'_>) -> Result<TokenStream> {
     let is_surface = em.matches(quote!(support), &surface_set);
     let call = em.call(&target, quote!(snapped));
     // `step`: walking direction; `support`: -1 floor (support below), +1 ceiling.
+    // The walk starts at the input and stays inside open blocks: an input
+    // embedded in rock places nothing instead of snapping through the rock
+    // onto a nearby cave or ocean floor. Searching through solid blocks (and
+    // also away from the surface) doubled lush-cave decoration and put
+    // underground magma on open ocean floors; see the codegen README.
     let scan = |step: i32, support: i32| -> TokenStream {
         let embed_offset = if embed { support } else { 0 };
         quote! {{
@@ -293,8 +298,11 @@ fn snap_to_surface(em: &mut Emitter<'_>, o: &Obj<'_>) -> Result<TokenStream> {
             for k in 0..=#range {
                 let y = pos.y + #step * k;
                 let at = ctx.get(BlockPos::new(pos.x, y, pos.z));
+                if !(#is_open) {
+                    break;
+                }
                 let support = ctx.get(BlockPos::new(pos.x, y + #support, pos.z));
-                if #is_open && #is_surface {
+                if #is_surface {
                     found = Some(BlockPos::new(pos.x, y + #embed_offset, pos.z));
                     break;
                 }
@@ -303,15 +311,8 @@ fn snap_to_surface(em: &mut Emitter<'_>, o: &Obj<'_>) -> Result<TokenStream> {
         }}
     };
     let found = match surface {
-        // Search towards the surface first, then away from it.
-        "floor" => {
-            let (toward, away) = (scan(-1, -1), scan(1, -1));
-            quote!({ let mut found = #toward; if found.is_none() { found = #away; } found })
-        }
-        "ceiling" => {
-            let (toward, away) = (scan(1, 1), scan(-1, 1));
-            quote!({ let mut found = #toward; if found.is_none() { found = #away; } found })
-        }
+        "floor" => scan(-1, -1),
+        "ceiling" => scan(1, 1),
         // Snap sideways to a wall in a random horizontal direction.
         "random_horizontal" => {
             let embed_step = i32::from(embed);
