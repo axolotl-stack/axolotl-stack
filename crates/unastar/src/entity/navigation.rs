@@ -98,7 +98,10 @@ struct NodeKey([u64; 3]);
 impl NodeKey {
     fn new(feet: DVec3) -> Self {
         // Canonicalise signed zero so an exact start cannot create a duplicate.
-        Self(feet.to_array().map(|v| if v == 0.0 { 0 } else { v.to_bits() }))
+        Self(
+            feet.to_array()
+                .map(|v| if v == 0.0 { 0 } else { v.to_bits() }),
+        )
     }
 }
 
@@ -161,7 +164,13 @@ pub(crate) fn find_walk_path(
     if !valid_request(body, request) {
         return WalkPathOutcome::Unreachable;
     }
-    let mut search = Search { blocks, body, request, scratch, permitted };
+    let mut search = Search {
+        blocks,
+        body,
+        request,
+        scratch,
+        permitted,
+    };
     if !search.in_range(request.goal)
         || !search.standable(request.start)
         || !search.standable(request.goal)
@@ -190,27 +199,26 @@ pub(crate) fn find_walk_path(
         // fallback. Restrict its horizontal reach to a neighbouring column.
         if (from.x - request.goal.x).abs() <= 1.5
             && (from.z - request.goal.z).abs() <= 1.5
+            && let Some(goal) = search.edge(from, request.goal)
         {
-            if let Some(goal) = search.edge(from, request.goal) {
-                let mut length = usize::from(from != request.goal);
-                let mut parent = Some(cursor);
-                while let Some(index) = parent {
-                    length += 1;
-                    parent = search.scratch.nodes[index].parent;
-                }
-                output.waypoints.reserve(length);
-                let mut parent = Some(cursor);
-                while let Some(index) = parent {
-                    let node = search.scratch.nodes[index];
-                    output.waypoints.push(node.point);
-                    parent = node.parent;
-                }
-                output.waypoints.reverse();
-                if from != request.goal {
-                    output.waypoints.push(goal);
-                }
-                return WalkPathOutcome::Found;
+            let mut length = usize::from(from != request.goal);
+            let mut parent = Some(cursor);
+            while let Some(index) = parent {
+                length += 1;
+                parent = search.scratch.nodes[index].parent;
             }
+            output.waypoints.reserve(length);
+            let mut parent = Some(cursor);
+            while let Some(index) = parent {
+                let node = search.scratch.nodes[index];
+                output.waypoints.push(node.point);
+                parent = node.parent;
+            }
+            output.waypoints.reverse();
+            if from != request.goal {
+                output.waypoints.push(goal);
+            }
+            return WalkPathOutcome::Found;
         }
         let column = from.floor().as_ivec3();
         // Include the current centre so an off-centre exact start joins the
@@ -225,12 +233,17 @@ pub(crate) fn find_walk_path(
                 if search.scratch.visited.contains(&key) || !search.in_range(to) {
                     continue;
                 }
-                let Some(point) = search.edge(from, to) else { continue };
+                let Some(point) = search.edge(from, to) else {
+                    continue;
+                };
                 if search.scratch.nodes.len() == request.node_budget {
                     exhausted = true;
                     continue;
                 }
-                search.scratch.nodes.push(Node { point, parent: Some(cursor) });
+                search.scratch.nodes.push(Node {
+                    point,
+                    parent: Some(cursor),
+                });
                 search.scratch.visited.insert(key);
             }
         }
@@ -250,9 +263,15 @@ fn valid_request(body: &PhysicsBody, r: WalkPathRequest) -> bool {
         || !body.height.is_finite()
         || body.width <= 0.0
         || body.height <= 0.0
-        || ![r.max_range, r.step_height, r.jump_height, r.max_drop, body.step_height]
-            .into_iter()
-            .all(|n| n.is_finite() && n >= 0.0)
+        || ![
+            r.max_range,
+            r.step_height,
+            r.jump_height,
+            r.max_drop,
+            body.step_height,
+        ]
+        .into_iter()
+        .all(|n| n.is_finite() && n >= 0.0)
     {
         return false;
     }
@@ -284,9 +303,10 @@ impl<B: BlockSource, P: Fn(u32, WalkBlockRole) -> bool> Search<'_, B, P> {
         if let Some(cached) = self.scratch.blocks.get(&pos) {
             return *cached;
         }
-        let state = self.blocks.block_at(pos).filter(|id| {
-            self.blocks.registry().get_by_runtime_id(*id).is_some()
-        });
+        let state = self
+            .blocks
+            .block_at(pos)
+            .filter(|id| self.blocks.registry().get_by_runtime_id(*id).is_some());
         self.scratch.local_boxes.clear();
         if let Some(state) = state {
             let resolved = connected_state(self.blocks.registry(), pos, state, |p| {
@@ -294,7 +314,9 @@ impl<B: BlockSource, P: Fn(u32, WalkBlockRole) -> bool> Search<'_, B, P> {
             });
             block_collision_boxes(resolved, &mut self.scratch.local_boxes);
         } else {
-            self.scratch.local_boxes.push(Aabb::new(DVec3::ZERO, DVec3::ONE));
+            self.scratch
+                .local_boxes
+                .push(Aabb::new(DVec3::ZERO, DVec3::ONE));
         }
         let cached = CachedBlock {
             first: self.scratch.boxes.len(),
@@ -303,7 +325,10 @@ impl<B: BlockSource, P: Fn(u32, WalkBlockRole) -> bool> Search<'_, B, P> {
             support_allowed: state.is_some_and(|id| (self.permitted)(id, WalkBlockRole::Support)),
         };
         self.scratch.boxes.extend(
-            self.scratch.local_boxes.iter().map(|shape| shape.offset(pos.as_dvec3())),
+            self.scratch
+                .local_boxes
+                .iter()
+                .map(|shape| shape.offset(pos.as_dvec3())),
         );
         self.scratch.blocks.insert(pos, cached);
         cached
@@ -343,11 +368,15 @@ impl<B: BlockSource, P: Fn(u32, WalkBlockRole) -> bool> Search<'_, B, P> {
 
     fn candidate_heights(&mut self, x: f64, z: f64, from_y: f64) {
         self.scratch.heights.clear();
-        let lower = (from_y - self.request.max_drop)
-            .max(self.request.start.y - self.request.max_range);
-        let upper = (from_y + self.request.step_height.min(self.body.step_height)
-            .max(self.request.jump_height))
-            .min(self.request.start.y + self.request.max_range);
+        let lower =
+            (from_y - self.request.max_drop).max(self.request.start.y - self.request.max_range);
+        let upper = (from_y
+            + self
+                .request
+                .step_height
+                .min(self.body.step_height)
+                .max(self.request.jump_height))
+        .min(self.request.start.y + self.request.max_range);
         for y in (lower.floor() as i32 - 2)..=upper.floor() as i32 {
             let cached = self.cached_block(IVec3::new(x.floor() as i32, y, z.floor() as i32));
             if !cached.support_allowed {
@@ -355,16 +384,21 @@ impl<B: BlockSource, P: Fn(u32, WalkBlockRole) -> bool> Search<'_, B, P> {
             }
             for i in cached.first..cached.first + cached.count {
                 let shape = self.scratch.boxes[i];
-                if shape.min.x <= x && x <= shape.max.x
-                    && shape.min.z <= z && z <= shape.max.z
-                    && lower - EPSILON <= shape.max.y && shape.max.y <= upper + EPSILON
+                if shape.min.x <= x
+                    && x <= shape.max.x
+                    && shape.min.z <= z
+                    && z <= shape.max.z
+                    && lower - EPSILON <= shape.max.y
+                    && shape.max.y <= upper + EPSILON
                 {
                     self.scratch.heights.push(shape.max.y);
                 }
             }
         }
         self.scratch.heights.sort_by(f64::total_cmp);
-        self.scratch.heights.dedup_by(|a, b| (*a - *b).abs() <= EPSILON);
+        self.scratch
+            .heights
+            .dedup_by(|a, b| (*a - *b).abs() <= EPSILON);
     }
 
     fn edge(&mut self, from: DVec3, to: DVec3) -> Option<WalkWaypoint> {
@@ -388,7 +422,8 @@ impl<B: BlockSource, P: Fn(u32, WalkBlockRole) -> bool> Search<'_, B, P> {
         };
         let raised = from + DVec3::Y * lift_height;
         let across = DVec3::new(to.x, raised.y, to.z);
-        if !self.in_range(to) || !self.in_range(raised)
+        if !self.in_range(to)
+            || !self.in_range(raised)
             || !self.standable(to)
             || !self.clear_area(self.body_box(from).expand_towards(DVec3::Y * lift_height))
             || !self.clear_area(self.body_box(raised).expand_towards(across - raised))
@@ -397,7 +432,11 @@ impl<B: BlockSource, P: Fn(u32, WalkBlockRole) -> bool> Search<'_, B, P> {
         {
             return None;
         }
-        Some(WalkWaypoint { feet: to, movement, lift_height })
+        Some(WalkWaypoint {
+            feet: to,
+            movement,
+            lift_height,
+        })
     }
 
     fn supported_segment(&mut self, from: DVec3, to: DVec3) -> bool {
@@ -413,9 +452,12 @@ impl<B: BlockSource, P: Fn(u32, WalkBlockRole) -> bool> Search<'_, B, P> {
                     let cached = self.cached_block(IVec3::new(x, y, z));
                     for i in cached.first..cached.first + cached.count {
                         let shape = self.scratch.boxes[i];
-                        if shape.max.y < low_y - EPSILON || shape.max.y > high_y + EPSILON
-                            || shape.min.x >= max.x || shape.max.x <= min.x
-                            || shape.min.z >= max.z || shape.max.z <= min.z
+                        if shape.max.y < low_y - EPSILON
+                            || shape.max.y > high_y + EPSILON
+                            || shape.min.x >= max.x
+                            || shape.max.x <= min.x
+                            || shape.min.z >= max.z
+                            || shape.max.z <= min.z
                         {
                             continue;
                         }
@@ -429,7 +471,9 @@ impl<B: BlockSource, P: Fn(u32, WalkBlockRole) -> bool> Search<'_, B, P> {
                 }
             }
         }
-        self.scratch.intervals.sort_by(|a, b| a.0.total_cmp(&b.0).then(a.1.total_cmp(&b.1)));
+        self.scratch
+            .intervals
+            .sort_by(|a, b| a.0.total_cmp(&b.0).then(a.1.total_cmp(&b.1)));
         let mut covered = 0.0;
         for &(begin, end) in &self.scratch.intervals {
             if begin > covered + EPSILON {
@@ -493,12 +537,21 @@ mod tests {
     ) -> (WalkPathOutcome, WalkNavigation) {
         let mut output = WalkNavigation::default();
         let outcome = find_walk_path(
-            blocks, body, request, &mut NavigationScratch::default(), &mut output, |_, _| true,
+            blocks,
+            body,
+            request,
+            &mut NavigationScratch::default(),
+            &mut output,
+            |_, _| true,
         );
         (outcome, output)
     }
 
-    fn assert_clear_corridors(blocks: &impl BlockSource, body: &PhysicsBody, path: &WalkNavigation) {
+    fn assert_clear_corridors(
+        blocks: &impl BlockSource,
+        body: &PhysicsBody,
+        path: &WalkNavigation,
+    ) {
         let mut boxes = Vec::new();
         for edge in path.waypoints.windows(2) {
             let from = edge[0].feet;
@@ -531,7 +584,12 @@ mod tests {
         assert_eq!(outcome, WalkPathOutcome::Found);
         assert_eq!(output.waypoints.first().unwrap().feet, r.start);
         assert_eq!(output.waypoints.last().unwrap().feet, r.goal);
-        assert!(output.waypoints.iter().any(|p| p.feet.z < -1.0 || p.feet.z > 2.0));
+        assert!(
+            output
+                .waypoints
+                .iter()
+                .any(|p| p.feet.z < -1.0 || p.feet.z > 2.0)
+        );
         assert_clear_corridors(&blocks, &body, &output);
         let (_, repeated) = find(&blocks, &body, r);
         assert_eq!(output.waypoints, repeated.waypoints);
@@ -546,7 +604,8 @@ mod tests {
             }
         }
         let (outcome, output) = find(
-            &blocks, &PhysicsBody::living(0.9, 1.4),
+            &blocks,
+            &PhysicsBody::living(0.9, 1.4),
             request(DVec3::new(-1.5, 1.0, 0.5), DVec3::new(2.5, 1.0, 0.5)),
         );
         assert_eq!(outcome, WalkPathOutcome::Unreachable);
@@ -558,15 +617,27 @@ mod tests {
         let mut blocks = TestBlocks::floor("minecraft:stone", 0);
         blocks.set(IVec3::new(2, 2, 0), "minecraft:stone");
         let r = request(DVec3::new(-1.5, 1.0, 0.5), DVec3::new(2.5, 1.0, 0.5));
-        assert_eq!(find(&blocks, &PhysicsBody::living(0.9, 1.4), r).0, WalkPathOutcome::Unreachable);
-        assert_eq!(find(&blocks, &PhysicsBody::living(0.6, 0.7), r).0, WalkPathOutcome::Found);
+        assert_eq!(
+            find(&blocks, &PhysicsBody::living(0.9, 1.4), r).0,
+            WalkPathOutcome::Unreachable
+        );
+        assert_eq!(
+            find(&blocks, &PhysicsBody::living(0.6, 0.7), r).0,
+            WalkPathOutcome::Found
+        );
         blocks.blocks.remove(&IVec3::new(2, 2, 0));
         for y in 1..=3 {
             blocks.set(IVec3::new(2, y, -1), "minecraft:stone");
             blocks.set(IVec3::new(2, y, 1), "minecraft:stone");
         }
-        assert_eq!(find(&blocks, &PhysicsBody::living(1.2, 1.4), r).0, WalkPathOutcome::Unreachable);
-        assert_eq!(find(&blocks, &PhysicsBody::living(0.9, 1.4), r).0, WalkPathOutcome::Found);
+        assert_eq!(
+            find(&blocks, &PhysicsBody::living(1.2, 1.4), r).0,
+            WalkPathOutcome::Unreachable
+        );
+        assert_eq!(
+            find(&blocks, &PhysicsBody::living(0.9, 1.4), r).0,
+            WalkPathOutcome::Found
+        );
     }
 
     #[test]
@@ -603,7 +674,11 @@ mod tests {
 
     impl BlockSource for MissingStrip {
         fn block_at(&self, pos: IVec3) -> Option<u32> {
-            if pos.x == 1 { None } else { self.0.block_at(pos) }
+            if pos.x == 1 {
+                None
+            } else {
+                self.0.block_at(pos)
+            }
         }
         fn registry(&self) -> &BlockRegistry {
             self.0.registry()
@@ -614,20 +689,29 @@ mod tests {
     fn unloaded_columns_are_not_crossed_or_used_as_support() {
         let blocks = MissingStrip(TestBlocks::floor("minecraft:stone", 0));
         let (outcome, output) = find(
-            &blocks, &PhysicsBody::living(0.9, 1.4),
+            &blocks,
+            &PhysicsBody::living(0.9, 1.4),
             request(DVec3::new(-1.5, 1.0, 0.5), DVec3::new(3.5, 1.0, 0.5)),
         );
         assert_eq!(outcome, WalkPathOutcome::Unreachable);
         assert!(output.waypoints.is_empty());
         let r = request(DVec3::new(1.5, 4.0, 0.5), DVec3::new(1.5, 4.0, 0.5));
-        assert_eq!(find(&blocks, &PhysicsBody::living(0.6, 0.7), r).0, WalkPathOutcome::Unreachable);
+        assert_eq!(
+            find(&blocks, &PhysicsBody::living(0.6, 0.7), r).0,
+            WalkPathOutcome::Unreachable
+        );
     }
 
     fn bottom_slab() -> u32 {
-        let slab = BlockRegistry::vanilla().get_by_name("minecraft:oak_slab").unwrap();
+        let slab = BlockRegistry::vanilla()
+            .get_by_name("minecraft:oak_slab")
+            .unwrap();
         slab.with_state_value(
-            slab.default_state_id, "minecraft:vertical_half", StateValue::Str("bottom"),
-        ).unwrap()
+            slab.default_state_id,
+            "minecraft:vertical_half",
+            StateValue::Str("bottom"),
+        )
+        .unwrap()
     }
 
     #[test]
@@ -643,8 +727,14 @@ mod tests {
         assert_eq!(last.movement, WalkMovement::Step);
         assert!((last.lift_height - 0.5).abs() < EPSILON);
         assert_clear_corridors(&blocks, &body, &output);
-        let restricted = WalkPathRequest { step_height: 0.4, ..r };
-        assert_eq!(find(&blocks, &body, restricted).0, WalkPathOutcome::Unreachable);
+        let restricted = WalkPathRequest {
+            step_height: 0.4,
+            ..r
+        };
+        assert_eq!(
+            find(&blocks, &body, restricted).0,
+            WalkPathOutcome::Unreachable
+        );
     }
 
     #[test]
@@ -654,17 +744,34 @@ mod tests {
         let body = PhysicsBody::living(0.6, 0.7);
         let base = request(DVec3::new(0.5, 1.0, 0.5), DVec3::new(1.5, 2.0, 0.5));
         assert_eq!(find(&blocks, &body, base).0, WalkPathOutcome::Unreachable);
-        let r = WalkPathRequest { jump_height: 1.25, ..base };
+        let r = WalkPathRequest {
+            jump_height: 1.25,
+            ..base
+        };
         let (outcome, output) = find(&blocks, &body, r);
         assert_eq!(outcome, WalkPathOutcome::Found);
-        assert_eq!(output.waypoints.last().unwrap().movement, WalkMovement::Jump);
+        assert_eq!(
+            output.waypoints.last().unwrap().movement,
+            WalkMovement::Jump
+        );
         assert_clear_corridors(&blocks, &body, &output);
-        let down = WalkPathRequest { start: base.goal, goal: base.start, max_drop: 0.5, ..base };
+        let down = WalkPathRequest {
+            start: base.goal,
+            goal: base.start,
+            max_drop: 0.5,
+            ..base
+        };
         assert_eq!(find(&blocks, &body, down).0, WalkPathOutcome::Unreachable);
-        let down = WalkPathRequest { max_drop: 1.0, ..down };
+        let down = WalkPathRequest {
+            max_drop: 1.0,
+            ..down
+        };
         let (outcome, output) = find(&blocks, &body, down);
         assert_eq!(outcome, WalkPathOutcome::Found);
-        assert_eq!(output.waypoints.last().unwrap().movement, WalkMovement::Drop);
+        assert_eq!(
+            output.waypoints.last().unwrap().movement,
+            WalkMovement::Drop
+        );
         assert_clear_corridors(&blocks, &body, &output);
     }
 
@@ -677,16 +784,30 @@ mod tests {
         let mut scratch = NavigationScratch::default();
         let body = PhysicsBody::living(0.6, 0.7);
         let r = request(DVec3::new(-0.5, 1.0, 0.5), DVec3::new(2.5, 1.0, 0.5));
-        assert_eq!(find_walk_path(
-            &blocks, &body, r, &mut scratch, &mut output,
-            |id, role| role != WalkBlockRole::Occupied || id != water,
-        ), WalkPathOutcome::Unreachable);
+        assert_eq!(
+            find_walk_path(
+                &blocks,
+                &body,
+                r,
+                &mut scratch,
+                &mut output,
+                |id, role| role != WalkBlockRole::Occupied || id != water,
+            ),
+            WalkPathOutcome::Unreachable
+        );
         blocks.blocks.remove(&IVec3::new(2, 1, 0));
         let stone = blocks.block_at(IVec3::new(2, 0, 0)).unwrap();
-        assert_eq!(find_walk_path(
-            &blocks, &body, r, &mut scratch, &mut output,
-            |id, role| role != WalkBlockRole::Support || id != stone,
-        ), WalkPathOutcome::Unreachable);
+        assert_eq!(
+            find_walk_path(
+                &blocks,
+                &body,
+                r,
+                &mut scratch,
+                &mut output,
+                |id, role| role != WalkBlockRole::Support || id != stone,
+            ),
+            WalkPathOutcome::Unreachable
+        );
     }
 
     #[test]
@@ -696,18 +817,39 @@ mod tests {
         let r = request(DVec3::new(-2.5, 1.0, 0.5), DVec3::new(3.5, 1.0, 0.5));
         let mut scratch = NavigationScratch::default();
         let mut output = WalkNavigation::default();
-        assert_eq!(find_walk_path(
-            &blocks, &body, r, &mut scratch, &mut output, |_, _| true,
-        ), WalkPathOutcome::Found);
-        assert_eq!(find_walk_path(
-            &blocks, &body, WalkPathRequest { node_budget: 1, ..r },
-            &mut scratch, &mut output, |_, _| true,
-        ), WalkPathOutcome::BudgetExceeded);
+        assert_eq!(
+            find_walk_path(&blocks, &body, r, &mut scratch, &mut output, |_, _| true,),
+            WalkPathOutcome::Found
+        );
+        assert_eq!(
+            find_walk_path(
+                &blocks,
+                &body,
+                WalkPathRequest {
+                    node_budget: 1,
+                    ..r
+                },
+                &mut scratch,
+                &mut output,
+                |_, _| true,
+            ),
+            WalkPathOutcome::BudgetExceeded
+        );
         assert!(output.waypoints.is_empty());
-        assert_eq!(find_walk_path(
-            &blocks, &body, WalkPathRequest { max_range: 2.0, ..r },
-            &mut scratch, &mut output, |_, _| true,
-        ), WalkPathOutcome::Unreachable);
+        assert_eq!(
+            find_walk_path(
+                &blocks,
+                &body,
+                WalkPathRequest {
+                    max_range: 2.0,
+                    ..r
+                },
+                &mut scratch,
+                &mut output,
+                |_, _| true,
+            ),
+            WalkPathOutcome::Unreachable
+        );
         assert!(output.waypoints.is_empty());
     }
 
@@ -717,7 +859,10 @@ mod tests {
         blocks.set(IVec3::new(0, 0, 0), "minecraft:stone");
         blocks.set(IVec3::new(2, 0, 0), "minecraft:stone");
         let r = request(DVec3::new(0.9, 1.0, 0.5), DVec3::new(2.1, 1.0, 0.5));
-        assert_eq!(find(&blocks, &PhysicsBody::living(0.2, 0.7), r).0, WalkPathOutcome::Unreachable);
+        assert_eq!(
+            find(&blocks, &PhysicsBody::living(0.2, 0.7), r).0,
+            WalkPathOutcome::Unreachable
+        );
     }
 
     #[test]
@@ -727,16 +872,18 @@ mod tests {
         let r = request(DVec3::new(-1.5, 1.0, 0.5), DVec3::new(2.5, 1.0, 0.5));
         let mut scratch = NavigationScratch::default();
         let mut output = WalkNavigation::default();
-        assert_eq!(find_walk_path(
-            &blocks, &body, r, &mut scratch, &mut output, |_, _| true,
-        ), WalkPathOutcome::Found);
+        assert_eq!(
+            find_walk_path(&blocks, &body, r, &mut scratch, &mut output, |_, _| true,),
+            WalkPathOutcome::Found
+        );
         let node_capacity = scratch.nodes.capacity();
         let shape_capacity = scratch.boxes.capacity();
         let output_capacity = output.waypoints.capacity();
         blocks.set(IVec3::new(2, 1, 0), "minecraft:stone");
-        assert_eq!(find_walk_path(
-            &blocks, &body, r, &mut scratch, &mut output, |_, _| true,
-        ), WalkPathOutcome::Unreachable);
+        assert_eq!(
+            find_walk_path(&blocks, &body, r, &mut scratch, &mut output, |_, _| true,),
+            WalkPathOutcome::Unreachable
+        );
         assert!(output.waypoints.is_empty());
         assert_eq!(scratch.nodes.capacity(), node_capacity);
         assert!(scratch.boxes.capacity() >= shape_capacity);

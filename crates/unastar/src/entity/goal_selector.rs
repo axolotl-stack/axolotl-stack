@@ -30,10 +30,10 @@ pub(crate) enum GoalKind {
 pub(crate) struct GoalControls(u8);
 
 impl GoalControls {
-    pub const NONE: Self = Self(0);
     pub const MOVE: Self = Self(1);
     pub const LOOK: Self = Self(2);
     pub const JUMP: Self = Self(4);
+    #[cfg(test)]
     pub const TARGET: Self = Self(8);
 
     pub const fn union(self, other: Self) -> Self {
@@ -103,14 +103,17 @@ pub(crate) struct GoalSelector {
 }
 
 impl GoalSelector {
+    #[cfg(test)]
     pub fn new(specs: &[GoalSpec]) -> Result<Self, DuplicateGoalId> {
         Self::validate(specs)?;
         let mut selector = Self::default();
-        selector.entries.extend(specs.iter().enumerate().map(|(order, &spec)| Entry {
-            spec,
-            order,
-            running: false,
-        }));
+        selector
+            .entries
+            .extend(specs.iter().enumerate().map(|(order, &spec)| Entry {
+                spec,
+                order,
+                running: false,
+            }));
         selector.sort();
         Ok(selector)
     }
@@ -131,8 +134,15 @@ impl GoalSelector {
         Self::validate(specs)?;
         self.staging.clear();
         for (order, &spec) in specs.iter().enumerate() {
-            let running = self.entries.iter().any(|entry| entry.running && entry.spec == spec);
-            self.staging.push(Entry { spec, order, running });
+            let running = self
+                .entries
+                .iter()
+                .any(|entry| entry.running && entry.spec == spec);
+            self.staging.push(Entry {
+                spec,
+                order,
+                running,
+            });
         }
         for entry in &mut self.entries {
             if entry.running && !self.staging.iter().any(|next| next.spec == entry.spec) {
@@ -146,14 +156,22 @@ impl GoalSelector {
         Ok(())
     }
 
+    #[cfg(test)]
     pub fn is_running(&self, id: GoalId) -> bool {
-        self.entries.iter().any(|entry| entry.spec.id == id && entry.running)
+        self.entries
+            .iter()
+            .any(|entry| entry.spec.id == id && entry.running)
     }
 
     /// Explicitly stop a goal without removing its spec; it may start next tick.
     /// Returns whether a running lifecycle was stopped.
+    #[cfg(test)]
     pub fn stop(&mut self, id: GoalId, goals: &mut impl GoalCallbacks) -> bool {
-        if let Some(entry) = self.entries.iter_mut().find(|entry| entry.spec.id == id && entry.running) {
+        if let Some(entry) = self
+            .entries
+            .iter_mut()
+            .find(|entry| entry.spec.id == id && entry.running)
+        {
             entry.running = false;
             goals.stop(id);
             true
@@ -225,8 +243,11 @@ impl GoalSelector {
     }
 
     fn sort(&mut self) {
-        self.entries.sort_unstable_by_key(|entry| (entry.spec.kind, entry.spec.priority, entry.order));
-        self.target_count = self.entries.partition_point(|entry| entry.spec.kind == GoalKind::Target);
+        self.entries
+            .sort_unstable_by_key(|entry| (entry.spec.kind, entry.spec.priority, entry.order));
+        self.target_count = self
+            .entries
+            .partition_point(|entry| entry.spec.kind == GoalKind::Target);
     }
 }
 
@@ -301,7 +322,12 @@ mod tests {
     }
 
     fn normal(id: u16, priority: i32, controls: GoalControls) -> GoalSpec {
-        GoalSpec { id: GoalId(id), kind: GoalKind::Normal, priority, controls }
+        GoalSpec {
+            id: GoalId(id),
+            kind: GoalKind::Normal,
+            priority,
+            controls,
+        }
     }
 
     #[test]
@@ -315,11 +341,23 @@ mod tests {
         let mut selector = GoalSelector::new(&specs).unwrap();
         let mut goals = Goals::new();
         selector.tick(&mut goals);
-        assert_eq!(goals.calls, [
-            Call::CanStart(3), Call::Start(3), Call::CanStart(1), Call::Start(1),
-            Call::CanStart(2), Call::Start(2), Call::CanStart(0), Call::Start(0),
-            Call::Tick(3), Call::Tick(1), Call::Tick(2), Call::Tick(0),
-        ]);
+        assert_eq!(
+            goals.calls,
+            [
+                Call::CanStart(3),
+                Call::Start(3),
+                Call::CanStart(1),
+                Call::Start(1),
+                Call::CanStart(2),
+                Call::Start(2),
+                Call::CanStart(0),
+                Call::Start(0),
+                Call::Tick(3),
+                Call::Tick(1),
+                Call::Tick(2),
+                Call::Tick(0),
+            ]
+        );
     }
 
     #[test]
@@ -344,18 +382,30 @@ mod tests {
             normal(1, 2, GoalControls::MOVE),
             normal(2, 3, GoalControls::LOOK),
             normal(3, 4, GoalControls::JUMP),
-        ]).unwrap();
+        ])
+        .unwrap();
         let mut goals = Goals::new();
         goals.can_start[0] = false;
         selector.tick(&mut goals);
         goals.can_start[0] = true;
         goals.calls.clear();
         selector.tick(&mut goals);
-        assert_eq!(goals.calls, [
-            Call::CanContinue(1), Call::CanContinue(2), Call::CanContinue(3),
-            Call::Interruptible(1), Call::Interruptible(2), Call::CanStart(0),
-            Call::Stop(1), Call::Stop(2), Call::Start(0), Call::Tick(0), Call::Tick(3),
-        ]);
+        assert_eq!(
+            goals.calls,
+            [
+                Call::CanContinue(1),
+                Call::CanContinue(2),
+                Call::CanContinue(3),
+                Call::Interruptible(1),
+                Call::Interruptible(2),
+                Call::CanStart(0),
+                Call::Stop(1),
+                Call::Stop(2),
+                Call::Start(0),
+                Call::Tick(0),
+                Call::Tick(3),
+            ]
+        );
         assert!(goals.active[0] && goals.active[3]);
         assert!(!goals.active[1] && !goals.active[2]);
     }
@@ -366,7 +416,8 @@ mod tests {
             normal(0, 1, GoalControls::MOVE | GoalControls::LOOK),
             normal(1, 2, GoalControls::MOVE),
             normal(2, 3, GoalControls::LOOK),
-        ]).unwrap();
+        ])
+        .unwrap();
         let mut goals = Goals::new();
         goals.can_start[0] = false;
         selector.tick(&mut goals);
@@ -374,43 +425,67 @@ mod tests {
         goals.interruptible[2] = false;
         goals.calls.clear();
         selector.tick(&mut goals);
-        assert_eq!(goals.calls, [
-            Call::CanContinue(1), Call::CanContinue(2),
-            Call::Interruptible(1), Call::Interruptible(2), Call::Tick(1), Call::Tick(2),
-        ]);
+        assert_eq!(
+            goals.calls,
+            [
+                Call::CanContinue(1),
+                Call::CanContinue(2),
+                Call::Interruptible(1),
+                Call::Interruptible(2),
+                Call::Tick(1),
+                Call::Tick(2),
+            ]
+        );
     }
 
     #[test]
     fn failed_candidate_preserves_running_goal_and_its_tick() {
         let mut selector = GoalSelector::new(&[
-            normal(0, 0, GoalControls::MOVE), normal(1, 1, GoalControls::MOVE),
-        ]).unwrap();
+            normal(0, 0, GoalControls::MOVE),
+            normal(1, 1, GoalControls::MOVE),
+        ])
+        .unwrap();
         let mut goals = Goals::new();
         goals.can_start[0] = false;
         selector.tick(&mut goals);
         goals.calls.clear();
         selector.tick(&mut goals);
-        assert_eq!(goals.calls, [
-            Call::CanContinue(1), Call::Interruptible(1), Call::CanStart(0), Call::Tick(1),
-        ]);
+        assert_eq!(
+            goals.calls,
+            [
+                Call::CanContinue(1),
+                Call::Interruptible(1),
+                Call::CanStart(0),
+                Call::Tick(1),
+            ]
+        );
         assert!(selector.is_running(GoalId(1)));
     }
 
     #[test]
     fn failed_continuation_releases_controls_before_other_activation() {
         let mut selector = GoalSelector::new(&[
-            normal(0, 0, GoalControls::MOVE), normal(1, 1, GoalControls::MOVE),
-        ]).unwrap();
+            normal(0, 0, GoalControls::MOVE),
+            normal(1, 1, GoalControls::MOVE),
+        ])
+        .unwrap();
         let mut goals = Goals::new();
         selector.tick(&mut goals);
         goals.can_continue[0] = false;
         goals.can_start[0] = false;
         goals.calls.clear();
         selector.tick(&mut goals);
-        assert_eq!(goals.calls, [
-            Call::CanContinue(0), Call::Stop(0), Call::CanStart(0),
-            Call::CanStart(1), Call::Start(1), Call::Tick(1),
-        ]);
+        assert_eq!(
+            goals.calls,
+            [
+                Call::CanContinue(0),
+                Call::Stop(0),
+                Call::CanStart(0),
+                Call::CanStart(1),
+                Call::Start(1),
+                Call::Tick(1),
+            ]
+        );
     }
 
     #[test]
@@ -428,10 +503,17 @@ mod tests {
         selector.tick(&mut goals);
         selector.stop_all(&mut goals);
         selector.stop_all(&mut goals);
-        assert_eq!(goals.calls, [
-            Call::Stop(0), Call::Stop(1), Call::CanStart(2), Call::Start(2),
-            Call::Tick(2), Call::Stop(2),
-        ]);
+        assert_eq!(
+            goals.calls,
+            [
+                Call::Stop(0),
+                Call::Stop(1),
+                Call::CanStart(2),
+                Call::Start(2),
+                Call::Tick(2),
+                Call::Stop(2),
+            ]
+        );
         assert!(!goals.active.iter().any(|&active| active));
     }
 
@@ -441,15 +523,29 @@ mod tests {
         let mut goals = Goals::new();
         selector.tick(&mut goals);
         goals.calls.clear();
-        selector.update(&[
-            normal(0, 1, GoalControls::LOOK), normal(1, 0, GoalControls::MOVE),
-        ], &mut goals).unwrap();
+        selector
+            .update(
+                &[
+                    normal(0, 1, GoalControls::LOOK),
+                    normal(1, 0, GoalControls::MOVE),
+                ],
+                &mut goals,
+            )
+            .unwrap();
         assert!(!selector.is_running(GoalId(0)));
         selector.tick(&mut goals);
-        assert_eq!(goals.calls, [
-            Call::Stop(0), Call::CanStart(1), Call::Start(1), Call::CanStart(0),
-            Call::Start(0), Call::Tick(1), Call::Tick(0),
-        ]);
+        assert_eq!(
+            goals.calls,
+            [
+                Call::Stop(0),
+                Call::CanStart(1),
+                Call::Start(1),
+                Call::CanStart(0),
+                Call::Start(0),
+                Call::Tick(1),
+                Call::Tick(0),
+            ]
+        );
     }
 
     #[test]
@@ -459,7 +555,10 @@ mod tests {
         let mut goals = Goals::new();
         selector.tick(&mut goals);
         goals.calls.clear();
-        assert_eq!(selector.update(&[spec, spec], &mut goals), Err(DuplicateGoalId(GoalId(0))));
+        assert_eq!(
+            selector.update(&[spec, spec], &mut goals),
+            Err(DuplicateGoalId(GoalId(0)))
+        );
         assert!(goals.calls.is_empty());
         selector.tick(&mut goals);
         assert_eq!(goals.calls, [Call::CanContinue(0), Call::Tick(0)]);
@@ -469,20 +568,35 @@ mod tests {
     fn target_phase_finishes_before_normal_even_with_same_controls() {
         let normal = normal(0, -10, GoalControls::TARGET | GoalControls::MOVE);
         let target = GoalSpec {
-            id: GoalId(1), kind: GoalKind::Target, priority: 10,
+            id: GoalId(1),
+            kind: GoalKind::Target,
+            priority: 10,
             controls: GoalControls::TARGET | GoalControls::MOVE,
         };
         let mut selector = GoalSelector::new(&[normal, target]).unwrap();
         let mut goals = Goals::new();
         selector.tick(&mut goals);
-        assert_eq!(goals.calls, [
-            Call::CanStart(1), Call::Start(1), Call::Tick(1),
-            Call::CanStart(0), Call::Start(0), Call::Tick(0),
-        ]);
+        assert_eq!(
+            goals.calls,
+            [
+                Call::CanStart(1),
+                Call::Start(1),
+                Call::Tick(1),
+                Call::CanStart(0),
+                Call::Start(0),
+                Call::Tick(0),
+            ]
+        );
         goals.calls.clear();
         selector.tick(&mut goals);
-        assert_eq!(goals.calls, [
-            Call::CanContinue(1), Call::Tick(1), Call::CanContinue(0), Call::Tick(0),
-        ]);
+        assert_eq!(
+            goals.calls,
+            [
+                Call::CanContinue(1),
+                Call::Tick(1),
+                Call::CanContinue(0),
+                Call::Tick(0),
+            ]
+        );
     }
 }

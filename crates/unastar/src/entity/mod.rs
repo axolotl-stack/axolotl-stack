@@ -13,9 +13,11 @@ mod definition_stack;
 pub mod events;
 pub mod families;
 pub mod flags;
+pub(crate) mod goal_selector;
 pub mod item_drop;
 pub mod metadata;
 pub mod mob;
+pub(crate) mod navigation;
 pub mod properties;
 pub mod systems;
 

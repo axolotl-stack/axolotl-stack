@@ -25,6 +25,54 @@ pub const MOVE_JUMP_HEIGHT_IN_WATER: f64 = 0.009;
 pub const JUMP_COOLDOWN_TICKS: u32 = 10;
 /// Upward velocity added per tick while jumping in liquid.
 pub const LIQUID_JUMP_IMPULSE: f64 = 0.04;
+/// Ground jump velocity when the mob has no `minecraft:jump.static`.
+pub const DEFAULT_JUMP_POWER: f32 = 0.42;
+/// `movement.basic` `max_turn` when the component is absent (degrees/tick;
+/// the published schema default).
+pub const DEFAULT_MAX_TURN: f32 = 30.0;
+/// Head yaw returns toward the body yaw at this rate (degrees/tick) while no
+/// goal looks anywhere; provisional: Java Edition `LookControl`.
+pub const LOOK_IDLE_HEAD_TURN: f32 = 10.0;
+
+// --- Navigation -----------------------------------------------------------------
+
+/// Path search range around the mob; provisional: Microsoft Learn
+/// `minecraft:follow_range` default (16).
+pub const PATH_MAX_RANGE: f64 = 16.0;
+/// Highest drop a walk path takes; provisional: Java Edition mob maximum
+/// fall distance (3).
+pub const PATH_MAX_DROP: f64 = 3.0;
+/// A waypoint counts as reached when the feet are within this horizontally
+/// (`width / 2` for mobs wider than this, else `this - width / 2`) and within
+/// [`PATH_WAYPOINT_REACH_Y`] vertically; provisional: Java Edition
+/// `PathNavigation`.
+pub const PATH_WAYPOINT_REACH: f64 = 0.75;
+pub const PATH_WAYPOINT_REACH_Y: f64 = 1.0;
+/// Every this many ticks of path following the mob must have moved at least
+/// `speed' × 100 × PATH_STUCK_DISTANCE_FACTOR` blocks (`speed'` = speed when
+/// ≥ 1, else speed²), or the path is dropped as stuck; provisional: Java
+/// Edition `PathNavigation` stuck detection.
+pub const PATH_STUCK_CHECK_TICKS: u32 = 100;
+pub const PATH_STUCK_DISTANCE_FACTOR: f32 = 0.25;
+/// Blocks a walk path avoids when `avoid_damage_blocks` is set; provisional:
+/// Java Edition walk-node danger classes (fire, lava, magma, cactus, berry
+/// bush, wither rose, lit campfires).
+pub const PATH_DAMAGING_BLOCKS: &[&str] = &[
+    "minecraft:fire",
+    "minecraft:soul_fire",
+    "minecraft:lava",
+    "minecraft:flowing_lava",
+    "minecraft:magma",
+    "minecraft:cactus",
+    "minecraft:sweet_berry_bush",
+    "minecraft:wither_rose",
+    "minecraft:campfire",
+    "minecraft:soul_campfire",
+];
+/// Walk-target score of a stroll candidate standing on grass (others score
+/// 0, so the first candidate on grass wins); provisional: Java Edition
+/// animal walk-target value.
+pub const GRASS_WALK_TARGET_SCORE: f32 = 10.0;
 
 // --- Living physics -----------------------------------------------------------
 
@@ -77,6 +125,18 @@ pub const BREED_CHECK_TICKS: u32 = 60;
 /// Partners mate when their boxes are within this distance.
 pub const BREED_TOUCH_DIST: f64 = 0.4;
 pub const BREED_MAX_PARTNER_DIST: f64 = 3.0;
+/// Head turn toward the breeding partner, degrees/tick.
+pub const BREED_HEAD_TURN: f32 = 10.0;
+
+// --- Entity pushing ---------------------------------------------------------------
+
+/// Overlapping pushable actors are pushed apart by this much per tick along
+/// the dominant horizontal axis direction; provisional: Java Edition
+/// `Entity#push`.
+pub const ENTITY_PUSH_STRENGTH: f64 = 0.05;
+/// Player collision box (blocks), for pushing and tempt stop distance.
+pub const PLAYER_BOX_WIDTH: f64 = 0.6;
+pub const PLAYER_BOX_HEIGHT: f64 = 1.8;
 
 // --- Combat and death ---------------------------------------------------------
 

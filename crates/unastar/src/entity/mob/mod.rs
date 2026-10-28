@@ -12,6 +12,7 @@
 //! `network::sync_mob_viewers`.
 
 pub mod actions;
+pub mod ai;
 pub mod archetype;
 pub mod combat;
 pub mod config;
@@ -154,6 +155,7 @@ fn spawn_unattached(
                 flags,
                 properties,
                 attributes,
+                ai::MobBrain::default(),
             ),
         ))
         .id())

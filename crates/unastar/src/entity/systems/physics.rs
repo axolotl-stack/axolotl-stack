@@ -372,6 +372,99 @@ fn item_flotation(
         .map(|_| LiquidKind::Lava)
 }
 
+/// The liquid a living body is in: any water (else lava) volume overlapping
+/// its box shrunk by 0.001. A liquid block's surface is `1 - depth/9` above
+/// its base; falling liquid fills the block.
+pub fn living_liquid(blocks: &impl BlockSource, aabb: Aabb) -> Option<LiquidKind> {
+    let inner = Aabb::new(
+        aabb.min + DVec3::splat(0.001),
+        aabb.max - DVec3::splat(0.001),
+    );
+    let min = inner.min.floor().as_ivec3();
+    let max = inner.max.floor().as_ivec3();
+    let mut lava = false;
+    for y in min.y..=max.y {
+        for x in min.x..=max.x {
+            for z in min.z..=max.z {
+                let Some(state) = liquid_at(blocks, IVec3::new(x, y, z)) else {
+                    continue;
+                };
+                let surface = if state.depth >= 8 {
+                    f64::from(y) + 1.0
+                } else {
+                    f64::from(y) + 1.0 - f64::from(state.depth) / 9.0
+                };
+                if inner.min.y >= surface {
+                    continue;
+                }
+                match state.kind {
+                    LiquidKind::Water => return Some(LiquidKind::Water),
+                    LiquidKind::Lava => lava = true,
+                }
+            }
+        }
+    }
+    lava.then_some(LiquidKind::Lava)
+}
+
+/// Block friction under a living body: the block at `feet.y - 0.1`, with air
+/// (or an unloaded/unknown block) counting as the default 0.6.
+pub fn living_block_friction(blocks: &impl BlockSource, feet: DVec3) -> f64 {
+    use crate::entity::mob::constants::{DEFAULT_BLOCK_FRICTION, FRICTION_SAMPLE_DEPTH};
+    let pos = DVec3::new(feet.x, feet.y - FRICTION_SAMPLE_DEPTH, feet.z)
+        .floor()
+        .as_ivec3();
+    blocks
+        .block_at(pos)
+        .filter(|id| *id != *crate::world::chunk::blocks::AIR)
+        .and_then(|id| blocks.registry().get_by_runtime_id(id))
+        .map_or(DEFAULT_BLOCK_FRICTION, |entry| {
+            f64::from(entry.data.friction)
+        })
+}
+
+/// Post-move gravity, drag and friction of a living body. In water or lava
+/// the vertical step is `(v.y - 0.02) * drag` and both horizontal axes use
+/// the same drag; otherwise gravity and drag apply as on land, with the
+/// support block's friction × 0.91 on the ground and 0.91 in the air.
+/// Horizontal components at most 1e-7 in magnitude are zeroed.
+fn apply_living_drag(
+    blocks: &impl BlockSource,
+    body: &PhysicsBody,
+    feet: DVec3,
+    on_ground: bool,
+    liquid: Option<LiquidKind>,
+    velocity: &mut DVec3,
+) {
+    use crate::entity::mob::constants::{LAVA_DRAG, LIQUID_GRAVITY, WATER_DRAG};
+    let liquid_drag = liquid.map(|kind| match kind {
+        LiquidKind::Water => WATER_DRAG,
+        LiquidKind::Lava => LAVA_DRAG,
+    });
+    let horizontal = if let Some(drag) = liquid_drag {
+        let gravity = if body.gravity > 0.0 {
+            LIQUID_GRAVITY
+        } else {
+            0.0
+        };
+        velocity.y = (velocity.y - gravity) * drag;
+        drag
+    } else {
+        velocity.y = (velocity.y - body.gravity) * body.vertical_drag;
+        if on_ground {
+            body.horizontal_drag * living_block_friction(blocks, feet)
+        } else {
+            body.horizontal_drag
+        }
+    };
+    for axis in [&mut velocity.x, &mut velocity.z] {
+        *axis *= horizontal;
+        if axis.abs() <= 1.0e-7 {
+            *axis = 0.0;
+        }
+    }
+}
+
 /// Advance one entity by one tick at its current (pre-lifecycle-update) age.
 /// Returns the new feet position.
 pub fn step_body(
@@ -409,6 +502,11 @@ pub fn step_body(
     } else {
         None
     };
+    let living_liquid = if body.model == PhysicsModel::Living {
+        living_liquid(blocks, aabb)
+    } else {
+        None
+    };
     if body.gravity_stage == GravityStage::BeforeMove && flotation.is_none() {
         velocity.y -= body.gravity;
     }
@@ -427,6 +525,11 @@ pub fn step_body(
     let feet = result.aabb.feet();
     if body.model == PhysicsModel::FallingBlock && *on_ground {
         *velocity = DVec3::ZERO;
+        return feet;
+    }
+
+    if body.model == PhysicsModel::Living {
+        apply_living_drag(blocks, body, feet, *on_ground, living_liquid, velocity);
         return feet;
     }
 

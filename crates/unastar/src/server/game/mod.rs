@@ -298,6 +298,18 @@ impl GameServer {
                 .chain()
                 .in_set(PhysicsSet),
         );
+        // Mob AI turns goals into rotation and velocity before the physics
+        // step integrates them; pushing separates overlapping mobs.
+        ecs.schedule_mut().add_systems(
+            (
+                crate::entity::mob::ai::tick_mob_ai,
+                crate::entity::mob::ai::push_mobs,
+            )
+                .chain()
+                .in_set(PhysicsSet)
+                .after(crate::entity::mob::derive_mob_state)
+                .before(tick_physics),
+        );
 
         ecs.schedule_mut().add_systems(
             (tick_block_breaking, plugins::process_plugin_actions).in_set(EntityLogicSet),
@@ -356,6 +368,8 @@ impl GameServer {
 
         ecs.world_mut()
             .insert_resource(types::ItemRegistryResource(Arc::new(items)));
+        ecs.world_mut()
+            .insert_resource(crate::entity::mob::ai::PathBlockTable::new(&blocks));
         ecs.world_mut()
             .insert_resource(types::BlockRegistryResource(Arc::new(blocks)));
 
