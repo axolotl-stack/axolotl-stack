@@ -35,9 +35,9 @@ use crate::config::BedrockListenerConfig;
 use crate::error::{AuthError, HandshakePhase, JolyneError, LoginRefusal, ProtocolError};
 use crate::valentine::{
     BorrowedMcpePacketData, ChunkRadiusUpdatedPacket, EnumsConnectionDisconnectFailReason,
-    McpePacket, McpePacketData, McpePacketName, NetworkChunkPublisherUpdatePacket,
-    NetworkSettingsPacket, NetworkSettingsPacketCompressionAlgorithm, PROTOCOL_VERSION,
-    PlayStatusPacket, PlayStatusPacketStatus, ServerToClientHandshakePacket,
+    McpePacket, McpePacketData, McpePacketName, NetworkSettingsPacket,
+    NetworkSettingsPacketCompressionAlgorithm, PROTOCOL_VERSION, PlayStatusPacket,
+    PlayStatusPacketStatus, ServerToClientHandshakePacket,
 };
 use crate::world::WorldJoinParams;
 
@@ -644,11 +644,6 @@ impl WorldReady {
         Ok(ServerSpawn {
             deadline: deadline_after(now, self.config.spawn_timeout),
             runtime_id: params.start_game.runtime_id.actor_runtime_id,
-            publisher_position: params
-                .start_game
-                .settings
-                .default_spawn_block_position
-                .clone(),
             radius_override: params.chunk_radius,
             chunk_radius: None,
             conn: self.conn,
@@ -666,16 +661,21 @@ pub struct ServerSpawn {
     deferred: Deferred,
     deadline: Instant,
     runtime_id: u64,
-    publisher_position: crate::valentine::BlockPos,
     radius_override: Option<i32>,
     chunk_radius: Option<i32>,
 }
 owner!(ServerSpawn);
 
 impl ServerSpawn {
-    /// Answers the first `RequestChunkRadius` with `ChunkRadiusUpdated`,
-    /// `NetworkChunkPublisherUpdate` and `PlayStatus(PlayerSpawn)` in one
-    /// batch.
+    /// Answers the first `RequestChunkRadius` with `ChunkRadiusUpdated` and
+    /// `PlayStatus(PlayerSpawn)` in one batch.
+    ///
+    /// No `NetworkChunkPublisherUpdate` precedes `PlayerSpawn` (gophertunnel
+    /// `handleRequestChunkRadius` order): clients treat a pre-spawn publisher
+    /// update as terrain on its way and withhold `SetLocalPlayerAsInitialized`
+    /// until those columns arrive, but the application only streams chunks
+    /// once the session is in play. The client starts with an empty view; the
+    /// application publishes the view with its first chunks.
     fn on_radius(&mut self, requested: i32, now: Instant) -> Result<(), JolyneError> {
         if requested < 1 {
             return Err(ProtocolError::InvalidChunkRadius(requested).into());
@@ -685,11 +685,6 @@ impl ServerSpawn {
         let packets = [
             McpePacket::from(ChunkRadiusUpdatedPacket {
                 chunk_radius: radius,
-            }),
-            McpePacket::from(NetworkChunkPublisherUpdatePacket {
-                newpositionforview: self.publisher_position.clone(),
-                newradiusforview: (radius as u32).saturating_mul(16),
-                server_built_chunks_list: vec![],
             }),
             status_packet(PlayStatusPacketStatus::Playerspawn),
         ];
