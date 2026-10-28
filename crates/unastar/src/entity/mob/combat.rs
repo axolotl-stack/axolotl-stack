@@ -20,7 +20,10 @@ use jolyne::valentine::types::{
 };
 use jolyne::valentine::{ActorEventPacket, McpePacket};
 use rand::Rng;
-use unastar_data::actor_components::body::ActorDamageCause;
+use thiserror::Error;
+use unastar_data::actor_components::body::{
+    self, ActorDamageCause, ExtraKnockbackApproach, KnockbackMode,
+};
 
 use super::config::{HurtCondition, HurtOnConditionConfig};
 use super::events::{MobFacts, held_item};
@@ -32,6 +35,7 @@ use crate::entity::components::{
     ActorViewers, GameMode, Health, PhysicsBody, Player, PlayerSession, Position, RuntimeId,
     Velocity,
 };
+use crate::entity::definition::ComponentKindsBuilder;
 use crate::registry::collision::Aabb;
 
 /// The hurt timer of a mob: the server tick it runs out at and the damage
@@ -53,6 +57,99 @@ pub struct Hit {
     /// Position the knockback pushes away from (horizontally); `None` for
     /// damage without knockback.
     pub knockback_from: Option<DVec3>,
+    /// Strength of that knockback (the attacker's knockback rules).
+    pub knockback_power: KnockbackPower,
+}
+
+/// Knockback strength: the knockback-rules preset of the attacker
+/// (`minecraft:apply_knockback_rules`), or [`KnockbackPower::DEFAULT`].
+#[derive(Debug, Clone, Copy, PartialEq)]
+pub struct KnockbackPower {
+    /// Scales [`constants::KNOCKBACK_HORIZONTAL`].
+    pub horizontal: f64,
+    /// Upward velocity before [`constants::KNOCKBACK_VERTICAL_SCALE`].
+    pub vertical: f64,
+    /// Cap of the resulting vertical velocity.
+    pub vertical_cap: f64,
+    /// Existing velocity is multiplied by this first.
+    pub retain: f64,
+}
+
+impl KnockbackPower {
+    /// The built-in preset (melee and attackers without knockback rules).
+    pub const DEFAULT: Self = Self {
+        horizontal: 1.0,
+        vertical: constants::KNOCKBACK_VERTICAL,
+        vertical_cap: constants::KNOCKBACK_VERTICAL_CAP,
+        retain: constants::KNOCKBACK_RETAIN,
+    };
+}
+
+/// `minecraft:apply_knockback_rules`: the knockback this actor deals. The
+/// first preset whose filter passes applies, the built-in preset when none
+/// does; presets without a filter always pass.
+#[derive(Component, Debug, Clone, Copy, PartialEq)]
+pub struct KnockbackRules(pub KnockbackPower);
+
+/// Why a `minecraft:apply_knockback_rules` body cannot be compiled.
+#[derive(Debug, Error)]
+pub enum KnockbackRulesError {
+    #[error("knockback preset filters are not implemented")]
+    Filter,
+    #[error("check_if_target_is_immersed_in_water is not implemented")]
+    ImmersedCheck,
+    #[error("knockback_mode hit_direction is not implemented")]
+    HitDirection,
+    #[error("scale_with_damage is not implemented")]
+    ScaleWithDamage,
+    #[error("extra_knockback_approach multiply_reduced is not implemented")]
+    MultiplyReduced,
+}
+
+pub fn register_component_kinds(builder: &mut ComponentKindsBuilder) -> Result<(), String> {
+    super::config::insert(builder, |b: body::ApplyKnockbackRules| {
+        compile_knockback_rules(b).map_err(|e| e.to_string())
+    })
+}
+
+fn compile_knockback_rules(
+    b: body::ApplyKnockbackRules,
+) -> Result<KnockbackRules, KnockbackRulesError> {
+    for preset in &b.presets {
+        if preset.filter.is_some() {
+            return Err(KnockbackRulesError::Filter);
+        }
+        if preset.check_if_target_is_immersed_in_water {
+            return Err(KnockbackRulesError::ImmersedCheck);
+        }
+        if preset.knockback_mode == KnockbackMode::HitDirection {
+            return Err(KnockbackRulesError::HitDirection);
+        }
+        if preset.scale_with_damage {
+            return Err(KnockbackRulesError::ScaleWithDamage);
+        }
+        if preset.extra_knockback_approach == ExtraKnockbackApproach::MultiplyReduced {
+            return Err(KnockbackRulesError::MultiplyReduced);
+        }
+    }
+    // Filterless presets all pass, so the first one decides.
+    Ok(KnockbackRules(b.presets.first().map_or(
+        KnockbackPower::DEFAULT,
+        |preset| KnockbackPower {
+            horizontal: f64::from(preset.horizontal_power),
+            vertical: f64::from(preset.vertical_power),
+            vertical_cap: f64::from(preset.vertical_velocity_cap),
+            retain: f64::from(preset.slowdown_scale),
+        },
+    )))
+}
+
+/// The knockback `attacker` deals: its knockback rules, else the built-in
+/// preset.
+pub fn knockback_power_of(world: &World, attacker: Entity) -> KnockbackPower {
+    world
+        .get::<KnockbackRules>(attacker)
+        .map_or(KnockbackPower::DEFAULT, |rules| rules.0)
 }
 
 /// A player attacks `target` with whatever the server has in the player's
@@ -95,6 +192,7 @@ pub fn player_attack(
             attacker: Some(player),
             by_player: true,
             knockback_from: Some(eye),
+            knockback_power: KnockbackPower::DEFAULT,
         },
     );
 }
@@ -111,14 +209,22 @@ fn attacker_eye(world: &World, player: Entity) -> Option<DVec3> {
     eye.is_finite().then_some(eye)
 }
 
-/// Apply `hit` to `target` under the hurt rules; returns the health
-/// actually removed (0 when the hit was ignored). A hit that empties the
-/// mob's health starts its death.
+/// Apply `hit` to `target` under the damage sensor and the hurt rules;
+/// returns the health actually removed (0 when the hit was ignored). A hit
+/// that empties the mob's health starts its death. Zero damage still counts
+/// as a hit (hurt animation, hurt timer, knockback), as BDS hurts with it.
 pub fn hurt_mob(world: &mut World, target: Entity, hit: Hit) -> f32 {
-    if hit.damage <= 0.0 || world.get::<Dead>(target).is_some() {
+    if hit.damage < 0.0 || world.get::<Dead>(target).is_some() {
         return 0.0;
     }
     if world.get::<Health>(target).is_none_or(Health::is_dead) {
+        return 0.0;
+    }
+    let (hit, sensor_trigger) = match super::damage_sensor::sense(world, target, hit) {
+        super::damage_sensor::Sensed::Hurt { hit, after } => (hit, after),
+        super::damage_sensor::Sensed::Cancelled => return 0.0,
+    };
+    if hit.damage < 0.0 {
         return 0.0;
     }
     let ignores_timer = matches!(
@@ -157,8 +263,11 @@ pub fn hurt_mob(world: &mut World, target: Entity, hit: Hit) -> f32 {
     if full {
         send_actor_event(world, target, EnumsActorEvent::Hurt, 0);
         if let Some(from) = hit.knockback_from {
-            apply_knockback(world, target, from);
+            apply_knockback(world, target, from, hit.knockback_power);
         }
+    }
+    if let Some(index) = sensor_trigger {
+        super::damage_sensor::after_hurt(world, target, index, hit.attacker);
     }
     if dead {
         death::begin_death(world, target);
@@ -167,7 +276,7 @@ pub fn hurt_mob(world: &mut World, target: Entity, hit: Hit) -> f32 {
 }
 
 /// Push `target` away from `from` (horizontally).
-fn apply_knockback(world: &mut World, target: Entity, from: DVec3) {
+fn apply_knockback(world: &mut World, target: Entity, from: DVec3, power: KnockbackPower) {
     let Some(feet) = world.get::<Position>(target).map(|p| p.0) else {
         return;
     };
@@ -181,20 +290,19 @@ fn apply_knockback(world: &mut World, target: Entity, from: DVec3) {
         away = DVec2::from_angle(angle);
     }
     if let Some(mut velocity) = world.get_mut::<Velocity>(target) {
-        velocity.0 = knockback_velocity(velocity.0, away.normalize());
+        velocity.0 = knockback_velocity(velocity.0, away.normalize(), power);
     }
 }
 
-/// Native knockback: existing velocity × [`constants::KNOCKBACK_RETAIN`],
-/// plus [`constants::KNOCKBACK_HORIZONTAL`] along `away` (a unit vector in
-/// x/z) and `KNOCKBACK_VERTICAL × KNOCKBACK_VERTICAL_SCALE` upwards, the
-/// vertical velocity capped at [`constants::KNOCKBACK_VERTICAL_CAP`].
-pub fn knockback_velocity(velocity: DVec3, away: DVec2) -> DVec3 {
-    let mut out = velocity * constants::KNOCKBACK_RETAIN;
-    out.x += away.x * constants::KNOCKBACK_HORIZONTAL;
-    out.z += away.y * constants::KNOCKBACK_HORIZONTAL;
-    out.y = (out.y + constants::KNOCKBACK_VERTICAL * constants::KNOCKBACK_VERTICAL_SCALE)
-        .min(constants::KNOCKBACK_VERTICAL_CAP);
+/// Native knockback: existing velocity × `power.retain`, plus
+/// [`constants::KNOCKBACK_HORIZONTAL`] × `power.horizontal` along `away` (a
+/// unit vector in x/z) and `power.vertical × KNOCKBACK_VERTICAL_SCALE`
+/// upwards, the vertical velocity capped at `power.vertical_cap`.
+pub fn knockback_velocity(velocity: DVec3, away: DVec2, power: KnockbackPower) -> DVec3 {
+    let mut out = velocity * power.retain;
+    out.x += away.x * constants::KNOCKBACK_HORIZONTAL * power.horizontal;
+    out.z += away.y * constants::KNOCKBACK_HORIZONTAL * power.horizontal;
+    out.y = (out.y + power.vertical * constants::KNOCKBACK_VERTICAL_SCALE).min(power.vertical_cap);
     out
 }
 
@@ -254,6 +362,7 @@ pub fn hurt_on_condition(
                         attacker: None,
                         by_player: false,
                         knockback_from: None,
+                        knockback_power: KnockbackPower::DEFAULT,
                     },
                 );
             }
@@ -424,13 +533,17 @@ mod tests {
 
     #[test]
     fn knockback_retains_half_the_velocity_and_caps_the_lift() {
-        let v = knockback_velocity(DVec3::new(0.2, -0.0784, -0.1), DVec2::new(0.6, 0.8));
+        let v = knockback_velocity(
+            DVec3::new(0.2, -0.0784, -0.1),
+            DVec2::new(0.6, 0.8),
+            KnockbackPower::DEFAULT,
+        );
         assert!((v.x - (0.1 + 0.6 * 0.4)).abs() < 1e-12);
         assert!((v.z - (-0.05 + 0.8 * 0.4)).abs() < 1e-12);
         assert_eq!(v.y, constants::KNOCKBACK_VERTICAL_CAP);
         // A mob already flying fast upwards keeps half its lift plus the push,
         // capped at the same 0.4.
-        let v = knockback_velocity(DVec3::new(0.0, 1.0, 0.0), DVec2::X);
+        let v = knockback_velocity(DVec3::new(0.0, 1.0, 0.0), DVec2::X, KnockbackPower::DEFAULT);
         assert_eq!(v.y, 0.4);
     }
 

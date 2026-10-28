@@ -108,11 +108,12 @@ pub fn register_component_kinds(
     register_flag::<body::CanClimb, { actor_flags::CANCLIMB }>(builder)?;
     register_flag::<body::IsHiddenWhenInvisible, { actor_flags::HIDDEN_WHEN_INVISIBLE }>(builder)?;
     register_flag::<body::UsesLegacyFriction, { actor_flags::USES_LEGACY_FRICTION }>(builder)?;
+    register_flag::<body::IsSaddled, { actor_flags::SADDLED }>(builder)?;
     register_flag::<body::UsesUniformAirDrag, { actor_flags::USES_UNIFORM_AIR_DRAG }>(builder)?;
     Ok(())
 }
 
-fn register_flag<B: unastar_data::actor_components::ComponentBody, const INDEX: u32>(
+pub(crate) fn register_flag<B: unastar_data::actor_components::ComponentBody, const INDEX: u32>(
     builder: &mut super::definition::ComponentKindsBuilder,
 ) -> Result<(), String> {
     builder.register(|_: B| Ok(()), apply_flag::<INDEX>, remove_flag::<INDEX>)

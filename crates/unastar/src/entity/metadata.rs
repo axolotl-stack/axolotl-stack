@@ -146,6 +146,29 @@ impl EntityMetadata {
         m
     }
 
+    /// Actor data a non-mob actor (experience orb, projectile) starts with:
+    /// the [`Self::living_base`] rows without the target, eating, mob-effect
+    /// and one reserved row, with the name tag shown byte `0xff` and an
+    /// ambient sound interval of 8 s. Matches the native summons of the orb
+    /// and the egg (`operator/summons/{xp_orb,egg}.bin`) apart from their
+    /// own rows (flags, box, orb value, buoyancy).
+    pub fn actor_base() -> Self {
+        use actor_data_ids as id;
+        let mut m = Self::from_entries(Self::living_base().data.into_iter().filter(|entry| {
+            ![
+                id::TARGET,
+                id::RESERVED_010,
+                id::EATING_COUNTER,
+                id::VISIBLE_MOB_EFFECTS,
+            ]
+            .contains(&entry.id)
+        }));
+        m.set_byte(id::NAMETAG_ALWAYS_SHOW, -1);
+        m.set_float(id::AMBIENT_SOUND_INTERVAL, 8.0);
+        m.mark_clean();
+        m
+    }
+
     pub fn get(&self, key: u32) -> Option<&DataItemEntryPayload> {
         self.data
             .binary_search_by_key(&key, |entry| entry.id)

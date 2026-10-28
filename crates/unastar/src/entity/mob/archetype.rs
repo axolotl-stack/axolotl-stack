@@ -12,7 +12,9 @@ use std::sync::Arc;
 
 use bevy_ecs::prelude::Resource;
 use serde_json::Value;
+use unastar_data::actor_components::ActorComponent;
 use unastar_data::actor_definitions::ActorDefinition;
+use unastar_data::actor_identifiers::ActorType;
 use unastar_rules::event::EventAction;
 use unastar_rules::filter::{BuiltinTest, Filter, Subject};
 use unastar_rules::molang::QueryRegistry;
@@ -24,15 +26,28 @@ use crate::entity::events::{
 };
 use crate::entity::families::{FamilyRegistry, FamilyRegistryBuilder};
 use crate::entity::properties::{ActorPropertyRegistry, PropertyLayout};
+use crate::registry::ItemRegistry;
 use crate::registry::entity::ActorDefinitionRegistry;
 
+use super::native::NativeTraits;
+
 /// Every component kind a mob can use, frozen once for the process.
-pub fn component_kinds(families: &Arc<FamilyRegistry>) -> Result<Arc<ComponentKinds>, String> {
+pub fn component_kinds(
+    families: &Arc<FamilyRegistry>,
+    items: &Arc<ItemRegistry>,
+) -> Result<Arc<ComponentKinds>, String> {
     let mut builder = ComponentKindsBuilder::default();
     crate::entity::definition_components::register_component_kinds(&mut builder)?;
     crate::entity::flags::register_component_kinds(&mut builder)?;
     families.register_component_kind(&mut builder)?;
     super::config::register_component_kinds(&mut builder)?;
+    super::color::register_component_kinds(&mut builder)?;
+    super::shearing::register_component_kinds(&mut builder)?;
+    super::damage_sensor::register_component_kinds(&mut builder)?;
+    super::ambient::register_component_kinds(&mut builder)?;
+    super::spawn_entity::register_component_kinds(&mut builder, items)?;
+    super::combat::register_component_kinds(&mut builder)?;
+    super::projectile::register_component_kinds(&mut builder, items)?;
     Ok(builder.freeze())
 }
 
@@ -41,14 +56,16 @@ pub fn component_kinds(families: &Arc<FamilyRegistry>) -> Result<Arc<ComponentKi
 fn supported_test(test: BuiltinTest, subject: Subject) -> bool {
     match test {
         BuiltinTest::HasBiomeTag
+        | BuiltinTest::HasComponent
         | BuiltinTest::InLava
         | BuiltinTest::InWater
         | BuiltinTest::IsBaby
-        | BuiltinTest::EnumProperty
+        | BuiltinTest::IsDifficulty
         | BuiltinTest::BoolProperty
         | BuiltinTest::IntProperty
         | BuiltinTest::RiderCount => subject == Subject::Self_,
-        BuiltinTest::IsFamily | BuiltinTest::HasEquipment => {
+        BuiltinTest::IsSneakHeld => subject == Subject::Other,
+        BuiltinTest::IsFamily | BuiltinTest::HasEquipment | BuiltinTest::EnumProperty => {
             matches!(subject, Subject::Self_ | Subject::Other)
         }
         _ => false,
@@ -115,6 +132,11 @@ pub struct LifecycleEvents {
 
 pub struct MobArchetype {
     pub identifier: Arc<str>,
+    /// The native actor class: `runtime_identifier` when the definition
+    /// sets one, else the identifier.
+    pub actor_type: ActorType,
+    /// Native class behaviour of [`Self::actor_type`].
+    pub native: NativeTraits,
     pub source: Arc<ActorDefinition>,
     pub definition: Arc<CompiledDefinition>,
     pub events: CompiledEvents,
@@ -131,6 +153,9 @@ pub struct MobArchetype {
     /// actors with `USES_LEGACY_FRICTION` (observed on the native cow summon,
     /// whose 1.26.10 definition does not declare the component).
     pub legacy_friction: bool,
+    /// The definition's base components include `minecraft:projectile`: the
+    /// actor flies as a projectile instead of living physics and AI.
+    pub projectile: bool,
 }
 
 impl MobArchetype {
@@ -140,7 +165,24 @@ impl MobArchetype {
         properties: &ActorPropertyRegistry,
     ) -> Result<Self, String> {
         let identifier = source.identifier();
+        let runtime_identifier = source
+            .description
+            .runtime_identifier
+            .as_deref()
+            .unwrap_or(identifier);
+        let actor_type = ActorType::from_name(runtime_identifier)
+            .ok_or_else(|| format!("{runtime_identifier} is not a native actor type"))?;
         let definition = CompiledDefinition::compile(source, Arc::clone(kinds))?;
+        let projectile_name = ActorComponent::Projectile.name();
+        let projectile = source.components.contains_key(projectile_name);
+        if !projectile
+            && source
+                .component_groups
+                .values()
+                .any(|group| group.contains_key(projectile_name))
+        {
+            return Err("a projectile component in a component group is not implemented".into());
+        }
         let layout = match properties.get(identifier) {
             Some(layout) => Arc::clone(layout),
             None => {
@@ -160,6 +202,8 @@ impl MobArchetype {
         let attributes = Arc::new(attributes);
         Ok(Self {
             identifier: Arc::from(identifier),
+            actor_type,
+            native: NativeTraits::of(actor_type),
             source: Arc::clone(source),
             lifecycle: LifecycleEvents {
                 spawned: events.event("minecraft:entity_spawned"),
@@ -174,6 +218,7 @@ impl MobArchetype {
             attribute_seed,
             filters: bindings.filters.into_boxed_slice(),
             legacy_friction: format_before(&source.format_version, [1, 26, 20]),
+            projectile,
         })
     }
 }
@@ -228,13 +273,14 @@ impl MobRegistry {
     pub fn compile(
         definitions: &ActorDefinitionRegistry,
         properties: &ActorPropertyRegistry,
+        items: &Arc<ItemRegistry>,
     ) -> Result<Self, String> {
         let mut family_builder = FamilyRegistryBuilder::default();
         for definition in definitions.iter() {
             family_builder.register_definition(definition)?;
         }
         let families = family_builder.freeze();
-        let kinds = component_kinds(&families)?;
+        let kinds = component_kinds(&families, items)?;
         let mut archetypes = BTreeMap::new();
         let mut unsupported = BTreeMap::new();
         for source in definitions.iter() {
@@ -247,6 +293,23 @@ impl MobRegistry {
                     unsupported.insert(id, reason);
                 }
             }
+        }
+        // What a projectile spawns on hit must itself be spawnable; checked
+        // once every archetype is compiled.
+        let broken: Vec<(Arc<str>, String)> = archetypes
+            .iter()
+            .filter(|(_, archetype)| archetype.projectile)
+            .filter_map(|(id, archetype)| {
+                super::projectile::check_spawns(archetype, items, |name| {
+                    archetypes.get(name).map(Arc::clone)
+                })
+                .err()
+                .map(|error| (Arc::clone(id), error.to_string()))
+            })
+            .collect();
+        for (id, reason) in broken {
+            archetypes.remove(&id);
+            unsupported.insert(id, reason);
         }
         Ok(Self {
             archetypes: Arc::new(archetypes),

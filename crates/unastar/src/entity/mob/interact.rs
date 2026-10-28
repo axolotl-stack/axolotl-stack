@@ -1,8 +1,9 @@
-//! Player interactions with mobs: spawn eggs, feeding babies, love mode and
-//! authored `minecraft:interact` rows (milking).
+//! Player interactions with mobs: dyeing, spawn eggs, feeding babies, love
+//! mode and authored `minecraft:interact` rows (milking, shearing, saddling).
 //!
-//! [`player_interact`] tries, in order: the mob's own spawn egg on a mob with
-//! `minecraft:spawn_egg_interaction` (spawns a baby), `minecraft:ageable`
+//! [`player_interact`] tries, in order: a dye on a `minecraft:is_dyeable`
+//! mob of another colour (recolours it), the mob's own spawn egg on a mob
+//! with `minecraft:spawn_egg_interaction` (spawns a baby), `minecraft:ageable`
 //! items on a baby (feed, pause, resume), `minecraft:breedable` items on an
 //! adult (love mode), then the `minecraft:interact` rows. The first that
 //! applies uses the held item (one is consumed outside creative) and makes
@@ -62,13 +63,39 @@ pub fn player_interact(
     let Some(held) = held_item(world, player).cloned() else {
         return;
     };
-    let used = spawn_baby_from_egg(world, player, target, &held)
+    let used = apply_dye(world, player, target, &held)
+        || spawn_baby_from_egg(world, player, target, &held)
         || ageable_interaction(world, player, target, &held)
         || fall_in_love(world, player, target, &held)
         || authored_interaction(world, player, target);
     if used {
         world.entity_mut(target).insert(Persistent);
     }
+}
+
+/// `minecraft:is_dyeable`: a dye recolours the actor to the dye's colour and
+/// one dye is used (kept in creative). A dye of the actor's own colour does
+/// nothing.
+fn apply_dye(world: &mut World, player: Entity, target: Entity, held: &ItemStack) -> bool {
+    if world.get::<super::color::DyeableConfig>(target).is_none() {
+        return false;
+    }
+    let Some(colour) = constants::DYE_ITEMS
+        .iter()
+        .position(|dye| *dye == held.item_id)
+        .map(|index| index as u8)
+    else {
+        return false;
+    };
+    if super::color::color_of(world, target) == Some(colour) {
+        return false;
+    }
+    super::color::set_color(
+        &mut world.entity_mut(target),
+        super::color::ActorColor(colour),
+    );
+    use_held_item(world, player, None);
+    true
 }
 
 /// The actor a spawn egg item creates: `minecraft:cow_spawn_egg` →
@@ -218,23 +245,37 @@ fn fall_in_love(world: &mut World, player: Entity, target: Entity, held: &ItemSt
     true
 }
 
+/// Ticks after which `minecraft:interact` rows with a cooldown run again.
+#[derive(Component, Debug, Clone, Copy, PartialEq, Eq)]
+#[component(storage = "SparseSet")]
+pub struct InteractCooldown {
+    pub until_tick: u64,
+}
+
 /// The first `minecraft:interact` row whose filter passes (other = the
-/// player): uses the held item, hands out `transform_to_item` and plays the
-/// row's sounds.
+/// player) and whose cooldown is not running: uses or wears the held item,
+/// hands out `transform_to_item`, drops `spawn_items` loot, plays the row's
+/// sounds, starts the cooldown and fires the row's event on the mob.
 fn authored_interaction(world: &mut World, player: Entity, target: Entity) -> bool {
     let Some(config) = world.get::<InteractConfig>(target) else {
         return false;
     };
     let interactions = std::sync::Arc::clone(&config.interactions);
+    let now = world.resource::<TickCounter>().current;
+    let cooling = world
+        .get::<InteractCooldown>(target)
+        .is_some_and(|cooldown| now < cooldown.until_tick);
     let facts = MobFacts {
         world,
         entity: target,
         other: Some(player),
     };
     let Some(row) = interactions.iter().find(|row| {
-        row.filter
-            .as_ref()
-            .is_none_or(|filter| filter.evaluate(&facts))
+        !(cooling && row.cooldown_ticks > 0)
+            && row
+                .filter
+                .as_ref()
+                .is_none_or(|filter| filter.evaluate(&facts))
     }) else {
         return false;
     };
@@ -252,10 +293,135 @@ fn authored_interaction(world: &mut World, player: Entity, target: Entity) -> bo
     if row.use_item || result.is_some() {
         use_held_item_with(world, player, row.use_item, result);
     }
+    if row.hurt_item > 0 {
+        hurt_held_item(world, player, row.hurt_item);
+    }
+    if let Some(spawn) = &row.spawn_items {
+        spawn_interaction_loot(world, target, spawn);
+    }
     for sound in row.play_sounds.iter() {
         play_mob_sound(world, target, sound);
     }
+    if row.cooldown_ticks > 0 {
+        world.entity_mut(target).insert(InteractCooldown {
+            until_tick: now + u64::from(row.cooldown_ticks),
+        });
+    }
+    if let Some(event) = &row.on_interact {
+        let handle = world
+            .get::<MobKind>(target)
+            .and_then(|kind| kind.0.events.event(&event.0));
+        match handle {
+            Some(handle) => {
+                if let Err(error) = super::events::fire_event(world, target, &handle, Some(player))
+                {
+                    warn!(event = %event.0, %error, "interaction event failed");
+                }
+            }
+            None => warn!(event = %event.0, "interaction event is not defined"),
+        }
+    }
     true
+}
+
+/// Wear the held item by `amount` durability: creative players and
+/// unbreakable items take none, unbreaking level `n` spares it with
+/// probability `n / (n + 1)`, and an item worn to its maximum breaks.
+fn hurt_held_item(world: &mut World, player: Entity, amount: i32) {
+    use crate::item::enchant::{
+        Enchantment, durability_damage, enchantment_level, with_durability_damage,
+    };
+    if world.get::<GameMode>(player) == Some(&GameMode::Creative) {
+        return;
+    }
+    let Some(held) = held_item(world, player).cloned() else {
+        return;
+    };
+    let Some(max_damage) = crate::registry::item::tool_info(&held.item_id)
+        .map(|info| info.max_damage)
+        .filter(|max| *max > 0)
+    else {
+        return;
+    };
+    let unbreaking = enchantment_level(&held, Enchantment::Unbreaking);
+    let roll = world
+        .resource_mut::<EntityRandom>()
+        .0
+        .gen_range(0..=unbreaking);
+    // Level `n` applies wear with probability `1 / (n + 1)`.
+    if unbreaking > 0 && roll > 0 {
+        return;
+    }
+    let damage = durability_damage(&held) + amount;
+    let worn = if damage >= max_damage {
+        ItemStack::empty()
+    } else {
+        with_durability_damage(&held, damage)
+    };
+    let slot = world.get::<HeldSlot>(player).map_or(0, |slot| slot.0);
+    if let Some(mut inventory) = world.get_mut::<MainInventory>(player)
+        && let Some(stack) = inventory.hotbar_mut(slot)
+    {
+        *stack = worn.clone();
+    }
+    send_slot(world, player, usize::from(slot), &worn);
+}
+
+/// Roll an interaction's `spawn_items` table for `mob` (its colour and fire
+/// state are the THIS actor's) and drop the items at its feet raised by the
+/// row's offset.
+fn spawn_interaction_loot(world: &mut World, mob: Entity, spawn: &super::config::SpawnItems) {
+    use rand::SeedableRng;
+    let Some(table) = unastar_data::loot::get(&spawn.table) else {
+        warn!(table = %spawn.table, "interaction loot table is not in the loot registry");
+        return;
+    };
+    let Some(feet) = world.get::<Position>(mob).map(|p| p.0) else {
+        return;
+    };
+    let recipes = world
+        .get_resource::<crate::server::game::types::RecipeRegistryResource>()
+        .map(|r| r.0.clone());
+    let ctx = crate::server::game::LootContext {
+        on_fire: Some(
+            world
+                .get::<crate::entity::components::OnFire>(mob)
+                .is_some_and(crate::entity::components::OnFire::is_on_fire),
+        ),
+        recipes: recipes.as_deref(),
+        color_index: super::color::color_of(world, mob),
+        ..Default::default()
+    };
+    let seed = world.resource_mut::<EntityRandom>().0.r#gen::<u64>();
+    let drops = match unastar_rules::loot::roll(
+        unastar_data::loot::vanilla(),
+        table,
+        &ctx,
+        &mut rand::rngs::StdRng::seed_from_u64(seed),
+    ) {
+        Ok(drops) => drops,
+        Err(error) => {
+            warn!(table = %spawn.table, %error, "interaction loot table cannot be evaluated");
+            return;
+        }
+    };
+    let at = feet + DVec3::new(0.0, f64::from(spawn.y_offset), 0.0);
+    for stack in crate::server::game::loot_stacks(world, drops) {
+        let Some(item) = crate::entity::spawn_item_drop(world, at, stack, None) else {
+            continue;
+        };
+        let jitter = {
+            let rng = &mut world.resource_mut::<EntityRandom>().0;
+            DVec3::new(
+                (rng.r#gen::<f64>() - rng.r#gen::<f64>()) * constants::INTERACT_SPAWN_ITEM_SPREAD,
+                rng.r#gen::<f64>() * constants::INTERACT_SPAWN_ITEM_LIFT,
+                (rng.r#gen::<f64>() - rng.r#gen::<f64>()) * constants::INTERACT_SPAWN_ITEM_SPREAD,
+            )
+        };
+        if let Some(mut velocity) = world.get_mut::<crate::entity::components::Velocity>(item) {
+            velocity.0 += jitter;
+        }
+    }
 }
 
 /// The flattened identifier of an authored item name; legacy `bucket:<aux>`

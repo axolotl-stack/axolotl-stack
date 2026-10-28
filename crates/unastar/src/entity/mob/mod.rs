@@ -13,20 +13,33 @@
 
 pub mod actions;
 pub mod ageing;
+pub mod ambient;
 pub mod ai;
 pub mod archetype;
 pub mod breeding;
 pub mod combat;
 pub mod config;
 pub mod constants;
+pub mod damage_sensor;
+pub mod color;
 pub mod death;
 pub mod despawn;
 pub mod events;
+pub mod fall;
 pub mod interact;
+pub mod native;
 pub mod network;
 pub mod persistence;
+pub mod projectile;
+pub mod shearing;
+pub mod sound;
+pub mod spawn_entity;
 pub mod state;
 
+#[cfg(test)]
+mod chicken_tests;
+#[cfg(test)]
+mod passive_mob_tests;
 #[cfg(test)]
 mod tests;
 
@@ -40,8 +53,8 @@ pub use archetype::{MobArchetype, MobRegistry};
 
 use crate::entity::attributes::{ActorAttributes, AttributeValue};
 use crate::entity::components::{
-    ActorViewers, Age, AirSupply, Health, Living, Mob, OnGround, PhysicsBody, Position, Rotation,
-    RuntimeId, Velocity,
+    ActorViewers, Age, AirSupply, FallDistance, Health, Living, Mob, OnGround, PhysicsBody,
+    Position, Rotation, RuntimeId, Velocity,
 };
 use crate::entity::definition::{apply_pending_definitions, attach_definition};
 use crate::entity::definition_components::{
@@ -138,32 +151,53 @@ fn spawn_unattached(
             .update(actor_flags::USES_LEGACY_FRICTION, true)
             .expect("catalogue flag index");
     }
-    Ok(world
-        .spawn((
-            (
-                Mob,
-                MobKind(Arc::clone(archetype)),
-                Living,
-                Position(position),
-                Rotation::new(yaw, 0.0),
-                Velocity::default(),
-                OnGround(false),
-                Age::default(),
-                RuntimeId(runtime_id),
-                ActorViewers::default(),
-                network::MobNetState::default(),
-            ),
-            (
-                // Replaced by `derive_mob_state` once the composition applies.
-                PhysicsBody::living(0.0, 0.0),
-                EntityMetadata::living_base(),
-                flags,
-                properties,
-                attributes,
-                ai::MobBrain::default(),
-            ),
-        ))
-        .id())
+    let metadata = if archetype.projectile {
+        // Projectiles are spawned invisible (shown from their second tick).
+        flags
+            .update(actor_flags::INVISIBLE, true)
+            .expect("catalogue flag index");
+        EntityMetadata::actor_base()
+    } else {
+        EntityMetadata::living_base()
+    };
+    let launched_tick = world
+        .get_resource::<crate::ecs::resources::TickCounter>()
+        .map_or(0, |tick| tick.current);
+    let mut entity = world.spawn((
+        (
+            MobKind(Arc::clone(archetype)),
+            Position(position),
+            Rotation::new(yaw, 0.0),
+            Velocity::default(),
+            OnGround(false),
+            Age::default(),
+            RuntimeId(runtime_id),
+            ActorViewers::default(),
+            network::MobNetState::default(),
+        ),
+        (metadata, flags, properties, attributes),
+    ));
+    if archetype.projectile {
+        // Projectiles fly by their own rules (`projectile`), not the living
+        // physics step, and have no brain.
+        entity.insert((
+            crate::entity::components::Projectile,
+            projectile::ProjectileFlight {
+                owner: None,
+                launched_tick,
+            },
+        ));
+    } else {
+        entity.insert((
+            Mob,
+            Living,
+            // Replaced by `derive_mob_state` once the composition applies.
+            PhysicsBody::living(0.0, 0.0),
+            FallDistance::default(),
+            ai::MobBrain::default(),
+        ));
+    }
+    Ok(entity.id())
 }
 
 /// Molang context for property default expressions: random only.
@@ -223,7 +257,7 @@ struct Derived {
 }
 
 fn derive(
-    (_, collision, scale, physics, walk, health, movement, air): DeriveInputs<'_>,
+    (kind, collision, scale, physics, walk, health, movement, air): DeriveInputs<'_>,
 ) -> Derived {
     let scale = scale.map_or(1.0, |s| s.value);
     // Published rule: negative collision dimensions count as zero.
@@ -231,6 +265,7 @@ fn derive(
     let (gravity, has_collision) =
         physics.map_or((false, false), |p| (p.has_gravity, p.has_collision));
     let mut body = PhysicsBody::living(f64::from(width * scale), f64::from(height * scale));
+    body.wing_flap_drag = kind.0.native.wing_flap_drag;
     if !gravity {
         body.gravity = 0.0;
     }
@@ -272,6 +307,10 @@ fn store(
     metadata.set_float(ids::RESERVED_038, derived.scale);
     metadata.set_float(ids::RESERVED_053, derived.body.width as f32);
     metadata.set_float(ids::RESERVED_054, derived.body.height as f32);
+    metadata.set_float(
+        ids::FALL_DAMAGE_MULTIPLIER,
+        archetype.native.fall_damage_multiplier,
+    );
     if let Some((current, max)) = derived.air {
         metadata.set_short(ids::AIR_SUPPLY, current);
         metadata.set_short(ids::AIR_SUPPLY_MAX, max);
@@ -333,6 +372,13 @@ pub fn derive_mob_state(mut mobs: Query<(DeriveInputs<'_>, DeriveOutputs<'_>), D
 
 /// Derive one mob immediately (spawn and restore paths).
 pub(crate) fn derive_entity(world: &mut World, entity: Entity) {
+    if world
+        .get::<crate::entity::components::Projectile>(entity)
+        .is_some()
+    {
+        projectile::derive_projectile(world, entity);
+        return;
+    }
     let mut query = world.query::<(DeriveInputs<'_>, DeriveOutputs<'_>)>();
     if let Ok((inputs, (mut body, mut flags, mut metadata, mut attributes))) =
         query.get_mut(world, entity)

@@ -12,6 +12,7 @@ use crate::entity::components::{
     GameMode, HeldSlot, Inventory, InventoryOpened, ItemStackRequestState, MainInventory,
     PlayerSession,
 };
+use crate::entity::mob::projectile::{ThrowQueue, thrown_by};
 use crate::item::{ItemStack, user_data};
 use crate::registry::ItemRegistry;
 use jolyne::valentine::{
@@ -30,6 +31,7 @@ use jolyne::valentine::{
 pub fn apply_inventory(
     mut queue: ResMut<InventoryPacketQueue>,
     mut events: ResMut<InventoryEvents>,
+    mut throws: ResMut<ThrowQueue>,
     items: Res<super::types::ItemRegistryResource>,
     world_template: Res<super::types::ServerWorldTemplate>,
     modes: Query<&GameMode>,
@@ -59,7 +61,15 @@ pub fn apply_inventory(
             }
             InventoryAction::Transaction(pk) => {
                 let mode = modes.get(entity).copied().unwrap_or_default();
-                handle_inventory_transaction(entity, &pk, &items, mode, &mut players, &mut events);
+                handle_inventory_transaction(
+                    entity,
+                    &pk,
+                    &items,
+                    mode,
+                    &mut players,
+                    &mut events,
+                    &mut throws,
+                );
             }
         }
     }
@@ -278,6 +288,7 @@ fn handle_inventory_transaction(
         &PlayerSession,
     )>,
     events: &mut ResMut<InventoryEvents>,
+    throws: &mut ResMut<ThrowQueue>,
 ) {
     let transaction = &pk.transaction;
 
@@ -295,6 +306,15 @@ fn handle_inventory_transaction(
         InventoryTransactionPacketTransaction::ItemUseInventoryTransaction(use_item) => {
             match use_item.action_type {
                 EnumsItemUseInventoryTransactionActionType::Use => {
+                    // Using a throwable item (the eggs) in the air throws it.
+                    if let Ok((inventory, held, _, _, _)) = players.get(entity)
+                        && inventory
+                            .0
+                            .item(usize::from(held.0))
+                            .is_some_and(|stack| thrown_by(&stack.item_id).is_some())
+                    {
+                        throws.0.push(entity);
+                    }
                     events.0.push(ServerEvent::PlayerItemUse { entity });
                 }
                 _ => {
@@ -819,6 +839,7 @@ mod tests {
         template.creative_content = Arc::new(content);
         world.insert_resource(ServerWorldTemplate(Arc::new(template)));
         world.insert_resource(InventoryEvents::default());
+        world.insert_resource(ThrowQueue::default());
         let (tx, rx) = tokio::sync::mpsc::channel(8);
         let entity = world
             .spawn((
@@ -965,6 +986,7 @@ mod tests {
             jolyne::WorldTemplate::default(),
         )));
         world.insert_resource(InventoryEvents::default());
+        world.insert_resource(ThrowQueue::default());
         let (tx, mut rx) = tokio::sync::mpsc::channel(8);
         let entity = world
             .spawn((
@@ -1008,5 +1030,56 @@ mod tests {
         assert_eq!(close.container_id, open.container_id);
         assert!(!close.server_initiated_close);
         assert!(!world.get::<InventoryOpened>(entity).unwrap().0);
+    }
+
+    #[test]
+    fn using_an_egg_in_the_air_queues_a_throw() {
+        use super::super::types::{ItemRegistryResource, ServerWorldTemplate};
+        use jolyne::valentine::*;
+        use std::sync::Arc;
+        for (item, thrown) in [
+            ("minecraft:egg", true),
+            ("minecraft:blue_egg", true),
+            ("minecraft:wheat_seeds", false),
+        ] {
+            let mut world = World::new();
+            world.insert_resource(ItemRegistryResource(Arc::new(registry())));
+            world.insert_resource(ServerWorldTemplate(Arc::new(
+                jolyne::WorldTemplate::default(),
+            )));
+            world.insert_resource(InventoryEvents::default());
+            world.insert_resource(ThrowQueue::default());
+            let (tx, _rx) = tokio::sync::mpsc::channel(8);
+            let mut inventory = MainInventory::default();
+            inventory.0.set_item(0, ItemStack::new(item, 3)).unwrap();
+            let entity = world
+                .spawn((
+                    GameMode::Survival,
+                    inventory,
+                    HeldSlot::default(),
+                    InventoryOpened::default(),
+                    ItemStackRequestState::default(),
+                    PlayerSession::new(1, "test".into(), None, None, tx),
+                ))
+                .id();
+            world.insert_resource(InventoryPacketQueue(vec![(
+                entity,
+                super::InventoryAction::Transaction(InventoryTransactionPacket {
+                    transaction: InventoryTransactionPacketTransaction::ItemUseInventoryTransaction(
+                        Box::new(ItemUseInventoryTransaction {
+                            action_type: EnumsItemUseInventoryTransactionActionType::Use,
+                            ..Default::default()
+                        }),
+                    ),
+                    ..Default::default()
+                }),
+            )]));
+            let mut schedule = Schedule::default();
+            schedule.add_systems(apply_inventory);
+            schedule.run(&mut world);
+            let queued = world.resource::<ThrowQueue>().0.clone();
+            assert_eq!(queued, if thrown { vec![entity] } else { vec![] }, "{item}");
+            assert_eq!(world.resource::<InventoryEvents>().0.len(), 1, "{item}");
+        }
     }
 }

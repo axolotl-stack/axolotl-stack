@@ -92,6 +92,14 @@ pub const LIQUID_GRAVITY: f64 = 0.02;
 pub const LAVA_DRAG: f64 = 0.5;
 /// Acceleration input while swimming (underwater movement attribute).
 pub const WATER_MOVE_SPEED: f32 = 0.02;
+/// Native chicken wing-flap drag: travelling through air with a negative
+/// vertical velocity after gravity and drag, that velocity is multiplied by
+/// `1 - WING_FLAP_VERTICAL_DRAG` each tick.
+pub const WING_FLAP_VERTICAL_DRAG: f64 = 0.4;
+/// `FALL_DAMAGE_MULTIPLIER` actor data of the native chicken class: the
+/// native adult chicken summon carries 0 where the cow's carries 1, so a
+/// chicken's fall damage is always 0 before its damage sensor is consulted.
+pub const CHICKEN_FALL_DAMAGE_MULTIPLIER: f32 = 0.0;
 
 // --- Goals --------------------------------------------------------------------
 
@@ -164,6 +172,69 @@ pub const MELEE_REACH: f64 = 6.0;
 /// (provisional: Java Edition `lastHurtByPlayerTime`).
 pub const LAST_HIT_BY_PLAYER_TICKS: u64 = 100;
 
+// --- Fall damage --------------------------------------------------------------
+
+/// Blocks a mob falls without damage (also the ground-dust threshold).
+pub const FALL_SAFE_DISTANCE: f64 = 3.0;
+/// The landing block is the one this far below the feet.
+pub const FALL_LANDING_PROBE: f64 = 0.2;
+/// Fall damage above this plays `fall.big`, else `fall.small`.
+pub const FALL_BIG_SOUND_DAMAGE: f64 = 4.0;
+/// Landing blocks that scale the fall distance before the damage formula
+/// (the stored fall distance resets after every landing either way).
+pub const FALL_LANDING_DISTANCE_SCALES: [(&str, f64); 6] = [
+    ("minecraft:hay_block", 0.2),
+    ("minecraft:honey_block", 0.5),
+    ("minecraft:bed", 0.5),
+    ("minecraft:slime", 0.0),
+    ("minecraft:powder_snow", 0.0),
+    ("minecraft:end_portal", 0.0),
+];
+/// Landing on an upward pointed dripstone tip adds this to the distance …
+pub const STALAGMITE_EXTRA_DISTANCE: f64 = 2.0;
+/// … and multiplies the damage (cause stalagmite).
+pub const STALAGMITE_MULTIPLIER: f64 = 2.0;
+/// Landing blocks that raise no ground dust.
+pub const FALL_DUSTLESS_BLOCKS: [&str; 3] = [
+    "minecraft:air",
+    "minecraft:barrier",
+    "minecraft:invisible_bedrock",
+];
+
+// --- Projectiles (`minecraft:projectile`) ---------------------------------------
+
+/// Each tick a projectile's rotation moves this fraction of the way to the
+/// direction of its velocity.
+pub const PROJECTILE_ROTATION_SMOOTHING: f32 = 0.2;
+/// Target boxes grow by `(ticks in flight - DELAY) × STEP`, clamped to
+/// `[0, MAX]`, for the entity hit test.
+pub const PROJECTILE_HIT_INFLATE_DELAY: f64 = 2.0;
+pub const PROJECTILE_HIT_INFLATE_STEP: f64 = 0.05;
+pub const PROJECTILE_HIT_INFLATE_MAX: f64 = 0.3;
+/// A projectile is spawned invisible and becomes visible on this tick of
+/// its flight (the first being 1).
+pub const PROJECTILE_VISIBLE_TICK: u64 = 2;
+/// Level event of one `particle_on_hit` particle (data = the particle id).
+pub const PROJECTILE_PARTICLE_LEVEL_EVENT: i32 = 2009;
+/// Particle id of `iconcrack`; its level event data also carries the item's
+/// network id shifted left by [`ICONCRACK_ITEM_SHIFT`].
+pub const ICONCRACK_PARTICLE: i32 = 14;
+pub const ICONCRACK_ITEM_SHIFT: u32 = 16;
+/// Level sound of a player throwing a projectile item.
+pub const THROW_SOUND: &str = "throw";
+/// The throw sound plays at the player's drop attach point, this far below
+/// the eyes. Provisional: the height thrown item drops spawn at.
+pub const THROW_SOUND_EYE_DROP: f64 = 0.5;
+/// Items that throw a `minecraft:egg` actor when used (a native item
+/// class, not item components), with the egg's climate variant.
+pub const THROWN_EGG_ITEMS: [(&str, &str); 3] = [
+    ("minecraft:egg", "temperate"),
+    ("minecraft:brown_egg", "warm"),
+    ("minecraft:blue_egg", "cold"),
+];
+/// The egg actor property the thrown item sets.
+pub const CLIMATE_VARIANT_PROPERTY: &str = "minecraft:climate_variant";
+
 // --- Experience orbs (provisional: Java Edition `ExperienceOrb`; the spawn
 // velocity range is consistent with the native summon capture) -------------
 
@@ -211,6 +282,98 @@ pub const LEGACY_BUCKET_ITEMS: [(i16, &str); 11] = [
     (12, "minecraft:axolotl_bucket"),
     (13, "minecraft:tadpole_bucket"),
 ];
+/// Legacy loot item names that stand for one modern item; matched without
+/// regard to case, as item names are. Provisional: pmmp's
+/// BedrockItemUpgradeSchema, which agrees with the identity BDS reports for
+/// its own `muttonRaw` furnace recipe input.
+pub const LEGACY_ITEM_NAMES: [(&str, &str); 1] = [("minecraft:muttonRaw", "minecraft:mutton")];
+/// The legacy loot item name that picks its wool item by data value
+/// (the palette colour): `minecraft:wool` with data 14 is red wool.
+pub const LEGACY_WOOL: &str = "minecraft:wool";
+
+// --- Palette colours ------------------------------------------------------------
+
+/// Wool item of each palette colour, by colour index (0 white … 15 black).
+/// Indices 0, 1, 3, 4, 6, 7, 8, 9, 11, 12, 14 and 15 follow from the colour
+/// the vanilla sheep definition gives each named colour group; 2 (magenta),
+/// 5 (lime), 10 (purple) and 13 (green) are provisional: Minecraft Wiki
+/// "Wool" Bedrock data values.
+pub const WOOL_ITEMS: [&str; 16] = [
+    "minecraft:white_wool",
+    "minecraft:orange_wool",
+    "minecraft:magenta_wool",
+    "minecraft:light_blue_wool",
+    "minecraft:yellow_wool",
+    "minecraft:lime_wool",
+    "minecraft:pink_wool",
+    "minecraft:gray_wool",
+    "minecraft:light_gray_wool",
+    "minecraft:cyan_wool",
+    "minecraft:purple_wool",
+    "minecraft:blue_wool",
+    "minecraft:brown_wool",
+    "minecraft:green_wool",
+    "minecraft:red_wool",
+    "minecraft:black_wool",
+];
+/// Dye item of each palette colour, by colour index. Using a dye on an
+/// `is_dyeable` actor sets its colour to `15 − the dye's item colour`, which
+/// is the index of the colour the dye is named after (the dye item colours
+/// follow the legacy dye data values, provisional: Minecraft Wiki "Dye").
+/// Ink sacs, lapis lazuli, cocoa beans and bone meal only count as dyes when
+/// a world feature this server does not enable is on, so they do not dye.
+pub const DYE_ITEMS: [&str; 16] = [
+    "minecraft:white_dye",
+    "minecraft:orange_dye",
+    "minecraft:magenta_dye",
+    "minecraft:light_blue_dye",
+    "minecraft:yellow_dye",
+    "minecraft:lime_dye",
+    "minecraft:pink_dye",
+    "minecraft:gray_dye",
+    "minecraft:light_gray_dye",
+    "minecraft:cyan_dye",
+    "minecraft:purple_dye",
+    "minecraft:blue_dye",
+    "minecraft:brown_dye",
+    "minecraft:green_dye",
+    "minecraft:red_dye",
+    "minecraft:black_dye",
+];
+
+// --- Interaction ----------------------------------------------------------------
+
+/// An interaction row's `spawn_items` drop at the mob's feet raised by the
+/// row's `y_offset`, with the pop velocity of a dropped item plus
+/// `U(0, 1) × LIFT` upwards and `(U − U) × SPREAD` on x and z.
+pub const INTERACT_SPAWN_ITEM_LIFT: f64 = 0.05;
+pub const INTERACT_SPAWN_ITEM_SPREAD: f64 = 0.1;
+
+// --- Eating blocks (`minecraft:behavior.eat_block`) -----------------------------
+
+/// Level event the eaten block's destroy particles use (at the block centre,
+/// data = the eaten block's runtime id).
+pub const LEVEL_EVENT_PARTICLES_DESTROY_BLOCK: i32 = 2001;
+/// Legacy block names in `eat_and_replace_block_pairs`, resolved to the
+/// block they name today. Provisional: pmmp's BedrockBlockUpgradeSchema
+/// (`grass` was renamed `grass_block`; `tallgrass` split into `short_grass`
+/// and `fern`, its default state being short grass).
+pub const LEGACY_BLOCK_NAMES: [(&str, &str); 2] = [
+    ("minecraft:grass", "minecraft:grass_block"),
+    ("minecraft:tallgrass", "minecraft:short_grass"),
+];
+/// The game rule that lets mobs change blocks; an eating mob only replaces
+/// the block while it is on (the `on_eat` event fires either way).
+pub const MOB_GRIEFING_RULE: &str = "mobgriefing";
+/// `mobgriefing` when the world sets no value (provisional: Microsoft Learn
+/// game rule reference, default true).
+pub const MOB_GRIEFING_DEFAULT: bool = true;
+/// Controls `behavior.eat_block` holds when it authors no `control_flags`:
+/// move, look and jump.
+pub(crate) const EAT_BLOCK_DEFAULT_CONTROLS: crate::entity::goal_selector::GoalControls =
+    crate::entity::goal_selector::GoalControls::MOVE
+        .union(crate::entity::goal_selector::GoalControls::LOOK)
+        .union(crate::entity::goal_selector::GoalControls::JUMP);
 
 // --- Despawn ------------------------------------------------------------------
 
@@ -228,3 +391,64 @@ pub const NET_ROTATION_THRESHOLD: f32 = 4.0;
 pub const NET_POSITION_THRESHOLD_SQ: f64 = 1.0e-4;
 /// A motion packet is sent when velocity changed by more than this (squared).
 pub const NET_VELOCITY_THRESHOLD_SQ: f64 = 0.04;
+
+// --- Natural spawning (`entity::spawning`) --------------------------------------
+
+/// Each tick every ticking chunk rolls `nextInt(SPAWN_TICK_ROLL)`; a spawn
+/// attempt runs when the roll is at most [`SPAWN_TICK_ROLL_MAX`] (11 in 2000).
+pub const SPAWN_TICK_ROLL: i32 = 2000;
+pub const SPAWN_TICK_ROLL_MAX: i32 = 10;
+/// Mobs are counted for the population caps in the square of chunks within
+/// this many chunks of the spawning chunk (9 × 9).
+pub const SPAWN_CENSUS_RADIUS_CHUNKS: i32 = 4;
+/// A cluster never takes the spawnable mob count past this many.
+pub const SPAWN_GLOBAL_MOB_LIMIT: u32 = 200;
+/// Population cap per category in the census area for mobs spawned on the
+/// surface, indexed by [`crate::entity::spawning::Category`] (animal,
+/// monster, water_animal, villager, ambient, cat, pillager). A cap of 0
+/// never spawns.
+pub const MOBS_PER_CHUNK_SURFACE: [f32; 7] = [4.0, 8.0, 36.0, 0.0, 0.0, 4.0, 8.0];
+/// The same caps for mobs spawned underground.
+pub const MOBS_PER_CHUNK_UNDERGROUND: [f32; 7] = [4.0, 16.0, 36.0, 0.0, 2.0, 0.0, 8.0];
+/// Naturally spawned mobs stand at the spawn block's corner plus this on x
+/// and z (worlds of base game version 1.21.0 or later).
+pub const SPAWN_POSITION_OFFSET: f64 = 0.49;
+/// `minecraft:weight` when a condition has none.
+pub const DEFAULT_SPAWN_WEIGHT: u32 = 100;
+/// `minecraft:distance_filter` when a condition has none: no player closer
+/// than `min`, the nearest player within `max` blocks.
+pub const DEFAULT_SPAWN_DISTANCE_MIN: i32 = 24;
+pub const DEFAULT_SPAWN_DISTANCE_MAX: i32 = 128;
+/// An authored `distance_filter.max` is clamped to this (`min` to ≥ 0).
+pub const SPAWN_DISTANCE_CAP: i32 = 128;
+/// From this chunk tick range up, a spawn needs its chunk and the 8 around
+/// it ticking. With exactly [`SPAWN_SHORT_TICK_RANGE`] the neighbours are not
+/// checked but the player distance is capped at
+/// [`SPAWN_SHORT_TICK_RANGE_DISTANCE`]; below that nothing spawns.
+pub const SPAWN_FULL_TICK_RANGE: i32 = 5;
+pub const SPAWN_SHORT_TICK_RANGE: i32 = 4;
+pub const SPAWN_SHORT_TICK_RANGE_DISTANCE: i32 = 44;
+/// Block material ordinals (`material.type`) the spawn block search treats
+/// as open space: air, water, lava and bubble columns.
+pub const SPAWN_OPEN_MATERIALS: [u8; 4] = [0, 5, 6, 18];
+/// Material ordinals of water and lava (in-liquid spawn conditions).
+pub const MATERIAL_WATER: u8 = 5;
+pub const MATERIAL_LAVA: u8 = 6;
+/// Material ordinal of ice, which counts as a spawn block although it is not
+/// a solid block.
+pub const MATERIAL_ICE: u8 = 13;
+/// Material ordinal of leaves: a spawn column whose top spawn block is
+/// leaves keeps its next spawn block below on the surface.
+pub const MATERIAL_LEAVES: u8 = 7;
+/// Full sky light.
+pub const SKY_LIGHT_MAX: i32 = 15;
+/// How much the time of day darkens sky light. Provisional: the server does
+/// not advance the level time (it stays at the StartGame value 0), where the
+/// public Bedrock/Java time-of-day formula darkens the sky by 0.
+pub const SKY_DARKEN: i32 = 0;
+/// The game rule that switches natural spawning (and world-generation
+/// spawning) on.
+pub const DO_MOB_SPAWNING_RULE: &str = "domobspawning";
+/// `domobspawning` when the world sets no value (provisional: Microsoft
+/// Learn game rule reference, default true).
+pub const DO_MOB_SPAWNING_DEFAULT: bool = true;

@@ -8,7 +8,7 @@
 //! (`deny_unknown_fields`), published or [`provisional`] defaults, filters kept
 //! as [`FilterJson`] for `unastar_rules`, item references kept as strings.
 
-mod de;
+pub(crate) mod de;
 mod dynamic;
 pub mod provisional;
 mod range;

@@ -97,6 +97,15 @@ pub const BEHAVIOR_TEMPT_TEMPT_SOUND: LevelSoundEvent = LevelSoundEvent::Undefin
 /// ML `minecraftbehavior_tempt`: `within_radius` 0.
 pub const BEHAVIOR_TEMPT_WITHIN_RADIUS: f32 = 0.0;
 
+// minecraft:boostable
+
+/// Mojang form `minecraft_boostable.form.json`: `duration` 3 (seconds).
+pub const BOOSTABLE_DURATION: f32 = 3.0;
+/// Mojang form `minecraft_boostable.form.json`: `speed_multiplier` 1.
+pub const BOOSTABLE_SPEED_MULTIPLIER: f32 = 1.0;
+/// Mojang form `minecraft_boostable.form.json`: `boost_items[].damage` 1.
+pub const BOOSTABLE_BOOST_ITEM_DAMAGE: i32 = 1;
+
 // minecraft:breathable
 
 /// ML `minecraftcomponent_breathable`: `breathes_air` true.
@@ -163,6 +172,11 @@ pub const BREEDABLE_ENVIRONMENT_COUNT: i32 = 1;
 /// `environment_requirements[].radius` 5 (bounded to 0..=16).
 pub const BREEDABLE_ENVIRONMENT_RADIUS: f32 = 5.0;
 
+// minecraft:color
+
+/// Mojang form `minecraft_color.form.json`: `value` 0 (white).
+pub const COLOR_VALUE: i32 = 0;
+
 // minecraft:conditional_bandwidth_optimization
 
 /// ML `minecraftcomponent_conditional_bandwidth_optimization`:
@@ -220,6 +234,12 @@ pub const HEALTH_VALUE: i32 = 20;
 
 /// ML `minecraftcomponent_hurt_on_condition`: `damage_per_tick` 1.
 pub const HURT_ON_CONDITION_DAMAGE_PER_TICK: i32 = 1;
+
+// minecraft:is_dyeable
+
+/// Mojang form `minecraft_is_dyeable.form.json` publishes no default for
+/// `interact_text`; an absent text shows no touch-screen button label.
+pub const IS_DYEABLE_INTERACT_TEXT: &str = "";
 
 // minecraft:leashable
 
@@ -362,3 +382,13 @@ pub const SPAWN_ENTITY_SPAWN_ITEM: &str = "egg";
 pub const SPAWN_ENTITY_SPAWN_METHOD: &str = "born";
 /// ML `minecraftcomponent_spawn_entity`: `spawn_sound` "plop".
 pub const SPAWN_ENTITY_SPAWN_SOUND: &str = "plop";
+
+// minecraft:transformation (Mojang form `minecraft_transformation.form.json`)
+
+/// `drop_equipment`, `drop_inventory`, `keep_level`, `keep_owner` and
+/// `preserve_equipment` all default to false.
+pub const TRANSFORMATION_FLAG: bool = false;
+/// `delay` fields (`block_assist_chance`, `block_chance`, `block_max`,
+/// `block_radius`, `range_min`, `range_max`, `value`) all default to 0.
+pub const TRANSFORMATION_DELAY_VALUE: f32 = 0.0;
+pub const TRANSFORMATION_DELAY_BLOCK_COUNT: i32 = 0;

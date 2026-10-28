@@ -19,6 +19,7 @@
 //! | `BreedCooldown` | Int | remaining breed-cooldown ticks, when cooling down |
 //! | `Age` | Int | baby age: negative ticks until grown, when growing |
 //! | `GrowthPaused` | Byte | baby growth paused |
+//! | `entries` | List of Compound | `minecraft:spawn_entity` timers by rule: `SpawnTimer` (Int, ticks until the rule fires, 0 = roll a new wait) and `StopSpawning` (Byte, a fired single-use rule) |
 //!
 //! Restoring spawns the mob without its lifecycle event, replays the saved
 //! groups (so a baby stays a baby and an adult keeps its adult components)
@@ -41,6 +42,7 @@ use zuri_nbt::err::{NBTError, ReadError};
 use zuri_nbt::{NBTTag, encoding::LittleEndian, tag};
 
 use super::ageing::BabyAge;
+use super::spawn_entity::SpawnEntityTimers;
 use super::state::{BreedCooldown, Dead, InLove, Persistent};
 use super::{MobKind, SpawnCause, derive_entity, spawn_mob};
 use crate::ecs::resources::TickCounter;
@@ -108,6 +110,13 @@ fn unique_id(world: &mut World, mob: Entity) -> i64 {
 
 fn list<T: Into<NBTTag>>(values: impl IntoIterator<Item = T>) -> NBTTag {
     NBTTag::List(tag::List(values.into_iter().map(Into::into).collect()))
+}
+
+/// The NBT a save writes for `mob` (tests).
+#[cfg(test)]
+pub(super) fn encode_for_tests(world: &mut World, mob: Entity) -> Vec<u8> {
+    let id = unique_id(world, mob);
+    encode_mob(world, mob, id)
 }
 
 /// Encode one mob as Bedrock actor NBT. `mob` must be a mob entity.
@@ -191,6 +200,9 @@ fn encode_mob(world: &World, mob: Entity, unique_id: i64) -> Vec<u8> {
         "Persistent",
         NBTTag::Byte(u8::from(world.get::<Persistent>(mob).is_some()).into()),
     );
+    if let Some(colour) = super::color::color_of(world, mob) {
+        put("Color", NBTTag::Byte(colour.into()));
+    }
     let now = current_tick(world);
     if let Some(love) = world.get::<InLove>(mob)
         && love.until_tick > now
@@ -217,6 +229,9 @@ fn encode_mob(world: &World, mob: Entity, unique_id: i64) -> Vec<u8> {
     if let Some((remaining, paused)) = growth {
         put("Age", NBTTag::Int((-remaining).into()));
         put("GrowthPaused", NBTTag::Byte(u8::from(paused).into()));
+    }
+    if let Some(timers) = world.get::<SpawnEntityTimers>(mob) {
+        put("entries", timers.to_nbt(now));
     }
 
     let mut out = Vec::new();
@@ -489,6 +504,16 @@ fn restore_state(
     let age = fields.int("Age")?;
     let growth_paused = fields.flag("GrowthPaused")?;
     let on_ground = fields.flag("OnGround")?;
+    let color = match fields.0.get("Color") {
+        None => None,
+        Some(NBTTag::Byte(value)) => Some((i32::from(value.0) & 0xf) as u8),
+        Some(_) => {
+            return Err(ActorDecodeError::WrongType {
+                name: "Color",
+                kind: "a Byte",
+            });
+        }
+    };
 
     let now = current_tick(world);
     let mut entity = world.entity_mut(mob);
@@ -526,6 +551,10 @@ fn restore_state(
     if let Some(mut ground) = entity.get_mut::<OnGround>() {
         ground.0 = on_ground;
     }
+    // The composition re-applied its colour group; a dyed colour overrides it.
+    if let Some(colour) = color {
+        super::color::set_color(&mut entity, super::color::ActorColor(colour));
+    }
     if persistent {
         entity.insert(Persistent);
     }
@@ -553,6 +582,13 @@ fn restore_state(
                 grow_tick: now + remaining,
             }
         });
+    }
+    if let Some(mut timers) = world.get_mut::<SpawnEntityTimers>(mob) {
+        let legacy = match fields.0.get("SpawnTimer") {
+            Some(NBTTag::Int(value)) => Some(value.0),
+            _ => None,
+        };
+        timers.restore(fields.0.get("entries"), legacy, now);
     }
     derive_entity(world, mob);
     Ok(())
@@ -626,8 +662,13 @@ pub fn snapshot_chunks(
     }
     let mut mobs_by_chunk = vec![Vec::new(); chunks.len()];
     let mut live = HashSet::new();
-    let mut mobs = world
-        .query_filtered::<(Entity, &Position, Has<Dead>, Option<&MobUniqueId>), With<MobKind>>();
+    // Projectiles in flight are not stored or unloaded with the chunk:
+    // their flight state (owner, ticks in flight) has no saved form here, so
+    // they stay in memory, frozen until their chunk loads again.
+    let mut mobs = world.query_filtered::<(Entity, &Position, Has<Dead>, Option<&MobUniqueId>), (
+        With<MobKind>,
+        Without<crate::entity::components::Projectile>,
+    )>();
     for (mob, position, dead, id) in mobs.iter(world) {
         if !dead && let Some(id) = id {
             live.insert(id.0);

@@ -73,9 +73,23 @@ fields that have no published schema). Status per group:
 | Despawn | 32/128 blocks, 44 when tick range < 5, inactivity 30 s, 1/800 chance, persistent exemption | Confirmed (26.30) |
 | Replication | MoveActorDelta past 4° summed rotation or 1e-4 position²; motion packet past Δv² 0.04 | Confirmed (26.30) |
 | Living actor data at spawn | every non-derived actor-data key equals the native cow/chicken `AddActor` (`EntityMetadata::living_base`) | Measured from retained BDS 1.26.51 captures |
+| Eating blocks (`behavior.eat_block`) | attempt when U(0,1) < `success_chance`; feet block, else the block below; timer `time_until_eat` × 20 ticks; `EatGrass` actor event on start; on finish, with `mobgriefing` on, destroy particles (level event 2001, placed at the feet block) and the replacement's default state, then `on_eat` either way; controls move/look/jump unless authored | Confirmed (26.30) |
+| `mobgriefing` default true; legacy block names `grass` → `grass_block`, `tallgrass` → `short_grass` | | Provisional: Microsoft Learn game rules / pmmp BedrockBlockUpgradeSchema |
+| Interactions | row cooldown gates only rows with a cooldown; `hurt_item` wears once (none in creative, unbreaking spares with n/(n+1)); `spawn_items` at feet + `y_offset`, pop velocity + U·0.05 up and (U−U)·0.1 sideways, pickup delay 10; event fires last | Confirmed (26.30); cooldown seconds × 20 provisional |
+| Colour | `set_data_from_color_index` reads the THIS actor's colour and re-resolves `minecraft:wool` by it; dye sets colour 15 − the dye's item colour, a same-colour dye does nothing; only the sixteen `*_dye` items dye (the legacy dye items are gated on a world feature) | Confirmed (26.30) |
+| Wool/dye item per colour (magenta, lime, purple, green), `muttonRaw` → `mutton` | | Provisional: Minecraft Wiki wool/dye data values / pmmp BedrockItemUpgradeSchema |
+| Chicken class | wing-flap drag: airborne negative vy × (1 − 0.4) after gravity and drag; `FALL_DAMAGE_MULTIPLIER` actor data 0 | Drag confirmed (26.30 + 1.26.50.26); multiplier measured from the retained 1.26.51 chicken summon |
+| Fall damage | safe 3 blocks, `ceil((d − 3 − jump boost) × data 111 × block)`, landing block 0.2 below the feet, `fall.big` above 4, ground dust (actor event 38) past 3 except on air/barrier/invisible bedrock; hay 0.2, honey/bed 0.5, slime/powder snow/end portal 0, dripstone tip +2 and × 2 | Confirmed (26.30) |
+| `spawn_entity` | wait `min + random(max − min)` s × 20 with the rolling tick first; filters only at expiry; `plop` at mid-body; item at the feet with the item toss; saved per rule as `SpawnTimer`/`StopSpawning` | Confirmed (26.30 + 1.26.50.26) |
+| Projectiles (egg) | flight: hit test, move without collision, × inertia (liquid inertia in water), − gravity, rotation 20 % towards the heading; target boxes grow (t − 2) × 0.05 up to 0.3; invisible on the first tick; on_hit in alphabetical order; spawn_chance second roll only after the first; iconcrack particle id 14 \| item id << 16 on level event 2009; `throw` sound | Confirmed (26.30); throw sound height (eye − 0.5) provisional |
 | Component field defaults without a published schema | 124 consts in `provisional.rs` | Provisional: Microsoft Learn component pages (sources per const) |
 
-Components accepted without server behaviour so the vanilla cow compiles
-(`entity/mob/config.rs` `ACCEPTED_WITHOUT_BEHAVIOUR`): `leashable`,
-`leashable_to`, `balloonable`, `rideable`, `behavior.mount_pathing`,
-`conditional_bandwidth_optimization`. Removed when leads and riding land.
+Components accepted without server behaviour so the vanilla cow, pig and
+sheep compile (`entity/mob/config.rs` `ACCEPTED_WITHOUT_BEHAVIOUR`):
+`leashable`, `leashable_to`, `balloonable`, `rideable`,
+`behavior.mount_pathing`, `conditional_bandwidth_optimization`,
+`game_event_movement_tracking` (only vibration listeners consume its game
+events), and for the pig `boostable`, `item_controllable`,
+`behavior.controlled_by_player` (all need riding) and `transformation` (only
+gained from a lightning strike). Removed when leads, riding, vibrations and
+lightning land.

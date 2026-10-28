@@ -102,6 +102,7 @@ fn drop_loot(world: &mut World, mob: Entity) {
             .map_or(0, |tool| enchantment_level(tool, Enchantment::Looting)),
         on_fire: Some(on_fire),
         recipes: recipes.as_deref(),
+        color_index: super::color::color_of(world, mob),
     };
     let drops = match unastar_rules::loot::roll(
         unastar_data::loot::vanilla(),
@@ -145,12 +146,12 @@ pub fn experience_reward(world: &mut World, mob: Entity, expr: &Expr) -> u32 {
     }
 }
 
-/// Molang facts about a mob for its experience reward.
-struct RewardMolang<'w> {
-    world: &'w World,
-    mob: Entity,
-    last_hit_by_player: bool,
-    rng: StdRng,
+/// Molang facts about a mob (experience rewards, ambient sound conditions).
+pub(super) struct RewardMolang<'w> {
+    pub(super) world: &'w World,
+    pub(super) mob: Entity,
+    pub(super) last_hit_by_player: bool,
+    pub(super) rng: StdRng,
 }
 
 fn molang_bool(value: bool) -> MolangValue {

@@ -211,6 +211,7 @@ fn function(v: &Value, path: &str) -> Result<LootFunction> {
         },
         "explosion_decay" => LootFunctionKind::ExplosionDecay,
         "furnace_smelt" => LootFunctionKind::FurnaceSmelt,
+        "set_data_from_color_index" => LootFunctionKind::SetDataFromColorIndex,
         _ => LootFunctionKind::Other {
             name: name.to_owned(),
             json: v.clone(),

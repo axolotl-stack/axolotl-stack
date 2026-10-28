@@ -19,6 +19,21 @@ pub trait LootContext {
     fn furnace(&self) -> Option<&dyn FurnaceSmelt> {
         None
     }
+    /// Palette colour of the THIS actor (`set_data_from_color_index`); `None`
+    /// when there is no THIS actor, which leaves the item unchanged.
+    fn this_color_index(&self) -> Option<u8> {
+        None
+    }
+    /// The modern item a legacy item name stands for (`minecraft:muttonRaw`
+    /// is `minecraft:mutton`), resolved when an entry creates its item.
+    fn item_alias(&self, _name: &str) -> Option<&str> {
+        None
+    }
+    /// The flattened item a legacy name selects by data value
+    /// (`minecraft:wool` with data 14 is `minecraft:red_wool`).
+    fn data_alias(&self, _name: &str, _data: i16) -> Option<&str> {
+        None
+    }
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -129,9 +144,12 @@ fn all_pass(
     Ok(true)
 }
 
+/// Apply an entry's functions to its item; `authored` is the entry's item
+/// name as written (data-selected legacy names re-resolve from it).
 fn apply_functions(
     fs: &[LootFunction],
     drop: &mut LootDrop,
+    authored: &str,
     ctx: &dyn LootContext,
     rng: &mut impl Rng,
 ) -> Result<(), LootError> {
@@ -201,6 +219,19 @@ fn apply_functions(
                     drop.data = result.data;
                 }
             }
+            LootFunctionKind::SetDataFromColorIndex => {
+                if let Some(color) = ctx.this_color_index() {
+                    let data = i16::from(color);
+                    match ctx.data_alias(authored, data) {
+                        Some(item) => {
+                            drop.item_id.clear();
+                            drop.item_id.push_str(item);
+                            drop.data = 0;
+                        }
+                        None => drop.data = data,
+                    }
+                }
+            }
             LootFunctionKind::Other { name, .. } => {
                 return Err(LootError::Unsupported(name.clone()));
             }
@@ -224,13 +255,18 @@ impl<R: Rng> Roller<'_, R> {
     fn entry(&mut self, entry: &LootEntry, depth: u8) -> Result<(), LootError> {
         match &entry.kind {
             LootEntryKind::Item(item_id) => {
+                let resolved = self
+                    .ctx
+                    .data_alias(item_id, 0)
+                    .or_else(|| self.ctx.item_alias(item_id))
+                    .unwrap_or(item_id);
                 let mut drop = LootDrop {
-                    item_id: item_id.clone(),
+                    item_id: resolved.to_owned(),
                     count: 1,
                     data: 0,
                     nbt: None,
                 };
-                apply_functions(&entry.functions, &mut drop, self.ctx, self.rng)?;
+                apply_functions(&entry.functions, &mut drop, item_id, self.ctx, self.rng)?;
                 if drop.count > 0 {
                     self.out.push(drop);
                 }

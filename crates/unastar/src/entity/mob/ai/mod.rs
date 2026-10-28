@@ -10,6 +10,7 @@
 //! then integrates. [`push_mobs`] then separates overlapping pushable mobs.
 
 mod control;
+mod eat_block;
 mod goals;
 mod nearby;
 mod path;
@@ -79,6 +80,9 @@ enum Turn {
 pub struct AiScratch {
     mobs: Vec<(Entity, Turn)>,
     nearby: Nearby,
+    /// Mobs whose eat timer ran out this tick; they eat once the AI's
+    /// resource scopes end (eating fires events, which draw randomness).
+    eaten: Vec<Entity>,
 }
 
 type BrainQuery = (Entity, Ref<'static, DefinitionState>, Has<Dead>);
@@ -158,11 +162,14 @@ pub fn tick_mob_ai(
                         .expect("queried with a brain") = brain;
                 }
                 if let Some(output) = output {
-                    apply(world, entity, output);
+                    apply(world, entity, output, &mut scratch.eaten);
                 }
             }
         });
     });
+    for entity in scratch.eaten.drain(..) {
+        eat_block::finish_eating(world, entity);
+    }
 }
 
 /// The result of one mob's tick.
@@ -287,7 +294,7 @@ fn think(
     })
 }
 
-fn apply(world: &mut World, entity: Entity, output: Output) {
+fn apply(world: &mut World, entity: Entity, output: Output, eaten: &mut Vec<Entity>) {
     let Output {
         yaw,
         head_yaw,
@@ -316,6 +323,17 @@ fn apply(world: &mut World, entity: Entity, output: Output) {
         && let Some(mut messages) = world.get_resource_mut::<Messages<MateRequest>>()
     {
         messages.write(request);
+    }
+    if effects.eat_started {
+        super::interact::broadcast_actor_event(
+            world,
+            entity,
+            jolyne::valentine::types::EnumsActorEvent::EatGrass,
+            0,
+        );
+    }
+    if effects.eat_finished {
+        eaten.push(entity);
     }
 }
 

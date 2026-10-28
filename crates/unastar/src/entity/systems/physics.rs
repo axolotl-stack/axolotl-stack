@@ -427,7 +427,9 @@ pub fn living_block_friction(blocks: &impl BlockSource, feet: DVec3) -> f64 {
 /// the vertical step is `(v.y - 0.02) * drag` and both horizontal axes use
 /// the same drag; otherwise gravity and drag apply as on land, with the
 /// support block's friction × 0.91 on the ground and 0.91 in the air.
-/// Horizontal components at most 1e-7 in magnitude are zeroed.
+/// Horizontal components at most 1e-7 in magnitude are zeroed. A body with
+/// wing-flap drag that travels through air then scales a negative vertical
+/// velocity by `1 - drag` (last, after friction, as BDS orders its drags).
 fn apply_living_drag(
     blocks: &impl BlockSource,
     body: &PhysicsBody,
@@ -451,6 +453,11 @@ fn apply_living_drag(
         drag
     } else {
         velocity.y = (velocity.y - body.gravity) * body.vertical_drag;
+        if let Some(flap) = body.wing_flap_drag
+            && velocity.y < 0.0
+        {
+            velocity.y *= 1.0 - flap;
+        }
         if on_ground {
             body.horizontal_drag * living_block_friction(blocks, feet)
         } else {
@@ -475,6 +482,19 @@ pub fn step_body(
     on_ground: &mut bool,
     age: u64,
 ) -> DVec3 {
+    step_body_sensed(blocks, body, position, velocity, on_ground, age).0
+}
+
+/// [`step_body`], also returning the liquid a living body travelled in
+/// (sensed before the move; `None` for other models).
+pub fn step_body_sensed(
+    blocks: &impl BlockSource,
+    body: &PhysicsBody,
+    position: DVec3,
+    velocity: &mut DVec3,
+    on_ground: &mut bool,
+    age: u64,
+) -> (DVec3, Option<LiquidKind>) {
     let aabb = Aabb::from_feet(position, body.width, body.height);
     let flotation = if body.model == PhysicsModel::Item {
         let foot_pos = position.floor().as_ivec3();
@@ -496,7 +516,7 @@ pub fn step_body(
         // Skipped lava ticks retain those forces, but do not move or apply drag.
         if *on_ground && velocity.length_squared() <= 0.0001 && !in_water && !age.is_multiple_of(4)
         {
-            return position;
+            return (position, None);
         }
         flotation
     } else {
@@ -525,12 +545,12 @@ pub fn step_body(
     let feet = result.aabb.feet();
     if body.model == PhysicsModel::FallingBlock && *on_ground {
         *velocity = DVec3::ZERO;
-        return feet;
+        return (feet, None);
     }
 
     if body.model == PhysicsModel::Living {
         apply_living_drag(blocks, body, feet, *on_ground, living_liquid, velocity);
-        return feet;
+        return (feet, living_liquid);
     }
 
     let mut horizontal = body.horizontal_drag;
@@ -549,12 +569,16 @@ pub fn step_body(
     }
     velocity.x *= horizontal;
     velocity.z *= horizontal;
-    feet
+    (feet, None)
 }
 
 /// System: move every physics body one tick against block collision.
 ///
-/// Bodies whose own chunk is not loaded are frozen until it loads.
+/// Bodies whose own chunk is not loaded are frozen until it loads. Bodies
+/// with a [`FallDistance`] accumulate the distance they fall: while airborne
+/// every downward move adds to it and any other move resets it, travelling
+/// in water resets it, and touching the ground records it as `landed`.
+#[allow(clippy::type_complexity)]
 pub fn tick_physics(
     blocks: WorldBlocks,
     mut query: Query<(
@@ -563,15 +587,23 @@ pub fn tick_physics(
         &mut OnGround,
         &PhysicsBody,
         &Age,
+        Option<&mut FallDistance>,
     )>,
 ) {
-    for (mut position, mut velocity, mut on_ground, body, age) in query.iter_mut() {
+    for (mut position, mut velocity, mut on_ground, body, age, fall) in query.iter_mut() {
         if blocks.block_at(position.0.floor().as_ivec3()).is_none() {
             continue;
         }
         let mut vel = velocity.0;
         let mut grounded = on_ground.0;
-        let feet = step_body(&blocks, body, position.0, &mut vel, &mut grounded, age.0);
+        let (feet, liquid) =
+            step_body_sensed(&blocks, body, position.0, &mut vel, &mut grounded, age.0);
+        if let Some(mut fall) = fall {
+            let next = fall.after_move(feet.y - position.0.y, grounded, liquid);
+            if *fall != next {
+                *fall = next;
+            }
+        }
         if position.0 != feet {
             position.0 = feet;
         }

@@ -30,6 +30,7 @@ pub(crate) enum GoalKind {
 pub(crate) struct GoalControls(u8);
 
 impl GoalControls {
+    pub const NONE: Self = Self(0);
     pub const MOVE: Self = Self(1);
     pub const LOOK: Self = Self(2);
     pub const JUMP: Self = Self(4);

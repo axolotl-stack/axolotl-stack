@@ -23,6 +23,11 @@ bitflags! {
         /// Chunk block data has changed and needs network re-encoding.
         /// Used by broadcast system to re-encode and send to viewers.
         const NEEDS_REBROADCAST = 1 << 2;
+
+        /// Freshly generated and not yet populated with mobs: natural
+        /// spawning runs its world-generation pass the first tick the chunk
+        /// is ticking, then clears the flag (`entity::spawning`).
+        const NEEDS_POPULATION = 1 << 3;
     }
 }
 
@@ -65,6 +70,14 @@ impl ChunkStateFlags {
 
     pub fn clear_needs_rebroadcast(&mut self) {
         self.flags.remove(ChunkFlags::NEEDS_REBROADCAST);
+    }
+
+    pub fn needs_population(&self) -> bool {
+        self.flags.contains(ChunkFlags::NEEDS_POPULATION)
+    }
+
+    pub fn clear_needs_population(&mut self) {
+        self.flags.remove(ChunkFlags::NEEDS_POPULATION);
     }
 }
 
@@ -308,10 +321,12 @@ impl PendingChunkGenerations {
 
 /// Helper struct to create ChunkStateFlags with the appropriate initial state.
 impl ChunkStateFlags {
-    /// Create state flags for a newly generated chunk (dirty, not ticking).
+    /// Create state flags for a newly generated chunk (dirty, awaiting mob
+    /// population, not ticking).
     pub fn new_generated() -> Self {
         let mut flags = Self::default();
         flags.mark_dirty();
+        flags.flags.insert(ChunkFlags::NEEDS_POPULATION);
         flags
     }
 }

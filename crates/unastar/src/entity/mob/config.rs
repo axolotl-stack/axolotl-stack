@@ -180,6 +180,29 @@ pub struct RandomLookAroundGoal {
     pub angle_range: (f32, f32),
 }
 
+/// One `eat_and_replace_block_pairs` entry, resolved against the block
+/// registry: any state of `eat` becomes the default state of `replace`.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub struct EatBlockPair {
+    /// Registry id of the eaten block type.
+    pub eat: u32,
+    /// Runtime id of the replacement's default state.
+    pub replace: u32,
+}
+
+/// `minecraft:behavior.eat_block`.
+#[derive(Component, Debug, Clone)]
+pub struct EatBlockGoal {
+    pub priority: i32,
+    pub(crate) controls: crate::entity::goal_selector::GoalControls,
+    /// Chance per attempt; `None` (an empty expression) never eats.
+    pub success_chance: Option<Arc<Expr>>,
+    /// Ticks from starting to eat until the block is eaten.
+    pub eat_ticks: u32,
+    pub pairs: Arc<[EatBlockPair]>,
+    pub on_eat: Option<SelfEvent>,
+}
+
 /// `minecraft:navigation.walk`: path permissions.
 #[derive(Component, Debug, Clone, Copy, PartialEq)]
 pub struct WalkNavigationConfig {
@@ -316,8 +339,25 @@ pub struct Interaction {
     pub use_item: bool,
     pub swing: bool,
     pub transform_to_item: Option<ItemMatcher>,
+    /// Durability the held item loses.
+    pub hurt_item: i32,
+    /// Loot dropped at the mob.
+    pub spawn_items: Option<SpawnItems>,
+    /// Fired on the mob once the interaction ran.
+    pub on_interact: Option<SelfEvent>,
+    /// Ticks the mob ignores rows with a cooldown after this row ran.
+    pub cooldown_ticks: u32,
     pub play_sounds: Arc<[Arc<str>]>,
     pub interact_text: Arc<str>,
+}
+
+/// An interaction's `spawn_items`: a loot table rolled for the mob.
+#[derive(Debug, Clone, PartialEq)]
+pub struct SpawnItems {
+    /// The table name as the loot registry keys it.
+    pub table: Arc<str>,
+    /// Height above the mob's feet the items appear at.
+    pub y_offset: f32,
 }
 
 /// `minecraft:interact`.
@@ -358,6 +398,28 @@ pub const ACCEPTED_WITHOUT_BEHAVIOUR: &[(ActorComponent, &str)] = &[
     (
         ActorComponent::BehaviorMountPathing,
         "only runs while ridden, and riding is not implemented",
+    ),
+    (
+        ActorComponent::Boostable,
+        "boosting speeds up a ridden mob, and riding is not implemented",
+    ),
+    (
+        ActorComponent::ItemControllable,
+        "steering items only act on a ridden mob, and riding is not implemented",
+    ),
+    (
+        ActorComponent::BehaviorControlledByPlayer,
+        "only runs while a player rides the mob, and riding is not implemented",
+    ),
+    (
+        ActorComponent::Transformation,
+        "vanilla passive mobs only gain it when struck by lightning (the pig \
+         turning into a zombified piglin), and lightning is not implemented",
+    ),
+    (
+        ActorComponent::GameEventMovementTracking,
+        "emits flap/move/swim game events, which only vibration listeners \
+         (sculk sensors, wardens, allays) consume; vibrations are not implemented",
     ),
 ];
 
@@ -465,6 +527,42 @@ pub fn register_component_kinds(builder: &mut ComponentKindsBuilder) -> Result<(
                 b.min_angle_of_view_horizontal,
                 b.max_angle_of_view_horizontal,
             ),
+        })
+    })?;
+    insert(builder, |b: body::BehaviorEatBlock| {
+        use crate::entity::goal_selector::GoalControls;
+        use body::GoalsControlFlags as Flag;
+        let controls = if b.control_flags.is_empty() {
+            constants::EAT_BLOCK_DEFAULT_CONTROLS
+        } else {
+            b.control_flags
+                .iter()
+                .map(|flag| match flag {
+                    Flag::Move => GoalControls::MOVE,
+                    Flag::Look => GoalControls::LOOK,
+                    Flag::Jump => GoalControls::JUMP,
+                })
+                .fold(GoalControls::NONE, GoalControls::union)
+        };
+        let pairs = b
+            .eat_and_replace_block_pairs
+            .iter()
+            .map(|pair| {
+                Ok(EatBlockPair {
+                    eat: block_entry(&pair.eat_block)?.id,
+                    replace: block_entry(&pair.replace_block)?.default_state_id,
+                })
+            })
+            .collect::<Result<Vec<_>, String>>()?;
+        Ok(EatBlockGoal {
+            priority: b.priority,
+            controls,
+            success_chance: molang(&b.success_chance)?,
+            eat_ticks: (b.time_until_eat.max(0.0) * constants::TICKS_PER_SECOND) as u32,
+            pairs: pairs.into(),
+            on_eat: (!b.on_eat.event.is_empty())
+                .then(|| self_event(&EventTrigger::Trigger(b.on_eat.clone())))
+                .transpose()?,
         })
     })?;
     insert(builder, |b: body::NavigationWalk| {
@@ -692,17 +790,8 @@ pub fn register_component_kinds(builder: &mut ComponentKindsBuilder) -> Result<(
     })?;
     insert(builder, |b: body::Loot| {
         let path = b.table.ok_or_else(|| "loot requires `table`".to_owned())?;
-        let table = path
-            .strip_prefix("loot_tables/")
-            .unwrap_or(&path)
-            .trim_end_matches(".json");
-        if unastar_data::loot::get(table).is_none() {
-            return Err(format!(
-                "loot table {path} is not in the embedded loot registry"
-            ));
-        }
         Ok(LootConfig {
-            table: Arc::from(table),
+            table: loot_table(&path)?,
         })
     })?;
     insert(builder, |b: body::Interact| {
@@ -730,21 +819,51 @@ pub fn register_component_kinds(builder: &mut ComponentKindsBuilder) -> Result<(
     inert::<body::Balloonable>(builder)?;
     inert::<body::Rideable>(builder)?;
     inert::<body::BehaviorMountPathing>(builder)?;
+    inert::<body::Boostable>(builder)?;
+    inert::<body::ItemControllable>(builder)?;
+    inert::<body::BehaviorControlledByPlayer>(builder)?;
+    inert::<body::Transformation>(builder)?;
+    inert::<body::GameEventMovementTracking>(builder)?;
     Ok(())
 }
 
 /// Vanilla's interaction rows use only a subset of the published fields;
 /// anything that would need an unimplemented effect rejects the definition.
+/// `vibration` is accepted: nothing listens for vibrations yet, so emitting
+/// one has no observable effect.
 fn compile_interaction(row: &body::InteractionData) -> Result<Interaction, String> {
     if row.give_item
         || row.take_item
-        || row.hurt_item != 0
+        || row.admire
+        || row.barter
         || row.health_amount != 0
         || !row.spawn_entities.is_empty()
-        || !row.on_interact.event.is_empty()
+        || !row.add_items.table.is_empty()
+        || row.drop_item_slot.is_some()
+        || row.equip_item_slot.is_some()
+        || row.repair_entity_item.slot.is_some()
+        || row.particle_on_start.particle_type != body::ParticleType::None
+        || row.cooldown_after_being_attacked != 0.0
     {
-        return Err("interaction effects beyond item use/transform are not implemented".into());
+        return Err(
+            "interaction effects beyond item use/transform/wear, loot drops and events are not \
+             implemented"
+                .into(),
+        );
     }
+    if row.hurt_item < 0 {
+        return Err(format!("negative hurt_item {}", row.hurt_item));
+    }
+    let on_interact = if row.on_interact.event.is_empty() {
+        None
+    } else if row.on_interact.target != FilterSubject::SelfValue {
+        return Err(format!(
+            "interaction event {} targets {:?}; only self is supported",
+            row.on_interact.event, row.on_interact.target
+        ));
+    } else {
+        Some(SelfEvent(Arc::from(row.on_interact.event.as_str())))
+    };
     Ok(Interaction {
         filter: row.on_interact.filters.as_ref().map(filter).transpose()?,
         use_item: row.use_item,
@@ -752,6 +871,17 @@ fn compile_interaction(row: &body::InteractionData) -> Result<Interaction, Strin
         transform_to_item: (!row.transform_to_item.is_empty())
             .then(|| ItemMatcher::parse(&row.transform_to_item))
             .transpose()?,
+        hurt_item: row.hurt_item,
+        spawn_items: (!row.spawn_items.table.is_empty())
+            .then(|| {
+                Ok::<_, String>(SpawnItems {
+                    table: loot_table(&row.spawn_items.table)?,
+                    y_offset: row.spawn_items.y_offset,
+                })
+            })
+            .transpose()?,
+        on_interact,
+        cooldown_ticks: (row.cooldown.max(0.0) * constants::TICKS_PER_SECOND) as u32,
         play_sounds: row
             .play_sounds
             .iter()
@@ -759,6 +889,39 @@ fn compile_interaction(row: &body::InteractionData) -> Result<Interaction, Strin
             .collect(),
         interact_text: Arc::from(row.interact_text.as_str()),
     })
+}
+
+/// A behaviour-pack loot table path as the loot registry keys it
+/// (`entities/cow` for `loot_tables/entities/cow.json`); unknown tables
+/// reject the definition.
+fn loot_table(path: &str) -> Result<Arc<str>, String> {
+    let table = path
+        .strip_prefix("loot_tables/")
+        .unwrap_or(path)
+        .trim_end_matches(".json");
+    if unastar_data::loot::get(table).is_none() {
+        return Err(format!(
+            "loot table {path} is not in the embedded loot registry"
+        ));
+    }
+    Ok(Arc::from(table))
+}
+
+/// The block a behaviour-pack block name means: `minecraft:` is implied and
+/// legacy names ([`constants::LEGACY_BLOCK_NAMES`]) resolve to today's block.
+fn block_entry(name: &str) -> Result<&'static crate::registry::block::BlockEntry, String> {
+    let name = if name.contains(':') {
+        name.to_owned()
+    } else {
+        format!("minecraft:{name}")
+    };
+    let name = constants::LEGACY_BLOCK_NAMES
+        .iter()
+        .find(|(legacy, _)| *legacy == name)
+        .map_or(name.as_str(), |(_, modern)| *modern);
+    crate::registry::BlockRegistry::vanilla()
+        .get_by_name(name)
+        .ok_or_else(|| format!("unknown block {name}"))
 }
 
 fn apply_breathable(value: &BreathableConfig, entity: &mut EntityWorldMut<'_>) {
@@ -781,7 +944,7 @@ fn set_pushable(entity: &mut EntityWorldMut<'_>, edit: impl FnOnce(&mut Pushable
 
 /// A plain config component: compile from the typed body, insert a clone,
 /// remove on composition change.
-fn insert<B: ComponentBody, T: Component + Clone>(
+pub(super) fn insert<B: ComponentBody, T: Component + Clone>(
     builder: &mut ComponentKindsBuilder,
     compile: impl Fn(B) -> Result<T, String> + Send + Sync + 'static,
 ) -> Result<(), String> {
@@ -806,7 +969,7 @@ fn inert<B: ComponentBody>(builder: &mut ComponentKindsBuilder) -> Result<(), St
     builder.register(|_: B| Ok(()), |_, _| {}, |_| {})
 }
 
-fn filter(json: &FilterJson) -> Result<Filter, String> {
+pub(super) fn filter(json: &FilterJson) -> Result<Filter, String> {
     let mut diagnostics = unastar_rules::Diagnostics::default();
     let filter = Filter::parse(json, FilterRegistry::vanilla(), "filters", &mut diagnostics)
         .map_err(|e| e.to_string())?;
@@ -818,7 +981,7 @@ fn filter(json: &FilterJson) -> Result<Filter, String> {
 }
 
 /// A Molang value; an empty string (the published default) is `None`.
-fn molang(value: &MolangValue) -> Result<Option<Arc<Expr>>, String> {
+pub(super) fn molang(value: &MolangValue) -> Result<Option<Arc<Expr>>, String> {
     let source = match value {
         MolangValue::Float(n) => n.to_string(),
         MolangValue::MolangString(MolangString::String(s)) => s.clone(),

@@ -116,6 +116,9 @@ pub enum LootFunctionKind {
     },
     ExplosionDecay,
     FurnaceSmelt,
+    /// Data value from the THIS actor's palette colour; a legacy name that
+    /// picks its item by data value (`minecraft:wool`) becomes that item.
+    SetDataFromColorIndex,
     Other {
         name: String,
         json: serde_json::Value,

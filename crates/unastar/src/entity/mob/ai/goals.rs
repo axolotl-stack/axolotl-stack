@@ -18,8 +18,8 @@ use super::path::{PathBlockTable, WalkPolicy, find_path, ground_below, random_ta
 use crate::entity::components::PhysicsBody;
 use crate::entity::goal_selector::{GoalCallbacks, GoalControls, GoalId, GoalKind, GoalSpec};
 use crate::entity::mob::config::{
-    BreedGoal, BreedableConfig, FloatGoal, FollowParentGoal, LookAtPlayerGoal, PanicGoal,
-    RandomLookAroundGoal, RandomStrollGoal, TemptGoal,
+    BreedGoal, BreedableConfig, EatBlockGoal, FloatGoal, FollowParentGoal, LookAtPlayerGoal,
+    PanicGoal, RandomLookAroundGoal, RandomStrollGoal, TemptGoal, WalkNavigationConfig,
 };
 use crate::entity::mob::constants::{
     BREED_CHECK_TICKS, BREED_HEAD_TURN, BREED_MAX_PARTNER_DIST, BREED_SEARCH, BREED_TOUCH_DIST,
@@ -47,10 +47,11 @@ pub enum Goal {
     RandomStroll,
     LookAtPlayer,
     RandomLookAround,
+    EatBlock,
 }
 
 impl Goal {
-    const ALL: [Goal; 8] = [
+    const ALL: [Goal; 9] = [
         Goal::Float,
         Goal::Panic,
         Goal::Breed,
@@ -59,6 +60,7 @@ impl Goal {
         Goal::RandomStroll,
         Goal::LookAtPlayer,
         Goal::RandomLookAround,
+        Goal::EatBlock,
     ];
 
     pub fn id(self) -> GoalId {
@@ -69,6 +71,7 @@ impl Goal {
         Self::ALL[usize::from(id.0)]
     }
 
+    /// The goal kind's controls; `behavior.eat_block` authors its own.
     fn controls(self) -> GoalControls {
         match self {
             Goal::Float => GoalControls::JUMP,
@@ -77,6 +80,7 @@ impl Goal {
                 GoalControls::MOVE | GoalControls::LOOK
             }
             Goal::LookAtPlayer => GoalControls::LOOK,
+            Goal::EatBlock => crate::entity::mob::constants::EAT_BLOCK_DEFAULT_CONTROLS,
         }
     }
 }
@@ -124,6 +128,14 @@ pub fn goal_specs(world: &World, entity: Entity, out: &mut Vec<GoalSpec>) {
             controls: goal.controls(),
         })
     }));
+    if let Some(goal) = entity.get::<EatBlockGoal>() {
+        out.push(GoalSpec {
+            id: Goal::EatBlock.id(),
+            kind: GoalKind::Normal,
+            priority: goal.priority,
+            controls: goal.controls,
+        });
+    }
 }
 
 /// World writes the goals request; applied after the mob's tick.
@@ -132,6 +144,10 @@ pub struct Effects {
     pub persistent: bool,
     pub tempted: Option<bool>,
     pub mate: Option<MateRequest>,
+    /// The mob lowered its head to eat (viewers get `EatGrass`).
+    pub eat_started: bool,
+    /// The eat timer ran out: eat the block now.
+    pub eat_finished: bool,
 }
 
 #[derive(Debug, Default)]
@@ -161,6 +177,8 @@ pub struct GoalStates {
     look_ticks: i32,
     look_point: DVec3,
     breed: BreedState,
+    /// Ticks until `behavior.eat_block` eats.
+    eat_ticks: u32,
     /// A path prepared by `can_start`, installed by `start`.
     staging: WalkNavigation,
     scratch: NavigationScratch,
@@ -508,6 +526,22 @@ impl GoalCallbacks for GoalContext<'_> {
                 self.states.breed.partner = partner;
                 partner.is_some()
             }
+            Goal::EatBlock => {
+                let Some(goal) = self.config::<EatBlockGoal>() else {
+                    return false;
+                };
+                if self.config::<WalkNavigationConfig>().is_none() {
+                    return false;
+                }
+                let roll = self.rng.r#gen::<f32>();
+                let chance = super::eat_block::success_chance(goal, self.baby, self.rng);
+                if roll >= chance {
+                    return false;
+                }
+                let feet = self.body.feet.floor().as_ivec3();
+                super::eat_block::edible(self.world, goal, feet).is_some()
+                    || super::eat_block::edible(self.world, goal, feet - glam::IVec3::Y).is_some()
+            }
         }
     }
 
@@ -559,6 +593,7 @@ impl GoalCallbacks for GoalContext<'_> {
                     && self.in_view(goal, &player)
             }
             Goal::RandomLookAround => self.states.look_ticks > 0,
+            Goal::EatBlock => self.states.eat_ticks > 0,
             Goal::Breed => {
                 let Some(partner) = self.mob(self.states.breed.partner) else {
                     return false;
@@ -623,6 +658,11 @@ impl GoalCallbacks for GoalContext<'_> {
                 self.nav.stop(self.movement);
             }
             Goal::Breed => self.states.breed.timer = 0,
+            Goal::EatBlock => {
+                self.states.eat_ticks = self.config::<EatBlockGoal>().map_or(0, |g| g.eat_ticks);
+                self.effects.eat_started = true;
+                self.nav.stop(self.movement);
+            }
         }
     }
 
@@ -647,6 +687,7 @@ impl GoalCallbacks for GoalContext<'_> {
             }
             Goal::LookAtPlayer => self.states.look_player = None,
             Goal::RandomLookAround => self.states.look_ticks = 0,
+            Goal::EatBlock => self.states.eat_ticks = 0,
         }
     }
 
@@ -674,6 +715,12 @@ impl GoalCallbacks for GoalContext<'_> {
                 }
             }
             Goal::RandomStroll => {}
+            Goal::EatBlock => {
+                self.states.eat_ticks = self.states.eat_ticks.max(1) - 1;
+                if self.states.eat_ticks == 0 {
+                    self.effects.eat_finished = true;
+                }
+            }
             Goal::Tempt => {
                 let Some(goal) = self.config::<TemptGoal>() else {
                     return;

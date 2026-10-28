@@ -1,6 +1,6 @@
 //! Hand-written bodies for components the pinned registry lists only as
-//! "Dynamic value" (no published field schema) that the vanilla cow and
-//! chicken use. Field sets follow the Microsoft Learn entity component
+//! "Dynamic value" (no published field schema) that the vanilla cow, chicken,
+//! pig and sheep use. Field sets follow the Microsoft Learn entity component
 //! reference plus fields vanilla definitions actually author; conventions match
 //! the generated bodies: closed structs, typed fields, defaults from
 //! [`super::provisional`], filters as [`FilterJson`], item and event references
@@ -180,6 +180,14 @@ defaults! {
     spawn_item -> String = p::SPAWN_ENTITY_SPAWN_ITEM.to_owned();
     spawn_method -> String = p::SPAWN_ENTITY_SPAWN_METHOD.to_owned();
     spawn_sound -> String = p::SPAWN_ENTITY_SPAWN_SOUND.to_owned();
+    boost_duration -> f32 = p::BOOSTABLE_DURATION;
+    boost_speed_multiplier -> f32 = p::BOOSTABLE_SPEED_MULTIPLIER;
+    boost_item_damage -> i32 = p::BOOSTABLE_BOOST_ITEM_DAMAGE;
+    color_value -> i32 = p::COLOR_VALUE;
+    dyeable_interact_text -> String = p::IS_DYEABLE_INTERACT_TEXT.to_owned();
+    transformation_flag -> bool = p::TRANSFORMATION_FLAG;
+    transformation_delay_value -> f32 = p::TRANSFORMATION_DELAY_VALUE;
+    transformation_delay_block_count -> i32 = p::TRANSFORMATION_DELAY_BLOCK_COUNT;
 }
 
 /// `minecraft:ageable`: a growth timer, accelerated by feeding.
@@ -997,6 +1005,115 @@ pub struct TypeFamily {
     pub family: Option<Vec<String>>,
 }
 
+/// `minecraft:boostable`: items a rider uses to speed the mount up.
+#[derive(Debug, Clone, PartialEq, Deserialize)]
+#[serde(deny_unknown_fields)]
+pub struct Boostable {
+    #[serde(default, deserialize_with = "super::de::one_or_many")]
+    pub boost_items: Vec<BoostItem>,
+    /// Seconds a boost lasts.
+    #[serde(default = "boost_duration")]
+    pub duration: f32,
+    /// Factor applied to the normal speed while boosting.
+    #[serde(default = "boost_speed_multiplier")]
+    pub speed_multiplier: f32,
+}
+
+#[derive(Debug, Clone, PartialEq, Deserialize)]
+#[serde(deny_unknown_fields)]
+pub struct BoostItem {
+    /// Durability the item loses per boost.
+    #[serde(default = "boost_item_damage")]
+    pub damage: i32,
+    pub item: String,
+    /// The item the boost item becomes once used up.
+    pub replace_item: Option<String>,
+}
+
+/// `minecraft:color`: the actor's palette colour (0 white … 15 black).
+#[derive(Debug, Clone, PartialEq, Deserialize)]
+#[serde(deny_unknown_fields)]
+pub struct Color {
+    #[serde(default = "color_value")]
+    pub value: i32,
+}
+
+/// `minecraft:is_dyeable`: dye items recolour the actor.
+#[derive(Debug, Clone, PartialEq, Deserialize)]
+#[serde(deny_unknown_fields)]
+pub struct IsDyeable {
+    /// Touch-screen button text for dyeing.
+    #[serde(default = "dyeable_interact_text")]
+    pub interact_text: String,
+}
+
+/// `minecraft:item_controllable`: items a rider steers the mount with.
+#[derive(Debug, Clone, PartialEq, Deserialize)]
+#[serde(deny_unknown_fields)]
+pub struct ItemControllable {
+    #[serde(deserialize_with = "super::de::one_or_many")]
+    pub control_items: Vec<String>,
+}
+
+/// `minecraft:transformation`: the actor turns into another definition.
+#[derive(Debug, Clone, PartialEq, Deserialize)]
+#[serde(deny_unknown_fields)]
+pub struct Transformation {
+    /// Component groups added to the new actor.
+    pub add: Option<TransformationAdd>,
+    pub begin_transform_sound: Option<String>,
+    pub delay: Option<TransformationDelay>,
+    #[serde(default = "transformation_flag")]
+    pub drop_equipment: bool,
+    #[serde(default = "transformation_flag")]
+    pub drop_inventory: bool,
+    /// The new definition, optionally with a `<spawn event>` suffix.
+    pub into: String,
+    #[serde(default = "transformation_flag")]
+    pub keep_level: bool,
+    #[serde(default = "transformation_flag")]
+    pub keep_owner: bool,
+    #[serde(default = "transformation_flag")]
+    pub preserve_equipment: bool,
+    pub transformation_sound: Option<String>,
+}
+
+#[derive(Debug, Clone, PartialEq, Deserialize)]
+#[serde(deny_unknown_fields)]
+pub struct TransformationAdd {
+    #[serde(default, deserialize_with = "super::de::one_or_many")]
+    pub component_groups: Vec<String>,
+}
+
+/// Seconds before transforming, or a delay that nearby blocks can shorten.
+#[derive(Debug, Clone, PartialEq, Deserialize)]
+#[serde(untagged)]
+pub enum TransformationDelay {
+    Seconds(f32),
+    Detailed(TransformationDelayDetail),
+}
+
+#[derive(Debug, Clone, PartialEq, Deserialize)]
+#[serde(deny_unknown_fields)]
+pub struct TransformationDelayDetail {
+    #[serde(default = "transformation_delay_value")]
+    pub block_assist_chance: f32,
+    #[serde(default = "transformation_delay_value")]
+    pub block_chance: f32,
+    #[serde(default = "transformation_delay_block_count")]
+    pub block_max: i32,
+    #[serde(default = "transformation_delay_block_count")]
+    pub block_radius: i32,
+    #[serde(default, deserialize_with = "super::de::one_or_many")]
+    pub block_types: Vec<String>,
+    #[serde(default = "transformation_delay_value")]
+    pub range_max: f32,
+    #[serde(default = "transformation_delay_value")]
+    pub range_min: f32,
+    #[serde(default = "transformation_delay_value")]
+    pub value: f32,
+}
+
 macro_rules! dynamic_bodies {
     ($($name:ident),* $(,)?) => {
         $(impl ComponentBody for $name {
@@ -1025,13 +1142,17 @@ dynamic_bodies!(
     Balloonable,
     BehaviorPanic,
     BehaviorTempt,
+    Boostable,
     Breathable,
     Breedable,
+    Color,
     ConditionalBandwidthOptimization,
     DamageSensor,
     Despawn,
     Health,
     HurtOnCondition,
+    IsDyeable,
+    ItemControllable,
     Leashable,
     LeashableTo,
     Loot,
@@ -1045,5 +1166,6 @@ dynamic_bodies!(
     Scale,
     SpawnEggInteraction,
     SpawnEntity,
+    Transformation,
     TypeFamily,
 );

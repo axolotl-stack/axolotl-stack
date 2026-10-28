@@ -9,6 +9,7 @@ use bevy_ecs::prelude::*;
 use glam::IVec3;
 use rand::rngs::StdRng;
 use rand::{Rng, SeedableRng};
+use unastar_data::actor_components::ActorComponent;
 use unastar_rules::filter::{BuiltinTest, Fact, FilterContext, FilterTest, Subject};
 use unastar_rules::molang::QueryId;
 use unastar_rules::molang::eval::{MolangContext, Value as MolangValue};
@@ -16,8 +17,8 @@ use unastar_rules::molang::eval::{MolangContext, Value as MolangValue};
 use super::MobKind;
 use super::archetype::MobArchetype;
 use crate::entity::EntityRandom;
-use crate::entity::components::Position;
-use crate::entity::definition::{GroupChange, queue_group_change};
+use crate::entity::components::{PlayerState, Position};
+use crate::entity::definition::{DefinitionState, GroupChange, queue_group_change};
 use crate::entity::events::{EventContext, EventEffect, EventHandle, EventOutcome, TriggerEvent};
 use crate::entity::flags::ActorFlags;
 use crate::entity::properties::{ActorProperties, PropertyValue};
@@ -121,6 +122,24 @@ impl FilterContext for MobFacts<'_> {
             },
             // Riding is not implemented: no actor ever has a rider.
             BuiltinTest::RiderCount => Fact::Number(0.0),
+            BuiltinTest::HasComponent => {
+                let component = ActorComponent::from_name(test.value.as_str()?)?;
+                Fact::Matches(
+                    self.world
+                        .get::<DefinitionState>(entity)
+                        .is_some_and(|state| state.has_actor_component(component)),
+                )
+            }
+            // Only players sneak.
+            BuiltinTest::IsSneakHeld => Fact::Bool(
+                self.world
+                    .get::<PlayerState>(entity)
+                    .is_some_and(|state| state.sneaking),
+            ),
+            BuiltinTest::IsDifficulty => {
+                let want = test.value.as_str()?;
+                Fact::Matches(world_difficulty(self.world)? == want)
+            }
             BuiltinTest::HasEquipment => {
                 let want = super::config::ItemMatcher::parse(test.value.as_str()?).ok()?;
                 let domain = test.domain_str().unwrap_or("any");
@@ -169,6 +188,20 @@ pub fn is_family(world: &World, entity: Entity, family: &str) -> bool {
         return false;
     };
     families.contains(&id).unwrap_or(false)
+}
+
+/// The world difficulty as filters name it, from the level settings the
+/// server announces.
+fn world_difficulty(world: &World) -> Option<&'static str> {
+    use jolyne::valentine::types::EnumsSharedTypesLegacyDifficulty as Difficulty;
+    let template = world.get_resource::<crate::server::game::types::ServerWorldTemplate>()?;
+    match template.0.start_game_template.settings.game_difficulty {
+        Difficulty::Peaceful => Some("peaceful"),
+        Difficulty::Easy => Some("easy"),
+        Difficulty::Normal => Some("normal"),
+        Difficulty::Hard => Some("hard"),
+        _ => None,
+    }
 }
 
 /// The non-empty stack in a player's selected hotbar slot.

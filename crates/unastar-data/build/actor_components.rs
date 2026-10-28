@@ -290,6 +290,10 @@ enum Int {
     U8,
     U32,
     I32,
+    /// `uint64` fields lower to `i64`: the one published `uint64` default
+    /// (`world_age_filter.max`) is `-1`, the engine's all-ones "no bound",
+    /// which a `u64` literal cannot spell.
+    I64,
 }
 
 impl Int {
@@ -299,6 +303,7 @@ impl Int {
             Some("int16") => Self::I16,
             Some("uint8") => Self::U8,
             Some("uint32") => Self::U32,
+            Some("uint64") => Self::I64,
             Some(other) => panic!("unsupported integer x-underlying-type {other}"),
         }
     }
@@ -309,6 +314,7 @@ impl Int {
             Self::U8 => (0, u8::MAX.into()),
             Self::U32 => (0, u32::MAX.into()),
             Self::I32 => (i32::MIN.into(), i32::MAX.into()),
+            Self::I64 => (i64::MIN, i64::MAX),
         }
     }
 
@@ -318,6 +324,7 @@ impl Int {
             Self::U8 => quote!(u8),
             Self::U32 => quote!(u32),
             Self::I32 => quote!(i32),
+            Self::I64 => quote!(i64),
         }
     }
 }
@@ -381,6 +388,44 @@ enum Presence {
     Required,
     Optional,
     Default(Value),
+}
+
+/// Body items generated from another schema family with the conventions of
+/// the actor component bodies (see the module docs): `root` and every
+/// definition it references lower to closed serde types, filters stay
+/// `FilterJson`, published defaults become checked default functions. The
+/// emitted items expect `Deserialize`, `FilterJson` and
+/// `crate::actor_components::de` in scope, like the component `body` module.
+pub(crate) struct SchemaItems {
+    pub tokens: TokenStream,
+    /// Generated type count.
+    pub types: usize,
+    /// Untyped schema nodes lowered to `serde_json::Value`.
+    pub holes: Vec<String>,
+}
+
+pub(crate) fn schema_items(root: &Path) -> SchemaItems {
+    let mut schemas = Schemas::new();
+    let mut lower = Lower {
+        schemas: &mut schemas,
+        types: Vec::new(),
+        by_key: BTreeMap::new(),
+        names: BTreeSet::new(),
+        holes: Vec::new(),
+        extra: BTreeMap::new(),
+    };
+    let reference = file_name(root).replace(' ', "%20");
+    lower.lower(root, &serde_json::json!({ "$ref": reference }), "");
+    lower.alias_enum_defaults();
+    let tokens = Emit {
+        types: &lower.types,
+    }
+    .body_items(&[]);
+    SchemaItems {
+        tokens,
+        types: lower.types.len(),
+        holes: lower.holes,
+    }
 }
 
 struct Lower<'a> {
@@ -548,7 +593,8 @@ impl Lower<'_> {
             extra.sort_by(|a, b| a.0.cmp(&b.0));
             properties.extend(extra);
             for (json, path, property, legacy) in properties {
-                let ty = self.lower(&path, &property, &format!("{name}{}", camel(&json)));
+                let stem = json.strip_prefix("minecraft:").unwrap_or(&json);
+                let ty = self.lower(&path, &property, &format!("{name}{}", camel(stem)));
                 let annotations = component_defaults::resolve(&path, property, self.schemas).schema;
                 // Legacy fields stay optional: absence must stay observable.
                 let presence = if ty == Ty::Filter || legacy {
@@ -1153,7 +1199,7 @@ fn shared_type_name(file: &str, pointer: &str) -> String {
 
 /// UpperCamelCase over every non-alphanumeric boundary; apostrophes vanish
 /// (`Goal's control flags` → `GoalsControlFlags`).
-fn camel(source: &str) -> String {
+pub(crate) fn camel(source: &str) -> String {
     let mut result = String::new();
     for part in source
         .replace('\'', "")
@@ -1221,7 +1267,9 @@ fn field_ident(json: &str) -> Ident {
         "await", "dyn", "abstract", "become", "box", "do", "final", "macro", "override", "priv",
         "typeof", "unsized", "virtual", "yield", "try",
     ];
-    let ident = snake(json);
+    // Spawn-rule conditions key their fields by namespaced component name
+    // (`minecraft:herd` → `herd`).
+    let ident = snake(json.strip_prefix("minecraft:").unwrap_or(json));
     assert!(!ident.is_empty(), "field {json:?} has no identifier characters");
     if matches!(ident.as_str(), "self" | "super" | "crate" | "gen") {
         Ident::new(&format!("{ident}_"), Span::call_site())

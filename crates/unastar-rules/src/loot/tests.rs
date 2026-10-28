@@ -86,6 +86,52 @@ fn false_function_guard_does_not_overwrite_an_earlier_count() {
     );
 }
 
+/// A THIS actor of palette colour `0`, where `addon:ore` with data 14 names
+/// the flattened `addon:red_ore`.
+struct Colored(Option<u8>);
+
+impl LootContext for Colored {
+    fn tool_item(&self) -> Option<&str> {
+        None
+    }
+    fn enchantment_level(&self, _: i16) -> u8 {
+        0
+    }
+    fn block_state_matches(&self, _: &str, _: &LootStateValue) -> bool {
+        false
+    }
+    fn killed_by_player(&self) -> bool {
+        false
+    }
+    fn looting(&self) -> u8 {
+        0
+    }
+    fn this_color_index(&self) -> Option<u8> {
+        self.0
+    }
+    fn data_alias(&self, name: &str, data: i16) -> Option<&str> {
+        (name == "addon:ore" && data == 14).then_some("addon:red_ore")
+    }
+}
+
+#[test]
+fn color_index_sets_data_or_selects_the_flattened_item() {
+    let table = table(json!([{"function": "minecraft:set_data_from_color_index"}]));
+    let drop = |color| {
+        let drops = roll(
+            &LootTables::default(),
+            &table,
+            &Colored(color),
+            &mut StepRng::new(0, 0),
+        )
+        .unwrap();
+        (drops[0].item_id.clone(), drops[0].data)
+    };
+    assert_eq!(drop(Some(14)), ("addon:red_ore".to_owned(), 0));
+    assert_eq!(drop(Some(3)), ("addon:ore".to_owned(), 3));
+    assert_eq!(drop(None), ("addon:ore".to_owned(), 0), "no THIS actor");
+}
+
 fn smelting_table() -> LootTable {
     table(json!([
         {"function": "set_count", "count": 3},

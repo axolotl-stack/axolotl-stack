@@ -197,6 +197,16 @@ impl DefinitionState {
         Ok(self.stack.component(kind.index).is_some())
     }
 
+    /// Whether the current composition includes `component` (the
+    /// `has_component` filter test).
+    pub fn has_actor_component(&self, component: ActorComponent) -> bool {
+        self.definition
+            .kinds
+            .names
+            .get(&component)
+            .is_some_and(|&kind| self.stack.component(kind).is_some())
+    }
+
     /// The component groups added (`true`) or removed (`false`) since the
     /// definition was attached, each once, ordered by its latest change.
     ///

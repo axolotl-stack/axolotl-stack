@@ -146,14 +146,16 @@ impl GameServer {
     pub fn with_config(config: ServerConfig) -> Self {
         let mut items = ItemRegistry::new();
         items.load_vanilla();
+        let items = Arc::new(items);
         let recipes = unastar_data::recipes::RecipeRegistry::vanilla()
             .expect("embedded vanilla recipes compile against the item registry");
         let definitions = crate::registry::entity::ActorDefinitionRegistry::vanilla();
         let actor_properties =
             crate::entity::properties::ActorPropertyRegistry::compile(&definitions)
                 .expect("vanilla actor property schemas and measured wire kinds");
-        let mobs = crate::entity::mob::MobRegistry::compile(&definitions, &actor_properties)
-            .expect("vanilla mob component kinds and families");
+        let mobs =
+            crate::entity::mob::MobRegistry::compile(&definitions, &actor_properties, &items)
+                .expect("vanilla mob component kinds and families");
         let mut entities = EntityRegistry::new();
         entities.load_vanilla(&definitions);
         let mut biomes = BiomeRegistry::new();
@@ -252,6 +254,8 @@ impl GameServer {
         ecs.world_mut()
             .init_resource::<crate::entity::mob::actions::MobActionQueue>();
         ecs.world_mut()
+            .init_resource::<crate::entity::mob::projectile::ThrowQueue>();
+        ecs.world_mut()
             .init_resource::<bevy_ecs::message::Messages<crate::entity::mob::state::MateRequest>>();
 
         ecs.world_mut().add_observer(on_block_changed);
@@ -281,6 +285,12 @@ impl GameServer {
                 .after(inventory::apply_inventory)
                 .after(blocks::apply_block_actions),
         );
+        // Thrown items (eggs) queued by the inventory system's item use.
+        ecs.schedule_mut().add_systems(
+            crate::entity::mob::projectile::apply_throws
+                .in_set(PacketApplySet)
+                .after(inventory::apply_inventory),
+        );
         // Consolidate per-domain events into main EventBuffer after all domain systems
         ecs.schedule_mut().add_systems(
             packet_queues::consolidate_domain_events
@@ -299,6 +309,12 @@ impl GameServer {
             )
                 .chain()
                 .in_set(PhysicsSet),
+        );
+        // Projectiles fly after the living bodies moved.
+        ecs.schedule_mut().add_systems(
+            crate::entity::mob::projectile::tick_projectiles
+                .in_set(PhysicsSet)
+                .after(tick_physics),
         );
         // Mob AI turns goals into rotation and velocity before the physics
         // step integrates them; pushing separates overlapping mobs.
@@ -351,10 +367,12 @@ impl GameServer {
                 .after(despawn_dead)
                 .before(tick_block_breaking),
         );
-        // Mob condition damage and death, then experience orbs. After the
-        // entity chain so deaths from fire/effects are caught the same tick.
+        // Mob fall damage and condition damage, death, then experience orbs.
+        // After the entity chain so deaths from fire/effects are caught the
+        // same tick.
         ecs.schedule_mut().add_systems(
             (
+                crate::entity::mob::fall::apply_fall_damage,
                 crate::entity::mob::combat::hurt_on_condition,
                 crate::entity::mob::death::die_at_zero_health,
                 crate::entity::mob::death::tick_dying,
@@ -376,11 +394,28 @@ impl GameServer {
                 .after(despawn_dead)
                 .before(tick_block_breaking),
         );
+        // `minecraft:spawn_entity` (egg laying) and ambient sound names.
+        ecs.schedule_mut().add_systems(
+            (
+                crate::entity::mob::spawn_entity::tick_spawn_entity,
+                crate::entity::mob::ambient::update_ambient_sound_names,
+            )
+                .chain()
+                .in_set(EntityLogicSet)
+                .after(despawn_dead)
+                .before(tick_block_breaking),
+        );
         // Natural despawning of mobs far from every player.
         ecs.schedule_mut().add_systems(
             crate::entity::mob::despawn::despawn_mobs
                 .in_set(EntityLogicSet)
                 .after(despawn_dead),
+        );
+        // Natural spawning of mobs from the spawn rules.
+        ecs.schedule_mut().add_systems(
+            crate::entity::spawning::natural_spawning
+                .in_set(EntityLogicSet)
+                .after(crate::entity::mob::despawn::despawn_mobs),
         );
         ecs.schedule_mut().add_systems(
             (
@@ -399,11 +434,12 @@ impl GameServer {
             .add_systems(cleanup_despawned_entities.in_set(CleanupSet));
 
         ecs.world_mut()
-            .insert_resource(types::ItemRegistryResource(Arc::new(items)));
+            .insert_resource(types::ItemRegistryResource(items));
         ecs.world_mut()
             .insert_resource(crate::entity::mob::ai::PathBlockTable::new(&blocks));
         ecs.world_mut()
             .insert_resource(types::BlockRegistryResource(Arc::new(blocks)));
+        crate::entity::spawning::install(ecs.world_mut());
 
         info!("Registries loaded");
         Self { ecs }

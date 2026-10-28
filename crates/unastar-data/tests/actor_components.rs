@@ -35,7 +35,10 @@ fn component_names_round_trip_and_cover_every_vanilla_definition() {
             }
         }
     }
-    assert!(unknown.is_empty(), "unregistered vanilla components: {unknown:?}");
+    assert!(
+        unknown.is_empty(),
+        "unregistered vanilla components: {unknown:?}"
+    );
 }
 
 #[test]
@@ -49,10 +52,9 @@ fn every_typed_vanilla_component_body_decodes() {
             match decode_component(component, body) {
                 Ok(true) => decoded += 1,
                 Ok(false) => untyped += 1,
-                Err(error) => failures.push(format!(
-                    "{} [{group}]: {error}",
-                    definition.identifier()
-                )),
+                Err(error) => {
+                    failures.push(format!("{} [{group}]: {error}", definition.identifier()))
+                }
             }
         }
     }
@@ -77,6 +79,27 @@ fn cow_and_chicken_components_are_all_typed() {
             })
             .map(|(_, name, _)| name)
             .collect();
-        assert!(untyped.is_empty(), "{identifier} untyped components: {untyped:?}");
+        assert!(
+            untyped.is_empty(),
+            "{identifier} untyped components: {untyped:?}"
+        );
+    }
+}
+
+#[test]
+fn pig_and_sheep_components_are_all_typed() {
+    for identifier in ["minecraft:pig", "minecraft:sheep"] {
+        let definition = actor_definitions::get(identifier).expect("vanilla definition");
+        let untyped: BTreeSet<_> = bodies(definition)
+            .filter(|(_, name, body)| {
+                let component = ActorComponent::from_name(name).expect("registered component");
+                !decode_component(component, body).expect("decodes")
+            })
+            .map(|(_, name, _)| name)
+            .collect();
+        assert!(
+            untyped.is_empty(),
+            "{identifier} untyped components: {untyped:?}"
+        );
     }
 }

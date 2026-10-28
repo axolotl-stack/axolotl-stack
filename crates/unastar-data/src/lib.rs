@@ -20,6 +20,7 @@ pub mod melee;
 pub mod pmmp;
 pub mod recipes;
 pub mod shapes;
+pub mod spawn_rules;
 pub mod source;
 pub mod types;
 

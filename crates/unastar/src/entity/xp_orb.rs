@@ -56,6 +56,7 @@ pub const XP_ORB_BODY: PhysicsBody = PhysicsBody {
     horizontal_drag: constants::XP_ORB_DRAG,
     ground_friction: GroundFriction::Block,
     step_height: 0.0,
+    wing_flap_drag: None,
 };
 
 /// `minecraft:buoyant` of the vanilla orb as BDS serialises it into the
@@ -110,8 +111,8 @@ pub fn spawn_orb(world: &mut World, position: DVec3, value: u32) -> Entity {
 
 /// Actor data of an orb: the rows BDS 1.26.51 sends for a summoned orb
 /// (retained capture `operator/summons/xp_orb.bin`), with the orb value in
-/// `VALUE`. It is the living base without the target, eating, mob-effect
-/// and one reserved row, plus the orb's box, flags and buoyancy.
+/// `VALUE`. It is the non-mob actor base plus the orb's box, flags and
+/// buoyancy.
 pub fn xp_orb_metadata(value: u32) -> EntityMetadata {
     let mut flags = ActorFlags::default();
     for flag in [
@@ -122,21 +123,7 @@ pub fn xp_orb_metadata(value: u32) -> EntityMetadata {
         flags.update(flag, true).expect("catalogue flag index");
     }
     let words = flags.snapshot();
-    let mut metadata = EntityMetadata::from_entries(
-        EntityMetadata::living_base()
-            .snapshot()
-            .data
-            .into_iter()
-            .filter(|entry| {
-                ![
-                    ids::TARGET,
-                    ids::RESERVED_010,
-                    ids::EATING_COUNTER,
-                    ids::VISIBLE_MOB_EFFECTS,
-                ]
-                .contains(&entry.id)
-            }),
-    );
+    let mut metadata = EntityMetadata::actor_base();
     metadata.set_long(ids::RESERVED_0, words.words()[0] as i64);
     metadata.set_long(ids::RESERVED_092, words.words()[1] as i64);
     metadata.set_payload(
@@ -148,9 +135,6 @@ pub fn xp_orb_metadata(value: u32) -> EntityMetadata {
     );
     metadata.set_float(ids::RESERVED_053, XP_ORB_BODY.width as f32);
     metadata.set_float(ids::RESERVED_054, XP_ORB_BODY.height as f32);
-    // Wire byte 0xff.
-    metadata.set_byte(ids::NAMETAG_ALWAYS_SHOW, -1);
-    metadata.set_float(ids::AMBIENT_SOUND_INTERVAL, 8.0);
     metadata.set_byte(ids::IS_BUOYANT, 1);
     metadata.set_payload(
         ids::BUOYANCY_DATA,

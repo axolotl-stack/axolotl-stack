@@ -67,6 +67,10 @@ pub struct PhysicsBody {
     pub ground_friction: GroundFriction,
     /// Maximum height the entity steps up when walking into a block.
     pub step_height: f64,
+    /// Native wing-flap vertical drag of a living body: while it travels
+    /// through air (not water or lava) and its vertical velocity is negative
+    /// after gravity and drag, that velocity is multiplied by `1 - drag`.
+    pub wing_flap_drag: Option<f64>,
 }
 
 impl PhysicsBody {
@@ -85,6 +89,7 @@ impl PhysicsBody {
         horizontal_drag: 0.98,
         ground_friction: GroundFriction::Block,
         step_height: 0.0,
+        wing_flap_drag: None,
     };
 
     /// Falling block: measured 0.98 box, 0.49 wire offset, 0.04 pre-move
@@ -101,6 +106,7 @@ impl PhysicsBody {
         horizontal_drag: 0.98,
         ground_friction: GroundFriction::None,
         step_height: 0.0,
+        wing_flap_drag: None,
     };
 
     /// Living mob: gravity 0.08 after the move, 0.98 vertical drag, 0.91
@@ -121,6 +127,7 @@ impl PhysicsBody {
             horizontal_drag: LIVING_FRICTION_FACTOR,
             ground_friction: GroundFriction::Block,
             step_height: MOB_STEP_HEIGHT,
+            wing_flap_drag: None,
         }
     }
 
@@ -137,6 +144,7 @@ impl PhysicsBody {
             horizontal_drag: 1.0 - data.drag,
             ground_friction: GroundFriction::None,
             step_height: 0.0,
+            wing_flap_drag: None,
         }
     }
 }
@@ -148,4 +156,43 @@ impl PhysicsBody {
 pub struct FallingBlock {
     /// Runtime ID of the falling block state.
     pub state: u32,
+}
+
+/// How far a living body has fallen, maintained by the physics step.
+#[derive(Component, Debug, Clone, Copy, PartialEq, Default)]
+pub struct FallDistance {
+    /// Blocks fallen since the body last stopped descending.
+    pub distance: f64,
+    /// The distance fallen, on the tick the body touched the ground after a
+    /// fall; `None` on every other tick.
+    pub landed: Option<f64>,
+}
+
+impl FallDistance {
+    /// The state after a move of `dy` blocks that ended `on_ground`, having
+    /// travelled in `liquid`. Native rule: on the ground a positive distance
+    /// lands and resets; in water it resets; airborne, a downward move adds
+    /// to it and any other move resets it.
+    pub fn after_move(
+        self,
+        dy: f64,
+        on_ground: bool,
+        liquid: Option<crate::registry::block::LiquidKind>,
+    ) -> Self {
+        if on_ground {
+            return Self {
+                distance: 0.0,
+                landed: (self.distance > 0.0).then_some(self.distance),
+            };
+        }
+        let distance = if liquid == Some(crate::registry::block::LiquidKind::Water) || dy >= 0.0 {
+            0.0
+        } else {
+            self.distance - dy
+        };
+        Self {
+            distance,
+            landed: None,
+        }
+    }
 }
