@@ -1,0 +1,201 @@
+{
+  "kind": "java",
+  "profile": "release",
+  "instrumented": true,
+  "seed": 12345,
+  "chunks": 68,
+  "setup_ms": 0.3247,
+  "proto_ms": 641.5507,
+  "finished_ms": 5933.961,
+  "cached_protos": 264,
+  "allocations": 186438,
+  "bytes": 166658996,
+  "stages": {
+    "aquifer_veins": {
+      "calls": 6328289,
+      "allocations": 577,
+      "bytes": 16401552,
+      "ms": 906.5806
+    },
+    "bedrock_after_surface": {
+      "calls": 0,
+      "allocations": 0,
+      "bytes": 0,
+      "ms": 0.0
+    },
+    "bedrock_after_underground": {
+      "calls": 0,
+      "allocations": 0,
+      "bytes": 0,
+      "ms": 0.0
+    },
+    "bedrock_before_surface": {
+      "calls": 0,
+      "allocations": 0,
+      "bytes": 0,
+      "ms": 0.0
+    },
+    "bedrock_before_underground": {
+      "calls": 0,
+      "allocations": 0,
+      "bytes": 0,
+      "ms": 0.0
+    },
+    "bedrock_final": {
+      "calls": 0,
+      "allocations": 0,
+      "bytes": 0,
+      "ms": 0.0
+    },
+    "bedrock_first": {
+      "calls": 0,
+      "allocations": 0,
+      "bytes": 0,
+      "ms": 0.0
+    },
+    "bedrock_surface": {
+      "calls": 0,
+      "allocations": 0,
+      "bytes": 0,
+      "ms": 0.0
+    },
+    "bedrock_underground": {
+      "calls": 0,
+      "allocations": 0,
+      "bytes": 0,
+      "ms": 0.0
+    },
+    "biomes": {
+      "calls": 264,
+      "allocations": 264,
+      "bytes": 811008,
+      "ms": 263.5794
+    },
+    "carvers": {
+      "calls": 264,
+      "allocations": 1399,
+      "bytes": 9563628,
+      "ms": 101.2029
+    },
+    "decoration_0_raw_generation": {
+      "calls": 164,
+      "allocations": 0,
+      "bytes": 0,
+      "ms": 0.0634
+    },
+    "decoration_10_top_layer_modification": {
+      "calls": 164,
+      "allocations": 124,
+      "bytes": 141320,
+      "ms": 21.4907
+    },
+    "decoration_1_lakes": {
+      "calls": 164,
+      "allocations": 268,
+      "bytes": 65056,
+      "ms": 1.4572
+    },
+    "decoration_2_local_modifications": {
+      "calls": 164,
+      "allocations": 2804,
+      "bytes": 1029284,
+      "ms": 25.7556
+    },
+    "decoration_3_underground_structures": {
+      "calls": 164,
+      "allocations": 476,
+      "bytes": 159182,
+      "ms": 3.0429
+    },
+    "decoration_4_surface_structures": {
+      "calls": 164,
+      "allocations": 1128,
+      "bytes": 235652,
+      "ms": 0.4452
+    },
+    "decoration_5_strongholds": {
+      "calls": 164,
+      "allocations": 0,
+      "bytes": 0,
+      "ms": 0.0147
+    },
+    "decoration_6_underground_ores": {
+      "calls": 164,
+      "allocations": 86492,
+      "bytes": 42382476,
+      "ms": 387.5178
+    },
+    "decoration_7_underground_decoration": {
+      "calls": 164,
+      "allocations": 185,
+      "bytes": 156512,
+      "ms": 7.8876
+    },
+    "decoration_8_fluid_springs": {
+      "calls": 164,
+      "allocations": 9,
+      "bytes": 8104,
+      "ms": 1.2151
+    },
+    "decoration_9_vegetal_decoration": {
+      "calls": 164,
+      "allocations": 15116,
+      "bytes": 12600308,
+      "ms": 162.74020000000002
+    },
+    "noise": {
+      "calls": 528,
+      "allocations": 1848,
+      "bytes": 23599488,
+      "ms": 953.0052
+    },
+    "packing": {
+      "calls": 264,
+      "allocations": 15444,
+      "bytes": 2680664,
+      "ms": 46.8519
+    },
+    "pipeline": {
+      "calls": 1,
+      "allocations": 9501,
+      "bytes": 3564652,
+      "ms": 29.791600000000003
+    },
+    "region": {
+      "calls": 164,
+      "allocations": 0,
+      "bytes": 0,
+      "ms": 0.1114
+    },
+    "structure_pieces": {
+      "calls": 1804,
+      "allocations": 6739,
+      "bytes": 1762486,
+      "ms": 19.1145
+    },
+    "structure_references": {
+      "calls": 164,
+      "allocations": 138,
+      "bytes": 8832,
+      "ms": 1.8445
+    },
+    "structure_starts": {
+      "calls": 1636,
+      "allocations": 42075,
+      "bytes": 50071180,
+      "ms": 2742.0349
+    },
+    "structure_templates": {
+      "calls": 13,
+      "allocations": 352,
+      "bytes": 447612,
+      "ms": 0.4792
+    },
+    "surface": {
+      "calls": 264,
+      "allocations": 1499,
+      "bytes": 970000,
+      "ms": 257.73089999999996
+    }
+  }
+}

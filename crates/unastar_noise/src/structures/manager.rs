@@ -10,7 +10,8 @@
 //! within eight chunks for each generation step.
 
 use super::context::StructureContext;
-use super::placement::{RingPositions, is_structure_chunk};
+use super::placement::is_structure_chunk;
+use super::rings::RingPositions;
 use super::start::{GenContext, StructureStart};
 use super::transform::BoundingBox;
 use crate::features::decorate::StepHook;
@@ -28,6 +29,8 @@ pub struct StructureManager {
     possible_sets: Vec<usize>,
     rings: RingPositions,
     cache: Mutex<HashMap<(i32, i32), ChunkStarts>>,
+    /// Most queried chunks have no starts; share that immutable result.
+    empty_starts: ChunkStarts,
     /// Structure indices per generation step, in registry order.
     step_structures: [Vec<u16>; 11],
 }
@@ -53,6 +56,7 @@ impl StructureManager {
             possible_sets,
             rings: RingPositions::new(sets.len()),
             cache: Mutex::new(HashMap::new()),
+            empty_starts: Arc::new(Vec::new()),
             step_structures,
         }
     }
@@ -62,6 +66,7 @@ impl StructureManager {
         if let Some(s) = self.cache.lock().expect("structure cache").get(&(cx, cz)) {
             return s.clone();
         }
+        let _stage = crate::profile::scope(crate::profile::Stage::StructureStarts);
         let mut out = Vec::new();
         for &set in &self.possible_sets {
             if !is_structure_chunk(&self.rings, set, ctx, cx, cz) {
@@ -97,7 +102,11 @@ impl StructureManager {
                 total -= weight;
             }
         }
-        let starts = Arc::new(out);
+        let starts = if out.is_empty() {
+            self.empty_starts.clone()
+        } else {
+            Arc::new(out)
+        };
         let mut cache = self.cache.lock().expect("structure cache");
         // Concurrent geometry requests may race before insertion. Keep the
         // first shared instance rather than replacing its placement flags.
@@ -112,6 +121,7 @@ impl StructureManager {
         cx: i32,
         cz: i32,
     ) -> Vec<(ChunkStarts, usize)> {
+        let _stage = crate::profile::scope(crate::profile::Stage::StructureReferences);
         let (x0, z0) = (cx * 16, cz * 16);
         let mut out = Vec::new();
         for i in cx - 8..=cx + 8 {
@@ -193,6 +203,7 @@ impl<W: FeatureWorld> StepHook<W> for StructureStepHook<'_> {
         decoration_seed: i64,
         step: usize,
     ) {
+        let _stage = crate::profile::scope(crate::profile::Stage::StructurePieces);
         let (cx, cz) = self.chunk;
         // `getWritableArea`: the chunk column from min_y + 1.
         let chunk_box = BoundingBox::new(

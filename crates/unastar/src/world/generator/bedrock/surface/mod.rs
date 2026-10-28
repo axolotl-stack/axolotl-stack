@@ -447,7 +447,11 @@ fn first_non_air<C: SurfaceColumn>(col: &C, lo: i32, hi: i32) -> Option<(i32, u3
 /// the first non-air block from the top and sea level (surface pass only);
 /// in other dimensions every air block of the window below sea level, as
 /// the classic nether generator floods its caverns with lava.
-fn fill_sea<C: SurfaceColumn>(col: &mut C, c: &Column<'_>, sea: u32) {
+///
+/// Return an exclusive upper bound on occupied blocks after filling. Overworld
+/// surface builders can reuse the discovered top instead of scanning empty sky
+/// again; subsurface and other-dimension windows remain unchanged.
+fn fill_sea<C: SurfaceColumn>(col: &mut C, c: &Column<'_>, sea: u32) -> i32 {
     let top = c.hi.min(c.sea_level);
     if !c.biome.overworld {
         for y in c.lo..top {
@@ -460,7 +464,9 @@ fn fill_sea<C: SurfaceColumn>(col: &mut C, c: &Column<'_>, sea: u32) {
         for y in floor..top {
             col.set(y, sea);
         }
+        return floor.max(top);
     }
+    c.hi
 }
 
 /// Replace the terrain stone of `lo..hi` with `foundation`.

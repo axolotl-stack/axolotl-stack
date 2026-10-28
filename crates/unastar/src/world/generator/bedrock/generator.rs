@@ -6,7 +6,7 @@
 
 use super::BiomeSet;
 use super::adapter::RegionWorld;
-use super::decorate::{Decorator, chunk_seed};
+use super::decorate::Decorator;
 use super::generated::{self, bb, props};
 use super::rng::BedrockRandom;
 use super::surface::{self, ColumnInput, SurfaceColumn, SurfaceNoises};
@@ -82,10 +82,15 @@ impl BedrockGenerator {
         let (mut blocks, mut biomes) = self.core.generate_noise_with(
             pos,
             |noises, pos, grid, columns| {
+                let _biomes = unastar_noise::profile::scope(unastar_noise::profile::Stage::Biomes);
                 biome_source::fill_chunk_with(noises, pos, grid, columns, Self::lookup_climate)
             },
         );
-        blocks.convert_to_bedrock();
+        {
+            let _noise = unastar_noise::profile::scope(unastar_noise::profile::Stage::Noise);
+            blocks.convert_to_bedrock();
+        }
+        let _surface = unastar_noise::profile::scope(unastar_noise::profile::Stage::Surface);
         for qy in 0..QUARTS_Y {
             for qz in 0..4 {
                 for qx in 0..4 {
@@ -96,11 +101,12 @@ impl BedrockGenerator {
         let heights = self
             .noise_heights
             .get_or_compute(pos, || column_heights(&blocks, props::blocks_motion));
+        let population_seed = self.decorator.chunk_seed(pos.x, pos.z);
         super::geology::apply(
             &mut blocks,
-            &mut BedrockRandom::new(chunk_seed(self.seed(), pos.x, pos.z) ^ 0x6261_7365),
+            &mut BedrockRandom::new(population_seed ^ 0x6261_7365),
         );
-        let mut rng = BedrockRandom::new(chunk_seed(self.seed(), pos.x, pos.z));
+        let mut rng = BedrockRandom::new(population_seed);
         for z in 0..16u8 {
             for x in 0..16u8 {
                 let (wx, wz) = (pos.x * 16 + i32::from(x), pos.z * 16 + i32::from(z));
@@ -214,7 +220,10 @@ impl Generator for BedrockGenerator {
         let (blocks, biomes) = self.surface_blocks(pos);
         self.surface_heights
             .get_or_compute(pos, || column_heights(&blocks, |id| id != bb::AIR));
-        let chunk = blocks.to_chunk(pos);
+        let chunk = {
+            let _packing = unastar_noise::profile::scope(unastar_noise::profile::Stage::Packing);
+            blocks.to_chunk(pos)
+        };
         let mut set = BiomeSet::default();
         for &id in biomes.as_slice() {
             set.insert(id);

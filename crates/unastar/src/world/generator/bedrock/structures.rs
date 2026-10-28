@@ -48,6 +48,7 @@
 use super::generated::{self, bb, props};
 use super::rng::BedrockRandom;
 use super::world::{BlockPos, BlockWorld, Ctx, OUT_OF_BOUNDS};
+use smallvec::SmallVec;
 use std::cmp::Reverse;
 
 /// "No index" marker in the tables (empty pool, no processors, no feature).
@@ -639,6 +640,11 @@ fn pick_weighted(rng: &mut BedrockRandom, elements: &[Element]) -> Option<usize>
     None
 }
 
+// Compiled vanilla tables need at most 27 connectors and 49 pool/fallback entries.
+// Keep their orderings inline; larger custom tables retain growable storage.
+type ConnectorOrder = SmallVec<[u16; 32]>;
+type ElementOrder = SmallVec<[(u16, u16); 64]>;
+
 /// Append `(pool, element)` for every element of `pool` in weighted random
 /// order (sequential weighted draws without replacement, which orders
 /// elements like the first occurrences of a shuffled weight-repeated list).
@@ -646,7 +652,7 @@ fn weighted_order(
     rng: &mut BedrockRandom,
     elements: &[Element],
     pool: u16,
-    out: &mut Vec<(u16, u16)>,
+    out: &mut ElementOrder,
 ) {
     let start = out.len();
     out.extend((0..elements.len() as u16).map(|i| (pool, i)));
@@ -673,7 +679,7 @@ fn weighted_order(
 
 /// Connector indices of `template` shuffled, then stably ordered by
 /// descending selection priority.
-fn ordered_connectors(rng: &mut BedrockRandom, template: &Template, out: &mut Vec<u16>) {
+fn ordered_connectors(rng: &mut BedrockRandom, template: &Template, out: &mut ConnectorOrder) {
     out.clear();
     out.extend(0..template.connectors.len() as u16);
     shuffle(rng, out);
@@ -760,9 +766,9 @@ pub fn assemble(
     let mut interiors: Vec<Option<usize>> = vec![None];
     // (piece, free space, placement priority); highest priority first, FIFO.
     let mut queue: Vec<(usize, usize, i32)> = vec![(0, 0, 0)];
-    let mut parent_connectors: Vec<u16> = Vec::new();
-    let mut child_connectors: Vec<u16> = Vec::new();
-    let mut candidates: Vec<(u16, u16)> = Vec::new();
+    let mut parent_connectors = ConnectorOrder::new();
+    let mut child_connectors = ConnectorOrder::new();
+    let mut candidates = ElementOrder::new();
 
     while !queue.is_empty() {
         let mut best = 0;
@@ -871,7 +877,8 @@ pub fn generate_start(
     min_y: i32,
     max_y: i32,
 ) -> Option<(usize, Vec<Piece>)> {
-    let mut remaining: Vec<(u16, u16)> = set.structures.to_vec();
+    // Vanilla sets contain one or 18 entries; larger custom sets still spill.
+    let mut remaining: SmallVec<[(u16, u16); 32]> = SmallVec::from_slice(set.structures);
     while !remaining.is_empty() {
         let total: i32 = remaining.iter().map(|&(_, w)| i32::from(w)).sum();
         let mut r = rng.next_int(total.max(1));
@@ -920,6 +927,8 @@ pub fn place_in_chunk<W: BlockWorld>(
     chunk_x: i32,
     chunk_z: i32,
 ) {
+    let references_stage =
+        unastar_noise::profile::scope(unastar_noise::profile::Stage::StructureReferences);
     let t = Tables::vanilla();
     let structures: &[Structure] = &generated::JIGSAW_STRUCTURES;
     let (min_y, max_y) = (ctx.world.min_y(), ctx.world.max_y());
@@ -942,9 +951,15 @@ pub fn place_in_chunk<W: BlockWorld>(
                 if (sx - chunk_x).abs() > reach || (sz - chunk_z).abs() > reach {
                     continue;
                 }
-                let Some((index, pieces)) = generate_start(
-                    t, structures, set, &mut rng, sx, sz, surface, biome, min_y, max_y,
-                ) else {
+                let generated = {
+                    let _starts = unastar_noise::profile::scope(
+                        unastar_noise::profile::Stage::StructureStarts,
+                    );
+                    generate_start(
+                        t, structures, set, &mut rng, sx, sz, surface, biome, min_y, max_y,
+                    )
+                };
+                let Some((index, pieces)) = generated else {
                     continue;
                 };
                 if pieces.iter().any(|p| columns.overlaps(&p.bbox)) {
@@ -954,6 +969,8 @@ pub fn place_in_chunk<W: BlockWorld>(
         }
     }
     starts.sort_by_key(|&(step, _, _)| step);
+    drop(references_stage);
+    let _pieces = unastar_noise::profile::scope(unastar_noise::profile::Stage::StructurePieces);
     for (_, index, pieces) in &starts {
         place_start(ctx, t, &structures[*index], pieces, columns);
     }
@@ -1217,6 +1234,8 @@ fn place_piece<W: BlockWorld>(
     piece: &Piece,
     columns: ChunkColumns,
 ) {
+    let _templates =
+        unastar_noise::profile::scope(unastar_noise::profile::Stage::StructureTemplates);
     let template = &t.templates[piece.template as usize];
     let list: &[Processor] = match t.processors.get(piece.processors as usize) {
         Some(l) => l.processors,

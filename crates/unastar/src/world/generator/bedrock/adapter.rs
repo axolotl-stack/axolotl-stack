@@ -12,7 +12,7 @@ use crate::world::generator::{ProtoChunk, WorldGenRegion};
 const SPAN: usize = 48;
 const UNKNOWN: i16 = i16::MIN;
 
-/// Mutable region adapter; writes update or invalidate cached query heights.
+/// Mutable region adapter; cached heights track writes except removal of a top.
 pub struct RegionWorld<'a, R: WorldGenRegion> {
     region: &'a mut R,
     min_x: i32,
@@ -109,8 +109,8 @@ impl<R: WorldGenRegion> BlockWorld for RegionWorld<'_, R> {
         {
             return false;
         }
-        self.heightmap[col] = UNKNOWN;
-        self.top_solid[col] = UNKNOWN;
+        Self::update_height(&mut self.heightmap[col], p.y, id, false);
+        Self::update_height(&mut self.top_solid[col], p.y, id, true);
         true
     }
 
@@ -362,6 +362,59 @@ mod tests {
         assert_eq!(world.above_top_solid(-16, -16), MIN_Y);
         assert_eq!(world.biome(BlockPos::new(-32, 0, -32)), 1);
         assert_eq!(world.biome(BlockPos::new(-33, 0, -32)), u16::MAX);
+    }
+    #[test]
+    fn height_queries_follow_replacements_above_and_below_cached_tops() {
+        let origin = ChunkPos::new(-1, -1);
+        let mut protos = SLOT_OFFSETS
+            .map(|(x, z)| ProtoChunk::empty(ChunkPos::new(origin.x + x, origin.z + z), 1));
+        let center = protos.iter_mut().find(|p| p.pos == origin).unwrap();
+        assert!(center.set(BlockPos::new(-15, 90, -16), bb::STONE));
+        let mut region = DecorationRegion::new(
+            12345,
+            origin,
+            std::array::from_fn(|i| &protos[i]),
+            &unastar_noise::java_blocks::BEDROCK_STATE_CLASSES,
+        );
+        let mut world = RegionWorld::new(&mut region);
+        let (x, z) = (-16, -16);
+        // A below-top write before either first query must not turn an unknown
+        // cache into a guessed height that hides existing terrain.
+        assert!(world.set(BlockPos::new(-15, 50, -16), bb::STONE));
+        assert_eq!(world.heightmap(-15, -16), 91);
+        assert_eq!(world.above_top_solid(-15, -16), 91);
+        assert_eq!(world.heightmap(x, z), MIN_Y);
+        assert_eq!(world.above_top_solid(x, z), MIN_Y);
+        for (y, block, height, solid) in [
+            (60, bb::STONE, 61, 61),
+            (70, bb::WATER, 71, 61),
+            (50, bb::STONE, 71, 61),
+            (80, bb::AIR, 71, 61),
+            (70, bb::STONE, 71, 71),
+            (70, bb::WATER, 71, 61),
+            (60, bb::AIR, 71, 51),
+            (70, bb::AIR, 51, 51),
+            (50, bb::AIR, MIN_Y, MIN_Y),
+        ] {
+            assert!(world.set(BlockPos::new(x, y, z), block));
+            assert_eq!(world.heightmap(x, z), height);
+            assert_eq!(world.above_top_solid(x, z), solid);
+            let full_scan = |solid: bool| {
+                (MIN_Y..MIN_Y + WORLD_HEIGHT)
+                    .rev()
+                    .find(|&at| {
+                        let block = world.get(BlockPos::new(x, at, z));
+                        if solid {
+                            props::is_solid(block)
+                        } else {
+                            block != bb::AIR
+                        }
+                    })
+                    .map_or(MIN_Y, |at| at + 1)
+            };
+            assert_eq!(height, full_scan(false));
+            assert_eq!(solid, full_scan(true));
+        }
     }
 
     #[test]

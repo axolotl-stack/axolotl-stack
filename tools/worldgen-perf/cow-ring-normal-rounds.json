@@ -1,0 +1,194 @@
+[
+  {
+    "round": 1,
+    "kind": "java",
+    "base": {
+      "kind": "java",
+      "profile": "release",
+      "instrumented": false,
+      "seed": 12345,
+      "chunks": 68,
+      "setup_ms": 0.37579999999999997,
+      "proto_ms": 693.365,
+      "finished_ms": 6885.9307,
+      "cached_protos": 264,
+      "allocations": 186438,
+      "bytes": 166658676,
+      "stages": {}
+    },
+    "candidate": {
+      "kind": "java",
+      "profile": "release",
+      "instrumented": false,
+      "seed": 12345,
+      "chunks": 68,
+      "setup_ms": 0.3799,
+      "proto_ms": 762.0441,
+      "finished_ms": 4000.4626,
+      "cached_protos": 264,
+      "allocations": 119232,
+      "bytes": 157672310,
+      "stages": {}
+    }
+  },
+  {
+    "round": 1,
+    "kind": "bedrock",
+    "base": {
+      "kind": "bedrock",
+      "profile": "release",
+      "instrumented": false,
+      "seed": 12345,
+      "chunks": 68,
+      "setup_ms": 0.4256,
+      "proto_ms": 662.9534,
+      "finished_ms": 3350.6597,
+      "cached_protos": 264,
+      "allocations": 132535,
+      "bytes": 98750284,
+      "stages": {}
+    },
+    "candidate": {
+      "kind": "bedrock",
+      "profile": "release",
+      "instrumented": false,
+      "seed": 12345,
+      "chunks": 68,
+      "setup_ms": 0.4129,
+      "proto_ms": 627.4929,
+      "finished_ms": 3500.558,
+      "cached_protos": 264,
+      "allocations": 65729,
+      "bytes": 90025992,
+      "stages": {}
+    }
+  },
+  {
+    "round": 2,
+    "kind": "java",
+    "base": {
+      "kind": "java",
+      "profile": "release",
+      "instrumented": false,
+      "seed": 12345,
+      "chunks": 68,
+      "setup_ms": 0.37110000000000004,
+      "proto_ms": 785.4963,
+      "finished_ms": 7442.6011,
+      "cached_protos": 264,
+      "allocations": 186438,
+      "bytes": 166658676,
+      "stages": {}
+    },
+    "candidate": {
+      "kind": "java",
+      "profile": "release",
+      "instrumented": false,
+      "seed": 12345,
+      "chunks": 68,
+      "setup_ms": 0.3285,
+      "proto_ms": 758.6282,
+      "finished_ms": 4631.6563,
+      "cached_protos": 264,
+      "allocations": 119232,
+      "bytes": 157672310,
+      "stages": {}
+    }
+  },
+  {
+    "round": 2,
+    "kind": "bedrock",
+    "base": {
+      "kind": "bedrock",
+      "profile": "release",
+      "instrumented": false,
+      "seed": 12345,
+      "chunks": 68,
+      "setup_ms": 4.0491,
+      "proto_ms": 707.5987,
+      "finished_ms": 3220.6068,
+      "cached_protos": 264,
+      "allocations": 132535,
+      "bytes": 98750284,
+      "stages": {}
+    },
+    "candidate": {
+      "kind": "bedrock",
+      "profile": "release",
+      "instrumented": false,
+      "seed": 12345,
+      "chunks": 68,
+      "setup_ms": 0.3846,
+      "proto_ms": 581.1816,
+      "finished_ms": 2860.9654,
+      "cached_protos": 264,
+      "allocations": 65729,
+      "bytes": 90025992,
+      "stages": {}
+    }
+  },
+  {
+    "round": 3,
+    "kind": "java",
+    "base": {
+      "kind": "java",
+      "profile": "release",
+      "instrumented": false,
+      "seed": 12345,
+      "chunks": 68,
+      "setup_ms": 0.319,
+      "proto_ms": 653.5813,
+      "finished_ms": 6604.0099,
+      "cached_protos": 264,
+      "allocations": 186438,
+      "bytes": 166658676,
+      "stages": {}
+    },
+    "candidate": {
+      "kind": "java",
+      "profile": "release",
+      "instrumented": false,
+      "seed": 12345,
+      "chunks": 68,
+      "setup_ms": 0.4395,
+      "proto_ms": 645.1024,
+      "finished_ms": 3622.8779,
+      "cached_protos": 264,
+      "allocations": 119232,
+      "bytes": 157672310,
+      "stages": {}
+    }
+  },
+  {
+    "round": 3,
+    "kind": "bedrock",
+    "base": {
+      "kind": "bedrock",
+      "profile": "release",
+      "instrumented": false,
+      "seed": 12345,
+      "chunks": 68,
+      "setup_ms": 0.3662,
+      "proto_ms": 544.5183,
+      "finished_ms": 2730.5932,
+      "cached_protos": 264,
+      "allocations": 132535,
+      "bytes": 98750284,
+      "stages": {}
+    },
+    "candidate": {
+      "kind": "bedrock",
+      "profile": "release",
+      "instrumented": false,
+      "seed": 12345,
+      "chunks": 68,
+      "setup_ms": 0.3552,
+      "proto_ms": 546.4049,
+      "finished_ms": 2722.3134,
+      "cached_protos": 264,
+      "allocations": 65729,
+      "bytes": 90025992,
+      "stages": {}
+    }
+  }
+]
