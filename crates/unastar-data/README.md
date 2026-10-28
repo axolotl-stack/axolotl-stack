@@ -70,6 +70,18 @@ Current golden artifacts:
   `actor_definitions::component_field_default` exposes these to startup prototype
   compilers without merging them into actor bodies. Dynamic-value descriptions
   are not invented defaults. Only counts/hashes are committed.
+- `actor_components.rs` (**OUT_DIR only**, `build/actor_components.rs`):
+  `actor_components::ActorComponent` (one variant per registered component,
+  410) and 264 typed component bodies generated from the same selected stable
+  schemas (343 types; `$ref` definitions deduplicated, filters kept as
+  `FilterJson`, enums/unions typed, published defaults as serde defaults,
+  `deny_unknown_fields` everywhere, no untyped holes). Older-version and
+  form-only fields vanilla still authors are appended as optional legacy
+  fields. The "Dynamic value" components the cow and chicken use have
+  hand-written bodies (`src/actor_components/dynamic.rs`) whose unpublished
+  defaults live in `actor_components::provisional` (D12).
+  `actor_components::decode`/`decode_component` decode authored bodies;
+  `tests/actor_components.rs` decodes every typed vanilla component instance.
 - `actor_wire.json` (**OUT_DIR only**): 112 measured summon observations and
   native property-descriptor order/type codes, decoded with the generated 2193
   codec and shared NBT reader. All 126 consumed capture files are checked against

@@ -1,6 +1,8 @@
 //! EULA pack data is read from the pinned submodule, never from committed
 //! derived data (D13). Only its hashes/counts are checked in.
 
+#[path = "build/actor_components.rs"]
+mod actor_components;
 #[path = "build/actor_wire.rs"]
 mod actor_wire;
 #[path = "build/actors.rs"]

@@ -44,9 +44,18 @@ pub fn write(pack: &Path, out: &Path) {
                 .expect("legacy component form JSON"),
         )
         .expect("legacy component registrations");
+    let registry = parser.to_schema();
+    let names = registry["properties"]
+        .as_object()
+        .expect("actor component registry properties")
+        .keys()
+        .cloned()
+        .collect();
+    let forms = legacy_form.parent().expect("legacy form directory");
+    crate::actor_components::write(&schema_files, forms, &names, out);
     std::fs::write(
         out.join("actor_component_registry.json"),
-        serde_json::to_vec(&parser.to_schema()).expect("actor component registry serialization"),
+        serde_json::to_vec(&registry).expect("actor component registry serialization"),
     )
     .expect("writing actor component registry");
     let stack = PackStack::single_pack("bedrock-samples", pack);

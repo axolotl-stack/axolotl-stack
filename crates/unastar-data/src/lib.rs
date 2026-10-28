@@ -5,6 +5,7 @@
 //! time, embedded, and decoded once at startup. Only their hashes and counts
 //! are committed, never EULA-derived per-entry Rust or KDL.
 
+pub mod actor_components;
 pub mod actor_definitions;
 pub mod actor_identifiers;
 pub mod actor_wire;

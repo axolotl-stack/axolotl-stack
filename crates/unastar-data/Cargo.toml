@@ -16,6 +16,7 @@ unastar-packs = { path = "../unastar-packs" }
 unastar-rules = { path = "../unastar-rules" }
 base64 = { workspace = true }
 thiserror = { workspace = true }
+serde_path_to_error = "0.1"
 
 [build-dependencies]
 bytes = { workspace = true }
@@ -24,6 +25,10 @@ valentine = { path = "../valentine", default-features = false, features = ["bedr
 serde_json = { workspace = true }
 unastar-packs = { path = "../unastar-packs" }
 unastar-rules = { path = "../unastar-rules" }
+quote = { workspace = true }
+syn = { workspace = true }
+proc-macro2 = { workspace = true }
+prettyplease = { workspace = true }
 
 [dev-dependencies]
 bytes = { workspace = true }

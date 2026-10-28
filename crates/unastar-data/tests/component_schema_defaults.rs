@@ -1,3 +1,5 @@
+// The module also carries schema plumbing for the component body generator.
+#[allow(dead_code)]
 #[path = "../build/component_defaults.rs"]
 mod component_defaults;
 
