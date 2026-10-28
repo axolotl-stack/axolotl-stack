@@ -1100,6 +1100,26 @@ impl Chunk {
         true
     }
 
+    /// FULL-status promotion of native pending actors. Markers outside build
+    /// height are dropped; the rest instantiate from the current block state.
+    pub(crate) fn promote_java_pending_actors(&mut self) {
+        assert_eq!(self.state_space, BlockStateSpace::Java);
+        let mut actors = std::mem::take(&mut self.block_entities);
+        actors.retain_mut(|actor| {
+            if !actor.is_java_pending() {
+                return true;
+            }
+            let [x, y, z] = actor.position();
+            if !self.bounds.contains(&y) {
+                return false;
+            }
+            let state = self.get_block((x & 15) as u8, y as i16, (z & 15) as u8);
+            let state = unastar_noise::features::JavaState(u16::try_from(state).expect("canonical Java state id"));
+            actor.promote_java_pending(state.block().name())
+        });
+        self.block_entities = actors;
+    }
+
     /// Remove an actor at an absolute position; returns whether one existed.
     pub fn remove_block_entity(&mut self, x: i32, y: i32, z: i32) -> bool {
         if !self.bounds.contains(&y) {

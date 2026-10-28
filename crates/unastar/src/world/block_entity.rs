@@ -170,6 +170,26 @@ impl BlockEntity {
         matches!(self.data, ActorData::JavaPending(_))
     }
 
+    /// Native LevelChunk promotion of a ProtoChunk `DUMMY` marker. The actor is
+    /// instantiated from the block *currently* at its position; a block without
+    /// a native constructor (including `moving_piston`'s null factory) drops it.
+    /// Returns whether the actor remains. Live actors are unchanged.
+    pub(crate) fn promote_java_pending(&mut self, current_block: &'static str) -> bool {
+        if !self.is_java_pending() {
+            return true;
+        }
+        let constructs = NATIVE_ACTOR_BLOCKS
+            .binary_search_by_key(&current_block, |&(block, _)| block)
+            .is_ok_and(|index| NATIVE_ACTOR_BLOCKS[index].1.is_some());
+        if constructs {
+            self.data = ActorData::Java(JavaRecipe {
+                block: current_block,
+                data: BlockEntityData { loot: None, spawner_entity: None, template_nbt: None },
+            });
+        }
+        constructs
+    }
+
     /// Native feature setters mutate the instantiated actor, retaining its
     /// original type/template even if another actor block now occupies the cell.
     pub(crate) fn with_java_feature_data(&self, data: BlockEntityData) -> Self {
@@ -195,6 +215,18 @@ impl BlockEntity {
     /// include their native element type, even when empty.
     pub fn canonical_java_nbt(&self) -> io::Result<serde_json::Value> {
         canonical_tag(&self.java_tag()?)
+    }
+
+    /// Save an instantiated native actor at the LevelChunk boundary. Pending
+    /// markers require promotion using their chunk's current block context;
+    /// exporting them as either live or packed without that context is invalid.
+    pub fn canonical_java_level_nbt(&self) -> io::Result<serde_json::Value> {
+        if self.is_java_pending() {
+            return Err(invalid_nbt("pending actor requires native LevelChunk promotion context"));
+        }
+        let mut tag = self.java_tag()?;
+        tag.compound_mut()?.insert(native_actor::key("keepPacked"), JavaTag::Byte(0));
+        canonical_tag(&tag)
     }
 
     fn java_tag(&self) -> io::Result<JavaTag> {
@@ -228,7 +260,10 @@ impl BlockEntity {
                     Some(other) => return Err(invalid_nbt(format!("unmeasured native runtime spawner {other}"))),
                 }
             } else { block };
+            // Both tables are native constructor saves; the promoted table covers
+            // every registered actor block and is checked against the direct one.
             let bytes = native_actor::runtime_default(variant)
+                .or_else(|| (variant == block).then(|| native_actor::promoted_default(recipe.block)).flatten())
                 .ok_or_else(|| invalid_nbt(format!("unmeasured native runtime actor {variant}")))?;
             JavaTag::read_root(bytes)?
         };
@@ -431,6 +466,36 @@ impl Reader for NetworkReader {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn native_live_proto_and_level_save_boundaries_preserve_typed_payloads() {
+        let fixture: serde_json::Value = serde_json::from_str(include_str!(
+            "../../tests/fixtures/native_live_actor_save_boundaries_1_21_11.json"
+        )).unwrap();
+        for case in fixture["records"].as_array().unwrap() {
+            let position = std::array::from_fn(|axis|
+                i32::try_from(case["position"][axis].as_i64().unwrap()).unwrap());
+            let block = match case["block"].as_str().unwrap() {
+                "minecraft:chest" => "minecraft:chest",
+                "minecraft:spawner" => "minecraft:spawner",
+                other => panic!("unmeasured native live actor {other}"),
+            };
+            let loot = case.get("loot_table").map(|table| {
+                assert_eq!(table.as_str(), Some("minecraft:chests/simple_dungeon"));
+                ("minecraft:chests/simple_dungeon", case["loot_seed"].as_i64().unwrap())
+            });
+            let spawner_entity = case.get("spawner_entity").map(|entity| match entity.as_str().unwrap() {
+                "minecraft:zombie" => "minecraft:zombie",
+                "minecraft:cave_spider" => "minecraft:cave_spider",
+                other => panic!("unmeasured native live spawner {other}"),
+            });
+            let actor = BlockEntity::generated_java(position, block, BlockEntityData {
+                loot, spawner_entity, template_nbt: None,
+            });
+            assert_eq!(actor.canonical_java_nbt().unwrap(), case["proto_saved"]);
+            assert_eq!(actor.canonical_java_level_nbt().unwrap(), case["level_saved"]);
+        }
+    }
 
     fn semantic(entity: &BlockEntity) -> NBTTag {
         let mut disk = Vec::new();
