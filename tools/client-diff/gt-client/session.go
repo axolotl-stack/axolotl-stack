@@ -36,24 +36,55 @@ type session struct {
 	selected   int
 	inventory  map[int]protocol.ItemInstance
 	// cursor is the UI cursor stack (PlayerUI container slot 0).
-	cursor     protocol.ItemInstance
-	blocks     map[protocol.BlockPos]uint32
-	entities   map[string]uint64
-	positions  map[uint64]mgl32.Vec3
-	recipes    map[string]singleRecipe
-	requestID  int32
+	cursor    protocol.ItemInstance
+	blocks    map[protocol.BlockPos]uint32
+	entities  map[string]uint64
+	positions map[uint64]mgl32.Vec3
+	recipes   map[string]singleRecipe
+	requestID int32
+	// window, windowType and block are the open block container window
+	// (ContainerOpen) and its contents (InventoryContent/InventorySlot for
+	// that window, then accepted ItemStackResponses).
+	window      byte
+	windowType  byte
+	windowItems map[int]protocol.ItemInstance
+}
+
+// blockSlots bounds block window slots (a double chest has 54).
+const blockSlots = 54
+
+// containerIDs names the ContainerEnumName of each addressable container.
+var containerIDs = map[string]byte{
+	"armor":      protocol.ContainerArmor,
+	"offhand":    protocol.ContainerOffhand,
+	"chest":      protocol.ContainerLevelEntity,
+	"barrel":     protocol.ContainerBarrel,
+	"ingredient": protocol.ContainerFurnaceIngredient,
+	"fuel":       protocol.ContainerFurnaceFuel,
+	"result":     protocol.ContainerFurnaceResult,
+}
+
+// inBlock reports whether a ContainerEnumName addresses the open block window.
+func inBlock(container byte) bool {
+	switch container {
+	case protocol.ContainerLevelEntity, protocol.ContainerBarrel, protocol.ContainerFurnaceIngredient,
+		protocol.ContainerFurnaceFuel, protocol.ContainerFurnaceResult:
+		return true
+	}
+	return false
 }
 
 func newSession(conn *minecraft.Conn) *session {
 	data := conn.GameData()
 	return &session{
-		runtimeID: data.EntityRuntimeID,
-		pos:       data.PlayerPosition,
-		inventory: make(map[int]protocol.ItemInstance),
-		blocks:    make(map[protocol.BlockPos]uint32),
-		entities:  make(map[string]uint64),
-		positions: make(map[uint64]mgl32.Vec3),
-		recipes:   make(map[string]singleRecipe),
+		runtimeID:   data.EntityRuntimeID,
+		pos:         data.PlayerPosition,
+		inventory:   make(map[int]protocol.ItemInstance),
+		blocks:      make(map[protocol.BlockPos]uint32),
+		entities:    make(map[string]uint64),
+		positions:   make(map[uint64]mgl32.Vec3),
+		recipes:     make(map[string]singleRecipe),
+		windowItems: make(map[int]protocol.ItemInstance),
 	}
 }
 
@@ -121,6 +152,9 @@ func (s *session) handle(pk packet.Packet) []packet.Packet {
 		case packet.RespawnStateReadyToSpawn:
 			s.pos = pk.Position
 		}
+	case *packet.ContainerOpen:
+		s.window, s.windowType = pk.WindowID, pk.ContainerType
+		s.windowItems = make(map[int]protocol.ItemInstance)
 	case *packet.InventoryContent:
 		if pk.WindowID == protocol.WindowIDInventory {
 			for i, item := range pk.Content {
@@ -128,10 +162,16 @@ func (s *session) handle(pk packet.Packet) []packet.Packet {
 					s.inventory[i] = item
 				}
 			}
+		} else if s.window != 0 && pk.WindowID == uint32(s.window) {
+			for i, item := range pk.Content {
+				s.windowItems[i] = item
+			}
 		}
 	case *packet.InventorySlot:
 		if pk.WindowID == protocol.WindowIDInventory && pk.Slot < inventorySize {
 			s.inventory[int(pk.Slot)] = pk.NewItem
+		} else if s.window != 0 && pk.WindowID == uint32(s.window) {
+			s.windowItems[int(pk.Slot)] = pk.NewItem
 		}
 	case *packet.UpdateBlock:
 		if pk.Layer == 0 {
@@ -170,7 +210,10 @@ func (s *session) applySlot(container byte, info protocol.StackResponseSlotInfo)
 	case protocol.ContainerCursor:
 		item = s.cursor
 	default:
-		return
+		if !inBlock(container) {
+			return
+		}
+		item = s.windowItems[int(info.Slot)]
 	}
 	if info.Count == 0 {
 		item = protocol.ItemInstance{}
@@ -180,6 +223,8 @@ func (s *session) applySlot(container byte, info protocol.StackResponseSlotInfo)
 	}
 	if container == protocol.ContainerCursor {
 		s.cursor = item
+	} else if inBlock(container) {
+		s.windowItems[int(info.Slot)] = item
 	} else {
 		s.inventory[int(info.Slot)] = item
 	}
@@ -192,6 +237,20 @@ func predict(dest *protocol.ItemInstance, source protocol.ItemInstance) {
 	if dest.Stack.Count == 0 {
 		*dest = protocol.ItemInstance{Stack: protocol.ItemStack{ItemType: source.Stack.ItemType, BlockRuntimeID: source.Stack.BlockRuntimeID, NBTData: source.Stack.NBTData}}
 	}
+}
+
+// otherSlot addresses an empty armour or offhand slot (stack network ID 0);
+// the bot does not track those containers, the responses show the result.
+func otherSlot(container string, slot int) protocol.StackRequestSlotInfo {
+	return protocol.StackRequestSlotInfo{Container: protocol.FullContainerName{ContainerID: containerIDs[container]}, Slot: byte(slot)}
+}
+
+// blockSlot addresses slot of the open block window with the stack ID the
+// server last reported there. The caller holds s.mu.
+func (s *session) blockSlot(container string, slot int) protocol.StackRequestSlotInfo {
+	info := otherSlot(container, slot)
+	info.StackNetworkID = s.windowItems[slot].StackNetworkID
+	return info
 }
 
 func cursorSlot(stack int32) protocol.StackRequestSlotInfo {
@@ -430,8 +489,27 @@ func (s *session) packets(st step) ([]packet.Packet, error) {
 		runtimeID := s.runtimeID
 		s.mu.Unlock()
 		return []packet.Packet{&packet.MobEquipment{EntityRuntimeID: runtimeID, NewItem: item, InventorySlot: byte(st.Slot), HotBarSlot: byte(st.Slot), WindowID: protocol.WindowIDInventory}}, nil
-	case "move_item", "take_cursor", "place_cursor", "swap", "drop", "drop_cursor":
+	case "move_item", "take_cursor", "place_cursor", "swap", "drop", "drop_cursor", "destroy":
 		return s.stackRequest(st)
+	case "open_inventory":
+		// The vanilla client opens its own inventory with Interact
+		// OpenInventory targeting itself.
+		s.mu.Lock()
+		runtimeID := s.runtimeID
+		s.mu.Unlock()
+		return []packet.Packet{&packet.Interact{ActionType: packet.InteractActionOpenInventory, TargetEntityRuntimeID: runtimeID}}, nil
+	case "close_inventory":
+		// Window 0 with type 0xff (NONE) as the vanilla client sends it.
+		return []packet.Packet{&packet.ContainerClose{WindowID: 0, ContainerType: 0xff}}, nil
+	case "close_container":
+		s.mu.Lock()
+		defer s.mu.Unlock()
+		if s.window == 0 {
+			return nil, fmt.Errorf("close_container: no block window is open")
+		}
+		window, kind := s.window, s.windowType
+		s.window = 0
+		return []packet.Packet{&packet.ContainerClose{WindowID: window, ContainerType: kind}}, nil
 	case "craft":
 		recipe, err := s.recipe(st.Recipe)
 		if err != nil {
@@ -473,6 +551,9 @@ func (s *session) stackRequest(st step) ([]packet.Packet, error) {
 	if st.Kind == "place_cursor" || st.Kind == "drop_cursor" {
 		source = s.cursor
 	}
+	if st.FromContainer != "" {
+		source = s.windowItems[st.Slot]
+	}
 	if source.Stack.Count == 0 {
 		return nil, fmt.Errorf("%s: source slot is empty", st.Kind)
 	}
@@ -483,13 +564,26 @@ func (s *session) stackRequest(st step) ([]packet.Packet, error) {
 	var action protocol.StackRequestAction
 	switch st.Kind {
 	case "move_item":
-		dest := s.inventory[st.To]
 		take := &protocol.TakeStackRequestAction{}
 		take.Count = byte(st.Count)
 		take.Source = inventorySlot(st.Slot, sourceID)
-		take.Destination = inventorySlot(st.To, dest.StackNetworkID)
-		predict(&dest, source)
-		s.inventory[st.To] = dest
+		if st.FromContainer != "" {
+			take.Source = s.blockSlot(st.FromContainer, st.Slot)
+			take.Source.StackNetworkID = sourceID
+		}
+		if st.ToContainer == "armor" || st.ToContainer == "offhand" {
+			take.Destination = otherSlot(st.ToContainer, st.To)
+		} else if st.ToContainer != "" {
+			take.Destination = s.blockSlot(st.ToContainer, st.To)
+			dest := s.windowItems[st.To]
+			predict(&dest, source)
+			s.windowItems[st.To] = dest
+		} else {
+			dest := s.inventory[st.To]
+			take.Destination = inventorySlot(st.To, dest.StackNetworkID)
+			predict(&dest, source)
+			s.inventory[st.To] = dest
+		}
 		action = take
 	case "take_cursor":
 		take := &protocol.TakeStackRequestAction{}
@@ -499,13 +593,17 @@ func (s *session) stackRequest(st step) ([]packet.Packet, error) {
 		predict(&s.cursor, source)
 		action = take
 	case "place_cursor":
-		dest := s.inventory[st.To]
 		place := &protocol.PlaceStackRequestAction{}
 		place.Count = byte(st.Count)
 		place.Source = cursorSlot(sourceID)
-		place.Destination = inventorySlot(st.To, dest.StackNetworkID)
-		predict(&dest, source)
-		s.inventory[st.To] = dest
+		if st.ToContainer != "" {
+			place.Destination = otherSlot(st.ToContainer, st.To)
+		} else {
+			dest := s.inventory[st.To]
+			place.Destination = inventorySlot(st.To, dest.StackNetworkID)
+			predict(&dest, source)
+			s.inventory[st.To] = dest
+		}
 		action = place
 	case "swap":
 		dest := s.inventory[st.To]
@@ -515,6 +613,8 @@ func (s *session) stackRequest(st step) ([]packet.Packet, error) {
 		action = &protocol.DropStackRequestAction{Count: byte(st.Count), Source: inventorySlot(st.Slot, sourceID)}
 	case "drop_cursor":
 		action = &protocol.DropStackRequestAction{Count: byte(st.Count), Source: cursorSlot(sourceID)}
+	case "destroy":
+		action = &protocol.DestroyStackRequestAction{Count: byte(st.Count), Source: inventorySlot(st.Slot, sourceID)}
 	}
 	s.requestID -= 2
 	return []packet.Packet{&packet.ItemStackRequest{Requests: []protocol.ItemStackRequest{{RequestID: s.requestID + 1, Actions: []protocol.StackRequestAction{action}}}}}, nil

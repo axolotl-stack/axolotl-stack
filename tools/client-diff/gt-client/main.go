@@ -57,6 +57,14 @@ type step struct {
 	Recipe  string  `json:"recipe"`
 	// Stale sends an unassigned source stack network ID (inventory steps).
 	Stale bool `json:"stale"`
+	// ToContainer addresses the destination of move_item/place_cursor in
+	// "armor" or "offhand", or in the open block window ("chest", "barrel",
+	// "ingredient", "fuel", "result"), instead of the player inventory
+	// (slot = To).
+	ToContainer string `json:"to_container"`
+	// FromContainer addresses the source of move_item in the open block
+	// window (same names as ToContainer, slot = Slot).
+	FromContainer string `json:"from_container"`
 }
 
 type scenario struct {
@@ -94,9 +102,20 @@ func (s scenario) validate() error {
 			if step.Ticks <= 0 {
 				return fmt.Errorf("step %d: move needs positive ticks", i)
 			}
-		case "move_item", "drop", "craft", "take_cursor", "place_cursor", "swap", "drop_cursor":
-			if step.Count <= 0 || step.Count > 64 || step.Slot < 0 || step.Slot >= inventorySize || step.To < 0 || step.To >= inventorySize {
-				return fmt.Errorf("step %d: %s needs count 1..64 and slots 0..35", i, step.Kind)
+		case "move_item", "drop", "craft", "take_cursor", "place_cursor", "swap", "drop_cursor", "destroy":
+			if step.Count <= 0 || step.Count > 64 || step.Slot < 0 || step.Slot >= blockSlots || step.To < 0 || step.To >= blockSlots {
+				return fmt.Errorf("step %d: %s needs count 1..64 and slots 0..53", i, step.Kind)
+			}
+			if step.FromContainer == "" && step.Slot >= inventorySize || step.ToContainer == "" && step.To >= inventorySize {
+				return fmt.Errorf("step %d: player inventory slots are 0..35", i)
+			}
+			for _, name := range []string{step.ToContainer, step.FromContainer} {
+				if _, ok := containerIDs[name]; name != "" && !ok {
+					return fmt.Errorf("step %d: unknown container %q", i, name)
+				}
+			}
+			if step.FromContainer != "" && step.Kind != "move_item" || step.FromContainer == "armor" || step.FromContainer == "offhand" {
+				return fmt.Errorf("step %d: from_container is for move_item out of a block window", i)
 			}
 			if step.Kind == "craft" && step.Recipe == "" {
 				return fmt.Errorf("step %d: craft needs a recipe", i)
@@ -104,6 +123,7 @@ func (s scenario) validate() error {
 			if step.Stale && step.Kind == "craft" {
 				return fmt.Errorf("step %d: craft cannot use a stale stack ID", i)
 			}
+		case "open_inventory", "close_inventory", "close_container":
 		case "select":
 			if step.Slot < 0 || step.Slot > 8 {
 				return fmt.Errorf("step %d: select needs a hotbar slot 0..8", i)

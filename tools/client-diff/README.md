@@ -94,6 +94,14 @@ offsets from the same feet block and slots 0–8/9–35 are hotbar/inventory:
 | `click` | `x`,`y`,`z`,`face` | aim, then `InventoryTransaction` use-item on block |
 | `select` | `slot` | `MobEquipment` |
 | `move_item`, `drop`, `craft` | `slot`,`to`,`count`,`recipe` | `ItemStackRequest` take/drop/craft |
+| `take_cursor`, `place_cursor`, `drop_cursor`, `swap`, `destroy` | `slot`,`to`,`count` | `ItemStackRequest` take into / place from / drop from the cursor (UI slot 0), swap, destroy |
+| `open_inventory`, `close_inventory` | — | `Interact` OpenInventory; `ContainerClose` window 0 type 0xff |
+
+Inventory steps also take `"stale": true` (send an unassigned source stack ID) and, for
+`move_item`/`place_cursor`, `"to_container": "armor"|"offhand"` (destination slot `to` in
+that container). `-Mode capture -Scenario inventory-moves` runs the inventory scenario
+whose BDS capture is replayed by unastar's inventory engine tests
+(`crates/unastar/src/server/game/inventory/testdata/bds-inventory-moves.jsonl`).
 | `attack`, `interact` | `entity` (type, e.g. `minecraft:zombie`) | aim, then `InventoryTransaction` use-item on entity |
 
 BDS 1.26.51 answers this bot's block `click` transactions with a block and
