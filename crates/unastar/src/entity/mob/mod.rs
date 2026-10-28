@@ -11,11 +11,15 @@
 //! composition or health changed), then physics, AI and combat, then
 //! `network::sync_mob_viewers`.
 
+pub mod actions;
 pub mod archetype;
+pub mod combat;
 pub mod config;
 pub mod constants;
 pub mod events;
+pub mod interact;
 pub mod network;
+pub mod state;
 
 #[cfg(test)]
 mod tests;

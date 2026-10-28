@@ -247,6 +247,10 @@ impl GameServer {
         ecs.world_mut()
             .init_resource::<packet_queues::InventoryEvents>();
         ecs.world_mut().init_resource::<packet_queues::ChatEvents>();
+        ecs.world_mut()
+            .init_resource::<crate::entity::mob::actions::MobActionQueue>();
+        ecs.world_mut()
+            .init_resource::<bevy_ecs::message::Messages<crate::entity::mob::state::MateRequest>>();
 
         ecs.world_mut().add_observer(on_block_changed);
         register_chunk_systems(ecs.schedule_mut());
@@ -266,6 +270,14 @@ impl GameServer {
             blocks::apply_block_actions
                 .in_set(PacketApplySet)
                 .after(movement::apply_movement),
+        );
+        // Player attacks/interactions with mobs (exclusive), after inventory
+        // so the held item reflects this tick's slot changes.
+        ecs.schedule_mut().add_systems(
+            crate::entity::mob::actions::apply_mob_actions
+                .in_set(PacketApplySet)
+                .after(inventory::apply_inventory)
+                .after(blocks::apply_block_actions),
         );
         // Consolidate per-domain events into main EventBuffer after all domain systems
         ecs.schedule_mut().add_systems(
