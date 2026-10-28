@@ -572,8 +572,7 @@ mod tests {
         let mut kinds = ComponentKindsBuilder::default();
         kinds
             .register(
-                "minecraft:is_baby",
-                |_| Ok(()),
+                |_: unastar_data::actor_components::body::IsBaby| Ok(()),
                 |_, entity| {
                     entity.insert(Baby);
                 },
@@ -584,12 +583,7 @@ mod tests {
             .unwrap();
         kinds
             .register(
-                "minecraft:scale",
-                |body| {
-                    body["value"]
-                        .as_f64()
-                        .ok_or_else(|| "scale value required".into())
-                },
+                |body: unastar_data::actor_components::body::Scale| Ok(f64::from(body.value)),
                 |value, entity| {
                     entity.insert(Scale(*value));
                 },

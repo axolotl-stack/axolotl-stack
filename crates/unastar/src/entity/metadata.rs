@@ -47,6 +47,105 @@ impl EntityMetadata {
         metadata
     }
 
+    /// Actor data a living mob starts with before its composition is
+    /// derived. Every row is the value BDS 1.26.51 sends in `AddActor` for a
+    /// freshly summoned adult cow and chicken (identical for both, retained
+    /// captures `operator/summons/{cow,chicken}.bin`); rows that depend on the
+    /// definition (flags, scale, box, air) are overwritten by
+    /// `entity::mob::derive_mob_state`. Keys are listed in wire order.
+    pub fn living_base() -> Self {
+        use actor_data_ids as id;
+        use jolyne::valentine::bedrock::codec::Nbt;
+        use jolyne::valentine::types::{DataItemCompoundTagPayload, DataItemVec3Payload, Vec3};
+        let mut m = Self::with_capacity(72);
+        m.set_long(id::RESERVED_0, 0);
+        m.set_int(id::STRUCTURAL_INTEGRITY, 1);
+        m.set_int(id::VARIANT, 0);
+        m.set_byte(id::COLOR_INDEX, 0);
+        m.set_string(id::NAME, "");
+        m.set_long(id::OWNER, -1);
+        m.set_long(id::TARGET, 0);
+        m.set_short(id::AIR_SUPPLY, 300);
+        m.set_byte(id::RESERVED_010, 0);
+        m.set_byte(id::CHARGE_AMOUNT, 0);
+        m.set_long(id::LEASH_HOLDER, 0);
+        m.set_float(id::RESERVED_038, 1.0);
+        m.set_byte(id::HAS_NPC, 0);
+        m.set_short(id::AIR_SUPPLY_MAX, 300);
+        m.set_int(id::MARK_VARIANT, 0);
+        m.set_byte(id::CONTAINER_TYPE, 0);
+        m.set_int(id::CONTAINER_SIZE, 0);
+        m.set_int(id::CONTAINER_STRENGTH_MODIFIER, 0);
+        m.set_float(id::RESERVED_053, 0.0);
+        m.set_float(id::RESERVED_054, 0.0);
+        m.set_int(id::FUSE_TIME, -1);
+        m.set_payload(
+            id::RESERVED_056,
+            DataItemEntryPayload::DataItemVec3Payload(DataItemVec3Payload {
+                type_: EnumsDataItemType::Vec3,
+                value: Vec3 {
+                    x: 0.0,
+                    y: 0.0,
+                    z: 0.0,
+                },
+            }),
+        );
+        m.set_byte(id::SEAT_LOCK_PASSENGER_ROTATION, 0);
+        m.set_float(id::SEAT_LOCK_PASSENGER_ROTATION_DEGREES, 0.0);
+        m.set_byte(id::SEAT_ROTATION_OFFSET, 0);
+        m.set_float(id::SEAT_ROTATION_OFFSET_DEGREES, 0.0);
+        m.set_byte(id::HAS_COMMAND_BLOCK, 0);
+        m.set_string(id::COMMAND_NAME, "");
+        m.set_string(id::LAST_COMMAND_OUTPUT, "");
+        m.set_byte(id::TRACK_COMMAND_OUTPUT, 1);
+        m.set_byte(id::RESERVED_074, 0);
+        m.set_int(id::STRENGTH, 0);
+        m.set_int(id::STRENGTH_MAX, 0);
+        m.set_int(id::DATA_SPELL_CASTING_COLOR, 0);
+        m.set_int(id::DATA_LIFETIME_TICKS, -1);
+        m.set_byte(id::NAMETAG_ALWAYS_SHOW, 0);
+        m.set_byte(id::COLOR_2_INDEX, 0);
+        m.set_int(id::EATING_COUNTER, 0);
+        m.set_long(id::RESERVED_092, 0);
+        m.set_int(id::TRADE_TIER, 0);
+        m.set_int(id::MAX_TRADE_TIER, 0);
+        m.set_int(id::TRADE_EXPERIENCE, 0);
+        m.set_int(id::SKIN_ID, 0);
+        m.set_int(id::COMMAND_BLOCK_TICK_DELAY, 3);
+        m.set_byte(id::COMMAND_BLOCK_EXECUTE_ON_FIRST_TICK, 1);
+        m.set_float(id::AMBIENT_SOUND_INTERVAL, 6.0);
+        m.set_float(id::AMBIENT_SOUND_INTERVAL_RANGE, 16.0);
+        m.set_string(id::AMBIENT_SOUND_EVENT_NAME, "ambient");
+        m.set_float(id::FALL_DAMAGE_MULTIPLIER, 1.0);
+        m.set_int(id::LOW_TIER_CURED_TRADE_DISCOUNT, 0);
+        m.set_int(id::HIGH_TIER_CURED_TRADE_DISCOUNT, 0);
+        m.set_int(id::NEARBY_CURED_TRADE_DISCOUNT, 0);
+        m.set_int(id::NEARBY_CURED_DISCOUNT_TIME_STAMP, 0);
+        m.set_payload(
+            id::HITBOX,
+            DataItemEntryPayload::DataItemCompoundTagPayload(DataItemCompoundTagPayload {
+                type_: EnumsDataItemType::Compoundtag,
+                value: Nbt(bytes::Bytes::from_static(b"\n\0\0")),
+            }),
+        );
+        m.set_byte(id::IS_BUOYANT, 0);
+        m.set_float(id::FREEZING_EFFECT_STRENGTH, 0.0);
+        m.set_float(id::MOVEMENT_SOUND_DISTANCE_OFFSET, 1.0);
+        m.set_int(id::HEARTBEAT_INTERVAL_TICKS, 20);
+        m.set_int(id::HEARTBEAT_SOUND_EVENT, 614);
+        m.set_long(id::VISIBLE_MOB_EFFECTS, 0);
+        m.set_string(id::FILTERED_NAME, "");
+        m.set_float(id::SEAT_THIRD_PERSON_CAMERA_RADIUS, 0.0);
+        m.set_float(id::SEAT_CAMERA_RELAX_DISTANCE_SMOOTHING, 0.0);
+        m.set_int(id::AIM_ASSIST_PRIORITY_PRESET_ID, -1);
+        m.set_int(id::AIM_ASSIST_PRIORITY_CATEGORY_ID, -1);
+        m.set_int(id::AIM_ASSIST_PRIORITY_ACTOR_ID, -1);
+        m.set_long(id::RESERVED_139, 0);
+        m.set_float(id::NAMEPLATE_RENDER_DISTANCE_MAX, 64.0);
+        m.mark_clean();
+        m
+    }
+
     pub fn get(&self, key: u32) -> Option<&DataItemEntryPayload> {
         self.data
             .binary_search_by_key(&key, |entry| entry.id)

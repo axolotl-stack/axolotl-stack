@@ -5,12 +5,10 @@ use std::collections::{BTreeMap, BTreeSet};
 use std::sync::Arc;
 
 use bevy_ecs::prelude::{Component, EntityWorldMut};
-use serde_json::Value;
-use unastar_data::actor_definitions::{ActorDefinition, component_field_default};
+use unastar_data::actor_components::{ActorComponent, body, decode};
+use unastar_data::actor_definitions::ActorDefinition;
 
 use super::definition::ComponentKindsBuilder;
-
-const COMPONENT: &str = "minecraft:type_family";
 
 /// Collect all built-in and addon family names before freezing runtime handles.
 #[derive(Default)]
@@ -24,7 +22,8 @@ impl FamilyRegistryBuilder {
     }
 
     pub fn register_definition(&mut self, source: &ActorDefinition) -> Result<(), String> {
-        if source.ignored_components.contains(COMPONENT) {
+        let component = ActorComponent::TypeFamily.name();
+        if source.ignored_components.contains(component) {
             return Ok(());
         }
         // Validate the entire definition before changing the builder.
@@ -32,10 +31,9 @@ impl FamilyRegistryBuilder {
         for components in
             std::iter::once(&source.components).chain(source.component_groups.values())
         {
-            if let Some(body) = components.get(COMPONENT) {
-                for value in family_values(body)? {
-                    names.insert(Arc::from(family_name(value)?));
-                }
+            if let Some(value) = components.get(component) {
+                let families = decode::<body::TypeFamily>(value)?;
+                names.extend(families.family.into_iter().flatten().map(Arc::from));
             }
         }
         self.names.extend(names);
@@ -80,8 +78,9 @@ impl FamilyRegistry {
     ) -> Result<(), String> {
         let registry = Arc::clone(self);
         builder.register(
-            COMPONENT,
-            move |body| registry.compile(body),
+            move |body: body::TypeFamily| {
+                registry.membership(body.family.as_deref().unwrap_or_default())
+            },
             |families: &ActorFamilies, entity| {
                 entity.insert(families.clone());
             },
@@ -91,13 +90,13 @@ impl FamilyRegistry {
         )
     }
 
-    fn compile(self: &Arc<Self>, body: &Value) -> Result<ActorFamilies, String> {
+    /// Membership for family names that were all registered before freeze.
+    fn membership(self: &Arc<Self>, names: &[String]) -> Result<ActorFamilies, String> {
         let mut words = vec![0; self.names.len().div_ceil(u64::BITS as usize)];
-        for value in family_values(body)? {
-            let name = family_name(value)?;
+        for name in names {
             let index = self
                 .names
-                .get(name)
+                .get(name.as_str())
                 .ok_or_else(|| format!("family {name} was not registered before freeze"))?;
             words[index / u64::BITS as usize] |= 1u64 << (index % u64::BITS as usize);
         }
@@ -129,23 +128,6 @@ impl ActorFamilies {
             & (1u64 << (family.index % u64::BITS as usize))
             != 0)
     }
-}
-
-fn family_values(body: &Value) -> Result<&[Value], String> {
-    body.as_object()
-        .ok_or_else(|| "type_family component body must be an object".to_owned())?
-        .get("family")
-        .or_else(|| component_field_default(COMPONENT, "family"))
-        .ok_or_else(|| "missing type_family.family and no published default".to_owned())?
-        .as_array()
-        .map(Vec::as_slice)
-        .ok_or_else(|| "type_family.family must be an array".to_owned())
-}
-
-fn family_name(value: &Value) -> Result<&str, String> {
-    value
-        .as_str()
-        .ok_or_else(|| "type_family.family entries must be strings".to_owned())
 }
 
 #[cfg(test)]
@@ -224,7 +206,7 @@ mod tests {
         let mut builder = FamilyRegistryBuilder::default();
         builder.register("same");
         let first = builder.freeze();
-        let membership = first.compile(&json!({"family": ["same"]})).unwrap();
+        let membership = first.membership(&["same".to_owned()]).unwrap();
         let mut builder = FamilyRegistryBuilder::default();
         builder.register("same");
         let second = builder.freeze();
@@ -245,14 +227,9 @@ mod tests {
         let families = builder.freeze();
         assert!(
             families
-                .compile(&json!({"family": ["known", "late"]}))
+                .membership(&["known".to_owned(), "late".to_owned()])
                 .is_err()
         );
-        assert!(
-            families
-                .compile(&json!({"family": ["known", false]}))
-                .is_err()
-        );
-        assert!(families.compile(&json!({"family": "known"})).is_err());
+        assert!(decode::<body::TypeFamily>(&json!({"family": ["known", false]})).is_err());
     }
 }

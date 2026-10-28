@@ -103,37 +103,19 @@ impl ActorFlagSnapshot {
 pub fn register_component_kinds(
     builder: &mut super::definition::ComponentKindsBuilder,
 ) -> Result<(), String> {
-    register_flag::<{ actor_flags::BABY }>(builder, "minecraft:is_baby")?;
-    register_flag::<{ actor_flags::CANCLIMB }>(builder, "minecraft:can_climb")?;
-    register_flag::<{ actor_flags::HIDDEN_WHEN_INVISIBLE }>(
-        builder,
-        "minecraft:is_hidden_when_invisible",
-    )?;
-    register_flag::<{ actor_flags::USES_LEGACY_FRICTION }>(
-        builder,
-        "minecraft:uses_legacy_friction",
-    )?;
-    register_flag::<{ actor_flags::USES_UNIFORM_AIR_DRAG }>(
-        builder,
-        "minecraft:uses_uniform_air_drag",
-    )?;
+    use unastar_data::actor_components::body;
+    register_flag::<body::IsBaby, { actor_flags::BABY }>(builder)?;
+    register_flag::<body::CanClimb, { actor_flags::CANCLIMB }>(builder)?;
+    register_flag::<body::IsHiddenWhenInvisible, { actor_flags::HIDDEN_WHEN_INVISIBLE }>(builder)?;
+    register_flag::<body::UsesLegacyFriction, { actor_flags::USES_LEGACY_FRICTION }>(builder)?;
+    register_flag::<body::UsesUniformAirDrag, { actor_flags::USES_UNIFORM_AIR_DRAG }>(builder)?;
     Ok(())
 }
 
-fn register_flag<const INDEX: u32>(
+fn register_flag<B: unastar_data::actor_components::ComponentBody, const INDEX: u32>(
     builder: &mut super::definition::ComponentKindsBuilder,
-    name: &str,
 ) -> Result<(), String> {
-    builder.register(
-        name,
-        |body| {
-            body.as_object()
-                .map(|_| ())
-                .ok_or_else(|| "marker component body must be an object".to_owned())
-        },
-        apply_flag::<INDEX>,
-        remove_flag::<INDEX>,
-    )
+    builder.register(|_: B| Ok(()), apply_flag::<INDEX>, remove_flag::<INDEX>)
 }
 
 fn apply_flag<const INDEX: u32>(_: &(), entity: &mut bevy_ecs::world::EntityWorldMut<'_>) {

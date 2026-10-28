@@ -3,13 +3,12 @@
 //! These components are inputs to generic derivation, not native physics or
 //! attribute defaults. In particular, collision dimensions remain raw and
 //! unscaled; no gravity, drag, step height, or attribute bounds are chosen here.
-//! The current prototype API has no per-instance expression/RNG context, so
-//! dynamic values and ranges are rejected. Unknown fields remain the shared pack
-//! loader's responsibility; these factories consume only implemented fields.
+//! Bodies arrive as the generated typed structs (unknown fields already
+//! rejected). The prototype API has no per-instance RNG yet, so randomised
+//! `{range_min, range_max}` values and authored attribute bounds are rejected.
 
 use bevy_ecs::prelude::*;
-use serde_json::{Map, Value};
-use unastar_data::actor_definitions::component_field_default;
+use unastar_data::actor_components::body::{self, ValueOrRange};
 
 use super::components::Health;
 use super::definition::ComponentKindsBuilder;
@@ -47,38 +46,39 @@ pub struct PhysicsConfig {
 /// prototypes only and preserves the definition stack's replacement policy.
 /// Marker/flag registrations belong to `flags::register_component_kinds`.
 ///
-/// Health requires literal `value` and `max` unless the pinned published schema
-/// supplies them. It never infers max from current health or calls `Default`.
-/// Replacement reinstantiates authored health under the existing local stack
-/// policy; this is not evidence of native runtime health reset behavior.
+/// An omitted `health.max` equals the authored starting value (vanilla omits
+/// it exactly where the two coincide). Replacement reinstantiates authored
+/// health under the existing local stack policy.
 pub fn register_component_kinds(builder: &mut ComponentKindsBuilder) -> Result<(), String> {
+    builder.register(compile_health, apply::<Health>, remove::<Health>)?;
     builder.register(
-        "minecraft:health",
-        compile_health,
-        apply::<Health>,
-        remove::<Health>,
-    )?;
-    builder.register(
-        "minecraft:movement",
         compile_movement,
         apply::<MovementConfig>,
         remove::<MovementConfig>,
     )?;
     builder.register(
-        "minecraft:collision_box",
-        compile_collision_box,
+        |b: body::CollisionBox| {
+            Ok(RawCollisionBox {
+                width: b.width,
+                height: b.height,
+            })
+        },
         apply::<RawCollisionBox>,
         remove::<RawCollisionBox>,
     )?;
     builder.register(
-        "minecraft:scale",
-        compile_scale,
+        |b: body::Scale| Ok(ScaleConfig { value: b.value }),
         apply::<ScaleConfig>,
         remove::<ScaleConfig>,
     )?;
     builder.register(
-        "minecraft:physics",
-        compile_physics,
+        |b: body::Physics| {
+            Ok(PhysicsConfig {
+                has_gravity: b.has_gravity,
+                has_collision: b.has_collision,
+                push_towards_closest_space: b.push_towards_closest_space,
+            })
+        },
         apply::<PhysicsConfig>,
         remove::<PhysicsConfig>,
     )
@@ -92,108 +92,41 @@ fn remove<T: Component>(entity: &mut EntityWorldMut<'_>) {
     entity.remove::<T>();
 }
 
-fn compile_health(body: &Value) -> Result<Health, String> {
-    let body = fields(body)?;
-    reject_bounds(body, &["min"])?;
+fn fixed<T: Copy>(value: &ValueOrRange<T>, field: &str) -> Result<T, String> {
+    match value {
+        ValueOrRange::Value(value) => Ok(*value),
+        ValueOrRange::Range(_) => Err(format!(
+            "randomised `{field}` needs per-instance evaluation, which is not implemented"
+        )),
+    }
+}
+
+fn compile_health(b: body::Health) -> Result<Health, String> {
+    let current = fixed(&b.value, "value")? as f32;
     Ok(Health {
-        current: number("minecraft:health", body, "value")?,
-        max: number("minecraft:health", body, "max")?,
+        current,
+        max: b.max.map_or(current, |max| max as f32),
     })
 }
 
-fn compile_movement(body: &Value) -> Result<MovementConfig, String> {
-    let body = fields(body)?;
-    reject_bounds(body, &["min", "max"])?;
+fn compile_movement(b: body::Movement) -> Result<MovementConfig, String> {
+    if b.max.is_some() {
+        return Err("authored movement `max` bound is not implemented".into());
+    }
+    let value = b
+        .value
+        .as_ref()
+        .ok_or_else(|| "movement requires `value`".to_owned())?;
     Ok(MovementConfig {
-        value: number("minecraft:movement", body, "value")?,
+        value: fixed(value, "value")?,
     })
 }
-
-fn compile_collision_box(body: &Value) -> Result<RawCollisionBox, String> {
-    let body = fields(body)?;
-    Ok(RawCollisionBox {
-        width: number("minecraft:collision_box", body, "width")?,
-        height: number("minecraft:collision_box", body, "height")?,
-    })
-}
-
-fn compile_scale(body: &Value) -> Result<ScaleConfig, String> {
-    let body = fields(body)?;
-    reject_bounds(body, &["min", "max"])?;
-    Ok(ScaleConfig {
-        value: number("minecraft:scale", body, "value")?,
-    })
-}
-
-fn compile_physics(body: &Value) -> Result<PhysicsConfig, String> {
-    let body = fields(body)?;
-    Ok(PhysicsConfig {
-        has_gravity: boolean("minecraft:physics", body, "has_gravity")?,
-        has_collision: boolean("minecraft:physics", body, "has_collision")?,
-        push_towards_closest_space: boolean(
-            "minecraft:physics",
-            body,
-            "push_towards_closest_space",
-        )?,
-    })
-}
-
-fn fields(body: &Value) -> Result<&Map<String, Value>, String> {
-    body.as_object()
-        .ok_or_else(|| "component body must be an object".to_owned())
-}
-
-// These are recognized dynamic-attribute bounds, not unknown pack fields.
-// Without a typed bounds consumer, accepting them would discard authored
-// semantics. Other extra fields are deliberately left to the shared loader.
-fn reject_bounds(body: &Map<String, Value>, unsupported: &[&str]) -> Result<(), String> {
-    if let Some(field) = unsupported.iter().find(|field| body.contains_key(**field)) {
-        return Err(format!(
-            "field `{field}` is an unsupported authored attribute bound"
-        ));
-    }
-    Ok(())
-}
-
-fn field<'a>(
-    component: &str,
-    body: &'a Map<String, Value>,
-    field: &str,
-) -> Result<&'a Value, String> {
-    body.get(field)
-        .or_else(|| component_field_default(component, field))
-        .ok_or_else(|| {
-            format!("missing required field `{field}`; no published component field default")
-        })
-}
-
-fn number(component: &str, body: &Map<String, Value>, name: &str) -> Result<f32, String> {
-    let value = field(component, body, name)?
-        .as_f64()
-        .ok_or_else(|| {
-            format!(
-                "field `{name}` requires a literal number; dynamic expressions and ranges need per-instance evaluation unsupported by this prototype API"
-            )
-        })?;
-    let value = value as f32;
-    if !value.is_finite() {
-        return Err(format!("field `{name}` must be a finite f32 number"));
-    }
-    Ok(value)
-}
-
-fn boolean(component: &str, body: &Map<String, Value>, name: &str) -> Result<bool, String> {
-    field(component, body, name)?
-        .as_bool()
-        .ok_or_else(|| format!("field `{name}` requires a literal boolean"))
-}
-
 #[cfg(test)]
 mod tests {
     use super::*;
     use std::sync::Arc;
 
-    use serde_json::json;
+    use serde_json::{Value, json};
     use unastar_data::actor_definitions::ActorDefinition;
     use unastar_packs::actor::{Loaded, load_value};
 
@@ -311,13 +244,17 @@ mod tests {
     }
 
     #[test]
-    fn unpublished_health_fields_are_errors_not_inferred_constructor_values() {
-        for body in [json!({"value": 4}), json!({"max": 4})] {
-            let _ = compile_error(json!({"minecraft:health": body}));
-        }
-        for component in ["minecraft:movement", "minecraft:scale"] {
-            let _ = compile_error(json!({(component): {}}));
-        }
+    fn omitted_health_max_equals_value_and_movement_needs_a_value() {
+        let definition = CompiledDefinition::compile(
+            &source(json!({"minecraft:health": {"value": 4}}), json!({})),
+            kinds(),
+        )
+        .unwrap();
+        let mut world = World::new();
+        let actor = spawn(&mut world, definition);
+        let health = world.get::<Health>(actor).unwrap();
+        assert_eq!((health.current, health.max), (4.0, 4.0));
+        let _ = compile_error(json!({"minecraft:movement": {}}));
     }
 
     #[test]
@@ -337,37 +274,34 @@ mod tests {
     }
 
     #[test]
-    fn unknown_pack_fields_do_not_change_implemented_state() {
-        let definition = CompiledDefinition::compile(
-            &source(
-                json!({
-                    "minecraft:health": {"value": 4, "max": 4, "test:unknown": 99},
-                    "minecraft:movement": {"value": 0, "test:unknown": {"value": 99}},
-                    "minecraft:scale": {"value": 0.5, "test:unknown": false},
-                    "minecraft:collision_box": {"width": 0, "test:unknown": [99]},
-                    "minecraft:physics": {"has_gravity": false, "test:unknown": null}
-                }),
-                json!({}),
+    fn unknown_fields_reject_the_definition() {
+        for (component, body) in [
+            ("minecraft:health", json!({"value": 4, "test:unknown": 99})),
+            ("minecraft:movement", json!({"value": 0, "test:unknown": 1})),
+            (
+                "minecraft:scale",
+                json!({"value": 0.5, "test:unknown": false}),
             ),
-            kinds(),
-        )
-        .unwrap();
-        let mut world = World::new();
-        let actor = spawn(&mut world, definition);
-        assert_eq!(world.get::<Health>(actor).unwrap().current, 4.0);
-        assert_eq!(world.get::<MovementConfig>(actor).unwrap().value, 0.0);
-        assert_eq!(world.get::<ScaleConfig>(actor).unwrap().value, 0.5);
-        let collision = world.get::<RawCollisionBox>(actor).unwrap();
-        assert_eq!((collision.width, collision.height), (0.0, 1.8_f32));
-        let physics = world.get::<PhysicsConfig>(actor).unwrap();
-        assert!(!physics.has_gravity);
-        assert!(physics.has_collision);
+            (
+                "minecraft:collision_box",
+                json!({"width": 0, "test:unknown": [99]}),
+            ),
+            (
+                "minecraft:physics",
+                json!({"has_gravity": false, "test:unknown": null}),
+            ),
+        ] {
+            let error = compile_error(json!({(component): body}));
+            assert!(error.contains("test:unknown"), "{error}");
+        }
     }
 
     #[test]
     fn composition_replaces_runtime_health_and_removes_without_restoring_base() {
         let kinds = kinds();
-        let health_kind = kinds.resolve("minecraft:health").unwrap();
+        let health_kind = kinds
+            .resolve(unastar_data::actor_components::ActorComponent::Health)
+            .unwrap();
         let definition = CompiledDefinition::compile(
             &source(
                 json!({

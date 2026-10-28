@@ -767,17 +767,21 @@ pub fn sync_actor_viewers(
     chunk_viewers: Query<&ChunkViewers>,
     sessions: Query<&PlayerSession>,
     items: Res<ItemRegistryResource>,
-    mut actors: Query<(
-        &RuntimeId,
-        &Position,
-        &Velocity,
-        &OnGround,
-        &PhysicsBody,
-        &mut ActorViewers,
-        Option<&ItemEntityStack>,
-        Option<&ItemOwner>,
-        Option<&FallingBlock>,
-    )>,
+    mut actors: Query<
+        (
+            &RuntimeId,
+            &Position,
+            &Velocity,
+            &OnGround,
+            &PhysicsBody,
+            &mut ActorViewers,
+            Option<&ItemEntityStack>,
+            Option<&ItemOwner>,
+            Option<&FallingBlock>,
+        ),
+        // Mobs replicate through `entity::mob::network::sync_mob_viewers`.
+        Without<crate::entity::components::Mob>,
+    >,
 ) {
     for (runtime_id, position, velocity, on_ground, body, mut viewers, stack, owner, falling) in
         actors.iter_mut()

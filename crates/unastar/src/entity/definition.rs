@@ -1,11 +1,14 @@
 //! Frozen component factories and transactional, numeric-ID composition batches.
-//! JSON/name resolution happens while compiling definitions, never while applying.
+//! Components are identified by the generated [`ActorComponent`] enum and
+//! their bodies decoded into the generated typed structs while compiling
+//! definitions, never while applying.
 
 use std::collections::BTreeMap;
 use std::sync::Arc;
 
 use bevy_ecs::prelude::*;
 use serde_json::Value;
+use unastar_data::actor_components::{ActorComponent, ComponentBody, decode};
 use unastar_data::actor_definitions::ActorDefinition;
 
 use super::definition_stack::{
@@ -37,27 +40,33 @@ struct Kind {
 
 #[derive(Default)]
 pub struct ComponentKindsBuilder {
-    names: BTreeMap<Arc<str>, usize>,
+    names: BTreeMap<ActorComponent, usize>,
     kinds: Vec<Kind>,
 }
 
 impl ComponentKindsBuilder {
     /// A kind owns its typed runtime state and removal semantics. Register
     /// vanilla/addon implementations before freezing the registry (D5).
-    pub fn register<T: Send + Sync + 'static>(
+    /// The component is the body type's [`ComponentBody::COMPONENT`]; the
+    /// authored JSON is decoded into `B` (unknown fields are rejected), then
+    /// `compile` turns it into the runtime value `T`.
+    pub fn register<B: ComponentBody, T: Send + Sync + 'static>(
         &mut self,
-        name: &str,
-        compile: impl Fn(&Value) -> Result<T, String> + Send + Sync + 'static,
+        compile: impl Fn(B) -> Result<T, String> + Send + Sync + 'static,
         apply: fn(&T, &mut EntityWorldMut<'_>),
         remove: Remove,
     ) -> Result<(), String> {
-        if self.names.contains_key(name) {
-            return Err(format!("duplicate actor component kind {name}"));
+        let component = B::COMPONENT;
+        if self.names.contains_key(&component) {
+            return Err(format!(
+                "duplicate actor component kind {}",
+                component.name()
+            ));
         }
-        self.names.insert(Arc::from(name), self.kinds.len());
+        self.names.insert(component, self.kinds.len());
         self.kinds.push(Kind {
             compile: Box::new(move |body| {
-                let value = compile(body)?;
+                let value = compile(decode::<B>(body)?)?;
                 Ok(Box::new(TypedPrototype { value, apply }))
             }),
             remove,
@@ -74,7 +83,7 @@ impl ComponentKindsBuilder {
 }
 
 pub struct ComponentKinds {
-    names: BTreeMap<Arc<str>, usize>,
+    names: BTreeMap<ActorComponent, usize>,
     kinds: Vec<Kind>,
 }
 
@@ -85,10 +94,10 @@ pub struct ComponentKindId {
 }
 
 impl ComponentKinds {
-    pub fn resolve(self: &Arc<Self>, name: &str) -> Option<ComponentKindId> {
+    pub fn resolve(self: &Arc<Self>, component: ActorComponent) -> Option<ComponentKindId> {
         Some(ComponentKindId {
             owner: Arc::clone(self),
-            index: *self.names.get(name)?,
+            index: *self.names.get(&component)?,
         })
     }
 }
@@ -113,12 +122,14 @@ impl CompiledDefinition {
                 if source.ignored_components.contains(name) {
                     continue;
                 }
-                let kind = *kinds.names.get(name.as_str()).ok_or_else(|| {
-                    format!(
-                        "{}: no runtime implementation for component {name}",
-                        source.identifier()
-                    )
-                })?;
+                let kind = ActorComponent::from_name(name)
+                    .and_then(|component| kinds.names.get(&component).copied())
+                    .ok_or_else(|| {
+                        format!(
+                            "{}: no runtime implementation for component {name}",
+                            source.identifier()
+                        )
+                    })?;
                 let prototype = (kinds.kinds[kind].compile)(body)
                     .map_err(|cause| format!("{} / {name}: {cause}", source.identifier()))?;
                 bindings.push(ComponentBinding {
@@ -293,6 +304,8 @@ pub fn apply_pending_definitions(world: &mut World) {
 mod tests {
     use super::*;
     use serde_json::json;
+    use unastar_data::actor_components::body;
+    use unastar_data::actor_components::body::ValueOrRange;
     use unastar_packs::actor::{Loaded, load_value};
 
     #[derive(Component)]
@@ -321,8 +334,7 @@ mod tests {
         let mut kinds = ComponentKindsBuilder::default();
         kinds
             .register(
-                "minecraft:is_baby",
-                |_| Ok(()),
+                |_: body::IsBaby| Ok(()),
                 |_, entity| {
                     entity.insert(Baby);
                 },
@@ -337,7 +349,7 @@ mod tests {
     #[test]
     fn native_destructive_group_removal_reaches_actual_ecs_state() {
         let kinds = kinds();
-        let baby = kinds.resolve("minecraft:is_baby").unwrap();
+        let baby = kinds.resolve(ActorComponent::IsBaby).unwrap();
         let definition = CompiledDefinition::compile(
             &source(
                 json!({"minecraft:is_baby": {}}),
@@ -391,7 +403,7 @@ mod tests {
         apply_pending_definitions(&mut world);
         assert!(world.get::<Baby>(actor).is_none());
         assert_eq!(world.resource::<SpawnNotifications>().0, 0);
-        let foreign_kind = self::kinds().resolve("minecraft:is_baby").unwrap();
+        let foreign_kind = self::kinds().resolve(ActorComponent::IsBaby).unwrap();
         assert!(
             world
                 .get::<DefinitionState>(actor)
@@ -412,8 +424,7 @@ mod tests {
         let mut kinds = ComponentKindsBuilder::default();
         kinds
             .register(
-                "minecraft:is_baby",
-                |_| Ok(()),
+                |_: body::IsBaby| Ok(()),
                 |_, entity| {
                     entity.insert(Baby);
                     let actor = entity.id();
@@ -428,7 +439,7 @@ mod tests {
             )
             .unwrap();
         let kinds = kinds.freeze();
-        let baby = kinds.resolve("minecraft:is_baby").unwrap();
+        let baby = kinds.resolve(ActorComponent::IsBaby).unwrap();
         let definition = CompiledDefinition::compile(
             &source(json!({}), json!({"baby": {"minecraft:is_baby": {}}})),
             kinds,
@@ -461,15 +472,9 @@ mod tests {
     #[test]
     fn every_previous_component_is_removed_before_replacement_callbacks() {
         let mut kinds = ComponentKindsBuilder::default();
-        let parse = |body: &Value| {
-            body["value"]
-                .as_i64()
-                .ok_or_else(|| "integer value required".into())
-        };
         kinds
             .register(
-                "minecraft:scale",
-                parse,
+                |scale: body::Scale| Ok(scale.value as i64),
                 |value, entity| {
                     entity.insert(A(*value));
                 },
@@ -480,8 +485,10 @@ mod tests {
             .unwrap();
         kinds
             .register(
-                "minecraft:health",
-                parse,
+                |health: body::Health| match health.value {
+                    ValueOrRange::Value(value) => Ok(i64::from(value)),
+                    ValueOrRange::Range(_) => Err("fixed health required".to_owned()),
+                },
                 |value, entity| {
                     if *value == 2 {
                         assert!(!entity.contains::<A>());

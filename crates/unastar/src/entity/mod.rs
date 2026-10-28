@@ -15,6 +15,7 @@ pub mod families;
 pub mod flags;
 pub mod item_drop;
 pub mod metadata;
+pub mod mob;
 pub mod properties;
 pub mod systems;
 

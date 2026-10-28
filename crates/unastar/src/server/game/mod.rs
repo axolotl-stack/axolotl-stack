@@ -150,6 +150,8 @@ impl GameServer {
         let actor_properties =
             crate::entity::properties::ActorPropertyRegistry::compile(&definitions)
                 .expect("vanilla actor property schemas and measured wire kinds");
+        let mobs = crate::entity::mob::MobRegistry::compile(&definitions, &actor_properties)
+            .expect("vanilla mob component kinds and families");
         let mut entities = EntityRegistry::new();
         entities.load_vanilla(&definitions);
         let mut biomes = BiomeRegistry::new();
@@ -197,6 +199,7 @@ impl GameServer {
         // Insert all game state as ECS Resources
         ecs.world_mut().insert_resource(definitions);
         ecs.world_mut().insert_resource(actor_properties);
+        ecs.world_mut().insert_resource(mobs);
         ecs.world_mut()
             .insert_resource(crate::registry::entity::EntityRegistryResource(Arc::new(
                 entities,
@@ -277,6 +280,7 @@ impl GameServer {
         ecs.schedule_mut().add_systems(
             (
                 crate::entity::definition::apply_pending_definitions,
+                crate::entity::mob::derive_mob_state,
                 tick_physics,
             )
                 .chain()
@@ -330,6 +334,7 @@ impl GameServer {
                 broadcast_despawn_system,
                 broadcast_block_updates,
                 sync_actor_viewers,
+                crate::entity::mob::network::sync_mob_viewers,
             )
                 .chain()
                 .in_set(NetworkSendSet),
