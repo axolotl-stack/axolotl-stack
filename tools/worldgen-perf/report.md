@@ -1344,3 +1344,63 @@ reachable acceptance/smoke/hash/allocation gates are complete. The requested
 three alternating SIMD-memo wall-time rounds remain incomplete and must be
 reported as blocked, not as a measured optimization success.
 
+
+## 2026-10-28: integration of perf, Java and Bedrock lanes
+
+Branch `Jviguy/stab-integrate-wg` = `main` + this branch (fast-forward) + Java
+lane `8fee8e54` (merge `8af30d5e`) + Bedrock lane `26d76ab2` (merge `48f84ebc`).
+Conflict resolutions are listed in both merge commit messages.
+
+### Output goldens
+
+Both 68-chunk goldens changed, each for a reason owned by the incoming lane:
+
+| Golden | Changed chunk digests | Changed actor digests | Evidence |
+|---|---:|---:|---|
+| Java | 68 | 6 | Identical test on a pristine `8fee8e54` checkout yields the same 68 digests as the integrated tree. |
+| Bedrock | 68 | 0 | Identical test on a pristine `26d76ab2` checkout yields the same 68 digests as the integrated tree. |
+
+The Java fixture now runs the native backend (`TerrainBackend::NativeJava`).
+Native comparator smoke on the integrated tree, using
+`native-fullstage-composite-v2-20261027`: grid-seed0 Overworld FEATURES
+(393,216 voxels) and Nether FEATURES (262,144 voxels), zero state, quart-biome,
+heightmap and actor differences.
+
+### Allocation ceilings (re-baselined)
+
+Instrumented release `worldgen_bench`, same 68-chunk fixture. Middle column is
+the Java-merge commit `8af30d5e`, measured separately to attribute changes.
+
+| Fixture total | Previous ceiling | After Java merge | Integrated (new ceiling) |
+|---|---:|---:|---:|
+| Java allocations | 95,101 | 76,669 | 76,669 |
+| Java requested bytes | 126,261,526 | 124,148,973 | 124,148,973 |
+| Bedrock allocations | 64,590 | 64,590 | 66,025 |
+| Bedrock requested bytes | 69,468,288 | 81,205,520 | 81,223,944 |
+
+- Java: totals fall, but stages are redistributed because the fixture now runs
+  the native backend: lifetime-retained structure starts (21,168 → 34,121
+  allocations, 43.6 → 75.3 MB), native references (138 → 1,999), native
+  surface with neighbour biome columns (0.97 → 6.49 MB), carvers +35 KB. Ores,
+  vegetation and pieces fall sharply. This is a different generator, not a
+  regression of the old one.
+- Bedrock after the Java merge: identical allocation counts, +11.7 MB requested
+  bytes in decoration passes. The decoration journal entry `BlockWrite` grew
+  from 8 to 12 bytes (`secondary` layer, required to replay Bedrock liquid
+  layers), so journal vectors grow by the same number of reallocations but
+  1.5x the bytes.
+- Bedrock after its own merge: +1,435 allocations (after-surface +1,499,
+  surface +200, underground −365, after-underground +129, starts −43). The
+  Bedrock merge changed only Bedrock-owned decoration, surface, ore and Molang
+  code, and its output equals the pristine Bedrock tip.
+
+The section copy-on-write region overlay from this branch was re-applied on
+top of the Java region semantics (layers, state spaces, pending actors) for
+shared protos; native in-order sessions mutate chunks directly and do not use
+it. Not measured: wall time (SIMD memo timing remains deferred).
+
+Gate (integrated tree): strict clippy (`-D warnings`, all targets/features) on
+`unastar unastar_noise unastar_bedrock_codegen unastar-packs bleveldb-sys`
+passes; `cargo test` for those crates with all features passes except the
+Bedrock-owned known failure `bedrock_style_vs_bds_reference_ratchets` (D8),
+skipped explicitly. Release `worldgen_output_hash` and both ratchets pass.
