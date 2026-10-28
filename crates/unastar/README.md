@@ -175,12 +175,23 @@ A native parallel batch submits every target's status future before pumping
 generation, and snapshots each target only after the whole batch completes. A
 FEATURES observation therefore includes later batch origins' neighbor writes.
 The comparator replays batch origins in the recorded native task order; it never
-substitutes coordinate order. In the measured two-worker capture (seed
--7046029254386353131, three origins, all dimensions, SURFACE/CARVERS/FEATURES),
-each FEATURES task completed before the next started, and all 27 captures match
-exactly. Replaying each target at its own request boundary instead differed by
-303 states. The schedule records task starts only, so overlapping FEATURES tasks
-would need completion events before this model could describe them.
+substitutes coordinate order. Captures record task start and completion events.
+Two FEATURES tasks within Chebyshev distance two that overlap in time are
+rejected, because their interleaving is a race that no sequential replay
+describes. Overlapping tasks further apart touch disjoint chunks and replay in
+start order.
+
+Measured coverage: two native captures with two generation workers, all three
+dimensions, and SURFACE, CARVERS and FEATURES batches. Capture B used seed
+-7046029254386353131 with three origins (27 frames). Capture C used seed
+5181726354443210987 with a 4x4 block of adjacent origins plus two origins three
+chunks apart (162 frames). In both captures, native ran every FEATURES task to
+completion before starting the next, even for origins with no shared chunk;
+BIOMES and NOISE tasks did overlap. Replay matches all 189 frames exactly. No
+native capture has yet shown overlapping FEATURES tasks, so the
+overlap-acceptance rule is covered by a unit test, not by native evidence.
+Replaying each target at its own request boundary instead of after the whole
+batch differed by 303 states in capture B.
 
 At the Bedrock boundary, waterlogged states and fluid-bearing aquatic plants
 produce a secondary source-water storage without changing their primary block.

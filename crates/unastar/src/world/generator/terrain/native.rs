@@ -233,33 +233,34 @@ impl JavaGenerator {
         A: FnMut(i32, i32, i32) -> Option<u32>,
     {
         if stage >= JavaTerrainStage::Surface {
-            let corners = {
-                let _surface = profile::scope(Stage::Surface);
-                // Native reference profile: center BIOMES/NOISE, then additional
-                // BIOMES chunks dz-outer/dx-inner. The center is borrowed, not copied.
-                let neighbors: [Option<QuartBiomes>; 9] = std::array::from_fn(|slot| {
-                    let dx = slot as i32 % 3 - 1;
-                    let dz = slot as i32 / 3 - 1;
-                    (slot != 4).then(|| self.generate_native_biomes(ChunkPos::new(pos.x + dx, pos.z + dz)))
-                });
-                let zoom_seed = biome_source::zoom_seed(self.seed);
-                let mut biome_at = |x, y, z| {
-                    biome_source::zoomed_biome(zoom_seed, x, y, z, |qx, qy, qz| {
-                        let dx = (qx >> 2) - pos.x;
-                        let dz = (qz >> 2) - pos.z;
-                        assert!((-1..=1).contains(&dx) && (-1..=1).contains(&dz),
-                            "native surface queried outside its biome neighborhood");
-                        let slot = ((dz + 1) * 3 + dx + 1) as usize;
-                        let column = neighbors[slot].as_ref().unwrap_or(&biomes);
-                        JavaBiome::from_index(column.at_block(
-                            ((qx & 3) * 4) as u8, qy * 4, ((qz & 3) * 4) as u8,
-                        )).expect("native biome neighborhood contains an invalid Java biome")
-                    })
-                };
-                let corners = self.preliminary_corners(pos, source);
-                self.surface_system.build_surface(&mut dense, pos, source, corners, &mut biome_at);
-                corners
+            let surface = profile::scope(Stage::Surface);
+            // Native reference profile: center BIOMES/NOISE, then additional
+            // BIOMES chunks dz-outer/dx-inner. The center is borrowed, not copied.
+            let neighbors: [Option<QuartBiomes>; 9] = std::array::from_fn(|slot| {
+                let dx = slot as i32 % 3 - 1;
+                let dz = slot as i32 / 3 - 1;
+                (slot != 4).then(|| self.generate_native_biomes(ChunkPos::new(pos.x + dx, pos.z + dz)))
+            });
+            let zoom_seed = biome_source::zoom_seed(self.seed);
+            let mut biome_at = |x, y, z| {
+                biome_source::zoomed_biome(zoom_seed, x, y, z, |qx, qy, qz| {
+                    let dx = (qx >> 2) - pos.x;
+                    let dz = (qz >> 2) - pos.z;
+                    assert!((-1..=1).contains(&dx) && (-1..=1).contains(&dz),
+                        "native surface queried outside its biome neighborhood");
+                    let slot = ((dz + 1) * 3 + dx + 1) as usize;
+                    let column = neighbors[slot].as_ref().unwrap_or(&biomes);
+                    JavaBiome::from_index(column.at_block(
+                        ((qx & 3) * 4) as u8, qy * 4, ((qz & 3) * 4) as u8,
+                    )).expect("native biome neighborhood contains an invalid Java biome")
+                })
             };
+            let corners = self.preliminary_corners(pos, source);
+            self.surface_system.build_surface(&mut dense, pos, source, corners, &mut biome_at);
+            {
+                // End the SURFACE profile stage before carving.
+                let _surface = surface;
+            }
             if stage == JavaTerrainStage::Carvers {
                 let _carvers = profile::scope(Stage::Carvers);
                 let mut carving = NativeCarveContext {
