@@ -70,8 +70,36 @@ pub(super) fn update_shape<W: FeatureWorld + ?Sized>(
         | "minecraft:tinted_particle_leaves"
         | "minecraft:untinted_particle_leaves"
         | "minecraft:mangrove_leaves" => state,
+        "minecraft:vine" => vine(world, state, pos, dir),
         _ => return None,
     })
+}
+
+/// `VineBlock.updateShape`: except from below, recompute every face
+/// (`getUpdatedState`) and become air without one. Native tree shape-edge
+/// updates remove unsupported vine tops this way (seed 2097595355691761853,
+/// jungle chunk -104,104).
+fn vine<W: FeatureWorld + ?Sized>(world: &mut W, mut state: JavaState, pos: BlockPos, dir: Direction) -> JavaState {
+    use super::super::kinds::multiface_growth::can_attach_to;
+    if dir == Direction::Down {
+        return state;
+    }
+    let above = world.get_state(pos.above());
+    if state.value("up") == Some("true") {
+        // Java passes DOWN here, so the block above is tested on its top face.
+        state = state.with_bool("up", can_attach_to(above, Direction::Down));
+    }
+    for side in Direction::HORIZONTAL {
+        let prop = side.name();
+        if state.value(prop) != Some("true") {
+            continue;
+        }
+        let ok = can_attach_to(world.get_state(pos.rel(side)), side)
+            || (above.is(b::VINE) && above.value(prop) == Some("true"));
+        state = state.with_bool(prop, ok);
+    }
+    let has_face = ["up", "north", "south", "west", "east"].iter().any(|p| state.value(p) == Some("true"));
+    if has_face { state } else { super::super::java_blocks::states::AIR }
 }
 
 fn supported<W: FeatureWorld + ?Sized>(
