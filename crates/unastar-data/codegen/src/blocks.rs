@@ -1,5 +1,6 @@
 //! Block registry code generation from normalized KDL artifacts.
 
+use base64::Engine;
 use kdl::{KdlDocument, KdlNode};
 use proc_macro2::TokenStream;
 use quote::quote;
@@ -24,6 +25,8 @@ struct ParsedBlock {
     tags: Vec<String>,
     physics: NativePhysics,
     states: StateTable,
+    /// `StartGame` network NBT definition of a vanilla data-driven block.
+    server_definition: Option<Vec<u8>>,
 }
 
 /// Block-level physical facts projected from the native properties table
@@ -134,6 +137,23 @@ fn parse_block_node(node: &KdlNode) -> miette::Result<ParsedBlock> {
         .ok_or_else(|| miette::miette!("block {identifier} missing native_properties_json"))?;
     let physics = parse_native_physics(physics_json, &identifier)?;
     let states = parse_state_table(node, &identifier, min_state_id, state_id_count)?;
+    let server_definition = node
+        .get("server_definition_nbt")
+        .map(|value| {
+            let encoded = value.as_string().ok_or_else(|| {
+                miette::miette!("block {identifier} server_definition_nbt must be a string")
+            })?;
+            let bytes = base64::engine::general_purpose::STANDARD
+                .decode(encoded)
+                .map_err(|e| miette::miette!("block {identifier} server_definition_nbt: {e}"))?;
+            if !bytes.starts_with(&[0x0a, 0x00]) || bytes.last() != Some(&0) {
+                return Err(miette::miette!(
+                    "block {identifier} server_definition_nbt is not an unnamed network NBT compound"
+                ));
+            }
+            Ok(bytes)
+        })
+        .transpose()?;
 
     Ok(ParsedBlock {
         identifier,
@@ -151,6 +171,7 @@ fn parse_block_node(node: &KdlNode) -> miette::Result<ParsedBlock> {
         tags,
         physics,
         states,
+        server_definition,
     })
 }
 
@@ -456,6 +477,13 @@ fn generate_blocks_module(blocks: &[ParsedBlock], output_dir: &Path) -> miette::
                 quote! { BlockProperty { name: #name, values: &[#(#values),*] } }
             });
             let state_values = proc_macro2::Literal::byte_string(&block.states.value_indices);
+            let server_definition = match &block.server_definition {
+                Some(bytes) => {
+                    let bytes = proc_macro2::Literal::byte_string(bytes);
+                    quote! { Some(#bytes) }
+                }
+                None => quote! { None },
+            };
             quote! {
                 BlockData {
                     id: #id,
@@ -482,6 +510,7 @@ fn generate_blocks_module(blocks: &[ParsedBlock], output_dir: &Path) -> miette::
                     visual_shape: [#(#visual_shape),*],
                     properties: &[#(#properties),*],
                     state_values: #state_values,
+                    server_definition: #server_definition,
                 }
             }
         })
@@ -572,6 +601,11 @@ fn generate_blocks_module(blocks: &[ParsedBlock], output_dir: &Path) -> miette::
             /// property index `p`, `state_values[s * properties.len() + p]`
             /// indexes `properties[p].values`.
             pub state_values: &'static [u8],
+            /// Network NBT block definition `StartGame` sends for a vanilla
+            /// data-driven block (behavior pack `blocks/`); `None` for built-in
+            /// blocks. The client's sequential block ids cover built-in blocks
+            /// plus defined blocks only.
+            pub server_definition: Option<&'static [u8]>,
         }
 
         /// One native block-state property.
@@ -817,6 +851,7 @@ mod tests {
                 visual_shape: [0.0, 0.0, 0.0, 1.0, 1.0, 1.0],
             },
             states: StateTable::default(),
+            server_definition: None,
         }
     }
 }

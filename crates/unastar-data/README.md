@@ -113,6 +113,17 @@ hardness/resistance map directly to `destroySpeed`/`explosionResistance` without
 Jolyne negotiates sequential block IDs (`block_network_ids_are_hashes=false`);
 hashes are retained for validation, not substituted for ordinals.
 
+The client numbers sequential IDs over its built-in blocks **plus the blocks
+`StartGame` defines**, not over the full canonical palette. The 98 vanilla
+data-driven blocks (behavior pack `blocks/`: concrete/wool slabs and stairs)
+are canonical palette entries that the client only knows from a definition, so
+each carries `server_definition_nbt` in `blocks.kdl` (`BlockData::server_definition`):
+the network NBT definition BDS sends, transcoded from protocolgen
+`generated/data/registry/data_driven_blocks.nbt` (CloudburstMC/Data). All 98
+are byte-identical to a BDS 1.26.51 `StartGame` capture. Omitting them shifts
+every later client ID (air becomes 15844 instead of 17025) and the client
+renders a wrong block almost everywhere.
+
 Initialize both source submodules **before building**, not only generation:
 
 ```powershell

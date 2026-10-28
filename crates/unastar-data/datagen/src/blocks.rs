@@ -1,6 +1,13 @@
 //! Normalize native BDS measurements without reordering canonical palette ordinals.
+//!
+//! Vanilla data-driven blocks also carry `server_definition_nbt`: the network
+//! NBT `StartGame` must define them with (protocolgen
+//! `generated/data/registry/data_driven_blocks.nbt`, from CloudburstMC/Data).
+//! The client's sequential block ids cover its built-in blocks plus defined
+//! blocks only, so these definitions make it number the canonical palette.
 
 use crate::nbt::NetworkLittleEndian;
+use base64::Engine;
 use kdl::{KdlDocument, KdlEntry, KdlNode, KdlValue};
 use serde::Deserialize;
 use std::{
@@ -28,7 +35,11 @@ fn read_json<T: serde::de::DeserializeOwned>(dir: &Path, name: &str) -> miette::
     serde_json::from_slice(&bytes).map_err(|e| miette::miette!("{}: {e}", path.display()))
 }
 
-pub fn write_blocks_kdl(native_dir: &Path, output_dir: &Path) -> miette::Result<()> {
+pub fn write_blocks_kdl(
+    native_dir: &Path,
+    generated_data_dir: &Path,
+    output_dir: &Path,
+) -> miette::Result<()> {
     let version: serde_json::Value = read_json(native_dir, "version.json")?;
     if version["version"] != "1.26.51" || version["protocol"] != 2193 {
         return Err(miette::miette!(
@@ -39,6 +50,12 @@ pub fn write_blocks_kdl(native_dir: &Path, output_dir: &Path) -> miette::Result<
         read_json(native_dir, "block_properties_table.json")?;
     let state_data: BTreeMap<u32, StateData> = read_json(native_dir, "block_state_data.json")?;
     let tags: BTreeMap<String, Vec<String>> = read_json(native_dir, "block_tags.json")?;
+    let definitions_path = generated_data_dir.join("registry/data_driven_blocks.nbt");
+    let mut definitions = crate::nbt::data_driven_block_definitions(
+        &std::fs::read(&definitions_path)
+            .map_err(|e| miette::miette!("{}: {e}", definitions_path.display()))?,
+    )
+    .map_err(|e| miette::miette!("{}: {e}", definitions_path.display()))?;
     let bytes = std::fs::read(native_dir.join("canonical_block_states.nbt"))
         .map_err(|e| miette::miette!("canonical palette: {e}"))?;
     let mut input = bytes.as_slice();
@@ -125,6 +142,13 @@ pub fn write_blocks_kdl(native_dir: &Path, output_dir: &Path) -> miette::Result<
                 "native_properties_json",
                 KdlValue::String(serde_json::to_string(&properties[&name.0]).unwrap()),
             );
+            if let Some(definition) = definitions.remove(&name.0) {
+                prop(
+                    &mut node,
+                    "server_definition_nbt",
+                    KdlValue::String(base64::engine::general_purpose::STANDARD.encode(definition)),
+                );
+            }
             let mut children = KdlDocument::new();
             if let Some(tags) = tags.get(&name.0) {
                 for tag in tags {
@@ -182,6 +206,7 @@ pub fn write_blocks_kdl(native_dir: &Path, output_dir: &Path) -> miette::Result<
         || state_data.len() != count as usize
         || properties.keys().any(|name| !seen.contains(name))
         || tags.keys().any(|name| !seen.contains(name))
+        || !definitions.is_empty()
     {
         return Err(miette::miette!(
             "native block domain or state count mismatch"
