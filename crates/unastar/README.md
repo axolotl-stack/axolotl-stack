@@ -503,6 +503,40 @@ whose pick item differs (wall signs, crops), picks with block-entity data and
 `GuiDataPickItem` wait for a measured pick-item table, I8 block entities and a
 BDS capture respectively.
 
+### Containers
+
+Chests (single and double), trapped chests, barrels, ender chests, furnaces,
+blast furnaces, smokers and hoppers have block actors
+(`crate::block_entity`, world integration in `server/game/containers.rs`):
+
+- Placing one creates its actor in the chunk; every committed change
+  re-encodes the BDS actor NBT into the chunk and marks it dirty, so contents
+  persist through LevelDB and BlazeDB and reach clients with the subchunk.
+  Unmodelled keys (`CustomName`, `LootTable`, `isMovable`) are kept.
+- Using one opens BDS's window (`ContainerOpen {id, type, clicked block, -1}`
+  then `InventoryContent`); the I4 engine moves items with BDS's per-screen
+  allow-lists (`LevelEntityContainer`, `BarrelContainer`, furnace ingredient,
+  fuel and result containers plus the player's hotbar/inventory/cursor).
+- Chests pair with an unpaired neighbour of the same type and facing, the
+  existing chest leading its 54-slot window; lids open for the first viewer
+  and close for the last (barrels flip `open_bit`).
+- Breaking drops the contents (random 10..30 item chunks, furnaces whole
+  stacks), unpairs the partner and closes viewers with a server-initiated close.
+- Furnaces tick per BDS (cook 200 or 100 ticks, measured fuel times scaled by
+  the cook interval, progress decay, lit/unlit swap, `ContainerSetData` 0..3)
+  and pay XP to the taking player (no XP orb entity yet).
+- Hoppers move one item per 8 ticks between containers (furnace input from
+  above, fuel from the side, output from below) and collect dropped items.
+- Ender chests show the player's own 27 slots, saved in the player record.
+
+Not implemented: loot-table unpacking of generated chests (contents appear
+empty until it lands; the table is preserved), chest obstruction checks,
+trapped-chest redstone, copper chests, redstone-driven hopper locking, furnace
+ambient sounds, and the `Block` compound BDS adds to saved block items. No BDS
+container capture exists yet; window/lid/data packet shapes follow the BDS
+research notes and are covered by `containers/tests.rs` and the loopback test
+`tests/container_loopback.rs` (take the native lock to run it).
+
 ## Plugin Isolation
 
 Plugins are WebAssembly components implementing the `unastar-api` WIT world.

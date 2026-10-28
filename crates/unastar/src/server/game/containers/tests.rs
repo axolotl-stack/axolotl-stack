@@ -826,3 +826,38 @@ fn closing_the_window_ignores_ui_items_only_when_none_and_keeps_cursor_rule() {
         );
     });
 }
+
+#[test]
+fn furnaces_in_a_chunk_that_loads_later_keep_smelting() {
+    with_world(GameMode::Survival, |h| {
+        let world = h.world();
+        let blocks = BlockRegistry::vanilla();
+        let lit = blocks
+            .default_state_id_by_name("minecraft:lit_furnace")
+            .unwrap();
+        let pos = IVec3::new(20, 64, 3);
+        let mut furnace = BlockContainer::new(ContainerKind::Furnace, pos);
+        furnace
+            .items
+            .set_item(0, stack("minecraft:raw_gold", 1).into_slot())
+            .unwrap();
+        furnace.furnace.lit_time = 50;
+        furnace.furnace.lit_duration = 1600;
+        furnace.furnace.cook_time = 5;
+        let mut chunk = Chunk::new(1, 0);
+        chunk.set_block(4, 64, 3, lit);
+        assert!(
+            chunk.set_block_entity(BlockEntity::from_bedrock_compound(furnace.encode()).unwrap())
+        );
+        let entity = world
+            .spawn((ChunkData::new(chunk), ChunkStateFlags::default()))
+            .id();
+        world
+            .resource_mut::<ChunkManager>()
+            .insert(ChunkPosition::new(1, 0), entity);
+        h.tick(1);
+        let world = h.world();
+        let live = container(world, pos).expect("registered when the chunk loaded");
+        assert_eq!((live.furnace.lit_time, live.furnace.cook_time), (49, 6));
+    });
+}
