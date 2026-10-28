@@ -1019,16 +1019,17 @@ mod tests {
             ))
             .is_none()
         );
-        // Floating in mid-water (floor far below): no support.
+        // A mid-water (or above-water) input height is projected onto the
+        // floor, like the BDS rules' `query.heightmap` inputs.
         let mut deep = Flat::new(30, 62, bb::SAND);
-        assert!(
+        assert_eq!(
             run(&mut deep, 3, |ctx| seagrass_feature(
                 ctx,
                 BlockPos::new(0, 50, 0)
-            ))
-            .is_none()
+            )),
+            Some(BlockPos::new(0, 31, 0))
         );
-        assert!(deep.edits.is_empty());
+        assert!(deep.edits.keys().all(|p| p.y == 31 || p.y == 32));
     }
 
     #[test]
