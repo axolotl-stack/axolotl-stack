@@ -728,9 +728,11 @@ impl FortressPiece {
         self.put(w, bb, only_e, 1, 7, 8);
         self.fill(w, bb, 2, 7, 8, 4, 7, 8, we);
         self.put(w, bb, only_w, 5, 7, 8);
-        self.put(w, bb, only_e, 1, 8, 8);
-        self.fill(w, bb, 2, 8, 8, 4, 8, 8, we);
-        self.put(w, bb, only_w, 5, 8, 8);
+        // The top tier narrows to three fences; its shoulders remain terrain
+        // and can still be replaced by the later basalt-blob feature.
+        self.put(w, bb, only_e, 2, 8, 8);
+        self.put(w, bb, we, 3, 8, 8);
+        self.put(w, bb, only_w, 4, 8, 8);
         let pos = self.base.world_pos(3, 5, 5);
         if bb.is_inside(pos) {
             w.set_state(pos, states::SPAWNER);
@@ -1264,6 +1266,70 @@ mod tests {
         assert!(spawners > 0, "no blaze spawner placed");
         assert!(chests > 0, "no nether bridge chest placed");
         assert!(lava > 0, "no lava well placed");
+    }
+
+    #[test]
+    fn throne_apex_preserves_basalt_blob_targets() {
+        use crate::features::config::ReplaceBlobsConfig;
+        use crate::features::kinds::nether::place_netherrack_replace_blobs;
+        use crate::features::values::IntProvider;
+        use crate::structures::transform::{mirror_state, rotate_state};
+
+        // The canonical Nether capture has a three-wide top tier with basalt
+        // shoulders, not five fences. Exercise the real later blob consumer
+        // as well as terrain already replaced before this piece is processed.
+        let cfg = ReplaceBlobsConfig {
+            target: states::NETHERRACK,
+            state: states::BASALT,
+            radius: IntProvider::Uniform { min: 3, max: 7 },
+        };
+        for direction in [
+            Direction::North,
+            Direction::South,
+            Direction::West,
+            Direction::East,
+        ] {
+            let mut base = PieceBase::new(
+                1,
+                BoundingBox::orient_box(3, 65, 5, -2, 0, 0, 7, 8, 9, direction),
+            );
+            base.set_orientation(Some(direction));
+            let piece = FortressPiece {
+                base,
+                kind: FortressPieceKind::MonsterThrone,
+            };
+            let bb = BoundingBox::new(-32, 0, -32, 31, 255, 31);
+            for terrain in [states::NETHERRACK, states::BASALT] {
+                let mut world = TestWorld::flat(100);
+                world.fill = terrain;
+                piece.monster_throne(&mut world, &bb);
+                for x in [1, 5] {
+                    assert_eq!(world.get_state(base.world_pos(x, 8, 8)), terrain);
+                }
+                let mut rng = FeatureRandom::new(0);
+                assert!(place_netherrack_replace_blobs(
+                    &mut world,
+                    &mut rng,
+                    &cfg,
+                    base.world_pos(3, 9, 8),
+                ) || terrain == states::BASALT);
+                let expected = [
+                    states::BASALT,
+                    fence(false, true, false, false),
+                    fence(false, true, false, true),
+                    fence(false, false, false, true),
+                    states::BASALT,
+                ];
+                for (x, state) in (1..=5).zip(expected) {
+                    let state = rotate_state(mirror_state(state, base.mirror), base.rotation);
+                    assert_eq!(
+                        world.get_state(base.world_pos(x, 8, 8)),
+                        state,
+                        "{direction:?}, initial terrain {terrain:?}, local x {x}",
+                    );
+                }
+            }
+        }
     }
 
     #[test]

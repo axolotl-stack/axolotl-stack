@@ -218,6 +218,7 @@ impl ChunkManager {
             return Chunk::new(x, z);
         }
         self.pipeline.generate(pos)
+            .expect("chunk contains an unrepresentable native actor")
     }
 
     /// Load or generate a chunk column at the given position.

@@ -1,9 +1,9 @@
-//! World-seeded noises of the surface builders ([`SurfaceNoises`]).
+//! Surface-builder noises: measured fixed frozen climate and world-seeded models.
 //!
-//! Every noise is a "normal noise" (two octave Perlin sums, `unastar_noise`'s
-//! [`DoublePerlinNoise`]) seeded from the world seed and a per-noise name.
-//! BDS's exact per-noise seeding is not observable from the pack data, so
-//! the samples and frequencies are unmeasured: to confirm by BDS fixture.
+//! Frozen-ocean temperature uses fixed native MT19937 simplex fields, matching
+//! every water/ice classification in the BDS fixture. Other fields remain
+//! world/name-seeded "normal noise" models ([`DoublePerlinNoise`]); their exact
+//! BDS seeding and frequencies remain unmeasured.
 //!
 //! The current model uses `noise * 2.75 + 3` for material depth and
 //! `noise * 8.25` for legacy builder thresholds. The correspondence between
@@ -11,6 +11,9 @@
 //! BDS measurement. Badlands, iceberg and swamp noise frequencies are also
 //! unmeasured: to confirm by BDS fixture.
 
+use super::super::molang_noise::BIOME_INFO_NOISE;
+use super::super::rng::BedrockRandom;
+use super::super::simplex::SimplexNoise;
 use super::{BiomeData, Builder, NoiseGradient};
 use unastar_noise::{DoublePerlinNoise, Xoroshiro128};
 
@@ -19,6 +22,17 @@ use unastar_noise::{DoublePerlinNoise, Xoroshiro128};
 const MIN_OCTAVE: i32 = -12;
 /// Highest octave `unastar_noise` can seed.
 const MAX_OCTAVE: i32 = 0;
+
+// Native counterpart of the frozen modifier's octaves [-2, -1, 0], in
+// highest-frequency-first order. One continued MT stream seeds all octaves.
+static FROZEN_TEMPERATURE: [SimplexNoise; 3] = {
+    let mut random = BedrockRandom::new(3456);
+    [
+        SimplexNoise::new(&mut random),
+        SimplexNoise::new(&mut random),
+        SimplexNoise::new(&mut random),
+    ]
+};
 
 /// Number of entries of the badlands band sequence (it repeats every 64 y).
 pub(super) const BAND_COUNT: usize = 64;
@@ -111,10 +125,8 @@ pub struct SurfaceNoises {
     /// Frozen ocean iceberg shape and roof.
     iceberg: Normal,
     iceberg_roof: Normal,
-    /// Warm open-water patches of frozen oceans.
-    frozen_temperature: Normal,
-    /// Vanilla's small "biome info" noise: swamp puddles, frozen ocean
-    /// patches, nether beach patches.
+    /// Unmeasured world-seeded patch model for swamp puddles/nether beaches.
+    /// Frozen ocean instead uses the measured fixed biome-info field above.
     biome_info: Normal,
     /// Material choice of the capped (nether) builder's floors / ceilings.
     capped_floor: Normal,
@@ -162,7 +174,6 @@ impl SurfaceNoises {
             pillar_roof: Normal::new(seed, "minecraft:badlands_pillar_roof", 0, &single),
             iceberg: Normal::new(seed, "minecraft:iceberg_pillar", -3, &four),
             iceberg_roof: Normal::new(seed, "minecraft:iceberg_pillar_roof", 0, &single),
-            frozen_temperature: Normal::new(seed, "minecraft:frozen_temperature", 0, &single),
             biome_info: Normal::new(seed, "minecraft:biome_info", 0, &single),
             capped_floor: Normal::new(seed, "minecraft:capped_floor", 0, &single),
             capped_ceiling: Normal::new(seed, "minecraft:capped_ceiling", 0, &single),
@@ -214,15 +225,19 @@ impl SurfaceNoises {
             .at_2d(x as f64 * 0.097_656_25, z as f64 * 0.097_656_25)
     }
 
-    /// Frozen ocean temperature: vanilla's frozen-ocean modifier, which
-    /// raises the temperature to 0.2 (too warm to freeze) in scattered
-    /// patches so the ice sheet has open water; `base` elsewhere.
+    /// Measured native frozen-ocean warm patches: fixed MT3456 octave field
+    /// plus MT2345 biome info. Keep the f32 weights/input scaling in order.
     pub(super) fn frozen_temperature(&self, x: i32, z: i32, base: f32) -> f32 {
         const WARM_PATCH: f32 = 0.2;
-        let (x, z) = (x as f64, z as f64);
-        let large = self.frozen_temperature.at_2d(x * 0.05, z * 0.05) * 7.0;
-        let small = self.biome_info.at_2d(x * 0.2, z * 0.2);
-        if large + small < 0.3 && self.biome_info.at_2d(x * 0.09, z * 0.09) < 0.8 {
+        const WEIGHT: f32 = 1.0 / 7.0;
+        let (x, z) = (x as f32, z as f32);
+        let (fx, fz) = (x * 0.05, z * 0.05);
+        let a = FROZEN_TEMPERATURE[0].get_value_2d(fx, fz) * WEIGHT;
+        let b = FROZEN_TEMPERATURE[1].get_value_2d(fx * 0.5, fz * 0.5) * (WEIGHT * 2.0);
+        let c = FROZEN_TEMPERATURE[2].get_value_2d(fx * 0.25, fz * 0.25) * (WEIGHT * 4.0);
+        let large = (a + b + c) * 7.0;
+        let small = BIOME_INFO_NOISE.get_value_2d(x * 0.2, z * 0.2);
+        if large + small < 0.3 && BIOME_INFO_NOISE.get_value_2d(x * 0.09, z * 0.09) < 0.8 {
             WARM_PATCH
         } else {
             base
@@ -339,6 +354,49 @@ fn generate_bands(rng: &mut Xoroshiro128) -> [Band; BAND_COUNT] {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn frozen_temperature_matches_bds_reference_water_and_ice_columns() {
+        use crate::world::generator::bedrock::generated;
+        use crate::world::generator::parity::Fixture;
+
+        let fixture = Fixture::load(
+            &std::path::Path::new(env!("CARGO_MANIFEST_DIR"))
+                .join("tests/fixtures/bds_1_26_51_seed_12345.json"),
+        )
+        .unwrap();
+        let biome = generated::BIOMES
+            .iter()
+            .find(|biome| biome.identifier == "minecraft:frozen_ocean")
+            .unwrap();
+        let noises = SurfaceNoises::new(fixture.seed);
+        let mut covered = [false; 2];
+        for chunk in &fixture.chunks {
+            for column in 0..256 {
+                let block = chunk.surface_block[column].as_str();
+                if chunk.surface_biome[column] != u32::from(biome.id)
+                    || !matches!(block, "minecraft:water" | "minecraft:ice")
+                {
+                    continue;
+                }
+                let x = chunk.pos.x * 16 + (column % 16) as i32;
+                let z = chunk.pos.z * 16 + (column / 16) as i32;
+                let expected_ice = block == "minecraft:ice";
+                covered[usize::from(expected_ice)] = true;
+                assert_eq!(
+                    super::super::local_temperature(&noises, biome, x, z) < 0.15,
+                    expected_ice,
+                    "native frozen-ocean surface at ({x}, {}, {z})",
+                    chunk.surface[column]
+                );
+            }
+        }
+        assert_eq!(
+            covered,
+            [true, true],
+            "the reference must exercise both sides of the freezing boundary"
+        );
+    }
 
     #[test]
     fn bands_are_deterministic_and_vary_by_seed() {

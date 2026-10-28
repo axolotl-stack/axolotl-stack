@@ -1,0 +1,1339 @@
+{
+  "conditions": {
+    "baseline_commit": "5ee02d9f",
+    "candidate": "branch-local scalar and uniform-lane SIMD RangeChoice",
+    "cpu": "Intel Core i9-14900HX",
+    "power": "AC connected; AC/DC maximum processor state 99%; turbo disabled",
+    "features": "java-worldgen,bedrock-worldgen; no worldgen-profile; release target-cpu=native",
+    "load": "No cargo/rustc/BDS/Minecraft process found at start; coordinated WG-BEDROCK hold requested; background OS activity not eliminated",
+    "serial_fixture": "seed 12345; original 68 requested chunks and cold pipeline",
+    "dense_area": "seed 8500081009970950196; cold row-major 33x33 square centered on origin; 1089 requested chunks",
+    "completion": "generated in-memory chunks, no lighting/entity spawning/persistence/network delivery",
+    "cpu_scope": "GetProcessTimes kernel+user over entire process lifetime; includes init/teardown",
+    "affinity": "Inherited at process creation by temporarily restricting controller affinity; restored immediately; 16 workers use SMT siblings on eight P-cores"
+  },
+  "serial": [
+    {
+      "args": [
+        "--kind",
+        "java",
+        "--json"
+      ],
+      "affinity": "0x4",
+      "cpu_ms": 3515.625,
+      "result": {
+        "kind": "java",
+        "profile": "release",
+        "instrumented": false,
+        "seed": 12345,
+        "chunks": 68,
+        "setup_ms": 0.2761,
+        "proto_ms": 524.3786,
+        "finished_ms": 3090.409,
+        "cached_protos": 264,
+        "allocations": 98369,
+        "bytes": 151246166,
+        "stages": {}
+      },
+      "stderr": "",
+      "ac_before": 1,
+      "ac_after": 1,
+      "battery_before": 43,
+      "battery_after": 43,
+      "round": 1,
+      "variant": "baseline"
+    },
+    {
+      "args": [
+        "--kind",
+        "java",
+        "--json"
+      ],
+      "affinity": "0x4",
+      "cpu_ms": 3328.125,
+      "result": {
+        "kind": "java",
+        "profile": "release",
+        "instrumented": false,
+        "seed": 12345,
+        "chunks": 68,
+        "setup_ms": 0.31760000000000005,
+        "proto_ms": 520.6062999999999,
+        "finished_ms": 3046.8572,
+        "cached_protos": 264,
+        "allocations": 98369,
+        "bytes": 151246166,
+        "stages": {}
+      },
+      "stderr": "",
+      "ac_before": 1,
+      "ac_after": 1,
+      "battery_before": 43,
+      "battery_after": 43,
+      "round": 1,
+      "variant": "candidate"
+    },
+    {
+      "args": [
+        "--kind",
+        "bedrock",
+        "--json"
+      ],
+      "affinity": "0x4",
+      "cpu_ms": 2765.625,
+      "result": {
+        "kind": "bedrock",
+        "profile": "release",
+        "instrumented": false,
+        "seed": 12345,
+        "chunks": 68,
+        "setup_ms": 0.3659,
+        "proto_ms": 490.1904,
+        "finished_ms": 2423.3598,
+        "cached_protos": 264,
+        "allocations": 65729,
+        "bytes": 90025992,
+        "stages": {}
+      },
+      "stderr": "",
+      "ac_before": 1,
+      "ac_after": 1,
+      "battery_before": 43,
+      "battery_after": 43,
+      "round": 1,
+      "variant": "baseline"
+    },
+    {
+      "args": [
+        "--kind",
+        "bedrock",
+        "--json"
+      ],
+      "affinity": "0x4",
+      "cpu_ms": 2625.0,
+      "result": {
+        "kind": "bedrock",
+        "profile": "release",
+        "instrumented": false,
+        "seed": 12345,
+        "chunks": 68,
+        "setup_ms": 0.3255,
+        "proto_ms": 457.2487,
+        "finished_ms": 2239.6081,
+        "cached_protos": 264,
+        "allocations": 65729,
+        "bytes": 90025992,
+        "stages": {}
+      },
+      "stderr": "",
+      "ac_before": 1,
+      "ac_after": 1,
+      "battery_before": 43,
+      "battery_after": 43,
+      "round": 1,
+      "variant": "candidate"
+    },
+    {
+      "args": [
+        "--kind",
+        "java",
+        "--json"
+      ],
+      "affinity": "0x4",
+      "cpu_ms": 3375.0,
+      "result": {
+        "kind": "java",
+        "profile": "release",
+        "instrumented": false,
+        "seed": 12345,
+        "chunks": 68,
+        "setup_ms": 0.2787,
+        "proto_ms": 506.6714,
+        "finished_ms": 2984.8968999999997,
+        "cached_protos": 264,
+        "allocations": 98369,
+        "bytes": 151246166,
+        "stages": {}
+      },
+      "stderr": "",
+      "ac_before": 1,
+      "ac_after": 1,
+      "battery_before": 43,
+      "battery_after": 43,
+      "round": 2,
+      "variant": "candidate"
+    },
+    {
+      "args": [
+        "--kind",
+        "java",
+        "--json"
+      ],
+      "affinity": "0x4",
+      "cpu_ms": 3593.75,
+      "result": {
+        "kind": "java",
+        "profile": "release",
+        "instrumented": false,
+        "seed": 12345,
+        "chunks": 68,
+        "setup_ms": 0.30200000000000005,
+        "proto_ms": 552.7392,
+        "finished_ms": 3199.8306,
+        "cached_protos": 264,
+        "allocations": 98369,
+        "bytes": 151246166,
+        "stages": {}
+      },
+      "stderr": "",
+      "ac_before": 1,
+      "ac_after": 1,
+      "battery_before": 43,
+      "battery_after": 43,
+      "round": 2,
+      "variant": "baseline"
+    },
+    {
+      "args": [
+        "--kind",
+        "bedrock",
+        "--json"
+      ],
+      "affinity": "0x4",
+      "cpu_ms": 2515.625,
+      "result": {
+        "kind": "bedrock",
+        "profile": "release",
+        "instrumented": false,
+        "seed": 12345,
+        "chunks": 68,
+        "setup_ms": 0.2979,
+        "proto_ms": 437.5672,
+        "finished_ms": 2195.5654999999997,
+        "cached_protos": 264,
+        "allocations": 65729,
+        "bytes": 90025992,
+        "stages": {}
+      },
+      "stderr": "",
+      "ac_before": 1,
+      "ac_after": 1,
+      "battery_before": 43,
+      "battery_after": 43,
+      "round": 2,
+      "variant": "candidate"
+    },
+    {
+      "args": [
+        "--kind",
+        "bedrock",
+        "--json"
+      ],
+      "affinity": "0x4",
+      "cpu_ms": 2656.25,
+      "result": {
+        "kind": "bedrock",
+        "profile": "release",
+        "instrumented": false,
+        "seed": 12345,
+        "chunks": 68,
+        "setup_ms": 0.3221,
+        "proto_ms": 461.9584,
+        "finished_ms": 2265.4391,
+        "cached_protos": 264,
+        "allocations": 65729,
+        "bytes": 90025992,
+        "stages": {}
+      },
+      "stderr": "",
+      "ac_before": 1,
+      "ac_after": 1,
+      "battery_before": 43,
+      "battery_after": 43,
+      "round": 2,
+      "variant": "baseline"
+    },
+    {
+      "args": [
+        "--kind",
+        "java",
+        "--json"
+      ],
+      "affinity": "0x4",
+      "cpu_ms": 3531.25,
+      "result": {
+        "kind": "java",
+        "profile": "release",
+        "instrumented": false,
+        "seed": 12345,
+        "chunks": 68,
+        "setup_ms": 0.2695,
+        "proto_ms": 516.4723,
+        "finished_ms": 3101.1108,
+        "cached_protos": 264,
+        "allocations": 98369,
+        "bytes": 151246166,
+        "stages": {}
+      },
+      "stderr": "",
+      "ac_before": 1,
+      "ac_after": 1,
+      "battery_before": 43,
+      "battery_after": 44,
+      "round": 3,
+      "variant": "baseline"
+    },
+    {
+      "args": [
+        "--kind",
+        "java",
+        "--json"
+      ],
+      "affinity": "0x4",
+      "cpu_ms": 3281.25,
+      "result": {
+        "kind": "java",
+        "profile": "release",
+        "instrumented": false,
+        "seed": 12345,
+        "chunks": 68,
+        "setup_ms": 0.30679999999999996,
+        "proto_ms": 482.5942,
+        "finished_ms": 2830.4372,
+        "cached_protos": 264,
+        "allocations": 98369,
+        "bytes": 151246166,
+        "stages": {}
+      },
+      "stderr": "",
+      "ac_before": 1,
+      "ac_after": 1,
+      "battery_before": 44,
+      "battery_after": 44,
+      "round": 3,
+      "variant": "candidate"
+    },
+    {
+      "args": [
+        "--kind",
+        "bedrock",
+        "--json"
+      ],
+      "affinity": "0x4",
+      "cpu_ms": 2609.375,
+      "result": {
+        "kind": "bedrock",
+        "profile": "release",
+        "instrumented": false,
+        "seed": 12345,
+        "chunks": 68,
+        "setup_ms": 0.3588,
+        "proto_ms": 444.78180000000003,
+        "finished_ms": 2188.622,
+        "cached_protos": 264,
+        "allocations": 65729,
+        "bytes": 90025992,
+        "stages": {}
+      },
+      "stderr": "",
+      "ac_before": 1,
+      "ac_after": 1,
+      "battery_before": 44,
+      "battery_after": 44,
+      "round": 3,
+      "variant": "baseline"
+    },
+    {
+      "args": [
+        "--kind",
+        "bedrock",
+        "--json"
+      ],
+      "affinity": "0x4",
+      "cpu_ms": 2484.375,
+      "result": {
+        "kind": "bedrock",
+        "profile": "release",
+        "instrumented": false,
+        "seed": 12345,
+        "chunks": 68,
+        "setup_ms": 0.3271,
+        "proto_ms": 419.1243,
+        "finished_ms": 2097.5587,
+        "cached_protos": 264,
+        "allocations": 65729,
+        "bytes": 90025992,
+        "stages": {}
+      },
+      "stderr": "",
+      "ac_before": 1,
+      "ac_after": 1,
+      "battery_before": 44,
+      "battery_after": 44,
+      "round": 3,
+      "variant": "candidate"
+    }
+  ],
+  "dense": [
+    {
+      "args": [
+        "--kind",
+        "java",
+        "--mode",
+        "area",
+        "--side",
+        "33",
+        "--seed",
+        "8500081009970950196",
+        "--workers",
+        "1",
+        "--json"
+      ],
+      "affinity": "0x4",
+      "cpu_ms": 19718.75,
+      "result": [
+        {
+          "kind": "java",
+          "seed": 8500081009970950196,
+          "instrumented": false,
+          "workers": 1,
+          "workload": "cold_origin_square",
+          "chunks": 1089,
+          "elapsed_ms": 20903.7305,
+          "chunks_per_second": 52.09596440214343,
+          "generation_ms": 20903.247199999998,
+          "generation_chunks_per_second": 52.097168903020965,
+          "cached_protos": 1024,
+          "spawn": null
+        }
+      ],
+      "stderr": "",
+      "ac_before": 1,
+      "ac_after": 1,
+      "battery_before": 45,
+      "battery_after": 46,
+      "round": 1,
+      "variant": "baseline"
+    },
+    {
+      "args": [
+        "--kind",
+        "java",
+        "--mode",
+        "area",
+        "--side",
+        "33",
+        "--seed",
+        "8500081009970950196",
+        "--workers",
+        "1",
+        "--json"
+      ],
+      "affinity": "0x4",
+      "cpu_ms": 19796.875,
+      "result": [
+        {
+          "kind": "java",
+          "seed": 8500081009970950196,
+          "instrumented": false,
+          "workers": 1,
+          "workload": "cold_origin_square",
+          "chunks": 1089,
+          "elapsed_ms": 20907.8589,
+          "chunks_per_second": 52.08567769701181,
+          "generation_ms": 20907.3596,
+          "generation_chunks_per_second": 52.08692158334523,
+          "cached_protos": 1024,
+          "spawn": null
+        }
+      ],
+      "stderr": "",
+      "ac_before": 1,
+      "ac_after": 1,
+      "battery_before": 46,
+      "battery_after": 46,
+      "round": 1,
+      "variant": "candidate"
+    },
+    {
+      "args": [
+        "--kind",
+        "java",
+        "--mode",
+        "area",
+        "--side",
+        "33",
+        "--seed",
+        "8500081009970950196",
+        "--workers",
+        "4",
+        "--json"
+      ],
+      "affinity": "0x55",
+      "cpu_ms": 19687.5,
+      "result": [
+        {
+          "kind": "java",
+          "seed": 8500081009970950196,
+          "instrumented": false,
+          "workers": 4,
+          "workload": "cold_origin_square",
+          "chunks": 1089,
+          "elapsed_ms": 11818.147500000001,
+          "chunks_per_second": 92.1464214251853,
+          "generation_ms": 11817.703,
+          "generation_chunks_per_second": 92.14988733428146,
+          "cached_protos": 1024,
+          "spawn": null
+        }
+      ],
+      "stderr": "",
+      "ac_before": 1,
+      "ac_after": 1,
+      "battery_before": 46,
+      "battery_after": 47,
+      "round": 1,
+      "variant": "baseline"
+    },
+    {
+      "args": [
+        "--kind",
+        "java",
+        "--mode",
+        "area",
+        "--side",
+        "33",
+        "--seed",
+        "8500081009970950196",
+        "--workers",
+        "4",
+        "--json"
+      ],
+      "affinity": "0x55",
+      "cpu_ms": 19562.5,
+      "result": [
+        {
+          "kind": "java",
+          "seed": 8500081009970950196,
+          "instrumented": false,
+          "workers": 4,
+          "workload": "cold_origin_square",
+          "chunks": 1089,
+          "elapsed_ms": 11376.565400000001,
+          "chunks_per_second": 95.72309055595989,
+          "generation_ms": 11376.0946,
+          "generation_chunks_per_second": 95.72705205879704,
+          "cached_protos": 1024,
+          "spawn": null
+        }
+      ],
+      "stderr": "",
+      "ac_before": 1,
+      "ac_after": 1,
+      "battery_before": 47,
+      "battery_after": 47,
+      "round": 1,
+      "variant": "candidate"
+    },
+    {
+      "args": [
+        "--kind",
+        "java",
+        "--mode",
+        "area",
+        "--side",
+        "33",
+        "--seed",
+        "8500081009970950196",
+        "--workers",
+        "8",
+        "--json"
+      ],
+      "affinity": "0x5555",
+      "cpu_ms": 20578.125,
+      "result": [
+        {
+          "kind": "java",
+          "seed": 8500081009970950196,
+          "instrumented": false,
+          "workers": 8,
+          "workload": "cold_origin_square",
+          "chunks": 1089,
+          "elapsed_ms": 5133.5055,
+          "chunks_per_second": 212.13574233046015,
+          "generation_ms": 5133.0042,
+          "generation_chunks_per_second": 212.15645995380248,
+          "cached_protos": 1024,
+          "spawn": null
+        }
+      ],
+      "stderr": "",
+      "ac_before": 1,
+      "ac_after": 1,
+      "battery_before": 47,
+      "battery_after": 47,
+      "round": 1,
+      "variant": "baseline"
+    },
+    {
+      "args": [
+        "--kind",
+        "java",
+        "--mode",
+        "area",
+        "--side",
+        "33",
+        "--seed",
+        "8500081009970950196",
+        "--workers",
+        "8",
+        "--json"
+      ],
+      "affinity": "0x5555",
+      "cpu_ms": 20140.625,
+      "result": [
+        {
+          "kind": "java",
+          "seed": 8500081009970950196,
+          "instrumented": false,
+          "workers": 8,
+          "workload": "cold_origin_square",
+          "chunks": 1089,
+          "elapsed_ms": 5108.594700000001,
+          "chunks_per_second": 213.17016987078657,
+          "generation_ms": 5108.0994,
+          "generation_chunks_per_second": 213.19083963009803,
+          "cached_protos": 1024,
+          "spawn": null
+        }
+      ],
+      "stderr": "",
+      "ac_before": 1,
+      "ac_after": 1,
+      "battery_before": 47,
+      "battery_after": 47,
+      "round": 1,
+      "variant": "candidate"
+    },
+    {
+      "args": [
+        "--kind",
+        "java",
+        "--mode",
+        "area",
+        "--side",
+        "33",
+        "--seed",
+        "8500081009970950196",
+        "--workers",
+        "16",
+        "--json"
+      ],
+      "affinity": "0xffff",
+      "cpu_ms": 29578.125,
+      "result": [
+        {
+          "kind": "java",
+          "seed": 8500081009970950196,
+          "instrumented": false,
+          "workers": 16,
+          "workload": "cold_origin_square",
+          "chunks": 1089,
+          "elapsed_ms": 3399.2981000000004,
+          "chunks_per_second": 320.3602531946227,
+          "generation_ms": 3398.5834,
+          "generation_chunks_per_second": 320.42762287369493,
+          "cached_protos": 1024,
+          "spawn": null
+        }
+      ],
+      "stderr": "",
+      "ac_before": 1,
+      "ac_after": 1,
+      "battery_before": 47,
+      "battery_after": 47,
+      "round": 1,
+      "variant": "baseline"
+    },
+    {
+      "args": [
+        "--kind",
+        "java",
+        "--mode",
+        "area",
+        "--side",
+        "33",
+        "--seed",
+        "8500081009970950196",
+        "--workers",
+        "16",
+        "--json"
+      ],
+      "affinity": "0xffff",
+      "cpu_ms": 35765.625,
+      "result": [
+        {
+          "kind": "java",
+          "seed": 8500081009970950196,
+          "instrumented": false,
+          "workers": 16,
+          "workload": "cold_origin_square",
+          "chunks": 1089,
+          "elapsed_ms": 4725.265399999999,
+          "chunks_per_second": 230.46324551420966,
+          "generation_ms": 4724.5725,
+          "generation_chunks_per_second": 230.49704497073546,
+          "cached_protos": 1024,
+          "spawn": null
+        }
+      ],
+      "stderr": "",
+      "ac_before": 1,
+      "ac_after": 1,
+      "battery_before": 47,
+      "battery_after": 47,
+      "round": 1,
+      "variant": "candidate"
+    },
+    {
+      "args": [
+        "--kind",
+        "java",
+        "--mode",
+        "area",
+        "--side",
+        "33",
+        "--seed",
+        "8500081009970950196",
+        "--workers",
+        "16",
+        "--json"
+      ],
+      "affinity": "0xffff",
+      "cpu_ms": 36109.375,
+      "result": [
+        {
+          "kind": "java",
+          "seed": 8500081009970950196,
+          "instrumented": false,
+          "workers": 16,
+          "workload": "cold_origin_square",
+          "chunks": 1089,
+          "elapsed_ms": 4116.3765,
+          "chunks_per_second": 264.5530601974819,
+          "generation_ms": 4115.6651,
+          "generation_chunks_per_second": 264.59878866237193,
+          "cached_protos": 1024,
+          "spawn": null
+        }
+      ],
+      "stderr": "",
+      "ac_before": 1,
+      "ac_after": 1,
+      "battery_before": 47,
+      "battery_after": 47,
+      "round": 2,
+      "variant": "candidate"
+    },
+    {
+      "args": [
+        "--kind",
+        "java",
+        "--mode",
+        "area",
+        "--side",
+        "33",
+        "--seed",
+        "8500081009970950196",
+        "--workers",
+        "16",
+        "--json"
+      ],
+      "affinity": "0xffff",
+      "cpu_ms": 38093.75,
+      "result": [
+        {
+          "kind": "java",
+          "seed": 8500081009970950196,
+          "instrumented": false,
+          "workers": 16,
+          "workload": "cold_origin_square",
+          "chunks": 1089,
+          "elapsed_ms": 4354.108,
+          "chunks_per_second": 250.10863304263466,
+          "generation_ms": 4353.4063,
+          "generation_chunks_per_second": 250.14894658465488,
+          "cached_protos": 1024,
+          "spawn": null
+        }
+      ],
+      "stderr": "",
+      "ac_before": 1,
+      "ac_after": 1,
+      "battery_before": 47,
+      "battery_after": 47,
+      "round": 2,
+      "variant": "baseline"
+    },
+    {
+      "args": [
+        "--kind",
+        "java",
+        "--mode",
+        "area",
+        "--side",
+        "33",
+        "--seed",
+        "8500081009970950196",
+        "--workers",
+        "8",
+        "--json"
+      ],
+      "affinity": "0x5555",
+      "cpu_ms": 21390.625,
+      "result": [
+        {
+          "kind": "java",
+          "seed": 8500081009970950196,
+          "instrumented": false,
+          "workers": 8,
+          "workload": "cold_origin_square",
+          "chunks": 1089,
+          "elapsed_ms": 5312.6102,
+          "chunks_per_second": 204.98398320283314,
+          "generation_ms": 5312.1014,
+          "generation_chunks_per_second": 205.00361683607923,
+          "cached_protos": 1024,
+          "spawn": null
+        }
+      ],
+      "stderr": "",
+      "ac_before": 1,
+      "ac_after": 1,
+      "battery_before": 47,
+      "battery_after": 47,
+      "round": 2,
+      "variant": "candidate"
+    },
+    {
+      "args": [
+        "--kind",
+        "java",
+        "--mode",
+        "area",
+        "--side",
+        "33",
+        "--seed",
+        "8500081009970950196",
+        "--workers",
+        "8",
+        "--json"
+      ],
+      "affinity": "0x5555",
+      "cpu_ms": 21984.375,
+      "result": [
+        {
+          "kind": "java",
+          "seed": 8500081009970950196,
+          "instrumented": false,
+          "workers": 8,
+          "workload": "cold_origin_square",
+          "chunks": 1089,
+          "elapsed_ms": 5548.0265,
+          "chunks_per_second": 196.28601269298193,
+          "generation_ms": 5547.5127,
+          "generation_chunks_per_second": 196.3041923274912,
+          "cached_protos": 1024,
+          "spawn": null
+        }
+      ],
+      "stderr": "",
+      "ac_before": 1,
+      "ac_after": 1,
+      "battery_before": 47,
+      "battery_after": 48,
+      "round": 2,
+      "variant": "baseline"
+    },
+    {
+      "args": [
+        "--kind",
+        "java",
+        "--mode",
+        "area",
+        "--side",
+        "33",
+        "--seed",
+        "8500081009970950196",
+        "--workers",
+        "4",
+        "--json"
+      ],
+      "affinity": "0x55",
+      "cpu_ms": 19937.5,
+      "result": [
+        {
+          "kind": "java",
+          "seed": 8500081009970950196,
+          "instrumented": false,
+          "workers": 4,
+          "workload": "cold_origin_square",
+          "chunks": 1089,
+          "elapsed_ms": 11640.8853,
+          "chunks_per_second": 93.54958595803706,
+          "generation_ms": 11640.3305,
+          "generation_chunks_per_second": 93.55404470689213,
+          "cached_protos": 1024,
+          "spawn": null
+        }
+      ],
+      "stderr": "",
+      "ac_before": 1,
+      "ac_after": 1,
+      "battery_before": 48,
+      "battery_after": 48,
+      "round": 2,
+      "variant": "candidate"
+    },
+    {
+      "args": [
+        "--kind",
+        "java",
+        "--mode",
+        "area",
+        "--side",
+        "33",
+        "--seed",
+        "8500081009970950196",
+        "--workers",
+        "4",
+        "--json"
+      ],
+      "affinity": "0x55",
+      "cpu_ms": 20531.25,
+      "result": [
+        {
+          "kind": "java",
+          "seed": 8500081009970950196,
+          "instrumented": false,
+          "workers": 4,
+          "workload": "cold_origin_square",
+          "chunks": 1089,
+          "elapsed_ms": 12077.6807,
+          "chunks_per_second": 90.16631810774729,
+          "generation_ms": 12077.1496,
+          "generation_chunks_per_second": 90.17028322643283,
+          "cached_protos": 1024,
+          "spawn": null
+        }
+      ],
+      "stderr": "",
+      "ac_before": 1,
+      "ac_after": 1,
+      "battery_before": 48,
+      "battery_after": 48,
+      "round": 2,
+      "variant": "baseline"
+    },
+    {
+      "args": [
+        "--kind",
+        "java",
+        "--mode",
+        "area",
+        "--side",
+        "33",
+        "--seed",
+        "8500081009970950196",
+        "--workers",
+        "1",
+        "--json"
+      ],
+      "affinity": "0x4",
+      "cpu_ms": 19234.375,
+      "result": [
+        {
+          "kind": "java",
+          "seed": 8500081009970950196,
+          "instrumented": false,
+          "workers": 1,
+          "workload": "cold_origin_square",
+          "chunks": 1089,
+          "elapsed_ms": 20458.0445,
+          "chunks_per_second": 53.23089408667578,
+          "generation_ms": 20457.4079,
+          "generation_chunks_per_second": 53.232550542241476,
+          "cached_protos": 1024,
+          "spawn": null
+        }
+      ],
+      "stderr": "",
+      "ac_before": 1,
+      "ac_after": 1,
+      "battery_before": 48,
+      "battery_after": 49,
+      "round": 2,
+      "variant": "candidate"
+    },
+    {
+      "args": [
+        "--kind",
+        "java",
+        "--mode",
+        "area",
+        "--side",
+        "33",
+        "--seed",
+        "8500081009970950196",
+        "--workers",
+        "1",
+        "--json"
+      ],
+      "affinity": "0x4",
+      "cpu_ms": 20734.375,
+      "result": [
+        {
+          "kind": "java",
+          "seed": 8500081009970950196,
+          "instrumented": false,
+          "workers": 1,
+          "workload": "cold_origin_square",
+          "chunks": 1089,
+          "elapsed_ms": 21153.4309,
+          "chunks_per_second": 51.4810105815979,
+          "generation_ms": 21152.9342,
+          "generation_chunks_per_second": 51.48221942656069,
+          "cached_protos": 1024,
+          "spawn": null
+        }
+      ],
+      "stderr": "",
+      "ac_before": 1,
+      "ac_after": 1,
+      "battery_before": 49,
+      "battery_after": 49,
+      "round": 2,
+      "variant": "baseline"
+    },
+    {
+      "args": [
+        "--kind",
+        "java",
+        "--mode",
+        "area",
+        "--side",
+        "33",
+        "--seed",
+        "8500081009970950196",
+        "--workers",
+        "4",
+        "--json"
+      ],
+      "affinity": "0x55",
+      "cpu_ms": 20125.0,
+      "result": [
+        {
+          "kind": "java",
+          "seed": 8500081009970950196,
+          "instrumented": false,
+          "workers": 4,
+          "workload": "cold_origin_square",
+          "chunks": 1089,
+          "elapsed_ms": 11832.846399999999,
+          "chunks_per_second": 92.03195606426532,
+          "generation_ms": 11832.353,
+          "generation_chunks_per_second": 92.03579372589712,
+          "cached_protos": 1024,
+          "spawn": null
+        }
+      ],
+      "stderr": "",
+      "ac_before": 1,
+      "ac_after": 1,
+      "battery_before": 49,
+      "battery_after": 50,
+      "round": 3,
+      "variant": "baseline"
+    },
+    {
+      "args": [
+        "--kind",
+        "java",
+        "--mode",
+        "area",
+        "--side",
+        "33",
+        "--seed",
+        "8500081009970950196",
+        "--workers",
+        "4",
+        "--json"
+      ],
+      "affinity": "0x55",
+      "cpu_ms": 19828.125,
+      "result": [
+        {
+          "kind": "java",
+          "seed": 8500081009970950196,
+          "instrumented": false,
+          "workers": 4,
+          "workload": "cold_origin_square",
+          "chunks": 1089,
+          "elapsed_ms": 11509.7156,
+          "chunks_per_second": 94.61571752476664,
+          "generation_ms": 11509.2662,
+          "generation_chunks_per_second": 94.6194119656386,
+          "cached_protos": 1024,
+          "spawn": null
+        }
+      ],
+      "stderr": "",
+      "ac_before": 1,
+      "ac_after": 1,
+      "battery_before": 50,
+      "battery_after": 50,
+      "round": 3,
+      "variant": "candidate"
+    },
+    {
+      "args": [
+        "--kind",
+        "java",
+        "--mode",
+        "area",
+        "--side",
+        "33",
+        "--seed",
+        "8500081009970950196",
+        "--workers",
+        "1",
+        "--json"
+      ],
+      "affinity": "0x4",
+      "cpu_ms": 19250.0,
+      "result": [
+        {
+          "kind": "java",
+          "seed": 8500081009970950196,
+          "instrumented": false,
+          "workers": 1,
+          "workload": "cold_origin_square",
+          "chunks": 1089,
+          "elapsed_ms": 20523.0649,
+          "chunks_per_second": 53.062249976123205,
+          "generation_ms": 20522.6261,
+          "generation_chunks_per_second": 53.06338451490865,
+          "cached_protos": 1024,
+          "spawn": null
+        }
+      ],
+      "stderr": "",
+      "ac_before": 1,
+      "ac_after": 1,
+      "battery_before": 50,
+      "battery_after": 51,
+      "round": 3,
+      "variant": "baseline"
+    },
+    {
+      "args": [
+        "--kind",
+        "java",
+        "--mode",
+        "area",
+        "--side",
+        "33",
+        "--seed",
+        "8500081009970950196",
+        "--workers",
+        "1",
+        "--json"
+      ],
+      "affinity": "0x4",
+      "cpu_ms": 19296.875,
+      "result": [
+        {
+          "kind": "java",
+          "seed": 8500081009970950196,
+          "instrumented": false,
+          "workers": 1,
+          "workload": "cold_origin_square",
+          "chunks": 1089,
+          "elapsed_ms": 21846.6541,
+          "chunks_per_second": 49.84745009534435,
+          "generation_ms": 21846.099299999998,
+          "generation_chunks_per_second": 49.848716013114526,
+          "cached_protos": 1024,
+          "spawn": null
+        }
+      ],
+      "stderr": "",
+      "ac_before": 1,
+      "ac_after": 1,
+      "battery_before": 51,
+      "battery_after": 51,
+      "round": 3,
+      "variant": "candidate"
+    },
+    {
+      "args": [
+        "--kind",
+        "java",
+        "--mode",
+        "area",
+        "--side",
+        "33",
+        "--seed",
+        "8500081009970950196",
+        "--workers",
+        "16",
+        "--json"
+      ],
+      "affinity": "0xffff",
+      "cpu_ms": 35109.375,
+      "result": [
+        {
+          "kind": "java",
+          "seed": 8500081009970950196,
+          "instrumented": false,
+          "workers": 16,
+          "workload": "cold_origin_square",
+          "chunks": 1089,
+          "elapsed_ms": 3838.6797,
+          "chunks_per_second": 283.69129104467874,
+          "generation_ms": 3838.0785,
+          "generation_chunks_per_second": 283.73572869861835,
+          "cached_protos": 1024,
+          "spawn": null
+        }
+      ],
+      "stderr": "",
+      "ac_before": 1,
+      "ac_after": 1,
+      "battery_before": 51,
+      "battery_after": 51,
+      "round": 3,
+      "variant": "baseline"
+    },
+    {
+      "args": [
+        "--kind",
+        "java",
+        "--mode",
+        "area",
+        "--side",
+        "33",
+        "--seed",
+        "8500081009970950196",
+        "--workers",
+        "16",
+        "--json"
+      ],
+      "affinity": "0xffff",
+      "cpu_ms": 32250.0,
+      "result": [
+        {
+          "kind": "java",
+          "seed": 8500081009970950196,
+          "instrumented": false,
+          "workers": 16,
+          "workload": "cold_origin_square",
+          "chunks": 1089,
+          "elapsed_ms": 3591.9300000000003,
+          "chunks_per_second": 303.1796276653498,
+          "generation_ms": 3591.2877,
+          "generation_chunks_per_second": 303.23385118936585,
+          "cached_protos": 1024,
+          "spawn": null
+        }
+      ],
+      "stderr": "",
+      "ac_before": 1,
+      "ac_after": 1,
+      "battery_before": 51,
+      "battery_after": 51,
+      "round": 3,
+      "variant": "candidate"
+    },
+    {
+      "args": [
+        "--kind",
+        "java",
+        "--mode",
+        "area",
+        "--side",
+        "33",
+        "--seed",
+        "8500081009970950196",
+        "--workers",
+        "8",
+        "--json"
+      ],
+      "affinity": "0x5555",
+      "cpu_ms": 22765.625,
+      "result": [
+        {
+          "kind": "java",
+          "seed": 8500081009970950196,
+          "instrumented": false,
+          "workers": 8,
+          "workload": "cold_origin_square",
+          "chunks": 1089,
+          "elapsed_ms": 5826.7305,
+          "chunks_per_second": 186.89726597102782,
+          "generation_ms": 5826.189600000001,
+          "generation_chunks_per_second": 186.9146174027704,
+          "cached_protos": 1024,
+          "spawn": null
+        }
+      ],
+      "stderr": "",
+      "ac_before": 1,
+      "ac_after": 1,
+      "battery_before": 51,
+      "battery_after": 51,
+      "round": 3,
+      "variant": "baseline"
+    },
+    {
+      "args": [
+        "--kind",
+        "java",
+        "--mode",
+        "area",
+        "--side",
+        "33",
+        "--seed",
+        "8500081009970950196",
+        "--workers",
+        "8",
+        "--json"
+      ],
+      "affinity": "0x5555",
+      "cpu_ms": 23890.625,
+      "result": [
+        {
+          "kind": "java",
+          "seed": 8500081009970950196,
+          "instrumented": false,
+          "workers": 8,
+          "workload": "cold_origin_square",
+          "chunks": 1089,
+          "elapsed_ms": 6067.5005,
+          "chunks_per_second": 179.4808257535372,
+          "generation_ms": 6066.8727,
+          "generation_chunks_per_second": 179.4993984297709,
+          "cached_protos": 1024,
+          "spawn": null
+        }
+      ],
+      "stderr": "",
+      "ac_before": 1,
+      "ac_after": 1,
+      "battery_before": 51,
+      "battery_after": 51,
+      "round": 3,
+      "variant": "candidate"
+    }
+  ]
+}

@@ -30,12 +30,12 @@ impl Rotation {
 
     /// `Rotation.getRandom(random)`.
     #[inline]
-    pub fn random<S: BitSource>(rng: &mut WorldgenRandom<S>) -> Rotation {
+    pub fn random<S: BitSource, const RETAIN_GAUSSIAN: bool>(rng: &mut WorldgenRandom<S, RETAIN_GAUSSIAN>) -> Rotation {
         Self::ALL[rng.next_int_bounded(4) as usize]
     }
 
     /// `Rotation.getShuffled(random)`: all rotations, shuffled.
-    pub fn shuffled<S: BitSource>(rng: &mut WorldgenRandom<S>) -> [Rotation; 4] {
+    pub fn shuffled<S: BitSource, const RETAIN_GAUSSIAN: bool>(rng: &mut WorldgenRandom<S, RETAIN_GAUSSIAN>) -> [Rotation; 4] {
         let mut list = Self::ALL;
         crate::structures::util::shuffle(&mut list, rng);
         list
@@ -490,10 +490,7 @@ pub fn rotate_state(state: JavaState, rotation: Rotation) -> JavaState {
         Direction::West,
     ];
     if sides.iter().all(|d| s.has(d.name())) {
-        let vals: Vec<&'static str> = sides
-            .iter()
-            .map(|d| state.value(d.name()).expect("side"))
-            .collect();
+        let vals = sides.map(|d| state.value(d.name()).expect("side"));
         for (i, d) in sides.iter().enumerate() {
             let to = rotation.rotate_dir(*d);
             s = s.try_with(to.name(), vals[i]);

@@ -7,19 +7,21 @@ edition.workspace = true
 default = []
 # Bedrock-style world generator compiled from a local BDS 1.26.51 install.
 # Needs UNASTAR_BDS_DIR at build time (see README, "Bedrock-style generator").
-bedrock-worldgen = ["dep:unastar_bedrock_codegen"]
+bedrock-worldgen = ["dep:unastar_bedrock_codegen", "dep:smallvec"]
 # Java Edition structure templates for the Java-style generator, read at build
 # time from the server jar named by UNASTAR_JAVA_SERVER_JAR (Mojang assets,
 # never committed). Without it `world.generator.kind = "java"` is rejected.
 java-worldgen = ["unastar_noise/java-templates"]
+# Opt-in instrumentation; ordinary builds have no timers or TLS callbacks.
+worldgen-profile = ["unastar_noise/worldgen-profile"]
 
 [dependencies]
 bytes.workspace = true
 jolyne = { workspace = true, features = ["server", "raknet"] }
 unastar_noise.workspace = true
+unastar-packs = { path = "../unastar-packs" }
 unastar-data.workspace = true
 unastar-rules = { path = "../unastar-rules" }
-unastar-packs = { path = "../unastar-packs" }
 tokio = { workspace = true, features = ["full"] }
 tokio-raknet.workspace = true
 tracing.workspace = true
@@ -40,6 +42,7 @@ bleveldb.workspace = true
 serde_json.workspace = true
 sha2.workspace = true
 anyhow = "1.0"
+smallvec = { version = "1.15", optional = true }
 
 # BlazeDB dependencies
 lru = "0.12"

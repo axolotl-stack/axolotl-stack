@@ -207,14 +207,9 @@ pub fn parse_all(
                 .replace('\\', "/");
 
             let content = std::fs::read_to_string(entry.path())?;
-            match serde_json::from_str::<DensityFunctionArg>(&content) {
-                Ok(def) => {
-                    functions.insert(format!("minecraft:{}", name), def);
-                }
-                Err(e) => {
-                    eprintln!("Warning: Failed to parse {}: {}", entry.path().display(), e);
-                }
-            }
+            let def: DensityFunctionArg = serde_json::from_str(&content)
+                .map_err(|error| format!("{}: {error}", entry.path().display()))?;
+            functions.insert(format!("minecraft:{name}"), def);
         }
     }
 

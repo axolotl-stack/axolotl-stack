@@ -1,0 +1,62 @@
+{
+  "schema_version": 1,
+  "kind": "authored_bds_molang_noise_controls",
+  "bds_version": "1.26.51",
+  "seeds": [12345, 54321],
+  "source": "Fresh stopped native worlds, run-20261026-noise-01; source-world seeds independently read from level.dat, complete saved volumes independently exported with checksummed SST reads",
+  "carrier": {
+    "expression": "192 + 64 * query.noise(x, z)",
+    "origin": [0, 0, 0],
+    "rounding": "nearest, half away from zero",
+    "noise_resolution": 0.015625,
+    "description": "Identical marker heights in both world seeds; authored gold/air controls only, no Mojang pack or template payloads"
+  },
+  "samples": [
+    {"x": 0, "z": 0, "marker_y": 192},
+    {"x": 0.125, "z": 0.375, "marker_y": 207},
+    {"x": 0.5, "z": -0.75, "marker_y": 227},
+    {"x": 1.25, "z": 2.75, "marker_y": 175},
+    {"x": -2.25, "z": 4.5, "marker_y": 175},
+    {"x": 7.125, "z": -3.25, "marker_y": 202},
+    {"x": -9.5, "z": -11.75, "marker_y": 214},
+    {"x": 16.25, "z": 31.5, "marker_y": 159},
+    {"x": 32.125, "z": -64.375, "marker_y": 224},
+    {"x": -128.25, "z": 256.5, "marker_y": 189},
+    {"x": 512.5, "z": -1024.125, "marker_y": 186},
+    {"x": 2048.25, "z": 4096.75, "marker_y": 185},
+    {"x": 0.01, "z": 0.02, "marker_y": 198},
+    {"x": 0.03, "z": -0.04, "marker_y": 181},
+    {"x": 3.14159, "z": 2.71828, "marker_y": 217},
+    {"x": -0.333333, "z": 0.666667, "marker_y": 219}
+  ],
+  "exact_controls": {
+    "seed": -9876543210123,
+    "source": "run-20261026-noise-05: 16 previously unused input pairs, independently exported complete volume; every digit channel present exactly once and all four independent literal calibrations passed",
+    "encoding": "Eight hexadecimal magnitude digits of floor(abs(value)*2^30*(abs(value)<2^-14?2^15:1)), plus separate sign and small-scale markers; all recovered samples are exactly representable binary32 values",
+    "float_bits_encoding": "IEEE 754 binary32 bit pattern in hexadecimal, not wire byte order",
+    "calibrations": [
+      {"expression": "0.5", "float_bits": "3f000000"},
+      {"expression": "-0.25", "float_bits": "be800000"},
+      {"expression": "0.123456700000", "float_bits": "3dfcd6de"},
+      {"expression": "-1 / 65536", "float_bits": "b7800000"}
+    ],
+    "samples": [
+      {"x": 0.0625, "z": 0.1875, "float_bits": "3f1714e8"},
+      {"x": 0.2, "z": 0.3, "float_bits": "3de48096"},
+      {"x": -0.4, "z": 0.6, "float_bits": "3eb9eb3b"},
+      {"x": 1.75, "z": -2.5, "float_bits": "bf25ab8a"},
+      {"x": -3.125, "z": -4.875, "float_bits": "3e8a0ad1"},
+      {"x": 8.25, "z": 16.75, "float_bits": "3e380d35"},
+      {"x": 63.75, "z": 31.125, "float_bits": "3f04077c"},
+      {"x": -257.5, "z": 129.25, "float_bits": "3d8ab785"},
+      {"x": 1023.75, "z": -513.5, "float_bits": "3dde0d08"},
+      {"x": 4095.125, "z": 2047.75, "float_bits": "3f01c638"},
+      {"x": 0.0078125, "z": -0.015625, "float_bits": "bd8ba894"},
+      {"x": -0.123456, "z": 0.654321, "float_bits": "3ef3c798"},
+      {"x": 2.23456, "z": 7.34567, "float_bits": "be4ffacd"},
+      {"x": -17.3333, "z": 5.6666, "float_bits": "bf2cefc3"},
+      {"x": 128.03125, "z": -64.0625, "float_bits": "bf5c263b"},
+      {"x": 0, "z": 16, "float_bits": "b50a41f0"}
+    ]
+  }
+}

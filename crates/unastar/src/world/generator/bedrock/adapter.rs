@@ -12,7 +12,7 @@ use crate::world::generator::{ProtoChunk, WorldGenRegion};
 const SPAN: usize = 48;
 const UNKNOWN: i16 = i16::MIN;
 
-/// Mutable region adapter; cached query heights are invalidated by every write.
+/// Mutable region adapter; cached heights track writes except removal of a top.
 pub struct RegionWorld<'a, R: WorldGenRegion> {
     region: &'a mut R,
     min_x: i32,
@@ -33,6 +33,26 @@ impl<'a, R: WorldGenRegion> RegionWorld<'a, R> {
         }
     }
 
+    /// Below-top writes cannot change a known height. A new occupied top is
+    /// known immediately; removing the current top needs a downward rescan.
+    #[inline]
+    fn update_height(height: &mut i16, y: i32, id: u32, solid: bool) {
+        let top = y + 1;
+        if *height == UNKNOWN || top < i32::from(*height) {
+            return;
+        }
+        let occupied = if solid {
+            props::is_solid(id)
+        } else {
+            id != bb::AIR
+        };
+        if occupied {
+            *height = top as i16;
+        } else if top == i32::from(*height) {
+            *height = UNKNOWN;
+        }
+    }
+
     fn column(&self, x: i32, z: i32) -> Option<usize> {
         let (x, z) = (x - self.min_x, z - self.min_z);
         ((0..SPAN as i32).contains(&x) && (0..SPAN as i32).contains(&z))
@@ -45,7 +65,7 @@ impl<'a, R: WorldGenRegion> RegionWorld<'a, R> {
             if if solid {
                 props::is_solid(id)
             } else {
-                id != bb::AIR
+                id != bb::AIR || self.region.get_block_layer(x, y, z, 1) != bb::AIR
             } {
                 return y + 1;
             }
@@ -70,6 +90,17 @@ impl<R: WorldGenRegion> BlockWorld for RegionWorld<'_, R> {
         }
     }
 
+    fn get_layer(&self, p: BlockPos, layer: u8) -> u32 {
+        if layer > 1
+            || self.column(p.x, p.z).is_none()
+            || !(self.min_y()..self.max_y()).contains(&p.y)
+        {
+            OUT_OF_BOUNDS
+        } else {
+            self.region.get_block_layer(p.x, p.y, p.z, layer)
+        }
+    }
+
     fn set(&mut self, p: BlockPos, id: u32) -> bool {
         let Some(col) = self.column(p.x, p.z) else {
             return false;
@@ -78,8 +109,29 @@ impl<R: WorldGenRegion> BlockWorld for RegionWorld<'_, R> {
         {
             return false;
         }
-        self.heightmap[col] = UNKNOWN;
-        self.top_solid[col] = UNKNOWN;
+        Self::update_height(&mut self.heightmap[col], p.y, id, false);
+        Self::update_height(&mut self.top_solid[col], p.y, id, true);
+        true
+    }
+
+    fn set_layers(&mut self, p: BlockPos, primary: u32, secondary: Option<u32>) -> bool {
+        let Some(col) = self.column(p.x, p.z) else {
+            return false;
+        };
+        if !(self.min_y()..self.max_y()).contains(&p.y)
+            || !self
+                .region
+                .set_block_layers(p.x, p.y, p.z, primary, secondary)
+        {
+            return false;
+        }
+        let occupied = if primary == bb::AIR {
+            secondary.unwrap_or(bb::AIR)
+        } else {
+            primary
+        };
+        Self::update_height(&mut self.heightmap[col], p.y, occupied, false);
+        Self::update_height(&mut self.top_solid[col], p.y, primary, true);
         true
     }
 
@@ -140,6 +192,19 @@ impl BlockWorld for ProtoChunk {
         }
     }
 
+    fn get_layer(&self, p: BlockPos, layer: u8) -> u32 {
+        if layer > 1
+            || p.x >> 4 != self.pos.x
+            || p.z >> 4 != self.pos.z
+            || !(self.min_y()..self.max_y()).contains(&p.y)
+        {
+            OUT_OF_BOUNDS
+        } else {
+            self.chunk
+                .get_block_layer((p.x & 15) as u8, p.y as i16, (p.z & 15) as u8, layer)
+        }
+    }
+
     fn set(&mut self, p: BlockPos, id: u32) -> bool {
         if p.x >> 4 != self.pos.x
             || p.z >> 4 != self.pos.z
@@ -150,6 +215,24 @@ impl BlockWorld for ProtoChunk {
         self.chunk
             .set_block((p.x & 15) as u8, p.y as i16, (p.z & 15) as u8, id);
         true
+    }
+
+    fn set_layers(&mut self, p: BlockPos, primary: u32, secondary: Option<u32>) -> bool {
+        if p.x >> 4 != self.pos.x
+            || p.z >> 4 != self.pos.z
+            || !(self.min_y()..self.max_y()).contains(&p.y)
+        {
+            return false;
+        }
+        self.chunk
+            .set_block_layers(
+                (p.x & 15) as u8,
+                p.y as i16,
+                (p.z & 15) as u8,
+                primary,
+                secondary,
+            )
+            .is_some()
     }
 
     fn set_block_entity(&mut self, entity: crate::world::block_entity::BlockEntity) -> bool {
@@ -171,8 +254,8 @@ impl BlockWorld for ProtoChunk {
         (self.min_y()..self.max_y())
             .rev()
             .find(|&y| {
-                let id = self.get(BlockPos::new(x, y, z));
-                id != bb::AIR
+                let pos = BlockPos::new(x, y, z);
+                self.get(pos) != bb::AIR || self.get_layer(pos, 1) != bb::AIR
             })
             .map_or(self.min_y(), |y| y + 1)
     }
@@ -194,6 +277,38 @@ mod tests {
     use crate::world::ChunkPos;
     use crate::world::generator::DecorationRegion;
     use crate::world::generator::region::SLOT_OFFSETS;
+
+    #[test]
+    fn secondary_only_water_updates_fluid_height_and_clears_without_losing_solid_height() {
+        let origin = ChunkPos::new(0, 0);
+        let mut protos = SLOT_OFFSETS.map(|(dx, dz)| ProtoChunk::empty(ChunkPos::new(dx, dz), 1));
+        let center = SLOT_OFFSETS
+            .iter()
+            .position(|&offset| offset == (0, 0))
+            .unwrap();
+        let liquid = BlockPos::new(8, 255, 8);
+        let proto = &mut protos[center];
+        assert!(proto.set(BlockPos::new(8, 250, 8), bb::STONE));
+        assert!(proto.set_layers(liquid, bb::AIR, Some(bb::WATER)));
+        assert_eq!(proto.heightmap(8, 8), 256);
+        assert_eq!(proto.above_top_solid(8, 8), 251);
+        assert!(proto.set_layers(liquid, bb::AIR, None));
+        assert_eq!(proto.heightmap(8, 8), 251);
+        let mut region = DecorationRegion::new(
+            12345,
+            origin,
+            std::array::from_fn(|i| &protos[i]),
+            &unastar_noise::java_blocks::BEDROCK_STATE_CLASSES,
+        );
+        let mut world = RegionWorld::new(&mut region);
+        assert_eq!(world.heightmap(8, 8), 251);
+        assert!(world.set_layers(liquid, bb::AIR, Some(bb::WATER)));
+        assert_eq!(world.heightmap(8, 8), 256);
+        assert_eq!(world.above_top_solid(8, 8), 251);
+        assert!(world.set_layers(liquid, bb::AIR, None));
+        assert_eq!(world.heightmap(8, 8), 251);
+        assert_eq!(world.above_top_solid(8, 8), 251);
+    }
 
     #[test]
     fn bds_heightmap_includes_water_while_above_top_solid_skips_it() {
@@ -247,6 +362,59 @@ mod tests {
         assert_eq!(world.above_top_solid(-16, -16), MIN_Y);
         assert_eq!(world.biome(BlockPos::new(-32, 0, -32)), 1);
         assert_eq!(world.biome(BlockPos::new(-33, 0, -32)), u16::MAX);
+    }
+    #[test]
+    fn height_queries_follow_replacements_above_and_below_cached_tops() {
+        let origin = ChunkPos::new(-1, -1);
+        let mut protos = SLOT_OFFSETS
+            .map(|(x, z)| ProtoChunk::empty(ChunkPos::new(origin.x + x, origin.z + z), 1));
+        let center = protos.iter_mut().find(|p| p.pos == origin).unwrap();
+        assert!(center.set(BlockPos::new(-15, 90, -16), bb::STONE));
+        let mut region = DecorationRegion::new(
+            12345,
+            origin,
+            std::array::from_fn(|i| &protos[i]),
+            &unastar_noise::java_blocks::BEDROCK_STATE_CLASSES,
+        );
+        let mut world = RegionWorld::new(&mut region);
+        let (x, z) = (-16, -16);
+        // A below-top write before either first query must not turn an unknown
+        // cache into a guessed height that hides existing terrain.
+        assert!(world.set(BlockPos::new(-15, 50, -16), bb::STONE));
+        assert_eq!(world.heightmap(-15, -16), 91);
+        assert_eq!(world.above_top_solid(-15, -16), 91);
+        assert_eq!(world.heightmap(x, z), MIN_Y);
+        assert_eq!(world.above_top_solid(x, z), MIN_Y);
+        for (y, block, height, solid) in [
+            (60, bb::STONE, 61, 61),
+            (70, bb::WATER, 71, 61),
+            (50, bb::STONE, 71, 61),
+            (80, bb::AIR, 71, 61),
+            (70, bb::STONE, 71, 71),
+            (70, bb::WATER, 71, 61),
+            (60, bb::AIR, 71, 51),
+            (70, bb::AIR, 51, 51),
+            (50, bb::AIR, MIN_Y, MIN_Y),
+        ] {
+            assert!(world.set(BlockPos::new(x, y, z), block));
+            assert_eq!(world.heightmap(x, z), height);
+            assert_eq!(world.above_top_solid(x, z), solid);
+            let full_scan = |solid: bool| {
+                (MIN_Y..MIN_Y + WORLD_HEIGHT)
+                    .rev()
+                    .find(|&at| {
+                        let block = world.get(BlockPos::new(x, at, z));
+                        if solid {
+                            props::is_solid(block)
+                        } else {
+                            block != bb::AIR
+                        }
+                    })
+                    .map_or(MIN_Y, |at| at + 1)
+            };
+            assert_eq!(height, full_scan(false));
+            assert_eq!(solid, full_scan(true));
+        }
     }
 
     #[test]

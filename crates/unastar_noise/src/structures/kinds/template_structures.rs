@@ -58,7 +58,7 @@ fn load(name: &str) -> &'static Template {
 
 /// `Mth.nextInt(random, min, max)` (no draw when `min >= max`).
 #[inline]
-fn mth_next_int<S: BitSource>(rng: &mut WorldgenRandom<S>, min: i32, max: i32) -> i32 {
+fn mth_next_int<S: BitSource, const RETAIN_GAUSSIAN: bool>(rng: &mut WorldgenRandom<S, RETAIN_GAUSSIAN>, min: i32, max: i32) -> i32 {
     if min >= max {
         min
     } else {
@@ -669,7 +669,7 @@ impl ShipwreckPiece {
     }
 
     /// `calculateBeachedPosition(maxHeight, random)`.
-    fn beached_y<S: BitSource>(&self, max_height: i32, rng: &mut WorldgenRandom<S>) -> i32 {
+    fn beached_y<S: BitSource, const RETAIN_GAUSSIAN: bool>(&self, max_height: i32, rng: &mut WorldgenRandom<S, RETAIN_GAUSSIAN>) -> i32 {
         max_height - self.inner.template.size[1] / 2 - rng.next_int_bounded(3)
     }
 }
@@ -1121,11 +1121,12 @@ impl RuinedPortalPiece {
     }
 
     /// `spreadNetherrack`: a diamond of netherrack/magma on the surface around
-    /// the portal, thinning out with distance.
+    /// the portal, thinning out with distance. Java's 14-entry table also bounds
+    /// the visited diamond: extending its unit-probability prefix changes both
+    /// the footprint and the random stream used by every following column.
     fn spread_netherrack(&self, rng: &mut FeatureRandom, world: &mut dyn FeatureWorld) {
-        const CHANCES: [f32; 20] = [
-            1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 0.9, 0.9, 0.8, 0.7,
-            0.6, 0.4, 0.2,
+        const CHANCES: [f32; 14] = [
+            1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 0.9, 0.9, 0.8, 0.7, 0.6, 0.4, 0.2,
         ];
         let bbox = self.inner.base.bbox;
         let on_surface = matches!(
@@ -1808,6 +1809,114 @@ mod tests {
             .count();
         assert!(structure_blocks > 0);
         assert!(world.blocks.keys().all(|p| p.y >= 41 - 1 && p.y < 41 + 16));
+    }
+
+    #[test]
+    fn pinned_native_portal_spread_preserves_writes_and_random_continuation() {
+        if !TEMPLATES_EMBEDDED {
+            return;
+        }
+        use crate::features::eval::BlockEntityData;
+        use crate::features::random::RegionRandom;
+        use crate::features::JavaBlock;
+        use serde_json::Value;
+
+        struct SpreadWorld {
+            inner: TestWorld,
+            writes: Vec<(BlockPos, JavaState)>,
+            height_queries: usize,
+        }
+        impl FeatureWorld for SpreadWorld {
+            fn min_y(&self) -> i32 { self.inner.min_y() }
+            fn height(&self) -> i32 { self.inner.height() }
+            fn sea_level(&self) -> i32 { self.inner.sea_level() }
+            fn raw_brightness(&mut self, pos: BlockPos, sky_darken: i32) -> i32 {
+                self.inner.raw_brightness(pos, sky_darken)
+            }
+            fn seed(&self) -> i64 { self.inner.seed() }
+            fn get_state(&mut self, pos: BlockPos) -> JavaState { self.inner.get_state(pos) }
+            fn set_state(&mut self, pos: BlockPos, state: JavaState) -> bool {
+                self.writes.push((pos, state));
+                self.inner.set_state(pos, state)
+            }
+            fn get_height(&mut self, kind: Heightmap, x: i32, z: i32) -> i32 {
+                self.height_queries += 1;
+                self.inner.get_height(kind, x, z)
+            }
+            fn biome(&mut self, pos: BlockPos) -> u8 { self.inner.biome(pos) }
+            fn schedule_tick(&mut self, pos: BlockPos) { self.inner.schedule_tick(pos); }
+            fn region_random(&mut self) -> &mut RegionRandom { self.inner.region_random() }
+            fn gen_depth(&self) -> i32 { self.inner.gen_depth() }
+            fn set_block_entity(&mut self, pos: BlockPos, data: BlockEntityData) {
+                self.inner.set_block_entity(pos, data);
+            }
+        }
+        fn position(value: &Value) -> BlockPos {
+            BlockPos::new(value[0].as_i64().unwrap() as i32, value[1].as_i64().unwrap() as i32, value[2].as_i64().unwrap() as i32)
+        }
+        fn state(value: &Value) -> JavaState {
+            let text = value.as_str().unwrap();
+            let (name, properties) = text.split_once('[').map_or((text, ""), |(name, rest)| {
+                (name, rest.strip_suffix(']').unwrap())
+            });
+            let mut state = JavaBlock::by_name(name).unwrap().default_state();
+            if !properties.is_empty() {
+                for property in properties.split(',') {
+                    let (name, value) = property.split_once('=').unwrap();
+                    state = state.with(name, value);
+                }
+            }
+            state
+        }
+        let capture: Value = serde_json::from_str(include_str!(
+            "../../../tests/data/native_portal_spread_1_21_11.json"
+        )).unwrap();
+        assert_eq!(capture["denied_network_attempts"], serde_json::json!([]));
+        assert_eq!(capture["server_constructed"], false);
+        assert_eq!(capture["server_ticks"], 0);
+        for case in capture["cases"].as_array().unwrap() {
+            let mode = case["mode"].as_str().unwrap();
+            let fill_y = case["fill_y"].as_i64().unwrap() as i32;
+            let mut world = SpreadWorld {
+                inner: TestWorld { fill: state(&case["fill"]), ..TestWorld::flat(fill_y) },
+                writes: Vec::new(),
+                height_queries: 0,
+            };
+            for y in fill_y..case["water_top_exclusive"].as_i64().unwrap() as i32 {
+                for x in -32..=32 {
+                    for z in -32..=32 {
+                        world.inner.blocks.insert(BlockPos::new(x, y, z), states::WATER);
+                    }
+                }
+            }
+            let piece = RuinedPortalPiece::new(
+                load(case["template"].as_str().unwrap()), position(&case["position"]),
+                VerticalPlacement::by_name(case["placement"].as_str().unwrap()),
+                PortalProperties {
+                    cold: case["cold"].as_bool().unwrap(),
+                    overgrown: case["overgrown"].as_bool().unwrap(),
+                    mossiness: 0.2,
+                    ..PortalProperties::default()
+                },
+                Rotation::None, Mirror::None, position(&case["pivot"]),
+            );
+            let bounds = case["bounds"].as_array().unwrap();
+            assert_eq!(piece.bbox(), BoundingBox::new(
+                bounds[0].as_i64().unwrap() as i32, bounds[1].as_i64().unwrap() as i32, bounds[2].as_i64().unwrap() as i32,
+                bounds[3].as_i64().unwrap() as i32, bounds[4].as_i64().unwrap() as i32, bounds[5].as_i64().unwrap() as i32,
+            ), "{mode}");
+            let mut rng = FeatureRandom::new(case["seed"].as_i64().unwrap());
+            piece.spread_netherrack(&mut rng, &mut world);
+            let expected: Vec<_> = case["ordered_writes"].as_array().unwrap().iter()
+                .map(|row| (position(&row["pos"]), state(&row["state"]))).collect();
+            assert_eq!(world.writes, expected, "{mode}: ordered native writes");
+            let actual_blocks: std::collections::HashMap<_, _> = world.writes.into_iter().collect();
+            let expected_blocks: std::collections::HashMap<_, _> = case["blocks"].as_array().unwrap().iter()
+                .map(|row| (position(&row["pos"]), state(&row["state"]))).collect();
+            assert_eq!(actual_blocks, expected_blocks, "{mode}: final native states");
+            assert_eq!(world.height_queries as u64, case["height_queries"].as_u64().unwrap(), "{mode}: height queries");
+            assert_eq!(rng.next_long(), case["next_long"].as_i64().unwrap(), "{mode}: RNG continuation");
+        }
     }
 
     #[test]

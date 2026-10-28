@@ -1,0 +1,19 @@
+{
+  "version": "1.21.11",
+  "server_sha1": "64bb6d763bed0a9f1d632ec347938594144943ed",
+  "mappings_sha1": "5621e9253f05fd57872bbe7f8ddf5f9a7d525955",
+  "inner_sha256": "ec47239a8de246335e1d54f6ac319bd35641778eb4b6a6da06372840d02fcebc",
+  "capture": "Native overworld FEATURES_HALO_CLOSURE block-state observations; meadow provider consumer witnesses, not isolated provider calls",
+  "world_seed": -9223372036854775808,
+  "configured_feature": "minecraft:flower_meadow",
+  "provider_seed": 2345,
+  "cases": [
+    {"pos": [-404, 102, 13], "expected": "minecraft:cornflower"},
+    {"pos": [-402, 102, 13], "expected": "minecraft:cornflower"},
+    {"pos": [-405, 102, 14], "expected": "minecraft:cornflower"},
+    {"pos": [-404, 103, 0], "expected": "minecraft:cornflower"},
+    {"pos": [-406, 103, 1], "expected": "minecraft:cornflower"},
+    {"pos": [-401, 98, 30], "expected": "minecraft:cornflower"},
+    {"pos": [-401, 99, 28], "expected": "minecraft:cornflower"}
+  ]
+}

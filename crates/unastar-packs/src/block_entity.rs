@@ -23,6 +23,7 @@ fn native_id(id: &str) -> CompileResult<&'static str> {
     Ok(match id {
         "Chest" | "minecraft:chest" | "minecraft:trapped_chest" => "Chest",
         "Barrel" | "minecraft:barrel" => "Barrel",
+        "Beacon" | "minecraft:beacon" => "Beacon",
         "Dispenser" | "minecraft:dispenser" => "Dispenser",
         "Dropper" | "minecraft:dropper" => "Dropper",
         "MobSpawner" | "minecraft:mob_spawner" | "minecraft:spawner" => "MobSpawner",
@@ -44,15 +45,33 @@ fn native_id(id: &str) -> CompileResult<&'static str> {
         "Skull" | "minecraft:skull" => "Skull",
         "Comparator" | "minecraft:comparator" => "Comparator",
         "SculkSensor" | "minecraft:sculk_sensor" => "SculkSensor",
-        "SculkCatalyst" => "SculkCatalyst",
-        "SculkShrieker" => "SculkShrieker",
+        "SculkCatalyst" | "minecraft:sculk_catalyst" => "SculkCatalyst",
+        "SculkShrieker" | "minecraft:sculk_shrieker" => "SculkShrieker",
         // Native actor identifier: https://minecraft.wiki/w/Copper_Golem_Statue#ID
         "CopperGolemStatue" | "minecraft:copper_golem_statue" => "CopperGolemStatue",
-        "minecraft:creaking_heart" => "minecraft:creaking_heart",
+        // Native identities observed in a supported-block BDS 1.26.51 control.
+        "CreakingHeart" | "minecraft:creaking_heart" => "CreakingHeart",
+        "Shelf" | "minecraft:shelf" => "Shelf",
         "PotentSulfurBlock" => "PotentSulfurBlock",
         "StructureBlock" | "minecraft:structure_block" => "StructureBlock",
         "BrushableBlock" | "minecraft:brushable_block" => "BrushableBlock",
         "ShulkerBox" | "minecraft:shulker_box" => "ShulkerBox",
+        // Explicit Bedrock actor identities, not casing rules applied to an
+        // arbitrary Java id. See https://minecraft.wiki/w/Block_entity and the
+        // Bedrock savegame-id tables on the corresponding block pages.
+        "Beehive" | "minecraft:beehive" => "Beehive",
+        "CalibratedSculkSensor" | "minecraft:calibrated_sculk_sensor" => "CalibratedSculkSensor",
+        "ChiseledBookshelf" | "minecraft:chiseled_bookshelf" => "ChiseledBookshelf",
+        "CommandBlock" | "minecraft:command_block" => "CommandBlock",
+        "Conduit" | "minecraft:conduit" => "Conduit",
+        "Crafter" | "minecraft:crafter" => "Crafter",
+        "DaylightDetector" | "minecraft:daylight_detector" => "DaylightDetector",
+        "EnchantTable" | "minecraft:enchanting_table" => "EnchantTable",
+        "EndGateway" | "minecraft:end_gateway" => "EndGateway",
+        "EndPortal" | "minecraft:end_portal" => "EndPortal",
+        "HangingSign" | "minecraft:hanging_sign" => "HangingSign",
+        "JigsawBlock" | "minecraft:jigsaw" => "JigsawBlock",
+        "Jukebox" | "minecraft:jukebox" => "Jukebox",
         _ => return Err(format!("unsupported block actor id {id:?}").into()),
     })
 }
@@ -159,6 +178,35 @@ fn compile_inner(tag: &Tag, source: Source) -> CompileResult<CompiledBlockEntity
 mod tests {
     use super::*;
     use std::collections::BTreeMap;
+
+    #[test]
+    fn controlled_native_actor_identities_match_java_template_conversion() {
+        // Authored identities observed in the supported-block BDS 1.26.51
+        // control volume, not copied actor payloads or structure templates.
+        for (java_id, native_id) in [
+            ("minecraft:creaking_heart", "CreakingHeart"),
+            ("minecraft:shelf", "Shelf"),
+        ] {
+            let actor = |id: &str| {
+                Tag::Compound(BTreeMap::from([
+                    ("id".into(), Tag::String(id.into())),
+                    ("x".into(), Tag::Int(10)),
+                    ("y".into(), Tag::Int(250)),
+                    ("z".into(), Tag::Int(10)),
+                ]))
+            };
+            let native = compile(
+                "authored-native-control",
+                &actor(native_id),
+                Source::Bedrock,
+            )
+            .unwrap();
+            let converted =
+                compile("authored-java-identity", &actor(java_id), Source::Java).unwrap();
+            assert_eq!(converted.id, native_id);
+            assert_eq!(native.id, converted.id);
+        }
+    }
 
     #[test]
     fn native_chest_loot_keeps_observed_int_seed_in_compiled_fields() {

@@ -942,6 +942,7 @@ mod tests {
     #[derive(Default)]
     struct TestWorld {
         blocks: HashMap<BlockPos, u32>,
+        secondary: HashMap<BlockPos, u32>,
         block_entities: Vec<crate::world::block_entity::BlockEntity>,
     }
 
@@ -983,11 +984,28 @@ mod tests {
                 OUT_OF_BOUNDS
             }
         }
+        fn get_layer(&self, pos: BlockPos, layer: u8) -> u32 {
+            match (Self::in_range(pos), layer) {
+                (true, 0) => self.get(pos),
+                (true, 1) => self.secondary.get(&pos).copied().unwrap_or(bb::AIR),
+                _ => OUT_OF_BOUNDS,
+            }
+        }
         fn set(&mut self, pos: BlockPos, id: u32) -> bool {
             if !Self::in_range(pos) {
                 return false;
             }
             self.blocks.insert(pos, id);
+            self.secondary.remove(&pos);
+            true
+        }
+        fn set_layers(&mut self, pos: BlockPos, primary: u32, secondary: Option<u32>) -> bool {
+            if !self.set(pos, primary) {
+                return false;
+            }
+            if let Some(id) = secondary.filter(|&id| id != bb::AIR) {
+                self.secondary.insert(pos, id);
+            }
             true
         }
         fn set_block_entity(&mut self, entity: crate::world::block_entity::BlockEntity) -> bool {

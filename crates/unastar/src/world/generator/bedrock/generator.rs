@@ -6,12 +6,13 @@
 
 use super::BiomeSet;
 use super::adapter::RegionWorld;
-use super::decorate::{Decorator, chunk_seed};
+use super::decorate::Decorator;
 use super::generated::{self, bb, props};
 use super::rng::BedrockRandom;
 use super::surface::{self, ColumnInput, SurfaceColumn, SurfaceNoises};
 use crate::world::ChunkPos;
 use crate::world::chunk::{Chunk, MIN_Y};
+use crate::world::generator::biome_source;
 use crate::world::generator::pipeline::ChunkCache;
 use crate::world::generator::proto::{DenseBlocks, QUARTS_Y, WORLD_HEIGHT};
 use crate::world::generator::{
@@ -34,7 +35,7 @@ pub struct BedrockGenerator {
 impl BedrockGenerator {
     pub fn new(seed: i64) -> Self {
         Self {
-            core: JavaGenerator::new(seed),
+            core: JavaGenerator::for_bedrock_shared_terrain(seed),
             surface_noises: SurfaceNoises::new(seed),
             decorator: Decorator::new(seed),
             noise_heights: ChunkCache::new(128),
@@ -51,8 +52,15 @@ impl BedrockGenerator {
             .expect("Bedrock biome id fits u16")
     }
 
+    // Preserve this edition's current independent-nearest policy. Native Java
+    // retains previous candidates on ties; importing that query history here
+    // would silently change Bedrock output without a BDS reference.
+    fn lookup_climate(target: &[i64; 7]) -> JavaBiome {
+        unastar_noise::overworld_biome_source::Search::new().find(target)
+    }
+
     fn sample_biome(&self, x: i32, y: i32, z: i32) -> u16 {
-        Self::bedrock_id(self.core.sample_biome(x, y, z))
+        Self::bedrock_id(Self::lookup_climate(&self.core.sample_climate(x, y, z)) as NativeBiome)
     }
 
     fn raw_height(&self, x: i32, z: i32) -> i32 {
@@ -71,7 +79,18 @@ impl BedrockGenerator {
     }
 
     fn surface_blocks(&self, pos: ChunkPos) -> (DenseBlocks, QuartBiomes) {
-        let (mut blocks, mut biomes) = self.core.generate_noise_blocks(pos);
+        let (mut blocks, mut biomes) = self.core.generate_noise_with(
+            pos,
+            |noises, pos, grid, columns| {
+                let _biomes = unastar_noise::profile::scope(unastar_noise::profile::Stage::Biomes);
+                biome_source::fill_chunk_with(noises, pos, grid, columns, Self::lookup_climate)
+            },
+        );
+        {
+            let _noise = unastar_noise::profile::scope(unastar_noise::profile::Stage::Noise);
+            blocks.convert_to_bedrock();
+        }
+        let _surface = unastar_noise::profile::scope(unastar_noise::profile::Stage::Surface);
         for qy in 0..QUARTS_Y {
             for qz in 0..4 {
                 for qx in 0..4 {
@@ -82,11 +101,12 @@ impl BedrockGenerator {
         let heights = self
             .noise_heights
             .get_or_compute(pos, || column_heights(&blocks, props::blocks_motion));
+        let population_seed = self.decorator.chunk_seed(pos.x, pos.z);
         super::geology::apply(
             &mut blocks,
-            &mut BedrockRandom::new(chunk_seed(self.seed(), pos.x, pos.z) ^ 0x6261_7365),
+            &mut BedrockRandom::new(population_seed ^ 0x6261_7365),
         );
-        let mut rng = BedrockRandom::new(chunk_seed(self.seed(), pos.x, pos.z));
+        let mut rng = BedrockRandom::new(population_seed);
         for z in 0..16u8 {
             for x in 0..16u8 {
                 let (wx, wz) = (pos.x * 16 + i32::from(x), pos.z * 16 + i32::from(z));
@@ -200,7 +220,10 @@ impl Generator for BedrockGenerator {
         let (blocks, biomes) = self.surface_blocks(pos);
         self.surface_heights
             .get_or_compute(pos, || column_heights(&blocks, |id| id != bb::AIR));
-        let chunk = blocks.to_chunk(pos, bb::AIR);
+        let chunk = {
+            let _packing = unastar_noise::profile::scope(unastar_noise::profile::Stage::Packing);
+            blocks.to_chunk(pos)
+        };
         let mut set = BiomeSet::default();
         for &id in biomes.as_slice() {
             set.insert(id);

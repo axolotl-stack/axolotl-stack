@@ -3,13 +3,11 @@
 //!
 //! Rules are keyed by the block type from the Java block report (`kind`), with
 //! per-block overrides where one type covers blocks with different supports.
-//! Two inputs are approximated because the light engine does not run during
-//! decoration in unastar: mushrooms treat positions at or above the
-//! `WORLD_SURFACE` heightmap as fully sky-lit (brightness 15) and everything
-//! below as dark; `spore_blossom` and other "center support" checks use the
-//! sturdy-face flag of the supporting block.
+//! Mushrooms consume the world's raw light-engine brightness, not a surface
+//! heightmap or a sky-visibility test. `spore_blossom` and other "center
+//! support" checks still use the supporting block's sturdy-face flag.
 
-use super::blocks::{BlockPos, Direction, FluidKind, Heightmap, JavaState};
+use super::blocks::{BlockPos, Direction, FluidKind, JavaState};
 use super::eval::FeatureWorld;
 use super::java_blocks::{blocks as b, tags};
 
@@ -99,8 +97,7 @@ pub fn can_survive<W: FeatureWorld + ?Sized>(
             if below.is_in(tags::MUSHROOM_GROW_BLOCK) {
                 return true;
             }
-            let sky_lit = pos.y >= world.get_height(Heightmap::WorldSurface, pos.x, pos.z);
-            !sky_lit && below.is_collision_full_cube() && below.is_solid()
+            world.raw_brightness(pos, 0) < 13 && below.is_solid_render()
         }
         "minecraft:waterlily" => {
             let below = world.get_state(below_pos);
@@ -149,7 +146,7 @@ pub fn can_survive<W: FeatureWorld + ?Sized>(
             } else if below.is_in(tags::SNOW_LAYER_CAN_SURVIVE_ON) {
                 true
             } else {
-                below.is_face_sturdy(Direction::Up)
+                below.has_full_top_collision_face()
                     || (below.is(b::SNOW) && below.int_value("layers") == Some(8))
             }
         }
@@ -263,4 +260,75 @@ pub fn facing_of(state: JavaState) -> Option<Direction> {
         "east" => Direction::East,
         _ => return None,
     })
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::features::{java_blocks::states, test_world::TestWorld};
+
+    #[test]
+    fn dimension_light_controls_mushrooms_above_the_noise_ceiling() {
+        // Native Nether holdout captures retain mushrooms on the bedrock roof:
+        // y=128 is valid storage and has no sky light, despite 128 noise blocks.
+        let pos = BlockPos::new(0, 128, 0);
+        let mut world = TestWorld {
+            min_y: 0, height: 256, gen_depth: 128, fill_y: 128,
+            fill: states::BEDROCK, has_skylight: false, ..Default::default()
+        };
+        assert!(can_survive(&mut world, states::BROWN_MUSHROOM, pos));
+        world.has_skylight = true;
+        assert!(!can_survive(&mut world, states::BROWN_MUSHROOM, pos));
+        world.blocks.insert(pos.below(), states::MYCELIUM);
+        assert!(can_survive(&mut world, states::BROWN_MUSHROOM, pos));
+    }
+
+    #[test]
+    fn native_mushroom_support_uses_solid_render_not_full_collision() {
+        let pos = BlockPos::new(0, 1, 0);
+        let mut world = TestWorld { has_skylight: false, ..Default::default() };
+        // Native full-collision glass and ice are not solid-rendering; stone
+        // and glowstone are. These properties are independent of emission.
+        for (below, expected) in [
+            (states::GLASS, false),
+            (states::ICE, false),
+            (states::STONE, true),
+            (states::GLOWSTONE, true),
+        ] {
+            world.blocks.insert(pos.below(), below);
+            assert_eq!(can_survive(&mut world, states::BROWN_MUSHROOM, pos), expected);
+            assert_eq!(can_survive(&mut world, states::RED_MUSHROOM, pos), expected);
+        }
+    }
+
+    #[test]
+    fn native_virgin_light_storage_drives_mushroom_survival() {
+        let fixture: serde_json::Value = serde_json::from_str(include_str!(
+            "../../tests/data/native_vegetation_virgin_light_1_21_11.json"
+        )).unwrap();
+        for case in fixture["cases"].as_array().unwrap() {
+            let xyz = case["pos"].as_array().unwrap();
+            let pos = BlockPos::new(
+                xyz[0].as_i64().unwrap() as i32,
+                xyz[1].as_i64().unwrap() as i32,
+                xyz[2].as_i64().unwrap() as i32,
+            );
+            let darken = case["sky_darken"].as_i64().unwrap() as i32;
+            let expected = case["raw_brightness"].as_i64().unwrap() as i32;
+            let mut world = TestWorld {
+                has_skylight: case["has_skylight"].as_bool().unwrap(),
+                ..Default::default()
+            };
+            world.blocks.insert(pos.below(), states::STONE);
+            world.blocks.insert(pos.above(), states::STONE);
+            assert_eq!(world.raw_brightness(pos, darken), expected, "{case}");
+            if darken == 0 {
+                // A roof does not initialize or propagate the native engine's
+                // visible storage during the pre-light FEATURES stage.
+                assert_eq!(can_survive(&mut world, states::BROWN_MUSHROOM, pos), expected < 13);
+                world.blocks.insert(pos.below(), states::MYCELIUM);
+                assert!(can_survive(&mut world, states::BROWN_MUSHROOM, pos));
+            }
+        }
+    }
 }

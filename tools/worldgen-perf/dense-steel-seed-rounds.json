@@ -1,0 +1,396 @@
+{
+  "metadata": {
+    "seed": 8500081009970950196,
+    "side": 101,
+    "targets": 10201,
+    "order": "row-major z then x",
+    "build": "normal release, java-worldgen + bedrock-worldgen, no worldgen-profile",
+    "benchmark_commit": "4df67418",
+    "cpu": "Intel Core i9-14900HX",
+    "power": "AC maximum processor state 99%, turbo disabled",
+    "load": "shared machine; other workers active; not a coordinator-certified quiet window",
+    "affinities": {
+      "1": "0x4",
+      "4": "0x55",
+      "8": "0x5555",
+      "16": "0xffff"
+    },
+    "cpu_scope": "Windows GetProcessTimes over process lifetime, including initialization and teardown; generation_ms is the request-to-last-result wall interval",
+    "initial_sample_caveat": "289-chunk pilot and initial 101-square sample may overlap WG-BEDROCK validation build; retained separately, not included in repeated medians",
+    "completion": "generated in-memory chunks; no lighting, entity spawning, saving or network delivery"
+  },
+  "initial_101": {
+    "affinity": "0x4",
+    "process_cpu_ms": 145921.875,
+    "cpu_scope": "process lifetime including startup and teardown",
+    "results": [
+      {
+        "kind": "java",
+        "seed": 8500081009970950196,
+        "instrumented": false,
+        "workers": 1,
+        "workload": "cold_origin_square",
+        "chunks": 10201,
+        "elapsed_ms": 154662.0893,
+        "chunks_per_second": 65.95669337049361,
+        "generation_ms": 154661.5557,
+        "generation_chunks_per_second": 65.9569209286054,
+        "cached_protos": 1024,
+        "spawn": null
+      }
+    ],
+    "round": 1
+  },
+  "pilot_17": [
+    {
+      "affinity": "0x4",
+      "process_cpu_ms": 5734.375,
+      "cpu_scope": "process lifetime including startup and teardown",
+      "results": [
+        {
+          "kind": "java",
+          "seed": 8500081009970950196,
+          "instrumented": false,
+          "workers": 1,
+          "workload": "cold_origin_square",
+          "chunks": 289,
+          "elapsed_ms": 6147.0348,
+          "chunks_per_second": 47.01453780609799,
+          "generation_ms": 6146.4058,
+          "generation_chunks_per_second": 47.019349096670446,
+          "cached_protos": 441,
+          "spawn": null
+        }
+      ]
+    },
+    {
+      "affinity": "0x55",
+      "process_cpu_ms": 6031.25,
+      "cpu_scope": "process lifetime including startup and teardown",
+      "results": [
+        {
+          "kind": "java",
+          "seed": 8500081009970950196,
+          "instrumented": false,
+          "workers": 4,
+          "workload": "cold_origin_square",
+          "chunks": 289,
+          "elapsed_ms": 3173.5322,
+          "chunks_per_second": 91.0657216586616,
+          "generation_ms": 3173.0971,
+          "generation_chunks_per_second": 91.07820873177818,
+          "cached_protos": 441,
+          "spawn": null
+        }
+      ]
+    },
+    {
+      "affinity": "0x5555",
+      "process_cpu_ms": 6171.875,
+      "cpu_scope": "process lifetime including startup and teardown",
+      "results": [
+        {
+          "kind": "java",
+          "seed": 8500081009970950196,
+          "instrumented": false,
+          "workers": 8,
+          "workload": "cold_origin_square",
+          "chunks": 289,
+          "elapsed_ms": 1616.6822,
+          "chunks_per_second": 178.76116901639665,
+          "generation_ms": 1616.1270000000002,
+          "generation_chunks_per_second": 178.8225801561387,
+          "cached_protos": 441,
+          "spawn": null
+        }
+      ]
+    },
+    {
+      "affinity": "0xffff",
+      "process_cpu_ms": 7656.25,
+      "cpu_scope": "process lifetime including startup and teardown",
+      "results": [
+        {
+          "kind": "java",
+          "seed": 8500081009970950196,
+          "instrumented": false,
+          "workers": 16,
+          "workload": "cold_origin_square",
+          "chunks": 289,
+          "elapsed_ms": 1207.7075,
+          "chunks_per_second": 239.29635280065744,
+          "generation_ms": 1207.0383,
+          "generation_chunks_per_second": 239.42902226051982,
+          "cached_protos": 441,
+          "spawn": null
+        }
+      ]
+    }
+  ],
+  "rounds": [
+    {
+      "affinity": "0x4",
+      "process_cpu_ms": 145640.625,
+      "cpu_scope": "process lifetime including startup and teardown",
+      "results": [
+        {
+          "kind": "java",
+          "seed": 8500081009970950196,
+          "instrumented": false,
+          "workers": 1,
+          "workload": "cold_origin_square",
+          "chunks": 10201,
+          "elapsed_ms": 154565.97350000002,
+          "chunks_per_second": 65.99770809194301,
+          "generation_ms": 154565.3866,
+          "generation_chunks_per_second": 65.99795869174243,
+          "cached_protos": 1024,
+          "spawn": null
+        }
+      ],
+      "round": 1
+    },
+    {
+      "affinity": "0x55",
+      "process_cpu_ms": 151875.0,
+      "cpu_scope": "process lifetime including startup and teardown",
+      "results": [
+        {
+          "kind": "java",
+          "seed": 8500081009970950196,
+          "instrumented": false,
+          "workers": 4,
+          "workload": "cold_origin_square",
+          "chunks": 10201,
+          "elapsed_ms": 94802.1377,
+          "chunks_per_second": 107.60305882849306,
+          "generation_ms": 94801.64859999999,
+          "generation_chunks_per_second": 107.60361397343887,
+          "cached_protos": 1024,
+          "spawn": null
+        }
+      ],
+      "round": 1
+    },
+    {
+      "affinity": "0x5555",
+      "process_cpu_ms": 175546.875,
+      "cpu_scope": "process lifetime including startup and teardown",
+      "results": [
+        {
+          "kind": "java",
+          "seed": 8500081009970950196,
+          "instrumented": false,
+          "workers": 8,
+          "workload": "cold_origin_square",
+          "chunks": 10201,
+          "elapsed_ms": 43451.0169,
+          "chunks_per_second": 234.77010960357984,
+          "generation_ms": 43450.4804,
+          "generation_chunks_per_second": 234.77300840153654,
+          "cached_protos": 1024,
+          "spawn": null
+        }
+      ],
+      "round": 1
+    },
+    {
+      "affinity": "0xffff",
+      "process_cpu_ms": 261968.75,
+      "cpu_scope": "process lifetime including startup and teardown",
+      "results": [
+        {
+          "kind": "java",
+          "seed": 8500081009970950196,
+          "instrumented": false,
+          "workers": 16,
+          "workload": "cold_origin_square",
+          "chunks": 10201,
+          "elapsed_ms": 24581.7525,
+          "chunks_per_second": 414.98261769578875,
+          "generation_ms": 24581.1268,
+          "generation_chunks_per_second": 414.99318086589915,
+          "cached_protos": 1024,
+          "spawn": null
+        }
+      ],
+      "round": 1
+    },
+    {
+      "affinity": "0xffff",
+      "process_cpu_ms": 275281.25,
+      "cpu_scope": "process lifetime including startup and teardown",
+      "results": [
+        {
+          "kind": "java",
+          "seed": 8500081009970950196,
+          "instrumented": false,
+          "workers": 16,
+          "workload": "cold_origin_square",
+          "chunks": 10201,
+          "elapsed_ms": 25729.1129,
+          "chunks_per_second": 396.47694188477055,
+          "generation_ms": 25728.3626,
+          "generation_chunks_per_second": 396.48850409158956,
+          "cached_protos": 1024,
+          "spawn": null
+        }
+      ],
+      "round": 2
+    },
+    {
+      "affinity": "0x5555",
+      "process_cpu_ms": 173671.875,
+      "cpu_scope": "process lifetime including startup and teardown",
+      "results": [
+        {
+          "kind": "java",
+          "seed": 8500081009970950196,
+          "instrumented": false,
+          "workers": 8,
+          "workload": "cold_origin_square",
+          "chunks": 10201,
+          "elapsed_ms": 43011.8291,
+          "chunks_per_second": 237.16731451441575,
+          "generation_ms": 43011.3165,
+          "generation_chunks_per_second": 237.1701410255601,
+          "cached_protos": 1024,
+          "spawn": null
+        }
+      ],
+      "round": 2
+    },
+    {
+      "affinity": "0x55",
+      "process_cpu_ms": 148765.625,
+      "cpu_scope": "process lifetime including startup and teardown",
+      "results": [
+        {
+          "kind": "java",
+          "seed": 8500081009970950196,
+          "instrumented": false,
+          "workers": 4,
+          "workload": "cold_origin_square",
+          "chunks": 10201,
+          "elapsed_ms": 92997.0203,
+          "chunks_per_second": 109.69168654105792,
+          "generation_ms": 92996.5546,
+          "generation_chunks_per_second": 109.69223584547723,
+          "cached_protos": 1024,
+          "spawn": null
+        }
+      ],
+      "round": 2
+    },
+    {
+      "affinity": "0x4",
+      "process_cpu_ms": 142546.875,
+      "cpu_scope": "process lifetime including startup and teardown",
+      "results": [
+        {
+          "kind": "java",
+          "seed": 8500081009970950196,
+          "instrumented": false,
+          "workers": 1,
+          "workload": "cold_origin_square",
+          "chunks": 10201,
+          "elapsed_ms": 151532.52109999998,
+          "chunks_per_second": 67.3188826131132,
+          "generation_ms": 151532.00079999998,
+          "generation_chunks_per_second": 67.31911375910506,
+          "cached_protos": 1024,
+          "spawn": null
+        }
+      ],
+      "round": 2
+    },
+    {
+      "affinity": "0x55",
+      "process_cpu_ms": 148578.125,
+      "cpu_scope": "process lifetime including startup and teardown",
+      "results": [
+        {
+          "kind": "java",
+          "seed": 8500081009970950196,
+          "instrumented": false,
+          "workers": 4,
+          "workload": "cold_origin_square",
+          "chunks": 10201,
+          "elapsed_ms": 93089.46059999999,
+          "chunks_per_second": 109.58275979096177,
+          "generation_ms": 93088.96489999999,
+          "generation_chunks_per_second": 109.58334332064317,
+          "cached_protos": 1024,
+          "spawn": null
+        }
+      ],
+      "round": 3
+    },
+    {
+      "affinity": "0x4",
+      "process_cpu_ms": 142640.625,
+      "cpu_scope": "process lifetime including startup and teardown",
+      "results": [
+        {
+          "kind": "java",
+          "seed": 8500081009970950196,
+          "instrumented": false,
+          "workers": 1,
+          "workload": "cold_origin_square",
+          "chunks": 10201,
+          "elapsed_ms": 151485.9567,
+          "chunks_per_second": 67.3395753786067,
+          "generation_ms": 151485.4574,
+          "generation_chunks_per_second": 67.33979733159521,
+          "cached_protos": 1024,
+          "spawn": null
+        }
+      ],
+      "round": 3
+    },
+    {
+      "affinity": "0xffff",
+      "process_cpu_ms": 254890.625,
+      "cpu_scope": "process lifetime including startup and teardown",
+      "results": [
+        {
+          "kind": "java",
+          "seed": 8500081009970950196,
+          "instrumented": false,
+          "workers": 16,
+          "workload": "cold_origin_square",
+          "chunks": 10201,
+          "elapsed_ms": 23860.1192,
+          "chunks_per_second": 427.5334886005096,
+          "generation_ms": 23859.4631,
+          "generation_chunks_per_second": 427.5452451400719,
+          "cached_protos": 1024,
+          "spawn": null
+        }
+      ],
+      "round": 3
+    },
+    {
+      "affinity": "0x5555",
+      "process_cpu_ms": 168125.0,
+      "cpu_scope": "process lifetime including startup and teardown",
+      "results": [
+        {
+          "kind": "java",
+          "seed": 8500081009970950196,
+          "instrumented": false,
+          "workers": 8,
+          "workload": "cold_origin_square",
+          "chunks": 10201,
+          "elapsed_ms": 41666.8094,
+          "chunks_per_second": 244.82316133377856,
+          "generation_ms": 41666.3214,
+          "generation_chunks_per_second": 244.82602872640445,
+          "cached_protos": 1024,
+          "spawn": null
+        }
+      ],
+      "round": 3
+    }
+  ]
+}

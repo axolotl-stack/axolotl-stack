@@ -12,9 +12,10 @@ const MAX_LAYERS: usize = 16;
 /// Java `minecraft:block_column` (`BlockColumnFeature`).
 ///
 /// Samples every layer height in order; a total of 0 returns `false`. Then
-/// walks from the origin in `direction` testing `allowed_placement` for each
-/// of the total positions; at the first failure the column is cut to the
-/// positions that passed, removing blocks from the base layers first when
+/// walks from one block beyond the origin in `direction`, testing
+/// `allowed_placement` for each of the total positions; at the first failure
+/// the column is cut to the positions that passed, removing blocks from the
+/// base layers first when
 /// `prioritize_tip` (keeping the tip) and from the tip layers first otherwise.
 /// Finally places the layers from the origin outwards, one provider draw per
 /// block. Returns `true` once the total height is non-zero, even if
@@ -42,7 +43,9 @@ pub fn place<W: FeatureWorld + ?Sized>(
     }
     let heights = &mut heights[..layers.len()];
 
-    let mut probe = origin;
+    // Java reserves the block beyond the last placed block as well: its
+    // probe starts one step ahead of the placement cursor.
+    let mut probe = origin.rel(cfg.direction);
     for placed in 0..total {
         if !test_predicate(world, &cfg.allowed_placement, probe) {
             truncate(heights, total, placed, cfg.prioritize_tip);
@@ -135,13 +138,16 @@ mod tests {
         let l = states::OAK_LOG;
         let f = states::OAK_LEAVES;
         let s = states::STONE;
-        for (tip, expected) in [(false, vec![l, l, l, s]), (true, vec![l, f, f, s])] {
+        for (tip, expected) in [
+            (false, vec![l, states::AIR, s]),
+            (true, vec![f, states::AIR, s]),
+        ] {
             let mut world = TestWorld::flat(0);
-            world.set_state(origin.offset(0, 3, 0), s);
+            world.set_state(origin.offset(0, 2, 0), s);
             let mut rng = FeatureRandom::new(1);
             assert!(place(&mut world, &mut rng, &cfg(tip), origin));
             assert_eq!(
-                column(&mut world, origin, 4),
+                column(&mut world, origin, 3),
                 expected,
                 "prioritize_tip {tip}"
             );
@@ -149,26 +155,38 @@ mod tests {
     }
 
     #[test]
-    fn zero_height_returns_false_and_blocked_origin_places_nothing() {
+    fn zero_height_and_ahead_of_origin_probe() {
         static EMPTY: [ColumnLayer; 1] = [ColumnLayer {
             height: IntProvider::Constant(0),
             provider: StateProvider::Simple(states::OAK_LOG),
         }];
         let mut world = TestWorld::flat(0);
+        let origin = BlockPos::new(0, 0, 0);
         let mut rng = FeatureRandom::new(1);
         let c = BlockColumnConfig {
             layers: &EMPTY,
             ..cfg(false)
         };
         assert!(!place(&mut world, &mut rng, &c, BlockPos::new(0, 0, 0)));
-        // Origin inside stone: everything is cut but Java still reports true.
+        // The origin itself is not probed. A one-block obstruction just above
+        // it truncates to zero, but a blocked origin with air above is replaced.
+        world.set_state(origin.above(), states::STONE);
         assert!(place(
             &mut world,
             &mut rng,
             &cfg(true),
-            BlockPos::new(0, -1, 0)
+            origin,
         ));
-        assert!(world.blocks.is_empty());
+        assert_eq!(world.count(states::OAK_LOG), 0);
+        assert_eq!(world.count(states::OAK_LEAVES), 0);
+        world.blocks.clear();
+        assert!(place(
+            &mut world,
+            &mut rng,
+            &cfg(true),
+            BlockPos::new(0, -1, 0),
+        ));
+        assert_eq!(world.get_state(BlockPos::new(0, -1, 0)), states::OAK_LOG);
     }
 
     #[test]

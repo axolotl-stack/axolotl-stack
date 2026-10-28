@@ -230,6 +230,10 @@ impl Column {
 /// dripstone blocks are laid into both, an optional water pool replaces the
 /// floor block, and stalactites/stalagmites grow towards each other (merging
 /// their tips when they meet exactly).
+///
+/// Normal samples share the caller's `WorldgenRandom` Gaussian cache, including
+/// a value left by an earlier feature before the caller reseeds the bit source.
+/// Do not reconstruct or independently reseed the random generator here.
 pub fn place_cluster<W: FeatureWorld + ?Sized>(
     world: &mut W,
     rng: &mut FeatureRandom,
