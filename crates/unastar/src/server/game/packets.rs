@@ -145,6 +145,11 @@ impl GameServer {
                     q.0.push((entity, InventoryAction::Interact(pk)));
                 }
             }
+            McpePacketData::BlockPickRequestPacket(pk) => {
+                if let Some(mut q) = world.get_resource_mut::<InventoryPacketQueue>() {
+                    q.0.push((entity, InventoryAction::BlockPick(pk)));
+                }
+            }
             McpePacketData::InventoryTransactionPacket(pk) => {
                 use jolyne::valentine::types::{
                     EnumsItemUseInventoryTransactionActionType,

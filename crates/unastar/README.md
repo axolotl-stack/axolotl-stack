@@ -323,6 +323,21 @@ Survival placement consumes one server-owned selected item. Placement does not
 replace occupied blocks. Item-specific replacement, adventure CanPlaceOn/CanDestroy
 rules, and unsupported inventory operations are not implemented.
 
+Using a crafting table (unless sneaking with an item in hand) opens BDS's
+WORKBENCH screen (type 1 at the block, no actor) from the shared window-ID
+counter; ItemStackRequest crafting then uses the 3x3 grid. Closing any screen
+returns the cursor and crafting-grid items to the inventory and throws what
+does not fit (dragonfly's `MoveItemsToInventory`).
+
+`BlockPickRequest` follows BDS's `selectItem` rules (`server/game/inventory/pick.rs`):
+reach 14 blocks in Creative and 8.7 otherwise from the eye to the block corner,
+hotbar matches are selected, main-inventory matches swap into the hotbar, only
+Creative creates the item, and an `item_lock` held item is never displaced. The
+picked item is the block's own item when it is in the creative content; blocks
+whose pick item differs (wall signs, crops), picks with block-entity data and
+`GuiDataPickItem` wait for a measured pick-item table, I8 block entities and a
+BDS capture respectively.
+
 ## Plugin Isolation
 
 Plugins are WebAssembly components implementing the `unastar-api` WIT world.

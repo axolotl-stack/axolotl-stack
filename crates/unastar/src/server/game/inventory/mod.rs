@@ -1,10 +1,12 @@
 //! Inventory domain system.
 //!
 //! Processes ItemStackRequest (through [`engine`]), ContainerClose,
-//! MobEquipment, Interact and InventoryTransaction packets.
+//! MobEquipment, Interact, BlockPickRequest (through [`pick`]) and
+//! InventoryTransaction packets.
 
 pub mod containers;
 pub mod engine;
+mod pick;
 
 /// The BDS capture the inventory tests replay.
 #[cfg(test)]
@@ -147,6 +149,10 @@ pub fn apply_inventory(world: &mut World, state: &mut InventorySystemState) {
             .is_some()
             && crate::entity::item_drop::drop_thrower_id(world, entity).is_some();
         let position = world.get::<Position>(entity).map(|position| position.0);
+        let picked = match &action {
+            InventoryAction::BlockPick(pk) => pick::picked_item(world, entity, pk),
+            _ => None,
+        };
         let mut drops = Vec::new();
         let mut fatal = false;
         {
@@ -166,7 +172,7 @@ pub fn apply_inventory(world: &mut World, state: &mut InventorySystemState) {
                 }
                 InventoryAction::ContainerClose(pk) => {
                     if let Ok(mut player) = players.get_mut(entity) {
-                        handle_container_close(entity, &pk, &mut player);
+                        drops = handle_container_close(entity, &pk, &mut player, can_drop);
                     }
                 }
                 InventoryAction::MobEquipment(pk) => {
@@ -189,6 +195,11 @@ pub fn apply_inventory(world: &mut World, state: &mut InventorySystemState) {
                         &mut players,
                         &mut events,
                     );
+                }
+                InventoryAction::BlockPick(_) => {
+                    if let (Some(item), Ok(mut player)) = (picked, players.get_mut(entity)) {
+                        pick::select_item(entity, item, &mut player, &mut events);
+                    }
                 }
             }
         }
@@ -357,14 +368,16 @@ fn creative_stack(
 
 /// Signed `ContainerType` values (int8 on the wire, `u8` fields in Valentine).
 ///
-/// BDS 1.26.51 opens the player's own inventory with `INVENTORY` (-1) and
-/// answers the client's `ContainerClose` with `NONE` (-9); see
+/// BDS 1.26.51 opens the player's own inventory with `INVENTORY` (-1), a
+/// crafting table with `WORKBENCH` (1), and answers the client's
+/// `ContainerClose` with `NONE` (-9); see
 /// `crates/valentine/tests/wire_probe_conformance.rs`.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 #[repr(i8)]
 enum WireContainerType {
     None = -9,
     Inventory = -1,
+    Workbench = 1,
 }
 
 impl WireContainerType {
@@ -375,11 +388,17 @@ impl WireContainerType {
 
 /// BDS answers a client close with the ID of the window it had open (the
 /// client names window 0 for its own inventory) and type `NONE`.
+///
+/// Closing a screen never leaves items in the cursor or a crafting grid:
+/// they return to the inventory and what does not fit is thrown, as
+/// dragonfly's `MoveItemsToInventory` does. Returns those throws; without a
+/// valid thrower they stay in the UI container instead of being lost.
 fn handle_container_close(
     entity: Entity,
     pk: &ContainerClosePacket,
     player: &mut PlayerInventoryItem<'_, '_>,
-) {
+    can_drop: bool,
+) -> Vec<ItemStack> {
     debug!(entity = ?entity, container_id = pk.container_id, "ContainerClose");
     let container_id = player.windows.close().unwrap_or(pk.container_id);
     let _ = player.session.send(McpePacket::from(ContainerClosePacket {
@@ -387,6 +406,55 @@ fn handle_container_close(
         container_type: WireContainerType::None.byte(),
         server_initiated_close: false,
     }));
+    let mut drops = Vec::new();
+    let mut moved = false;
+    for slot in 0..player.ui.0.size() {
+        let stack = player.ui.0.item(slot).expect("slot within UI").clone();
+        if stack.is_empty() {
+            continue;
+        }
+        moved = true;
+        let (_, leftover) = player.main.0.add_item(stack);
+        let keep = if leftover.is_empty() || !can_drop {
+            leftover
+        } else {
+            drops.push(leftover);
+            ItemStack::empty()
+        };
+        let _ = player.ui.0.set_item(slot, keep);
+    }
+    if moved {
+        send_inventory(&player.main.0, player.session);
+        send_window(UI_WINDOW, &player.ui.0, player.session);
+    }
+    drops
+}
+
+/// Crafting table `use`: BDS opens an unmanaged WORKBENCH screen at the
+/// block with no actor, from the same window-ID counter as the inventory.
+/// A second open while a window is open is ignored (it crashes the client).
+pub(super) fn open_workbench(world: &mut World, entity: Entity, at: (i32, i32, i32)) {
+    let Some(mut windows) = world.get_mut::<ContainerWindows>(entity) else {
+        return;
+    };
+    if windows.open_id().is_some() {
+        return;
+    }
+    let container_id = windows.open(ScreenKind::Workbench);
+    if let Some(session) = world.get::<PlayerSession>(entity) {
+        let _ = session.send(McpePacket::from(ContainerOpenPacket {
+            container_id,
+            container_type: WireContainerType::Workbench.byte(),
+            position: BlockPos {
+                x: at.0,
+                y: at.1,
+                z: at.2,
+            },
+            target_actor_id: ActorUniqueId {
+                actor_unique_id: -1,
+            },
+        }));
+    }
 }
 
 fn handle_mob_equipment(
@@ -620,16 +688,24 @@ fn apply_normal_actions(
 }
 
 fn send_inventory(inv: &Inventory, session: &PlayerSession) {
+    send_window(INVENTORY_WINDOW, inv, session);
+}
+
+/// Full `InventoryContent` for one of the player's fixed windows.
+fn send_window(window: u8, inv: &Inventory, session: &PlayerSession) {
     let Some(slots) = (0..inv.size())
         .map(|slot| wire_item(inv.item(slot).unwrap()))
         .collect::<Option<Vec<_>>>()
     else {
-        tracing::warn!("Cannot resync inventory containing an unrepresentable server item");
+        tracing::warn!(
+            window,
+            "Cannot resync a window containing an unrepresentable server item"
+        );
         return;
     };
     let _ = session.send(McpePacket::from(
         jolyne::valentine::InventoryContentPacket {
-            container_id: INVENTORY_WINDOW.into(),
+            container_id: window.into(),
             slots,
             full_container_name: UNNAMED_CONTAINER,
             storage_item: WireItem::default(),
@@ -651,7 +727,7 @@ pub(super) fn resync_inventory(world: &World, entity: Entity) {
 mod tests {
     use super::*;
     use crate::entity::components::Inventory;
-    use jolyne::valentine::EnumsItemStackNetResult;
+    use jolyne::valentine::{EnumsItemStackNetResult, McpePacketData};
 
     fn registry() -> ItemRegistry {
         crate::registry::item::test_support::registry(&[("minecraft:honey_bottle", 77, 16)])
@@ -1071,7 +1147,12 @@ mod tests {
             mut events: ResMut<InventoryEvents>,
             selection: Res<Selection>,
         ) {
-            handle_mob_equipment(selection.entity, &selection.packet, &mut players, &mut events);
+            handle_mob_equipment(
+                selection.entity,
+                &selection.packet,
+                &mut players,
+                &mut events,
+            );
         }
         let mut world = World::new();
         world.insert_resource(InventoryEvents::default());
@@ -1080,22 +1161,159 @@ mod tests {
         world.get_mut::<HeldSlot>(entity).unwrap().0 = 0;
         world.insert_resource(Selection {
             entity,
-            packet: jolyne::valentine::MobEquipmentPacket { selected_slot: 9, ..Default::default() },
+            packet: jolyne::valentine::MobEquipmentPacket {
+                selected_slot: 9,
+                ..Default::default()
+            },
         });
         let mut schedule = Schedule::default();
         schedule.add_systems(apply_selection);
         schedule.run(&mut world);
         let selected = world.get::<HeldSlot>(entity).unwrap().0;
         assert_eq!(selected, 8);
-        let [ServerEvent::PlayerHeldSlotChange { entity: changed, old_slot, new_slot }] =
-            world.resource::<InventoryEvents>().0.as_slice() else {
-                panic!("one committed selection change");
-            };
+        let [
+            ServerEvent::PlayerHeldSlotChange {
+                entity: changed,
+                old_slot,
+                new_slot,
+            },
+        ] = world.resource::<InventoryEvents>().0.as_slice()
+        else {
+            panic!("one committed selection change");
+        };
         assert_eq!((*changed, *old_slot, *new_slot), (entity, 0, selected));
         world.resource_mut::<InventoryEvents>().0.clear();
         schedule.run(&mut world);
-        assert!(world.resource::<InventoryEvents>().0.is_empty(),
-            "repeating a selection that normalizes to the current slot is not another change");
+        assert!(
+            world.resource::<InventoryEvents>().0.is_empty(),
+            "repeating a selection that normalizes to the current slot is not another change"
+        );
+    }
+
+    fn close_world(mode: GameMode) -> (World, Entity, tokio::sync::mpsc::Receiver<McpePacket>) {
+        use super::super::types::{ItemRegistryResource, ServerWorldTemplate};
+        use std::sync::Arc;
+        let mut world = World::new();
+        world.insert_resource(ItemRegistryResource(Arc::new(registry())));
+        test_support::insert_executor(&mut world);
+        world.insert_resource(ServerWorldTemplate(Arc::new(
+            jolyne::WorldTemplate::default(),
+        )));
+        world.insert_resource(InventoryEvents::default());
+        let (tx, rx) = tokio::sync::mpsc::channel(8);
+        let entity = world.spawn(player(mode, tx)).id();
+        (world, entity, rx)
+    }
+
+    fn run_close(world: &mut World, entity: Entity) {
+        world.insert_resource(InventoryPacketQueue(vec![(
+            entity,
+            super::InventoryAction::ContainerClose(ContainerClosePacket {
+                container_id: 0,
+                container_type: 0xff,
+                server_initiated_close: false,
+            }),
+        )]));
+        let mut schedule = Schedule::default();
+        schedule.add_systems(apply_inventory);
+        schedule.run(world);
+    }
+
+    #[test]
+    fn closing_returns_cursor_and_grid_items_to_the_inventory() {
+        use crate::item::test_support::stack;
+        let (mut world, entity, mut rx) = close_world(GameMode::Survival);
+        {
+            let mut main = world.get_mut::<MainInventory>(entity).unwrap();
+            main.0
+                .set_item(0, stack("minecraft:oak_log", 60).into_slot())
+                .unwrap();
+        }
+        {
+            let mut ui = world.get_mut::<PlayerUi>(entity).unwrap();
+            ui.0.set_item(0, stack("minecraft:stick", 2).into_slot())
+                .unwrap();
+            ui.0.set_item(28, stack("minecraft:oak_log", 7).into_slot())
+                .unwrap();
+        }
+        run_close(&mut world, entity);
+        let main = &world.get::<MainInventory>(entity).unwrap().0;
+        assert_eq!(main.item(0).unwrap().count, 64);
+        let rest: Vec<_> = main
+            .items()
+            .filter(|(_, item)| !item.is_empty())
+            .map(|(slot, item)| (slot, item.item_id().to_owned(), item.count))
+            .collect();
+        assert_eq!(
+            rest,
+            [
+                (0, "minecraft:oak_log".to_owned(), 64),
+                (1, "minecraft:stick".to_owned(), 2),
+                (2, "minecraft:oak_log".to_owned(), 3),
+            ]
+        );
+        assert!(world.get::<PlayerUi>(entity).unwrap().0.is_empty());
+        let McpePacketData::ContainerClosePacket(_) = rx.try_recv().unwrap().data else {
+            panic!("close answered first");
+        };
+        for window in [0, 124] {
+            let McpePacketData::InventoryContentPacket(content) = rx.try_recv().unwrap().data
+            else {
+                panic!("window {window} resent");
+            };
+            assert_eq!(content.container_id, window);
+        }
+    }
+
+    #[test]
+    fn closing_without_room_or_a_thrower_keeps_the_rest_in_the_ui() {
+        use crate::item::test_support::stack;
+        let (mut world, entity, _rx) = close_world(GameMode::Survival);
+        world
+            .entity_mut(entity)
+            .remove::<crate::entity::components::Rotation>();
+        {
+            let mut main = world.get_mut::<MainInventory>(entity).unwrap();
+            for slot in 0..36 {
+                main.0
+                    .set_item(slot, stack("minecraft:dirt", 64).into_slot())
+                    .unwrap();
+            }
+        }
+        world
+            .get_mut::<PlayerUi>(entity)
+            .unwrap()
+            .0
+            .set_item(28, stack("minecraft:oak_log", 7).into_slot())
+            .unwrap();
+        run_close(&mut world, entity);
+        let ui = &world.get::<PlayerUi>(entity).unwrap().0;
+        assert_eq!(
+            (ui.item(28).unwrap().item_id(), ui.item(28).unwrap().count),
+            ("minecraft:oak_log", 7)
+        );
+    }
+
+    #[test]
+    fn crafting_table_opens_one_workbench_window_at_the_block() {
+        let (mut world, entity, mut rx) = close_world(GameMode::Survival);
+        *world.get_mut::<ContainerWindows>(entity).unwrap() = ContainerWindows::default();
+        open_workbench(&mut world, entity, (3, 64, -7));
+        open_workbench(&mut world, entity, (3, 64, -7));
+        let McpePacketData::ContainerOpenPacket(open) = rx.try_recv().unwrap().data else {
+            panic!("container open");
+        };
+        assert_eq!((open.container_id, open.container_type as i8), (2, 1));
+        assert_eq!(
+            (open.position.x, open.position.y, open.position.z),
+            (3, 64, -7)
+        );
+        assert_eq!(open.target_actor_id.actor_unique_id, -1);
+        assert!(rx.try_recv().is_err(), "an open window is not reopened");
+        assert_eq!(
+            world.get::<ContainerWindows>(entity).unwrap().screen(),
+            ScreenKind::Workbench
+        );
     }
 }
 
@@ -1495,27 +1713,41 @@ mod grid_transaction_tests {
 
     fn slot(name: EnumsContainerEnumName, slot: u8, id: i32) -> ItemStackRequestCerealSlotInfoData {
         ItemStackRequestCerealSlotInfoData {
-            fullcontainername: FullContainerName { container_name: name, dynamic_id: None },
+            fullcontainername: FullContainerName {
+                container_name: name,
+                dynamic_id: None,
+            },
             slot,
             net_id_variant: id,
         }
     }
 
-    fn take(amount: u8, source: ItemStackRequestCerealSlotInfoData, destination: ItemStackRequestCerealSlotInfoData)
-        -> ItemStackRequestPacketDataRequestDataActionsItem
-    {
-        ItemStackRequestPacketDataRequestDataActionsItem::TakeActionData(ItemStackRequestCerealTakeActionData {
-            amount, source, destination, ..Default::default()
-        })
+    fn take(
+        amount: u8,
+        source: ItemStackRequestCerealSlotInfoData,
+        destination: ItemStackRequestCerealSlotInfoData,
+    ) -> ItemStackRequestPacketDataRequestDataActionsItem {
+        ItemStackRequestPacketDataRequestDataActionsItem::TakeActionData(
+            ItemStackRequestCerealTakeActionData {
+                amount,
+                source,
+                destination,
+                ..Default::default()
+            },
+        )
     }
 
     fn run(late_failure: bool) -> (World, Entity, tokio::sync::mpsc::Receiver<McpePacket>) {
         use EnumsContainerEnumName as Name;
         use ItemStackRequestPacketDataRequestDataActionsItem as Action;
         let mut world = World::new();
-        world.insert_resource(super::super::types::ItemRegistryResource(Arc::new(VANILLA.clone())));
+        world.insert_resource(super::super::types::ItemRegistryResource(Arc::new(
+            VANILLA.clone(),
+        )));
         test_support::insert_executor(&mut world);
-        world.insert_resource(super::super::types::ServerWorldTemplate(Arc::new(jolyne::WorldTemplate::default())));
+        world.insert_resource(super::super::types::ServerWorldTemplate(Arc::new(
+            jolyne::WorldTemplate::default(),
+        )));
         world.insert_resource(InventoryEvents::default());
         let (tx, rx) = tokio::sync::mpsc::channel(16);
         let mut windows = ContainerWindows::default();
@@ -1526,19 +1758,31 @@ mod grid_transaction_tests {
         let mut ui = PlayerUi::default();
         ui.0.set_item(28, stack("minecraft:oak_log", 2)).unwrap();
         let input_id = ui.0.item(28).unwrap().net_id;
-        let player = world.spawn((
-            GameMode::Survival, main, ArmourInventory::default(), OffhandSlot::default(), ui,
-            HeldSlot::default(), windows, RequestIdAssignments::default(),
-            PlayerSession::new(1, "grid-test".into(), None, None, tx),
-            Position::new(0.5, 65.62, 0.5), RuntimeId(1), Rotation::default(),
-        )).id();
+        let player = world
+            .spawn((
+                GameMode::Survival,
+                main,
+                ArmourInventory::default(),
+                OffhandSlot::default(),
+                ui,
+                HeldSlot::default(),
+                windows,
+                RequestIdAssignments::default(),
+                PlayerSession::new(1, "grid-test".into(), None, None, tx),
+                Position::new(0.5, 65.62, 0.5),
+                RuntimeId(1),
+                Rotation::default(),
+            ))
+            .id();
         let mut actions = Vec::new();
         if late_failure {
-            actions.push(Action::DropActionData(ItemStackRequestCerealDropActionData {
-                amount: 2,
-                source: slot(Name::Combinedhotbarandinventorycontainer, 0, drop_id),
-                ..Default::default()
-            }));
+            actions.push(Action::DropActionData(
+                ItemStackRequestCerealDropActionData {
+                    amount: 2,
+                    source: slot(Name::Combinedhotbarandinventorycontainer, 0, drop_id),
+                    ..Default::default()
+                },
+            ));
         }
         actions.extend([
             Action::CraftRecipeActionData(ItemStackRequestCerealCraftRecipeActionData {
@@ -1553,12 +1797,18 @@ mod grid_transaction_tests {
                 source: slot(Name::Craftinginputcontainer, 28, input_id),
                 ..Default::default()
             }),
-            take(4, slot(Name::Createdoutputcontainer, 50, -1),
-                slot(Name::Combinedhotbarandinventorycontainer, 1, 0)),
+            take(
+                4,
+                slot(Name::Createdoutputcontainer, 50, -1),
+                slot(Name::Combinedhotbarandinventorycontainer, 1, 0),
+            ),
         ]);
         if late_failure {
-            actions.push(take(0, slot(Name::Combinedhotbarandinventorycontainer, 1, -1),
-                slot(Name::Combinedhotbarandinventorycontainer, 2, 0)));
+            actions.push(take(
+                0,
+                slot(Name::Combinedhotbarandinventorycontainer, 1, -1),
+                slot(Name::Combinedhotbarandinventorycontainer, 2, 0),
+            ));
         }
         let mut requests = vec![ItemStackRequestPacketDataRequestData {
             client_request_id: TypedClientNetIdstructItemStackRequestIdTagint32T0 { id: -1 },
@@ -1568,13 +1818,17 @@ mod grid_transaction_tests {
         if !late_failure {
             requests.push(ItemStackRequestPacketDataRequestData {
                 client_request_id: TypedClientNetIdstructItemStackRequestIdTagint32T0 { id: -3 },
-                actions: vec![take(4, slot(Name::Combinedhotbarandinventorycontainer, 1, -1),
-                    slot(Name::Combinedhotbarandinventorycontainer, 2, 0))],
+                actions: vec![take(
+                    4,
+                    slot(Name::Combinedhotbarandinventorycontainer, 1, -1),
+                    slot(Name::Combinedhotbarandinventorycontainer, 2, 0),
+                )],
                 ..Default::default()
             });
         }
         world.insert_resource(InventoryPacketQueue(vec![(
-            player, super::InventoryAction::ItemStackRequest(ItemStackRequestPacket { requests }),
+            player,
+            super::InventoryAction::ItemStackRequest(ItemStackRequestPacket { requests }),
         )]));
         let mut schedule = Schedule::default();
         schedule.add_systems(apply_inventory);
@@ -1587,17 +1841,48 @@ mod grid_transaction_tests {
         let (world, player, mut rx) = run(false);
         let main = &world.get::<MainInventory>(player).unwrap().0;
         assert!(main.item(1).unwrap().is_empty());
-        assert_eq!((main.item(2).unwrap().item_id(), main.item(2).unwrap().count),
-            ("minecraft:oak_planks", 4));
-        assert_eq!(world.get::<PlayerUi>(player).unwrap().0.item(28).unwrap().count, 1);
+        assert_eq!(
+            (main.item(2).unwrap().item_id(), main.item(2).unwrap().count),
+            ("minecraft:oak_planks", 4)
+        );
+        assert_eq!(
+            world
+                .get::<PlayerUi>(player)
+                .unwrap()
+                .0
+                .item(28)
+                .unwrap()
+                .count,
+            1
+        );
         let McpePacketData::ItemStackResponsePacket(packet) = rx.try_recv().unwrap().data else {
             panic!("one grouped response")
         };
         assert_eq!(packet.responses.len(), 2);
-        assert_eq!(packet.responses.iter().map(|response| response.client_request_id.id).collect::<Vec<_>>(), [-1, -3]);
-        assert!(packet.responses.iter().all(|response| response.result == EnumsItemStackNetResult::Success));
-        let first_id = packet.responses[0].containers.as_ref().unwrap()[1].slots[0].item_stack_net_id.as_ref().unwrap().id;
-        let second_id = packet.responses[1].containers.as_ref().unwrap()[0].slots[1].item_stack_net_id.as_ref().unwrap().id;
+        assert_eq!(
+            packet
+                .responses
+                .iter()
+                .map(|response| response.client_request_id.id)
+                .collect::<Vec<_>>(),
+            [-1, -3]
+        );
+        assert!(
+            packet
+                .responses
+                .iter()
+                .all(|response| response.result == EnumsItemStackNetResult::Success)
+        );
+        let first_id = packet.responses[0].containers.as_ref().unwrap()[1].slots[0]
+            .item_stack_net_id
+            .as_ref()
+            .unwrap()
+            .id;
+        let second_id = packet.responses[1].containers.as_ref().unwrap()[0].slots[1]
+            .item_stack_net_id
+            .as_ref()
+            .unwrap()
+            .id;
         assert_eq!(first_id, second_id);
         assert_eq!(second_id, main.item(2).unwrap().net_id);
         assert!(rx.try_recv().is_err());
@@ -1610,7 +1895,16 @@ mod grid_transaction_tests {
         assert_eq!(main.item(0).unwrap().count, 5);
         assert!(main.item(1).unwrap().is_empty());
         assert!(main.item(2).unwrap().is_empty());
-        assert_eq!(world.get::<PlayerUi>(player).unwrap().0.item(28).unwrap().count, 2);
+        assert_eq!(
+            world
+                .get::<PlayerUi>(player)
+                .unwrap()
+                .0
+                .item(28)
+                .unwrap()
+                .count,
+            2
+        );
         assert_eq!(world.query::<&ItemEntityStack>().iter(&world).count(), 0);
         assert!(!world.contains_resource::<crate::entity::EntityRandom>());
         assert!(!world.contains_resource::<super::super::types::ItemEntityIdCounter>());
@@ -1618,7 +1912,10 @@ mod grid_transaction_tests {
             panic!("one rejected response")
         };
         assert_eq!(packet.responses.len(), 1);
-        assert_eq!(packet.responses[0].result, EnumsItemStackNetResult::Invalidadjustedamount);
+        assert_eq!(
+            packet.responses[0].result,
+            EnumsItemStackNetResult::Invalidadjustedamount
+        );
         assert!(packet.responses[0].containers.is_none());
         assert!(rx.try_recv().is_err());
     }

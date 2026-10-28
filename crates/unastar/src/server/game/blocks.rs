@@ -257,7 +257,7 @@ fn broadcast_block_crack_stop(world: &World, x: i32, y: i32, z: i32) {
     }
 }
 
-fn block_at(world: &World, position: (i32, i32, i32)) -> Option<u32> {
+pub(super) fn block_at(world: &World, position: (i32, i32, i32)) -> Option<u32> {
     let (x, y, z) = position;
     if !(crate::world::chunk::MIN_Y
         ..crate::world::chunk::MIN_Y + i32::from(crate::world::chunk::SUBCHUNK_COUNT) * 16)
@@ -303,6 +303,30 @@ fn can_interact(world: &World, entity: Entity, position: (i32, i32, i32)) -> boo
         5.0
     };
     origin.distance_squared(nearest) <= reach * reach
+}
+
+/// A crafting table's `use` runs before item placement unless the player is
+/// sneaking with an item in hand, as for every interactive block.
+fn uses_crafting_table(world: &World, entity: Entity, clicked: (i32, i32, i32)) -> bool {
+    use crate::entity::components::{HeldSlot, MainInventory, PlayerState};
+    let is_table = block_at(world, clicked).is_some_and(|runtime_id| {
+        world
+            .get_resource::<super::types::BlockRegistryResource>()
+            .and_then(|registry| registry.0.get_by_runtime_id(runtime_id))
+            .is_some_and(|entry| entry.string_id == "minecraft:crafting_table")
+    });
+    if !is_table {
+        return false;
+    }
+    let sneaking = world
+        .get::<PlayerState>(entity)
+        .is_some_and(|state| state.sneaking);
+    let holding = world
+        .get::<HeldSlot>(entity)
+        .zip(world.get::<MainInventory>(entity))
+        .and_then(|(slot, main)| main.0.item(usize::from(slot.0)))
+        .is_some_and(|stack| !stack.is_empty());
+    !(sneaking && holding)
 }
 
 /// Resolve placeable content exclusively from the server's selected stack.
@@ -770,6 +794,10 @@ fn handle_block_click(
             face: data.face,
         });
     }
+    if uses_crafting_table(world, entity, clicked) {
+        super::inventory::open_workbench(world, entity, clicked);
+        return;
+    }
     let held = held_block(world, entity);
     let matches_held = held.as_ref().is_some_and(|(_, stack, network_id)| {
         data.hand == jolyne::valentine::EnumsHandSlot::Mainhand
@@ -1039,6 +1067,44 @@ mod tests {
             ))
             .id();
         (world, player, chunk)
+    }
+
+    #[test]
+    fn crafting_table_use_wins_unless_sneaking_with_an_item() {
+        use crate::entity::components::PlayerState;
+        let (mut world, player, chunk) =
+            block_world(GameMode::Survival, DVec3::new(1.5, 65.62, 1.5));
+        let table = crate::registry::BlockRegistry::vanilla()
+            .default_state_id_by_name("minecraft:crafting_table")
+            .unwrap();
+        world
+            .get_mut::<ChunkData>(chunk)
+            .unwrap()
+            .inner
+            .set_block(1, 64, 1, table);
+        world.entity_mut(player).insert(PlayerState::default());
+        assert!(uses_crafting_table(&world, player, (1, 64, 1)));
+        world.get_mut::<PlayerState>(player).unwrap().sneaking = true;
+        assert!(
+            uses_crafting_table(&world, player, (1, 64, 1)),
+            "sneaking, empty hand"
+        );
+        world
+            .get_mut::<MainInventory>(player)
+            .unwrap()
+            .0
+            .set_item(0, crate::item::test_support::stack("minecraft:stone", 1))
+            .unwrap();
+        assert!(
+            !uses_crafting_table(&world, player, (1, 64, 1)),
+            "sneaking with an item places"
+        );
+        world.get_mut::<PlayerState>(player).unwrap().sneaking = false;
+        assert!(uses_crafting_table(&world, player, (1, 64, 1)));
+        assert!(
+            !uses_crafting_table(&world, player, (1, 65, 1)),
+            "air is not a table"
+        );
     }
 
     #[test]
