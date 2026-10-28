@@ -270,7 +270,7 @@ fn chest_open_move_close_over_loopback() {
         let held = CerealizerNetworkItemStackDescriptorSerializedData {
             id: chest_id,
             stacksize: 1,
-            auxvalue: chest.item_instance.auxvalue as u32,
+            auxvalue: chest.item_instance.auxvalue,
             net_id_variant: None,
             block_runtime_id: chest.item_instance.block_runtime_id as u32,
             user_data_buffer: chest.item_instance.user_data_buffer.clone(),

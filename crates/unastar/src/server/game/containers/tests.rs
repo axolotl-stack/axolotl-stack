@@ -99,7 +99,7 @@ impl Harness {
         props
             .iter()
             .fold(entry.default_state_id, |state, (prop, value)| {
-                entry.with_state_value(state, prop, value.clone()).unwrap()
+                entry.with_state_value(state, prop, *value).unwrap()
             })
     }
 

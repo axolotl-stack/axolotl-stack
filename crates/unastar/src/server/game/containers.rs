@@ -627,13 +627,13 @@ pub(super) fn commit_window(
         return;
     }
     if screen.kind.smelter().is_some() {
-        let input_changed = !after.item(0).unwrap().comparable(before.item(0).unwrap())
-            && !(after.item(0).unwrap().is_empty() && before.item(0).unwrap().is_empty());
+        let (input_before, input_after) = (before.item(0).unwrap(), after.item(0).unwrap());
+        // BDS `setItem(0)`: a different (or emptied/filled) input restarts cooking.
+        let input_changed = !(input_after.comparable(input_before)
+            || input_after.is_empty() && input_before.is_empty());
         let taken = taken_output(before.item(2).unwrap(), after.item(2).unwrap());
-        if let Some(mut container) = container_mut(world, screen.at) {
-            if input_changed {
-                container.furnace.cook_time = 0;
-            }
+        if input_changed && let Some(mut container) = container_mut(world, screen.at) {
+            container.furnace.cook_time = 0;
         }
         if let Some(taken) = taken {
             pay_smelting_xp(world, player, screen.at, &taken);
@@ -871,7 +871,7 @@ fn try_pair(world: &mut World, pos: IVec3, kind: ContainerKind) {
     else {
         return;
     };
-    for other in pair_candidates(pos, &direction) {
+    for other in pair_candidates(pos, direction) {
         if kind_at(world, other).map(|(k, _)| k) != Some(kind)
             || state_value(world, other, "minecraft:cardinal_direction")
                 != Some(StateValue::Str(direction))
@@ -1026,7 +1026,7 @@ pub fn tick_block_containers(world: &mut World) {
         }
     }
     upkeep_viewers(world, tick);
-    if tick % 200 == 0 {
+    if tick.is_multiple_of(200) {
         evict_unloaded(world);
     }
 }
@@ -1078,7 +1078,7 @@ fn upkeep_viewers(world: &mut World, tick: u64) {
             Some(kind) if closed && kind.viewer_sounds().is_some() => {
                 set_lid(world, kind, lid, false)
             }
-            Some(kind) if !closed && kind.has_lid() && tick % LID_KEEPALIVE_TICKS == 0 => {
+            Some(kind) if !closed && kind.has_lid() && tick.is_multiple_of(LID_KEEPALIVE_TICKS) => {
                 broadcast(
                     world,
                     lid,
