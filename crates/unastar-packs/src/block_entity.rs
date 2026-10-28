@@ -70,6 +70,7 @@ fn native_id(id: &str) -> CompileResult<&'static str> {
         "HangingSign" | "minecraft:hanging_sign" => "HangingSign",
         "JigsawBlock" | "minecraft:jigsaw" => "JigsawBlock",
         "Jukebox" | "minecraft:jukebox" => "Jukebox",
+        "Shelf" | "minecraft:shelf" => "Shelf",
         _ => return Err(format!("unsupported block actor id {id:?}").into()),
     })
 }
