@@ -152,14 +152,6 @@ impl UnastarServer {
     /// This binds the listener, spawns the accept loop, and runs the tick loop until shutdown.
     pub async fn run(&mut self) -> Result<(), Box<dyn std::error::Error>> {
         info!("run() called, starting server initialization");
-        let default_chunk_radius = self
-            .server
-            .ecs
-            .world()
-            .get_resource::<crate::server::game::ServerConfigResource>()
-            .unwrap()
-            .0
-            .default_chunk_radius;
 
         // Build listener config from server settings
         let listener_config = BedrockListenerConfig {
@@ -297,6 +289,7 @@ impl UnastarServer {
                                 runtime_id,
                                 initial_position,
                                 saved_data,
+                                chunk_radius,
                                 outbound_tx,
                             } => {
                                 let spawn_data = PlayerSpawnData {
@@ -308,7 +301,7 @@ impl UnastarServer {
                                     position: initial_position,
                                     saved_data: saved_data.map(|data| *data),
                                     outbound_tx,
-                                    chunk_radius: default_chunk_radius,
+                                    chunk_radius,
                                 };
                                 self.server.spawn_player(spawn_data);
                             }
@@ -466,6 +459,12 @@ fn spawn_accept_loop(mut listener: BedrockListener<RaknetListener>, state: Accep
 
                                 info!(%addr, name = %display_name, "Player joined");
 
+                                // The streamed spawn ends at the radius request.
+                                let Some(chunk_radius) = play_stream.chunk_radius() else {
+                                    error!(%addr, "Streamed spawn ended without a chunk radius");
+                                    return;
+                                };
+
                                 // Packets are batched per tick; the network loop flushes.
                                 if let Err(e) = play_stream.set_flush_mode(FlushMode::Manual).await
                                 {
@@ -490,6 +489,7 @@ fn spawn_accept_loop(mut listener: BedrockListener<RaknetListener>, state: Accep
                                         runtime_id: session_id as i64,
                                         initial_position: spawn_to_dvec3(&initial_position),
                                         saved_data: saved_data.map(Box::new),
+                                        chunk_radius,
                                         outbound_tx: outbound_tx.clone(),
                                     })
                                     .await
