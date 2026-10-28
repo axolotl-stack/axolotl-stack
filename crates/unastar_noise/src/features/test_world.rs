@@ -76,8 +76,8 @@ impl FeatureWorld for TestWorld {
     fn sea_level(&self) -> i32 {
         63
     }
-    fn has_skylight(&self) -> bool {
-        self.has_skylight
+    fn raw_brightness(&mut self, _pos: BlockPos, sky_darken: i32) -> i32 {
+        if self.has_skylight { 15_i32.wrapping_sub(sky_darken).max(0) } else { 0 }
     }
     fn seed(&self) -> i64 {
         self.seed

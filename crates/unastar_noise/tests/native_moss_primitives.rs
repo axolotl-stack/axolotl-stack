@@ -23,7 +23,9 @@ impl FeatureWorld for Cave {
     fn min_y(&self) -> i32 { -64 }
     fn height(&self) -> i32 { 384 }
     fn sea_level(&self) -> i32 { 63 }
-    fn has_skylight(&self) -> bool { true }
+    fn raw_brightness(&mut self, _pos: BlockPos, sky_darken: i32) -> i32 {
+        15_i32.wrapping_sub(sky_darken).max(0)
+    }
     fn seed(&self) -> i64 { 12345 }
     fn gen_depth(&self) -> i32 { 384 }
     fn get_state(&mut self, p: BlockPos) -> JavaState {
@@ -145,7 +147,9 @@ impl FeatureWorld for NativeSubstrate {
     fn min_y(&self) -> i32 { self.min_y }
     fn height(&self) -> i32 { self.height }
     fn sea_level(&self) -> i32 { 63 }
-    fn has_skylight(&self) -> bool { true }
+    fn raw_brightness(&mut self, _pos: BlockPos, sky_darken: i32) -> i32 {
+        15_i32.wrapping_sub(sky_darken).max(0)
+    }
     fn seed(&self) -> i64 { 12345 }
     fn gen_depth(&self) -> i32 { 384 }
     fn get_state(&mut self, p: BlockPos) -> JavaState {

@@ -114,11 +114,14 @@ output-preserving optimization speedups or proof of finished End chunk parity.
 
 ## Block identity
 
-Generated code works in Bedrock runtime ids (`u32`, the canonical 1.26.51 palette ordinals
-used by `unastar`'s chunks). Java block states are resolved at build time through
-`java_data/bedrock_blocks.json`; every Java 1.21.11 state maps to exactly one Bedrock
-state. `block_class` flags (air, fluid, water, leaves, blocks-motion, full top face) drive
-heightmaps and the world-spawn search; they come from the Java collision shapes.
+Native Java router settings, terrain, surface, carvers, features and structures use
+canonical Java 1.21.11 state ids. `DenseBlocks` and chunks carry their identity
+domain explicitly; no inverse of the many-to-one Bedrock map is used.
+`java_data/bedrock_blocks.json` supplies the one-way output mapping to the
+Bedrock 1.26.51 palette. Native class/support/behavior arrays are validated from
+actual `block_physics.json` state observations, not inferred collision shapes.
+The calibrated shared Bedrock terrain backend converts its explicitly bounded
+material domain before Bedrock-specific geology and surface processing.
 
 ## Java decoration and structures
 

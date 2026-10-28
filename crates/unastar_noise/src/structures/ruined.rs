@@ -46,7 +46,7 @@ pub fn blackstone_replace(state: JavaState) -> JavaState {
     with_properties_of(to, state)
 }
 
-fn random_facing_stairs<S: BitSource>(rng: &mut WorldgenRandom<S>, block: JavaBlock) -> JavaState {
+fn random_facing_stairs<S: BitSource, const RETAIN_GAUSSIAN: bool>(rng: &mut WorldgenRandom<S, RETAIN_GAUSSIAN>, block: JavaBlock) -> JavaState {
     let facing = Direction::HORIZONTAL[rng.next_int_bounded(4) as usize];
     let half = ["top", "bottom"][rng.next_int_bounded(2) as usize];
     block
@@ -55,8 +55,8 @@ fn random_facing_stairs<S: BitSource>(rng: &mut WorldgenRandom<S>, block: JavaBl
         .with("half", half)
 }
 
-fn pick<S: BitSource>(
-    rng: &mut WorldgenRandom<S>,
+fn pick<S: BitSource, const RETAIN_GAUSSIAN: bool>(
+    rng: &mut WorldgenRandom<S, RETAIN_GAUSSIAN>,
     mossiness: f32,
     normal: &[JavaState],
     mossy: &[JavaState],
@@ -73,10 +73,10 @@ fn pick<S: BitSource>(
 ///
 /// Java builds the candidate arrays before choosing, so the random stair
 /// facings are drawn even when a non-stair candidate wins.
-pub fn block_age<S: BitSource>(
+pub fn block_age<S: BitSource, const RETAIN_GAUSSIAN: bool>(
     state: JavaState,
     mossiness: f32,
-    rng: &mut WorldgenRandom<S>,
+    rng: &mut WorldgenRandom<S, RETAIN_GAUSSIAN>,
 ) -> Option<JavaState> {
     let block = state.block();
     if block == b::STONE_BRICKS || block == b::STONE || block == b::CHISELED_STONE_BRICKS {

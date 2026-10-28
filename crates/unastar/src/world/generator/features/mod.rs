@@ -149,8 +149,15 @@ impl<S: NativeStructureSource> FeatureWorld for RegionWorld<'_, '_, S> {
     fn sea_level(&self) -> i32 {
         self.settings.sea_level
     }
-    fn has_skylight(&self) -> bool {
-        self.settings.has_skylight
+    fn raw_brightness(&mut self, _pos: BlockPos, sky_darken: i32) -> i32 {
+        // This region only runs pre-INITIALIZE_LIGHT generation. Native visible
+        // section storage is still virgin: absent block light is zero and
+        // absent sky light is fifteen, independent of placed roofs or terrain.
+        if self.settings.has_skylight {
+            15_i32.wrapping_sub(sky_darken).max(0)
+        } else {
+            0
+        }
     }
     fn seed(&self) -> i64 {
         self.region.seed()
