@@ -113,14 +113,17 @@ fn is_base(state: JavaState) -> bool {
     state.value("bottom") == Some("true")
 }
 
-/// `MossyCarpetBlock.canSupportAtFace` for a horizontal direction.
+/// `MossyCarpetBlock.canSupportAtFace` for a horizontal direction:
+/// `MultifaceBlock.canAttachTo`, so leaves (full collision, empty support)
+/// carry sides, as a native pale garden on holdout seed 218638932310160429
+/// shows.
 #[inline]
 fn can_support_at_face<W: FeatureWorld + ?Sized>(
     world: &mut W,
     pos: BlockPos,
     dir: Direction,
 ) -> bool {
-    world.get_state(pos.rel(dir)).is_face_sturdy(dir.opposite())
+    super::multiface_growth::can_attach_to(world.get_state(pos.rel(dir)), dir)
 }
 
 /// `MossyCarpetBlock.getUpdatedState`.
