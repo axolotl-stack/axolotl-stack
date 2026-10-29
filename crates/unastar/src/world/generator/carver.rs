@@ -176,7 +176,10 @@ pub fn carve_chunk<C: CarveContext>(
 ) {
     let geometry = CarverGeometry::for_dimension(dimension);
     let (carvers, names): (&[ConfiguredCarver], &[&'static str]) = match dimension {
-        JavaDimension::Overworld => (&carvers::OVERWORLD_CARVERS, &carvers::OVERWORLD_CARVER_NAMES),
+        JavaDimension::Overworld => (
+            &carvers::OVERWORLD_CARVERS,
+            &carvers::OVERWORLD_CARVER_NAMES,
+        ),
         JavaDimension::Nether => (&carvers::NETHER_CARVERS, &carvers::NETHER_CARVER_NAMES),
         JavaDimension::End => (&carvers::END_CARVERS, &carvers::END_CARVER_NAMES),
     };
