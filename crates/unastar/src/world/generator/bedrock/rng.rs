@@ -71,21 +71,21 @@ impl BedrockRandom {
         y ^ (y >> 18)
     }
 
-    /// Non-negative 31-bit integer (Bedrock's unbounded `nextInt`): the
-    /// tempered output without its low bit.
+    /// Non-negative 31-bit integer (the unbounded integer draw of Bedrock
+    /// generation): the tempered output without its low bit.
     #[inline]
     pub const fn next_non_negative_int(&mut self) -> i32 {
         (self.next_u32() >> 1) as i32
     }
 
-    /// Bedrock's `nextBoolean`: bit 27 of one output.
+    /// A boolean draw as Bedrock generation makes it: bit 27 of one output.
     #[inline]
     pub fn next_bool(&mut self) -> bool {
         (self.next_u32() >> 27) & 1 == 1
     }
 
-    /// Uniform double in `[0, 1)` from a single 32-bit output (Bedrock's
-    /// `nextDouble`; Java draws two).
+    /// Uniform double in `[0, 1)` from a single 32-bit output (Bedrock
+    /// generation draws one output where Java draws two).
     #[inline]
     pub fn next_double(&mut self) -> f64 {
         f64::from(self.next_u32()) * (1.0 / 4_294_967_296.0)
