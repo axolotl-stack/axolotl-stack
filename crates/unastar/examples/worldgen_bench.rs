@@ -445,6 +445,45 @@ struct NetworkResult {
     compress_ms: BTreeMap<u32, f64>,
     payload_bytes: f64,
     compressed_bytes: BTreeMap<u32, f64>,
+    /// `LevelDBWorldProvider::save_column`, per chunk.
+    storage_save_ms: f64,
+    /// `LevelDBWorldProvider::load_column` of a stored chunk, per chunk
+    /// (reopened database: a cold block cache).
+    storage_load_ms: f64,
+}
+
+/// Saves the chunks to a scratch LevelDB world, reopens it and loads them
+/// again: per-chunk save and cold load time.
+fn storage(chunks: &[unastar::world::chunk::Chunk]) -> Result<(f64, f64)> {
+    use unastar::storage::{ChunkColumn, LevelDBWorldProvider, WorldProvider};
+    let dir = tempfile::tempdir()?;
+    let n = chunks.len() as f64;
+    let runtime = tokio::runtime::Builder::new_current_thread()
+        .enable_all()
+        .build()?;
+    runtime.block_on(async {
+        let provider = LevelDBWorldProvider::open(dir.path())?;
+        let started = Instant::now();
+        for chunk in chunks {
+            let pos = ChunkPos::new(chunk.x, chunk.z);
+            provider
+                .save_column(pos, 0, &ChunkColumn::new(chunk.clone()))
+                .await?;
+        }
+        let save_ms = started.elapsed().as_secs_f64() * 1e3 / n;
+        drop(provider);
+        let provider = LevelDBWorldProvider::open(dir.path())?;
+        let started = Instant::now();
+        for chunk in chunks {
+            let loaded = provider
+                .load_column(ChunkPos::new(chunk.x, chunk.z), 0)
+                .await?
+                .context("stored chunk loads")?;
+            std::hint::black_box(loaded);
+        }
+        let load_ms = started.elapsed().as_secs_f64() * 1e3 / n;
+        Ok((save_ms, load_ms))
+    })
 }
 
 /// Per-chunk cost of the network stages after generation, single-threaded:
@@ -513,6 +552,7 @@ fn network(options: &Options, fixture: &Fixture) -> Result<()> {
         compress_ms.insert(level, ms);
         compressed_bytes.insert(level, bytes);
     }
+    let (storage_save_ms, storage_load_ms) = storage(&chunks)?;
     let result = NetworkResult {
         kind: options.kind.clone(),
         chunks: chunks.len(),
@@ -522,6 +562,8 @@ fn network(options: &Options, fixture: &Fixture) -> Result<()> {
         compress_ms,
         payload_bytes,
         compressed_bytes,
+        storage_save_ms,
+        storage_load_ms,
     };
     println!("{}", serde_json::to_string_pretty(&result)?);
     Ok(())

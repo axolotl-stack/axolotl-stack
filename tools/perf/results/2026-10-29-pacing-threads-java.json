@@ -1,0 +1,106 @@
+[
+  {
+    "generation_threads": 16,
+    "generator": "java",
+    "label": "threads16",
+    "players": 1,
+    "players_result": [
+      {
+        "chunks_received": 625,
+        "disk_chunks": 441,
+        "disk_view_ms": 1476.5122,
+        "first_chunk_ms": 521.2265,
+        "flight": null,
+        "join_ms": 520.8774999999999,
+        "name": "LoadBot0",
+        "square_chunks": 625,
+        "square_view_ms": 1861.0395,
+        "terrain_bytes": 20041879
+      }
+    ],
+    "radius": 12,
+    "seed": 12345,
+    "server": "unastar ../stab-wg-perf-merge/loadbench/unastar-pacing.exe",
+    "world": "generated",
+    "worst_disk_view_ms": 1476.5122,
+    "worst_square_view_ms": 1861.0395
+  },
+  {
+    "generation_threads": 16,
+    "generator": "java",
+    "label": "threads16",
+    "players": 1,
+    "players_result": [
+      {
+        "chunks_received": 625,
+        "disk_chunks": 441,
+        "disk_view_ms": 2117.5378,
+        "first_chunk_ms": 404.0056,
+        "flight": null,
+        "join_ms": 255.8393,
+        "name": "LoadBot0",
+        "square_chunks": 625,
+        "square_view_ms": 2562.1663999999996,
+        "terrain_bytes": 20083428
+      }
+    ],
+    "radius": 12,
+    "seed": 12345,
+    "server": "unastar ../stab-wg-perf-merge/loadbench/unastar-pacing.exe",
+    "world": "fresh",
+    "worst_disk_view_ms": 2117.5378,
+    "worst_square_view_ms": 2562.1663999999996
+  },
+  {
+    "generation_threads": 32,
+    "generator": "java",
+    "label": "threads32",
+    "players": 1,
+    "players_result": [
+      {
+        "chunks_received": 625,
+        "disk_chunks": 441,
+        "disk_view_ms": 1004.5509,
+        "first_chunk_ms": 524.7456000000001,
+        "flight": null,
+        "join_ms": 524.3371,
+        "name": "LoadBot0",
+        "square_chunks": 625,
+        "square_view_ms": 1190.3902,
+        "terrain_bytes": 20075840
+      }
+    ],
+    "radius": 12,
+    "seed": 12345,
+    "server": "unastar ../stab-wg-perf-merge/loadbench/unastar-pacing.exe",
+    "world": "generated",
+    "worst_disk_view_ms": 1004.5509,
+    "worst_square_view_ms": 1190.3902
+  },
+  {
+    "generation_threads": 32,
+    "generator": "java",
+    "label": "threads32",
+    "players": 1,
+    "players_result": [
+      {
+        "chunks_received": 625,
+        "disk_chunks": 441,
+        "disk_view_ms": 1783.6058,
+        "first_chunk_ms": 468.11740000000003,
+        "flight": null,
+        "join_ms": 324.8683,
+        "name": "LoadBot0",
+        "square_chunks": 625,
+        "square_view_ms": 2122.1454999999996,
+        "terrain_bytes": 20112384
+      }
+    ],
+    "radius": 12,
+    "seed": 12345,
+    "server": "unastar ../stab-wg-perf-merge/loadbench/unastar-pacing.exe",
+    "world": "fresh",
+    "worst_disk_view_ms": 1783.6058,
+    "worst_square_view_ms": 2122.1454999999996
+  }
+]
