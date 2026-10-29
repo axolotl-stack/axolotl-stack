@@ -9,7 +9,7 @@ use bevy_ecs::prelude::*;
 use jolyne::valentine::types::{ActorRuntimeId, AttributeData, PlayerInputTick};
 use jolyne::valentine::{McpePacket, UpdateAttributesPacket};
 
-use crate::ecs::resources::TickCounter;
+use crate::entity::components::player::player_input_tick;
 use crate::entity::components::{Experience, Health, Hunger, PlayerSession, RuntimeEntityId};
 use crate::server::game::attributes as wire;
 
@@ -67,7 +67,7 @@ pub fn send_attributes(world: &World, player: Entity, attributes: Vec<AttributeD
         },
         attribute_list: attributes,
         tick: PlayerInputTick {
-            inputtick: world.resource::<TickCounter>().current,
+            inputtick: player_input_tick(world, player),
         },
     }));
 }

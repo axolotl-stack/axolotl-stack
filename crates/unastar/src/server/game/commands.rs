@@ -34,7 +34,6 @@ pub fn apply_chat_and_commands(
     mut queue: ResMut<ChatPacketQueue>,
     mut events: ResMut<ChatEvents>,
     commands: Res<CommandRegistryResource>,
-    tick_counter: Res<crate::ecs::resources::TickCounter>,
     sessions: Query<&PlayerSession>,
     names: Query<(&PlayerName, &PlayerUuid)>,
     runtime_ids: Query<&RuntimeEntityId>,
@@ -53,7 +52,6 @@ pub fn apply_chat_and_commands(
                     entity,
                     &req,
                     &commands,
-                    &tick_counter,
                     &sessions,
                     &runtime_ids,
                     &operators,
@@ -122,7 +120,6 @@ fn handle_command_request(
     entity: Entity,
     req: &jolyne::valentine::CommandRequestPacket,
     commands: &Res<CommandRegistryResource>,
-    tick_counter: &Res<crate::ecs::resources::TickCounter>,
     sessions: &Query<&PlayerSession>,
     runtime_ids: &Query<&RuntimeEntityId>,
     operators: &Query<(), With<Operator>>,
@@ -165,7 +162,6 @@ fn handle_command_request(
         handle_teleport_command(
             entity,
             target,
-            tick_counter,
             sessions,
             runtime_ids,
             tp_targets,
@@ -187,7 +183,6 @@ fn handle_command_request(
 fn handle_teleport_command(
     entity: Entity,
     target: DVec3,
-    tick_counter: &Res<crate::ecs::resources::TickCounter>,
     sessions: &Query<&PlayerSession>,
     runtime_ids: &Query<&RuntimeEntityId>,
     tp_targets: &mut Query<(&mut Position, Option<&mut ChunkLoader>)>,
@@ -227,9 +222,9 @@ fn handle_teleport_command(
             teleportation_cause: 3,
             source_actor_type: 63,
         }),
-        tick: PlayerInputTick {
-            inputtick: tick_counter.current,
-        },
+        // A teleport is not a correction of predicted movement: 0 makes the
+        // client apply it now instead of replaying it at an input tick.
+        tick: PlayerInputTick { inputtick: 0 },
     };
 
     if let Ok(session) = sessions.get(entity) {

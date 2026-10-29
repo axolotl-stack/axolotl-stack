@@ -167,6 +167,17 @@ pub struct PlayerInput {
     pub tick: i64,
 }
 
+/// The input tick stamped on packets that describe `player` to its own client
+/// (`UpdateAttributes`, `SetActorMotion`, ...): the tick of its latest
+/// `PlayerAuthInput`, or 0 before any input arrived. The client replays a
+/// correction at that tick, or applies it immediately for 0 or a tick older
+/// than its replay history, so every such packet must use this one source.
+pub fn player_input_tick(world: &World, player: Entity) -> u64 {
+    world
+        .get::<PlayerInput>(player)
+        .map_or(0, |input| u64::try_from(input.tick).unwrap_or(0))
+}
+
 /// Chunk view radius for this player.
 #[derive(Component, Debug, Clone, Copy)]
 pub struct ChunkRadius(pub i32);
