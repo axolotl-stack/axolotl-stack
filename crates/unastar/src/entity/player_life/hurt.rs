@@ -26,7 +26,7 @@
 //! [`HURT_TICKS`]: crate::entity::mob::constants::HURT_TICKS
 
 use glam::{DVec2, DVec3};
-use jolyne::valentine::types::{ActorRuntimeId, EnumsActorEvent, PlayerInputTick, Vec3};
+use jolyne::valentine::types::{ActorRuntimeId, EnumsActorEvent, Vec3};
 use jolyne::valentine::{ActorEventPacket, McpePacket, SetActorMotionPacket};
 use rand::Rng;
 use unastar_data::actor_components::body::ActorDamageCause;
@@ -270,7 +270,7 @@ fn knock_back(world: &mut World, player: Entity, from: DVec3, power: KnockbackPo
             y: velocity.y as f32,
             z: velocity.z as f32,
         },
-        tick: PlayerInputTick { inputtick: 0 },
+        tick: crate::entity::components::input_tick_of(world, player),
     }));
 }
 

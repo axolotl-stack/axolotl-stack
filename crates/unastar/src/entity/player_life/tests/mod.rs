@@ -6,6 +6,7 @@
 mod death;
 mod environment;
 mod hurt;
+mod input_tick;
 mod respawn;
 
 use bevy_ecs::prelude::*;

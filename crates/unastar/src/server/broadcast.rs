@@ -129,12 +129,14 @@ fn build_add_player_packet(
     }
 }
 
-/// Builds a MovePlayer packet for broadcasting position updates.
+/// Builds a MovePlayer packet for broadcasting position updates; `tick` is
+/// the moving player's own input tick.
 fn build_move_player_packet(
     runtime_id: i64,
     position: &Position,
     rotation: &Rotation,
     on_ground: bool,
+    tick: PlayerInputTick,
 ) -> MovePlayerPacket {
     MovePlayerPacket {
         player_runtime_id: ActorRuntimeId {
@@ -156,7 +158,7 @@ fn build_move_player_packet(
             actor_runtime_id: 0,
         },
         teleport_data: None,
-        tick: PlayerInputTick { inputtick: 0 },
+        tick,
     }
 }
 
@@ -327,16 +329,17 @@ pub fn broadcast_movement_system(
             &Position,
             &Rotation,
             &mut LastBroadcastPosition,
+            Option<&crate::entity::components::PlayerInput>,
         ),
         With<Player>,
     >,
     sessions: Query<(Entity, &PlayerSession)>,
 ) {
     // Collect movement updates to avoid borrow conflicts
-    let mut updates: Vec<(Entity, i64, Position, Rotation, f64, f64, f64, f32, f32)> = Vec::new();
+    let mut updates: Vec<(Entity, i64, Position, Rotation, PlayerInputTick)> = Vec::new();
 
     let player_count = players.iter().count();
-    for (entity, rid, pos, rot, last_pos) in players.iter() {
+    for (entity, rid, pos, rot, last_pos, input) in players.iter() {
         let dist_sq = position_distance_sq(last_pos, pos);
         let yaw_diff = (last_pos.yaw - rot.yaw).abs();
         let pitch_diff = (last_pos.pitch - rot.pitch).abs();
@@ -345,9 +348,8 @@ pub fn broadcast_movement_system(
             || yaw_diff > ROTATION_THRESHOLD
             || pitch_diff > ROTATION_THRESHOLD
         {
-            updates.push((
-                entity, rid.0, *pos, *rot, pos.0.x, pos.0.y, pos.0.z, rot.yaw, rot.pitch,
-            ));
+            let tick = input.map_or(PlayerInputTick { inputtick: 0 }, |i| i.wire_tick());
+            updates.push((entity, rid.0, *pos, *rot, tick));
         }
     }
 
@@ -355,8 +357,8 @@ pub fn broadcast_movement_system(
     let mut packets_sent = 0usize;
 
     // Apply updates using spatial grid for O(N) lookups
-    for (moving_entity, runtime_id, pos, rot, x, y, z, yaw, pitch) in updates {
-        let move_packet = build_move_player_packet(runtime_id, &pos, &rot, true);
+    for (moving_entity, runtime_id, pos, rot, tick) in updates {
+        let move_packet = build_move_player_packet(runtime_id, &pos, &rot, true, tick);
         let mover_chunk = ((pos.0.x.floor() as i32) >> 4, (pos.0.z.floor() as i32) >> 4);
 
         // O(1) neighbor lookup: get entities in 3x3 chunk area
@@ -373,12 +375,12 @@ pub fn broadcast_movement_system(
         }
 
         // Update last broadcast position
-        if let Ok((_, _, _, _, mut last_pos)) = players.get_mut(moving_entity) {
-            last_pos.x = x;
-            last_pos.y = y;
-            last_pos.z = z;
-            last_pos.yaw = yaw;
-            last_pos.pitch = pitch;
+        if let Ok((_, _, _, _, mut last_pos, _)) = players.get_mut(moving_entity) {
+            last_pos.x = pos.0.x;
+            last_pos.y = pos.0.y;
+            last_pos.z = pos.0.z;
+            last_pos.yaw = rot.yaw;
+            last_pos.pitch = rot.pitch;
         }
     }
 

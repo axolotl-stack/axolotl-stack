@@ -3,7 +3,7 @@
 //! they change the way BDS does, and replies to the executor.
 
 use bevy_ecs::prelude::*;
-use jolyne::valentine::types::{ActorUniqueId, PlayerInputTick};
+use jolyne::valentine::types::ActorUniqueId;
 use jolyne::valentine::{
     GameRulesChangedPacket, McpePacket, SetDifficultyPacket, SetPlayerGameTypePacket,
     UpdatePlayerGameTypePacket,
@@ -125,8 +125,8 @@ fn apply_game_mode(
             return output;
         }
     };
-    let tick = world.resource::<TickCounter>().current;
     for player in targets {
+        let tick = crate::entity::components::input_tick_of(world, player);
         let Some(runtime_id) = world.get::<RuntimeEntityId>(player).map(|id| id.0) else {
             continue;
         };
@@ -146,7 +146,7 @@ fn apply_game_mode(
                 targetplayer: ActorUniqueId {
                     actor_unique_id: runtime_id,
                 },
-                tick: PlayerInputTick { inputtick: tick },
+                tick,
             }),
         );
         broadcast(world, McpePacket::from(abilities_packet(runtime_id, mode)));

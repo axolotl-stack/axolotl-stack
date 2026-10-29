@@ -16,7 +16,9 @@ use crate::command::{
 };
 use crate::ecs::events::ServerEvent;
 use crate::entity::components::transform::Position;
-use crate::entity::components::{PlayerName, PlayerSession, PlayerUuid, RuntimeEntityId};
+use crate::entity::components::{
+    PlayerInput, PlayerName, PlayerSession, PlayerUuid, RuntimeEntityId,
+};
 use crate::entity::mob::{SpawnCause, spawn_mob};
 use crate::world::ecs::ChunkLoader;
 use jolyne::valentine::types::{
@@ -34,7 +36,7 @@ pub fn apply_chat_and_commands(
     mut queue: ResMut<ChatPacketQueue>,
     mut events: ResMut<ChatEvents>,
     commands: Res<CommandRegistryResource>,
-    tick_counter: Res<crate::ecs::resources::TickCounter>,
+    inputs: Query<&PlayerInput>,
     sessions: Query<&PlayerSession>,
     names: Query<(&PlayerName, &PlayerUuid)>,
     runtime_ids: Query<&RuntimeEntityId>,
@@ -53,7 +55,7 @@ pub fn apply_chat_and_commands(
                     entity,
                     &req,
                     &commands,
-                    &tick_counter,
+                    &inputs,
                     &sessions,
                     &runtime_ids,
                     &operators,
@@ -122,7 +124,7 @@ fn handle_command_request(
     entity: Entity,
     req: &jolyne::valentine::CommandRequestPacket,
     commands: &Res<CommandRegistryResource>,
-    tick_counter: &Res<crate::ecs::resources::TickCounter>,
+    inputs: &Query<&PlayerInput>,
     sessions: &Query<&PlayerSession>,
     runtime_ids: &Query<&RuntimeEntityId>,
     operators: &Query<(), With<Operator>>,
@@ -162,14 +164,7 @@ fn handle_command_request(
     let context = CommandContext::new(session.session_id, operators.contains(entity));
     let mut output = commands.0.execute(&context, &mut invocation);
     if let Some(target) = output.teleport {
-        handle_teleport_command(
-            entity,
-            target,
-            tick_counter,
-            sessions,
-            runtime_ids,
-            tp_targets,
-        );
+        handle_teleport_command(entity, target, inputs, sessions, runtime_ids, tp_targets);
     }
     if let Some(summon) = output.summon.take() {
         deferred.queue(move |world: &mut World| apply_summon(world, entity, &summon));
@@ -187,7 +182,7 @@ fn handle_command_request(
 fn handle_teleport_command(
     entity: Entity,
     target: DVec3,
-    tick_counter: &Res<crate::ecs::resources::TickCounter>,
+    inputs: &Query<&PlayerInput>,
     sessions: &Query<&PlayerSession>,
     runtime_ids: &Query<&RuntimeEntityId>,
     tp_targets: &mut Query<(&mut Position, Option<&mut ChunkLoader>)>,
@@ -227,9 +222,9 @@ fn handle_teleport_command(
             teleportation_cause: 3,
             source_actor_type: 63,
         }),
-        tick: PlayerInputTick {
-            inputtick: tick_counter.current,
-        },
+        tick: inputs
+            .get(entity)
+            .map_or(PlayerInputTick { inputtick: 0 }, PlayerInput::wire_tick),
     };
 
     if let Ok(session) = sessions.get(entity) {
