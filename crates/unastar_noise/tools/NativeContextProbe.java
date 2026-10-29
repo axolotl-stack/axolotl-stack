@@ -29,6 +29,8 @@ public final class NativeContextProbe {
     static final List<Object> nativeTaskTrace=Collections.synchronizedList(new ArrayList<>());
     static volatile int activeNativeRequest=-1;
     static int activeCoordinateRequestIndex=-1;
+    /** Request order of the dimension currently being captured. */
+    static List<String> activeCoordinateOrder=List.of();
     static Path taskObserverFailureOutput;
     static final int MAX_TASK_EVENTS=100_000, MAX_OBSERVED_OBJECTS=30_000;
     static final IdentityHashMap<Object,Integer> observedObjects=new IdentityHashMap<>();
@@ -40,6 +42,7 @@ public final class NativeContextProbe {
     static Object mossTaskProbe;
     static Method mossTaskObserve;
     static boolean structures=false;
+    static boolean parallelOrigins;
     static Object inputs(String lowerDimension)throws Exception {
         return invoke("declaredInputs",new Class[]{long.class,String.class,boolean.class},seed,lowerDimension,structures);
     }
@@ -56,6 +59,107 @@ public final class NativeContextProbe {
         nativeRequestOrder.add(Map.of("ordinal",nativeRequestOrder.size(),"dimension",dimension,"chunk_x",x,"chunk_z",z,"status",status));
         activeNativeRequest=nativeRequestOrder.size()-1;
         return call(MC+"world.level.Level","getChunk",level,new String[]{"int","int",MC+"world.level.chunk.status.ChunkStatus","boolean"},x,z,field(MC+"world.level.chunk.status.ChunkStatus",status),true);
+    }
+    /** Submit the complete origin batch before pumping native generation work. */
+    static void parallelStage(Object level,ary server,String dimension,String stage,
+        List<String> coordinates,List<String> captures,Path output,Map<String,Object> structureProofs)throws Exception {
+        Object source=call(MC+"server.level.ServerLevel","getChunkSource",level,new String[]{});
+        Object status=field(MC+"world.level.chunk.status.ChunkStatus",stage);
+        List<CompletableFuture<?>> futures=new ArrayList<>();
+        List<Integer> ordinals=new ArrayList<>();
+        for(String coordinate:coordinates){
+            String[] parts=coordinate.split(":");int x=Integer.parseInt(parts[0]),z=Integer.parseInt(parts[1]);
+            int ordinal=nativeRequestOrder.size();ordinals.add(ordinal);
+            nativeRequestOrder.add(Map.of("ordinal",ordinal,"dimension",dimension,"chunk_x",x,"chunk_z",z,
+                "status",stage,"submission","parallel-origin-batch"));
+            activeNativeRequest=ordinal;
+            futures.add((CompletableFuture<?>)call(MC+"server.level.ServerChunkCache","getChunkFutureMainThread",
+                source,new String[]{"int","int",MC+"world.level.chunk.status.ChunkStatus","boolean"},x,z,status,true));
+        }
+        long pending=futures.stream().filter(future->!future.isDone()).count();
+        if(stage.equals("SURFACE")&&coordinates.size()>1&&pending<2)
+            throw new IllegalStateException("native batch did not establish two outstanding status futures");
+        CompletableFuture<Void> completed=CompletableFuture.allOf(futures.toArray(CompletableFuture[]::new));
+        Object executor=member(MC+"server.level.ServerChunkCache","mainThreadProcessor",source);
+        call(MC+"server.level.ServerChunkCache$MainThreadExecutor","managedBlock",executor,
+            new String[]{"java.util.function.BooleanSupplier"},(java.util.function.BooleanSupplier)completed::isDone);
+        completed.join();
+        Map<String,Object> batch=Map.of("dimension",dimension,"status",stage,"request_ordinals",ordinals,
+            "coordinate_request_order",List.copyOf(coordinates),
+            "pending_futures_before_native_pump",pending,"generation_worker_count",2,
+            "observation_boundary","every target status future completed; not a neighboring FEATURES halo closure");
+        evidence.put("active_parallel_batch",batch);
+        for(int index=0;index<coordinates.size();index++){
+            activeCoordinateRequestIndex=index;activeNativeRequest=ordinals.get(index);
+            Object result=futures.get(index).join();
+            Object chunk=call(MC+"server.level.ChunkResult","orElse",result,new String[]{"java.lang.Object"},(Object)null);
+            if(chunk==null)throw new IllegalStateException("native parallel chunk failed: "+
+                call(MC+"server.level.ChunkResult","getError",result,new String[]{}));
+            String coordinate=coordinates.get(index).replace(':','_');
+            Path capture=output.getParent().resolve("parallel-"+dimension.toLowerCase(Locale.ROOT)+"-"+
+                stage.toLowerCase(Locale.ROOT)+"-seed"+seed+"-chunk"+coordinate+"-request"+activeNativeRequest+".json");
+            NativeContextProbeSnapshot.snapshot(chunk,server,dimension,stage,capture);captures.add(capture.toString());
+            if(structures)structureProofs.put(capture.getFileName().toString(),structureProof(chunk,level,server));
+        }
+        evidence.remove("active_parallel_batch");
+    }
+    /**
+     * Native locator results per dimension: the start chunk of each listed
+     * structure and the nearest chunk of every biome the dimension's biome
+     * source can produce. Run in a context that captures nothing, because
+     * locator queries advance native biome tie history.
+     */
+    static Map<String,Object> discoverAnchors(Map<Object,Object> levels,ary server)throws Exception {
+        Map<String,String[]> structureKeys=new LinkedHashMap<>();
+        structureKeys.put("OVERWORLD",new String[]{"stronghold","ancient_city","trial_chambers","mansion","monument",
+            "village_plains","village_desert","village_savanna","village_snowy","village_taiga","desert_pyramid",
+            "jungle_pyramid","pillager_outpost","igloo","swamp_hut","shipwreck","ocean_ruin_cold","ocean_ruin_warm",
+            "ruined_portal","buried_treasure","mineshaft","mineshaft_mesa","trail_ruins"});
+        structureKeys.put("NETHER",new String[]{"fortress","bastion_remnant","ruined_portal_nether","nether_fossil"});
+        structureKeys.put("END",new String[]{"end_city"});
+        Object structureRegistry=call(MC+"core.RegistryAccess","lookupOrThrow",server.bc(),new String[]{MC+"resources.ResourceKey"},field(MC+"core.registries.Registries","STRUCTURE"));
+        Class<?> holderType=(Class<?>)invoke("type",new Class[]{String.class},MC+"core.Holder");
+        Object origin=make(MC+"core.BlockPos",new String[]{"int","int","int"},0,0,0);
+        Map<String,Object> result=new LinkedHashMap<>();
+        for(String dimension:new String[]{"OVERWORLD","NETHER","END"}){
+            Object level=levels.get(field(MC+"world.level.Level",dimension));
+            Object source=call(MC+"server.level.ServerLevel","getChunkSource",level,new String[]{});
+            Object generator=call(MC+"server.level.ServerChunkCache","getGenerator",source,new String[]{});
+            List<Object> structuresFound=new ArrayList<>(),biomesFound=new ArrayList<>();
+            for(String key:structureKeys.get(dimension)){
+                Object resourceKey=call(MC+"resources.ResourceKey","create",null,new String[]{MC+"resources.ResourceKey",MC+"resources.Identifier"},
+                    field(MC+"core.registries.Registries","STRUCTURE"),call(MC+"resources.Identifier","parse",null,new String[]{"java.lang.String"},"minecraft:"+key));
+                Object holder=call(MC+"core.HolderGetter","getOrThrow",structureRegistry,new String[]{MC+"resources.ResourceKey"},resourceKey);
+                Object holders=java.lang.reflect.Array.newInstance(holderType,1);java.lang.reflect.Array.set(holders,0,holder);
+                Object set=call(MC+"core.HolderSet","direct",null,new String[]{MC+"core.Holder[]"},holders);
+                Object found=call(MC+"world.level.chunk.ChunkGenerator","findNearestMapStructure",generator,
+                    new String[]{MC+"server.level.ServerLevel",MC+"core.HolderSet",MC+"core.BlockPos","int","boolean"},level,set,origin,100,false);
+                Map<String,Object> row=new LinkedHashMap<>();row.put("structure","minecraft:"+key);
+                if(found!=null){
+                    List<Integer> location=position(((com.mojang.datafixers.util.Pair<?,?>)found).getFirst());
+                    row.put("block_position",location);row.put("chunk",Math.floorDiv(location.get(0),16)+":"+Math.floorDiv(location.get(2),16));
+                }
+                structuresFound.add(row);
+            }
+            Object biomeSource=call(MC+"world.level.chunk.ChunkGenerator","getBiomeSource",generator,new String[]{});
+            List<Object> possible=new ArrayList<>((Set<?>)call(MC+"world.level.biome.BiomeSource","possibleBiomes",biomeSource,new String[]{}));
+            for(Object biome:possible){
+                Object key=((Optional<?>)call(MC+"core.Holder","unwrapKey",biome,new String[]{})).orElseThrow();
+                String name=call(MC+"resources.ResourceKey","identifier",key,new String[]{}).toString();
+                Object found=call(MC+"server.level.ServerLevel","findClosestBiome3d",level,
+                    new String[]{"java.util.function.Predicate",MC+"core.BlockPos","int","int","int"},
+                    (java.util.function.Predicate<Object>)candidate->candidate.equals(biome),origin,6400,32,64);
+                Map<String,Object> row=new LinkedHashMap<>();row.put("biome",name);
+                if(found!=null){
+                    List<Integer> location=position(((com.mojang.datafixers.util.Pair<?,?>)found).getFirst());
+                    row.put("block_position",location);row.put("chunk",Math.floorDiv(location.get(0),16)+":"+Math.floorDiv(location.get(2),16));
+                }
+                biomesFound.add(row);
+            }
+            result.put(dimension,Map.of("structures",structuresFound,"biomes",biomesFound,
+                "locators","ChunkGenerator.findNearestMapStructure(level, HolderSet.direct(structure), BlockPos.ZERO, 100, false); ServerLevel.findClosestBiome3d(biome, BlockPos.ZERO, 6400, 32, 64)"));
+        }
+        return result;
     }
     static Object member(String owner,String name,Object instance)throws Exception {
         return invoke("instanceField",new Class[]{String.class,String.class,Object.class},owner,name,instance);
@@ -139,7 +243,7 @@ public final class NativeContextProbe {
         String target=statusName(call(statuses+"ChunkStep","targetStatus",step,new String[]{}));
         Map<String,Object> row=new LinkedHashMap<>();
         row.put("phase",phase);row.put("invocation",invocation);
-        row.put("active_synchronous_request_ordinal",request);
+        row.put(parallelOrigins?"active_parallel_submission_ordinal_hint":"active_synchronous_request_ordinal",request);
         row.put("dimension",call(MC+"resources.ResourceKey","identifier",dimension,new String[]{}).toString());
         row.put("chunk_x",member(MC+"world.level.ChunkPos","x",pos));
         row.put("chunk_z",member(MC+"world.level.ChunkPos","z",pos));
@@ -338,8 +442,31 @@ public final class NativeContextProbe {
         if(nativeVillageAnchors && !structures)throw new IllegalArgumentException("--native-village-anchors requires --structures=true");
         boolean extendedStages=args.length>coordinateStart && args[coordinateStart].equals("--extended-stages");
         if(extendedStages)coordinateStart++;
+        parallelOrigins=args.length>coordinateStart&&args[coordinateStart].equals("--parallel-origins");
+        if(parallelOrigins)coordinateStart++;
+        if(parallelOrigins&&!traceNativeTasks)throw new IllegalArgumentException("--parallel-origins requires --trace-native-tasks");
+        if(parallelOrigins&&extendedStages)throw new IllegalArgumentException("parallel origins and extended status sweeps require separate native contexts");
+        // Discovery runs in its own context: locator queries advance native
+        // biome history, so they must never precede a comparable capture.
+        boolean discoverAnchors=args.length>coordinateStart&&args[coordinateStart].equals("--discover-anchors");
+        if(discoverAnchors)coordinateStart++;
+        if(discoverAnchors&&(parallelOrigins||extendedStages||nativeVillageAnchors))throw new IllegalArgumentException("--discover-anchors captures nothing and must run alone");
+        Path coordinatesFile=null;
+        if(args.length>coordinateStart&&args[coordinateStart].startsWith("--coordinates-file=")){
+            coordinatesFile=Path.of(args[coordinateStart++].substring("--coordinates-file=".length()));
+            if(parallelOrigins||nativeVillageAnchors||discoverAnchors)throw new IllegalArgumentException("--coordinates-file is only for serial captures");
+            if(args.length>coordinateStart)throw new IllegalArgumentException("--coordinates-file replaces positional coordinates");
+        }
         List<String> coordinates=new ArrayList<>(args.length>coordinateStart?Arrays.asList(args).subList(coordinateStart,args.length):List.of("0:0"));
-        for(String coordinate:coordinates)if(!coordinate.matches("-?\\d+:-?\\d+"))throw new IllegalArgumentException("expected chunk-x:chunk-z, got "+coordinate);
+        Map<String,List<String>> byDimension=new LinkedHashMap<>();
+        if(coordinatesFile!=null){
+            Map<String,List<String>> parsed=new Gson().fromJson(Files.readString(coordinatesFile),
+                new com.google.gson.reflect.TypeToken<Map<String,List<String>>>(){}.getType());
+            for(String dimension:new String[]{"OVERWORLD","NETHER","END"})
+                byDimension.put(dimension,new ArrayList<>(parsed.getOrDefault(dimension,List.of())));
+            if(!parsed.keySet().stream().allMatch(byDimension::containsKey))throw new IllegalArgumentException("coordinates file has an unknown dimension");
+        }else for(String dimension:new String[]{"OVERWORLD","NETHER","END"})byDimension.put(dimension,coordinates);
+        for(List<String> list:byDimension.values())for(String coordinate:list)if(!coordinate.matches("-?\\d+:-?\\d+"))throw new IllegalArgumentException("expected chunk-x:chunk-z, got "+coordinate);
         Path root=Path.of(args[0]), output=Path.of(args[1]).toAbsolutePath();
         Files.createDirectories(output.getParent());
         Path work=Files.createTempDirectory(output.getParent(),"offline-world-seed"+seed+"-structures"+structures+"-");
@@ -374,6 +501,7 @@ public final class NativeContextProbe {
             public void checkListen(int port){deny("listen "+port);}
             public void checkAccept(String host,int port){deny("accept "+host+":"+port);}
         });
+        ExecutorService parallelExecutor=null;
         try {
             var loggingFactory=(org.apache.logging.log4j.core.impl.Log4jContextFactory)org.apache.logging.log4j.LogManager.getFactory();
             var loggingContext=loggingFactory.getSelector().getContext("NativeContextProbe",ClassLoader.getSystemClassLoader(),false);
@@ -383,6 +511,44 @@ public final class NativeContextProbe {
             evidence.put("logging_hostname","explicit native Log4j ContextProperties hostName=localhost; avoids logger DNS without weakening network guard");
             call(MC+"SharedConstants","tryDetectVersion",null,new String[]{});
             call(MC+"server.Bootstrap","bootStrap",null,new String[]{});
+            if(Boolean.getBoolean("native.dryRun")){
+                // Argument parsing, pins, offline bootstrap and every reflective
+                // member the parallel and discovery paths resolve; no server or
+                // level is built.
+                String level=MC+"server.level.",chunk=MC+"world.level.chunk.status.ChunkStatus";
+                String generator=MC+"world.level.chunk.ChunkGenerator",key=MC+"resources.ResourceKey";
+                String[][] members={
+                    {level+"ServerLevel","getChunkSource"},
+                    {level+"ServerChunkCache","getChunkFutureMainThread","int","int",chunk,"boolean"},
+                    {level+"ServerChunkCache$MainThreadExecutor","managedBlock","java.util.function.BooleanSupplier"},
+                    {level+"ChunkResult","orElse","java.lang.Object"},
+                    {level+"ChunkResult","getError"},
+                    {MC+"world.level.Level","getChunk","int","int",chunk,"boolean"},
+                    {level+"ServerChunkCache","getGenerator"},
+                    {MC+"core.HolderGetter","getOrThrow",key},
+                    {MC+"core.HolderSet","direct",MC+"core.Holder[]"},
+                    {generator,"findNearestMapStructure",level+"ServerLevel",MC+"core.HolderSet",MC+"core.BlockPos","int","boolean"},
+                    {generator,"getBiomeSource"},
+                    {MC+"world.level.biome.BiomeSource","possibleBiomes"},
+                    {MC+"core.Holder","unwrapKey"},
+                    {key,"identifier"},
+                    {key,"create",key,MC+"resources.Identifier"},
+                    {level+"ServerLevel","findClosestBiome3d","java.util.function.Predicate",MC+"core.BlockPos","int","int","int"}};
+                List<Object> resolved=new ArrayList<>();
+                for(String[] member:members){
+                    Method method=(Method)invoke("method",new Class[]{String.class,String.class,String[].class},
+                        member[0],member[1],Arrays.copyOfRange(member,2,member.length));
+                    resolved.add(Map.of("owner",member[0],"name",member[1],"declaring_class",method.getDeclaringClass().getName(),
+                        "declaring_class_public",java.lang.reflect.Modifier.isPublic(method.getDeclaringClass().getModifiers())));
+                }
+                evidence.put("dry_run",Map.of("coordinates",coordinates,"parallel_origins",parallelOrigins,
+                    "trace_native_tasks",traceNativeTasks,"structures",structures,"resolved_members",resolved,
+                    "native_context_constructed",false));
+                evidence.put("denied_network_attempts",networkAttempts);
+                Files.delete(work.resolve("server.properties"));Files.delete(work);evidence.remove("fresh_world_directory");
+                Files.writeString(output,new Gson().toJson(evidence));
+                System.exit(0);
+            }
             observeNativePyramid(traceNativeTasks);
             Files.writeString(output.resolveSibling("native-pyramid-metadata.json"),new Gson().toJson(evidence));
             bak packs=(bak)call(MC+"server.packs.repository.ServerPacksSource","createVanillaTrustedRepository",null,new String[]{});
@@ -409,6 +575,9 @@ public final class NativeContextProbe {
             Map<Object,Object> levels=(Map<Object,Object>)invoke("instanceField",new Class[]{String.class,String.class,Object.class},MC+"server.MinecraftServer","levels",server);
             Object stems=call(MC+"core.RegistryAccess","lookupOrThrow",server.bc(),new String[]{MC+"resources.ResourceKey"},field(MC+"core.registries.Registries","LEVEL_STEM"));
             List<Object> levelProofs=new ArrayList<>();
+            if(parallelOrigins)parallelExecutor=Executors.newFixedThreadPool(2,
+                Thread.ofPlatform().name("native-reference-generation-",0).factory());
+            Executor generationExecutor=parallelExecutor==null?direct:parallelExecutor;
             for(String dimension:new String[]{"OVERWORLD","NETHER","END"}){
                 Object stemKey=field(MC+"world.level.dimension.LevelStem",dimension);
                 Object nativeStem=call(MC+"core.Registry","getValueOrThrow",stems,new String[]{MC+"resources.ResourceKey"},stemKey);
@@ -416,7 +585,7 @@ public final class NativeContextProbe {
                 Object levelData=dimension.equals("OVERWORLD")?stem.d():make(MC+"world.level.storage.DerivedLevelData",new String[]{MC+"world.level.storage.WorldData",MC+"world.level.storage.ServerLevelData"},stem.d(),stem.d());
                 Object sequences=make(MC+"world.RandomSequences",new String[]{});
                 long zoomSeed=(long)call(MC+"world.level.biome.BiomeManager","obfuscateSeed",null,new String[]{"long"},seed);
-                Object level=make(MC+"server.level.ServerLevel",new String[]{MC+"server.MinecraftServer","java.util.concurrent.Executor",MC+"world.level.storage.LevelStorageSource$LevelStorageAccess",MC+"world.level.storage.ServerLevelData",MC+"resources.ResourceKey",MC+"world.level.dimension.LevelStem","boolean","long","java.util.List","boolean",MC+"world.RandomSequences"},server,direct,storage,levelData,levelKey,nativeStem,false,zoomSeed,List.of(),false,sequences);
+                Object level=make(MC+"server.level.ServerLevel",new String[]{MC+"server.MinecraftServer","java.util.concurrent.Executor",MC+"world.level.storage.LevelStorageSource$LevelStorageAccess",MC+"world.level.storage.ServerLevelData",MC+"resources.ResourceKey",MC+"world.level.dimension.LevelStem","boolean","long","java.util.List","boolean",MC+"world.RandomSequences"},server,generationExecutor,storage,levelData,levelKey,nativeStem,false,zoomSeed,List.of(),false,sequences);
                 levels.put(levelKey,level);
                 levelProofs.add(Map.of("dimension",dimension,"native_type",level.getClass().getName(),"biome_zoom_seed",zoomSeed,
                     "world_seed",call(MC+"server.level.ServerLevel","getSeed",level,new String[]{}),
@@ -442,31 +611,52 @@ public final class NativeContextProbe {
             }
             Map<String,Object> structureProofs=new LinkedHashMap<>();
             if(structures)evidence.put("native_structure_provenance",structureProofs);
-            boolean repeatedCoordinates=new HashSet<>(coordinates).size()!=coordinates.size();
+            boolean repeatedCoordinates=byDimension.values().stream().anyMatch(list->new HashSet<>(list).size()!=list.size());
             List<String> captures=new ArrayList<>();
-            evidence.put("coordinate_request_order",coordinates);
-            evidence.put("query_profile","all requested SURFACE captures first, then CARVERS, then FEATURES; for each stage dimensions OW/Nether/End then coordinates in argument order; each snapshot immediately after its requested native status future resolves, before any subsequent target request; native dependency scheduling unchanged; snapshots are stage completion observations, not final neighbor-decoration closure");
+            evidence.put("coordinate_request_order",coordinatesFile==null?coordinates:byDimension);
+            evidence.put("query_profile","all requested SURFACE captures first, then CARVERS, then FEATURES; for each stage dimensions OW/Nether/End then that dimension's coordinates in argument order; each snapshot immediately after its requested native status future resolves, before any subsequent target request; native dependency scheduling unchanged; snapshots are stage completion observations, not final neighbor-decoration closure");
+            if(discoverAnchors){
+                evidence.put("query_profile","native anchor discovery only: structure and biome locators, no chunk captures");
+                evidence.put("native_anchors",discoverAnchors(levels,server));
+            }else if(parallelOrigins){
+                evidence.put("query_profile","native asynchronous origin batches; submit all target futures before managedBlock; observe all targets only after the whole status batch completes; original native dependency scheduling and worker histories retained; no FEATURES halo closure, higher status or ticks");
+                evidence.put("parallel_generation_runtime",Map.of(
+                    "available_processors",Runtime.getRuntime().availableProcessors(),
+                    "requested_max_background_threads",System.getProperty("max.bg.threads","native default"),
+                    "original_native_task_events","ordered_native_task_events"));
+                activeCoordinateOrder=coordinates;
+                for(String stage:new String[]{"SURFACE","CARVERS","FEATURES"})
+                    for(String dimension:new String[]{"OVERWORLD","NETHER","END"})
+                        parallelStage(levels.get(field(MC+"world.level.Level",dimension)),server,dimension,stage,
+                            coordinates,captures,output,structureProofs);
+            }else{
             if(extendedStages){
                 evidence.put("extended_stage_request_order",List.of("EMPTY","STRUCTURE_STARTS","STRUCTURE_REFERENCES","BIOMES","NOISE","SURFACE","CARVERS","FEATURES","FEATURES_HALO_CLOSURE","INITIALIZE_LIGHT","LIGHT","SPAWN","FULL"));
-                for(String stage:new String[]{"EMPTY","STRUCTURE_STARTS","STRUCTURE_REFERENCES","BIOMES","NOISE"})for(String dimension:new String[]{"OVERWORLD","NETHER","END"})for(int coordinateIndex=0;coordinateIndex<coordinates.size();++coordinateIndex){
-                    String coordinate=coordinates.get(coordinateIndex);activeCoordinateRequestIndex=coordinateIndex;
+                for(String stage:new String[]{"EMPTY","STRUCTURE_STARTS","STRUCTURE_REFERENCES","BIOMES","NOISE"})for(String dimension:new String[]{"OVERWORLD","NETHER","END"}){
+                    List<String> dimensionCoordinates=byDimension.get(dimension);activeCoordinateOrder=dimensionCoordinates;
+                    for(int coordinateIndex=0;coordinateIndex<dimensionCoordinates.size();++coordinateIndex){
+                        String coordinate=dimensionCoordinates.get(coordinateIndex);activeCoordinateRequestIndex=coordinateIndex;
+                        String[] parts=coordinate.split(":");int x=Integer.parseInt(parts[0]),z=Integer.parseInt(parts[1]);
+                        Object level=levels.get(field(MC+"world.level.Level",dimension));
+                        Object chunk=requestChunk(level,dimension,x,z,stage);
+                        String suffix=repeatedCoordinates?"-request"+(nativeRequestOrder.size()-1):"";
+                        Path capture=output.getParent().resolve("extended-"+dimension.toLowerCase(Locale.ROOT)+"-"+stage.toLowerCase(Locale.ROOT)+"-seed"+seed+"-chunk"+x+"_"+z+suffix+".json");
+                        NativeContextProbeSnapshot.snapshot(chunk,server,dimension,stage,capture);captures.add(capture.toString());
+                    }
+                }
+            }
+            for(String stage:new String[]{"SURFACE","CARVERS","FEATURES"})for(String dimension:new String[]{"OVERWORLD","NETHER","END"}){
+                List<String> dimensionCoordinates=byDimension.get(dimension);activeCoordinateOrder=dimensionCoordinates;
+                for(int coordinateIndex=0;coordinateIndex<dimensionCoordinates.size();++coordinateIndex){
+                    String coordinate=dimensionCoordinates.get(coordinateIndex);activeCoordinateRequestIndex=coordinateIndex;
                     String[] parts=coordinate.split(":");int x=Integer.parseInt(parts[0]),z=Integer.parseInt(parts[1]);
                     Object level=levels.get(field(MC+"world.level.Level",dimension));
                     Object chunk=requestChunk(level,dimension,x,z,stage);
                     String suffix=repeatedCoordinates?"-request"+(nativeRequestOrder.size()-1):"";
-                    Path capture=output.getParent().resolve("extended-"+dimension.toLowerCase(Locale.ROOT)+"-"+stage.toLowerCase(Locale.ROOT)+"-seed"+seed+"-chunk"+x+"_"+z+suffix+".json");
+                    Path capture=output.getParent().resolve("fullstage-"+dimension.toLowerCase(Locale.ROOT)+"-"+stage.toLowerCase(Locale.ROOT)+"-seed"+seed+"-chunk"+x+"_"+z+suffix+".json");
                     NativeContextProbeSnapshot.snapshot(chunk,server,dimension,stage,capture);captures.add(capture.toString());
+                    if(structures)structureProofs.put(capture.getFileName().toString(),structureProof(chunk,level,server));
                 }
-            }
-            for(String stage:new String[]{"SURFACE","CARVERS","FEATURES"})for(String dimension:new String[]{"OVERWORLD","NETHER","END"})for(int coordinateIndex=0;coordinateIndex<coordinates.size();++coordinateIndex){
-                String coordinate=coordinates.get(coordinateIndex);activeCoordinateRequestIndex=coordinateIndex;
-                String[] parts=coordinate.split(":");int x=Integer.parseInt(parts[0]),z=Integer.parseInt(parts[1]);
-                Object level=levels.get(field(MC+"world.level.Level",dimension));
-                Object chunk=requestChunk(level,dimension,x,z,stage);
-                String suffix=repeatedCoordinates?"-request"+(nativeRequestOrder.size()-1):"";
-                Path capture=output.getParent().resolve("fullstage-"+dimension.toLowerCase(Locale.ROOT)+"-"+stage.toLowerCase(Locale.ROOT)+"-seed"+seed+"-chunk"+x+"_"+z+suffix+".json");
-                NativeContextProbeSnapshot.snapshot(chunk,server,dimension,stage,capture);captures.add(capture.toString());
-                if(structures)structureProofs.put(capture.getFileName().toString(),structureProof(chunk,level,server));
             }
             Object features=field(MC+"world.level.chunk.status.ChunkStatus","FEATURES");
             Object featureStep=call(MC+"world.level.chunk.status.ChunkPyramid","getStepTo",
@@ -476,8 +666,9 @@ public final class NativeContextProbe {
             List<String> haloOrder=new ArrayList<>();
             for(String dimension:new String[]{"OVERWORLD","NETHER","END"}){
                 Object level=levels.get(field(MC+"world.level.Level",dimension));
-                Set<String> requested=new LinkedHashSet<>(coordinates);
-                for(String coordinate:coordinates){
+                List<String> dimensionCoordinates=byDimension.get(dimension);
+                Set<String> requested=new LinkedHashSet<>(dimensionCoordinates);
+                for(String coordinate:dimensionCoordinates){
                     String[] parts=coordinate.split(":");int x=Integer.parseInt(parts[0]),z=Integer.parseInt(parts[1]);
                     for(int dz=-writeRadius;dz<=writeRadius;++dz)for(int dx=-writeRadius;dx<=writeRadius;++dx){
                         String neighbor=(x+dx)+":"+(z+dz);
@@ -489,30 +680,44 @@ public final class NativeContextProbe {
             }
             evidence.put("features_halo",Map.of("native_features_block_state_write_radius",writeRadius,"additional_native_features_request_order",haloOrder,
                 "profile","all target FEATURES then all possible native FEATURES writers within native blockStateWriteRadius, no higher stage; halo requests z-major/x-minor per argument-order target, deduplicated per dimension; snapshot targets only after all halo requests"));
-            for(String dimension:new String[]{"OVERWORLD","NETHER","END"})for(int coordinateIndex=0;coordinateIndex<coordinates.size();++coordinateIndex){
-                String coordinate=coordinates.get(coordinateIndex);activeCoordinateRequestIndex=coordinateIndex;
-                String[] parts=coordinate.split(":");int x=Integer.parseInt(parts[0]),z=Integer.parseInt(parts[1]);
-                Object level=levels.get(field(MC+"world.level.Level",dimension));
-                Object chunk=requestChunk(level,dimension,x,z,"FEATURES");
-                String suffix=repeatedCoordinates?"-request"+(nativeRequestOrder.size()-1):"";
-                Path capture=output.getParent().resolve("fullstage-"+dimension.toLowerCase(Locale.ROOT)+"-features-halo-seed"+seed+"-chunk"+x+"_"+z+suffix+".json");
-                NativeContextProbeSnapshot.snapshot(chunk,server,dimension,"FEATURES_HALO_CLOSURE",capture);captures.add(capture.toString());
-                if(structures)structureProofs.put(capture.getFileName().toString(),structureProof(chunk,level,server));
+            for(String dimension:new String[]{"OVERWORLD","NETHER","END"}){
+                List<String> dimensionCoordinates=byDimension.get(dimension);activeCoordinateOrder=dimensionCoordinates;
+                for(int coordinateIndex=0;coordinateIndex<dimensionCoordinates.size();++coordinateIndex){
+                    String coordinate=dimensionCoordinates.get(coordinateIndex);activeCoordinateRequestIndex=coordinateIndex;
+                    String[] parts=coordinate.split(":");int x=Integer.parseInt(parts[0]),z=Integer.parseInt(parts[1]);
+                    Object level=levels.get(field(MC+"world.level.Level",dimension));
+                    Object chunk=requestChunk(level,dimension,x,z,"FEATURES");
+                    String suffix=repeatedCoordinates?"-request"+(nativeRequestOrder.size()-1):"";
+                    Path capture=output.getParent().resolve("fullstage-"+dimension.toLowerCase(Locale.ROOT)+"-features-halo-seed"+seed+"-chunk"+x+"_"+z+suffix+".json");
+                    NativeContextProbeSnapshot.snapshot(chunk,server,dimension,"FEATURES_HALO_CLOSURE",capture);captures.add(capture.toString());
+                    if(structures)structureProofs.put(capture.getFileName().toString(),structureProof(chunk,level,server));
+                }
             }
-            if(extendedStages)for(String stage:new String[]{"INITIALIZE_LIGHT","LIGHT","SPAWN","FULL"})for(String dimension:new String[]{"OVERWORLD","NETHER","END"})for(int coordinateIndex=0;coordinateIndex<coordinates.size();++coordinateIndex){
-                String coordinate=coordinates.get(coordinateIndex);activeCoordinateRequestIndex=coordinateIndex;
-                String[] parts=coordinate.split(":");int x=Integer.parseInt(parts[0]),z=Integer.parseInt(parts[1]);
-                Object level=levels.get(field(MC+"world.level.Level",dimension));
-                Object chunk=requestChunk(level,dimension,x,z,stage);
-                String suffix=repeatedCoordinates?"-request"+(nativeRequestOrder.size()-1):"";
-                Path capture=output.getParent().resolve("extended-"+dimension.toLowerCase(Locale.ROOT)+"-"+stage.toLowerCase(Locale.ROOT)+"-seed"+seed+"-chunk"+x+"_"+z+suffix+".json");
-                NativeContextProbeSnapshot.snapshot(chunk,server,dimension,stage,capture);captures.add(capture.toString());
+            if(extendedStages)for(String stage:new String[]{"INITIALIZE_LIGHT","LIGHT","SPAWN","FULL"})for(String dimension:new String[]{"OVERWORLD","NETHER","END"}){
+                List<String> dimensionCoordinates=byDimension.get(dimension);activeCoordinateOrder=dimensionCoordinates;
+                for(int coordinateIndex=0;coordinateIndex<dimensionCoordinates.size();++coordinateIndex){
+                    String coordinate=dimensionCoordinates.get(coordinateIndex);activeCoordinateRequestIndex=coordinateIndex;
+                    String[] parts=coordinate.split(":");int x=Integer.parseInt(parts[0]),z=Integer.parseInt(parts[1]);
+                    Object level=levels.get(field(MC+"world.level.Level",dimension));
+                    Object chunk=requestChunk(level,dimension,x,z,stage);
+                    String suffix=repeatedCoordinates?"-request"+(nativeRequestOrder.size()-1):"";
+                    Path capture=output.getParent().resolve("extended-"+dimension.toLowerCase(Locale.ROOT)+"-"+stage.toLowerCase(Locale.ROOT)+"-seed"+seed+"-chunk"+x+"_"+z+suffix+".json");
+                    NativeContextProbeSnapshot.snapshot(chunk,server,dimension,stage,capture);captures.add(capture.toString());
+                }
+            }
             }
             evidence.put("captures",captures);
             evidence.put("server_tick_count_after_chunk_requests",call(MC+"server.MinecraftServer","getTickCount",server,new String[]{}));
         }catch(Throwable error){
             var stack=new java.io.StringWriter();error.printStackTrace(new java.io.PrintWriter(stack));evidence.put("failure",stack.toString());
         }finally{
+            if(parallelExecutor!=null){
+                parallelExecutor.shutdown();
+                if(!parallelExecutor.awaitTermination(30,TimeUnit.SECONDS)){
+                    parallelExecutor.shutdownNow();
+                    evidence.putIfAbsent("failure","native generation executor did not quiesce before cleanup deadline");
+                }
+            }
             evidence.put("denied_network_attempts",networkAttempts);
             if(!observerFailures.isEmpty())evidence.put("observer_failures",new ArrayList<>(observerFailures));
             if(traceNativeTasks)synchronized(nativeTaskTrace){evidence.put("ordered_native_task_events",new ArrayList<>(nativeTaskTrace));}

@@ -191,7 +191,13 @@ impl Harness {
         let drops: Vec<(Entity, String, u32)> = world
             .query_filtered::<(Entity, &ItemEntityStack), With<DroppedItem>>()
             .iter(world)
-            .map(|(entity, stack)| (entity, stack.0.item_id.clone(), u32::from(stack.0.count)))
+            .map(|(entity, stack)| {
+                (
+                    entity,
+                    stack.0.item_id().to_owned(),
+                    u32::from(stack.0.count),
+                )
+            })
             .collect();
         for (entity, _, _) in &drops {
             world.despawn(*entity);
@@ -517,11 +523,11 @@ mod equipment {
             let stack = gear.get(slot);
             if !stack.is_empty() {
                 let ok = if slot.is_hand() {
-                    HAND_GEAR.contains(&stack.item_id.as_str())
+                    HAND_GEAR.contains(&stack.item_id())
                 } else {
-                    crate::entity::mob::gear::worn_slot(&stack.item_id) == Some(slot)
+                    stack.item().and_then(crate::entity::mob::gear::worn_slot) == Some(slot)
                 };
-                assert!(ok, "{slot:?} holds {}", stack.item_id);
+                assert!(ok, "{slot:?} holds {}", stack.item_id());
             }
         }
         h.packets();
@@ -553,15 +559,11 @@ mod equipment {
         assert!(hands.iter().all(|(i, ..)| *i > added));
         assert_eq!((hands[0].1, hands[0].2), (0, 0));
         assert_eq!((hands[1].1, hands[1].2), (1, 119));
-        let items = &h
-            .world()
-            .resource::<crate::server::game::types::ItemRegistryResource>()
-            .0;
         let main = gear.get(GearSlot::Mainhand);
         let main_id = if main.is_empty() {
             0
         } else {
-            items.get_by_name(&main.item_id).unwrap().network_id as i16
+            main.item().unwrap().network_id() as i16
         };
         assert_eq!(hands[0].3, main_id);
         let armour = packets
@@ -600,8 +602,10 @@ mod equipment {
     fn zombie_gear_drops_on_a_player_kill_worn_down() {
         let mut h = harness(22, Difficulty::Easy, MIDNIGHT, GameMode::Survival);
         let feet = DVec3::new(0.5, 64.0, 0.5);
-        let max = crate::registry::item::item_data("minecraft:iron_helmet")
+        let max = crate::item::test_support::VANILLA
+            .get_by_name("minecraft:iron_helmet")
             .unwrap()
+            .tool_info()
             .max_damage;
         for by_player in [true, false] {
             let mut helmets = Vec::new();
@@ -621,12 +625,12 @@ mod equipment {
                 helmets.extend(
                     drops
                         .iter()
-                        .filter(|s| s.item_id == "minecraft:iron_helmet")
+                        .filter(|s| s.item_id() == "minecraft:iron_helmet")
                         .map(durability_damage),
                 );
                 swords += drops
                     .iter()
-                    .filter(|s| s.item_id == "minecraft:stone_sword")
+                    .filter(|s| s.item_id() == "minecraft:stone_sword")
                     .count();
                 h.take_drops();
                 h.world().despawn(zombie);
@@ -673,12 +677,15 @@ mod equipment {
         for _ in 0..200 {
             h.ticks(1);
             packets.extend(h.packets());
-            if h.gear(zombie).get(GearSlot::Mainhand).item_id == "minecraft:iron_sword" {
+            if h.gear(zombie).get(GearSlot::Mainhand).item_id() == "minecraft:iron_sword" {
                 break;
             }
         }
         let gear = h.gear(zombie);
-        assert_eq!(gear.get(GearSlot::Mainhand).item_id, "minecraft:iron_sword");
+        assert_eq!(
+            gear.get(GearSlot::Mainhand).item_id(),
+            "minecraft:iron_sword"
+        );
         assert!(gear.item(GearSlot::Mainhand).picked_up);
         let world = h.world();
         assert!(world.get_entity(item).is_err(), "the item actor is gone");
@@ -737,10 +744,10 @@ mod equipment {
             let gear = world.get::<MobEquipment>(restored).unwrap();
             assert_eq!(gear.count(), 2, "restoring rolls no new gear");
             let sword = gear.item(GearSlot::Mainhand);
-            assert_eq!(sword.stack.item_id, "minecraft:iron_sword");
+            assert_eq!(sword.stack.item_id(), "minecraft:iron_sword");
             assert!(sword.picked_up);
             let head = gear.item(GearSlot::Head);
-            assert_eq!(head.stack.item_id, "minecraft:diamond_helmet");
+            assert_eq!(head.stack.item_id(), "minecraft:diamond_helmet");
             assert!(!head.picked_up);
             assert_eq!(durability_damage(&head.stack), 37);
             assert_eq!(enchantment_level(&head.stack, Enchantment::Unbreaking), 2);

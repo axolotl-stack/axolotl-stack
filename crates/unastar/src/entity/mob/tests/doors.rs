@@ -11,8 +11,8 @@ use tokio::sync::mpsc;
 
 use crate::entity::EntityRandom;
 use crate::entity::components::{
-    ArmourInventory, CursorItem, DroppedItem, Experience, GameMode, Health, HeldSlot,
-    ItemEntityStack, MainInventory, OffhandSlot, Player, PlayerSession, Position, Rotation,
+    ArmourInventory, DroppedItem, Experience, GameMode, Health, HeldSlot, ItemEntityStack,
+    MainInventory, OffhandSlot, Player, PlayerSession, PlayerUi, Position, Rotation,
     RuntimeEntityId,
 };
 use crate::entity::definition::flags::ActorFlags;
@@ -103,7 +103,7 @@ fn harness(seed: u64, door: &str, difficulty: Difficulty) -> Harness {
             (
                 ArmourInventory::default(),
                 OffhandSlot::default(),
-                CursorItem::default(),
+                PlayerUi::default(),
             ),
         ))
         .id();
@@ -247,7 +247,7 @@ impl Harness {
         world
             .query_filtered::<&ItemEntityStack, With<DroppedItem>>()
             .iter(world)
-            .filter(|stack| stack.0.item_id.ends_with("door"))
+            .filter(|stack| stack.0.item_id().ends_with("door"))
             .count()
     }
 }

@@ -93,7 +93,7 @@ impl Harness {
 
     fn hold(&mut self, item: Option<&str>) {
         let player = self.player;
-        let stack = item.map_or_else(ItemStack::empty, |id| ItemStack::new(id, 1));
+        let stack = item.map_or_else(ItemStack::empty, |id| crate::item::test_support::stack(id, 1));
         self.world()
             .get_mut::<MainInventory>(player)
             .unwrap()
@@ -128,7 +128,7 @@ impl Harness {
         world
             .query_filtered::<&ItemEntityStack, With<DroppedItem>>()
             .iter(world)
-            .map(|stack| (stack.0.item_id.clone(), stack.0.count))
+            .map(|stack| (stack.0.item_id().to_owned(), stack.0.count))
             .collect()
     }
 

@@ -244,7 +244,7 @@ mod tests {
         let items: Vec<String> = world
             .query_filtered::<&crate::entity::components::ItemEntityStack, With<DroppedItem>>()
             .iter(&world)
-            .map(|s| s.0.item_id.clone())
+            .map(|s| s.0.item_id().to_owned())
             .collect();
         assert_eq!(items, vec!["minecraft:sand".to_string()]);
     }

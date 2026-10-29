@@ -870,6 +870,9 @@ impl FortressPiece {
         self.fill(w, bb, 2, 5, 9, 3, 5, 10, NB);
         self.fill(w, bb, 9, 5, 2, 10, 5, 3, NB);
         self.fill(w, bb, 9, 5, 9, 10, 5, 10, NB);
+        // Both wart-bed edges; a native stalk room (seed 2097595355691761853,
+        // start chunk 7,5) has the west one that Rust omitted.
+        self.fill(w, bb, 2, 5, 4, 2, 5, 8, NB);
         self.fill(w, bb, 10, 5, 4, 10, 5, 8, NB);
         let east = stairs(Direction::East);
         let west = stairs(Direction::West);

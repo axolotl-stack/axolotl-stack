@@ -70,7 +70,7 @@ pub fn item_tag(stack: &ItemStack) -> Option<tag::Compound> {
 /// `stack` with its NBT compound replaced by `compound`, keeping the rest of
 /// the user data.
 pub fn with_item_tag(stack: &ItemStack, compound: tag::Compound) -> ItemStack {
-    let default = super::user_data::network_user_data(&stack.item_id, None);
+    let default = super::user_data::network_user_data(stack.item_id(), None);
     let buffer = stack.nbt.as_deref().unwrap_or(&default);
     let tail = split_user_data(buffer).map_or(&default[2..], |(_, tail)| tail);
     let mut out = Vec::with_capacity(buffer.len() + 16);
@@ -80,9 +80,7 @@ pub fn with_item_tag(stack: &ItemStack, compound: tag::Compound) -> ItemStack {
         .write(&mut out, LittleEndian)
         .expect("writing NBT into a Vec cannot fail");
     out.extend_from_slice(tail);
-    let mut stack = stack.clone();
-    stack.nbt = super::user_data::stored_user_data(&stack.item_id, &out);
-    stack
+    stack.clone().with_nbt(out)
 }
 
 fn as_i32(tag: &NBTTag) -> Option<i32> {
@@ -174,14 +172,14 @@ mod tests {
 
     #[test]
     fn plain_items_have_no_enchantments_or_wear() {
-        let pick = ItemStack::new("minecraft:iron_pickaxe", 1);
+        let pick = crate::item::test_support::stack("minecraft:iron_pickaxe", 1);
         assert_eq!(enchantment_level(&pick, Enchantment::Efficiency), 0);
         assert_eq!(durability_damage(&pick), 0);
     }
 
     #[test]
     fn enchantments_and_damage_round_trip_through_user_data() {
-        let pick = ItemStack::new("minecraft:iron_pickaxe", 1);
+        let pick = crate::item::test_support::stack("minecraft:iron_pickaxe", 1);
         let pick = with_enchantments(
             &pick,
             &[(Enchantment::Efficiency, 5), (Enchantment::SilkTouch, 1)],
@@ -202,7 +200,7 @@ mod tests {
 
     #[test]
     fn shield_tick_survives_tag_rewrites() {
-        let shield = ItemStack::new("minecraft:shield", 1);
+        let shield = crate::item::test_support::stack("minecraft:shield", 1);
         let shield = with_durability_damage(&shield, 3);
         let buffer = shield.nbt.as_deref().unwrap();
         assert_eq!(&buffer[buffer.len() - 16..], &[0; 16]);

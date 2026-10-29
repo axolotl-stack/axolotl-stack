@@ -178,6 +178,53 @@ halo before returning it. WG heightmaps freeze at CARVERS; subsequent decoration
 updates only the final heightmaps. Repeated observations retain their recorded
 request indices rather than overwriting an earlier snapshot of the same chunk.
 
+Native INITIALIZE_LIGHT, LIGHT, SPAWN and FULL write no blocks (write radius -1).
+LIGHT depends on INITIALIZE_LIGHT, and therefore FEATURES, at radius one, so
+LIGHT, SPAWN and FULL captures must record their neighbor FEATURES order; the
+comparator rejects captures that do not. At FULL, Java promotes each pending
+ProtoChunk actor from the block currently at its position (`moving_piston`'s
+null constructor and out-of-height markers drop it), saves actors with
+`keepPacked`, and keeps only the four final heightmaps. `native_full_snapshot`
+and `generate_native` apply this promotion. All 78 native extended frames (two
+seed contexts, three dimensions, EMPTY through FULL) compare exactly.
+
+A native parallel batch submits every target's status future before pumping
+generation, and snapshots each target only after the whole batch completes. A
+FEATURES observation therefore includes later batch origins' neighbor writes.
+The comparator replays batch origins in the recorded native task order; it never
+substitutes coordinate order. Captures record task start and completion events.
+Two FEATURES tasks within Chebyshev distance two that overlap in time are
+rejected, because their interleaving is a race that no sequential replay
+describes. Overlapping tasks further apart touch disjoint chunks and replay in
+start order.
+
+Measured coverage: two native captures with two generation workers, all three
+dimensions, and SURFACE, CARVERS and FEATURES batches. Capture B used seed
+-7046029254386353131 with three origins (27 frames). Capture C used seed
+5181726354443210987 with a 4x4 block of adjacent origins plus two origins three
+chunks apart (162 frames). In both captures, native ran every FEATURES task to
+completion before starting the next, even for origins with no shared chunk;
+BIOMES and NOISE tasks did overlap. Replay matches all 189 frames exactly. No
+native capture has yet shown overlapping FEATURES tasks, so the
+overlap-acceptance rule is covered by a unit test, not by native evidence.
+Replaying each target at its own request boundary instead of after the whole
+batch differed by 303 states in capture B.
+
+The widened corpus adds five random signed seeds and two holdout seeds. Capture
+coordinates came from native locators run in separate contexts that capture
+nothing: the start chunk of every listed structure (strongholds, ancient cities,
+trial chambers, mansions, monuments, bastions, end cities, fortresses, villages
+and more) and the nearest chunk of every biome each dimension's biome source can
+produce (54 Overworld, 5 Nether, 5 End across the seeds). Far coordinates at
+chunk ±62500 and ±1875000 cover the world-border edge. Each seed is captured
+at SURFACE, CARVERS, FEATURES and the FEATURES halo closure. Together with
+the earlier corpus, extended frames and parallel captures, the definitive run
+compares 2,171 frames (3,707 chunk observations, 301,301,760 voxels). Only two
+Nether chunks of seed -55506848734215641 still differ, at (10, 6) and
+(62500, -62500): native CARVERS turns 294 netherrack voxels into plain `air`
+where Rust carves `cave_air`; the cause is not identified. Neither holdout seed
+stayed untouched: each exposed one pale moss carpet voxel that led to a fix.
+
 At the Bedrock boundary, waterlogged states and fluid-bearing aquatic plants
 produce a secondary source-water storage without changing their primary block.
 Ordinary water remains primary-only. Sections allocate secondary storage lazily;
@@ -318,6 +365,39 @@ one frozen `server::game::types::RecipeRegistryResource`. Furnace consumers call
 source loot count is preserved by the caller. The lookup parses no JSON and
 does not use a hardcoded raw/cooked mob table.
 
+`ItemRegistry::resolve_identity` compiles item fields into
+`ResolvedItemIdentity { id, data }` against that server's frozen item snapshot.
+Exact registered identifiers, including numeric addon paths, win over legacy
+suffix parsing. Vanilla short names are qualified at compilation; measured
+aliases such as `bucket:1` resolve to milk bucket aux 0 through the shared
+`unastar_data::item_identity` source. Gameplay consumers use the compiled ID/aux,
+not strings or JSON. Unknown items and unmeasured legacy variants return `None`;
+ordinary canonical metadata, such as tool wear, is retained.
+
+`CraftingCatalogResource` caches the complete `CraftingDataPacket` and a
+recipe-id/source index for inventory consumers. A player join advertises it
+after the initial inventory synchronization. Pack recipes include shaped,
+shapeless, furnace/station-tag rows, smithing, brewing and stonecutter recipes;
+typed measured facts supply native recipes absent from pack JSON. Every station
+tag gets its own recipe net id and UUID; native variant groups share UUIDs as BDS
+does. The catalog is compiled once, not rebuilt from JSON for each player.
+
+The full 1.26.51 capture acceptance test exercises a real `GameServer` player
+spawn and encodes/decodes the actual outbound advertisement. It compares every
+field after unordered-row matching, arbitrary recipe-id/UUID value normalization,
+and conversion of captured block hashes to negotiated canonical ordinals. UUID
+equivalence classes and nonzero unique recipe ids are checked before
+normalization. The capture stays in the untracked extractor cache, pinned by
+SHA-256; without the environment variable this external-oracle test skips.
+
+```powershell
+$env:UNASTAR_CRAFTING_DATA_CAPTURE = 'C:/Users/jvigu/orca/bds-runtime/captures/1.26.51/20261025T172246Z/member/join/00054-CraftingDataPacket.bin'
+cargo test -p unastar --test crafting_data_parity -- --nocapture
+```
+
+This packet-content gate does not claim whole join-sequence or crafting-execution
+parity.
+
 ## Actor registries and data
 
 `registry::entity::ActorDefinitionRegistryBuilder` accepts vanilla/addon rows
@@ -338,102 +418,6 @@ and decoded once at startup; see `../unastar-data/README.md` for prerequisites.
 Runtime rules/loot evaluation is in the bevy-free `unastar-rules` crate.
 These data/registry checks do not establish mob gameplay or crafted-pack parity.
 
-`entity::definition` compiles registered component kinds into shared typed
-prototypes. Resolve component/group names to scoped handles at startup; a handle
-from another frozen registry or definition is rejected before mutation.
-`attach_definition` and queued group changes materialize in the exclusive
-GameServer apply barrier before `tick_physics`. Per actor, every old component
-is removed before any replacement is inserted; transient selections do not
-produce ECS add notifications. Group removal is destructive, including a
-shadowed base component, rather than restoring a lower layer. Repeated-add/reset
-policy remains explicitly local until measured against BDS. The scheduled
-headless ECS smoke exercised base application, destructive removal and batch
-cancellation; this does not establish vanilla mob gameplay.
-
-`entity::definition_components` registers authored health, movement, raw collision
-dimensions, scale and physics switches through that same factory registry.
-Omitted fields use only pinned published schema defaults; explicit false/zero
-wins. Missing unpublished fields, dynamic values and unsupported bounds fail
-rather than becoming invented constructor values. Geometry remains unscaled
-until the runtime's independently verified derivation.
-
-`entity::families` collects pack and addon type-family names before freeze and
-resolves filter operands to layout-scoped numeric handles. Effective component
-prototypes share immutable membership bitsets; definition barriers replace or
-remove them without unioning or restoring earlier groups. Membership matching
-does no hot-path string lookup. A headless GameServer smoke loaded every
-canonical family body and applied cow/chicken family-only projections; this
-does not establish native implicit families or complete mob behavior.
-
-`entity::events::CompiledEvents` binds group/property handles and caller-owned
-numeric filter/action/external-event operands at startup. It shares one tree
-traversal with `unastar-rules`, emits typed borrowed effects into reusable buffers,
-and retains deferred triggers without inventing their ECS-barrier timing.
-An executable Bevy barrier/codec smoke applied an authored cow core/event
-projection, baby flag/scale and deferred sound property. This is not production
-mob spawning, navigation, native constructor defaults or ten-summon parity.
-
-Non-player actors enter their viewer set only after the outbound spawn packet
-is accepted by that session's bounded queue. A full queue leaves the actor
-unregistered for the next desired-viewer reconciliation. A failing-before/
-passing-after regression and a two-viewer headless ECS/codec smoke cover a
-blocked viewer without duplicating another viewer's accepted spawn. Queue
-acceptance is local bookkeeping, not a client-delivery acknowledgment.
-
-Actor metadata keys/flag indices come from Valentine's generated Mojang reference
-catalog, not a handwritten runtime table. Its protocol2168 provenance remains
-explicit; no complete2193 catalog claim is made. Retained 1.26.51 cow/chicken
-`AddActor` controls check the default air, dimensions and physics flags; the
-native member-join control checks initial player flags/air. Initial player
-metadata does not force `BREATHING` merely because air supply is300.
-Living health is an attribute, not actor-data key1 (structural integrity).
-An actual headless ECS spawn/tick and session-channel encode/decode smoke
-exercised the production join path without sockets or launching a server.
-Reusing the metadata helper for a changed player state clears the exited
-player-owned flags while preserving physics/fire and other owners' bits; the
-transition has a deterministic regression and a separate generated-codec smoke.
-Production join routing is unchanged.
-
-`entity::metadata::EntityMetadata` stores generated `DataItemEntry` payloads
-directly, including signed byte values, rather than maintaining a second wire
-union. Numeric writes retain sorted keys, coalesce repeated changes and preserve
-unknown numeric keys. Full snapshots and reusable change buffers are independent;
-copying a buffer does not acknowledge delivery. Float/vector comparisons use
-wire bits so identical NaNs do not generate changes and signed zero is retained.
-The headless ECS smoke mutated a replayed 68-field native instance and round-tripped
-both full and changed-field payloads through the generated codec. This state is
-not yet wired into production mob replication.
-
-`entity::properties::ActorPropertyRegistry` compiles BP property schemas once and
-caches `SyncActorProperty` packets for join. All 13 retained native descriptors
-match the compiled NBT, including enum order/ranges and native packet order.
-Descriptor type codes come from the measured `unastar-data::actor_wire` catalog,
-not a handwritten integer table; an unmeasured kind fails explicitly. Scoped
-property handles reject cross-layout assignments, and server-only changes do not
-advance the client-sync revision. Retained wolf/copper-golem `AddActor` controls
-verify that interleaved server-only fields consume no integer sync indices;
-the wolf's sampled enum is assigned explicitly rather than treated as a default.
-Mixed integer/float indexing and dynamic update policy still need the crafted
-native controls; descriptor equality alone does not prove those policies.
-
-`entity::attributes` retains caller-supplied ordered value triples and reusable,
-layout-scoped AddActor snapshots. It does not invent constructor defaults,
-clamping or modifier semantics from sampled packets. An actual GameServer
-spawn/tick/session-channel smoke encoded/decoded all 13 native property schemas
-and an ECS attribute update from a replayed instance. This is not production
-cow/chicken/zombie gameplay or ten-summon acceptance.
-
-`entity::flags::ActorFlags` stores generated catalogue bit indices across three
-fixed words, with allocation-free numeric updates, independent snapshots and
-dirty revisions. `register_component_kinds` binds the baby/climb/hidden/legacy-
-friction/uniform-air-drag marker effects to the existing composition factories;
-apply/remove does no JSON or name lookup. Actual `GameServer` ticks exercised
-extended bits127/128/129, deferred group materialization, destructive shadowed-
-base removal and preservation of unrelated flags. Empty storage is not a
-vanilla constructor default; intrinsic class flags and third-word wire binding
-remain separate native-data decisions.
-
-
 ### Measured item and falling-block motion
 
 Grounded item drag applies default block friction (0.6) even when the
@@ -450,11 +434,6 @@ throttled lava tick changes velocity without moving or applying final drag.
 
 Water/lava material identity and `liquid_depth` are cached from the native block
 registry at startup. Actor motion performs no string-based liquid resolution.
-Neighbour connection families, face coverage and state transitions are likewise
-resolved into an immutable shared numeric cache at block-registry load.
-Collision queries iterate native shape boxes directly, without a temporary
-local-box vector. This preserves the existing connection rules; the BDS
-full-face/solidity distinction remains unconfirmed.
 Currents are applied before flotation; source/depth sampling, falling-liquid
 suppression, neighbouring currents and ground friction use the captured cases.
 
@@ -558,6 +537,19 @@ stack-request operations return an error and resend inventory instead of reporti
 success or accepting client item grants.
 Creative acquisition retains the advertised damage, block runtime ID, and NBT;
 plugin item grants store the same block runtime ID they send to the client.
+
+Block states are always canonical 1.26.51 palette ordinals inside the server
+(chunks, storage, items, plugins). `server.block_network_ids` picks how they are
+numbered on the wire and advertised by `StartGame.block_network_ids_are_hashes`:
+`hashed` (default, as BDS 1.26.51 advertises) sends each state's FNV-1a hash of
+its `{name, states}` NBT; `sequential` sends the ordinal, which the client only
+matches because `StartGame` defines the 98 vanilla data-driven blocks (see
+`unastar-data`). Every packet that carries a block state translates at the wire
+(`BlockNetworkIds::to_wire`/`from_wire`): sub-chunk palettes, `UpdateBlock`,
+block `LevelEvent`/`LevelSoundEvent` data, falling-block actor data, and item
+descriptor `block_runtime_id` (where 0 stays "not a block").
+`tests/wire_block_identity.rs` decodes generated chunks from their wire bytes
+through independent client models of both schemes.
 Every non-air item the server sends carries Bedrock item user data
 (`item::user_data`): the default is BDS's empty encoding (ten zero bytes,
 eighteen for the shield). The client drops the connection with `BadPacket`
@@ -572,6 +564,67 @@ corrections. Allowed intents revalidate current state before committing, and
 Survival placement consumes one server-owned selected item. Placement does not
 replace occupied blocks. Item-specific replacement, adventure CanPlaceOn/CanDestroy
 rules, and unsupported inventory operations are not implemented.
+
+Using a crafting table (unless sneaking with an item in hand) opens BDS's
+WORKBENCH screen (type 1 at the block, no actor) from the shared window-ID
+counter; ItemStackRequest crafting then uses the 3x3 grid. Closing any screen
+returns the cursor and crafting-grid items to the inventory and throws what
+does not fit (dragonfly's `MoveItemsToInventory`).
+
+`BlockPickRequest` follows BDS's `selectItem` rules (`server/game/inventory/pick.rs`):
+reach 14 blocks in Creative and 8.7 otherwise from the eye to the block corner,
+hotbar matches are selected, main-inventory matches swap into the hotbar, only
+Creative creates the item, and an `item_lock` held item is never displaced. The
+picked item is the block's own item when it is in the creative content; blocks
+whose pick item differs (wall signs, crops), picks with block-entity data and
+`GuiDataPickItem` wait for a measured pick-item table, I8 block entities and a
+BDS capture respectively.
+
+### Containers
+
+Chests (single and double), trapped chests, barrels, ender chests, furnaces,
+blast furnaces, smokers and hoppers have block actors
+(`crate::block_entity`, world integration in `server/game/containers.rs`):
+
+- Placing one creates its actor in the chunk; every committed change
+  re-encodes the BDS actor NBT into the chunk and marks it dirty, so contents
+  persist through LevelDB and BlazeDB and reach clients with the subchunk.
+  Unmodelled keys (`CustomName`, `LootTable`, `isMovable`) are kept.
+- Using one opens BDS's window (`ContainerOpen {id, type, clicked block, -1}`
+  then `InventoryContent`); the I4 engine moves items with BDS's per-screen
+  allow-lists (`LevelEntityContainer`, `BarrelContainer`, furnace ingredient,
+  fuel and result containers plus the player's hotbar/inventory/cursor).
+- Chests pair with an unpaired neighbour of the same type and facing, the
+  existing chest leading its 54-slot window; lids open for the first viewer
+  and close for the last (barrels flip `open_bit`).
+- Breaking drops the contents (random 10..30 item chunks, furnaces whole
+  stacks), unpairs the partner and closes viewers with a server-initiated close.
+- Furnaces tick per BDS (cook 200 or 100 ticks, measured fuel times scaled by
+  the cook interval, progress decay, lit/unlit swap, `ContainerSetData` 0..3)
+  and pay XP straight to the taking player. Follow-up: spawn XP orbs once the
+  entity lane's XP orb entity reaches main (also for breaking a furnace).
+- Hoppers move one item per 8 ticks between containers (furnace input from
+  above, fuel from the side, output from below) and collect dropped items.
+- Ender chests show the player's own 27 slots, saved in the player record.
+
+Generated chests unpack their loot table the first time they are opened,
+broken or reached by a hopper, with the saved seed and the Java `fill`
+spreading algorithm; BDS's random sequence is not reproduced, so a seed gives
+different (but table-valid) contents than BDS.
+
+Not implemented: chest obstruction (Bedrock's default `minecraft:chest_obstruction`
+rule is `shape`, and bottom slabs and sitting cats block opening, but which
+vanilla shapes obstruct needs native evidence the capture bot cannot produce
+yet), trapped-chest redstone, copper chests, redstone-driven hopper locking,
+furnace ambient sounds, and the `Block` compound BDS adds to saved block items.
+
+BDS evidence: the `BlockActorData` a newly placed chest is announced with is
+compared against a BDS 1.26.51 capture (`containers/testdata`). Windows, lids,
+`ContainerSetData` and hopper timing still follow the BDS research notes: BDS
+rejects every block click of the client-diff bot (see
+`tools/client-diff/README.md`), so no window capture exists yet. They are
+covered by `containers/tests.rs` and the loopback test
+`tests/container_loopback.rs` (take the native lock to run it).
 
 ## Plugin Isolation
 

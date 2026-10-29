@@ -272,7 +272,7 @@ fn compile_particle(
                 .get_by_name(&identifier)
                 .ok_or_else(|| ProjectileError::Item(identifier.clone()))?;
             let filter = parse_filter(filter)?;
-            Ok::<_, ProjectileError>((item.network_id, filter))
+            Ok::<_, ProjectileError>((item.network_id(), filter))
         })
         .collect::<Result<Box<[_]>, _>>()?;
     Ok(ParticleOnHit {

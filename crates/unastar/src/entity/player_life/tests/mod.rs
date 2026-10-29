@@ -71,17 +71,19 @@ fn join(
     saved_data: Option<PlayerData>,
 ) -> Joined {
     let (outbound_tx, rx) = tokio::sync::mpsc::channel(1 << 16);
-    let entity = server.spawn_player(PlayerSpawnData {
-        session_id: session,
-        display_name: name.into(),
-        xuid: None,
-        uuid: Some(uuid(session)),
-        runtime_id: session as i64,
-        position: eyes(feet),
-        outbound_tx,
-        saved_data,
-        chunk_radius: 2,
-    });
+    let entity = server
+        .spawn_player(PlayerSpawnData {
+            session_id: session,
+            display_name: name.into(),
+            xuid: None,
+            uuid: Some(uuid(session)),
+            runtime_id: session as i64,
+            position: eyes(feet),
+            outbound_tx,
+            saved_data,
+            chunk_radius: 2,
+        })
+        .expect("valid player spawn");
     Joined { entity, rx }
 }
 
@@ -262,7 +264,7 @@ impl Harness {
         let mut drops: Vec<(String, u8)> = world
             .query_filtered::<&ItemEntityStack, With<DroppedItem>>()
             .iter(world)
-            .map(|stack| (stack.0.item_id.clone(), stack.0.count))
+            .map(|stack| (stack.0.item_id().to_owned(), stack.0.count))
             .collect();
         drops.sort();
         drops

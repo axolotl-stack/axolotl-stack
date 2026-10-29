@@ -62,7 +62,7 @@ fn item_nbt(item: &GearItem) -> NBTTag {
         );
     }
     let mut compound = tag::Compound::builder()
-        .with_string("Name", stack.item_id.as_str())
+        .with_string("Name", stack.item_id())
         .with_byte("Count", stack.count)
         .with_short("Damage", stack.damage)
         .with_byte("WasPickedUp", u8::from(item.picked_up))

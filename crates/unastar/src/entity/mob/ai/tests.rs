@@ -18,7 +18,6 @@ use crate::entity::mob::components::{RandomLookAroundGoal, RandomStrollGoal};
 use crate::entity::mob::state::{InLove, LastHurt, Persistent};
 use crate::entity::mob::{SpawnCause, spawn_mob};
 use crate::entity::systems::physics::collides_with_blocks;
-use crate::item::ItemStack;
 use crate::registry::BlockRegistry;
 use crate::registry::collision::Aabb;
 use crate::server::game::{GameServer, ServerConfig};
@@ -106,7 +105,7 @@ impl Terrain {
     /// A survival player whose feet are at `feet`, holding `item`.
     fn player(&mut self, feet: DVec3, item: &str) -> Entity {
         let mut inventory = MainInventory::default();
-        inventory.0.set_item(0, ItemStack::new(item, 1)).unwrap();
+        inventory.0.set_item(0, crate::item::test_support::stack(item, 1)).unwrap();
         self.world()
             .spawn((
                 Player,

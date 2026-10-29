@@ -21,6 +21,8 @@ pub struct ServerConfig {
     pub default_gamemode: GameMode,
     /// World difficulty at startup.
     pub difficulty: crate::world::rules::Difficulty,
+    /// Block state numbering on the wire (`StartGame.block_network_ids_are_hashes`).
+    pub block_network_ids: crate::registry::block::BlockNetworkIds,
     /// Players given operator permission on join: display names
     /// (ASCII case-insensitive) or XUIDs.
     pub operators: Vec<String>,
@@ -46,6 +48,7 @@ impl Default for ServerConfig {
             max_chunk_radius: 12,
             default_gamemode: GameMode::Survival,
             difficulty: crate::world::rules::Difficulty::Easy,
+            block_network_ids: crate::registry::block::BlockNetworkIds::Hashed,
             operators: Vec::new(),
             simulation_distance: 6,  // 2 more than default view
             chunk_unload_ticks: 100, // 5 second grace period

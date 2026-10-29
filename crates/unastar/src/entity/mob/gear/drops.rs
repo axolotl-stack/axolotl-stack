@@ -43,7 +43,7 @@ fn unbreakable(stack: &ItemStack) -> bool {
 /// The wear a non-guaranteed drop of `stack` keeps; `None` when the item
 /// takes no wear.
 fn worn_down(stack: &ItemStack, rng: &mut impl Rng) -> Option<i32> {
-    let max_damage = crate::registry::item::item_data(&stack.item_id)?.max_damage;
+    let max_damage = stack.item()?.tool_info().max_damage;
     if max_damage <= 0 || unbreakable(stack) {
         return None;
     }
@@ -111,6 +111,7 @@ mod tests {
     use super::*;
     use crate::entity::components::{DroppedItem, ItemEntityStack};
     use crate::item::enchant::durability_damage;
+    use crate::item::test_support::stack;
 
     fn mob(world: &mut World, slot: GearSlot, stack: ItemStack, picked_up: bool) -> Entity {
         let mut equipment = MobEquipment::default();
@@ -131,22 +132,20 @@ mod tests {
     #[test]
     fn worn_drops_keep_little_durability() {
         let mut rng = StdRng::seed_from_u64(4);
-        let sword = ItemStack::new("minecraft:iron_sword", 1);
-        let max = crate::registry::item::item_data("minecraft:iron_sword")
-            .unwrap()
-            .max_damage;
+        let sword = stack("minecraft:iron_sword", 1);
+        let max = sword.item().unwrap().tool_info().max_damage;
         for _ in 0..100 {
             let wear = worn_down(&sword, &mut rng).unwrap();
             assert!((4..=max).contains(&wear), "{wear}");
         }
-        assert!(worn_down(&ItemStack::new("minecraft:dirt", 1), &mut rng).is_none());
+        assert!(worn_down(&stack("minecraft:dirt", 1), &mut rng).is_none());
     }
 
     #[test]
     fn picked_up_items_always_drop_and_others_need_a_player_kill() {
         let mut world = World::new();
         world.insert_resource(EntityRandom::seeded(1));
-        let sword = ItemStack::new("minecraft:iron_sword", 1);
+        let sword = stack("minecraft:iron_sword", 1);
         let picked = mob(&mut world, GearSlot::Mainhand, sword.clone(), true);
         drop_equipment(&mut world, picked, false);
         let dropped = drops(&mut world);
@@ -166,7 +165,7 @@ mod tests {
         let guaranteed = mob(
             &mut world,
             GearSlot::Head,
-            ItemStack::new("minecraft:iron_helmet", 1),
+            stack("minecraft:iron_helmet", 1),
             false,
         );
         world
@@ -178,7 +177,7 @@ mod tests {
         let never = mob(
             &mut world,
             GearSlot::Head,
-            ItemStack::new("minecraft:iron_helmet", 1),
+            stack("minecraft:iron_helmet", 1),
             false,
         );
         world

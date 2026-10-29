@@ -10,6 +10,7 @@ use unastar_rules::loot::{Difficulty as LootDifficulty, LootError, LootStateValu
 use crate::entity::mob::constants::{LEGACY_ITEM_NAMES, LEGACY_WOOL, WOOL_ITEMS};
 use crate::item::ItemStack;
 use crate::item::enchant::{Enchantment, enchantment_level};
+use crate::registry::ItemRegistry;
 use crate::registry::block::{BlockEntry, StateValue};
 use crate::world::regional_difficulty::clamped_regional_difficulty;
 use crate::world::rules::{Difficulty, WorldTime};
@@ -34,6 +35,9 @@ pub struct LootContext<'a> {
     /// Level facts for difficulty conditions and gear enchanting; tables
     /// that need them fail to evaluate without.
     pub level: Option<LootLevel>,
+    /// Item definitions for item facts (random enchanting); tables that
+    /// need them fail to evaluate without.
+    pub items: Option<&'a ItemRegistry>,
 }
 
 /// The level facts loot reads: difficulty and clamped regional difficulty.
@@ -58,9 +62,7 @@ impl LootLevel {
 
 impl unastar_rules::loot::LootContext for LootContext<'_> {
     fn tool_item(&self) -> Option<&str> {
-        self.tool
-            .filter(|t| !t.is_empty())
-            .map(|t| t.item_id.as_str())
+        self.tool.filter(|t| !t.is_empty()).map(|t| t.item_id())
     }
 
     fn enchantment_level(&self, id: i16) -> u8 {
@@ -122,7 +124,9 @@ impl unastar_rules::loot::LootContext for LootContext<'_> {
     }
 
     fn item_enchanting(&self, item: &str) -> Result<ItemEnchanting, LootError> {
-        crate::item::enchanting::item_enchanting(item)
+        self.items
+            .and_then(|items| items.get_by_name(item))
+            .and_then(crate::item::enchanting::item_enchanting)
             .ok_or_else(|| LootError::Unsupported(format!("random enchanting of {item}")))
     }
 

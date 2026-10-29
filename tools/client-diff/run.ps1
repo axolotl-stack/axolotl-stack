@@ -5,7 +5,10 @@ param(
     # diff: compare gophertunnel and Jolyne traffic (join-idle, join-chat).
     # conformance: capture every scenario and check Valentine decodes and
     # re-encodes every packet exactly (see README).
-    [ValidateSet('diff', 'conformance')][string]$Mode = 'diff',
+    # capture: run -Scenario with the gophertunnel client against vanilla and,
+    # with -Server unastar, against unastar too and diff the s2c traffic.
+    [ValidateSet('diff', 'conformance', 'capture')][string]$Mode = 'diff',
+    [string[]]$Scenario = @(),
     [string]$Runtime = (Join-Path $PSScriptRoot 'endstone-capture/runtime'),
     [string]$Output = (Join-Path $PSScriptRoot ('runs/' + (Get-Date -Format 'yyyyMMdd-HHmmss-fff'))),
     [string]$UnastarCommand = '',
@@ -167,6 +170,22 @@ $clientFailed = $false
 if ($Server -eq 'unastar' -and $Port -ne 19132) { throw 'unastar listens on the port configured in unastar.toml (19132).' }
 Set-ServerPort
 Initialize-WorldTemplate
+if ($Mode -eq 'capture') {
+    if ($Scenario.Count -eq 0) { throw '-Mode capture needs -Scenario <name>[,<name>...].' }
+    foreach ($name in $Scenario) {
+        $vanilla = Invoke-Capture 'vanilla' 'go' $name
+        if ($Server -eq 'unastar') {
+            $candidate = Invoke-Capture 'unastar' 'go' $name
+            try {
+                Invoke-Checked 'cargo' @('run', '-p', 'client-diff', '--', 'diff', $vanilla, $candidate, '--direction', 's2c', '--masks', $Masks, '--output', (Join-Path $Output "$name-unastar-s2c.md")) $Repo (Join-Path $Output "$name-unastar-s2c-diff")
+            } catch { Write-Warning $_; $diffFailed = $true }
+        }
+    }
+    Write-Host "Captures and command output: $Output"
+    if ($diffFailed) { throw 'One or more differential comparisons failed; inspect the diff logs.' }
+    if ($clientFailed) { throw 'One or more client scenarios failed; partial captures were retained for diagnosis.' }
+    return
+}
 if ($Mode -eq 'conformance') {
     # Interaction scenarios are gophertunnel-only (Jolyne rejects their steps).
     foreach ($scenario in @('join-idle', 'join-chat', 'tour-world', 'tour-interact')) {

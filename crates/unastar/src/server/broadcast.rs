@@ -469,6 +469,7 @@ pub fn tick_block_breaking(
     chunk_manager: bevy_ecs::prelude::Res<ChunkManager>,
     chunks: Query<(&ChunkViewers, &ChunkData)>,
     all_sessions: Query<&PlayerSession>,
+    config: Res<crate::server::game::types::ServerConfigResource>,
 ) {
     for (_player_entity, mut breaking, _player_session) in players.iter_mut() {
         // Skip if not breaking
@@ -521,6 +522,7 @@ pub fn tick_block_breaking(
                     chunk_data.inner.get_block(local_x, local_y, local_z)
                 })
                 .unwrap_or(0);
+            let block_runtime_id = config.0.block_network_ids.to_wire(block_runtime_id);
 
             // Build punch particles with block runtime ID
             let particle_event = LevelEventPacket {
@@ -588,6 +590,7 @@ pub fn broadcast_block_updates(
     mut events: MessageReader<BlockBroadcastEvent>,
     chunks: Query<&ChunkViewers>,
     sessions: Query<&PlayerSession>,
+    config: Res<crate::server::game::types::ServerConfigResource>,
 ) {
     // Group events by chunk for efficient packet bundling
     let mut updates_by_chunk: HashMap<Entity, Vec<BlockBroadcastEvent>> = HashMap::new();
@@ -621,7 +624,7 @@ pub fn broadcast_block_updates(
                     y: update.block_pos.y,
                     z: update.block_pos.z,
                 },
-                block_runtime_id: update.new_block,
+                block_runtime_id: config.0.block_network_ids.to_wire(update.new_block),
                 flags: BLOCK_UPDATE_NEIGHBOURS | BLOCK_UPDATE_NETWORK,
                 layer: 0,
             })
@@ -680,6 +683,7 @@ fn wire_vec(v: glam::DVec3) -> Vec3 {
 /// Falling blocks are `AddActor("minecraft:falling_block")` carrying the
 /// block runtime ID in actor data `VARIANT` (2) and their 0.98 box in
 /// `WIDTH`/`HEIGHT` (53/54), as dragonfly sends them.
+#[allow(clippy::too_many_arguments)]
 fn actor_spawn_packet(
     runtime_id: i64,
     wire_position: glam::DVec3,
@@ -688,6 +692,7 @@ fn actor_spawn_packet(
     falling: Option<&FallingBlock>,
     body: &PhysicsBody,
     items: &crate::registry::ItemRegistry,
+    block_ids: crate::registry::block::BlockNetworkIds,
 ) -> Option<McpePacket> {
     use jolyne::valentine::actor_data_i_ds as actor_data_ids;
     use jolyne::valentine::types::{
@@ -718,7 +723,7 @@ fn actor_spawn_packet(
                         id: actor_data_ids::VARIANT,
                         payload: DataItemEntryPayload::DataItemIntPayload(DataItemIntPayload {
                             type_: EnumsDataItemType::Int,
-                            value: falling.state as i32,
+                            value: block_ids.to_wire(falling.state) as i32,
                         }),
                     },
                     float(actor_data_ids::RESERVED_053, body.width as f32),
@@ -729,7 +734,7 @@ fn actor_spawn_packet(
         }));
     }
     let (stack, owner) = item?;
-    let item = crate::server::game::item_descriptor(&stack.0, items)?;
+    let item = crate::server::game::item_descriptor(&stack.0, items, block_ids)?;
     Some(McpePacket::from(AddItemActorPacket {
         target_actor_id: ActorUniqueId {
             actor_unique_id: runtime_id,
@@ -768,6 +773,7 @@ pub fn sync_actor_viewers(
     chunk_viewers: Query<&ChunkViewers>,
     sessions: Query<&PlayerSession>,
     items: Res<ItemRegistryResource>,
+    config: Res<crate::server::game::types::ServerConfigResource>,
     mut actors: Query<
         (
             &RuntimeId,
@@ -892,6 +898,7 @@ pub fn sync_actor_viewers(
                 falling,
                 body,
                 &items.0,
+                config.0.block_network_ids,
             ),
         };
         if !fresh.is_empty()
@@ -922,7 +929,6 @@ pub fn sync_actor_viewers(
 mod actor_viewer_tests {
     use super::*;
     use crate::entity::spawn_item_drop;
-    use crate::item::ItemStack;
     use crate::world::ecs::ChunkPosition;
     use glam::DVec3;
     use jolyne::valentine::McpePacketData;
@@ -938,6 +944,9 @@ mod actor_viewer_tests {
         let mut items = crate::registry::ItemRegistry::new();
         items.load_vanilla();
         world.insert_resource(ItemRegistryResource(Arc::new(items)));
+        world.insert_resource(crate::server::game::types::ServerConfigResource(
+            Default::default(),
+        ));
         world.insert_resource(ChunkManager::new(
             crate::world::WorldConfig::void_spawn_platform(1),
         ));
@@ -992,7 +1001,7 @@ mod actor_viewer_tests {
         assert!(add.actor_data.data.iter().any(|entry| entry.id == 2
             && matches!(&entry.payload,
                 jolyne::valentine::types::DataItemEntryPayload::DataItemIntPayload(v)
-                    if v.value == sand as i32)));
+                    if v.value == crate::registry::block::BlockNetworkIds::Hashed.to_wire(sand) as i32)));
     }
 
     #[test]
@@ -1038,7 +1047,7 @@ mod actor_viewer_tests {
         let item = spawn_item_drop(
             &mut world,
             DVec3::new(4.5, 64.0, 4.5),
-            ItemStack::new("minecraft:dirt", 2).with_max_stack_size(64),
+            crate::item::test_support::stack("minecraft:dirt", 2),
             None,
         )
         .unwrap();

@@ -8,7 +8,8 @@
 //! - from `format_version` 1.20 on, `unlock` is required (the recipe is
 //!   rejected without it) except for recipes tagged only `deprecated`, which
 //!   BDS sends as always unlocked (18 vanilla furnace recipes, capture
-//!   `CraftingDataPacket` 1.26.51); older documents are always unlocked;
+//!   `CraftingDataPacket` 1.26.51); older documents without an unlock emit an
+//!   empty ingredient requirement;
 //! - `assume_symmetry` defaults to true, `priority` to 0;
 //! - one identifier namespace across recipe kinds.
 //!
@@ -17,13 +18,17 @@
 //! `format_version` (the newest layer's) wins, and between copies of the same
 //! version the later file in path order wins (`barrel_deprecated.json` over
 //! `barrel.json`: BDS 1.26.51 sends the `deprecated` copies of the five
-//! barrel recipes).
+//!   barrel recipes). The layered BDS pack comparison uses the same identity
+//!   resolution.
+
+pub mod native;
 
 use std::collections::{BTreeMap, HashMap};
 
 use serde_json::Value;
 
 use crate::item_components::FormatVersion;
+use crate::item_identity::LegacyIdentities;
 
 include!(concat!(env!("OUT_DIR"), "/vanilla_recipes.rs"));
 
@@ -59,7 +64,7 @@ pub struct ResultItem {
 /// When the player unlocks a recipe.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum Unlock {
-    /// Documents older than 1.20 and `{"context": "AlwaysUnlocked"}`.
+    /// `{"context": "AlwaysUnlocked"}`.
     Always,
     /// `{"context": <name>}` other than `AlwaysUnlocked`.
     Context(String),
@@ -160,13 +165,26 @@ fn data(origin: &str, value: Option<&Value>) -> Result<Option<i16>, RecipeError>
         .transpose()
 }
 
+fn item_identity(name: &str, explicit_data: Option<i16>) -> (String, Option<i16>) {
+    let suffix = crate::item_identity::split_aux(name).filter(|(base, _)| base.contains(':'));
+    let (name, data) = match suffix {
+        Some((base, suffix)) => (base, explicit_data.or(Some(suffix))),
+        None => (name, explicit_data),
+    };
+    let name = crate::item_identity::qualify(name).into_owned();
+    (name, data)
+}
+
 fn ingredient(origin: &str, value: &Value) -> Result<Ingredient, RecipeError> {
     match value {
-        Value::String(name) => Ok(Ingredient::Item {
-            name: name.clone(),
-            data: None,
-            count: 1,
-        }),
+        Value::String(name) => {
+            let (name, data) = item_identity(name, None);
+            Ok(Ingredient::Item {
+                name,
+                data,
+                count: 1,
+            })
+        }
         Value::Object(map) => {
             let count = count(origin, map.get("count"), 1)?;
             if let Some(tag) = map.get("tag").and_then(Value::as_str) {
@@ -179,11 +197,8 @@ fn ingredient(origin: &str, value: &Value) -> Result<Ingredient, RecipeError> {
                 .get("item")
                 .and_then(Value::as_str)
                 .ok_or_else(|| error(origin, format!("ingredient without item or tag: {value}")))?;
-            Ok(Ingredient::Item {
-                name: name.to_string(),
-                data: data(origin, map.get("data"))?,
-                count,
-            })
+            let (name, data) = item_identity(name, data(origin, map.get("data"))?);
+            Ok(Ingredient::Item { name, data, count })
         }
         _ => Err(error(origin, format!("invalid ingredient {value}"))),
     }
@@ -191,20 +206,26 @@ fn ingredient(origin: &str, value: &Value) -> Result<Ingredient, RecipeError> {
 
 fn result_item(origin: &str, value: &Value) -> Result<ResultItem, RecipeError> {
     match value {
-        Value::String(name) => Ok(ResultItem {
-            name: name.clone(),
-            data: 0,
-            count: 1,
-        }),
-        Value::Object(map) => Ok(ResultItem {
-            name: map
+        Value::String(name) => {
+            let (name, data) = item_identity(name, None);
+            Ok(ResultItem {
+                name,
+                data: data.unwrap_or(0),
+                count: 1,
+            })
+        }
+        Value::Object(map) => {
+            let name = map
                 .get("item")
                 .and_then(Value::as_str)
-                .ok_or_else(|| error(origin, "result without item"))?
-                .to_string(),
-            data: data(origin, map.get("data"))?.unwrap_or(0),
-            count: count(origin, map.get("count"), 1)?,
-        }),
+                .ok_or_else(|| error(origin, "result without item"))?;
+            let (name, data) = item_identity(name, data(origin, map.get("data"))?);
+            Ok(ResultItem {
+                name,
+                data: data.unwrap_or(0),
+                count: count(origin, map.get("count"), 1)?,
+            })
+        }
         _ => Err(error(origin, format!("invalid result {value}"))),
     }
 }
@@ -231,9 +252,11 @@ fn unlock(
     value: Option<&Value>,
 ) -> Result<Unlock, RecipeError> {
     match value {
-        None if version < UNLOCK_REQUIRED || deprecated => Ok(Unlock::Always),
+        None if version < UNLOCK_REQUIRED => Ok(Unlock::Items(Vec::new())),
+        None if deprecated => Ok(Unlock::Always),
         None => Err(error(origin, "format_version 1.20+ recipe without unlock")),
         Some(Value::Object(map)) => match map.get("context").and_then(Value::as_str) {
+            Some("None") => Ok(Unlock::Items(Vec::new())),
             Some("AlwaysUnlocked") => Ok(Unlock::Always),
             Some(context) => Ok(Unlock::Context(context.to_string())),
             None => Err(error(origin, "unlock object without context")),
@@ -478,7 +501,33 @@ pub fn decode_vanilla() -> Result<Vec<PackRecipe>, RecipeError> {
 pub struct RecipeRegistry {
     recipes: Vec<PackRecipe>,
     by_identifier: HashMap<String, usize>,
-    furnace: HashMap<String, FurnaceInputs>,
+    /// Input lookup per smelting station, indexed by [`SmeltingStation`].
+    smelting: [HashMap<String, FurnaceInputs>; 3],
+}
+
+/// A block that smelts `minecraft:recipe_furnace` rows carrying its tag.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+pub enum SmeltingStation {
+    Furnace,
+    BlastFurnace,
+    Smoker,
+}
+
+impl SmeltingStation {
+    pub const ALL: [Self; 3] = [Self::Furnace, Self::BlastFurnace, Self::Smoker];
+
+    /// The recipe tag BDS looks results up with for this block.
+    pub const fn tag(self) -> &'static str {
+        match self {
+            Self::Furnace => "furnace",
+            Self::BlastFurnace => "blast_furnace",
+            Self::Smoker => "smoker",
+        }
+    }
+
+    const fn index(self) -> usize {
+        self as usize
+    }
 }
 
 #[derive(Debug, Default)]
@@ -487,16 +536,88 @@ struct FurnaceInputs {
     exact: HashMap<i16, usize>,
 }
 
-#[derive(serde::Deserialize)]
-struct LegacyIdentity {
-    name: String,
-    data: Option<i16>,
-}
+impl LegacyIdentities {
+    fn ingredient(&self, ingredient: &mut Ingredient) {
+        if let Ingredient::Item { name, data, .. } = ingredient
+            && let Some(identity) = self.input_alias(name, *data)
+        {
+            name.clone_from(&identity.name);
+            *data = identity.data.or(*data);
+        }
+    }
 
-#[derive(serde::Deserialize)]
-struct LegacyIdentities {
-    inputs: HashMap<String, LegacyIdentity>,
-    outputs: HashMap<String, LegacyIdentity>,
+    fn result(&self, output: &mut ResultItem) -> Result<(), RecipeError> {
+        if let Some(identity) = self.result_alias(&output.name, output.data) {
+            output.name.clone_from(&identity.name);
+            output.data = identity.data.ok_or_else(|| {
+                error(
+                    "recipe_legacy_identities.json",
+                    "result identity has no aux value",
+                )
+            })?;
+        }
+        Ok(())
+    }
+
+    fn recipe(&self, recipe: &mut PackRecipe) -> Result<(), RecipeError> {
+        if let Unlock::Items(ingredients) = &mut recipe.unlock {
+            for ingredient in ingredients {
+                self.ingredient(ingredient);
+            }
+        }
+        match &mut recipe.kind {
+            RecipeKind::Shaped { key, results, .. } => {
+                for ingredient in key.values_mut() {
+                    self.ingredient(ingredient);
+                }
+                for result in results {
+                    self.result(result)?;
+                }
+            }
+            RecipeKind::Shapeless {
+                ingredients,
+                results,
+            } => {
+                for ingredient in ingredients {
+                    self.ingredient(ingredient);
+                }
+                for result in results {
+                    self.result(result)?;
+                }
+            }
+            RecipeKind::Furnace { input, output } => {
+                self.ingredient(input);
+                self.result(output)?;
+            }
+            RecipeKind::SmithingTransform {
+                template,
+                base,
+                addition,
+                result,
+            } => {
+                for ingredient in [template, base, addition] {
+                    self.ingredient(ingredient);
+                }
+                self.result(result)?;
+            }
+            RecipeKind::SmithingTrim {
+                template,
+                base,
+                addition,
+            } => {
+                for ingredient in [template, base, addition] {
+                    self.ingredient(ingredient);
+                }
+            }
+            RecipeKind::BrewingMix { reagent, .. }
+            | RecipeKind::BrewingContainer { reagent, .. } => {
+                if let Some(identity) = self.result_alias(reagent, 0) {
+                    reagent.clone_from(&identity.name);
+                }
+            }
+        }
+        Ok(())
+    }
 }
 
 impl RecipeRegistry {
@@ -514,51 +635,42 @@ impl RecipeRegistry {
     ///
     /// Unknown named items remain valid identities (the caller validates its
     /// full item registry). Tag ingredients expand against this snapshot.
+    /// First loaded identifier wins, as in BDS; pass higher-priority pack rows
+    /// first. Flattened vanilla version selection happens in `decode_vanilla`.
     pub fn with_items(
         recipes: Vec<PackRecipe>,
         items: &[crate::items::ItemData],
     ) -> Result<Self, RecipeError> {
-        let mut recipes = resolve(recipes);
-        let legacy: LegacyIdentities = serde_json::from_str(include_str!(
-            "../data/measured/recipe_legacy_identities.json"
-        ))
-        .map_err(|e| error("recipe_legacy_identities.json", e.to_string()))?;
-        for recipe in &mut recipes {
-            if let RecipeKind::Furnace { input, output } = &mut recipe.kind {
-                if let Ingredient::Item { name, data, .. } = input
-                    && let Some(identity) = legacy.inputs.get(name.as_str())
-                {
-                    name.clone_from(&identity.name);
-                    if data.is_none() {
-                        *data = identity.data;
-                    }
-                }
-                if let Some(identity) = legacy.outputs.get(output.name.as_str()) {
-                    output.name.clone_from(&identity.name);
-                    output.data = identity.data.ok_or_else(|| {
-                        error(&recipe.origin, "legacy result identity has no aux value")
-                    })?;
-                }
+        let mut recipes = recipes;
+        let mut by_identifier = HashMap::with_capacity(recipes.len());
+        recipes.retain(|recipe| {
+            if by_identifier.contains_key(recipe.identifier.as_str()) {
+                return false;
             }
+            by_identifier.insert(recipe.identifier.clone(), by_identifier.len());
+            true
+        });
+        let legacy = crate::item_identity::vanilla();
+        for recipe in &mut recipes {
+            legacy.recipe(recipe)?;
         }
-        let by_identifier = recipes
-            .iter()
-            .enumerate()
-            .map(|(index, recipe)| (recipe.identifier.clone(), index))
-            .collect();
-        let mut furnace: HashMap<String, FurnaceInputs> = HashMap::new();
-        // Lower numeric priority wins, then identifier order. Inserting the
+        let mut smelting: [HashMap<String, FurnaceInputs>; 3] = Default::default();
+        // Lower numeric priority wins, then registry load order. Inserting the
         // first candidate preserves a deterministic tie without per-tick sorting.
         let mut order: Vec<_> = (0..recipes.len()).collect();
         order.sort_by_key(|&index| (recipes[index].priority, index));
-        for index in order {
+        for (index, station) in order
+            .into_iter()
+            .flat_map(|index| SmeltingStation::ALL.map(|station| (index, station)))
+        {
             let recipe = &recipes[index];
-            if !recipe.tags.iter().any(|tag| tag == "furnace") {
+            if !recipe.tags.iter().any(|tag| tag == station.tag()) {
                 continue;
             }
             let RecipeKind::Furnace { input, .. } = &recipe.kind else {
                 continue;
             };
+            let furnace = &mut smelting[station.index()];
             let mut insert = |name: &str, data: Option<i16>| {
                 let slots = furnace.entry(name.to_string()).or_default();
                 match data {
@@ -590,7 +702,7 @@ impl RecipeRegistry {
         Ok(Self {
             recipes,
             by_identifier,
-            furnace,
+            smelting,
         })
     }
 
@@ -610,7 +722,17 @@ impl RecipeRegistry {
     /// unchanged. Consumers preserve the source loot count, not this recipe's
     /// yield. Exact and wildcard candidates share the same priority ordering.
     pub fn furnace_result(&self, identifier: &str, data: i16) -> Option<&ResultItem> {
-        let slots = self.furnace.get(identifier)?;
+        self.smelting_result(SmeltingStation::Furnace, identifier, data)
+    }
+
+    /// [`Self::furnace_result`] for the recipes tagged for `station`.
+    pub fn smelting_result(
+        &self,
+        station: SmeltingStation,
+        identifier: &str,
+        data: i16,
+    ) -> Option<&ResultItem> {
+        let slots = self.smelting[station.index()].get(identifier)?;
         let exact = slots.exact.get(&data).copied();
         let index = match (exact, slots.wildcard) {
             (Some(a), Some(b)) => {
@@ -662,7 +784,6 @@ mod tests {
     #[test]
     fn unlock_is_required_from_1_20() {
         let old = parse_recipe_document("old.json", &shaped("1.12", json!({}))).unwrap();
-        assert_eq!(old.unlock, Unlock::Always);
         let RecipeKind::Shaped {
             assume_symmetry,
             key,
@@ -799,5 +920,47 @@ mod tests {
             0,
         );
         assert!(RecipeRegistry::from_recipes(vec![missing_tag]).is_err());
+    }
+
+    #[test]
+    fn numeric_namespaced_item_paths_are_not_legacy_aux_suffixes() {
+        let recipe = furnace("addon:numeric", json!("addon:123"), "addon:456", 0);
+        let registry = RecipeRegistry::from_recipes(vec![recipe]).unwrap();
+        assert_eq!(
+            registry
+                .furnace_result("addon:123", 0)
+                .map(|result| result.name.as_str()),
+            Some("addon:456"),
+        );
+    }
+
+    #[test]
+    fn addon_recipe_load_order_keeps_the_first_identifier() {
+        let first = furnace("addon:smelt", json!("addon:ore"), "addon:first_ingot", 0);
+        let later = furnace("addon:smelt", json!("addon:ore"), "addon:later_ingot", 0);
+        let registry = RecipeRegistry::from_recipes(vec![first, later]).unwrap();
+        assert_eq!(
+            registry
+                .furnace_result("addon:ore", 0)
+                .map(|result| result.name.as_str()),
+            Some("addon:first_ingot"),
+        );
+    }
+
+    #[test]
+    fn bare_legacy_rename_preserves_an_explicit_furnace_aux_constraint() {
+        let recipe = furnace(
+            "addon:fish_variant",
+            json!({"item": "minecraft:fish", "data": 2}),
+            "minecraft:cooked_cod",
+            0,
+        );
+        let registry = RecipeRegistry::from_recipes(vec![recipe]).unwrap();
+        assert_eq!(
+            registry.furnace_result("minecraft:cod", 2).unwrap().name,
+            "minecraft:cooked_cod"
+        );
+        assert_eq!(registry.furnace_result("minecraft:cod", 0), None);
+        assert_eq!(registry.furnace_result("minecraft:cod", 3), None);
     }
 }

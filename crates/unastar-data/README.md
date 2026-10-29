@@ -136,8 +136,11 @@ furnace, brewing and smithing documents. The game server freezes one
 `recipes::RecipeRegistry` at startup and shares it through `RecipeRegistryResource`.
 `furnace_result(identifier, aux)` borrows a canonical `ResultItem` without JSON
 parsing, allocations or tag walks. `with_items(recipes, items)` permits an
-addon-capable item snapshot before freeze. Lower numeric recipe priority wins;
-exact and wildcard furnace inputs share the same priority ordering.
+addon-capable item snapshot before freeze; duplicate identifiers keep the first
+loaded recipe. The built-in pack projection resolves duplicate source files by
+newest format version, then later path, before loading that snapshot. Lower
+numeric recipe priority wins; exact and wildcard furnace inputs share the same
+priority ordering.
 The registry also implements `unastar_rules::loot::FurnaceSmelt`: the evaluator
 borrows the canonical result identifier/aux and preserves its own source loot
 count rather than replacing it with the furnace recipe yield. The actual
@@ -146,17 +149,36 @@ rolls exercised that provider against the frozen 1,881-recipe snapshot, includin
 multi-item beef drops and unchanged secondary drops. This is not production
 mob-death or native-RNG parity evidence.
 
-Legacy furnace spellings (`minecraft:coal:1`, `minecraft:fish`, etc.) normalize
+Legacy recipe spellings (`minecraft:coal:1`, `minecraft:fish`, etc.) normalize
 through `data/measured/recipe_legacy_identities.json`, a small projection of the
 pinned 1.26.51 CraftingData capture; no raw/cooked mob table is maintained.
-Regenerate from this crate directory with:
+The shared `item_identity` module decodes this projection once for both recipe
+loading and entity/item-field compilation. Ingredient and result aliases remain
+separate because ingredient aux can be unrestricted. Numeric aux lookups use
+typed indexes without constructing temporary lookup strings. This projection is
+not a complete historical upgrader: unmeasured nonzero aux values in a known
+legacy alias family are rejected instead of inventing a base-item identity.
+
+Name-only aliases preserve an explicit ingredient aux; only an alias with a
+measured aux replaces that constraint.
+
+`recipes::native` loads the other measured facts absent from pack JSON:
+159 native shaped recipes, 1,241 native shapeless recipes, 1,456 user-data
+recipes, 14 stable multi-recipe identities, native result NBT/state identities,
+and 46 potion aux identities. Native variant UUID groups are retained by stable
+group names rather than captured random UUID values. Potion aux values are
+uniquely solved from the complete captured reagent-labelled graph, not a
+hand-written numeric enum. These are D4 measurements, not committed copies of
+pack-derived recipe rows. Regenerate all three measured files from this crate
+directory with:
 
 ```powershell
 python tools/extract_recipe_identities.py C:/Users/jvigu/orca/bds-runtime/captures/1.26.51/20261025T172246Z/member/join/00054-CraftingDataPacket.json
 ```
 
-This registry prerequisite supplies furnace lookup; it does not advertise a
-CraftingData packet or execute crafting yet.
+Unastar's `crafting::CraftingCatalog` consumes these families into one frozen
+advertisement and recipe-network-id index. Crafting execution is a separate
+inventory-engine slice.
 
 Generated `blocks::BlockData` also carries the native block-level physics
 (`friction`, `material`, `blocks_motion`, `liquid`, `solid`, `falling`,
@@ -171,10 +193,13 @@ Block `id` is now the first canonical state ordinal, **not** a Prismarine legacy
 identifiers and `by_runtime_id` are the stable lookup contracts. Names are identifiers,
 not unsourced translated display names. Opacity is native `opaqueFullBlock`;
 hardness/resistance map directly to `destroySpeed`/`explosionResistance` without Java scaling.
-Jolyne negotiates sequential block IDs (`block_network_ids_are_hashes=false`);
-hashes are retained for validation, not substituted for ordinals.
+Runtime IDs are ordinals. `BlockData::network_hashes` carries each state's native
+hashed network ID (`block_network_ids_are_hashes=true`, BDS's default): 32-bit
+FNV-1a of the state's little-endian `{name, states}` NBT. `tests/network_hashes.rs`
+re-derives all 22,091 from the palette. Unastar translates ordinals to whichever
+scheme its `StartGame` advertises only at the wire.
 
-The client numbers sequential IDs over its built-in blocks **plus the blocks
+With sequential IDs the client numbers its built-in blocks **plus the blocks
 `StartGame` defines**, not over the full canonical palette. The 98 vanilla
 data-driven blocks (behavior pack `blocks/`: concrete/wool slabs and stairs)
 are canonical palette entries that the client only knows from a definition, so

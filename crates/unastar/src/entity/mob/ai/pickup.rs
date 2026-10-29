@@ -203,14 +203,14 @@ impl GoalContext<'_> {
         if goal.stop_if_holding_item
             && self
                 .config::<MobEquipment>()
-                .is_some_and(|gear| !gear.get(held_slot(&stack.item_id)).is_empty())
+                .is_some_and(|gear| !gear.get(held_slot(stack.item_id())).is_empty())
         {
             return false;
         }
         if goal
             .excluded
             .iter()
-            .any(|m| m.matches(&stack.item_id, stack.damage))
+            .any(|m| m.matches(stack.item_id(), stack.damage))
         {
             return false;
         }
@@ -405,7 +405,7 @@ fn equip_pending(world: &mut World, mob: Entity) {
         .map_or((true, false), |config| {
             (
                 config.can_wear_armor,
-                config.excludes(&stack.item_id, stack.damage),
+                config.excludes(stack.item_id(), stack.damage),
             )
         });
     let mut equipment = world
@@ -413,8 +413,8 @@ fn equip_pending(world: &mut World, mob: Entity) {
         .take::<MobEquipment>()
         .unwrap_or_default();
     let mut dropped = Vec::new();
-    let worn = worn_slot(&stack.item_id);
-    let hand = held_slot(&stack.item_id);
+    let worn = stack.item().and_then(worn_slot);
+    let hand = held_slot(stack.item_id());
     match worn {
         Some(slot) => dropped.push(equipment.take(slot).stack),
         None => {

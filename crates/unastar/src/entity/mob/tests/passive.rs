@@ -171,7 +171,7 @@ impl Harness {
         let drops: Vec<(Entity, String, u8)> = world
             .query_filtered::<(Entity, &ItemEntityStack), With<DroppedItem>>()
             .iter(world)
-            .map(|(entity, stack)| (entity, stack.0.item_id.clone(), stack.0.count))
+            .map(|(entity, stack)| (entity, stack.0.item_id().to_owned(), stack.0.count))
             .collect();
         for (entity, _, _) in &drops {
             world.despawn(*entity);
@@ -364,7 +364,7 @@ fn shearing_drops_wool_of_the_sheep_colour_and_wears_the_shears() {
     assert!((1..=3).contains(&wool), "{drops:?}");
     assert_eq!(drops.len(), 1, "only red wool: {drops:?}");
     let shears = h.held();
-    assert_eq!(shears.item_id, "minecraft:shears");
+    assert_eq!(shears.item_id(), "minecraft:shears");
     assert_eq!(crate::item::enchant::durability_damage(&shears), 1);
     let world = h.world();
     assert!(flag(world, sheep, actor_flags::SHEARED));

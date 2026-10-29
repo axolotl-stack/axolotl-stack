@@ -97,7 +97,7 @@ pub fn apply_throws(world: &mut World) {
 }
 
 fn throw_held(world: &mut World, player: Entity) {
-    let Some((actor, climate)) = held_item(world, player).and_then(|s| thrown_by(&s.item_id))
+    let Some((actor, climate)) = held_item(world, player).and_then(|s| thrown_by(s.item_id()))
     else {
         return;
     };

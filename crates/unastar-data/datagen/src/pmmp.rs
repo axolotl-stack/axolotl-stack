@@ -879,8 +879,18 @@ mod registry_tests {
 
     #[test]
     fn corrections_fail_on_changed_base_values_and_unknown_inputs() {
-        assert!(corrected_doc(16, "{}").is_err());
-        assert!(corrected_doc(64, r#"{"minecraft:allow_offhand":["minecraft:missing"]}"#).is_err());
-        assert!(corrected_doc(64, r#"{"minecraft:wings":["minecraft:shield"]}"#).is_err());
+        let error = corrected_doc(16, "{}").unwrap_err();
+        assert!(
+            error.to_string().contains("differs from the reviewed base"),
+            "{error}"
+        );
+        let error =
+            corrected_doc(64, r#"{"minecraft:allow_offhand":["minecraft:missing"]}"#).unwrap_err();
+        assert!(
+            error.to_string().contains("unknown item minecraft:missing"),
+            "{error}"
+        );
+        let error = corrected_doc(64, r#"{"minecraft:wings":["minecraft:shield"]}"#).unwrap_err();
+        assert!(error.to_string().contains("unknown capability"), "{error}");
     }
 }

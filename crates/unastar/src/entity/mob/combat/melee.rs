@@ -162,7 +162,7 @@ fn attack_damage(world: &mut World, attacker: Entity, attack: &AttackConfig) -> 
 /// its `attack` draw).
 fn weapon_damage(world: &World, attacker: Entity) -> f32 {
     gear::mainhand(world, attacker).map_or(0.0, |stack| {
-        unastar_data::melee::attack_damage(Some(stack.item_id.as_str()))
+        unastar_data::melee::attack_damage(Some(stack.item_id()))
             - unastar_data::melee::attack_damage(None)
     })
 }

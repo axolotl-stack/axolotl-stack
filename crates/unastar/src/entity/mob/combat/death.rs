@@ -29,7 +29,7 @@ use crate::entity::mob::{MobKind, constants};
 use crate::entity::xp_orb::spawn_experience;
 use crate::entity::{EntityRandom, spawn_item_drop};
 use crate::item::enchant::{Enchantment, enchantment_level};
-use crate::server::game::types::RecipeRegistryResource;
+use crate::server::game::types::{ItemRegistryResource, RecipeRegistryResource};
 use crate::server::game::{LootContext, LootLevel, loot_stacks};
 
 /// The death animation of a [`Dead`] mob: the server tick its body is
@@ -114,6 +114,9 @@ fn drop_loot(world: &mut World, mob: Entity) {
         // Riding is not implemented: no mob has a vehicle.
         vehicle: None,
         level: LootLevel::of(world),
+        items: world
+            .get_resource::<ItemRegistryResource>()
+            .map(|items| &*items.0),
     };
     let drops = match unastar_rules::loot::roll(
         unastar_data::loot::vanilla(),

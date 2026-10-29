@@ -108,6 +108,46 @@
         { "after_ms": 300, "kind": "command", "text": "/clear @s" }
       ]
     },
+    "inventory-moves": {
+      "idle_ms": 3000,
+      "auth_input": true,
+      "steps": [
+        { "after_ms": 1000, "kind": "command", "text": "/gamemode survival @s" },
+        { "after_ms": 300, "kind": "command", "text": "/clear @s" },
+        { "after_ms": 300, "kind": "command", "text": "/give @s cobblestone 32" },
+        { "after_ms": 300, "kind": "command", "text": "/give @s oak_log 8" },
+        { "after_ms": 300, "kind": "command", "text": "/give @s apple 4" },
+        { "after_ms": 300, "kind": "command", "text": "/give @s diamond_sword" },
+        { "after_ms": 600, "kind": "move_item", "slot": 0, "to": 9, "count": 1 },
+        { "after_ms": 400, "kind": "open_inventory" },
+        { "after_ms": 600, "kind": "move_item", "slot": 0, "to": 9, "count": 32 },
+        { "after_ms": 400, "kind": "move_item", "slot": 9, "to": 10, "count": 12 },
+        { "after_ms": 400, "kind": "move_item", "slot": 10, "to": 9, "count": 12 },
+        { "after_ms": 400, "kind": "swap", "slot": 9, "to": 1, "count": 1 },
+        { "after_ms": 400, "kind": "take_cursor", "slot": 2, "count": 2 },
+        { "after_ms": 400, "kind": "place_cursor", "to": 11, "count": 1 },
+        { "after_ms": 400, "kind": "place_cursor", "to": 2, "count": 1 },
+        { "after_ms": 400, "kind": "drop", "slot": 9, "count": 3 },
+        { "after_ms": 400, "kind": "move_item", "slot": 3, "to": 4, "count": 1, "stale": true },
+        { "after_ms": 400, "kind": "move_item", "slot": 1, "to": 12, "count": 40 },
+        { "after_ms": 400, "kind": "take_cursor", "slot": 3, "count": 1 },
+        { "after_ms": 400, "kind": "drop_cursor", "count": 1 },
+        { "after_ms": 400, "kind": "craft", "recipe": "minecraft:oak_planks", "slot": 9, "to": 13, "count": 1 },
+        { "after_ms": 400, "kind": "close_inventory" },
+        { "after_ms": 400, "kind": "drop", "slot": 2, "count": 1 },
+        { "after_ms": 400, "kind": "open_inventory" },
+        { "after_ms": 400, "kind": "drop", "slot": 2, "count": 1 },
+        { "after_ms": 300, "kind": "command", "text": "/give @s iron_helmet" },
+        { "after_ms": 300, "kind": "command", "text": "/give @s shield" },
+        { "after_ms": 600, "kind": "place_cursor", "to": 0, "count": 1, "to_container": "armor" },
+        { "after_ms": 400, "kind": "move_item", "slot": 0, "to": 1, "count": 1, "to_container": "armor" },
+        { "after_ms": 400, "kind": "move_item", "slot": 0, "to": 0, "count": 1, "to_container": "armor" },
+        { "after_ms": 400, "kind": "move_item", "slot": 1, "to": 0, "count": 1, "to_container": "offhand" },
+        { "after_ms": 400, "kind": "move_item", "slot": 1, "to": 1, "count": 1, "to_container": "offhand" },
+        { "after_ms": 400, "kind": "destroy", "slot": 11, "count": 1 },
+        { "after_ms": 400, "kind": "close_inventory" }
+      ]
+    },
     "tour-interact": {
       "idle_ms": 4000,
       "auth_input": true,
@@ -142,6 +182,81 @@
         { "after_ms": 600, "kind": "interact", "entity": "minecraft:cow" },
         { "after_ms": 1000, "kind": "command", "text": "/kill @s" },
         { "after_ms": 3000, "kind": "command", "text": "/difficulty peaceful" }
+      ]
+    },
+    "containers-dry": {
+      "idle_ms": 2000,
+      "auth_input": true,
+      "steps": [
+        { "after_ms": 1000, "kind": "command", "text": "/gamemode survival @s" },
+        { "after_ms": 300, "kind": "command", "text": "/clear @s" },
+        { "after_ms": 300, "kind": "command", "text": "/setblock ~2 ~ ~ chest" },
+        { "after_ms": 300, "kind": "command", "text": "/give @s cobblestone 16" },
+        { "after_ms": 800, "kind": "click", "x": 1, "y": -1, "z": -1, "face": 1 },
+        { "after_ms": 800, "kind": "click", "x": 2, "y": 0, "z": 0, "face": 4 },
+        { "after_ms": 800, "kind": "close_container" }
+      ]
+    },
+    "containers": {
+      "idle_ms": 3000,
+      "auth_input": true,
+      "steps": [
+        { "after_ms": 1000, "kind": "command", "text": "/gamemode survival @s" },
+        { "after_ms": 300, "kind": "command", "text": "/clear @s" },
+        { "after_ms": 300, "kind": "command", "text": "/setblock ~2 ~ ~-2 chest" },
+        { "after_ms": 300, "kind": "command", "text": "/setblock ~2 ~ ~2 chest" },
+        { "after_ms": 300, "kind": "command", "text": "/setblock ~3 ~ ~2 chest" },
+        { "after_ms": 300, "kind": "command", "text": "/setblock ~-2 ~ ~ furnace" },
+        { "after_ms": 300, "kind": "command", "text": "/setblock ~-2 ~2 ~3 chest" },
+        { "after_ms": 300, "kind": "command", "text": "/setblock ~-2 ~1 ~3 hopper" },
+        { "after_ms": 300, "kind": "command", "text": "/give @s cobblestone 32" },
+        { "after_ms": 300, "kind": "command", "text": "/give @s coal 4" },
+        { "after_ms": 300, "kind": "command", "text": "/give @s raw_iron 2" },
+        { "after_ms": 800, "kind": "click", "x": 2, "y": 0, "z": -2, "face": 1 },
+        { "after_ms": 600, "kind": "move_item", "slot": 0, "to": 3, "count": 12, "to_container": "chest" },
+        { "after_ms": 400, "kind": "move_item", "slot": 3, "to": 5, "count": 4, "from_container": "chest" },
+        { "after_ms": 400, "kind": "move_item", "slot": 0, "to": 3, "count": 2, "to_container": "chest" },
+        { "after_ms": 400, "kind": "close_container" },
+        { "after_ms": 800, "kind": "click", "x": 3, "y": 0, "z": 2, "face": 1 },
+        { "after_ms": 600, "kind": "move_item", "slot": 0, "to": 30, "count": 5, "to_container": "chest" },
+        { "after_ms": 400, "kind": "move_item", "slot": 0, "to": 2, "count": 5, "to_container": "chest" },
+        { "after_ms": 400, "kind": "close_container" },
+        { "after_ms": 800, "kind": "click", "x": -2, "y": 0, "z": 0, "face": 1 },
+        { "after_ms": 600, "kind": "move_item", "slot": 2, "to": 0, "count": 2, "to_container": "ingredient" },
+        { "after_ms": 400, "kind": "move_item", "slot": 1, "to": 1, "count": 1, "to_container": "fuel" },
+        { "after_ms": 10600, "kind": "move_item", "slot": 2, "to": 8, "count": 1, "from_container": "result" },
+        { "after_ms": 400, "kind": "close_container" },
+        { "after_ms": 600, "kind": "click", "x": -2, "y": 1, "z": 3, "face": 4 },
+        { "after_ms": 300, "kind": "command", "text": "/replaceitem block ~-2 ~2 ~3 slot.container 0 cobblestone 3" },
+        { "after_ms": 2000, "kind": "close_container" }
+      ]
+    },
+    "chest-obstruction": {
+      "idle_ms": 2000,
+      "auth_input": true,
+      "steps": [
+        { "after_ms": 1000, "kind": "command", "text": "/gamemode survival @s" },
+        { "after_ms": 300, "kind": "command", "text": "/clear @s" },
+        { "after_ms": 300, "kind": "command", "text": "/setblock ~2 ~ ~-4 chest" },
+        { "after_ms": 300, "kind": "command", "text": "/setblock ~2 ~1 ~-4 stone" },
+        { "after_ms": 300, "kind": "command", "text": "/setblock ~2 ~ ~-2 chest" },
+        { "after_ms": 300, "kind": "command", "text": "/setblock ~2 ~1 ~-2 glass" },
+        { "after_ms": 300, "kind": "command", "text": "/setblock ~2 ~ ~0 chest" },
+        { "after_ms": 300, "kind": "command", "text": "/setblock ~2 ~1 ~0 oak_slab" },
+        { "after_ms": 300, "kind": "command", "text": "/setblock ~2 ~ ~2 chest" },
+        { "after_ms": 300, "kind": "command", "text": "/setblock ~2 ~1 ~2 oak_leaves" },
+        { "after_ms": 300, "kind": "command", "text": "/setblock ~2 ~ ~4 chest" },
+        { "after_ms": 300, "kind": "command", "text": "/setblock ~2 ~1 ~4 air" },
+        { "after_ms": 800, "kind": "click", "x": 2, "y": 0, "z": -4, "face": 4 },
+        { "after_ms": 600, "kind": "close_container" },
+        { "after_ms": 800, "kind": "click", "x": 2, "y": 0, "z": -2, "face": 4 },
+        { "after_ms": 600, "kind": "close_container" },
+        { "after_ms": 800, "kind": "click", "x": 2, "y": 0, "z": 0, "face": 4 },
+        { "after_ms": 600, "kind": "close_container" },
+        { "after_ms": 800, "kind": "click", "x": 2, "y": 0, "z": 2, "face": 4 },
+        { "after_ms": 600, "kind": "close_container" },
+        { "after_ms": 800, "kind": "click", "x": 2, "y": 0, "z": 4, "face": 4 },
+        { "after_ms": 600, "kind": "close_container" }
       ]
     }
   }

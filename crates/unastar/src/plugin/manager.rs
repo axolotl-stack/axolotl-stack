@@ -1234,7 +1234,7 @@ mod tests {
             let mut inventory = MainInventory::default();
             inventory
                 .0
-                .set_item(0, crate::item::ItemStack::new("minecraft:stone", 2))
+                .set_item(0, crate::item::test_support::stack("minecraft:stone", 2))
                 .unwrap();
             let entity = world
                 .spawn((

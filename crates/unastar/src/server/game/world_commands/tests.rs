@@ -32,17 +32,19 @@ struct Joined {
 
 fn join(server: &mut GameServer, session: u64, name: &str) -> Joined {
     let (outbound_tx, rx) = mpsc::channel(1 << 16);
-    let entity = server.spawn_player(PlayerSpawnData {
-        session_id: session,
-        display_name: name.into(),
-        xuid: None,
-        uuid: Some(format!("00000000-0000-0000-0000-{session:012}")),
-        runtime_id: session as i64,
-        position: DVec3::new(0.5, 17.0, 0.5),
-        outbound_tx,
-        saved_data: None,
-        chunk_radius: 2,
-    });
+    let entity = server
+        .spawn_player(PlayerSpawnData {
+            session_id: session,
+            display_name: name.into(),
+            xuid: None,
+            uuid: Some(format!("00000000-0000-0000-0000-{session:012}")),
+            runtime_id: session as i64,
+            position: DVec3::new(0.5, 17.0, 0.5),
+            outbound_tx,
+            saved_data: None,
+            chunk_radius: 2,
+        })
+        .expect("valid player spawn");
     Joined {
         entity,
         session,

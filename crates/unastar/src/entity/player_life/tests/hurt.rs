@@ -1,6 +1,6 @@
 use super::*;
 use crate::entity::components::ArmourInventory;
-use crate::item::ItemStack;
+use crate::item::test_support::stack;
 
 /// A 3-damage melee hit from a mob, the player wearing an iron chestplate
 /// (6 defence, no toughness): scaled by the difficulty, then reduced to
@@ -17,7 +17,7 @@ fn a_mob_hit_is_scaled_by_difficulty_reduced_by_armour_and_knocks_the_player_bac
         h.world()
             .get_mut::<ArmourInventory>(player)
             .unwrap()
-            .set_chestplate(ItemStack::new("minecraft:iron_chestplate", 1))
+            .set_chestplate(stack("minecraft:iron_chestplate", 1))
             .unwrap();
         let mut viewer = h.viewer();
         let cow = h.cow();

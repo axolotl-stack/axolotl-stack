@@ -371,7 +371,7 @@ impl<'a> GoalContext<'a> {
         held_item(self.world, player).is_some_and(|stack| {
             goal.items
                 .iter()
-                .any(|item| item.matches(&stack.item_id, stack.damage))
+                .any(|item| item.matches(stack.item_id(), stack.damage))
         })
     }
 

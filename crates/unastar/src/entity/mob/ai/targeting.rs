@@ -309,10 +309,10 @@ impl GoalContext<'_> {
         let Some(armour) = self.world.get::<ArmourInventory>(player) else {
             return false;
         };
-        let helmet = &armour.helmet().item_id;
+        let helmet = armour.helmet().item_id();
         MOB_HEAD_DISGUISES
             .iter()
-            .any(|&(mob, head)| mob == &*self.archetype.identifier && head == helmet.as_str())
+            .any(|&(mob, head)| mob == &*self.archetype.identifier && head == helmet)
     }
 
     /// The nearest actor the nearest-attackable-target goal may target.

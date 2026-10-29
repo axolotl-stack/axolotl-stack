@@ -37,7 +37,7 @@ pub(crate) fn stackable(a: &ItemStack, b: &ItemStack) -> bool {
 
 /// Same item and data value, ignoring wear.
 fn same_item(a: &ItemStack, b: &ItemStack) -> bool {
-    !a.is_empty() && a.item_id == b.item_id && a.damage == b.damage
+    !a.is_empty() && a.item_id() == b.item_id() && a.damage == b.damage
 }
 
 fn has_binding_curse(stack: &ItemStack) -> bool {
@@ -70,7 +70,7 @@ fn should_replace(
 ) -> bool {
     let priority = |stack: &ItemStack| {
         wants
-            .entry(&stack.item_id, stack.damage)
+            .entry(stack.item_id(), stack.damage)
             .map(|entry| entry.priority)
     };
     let existing_priority = priority(existing).unwrap_or(i32::MAX);
@@ -106,14 +106,14 @@ pub fn will_pickup(world: &World, mob: Entity, item: &ItemStack, any: bool) -> b
     let Some(wants) = world.get::<ShareablesConfig>(mob) else {
         return false;
     };
-    let entry = wants.entry(&item.item_id, item.damage);
+    let entry = wants.entry(item.item_id(), item.damage);
     if !any && !wants.all_items && entry.is_none() {
         return false;
     }
     let equipment = world.get::<MobEquipment>(mob);
     let max_amount = entry.map_or(wants.all_items_max_amount, |e| e.max_amount);
-    let hand = carried(equipment, held_slot(&item.item_id));
-    if let Some(slot) = worn_slot(&item.item_id) {
+    let hand = carried(equipment, held_slot(item.item_id()));
+    if let Some(slot) = item.item().and_then(worn_slot) {
         let worn = carried(equipment, slot);
         if worn.is_empty() && wants.singular_pickup && hand.is_empty() {
             return true;
@@ -143,7 +143,7 @@ pub fn will_pickup(world: &World, mob: Entity, item: &ItemStack, any: bool) -> b
 /// their hand"): the preferred hand holds a stack `item` joins and that
 /// stack is not full.
 pub fn joins_hand(world: &World, mob: Entity, item: &ItemStack) -> bool {
-    let hand = carried(world.get::<MobEquipment>(mob), held_slot(&item.item_id));
+    let hand = carried(world.get::<MobEquipment>(mob), held_slot(item.item_id()));
     stackable(&hand, item) && hand.count < hand.max_stack_size()
 }
 
@@ -151,7 +151,7 @@ pub fn joins_hand(world: &World, mob: Entity, item: &ItemStack) -> bool {
 pub fn consumes(world: &World, mob: Entity, item: &ItemStack) -> bool {
     world
         .get::<ShareablesConfig>(mob)
-        .and_then(|wants| wants.entry(&item.item_id, item.damage))
+        .and_then(|wants| wants.entry(item.item_id(), item.damage))
         .is_some_and(|entry| entry.consume_item)
 }
 
@@ -161,10 +161,10 @@ pub fn consumes(world: &World, mob: Entity, item: &ItemStack) -> bool {
 /// stack it joins.
 pub fn count_to_pickup(world: &World, mob: Entity, item: &ItemStack) -> u8 {
     let equipment = world.get::<MobEquipment>(mob);
-    let hand = carried(equipment, held_slot(&item.item_id));
+    let hand = carried(equipment, held_slot(item.item_id()));
     let mut count = i32::from(item.count);
     if let Some(wants) = world.get::<ShareablesConfig>(mob) {
-        let entry = wants.entry(&item.item_id, item.damage);
+        let entry = wants.entry(item.item_id(), item.damage);
         let max_amount = entry.map_or(wants.all_items_max_amount, |e| e.max_amount);
         let pickup_limit = entry.map_or(-1, |e| e.pickup_limit);
         if max_amount >= 0 {
@@ -193,6 +193,7 @@ mod tests {
     use crate::entity::mob::components::ItemMatcher;
     use crate::entity::mob::components::equipment::ShareableEntry;
     use crate::item::enchant::{with_durability_damage, with_enchantment_ids};
+    use crate::item::test_support::stack;
 
     fn entry(item: &str, priority: i32) -> ShareableEntry {
         ShareableEntry {
@@ -240,10 +241,10 @@ mod tests {
     fn better_weapons_replace_worse_ones() {
         let mut world = World::new();
         let mob = mob(&mut world);
-        let iron = ItemStack::new("minecraft:iron_sword", 1);
-        let diamond = ItemStack::new("minecraft:diamond_sword", 1);
-        let stone = ItemStack::new("minecraft:stone_sword", 1);
-        let dirt = ItemStack::new("minecraft:dirt", 1);
+        let iron = stack("minecraft:iron_sword", 1);
+        let diamond = stack("minecraft:diamond_sword", 1);
+        let stone = stack("minecraft:stone_sword", 1);
+        let dirt = stack("minecraft:dirt", 1);
         assert!(will_pickup(&world, mob, &iron, false));
         assert!(!will_pickup(&world, mob, &dirt, false));
         assert!(
@@ -271,9 +272,9 @@ mod tests {
     fn armour_fills_empty_slots_and_upgrades_by_priority() {
         let mut world = World::new();
         let mob = mob(&mut world);
-        let iron = ItemStack::new("minecraft:iron_helmet", 1);
-        let gold = ItemStack::new("minecraft:golden_helmet", 1);
-        let leather = ItemStack::new("minecraft:leather_helmet", 1);
+        let iron = stack("minecraft:iron_helmet", 1);
+        let gold = stack("minecraft:golden_helmet", 1);
+        let leather = stack("minecraft:leather_helmet", 1);
         assert!(will_pickup(&world, mob, &gold, false));
         assert!(
             will_pickup(&world, mob, &leather, true),
@@ -295,20 +296,16 @@ mod tests {
     fn counts_stop_at_the_hand_stack_limit() {
         let mut world = World::new();
         let mob = mob(&mut world);
-        let arrows = ItemStack::new("minecraft:arrow", 40).with_max_stack_size(64);
+        let arrows = stack("minecraft:arrow", 40);
         assert_eq!(count_to_pickup(&world, mob, &arrows), 40);
         hold(
             &mut world,
             mob,
             GearSlot::Mainhand,
-            ItemStack::new("minecraft:arrow", 30).with_max_stack_size(64),
+            stack("minecraft:arrow", 30),
         );
         assert_eq!(count_to_pickup(&world, mob, &arrows), 34);
         assert!(joins_hand(&world, mob, &arrows));
-        assert!(!joins_hand(
-            &world,
-            mob,
-            &ItemStack::new("minecraft:stick", 1)
-        ));
+        assert!(!joins_hand(&world, mob, &stack("minecraft:stick", 1)));
     }
 }

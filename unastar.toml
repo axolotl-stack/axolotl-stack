@@ -38,6 +38,9 @@ allow_legacy_auth = true
 encryption_enabled = true
 # Require clients to accept advertised resource packs.
 require_resource_packs = false
+# Block state numbering on the wire: "hashed" (each state's FNV-1a NBT hash,
+# what BDS advertises) or "sequential" (canonical palette ordinal).
+block_network_ids = "hashed"
 
 # Players granted operator permission (needed for /tp and /summon) when they join.
 # Each entry is a display name (matched case-insensitively) or an XUID. With

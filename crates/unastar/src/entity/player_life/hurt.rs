@@ -212,7 +212,7 @@ fn worn_armour(world: &World, player: Entity) -> (f32, f32) {
                 .slots()
                 .iter()
                 .filter(|stack| !stack.is_empty())
-                .filter_map(|stack| unastar_data::armour::armour_values(&stack.item_id))
+                .filter_map(|stack| unastar_data::armour::armour_values(stack.item_id()))
                 .fold((0.0, 0.0), |(defence, toughness), values| {
                     (defence + values.defence, toughness + values.toughness)
                 })

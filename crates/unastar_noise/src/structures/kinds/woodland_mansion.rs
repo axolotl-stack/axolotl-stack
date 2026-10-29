@@ -618,11 +618,14 @@ const ROOMS_1X1_AS: [&str; 4] = [
     "minecraft:woodland_mansion/1x1_as3",
     "minecraft:woodland_mansion/1x1_as4",
 ];
-const ROOMS_1X1_B: [&str; 4] = [
+/// Native mansions place all five `1x1_b` rooms (`1x1_b5` occurs in the
+/// 2026-10-28 corpus), so the upper-floor 1x1 choice draws from five.
+const ROOMS_1X1_B: [&str; 5] = [
     "minecraft:woodland_mansion/1x1_b1",
     "minecraft:woodland_mansion/1x1_b2",
     "minecraft:woodland_mansion/1x1_b3",
     "minecraft:woodland_mansion/1x1_b4",
+    "minecraft:woodland_mansion/1x1_b5",
 ];
 const ROOMS_1X2_A: [&str; 9] = [
     "minecraft:woodland_mansion/1x2_a1",

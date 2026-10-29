@@ -86,7 +86,7 @@ fn apply_dye(world: &mut World, player: Entity, target: Entity, held: &ItemStack
     }
     let Some(colour) = constants::DYE_ITEMS
         .iter()
-        .position(|dye| *dye == held.item_id)
+        .position(|dye| *dye == held.item_id())
         .map(|index| index as u8)
     else {
         return false;
@@ -117,7 +117,7 @@ pub fn spawn_egg_actor(item_id: &str) -> Option<&str> {
 /// then fully handled, even when the actor cannot be spawned).
 pub fn use_spawn_egg_on_block(world: &mut World, player: Entity, adjacent: IVec3) -> bool {
     let Some(actor) = held_item(world, player)
-        .and_then(|held| spawn_egg_actor(&held.item_id))
+        .and_then(|held| spawn_egg_actor(held.item_id()))
         .map(str::to_owned)
     else {
         return false;
@@ -149,7 +149,7 @@ fn spawn_baby_from_egg(
     target: Entity,
     held: &ItemStack,
 ) -> bool {
-    let Some(actor) = spawn_egg_actor(&held.item_id) else {
+    let Some(actor) = spawn_egg_actor(held.item_id()) else {
         return false;
     };
     if world.get::<SpawnEggInteraction>(target).is_none() {
@@ -197,12 +197,12 @@ fn ageable_interaction(
     let matches = |items: &[ItemMatcher]| {
         items
             .iter()
-            .any(|item| item.matches(&held.item_id, held.damage))
+            .any(|item| item.matches(held.item_id(), held.damage))
     };
     let fed = config
         .feed_items
         .iter()
-        .find(|entry| entry.item.matches(&held.item_id, held.damage))
+        .find(|entry| entry.item.matches(held.item_id(), held.damage))
         .is_some_and(|entry| age.feed(&config, entry.growth));
     let used = fed
         || (matches(&config.pause_growth_items) && age.pause(now))
@@ -233,7 +233,7 @@ fn fall_in_love(world: &mut World, player: Entity, target: Entity, held: &ItemSt
         || !config
             .breed_items
             .iter()
-            .any(|item| item.matches(&held.item_id, held.damage))
+            .any(|item| item.matches(held.item_id(), held.damage))
         || world
             .get::<InLove>(target)
             .is_some_and(|love| now < love.until_tick)
@@ -347,8 +347,9 @@ fn hurt_held_item(world: &mut World, player: Entity, amount: i32) {
     let Some(held) = held_item(world, player).cloned() else {
         return;
     };
-    let Some(max_damage) = crate::registry::item::tool_info(&held.item_id)
-        .map(|info| info.max_damage)
+    let Some(max_damage) = held
+        .item()
+        .map(|item| item.tool_info().max_damage)
         .filter(|max| *max > 0)
     else {
         return;
@@ -396,10 +397,14 @@ fn spawn_interaction_loot(
     let recipes = world
         .get_resource::<crate::server::game::types::RecipeRegistryResource>()
         .map(|r| r.0.clone());
+    let items = world
+        .get_resource::<ItemRegistryResource>()
+        .map(|r| r.0.clone());
     let ctx = crate::server::game::LootContext {
         on_fire: Some(crate::entity::mob::combat::fire::is_burning(world, mob)),
         recipes: recipes.as_deref(),
         color_index: crate::entity::mob::components::color::color_of(world, mob),
+        items: items.as_deref(),
         ..Default::default()
     };
     let seed = world.resource_mut::<EntityRandom>().0.r#gen::<u64>();
@@ -487,7 +492,7 @@ fn use_held_item_with(world: &mut World, player: Entity, consume: bool, result: 
         } else if !creative
             || inventory
                 .0
-                .first(|stack| stack.item_id == result.item_id)
+                .first(|stack| stack.item_id() == result.item_id())
                 .is_none()
         {
             let (_, rest) = inventory.0.add_item(result);
@@ -535,12 +540,7 @@ fn resend_held(world: &World, player: Entity) {
 /// below. The client spawns the item's crumbs at the mob's mouth and plays
 /// its eating sound.
 fn feed_event(world: &World, mob: Entity, held: &ItemStack) {
-    let Some(network_id) = world
-        .resource::<ItemRegistryResource>()
-        .0
-        .get_by_name(&held.item_id)
-        .map(|item| item.network_id)
-    else {
+    let Some(network_id) = held.item().map(|item| item.network_id()) else {
         return;
     };
     let data = (network_id << constants::FEED_EVENT_ITEM_SHIFT) | i32::from(held.damage as u16);

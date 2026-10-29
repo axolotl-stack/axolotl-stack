@@ -7,13 +7,10 @@
 //! diamond 10, netherite 15, turtle 9, elytra 0); bows, crossbows and
 //! tridents have 1. Data-driven items carry `minecraft:enchantable`.
 
-use std::collections::HashMap;
-use std::sync::LazyLock;
-
 use unastar_data::armour::{ArmourSlot, armour_slot};
 use unastar_rules::enchanting::{ItemEnchanting, slot};
 
-use crate::registry::item::{ToolKind, ToolTier, tool_info};
+use crate::registry::item::{ItemEntry, ToolKind, ToolTier};
 
 /// Armour material enchantability, by the item's tier tag.
 const ARMOUR_MATERIALS: [(&str, i32); 7] = [
@@ -36,18 +33,6 @@ const RANGED: [(&str, u32); 3] = [
 ];
 const RANGED_ENCHANTABILITY: i32 = 1;
 
-/// `minecraft:enchantable` of the vanilla data-driven item documents.
-static DATA_DRIVEN: LazyLock<HashMap<String, (String, i32)>> = LazyLock::new(|| {
-    unastar_data::item_components::decode_vanilla()
-        .expect("vanilla item documents decode")
-        .into_iter()
-        .filter_map(|item| {
-            let enchantable = item.components.enchantable?;
-            Some((item.identifier, (enchantable.slot, enchantable.value)))
-        })
-        .collect()
-});
-
 fn tier_enchantability(tier: ToolTier) -> i32 {
     match tier {
         ToolTier::Wooden => 15,
@@ -69,15 +54,16 @@ fn component_slot(name: &str) -> Option<u32> {
     })
 }
 
-/// Enchantment slots and enchantability of `item_id`; `None` when the item
+/// Enchantment slots and enchantability of `item`; `None` when the item
 /// is not of a classified vanilla item class.
-pub fn item_enchanting(item_id: &str) -> Option<ItemEnchanting> {
-    if let Some((slot_name, value)) = DATA_DRIVEN.get(item_id) {
+pub fn item_enchanting(item: &ItemEntry) -> Option<ItemEnchanting> {
+    if let Some(enchantable) = &item.components().enchantable {
         return Some(ItemEnchanting {
-            slots: component_slot(slot_name)?,
-            value: *value,
+            slots: component_slot(&enchantable.slot)?,
+            value: enchantable.value,
         });
     }
+    let item_id = item.identifier();
     if let Some((_, slots)) = RANGED.iter().find(|(id, _)| *id == item_id) {
         return Some(ItemEnchanting {
             slots: *slots,
@@ -100,15 +86,14 @@ pub fn item_enchanting(item_id: &str) -> Option<ItemEnchanting> {
         let value = if item_id == TURTLE_HELMET {
             TURTLE_ENCHANTABILITY
         } else {
-            let data = crate::registry::item::item_data(item_id)?;
             ARMOUR_MATERIALS
                 .iter()
-                .find(|(tag, _)| data.has_tag(tag))
+                .find(|(tag, _)| item.has_tag(tag))
                 .map(|(_, value)| *value)?
         };
         return Some(ItemEnchanting { slots, value });
     }
-    let tool = tool_info(item_id)?;
+    let tool = item.tool_info();
     let slots = match tool.kind? {
         ToolKind::Sword => slot::SWORD,
         ToolKind::Shovel => slot::SHOVEL,
@@ -128,8 +113,14 @@ mod tests {
     use super::*;
 
     fn facts(item: &str) -> (u32, i32) {
-        let facts = item_enchanting(item).unwrap_or_else(|| panic!("{item} unclassified"));
+        let facts = item_enchanting(entry(item)).unwrap_or_else(|| panic!("{item} unclassified"));
         (facts.slots, facts.value)
+    }
+
+    fn entry(item: &str) -> &'static ItemEntry {
+        crate::item::test_support::VANILLA
+            .get_by_name(item)
+            .unwrap_or_else(|| panic!("{item} is a vanilla item"))
     }
 
     #[test]
@@ -147,6 +138,6 @@ mod tests {
         assert_eq!(facts("minecraft:turtle_helmet"), (slot::ARMOR_HEAD, 9));
         assert_eq!(facts("minecraft:bow"), (slot::BOW, 1));
         assert_eq!(facts("minecraft:golden_sword"), (slot::SWORD, 22));
-        assert_eq!(item_enchanting("minecraft:rotten_flesh"), None);
+        assert_eq!(item_enchanting(entry("minecraft:rotten_flesh")), None);
     }
 }

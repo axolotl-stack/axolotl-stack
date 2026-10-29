@@ -19,7 +19,6 @@ use crate::entity::components::{
 use crate::entity::mob::components::spawn_entity::{SpawnEntityTimers, SpawnTimer};
 use crate::entity::mob::net::network::add_actor_packet;
 use crate::entity::mob::*;
-use crate::item::ItemStack;
 use crate::server::game::{GameServer, ServerConfig};
 use crate::world::ChunkManager;
 use crate::world::chunk::{Chunk, blocks};
@@ -105,7 +104,7 @@ fn dropped(world: &mut World) -> Vec<(String, u8)> {
     world
         .query_filtered::<&ItemEntityStack, With<DroppedItem>>()
         .iter(world)
-        .map(|stack| (stack.0.item_id.clone(), stack.0.count))
+        .map(|stack| (stack.0.item_id().to_owned(), stack.0.count))
         .collect()
 }
 
@@ -307,7 +306,7 @@ fn chicken_follows_a_player_holding_wheat_seeds() {
         .get_mut::<MainInventory>(player)
         .unwrap()
         .0
-        .set_item(0, ItemStack::new("minecraft:wheat_seeds", 1))
+        .set_item(0, crate::item::test_support::stack("minecraft:wheat_seeds", 1))
         .unwrap();
     let chicken = spawn(
         world,
@@ -512,7 +511,7 @@ fn ready_to_throw(h: &mut Harness, item: &str, count: u8, mode: GameMode) {
         .get_mut::<MainInventory>()
         .unwrap()
         .0
-        .set_item(0, ItemStack::new(item, count))
+        .set_item(0, crate::item::test_support::stack(item, count))
         .unwrap();
 }
 
@@ -605,7 +604,7 @@ fn thrown_egg_follows_its_arc_breaks_on_the_floor_and_uses_one_egg() {
         .0
         .get_by_name("minecraft:blue_egg")
         .unwrap()
-        .network_id;
+        .network_id();
     let crumbs = packets
         .iter()
         .filter(|p| {

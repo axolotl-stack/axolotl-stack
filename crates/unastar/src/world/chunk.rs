@@ -977,7 +977,7 @@ impl Chunk {
 
         // One network-format paletted storage per section, like block storage.
         for section in &self.biomes {
-            section.encode(&mut buf);
+            section.encode(&mut buf, |biome| biome);
         }
 
         // Border blocks count (0 = none)
@@ -1079,12 +1079,17 @@ impl Chunk {
         Ok(())
     }
 
-    /// Encode a section and its rooted network-NBT actors for a SubChunk response.
+    /// Encode a section and its rooted network-NBT actors for a SubChunk response,
+    /// with block palettes in the wire id scheme `StartGame` advertised.
     ///
     /// Request-mode LevelChunk carries only biomes; actors follow their section's
     /// block storage here (without a count or border byte).
-    pub fn encode_subchunk(&self, y_index: i32) -> Option<Vec<u8>> {
-        let mut out = self.encode_subchunk_disk(y_index)?;
+    pub fn encode_subchunk(
+        &self,
+        y_index: i32,
+        ids: crate::registry::block::BlockNetworkIds,
+    ) -> Option<Vec<u8>> {
+        let mut out = self.encode_section(y_index, |id| ids.to_wire(id))?;
         for entity in &self.block_entities {
             if entity.position()[1] >> 4 == y_index {
                 out.extend_from_slice(&entity.network_nbt().0);
@@ -1096,6 +1101,11 @@ impl Chunk {
     /// Encode block storage only, without the network actor suffix.
     /// Providers persist actors separately under Bedrock tag 0x31.
     pub fn encode_subchunk_disk(&self, y_index: i32) -> Option<Vec<u8>> {
+        self.encode_section(y_index, |id| id)
+    }
+
+    /// Section block storage with every palette entry written as `wire(id)`.
+    fn encode_section(&self, y_index: i32, wire: impl Fn(u32) -> u32 + Copy) -> Option<Vec<u8>> {
         self.assert_bedrock();
         if !((self.bounds.start >> 4)..(self.bounds.end >> 4)).contains(&y_index) {
             return None;
@@ -1103,7 +1113,7 @@ impl Chunk {
         let array_idx = y_index.checked_sub(MIN_Y >> 4)? as usize;
         let sub = self.sub_chunks.get(array_idx)?;
         let mut buf = BytesMut::with_capacity(1024);
-        sub.encode(&mut buf, y_index as i8);
+        sub.encode(&mut buf, y_index as i8, wire);
         Some(buf.to_vec())
     }
 
@@ -1587,8 +1597,8 @@ impl SubChunk {
         }
     }
 
-    /// Encode this sub-chunk for network transmission.
-    fn encode(&self, buf: &mut BytesMut, y_index: i8) {
+    /// Encode this sub-chunk, writing each palette entry as `wire(id)`.
+    fn encode(&self, buf: &mut BytesMut, y_index: i8, wire: impl Fn(u32) -> u32 + Copy) {
         // SubChunk format v9:
         // - Version: u8 = 9
         // - Storage count: u8
@@ -1599,9 +1609,9 @@ impl SubChunk {
         buf.put_u8(1 + u8::from(self.secondary.is_some()));
         buf.put_i8(y_index);
 
-        self.storage.encode(buf);
+        self.storage.encode(buf, wire);
         if let Some(layer) = &self.secondary {
-            layer.storage.encode(buf);
+            layer.storage.encode(buf, wire);
         }
     }
 }
@@ -1806,8 +1816,8 @@ impl PalettedStorage {
         self.size as u8
     }
 
-    /// Encode this storage for network transmission.
-    fn encode(&self, buf: &mut BytesMut) {
+    /// Encode this storage with runtime-id palette entries written as `wire(id)`.
+    fn encode(&self, buf: &mut BytesMut, wire: impl Fn(u32) -> u32) {
         let bits = self.size as u8;
 
         // Network encoding header: (bits_per_block << 1) | 1
@@ -1815,7 +1825,7 @@ impl PalettedStorage {
 
         if bits == 0 {
             // Single-value: just the palette entry as signed varint
-            write_signed_varint32(buf, self.palette[0] as i32);
+            write_signed_varint32(buf, wire(self.palette[0]) as i32);
         } else {
             // Write packed u32 words in little-endian
             for &word in &self.indices {
@@ -1827,7 +1837,7 @@ impl PalettedStorage {
 
             // Palette entries as signed varints
             for &runtime_id in &self.palette {
-                write_signed_varint32(buf, runtime_id as i32);
+                write_signed_varint32(buf, wire(runtime_id) as i32);
             }
         }
     }
@@ -2139,7 +2149,9 @@ mod tests {
             ));
         }
         for section in -4..20 {
-            let bytes = chunk.encode_subchunk(section).unwrap();
+            let bytes = chunk
+                .encode_subchunk(section, crate::registry::block::BlockNetworkIds::Sequential)
+                .unwrap();
             let blocks = chunk.encode_subchunk_disk(section).unwrap();
             assert!(bytes.starts_with(&blocks));
             let mut input = &bytes[blocks.len()..];
@@ -2160,8 +2172,9 @@ mod tests {
                 !expected.is_empty()
             );
         }
-        assert!(chunk.encode_subchunk(i32::MIN).is_none());
-        assert!(chunk.encode_subchunk(20).is_none());
+        let ids = crate::registry::block::BlockNetworkIds::Sequential;
+        assert!(chunk.encode_subchunk(i32::MIN, ids).is_none());
+        assert!(chunk.encode_subchunk(20, ids).is_none());
     }
 
     #[test]
@@ -2373,7 +2386,7 @@ mod tests {
         chunk.fill_floor(1, *blocks::GRASS_BLOCK);
 
         // Y index 0 corresponds to subchunk index 4
-        let data = chunk.encode_subchunk(0);
+        let data = chunk.encode_subchunk(0, crate::registry::block::BlockNetworkIds::Sequential);
         assert!(data.is_some());
         let data = data.unwrap();
 
@@ -2435,7 +2448,7 @@ mod tests {
         storage.set_block(10, 10, 10, *blocks::DIRT);
 
         let mut buf = BytesMut::new();
-        storage.encode(&mut buf);
+        storage.encode(&mut buf, |id| id);
 
         let (decoded, _) = PalettedStorage::decode(&buf).unwrap();
 
@@ -2591,7 +2604,9 @@ mod layered_state_tests {
         assert_eq!(chunk.get_block_layer(14, 0, 15, 1), *blocks::WATER);
         assert_eq!(chunk.get_block_layer(13, 0, 15, 1), *blocks::AIR);
         for section in [-1, 0] {
-            let wire = chunk.encode_subchunk(section).unwrap();
+            let wire = chunk
+                .encode_subchunk(section, crate::registry::block::BlockNetworkIds::Sequential)
+                .unwrap();
             assert_eq!(wire[1], 2);
             let mut decoded = Chunk::new(-1, -1);
             decoded.decode_subchunk(section, &wire).unwrap();

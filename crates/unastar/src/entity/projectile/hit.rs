@@ -122,7 +122,7 @@ fn emit_particles(
                 .resource::<ItemRegistryResource>()
                 .0
                 .get_by_name(&kind.0.identifier)
-                .map(|item| item.network_id)
+                .map(|item| item.network_id())
         })
         .unwrap_or(0);
     let data = particle.particle | (item << ICONCRACK_ITEM_SHIFT);

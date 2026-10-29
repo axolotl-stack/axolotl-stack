@@ -1,6 +1,6 @@
 use super::*;
 use crate::entity::components::{ArmourInventory, Experience, MainInventory, OffhandSlot};
-use crate::item::ItemStack;
+use crate::item::test_support::stack;
 
 /// Diamonds in the hotbar, an iron chestplate, a shield in the offhand and
 /// level 5 (35 experience to drop).
@@ -11,14 +11,14 @@ fn equip(h: &mut Harness) {
         .get_mut::<MainInventory>(player)
         .unwrap()
         .0
-        .set_item(0, ItemStack::new("minecraft:diamond", 3))
+        .set_item(0, stack("minecraft:diamond", 3))
         .unwrap();
     world
         .get_mut::<ArmourInventory>(player)
         .unwrap()
-        .set_chestplate(ItemStack::new("minecraft:iron_chestplate", 1))
+        .set_chestplate(stack("minecraft:iron_chestplate", 1))
         .unwrap();
-    world.get_mut::<OffhandSlot>(player).unwrap().0 = ItemStack::new("minecraft:shield", 1);
+    world.get_mut::<OffhandSlot>(player).unwrap().0 = stack("minecraft:shield", 1);
     world.get_mut::<Experience>(player).unwrap().level = 5;
 }
 
@@ -36,7 +36,7 @@ fn carried(h: &mut Harness) -> Vec<String> {
             &world.get::<OffhandSlot>(player).unwrap().0,
         ))
         .filter(|stack| !stack.is_empty())
-        .map(|stack| stack.item_id.clone())
+        .map(|stack| stack.item_id().to_owned())
         .collect();
     items.sort();
     items

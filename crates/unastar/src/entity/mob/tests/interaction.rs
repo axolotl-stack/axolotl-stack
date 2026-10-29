@@ -215,7 +215,7 @@ fn feed_data(world: &World, item: &str) -> i32 {
         .0
         .get_by_name(item)
         .unwrap()
-        .network_id;
+        .network_id();
     network_id << constants::FEED_EVENT_ITEM_SHIFT
 }
 
@@ -456,7 +456,7 @@ fn milking_a_cow_with_an_empty_bucket_gives_milk() {
     h.packets();
     h.hold("minecraft:bucket", 1);
     h.interact(cow);
-    assert_eq!(h.slot(0).item_id, "minecraft:milk_bucket");
+    assert_eq!(h.slot(0).item_id(), "minecraft:milk_bucket");
     assert_eq!(h.slot(0).count, 1);
     let packets = h.packets();
     assert!(packets.iter().any(|p| matches!(p,
@@ -469,15 +469,15 @@ fn milking_a_cow_with_an_empty_bucket_gives_milk() {
     h.hold("minecraft:bucket", 3);
     h.interact(cow);
     assert_eq!(
-        (h.slot(0).item_id.as_str(), h.slot(0).count),
+        (h.slot(0).item_id(), h.slot(0).count),
         ("minecraft:bucket", 2)
     );
-    assert_eq!(h.slot(1).item_id, "minecraft:milk_bucket");
+    assert_eq!(h.slot(1).item_id(), "minecraft:milk_bucket");
 
     // A milk bucket does not milk again.
     h.hold("minecraft:milk_bucket", 1);
     h.interact(cow);
-    assert_eq!(h.slot(0).item_id, "minecraft:milk_bucket");
+    assert_eq!(h.slot(0).item_id(), "minecraft:milk_bucket");
     assert_eq!(h.slot(2), ItemStack::empty());
 }
 

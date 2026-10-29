@@ -16,17 +16,19 @@ fn server() -> GameServer {
 
 fn join(server: &mut GameServer) -> mpsc::Receiver<McpePacket> {
     let (outbound_tx, rx) = mpsc::channel(1 << 16);
-    server.spawn_player(PlayerSpawnData {
-        session_id: 1,
-        display_name: "Clock".into(),
-        xuid: None,
-        uuid: Some("00000000-0000-0000-0000-000000000001".into()),
-        runtime_id: 1,
-        position: DVec3::new(0.5, 17.0, 0.5),
-        outbound_tx,
-        saved_data: None,
-        chunk_radius: 2,
-    });
+    server
+        .spawn_player(PlayerSpawnData {
+            session_id: 1,
+            display_name: "Clock".into(),
+            xuid: None,
+            uuid: Some("00000000-0000-0000-0000-000000000001".into()),
+            runtime_id: 1,
+            position: DVec3::new(0.5, 17.0, 0.5),
+            outbound_tx,
+            saved_data: None,
+            chunk_radius: 2,
+        })
+        .expect("valid player spawn");
     rx
 }
 

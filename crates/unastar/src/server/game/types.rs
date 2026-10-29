@@ -29,6 +29,14 @@ pub struct ItemRegistryResource(pub Arc<crate::registry::ItemRegistry>);
 #[derive(Resource)]
 pub struct RecipeRegistryResource(pub Arc<unastar_data::recipes::RecipeRegistry>);
 
+/// Frozen advertisement and network-id/source index, built with the recipe snapshot.
+#[derive(Resource)]
+pub struct CraftingCatalogResource(pub crate::crafting::CraftingCatalog);
+
+/// Mandatory packet-authoritative grid execution index, frozen after the catalog.
+#[derive(Resource)]
+pub struct CraftingExecutorResource(pub Arc<crate::crafting::execution::CraftingExecutor>);
+
 /// Wrapper for BlockRegistry to serve as an ECS Resource.
 #[derive(Resource)]
 pub struct BlockRegistryResource(pub Arc<crate::registry::BlockRegistry>);
@@ -36,6 +44,11 @@ pub struct BlockRegistryResource(pub Arc<crate::registry::BlockRegistry>);
 /// Server configuration as an ECS Resource.
 #[derive(Resource, Clone)]
 pub struct ServerConfigResource(pub super::ServerConfig);
+
+/// The configured wire numbering of block states (see [`crate::registry::block::BlockNetworkIds`]).
+pub(crate) fn block_network_ids(world: &World) -> crate::registry::block::BlockNetworkIds {
+    world.resource::<ServerConfigResource>().0.block_network_ids
+}
 
 /// Command registry as an ECS Resource.
 #[derive(Resource)]

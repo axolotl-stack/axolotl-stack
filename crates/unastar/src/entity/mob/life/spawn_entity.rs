@@ -26,7 +26,6 @@ use crate::entity::mob::components::{SpawnEntityConfig, SpawnEntityTimers, Spawn
 use crate::entity::mob::events::{MobFacts, fire_event};
 use crate::entity::mob::net::sound::{body_centre, play_level_sound};
 use crate::entity::mob::state::Dead;
-use crate::item::ItemStack;
 
 /// System (exclusive, `EntityLogicSet`): advance spawn timers and fire the
 /// rules that are due.
@@ -89,8 +88,12 @@ fn fire(world: &mut World, mob: Entity, rule: &SpawnRule) {
         return;
     };
     play_level_sound(world, Some(mob), centre, &rule.sound, -1);
+    let Some(stack) = crate::server::game::world_stack(world, &rule.item, 1) else {
+        tracing::warn!(item = %rule.item, "spawn_entity item is not in the item registry");
+        return;
+    };
     for _ in 0..rule.count {
-        crate::entity::spawn_item_drop(world, feet, ItemStack::new(&*rule.item, 1), None);
+        crate::entity::spawn_item_drop(world, feet, stack.clone(), None);
     }
     let Some(name) = &rule.item_event else {
         return;

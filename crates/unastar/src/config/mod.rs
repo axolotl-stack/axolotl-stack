@@ -99,6 +99,7 @@ impl UnastarConfig {
             max_chunk_radius: self.server.max_chunk_radius,
             default_gamemode: gamemode,
             difficulty: self.server.difficulty,
+            block_network_ids: self.server.block_network_ids,
             operators: self.server.operators.clone(),
             // Use defaults for new fields not in config file yet
             simulation_distance: defaults.simulation_distance,
@@ -168,6 +169,8 @@ pub struct ServerConfigFile {
     pub encryption_enabled: bool,
     /// Require clients to accept advertised resource packs.
     pub require_resource_packs: bool,
+    /// Block state numbering on the wire: "hashed" (BDS default) or "sequential".
+    pub block_network_ids: crate::registry::block::BlockNetworkIds,
     /// Players granted operator permission (`/tp`, `/summon`) when they
     /// join, by display name (case-insensitive) or XUID. Without
     /// `online_mode` names and XUIDs are not verified.
@@ -188,6 +191,7 @@ impl Default for ServerConfigFile {
             allow_legacy_auth: true,
             encryption_enabled: true,
             require_resource_packs: false,
+            block_network_ids: crate::registry::block::BlockNetworkIds::Hashed,
             operators: Vec::new(),
         }
     }

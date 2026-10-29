@@ -99,7 +99,7 @@ pub fn player_attack(
         return;
     }
     let damage = unastar_data::melee::attack_damage(
-        held_item(world, player).map(|stack| stack.item_id.as_str()),
+        held_item(world, player).map(|stack| stack.item_id()),
     );
     hurt_mob(
         world,

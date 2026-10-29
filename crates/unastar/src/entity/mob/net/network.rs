@@ -29,7 +29,7 @@ use crate::entity::definition::metadata::EntityMetadata;
 use crate::entity::definition::properties::ActorProperties;
 use crate::entity::mob::gear::{MobEquipment, replicate};
 use crate::entity::mob::{MobKind, constants};
-use crate::server::game::types::ItemRegistryResource;
+use crate::server::game::types::{ItemRegistryResource, ServerConfigResource};
 use crate::world::ChunkManager;
 use crate::world::ecs::ChunkViewers;
 
@@ -109,6 +109,7 @@ pub fn sync_mob_viewers(
     chunk_viewers: Query<&ChunkViewers>,
     sessions: Query<&PlayerSession>,
     items: Option<Res<ItemRegistryResource>>,
+    config: Option<Res<ServerConfigResource>>,
     mut mobs: Query<(
         &MobKind,
         &RuntimeId,
@@ -124,6 +125,9 @@ pub fn sync_mob_viewers(
         Option<&mut MobEquipment>,
     )>,
 ) {
+    let block_ids = config
+        .as_ref()
+        .map_or_else(Default::default, |config| config.0.block_network_ids);
     for (
         kind,
         runtime_id,
@@ -261,7 +265,7 @@ pub fn sync_mob_viewers(
         if let (Some(gear), Some(items)) = (gear.as_mut(), items.as_ref())
             && gear.is_dirty()
         {
-            replicate::changed_packets(runtime_id.0, gear, &items.0, &mut updates);
+            replicate::changed_packets(runtime_id.0, gear, &items.0, block_ids, &mut updates);
         }
         for viewer in &viewers.viewers {
             if let Ok(session) = sessions.get(*viewer) {
@@ -292,7 +296,9 @@ pub fn sync_mob_viewers(
                 .as_deref()
                 .filter(|gear| gear.count() > 0)
                 .zip(items.as_ref())
-                .map(|(gear, items)| replicate::inventory_packets(runtime_id.0, gear, &items.0));
+                .map(|(gear, items)| {
+                    replicate::inventory_packets(runtime_id.0, gear, &items.0, block_ids)
+                });
             for viewer in fresh {
                 if let Ok(session) = sessions.get(viewer)
                     && session.send(spawn.clone())

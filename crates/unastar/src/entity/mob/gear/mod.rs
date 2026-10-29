@@ -26,6 +26,7 @@ use unastar_data::armour::ArmourSlot;
 use crate::entity::mob::components::ItemMatcher;
 use crate::entity::mob::constants::SHIELD_ITEM;
 use crate::item::ItemStack;
+use crate::registry::item::ItemEntry;
 
 /// A native equipment slot, numbered as BDS numbers them.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
@@ -104,15 +105,13 @@ impl GearSlot {
     }
 }
 
-/// The armour slot `item_id` is worn in: armour by its measured slot, and
+/// The armour slot `item` is worn in: armour by its measured slot, and
 /// head-wearable blocks (carved pumpkin, skulls and heads) on the head.
-pub fn worn_slot(item_id: &str) -> Option<GearSlot> {
-    if let Some(slot) = unastar_data::armour::armour_slot(item_id) {
+pub fn worn_slot(item: &ItemEntry) -> Option<GearSlot> {
+    if let Some(slot) = unastar_data::armour::armour_slot(item.identifier()) {
         return Some(GearSlot::from_armour(slot));
     }
-    crate::registry::item::item_data(item_id)
-        .is_some_and(|item| item.head)
-        .then_some(GearSlot::Head)
+    item.data().head.then_some(GearSlot::Head)
 }
 
 /// The hand a picked-up `item_id` goes to: the shield to the off hand,
@@ -254,7 +253,7 @@ pub fn has_equipment(world: &World, mob: Entity, slots: &[GearSlot], want: &Item
     world.get::<MobEquipment>(mob).is_some_and(|equipment| {
         slots.iter().any(|&slot| {
             let stack = equipment.get(slot);
-            !stack.is_empty() && want.matches(&stack.item_id, stack.damage)
+            !stack.is_empty() && want.matches(stack.item_id(), stack.damage)
         })
     })
 }
@@ -262,19 +261,21 @@ pub fn has_equipment(world: &World, mob: Entity, slots: &[GearSlot], want: &Item
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::item::test_support::{VANILLA, stack};
+
+    fn worn(item: &str) -> Option<GearSlot> {
+        worn_slot(VANILLA.get_by_name(item).expect(item))
+    }
 
     #[test]
     fn slots_follow_measured_armour_and_head_wearables() {
-        assert_eq!(worn_slot("minecraft:iron_helmet"), Some(GearSlot::Head));
-        assert_eq!(worn_slot("minecraft:elytra"), Some(GearSlot::Chest));
-        assert_eq!(
-            worn_slot("minecraft:diamond_leggings"),
-            Some(GearSlot::Legs)
-        );
-        assert_eq!(worn_slot("minecraft:golden_boots"), Some(GearSlot::Feet));
-        assert_eq!(worn_slot("minecraft:turtle_helmet"), Some(GearSlot::Head));
-        assert_eq!(worn_slot("minecraft:carved_pumpkin"), Some(GearSlot::Head));
-        assert_eq!(worn_slot("minecraft:iron_sword"), None);
+        assert_eq!(worn("minecraft:iron_helmet"), Some(GearSlot::Head));
+        assert_eq!(worn("minecraft:elytra"), Some(GearSlot::Chest));
+        assert_eq!(worn("minecraft:diamond_leggings"), Some(GearSlot::Legs));
+        assert_eq!(worn("minecraft:golden_boots"), Some(GearSlot::Feet));
+        assert_eq!(worn("minecraft:turtle_helmet"), Some(GearSlot::Head));
+        assert_eq!(worn("minecraft:carved_pumpkin"), Some(GearSlot::Head));
+        assert_eq!(worn("minecraft:iron_sword"), None);
         assert_eq!(held_slot("minecraft:shield"), GearSlot::Offhand);
         assert_eq!(held_slot("minecraft:iron_sword"), GearSlot::Mainhand);
     }
@@ -285,14 +286,10 @@ mod tests {
         assert!(!equipment.is_dirty());
         equipment.set(
             GearSlot::Chest,
-            ItemStack::new("minecraft:iron_chestplate", 1),
+            stack("minecraft:iron_chestplate", 1),
             false,
         );
-        equipment.set(
-            GearSlot::Mainhand,
-            ItemStack::new("minecraft:iron_sword", 1),
-            true,
-        );
+        equipment.set(GearSlot::Mainhand, stack("minecraft:iron_sword", 1), true);
         assert_eq!(
             equipment.take_dirty().collect::<Vec<_>>(),
             [GearSlot::Mainhand, GearSlot::Chest]
@@ -301,7 +298,7 @@ mod tests {
         assert_eq!(equipment.count(), 2);
         assert!(equipment.item(GearSlot::Mainhand).picked_up);
         let old = equipment.take(GearSlot::Mainhand);
-        assert_eq!(old.stack.item_id, "minecraft:iron_sword");
+        assert_eq!(old.stack.item_id(), "minecraft:iron_sword");
         assert_eq!(equipment.count(), 1);
         assert_eq!(
             equipment.take_dirty().collect::<Vec<_>>(),

@@ -40,8 +40,8 @@ use super::environment::{Burning, PlayerFall};
 use super::rules::PlayerRules;
 use super::{Dead, attributes, respawn};
 use crate::entity::components::{
-    ArmourInventory, CursorItem, Experience, Health, MainInventory, OffhandSlot, Player,
-    PlayerName, PlayerSession, Position,
+    ArmourInventory, Experience, Health, MainInventory, OffhandSlot, Player, PlayerName,
+    PlayerSession, PlayerUi, Position,
 };
 use crate::entity::definition::metadata::EntityMetadata;
 use crate::entity::mob::MobKind;
@@ -270,8 +270,8 @@ fn drop_everything(world: &mut World, player: Entity) {
         if let Some(mut offhand) = entity.get_mut::<OffhandSlot>() {
             stacks.push(std::mem::take(&mut offhand.0));
         }
-        if let Some(mut cursor) = entity.get_mut::<CursorItem>() {
-            stacks.push(std::mem::take(&mut cursor.0));
+        if let Some(mut ui) = entity.get_mut::<PlayerUi>() {
+            stacks.extend(ui.0.clear());
         }
     }
     for stack in stacks {

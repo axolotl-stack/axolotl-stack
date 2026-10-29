@@ -20,14 +20,18 @@ use crate::entity::definition::flags::ActorFlags;
 use crate::entity::mob::components::EquipmentConfig;
 use crate::entity::mob::constants::PICKUP_LOOT_CHANCE;
 use crate::item::ItemStack;
+use crate::server::game::types::ItemRegistryResource;
 use crate::server::game::{LootContext, LootLevel, loot_stacks};
 
 /// The slot a stack rolled from a gear table goes to.
-fn table_slot(item_id: &str) -> GearSlot {
-    if let Some(slot) = worn_slot(item_id) {
+fn table_slot(stack: &ItemStack) -> GearSlot {
+    let Some(item) = stack.item() else {
+        return GearSlot::Mainhand;
+    };
+    if let Some(slot) = worn_slot(item) {
         return slot;
     }
-    if crate::registry::item::item_data(item_id).is_some_and(|item| item.allow_offhand) {
+    if item.allows_offhand() {
         GearSlot::Offhand
     } else {
         GearSlot::Mainhand
@@ -48,7 +52,7 @@ pub fn equip_from_table(world: &mut World, mob: Entity, config: &EquipmentConfig
     }
     if roll && let Some(name) = &config.table {
         for stack in roll_table(world, mob, name) {
-            equipment.set(table_slot(&stack.item_id), stack, false);
+            equipment.set(table_slot(&stack), stack, false);
         }
     }
     world.entity_mut(mob).insert(equipment);
@@ -69,6 +73,9 @@ fn roll_table(world: &mut World, mob: Entity, name: &str) -> Vec<ItemStack> {
             .get::<ActorFlags>(mob)
             .is_some_and(|flags| flags.get(actor_flags::BABY).unwrap_or(false)),
         level: LootLevel::of(world),
+        items: world
+            .get_resource::<ItemRegistryResource>()
+            .map(|items| &*items.0),
         ..LootContext::default()
     };
     match unastar_rules::loot::roll(
