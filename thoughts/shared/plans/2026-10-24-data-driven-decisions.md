@@ -65,10 +65,11 @@ fields that have no published schema). Status per group:
 | Lava drag | 0.5 | Provisional: Java Edition value |
 | Goals | stroll 10 candidates; panic 40-tick hurt window, ±5/±4, re-path 8; tempt radius 16 when unset, stop 1.5, cooldown 100, re-path 8–11, head 30°/tick, scare 6 blocks / 0.1 / 5°; follow_parent box 8/4/8, 3–16 blocks, re-path 10; look_at_player head 10°/tick, `look_time` in seconds; random_look_around `look_time` in ticks; breed search 8, check every 60 ticks, touch 0.4, partner within 3 | Confirmed (26.30) |
 | Pathing | search range 16, max drop 3, waypoint reach 0.75/1.0, stuck check 100 ticks, damaging-block list, grass walk-target score | Provisional: Microsoft Learn navigation docs / Java Edition |
-| Look idle head turn, entity push 0.05 | | Provisional: Java Edition |
+| Look idle head turn | | Provisional: Java Edition |
+| Entity pushing | every mob and player each tick pushes the pushable actors touching its box grown 0.2 on x/z, and is pushed back when itself pushable (two pushes per mob pair per tick); each push is 0.05 × (dx, dz) / √m × min(1, 1/√m) with m = max(\|dx\|, \|dz\|) between positions, none when m < 0.1 | Confirmed (26.30 + 1.26.50.26) |
 | Combat | hurt timer 10 ticks with excess-only damage, knockback retain 0.5 + 0.4 horizontal + 0.4×1.2 vertical capped 0.4, death animation 20 ticks, loot at death, XP at removal, orb sizes 2477…1 | Confirmed (26.30) |
 | Melee reach 6, last-hit-by-player window 100 ticks, XP orb lifetime/gravity/drag/follow | | Provisional: Java Edition / public client reach |
-| Breeding/ageing | love 600 ticks, `breed_cooldown` and `ageable.duration` in seconds ×20 | Confirmed (26.30) |
+| Breeding/ageing | love 600 ticks, `breed_cooldown` and `ageable.duration` in seconds ×20; every breed/ageable item use sends `ActorEvent` Feed (network id << 16 \| aux) to viewers; a feed item on a baby that is not paused then sends `ActorEvent` BabyAge (data 0); love hearts come from the in-love flag, no actor event | Confirmed (26.30) |
 | Feed growth 0.1, legacy bucket aux mapping, /summon whole-number centring | | Provisional: Microsoft Learn / Minecraft Wiki |
 | Despawn | 32/128 blocks, 44 when tick range < 5, inactivity 30 s, 1/800 chance, persistent exemption | Confirmed (26.30) |
 | Replication | MoveActorDelta past 4° summed rotation or 1e-4 position²; motion packet past Δv² 0.04 | Confirmed (26.30) |

@@ -281,6 +281,7 @@ fn compare(expected: &Capture, actual: &Capture) -> Result<Report, String> {
 }
 
 fn generate(reference: &Capture) -> Result<Capture, String> {
+    reference.profile.validate_runtime_history()?;
     let dimension = match reference.dimension.as_str() {
         "minecraft:overworld" => JavaDimension::Overworld,
         "minecraft:the_nether" => JavaDimension::Nether,
@@ -329,7 +330,11 @@ fn generate(reference: &Capture) -> Result<Capture, String> {
             "minecraft:noise" => Some(JavaTerrainStage::Noise),
             "minecraft:surface" => Some(JavaTerrainStage::Surface),
             "minecraft:carvers" => Some(JavaTerrainStage::Carvers),
-            "minecraft:features" => {
+            // FEATURES and every later status observe the mutable native world.
+            // Later statuses write no blocks (native write radius -1); FULL
+            // additionally promotes pending actors and drops the WG maps.
+            "minecraft:features" | "minecraft:initialize_light" | "minecraft:light"
+            | "minecraft:spawn" | "minecraft:full" => {
                     if (reference.structures || biome_features) && !cfg!(feature = "java-worldgen") {
                         return Err("FEATURES captures require --features java-worldgen with the pinned structure templates".into());
                     }
@@ -337,10 +342,19 @@ fn generate(reference: &Capture) -> Result<Capture, String> {
                 }
             status => return Err(format!("cannot capture unimplemented native generation status {status}")),
         };
+        // Native LIGHT depends on INITIALIZE_LIGHT, hence FEATURES, at radius
+        // one; SPAWN and FULL inherit that. Those neighbor FEATURES writes run
+        // in a scheduler order a capture must record; never invent it here.
+        let closes_halo = matches!(column.status.as_str(), "minecraft:light" | "minecraft:spawn" | "minecraft:full");
+        if closes_halo && !reference.profile.closes_features_halo() {
+            return Err(format!("{} capture does not record its neighbor FEATURES request order", column.status));
+        }
+        let full = column.status == "minecraft:full";
         let owned = stage.map(|stage| generator.generate_stage(pos, stage));
         let finished = if stage.is_none() {
             reference.profile.decorate(&pipeline, &reference.dimension, pos, column.coordinate_request_index)?;
-            Some(pipeline.native_snapshot(pos).ok_or("native FEATURES request produced no source snapshot")?)
+            let snapshot = if full { pipeline.native_full_snapshot(pos) } else { pipeline.native_snapshot(pos) };
+            Some(snapshot.ok_or("native FEATURES request produced no source snapshot")?)
         } else {
             None
         };
@@ -350,7 +364,8 @@ fn generate(reference: &Capture) -> Result<Capture, String> {
             return Err(format!("chunk {pos:?} lost its canonical Java identity"));
         }
         let mut actors = chunk.block_entities().iter().map(|actor| {
-            actor.canonical_java_nbt().map(|nbt| (actor.position(), nbt))
+            let nbt = if full { actor.canonical_java_level_nbt() } else { actor.canonical_java_nbt() };
+            nbt.map(|nbt| (actor.position(), nbt))
                 .map_err(|error| format!("chunk {pos:?}: native actor export failed: {error}"))
         }).collect::<Result<Vec<_>, _>>()?;
         actors.sort_by_key(|(position, _)| *position);
@@ -362,6 +377,13 @@ fn generate(reference: &Capture) -> Result<Capture, String> {
             Some(_) => &[
                 ("OCEAN_FLOOR_WG", HeightmapKind::OceanFloorWg),
                 ("WORLD_SURFACE_WG", HeightmapKind::WorldSurfaceWg),
+            ],
+            // A LevelChunk retains only the four final maps.
+            None if full => &[
+                ("MOTION_BLOCKING", HeightmapKind::MotionBlocking),
+                ("MOTION_BLOCKING_NO_LEAVES", HeightmapKind::MotionBlockingNoLeaves),
+                ("OCEAN_FLOOR", HeightmapKind::OceanFloor),
+                ("WORLD_SURFACE", HeightmapKind::WorldSurface),
             ],
             None => &[
                 ("MOTION_BLOCKING", HeightmapKind::MotionBlocking),
