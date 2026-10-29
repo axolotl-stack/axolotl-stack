@@ -100,6 +100,11 @@ pub const WING_FLAP_VERTICAL_DRAG: f64 = 0.4;
 /// native adult chicken summon carries 0 where the cow's carries 1, so a
 /// chicken's fall damage is always 0 before its damage sensor is consulted.
 pub const CHICKEN_FALL_DAMAGE_MULTIPLIER: f32 = 0.0;
+/// `AMBIENT_SOUND_INTERVAL` actor data (seconds) of a mob without
+/// `minecraft:ambient_sound_interval`: the native animal classes start at
+/// 6, every other class at 8 (measured from the retained 1.26.51 summons).
+pub const ANIMAL_AMBIENT_SOUND_INTERVAL: f32 = 6.0;
+pub const DEFAULT_AMBIENT_SOUND_INTERVAL: f32 = 8.0;
 
 // --- Goals --------------------------------------------------------------------
 
@@ -135,6 +140,79 @@ pub const BREED_TOUCH_DIST: f64 = 0.4;
 pub const BREED_MAX_PARTNER_DIST: f64 = 3.0;
 /// Head turn toward the breeding partner, degrees/tick.
 pub const BREED_HEAD_TURN: f32 = 10.0;
+
+// --- Hostile mobs (target goals, melee) -------------------------------------------
+
+/// Follow range of a mob without `behavior.nearest_attackable_target`'s
+/// `within_radius` (confirmed).
+pub const DEFAULT_FOLLOW_RANGE: f32 = 16.0;
+/// `behavior.hurt_by_target` reacts to an attacker that hurt the mob within
+/// this many ticks (confirmed).
+pub const HURT_BY_TARGET_MEMORY_TICKS: u64 = 60;
+/// Each melee tick the path to the target is recalculated early with this
+/// probability (confirmed).
+pub const MELEE_REPATH_CHANCE: f32 = 0.05;
+/// A mob's eye sits at this fraction of its box height, for line-of-sight
+/// checks; provisional: Java Edition default eye height.
+pub const MOB_EYE_HEIGHT_RATIO: f64 = 0.85;
+/// `must_reach` re-checks reachability every `BASE + random(0..SPREAD)`
+/// ticks (confirmed) …
+pub const TARGET_REACH_CHECK_BASE: i32 = 10;
+pub const TARGET_REACH_CHECK_SPREAD: i32 = 5;
+/// … and counts the target reachable when the path ends within this squared
+/// horizontal block distance of it (confirmed).
+pub const TARGET_REACH_DIST_SQ: f64 = 3.0;
+/// An invisible target is seen within the entry's distance × the goal's
+/// `target_invisible_multiplier` × the fraction of its armour slots worn,
+/// that fraction being at least this (confirmed).
+pub const INVISIBLE_MIN_ARMOR_COVER: f32 = 0.1;
+/// A player wearing the head of the targeting mob's kind is seen within
+/// this fraction of the entry's distance (confirmed; wither skeletons are
+/// not fooled, confirmed) …
+pub const DISGUISED_PLAYER_RANGE_FACTOR: f32 = 0.5;
+/// … the head worn for each mob (provisional: Java Edition
+/// `LivingEntity.getVisibilityPercent`).
+pub const MOB_HEAD_DISGUISES: [(&str, &str); 5] = [
+    ("minecraft:zombie", "minecraft:zombie_head"),
+    ("minecraft:skeleton", "minecraft:skeleton_skull"),
+    ("minecraft:creeper", "minecraft:creeper_head"),
+    ("minecraft:piglin", "minecraft:piglin_head"),
+    ("minecraft:piglin_brute", "minecraft:piglin_head"),
+];
+/// `behavior.melee_box_attack` `can_spread_on_fire`: a burning attacker with
+/// an empty main hand sets the target alight with probability
+/// `U(0, 1) < this[difficulty]` (peaceful, easy, normal, hard) for
+/// `2 × (int)this[difficulty]` seconds (confirmed).
+pub const MELEE_FIRE_SPREAD_CHANCE: [f32; 4] = [0.0, 0.42, 1.14, 1.92];
+/// A melee hit's damage is raised once per Strength level by
+/// `d × SCALE + ADD` … (confirmed)
+pub const STRENGTH_DAMAGE_SCALE: f32 = 1.3;
+pub const STRENGTH_DAMAGE_ADD: f32 = 1.0;
+/// … and lowered once per Weakness level by `d × SCALE + ADD`, a negative
+/// result dealing nothing (confirmed).
+pub const WEAKNESS_DAMAGE_SCALE: f32 = 0.8;
+pub const WEAKNESS_DAMAGE_ADD: f32 = -0.5;
+
+// --- Fire (`mob::combat::fire`) ---------------------------------------------------
+
+/// `minecraft:burns_in_daylight` is checked on every tick that is a
+/// multiple of this (confirmed).
+pub const DAYLIGHT_BURN_CHECK_TICKS: u64 = 2;
+/// Mobs only catch fire in daylight while the sky darkening is at most this
+/// (confirmed).
+pub const DAYLIGHT_BURN_MAX_SKY_DARKEN: u8 = 3;
+/// The light deciding daylight burning is read at this fraction of the
+/// mob's height above its feet … (confirmed)
+pub const DAYLIGHT_BURN_LIGHT_HEIGHT: f64 = 0.66;
+/// … and its brightness ([`OVERWORLD_BRIGHTNESS_RAMP`]) must exceed this
+/// (confirmed; raw light 12 is the first level above it).
+pub const DAYLIGHT_BURN_MIN_BRIGHTNESS: f32 = 0.5;
+/// A mob catching fire in daylight burns this long (8 s, confirmed).
+pub const DAYLIGHT_BURN_TICKS: u64 = 160;
+/// A mob whose box touches this block does not catch fire in daylight
+/// (the check is confirmed; the block is provisional: Java Edition, where
+/// powder snow keeps undead from burning).
+pub const DAYLIGHT_BURN_BLOCKER: &str = "minecraft:powder_snow";
 
 // --- Entity pushing ---------------------------------------------------------------
 
@@ -362,18 +440,42 @@ pub const LEGACY_BLOCK_NAMES: [(&str, &str); 2] = [
     ("minecraft:grass", "minecraft:grass_block"),
     ("minecraft:tallgrass", "minecraft:short_grass"),
 ];
-/// The game rule that lets mobs change blocks; an eating mob only replaces
-/// the block while it is on (the `on_eat` event fires either way).
-pub const MOB_GRIEFING_RULE: &str = "mobgriefing";
-/// `mobgriefing` when the world sets no value (provisional: Microsoft Learn
-/// game rule reference, default true).
-pub const MOB_GRIEFING_DEFAULT: bool = true;
 /// Controls `behavior.eat_block` holds when it authors no `control_flags`:
 /// move, look and jump.
 pub(crate) const EAT_BLOCK_DEFAULT_CONTROLS: crate::entity::goal_selector::GoalControls =
     crate::entity::goal_selector::GoalControls::MOVE
         .union(crate::entity::goal_selector::GoalControls::LOOK)
         .union(crate::entity::goal_selector::GoalControls::JUMP);
+
+// --- Doors (`minecraft:annotation.break_door`, door path nodes) ------------------
+
+/// A block state with this property is a door half (wooden, copper or iron).
+pub const DOOR_HINGE_STATE: &str = "door_hinge_bit";
+/// The door state property that holds whether the door is open.
+pub const DOOR_OPEN_STATE: &str = "open_bit";
+/// The door state property set on the upper half.
+pub const DOOR_UPPER_STATE: &str = "upper_block_bit";
+/// The only door a door-breaking mob never breaks (confirmed: every other
+/// door block qualifies).
+pub const IRON_DOOR_BLOCK: &str = "minecraft:iron_door";
+/// While remembering a door it is not breaking, a breaker restarts with
+/// probability 1 in this per tick (confirmed).
+pub const BREAK_DOOR_RESTART_ROLL: u32 = 7;
+/// Each breaking tick plays the door bash sound with probability 1 in this
+/// (confirmed).
+pub const BREAK_DOOR_BASH_ROLL: u32 = 20;
+/// `LevelEvent` StartBlockCracking data is `(1 / break ticks) × this`,
+/// truncated (confirmed).
+pub const BLOCK_CRACK_DATA_SCALE: f32 = 65535.0;
+/// `LevelEvent` ids the door breaker sends at the door cell's centre
+/// (confirmed values; names provisional: gophertunnel `packet.LevelEvent*`).
+pub const LEVEL_EVENT_START_BLOCK_CRACKING: i32 = 3600;
+pub const LEVEL_EVENT_STOP_BLOCK_CRACKING: i32 = 3601;
+pub const LEVEL_EVENT_SOUND_ZOMBIE_WOODEN_DOOR: i32 = 1010;
+pub const LEVEL_EVENT_SOUND_ZOMBIE_DOOR_CRASH: i32 = 1012;
+/// Destroy particles without the break sound; data is the broken block's
+/// default state runtime ID.
+pub const LEVEL_EVENT_PARTICLES_DESTROY_BLOCK_NO_SOUND: i32 = 2021;
 
 // --- Despawn ------------------------------------------------------------------
 
@@ -440,15 +542,155 @@ pub const MATERIAL_ICE: u8 = 13;
 /// Material ordinal of leaves: a spawn column whose top spawn block is
 /// leaves keeps its next spawn block below on the surface.
 pub const MATERIAL_LEAVES: u8 = 7;
-/// Full sky light.
-pub const SKY_LIGHT_MAX: i32 = 15;
-/// How much the time of day darkens sky light. Provisional: the server does
-/// not advance the level time (it stays at the StartGame value 0), where the
-/// public Bedrock/Java time-of-day formula darkens the sky by 0.
-pub const SKY_DARKEN: i32 = 0;
-/// The game rule that switches natural spawning (and world-generation
-/// spawning) on.
-pub const DO_MOB_SPAWNING_RULE: &str = "domobspawning";
-/// `domobspawning` when the world sets no value (provisional: Microsoft
-/// Learn game rule reference, default true).
-pub const DO_MOB_SPAWNING_DEFAULT: bool = true;
+/// The overworld brightness ramp: the brightness each raw light level
+/// `0..=15` stands for, `(1 - f) / (3f + 1)` with `f = 1 - level / 15`, as
+/// the f32 values the game stores (confirmed).
+pub const OVERWORLD_BRIGHTNESS_RAMP: [f32; 16] = [
+    f32::from_bits(0x0000_0000),
+    f32::from_bits(0x3c8f_b823),
+    f32::from_bits(0x3d17_b426),
+    f32::from_bits(0x3d70_f0f0),
+    f32::from_bits(0x3daa_aaaa),
+    f32::from_bits(0x3de3_8e3b),
+    f32::from_bits(0x3e12_4923),
+    f32::from_bits(0x3e37_cb7e),
+    f32::from_bits(0x3e63_8e3b),
+    f32::from_bits(0x3e8b_a2ea),
+    f32::from_bits(0x3eaa_aaab),
+    f32::from_bits(0x3ed0_97b5),
+    f32::from_bits(0x3f00_0001),
+    f32::from_bits(0x3f1e_79e8),
+    f32::from_bits(0x3f47_1c71),
+    f32::from_bits(0x3f80_0000),
+];
+/// A plain mob's walk-target value everywhere (confirmed). A naturally
+/// spawned mob whose walk-target value at its feet is negative is refused.
+pub const MOB_WALK_TARGET: f32 = 0.0;
+/// A monster's walk-target value is this minus the brightness ramp at the
+/// block (confirmed).
+pub const MONSTER_WALK_TARGET_BASE: f32 = 0.5;
+/// An animal's walk-target value with a grass block below (confirmed).
+pub const ANIMAL_GRASS_WALK_TARGET: f32 = 10.0;
+/// An animal's walk-target value elsewhere is the brightness ramp at the
+/// block plus this (confirmed).
+pub const ANIMAL_WALK_TARGET_OFFSET: f32 = -0.5;
+/// A naturally spawned monster needs raw brightness below this at its feet
+/// (confirmed).
+pub const MONSTER_SPAWN_BRIGHTNESS_LIMIT: u8 = 8;
+/// Ground no mob without fire immunity spawns on (confirmed).
+pub const SPAWN_UNSAFE_GROUND: [&str; 3] = [
+    "minecraft:magma",
+    "minecraft:campfire",
+    "minecraft:soul_campfire",
+];
+/// Blocks no mob spawns with its feet in: rails, buttons, pressure plates,
+/// levers, tripwire hooks, campfires and the redstone components refuse
+/// spawns (confirmed).
+pub const SPAWN_REFUSING_BLOCKS: [&str; 48] = [
+    "minecraft:acacia_button",
+    "minecraft:acacia_pressure_plate",
+    "minecraft:activator_rail",
+    "minecraft:bamboo_button",
+    "minecraft:bamboo_pressure_plate",
+    "minecraft:birch_button",
+    "minecraft:birch_pressure_plate",
+    "minecraft:campfire",
+    "minecraft:cherry_button",
+    "minecraft:cherry_pressure_plate",
+    "minecraft:crimson_button",
+    "minecraft:crimson_pressure_plate",
+    "minecraft:dark_oak_button",
+    "minecraft:dark_oak_pressure_plate",
+    "minecraft:detector_rail",
+    "minecraft:golden_rail",
+    "minecraft:heavy_weighted_pressure_plate",
+    "minecraft:jungle_button",
+    "minecraft:jungle_pressure_plate",
+    "minecraft:lever",
+    "minecraft:light_weighted_pressure_plate",
+    "minecraft:mangrove_button",
+    "minecraft:mangrove_pressure_plate",
+    "minecraft:pale_oak_button",
+    "minecraft:pale_oak_pressure_plate",
+    "minecraft:polished_blackstone_button",
+    "minecraft:polished_blackstone_pressure_plate",
+    "minecraft:poplar_button",
+    "minecraft:poplar_pressure_plate",
+    "minecraft:powered_comparator",
+    "minecraft:powered_repeater",
+    "minecraft:rail",
+    "minecraft:redstone_block",
+    "minecraft:redstone_torch",
+    "minecraft:redstone_wire",
+    "minecraft:soul_campfire",
+    "minecraft:spruce_button",
+    "minecraft:spruce_pressure_plate",
+    "minecraft:stone_button",
+    "minecraft:stone_pressure_plate",
+    "minecraft:tripwire_hook",
+    "minecraft:unlit_redstone_torch",
+    "minecraft:unpowered_comparator",
+    "minecraft:unpowered_repeater",
+    "minecraft:warped_button",
+    "minecraft:warped_pressure_plate",
+    "minecraft:wooden_button",
+    "minecraft:wooden_pressure_plate",
+];
+/// A mob that the wither effect can affect does not spawn with its feet in
+/// this block (confirmed).
+pub const SPAWN_WITHER_ROSE: &str = "minecraft:wither_rose";
+
+// --- Environment filters (`mob::events`) ---------------------------------------
+
+/// `is_underwater`: the actor's breathing point (a mob's sits at
+/// [`MOB_EYE_HEIGHT_RATIO`] of its height above the feet, a player's at the
+/// eye) is under water when the block holding it is water and the point is
+/// below `block_y + 1 - (level - 1) / UNDERWATER_LEVEL_STEPS`, where `level`
+/// is `liquid_depth + 1` (falling water, depth 8 and up, counts as level 1,
+/// a full block) (confirmed; the mob breathing-point height is provisional,
+/// see [`MOB_EYE_HEIGHT_RATIO`]).
+pub const UNDERWATER_LEVEL_STEPS: f64 = 9.0;
+
+// --- Equipment (`mob::gear`, `minecraft:behavior.pickup_items`) -----------------
+
+/// The only item a mob holds in the off hand when it equips a picked-up
+/// item; every other held item goes to the main hand (confirmed).
+pub const SHIELD_ITEM: &str = "minecraft:shield";
+/// Death drop chance of an equipment slot without an authored
+/// `slot_drop_chance` (confirmed).
+pub const GEAR_DEFAULT_DROP_CHANCE: f32 = 0.25;
+/// Drop chance added per Looting level of the killer's weapon (confirmed).
+pub const GEAR_LOOTING_DROP_BONUS: f32 = 0.01;
+/// A non-guaranteed damageable equipment drop is worn down to wear
+/// (`Damage`) `max_damage - r`, `r` uniform in `0..=k` with `k` uniform in
+/// `0..max(max_damage, this) - 3`, so it keeps `r` durability (confirmed).
+pub const GEAR_DROP_MIN_MAX_DAMAGE: i32 = 4;
+/// Bedrock's Curse of Binding enchantment id: armour carrying it is never
+/// swapped for a picked-up piece (confirmed).
+pub const BINDING_CURSE_ID: i16 = 27;
+/// `MobEquipment` container id of a mob's off hand in the inventory send
+/// (confirmed).
+pub const GEAR_OFFHAND_CONTAINER: u8 = 119;
+/// `MobEquipment` container id of an armour slot equipped by
+/// `behavior.equip_item` (confirmed; its selected-slot field, sent equal to
+/// the slot, is provisional: no capture of the packet was retained).
+pub const GEAR_ARMOUR_CONTAINER: u8 = 120;
+/// `pickup_based_on_chance`: the mob may pick items up when a spawn-time
+/// roll is below this times the clamped regional difficulty (confirmed).
+pub const PICKUP_LOOT_CHANCE: f32 = 0.55;
+/// Ticks before `behavior.pickup_items` first re-paths (confirmed).
+pub const PICKUP_REPATH_START_TICKS: i32 = 10;
+/// Re-path delay: uniform `0..PICKUP_REPATH_RANDOM` plus a base by the
+/// squared distance to the item (confirmed).
+pub const PICKUP_REPATH_RANDOM: i32 = 7;
+pub const PICKUP_REPATH_NEAR_TICKS: i32 = 4;
+pub const PICKUP_REPATH_MID_TICKS: i32 = 9;
+pub const PICKUP_REPATH_FAR_TICKS: i32 = 14;
+/// Squared distances beyond which the mid / far bases apply (confirmed).
+pub const PICKUP_REPATH_MID_DIST_SQ: f64 = 256.0;
+pub const PICKUP_REPATH_FAR_DIST_SQ: f64 = 1024.0;
+/// Extra delay after a failed re-path (confirmed).
+pub const PICKUP_REPATH_FAIL_TICKS: i32 = 15;
+/// Head turn speed toward the item, degrees per tick (confirmed: 30, the
+/// same both axes).
+pub const PICKUP_HEAD_TURN: f32 = 30.0;

@@ -391,11 +391,7 @@ fn spawn_interaction_loot(
         .get_resource::<crate::server::game::types::RecipeRegistryResource>()
         .map(|r| r.0.clone());
     let ctx = crate::server::game::LootContext {
-        on_fire: Some(
-            world
-                .get::<crate::entity::components::OnFire>(mob)
-                .is_some_and(crate::entity::components::OnFire::is_on_fire),
-        ),
+        on_fire: Some(crate::entity::mob::combat::fire::is_burning(world, mob)),
         recipes: recipes.as_deref(),
         color_index: crate::entity::mob::components::color::color_of(world, mob),
         ..Default::default()

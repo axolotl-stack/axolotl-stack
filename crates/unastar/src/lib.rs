@@ -20,7 +20,6 @@ pub mod world;
 pub use command::{Command, CommandArgs, CommandContext, CommandOutput, CommandRegistry};
 pub use config::{ConfigError, UnastarConfig};
 pub use ecs::UnastarEcs;
-pub use entity::{DamageSource, HealingSource};
 pub use network::{NetworkEvent, SessionId};
 pub use registry::{
     biome::{BiomeEntry, BiomeRegistry},

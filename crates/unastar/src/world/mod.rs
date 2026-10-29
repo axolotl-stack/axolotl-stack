@@ -2,8 +2,10 @@
 
 pub mod block_entity;
 pub mod chunk;
+pub mod clock;
 pub mod ecs;
 pub mod generator;
+pub mod regional_difficulty;
 pub mod rules;
 
 pub use chunk::{Chunk, HeightMapType, SUBCHUNK_COUNT, request_mode};

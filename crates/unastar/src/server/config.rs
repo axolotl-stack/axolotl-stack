@@ -19,6 +19,8 @@ pub struct ServerConfig {
     pub max_chunk_radius: i32,
     /// Default game mode for new players.
     pub default_gamemode: GameMode,
+    /// World difficulty at startup.
+    pub difficulty: crate::world::rules::Difficulty,
     /// Players given operator permission on join: display names
     /// (ASCII case-insensitive) or XUIDs.
     pub operators: Vec<String>,
@@ -43,6 +45,7 @@ impl Default for ServerConfig {
             default_chunk_radius: 4,
             max_chunk_radius: 12,
             default_gamemode: GameMode::Survival,
+            difficulty: crate::world::rules::Difficulty::Easy,
             operators: Vec::new(),
             simulation_distance: 6,  // 2 more than default view
             chunk_unload_ticks: 100, // 5 second grace period

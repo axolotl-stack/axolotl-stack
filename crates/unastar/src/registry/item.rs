@@ -314,6 +314,13 @@ pub struct ToolInfo {
     pub max_damage: i32,
 }
 
+/// Native item facts (durability, tags, wearable slot, off-hand use) of
+/// `item_id`. Runtime code reaches the generated item table only through
+/// this registry module.
+pub fn item_data(item_id: &str) -> Option<&'static unastar_data::items::ItemData> {
+    unastar_data::items::get(item_id)
+}
+
 /// Tool facts of `item_id` from the native item table. `None` for unknown items.
 pub fn tool_info(item_id: &str) -> Option<ToolInfo> {
     let data = unastar_data::items::get(item_id)?;

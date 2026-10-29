@@ -34,7 +34,8 @@ impl GoalControls {
     pub const MOVE: Self = Self(1);
     pub const LOOK: Self = Self(2);
     pub const JUMP: Self = Self(4);
-    #[cfg(test)]
+    /// Held by target goals (hurt-by/nearest-attackable target): one target
+    /// goal at a time chooses the target.
     pub const TARGET: Self = Self(8);
 
     pub const fn union(self, other: Self) -> Self {

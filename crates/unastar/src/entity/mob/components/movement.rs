@@ -8,6 +8,11 @@ use super::common::insert_infallible;
 use crate::entity::definition::{ComponentKindsBuilder, DefinitionError};
 
 /// `minecraft:navigation.walk`: path permissions.
+///
+/// The door fields shape path search the way BDS classifies door nodes (see
+/// `mob::ai::path`). `can_break_doors` is not kept: BDS parses it but no
+/// runtime system reads it; a mob breaks doors (and paths through closed
+/// wooden ones) when it carries `minecraft:annotation.break_door`.
 #[derive(Component, Debug, Clone, Copy, PartialEq)]
 pub struct WalkNavigationConfig {
     pub avoid_water: bool,
@@ -16,6 +21,13 @@ pub struct WalkNavigationConfig {
     pub can_sink: bool,
     pub can_walk: bool,
     pub can_jump: bool,
+    /// Doors (open, or closed ones the mob opens or breaks) may be on the
+    /// path; without it every door cell is a wall.
+    pub can_pass_doors: bool,
+    /// Closed doors are passable: the mob opens them.
+    pub can_open_doors: bool,
+    /// Closed iron doors are passable for a door-opening or door-breaking mob.
+    pub can_open_iron_doors: bool,
 }
 
 /// `minecraft:movement.basic`: the move control's turn limit, degrees/tick.
@@ -41,6 +53,9 @@ pub fn register_component_kinds(
         can_sink: b.can_sink,
         can_walk: b.can_walk,
         can_jump: b.can_jump,
+        can_pass_doors: b.can_pass_doors,
+        can_open_doors: b.can_open_doors,
+        can_open_iron_doors: b.can_open_iron_doors,
     })?;
     insert_infallible(builder, |b: body::MovementBasic| BasicMovementConfig {
         max_turn: b.max_turn,

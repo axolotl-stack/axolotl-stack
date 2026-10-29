@@ -2,7 +2,8 @@
 //!
 //! Processes Text (chat broadcast) and CommandRequest packets, including
 //! the /tp command which writes Position and /summon, which spawns its mob
-//! from the command buffer (spawning needs exclusive world access).
+//! from the command buffer (spawning needs exclusive world access), as do
+//! the world and player commands (`world_commands`).
 
 use bevy_ecs::prelude::*;
 use glam::DVec3;
@@ -173,6 +174,11 @@ fn handle_command_request(
     if let Some(summon) = output.summon.take() {
         deferred.queue(move |world: &mut World| apply_summon(world, entity, &summon));
     }
+    if let Some(request) = output.world.take() {
+        deferred.queue(move |world: &mut World| {
+            super::world_commands::apply_world_request(world, entity, request);
+        });
+    }
     if !output.is_empty() {
         send_command_output(entity, sessions, output);
     }
@@ -271,7 +277,7 @@ fn send_command_output(entity: Entity, sessions: &Query<&PlayerSession>, output:
     }
 }
 
-fn send_output(session: &PlayerSession, output: CommandOutput) {
+pub(super) fn send_output(session: &PlayerSession, output: CommandOutput) {
     for message in output.messages {
         let _ = session.send(McpePacket::from(system_text(&message)));
     }

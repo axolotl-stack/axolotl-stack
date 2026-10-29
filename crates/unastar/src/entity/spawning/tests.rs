@@ -19,6 +19,11 @@ use crate::storage::ChunkColumn;
 use crate::world::chunk::{Chunk, blocks};
 use crate::world::ecs::manager::chunk_entity_components;
 use crate::world::ecs::{ChunkManager, ChunkPosition, ChunkStateFlags};
+use crate::world::rules::{Difficulty, WorldTime};
+
+/// Noon and midnight on the world clock.
+const NOON: u64 = 6_000;
+const MIDNIGHT: u64 = 18_000;
 
 /// The ground layer of the test terrain.
 const GROUND_Y: i16 = 63;
@@ -68,6 +73,8 @@ fn build_server(
     world.insert_resource(EntityRandom::seeded(seed));
     // Natural spawns need a world age above 0.
     world.resource_mut::<TickCounter>().current = 200;
+    // Daylight unless a test says otherwise.
+    world.resource_mut::<WorldTime>().ticks = NOON;
     let (tx, rx) = mpsc::channel(1 << 16);
     let player = world
         .spawn((
@@ -246,6 +253,9 @@ fn animals_never_spawn_on_stone_in_darkness_or_outside_animal_biomes() {
     ];
     for (index, terrain) in cases.iter().enumerate() {
         let (mut server, mut rx) = build_server(terrain, 41);
+        // Monsters (which do spawn in the dark) are off on Peaceful; animals
+        // are not affected by the difficulty.
+        *server.ecs.world_mut().resource_mut::<Difficulty>() = Difficulty::Peaceful;
         tick(&mut server, &mut rx, 1500);
         let spawned = mobs(&mut server);
         assert!(spawned.is_empty(), "case {index}: {spawned:?}");
@@ -316,6 +326,154 @@ fn world_generation_places_herds_in_fresh_animal_chunks() {
     let (mut loaded, mut rx) = build_server(&Terrain::plains(4), 3);
     tick(&mut loaded, &mut rx, 2);
     assert!(mobs(&mut loaded).len() < placed.len());
+}
+
+/// The zombie spawn rule's targets.
+const ZOMBIES: [&str; 2] = ["minecraft:zombie", "minecraft:zombie_villager_v2"];
+
+/// A zombie herd: where it spawned, how many, and whether on the surface.
+#[derive(Debug)]
+struct ZombieHerd {
+    pos: DVec3,
+    count: usize,
+    surface: bool,
+}
+
+/// Tick `ticks` times and collect the zombie herds that spawned (grouped by
+/// spawn tick and spot), checking every tick that the zombies alive stay
+/// within the monster caps (the whole radius-2 world is one census area).
+fn watch_zombies(
+    server: &mut GameServer,
+    rx: &mut mpsc::Receiver<jolyne::valentine::McpePacket>,
+    ticks: usize,
+) -> Vec<ZombieHerd> {
+    use crate::entity::mob::constants::{MOBS_PER_CHUNK_SURFACE, MOBS_PER_CHUNK_UNDERGROUND};
+    use crate::entity::spawning::Category;
+    let surface_cap = MOBS_PER_CHUNK_SURFACE[Category::Monster.index()] as usize;
+    let underground_cap = MOBS_PER_CHUNK_UNDERGROUND[Category::Monster.index()] as usize;
+    let mut herds = Vec::new();
+    let mut seen = std::collections::HashSet::new();
+    for _ in 0..ticks {
+        tick(server, rx, 1);
+        let zombies: Vec<_> = mobs(server)
+            .into_iter()
+            .filter(|(_, id, _, _)| ZOMBIES.contains(&id.as_str()))
+            .collect();
+        let on_surface = zombies.iter().filter(|z| z.3).count();
+        assert!(on_surface <= surface_cap, "{on_surface} surface zombies");
+        let below = zombies.len() - on_surface;
+        assert!(below <= underground_cap, "{below} underground zombies");
+        let mut fresh: BTreeMap<[i64; 3], (usize, bool)> = BTreeMap::new();
+        for (entity, _, pos, surface) in zombies {
+            if seen.insert(entity) {
+                let key = [pos.x, pos.y, pos.z].map(|v| (v * 100.0).round() as i64);
+                let herd = fresh.entry(key).or_insert((0, surface));
+                herd.0 += 1;
+            }
+        }
+        herds.extend(fresh.into_iter().map(|(key, (count, surface))| ZombieHerd {
+            pos: DVec3::new(key[0] as f64, key[1] as f64, key[2] as f64) / 100.0,
+            count,
+            surface,
+        }));
+    }
+    herds
+}
+
+fn monster_server(terrain: &Terrain, time: u64, difficulty: Difficulty) -> TestServer {
+    let (mut server, rx) = build_server(terrain, 7);
+    let registry = server
+        .ecs
+        .world()
+        .resource::<crate::entity::mob::MobRegistry>();
+    assert!(
+        registry.get("minecraft:zombie").is_some(),
+        "the zombie archetype compiles: {:?}",
+        registry.unsupported_reason("minecraft:zombie")
+    );
+    let world = server.ecs.world_mut();
+    world.resource_mut::<WorldTime>().ticks = time;
+    *world.resource_mut::<Difficulty>() = difficulty;
+    (server, rx)
+}
+
+type TestServer = (GameServer, mpsc::Receiver<jolyne::valentine::McpePacket>);
+
+#[test]
+fn zombies_spawn_in_herds_of_two_to_four_at_night_within_the_caps() {
+    let (mut server, mut rx) = monster_server(&Terrain::plains(2), MIDNIGHT, Difficulty::Easy);
+    let herds = watch_zombies(&mut server, &mut rx, 4000);
+    assert!(!herds.is_empty(), "zombies spawned at night");
+    for herd in &herds {
+        // The cap or a refused member can cut a herd short.
+        assert!((1..=4).contains(&herd.count), "{herd:?}");
+        assert!(herd.surface, "an open sky column spawns on the surface");
+        assert_eq!(herd.pos.y, f64::from(GROUND_Y + 1), "{herd:?}");
+    }
+    assert!(
+        herds.iter().any(|herd| herd.count >= 2),
+        "a herd of at least two spawned: {herds:?}"
+    );
+}
+
+#[test]
+fn no_monster_spawns_on_peaceful() {
+    let (mut server, mut rx) = monster_server(&Terrain::plains(2), MIDNIGHT, Difficulty::Peaceful);
+    let herds = watch_zombies(&mut server, &mut rx, 4000);
+    assert!(herds.is_empty(), "{herds:?}");
+}
+
+#[test]
+fn no_zombie_spawns_on_a_sunlit_surface_at_noon() {
+    let (mut server, mut rx) = monster_server(&Terrain::plains(2), NOON, Difficulty::Hard);
+    let herds = watch_zombies(&mut server, &mut rx, 4000);
+    assert!(herds.is_empty(), "{herds:?}");
+}
+
+#[test]
+fn zombies_spawn_under_cover_in_daylight() {
+    let terrain = Terrain {
+        roof: true,
+        ..Terrain::plains(2)
+    };
+    let (mut server, mut rx) = monster_server(&terrain, NOON, Difficulty::Easy);
+    let herds = watch_zombies(&mut server, &mut rx, 4000);
+    assert!(
+        !herds.is_empty(),
+        "zombies spawned in the dark under the roof"
+    );
+    for herd in &herds {
+        assert!((1..=4).contains(&herd.count), "{herd:?}");
+        // On the ground under the roof (raw brightness 0), never on the
+        // sunlit roof; a floor below the surface is underground.
+        assert_eq!(herd.pos.y, f64::from(GROUND_Y + 1), "{herd:?}");
+        assert!(!herd.surface, "{herd:?}");
+    }
+}
+
+#[test]
+fn a_full_monster_cap_spawns_no_zombie() {
+    let (mut server, mut rx) = monster_server(&Terrain::plains(2), MIDNIGHT, Difficulty::Easy);
+    let world = server.ecs.world_mut();
+    for i in 0..8 {
+        let zombie = spawn_mob(
+            world,
+            "minecraft:zombie",
+            DVec3::new(-20.5 + f64::from(i), f64::from(GROUND_Y + 1), -20.5),
+            0.0,
+            SpawnCause::Spawned,
+        )
+        .expect("zombie");
+        world
+            .entity_mut(zombie)
+            .insert((SurfaceMob, crate::entity::mob::state::Persistent));
+    }
+    tick(&mut server, &mut rx, 4000);
+    let zombies = mobs(&mut server)
+        .into_iter()
+        .filter(|(_, id, _, _)| ZOMBIES.contains(&id.as_str()))
+        .count();
+    assert_eq!(zombies, 8, "a full monster cap spawns nothing");
 }
 
 /// Seeded headless run over a flat grass region whose chunk columns cycle

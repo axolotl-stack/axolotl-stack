@@ -62,11 +62,19 @@ impl GameServer {
                 data: BorrowedMcpePacketData::PlayerActionPacket(pk),
                 ..
             } => {
-                if let Some(mut q) = world.get_resource_mut::<MovementPacketQueue>() {
+                if pk.action == jolyne::valentine::types::EnumsPlayerActionType::Respawn {
+                    if let Some(mut q) = world
+                        .get_resource_mut::<crate::entity::player_life::respawn::RespawnQueue>()
+                    {
+                        q.0.push((
+                            entity,
+                            crate::entity::player_life::respawn::RespawnRequest::Action,
+                        ));
+                    }
+                } else if let Some(mut q) = world.get_resource_mut::<MovementPacketQueue>() {
                     q.0.push((entity, MovementInput::PlayerAction(pk.into())));
                 }
             }
-
             // ── Chat & Commands ───────────────────────────────────────────
             BorrowedMcpePacket {
                 data: BorrowedMcpePacketData::CommandRequestPacket(pk),
@@ -177,6 +185,18 @@ impl GameServer {
                     }
                 } else if let Some(mut q) = world.get_resource_mut::<InventoryPacketQueue>() {
                     q.0.push((entity, InventoryAction::Transaction(pk)));
+                }
+            }
+            McpePacketData::RespawnPacket(pk) => {
+                // Only the client-ready state is the client's to send.
+                if pk.state == jolyne::valentine::types::EnumsPlayerRespawnState::Clientreadytospawn
+                    && let Some(mut q) = world
+                        .get_resource_mut::<crate::entity::player_life::respawn::RespawnQueue>()
+                {
+                    q.0.push((
+                        entity,
+                        crate::entity::player_life::respawn::RespawnRequest::ClientReady,
+                    ));
                 }
             }
             McpePacketData::MovePlayerPacket(_) => {

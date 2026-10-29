@@ -21,16 +21,18 @@ mod packets;
 mod placement;
 mod plugins;
 pub mod types;
+mod world_commands;
 
 use bevy_ecs::prelude::*;
-pub(crate) use block_drops::loot_stacks;
+pub(crate) use block_drops::{drop_block_items, loot_stacks};
 pub(crate) use blocks::{commit_block_event, reject_block_event};
 pub(crate) use items::{PICKUP_REACH, item_descriptor, player_box};
 pub(crate) use items::{send_slot, world_stack};
+pub(crate) use join::send_inventory_contents;
 use jolyne::WorldTemplate;
 use jolyne::valentine::EnumsGameType;
 use jolyne::valentine::types::{BlockPos, Vec3};
-pub(crate) use loot::LootContext;
+pub(crate) use loot::{LootContext, LootLevel};
 use std::sync::Arc;
 use tracing::{info, warn};
 
@@ -89,13 +91,32 @@ fn game_mode_to_storage_id(game_mode: GameMode) -> u8 {
     }
 }
 
+/// The stored state of a player. A player saved while dead is stored as it
+/// will respawn (world spawn, full health, fresh hunger), so it never
+/// reloads with zero health.
 fn player_record(world: &World, entity: Entity) -> Option<(uuid::Uuid, PlayerData)> {
     use crate::entity::components::{Experience, Health, Hunger};
     let uuid = world.get::<PlayerUuid>(entity)?.0;
-    let position = world.get::<Position>(entity)?;
+    let dead = world
+        .get::<crate::entity::player_life::Dead>(entity)
+        .is_some();
+    let position = if dead {
+        world
+            .resource::<crate::entity::player_life::respawn::WorldSpawn>()
+            .0
+    } else {
+        world.get::<Position>(entity)?.0
+    };
     let rotation = world.get::<Rotation>(entity)?;
-    let health = world.get::<Health>(entity).cloned().unwrap_or_default();
-    let hunger = world.get::<Hunger>(entity).cloned().unwrap_or_default();
+    let mut health = world.get::<Health>(entity).cloned().unwrap_or_default();
+    let hunger = if dead {
+        Hunger::default()
+    } else {
+        world.get::<Hunger>(entity).cloned().unwrap_or_default()
+    };
+    if dead {
+        health.current = health.max;
+    }
     let experience = world.get::<Experience>(entity).cloned().unwrap_or_default();
     let inventory = world.get::<MainInventory>(entity);
     let armour = world.get::<ArmourInventory>(entity);
@@ -103,7 +124,7 @@ fn player_record(world: &World, entity: Entity) -> Option<(uuid::Uuid, PlayerDat
         uuid,
         PlayerData {
             uuid: uuid.to_string(),
-            position: position.0.to_array(),
+            position: position.to_array(),
             rotation: [rotation.yaw, rotation.pitch],
             dimension: world.resource::<ServerConfigResource>().0.world.dimension,
             game_mode: game_mode_to_storage_id(*world.get::<GameMode>(entity)?),
@@ -196,6 +217,15 @@ impl GameServer {
         world_template.jigsaw_structures = Arc::new(join_data::jigsaw_structures());
         world_template.voxel_shapes = Arc::new(join_data::voxel_shapes());
 
+        // Difficulty from the config, Bedrock's default game rules and a
+        // fresh clock (there is no level-data store to restore them from).
+        let difficulty = config.difficulty;
+        let game_rules = crate::world::rules::GameRules::default();
+        let world_time = crate::world::rules::WorldTime::default();
+        let start_game_state = crate::world::rules::StartGameWorldState::default();
+        start_game_state.publish(world_time, difficulty, &game_rules);
+        start_game_state.apply(&mut world_template.start_game_template);
+
         let world_template = Arc::new(world_template);
         let world_config = config.world;
         let mut ecs = UnastarEcs::new();
@@ -212,12 +242,12 @@ impl GameServer {
             .insert_resource(types::ServerWorldTemplate(world_template.clone()));
         ecs.world_mut()
             .insert_resource(ServerConfigResource(config.clone()));
+        ecs.world_mut().insert_resource(difficulty);
+        ecs.world_mut().insert_resource(game_rules);
+        ecs.world_mut().insert_resource(world_time);
+        ecs.world_mut().insert_resource(start_game_state);
         ecs.world_mut()
-            .insert_resource(crate::world::rules::Difficulty::default());
-        ecs.world_mut()
-            .insert_resource(crate::world::rules::GameRules::default());
-        ecs.world_mut()
-            .insert_resource(crate::world::rules::WorldTime::default());
+            .init_resource::<crate::world::clock::ClockSync>();
         ecs.world_mut()
             .insert_resource(CommandRegistryResource(CommandRegistry::with_defaults()));
         ecs.world_mut().insert_resource(ItemEntityIdCounter(100000));
@@ -263,6 +293,13 @@ impl GameServer {
             .init_resource::<crate::entity::projectile::ThrowQueue>();
         ecs.world_mut()
             .init_resource::<bevy_ecs::message::Messages<crate::entity::mob::state::MateRequest>>();
+        // Player damage, death and respawn; players respawn where the
+        // template spawns them until the runtime resolves the world spawn.
+        crate::entity::player_life::install(
+            ecs.world_mut(),
+            crate::server::connect::spawn_to_dvec3(&world_template.start_game_template.position),
+        )
+        .expect("vanilla player definition");
 
         ecs.world_mut().add_observer(on_block_changed);
         register_chunk_systems(ecs.schedule_mut());
@@ -305,6 +342,13 @@ impl GameServer {
                 .after(inventory::apply_inventory)
                 .after(chunks::apply_chunk_requests)
                 .after(commands::apply_chat_and_commands),
+        );
+        // Respawn requests from dead players, after the movement system has
+        // applied this tick's input.
+        ecs.schedule_mut().add_systems(
+            crate::entity::player_life::respawn::apply_respawn_requests
+                .in_set(PacketApplySet)
+                .after(movement::apply_movement),
         );
 
         ecs.schedule_mut().add_systems(
@@ -373,16 +417,29 @@ impl GameServer {
                 .after(despawn_dead)
                 .before(tick_block_breaking),
         );
-        // Mob fall damage and condition damage, death, then experience orbs.
-        // After the entity chain so deaths from fire/effects are caught the
-        // same tick.
+        // Mob fall damage, condition damage, daylight burning and fire, death,
+        // then experience orbs. After the entity chain so deaths from
+        // fire/effects are caught the same tick.
         ecs.schedule_mut().add_systems(
             (
                 crate::entity::mob::combat::fall::apply_fall_damage,
                 crate::entity::mob::combat::hurt_on_condition,
+                crate::entity::mob::combat::fire::burn_in_daylight,
+                crate::entity::mob::combat::fire::burn_mobs,
                 crate::entity::mob::combat::death::die_at_zero_health,
                 crate::entity::mob::combat::death::tick_dying,
                 crate::entity::xp_orb::tick_xp_orbs,
+            )
+                .chain()
+                .in_set(EntityLogicSet)
+                .after(despawn_dead)
+                .before(tick_block_breaking),
+        );
+        // Player landings, then lava, fire, burning and the void.
+        ecs.schedule_mut().add_systems(
+            (
+                crate::entity::player_life::environment::land_players,
+                crate::entity::player_life::environment::hurt_players_by_environment,
             )
                 .chain()
                 .in_set(EntityLogicSet)
@@ -411,6 +468,18 @@ impl GameServer {
                 .after(despawn_dead)
                 .before(tick_block_breaking),
         );
+        // Environment sensors, then timers. Their group changes apply at the
+        // next tick's definition barrier (`PhysicsSet`).
+        ecs.schedule_mut().add_systems(
+            (
+                crate::entity::mob::life::sensors::tick_environment_sensors,
+                crate::entity::mob::life::sensors::tick_timers,
+            )
+                .chain()
+                .in_set(EntityLogicSet)
+                .after(despawn_dead)
+                .before(tick_block_breaking),
+        );
         // Natural despawning of mobs far from every player.
         ecs.schedule_mut().add_systems(
             crate::entity::mob::life::despawn::despawn_mobs
@@ -422,6 +491,13 @@ impl GameServer {
             crate::entity::spawning::natural_spawning
                 .in_set(EntityLogicSet)
                 .after(crate::entity::mob::life::despawn::despawn_mobs),
+        );
+        // The world clock advances before anything reads the time of day.
+        ecs.schedule_mut().add_systems(
+            crate::world::clock::tick_world_clock
+                .in_set(EntityLogicSet)
+                .before(crate::entity::spawning::natural_spawning)
+                .before(tick_age),
         );
         ecs.schedule_mut().add_systems(
             (
@@ -435,6 +511,11 @@ impl GameServer {
             )
                 .chain()
                 .in_set(NetworkSendSet),
+        );
+        // The players' own health attribute, after every system that hurt
+        // or healed them this tick.
+        ecs.schedule_mut().add_systems(
+            crate::entity::player_life::attributes::replicate_player_health.in_set(NetworkSendSet),
         );
         ecs.schedule_mut()
             .add_systems(cleanup_despawned_entities.in_set(CleanupSet));
@@ -681,6 +762,7 @@ impl GameServer {
             health,
             hunger,
             experience,
+            crate::entity::player_life::environment::PlayerFall::default(),
             AwaitingSpawnStatus,
         ));
         if operator {

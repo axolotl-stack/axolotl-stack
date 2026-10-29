@@ -26,6 +26,20 @@ fn float(v: &Value, path: &str) -> Result<f32> {
         .ok_or_else(|| ParseError::new(path, format!("expected a number, got {v}")))
 }
 
+/// `object[key]` as a number, `default` when absent (BDS `asFloat(default)`).
+fn float_or(object: &Value, key: &str, default: f32, path: &str) -> Result<f32> {
+    object.get(key).map_or(Ok(default), |v| float(v, path))
+}
+
+/// `object[key]` as an integer, `default` when absent (BDS `asInt(default)`).
+fn int_or(object: &Value, key: &str, default: i32, path: &str) -> Result<i32> {
+    object.get(key).map_or(Ok(default), |v| {
+        v.as_i64()
+            .and_then(|n| n.try_into().ok())
+            .ok_or_else(|| ParseError::new(path, format!("expected i32, got {v}")))
+    })
+}
+
 fn uint(v: &Value, path: &str) -> Result<u32> {
     v.as_u64()
         .and_then(|n| n.try_into().ok())
@@ -156,6 +170,31 @@ fn condition(v: &Value, path: &str) -> Result<LootCondition> {
                     .expect("boolean fire state"),
             )
         }
+        "is_baby" => LootCondition::IsBaby,
+        "passenger_of_entity" => {
+            let entity_type = text(&v["entity_type"], path)?;
+            LootCondition::PassengerOfEntity {
+                entity_type: if entity_type.contains(':') {
+                    entity_type.to_owned()
+                } else {
+                    format!("minecraft:{entity_type}")
+                },
+            }
+        }
+        "random_difficulty_chance" => {
+            let default = float_or(v, "default_chance", 0.0, path)?;
+            let mut chances = [default; 4];
+            for (chance, key) in chances
+                .iter_mut()
+                .zip(["peaceful", "easy", "normal", "hard"])
+            {
+                *chance = float_or(v, key, default, path)?;
+            }
+            LootCondition::RandomDifficultyChance { chances }
+        }
+        "random_regional_difficulty_chance" => LootCondition::RandomRegionalDifficultyChance {
+            max_chance: float_or(v, "max_chance", 0.0, path)?,
+        },
         _ => LootCondition::Other {
             name: name.to_owned(),
             json: v.clone(),
@@ -212,6 +251,9 @@ fn function(v: &Value, path: &str) -> Result<LootFunction> {
         "explosion_decay" => LootFunctionKind::ExplosionDecay,
         "furnace_smelt" => LootFunctionKind::FurnaceSmelt,
         "set_data_from_color_index" => LootFunctionKind::SetDataFromColorIndex,
+        "enchant_random_gear" => LootFunctionKind::EnchantRandomGear {
+            chance: float_or(v, "chance", 0.0, path)?,
+        },
         _ => LootFunctionKind::Other {
             name: name.to_owned(),
             json: v.clone(),
@@ -254,7 +296,7 @@ fn entry(v: &Value, path: &str) -> Result<LootEntry> {
         })?,
         conditions: array(v.get("conditions"), path, condition)?,
         functions: array(v.get("functions"), path, function)?,
-        nested_pools_json: v.get("pools").cloned(),
+        nested_pools: array(v.get("pools"), &format!("{path}/pools"), pool)?,
     })
 }
 
@@ -269,7 +311,16 @@ fn pool(v: &Value, path: &str) -> Result<LootPool> {
         bonus_rolls: v.get("bonus_rolls").map_or(Ok(0.0), |v| float(v, path))?,
         conditions: array(v.get("conditions"), path, condition)?,
         entries: array(v.get("entries"), path, entry)?,
-        tiers_json: v.get("tiers").cloned(),
+        tiers: v
+            .get("tiers")
+            .map(|tiers| -> Result<LootTiers> {
+                Ok(LootTiers {
+                    initial_range: int_or(tiers, "initial_range", 0, path)?,
+                    bonus_rolls: int_or(tiers, "bonus_rolls", 0, path)?,
+                    bonus_chance: float_or(tiers, "bonus_chance", 0.0, path)?,
+                })
+            })
+            .transpose()?,
     })
 }
 

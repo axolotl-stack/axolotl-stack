@@ -16,8 +16,8 @@ use valentine::bedrock::codec::BedrockCodec;
 
 use crate::entity::EntityRandom;
 use crate::entity::components::{
-    DroppedItem, Experience, GameMode, Health, HeldSlot, ItemEntityStack, MainInventory, OnFire,
-    Player, PlayerSession, Position, Rotation, RuntimeEntityId, RuntimeId,
+    DroppedItem, Experience, GameMode, Health, HeldSlot, ItemEntityStack, MainInventory, Player,
+    PlayerSession, Position, Rotation, RuntimeEntityId, RuntimeId,
 };
 use crate::entity::definition::attributes::ActorAttributes;
 use crate::entity::definition::flags::ActorFlags;
@@ -463,7 +463,7 @@ fn killed_pigs_and_sheep_drop_their_loot_by_colour_and_fire() {
     );
 
     let pig = h.adult("minecraft:pig", feet);
-    h.world().entity_mut(pig).insert(OnFire::new(100));
+    crate::entity::mob::combat::fire::ignite(h.world(), pig, 100);
     h.kill(pig);
     let drops = h.take_drops();
     assert!(count(&drops, "minecraft:cooked_porkchop") >= 1, "{drops:?}");
@@ -480,7 +480,7 @@ fn killed_pigs_and_sheep_drop_their_loot_by_colour_and_fire() {
     );
 
     let sheep = h.adult("minecraft:sheep", feet);
-    h.world().entity_mut(sheep).insert(OnFire::new(100));
+    crate::entity::mob::combat::fire::ignite(h.world(), sheep, 100);
     h.kill(sheep);
     let drops = h.take_drops();
     assert!(count(&drops, "minecraft:cooked_mutton") >= 1, "{drops:?}");

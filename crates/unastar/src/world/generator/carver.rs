@@ -9,6 +9,7 @@
 
 use std::sync::LazyLock;
 
+use unastar_noise::NoiseSource;
 use unastar_noise::carver::{
     CanyonConfig, CaveConfig, ConfiguredCarver, cos, is_replaceable, set_large_feature_seed, sin,
 };
@@ -16,10 +17,9 @@ use unastar_noise::xoroshiro::JavaRandom;
 use unastar_noise::{
     FunctionContext, carvers, end_settings, java_blocks, nether_settings, overworld_settings,
 };
-use unastar_noise::NoiseSource;
 
-use super::aquifer::{FluidPicker, NoiseBasedAquifer};
 use super::JavaDimension;
+use super::aquifer::{FluidPicker, NoiseBasedAquifer};
 use crate::world::ChunkPos;
 use crate::world::generator::proto::DenseBlocks;
 
@@ -32,8 +32,7 @@ struct CarverBlocks {
 
 static CARVER_BLOCKS: LazyLock<CarverBlocks> = LazyLock::new(|| {
     let id = |name: &str| {
-        java_blocks::default_state(name)
-            .unwrap_or_else(|| panic!("{name} is not a Java block"))
+        java_blocks::default_state(name).unwrap_or_else(|| panic!("{name} is not a Java block"))
     };
     CarverBlocks {
         dirt: id("minecraft:dirt"),
@@ -544,7 +543,15 @@ impl<C: CarveContext> Carving<'_, C> {
                     let ry = (by as f64 - 0.5 - y) / vertical_radius;
                     if !skip.should_skip(rx, ry, rz, by) && !self.mask.get(lx, by, lz) {
                         self.mask.set(lx, by, lz);
-                        self.carve_block(kind, replaceable, lava_level, lx, by, lz, &mut reached_surface);
+                        self.carve_block(
+                            kind,
+                            replaceable,
+                            lava_level,
+                            lx,
+                            by,
+                            lz,
+                            &mut reached_surface,
+                        );
                     }
                     by -= 1;
                 }

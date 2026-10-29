@@ -3,9 +3,17 @@
 //! This module provides a small, extensible command dispatcher inspired by Dragonfly,
 //! but designed around Rust's type system and ownership rules (no reflection).
 
+mod player_state;
+mod time;
+mod world_settings;
+
 use crate::network::SessionId;
 use std::collections::HashMap;
 use std::sync::Arc;
+
+pub use player_state::PlayerTarget;
+pub use time::{TimeQuery, TimeRequest};
+pub use world_settings::GameRuleRequest;
 
 #[derive(Debug, Default, Clone)]
 pub struct CommandOutput {
@@ -15,6 +23,22 @@ pub struct CommandOutput {
     pub teleport: Option<glam::DVec3>,
     /// A mob to spawn; the server applies it with world access and replies.
     pub summon: Option<SummonRequest>,
+    /// A world or player change the server applies with world access,
+    /// replying with the outcome.
+    pub world: Option<WorldRequest>,
+}
+
+/// A command effect on the world or its players.
+#[derive(Debug, Clone, PartialEq)]
+pub enum WorldRequest {
+    Time(TimeRequest),
+    Difficulty(crate::world::rules::Difficulty),
+    GameRule(GameRuleRequest),
+    GameMode {
+        mode: crate::entity::components::GameMode,
+        target: PlayerTarget,
+    },
+    Kill(PlayerTarget),
 }
 
 /// One coordinate of a command position.
@@ -188,6 +212,11 @@ impl CommandRegistry {
         registry.register(PosCommand);
         registry.register(TeleportCommand);
         registry.register(SummonCommand);
+        registry.register(time::TimeCommand);
+        registry.register(world_settings::DifficultyCommand);
+        registry.register(world_settings::GameRuleCommand);
+        registry.register(player_state::GameModeCommand);
+        registry.register(player_state::KillCommand);
         registry
     }
 

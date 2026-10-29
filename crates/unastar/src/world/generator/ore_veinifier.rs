@@ -29,11 +29,11 @@
 use std::cell::RefCell;
 
 use crate::world::chunk::MIN_Y;
-use unastar_noise::features::java_blocks::states;
 use crate::world::generator::density::{
     FunctionContext, NoiseRef, NoiseRegistry, NoiseSource, compute_vein_gap, compute_vein_toggle,
 };
 use crate::world::generator::xoroshiro::PositionalRandomFactory;
+use unastar_noise::features::java_blocks::states;
 
 // ========== Cell interpolation ==========
 

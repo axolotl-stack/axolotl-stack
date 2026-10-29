@@ -1,10 +1,10 @@
 //! Concrete native preset kernels and source-native post-noise stages.
 
-use unastar_noise as noise;
 use noise::NoiseSource;
-use noise::java_biomes::JavaBiome;
 use noise::features::java_blocks::states;
+use noise::java_biomes::JavaBiome;
 use noise::profile::{self, Stage};
+use unastar_noise as noise;
 
 use super::{JavaDimension, JavaGenerator, JavaTerrainStage, java_aquifer_substance};
 use crate::world::ChunkPos;
@@ -44,11 +44,11 @@ macro_rules! secondary_stage {
             }
             let flat = router::FlatCacheGrid::new_native(pos.x, pos.z, &source);
             let columns = router::ColumnContextGrid::new_native(pos.x, pos.z, &source, &flat);
-            let mut sampler = router::NativeCellSampler::new(
-                pos.x, pos.z, &flat, &columns, &source,
-            );
+            let mut sampler =
+                router::NativeCellSampler::new(pos.x, pos.z, &flat, &columns, &source);
             let mut dense = DenseBlocks::filled_with_bounds(
-                u32::from(states::AIR.0), BlockStateSpace::Java,
+                u32::from(states::AIR.0),
+                BlockStateSpace::Java,
                 self.options.dimension.block_bounds(),
             );
             sampler.initialize();
@@ -72,7 +72,11 @@ macro_rules! secondary_stage {
                                         let block = if density > 0.0 {
                                             settings::DEFAULT_BLOCK
                                         } else {
-                                            disabled_aquifer(y, settings::SEA_LEVEL, settings::DEFAULT_FLUID)
+                                            disabled_aquifer(
+                                                y,
+                                                settings::SEA_LEVEL,
+                                                settings::DEFAULT_FLUID,
+                                            )
                                         };
                                         if block != u32::from(states::AIR.0) {
                                             dense.set_block(x as u8, y as i16, z as u8, block);
@@ -84,25 +88,38 @@ macro_rules! secondary_stage {
                     }
                 }
             }
-            self.finish_native_stage(pos, stage, dense, biomes, &source,
-                |_, y, _| Some(disabled_aquifer(y, settings::SEA_LEVEL, settings::DEFAULT_FLUID)))
+            self.finish_native_stage(pos, stage, dense, biomes, &source, |_, y, _| {
+                Some(disabled_aquifer(
+                    y,
+                    settings::SEA_LEVEL,
+                    settings::DEFAULT_FLUID,
+                ))
+            })
         }
     };
 }
 
 impl JavaGenerator {
     fn prepare_carver_start(&self, start: ChunkPos) {
-        let mut visited = self.carver_biomes.lock().expect("carver biome cache poisoned");
+        let mut visited = self
+            .carver_biomes
+            .lock()
+            .expect("carver biome cache poisoned");
         if visited.insert(start) {
             biome_source::sample_biome_native(
-                self.options.dimension, &self.native_noises().java_source(),
-                start.x.wrapping_mul(4), 0, start.z.wrapping_mul(4),
+                self.options.dimension,
+                &self.native_noises().java_source(),
+                start.x.wrapping_mul(4),
+                0,
+                start.z.wrapping_mul(4),
             );
         }
     }
 
     pub(super) fn generate_overworld_native(
-        &self, pos: ChunkPos, stage: JavaTerrainStage,
+        &self,
+        pos: ChunkPos,
+        stage: JavaTerrainStage,
     ) -> ProtoChunk {
         use noise::overworld_settings as settings;
         let _noise = profile::scope(Stage::Noise);
@@ -117,15 +134,21 @@ impl JavaGenerator {
             return self.biomes_stage(pos, biomes);
         }
         let mut aquifer = NoiseBasedAquifer::new(
-            pos.x, pos.z, settings::MIN_Y, settings::HEIGHT, &source,
-            &flat, &columns, self.seed, OverworldFluidPicker::new(settings::SEA_LEVEL),
+            pos.x,
+            pos.z,
+            settings::MIN_Y,
+            settings::HEIGHT,
+            &source,
+            &flat,
+            &columns,
+            self.seed,
+            OverworldFluidPicker::new(settings::SEA_LEVEL),
         );
         let veins = NativeOreVeinifier::new(self.ore_random.clone());
-        let mut sampler = noise::NativeCellSampler::new(
-            pos.x, pos.z, &flat, &columns, &source,
-        );
+        let mut sampler = noise::NativeCellSampler::new(pos.x, pos.z, &flat, &columns, &source);
         let mut dense = DenseBlocks::filled_with_bounds(
-            u32::from(states::AIR.0), BlockStateSpace::Java,
+            u32::from(states::AIR.0),
+            BlockStateSpace::Java,
             self.options.dimension.block_bounds(),
         );
         sampler.initialize();
@@ -149,18 +172,27 @@ impl JavaGenerator {
                                 for (lane, density) in densities.into_iter().enumerate() {
                                     let in_z = z_batch + lane;
                                     let z = cell_z * width + in_z;
-                                    let ctx = noise::FunctionContext::new(block_x, y, pos.z * 16 + z as i32);
+                                    let ctx = noise::FunctionContext::new(
+                                        block_x,
+                                        y,
+                                        pos.z * 16 + z as i32,
+                                    );
                                     let fluid = if density > 0.0 {
                                         None
                                     } else {
-                                        aquifer.compute_substance(&ctx, density).map(java_aquifer_substance)
+                                        aquifer
+                                            .compute_substance(&ctx, density)
+                                            .map(java_aquifer_substance)
                                     };
                                     let block = fluid.unwrap_or_else(|| {
-                                        veins.compute_with_samples(
-                                            &ctx, sampler.vein_toggle(in_z),
-                                            || sampler.vein_ridged(in_z),
-                                            || sampler.vein_gap(in_z),
-                                        ).unwrap_or(settings::DEFAULT_BLOCK)
+                                        veins
+                                            .compute_with_samples(
+                                                &ctx,
+                                                sampler.vein_toggle(in_z),
+                                                || sampler.vein_ridged(in_z),
+                                                || sampler.vein_gap(in_z),
+                                            )
+                                            .unwrap_or(settings::DEFAULT_BLOCK)
                                     });
                                     if block != u32::from(states::AIR.0) {
                                         dense.set_block(x as u8, y as i16, z as u8, block);
@@ -177,15 +209,28 @@ impl JavaGenerator {
         })
     }
 
-    secondary_stage!(generate_nether_native, nether_compiled, nether_settings, fill_nether_native);
-    secondary_stage!(generate_end_native, end_compiled, end_settings, fill_end_native);
+    secondary_stage!(
+        generate_nether_native,
+        nether_compiled,
+        nether_settings,
+        fill_nether_native
+    );
+    secondary_stage!(
+        generate_end_native,
+        end_compiled,
+        end_settings,
+        fill_end_native
+    );
 
     pub(super) fn biomes_stage(&self, pos: ChunkPos, mut biomes: QuartBiomes) -> ProtoChunk {
         biomes.set_block_bounds(self.options.dimension.block_bounds());
         ProtoChunk {
             pos,
             chunk: Chunk::new_with_bounds(
-                pos.x, pos.z, BlockStateSpace::Java, self.options.dimension.block_bounds(),
+                pos.x,
+                pos.z,
+                BlockStateSpace::Java,
+                self.options.dimension.block_bounds(),
             ),
             biomes,
         }
@@ -208,9 +253,19 @@ impl JavaGenerator {
         let sample = |dx, dz| {
             let ctx = noise::FunctionContext::new(pos.x * 16 + dx, 0, pos.z * 16 + dz);
             match self.options.dimension {
-                JavaDimension::Overworld => noise::compute_preliminary_surface_level_native_uncached(&ctx, source),
-                JavaDimension::Nether => noise::nether_compiled::compute_preliminary_surface_level_native_uncached(&ctx, source),
-                JavaDimension::End => noise::end_compiled::compute_preliminary_surface_level_native_uncached(&ctx, source),
+                JavaDimension::Overworld => {
+                    noise::compute_preliminary_surface_level_native_uncached(&ctx, source)
+                }
+                JavaDimension::Nether => {
+                    noise::nether_compiled::compute_preliminary_surface_level_native_uncached(
+                        &ctx, source,
+                    )
+                }
+                JavaDimension::End => {
+                    noise::end_compiled::compute_preliminary_surface_level_native_uncached(
+                        &ctx, source,
+                    )
+                }
             }
         };
         [sample(0, 0), sample(16, 0), sample(0, 16), sample(16, 16)]
@@ -239,37 +294,58 @@ impl JavaGenerator {
             let neighbors: [Option<QuartBiomes>; 9] = std::array::from_fn(|slot| {
                 let dx = slot as i32 % 3 - 1;
                 let dz = slot as i32 / 3 - 1;
-                (slot != 4).then(|| self.generate_native_biomes(ChunkPos::new(pos.x + dx, pos.z + dz)))
+                (slot != 4)
+                    .then(|| self.generate_native_biomes(ChunkPos::new(pos.x + dx, pos.z + dz)))
             });
             let zoom_seed = biome_source::zoom_seed(self.seed);
             let mut biome_at = |x, y, z| {
                 biome_source::zoomed_biome(zoom_seed, x, y, z, |qx, qy, qz| {
                     let dx = (qx >> 2) - pos.x;
                     let dz = (qz >> 2) - pos.z;
-                    assert!((-1..=1).contains(&dx) && (-1..=1).contains(&dz),
-                        "native surface queried outside its biome neighborhood");
+                    assert!(
+                        (-1..=1).contains(&dx) && (-1..=1).contains(&dz),
+                        "native surface queried outside its biome neighborhood"
+                    );
                     let slot = ((dz + 1) * 3 + dx + 1) as usize;
                     let column = neighbors[slot].as_ref().unwrap_or(&biomes);
                     JavaBiome::from_index(column.at_block(
-                        ((qx & 3) * 4) as u8, qy * 4, ((qz & 3) * 4) as u8,
-                    )).expect("native biome neighborhood contains an invalid Java biome")
+                        ((qx & 3) * 4) as u8,
+                        qy * 4,
+                        ((qz & 3) * 4) as u8,
+                    ))
+                    .expect("native biome neighborhood contains an invalid Java biome")
                 })
             };
             let corners = self.preliminary_corners(pos, source);
-            self.surface_system.build_surface(&mut dense, pos, source, corners, &mut biome_at);
+            self.surface_system
+                .build_surface(&mut dense, pos, source, corners, &mut biome_at);
             drop(surface);
             if stage == JavaTerrainStage::Carvers {
                 let _carvers = profile::scope(Stage::Carvers);
                 let mut carving = NativeCarveContext {
                     generator: self,
-                    surface: &self.surface_system, source, pos, corners,
-                    biome_at: &mut biome_at, substance: &mut carve_substance,
+                    surface: &self.surface_system,
+                    source,
+                    pos,
+                    corners,
+                    biome_at: &mut biome_at,
+                    substance: &mut carve_substance,
                 };
-                carver::carve_chunk(self.options.dimension, self.seed, &mut dense, pos, &mut carving);
+                carver::carve_chunk(
+                    self.options.dimension,
+                    self.seed,
+                    &mut dense,
+                    pos,
+                    &mut carving,
+                );
             }
         }
         let _packing = profile::scope(Stage::Packing);
-        ProtoChunk { pos, chunk: dense.to_chunk(pos), biomes }
+        ProtoChunk {
+            pos,
+            chunk: dense.to_chunk(pos),
+            biomes,
+        }
     }
 }
 
@@ -297,9 +373,24 @@ where
         (self.substance)(x, y, z)
     }
 
-    fn top_material(&mut self, blocks: &DenseBlocks, x: i32, y: i32, z: i32, has_fluid: bool) -> Option<u32> {
+    fn top_material(
+        &mut self,
+        blocks: &DenseBlocks,
+        x: i32,
+        y: i32,
+        z: i32,
+        has_fluid: bool,
+    ) -> Option<u32> {
         self.surface.top_material(
-            blocks, self.pos, self.source, self.corners, self.biome_at, x, y, z, has_fluid,
+            blocks,
+            self.pos,
+            self.source,
+            self.corners,
+            self.biome_at,
+            x,
+            y,
+            z,
+            has_fluid,
         )
     }
 }

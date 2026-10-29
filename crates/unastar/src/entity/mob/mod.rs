@@ -28,6 +28,7 @@ pub mod components;
 pub mod constants;
 pub mod derive;
 pub mod events;
+pub mod gear;
 pub mod interaction;
 pub mod life;
 pub mod native;
@@ -123,6 +124,9 @@ pub fn spawn_mob(
         }
     };
     let entity = spawn_unattached(world, &archetype, position, yaw)?;
+    if cause == SpawnCause::Loaded {
+        world.entity_mut(entity).insert(persistence::Restoring);
+    }
     attach_definition(world, entity, Arc::clone(&archetype.definition))
         .expect("a freshly spawned mob exists and has no definition stack");
     apply_pending_definitions(world);
@@ -177,7 +181,15 @@ fn spawn_unattached(
             .expect("catalogue flag index");
         EntityMetadata::actor_base()
     } else {
-        EntityMetadata::living_base()
+        let mut metadata = EntityMetadata::living_base();
+        metadata.set_float(
+            jolyne::valentine::actor_data_i_ds::AMBIENT_SOUND_INTERVAL,
+            archetype.native.ambient_sound_interval,
+        );
+        if let Some(kind) = archetype.native.aux_value {
+            metadata.set_short(jolyne::valentine::actor_data_i_ds::AUX_VALUE_DATA, kind);
+        }
+        metadata
     };
     let launched_tick = world
         .get_resource::<crate::ecs::resources::TickCounter>()

@@ -135,6 +135,9 @@ pub(super) fn encode_mob(world: &World, mob: Entity, unique_id: i64) -> Vec<u8> 
     if let Some(timers) = world.get::<SpawnEntityTimers>(mob) {
         put("entries", timers.to_nbt(now));
     }
+    for (name, value) in crate::entity::mob::gear::persist::save(world, mob) {
+        put(name, value);
+    }
 
     let mut out = Vec::new();
     NBTTag::Compound(fields.into())
