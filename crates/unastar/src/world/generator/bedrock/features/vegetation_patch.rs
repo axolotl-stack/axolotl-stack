@@ -5,7 +5,11 @@
 //!
 //! Shape: a rectangle of half-extents `horizontal_radius + 1` (drawn
 //! separately for x and z) without its corners; each edge column is kept
-//! only with `extra_edge_column_chance`. For each column, the surface is
+//! only with `extra_edge_column_chance`. Both `horizontal_radius` and `depth`
+//! are drawn upper-exclusive, `min + next_int(max - min)`, with no draw when
+//! `max - min <= 1` (BDS reads `range_max` unchanged; native lush-cave clay
+//! and dripleaf in the natural seed-12345 world, see the codegen README).
+//! For each column, the surface is
 //! searched from the input row: up to `vertical_range` steps into the ground
 //! while in air, then up to `vertical_range` steps back out while in a block.
 //! The column counts when it ends on an air cell in front of a sturdy ground
@@ -23,6 +27,7 @@
 //! feature reports success when it kept at least one cell.
 
 use super::super::generated::bb;
+use super::super::rng::BedrockRandom;
 use super::super::world::{BlockPos, BlockWorld, Ctx};
 use super::IntRange;
 use super::multiface::is_sturdy;
@@ -71,8 +76,8 @@ where
     W: BlockWorld,
     F: FnMut(&mut Ctx<'_, W>, BlockPos) -> Option<BlockPos>,
 {
-    let rx = p.horizontal_radius.sample(ctx.rng) + 1;
-    let rz = p.horizontal_radius.sample(ctx.rng) + 1;
+    let rx = range(p.horizontal_radius, ctx.rng) + 1;
+    let rz = range(p.horizontal_radius, ctx.rng) + 1;
     debug_assert!(
         rx <= MAX_RADIUS + 1 && rz <= MAX_RADIUS + 1,
         "horizontal_radius above MAX_RADIUS"
@@ -153,7 +158,7 @@ fn ground_patch<W: BlockWorld>(
             }
             let extra =
                 p.extra_deep_block_chance > 0.0 && ctx.rng.next_float() < p.extra_deep_block_chance;
-            let depth = p.depth.sample(ctx.rng) + i32::from(extra);
+            let depth = range(p.depth, ctx.rng) + i32::from(extra);
             if place_ground(ctx, ground, inward, depth, p) {
                 cells[n] = ground;
                 n += 1;
@@ -161,6 +166,17 @@ fn ground_patch<W: BlockWorld>(
         }
     }
     n
+}
+
+/// BDS's range draw for this feature: `[min, max)`, no draw for a width of
+/// at most one.
+#[inline]
+fn range(r: IntRange, rng: &mut BedrockRandom) -> i32 {
+    if r.min < r.max - 1 {
+        r.min + rng.next_int(r.max - r.min)
+    } else {
+        r.min
+    }
 }
 
 /// Where a column lies in the patch rectangle.
@@ -288,6 +304,33 @@ mod tests {
             sorted(&water),
             "vegetation grows from the water cells"
         );
+    }
+
+    /// Natural seed-12345 BDS lush caves: moss runs are 1 (9285) or 2 (6295)
+    /// blocks deep and almost never 3 (34), although `moss_ceiling_feature`
+    /// declares depth `{1, 3}`. Ranges are drawn upper-exclusive, so
+    /// `moss_patch_feature`'s depth `{1, 2}` is always one block and radius
+    /// `{4, 8}` never reaches 8.
+    #[test]
+    fn ranges_are_drawn_upper_exclusive() {
+        let p = Params {
+            depth: IntRange { min: 1, max: 2 },
+            horizontal_radius: IntRange { min: 4, max: 8 },
+            vegetation_chance: 0.0,
+            ..PATCH
+        };
+        for seed in 0..64 {
+            let mut world = Cube::filled(8, bb::AIR);
+            world.fill((-8, -8, -8), (7, -1, 7), bb::DIRT);
+            let mut rng = BedrockRandom::new(seed);
+            with_ctx(&mut world, &mut rng, |ctx| {
+                place(ctx, BlockPos::new(0, 2, 0), &p, |_, _| None)
+            });
+            for at in world.positions(|id| id == bb::CLAY) {
+                assert_eq!(at.y, -1, "seed {seed}: clay {} deep", -at.y);
+                assert!(at.x.abs() <= 7 && at.z.abs() <= 7, "seed {seed}: radius 8");
+            }
+        }
     }
 
     #[test]

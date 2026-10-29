@@ -808,24 +808,34 @@ pub fn pale_moss_vegetation_feature<W: BlockWorld>(
 }
 
 /// `minecraft:dripleaf_feature` (vegetation of the waterlogged clay patches
-/// in lush caves): one of five equally likely choices, vanilla's dripleaf
-/// selector: a small dripleaf, or a big dripleaf facing east, west, south or
-/// north (BDS ships those as `big_dripleaf_<dir>_feature` growing plants).
+/// in lush caves): `next_float() < 0.2` grows a small dripleaf, otherwise a
+/// big one through `big_dripleaf_<dir>_feature`. Either way the facing is
+/// drawn next as `next_int(4)` (south, west, north, east), before any
+/// placement check. Measured on lush-cave dripleaf of the natural
+/// seed-12345 BDS world (see the codegen README).
 pub fn dripleaf_feature<W: BlockWorld>(ctx: &mut Ctx<'_, W>, pos: BlockPos) -> Option<BlockPos> {
-    match ctx.rng.next_int(5) {
-        0 => small_dripleaf(ctx, pos),
-        1 => generated::f_big_dripleaf_east_feature(ctx, pos),
-        2 => generated::f_big_dripleaf_west_feature(ctx, pos),
-        3 => generated::f_big_dripleaf_south_feature(ctx, pos),
-        _ => generated::f_big_dripleaf_north_feature(ctx, pos),
+    let small = ctx.rng.next_float() < 0.2;
+    let facing = ctx.rng.next_int(4) as usize;
+    if small {
+        return small_dripleaf(ctx, pos, facing);
+    }
+    match facing {
+        0 => generated::f_big_dripleaf_south_feature(ctx, pos),
+        1 => generated::f_big_dripleaf_west_feature(ctx, pos),
+        2 => generated::f_big_dripleaf_north_feature(ctx, pos),
+        _ => generated::f_big_dripleaf_east_feature(ctx, pos),
     }
 }
 
-/// A two-block small dripleaf with a random facing, in air or water, on clay
-/// or moss (or on dirt-like ground when standing in water). The decoration
-/// world has no liquid layer, so a dripleaf placed in water replaces it
-/// rather than being waterlogged.
-fn small_dripleaf<W: BlockWorld>(ctx: &mut Ctx<'_, W>, pos: BlockPos) -> Option<BlockPos> {
+/// A two-block small dripleaf facing `SMALL_DRIPLEAF[facing]`, in air or
+/// water, on clay or moss (or on dirt-like ground when standing in water).
+/// The decoration world has no liquid layer, so a dripleaf placed in water
+/// replaces it rather than being waterlogged.
+fn small_dripleaf<W: BlockWorld>(
+    ctx: &mut Ctx<'_, W>,
+    pos: BlockPos,
+    facing: usize,
+) -> Option<BlockPos> {
     let (here, above, below) = (ctx.get(pos), ctx.get(pos.above()), ctx.get(pos.below()));
     let open = |id: u32| bb::air(id) || bb::water(id);
     if !open(here) || !open(above) {
@@ -834,7 +844,7 @@ fn small_dripleaf<W: BlockWorld>(ctx: &mut Ctx<'_, W>, pos: BlockPos) -> Option<
     if !(bb::small_dripleaf_ground(below) || (bb::water(here) && bb::dirt_like(below))) {
         return None;
     }
-    let (lower, upper) = SMALL_DRIPLEAF[ctx.rng.next_int(4) as usize];
+    let (lower, upper) = SMALL_DRIPLEAF[facing];
     if !ctx.set(pos, lower) {
         return None;
     }
@@ -1222,5 +1232,29 @@ mod tests {
         let mut stone = TestWorld::floor(0, 63, bb::STONE);
         assert_eq!(run(&mut stone, 9, wildflowers_feature, pos), None);
         assert_eq!(run(&mut stone, 9, leaf_litter_feature, pos), Some(pos));
+    }
+
+    /// BDS: one float picks small (`< 0.2`) or big dripleaf, then
+    /// `next_int(4)` picks the facing (south, west, north, east) for both.
+    #[test]
+    fn dripleaf_picks_size_by_float_then_facing() {
+        let pos = BlockPos::new(0, 64, 0);
+        let (mut small, mut big) = (0, 0);
+        for seed in 0..100 {
+            let mut expected = BedrockRandom::new(seed);
+            let is_small = expected.next_float() < 0.2;
+            let facing = expected.next_int(4) as usize;
+            let mut w = TestWorld::floor(2, 63, bb::CLAY);
+            assert_eq!(run(&mut w, seed, dripleaf_feature, pos), Some(pos));
+            let lower = SMALL_DRIPLEAF.iter().position(|&(l, _)| l == w.get(pos));
+            if is_small {
+                small += 1;
+                assert_eq!(lower, Some(facing), "seed {seed}");
+            } else {
+                big += 1;
+                assert_eq!(lower, None, "seed {seed}: big dripleaf expected");
+            }
+        }
+        assert!(small > 0 && big > 0);
     }
 }

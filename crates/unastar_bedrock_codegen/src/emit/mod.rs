@@ -317,7 +317,8 @@ pub fn generate(model: &Model) -> Result<(String, Report)> {
         block_constants: em.blocks.len(),
     };
     let file = quote! {
-        use super::world::{BlockPos, BlockWorld, Ctx};
+        use super::rng::{BedrockRandom, feature_rule_seed};
+        use super::world::{BlockPos, BlockWorld, Ctx, NoiseSource};
         #[allow(unused_imports)]
         use super::{builtin, features, scatter, structures, surface};
 

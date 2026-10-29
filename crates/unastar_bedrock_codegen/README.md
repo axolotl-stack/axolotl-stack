@@ -513,3 +513,287 @@ a water block, and the generated water deficit predates this change. Fixture
 chunk (-4,-4) stays low (325 vs 517) because half of its native kelp grows in
 a trench whose generated depth differs; that is terrain, not kelp.
 
+### Feature rules have independent, identifier-seeded randoms (2026-10-28)
+
+Two natural BDS 1.26.51 worlds of seed 12345 (chunks -5..4, no edits other
+than an authored pack) each ran single-marker probe rules: `iterations` 1,
+`x`/`z` uniform over the chunk, constant `y` in the air, one distinct marker
+block per rule. All three probes placed exactly one marker in every exported
+chunk.
+
+| World | `first_pass` probes | `final_pass` probe |
+|---|---|---|
+| 1 | `wg_seed:a_probe`, `wg_seed:b_probe` (identical definitions) | `wg_seed:c_probe` |
+| 2 | `wg_seed:x_probe` (the `a_probe` definition renamed), no `b_probe` | `wg_seed:c_probe` |
+
+- `a_probe` and `b_probe` never shared a position (0 of 69 chunks), so two
+  identical rules do not replay the same draws.
+- `c_probe` kept its exact position in all 61 chunks common to both worlds,
+  although world 2 removed one `first_pass` rule and renamed the other. A
+  rule's draws therefore do not depend on how many draws other rules make.
+- `x_probe` matched neither `a_probe` nor `b_probe` in any chunk (0 of 61),
+  although its definition and its place in identifier order were those of
+  `a_probe`. The seed depends on the rule identifier, not on a rule index.
+
+A third world ran 50-iteration probes (`x`, `z`, `y` uniform over 16,
+`coordinate_eval_order` `xzy`). For each such volume exactly one 32-bit
+MT19937 seed reproduces all 50 positions, with plain `% 16` draws in `x`, `z`,
+`y` order from the first output. Seeds recovered for `c_probe` in four chunks
+and `d_probe` in one fix the formula the runtime now implements:
+
+- population seed `s = level_seed ^ (chunk_x * px + chunk_z * pz)` (wrapping,
+  chunk units), where `px` and `pz` are the first two non-negative 31-bit
+  draws (`next_u32() >> 1`) of a random seeded with the level seed, each
+  forced odd. The previous decorator used the full 32-bit draws.
+- rule seed `((s << 6) + h + (s >> 2) + 0x9e3779b9) ^ s`, where `h` is the low
+  32 bits of the 64-bit FNV-1 hash (multiply, then xor) of the rule
+  identifier. `rules.rs` folds `h` at build time.
+- the scatter starts a fresh MT19937 from the rule seed; the placed feature
+  starts its own fresh MT19937 from the same seed.
+
+These predict every probe position in all three worlds (69, 69 and 64
+chunks; `first_pass` and `final_pass`; one and 50 iterations).
+`decorate::tests::feature_rule_streams_match_native_probe_worlds` pins the
+five recovered seeds and seven single-iteration positions. Carvers seed their
+own per-source randoms from the world seed, so carving output does not move.
+**Unmeasured:** how seeds wider than 32 bits fold into the level seed, and
+the geology and structure streams that are still salted from the population
+seed.
+
+### Per-rule seeding re-baseline (2026-10-28)
+
+With every rule on its own stream, chance-gated rules land in BDS's chunks:
+the fixture's two geode chunks (-1,1) and (-4,3) had no generated geode
+before and both have one now. Totals move towards BDS where the per-chunk
+placement decides the count:
+
+| Block (68-chunk fixture) | BDS | Shared stream | Per-rule streams |
+|---|---:|---:|---:|
+| clay | 26162 | 31591 | 27958 |
+| kelp | 4506 | 4462 | 4764 |
+| big dripleaf | 190 | 439 | 267 |
+| magma | 142 | 393 | 367 |
+| amethyst block | 366 | 888 | 1100 |
+
+| Parity metric | Before | After |
+|---|---:|---:|
+| Terrain height exact | 0.8782 | 0.8791 |
+| Terrain height within 2 | 0.9240 | 0.9224 |
+| Terrain mean abs error | 1.2217 | 1.2287 |
+| Surface height exact | 0.8526 | 0.8510 |
+| Surface block match | 0.8432 | 0.8421 |
+| Surface biome match | 0.9950 | 0.9947 |
+| Histogram L1 | 0.0277 | 0.0203 |
+
+The coordinator approved re-baselining the five lowered floors to these
+measured values (D8): vegetation and ores now draw from the correct streams,
+and what still differs is the feature algorithms themselves. Each generated
+geode is about three times BDS's size (amethyst 477 vs 141 in chunk (-1,1))
+and spills into neighbouring chunks; tree internals are the next suspect for
+the surface metrics. **Unmeasured:** Molang `math.random` inside rule
+distributions still draws from the rule's scatter stream.
+
+### Geode point count is the first draw (2026-10-28)
+
+The per-rule seeds predict exactly the fixture's two geode chunks and their
+heights: (-4,3) at y -37 and (-1,1) at y -33. Their blocks, exported offline
+from the natural seed-12345 world (no new BDS run), are three-point shells:
+the boundary radii 3.4 / 4.8 / 5.7 / 6.9 fit the vanilla thresholds with
+n = 3 and d = 0.5. Among the first eight draws of each geode's feature random,
+only the first gives three points for both; the old order drew the point
+count second and got four, about three times the native volume.
+
+| Geode (-4,3) | BDS | Count second | Count first |
+|---|---:|---:|---:|
+| amethyst + budding | 239 | 649 | 233 |
+| calcite | 310 | 680 | 299 |
+| smooth basalt | 413 | 818 | 343 |
+| amethyst x / y / z span | 9 / 10 / 9 | 13 / 13 / 13 | 9 / 10 / 9 |
+
+The (-1,1) geode now has BDS's y and z spans exactly (x 10 vs 9). Both are
+offset by about one block, so the order of the remaining draws (noise seed,
+crack, point offsets) is still unmeasured.
+`geode::tests::native_geode_seed_draws_three_points_first` fails with the old
+order (788 inner-layer blocks vs native 239).
+
+Histogram L1 rises 0.0203 -> 0.0206 (D8, one ceiling re-baselined): the
+smaller cores leave about 2,450 more deepslate, and deepslate was already
+6,300 over BDS. That excess is an open, separate error the oversized geodes
+had partly hidden. Other metrics are unchanged to four digits.
+
+### Magma depth below solid ground (2026-10-28)
+
+`overworld_underwater_magma_feature` has no biome filter; its
+`surface_relative_threshold_feature` keeps placements at least two blocks
+below the surface. In the natural seed-12345 world (66 chunks exported
+offline, no new BDS run) all 124 native magma blocks lie at y 0..47, almost
+all in underground water at y 0..15, and none on the ocean floor. With a
+water-inclusive surface, 155 of our 200 magma blocks in those chunks sat at
+the native terrain height, the top of the sea floor. Measuring the threshold
+from the top solid block (fluids skipped) removes them; glow lichen, the only
+other user, is unchanged within two blocks.
+
+| Fixture (68 chunks) | BDS | Water-inclusive surface | Top solid block |
+|---|---:|---:|---:|
+| magma | 142 | 367 | 67 |
+| terrain height exact | | 0.8791 | 0.8858 |
+| terrain within 2 | | 0.9224 | 0.9245 |
+| terrain mean abs error | | 1.2287 | 1.2059 |
+| histogram L1 | | 0.02064 | 0.02071 |
+
+Magma's own error falls by 150 blocks, but the stone, gravel, dirt and
+andesite it used to replace were already over-generated, so histogram L1
+rises by 0.00007 (D8, one ceiling re-baselined). Our remaining magma shortage
+(34 vs 124 in the exported chunks) follows the known underground water
+deficit (247,311 vs 264,317 water blocks), not this feature.
+`aquatic::tests::underground_magma_skips_the_ocean_floor` fails with the old
+surface.
+
+### Block-exact geodes (2026-10-28)
+
+The geode algorithm now follows BDS in full (see the module docs of
+`unastar::world::generator::bedrock::features::geode`): after the point
+count, the feature random builds a single-precision legacy normal noise
+(first octave -4, 2,608 draws), then the crack draws and the points; the
+shell is evaluated in `f32` with the fast inverse square root,
+`d = n / max_outer_wall_distance` uses the pack's exclusive maximum, and
+blocks are visited x outward from the origin (up, then down), then y, then z
+ascending, which fixes which inner blocks draw as budding amethyst and as
+growth candidates.
+
+Both natural seed-12345 geodes are reproduced block for block:
+`geode::tests::native_geodes_are_reproduced_block_for_block` checks every
+layer of (-4,3) (413 / 310 / 239, 14 budding) and of the exported part of
+the cracked (-1,1) geode (294 / 241 / 154, 13 budding) at their absolute
+positions. On the 68-chunk fixture:
+
+| Block | BDS | Point count first | Block-exact |
+|---|---:|---:|---:|
+| amethyst block | 366 | 472 | 366 |
+| budding amethyst | 27 | 41 | 27 |
+| calcite | 538 | 633 | 538 |
+| smooth basalt | 721 | 724 | 721 |
+| amethyst cluster | 2 | 2 | 2 |
+| medium amethyst bud | 1 | 2 | 1 |
+| small amethyst bud | 2 | 5 | 1 |
+
+One small bud is still missing; growth targets use the water material and
+the block's own placement rules, and that difference is not yet traced.
+Histogram L1 falls 0.02071 -> 0.02066 and the ceiling is tightened; other
+metrics are unchanged.
+
+### Native scatter distributions (2026-10-28)
+
+Coordinate distributions now follow BDS: `uniform` is `a + next_int(b - a)`
+with no draw for an empty or reversed extent; `triangle` is
+`a + next_int(r / 2 + 1) + next_int(r - r / 2 + 1)`; `gaussian` is
+`a + h + (next_int(h) - next_int(h))` with `h = (b - a) / 2` (two draws, not
+three uniforms); `inverse_gaussian` folds the same difference outwards with a
+coin flip at zero. Evidence, natural seed-12345 BDS world:
+
+- Roofed forest (`roofed_forest_surface_roofed_tree_feature_rules`, chunks
+  (3..4,-5..-2)): trees and their 20-iteration gaussian tall-grass scatters
+  share one random. Iterations agreeing on type and base height go 57 -> 63
+  of 80, and chunk (4,-5) matches its first four trees (one before).
+  `roofed_forest_chunk_starts_with_the_native_trees` pins them; the old code
+  grows a birch at the second.
+- Copper ore (triangle y over [-16, 112], 16 per chunk, chunks
+  (-5..4,-5..4)): predicted vein centres have native copper within three
+  blocks 400 of 1,056 times, against 123 with the earlier formula.
+
+Fixture effect (BDS / before / after):
+
+| Block | BDS | Before | After |
+| --- | ---: | ---: | ---: |
+| copper ore | 3459 | 3594 | 3461 |
+| coal ore | 3135 | 3673 | 3365 |
+| deepslate gold ore | 1476 | 1614 | 1533 |
+| deepslate lapis ore | 887 | 813 | 867 |
+| dark oak log | 77 | 0 | 45 |
+| dark oak leaves | 173 | 0 | 116 |
+
+| Metric | Before | After |
+| --- | ---: | ---: |
+| surface exact | 0.8510 | 0.8545 |
+| surface block | 0.8421 | 0.8489 |
+| surface biome | 0.9947 | 0.9951 |
+| histogram L1 | 0.02066 | 0.02047 |
+| terrain exact | 0.88580 | 0.88574 |
+| terrain within 2 | 0.92452 | 0.92446 |
+| terrain mean abs error | 1.20594 | 1.20617 |
+
+The terrain changes are a single column. They come from the dark oak that
+BDS grows at (59,85,-56) (chunk (3,-4), iteration 15), where our tree
+validity still differs, and the ground under our attempt ends three blocks
+lower. With coordinator approval, terrain within 2 is re-baselined to 0.9244
+and the error ceiling to 1.2062. The surface floors rise to 0.8545 / 0.8489 /
+0.9950 and the histogram ceiling falls to 0.02048. Grid distributions (cocoa
+only) are unmeasured and unchanged.
+
+### Vegetation patch ranges (2026-10-28)
+
+BDS stores a vegetation patch's `range_max` as written and draws
+`horizontal_radius` and `depth` as `min + next_int(max - min)`, with no draw
+when `max - min <= 1`, so the upper bound is exclusive. We drew inclusively.
+Evidence from the natural seed-12345 BDS world, chunks (-5..4,-5..4):
+
+| Moss run depth | BDS | Inclusive | Exclusive |
+| --- | ---: | ---: | ---: |
+| 1 | 9285 | 4020 | 7511 |
+| 2 | 6295 | 5145 | 4556 |
+| 3 | 34 | 3420 | 3 |
+
+`moss_ceiling_feature` declares depth `{1, 3}` and `moss_patch_feature`
+`{1, 2}`. BDS almost never has 3-deep moss, so `3` is never drawn. Clay
+blocks matching BDS position for position go 28079 -> 28552 of 39313, and
+big dripleaf 5 -> 24 of 379. `ranges_are_drawn_upper_exclusive` fails with
+the inclusive draw.
+
+Fixture effect (BDS / before / after):
+
+| Block | BDS | Before | After |
+| --- | ---: | ---: | ---: |
+| clay | 26162 | 27990 | 27575 |
+| big dripleaf | 190 | 272 | 229 |
+| moss block | 14031 | 15658 | 10596 |
+| deepslate | 883698 | 892572 | 896334 |
+
+Terrain exact rises 0.88574 -> 0.88591 and terrain error falls 1.20617 ->
+1.20335; both floors are raised. Histogram L1 rises 0.02047 -> 0.02379. The
+inclusive draw overgrew every moss patch and hid a moss deficit:
+
+- moss zones missing entirely, in chunks (-3,4) and (-2,4) (1870 BDS blocks
+  with no moss of ours nearby);
+- about 10% fewer moss-ceiling iterations finding a ceiling than BDS (717 vs
+  787 near the first 125 positions of the shared lush chunks).
+
+Under D8 only the histogram ceiling is re-baselined, to 0.02379.
+
+### Dripleaf draws (2026-10-28)
+
+BDS's `dripleaf_feature` draws one float: below 0.2 it grows a small
+dripleaf, otherwise a big one through `big_dripleaf_<dir>_feature`. The
+facing is drawn next as `next_int(4)` (south, west, north, east) in both
+cases, before any placement check. We drew a single `next_int(5)`, so each
+big dripleaf took one draw too few and shifted every later draw of its lush
+patch chain. `dripleaf_picks_size_by_float_then_facing` fails with the old
+selection.
+
+| Count | BDS | Before | After |
+| --- | ---: | ---: | ---: |
+| big dripleaf, natural world chunks (-5..4,-5..4) | 379 | 520 | 423 |
+| big dripleaf, fixture | 190 | 229 | 269 |
+| small dripleaf, fixture | 20 | 52 | 40 |
+| clay, fixture | 26162 | 27575 | 27043 |
+
+Positions still mostly differ (big dripleaf overlap 24 -> 15 of 379), so the
+single counts move with the shifted patch chains. Histogram L1 falls 0.02379
+-> 0.02368 and its ceiling is tightened. Terrain error rises 1.20335 ->
+1.20347 and, under D8, only that ceiling is re-baselined, to 1.2035.
+
+Not landed: bounding `snap_to_surface` by the start biome and to
+`range - 1` blocks, as BDS's column scan does. It brought lush clay to
+39491 vs BDS 39313 in the natural world, but lowered positional overlap and
+raised fixture histogram L1 to 0.02426, so it waits until the lush-cave
+biome extent is measured.
+

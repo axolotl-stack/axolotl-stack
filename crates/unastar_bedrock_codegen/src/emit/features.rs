@@ -13,7 +13,11 @@
 //! - `snap_to_surface_feature`: walks from the input through open blocks
 //!   towards the floor/ceiling for up to `vertical_search_range` blocks;
 //! - `surface_relative_threshold_feature`: places only at least
-//!   `minimum_distance_below_surface` blocks below the heightmap surface.
+//!   `minimum_distance_below_surface` blocks below the column's top solid
+//!   block. Water does not count as surface: in the natural seed-12345 world
+//!   none of 124 underwater magma blocks lies on the ocean floor (they fill
+//!   underground water at y 0..47), while a water-inclusive surface put 155
+//!   of ours at the sea-floor top.
 //!
 //! Block-placing types call `features::<type>::place(ctx, pos, &PARAMS)`
 //! with a `static` parameter literal; `single_block_feature` is compiled
@@ -349,7 +353,7 @@ fn surface_relative_threshold(em: &mut Emitter<'_>, o: &Obj<'_>) -> Result<Token
     let min = o.i32("minimum_distance_below_surface")?;
     let call = em.call(&target, quote!(pos));
     Ok(quote! {
-        let surface = ctx.heightmap(pos.x, pos.z) - 1;
+        let surface = ctx.above_top_solid(pos.x, pos.z) - 1;
         if surface - pos.y < #min { return None; }
         #call
     })
