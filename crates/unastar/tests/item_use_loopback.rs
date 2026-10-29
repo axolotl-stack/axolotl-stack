@@ -384,7 +384,11 @@ fn eat_mine_shoot_pearl_and_drink_over_loopback() {
         .await;
         let (effect, drunk) = (effect.unwrap(), drunk.unwrap());
         assert_eq!(
-            (effect.effect_id, effect.effect_amplifier, effect.effect_duration_ticks),
+            (
+                effect.effect_id,
+                effect.effect_amplifier,
+                effect.effect_duration_ticks
+            ),
             (16, 0, 3600)
         );
         assert_eq!(drunk.item_use_method, 3);
