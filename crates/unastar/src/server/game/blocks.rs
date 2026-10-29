@@ -789,6 +789,18 @@ fn handle_block_click(
         && world
             .get::<crate::entity::components::HeldSlot>(entity)
             .is_some_and(|slot| data.slot == i32::from(slot.0));
+    // Tools, bone meal, buckets and fire starters act on the clicked block
+    // instead of placing anything.
+    if main_hand_selected
+        && super::item_use::on_block::use_on_block(
+            world,
+            entity,
+            IVec3::new(clicked.0, clicked.1, clicked.2),
+            data.face,
+        )
+    {
+        return;
+    }
     if main_hand_selected
         && block_at(world, clicked).is_some_and(|block| block != *blocks::AIR)
         && crate::entity::mob::interaction::interact::use_spawn_egg_on_block(

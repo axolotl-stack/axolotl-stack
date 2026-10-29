@@ -10,6 +10,7 @@
 //! trusted.
 
 pub mod food;
+pub mod on_block;
 pub mod ranged;
 
 use bevy_ecs::prelude::*;
