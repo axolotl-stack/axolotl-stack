@@ -9,6 +9,11 @@ pub mod containers;
 mod creative_tests;
 pub mod engine;
 mod pick;
+#[cfg(test)]
+mod replay;
+#[cfg(test)]
+mod station_tests;
+pub mod stations;
 
 use crate::registry::block::BlockNetworkIds;
 
@@ -96,8 +101,8 @@ pub use engine::RequestIdAssignments;
 use super::packet_queues::{InventoryAction, InventoryEvents, InventoryPacketQueue};
 use crate::ecs::events::ServerEvent;
 use crate::entity::components::{
-    ArmourInventory, ContainerWindows, GameMode, HeldSlot, Inventory, MainInventory, OffhandSlot,
-    PlayerSession, PlayerUi, Position, ScreenKind,
+    ArmourInventory, ContainerWindows, Experience, GameMode, HeldSlot, Inventory, MainInventory,
+    OffhandSlot, PlayerSession, PlayerUi, Position, ScreenKind,
 };
 use crate::item::ItemStack;
 use crate::registry::ItemRegistry;
@@ -121,6 +126,7 @@ pub struct PlayerInventory {
     session: &'static PlayerSession,
     mode: &'static GameMode,
     position: &'static Position,
+    experience: Option<&'static Experience>,
 }
 
 /// Once a fatal request has been diagnosed, ignore queued inventory input
@@ -173,6 +179,7 @@ pub fn apply_inventory(world: &mut World, state: &mut InventorySystemState) {
         let closing = matches!(action, InventoryAction::ContainerClose(_));
         let mut drops = Vec::new();
         let mut fatal = false;
+        let mut handled = None;
         {
             let (items, crafting, world_template, config, mut players, mut events) =
                 state.get_mut(world);
@@ -180,7 +187,7 @@ pub fn apply_inventory(world: &mut World, state: &mut InventorySystemState) {
             match action {
                 InventoryAction::ItemStackRequest(pk) => {
                     if let Ok(mut player) = players.get_mut(entity) {
-                        (drops, fatal) = handle_item_stack_request(
+                        let result = handle_item_stack_request(
                             &pk,
                             &items.0,
                             &crafting.0,
@@ -190,6 +197,9 @@ pub fn apply_inventory(world: &mut World, state: &mut InventorySystemState) {
                             can_drop,
                             block_window.as_mut().map(|(_, _, slots)| slots),
                         );
+                        drops = result.drops;
+                        fatal = result.fatal;
+                        handled = Some((result.responses, result.stations));
                     }
                 }
                 InventoryAction::ContainerClose(pk) => {
@@ -229,6 +239,9 @@ pub fn apply_inventory(world: &mut World, state: &mut InventorySystemState) {
         if let Some((screen, before, after)) = block_window {
             super::containers::commit_window(world, entity, screen, &before, after);
         }
+        if let Some((responses, uses)) = handled {
+            send_responses(world, entity, responses, uses, fatal);
+        }
         if closing && let Some(screen) = block_screen {
             super::containers::stop_viewing(world, entity, screen);
         }
@@ -250,9 +263,21 @@ pub fn apply_inventory(world: &mut World, state: &mut InventorySystemState) {
     }
 }
 
-/// One response packet per incoming packet, in request order. The returned
-/// drops belong only to committed frames and are spawned by the exclusive
-/// caller before the next input packet can mutate the thrower.
+/// What one ItemStackRequest packet produced. The exclusive caller sends the
+/// responses around the world side of any station work and spawns the drops.
+struct HandledRequests {
+    /// Drops of committed frames only.
+    drops: Vec<ItemStack>,
+    responses: Vec<jolyne::valentine::ItemStackResponseInfo>,
+    /// Station work of committed frames, in request order.
+    stations: Vec<engine::StationUse>,
+    /// A request ID was invalid: the connection is terminated.
+    fatal: bool,
+}
+
+/// Process one ItemStackRequest packet: one response per request, in order.
+/// Equipment slot updates go out at once (before the response, like BDS);
+/// the responses themselves are returned.
 #[allow(clippy::too_many_arguments)]
 fn handle_item_stack_request(
     pk: &jolyne::valentine::ItemStackRequestPacket,
@@ -263,20 +288,27 @@ fn handle_item_stack_request(
     player: &mut PlayerInventoryItem<'_, '_>,
     can_drop: bool,
     mut block: Option<&mut Inventory>,
-) -> (Vec<ItemStack>, bool) {
+) -> HandledRequests {
     let creative_item = |net_id: u32| creative_stack(items, world_template, net_id, block_ids);
-    let ctx = engine::Context {
-        screen: player.windows.screen(),
-        creative: *player.mode == GameMode::Creative,
-        can_drop,
-        now: Instant::now(),
-        creative_item: &creative_item,
-        crafting,
+    let creative = *player.mode == GameMode::Creative;
+    let mut levels = player.experience.map_or(0, |experience| experience.level);
+    let mut handled = HandledRequests {
+        drops: Vec::new(),
+        responses: Vec::with_capacity(pk.requests.len()),
+        stations: Vec::new(),
+        fatal: false,
     };
-    let mut responses = Vec::with_capacity(pk.requests.len());
-    let mut drops = Vec::new();
-    let mut fatal = false;
     for request in &pk.requests {
+        let ctx = engine::Context {
+            screen: player.windows.screen(),
+            creative,
+            can_drop,
+            now: Instant::now(),
+            creative_item: &creative_item,
+            crafting,
+            items,
+            levels,
+        };
         let mut stores = engine::Stores {
             main: &mut player.main.0,
             armor: &mut player.armor,
@@ -286,7 +318,7 @@ fn handle_item_stack_request(
         };
         let outcome = engine::process(request, &mut stores, &mut player.request_ids, &ctx);
         if outcome.fatal_invalid_id {
-            fatal = true;
+            handled.fatal = true;
             break;
         }
         send_equipment_updates(
@@ -296,20 +328,55 @@ fn handle_item_stack_request(
             player.session,
             block_ids,
         );
-        drops.extend(outcome.drops);
-        responses.extend(outcome.response);
+        if let Some(used) = outcome.station {
+            if let engine::StationUse::Anvil { cost } = used
+                && !creative
+            {
+                levels -= cost;
+            }
+            handled.stations.push(used);
+        }
+        handled.drops.extend(outcome.drops);
+        handled.responses.extend(outcome.response);
     }
-    if !responses.is_empty() {
-        let _ = player.session.send(McpePacket::from(
-            jolyne::valentine::ItemStackResponsePacket { responses },
-        ));
+    handled
+}
+
+/// Send a packet's responses (and the fatal warning), wrapped in the world
+/// side of its station work: anvil events precede the response, XP, block
+/// wear and orbs follow it.
+fn send_responses(
+    world: &mut World,
+    entity: Entity,
+    responses: Vec<jolyne::valentine::ItemStackResponseInfo>,
+    uses: Vec<engine::StationUse>,
+    fatal: bool,
+) {
+    let screen = match world.get::<ContainerWindows>(entity).map(|w| w.screen()) {
+        Some(ScreenKind::Station(screen)) => Some(screen),
+        _ => None,
+    };
+    let creative = world.get::<GameMode>(entity) == Some(&GameMode::Creative);
+    let after: Vec<_> = match screen {
+        Some(screen) => uses
+            .into_iter()
+            .map(|used| stations::before_response(world, screen, used, creative))
+            .collect(),
+        None => Vec::new(),
+    };
+    if let Some(session) = world.get::<PlayerSession>(entity) {
+        if !responses.is_empty() {
+            let _ = session.send(McpePacket::from(
+                jolyne::valentine::ItemStackResponsePacket { responses },
+            ));
+        }
+        if fatal {
+            let _ = session.send(McpePacket::from(invalid_request_warning()));
+        }
     }
-    if fatal {
-        let _ = player
-            .session
-            .send(McpePacket::from(invalid_request_warning()));
+    for after in after {
+        stations::after_response(world, entity, after);
     }
-    (drops, fatal)
 }
 
 /// BDS 1.26.51, entity-player-drop-20261026-v4 seq 468/471: positive ID 1
@@ -464,6 +531,13 @@ fn handle_container_close(
     block_ids: BlockNetworkIds,
 ) -> Vec<ItemStack> {
     debug!(entity = ?entity, container_id = pk.container_id, "ContainerClose");
+    // BDS keeps items left in an anvil's input and material slots across a
+    // close and reopen (client-diff anvil/anvil-2: the reopened window
+    // lists them); everything else returns to the inventory.
+    let anvil_open = matches!(
+        player.windows.screen(),
+        ScreenKind::Station(screen) if screen.kind == crate::entity::components::StationKind::Anvil
+    );
     let container_id = player.windows.close().unwrap_or(pk.container_id);
     let _ = player.session.send(McpePacket::from(ContainerClosePacket {
         container_id,
@@ -474,7 +548,12 @@ fn handle_container_close(
     let mut moved = false;
     for slot in 0..player.ui.0.size() {
         let stack = player.ui.0.item(slot).expect("slot within UI").clone();
-        if stack.is_empty() {
+        let kept = anvil_open
+            && matches!(
+                u8::try_from(slot),
+                Ok(containers::ANVIL_INPUT_SLOT | containers::ANVIL_MATERIAL_SLOT)
+            );
+        if stack.is_empty() || kept {
             continue;
         }
         moved = true;

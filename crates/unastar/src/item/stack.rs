@@ -243,7 +243,9 @@ impl ItemStack {
             return false;
         }
         let item = self.item().expect("non-empty stack has an item");
-        item.max_stack_size() > 1 && self.damage == other.damage && self.nbt == other.nbt
+        item.max_stack_size() > 1
+            && self.damage == other.damage
+            && (self.nbt == other.nbt || super::enchant::same_user_data(self, other))
     }
 
     /// Attempt to merge another stack into this one.

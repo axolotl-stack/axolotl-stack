@@ -497,6 +497,8 @@ pub enum ScreenKind {
     Workbench,
     /// A container block's window (chest, barrel, furnace, hopper, ...).
     Block(BlockScreen),
+    /// An anvil, smithing table or grindstone window.
+    Station(StationScreen),
 }
 
 /// The container block a window shows: the clicked block, its kind and the
@@ -506,6 +508,21 @@ pub struct BlockScreen {
     pub kind: crate::block_entity::ContainerKind,
     pub at: glam::IVec3,
     pub size: u8,
+}
+
+/// Blocks whose window works on items in the player's UI container.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum StationKind {
+    Anvil,
+    SmithingTable,
+    Grindstone,
+}
+
+/// A station window: the station and the clicked block.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub struct StationScreen {
+    pub kind: StationKind,
+    pub at: glam::IVec3,
 }
 
 /// The player's open container window and window-ID counter.

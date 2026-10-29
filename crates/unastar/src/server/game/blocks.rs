@@ -326,10 +326,12 @@ fn can_interact(world: &World, entity: Entity, position: (i32, i32, i32)) -> boo
 enum BlockUse {
     Workbench,
     Container,
+    Station(crate::entity::components::StationKind),
 }
 
-/// An interactive block's `use` (crafting table, container) runs before item
-/// placement unless the player is sneaking with an item in hand.
+/// An interactive block's `use` (crafting table, container, anvil, smithing
+/// table, grindstone) runs before item placement unless the player is
+/// sneaking with an item in hand.
 fn block_use(world: &World, entity: Entity, clicked: (i32, i32, i32)) -> Option<BlockUse> {
     use crate::entity::components::{HeldSlot, MainInventory, PlayerState};
     let block_use = block_at(world, clicked).and_then(|runtime_id| {
@@ -339,6 +341,8 @@ fn block_use(world: &World, entity: Entity, clicked: (i32, i32, i32)) -> Option<
             .get_by_runtime_id(runtime_id)?;
         if entry.string_id == "minecraft:crafting_table" {
             Some(BlockUse::Workbench)
+        } else if let Some(kind) = super::inventory::stations::station_of(&entry.string_id) {
+            Some(BlockUse::Station(kind))
         } else {
             crate::block_entity::ContainerKind::from_block(&entry.string_id)
                 .map(|_| BlockUse::Container)
@@ -798,6 +802,15 @@ fn handle_block_click(
             super::containers::open(world, entity, IVec3::new(clicked.0, clicked.1, clicked.2));
             return;
         }
+        Some(BlockUse::Station(kind)) => {
+            super::inventory::stations::open(
+                world,
+                entity,
+                IVec3::new(clicked.0, clicked.1, clicked.2),
+                kind,
+            );
+            return;
+        }
         None => {}
     }
     // Spawn eggs spawn their mob on the clicked face instead of placing.
@@ -1146,6 +1159,35 @@ mod tests {
             block_use(&world, player, (1, 65, 1)).is_none(),
             "air is not a table"
         );
+    }
+
+    #[test]
+    fn anvils_smithing_tables_and_grindstones_open_their_station() {
+        use crate::entity::components::{PlayerState, StationKind};
+        let (mut world, player, chunk) =
+            block_world(GameMode::Survival, DVec3::new(1.5, 65.62, 1.5));
+        world.entity_mut(player).insert(PlayerState::default());
+        for (name, kind) in [
+            ("minecraft:anvil", StationKind::Anvil),
+            ("minecraft:chipped_anvil", StationKind::Anvil),
+            ("minecraft:damaged_anvil", StationKind::Anvil),
+            ("minecraft:smithing_table", StationKind::SmithingTable),
+            ("minecraft:grindstone", StationKind::Grindstone),
+        ] {
+            let state = crate::registry::BlockRegistry::vanilla()
+                .default_state_id_by_name(name)
+                .unwrap();
+            world
+                .get_mut::<ChunkData>(chunk)
+                .unwrap()
+                .inner
+                .set_block(1, 64, 1, state);
+            assert_eq!(
+                block_use(&world, player, (1, 64, 1)),
+                Some(BlockUse::Station(kind)),
+                "{name}"
+            );
+        }
     }
 
     #[test]
