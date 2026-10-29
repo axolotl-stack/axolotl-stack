@@ -109,7 +109,6 @@ fn run() -> Result {
             generator: WorldGenerator::SuperFlat,
             ..WorldConfig::default()
         },
-        default_chunk_radius: 8,
         max_chunk_radius: 8,
         ..ServerConfig::default()
     });

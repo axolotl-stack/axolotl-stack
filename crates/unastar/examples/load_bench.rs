@@ -46,11 +46,13 @@ const INPUT_INTERVAL: Duration = Duration::from_millis(50);
 /// Overworld sub-chunks per column (y -64..320) and the lowest one's index.
 const SUBCHUNKS_PER_COLUMN: i32 = 24;
 const LOWEST_SUBCHUNK: i32 = -4;
+/// Sub-chunk offsets per `SubChunkRequest` (unastar answers at most 1024).
+const MAX_SUBCHUNK_OFFSETS: usize = 1024;
 /// After the render disk is complete, how long to wait for the rest of the
 /// streamed square before concluding the server only streams the disk.
 const SQUARE_GRACE: Duration = Duration::from_secs(3);
 /// Bound for joining and loading one view.
-const VIEW_TIMEOUT: Duration = Duration::from_secs(180);
+const VIEW_TIMEOUT: Duration = Duration::from_secs(60);
 
 #[derive(Debug, Clone)]
 struct Args {
@@ -138,6 +140,10 @@ struct PlayerResult {
     /// `LevelChunk` packets received until the square view completed. A
     /// column counts as loaded once its requested sub-chunks have arrived.
     chunks_received: usize,
+    /// Radius the server granted (`ChunkRadiusUpdated`).
+    granted_radius: i32,
+    /// Render-disk columns still missing when the view bound expired.
+    disk_missing_at_timeout: Option<usize>,
     /// Distinct complete columns when standing ended (shows whether the
     /// server streams the square or the disk).
     columns_received: usize,
@@ -276,7 +282,6 @@ fn write_config(dir: &Path, args: &Args, addr: SocketAddr) {
     config.server.bind_address = addr.to_string();
     config.server.online_mode = false;
     config.server.max_players = args.players as u32 + 1;
-    config.server.default_chunk_radius = args.radius;
     config.server.max_chunk_radius = args.radius;
     config.server.default_gamemode = "creative".into();
     config.players.data_dir = dir.join("playerdata");
@@ -458,49 +463,63 @@ enum TerrainEvent {
 }
 
 /// Handles terrain packets like a client: a `LevelChunk` in sub-chunk request
-/// mode is answered with one `SubChunkRequest` for the column's sub-chunks
-/// from the bottom up to the server's limit, and the column is complete when
-/// the `SubChunk` answer arrives. A `LevelChunk` that carries its sub-chunks,
+/// mode queues its column's sub-chunks, from the bottom up to the server's
+/// limit, for the next [`flush_requests`]; the column is complete when the
+/// `SubChunk` answer arrives. A `LevelChunk` that carries its sub-chunks,
 /// or whose limit is zero, is complete on arrival.
 async fn terrain_packet(
-    play: &mut BedrockStream<Play, Client, RakNetTransport>,
+    pending: &mut Vec<((i32, i32), i32)>,
     raw: jolyne::raw::RawPacket,
 ) -> Option<TerrainEvent> {
-    use jolyne::valentine::SubChunkRequestPacket;
-    use jolyne::valentine::types::{SubChunkPacketPayloadSubChunkPosOffset, SubChunkPos};
     match raw.name()? {
         McpePacketName::LevelChunkPacket => {
-            let McpePacketData::LevelChunkPacket(chunk) = raw.decode().ok()?.data else {
-                return None;
+            let chunk = match raw.decode() {
+                Ok(packet) => match packet.data {
+                    McpePacketData::LevelChunkPacket(chunk) => chunk,
+                    _ => return None,
+                },
+                Err(error) => {
+                    eprintln!("undecodable LevelChunk: {error}");
+                    return None;
+                }
             };
+            if std::env::var_os("LOAD_BENCH_TRACE").is_some() {
+                eprintln!(
+                    "LevelChunk {:?} count {} limit {:?}",
+                    chunk.chunk_position,
+                    chunk.subchunks_count,
+                    chunk.client_request_sub_chunk_limit
+                );
+            }
             let column = (chunk.chunk_position.x, chunk.chunk_position.z);
             // Without a request limit the chunk carries its sub-chunks.
             let limit = chunk.client_request_sub_chunk_limit.unwrap_or(0);
             if limit <= 0 {
                 return Some(TerrainEvent::Complete(vec![column]));
             }
-            let request = SubChunkRequestPacket {
-                dimension_type: chunk.dimension_id.clone(),
-                sub_chunk_position_offset_list: (0..limit.min(SUBCHUNKS_PER_COLUMN))
-                    .map(|dy| SubChunkPacketPayloadSubChunkPosOffset {
-                        subchunk_offset_x: 0,
-                        subchunk_offset_y: dy as i8,
-                        subchunk_offset_z: 0,
-                    })
-                    .collect(),
-                center_pos: SubChunkPos {
-                    subchunk_position_x: column.0,
-                    subchunk_position_y: LOWEST_SUBCHUNK,
-                    subchunk_position_z: column.1,
-                },
-            };
-            let _ = play.send_packet(McpePacket::from(request)).await;
+            pending.push((column, limit.min(SUBCHUNKS_PER_COLUMN)));
             Some(TerrainEvent::Header)
         }
         McpePacketName::SubChunkPacket => {
-            let McpePacketData::SubChunkPacket(answer) = raw.decode().ok()?.data else {
-                return None;
+            let answer = match raw.decode() {
+                Ok(packet) => match packet.data {
+                    McpePacketData::SubChunkPacket(answer) => answer,
+                    _ => return None,
+                },
+                Err(error) => {
+                    eprintln!("undecodable SubChunk: {error}");
+                    return None;
+                }
             };
+            if std::env::var_os("LOAD_BENCH_TRACE").is_some() {
+                let mut results = std::collections::BTreeMap::new();
+                for entry in &answer.sub_chunk_data {
+                    *results
+                        .entry(format!("{:?}", entry.sub_chunk_request_result))
+                        .or_insert(0) += 1;
+                }
+                eprintln!("SubChunk at {:?}: {results:?}", answer.center_pos);
+            }
             let center = &answer.center_pos;
             let mut columns: Vec<(i32, i32)> = answer
                 .sub_chunk_data
@@ -522,6 +541,43 @@ async fn terrain_packet(
     }
 }
 
+/// Sends the queued sub-chunk requests of this client tick, relative to the
+/// player's chunk, at most [`MAX_SUBCHUNK_OFFSETS`] offsets per packet.
+async fn flush_requests(
+    play: &mut BedrockStream<Play, Client, RakNetTransport>,
+    pending: &mut Vec<((i32, i32), i32)>,
+    center: (i32, i32),
+) {
+    use jolyne::valentine::SubChunkRequestPacket;
+    use jolyne::valentine::types::{
+        DimensionType, SubChunkPacketPayloadSubChunkPosOffset, SubChunkPos,
+    };
+    let offsets: Vec<SubChunkPacketPayloadSubChunkPosOffset> = pending
+        .drain(..)
+        .flat_map(|((x, z), limit)| {
+            let dx = i8::try_from(x - center.0).expect("column within 127 chunks");
+            let dz = i8::try_from(z - center.1).expect("column within 127 chunks");
+            (0..limit).map(move |dy| SubChunkPacketPayloadSubChunkPosOffset {
+                subchunk_offset_x: dx,
+                subchunk_offset_y: dy as i8,
+                subchunk_offset_z: dz,
+            })
+        })
+        .collect();
+    for batch in offsets.chunks(MAX_SUBCHUNK_OFFSETS) {
+        let request = SubChunkRequestPacket {
+            dimension_type: DimensionType { value: 0 },
+            sub_chunk_position_offset_list: batch.to_vec(),
+            center_pos: SubChunkPos {
+                subchunk_position_x: center.0,
+                subchunk_position_y: LOWEST_SUBCHUNK,
+                subchunk_position_z: center.1,
+            },
+        };
+        let _ = play.send_packet(McpePacket::from(request)).await;
+    }
+}
+
 async fn measure_player(addr: SocketAddr, args: &Args, index: usize) -> PlayerResult {
     let name = format!("LoadBot{index}");
     let (started, mut play, game_data) =
@@ -540,6 +596,7 @@ async fn measure_player(addr: SocketAddr, args: &Args, index: usize) -> PlayerRe
         received: HashSet::new(),
         radius,
     };
+    result.granted_radius = radius;
     let center = |x: f32, z: f32| ((x.floor() as i32) >> 4, (z.floor() as i32) >> 4);
     let spawn_chunk = center(spawn.x, spawn.z);
     result.square_chunks = terrain.square(spawn_chunk).count();
@@ -547,6 +604,8 @@ async fn measure_player(addr: SocketAddr, args: &Args, index: usize) -> PlayerRe
     let mut position = spawn.clone();
     let mut tick: u64 = 0;
     let mut input = tokio::time::interval(INPUT_INTERVAL);
+    // Sub-chunk requests queued since the last client tick.
+    let mut requests = Vec::new();
 
     // Standing at spawn until the whole square view has arrived, or the disk
     // has and nothing more came for `SQUARE_GRACE` (a server that streams
@@ -565,7 +624,7 @@ async fn measure_player(addr: SocketAddr, args: &Args, index: usize) -> PlayerRe
                 ) {
                     result.terrain_bytes += raw.inner_frame().len();
                 }
-                let Some(event) = terrain_packet(&mut play, raw).await else { continue };
+                let Some(event) = terrain_packet(&mut requests, raw).await else { continue };
                 let now = ms(started.elapsed());
                 match event {
                     TerrainEvent::Header => {
@@ -589,13 +648,18 @@ async fn measure_player(addr: SocketAddr, args: &Args, index: usize) -> PlayerRe
             _ = input.tick() => {
                 tick += 1;
                 send_input(&mut play, &mut position, (0.0, 0.0), tick).await;
+                flush_requests(&mut play, &mut requests, spawn_chunk).await;
             }
         }
-        assert!(
-            Instant::now() < deadline,
-            "{} view did not load within {VIEW_TIMEOUT:?}",
-            result.name
-        );
+        if Instant::now() >= deadline {
+            let (missing, _, nearest) = terrain.missing_disk(spawn_chunk);
+            eprintln!(
+                "{}: render disk incomplete after {VIEW_TIMEOUT:?}: {missing} columns missing, nearest {nearest:?} chunks away",
+                result.name
+            );
+            result.disk_missing_at_timeout = Some(missing);
+            break;
+        }
     }
     result.columns_received = terrain.received.len();
 
@@ -642,6 +706,7 @@ async fn fly(
     let mut samples = 0usize;
     let mut missing_sum = 0.0;
     let mut worst = (0.0f64, None);
+    let mut requests = Vec::new();
     let mut input = tokio::time::interval(INPUT_INTERVAL);
     let flying_until = flight_started + Duration::from_secs_f32(args.fly_seconds);
     let mut stopped_at: Option<Instant> = None;
@@ -651,7 +716,7 @@ async fn fly(
         tokio::select! {
             raw = play.recv_packet_raw() => {
                 let raw = raw.expect("connection stays open while flying");
-                if let Some(TerrainEvent::Complete(columns)) = terrain_packet(play, raw).await {
+                if let Some(TerrainEvent::Complete(columns)) = terrain_packet(&mut requests, raw).await {
                     for column in columns {
                         if terrain.received.insert(column) && stopped_at.is_none() {
                             new_chunks += 1;
@@ -664,6 +729,7 @@ async fn fly(
                 let flying = Instant::now() < flying_until;
                 let velocity = if flying { (dx * step, dz * step) } else { (0.0, 0.0) };
                 send_input(play, position, velocity, *tick).await;
+                flush_requests(play, &mut requests, center(position)).await;
                 let (missing, total, nearest) = terrain.missing_disk(center(position));
                 if flying {
                     let share = missing as f64 / total as f64;
