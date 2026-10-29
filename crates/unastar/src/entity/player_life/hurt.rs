@@ -137,6 +137,13 @@ pub(super) fn apply_hit(
             knock_back(world, player, from, hit.knockback_power);
         }
     }
+    // A hit that hurt wears the worn armour and costs the player food.
+    if applied > 0.0 {
+        crate::server::game::durability::wear_armour(world, player, damage, hit.cause);
+        if crate::server::game::durability::armour_wears_from(hit.cause) {
+            crate::server::game::hunger::exhaust_player(world, player, |values| values.damage);
+        }
+    }
     if dead {
         death::die(
             world,

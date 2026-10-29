@@ -1,5 +1,5 @@
 use super::*;
-use crate::entity::components::ArmourInventory;
+use crate::entity::components::{ArmourInventory, Hunger};
 use crate::item::test_support::stack;
 
 /// A 3-damage melee hit from a mob, the player wearing an iron chestplate
@@ -55,6 +55,34 @@ fn a_mob_hit_is_scaled_by_difficulty_reduced_by_armour_and_knocks_the_player_bac
         assert!(motion[0].x > 0.0 && motion[0].y > 0.0, "{:?}", motion[0]);
         assert!(motion[0].z.abs() < motion[0].x, "{:?}", motion[0]);
     }
+}
+
+/// A mob hit that hurts the player wears its armour by one point (a hit
+/// below 8 damage) and costs it the damage exhaustion.
+#[test]
+fn a_mob_hit_wears_the_armour_and_costs_food() {
+    let mut h = harness(Difficulty::Normal);
+    let player = h.player;
+    h.world()
+        .get_mut::<ArmourInventory>(player)
+        .unwrap()
+        .set_chestplate(stack("minecraft:iron_chestplate", 1))
+        .unwrap();
+    let exhaustion = h.world().get::<Hunger>(player).unwrap().exhaustion;
+    let cow = h.cow();
+
+    assert!(h.hit_from(cow, 3.0) > 0.0);
+    let worn = h
+        .world()
+        .get::<ArmourInventory>(player)
+        .unwrap()
+        .chestplate()
+        .clone();
+    assert_eq!(crate::item::enchant::durability_damage(&worn), 1);
+    assert!(
+        h.world().get::<Hunger>(player).unwrap().exhaustion > exhaustion,
+        "taking damage costs exhaustion"
+    );
 }
 
 #[test]
