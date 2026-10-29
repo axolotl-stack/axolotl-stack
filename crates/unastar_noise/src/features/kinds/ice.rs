@@ -235,7 +235,9 @@ impl Shape {
         } else {
             signed_distance_circle(x, z, radius, rng)
         };
-        if d >= 0.0 {
+        // Java tests `d < 0.0`: a zero ellipse axis makes the center NaN, and
+        // NaN places nothing.
+        if d.is_nan() || d >= 0.0 {
             return;
         }
         let pos = self.origin.offset(x, y, z);
@@ -461,7 +463,10 @@ impl Cut {
         let c = (radius - 3).min(3) + self.ellipse_c / 2 - 1;
         for x in -a..a {
             for z in -a..a {
-                if signed_distance_ellipse(x, z, self.cx, self.cz, a, c, self.angle) >= 0.0 {
+                // `d < 0.0` as in Java: a zero `c` makes the cut center NaN,
+                // which carves nothing.
+                let d = signed_distance_ellipse(x, z, self.cx, self.cz, a, c, self.angle);
+                if d.is_nan() || d >= 0.0 {
                     continue;
                 }
                 let pos = self.origin.offset(x, y, z);
@@ -587,6 +592,31 @@ mod tests {
             }
         }
         w
+    }
+
+    /// A cut ring with a zero `c` axis (radius 3, ellipse_c 3) is NaN at its
+    /// center and infinite elsewhere; Java's `d < 0.0` test carves nothing.
+    /// Treating NaN as inside removed a blue ice block native keeps (seed
+    /// -55506848734215641, chunk 196 97).
+    #[test]
+    fn zero_axis_cut_ring_carves_nothing() {
+        let mut w = TestWorld::flat(-64);
+        for x in -6..6 {
+            for z in -6..6 {
+                w.blocks.insert(BlockPos::new(x, 64, z), states::BLUE_ICE);
+            }
+        }
+        let before = w.blocks.clone();
+        let cut = Cut {
+            origin: BlockPos::new(0, 64, 0),
+            angle: 1.0,
+            cx: 0,
+            cz: 0,
+            ellipse_a: 6,
+            ellipse_c: 3,
+        };
+        cut.carve(&mut w, 3, 0, false);
+        assert_eq!(w.blocks, before);
     }
 
     #[test]

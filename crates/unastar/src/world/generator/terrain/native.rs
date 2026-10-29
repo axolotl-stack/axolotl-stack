@@ -416,3 +416,45 @@ where
         )
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::world::chunk::blocks;
+
+    /// Native aquifer-trace results for chunk (-406, 124): every voxel is
+    /// water. Its nearest center (-6478, -31, 1985) is a deep dark region
+    /// at its exact position, but not at its flat-cached quart corner, which
+    /// is what the native aquifer reads, so the center floods.
+    #[test]
+    fn aquifer_centers_over_the_chunk_read_flat_cached_erosion_and_depth() {
+        use noise::overworld_settings as settings;
+        let g = JavaGenerator::new(6788061584965324779);
+        let pos = ChunkPos::new(-406, 124);
+        let source = g.terrain_source(pos);
+        let flat = noise::FlatCacheGrid::new_native(pos.x, pos.z, &source);
+        let columns = noise::ColumnContextGrid::new_native(pos.x, pos.z, &source, &flat);
+        let mut aquifer = NoiseBasedAquifer::new(
+            pos.x,
+            pos.z,
+            settings::MIN_Y,
+            settings::HEIGHT,
+            &source,
+            &flat,
+            &columns,
+            g.seed,
+            OverworldFluidPicker::new(settings::SEA_LEVEL),
+        );
+        // Native consumed densities (f64 bits) at each traced voxel.
+        for (x, y, z, bits) in [
+            (-6487, -26, 1984, 0xbf4183a4bb6adc5d_u64),
+            (-6481, -26, 1988, 0xbf2abec23cf85bed),
+            (-6487, -21, 1984, 0xbfa6d09f82e70636),
+            (-6481, -22, 1988, 0xbf9dedb919510d16),
+        ] {
+            let ctx = noise::FunctionContext::new(x, y, z);
+            let substance = aquifer.compute_substance(&ctx, f64::from_bits(bits));
+            assert_eq!(substance, Some(*blocks::WATER), "({x}, {y}, {z})");
+        }
+    }
+}
