@@ -261,6 +261,9 @@ pub const XP_ORB_FOLLOW_ACCELERATION: f64 = 0.1;
 // --- Breeding / ageing --------------------------------------------------------
 
 pub const LOVE_TICKS: u32 = 600;
+/// `ActorEvent` Feed data: the fed item's network id shifted left by this,
+/// over its aux value.
+pub const FEED_EVENT_ITEM_SHIFT: u32 = 16;
 /// Growth fraction per feed when `feed_items` gives none (provisional:
 /// Microsoft Learn `minecraft:ageable`).
 pub const AGEABLE_FEED_GROWTH: f32 = 0.1;
