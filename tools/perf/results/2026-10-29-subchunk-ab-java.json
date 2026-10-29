@@ -1,0 +1,120 @@
+[
+  {
+    "generation_threads": 0,
+    "generator": "java",
+    "label": "base",
+    "players": 1,
+    "players_result": [
+      {
+        "chunks_received": 625,
+        "disk_chunks": 441,
+        "disk_view_ms": 14403.9182,
+        "first_chunk_ms": 844.8743,
+        "flight": {
+          "blocks_flown": 600.0,
+          "catch_up_ms": 1453.7877,
+          "chunks_per_second": 40.5,
+          "missing_disk_max": 0.09297052154195012,
+          "missing_disk_mean": 0.0398072562358277,
+          "nearest_missing_at_worst": 9.055385138137416,
+          "seconds": 20.0,
+          "speed": 30.0
+        },
+        "join_ms": 407.2447,
+        "name": "LoadBot0",
+        "square_chunks": 625,
+        "square_view_ms": 17842.0964
+      }
+    ],
+    "radius": 12,
+    "seed": 12345,
+    "server": "unastar ../stab-wg-perf-merge/loadbench/unastar-base.exe",
+    "world": "fresh",
+    "worst_disk_view_ms": 14403.9182,
+    "worst_square_view_ms": 17842.0964
+  },
+  {
+    "generation_threads": 0,
+    "generator": "java",
+    "label": "base",
+    "players": 1,
+    "players_result": [
+      {
+        "chunks_received": 625,
+        "disk_chunks": 441,
+        "disk_view_ms": 3367.9615,
+        "first_chunk_ms": 567.4728,
+        "flight": null,
+        "join_ms": 567.08,
+        "name": "LoadBot0",
+        "square_chunks": 625,
+        "square_view_ms": 4508.9684
+      }
+    ],
+    "radius": 12,
+    "seed": 12345,
+    "server": "unastar ../stab-wg-perf-merge/loadbench/unastar-base.exe",
+    "world": "generated",
+    "worst_disk_view_ms": 3367.9615,
+    "worst_square_view_ms": 4508.9684
+  },
+  {
+    "generation_threads": 0,
+    "generator": "java",
+    "label": "sched16",
+    "players": 1,
+    "players_result": [
+      {
+        "chunks_received": 625,
+        "disk_chunks": 441,
+        "disk_view_ms": 2187.9146,
+        "first_chunk_ms": 414.8234,
+        "flight": {
+          "blocks_flown": 600.0,
+          "catch_up_ms": 0.0001,
+          "chunks_per_second": 46.25,
+          "missing_disk_max": 0.0022675736961451248,
+          "missing_disk_mean": 0.0008390022675736961,
+          "nearest_missing_at_worst": 12.0,
+          "seconds": 20.0,
+          "speed": 30.0
+        },
+        "join_ms": 321.42359999999996,
+        "name": "LoadBot0",
+        "square_chunks": 625,
+        "square_view_ms": 2570.7278
+      }
+    ],
+    "radius": 12,
+    "seed": 12345,
+    "server": "unastar ../stab-wg-perf-merge/loadbench/unastar-sched16.exe",
+    "world": "fresh",
+    "worst_disk_view_ms": 2187.9146,
+    "worst_square_view_ms": 2570.7278
+  },
+  {
+    "generation_threads": 0,
+    "generator": "java",
+    "label": "sched16",
+    "players": 1,
+    "players_result": [
+      {
+        "chunks_received": 625,
+        "disk_chunks": 441,
+        "disk_view_ms": 1455.0966999999998,
+        "first_chunk_ms": 483.70770000000005,
+        "flight": null,
+        "join_ms": 483.25620000000004,
+        "name": "LoadBot0",
+        "square_chunks": 625,
+        "square_view_ms": 1827.7574
+      }
+    ],
+    "radius": 12,
+    "seed": 12345,
+    "server": "unastar ../stab-wg-perf-merge/loadbench/unastar-sched16.exe",
+    "world": "generated",
+    "worst_disk_view_ms": 1455.0966999999998,
+    "worst_square_view_ms": 1827.7574
+  }
+]
