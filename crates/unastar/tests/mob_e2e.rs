@@ -1184,7 +1184,7 @@ fn walk_direction(tick: u32) -> (f32, f32) {
 /// apart.
 async fn tempted_cows_follow(bot: &mut Bot) {
     // a. no natural spawns join the herd.
-    bot.run_command("/gamerule domobspawning false", "has been updated")
+    bot.run_command("/gamerule domobspawning false", "commands.gamerule.success")
         .await;
     // The default spawn location puts the feet inside the platform; a real
     // client reports itself standing on top.
