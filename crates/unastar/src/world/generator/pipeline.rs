@@ -267,11 +267,12 @@ impl ChunkPipeline {
         }
         let proto = self.proto(pos);
         let mut chunk = proto.chunk.clone();
+        let classes = generator.block_classes();
         for (dx, dz) in SLOT_OFFSETS {
             let origin = ChunkPos::new(pos.x + dx, pos.z + dz);
             let writes = self.decoration(origin);
             // `pos` seen from `origin` is at (-dx, -dz).
-            writes.apply_to(-dx, -dz, &mut chunk);
+            writes.apply_merged(-dx, -dz, &mut chunk, &proto.chunk, classes);
         }
         let java = chunk.state_space() == crate::world::chunk::BlockStateSpace::Java;
         chunk.set_biomes_from_quarts(&proto.biomes, |biome| {
