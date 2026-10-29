@@ -2,7 +2,6 @@ use super::*;
 use crate::server::game::{GameServer, PlayerSpawnData, ServerConfig};
 use crate::world::rules::GameRule;
 use glam::DVec3;
-use jolyne::valentine::types::GameRuleRuleValue;
 use jolyne::valentine::{GameRulesChangedPacket, McpePacketData};
 use tokio::sync::mpsc;
 use valentine::bedrock::codec::BedrockCodec;
@@ -175,17 +174,8 @@ fn game_rules_match_the_bds_join_capture() {
     let mut input = &bytes[1..];
     let native = GameRulesChangedPacket::decode(&mut input, ()).unwrap();
     assert!(input.is_empty());
+    // Every rule BDS announces, with its names, order, defaults and
+    // modifiability.
     let ours = GameRules::default().packet_data().rules_list;
-    let names: Vec<_> = native
-        .rule_data
-        .rules_list
-        .iter()
-        .filter(|rule| GameRule::from_name(&rule.rule_name).is_some())
-        .cloned()
-        .collect();
-    assert_eq!(ours, names, "names, order, defaults and modifiability");
-    assert!(
-        ours.iter()
-            .all(|rule| matches!(rule.rule_value, GameRuleRuleValue::Bool(_)))
-    );
+    assert_eq!(ours, native.rule_data.rules_list);
 }

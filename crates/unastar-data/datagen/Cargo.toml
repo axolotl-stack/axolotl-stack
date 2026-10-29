@@ -22,3 +22,6 @@ miette = { version = "7.0", features = ["fancy"] }
 thiserror = { workspace = true }
 zuri_nbt = { workspace = true }
 unastar-data = { path = ".." }
+bytes = { workspace = true }
+hex = { workspace = true }
+valentine = { workspace = true, features = ["bedrock_1_26_51"] }

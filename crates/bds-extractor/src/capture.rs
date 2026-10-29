@@ -3,13 +3,16 @@
 //!
 //! The client joins through `client_diff::recording`, so every packet of the
 //! session (login included, both directions) lands in `packets.jsonl` exactly
-//! as it crossed the wire. The session has up to two phases:
+//! as it crossed the wire. The session has up to three phases:
 //!
 //! 1. **join**: login, spawn, then every post-spawn definition packet
 //!    ([`REQUIRED_AFTER_SPAWN`]) plus a quiet `settle` window;
 //! 2. **summon** (`--summon`, needs operator permission): `/summon` of every
 //!    summonable identifier from `AvailableActorIdentifiers`, one at a time,
-//!    keeping the first matching `AddActor` (or `AddPainting`).
+//!    keeping the first matching `AddActor` (or `AddPainting`);
+//! 3. **commands** (`--commands FILE`): each scripted command, one at a time,
+//!    with a fixed wait after it so every server packet is attributable to
+//!    the command that preceded it.
 //!
 //! Permission levels are compared across sessions (one member join, one
 //! operator join): BDS 1.26.51 does not resend `AvailableCommands` when a
@@ -19,9 +22,10 @@
 //! `join-sequence.json` (every server packet up to the end of the join
 //! phase, in order), `join/<seq>-<Packet>.{bin,json}` for every non-chunk
 //! server packet of the join phase, `commands/<permission>.{bin,json}` for
-//! each `AvailableCommands`, `summons/<identifier>.{bin,json}` and
-//! `manifest.json` (sizes and SHA-256 of every file). `.bin` files hold the
-//! packet header and payload; `.json` is [`crate::debug_json`].
+//! each `AvailableCommands`, `summons/<identifier>.{bin,json}`,
+//! `command-outputs.json` (see [`command_outputs`]) and `manifest.json`
+//! (sizes and SHA-256 of every file). `.bin` files hold the packet header
+//! and payload; `.json` is [`crate::debug_json`].
 
 use crate::debug_json;
 use anyhow::{Context, Result, bail, ensure};
@@ -44,6 +48,7 @@ use serde_json::{Value, json};
 use sha2::{Digest, Sha256};
 use std::collections::BTreeMap;
 use std::net::SocketAddr;
+use std::ops::Range;
 use std::path::{Path, PathBuf};
 use std::sync::{Arc, Mutex};
 use std::time::Duration;
@@ -62,6 +67,15 @@ pub const REQUIRED_AFTER_SPAWN: [McpePacketName; 4] = [
 /// separate fixtures.
 const CHUNK_PACKETS: [&str; 2] = ["LevelChunkPacket", "SubChunkPacket"];
 
+/// Server packets left out of `command-outputs.json`: world payload, chunk
+/// publishing and latency probes arrive whatever the command.
+const COMMAND_NOISE: [&str; 4] = [
+    "LevelChunkPacket",
+    "SubChunkPacket",
+    "NetworkChunkPublisherUpdatePacket",
+    "NetworkStackLatencyPacket",
+];
+
 /// Session options for [`run`].
 pub struct Options {
     pub addr: SocketAddr,
@@ -75,6 +89,10 @@ pub struct Options {
     pub summon: bool,
     /// How long to wait for each summoned actor to appear.
     pub summon_wait: Duration,
+    /// Commands (without the leading `/`) to run after the summon phase.
+    pub commands: Vec<String>,
+    /// Wait after each scripted command.
+    pub command_wait: Duration,
 }
 
 /// `next_seq` of the recorder at each phase boundary.
@@ -82,6 +100,8 @@ pub struct Options {
 pub struct Phases {
     pub join_end: u64,
     pub summon_end: Option<u64>,
+    /// The commands phase starts at `summon_end`, or `join_end` without one.
+    pub commands_end: Option<u64>,
 }
 
 /// One `/summon` and what the server answered.
@@ -194,6 +214,16 @@ pub async fn run(options: &Options) -> Result<()> {
                 session.pump_for(Duration::from_millis(300)).await?;
             }
             phases.summon_end = Some(session.next_seq()?);
+        }
+
+        if !options.commands.is_empty() {
+            info!("Running {} scripted commands", options.commands.len());
+            for command in &options.commands {
+                info!("/{command}");
+                session.command(command).await?;
+                session.pump_for(options.command_wait).await?;
+            }
+            phases.commands_end = Some(session.next_seq()?);
         }
         Ok::<_, anyhow::Error>((phases, summons))
     }
@@ -567,10 +597,32 @@ pub fn write_outputs(
         .find(|r| r.name == "StartGamePacket")
         .map(|r| decode_record(&hex::decode(&r.hex)?))
         .transpose()?;
-    let server_version = match &start_game {
-        Some(McpePacketData::StartGamePacket(start)) => Some(start.server_version.to_string()),
-        _ => None,
+    let (server_version, player) = match &start_game {
+        Some(McpePacketData::StartGamePacket(start)) => (
+            Some(start.server_version.to_string()),
+            Some(start.runtime_id.actor_runtime_id),
+        ),
+        _ => (None, None),
     };
+
+    let mut commands = Vec::new();
+    if let Some(end) = phases.commands_end {
+        let start = phases.summon_end.unwrap_or(phases.join_end);
+        commands = command_outputs(records, start..end, player)?;
+        let mut text = serde_json::to_vec_pretty(&commands)?;
+        text.push(b'\n');
+        outputs.write("command-outputs.json", &text, json!({}))?;
+    }
+    let commands: Vec<Value> = commands
+        .iter()
+        .map(|c| {
+            json!({
+                "command": c.command,
+                "request_seq": c.request_seq,
+                "packets": c.packets.iter().map(|p| p["packet"].clone()).collect::<Vec<_>>(),
+            })
+        })
+        .collect();
     let manifest = json!({
         "format": 1,
         "protocol_version": valentine::bedrock::version::v1_26_51::PROTOCOL_VERSION,
@@ -583,6 +635,7 @@ pub fn write_outputs(
         },
         "phases": phases,
         "summons": resolved,
+        "commands": commands,
         "files": outputs.files,
     });
     let mut text = serde_json::to_vec_pretty(&manifest)?;
@@ -591,13 +644,90 @@ pub fn write_outputs(
     Ok(manifest)
 }
 
+/// One scripted command and every server packet recorded after its
+/// `CommandRequest` and before the next one.
+#[derive(Debug, Serialize)]
+pub struct CommandOutputs {
+    pub command: String,
+    pub request_seq: u64,
+    pub t_ms: f64,
+    /// `{seq, t_ms, packet, data}`, `data` being [`packet_json`].
+    pub packets: Vec<Value>,
+    /// Server packets left out, by name: [`COMMAND_NOISE`] and movement of
+    /// actors other than the player.
+    pub excluded: BTreeMap<String, usize>,
+}
+
+/// Groups the records in `range` (the commands phase) by the client's
+/// `CommandRequest` packets.
+pub fn command_outputs(
+    records: &[Record],
+    range: Range<u64>,
+    player: Option<u64>,
+) -> Result<Vec<CommandOutputs>> {
+    let mut commands: Vec<CommandOutputs> = Vec::new();
+    for record in records.iter().filter(|r| range.contains(&r.seq)) {
+        if record.dir != "s2c" {
+            if record.name == "CommandRequestPacket" {
+                let McpePacketData::CommandRequestPacket(request) =
+                    decode_record(&hex::decode(&record.hex)?)?
+                else {
+                    bail!("packet seq {} is not a CommandRequest", record.seq);
+                };
+                commands.push(CommandOutputs {
+                    command: request.command.to_string(),
+                    request_seq: record.seq,
+                    t_ms: record.t_ms,
+                    packets: Vec::new(),
+                    excluded: BTreeMap::new(),
+                });
+            }
+            continue;
+        }
+        let Some(current) = commands.last_mut() else {
+            continue;
+        };
+        let data = if COMMAND_NOISE.contains(&record.name.as_str()) {
+            None
+        } else {
+            let data = decode_record(&hex::decode(&record.hex)?)
+                .with_context(|| format!("packet seq {} ({})", record.seq, record.name))?;
+            (!moves_other_actor(&data, player)).then_some(data)
+        };
+        match data {
+            Some(data) => current.packets.push(json!({
+                "seq": record.seq,
+                "t_ms": record.t_ms,
+                "packet": record.name,
+                "data": packet_json(&data)?,
+            })),
+            None => *current.excluded.entry(record.name.clone()).or_default() += 1,
+        }
+    }
+    Ok(commands)
+}
+
+/// Movement of an actor other than the player (mob wandering, not command
+/// feedback).
+fn moves_other_actor(data: &McpePacketData, player: Option<u64>) -> bool {
+    let actor = match data {
+        McpePacketData::MoveActorDeltaPacket(packet) => &packet.move_data.actor_runtime_id,
+        McpePacketData::MoveActorAbsolutePacket(packet) => &packet.move_data.actor_runtime_id,
+        McpePacketData::SetActorMotionPacket(packet) => &packet.target_runtime_id,
+        _ => return false,
+    };
+    Some(actor.actor_runtime_id) != player
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
     use jolyne::valentine::bedrock::codec::{BedrockCodec, Nbt};
     use jolyne::valentine::{
-        AddActorPacket, AvailableActorIdentifiersPacket, EnumsPlayerPermissionLevel,
-        GameRulesChangedPacket, SerializedAbilitiesData, UpdateAbilitiesPacket,
+        ActorRuntimeId, AddActorPacket, AvailableActorIdentifiersPacket, CommandOutputPacket,
+        EnumsPlayerPermissionLevel, GameRulesChangedPacket, MoveActorDeltaData,
+        MoveActorDeltaPacket, NetworkChunkPublisherUpdatePacket, SerializedAbilitiesData,
+        UpdateAbilitiesPacket,
     };
 
     fn record(seq: u64, dir: &str, packet: impl Into<McpePacket>) -> Record {
@@ -647,6 +777,7 @@ mod tests {
         let phases = Phases {
             join_end: 4,
             summon_end: Some(7),
+            commands_end: None,
         };
         let summons = [Summon {
             identifier: "minecraft:cow".into(),
@@ -688,6 +819,50 @@ mod tests {
         assert_eq!(entry["seq"], 6);
         assert_eq!(manifest["packets"]["c2s"], 1);
         std::fs::remove_dir_all(dir).unwrap();
+    }
+
+    #[test]
+    fn command_outputs_attribute_packets_to_the_preceding_request() {
+        let request = |command: &str| CommandRequestPacket {
+            command: command.into(),
+            ..Default::default()
+        };
+        let movement = |actor: u64| MoveActorDeltaPacket {
+            move_data: MoveActorDeltaData {
+                actor_runtime_id: ActorRuntimeId {
+                    actor_runtime_id: actor,
+                },
+                ..Default::default()
+            },
+        };
+        let records = vec![
+            record(0, "c2s", request("/before")),
+            record(1, "c2s", request("/list")),
+            record(2, "s2c", CommandOutputPacket::default()),
+            record(3, "s2c", NetworkChunkPublisherUpdatePacket::default()),
+            record(4, "s2c", movement(7)),
+            record(5, "s2c", movement(1)),
+            record(6, "c2s", request("/time query daytime")),
+            record(7, "s2c", CommandOutputPacket::default()),
+            record(8, "c2s", request("/after")),
+        ];
+        let outputs = command_outputs(&records, 1..8, Some(1)).unwrap();
+        let commands: Vec<&str> = outputs.iter().map(|c| c.command.as_str()).collect();
+        assert_eq!(commands, ["/list", "/time query daytime"]);
+        let packets: Vec<&Value> = outputs[0].packets.iter().map(|p| &p["packet"]).collect();
+        assert_eq!(packets, ["CommandOutputPacket", "MoveActorDeltaPacket"]);
+        assert_eq!(
+            outputs[0].packets[1]["seq"], 5,
+            "the player's movement is kept"
+        );
+        assert_eq!(
+            outputs[0].excluded,
+            BTreeMap::from([
+                ("MoveActorDeltaPacket".to_owned(), 1),
+                ("NetworkChunkPublisherUpdatePacket".to_owned(), 1),
+            ])
+        );
+        assert_eq!(outputs[1].packets.len(), 1);
     }
 
     #[test]

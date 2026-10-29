@@ -19,6 +19,7 @@ use jolyne::valentine::types::{
 };
 use parking_lot::Mutex;
 use serde::{Deserialize, Serialize};
+use unastar_data::game_rules::{GameRuleDefault, GameRuleValue};
 
 /// Level difficulty, as Bedrock numbers it on the wire.
 #[derive(
@@ -125,8 +126,11 @@ impl GameRule {
     }
 }
 
-/// The game rules gameplay depends on, with Bedrock's defaults.
-#[derive(Resource, Debug, Clone, PartialEq, Eq)]
+/// BDS's game rules with BDS's defaults (`unastar_data::game_rules`, the
+/// captured join `GameRulesChanged`). The rules gameplay reads are typed
+/// fields; every other captured rule keeps its value in `other`, so
+/// `/gamerule` and the join list cover exactly what BDS has.
+#[derive(Resource, Debug, Clone, PartialEq)]
 pub struct GameRules {
     pub keep_inventory: bool,
     pub do_immediate_respawn: bool,
@@ -139,11 +143,13 @@ pub struct GameRules {
     pub fall_damage: bool,
     pub fire_damage: bool,
     pub drowning_damage: bool,
+    /// Captured rules without a typed field that were changed from BDS's default.
+    other: Vec<(&'static str, GameRuleValue)>,
 }
 
 impl Default for GameRules {
     fn default() -> Self {
-        Self {
+        let mut rules = Self {
             keep_inventory: false,
             do_immediate_respawn: false,
             show_death_messages: true,
@@ -155,7 +161,17 @@ impl Default for GameRules {
             fall_damage: true,
             fire_damage: true,
             drowning_damage: true,
+            other: Vec::new(),
+        };
+        // The captured defaults are the source of truth for typed rules too.
+        for rule in unastar_data::game_rules::vanilla() {
+            if let (Some(typed), GameRuleValue::Bool(value)) =
+                (GameRule::from_name(&rule.name), rule.value)
+            {
+                rules.set(typed, value);
+            }
         }
+        rules
     }
 }
 
@@ -196,20 +212,79 @@ impl GameRules {
         *self.slot(rule) = value;
     }
 
-    /// One rule as `GameRulesChanged` carries it.
+    /// One gameplay rule as `GameRulesChanged` carries it.
     pub fn wire(&self, rule: GameRule) -> WireGameRule {
-        WireGameRule {
-            rule_name: rule.name().into(),
-            rule_can_be_modified: true,
-            rule_value: GameRuleRuleValue::Bool(self.get(rule)),
+        self.wire_named(rule.name())
+            .expect("every gameplay rule is a captured BDS rule")
+    }
+
+    /// Every BDS rule with its current value, in BDS's join order.
+    pub fn iter(&self) -> impl Iterator<Item = (&'static GameRuleDefault, GameRuleValue)> + '_ {
+        unastar_data::game_rules::vanilla().iter().map(move |rule| {
+            let value = match GameRule::from_name(&rule.name) {
+                Some(typed) => GameRuleValue::Bool(self.get(typed)),
+                None => self
+                    .other
+                    .iter()
+                    .find(|(name, _)| *name == rule.name)
+                    .map_or(rule.value, |(_, value)| *value),
+            };
+            (rule, value)
+        })
+    }
+
+    /// A rule by name, ignoring case (`keepinventory`).
+    pub fn value(&self, name: &str) -> Option<(&'static GameRuleDefault, GameRuleValue)> {
+        self.iter()
+            .find(|(rule, _)| rule.name.eq_ignore_ascii_case(name))
+    }
+
+    /// Sets a rule by name (ignoring case); the value must have the rule's
+    /// type. Returns the rule, or `None` for an unknown name or wrong type.
+    pub fn set_value(
+        &mut self,
+        name: &str,
+        value: GameRuleValue,
+    ) -> Option<&'static GameRuleDefault> {
+        let (rule, current) = self.value(name)?;
+        if std::mem::discriminant(&current) != std::mem::discriminant(&value) {
+            return None;
         }
+        match (GameRule::from_name(&rule.name), value) {
+            (Some(typed), GameRuleValue::Bool(value)) => self.set(typed, value),
+            _ => match self.other.iter_mut().find(|(n, _)| *n == rule.name) {
+                Some((_, slot)) => *slot = value,
+                None => self.other.push((rule.name.as_str(), value)),
+            },
+        }
+        Some(rule)
+    }
+
+    /// One rule by name as `GameRulesChanged` carries it.
+    pub fn wire_named(&self, name: &str) -> Option<WireGameRule> {
+        self.value(name).map(|(rule, value)| wire_rule(rule, value))
     }
 
     /// Every rule, for StartGame and the join `GameRulesChanged`.
     pub fn packet_data(&self) -> GameRulesChangedPacketData {
         GameRulesChangedPacketData {
-            rules_list: GameRule::ALL.map(|rule| self.wire(rule)).into(),
+            rules_list: self
+                .iter()
+                .map(|(rule, value)| wire_rule(rule, value))
+                .collect(),
         }
+    }
+}
+
+fn wire_rule(rule: &GameRuleDefault, value: GameRuleValue) -> WireGameRule {
+    WireGameRule {
+        rule_name: rule.name.as_str().into(),
+        rule_can_be_modified: rule.editable,
+        rule_value: match value {
+            GameRuleValue::Bool(v) => GameRuleRuleValue::Bool(v),
+            GameRuleValue::Int(v) => GameRuleRuleValue::Int32(v),
+            GameRuleValue::Float(v) => GameRuleRuleValue::Float(v),
+        },
     }
 }
 

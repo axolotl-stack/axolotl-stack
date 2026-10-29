@@ -5,7 +5,7 @@
 
 pub mod attributes;
 mod block_drops;
-mod blocks;
+pub(crate) mod blocks;
 mod chunks;
 mod commands;
 mod containers;
@@ -16,7 +16,7 @@ pub mod hunger;
 mod inventory;
 pub mod item_use;
 mod items;
-mod join;
+pub(crate) mod join;
 mod join_data;
 mod loot;
 mod mining;
@@ -27,12 +27,14 @@ mod packets;
 mod placement;
 mod plugins;
 pub mod types;
-mod world_commands;
+#[cfg(test)]
+mod command_tests;
 
 use bevy_ecs::prelude::*;
 pub(crate) use block_drops::{drop_block_items, loot_stacks};
 pub(crate) use blocks::{commit_block_event, reject_block_event};
 pub use inventory::RequestIdAssignments;
+pub use commands::ConsoleCommands;
 pub(crate) use items::{PICKUP_REACH, item_descriptor, player_box};
 pub(crate) use items::{send_slot, world_stack};
 pub(crate) use join::send_inventory_contents;
@@ -43,7 +45,6 @@ pub(crate) use loot::{LootContext, LootLevel};
 use std::sync::Arc;
 use tracing::{info, warn};
 
-use crate::command::CommandRegistry;
 use crate::ecs::{
     CleanupSet, EntityLogicSet, NetworkSendSet, PacketApplySet, PhysicsSet, UnastarEcs,
 };
@@ -77,8 +78,8 @@ use crate::world::ecs::{
 // Re-export public types
 pub use super::config::ServerConfig;
 pub use types::{
-    CommandRegistryResource, ItemEntityIdCounter, PlayerPersistenceData, PlayerSpawnData,
-    ServerConfigResource, SessionEntityMap,
+    ItemEntityIdCounter, PlayerPersistenceData, PlayerSpawnData, ServerConfigResource,
+    SessionEntityMap,
 };
 
 /// The ECS-based game server.
@@ -99,7 +100,7 @@ fn game_mode_to_storage_id(game_mode: GameMode) -> u8 {
 }
 
 /// The stored state of a player. A player saved while dead is stored as it
-/// will respawn (world spawn, full health, fresh hunger), so it never
+/// will respawn (respawn position, full health, fresh hunger), so it never
 /// reloads with zero health.
 fn player_record(world: &World, entity: Entity) -> Option<(uuid::Uuid, PlayerData)> {
     use crate::entity::components::{Experience, Health, Hunger};
@@ -108,9 +109,7 @@ fn player_record(world: &World, entity: Entity) -> Option<(uuid::Uuid, PlayerDat
         .get::<crate::entity::player_life::Dead>(entity)
         .is_some();
     let position = if dead {
-        world
-            .resource::<crate::entity::player_life::respawn::WorldSpawn>()
-            .0
+        crate::entity::player_life::respawn::respawn_position(world, entity)
     } else {
         world.get::<Position>(entity)?.0
     };
@@ -323,6 +322,10 @@ impl GameServer {
             .insert_resource(types::ServerWorldTemplate(world_template.clone()));
         ecs.world_mut()
             .insert_resource(ServerConfigResource(config.clone()));
+        ecs.world_mut()
+            .insert_resource(crate::command::exec::OperatorList::new(
+                config.operators.clone(),
+            ));
         ecs.world_mut().insert_resource(difficulty);
         ecs.world_mut().insert_resource(game_rules);
         ecs.world_mut().insert_resource(world_time);
@@ -330,7 +333,9 @@ impl GameServer {
         ecs.world_mut()
             .init_resource::<crate::world::clock::ClockSync>();
         ecs.world_mut()
-            .insert_resource(CommandRegistryResource(CommandRegistry::with_defaults()));
+            .init_resource::<crate::command::CommandRegistry>();
+        ecs.world_mut()
+            .init_resource::<commands::PendingCommands>();
         ecs.world_mut().insert_resource(ItemEntityIdCounter(100000));
         ecs.world_mut()
             .insert_resource(types::RecipeRegistryResource(Arc::new(recipes)));
@@ -432,6 +437,15 @@ impl GameServer {
                 .in_set(PacketApplySet)
                 .after(inventory::apply_inventory)
                 .after(blocks::apply_block_actions),
+        );
+        // Commands run with the whole world, after this tick's movement,
+        // inventory and block/mob actions were applied.
+        ecs.schedule_mut().add_systems(
+            commands::run_commands
+                .in_set(PacketApplySet)
+                .after(commands::apply_chat_and_commands)
+                .after(crate::entity::mob::interaction::actions::apply_mob_actions)
+                .after(crate::entity::projectile::apply_throws),
         );
         // Consolidate per-domain events into main EventBuffer after all domain systems
         ecs.schedule_mut().add_systems(
@@ -790,11 +804,11 @@ impl GameServer {
             .unwrap()
             .0;
         let default_gamemode = config.default_gamemode;
-        let operator = config.operators.iter().any(|entry| {
-            !entry.is_empty()
-                && (entry.eq_ignore_ascii_case(&data.display_name)
-                    || data.xuid.as_deref() == Some(entry.as_str()))
-        });
+        let operator = self
+            .ecs
+            .world()
+            .resource::<crate::command::exec::OperatorList>()
+            .grants(&data.display_name, data.xuid.as_deref());
 
         let mut rotation = Rotation::default();
         let mut game_mode = default_gamemode;

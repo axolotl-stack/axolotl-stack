@@ -431,9 +431,8 @@ async fn summon(bot: &mut Bot, identifier: &str, at: &str) -> u64 {
         McpePacketData::AddActorPacket(actor) if &*actor.actor_type == identifier => {
             Some(actor.target_runtime_id.actor_runtime_id)
         }
-        // Command errors come back as system text.
-        McpePacketData::TextPacket(text) if format!("{:?}", text.body).contains("Error:") => {
-            panic!("/summon was refused: {:?}", text.body)
+        McpePacketData::CommandOutputPacket(output) if output.output.success_count == 0 => {
+            panic!("/summon was refused: {:?}", output.output.output_messages)
         }
         _ => None,
     })
@@ -637,19 +636,23 @@ async fn watch_natural_spawns(bot: &mut Bot) {
 async fn zombie_kills_and_bot_respawns(bot: &mut Bot) {
     // a. zombies burn in daylight: midnight, with the clock stopped there.
     // Natural spawns could add other attackers on the dark platform.
-    bot.run_command("/gamerule dodaylightcycle false", "has been updated")
+    bot.run_command(
+        "/gamerule dodaylightcycle false",
+        "commands.gamerule.success",
+    )
+    .await;
+    bot.run_command("/gamerule domobspawning false", "commands.gamerule.success")
         .await;
-    bot.run_command("/gamerule domobspawning false", "has been updated")
-        .await;
-    bot.run_command("/time set midnight", "Set the time to")
+    bot.run_command("/time set midnight", "commands.time.set")
         .await;
     // The default spawn location puts the bot's eye at y 17, its feet inside
     // the platform; a real client lands and reports itself standing on top.
     // The bot sends no movement, so it is teleported there instead.
     let (x, z) = (bot.position.x, bot.position.z);
+    // `/tp` coordinates are feet, as in Bedrock.
     bot.run_command(
-        &format!("/tp {x:.2} {:.2} {z:.2}", PLATFORM_TOP + EYE_HEIGHT),
-        "Teleported to",
+        &format!("/tp {x:.2} {PLATFORM_TOP:.2} {z:.2}"),
+        "commands.tp.success.coordinates",
     )
     .await;
 
@@ -733,10 +736,11 @@ async fn watch_zombie_fight(bot: &mut Bot) -> (ZombieFight, u64) {
                 bot.log(format!(
                     "no hit for {ZOMBIE_STALL:?}: stepping next to the zombie"
                 ));
+                // `/tp` coordinates are feet, as in Bedrock.
                 bot.command(&format!(
                     "/tp {:.2} {:.2} {:.2}",
                     feet.x,
-                    feet.y + EYE_HEIGHT,
+                    feet.y,
                     feet.z - 1.0
                 ));
                 fight.teleports.push(Instant::now());
@@ -1555,15 +1559,19 @@ impl Bot {
         self.io.as_ref().is_some_and(|io| !io.is_finished())
     }
 
-    /// Runs an operator command and waits for its system reply containing
-    /// `reply`.
+    /// Runs an operator command and waits for its `CommandOutput`, which
+    /// must succeed with the translation key `reply`.
     async fn run_command(&mut self, line: &str, reply: &str) {
         self.command(line);
         self.expect(&format!("the reply to {line}"), |packet| match packet {
-            McpePacketData::TextPacket(text) => {
-                let body = format!("{:?}", text.body);
-                assert!(!body.contains("Error"), "{line} was refused: {body}");
-                body.contains(reply).then_some(())
+            McpePacketData::CommandOutputPacket(output) => {
+                let messages = &output.output.output_messages;
+                assert!(
+                    output.output.success_count > 0
+                        && messages.iter().any(|m| &*m.message_id == reply),
+                    "{line} answered {messages:?}"
+                );
+                Some(())
             }
             _ => None,
         })
@@ -1732,7 +1740,8 @@ impl Bot {
         if dx * dx + dy * dy + dz * dz <= 9.0 {
             return;
         }
-        let (x, y, z) = (at.x, at.y + EYE_HEIGHT, at.z - 1.5);
+        // `/tp` coordinates are feet, as in Bedrock.
+        let (x, y, z) = (at.x, at.y, at.z - 1.5);
         self.command(&format!("/tp {x:.2} {y:.2} {z:.2}"));
         let me = self.runtime_id;
         self.expect("MovePlayer teleport", |packet| match packet {

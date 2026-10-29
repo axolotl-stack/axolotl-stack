@@ -1,14 +1,19 @@
-use super::*;
+//! World and player commands through the real join path and command queue:
+//! what each player receives and what reaches later StartGames.
+
+use crate::entity::components::GameMode;
 use crate::server::game::packet_queues::{ChatAction, ChatPacketQueue};
 use crate::server::game::types::ServerWorldTemplate;
 use crate::server::game::{GameServer, PlayerSpawnData, ServerConfig};
-use crate::world::rules::StartGameWorldState;
+use crate::world::clock;
+use crate::world::rules::{Difficulty, GameRules, StartGameWorldState, WorldTime};
+use bevy_ecs::prelude::Entity;
 use glam::DVec3;
 use jolyne::valentine::types::{
     EnumsGameType, EnumsSharedTypesLegacyDifficulty, GameRule as WireGameRule, GameRuleRuleValue,
     SyncWorldClocksPacketData,
 };
-use jolyne::valentine::{McpePacketData, StartGamePacket};
+use jolyne::valentine::{McpePacket, McpePacketData, StartGamePacket};
 use tokio::sync::mpsc;
 
 /// Abilities bits (`UpdateAbilities` layer values).
@@ -77,12 +82,29 @@ fn drain(player: &mut Joined) -> Vec<McpePacketData> {
     packets
 }
 
-fn texts(packets: &[McpePacketData]) -> Vec<String> {
+/// The (key, parameters) of every command output message.
+fn outputs(packets: &[McpePacketData]) -> Vec<(String, Vec<String>)> {
     packets
         .iter()
-        .filter(|packet| matches!(packet, McpePacketData::TextPacket(_)))
-        .map(|packet| format!("{packet:?}"))
+        .filter_map(|packet| match packet {
+            McpePacketData::CommandOutputPacket(packet) => Some(&packet.output.output_messages),
+            _ => None,
+        })
+        .flatten()
+        .map(|m| {
+            (
+                m.message_id.to_string(),
+                m.parameters.iter().map(ToString::to_string).collect(),
+            )
+        })
         .collect()
+}
+
+fn output(key: &str, params: &[&str]) -> (String, Vec<String>) {
+    (
+        key.to_owned(),
+        params.iter().map(|p| p.to_string()).collect(),
+    )
 }
 
 fn difficulties(packets: &[McpePacketData]) -> Vec<u32> {
@@ -142,10 +164,12 @@ fn difficulty_command_broadcasts_and_reaches_start_game() {
     );
     let refused = drain(&mut other);
     assert!(difficulties(&refused).is_empty());
-    assert!(
-        texts(&refused)
-            .iter()
-            .any(|text| text.contains("permission"))
+    assert_eq!(
+        outputs(&refused),
+        [output(
+            "commands.generic.error.permissions",
+            &["difficulty"]
+        )]
     );
 
     command(&mut server, &op, "/difficulty normal");
@@ -155,10 +179,9 @@ fn difficulty_command_broadcasts_and_reaches_start_game() {
     );
     let to_op = drain(&mut op);
     assert_eq!(difficulties(&to_op), [2]);
-    assert!(
-        texts(&to_op)
-            .iter()
-            .any(|text| text.contains("Set game difficulty to NORMAL"))
+    assert_eq!(
+        outputs(&to_op),
+        [output("commands.difficulty.success", &["NORMAL"])]
     );
     assert_eq!(difficulties(&drain(&mut other)), [2]);
     assert_eq!(
@@ -192,22 +215,26 @@ fn gamerule_keepinventory_changes_the_rule_and_broadcasts_it() {
             .collect();
         assert_eq!(announced, [vec![changed.clone()]]);
     }
-    assert!(
-        start_game(&server)
-            .settings
-            .rule_data
-            .rules_list
-            .contains(&changed)
-    );
+    let start = start_game(&server);
+    assert!(start.settings.rule_data.rules_list.contains(&changed));
+    // StartGame carries every BDS rule.
+    assert_eq!(start.settings.rule_data.rules_list.len(), 39);
 
     command(&mut server, &op, "/gamerule KeepInventory");
-    assert!(
-        texts(&drain(&mut op))
-            .iter()
-            .any(|text| text.contains("keepInventory = true"))
+    assert_eq!(
+        outputs(&drain(&mut op)),
+        // Enum values come back in the captured enum's spelling.
+        [output("keepinventory = true", &[])]
     );
     command(&mut server, &op, "/gamerule keepinventory maybe");
     assert!(server.ecs.world().resource::<GameRules>().keep_inventory);
+    assert_eq!(
+        outputs(&drain(&mut op)),
+        [output(
+            "commands.generic.syntax",
+            &["/gamerule keepinventory ", "maybe", ""]
+        )]
+    );
 }
 
 #[test]
@@ -241,10 +268,9 @@ fn time_set_night_moves_the_clock_and_syncs_players() {
     assert_eq!(start_game(&server).level_current_time, 13_001);
 
     command(&mut server, &op, "/time query daytime");
-    assert!(
-        texts(&drain(&mut op))
-            .iter()
-            .any(|text| text.contains("Daytime is 13001"))
+    assert_eq!(
+        outputs(&drain(&mut op)),
+        [output("commands.time.query.daytime", &["13001"])]
     );
     command(&mut server, &op, "/time add 1000");
     assert_eq!(server.ecs.world().resource::<WorldTime>().ticks, 14_003);
@@ -269,14 +295,6 @@ fn gamemode_creative_switches_mode_with_the_bds_packets() {
     );
     let to_op = drain(&mut op);
     let to_other = drain(&mut other);
-    assert!(to_op.iter().any(|packet| matches!(packet,
-        McpePacketData::SetPlayerGameTypePacket(p) if p.player_game_type == EnumsGameType::Creative)));
-    assert!(
-        !to_other
-            .iter()
-            .any(|packet| matches!(packet, McpePacketData::SetPlayerGameTypePacket(_))),
-        "only the target's own game type is set"
-    );
     for packets in [&to_op, &to_other] {
         assert!(packets.iter().any(|packet| matches!(packet,
             McpePacketData::UpdatePlayerGameTypePacket(p)
@@ -296,10 +314,12 @@ fn gamemode_creative_switches_mode_with_the_bds_packets() {
             MAY_FLY | INSTANT_BUILD
         );
     }
-    assert!(
-        texts(&to_op)
-            .iter()
-            .any(|text| text.contains("Set own game mode to Creative"))
+    assert_eq!(
+        outputs(&to_op),
+        [output(
+            "commands.gamemode.success.self",
+            &["%createWorldScreen.gameMode.creative"]
+        )]
     );
 
     command(&mut server, &op, "/gamemode a other");
@@ -308,7 +328,8 @@ fn gamemode_creative_switches_mode_with_the_bds_packets() {
         GameMode::Adventure
     );
     assert!(drain(&mut other).iter().any(|packet| matches!(packet,
-        McpePacketData::SetPlayerGameTypePacket(p) if p.player_game_type == EnumsGameType::Adventure)));
+        McpePacketData::UpdatePlayerGameTypePacket(p)
+            if p.player_game_type == EnumsGameType::Adventure && p.targetplayer.actor_unique_id == 2)));
 }
 
 #[test]
@@ -330,22 +351,19 @@ fn kill_command_kills_the_named_player_once() {
             .get::<crate::entity::player_life::Dead>(op.entity)
             .is_none()
     );
-    assert!(
-        texts(&drain(&mut op))
-            .iter()
-            .any(|text| text.contains("Killed Other"))
+    assert_eq!(
+        outputs(&drain(&mut op)),
+        [output("commands.kill.successful", &["Other"])]
     );
 
     command(&mut server, &op, "/kill Other");
-    assert!(
-        texts(&drain(&mut op))
-            .iter()
-            .any(|text| text.contains("No targets matched selector"))
+    assert_eq!(
+        outputs(&drain(&mut op)),
+        [output("commands.generic.noTargetMatch", &[])]
     );
-    command(&mut server, &op, "/kill @e");
-    assert!(
-        texts(&drain(&mut op))
-            .iter()
-            .any(|text| text.contains("Unsupported target selector: @e"))
+    command(&mut server, &op, "/kill @e[type=!player]");
+    assert_eq!(
+        outputs(&drain(&mut op)),
+        [output("commands.generic.noTargetMatch", &[])]
     );
 }

@@ -4,6 +4,7 @@ use tracing::info;
 
 mod bds;
 mod blocks;
+mod commands;
 mod manifest;
 mod nbt;
 mod pmmp;
@@ -64,6 +65,21 @@ struct Args {
     /// Only refresh per-state block shapes (protocolgen catalog) and the manifest
     #[arg(long, conflicts_with_all = ["manifest_only", "pmmp_only", "blocks_only", "biomes_only", "bds_only", "loot_only"])]
     shapes_only: bool,
+
+    /// Only refresh the captured command syntax (`available_commands.json`) and the
+    /// manifest; needs --commands-capture
+    #[arg(long, requires = "commands_capture", conflicts_with_all = ["manifest_only", "pmmp_only", "blocks_only", "biomes_only", "bds_only", "loot_only", "shapes_only"])]
+    commands_only: bool,
+
+    /// BDS capture session root holding `member/commands/member.bin` and
+    /// `operator/commands/operator.bin` (bds-runtime capture cache)
+    #[arg(long)]
+    commands_capture: Option<PathBuf>,
+
+    /// With --commands-only: a bds-extractor `--commands` capture
+    /// (`command-outputs.json`) of `/help 1` … `/help 39`, for `help_usage.json`
+    #[arg(long, requires = "commands_only")]
+    help_capture: Option<PathBuf>,
 
     /// Path to a validated bds-extractor JSON capture for packet/runtime facts
     #[arg(long)]
@@ -154,6 +170,21 @@ fn main() -> miette::Result<()> {
     }
 
     if args.loot_only {
+        write_manifest(None)?;
+        return Ok(());
+    }
+
+    if args.commands_only {
+        let capture = args
+            .commands_capture
+            .as_ref()
+            .map(|path| resolve_cli_path(&manifest_dir, path))
+            .expect("clap requires --commands-capture");
+        commands::write_commands(&capture, &output_path)?;
+        commands::write_game_rules(&output_path)?;
+        if let Some(help) = args.help_capture.as_ref() {
+            commands::write_help_usage(&resolve_cli_path(&manifest_dir, help), &output_path)?;
+        }
         write_manifest(None)?;
         return Ok(());
     }

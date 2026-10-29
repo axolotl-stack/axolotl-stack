@@ -47,8 +47,12 @@ def bds_processes() -> list[str]:
 
 
 def udp_port_bound(port: int) -> bool:
+    """Whether a local UDP socket is bound to `port`. Only the local-address
+    column counts: a client socket whose *remote* address is the port (a
+    launcher pinging the server list) does not occupy it."""
     out = subprocess.run(['netstat', '-an', '-p', 'UDP'], capture_output=True, text=True, check=True).stdout
-    return any(re.search(rf'[:.]{port}\s', line) for line in out.splitlines())
+    return any(len(parts) >= 2 and parts[0] == 'UDP' and re.search(rf'[:.]{port}$', parts[1])
+               for parts in map(str.split, out.splitlines()))
 
 
 def restore_properties() -> None:
