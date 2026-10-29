@@ -38,7 +38,11 @@ fn created(request: i32) -> ItemStackRequestCerealSlotInfoData {
     info(Name::Createdoutputcontainer, 50, request)
 }
 
-fn take(amount: u8, source: ItemStackRequestCerealSlotInfoData, destination: ItemStackRequestCerealSlotInfoData) -> Action {
+fn take(
+    amount: u8,
+    source: ItemStackRequestCerealSlotInfoData,
+    destination: ItemStackRequestCerealSlotInfoData,
+) -> Action {
     Action::TakeActionData(ItemStackRequestCerealTakeActionData {
         amount,
         source,
@@ -47,7 +51,11 @@ fn take(amount: u8, source: ItemStackRequestCerealSlotInfoData, destination: Ite
     })
 }
 
-fn place(amount: u8, source: ItemStackRequestCerealSlotInfoData, destination: ItemStackRequestCerealSlotInfoData) -> Action {
+fn place(
+    amount: u8,
+    source: ItemStackRequestCerealSlotInfoData,
+    destination: ItemStackRequestCerealSlotInfoData,
+) -> Action {
     Action::PlaceActionData(ItemStackRequestCerealPlaceActionData {
         amount,
         source,
@@ -124,13 +132,23 @@ impl Session {
             .item(slot)
             .unwrap()
             .clone();
-        (stack.item_id().to_owned(), stack.count, stack.runtime_id, stack.net_id)
+        (
+            stack.item_id().to_owned(),
+            stack.count,
+            stack.runtime_id,
+            stack.net_id,
+        )
     }
 
     fn cursor(&self) -> (String, u8, i32, i32) {
         let world = self.server.ecs.world();
         let stack = world.get::<PlayerUi>(self.player).unwrap().cursor();
-        (stack.item_id().to_owned(), stack.count, stack.runtime_id, stack.net_id)
+        (
+            stack.item_id().to_owned(),
+            stack.count,
+            stack.runtime_id,
+            stack.net_id,
+        )
     }
 }
 
@@ -191,7 +209,10 @@ fn creative_menu_take_to_cursor_then_place_full_stack() {
         // Click a menu item: the full stack goes to the cursor.
         let result = s.request(
             -1,
-            vec![craft(stone), take(64, created(-1), info(Name::Cursorcontainer, 0, 0))],
+            vec![
+                craft(stone),
+                take(64, created(-1), info(Name::Cursorcontainer, 0, 0)),
+            ],
         );
         assert_eq!(result, EnumsItemStackNetResult::Success);
         let (item, count, block, cursor_id) = s.cursor();
@@ -209,7 +230,10 @@ fn creative_menu_take_to_cursor_then_place_full_stack() {
         );
         assert_eq!(result, EnumsItemStackNetResult::Success);
         assert_eq!(s.cursor().1, 0);
-        assert_eq!(s.slot(2), ("minecraft:stone".to_owned(), 64, stone_state(), cursor_id));
+        assert_eq!(
+            s.slot(2),
+            ("minecraft:stone".to_owned(), 64, stone_state(), cursor_id)
+        );
     });
 }
 
@@ -220,7 +244,10 @@ fn creative_menu_places_into_empty_and_occupied_slots_and_splits_shift_clicks() 
         // Right-click take of one item straight into an empty inventory slot.
         let result = s.request(
             -1,
-            vec![craft(diamond), place(1, created(-1), info(Name::Inventorycontainer, 9, 0))],
+            vec![
+                craft(diamond),
+                place(1, created(-1), info(Name::Inventorycontainer, 9, 0)),
+            ],
         );
         assert_eq!(result, EnumsItemStackNetResult::Success);
         let (item, count, _, first_id) = s.slot(9);
@@ -228,7 +255,10 @@ fn creative_menu_places_into_empty_and_occupied_slots_and_splits_shift_clicks() 
         // Another onto the occupied stack, named by its stack ID.
         let result = s.request(
             -3,
-            vec![craft(diamond), place(1, created(-3), info(Name::Inventorycontainer, 9, first_id))],
+            vec![
+                craft(diamond),
+                place(1, created(-3), info(Name::Inventorycontainer, 9, first_id)),
+            ],
         );
         assert_eq!(result, EnumsItemStackNetResult::Success);
         assert_eq!(s.slot(9).1, 2);
@@ -248,7 +278,14 @@ fn creative_menu_places_into_empty_and_occupied_slots_and_splits_shift_clicks() 
         // The combined container names the same slots.
         let result = s.request(
             -7,
-            vec![craft(diamond), take(64, created(-7), info(Name::Combinedhotbarandinventorycontainer, 35, 0))],
+            vec![
+                craft(diamond),
+                take(
+                    64,
+                    created(-7),
+                    info(Name::Combinedhotbarandinventorycontainer, 35, 0),
+                ),
+            ],
         );
         assert_eq!(result, EnumsItemStackNetResult::Success);
         assert_eq!(s.slot(35).1, 64);
@@ -260,7 +297,13 @@ fn creative_stacks_resync_with_the_advertised_hashed_block_id() {
     with_creative_player(|mut s| {
         let stone = s.creative_net_id("minecraft:stone");
         assert_eq!(
-            s.request(-1, vec![craft(stone), place(64, created(-1), info(Name::Hotbarcontainer, 0, 0))]),
+            s.request(
+                -1,
+                vec![
+                    craft(stone),
+                    place(64, created(-1), info(Name::Hotbarcontainer, 0, 0))
+                ]
+            ),
             EnumsItemStackNetResult::Success
         );
         let advertised = s
@@ -276,7 +319,10 @@ fn creative_stacks_resync_with_the_advertised_hashed_block_id() {
             .unwrap()
             .item_instance
             .block_runtime_id as u32;
-        assert_eq!(advertised, BlockNetworkIds::Hashed.to_wire(stone_state() as u32));
+        assert_eq!(
+            advertised,
+            BlockNetworkIds::Hashed.to_wire(stone_state() as u32)
+        );
         let stack = s
             .server
             .ecs

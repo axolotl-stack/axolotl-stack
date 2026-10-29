@@ -47,7 +47,8 @@ pub(crate) fn item_descriptor(
         auxvalue: u32::try_from(stack.damage).ok()?,
         // World item actors do not advertise inventory stack network IDs.
         net_id_variant: None,
-        block_runtime_id: block_ids.item_block_to_wire(u32::try_from(stack.runtime_id).ok()?),
+        block_runtime_id: block_ids
+            .item_block_to_wire(item.network_id(), u32::try_from(stack.runtime_id).ok()?),
         user_data_buffer: stack.user_data(),
     })
 }

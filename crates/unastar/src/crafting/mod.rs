@@ -265,7 +265,8 @@ impl CraftingCatalog {
         let mut packet = self.packet.as_ref().clone();
         // Item instance descriptors carry the block id as i32; hashes use all 32 bits.
         let translate = |result: &mut WireResult| {
-            result.block_runtime_id = ids.item_block_to_wire(result.block_runtime_id as u32) as i32;
+            result.block_runtime_id =
+                ids.item_block_to_wire(result.id, result.block_runtime_id as u32) as i32;
         };
         for recipe in packet
             .shaped_recipes

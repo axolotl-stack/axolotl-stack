@@ -851,7 +851,7 @@ impl GameServer {
 
                     let block_runtime_id =
                         blocks.get_by_name(creative_item.item_id()).map_or(0, |b| {
-                            block_ids.item_block_to_wire(b.default_state_id) as i32
+                            block_ids.item_block_to_wire(item_network_id, b.default_state_id) as i32
                         });
 
                     items_list.push(CreativeItemEntryPayload {
@@ -1086,18 +1086,19 @@ mod tests {
         });
         let mut join = |session_id: u64, name: &str, xuid: Option<&str>| {
             let (outbound_tx, _rx) = tokio::sync::mpsc::channel(256);
-            let entity = server.spawn_player(PlayerSpawnData {
-                session_id,
-                display_name: name.to_string(),
-                xuid: xuid.map(str::to_owned),
-                uuid: None,
-                runtime_id: session_id as i64,
-                position: DVec3::new(0.5, 17.0, 0.5),
-                outbound_tx,
-                saved_data: None,
-                chunk_radius: 2,
-            })
-            .expect("fresh player spawns without saved data");
+            let entity = server
+                .spawn_player(PlayerSpawnData {
+                    session_id,
+                    display_name: name.to_string(),
+                    xuid: xuid.map(str::to_owned),
+                    uuid: None,
+                    runtime_id: session_id as i64,
+                    position: DVec3::new(0.5, 17.0, 0.5),
+                    outbound_tx,
+                    saved_data: None,
+                    chunk_radius: 2,
+                })
+                .expect("fresh player spawns without saved data");
             server
                 .ecs
                 .world()

@@ -854,7 +854,7 @@ fn handle_block_click(
             ) == stack.nbt
             && u32::try_from(stack.runtime_id)
                 .ok()
-                .map(|id| block_ids.item_block_to_wire(id))
+                .map(|id| block_ids.item_block_to_wire(i32::from(data.item.id), id))
                 == Some(data.item.block_runtime_id)
     });
     let placement = held

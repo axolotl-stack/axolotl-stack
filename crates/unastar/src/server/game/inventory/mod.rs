@@ -646,12 +646,14 @@ pub(crate) fn wire_item(stack: &ItemStack, block_ids: BlockNetworkIds) -> Option
     if stack.is_empty() {
         return Some(WireItem::default());
     }
+    let network_id = stack.item()?.network_id();
     Some(WireItem {
-        id: i16::try_from(stack.item()?.network_id()).ok()?,
+        id: i16::try_from(network_id).ok()?,
         stacksize: u16::from(stack.count),
         auxvalue: u32::try_from(stack.damage).ok()?,
         net_id_variant: Some(stack.net_id),
-        block_runtime_id: block_ids.item_block_to_wire(u32::try_from(stack.runtime_id).ok()?),
+        block_runtime_id: block_ids
+            .item_block_to_wire(network_id, u32::try_from(stack.runtime_id).ok()?),
         user_data_buffer: stack.user_data(),
     })
 }

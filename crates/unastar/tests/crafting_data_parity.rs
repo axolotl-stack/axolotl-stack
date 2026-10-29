@@ -1,10 +1,8 @@
 use std::collections::{HashMap, HashSet};
 use std::fmt::Debug;
-use std::path::Path;
 
 use anyhow::{Context, Result, ensure};
 use jolyne::valentine::bedrock::codec::{BedrockCodec, VarUInt};
-use jolyne::valentine::types::CerealizerNetworkItemInstanceDescriptorSerializedData as Item;
 use jolyne::valentine::{CraftingDataPacket, McpePacketData};
 use sha2::{Digest, Sha256};
 
@@ -100,24 +98,10 @@ fn run(capture: &str) -> Result<()> {
         ids.len()
     );
 
-    let native_path = Path::new(env!("CARGO_MANIFEST_DIR")).join(
-        "../valentine_gen/protocolgen/data/source/inputs/1.26.51/native/block_state_data.json",
-    );
-    let states: HashMap<String, serde_json::Value> =
-        serde_json::from_slice(&std::fs::read(native_path)?)?;
-    let hashes: HashMap<u32, i32> = states
-        .into_iter()
-        .map(|(state, data)| {
-            Ok((
-                data["hashedNetworkId"]
-                    .as_u64()
-                    .context("native state hash")? as u32,
-                state.parse()?,
-            ))
-        })
-        .collect::<Result<_>>()?;
-    canonicalize(&mut bds, Some(&hashes));
-    canonicalize(&mut ours, None);
+    // The default join advertises hashed block-state ids, as BDS does, so the
+    // result block ids compare directly without conversion.
+    canonicalize(&mut bds);
+    canonicalize(&mut ours);
     let mut differences = 0;
     differences += compare("shaped", &ours.shaped_recipes, &bds.shaped_recipes);
     differences += compare("shapeless", &ours.shapeless_recipes, &bds.shapeless_recipes);
@@ -167,21 +151,12 @@ fn run(capture: &str) -> Result<()> {
         "{differences} semantic recipe differences"
     );
     println!(
-        "PASS: every CraftingData field matches after unordered rows, transient recipe IDs/UUIDs, and negotiated block-state hash conversion"
+        "PASS: every CraftingData field, including hashed result block ids, matches after unordered rows and transient recipe IDs/UUIDs"
     );
     Ok(())
 }
 
-fn canonicalize(packet: &mut CraftingDataPacket, hashes: Option<&HashMap<u32, i32>>) {
-    let result = |item: &mut Item| {
-        if item.block_runtime_id != 0
-            && let Some(hashes) = hashes
-        {
-            item.block_runtime_id = *hashes
-                .get(&(item.block_runtime_id as u32))
-                .expect("captured block state in native palette");
-        }
-    };
+fn canonicalize(packet: &mut CraftingDataPacket) {
     for recipe in packet
         .shaped_recipes
         .iter_mut()
@@ -189,9 +164,6 @@ fn canonicalize(packet: &mut CraftingDataPacket, hashes: Option<&HashMap<u32, i3
     {
         recipe.net_id.raw_id = 0;
         recipe.uuid = uuid::Uuid::nil();
-        for item in &mut recipe.results {
-            result(item);
-        }
     }
     for recipe in packet
         .shapeless_recipes
@@ -201,13 +173,9 @@ fn canonicalize(packet: &mut CraftingDataPacket, hashes: Option<&HashMap<u32, i3
     {
         recipe.net_id.raw_id = 0;
         recipe.uuid = uuid::Uuid::nil();
-        for item in &mut recipe.results {
-            result(item);
-        }
     }
     for recipe in &mut packet.smithing_transform_recipes {
         recipe.net_id.raw_id = 0;
-        result(&mut recipe.result);
     }
     for recipe in &mut packet.smithing_trim_recipes {
         recipe.net_id.raw_id = 0;

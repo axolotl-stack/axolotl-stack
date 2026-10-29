@@ -633,6 +633,20 @@ pub(crate) mod test_support {
     }
 }
 
+/// Network id of the vanilla item whose block is canonical palette ordinal 0,
+/// resolved once; see [`super::block::BlockNetworkIds::item_block_to_wire`].
+pub(crate) fn ordinal_zero_block_item() -> i32 {
+    static ITEM: std::sync::LazyLock<i32> = std::sync::LazyLock::new(|| {
+        let block = super::BlockRegistry::vanilla()
+            .get_by_runtime_id(0)
+            .expect("vanilla palette has ordinal 0");
+        unastar_data::items::get(&block.name)
+            .unwrap_or_else(|| panic!("ordinal-0 block {} has no item", block.name))
+            .network_id
+    });
+    *ITEM
+}
+
 #[cfg(test)]
 mod tests {
     use super::test_support::entry;
