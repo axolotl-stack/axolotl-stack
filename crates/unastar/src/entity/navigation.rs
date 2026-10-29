@@ -1,10 +1,15 @@
 //! Bounded, synchronous land navigation over the physics collision geometry.
 //!
 //! This is a conservative geometric search, not a reproduction of native goal
-//! timing or path choice. Nodes are block-column centres at actual shape-top
-//! heights, plus the exact start and goal. Edges use a lift / horizontal sweep /
-//! settle corridor; they do not cut corners, cross unsupported gaps, swim, fly,
-//! or predict a ballistic jump. A state whose collision the caller waives
+//! timing. Nodes are block-column centres at actual shape-top heights, plus
+//! the exact start and goal. Edges lead to the four side columns and to the
+//! four diagonal columns between two sides that are walkable without
+//! climbing; they use a lift / horizontal sweep / settle corridor and do not
+//! cut corners, cross unsupported gaps, swim, fly, or predict a ballistic
+//! jump. Open nodes are expanded by the distance walked plus
+//! [`PATH_ESTIMATE_WEIGHT`] times the straight distance left, so paths head
+//! straight for the goal, along diagonals where it lies off a block axis, as
+//! BDS paths do. A state whose collision the caller waives
 //! ([`WalkBlockRole::Collides`], a door the mob opens or breaks) is crossed as
 //! if it were empty. Move control must execute the returned step/jump
 //! transitions and replan when the world changes.
@@ -14,12 +19,14 @@
 //! name/property lookup of its own. The shared `connected_state` helper uses
 //! immutable startup-resolved connection facts and numeric state transitions.
 
-use std::collections::{HashMap, HashSet};
+use std::cmp::Ordering;
+use std::collections::{BinaryHeap, HashMap};
 
 use glam::{DVec3, IVec3};
 
 use super::components::PhysicsBody;
 use super::systems::physics::BlockSource;
+use crate::entity::mob::constants::PATH_ESTIMATE_WEIGHT;
 use crate::registry::collision::{Aabb, block_collision_boxes, connected_state};
 
 const EPSILON: f64 = 1.0e-7;
@@ -114,7 +121,62 @@ impl NodeKey {
 struct Node {
     point: WalkWaypoint,
     parent: Option<usize>,
+    /// Distance walked from the start along the parent chain.
+    cost: f64,
+    /// Expanded; its cost is final.
+    closed: bool,
 }
+
+/// An open node in the search frontier: the lowest `estimate` pops first,
+/// equal estimates in push order.
+#[derive(Debug, Clone, Copy)]
+struct Open {
+    estimate: f64,
+    order: usize,
+    node: usize,
+}
+
+impl Ord for Open {
+    fn cmp(&self, other: &Self) -> Ordering {
+        // `BinaryHeap` pops the greatest: reverse both keys.
+        other
+            .estimate
+            .total_cmp(&self.estimate)
+            .then(other.order.cmp(&self.order))
+    }
+}
+
+impl PartialOrd for Open {
+    fn partial_cmp(&self, other: &Self) -> Option<Ordering> {
+        Some(self.cmp(other))
+    }
+}
+
+impl PartialEq for Open {
+    fn eq(&self, other: &Self) -> bool {
+        self.cmp(other) == Ordering::Equal
+    }
+}
+
+impl Eq for Open {}
+
+/// Columns searched around a node's column: its own (so an off-centre exact
+/// start joins the lattice without snapping through geometry), the four
+/// sides, then the four diagonals.
+const NEIGHBOURS: [(i32, i32); 9] = [
+    (0, 0),
+    (1, 0),
+    (0, 1),
+    (-1, 0),
+    (0, -1),
+    (1, 1),
+    (-1, 1),
+    (-1, -1),
+    (1, -1),
+];
+/// The two sides (indices into the four sides of [`NEIGHBOURS`]) between
+/// which each diagonal lies.
+const DIAGONAL_SIDES: [(usize, usize); 4] = [(0, 1), (2, 1), (2, 3), (0, 3)];
 
 #[derive(Debug, Clone, Copy)]
 struct CachedBlock {
@@ -126,12 +188,14 @@ struct CachedBlock {
 
 /// Reused across searches, but not across simultaneous searches. The geometry
 /// cache is cleared at search entry so block edits and permission changes take
-/// effect immediately. Nodes, visited entries, native boxes and interval work
-/// buffers use retained storage; there is no owned allocation per node/edge.
+/// effect immediately. Nodes, the node index, the frontier, native boxes and
+/// interval work buffers use retained storage; there is no owned allocation
+/// per node/edge.
 #[derive(Debug, Default)]
 pub(crate) struct NavigationScratch {
     nodes: Vec<Node>,
-    visited: HashSet<NodeKey>,
+    index: HashMap<NodeKey, usize>,
+    open: BinaryHeap<Open>,
     blocks: HashMap<IVec3, CachedBlock>,
     boxes: Vec<Aabb>,
     local_boxes: Vec<Aabb>,
@@ -139,10 +203,14 @@ pub(crate) struct NavigationScratch {
     intervals: Vec<(f64, f64)>,
 }
 
-/// Search a four-connected walking graph in deterministic FIFO order. The
-/// predicate must be a pure decision on a typed runtime ID and role; air must
-/// be permitted as `Occupied` for ordinary land movement. Unloaded and unknown
-/// states are always forbidden, regardless of the predicate.
+/// Search an eight-connected walking graph best first: an open node's
+/// estimate is the distance walked to it plus [`PATH_ESTIMATE_WEIGHT`] times
+/// its straight distance to the goal; equal estimates expand in discovery
+/// order, so results are deterministic. A diagonal is only taken between two
+/// sides that are themselves reachable without climbing. The predicate must
+/// be a pure decision on a typed runtime ID and role; air must be permitted
+/// as `Occupied` for ordinary land movement. Unloaded and unknown states are
+/// always forbidden, regardless of the predicate.
 ///
 /// Native shape tops provide partial-height support. Body width/height apply
 /// to every swept corridor, including endpoint connectors. Centre-line support
@@ -160,7 +228,8 @@ pub(crate) fn find_walk_path(
 ) -> WalkPathOutcome {
     output.clear();
     scratch.nodes.clear();
-    scratch.visited.clear();
+    scratch.index.clear();
+    scratch.open.clear();
     scratch.blocks.clear();
     scratch.boxes.clear();
     scratch.local_boxes.clear();
@@ -186,7 +255,7 @@ pub(crate) fn find_walk_path(
         return WalkPathOutcome::BudgetExceeded;
     }
     search.scratch.nodes.reserve(request.node_budget);
-    search.scratch.visited.reserve(request.node_budget);
+    search.scratch.index.reserve(request.node_budget);
     search.scratch.nodes.push(Node {
         point: WalkWaypoint {
             feet: request.start,
@@ -194,12 +263,25 @@ pub(crate) fn find_walk_path(
             lift_height: 0.0,
         },
         parent: None,
+        cost: 0.0,
+        closed: false,
     });
-    search.scratch.visited.insert(NodeKey::new(request.start));
-    let mut cursor = 0;
+    search.scratch.index.insert(NodeKey::new(request.start), 0);
+    search.scratch.open.push(Open {
+        estimate: 0.0,
+        order: 0,
+        node: 0,
+    });
+    let mut pushed = 1;
     let mut exhausted = false;
-    while cursor < search.scratch.nodes.len() {
+    while let Some(Open { node: cursor, .. }) = search.scratch.open.pop() {
+        if search.scratch.nodes[cursor].closed {
+            // A stale entry of a node reached again more cheaply.
+            continue;
+        }
+        search.scratch.nodes[cursor].closed = true;
         let from = search.scratch.nodes[cursor].point.feet;
+        let walked = search.scratch.nodes[cursor].cost;
         // An exact-goal connector is an ordinary fully checked edge, not a
         // fallback. Restrict its horizontal reach to a neighbouring column.
         if (from.x - request.goal.x).abs() <= 1.5
@@ -226,33 +308,74 @@ pub(crate) fn find_walk_path(
             return WalkPathOutcome::Found;
         }
         let column = from.floor().as_ivec3();
-        // Include the current centre so an off-centre exact start joins the
-        // lattice without snapping through geometry. No diagonal graph edges.
-        for (dx, dz) in [(0, 0), (1, 0), (0, 1), (-1, 0), (0, -1)] {
+        // Whether each side has an edge that does not climb.
+        let mut level_sides = [false; 4];
+        for (n, (dx, dz)) in NEIGHBOURS.into_iter().enumerate() {
+            let side = n.checked_sub(1).filter(|&side| side < 4);
+            if let Some((a, b)) = n.checked_sub(5).map(|d| DIAGONAL_SIDES[d])
+                && !(level_sides[a] && level_sides[b])
+            {
+                continue;
+            }
             let x = f64::from(column.x + dx) + 0.5;
             let z = f64::from(column.z + dz) + 0.5;
             search.candidate_heights(x, z, from.y);
             for i in 0..search.scratch.heights.len() {
                 let to = DVec3::new(x, search.scratch.heights[i], z);
-                let key = NodeKey::new(to);
-                if search.scratch.visited.contains(&key) || !search.in_range(to) {
+                if !search.in_range(to) {
+                    continue;
+                }
+                let known = search.scratch.index.get(&NodeKey::new(to)).copied();
+                let closed = known.is_some_and(|k| search.scratch.nodes[k].closed);
+                // A closed side still decides whether its diagonals are open.
+                if closed && side.is_none() {
                     continue;
                 }
                 let Some(point) = search.edge(from, to) else {
                     continue;
                 };
-                if search.scratch.nodes.len() == request.node_budget {
-                    exhausted = true;
+                if let Some(side) = side
+                    && to.y <= from.y + EPSILON
+                {
+                    level_sides[side] = true;
+                }
+                if closed {
                     continue;
                 }
-                search.scratch.nodes.push(Node {
-                    point,
-                    parent: Some(cursor),
+                let cost = walked + from.distance(to);
+                let node = match known {
+                    Some(k) if cost + EPSILON < search.scratch.nodes[k].cost => {
+                        let node = &mut search.scratch.nodes[k];
+                        node.point = point;
+                        node.parent = Some(cursor);
+                        node.cost = cost;
+                        k
+                    }
+                    Some(_) => continue,
+                    None if search.scratch.nodes.len() == request.node_budget => {
+                        exhausted = true;
+                        continue;
+                    }
+                    None => {
+                        let k = search.scratch.nodes.len();
+                        search.scratch.nodes.push(Node {
+                            point,
+                            parent: Some(cursor),
+                            cost,
+                            closed: false,
+                        });
+                        search.scratch.index.insert(NodeKey::new(to), k);
+                        k
+                    }
+                };
+                search.scratch.open.push(Open {
+                    estimate: cost + PATH_ESTIMATE_WEIGHT * to.distance(request.goal),
+                    order: pushed,
+                    node,
                 });
-                search.scratch.visited.insert(key);
+                pushed += 1;
             }
         }
-        cursor += 1;
     }
     if exhausted {
         WalkPathOutcome::BudgetExceeded
@@ -601,6 +724,46 @@ mod tests {
         assert_clear_corridors(&blocks, &body, &output);
         let (_, repeated) = find(&blocks, &body, r);
         assert_eq!(output.waypoints, repeated.waypoints);
+    }
+
+    #[test]
+    fn open_ground_paths_walk_the_diagonal() {
+        let blocks = TestBlocks::floor("minecraft:stone", 0);
+        let body = PhysicsBody::living(0.9, 1.4);
+        let r = request(DVec3::new(0.5, 1.0, 0.5), DVec3::new(3.5, 1.0, 3.5));
+        let (outcome, output) = find(&blocks, &body, r);
+        assert_eq!(outcome, WalkPathOutcome::Found);
+        let steps: Vec<DVec3> = output
+            .waypoints
+            .windows(2)
+            .map(|edge| edge[1].feet - edge[0].feet)
+            .collect();
+        assert_eq!(
+            steps,
+            vec![DVec3::new(1.0, 0.0, 1.0); 3],
+            "{:?}",
+            output.waypoints
+        );
+        assert_clear_corridors(&blocks, &body, &output);
+    }
+
+    #[test]
+    fn diagonals_need_both_sides_walkable() {
+        let mut blocks = TestBlocks::floor("minecraft:stone", 0);
+        // Holes on both sides of the diagonal from (0, 0) to (1, 1); the
+        // diagonal's own centre line is still supported at the corner.
+        blocks.blocks.remove(&IVec3::new(1, 0, 0));
+        blocks.blocks.remove(&IVec3::new(0, 0, 1));
+        let body = PhysicsBody::living(0.6, 0.7);
+        let r = request(DVec3::new(0.5, 1.0, 0.5), DVec3::new(2.5, 1.0, 2.5));
+        let (outcome, output) = find(&blocks, &body, r);
+        assert_eq!(outcome, WalkPathOutcome::Found);
+        assert_ne!(
+            output.waypoints[1].feet,
+            DVec3::new(1.5, 1.0, 1.5),
+            "{:?}",
+            output.waypoints
+        );
     }
 
     #[test]

@@ -42,12 +42,16 @@ pub const PATH_MAX_RANGE: f64 = 16.0;
 /// Highest drop a walk path takes; provisional: Java Edition mob maximum
 /// fall distance (3).
 pub const PATH_MAX_DROP: f64 = 3.0;
-/// A waypoint counts as reached when the feet are within this horizontally
-/// (`width / 2` for mobs wider than this, else `this - width / 2`) and within
-/// [`PATH_WAYPOINT_REACH_Y`] vertically; provisional: Java Edition
-/// `PathNavigation`.
-pub const PATH_WAYPOINT_REACH: f64 = 0.75;
-pub const PATH_WAYPOINT_REACH_Y: f64 = 1.0;
+/// A waypoint on the mob's block level counts as reached once the feet are
+/// horizontally closer to it than `max(width / 2, PATH_WAYPOINT_REACH)`; the
+/// follower then moves past every reached waypoint of that level ahead of
+/// the current one. Confirmed against BDS (26.30).
+pub const PATH_WAYPOINT_REACH: f64 = 0.6;
+/// Walk path search order: an open node's estimate is the distance walked
+/// to it plus this multiple of its straight distance to the goal, over side
+/// and diagonal steps (a diagonal only between two sides reachable without
+/// climbing). Confirmed against BDS (26.30).
+pub const PATH_ESTIMATE_WEIGHT: f64 = 1.5;
 /// Every this many ticks of path following the mob must have moved at least
 /// `speed' × 100 × PATH_STUCK_DISTANCE_FACTOR` blocks (`speed'` = speed when
 /// ≥ 1, else speed²), or the path is dropped as stuck; provisional: Java
