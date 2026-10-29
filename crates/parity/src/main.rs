@@ -46,9 +46,14 @@ enum Command {
 
 fn main() -> ExitCode {
     let cli = Cli::parse();
-    let root = cli
-        .root
-        .unwrap_or_else(|| Path::new(env!("CARGO_MANIFEST_DIR")).join("../.."));
+    let root = cli.root.unwrap_or_else(|| {
+        // crates/parity -> repository root.
+        Path::new(env!("CARGO_MANIFEST_DIR"))
+            .ancestors()
+            .nth(2)
+            .expect("crates/parity sits two levels below the repository root")
+            .to_path_buf()
+    });
     let result = match cli.command {
         Command::Generate => generate(&root),
         Command::Check => check(&root),
