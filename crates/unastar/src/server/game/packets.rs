@@ -145,6 +145,11 @@ impl GameServer {
                     q.0.push((entity, InventoryAction::Interact(pk)));
                 }
             }
+            McpePacketData::BlockPickRequestPacket(pk) => {
+                if let Some(mut q) = world.get_resource_mut::<InventoryPacketQueue>() {
+                    q.0.push((entity, InventoryAction::BlockPick(pk)));
+                }
+            }
             McpePacketData::InventoryTransactionPacket(pk) => {
                 use jolyne::valentine::types::{
                     EnumsItemUseInventoryTransactionActionType,
@@ -165,6 +170,15 @@ impl GameServer {
                         && let Some(mut q) = world.get_resource_mut::<BlockPacketQueue>()
                     {
                         q.0.push((entity, BlockAction::BlockClick(*use_item)));
+                    }
+                } else if let InventoryTransactionPacketTransaction::ItemUseOnActorInventoryTransaction(
+                    on_actor,
+                ) = pk.transaction
+                {
+                    if let Some(mut q) =
+                        world.get_resource_mut::<crate::entity::mob::interaction::actions::MobActionQueue>()
+                    {
+                        q.0.push((entity, on_actor));
                     }
                 } else if let Some(mut q) = world.get_resource_mut::<InventoryPacketQueue>() {
                     q.0.push((entity, InventoryAction::Transaction(pk)));

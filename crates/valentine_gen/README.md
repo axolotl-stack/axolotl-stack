@@ -29,6 +29,16 @@ An alternate canonical manifest may be selected with
 `--protocolgen-manifest <FILE>`. Protocolgen provides protocol schemas only.
 Prismarine remains the source for block, item, entity, and biome data.
 
+The canonical input also carries non-wire actor reference symbols. Protocolgen
+extracts `ActorDataIDs` and `ActorFlags` from the pinned Mojang
+`bedrock-protocol-docs/html/enums.html`, retaining that catalog's
+1.26.40-beta.0 / protocol2168 source version separately from target2193.
+Valentine emits the values into `symbols.rs` using the existing identifier
+naming helpers, `quote`/`syn` and `prettyplease`; raw metadata IDs remain open
+integers. Reserved names are preserved, not replaced with semantic guesses.
+See [protocolgen's source and regeneration contract](protocolgen/docs/outputs.md#actor-metadata-reference-symbols).
+
+
 Legacy protocol frontends are selected explicitly. Mojang generation requires a
 scratch output directory, so it cannot overwrite the checked-in version crates:
 

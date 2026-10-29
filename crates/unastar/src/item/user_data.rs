@@ -35,6 +35,10 @@ fn default_for(item_id: &str) -> &'static [u8] {
     }
 }
 
+pub(super) fn is_default(item_id: &str, buffer: &[u8]) -> bool {
+    buffer.is_empty() || buffer == default_for(item_id)
+}
+
 /// The buffer to send for a non-air `item_id` whose stored user data is
 /// `stored` (`None`: the default).
 pub fn network_user_data(item_id: &str, stored: Option<&[u8]>) -> Bytes {
@@ -46,8 +50,8 @@ pub fn network_user_data(item_id: &str, stored: Option<&[u8]>) -> Bytes {
 
 /// What to store for a buffer received for `item_id`: `None` when it is the
 /// default (or omitted), so it compares equal to server-created stacks.
-pub fn stored_user_data(item_id: &str, buffer: &[u8]) -> Option<Vec<u8>> {
-    (!buffer.is_empty() && buffer != default_for(item_id)).then(|| buffer.to_vec())
+pub fn stored_user_data(item_id: &str, buffer: &[u8]) -> Option<Bytes> {
+    (!is_default(item_id, buffer)).then(|| Bytes::copy_from_slice(buffer))
 }
 
 #[cfg(test)]

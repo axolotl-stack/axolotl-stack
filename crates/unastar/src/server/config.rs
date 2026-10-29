@@ -21,6 +21,9 @@ pub struct ServerConfig {
     pub default_gamemode: GameMode,
     /// Block state numbering on the wire (`StartGame.block_network_ids_are_hashes`).
     pub block_network_ids: crate::registry::block::BlockNetworkIds,
+    /// Players given operator permission on join: display names
+    /// (ASCII case-insensitive) or XUIDs.
+    pub operators: Vec<String>,
     /// Simulation distance in chunks.
     /// Chunks within this range of ANY player get random ticks and entity updates.
     /// Should typically be 1-2 larger than default_chunk_radius to avoid
@@ -43,6 +46,7 @@ impl Default for ServerConfig {
             max_chunk_radius: 12,
             default_gamemode: GameMode::Survival,
             block_network_ids: crate::registry::block::BlockNetworkIds::Hashed,
+            operators: Vec::new(),
             simulation_distance: 6,  // 2 more than default view
             chunk_unload_ticks: 100, // 5 second grace period
             world: WorldConfig::default(),

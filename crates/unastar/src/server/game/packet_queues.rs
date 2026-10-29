@@ -53,6 +53,7 @@ pub enum InventoryAction {
     MobEquipment(jolyne::valentine::MobEquipmentPacket),
     Interact(jolyne::valentine::InteractPacket),
     Transaction(jolyne::valentine::InventoryTransactionPacket),
+    BlockPick(jolyne::valentine::BlockPickRequestPacket),
 }
 
 /// Domain event buffer for the inventory system.

@@ -69,6 +69,33 @@ impl BlockEntity {
         })
     }
 
+    /// The rooted Bedrock compound; `None` for a Java actor not yet converted.
+    pub fn bedrock_compound(&self) -> Option<io::Result<zuri_nbt::tag::Compound>> {
+        let ActorData::Bedrock(nbt) = &self.data else {
+            return None;
+        };
+        Some(
+            match NBTTag::read(&mut nbt.0.as_ref(), NetworkReader).map_err(invalid_nbt) {
+                Ok(NBTTag::Compound(compound)) => Ok(compound),
+                Ok(_) => Err(invalid_nbt("block-entity root must be a compound")),
+                Err(error) => Err(error),
+            },
+        )
+    }
+
+    /// A Bedrock actor from a compound carrying its own id and coordinates.
+    pub fn from_bedrock_compound(compound: zuri_nbt::tag::Compound) -> io::Result<Self> {
+        let tag = NBTTag::Compound(compound);
+        let position = position_of(&tag)?;
+        let mut bytes = Vec::new();
+        tag.write(&mut bytes, NetworkLittleEndian)
+            .map_err(invalid_nbt)?;
+        Ok(Self {
+            position,
+            data: ActorData::Bedrock(Nbt(bytes.into())),
+        })
+    }
+
     /// Read one standard Bedrock block actor; leave subsequent actors in `input`.
     pub fn read_disk_nbt(input: &mut &[u8]) -> io::Result<Self> {
         let tag = NBTTag::read(input, LittleEndian).map_err(invalid_nbt)?;

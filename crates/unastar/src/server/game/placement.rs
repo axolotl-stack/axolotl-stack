@@ -11,9 +11,11 @@
 //!   a block gives a top slab) and merge into a double slab; stairs face where
 //!   the player looks and flip on the upper half; `minecraft:cardinal_direction`
 //!   blocks face the player; `facing_direction` blocks (pistons, dispensers,
-//!   droppers, barrels) face the player in 3D; ladders attach to the clicked
-//!   side; torches attach to the clicked face (never under a block); doors take
-//!   two blocks and face where the player looks.
+//!   droppers, barrels) face the player in 3D; hoppers point into the block
+//!   they were placed against (down when placed on a top or bottom face);
+//!   ladders attach to the clicked side; torches attach to the clicked face
+//!   (never under a block); doors take two blocks and face where the player
+//!   looks.
 //! - The new block's collision boxes may not intersect a player or a
 //!   non-item physics body (items do not block placement).
 
@@ -281,6 +283,18 @@ fn placed_state(block: &BlockEntry, input: &PlacementInput) -> Option<u32> {
             let facing = opposite_facing(look_facing(input.yaw, input.pitch));
             state = set(block, state, "facing_direction", StateValue::Int(facing));
         }
+        // A hopper points into the block it was placed against; placed on a
+        // top or bottom face it points down.
+        "minecraft:hopper" => {
+            let facing = match input.face {
+                2 => 3,
+                3 => 2,
+                4 => 5,
+                5 => 4,
+                _ => 0,
+            };
+            state = set(block, state, "facing_direction", StateValue::Int(facing));
+        }
         _ => {}
     }
     Some(state)
@@ -521,6 +535,22 @@ mod tests {
             )
             .is_none()
         );
+    }
+
+    #[test]
+    fn hoppers_point_into_the_clicked_block_or_down() {
+        let hopper = entry("minecraft:hopper");
+        for (face, facing) in [(1, 0), (0, 0), (2, 3), (3, 2), (4, 5), (5, 4)] {
+            let mut blocks = world();
+            // A bottom-face click needs room below the clicked block.
+            blocks.set(IVec3::new(0, 63, 0), "minecraft:air");
+            let placed = resolve_placement(&blocks, hopper, &input(face, 0.5, 0.0)).unwrap();
+            assert_eq!(
+                value(&placed, "facing_direction"),
+                Some(StateValue::Int(facing)),
+                "face {face}"
+            );
+        }
     }
 
     #[test]

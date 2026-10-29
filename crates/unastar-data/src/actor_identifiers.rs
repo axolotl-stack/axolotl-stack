@@ -6,6 +6,8 @@ use serde::Deserialize;
 use std::collections::HashSet;
 use std::sync::LazyLock;
 
+include!(concat!(env!("OUT_DIR"), "/actor_types.rs"));
+
 #[derive(Debug, Clone, PartialEq, Eq, Deserialize)]
 #[serde(deny_unknown_fields)]
 pub struct ActorIdentifier {
@@ -47,4 +49,20 @@ static VANILLA: LazyLock<Vec<ActorIdentifier>> = LazyLock::new(|| {
 /// Rows in BDS capture order, not identifier or runtime-id order.
 pub fn vanilla() -> &'static [ActorIdentifier] {
     &VANILLA
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn actor_types_cover_every_captured_identifier() {
+        assert_eq!(ActorType::ALL.len(), vanilla().len());
+        for row in vanilla() {
+            let ty = ActorType::from_name(&row.id).expect("captured identifier has a type");
+            assert_eq!(ty.name(), row.id);
+        }
+        assert_eq!(ActorType::Chicken.name(), "minecraft:chicken");
+        assert_eq!(ActorType::from_name("minecraft:no_such_actor"), None);
+    }
 }

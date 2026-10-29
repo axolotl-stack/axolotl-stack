@@ -5,7 +5,7 @@
 
 use super::RegistryEntry;
 use std::collections::HashMap;
-use std::sync::LazyLock;
+use std::sync::{Arc, LazyLock};
 pub use unastar_data::blocks::StateValue;
 
 const MISSING_INDEX: usize = usize::MAX;
@@ -117,6 +117,8 @@ pub struct BlockRegistry {
     network_hashes: Vec<u32>,
     /// Canonical runtime state of each hashed network id.
     runtime_by_hash: HashMap<u32, u32>,
+    /// Neighbour connection facts and canonical transitions, resolved at load.
+    pub(super) connections: Arc<super::collision::ConnectionCache>,
 }
 
 /// How block states are numbered on the wire, as `StartGame`'s
@@ -168,10 +170,14 @@ impl BlockNetworkIds {
         }
     }
 
-    /// [`Self::to_wire`] for an item descriptor's `block_runtime_id`, where 0
-    /// means "not a block" in both modes.
-    pub fn item_block_to_wire(self, runtime_id: u32) -> u32 {
-        if runtime_id == 0 {
+    /// [`Self::to_wire`] for an item descriptor's `block_runtime_id`.
+    ///
+    /// Item stacks store a canonical ordinal where 0 doubles as "not a block".
+    /// Ordinal 0 is also a real state (the sole state of one vanilla block,
+    /// `minecraft:cyan_terracotta` in 1.26.51), so the item decides: BDS sends
+    /// that block item with its hash, every other 0 stays 0.
+    pub fn item_block_to_wire(self, item_network_id: i32, runtime_id: u32) -> u32 {
+        if runtime_id == 0 && item_network_id != super::item::ordinal_zero_block_item() {
             0
         } else {
             self.to_wire(runtime_id)
@@ -298,6 +304,7 @@ impl BlockRegistry {
             self.name_map.insert(entry.string_id.clone(), entry_index);
             self.entries.push(entry);
         }
+        self.connections = Arc::new(super::collision::ConnectionCache::new(self));
     }
 
     /// Get block entry by runtime ID (state ID). O(1).
@@ -387,6 +394,28 @@ impl BlockRegistry {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    /// Ordinal 0 is a real block state, so a hashed client must receive the
+    /// block item's hash (as BDS 1.26.51's CraftingData does), while a
+    /// block-less item keeps 0 in both numberings.
+    #[test]
+    fn ordinal_zero_block_item_is_hashed_but_plain_items_stay_zero() {
+        let block = BlockRegistry::vanilla().get_by_runtime_id(0).unwrap();
+        let items = &*crate::item::test_support::VANILLA;
+        let item = items.get_by_name(&block.name).unwrap().network_id();
+        let stick = items.get_by_name("minecraft:stick").unwrap().network_id();
+        assert_eq!(block.name, "minecraft:cyan_terracotta");
+        assert_eq!(
+            BlockNetworkIds::Hashed.item_block_to_wire(item, 0),
+            973_836_165
+        );
+        assert_eq!(BlockNetworkIds::Hashed.item_block_to_wire(stick, 0), 0);
+        assert_eq!(BlockNetworkIds::Sequential.item_block_to_wire(item, 0), 0);
+        assert_eq!(
+            BlockNetworkIds::Hashed.item_block_from_wire(973_836_165),
+            Some(0)
+        );
+    }
 
     /// The client's sequential palette is its built-in blocks plus the blocks
     /// `StartGame` defines. That union must be exactly the canonical palette

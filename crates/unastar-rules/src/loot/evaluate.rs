@@ -12,6 +12,28 @@ pub trait LootContext {
     fn block_state_matches(&self, property: &str, expected: &LootStateValue) -> bool;
     fn killed_by_player(&self) -> bool;
     fn looting(&self) -> u8;
+    /// None means no THIS actor, not an actor whose fire state is false.
+    fn on_fire(&self) -> Option<bool> {
+        None
+    }
+    fn furnace(&self) -> Option<&dyn FurnaceSmelt> {
+        None
+    }
+    /// Palette colour of the THIS actor (`set_data_from_color_index`); `None`
+    /// when there is no THIS actor, which leaves the item unchanged.
+    fn this_color_index(&self) -> Option<u8> {
+        None
+    }
+    /// The modern item a legacy item name stands for (`minecraft:muttonRaw`
+    /// is `minecraft:mutton`), resolved when an entry creates its item.
+    fn item_alias(&self, _name: &str) -> Option<&str> {
+        None
+    }
+    /// The flattened item a legacy name selects by data value
+    /// (`minecraft:wool` with data 14 is `minecraft:red_wool`).
+    fn data_alias(&self, _name: &str, _data: i16) -> Option<&str> {
+        None
+    }
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -31,6 +53,8 @@ pub enum LootError {
     UnknownTable(String),
     #[error("loot tables nest too deeply")]
     TooDeep,
+    #[error("loot context does not supply {0}")]
+    MissingContext(&'static str),
 }
 
 fn sample_int(number: LootNumber, rng: &mut impl Rng) -> i32 {
@@ -102,6 +126,7 @@ fn condition_passes(
             .iter()
             .all(|(p, v)| ctx.block_state_matches(p, v)),
         LootCondition::Inverted(inner) => !condition_passes(inner, ctx, rng)?,
+        LootCondition::ThisOnFire(expected) => ctx.on_fire() == Some(*expected),
         LootCondition::Other { name, .. } => return Err(LootError::Unsupported(name.clone())),
     })
 }
@@ -119,24 +144,30 @@ fn all_pass(
     Ok(true)
 }
 
+/// Apply an entry's functions to its item; `authored` is the entry's item
+/// name as written (data-selected legacy names re-resolve from it).
 fn apply_functions(
     fs: &[LootFunction],
     drop: &mut LootDrop,
+    authored: &str,
     ctx: &dyn LootContext,
     rng: &mut impl Rng,
 ) -> Result<(), LootError> {
     let mut count = i64::from(drop.count);
     for f in fs {
-        match f {
-            LootFunction::SetCount { count: n, add } => {
+        if !all_pass(&f.conditions, ctx, rng)? {
+            continue;
+        }
+        match &f.kind {
+            LootFunctionKind::SetCount { count: n, add } => {
                 let n = i64::from(sample_int(*n, rng));
                 count = if *add { count + n } else { n };
             }
-            LootFunction::SetData { data } => {
+            LootFunctionKind::SetData { data } => {
                 drop.data =
                     sample_int(*data, rng).clamp(i32::from(i16::MIN), i32::from(i16::MAX)) as i16
             }
-            LootFunction::LootingEnchant { count: n, limit } => {
+            LootFunctionKind::LootingEnchant { count: n, limit } => {
                 count += (0..ctx.looting())
                     .map(|_| i64::from(sample_int(*n, rng)))
                     .sum::<i64>();
@@ -144,7 +175,7 @@ fn apply_functions(
                     count = count.min(i64::from(*limit));
                 }
             }
-            LootFunction::ApplyBonus {
+            LootFunctionKind::ApplyBonus {
                 enchantment,
                 id,
                 formula,
@@ -167,7 +198,7 @@ fn apply_functions(
                     count += i64::from(binomial(*extra, *probability, rng));
                 }
             }
-            LootFunction::LimitCount { min, max } => {
+            LootFunctionKind::LimitCount { min, max } => {
                 if let Some(min) = min {
                     count = count.max(*min as i64);
                 }
@@ -177,8 +208,33 @@ fn apply_functions(
             }
             // No explosion caller exists on the parked gameplay path. This is
             // the existing non-explosion identity, not explosion support.
-            LootFunction::ExplosionDecay => {}
-            LootFunction::Other { name, .. } => return Err(LootError::Unsupported(name.clone())),
+            LootFunctionKind::ExplosionDecay => {}
+            LootFunctionKind::FurnaceSmelt => {
+                let furnace = ctx
+                    .furnace()
+                    .ok_or(LootError::MissingContext("furnace_smelt"))?;
+                if let Some(result) = furnace.smelt(&drop.item_id, drop.data) {
+                    drop.item_id.clear();
+                    drop.item_id.push_str(result.identifier);
+                    drop.data = result.data;
+                }
+            }
+            LootFunctionKind::SetDataFromColorIndex => {
+                if let Some(color) = ctx.this_color_index() {
+                    let data = i16::from(color);
+                    match ctx.data_alias(authored, data) {
+                        Some(item) => {
+                            drop.item_id.clear();
+                            drop.item_id.push_str(item);
+                            drop.data = 0;
+                        }
+                        None => drop.data = data,
+                    }
+                }
+            }
+            LootFunctionKind::Other { name, .. } => {
+                return Err(LootError::Unsupported(name.clone()));
+            }
         }
     }
     drop.count = count.max(0) as u32;
@@ -199,13 +255,18 @@ impl<R: Rng> Roller<'_, R> {
     fn entry(&mut self, entry: &LootEntry, depth: u8) -> Result<(), LootError> {
         match &entry.kind {
             LootEntryKind::Item(item_id) => {
+                let resolved = self
+                    .ctx
+                    .data_alias(item_id, 0)
+                    .or_else(|| self.ctx.item_alias(item_id))
+                    .unwrap_or(item_id);
                 let mut drop = LootDrop {
-                    item_id: item_id.clone(),
+                    item_id: resolved.to_owned(),
                     count: 1,
                     data: 0,
                     nbt: None,
                 };
-                apply_functions(&entry.functions, &mut drop, self.ctx, self.rng)?;
+                apply_functions(&entry.functions, &mut drop, item_id, self.ctx, self.rng)?;
                 if drop.count > 0 {
                     self.out.push(drop);
                 }

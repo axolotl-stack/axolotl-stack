@@ -18,7 +18,7 @@ use crate::world::ecs::{ChunkLoader, LastPublisherState};
 /// - Game state: GameMode, PlayerState, PlayerInput, BreakingState
 /// - Chunk streaming: ChunkRadius, ChunkLoader, LastPublisherState, SpatialChunk
 /// - Network: LastBroadcastPosition
-/// - Inventory: MainInventory, ArmourInventory, OffhandSlot, HeldSlot, CursorItem, etc.
+/// - Inventory: MainInventory, ArmourInventory, OffhandSlot, HeldSlot, PlayerUi
 ///
 /// Note: Player spawning emits a `PlayerSpawnedEvent` (not a marker component)
 /// to trigger broadcast to other players without archetype changes.
@@ -46,9 +46,10 @@ pub struct PlayerBundle {
     pub armour: ArmourInventory,
     pub offhand: OffhandSlot,
     pub held_slot: HeldSlot,
-    pub cursor: CursorItem,
-    pub inventory_opened: InventoryOpened,
-    pub item_stack_state: ItemStackRequestState,
+    pub ui: PlayerUi,
+    pub ender_chest: EnderChestInventory,
+    pub windows: ContainerWindows,
+    pub request_ids: crate::server::game::RequestIdAssignments,
 }
 
 /// Bundle for spawning a basic living entity (mob).
@@ -64,26 +65,6 @@ pub struct LivingBundle {
     pub health: Health,
     pub effects: Effects,
     pub speed: Speed,
-    pub age: Age,
-}
-
-/// Bundle for spawning a mob entity.
-#[derive(Bundle)]
-pub struct MobBundle {
-    pub mob: Mob,
-    pub mob_type: MobType,
-    pub living: Living,
-    pub position: Position,
-    pub velocity: Velocity,
-    pub rotation: Rotation,
-    pub on_ground: OnGround,
-    pub physics: PhysicsBody,
-    pub runtime_id: RuntimeId,
-    pub health: Health,
-    pub effects: Effects,
-    pub speed: Speed,
-    pub ai_state: AiState,
-    pub hostile: Hostile,
     pub age: Age,
 }
 

@@ -42,6 +42,13 @@ require_resource_packs = false
 # what BDS advertises) or "sequential" (canonical palette ordinal).
 block_network_ids = "hashed"
 
+# Players granted operator permission (needed for /tp and /summon) when they join.
+# Each entry is a display name (matched case-insensitively) or an XUID. With
+# `online_mode = false` names and XUIDs are self-reported, so anyone can claim them.
+# Empty by default: nobody is an operator.
+# operators = ["Steve", "2535400000000000"]
+operators = []
+
 [world]
 # Dimension ID: 0 = Overworld, 1 = Nether, 2 = End
 dimension = 0

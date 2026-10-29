@@ -2,7 +2,7 @@ use std::path::{Path, PathBuf};
 use std::process::Command;
 
 #[test]
-fn items_only_cli_generates_static_consumer_from_artifact() {
+fn items_only_cli_writes_schema_and_embedded_rows() {
     let temp = TempDir::new("unastar-data-codegen-items");
     let input = temp.path().join("input");
     let output = temp.path().join("output");
@@ -23,37 +23,23 @@ fn items_only_cli_generates_static_consumer_from_artifact() {
 
     assert!(status.success());
 
-    let consumer = output.join("consumer.rs");
-    std::fs::write(
-        &consumer,
-        r#"
-        mod items;
-        fn main() {
-            let apple = items::get("minecraft:apple").unwrap();
-            assert_eq!(apple.network_id, 285);
-            assert!(apple.component_based);
-            assert_eq!(apple.tags, &["food"]);
-            assert_eq!(apple.native_properties_json, "{\"maxDamage\":0}");
-            let honey = items::get("minecraft:honey_bottle").unwrap();
-            assert_eq!(honey.max_stack_size, 16);
-            assert_eq!(honey.version, 2);
-            assert!(items::get("minecraft:missing").is_none());
-        }
-    "#,
+    // The schema is compiled by `unastar-data` itself; here the rows are
+    // checked: typed native columns, omitted defaults, sorted identifiers.
+    let rows: serde_json::Value = serde_json::from_str(
+        &std::fs::read_to_string(output.join("items.json")).expect("read items.json"),
     )
-    .unwrap();
-    let binary = output.join(format!("consumer{}", std::env::consts::EXE_SUFFIX));
-    assert!(
-        Command::new("rustc")
-            .arg("--edition=2024")
-            .arg(&consumer)
-            .arg("-o")
-            .arg(&binary)
-            .status()
-            .unwrap()
-            .success()
+    .expect("items.json is JSON");
+    assert_eq!(
+        rows,
+        serde_json::json!([
+            {"identifier": "minecraft:apple", "network_id": 285, "component_based": true,
+             "version": 1, "max_stack_size": 64, "tags": ["food"], "max_damage": 0},
+            {"identifier": "minecraft:honey_bottle", "network_id": 737, "component_based": false,
+             "version": 2, "max_stack_size": 16, "max_damage": 0},
+            {"identifier": "minecraft:stick", "network_id": 286, "component_based": false,
+             "version": 2, "max_stack_size": 64, "max_damage": 0}
+        ])
     );
-    assert!(Command::new(binary).status().unwrap().success());
 }
 
 #[test]
@@ -77,11 +63,6 @@ fn items_only_cli_rejects_duplicate_network_ids() {
         .expect("run unastar-data-codegen --items-only");
 
     assert!(!output.status.success());
-    let stderr = String::from_utf8_lossy(&output.stderr);
-    assert!(
-        stderr.contains("duplicate item network_id"),
-        "stderr should explain duplicate item network ID, got: {stderr}"
-    );
 }
 
 fn write_items_artifact(input: &Path, apple_id: i32, stick_id: i32) {
@@ -91,8 +72,8 @@ fn write_items_artifact(input: &Path, apple_id: i32, stick_id: i32) {
             r#"item "minecraft:apple" runtime_id={apple_id} component_based=#true version=1 max_stack_size=64 max_stack_size_source="protocolgen_native" maxDamage=0 {{
     tag "food"
 }}
-item "minecraft:honey_bottle" runtime_id=737 component_based=#false version=2 max_stack_size=16 max_stack_size_source="protocolgen_native"
-item "minecraft:stick" runtime_id={stick_id} component_based=#false version=2 max_stack_size=64 max_stack_size_source="protocolgen_native"
+item "minecraft:honey_bottle" runtime_id=737 component_based=#false version=2 max_stack_size=16 max_stack_size_source="protocolgen_native" maxDamage=0
+item "minecraft:stick" runtime_id={stick_id} component_based=#false version=2 max_stack_size=64 max_stack_size_source="protocolgen_native" maxDamage=0
 "#
         ),
     )

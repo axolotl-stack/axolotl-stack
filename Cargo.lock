@@ -4347,6 +4347,17 @@ dependencies = [
 ]
 
 [[package]]
+name = "serde_path_to_error"
+version = "0.1.20"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "10a9ff822e371bb5403e391ecd83e182e0e77ba7f6fe0160b795797109d1b457"
+dependencies = [
+ "itoa",
+ "serde",
+ "serde_core",
+]
+
+[[package]]
 name = "serde_spanned"
 version = "0.6.9"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -5335,12 +5346,22 @@ dependencies = [
 name = "unastar-data"
 version = "0.1.0"
 dependencies = [
+ "base64 0.22.1",
+ "bytes",
+ "prettyplease",
+ "proc-macro2",
+ "quote",
  "rand 0.8.5",
  "serde",
  "serde_json",
+ "serde_path_to_error",
  "sha2 0.10.9",
+ "syn 2.0.112",
+ "tempfile",
+ "thiserror 2.0.21",
  "unastar-packs",
  "unastar-rules",
+ "valentine",
 ]
 
 [[package]]

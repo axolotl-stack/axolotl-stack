@@ -620,6 +620,7 @@ pub fn parse(
     });
 
     Ok(ParseResult {
+        symbols: Vec::new(),
         packets,
         types: lowerer.out,
     })

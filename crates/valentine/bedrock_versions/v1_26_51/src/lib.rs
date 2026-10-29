@@ -11,6 +11,8 @@ pub mod mcpe;
 pub use mcpe::*;
 pub mod common;
 pub use common::*;
+pub mod symbols;
+pub use symbols::*;
 pub mod bedrock {
     pub use valentine_bedrock_core::bedrock::borrowed;
     pub use valentine_bedrock_core::bedrock::codec;

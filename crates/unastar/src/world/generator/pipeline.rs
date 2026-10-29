@@ -175,15 +175,17 @@ impl ChunkPipeline {
             let protos: [Arc<ProtoChunk>; 9] = SLOT_OFFSETS
                 .map(|(dx, dz)| self.proto(ChunkPos::new(origin.x + dx, origin.z + dz)));
             let refs: [&ProtoChunk; 9] = std::array::from_fn(|slot| &*protos[slot]);
-            let region_stage = unastar_noise::profile::scope(unastar_noise::profile::Stage::Region);
-            let mut region = DecorationRegion::new_with_bounds(
-                self.generator.seed(),
-                origin,
-                refs,
-                self.generator.block_classes(),
-                self.generator.world_bounds(),
-            );
-            drop(region_stage);
+            let mut region = {
+                let _region_stage =
+                    unastar_noise::profile::scope(unastar_noise::profile::Stage::Region);
+                DecorationRegion::new_with_bounds(
+                    self.generator.seed(),
+                    origin,
+                    refs,
+                    self.generator.block_classes(),
+                    self.generator.world_bounds(),
+                )
+            };
             self.generator.decorate(&mut region);
             region.into_writes()
         })

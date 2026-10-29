@@ -47,7 +47,11 @@ fn parse_manifest(reader: impl Read) -> Result<ParsedManifest, Box<dyn std::erro
     Ok(ParsedManifest {
         minecraft_version: manifest.target.minecraft_version,
         protocol_version: manifest.target.protocol_version,
-        result: ParseResult { packets, types },
+        result: ParseResult {
+            packets,
+            types,
+            symbols: lower_symbols(manifest.symbols)?,
+        },
     })
 }
 
@@ -56,6 +60,31 @@ struct CanonicalManifest {
     schema_version: u32,
     target: CanonicalTarget,
     packets: Vec<CanonicalPacket>,
+    #[serde(default)]
+    symbols: Vec<CanonicalSymbolTable>,
+}
+
+#[derive(Deserialize)]
+struct CanonicalSymbolTable {
+    id: String,
+    name: String,
+    representation: String,
+    values: Vec<CanonicalSymbolValue>,
+    source: CanonicalSymbolSource,
+}
+
+#[derive(Deserialize)]
+struct CanonicalSymbolValue {
+    name: String,
+    value: u32,
+}
+
+#[derive(Deserialize)]
+struct CanonicalSymbolSource {
+    locator: String,
+    revision: String,
+    minecraft_version: String,
+    protocol_version: u32,
 }
 
 #[derive(Deserialize)]
@@ -112,6 +141,58 @@ struct CanonicalNode {
     reason: Option<String>,
     fields: Option<Vec<CanonicalField>>,
     variants: Option<Vec<CanonicalVariant>>,
+}
+
+fn lower_symbols(
+    symbols: Vec<CanonicalSymbolTable>,
+) -> Result<Vec<crate::ir::SymbolTable>, String> {
+    {
+        let mut ids = HashSet::new();
+        for table in &symbols {
+            if table.id.is_empty() || table.name.is_empty() || table.values.is_empty() {
+                return Err("protocolgen symbol table needs an ID, name and values".to_owned());
+            }
+            if !ids.insert(table.id.as_str()) {
+                return Err(format!("duplicate protocolgen symbol table {:?}", table.id));
+            }
+            if table.representation != "u32" {
+                return Err(format!(
+                    "protocolgen symbol table {:?} has unsupported representation {:?}",
+                    table.id, table.representation
+                ));
+            }
+            if table.source.locator.is_empty()
+                || table.source.revision.is_empty()
+                || table.source.minecraft_version.is_empty()
+                || table.source.protocol_version == 0
+            {
+                return Err(format!(
+                    "protocolgen symbol table {:?} lacks versioned reference provenance",
+                    table.id
+                ));
+            }
+            let mut names = HashSet::new();
+            for value in &table.values {
+                if value.name.is_empty() || !names.insert(value.name.as_str()) {
+                    return Err(format!(
+                        "protocolgen symbol table {:?} has an empty or duplicate name {:?}",
+                        table.id, value.name
+                    ));
+                }
+            }
+        }
+    }
+    Ok(symbols.into_iter().map(|table| crate::ir::SymbolTable {
+        id: table.id,
+        name: table.name,
+        documentation: format!(
+            "Reference vocabulary from {} (Minecraft {}, protocol {}), revision {}. \
+             No independent wire encoding; this source version is not relabelled as the target protocol.",
+            table.source.locator, table.source.minecraft_version,
+            table.source.protocol_version, table.source.revision,
+        ),
+        values: table.values.into_iter().map(|value| (value.name, value.value)).collect(),
+    }).collect())
 }
 
 fn lower_packet(

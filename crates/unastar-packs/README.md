@@ -25,6 +25,12 @@ definitions became a second consumer; consumers must not keep private copies.
   names reject the file. Schema-declared extras such as `upgrades` are retained.
   Legacy unknown bodies are retained with `ignored_components` metadata and
   must not become active ECS components.
+  A component first listed by a newer stable catalog requires at least that
+  `format_version`; names in the oldest pinned catalog, the legacy form index
+  and registered addon kinds are available at every accepted format. The
+  build's minimal registry serializes these gates (`x-introduced`), so the
+  embedded parser enforces them. Legacy/addon registrations never relax a
+  published gate. Pattern-named components remain ungated.
 
 Parser-fidelity rules and evidence limits are documented next to each loader.
 The vanilla integration suite checks every entity's normalised round-trip,

@@ -9,7 +9,8 @@ The crate is the boundary between raw Bedrock data sources and the server runtim
    the existing native runtime tables from those artefacts.
 2. `build.rs` reads the pinned bedrock-samples submodule (`data/vanilla_bp`,
    `v1.26.50.4`, `46ba6ea`) and native biome measurements. It writes normalised
-   actor definitions, enriched biomes and canonical loot JSON into Cargo's `OUT_DIR`, embeds it
+   actor definitions, enriched biomes, canonical loot JSON and item/recipe document
+   bundles into Cargo's `OUT_DIR`, embeds them
    and decodes it once at startup. Pack-derived JSON/KDL and per-entity Rust
    are not committed (D2/D13); `output/pack-manifest.json` records counts/hashes.
 3. `unastar` consumes the decoded typed APIs, not raw pack files in tick paths.
@@ -62,6 +63,34 @@ Current golden artifacts:
   Build/runtime actor loading uses the same registry
   (`actor_definitions::parser()`); addon names register before loading. Only
   its count/hash is committed in the manifest.
+- `component_schema_defaults.json` (**OUT_DIR only**): published field defaults
+  for 406 component schemas, selecting each kind's latest stable numeric schema
+  version. Local references and inline overrides are resolved at build time;
+  false/zero defaults remain values and an absent default remains absent.
+  `actor_definitions::component_field_default` exposes these to startup prototype
+  compilers without merging them into actor bodies. Dynamic-value descriptions
+  are not invented defaults. Only counts/hashes are committed.
+- `actor_components.rs` (**OUT_DIR only**, `build/actor_components.rs`):
+  `actor_components::ActorComponent` (one variant per registered component,
+  410) and 264 typed component bodies generated from the same selected stable
+  schemas (343 types; `$ref` definitions deduplicated, filters kept as
+  `FilterJson`, enums/unions typed, published defaults as serde defaults,
+  `deny_unknown_fields` everywhere, no untyped holes). Older-version and
+  form-only fields vanilla still authors are appended as optional legacy
+  fields. The "Dynamic value" components the cow and chicken use have
+  hand-written bodies (`src/actor_components/dynamic.rs`) whose unpublished
+  defaults live in `actor_components::provisional` (D12).
+  `actor_components::decode`/`decode_component` decode authored bodies;
+  `tests/actor_components.rs` decodes every typed vanilla component instance.
+- `actor_wire.json` (**OUT_DIR only**): 112 measured summon observations and
+  native property-descriptor order/type codes, decoded with the generated 2193
+  codec and shared NBT reader. All 126 consumed capture files are checked against
+  manifest byte counts/SHA-256; the two capture manifests are recorded trust roots.
+  Attribute names/order/bounds and actual actor aliases remain intact.
+  `observed_current` is sampled state, not a constructor default: the retained
+  zombie is baby-consistent, while adult movement comes from its BP group.
+  Type codes are joined to canonical BP declarations, never guessed for missing
+  kinds. `actor_wire::{vanilla,get}` decodes once; only hashes/counts are committed.
 - `blocks.kdl`: 1,477 native blocks and 22,091 states in **unaltered canonical
   NBT order**; each state retains typed properties, network hash and physical measurements.
   Native property tables and tags are also preserved. Generated block physical fields
@@ -71,7 +100,10 @@ Current golden artifacts:
 - `items.kdl`: 2,076 native IDs/stack limits/properties/tags plus packet registry metadata.
   The 78 items whose registry component data is not the empty compound carry it as
   `component_nbt` (base64 of the exact network NBT, sliced from `items.nbt`, never
-  re-encoded); codegen exposes it as `ItemData::component_nbt`.
+  re-encoded). Codegen emits the typed `ItemData` schema in `src/items.rs` and
+  compact rows in `src/items.json`, decoded once by `items::vanilla()`; no
+  per-item Rust constants remain. Native offhand/head capability tags and reviewed
+  effective bucket stack limits are applied by datagen, with drift checks.
 - `creative.kdl`: PMMP creative inventory.
 - `loot_tables.json` (**OUT_DIR only**): 508 canonical tables from the vanilla
   pack plus `data/overrides/loot_tables/blocks.json`, decoded at startup by
@@ -96,6 +128,57 @@ Current golden artifacts:
   `manifest.kdl` (see protocolgen `generated/data/semantic_sources.json` and
   `data/NOTICE.md`). The 30 unavailable liquid-clip shapes remain explicitly
   unavailable, distinct from known-empty shapes. Runtime `shapes` decodes once.
+
+Item/recipe pack families use the same shared `unastar-packs` reader as the
+actor/loot pipeline. `item_components::decode_vanilla()` retains typed legacy and
+modern item components; `recipes::decode_vanilla()` parses shaped, shapeless,
+furnace, brewing and smithing documents. The game server freezes one
+`recipes::RecipeRegistry` at startup and shares it through `RecipeRegistryResource`.
+`furnace_result(identifier, aux)` borrows a canonical `ResultItem` without JSON
+parsing, allocations or tag walks. `with_items(recipes, items)` permits an
+addon-capable item snapshot before freeze; duplicate identifiers keep the first
+loaded recipe. The built-in pack projection resolves duplicate source files by
+newest format version, then later path, before loading that snapshot. Lower
+numeric recipe priority wins; exact and wildcard furnace inputs share the same
+priority ordering.
+The registry also implements `unastar_rules::loot::FurnaceSmelt`: the evaluator
+borrows the canonical result identifier/aux and preserves its own source loot
+count rather than replacing it with the furnace recipe yield. The actual
+headless `GameServer` constructor/tick and 128 canonical cow/chicken raw/burning
+rolls exercised that provider against the frozen 1,881-recipe snapshot, including
+multi-item beef drops and unchanged secondary drops. This is not production
+mob-death or native-RNG parity evidence.
+
+Legacy recipe spellings (`minecraft:coal:1`, `minecraft:fish`, etc.) normalize
+through `data/measured/recipe_legacy_identities.json`, a small projection of the
+pinned 1.26.51 CraftingData capture; no raw/cooked mob table is maintained.
+The shared `item_identity` module decodes this projection once for both recipe
+loading and entity/item-field compilation. Ingredient and result aliases remain
+separate because ingredient aux can be unrestricted. Numeric aux lookups use
+typed indexes without constructing temporary lookup strings. This projection is
+not a complete historical upgrader: unmeasured nonzero aux values in a known
+legacy alias family are rejected instead of inventing a base-item identity.
+
+Name-only aliases preserve an explicit ingredient aux; only an alias with a
+measured aux replaces that constraint.
+
+`recipes::native` loads the other measured facts absent from pack JSON:
+159 native shaped recipes, 1,241 native shapeless recipes, 1,456 user-data
+recipes, 14 stable multi-recipe identities, native result NBT/state identities,
+and 46 potion aux identities. Native variant UUID groups are retained by stable
+group names rather than captured random UUID values. Potion aux values are
+uniquely solved from the complete captured reagent-labelled graph, not a
+hand-written numeric enum. These are D4 measurements, not committed copies of
+pack-derived recipe rows. Regenerate all three measured files from this crate
+directory with:
+
+```powershell
+python tools/extract_recipe_identities.py C:/Users/jvigu/orca/bds-runtime/captures/1.26.51/20261025T172246Z/member/join/00054-CraftingDataPacket.json
+```
+
+Unastar's `crafting::CraftingCatalog` consumes these families into one frozen
+advertisement and recipe-network-id index. Crafting execution is a separate
+inventory-engine slice.
 
 Generated `blocks::BlockData` also carries the native block-level physics
 (`friction`, `material`, `blocks_motion`, `liquid`, `solid`, `falling`,

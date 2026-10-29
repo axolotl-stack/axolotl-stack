@@ -1,5 +1,6 @@
 //! Chunk ECS components.
 
+use crate::storage::StoredActor;
 use crate::world::Chunk;
 use bevy_ecs::prelude::*;
 use bitflags::bitflags;
@@ -22,6 +23,11 @@ bitflags! {
         /// Chunk block data has changed and needs network re-encoding.
         /// Used by broadcast system to re-encode and send to viewers.
         const NEEDS_REBROADCAST = 1 << 2;
+
+        /// Freshly generated and not yet populated with mobs: natural
+        /// spawning runs its world-generation pass the first tick the chunk
+        /// is ticking, then clears the flag (`entity::spawning`).
+        const NEEDS_POPULATION = 1 << 3;
     }
 }
 
@@ -64,6 +70,14 @@ impl ChunkStateFlags {
 
     pub fn clear_needs_rebroadcast(&mut self) {
         self.flags.remove(ChunkFlags::NEEDS_REBROADCAST);
+    }
+
+    pub fn needs_population(&self) -> bool {
+        self.flags.contains(ChunkFlags::NEEDS_POPULATION)
+    }
+
+    pub fn clear_needs_population(&mut self) {
+        self.flags.remove(ChunkFlags::NEEDS_POPULATION);
     }
 }
 
@@ -234,55 +248,27 @@ impl ChunkViewers {
     }
 }
 
-/// Component tracking entities currently inside this chunk.
-///
-/// Updated when entities cross chunk boundaries.
-/// Used for:
-/// - Entity save/freeze on chunk unload
-/// - Spatial queries (entities within a chunk)
-/// - Entity visibility broadcasts to chunk viewers
-///
-/// Note: This tracks entities by their physical position, not view radius.
+/// Actors read from storage with this chunk, waiting to be restored into the
+/// world by `entity::mob::persistence::restore_chunk_actors`. Transient, so
+/// sparse-set storage.
 #[derive(Component, Debug, Default)]
-pub struct ChunkEntities {
-    /// Non-player entities in this chunk (mobs, items, projectiles, etc.)
-    pub entities: Vec<Entity>,
+#[component(storage = "SparseSet")]
+pub struct PendingActorRestore(pub Vec<StoredActor>);
+
+/// What storage holds for this chunk's actors.
+#[derive(Component, Debug, Default)]
+pub struct ChunkActorStore {
+    /// Unique IDs in the chunk's stored actor list as of the last load or save.
+    pub stored: Vec<i64>,
+    /// Stored actors this server does not simulate (unknown or unsupported
+    /// identifiers): kept and written back unchanged.
+    pub foreign: Vec<StoredActor>,
 }
 
-impl ChunkEntities {
-    pub fn insert(&mut self, entity: Entity) {
-        if !self.entities.contains(&entity) {
-            self.entities.push(entity);
-        }
-    }
-
-    pub fn remove(&mut self, entity: Entity) {
-        self.entities.retain(|&e| e != entity);
-    }
-
-    pub fn contains(&self, entity: Entity) -> bool {
-        self.entities.contains(&entity)
-    }
-
-    pub fn iter(&self) -> impl Iterator<Item = Entity> + '_ {
-        self.entities.iter().copied()
-    }
-
-    pub fn len(&self) -> usize {
-        self.entities.len()
-    }
-
+impl ChunkActorStore {
+    /// Whether storage lists actors for this chunk or will have to.
     pub fn is_empty(&self) -> bool {
-        self.entities.is_empty()
-    }
-
-    pub fn clear(&mut self) {
-        self.entities.clear();
-    }
-
-    /// Take all entities, leaving the list empty.
-    pub fn take(&mut self) -> Vec<Entity> {
-        std::mem::take(&mut self.entities)
+        self.stored.is_empty() && self.foreign.is_empty()
     }
 }
 
@@ -335,10 +321,12 @@ impl PendingChunkGenerations {
 
 /// Helper struct to create ChunkStateFlags with the appropriate initial state.
 impl ChunkStateFlags {
-    /// Create state flags for a newly generated chunk (dirty, not ticking).
+    /// Create state flags for a newly generated chunk (dirty, awaiting mob
+    /// population, not ticking).
     pub fn new_generated() -> Self {
         let mut flags = Self::default();
         flags.mark_dirty();
+        flags.flags.insert(ChunkFlags::NEEDS_POPULATION);
         flags
     }
 }
@@ -419,24 +407,5 @@ mod tests {
         assert!(!viewers.contains(e1));
         assert!(viewers.contains(e2));
         assert!(!viewers.remove(e1)); // returns false when not present
-    }
-
-    #[test]
-    fn test_chunk_entities() {
-        use bevy_ecs::world::World;
-
-        let mut world = World::new();
-        let e1 = world.spawn_empty().id();
-        let e2 = world.spawn_empty().id();
-
-        let mut entities = ChunkEntities::default();
-
-        entities.insert(e1);
-        entities.insert(e2);
-        assert_eq!(entities.len(), 2);
-
-        let taken = entities.take();
-        assert_eq!(taken.len(), 2);
-        assert!(entities.is_empty());
     }
 }

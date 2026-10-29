@@ -200,7 +200,6 @@ async fn disconnect_reconnect_restores_inventory_and_player_state() {
         ArmourInventory, Experience, GameMode, Health, HeldSlot, Hunger, MainInventory,
         OffhandSlot, Position, Rotation,
     };
-    use unastar::item::ItemStack;
     use unastar::server::PlayerSpawnData;
     use unastar::server::game::types::{PlayerDataStoreResource, PlayerProviderResource};
     use unastar::storage::{LevelDBPlayerProvider, PlayerProvider};
@@ -232,17 +231,25 @@ async fn disconnect_reconnect_restores_inventory_and_player_state() {
         .is_none()
     );
     let (outbound_tx, _outbound_rx) = tokio::sync::mpsc::channel(32);
-    let entity = server.spawn_player(PlayerSpawnData {
-        session_id: 1,
-        display_name: "persistence".into(),
-        xuid: None,
-        uuid: Some(uuid.to_string()),
-        runtime_id: 1,
-        position: DVec3::new(33.25, 75.0, -8.5),
-        saved_data: None,
-        outbound_tx,
-        chunk_radius: 1,
-    });
+    let entity = server
+        .spawn_player(PlayerSpawnData {
+            session_id: 1,
+            display_name: "persistence".into(),
+            xuid: None,
+            uuid: Some(uuid.to_string()),
+            runtime_id: 1,
+            position: DVec3::new(33.25, 75.0, -8.5),
+            saved_data: None,
+            outbound_tx,
+            chunk_radius: 1,
+        })
+        .expect("valid first player spawn");
+    let items = server
+        .ecs
+        .world()
+        .resource::<unastar::server::game::types::ItemRegistryResource>()
+        .0
+        .clone();
     server.ecs.world_mut().entity_mut(entity).insert((
         GameMode::Adventure,
         Rotation {
@@ -257,7 +264,7 @@ async fn disconnect_reconnect_restores_inventory_and_player_state() {
         .get_mut::<MainInventory>(entity)
         .unwrap()
         .0
-        .set_item(8, ItemStack::new("minecraft:diamond", 17))
+        .set_item(8, items.stack("minecraft:diamond", 17).unwrap())
         .unwrap();
     server.ecs.world_mut().entity_mut(entity).insert((
         Health {
@@ -274,14 +281,19 @@ async fn disconnect_reconnect_restores_inventory_and_player_state() {
             progress: 0.5,
         },
         HeldSlot(8),
-        OffhandSlot(ItemStack::new("minecraft:torch", 12)),
+        OffhandSlot(items.stack("minecraft:torch", 12).unwrap()),
     ));
     server
         .ecs
         .world_mut()
         .get_mut::<ArmourInventory>(entity)
         .unwrap()
-        .set_helmet(ItemStack::new("minecraft:iron_helmet", 1).with_damage(7))
+        .set_helmet(
+            items
+                .stack("minecraft:iron_helmet", 1)
+                .unwrap()
+                .with_damage(7),
+        )
         .unwrap();
     assert!(server.save_player(1).await);
     server.despawn_player(1);
@@ -326,17 +338,19 @@ async fn disconnect_reconnect_restores_inventory_and_player_state() {
         .world_mut()
         .insert_resource(PlayerProviderResource(provider.clone()));
     let (outbound_tx, mut outbound_rx) = tokio::sync::mpsc::channel(32);
-    let entity = server.spawn_player(PlayerSpawnData {
-        session_id: 2,
-        display_name: "reconnect".into(),
-        xuid: None,
-        uuid: Some(uuid.to_string()),
-        runtime_id: 2,
-        position: DVec3::new(spawn.x as f64, spawn.y as f64, spawn.z as f64),
-        saved_data: Some(saved_data),
-        outbound_tx,
-        chunk_radius: 1,
-    });
+    let entity = server
+        .spawn_player(PlayerSpawnData {
+            session_id: 2,
+            display_name: "reconnect".into(),
+            xuid: None,
+            uuid: Some(uuid.to_string()),
+            runtime_id: 2,
+            position: DVec3::new(spawn.x as f64, spawn.y as f64, spawn.z as f64),
+            saved_data: Some(saved_data),
+            outbound_tx,
+            chunk_radius: 1,
+        })
+        .expect("valid saved player spawn");
     let world = server.ecs.world();
     assert_eq!(
         world.get::<Position>(entity).unwrap().0,
@@ -352,7 +366,7 @@ async fn disconnect_reconnect_restores_inventory_and_player_state() {
             .0
             .item(8)
             .unwrap(),
-        &ItemStack::new("minecraft:diamond", 17)
+        &items.stack("minecraft:diamond", 17).unwrap()
     );
     assert_eq!(
         world

@@ -44,12 +44,26 @@ pub const ENTITY_KEY: &str = "minecraft:entity";
 // definition from 1.21.90. See the recorded fidelity baseline.
 const STRICT_ENTITY_SCHEMA_SINCE: [u32; 3] = [1, 21, 90];
 
+/// Introduction gate for components available in every accepted format: the
+/// oldest pinned catalog and the legacy form index have no earlier bound.
+const ALWAYS_AVAILABLE: [u32; 3] = [0, 0, 0];
+
+/// Serialized per-component introduction version in the minimal registry.
+const INTRODUCED_KEY: &str = "x-introduced";
+
 /// Parser bindings are assembled before loading addon definitions. Component
 /// names/patterns come from the pinned Mojang entity-component schema, not a
 /// hand-maintained allow-list. Addon/WASM component kinds may register first.
+///
+/// A name first listed by a newer stable catalog is unavailable to documents
+/// with an older `format_version` (BDS 1.26.51 rejects
+/// `minecraft:uses_uniform_air_drag` at 1.26.10; it first appears in, and its
+/// schema declares, 1.26.20). Patterns remain ungated: catalogs do not record
+/// when an instance-name family was introduced.
 pub struct ActorParser<'a> {
     filters: &'a FilterRegistry,
-    components: BTreeSet<String>,
+    /// Component name to the earliest `format_version` that may use it.
+    components: BTreeMap<String, [u32; 3]>,
     patterns: Vec<regex::Regex>,
     entity_fields: BTreeSet<String>,
     max_version: [u32; 3],
@@ -68,9 +82,11 @@ impl<'a> ActorParser<'a> {
         schemas: impl IntoIterator<Item = Result<Value>>,
     ) -> Result<Self> {
         let origin = "actor component schema";
-        let mut components = BTreeSet::new();
+        // (earliest listing, whether that gate was serialized explicitly)
+        let mut first: BTreeMap<String, ([u32; 3], bool)> = BTreeMap::new();
         let mut pattern_names = BTreeSet::new();
         let mut entity_fields = BTreeSet::new();
+        let mut min_version = None;
         let mut max_version = None;
         for schema in schemas {
             let Value::Object(mut schema) = schema? else {
@@ -80,11 +96,37 @@ impl<'a> ActorParser<'a> {
                 return Err(Error::data(origin, "missing x-format-version"));
             };
             let version = parse_version(&version).map_err(|e| Error::data(origin, e))?;
+            min_version = Some(min_version.map_or(version, |v: [u32; 3]| v.min(version)));
             max_version = Some(max_version.map_or(version, |v: [u32; 3]| v.max(version)));
             let Some(Value::Object(properties)) = schema.remove("properties") else {
                 return Err(Error::data(origin, "missing component properties"));
             };
-            components.extend(properties.into_iter().map(|(name, _)| name));
+            for (name, body) in properties {
+                let gate = match body.get(INTRODUCED_KEY) {
+                    None => (version, false),
+                    Some(Value::String(introduced)) => (
+                        parse_version(introduced)
+                            .map_err(|e| Error::data(origin, format!("{name}: {e}")))?,
+                        true,
+                    ),
+                    Some(other) => {
+                        return Err(Error::data(
+                            origin,
+                            format!(
+                                "{name}: {INTRODUCED_KEY} must be a version string, got {other}"
+                            ),
+                        ));
+                    }
+                };
+                first
+                    .entry(name)
+                    .and_modify(|current| {
+                        if gate.0 < current.0 {
+                            *current = gate;
+                        }
+                    })
+                    .or_insert(gate);
+            }
             match schema.remove("patternProperties") {
                 None => {}
                 Some(Value::Object(patterns)) => {
@@ -100,6 +142,19 @@ impl<'a> ActorParser<'a> {
             }
         }
         let max_version = max_version.ok_or_else(|| Error::data(origin, "no schemas supplied"))?;
+        let min_version = min_version.expect("set with max_version");
+        let components = first
+            .into_iter()
+            .map(|(name, (version, explicit))| {
+                // The oldest catalog bounds nothing: its names may predate it.
+                let gate = if !explicit && version == min_version {
+                    ALWAYS_AVAILABLE
+                } else {
+                    version
+                };
+                (name, gate)
+            })
+            .collect();
         let patterns = pattern_names
             .into_iter()
             .map(|pattern| {
@@ -115,8 +170,12 @@ impl<'a> ActorParser<'a> {
         })
     }
 
+    /// Addon kinds are available at every accepted format. Registering a known
+    /// vanilla name does not remove its published introduction gate.
     pub fn register_component(&mut self, name: impl Into<String>) {
-        self.components.insert(name.into());
+        self.components
+            .entry(name.into())
+            .or_insert(ALWAYS_AVAILABLE);
     }
 
     /// Merge the legacy Mojang form index (some internal vanilla kinds are
@@ -132,8 +191,10 @@ impl<'a> ActorParser<'a> {
         }
         let form: Form = serde_json::from_value(form)
             .map_err(|e| Error::data("legacy actor component form", e.to_string()))?;
-        self.components
-            .extend(form.fields.into_iter().map(|field| field.id));
+        // Legacy entries add older names; they never relax a newer catalog gate.
+        for field in form.fields {
+            self.components.entry(field.id).or_insert(ALWAYS_AVAILABLE);
+        }
         Ok(())
     }
 
@@ -159,11 +220,24 @@ impl<'a> ActorParser<'a> {
         self.components.len()
     }
 
-    /// Minimal build artefact: retain the registry, not descriptions/examples.
+    /// Minimal build artefact: retain the registry and its per-name format
+    /// gates, not descriptions/examples. Round-trips through [`Self::from_schema`].
     pub fn to_schema(&self) -> Value {
+        let components = self
+            .components
+            .iter()
+            .map(|(name, gate)| {
+                let body = if *gate == ALWAYS_AVAILABLE {
+                    Value::Null
+                } else {
+                    serde_json::json!({ INTRODUCED_KEY: format!("{}.{}.{}", gate[0], gate[1], gate[2]) })
+                };
+                (name.clone(), body)
+            })
+            .collect::<Map<_, _>>();
         serde_json::json!({
             "x-format-version": format!("{}.{}.{}", self.max_version[0], self.max_version[1], self.max_version[2]),
-            "properties": self.components.iter().map(|name| (name.clone(), Value::Null)).collect::<Map<_, _>>(),
+            "properties": components,
             "patternProperties": self.patterns.iter().map(|pattern| (pattern.as_str().to_owned(), Value::Null)).collect::<Map<_, _>>(),
             "entity_fields": self.entity_fields,
         })
@@ -178,12 +252,20 @@ impl<'a> ActorParser<'a> {
         ignored: &mut BTreeSet<String>,
     ) -> Result<()> {
         for name in set.keys() {
-            if !self.components.contains(name) && !self.patterns.iter().any(|p| p.is_match(name)) {
+            let available = match self.components.get(name) {
+                Some(introduced) => version >= *introduced,
+                None => self.patterns.iter().any(|p| p.is_match(name)),
+            };
+            if !available {
+                let reason = match self.components.get(name) {
+                    Some(introduced) => format!(
+                        "component {name:?} requires format_version {}.{}.{} or newer",
+                        introduced[0], introduced[1], introduced[2]
+                    ),
+                    None => format!("component {name:?} is not registered"),
+                };
                 if version >= STRICT_ENTITY_SCHEMA_SINCE {
-                    return Err(Error::data(
-                        path,
-                        format!("component {name:?} is not registered"),
-                    ));
+                    return Err(Error::data(path, reason));
                 }
                 diagnostics.push(
                     format!("{path}/{name}"),
@@ -1020,6 +1102,60 @@ mod tests {
             }),
         )
         .unwrap()
+    }
+
+    #[test]
+    fn versioned_components_remain_gated_after_registry_serialization_and_legacy_merge() {
+        let mut parser = ActorParser::from_schemas(
+            FilterRegistry::vanilla(),
+            [
+                Ok(json!({
+                    "x-format-version": "1.26.10",
+                    "properties": {"minecraft:is_baby": null}
+                })),
+                Ok(json!({
+                    "x-format-version": "1.26.20",
+                    "properties": {
+                        "minecraft:is_baby": null,
+                        "minecraft:uses_uniform_air_drag": null
+                    }
+                })),
+            ],
+        )
+        .unwrap();
+        // A legacy form entry must not remove a known newer-format gate.
+        parser
+            .register_form(json!({"fields": [{"id": "minecraft:uses_uniform_air_drag"}]}))
+            .unwrap();
+        let encoded = parser.to_schema();
+        let restored = ActorParser::from_schema(FilterRegistry::vanilla(), encoded).unwrap();
+        for parser in [&parser, &restored] {
+            for body in [
+                json!({"components": {"minecraft:uses_uniform_air_drag": {}}}),
+                json!({"component_groups": {
+                    "inactive": {"minecraft:uses_uniform_air_drag": {}}
+                }}),
+            ] {
+                let mut body = body;
+                body["description"] = json!({"identifier": "test:format_gate"});
+                assert!(matches!(
+                    load_value("too old", &entity("1.26.10", body.clone()), parser),
+                    Err(Error::Data { .. })
+                ));
+                let Loaded::Definition { definition, .. } =
+                    load_value("introduced", &entity("1.26.20", body), parser).unwrap()
+                else {
+                    panic!("introduced component definition skipped")
+                };
+                assert!(
+                    definition
+                        .components
+                        .contains_key("minecraft:uses_uniform_air_drag")
+                        || definition.component_groups["inactive"]
+                            .contains_key("minecraft:uses_uniform_air_drag")
+                );
+            }
+        }
     }
 
     #[test]

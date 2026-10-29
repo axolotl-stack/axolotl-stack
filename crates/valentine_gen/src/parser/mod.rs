@@ -29,6 +29,8 @@ enum JsonTypeDef {
 pub struct ParseResult {
     pub packets: Vec<Packet>,
     pub types: HashMap<String, Type>,
+    /// Non-wire symbols supplied by the canonical protocol manifest.
+    pub symbols: Vec<crate::ir::SymbolTable>,
 }
 
 pub fn parse(path: &Path) -> Result<ParseResult, Box<dyn std::error::Error>> {
@@ -174,6 +176,7 @@ pub fn parse(path: &Path) -> Result<ParseResult, Box<dyn std::error::Error>> {
     packets.sort_by_key(|p| p.id);
 
     Ok(ParseResult {
+        symbols: Vec::new(),
         packets,
         types: types_map,
     })
