@@ -311,6 +311,13 @@ impl ChunkManager {
         self.generation_worker.is_some()
     }
 
+    /// Worker threads of the generation pool (0 without one).
+    pub fn generation_threads(&self) -> usize {
+        self.generation_worker
+            .as_ref()
+            .map_or(0, ChunkGenerationWorker::threads)
+    }
+
     /// Request chunk generation asynchronously.
     ///
     /// Returns `Some(receiver)` if generation was started, `None` if:

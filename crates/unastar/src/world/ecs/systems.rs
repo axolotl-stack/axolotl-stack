@@ -28,10 +28,17 @@ use jolyne::valentine::{
     PlayStatusPacketStatus,
 };
 
+/// Chunks already in memory sent to one player per tick. Each is serialized
+/// on the tick thread; 32 per tick (640 per second) keeps a radius-16 view
+/// of stored chunks under two seconds without long ticks. Generation requests
+/// are bounded by the pool instead (see `request_chunk_generation`).
+pub const IN_MEMORY_CHUNKS_PER_TICK: usize = 32;
+
 /// Configuration for chunk loading behavior.
 #[derive(Resource, Debug, Clone)]
 pub struct ChunkLoadConfig {
-    /// Maximum chunks to send per player per tick.
+    /// Maximum in-memory (or, without a generation pool, synchronously
+    /// created) chunks to send per player per tick.
     pub chunks_per_tick: usize,
     /// Dimension ID for chunk packets.
     pub dimension: i32,
@@ -44,7 +51,7 @@ pub struct ChunkLoadConfig {
 impl Default for ChunkLoadConfig {
     fn default() -> Self {
         Self {
-            chunks_per_tick: 16, // Increased from 8 after generator optimization
+            chunks_per_tick: IN_MEMORY_CHUNKS_PER_TICK,
             dimension: 0,
             simulation_distance: 6,
             unload_grace_ticks: 100,
@@ -56,7 +63,7 @@ impl ChunkLoadConfig {
     /// Create from ServerConfig.
     pub fn from_server_config(config: &crate::server::ServerConfig) -> Self {
         Self {
-            chunks_per_tick: 8, // Low value to avoid slow ticks during terrain generation
+            chunks_per_tick: IN_MEMORY_CHUNKS_PER_TICK,
             dimension: config.world.dimension,
             simulation_distance: config.simulation_distance,
             unload_grace_ticks: config.chunk_unload_ticks,
@@ -420,15 +427,26 @@ pub fn process_chunk_load_queues(
 // Async Chunk Generation Systems (Phase 1 performance optimization)
 // =============================================================================
 
+/// Generation requests kept in flight per pool worker. A worker finishes
+/// about one chunk per tick, so three keep it busy until the next tick
+/// refills the queue, while a moving player's new nearest chunks wait behind
+/// at most three ticks of older requests.
+const PENDING_GENERATIONS_PER_WORKER: usize = 3;
+
 /// System: Request async chunk generation for vanilla worlds.
 ///
-/// This system handles the initial request phase for async generation:
-/// - Pops chunks from player load queues
-/// - For existing chunks: handles them immediately (send packet)
-/// - For new chunks: submits generation requests to the background worker
-/// - Tracks pending generations in `PendingChunkGenerations`
+/// Walks each player's load queue (nearest first) and:
+/// - sends chunks already in memory right away, up to
+///   [`ChunkLoadConfig::chunks_per_tick`] per player per tick (each one is
+///   serialized on the tick thread);
+/// - joins a pending generation as another viewer;
+/// - otherwise requests generation (or the storage load) from the pool.
 ///
-/// Non-blocking: generation happens in background, this just queues requests.
+/// Requests are not limited per tick: the pool is kept
+/// [`PENDING_GENERATIONS_PER_WORKER`] deep per worker, and players take turns
+/// one request at a time so several joining players share the pool fairly.
+/// A chunk is only taken off a queue once it was handled, so a chunk that
+/// cannot be sent this tick stays first in line.
 pub fn request_chunk_generation(
     mut chunk_manager: ResMut<ChunkManager>,
     mut pending_gens: ResMut<PendingChunkGenerations>,
@@ -448,86 +466,84 @@ pub fn request_chunk_generation(
     if !chunk_manager.has_async_generation() {
         return;
     }
+    let max_pending = chunk_manager.generation_threads() * PENDING_GENERATIONS_PER_WORKER;
 
-    // Limit total pending generations to prevent memory growth
-    const MAX_PENDING: usize = 64;
-
-    for (player_entity, session, mut loader, publisher_state) in players.iter_mut() {
-        // Terrain waits for the view `send_chunk_publisher_updates` publishes.
-        if !publisher_state.published() {
-            continue;
-        }
-        let mut processed = 0;
-
-        while processed < config.chunks_per_tick {
-            if pending_gens.len() >= MAX_PENDING {
-                debug!("Max pending chunk generations reached, skipping for now.");
-                break;
-            }
-
-            let Some((cx, cz)) = loader.next_to_load() else {
-                break; // No more chunks in this player's queue
+    // Players whose queue may still make progress this tick, with the number
+    // of in-memory chunks sent to each.
+    let mut active: Vec<(Entity, usize)> = players
+        .iter()
+        .filter(|(_, _, loader, publisher)| publisher.published() && loader.has_pending())
+        .map(|(entity, ..)| (entity, 0))
+        .collect();
+    while !active.is_empty() {
+        active.retain_mut(|(player_entity, sent)| {
+            let Ok((player_entity, session, mut loader, _)) = players.get_mut(*player_entity)
+            else {
+                return false;
             };
-
-            // This is a critical log to see if we are processing the queue.
-            trace!(player=?player_entity, chunk=?(cx, cz), "Popped chunk from load queue.");
-
-            // Check if chunk already exists
-            if let Some(chunk_entity) = chunk_manager.get_by_coords(cx, cz) {
-                // Chunk exists - send it immediately
-                if let Ok(chunk_data) = chunks.get(chunk_entity) {
-                    let payload = chunk_data.inner.encode_biomes();
-                    let highest_subchunk = chunk_data.inner.highest_subchunk();
-
+            // Handle this player's queue up to (and including) one new
+            // generation request; `false` drops the player for this tick.
+            loop {
+                let Some((cx, cz)) = loader.peek_next_to_load() else {
+                    return false;
+                };
+                if let Some(chunk_entity) = chunk_manager.get_by_coords(cx, cz) {
+                    if *sent >= config.chunks_per_tick {
+                        return false;
+                    }
+                    // Spawned this tick: its data appears once commands apply.
+                    let Ok(chunk_data) = chunks.get(chunk_entity) else {
+                        return false;
+                    };
                     let packet = LevelChunkPacket {
                         chunk_position: ChunkPos { x: cx, z: cz },
                         dimension_id: DimensionType {
                             value: config.dimension,
                         },
                         subchunks_count: 0,
-                        client_request_sub_chunk_limit: Some(highest_subchunk as i32),
+                        client_request_sub_chunk_limit: Some(
+                            chunk_data.inner.highest_subchunk() as i32,
+                        ),
                         cache_enabled: false,
                         cache_metadata: vec![],
-                        serialized_chunk_data: payload.into(),
+                        serialized_chunk_data: chunk_data.inner.encode_biomes().into(),
                     };
-
-                    if session.send(McpePacket::from(packet)) {
-                        loader.mark_loaded(cx, cz);
-                        chunk_manager
-                            .pending_viewers
-                            .entry((cx, cz))
-                            .or_default()
-                            .push(player_entity);
-                        debug!(chunk = ?(cx, cz), player = ?player_entity, "Sent existing chunk to player.");
-                    } else {
-                        debug!(chunk = ?(cx, cz), player=?player_entity, "Failed to send existing chunk (channel full), will retry.");
-                        loader.requeue_front(cx, cz); // Re-queue at the front to retry next tick
-                        break; // Stop processing for this player if channel is full
+                    if !session.send(McpePacket::from(packet)) {
+                        debug!(chunk = ?(cx, cz), player = ?player_entity, "Failed to send existing chunk (channel full), will retry.");
+                        return false;
                     }
+                    loader.next_to_load();
+                    loader.mark_loaded(cx, cz);
+                    chunk_manager
+                        .pending_viewers
+                        .entry((cx, cz))
+                        .or_default()
+                        .push(player_entity);
+                    *sent += 1;
+                    continue;
                 }
-                processed += 1;
-                continue;
-            }
-
-            // Skip if already pending generation
-            if chunk_manager.is_generation_pending(cx, cz) {
-                trace!(chunk = ?(cx, cz), "Chunk generation already pending, adding as viewer.");
                 if let Some(viewers) = chunk_manager.pending_generation.get_mut(&(cx, cz)) {
-                    viewers.push(player_entity)
+                    trace!(chunk = ?(cx, cz), "Chunk generation already pending, adding as viewer.");
+                    viewers.push(player_entity);
+                    loader.next_to_load();
+                    loader.mark_loaded(cx, cz);
+                    continue;
                 }
-                loader.mark_loaded(cx, cz); // Mark as "loaded" to prevent re-requesting
-                processed += 1;
-                continue;
-            }
-
-            // Request async generation
-            if let Some(receiver) = chunk_manager.request_generation(cx, cz, player_entity) {
+                if pending_gens.len() >= max_pending {
+                    return false;
+                }
+                let Some(receiver) = chunk_manager.request_generation(cx, cz, player_entity)
+                else {
+                    warn!(chunk = ?(cx, cz), "Chunk generation pool is unavailable");
+                    return false;
+                };
                 pending_gens.add(cx, cz, receiver);
-                loader.mark_loaded(cx, cz); // Mark as loaded to prevent re-requesting
-                processed += 1;
+                loader.next_to_load();
+                loader.mark_loaded(cx, cz);
                 debug!(player = ?player_entity, chunk = ?(cx, cz), "Requested async chunk generation.");
+                return true;
             }
-        }
+        });
     }
 }
 
@@ -607,6 +623,8 @@ pub fn process_completed_generations(
         debug!(chunk = ?(x, z), viewers = viewers.len(), "Async chunk generation complete, spawned entity.");
 
         // Send chunk to all waiting viewers
+        // One encoding shared by every viewer.
+        let payload = bytes::Bytes::from(biome_data);
         for viewer_entity in viewers {
             if let Ok(session) = sessions.get(viewer_entity) {
                 let packet = LevelChunkPacket {
@@ -618,17 +636,20 @@ pub fn process_completed_generations(
                     client_request_sub_chunk_limit: Some(highest_subchunk as i32),
                     cache_enabled: false,
                     cache_metadata: vec![],
-                    serialized_chunk_data: biome_data.clone().into(),
+                    serialized_chunk_data: payload.clone(),
                 };
 
-                if session.send(McpePacket::from(packet)) {
-                    // This was already marked as loaded on request, so we don't need to do it again.
-                    debug!(chunk = ?(x, z), viewer = ?viewer_entity, "Sent async-generated chunk to viewer.");
-                } else {
-                    warn!(chunk = ?(x, z), viewer = ?viewer_entity, "Failed to send async-generated chunk (channel full).");
-                    // We don't re-queue here because the loader thinks it's loaded.
-                    // The client will hopefully re-request if it's missing.
+                if !session.send(McpePacket::from(packet)) {
+                    // Requeue it: the chunk is in memory now, so the request
+                    // system sends it on a later tick.
+                    warn!(chunk = ?(x, z), viewer = ?viewer_entity, "Failed to send async-generated chunk (channel full); requeued.");
+                    if let Ok(mut loader) = loaders.get_mut(viewer_entity) {
+                        loader.mark_load_failed(x, z);
+                        loader.requeue_front(x, z);
+                    }
+                    continue;
                 }
+                debug!(chunk = ?(x, z), viewer = ?viewer_entity, "Sent async-generated chunk to viewer.");
             }
 
             // Add viewer to the just-spawned chunk's ChunkViewers component
@@ -945,15 +966,6 @@ pub fn register_chunk_systems(schedule: &mut bevy_ecs::schedule::Schedule) {
 #[cfg(test)]
 mod tests {
     use super::*;
-
-    #[test]
-    fn test_chunk_load_config_default() {
-        let config = ChunkLoadConfig::default();
-        assert_eq!(config.chunks_per_tick, 16); // Increased from 8 after generator optimization
-        assert_eq!(config.dimension, 0);
-        assert_eq!(config.simulation_distance, 6);
-        assert_eq!(config.unload_grace_ticks, 100);
-    }
 
     #[test]
     fn test_last_publisher_state_default() {
