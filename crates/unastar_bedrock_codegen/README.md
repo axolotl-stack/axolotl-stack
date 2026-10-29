@@ -797,3 +797,37 @@ Not landed: bounding `snap_to_surface` by the start biome and to
 raised fixture histogram L1 to 0.02426, so it waits until the lush-cave
 biome extent is measured.
 
+
+### Roofed forest draw order (2026-10-29)
+
+Every tree of a roofed-forest rule iteration, its decoration and its leaf
+litter and tall-grass scatters share one feature random, so one missing or
+misplaced draw changes every later tree of the chunk. These fixes come from
+offline comparison with the natural seed-12345 BDS world (chunks
+(3..4,-5..-2)); each lands with a regression that pins native blocks.
+
+**Standing floor rule.** These changes move the fixture's aggregate floors,
+which mostly follow where scattered plants happen to land. A change re-baselines
+them only when it makes a named native comparison exact; the movement is
+tabled below.
+
+1. **Scatter extra draw.** A placed `scatter_feature` takes one draw from
+   the feature random right after its chance roll, whether or not the roll
+   passed, and before any position (feature rules do not). The first dark
+   oaks of chunks (4,-3) and (4,-4) reproduce their height and every branch
+   only with this draw. Their failed 1-in-6 vine roll rules out a draw before
+   the roll. `roofed_forest_first_dark_oak_is_block_exact` pins the (4,-3)
+   tree's 45 logs and fails without the draw (the tree leans away). The old
+   test also pinned chunk (4,-5)'s second to fourth trees. Those follow a
+   fancy oak whose draws are not native yet, and the old code matched them
+   only through compensating errors. Only (4,-5)'s first tree is still pinned.
+
+| Metric | Before | After 1 |
+| --- | ---: | ---: |
+| terrain exact | 0.88591 | 0.88597 |
+| terrain within 2 | 0.92446 | 0.92440 |
+| terrain mean abs error | 1.20347 | 1.20370 |
+| surface exact | 0.85455 | 0.85116 |
+| surface block | 0.84892 | 0.84702 |
+| surface biome | 0.99506 | 0.99500 |
+| histogram L1 | 0.02368 | 0.02371 |

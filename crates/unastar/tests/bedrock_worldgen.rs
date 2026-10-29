@@ -92,17 +92,21 @@ fn bedrock_style_vs_bds_reference_ratchets() {
             // raise the surface floors and lower terrain within 2 and terrain
             // error by one column: see "Native scatter distributions". Upper-
             // exclusive vegetation-patch ranges then raised the terrain floors.
+            // Native-proven draw-order fixes (each pinned by a regression
+            // against the BDS world) re-baseline these floors and the
+            // ceilings below; each is tabled under "Roofed forest draw order"
+            // in the codegen README.
             for (name, value, floor) in [
                 ("terrain_exact", m.terrain_exact, 0.8859),
                 ("terrain_within_2", m.terrain_within_2, 0.9244),
-                ("surface_exact", m.surface_exact, 0.8545),
-                ("surface_block", m.surface_block, 0.8489),
+                ("surface_exact", m.surface_exact, 0.8511),
+                ("surface_block", m.surface_block, 0.8470),
                 ("surface_biome", m.surface_biome, 0.9950),
             ] {
                 assert!(value >= floor, "{name} {value:.6} fell below {floor:.6}");
             }
             assert!(
-                m.terrain_mean_abs_error <= 1.2035,
+                m.terrain_mean_abs_error <= 1.2037,
                 "terrain error rose: {}",
                 m.terrain_mean_abs_error
             );
@@ -116,7 +120,7 @@ fn bedrock_style_vs_bds_reference_ratchets() {
             // native dripleaf draws then cost the terrain error a fraction of
             // a column (D8): see "Dripleaf draws".
             assert!(
-                m.histogram_l1 <= 0.02368,
+                m.histogram_l1 <= 0.02372,
                 "histogram error rose: {}",
                 m.histogram_l1
             );
@@ -265,48 +269,90 @@ fn ocean_kelp_and_seagrass_grow_from_the_floor_like_bds() {
         .unwrap();
 }
 
-/// Natural seed-12345 BDS world, roofed forest chunk (4,-5): the first four
-/// iterations of `roofed_forest_surface_roofed_tree_feature_rules` grow an
-/// oak, a dark oak, nothing and an oak. Every tree, its decoration and its
-/// 20-iteration gaussian tall-grass scatter share one random, so this fails
-/// when any of them draws a different number of times (a three-draw gaussian
-/// grew a birch at the second iteration).
-#[test]
-fn roofed_forest_chunk_starts_with_the_native_trees() {
+/// Generate one chunk of the seed-12345 Bedrock-style world on a big stack.
+fn generate_chunk(x: i32, z: i32) -> unastar::world::chunk::Chunk {
     std::thread::Builder::new()
         .stack_size(64 << 20)
-        .spawn(|| {
+        .spawn(move || {
             use std::sync::Arc;
-            use unastar::registry::BlockRegistry;
             use unastar::world::generator::ChunkPipeline;
-            let registry = BlockRegistry::vanilla();
-            let pipeline = ChunkPipeline::new(Arc::new(BedrockGenerator::new(12345)));
-            let chunk = pipeline.generate(ChunkPos::new(4, -5)).unwrap();
-            let lowest_log = |x: u8, z: u8| {
-                (-63..320).find_map(|y| {
-                    let entry = registry.get_by_runtime_id(chunk.get_block(x, y, z))?;
-                    entry
-                        .string_id
-                        .ends_with("_log")
-                        .then(|| (entry.string_id.clone(), y))
-                })
-            };
-            // Block (77,-66), (67,-69), (70,-66), (72,-78) in chunk-local form.
-            for ((x, z), expected) in [
-                ((13, 14), Some(("minecraft:oak_log", 124))),
-                ((3, 11), Some(("minecraft:dark_oak_log", 119))),
-                ((6, 14), None),
-                ((8, 2), Some(("minecraft:oak_log", 119))),
-            ] {
-                let actual = lowest_log(x, z);
-                assert_eq!(
-                    actual.as_ref().map(|(name, y)| (name.as_str(), *y)),
-                    expected,
-                    "column ({x},{z})"
-                );
-            }
+            ChunkPipeline::new(Arc::new(BedrockGenerator::new(12345)))
+                .generate(ChunkPos::new(x, z))
+                .unwrap()
         })
         .unwrap()
         .join()
-        .unwrap();
+        .unwrap()
+}
+
+/// Blocks named `name` in the chunk-local box `x0..=x1, y0..=y1, z0..=z1`.
+fn blocks_named(
+    chunk: &unastar::world::chunk::Chunk,
+    name: &str,
+    (x0, x1): (u8, u8),
+    (y0, y1): (i16, i16),
+    (z0, z1): (u8, u8),
+) -> BTreeSet<(u8, i16, u8)> {
+    let registry = unastar::registry::BlockRegistry::vanilla();
+    let mut out = BTreeSet::new();
+    for x in x0..=x1 {
+        for z in z0..=z1 {
+            for y in y0..=y1 {
+                let id = chunk.get_block(x, y, z);
+                if registry
+                    .get_by_runtime_id(id)
+                    .is_some_and(|e| e.string_id == name)
+                {
+                    out.insert((x, y, z));
+                }
+            }
+        }
+    }
+    out
+}
+
+/// Natural seed-12345 BDS world, roofed forest chunk (4,-5): the first
+/// iteration of `roofed_forest_surface_roofed_tree_feature_rules` grows a
+/// fancy oak whose trunk starts at y 124 in column (77,-66).
+#[test]
+fn roofed_forest_chunk_starts_with_the_native_trees() {
+    let chunk = generate_chunk(4, -5);
+    let logs = blocks_named(&chunk, "minecraft:oak_log", (13, 13), (-63, 319), (14, 14));
+    assert_eq!(logs.first().map(|&(_, y, _)| y), Some(124));
+}
+
+/// Natural seed-12345 BDS world, roofed forest chunk (4,-3): the first dark
+/// oak (base (76,127,-36)) block for block: a straight 2x2 trunk of eight
+/// logs and five hanging branch stubs. Its rule iteration draws the tree pick,
+/// the 1-in-6 vine roll and one extra draw before the trunk, so this fails
+/// when any of those draws is missing or misplaced.
+#[test]
+fn roofed_forest_first_dark_oak_is_block_exact() {
+    let chunk = generate_chunk(4, -3);
+    // Chunk-local x 11..=14, z 11..=14 is block x 75..=78, z -37..=-34.
+    let actual = blocks_named(
+        &chunk,
+        "minecraft:dark_oak_log",
+        (11, 14),
+        (120, 140),
+        (11, 14),
+    );
+    let mut expected = BTreeSet::new();
+    // (local x, local z, lowest y, highest y) per column, from the BDS world.
+    for (x, z, lo, hi) in [
+        (12u8, 12u8, 127i16, 134i16),
+        (12, 13, 127, 134),
+        (13, 12, 127, 134),
+        (13, 13, 127, 134),
+        (11, 12, 131, 133),
+        (11, 14, 131, 133),
+        (12, 14, 131, 133),
+        (13, 14, 132, 133),
+        (14, 11, 132, 133),
+    ] {
+        for y in lo..=hi {
+            expected.insert((x, y, z));
+        }
+    }
+    assert_eq!(actual, expected);
 }
