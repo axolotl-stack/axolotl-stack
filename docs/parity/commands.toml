@@ -7,8 +7,8 @@
 # regenerated. Schema and rules: docs/parity/README.md.
 
 # admin (7)
-"deop" = { status = "missing", notes = "Jviguy/stab-commands: BDS syntax and feedback checked against captures in crates/unastar/src/command/exec/op.rs; pending merge" }
-"op" = { status = "missing", notes = "Jviguy/stab-commands: BDS syntax and feedback checked against captures in crates/unastar/src/command/exec/op.rs; pending merge" }
+"deop" = { status = "partial", owner = "commands", tests = ["crates/unastar/src/command/exec/op.rs::console_ops_and_deops_online_players", "crates/unastar/src/command/exec/op.rs::operators_cannot_op_like_bds"], gaps = "changes last until the server restarts: they are not written to the config or a permissions file", notes = "syntax matches the BDS 1.26.51 AvailableCommands capture; feedback keys transcribed from the BDS 1.26.51 command capture" }
+"op" = { status = "partial", owner = "commands", tests = ["crates/unastar/src/command/exec/op.rs::console_ops_and_deops_online_players", "crates/unastar/src/command/exec/op.rs::changes_apply_to_players_who_rejoin", "crates/unastar/src/command/exec/op.rs::operators_cannot_op_like_bds"], gaps = "changes last until the server restarts: they are not written to the config or a permissions file", notes = "syntax matches the BDS 1.26.51 AvailableCommands capture; feedback keys transcribed from the BDS 1.26.51 command capture" }
 "permission" = { status = "missing" }
 "place" = { status = "missing" }
 "reload" = { status = "missing" }
@@ -16,38 +16,38 @@
 "wsserver" = { status = "missing" }
 
 # any (4)
-"list" = { status = "missing", notes = "Jviguy/stab-commands: BDS syntax and feedback checked against captures in crates/unastar/src/command/exec/chat.rs; pending merge" }
-"me" = { status = "missing", notes = "Jviguy/stab-commands: BDS syntax and feedback checked against captures in crates/unastar/src/command/exec/chat.rs; pending merge" }
+"list" = { status = "done", owner = "commands", tests = ["crates/unastar/src/command/exec/chat.rs::list_counts_and_names_the_online_players"], notes = "syntax matches the BDS 1.26.51 AvailableCommands capture; feedback keys transcribed from the BDS 1.26.51 command capture" }
+"me" = { status = "done", owner = "commands", tests = ["crates/unastar/src/command/exec/chat.rs::me_sends_an_emote_chat_line", "crates/unastar/src/command/exec/chat.rs::empty_messages_are_invalid_like_bds"], notes = "syntax matches the BDS 1.26.51 AvailableCommands capture; feedback keys transcribed from the BDS 1.26.51 command capture" }
 "packstack" = { status = "missing" }
-"tell" = { status = "missing", notes = "Jviguy/stab-commands: BDS syntax and feedback checked against captures in crates/unastar/src/command/exec/chat.rs; pending merge" }
+"tell" = { status = "done", owner = "commands", tests = ["crates/unastar/src/command/exec/chat.rs::tell_and_msg_whisper_to_the_targets", "crates/unastar/src/command/exec/chat.rs::empty_messages_are_invalid_like_bds"], notes = "syntax matches the BDS 1.26.51 AvailableCommands capture; feedback keys transcribed from the BDS 1.26.51 command capture" }
 
 # gamedirectors (60)
 "aimassist" = { status = "missing" }
 "camera" = { status = "missing" }
 "camerashake" = { status = "missing" }
-"clear" = { status = "missing", notes = "Jviguy/stab-commands: BDS syntax and feedback checked against captures in crates/unastar/src/command/exec/clear.rs; pending merge" }
+"clear" = { status = "done", owner = "commands", tests = ["crates/unastar/src/command/exec/clear.rs::clearing_matches_bds", "crates/unastar/src/command/exec/clear.rs::max_count_caps_and_zero_only_counts"], notes = "syntax matches the BDS 1.26.51 AvailableCommands capture; feedback keys transcribed from the BDS 1.26.51 command capture" }
 "clearspawnpoint" = { status = "missing" }
-"clone" = { status = "missing", notes = "Jviguy/stab-commands: BDS syntax and feedback checked against captures in crates/unastar/src/command/exec/clone.rs; pending merge" }
+"clone" = { status = "partial", owner = "commands", tests = ["crates/unastar/src/command/exec/clone.rs::clones_a_floor_like_bds", "crates/unastar/src/command/exec/clone.rs::masked_filtered_and_move", "crates/unastar/src/command/exec/clone.rs::overlap_limits_and_the_world_edge"], gaps = "block entity data (container contents, sign text) is not cloned; legacy block names with old block states are refused", notes = "syntax matches the BDS 1.26.51 AvailableCommands capture; feedback keys transcribed from the BDS 1.26.51 command capture" }
 "controlscheme" = { status = "missing" }
 "damage" = { status = "missing" }
 "daylock" = { status = "missing" }
 "dialogue" = { status = "missing" }
-"difficulty" = { status = "partial", owner = "commands", tests = ["crates/unastar/src/server/game/world_commands/tests.rs::difficulty_command_broadcasts_and_reaches_start_game"], gaps = "named difficulties only; not in AvailableCommands; no BDS selectors or feedback (plain chat text)", notes = "Jviguy/stab-commands: BDS syntax and feedback checked against captures in crates/unastar/src/command/exec/difficulty.rs; pending merge" }
-"effect" = { status = "missing", notes = "Jviguy/stab-commands: BDS syntax and feedback checked against captures in crates/unastar/src/command/exec/effect.rs; pending merge" }
-"enchant" = { status = "missing", notes = "Jviguy/stab-commands: BDS syntax and feedback checked against captures in crates/unastar/src/command/exec/enchant.rs; pending merge" }
+"difficulty" = { status = "done", owner = "commands", tests = ["crates/unastar/src/command/exec/difficulty.rs::names_and_numbers_set_the_difficulty", "crates/unastar/src/server/game/command_tests.rs::difficulty_command_broadcasts_and_reaches_start_game"], notes = "syntax matches the BDS 1.26.51 AvailableCommands capture; feedback keys transcribed from the BDS 1.26.51 command capture" }
+"effect" = { status = "done", owner = "commands", tests = ["crates/unastar/src/command/exec/effect.rs::give_update_clear_match_the_bds_capture", "crates/unastar/src/command/exec/effect.rs::defaults_ranges_single_clear_and_viewers", "crates/unastar/src/command/exec/effect.rs::instant_effects_heal_and_hurt_players_like_bds"], notes = "syntax matches the BDS 1.26.51 AvailableCommands capture; feedback keys transcribed from the BDS 1.26.51 command capture" }
+"enchant" = { status = "done", owner = "commands", tests = ["crates/unastar/src/command/exec/enchant.rs::enchanting_the_held_item_matches_bds", "crates/unastar/src/command/exec/enchant.rs::enchant_covers_the_captured_enum_in_id_order"], notes = "syntax matches the BDS 1.26.51 AvailableCommands capture; feedback keys transcribed from the BDS 1.26.51 command capture" }
 "event" = { status = "missing" }
 "execute" = { status = "missing" }
-"fill" = { status = "missing", notes = "Jviguy/stab-commands: BDS syntax and feedback checked against captures in crates/unastar/src/command/exec/fill.rs; pending merge" }
+"fill" = { status = "partial", owner = "commands", tests = ["crates/unastar/src/command/exec/fill.rs::fills_and_clears_a_box_like_bds", "crates/unastar/src/command/exec/fill.rs::outline_hollow_and_keep", "crates/unastar/src/command/exec/fill.rs::replace_with_a_filter_and_destroy", "crates/unastar/src/command/exec/fill.rs::too_many_blocks_and_outside_the_world_fail"], gaps = "legacy block names with old block states are refused; changes are sent as one UpdateBlock per block instead of UpdateSubChunkBlocks", notes = "syntax matches the BDS 1.26.51 AvailableCommands capture; feedback keys transcribed from the BDS 1.26.51 command capture" }
 "fog" = { status = "missing" }
 "function" = { status = "missing" }
-"gamemode" = { status = "partial", owner = "commands", tests = ["crates/unastar/src/server/game/world_commands/tests.rs::gamemode_creative_switches_mode_with_the_bds_packets"], gaps = "player names instead of selectors; not in AvailableCommands; no BDS selectors or feedback (plain chat text)", notes = "Jviguy/stab-commands: BDS syntax and feedback checked against captures in crates/unastar/src/command/exec/gamemode.rs; pending merge" }
-"gamerule" = { status = "partial", owner = "commands", tests = ["crates/unastar/src/server/game/world_commands/tests.rs::gamerule_keepinventory_changes_the_rule_and_broadcasts_it"], gaps = "boolean rules only; not in AvailableCommands; no BDS selectors or feedback (plain chat text)", notes = "Jviguy/stab-commands: BDS syntax and feedback checked against captures in crates/unastar/src/command/exec/gamerule.rs; pending merge" }
+"gamemode" = { status = "done", owner = "commands", tests = ["crates/unastar/src/command/exec/gamemode.rs::self_change_matches_the_bds_capture", "crates/unastar/src/command/exec/gamemode.rs::numeric_modes_other_targets_and_invalid_ids", "crates/unastar/src/server/game/command_tests.rs::gamemode_creative_switches_mode_with_the_bds_packets"], notes = "syntax matches the BDS 1.26.51 AvailableCommands capture; feedback keys transcribed from the BDS 1.26.51 command capture" }
+"gamerule" = { status = "done", owner = "commands", tests = ["crates/unastar/src/command/exec/gamerule.rs::list_query_and_set_match_the_bds_capture", "crates/unastar/src/server/game/command_tests.rs::gamerule_keepinventory_changes_the_rule_and_broadcasts_it"], notes = "syntax matches the BDS 1.26.51 AvailableCommands capture; feedback keys transcribed from the BDS 1.26.51 command capture; which rules have an effect is tracked in systems.toml (world.game_rules)" }
 "gametest" = { status = "missing" }
-"give" = { status = "missing", notes = "Jviguy/stab-commands: BDS syntax and feedback checked against captures in crates/unastar/src/command/exec/give.rs; pending merge" }
+"give" = { status = "partial", owner = "commands", tests = ["crates/unastar/src/command/exec/give.rs::giving_wheat_matches_bds", "crates/unastar/src/command/exec/give.rs::amounts_fill_stacks_then_empty_slots_and_drop_the_rest", "crates/unastar/src/command/exec/give.rs::data_values_and_invalid_items", "crates/unastar/src/command/exec/give.rs::components_become_item_data", "crates/unastar/tests/commands_e2e.rs::operator_commands_answer_like_bds_over_loopback"], gaps = "no recipe unlocking after a give (BDS follows with UnlockedRecipes); legacy data values of flattened item families (wool with data 14) are not remapped", notes = "syntax matches the BDS 1.26.51 AvailableCommands capture; feedback keys transcribed from the BDS 1.26.51 command capture" }
 "hud" = { status = "missing" }
 "inputpermission" = { status = "missing" }
 "kick" = { status = "missing" }
-"kill" = { status = "partial", owner = "commands", tests = ["crates/unastar/src/server/game/world_commands/tests.rs::kill_command_kills_the_named_player_once"], gaps = "players by name only (no entity selectors); not in AvailableCommands; no BDS selectors or feedback (plain chat text)", notes = "Jviguy/stab-commands: BDS syntax and feedback checked against captures in crates/unastar/src/command/exec/kill.rs; pending merge" }
+"kill" = { status = "done", owner = "commands", tests = ["crates/unastar/src/command/exec/kill.rs::mobs_die_and_creative_players_are_spared", "crates/unastar/src/server/game/command_tests.rs::kill_command_kills_the_named_player_once"], notes = "syntax matches the BDS 1.26.51 AvailableCommands capture; feedback keys transcribed from the BDS 1.26.51 command capture" }
 "locate" = { status = "missing" }
 "loot" = { status = "missing" }
 "mobevent" = { status = "missing" }
@@ -58,30 +58,30 @@
 "recipe" = { status = "missing" }
 "replaceitem" = { status = "missing" }
 "ride" = { status = "missing" }
-"say" = { status = "missing", notes = "Jviguy/stab-commands: BDS syntax and feedback checked against captures in crates/unastar/src/command/exec/chat.rs; pending merge" }
+"say" = { status = "done", owner = "commands", tests = ["crates/unastar/src/command/exec/chat.rs::say_announces_to_everyone_with_selectors_expanded"], notes = "syntax matches the BDS 1.26.51 AvailableCommands capture; feedback keys transcribed from the BDS 1.26.51 command capture" }
 "schedule" = { status = "missing" }
 "scoreboard" = { status = "missing" }
 "scriptevent" = { status = "missing" }
-"setblock" = { status = "missing", notes = "Jviguy/stab-commands: BDS syntax and feedback checked against captures in crates/unastar/src/command/exec/setblock.rs; pending merge" }
-"setworldspawn" = { status = "missing", notes = "Jviguy/stab-commands: BDS syntax and feedback checked against captures in crates/unastar/src/command/exec/spawnpoint.rs; pending merge" }
-"spawnpoint" = { status = "missing", notes = "Jviguy/stab-commands: BDS syntax and feedback checked against captures in crates/unastar/src/command/exec/spawnpoint.rs; pending merge" }
+"setblock" = { status = "partial", owner = "commands", tests = ["crates/unastar/src/command/exec/setblock.rs::places_then_reports_no_change_like_bds", "crates/unastar/src/command/exec/setblock.rs::block_states_select_the_state", "crates/unastar/src/command/exec/setblock.rs::destroy_breaks_the_block_like_bds", "crates/unastar/src/command/exec/setblock.rs::legacy_names_and_unloaded_blocks_fail"], gaps = "legacy block names with old block states (wool with a color state) answer a not-implemented failure", notes = "syntax matches the BDS 1.26.51 AvailableCommands capture; feedback keys transcribed from the BDS 1.26.51 command capture" }
+"setworldspawn" = { status = "partial", owner = "commands", tests = ["crates/unastar/src/command/exec/spawnpoint.rs::setworldspawn_moves_the_world_spawn_like_bds"], gaps = "the world spawn is not saved, and joining players still spawn by the configured spawn rules", notes = "syntax matches the BDS 1.26.51 AvailableCommands capture; feedback keys transcribed from the BDS 1.26.51 command capture" }
+"spawnpoint" = { status = "partial", owner = "commands", tests = ["crates/unastar/src/command/exec/spawnpoint.rs::spawnpoint_sets_the_player_respawn_point_like_bds"], gaps = "spawn points are not saved with the player", notes = "syntax matches the BDS 1.26.51 AvailableCommands capture; feedback keys transcribed from the BDS 1.26.51 command capture" }
 "spreadplayers" = { status = "missing" }
 "stopsound" = { status = "missing" }
 "structure" = { status = "missing" }
-"summon" = { status = "partial", owner = "commands", tests = ["crates/unastar/src/server/game/commands.rs::operators_summon_cows_at_absolute_relative_and_own_positions", "crates/unastar/src/command/mod.rs::summon_parses_identifier_and_bedrock_coordinates"], gaps = "identifier and position only (no spawn event, name tag or rotation); not in AvailableCommands; no BDS selectors or feedback (plain chat text)", notes = "Jviguy/stab-commands: BDS syntax and feedback checked against captures in crates/unastar/src/command/exec/summon.rs; pending merge" }
+"summon" = { status = "partial", owner = "commands", tests = ["crates/unastar/src/server/game/commands.rs::operators_summon_at_absolute_relative_and_own_positions", "crates/unastar/src/server/game/commands.rs::unknown_actor_types_are_syntax_errors_and_unsupported_ones_say_why"], gaps = "only actors with a runtime in unastar can be summoned; others fail with a literal reason; spawn events and name tags are untested", notes = "syntax matches the BDS 1.26.51 AvailableCommands capture; feedback keys transcribed from the BDS 1.26.51 command capture" }
 "tag" = { status = "missing" }
-"teleport" = { status = "partial", owner = "commands", tests = ["crates/unastar/src/server/game/commands.rs::teleport_rejects_nonoperators_without_moving", "crates/unastar/src/server/game/commands.rs::teleport_allows_server_granted_operators"], gaps = "absolute x y z of the sender only (no targets, relative coordinates, facing or rotation); not in AvailableCommands; no BDS selectors or feedback (plain chat text)", notes = "Jviguy/stab-commands: BDS syntax and feedback checked against captures in crates/unastar/src/command/exec/teleport.rs; pending merge" }
+"teleport" = { status = "done", owner = "commands", tests = ["crates/unastar/src/command/exec/teleport.rs::teleport_to_coordinates_matches_the_bds_capture", "crates/unastar/src/command/exec/teleport.rs::unknown_names_match_no_target_and_entities_are_destinations", "crates/unastar/tests/commands_e2e.rs::operator_commands_answer_like_bds_over_loopback"], notes = "syntax matches the BDS 1.26.51 AvailableCommands capture; feedback keys transcribed from the BDS 1.26.51 command capture; the dimension-change flag has no effect (one dimension per world)" }
 "tellraw" = { status = "missing" }
 "testfor" = { status = "missing" }
 "testforblock" = { status = "missing" }
 "testforblocks" = { status = "missing" }
 "tickingarea" = { status = "missing" }
-"time" = { status = "partial", owner = "commands", tests = ["crates/unastar/src/server/game/world_commands/tests.rs::time_set_night_moves_the_clock_and_syncs_players", "crates/unastar/src/command/time.rs::named_times_advance_to_their_next_occurrence"], gaps = "not in AvailableCommands; no BDS selectors or feedback (plain chat text)", notes = "Jviguy/stab-commands: BDS syntax and feedback checked against captures in crates/unastar/src/command/exec/time.rs; pending merge" }
+"time" = { status = "done", owner = "commands", tests = ["crates/unastar/src/command/exec/time.rs::set_add_and_query_answer_like_bds", "crates/unastar/src/server/game/command_tests.rs::time_set_night_moves_the_clock_and_syncs_players", "crates/unastar/tests/commands_e2e.rs::operator_commands_answer_like_bds_over_loopback"], notes = "syntax matches the BDS 1.26.51 AvailableCommands capture; feedback keys transcribed from the BDS 1.26.51 command capture" }
 "title" = { status = "missing" }
 "titleraw" = { status = "missing" }
 "toggledownfall" = { status = "missing" }
-"weather" = { status = "missing", notes = "Jviguy/stab-commands: BDS syntax and feedback checked against captures in crates/unastar/src/command/exec/weather.rs; pending merge" }
-"xp" = { status = "missing", notes = "Jviguy/stab-commands: BDS syntax and feedback checked against captures in crates/unastar/src/command/exec/xp.rs; pending merge" }
+"weather" = { status = "done", owner = "commands", tests = ["crates/unastar/src/command/exec/weather.rs::set_and_query_answer_like_bds", "crates/unastar/src/command/exec/weather.rs::joining_players_get_the_ongoing_weather"], notes = "syntax matches the BDS 1.26.51 AvailableCommands capture; feedback keys transcribed from the BDS 1.26.51 command capture; the weather itself is not simulated (systems.toml world.weather)" }
+"xp" = { status = "done", owner = "commands", tests = ["crates/unastar/src/command/exec/xp.rs::points_levels_and_negative_levels_match_the_bds_capture", "crates/unastar/src/command/exec/xp.rs::negative_points_are_refused_and_other_players_can_be_targeted"], notes = "syntax matches the BDS 1.26.51 AvailableCommands capture; feedback keys transcribed from the BDS 1.26.51 command capture" }
 
 # host (1)
 "setmaxplayers" = { status = "missing" }
@@ -95,5 +95,5 @@
 "save" = { status = "missing" }
 "sendshowstoreoffer" = { status = "missing" }
 "serveridentity" = { status = "missing" }
-"stop" = { status = "missing", notes = "Jviguy/stab-commands: BDS syntax and feedback checked against captures in crates/unastar/src/command/exec/stop.rs; pending merge" }
+"stop" = { status = "done", owner = "commands", tests = ["crates/unastar/src/command/exec/stop.rs::console_stop_requests_shutdown"], notes = "syntax matches the BDS 1.26.51 AvailableCommands capture; feedback keys transcribed from the BDS 1.26.51 command capture" }
 "transfer" = { status = "missing" }
