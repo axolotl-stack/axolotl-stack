@@ -206,16 +206,26 @@ impl Default for Hunger {
 }
 
 impl Hunger {
+    pub const MAX_FOOD: i32 = 20;
+    /// Exhaustion that costs one saturation (or food) point.
+    pub const EXHAUSTION_PER_POINT: f32 = 4.0;
+    /// Upper end of the exhaustion attribute (BDS join capture).
+    pub const MAX_EXHAUSTION: f32 = 20.0;
+
+    /// Add exhaustion. It is turned into lost saturation or food by the food
+    /// tick, one point per tick (`server::game::hunger`).
     pub fn exhaust(&mut self, amount: f32) {
-        self.exhaustion += amount;
-        while self.exhaustion >= 4.0 {
-            self.exhaustion -= 4.0;
-            if self.saturation > 0.0 {
-                self.saturation = (self.saturation - 1.0).max(0.0);
-            } else if self.food_level > 0 {
-                self.food_level -= 1;
-            }
+        if amount > 0.0 {
+            self.exhaustion = (self.exhaustion + amount).min(Self::MAX_EXHAUSTION);
         }
+    }
+
+    /// Eat: `nutrition` food points and `nutrition × modifier × 2`
+    /// saturation, saturation capped at the new food level.
+    pub fn eat(&mut self, nutrition: i32, saturation_modifier: f32) {
+        self.food_level = (self.food_level + nutrition).clamp(0, Self::MAX_FOOD);
+        let gained = nutrition as f32 * saturation_modifier * 2.0;
+        self.saturation = (self.saturation + gained).clamp(0.0, self.food_level as f32);
     }
 
     pub fn can_sprint(&self) -> bool {

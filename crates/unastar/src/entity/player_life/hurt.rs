@@ -20,7 +20,7 @@
 //! when the hit has a source position, knocks the player back: the player
 //! moves itself, so the push goes to its own client as `SetActorMotion`.
 //! The health change reaches the client through
-//! `attributes::replicate_player_health`; at zero health the player dies
+//! `server::game::attributes::sync_player_attributes`; at zero health the player dies
 //! (`death`).
 //!
 //! [`HURT_TICKS`]: crate::entity::mob::constants::HURT_TICKS

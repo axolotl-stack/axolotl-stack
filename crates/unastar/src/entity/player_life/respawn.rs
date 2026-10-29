@@ -156,4 +156,8 @@ pub fn respawn(world: &mut World, player: Entity) {
         player,
         attributes::hunger_attributes(&hunger).to_vec(),
     );
+    if let Some(mut sent) = world.get_mut::<crate::server::game::attributes::SentAttributes>(player)
+    {
+        sent.respawned(&hunger);
+    }
 }

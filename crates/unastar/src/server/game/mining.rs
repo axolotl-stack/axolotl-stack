@@ -205,8 +205,8 @@ pub fn break_ticks(
 pub fn mining_wear(block: &BlockEntry, tool: &ItemStack) -> i32 {
     let Some(info) = tool
         .item()
+        .filter(|item| super::durability::max_durability(item) > 0)
         .map(|item| item.tool_info())
-        .filter(|info| info.max_damage > 0)
     else {
         return 0;
     };
@@ -225,12 +225,6 @@ pub fn mining_wear(block: &BlockEntry, tool: &ItemStack) -> i32 {
         Some(_) => 1,
         None => 0,
     }
-}
-
-/// Whether an unbreaking roll spares the tool: with level `n`, wear is
-/// applied with probability `1 / (n + 1)`. `roll` is uniform in `0..=n`.
-pub fn unbreaking_spares(level: u8, roll: u8) -> bool {
-    level > 0 && roll > 0
 }
 
 #[cfg(test)]

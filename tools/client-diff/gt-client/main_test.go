@@ -62,6 +62,7 @@ func TestScenarioValidation(t *testing.T) {
 		{Steps: []step{{Kind: "chat"}}},
 		// Interactions only make sense while the client ticks like vanilla.
 		{Steps: []step{{Kind: "click"}}},
+		{Steps: []step{{Kind: "use"}}},
 		{AuthInput: true, Steps: []step{{Kind: "move"}}},
 		{AuthInput: true, Steps: []step{{Kind: "drop", Slot: 36, Count: 1}}},
 		{AuthInput: true, Steps: []step{{Kind: "select", Slot: 9}}},
@@ -73,7 +74,7 @@ func TestScenarioValidation(t *testing.T) {
 	if err := (scenario{IdleMS: 10, Steps: []step{{AfterMS: 1, Kind: "chat", Text: "hello"}, {Kind: "command", Text: "/say hi"}}}).validate(); err != nil {
 		t.Fatal(err)
 	}
-	if err := (scenario{AuthInput: true, Steps: []step{{Kind: "move", Ticks: 2}, {Kind: "click", Face: 1}, {Kind: "drop", Slot: 35, Count: 64}}}).validate(); err != nil {
+	if err := (scenario{AuthInput: true, Steps: []step{{Kind: "move", Ticks: 2}, {Kind: "click", Face: 1}, {Kind: "drop", Slot: 35, Count: 64}, {Kind: "use"}, {Kind: "release"}, {Kind: "consume"}}}).validate(); err != nil {
 		t.Fatal(err)
 	}
 }

@@ -89,11 +89,14 @@ impl GameServer {
         let health = world.get::<Health>(entity).cloned().unwrap_or_default();
         let hunger = world.get::<Hunger>(entity).cloned().unwrap_or_default();
         let experience = world.get::<Experience>(entity).cloned().unwrap_or_default();
+        let absorption = world
+            .get::<super::attributes::Absorption>(entity)
+            .map_or(0.0, |a| a.0);
         let _ = session.send(McpePacket::from(UpdateAttributesPacket {
             target_runtime_id: ActorRuntimeId {
                 actor_runtime_id: runtime_id as u64,
             },
-            attribute_list: player_attributes(&health, &hunger, &experience),
+            attribute_list: player_attributes(&health, &hunger, absorption, &experience),
             tick: PlayerInputTick {
                 inputtick: current_tick,
             },

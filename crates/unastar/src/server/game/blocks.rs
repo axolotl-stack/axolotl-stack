@@ -570,6 +570,7 @@ fn apply_break_block(world: &mut World, breaking_player: Entity, x: i32, y: i32,
             tool.as_ref(),
         );
         wear_held_tool(world, breaking_player, original_block_id);
+        super::hunger::exhaust_player(world, breaking_player, |values| values.mine);
     }
 
     // Broadcast update to viewers
@@ -713,60 +714,20 @@ fn player_break_ticks(world: &World, player: Entity, position: (i32, i32, i32)) 
     super::mining::break_ticks(block, tool.as_ref(), mining_conditions(world, player))
 }
 
-/// Apply mining wear to the held tool after breaking `block_runtime_id`;
-/// unbreaking may spare it, and a tool worn down to `maxDamage` breaks.
+/// Apply mining wear to the held tool after breaking `block_runtime_id`
+/// (shared durability rules; see `durability`).
 fn wear_held_tool(world: &mut World, player: Entity, block_runtime_id: u32) {
-    use crate::entity::components::{HeldSlot, MainInventory};
-    use crate::item::enchant::{
-        Enchantment, durability_damage, enchantment_level, with_durability_damage,
-    };
     let Some(tool) = held_item(world, player) else {
         return;
     };
-    let Some(registry) = world
+    let Some(block) = world
         .get_resource::<super::types::BlockRegistryResource>()
-        .map(|r| r.0.clone())
+        .and_then(|r| r.0.get_by_runtime_id(block_runtime_id).cloned())
     else {
         return;
     };
-    let Some(block) = registry.get_by_runtime_id(block_runtime_id) else {
-        return;
-    };
-    let wear = super::mining::mining_wear(block, &tool);
-    let Some(max_damage) = tool
-        .item()
-        .map(|item| item.tool_info().max_damage)
-        .filter(|max| *max > 0 && wear > 0)
-    else {
-        return;
-    };
-    let unbreaking = enchantment_level(&tool, Enchantment::Unbreaking);
-    let mut applied = 0;
-    {
-        let mut rng = world.get_resource_or_init::<crate::entity::EntityRandom>();
-        for _ in 0..wear {
-            let roll = rand::Rng::gen_range(&mut rng.0, 0..=unbreaking);
-            if !super::mining::unbreaking_spares(unbreaking, roll) {
-                applied += 1;
-            }
-        }
-    }
-    if applied == 0 {
-        return;
-    }
-    let damage = durability_damage(&tool) + applied;
-    let worn = if damage >= max_damage {
-        crate::item::ItemStack::empty()
-    } else {
-        with_durability_damage(&tool, damage)
-    };
-    let slot = world.get::<HeldSlot>(player).map_or(0, |slot| slot.0);
-    if let Some(mut inventory) = world.get_mut::<MainInventory>(player)
-        && let Some(stack) = inventory.hotbar_mut(slot)
-    {
-        *stack = worn.clone();
-    }
-    super::items::send_slot(world, player, usize::from(slot), &worn);
+    let wear = super::mining::mining_wear(&block, &tool);
+    super::durability::wear_held(world, player, wear);
 }
 
 /// Handle block click from InventoryTransaction ItemUse::ClickBlock.
@@ -828,6 +789,18 @@ fn handle_block_click(
         && world
             .get::<crate::entity::components::HeldSlot>(entity)
             .is_some_and(|slot| data.slot == i32::from(slot.0));
+    // Tools, bone meal, buckets and fire starters act on the clicked block
+    // instead of placing anything.
+    if main_hand_selected
+        && super::item_use::on_block::use_on_block(
+            world,
+            entity,
+            IVec3::new(clicked.0, clicked.1, clicked.2),
+            data.face,
+        )
+    {
+        return;
+    }
     if main_hand_selected
         && block_at(world, clicked).is_some_and(|block| block != *blocks::AIR)
         && crate::entity::mob::interaction::interact::use_spawn_egg_on_block(

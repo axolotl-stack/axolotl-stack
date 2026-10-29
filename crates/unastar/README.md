@@ -620,11 +620,53 @@ furnace ambient sounds, and the `Block` compound BDS adds to saved block items.
 
 BDS evidence: the `BlockActorData` a newly placed chest is announced with is
 compared against a BDS 1.26.51 capture (`containers/testdata`). Windows, lids,
-`ContainerSetData` and hopper timing still follow the BDS research notes: BDS
-rejects every block click of the client-diff bot (see
-`tools/client-diff/README.md`), so no window capture exists yet. They are
-covered by `containers/tests.rs` and the loopback test
-`tests/container_loopback.rs` (take the native lock to run it).
+`ContainerSetData` and hopper timing still follow the BDS research notes. BDS
+ignored the client-diff bot's clicks until the bot sent the loading-screen
+packets (`tools/client-diff/README.md`); with that fixed a chest opens for the
+bot, and a window capture is the next step. They are covered by
+`containers/tests.rs` and the loopback test `tests/container_loopback.rs`
+(take the native lock to run it).
+
+### Item use
+
+Eating, durability, tools on blocks and ranged items live in
+`server/game/{item_use,hunger,effects,attributes,durability}`. Item facts
+come from data: food values, effects, `using_converts_to` and use durations
+from the pack's `minecraft:food`/`use_modifiers` (or the native
+`maxUseDuration`), durability from `minecraft:durability` or the native
+`maxDamage`, exhaustion from `player.json` `exhaustion_values`, block
+conversions from registered block names. Evidence: the BDS 1.26.51 capture
+`tools/client-diff/runs/item-use-20261029` (client-diff `item-use-*`
+scenarios); "public reference" rows are not measured yet and are listed in
+`thoughts/shared/research/bds-quirks.md`.
+
+| Behaviour | Status | Evidence |
+|---|---|---|
+| Eat/drink: start on air use, server finishes after the use duration, early consume finishes at once, release or slot switch cancels | done | BDS capture (timing, `CompletedUsingItem` 1 / -1, burp at eye - 0.1, using flag word to the user too) |
+| Food values, effects, removed effects, bowls/bottles, milk clears effects | done | pack data; golden apple, rotten flesh, honey, milk compared with the capture |
+| Suspicious stew effects (data 0-9) | done | BDS capture table |
+| Chorus fruit teleport | done | public reference (16 tries within `on_use_range`) |
+| Hunger tick: exhaustion steps, regeneration at 18 food, starvation floors, peaceful refill | done | survival research; hunger drain matched the capture (0.005 x 256 per tick) |
+| Exhaustion from sprinting, swimming, jumping, mining, attacking, being hurt | done | `player.json` values; per-metre accounting is a public reference |
+| Attribute sync (health, absorption, hunger, saturation, exhaustion) | done, changed values once | BDS join ranges; BDS also repeats some attributes, not copied |
+| Player effects (regeneration, poison, wither, hunger, saturation, absorption, instant health) and `MobEffect` packets | done | stew/golden apple captures; BDS sends a duplicate modify after a stew effect, not copied |
+| Tool wear: mining, melee (sword 1, other tools 2), bow and crossbow shots, Unbreaking, break sound | done | public reference |
+| Armour wear when hurt (`max(1, damage/4)` per piece) | done | public reference |
+| Grid repair (multi recipe `...0001`) | not done | BDS advertises it; result rule unmeasured |
+| Hoe, shovel, axe (strip, wax off, scrape), shears on pumpkins, flint and steel, fire charges | done | public reference; sound names unmeasured |
+| Bone meal on crops, stems, berry bushes and grass | done | public reference; saplings (tree features) and flowers not done |
+| Buckets: take and place water, lava, powder snow | done | public reference; liquids do not flow, fish/axolotl buckets not done |
+| Bow, crossbow, snowball, egg | done | capture (speeds 3.0/3.15/1.5, sounds); draw curve and spread are public references |
+| Stuck arrows: shake, pickup, despawn after 1200 ticks | done | capture (shake event); lifetime is a public reference |
+| Ender pearls | not done | needs `teleport_owner` and the endermite archetype (entity lane) |
+| Tridents | not done | `minecraft:thrown_trident` lacks a measured `AddActor` shape |
+| Potions, splash potions, tipped arrows | not done | potion effect table not measured |
+| Player death from starvation or arrows | not done | entity lane (player death and respawn) |
+
+The loopback test `tests/item_use_loopback.rs` eats an apple, mines stone
+with an iron pickaxe and shoots a cow with a bow through a real client
+(take the native lock to run it).
+
 
 ## Plugin Isolation
 

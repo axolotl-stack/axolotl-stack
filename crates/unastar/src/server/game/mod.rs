@@ -3,13 +3,18 @@
 //! This module provides the pure ECS server implementation,
 //! replacing the legacy Server struct.
 
+pub mod attributes;
 mod block_drops;
 mod blocks;
 mod chunks;
 mod commands;
 mod containers;
+pub mod durability;
+pub mod effects;
 mod falling;
+pub mod hunger;
 mod inventory;
+pub mod item_use;
 mod items;
 mod join;
 mod join_data;
@@ -371,6 +376,8 @@ impl GameServer {
             .init_resource::<crate::entity::mob::interaction::actions::MobActionQueue>();
         ecs.world_mut()
             .init_resource::<crate::entity::projectile::ThrowQueue>();
+        ecs.world_mut().init_resource::<item_use::ItemUseQueue>();
+        ecs.world_mut().init_resource::<hunger::ExhaustionValues>();
         ecs.world_mut()
             .init_resource::<bevy_ecs::message::Messages<crate::entity::mob::state::MateRequest>>();
         // Player damage, death and respawn; players respawn where the
@@ -413,11 +420,18 @@ impl GameServer {
                 .after(inventory::apply_inventory)
                 .after(blocks::apply_block_actions),
         );
-        // Thrown items (eggs) queued by the inventory system's item use.
+        // Air use of the held item (eating, throwing), after the inventory
+        // so the held slot reflects this tick's changes; thrown items it
+        // queued fly the same tick.
         ecs.schedule_mut().add_systems(
-            crate::entity::projectile::apply_throws
+            (
+                item_use::apply_item_use,
+                crate::entity::projectile::apply_throws,
+            )
+                .chain()
                 .in_set(PacketApplySet)
-                .after(inventory::apply_inventory),
+                .after(inventory::apply_inventory)
+                .after(blocks::apply_block_actions),
         );
         // Consolidate per-domain events into main EventBuffer after all domain systems
         ecs.schedule_mut().add_systems(
@@ -538,6 +552,29 @@ impl GameServer {
                 .after(despawn_dead)
                 .before(tick_block_breaking),
         );
+        // Player food and effects after the damage above, then the eating
+        // animation of players still using an item.
+        ecs.schedule_mut().add_systems(
+            (
+                effects::apply_player_effects,
+                hunger::tick_hunger,
+                item_use::tick_using,
+                crate::entity::projectile::pick_up_stuck_projectiles,
+            )
+                .chain()
+                .in_set(EntityLogicSet)
+                .after(crate::entity::xp_orb::tick_xp_orbs)
+                .before(tick_block_breaking),
+        );
+        // What changed for each player's client this tick.
+        ecs.schedule_mut().add_systems(
+            (
+                effects::sync_player_effects,
+                attributes::sync_player_attributes,
+            )
+                .chain()
+                .in_set(NetworkSendSet),
+        );
         // Love and breed-cooldown timers and mating, then baby growth.
         ecs.schedule_mut().add_systems(
             (
@@ -603,11 +640,6 @@ impl GameServer {
             )
                 .chain()
                 .in_set(NetworkSendSet),
-        );
-        // The players' own health attribute, after every system that hurt
-        // or healed them this tick.
-        ecs.schedule_mut().add_systems(
-            crate::entity::player_life::attributes::replicate_player_health.in_set(NetworkSendSet),
         );
         ecs.schedule_mut()
             .add_systems(cleanup_despawned_entities.in_set(CleanupSet));
@@ -848,12 +880,18 @@ impl GameServer {
             .id();
         // The streamed spawn still owes `PlayStatus(PlayerSpawn)`; the chunk
         // systems send it after the player's first view and chunks.
+        let (health_sent, hunger_sent) = (health.clone(), hunger.clone());
         self.ecs.world_mut().entity_mut(entity).insert((
             health,
             hunger,
             experience,
             crate::entity::player_life::environment::PlayerFall::default(),
             AwaitingSpawnStatus,
+            hunger::FoodTimer::default(),
+            // Join sends these values in its first UpdateAttributes.
+            attributes::SentAttributes::sent(&health_sent, &hunger_sent, 0.0),
+            crate::entity::components::Effects::default(),
+            effects::SentEffects::default(),
         ));
         if operator {
             self.ecs

@@ -25,7 +25,9 @@ pub enum ProjectileError {
     Unsupported(&'static str),
     #[error("on_hit {0} is not implemented")]
     OnHit(&'static str),
-    #[error("particle type {0:?} is not implemented; only iconcrack has a known id")]
+    #[error(
+        "particle type {0:?} is not implemented; only iconcrack and snowballpoof have measured ids"
+    )]
     Particle(ParticleType),
     #[error("{0} is not a native actor type")]
     ActorType(String),
@@ -69,10 +71,18 @@ pub struct ProjectileRules {
     pub particle: Option<ParticleOnHit>,
     pub remove_on_hit: bool,
     pub spawn_chance: Option<SpawnChance>,
+    /// `on_hit.stick_in_ground`: stays where it hit a block, shaking for
+    /// this many ticks.
+    pub stick_in_ground: Option<u32>,
+    /// `should_bounce` `if_no_damage_dealt`: an actor hit that deals no
+    /// damage sends it back.
+    pub bounce_without_damage: bool,
+    /// `stop_on_hurt`: it drops away from an actor it hurt.
+    pub stop_on_hurt: bool,
 }
 
 /// `on_hit.impact_damage`.
-#[derive(Debug, Clone, Copy)]
+#[derive(Debug, Clone)]
 pub struct ImpactDamage {
     pub min: f32,
     pub max: f32,
@@ -81,6 +91,13 @@ pub struct ImpactDamage {
     pub destroy_requires_damage: bool,
     /// Without damage the hit does not name the attacker.
     pub last_hurt_requires_damage: bool,
+    /// Damage per block-per-tick of speed instead of `min..=max` (arrows).
+    pub power_multiplier: f32,
+    /// Round speed damage up before the critical bonus.
+    pub ceil_pre_critical: bool,
+    /// Only this actor is damaged (e.g. snowballs hurt blazes); others are
+    /// hit without damage.
+    pub filter: Option<Arc<str>>,
 }
 
 /// `on_hit.particle_on_hit`.
@@ -140,7 +157,16 @@ fn compile(b: body::Projectile, items: &ItemRegistry) -> Result<ProjectileRules,
     // only removes mob travel, which projectiles never have; `particle`,
     // `on_fire_time`, `reflect_immunity`, `shoot_target` and `splash_range`
     // only matter to the features rejected below.
-    reject(b.anchor != ProjectileAnchor::Origin, "anchor")?;
+    // `eye_height` launches from the thrower's eye, which is where every
+    // launch starts (only players throw on this server; their position is
+    // the eye).
+    reject(
+        !matches!(
+            b.anchor,
+            ProjectileAnchor::Origin | ProjectileAnchor::EyeHeight
+        ),
+        "anchor",
+    )?;
     reject(b.catch_fire, "catch_fire")?;
     reject(b.crit_particle_on_hurt, "crit_particle_on_hurt")?;
     reject(b.destroy_on_hurt, "destroy_on_hurt")?;
@@ -152,12 +178,15 @@ fn compile(b: body::Projectile, items: &ItemRegistry) -> Result<ProjectileRules,
     reject(b.potion_effect != -1, "potion_effect")?;
     reject(b.reflect_on_hurt, "reflect_on_hurt")?;
     reject(!b.shoot_sound.is_empty(), "shoot_sound")?;
-    reject(b.should_bounce != ShouldBounce::No, "should_bounce")?;
-    reject(b.stop_on_hurt, "stop_on_hurt")?;
     reject(
-        b.uncertainty_base != 0.0 || b.uncertainty_multiplier != 0.0,
-        "uncertainty",
+        !matches!(
+            b.should_bounce,
+            ShouldBounce::No | ShouldBounce::IfNoDamageDealt
+        ),
+        "should_bounce",
     )?;
+    // `uncertainty_*` is the spread of mob shots; the items players shoot
+    // with (bow, crossbow, trident) set their own spread at launch.
     let ignored = b
         .ignored_entities
         .iter()
@@ -185,12 +214,14 @@ fn compile(b: body::Projectile, items: &ItemRegistry) -> Result<ProjectileRules,
         particle: None,
         remove_on_hit: false,
         spawn_chance: None,
+        stick_in_ground: None,
+        bounce_without_damage: b.should_bounce == ShouldBounce::IfNoDamageDealt,
+        stop_on_hurt: b.stop_on_hurt,
     };
     let Some(on_hit) = b.on_hit else {
         return Ok(rules);
     };
     for (present, name) in [
-        (on_hit.arrow_effect.is_some(), "arrow_effect"),
         (on_hit.catch_fire.is_some(), "catch_fire"),
         (on_hit.definition_event.is_some(), "definition_event"),
         (on_hit.douse_fire.is_some(), "douse_fire"),
@@ -200,7 +231,6 @@ fn compile(b: body::Projectile, items: &ItemRegistry) -> Result<ProjectileRules,
         (on_hit.ignite.is_some(), "ignite"),
         (on_hit.mob_effect.is_some(), "mob_effect"),
         (on_hit.spawn_aoe_cloud.is_some(), "spawn_aoe_cloud"),
-        (on_hit.stick_in_ground.is_some(), "stick_in_ground"),
         (on_hit.teleport_owner.is_some(), "teleport_owner"),
         (
             on_hit.thrown_potion_effect.is_some(),
@@ -218,6 +248,11 @@ fn compile(b: body::Projectile, items: &ItemRegistry) -> Result<ProjectileRules,
         .map(|particle| compile_particle(particle, items))
         .transpose()?;
     rules.remove_on_hit = on_hit.remove_on_hit.is_some();
+    // Plain arrows carry no potion, so `arrow_effect` has nothing to apply;
+    // bows only shoot plain arrows (tipped arrows are not implemented).
+    rules.stick_in_ground = on_hit
+        .stick_in_ground
+        .map(|stick| (stick.shake_time * 20.0).round().max(0.0) as u32);
     rules.spawn_chance = on_hit.spawn_chance.map(compile_spawn_chance).transpose()?;
     Ok(rules)
 }
@@ -229,17 +264,10 @@ fn compile_impact(
     // targets, so `apply_knockback_to_blocking_targets` and the critical
     // damage clamps never apply.
     reject(b.catch_fire, "impact_damage catch_fire")?;
-    reject(
-        b.ceil_pre_critical_damage,
-        "impact_damage ceil_pre_critical_damage",
-    )?;
     reject(b.channeling, "impact_damage channeling")?;
-    reject(
-        b.difficulty_randomization != body::ImpactDamageDifficultyRandomization::None,
-        "impact_damage difficulty_randomization",
-    )?;
-    reject(!b.filter.is_empty(), "impact_damage filter")?;
-    reject(b.power_multiplier != 0.0, "impact_damage power_multiplier")?;
+    // `difficulty_randomization` varies the damage of mob shots by
+    // difficulty; only players shoot on this server, so it never applies.
+
     Ok(ImpactDamage {
         min: b.damage.min,
         max: b.damage.max.max(b.damage.min),
@@ -247,6 +275,17 @@ fn compile_impact(
         destroy_on_hit: b.destroy_on_hit,
         destroy_requires_damage: b.destroy_on_hit_requires_damage,
         last_hurt_requires_damage: b.set_last_hurt_requires_damage,
+        power_multiplier: b.power_multiplier,
+        ceil_pre_critical: b.ceil_pre_critical_damage,
+        filter: (!b.filter.is_empty()).then(|| {
+            let name = b.filter.as_str();
+            let name = if name.contains(':') {
+                name.to_owned()
+            } else {
+                format!("minecraft:{name}")
+            };
+            Arc::from(name.as_str())
+        }),
     })
 }
 
@@ -256,6 +295,7 @@ fn compile_particle(
 ) -> Result<ParticleOnHit, ProjectileError> {
     let particle = match b.particle_type {
         ParticleType::Iconcrack => ICONCRACK_PARTICLE,
+        ParticleType::Snowballpoof => crate::entity::mob::constants::SNOWBALLPOOF_PARTICLE,
         other => return Err(ProjectileError::Particle(other)),
     };
     let items = b
