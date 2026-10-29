@@ -14,7 +14,7 @@ use bevy_ecs::prelude::*;
 use glam::DVec3;
 use rand::Rng;
 
-use super::{ItemUsing, UseMethod};
+use super::UseMethod;
 use crate::entity::components::{GameMode, Hunger, Position};
 use crate::entity::item_drop::EntityRandom;
 use crate::item::ItemStack;
@@ -88,51 +88,24 @@ fn may_start(world: &World, player: Entity, entry: &ItemEntry, kind: ConsumeKind
     always || hungry || creative || peaceful
 }
 
-/// An air use of a consumable: start eating, or finish once the use
-/// duration has passed (then keep eating, as holding the button does).
-pub fn use_consumable(
+/// Start eating or drinking the held `stack`, if the player may.
+pub fn start(
     world: &mut World,
     player: Entity,
     slot: u8,
     stack: &ItemStack,
     consumable: Consumable,
-    using: Option<ItemUsing>,
 ) {
     let Some(entry) = stack.item() else {
         return;
     };
-    let Some(using) = using else {
-        if may_start(world, player, entry, consumable.kind) {
-            super::start_using(world, player, slot, entry.id);
-        }
-        return;
-    };
-    if super::used_ticks(world, player, &using) < i64::from(consumable.duration_ticks) {
-        return;
-    }
-    consume(world, player, slot, stack, consumable.kind);
-    // Holding the button eats the next one from the same stack.
-    match super::held(world, player) {
-        Some((_, next)) if next.item().map(|e| e.id) == Some(entry.id) => {
-            let since = world
-                .get::<crate::entity::components::PlayerInput>(player)
-                .map_or(0, |input| input.tick);
-            if let Some(mut using) = world.get_mut::<ItemUsing>(player) {
-                using.since = since;
-            }
-        }
-        _ => super::stop_using(world, player),
+    if may_start(world, player, entry, consumable.kind) {
+        super::start_using(world, player, slot, entry.id);
     }
 }
 
 /// Finish eating or drinking `stack` from hotbar `slot`.
-pub(super) fn consume(
-    world: &mut World,
-    player: Entity,
-    slot: u8,
-    stack: &ItemStack,
-    kind: ConsumeKind,
-) {
+pub fn finish(world: &mut World, player: Entity, slot: u8, stack: &ItemStack, kind: ConsumeKind) {
     let Some(entry) = stack.item().cloned() else {
         return;
     };
@@ -173,6 +146,11 @@ pub(super) fn consume(
                 Some("chorus_teleport") => {
                     let range = food.on_use_range.unwrap_or([8.0, 8.0, 8.0]);
                     chorus_teleport(world, player, range);
+                }
+                Some("suspicious_stew_effect") => {
+                    if let Some(effect) = stew_effect(stack.damage) {
+                        effects::add_effect(world, player, effect.0, 0, effect.1);
+                    }
                 }
                 Some(other) => {
                     tracing::warn!(
@@ -217,9 +195,41 @@ pub(super) fn consume(
     }
     let method = match kind {
         ConsumeKind::Food => UseMethod::Eat,
-        ConsumeKind::Milk => UseMethod::Consume,
+        ConsumeKind::Milk => UseMethod::None,
     };
     super::completed(world, player, entry.network_id(), method);
+    super::stop_using(world, player);
+    // Food ends with a burp 0.1 below the eyes; drinking milk does not.
+    if kind == ConsumeKind::Food
+        && let Some(eye) = world.get::<Position>(player).map(|p| p.0)
+    {
+        crate::entity::mob::net::sound::play_level_sound(
+            world,
+            Some(player),
+            eye - DVec3::new(0.0, 0.1, 0.0),
+            "burp",
+            -1,
+        );
+    }
+}
+
+/// The effect (and its duration in ticks) of a suspicious stew with aux
+/// `data`, measured from BDS 1.26.51 (capture `item-use-20261029`, stew
+/// data 0-9). Every stew effect has amplifier 0.
+pub fn stew_effect(data: i16) -> Option<(crate::entity::components::EffectType, u32)> {
+    use crate::entity::components::EffectType as E;
+    Some(match data {
+        0 => (E::NIGHT_VISION, 100),
+        1 => (E::JUMP_BOOST, 100),
+        2 => (E::WEAKNESS, 140),
+        3 => (E::BLINDNESS, 140),
+        4 => (E::POISON, 220),
+        5 | 6 => (E::SATURATION, 6),
+        7 => (E::FIRE_RESISTANCE, 60),
+        8 => (E::REGENERATION, 140),
+        9 => (E::WITHER, 140),
+        _ => return None,
+    })
 }
 
 /// Chorus fruit: up to 16 tries to teleport to a random spot within

@@ -1,13 +1,13 @@
 //! Using the held item in the air: eating, drinking and throwing.
 //!
 //! The client starts using an item with an `ItemUse` transaction of action
-//! `Use` (click air) and finishes eating with a second one once the use
-//! duration has passed; drawing items end with an `ItemRelease`
-//! transaction. Elapsed time is measured in the player's own input ticks
-//! (the `PlayerAuthInput` tick), so network jitter between the two packets
-//! does not decide whether a meal completes. The item is always the one the
-//! server has in the selected hotbar slot; the client's item description is
-//! not trusted.
+//! `Use` (click air). Like BDS 1.26.51 (capture `item-use-20261029`), the
+//! server finishes eating and drinking by itself once the item's use
+//! duration has passed in server ticks; an `ItemRelease` of action `Use`
+//! (consume) finishes it at once, even early, and `Release` or selecting
+//! another hotbar slot cancels it. The item is always the one the server
+//! has in the selected hotbar slot; the client's item description is not
+//! trusted.
 
 pub mod food;
 pub mod ranged;
@@ -52,8 +52,8 @@ pub struct ItemUsing {
     pub slot: u8,
     /// Registry id of the used item.
     pub item: u32,
-    /// The player's input tick when using started.
-    pub since: i64,
+    /// Server tick using started.
+    pub since: u64,
 }
 
 /// What `UseAir` does with an item.
@@ -156,6 +156,13 @@ fn input_tick(world: &World, player: Entity) -> i64 {
         .map_or(0, |input| input.tick)
 }
 
+/// The current server tick.
+fn server_tick(world: &World) -> u64 {
+    world
+        .get_resource::<crate::ecs::resources::TickCounter>()
+        .map_or(0, |t| t.current)
+}
+
 /// Whether a player may use items at all.
 fn can_use(world: &World, player: Entity) -> bool {
     world
@@ -164,10 +171,12 @@ fn can_use(world: &World, player: Entity) -> bool {
         && world.get::<Health>(player).is_some_and(|h| !h.is_dead())
 }
 
-/// The base actor flags of a player plus the movement and using state:
-/// the flag word other players need to animate eating and drawing.
+/// The flag word BDS sends for a player using an item: CANCLIMB,
+/// BREATHING, HAS_COLLISION and HAS_GRAVITY plus the movement state and
+/// USINGITEM (capture `item-use-20261029`).
 fn player_flags(world: &World, player: Entity, using: bool) -> i64 {
     let mut flags = (1u64 << actor_flags::CANCLIMB)
+        | (1u64 << actor_flags::BREATHING)
         | (1u64 << actor_flags::HAS_COLLISION)
         | (1u64 << actor_flags::HAS_GRAVITY);
     if let Some(state) = world.get::<PlayerState>(player) {
@@ -188,8 +197,8 @@ fn player_flags(world: &World, player: Entity, using: bool) -> i64 {
     flags as i64
 }
 
-/// Tell the players near `player` (not the player, whose client predicts
-/// its own use) that it started or stopped using an item.
+/// Tell the player and the players near it that it started or stopped
+/// using an item (BDS sends the flag word to the user too).
 fn broadcast_using(world: &World, player: Entity, using: bool) {
     let Some(runtime_id) = world.get::<RuntimeEntityId>(player).map(|r| r.0) else {
         return;
@@ -208,18 +217,16 @@ fn broadcast_using(world: &World, player: Entity, using: bool) {
             }],
         },
         synched_properties: PropertySyncData::default(),
-        tick: PlayerInputTick { inputtick: 0 },
+        tick: PlayerInputTick {
+            inputtick: u64::try_from(input_tick(world, player)).unwrap_or(0),
+        },
     });
-    let viewers: Vec<_> = nearby_players(world, player)
-        .into_iter()
-        .filter(|viewer| *viewer != player)
-        .collect();
-    send_to(world, &viewers, &packet);
+    send_to(world, &nearby_players(world, player), &packet);
 }
 
 /// Start using the held item.
 pub fn start_using(world: &mut World, player: Entity, slot: u8, item: u32) {
-    let since = input_tick(world, player);
+    let since = server_tick(world);
     world
         .entity_mut(player)
         .insert(ItemUsing { slot, item, since });
@@ -233,22 +240,18 @@ pub fn stop_using(world: &mut World, player: Entity) {
     }
 }
 
-/// Input ticks since the player started using the current item.
-pub fn used_ticks(world: &World, player: Entity, using: &ItemUsing) -> i64 {
-    input_tick(world, player).saturating_sub(using.since)
+/// Server ticks since the player started using the current item.
+pub fn used_ticks(world: &World, using: &ItemUsing) -> u64 {
+    server_tick(world).saturating_sub(using.since)
 }
 
-/// `CompletedUsingItem` methods (protocol enum).
+/// `CompletedUsingItem` methods BDS sends (capture `item-use-20261029`):
+/// 1 for food and -1 for the milk bucket and crossbow charging.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 #[repr(i32)]
 pub enum UseMethod {
+    None = -1,
     Eat = 1,
-    Consume = 3,
-    Throw = 4,
-    Shoot = 5,
-    FillBucket = 8,
-    PourBucket = 9,
-    UseTool = 10,
 }
 
 /// Tell the player's client the item use finished.
@@ -297,13 +300,19 @@ fn handle(world: &mut World, player: Entity, request: UseRequest) {
     if using.is_none() {
         stop_using(world, player);
     }
-    match (use_kind(&stack), request) {
-        (Some(UseKind::Consume(consumable)), UseRequest::UseAir | UseRequest::Consume) => {
-            food::use_consumable(world, player, slot, &stack, consumable, using)
+    match (use_kind(&stack), request, using) {
+        (Some(UseKind::Consume(consumable)), UseRequest::UseAir, None) => {
+            food::start(world, player, slot, &stack, consumable)
         }
-        (Some(UseKind::Throw), UseRequest::UseAir) => ranged::throw(world, player),
-        (_, UseRequest::Release | UseRequest::Consume) => stop_using(world, player),
-        (None, UseRequest::UseAir) => {}
+        // Already eating: BDS finishes on its own.
+        (Some(UseKind::Consume(_)), UseRequest::UseAir, Some(_)) => {}
+        // BDS honours an early consume and finishes at once.
+        (Some(UseKind::Consume(consumable)), UseRequest::Consume, Some(_)) => {
+            food::finish(world, player, slot, &stack, consumable.kind)
+        }
+        (Some(UseKind::Throw), UseRequest::UseAir, _) => ranged::throw(world, player),
+        (_, UseRequest::Release | UseRequest::Consume, _) => stop_using(world, player),
+        (None, UseRequest::UseAir, _) => {}
     }
 }
 
@@ -365,45 +374,56 @@ pub fn teleport(world: &mut World, player: Entity, feet: glam::DVec3, cause: Tel
     send_to(world, &[player], &packet);
 }
 
-/// System (exclusive): every 4 ticks, players near someone eating see the
-/// eating particles (`ActorEvent` `Feed` with the item's id and aux).
+/// System (exclusive): finish eating and drinking whose use duration has
+/// passed, drop uses whose item left the selected slot, and every 4 ticks
+/// show the other nearby players the eating particles (`ActorEvent` `Feed`
+/// with the item's id and aux; the eater's client draws its own).
 pub fn tick_using(
     world: &mut World,
     users: &mut QueryState<(Entity, &ItemUsing)>,
-    mut eating: Local<Vec<(Entity, i32)>>,
+    mut due: Local<Vec<(Entity, ItemUsing)>>,
 ) {
-    let tick = world
-        .get_resource::<crate::ecs::resources::TickCounter>()
-        .map_or(0, |t| t.current);
-    if !tick.is_multiple_of(4) {
-        return;
-    }
-    for (player, using) in users.iter(world) {
-        let Some((slot, stack)) = held(world, player) else {
-            continue;
-        };
-        if slot != using.slot || !matches!(use_kind(&stack), Some(UseKind::Consume(_))) {
-            continue;
-        }
-        let Some(entry) = stack.item() else {
-            continue;
-        };
-        eating.push((player, (entry.network_id() << 16) | i32::from(stack.damage)));
-    }
-    for (player, data) in eating.drain(..) {
-        let Some(runtime_id) = world.get::<RuntimeEntityId>(player).map(|r| r.0) else {
-            continue;
-        };
-        let packet = McpePacket::from(jolyne::valentine::ActorEventPacket {
-            target_runtime_id: ActorRuntimeId {
-                actor_runtime_id: runtime_id as u64,
-            },
-            event_id: jolyne::valentine::types::EnumsActorEvent::Feed,
-            data,
-            fire_at_position: None,
+    due.extend(users.iter(world).map(|(entity, using)| (entity, *using)));
+    let tick = server_tick(world);
+    for (player, using) in due.drain(..) {
+        let current = held(world, player).filter(|(slot, stack)| {
+            *slot == using.slot && stack.item().is_some_and(|e| e.id == using.item)
         });
-        send_to(world, &nearby_players(world, player), &packet);
+        let Some((slot, stack)) = current else {
+            stop_using(world, player);
+            continue;
+        };
+        let Some(UseKind::Consume(consumable)) = use_kind(&stack) else {
+            continue;
+        };
+        if used_ticks(world, &using) >= u64::from(consumable.duration_ticks) {
+            food::finish(world, player, slot, &stack, consumable.kind);
+        } else if tick.is_multiple_of(4) {
+            feed(world, player, &stack);
+        }
     }
+}
+
+fn feed(world: &World, player: Entity, stack: &ItemStack) {
+    let (Some(runtime_id), Some(entry)) = (
+        world.get::<RuntimeEntityId>(player).map(|r| r.0),
+        stack.item(),
+    ) else {
+        return;
+    };
+    let packet = McpePacket::from(jolyne::valentine::ActorEventPacket {
+        target_runtime_id: ActorRuntimeId {
+            actor_runtime_id: runtime_id as u64,
+        },
+        event_id: jolyne::valentine::types::EnumsActorEvent::Feed,
+        data: (entry.network_id() << 16) | i32::from(stack.damage),
+        fire_at_position: None,
+    });
+    let viewers: Vec<_> = nearby_players(world, player)
+        .into_iter()
+        .filter(|viewer| *viewer != player)
+        .collect();
+    send_to(world, &viewers, &packet);
 }
 
 #[cfg(test)]

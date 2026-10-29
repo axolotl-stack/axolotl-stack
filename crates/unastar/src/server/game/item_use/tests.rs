@@ -55,8 +55,31 @@ impl Harness {
         Self { world, player, rx }
     }
 
-    fn at_input_tick(&mut self, tick: i64) -> &mut Self {
-        self.world.get_mut::<PlayerInput>(self.player).unwrap().tick = tick;
+    /// Run the server's use tick at server tick `tick`.
+    fn tick(&mut self, tick: u64) -> &mut Self {
+        self.world
+            .resource_mut::<crate::ecs::resources::TickCounter>()
+            .current = tick;
+        let mut schedule = Schedule::default();
+        schedule.add_systems(tick_using);
+        schedule.run(&mut self.world);
+        self
+    }
+
+    /// Start using at server tick `tick`.
+    fn use_at(&mut self, tick: u64) -> &mut Self {
+        self.world
+            .resource_mut::<crate::ecs::resources::TickCounter>()
+            .current = tick;
+        self.send(UseRequest::UseAir)
+    }
+
+    /// Use at tick 0 and let the server tick `ticks` times.
+    fn eat_for(&mut self, ticks: u64) -> &mut Self {
+        self.use_at(0);
+        for tick in 1..=ticks {
+            self.tick(tick);
+        }
         self
     }
 
@@ -121,24 +144,35 @@ fn network_id(name: &str) -> i16 {
 }
 
 #[test]
-fn eating_completes_only_after_the_use_duration_in_input_ticks() {
+fn the_server_finishes_eating_after_the_use_duration() {
     let mut h = Harness::new(GameMode::Survival, &[("minecraft:apple", 3)]);
-    h.at_input_tick(100).send(UseRequest::UseAir);
+    h.use_at(100);
     assert_eq!(h.using().map(|u| u.since), Some(100));
     // One tick short of the apple's 32 ticks (1.6 s use_modifiers).
-    h.at_input_tick(131).send(UseRequest::UseAir);
+    h.tick(131);
     assert_eq!(h.hunger(), (10, 0.0));
     assert_eq!(h.slot(0), ("minecraft:apple".into(), 3));
+    // A second use while eating changes nothing.
+    h.send(UseRequest::UseAir);
+    assert_eq!(h.using().map(|u| u.since), Some(100));
     h.packets();
-    h.at_input_tick(132).send(UseRequest::UseAir);
+    h.tick(132);
     // Apple: nutrition 4, saturation modifier 0.3 -> +2.4 saturation.
     let (food, saturation) = h.hunger();
     assert_eq!(food, 14);
     assert!((saturation - 2.4).abs() < 1e-5);
     assert_eq!(h.slot(0), ("minecraft:apple".into(), 2));
     assert_eq!(h.completed(), [(network_id("minecraft:apple"), 1)]);
-    // Still holding the button: the next apple counts from now.
-    assert_eq!(h.using().map(|u| u.since), Some(132));
+    assert_eq!(h.using(), None, "the next apple needs a new use");
+}
+
+#[test]
+fn an_early_consume_finishes_at_once() {
+    let mut h = Harness::new(GameMode::Survival, &[("minecraft:apple", 1)]);
+    h.eat_for(16);
+    h.send(UseRequest::Consume);
+    assert_eq!(h.hunger().0, 14);
+    assert_eq!(h.slot(0), ("".into(), 0));
 }
 
 #[test]
@@ -159,8 +193,7 @@ fn a_full_player_starts_eating_only_food_that_can_always_be_eaten() {
 fn creative_players_eat_when_full_without_using_up_the_item() {
     let mut h = Harness::new(GameMode::Creative, &[("minecraft:bread", 1)]);
     h.world.get_mut::<Hunger>(h.player).unwrap().food_level = 20;
-    h.at_input_tick(0).send(UseRequest::UseAir);
-    h.at_input_tick(32).send(UseRequest::UseAir);
+    h.eat_for(32);
     assert_eq!(h.slot(0), ("minecraft:bread".into(), 1));
     assert_eq!(h.completed(), [(network_id("minecraft:bread"), 1)]);
 }
@@ -168,9 +201,9 @@ fn creative_players_eat_when_full_without_using_up_the_item() {
 #[test]
 fn golden_apple_effects_come_from_its_food_component() {
     let mut h = Harness::new(GameMode::Survival, &[("minecraft:golden_apple", 1)]);
-    h.at_input_tick(0).send(UseRequest::UseAir);
-    h.at_input_tick(32).send(UseRequest::UseAir);
-    // regeneration amplifier 1 for 5 s, absorption amplifier 0 for 120 s.
+    h.eat_for(32);
+    // regeneration amplifier 1 for 5 s, absorption amplifier 0 for 120 s,
+    // as BDS sends them.
     assert_eq!(h.effect(EffectType::REGENERATION), Some((1, 100)));
     assert_eq!(h.effect(EffectType::ABSORPTION), Some((0, 2400)));
     assert_eq!(h.world.get::<Absorption>(h.player), Some(&Absorption(4.0)));
@@ -178,11 +211,28 @@ fn golden_apple_effects_come_from_its_food_component() {
 }
 
 #[test]
+fn suspicious_stew_effects_follow_the_measured_table() {
+    let mut h = Harness::new(GameMode::Survival, &[]);
+    let stew = stack("minecraft:suspicious_stew", 1).with_damage(7);
+    h.world
+        .get_mut::<MainInventory>(h.player)
+        .unwrap()
+        .0
+        .set_item(0, stew)
+        .unwrap();
+    h.eat_for(32);
+    assert_eq!(h.effect(EffectType::FIRE_RESISTANCE), Some((0, 60)));
+    assert_eq!(h.slot(0), ("minecraft:bowl".into(), 1));
+    assert_eq!(h.hunger().0, 16);
+}
+
+#[test]
 fn honey_removes_poison_and_the_last_bottle_becomes_a_glass_bottle_in_place() {
     let mut h = Harness::new(GameMode::Survival, &[("minecraft:honey_bottle", 1)]);
     crate::server::game::effects::add_effect(&mut h.world, h.player, EffectType::POISON, 0, 600);
-    h.at_input_tick(0).send(UseRequest::UseAir);
-    h.at_input_tick(40).send(UseRequest::UseAir);
+    h.eat_for(39);
+    assert_eq!(h.effect(EffectType::POISON).map(|e| e.0), Some(0));
+    h.tick(40);
     assert_eq!(h.effect(EffectType::POISON), None);
     assert_eq!(h.slot(0), ("minecraft:glass_bottle".into(), 1));
 }
@@ -190,8 +240,7 @@ fn honey_removes_poison_and_the_last_bottle_becomes_a_glass_bottle_in_place() {
 #[test]
 fn bottles_from_a_partial_stack_go_to_another_slot() {
     let mut h = Harness::new(GameMode::Survival, &[("minecraft:honey_bottle", 2)]);
-    h.at_input_tick(0).send(UseRequest::UseAir);
-    h.at_input_tick(40).send(UseRequest::UseAir);
+    h.eat_for(40);
     assert_eq!(h.slot(0), ("minecraft:honey_bottle".into(), 1));
     assert_eq!(h.slot(1), ("minecraft:glass_bottle".into(), 1));
 }
@@ -203,57 +252,31 @@ fn milk_clears_every_effect_and_leaves_a_bucket() {
     for effect in [EffectType::POISON, EffectType::SPEED] {
         crate::server::game::effects::add_effect(&mut h.world, h.player, effect, 0, 600);
     }
-    h.at_input_tick(0).send(UseRequest::UseAir);
-    h.at_input_tick(32).send(UseRequest::UseAir);
+    h.eat_for(32);
     assert!(h.world.get::<Effects>(h.player).unwrap().active.is_empty());
     assert_eq!(h.slot(0), ("minecraft:bucket".into(), 1));
     assert_eq!(h.hunger().0, 20);
-    assert_eq!(h.completed(), [(network_id("minecraft:milk_bucket"), 3)]);
+    assert_eq!(h.completed(), [(network_id("minecraft:milk_bucket"), -1)]);
 }
 
 #[test]
-fn switching_slots_or_releasing_abandons_eating() {
+fn switching_slots_or_releasing_cancels_eating() {
     let mut h = Harness::new(
         GameMode::Survival,
         &[("minecraft:apple", 1), ("minecraft:apple", 1)],
     );
-    h.at_input_tick(0).send(UseRequest::UseAir);
+    h.eat_for(10);
     h.world.get_mut::<HeldSlot>(h.player).unwrap().0 = 1;
-    // The finishing packet arrives for a different slot: it starts over.
-    h.at_input_tick(40).send(UseRequest::UseAir);
-    assert_eq!(h.using().map(|u| (u.slot, u.since)), Some((1, 40)));
+    h.tick(11);
+    assert_eq!(h.using(), None);
+    h.tick(40);
     assert_eq!(h.hunger().0, 10);
+    h.use_at(50);
     h.send(UseRequest::Release);
     assert_eq!(h.using(), None);
-    h.at_input_tick(80).send(UseRequest::UseAir);
+    h.tick(90);
     assert_eq!(h.hunger().0, 10, "a released meal does not finish");
-}
-
-#[test]
-fn eaters_show_feed_events_every_four_ticks() {
-    let mut h = Harness::new(GameMode::Survival, &[("minecraft:apple", 1)]);
-    h.send(UseRequest::UseAir);
-    h.packets();
-    let mut schedule = Schedule::default();
-    schedule.add_systems(tick_using);
-    let mut feeds = 0;
-    for tick in 1..=8u64 {
-        h.world
-            .resource_mut::<crate::ecs::resources::TickCounter>()
-            .current = tick;
-        schedule.run(&mut h.world);
-        for packet in h.packets() {
-            if let McpePacketData::ActorEventPacket(event) = packet {
-                assert_eq!(
-                    event.event_id,
-                    jolyne::valentine::types::EnumsActorEvent::Feed
-                );
-                assert_eq!(event.data, i32::from(network_id("minecraft:apple")) << 16);
-                feeds += 1;
-            }
-        }
-    }
-    assert_eq!(feeds, 2);
+    assert_eq!(h.slot(1), ("minecraft:apple".into(), 1));
 }
 
 #[test]
