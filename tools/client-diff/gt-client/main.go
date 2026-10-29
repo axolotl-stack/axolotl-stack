@@ -132,7 +132,7 @@ func (s scenario) validate() error {
 			if step.Entity == "" {
 				return fmt.Errorf("step %d: %s needs an entity type", i, step.Kind)
 			}
-		case "break", "click":
+		case "break", "click", "use", "release", "consume":
 		default:
 			return fmt.Errorf("step %d: unsupported kind %q", i, step.Kind)
 		}
@@ -330,6 +330,17 @@ func run(ctx context.Context, address, scenarioName, scenariosPath, output strin
 			}
 		}
 		return conn.Flush()
+	}
+	if script.AuthInput {
+		// The vanilla client reports its join loading screen (start after
+		// StartGame, end before SetLocalPlayerAsInitialised); the fork's spawn
+		// sequence sends neither, so report both once spawned.
+		if err := write(
+			&packet.ServerBoundLoadingScreen{Type: packet.LoadingScreenTypeStart},
+			&packet.ServerBoundLoadingScreen{Type: packet.LoadingScreenTypeEnd},
+		); err != nil {
+			return fmt.Errorf("loading screen: %w", err)
+		}
 	}
 	readerDone = make(chan struct{})
 	go func() {

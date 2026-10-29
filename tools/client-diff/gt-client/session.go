@@ -367,6 +367,20 @@ func (s *session) useItemData(pos protocol.BlockPos, face int32) protocol.UseIte
 	}
 }
 
+// useAirData describes using the selected hotbar item without a target block
+// (eating, drinking, drawing a bow, throwing): no block position, face, click
+// position or block runtime ID. The caller holds s.mu.
+func (s *session) useAirData() protocol.UseItemTransactionData {
+	return protocol.UseItemTransactionData{
+		ActionType:       protocol.UseItemActionClickAir,
+		TriggerType:      protocol.TriggerTypePlayerInput,
+		HotBarSlot:       int32(s.selected),
+		HeldItem:         s.inventory[s.selected],
+		Position:         s.pos,
+		ClientPrediction: protocol.ClientPredictionSuccess,
+	}
+}
+
 func (s *session) entity(st step) (uint64, error) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
@@ -473,6 +487,37 @@ func (s *session) interaction(st step) ([]packet.Packet, []inputSpec, error) {
 				HeldItem:              s.inventory[s.selected],
 				Position:              s.pos,
 				ClickedPosition:       mgl32.Vec3{0, 1, 0},
+			}}}
+		}}}, nil
+	case "use":
+		// The client sends the transaction while processing input and flags
+		// the PlayerAuthInput of the tick that follows with StartUsingItem.
+		var specs []inputSpec
+		if st.X != 0 || st.Y != 0 || st.Z != 0 {
+			target := blockVec(s.block(st)).Add(mgl32.Vec3{0.5, 0.5, 0.5})
+			specs = append(specs, inputSpec{look: &target})
+		}
+		return nil, append(specs, inputSpec{after: func() []packet.Packet {
+			s.mu.Lock()
+			defer s.mu.Unlock()
+			data := s.useAirData()
+			return []packet.Packet{&packet.InventoryTransaction{TransactionData: &data}}
+		}}, inputSpec{extra: func(pk *packet.PlayerAuthInput) {
+			pk.InputData.Set(packet.InputFlagStartUsingItem)
+		}}), nil
+	case "release", "consume":
+		action := int32(protocol.ReleaseItemActionRelease)
+		if st.Kind == "consume" {
+			action = protocol.ReleaseItemActionConsume
+		}
+		return nil, []inputSpec{{after: func() []packet.Packet {
+			s.mu.Lock()
+			defer s.mu.Unlock()
+			return []packet.Packet{&packet.InventoryTransaction{TransactionData: &protocol.ReleaseItemTransactionData{
+				ActionType:   action,
+				HotBarSlot:   int32(s.selected),
+				HeldItem:     s.inventory[s.selected],
+				HeadPosition: s.pos,
 			}}}
 		}}}, nil
 	}
