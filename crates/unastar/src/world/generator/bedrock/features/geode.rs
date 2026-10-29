@@ -99,9 +99,12 @@ pub fn place<W: BlockWorld>(
     pos: BlockPos,
     params: &Params,
 ) -> Option<BlockPos> {
-    // The geometry and draw order are unmeasured: to confirm by BDS fixture.
-    let noise = ShellNoise::new(i64::from(ctx.rng.next_u32()));
+    // The point count is the first draw: in both native seed-12345 geodes it
+    // is the only one of the first eight draws giving their measured three
+    // points (shell radii 3.4 / 4.8 / 5.7 / 6.9 fit n = 3 with the vanilla
+    // thresholds). The order of the remaining draws is unmeasured.
     let points = params.distribution_points.sample(ctx.rng).max(1);
+    let noise = ShellNoise::new(i64::from(ctx.rng.next_u32()));
     let crack_jitter = f64::from(ctx.rng.next_float());
     let t = Thresholds::new(
         points,
@@ -552,5 +555,35 @@ mod tests {
         let before = world.clone();
         assert_eq!(run(&mut world, &params(), 3), None);
         assert!(world == before);
+    }
+
+    /// The seed-12345 geode in chunk (-4,3), exported from a natural BDS
+    /// 1.26.51 world with all eight neighbouring chunks: 413 smooth basalt,
+    /// 310 calcite and 239 amethyst/budding blocks, a three-point shell. Its
+    /// feature random starts from the rule seed `3502308776`. With the point
+    /// count drawn second, this seed gave four points and about three times
+    /// the native volume.
+    #[test]
+    fn native_geode_seed_draws_three_points_first() {
+        let vanilla = Params {
+            generate_crack_chance: 0.95,
+            use_potential_placements_chance: 0.35,
+            placements_require_layer0_alternate: true,
+            ..params()
+        };
+        let mut world = Cube::filled(24, bb::STONE);
+        assert!(run(&mut world, &vanilla, 3_502_308_776).is_some());
+        let inner = world.count(bb::CALCITE) + world.count(bb::MAGMA);
+        let (middle, outer) = (world.count(bb::TUFF), world.count(bb::OBSIDIAN));
+        for (layer, generated, native) in [
+            ("inner", inner, 239),
+            ("middle", middle, 310),
+            ("outer", outer, 413),
+        ] {
+            assert!(
+                generated * 4 >= native * 3 && generated * 4 <= native * 5,
+                "{layer} layer {generated} blocks, native {native}"
+            );
+        }
     }
 }

@@ -32,13 +32,13 @@
   {
     "x": -4,
     "z": 2,
-    "sha256": "a0a73494ca1739f1f6a72a7d0c2250e7ffa4b735d2ecbc90ad697aa2cc9c2972",
+    "sha256": "559f485dfcfe10b544aaeff16d84bf5fa7f9a9018ac502cd6ab0751f31989b32",
     "block_entities_sha256": "af5570f5a1810b7af78caf4bc70a660f0df51e42baf91d4de5b2328de0e83dfc"
   },
   {
     "x": -4,
     "z": 3,
-    "sha256": "fa96f914e3455dc5336474151b61e401eae2e41fc72a933003f44f6fb38c486f",
+    "sha256": "72b09dc6da21b8289ed0ee9c4ce464eea40bad45c77d56e71b918f7d723efd40",
     "block_entities_sha256": "af5570f5a1810b7af78caf4bc70a660f0df51e42baf91d4de5b2328de0e83dfc"
   },
   {
@@ -98,13 +98,13 @@
   {
     "x": -2,
     "z": 0,
-    "sha256": "b6cd6de34282b7bf2e00df7a1bbfc1674ab969d5bbfbcdcb14c4e428836ec354",
+    "sha256": "8cf5f5cccdf71f37981de137ebc5820921b0d6bd14c4ec83482982c8153d36a7",
     "block_entities_sha256": "af5570f5a1810b7af78caf4bc70a660f0df51e42baf91d4de5b2328de0e83dfc"
   },
   {
     "x": -2,
     "z": 1,
-    "sha256": "1588d4d47ef1e7883f58772280649abee1a831164a13863cbe2a6948797d9861",
+    "sha256": "947df9d36749a41d7a12b4c0f5dc1dc7e355c754560651e1bd6d65e11b9c4da3",
     "block_entities_sha256": "af5570f5a1810b7af78caf4bc70a660f0df51e42baf91d4de5b2328de0e83dfc"
   },
   {
@@ -140,13 +140,13 @@
   {
     "x": -1,
     "z": 0,
-    "sha256": "37ef99e609cff17b106ea015e4cdd3ba4952eed6b78c4ff9cf1791b5cc6edf8a",
+    "sha256": "0abf4d84f4c84286374b6f6f186d7f7eb7fde509dcd0e1015caca1a0c1b69d50",
     "block_entities_sha256": "af5570f5a1810b7af78caf4bc70a660f0df51e42baf91d4de5b2328de0e83dfc"
   },
   {
     "x": -1,
     "z": 1,
-    "sha256": "92bfc5793d71efbca89b045c89bfe34c543d53ab3a96db7f09de4204123691da",
+    "sha256": "65f8d670183aede5dd6359bdab8c9f96fc104469dcb659d09d4d1f470479925f",
     "block_entities_sha256": "af5570f5a1810b7af78caf4bc70a660f0df51e42baf91d4de5b2328de0e83dfc"
   },
   {
@@ -164,7 +164,7 @@
   {
     "x": 0,
     "z": -4,
-    "sha256": "79ca95d47f57ee4840c2c6a94ada4a2346307f6b8d7b4cb63c77f3a258e8c0a1",
+    "sha256": "ce7fb6b37cd562b39dd8d41c0f10a2bf4460f219da84d155b8bb0432eed4f166",
     "block_entities_sha256": "af5570f5a1810b7af78caf4bc70a660f0df51e42baf91d4de5b2328de0e83dfc"
   },
   {

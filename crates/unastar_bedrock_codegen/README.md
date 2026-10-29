@@ -593,3 +593,31 @@ and spills into neighbouring chunks; tree internals are the next suspect for
 the surface metrics. **Unmeasured:** Molang `math.random` inside rule
 distributions still draws from the rule's scatter stream.
 
+### Geode point count is the first draw (2026-10-28)
+
+The per-rule seeds predict exactly the fixture's two geode chunks and their
+heights: (-4,3) at y -37 and (-1,1) at y -33. Their blocks, exported offline
+from the natural seed-12345 world (no new BDS run), are three-point shells:
+the boundary radii 3.4 / 4.8 / 5.7 / 6.9 fit the vanilla thresholds with
+n = 3 and d = 0.5. Among the first eight draws of each geode's feature random,
+only the first gives three points for both; the old order drew the point
+count second and got four, about three times the native volume.
+
+| Geode (-4,3) | BDS | Count second | Count first |
+|---|---:|---:|---:|
+| amethyst + budding | 239 | 649 | 233 |
+| calcite | 310 | 680 | 299 |
+| smooth basalt | 413 | 818 | 343 |
+| amethyst x / y / z span | 9 / 10 / 9 | 13 / 13 / 13 | 9 / 10 / 9 |
+
+The (-1,1) geode now has BDS's y and z spans exactly (x 10 vs 9). Both are
+offset by about one block, so the order of the remaining draws (noise seed,
+crack, point offsets) is still unmeasured.
+`geode::tests::native_geode_seed_draws_three_points_first` fails with the old
+order (788 inner-layer blocks vs native 239).
+
+Histogram L1 rises 0.0203 -> 0.0206 (D8, one ceiling re-baselined): the
+smaller cores leave about 2,450 more deepslate, and deepslate was already
+6,300 over BDS. That excess is an open, separate error the oversized geodes
+had partly hidden. Other metrics are unchanged to four digits.
+

@@ -101,8 +101,11 @@ fn bedrock_style_vs_bds_reference_ratchets() {
                 "terrain error rose: {}",
                 m.terrain_mean_abs_error
             );
+            // Native-sized geodes leave deepslate their oversized cores used to
+            // hollow out, unmasking an existing deepslate excess (D8, one
+            // ceiling): see "Geode point count" in that README.
             assert!(
-                m.histogram_l1 <= 0.02031,
+                m.histogram_l1 <= 0.02064,
                 "histogram error rose: {}",
                 m.histogram_l1
             );
