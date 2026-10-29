@@ -8,10 +8,11 @@ use super::components::{
     ChunkActorStore, ChunkData, ChunkPosition, ChunkState, ChunkStateFlags, ChunkViewers,
     PendingActorRestore,
 };
-use super::generation_worker::{ChunkGenerationWorker, generation_threads};
+use super::generation_worker::{ChunkGenerationWorker, ChunkLoadResult, generation_threads};
+use super::streaming::{ChunkNetCache, generate_inline};
 use crate::storage::{ChunkColumn, WorldProvider};
 use crate::world::generator::ChunkPipeline;
-use crate::world::{Chunk, ChunkPos, WorldConfig};
+use crate::world::{Chunk, WorldConfig};
 
 /// Run a storage future to completion from synchronous ECS code. It runs on a
 /// helper thread, on the current tokio runtime when there is one (so a caller
@@ -43,6 +44,7 @@ pub(crate) type ChunkEntityComponents = (
     ChunkViewers,
     ChunkActorStore,
     ChunkStateFlags,
+    ChunkNetCache,
 );
 
 /// Components of a chunk entity for a column fresh from storage or the
@@ -71,6 +73,7 @@ pub(crate) fn chunk_entity_components(
             ChunkViewers::default(),
             store,
             state_flags,
+            ChunkNetCache::default(),
         ),
         restore,
     )
@@ -78,8 +81,8 @@ pub(crate) fn chunk_entity_components(
 
 /// Global resource for chunk entity management.
 ///
-/// Provides O(1) lookup from chunk coordinates to ECS entity,
-/// and handles chunk generation when needed.
+/// Provides O(1) lookup from chunk coordinates to ECS entity, and owns what
+/// loading needs: the storage provider, the generator and its pool.
 ///
 /// NOTE: Chunk data is stored in the ECS ChunkData component, not in this manager.
 /// This manager only tracks the mapping from coordinates to entities.
@@ -95,10 +98,10 @@ pub struct ChunkManager {
     pipeline: Arc<ChunkPipeline>,
     /// Chunks that need viewers added once their entity is fully spawned/ready.
     pub pending_viewers: HashMap<(i32, i32), Vec<Entity>>,
-    /// Track pending async generation requests (chunk coords -> waiting viewers).
-    pub pending_generation: HashMap<(i32, i32), Vec<Entity>>,
     /// Generation pool (only for generators that are too expensive to run inline).
     generation_worker: Option<ChunkGenerationWorker>,
+    /// Runtime that runs storage reads (none outside a runtime: tools and tests).
+    runtime: Option<tokio::runtime::Handle>,
 }
 
 impl ChunkManager {
@@ -120,8 +123,8 @@ impl ChunkManager {
             provider: None,
             pipeline,
             pending_viewers: HashMap::new(),
-            pending_generation: HashMap::new(),
             generation_worker,
+            runtime: tokio::runtime::Handle::try_current().ok(),
         }
     }
 
@@ -130,9 +133,18 @@ impl ChunkManager {
         &self.pipeline
     }
 
-    /// Set the world provider for chunk loading.
+    /// Set the world provider for chunk loading. Storage reads run on the
+    /// current tokio runtime when there is one.
     pub fn set_provider(&mut self, provider: Arc<dyn WorldProvider>) {
         self.provider = Some(provider);
+        if self.runtime.is_none() {
+            self.runtime = tokio::runtime::Handle::try_current().ok();
+        }
+    }
+
+    /// Runtime for background loads, if the world lives inside one.
+    pub fn runtime(&self) -> Option<&tokio::runtime::Handle> {
+        self.runtime.as_ref()
     }
 
     /// Get a reference to the world provider.
@@ -205,21 +217,10 @@ impl ChunkManager {
         &self.world_config
     }
 
-    /// Generate a new chunk at the given position.
-    /// This creates the chunk data but doesn't spawn an ECS entity.
+    /// Generate a new chunk at the given position (empty outside the world
+    /// bounds). This creates the chunk data but doesn't spawn an ECS entity.
     pub fn generate_chunk(&self, x: i32, z: i32) -> Chunk {
-        let pos = ChunkPos::new(x, z);
-        if !self.world_config.bounds.contains(pos) {
-            tracing::warn!(
-                chunk = ?(x, z),
-                bounds = ?self.world_config.bounds,
-                "Chunk outside world bounds - returning empty"
-            );
-            return Chunk::new(x, z);
-        }
-        self.pipeline
-            .generate(pos)
-            .expect("chunk contains an unrepresentable native actor")
+        generate_inline(&self.pipeline, &self.world_config.bounds, (x, z)).chunk
     }
 
     /// Load or generate a chunk column at the given position.
@@ -228,7 +229,7 @@ impl ChunkManager {
     /// was loaded from disk (true, with its stored actors) or newly generated
     /// (false).
     pub fn load_or_generate_chunk(&self, x: i32, z: i32) -> (ChunkColumn, bool) {
-        let pos = ChunkPos::new(x, z);
+        let pos = crate::world::ChunkPos::new(x, z);
         let dim = self.world_config.dimension;
 
         // Try to load from provider if available
@@ -245,69 +246,9 @@ impl ChunkManager {
         (ChunkColumn::new(self.generate_chunk(x, z)), false)
     }
 
-    /// Get or create a chunk entity using deferred Commands.
-    /// If the chunk doesn't exist, loads from disk or generates it and spawns an entity.
-    ///
-    /// Returns `(entity, Some((encoded_biomes, highest_subchunk)))` for newly created chunks,
-    /// or `(entity, None)` for existing chunks.
-    ///
-    /// ## Phase 3 Optimization
-    /// Encodes chunk data BEFORE spawning to avoid cloning ~200KB chunk data.
-    /// The encoded data is returned for immediate network transmission.
-    ///
-    /// Newly generated (not loaded) chunks have the DIRTY flag set in ChunkStateFlags for persistence.
-    pub fn get_or_create(
-        &mut self,
-        x: i32,
-        z: i32,
-        commands: &mut Commands,
-        viewer: Entity,
-    ) -> (Entity, Option<(Vec<u8>, u16)>) {
-        // Check if chunk entity already exists
-        if let Some(entity) = self.get_by_coords(x, z) {
-            // Chunk exists - add viewer to pending list for flush_pending_viewers to handle
-            self.pending_viewers.entry((x, z)).or_default().push(viewer);
-            return (entity, None);
-        }
-
-        // Chunk doesn't exist - try to load from disk, otherwise generate
-        let (column, was_loaded) = self.load_or_generate_chunk(x, z);
-        let pos = ChunkPosition::new(x, z);
-
-        // Encode BEFORE spawning to avoid clone (Phase 3 optimization)
-        // This saves ~200KB allocation per new chunk
-        let encoded_biomes = column.chunk.encode_biomes();
-        let highest_subchunk = column.chunk.highest_subchunk();
-
-        // Newly generated (not loaded from disk) chunks are dirty for
-        // persistence; stored actors are restored by the chunk systems.
-        let (components, actors) = chunk_entity_components(pos, column, was_loaded);
-        let mut spawned = commands.spawn(components);
-        if let Some(actors) = actors {
-            spawned.insert(actors);
-        }
-        let entity = spawned.id();
-
-        // Register the entity in our lookup map
-        self.insert(pos, entity);
-
-        // Add viewer to pending list - flush_pending_viewers will apply it once entity is ready
-        self.pending_viewers.entry((x, z)).or_default().push(viewer);
-
-        (entity, Some((encoded_biomes, highest_subchunk)))
-    }
-
-    // =========================================================================
-    // Async Generation API (Phase 1 performance optimization)
-    // =========================================================================
-
-    /// Check if chunk generation is already pending for these coordinates.
-    pub fn is_generation_pending(&self, x: i32, z: i32) -> bool {
-        self.pending_generation.contains_key(&(x, z))
-    }
-
-    /// Check if this manager uses async generation (vanilla worlds only).
-    pub fn has_async_generation(&self) -> bool {
+    /// Whether missing chunks are generated by the pool (expensive generators)
+    /// rather than inline.
+    pub fn has_generation_pool(&self) -> bool {
         self.generation_worker.is_some()
     }
 
@@ -318,54 +259,16 @@ impl ChunkManager {
             .map_or(0, ChunkGenerationWorker::threads)
     }
 
-    /// Request chunk generation asynchronously.
-    ///
-    /// Returns `Some(receiver)` if generation was started, `None` if:
-    /// - Chunk already exists
-    /// - Chunk is already being generated
-    /// - No async worker available (non-vanilla generator)
-    ///
-    /// The viewer entity is tracked so they can be notified when generation completes.
-    pub fn request_generation(
-        &mut self,
+    /// Asks the pool to generate a column storage does not have. `None`
+    /// without a pool or once it shut down.
+    pub fn request_pool_generation(
+        &self,
         x: i32,
         z: i32,
-        viewer: Entity,
-    ) -> Option<tokio::sync::oneshot::Receiver<super::generation_worker::ChunkLoadResult>> {
-        // Already loaded?
-        if self.chunks.contains_key(&(x, z)) {
-            self.pending_viewers.entry((x, z)).or_default().push(viewer);
-            return None;
-        }
-
-        // Already being generated?
-        if let Some(viewers) = self.pending_generation.get_mut(&(x, z)) {
-            viewers.push(viewer);
-            return None;
-        }
-
-        // Start generation via worker
-        if let Some(worker) = &self.generation_worker
-            && let Some(receiver) = worker.generate(x, z, self.provider.clone(), self.dimension())
-        {
-            self.pending_generation.insert((x, z), vec![viewer]);
-            return Some(receiver);
-        }
-
-        None
-    }
-
-    /// Complete a pending generation request.
-    ///
-    /// Returns the list of viewer entities that were waiting for this chunk,
-    /// or `None` if no generation was pending for these coordinates.
-    pub fn complete_generation(&mut self, x: i32, z: i32) -> Option<Vec<Entity>> {
-        self.pending_generation.remove(&(x, z))
-    }
-
-    /// Get the count of pending generation requests.
-    pub fn pending_generation_count(&self) -> usize {
-        self.pending_generation.len()
+    ) -> Option<tokio::sync::oneshot::Receiver<ChunkLoadResult>> {
+        self.generation_worker
+            .as_ref()?
+            .generate(x, z, None, self.dimension())
     }
 }
 

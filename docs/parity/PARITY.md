@@ -674,7 +674,7 @@ Cross-cutting gameplay systems with no data source to enumerate them from; this 
 **world**
 
 - `world.block_updates`: only gravity blocks react to a neighbour change; no general neighbour updates, survival checks or scheduled block ticks
-- `world.chunk_ticking`: chunks load around players and entities tick in loaded chunks; no ticking areas and no random block ticks
+- `world.chunk_ticking`: chunks load around players in a view disk (nearest first with look-ahead, storage reads and generation off the tick, acknowledgement-paced sending; timings in tools/perf/README.md) and entities tick in loaded chunks; the disk is centred on the player's chunk, BDS appears to centre it on the block position (153 columns at radius 6 against our 149); no ticking areas and no random block ticks
 - `world.day_cycle`: clock, daylight cycle and moon phase work; no sleeping skip and time is not persisted
 - `world.difficulty`: mob damage scaling, peaceful monsters, regional difficulty and hard-only door breaking; no hunger effects (starvation floors, peaceful regeneration) and effects of unimplemented mobs
 - `world.falling_blocks`: gravity blocks fall, land and drop on non-full blocks; no falling anvil/dripstone damage, anvil wear or concrete powder hardening
