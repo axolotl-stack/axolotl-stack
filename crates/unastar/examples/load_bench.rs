@@ -276,7 +276,7 @@ fn write_config(dir: &Path, args: &Args, addr: SocketAddr) {
     config.server.bind_address = addr.to_string();
     config.server.online_mode = false;
     config.server.max_players = args.players as u32 + 1;
-    config.server.default_chunk_radius = args.radius;
+    config.server.max_chunk_radius = args.radius;
     config.server.max_chunk_radius = args.radius;
     config.server.default_gamemode = unastar::entity::components::GameMode::Creative;
     config.players.data_dir = dir.join("playerdata");

@@ -1914,7 +1914,6 @@ mod tests {
     #[test]
     fn player_spawn_sets_join_chunk_gate_without_network_io() {
         let mut server = GameServer::with_config(ServerConfig {
-            default_chunk_radius: 2,
             max_chunk_radius: 4,
             world: crate::world::WorldConfig::void_spawn_platform(1),
             ..ServerConfig::default()
@@ -1977,7 +1976,6 @@ mod tests {
     #[test]
     fn first_tick_after_join_sends_view_chunks_then_player_spawn() {
         let mut server = GameServer::with_config(ServerConfig {
-            default_chunk_radius: 4,
             max_chunk_radius: 4,
             world: crate::world::WorldConfig::void_spawn_platform(1),
             ..ServerConfig::default()

@@ -12,10 +12,8 @@ pub struct ServerConfig {
     pub motd: String,
     /// Maximum players allowed.
     pub max_players: u32,
-    /// Default chunk radius (in chunks) used until the client requests a different value.
-    /// This is the view/render distance for clients.
-    pub default_chunk_radius: i32,
-    /// Maximum chunk radius (in chunks) that the server will accept from clients.
+    /// Largest chunk radius granted: a client receives the view distance it
+    /// requests, up to this.
     pub max_chunk_radius: i32,
     /// Default game mode for new players.
     pub default_gamemode: GameMode,
@@ -28,8 +26,7 @@ pub struct ServerConfig {
     pub operators: Vec<String>,
     /// Simulation distance in chunks.
     /// Chunks within this range of ANY player get random ticks and entity updates.
-    /// Should typically be 1-2 larger than default_chunk_radius to avoid
-    /// edge-of-view pop-in for world updates.
+    /// Independent of the view distance a client is granted.
     pub simulation_distance: i32,
     /// Number of ticks to wait before unloading a chunk with no viewers.
     /// Default is 100 (5 seconds at 20 TPS).
@@ -44,8 +41,7 @@ impl Default for ServerConfig {
             bind_address: "127.0.0.1:19132".into(),
             motd: "Unastar Server".into(),
             max_players: 20,
-            default_chunk_radius: 4,
-            max_chunk_radius: 12,
+            max_chunk_radius: 16,
             default_gamemode: GameMode::Survival,
             difficulty: crate::world::rules::Difficulty::Easy,
             block_network_ids: crate::registry::block::BlockNetworkIds::Hashed,
