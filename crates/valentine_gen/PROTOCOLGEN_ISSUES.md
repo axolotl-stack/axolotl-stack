@@ -2,7 +2,9 @@
 
 Upstream: [cinnabar-mc/protocolgen](https://github.com/cinnabar-mc/protocolgen),
 pinned here as the `crates/valentine_gen/protocolgen` submodule at
-`7b2e47c` (`generated/1.26.51/manifest.json`, protocol 2193). The submodule is
+`e37c952` (branch `feat/mojang-actor-symbols-1.26.51`: `7b2e47c` plus the
+Mojang actor-symbol import of PR #43; `generated/1.26.51/manifest.json`,
+protocol 2193). The submodule is
 never patched; Valentine applies the corrections below while lowering the
 manifest (`src/parser/protocolgen_corrections.rs`), and generation fails if the
 corrected manifest node changes or disappears.
