@@ -80,20 +80,20 @@ pub(super) fn on_hit(
             crate::server::game::effects::potion_color(aux),
         );
     }
-    if rules.thrown_potion || rules.douse_fire {
-        if let Some(aux) = potion {
-            if rules.thrown_potion {
-                splash(world, aux, impact, target);
-            }
-            if rules.douse_fire && aux == WATER_POTION {
-                douse_fire(world, impact);
-            }
+    if let Some(aux) = potion
+        && (rules.thrown_potion || rules.douse_fire)
+    {
+        if rules.thrown_potion {
+            splash(world, aux, impact, target);
+        }
+        if rules.douse_fire && aux == WATER_POTION {
+            douse_fire(world, impact);
         }
     }
-    if let Some(cloud) = &rules.aoe_cloud {
-        if let Some(potion) = cloud.potion.or(potion) {
-            super::cloud::spawn_cloud(world, cloud, potion, owner, impact);
-        }
+    if let Some(cloud) = &rules.aoe_cloud
+        && let Some(potion) = cloud.potion.or(potion)
+    {
+        super::cloud::spawn_cloud(world, cloud, potion, owner, impact);
     }
     let sound = match target {
         Target::Actor(actor) => rules

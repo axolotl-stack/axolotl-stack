@@ -674,6 +674,10 @@ reference" rows are not measured yet and are listed in
 | Lingering potions and area effect clouds: radius 3, a quarter duration every 40 ticks per actor, radius -0.5 per use, gone after 600 ticks | done | BDS capture; instant effects at half strength are a public reference |
 | Tipped arrows: arrow aux in actor data, an eighth of the potion on hit, bows and crossbows shoot them | done | BDS capture (shape); the 1/8 duration is a public reference |
 | Player death from starvation or arrows | not done | entity lane (player death and respawn) |
+| Smithing table: netherite upgrade keeps the input's data, armour trims add `Trim {Material, Pattern}`, the template is consumed | done | BDS capture (client-diff `blocks-20261029`); trim ids are a public reference |
+| Anvil: rename (1 level, no prior-work raise), repair with material, combine two items, enchantment merging with books, prior-work penalty, "Too Expensive" at 40 levels (creative exempt), level charge, wear with level events 1021 (use) / 1020 (break) | done | BDS capture of every cost in the scenarios; enchantment table, repair materials, 12 % wear chance and combine bonuses are public references |
+| Grindstone: strips non-curse enchantments (books become plain books), refuses cursed items, combines two items, `RepairCost` 0, XP as orbs at the eyes | done | BDS capture; the XP formula is a public reference (measured totals fall in its range) |
+| Falling anvils hurting entities | not done | measured only: landing level event 1022, 2 damage per block fallen (8 to a player, 9.84 to an armoured zombie) |
 
 The loopback test `tests/item_use_loopback.rs` eats an apple, mines stone
 with an iron pickaxe, shoots a cow with a bow, throws an ender pearl and is
