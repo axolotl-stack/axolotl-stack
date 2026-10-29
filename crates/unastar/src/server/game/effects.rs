@@ -79,8 +79,8 @@ pub fn add_effect(
     duration_ticks: u32,
 ) {
     match effect {
-        EffectType::INSTANT_HEALTH => {
-            heal(world, player, (4u32 << amplifier.min(30)) as f32);
+        EffectType::INSTANT_HEALTH | EffectType::INSTANT_DAMAGE => {
+            apply_instant(world, player, effect, amplifier, 1.0);
             return;
         }
         EffectType::SATURATION if duration_ticks <= 1 => {
@@ -106,6 +106,139 @@ pub fn add_effect(
                 entity.insert(Absorption(amount));
             }
         }
+    }
+}
+
+/// RGB colour of an effect's particles (public reference; night vision,
+/// poison and instant health match the BDS 1.26.51 splash colours).
+pub fn effect_color(effect: EffectType) -> Option<u32> {
+    Some(match effect.0 {
+        1 => 0x33EBFF,
+        2 => 0x8BAFE0,
+        3 => 0xD9C043,
+        4 => 0x4A4217,
+        5 => 0xFFC700,
+        6 => 0xF82423,
+        7 => 0xA9656A,
+        8 => 0xFDFF84,
+        9 => 0x551D4A,
+        10 => 0xCD5CAB,
+        11 => 0x9146F0,
+        12 => 0xFF9900,
+        13 => 0x98DAC0,
+        14 => 0xF6F6F6,
+        15 => 0x1F1F23,
+        16 => 0xC2FF66,
+        17 => 0x587653,
+        18 => 0x484D48,
+        19 => 0x87A363,
+        20 => 0x736156,
+        21 => 0xF87D23,
+        22 => 0x2552A5,
+        23 => 0xF82423,
+        24 => 0xCEFFFF,
+        27 => 0xF3CFB9,
+        32 => 0xBDC9FF,
+        33 => 0x78695A,
+        34 => 0x99FFA3,
+        35 => 0x8C9B8C,
+        _ => return None,
+    })
+}
+
+/// Colour of a potion without effects (water, mundane, thick, awkward).
+const NO_EFFECT_COLOR: u32 = 0x385DC6;
+
+/// ARGB colour of the potion with aux `aux`: its effects' colours averaged,
+/// each weighted by amplifier + 1 (public reference for mixtures; single
+/// effects match BDS 1.26.51), fully opaque.
+pub fn potion_color(aux: i16) -> i32 {
+    let mut sum = [0.0f64; 3];
+    let mut weight = 0.0;
+    for effect in unastar_data::potions::get(aux).map_or(&[][..], |p| &p.effects[..]) {
+        let Some(color) = effect_color(EffectType(effect.effect)) else {
+            continue;
+        };
+        let w = f64::from(effect.amplifier) + 1.0;
+        for (channel, shift) in sum.iter_mut().zip([16, 8, 0]) {
+            *channel += f64::from((color >> shift) & 0xFF) * w;
+        }
+        weight += w;
+    }
+    let rgb = if weight == 0.0 {
+        NO_EFFECT_COLOR
+    } else {
+        sum.iter()
+            .fold(0u32, |rgb, channel| (rgb << 8) | (channel / weight) as u32)
+    };
+    (0xFF00_0000 | rgb) as i32
+}
+
+/// How much of a potion an actor gets.
+#[derive(Debug, Clone, Copy, PartialEq)]
+pub struct PotionScale {
+    /// Multiplies effect durations.
+    pub duration: f64,
+    /// Multiplies instant health and damage.
+    pub instant: f64,
+}
+
+impl PotionScale {
+    /// Drunk: everything in full.
+    pub const FULL: Self = Self {
+        duration: 1.0,
+        instant: 1.0,
+    };
+}
+
+/// Apply the potion with aux `aux` to `target` at `scale`. Returns whether
+/// the aux is a known potion.
+pub fn apply_potion(world: &mut World, target: Entity, aux: i16, scale: PotionScale) -> bool {
+    let Some(potion) = unastar_data::potions::get(aux) else {
+        return false;
+    };
+    for effect in &potion.effects {
+        let kind = EffectType(effect.effect);
+        if matches!(
+            kind,
+            EffectType::INSTANT_HEALTH | EffectType::INSTANT_DAMAGE
+        ) {
+            apply_instant(world, target, kind, effect.amplifier, scale.instant);
+            continue;
+        }
+        let ticks = (f64::from(effect.duration) * scale.duration).round() as u32;
+        if ticks > 0 {
+            add_effect(world, target, kind, effect.amplifier, ticks);
+        }
+    }
+    true
+}
+
+/// Instant health or damage at `scale` of its full amount (4 or 6 shifted
+/// by the amplifier).
+fn apply_instant(world: &mut World, target: Entity, kind: EffectType, amplifier: u8, scale: f64) {
+    let shift = amplifier.min(30);
+    match kind {
+        EffectType::INSTANT_HEALTH => heal(
+            world,
+            target,
+            ((4u32 << shift) as f64 * scale).round() as f32,
+        ),
+        EffectType::INSTANT_DAMAGE => {
+            crate::entity::mob::combat::hurt_mob(
+                world,
+                target,
+                crate::entity::mob::combat::Hit {
+                    damage: ((6u32 << shift) as f64 * scale).round() as f32,
+                    cause: unastar_data::actor_components::body::ActorDamageCause::Magic,
+                    attacker: None,
+                    by_player: false,
+                    knockback_from: None,
+                    knockback_power: crate::entity::mob::components::KnockbackPower::DEFAULT,
+                },
+            );
+        }
+        _ => add_effect(world, target, kind, amplifier, 1),
     }
 }
 

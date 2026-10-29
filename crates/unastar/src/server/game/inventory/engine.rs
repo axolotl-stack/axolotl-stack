@@ -484,6 +484,9 @@ impl Request<'_, '_> {
 
     fn craft_recipe(&mut self, net_id: u32, num_crafts: u32) -> Result<(), Status> {
         let executor = self.ctx.crafting;
+        if executor.is_repair(net_id) {
+            return self.craft_repair(num_crafts);
+        }
         let large = executor
             .requires_3x3(net_id)
             .map_err(|error| GridCraftError::Validation(error).status())?;
@@ -539,6 +542,63 @@ impl Request<'_, '_> {
         Ok(())
     }
 
+    /// The item-repair recipe: exactly two single, damaged-or-not items of
+    /// the same durable kind anywhere in the grid make one item with their
+    /// remaining durability plus a bonus (see [`repaired_damage`]).
+    fn craft_repair(&mut self, num_crafts: u32) -> Result<(), Status> {
+        if num_crafts != 1 {
+            return Err(Status::Invalidrequestcraftactiontype);
+        }
+        let (first, len) = if self.ctx.screen == ScreenKind::Workbench {
+            (32, 9)
+        } else {
+            (28, 4)
+        };
+        let occupied: Vec<(u8, ItemStack)> = (first..first + len)
+            .map(|slot| {
+                (
+                    slot as u8,
+                    self.staging.get(self.stores, (Store::Ui, slot)).clone(),
+                )
+            })
+            .filter(|(_, stack)| !stack.is_empty())
+            .collect();
+        let [(slot_a, a), (slot_b, b)] = occupied.as_slice() else {
+            return Err(Status::Mismatchedrecipeforinputgriditems);
+        };
+        let max = a.item().map_or(0, super::super::durability::max_durability);
+        if a.item_id() != b.item_id() || max <= 0 || a.count != 1 || b.count != 1 {
+            return Err(Status::Mismatchedrecipeforinputgriditems);
+        }
+        let damage = repaired_damage(
+            max,
+            crate::item::enchant::durability_damage(a),
+            crate::item::enchant::durability_damage(b),
+        );
+        let template = a
+            .item_type()
+            .cloned()
+            .map(|item| ItemStack::new(item, 1))
+            .ok_or(Status::Mismatchedrecipeforinputgriditems)?;
+        let output = crate::item::enchant::with_durability_damage(&template, damage)
+            .with_net_id(fresh_net_id());
+        self.consumption = std::array::from_fn(|index| match index {
+            0 => Some(ExpectedConsumption {
+                ui_slot: *slot_a,
+                stack: a.clone(),
+                remaining: 1,
+            }),
+            1 => Some(ExpectedConsumption {
+                ui_slot: *slot_b,
+                stack: b.clone(),
+                remaining: 1,
+            }),
+            _ => None,
+        });
+        self.staging.set((Store::Ui, CREATED_OUTPUT_SLOT), output);
+        Ok(())
+    }
+
     fn consume(
         &mut self,
         amount: u8,
@@ -569,7 +629,7 @@ impl Request<'_, '_> {
             return Err(Status::Consumedtoomuchfromslot);
         }
         let from = self.stack(&slot);
-        if !from.comparable(&expected.stack) || from.count < amount {
+        if !from.same_kind(&expected.stack) || from.count < amount {
             return Err(Status::Mismatchslotexpectedconsumeditem);
         }
         if from.net_id != expected.stack.net_id
@@ -675,6 +735,13 @@ impl Request<'_, '_> {
             durability_correction: i32::from(stack.damage),
         }
     }
+}
+
+/// Damage of a grid-repaired item: the remaining durability of both inputs
+/// plus 5 % of the maximum (rounded down), capped at the maximum.
+pub fn repaired_damage(max: i32, damage_a: i32, damage_b: i32) -> i32 {
+    let remaining = (max - damage_a) + (max - damage_b) + max * 5 / 100;
+    (max - remaining).max(0)
 }
 
 fn custom_name(stack: &ItemStack) -> String {
@@ -1676,6 +1743,67 @@ mod regressions {
             assert_eq!(containers[1].slots[0].slot, 13);
         }
 
+        fn repair_id() -> u32 {
+            test_support::CRAFTING
+                .0
+                .packet()
+                .multi_recipes
+                .iter()
+                .find(|r| r.multi_recipe_uuid == crate::crafting::execution::REPAIR_RECIPE_UUID)
+                .unwrap()
+                .net_id
+                .raw_id
+        }
+
+        #[test]
+        fn grid_repair_matches_the_bds_capture() {
+            use crate::item::enchant::{
+                Enchantment, durability_damage, enchantment_level, with_durability_damage,
+                with_enchantments,
+            };
+            let pickaxe = stack("minecraft:wooden_pickaxe", 1);
+            let mut h = Harness::new();
+            let a = with_enchantments(
+                &with_durability_damage(&pickaxe, 30),
+                &[(Enchantment::Efficiency, 1)],
+            );
+            h.ui.set_item(28, a).unwrap();
+            h.ui.set_item(29, with_durability_damage(&pickaxe, 40))
+                .unwrap();
+            let (id_a, id_b) = (h.ui.item(28).unwrap().net_id, h.ui.item(29).unwrap().net_id);
+            let outcome = h.run(
+                -5,
+                vec![
+                    craft(repair_id(), 1),
+                    consume(1, 28, id_a),
+                    consume(1, 29, id_b),
+                    output(1, -5, 2),
+                ],
+            );
+            assert_eq!(status(&outcome), Status::Success);
+            assert!(h.ui.item(28).unwrap().is_empty() && h.ui.item(29).unwrap().is_empty());
+            let result = h.main.item(2).unwrap();
+            assert_eq!(result.item_id(), "minecraft:wooden_pickaxe");
+            // 59 - ((59 - 30) + (59 - 40) + 59 * 5 / 100) = 9, enchantments dropped.
+            assert_eq!(durability_damage(result), 9);
+            assert_eq!(enchantment_level(result, Enchantment::Efficiency), 0);
+        }
+
+        #[test]
+        fn grid_repair_rejects_mismatched_items() {
+            for (first, second) in [
+                ("minecraft:wooden_pickaxe", "minecraft:stone_pickaxe"),
+                ("minecraft:stick", "minecraft:stick"),
+            ] {
+                let mut h = Harness::new();
+                let id = seed(&mut h, 28, first, 1);
+                seed(&mut h, 29, second, 1);
+                let outcome = h.run(-1, vec![craft(repair_id(), 1)]);
+                assert_eq!(status(&outcome), Status::Mismatchedrecipeforinputgriditems);
+                assert_eq!(h.ui.item(28).unwrap().net_id, id);
+            }
+        }
+
         #[test]
         fn wrong_recipe_grid_size_and_insufficient_input_reject_without_mutation() {
             for (net_id, name, count, crafts, expected) in [
@@ -1722,8 +1850,13 @@ mod regressions {
                 status(&h.run(-1, vec![craft(large.net_id.raw_id, 1)])),
                 Status::Mismatchedcraftingsize
             );
+            let other_multi = packet
+                .multi_recipes
+                .iter()
+                .find(|r| r.multi_recipe_uuid != crate::crafting::execution::REPAIR_RECIPE_UUID)
+                .unwrap();
             assert_eq!(
-                status(&h.run(-3, vec![craft(packet.multi_recipes[0].net_id.raw_id, 1)])),
+                status(&h.run(-3, vec![craft(other_multi.net_id.raw_id, 1)])),
                 Status::Invalidrequestcraftactiontype
             );
             assert_eq!(

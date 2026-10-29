@@ -227,6 +227,17 @@ impl ItemStack {
     ///
     /// Does not check count limits; use `merge` for that.
     #[inline]
+    /// Whether both are the same item, aux and NBT, ignoring count, network
+    /// id and stack size (unlike [`Self::comparable`], also for unstackable
+    /// items).
+    pub fn same_kind(&self, other: &Self) -> bool {
+        !self.is_empty()
+            && !other.is_empty()
+            && self.item == other.item
+            && self.damage == other.damage
+            && self.nbt == other.nbt
+    }
+
     pub fn comparable(&self, other: &Self) -> bool {
         if self.is_empty() || other.is_empty() || self.item != other.item {
             return false;

@@ -24,6 +24,10 @@ pub enum Enchantment {
     Unbreaking = 17,
     Fortune = 18,
     Infinity = 22,
+    Impaling = 29,
+    Riptide = 30,
+    Loyalty = 31,
+    Channeling = 32,
 }
 
 impl Enchantment {
@@ -37,6 +41,10 @@ impl Enchantment {
             "unbreaking" => Self::Unbreaking,
             "fortune" => Self::Fortune,
             "infinity" => Self::Infinity,
+            "impaling" => Self::Impaling,
+            "riptide" => Self::Riptide,
+            "loyalty" => Self::Loyalty,
+            "channeling" => Self::Channeling,
             _ => return None,
         })
     }

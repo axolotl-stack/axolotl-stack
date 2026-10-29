@@ -112,6 +112,24 @@ impl MobFacts<'_> {
     }
 }
 
+/// A boolean game rule as the server announces it in `StartGame`, if set.
+pub(crate) fn game_rule_bool(world: &World, rule: &str) -> Option<bool> {
+    use jolyne::valentine::types::GameRuleRuleValue;
+    world
+        .get_resource::<crate::server::game::types::ServerWorldTemplate>()?
+        .0
+        .start_game_template
+        .settings
+        .rule_data
+        .rules_list
+        .iter()
+        .find(|r| r.rule_name.eq_ignore_ascii_case(rule))
+        .and_then(|r| match r.rule_value {
+            GameRuleRuleValue::Bool(value) => Some(value),
+            _ => None,
+        })
+}
+
 impl FilterContext for MobFacts<'_> {
     fn fact(&self, subject: Subject, test: &FilterTest) -> Option<Fact> {
         let entity = self.subject(subject)?;
@@ -146,6 +164,14 @@ impl FilterContext for MobFacts<'_> {
                 PropertyValue::Int(value) => Fact::Number(f64::from(value)),
                 _ => return None,
             },
+            BuiltinTest::IsGameRule => {
+                let rule = test.domain_str()?;
+                let value = game_rule_bool(self.world, rule).or_else(|| {
+                    rule.eq_ignore_ascii_case(super::constants::DO_MOB_SPAWNING_RULE)
+                        .then_some(super::constants::DO_MOB_SPAWNING_DEFAULT)
+                })?;
+                Fact::Bool(value)
+            }
             // Riding is not implemented: no actor ever has a rider.
             BuiltinTest::RiderCount => Fact::Number(0.0),
             BuiltinTest::HasComponent => {

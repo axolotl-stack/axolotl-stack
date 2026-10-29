@@ -735,22 +735,6 @@ fn world_difficulty(world: &World) -> Difficulty {
 
 /// The `domobspawning` game rule the server announces.
 fn do_mob_spawning(world: &World) -> bool {
-    use jolyne::valentine::types::GameRuleRuleValue;
-    world
-        .get_resource::<ServerWorldTemplate>()
-        .and_then(|template| {
-            template
-                .0
-                .start_game_template
-                .settings
-                .rule_data
-                .rules_list
-                .iter()
-                .find(|rule| rule.rule_name.eq_ignore_ascii_case(DO_MOB_SPAWNING_RULE))
-                .and_then(|rule| match rule.rule_value {
-                    GameRuleRuleValue::Bool(value) => Some(value),
-                    _ => None,
-                })
-        })
+    crate::entity::mob::events::game_rule_bool(world, DO_MOB_SPAWNING_RULE)
         .unwrap_or(DO_MOB_SPAWNING_DEFAULT)
 }

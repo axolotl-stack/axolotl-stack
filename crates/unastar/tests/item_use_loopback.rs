@@ -115,13 +115,13 @@ fn select(runtime_id: u64, slot: u8) -> MobEquipmentPacket {
 }
 
 #[test]
-fn eat_mine_and_shoot_over_loopback() {
+fn eat_mine_shoot_pearl_and_drink_over_loopback() {
     let directory = tempfile::tempdir().unwrap();
     std::env::set_current_dir(directory.path()).unwrap();
     let uuid = uuid::Uuid::new_v4();
     let name = "Archer";
     // A saved survival player: hungry, with an apple, an iron pickaxe, a
-    // bow and arrows in the hotbar.
+    // bow and arrows, ender pearls and a potion in the hotbar.
     let players = directory.path().join("players");
     {
         let provider = LevelDBPlayerProvider::open(players.join("db")).unwrap();
@@ -130,6 +130,12 @@ fn eat_mine_and_shoot_over_loopback() {
         inventory[1] = stored("minecraft:iron_pickaxe", 1);
         inventory[2] = stored("minecraft:bow", 1);
         inventory[3] = stored("minecraft:arrow", 16);
+        inventory[4] = stored("minecraft:ender_pearl", 2);
+        // A potion of night vision (aux 5).
+        inventory[5] = StoredItemStack {
+            damage: 5,
+            ..stored("minecraft:potion", 1)
+        };
         let data = PlayerData {
             uuid: uuid.to_string(),
             game_mode: 0,
@@ -319,6 +325,69 @@ fn eat_mine_and_shoot_over_loopback() {
             _ => None,
         })
         .await;
+
+        // Throw an ender pearl ahead and down: the cooldown starts, the
+        // pearl flies and the player is teleported where it lands.
+        send(&mut client, select(runtime_id, 4)).await;
+        send(&mut client, auth_input(60, 30.0, vec![])).await;
+        send(&mut client, use_air(4)).await;
+        let cooldown = recv_until(&mut client, "pearl cooldown", |data| match data {
+            McpePacketData::PlayerStartItemCooldownPacket(cooldown) => Some(cooldown),
+            _ => None,
+        })
+        .await;
+        assert_eq!(
+            (&*cooldown.item_category, cooldown.duration_ticks),
+            ("minecraft:ender_pearl", 20)
+        );
+        recv_until(&mut client, "pearl flies", |data| match data {
+            McpePacketData::AddActorPacket(actor)
+                if &*actor.actor_type == "minecraft:ender_pearl" =>
+            {
+                Some(())
+            }
+            _ => None,
+        })
+        .await;
+        let landed = recv_until(&mut client, "pearl teleport", |data| match data {
+            McpePacketData::MovePlayerPacket(moved)
+                if moved.player_runtime_id.actor_runtime_id == runtime_id =>
+            {
+                Some(moved)
+            }
+            _ => None,
+        })
+        .await;
+        assert!(
+            landed.position.z > 2.0,
+            "teleported to {:?}",
+            landed.position
+        );
+        assert!(landed.on_ground);
+
+        // Drink the potion: night vision for 3600 ticks, then a bottle.
+        send(&mut client, select(runtime_id, 5)).await;
+        send(&mut client, use_air(5)).await;
+        let (mut effect, mut drunk) = (None, None);
+        recv_until(&mut client, "night vision and the finished drink", |data| {
+            match data {
+                McpePacketData::MobEffectPacket(packet)
+                    if packet.target_runtime_id.actor_runtime_id == runtime_id =>
+                {
+                    effect = Some(packet);
+                }
+                McpePacketData::CompletedUsingItemPacket(done) => drunk = Some(done),
+                _ => {}
+            }
+            (effect.is_some() && drunk.is_some()).then_some(())
+        })
+        .await;
+        let (effect, drunk) = (effect.unwrap(), drunk.unwrap());
+        assert_eq!(
+            (effect.effect_id, effect.effect_amplifier, effect.effect_duration_ticks),
+            (16, 0, 3600)
+        );
+        assert_eq!(drunk.item_use_method, 3);
         server_task.abort();
     });
 }

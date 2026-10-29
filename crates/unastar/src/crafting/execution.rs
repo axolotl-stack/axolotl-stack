@@ -265,7 +265,13 @@ impl Recipe {
 pub struct CraftingExecutor {
     recipes: HashMap<u32, Recipe>,
     non_grid: HashSet<u32>,
+    /// Network id of the advertised item-repair multi recipe.
+    repair: Option<u32>,
 }
+
+/// UUID of the multi recipe that repairs two damaged items of the same kind
+/// in the crafting grid (advertised in BDS 1.26.51's `CraftingData`).
+pub const REPAIR_RECIPE_UUID: uuid::Uuid = uuid::Uuid::from_u128(1);
 
 impl CraftingExecutor {
     pub fn new(catalog: &CraftingCatalog, items: &ItemRegistry) -> Result<Self, CompileError> {
@@ -273,6 +279,11 @@ impl CraftingExecutor {
         let mut executor = Self {
             recipes: HashMap::new(),
             non_grid: HashSet::new(),
+            repair: packet
+                .multi_recipes
+                .iter()
+                .find(|r| r.multi_recipe_uuid == REPAIR_RECIPE_UUID)
+                .map(|r| r.net_id.raw_id),
         };
         for recipe in &packet.shaped_recipes {
             let id = recipe.net_id.raw_id;
@@ -396,6 +407,11 @@ impl CraftingExecutor {
     }
 
     /// Dimensional requirement only: station tag is NOT a grid-screen check.
+    /// Whether `net_id` is the item-repair multi recipe.
+    pub fn is_repair(&self, net_id: u32) -> bool {
+        self.repair == Some(net_id)
+    }
+
     pub fn requires_3x3(&self, net_id: u32) -> Result<bool, ValidationError> {
         self.recipe(net_id).map(Recipe::requires_3x3)
     }

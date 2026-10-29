@@ -34,9 +34,13 @@ pub enum ConsumeKind {
     Food,
     /// The milk bucket.
     Milk,
+    /// A drinkable potion (its aux is the potion type).
+    Potion,
 }
 
 const MILK_BUCKET: &str = "minecraft:milk_bucket";
+const POTION: &str = "minecraft:potion";
+const GLASS_BOTTLE: &str = "minecraft:glass_bottle";
 const BUCKET: &str = "minecraft:bucket";
 
 /// The use duration of `entry` in ticks.
@@ -59,6 +63,8 @@ pub fn consumable(entry: &ItemEntry) -> Option<Consumable> {
         ConsumeKind::Food
     } else if entry.identifier() == MILK_BUCKET {
         ConsumeKind::Milk
+    } else if entry.identifier() == POTION {
+        ConsumeKind::Potion
     } else {
         return None;
     };
@@ -71,7 +77,7 @@ pub fn consumable(entry: &ItemEntry) -> Option<Consumable> {
 /// Whether the player may start eating: hungry, a food that can always be
 /// eaten, a drink, creative, or peaceful.
 fn may_start(world: &World, player: Entity, entry: &ItemEntry, kind: ConsumeKind) -> bool {
-    if kind == ConsumeKind::Milk {
+    if matches!(kind, ConsumeKind::Milk | ConsumeKind::Potion) {
         return true;
     }
     let always = entry
@@ -167,6 +173,10 @@ pub fn finish(world: &mut World, player: Entity, slot: u8, stack: &ItemStack, ki
             effects::clear_effects(world, player);
             Some(BUCKET.to_owned())
         }
+        (ConsumeKind::Potion, _) => {
+            effects::apply_potion(world, player, stack.damage, effects::PotionScale::FULL);
+            Some(GLASS_BOTTLE.to_owned())
+        }
         (ConsumeKind::Food, None) => return,
     };
     let creative = world.get::<GameMode>(player) == Some(&GameMode::Creative);
@@ -196,10 +206,23 @@ pub fn finish(world: &mut World, player: Entity, slot: u8, stack: &ItemStack, ki
     let method = match kind {
         ConsumeKind::Food => UseMethod::Eat,
         ConsumeKind::Milk => UseMethod::None,
+        ConsumeKind::Potion => UseMethod::Drink,
     };
     super::completed(world, player, entry.network_id(), method);
     super::stop_using(world, player);
-    // Food ends with a burp 0.1 below the eyes; drinking milk does not.
+    // A potion ends with the empty-bottle sound; food with a burp 0.1 below
+    // the eyes; milk with neither (BDS 1.26.51 capture).
+    if kind == ConsumeKind::Potion
+        && let Some(eye) = world.get::<Position>(player).map(|p| p.0)
+    {
+        crate::entity::mob::net::sound::play_level_sound(
+            world,
+            None,
+            eye - DVec3::new(0.0, 0.2, 0.0),
+            "bottle.empty",
+            -1,
+        );
+    }
     if kind == ConsumeKind::Food
         && let Some(eye) = world.get::<Position>(player).map(|p| p.0)
     {

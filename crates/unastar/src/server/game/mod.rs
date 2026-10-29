@@ -30,7 +30,9 @@ pub mod types;
 
 use bevy_ecs::prelude::*;
 pub(crate) use block_drops::loot_stacks;
-pub(crate) use blocks::{commit_block_event, reject_block_event};
+pub(crate) use blocks::{
+    block_at, body_in_water, commit_block_event, reject_block_event, set_block,
+};
 pub use inventory::RequestIdAssignments;
 pub(crate) use items::{PICKUP_REACH, item_descriptor, player_box};
 pub(crate) use items::{send_slot, world_stack};
@@ -497,6 +499,8 @@ impl GameServer {
                 hunger::tick_hunger,
                 item_use::tick_using,
                 crate::entity::projectile::pick_up_stuck_projectiles,
+                item_use::ranged::return_loyal_tridents,
+                crate::entity::projectile::tick_clouds,
             )
                 .chain()
                 .in_set(EntityLogicSet)

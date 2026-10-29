@@ -257,7 +257,23 @@ fn broadcast_block_crack_stop(world: &World, x: i32, y: i32, z: i32) {
     }
 }
 
-pub(super) fn block_at(world: &World, position: (i32, i32, i32)) -> Option<u32> {
+/// Whether the block at `pos` holds water (source or flowing).
+pub(crate) fn water_at(world: &World, pos: IVec3) -> bool {
+    let Some(registry) = world.get_resource::<super::types::BlockRegistryResource>() else {
+        return false;
+    };
+    block_at(world, (pos.x, pos.y, pos.z))
+        .and_then(|id| registry.0.liquid_state(id))
+        .is_some_and(|l| l.kind == crate::registry::block::LiquidKind::Water)
+}
+
+/// Whether a body standing at `feet` is in water (feet or the block above).
+pub(crate) fn body_in_water(world: &World, feet: glam::DVec3) -> bool {
+    let feet = feet.floor().as_ivec3();
+    water_at(world, feet) || water_at(world, feet + IVec3::Y)
+}
+
+pub(crate) fn block_at(world: &World, position: (i32, i32, i32)) -> Option<u32> {
     let (x, y, z) = position;
     if !(crate::world::chunk::MIN_Y
         ..crate::world::chunk::MIN_Y + i32::from(crate::world::chunk::SUBCHUNK_COUNT) * 16)
@@ -964,7 +980,7 @@ fn place_block(world: &mut World, x: i32, y: i32, z: i32, block_runtime_id: u32)
 /// Set a block at world coordinates, broadcast the change to the chunk's
 /// viewers (with the place sound when `place_sound`) and schedule gravity
 /// checks for the block and the one above it.
-pub(super) fn set_block(world: &mut World, pos: IVec3, block_runtime_id: u32, place_sound: bool) {
+pub(crate) fn set_block(world: &mut World, pos: IVec3, block_runtime_id: u32, place_sound: bool) {
     let (x, y, z) = (pos.x, pos.y, pos.z);
     let (cx, cz) = world_to_chunk_coords(x, z);
     let (local_x, local_y, local_z) = world_to_local_coords(x, y, z);

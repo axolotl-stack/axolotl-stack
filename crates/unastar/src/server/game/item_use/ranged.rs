@@ -10,9 +10,10 @@
 //! draw-to-power curve `(f² + 2f) / 3` (f = seconds drawn, at least 0.1, at
 //! most 1) is a public reference recorded in `bds-quirks.md`.
 //!
-//! Tridents are not thrown yet: the server only spawns actors whose
-//! `AddActor` shape was measured from BDS, and `minecraft:thrown_trident`
-//! is missing from the retained summon capture.
+//! Tridents drawn for at least 10 ticks are thrown at their definition's
+//! power with `item.trident.throw`; Loyalty brings a thrown trident back to
+//! its owner, Riptide launches the player instead of throwing (only in
+//! water: this server has no weather).
 
 use bevy_ecs::prelude::*;
 use glam::DVec3;
@@ -33,18 +34,22 @@ const BOW_SPEED: f64 = 3.0;
 const CROSSBOW_SPEED: f64 = 3.15;
 /// Ticks a crossbow takes to load.
 pub const CROSSBOW_LOAD_TICKS: u64 = 25;
+/// Minimum trident draw, ticks.
+const TRIDENT_MIN_DRAW: u64 = 10;
 
 /// An item used by drawing and releasing (or, for the crossbow, charging).
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum Drawn {
     Bow,
     Crossbow,
+    Trident,
 }
 
 pub fn drawn(identifier: &str) -> Option<Drawn> {
     match identifier {
         "minecraft:bow" => Some(Drawn::Bow),
         "minecraft:crossbow" => Some(Drawn::Crossbow),
+        "minecraft:trident" => Some(Drawn::Trident),
         _ => None,
     }
 }
@@ -54,8 +59,49 @@ pub fn thrown(item: &str) -> Option<ActorType> {
     crate::entity::projectile::thrown_by(item).map(|(actor, _)| actor)
 }
 
-/// Throw the held item (the projectile system takes it from the hand).
-pub fn throw(world: &mut World, player: Entity) {
+/// Item cooldowns of a player: category and the server tick it ends.
+#[derive(Component, Debug, Clone, Default, PartialEq, Eq)]
+pub struct ItemCooldowns(pub Vec<(&'static str, u64)>);
+
+/// The cooldown a thrown item starts, measured on BDS 1.26.51: ender pearls
+/// send `PlayerStartItemCooldown("minecraft:ender_pearl", 20)` before the
+/// throw and cannot be thrown again for 20 ticks.
+fn throw_cooldown(item: &str) -> Option<(&'static str, u32)> {
+    (item == "minecraft:ender_pearl").then_some(("minecraft:ender_pearl", 20))
+}
+
+/// Throw the held item (the projectile system takes it from the hand),
+/// unless its cooldown is running.
+pub fn throw(world: &mut World, player: Entity, item: &str) {
+    if let Some((category, ticks)) = throw_cooldown(item) {
+        let now = world
+            .get_resource::<crate::ecs::resources::TickCounter>()
+            .map_or(0, |t| t.current);
+        let cooling = world.get::<ItemCooldowns>(player).is_some_and(|c| {
+            c.0.iter()
+                .any(|(name, until)| *name == category && now < *until)
+        });
+        if cooling {
+            return;
+        }
+        let mut entity = world.entity_mut(player);
+        if !entity.contains::<ItemCooldowns>() {
+            entity.insert(ItemCooldowns::default());
+        }
+        let mut cooldowns = entity.get_mut::<ItemCooldowns>().expect("inserted above");
+        cooldowns
+            .0
+            .retain(|(name, until)| *name != category && now < *until);
+        cooldowns.0.push((category, now + u64::from(ticks)));
+        if let Some(session) = world.get::<crate::entity::components::PlayerSession>(player) {
+            let _ = session.send(jolyne::valentine::McpePacket::from(
+                jolyne::valentine::PlayerStartItemCooldownPacket {
+                    item_category: category.into(),
+                    duration_ticks: ticks as i32,
+                },
+            ));
+        }
+    }
     world
         .get_resource_or_init::<crate::entity::projectile::ThrowQueue>()
         .0
@@ -66,7 +112,8 @@ fn creative(world: &World, player: Entity) -> bool {
     world.get::<GameMode>(player) == Some(&GameMode::Creative)
 }
 
-/// Where a plain arrow is: the offhand first, then the main inventory.
+/// Where an arrow (plain or tipped) is: the offhand first, then the main
+/// inventory.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 enum Ammo {
     Offhand,
@@ -74,10 +121,10 @@ enum Ammo {
 }
 
 fn find_arrow(world: &World, player: Entity) -> Option<Ammo> {
-    let plain = |s: &ItemStack| s.item_id() == ARROW && s.damage == 0 && s.count > 0;
+    let arrow = |s: &ItemStack| s.item_id() == ARROW && s.count > 0;
     if world
         .get::<OffhandSlot>(player)
-        .is_some_and(|offhand| plain(&offhand.0))
+        .is_some_and(|offhand| arrow(&offhand.0))
     {
         return Some(Ammo::Offhand);
     }
@@ -86,8 +133,55 @@ fn find_arrow(world: &World, player: Entity) -> Option<Ammo> {
         .0
         .slots()
         .iter()
-        .position(plain)
+        .position(arrow)
         .map(Ammo::Main)
+}
+
+/// The aux of the arrow at `ammo` (0 plain, potion aux + 1 tipped).
+fn arrow_aux(world: &World, player: Entity, ammo: Ammo) -> i16 {
+    match ammo {
+        Ammo::Offhand => world.get::<OffhandSlot>(player).map(|o| o.0.damage),
+        Ammo::Main(slot) => world
+            .get::<MainInventory>(player)
+            .and_then(|inv| inv.0.item(slot))
+            .map(|s| s.damage),
+    }
+    .unwrap_or(0)
+}
+
+/// A shot arrow: a tipped arrow (aux > 0) carries potion `aux - 1`.
+fn shoot_arrow(
+    world: &mut World,
+    player: Entity,
+    aux: i16,
+    spec: LaunchSpec,
+) -> Result<(), crate::entity::projectile::LaunchError> {
+    let arrow = launch_with(world, player, ActorType::Arrow, None, spec)?;
+    if aux > 0 {
+        crate::entity::projectile::carry_potion(world, arrow, aux - 1, true);
+    }
+    Ok(())
+}
+
+/// One arrow of `aux` to pick back up.
+fn arrow_stack(world: &World, aux: i16) -> Option<ItemStack> {
+    crate::server::game::world_stack(world, ARROW, 1).map(|mut s| {
+        s.damage = aux;
+        s
+    })
+}
+
+/// The aux of the arrow a loaded crossbow holds.
+fn charged_aux(stack: &ItemStack) -> i16 {
+    item_tag(stack)
+        .and_then(|tag| match tag.0.get("chargedItem") {
+            Some(NBTTag::Compound(arrow)) => match arrow.0.get("Damage") {
+                Some(NBTTag::Short(damage)) => Some(damage.0),
+                _ => None,
+            },
+            _ => None,
+        })
+        .unwrap_or(0)
 }
 
 /// Take one arrow from `ammo`.
@@ -133,13 +227,14 @@ fn charged(stack: &ItemStack) -> bool {
     item_tag(stack).is_some_and(|tag| tag.0.contains_key("chargedItem"))
 }
 
-/// `stack` with a plain arrow stored as its `chargedItem`, or without one.
-fn with_charge(stack: &ItemStack, loaded: bool) -> ItemStack {
+/// `stack` with an arrow of `aux` stored as its `chargedItem`, or without
+/// one.
+fn with_charge(stack: &ItemStack, loaded: Option<i16>) -> ItemStack {
     let mut compound = item_tag(stack).unwrap_or_default();
-    if loaded {
+    if let Some(aux) = loaded {
         let mut arrow = std::collections::HashMap::new();
         arrow.insert("Count".to_owned(), NBTTag::Byte(tag::Byte(1)));
-        arrow.insert("Damage".to_owned(), NBTTag::Short(tag::Short(0)));
+        arrow.insert("Damage".to_owned(), NBTTag::Short(tag::Short(aux)));
         arrow.insert(
             "Name".to_owned(),
             NBTTag::String(tag::String(ARROW.to_owned())),
@@ -174,13 +269,21 @@ pub fn use_drawn(
         fire_crossbow(world, player, slot, stack);
         return;
     }
+    if drawn == Drawn::Trident {
+        // Riptide only works in water.
+        if enchantment_level(stack, Enchantment::Riptide) > 0 && !in_water(world, player) {
+            return;
+        }
+        start_using(world, player, slot, entry.id);
+        return;
+    }
     if !creative(world, player) && find_arrow(world, player).is_none() {
         return;
     }
     start_using(world, player, slot, entry.id);
 }
 
-/// Letting go of a drawn bow (a crossbow just stops charging).
+/// Letting go of a drawn bow or trident (a crossbow just stops charging).
 pub fn release_drawn(
     world: &mut World,
     player: Entity,
@@ -194,8 +297,16 @@ pub fn release_drawn(
     };
     let ticks = used_ticks(world, &using);
     stop_using(world, player);
-    if drawn == Drawn::Bow {
-        shoot_bow(world, player, slot, stack, ticks);
+    match drawn {
+        Drawn::Bow => shoot_bow(world, player, slot, stack, ticks),
+        Drawn::Trident if ticks >= TRIDENT_MIN_DRAW => {
+            if enchantment_level(stack, Enchantment::Riptide) > 0 {
+                riptide(world, player, stack);
+            } else {
+                throw_trident(world, player, slot, stack);
+            }
+        }
+        Drawn::Trident | Drawn::Crossbow => {}
     }
 }
 
@@ -217,8 +328,11 @@ fn shoot_bow(world: &mut World, player: Entity, slot: u8, stack: &ItemStack, tic
     if ammo.is_none() && !creative {
         return;
     }
+    let aux = ammo.map_or(0, |ammo| arrow_aux(world, player, ammo));
+    // Infinity keeps plain arrows only; tipped arrows are still used up.
+    let infinity = infinity && aux == 0;
     let returned = (!creative && !infinity)
-        .then(|| crate::server::game::world_stack(world, ARROW, 1))
+        .then(|| arrow_stack(world, aux))
         .flatten();
     let spec = LaunchSpec {
         speed: Some(power * BOW_SPEED),
@@ -227,7 +341,7 @@ fn shoot_bow(world: &mut World, player: Entity, slot: u8, stack: &ItemStack, tic
         item: returned,
         throw_sound: false,
     };
-    if let Err(error) = launch_with(world, player, ActorType::Arrow, None, spec) {
+    if let Err(error) = shoot_arrow(world, player, aux, spec) {
         tracing::warn!(%error, "Shooting an arrow failed");
         return;
     }
@@ -263,12 +377,14 @@ pub fn tick_crossbow(
 fn load_crossbow(world: &mut World, player: Entity, slot: u8, stack: &ItemStack) {
     stop_using(world, player);
     let creative = creative(world, player);
-    match find_arrow(world, player) {
+    let ammo = find_arrow(world, player);
+    let aux = ammo.map_or(0, |ammo| arrow_aux(world, player, ammo));
+    match ammo {
         Some(ammo) if !creative => take_arrow(world, player, ammo),
         None if !creative => return,
         _ => {}
     }
-    set_slot(world, player, slot, with_charge(stack, true));
+    set_slot(world, player, slot, with_charge(stack, Some(aux)));
     crate::entity::mob::combat::send_actor_event(
         world,
         player,
@@ -281,8 +397,9 @@ fn load_crossbow(world: &mut World, player: Entity, slot: u8, stack: &ItemStack)
 }
 
 fn fire_crossbow(world: &mut World, player: Entity, slot: u8, stack: &ItemStack) {
+    let aux = charged_aux(stack);
     let returned = (!creative(world, player))
-        .then(|| crate::server::game::world_stack(world, ARROW, 1))
+        .then(|| arrow_stack(world, aux))
         .flatten();
     let spec = LaunchSpec {
         speed: Some(CROSSBOW_SPEED),
@@ -291,13 +408,227 @@ fn fire_crossbow(world: &mut World, player: Entity, slot: u8, stack: &ItemStack)
         item: returned,
         throw_sound: false,
     };
-    if let Err(error) = launch_with(world, player, ActorType::Arrow, None, spec) {
+    if let Err(error) = shoot_arrow(world, player, aux, spec) {
         tracing::warn!(%error, "Firing a crossbow failed");
         return;
     }
-    set_slot(world, player, slot, with_charge(stack, false));
+    set_slot(world, player, slot, with_charge(stack, None));
     wear_held(world, player, 1);
     sound(world, player, "crossbow.shoot");
+}
+
+fn in_water(world: &World, player: Entity) -> bool {
+    world.get::<Position>(player).is_some_and(|eye| {
+        crate::server::game::body_in_water(
+            world,
+            eye.0 - DVec3::new(0.0, crate::entity::item_drop::PLAYER_EYE_HEIGHT, 0.0),
+        )
+    })
+}
+
+/// A trident thrown in survival carries its worn item back; Loyalty makes
+/// it return to the thrower.
+#[derive(Component, Debug, Clone, Copy, PartialEq, Eq)]
+pub struct Loyalty {
+    pub level: u8,
+    pub owner: Entity,
+}
+
+fn throw_trident(world: &mut World, player: Entity, slot: u8, stack: &ItemStack) {
+    let creative = creative(world, player);
+    let worn = if creative {
+        Some(stack.clone())
+    } else {
+        crate::server::game::durability::wear(
+            stack,
+            1,
+            crate::server::game::durability::WearKind::Tool,
+            &mut world
+                .get_resource_or_init::<crate::entity::EntityRandom>()
+                .0,
+        )
+        .or_else(|| Some(stack.clone()))
+    }
+    .filter(|worn| !worn.is_empty());
+    let Some(worn) = worn else {
+        set_slot(world, player, slot, ItemStack::empty());
+        return;
+    };
+    let loyalty = enchantment_level(stack, Enchantment::Loyalty);
+    let spec = LaunchSpec {
+        speed: None,
+        inaccuracy: 1.0,
+        critical: false,
+        // A creative thrower gets nothing back.
+        item: (!creative).then(|| worn.clone().with_net_id(0)),
+        throw_sound: false,
+    };
+    let trident = match launch_with(world, player, ActorType::ThrownTrident, None, spec) {
+        Ok(trident) => trident,
+        Err(error) => {
+            tracing::warn!(%error, "Throwing a trident failed");
+            return;
+        }
+    };
+    // An enchanted trident glints (BDS: only this flag differs for Loyalty).
+    if has_enchantments(stack) {
+        set_actor_flag(
+            world,
+            trident,
+            jolyne::valentine::actor_flags::ENCHANTED,
+            true,
+        );
+    }
+    let impaling = enchantment_level(stack, Enchantment::Impaling);
+    if impaling > 0 {
+        world
+            .entity_mut(trident)
+            .insert(crate::entity::projectile::Impaling(impaling));
+    }
+    if loyalty > 0 {
+        world.entity_mut(trident).insert(Loyalty {
+            level: loyalty,
+            owner: player,
+        });
+    }
+    if !creative {
+        set_slot(world, player, slot, ItemStack::empty());
+    }
+    sound(world, player, "item.trident.throw");
+}
+
+/// Riptide, in water only (this server has no weather): the player is
+/// launched along the look direction at `3 × (1 + level) / 4` blocks per
+/// tick and `item.trident.riptide_N` plays where they started, as measured
+/// on BDS 1.26.51; the trident does not wear. BDS moves the player itself
+/// (`CorrectPlayerMovePrediction`); this server pushes the client with
+/// `SetActorMotion` and lets it fly the launch.
+fn riptide(world: &mut World, player: Entity, stack: &ItemStack) {
+    let level = enchantment_level(stack, Enchantment::Riptide);
+    let Some(rotation) = world
+        .get::<crate::entity::components::Rotation>(player)
+        .copied()
+    else {
+        return;
+    };
+    let (yaw, pitch) = (
+        f64::from(rotation.yaw).to_radians(),
+        f64::from(rotation.pitch).to_radians(),
+    );
+    let look = DVec3::new(
+        -yaw.sin() * pitch.cos(),
+        -pitch.sin(),
+        yaw.cos() * pitch.cos(),
+    );
+    let speed = 3.0 * (1.0 + f64::from(level)) / 4.0;
+    let sound_name = match level {
+        1 => "item.trident.riptide_1",
+        2 => "item.trident.riptide_2",
+        _ => "item.trident.riptide_3",
+    };
+    sound(world, player, sound_name);
+    super::push_player(world, player, look * speed);
+}
+
+/// Ticks a Loyalty trident lies in the ground before it returns (measured
+/// on BDS 1.26.51: about 0.3 s after landing).
+const LOYALTY_GROUND_TICKS: u64 = 6;
+
+fn set_actor_flag(world: &mut World, actor: Entity, flag: u32, on: bool) {
+    if let Some(mut flags) = world.get_mut::<crate::entity::definition::flags::ActorFlags>(actor) {
+        flags.update(flag, on).expect("catalogue flag index");
+    }
+}
+
+fn has_enchantments(stack: &ItemStack) -> bool {
+    item_tag(stack).is_some_and(|tag| tag.0.contains_key("ench"))
+}
+
+/// System (exclusive): Loyalty tridents fly back to their owner after
+/// lying in the ground for [`LOYALTY_GROUND_TICKS`] or after hurting an
+/// actor, as measured on BDS 1.26.51: the return flag is set and
+/// `item.trident.return` plays at the owner's eyes, then each tick the
+/// velocity becomes `velocity × 0.95 + 0.05 × level` towards the owner's
+/// eyes, through blocks. The owner takes it on touch (creative owners get
+/// nothing). Without a living owner it stays where it is.
+pub fn return_loyal_tridents(
+    world: &mut World,
+    tridents: &mut QueryState<(Entity, &Loyalty, &Position)>,
+    mut due: Local<Vec<(Entity, Loyalty, DVec3)>>,
+) {
+    use crate::entity::projectile::{DealtDamage, ProjectileItem, Returning, Stuck};
+    let now = world
+        .get_resource::<crate::ecs::resources::TickCounter>()
+        .map_or(0, |t| t.current);
+    due.extend(tridents.iter(world).map(|(e, l, p)| (e, *l, p.0)));
+    for (trident, loyalty, at) in due.drain(..) {
+        let owner_eye = world
+            .get::<Position>(loyalty.owner)
+            .map(|p| p.0)
+            .filter(|_| {
+                world
+                    .get::<crate::entity::components::Health>(loyalty.owner)
+                    .is_some_and(|h| !h.is_dead())
+            });
+        let Some(owner_eye) = owner_eye else {
+            world.entity_mut(trident).remove::<(Loyalty, Returning)>();
+            continue;
+        };
+        if world.get::<Returning>(trident).is_none() {
+            let landed = world
+                .get::<Stuck>(trident)
+                .is_some_and(|stuck| now.saturating_sub(stuck.since) >= LOYALTY_GROUND_TICKS);
+            if !landed && world.get::<DealtDamage>(trident).is_none() {
+                continue;
+            }
+            world
+                .entity_mut(trident)
+                .remove::<Stuck>()
+                .insert(Returning);
+            set_actor_flag(
+                world,
+                trident,
+                jolyne::valentine::actor_flags::RETURNTRIDENT,
+                true,
+            );
+            crate::entity::mob::net::sound::play_level_sound(
+                world,
+                None,
+                owner_eye,
+                "item.trident.return",
+                -1,
+            );
+        }
+        if crate::entity::projectile::pickup::touches(owner_eye, at) {
+            match world.get::<ProjectileItem>(trident).map(|i| i.0.clone()) {
+                Some(item) if !creative(world, loyalty.owner) => {
+                    if !crate::entity::projectile::pickup::collect(
+                        world,
+                        trident,
+                        loyalty.owner,
+                        item.clone(),
+                    ) {
+                        // A full inventory: it drops at the owner's feet.
+                        super::give_or_drop(world, loyalty.owner, item);
+                        world.despawn(trident);
+                    }
+                }
+                _ => {
+                    world.despawn(trident);
+                }
+            }
+            continue;
+        }
+        let velocity = world
+            .get::<crate::entity::components::Velocity>(trident)
+            .map_or(DVec3::ZERO, |v| v.0);
+        let towards = (owner_eye - at).normalize_or_zero();
+        let next = velocity * 0.95 + towards * 0.05 * f64::from(loyalty.level);
+        world.entity_mut(trident).insert((
+            Position(at + next),
+            crate::entity::components::Velocity(next),
+        ));
+    }
 }
 
 /// What `tick_using` does for a drawn item each tick.
@@ -524,6 +855,231 @@ mod tests {
         );
     }
 
+    fn effect(r: &mut Range, entity: Entity, id: u8) -> Option<(u8, u32)> {
+        r.world()
+            .get::<crate::entity::components::Effects>(entity)
+            .and_then(|e| e.active.get(&crate::entity::components::EffectType(id)))
+            .map(|e| (e.level, e.duration_ticks))
+    }
+
+    fn mobs_named(r: &mut Range, name: &str) -> Vec<Entity> {
+        r.world()
+            .query::<(Entity, &crate::entity::mob::MobKind)>()
+            .iter(r.world())
+            .filter(|(_, k)| &*k.0.identifier == name)
+            .map(|(e, _)| e)
+            .collect()
+    }
+
+    fn with_aux(name: &str, count: u8, aux: i16) -> ItemStack {
+        let mut s = stack(name, count);
+        s.damage = aux;
+        s
+    }
+
+    fn enchanted(name: &str, enchantment: Enchantment, level: u8) -> ItemStack {
+        crate::item::enchant::with_enchantments(&stack(name, 1), &[(enchantment, level)])
+    }
+
+    #[test]
+    fn an_ender_pearl_teleports_its_thrower_with_fall_damage_and_cools_down() {
+        let mut r = range(&[("minecraft:ender_pearl", 3)]);
+        let player = r.player;
+        r.world().get_mut::<Rotation>(player).unwrap().pitch = 30.0;
+        r.send(UseRequest::UseAir);
+        assert_eq!(r.slot(0).count, 2);
+        // A second throw inside the 20-tick cooldown does nothing.
+        r.send(UseRequest::UseAir);
+        assert_eq!(r.slot(0).count, 2, "cooling down");
+        r.ticks(30);
+        let eye = r.world().get::<Position>(player).unwrap().0;
+        assert!(eye.z > 4.0, "teleported forward to {eye}");
+        assert!(
+            (eye.y - (64.0 + crate::entity::PLAYER_EYE_HEIGHT)).abs() < 0.01,
+            "lands on the floor, eyes at {eye}"
+        );
+        let health = r.world().get::<Health>(player).unwrap().current;
+        assert_eq!(health, 15.0, "5 fall damage");
+        assert!(mobs_named(&mut r, "minecraft:ender_pearl").is_empty());
+        assert!(mobs_named(&mut r, "minecraft:endermite").is_empty());
+        r.send(UseRequest::UseAir);
+        assert_eq!(r.slot(0).count, 1, "the cooldown is over");
+    }
+
+    #[test]
+    fn a_drunk_potion_gives_its_measured_effect_and_leaves_a_bottle() {
+        let mut r = range(&[]);
+        let player = r.player;
+        r.world()
+            .get_mut::<MainInventory>(player)
+            .unwrap()
+            .0
+            .set_item(0, with_aux("minecraft:potion", 1, 5))
+            .unwrap();
+        r.send(UseRequest::UseAir);
+        r.ticks(30);
+        assert_eq!(r.slot(0).item_id(), "minecraft:potion", "still drinking");
+        r.ticks(3);
+        assert_eq!(r.slot(0).item_id(), "minecraft:glass_bottle");
+        // Night vision (16), the drink duration minus the ticks since.
+        let (level, ticks) = effect(&mut r, player, 16).expect("night vision");
+        assert_eq!(level, 0);
+        assert!((3590..=3600).contains(&ticks), "{ticks}");
+    }
+
+    #[test]
+    fn instant_harming_potions_hurt_at_once() {
+        let mut r = range(&[]);
+        let player = r.player;
+        r.world()
+            .get_mut::<MainInventory>(player)
+            .unwrap()
+            .0
+            .set_item(0, with_aux("minecraft:potion", 1, 24))
+            .unwrap();
+        r.send(UseRequest::UseAir);
+        r.ticks(33);
+        assert_eq!(r.world().get::<Health>(player).unwrap().current, 8.0);
+        assert!(
+            effect(&mut r, player, 7).is_none(),
+            "instant effects are not kept"
+        );
+    }
+
+    #[test]
+    fn a_splash_potion_at_the_feet_gives_the_full_duration() {
+        let mut r = range(&[]);
+        let player = r.player;
+        r.world()
+            .get_mut::<MainInventory>(player)
+            .unwrap()
+            .0
+            .set_item(0, with_aux("minecraft:splash_potion", 1, 5))
+            .unwrap();
+        r.world().get_mut::<Rotation>(player).unwrap().pitch = 90.0;
+        r.send(UseRequest::UseAir);
+        assert!(r.slot(0).is_empty());
+        r.ticks(10);
+        let (_, ticks) = effect(&mut r, player, 16).expect("night vision");
+        assert!(ticks > 3580, "{ticks}");
+    }
+
+    #[test]
+    fn a_lingering_potion_leaves_a_shrinking_cloud() {
+        let mut r = range(&[]);
+        let player = r.player;
+        r.world()
+            .get_mut::<MainInventory>(player)
+            .unwrap()
+            .0
+            .set_item(0, with_aux("minecraft:lingering_potion", 1, 5))
+            .unwrap();
+        r.world().get_mut::<Rotation>(player).unwrap().pitch = 90.0;
+        r.send(UseRequest::UseAir);
+        r.ticks(15);
+        let clouds = mobs_named(&mut r, "minecraft:area_effect_cloud");
+        assert_eq!(clouds.len(), 1);
+        let (_, ticks) = effect(&mut r, player, 16).expect("night vision from the cloud");
+        assert!((880..=900).contains(&ticks), "a quarter of 3600: {ticks}");
+        let radius = |r: &mut Range| {
+            r.world()
+                .get::<crate::entity::projectile::cloud::AreaEffectCloud>(clouds[0])
+                .unwrap()
+                .radius
+        };
+        assert_eq!(radius(&mut r), 2.5);
+        // Reapplied every 40 ticks, shrinking by 0.5, until 0.5 is left.
+        r.ticks(400);
+        assert_eq!(radius(&mut r), 0.5);
+        r.ticks(200);
+        assert!(
+            r.world().get_entity(clouds[0]).is_err(),
+            "gone after 600 ticks"
+        );
+    }
+
+    #[test]
+    fn a_tipped_arrow_gives_an_eighth_of_its_potion() {
+        let mut r = range(&[("minecraft:bow", 1)]);
+        let player = r.player;
+        r.world()
+            .get_mut::<MainInventory>(player)
+            .unwrap()
+            .0
+            .set_item(1, with_aux("minecraft:arrow", 4, 6))
+            .unwrap();
+        let cow = r.cow(DVec3::new(4.5, 64.0, 9.5));
+        r.ticks(1);
+        r.send(UseRequest::UseAir);
+        r.ticks(24);
+        r.send(UseRequest::Release);
+        assert_eq!(r.slot(1).count, 3);
+        r.ticks(10);
+        let (_, ticks) = effect(&mut r, cow, 16).expect("night vision on the cow");
+        assert!((440..=450).contains(&ticks), "3600 / 8: {ticks}");
+    }
+
+    #[test]
+    fn a_thrown_trident_wears_and_is_picked_up() {
+        let mut r = range(&[("minecraft:trident", 1)]);
+        let player = r.player;
+        r.world().get_mut::<Rotation>(player).unwrap().pitch = 40.0;
+        r.send(UseRequest::UseAir);
+        r.ticks(5);
+        r.send(UseRequest::Release);
+        assert_eq!(
+            r.slot(0).item_id(),
+            "minecraft:trident",
+            "a short draw keeps it"
+        );
+        r.send(UseRequest::UseAir);
+        r.ticks(12);
+        r.send(UseRequest::Release);
+        assert!(r.slot(0).is_empty());
+        r.ticks(20);
+        let stuck: Vec<DVec3> = r
+            .world()
+            .query_filtered::<&Position, (With<Stuck>, With<ProjectileItem>)>()
+            .iter(r.world())
+            .map(|p| p.0)
+            .collect();
+        assert_eq!(stuck.len(), 1);
+        r.world().get_mut::<Position>(player).unwrap().0 =
+            stuck[0] + DVec3::new(0.0, crate::entity::PLAYER_EYE_HEIGHT, 0.0);
+        r.ticks(1);
+        assert_eq!(r.slot(0).item_id(), "minecraft:trident");
+        assert_eq!(
+            durability_damage(&r.slot(0)),
+            1,
+            "throwing costs one durability"
+        );
+    }
+
+    #[test]
+    fn a_loyal_trident_comes_back() {
+        let mut r = range(&[]);
+        let player = r.player;
+        let trident = enchanted("minecraft:trident", Enchantment::Loyalty, 3);
+        r.world()
+            .get_mut::<MainInventory>(player)
+            .unwrap()
+            .0
+            .set_item(0, trident)
+            .unwrap();
+        r.world().get_mut::<Rotation>(player).unwrap().pitch = 40.0;
+        r.send(UseRequest::UseAir);
+        r.ticks(12);
+        r.send(UseRequest::Release);
+        assert!(r.slot(0).is_empty());
+        r.ticks(80);
+        assert_eq!(
+            r.slot(0).item_id(),
+            "minecraft:trident",
+            "caught by its owner"
+        );
+        assert!(mobs_named(&mut r, "minecraft:thrown_trident").is_empty());
+    }
+
     #[test]
     fn bow_power_follows_the_draw_curve() {
         assert_eq!(bow_power(1), None);
@@ -533,11 +1089,12 @@ mod tests {
     }
 
     #[test]
-    fn crossbow_charge_round_trips_through_the_item_tag() {
+    fn crossbow_charge_keeps_the_tipped_arrow_through_the_item_tag() {
         let crossbow = crate::item::test_support::stack("minecraft:crossbow", 1);
         assert!(!charged(&crossbow));
-        let loaded = with_charge(&crossbow, true);
+        let loaded = with_charge(&crossbow, Some(26));
         assert!(charged(&loaded));
-        assert!(!charged(&with_charge(&loaded, false)));
+        assert_eq!(charged_aux(&loaded), 26);
+        assert!(!charged(&with_charge(&loaded, None)));
     }
 }

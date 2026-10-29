@@ -25,6 +25,8 @@ pub enum ProjectileError {
     Unsupported(&'static str),
     #[error("on_hit {0} is not implemented")]
     OnHit(&'static str),
+    #[error("spawn_aoe_cloud duration {0} is not a whole number of seconds")]
+    AoeCloudDuration(String),
     #[error(
         "particle type {0:?} is not implemented; only iconcrack and snowballpoof have measured ids"
     )]
@@ -79,6 +81,30 @@ pub struct ProjectileRules {
     pub bounce_without_damage: bool,
     /// `stop_on_hurt`: it drops away from an actor it hurt.
     pub stop_on_hurt: bool,
+    /// `on_hit.teleport_owner`: the owning player lands where it hit.
+    pub teleport_owner: bool,
+    /// `on_hit.thrown_potion_effect`: the projectile's potion splashes on
+    /// the actors near the hit.
+    pub thrown_potion: bool,
+    /// `on_hit.douse_fire`: a water potion puts out fire where it hit.
+    pub douse_fire: bool,
+    /// `on_hit.arrow_effect`: a tipped arrow's potion goes to the actor it
+    /// hurt.
+    pub arrow_effect: bool,
+    /// `on_hit.spawn_aoe_cloud`: a lingering potion leaves a cloud.
+    pub aoe_cloud: Option<AoeCloud>,
+}
+
+/// `on_hit.spawn_aoe_cloud`, in ticks and blocks.
+#[derive(Debug, Clone, Copy, PartialEq)]
+pub struct AoeCloud {
+    pub affect_owner: bool,
+    pub duration_ticks: u32,
+    /// Fixed potion aux, or `None` for the projectile's own potion.
+    pub potion: Option<i16>,
+    pub radius: f32,
+    pub radius_on_use: f32,
+    pub reapplication_delay: u32,
 }
 
 /// `on_hit.impact_damage`.
@@ -217,6 +243,11 @@ fn compile(b: body::Projectile, items: &ItemRegistry) -> Result<ProjectileRules,
         stick_in_ground: None,
         bounce_without_damage: b.should_bounce == ShouldBounce::IfNoDamageDealt,
         stop_on_hurt: b.stop_on_hurt,
+        teleport_owner: false,
+        thrown_potion: false,
+        douse_fire: false,
+        arrow_effect: false,
+        aoe_cloud: None,
     };
     let Some(on_hit) = b.on_hit else {
         return Ok(rules);
@@ -224,18 +255,11 @@ fn compile(b: body::Projectile, items: &ItemRegistry) -> Result<ProjectileRules,
     for (present, name) in [
         (on_hit.catch_fire.is_some(), "catch_fire"),
         (on_hit.definition_event.is_some(), "definition_event"),
-        (on_hit.douse_fire.is_some(), "douse_fire"),
         (on_hit.freeze_on_hit.is_some(), "freeze_on_hit"),
         (on_hit.grant_xp.is_some(), "grant_xp"),
         (on_hit.hurt_owner.is_some(), "hurt_owner"),
         (on_hit.ignite.is_some(), "ignite"),
         (on_hit.mob_effect.is_some(), "mob_effect"),
-        (on_hit.spawn_aoe_cloud.is_some(), "spawn_aoe_cloud"),
-        (on_hit.teleport_owner.is_some(), "teleport_owner"),
-        (
-            on_hit.thrown_potion_effect.is_some(),
-            "thrown_potion_effect",
-        ),
         (on_hit.wind_burst_on_hit.is_some(), "wind_burst_on_hit"),
     ] {
         if present {
@@ -248,8 +272,11 @@ fn compile(b: body::Projectile, items: &ItemRegistry) -> Result<ProjectileRules,
         .map(|particle| compile_particle(particle, items))
         .transpose()?;
     rules.remove_on_hit = on_hit.remove_on_hit.is_some();
-    // Plain arrows carry no potion, so `arrow_effect` has nothing to apply;
-    // bows only shoot plain arrows (tipped arrows are not implemented).
+    rules.teleport_owner = on_hit.teleport_owner.is_some();
+    rules.thrown_potion = on_hit.thrown_potion_effect.is_some();
+    rules.douse_fire = on_hit.douse_fire.is_some();
+    rules.arrow_effect = on_hit.arrow_effect.is_some();
+    rules.aoe_cloud = on_hit.spawn_aoe_cloud.map(compile_aoe_cloud).transpose()?;
     rules.stick_in_ground = on_hit
         .stick_in_ground
         .map(|stick| (stick.shake_time * 20.0).round().max(0.0) as u32);
@@ -354,6 +381,32 @@ fn compile_spawn_chance(
     })
 }
 
+fn compile_aoe_cloud(
+    b: body::SpawnAoECloudSubcomponentDefinition,
+) -> Result<AoeCloud, ProjectileError> {
+    let seconds = match b.duration {
+        body::EffectDuration::Int(seconds) if seconds >= 0 => seconds as u32,
+        other => return Err(ProjectileError::AoeCloudDuration(format!("{other:?}"))),
+    };
+    Ok(AoeCloud {
+        affect_owner: b.affect_owner,
+        duration_ticks: seconds * 20,
+        potion: (b.potion != -1).then_some(b.potion as i16),
+        radius: b.radius,
+        radius_on_use: b.radius_on_use,
+        reapplication_delay: b.reapplication_delay.max(0) as u32,
+    })
+}
+
+/// `spawn_chance` targets that have no runtime archetype yet; the
+/// projectile still works and the spawn is skipped (the roll is not made).
+/// Coordinator decision 2026-10-29 for milestone 6.
+pub const SPAWNS_WITHOUT_ARCHETYPE: &[(&str, &str, &str)] = &[(
+    "minecraft:ender_pearl",
+    "minecraft:endermite",
+    "endermites are not implemented (minecraft:attack); a landing pearl never spawns one",
+)];
+
 /// Startup check, once every archetype is compiled: what a projectile's
 /// `spawn_chance` spawns must be spawnable and define its `on_spawn` events.
 pub(crate) fn check_spawns(
@@ -375,6 +428,15 @@ pub(crate) fn check_spawns(
         return Ok(());
     };
     let name = spawn.definition.name();
+    if get(name).is_none()
+        && SPAWNS_WITHOUT_ARCHETYPE
+            .iter()
+            .any(|(projectile, spawned, _)| {
+                *projectile == archetype.identifier.as_ref() && *spawned == name
+            })
+    {
+        return Ok(());
+    }
     let target = get(name).ok_or(ProjectileError::SpawnDefinition(name))?;
     for trigger in spawn.on_spawn.iter() {
         if target.events.event(&trigger.event).is_none() {
