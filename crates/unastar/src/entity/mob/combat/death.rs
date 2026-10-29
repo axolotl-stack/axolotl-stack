@@ -113,6 +113,12 @@ fn drop_loot(world: &mut World, mob: Entity) {
             .is_some_and(|flags| flags.get(actor_flags::BABY).unwrap_or(false)),
         // Riding is not implemented: no mob has a vehicle.
         vehicle: None,
+        killer: world
+            .get::<LastHurt>(mob)
+            .and_then(|hurt| hurt.attacker)
+            .and_then(|killer| world.get::<MobKind>(killer))
+            .map(|kind| kind.0.actor_type),
+        explosion_radius: None,
         level: LootLevel::of(world),
         items: world
             .get_resource::<ItemRegistryResource>()

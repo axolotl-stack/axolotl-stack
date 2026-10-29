@@ -94,6 +94,10 @@ pub enum LootCondition {
     PassengerOfEntity {
         entity_type: String,
     },
+    /// The THIS actor's killer has this identifier (namespaced).
+    KilledByEntity {
+        entity_type: String,
+    },
     /// Random chance per level difficulty, indexed by [`Difficulty`].
     RandomDifficultyChance {
         chances: [f32; 4],

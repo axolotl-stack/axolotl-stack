@@ -1,5 +1,7 @@
-//! `minecraft:environment_sensor` and `minecraft:timer`: events fired from
-//! the mob's surroundings and from a countdown (run by `mob::life::sensors`).
+//! `minecraft:environment_sensor`, `minecraft:timer` and
+//! `minecraft:target_nearby_sensor`: events fired from the mob's
+//! surroundings, from a countdown and from its target's distance (run by
+//! `mob::life::sensors`).
 
 use std::sync::Arc;
 
@@ -33,6 +35,8 @@ pub enum SensorError {
     NoTimerChoice,
     #[error(transparent)]
     Filter(#[from] FilterError),
+    #[error(transparent)]
+    Event(#[from] super::common::SelfEventError),
 }
 
 impl ComponentError for SensorError {}
@@ -80,6 +84,29 @@ pub struct Timer {
     pub deadline: u64,
     /// The timer has fired at least once.
     pub fired: bool,
+}
+
+/// `minecraft:target_nearby_sensor`: events fired as the mob's current
+/// target crosses `inside_range` / `outside_range` (box-to-box gaps).
+#[derive(Component, Debug, Clone, PartialEq)]
+pub struct TargetNearbySensorConfig {
+    pub inside_range: f64,
+    pub outside_range: f64,
+    /// The target only counts as inside while the mob sees it.
+    pub must_see: bool,
+    pub on_inside_range: Option<SelfEvent>,
+    pub on_outside_range: Option<SelfEvent>,
+    pub on_vision_lost_inside_range: Option<SelfEvent>,
+}
+
+/// What a `minecraft:target_nearby_sensor` saw last tick; reset whenever
+/// the mob has no target. Absent means all false.
+#[derive(Component, Debug, Clone, Copy, PartialEq, Eq, Default)]
+#[component(storage = "SparseSet")]
+pub struct TargetNearbyState {
+    pub seen: bool,
+    pub inside: bool,
+    pub outside: bool,
 }
 
 impl TimerSpan {
@@ -130,7 +157,38 @@ pub fn register_component_kinds(
         |entity| {
             entity.remove::<Timer>();
         },
+    )?;
+    // A replaced sensor starts from a fresh state.
+    builder.register(
+        |b: body::TargetNearbySensor| {
+            compile_target_nearby_sensor(b).map_err(ComponentCompileError::from)
+        },
+        |value: &TargetNearbySensorConfig, entity| {
+            entity.insert(value.clone());
+        },
+        |entity| {
+            entity.remove::<(TargetNearbySensorConfig, TargetNearbyState)>();
+        },
     )
+}
+
+fn compile_target_nearby_sensor(
+    b: body::TargetNearbySensor,
+) -> Result<TargetNearbySensorConfig, SensorError> {
+    let event = |trigger: &Option<body::EventTrigger>| {
+        trigger
+            .as_ref()
+            .map(super::common::self_event)
+            .transpose()
+    };
+    Ok(TargetNearbySensorConfig {
+        inside_range: f64::from(b.inside_range),
+        outside_range: f64::from(b.outside_range),
+        must_see: b.must_see,
+        on_inside_range: event(&b.on_inside_range)?,
+        on_outside_range: event(&b.on_outside_range)?,
+        on_vision_lost_inside_range: event(&b.on_vision_lost_inside_range)?,
+    })
 }
 
 fn event(trigger: &ActorDefinitionTrigger) -> Result<SelfEvent, SensorError> {

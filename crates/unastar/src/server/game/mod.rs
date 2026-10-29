@@ -30,7 +30,7 @@ pub mod types;
 mod world_commands;
 
 use bevy_ecs::prelude::*;
-pub(crate) use block_drops::{drop_block_items, loot_stacks};
+pub(crate) use block_drops::{drop_block_items, explosion_drops, loot_stacks, pop_resource};
 pub(crate) use blocks::{commit_block_event, reject_block_event};
 pub use inventory::RequestIdAssignments;
 pub(crate) use items::{PICKUP_REACH, item_descriptor, player_box};
@@ -597,12 +597,30 @@ impl GameServer {
                 .after(despawn_dead)
                 .before(tick_block_breaking),
         );
-        // Environment sensors, then timers. Their group changes apply at the
-        // next tick's definition barrier (`PhysicsSet`).
+        // Environment sensors, then timers, then lookers noticed, anger
+        // running out, targets acquired and teleports. Their group changes
+        // apply at the next tick's definition barrier (`PhysicsSet`).
         ecs.schedule_mut().add_systems(
             (
                 crate::entity::mob::life::sensors::tick_environment_sensors,
                 crate::entity::mob::life::sensors::tick_timers,
+                crate::entity::mob::life::looked_at::tick_looked_at,
+                crate::entity::mob::life::angry::tick_anger,
+                crate::entity::mob::life::angry::fire_target_acquired,
+                crate::entity::mob::life::teleport::tick_teleport,
+            )
+                .chain()
+                .in_set(EntityLogicSet)
+                .after(despawn_dead)
+                .before(tick_block_breaking),
+        );
+        // Swelling, then fuses (explosions), then the target-nearby sensors
+        // (BDS ticks explode components before target-nearby sensors).
+        ecs.schedule_mut().add_systems(
+            (
+                crate::entity::mob::combat::explode::tick_swell,
+                crate::entity::mob::combat::explode::tick_fuses,
+                crate::entity::mob::life::sensors::tick_target_nearby_sensors,
             )
                 .chain()
                 .in_set(EntityLogicSet)
@@ -637,6 +655,7 @@ impl GameServer {
                 broadcast_block_updates,
                 sync_actor_viewers,
                 crate::entity::mob::net::network::sync_mob_viewers,
+                crate::world::explosion::send_explosion_sounds,
             )
                 .chain()
                 .in_set(NetworkSendSet),

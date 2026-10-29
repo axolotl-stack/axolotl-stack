@@ -29,6 +29,16 @@ pub trait LootContext {
     fn vehicle_is(&self, _entity_type: &str) -> bool {
         false
     }
+    /// Whether the THIS actor was killed by an actor with the namespaced
+    /// identifier `entity_type`; false without a killer.
+    fn killer_is(&self, _entity_type: &str) -> bool {
+        false
+    }
+    /// The radius of the explosion that destroyed the block, when one did
+    /// (`explosion_decay`).
+    fn explosion_radius(&self) -> Option<f32> {
+        None
+    }
     /// Level difficulty; `None` when the caller supplies no level facts.
     fn difficulty(&self) -> Option<Difficulty> {
         None
@@ -160,6 +170,7 @@ fn condition_passes(
         LootCondition::ThisOnFire(expected) => ctx.on_fire() == Some(*expected),
         LootCondition::IsBaby => ctx.is_baby(),
         LootCondition::PassengerOfEntity { entity_type } => ctx.vehicle_is(entity_type),
+        LootCondition::KilledByEntity { entity_type } => ctx.killer_is(entity_type),
         LootCondition::RandomDifficultyChance { chances } => {
             let roll = rng.r#gen::<f32>();
             let difficulty = ctx
@@ -255,9 +266,19 @@ fn apply_functions(
                     count = count.min(*max as i64);
                 }
             }
-            // No explosion caller exists on the parked gameplay path. This is
-            // the existing non-explosion identity, not explosion support.
-            LootFunctionKind::ExplosionDecay => {}
+            // Outside an explosion the function keeps everything; inside
+            // one each item survives with probability 1 / radius.
+            LootFunctionKind::ExplosionDecay => {
+                if let Some(radius) = ctx.explosion_radius() {
+                    let keep = 1.0 / radius;
+                    if keep < 1.0 {
+                        let total = count.max(0);
+                        count = (0..total)
+                            .filter(|_| rng.r#gen::<f32>() <= keep)
+                            .count() as i64;
+                    }
+                }
+            }
             LootFunctionKind::FurnaceSmelt => {
                 let furnace = ctx
                     .furnace()

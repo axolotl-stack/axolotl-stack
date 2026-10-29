@@ -69,6 +69,8 @@ pub enum MobSpawnError {
     NoRegistry,
     #[error("unknown actor {0}")]
     UnknownActor(String),
+    #[error("{identifier} has no event {event}")]
+    UnknownSpawnEvent { identifier: String, event: String },
     #[error("{identifier} is not supported yet: {reason}")]
     Unsupported {
         identifier: String,
@@ -108,6 +110,37 @@ pub fn spawn_mob(
     yaw: f32,
     cause: SpawnCause,
 ) -> Result<Entity, MobSpawnError> {
+    spawn(world, identifier, position, yaw, cause, None)
+}
+
+/// [`spawn_mob`] for `/summon` with a spawn event: `event` is fired instead
+/// of `minecraft:entity_spawned`. An event the actor does not define spawns
+/// nothing.
+pub fn spawn_mob_with_event(
+    world: &mut World,
+    identifier: &str,
+    position: DVec3,
+    yaw: f32,
+    event: &str,
+) -> Result<Entity, MobSpawnError> {
+    spawn(
+        world,
+        identifier,
+        position,
+        yaw,
+        SpawnCause::Spawned,
+        Some(event),
+    )
+}
+
+fn spawn(
+    world: &mut World,
+    identifier: &str,
+    position: DVec3,
+    yaw: f32,
+    cause: SpawnCause,
+    spawn_event: Option<&str>,
+) -> Result<Entity, MobSpawnError> {
     let registry = world
         .get_resource::<MobRegistry>()
         .ok_or(MobSpawnError::NoRegistry)?;
@@ -123,6 +156,17 @@ pub fn spawn_mob(
             });
         }
     };
+    let custom_event = spawn_event
+        .map(|name| {
+            archetype
+                .events
+                .event(name)
+                .ok_or_else(|| MobSpawnError::UnknownSpawnEvent {
+                    identifier: identifier.to_owned(),
+                    event: name.to_owned(),
+                })
+        })
+        .transpose()?;
     let entity = spawn_unattached(world, &archetype, position, yaw)?;
     if cause == SpawnCause::Loaded {
         world.entity_mut(entity).insert(persistence::Restoring);
@@ -131,6 +175,7 @@ pub fn spawn_mob(
         .expect("a freshly spawned mob exists and has no definition stack");
     apply_pending_definitions(world);
     let event = match cause {
+        _ if custom_event.is_some() => custom_event.as_ref(),
         SpawnCause::Spawned => archetype.lifecycle.spawned.as_ref(),
         SpawnCause::Born => archetype.lifecycle.born.as_ref(),
         SpawnCause::Loaded => None,
@@ -189,6 +234,19 @@ fn spawn_unattached(
         if let Some(kind) = archetype.native.aux_value {
             metadata.set_short(jolyne::valentine::actor_data_i_ds::AUX_VALUE_DATA, kind);
         }
+        // Enderman lane: the native carried-block data, always air.
+        if archetype.native.carried_block_data
+            && let Some(air) =
+                crate::registry::BlockRegistry::vanilla().default_state_id_by_name("minecraft:air")
+        {
+            let ids = world
+                .get_resource::<crate::server::game::types::ServerConfigResource>()
+                .map_or_else(Default::default, |config| config.0.block_network_ids);
+            metadata.set_int(
+                jolyne::valentine::actor_data_i_ds::DEPRECATED_CARRY_BLOCK_RUNTIME_ID,
+                ids.to_wire(air) as i32,
+            );
+        }
         metadata
     };
     let launched_tick = world
@@ -226,6 +284,7 @@ fn spawn_unattached(
             // Replaced by `derive_mob_state` once the composition applies.
             PhysicsBody::living(0.0, 0.0),
             FallDistance::default(),
+            crate::entity::components::Climbing::default(),
             ai::MobBrain::default(),
         ));
     }

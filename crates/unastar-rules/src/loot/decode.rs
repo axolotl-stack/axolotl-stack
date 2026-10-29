@@ -74,6 +74,15 @@ fn bare(name: &str) -> &str {
     name.strip_prefix("minecraft:").unwrap_or(name)
 }
 
+/// An actor identifier with `minecraft:` implied when it has no namespace.
+fn namespaced(name: &str) -> String {
+    if name.contains(':') {
+        name.to_owned()
+    } else {
+        format!("minecraft:{name}")
+    }
+}
+
 // The existing evaluator only used these enchantments. Resolve their public
 // Bedrock protocol ids once; retain unknown names so evaluation can reject them.
 fn enchantment_id(name: &str) -> Option<i16> {
@@ -171,16 +180,12 @@ fn condition(v: &Value, path: &str) -> Result<LootCondition> {
             )
         }
         "is_baby" => LootCondition::IsBaby,
-        "passenger_of_entity" => {
-            let entity_type = text(&v["entity_type"], path)?;
-            LootCondition::PassengerOfEntity {
-                entity_type: if entity_type.contains(':') {
-                    entity_type.to_owned()
-                } else {
-                    format!("minecraft:{entity_type}")
-                },
-            }
-        }
+        "passenger_of_entity" => LootCondition::PassengerOfEntity {
+            entity_type: namespaced(text(&v["entity_type"], path)?),
+        },
+        "killed_by_entity" => LootCondition::KilledByEntity {
+            entity_type: namespaced(text(&v["entity_type"], path)?),
+        },
         "random_difficulty_chance" => {
             let default = float_or(v, "default_chance", 0.0, path)?;
             let mut chances = [default; 4];

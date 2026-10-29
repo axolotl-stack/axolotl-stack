@@ -8,7 +8,8 @@
 //! timer; while it runs a new hit only deals what exceeds the damage that
 //! started it, and nothing when it does not exceed it (override and
 //! self-destruct damage ignore the timer). A full hit shows the hurt
-//! animation to viewers (`ActorEvent` hurt) and, when it has a source
+//! animation to viewers (`ActorEvent` hurt, its data the damage cause id)
+//! and, when it has a source
 //! position, knocks the mob back. The changed `Health` reaches viewers as
 //! an `UpdateAttributes` through `derive_mob_state`.
 
@@ -152,6 +153,15 @@ pub fn hurt_mob(world: &mut World, target: Entity, hit: Hit) -> f32 {
     if hit.damage < 0.0 {
         return 0.0;
     }
+    // Enderman lane: a class that teleports when hurt teleports before the
+    // hit lands, and a projectile deals it nothing.
+    if world
+        .get::<MobKind>(target)
+        .is_some_and(|kind| kind.0.native.teleports_when_hurt)
+        && crate::entity::mob::life::teleport::hurt_teleport(world, target, &hit)
+    {
+        return 0.0;
+    }
     let ignores_timer = matches!(
         hit.cause,
         ActorDamageCause::Override | ActorDamageCause::SelfDestruct
@@ -186,7 +196,12 @@ pub fn hurt_mob(world: &mut World, target: Entity, hit: Hit) -> f32 {
         health.is_dead()
     };
     if full {
-        send_actor_event(world, target, EnumsActorEvent::Hurt, 0);
+        send_actor_event(
+            world,
+            target,
+            EnumsActorEvent::Hurt,
+            constants::damage_cause_id(hit.cause),
+        );
         if let Some(from) = hit.knockback_from {
             apply_knockback(world, target, from, hit.knockback_power);
         }

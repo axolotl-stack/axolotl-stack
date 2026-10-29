@@ -456,8 +456,8 @@ use jolyne::valentine::{LevelEventPacket, LevelSoundEventPacket};
 // field as the canonical i32 rather than carrying the legacy enum wrapper.
 const LEVEL_EVENT_BLOCK_BREAK_SPEED: i32 = 3602;
 const LEVEL_EVENT_PARTICLE_PUNCH_BLOCK: i32 = 2014;
-const BLOCK_UPDATE_NEIGHBOURS: u32 = 1;
-const BLOCK_UPDATE_NETWORK: u32 = 1 << 1;
+pub(crate) const BLOCK_UPDATE_NEIGHBOURS: u32 = 1;
+pub(crate) const BLOCK_UPDATE_NETWORK: u32 = 1 << 1;
 
 /// System: Tick block breaking state for all players.
 ///

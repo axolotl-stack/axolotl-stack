@@ -1,5 +1,6 @@
 //! Movement and navigation components: `minecraft:navigation.walk`,
-//! `minecraft:movement.basic` and `minecraft:jump.static`.
+//! `minecraft:navigation.climb`, `minecraft:movement.basic` and
+//! `minecraft:jump.static`.
 
 use bevy_ecs::prelude::*;
 use unastar_data::actor_components::body;
@@ -7,7 +8,8 @@ use unastar_data::actor_components::body;
 use super::common::insert_infallible;
 use crate::entity::definition::{ComponentKindsBuilder, DefinitionError};
 
-/// `minecraft:navigation.walk`: path permissions.
+/// `minecraft:navigation.walk` and `minecraft:navigation.climb`: path
+/// permissions.
 ///
 /// The door fields shape path search the way BDS classifies door nodes (see
 /// `mob::ai::path`). `can_break_doors` is not kept: BDS parses it but no
@@ -28,6 +30,9 @@ pub struct WalkNavigationConfig {
     pub can_open_doors: bool,
     /// Closed iron doors are passable for a door-opening or door-breaking mob.
     pub can_open_iron_doors: bool,
+    /// `navigation.climb`: walk paths plus climb navigation (`mob::ai::climb`),
+    /// which lets the physics step climb walls the mob is pushed against.
+    pub climbs_walls: bool,
 }
 
 /// `minecraft:movement.basic`: the move control's turn limit, degrees/tick.
@@ -46,7 +51,18 @@ pub struct JumpConfig {
 pub fn register_component_kinds(
     builder: &mut ComponentKindsBuilder,
 ) -> Result<(), DefinitionError> {
-    insert_infallible(builder, |b: body::NavigationWalk| WalkNavigationConfig {
+    insert_infallible(builder, |b: body::NavigationWalk| walk(b, false))?;
+    insert_infallible(builder, |b: body::NavigationClimb| walk(b.0, true))?;
+    insert_infallible(builder, |b: body::MovementBasic| BasicMovementConfig {
+        max_turn: b.max_turn,
+    })?;
+    insert_infallible(builder, |b: body::JumpStatic| JumpConfig {
+        jump_power: b.jump_power,
+    })
+}
+
+fn walk(b: body::NavigationWalk, climbs_walls: bool) -> WalkNavigationConfig {
+    WalkNavigationConfig {
         avoid_water: b.avoid_water,
         avoid_damage_blocks: b.avoid_damage_blocks,
         can_path_over_water: b.can_path_over_water,
@@ -56,11 +72,6 @@ pub fn register_component_kinds(
         can_pass_doors: b.can_pass_doors,
         can_open_doors: b.can_open_doors,
         can_open_iron_doors: b.can_open_iron_doors,
-    })?;
-    insert_infallible(builder, |b: body::MovementBasic| BasicMovementConfig {
-        max_turn: b.max_turn,
-    })?;
-    insert_infallible(builder, |b: body::JumpStatic| JumpConfig {
-        jump_power: b.jump_power,
-    })
+        climbs_walls,
+    }
 }
