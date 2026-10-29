@@ -113,6 +113,9 @@ impl UnastarConfig {
         if self.server.max_chunk_radius < 1 {
             return Err("`server.max_chunk_radius` must be >= 1".into());
         }
+        if !(1..=9).contains(&self.server.compression_level) {
+            return Err("`server.compression_level` must be 1..=9".into());
+        }
         if let crate::world::WorldBounds::Rect {
             min_x,
             max_x,
@@ -185,6 +188,9 @@ pub struct ServerConfigFile {
     pub require_resource_packs: bool,
     /// Block state numbering on the wire: "hashed" (BDS default) or "sequential".
     pub block_network_ids: crate::registry::block::BlockNetworkIds,
+    /// Deflate level (1-9) of outgoing batches. Lower levels compress
+    /// faster (terrain streams sooner) and send more bytes.
+    pub compression_level: u32,
     /// Players granted operator permission (`/tp`, `/summon`) when they
     /// join, by display name (case-insensitive) or XUID. Without
     /// `online_mode` names and XUIDs are not verified.
@@ -206,6 +212,7 @@ impl Default for ServerConfigFile {
             encryption_enabled: true,
             require_resource_packs: false,
             block_network_ids: crate::registry::block::BlockNetworkIds::Hashed,
+            compression_level: 4,
             operators: Vec::new(),
         }
     }

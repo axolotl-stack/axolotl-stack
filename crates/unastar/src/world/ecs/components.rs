@@ -5,7 +5,6 @@ use crate::world::Chunk;
 use bevy_ecs::prelude::*;
 use bitflags::bitflags;
 use std::collections::HashSet;
-use tokio::sync::oneshot;
 
 bitflags! {
     /// Chunk state flags for frequently-toggled state.
@@ -295,53 +294,6 @@ impl ChunkActorStore {
     /// Whether storage lists actors for this chunk or will have to.
     pub fn is_empty(&self) -> bool {
         self.stored.is_empty() && self.foreign.is_empty()
-    }
-}
-
-// =============================================================================
-// Async Chunk Generation Resources (Phase 1 performance optimization)
-// =============================================================================
-
-/// A single pending chunk generation request.
-pub struct PendingGeneration {
-    /// Chunk X coordinate.
-    pub x: i32,
-    /// Chunk Z coordinate.
-    pub z: i32,
-    /// Receiver for the generated chunk data.
-    pub receiver: oneshot::Receiver<super::generation_worker::ChunkLoadResult>,
-}
-
-/// Resource tracking pending async chunk generation results.
-///
-/// The async generation worker sends chunks via oneshot channels.
-/// This resource collects those receivers so systems can poll for
-/// completed generations without blocking.
-#[derive(Resource, Default)]
-pub struct PendingChunkGenerations {
-    /// List of pending generation receivers to poll.
-    pub pending: Vec<PendingGeneration>,
-}
-
-impl PendingChunkGenerations {
-    /// Add a new pending generation.
-    pub fn add(
-        &mut self,
-        x: i32,
-        z: i32,
-        receiver: oneshot::Receiver<super::generation_worker::ChunkLoadResult>,
-    ) {
-        self.pending.push(PendingGeneration { x, z, receiver });
-    }
-
-    /// Get the count of pending generations.
-    pub fn len(&self) -> usize {
-        self.pending.len()
-    }
-
-    /// Check if there are no pending generations.
-    pub fn is_empty(&self) -> bool {
-        self.pending.is_empty()
     }
 }
 

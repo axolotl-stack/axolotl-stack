@@ -66,6 +66,9 @@ struct Args {
     fly_seconds: f32,
     fly_speed: f32,
     generation_threads: usize,
+    /// Server deflate level; `None` leaves the server's default (and keeps
+    /// the config readable by builds without the setting).
+    compression_level: Option<u32>,
     label: String,
     json: Option<PathBuf>,
 }
@@ -82,6 +85,7 @@ fn parse_args() -> Args {
         fly_seconds: 0.0,
         fly_speed: DEFAULT_FLY_SPEED,
         generation_threads: 0,
+        compression_level: None,
         label: String::new(),
         json: None,
     };
@@ -100,6 +104,9 @@ fn parse_args() -> Args {
             "--fly-speed" => args.fly_speed = value().parse().expect("--fly-speed number"),
             "--generation-threads" => {
                 args.generation_threads = value().parse().expect("--generation-threads integer")
+            }
+            "--compression-level" => {
+                args.compression_level = Some(value().parse().expect("--compression-level integer"))
             }
             "--label" => args.label = value(),
             "--json" => args.json = Some(value().into()),
@@ -180,6 +187,7 @@ struct RunResult {
     players: usize,
     world: String,
     generation_threads: usize,
+    compression_level: Option<u32>,
     players_result: Vec<PlayerResult>,
     /// Slowest player's disk view, the number a group of players feels.
     worst_disk_view_ms: Option<f64>,
@@ -250,6 +258,7 @@ async fn run(args: Args) -> RunResult {
         players: args.players,
         world: args.world.clone(),
         generation_threads: args.generation_threads,
+        compression_level: args.compression_level,
         worst_disk_view_ms: worst(|p| p.disk_view_ms),
         worst_square_view_ms: worst(|p| p.square_view_ms),
         players_result,
@@ -292,9 +301,19 @@ fn write_config(dir: &Path, args: &Args, addr: SocketAddr) {
         "bedrock" => unastar::world::WorldGenerator::Bedrock { seed: args.seed },
         other => panic!("unsupported --generator {other} for this build"),
     };
+    if let Some(level) = args.compression_level {
+        config.server.compression_level = level;
+    }
     config.validate().expect("benchmark config is valid");
-    let text = toml_edit::ser::to_string_pretty(&config).expect("serialize config");
-    std::fs::write(dir.join("unastar.toml"), text).expect("write config");
+    let mut document = toml_edit::ser::to_document(&config).expect("serialize config");
+    if args.compression_level.is_none() {
+        // Older builds reject the key; leave their default.
+        document["server"]
+            .as_table_like_mut()
+            .expect("server table")
+            .remove("compression_level");
+    }
+    std::fs::write(dir.join("unastar.toml"), document.to_string()).expect("write config");
 }
 
 /// A release server in its own process: the production runtime, isolated

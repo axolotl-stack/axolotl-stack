@@ -134,6 +134,10 @@ impl UnastarServer {
             online_mode: self.config.server.online_mode,
             allow_legacy_auth: self.config.server.allow_legacy_auth,
             encryption_enabled: self.config.server.encryption_enabled,
+            compression: jolyne::config::CompressionConfig {
+                level: self.config.server.compression_level,
+                ..Default::default()
+            },
             resource_packs: Arc::new(ServerPacks {
                 required: self.config.server.require_resource_packs,
                 ..ServerPacks::default()

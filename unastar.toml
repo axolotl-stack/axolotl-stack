@@ -43,6 +43,10 @@ allow_legacy_auth = true
 encryption_enabled = true
 # Require clients to accept advertised resource packs.
 require_resource_packs = false
+# Deflate level (1-9) of outgoing packets. Terrain is most of the traffic:
+# level 4 streams a stored radius-12 view about 20% sooner than level 7 on
+# loopback (load_bench); raise it to save bandwidth on slow links.
+compression_level = 4
 # Block state numbering on the wire: "hashed" (each state's FNV-1a NBT hash,
 # what BDS advertises) or "sequential" (canonical palette ordinal).
 block_network_ids = "hashed"
