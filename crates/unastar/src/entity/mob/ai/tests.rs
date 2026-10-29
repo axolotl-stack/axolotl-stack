@@ -462,3 +462,138 @@ fn walking_cow_sends_move_actor_delta_to_viewers() {
         .count();
     assert!(deltas >= 10, "only {deltas} move packets");
 }
+
+/// How deep the deepest pair of `mobs` boxes interpenetrate horizontally
+/// (zero or less when no two overlap).
+fn worst_overlap(world: &World, mobs: &[Entity]) -> f64 {
+    let boxes: Vec<Aabb> = mobs
+        .iter()
+        .map(|&mob| {
+            let feet = world.get::<Position>(mob).unwrap().0;
+            let body = world.get::<PhysicsBody>(mob).unwrap();
+            Aabb::from_feet(feet, body.width, body.height)
+        })
+        .collect();
+    let mut worst = f64::MIN;
+    for (i, a) in boxes.iter().enumerate() {
+        for b in &boxes[i + 1..] {
+            let x = a.max.x.min(b.max.x) - a.min.x.max(b.min.x);
+            let z = a.max.z.min(b.max.z) - a.min.z.max(b.min.z);
+            worst = worst.max(x.min(z));
+        }
+    }
+    worst
+}
+
+/// On flat ground a mob standing on another would have its feet above the
+/// surface.
+fn assert_on_surface(world: &World, mobs: &[Entity], tick: usize) {
+    for &mob in mobs {
+        let feet = world.get::<Position>(mob).unwrap().0;
+        assert!(
+            (feet.y - SURFACE).abs() < 1e-9,
+            "tick {tick}: {mob} stands at {feet}"
+        );
+    }
+}
+
+#[test]
+fn pushing_matches_bds_reach_strength_and_minimum_distance() {
+    let mut terrain = Terrain::new(23, Terrain::grass());
+    // Boxes 0.1 apart: inside the 0.2 reach although they do not overlap.
+    let a = terrain.cow(DVec3::new(4.0, SURFACE, 4.5));
+    let b = terrain.cow(DVec3::new(5.0, SURFACE, 4.5));
+    // Positions 0.05 apart on both axes: too close to push.
+    let c = terrain.cow(DVec3::new(10.5, SURFACE, 10.5));
+    let d = terrain.cow(DVec3::new(10.55, SURFACE, 10.55));
+    // Boxes 0.3 apart: out of reach.
+    let e = terrain.cow(DVec3::new(4.0, SURFACE, 12.5));
+    let f = terrain.cow(DVec3::new(5.2, SURFACE, 12.5));
+    let mobs = [a, b, c, d, e, f];
+    let world = terrain.world();
+    for &mob in &mobs {
+        world.get_mut::<Velocity>(mob).unwrap().0 = DVec3::ZERO;
+    }
+    let mut schedule = Schedule::default();
+    schedule.add_systems(super::push_mobs);
+    schedule.run(world);
+    let velocity = |mob| world.get::<Velocity>(mob).unwrap().0;
+    // Each pushes the other and is pushed back: two pushes of
+    // 0.05 × 1 / sqrt(1) × min(1, 1 / sqrt(1)) each.
+    assert!((velocity(a) - DVec3::new(-0.1, 0.0, 0.0)).length() < 1e-12);
+    assert!((velocity(b) - DVec3::new(0.1, 0.0, 0.0)).length() < 1e-12);
+    for mob in [c, d, e, f] {
+        assert_eq!(velocity(mob), DVec3::ZERO);
+    }
+}
+
+#[test]
+fn tempted_cows_follow_a_walking_player_without_stacking_and_spread_around_them() {
+    let mut terrain = Terrain::new(35, Terrain::grass());
+    let cows: Vec<Entity> = (0..8)
+        .map(|i| {
+            terrain.cow(DVec3::new(
+                -6.5 + f64::from(i % 3),
+                SURFACE,
+                6.5 + f64::from(i / 3),
+            ))
+        })
+        .collect();
+    let player = terrain.player(DVec3::new(-2.5, SURFACE, 8.5), "minecraft:wheat");
+    // The player walks east for 300 ticks, then waits for the herd to settle.
+    for tick in 0..700 {
+        if tick < 300 {
+            terrain.world().get_mut::<Position>(player).unwrap().0.x += 0.08;
+        }
+        terrain.tick();
+        let world = terrain.world();
+        assert_on_surface(world, &cows, tick);
+        let worst = worst_overlap(world, &cows);
+        assert!(worst < 0.3, "tick {tick}: two cows overlap by {worst}");
+    }
+    let world = terrain.world();
+    let worst = worst_overlap(world, &cows);
+    assert!(worst < 0.05, "settled cows overlap by {worst}");
+    let player_feet =
+        world.get::<Position>(player).unwrap().0 - DVec3::Y * crate::entity::PLAYER_EYE_HEIGHT;
+    let mut z = (f64::MAX, f64::MIN);
+    for &cow in &cows {
+        let feet = world.get::<Position>(cow).unwrap().0;
+        assert!(
+            horizontal(feet, player_feet) < 5.0,
+            "{feet} strayed from the player at {player_feet}"
+        );
+        assert!(
+            world
+                .get::<ActorFlags>(cow)
+                .unwrap()
+                .get(actor_flags::TEMPTED)
+                .unwrap()
+        );
+        z = (z.0.min(feet.z), z.1.max(feet.z));
+    }
+    assert!(z.1 - z.0 > 2.0, "the herd is a single file: z {z:?}");
+}
+
+#[test]
+fn strolling_herd_never_stacks() {
+    let mut terrain = Terrain::new(33, Terrain::grass());
+    let cows: Vec<Entity> = (0..10)
+        .map(|i| {
+            terrain.cow(DVec3::new(
+                6.5 + f64::from(i % 4),
+                SURFACE,
+                6.5 + f64::from(i / 4),
+            ))
+        })
+        .collect();
+    for tick in 0..600 {
+        terrain.tick();
+        let world = terrain.world();
+        assert_on_surface(world, &cows, tick);
+        let worst = worst_overlap(world, &cows);
+        assert!(worst < 0.3, "tick {tick}: two cows overlap by {worst}");
+    }
+    let worst = worst_overlap(terrain.world(), &cows);
+    assert!(worst < 0.05, "the herd ended overlapping by {worst}");
+}

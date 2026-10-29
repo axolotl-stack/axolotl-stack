@@ -138,10 +138,15 @@ pub const BREED_HEAD_TURN: f32 = 10.0;
 
 // --- Entity pushing ---------------------------------------------------------------
 
-/// Overlapping pushable actors are pushed apart by this much per tick along
-/// the dominant horizontal axis direction; provisional: Java Edition
-/// `Entity#push`.
+/// A pushed actor moves this much per tick along the vector away from its
+/// pusher, scaled by `1 / sqrt(max(|dx|, |dz|))` capped at 1.
 pub const ENTITY_PUSH_STRENGTH: f64 = 0.05;
+/// An actor pushes the actors whose boxes touch its own box grown by this
+/// much on x and z (not on y).
+pub const ENTITY_PUSH_REACH: f64 = 0.2;
+/// Actors whose positions are closer than this on both horizontal axes do
+/// not push each other.
+pub const ENTITY_PUSH_MIN_DISTANCE: f64 = 0.1;
 /// Player collision box (blocks), for pushing and tempt stop distance.
 pub const PLAYER_BOX_WIDTH: f64 = 0.6;
 pub const PLAYER_BOX_HEIGHT: f64 = 1.8;
