@@ -176,17 +176,42 @@ impl DecorationWrites {
 
     /// Replay both sparse actors and block writes at their original chronological points.
     pub fn apply_to(&self, dx: i32, dz: i32, chunk: &mut Chunk) {
-        assert_eq!(
-            chunk.state_space(),
-            self.state_space,
-            "decoration writes cannot cross Java/Bedrock state domains"
-        );
+        self.replay(dx, dz, chunk, |_, _| true);
+    }
+
+    /// [`Self::apply_to`] for decorations that each ran over unmodified protos
+    /// and are merged afterwards. A cover write (neither air nor fluid, not
+    /// blocking motion, e.g. leaf litter or grass) decided against the proto
+    /// must not bury a motion-blocking block another origin placed there
+    /// meanwhile: in sequential decoration the cover's feature would have
+    /// found that cell occupied. Measured: in the natural seed-12345 BDS world
+    /// the fancy oak of chunk (4,-5) keeps its bottom log where a neighbour's
+    /// leaf-litter scatter also lands.
+    pub fn apply_merged(&self, dx: i32, dz: i32, chunk: &mut Chunk, proto: &Chunk, classes: &[u8]) {
+        use unastar_noise::block_class::{AIR, BLOCKS_MOTION, FLUID};
+        let class = |id: u32| classes.get(id as usize).copied().unwrap_or(0);
+        self.replay(dx, dz, chunk, |chunk, write| {
+            if class(write.block) & (AIR | FLUID | BLOCKS_MOTION) != 0 {
+                return true;
+            }
+            let current = chunk.get_block(write.x, write.y, write.z);
+            current == proto.get_block(write.x, write.y, write.z)
+                || class(current) & BLOCKS_MOTION == 0
+        });
+    }
+
+    fn replay(&self, dx: i32, dz: i32, chunk: &mut Chunk,
+        mut keep: impl FnMut(&Chunk, &BlockWrite) -> bool) {
+        assert_eq!(chunk.state_space(), self.state_space,
+            "decoration writes cannot cross Java/Bedrock state domains");
         let slot = slot_of(dx, dz);
         let blocks = &self.per_slot[slot];
         let mut applied = 0;
         for write in &self.entities[slot] {
             for block in &blocks[applied..write.after_blocks] {
-                block.apply_to(chunk);
+                if keep(chunk, block) {
+                    block.apply_to(chunk);
+                }
             }
             applied = write.after_blocks;
             match &write.entity {
@@ -204,7 +229,9 @@ impl DecorationWrites {
             }
         }
         for block in &blocks[applied..] {
-            block.apply_to(chunk);
+            if keep(chunk, block) {
+                block.apply_to(chunk);
+            }
         }
     }
 

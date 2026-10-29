@@ -821,13 +821,29 @@ tabled below.
    test also pinned chunk (4,-5)'s second to fourth trees. Those follow a
    fancy oak whose draws are not native yet, and the old code matched them
    only through compensating errors. Only (4,-5)'s first tree is still pinned.
+2. **Leaf litter draws nothing from the feature random, and covers do not
+   bury other origins' blocks.** In chunk (4,-4) the second rule iteration's
+   tree pick lands on BDS's oak (a 4-log trunk at (74,124,-63)) only when the
+   96 litter placements after the first dark oak take no feature draws. BDS
+   litter still shows every amount and facing, so those states come from
+   another random, which is unmeasured; we derive them from the position.
+   `roofed_forest_second_tree_follows_the_litter_scatter` pins the oak and
+   fails with the old two draws per litter.
+   With litter landing elsewhere, a neighbour's litter, decided against the
+   unmodified proto, overwrote the bottom log of chunk (4,-5)'s fancy oak
+   when the independently decorated chunks were merged. BDS decorates against
+   one world, where litter needs air and a trunk may replace litter, so the
+   merge now drops a cover write (neither air nor fluid, not blocking motion)
+   that would bury a motion-blocking block another origin placed.
+   `roofed_forest_chunk_starts_with_the_native_trees` fails without that
+   rule.
 
-| Metric | Before | After 1 |
-| --- | ---: | ---: |
-| terrain exact | 0.88591 | 0.88597 |
-| terrain within 2 | 0.92446 | 0.92440 |
-| terrain mean abs error | 1.20347 | 1.20370 |
-| surface exact | 0.85455 | 0.85116 |
-| surface block | 0.84892 | 0.84702 |
-| surface biome | 0.99506 | 0.99500 |
-| histogram L1 | 0.02368 | 0.02371 |
+| Metric | Before | After 1 | After 2 |
+| --- | ---: | ---: | ---: |
+| terrain exact | 0.88591 | 0.88597 | 0.88586 |
+| terrain within 2 | 0.92446 | 0.92440 | 0.92440 |
+| terrain mean abs error | 1.20347 | 1.20370 | 1.20381 |
+| surface exact | 0.85455 | 0.85116 | 0.85064 |
+| surface block | 0.84892 | 0.84702 | 0.84771 |
+| surface biome | 0.99506 | 0.99500 | 0.99506 |
+| histogram L1 | 0.02368 | 0.02371 | 0.02378 |

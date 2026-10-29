@@ -97,16 +97,16 @@ fn bedrock_style_vs_bds_reference_ratchets() {
             // ceilings below; each is tabled under "Roofed forest draw order"
             // in the codegen README.
             for (name, value, floor) in [
-                ("terrain_exact", m.terrain_exact, 0.8859),
+                ("terrain_exact", m.terrain_exact, 0.8858),
                 ("terrain_within_2", m.terrain_within_2, 0.9244),
-                ("surface_exact", m.surface_exact, 0.8511),
-                ("surface_block", m.surface_block, 0.8470),
+                ("surface_exact", m.surface_exact, 0.8506),
+                ("surface_block", m.surface_block, 0.8477),
                 ("surface_biome", m.surface_biome, 0.9950),
             ] {
                 assert!(value >= floor, "{name} {value:.6} fell below {floor:.6}");
             }
             assert!(
-                m.terrain_mean_abs_error <= 1.2037,
+                m.terrain_mean_abs_error <= 1.2039,
                 "terrain error rose: {}",
                 m.terrain_mean_abs_error
             );
@@ -120,7 +120,7 @@ fn bedrock_style_vs_bds_reference_ratchets() {
             // native dripleaf draws then cost the terrain error a fraction of
             // a column (D8): see "Dripleaf draws".
             assert!(
-                m.histogram_l1 <= 0.02372,
+                m.histogram_l1 <= 0.02379,
                 "histogram error rose: {}",
                 m.histogram_l1
             );
@@ -355,4 +355,18 @@ fn roofed_forest_first_dark_oak_is_block_exact() {
         }
     }
     assert_eq!(actual, expected);
+}
+
+/// Natural seed-12345 BDS world, roofed forest chunk (4,-4): after the first
+/// dark oak, its 96-iteration leaf-litter scatter and its 20-iteration grass
+/// scatter, the second rule iteration grows an oak whose trunk is exactly the
+/// four logs y 124..=127 of column (74,-63). The tree pick lands on that oak
+/// only when placing leaf litter draws nothing from the feature random.
+#[test]
+fn roofed_forest_second_tree_follows_the_litter_scatter() {
+    let chunk = generate_chunk(4, -4);
+    // Chunk-local (10, 1) is block (74, -63).
+    let logs = blocks_named(&chunk, "minecraft:oak_log", (10, 10), (-63, 319), (1, 1));
+    let expected: BTreeSet<_> = (124..=127).map(|y| (10u8, y, 1u8)).collect();
+    assert_eq!(logs, expected);
 }
