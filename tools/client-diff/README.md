@@ -143,7 +143,11 @@ an ender pearl and a tipped arrow, `item-use-lingering` throws a lingering
 potion at the feet and stays in the cloud, `item-use-tridents` throws a plain
 trident and teleports onto it, a loyalty trident and a riptide trident in
 rain, and `item-use-repair` repairs two damaged wooden pickaxes in the
-crafting grid; `item-use-2-dry` is their smoke run. Retained spawn packets
+crafting grid; `item-use-2-dry` is their smoke run. `item-use-splash-distance`
+and `item-use-splash-sideways` measure how splash effect duration falls with
+distance (the latter teleports the player between throw and impact), and
+`item-use-tridents-water` throws an impaling trident at a drowned on land and
+in water and uses riptide 1/3 in a 2-deep pool. Retained spawn packets
 from these runs are in `crates/bds-extractor/captures/1.26.51/items/`.
 Jolyne runs only chat/command scenarios and rejects interaction steps before
 connecting.
