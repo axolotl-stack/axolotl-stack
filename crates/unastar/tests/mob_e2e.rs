@@ -39,14 +39,15 @@ use jolyne::valentine::types::{
     InventoryTransactionPacketTransaction, ItemUseOnActorInventoryTransaction, Vec3,
 };
 use jolyne::valentine::{
-    CommandOriginDatajson, CommandRequestPacket, EnumsConnectionDisconnectFailReason,
-    EnumsContainerEnumName, EnumsItemStackNetResult, EnumsItemStackRequestActionType,
-    EnumsItemUseInventoryTransactionActionType, FullContainerName, InventoryTransactionPacket,
-    ItemStackRequestCerealCraftCreativeActionData, ItemStackRequestCerealPlaceActionData,
-    ItemStackRequestCerealSlotInfoData, ItemStackRequestPacket,
-    ItemStackRequestPacketDataRequestData, ItemStackRequestPacketDataRequestDataActionsItem,
-    ItemUseInventoryTransaction, McpePacket, McpePacketData,
-    TypedClientNetIdstructItemStackRequestIdTagint32T0,
+    CommandOriginDatajson, CommandRequestPacket, ContainerClosePacket,
+    EnumsConnectionDisconnectFailReason, EnumsContainerEnumName, EnumsInteractPacketPayloadAction,
+    EnumsItemStackNetResult, EnumsItemStackRequestActionType,
+    EnumsItemUseInventoryTransactionActionType, FullContainerName, InteractPacket,
+    InventoryTransactionPacket, ItemStackRequestCerealCraftCreativeActionData,
+    ItemStackRequestCerealPlaceActionData, ItemStackRequestCerealSlotInfoData,
+    ItemStackRequestPacket, ItemStackRequestPacketDataRequestData,
+    ItemStackRequestPacketDataRequestDataActionsItem, ItemUseInventoryTransaction, McpePacket,
+    McpePacketData, TypedClientNetIdstructItemStackRequestIdTagint32T0,
 };
 use jolyne::{BedrockStream, Client, ClientHandshakeConfig, GameData, Play};
 use tokio::sync::{mpsc, oneshot};
@@ -738,14 +739,21 @@ impl Bot {
             .get(&i32::from(item))
             .unwrap_or_else(|| panic!("item {item} in the creative inventory"));
         const REQUEST: i32 = -1;
-        let slot_info = |container_name, slot| ItemStackRequestCerealSlotInfoData {
+        let slot_info = |container_name, slot, net_id_variant| ItemStackRequestCerealSlotInfoData {
             fullcontainername: FullContainerName {
                 container_name,
                 dynamic_id: None,
             },
             slot,
-            ..Default::default()
+            net_id_variant,
         };
+        // The creative menu is the inventory screen: BDS only validates the
+        // created-output and combined containers while it is open.
+        self.log("-> Interact OpenInventory".into());
+        self.send(InteractPacket {
+            action: EnumsInteractPacketPayloadAction::Openinventory,
+            ..Default::default()
+        });
         self.log(format!(
             "-> ItemStackRequest CraftCreative {creative_item_net_id} + Place {amount} into slot {slot}"
         ));
@@ -766,11 +774,17 @@ impl Bot {
                         ItemStackRequestCerealPlaceActionData {
                             actiontype: EnumsItemStackRequestActionType::Place,
                             amount,
-                            // The client's created-output slot.
-                            source: slot_info(EnumsContainerEnumName::Createdoutputcontainer, 50),
+                            // The client's created-output slot, whose stack
+                            // the client names by this request's id.
+                            source: slot_info(
+                                EnumsContainerEnumName::Createdoutputcontainer,
+                                50,
+                                REQUEST,
+                            ),
                             destination: slot_info(
                                 EnumsContainerEnumName::Combinedhotbarandinventorycontainer,
                                 slot,
+                                0,
                             ),
                         },
                     ),
@@ -793,6 +807,12 @@ impl Bot {
             EnumsItemStackNetResult::Success,
             "the creative take is accepted"
         );
+        self.log("-> ContainerClose inventory".into());
+        self.send(ContainerClosePacket {
+            container_id: 0,
+            container_type: 0xff,
+            server_initiated_close: false,
+        });
     }
 
     /// Uses the held item in the air (a right click), which throws an egg.
