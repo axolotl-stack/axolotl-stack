@@ -46,6 +46,9 @@ const INPUT_INTERVAL: Duration = Duration::from_millis(50);
 /// Overworld sub-chunks per column (y -64..320) and the lowest one's index.
 const SUBCHUNKS_PER_COLUMN: i32 = 24;
 const LOWEST_SUBCHUNK: i32 = -4;
+/// After the render disk is complete, how long to wait for the rest of the
+/// streamed square before concluding the server only streams the disk.
+const SQUARE_GRACE: Duration = Duration::from_secs(3);
 /// Bound for joining and loading one view.
 const VIEW_TIMEOUT: Duration = Duration::from_secs(180);
 
@@ -135,6 +138,12 @@ struct PlayerResult {
     /// `LevelChunk` packets received until the square view completed. A
     /// column counts as loaded once its requested sub-chunks have arrived.
     chunks_received: usize,
+    /// Distinct complete columns when standing ended (shows whether the
+    /// server streams the square or the disk).
+    columns_received: usize,
+    /// Uncompressed `LevelChunk` and `SubChunk` packet bytes received until
+    /// the square view completed.
+    terrain_bytes: usize,
     flight: Option<FlightResult>,
 }
 
@@ -293,9 +302,23 @@ impl ServerProcess {
         let child = Command::new(exe)
             .current_dir(dir)
             .env("UNASTAR_CONFIG", dir.join("unastar.toml"))
-            .env("RUST_LOG", "warn")
+            .env(
+                "RUST_LOG",
+                std::env::var("LOAD_BENCH_SERVER_LOG").unwrap_or_else(|_| "warn".into()),
+            )
             .stdin(Stdio::piped())
-            .stdout(Stdio::null())
+            // `LOAD_BENCH_SERVER_LOG=<filter>` with `LOAD_BENCH_SERVER_STDOUT=<file>`
+            // keeps the server's tracing output for diagnosis.
+            .stdout(match std::env::var("LOAD_BENCH_SERVER_STDOUT") {
+                Ok(path) => Stdio::from(
+                    std::fs::OpenOptions::new()
+                        .create(true)
+                        .append(true)
+                        .open(path)
+                        .expect("server log file"),
+                ),
+                Err(_) => Stdio::null(),
+            })
             .stderr(Stdio::inherit())
             .spawn()
             .expect("start the server executable");
@@ -525,12 +548,23 @@ async fn measure_player(addr: SocketAddr, args: &Args, index: usize) -> PlayerRe
     let mut tick: u64 = 0;
     let mut input = tokio::time::interval(INPUT_INTERVAL);
 
-    // Standing at spawn until the whole square view has arrived.
+    // Standing at spawn until the whole square view has arrived, or the disk
+    // has and nothing more came for `SQUARE_GRACE` (a server that streams
+    // only the render disk).
     let deadline = started + VIEW_TIMEOUT;
-    while result.square_view_ms.is_none() {
+    let mut last_column = Instant::now();
+    while result.square_view_ms.is_none()
+        && !(result.disk_view_ms.is_some() && last_column.elapsed() > SQUARE_GRACE)
+    {
         tokio::select! {
             raw = play.recv_packet_raw() => {
                 let raw = raw.expect("connection stays open while loading");
+                if matches!(
+                    raw.name(),
+                    Some(McpePacketName::LevelChunkPacket | McpePacketName::SubChunkPacket)
+                ) {
+                    result.terrain_bytes += raw.inner_frame().len();
+                }
                 let Some(event) = terrain_packet(&mut play, raw).await else { continue };
                 let now = ms(started.elapsed());
                 match event {
@@ -539,6 +573,7 @@ async fn measure_player(addr: SocketAddr, args: &Args, index: usize) -> PlayerRe
                         result.chunks_received += 1;
                     }
                     TerrainEvent::Complete(columns) => {
+                        last_column = Instant::now();
                         terrain.received.extend(columns);
                         if result.disk_view_ms.is_none()
                             && terrain.disk(spawn_chunk).all(|c| terrain.received.contains(&c))
@@ -562,6 +597,7 @@ async fn measure_player(addr: SocketAddr, args: &Args, index: usize) -> PlayerRe
             result.name
         );
     }
+    result.columns_received = terrain.received.len();
 
     if args.fly_seconds > 0.0 {
         result.flight = Some(

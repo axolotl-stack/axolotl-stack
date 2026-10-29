@@ -23,8 +23,10 @@ def row(run):
     first = max((p["first_chunk_ms"] or 0) for p in players)
     disk = run["worst_disk_view_ms"]
     square = run["worst_square_view_ms"]
-    chunks = players[0]["square_chunks"]
-    rate = chunks / (square / 1e3) if square else None
+    # Columns per second until the view the server streams was complete.
+    chunks = players[0].get("columns_received") or players[0]["square_chunks"]
+    done = square or disk
+    rate = chunks / (done / 1e3) if done else None
     flights = [p["flight"] for p in players if p.get("flight")]
     if flights:
         mean = sum(f["missing_disk_mean"] for f in flights) / len(flights)
