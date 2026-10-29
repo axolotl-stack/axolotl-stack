@@ -14,6 +14,12 @@
 //!   while the zombie closes in and hits it to death, then answers the
 //!   respawn screen and checks it comes back at the world spawn with full
 //!   health.
+//! - `tempted_cows_spread_out_while_following_over_loopback`: summons eight
+//!   cows next to the creative bot holding wheat, walks the bot as a real
+//!   client does (one `PlayerAuthInput` per tick at walking speed, straight
+//!   ahead, then after a turn) and checks from every cow's `MoveActorDelta`
+//!   and `MoveActorAbsolute` that the cows follow side by side instead of in
+//!   single file, without stacking on each other.
 //!
 //! The tests bind a UDP socket on `127.0.0.1` (never a public interface), so
 //! they are ignored by default. Run them with:
@@ -41,9 +47,10 @@ use std::time::Duration;
 use jolyne::stream::RakNetTransport;
 use jolyne::valentine::types::{
     ActorRuntimeId, EnumsActorEvent, EnumsItemUseOnActorInventoryTransactionActionType,
-    EnumsPlayerActionType, EnumsPlayerPositionModeComponentPositionMode, EnumsPlayerRespawnState,
-    InventoryTransactionPacketTransaction, ItemUseOnActorInventoryTransaction, TextPacketBody,
-    Vec3,
+    EnumsPlayerActionType, EnumsPlayerAuthInputPacketPayloadInputData,
+    EnumsPlayerPositionModeComponentPositionMode, EnumsPlayerRespawnState,
+    InventoryTransactionPacketTransaction, ItemUseOnActorInventoryTransaction, PlayerInputTick,
+    TextPacketBody, Vec2, Vec3,
 };
 use jolyne::valentine::{
     CommandOriginDatajson, CommandRequestPacket, ContainerClosePacket,
@@ -54,7 +61,7 @@ use jolyne::valentine::{
     ItemStackRequestCerealPlaceActionData, ItemStackRequestCerealSlotInfoData,
     ItemStackRequestPacket, ItemStackRequestPacketDataRequestData,
     ItemStackRequestPacketDataRequestDataActionsItem, ItemUseInventoryTransaction, McpePacket,
-    McpePacketData, PlayerActionPacket, RespawnPacket,
+    McpePacketData, PlayerActionPacket, PlayerAuthInputPacket, RespawnPacket,
     TypedClientNetIdstructItemStackRequestIdTagint32T0,
 };
 use jolyne::{BedrockStream, Client, ClientHandshakeConfig, GameData, Play};
@@ -134,6 +141,51 @@ const ZOMBIE_ATTACK_TICKS: u64 = 20;
 const ZOMBIE_SUMMON_DISTANCE: f32 = 4.0;
 const PLAYER_MAX_HEALTH: f32 = 20.0;
 const HEALTH: &str = "minecraft:health";
+/// Bound for the tempted cows' summon, settle and walk.
+const TEMPT_TIMEOUT: Duration = Duration::from_secs(60);
+/// Cows summoned around the bot for the tempt walk.
+const TEMPTED_COWS: usize = 8;
+/// Ticks the bot stands still after the cows appear, so they gather.
+const TEMPT_GATHER_TICKS: u32 = 40;
+/// Ticks of the first, straight leg of the walk (along +z).
+const TEMPT_LEG_TICKS: u32 = 80;
+/// Ticks of the second leg, after an eighth turn to the right (along the
+/// +x/+z diagonal): players rarely walk along a block axis.
+const TEMPT_TURN_TICKS: u32 = 120;
+/// The bot's walking speed: about the vanilla walking speed of 0.216
+/// blocks per tick, which the tempted cows (movement 0.25 × tempt speed
+/// 1.25 on normal ground: at most 0.215 blocks per tick) can keep up with.
+const TEMPT_WALK_SPEED: f32 = 0.2;
+/// Ticks after the start of a leg before its samples count: the cows need
+/// about two seconds to reach full speed and line up behind the bot.
+const TEMPT_FORMING_TICKS: u32 = 40;
+/// An adult cow's collision box width.
+const COW_WIDTH: f32 = 0.9;
+/// Lower bound for the horizontal distance between two cows once they
+/// follow. Two pushable mobs push each other apart twice per tick by
+/// `0.05·√m` (`m` = the larger horizontal axis distance, below 1 block),
+/// and a pair is never closer than where that push balances the speed
+/// difference it absorbs: a cow driving at full tempt speed into one
+/// carried along with it (drive `0.3125² ≈ 0.098` blocks/tick², shared
+/// half each) settles where `0.1·√m = 0.049`, at `m ≈ 0.24`. Closer pairs
+/// only come from cows that walk the same points without being pushed
+/// apart; pairs closer than 0.1 on both axes are not pushed at all.
+const TEMPT_SEPARATION_FLOOR: f32 = 0.24;
+/// Pushing keeps two touching cows about 1.1 blocks apart (touching boxes
+/// plus the 0.2 push reach), so eight cows in single file span at least
+/// `7 × 1.1 = 7.7` blocks from the first to the last. A herd shorter than
+/// this along its principal axis and wider than one cow across it is not a
+/// single file.
+const TEMPT_SINGLE_FILE_LENGTH: f32 = 7.7;
+/// Share of the formed samples in which the herd must not be a single file.
+const TEMPT_HERD_SHARE: f32 = 0.8;
+/// How much farther behind the bot the herd may fall over the formed part
+/// of a leg. Tempted cows walk up to 0.215 blocks per tick, faster than the
+/// bot's 0.2, along whatever heading their path takes: walking straight at
+/// the bot they cannot fall behind; one block is the slack for pushes.
+const TEMPT_LAG_GROWTH: f32 = 1.0;
+/// Tempt gives up beyond this horizontal distance (`within_radius` 16).
+const TEMPT_RADIUS: f32 = 16.0;
 
 /// Serialises the tests: each makes its own temporary directory the process
 /// working directory.
@@ -187,6 +239,18 @@ fn zombie_kills_the_player_who_then_respawns_over_loopback() {
     });
 }
 
+#[test]
+#[ignore = "loopback socket run: use the native lock"]
+fn tempted_cows_spread_out_while_following_over_loopback() {
+    run_loopback(Scenario::TemptedCows, |config| {
+        // A platform wide enough for the 40-block walk, generated inline;
+        // creative mode lets the bot take wheat from the creative
+        // inventory.
+        config.world = WorldConfig::void_spawn_platform(4);
+        config.server.default_gamemode = "creative".into();
+    });
+}
+
 /// What the joined bot does.
 #[derive(Debug, Clone, Copy)]
 enum Scenario {
@@ -194,6 +258,7 @@ enum Scenario {
     Chicken,
     NaturalSpawning,
     Zombie,
+    TemptedCows,
 }
 
 impl Scenario {
@@ -203,6 +268,7 @@ impl Scenario {
             Self::Chicken => CHICKEN_TIMEOUT,
             Self::NaturalSpawning => SPAWN_TIMEOUT,
             Self::Zombie => ZOMBIE_TIMEOUT,
+            Self::TemptedCows => TEMPT_TIMEOUT,
         }
     }
 
@@ -212,6 +278,7 @@ impl Scenario {
             Self::Chicken => glide_egg_and_kill_chicken(bot).await,
             Self::NaturalSpawning => watch_natural_spawns(bot).await,
             Self::Zombie => zombie_kills_and_bot_respawns(bot).await,
+            Self::TemptedCows => tempted_cows_follow(bot).await,
         }
     }
 }
@@ -997,6 +1064,291 @@ async fn answer_respawn_screen(bot: &mut Bot) {
     );
 }
 
+/// Where the bot and the cows stood after one tick of the tempt walk.
+struct WalkSample {
+    /// Ticks since the walk started.
+    tick: u32,
+    /// The bot's feet (x, z).
+    bot: (f32, f32),
+    /// Every cow's feet (x, z), in summon order.
+    cows: Vec<(f32, f32)>,
+}
+
+impl WalkSample {
+    /// The closest two cows: (horizontal distance, first, second).
+    fn closest_pair(&self) -> (f32, usize, usize) {
+        let mut closest = (f32::INFINITY, 0, 0);
+        for (i, a) in self.cows.iter().enumerate() {
+            for (j, b) in self.cows.iter().enumerate().skip(i + 1) {
+                let distance = (a.0 - b.0).hypot(a.1 - b.1);
+                if distance < closest.0 {
+                    closest = (distance, i, j);
+                }
+            }
+        }
+        closest
+    }
+
+    /// The herd's shape: its extent along its principal axis (length) and
+    /// across it (breadth).
+    fn shape(&self) -> (f32, f32) {
+        let n = self.cows.len() as f32;
+        let (mx, mz) = self
+            .cows
+            .iter()
+            .fold((0.0, 0.0), |(x, z), cow| (x + cow.0 / n, z + cow.1 / n));
+        let (mut sxx, mut sxz, mut szz) = (0.0, 0.0, 0.0);
+        for (x, z) in &self.cows {
+            let (dx, dz) = (x - mx, z - mz);
+            sxx += dx * dx;
+            sxz += dx * dz;
+            szz += dz * dz;
+        }
+        let angle = 0.5 * (2.0 * sxz).atan2(sxx - szz);
+        let (along, across) = ((angle.cos(), angle.sin()), (-angle.sin(), angle.cos()));
+        let extent = |(ux, uz): (f32, f32)| {
+            let (min, max) = self
+                .cows
+                .iter()
+                .map(|(x, z)| x * ux + z * uz)
+                .fold((f32::INFINITY, f32::NEG_INFINITY), |(lo, hi), v| {
+                    (lo.min(v), hi.max(v))
+                });
+            max - min
+        };
+        (extent(along), extent(across))
+    }
+
+    /// How far the herd's centre trails the bot.
+    fn lag(&self) -> f32 {
+        let n = self.cows.len() as f32;
+        let (x, z) = self
+            .cows
+            .iter()
+            .fold((0.0, 0.0), |(x, z), cow| (x + cow.0 / n, z + cow.1 / n));
+        (x - self.bot.0).hypot(z - self.bot.1)
+    }
+
+    /// Whether the herd is no single file: shorter than eight cows in a
+    /// row and wider than one cow.
+    fn herd(&self) -> bool {
+        let (length, breadth) = self.shape();
+        length < TEMPT_SINGLE_FILE_LENGTH && breadth > COW_WIDTH
+    }
+
+    /// Whether the cows have had time to line up behind the bot on the
+    /// current leg.
+    fn formed(&self) -> bool {
+        let into_leg = if self.tick < TEMPT_LEG_TICKS {
+            self.tick
+        } else {
+            self.tick - TEMPT_LEG_TICKS
+        };
+        into_leg >= TEMPT_FORMING_TICKS
+    }
+}
+
+/// The bot's walking direction (unit x, z) at `tick` of the walk:
+/// along +z on the first leg, along the +x/+z diagonal on the second.
+fn walk_direction(tick: u32) -> (f32, f32) {
+    if tick < TEMPT_LEG_TICKS {
+        (0.0, 1.0)
+    } else {
+        (
+            std::f32::consts::FRAC_1_SQRT_2,
+            std::f32::consts::FRAC_1_SQRT_2,
+        )
+    }
+}
+
+/// a. eight cows around the standing bot, which holds wheat, b. the bot
+/// walks straight along +z, turns and walks along the +x/+z diagonal, one
+/// `PlayerAuthInput` per tick, c. the cows followed, side by side and
+/// apart.
+async fn tempted_cows_follow(bot: &mut Bot) {
+    // a. no natural spawns join the herd.
+    bot.run_command("/gamerule domobspawning false", "has been updated")
+        .await;
+    // The default spawn location puts the feet inside the platform; a real
+    // client reports itself standing on top.
+    let mut feet = (bot.position.x, bot.position.z);
+    let mut input_tick = 0;
+    bot.auth_input(feet, 0.0, false, input_tick);
+    let wheat = bot.item_id("minecraft:wheat");
+    bot.take_from_creative(wheat, 64, 0).await;
+    // Two rows of four, one block apart, three and four blocks behind the
+    // bot (it faces +z).
+    let mut cows = Vec::with_capacity(TEMPTED_COWS);
+    for i in 0..TEMPTED_COWS {
+        let x = feet.0 + (i % 4) as f32 - 1.5;
+        let z = feet.1 - 3.0 - (i / 4) as f32;
+        cows.push(summon(bot, COW, &format!("{x:.2} {PLATFORM_TOP} {z:.2}")).await);
+    }
+
+    // b. every tick: one input, then the packets until the next tick.
+    let mut samples = Vec::new();
+    let mut moves: HashMap<u64, usize> = HashMap::new();
+    let started = Instant::now();
+    let walk_ticks = TEMPT_LEG_TICKS + TEMPT_TURN_TICKS;
+    for tick in 0..TEMPT_GATHER_TICKS + walk_ticks {
+        let walk = tick.checked_sub(TEMPT_GATHER_TICKS);
+        let (yaw, step) = match walk {
+            None => (0.0, (0.0, 0.0)),
+            Some(walk) => {
+                let (dx, dz) = walk_direction(walk);
+                // Yaw 0 faces +z, −90 faces +x.
+                let yaw = -dx.atan2(dz).to_degrees();
+                (yaw, (dx * TEMPT_WALK_SPEED, dz * TEMPT_WALK_SPEED))
+            }
+        };
+        feet = (feet.0 + step.0, feet.1 + step.1);
+        input_tick += 1;
+        bot.auth_input(feet, yaw, walk.is_some(), input_tick);
+        let deadline = started + TICK * (tick + 1);
+        while let Some(packet) = bot.next_until(deadline).await {
+            let moved = match &packet {
+                McpePacketData::MoveActorDeltaPacket(moved) => {
+                    moved.move_data.actor_runtime_id.actor_runtime_id
+                }
+                McpePacketData::MoveActorAbsolutePacket(moved) => {
+                    moved.move_data.actor_runtime_id.actor_runtime_id
+                }
+                _ => continue,
+            };
+            *moves.entry(moved).or_default() += 1;
+        }
+        let Some(walk) = walk else {
+            continue;
+        };
+        let positions = cows
+            .iter()
+            .map(|cow| {
+                let at = bot
+                    .actors
+                    .get(cow)
+                    .unwrap_or_else(|| panic!("cow {cow} is still tracked"));
+                (at.x, at.z)
+            })
+            .collect();
+        samples.push(WalkSample {
+            tick: walk,
+            bot: feet,
+            cows: positions,
+        });
+    }
+    let move_counts: Vec<usize> = cows
+        .iter()
+        .map(|cow| moves.get(cow).copied().unwrap_or(0))
+        .collect();
+    bot.log(format!(
+        "tempt walk: MoveActorDelta/Absolute per cow {move_counts:?}"
+    ));
+    for sample in samples.iter().filter(|s| s.tick % 10 == 0) {
+        let (closest, a, b) = sample.closest_pair();
+        let (length, breadth) = sample.shape();
+        let herd: Vec<String> = sample
+            .cows
+            .iter()
+            .map(|(x, z)| format!("({x:.2},{z:.2})"))
+            .collect();
+        bot.log(format!(
+            "walk tick {:>3}: bot ({:.2},{:.2}) lag {:.2} herd {length:.2} x {breadth:.2} \
+             closest {closest:.2} (cows {a},{b}) cows {}",
+            sample.tick,
+            sample.bot.0,
+            sample.bot.1,
+            sample.lag(),
+            herd.join(" ")
+        ));
+    }
+
+    // c. what the cows did once formed on each leg.
+    let formed: Vec<&WalkSample> = samples.iter().filter(|s| s.formed()).collect();
+    let overlapping = formed
+        .iter()
+        .map(|s| {
+            let mut pairs = 0;
+            for (i, a) in s.cows.iter().enumerate() {
+                for b in &s.cows[i + 1..] {
+                    if (a.0 - b.0).hypot(a.1 - b.1) < COW_WIDTH {
+                        pairs += 1;
+                    }
+                }
+            }
+            pairs
+        })
+        .sum::<usize>();
+    let (closest, at) = formed
+        .iter()
+        .map(|s| (s.closest_pair(), s.tick))
+        .min_by(|a, b| a.0.0.total_cmp(&b.0.0))
+        .expect("formed samples");
+    let lines: Vec<u32> = formed
+        .iter()
+        .filter(|s| !s.herd())
+        .map(|s| s.tick)
+        .collect();
+    let herd_share = 1.0 - lines.len() as f32 / formed.len() as f32;
+    // The lag's growth over the formed part of each leg.
+    let growth = |leg: &dyn Fn(&&WalkSample) -> bool| {
+        let mut leg = formed.iter().filter(|s| leg(s));
+        let first = leg.next().expect("formed samples on the leg");
+        let last = leg.last().expect("formed samples on the leg");
+        last.lag() - first.lag()
+    };
+    let straight_growth = growth(&|s| s.tick < TEMPT_LEG_TICKS);
+    let diagonal_growth = growth(&|s| s.tick >= TEMPT_LEG_TICKS);
+    bot.log(format!(
+        "tempt walk over {} formed samples: lag growth {straight_growth:.2} straight, \
+         {diagonal_growth:.2} diagonal; closest pair {:.3} (cows {},{}) at walk tick {at}, \
+         {overlapping} pair-samples closer than a cow width; herd (not a single file) in \
+         {:.0}% (a line at walk ticks {lines:?})",
+        formed.len(),
+        closest.0,
+        closest.1,
+        closest.2,
+        herd_share * 100.0
+    ));
+
+    // They followed: still tempted at the end, having crossed most of the
+    // 37 blocks between the bot's start and end, without falling behind.
+    let first = samples.first().expect("walk samples");
+    let last = samples.last().expect("walk samples");
+    for (i, (start, end)) in first.cows.iter().zip(&last.cows).enumerate() {
+        let behind = (end.0 - last.bot.0).hypot(end.1 - last.bot.1);
+        let travelled = (end.0 - start.0).hypot(end.1 - start.1);
+        assert!(
+            behind < TEMPT_RADIUS && travelled > 20.0,
+            "cow {i} follows the bot: it ends {behind:.2} blocks from it after travelling \
+             {travelled:.2} blocks"
+        );
+    }
+    for (leg, growth) in [("straight", straight_growth), ("diagonal", diagonal_growth)] {
+        assert!(
+            growth <= TEMPT_LAG_GROWTH,
+            "the herd keeps up with the bot on the {leg} leg: it fell {growth:.2} blocks \
+             farther behind (at most {TEMPT_LAG_GROWTH})"
+        );
+    }
+    // No two following cows come closer than pushing allows.
+    assert!(
+        closest.0 >= TEMPT_SEPARATION_FLOOR,
+        "following cows stay at least {TEMPT_SEPARATION_FLOOR} blocks apart: cows {} and {} \
+         were {:.3} apart at walk tick {at}",
+        closest.1,
+        closest.2,
+        closest.0
+    );
+    // They walk as a herd, not in single file.
+    assert!(
+        herd_share >= TEMPT_HERD_SHARE,
+        "the cows walk as a herd (shorter than {TEMPT_SINGLE_FILE_LENGTH}, wider than \
+         {COW_WIDTH}) in at least {:.0}% of the samples: only {:.0}%",
+        TEMPT_HERD_SHARE * 100.0,
+        herd_share * 100.0
+    );
+}
+
 /// Whether two positions are the same to wire precision.
 fn near(a: &Vec3, b: &Vec3) -> bool {
     (a.x - b.x).abs() < 0.01 && (a.y - b.y).abs() < 0.01 && (a.z - b.z).abs() < 0.01
@@ -1568,6 +1920,40 @@ impl Bot {
 
     fn log(&self, line: String) {
         println!("[{:>6} ms] {line}", self.started.elapsed().as_millis());
+    }
+
+    /// One `PlayerAuthInput`, as the client sends every tick: standing on
+    /// the platform at `feet` (x, z), facing `yaw`, walking forward when
+    /// `walking`.
+    fn auth_input(&mut self, feet: (f32, f32), yaw: f32, walking: bool, tick: u64) {
+        let eye = Vec3 {
+            x: feet.0,
+            y: PLATFORM_TOP + EYE_HEIGHT,
+            z: feet.1,
+        };
+        let delta = Vec3 {
+            x: eye.x - self.position.x,
+            y: eye.y - self.position.y,
+            z: eye.z - self.position.z,
+        };
+        self.position = eye.clone();
+        let mut input_data = vec![EnumsPlayerAuthInputPacketPayloadInputData::Verticalcollision];
+        if walking {
+            input_data.push(EnumsPlayerAuthInputPacketPayloadInputData::Up);
+        }
+        self.send(PlayerAuthInputPacket {
+            player_rotation: Vec2 { x: 0.0, y: yaw },
+            position: eye,
+            move_vector: Vec2 {
+                x: 0.0,
+                y: if walking { 1.0 } else { 0.0 },
+            },
+            player_head_rotation: yaw,
+            input_data,
+            client_tick: PlayerInputTick { inputtick: tick },
+            pos_delta: delta,
+            ..Default::default()
+        });
     }
 
     /// Disconnects and stops the background task.
