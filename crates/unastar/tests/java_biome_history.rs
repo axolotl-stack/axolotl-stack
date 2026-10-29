@@ -1,6 +1,11 @@
 //! Native Java 1.21.11 BIOMES-stage boundaries where equal climate fitness
 //! retains the previous search candidate. Measured against stopped-world quart
 //! palettes and the pinned public-API section-fill oracle, not self-output hashes.
+//!
+//! Generating these stages places structures, which needs the Java structure
+//! templates embedded by the `java-worldgen` feature (`UNASTAR_JAVA_SERVER_JAR`).
+
+#![cfg(feature = "java-worldgen")]
 
 use unastar::world::ChunkPos;
 use unastar::world::generator::{JavaGenerator, JavaTerrainStage};
