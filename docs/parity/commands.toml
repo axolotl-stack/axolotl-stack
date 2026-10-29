@@ -1,0 +1,99 @@
+# Parity status: Commands (commands).
+# One row per command BDS 1.26.51 advertises in `AvailableCommands`: syntax,
+# permission, execution and output match BDS.
+#
+# Rows are generated from vanilla data by `cargo run -p parity -- generate`, which
+# also rewrites this file in canonical form. Edit only the values; comments are
+# regenerated. Schema and rules: docs/parity/README.md.
+
+# admin (7)
+"deop" = { status = "missing" }
+"op" = { status = "missing" }
+"permission" = { status = "missing" }
+"place" = { status = "missing" }
+"reload" = { status = "missing" }
+"script" = { status = "missing" }
+"wsserver" = { status = "missing" }
+
+# any (4)
+"list" = { status = "missing" }
+"me" = { status = "missing" }
+"packstack" = { status = "missing" }
+"tell" = { status = "missing" }
+
+# gamedirectors (60)
+"aimassist" = { status = "missing" }
+"camera" = { status = "missing" }
+"camerashake" = { status = "missing" }
+"clear" = { status = "missing" }
+"clearspawnpoint" = { status = "missing" }
+"clone" = { status = "missing" }
+"controlscheme" = { status = "missing" }
+"damage" = { status = "missing" }
+"daylock" = { status = "missing" }
+"dialogue" = { status = "missing" }
+"difficulty" = { status = "missing" }
+"effect" = { status = "missing" }
+"enchant" = { status = "missing" }
+"event" = { status = "missing" }
+"execute" = { status = "missing" }
+"fill" = { status = "missing" }
+"fog" = { status = "missing" }
+"function" = { status = "missing" }
+"gamemode" = { status = "missing" }
+"gamerule" = { status = "missing" }
+"gametest" = { status = "missing" }
+"give" = { status = "missing" }
+"hud" = { status = "missing" }
+"inputpermission" = { status = "missing" }
+"kick" = { status = "missing" }
+"kill" = { status = "missing" }
+"locate" = { status = "missing" }
+"loot" = { status = "missing" }
+"mobevent" = { status = "missing" }
+"music" = { status = "missing" }
+"particle" = { status = "missing" }
+"playanimation" = { status = "missing" }
+"playsound" = { status = "missing" }
+"recipe" = { status = "missing" }
+"replaceitem" = { status = "missing" }
+"ride" = { status = "missing" }
+"say" = { status = "missing" }
+"schedule" = { status = "missing" }
+"scoreboard" = { status = "missing" }
+"scriptevent" = { status = "missing" }
+"setblock" = { status = "missing" }
+"setworldspawn" = { status = "missing" }
+"spawnpoint" = { status = "missing" }
+"spreadplayers" = { status = "missing" }
+"stopsound" = { status = "missing" }
+"structure" = { status = "missing" }
+"summon" = { status = "missing" }
+"tag" = { status = "missing" }
+"teleport" = { status = "missing" }
+"tellraw" = { status = "missing" }
+"testfor" = { status = "missing" }
+"testforblock" = { status = "missing" }
+"testforblocks" = { status = "missing" }
+"tickingarea" = { status = "missing" }
+"time" = { status = "missing" }
+"title" = { status = "missing" }
+"titleraw" = { status = "missing" }
+"toggledownfall" = { status = "missing" }
+"weather" = { status = "missing" }
+"xp" = { status = "missing" }
+
+# host (1)
+"setmaxplayers" = { status = "missing" }
+
+# owner (10)
+"allowlist" = { status = "missing" }
+"changesetting" = { status = "missing" }
+"editor-allowlist" = { status = "missing" }
+"reloadconfig" = { status = "missing" }
+"reloadpacketlimitconfig" = { status = "missing" }
+"save" = { status = "missing" }
+"sendshowstoreoffer" = { status = "missing" }
+"serveridentity" = { status = "missing" }
+"stop" = { status = "missing" }
+"transfer" = { status = "missing" }

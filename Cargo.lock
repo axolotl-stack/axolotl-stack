@@ -3239,6 +3239,19 @@ dependencies = [
 ]
 
 [[package]]
+name = "parity"
+version = "0.1.0"
+dependencies = [
+ "anyhow",
+ "clap",
+ "serde",
+ "serde_json",
+ "toml 0.8.23",
+ "unastar-data",
+ "unastar_bedrock_codegen",
+]
+
+[[package]]
 name = "parking"
 version = "2.2.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"

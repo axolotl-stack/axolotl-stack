@@ -1,0 +1,89 @@
+# Parity status: Gameplay systems (systems).
+# Cross-cutting gameplay systems with no data source to enumerate them from;
+# this list is maintained by hand in `crates/parity/src/sources/systems.rs`.
+#
+# Rows are generated from vanilla data by `cargo run -p parity -- generate`, which
+# also rewrites this file in canonical form. Edit only the values; comments are
+# regenerated. Schema and rules: docs/parity/README.md.
+
+# crafting (12)
+"crafting.anvil" = { status = "missing" }  # anvil repair, combining and renaming
+"crafting.brewing" = { status = "missing" }  # brewing stand recipes, fuel and potion effects
+"crafting.crafting_grid" = { status = "missing" }  # 2x2 and 3x3 crafting, recipe matching and results
+"crafting.enchanting" = { status = "missing" }  # enchanting table offers, bookshelves and lapis cost
+"crafting.enchantments" = { status = "missing" }  # every enchantment's effect
+"crafting.grindstone" = { status = "missing" }  # grindstone repair and disenchanting
+"crafting.loot_tables" = { status = "missing" }  # loot table evaluation for blocks, chests, mobs and fishing
+"crafting.recipe_book" = { status = "missing" }  # recipe book and recipe unlocking
+"crafting.smelting" = { status = "missing" }  # furnace, blast furnace, smoker and campfire cooking
+"crafting.smithing" = { status = "missing" }  # smithing upgrades and armour trims
+"crafting.stonecutter_loom_cartography" = { status = "missing" }  # stonecutter, loom and cartography table menus
+"crafting.trading" = { status = "missing" }  # villager and wandering trader offers, prices and restocking
+
+# interface (6)
+"interface.camera" = { status = "missing" }  # camera presets and camera instructions
+"interface.chat" = { status = "missing" }  # chat, whispers and chat formatting
+"interface.player_list" = { status = "missing" }  # player list, skins and emotes
+"interface.scoreboard" = { status = "missing" }  # scoreboard objectives, displays and teams
+"interface.sounds_particles" = { status = "missing" }  # level sounds, events and particles sent for vanilla actions
+"interface.titles_hud" = { status = "missing" }  # titles, action bar, boss bars and HUD elements
+
+# mobs (10)
+"mobs.end_fight" = { status = "missing" }  # ender dragon fight, end crystals, exit portal and gateways
+"mobs.game_events" = { status = "missing" }  # vibrations and game events (sculk sensors, wardens, allays)
+"mobs.leads" = { status = "missing" }  # leads, leash knots and lead physics
+"mobs.natural_spawning" = { status = "missing" }  # spawn caps, density, light and despawning rules shared by all spawn rules
+"mobs.pathfinding" = { status = "missing" }  # navigation, path costs, doors, jumping and swimming paths
+"mobs.patrols_and_phantoms" = { status = "missing" }  # pillager patrols, phantom spawning, wandering trader arrival
+"mobs.raids" = { status = "missing" }  # bad omen, raid waves, raid bar and hero of the village
+"mobs.riding" = { status = "missing" }  # passengers, seats, steering and dismounting
+"mobs.villages" = { status = "missing" }  # village detection, POIs, beds, bells and workstations
+"mobs.wither_summoning" = { status = "missing" }  # building and summoning the wither
+
+# platform (6)
+"platform.addons" = { status = "missing" }  # loading custom behaviour packs (actors, items, blocks, recipes)
+"platform.login_auth" = { status = "missing" }  # Xbox Live authentication, encryption and login sequence
+"platform.plugins" = { status = "missing" }  # plugin API and plugin loading
+"platform.resource_packs" = { status = "missing" }  # resource and behaviour pack negotiation and download
+"platform.server_config" = { status = "missing" }  # server.properties-equivalent configuration, allowlist and permissions files
+"platform.transports" = { status = "missing" }  # RakNet and NetherNet transports
+
+# player (17)
+"player.abilities_permissions" = { status = "missing" }  # abilities, permission levels and operator rules
+"player.achievements" = { status = "missing" }  # achievements and recipe unlocks
+"player.block_breaking" = { status = "missing" }  # mining speed, tool tiers, block drops and survival break timing
+"player.block_placing" = { status = "missing" }  # placement rules, replaceable blocks, orientation and item use on blocks
+"player.books" = { status = "missing" }  # book and quill editing and signing
+"player.combat" = { status = "missing" }  # melee and ranged damage, critical hits, knockback, cooldowns
+"player.damage_sources" = { status = "missing" }  # fall, drowning, suffocation, fire, lava, void, freezing and other damage causes
+"player.death_respawn" = { status = "missing" }  # death, item drops, respawn points and beds/anchors
+"player.experience" = { status = "missing" }  # experience orbs, levels and costs
+"player.fishing" = { status = "missing" }  # fishing rods, bobbers and fishing loot
+"player.game_modes" = { status = "missing" }  # survival, creative, adventure and spectator rules
+"player.hunger" = { status = "missing" }  # food, saturation, exhaustion, starvation and natural regeneration
+"player.inventory" = { status = "missing" }  # inventory transactions, item stack requests, hotbar, off-hand, armour slots
+"player.maps" = { status = "missing" }  # maps, map updates, locator maps and map cloning
+"player.movement" = { status = "missing" }  # server-authoritative movement, collision and correction
+"player.sleeping" = { status = "missing" }  # beds, sleeping players and skipping the night
+"player.status_effects" = { status = "missing" }  # status effects, amplifiers, durations and particles
+
+# world (19)
+"world.block_updates" = { status = "missing" }  # neighbour updates and scheduled block ticks
+"world.chunk_ticking" = { status = "missing" }  # simulation distance, ticking areas, chunk loading
+"world.day_cycle" = { status = "missing" }  # time of day, daylight cycle, moon phases, sleeping skip
+"world.difficulty" = { status = "missing" }  # difficulty and regional difficulty effects
+"world.dimensions" = { status = "missing" }  # nether and end dimensions, portals and travel between them
+"world.explosions" = { status = "missing" }  # explosion rays, block damage, entity damage and knockback
+"world.falling_blocks" = { status = "missing" }  # gravity blocks becoming falling-block actors
+"world.fire" = { status = "missing" }  # fire spread, burnout and fire ticks
+"world.game_rules" = { status = "missing" }  # every game rule changes behaviour as in vanilla
+"world.lighting" = { status = "missing" }  # sky and block light, light updates, client light sync
+"world.liquids" = { status = "missing" }  # water and lava flow, sources, mixing, waterlogging
+"world.persistence" = { status = "missing" }  # saving and loading worlds, chunks, actors and players (LevelDB)
+"world.pistons" = { status = "missing" }  # piston push/pull limits and moving blocks
+"world.random_ticks" = { status = "missing" }  # random block ticks (growth, spread, decay, melting)
+"world.redstone" = { status = "missing" }  # redstone power propagation and component timing
+"world.structure_blocks" = { status = "missing" }  # structure blocks, structure templates and /structure
+"world.structures_hardcoded" = { status = "missing" }  # Bedrock structures placed without shipped placement data (no data source lists them)
+"world.weather" = { status = "missing" }  # rain, snow, thunderstorms and lightning
+"world.world_border" = { status = "missing" }  # world border limits

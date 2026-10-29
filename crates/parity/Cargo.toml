@@ -1,0 +1,20 @@
+[package]
+name = "parity"
+version = "0.1.0"
+edition.workspace = true
+license.workspace = true
+description = "Vanilla parity catalog: generates and checks docs/parity"
+publish = false
+
+[[bin]]
+name = "parity"
+path = "src/main.rs"
+
+[dependencies]
+unastar-data = { workspace = true }
+anyhow = { workspace = true }
+unastar_bedrock_codegen = { path = "../unastar_bedrock_codegen" }
+clap = { workspace = true }
+serde = { workspace = true }
+serde_json = { workspace = true }
+toml = "0.8"
