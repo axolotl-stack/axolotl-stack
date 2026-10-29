@@ -95,7 +95,7 @@ struct Use<'a> {
 }
 
 impl Use<'_> {
-    fn name(&self) -> &str {
+    fn block_name(&self) -> &str {
         &self.block.string_id
     }
 
@@ -182,7 +182,7 @@ fn till(world: &mut World, ctx: &Use) -> bool {
     if ctx.face == DOWN || !ctx.is_air(world, ctx.clicked + IVec3::Y) {
         return false;
     }
-    let (into, drop) = match ctx.name() {
+    let (into, drop) = match ctx.block_name() {
         "minecraft:grass_block" | "minecraft:dirt" | "minecraft:grass_path" => {
             ("minecraft:farmland", None)
         }
@@ -205,7 +205,10 @@ fn till(world: &mut World, ctx: &Use) -> bool {
 /// become a dirt path (not from below, only with air above); a lit
 /// campfire is put out.
 fn flatten(world: &mut World, ctx: &Use) -> bool {
-    if matches!(ctx.name(), "minecraft:campfire" | "minecraft:soul_campfire") {
+    if matches!(
+        ctx.block_name(),
+        "minecraft:campfire" | "minecraft:soul_campfire"
+    ) {
         let Some(out) = ctx
             .block
             .with_state_value(ctx.state, "extinguished", StateValue::Byte(1))
@@ -227,7 +230,7 @@ fn flatten(world: &mut World, ctx: &Use) -> bool {
     if ctx.face == DOWN
         || !ctx.is_air(world, ctx.clicked + IVec3::Y)
         || !matches!(
-            ctx.name(),
+            ctx.block_name(),
             "minecraft:grass_block"
                 | "minecraft:dirt"
                 | "minecraft:coarse_dirt"
@@ -262,7 +265,7 @@ fn younger_copper(name: &str) -> Option<String> {
 
 /// Axe: strip a log or wood, remove wax, or scrape one oxidation stage.
 fn strip_or_scrape(world: &mut World, ctx: &Use) -> bool {
-    let name = ctx.name().to_owned();
+    let name = ctx.block_name().to_owned();
     let stripped = name
         .strip_prefix("minecraft:")
         .map(|base| format!("minecraft:stripped_{base}"))
@@ -300,7 +303,7 @@ fn strip_or_scrape(world: &mut World, ctx: &Use) -> bool {
 /// Shears on a pumpkin carve it facing the clicked side and drop four
 /// pumpkin seeds there.
 fn carve(world: &mut World, ctx: &Use) -> bool {
-    if ctx.name() != "minecraft:pumpkin" || ctx.face <= UP {
+    if ctx.block_name() != "minecraft:pumpkin" || ctx.face <= UP {
         return false;
     }
     let direction = match ctx.face {
@@ -336,7 +339,7 @@ fn carve(world: &mut World, ctx: &Use) -> bool {
 /// soul soil). Flint and steel wears, a fire charge is used up.
 fn ignite(world: &mut World, ctx: &Use) -> bool {
     let flint = ctx.stack.item_id() == "minecraft:flint_and_steel";
-    let lit = match ctx.name() {
+    let lit = match ctx.block_name() {
         "minecraft:campfire" | "minecraft:soul_campfire" => {
             ctx.block
                 .with_state_value(ctx.state, "extinguished", StateValue::Byte(0))
@@ -393,7 +396,7 @@ fn bone_meal_growth(rng: &mut impl Rng) -> i32 {
 fn fertilize(world: &mut World, ctx: &Use) -> bool {
     let grown = if ctx.block.has_tag("minecraft:crop")
         || matches!(
-            ctx.name(),
+            ctx.block_name(),
             "minecraft:melon_stem" | "minecraft:pumpkin_stem"
         ) {
         let Some(StateValue::Int(growth)) = ctx.block.state_value(ctx.state, "growth") else {
@@ -412,7 +415,7 @@ fn fertilize(world: &mut World, ctx: &Use) -> bool {
         };
         set_block(world, ctx.clicked, state, false);
         true
-    } else if ctx.name() == "minecraft:sweet_berry_bush" {
+    } else if ctx.block_name() == "minecraft:sweet_berry_bush" {
         let Some(StateValue::Int(age)) = ctx.block.state_value(ctx.state, "growth") else {
             return false;
         };
@@ -427,7 +430,9 @@ fn fertilize(world: &mut World, ctx: &Use) -> bool {
         };
         set_block(world, ctx.clicked, state, false);
         true
-    } else if ctx.name() == "minecraft:grass_block" && ctx.is_air(world, ctx.clicked + IVec3::Y) {
+    } else if ctx.block_name() == "minecraft:grass_block"
+        && ctx.is_air(world, ctx.clicked + IVec3::Y)
+    {
         grow_grass(world, ctx);
         true
     } else {
@@ -492,7 +497,7 @@ fn fill_bucket(world: &mut World, ctx: &Use) -> bool {
             LiquidKind::Lava => ("minecraft:lava_bucket", "bucket.fill.lava"),
         },
         Some(_) => return false,
-        None if ctx.name() == "minecraft:powder_snow" => {
+        None if ctx.block_name() == "minecraft:powder_snow" => {
             ("minecraft:powder_snow_bucket", "bucket.fill.powder_snow")
         }
         None => return false,

@@ -1,9 +1,9 @@
-//! Throwables, bows, crossbows and tridents.
+//! Throwables, bows and crossbows.
 //!
 //! Shapes and timings measured from BDS 1.26.51 (capture
 //! `item-use-20261029`): a bow drawn 24 ticks shoots an arrow at about 3
-//! blocks per tick from 0.1 below the eye with the `bow` sound at the feet
-//! + 0.9, wears by one and uses up one arrow; a crossbow loads after 25
+//! blocks per tick from 0.1 below the eye with the `bow` sound 0.9 above
+//! the feet, wears by one and uses up one arrow; a crossbow loads after 25
 //! ticks (loading sounds at 5, 15 and 25 ticks, `FinishedChargingItem`,
 //! `CompletedUsingItem` -1, the arrow stored as `chargedItem`) and fires
 //! the next use at about 3.15 blocks per tick with `crossbow.shoot`. The
