@@ -210,6 +210,21 @@ overlap-acceptance rule is covered by a unit test, not by native evidence.
 Replaying each target at its own request boundary instead of after the whole
 batch differed by 303 states in capture B.
 
+The widened corpus adds five random signed seeds and two holdout seeds. Capture
+coordinates came from native locators run in separate contexts that capture
+nothing: the start chunk of every listed structure (strongholds, ancient cities,
+trial chambers, mansions, monuments, bastions, end cities, fortresses, villages
+and more) and the nearest chunk of every biome each dimension's biome source can
+produce (54 Overworld, 5 Nether, 5 End across the seeds). Far coordinates at
+chunk ±62500 and ±1875000 cover the world-border edge. Each seed is captured
+at SURFACE, CARVERS, FEATURES and the FEATURES halo closure. Together with
+the earlier corpus, extended frames and parallel captures, the definitive run
+compares 2,171 frames (3,707 chunk observations, 301,301,760 voxels). Only two
+Nether chunks of seed -55506848734215641 still differ, at (10, 6) and
+(62500, -62500): native CARVERS turns 294 netherrack voxels into plain `air`
+where Rust carves `cave_air`; the cause is not identified. Neither holdout seed
+stayed untouched: each exposed one pale moss carpet voxel that led to a fix.
+
 At the Bedrock boundary, waterlogged states and fluid-bearing aquatic plants
 produce a secondary source-water storage without changing their primary block.
 Ordinary water remains primary-only. Sections allocate secondary storage lazily;
