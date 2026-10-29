@@ -43,6 +43,9 @@ use tokio::time::Instant;
 const DEFAULT_FLY_SPEED: f32 = 30.0;
 /// Client input rate (one `PlayerAuthInput` per game tick).
 const INPUT_INTERVAL: Duration = Duration::from_millis(50);
+/// Overworld sub-chunks per column (y -64..320) and the lowest one's index.
+const SUBCHUNKS_PER_COLUMN: i32 = 24;
+const LOWEST_SUBCHUNK: i32 = -4;
 /// Bound for joining and loading one view.
 const VIEW_TIMEOUT: Duration = Duration::from_secs(180);
 
@@ -129,7 +132,8 @@ struct PlayerResult {
     square_view_ms: Option<f64>,
     disk_chunks: usize,
     square_chunks: usize,
-    /// `LevelChunk` packets received until the square view completed.
+    /// `LevelChunk` packets received until the square view completed. A
+    /// column counts as loaded once its requested sub-chunks have arrived.
     chunks_received: usize,
     flight: Option<FlightResult>,
 }
@@ -423,6 +427,78 @@ impl Terrain {
     }
 }
 
+enum TerrainEvent {
+    /// A `LevelChunk` arrived (its terrain may still be requested).
+    Header,
+    /// Columns whose terrain is now complete.
+    Complete(Vec<(i32, i32)>),
+}
+
+/// Handles terrain packets like a client: a `LevelChunk` in sub-chunk request
+/// mode is answered with one `SubChunkRequest` for the column's sub-chunks
+/// from the bottom up to the server's limit, and the column is complete when
+/// the `SubChunk` answer arrives. A `LevelChunk` that carries its sub-chunks,
+/// or whose limit is zero, is complete on arrival.
+async fn terrain_packet(
+    play: &mut BedrockStream<Play, Client, RakNetTransport>,
+    raw: jolyne::raw::RawPacket,
+) -> Option<TerrainEvent> {
+    use jolyne::valentine::SubChunkRequestPacket;
+    use jolyne::valentine::types::{SubChunkPacketPayloadSubChunkPosOffset, SubChunkPos};
+    match raw.name()? {
+        McpePacketName::LevelChunkPacket => {
+            let McpePacketData::LevelChunkPacket(chunk) = raw.decode().ok()?.data else {
+                return None;
+            };
+            let column = (chunk.chunk_position.x, chunk.chunk_position.z);
+            // Without a request limit the chunk carries its sub-chunks.
+            let limit = chunk.client_request_sub_chunk_limit.unwrap_or(0);
+            if limit <= 0 {
+                return Some(TerrainEvent::Complete(vec![column]));
+            }
+            let request = SubChunkRequestPacket {
+                dimension_type: chunk.dimension_id.clone(),
+                sub_chunk_position_offset_list: (0..limit.min(SUBCHUNKS_PER_COLUMN))
+                    .map(|dy| SubChunkPacketPayloadSubChunkPosOffset {
+                        subchunk_offset_x: 0,
+                        subchunk_offset_y: dy as i8,
+                        subchunk_offset_z: 0,
+                    })
+                    .collect(),
+                center_pos: SubChunkPos {
+                    subchunk_position_x: column.0,
+                    subchunk_position_y: LOWEST_SUBCHUNK,
+                    subchunk_position_z: column.1,
+                },
+            };
+            let _ = play.send_packet(McpePacket::from(request)).await;
+            Some(TerrainEvent::Header)
+        }
+        McpePacketName::SubChunkPacket => {
+            let McpePacketData::SubChunkPacket(answer) = raw.decode().ok()?.data else {
+                return None;
+            };
+            let center = &answer.center_pos;
+            let mut columns: Vec<(i32, i32)> = answer
+                .sub_chunk_data
+                .iter()
+                .map(|entry| {
+                    (
+                        center.subchunk_position_x
+                            + i32::from(entry.sub_chunk_pos_offset.subchunk_offset_x),
+                        center.subchunk_position_z
+                            + i32::from(entry.sub_chunk_pos_offset.subchunk_offset_z),
+                    )
+                })
+                .collect();
+            columns.sort_unstable();
+            columns.dedup();
+            Some(TerrainEvent::Complete(columns))
+        }
+        _ => None,
+    }
+}
+
 async fn measure_player(addr: SocketAddr, args: &Args, index: usize) -> PlayerResult {
     let name = format!("LoadBot{index}");
     let (started, mut play, game_data) =
@@ -455,21 +531,23 @@ async fn measure_player(addr: SocketAddr, args: &Args, index: usize) -> PlayerRe
         tokio::select! {
             raw = play.recv_packet_raw() => {
                 let raw = raw.expect("connection stays open while loading");
-                if raw.name() == Some(McpePacketName::LevelChunkPacket)
-                    && let Ok(packet) = raw.decode()
-                    && let McpePacketData::LevelChunkPacket(chunk) = packet.data
-                {
-                    let now = ms(started.elapsed());
-                    result.first_chunk_ms.get_or_insert(now);
-                    result.chunks_received += 1;
-                    terrain.received.insert((chunk.chunk_position.x, chunk.chunk_position.z));
-                    if result.disk_view_ms.is_none()
-                        && terrain.disk(spawn_chunk).all(|c| terrain.received.contains(&c))
-                    {
-                        result.disk_view_ms = Some(now);
+                let Some(event) = terrain_packet(&mut play, raw).await else { continue };
+                let now = ms(started.elapsed());
+                match event {
+                    TerrainEvent::Header => {
+                        result.first_chunk_ms.get_or_insert(now);
+                        result.chunks_received += 1;
                     }
-                    if terrain.square(spawn_chunk).all(|c| terrain.received.contains(&c)) {
-                        result.square_view_ms = Some(now);
+                    TerrainEvent::Complete(columns) => {
+                        terrain.received.extend(columns);
+                        if result.disk_view_ms.is_none()
+                            && terrain.disk(spawn_chunk).all(|c| terrain.received.contains(&c))
+                        {
+                            result.disk_view_ms = Some(now);
+                        }
+                        if terrain.square(spawn_chunk).all(|c| terrain.received.contains(&c)) {
+                            result.square_view_ms = Some(now);
+                        }
                     }
                 }
             }
@@ -537,13 +615,12 @@ async fn fly(
         tokio::select! {
             raw = play.recv_packet_raw() => {
                 let raw = raw.expect("connection stays open while flying");
-                if raw.name() == Some(McpePacketName::LevelChunkPacket)
-                    && let Ok(packet) = raw.decode()
-                    && let McpePacketData::LevelChunkPacket(chunk) = packet.data
-                    && terrain.received.insert((chunk.chunk_position.x, chunk.chunk_position.z))
-                    && stopped_at.is_none()
-                {
-                    new_chunks += 1;
+                if let Some(TerrainEvent::Complete(columns)) = terrain_packet(play, raw).await {
+                    for column in columns {
+                        if terrain.received.insert(column) && stopped_at.is_none() {
+                            new_chunks += 1;
+                        }
+                    }
                 }
             }
             _ = input.tick() => {
