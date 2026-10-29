@@ -682,3 +682,51 @@ the block's own placement rules, and that difference is not yet traced.
 Histogram L1 falls 0.02071 -> 0.02066 and the ceiling is tightened; other
 metrics are unchanged.
 
+### Native scatter distributions (2026-10-28)
+
+Coordinate distributions now follow BDS: `uniform` is `a + next_int(b - a)`
+with no draw for an empty or reversed extent; `triangle` is
+`a + next_int(r / 2 + 1) + next_int(r - r / 2 + 1)`; `gaussian` is
+`a + h + (next_int(h) - next_int(h))` with `h = (b - a) / 2` (two draws, not
+three uniforms); `inverse_gaussian` folds the same difference outwards with a
+coin flip at zero. Evidence, natural seed-12345 BDS world:
+
+- Roofed forest (`roofed_forest_surface_roofed_tree_feature_rules`, chunks
+  (3..4,-5..-2)): trees and their 20-iteration gaussian tall-grass scatters
+  share one random. Iterations agreeing on type and base height go 57 -> 63
+  of 80, and chunk (4,-5) matches its first four trees (one before).
+  `roofed_forest_chunk_starts_with_the_native_trees` pins them; the old code
+  grows a birch at the second.
+- Copper ore (triangle y over [-16, 112], 16 per chunk, chunks
+  (-5..4,-5..4)): predicted vein centres have native copper within three
+  blocks 400 of 1,056 times, against 123 with the earlier formula.
+
+Fixture effect (BDS / before / after):
+
+| Block | BDS | Before | After |
+| --- | ---: | ---: | ---: |
+| copper ore | 3459 | 3594 | 3461 |
+| coal ore | 3135 | 3673 | 3365 |
+| deepslate gold ore | 1476 | 1614 | 1533 |
+| deepslate lapis ore | 887 | 813 | 867 |
+| dark oak log | 77 | 0 | 45 |
+| dark oak leaves | 173 | 0 | 116 |
+
+| Metric | Before | After |
+| --- | ---: | ---: |
+| surface exact | 0.8510 | 0.8545 |
+| surface block | 0.8421 | 0.8489 |
+| surface biome | 0.9947 | 0.9951 |
+| histogram L1 | 0.02066 | 0.02047 |
+| terrain exact | 0.88580 | 0.88574 |
+| terrain within 2 | 0.92452 | 0.92446 |
+| terrain mean abs error | 1.20594 | 1.20617 |
+
+The terrain changes are a single column. They come from the dark oak that
+BDS grows at (59,85,-56) (chunk (3,-4), iteration 15), where our tree
+validity still differs, and the ground under our attempt ends three blocks
+lower. With coordinator approval, terrain within 2 is re-baselined to 0.9244
+and the error ceiling to 1.2062. The surface floors rise to 0.8545 / 0.8489 /
+0.9950 and the histogram ceiling falls to 0.02048. Grid distributions (cocoa
+only) are unmeasured and unchanged.
+

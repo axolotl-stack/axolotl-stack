@@ -88,18 +88,20 @@ fn bedrock_style_vs_bds_reference_ratchets() {
             // surface floors while feature algorithms still differ: see
             // "Per-rule seeding re-baseline" in that README. Measuring the
             // surface-relative threshold below water then raised the terrain
-            // floors.
+            // floors. Native scatter distributions (coordinator-approved)
+            // raise the surface floors and lower terrain within 2 and terrain
+            // error by one column: see "Native scatter distributions".
             for (name, value, floor) in [
                 ("terrain_exact", m.terrain_exact, 0.8857),
-                ("terrain_within_2", m.terrain_within_2, 0.9245),
-                ("surface_exact", m.surface_exact, 0.8510),
-                ("surface_block", m.surface_block, 0.8421),
-                ("surface_biome", m.surface_biome, 0.9946),
+                ("terrain_within_2", m.terrain_within_2, 0.9244),
+                ("surface_exact", m.surface_exact, 0.8545),
+                ("surface_block", m.surface_block, 0.8489),
+                ("surface_biome", m.surface_biome, 0.9950),
             ] {
                 assert!(value >= floor, "{name} {value:.6} fell below {floor:.6}");
             }
             assert!(
-                m.terrain_mean_abs_error <= 1.2060,
+                m.terrain_mean_abs_error <= 1.2062,
                 "terrain error rose: {}",
                 m.terrain_mean_abs_error
             );
@@ -109,7 +111,7 @@ fn bedrock_style_vs_bds_reference_ratchets() {
             // see "Geode point count" and "Magma depth below solid ground" in
             // that README. Block-exact geodes then lowered the error again.
             assert!(
-                m.histogram_l1 <= 0.02066,
+                m.histogram_l1 <= 0.02048,
                 "histogram error rose: {}",
                 m.histogram_l1
             );
@@ -252,6 +254,52 @@ fn ocean_kelp_and_seagrass_grow_from_the_floor_like_bds() {
                 (22..=195).contains(&seagrass),
                 "seagrass {seagrass} outside 1/3x..3x of BDS 65"
             );
+        })
+        .unwrap()
+        .join()
+        .unwrap();
+}
+
+/// Natural seed-12345 BDS world, roofed forest chunk (4,-5): the first four
+/// iterations of `roofed_forest_surface_roofed_tree_feature_rules` grow an
+/// oak, a dark oak, nothing and an oak. Every tree, its decoration and its
+/// 20-iteration gaussian tall-grass scatter share one random, so this fails
+/// when any of them draws a different number of times (a three-draw gaussian
+/// grew a birch at the second iteration).
+#[test]
+fn roofed_forest_chunk_starts_with_the_native_trees() {
+    std::thread::Builder::new()
+        .stack_size(64 << 20)
+        .spawn(|| {
+            use std::sync::Arc;
+            use unastar::registry::BlockRegistry;
+            use unastar::world::generator::ChunkPipeline;
+            let registry = BlockRegistry::vanilla();
+            let pipeline = ChunkPipeline::new(Arc::new(BedrockGenerator::new(12345)));
+            let chunk = pipeline.generate(ChunkPos::new(4, -5)).unwrap();
+            let lowest_log = |x: u8, z: u8| {
+                (-63..320).find_map(|y| {
+                    let entry = registry.get_by_runtime_id(chunk.get_block(x, y, z))?;
+                    entry
+                        .string_id
+                        .ends_with("_log")
+                        .then(|| (entry.string_id.clone(), y))
+                })
+            };
+            // Block (77,-66), (67,-69), (70,-66), (72,-78) in chunk-local form.
+            for ((x, z), expected) in [
+                ((13, 14), Some(("minecraft:oak_log", 124))),
+                ((3, 11), Some(("minecraft:dark_oak_log", 119))),
+                ((6, 14), None),
+                ((8, 2), Some(("minecraft:oak_log", 119))),
+            ] {
+                let actual = lowest_log(x, z);
+                assert_eq!(
+                    actual.as_ref().map(|(name, y)| (name.as_str(), *y)),
+                    expected,
+                    "column ({x},{z})"
+                );
+            }
         })
         .unwrap()
         .join()

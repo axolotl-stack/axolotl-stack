@@ -78,6 +78,12 @@ impl BedrockRandom {
         (self.next_u32() >> 1) as i32
     }
 
+    /// Bedrock's `nextBoolean`: bit 27 of one output.
+    #[inline]
+    pub fn next_bool(&mut self) -> bool {
+        (self.next_u32() >> 27) & 1 == 1
+    }
+
     /// Uniform double in `[0, 1)` from a single 32-bit output (Bedrock's
     /// `nextDouble`; Java draws two).
     #[inline]
