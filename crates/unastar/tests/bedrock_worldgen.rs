@@ -86,10 +86,12 @@ fn bedrock_style_vs_bds_reference_ratchets() {
             // proven against native probe worlds and cuts histogram error by a
             // quarter, but re-baselines terrain within 2, terrain error and the
             // surface floors while feature algorithms still differ: see
-            // "Per-rule seeding re-baseline" in that README.
+            // "Per-rule seeding re-baseline" in that README. Measuring the
+            // surface-relative threshold below water then raised the terrain
+            // floors.
             for (name, value, floor) in [
-                ("terrain_exact", m.terrain_exact, 0.8791),
-                ("terrain_within_2", m.terrain_within_2, 0.9223),
+                ("terrain_exact", m.terrain_exact, 0.8857),
+                ("terrain_within_2", m.terrain_within_2, 0.9245),
                 ("surface_exact", m.surface_exact, 0.8510),
                 ("surface_block", m.surface_block, 0.8421),
                 ("surface_biome", m.surface_biome, 0.9946),
@@ -97,15 +99,17 @@ fn bedrock_style_vs_bds_reference_ratchets() {
                 assert!(value >= floor, "{name} {value:.6} fell below {floor:.6}");
             }
             assert!(
-                m.terrain_mean_abs_error <= 1.2288,
+                m.terrain_mean_abs_error <= 1.2060,
                 "terrain error rose: {}",
                 m.terrain_mean_abs_error
             );
             // Native-sized geodes leave deepslate their oversized cores used to
-            // hollow out, unmasking an existing deepslate excess (D8, one
-            // ceiling): see "Geode point count" in that README.
+            // hollow out, and magma no longer covers over-generated sea-floor
+            // stone, unmasking existing excesses (D8, one ceiling each time):
+            // see "Geode point count" and "Magma depth below solid ground" in
+            // that README.
             assert!(
-                m.histogram_l1 <= 0.02064,
+                m.histogram_l1 <= 0.02071,
                 "histogram error rose: {}",
                 m.histogram_l1
             );

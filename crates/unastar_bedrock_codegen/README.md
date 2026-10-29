@@ -621,3 +621,31 @@ smaller cores leave about 2,450 more deepslate, and deepslate was already
 6,300 over BDS. That excess is an open, separate error the oversized geodes
 had partly hidden. Other metrics are unchanged to four digits.
 
+### Magma depth below solid ground (2026-10-28)
+
+`overworld_underwater_magma_feature` has no biome filter; its
+`surface_relative_threshold_feature` keeps placements at least two blocks
+below the surface. In the natural seed-12345 world (66 chunks exported
+offline, no new BDS run) all 124 native magma blocks lie at y 0..47, almost
+all in underground water at y 0..15, and none on the ocean floor. With a
+water-inclusive surface, 155 of our 200 magma blocks in those chunks sat at
+the native terrain height, the top of the sea floor. Measuring the threshold
+from the top solid block (fluids skipped) removes them; glow lichen, the only
+other user, is unchanged within two blocks.
+
+| Fixture (68 chunks) | BDS | Water-inclusive surface | Top solid block |
+|---|---:|---:|---:|
+| magma | 142 | 367 | 67 |
+| terrain height exact | | 0.8791 | 0.8858 |
+| terrain within 2 | | 0.9224 | 0.9245 |
+| terrain mean abs error | | 1.2287 | 1.2059 |
+| histogram L1 | | 0.02064 | 0.02071 |
+
+Magma's own error falls by 150 blocks, but the stone, gravel, dirt and
+andesite it used to replace were already over-generated, so histogram L1
+rises by 0.00007 (D8, one ceiling re-baselined). Our remaining magma shortage
+(34 vs 124 in the exported chunks) follows the known underground water
+deficit (247,311 vs 264,317 water blocks), not this feature.
+`aquatic::tests::underground_magma_skips_the_ocean_floor` fails with the old
+surface.
+
