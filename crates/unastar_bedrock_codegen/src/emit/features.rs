@@ -95,7 +95,14 @@ fn scatter_feature(em: &mut Emitter<'_>, o: &Obj<'_>) -> Result<TokenStream> {
         None => Scatter::parse_keys(o)?,
     };
     let call = |p: TokenStream| em.call(&target, p);
-    let body = scatter::emit(em, o.origin, &s, call)?;
+    // A placed `scatter_feature` consumes one draw of the feature random right
+    // after its chance roll, whether or not it passed, and before any
+    // position (feature rules do not). Measured: the first dark oaks of
+    // natural seed-12345 BDS roofed forests reproduce their height and branch
+    // ring only with this draw, and their failed 1-in-6 vine roll rules out
+    // a draw before the roll (see "Roofed forest draw order" in the codegen
+    // README).
+    let body = scatter::emit(em, o.origin, &s, quote!(ctx.rng.next_u32();), call)?;
     Ok(quote!(let origin = pos; #body))
 }
 
