@@ -114,7 +114,7 @@ pub(super) fn finish_eating(world: &mut World, mob: Entity) {
                 y: feet.y as f32 + 0.5,
                 z: feet.z as f32 + 0.5,
             },
-            data: eaten as i32,
+            data: crate::server::game::types::block_network_ids(world).to_wire(eaten) as i32,
         };
         replace_block(world, target, replace, particles);
     }

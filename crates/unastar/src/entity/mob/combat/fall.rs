@@ -223,9 +223,11 @@ pub fn play_landing_sound(world: &World, actor: Entity, feet: DVec3, damage: f64
     play_level_sound(world, Some(actor), feet, sound, -1);
 }
 
-/// The landing block's own `fall` sound, played after the fall hurt `actor`.
+/// The landing block's own `fall` sound, played after the fall hurt `actor`;
+/// its data is the block's wire id.
 pub fn play_block_fall_sound(world: &World, actor: Entity, feet: DVec3, block: Option<u32>) {
     if let Some(block) = block {
-        play_level_sound(world, Some(actor), feet, "fall", block as i32);
+        let wire = crate::server::game::types::block_network_ids(world).to_wire(block);
+        play_level_sound(world, Some(actor), feet, "fall", wire as i32);
     }
 }

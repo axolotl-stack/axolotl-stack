@@ -411,7 +411,10 @@ fn send_client_state(world: &World, pos: IVec3) {
     );
 }
 
+/// Play `name` at `at` with the container block's wire id as its data (BDS
+/// 1.26.51 sends `chest.open`/`chest.closed` with the chest's hash).
 fn play_sound(world: &World, at: DVec3, name: &str, block: u32) {
+    let block = super::types::block_network_ids(world).to_wire(block);
     let pos = at.floor().as_ivec3();
     broadcast(
         world,

@@ -292,6 +292,13 @@ fn chest_window_opens_moves_through_the_engine_saves_and_animates_the_lid() {
         );
         assert!(packets.iter().any(|packet| matches!(packet,
             McpePacketData::LevelSoundEventPacket(sound) if &*sound.sound_event == "chest.open")));
+        // The open sound names the chest by its wire id, as BDS 1.26.51 does.
+        assert!(
+            crate::server::wire_audit::assert_block_ids_on_wire(
+                crate::registry::block::BlockNetworkIds::Hashed,
+                &packets
+            ) > 0
+        );
 
         // Chest screens reject player containers outside BDS's allow-list.
         assert_eq!(
