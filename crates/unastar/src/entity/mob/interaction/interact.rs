@@ -543,8 +543,8 @@ fn feed_event(world: &World, mob: Entity, held: &ItemStack) {
     let Some(network_id) = world
         .resource::<ItemRegistryResource>()
         .0
-        .get_by_name(&held.item_id)
-        .map(|item| item.network_id)
+        .get_by_name(held.item_id())
+        .map(|item| item.network_id())
     else {
         return;
     };

@@ -215,7 +215,7 @@ fn feed_data(world: &World, item: &str) -> i32 {
         .0
         .get_by_name(item)
         .unwrap()
-        .network_id;
+        .network_id();
     network_id << constants::FEED_EVENT_ITEM_SHIFT
 }
 
