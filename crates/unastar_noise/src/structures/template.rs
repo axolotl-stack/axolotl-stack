@@ -315,7 +315,7 @@ pub fn place_in_world<W: FeatureWorld + ?Sized>(
             if own.source {
                 sources.push(info.pos);
             } else if state.has("waterlogged") {
-                if fluid.is_water() && fluid.source && state.value("waterlogged") == Some("false") {
+                if fluid.is_water() && fluid.source && accepts_water(state) {
                     world.set_state(info.pos, state.with_bool("waterlogged", true));
                 }
                 if !fluid.source {
@@ -325,6 +325,12 @@ pub fn place_in_world<W: FeatureWorld + ?Sized>(
         }
         true
     });
+    /// `LiquidBlockContainer.placeLiquid` for water: an unwaterlogged
+    /// waterloggable block, except a double slab (`SlabBlock` refuses it; a
+    /// native ruined portal kept such slabs dry beside source water).
+    fn accepts_water(state: JavaState) -> bool {
+        state.value("waterlogged") == Some("false") && state.value("type") != Some("double")
+    }
     // Spread source water into waterloggable blocks next to sources placed
     // outside this template (Java's liquid propagation loop).
     let dirs = [
@@ -351,7 +357,7 @@ pub fn place_in_world<W: FeatureWorld + ?Sized>(
             if fluid.source {
                 let s = world.get_state(p);
                 if s.has("waterlogged") {
-                    if fluid.is_water() && s.value("waterlogged") == Some("false") {
+                    if fluid.is_water() && accepts_water(s) {
                         world.set_state(p, s.with_bool("waterlogged", true));
                     }
                     changed = true;

@@ -116,13 +116,15 @@ public final class NativeWorldgenOracle {
         String mapped = Objects.requireNonNull(members.get(owner).get(key), owner + "." + key);
         Class<?>[] types = new Class<?>[parameters.length];
         for (int i = 0; i < types.length; ++i) types[i] = type(parameters[i]);
+        Method result;
         try {
-            return type(owner).getMethod(mapped, types);
+            result = type(owner).getMethod(mapped, types);
         } catch (NoSuchMethodException nonPublic) {
-            Method result = type(owner).getDeclaredMethod(mapped, types);
-            result.setAccessible(true);
-            return result;
+            result = type(owner).getDeclaredMethod(mapped, types);
         }
+        // A public override can belong to a non-public native executor class.
+        result.setAccessible(true);
+        return result;
     }
 
     private Object call(String owner, String name, Object receiver, String[] parameters, Object... arguments) throws Exception {

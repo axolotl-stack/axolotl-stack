@@ -178,6 +178,53 @@ halo before returning it. WG heightmaps freeze at CARVERS; subsequent decoration
 updates only the final heightmaps. Repeated observations retain their recorded
 request indices rather than overwriting an earlier snapshot of the same chunk.
 
+Native INITIALIZE_LIGHT, LIGHT, SPAWN and FULL write no blocks (write radius -1).
+LIGHT depends on INITIALIZE_LIGHT, and therefore FEATURES, at radius one, so
+LIGHT, SPAWN and FULL captures must record their neighbor FEATURES order; the
+comparator rejects captures that do not. At FULL, Java promotes each pending
+ProtoChunk actor from the block currently at its position (`moving_piston`'s
+null constructor and out-of-height markers drop it), saves actors with
+`keepPacked`, and keeps only the four final heightmaps. `native_full_snapshot`
+and `generate_native` apply this promotion. All 78 native extended frames (two
+seed contexts, three dimensions, EMPTY through FULL) compare exactly.
+
+A native parallel batch submits every target's status future before pumping
+generation, and snapshots each target only after the whole batch completes. A
+FEATURES observation therefore includes later batch origins' neighbor writes.
+The comparator replays batch origins in the recorded native task order; it never
+substitutes coordinate order. Captures record task start and completion events.
+Two FEATURES tasks within Chebyshev distance two that overlap in time are
+rejected, because their interleaving is a race that no sequential replay
+describes. Overlapping tasks further apart touch disjoint chunks and replay in
+start order.
+
+Measured coverage: two native captures with two generation workers, all three
+dimensions, and SURFACE, CARVERS and FEATURES batches. Capture B used seed
+-7046029254386353131 with three origins (27 frames). Capture C used seed
+5181726354443210987 with a 4x4 block of adjacent origins plus two origins three
+chunks apart (162 frames). In both captures, native ran every FEATURES task to
+completion before starting the next, even for origins with no shared chunk;
+BIOMES and NOISE tasks did overlap. Replay matches all 189 frames exactly. No
+native capture has yet shown overlapping FEATURES tasks, so the
+overlap-acceptance rule is covered by a unit test, not by native evidence.
+Replaying each target at its own request boundary instead of after the whole
+batch differed by 303 states in capture B.
+
+The widened corpus adds five random signed seeds and two holdout seeds. Capture
+coordinates came from native locators run in separate contexts that capture
+nothing: the start chunk of every listed structure (strongholds, ancient cities,
+trial chambers, mansions, monuments, bastions, end cities, fortresses, villages
+and more) and the nearest chunk of every biome each dimension's biome source can
+produce (54 Overworld, 5 Nether, 5 End across the seeds). Far coordinates at
+chunk ±62500 and ±1875000 cover the world-border edge. Each seed is captured
+at SURFACE, CARVERS, FEATURES and the FEATURES halo closure. Together with
+the earlier corpus, extended frames and parallel captures, the definitive run
+compares 2,171 frames (3,707 chunk observations, 301,301,760 voxels). Only two
+Nether chunks of seed -55506848734215641 still differ, at (10, 6) and
+(62500, -62500): native CARVERS turns 294 netherrack voxels into plain `air`
+where Rust carves `cave_air`; the cause is not identified. Neither holdout seed
+stayed untouched: each exposed one pale moss carpet voxel that led to a fix.
+
 At the Bedrock boundary, waterlogged states and fluid-bearing aquatic plants
 produce a secondary source-water storage without changing their primary block.
 Ordinary water remains primary-only. Sections allocate secondary storage lazily;
