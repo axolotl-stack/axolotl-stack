@@ -933,8 +933,10 @@ pub fn on_block_changed(trigger: On<BlockChanged>, mut chunks: Query<&mut ChunkS
 /// ## Async Generation (Phase 1 performance optimization)
 ///
 /// For vanilla worlds, chunk generation is handled asynchronously:
-/// - `request_chunk_generation` - Queues chunks for async generation (non-blocking)
 /// - `process_completed_generations` - Spawns entities for completed generations
+///   and sends them; it runs first so the pool slots it frees are refilled by
+///   the same tick's requests (a stored chunk loads in well under a tick)
+/// - `request_chunk_generation` - Queues chunks for async generation (non-blocking)
 /// - `process_chunk_load_queues` - Handles sync cases (existing chunks, disk loads, superflat)
 ///
 /// This prevents 300ms+ terrain generation from blocking the tick loop.
@@ -947,8 +949,9 @@ pub fn register_chunk_systems(schedule: &mut bevy_ecs::schedule::Schedule) {
             update_chunk_loaders,
             send_chunk_publisher_updates, // the view precedes every chunk below
             flush_pending_viewers,
-            request_chunk_generation,      // NEW: Non-blocking async request
-            process_completed_generations, // NEW: Process async results
+            // Completions first: the slots they free are refilled this tick.
+            process_completed_generations,
+            request_chunk_generation,
             process_chunk_load_queues,     // Handles sync cases + existing chunks
             restore_chunk_actors,          // Mobs stored with chunks loaded above
             send_spawn_status,             // after the first view and chunks
