@@ -677,7 +677,7 @@ struct ZombieFight {
     first_swing_distance: Option<f32>,
     /// The bot's own `ActorEvent(Hurt)` count.
     hurt: usize,
-    /// The bot's health updates: (server tick, health, arrival).
+    /// The bot's health updates: (packet tick, health, arrival).
     health: Vec<(u64, f32, Instant)>,
     /// `SetActorMotion` to the bot, with the horizontal direction from the
     /// zombie to the bot when it arrived.
@@ -883,35 +883,44 @@ fn check_zombie_fight(bot: &Bot, fight: &ZombieFight, zombie: u64) {
     bot.log(format!(
         "the zombie holds {weapon:?}: {damage} damage per hit on hard"
     ));
-    let mut expected = Vec::new();
-    let mut health = PLAYER_MAX_HEALTH;
-    while health > 0.0 {
-        health = (health - damage).max(0.0);
-        expected.push(health);
+    // Hits lower health by the damage (the last one to zero). Between hits
+    // natural regeneration (full food) may heal one point at a time.
+    let mut hits = Vec::new();
+    let mut previous = PLAYER_MAX_HEALTH;
+    for &(_, health, at) in &fight.health {
+        if health < previous {
+            let expected = (previous - damage).max(0.0);
+            assert!(
+                (health - expected).abs() < 1e-3,
+                "each hit takes {damage} health: {previous} -> {health}, trace {trace:?}"
+            );
+            hits.push(at);
+        } else if health > previous {
+            assert!(
+                (health - previous - 1.0).abs() < 1e-3,
+                "only natural regeneration (one point) heals during the fight: \
+                 {previous} -> {health}, trace {trace:?}"
+            );
+        }
+        previous = health;
     }
-    let observed: Vec<f32> = trace.iter().map(|(_, health)| *health).collect();
-    assert!(
-        observed.len() == expected.len()
-            && observed
-                .iter()
-                .zip(&expected)
-                .all(|(seen, wanted)| (seen - wanted).abs() < 1e-3),
-        "each hit takes {damage} health: expected {expected:?}, got {trace:?}"
+    assert_eq!(
+        previous, 0.0,
+        "the last health update is the death: {trace:?}"
     );
-    let hits = observed.len();
 
     // One swing per hit (two when the zombie holds something), one hurt
     // event and one knockback per hit.
     let swings_per_hit = if weapon.is_some() { 2 } else { 1 };
     assert_eq!(
         swings,
-        hits * swings_per_hit,
+        hits.len() * swings_per_hit,
         "ActorEvent StartAttacking per hit (holding {weapon:?})"
     );
-    assert_eq!(fight.hurt, hits, "the bot's ActorEvent Hurt per hit");
+    assert_eq!(fight.hurt, hits.len(), "the bot's ActorEvent Hurt per hit");
     assert_eq!(
         fight.knockbacks.len(),
-        hits,
+        hits.len(),
         "SetActorMotion knockback per hit"
     );
     for (motion, (dx, dz)) in &fight.knockbacks {
@@ -922,19 +931,23 @@ fn check_zombie_fight(bot: &Bot, fight: &ZombieFight, zombie: u64) {
         );
     }
 
-    // Hits land every cooldown while the bot stays in reach.
+    // Hits land every cooldown while the bot stays in reach. The health
+    // update carries the player's last input tick (as BDS sends it), which
+    // this standing bot never advances, so the spacing is measured by
+    // arrival time in server ticks.
     let mut spaced = 0;
-    for pair in fight.health.windows(2) {
-        let ((before, _, before_at), (after, _, after_at)) = (pair[0], pair[1]);
+    for pair in hits.windows(2) {
+        let (before_at, after_at) = (pair[0], pair[1]);
         let stepped = fight
             .teleports
             .iter()
             .any(|at| *at > before_at && *at <= after_at);
         if !stepped {
-            assert_eq!(
-                after - before,
-                ZOMBIE_ATTACK_TICKS,
-                "consecutive hits are one cooldown apart: {trace:?}"
+            let ticks = (after_at - before_at).as_secs_f64() / TICK.as_secs_f64();
+            assert!(
+                (ticks - ZOMBIE_ATTACK_TICKS as f64).abs() <= 3.0,
+                "consecutive hits are one cooldown ({ZOMBIE_ATTACK_TICKS} ticks) apart, \
+                 got {ticks:.1}: {trace:?}"
             );
             spaced += 1;
         }
