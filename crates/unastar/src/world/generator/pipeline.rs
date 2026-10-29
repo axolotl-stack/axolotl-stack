@@ -132,7 +132,7 @@ pub struct ChunkPipeline {
     generator: Arc<dyn Generator>,
     protos: ChunkCache<ProtoChunk>,
     decorations: ChunkCache<DecorationWrites>,
-    native: Option<Mutex<NativeSession>>,
+    native: Option<NativeSession>,
 }
 
 impl ChunkPipeline {
@@ -143,9 +143,7 @@ impl ChunkPipeline {
 
     /// Pipeline caching up to `proto_capacity` protos and as many decorations.
     pub fn with_capacity(generator: Arc<dyn Generator>, proto_capacity: usize) -> Self {
-        let native = generator
-            .decorates_in_order()
-            .then(|| Mutex::new(NativeSession::default()));
+        let native = generator.decorates_in_order().then(NativeSession::default);
         Self {
             generator,
             protos: ChunkCache::new(proto_capacity),
@@ -195,10 +193,7 @@ impl ChunkPipeline {
     /// shared source world once; repeated requests preserve the existing state.
     pub fn decorate_origin(&self, origin: ChunkPos) {
         if let Some(session) = &self.native {
-            session
-                .lock()
-                .expect("native generation session poisoned")
-                .decorate(&*self.generator, origin);
+            session.decorate(&*self.generator, origin);
         } else {
             self.decoration(origin);
         }
@@ -207,11 +202,7 @@ impl ChunkPipeline {
     /// Observe native state at the current request boundary, without completing
     /// new neighboring feature origins. Independent replay has no such world.
     pub fn native_snapshot(&self, pos: ChunkPos) -> Option<Chunk> {
-        self.native
-            .as_ref()?
-            .lock()
-            .expect("native generation session poisoned")
-            .snapshot(&*self.generator, pos)
+        self.native.as_ref()?.snapshot(&*self.generator, pos)
     }
 
     /// Observe a native chunk as Java's FULL status saves it: the current
@@ -227,11 +218,7 @@ impl ChunkPipeline {
     /// neighbor writes update the four final maps. Do not rescan finished blocks
     /// to invent new WG values at an observation boundary.
     pub fn native_worldgen_heightmaps(&self, pos: ChunkPos) -> Option<[[i16; 256]; 2]> {
-        self.native
-            .as_ref()?
-            .lock()
-            .expect("native generation session poisoned")
-            .worldgen_heightmaps(pos)
+        self.native.as_ref()?.worldgen_heightmaps(pos)
     }
 
     /// Finished chunk converted once to Bedrock state ids for storage/network consumers.
@@ -248,12 +235,9 @@ impl ChunkPipeline {
     /// All lossy adaptation happens in the final `generate` boundary.
     pub fn generate_native(&self, pos: ChunkPos) -> Chunk {
         if let Some(session) = &self.native {
-            {
-                let mut session = session.lock().expect("native generation session poisoned");
-                session.decorate(&*self.generator, pos);
-                for (dx, dz) in SLOT_OFFSETS {
-                    session.decorate(&*self.generator, ChunkPos::new(pos.x + dx, pos.z + dz));
-                }
+            session.decorate(&*self.generator, pos);
+            for (dx, dz) in SLOT_OFFSETS {
+                session.decorate(&*self.generator, ChunkPos::new(pos.x + dx, pos.z + dz));
             }
             return self
                 .native_full_snapshot(pos)
