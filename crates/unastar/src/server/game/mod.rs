@@ -4,7 +4,7 @@
 //! replacing the legacy Server struct.
 
 mod block_drops;
-mod blocks;
+pub(crate) mod blocks;
 mod chunks;
 mod commands;
 mod containers;
@@ -27,6 +27,7 @@ use bevy_ecs::prelude::*;
 pub(crate) use block_drops::loot_stacks;
 pub(crate) use blocks::{commit_block_event, reject_block_event};
 pub use inventory::RequestIdAssignments;
+pub use commands::ConsoleCommands;
 pub(crate) use items::{PICKUP_REACH, item_descriptor, player_box};
 pub(crate) use items::{send_slot, world_stack};
 use jolyne::WorldTemplate;
@@ -36,7 +37,6 @@ pub(crate) use loot::LootContext;
 use std::sync::Arc;
 use tracing::{info, warn};
 
-use crate::command::CommandRegistry;
 use crate::ecs::{
     CleanupSet, EntityLogicSet, NetworkSendSet, PacketApplySet, PhysicsSet, UnastarEcs,
 };
@@ -70,8 +70,8 @@ use crate::world::ecs::{
 // Re-export public types
 pub use super::config::ServerConfig;
 pub use types::{
-    CommandRegistryResource, ItemEntityIdCounter, PlayerPersistenceData, PlayerSpawnData,
-    ServerConfigResource, SessionEntityMap,
+    ItemEntityIdCounter, PlayerPersistenceData, PlayerSpawnData, ServerConfigResource,
+    SessionEntityMap,
 };
 
 /// The ECS-based game server.
@@ -289,7 +289,9 @@ impl GameServer {
         ecs.world_mut()
             .insert_resource(ServerConfigResource(config.clone()));
         ecs.world_mut()
-            .insert_resource(CommandRegistryResource(CommandRegistry::with_defaults()));
+            .init_resource::<crate::command::CommandRegistry>();
+        ecs.world_mut()
+            .init_resource::<commands::PendingCommands>();
         ecs.world_mut().insert_resource(ItemEntityIdCounter(100000));
         ecs.world_mut()
             .insert_resource(types::RecipeRegistryResource(Arc::new(recipes)));
@@ -375,6 +377,15 @@ impl GameServer {
             crate::entity::projectile::apply_throws
                 .in_set(PacketApplySet)
                 .after(inventory::apply_inventory),
+        );
+        // Commands run with the whole world, after this tick's movement,
+        // inventory and block/mob actions were applied.
+        ecs.schedule_mut().add_systems(
+            commands::run_commands
+                .in_set(PacketApplySet)
+                .after(commands::apply_chat_and_commands)
+                .after(crate::entity::mob::interaction::actions::apply_mob_actions)
+                .after(crate::entity::projectile::apply_throws),
         );
         // Consolidate per-domain events into main EventBuffer after all domain systems
         ecs.schedule_mut().add_systems(

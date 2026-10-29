@@ -50,10 +50,6 @@ pub(crate) fn block_network_ids(world: &World) -> crate::registry::block::BlockN
     world.resource::<ServerConfigResource>().0.block_network_ids
 }
 
-/// Command registry as an ECS Resource.
-#[derive(Resource)]
-pub struct CommandRegistryResource(pub crate::command::CommandRegistry);
-
 /// Counter for spawning item entities with unique IDs.
 #[derive(Resource)]
 pub struct ItemEntityIdCounter(pub i64);

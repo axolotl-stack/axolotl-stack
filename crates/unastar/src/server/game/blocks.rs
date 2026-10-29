@@ -257,7 +257,8 @@ fn broadcast_block_crack_stop(world: &World, x: i32, y: i32, z: i32) {
     }
 }
 
-pub(super) fn block_at(world: &World, position: (i32, i32, i32)) -> Option<u32> {
+/// Runtime id of the block at `position`; `None` outside the world or an unloaded chunk.
+pub(crate) fn block_at(world: &World, position: (i32, i32, i32)) -> Option<u32> {
     let (x, y, z) = position;
     if !(crate::world::chunk::MIN_Y
         ..crate::world::chunk::MIN_Y + i32::from(crate::world::chunk::SUBCHUNK_COUNT) * 16)

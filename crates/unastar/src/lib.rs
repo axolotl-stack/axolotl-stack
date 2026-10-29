@@ -19,7 +19,7 @@ pub mod server;
 pub mod storage;
 pub mod world;
 
-pub use command::{Command, CommandArgs, CommandContext, CommandOutput, CommandRegistry};
+pub use command::{CommandContext, CommandOutput, CommandSchema, CommandSource};
 pub use config::{ConfigError, UnastarConfig};
 pub use ecs::UnastarEcs;
 pub use entity::{DamageSource, HealingSource};

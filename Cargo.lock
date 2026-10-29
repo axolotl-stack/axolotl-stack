@@ -5388,8 +5388,10 @@ name = "unastar-data-gen"
 version = "0.1.0"
 dependencies = [
  "base64 0.22.1",
+ "bytes",
  "clap",
  "heck 0.5.0",
+ "hex",
  "kdl",
  "miette",
  "serde",
@@ -5399,6 +5401,7 @@ dependencies = [
  "tracing",
  "tracing-subscriber",
  "unastar-data",
+ "valentine",
  "walkdir",
  "zuri_nbt",
 ]

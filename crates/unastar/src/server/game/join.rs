@@ -14,7 +14,9 @@ use jolyne::valentine::types::{
     EnumsPlayerPermissionLevel, PlayerInputTick, PropertySyncData, SerializedAbilitiesData,
     SerializedAbilitiesDataSerializedLayer, SynchedActorDataCopyableDataList,
 };
-use jolyne::valentine::{InventoryContentPacket, McpePacket, SetPlayerGameTypePacket};
+use jolyne::valentine::{
+    InventoryContentPacket, McpePacket, SetCommandsEnabledPacket, SetPlayerGameTypePacket,
+};
 use jolyne::valentine::{SetActorDataPacket, UpdateAbilitiesPacket, UpdateAttributesPacket};
 use jolyne::valentine::{actor_data_i_ds as actor_data_ids, actor_flags};
 use tracing::debug;
@@ -31,6 +33,83 @@ const INSTANT_BUILD: u32 = 1 << 11;
 const FLY_SPEED: u32 = 1 << 13;
 const WALK_SPEED: u32 = 1 << 14;
 const VERTICAL_FLY_SPEED: u32 = 1 << 19;
+const OPERATOR_COMMANDS: u32 = 1 << 6;
+const TELEPORT: u32 = 1 << 7;
+
+/// The player's `UpdateAbilities`: game-mode abilities plus, for operators,
+/// BDS's operator permission (`Operator` / command level `gamedirectors`) and
+/// the operator-commands and teleport ability bits.
+pub(crate) fn abilities_packet(
+    runtime_id: i64,
+    game_mode: GameMode,
+    operator: bool,
+) -> UpdateAbilitiesPacket {
+    // Build abilities based on gamemode (following Dragonfly's approach)
+    let mut abilities = WALK_SPEED | FLY_SPEED | VERTICAL_FLY_SPEED;
+
+    // All modes can interact (except spectator limitations handled elsewhere)
+    if game_mode.can_break_blocks() {
+        abilities |= BUILD | MINE;
+    }
+    abilities |= DOORS_AND_SWITCHES | OPEN_CONTAINERS;
+    abilities |= ATTACK_PLAYERS | ATTACK_MOBS;
+
+    // Creative/Spectator: allow flight and invulnerability
+    if game_mode.allows_flight() {
+        abilities |= MAY_FLY;
+    }
+    if !game_mode.allows_damage() {
+        abilities |= INVULNERABLE;
+    }
+    // Creative: instant break
+    if game_mode.instant_break() {
+        abilities |= INSTANT_BUILD;
+    }
+    if operator {
+        abilities |= OPERATOR_COMMANDS | TELEPORT;
+    }
+
+    let layer = SerializedAbilitiesDataSerializedLayer {
+        serialized_layer: 1,
+        // Allowed = all abilities that CAN be toggled
+        abilities_set: BUILD
+            | MINE
+            | DOORS_AND_SWITCHES
+            | OPEN_CONTAINERS
+            | ATTACK_PLAYERS
+            | ATTACK_MOBS
+            | OPERATOR_COMMANDS
+            | TELEPORT
+            | WALK_SPEED
+            | FLY_SPEED
+            | VERTICAL_FLY_SPEED
+            | MAY_FLY
+            | INVULNERABLE
+            | INSTANT_BUILD,
+        // Enabled = abilities that are currently active
+        ability_values: abilities,
+        fly_speed: 0.05,         // Horizontal flight speed (Dragonfly default)
+        vertical_fly_speed: 1.0, // Vertical flight speed (Dragonfly default)
+        walk_speed: 0.1,
+    };
+
+    UpdateAbilitiesPacket {
+        data: SerializedAbilitiesData {
+            target_player_raw_id: runtime_id,
+            player_permissions: if operator {
+                EnumsPlayerPermissionLevel::Operator
+            } else {
+                EnumsPlayerPermissionLevel::Member
+            },
+            command_permissions: if operator {
+                EnumsCommandPermissionLevel::Gamedirectors
+            } else {
+                EnumsCommandPermissionLevel::Any
+            },
+            layers: vec![layer],
+        },
+    }
+}
 
 impl GameServer {
     /// Send all join packets to a newly spawned player.
@@ -73,58 +152,14 @@ impl GameServer {
         }));
         debug!("Sent SetPlayerGameType: {:?}", game_mode);
 
-        // Build abilities based on gamemode (following Dragonfly's approach)
-        let mut abilities = WALK_SPEED | FLY_SPEED | VERTICAL_FLY_SPEED;
-
-        // All modes can interact (except spectator limitations handled elsewhere)
-        if game_mode.can_break_blocks() {
-            abilities |= BUILD | MINE;
-        }
-        abilities |= DOORS_AND_SWITCHES | OPEN_CONTAINERS;
-        abilities |= ATTACK_PLAYERS | ATTACK_MOBS;
-
-        // Creative/Spectator: allow flight and invulnerability
-        if game_mode.allows_flight() {
-            abilities |= MAY_FLY;
-        }
-        if !game_mode.allows_damage() {
-            abilities |= INVULNERABLE;
-        }
-        // Creative: instant break
-        if game_mode.instant_break() {
-            abilities |= INSTANT_BUILD;
-        }
-
-        let layer = SerializedAbilitiesDataSerializedLayer {
-            serialized_layer: 1,
-            // Allowed = all abilities that CAN be toggled
-            abilities_set: BUILD
-                | MINE
-                | DOORS_AND_SWITCHES
-                | OPEN_CONTAINERS
-                | ATTACK_PLAYERS
-                | ATTACK_MOBS
-                | WALK_SPEED
-                | FLY_SPEED
-                | VERTICAL_FLY_SPEED
-                | MAY_FLY
-                | INVULNERABLE
-                | INSTANT_BUILD,
-            // Enabled = abilities that are currently active
-            ability_values: abilities,
-            fly_speed: 0.05,         // Horizontal flight speed (Dragonfly default)
-            vertical_fly_speed: 1.0, // Vertical flight speed (Dragonfly default)
-            walk_speed: 0.1,
-        };
-
-        let _ = session.send(McpePacket::from(UpdateAbilitiesPacket {
-            data: SerializedAbilitiesData {
-                target_player_raw_id: runtime_id,
-                player_permissions: EnumsPlayerPermissionLevel::Member,
-                command_permissions: EnumsCommandPermissionLevel::Any,
-                layers: vec![layer],
-            },
+        let operator = world.get::<crate::command::Operator>(entity).is_some();
+        // BDS sends SetCommandsEnabled right before the join's abilities.
+        let _ = session.send(McpePacket::from(SetCommandsEnabledPacket {
+            commands_enabled: true,
         }));
+        let _ = session.send(McpePacket::from(abilities_packet(
+            runtime_id, game_mode, operator,
+        )));
 
         fn attr(
             name: &str,
@@ -213,6 +248,14 @@ impl GameServer {
             .0
             .wire_packet(super::types::block_network_ids(world));
         let _ = session.send(McpePacket::from(crafting));
+        // BDS ends the join with its command list (identical for every
+        // permission level; the client filters by UpdateAbilities).
+        let commands = world
+            .resource::<crate::command::CommandRegistry>()
+            .schema()
+            .packet()
+            .clone();
+        let _ = session.send(McpePacket::from(commands));
 
         // Creative content is sent via WorldTemplate during the StartGame sequence
         // (see jolyne::stream::server). Network IDs are now correct from required_item_list.json.
