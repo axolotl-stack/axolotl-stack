@@ -1,49 +1,64 @@
 //! `minecraft:geode_feature`: the vanilla amethyst geode, a layered shell
 //! around a hollow core.
 //!
-//! Algorithm (shared by both editions):
-//! - `n` distribution points are drawn at `outer_wall_distance` offsets
-//!   (each axis) from `pos`, each with a `point_offset`. Every point that
-//!   lands in air or a [`bb::geode_invalid`] block counts as invalid; more
-//!   than `invalid_blocks_threshold` invalid points abort the geode.
-//! - For every block within `max_radius` (a cube), the shell value is
-//!   `s = sum(1 / sqrt(dist^2(block, point) + offset) + noise)` over the
-//!   points, where `noise` is a smooth 3D noise times `noise_multiplier`.
-//!   Thresholds `1 / sqrt(layer + d)` with `d = n / max_wall_distance` and
-//!   the vanilla layer constants (filling 1.7, inner 2.2, middle 3.2, outer
-//!   4.2; the filling threshold has no `d`) pick, from the inside out:
-//!   `filler`, the inner layer (`alternate_inner_layer` with
-//!   `use_alternate_layer0_chance`), `middle_layer`, `outer_layer`; blocks
-//!   with `s` below the outer threshold are untouched.
-//! - With `generate_crack_chance` the shell gets a crack: three points on a
-//!   vertical line at one of four corners of the geode; shell blocks (not
-//!   the core) whose crack value
-//!   `sum(1 / sqrt(dist^2 + crack_point_offset) + noise)` reaches
-//!   `1 / sqrt(base_crack_size + r/2 + (n > 3 ? d : 0))` become air.
-//! - Inner-layer blocks are kept as growth candidates with
-//!   `use_potential_placements_chance` (only alternate/budding ones when
-//!   `placements_require_layer0_alternate`). Afterwards each candidate grows
-//!   one random `inner_placements` block into its first free neighbour (air
-//!   or a water source) in the order down, up, north, south, west, east,
-//!   facing away from the shell.
+//! Draws, in order, from the feature's own random:
+//! 1. the number `n` of distribution points;
+//! 2. the shell noise, a legacy normal noise (first octave -4, one
+//!    amplitude) built from this random ([`NormalNoise`], 2,608 draws);
+//! 3. the crack jitter, then whether a crack is generated (two floats);
+//! 4. per point its `outer_wall_distance` offsets x, y, z (from `pos`) and
+//!    its `point_offset`. Every point in air or a [`bb::geode_invalid`]
+//!    block counts as invalid; more than `invalid_blocks_threshold` invalid
+//!    points abort the geode;
+//! 5. with a crack, its corner (`next_int(4)`): three points on a vertical
+//!    line at heights 7, 5, 1, `2n + 1` from `pos` in x and/or z.
+//!
+//! Every block within `max_radius` of `pos` (a cube) gets, in `f32`,
+//! `s = sum(inv_sqrt(dist^2 + offset)) + n * noise * noise_multiplier`, with
+//! the fast inverse square root (one Newton step). Thresholds
+//! `1 / sqrt(layer + d)`, `d = n / max_outer_wall_distance` (the pack's
+//! exclusive maximum), layers 2.2 / 3.2 / 4.2 and a fixed filling threshold
+//! `1 / sqrt(1.7)`, pick `filler`, the inner layer, `middle_layer` or
+//! `outer_layer`. Shell blocks below the filling threshold become air where
+//! the crack value `sum(inv_sqrt(dist^2 + crack_point_offset)) + 3 * noise`
+//! reaches `1 / sqrt((n > 3 ? d : 0) + jitter / 2 + base_crack_size)`.
+//!
+//! Blocks are visited x from `pos.x` up to `+max_radius`, then from
+//! `pos.x - 1` down; within x the same for y; z ascending. Each inner-layer
+//! block draws whether it is `alternate_inner_layer`, then (for alternate
+//! blocks, or all when `placements_require_layer0_alternate` is off) whether
+//! it is a growth candidate. Each candidate then draws one `inner_placements`
+//! block and grows it into the first air or water neighbour in the order
+//! down, up, north, south, west, east, facing away from the shell.
+//!
+//! Measured: both natural seed-12345 BDS 1.26.51 geodes are reproduced
+//! block for block, shell and budding blocks (see the codegen README).
+//! **Unmeasured:** BDS stops scanning past an empty slice of the cube, which
+//! only differs from the full scan for shells split by noise, and skips
+//! geodes that overlap a structure.
 //!
 //! Every write skips [`bb::geode_cannot_replace`] blocks (bedrock, spawners,
-//! chests, ...). The world stores one block per position, so a cluster
-//! growing into water replaces it (vanilla Bedrock keeps the water in a
-//! second block layer; not representable here). Vanilla schedules fluid
-//! updates next to the crack; decoration has no tick queue, so it does not.
+//! chests, ...) and clears the position's liquid layer. Vanilla schedules
+//! fluid updates next to the crack; decoration has no tick queue, so it does
+//! not.
 
 use super::super::generated::bb;
+use super::super::legacy_noise::NormalNoise;
 use super::super::world::{BlockPos, BlockWorld, Ctx, OUT_OF_BOUNDS};
 use super::IntRange;
 use smallvec::SmallVec;
-use unastar_noise::{PerlinNoise, Xoroshiro128};
 
-/// Vanilla shell layer constants (not part of the pack data).
-const FILLING: f64 = 1.7;
-const INNER_LAYER: f64 = 2.2;
-const MIDDLE_LAYER: f64 = 3.2;
-const OUTER_LAYER: f64 = 4.2;
+/// Filling threshold `1 / sqrt(1.7)`, as BDS stores it.
+const FILLING: f32 = f32::from_bits(0x3f44_57d1);
+/// Layer constants of the inner, middle and outer thresholds.
+const INNER_LAYER: f32 = 2.2;
+const MIDDLE_LAYER: f32 = 3.2;
+const OUTER_LAYER: f32 = 4.2;
+/// Shell noise: first octave and amplitudes (not part of the pack data).
+const NOISE_FIRST_OCTAVE: i32 = -4;
+const NOISE_AMPLITUDES: [f32; 1] = [1.0];
+/// Points of a crack.
+const CRACK_POINTS: usize = 3;
 
 /// Growth directions of `inner_placements`, in the order of
 /// [`Params::inner_placements`]' state columns (Bedrock `minecraft:block_face`
@@ -99,23 +114,19 @@ pub fn place<W: BlockWorld>(
     pos: BlockPos,
     params: &Params,
 ) -> Option<BlockPos> {
-    // The point count is the first draw: in both native seed-12345 geodes it
-    // is the only one of the first eight draws giving their measured three
-    // points (shell radii 3.4 / 4.8 / 5.7 / 6.9 fit n = 3 with the vanilla
-    // thresholds). The order of the remaining draws is unmeasured.
     let points = params.distribution_points.sample(ctx.rng).max(1);
-    let noise = ShellNoise::new(i64::from(ctx.rng.next_u32()));
-    let crack_jitter = f64::from(ctx.rng.next_float());
+    let noise = NormalNoise::new(ctx.rng, NOISE_FIRST_OCTAVE, &NOISE_AMPLITUDES);
+    let crack_jitter = ctx.rng.next_float();
     let t = Thresholds::new(
         points,
-        params.outer_wall_distance.max,
-        f64::from(params.base_crack_size),
+        params.outer_wall_distance.max + 1,
+        params.base_crack_size,
         crack_jitter,
     );
-    let generate_crack = ctx.rng.probability(params.generate_crack_chance);
+    let generate_crack = ctx.rng.next_float() < params.generate_crack_chance;
 
     // Vanilla draws 3..=4 centres; larger custom counts retain growable storage.
-    let mut centres: SmallVec<[(BlockPos, f64); 4]> = SmallVec::with_capacity(points as usize);
+    let mut centres: SmallVec<[(BlockPos, f32); 4]> = SmallVec::with_capacity(points as usize);
     let mut invalid = 0;
     for _ in 0..points {
         let dx = params.outer_wall_distance.sample(ctx.rng);
@@ -130,38 +141,39 @@ pub fn place<W: BlockWorld>(
             }
         }
         // Invalid points still shape the geode (vanilla keeps them).
-        centres.push((at, f64::from(params.point_offset.sample(ctx.rng))));
+        centres.push((at, params.point_offset.sample(ctx.rng) as f32));
     }
 
-    let cracks = crack_offsets(ctx.rng.next_int(4), points).map(|(x, y, z)| pos.offset(x, y, z));
-    let cracks: &[BlockPos] = if generate_crack { &cracks } else { &[] };
-
+    let cracks = generate_crack
+        .then(|| crack_offsets(ctx.rng.next_int(4), points).map(|(x, y, z)| pos.offset(x, y, z)));
+    let crack_point_offset = params.crack_point_offset;
     let r = params.max_radius;
-    let noise_multiplier = f64::from(params.noise_multiplier);
-    let crack_point_offset = f64::from(params.crack_point_offset);
+    let n_points = points as f32;
     // Keep common growth-candidate scratch inline; larger geodes still spill.
     let mut potential: SmallVec<[BlockPos; 32]> = SmallVec::new();
     let mut placed = false;
-    for dx in -r..=r {
-        for dz in -r..=r {
-            for dy in -r..=r {
-                let at = pos.offset(dx, dy, dz);
-                let n = noise.sample(at) * noise_multiplier;
-                let s: f64 = centres
-                    .iter()
-                    .map(|&(c, offset)| inv_sqrt(dist_sq(at, c) + offset) + n)
-                    .sum();
+    for x in scan(pos.x, r) {
+        for y in scan(pos.y, r) {
+            for z in pos.z - r..=pos.z + r {
+                let at = BlockPos::new(x, y, z);
+                let n = noise.sample(x as f32, y as f32, z as f32) * params.noise_multiplier;
+                let mut s = 0.0f32;
+                for &(c, offset) in &centres {
+                    s += fast_inv_sqrt(dist_sq(at, c) + offset);
+                }
+                let s = n_points * n + s;
                 if s < t.outer {
                     continue;
                 }
-                let block = if s < t.filling
-                    && !cracks.is_empty()
-                    && cracks
-                        .iter()
-                        .map(|&c| inv_sqrt(dist_sq(at, c) + crack_point_offset) + n)
-                        .sum::<f64>()
-                        >= t.crack
-                {
+                let cracked = s < t.filling
+                    && cracks.is_some_and(|cracks| {
+                        let mut v = 0.0f32;
+                        for c in cracks {
+                            v += fast_inv_sqrt(dist_sq(at, c) + crack_point_offset);
+                        }
+                        v + n * CRACK_POINTS as f32 >= t.crack
+                    });
+                let block = if cracked {
                     bb::AIR
                 } else if s >= t.filling {
                     params.filler
@@ -194,7 +206,7 @@ pub fn place<W: BlockWorld>(
             for (face, &(dx, dy, dz)) in FACES.iter().enumerate() {
                 let q = at.offset(dx, dy, dz);
                 let b = ctx.get(q);
-                if bb::air(b) || b == bb::WATER {
+                if bb::air(b) || bb::water(b) {
                     placed |= safe_set(ctx, q, faces[face]);
                     break;
                 }
@@ -204,27 +216,35 @@ pub fn place<W: BlockWorld>(
     placed.then_some(pos)
 }
 
+/// Scan order along one axis: `centre ..= centre + r`, then
+/// `centre - 1` down to `centre - r`.
+#[inline]
+fn scan(centre: i32, r: i32) -> impl Iterator<Item = i32> {
+    (centre..=centre + r).chain((centre - r..centre).rev())
+}
+
 /// Shell value thresholds of one geode.
 #[derive(Debug, Clone, Copy, PartialEq)]
 struct Thresholds {
-    filling: f64,
-    inner: f64,
-    middle: f64,
-    outer: f64,
-    crack: f64,
+    filling: f32,
+    inner: f32,
+    middle: f32,
+    outer: f32,
+    crack: f32,
 }
 
 impl Thresholds {
-    /// `d = points / max_wall_distance`; `crack_jitter` is a `[0, 1)` draw.
-    fn new(points: i32, max_wall_distance: i32, base_crack_size: f64, crack_jitter: f64) -> Self {
-        let d = f64::from(points) / f64::from(max_wall_distance.max(1));
+    /// `d = points / max_wall_distance`, with the pack's exclusive
+    /// `max_outer_wall_distance`; `crack_jitter` is a `[0, 1)` draw.
+    fn new(points: i32, max_wall_distance: i32, base_crack_size: f32, crack_jitter: f32) -> Self {
+        let d = points as f32 / max_wall_distance.max(1) as f32;
         let crack_extra = if points > 3 { d } else { 0.0 };
         Self {
-            filling: inv_sqrt(FILLING),
-            inner: inv_sqrt(INNER_LAYER + d),
-            middle: inv_sqrt(MIDDLE_LAYER + d),
-            outer: inv_sqrt(OUTER_LAYER + d),
-            crack: inv_sqrt(base_crack_size + crack_jitter / 2.0 + crack_extra),
+            filling: FILLING,
+            inner: 1.0 / (INNER_LAYER + d).sqrt(),
+            middle: 1.0 / (MIDDLE_LAYER + d).sqrt(),
+            outer: 1.0 / (OUTER_LAYER + d).sqrt(),
+            crack: 1.0 / (crack_extra + crack_jitter * 0.5 + base_crack_size).sqrt(),
         }
     }
 }
@@ -243,55 +263,27 @@ fn crack_offsets(index: i32, points: i32) -> [(i32, i32, i32); 3] {
     [(x, 7, z), (x, 5, z), (x, 1, z)]
 }
 
+/// Fast inverse square root with one Newton step, as BDS evaluates shells.
 #[inline]
-fn inv_sqrt(v: f64) -> f64 {
-    1.0 / v.sqrt()
+fn fast_inv_sqrt(v: f32) -> f32 {
+    let y = f32::from_bits(0x5f37_59df - (v.to_bits() >> 1));
+    (v * -0.5 * y * y + 1.5) * y
 }
 
 #[inline]
-fn dist_sq(a: BlockPos, b: BlockPos) -> f64 {
+fn dist_sq(a: BlockPos, b: BlockPos) -> f32 {
     let (dx, dy, dz) = (
-        f64::from(a.x - b.x),
-        f64::from(a.y - b.y),
-        f64::from(a.z - b.z),
+        i64::from(a.x - b.x),
+        i64::from(a.y - b.y),
+        i64::from(a.z - b.z),
     );
-    dx * dx + dy * dy + dz * dz
+    (dx * dx + dy * dy + dz * dz) as f32
 }
 
 /// Set unless the current block is protected; `true` when it changed.
 #[inline]
 fn safe_set<W: BlockWorld>(ctx: &mut Ctx<'_, W>, at: BlockPos, id: u32) -> bool {
     !bb::geode_cannot_replace(ctx.get(at)) && ctx.set(at, id)
-}
-
-/// The shell noise: a vanilla-style "normal" noise (two Perlin noises, the
-/// second sampled at `337/331` of the frequency, scaled by 5/6) at frequency
-/// 1/16, seeded per geode. Values are roughly in `[-1, 1]`; the pack's
-/// `noise_multiplier` scales them.
-struct ShellNoise {
-    a: PerlinNoise,
-    b: PerlinNoise,
-}
-
-impl ShellNoise {
-    fn new(seed: i64) -> Self {
-        let mut rng = Xoroshiro128::from_seed(seed);
-        let a = PerlinNoise::new(&mut rng);
-        let b = PerlinNoise::new(&mut rng);
-        Self { a, b }
-    }
-
-    #[inline]
-    fn sample(&self, at: BlockPos) -> f64 {
-        const FREQUENCY: f64 = 1.0 / 16.0;
-        const SECOND: f64 = 337.0 / 331.0;
-        let (x, y, z) = (
-            f64::from(at.x) * FREQUENCY,
-            f64::from(at.y) * FREQUENCY,
-            f64::from(at.z) * FREQUENCY,
-        );
-        (self.a.sample(x, y, z) + self.b.sample(x * SECOND, y * SECOND, z * SECOND)) * (5.0 / 6.0)
-    }
 }
 
 #[cfg(test)]
@@ -307,9 +299,10 @@ mod tests {
         }
     }
 
-    /// A cube of blocks `[-half, half)` on every axis.
+    /// A cube of blocks `centre + [-half, half)` on every axis.
     #[derive(Clone, PartialEq)]
     struct Cube {
+        centre: BlockPos,
         half: i32,
         blocks: Vec<u32>,
         secondary: std::collections::HashMap<BlockPos, u32>,
@@ -318,8 +311,13 @@ mod tests {
 
     impl Cube {
         fn filled(half: i32, id: u32) -> Self {
+            Self::filled_at(BlockPos::new(0, 0, 0), half, id)
+        }
+
+        fn filled_at(centre: BlockPos, half: i32, id: u32) -> Self {
             let side = (2 * half) as usize;
             Self {
+                centre,
                 half,
                 blocks: vec![id; side * side * side],
                 secondary: Default::default(),
@@ -329,7 +327,11 @@ mod tests {
 
         fn index(&self, p: BlockPos) -> Option<usize> {
             let side = 2 * self.half;
-            let (x, y, z) = (p.x + self.half, p.y + self.half, p.z + self.half);
+            let (x, y, z) = (
+                p.x - self.centre.x + self.half,
+                p.y - self.centre.y + self.half,
+                p.z - self.centre.z + self.half,
+            );
             let inside = (0..side).contains(&x) && (0..side).contains(&y) && (0..side).contains(&z);
             inside.then(|| ((y * side + z) * side + x) as usize)
         }
@@ -337,14 +339,31 @@ mod tests {
         fn count(&self, id: u32) -> usize {
             self.blocks.iter().filter(|&&b| b == id).count()
         }
+
+        /// Blocks equal to `id` whose position satisfies `keep`.
+        fn count_where(&self, id: u32, keep: impl Fn(BlockPos) -> bool) -> usize {
+            let side = 2 * self.half;
+            (0..self.blocks.len())
+                .filter(|&i| self.blocks[i] == id)
+                .map(|i| {
+                    let i = i as i32;
+                    BlockPos::new(
+                        i % side - self.half + self.centre.x,
+                        i / (side * side) - self.half + self.centre.y,
+                        i / side % side - self.half + self.centre.z,
+                    )
+                })
+                .filter(|&p| keep(p))
+                .count()
+        }
     }
 
     impl BlockWorld for Cube {
         fn min_y(&self) -> i32 {
-            -self.half
+            self.centre.y - self.half
         }
         fn max_y(&self) -> i32 {
-            self.half
+            self.centre.y + self.half
         }
         fn get(&self, pos: BlockPos) -> u32 {
             self.index(pos).map_or(OUT_OF_BOUNDS, |i| self.blocks[i])
@@ -439,6 +458,10 @@ mod tests {
     }
 
     fn run(world: &mut Cube, params: &Params, seed: u32) -> Option<BlockPos> {
+        run_at(world, params, seed, BlockPos::new(0, 0, 0))
+    }
+
+    fn run_at(world: &mut Cube, params: &Params, seed: u32, pos: BlockPos) -> Option<BlockPos> {
         let mut rng = BedrockRandom::new(seed);
         let mut ctx = Ctx {
             world,
@@ -446,18 +469,19 @@ mod tests {
             noise: &NoNoise,
             seed: 0,
         };
-        place(&mut ctx, BlockPos::new(0, 0, 0), params)
+        place(&mut ctx, pos, params)
     }
 
     #[test]
     fn thresholds_nest_from_the_core_outwards() {
-        let t = Thresholds::new(4, 6, 2.0, 0.5);
+        let t = Thresholds::new(4, 7, 2.0, 0.5);
         assert!(t.filling > t.inner && t.inner > t.middle && t.middle > t.outer);
-        let d = 4.0 / 6.0;
-        assert!((t.outer - 1.0 / (4.2f64 + d).sqrt()).abs() < 1e-12);
-        assert!((t.crack - 1.0 / (2.25f64 + d).sqrt()).abs() < 1e-12);
+        let d = 4.0f32 / 7.0;
+        assert!((t.outer - 1.0 / (4.2f32 + d).sqrt()).abs() < 1e-6);
+        assert!((t.crack - 1.0 / (2.25f32 + d).sqrt()).abs() < 1e-6);
         // Three points: no `d` in the crack threshold.
-        assert!((Thresholds::new(3, 6, 2.0, 0.0).crack - 1.0 / 2.0f64.sqrt()).abs() < 1e-12);
+        assert!((Thresholds::new(3, 7, 2.0, 0.0).crack - 1.0 / 2.0f32.sqrt()).abs() < 1e-6);
+        assert!((t.filling - 1.0 / 1.7f32.sqrt()).abs() < 1e-6);
     }
 
     #[test]
@@ -557,33 +581,36 @@ mod tests {
         assert!(world == before);
     }
 
-    /// The seed-12345 geode in chunk (-4,3), exported from a natural BDS
-    /// 1.26.51 world with all eight neighbouring chunks: 413 smooth basalt,
-    /// 310 calcite and 239 amethyst/budding blocks, a three-point shell. Its
-    /// feature random starts from the rule seed `3502308776`. With the point
-    /// count drawn second, this seed gave four points and about three times
-    /// the native volume.
+    /// Natural seed-12345 BDS 1.26.51 geodes, exported block by block: the
+    /// feature random of each starts from its rule seed, and both must come
+    /// out exactly. Layers here: outer obsidian (smooth basalt), middle tuff
+    /// (calcite), inner calcite or magma (amethyst or budding amethyst).
     #[test]
-    fn native_geode_seed_draws_three_points_first() {
+    fn native_geodes_are_reproduced_block_for_block() {
         let vanilla = Params {
             generate_crack_chance: 0.95,
             use_potential_placements_chance: 0.35,
             placements_require_layer0_alternate: true,
             ..params()
         };
-        let mut world = Cube::filled(24, bb::STONE);
-        assert!(run(&mut world, &vanilla, 3_502_308_776).is_some());
-        let inner = world.count(bb::CALCITE) + world.count(bb::MAGMA);
-        let (middle, outer) = (world.count(bb::TUFF), world.count(bb::OBSIDIAN));
-        for (layer, generated, native) in [
-            ("inner", inner, 239),
-            ("middle", middle, 310),
-            ("outer", outer, 413),
-        ] {
-            assert!(
-                generated * 4 >= native * 3 && generated * 4 <= native * 5,
-                "{layer} layer {generated} blocks, native {native}"
-            );
-        }
+        // Chunk (-4,3), all neighbours exported; no crack.
+        let pos = BlockPos::new(-64, -37, 48);
+        let mut world = Cube::filled_at(pos.offset(5, 5, 5), 24, bb::STONE);
+        assert!(run_at(&mut world, &vanilla, 3_502_308_776, pos).is_some());
+        assert_eq!(world.count(bb::OBSIDIAN), 413);
+        assert_eq!(world.count(bb::TUFF), 310);
+        assert_eq!(world.count(bb::CALCITE) + world.count(bb::MAGMA), 239);
+        assert_eq!(world.count(bb::MAGMA), 14);
+        // Chunk (-1,1), cracked; only chunks (-2,1), (-1,1), (-1,2) exported.
+        let pos = BlockPos::new(-16, -33, 16);
+        let mut world = Cube::filled_at(pos.offset(5, 5, 5), 24, bb::STONE);
+        assert!(run_at(&mut world, &vanilla, 4_121_427_388, pos).is_some());
+        let exported = |p: BlockPos| matches!((p.x >> 4, p.z >> 4), (-2, 1) | (-1, 1) | (-1, 2));
+        assert_eq!(world.count_where(bb::OBSIDIAN, exported), 294);
+        assert_eq!(world.count_where(bb::TUFF, exported), 241);
+        let inner =
+            world.count_where(bb::CALCITE, exported) + world.count_where(bb::MAGMA, exported);
+        assert_eq!(inner, 154);
+        assert_eq!(world.count_where(bb::MAGMA, exported), 13);
     }
 }

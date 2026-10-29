@@ -107,9 +107,9 @@ fn bedrock_style_vs_bds_reference_ratchets() {
             // hollow out, and magma no longer covers over-generated sea-floor
             // stone, unmasking existing excesses (D8, one ceiling each time):
             // see "Geode point count" and "Magma depth below solid ground" in
-            // that README.
+            // that README. Block-exact geodes then lowered the error again.
             assert!(
-                m.histogram_l1 <= 0.02071,
+                m.histogram_l1 <= 0.02066,
                 "histogram error rose: {}",
                 m.histogram_l1
             );

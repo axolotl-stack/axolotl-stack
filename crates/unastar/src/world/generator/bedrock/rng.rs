@@ -78,6 +78,21 @@ impl BedrockRandom {
         (self.next_u32() >> 1) as i32
     }
 
+    /// Uniform double in `[0, 1)` from a single 32-bit output (Bedrock's
+    /// `nextDouble`; Java draws two).
+    #[inline]
+    pub fn next_double(&mut self) -> f64 {
+        f64::from(self.next_u32()) * (1.0 / 4_294_967_296.0)
+    }
+
+    /// Discard `count` outputs.
+    #[inline]
+    pub fn skip(&mut self, count: u32) {
+        for _ in 0..count {
+            self.next_u32();
+        }
+    }
+
     /// Uniform integer in `[0, bound)`; `0` when `bound <= 0`.
     #[inline]
     pub fn next_int(&mut self, bound: i32) -> i32 {

@@ -649,3 +649,36 @@ deficit (247,311 vs 264,317 water blocks), not this feature.
 `aquatic::tests::underground_magma_skips_the_ocean_floor` fails with the old
 surface.
 
+### Block-exact geodes (2026-10-28)
+
+The geode algorithm now follows BDS in full (see the module docs of
+`unastar::world::generator::bedrock::features::geode`): after the point
+count, the feature random builds a single-precision legacy normal noise
+(first octave -4, 2,608 draws), then the crack draws and the points; the
+shell is evaluated in `f32` with the fast inverse square root,
+`d = n / max_outer_wall_distance` uses the pack's exclusive maximum, and
+blocks are visited x outward from the origin (up, then down), then y, then z
+ascending, which fixes which inner blocks draw as budding amethyst and as
+growth candidates.
+
+Both natural seed-12345 geodes are reproduced block for block:
+`geode::tests::native_geodes_are_reproduced_block_for_block` checks every
+layer of (-4,3) (413 / 310 / 239, 14 budding) and of the exported part of
+the cracked (-1,1) geode (294 / 241 / 154, 13 budding) at their absolute
+positions. On the 68-chunk fixture:
+
+| Block | BDS | Point count first | Block-exact |
+|---|---:|---:|---:|
+| amethyst block | 366 | 472 | 366 |
+| budding amethyst | 27 | 41 | 27 |
+| calcite | 538 | 633 | 538 |
+| smooth basalt | 721 | 724 | 721 |
+| amethyst cluster | 2 | 2 | 2 |
+| medium amethyst bud | 1 | 2 | 1 |
+| small amethyst bud | 2 | 5 | 1 |
+
+One small bud is still missing; growth targets use the water material and
+the block's own placement rules, and that difference is not yet traced.
+Histogram L1 falls 0.02071 -> 0.02066 and the ceiling is tightened; other
+metrics are unchanged.
+

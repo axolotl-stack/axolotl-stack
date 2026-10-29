@@ -35,6 +35,7 @@ pub mod decorate;
 pub mod features;
 mod generator;
 mod geology;
+mod legacy_noise;
 pub mod molang_noise;
 pub mod rng;
 pub mod scatter;
