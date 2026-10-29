@@ -25,10 +25,12 @@ const MOVE_PLAYER_SOURCE_ACTOR_TYPE_PLAYER: i32 = 63;
 /// System to handle actions requested by plugins via API.
 ///
 /// All lookups are O(1) via direct entity access — no string-based scanning.
+#[allow(clippy::too_many_arguments)]
 pub fn process_plugin_actions(
     mut action_queue: ResMut<ActionQueue>,
     item_registry: Res<super::types::ItemRegistryResource>,
     block_registry: Res<super::types::BlockRegistryResource>,
+    config: Res<super::types::ServerConfigResource>,
     chunk_manager: Res<ChunkManager>,
     mut chunks: Query<(&mut ChunkData, &mut ChunkStateFlags)>,
     mut block_events: ResMut<bevy_ecs::message::Messages<BlockBroadcastEvent>>,
@@ -138,7 +140,10 @@ pub fn process_plugin_actions(
                             stacksize: effective_count as u16,
                             auxvalue: 0,
                             net_id_variant: None,
-                            block_runtime_id,
+                            block_runtime_id: config
+                                .0
+                                .block_network_ids
+                                .item_block_to_wire(block_runtime_id),
                             user_data_buffer: crate::item::user_data::network_user_data(
                                 &item_id, None,
                             ),
@@ -230,6 +235,7 @@ mod tests {
         world.insert_resource(ActionQueue::default());
         world.insert_resource(ItemRegistryResource(Arc::new(limited_item_registry())));
         world.insert_resource(BlockRegistryResource(Arc::new(BlockRegistry::new())));
+        world.insert_resource(super::super::types::ServerConfigResource(Default::default()));
         world.insert_resource(ChunkManager::new(WorldConfig::void_spawn_platform(1)));
         world.insert_resource(bevy_ecs::message::Messages::<BlockBroadcastEvent>::default());
 

@@ -352,7 +352,13 @@ async fn template_layer_actions_survive_replay_reopen_network_and_dry_overwrite(
             assert_layers(&restored.chunk, *pos, &expected, None);
             let mut received = Chunk::new(pos.x, pos.z);
             for section in [-4, 19] {
-                let bytes = restored.chunk.encode_subchunk(section).unwrap();
+                let bytes = restored
+                    .chunk
+                    .encode_subchunk(
+                        section,
+                        unastar::registry::block::BlockNetworkIds::Sequential,
+                    )
+                    .unwrap();
                 received.decode_subchunk(section, &bytes).unwrap();
             }
             assert_layers(&received, *pos, &expected, None);

@@ -28,7 +28,11 @@ const PICKUP_REACH: DVec3 = DVec3::new(1.0, 0.5, 1.0);
 
 /// Network descriptor of a server stack. `None` if the item is not in the
 /// registry or its fields do not fit the wire types.
-pub(crate) fn item_descriptor(stack: &ItemStack, items: &ItemRegistry) -> Option<WireItem> {
+pub(crate) fn item_descriptor(
+    stack: &ItemStack,
+    items: &ItemRegistry,
+    block_ids: crate::registry::block::BlockNetworkIds,
+) -> Option<WireItem> {
     if stack.is_empty() {
         return Some(WireItem::default());
     }
@@ -37,7 +41,7 @@ pub(crate) fn item_descriptor(stack: &ItemStack, items: &ItemRegistry) -> Option
         stacksize: u16::from(stack.count),
         auxvalue: u32::try_from(stack.damage).ok()?,
         net_id_variant: None,
-        block_runtime_id: u32::try_from(stack.runtime_id).ok()?,
+        block_runtime_id: block_ids.item_block_to_wire(u32::try_from(stack.runtime_id).ok()?),
         user_data_buffer: crate::item::user_data::network_user_data(
             &stack.item_id,
             stack.nbt.as_deref(),
@@ -95,7 +99,7 @@ pub(crate) fn send_slot(world: &World, player: Entity, slot: usize, stack: &Item
     ) else {
         return;
     };
-    if let Some(wire) = item_descriptor(stack, &items.0) {
+    if let Some(wire) = item_descriptor(stack, &items.0, super::types::block_network_ids(world)) {
         let _ = session.send(McpePacket::from(slot_packet(slot, wire)));
     }
 }
@@ -136,6 +140,7 @@ pub fn pickup_items(
     >,
     sessions: Query<&PlayerSession>,
     registry: Res<ItemRegistryResource>,
+    config: Res<super::types::ServerConfigResource>,
 ) {
     let mut taken: Vec<Entity> = Vec::new();
     for (player, eye, mode, mut inventory, player_rid, health) in players.iter_mut() {
@@ -168,7 +173,8 @@ pub fn pickup_items(
             if let Ok(session) = sessions.get(player) {
                 for (slot, (old, new)) in before.iter().zip(inventory.0.slots()).enumerate() {
                     if old != new
-                        && let Some(wire) = item_descriptor(new, &registry.0)
+                        && let Some(wire) =
+                            item_descriptor(new, &registry.0, config.0.block_network_ids)
                     {
                         let _ = session.send(McpePacket::from(slot_packet(slot, wire)));
                     }
@@ -237,6 +243,7 @@ mod tests {
             BlockRegistry::vanilla().clone(),
         )));
         world.insert_resource(EntityRandom::seeded(3));
+        world.insert_resource(super::super::types::ServerConfigResource(Default::default()));
         let (tx, rx) = tokio::sync::mpsc::channel(64);
         let player = world
             .spawn((
