@@ -30,6 +30,74 @@ const NETWORK_EVENTS_PER_PLAYER: usize = 128;
 const MIN_NETWORK_EVENT_CAPACITY: usize = 1024;
 /// Maximum packets from one session applied to domain queues in a single tick.
 const MAX_PACKET_EVENTS_PER_SESSION_PER_TICK: u32 = 64;
+/// Packets one session may have waiting for later ticks. A client loading
+/// terrain answers every `LevelChunk` with a `SubChunkRequest`, so bursts above
+/// the per-tick budget are normal; only a session that keeps sending faster
+/// than it is served loses packets.
+const MAX_CARRIED_PACKETS_PER_SESSION: usize = 1024;
+
+/// Paces each session's inbound packets: at most
+/// [`MAX_PACKET_EVENTS_PER_SESSION_PER_TICK`] are applied per tick, later ones
+/// wait for the next ticks in arrival order (up to
+/// [`MAX_CARRIED_PACKETS_PER_SESSION`], beyond which they are dropped).
+struct InboundPacing<T> {
+    applied: HashMap<crate::network::SessionId, u32>,
+    carried: HashMap<crate::network::SessionId, std::collections::VecDeque<T>>,
+}
+
+impl<T> InboundPacing<T> {
+    fn new() -> Self {
+        Self {
+            applied: HashMap::new(),
+            carried: HashMap::new(),
+        }
+    }
+
+    /// Starts a tick: the waiting packets that fit its budget, oldest first.
+    fn begin_tick(&mut self) -> Vec<(crate::network::SessionId, T)> {
+        self.applied.clear();
+        let applied = &mut self.applied;
+        let mut ready = Vec::new();
+        self.carried.retain(|&session, queue| {
+            let take = queue
+                .len()
+                .min(MAX_PACKET_EVENTS_PER_SESSION_PER_TICK as usize);
+            ready.extend(queue.drain(..take).map(|packet| (session, packet)));
+            applied.insert(session, take as u32);
+            !queue.is_empty()
+        });
+        ready
+    }
+
+    /// The packet if it is applied this tick; otherwise it waits behind the
+    /// session's earlier packets (or is dropped when too many wait).
+    fn offer(&mut self, session: crate::network::SessionId, packet: T) -> Option<T> {
+        let waiting = self.carried.get(&session).is_some_and(|q| !q.is_empty());
+        let applied = self.applied.entry(session).or_default();
+        if !waiting && *applied < MAX_PACKET_EVENTS_PER_SESSION_PER_TICK {
+            *applied += 1;
+            return Some(packet);
+        }
+        let queue = self.carried.entry(session).or_default();
+        if queue.len() >= MAX_CARRIED_PACKETS_PER_SESSION {
+            warn!(
+                session_id = session,
+                budget = MAX_PACKET_EVENTS_PER_SESSION_PER_TICK,
+                waiting = queue.len(),
+                "dropping inbound packet: session keeps exceeding its per-tick budget"
+            );
+        } else {
+            queue.push_back(packet);
+        }
+        None
+    }
+
+    /// Forgets a session that disconnected.
+    fn forget(&mut self, session: crate::network::SessionId) {
+        self.applied.remove(&session);
+        self.carried.remove(&session);
+    }
+}
 
 /// The main server runtime.
 ///
@@ -279,6 +347,7 @@ impl UnastarServer {
 
         // Shutdown signal
         let mut shutdown = Box::pin(tokio::signal::ctrl_c());
+        let mut pacing = InboundPacing::new();
 
         loop {
             tokio::select! {
@@ -314,9 +383,13 @@ impl UnastarServer {
 
                     let tick_start = std::time::Instant::now();
 
+                    // Packets that waited for this tick's budget go first.
+                    for (session_id, (packet_args, packet)) in pacing.begin_tick() {
+                        self.server.route_packet(session_id, packet_args, packet);
+                    }
+
                     // Drain network events
                     let mut events_processed = 0u32;
-                    let mut per_session_packets: HashMap<_, u32> = HashMap::new();
                     while let Ok(event) = event_rx.try_recv() {
                         events_processed += 1;
                         match event {
@@ -366,17 +439,11 @@ impl UnastarServer {
                                 packet_args,
                                 packet,
                             } => {
-                                let count = per_session_packets.entry(session_id).or_default();
-                                *count += 1;
-                                if *count > MAX_PACKET_EVENTS_PER_SESSION_PER_TICK {
-                                    warn!(
-                                        session_id,
-                                        budget = MAX_PACKET_EVENTS_PER_SESSION_PER_TICK,
-                                        "dropping inbound packet over per-tick session budget"
-                                    );
-                                    continue;
+                                if let Some((packet_args, packet)) =
+                                    pacing.offer(session_id, (packet_args, *packet))
+                                {
+                                    self.server.route_packet(session_id, packet_args, packet);
                                 }
-                                self.server.route_packet(session_id, packet_args, *packet);
                             }
                             NetworkEvent::Disconnected { session_id } => {
                                 if self.config.players.save_on_disconnect {
@@ -386,6 +453,7 @@ impl UnastarServer {
                                     }
                                 }
                                 self.server.despawn_player(session_id);
+                                pacing.forget(session_id);
                             }
                         }
                     }
@@ -585,4 +653,76 @@ fn spawn_accept_loop(mut listener: BedrockListener<RaknetListener>, state: Accep
             }
         }
     });
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    const BUDGET: usize = MAX_PACKET_EVENTS_PER_SESSION_PER_TICK as usize;
+
+    /// A loading client answers every chunk with a request: a burst above the
+    /// per-tick budget must be applied on the next ticks, in order, not lost.
+    #[test]
+    fn over_budget_packets_wait_for_the_next_tick_in_order() {
+        let mut pacing = InboundPacing::new();
+        pacing.begin_tick();
+        let applied: Vec<u32> = (0..BUDGET as u32 + 10)
+            .filter_map(|packet| pacing.offer(1, packet))
+            .collect();
+        assert_eq!(applied, (0..BUDGET as u32).collect::<Vec<_>>());
+        // Another session has its own budget.
+        assert_eq!(pacing.offer(2, 500), Some(500));
+
+        let next: Vec<(u64, u32)> = pacing.begin_tick();
+        assert_eq!(
+            next,
+            (BUDGET as u32..BUDGET as u32 + 10)
+                .map(|packet| (1, packet))
+                .collect::<Vec<_>>()
+        );
+        // Nothing waits any more, so new packets apply directly.
+        assert_eq!(pacing.offer(1, 900), Some(900));
+    }
+
+    /// Packets that arrive while older ones still wait queue behind them.
+    #[test]
+    fn new_packets_never_overtake_waiting_ones() {
+        let mut pacing = InboundPacing::new();
+        pacing.begin_tick();
+        for packet in 0..3 * BUDGET as u32 {
+            pacing.offer(7, packet);
+        }
+        let second: Vec<u32> = pacing.begin_tick().into_iter().map(|(_, p)| p).collect();
+        assert_eq!(
+            second,
+            (BUDGET as u32..2 * BUDGET as u32).collect::<Vec<_>>()
+        );
+        assert_eq!(
+            pacing.offer(7, 10_000),
+            None,
+            "still behind the third tick's packets"
+        );
+        let third: Vec<u32> = pacing.begin_tick().into_iter().map(|(_, p)| p).collect();
+        assert_eq!(third.len(), BUDGET);
+        assert_eq!(third.first(), Some(&(2 * BUDGET as u32)));
+        let fourth: Vec<u32> = pacing.begin_tick().into_iter().map(|(_, p)| p).collect();
+        assert_eq!(fourth, vec![10_000]);
+    }
+
+    /// A session that keeps flooding loses what exceeds the waiting bound;
+    /// a disconnect forgets its waiting packets.
+    #[test]
+    fn flooding_is_bounded_and_disconnect_forgets() {
+        let mut pacing = InboundPacing::new();
+        pacing.begin_tick();
+        let total = BUDGET + MAX_CARRIED_PACKETS_PER_SESSION + 50;
+        let applied = (0..total as u32)
+            .filter_map(|packet| pacing.offer(3, packet))
+            .count();
+        assert_eq!(applied, BUDGET);
+        assert_eq!(pacing.carried[&3].len(), MAX_CARRIED_PACKETS_PER_SESSION);
+        pacing.forget(3);
+        assert!(pacing.begin_tick().is_empty());
+    }
 }
