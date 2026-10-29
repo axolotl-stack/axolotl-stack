@@ -34,6 +34,12 @@ the second first-valid child. Unknown action keys are retained verbatim and
 diagnosed, but invalidate their node: known sibling actions and triggers do
 not execute either. This matches the isolated BDS unknown-action probe.
 
+`EventTree` and `evaluate_tree` share that traversal with startup-bound entity
+events. Leaf emission stays caller-owned; reusable scratch holds random-child
+selection without retaining JSON in a bound tree. Typed runtime filter failures
+propagate to the caller. Trigger filters remain deferred for an explicit caller
+check; timing relative to ECS composition is not inferred from tree evaluation.
+
 ## Molang
 
 `molang::parse` is the single lexer/parser. It normalises case and q./v./t./c.
@@ -75,6 +81,16 @@ returns owned `LootDrop { item_id, count, data, nbt }`; callers construct stacks
 through their item registry. `LootContext` supplies tool identity, pre-resolved
 enchantment ids, block-state matching, player-kill and looting facts. No ECS or
 item-stack implementation is imported here.
+
+Each `LootFunction` retains its typed `conditions` and `kind`; guards run before
+the action accesses context or consumes its own random draws. The implemented
+`entity_properties` subset is THIS actor's typed `on_fire` fact; no THIS actor
+does not match either fire state. Other predicates remain explicit unsupported
+features, not discarded clauses. `FurnaceSmelt` supplies a borrowed canonical
+recipe identifier/aux result, while `furnace_smelt` preserves the loot count.
+A missing provider returns `MissingContext`; a provider's recipe miss leaves the
+original item unchanged. The entity/item layer owns the actual frozen recipe
+registry and death context; no cooked-item-by-mob table is maintained here.
 
 The parked evaluator's seven regression scenarios still run in unastar with
 the real pack/block tables. Unsupported functions/conditions, tiered equipment

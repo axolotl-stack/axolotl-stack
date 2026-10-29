@@ -4,6 +4,7 @@ import json
 import os
 import traceback
 from pathlib import Path
+import math
 
 from endstone.event import (
     ActorSpawnEvent, PlayerDropItemEvent, PlayerJoinEvent,
@@ -12,6 +13,8 @@ from endstone.event import (
 from endstone.inventory import ItemStack
 from endstone.level import Location
 from endstone.plugin import Plugin
+
+from .terrain import fill_verified
 
 
 class EntityMotionProbe(Plugin):
@@ -37,7 +40,8 @@ class EntityMotionProbe(Plugin):
                       'kinematics': self.run_kinematics,
                       'flow-corners': lambda: self.run_kinematics(flow_corners=True),
                       'ground-liquid': self.run_ground_liquid,
-                      'player-drop': self.run_player_drop}[mode]()
+                      'player-drop': self.run_player_drop,
+                      'living-mob': self.run_living_mob}[mode]()
         self.tick_number = 0
         self.task = self.server.scheduler.run_task(self, self.tick, delay=60, period=1)
 
@@ -66,6 +70,13 @@ class EntityMotionProbe(Plugin):
         if not self.server.dispatch_command(self.server.command_sender, text):
             raise RuntimeError(f'command failed: {text}')
 
+    def fill_terrain(self, minimum, maximum, block):
+        verified = fill_verified(
+            minimum, maximum, block,
+            lambda command: self.server.dispatch_command(self.server.command_sender, command),
+            lambda x, y, z: self.dimension.get_block_at(x, y, z).data.type)
+        return {'min': minimum, 'max': maximum, 'block': block, 'verified_voxels': verified}
+
     def location(self, x, y, z):
         return Location(self.dimension, x, y, z)
 
@@ -85,6 +96,129 @@ class EntityMotionProbe(Plugin):
         with (self.out / 'samples.jsonl').open('a', encoding='utf-8') as stream:
             stream.write(json.dumps(value) + '\n')
         return value
+
+    def living_terrain(self, actor):
+        """Actual support/foot block data; no material/slipperiness guesses."""
+        p = actor.location
+        x, y, z = math.floor(p.x), math.floor(p.y), math.floor(p.z)
+        result = []
+        for by in (y - 1, y):
+            data = self.dimension.get_block_at(x, by, z).data
+            result.append({'position': [x, by, z], 'id': data.type,
+                           'runtime_id': data.runtime_id, 'states': data.block_states})
+        return result
+
+    def run_living_mob(self):
+        """Release source-derived controls once; observe without ongoing forcing."""
+        controls = json.loads((self.out / 'living-controls.json').read_text(encoding='utf-8'))
+        self.player = self.server.get_player('BDSSweep')
+        if self.player is None:
+            raise RuntimeError('probe player left before living-mob sampling')
+        self.dimension = self.player.dimension
+        for command in [
+            'gamerule domobspawning false', 'gamerule randomtickspeed 0',
+            'gamerule doweathercycle false', 'weather clear', 'time set 6000',
+            'tickingarea add circle 0 -60 0 3 entity_living_motion',
+        ]:
+            self.command(command)
+        for _ in range(40):
+            yield
+        verified_terrain = [self.fill_terrain((-32, -61, -32), (32, -61, 32), 'minecraft:stone')]
+        # Keep each fill under the native 32,768-block command limit. Its
+        # command result is not evidence that an already-air volume is wrong.
+        for bottom, top in [(-60, -55), (-54, -49), (-48, -44)]:
+            verified_terrain.append(
+                self.fill_terrain((-32, bottom, -32), (32, top, 32), 'minecraft:air'))
+        for case in controls['cases']:
+            floor = case['floor']
+            if floor['block'] != 'minecraft:stone':
+                verified_terrain.append(
+                    self.fill_terrain(floor['min'], floor['max'], floor['block']))
+        (self.out / 'living-terrain-verified.json').write_text(
+            json.dumps(verified_terrain, indent=2) + '\n', encoding='utf-8')
+        if not self.player.teleport(self.location(0.5, -60, 31.5)):
+            raise RuntimeError('living-mob observer teleport failed')
+        self.player.inventory.clear()
+        terrain, actors = [], {}
+        for case in controls['cases']:
+            floor = case['floor']
+            blocks = []
+            for x in range(floor['min'][0], floor['max'][0] + 1):
+                for z in range(floor['min'][2], floor['max'][2] + 1):
+                    data = self.dimension.get_block_at(x, -61, z).data
+                    blocks.append({'position': [x, -61, z], 'id': data.type,
+                                   'runtime_id': data.runtime_id, 'states': data.block_states})
+                    if data.type != floor['block']:
+                        raise RuntimeError(f'living-mob floor differs from request: {case["case"]}')
+            terrain.append({'case': case['case'], 'blocks': blocks})
+            x, _, z = case['position']
+            actor = self.dimension.spawn_actor(self.location(x, -60, z), case['actor_type'])
+            if actor is None or not actor.add_scoreboard_tag(case['tag']):
+                raise RuntimeError(f'could not spawn/tag living-mob control: {case["case"]}')
+            actors[case['case']] = actor.runtime_id
+            self.record(case['case'], actor, stage='spawn', isolation=case['isolation'],
+                        requested_actor_type=case['actor_type'])
+        (self.out / 'living-terrain.json').write_text(json.dumps(terrain, indent=2) + '\n',
+                                                     encoding='utf-8')
+        for _ in range(20):
+            yield
+        live = {actor.runtime_id: actor for actor in self.dimension.actors}
+        for case in controls['cases']:
+            actor = live.get(actors[case['case']])
+            if actor is None:
+                raise RuntimeError(f'living-mob actor disappeared before release: {case["case"]}')
+            self.record(case['case'], actor, stage='before_release',
+                        isolation=case['isolation'], terrain=self.living_terrain(actor))
+            request = {key: case[key] for key in (
+                'tag', 'position', 'velocity', 'yaw', 'pitch', 'property_updates')}
+            self.command('scriptevent entity_motion:release ' + json.dumps(request, separators=(',', ':')))
+        acknowledged = {}
+        release_started = self.tick_number
+        while len(acknowledged) != len(actors) or any(
+                self.tick_number - tick < controls['observation_ticks']
+                for tick in acknowledged.values()):
+            yield
+            live = {actor.runtime_id: actor for actor in self.dimension.actors}
+            for case in controls['cases']:
+                name = case['case']
+                actor = live.get(actors[name])
+                if actor is None:
+                    self.record(name, None, stage='released', isolation=case['isolation'])
+                    raise RuntimeError(f'living-mob actor disappeared: {name}')
+                tags = actor.scoreboard_tags
+                if 'motion_release_error' in tags:
+                    raise RuntimeError(f'living-mob Script API release failed for {name}: {actor.name_tag}')
+                if name not in acknowledged:
+                    if 'motion_released' not in tags:
+                        if self.tick_number - release_started >= controls['release_ack_ticks']:
+                            raise RuntimeError(
+                                f'no Script API release acknowledgment for {name}; '
+                                'requires loaded authored BP and stable @minecraft/server 2.0.0; see bds.log')
+                        continue
+                    release_state = json.loads(actor.name_tag)
+                    acknowledged[name] = self.tick_number
+                    self.record(name, actor, stage='released_observation', sample_index=0,
+                                release_state=release_state, requested_initial={
+                                    key: case[key] for key in ('position', 'velocity', 'yaw', 'pitch')},
+                                isolation=case['isolation'], terrain=self.living_terrain(actor))
+                else:
+                    index = self.tick_number - acknowledged[name]
+                    if index <= controls['observation_ticks']:
+                        self.record(name, actor, stage='released', sample_index=index,
+                                    release_observation_tick=acknowledged[name],
+                                    isolation=case['isolation'], terrain=self.living_terrain(actor))
+        live = {actor.runtime_id: actor for actor in self.dimension.actors}
+        for case in controls['cases']:
+            actor = live.get(actors[case['case']])
+            if case['property_updates'] and (
+                    actor is None or 'motion_properties_updated' not in actor.scoreboard_tags):
+                raise RuntimeError(f"native property update did not complete: {case['case']}")
+            if actor is not None:
+                actor.remove()
+        self.command('tickingarea remove entity_living_motion')
+        # Allow the existing native viewer/packet recorder to drain removals.
+        for _ in range(20):
+            yield
 
     def run(self):
         self.player = self.server.get_player('BDSSweep')

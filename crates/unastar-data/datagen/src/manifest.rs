@@ -182,6 +182,28 @@ pub fn write_manifest(output_dir: &Path, inputs: &ManifestInputs<'_>) -> miette:
         true,
     )?);
     sources.push(source_from_path(
+        "protocolgen_inventory_capability_tags",
+        "allay_supplemental_capability_table",
+        &inputs
+            .native_path
+            .join("..")
+            .join(crate::pmmp::INVENTORY_CAPABILITY_TAGS_FILE),
+        Some("1.26.51".into()),
+        "medium",
+        true,
+    )?);
+    sources.push(source_from_path(
+        "protocolgen_item_corrections",
+        "reviewed_item_class_corrections",
+        &inputs
+            .native_path
+            .join("../../1.26.50")
+            .join(crate::pmmp::ITEM_CORRECTIONS_FILE),
+        Some("1.26.50".into()),
+        "medium",
+        true,
+    )?);
+    sources.push(source_from_path(
         "protocolgen_source_lock",
         "upstream_revision_and_input_digests",
         &inputs.native_path.join("../../../lock.json"),
@@ -205,6 +227,18 @@ pub fn write_manifest(output_dir: &Path, inputs: &ManifestInputs<'_>) -> miette:
         "high",
         false,
     )?);
+    for role in ["operator", "member"] {
+        sources.push(source_from_path(
+            &format!("bds_actor_wire_{role}_1_26_51"),
+            "measured_actor_wire_capture_manifest",
+            &PathBuf::from(env!("CARGO_MANIFEST_DIR")).join(format!(
+                "../../bds-extractor/captures/1.26.51/{role}/manifest.json"
+            )),
+            Some("BDS-1.26.51;protocol-2193".into()),
+            "high",
+            false,
+        )?);
+    }
     if let Some(path) = inputs.bds_extraction_path {
         sources.push(source_from_path(
             "bds_extractor_capture",
@@ -231,9 +265,19 @@ pub fn write_manifest(output_dir: &Path, inputs: &ManifestInputs<'_>) -> miette:
             unastar_data::actor_definitions::parser().component_count(),
         ),
         (
+            "component_schema_defaults",
+            unastar_data::actor_definitions::COMPONENT_DEFAULTS_JSON,
+            unastar_data::actor_definitions::component_defaults_count(),
+        ),
+        (
             "actor_definitions",
             unastar_data::actor_definitions::VANILLA_JSON,
             unastar_data::actor_definitions::vanilla().len(),
+        ),
+        (
+            "actor_wire",
+            unastar_data::actor_wire::CATALOG_JSON,
+            unastar_data::actor_wire::vanilla().observations.len(),
         ),
         (
             "biomes",

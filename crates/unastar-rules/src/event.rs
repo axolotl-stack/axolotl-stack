@@ -21,13 +21,15 @@
 //! `randomize` children without `weight` are rejected (vanilla always writes
 //! one; the BDS default is unconfirmed).
 //!
-//! # Evaluation (Mojang's event documentation; ordering to confirm on BDS)
+//! # Evaluation
 //!
 //! A node whose filters fail does nothing. A passing node runs its own
-//! actions (remove groups, then add groups, then the other actions in key
-//! order), then its children: `sequence` runs every passing child in order,
-//! `randomize` picks one passing child by weight, `first_valid` runs the first
-//! passing child. Triggers are collected and run after the whole tree.
+//! actions (remove groups, then add groups, then properties and other actions
+//! in key order), then its children: `sequence` runs every passing child,
+//! `randomize` picks one passing child by weight, and `first_valid` runs the
+//! first passing child. Triggers are collected for execution after the tree.
+//! [`evaluate_tree`] also drives startup-bound actor trees, so their traversal
+//! and the parsed representation cannot acquire different event semantics.
 
 use crate::filter::{Filter, FilterContext, FilterRegistry, Subject};
 use crate::{Diagnostics, ParseError};
@@ -282,23 +284,24 @@ impl EventNode {
         random: &mut dyn FnMut() -> f32,
     ) -> Outcome<'a> {
         let mut out = Outcome::default();
-        self.run(ctx, random, &mut out);
+        let result = evaluate_tree(
+            self,
+            ctx,
+            random,
+            &mut |node| {
+                node.emit(&mut out);
+                Ok(())
+            },
+            &mut Vec::new(),
+        );
+        match result {
+            Ok(()) => {}
+            Err(never) => match never {},
+        }
         out
     }
 
-    fn passes(&self, ctx: &dyn FilterContext) -> bool {
-        self.unknown_actions.is_empty() && self.filters.as_ref().is_none_or(|f| f.evaluate(ctx))
-    }
-
-    fn run<'a>(
-        &'a self,
-        ctx: &dyn FilterContext,
-        random: &mut dyn FnMut() -> f32,
-        out: &mut Outcome<'a>,
-    ) {
-        if !self.passes(ctx) {
-            return;
-        }
+    fn emit<'a>(&'a self, out: &mut Outcome<'a>) {
         if let Some(remove) = &self.remove {
             out.effects
                 .extend(remove.iter().map(|g| Effect::RemoveGroup(g)));
@@ -315,41 +318,120 @@ impl EventNode {
         if let Some(trigger) = &self.trigger {
             out.triggers.push(trigger);
         }
-        match &self.children {
-            None => {}
-            Some(Children::Sequence(items)) => items.iter().for_each(|c| c.run(ctx, random, out)),
-            Some(Children::FirstValid(items)) => {
-                if let Some(child) = items.iter().find(|c| c.passes(ctx)) {
-                    child.run(ctx, random, out);
-                }
+    }
+}
+
+/// Child selection shared by parsed and startup-bound event trees.
+pub enum TreeChildren<'a, T> {
+    Sequence(&'a [T]),
+    Randomize(&'a [T]),
+    FirstValid(&'a [T]),
+}
+
+/// The traversal only needs a passing predicate, weight and children. Leaf
+/// payloads remain in their original representation and are emitted by the
+/// caller; bound trees need not retain JSON, identifiers or parsed filters.
+pub trait EventTree<C: ?Sized>: Sized {
+    type Error;
+
+    fn passes(&self, context: &C) -> Result<bool, Self::Error>;
+    fn weight(&self) -> f64;
+    fn children(&self) -> Option<TreeChildren<'_, Self>>;
+}
+
+impl<'ctx> EventTree<dyn FilterContext + 'ctx> for EventNode {
+    type Error = std::convert::Infallible;
+
+    fn passes(&self, context: &(dyn FilterContext + 'ctx)) -> Result<bool, Self::Error> {
+        Ok(self.unknown_actions.is_empty()
+            && self
+                .filters
+                .as_ref()
+                .is_none_or(|filter| filter.evaluate(context)))
+    }
+
+    fn weight(&self) -> f64 {
+        self.weight
+            .as_ref()
+            .and_then(Number::as_f64)
+            .unwrap_or(0.0)
+            .max(0.0)
+    }
+
+    fn children(&self) -> Option<TreeChildren<'_, Self>> {
+        self.children.as_ref().map(|children| match children {
+            Children::Sequence(items) => TreeChildren::Sequence(items),
+            Children::Randomize(items) => TreeChildren::Randomize(items),
+            Children::FirstValid(items) => TreeChildren::FirstValid(items),
+        })
+    }
+}
+
+/// Run one tree, emitting passing nodes before their descendants. Filters
+/// must be pure. `random` supplies a uniform value in `[0, 1)`. Scratch stores
+/// passing random-child indices and keeps its original length, even on error;
+/// its capacity can be reused across actors. Triggers belong in the sink's
+/// deferred queue, not recursively dispatched by the sink.
+pub fn evaluate_tree<'a, C: ?Sized, T: EventTree<C>>(
+    node: &'a T,
+    context: &C,
+    random: &mut dyn FnMut() -> f32,
+    emit: &mut impl FnMut(&'a T) -> Result<(), T::Error>,
+    scratch: &mut Vec<usize>,
+) -> Result<(), T::Error> {
+    if !node.passes(context)? {
+        return Ok(());
+    }
+    emit(node)?;
+    match node.children() {
+        None => {}
+        Some(TreeChildren::Sequence(items)) => {
+            for child in items {
+                evaluate_tree(child, context, random, emit, scratch)?;
             }
-            Some(Children::Randomize(items)) => {
-                let passing: Vec<&EventNode> = items.iter().filter(|c| c.passes(ctx)).collect();
-                let weight = |c: &EventNode| {
-                    c.weight
-                        .as_ref()
-                        .and_then(Number::as_f64)
-                        .unwrap_or(0.0)
-                        .max(0.0)
-                };
-                let total: f64 = passing.iter().map(|c| weight(c)).sum();
-                if total <= 0.0 {
-                    return;
-                }
-                let mut roll = f64::from(random()) * total;
-                for child in &passing {
-                    roll -= weight(child);
-                    if roll < 0.0 {
-                        child.run(ctx, random, out);
-                        return;
-                    }
-                }
-                if let Some(last) = passing.last() {
-                    last.run(ctx, random, out);
+        }
+        Some(TreeChildren::FirstValid(items)) => {
+            for child in items {
+                if child.passes(context)? {
+                    evaluate_tree(child, context, random, emit, scratch)?;
+                    break;
                 }
             }
         }
+        Some(TreeChildren::Randomize(items)) => {
+            let start = scratch.len();
+            let mut total = 0.0;
+            for (index, child) in items.iter().enumerate() {
+                let passes = match child.passes(context) {
+                    Ok(passes) => passes,
+                    Err(error) => {
+                        scratch.truncate(start);
+                        return Err(error);
+                    }
+                };
+                if passes {
+                    total += child.weight();
+                    scratch.push(index);
+                }
+            }
+            let mut chosen = None;
+            if total > 0.0 {
+                let mut roll = f64::from(random()) * total;
+                for &index in &scratch[start..] {
+                    chosen = Some(index);
+                    roll -= items[index].weight();
+                    if roll < 0.0 {
+                        break;
+                    }
+                }
+            }
+            scratch.truncate(start);
+            if let Some(index) = chosen {
+                evaluate_tree(&items[index], context, random, emit, scratch)?;
+            }
+        }
     }
+    Ok(())
 }
 
 fn parse_groups(

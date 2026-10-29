@@ -4,19 +4,19 @@
 
 use super::GameServer;
 use crate::entity::components::{
-    ArmourInventory, CursorItem, Experience, GameMode, Health, HeldSlot, Hunger, MainInventory,
-    OffhandSlot, PlayerSession, RuntimeEntityId,
+    ArmourInventory, Experience, GameMode, Health, HeldSlot, Hunger, MainInventory, OffhandSlot,
+    PlayerSession, PlayerUi, RuntimeEntityId,
 };
 use jolyne::valentine::types::{
     ActorRuntimeId, AttributeData, CerealizerNetworkItemStackDescriptorSerializedData,
     DataItemEntry, DataItemEntryPayload, DataItemFloatPayload, DataItemInt64Payload,
-    DataItemShortPayload, EnumsCommandPermissionLevel, EnumsContainerEnumName, EnumsDataItemType,
-    EnumsGameType, EnumsPlayerPermissionLevel, FullContainerName, PlayerInputTick,
-    PropertySyncData, SerializedAbilitiesData, SerializedAbilitiesDataSerializedLayer,
-    SynchedActorDataCopyableDataList,
+    DataItemShortPayload, EnumsCommandPermissionLevel, EnumsDataItemType, EnumsGameType,
+    EnumsPlayerPermissionLevel, PlayerInputTick, PropertySyncData, SerializedAbilitiesData,
+    SerializedAbilitiesDataSerializedLayer, SynchedActorDataCopyableDataList,
 };
 use jolyne::valentine::{InventoryContentPacket, McpePacket, SetPlayerGameTypePacket};
 use jolyne::valentine::{SetActorDataPacket, UpdateAbilitiesPacket, UpdateAttributesPacket};
+use jolyne::valentine::{actor_data_i_ds as actor_data_ids, actor_flags};
 use tracing::debug;
 
 const BUILD: u32 = 1;
@@ -31,11 +31,6 @@ const INSTANT_BUILD: u32 = 1 << 11;
 const FLY_SPEED: u32 = 1 << 13;
 const WALK_SPEED: u32 = 1 << 14;
 const VERTICAL_FLY_SPEED: u32 = 1 << 19;
-
-const BREATHING: u64 = 1 << 35;
-const CAN_CLIMB: u64 = 1 << 19;
-const HAS_COLLISION: u64 = 1 << 48;
-const AFFECTED_BY_GRAVITY: u64 = 1 << 49;
 
 impl GameServer {
     /// Send all join packets to a newly spawned player.
@@ -58,6 +53,13 @@ impl GameServer {
             .get_resource::<crate::ecs::resources::TickCounter>()
             .unwrap()
             .current;
+
+        for packet in world
+            .resource::<crate::entity::definition::properties::ActorPropertyRegistry>()
+            .packets()
+        {
+            let _ = session.send(McpePacket::from(packet.clone()));
+        }
 
         // Send gamemode to client (hides hunger bar in creative, etc.)
         let protocol_gamemode = match game_mode {
@@ -146,7 +148,7 @@ impl GameServer {
         let health = world.get::<Health>(entity).cloned().unwrap_or_default();
         let hunger = world.get::<Hunger>(entity).cloned().unwrap_or_default();
         let experience = world.get::<Experience>(entity).cloned().unwrap_or_default();
-        let attributes = vec![
+        let mut attributes = vec![
             attr(
                 "minecraft:health",
                 health.current,
@@ -177,21 +179,8 @@ impl GameServer {
                 0.0,
                 5.0,
             ),
-            attr(
-                "minecraft:player.level",
-                experience.level as f32,
-                i32::MAX as f32,
-                0.0,
-                i32::MAX as f32,
-            ),
-            attr(
-                "minecraft:player.experience",
-                experience.progress,
-                1.0,
-                0.0,
-                1.0,
-            ),
         ];
+        attributes.extend(crate::entity::xp_orb::experience_attributes(&experience));
 
         let _ = session.send(McpePacket::from(UpdateAttributesPacket {
             target_runtime_id: ActorRuntimeId {
@@ -203,56 +192,7 @@ impl GameServer {
             },
         }));
 
-        // Send entity metadata with proper flags for player behavior:
-        // - BREATHING: prevents drowning UI/air bubbles
-        // - CAN_CLIMB: enables ladder climbing
-        // - HAS_COLLISION: enables player collision
-        // - AFFECTED_BY_GRAVITY: enables gravity and jumping
-        let flags = BREATHING | CAN_CLIMB | HAS_COLLISION | AFFECTED_BY_GRAVITY;
-        let actor_data = vec![
-            DataItemEntry {
-                id: 0,
-                payload: DataItemEntryPayload::DataItemInt64Payload(DataItemInt64Payload {
-                    type_: EnumsDataItemType::Int64,
-                    value: flags as i64,
-                }),
-            },
-            DataItemEntry {
-                id: 7,
-                payload: DataItemEntryPayload::DataItemShortPayload(DataItemShortPayload {
-                    type_: EnumsDataItemType::Short,
-                    value: 300,
-                }),
-            },
-            DataItemEntry {
-                id: 42,
-                payload: DataItemEntryPayload::DataItemShortPayload(DataItemShortPayload {
-                    type_: EnumsDataItemType::Short,
-                    value: 300,
-                }),
-            },
-            DataItemEntry {
-                id: 53,
-                payload: DataItemEntryPayload::DataItemFloatPayload(DataItemFloatPayload {
-                    type_: EnumsDataItemType::Float,
-                    value: 0.6,
-                }),
-            },
-            DataItemEntry {
-                id: 54,
-                payload: DataItemEntryPayload::DataItemFloatPayload(DataItemFloatPayload {
-                    type_: EnumsDataItemType::Float,
-                    value: 1.8,
-                }),
-            },
-            DataItemEntry {
-                id: 38,
-                payload: DataItemEntryPayload::DataItemFloatPayload(DataItemFloatPayload {
-                    type_: EnumsDataItemType::Float,
-                    value: 1.0,
-                }),
-            },
-        ];
+        let actor_data = initial_player_actor_data();
 
         let _ = session.send(McpePacket::from(SetActorDataPacket {
             target_runtime_id: ActorRuntimeId {
@@ -268,99 +208,150 @@ impl GameServer {
         // Send inventory contents to enable inventory UI
         // Without these packets, the client won't allow opening the inventory
         self.send_inventory_contents(entity, session);
+        let crafting = world
+            .resource::<super::types::CraftingCatalogResource>()
+            .0
+            .wire_packet(super::types::block_network_ids(world));
+        let _ = session.send(McpePacket::from(crafting));
 
         // Creative content is sent via WorldTemplate during the StartGame sequence
         // (see jolyne::stream::server). Network IDs are now correct from required_item_list.json.
     }
 
-    /// Send initial inventory contents to the client.
-    ///
-    /// Sends restored inventory state, not an empty client-side replacement.
+    /// Initial item state matches BDS: main 36, armour 5, UI 54, offhand 1,
+    /// then the selected hotbar slot. The fifth armour slot is empty for players.
     fn send_inventory_contents(&self, entity: bevy_ecs::entity::Entity, session: &PlayerSession) {
+        use super::inventory::{
+            ARMOR_WINDOW, INVENTORY_WINDOW, OFFHAND_WINDOW, UI_WINDOW, UNNAMED_CONTAINER, wire_item,
+        };
         let world = self.ecs.world();
-        let items = &world.resource::<super::types::ItemRegistryResource>().0;
-        let blocks = &world.resource::<super::types::BlockRegistryResource>().0;
         let block_ids = super::types::block_network_ids(world);
         let encode = |stack: &crate::item::ItemStack| {
-            if stack.is_empty() {
-                return CerealizerNetworkItemStackDescriptorSerializedData::default();
-            }
-            let Some(network_id) = items
-                .get_by_name(&stack.item_id)
-                .map(|item| item.network_id)
-                .and_then(|id| i16::try_from(id).ok())
-            else {
-                tracing::warn!(item = %stack.item_id, "Stored inventory item has no protocol ID");
-                return CerealizerNetworkItemStackDescriptorSerializedData::default();
-            };
-            CerealizerNetworkItemStackDescriptorSerializedData {
-                id: network_id,
-                stacksize: u16::from(stack.count),
-                auxvalue: stack.damage as u32,
-                net_id_variant: None,
-                block_runtime_id: block_ids.item_block_to_wire(if stack.runtime_id != 0 {
-                    stack.runtime_id as u32
-                } else {
-                    blocks
-                        .get_by_name(&stack.item_id)
-                        .map(|block| block.min_state_id)
-                        .unwrap_or(0)
-                }),
-                user_data_buffer: crate::item::user_data::network_user_data(
-                    &stack.item_id,
-                    stack.nbt.as_deref(),
-                ),
-            }
+            wire_item(stack, block_ids).expect("registered player stack has encodable fields")
         };
         let main = world
             .get::<MainInventory>(entity)
             .expect("player inventory");
         let armour = world.get::<ArmourInventory>(entity).expect("player armour");
         let offhand = world.get::<OffhandSlot>(entity).expect("player offhand");
-        let cursor = world.get::<CursorItem>(entity).expect("player cursor");
+        let ui = world.get::<PlayerUi>(entity).expect("player UI");
         let empty_item = CerealizerNetworkItemStackDescriptorSerializedData::default();
-        let mut ui = vec![empty_item.clone(); 51];
-        ui[0] = encode(&cursor.0);
-        for (container_id, container_name, slots) in [
+        let mut armour_slots = Vec::with_capacity(5);
+        armour_slots.extend(armour.slots().iter().map(&encode));
+        armour_slots.push(empty_item.clone());
+        for (container_id, slots) in [
             (
-                0,
-                EnumsContainerEnumName::Inventorycontainer,
+                INVENTORY_WINDOW,
                 main.0.slots().iter().map(&encode).collect(),
             ),
-            (
-                119,
-                EnumsContainerEnumName::Offhandcontainer,
-                vec![encode(&offhand.0)],
-            ),
-            (
-                120,
-                EnumsContainerEnumName::Armorcontainer,
-                armour.slots().iter().map(&encode).collect(),
-            ),
-            (124, EnumsContainerEnumName::Cursorcontainer, ui),
+            (ARMOR_WINDOW, armour_slots),
+            (UI_WINDOW, ui.0.slots().iter().map(&encode).collect()),
+            (OFFHAND_WINDOW, vec![encode(&offhand.0)]),
         ] {
             let _ = session.send(McpePacket::from(InventoryContentPacket {
-                container_id,
+                container_id: container_id.into(),
                 slots,
-                full_container_name: FullContainerName {
-                    container_name,
-                    dynamic_id: None,
-                },
+                full_container_name: UNNAMED_CONTAINER,
                 storage_item: empty_item.clone(),
             }));
         }
         let held_slot = world.get::<HeldSlot>(entity).expect("player held slot").0;
-        let _ = session.send(McpePacket::from(jolyne::valentine::MobEquipmentPacket {
-            target_runtime_id: ActorRuntimeId {
-                actor_runtime_id: world
-                    .get::<RuntimeEntityId>(entity)
-                    .expect("player runtime ID")
-                    .0 as u64,
-            },
-            item: encode(main.hotbar(held_slot).expect("valid saved hotbar slot")),
-            slot: held_slot,
-            selected_slot: held_slot,
-            container_id: 0,
+        let _ = session.send(McpePacket::from(jolyne::valentine::PlayerHotbarPacket {
+            selected_slot: u32::from(held_slot),
+            container_id: INVENTORY_WINDOW,
+            shouldselectslot: true,
         }));
+    }
+}
+
+fn initial_player_actor_data() -> Vec<DataItemEntry> {
+    let flags = (1u64 << actor_flags::CANCLIMB)
+        | (1u64 << actor_flags::HAS_COLLISION)
+        | (1u64 << actor_flags::HAS_GRAVITY);
+    vec![
+        DataItemEntry {
+            id: actor_data_ids::RESERVED_0,
+            payload: DataItemEntryPayload::DataItemInt64Payload(DataItemInt64Payload {
+                type_: EnumsDataItemType::Int64,
+                value: flags as i64,
+            }),
+        },
+        DataItemEntry {
+            id: actor_data_ids::AIR_SUPPLY,
+            payload: DataItemEntryPayload::DataItemShortPayload(DataItemShortPayload {
+                type_: EnumsDataItemType::Short,
+                value: 300,
+            }),
+        },
+        DataItemEntry {
+            id: actor_data_ids::AIR_SUPPLY_MAX,
+            payload: DataItemEntryPayload::DataItemShortPayload(DataItemShortPayload {
+                type_: EnumsDataItemType::Short,
+                value: 300,
+            }),
+        },
+        DataItemEntry {
+            id: actor_data_ids::RESERVED_053,
+            payload: DataItemEntryPayload::DataItemFloatPayload(DataItemFloatPayload {
+                type_: EnumsDataItemType::Float,
+                value: 0.6,
+            }),
+        },
+        DataItemEntry {
+            id: actor_data_ids::RESERVED_054,
+            payload: DataItemEntryPayload::DataItemFloatPayload(DataItemFloatPayload {
+                type_: EnumsDataItemType::Float,
+                value: 1.8,
+            }),
+        },
+        DataItemEntry {
+            id: actor_data_ids::RESERVED_038,
+            payload: DataItemEntryPayload::DataItemFloatPayload(DataItemFloatPayload {
+                type_: EnumsDataItemType::Float,
+                value: 1.0,
+            }),
+        },
+    ]
+}
+
+#[cfg(test)]
+mod metadata_control_tests {
+    use super::*;
+    use valentine::bedrock::codec::BedrockCodec;
+
+    #[test]
+    fn initial_player_flags_match_native_join_control() {
+        let bytes = include_bytes!(
+            "../../../../bds-extractor/captures/1.26.51/member/join/00062-SetActorDataPacket.bin"
+        );
+        let mut input = &bytes[1..];
+        let native = SetActorDataPacket::decode(&mut input, ()).unwrap();
+        assert!(input.is_empty());
+        let actual = initial_player_actor_data();
+        for id in [0, 7, 42] {
+            let expected = &native
+                .actor_data
+                .data
+                .iter()
+                .find(|row| row.id == id)
+                .unwrap()
+                .payload;
+            let observed = &actual.iter().find(|row| row.id == id).unwrap().payload;
+            match (observed, expected) {
+                (
+                    DataItemEntryPayload::DataItemInt64Payload(actual),
+                    DataItemEntryPayload::DataItemInt64Payload(expected),
+                ) => {
+                    assert_eq!(actual.value, expected.value, "initial player metadata {id}");
+                }
+                (
+                    DataItemEntryPayload::DataItemShortPayload(actual),
+                    DataItemEntryPayload::DataItemShortPayload(expected),
+                ) => {
+                    assert_eq!(actual.value, expected.value, "initial player metadata {id}");
+                }
+                _ => panic!("native player metadata {id} payload type changed"),
+            }
+        }
     }
 }

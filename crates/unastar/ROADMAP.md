@@ -117,8 +117,9 @@ Foundation for multiple independent worlds with persistence.
 ### World Storage
 - [x] Chunk save/load (LevelDB-based `WorldProvider`)
 - [x] Dirty chunk tracking (`ChunkModified` component)
-- [x] Async save on chunk unload (save modified chunks before despawn)
+- [x] Save on chunk unload (chunk plus the mobs standing in it, before despawn)
 - [x] Save all chunks on shutdown
+- [x] Mob save/restore with their chunk (Bedrock actor NBT under `digp`/`actorprefix`; BlazeDB stores actors in the chunk entry)
 - [ ] World metadata file (seed, spawn point, time, weather, game rules)
 - [ ] World format versioning for future migrations
 
@@ -191,6 +192,7 @@ Non-player entities in the world.
 - [ ] Entity metadata sync (health, flags, equipment)
 - [ ] Entity movement and position broadcasting
 - [ ] Pathfinding basics
+- [x] Natural mob despawning (`minecraft:despawn` distance, inactivity and chance rules)
 
 ### Passive Mobs
 - [ ] Spawn mechanics (light level, biome, mob caps)

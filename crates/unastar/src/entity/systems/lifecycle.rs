@@ -13,11 +13,15 @@ pub fn tick_age(mut query: Query<&mut Age>) {
     }
 }
 
-/// System: Despawn dead entities.
-pub fn despawn_dead(mut commands: Commands, query: Query<(Entity, &Health), With<Living>>) {
+/// System: remove dead living entities that are not mobs. Mobs die through
+/// `entity::mob::combat::death` (death animation, loot, experience).
+#[allow(clippy::type_complexity)]
+pub fn despawn_dead(
+    mut commands: Commands,
+    query: Query<(Entity, &Health), (With<Living>, Without<Mob>)>,
+) {
     for (entity, health) in query.iter() {
         if health.is_dead() {
-            // TODO: Send death event, play death animation, drop items
             commands.entity(entity).despawn();
         }
     }
@@ -164,24 +168,16 @@ pub fn tick_projectile_lifetime(
     }
 }
 
-/// System: Tick mob age (for baby growth).
-pub fn tick_mob_age(mut query: Query<&mut MobAge, With<Mob>>) {
-    for mut mob_age in query.iter_mut() {
-        mob_age.tick();
-    }
-}
-
 #[cfg(test)]
 mod tests {
     use super::*;
     use crate::entity::{EntityRandom, spawn_item_drop};
-    use crate::item::ItemStack;
 
     fn item(world: &mut World, x: f64, id: &str, count: u8, age: u64) -> Entity {
         let entity = spawn_item_drop(
             world,
             DVec3::new(x, 64.0, 0.5),
-            ItemStack::new(id, count).with_max_stack_size(64),
+            crate::item::test_support::stack(id, count),
             None,
         )
         .unwrap();

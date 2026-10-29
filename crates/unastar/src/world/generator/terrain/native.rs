@@ -257,10 +257,10 @@ impl JavaGenerator {
             };
             let corners = self.preliminary_corners(pos, source);
             self.surface_system.build_surface(&mut dense, pos, source, corners, &mut biome_at);
-            {
-                // End the SURFACE profile stage before carving.
-                let _surface = surface;
-            }
+            // The scope is zero-sized without `worldgen-profile`; it must still
+            // end here so carvers below are attributed to their own stage.
+            #[allow(clippy::drop_non_drop)]
+            drop(surface);
             if stage == JavaTerrainStage::Carvers {
                 let _carvers = profile::scope(Stage::Carvers);
                 let mut carving = NativeCarveContext {

@@ -143,6 +143,19 @@ fn condition(v: &Value, path: &str) -> Result<LootCondition> {
             LootCondition::BlockStateProperty { properties }
         }
         "inverted" => LootCondition::Inverted(Box::new(condition(&v["term"], path)?)),
+        "entity_properties"
+            if v["entity"] == "this"
+                && v["properties"]
+                    .as_object()
+                    .is_some_and(|fields| fields.len() == 1)
+                && v["properties"]["on_fire"].is_boolean() =>
+        {
+            LootCondition::ThisOnFire(
+                v["properties"]["on_fire"]
+                    .as_bool()
+                    .expect("boolean fire state"),
+            )
+        }
         _ => LootCondition::Other {
             name: name.to_owned(),
             json: v.clone(),
@@ -152,18 +165,18 @@ fn condition(v: &Value, path: &str) -> Result<LootCondition> {
 
 fn function(v: &Value, path: &str) -> Result<LootFunction> {
     let name = text(&v["function"], path)?;
-    Ok(match bare(name) {
-        "set_count" => LootFunction::SetCount {
+    let kind = match bare(name) {
+        "set_count" => LootFunctionKind::SetCount {
             count: number(&v["count"], path)?,
             add: v.get("add").map_or(Ok(false), |v| {
                 v.as_bool()
                     .ok_or_else(|| ParseError::new(path, "add must be boolean"))
             })?,
         },
-        "set_data" => LootFunction::SetData {
+        "set_data" => LootFunctionKind::SetData {
             data: number(&v["data"], path)?,
         },
-        "looting_enchant" => LootFunction::LootingEnchant {
+        "looting_enchant" => LootFunctionKind::LootingEnchant {
             count: number(&v["count"], path)?,
             limit: v.get("limit").map_or(Ok(0), |v| uint(v, path))?,
         },
@@ -186,21 +199,27 @@ fn function(v: &Value, path: &str) -> Result<LootFunction> {
                     ));
                 }
             };
-            LootFunction::ApplyBonus {
+            LootFunctionKind::ApplyBonus {
                 id: enchantment_id(&enchantment),
                 enchantment,
                 formula,
             }
         }
-        "limit_count" => LootFunction::LimitCount {
+        "limit_count" => LootFunctionKind::LimitCount {
             min: v["limit"].get("min").map(|v| float(v, path)).transpose()?,
             max: v["limit"].get("max").map(|v| float(v, path)).transpose()?,
         },
-        "explosion_decay" => LootFunction::ExplosionDecay,
-        _ => LootFunction::Other {
+        "explosion_decay" => LootFunctionKind::ExplosionDecay,
+        "furnace_smelt" => LootFunctionKind::FurnaceSmelt,
+        "set_data_from_color_index" => LootFunctionKind::SetDataFromColorIndex,
+        _ => LootFunctionKind::Other {
             name: name.to_owned(),
             json: v.clone(),
         },
+    };
+    Ok(LootFunction {
+        conditions: array(v.get("conditions"), path, condition)?,
+        kind,
     })
 }
 

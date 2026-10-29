@@ -20,7 +20,7 @@ use crate::entity::components::{EffectType, Effects};
 use crate::item::ItemStack;
 use crate::item::enchant::{Enchantment, enchantment_level};
 use crate::registry::block::BlockEntry;
-use crate::registry::item::{ToolKind, ToolTier, tool_info};
+use crate::registry::item::{ToolKind, ToolTier};
 
 /// Minimum tool tier a block needs for drops, from its
 /// `minecraft:<tier>_tier_destructible` tag (harvest level as in
@@ -51,7 +51,7 @@ pub fn can_harvest(block: &BlockEntry, tool: Option<&ItemStack>) -> bool {
     }
     let Some(info) = tool
         .filter(|t| !t.is_empty())
-        .and_then(|t| tool_info(&t.item_id))
+        .and_then(|t| t.item().map(|item| item.tool_info()))
     else {
         return false;
     };
@@ -70,7 +70,7 @@ pub fn item_destroy_speed(tool: Option<&ItemStack>, block: &BlockEntry) -> f32 {
     let Some(tool) = tool.filter(|t| !t.is_empty()) else {
         return 1.0;
     };
-    let Some(info) = tool_info(&tool.item_id) else {
+    let Some(info) = tool.item().map(|item| item.tool_info()) else {
         return 1.0;
     };
     let id = block.string_id.as_str();
@@ -203,7 +203,11 @@ pub fn break_ticks(
 /// with hardness > 0, 2 for swords, 0 for hardness-0 blocks. Shears only wear
 /// on blocks they are made for.
 pub fn mining_wear(block: &BlockEntry, tool: &ItemStack) -> i32 {
-    let Some(info) = tool_info(&tool.item_id).filter(|info| info.max_damage > 0) else {
+    let Some(info) = tool
+        .item()
+        .map(|item| item.tool_info())
+        .filter(|info| info.max_damage > 0)
+    else {
         return 0;
     };
     match info.kind {
@@ -240,7 +244,7 @@ mod tests {
     }
 
     fn tool(name: &str) -> ItemStack {
-        ItemStack::new(name, 1)
+        crate::item::test_support::stack(name, 1)
     }
 
     const GROUND: MiningConditions = MiningConditions {

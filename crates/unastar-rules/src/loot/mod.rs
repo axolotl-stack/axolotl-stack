@@ -1,8 +1,8 @@
 //! Shared loot data and evaluator (D2/D10). Vanilla canonical JSON is embedded
 //! by unastar-data and decoded once; the engine has no ECS/item dependency.
-//! The parked block-table extensions retain their explicitly recorded Java
-//! semantics. ITEMS I11 owns completing vanilla conditions/functions and the
-//! BDS RNG/draw-order contract; unsupported features return an error.
+//! Historical block-table extensions retain their recorded Java semantic
+//! deviations. Function guards and recipe-backed furnace transformations share
+//! this engine; native RNG/draw-order calibration remains separate work.
 
 mod decode;
 mod evaluate;
@@ -10,6 +10,18 @@ mod evaluate;
 pub use decode::decode_table;
 pub use evaluate::{LootContext, LootDrop, LootError, roll};
 use std::collections::BTreeMap;
+
+/// Borrowed canonical recipe output. Smelting preserves the loot count.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub struct SmeltedItem<'a> {
+    pub identifier: &'a str,
+    pub data: i16,
+}
+
+/// Startup-compiled furnace lookup supplied by the caller's recipe registry.
+pub trait FurnaceSmelt {
+    fn smelt(&self, identifier: &str, data: i16) -> Option<SmeltedItem<'_>>;
+}
 
 #[derive(Debug, Clone, Copy, PartialEq)]
 pub enum LootNumber {
@@ -64,14 +76,24 @@ pub enum LootCondition {
         properties: Vec<(String, LootStateValue)>,
     },
     Inverted(Box<LootCondition>),
+    /// The supplied THIS actor's fire state; an absent actor does not match.
+    ThisOnFire(bool),
     Other {
         name: String,
         json: serde_json::Value,
     },
 }
 
+/// Conditions guard one action, including its context access and RNG draws.
 #[derive(Debug, Clone, PartialEq)]
-pub enum LootFunction {
+pub struct LootFunction {
+    pub conditions: Vec<LootCondition>,
+    pub kind: LootFunctionKind,
+}
+
+/// A typed function action; its source conditions live in [`LootFunction`].
+#[derive(Debug, Clone, PartialEq)]
+pub enum LootFunctionKind {
     SetCount {
         count: LootNumber,
         add: bool,
@@ -93,6 +115,10 @@ pub enum LootFunction {
         max: Option<f32>,
     },
     ExplosionDecay,
+    FurnaceSmelt,
+    /// Data value from the THIS actor's palette colour; a legacy name that
+    /// picks its item by data value (`minecraft:wool`) becomes that item.
+    SetDataFromColorIndex,
     Other {
         name: String,
         json: serde_json::Value,
@@ -164,3 +190,6 @@ impl LootTables {
         self.tables.is_empty()
     }
 }
+
+#[cfg(test)]
+mod tests;

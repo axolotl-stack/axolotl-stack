@@ -694,6 +694,7 @@ fn actor_spawn_packet(
     items: &crate::registry::ItemRegistry,
     block_ids: crate::registry::block::BlockNetworkIds,
 ) -> Option<McpePacket> {
+    use jolyne::valentine::actor_data_i_ds as actor_data_ids;
     use jolyne::valentine::types::{
         DataItemEntry, DataItemEntryPayload, DataItemInt64Payload, EnumsDataItemType,
     };
@@ -719,14 +720,14 @@ fn actor_spawn_packet(
             actor_data: SynchedActorDataCopyableDataList {
                 data: vec![
                     DataItemEntry {
-                        id: 2,
+                        id: actor_data_ids::VARIANT,
                         payload: DataItemEntryPayload::DataItemIntPayload(DataItemIntPayload {
                             type_: EnumsDataItemType::Int,
                             value: block_ids.to_wire(falling.state) as i32,
                         }),
                     },
-                    float(53, body.width as f32),
-                    float(54, body.height as f32),
+                    float(actor_data_ids::RESERVED_053, body.width as f32),
+                    float(actor_data_ids::RESERVED_054, body.height as f32),
                 ],
             },
             ..Default::default()
@@ -746,7 +747,7 @@ fn actor_spawn_packet(
         velocity: wire_vec(velocity),
         entity_data: SynchedActorDataCopyableDataList {
             data: vec![DataItemEntry {
-                id: crate::entity::metadata::keys::OWNER,
+                id: actor_data_ids::OWNER,
                 payload: DataItemEntryPayload::DataItemInt64Payload(DataItemInt64Payload {
                     type_: EnumsDataItemType::Int64,
                     value: owner.0,
@@ -760,7 +761,8 @@ fn actor_spawn_packet(
 /// System: keep every non-player actor spawned on exactly the clients that
 /// view its chunk, and stream its movement to them.
 ///
-/// New viewers get the spawn packet (`AddItemActor` for items), players that
+/// New viewers get the spawn packet (`AddItemActor` for items, `AddActor`
+/// for falling blocks and experience orbs), players that
 /// no longer view the chunk get `RemoveActor`, and existing viewers get
 /// `MoveActorAbsolute` + `SetActorMotion` when the position or velocity
 /// changed and `ActorEvent(UpdateStackSize)` (event 69) when a merge or
@@ -772,20 +774,35 @@ pub fn sync_actor_viewers(
     sessions: Query<&PlayerSession>,
     items: Res<ItemRegistryResource>,
     config: Res<crate::server::game::types::ServerConfigResource>,
-    mut actors: Query<(
-        &RuntimeId,
-        &Position,
-        &Velocity,
-        &OnGround,
-        &PhysicsBody,
-        &mut ActorViewers,
-        Option<&ItemEntityStack>,
-        Option<&ItemOwner>,
-        Option<&FallingBlock>,
-    )>,
+    mut actors: Query<
+        (
+            &RuntimeId,
+            &Position,
+            &Velocity,
+            &OnGround,
+            &PhysicsBody,
+            &mut ActorViewers,
+            Option<&ItemEntityStack>,
+            Option<&ItemOwner>,
+            Option<&FallingBlock>,
+            Option<&crate::entity::xp_orb::XpOrb>,
+        ),
+        // Mobs replicate through `entity::mob::net::network::sync_mob_viewers`.
+        Without<crate::entity::components::Mob>,
+    >,
 ) {
-    for (runtime_id, position, velocity, on_ground, body, mut viewers, stack, owner, falling) in
-        actors.iter_mut()
+    for (
+        runtime_id,
+        position,
+        velocity,
+        on_ground,
+        body,
+        mut viewers,
+        stack,
+        owner,
+        falling,
+        orb,
+    ) in actors.iter_mut()
     {
         let (cx, cz) = crate::world::ecs::world_to_chunk_coords(
             position.0.x.floor() as i32,
@@ -866,8 +883,14 @@ pub fn sync_actor_viewers(
             .copied()
             .filter(|v| !viewers.viewers.contains(v))
             .collect();
-        if !fresh.is_empty()
-            && let Some(spawn) = actor_spawn_packet(
+        let spawn = || match orb {
+            Some(orb) => Some(McpePacket::from(crate::entity::xp_orb::add_actor_packet(
+                runtime_id.0,
+                wire_position,
+                velocity.0,
+                orb,
+            ))),
+            None => actor_spawn_packet(
                 runtime_id.0,
                 wire_position,
                 velocity.0,
@@ -876,14 +899,18 @@ pub fn sync_actor_viewers(
                 body,
                 &items.0,
                 config.0.block_network_ids,
-            )
+            ),
+        };
+        if !fresh.is_empty()
+            && let Some(spawn) = spawn()
         {
             for viewer in &fresh {
-                if let Ok(session) = sessions.get(*viewer) {
-                    let _ = session.send(spawn.clone());
+                if let Ok(session) = sessions.get(*viewer)
+                    && session.send(spawn.clone())
+                {
+                    viewers.viewers.push(*viewer);
                 }
             }
-            viewers.viewers.extend(fresh);
         }
 
         if moved {
@@ -902,7 +929,6 @@ pub fn sync_actor_viewers(
 mod actor_viewer_tests {
     use super::*;
     use crate::entity::spawn_item_drop;
-    use crate::item::ItemStack;
     use crate::world::ecs::ChunkPosition;
     use glam::DVec3;
     use jolyne::valentine::McpePacketData;
@@ -979,12 +1005,49 @@ mod actor_viewer_tests {
     }
 
     #[test]
+    fn rejected_spawn_is_not_recorded_as_visible_and_reconciles_after_backpressure() {
+        let (mut world, _, player, mut rx) = setup();
+        let session = world.get::<PlayerSession>(player).unwrap();
+        let filler = McpePacket::from(build_remove_actor_packet(99));
+        while session.send(filler.clone()) {}
+        let sand = crate::registry::BlockRegistry::vanilla()
+            .default_state_id_by_name("minecraft:sand")
+            .unwrap();
+        let actor = world
+            .spawn((
+                FallingBlock { state: sand },
+                Position(DVec3::new(4.5, 70.0, 4.5)),
+                Velocity::default(),
+                OnGround(false),
+                PhysicsBody::FALLING_BLOCK,
+                RuntimeId(7),
+                ActorViewers::default(),
+            ))
+            .id();
+        sync(&mut world);
+        assert!(
+            world.get::<ActorViewers>(actor).unwrap().viewers.is_empty(),
+            "a rejected AddActor must not make an actor visible"
+        );
+        drain(&mut rx);
+        sync(&mut world);
+        let packets = drain(&mut rx);
+        let [McpePacketData::AddActorPacket(add)] = packets.as_slice() else {
+            panic!("expected deferred AddActor, got {packets:?}");
+        };
+        assert_eq!(add.target_runtime_id.actor_runtime_id, 7);
+        assert_eq!(world.get::<ActorViewers>(actor).unwrap().viewers, [player]);
+        sync(&mut world);
+        assert!(drain(&mut rx).is_empty(), "accepted spawn must not repeat");
+    }
+
+    #[test]
     fn items_spawn_move_resize_and_leave_with_their_chunk_viewers() {
         let (mut world, chunk, player, mut rx) = setup();
         let item = spawn_item_drop(
             &mut world,
             DVec3::new(4.5, 64.0, 4.5),
-            ItemStack::new("minecraft:dirt", 2).with_max_stack_size(64),
+            crate::item::test_support::stack("minecraft:dirt", 2),
             None,
         )
         .unwrap();

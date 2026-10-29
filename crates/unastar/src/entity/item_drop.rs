@@ -74,6 +74,16 @@ fn pop_velocity(rng: &mut impl Rng) -> DVec3 {
     )
 }
 
+/// Resolve the source actor's identity without mixing player and actor domains.
+/// A player missing its player identity is not repaired with a generic actor ID.
+pub(crate) fn drop_thrower_id(world: &World, entity: Entity) -> Option<i64> {
+    if world.get::<Player>(entity).is_some() {
+        world.get::<RuntimeEntityId>(entity).map(|id| id.0)
+    } else {
+        world.get::<RuntimeId>(entity).map(|id| id.0)
+    }
+}
+
 /// Spawn a dropped item entity carrying `stack`.
 ///
 /// - `thrower = None` (block drops, container contents): the item spawns at
@@ -98,7 +108,7 @@ pub fn spawn_item_drop(
     let source = if let Some(entity) = thrower {
         Some((
             *world.get::<Rotation>(entity)?,
-            world.get::<RuntimeId>(entity)?.0,
+            drop_thrower_id(world, entity)?,
         ))
     } else {
         None
@@ -155,7 +165,7 @@ mod tests {
         let entity = spawn_item_drop(
             &mut world,
             DVec3::new(1.5, 64.0, 1.5),
-            ItemStack::new("minecraft:cobblestone", 1),
+            crate::item::test_support::stack("minecraft:cobblestone", 1),
             None,
         )
         .unwrap();
@@ -199,7 +209,7 @@ mod tests {
         let entity = spawn_item_drop(
             &mut world,
             eye,
-            ItemStack::new("minecraft:stone", 1),
+            crate::item::test_support::stack("minecraft:stone", 1),
             Some(player),
         )
         .unwrap();
@@ -246,7 +256,7 @@ mod tests {
             let item = spawn_item_drop(
                 &mut world,
                 DVec3::ZERO,
-                ItemStack::new("minecraft:stone", 1),
+                crate::item::test_support::stack("minecraft:stone", 1),
                 Some(player),
             )
             .unwrap();

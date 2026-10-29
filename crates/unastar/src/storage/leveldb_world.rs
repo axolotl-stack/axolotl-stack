@@ -10,7 +10,9 @@ use std::sync::Arc;
 use tokio::task;
 
 use crate::storage::keys;
-use crate::storage::provider::{ChunkColumn, StorageError, StorageResult, WorldProvider};
+use crate::storage::provider::{
+    ChunkColumn, StorageError, StorageResult, StoredActor, WorldProvider,
+};
 use crate::world::block_entity::BlockEntity;
 use crate::world::chunk::DATA3D_HEIGHTMAP_LEN;
 use crate::world::{Chunk, ChunkPos};
@@ -139,7 +141,38 @@ impl WorldProvider for LevelDBWorldProvider {
                         }
                     }
 
-                    Ok(Some(ChunkColumn::new(chunk)))
+                    let mut column = ChunkColumn::new(chunk);
+                    // Actors live under `actorprefix<id>` records listed by the
+                    // chunk's `digp` digest of concatenated 8-byte IDs.
+                    if let Some(digest) = db
+                        .get(&keys::entity_ids_key(pos, dim), &read_opts)
+                        .map_err(StorageError::Database)?
+                    {
+                        if digest.len() % 8 != 0 {
+                            return Err(StorageError::Deserialization(format!(
+                                "chunk ({}, {}) actor digest is {} bytes, not a list of 8-byte IDs",
+                                pos.x,
+                                pos.z,
+                                digest.len()
+                            )));
+                        }
+                        for id in digest.chunks_exact(8) {
+                            let unique_id = i64::from_le_bytes(id.try_into().expect("8 bytes"));
+                            match db
+                                .get(&keys::entity_data_key(unique_id), &read_opts)
+                                .map_err(StorageError::Database)?
+                            {
+                                Some(nbt) => column.actors.push(StoredActor { unique_id, nbt }),
+                                None => tracing::warn!(
+                                    chunk = ?(pos.x, pos.z),
+                                    unique_id,
+                                    "Actor listed by the chunk digest has no record; skipping it"
+                                ),
+                            }
+                        }
+                    }
+
+                    Ok(Some(column))
                 }
                 Ok(None) => Ok(None),
                 Err(e) => Err(StorageError::Database(e)),
@@ -160,6 +193,18 @@ impl WorldProvider for LevelDBWorldProvider {
         let biome_data = col.chunk.encode_biomes_disk();
         let biome_key = keys::biome_key(pos, dim);
         let block_entities_key = keys::block_entities_key(pos, dim);
+        let actor_digest_key = keys::entity_ids_key(pos, dim);
+        let mut actor_digest = Vec::with_capacity(col.actors.len() * 8);
+        let mut actor_records = Vec::with_capacity(col.actors.len());
+        for actor in &col.actors {
+            actor_digest.extend_from_slice(&actor.unique_id.to_le_bytes());
+            actor_records.push((keys::entity_data_key(actor.unique_id), actor.nbt.clone()));
+        }
+        let removed_actor_keys: Vec<Vec<u8>> = col
+            .removed_actors
+            .iter()
+            .map(|&id| keys::entity_data_key(id))
+            .collect();
         let mut block_entities = Vec::new();
         for entity in col.chunk.block_entities() {
             let [x, _, z] = entity.position();
@@ -209,6 +254,20 @@ impl WorldProvider for LevelDBWorldProvider {
                 batch.delete(&block_entities_key);
             } else {
                 batch.put(&block_entities_key, &block_entities);
+            }
+
+            // The digest replaces the chunk's actor list; records of actors
+            // that are gone for good are deleted.
+            for key in &removed_actor_keys {
+                batch.delete(key);
+            }
+            if actor_digest.is_empty() {
+                batch.delete(&actor_digest_key);
+            } else {
+                batch.put(&actor_digest_key, &actor_digest);
+            }
+            for (key, nbt) in &actor_records {
+                batch.put(key, nbt);
             }
 
             // Write batch atomically - method is on WriteBatch, takes &db
@@ -294,5 +353,56 @@ mod tests {
             load_with_data3d(&garbage).await,
             Err(StorageError::Deserialization(_))
         ));
+    }
+
+    #[tokio::test]
+    async fn actors_are_stored_under_a_chunk_digest_and_removed_records_are_deleted() {
+        let dir = std::env::temp_dir().join(format!("unastar-leveldb-{}", uuid::Uuid::new_v4()));
+        let provider = LevelDBWorldProvider::open(&dir, 0).expect("open leveldb");
+        let pos = ChunkPos::new(-3, 4);
+        let actor = |unique_id: i64| StoredActor {
+            unique_id,
+            nbt: vec![10, 0, 0, 0, unique_id as u8],
+        };
+        let mut column = ChunkColumn::new(Chunk::new(pos.x, pos.z));
+        column.actors = vec![actor(-4294967295), actor(7)];
+        provider.save_column(pos, 0, &column).await.unwrap();
+
+        let digest = provider
+            .db
+            .get(&keys::entity_ids_key(pos, 0), &ReadOptions::new())
+            .unwrap()
+            .expect("digp record");
+        let mut expected = (-4294967295i64).to_le_bytes().to_vec();
+        expected.extend_from_slice(&7i64.to_le_bytes());
+        assert_eq!(digest, expected);
+        let loaded = provider.load_column(pos, 0).await.unwrap().unwrap();
+        assert_eq!(loaded.actors, column.actors);
+
+        column.actors = vec![actor(7)];
+        column.removed_actors = vec![-4294967295];
+        provider.save_column(pos, 0, &column).await.unwrap();
+        let loaded = provider.load_column(pos, 0).await.unwrap().unwrap();
+        assert_eq!(loaded.actors, [actor(7)]);
+        assert!(
+            provider
+                .db
+                .get(&keys::entity_data_key(-4294967295), &ReadOptions::new())
+                .unwrap()
+                .is_none()
+        );
+
+        column.actors.clear();
+        column.removed_actors = vec![7];
+        provider.save_column(pos, 0, &column).await.unwrap();
+        assert!(
+            provider
+                .db
+                .get(&keys::entity_ids_key(pos, 0), &ReadOptions::new())
+                .unwrap()
+                .is_none()
+        );
+        drop(provider);
+        let _ = std::fs::remove_dir_all(&dir);
     }
 }

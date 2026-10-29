@@ -18,7 +18,7 @@ use glam::{DVec3, IVec3};
 use crate::entity::components::*;
 use crate::registry::BlockRegistry;
 use crate::registry::block::{LiquidKind, LiquidState};
-use crate::registry::collision::{Aabb, block_collision_boxes, connected_state};
+use crate::registry::collision::{Aabb, block_collision_aabbs, connected_state};
 use crate::server::game::types::BlockRegistryResource;
 use crate::world::chunk::{MIN_Y, SUBCHUNK_COUNT};
 use crate::world::ecs::{ChunkData, ChunkManager, world_to_chunk_coords, world_to_local_coords};
@@ -86,43 +86,56 @@ impl BlockSource for World {
 /// the connections their neighbours give them
 /// ([`crate::registry::collision::connected_state`]).
 pub fn collect_block_boxes(blocks: &impl BlockSource, area: Aabb, out: &mut Vec<Aabb>) {
+    any_block_box(blocks, area, |aabb| {
+        out.push(aabb);
+        false
+    });
+}
+
+/// Visit intersecting native geometry without a per-query local-box buffer.
+/// Returning true from `accept` stops immediately.
+fn any_block_box(
+    blocks: &impl BlockSource,
+    area: Aabb,
+    mut accept: impl FnMut(Aabb) -> bool,
+) -> bool {
     let min = area.min.floor().as_ivec3();
     let max = area.max.floor().as_ivec3();
     let registry = blocks.registry();
-    let mut local = Vec::new();
     // One extra layer below: fences and walls reach 0.5 into the block above.
     for y in (min.y - 1)..=max.y {
         for x in min.x..=max.x {
             for z in min.z..=max.z {
                 let pos = IVec3::new(x, y, z);
                 let origin = pos.as_dvec3();
-                local.clear();
                 match blocks.block_at(pos) {
-                    None => local.push(Aabb::new(DVec3::ZERO, DVec3::ONE)),
+                    None => {
+                        let aabb = Aabb::new(origin, origin + DVec3::ONE);
+                        if aabb.intersects(&area) && accept(aabb) {
+                            return true;
+                        }
+                    }
                     Some(runtime_id) => {
                         if registry.get_by_runtime_id(runtime_id).is_some() {
                             let state =
                                 connected_state(registry, pos, runtime_id, |p| blocks.block_at(p));
-                            block_collision_boxes(state, &mut local);
+                            for aabb in block_collision_aabbs(state).map(|b| b.offset(origin)) {
+                                if aabb.intersects(&area) && accept(aabb) {
+                                    return true;
+                                }
+                            }
                         }
                     }
                 }
-                out.extend(
-                    local
-                        .iter()
-                        .map(|b| b.offset(origin))
-                        .filter(|b| b.intersects(&area)),
-                );
             }
         }
     }
+    false
 }
 
 /// Whether any block collision box intersects `area`.
 pub fn collides_with_blocks(blocks: &impl BlockSource, area: Aabb) -> bool {
-    let mut boxes = Vec::new();
-    collect_block_boxes(blocks, area, &mut boxes);
-    !boxes.is_empty()
+    any_block_box(blocks, area, |_| true)
 }
 
 /// Outcome of one collision-resolved move.
@@ -359,6 +372,106 @@ fn item_flotation(
         .map(|_| LiquidKind::Lava)
 }
 
+/// The liquid a living body is in: any water (else lava) volume overlapping
+/// its box shrunk by 0.001. A liquid block's surface is `1 - depth/9` above
+/// its base; falling liquid fills the block.
+pub fn living_liquid(blocks: &impl BlockSource, aabb: Aabb) -> Option<LiquidKind> {
+    let inner = Aabb::new(
+        aabb.min + DVec3::splat(0.001),
+        aabb.max - DVec3::splat(0.001),
+    );
+    let min = inner.min.floor().as_ivec3();
+    let max = inner.max.floor().as_ivec3();
+    let mut lava = false;
+    for y in min.y..=max.y {
+        for x in min.x..=max.x {
+            for z in min.z..=max.z {
+                let Some(state) = liquid_at(blocks, IVec3::new(x, y, z)) else {
+                    continue;
+                };
+                let surface = if state.depth >= 8 {
+                    f64::from(y) + 1.0
+                } else {
+                    f64::from(y) + 1.0 - f64::from(state.depth) / 9.0
+                };
+                if inner.min.y >= surface {
+                    continue;
+                }
+                match state.kind {
+                    LiquidKind::Water => return Some(LiquidKind::Water),
+                    LiquidKind::Lava => lava = true,
+                }
+            }
+        }
+    }
+    lava.then_some(LiquidKind::Lava)
+}
+
+/// Block friction under a living body: the block at `feet.y - 0.1`, with air
+/// (or an unloaded/unknown block) counting as the default 0.6.
+pub fn living_block_friction(blocks: &impl BlockSource, feet: DVec3) -> f64 {
+    use crate::entity::mob::constants::{DEFAULT_BLOCK_FRICTION, FRICTION_SAMPLE_DEPTH};
+    let pos = DVec3::new(feet.x, feet.y - FRICTION_SAMPLE_DEPTH, feet.z)
+        .floor()
+        .as_ivec3();
+    blocks
+        .block_at(pos)
+        .filter(|id| *id != *crate::world::chunk::blocks::AIR)
+        .and_then(|id| blocks.registry().get_by_runtime_id(id))
+        .map_or(DEFAULT_BLOCK_FRICTION, |entry| {
+            f64::from(entry.data.friction)
+        })
+}
+
+/// Post-move gravity, drag and friction of a living body. In water or lava
+/// the vertical step is `(v.y - 0.02) * drag` and both horizontal axes use
+/// the same drag; otherwise gravity and drag apply as on land, with the
+/// support block's friction × 0.91 on the ground and 0.91 in the air.
+/// Horizontal components at most 1e-7 in magnitude are zeroed. A body with
+/// wing-flap drag that travels through air then scales a negative vertical
+/// velocity by `1 - drag` (last, after friction, as BDS orders its drags).
+fn apply_living_drag(
+    blocks: &impl BlockSource,
+    body: &PhysicsBody,
+    feet: DVec3,
+    on_ground: bool,
+    liquid: Option<LiquidKind>,
+    velocity: &mut DVec3,
+) {
+    use crate::entity::mob::constants::{LAVA_DRAG, LIQUID_GRAVITY, WATER_DRAG};
+    let liquid_drag = liquid.map(|kind| match kind {
+        LiquidKind::Water => WATER_DRAG,
+        LiquidKind::Lava => LAVA_DRAG,
+    });
+    let horizontal = if let Some(drag) = liquid_drag {
+        let gravity = if body.gravity > 0.0 {
+            LIQUID_GRAVITY
+        } else {
+            0.0
+        };
+        velocity.y = (velocity.y - gravity) * drag;
+        drag
+    } else {
+        velocity.y = (velocity.y - body.gravity) * body.vertical_drag;
+        if let Some(flap) = body.wing_flap_drag
+            && velocity.y < 0.0
+        {
+            velocity.y *= 1.0 - flap;
+        }
+        if on_ground {
+            body.horizontal_drag * living_block_friction(blocks, feet)
+        } else {
+            body.horizontal_drag
+        }
+    };
+    for axis in [&mut velocity.x, &mut velocity.z] {
+        *axis *= horizontal;
+        if axis.abs() <= 1.0e-7 {
+            *axis = 0.0;
+        }
+    }
+}
+
 /// Advance one entity by one tick at its current (pre-lifecycle-update) age.
 /// Returns the new feet position.
 pub fn step_body(
@@ -369,6 +482,19 @@ pub fn step_body(
     on_ground: &mut bool,
     age: u64,
 ) -> DVec3 {
+    step_body_sensed(blocks, body, position, velocity, on_ground, age).0
+}
+
+/// [`step_body`], also returning the liquid a living body travelled in
+/// (sensed before the move; `None` for other models).
+pub fn step_body_sensed(
+    blocks: &impl BlockSource,
+    body: &PhysicsBody,
+    position: DVec3,
+    velocity: &mut DVec3,
+    on_ground: &mut bool,
+    age: u64,
+) -> (DVec3, Option<LiquidKind>) {
     let aabb = Aabb::from_feet(position, body.width, body.height);
     let flotation = if body.model == PhysicsModel::Item {
         let foot_pos = position.floor().as_ivec3();
@@ -390,9 +516,14 @@ pub fn step_body(
         // Skipped lava ticks retain those forces, but do not move or apply drag.
         if *on_ground && velocity.length_squared() <= 0.0001 && !in_water && !age.is_multiple_of(4)
         {
-            return position;
+            return (position, None);
         }
         flotation
+    } else {
+        None
+    };
+    let living_liquid = if body.model == PhysicsModel::Living {
+        living_liquid(blocks, aabb)
     } else {
         None
     };
@@ -414,7 +545,12 @@ pub fn step_body(
     let feet = result.aabb.feet();
     if body.model == PhysicsModel::FallingBlock && *on_ground {
         *velocity = DVec3::ZERO;
-        return feet;
+        return (feet, None);
+    }
+
+    if body.model == PhysicsModel::Living {
+        apply_living_drag(blocks, body, feet, *on_ground, living_liquid, velocity);
+        return (feet, living_liquid);
     }
 
     let mut horizontal = body.horizontal_drag;
@@ -433,12 +569,16 @@ pub fn step_body(
     }
     velocity.x *= horizontal;
     velocity.z *= horizontal;
-    feet
+    (feet, None)
 }
 
 /// System: move every physics body one tick against block collision.
 ///
-/// Bodies whose own chunk is not loaded are frozen until it loads.
+/// Bodies whose own chunk is not loaded are frozen until it loads. Bodies
+/// with a [`FallDistance`] accumulate the distance they fall: while airborne
+/// every downward move adds to it and any other move resets it, travelling
+/// in water resets it, and touching the ground records it as `landed`.
+#[allow(clippy::type_complexity)]
 pub fn tick_physics(
     blocks: WorldBlocks,
     mut query: Query<(
@@ -447,15 +587,23 @@ pub fn tick_physics(
         &mut OnGround,
         &PhysicsBody,
         &Age,
+        Option<&mut FallDistance>,
     )>,
 ) {
-    for (mut position, mut velocity, mut on_ground, body, age) in query.iter_mut() {
+    for (mut position, mut velocity, mut on_ground, body, age, fall) in query.iter_mut() {
         if blocks.block_at(position.0.floor().as_ivec3()).is_none() {
             continue;
         }
         let mut vel = velocity.0;
         let mut grounded = on_ground.0;
-        let feet = step_body(&blocks, body, position.0, &mut vel, &mut grounded, age.0);
+        let (feet, liquid) =
+            step_body_sensed(&blocks, body, position.0, &mut vel, &mut grounded, age.0);
+        if let Some(mut fall) = fall {
+            let next = fall.after_move(feet.y - position.0.y, grounded, liquid);
+            if *fall != next {
+                *fall = next;
+            }
+        }
         if position.0 != feet {
             position.0 = feet;
         }

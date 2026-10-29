@@ -25,6 +25,18 @@ pub struct ServerWorldTemplate(pub Arc<jolyne::WorldTemplate>);
 #[derive(Resource)]
 pub struct ItemRegistryResource(pub Arc<crate::registry::ItemRegistry>);
 
+/// Frozen, startup-compiled recipe snapshot shared by crafting and furnace loot.
+#[derive(Resource)]
+pub struct RecipeRegistryResource(pub Arc<unastar_data::recipes::RecipeRegistry>);
+
+/// Frozen advertisement and network-id/source index, built with the recipe snapshot.
+#[derive(Resource)]
+pub struct CraftingCatalogResource(pub crate::crafting::CraftingCatalog);
+
+/// Mandatory packet-authoritative grid execution index, frozen after the catalog.
+#[derive(Resource)]
+pub struct CraftingExecutorResource(pub Arc<crate::crafting::execution::CraftingExecutor>);
+
 /// Wrapper for BlockRegistry to serve as an ECS Resource.
 #[derive(Resource)]
 pub struct BlockRegistryResource(pub Arc<crate::registry::BlockRegistry>);

@@ -176,7 +176,8 @@ impl ChunkPipeline {
                 .map(|(dx, dz)| self.proto(ChunkPos::new(origin.x + dx, origin.z + dz)));
             let refs: [&ProtoChunk; 9] = std::array::from_fn(|slot| &*protos[slot]);
             let mut region = {
-                let _region_stage = unastar_noise::profile::scope(unastar_noise::profile::Stage::Region);
+                let _region_stage =
+                    unastar_noise::profile::scope(unastar_noise::profile::Stage::Region);
                 DecorationRegion::new_with_bounds(
                     self.generator.seed(),
                     origin,
