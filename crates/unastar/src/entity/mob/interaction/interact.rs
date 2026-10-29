@@ -13,9 +13,12 @@
 use bevy_ecs::prelude::*;
 use glam::{DVec3, IVec3};
 use jolyne::valentine::actor_flags;
-use jolyne::valentine::types::{ActorRuntimeId, EnumsActorEvent, Vec3};
+use jolyne::valentine::types::{
+    ActorRuntimeId, EnumsActorEvent, EnumsAnimatePacketPayloadAction, Vec3,
+};
 use jolyne::valentine::{
-    ActorEventPacket, ItemUseOnActorInventoryTransaction, LevelSoundEventPacket, McpePacket,
+    ActorEventPacket, AnimatePacket, ItemUseOnActorInventoryTransaction, LevelSoundEventPacket,
+    McpePacket,
 };
 use rand::Rng;
 use tracing::warn;
@@ -23,7 +26,8 @@ use tracing::warn;
 use crate::ecs::resources::TickCounter;
 use crate::entity::EntityRandom;
 use crate::entity::components::{
-    ActorViewers, GameMode, HeldSlot, MainInventory, PlayerSession, Position, RuntimeId,
+    ActorViewers, GameMode, HeldSlot, MainInventory, PlayerSession, Position, RuntimeEntityId,
+    RuntimeId,
 };
 use crate::entity::definition::flags::ActorFlags;
 use crate::entity::definition::metadata::EntityMetadata;
@@ -264,7 +268,8 @@ pub struct InteractCooldown {
 /// The first `minecraft:interact` row whose filter passes (other = the
 /// player) and whose cooldown is not running: uses or wears the held item,
 /// hands out `transform_to_item`, drops `spawn_items` loot, plays the row's
-/// sounds, starts the cooldown and fires the row's event on the mob.
+/// sounds at the middle of the mob's body, starts the cooldown, fires the
+/// row's event on the mob and, with `swing`, swings the player's arm.
 fn authored_interaction(world: &mut World, player: Entity, target: Entity) -> bool {
     let Some(config) = world.get::<InteractConfig>(target) else {
         return false;
@@ -331,7 +336,27 @@ fn authored_interaction(world: &mut World, player: Entity, target: Entity) -> bo
             None => warn!(event = %event.0, "interaction event is not defined"),
         }
     }
+    if row.swing {
+        swing_arm(world, player);
+    }
     true
+}
+
+/// A `swing` row swings the player's arm: `Animate` swing (source
+/// interact) to the player and its viewers.
+fn swing_arm(world: &World, player: Entity) {
+    let Some(runtime_id) = world.get::<RuntimeEntityId>(player) else {
+        return;
+    };
+    let packet = McpePacket::from(AnimatePacket {
+        action: EnumsAnimatePacketPayloadAction::Swing,
+        target_actor_runtime_id: ActorRuntimeId {
+            actor_runtime_id: runtime_id.0 as u64,
+        },
+        data: 0.0,
+        swing_source: Some(constants::SWING_SOURCE_INTERACT.into()),
+    });
+    crate::entity::player_life::send_to_player_and_viewers(world, player, &packet);
 }
 
 /// Wear the held item by `amount` durability: creative players and
@@ -569,11 +594,11 @@ pub(crate) fn broadcast_actor_event(world: &World, mob: Entity, event: EnumsActo
     }
 }
 
-/// Play a named level sound at `mob` for its viewers.
+/// Play a named level sound at the middle of `mob`'s body for its viewers.
 fn play_mob_sound(world: &World, mob: Entity, sound: &str) {
     let (Some(kind), Some(position), Some(viewers)) = (
         world.get::<MobKind>(mob),
-        world.get::<Position>(mob),
+        crate::entity::mob::net::sound::body_centre(world, mob),
         world.get::<ActorViewers>(mob),
     ) else {
         return;
@@ -581,9 +606,9 @@ fn play_mob_sound(world: &World, mob: Entity, sound: &str) {
     let packet = LevelSoundEventPacket {
         sound_event: sound.into(),
         position: Vec3 {
-            x: position.0.x as f32,
-            y: position.0.y as f32,
-            z: position.0.z as f32,
+            x: position.x as f32,
+            y: position.y as f32,
+            z: position.z as f32,
         },
         data: -1,
         actor_identifier: kind.0.identifier.as_ref().into(),

@@ -32,6 +32,12 @@ pub struct LootContext<'a> {
     pub is_baby: bool,
     /// The actor the THIS actor rides (`passenger_of_entity`).
     pub vehicle: Option<ActorType>,
+    /// The class of the actor that killed the THIS actor
+    /// (`killed_by_entity`).
+    pub killer: Option<ActorType>,
+    /// The power of the explosion that destroyed the block
+    /// (`explosion_decay`); `None` outside explosions.
+    pub explosion_radius: Option<f32>,
     /// Level facts for difficulty conditions and gear enchanting; tables
     /// that need them fail to evaluate without.
     pub level: Option<LootLevel>,
@@ -108,6 +114,14 @@ impl unastar_rules::loot::LootContext for LootContext<'_> {
     fn vehicle_is(&self, entity_type: &str) -> bool {
         self.vehicle
             .is_some_and(|vehicle| vehicle.name() == entity_type)
+    }
+
+    fn killer_is(&self, entity_type: &str) -> bool {
+        self.killer.is_some_and(|killer| killer.name() == entity_type)
+    }
+
+    fn explosion_radius(&self) -> Option<f32> {
+        self.explosion_radius
     }
 
     fn difficulty(&self) -> Option<LootDifficulty> {

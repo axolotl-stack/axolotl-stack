@@ -151,10 +151,96 @@ impl MobFacts<'_> {
         Some(point.y < surface)
     }
 
+    /// `in_contact_with_water`: water overlaps the actor's box (the living
+    /// liquid test the physics step uses).
+    fn touches_water(&self, entity: Entity) -> Option<bool> {
+        let body = self.world.get::<PhysicsBody>(entity)?;
+        let aabb = crate::registry::collision::Aabb::from_feet(
+            self.feet(entity)?,
+            body.width,
+            body.height,
+        );
+        Some(matches!(
+            crate::entity::systems::physics::living_liquid(self.world, aabb),
+            Some(crate::registry::block::LiquidKind::Water)
+        ))
+    }
+
+    /// `in_block`: the block at the actor's feet is the named one (a bare
+    /// name is in the `minecraft` namespace).
+    fn in_block(&self, entity: Entity, name: &str) -> Option<bool> {
+        let state = self.world.block_at(self.feet(entity)?.floor().as_ivec3())?;
+        let block = self.world.registry().get_by_runtime_id(state)?;
+        Some(match name.split_once(':') {
+            Some(_) => block.string_id == name,
+            None => block.string_id.strip_prefix("minecraft:") == Some(name),
+        })
+    }
+
     fn property(&self, entity: Entity, test: &FilterTest) -> Option<PropertyValue> {
         let properties = self.world.get::<ActorProperties>(entity)?;
         let slot = properties.layout().slot(test.domain_str()?)?;
         properties.value(&slot).ok()
+    }
+
+    // Spider lane: light, sky and snow facts, all read at the block of the
+    // actor's feet.
+
+    /// `is_brightness`: the overworld brightness of the light at the feet
+    /// block (sky light after the time of day's darkening; block light is
+    /// not modelled).
+    fn brightness(&self, entity: Entity) -> Option<f32> {
+        let block = self.feet(entity)?.floor().as_ivec3();
+        let light = crate::world::clock::sky_brightness(self.world, block);
+        Some(super::constants::OVERWORLD_BRIGHTNESS_RAMP[usize::from(light.min(15))])
+    }
+
+    /// `is_underground`: the feet block lies below the height map of its
+    /// column. Above the world it is not underground, below it it is, and in
+    /// an unloaded chunk it is not.
+    fn underground(&self, entity: Entity) -> Option<bool> {
+        use crate::world::chunk::{MIN_Y, SUBCHUNK_COUNT};
+        let block = self.feet(entity)?.floor().as_ivec3();
+        if block.y >= MIN_Y + i32::from(SUBCHUNK_COUNT) * 16 {
+            return Some(false);
+        }
+        if block.y < MIN_Y {
+            return Some(true);
+        }
+        let (cx, cz) = world_to_chunk_coords(block.x, block.z);
+        let Some(chunk) = self
+            .world
+            .resource::<ChunkManager>()
+            .get_by_coords(cx, cz)
+            .and_then(|chunk| self.world.get::<ChunkData>(chunk))
+        else {
+            return Some(false);
+        };
+        let (lx, _, lz) = world_to_local_coords(block.x, block.y, block.z);
+        Some(i32::from(chunk.inner.height_map().at(lx, lz)) > block.y)
+    }
+
+    /// `is_snow_covered`: the biome at the feet block accumulates snow (its
+    /// minimum `snow_accumulation` is above 0).
+    fn snow_covered(&self, entity: Entity) -> Option<bool> {
+        let position = self.feet(entity)?.floor().as_ivec3();
+        let (cx, cz) = world_to_chunk_coords(position.x, position.z);
+        let chunk = self.world.get::<ChunkData>(
+            self.world
+                .resource::<ChunkManager>()
+                .get_by_coords(cx, cz)?,
+        )?;
+        let (lx, ly, lz) = world_to_local_coords(position.x, position.y, position.z);
+        let biome = chunk.inner.biome_at(lx, ly, lz)?;
+        let row = unastar_data::biomes::vanilla()
+            .iter()
+            .find(|row| row.id == biome)?;
+        Some(
+            row.climate
+                .as_ref()
+                .and_then(|climate| climate.snow_accumulation)
+                .is_some_and(|(min, _)| min > 0.0),
+        )
     }
 }
 
@@ -169,8 +255,23 @@ impl FilterContext for MobFacts<'_> {
             BuiltinTest::InLava => Fact::Bool(self.in_liquid(entity, true)?),
             BuiltinTest::InWater => Fact::Bool(self.in_liquid(entity, false)?),
             BuiltinTest::IsUnderwater => Fact::Bool(self.under_water(entity)?),
+            // Weather is not implemented, so rain never counts: only water
+            // overlapping the actor's box does.
+            BuiltinTest::InContactWithWater => Fact::Bool(self.touches_water(entity)?),
             // Riding is not implemented: no actor ever has a vehicle.
             BuiltinTest::IsVehicleFamily => Fact::Matches(false),
+            BuiltinTest::IsRiding => Fact::Bool(false),
+            // Spider lane.
+            BuiltinTest::IsBrightness => Fact::Number(f64::from(self.brightness(entity)?)),
+            // The overworld is the only dimension, and it is a natural one.
+            BuiltinTest::IsDaytime => Fact::Bool(crate::world::clock::is_daytime(self.world)),
+            BuiltinTest::IsUnderground => Fact::Bool(self.underground(entity)?),
+            BuiltinTest::IsSnowCovered => Fact::Bool(self.snow_covered(entity)?),
+            // Skeleton lane.
+            BuiltinTest::InBlock => Fact::Matches(self.in_block(entity, test.value.as_str()?)?),
+            BuiltinTest::HasRangedWeapon => {
+                Fact::Bool(super::gear::holds_ranged_weapon(self.world, entity))
+            }
             BuiltinTest::IsBaby => Fact::Bool(
                 self.world
                     .get::<ActorFlags>(entity)
@@ -224,17 +325,40 @@ impl FilterContext for MobFacts<'_> {
                         self.world, entity, slots, &want,
                     )));
                 }
-                if !matches!(domain, "hand" | "any") {
-                    return None;
-                }
-                let stack = held_item(self.world, entity);
-                Fact::Matches(
-                    stack.is_some_and(|stack| want.matches(stack.item_id(), stack.damage)),
-                )
+                let slots = super::gear::domain_slots(domain)?;
+                Fact::Matches(slots.iter().any(|&slot| {
+                    player_gear(self.world, entity, slot)
+                        .is_some_and(|stack| want.matches(stack.item_id(), stack.damage))
+                }))
             }
             _ => return None,
         })
     }
+}
+
+/// The stack a player holds in `slot`: the selected hotbar stack for the
+/// main hand, the worn armour piece for an armour slot. The off hand is not
+/// modelled for players.
+fn player_gear(
+    world: &World,
+    player: Entity,
+    slot: super::gear::GearSlot,
+) -> Option<&crate::item::ItemStack> {
+    use super::gear::GearSlot;
+    use crate::entity::components::{ArmourInventory, armor_slots};
+    let index = match slot {
+        GearSlot::Mainhand => return held_item(world, player),
+        GearSlot::Offhand => return None,
+        GearSlot::Head => armor_slots::HELMET,
+        GearSlot::Chest => armor_slots::CHESTPLATE,
+        GearSlot::Legs => armor_slots::LEGGINGS,
+        GearSlot::Feet => armor_slots::BOOTS,
+    };
+    world
+        .get::<ArmourInventory>(player)?
+        .slots()
+        .get(index)
+        .filter(|stack| !stack.is_empty())
 }
 
 impl EventContext for MobFacts<'_> {

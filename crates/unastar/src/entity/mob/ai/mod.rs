@@ -19,12 +19,27 @@ mod path;
 mod pickup;
 pub mod sensing;
 mod targeting;
+// Enderman lane.
+mod block_carry;
+// Spider lane.
+mod climb;
+mod leap;
+// Creeper lane.
+mod avoid_mob_type;
+mod swell;
+// Skeleton lane.
+mod flee_sun;
+mod ranged_attack;
 
 #[cfg(test)]
 mod tests;
 
 pub(crate) use self::break_door::stop_breaking_doors;
 pub use self::path::PathBlockTable;
+// Enderman lane.
+pub(crate) use self::block_carry::full_top;
+// Creeper lane.
+pub(crate) use self::targeting::Candidate;
 
 use bevy_ecs::prelude::*;
 use glam::DVec3;
@@ -35,16 +50,20 @@ use self::goals::{Effects, GoalContext, GoalStates, goal_specs};
 use self::nearby::{ItemView, MobView, Nearby, PlayerView};
 use self::path::WalkPolicy;
 use super::MobKind;
-use super::components::{BasicMovementConfig, JumpConfig, Pushable, WalkNavigationConfig};
+use super::components::follow_range::FollowRange;
+use super::components::hostile::OnTargetEscape;
+use super::components::{
+    BasicMovementConfig, JumpConfig, Pushable, SelfEvent, WalkNavigationConfig,
+};
 use super::constants::{
-    DEFAULT_JUMP_POWER, DEFAULT_MAX_TURN, ENTITY_PUSH_MIN_DISTANCE, ENTITY_PUSH_REACH,
-    ENTITY_PUSH_STRENGTH, PLAYER_BOX_HEIGHT, PLAYER_BOX_WIDTH,
+    DEFAULT_FOLLOW_RANGE, DEFAULT_JUMP_POWER, DEFAULT_MAX_TURN, ENTITY_PUSH_MIN_DISTANCE,
+    ENTITY_PUSH_REACH, ENTITY_PUSH_STRENGTH, PLAYER_BOX_HEIGHT, PLAYER_BOX_WIDTH,
 };
 use super::state::{AttackTarget, Dead, InLove, MateRequest, Persistent};
 use crate::ecs::TickCounter;
 use crate::entity::EntityRandom;
 use crate::entity::components::{
-    DroppedItem, OnGround, PhysicsBody, Player, Position, Rotation, Velocity,
+    Climbing, DroppedItem, OnGround, PhysicsBody, Player, Position, Rotation, Velocity,
 };
 use crate::entity::definition::DefinitionState;
 use crate::entity::definition::components::MovementConfig;
@@ -75,6 +94,62 @@ impl MobBrain {
     }
 }
 
+/// Set (or clear) a mob's target from outside its goals (`minecraft:looked_at`
+/// and anger ending do): the melee goal chases it as if a target goal had
+/// chosen it, and `AttackTarget` mirrors it for the rest of the server.
+/// Clearing a target fires `minecraft:on_target_escape`.
+pub fn set_attack_target(world: &mut World, mob: Entity, target: Option<Entity>) {
+    let Ok(mut entity) = world.get_entity_mut(mob) else {
+        return;
+    };
+    if let Some(mut brain) = entity.get_mut::<MobBrain>() {
+        brain.states.targets.target = target;
+    }
+    match target {
+        Some(target) => {
+            entity.insert(AttackTarget(target));
+        }
+        None => {
+            let escape = target_escape(&entity);
+            entity.remove::<AttackTarget>();
+            if let Some((event, old)) = escape {
+                fire_goal_event(world, mob, &event, Some(old));
+            }
+        }
+    }
+}
+
+/// The `minecraft:on_target_escape` event a mob fires when its target is
+/// cleared, with the old target; `None` without a target or the event.
+fn target_escape(mob: &EntityWorldMut<'_>) -> Option<(SelfEvent, Entity)> {
+    let old = mob.get::<AttackTarget>()?.0;
+    let event = mob.get::<OnTargetEscape>()?.0.clone()?;
+    Some((event, old))
+}
+
+/// Fire a goal's `event` on `mob` with `other`; a missing or failing event
+/// is logged.
+fn fire_goal_event(world: &mut World, mob: Entity, event: &SelfEvent, other: Option<Entity>) {
+    let Some(handle) = world
+        .get::<MobKind>(mob)
+        .and_then(|kind| kind.0.events.event(&event.0))
+    else {
+        tracing::warn!(event = %event.0, "goal names an event the mob does not define");
+        return;
+    };
+    if let Err(error) = super::events::fire_event(world, mob, &handle, other) {
+        tracing::warn!(event = %event.0, %error, "goal event failed");
+    }
+}
+
+/// Drop the path `mob` follows (a teleport moved it off the path).
+pub fn stop_navigation(world: &mut World, mob: Entity) {
+    if let Some(mut brain) = world.get_mut::<MobBrain>(mob) {
+        let brain = &mut *brain;
+        brain.nav.stop(&mut brain.movement);
+    }
+}
+
 /// What a mob's AI does this tick.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 enum Turn {
@@ -98,6 +173,15 @@ pub struct AiScratch {
     /// Item pickups, equips and pickup events of this tick; made once the
     /// AI's resource scopes end (they spawn items and fire events).
     gear: Vec<(Entity, pickup::GearWork)>,
+    /// Block goal moves of this tick; made once the AI's resource scopes
+    /// end (they edit blocks and fire events).
+    carry: Vec<(Entity, block_carry::CarryWork)>,
+    /// Goal events `(mob, event, other)` of this tick (`on_target_escape`,
+    /// `on_escape_event`); fired once the AI's resource scopes end.
+    events: Vec<(Entity, SelfEvent, Option<Entity>)>,
+    /// Ranged shots `(shooter, target)` of this tick; made once the AI's
+    /// resource scopes end (they spawn projectiles and draw randomness).
+    shots: Vec<(Entity, Entity)>,
     /// Door collision boxes for [`break_door`].
     boxes: Vec<Aabb>,
 }
@@ -193,6 +277,9 @@ pub fn tick_mob_ai(
                         &mut scratch.eaten,
                         &mut scratch.attacks,
                         &mut scratch.gear,
+                        &mut scratch.carry,
+                        &mut scratch.events,
+                        &mut scratch.shots,
                     );
                 }
             }
@@ -206,6 +293,15 @@ pub fn tick_mob_ai(
     }
     for (entity, work) in scratch.gear.drain(..) {
         pickup::finish(world, entity, work);
+    }
+    for (entity, work) in scratch.carry.drain(..) {
+        block_carry::finish(world, entity, work);
+    }
+    for (entity, event, other) in scratch.events.drain(..) {
+        fire_goal_event(world, entity, &event, other);
+    }
+    for (shooter, target) in scratch.shots.drain(..) {
+        super::combat::shoot::shoot(world, shooter, target);
     }
     break_door::tick_door_breakers(
         world,
@@ -225,6 +321,8 @@ struct Output {
     head_yaw: f32,
     velocity: DVec3,
     effects: Effects,
+    /// Whether a wall climber climbs this tick (`None`: unchanged).
+    wall_climbing: Option<bool>,
 }
 
 #[allow(clippy::too_many_arguments)]
@@ -269,6 +367,8 @@ fn think(
             .is_some_and(|f| f.get(actor_flags::DOOR_BREAKER).unwrap_or(false)),
         jump_power,
         physics.gravity,
+        mob.get::<FollowRange>()
+            .map_or(DEFAULT_FOLLOW_RANGE, |range| range.value),
     );
 
     let MobBrain {
@@ -283,6 +383,7 @@ fn think(
         // A rebuilt composition rebuilds the native goals.
         states.melee.reset();
         states.targets.reset();
+        states.ranged.reset();
     }
     let mut effects = Effects::default();
     let mut ctx = GoalContext {
@@ -315,6 +416,7 @@ fn think(
                 head_yaw: rotation.head_yaw,
                 velocity,
                 effects,
+                wall_climbing: None,
             });
         }
         Turn::Think(true) => {
@@ -338,11 +440,21 @@ fn think(
             Aabb::from_feet(feet, physics.width, physics.height),
         )
     });
-    nav.tick(&body, movement, door_hold);
-    let mut yaw = rotation.yaw;
+    let wall_climbing = if policy.climbs_walls {
+        let collided = mob.get::<Climbing>().is_some_and(|c| c.collided);
+        climb::navigate(world, table, &body, collided, nav, movement, door_hold)
+    } else {
+        nav.tick(&body, movement, door_hold);
+        false
+    };
+    let mut yaw = effects.face.unwrap_or(rotation.yaw);
     let move_jump = movement.tick(&body, &mut yaw, max_turn);
-    let mut head_yaw = rotation.head_yaw;
+    let mut head_yaw = effects.face.unwrap_or(rotation.head_yaw);
     look.tick(feet + DVec3::Y * body.height, yaw, &mut head_yaw);
+    let velocity = effects
+        .leap
+        .take()
+        .map_or(velocity, |leap| leap.apply(velocity));
     let velocity = travel(
         &body,
         movement,
@@ -357,9 +469,11 @@ fn think(
         head_yaw,
         velocity,
         effects,
+        wall_climbing: Some(wall_climbing),
     })
 }
 
+#[allow(clippy::too_many_arguments)]
 fn apply(
     world: &mut World,
     entity: Entity,
@@ -367,14 +481,28 @@ fn apply(
     eaten: &mut Vec<Entity>,
     attacks: &mut Vec<(Entity, Entity)>,
     gear: &mut Vec<(Entity, pickup::GearWork)>,
+    carry: &mut Vec<(Entity, block_carry::CarryWork)>,
+    events: &mut Vec<(Entity, SelfEvent, Option<Entity>)>,
+    shots: &mut Vec<(Entity, Entity)>,
 ) {
     let Output {
         yaw,
         head_yaw,
         velocity,
         effects,
+        wall_climbing,
     } = output;
     let mut mob = world.entity_mut(entity);
+    if let Some(on) = wall_climbing
+        && mob
+            .get::<Climbing>()
+            .is_some_and(|climbing| climbing.wall_climbing != on)
+    {
+        mob.get_mut::<Climbing>()
+            .expect("checked above")
+            .wall_climbing = on;
+        set_flag(&mut mob, actor_flags::WALLCLIMBING, on);
+    }
     if let Some(mut rotation) = mob.get_mut::<Rotation>()
         && (rotation.yaw != yaw || rotation.head_yaw != head_yaw)
     {
@@ -394,10 +522,25 @@ fn apply(
             mob.insert(AttackTarget(target));
         }
         Some(None) => {
+            if let Some((event, old)) = target_escape(&mob) {
+                events.push((entity, event, Some(old)));
+            }
             mob.remove::<AttackTarget>();
         }
         None => {}
     }
+    if let Some(facing) = effects.facing_target {
+        set_flag(&mut mob, actor_flags::FACING_TARGET_TO_RANGE_ATTACK, facing);
+    }
+    if let Some(avoiding) = effects.avoiding {
+        set_flag(&mut mob, actor_flags::IS_AVOIDING_MOBS, avoiding);
+    }
+    events.extend(
+        effects
+            .events
+            .into_iter()
+            .map(|(event, other)| (entity, event, other)),
+    );
     if let Some(tempted) = effects.tempted {
         set_flag(&mut mob, actor_flags::TEMPTED, tempted);
     }
@@ -423,11 +566,25 @@ fn apply(
     if !effects.gear.is_empty() {
         gear.push((entity, effects.gear));
     }
+    if let Some(target) = effects.shot {
+        shots.push((entity, target));
+    }
+    if effects.swing {
+        super::interaction::interact::broadcast_actor_event(
+            world,
+            entity,
+            jolyne::valentine::types::EnumsActorEvent::StartAttacking,
+            0,
+        );
+    }
+    if let Some(work) = effects.carry {
+        carry.push((entity, work));
+    }
 }
 
 /// Set one actor flag and mirror the flag words into the metadata the
 /// viewers receive.
-fn set_flag(mob: &mut EntityWorldMut<'_>, flag: u32, on: bool) {
+pub(crate) fn set_flag(mob: &mut EntityWorldMut<'_>, flag: u32, on: bool) {
     use jolyne::valentine::actor_data_i_ds as ids;
     let Some(mut flags) = mob.get_mut::<ActorFlags>() else {
         return;

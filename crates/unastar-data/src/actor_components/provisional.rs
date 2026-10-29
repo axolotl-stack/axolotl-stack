@@ -432,3 +432,123 @@ pub const SHAREABLES_AMOUNT: i32 = -1;
 pub const SHAREABLES_FLAG: bool = false;
 /// Per-item `priority` 0 (the most wanted).
 pub const SHAREABLES_PRIORITY: i32 = 0;
+
+// minecraft:explode
+
+/// ML `minecraftcomponent_explode`: `allow_underwater` false.
+pub const EXPLODE_ALLOW_UNDERWATER: bool = false;
+/// ML `minecraftcomponent_explode`: `breaks_blocks` true.
+pub const EXPLODE_BREAKS_BLOCKS: bool = true;
+/// ML `minecraftcomponent_explode`: `causes_fire` false.
+pub const EXPLODE_CAUSES_FIRE: bool = false;
+/// ML `minecraftcomponent_explode`: `damage_scaling` 1.
+pub const EXPLODE_DAMAGE_SCALING: f32 = 1.0;
+/// ML `minecraftcomponent_explode`: `destroy_affected_by_griefing` false.
+pub const EXPLODE_DESTROY_AFFECTED_BY_GRIEFING: bool = false;
+/// ML `minecraftcomponent_explode`: `fire_affected_by_griefing` false.
+pub const EXPLODE_FIRE_AFFECTED_BY_GRIEFING: bool = false;
+/// ML `minecraftcomponent_explode`: `fuse_lit` false.
+pub const EXPLODE_FUSE_LIT: bool = false;
+/// ML `minecraftcomponent_explode`: `knockback_scaling` 1.
+pub const EXPLODE_KNOCKBACK_SCALING: f32 = 1.0;
+/// ML `minecraftcomponent_explode`: `max_resistance` 3.40282e+38 (no cap).
+pub const EXPLODE_MAX_RESISTANCE: f32 = f32::MAX;
+/// ML `minecraftcomponent_explode`: `negates_fall_damage` false.
+pub const EXPLODE_NEGATES_FALL_DAMAGE: bool = false;
+/// ML `minecraftcomponent_explode`: `particle_effect` "explosion".
+pub const EXPLODE_PARTICLE_EFFECT: &str = "explosion";
+/// ML `minecraftcomponent_explode`: `power` 3.
+pub const EXPLODE_POWER: f32 = 3.0;
+/// ML `minecraftcomponent_explode`: `sound_effect` "explode".
+pub const EXPLODE_SOUND_EFFECT: &str = "explode";
+/// ML `minecraftcomponent_explode`: `toggles_blocks` false.
+pub const EXPLODE_TOGGLES_BLOCKS: bool = false;
+
+// minecraft:target_nearby_sensor
+
+/// ML `minecraftcomponent_target_nearby_sensor`: `inside_range` 1.
+pub const TARGET_NEARBY_SENSOR_INSIDE_RANGE: f32 = 1.0;
+/// ML `minecraftcomponent_target_nearby_sensor`: `must_see` false.
+pub const TARGET_NEARBY_SENSOR_MUST_SEE: bool = false;
+/// ML `minecraftcomponent_target_nearby_sensor`: `outside_range` 5.
+pub const TARGET_NEARBY_SENSOR_OUTSIDE_RANGE: f32 = 5.0;
+
+// minecraft:angry (Mojang form `minecraft_angry.form.json`)
+
+/// `broadcast_anger` false.
+pub const ANGRY_BROADCAST_ANGER: bool = false;
+/// `broadcast_anger_on_attack` false.
+pub const ANGRY_BROADCAST_ANGER_ON_ATTACK: bool = false;
+/// `broadcast_anger_on_being_attacked` false.
+pub const ANGRY_BROADCAST_ANGER_ON_BEING_ATTACKED: bool = false;
+/// `broadcast_anger_when_dying` true.
+pub const ANGRY_BROADCAST_ANGER_WHEN_DYING: bool = true;
+/// `broadcast_range` 20 blocks.
+pub const ANGRY_BROADCAST_RANGE: i32 = 20;
+/// `duration` 25 seconds.
+pub const ANGRY_DURATION: i32 = 25;
+/// `duration_delta` 0 seconds.
+pub const ANGRY_DURATION_DELTA: i32 = 0;
+
+// Enderman lane: minecraft:looked_at, minecraft:teleport and
+// minecraft:variable_max_auto_step (Mojang forms
+// `minecraft_looked_at.form.json`, `minecraft_teleport.form.json`,
+// `minecraft_variable_max_auto_step.form.json`).
+
+/// `field_of_view` 26 degrees.
+pub const LOOKED_AT_FIELD_OF_VIEW: f32 = 26.0;
+/// `find_players_only` false.
+pub const LOOKED_AT_FIND_PLAYERS_ONLY: bool = false;
+/// `line_of_sight_obstruction_type` "collision".
+pub const LOOKED_AT_LINE_OF_SIGHT_OBSTRUCTION_TYPE: &str = "collision";
+/// `min_looked_at_duration` 0 seconds.
+pub const LOOKED_AT_MIN_LOOKED_AT_DURATION: f32 = 0.0;
+/// `scale_fov_by_distance` true.
+pub const LOOKED_AT_SCALE_FOV_BY_DISTANCE: bool = true;
+/// `search_radius` 10 blocks.
+pub const LOOKED_AT_SEARCH_RADIUS: f32 = 10.0;
+/// ML `minecraftcomponent_looked_at`: `set_target` "once_and_stop_scanning"
+/// (the form's boolean default predates the string modes).
+pub const LOOKED_AT_SET_TARGET: &str = "once_and_stop_scanning";
+/// `look_at_locations` entry `location`: the owner's head.
+pub const LOOKED_AT_LOCATION: &str = "head";
+/// `look_at_locations` entry `vertical_offset` 0.
+pub const LOOKED_AT_VERTICAL_OFFSET: f32 = 0.0;
+/// `random_teleports` true.
+pub const TELEPORT_RANDOM_TELEPORTS: bool = true;
+/// `min_random_teleport_time` 0 seconds.
+pub const TELEPORT_MIN_RANDOM_TELEPORT_TIME: f32 = 0.0;
+/// `max_random_teleport_time` 20 seconds.
+pub const TELEPORT_MAX_RANDOM_TELEPORT_TIME: f32 = 20.0;
+/// `random_teleport_cube` [32, 16, 32].
+pub const TELEPORT_RANDOM_TELEPORT_CUBE: [f32; 3] = [32.0, 16.0, 32.0];
+/// `target_distance` 16 blocks.
+pub const TELEPORT_TARGET_DISTANCE: f32 = 16.0;
+/// `target_teleport_chance` 1.
+pub const TELEPORT_TARGET_TELEPORT_CHANCE: f32 = 1.0;
+/// `light_teleport_chance` 0.01.
+pub const TELEPORT_LIGHT_TELEPORT_CHANCE: f32 = 0.01;
+/// `dark_teleport_chance` 0.01.
+pub const TELEPORT_DARK_TELEPORT_CHANCE: f32 = 0.01;
+/// `teleports_on_projectile_hit` false (vanilla 1.26.50 definitions author
+/// it; the form does not list it yet).
+pub const TELEPORT_TELEPORTS_ON_PROJECTILE_HIT: bool = false;
+/// `base_value` 0.5625 blocks.
+pub const VARIABLE_MAX_AUTO_STEP_BASE_VALUE: f32 = 0.5625;
+/// `controlled_value` 0.5625 blocks.
+pub const VARIABLE_MAX_AUTO_STEP_CONTROLLED_VALUE: f32 = 0.5625;
+/// `jump_prevented_value` 0.5625 blocks.
+pub const VARIABLE_MAX_AUTO_STEP_JUMP_PREVENTED_VALUE: f32 = 0.5625;
+/// ML `minecraftcomponent_follow_range`: `value` 16 blocks.
+pub const FOLLOW_RANGE_VALUE: f32 = 16.0;
+
+// Skeleton lane: minecraft:shooter (Mojang form `minecraft_shooter.form.json`).
+
+/// `aux_val` -1: the default projectile carries no potion.
+pub const SHOOTER_AUX_VAL: i32 = -1;
+/// `magic` false.
+pub const SHOOTER_MAGIC: bool = false;
+/// `power` 0: the projectile's own `power` is used.
+pub const SHOOTER_POWER: f32 = 0.0;
+/// `projectiles` entry `lose_target` false.
+pub const SHOOTER_PROJECTILE_LOSE_TARGET: bool = false;

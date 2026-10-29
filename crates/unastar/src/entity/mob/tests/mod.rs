@@ -8,6 +8,15 @@ mod chicken;
 mod doors;
 mod interaction;
 mod passive;
+mod pathing;
 mod sensors;
 mod spawn;
 mod zombie;
+// Enderman lane.
+mod enderman;
+// Spider lane: the spider and cave spider.
+mod spider;
+// Creeper lane: the creeper and explosions.
+mod creeper;
+// Skeleton lane: the skeleton and stray.
+mod skeleton;

@@ -19,7 +19,9 @@
 //! monster rules start at Easy).
 //!
 //! Each herd member then passes its native class's spawn check
-//! (`spawn_check.rs`) and must not overlap block collision.
+//! (`spawn_check.rs`) and must not overlap block collision. A member fires
+//! the entry's `spawn_event`, when it has one, instead of
+//! `minecraft:entity_spawned`.
 
 use std::collections::HashMap;
 use std::sync::Arc;
@@ -41,7 +43,7 @@ use crate::entity::mob::constants::{
     SPAWN_POSITION_OFFSET, SPAWN_TICK_ROLL, SPAWN_TICK_ROLL_MAX, TICKS_PER_SECOND,
 };
 use crate::entity::mob::state::Persistent;
-use crate::entity::mob::{MobKind, SpawnCause, events, spawn_mob};
+use crate::entity::mob::{MobKind, SpawnCause, events, spawn_mob, spawn_mob_with_event};
 use crate::entity::systems::physics::{BlockSource, collides_with_blocks};
 use crate::registry::BlockRegistry;
 use crate::registry::collision::Aabb;
@@ -300,6 +302,7 @@ fn spawn_cluster(
                     world,
                     rules,
                     &mut census,
+                    entry,
                     &permutation.target,
                     position,
                     conditions.surface,
@@ -316,6 +319,7 @@ fn spawn_cluster(
                 world,
                 rules,
                 &mut census,
+                entry,
                 target,
                 position,
                 conditions.surface,
@@ -428,12 +432,14 @@ fn census(world: &mut World, rules: &NaturalSpawnRules, (cx, cz): (i32, i32)) ->
     census
 }
 
-/// Spawn one herd member when its native class's spawn check passes and its
-/// body does not overlap block collision.
+/// Spawn one herd member of `entry` when its native class's spawn check
+/// passes and its body does not overlap block collision.
+#[allow(clippy::too_many_arguments)]
 fn spawn_one(
     world: &mut World,
     rules: &NaturalSpawnRules,
     census: &mut Census,
+    entry: &SpawnEntry,
     target: &SpawnTarget,
     position: DVec3,
     surface: bool,
@@ -454,7 +460,11 @@ fn spawn_one(
     {
         return;
     }
-    let mob = match spawn_mob(world, actor.name(), position, 0.0, SpawnCause::Spawned) {
+    let mob = match &entry.spawn_event {
+        Some(event) => spawn_mob_with_event(world, actor.name(), position, 0.0, event),
+        None => spawn_mob(world, actor.name(), position, 0.0, SpawnCause::Spawned),
+    };
+    let mob = match mob {
         Ok(mob) => mob,
         Err(error) => {
             tracing::warn!(actor = actor.name(), %error, "natural spawn failed");

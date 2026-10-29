@@ -25,6 +25,7 @@ use crate::entity::components::{
 use crate::entity::definition::flags::ActorFlags;
 use crate::entity::item_drop::PLAYER_EYE_HEIGHT;
 use crate::entity::mob::MobKind;
+use crate::entity::mob::components::follow_range::FollowRange;
 use crate::entity::mob::components::hostile::{TargetEntry, TargetGoalBase};
 use crate::entity::mob::components::{HurtByTargetGoal, NearestAttackableTargetGoal};
 use crate::entity::mob::constants::{
@@ -167,12 +168,12 @@ impl GoalContext<'_> {
         ) || self.difficulty() == Difficulty::Peaceful
     }
 
-    /// The follow range: the nearest-attackable-target goal's
-    /// `within_radius`, else the native default.
+    /// The follow range: the mob's `minecraft:follow_range`, else the native
+    /// default. A goal's `within_radius` does not change it.
     fn follow_range(&self) -> f64 {
         f64::from(
-            self.config::<NearestAttackableTargetGoal>()
-                .map_or(DEFAULT_FOLLOW_RANGE, |goal| goal.follow_range),
+            self.config::<FollowRange>()
+                .map_or(DEFAULT_FOLLOW_RANGE, |range| range.value),
         )
     }
 

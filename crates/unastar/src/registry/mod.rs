@@ -8,6 +8,7 @@ pub mod collision;
 pub mod creative;
 pub mod entity;
 pub mod item;
+pub mod item_tags;
 
 pub use biome::BiomeRegistry;
 pub use block::BlockRegistry;

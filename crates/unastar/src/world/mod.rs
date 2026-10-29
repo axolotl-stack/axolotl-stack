@@ -4,6 +4,7 @@ pub mod block_entity;
 pub mod chunk;
 pub mod clock;
 pub mod ecs;
+pub mod explosion;
 pub mod generator;
 pub mod regional_difficulty;
 pub mod rules;

@@ -8,7 +8,9 @@
 //! 2. Damage from a non-player attacker scales with the difficulty:
 //!    peaceful none, easy `min(damage / 2 + 1, damage)`, normal as is, hard
 //!    × 1.5 (provisional: Minecraft Wiki "Difficulty", which gives the
-//!    zombie's 2.5 / 3 / 4.5). A hit scaled to nothing is ignored.
+//!    zombie's 2.5 / 3 / 4.5). Projectile damage is not scaled (matches BDS
+//!    1.26.51: a skeleton's arrow deals the same on every difficulty). A
+//!    hit scaled to nothing is ignored.
 //! 3. The hurt timer, shared with mobs (`mob::combat::HurtTimer`): for
 //!    [`HURT_TICKS`] after a full hit a new one only deals what exceeds the
 //!    damage that started the timer, and nothing when it does not exceed it
@@ -16,9 +18,10 @@
 //! 4. Armour: the summed defence and toughness of the worn pieces reduce
 //!    the damage of the causes armour stops (`unastar_data::armour`).
 //!
-//! A full hit sends `ActorEvent` hurt to the player and its viewers and,
-//! when the hit has a source position, knocks the player back: the player
-//! moves itself, so the push goes to its own client as `SetActorMotion`.
+//! A full hit with a source position first knocks the player back (the
+//! player moves itself, so the push goes to its own client as
+//! `SetActorMotion`), then sends `ActorEvent` hurt, its data the damage
+//! cause id, to the player and its viewers.
 //! The health change reaches the client through
 //! `server::game::attributes::sync_player_attributes`; at zero health the player dies
 //! (`death`).
@@ -42,13 +45,20 @@ use crate::entity::components::{
 };
 use crate::entity::mob::combat::{Hit, HurtTimer, knockback_velocity};
 use crate::entity::mob::components::KnockbackPower;
-use crate::entity::mob::constants::HURT_TICKS;
+use crate::entity::mob::constants::{HURT_TICKS, damage_cause_id};
 use crate::entity::mob::state::LastHurt;
 use crate::world::rules::{Difficulty, GameRules};
 
 /// Apply `hit` to `player`; returns the health actually removed (0 when the
 /// hit was ignored).
 pub fn hurt_player(world: &mut World, player: Entity, hit: &Hit) -> f32 {
+    apply_hit(world, player, hit, None).0
+}
+
+/// [`hurt_player`] that also returns the knockback velocity the hit sent
+/// the player (`None` when it sent none), for callers that add their own
+/// push to it (explosions).
+pub fn hurt_player_knocked(world: &mut World, player: Entity, hit: &Hit) -> (f32, Option<DVec3>) {
     apply_hit(world, player, hit, None)
 }
 
@@ -59,15 +69,15 @@ pub(super) fn apply_hit(
     player: Entity,
     hit: &Hit,
     fall_distance: Option<f64>,
-) -> f32 {
+) -> (f32, Option<DVec3>) {
     if hit.damage < 0.0
         || world.get::<Player>(player).is_none()
         || world.get::<Dead>(player).is_some()
     {
-        return 0.0;
+        return (0.0, None);
     }
     if world.get::<Health>(player).is_none_or(Health::is_dead) {
-        return 0.0;
+        return (0.0, None);
     }
     let mode = world.get::<GameMode>(player).copied().unwrap_or_default();
     if !mode.allows_damage()
@@ -76,20 +86,21 @@ pub(super) fn apply_hit(
             ActorDamageCause::Void | ActorDamageCause::Override
         )
     {
-        return 0.0;
+        return (0.0, None);
     }
     if !allowed_by_rules(world.resource::<GameRules>(), hit.cause) {
-        return 0.0;
+        return (0.0, None);
     }
-    let damage = if hit.attacker.is_some() && !hit.by_player {
-        let scaled = scale_for_difficulty(*world.resource::<Difficulty>(), hit.damage);
-        if scaled <= 0.0 {
-            return 0.0;
-        }
-        scaled
-    } else {
-        hit.damage
-    };
+    let damage =
+        if hit.attacker.is_some() && !hit.by_player && hit.cause != ActorDamageCause::Projectile {
+            let scaled = scale_for_difficulty(*world.resource::<Difficulty>(), hit.damage);
+            if scaled <= 0.0 {
+                return (0.0, None);
+            }
+            scaled
+        } else {
+            hit.damage
+        };
 
     let ignores_timer = matches!(
         hit.cause,
@@ -99,7 +110,7 @@ pub(super) fn apply_hit(
     let (dealt, until_tick, full) = match world.get::<HurtTimer>(player).copied() {
         Some(timer) if now < timer.until_tick && !ignores_timer => {
             if damage <= timer.last_damage {
-                return 0.0;
+                return (0.0, None);
             }
             (damage - timer.last_damage, timer.until_tick, false)
         }
@@ -131,11 +142,19 @@ pub(super) fn apply_hit(
         health.damage(dealt);
         (before - health.current, health.is_dead())
     };
+    // The knockback reaches the client before the hurt event, as BDS sends
+    // them.
+    let mut knockback = None;
     if full {
-        send_hurt_event(world, player);
         if let Some(from) = hit.knockback_from {
-            knock_back(world, player, from, hit.knockback_power);
+            knockback = knock_back(world, player, from, hit.knockback_power);
         }
+        send_player_event_data(
+            world,
+            player,
+            EnumsActorEvent::Hurt,
+            damage_cause_id(hit.cause),
+        );
     }
     // A hit that hurt wears the worn armour and costs the player food.
     if applied > 0.0 {
@@ -155,7 +174,7 @@ pub(super) fn apply_hit(
             },
         );
     }
-    applied
+    (applied, knockback)
 }
 
 /// Whether the game rules let `cause` hurt players.
@@ -228,6 +247,11 @@ fn worn_armour(world: &World, player: Entity) -> (f32, f32) {
 
 /// Send `ActorEvent(event)` about `player` to it and its viewers.
 pub(super) fn send_player_event(world: &World, player: Entity, event: EnumsActorEvent) {
+    send_player_event_data(world, player, event, 0);
+}
+
+/// [`send_player_event`] with event data.
+fn send_player_event_data(world: &World, player: Entity, event: EnumsActorEvent, data: i32) {
     let Some(runtime_id) = world.get::<RuntimeEntityId>(player) else {
         return;
     };
@@ -236,23 +260,23 @@ pub(super) fn send_player_event(world: &World, player: Entity, event: EnumsActor
             actor_runtime_id: runtime_id.0 as u64,
         },
         event_id: event,
-        data: 0,
+        data,
         fire_at_position: None,
     });
     send_to_player_and_viewers(world, player, &packet);
 }
 
-fn send_hurt_event(world: &World, player: Entity) {
-    send_player_event(world, player, EnumsActorEvent::Hurt);
-}
-
 /// Push `player` away from `from` (horizontally) with the native knockback
 /// ([`knockback_velocity`]). The server does not track a player's own
 /// motion, so the push starts from rest; it is sent to the player's client.
-fn knock_back(world: &mut World, player: Entity, from: DVec3, power: KnockbackPower) {
-    let Some(position) = world.get::<Position>(player).map(|p| p.0) else {
-        return;
-    };
+/// Returns the velocity sent.
+fn knock_back(
+    world: &mut World,
+    player: Entity,
+    from: DVec3,
+    power: KnockbackPower,
+) -> Option<DVec3> {
+    let position = world.get::<Position>(player).map(|p| p.0)?;
     let mut away = DVec2::new(position.x - from.x, position.z - from.z);
     if away.length_squared() < 1.0e-8 {
         let angle = world
@@ -266,7 +290,7 @@ fn knock_back(world: &mut World, player: Entity, from: DVec3, power: KnockbackPo
         world.get::<PlayerSession>(player),
         world.get::<RuntimeEntityId>(player),
     ) else {
-        return;
+        return Some(velocity);
     };
     let _ = session.send(McpePacket::from(SetActorMotionPacket {
         target_runtime_id: ActorRuntimeId {
@@ -279,6 +303,7 @@ fn knock_back(world: &mut World, player: Entity, from: DVec3, power: KnockbackPo
         },
         tick: crate::entity::components::input_tick_of(world, player),
     }));
+    Some(velocity)
 }
 
 #[cfg(test)]

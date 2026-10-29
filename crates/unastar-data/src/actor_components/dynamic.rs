@@ -11,8 +11,8 @@ use std::collections::BTreeMap;
 use serde::Deserialize;
 
 use super::generated::body::{
-    ActorDamageCause, ActorDefinitionTrigger, BlockDescriptor, EquipmentSlot, FloatRange,
-    GoalsControlFlags, ItemDescriptor, LevelSoundEvent, MolangValue, Vec3,
+    ActorDamageCause, ActorDefinitionTrigger, BlockDescriptor, EquipmentSlot, FilterSubject,
+    FloatRange, GoalsControlFlags, ItemDescriptor, LevelSoundEvent, MolangValue, Vec3,
 };
 use super::provisional as p;
 use super::{ActorComponent, ComponentBody, FilterJson, decode};
@@ -198,6 +198,64 @@ defaults! {
     shareables_priority -> i32 = p::SHAREABLES_PRIORITY;
     break_door_break_time -> f32 = p::BREAK_DOOR_BREAK_TIME;
     break_door_min_difficulty -> Difficulty = p::BREAK_DOOR_MIN_DIFFICULTY;
+    // minecraft:explode and minecraft:target_nearby_sensor
+    explode_allow_underwater -> bool = p::EXPLODE_ALLOW_UNDERWATER;
+    explode_breaks_blocks -> bool = p::EXPLODE_BREAKS_BLOCKS;
+    explode_causes_fire -> bool = p::EXPLODE_CAUSES_FIRE;
+    explode_damage_scaling -> f32 = p::EXPLODE_DAMAGE_SCALING;
+    explode_destroy_affected_by_griefing -> bool = p::EXPLODE_DESTROY_AFFECTED_BY_GRIEFING;
+    explode_fire_affected_by_griefing -> bool = p::EXPLODE_FIRE_AFFECTED_BY_GRIEFING;
+    explode_fuse_lit -> bool = p::EXPLODE_FUSE_LIT;
+    explode_knockback_scaling -> f32 = p::EXPLODE_KNOCKBACK_SCALING;
+    explode_max_resistance -> f32 = p::EXPLODE_MAX_RESISTANCE;
+    explode_negates_fall_damage -> bool = p::EXPLODE_NEGATES_FALL_DAMAGE;
+    explode_particle_effect -> String = p::EXPLODE_PARTICLE_EFFECT.to_owned();
+    explode_power -> f32 = p::EXPLODE_POWER;
+    explode_sound_effect -> String = p::EXPLODE_SOUND_EFFECT.to_owned();
+    explode_toggles_blocks -> bool = p::EXPLODE_TOGGLES_BLOCKS;
+    target_nearby_inside_range -> f32 = p::TARGET_NEARBY_SENSOR_INSIDE_RANGE;
+    target_nearby_must_see -> bool = p::TARGET_NEARBY_SENSOR_MUST_SEE;
+    target_nearby_outside_range -> f32 = p::TARGET_NEARBY_SENSOR_OUTSIDE_RANGE;
+    // minecraft:angry (spider lane)
+    angry_broadcast_anger -> bool = p::ANGRY_BROADCAST_ANGER;
+    angry_broadcast_anger_on_attack -> bool = p::ANGRY_BROADCAST_ANGER_ON_ATTACK;
+    angry_broadcast_anger_on_being_attacked -> bool = p::ANGRY_BROADCAST_ANGER_ON_BEING_ATTACKED;
+    angry_broadcast_anger_when_dying -> bool = p::ANGRY_BROADCAST_ANGER_WHEN_DYING;
+    angry_broadcast_range -> i32 = p::ANGRY_BROADCAST_RANGE;
+    angry_duration -> i32 = p::ANGRY_DURATION;
+    angry_duration_delta -> i32 = p::ANGRY_DURATION_DELTA;
+    // minecraft:looked_at, minecraft:teleport, minecraft:variable_max_auto_step
+    // (enderman lane)
+    looked_at_field_of_view -> f32 = p::LOOKED_AT_FIELD_OF_VIEW;
+    looked_at_find_players_only -> bool = p::LOOKED_AT_FIND_PLAYERS_ONLY;
+    looked_at_line_of_sight -> LineOfSightObstruction = LineOfSightObstruction::from_name(
+        p::LOOKED_AT_LINE_OF_SIGHT_OBSTRUCTION_TYPE,
+    );
+    looked_at_locations -> Vec<LookAtLocation> = vec![LookAtLocation::default()];
+    looked_at_location -> String = p::LOOKED_AT_LOCATION.to_owned();
+    looked_at_vertical_offset -> f32 = p::LOOKED_AT_VERTICAL_OFFSET;
+    looked_at_min_duration -> f32 = p::LOOKED_AT_MIN_LOOKED_AT_DURATION;
+    looked_at_scale_fov_by_distance -> bool = p::LOOKED_AT_SCALE_FOV_BY_DISTANCE;
+    looked_at_search_radius -> f32 = p::LOOKED_AT_SEARCH_RADIUS;
+    looked_at_set_target -> LookedAtSetTarget = LookedAtSetTarget::from_name(p::LOOKED_AT_SET_TARGET);
+    teleport_random_teleports -> bool = p::TELEPORT_RANDOM_TELEPORTS;
+    teleport_min_random_time -> f32 = p::TELEPORT_MIN_RANDOM_TELEPORT_TIME;
+    teleport_max_random_time -> f32 = p::TELEPORT_MAX_RANDOM_TELEPORT_TIME;
+    teleport_random_cube -> Vec3 = Vec3::Array(p::TELEPORT_RANDOM_TELEPORT_CUBE);
+    teleport_target_distance -> f32 = p::TELEPORT_TARGET_DISTANCE;
+    teleport_target_chance -> f32 = p::TELEPORT_TARGET_TELEPORT_CHANCE;
+    teleport_light_chance -> f32 = p::TELEPORT_LIGHT_TELEPORT_CHANCE;
+    teleport_dark_chance -> f32 = p::TELEPORT_DARK_TELEPORT_CHANCE;
+    teleport_on_projectile_hit -> bool = p::TELEPORT_TELEPORTS_ON_PROJECTILE_HIT;
+    auto_step_base_value -> f32 = p::VARIABLE_MAX_AUTO_STEP_BASE_VALUE;
+    auto_step_controlled_value -> f32 = p::VARIABLE_MAX_AUTO_STEP_CONTROLLED_VALUE;
+    auto_step_jump_prevented_value -> f32 = p::VARIABLE_MAX_AUTO_STEP_JUMP_PREVENTED_VALUE;
+    follow_range_value -> f32 = p::FOLLOW_RANGE_VALUE;
+    looked_at_cooldown -> FloatRange = FloatRange { min: 0.0, max: 0.0 };
+    shooter_aux_val -> i32 = p::SHOOTER_AUX_VAL;
+    shooter_magic -> bool = p::SHOOTER_MAGIC;
+    shooter_power -> f32 = p::SHOOTER_POWER;
+    shooter_lose_target -> bool = p::SHOOTER_PROJECTILE_LOSE_TARGET;
 }
 
 /// `minecraft:ageable`: a growth timer, accelerated by feeding.
@@ -1290,6 +1348,321 @@ pub struct AnnotationBreakDoor {
     pub min_difficulty: Difficulty,
 }
 
+/// `minecraft:explode`: the actor explodes once its fuse burns down.
+#[derive(Debug, Clone, PartialEq, Deserialize)]
+#[serde(deny_unknown_fields)]
+pub struct Explode {
+    /// The explosion also affects blocks and actors under water.
+    #[serde(default = "explode_allow_underwater")]
+    pub allow_underwater: bool,
+    #[serde(default = "explode_breaks_blocks")]
+    pub breaks_blocks: bool,
+    #[serde(default = "explode_causes_fire")]
+    pub causes_fire: bool,
+    /// Factor on the damage actors take.
+    #[serde(default = "explode_damage_scaling")]
+    pub damage_scaling: f32,
+    /// `breaks_blocks` only applies while the `mobGriefing` game rule is on.
+    #[serde(default = "explode_destroy_affected_by_griefing")]
+    pub destroy_affected_by_griefing: bool,
+    /// `causes_fire` only applies while the `mobGriefing` game rule is on.
+    #[serde(default = "explode_fire_affected_by_griefing")]
+    pub fire_affected_by_griefing: bool,
+    /// Seconds the fuse burns (fixed or random); absent or negative explodes
+    /// at once.
+    pub fuse_length: Option<ValueOrRange<f32>>,
+    /// The fuse is lit as soon as the component is added.
+    #[serde(default = "explode_fuse_lit")]
+    pub fuse_lit: bool,
+    /// Factor on the knockback actors take.
+    #[serde(default = "explode_knockback_scaling")]
+    pub knockback_scaling: f32,
+    /// Cap on a block's explosion resistance.
+    #[serde(default = "explode_max_resistance")]
+    pub max_resistance: f32,
+    #[serde(default = "explode_negates_fall_damage")]
+    pub negates_fall_damage: bool,
+    /// `explosion`, `wind_burst` or `breeze_wind_burst`.
+    #[serde(default = "explode_particle_effect")]
+    pub particle_effect: String,
+    #[serde(default = "explode_power")]
+    pub power: f32,
+    /// The level sound played when the explosion happens.
+    #[serde(default = "explode_sound_effect")]
+    pub sound_effect: String,
+    /// The explosion toggles blocks (doors, trapdoors) instead of breaking
+    /// them.
+    #[serde(default = "explode_toggles_blocks")]
+    pub toggles_blocks: bool,
+}
+
+/// `minecraft:target_nearby_sensor`: events fired as the actor's target
+/// comes within `inside_range` or leaves `outside_range`.
+#[derive(Debug, Clone, PartialEq, Deserialize)]
+#[serde(deny_unknown_fields)]
+pub struct TargetNearbySensor {
+    #[serde(default = "target_nearby_inside_range")]
+    pub inside_range: f32,
+    /// The target must be visible to count as inside.
+    #[serde(default = "target_nearby_must_see")]
+    pub must_see: bool,
+    pub on_inside_range: Option<EventTrigger>,
+    pub on_outside_range: Option<EventTrigger>,
+    pub on_vision_lost_inside_range: Option<EventTrigger>,
+    #[serde(default = "target_nearby_outside_range")]
+    pub outside_range: f32,
+}
+
+/// `minecraft:angry`: a timed angry state (Mojang form
+/// `minecraft_angry.form.json`; vanilla also authors the camelCase
+/// `broadcastAnger` / `broadcastRange` spellings).
+#[derive(Debug, Clone, PartialEq, Deserialize)]
+#[serde(deny_unknown_fields)]
+pub struct Angry {
+    /// Sound event played while angry.
+    pub angry_sound: Option<String>,
+    #[serde(default = "angry_broadcast_anger", alias = "broadcastAnger")]
+    pub broadcast_anger: bool,
+    #[serde(default = "angry_broadcast_anger_on_attack")]
+    pub broadcast_anger_on_attack: bool,
+    #[serde(default = "angry_broadcast_anger_on_being_attacked")]
+    pub broadcast_anger_on_being_attacked: bool,
+    #[serde(default = "angry_broadcast_anger_when_dying")]
+    pub broadcast_anger_when_dying: bool,
+    pub broadcast_filters: Option<FilterJson>,
+    #[serde(default = "angry_broadcast_range", alias = "broadcastRange")]
+    pub broadcast_range: i32,
+    #[serde(default, deserialize_with = "super::de::optional_one_or_many")]
+    pub broadcast_targets: Option<Vec<String>>,
+    /// Fired when the anger runs out.
+    pub calm_event: Option<ActorDefinitionTrigger>,
+    /// Seconds of anger; -1 never calms.
+    #[serde(default = "angry_duration")]
+    pub duration: i32,
+    /// Seconds added to `duration`, uniformly in `[-delta, delta]`.
+    #[serde(default = "angry_duration_delta")]
+    pub duration_delta: i32,
+    /// Actors the mob does not become angry with.
+    pub filters: Option<FilterJson>,
+    /// Seconds between angry sounds.
+    pub sound_interval: Option<ValueOrRange<f32>>,
+}
+
+/// `minecraft:navigation.climb`: the `navigation.walk` fields; paths may
+/// also run up vertical walls.
+#[derive(Debug, Clone, PartialEq, Deserialize)]
+#[serde(transparent)]
+pub struct NavigationClimb(pub NavigationWalk);
+
+/// How `minecraft:looked_at` treats blocks between the looker and the owner.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub enum LineOfSightObstruction {
+    /// Block outline (selection) shapes block the view.
+    Outline,
+    /// Block collision shapes block the view.
+    Collision,
+    /// Collision shapes as the camera sees them.
+    CollisionForCamera,
+}
+
+impl LineOfSightObstruction {
+    fn from_name(name: &str) -> Self {
+        match name.as_bytes() {
+            b"outline" => Self::Outline,
+            b"collision_for_camera" => Self::CollisionForCamera,
+            _ => Self::Collision,
+        }
+    }
+}
+
+/// Whether `minecraft:looked_at` makes the looker the owner's target.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub enum LookedAtSetTarget {
+    Never,
+    /// Target the first looker, then stop scanning while it has a target.
+    OnceAndStopScanning,
+    /// Target the first looker and keep scanning (and firing events).
+    OnceAndKeepScanning,
+}
+
+impl LookedAtSetTarget {
+    fn from_name(name: &str) -> Self {
+        match name.as_bytes() {
+            b"never" => Self::Never,
+            b"once_and_keep_scanning" => Self::OnceAndKeepScanning,
+            _ => Self::OnceAndStopScanning,
+        }
+    }
+}
+
+/// One `look_at_locations` entry: a point on the owner a looker must see.
+#[derive(Debug, Clone, PartialEq, Deserialize)]
+#[serde(deny_unknown_fields)]
+pub struct LookAtLocation {
+    /// The owner's attach point: `head`, `body` or `feet`.
+    #[serde(default = "looked_at_location")]
+    pub location: String,
+    /// Blocks added to the attach point's height.
+    #[serde(default = "looked_at_vertical_offset")]
+    pub vertical_offset: f32,
+}
+
+impl Default for LookAtLocation {
+    fn default() -> Self {
+        Self {
+            location: looked_at_location(),
+            vertical_offset: looked_at_vertical_offset(),
+        }
+    }
+}
+
+/// A `looked_at_event` / `not_looked_at_event` trigger.
+#[derive(Debug, Clone, PartialEq, Deserialize)]
+#[serde(deny_unknown_fields)]
+pub struct LookedAtTrigger {
+    #[serde(default)]
+    pub event: String,
+    pub filters: Option<FilterJson>,
+    pub target: Option<FilterSubject>,
+    /// Vanilla creaking writes `"filter": "self"` where `target` is meant;
+    /// the engine ignores the unknown key, so the trigger targets self.
+    pub filter: Option<FilterSubject>,
+}
+
+/// `minecraft:looked_at`: events (and optionally a target) when an actor
+/// looks at the owner.
+#[derive(Debug, Clone, PartialEq, Deserialize)]
+#[serde(deny_unknown_fields)]
+pub struct LookedAt {
+    /// Degrees; at one block when `scale_fov_by_distance`.
+    #[serde(default = "looked_at_field_of_view")]
+    pub field_of_view: f32,
+    /// Which lookers count (`other` is the looker).
+    pub filters: Option<FilterJson>,
+    /// Only the nearest player passing `filters` is considered.
+    #[serde(default = "looked_at_find_players_only")]
+    pub find_players_only: bool,
+    #[serde(default = "looked_at_line_of_sight")]
+    pub line_of_sight_obstruction_type: LineOfSightObstruction,
+    #[serde(default = "looked_at_locations")]
+    pub look_at_locations: Vec<LookAtLocation>,
+    /// Seconds to wait after a detection before scanning again.
+    #[serde(default = "looked_at_cooldown")]
+    pub looked_at_cooldown: FloatRange,
+    pub looked_at_event: Option<LookedAtTrigger>,
+    /// Seconds a looker must keep looking before it counts.
+    #[serde(default = "looked_at_min_duration")]
+    pub min_looked_at_duration: f32,
+    pub not_looked_at_event: Option<LookedAtTrigger>,
+    #[serde(default = "looked_at_scale_fov_by_distance")]
+    pub scale_fov_by_distance: bool,
+    #[serde(default = "looked_at_search_radius")]
+    pub search_radius: f32,
+    #[serde(default = "looked_at_set_target")]
+    pub set_target: LookedAtSetTarget,
+}
+
+/// `minecraft:teleport`: random teleports, teleports toward a distant
+/// target and light-dependent teleports.
+#[derive(Debug, Clone, PartialEq, Deserialize)]
+#[serde(deny_unknown_fields)]
+pub struct Teleport {
+    /// Chance per tick to teleport while in darkness.
+    #[serde(default = "teleport_dark_chance")]
+    pub dark_teleport_chance: f32,
+    /// Chance per tick to teleport while in daylight under the open sky.
+    #[serde(default = "teleport_light_chance")]
+    pub light_teleport_chance: f32,
+    /// Seconds between random teleports, at most.
+    #[serde(default = "teleport_max_random_time")]
+    pub max_random_teleport_time: f32,
+    /// Seconds between random teleports, at least.
+    #[serde(default = "teleport_min_random_time")]
+    pub min_random_teleport_time: f32,
+    /// Projectiles that do not make the entity teleport (all teleport when
+    /// absent).
+    pub projectile_filter: Option<FilterJson>,
+    /// Size of the box around the entity random teleports land in.
+    #[serde(default = "teleport_random_cube")]
+    pub random_teleport_cube: Vec3,
+    #[serde(default = "teleport_random_teleports")]
+    pub random_teleports: bool,
+    /// Teleports toward a target farther away than this.
+    #[serde(default = "teleport_target_distance")]
+    pub target_distance: f32,
+    /// Chance per tick to teleport toward a distant target.
+    #[serde(default = "teleport_target_chance")]
+    pub target_teleport_chance: f32,
+    /// A projectile hit makes the entity teleport instead of taking damage.
+    #[serde(default = "teleport_on_projectile_hit")]
+    pub teleports_on_projectile_hit: bool,
+}
+
+/// `minecraft:variable_max_auto_step`: the step-up height per situation.
+#[derive(Debug, Clone, PartialEq, Deserialize)]
+#[serde(deny_unknown_fields)]
+pub struct VariableMaxAutoStep {
+    /// Blocks, on any block that does not prevent jumping.
+    #[serde(default = "auto_step_base_value")]
+    pub base_value: f32,
+    /// Blocks, while controlled by a riding player.
+    #[serde(default = "auto_step_controlled_value")]
+    pub controlled_value: f32,
+    /// Blocks, on a block that prevents jumping (honey).
+    #[serde(default = "auto_step_jump_prevented_value")]
+    pub jump_prevented_value: f32,
+}
+
+/// `minecraft:follow_range`: how far the mob pursues its target.
+#[derive(Debug, Clone, PartialEq, Deserialize)]
+#[serde(deny_unknown_fields)]
+pub struct FollowRange {
+    /// Blocks; the follow range attribute's maximum (`value` when absent).
+    pub max: Option<f32>,
+    /// Blocks.
+    #[serde(default = "follow_range_value")]
+    pub value: f32,
+}
+
+/// `minecraft:shooter`: the projectile a ranged attack launches.
+#[derive(Debug, Clone, PartialEq, Deserialize)]
+#[serde(deny_unknown_fields)]
+pub struct Shooter {
+    /// The potion the default projectile carries (-1: none).
+    #[serde(default = "shooter_aux_val")]
+    pub aux_val: i32,
+    /// The default projectile's actor identifier.
+    #[serde(default)]
+    pub def: String,
+    /// The projectiles are magic (excludes other magic goals).
+    #[serde(default = "shooter_magic")]
+    pub magic: bool,
+    /// Launch speed in blocks per tick; 0 keeps the projectile's `power`.
+    #[serde(default = "shooter_power")]
+    pub power: f32,
+    /// Projectiles picked by filter before the default, first match wins.
+    #[serde(default)]
+    pub projectiles: Vec<ShooterProjectile>,
+    /// Sound event played on each shot (none when empty).
+    #[serde(default)]
+    pub sound: String,
+}
+
+/// One `minecraft:shooter` `projectiles` entry.
+#[derive(Debug, Clone, PartialEq, Deserialize)]
+#[serde(deny_unknown_fields)]
+pub struct ShooterProjectile {
+    #[serde(default = "shooter_aux_val")]
+    pub aux_val: i32,
+    pub def: String,
+    pub filters: Option<FilterJson>,
+    /// Drop the target after shooting this projectile.
+    #[serde(default = "shooter_lose_target")]
+    pub lose_target: bool,
+}
+
 macro_rules! dynamic_bodies {
     ($($name:ident),* $(,)?) => {
         $(impl ComponentBody for $name {
@@ -1330,6 +1703,7 @@ dynamic_bodies!(
     EnvironmentSensor,
     EquipItem,
     Equipment,
+    Explode,
     Health,
     HurtOnCondition,
     IsDyeable,
@@ -1349,6 +1723,17 @@ dynamic_bodies!(
     SpawnEggInteraction,
     SpawnEntity,
     Transformation,
+    TargetNearbySensor,
     Timer,
     TypeFamily,
+    // Spider lane.
+    Angry,
+    NavigationClimb,
+    // Enderman lane.
+    LookedAt,
+    Teleport,
+    VariableMaxAutoStep,
+    FollowRange,
+    // Skeleton lane.
+    Shooter,
 );

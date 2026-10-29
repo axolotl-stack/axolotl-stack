@@ -11,13 +11,12 @@ use jolyne::valentine::{
     CerealizerNetworkItemInstanceDescriptorSerializedData as WireResult,
     CerealizerRecipeIngredientSerializedData as WireIngredient,
 };
-use unastar_rules::molang::eval::{self, MolangContext, Value};
-use unastar_rules::molang::{self, BuiltinQuery, Expr, QueryContext, QueryId, QueryRegistry};
 
 use super::CraftingCatalog;
 use crate::item::ItemStack;
 use crate::registry::ItemRegistry;
 use crate::registry::item::ItemEntry;
+use crate::registry::item_tags::items_matching;
 
 const MAX_CELLS: usize = 9;
 
@@ -524,103 +523,18 @@ fn compile_output(
     Ok(stack)
 }
 
+/// Only pure item-tag expressions can be reduced to frozen numeric IDs;
+/// startup fails on unavailable context, never evaluating it as zero.
 fn compile_tag_expression(
     id: u32,
     source: &str,
     items: &ItemRegistry,
 ) -> Result<Vec<i32>, CompileError> {
-    let mut expression = molang::parse(source)
-        .map_err(|reason| compile_error(id, format!("ingredient Molang: {reason}")))?;
-    // Only pure item-tag expressions can be reduced to frozen numeric IDs.
-    // Fail startup on unavailable context, never silently evaluate it as zero.
-    let mut unsupported = None;
-    expression.walk(&mut |node| match node {
-        Expr::Query(query, args) => {
-            if !matches!(query.name.as_ref(), "any_tag" | "all_tags") {
-                unsupported = Some(format!(
-                    "ingredient query.{} needs an item-context binding",
-                    query.name
-                ));
-            } else if !args.iter().all(|arg| matches!(arg, Expr::Str(_))) {
-                unsupported = Some("ingredient tag queries require string tag arguments".into());
-            }
-        }
-        Expr::Math(function, _) if function.is_random() => {
-            unsupported = Some(
-                "random ingredient expressions cannot be frozen to numeric item predicates".into(),
-            );
-        }
-        Expr::This
-        | Expr::Var(..)
-        | Expr::Assign(..)
-        | Expr::Arrow(..)
-        | Expr::Loop(..)
-        | Expr::Break
-        | Expr::Continue => {
-            unsupported =
-                Some("ingredient expression requires unavailable mutable/entity context".into());
-        }
-        _ => {}
-    });
-    if let Some(reason) = unsupported {
-        return Err(compile_error(id, reason));
-    }
-    expression
-        .bind(QueryRegistry::vanilla(), QueryContext::Runtime)
-        .map_err(|reason| compile_error(id, reason))?;
-    items
-        .iter()
-        .filter_map(
-            |item| match eval::evaluate(&expression, &mut ItemTagContext(item)) {
-                Ok(value) if value.truthy() => Some(Ok(item.network_id())),
-                Ok(_) => None,
-                Err(error) => Some(Err(compile_error(
-                    id,
-                    format!("ingredient Molang: {error}"),
-                ))),
-            },
-        )
-        .collect()
-}
-
-/// Used only at startup, after the AST rejects every non-item binding.
-struct ItemTagContext<'a>(&'a ItemEntry);
-
-impl MolangContext for ItemTagContext<'_> {
-    fn query(&mut self, id: QueryId, args: &[Value]) -> Option<Value> {
-        let has_tag = |value: &Value| match value {
-            Value::Str(tag) => self.0.has_tag(tag),
-            _ => unreachable!("tag query arguments validated as string literals"),
-        };
-        let result = match BuiltinQuery::from_id(id) {
-            Some(BuiltinQuery::AllTags) => args.iter().all(has_tag),
-            Some(BuiltinQuery::AnyTag) => args.iter().any(has_tag),
-            _ => unreachable!("ingredient query set validated before evaluation"),
-        };
-        Some(Value::Num(if result { 1.0 } else { 0.0 }))
-    }
-
-    fn variable(&self, _: &str) -> Option<Value> {
-        unreachable!("item predicate has no variables")
-    }
-    fn set_variable(&mut self, _: &str, _: Value) {
-        unreachable!("item predicate has no assignments")
-    }
-    fn context(&self, _: &str) -> Option<Value> {
-        unreachable!("item predicate has no context variables")
-    }
-    fn this(&self) -> Value {
-        unreachable!("item predicate has no entity")
-    }
-    fn enter(&mut self, _: u64) -> bool {
-        unreachable!("item predicate has no entity arrow")
-    }
-    fn leave(&mut self) {
-        unreachable!("item predicate has no entity arrow")
-    }
-    fn random(&mut self) -> f32 {
-        unreachable!("item predicate has no random operations")
-    }
+    Ok(items_matching(source, items)
+        .map_err(|error| compile_error(id, format!("ingredient {error}")))?
+        .into_iter()
+        .map(ItemEntry::network_id)
+        .collect())
 }
 
 #[cfg(test)]

@@ -109,7 +109,10 @@ impl FamilyRegistry {
     }
 
     /// Membership for family names that were all registered before freeze.
-    fn membership(self: &Arc<Self>, names: &[String]) -> Result<ActorFamilies, FamilyError> {
+    pub(crate) fn membership(
+        self: &Arc<Self>,
+        names: &[String],
+    ) -> Result<ActorFamilies, FamilyError> {
         let mut words = vec![0; self.names.len().div_ceil(u64::BITS as usize)];
         for name in names {
             let index = self

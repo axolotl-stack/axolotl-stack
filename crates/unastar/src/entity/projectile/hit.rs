@@ -6,21 +6,28 @@ use bevy_ecs::prelude::*;
 use glam::DVec3;
 use rand::Rng;
 use tracing::warn;
-use unastar_data::actor_components::body::ActorDamageCause;
+use unastar_data::actor_components::body::{
+    ActorDamageCause, ImpactDamageDifficultyRandomization as Randomization,
+};
 
 use super::config::{ImpactDamage, ParticleOnHit, ProjectileRules, SpawnChance};
 use super::flight::Target;
+use super::launch::gaussian;
 use crate::entity::EntityRandom;
-use crate::entity::components::{GameMode, Player, Rotation};
+use crate::entity::components::{EffectType, Effects, GameMode, Health, Player, Rotation};
 use crate::entity::definition::apply_pending_definitions;
 use crate::entity::mob::combat::{Hit, hurt_mob, knockback_power_of};
-use crate::entity::mob::constants::{ICONCRACK_ITEM_SHIFT, PROJECTILE_PARTICLE_LEVEL_EVENT};
+use crate::entity::mob::constants::{
+    ARROW_EFFECT_DURATION_DIVISOR, ICONCRACK_ITEM_SHIFT, IMPACT_DAMAGE_GAUSSIAN,
+    IMPACT_DAMAGE_PER_DIFFICULTY, PROJECTILE_PARTICLE_LEVEL_EVENT,
+};
 use crate::entity::mob::events::{MobFacts, fire_event};
 use crate::entity::mob::net::sound::{level_event, play_level_sound};
 use crate::entity::mob::{MobKind, MobRegistry, SpawnCause, derive_entity, spawn_mob};
 use crate::entity::systems::physics::collect_block_boxes;
 use crate::registry::collision::Aabb;
 use crate::server::game::types::ItemRegistryResource;
+use crate::world::rules::Difficulty;
 
 /// Run the `on_hit` effects of one hit at `at`; returns whether the
 /// projectile is removed.
@@ -33,6 +40,9 @@ pub(super) fn on_hit(
     target: Target,
 ) -> bool {
     let mut removed = false;
+    if let (Target::Actor(actor), true) = (target, rules.arrow_effect) {
+        arrow_effect(world, projectile, actor);
+    }
     if let (Target::Actor(actor), Some(impact)) = (target, &rules.impact_damage) {
         let (destroyed, applied) = impact_damage(world, projectile, owner, impact, at, actor);
         removed |= destroyed;
@@ -63,11 +73,50 @@ pub(super) fn on_hit(
     removed
 }
 
+/// `arrow_effect` on a hit actor: the effects of the potion the projectile
+/// carries ([`super::ProjectilePotion`], the potion id plus one), each at
+/// its amplifier for [`ARROW_EFFECT_DURATION_DIVISOR`]th of its duration
+/// (at least one tick). A player gets them through the player effect rules,
+/// a mob unless its class or family is immune.
+fn arrow_effect(world: &mut World, projectile: Entity, actor: Entity) {
+    let Some(super::ProjectilePotion(data)) = world.get(projectile).copied() else {
+        return;
+    };
+    let Some(potion) = unastar_rules::potion::by_id(
+        i32::from(data) - i32::from(unastar_rules::potion::TIPPED_ARROW_DATA_OFFSET),
+    ) else {
+        return;
+    };
+    if world.get::<Health>(actor).is_none_or(Health::is_dead) {
+        return;
+    }
+    for effect in potion.effects {
+        let kind = EffectType(effect.effect);
+        let ticks = (effect.duration_ticks / ARROW_EFFECT_DURATION_DIVISOR).max(1);
+        if world.get::<Player>(actor).is_some() {
+            crate::server::game::effects::add_effect(world, actor, kind, effect.amplifier, ticks);
+        } else if world.get::<MobKind>(actor).is_some()
+            && !crate::entity::mob::combat::melee::immune_to_effect(world, actor, kind)
+        {
+            world
+                .entity_mut(actor)
+                .entry::<Effects>()
+                .or_default()
+                .get_mut()
+                .add(kind, effect.amplifier, ticks);
+        }
+    }
+}
+
 /// `impact_damage` on a hit actor: whether it destroys the projectile, and
 /// the health removed.
 ///
 /// Speed damage (`power_multiplier`, arrows) is the projectile's speed
-/// times the multiplier, rounded up when `ceil_pre_critical_damage`, plus
+/// times the multiplier, randomised by the difficulty per
+/// `difficulty_randomization` (`multiplicative`: speed × (multiplier +
+/// [`IMPACT_DAMAGE_PER_DIFFICULTY`] × difficulty +
+/// [`IMPACT_DAMAGE_GAUSSIAN`] × gaussian); `additive`: those terms added
+/// to the speed damage), rounded up when `ceil_pre_critical_damage`, plus
 /// for a critical shot a random bonus of up to half that plus one
 /// (public reference; recorded as unmeasured in `bds-quirks.md`).
 fn impact_damage(
@@ -92,7 +141,21 @@ fn impact_damage(
         let speed = world
             .get::<crate::entity::components::Velocity>(projectile)
             .map_or(0.0, |v| v.0.length() as f32);
-        let mut damage = speed * impact.power_multiplier;
+        let difficulty = world
+            .get_resource::<Difficulty>()
+            .copied()
+            .unwrap_or_default()
+            .wire() as f32;
+        let randomised = |world: &mut World| {
+            difficulty * IMPACT_DAMAGE_PER_DIFFICULTY
+                + gaussian(&mut world.get_resource_or_init::<EntityRandom>().0) as f32
+                    * IMPACT_DAMAGE_GAUSSIAN
+        };
+        let mut damage = match impact.difficulty_randomization {
+            Randomization::None => speed * impact.power_multiplier,
+            Randomization::Multiplicative => speed * (impact.power_multiplier + randomised(world)),
+            Randomization::Additive => speed * impact.power_multiplier + randomised(world),
+        };
         if impact.ceil_pre_critical {
             damage = damage.ceil();
         }

@@ -27,7 +27,7 @@ use glam::IVec3;
 
 use super::rules::BlockSet;
 use crate::entity::mob::constants::{
-    ANIMAL_GRASS_WALK_TARGET, ANIMAL_WALK_TARGET_OFFSET, MOB_WALK_TARGET,
+    ANIMAL_GRASS_WALK_TARGET, ANIMAL_WALK_TARGET_OFFSET, GRASS_BLOCK, MOB_WALK_TARGET,
     MONSTER_SPAWN_BRIGHTNESS_LIMIT, MONSTER_WALK_TARGET_BASE, OVERWORLD_BRIGHTNESS_RAMP,
     SPAWN_REFUSING_BLOCKS, SPAWN_UNSAFE_GROUND, SPAWN_WITHER_ROSE,
 };
@@ -49,7 +49,7 @@ pub struct NativeSpawnBlocks {
 impl NativeSpawnBlocks {
     pub fn resolve(blocks: &BlockRegistry) -> Self {
         Self {
-            grass: BlockSet::named(blocks, &["minecraft:grass_block"]),
+            grass: BlockSet::named(blocks, &[GRASS_BLOCK]),
             unsafe_ground: BlockSet::named(blocks, &SPAWN_UNSAFE_GROUND),
             refusing: BlockSet::named(blocks, &SPAWN_REFUSING_BLOCKS),
             wither_rose: BlockSet::named(blocks, &[SPAWN_WITHER_ROSE]),
@@ -86,13 +86,20 @@ impl NativeSpawnBlocks {
     /// The class's walk-target value at a block with raw brightness `raw`
     /// above the block `ground`.
     fn walk_target(&self, class: SpawnClass, ground: u32, raw: u8) -> f32 {
-        let ramp = OVERWORLD_BRIGHTNESS_RAMP[usize::from(raw.min(15))];
-        match class {
-            SpawnClass::Mob => MOB_WALK_TARGET,
-            SpawnClass::Animal if self.grass.contains(ground) => ANIMAL_GRASS_WALK_TARGET,
-            SpawnClass::Animal => ramp + ANIMAL_WALK_TARGET_OFFSET,
-            SpawnClass::Monster => MONSTER_WALK_TARGET_BASE - ramp,
-        }
+        walk_target_value(class, self.grass.contains(ground), raw)
+    }
+}
+
+/// A class's native walk-target value at a block with raw brightness
+/// `raw`, standing on grass when `on_grass`: natural spawning refuses a
+/// negative value, and `behavior.flee_sun` looks for one.
+pub(crate) fn walk_target_value(class: SpawnClass, on_grass: bool, raw: u8) -> f32 {
+    let ramp = OVERWORLD_BRIGHTNESS_RAMP[usize::from(raw.min(15))];
+    match class {
+        SpawnClass::Mob => MOB_WALK_TARGET,
+        SpawnClass::Animal if on_grass => ANIMAL_GRASS_WALK_TARGET,
+        SpawnClass::Animal => ramp + ANIMAL_WALK_TARGET_OFFSET,
+        SpawnClass::Monster => MONSTER_WALK_TARGET_BASE - ramp,
     }
 }
 

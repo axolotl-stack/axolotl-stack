@@ -345,11 +345,15 @@ fn zombie_without_the_annotation_does_not_path_through_the_door() {
     let lower = door_state("minecraft:wooden_door", false);
     let zombie = h.zombie(false);
     h.provoke(zombie);
-    let (events, east, at_door) = h.run(zombie, 900);
+    let (events, east, _) = h.run(zombie, 900);
     assert!(events.is_empty(), "{events:?}");
     assert_eq!(h.block(DOOR), lower);
-    // The door cell is a wall to its path search: it never chases the
-    // player up to the door.
+    // The door cell is a wall to its path search: the melee goal follows
+    // the partial route to the node closest to the player, which ends in
+    // front of the door, and never crosses it.
+    assert!(
+        east > f64::from(DOOR.x) - 1.5,
+        "it paths up to the door: {east}"
+    );
     assert!(east < f64::from(DOOR.x), "{east}");
-    assert!(at_door < 100, "{at_door}");
 }

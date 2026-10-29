@@ -30,6 +30,7 @@ pub mod filter;
 pub mod loot;
 pub mod math;
 pub mod molang;
+pub mod potion;
 
 use std::fmt;
 
