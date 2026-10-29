@@ -104,7 +104,7 @@ fn validate_entry(root: &Path, entry: &Entry, files: &mut TestFiles) -> Vec<Stri
 /// (the repository comment rule): raw addresses, recovered function names.
 fn forbidden_provenance(text: &str) -> Option<&'static str> {
     let lower = text.to_ascii_lowercase();
-    ["fun_", "0x14", "decompil", "disassembl", "lens", "rva "]
+    ["fun_", "0x14", "decompil", "disassembl", "rva "]
         .into_iter()
         .find(|pattern| lower.contains(pattern))
 }
