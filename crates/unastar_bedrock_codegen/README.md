@@ -910,5 +910,12 @@ in the wrong places).
 | histogram L1 | 0.02380 | 0.03696 |
 | roofed tree voxels exact | 788 | 787 |
 
-Next: measure tunnel geometry against the native cave air (radii, steps,
-branch points) to recover the missing volume.
+**Where the missing volume is.** We rebuilt the seeded tunnels offline
+(classic walk) for the same 13 chunks: 3124 cells below y 0, of which 1870
+are open in BDS and all open in ours, so radii and the carvable-block rules
+are not what is missing. Of the 8351 BDS open cells the tunnels do not
+explain, 5960 lie more than 8 blocks from any tunnel. Whole caves are
+missing, not width. The cells open in both worlds without any tunnel (noise
+caves and aquifers) are 75% shared, but BDS has about 2.7 times our
+noise-cave volume (ours 3125 cells). That points at the cave terms of the
+shared terrain noise, which still need measuring against BDS.
