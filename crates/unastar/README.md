@@ -52,19 +52,25 @@ Player storage remains configured separately under `[players]`.
 ## Joining
 
 Players join through jolyne's streamed spawn (`start_game_streamed`, BDS order):
-the player enters the ECS at its `RequestChunkRadius` with the granted radius
-(`server.default_chunk_radius`), and the chunk systems send the view
+the player enters the ECS at its `RequestChunkRadius` with the view distance it
+requested, capped at `server.max_chunk_radius` (default 16, like BDS caps
+requests at `view-distance`; the old `server.default_chunk_radius` key is
+accepted but ignored with a startup warning), and the chunk systems send the view
 (`NetworkChunkPublisherUpdate`), the chunks available that tick, and then
 `PlayStatus(PlayerSpawn)` once, never waiting for generation. The rest of the
 view streams through the same `ChunkLoader` while the client loads, so nothing
 is resent after it initializes; jolyne's receive path enforces
 `SetLocalPlayerAsInitialized` and the 60 s spawn timeout. Clients that withhold
 initialization until their announced view has loaded (BDS-style, Cinnabar)
-therefore never wait on terrain that is not coming. Loopback timing with the
-jolyne client (connect to `PlayerSpawn` / to the whole radius-disk view loaded):
-Java world radius 4, about 0.5 s / 3.0 s fresh and 0.16 s / 0.45 s when the area
-is already generated; radius 12, about 0.6 s / 17 s fresh and 0.14 s / 2.9 s
-generated (8 chunks per player per tick bound the generated case).
+therefore never wait on terrain that is not coming.
+
+Chunk streaming keeps the generation pool full (three requests in flight per
+worker, players taking turns), sends chunks already in memory 32 per player per
+tick, and answers each client's `SubChunkRequest`s; inbound packets over the
+per-tick session budget wait for the next tick instead of being dropped. Java
+terrain is generated in parallel (one lock per chunk; see
+`world::generator::pipeline`). Load timings, method and history are in
+[`tools/perf/README.md`](../../tools/perf/README.md).
 
 ## World Generation
 

@@ -117,6 +117,13 @@ impl UnastarServer {
     /// Create a new server instance from config.
     pub async fn new(config: Arc<UnastarConfig>) -> Result<Self, Box<dyn std::error::Error>> {
         let player_data_store = Arc::new(PlayerDataStore::new(config.players.data_dir.clone()));
+        if let Some(radius) = config.server.default_chunk_radius {
+            warn!(
+                default_chunk_radius = radius,
+                max_chunk_radius = config.server.max_chunk_radius,
+                "`server.default_chunk_radius` is ignored: each player gets the view distance it requests, up to `server.max_chunk_radius`"
+            );
+        }
 
         // Create ECS-based game server
         let mut server = GameServer::with_config(config.server_config());

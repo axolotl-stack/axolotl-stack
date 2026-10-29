@@ -95,7 +95,6 @@ impl UnastarConfig {
             bind_address: self.server.bind_address.clone(),
             motd: self.server.motd.clone(),
             max_players: self.server.max_players,
-            default_chunk_radius: self.server.default_chunk_radius,
             max_chunk_radius: self.server.max_chunk_radius,
             default_gamemode: gamemode,
             difficulty: self.server.difficulty,
@@ -119,16 +118,8 @@ impl UnastarConfig {
         if self.spawn_rules.is_empty() {
             return Err("config requires at least one `[[spawn_rules]]` rule".into());
         }
-        if self.server.default_chunk_radius < 1 {
-            return Err("`server.default_chunk_radius` must be >= 1".into());
-        }
         if self.server.max_chunk_radius < 1 {
             return Err("`server.max_chunk_radius` must be >= 1".into());
-        }
-        if self.server.default_chunk_radius > self.server.max_chunk_radius {
-            return Err(
-                "`server.default_chunk_radius` cannot exceed `server.max_chunk_radius`".into(),
-            );
         }
         if matches!(
             self.world.generator,
@@ -152,7 +143,13 @@ pub struct ServerConfigFile {
     pub bind_address: String,
     pub motd: String,
     pub max_players: u32,
-    pub default_chunk_radius: i32,
+    /// No longer used: players receive the view distance they request, up
+    /// to `max_chunk_radius` (as BDS caps requests at `view-distance`).
+    /// Accepted so older config files still load; a startup warning says it
+    /// is ignored.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub default_chunk_radius: Option<i32>,
+    /// Largest view distance (chunk radius) granted to a client.
     pub max_chunk_radius: i32,
     /// Default game mode for new players: "survival", "creative", "adventure", "spectator"
     pub default_gamemode: String,
@@ -183,8 +180,8 @@ impl Default for ServerConfigFile {
             bind_address: "127.0.0.1:19132".into(),
             motd: "Unastar Server".into(),
             max_players: 20,
-            default_chunk_radius: 4,
-            max_chunk_radius: 12,
+            default_chunk_radius: None,
+            max_chunk_radius: 16,
             default_gamemode: "survival".into(),
             difficulty: crate::world::rules::Difficulty::Easy,
             online_mode: true,
