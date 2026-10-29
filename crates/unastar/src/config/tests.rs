@@ -142,6 +142,33 @@ fn offline_mode_requires_an_explicit_opt_out() {
 }
 
 #[test]
+fn difficulty_defaults_to_easy_and_reaches_runtime_configuration() {
+    use crate::world::rules::Difficulty;
+    let file = ConfigFile::new();
+    std::fs::write(&file.0, VOID_WORLD).unwrap();
+    let config = UnastarConfig::load_or_create(&file.0).unwrap();
+    assert_eq!(config.server_config().difficulty, Difficulty::Easy);
+
+    std::fs::write(
+        &file.0,
+        format!("{VOID_WORLD}[server]\ndifficulty = 'hard'"),
+    )
+    .unwrap();
+    let config = UnastarConfig::load_or_create(&file.0).unwrap();
+    assert_eq!(config.server_config().difficulty, Difficulty::Hard);
+
+    std::fs::write(
+        &file.0,
+        format!("{VOID_WORLD}[server]\ndifficulty = 'brutal'"),
+    )
+    .unwrap();
+    assert!(matches!(
+        UnastarConfig::load_or_create(&file.0),
+        Err(ConfigError::Parse { .. })
+    ));
+}
+
+#[test]
 fn strict_world_variants_still_load_valid_options() {
     use crate::world::{WorldBounds, WorldGenerator};
     for bounds in [

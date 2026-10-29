@@ -9,15 +9,21 @@
 //! yaw, head yaw and velocity (acceleration and jumps) that the physics step
 //! then integrates. [`push_mobs`] then pushes nearby pushable mobs apart.
 
+mod break_door;
 mod control;
 mod eat_block;
 mod goals;
+mod melee;
 mod nearby;
 mod path;
+mod pickup;
+pub mod sensing;
+mod targeting;
 
 #[cfg(test)]
 mod tests;
 
+pub(crate) use self::break_door::stop_breaking_doors;
 pub use self::path::PathBlockTable;
 
 use bevy_ecs::prelude::*;
@@ -26,7 +32,7 @@ use jolyne::valentine::actor_flags;
 
 use self::control::{Body, LookControl, MoveControl, PathFollower, travel};
 use self::goals::{Effects, GoalContext, GoalStates, goal_specs};
-use self::nearby::{MobView, Nearby, PlayerView};
+use self::nearby::{ItemView, MobView, Nearby, PlayerView};
 use self::path::WalkPolicy;
 use super::MobKind;
 use super::components::{BasicMovementConfig, JumpConfig, Pushable, WalkNavigationConfig};
@@ -34,10 +40,12 @@ use super::constants::{
     DEFAULT_JUMP_POWER, DEFAULT_MAX_TURN, ENTITY_PUSH_MIN_DISTANCE, ENTITY_PUSH_REACH,
     ENTITY_PUSH_STRENGTH, PLAYER_BOX_HEIGHT, PLAYER_BOX_WIDTH,
 };
-use super::state::{Dead, InLove, MateRequest, Persistent};
+use super::state::{AttackTarget, Dead, InLove, MateRequest, Persistent};
 use crate::ecs::TickCounter;
 use crate::entity::EntityRandom;
-use crate::entity::components::{OnGround, PhysicsBody, Player, Position, Rotation, Velocity};
+use crate::entity::components::{
+    DroppedItem, OnGround, PhysicsBody, Player, Position, Rotation, Velocity,
+};
 use crate::entity::definition::DefinitionState;
 use crate::entity::definition::components::MovementConfig;
 use crate::entity::definition::flags::ActorFlags;
@@ -84,6 +92,14 @@ pub struct AiScratch {
     /// Mobs whose eat timer ran out this tick; they eat once the AI's
     /// resource scopes end (eating fires events, which draw randomness).
     eaten: Vec<Entity>,
+    /// Melee hits `(attacker, target)` of this tick; dealt once the AI's
+    /// resource scopes end (hits draw randomness and hurt players).
+    attacks: Vec<(Entity, Entity)>,
+    /// Item pickups, equips and pickup events of this tick; made once the
+    /// AI's resource scopes end (they spawn items and fire events).
+    gear: Vec<(Entity, pickup::GearWork)>,
+    /// Door collision boxes for [`break_door`].
+    boxes: Vec<Aabb>,
 }
 
 type BrainQuery = (Entity, Ref<'static, DefinitionState>, Has<Dead>);
@@ -103,6 +119,7 @@ pub fn tick_mob_ai(
     brains: &mut QueryState<BrainQuery, (With<MobKind>, With<MobBrain>)>,
     views: &mut QueryState<ViewQuery, With<MobKind>>,
     players: &mut QueryState<(Entity, &Position, &Rotation), With<Player>>,
+    items: &mut QueryState<(Entity, &Position), With<DroppedItem>>,
     mut scratch: Local<AiScratch>,
 ) {
     let scratch = &mut *scratch;
@@ -137,6 +154,12 @@ pub fn tick_mob_ai(
                 dead,
             }),
     );
+    scratch
+        .nearby
+        .rebuild_items(items.iter(world).map(|(entity, position)| ItemView {
+            entity,
+            feet: position.0,
+        }));
     world.resource_scope(|world, table: Mut<PathBlockTable>| {
         world.resource_scope(|world, mut rng: Mut<EntityRandom>| {
             for &(entity, turn) in &scratch.mobs {
@@ -163,7 +186,14 @@ pub fn tick_mob_ai(
                         .expect("queried with a brain") = brain;
                 }
                 if let Some(output) = output {
-                    apply(world, entity, output, &mut scratch.eaten);
+                    apply(
+                        world,
+                        entity,
+                        output,
+                        &mut scratch.eaten,
+                        &mut scratch.attacks,
+                        &mut scratch.gear,
+                    );
                 }
             }
         });
@@ -171,6 +201,22 @@ pub fn tick_mob_ai(
     for entity in scratch.eaten.drain(..) {
         eat_block::finish_eating(world, entity);
     }
+    for (attacker, target) in scratch.attacks.drain(..) {
+        super::combat::melee::melee_attack(world, attacker, target);
+    }
+    for (entity, work) in scratch.gear.drain(..) {
+        pickup::finish(world, entity, work);
+    }
+    break_door::tick_door_breakers(
+        world,
+        scratch
+            .mobs
+            .iter()
+            .filter(|(_, turn)| *turn != Turn::Die)
+            .map(|&(entity, _)| entity),
+        tick,
+        &mut scratch.boxes,
+    );
 }
 
 /// The result of one mob's tick.
@@ -219,6 +265,8 @@ fn think(
     };
     let policy = WalkPolicy::new(
         mob.get::<WalkNavigationConfig>(),
+        mob.get::<ActorFlags>()
+            .is_some_and(|f| f.get(actor_flags::DOOR_BREAKER).unwrap_or(false)),
         jump_power,
         physics.gravity,
     );
@@ -231,6 +279,11 @@ fn think(
         movement,
         look,
     } = brain;
+    if turn == Turn::Think(true) {
+        // A rebuilt composition rebuilds the native goals.
+        states.melee.reset();
+        states.targets.reset();
+    }
     let mut effects = Effects::default();
     let mut ctx = GoalContext {
         world,
@@ -241,6 +294,7 @@ fn think(
         physics,
         policy,
         yaw: rotation.yaw,
+        head_yaw: rotation.head_yaw,
         baby,
         tick,
         rng: &mut rng.0,
@@ -255,6 +309,7 @@ fn think(
     match turn {
         Turn::Die => {
             selector.stop_all(&mut ctx);
+            ctx.effects.target = Some(None);
             return Some(Output {
                 yaw: rotation.yaw,
                 head_yaw: rotation.head_yaw,
@@ -273,7 +328,17 @@ fn think(
     selector.tick(&mut ctx);
     let goal_jump = ctx.jump;
 
-    nav.tick(&body, movement);
+    let door_hold = nav.current().is_some_and(|(index, path)| {
+        break_door::held_by_breakable_door(
+            world,
+            entity,
+            table,
+            path,
+            index,
+            Aabb::from_feet(feet, physics.width, physics.height),
+        )
+    });
+    nav.tick(&body, movement, door_hold);
     let mut yaw = rotation.yaw;
     let move_jump = movement.tick(&body, &mut yaw, max_turn);
     let mut head_yaw = rotation.head_yaw;
@@ -295,7 +360,14 @@ fn think(
     })
 }
 
-fn apply(world: &mut World, entity: Entity, output: Output, eaten: &mut Vec<Entity>) {
+fn apply(
+    world: &mut World,
+    entity: Entity,
+    output: Output,
+    eaten: &mut Vec<Entity>,
+    attacks: &mut Vec<(Entity, Entity)>,
+    gear: &mut Vec<(Entity, pickup::GearWork)>,
+) {
     let Output {
         yaw,
         head_yaw,
@@ -317,6 +389,15 @@ fn apply(world: &mut World, entity: Entity, output: Output, eaten: &mut Vec<Enti
     if effects.persistent && !mob.contains::<Persistent>() {
         mob.insert(Persistent);
     }
+    match effects.target {
+        Some(Some(target)) => {
+            mob.insert(AttackTarget(target));
+        }
+        Some(None) => {
+            mob.remove::<AttackTarget>();
+        }
+        None => {}
+    }
     if let Some(tempted) = effects.tempted {
         set_flag(&mut mob, actor_flags::TEMPTED, tempted);
     }
@@ -335,6 +416,12 @@ fn apply(world: &mut World, entity: Entity, output: Output, eaten: &mut Vec<Enti
     }
     if effects.eat_finished {
         eaten.push(entity);
+    }
+    if let Some(target) = effects.attack {
+        attacks.push((entity, target));
+    }
+    if !effects.gear.is_empty() {
+        gear.push((entity, effects.gear));
     }
 }
 

@@ -52,15 +52,24 @@ mod tests {
             (0x3fd0_0000_0000_0000, JavaBiome::EndMidlands),
             (0x3fd0_0000_0000_0001, JavaBiome::EndHighlands),
         ] {
-            assert_eq!(sample_end_biome(260, 0, |_, _| f64::from_bits(bits)), expected);
+            assert_eq!(
+                sample_end_biome(260, 0, |_, _| f64::from_bits(bits)),
+                expected
+            );
         }
     }
 
     #[test]
     fn native_center_uses_chunk_scaled_radius_before_erosion() {
         assert_eq!(sample_end_biome(259, 0, |_, _| -1.0), JavaBiome::TheEnd);
-        assert_eq!(sample_end_biome(260, 0, |_, _| -1.0), JavaBiome::SmallEndIslands);
-        assert_eq!(sample_end_biome(-260, 0, |_, _| -1.0), JavaBiome::SmallEndIslands);
+        assert_eq!(
+            sample_end_biome(260, 0, |_, _| -1.0),
+            JavaBiome::SmallEndIslands
+        );
+        assert_eq!(
+            sample_end_biome(-260, 0, |_, _| -1.0),
+            JavaBiome::SmallEndIslands
+        );
     }
 
     #[test]

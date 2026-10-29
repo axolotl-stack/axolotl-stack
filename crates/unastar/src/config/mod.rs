@@ -98,6 +98,7 @@ impl UnastarConfig {
             default_chunk_radius: self.server.default_chunk_radius,
             max_chunk_radius: self.server.max_chunk_radius,
             default_gamemode: gamemode,
+            difficulty: self.server.difficulty,
             block_network_ids: self.server.block_network_ids,
             operators: self.server.operators.clone(),
             // Use defaults for new fields not in config file yet
@@ -155,6 +156,10 @@ pub struct ServerConfigFile {
     pub max_chunk_radius: i32,
     /// Default game mode for new players: "survival", "creative", "adventure", "spectator"
     pub default_gamemode: String,
+    /// World difficulty at startup: "peaceful", "easy", "normal" or
+    /// "hard" (BDS `server.properties` default: easy). `/difficulty`
+    /// changes it while the server runs.
+    pub difficulty: crate::world::rules::Difficulty,
     /// Enable Xbox Live authentication (online mode).
     /// Set to false for offline/cracked clients.
     pub online_mode: bool,
@@ -181,6 +186,7 @@ impl Default for ServerConfigFile {
             default_chunk_radius: 4,
             max_chunk_radius: 12,
             default_gamemode: "survival".into(),
+            difficulty: crate::world::rules::Difficulty::Easy,
             online_mode: true,
             allow_legacy_auth: true,
             encryption_enabled: true,

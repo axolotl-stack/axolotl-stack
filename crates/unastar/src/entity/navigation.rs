@@ -4,8 +4,10 @@
 //! timing or path choice. Nodes are block-column centres at actual shape-top
 //! heights, plus the exact start and goal. Edges use a lift / horizontal sweep /
 //! settle corridor; they do not cut corners, cross unsupported gaps, swim, fly,
-//! open doors, or predict a ballistic jump. Move control must execute the
-//! returned step/jump transitions and replan when the world changes.
+//! or predict a ballistic jump. A state whose collision the caller waives
+//! ([`WalkBlockRole::Collides`], a door the mob opens or breaks) is crossed as
+//! if it were empty. Move control must execute the returned step/jump
+//! transitions and replan when the world changes.
 //!
 //! Runtime-state permissions are supplied by the caller, normally as indexed
 //! tables compiled from actor navigation policy. This module performs no block
@@ -24,10 +26,13 @@ const EPSILON: f64 = 1.0e-7;
 
 /// Why a runtime state is being checked. A support state can be dangerous even
 /// though its collision box only touches, rather than intersects, the body.
+/// `Collides` asks whether the state's collision shape counts at all; `false`
+/// makes the search pass through it (no obstruction, no support).
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub(crate) enum WalkBlockRole {
     Occupied,
     Support,
+    Collides,
 }
 
 /// Feet positions are exact, supported world positions, not block coordinates.
@@ -308,15 +313,18 @@ impl<B: BlockSource, P: Fn(u32, WalkBlockRole) -> bool> Search<'_, B, P> {
             .block_at(pos)
             .filter(|id| self.blocks.registry().get_by_runtime_id(*id).is_some());
         self.scratch.local_boxes.clear();
-        if let Some(state) = state {
-            let resolved = connected_state(self.blocks.registry(), pos, state, |p| {
-                self.blocks.block_at(p)
-            });
-            block_collision_boxes(resolved, &mut self.scratch.local_boxes);
-        } else {
-            self.scratch
+        match state {
+            Some(state) if (self.permitted)(state, WalkBlockRole::Collides) => {
+                let resolved = connected_state(self.blocks.registry(), pos, state, |p| {
+                    self.blocks.block_at(p)
+                });
+                block_collision_boxes(resolved, &mut self.scratch.local_boxes);
+            }
+            Some(_) => {}
+            None => self
+                .scratch
                 .local_boxes
-                .push(Aabb::new(DVec3::ZERO, DVec3::ONE));
+                .push(Aabb::new(DVec3::ZERO, DVec3::ONE)),
         }
         let cached = CachedBlock {
             first: self.scratch.boxes.len(),

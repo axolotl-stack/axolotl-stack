@@ -105,6 +105,12 @@ pub(crate) fn loot_stacks(world: &World, drops: Vec<LootDrop>) -> Vec<ItemStack>
         if drop.nbt.is_some() {
             template.nbt = drop.nbt.map(bytes::Bytes::from);
         }
+        if !drop.enchantments.is_empty() {
+            template = crate::item::enchant::with_enchantment_ids(
+                &template,
+                drop.enchantments.iter().map(|e| (i16::from(e.id), e.level)),
+            );
+        }
         let mut left = drop.count;
         while left > 0 {
             let take = left.min(u32::from(template.max_stack_size()));

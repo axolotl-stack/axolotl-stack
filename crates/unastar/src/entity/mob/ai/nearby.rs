@@ -1,5 +1,6 @@
-//! The players and mobs goals search for, snapshotted once per tick and
-//! bucketed by chunk column so a search only visits nearby chunks.
+//! The players, mobs and dropped items goals search for, snapshotted once
+//! per tick and bucketed by chunk column so a search only visits nearby
+//! chunks.
 
 use bevy_ecs::prelude::*;
 use glam::DVec3;
@@ -81,6 +82,13 @@ impl MobView {
     }
 }
 
+/// A dropped item as the pickup goal sees it this tick.
+#[derive(Debug, Clone, Copy)]
+pub struct ItemView {
+    pub entity: Entity,
+    pub feet: DVec3,
+}
+
 type Cell = (i32, i32);
 
 fn cell(point: DVec3) -> Cell {
@@ -113,13 +121,16 @@ impl Cells {
     }
 }
 
-/// This tick's players and mobs with their chunk-column index.
+/// This tick's players, mobs and dropped items with their chunk-column
+/// index.
 #[derive(Debug, Default)]
 pub struct Nearby {
     players: Vec<PlayerView>,
     mobs: Vec<MobView>,
+    items: Vec<ItemView>,
     player_cells: Cells,
     mob_cells: Cells,
+    item_cells: Cells,
 }
 
 impl Nearby {
@@ -136,6 +147,21 @@ impl Nearby {
         self.player_cells
             .rebuild(self.players.iter().map(|p| p.feet));
         self.mob_cells.rebuild(self.mobs.iter().map(|m| m.feet));
+    }
+
+    /// Replace the dropped-item snapshot.
+    pub fn rebuild_items(&mut self, items: impl Iterator<Item = ItemView>) {
+        self.items.clear();
+        self.items.extend(items);
+        self.item_cells.rebuild(self.items.iter().map(|i| i.feet));
+    }
+
+    /// Dropped items whose feet lie in `min..=max`.
+    pub fn items_in(&self, min: DVec3, max: DVec3) -> impl Iterator<Item = &ItemView> + '_ {
+        self.item_cells
+            .within(min, max)
+            .map(|i| &self.items[i])
+            .filter(move |item| item.feet.cmpge(min).all() && item.feet.cmple(max).all())
     }
 
     /// Players whose feet are within `radius` of `centre`.

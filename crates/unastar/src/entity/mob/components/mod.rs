@@ -19,12 +19,16 @@ pub mod color;
 pub mod common;
 pub mod damage_sensor;
 pub mod despawn;
+pub mod doors;
+pub mod equipment;
 pub mod goals;
+pub mod hostile;
 pub mod hurt_on_condition;
 pub mod interact;
 pub mod knockback;
 pub mod loot;
 pub mod movement;
+pub mod sensors;
 pub mod shearing;
 pub mod spawn_entity;
 
@@ -39,15 +43,23 @@ pub use color::{ActorColor, DyeableConfig};
 pub use common::{ItemMatcher, SelfEvent, insert, insert_infallible};
 pub use damage_sensor::{DamageSensorConfig, DealsDamageRule, SensorTrigger};
 pub use despawn::DespawnConfig;
+pub use equipment::{
+    EquipItemConfig, EquipItemGoal, EquipmentConfig, PickupItemsGoal, ShareablesConfig,
+};
 pub use goals::{
     BreedGoal, EatBlockGoal, EatBlockPair, FloatGoal, FollowParentGoal, GoalBase, LookAtPlayerGoal,
     PanicGoal, RandomLookAroundGoal, RandomStrollGoal, TemptGoal,
+};
+pub use hostile::{
+    AttackConfig, BurnsInDaylightConfig, HurtByTargetGoal, MeleeBoxAttackGoal,
+    NearestAttackableTargetGoal,
 };
 pub use hurt_on_condition::{HurtCondition, HurtOnConditionConfig};
 pub use interact::{InteractConfig, Interaction, SpawnEggInteraction, SpawnItems};
 pub use knockback::{KnockbackPower, KnockbackRules};
 pub use loot::{ExperienceRewardConfig, LootConfig};
 pub use movement::{BasicMovementConfig, JumpConfig, WalkNavigationConfig};
+pub use sensors::{EnvironmentSensorConfig, Timer};
 pub use spawn_entity::{SpawnEntityConfig, SpawnEntityTimers, SpawnRule, SpawnTimer};
 
 use crate::entity::definition::{ComponentKindsBuilder, DefinitionError};
@@ -96,8 +108,26 @@ pub const ACCEPTED_WITHOUT_BEHAVIOUR: &[(ActorComponent, &str)] = &[
     ),
     (
         ActorComponent::Transformation,
-        "vanilla passive mobs only gain it when struck by lightning (the pig \
-         turning into a zombified piglin), and lightning is not implemented",
+        "the pig gains it only when struck by lightning (not implemented); \
+         the zombie gains it after 30 s underwater, but its target, the \
+         drowned, is not spawnable yet (it needs swim navigation, the \
+         trident ranged attack and target_nearby_sensor), so an underwater \
+         zombie shakes (is_shaking) without converting",
+    ),
+    (
+        ActorComponent::BehaviorStompTurtleEgg,
+        "turtle eggs are not implemented: no block in the world is a turtle \
+         egg for the goal to find",
+    ),
+    (
+        ActorComponent::BehaviorFindMount,
+        "riding is not implemented: a baby zombie jockey has nothing to mount",
+    ),
+    (
+        ActorComponent::BehaviorUseKineticWeapon,
+        "kinetic (spear) weapon use: the item kinetic_weapon component and \
+         spear charge attacks are not implemented; a zombie holding a spear \
+         still attacks with behavior.melee_box_attack",
     ),
     (
         ActorComponent::GameEventMovementTracking,
@@ -118,6 +148,7 @@ pub fn register_component_kinds(
     body::register_component_kinds(builder)?;
     hurt_on_condition::register_component_kinds(builder)?;
     despawn::register_component_kinds(builder)?;
+    doors::register_component_kinds(builder)?;
     breeding::register_component_kinds(builder)?;
     loot::register_component_kinds(builder)?;
     interact::register_component_kinds(builder)?;
@@ -132,10 +163,16 @@ pub fn register_component_kinds(
     inert::<bodies::BehaviorControlledByPlayer>(builder)?;
     inert::<bodies::Transformation>(builder)?;
     inert::<bodies::GameEventMovementTracking>(builder)?;
+    inert::<bodies::BehaviorStompTurtleEgg>(builder)?;
+    inert::<bodies::BehaviorFindMount>(builder)?;
+    inert::<bodies::BehaviorUseKineticWeapon>(builder)?;
+    hostile::register_component_kinds(builder)?;
+    sensors::register_component_kinds(builder)?;
     color::register_component_kinds(builder)?;
     shearing::register_component_kinds(builder)?;
     damage_sensor::register_component_kinds(builder)?;
     ambient::register_component_kinds(builder)?;
     spawn_entity::register_component_kinds(builder, items)?;
+    equipment::register_component_kinds(builder)?;
     knockback::register_component_kinds(builder)
 }

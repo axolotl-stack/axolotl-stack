@@ -15,7 +15,7 @@ use crate::entity::mob::constants::{
     MOVE_SPEED_RAMP, NORMAL_GROUND_FRICTION, PATH_STUCK_CHECK_TICKS, PATH_STUCK_DISTANCE_FACTOR,
     PATH_WAYPOINT_REACH, PATH_WAYPOINT_REACH_Y, WATER_MOVE_SPEED,
 };
-use crate::entity::navigation::WalkNavigation;
+use crate::entity::navigation::{WalkNavigation, WalkWaypoint};
 use crate::registry::block::LiquidKind;
 
 /// What the controls know about the mob this tick.
@@ -207,7 +207,21 @@ impl PathFollower {
         !self.active || self.index >= self.path.waypoints.len()
     }
 
-    pub fn tick(&mut self, body: &Body, control: &mut MoveControl) {
+    /// The index of the waypoint being walked to and every waypoint of the
+    /// path, while one is followed.
+    pub fn current(&self) -> Option<(usize, &[WalkWaypoint])> {
+        (!self.is_done()).then_some((self.index, self.path.waypoints.as_slice()))
+    }
+
+    /// Count the waypoint being walked to as reached.
+    pub fn skip_waypoint(&mut self) {
+        self.index += 1;
+    }
+
+    /// One tick of path following. `door_hold`: a door this door breaker
+    /// may break stands across the path at the current waypoint; the stuck
+    /// check then keeps the path, as the native follower does.
+    pub fn tick(&mut self, body: &Body, control: &mut MoveControl, door_hold: bool) {
         if self.is_done() {
             self.active = false;
             return;
@@ -241,7 +255,7 @@ impl PathFollower {
             let speed = if speed >= 1.0 { speed } else { speed * speed };
             let min_travel =
                 f64::from(speed * PATH_STUCK_CHECK_TICKS as f32 * PATH_STUCK_DISTANCE_FACTOR);
-            if body.feet.distance_squared(self.stuck_from) < min_travel * min_travel {
+            if !door_hold && body.feet.distance_squared(self.stuck_from) < min_travel * min_travel {
                 self.stop(control);
                 return;
             }

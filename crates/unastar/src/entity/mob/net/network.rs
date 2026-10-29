@@ -5,8 +5,10 @@
 //! metadata, synced properties and attributes. Existing viewers get, per
 //! tick and only for what changed: `SetActorData` (coalesced dirty metadata
 //! keys plus the property snapshot), `UpdateAttributes`, `MoveActorDelta`
-//! when movement is significant and `SetActorMotion` when velocity changed
-//! enough (thresholds in [`constants`]).
+//! when movement is significant, `SetActorMotion` when velocity changed
+//! enough (thresholds in [`constants`]) and the equipment slots that
+//! changed; a new viewer of a mob with equipment also gets its equipment
+//! after the `AddActor` (`mob::gear::replicate`).
 
 use bevy_ecs::prelude::*;
 use glam::DVec3;
@@ -25,7 +27,9 @@ use crate::entity::components::{
 use crate::entity::definition::attributes::ActorAttributes;
 use crate::entity::definition::metadata::EntityMetadata;
 use crate::entity::definition::properties::ActorProperties;
+use crate::entity::mob::gear::{MobEquipment, replicate};
 use crate::entity::mob::{MobKind, constants};
+use crate::server::game::types::{ItemRegistryResource, ServerConfigResource};
 use crate::world::ChunkManager;
 use crate::world::ecs::ChunkViewers;
 
@@ -104,6 +108,8 @@ pub fn sync_mob_viewers(
     chunk_manager: Res<ChunkManager>,
     chunk_viewers: Query<&ChunkViewers>,
     sessions: Query<&PlayerSession>,
+    items: Option<Res<ItemRegistryResource>>,
+    config: Option<Res<ServerConfigResource>>,
     mut mobs: Query<(
         &MobKind,
         &RuntimeId,
@@ -116,8 +122,12 @@ pub fn sync_mob_viewers(
         &mut ActorAttributes,
         &mut ActorViewers,
         &mut MobNetState,
+        Option<&mut MobEquipment>,
     )>,
 ) {
+    let block_ids = config
+        .as_ref()
+        .map_or_else(Default::default, |config| config.0.block_network_ids);
     for (
         kind,
         runtime_id,
@@ -130,6 +140,7 @@ pub fn sync_mob_viewers(
         mut attributes,
         mut viewers,
         mut net,
+        mut gear,
     ) in &mut mobs
     {
         let (cx, cz) = crate::world::ecs::world_to_chunk_coords(
@@ -251,6 +262,11 @@ pub fn sync_mob_viewers(
             }));
             net.velocity = velocity.0;
         }
+        if let (Some(gear), Some(items)) = (gear.as_mut(), items.as_ref())
+            && gear.is_dirty()
+        {
+            replicate::changed_packets(runtime_id.0, gear, &items.0, block_ids, &mut updates);
+        }
         for viewer in &viewers.viewers {
             if let Ok(session) = sessions.get(*viewer) {
                 for packet in &updates {
@@ -276,11 +292,21 @@ pub fn sync_mob_viewers(
                 properties,
                 &attributes,
             ));
+            let equipment = gear
+                .as_deref()
+                .filter(|gear| gear.count() > 0)
+                .zip(items.as_ref())
+                .map(|(gear, items)| {
+                    replicate::inventory_packets(runtime_id.0, gear, &items.0, block_ids)
+                });
             for viewer in fresh {
                 if let Ok(session) = sessions.get(viewer)
                     && session.send(spawn.clone())
                 {
                     viewers.viewers.push(viewer);
+                    for packet in equipment.iter().flatten() {
+                        let _ = session.send(packet.clone());
+                    }
                 }
             }
         }
