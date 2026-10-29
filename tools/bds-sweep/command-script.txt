@@ -1,0 +1,83 @@
+# Vanilla command feedback reference: capture.py --commands tools/bds-sweep/command-script.txt
+# One command per line, run in order by an operator on a fresh world.
+/gamemode creative
+/gamemode survival @s
+/gamemode 1
+/gamemode foo
+/gamemode
+/give @s wheat 64
+/give @s minecraft:diamond_sword
+/give @s stone 600
+/give @s notanitem
+/give @s wheat 64 0 {"minecraft:keep_on_death":{}}
+/clear @s wheat
+/clear @s wheat 0 10
+/clear
+/clear @s diamond
+/tp 0 100 0
+/tp @s ~ ~5 ~
+/tp @s ~ ~ ~ 90 0
+/teleport @s 10 80 10
+/tp NoSuchPlayer
+/time set day
+/time set 6000
+/time add 100
+/time query daytime
+/time query gametime
+/time query day
+/weather rain
+/weather thunder 100
+/weather clear
+/weather query
+/difficulty hard
+/difficulty 0
+/gamerule
+/gamerule keepinventory true
+/gamerule keepinventory
+/gamerule randomtickspeed 5
+/xp 10
+/xp 5L
+/xp -100L
+/effect @s speed 10 1
+/effect @s speed infinite 2 true
+/effect @s clear
+/effect @s clear speed
+/enchant @s sharpness 2
+/give @s diamond_sword
+/enchant @s sharpness 2
+/enchant @s sharpness 9
+/enchant @s protection 1
+/say hello world
+/say hi @s
+/me waves
+/tell @s secret message
+/msg @s again
+/list
+/setworldspawn
+/setworldspawn 5 70 5
+/spawnpoint
+/spawnpoint @s 1 70 1
+/setblock ~ ~-1 ~ stone
+/setblock ~ ~-1 ~ stone
+/setblock ~1 ~ ~ minecraft:wool ["color"="red"]
+/setblock ~1 ~ ~ concrete ["color"="blue"] keep
+/fill ~ ~ ~ ~2 ~2 ~2 glass
+/fill ~ ~ ~ ~2 ~2 ~2 air
+/fill ~ ~ ~ ~100 ~100 ~100 stone
+/clone ~ ~-1 ~ ~1 ~-1 ~1 ~5 ~-1 ~5
+/summon cow ~ ~ ~3
+/summon pig ~ ~ ~3 0 0 minecraft:entity_spawned Bob
+/summon minecraft:nothing
+/kill @e[type=cow]
+/kill @e[type=pig,c=1]
+/kill @e[type=zombie]
+/op NoSuchPlayer
+/deop NoSuchPlayer
+/help
+/defaultgamemode creative
+/notacommand
+/tp
+/list extra
+/scoreboard objectives list
+/gamemode creative @a[m=s]
+/kill @s

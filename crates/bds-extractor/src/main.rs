@@ -60,6 +60,16 @@ struct Args {
     #[arg(long, default_value = "5", requires = "capture_dir")]
     summon_wait: u64,
 
+    /// Capture mode: run the commands of this file (one per line, leading `/`
+    /// optional; blank lines and `#` comments skipped) after the join and any
+    /// summons, one at a time (needs operator permission for most commands)
+    #[arg(long, requires = "capture_dir")]
+    commands: Option<PathBuf>,
+
+    /// Capture mode: milliseconds to wait after each scripted command
+    #[arg(long, default_value = "1500", requires = "capture_dir")]
+    command_wait: u64,
+
     /// Log level filter
     #[arg(long, default_value = "info")]
     log: String,
@@ -109,6 +119,12 @@ async fn run(args: Args) -> Result<()> {
     info!("Connecting to BDS at {}...", addr);
 
     if let Some(out_dir) = args.capture_dir {
+        let commands = args
+            .commands
+            .as_deref()
+            .map(read_commands)
+            .transpose()?
+            .unwrap_or_default();
         return capture::run(&capture::Options {
             addr,
             name: args.name,
@@ -117,6 +133,8 @@ async fn run(args: Args) -> Result<()> {
             settle: Duration::from_secs(args.settle),
             summon: args.summon,
             summon_wait: Duration::from_secs(args.summon_wait),
+            commands,
+            command_wait: Duration::from_millis(args.command_wait),
         })
         .await;
     }
@@ -136,6 +154,18 @@ async fn run(args: Args) -> Result<()> {
 
     write_extracted_data(&args.output, &data)?;
     Ok(())
+}
+
+/// The commands of a `--commands` script, without their leading `/`.
+fn read_commands(path: &Path) -> Result<Vec<String>> {
+    let text = std::fs::read_to_string(path)
+        .with_context(|| format!("reading commands from {}", path.display()))?;
+    Ok(text
+        .lines()
+        .map(str::trim)
+        .filter(|line| !line.is_empty() && !line.starts_with('#'))
+        .map(|line| line.strip_prefix('/').unwrap_or(line).to_owned())
+        .collect())
 }
 
 fn load_fixture(path: &Path) -> Result<output::ExtractedData> {
