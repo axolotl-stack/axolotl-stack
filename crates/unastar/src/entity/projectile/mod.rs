@@ -38,6 +38,7 @@ pub mod config;
 pub mod flight;
 pub mod hit;
 pub mod launch;
+pub mod pickup;
 
 use bevy_ecs::prelude::*;
 
@@ -50,7 +51,8 @@ pub use flight::tick_projectiles;
 #[cfg(test)]
 pub(crate) use hit::spawn_count;
 pub(crate) use launch::derive_projectile;
-pub use launch::{LaunchError, apply_throws, launch, thrown_by};
+pub use launch::{LaunchError, LaunchSpec, apply_throws, launch, launch_with, thrown_by};
+pub use pickup::pick_up_stuck_projectiles;
 
 /// Flight state of a projectile actor.
 #[derive(Component, Debug, Clone, Copy, PartialEq, Eq)]
@@ -59,7 +61,23 @@ pub struct ProjectileFlight {
     pub owner: Option<Entity>,
     /// The server tick of its first flight tick.
     pub launched_tick: u64,
+    /// A fully drawn bow or a crossbow shot: speed damage gets the
+    /// critical bonus.
+    pub critical: bool,
 }
+
+/// A projectile that stuck in a block (`on_hit.stick_in_ground`), since
+/// this server tick. It no longer moves or hits.
+#[derive(Component, Debug, Clone, Copy, PartialEq, Eq)]
+#[component(storage = "SparseSet")]
+pub struct Stuck {
+    pub since: u64,
+}
+
+/// The item a player gets back by walking into the stuck projectile
+/// (arrows shot and tridents thrown in survival).
+#[derive(Component, Debug, Clone, PartialEq)]
+pub struct ProjectileItem(pub crate::item::ItemStack);
 
 /// Players that used a throwable item this tick (queued by the inventory
 /// system, thrown by [`apply_throws`]).

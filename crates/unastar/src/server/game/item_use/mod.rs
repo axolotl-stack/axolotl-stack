@@ -1,4 +1,5 @@
-//! Using the held item in the air: eating, drinking and throwing.
+//! Using the held item in the air: eating, drinking, throwing, bows,
+//! crossbows and tridents.
 //!
 //! The client starts using an item with an `ItemUse` transaction of action
 //! `Use` (click air). Like BDS 1.26.51 (capture `item-use-20261029`), the
@@ -61,6 +62,7 @@ pub struct ItemUsing {
 #[derive(Debug, Clone, Copy, PartialEq)]
 pub enum UseKind {
     Consume(food::Consumable),
+    Draw(ranged::Drawn),
     Throw,
 }
 
@@ -69,6 +71,9 @@ pub fn use_kind(stack: &ItemStack) -> Option<UseKind> {
     let entry = stack.item()?;
     if let Some(consumable) = food::consumable(entry) {
         return Some(UseKind::Consume(consumable));
+    }
+    if let Some(drawn) = ranged::drawn(entry.identifier()) {
+        return Some(UseKind::Draw(drawn));
     }
     ranged::thrown(entry.identifier()).map(|_| UseKind::Throw)
 }
@@ -311,6 +316,12 @@ fn handle(world: &mut World, player: Entity, request: UseRequest) {
         (Some(UseKind::Consume(consumable)), UseRequest::Consume, Some(_)) => {
             food::finish(world, player, slot, &stack, consumable.kind)
         }
+        (Some(UseKind::Draw(drawn)), UseRequest::UseAir, using) => {
+            ranged::use_drawn(world, player, slot, &stack, drawn, using)
+        }
+        (Some(UseKind::Draw(drawn)), UseRequest::Release, using) => {
+            ranged::release_drawn(world, player, slot, &stack, drawn, using)
+        }
         (Some(UseKind::Throw), UseRequest::UseAir, _) => ranged::throw(world, player),
         (_, UseRequest::Release | UseRequest::Consume, _) => stop_using(world, player),
         (None, UseRequest::UseAir, _) => {}
@@ -394,8 +405,13 @@ pub fn tick_using(
             stop_using(world, player);
             continue;
         };
-        let Some(UseKind::Consume(consumable)) = use_kind(&stack) else {
-            continue;
+        let consumable = match use_kind(&stack) {
+            Some(UseKind::Consume(consumable)) => consumable,
+            Some(UseKind::Draw(drawn)) => {
+                ranged::tick_drawn(world, player, drawn, &using);
+                continue;
+            }
+            _ => continue,
         };
         if used_ticks(world, &using) >= u64::from(consumable.duration_ticks) {
             food::finish(world, player, slot, &stack, consumable.kind);

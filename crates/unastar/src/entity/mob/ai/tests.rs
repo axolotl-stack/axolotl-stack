@@ -105,7 +105,10 @@ impl Terrain {
     /// A survival player whose feet are at `feet`, holding `item`.
     fn player(&mut self, feet: DVec3, item: &str) -> Entity {
         let mut inventory = MainInventory::default();
-        inventory.0.set_item(0, crate::item::test_support::stack(item, 1)).unwrap();
+        inventory
+            .0
+            .set_item(0, crate::item::test_support::stack(item, 1))
+            .unwrap();
         self.world()
             .spawn((
                 Player,

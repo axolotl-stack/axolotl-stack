@@ -100,6 +100,11 @@ pub const ACCEPTED_WITHOUT_BEHAVIOUR: &[(ActorComponent, &str)] = &[
          turning into a zombified piglin), and lightning is not implemented",
     ),
     (
+        ActorComponent::DimensionBound,
+        "keeps an arrow or trident out of portals, and changing dimension \
+         is not implemented",
+    ),
+    (
         ActorComponent::GameEventMovementTracking,
         "emits flap/move/swim game events, which only vibration listeners \
          (sculk sensors, wardens, allays) consume; vibrations are not implemented",
@@ -132,6 +137,7 @@ pub fn register_component_kinds(
     inert::<bodies::BehaviorControlledByPlayer>(builder)?;
     inert::<bodies::Transformation>(builder)?;
     inert::<bodies::GameEventMovementTracking>(builder)?;
+    inert::<bodies::DimensionBound>(builder)?;
     color::register_component_kinds(builder)?;
     shearing::register_component_kinds(builder)?;
     damage_sensor::register_component_kinds(builder)?;

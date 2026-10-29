@@ -23,6 +23,7 @@ pub enum Enchantment {
     SilkTouch = 16,
     Unbreaking = 17,
     Fortune = 18,
+    Infinity = 22,
 }
 
 impl Enchantment {
@@ -35,6 +36,7 @@ impl Enchantment {
             "silk_touch" => Self::SilkTouch,
             "unbreaking" => Self::Unbreaking,
             "fortune" => Self::Fortune,
+            "infinity" => Self::Infinity,
             _ => return None,
         })
     }

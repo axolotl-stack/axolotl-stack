@@ -173,7 +173,9 @@ impl FilterContext for MobFacts<'_> {
                     return None;
                 }
                 let stack = held_item(self.world, entity);
-                Fact::Matches(stack.is_some_and(|stack| want.matches(stack.item_id(), stack.damage)))
+                Fact::Matches(
+                    stack.is_some_and(|stack| want.matches(stack.item_id(), stack.damage)),
+                )
             }
             _ => return None,
         })

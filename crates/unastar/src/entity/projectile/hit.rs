@@ -34,7 +34,14 @@ pub(super) fn on_hit(
 ) -> bool {
     let mut removed = false;
     if let (Target::Actor(actor), Some(impact)) = (target, &rules.impact_damage) {
-        removed |= impact_damage(world, projectile, owner, impact, at, actor);
+        let (destroyed, applied) = impact_damage(world, projectile, owner, impact, at, actor);
+        removed |= destroyed;
+        if !destroyed {
+            rebound(world, projectile, rules, applied);
+        }
+    }
+    if let (Target::Block, Some(shake)) = (target, rules.stick_in_ground) {
+        stick(world, projectile, at, shake);
     }
     if let Some(particle) = &rules.particle {
         emit_particles(world, projectile, particle, at, target);
@@ -56,8 +63,13 @@ pub(super) fn on_hit(
     removed
 }
 
-/// `impact_damage` on a hit actor; returns whether it destroys the
-/// projectile.
+/// `impact_damage` on a hit actor: whether it destroys the projectile, and
+/// the health removed.
+///
+/// Speed damage (`power_multiplier`, arrows) is the projectile's speed
+/// times the multiplier, rounded up when `ceil_pre_critical_damage`, plus
+/// for a critical shot a random bonus of up to half that plus one
+/// (public reference; recorded as unmeasured in `bds-quirks.md`).
 fn impact_damage(
     world: &mut World,
     projectile: Entity,
@@ -65,11 +77,37 @@ fn impact_damage(
     impact: &ImpactDamage,
     at: DVec3,
     actor: Entity,
-) -> bool {
-    if world.get::<MobKind>(actor).is_none() {
-        return false;
+) -> (bool, f32) {
+    if world.get::<MobKind>(actor).is_none() && world.get::<Player>(actor).is_none() {
+        return (false, 0.0);
     }
-    let damage = if impact.max > impact.min {
+    let filtered_out = impact.filter.as_deref().is_some_and(|wanted| {
+        world
+            .get::<MobKind>(actor)
+            .is_none_or(|kind| kind.0.identifier.as_ref() != wanted)
+    });
+    let damage = if filtered_out {
+        0.0
+    } else if impact.power_multiplier > 0.0 {
+        let speed = world
+            .get::<crate::entity::components::Velocity>(projectile)
+            .map_or(0.0, |v| v.0.length() as f32);
+        let mut damage = speed * impact.power_multiplier;
+        if impact.ceil_pre_critical {
+            damage = damage.ceil();
+        }
+        if world
+            .get::<super::ProjectileFlight>(projectile)
+            .is_some_and(|flight| flight.critical)
+        {
+            let bonus = (damage / 2.0) as i32 + 2;
+            damage += world
+                .get_resource_or_init::<EntityRandom>()
+                .0
+                .gen_range(0..bonus) as f32;
+        }
+        damage
+    } else if impact.max > impact.min {
         world
             .get_resource_or_init::<EntityRandom>()
             .0
@@ -89,7 +127,44 @@ fn impact_damage(
         knockback_power: knockback_power_of(world, projectile),
     };
     let applied = hurt_mob(world, actor, hit);
-    impact.destroy_on_hit && (applied > 0.0 || !impact.destroy_requires_damage)
+    (
+        impact.destroy_on_hit && (applied > 0.0 || !impact.destroy_requires_damage),
+        applied,
+    )
+}
+
+/// A projectile that hit an actor without being destroyed: one that dealt
+/// no damage bounces back (`should_bounce`), one that hurt drops away
+/// (`stop_on_hurt`, tridents).
+fn rebound(world: &mut World, projectile: Entity, rules: &ProjectileRules, applied: f32) {
+    let Some(mut velocity) = world.get_mut::<crate::entity::components::Velocity>(projectile)
+    else {
+        return;
+    };
+    if applied <= 0.0 && rules.bounce_without_damage {
+        velocity.0 *= -0.1;
+    } else if applied > 0.0 && rules.stop_on_hurt {
+        velocity.0 *= DVec3::new(-0.01, -0.1, -0.01);
+    }
+}
+
+/// `stick_in_ground`: stop at the hit point and shake for `shake` ticks
+/// (`ActorEvent` 39 with the shake time, as BDS sends for arrows).
+fn stick(world: &mut World, projectile: Entity, at: DVec3, shake: u32) {
+    let now = world
+        .resource::<crate::ecs::resources::TickCounter>()
+        .current;
+    world.entity_mut(projectile).insert((
+        super::Stuck { since: now },
+        crate::entity::components::Position(at),
+        crate::entity::components::Velocity(DVec3::ZERO),
+    ));
+    crate::entity::mob::combat::send_actor_event(
+        world,
+        projectile,
+        jolyne::valentine::types::EnumsActorEvent::Shake,
+        i32::try_from(shake).unwrap_or(i32::MAX),
+    );
 }
 
 fn emit_particles(
@@ -125,7 +200,12 @@ fn emit_particles(
                 .map(|item| item.network_id())
         })
         .unwrap_or(0);
-    let data = particle.particle | (item << ICONCRACK_ITEM_SHIFT);
+    // Only the item-crack particle names an item.
+    let data = if particle.particle == crate::entity::mob::constants::ICONCRACK_PARTICLE {
+        particle.particle | (item << ICONCRACK_ITEM_SHIFT)
+    } else {
+        particle.particle
+    };
     for _ in 0..particle.count {
         level_event(world, at, PROJECTILE_PARTICLE_LEVEL_EVENT, data);
     }

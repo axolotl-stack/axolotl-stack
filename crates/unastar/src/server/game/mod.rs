@@ -496,6 +496,7 @@ impl GameServer {
                 effects::apply_player_effects,
                 hunger::tick_hunger,
                 item_use::tick_using,
+                crate::entity::projectile::pick_up_stuck_projectiles,
             )
                 .chain()
                 .in_set(EntityLogicSet)

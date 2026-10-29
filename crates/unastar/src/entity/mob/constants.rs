@@ -219,6 +219,10 @@ pub const PROJECTILE_PARTICLE_LEVEL_EVENT: i32 = 2009;
 /// Particle id of `iconcrack`; its level event data also carries the item's
 /// network id shifted left by [`ICONCRACK_ITEM_SHIFT`].
 pub const ICONCRACK_PARTICLE: i32 = 14;
+/// The `snowballpoof` particle id: BDS 1.26.51 sends six
+/// `LevelEvent(2009, data 15)` where a snowball hits (client-diff capture
+/// `item-use-20261029`).
+pub const SNOWBALLPOOF_PARTICLE: i32 = 15;
 pub const ICONCRACK_ITEM_SHIFT: u32 = 16;
 /// Level sound of a player throwing a projectile item.
 pub const THROW_SOUND: &str = "throw";

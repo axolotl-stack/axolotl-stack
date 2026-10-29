@@ -204,6 +204,7 @@ fn spawn_unattached(
             crate::entity::projectile::ProjectileFlight {
                 owner: None,
                 launched_tick,
+                critical: false,
             },
         ));
     } else {
