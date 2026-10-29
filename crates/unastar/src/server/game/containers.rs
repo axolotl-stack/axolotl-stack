@@ -25,7 +25,7 @@
 //!   closes their viewers with a server-initiated close.
 //! - Breaking drops chest, barrel and hopper contents in random 10..30 item
 //!   chunks; a furnace drops whole stacks.
-//! - Furnaces tick per BDS `FurnaceBlockActor::tick`: refuel when burn time
+//! - Furnaces tick like BDS 1.26.51 furnaces: refuel when burn time
 //!   runs out and the input can smelt, cook interval 200 (furnace) or 100
 //!   (blast furnace, smoker), progress decays by 2 while not burning, the
 //!   lit/unlit block swaps in the tick burning starts or stops, and viewers get
@@ -208,7 +208,7 @@ fn pair_pos(container: &BlockContainer) -> Option<IVec3> {
 }
 
 /// A double chest's halves as (lead, other), after dropping a pair whose
-/// partner no longer pairs back (BDS `_validatePairedChest`).
+/// partner no longer pairs back.
 fn halves(world: &mut World, pos: IVec3) -> Option<(IVec3, Option<IVec3>)> {
     let kind = load(world, pos)?;
     let Some(other) = container(world, pos).and_then(pair_pos) else {
@@ -632,7 +632,7 @@ pub(super) fn commit_window(
     }
     if screen.kind.smelter().is_some() {
         let (input_before, input_after) = (before.item(0).unwrap(), after.item(0).unwrap());
-        // BDS `setItem(0)`: a different (or emptied/filled) input restarts cooking.
+        // Like BDS 1.26.51: a different (or emptied/filled) input restarts cooking.
         let input_changed = !(input_after.comparable(input_before)
             || input_after.is_empty() && input_before.is_empty());
         let taken = taken_output(before.item(2).unwrap(), after.item(2).unwrap());
@@ -725,8 +725,8 @@ fn close_viewers(world: &mut World, pos: IVec3, kind: ContainerKind) {
 
 // ── Furnace XP ──────────────────────────────────────────────────────────────
 
-/// BDS `_getXPRewardMultiplier`: block overrides, else the item's native
-/// furnace XP multiplier.
+/// The XP multiplier of a smelted item: block overrides, else the item's
+/// native furnace XP multiplier.
 fn xp_multiplier(stack: &ItemStack) -> f32 {
     const TENTH: &[&str] = &[
         "minecraft:stone",
@@ -951,7 +951,7 @@ pub(super) fn breaking(world: &mut World, pos: IVec3) -> Option<BrokenContainer>
     })
 }
 
-/// Scatter a broken container's contents (BDS `dropContents`).
+/// Scatter a broken container's contents.
 pub(super) fn drop_contents(world: &mut World, pos: IVec3, broken: BrokenContainer) {
     for mut stack in broken.drops {
         while !stack.is_empty() {
@@ -1136,7 +1136,7 @@ fn result_stack(
         .map(|stack| stack.with_damage(data))
 }
 
-/// BDS `FurnaceBlockActor::canBurn`.
+/// Whether the furnace's input has a result that fits its output slot.
 fn can_burn(world: &World, container: &BlockContainer) -> bool {
     let smelter = container.kind.smelter().expect("furnace kinds smelt");
     let input = container.items.item(0).unwrap();

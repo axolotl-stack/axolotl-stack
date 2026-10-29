@@ -1,9 +1,8 @@
 //! Using the held item on a block: hoes, shovels, axes, shears, flint and
 //! steel, fire charges, bone meal and buckets.
 //!
-//! These are built-in item classes in BDS (`HoeItem`, `ShovelItem`,
-//! `HatchetItem`, `ShearsItem`, `FlintAndSteelItem`, `FireChargeItem`,
-//! `BoneMealItem`, `BucketItem`); the pack has no data for them. Block
+//! The behaviour pack has no data for what these items do to blocks, so the
+//! rules are written here. Block
 //! identities come from the block registry (stripped logs are the
 //! registered `stripped_*` blocks, copper ageing follows the registered
 //! `exposed_`/`weathered_`/`oxidized_`/`waxed_` names) so no conversion

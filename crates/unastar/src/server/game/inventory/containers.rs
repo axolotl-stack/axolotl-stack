@@ -24,7 +24,7 @@ pub enum SlotKind {
     Armor,
     Offhand,
     CreatedOutput,
-    /// Furnace-family fuel slot (BDS `FurnaceFuelContainerValidation`).
+    /// Furnace-family fuel slot (accepts only items that burn).
     FurnaceFuel,
 }
 
