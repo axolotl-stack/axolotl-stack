@@ -4,14 +4,14 @@
 
 use std::io::{self, Read};
 
+use unastar_noise::features::eval::BlockEntityData;
+use unastar_noise::structures::native_actor::{self, Tag as JavaTag};
 use valentine::bedrock::codec::Nbt;
 use zuri_nbt::{
     NBTTag,
     encoding::{LittleEndian, NetworkLittleEndian},
     reader::Reader,
 };
-use unastar_noise::features::eval::BlockEntityData;
-use unastar_noise::structures::native_actor::{self, Tag as JavaTag};
 
 include!("native_actor_blocks.rs");
 
@@ -52,7 +52,9 @@ impl BlockEntity {
     pub fn network_nbt(&self) -> &Nbt {
         match &self.data {
             ActorData::Bedrock(nbt) => nbt,
-            ActorData::Java(_) | ActorData::JavaPending(_) => panic!("native Java actor must be explicitly converted before Bedrock network encoding"),
+            ActorData::Java(_) | ActorData::JavaPending(_) => panic!(
+                "native Java actor must be explicitly converted before Bedrock network encoding"
+            ),
         }
     }
 
@@ -112,7 +114,9 @@ impl BlockEntity {
     /// Append one fixed-width little-endian rooted compound for the 0x31 value.
     pub fn write_disk_nbt(&self, out: &mut Vec<u8>) -> io::Result<()> {
         let ActorData::Bedrock(nbt) = &self.data else {
-            return Err(invalid_nbt("native Java actor must be explicitly converted before Bedrock persistence"));
+            return Err(invalid_nbt(
+                "native Java actor must be explicitly converted before Bedrock persistence",
+            ));
         };
         let tag = NBTTag::read(nbt.0.as_ref(), NetworkReader).map_err(invalid_nbt)?;
         tag.write(out, LittleEndian).map_err(invalid_nbt)
@@ -178,7 +182,10 @@ impl BlockEntity {
 
     /// Retain source-native metadata, without materializing any Bedrock bytes.
     pub fn generated_java(position: [i32; 3], block: &'static str, data: BlockEntityData) -> Self {
-        Self { position, data: ActorData::Java(JavaRecipe { block, data }) }
+        Self {
+            position,
+            data: ActorData::Java(JavaRecipe { block, data }),
+        }
     }
 
     /// Queue the native ProtoChunk marker, without instantiating constructor
@@ -188,7 +195,7 @@ impl BlockEntity {
             position,
             data: ActorData::JavaPending(JavaRecipe {
                 block,
-                data: BlockEntityData { loot: None, spawner_entity: None, template_nbt: None },
+                data: BlockEntityData::NONE,
             }),
         }
     }
@@ -211,7 +218,7 @@ impl BlockEntity {
         if constructs {
             self.data = ActorData::Java(JavaRecipe {
                 block: current_block,
-                data: BlockEntityData { loot: None, spawner_entity: None, template_nbt: None },
+                data: BlockEntityData::NONE,
             });
         }
         constructs
@@ -220,14 +227,30 @@ impl BlockEntity {
     /// Native feature setters mutate the instantiated actor, retaining its
     /// original type/template even if another actor block now occupies the cell.
     pub(crate) fn with_java_feature_data(&self, data: BlockEntityData) -> Self {
-        assert!(data.template_nbt.is_none(), "template loads replace, rather than mutate, an actor");
+        assert!(
+            data.template_nbt.is_none(),
+            "template loads replace, rather than mutate, an actor"
+        );
         let mut recipe = match self.data {
             ActorData::Java(recipe) | ActorData::JavaPending(recipe) => recipe,
             ActorData::Bedrock(_) => panic!("native feature cannot mutate a Bedrock actor"),
         };
-        if data.loot.is_some() { recipe.data.loot = data.loot; }
-        if data.spawner_entity.is_some() { recipe.data.spawner_entity = data.spawner_entity; }
-        Self { position: self.position, data: ActorData::Java(recipe) }
+        if data.loot.is_some() {
+            recipe.data.loot = data.loot;
+        }
+        if data.spawner_entity.is_some() {
+            recipe.data.spawner_entity = data.spawner_entity;
+        }
+        if data.bees.is_some() {
+            recipe.data.bees = data.bees;
+        }
+        if data.gateway_exit.is_some() {
+            recipe.data.gateway_exit = data.gateway_exit;
+        }
+        Self {
+            position: self.position,
+            data: ActorData::Java(recipe),
+        }
     }
 
     /// Complete native ProtoChunk save NBT, including native defaults/components
@@ -249,10 +272,13 @@ impl BlockEntity {
     /// exporting them as either live or packed without that context is invalid.
     pub fn canonical_java_level_nbt(&self) -> io::Result<serde_json::Value> {
         if self.is_java_pending() {
-            return Err(invalid_nbt("pending actor requires native LevelChunk promotion context"));
+            return Err(invalid_nbt(
+                "pending actor requires native LevelChunk promotion context",
+            ));
         }
         let mut tag = self.java_tag()?;
-        tag.compound_mut()?.insert(native_actor::key("keepPacked"), JavaTag::Byte(0));
+        tag.compound_mut()?
+            .insert(native_actor::key("keepPacked"), JavaTag::Byte(0));
         canonical_tag(&tag)
     }
 
@@ -267,14 +293,19 @@ impl BlockEntity {
                     (native_actor::key("z"), JavaTag::Int(self.position[2])),
                 ])));
             }
-            ActorData::Bedrock(_) => return Err(invalid_nbt("Bedrock actor has no canonical Java payload")),
+            ActorData::Bedrock(_) => {
+                return Err(invalid_nbt("Bedrock actor has no canonical Java payload"));
+            }
         };
         let mut tag = if let Some(template) = recipe.data.template_nbt {
             let mut source = JavaTag::read_root(template.source)?;
             native_actor::apply_normalization(&mut source, template.normalization)?;
             source
         } else {
-            let block = recipe.block.strip_prefix("minecraft:").unwrap_or(recipe.block);
+            let block = recipe
+                .block
+                .strip_prefix("minecraft:")
+                .unwrap_or(recipe.block);
             let variant = if block == "spawner" {
                 match recipe.data.spawner_entity {
                     Some("minecraft:zombie") => "spawner/zombie",
@@ -284,13 +315,23 @@ impl BlockEntity {
                     Some("minecraft:blaze") => "spawner/blaze",
                     Some("minecraft:silverfish") => "spawner/silverfish",
                     None => "spawner",
-                    Some(other) => return Err(invalid_nbt(format!("unmeasured native runtime spawner {other}"))),
+                    Some(other) => {
+                        return Err(invalid_nbt(format!(
+                            "unmeasured native runtime spawner {other}"
+                        )));
+                    }
                 }
-            } else { block };
+            } else {
+                block
+            };
             // Both tables are native constructor saves; the promoted table covers
             // every registered actor block and is checked against the direct one.
             let bytes = native_actor::runtime_default(variant)
-                .or_else(|| (variant == block).then(|| native_actor::promoted_default(recipe.block)).flatten())
+                .or_else(|| {
+                    (variant == block)
+                        .then(|| native_actor::promoted_default(recipe.block))
+                        .flatten()
+                })
                 .ok_or_else(|| invalid_nbt(format!("unmeasured native runtime actor {variant}")))?;
             JavaTag::read_root(bytes)?
         };
@@ -304,18 +345,60 @@ impl BlockEntity {
             // Native RandomizableContainer/Brushable/DecoratedPot saves omit
             // the seed tag when it is zero, and never materialize loot Items.
             fields.remove(&native_actor::key("LootTableSeed"));
-            if seed != 0 { fields.insert(native_actor::key("LootTableSeed"), JavaTag::Long(seed)); }
+            if seed != 0 {
+                fields.insert(native_actor::key("LootTableSeed"), JavaTag::Long(seed));
+            }
         }
-        if recipe.block == "minecraft:spawner" && recipe.data.template_nbt.is_some()
+        if recipe.block == "minecraft:spawner"
+            && recipe.data.template_nbt.is_some()
             && let Some(entity) = recipe.data.spawner_entity
         {
             // BaseSpawner.setEntityId changes SpawnData.entity.id only. In
             // particular, existing weighted SpawnPotentials are not rebuilt.
-            let spawn = fields.get_mut(&native_actor::key("SpawnData"))
-                .ok_or_else(|| invalid_nbt("native spawner save has no SpawnData"))?.compound_mut()?;
-            let entity_data = spawn.get_mut(&native_actor::key("entity"))
-                .ok_or_else(|| invalid_nbt("native SpawnData has no entity"))?.compound_mut()?;
+            let spawn = fields
+                .get_mut(&native_actor::key("SpawnData"))
+                .ok_or_else(|| invalid_nbt("native spawner save has no SpawnData"))?
+                .compound_mut()?;
+            let entity_data = spawn
+                .get_mut(&native_actor::key("entity"))
+                .ok_or_else(|| invalid_nbt("native SpawnData has no entity"))?
+                .compound_mut()?;
             entity_data.insert(native_actor::key("id"), native_actor::string(entity));
+        }
+        if let Some(bees) = recipe.data.bees {
+            // BeehiveBlockEntity.storeBee: occupants in insertion order.
+            let occupants = bees.ticks[..usize::from(bees.count)]
+                .iter()
+                .map(|&ticks| {
+                    JavaTag::Compound(std::collections::BTreeMap::from([
+                        (
+                            native_actor::key("entity_data"),
+                            JavaTag::Compound(std::collections::BTreeMap::from([(
+                                native_actor::key("id"),
+                                native_actor::string("minecraft:bee"),
+                            )])),
+                        ),
+                        (native_actor::key("min_ticks_in_hive"), JavaTag::Int(600)),
+                        (
+                            native_actor::key("ticks_in_hive"),
+                            JavaTag::Int(i32::from(ticks)),
+                        ),
+                    ]))
+                })
+                .collect();
+            fields.insert(native_actor::key("bees"), JavaTag::List(10, occupants));
+        }
+        if let Some((exit, exact)) = recipe.data.gateway_exit {
+            fields.insert(
+                native_actor::key("exit_portal"),
+                JavaTag::IntArray(vec![exit.x, exit.y, exit.z]),
+            );
+            // The gateway saves `ExactTeleport` only while it is set.
+            if exact {
+                fields.insert(native_actor::key("ExactTeleport"), JavaTag::Byte(1));
+            } else {
+                fields.remove(&native_actor::key("ExactTeleport"));
+            }
         }
         for (name, value) in ["x", "y", "z"].into_iter().zip(self.position) {
             fields.insert(native_actor::key(name), JavaTag::Int(value));
@@ -334,19 +417,41 @@ impl BlockEntity {
         let source = if let Some(template) = recipe.data.template_nbt {
             packs_tag(JavaTag::read_root(template.source)?)?
         } else {
-            let id = NATIVE_ACTOR_BLOCKS.binary_search_by_key(&recipe.block, |&(block, _)| block)
-                .ok().and_then(|index| NATIVE_ACTOR_BLOCKS[index].1)
-                .ok_or_else(|| invalid_nbt(format!("native actor {} has no constructor for Bedrock adaptation", recipe.block)))?;
-            unastar_packs::nbt::Tag::Compound(std::collections::BTreeMap::from([
-                ("id".into(), unastar_packs::nbt::Tag::String(id.into())),
-            ]))
+            let id = NATIVE_ACTOR_BLOCKS
+                .binary_search_by_key(&recipe.block, |&(block, _)| block)
+                .ok()
+                .and_then(|index| NATIVE_ACTOR_BLOCKS[index].1)
+                .ok_or_else(|| {
+                    invalid_nbt(format!(
+                        "native actor {} has no constructor for Bedrock adaptation",
+                        recipe.block
+                    ))
+                })?;
+            unastar_packs::nbt::Tag::Compound(std::collections::BTreeMap::from([(
+                "id".into(),
+                unastar_packs::nbt::Tag::String(id.into()),
+            )]))
         };
         let compiled = unastar_packs::block_entity::compile(
-            recipe.block, &source, unastar_packs::block_entity::Source::Java,
-        ).map_err(invalid_nbt)?;
-        let loot = recipe.data.loot.map(|(table, seed)| LootTable::Java(table, seed))
-            .or_else(|| compiled.loot.as_ref().map(|(table, seed)| LootTable::Java(table, *seed)));
-        let entity = recipe.data.spawner_entity.or(compiled.spawner_entity.as_deref());
+            recipe.block,
+            &source,
+            unastar_packs::block_entity::Source::Java,
+        )
+        .map_err(invalid_nbt)?;
+        let loot = recipe
+            .data
+            .loot
+            .map(|(table, seed)| LootTable::Java(table, seed))
+            .or_else(|| {
+                compiled
+                    .loot
+                    .as_ref()
+                    .map(|(table, seed)| LootTable::Java(table, *seed))
+            });
+        let entity = recipe
+            .data
+            .spawner_entity
+            .or(compiled.spawner_entity.as_deref());
         *self = Self::generated(self.position, compiled.id, &compiled.fields, loot, entity);
         Ok(())
     }
@@ -367,13 +472,25 @@ fn canonical_tag(tag: &JavaTag) -> io::Result<serde_json::Value> {
         JavaTag::Double(v) => ("Double", json!(v)),
         JavaTag::ByteArray(v) => ("ByteArray", json!(v)),
         JavaTag::String(v) => ("Str", json!(java_string(v)?)),
-        JavaTag::List(element, values) => ("List", json!([
-            element, values.iter().map(canonical_tag).collect::<io::Result<Vec<_>>>()?
-        ])),
-        JavaTag::Compound(fields) => ("Compound", json!(
-            fields.iter().map(|(name, value)| Ok(json!([java_string(name)?, canonical_tag(value)?])))
-                .collect::<io::Result<Vec<_>>>()?
-        )),
+        JavaTag::List(element, values) => (
+            "List",
+            json!([
+                element,
+                values
+                    .iter()
+                    .map(canonical_tag)
+                    .collect::<io::Result<Vec<_>>>()?
+            ]),
+        ),
+        JavaTag::Compound(fields) => (
+            "Compound",
+            json!(
+                fields
+                    .iter()
+                    .map(|(name, value)| Ok(json!([java_string(name)?, canonical_tag(value)?])))
+                    .collect::<io::Result<Vec<_>>>()?
+            ),
+        ),
         JavaTag::IntArray(v) => ("IntArray", json!(v)),
         JavaTag::LongArray(v) => ("LongArray", json!(v)),
     };
@@ -391,10 +508,18 @@ fn packs_tag(tag: JavaTag) -> io::Result<unastar_packs::nbt::Tag> {
         JavaTag::Double(v) => Tag::Double(f64::from_bits(v)),
         JavaTag::ByteArray(v) => Tag::ByteArray(v),
         JavaTag::String(v) => Tag::String(java_string(&v)?),
-        JavaTag::List(_, values) => Tag::List(values.into_iter().map(packs_tag).collect::<io::Result<_>>()?),
-        JavaTag::Compound(fields) => Tag::Compound(fields.into_iter()
-            .map(|(name, value)| Ok((java_string(&name)?, packs_tag(value)?)))
-            .collect::<io::Result<_>>()?),
+        JavaTag::List(_, values) => Tag::List(
+            values
+                .into_iter()
+                .map(packs_tag)
+                .collect::<io::Result<_>>()?,
+        ),
+        JavaTag::Compound(fields) => Tag::Compound(
+            fields
+                .into_iter()
+                .map(|(name, value)| Ok((java_string(&name)?, packs_tag(value)?)))
+                .collect::<io::Result<_>>()?,
+        ),
         JavaTag::IntArray(v) => Tag::IntArray(v),
         JavaTag::LongArray(v) => Tag::LongArray(v),
     })
@@ -498,10 +623,12 @@ mod tests {
     fn native_live_proto_and_level_save_boundaries_preserve_typed_payloads() {
         let fixture: serde_json::Value = serde_json::from_str(include_str!(
             "../../tests/fixtures/native_live_actor_save_boundaries_1_21_11.json"
-        )).unwrap();
+        ))
+        .unwrap();
         for case in fixture["records"].as_array().unwrap() {
-            let position = std::array::from_fn(|axis|
-                i32::try_from(case["position"][axis].as_i64().unwrap()).unwrap());
+            let position = std::array::from_fn(|axis| {
+                i32::try_from(case["position"][axis].as_i64().unwrap()).unwrap()
+            });
             let block = match case["block"].as_str().unwrap() {
                 "minecraft:chest" => "minecraft:chest",
                 "minecraft:spawner" => "minecraft:spawner",
@@ -509,18 +636,98 @@ mod tests {
             };
             let loot = case.get("loot_table").map(|table| {
                 assert_eq!(table.as_str(), Some("minecraft:chests/simple_dungeon"));
-                ("minecraft:chests/simple_dungeon", case["loot_seed"].as_i64().unwrap())
+                (
+                    "minecraft:chests/simple_dungeon",
+                    case["loot_seed"].as_i64().unwrap(),
+                )
             });
-            let spawner_entity = case.get("spawner_entity").map(|entity| match entity.as_str().unwrap() {
-                "minecraft:zombie" => "minecraft:zombie",
-                "minecraft:cave_spider" => "minecraft:cave_spider",
-                other => panic!("unmeasured native live spawner {other}"),
-            });
-            let actor = BlockEntity::generated_java(position, block, BlockEntityData {
-                loot, spawner_entity, template_nbt: None,
-            });
+            let spawner_entity =
+                case.get("spawner_entity")
+                    .map(|entity| match entity.as_str().unwrap() {
+                        "minecraft:zombie" => "minecraft:zombie",
+                        "minecraft:cave_spider" => "minecraft:cave_spider",
+                        other => panic!("unmeasured native live spawner {other}"),
+                    });
+            let actor = BlockEntity::generated_java(
+                position,
+                block,
+                BlockEntityData {
+                    loot,
+                    spawner_entity,
+                    ..BlockEntityData::NONE
+                },
+            );
             assert_eq!(actor.canonical_java_nbt().unwrap(), case["proto_saved"]);
-            assert_eq!(actor.canonical_java_level_nbt().unwrap(), case["level_saved"]);
+            assert_eq!(
+                actor.canonical_java_level_nbt().unwrap(),
+                case["level_saved"]
+            );
+        }
+    }
+
+    /// Feature-created actors match native FEATURES saves: a tree nest with
+    /// its stored bees, an end gateway with its exit, and desert well
+    /// suspicious sand seeded with its position.
+    #[test]
+    fn native_feature_actor_payloads_match_actual_saves() {
+        use unastar_noise::features::BlockPos;
+        use unastar_noise::features::eval::HiveOccupants;
+        let fixture: serde_json::Value = serde_json::from_str(include_str!(
+            "../../tests/fixtures/native_feature_actor_payloads_1_21_11.json"
+        ))
+        .unwrap();
+        for case in fixture["records"].as_array().unwrap() {
+            let position: [i32; 3] = std::array::from_fn(|axis| {
+                i32::try_from(case["position"][axis].as_i64().unwrap()).unwrap()
+            });
+            let [x, y, z] = position;
+            let (block, data) = match case["block"].as_str().unwrap() {
+                "minecraft:bee_nest" => {
+                    let ticks: Vec<u16> = case["bees_ticks_in_hive"]
+                        .as_array()
+                        .unwrap()
+                        .iter()
+                        .map(|t| u16::try_from(t.as_u64().unwrap()).unwrap())
+                        .collect();
+                    let mut occupants = [0; 3];
+                    occupants[..ticks.len()].copy_from_slice(&ticks);
+                    let bees = HiveOccupants {
+                        count: ticks.len() as u8,
+                        ticks: occupants,
+                    };
+                    (
+                        "minecraft:bee_nest",
+                        BlockEntityData {
+                            bees: Some(bees),
+                            ..BlockEntityData::NONE
+                        },
+                    )
+                }
+                "minecraft:end_gateway" => {
+                    let exit = BlockPos::new(100, 50, 0);
+                    (
+                        "minecraft:end_gateway",
+                        BlockEntityData {
+                            gateway_exit: Some((exit, case["exact"].as_bool().unwrap())),
+                            ..BlockEntityData::NONE
+                        },
+                    )
+                }
+                "minecraft:suspicious_sand" => (
+                    "minecraft:suspicious_sand",
+                    BlockEntityData::loot(
+                        "minecraft:archaeology/desert_well",
+                        BlockPos::new(x, y, z).as_long(),
+                    ),
+                ),
+                other => panic!("unmeasured native feature actor {other}"),
+            };
+            let actor = BlockEntity::generated_java(position, block, data);
+            assert_eq!(
+                actor.canonical_java_nbt().unwrap(),
+                case["proto_saved"],
+                "{block} at {position:?}"
+            );
         }
     }
 
@@ -531,7 +738,12 @@ mod tests {
     }
 
     fn java_compound<const N: usize>(fields: [(&str, JavaTag); N]) -> JavaTag {
-        JavaTag::Compound(fields.into_iter().map(|(k, v)| (native_actor::key(k), v)).collect())
+        JavaTag::Compound(
+            fields
+                .into_iter()
+                .map(|(k, v)| (native_actor::key(k), v))
+                .collect(),
+        )
     }
 
     #[test]
@@ -543,7 +755,11 @@ mod tests {
             ([-4, 36, -16], 720_486_539_052_466_001),
         ] {
             let table = "minecraft:chests/simple_dungeon";
-            let mut actor = BlockEntity::generated_java(position, "minecraft:chest", BlockEntityData::loot(table, seed));
+            let mut actor = BlockEntity::generated_java(
+                position,
+                "minecraft:chest",
+                BlockEntityData::loot(table, seed),
+            );
             let expected = java_compound([
                 ("LootTable", native_actor::string(table)),
                 ("LootTableSeed", JavaTag::Long(seed)),
@@ -553,34 +769,73 @@ mod tests {
                 ("y", JavaTag::Int(position[1])),
                 ("z", JavaTag::Int(position[2])),
             ]);
-            assert_eq!(JavaTag::read_root(&actor.java_nbt().unwrap()).unwrap(), expected);
-            assert_eq!(actor.canonical_java_nbt().unwrap(), canonical_tag(&expected).unwrap());
+            assert_eq!(
+                JavaTag::read_root(&actor.java_nbt().unwrap()).unwrap(),
+                expected
+            );
+            assert_eq!(
+                actor.canonical_java_nbt().unwrap(),
+                canonical_tag(&expected).unwrap()
+            );
             assert!(actor.write_disk_nbt(&mut Vec::new()).is_err());
             actor.convert_to_bedrock().unwrap();
-            let established = BlockEntity::generated(position, "Chest", &[], Some(LootTable::Java(table, seed)), None);
+            let established = BlockEntity::generated(
+                position,
+                "Chest",
+                &[],
+                Some(LootTable::Java(table, seed)),
+                None,
+            );
             assert_eq!(semantic(&actor), semantic(&established));
-            assert!(actor.canonical_java_nbt().is_err(), "conversion cannot be inverted");
+            assert!(
+                actor.canonical_java_nbt().is_err(),
+                "conversion cannot be inverted"
+            );
         }
     }
 
     #[test]
     fn native_pending_recipes_cover_measured_registry_and_fail_atomically() {
         let fixture: serde_json::Value = serde_json::from_str(include_str!(concat!(
-            env!("CARGO_MANIFEST_DIR"), "/tests/fixtures/java_1_21_11_native_actor_transitions.json",
-        ))).unwrap();
+            env!("CARGO_MANIFEST_DIR"),
+            "/tests/fixtures/java_1_21_11_native_actor_transitions.json",
+        )))
+        .unwrap();
         let observed = fixture["actor_ids"].as_object().unwrap();
         assert_eq!(NATIVE_ACTOR_BLOCKS.len(), observed.len());
         for &(block, native_id) in NATIVE_ACTOR_BLOCKS {
-            assert_eq!(observed.get(block).unwrap(), &serde_json::json!(native_id), "{block}");
+            assert_eq!(
+                observed.get(block).unwrap(),
+                &serde_json::json!(native_id),
+                "{block}"
+            );
             let mut actor = BlockEntity::pending_java([1, 200, 1], block);
-            assert_eq!(actor.canonical_java_nbt().unwrap(), fixture["transitions"][0]["saved"], "{block}");
+            assert_eq!(
+                actor.canonical_java_nbt().unwrap(),
+                fixture["transitions"][0]["saved"],
+                "{block}"
+            );
             let before = actor.clone();
-            if native_id.is_none() || matches!(block, "minecraft:test_block" | "minecraft:test_instance_block") {
-                assert!(actor.convert_to_bedrock().is_err(), "{block} has no representable native actor");
-                assert_eq!(actor, before, "failed conversion must leave the source-native actor intact");
+            if native_id.is_none()
+                || matches!(
+                    block,
+                    "minecraft:test_block" | "minecraft:test_instance_block"
+                )
+            {
+                assert!(
+                    actor.convert_to_bedrock().is_err(),
+                    "{block} has no representable native actor"
+                );
+                assert_eq!(
+                    actor, before,
+                    "failed conversion must leave the source-native actor intact"
+                );
             } else {
                 actor.convert_to_bedrock().unwrap();
-                assert!(actor.canonical_java_nbt().is_err(), "one-way boundary: {block}");
+                assert!(
+                    actor.canonical_java_nbt().is_err(),
+                    "one-way boundary: {block}"
+                );
                 BlockEntity::from_network_nbt(actor.network_nbt().clone()).unwrap();
             }
         }
@@ -603,35 +858,78 @@ mod tests {
             let mut actor = BlockEntity::pending_java([-1, -2, -3], block);
             assert!(actor.is_java_pending());
             actor.convert_to_bedrock().unwrap();
-            let NBTTag::Compound(fields) = semantic(&actor) else { panic!("actor is not a compound"); };
-            assert!(matches!(fields.0.get("id"), Some(NBTTag::String(id)) if id.0 == expected_id), "{block}");
+            let NBTTag::Compound(fields) = semantic(&actor) else {
+                panic!("actor is not a compound");
+            };
+            assert!(
+                matches!(fields.0.get("id"), Some(NBTTag::String(id)) if id.0 == expected_id),
+                "{block}"
+            );
         }
     }
 
     #[test]
     fn native_zero_loot_seed_and_actual_set_entity_spawner_defaults() {
-        let actor = BlockEntity::generated_java([0, 0, 0], "minecraft:chest", BlockEntityData::loot("minecraft:chests/simple_dungeon", 0));
+        let actor = BlockEntity::generated_java(
+            [0, 0, 0],
+            "minecraft:chest",
+            BlockEntityData::loot("minecraft:chests/simple_dungeon", 0),
+        );
         let saved = JavaTag::read_root(&actor.java_nbt().unwrap()).unwrap();
-        assert!(!saved.compound().unwrap().contains_key(&native_actor::key("LootTableSeed")));
-        assert!(!saved.compound().unwrap().contains_key(&native_actor::key("Items")));
+        assert!(
+            !saved
+                .compound()
+                .unwrap()
+                .contains_key(&native_actor::key("LootTableSeed"))
+        );
+        assert!(
+            !saved
+                .compound()
+                .unwrap()
+                .contains_key(&native_actor::key("Items"))
+        );
         // Fresh native setEntityId saves SpawnData, but an End-typed empty
         // SpawnPotentials list. Loading an empty template instead would save
         // a Compound-typed singleton potential, a consumer-visible difference.
-        for entity in ["minecraft:zombie", "minecraft:skeleton", "minecraft:spider",
-            "minecraft:cave_spider", "minecraft:blaze", "minecraft:silverfish"] {
-            let actor = BlockEntity::generated_java([1, -2, 3], "minecraft:spawner", BlockEntityData::spawner(entity));
+        for entity in [
+            "minecraft:zombie",
+            "minecraft:skeleton",
+            "minecraft:spider",
+            "minecraft:cave_spider",
+            "minecraft:blaze",
+            "minecraft:silverfish",
+        ] {
+            let actor = BlockEntity::generated_java(
+                [1, -2, 3],
+                "minecraft:spawner",
+                BlockEntityData::spawner(entity),
+            );
             let expected = java_compound([
                 ("components", java_compound([])),
                 ("id", native_actor::string("minecraft:mob_spawner")),
-                ("x", JavaTag::Int(1)), ("y", JavaTag::Int(-2)), ("z", JavaTag::Int(3)),
-                ("Delay", JavaTag::Short(20)), ("MinSpawnDelay", JavaTag::Short(200)),
-                ("MaxSpawnDelay", JavaTag::Short(800)), ("SpawnCount", JavaTag::Short(4)),
-                ("MaxNearbyEntities", JavaTag::Short(6)), ("RequiredPlayerRange", JavaTag::Short(16)),
+                ("x", JavaTag::Int(1)),
+                ("y", JavaTag::Int(-2)),
+                ("z", JavaTag::Int(3)),
+                ("Delay", JavaTag::Short(20)),
+                ("MinSpawnDelay", JavaTag::Short(200)),
+                ("MaxSpawnDelay", JavaTag::Short(800)),
+                ("SpawnCount", JavaTag::Short(4)),
+                ("MaxNearbyEntities", JavaTag::Short(6)),
+                ("RequiredPlayerRange", JavaTag::Short(16)),
                 ("SpawnRange", JavaTag::Short(4)),
-                ("SpawnData", java_compound([("entity", java_compound([("id", native_actor::string(entity))]))])),
+                (
+                    "SpawnData",
+                    java_compound([(
+                        "entity",
+                        java_compound([("id", native_actor::string(entity))]),
+                    )]),
+                ),
                 ("SpawnPotentials", JavaTag::List(0, vec![])),
             ]);
-            assert_eq!(JavaTag::read_root(&actor.java_nbt().unwrap()).unwrap(), expected);
+            assert_eq!(
+                JavaTag::read_root(&actor.java_nbt().unwrap()).unwrap(),
+                expected
+            );
         }
     }
 

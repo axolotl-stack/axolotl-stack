@@ -27,7 +27,8 @@ impl std::fmt::Display for JavaState {
                 if index != 0 {
                     out.write_str(",")?;
                 }
-                let value = property.values[(offset / property.stride) as usize % property.values.len()];
+                let value =
+                    property.values[(offset / property.stride) as usize % property.values.len()];
                 write!(out, "{}={value}", property.name)?;
             }
             out.write_str("]")?;
@@ -512,6 +513,13 @@ impl BlockPos {
     #[inline]
     pub const fn offset(self, dx: i32, dy: i32, dz: i32) -> Self {
         Self::new(self.x + dx, self.y + dy, self.z + dz)
+    }
+    /// `BlockPos.asLong()`: 26-bit x, 12-bit y and 26-bit z packed into a long.
+    #[inline]
+    pub const fn as_long(self) -> i64 {
+        ((self.x as i64 & 0x3FF_FFFF) << 38)
+            | ((self.z as i64 & 0x3FF_FFFF) << 12)
+            | (self.y as i64 & 0xFFF)
     }
     #[inline]
     pub const fn rel(self, dir: Direction) -> Self {

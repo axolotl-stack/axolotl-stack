@@ -17,8 +17,9 @@
 //!   `*_chest`) check the block *state* where Java checks for the container
 //!   block entity, and the new loot table replaces the template block entity
 //!   data reported for that chest.
-//! - Ruined portal vines test the support face of the block
-//!   (`is_face_sturdy`) where Java tests the collision shape's face.
+//! - Ruined portal vines need a full collision face toward the vine; the
+//!   physics data covers sturdy faces and full collision cubes (so leaves
+//!   qualify), which spans every block a ruined portal places.
 
 use std::sync::LazyLock;
 
@@ -58,7 +59,11 @@ fn load(name: &str) -> &'static Template {
 
 /// `Mth.nextInt(random, min, max)` (no draw when `min >= max`).
 #[inline]
-fn mth_next_int<S: BitSource, const RETAIN_GAUSSIAN: bool>(rng: &mut WorldgenRandom<S, RETAIN_GAUSSIAN>, min: i32, max: i32) -> i32 {
+fn mth_next_int<S: BitSource, const RETAIN_GAUSSIAN: bool>(
+    rng: &mut WorldgenRandom<S, RETAIN_GAUSSIAN>,
+    min: i32,
+    max: i32,
+) -> i32 {
     if min >= max {
         min
     } else {
@@ -647,15 +652,15 @@ pub struct ShipwreckPiece {
 
 impl ShipwreckPiece {
     fn new(name: &str, pos: BlockPos, rotation: Rotation, beached: bool) -> Self {
-        // A native ocean shipwreck (seed -55506848734215641, chunk 9,-24)
-        // waterlogged its submerged stairs, slabs and fences. Beached wrecks
-        // ignore waterlogging; no beached wreck has been captured natively yet.
+        // Native ocean (seed -55506848734215641, chunk 9,-24) and beached
+        // (seed 6788061584965324779, chunk 255,-212) shipwrecks both waterlog
+        // their submerged stairs, slabs and fences.
         let placement = TemplatePlacement {
             rotation,
             mirror: Mirror::None,
             pivot: SHIPWRECK_PIVOT,
             processors: vec![&IGNORE_STRUCTURE_AND_AIR],
-            apply_waterlogging: !beached,
+            apply_waterlogging: true,
             shared_random: false,
         };
         Self {
@@ -672,7 +677,11 @@ impl ShipwreckPiece {
     }
 
     /// `calculateBeachedPosition(maxHeight, random)`.
-    fn beached_y<S: BitSource, const RETAIN_GAUSSIAN: bool>(&self, max_height: i32, rng: &mut WorldgenRandom<S, RETAIN_GAUSSIAN>) -> i32 {
+    fn beached_y<S: BitSource, const RETAIN_GAUSSIAN: bool>(
+        &self,
+        max_height: i32,
+        rng: &mut WorldgenRandom<S, RETAIN_GAUSSIAN>,
+    ) -> i32 {
         max_height - self.inner.template.size[1] / 2 - rng.next_int_bounded(3)
     }
 }
@@ -1226,7 +1235,9 @@ impl RuinedPortalPiece {
     }
 }
 
-/// `maybeAddVines`: a vine on a random horizontal side of a solid block.
+/// `maybeAddVines`: a vine on a random horizontal side of a block whose
+/// collision face there is full. Native jungle ruined portals (seed
+/// -55506848734215641, chunk -26,-26) hang vines from persistent jungle leaves.
 fn maybe_add_vines(rng: &mut FeatureRandom, world: &mut dyn FeatureWorld, pos: BlockPos) {
     let state = world.get_state(pos);
     if state.is_air() || state.is(b::VINE) {
@@ -1234,7 +1245,9 @@ fn maybe_add_vines(rng: &mut FeatureRandom, world: &mut dyn FeatureWorld, pos: B
     }
     let dir = Direction::HORIZONTAL[rng.next_int_bounded(4) as usize];
     let target = pos.rel(dir);
-    if world.get_state(target).is_air() && state.is_face_sturdy(dir) {
+    if world.get_state(target).is_air()
+        && (state.is_face_sturdy(dir) || state.is_collision_full_cube())
+    {
         world.set_state(target, states::VINE.with_bool(dir.opposite().name(), true));
     }
 }
@@ -1405,7 +1418,8 @@ impl StructurePiece for NetherFossilPiece {
     }
 
     /// `NetherFossilPiece.postProcess`: the box is grown to the whole template,
-    /// so every chunk the fossil touches places all of it.
+    /// so every chunk the fossil touches places all of it, then may add a
+    /// dried ghast.
     fn post_process(
         &self,
         world: &mut dyn FeatureWorld,
@@ -1415,9 +1429,38 @@ impl StructurePiece for NetherFossilPiece {
         chunk: (i32, i32),
         pivot: BlockPos,
     ) {
+        let fossil = self.inner.base.bbox;
         let mut bx = *chunk_box;
-        bx.encapsulate(&self.inner.base.bbox);
+        bx.encapsulate(&fossil);
         self.inner.post_process(world, ctx, rng, &bx, chunk, pivot);
+        place_dried_ghast(world, &fossil, &bx);
+    }
+}
+
+/// A fossil's dried ghast: a legacy random forked from the world seed and
+/// positioned at the fossil box centre decides (chance 1/2) a cell on the box's
+/// bottom layer and a random rotation of the default (north) facing; the ghast
+/// replaces only air inside the placement box. Measured on native fossils of
+/// seeds 6788061584965324779 and 2097595355691761853 (both placed) and on 11
+/// other captured fossils (none placed, or the cell was bone).
+fn place_dried_ghast(world: &mut dyn FeatureWorld, fossil: &BoundingBox, bx: &BoundingBox) {
+    let factory = LegacyRandom::new(world.seed()).next_long();
+    let center = fossil.center();
+    let mut random = LegacyRandom::new(
+        crate::structures::util::pos_seed(center.x, center.y, center.z) ^ factory,
+    );
+    if random.next_float() >= 0.5 {
+        return;
+    }
+    let x = fossil.min_x + random.next_int_bounded(fossil.max_x - fossil.min_x + 1);
+    let z = fossil.min_z + random.next_int_bounded(fossil.max_z - fossil.min_z + 1);
+    let pos = BlockPos::new(x, fossil.min_y, z);
+    if world.get_state(pos).is_air() && bx.is_inside(pos) {
+        let rotation = Rotation::random(&mut random);
+        world.set_state(
+            pos,
+            crate::structures::transform::rotate_state(states::DRIED_GHAST, rotation),
+        );
     }
 }
 
@@ -1433,6 +1476,43 @@ mod tests {
             .iter()
             .find(|d| d.name == name)
             .unwrap_or_else(|| panic!("no structure {name}"))
+    }
+
+    /// Dried ghasts of actual native nether fossils (position and west facing
+    /// from FEATURES captures), and a captured fossil that has none.
+    #[test]
+    fn nether_fossil_dried_ghast_matches_native_placements() {
+        let cases = [
+            (
+                6788061584965324779,
+                BoundingBox::new(3940, 74, 4170, 3942, 80, 4170),
+                Some(BlockPos::new(3942, 74, 4170)),
+            ),
+            (
+                2097595355691761853,
+                BoundingBox::new(-4512, 81, 4264, -4506, 87, 4269),
+                Some(BlockPos::new(-4508, 81, 4264)),
+            ),
+            (
+                -55506848734215641,
+                BoundingBox::new(-4092, 39, 4100, -4088, 43, 4106),
+                None,
+            ),
+        ];
+        for (seed, fossil, expected) in cases {
+            let mut world = TestWorld::flat(-64);
+            world.seed = seed;
+            place_dried_ghast(&mut world, &fossil, &fossil);
+            let placed: Vec<_> = world.blocks.iter().map(|(p, s)| (*p, *s)).collect();
+            match expected {
+                Some(pos) => assert_eq!(
+                    placed,
+                    [(pos, states::DRIED_GHAST.with("facing", "west"))],
+                    "seed {seed}"
+                ),
+                None => assert!(placed.is_empty(), "seed {seed}"),
+            }
+        }
     }
 
     /// Flat noise terrain: `fill` up to `floor`, `liquid` up to `liquid_top`.
@@ -1822,9 +1902,9 @@ mod tests {
         if !TEMPLATES_EMBEDDED {
             return;
         }
+        use crate::features::JavaBlock;
         use crate::features::eval::BlockEntityData;
         use crate::features::random::RegionRandom;
-        use crate::features::JavaBlock;
         use serde_json::Value;
 
         struct SpreadWorld {
@@ -1833,14 +1913,24 @@ mod tests {
             height_queries: usize,
         }
         impl FeatureWorld for SpreadWorld {
-            fn min_y(&self) -> i32 { self.inner.min_y() }
-            fn height(&self) -> i32 { self.inner.height() }
-            fn sea_level(&self) -> i32 { self.inner.sea_level() }
+            fn min_y(&self) -> i32 {
+                self.inner.min_y()
+            }
+            fn height(&self) -> i32 {
+                self.inner.height()
+            }
+            fn sea_level(&self) -> i32 {
+                self.inner.sea_level()
+            }
             fn raw_brightness(&mut self, pos: BlockPos, sky_darken: i32) -> i32 {
                 self.inner.raw_brightness(pos, sky_darken)
             }
-            fn seed(&self) -> i64 { self.inner.seed() }
-            fn get_state(&mut self, pos: BlockPos) -> JavaState { self.inner.get_state(pos) }
+            fn seed(&self) -> i64 {
+                self.inner.seed()
+            }
+            fn get_state(&mut self, pos: BlockPos) -> JavaState {
+                self.inner.get_state(pos)
+            }
             fn set_state(&mut self, pos: BlockPos, state: JavaState) -> bool {
                 self.writes.push((pos, state));
                 self.inner.set_state(pos, state)
@@ -1849,16 +1939,28 @@ mod tests {
                 self.height_queries += 1;
                 self.inner.get_height(kind, x, z)
             }
-            fn biome(&mut self, pos: BlockPos) -> u8 { self.inner.biome(pos) }
-            fn schedule_tick(&mut self, pos: BlockPos) { self.inner.schedule_tick(pos); }
-            fn region_random(&mut self) -> &mut RegionRandom { self.inner.region_random() }
-            fn gen_depth(&self) -> i32 { self.inner.gen_depth() }
+            fn biome(&mut self, pos: BlockPos) -> u8 {
+                self.inner.biome(pos)
+            }
+            fn schedule_tick(&mut self, pos: BlockPos) {
+                self.inner.schedule_tick(pos);
+            }
+            fn region_random(&mut self) -> &mut RegionRandom {
+                self.inner.region_random()
+            }
+            fn gen_depth(&self) -> i32 {
+                self.inner.gen_depth()
+            }
             fn set_block_entity(&mut self, pos: BlockPos, data: BlockEntityData) {
                 self.inner.set_block_entity(pos, data);
             }
         }
         fn position(value: &Value) -> BlockPos {
-            BlockPos::new(value[0].as_i64().unwrap() as i32, value[1].as_i64().unwrap() as i32, value[2].as_i64().unwrap() as i32)
+            BlockPos::new(
+                value[0].as_i64().unwrap() as i32,
+                value[1].as_i64().unwrap() as i32,
+                value[2].as_i64().unwrap() as i32,
+            )
         }
         fn state(value: &Value) -> JavaState {
             let text = value.as_str().unwrap();
@@ -1876,7 +1978,8 @@ mod tests {
         }
         let capture: Value = serde_json::from_str(include_str!(
             "../../../tests/data/native_portal_spread_1_21_11.json"
-        )).unwrap();
+        ))
+        .unwrap();
         assert_eq!(capture["denied_network_attempts"], serde_json::json!([]));
         assert_eq!(capture["server_constructed"], false);
         assert_eq!(capture["server_ticks"], 0);
@@ -1884,19 +1987,26 @@ mod tests {
             let mode = case["mode"].as_str().unwrap();
             let fill_y = case["fill_y"].as_i64().unwrap() as i32;
             let mut world = SpreadWorld {
-                inner: TestWorld { fill: state(&case["fill"]), ..TestWorld::flat(fill_y) },
+                inner: TestWorld {
+                    fill: state(&case["fill"]),
+                    ..TestWorld::flat(fill_y)
+                },
                 writes: Vec::new(),
                 height_queries: 0,
             };
             for y in fill_y..case["water_top_exclusive"].as_i64().unwrap() as i32 {
                 for x in -32..=32 {
                     for z in -32..=32 {
-                        world.inner.blocks.insert(BlockPos::new(x, y, z), states::WATER);
+                        world
+                            .inner
+                            .blocks
+                            .insert(BlockPos::new(x, y, z), states::WATER);
                     }
                 }
             }
             let piece = RuinedPortalPiece::new(
-                load(case["template"].as_str().unwrap()), position(&case["position"]),
+                load(case["template"].as_str().unwrap()),
+                position(&case["position"]),
                 VerticalPlacement::by_name(case["placement"].as_str().unwrap()),
                 PortalProperties {
                     cold: case["cold"].as_bool().unwrap(),
@@ -1904,24 +2014,53 @@ mod tests {
                     mossiness: 0.2,
                     ..PortalProperties::default()
                 },
-                Rotation::None, Mirror::None, position(&case["pivot"]),
+                Rotation::None,
+                Mirror::None,
+                position(&case["pivot"]),
             );
             let bounds = case["bounds"].as_array().unwrap();
-            assert_eq!(piece.bbox(), BoundingBox::new(
-                bounds[0].as_i64().unwrap() as i32, bounds[1].as_i64().unwrap() as i32, bounds[2].as_i64().unwrap() as i32,
-                bounds[3].as_i64().unwrap() as i32, bounds[4].as_i64().unwrap() as i32, bounds[5].as_i64().unwrap() as i32,
-            ), "{mode}");
+            assert_eq!(
+                piece.bbox(),
+                BoundingBox::new(
+                    bounds[0].as_i64().unwrap() as i32,
+                    bounds[1].as_i64().unwrap() as i32,
+                    bounds[2].as_i64().unwrap() as i32,
+                    bounds[3].as_i64().unwrap() as i32,
+                    bounds[4].as_i64().unwrap() as i32,
+                    bounds[5].as_i64().unwrap() as i32,
+                ),
+                "{mode}"
+            );
             let mut rng = FeatureRandom::new(case["seed"].as_i64().unwrap());
             piece.spread_netherrack(&mut rng, &mut world);
-            let expected: Vec<_> = case["ordered_writes"].as_array().unwrap().iter()
-                .map(|row| (position(&row["pos"]), state(&row["state"]))).collect();
+            let expected: Vec<_> = case["ordered_writes"]
+                .as_array()
+                .unwrap()
+                .iter()
+                .map(|row| (position(&row["pos"]), state(&row["state"])))
+                .collect();
             assert_eq!(world.writes, expected, "{mode}: ordered native writes");
             let actual_blocks: std::collections::HashMap<_, _> = world.writes.into_iter().collect();
-            let expected_blocks: std::collections::HashMap<_, _> = case["blocks"].as_array().unwrap().iter()
-                .map(|row| (position(&row["pos"]), state(&row["state"]))).collect();
-            assert_eq!(actual_blocks, expected_blocks, "{mode}: final native states");
-            assert_eq!(world.height_queries as u64, case["height_queries"].as_u64().unwrap(), "{mode}: height queries");
-            assert_eq!(rng.next_long(), case["next_long"].as_i64().unwrap(), "{mode}: RNG continuation");
+            let expected_blocks: std::collections::HashMap<_, _> = case["blocks"]
+                .as_array()
+                .unwrap()
+                .iter()
+                .map(|row| (position(&row["pos"]), state(&row["state"])))
+                .collect();
+            assert_eq!(
+                actual_blocks, expected_blocks,
+                "{mode}: final native states"
+            );
+            assert_eq!(
+                world.height_queries as u64,
+                case["height_queries"].as_u64().unwrap(),
+                "{mode}: height queries"
+            );
+            assert_eq!(
+                rng.next_long(),
+                case["next_long"].as_i64().unwrap(),
+                "{mode}: RNG continuation"
+            );
         }
     }
 
