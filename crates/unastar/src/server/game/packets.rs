@@ -171,6 +171,12 @@ impl GameServer {
                     {
                         q.0.push((entity, BlockAction::BlockClick(*use_item)));
                     }
+                } else if let Some(request) = air_use(&pk.transaction) {
+                    if let Some(mut q) =
+                        world.get_resource_mut::<super::item_use::ItemUseQueue>()
+                    {
+                        q.0.push((entity, request));
+                    }
                 } else if let InventoryTransactionPacketTransaction::ItemUseOnActorInventoryTransaction(
                     on_actor,
                 ) = pk.transaction
@@ -197,5 +203,29 @@ impl GameServer {
                 debug!(session_id, "Unhandled packet");
             }
         }
+    }
+}
+
+/// The air-use request an inventory transaction makes, if any: `ItemUse`
+/// with action `Use` (click air) or any `ItemRelease`.
+fn air_use(
+    transaction: &jolyne::valentine::types::InventoryTransactionPacketTransaction,
+) -> Option<super::item_use::UseRequest> {
+    use super::item_use::UseRequest;
+    use jolyne::valentine::types::{
+        EnumsItemReleaseInventoryTransactionActionType as Release,
+        EnumsItemUseInventoryTransactionActionType as ItemUse,
+        InventoryTransactionPacketTransaction as T,
+    };
+    match transaction {
+        T::ItemUseInventoryTransaction(use_item) if use_item.action_type == ItemUse::Use => {
+            Some(UseRequest::UseAir)
+        }
+        T::ItemReleaseInventoryTransaction(release) => match release.action_type {
+            Release::Release => Some(UseRequest::Release),
+            Release::Use => Some(UseRequest::Consume),
+            Release::Unknown(_) => None,
+        },
+        _ => None,
     }
 }

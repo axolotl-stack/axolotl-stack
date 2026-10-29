@@ -1,0 +1,410 @@
+//! Using the held item in the air: eating, drinking and throwing.
+//!
+//! The client starts using an item with an `ItemUse` transaction of action
+//! `Use` (click air) and finishes eating with a second one once the use
+//! duration has passed; drawing items end with an `ItemRelease`
+//! transaction. Elapsed time is measured in the player's own input ticks
+//! (the `PlayerAuthInput` tick), so network jitter between the two packets
+//! does not decide whether a meal completes. The item is always the one the
+//! server has in the selected hotbar slot; the client's item description is
+//! not trusted.
+
+pub mod food;
+pub mod ranged;
+
+use bevy_ecs::prelude::*;
+use jolyne::valentine::types::{
+    ActorRuntimeId, DataItemEntry, DataItemEntryPayload, DataItemInt64Payload, EnumsDataItemType,
+    PlayerInputTick, PropertySyncData, SynchedActorDataCopyableDataList,
+};
+use jolyne::valentine::{
+    CompletedUsingItemPacket, McpePacket, SetActorDataPacket, actor_data_i_ds, actor_flags,
+};
+
+use crate::ecs::events::{EventBuffer, ServerEvent};
+use crate::entity::components::{
+    GameMode, Health, HeldSlot, MainInventory, PlayerInput, PlayerSession, PlayerState, Position,
+    RuntimeEntityId,
+};
+use crate::item::ItemStack;
+use crate::server::broadcast::EntityGrid;
+
+/// An air-use packet of one player, in arrival order.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum UseRequest {
+    /// `ItemUse` action `Use`: start using, or finish eating.
+    UseAir,
+    /// `ItemRelease` action `Release`: let go of a drawn bow or trident.
+    Release,
+    /// `ItemRelease` action `Use` (consume).
+    Consume,
+}
+
+/// Air-use packets waiting for [`apply_item_use`].
+#[derive(Resource, Debug, Default)]
+pub struct ItemUseQueue(pub Vec<(Entity, UseRequest)>);
+
+/// The item a player is using (eating, drawing, charging).
+#[derive(Component, Debug, Clone, Copy, PartialEq, Eq)]
+#[component(storage = "SparseSet")]
+pub struct ItemUsing {
+    /// Hotbar slot of the used item.
+    pub slot: u8,
+    /// Registry id of the used item.
+    pub item: u32,
+    /// The player's input tick when using started.
+    pub since: i64,
+}
+
+/// What `UseAir` does with an item.
+#[derive(Debug, Clone, Copy, PartialEq)]
+pub enum UseKind {
+    Consume(food::Consumable),
+    Throw,
+}
+
+/// How an item is used in the air, from its data.
+pub fn use_kind(stack: &ItemStack) -> Option<UseKind> {
+    let entry = stack.item()?;
+    if let Some(consumable) = food::consumable(entry) {
+        return Some(UseKind::Consume(consumable));
+    }
+    ranged::thrown(entry.identifier()).map(|_| UseKind::Throw)
+}
+
+/// The selected hotbar slot and its stack.
+pub fn held(world: &World, player: Entity) -> Option<(u8, ItemStack)> {
+    let slot = world.get::<HeldSlot>(player)?.0;
+    let stack = world
+        .get::<MainInventory>(player)?
+        .0
+        .item(usize::from(slot))?
+        .clone();
+    (!stack.is_empty()).then_some((slot, stack))
+}
+
+/// Replace the stack in hotbar `slot` and tell the client.
+pub fn set_slot(world: &mut World, player: Entity, slot: u8, stack: ItemStack) {
+    let Some(stored) = world.get_mut::<MainInventory>(player).and_then(|mut inv| {
+        inv.0.set_item(usize::from(slot), stack).ok()?;
+        inv.0.item(usize::from(slot)).cloned()
+    }) else {
+        return;
+    };
+    super::send_slot(world, player, usize::from(slot), &stored);
+}
+
+/// Put `stack` into the player's inventory, dropping what does not fit at
+/// the player's feet as a thrown item.
+pub fn give_or_drop(world: &mut World, player: Entity, stack: ItemStack) {
+    if stack.is_empty() {
+        return;
+    }
+    let Some((before, leftover, after)) = world.get_mut::<MainInventory>(player).map(|mut inv| {
+        let before = inv.0.slots().to_vec();
+        let (_, leftover) = inv.0.add_item(stack.clone());
+        (before, leftover, inv.0.slots().to_vec())
+    }) else {
+        return;
+    };
+    for (slot, (old, new)) in before.iter().zip(&after).enumerate() {
+        if old != new {
+            super::send_slot(world, player, slot, new);
+        }
+    }
+    if !leftover.is_empty() {
+        let thrower = crate::entity::item_drop::drop_thrower_id(world, player).map(|_| player);
+        if let Some(feet) = world.get::<Position>(player).map(|p| p.0) {
+            crate::entity::spawn_item_drop(world, feet, leftover, thrower);
+        }
+    }
+}
+
+/// Players near `player` (within a chunk), including `player`.
+pub fn nearby_players(world: &World, player: Entity) -> Vec<Entity> {
+    let Some(position) = world.get::<Position>(player) else {
+        return Vec::new();
+    };
+    let chunk = (
+        (position.0.x.floor() as i32) >> 4,
+        (position.0.z.floor() as i32) >> 4,
+    );
+    let mut out = world
+        .get_resource::<EntityGrid>()
+        .map(|grid| grid.get_neighbors(chunk, 1))
+        .unwrap_or_default();
+    out.retain(|entity| world.get::<PlayerSession>(*entity).is_some());
+    if !out.contains(&player) {
+        out.push(player);
+    }
+    out
+}
+
+/// Send `packet` to `players`.
+pub fn send_to(world: &World, players: &[Entity], packet: &McpePacket) {
+    for viewer in players {
+        if let Some(session) = world.get::<PlayerSession>(*viewer) {
+            let _ = session.send(packet.clone());
+        }
+    }
+}
+
+/// The player's own input tick.
+fn input_tick(world: &World, player: Entity) -> i64 {
+    world
+        .get::<PlayerInput>(player)
+        .map_or(0, |input| input.tick)
+}
+
+/// Whether a player may use items at all.
+fn can_use(world: &World, player: Entity) -> bool {
+    world
+        .get::<GameMode>(player)
+        .is_some_and(|mode| *mode != GameMode::Spectator)
+        && world.get::<Health>(player).is_some_and(|h| !h.is_dead())
+}
+
+/// The base actor flags of a player plus the movement and using state:
+/// the flag word other players need to animate eating and drawing.
+fn player_flags(world: &World, player: Entity, using: bool) -> i64 {
+    let mut flags = (1u64 << actor_flags::CANCLIMB)
+        | (1u64 << actor_flags::HAS_COLLISION)
+        | (1u64 << actor_flags::HAS_GRAVITY);
+    if let Some(state) = world.get::<PlayerState>(player) {
+        for (on, flag) in [
+            (state.sneaking, actor_flags::SNEAKING),
+            (state.sprinting, actor_flags::SPRINTING),
+            (state.swimming, actor_flags::SWIMMING),
+            (state.gliding, actor_flags::GLIDING),
+        ] {
+            if on {
+                flags |= 1u64 << flag;
+            }
+        }
+    }
+    if using {
+        flags |= 1u64 << actor_flags::USINGITEM;
+    }
+    flags as i64
+}
+
+/// Tell the players near `player` (not the player, whose client predicts
+/// its own use) that it started or stopped using an item.
+fn broadcast_using(world: &World, player: Entity, using: bool) {
+    let Some(runtime_id) = world.get::<RuntimeEntityId>(player).map(|r| r.0) else {
+        return;
+    };
+    let packet = McpePacket::from(SetActorDataPacket {
+        target_runtime_id: ActorRuntimeId {
+            actor_runtime_id: runtime_id as u64,
+        },
+        actor_data: SynchedActorDataCopyableDataList {
+            data: vec![DataItemEntry {
+                id: actor_data_i_ds::RESERVED_0,
+                payload: DataItemEntryPayload::DataItemInt64Payload(DataItemInt64Payload {
+                    type_: EnumsDataItemType::Int64,
+                    value: player_flags(world, player, using),
+                }),
+            }],
+        },
+        synched_properties: PropertySyncData::default(),
+        tick: PlayerInputTick { inputtick: 0 },
+    });
+    let viewers: Vec<_> = nearby_players(world, player)
+        .into_iter()
+        .filter(|viewer| *viewer != player)
+        .collect();
+    send_to(world, &viewers, &packet);
+}
+
+/// Start using the held item.
+pub fn start_using(world: &mut World, player: Entity, slot: u8, item: u32) {
+    let since = input_tick(world, player);
+    world
+        .entity_mut(player)
+        .insert(ItemUsing { slot, item, since });
+    broadcast_using(world, player, true);
+}
+
+/// Stop using whatever the player uses.
+pub fn stop_using(world: &mut World, player: Entity) {
+    if world.entity_mut(player).take::<ItemUsing>().is_some() {
+        broadcast_using(world, player, false);
+    }
+}
+
+/// Input ticks since the player started using the current item.
+pub fn used_ticks(world: &World, player: Entity, using: &ItemUsing) -> i64 {
+    input_tick(world, player).saturating_sub(using.since)
+}
+
+/// `CompletedUsingItem` methods (protocol enum).
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[repr(i32)]
+pub enum UseMethod {
+    Eat = 1,
+    Consume = 3,
+    Throw = 4,
+    Shoot = 5,
+    FillBucket = 8,
+    PourBucket = 9,
+    UseTool = 10,
+}
+
+/// Tell the player's client the item use finished.
+pub fn completed(world: &World, player: Entity, network_id: i32, method: UseMethod) {
+    if let (Some(session), Ok(item_id)) = (
+        world.get::<PlayerSession>(player),
+        i16::try_from(network_id),
+    ) {
+        let _ = session.send(McpePacket::from(CompletedUsingItemPacket {
+            item_id,
+            item_use_method: method as i32,
+        }));
+    }
+}
+
+/// System (exclusive, `PacketApplySet`): handle queued air uses in order.
+pub fn apply_item_use(world: &mut World) {
+    let requests = std::mem::take(&mut world.get_resource_or_init::<ItemUseQueue>().0);
+    for (player, request) in requests {
+        if !can_use(world, player) {
+            stop_using(world, player);
+            continue;
+        }
+        if let Some(mut events) = world.get_resource_mut::<EventBuffer>()
+            && request == UseRequest::UseAir
+        {
+            events.push(ServerEvent::PlayerItemUse { entity: player });
+        }
+        handle(world, player, request);
+    }
+}
+
+fn handle(world: &mut World, player: Entity, request: UseRequest) {
+    let Some((slot, stack)) = held(world, player) else {
+        stop_using(world, player);
+        return;
+    };
+    let Some(item) = stack.item().map(|entry| entry.id) else {
+        return;
+    };
+    // Switching items abandons what was being used.
+    let using = world
+        .get::<ItemUsing>(player)
+        .copied()
+        .filter(|using| using.slot == slot && using.item == item);
+    if using.is_none() {
+        stop_using(world, player);
+    }
+    match (use_kind(&stack), request) {
+        (Some(UseKind::Consume(consumable)), UseRequest::UseAir | UseRequest::Consume) => {
+            food::use_consumable(world, player, slot, &stack, consumable, using)
+        }
+        (Some(UseKind::Throw), UseRequest::UseAir) => ranged::throw(world, player),
+        (_, UseRequest::Release | UseRequest::Consume) => stop_using(world, player),
+        (None, UseRequest::UseAir) => {}
+    }
+}
+
+/// `MovePlayer` teleport causes (protocol constants).
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[repr(i32)]
+pub enum TeleportCause {
+    Projectile = 1,
+    ChorusFruit = 2,
+}
+
+/// Move a player to `feet` and tell its client (teleport mode).
+pub fn teleport(world: &mut World, player: Entity, feet: glam::DVec3, cause: TeleportCause) {
+    use jolyne::valentine::types::{
+        EnumsPlayerPositionModeComponentPositionMode, MovePlayerTeleportData, Vec2, Vec3,
+    };
+    let eye = feet + glam::DVec3::new(0.0, crate::entity::item_drop::PLAYER_EYE_HEIGHT, 0.0);
+    let Some(rotation) = world
+        .get::<crate::entity::components::Rotation>(player)
+        .copied()
+    else {
+        return;
+    };
+    let Some(runtime_id) = world.get::<RuntimeEntityId>(player).map(|r| r.0) else {
+        return;
+    };
+    if let Some(mut position) = world.get_mut::<Position>(player) {
+        position.0 = eye;
+    }
+    let packet = McpePacket::from(jolyne::valentine::MovePlayerPacket {
+        player_runtime_id: ActorRuntimeId {
+            actor_runtime_id: runtime_id as u64,
+        },
+        position: Vec3 {
+            x: eye.x as f32,
+            y: eye.y as f32,
+            z: eye.z as f32,
+        },
+        rotation: Vec2 {
+            x: rotation.pitch,
+            y: rotation.yaw,
+        },
+        y_head_rotation: rotation.head_yaw,
+        position_mode: EnumsPlayerPositionModeComponentPositionMode::Teleport,
+        on_ground: false,
+        riding_runtime_id: ActorRuntimeId {
+            actor_runtime_id: 0,
+        },
+        teleport_data: Some(MovePlayerTeleportData {
+            teleportation_cause: cause as i32,
+            // Bedrock's actor type id of the player.
+            source_actor_type: 63,
+        }),
+        tick: PlayerInputTick {
+            inputtick: u64::try_from(input_tick(world, player)).unwrap_or(0),
+        },
+    });
+    // Other players follow through the regular position broadcast.
+    send_to(world, &[player], &packet);
+}
+
+/// System (exclusive): every 4 ticks, players near someone eating see the
+/// eating particles (`ActorEvent` `Feed` with the item's id and aux).
+pub fn tick_using(
+    world: &mut World,
+    users: &mut QueryState<(Entity, &ItemUsing)>,
+    mut eating: Local<Vec<(Entity, i32)>>,
+) {
+    let tick = world
+        .get_resource::<crate::ecs::resources::TickCounter>()
+        .map_or(0, |t| t.current);
+    if !tick.is_multiple_of(4) {
+        return;
+    }
+    for (player, using) in users.iter(world) {
+        let Some((slot, stack)) = held(world, player) else {
+            continue;
+        };
+        if slot != using.slot || !matches!(use_kind(&stack), Some(UseKind::Consume(_))) {
+            continue;
+        }
+        let Some(entry) = stack.item() else {
+            continue;
+        };
+        eating.push((player, (entry.network_id() << 16) | i32::from(stack.damage)));
+    }
+    for (player, data) in eating.drain(..) {
+        let Some(runtime_id) = world.get::<RuntimeEntityId>(player).map(|r| r.0) else {
+            continue;
+        };
+        let packet = McpePacket::from(jolyne::valentine::ActorEventPacket {
+            target_runtime_id: ActorRuntimeId {
+                actor_runtime_id: runtime_id as u64,
+            },
+            event_id: jolyne::valentine::types::EnumsActorEvent::Feed,
+            data,
+            fire_at_position: None,
+        });
+        send_to(world, &nearby_players(world, player), &packet);
+    }
+}
+
+#[cfg(test)]
+mod tests;

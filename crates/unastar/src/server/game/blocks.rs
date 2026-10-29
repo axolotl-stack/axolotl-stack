@@ -570,6 +570,14 @@ fn apply_break_block(world: &mut World, breaking_player: Entity, x: i32, y: i32,
             tool.as_ref(),
         );
         wear_held_tool(world, breaking_player, original_block_id);
+        let mine = world
+            .get_resource_or_init::<super::hunger::ExhaustionValues>()
+            .mine;
+        if let Some(mut hunger) =
+            world.get_mut::<crate::entity::components::Hunger>(breaking_player)
+        {
+            hunger.exhaust(mine);
+        }
     }
 
     // Broadcast update to viewers

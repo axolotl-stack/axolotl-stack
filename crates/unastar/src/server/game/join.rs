@@ -148,37 +148,16 @@ impl GameServer {
         let health = world.get::<Health>(entity).cloned().unwrap_or_default();
         let hunger = world.get::<Hunger>(entity).cloned().unwrap_or_default();
         let experience = world.get::<Experience>(entity).cloned().unwrap_or_default();
+        let absorption = world
+            .get::<super::attributes::Absorption>(entity)
+            .map_or(0.0, |a| a.0);
         let mut attributes = vec![
-            attr(
-                "minecraft:health",
-                health.current,
-                health.max,
-                health.max,
-                health.max,
-            ),
-            attr("minecraft:absorption", 0.0, f32::MAX, 0.0, f32::MAX),
+            super::attributes::health(&health),
+            super::attributes::absorption(absorption),
             attr("minecraft:movement", 0.1, f32::MAX, 0.1, f32::MAX),
-            attr(
-                "minecraft:player.hunger",
-                hunger.food_level as f32,
-                20.0,
-                20.0,
-                20.0,
-            ),
-            attr(
-                "minecraft:player.saturation",
-                hunger.saturation,
-                20.0,
-                20.0,
-                20.0,
-            ),
-            attr(
-                "minecraft:player.exhaustion",
-                hunger.exhaustion,
-                5.0,
-                0.0,
-                5.0,
-            ),
+            super::attributes::food(&hunger),
+            super::attributes::saturation(&hunger),
+            super::attributes::exhaustion(&hunger),
         ];
         attributes.extend(crate::entity::xp_orb::experience_attributes(&experience));
 
