@@ -3,7 +3,7 @@
   "server_version": "1.26.51",
   "protocol_version": 2193,
   "captured_at": "unix:1793287313",
-  "source": "client-diff item-use-tridents item-use-throwables item-use-lingering, run dir C:/Users/jvigu/orca/workspaces/axolotl-stack/stab-items-prereq/tools/client-diff/runs/item-use-2-20261029 (subdirectories item-use-tridents, item-use-throwables, item-use-lingering)",
+  "source": "client-diff scenarios item-use-tridents, item-use-throwables and item-use-lingering (run item-use-2-20261029); splash_potion is observed by the operator summon capture instead",
   "files": [
     {
       "path": "spawns/thrown_trident.bin",
@@ -32,13 +32,6 @@
       "sha256": "3dd2603a5cf4812ab35c4b327018e514a008ead38a2b41c31d3838123088464d",
       "packet": "AddActorPacket",
       "seq": 320
-    },
-    {
-      "path": "spawns/splash_potion.bin",
-      "bytes": 418,
-      "sha256": "8e34ba1b8509caada653d48a2d680a3b0cad7bb0aad4a8a2c7295707c798f8a2",
-      "packet": "AddActorPacket",
-      "seq": 355
     }
   ],
   "spawns": [
@@ -65,12 +58,6 @@
       "actor_type": "minecraft:area_effect_cloud",
       "scenario": "item-use-lingering",
       "seq": 320
-    },
-    {
-      "identifier": "minecraft:splash_potion",
-      "actor_type": "minecraft:splash_potion",
-      "scenario": "item-use-throwables",
-      "seq": 355
     }
   ]
 }

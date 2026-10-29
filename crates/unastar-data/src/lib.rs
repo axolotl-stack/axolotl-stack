@@ -21,6 +21,7 @@ pub mod items;
 pub mod loot;
 pub mod melee;
 pub mod pmmp;
+pub mod potions;
 pub mod recipes;
 pub mod shapes;
 pub mod spawn_rules;
