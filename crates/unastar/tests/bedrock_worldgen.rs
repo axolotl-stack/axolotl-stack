@@ -99,8 +99,8 @@ fn bedrock_style_vs_bds_reference_ratchets() {
             for (name, value, floor) in [
                 ("terrain_exact", m.terrain_exact, 0.8859),
                 ("terrain_within_2", m.terrain_within_2, 0.9244),
-                ("surface_exact", m.surface_exact, 0.8508),
-                ("surface_block", m.surface_block, 0.8474),
+                ("surface_exact", m.surface_exact, 0.8516),
+                ("surface_block", m.surface_block, 0.8475),
                 ("surface_biome", m.surface_biome, 0.9950),
             ] {
                 assert!(value >= floor, "{name} {value:.6} fell below {floor:.6}");
@@ -120,7 +120,7 @@ fn bedrock_style_vs_bds_reference_ratchets() {
             // native dripleaf draws then cost the terrain error a fraction of
             // a column (D8): see "Dripleaf draws".
             assert!(
-                m.histogram_l1 <= 0.02379,
+                m.histogram_l1 <= 0.02380,
                 "histogram error rose: {}",
                 m.histogram_l1
             );
@@ -398,4 +398,52 @@ fn roofed_forest_wide_trunk_grows_straight() {
         }
     }
     assert_eq!(actual, expected);
+}
+
+/// Natural seed-12345 BDS world, roofed forest chunks x 3..=4, z -5..=-2:
+/// how many of the 1828 native tree blocks (logs, leaves, vines, huge-mushroom
+/// blocks) we reproduce exactly. Every tree of a rule iteration shares one
+/// random with its decorations, so draw-order fixes move this count; it may
+/// only rise (see "Roofed forest draw order" in the codegen README).
+#[test]
+fn roofed_forest_tree_voxels_ratchet_against_bds() {
+    let fixture: serde_json::Value = serde_json::from_str(include_str!(
+        "fixtures/bds_1_26_51_seed_12345_roofed_trees.json"
+    ))
+    .unwrap();
+    let registry = unastar::registry::BlockRegistry::vanilla();
+    let chunks: Vec<((i32, i32), unastar::world::chunk::Chunk)> = fixture["chunks"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .map(|c| {
+            let (x, z) = (c[0].as_i64().unwrap() as i32, c[1].as_i64().unwrap() as i32);
+            ((x, z), generate_chunk(x, z))
+        })
+        .collect();
+    let voxels = fixture["voxels"].as_array().unwrap();
+    let mut exact = 0;
+    for v in voxels {
+        let (x, y, z) = (
+            v[0].as_i64().unwrap() as i32,
+            v[1].as_i64().unwrap() as i16,
+            v[2].as_i64().unwrap() as i32,
+        );
+        let (_, chunk) = chunks
+            .iter()
+            .find(|(pos, _)| *pos == (x >> 4, z >> 4))
+            .expect("voxel inside a listed chunk");
+        let id = chunk.get_block((x & 15) as u8, y, (z & 15) as u8);
+        if registry
+            .get_by_runtime_id(id)
+            .is_some_and(|e| e.string_id == v[3].as_str().unwrap())
+        {
+            exact += 1;
+        }
+    }
+    println!(
+        "roofed forest tree voxels: {exact} of {} exact",
+        voxels.len()
+    );
+    assert!(exact >= 788, "roofed tree voxels regressed to {exact}");
 }

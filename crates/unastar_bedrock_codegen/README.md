@@ -842,13 +842,28 @@ tabled below.
    BDS. 2-wide trunks without `allow_diagonal_growth` no longer lean.
    `roofed_forest_wide_trunk_grows_straight` pins its west half and fails
    with the lean.
+4. **Aggregates succeed when any child placed.** An `aggregate_feature`'s
+   result is the last successful child's position, and `first_failure` only
+   stops when nothing has placed yet (the first child failed). An oak whose
+   optional beehive roll fails is still a placed tree, so its leaf litter and
+   grass scatters run and consume their draws. Sequences pass the last
+   successful position along. `roofed_forest_tree_voxels_ratchet_against_bds`
+   counts BDS tree blocks (logs, leaves, vines, huge-mushroom blocks) we
+   reproduce in the eight roofed chunks: 713 -> 788 of 1828. It fails with
+   the old all-children-must-place aggregates.
+   Not landed, because they did not move a native comparison closer:
+   - Drawing the trunk height before ground checks fixed two late iterations
+     but broke chunk (3,-4)'s fifth tree.
+   - A coin-flip roof cap adds a cap above chunk (4,-3)'s first dark oak that
+     BDS does not have.
 
-| Metric | Before | After 1 | After 2 | After 3 |
-| --- | ---: | ---: | ---: | ---: |
-| terrain exact | 0.88591 | 0.88597 | 0.88586 | 0.88591 |
-| terrain within 2 | 0.92446 | 0.92440 | 0.92440 | 0.92440 |
-| terrain mean abs error | 1.20347 | 1.20370 | 1.20381 | 1.20376 |
-| surface exact | 0.85455 | 0.85116 | 0.85064 | 0.85082 |
-| surface block | 0.84892 | 0.84702 | 0.84771 | 0.84743 |
-| surface biome | 0.99506 | 0.99500 | 0.99506 | 0.99506 |
-| histogram L1 | 0.02368 | 0.02371 | 0.02378 | 0.02378 |
+| Metric | Before | After 1 | After 2 | After 3 | After 4 |
+| --- | ---: | ---: | ---: | ---: | ---: |
+| terrain exact | 0.88591 | 0.88597 | 0.88586 | 0.88591 | 0.88591 |
+| terrain within 2 | 0.92446 | 0.92440 | 0.92440 | 0.92440 | 0.92440 |
+| terrain mean abs error | 1.20347 | 1.20370 | 1.20381 | 1.20376 | 1.20376 |
+| surface exact | 0.85455 | 0.85116 | 0.85064 | 0.85082 | 0.85168 |
+| surface block | 0.84892 | 0.84702 | 0.84771 | 0.84743 | 0.84754 |
+| surface biome | 0.99506 | 0.99500 | 0.99506 | 0.99506 | 0.99506 |
+| histogram L1 | 0.02368 | 0.02371 | 0.02378 | 0.02378 | 0.02380 |
+| roofed tree voxels exact (of 1828) | not measured | not measured | not measured | 713 | 788 |
