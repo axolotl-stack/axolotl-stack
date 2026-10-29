@@ -1,16 +1,18 @@
 //! The natural spawn cycle and the world-generation pass.
 //!
-//! Every tick each ticking chunk rolls for a spawn attempt. An attempt picks
-//! a random column of the chunk, finds its top spawn block (the surface) and
-//! every cave floor below it (underground), and runs one cluster at each:
-//! draw a spawn entry from the biome's pool, check its conditions and the
-//! spawn position, then spawn a herd within the population caps. A freshly
-//! generated chunk additionally runs one surface cluster in a random column
-//! the first tick it is ticking.
+//! Every tick each loaded chunk a player ticks (`ticking_area.rs`) rolls for
+//! a spawn attempt. An attempt picks a random column of the chunk, finds its
+//! top spawn block (the surface) and every cave floor below it
+//! (underground), and runs one cluster at each: draw a spawn entry from the
+//! biome's pool among the entries whose conditions hold, check the drawn
+//! entry's conditions again, its rarity and the spawn position, then spawn a
+//! herd within the population caps; any failure ends the cluster without a
+//! second draw. A freshly generated chunk additionally runs one surface
+//! cluster in a random column the first tick a player ticks it.
 //!
-//! Brightness is the sky light at the block after the time of day darkened
-//! it ([`crate::world::clock::sky_brightness`], which derives sky light
-//! from the chunk column; block light is not modelled). The server has no
+//! Brightness is the raw brightness above the block
+//! ([`crate::world::light::brightness`]: the sky light after the time of
+//! day darkened it, or the block light, whichever is brighter). The server has no
 //! weather, so `adjust_for_weather` (the brightness recomputed with the sky
 //! darkened by 10 while it rains) never changes the brightness, and no
 //! position is in a bubble column, so `disallow_spawns_in_bubble` never
@@ -19,9 +21,15 @@
 //! monster rules start at Easy).
 //!
 //! Each herd member then passes its native class's spawn check
-//! (`spawn_check.rs`) and must not overlap block collision. A member fires
-//! the entry's `spawn_event`, when it has one, instead of
-//! `minecraft:entity_spawned`.
+//! (`spawn_check.rs`), and the room check runs before the mob is created
+//! (no mob is created and removed again): the definition's collision box at
+//! the spawn position is refused only when a block in the cells it spans is
+//! solid-blocking and the box overlaps block collision, so snow layers of
+//! any height at the feet allow a spawn. A member fires the entry's
+//! `spawn_event`, when it has one, instead of `minecraft:entity_spawned`.
+//!
+//! The spawn position's player distance counts every player but spectators
+//! (dead players count).
 
 use std::collections::HashMap;
 use std::sync::Arc;
@@ -32,11 +40,12 @@ use rand::Rng;
 use unastar_data::actor_identifiers::ActorType;
 
 use super::SurfaceMob;
-use super::position::{block, find_spawn_block, material, slab_half, spawn_position_ok};
+use super::position::{block, find_spawn_block, has_room, material, slab_half, spawn_position_ok};
 use super::rules::{Category, Herd, NaturalSpawnRules, SpawnEntry, SpawnTarget};
+use super::ticking_area::TickedChunks;
 use crate::ecs::resources::TickCounter;
 use crate::entity::EntityRandom;
-use crate::entity::components::{GameMode, PhysicsBody, Player, Position};
+use crate::entity::components::{GameMode, Player, Position};
 use crate::entity::mob::constants::{
     MATERIAL_LAVA, MATERIAL_LEAVES, MATERIAL_WATER, MOBS_PER_CHUNK_SURFACE,
     MOBS_PER_CHUNK_UNDERGROUND, SPAWN_CENSUS_RADIUS_CHUNKS, SPAWN_GLOBAL_MOB_LIMIT,
@@ -44,14 +53,14 @@ use crate::entity::mob::constants::{
 };
 use crate::entity::mob::state::Persistent;
 use crate::entity::mob::{MobKind, SpawnCause, events, spawn_mob, spawn_mob_with_event};
-use crate::entity::systems::physics::{BlockSource, collides_with_blocks};
+use crate::entity::systems::physics::BlockSource;
 use crate::registry::BlockRegistry;
 use crate::registry::collision::Aabb;
 use crate::server::game::types::BlockRegistryResource;
 use crate::world::chunk::{MIN_Y, SUBCHUNK_COUNT};
-use crate::world::clock::sky_brightness;
 use crate::world::ecs::systems::{world_to_chunk_coords, world_to_local_coords};
 use crate::world::ecs::{ChunkData, ChunkLoadConfig, ChunkManager, ChunkStateFlags};
+use crate::world::light::brightness;
 use crate::world::rules::{Difficulty, GameRules};
 
 /// One above the highest block (the spawn column search starts here).
@@ -77,6 +86,8 @@ struct Tick {
     age: u64,
     /// Positions of the players that can be spawned around.
     players: Vec<DVec3>,
+    /// The chunks players tick.
+    ticked: TickedChunks,
     /// Spawnable mobs at the start of the tick (the global limit).
     spawnable: u32,
     blocks: Arc<BlockRegistry>,
@@ -100,26 +111,31 @@ pub fn natural_spawning(world: &mut World) {
 }
 
 fn run(world: &mut World, rules: &NaturalSpawnRules) {
-    let mut players = world.query_filtered::<(&Position, &GameMode), With<Player>>();
-    let players: Vec<DVec3> = players
-        .iter(world)
-        .filter(|(_, mode)| **mode != GameMode::Spectator)
-        .map(|(position, _)| position.0)
-        .collect();
+    let tick_range = world.resource::<ChunkLoadConfig>().simulation_distance;
+    let mut query = world.query_filtered::<(&Position, &GameMode), With<Player>>();
+    let mut tickers = Vec::new();
+    let mut players = Vec::new();
+    for (position, mode) in query.iter(world) {
+        tickers.push(position.0);
+        if *mode != GameMode::Spectator {
+            players.push(position.0);
+        }
+    }
     let manager = world.resource::<ChunkManager>();
-    let mut chunks: Vec<((i32, i32), Entity, bool)> = manager
-        .iter()
-        .filter_map(|(coords, entity)| {
-            let flags = world.get::<ChunkStateFlags>(entity)?;
-            flags
-                .is_ticking()
-                .then_some((coords, entity, flags.needs_population()))
-        })
+    let ticked = TickedChunks::around(tickers, tick_range, |(cx, cz)| {
+        manager
+            .get_by_coords(cx, cz)
+            .and_then(|entity| world.get::<ChunkStateFlags>(entity))
+            .is_some_and(ChunkStateFlags::is_ticking)
+    });
+    let chunks: Vec<((i32, i32), Entity)> = ticked
+        .sorted()
+        .into_iter()
+        .filter_map(|(cx, cz)| Some(((cx, cz), manager.get_by_coords(cx, cz)?)))
         .collect();
     if chunks.is_empty() {
         return;
     }
-    chunks.sort_unstable_by_key(|(coords, _, _)| *coords);
     let mut mobs = world.query::<&MobKind>();
     let spawnable = mobs
         .iter(world)
@@ -128,14 +144,18 @@ fn run(world: &mut World, rules: &NaturalSpawnRules) {
         })
         .count();
     let tick = Tick {
-        tick_range: world.resource::<ChunkLoadConfig>().simulation_distance,
+        tick_range,
         difficulty: *world.resource::<Difficulty>(),
         age: world.resource::<TickCounter>().current / TICKS_PER_SECOND as u64,
         players,
+        ticked,
         spawnable: u32::try_from(spawnable).unwrap_or(u32::MAX),
         blocks: Arc::clone(&world.resource::<BlockRegistryResource>().0),
     };
-    for (coords, entity, needs_population) in chunks {
+    for (coords, entity) in chunks {
+        let needs_population = world
+            .get::<ChunkStateFlags>(entity)
+            .is_some_and(ChunkStateFlags::needs_population);
         if needs_population {
             if let Some(mut flags) = world.get_mut::<ChunkStateFlags>(entity) {
                 flags.clear_needs_population();
@@ -225,7 +245,7 @@ fn spawn_cluster(
     {
         return;
     }
-    conditions.brightness = i32::from(sky_brightness(world, conditions.pos + IVec3::Y));
+    conditions.brightness = i32::from(brightness(world, conditions.pos + IVec3::Y));
     let lookup = if conditions.water || conditions.lava {
         Conditions {
             pos: conditions.pos + IVec3::Y,
@@ -247,7 +267,7 @@ fn spawn_cluster(
         let index = random_int(world, entry.herds.len() as i32);
         entry.herds[index as usize].clone()
     };
-    if !can_spawn_in_conditions(entry, &conditions, tick) {
+    if !can_spawn_in_conditions(world, entry, &conditions, tick) {
         return;
     }
     if entry.rarity >= 1 && random_int(world, entry.rarity as i32) != 0 {
@@ -259,7 +279,15 @@ fn spawn_cluster(
         return;
     }
     let feet = conditions.pos + IVec3::Y;
-    if !spawn_position_ok(world, blocks, entry, feet, tick.tick_range, &tick.players) {
+    if !spawn_position_ok(
+        world,
+        blocks,
+        entry,
+        feet,
+        tick.tick_range,
+        &tick.players,
+        &tick.ticked,
+    ) {
         return;
     }
     if let Some(reason) = &entry.blocked {
@@ -349,7 +377,7 @@ fn draw_entry<'r>(
         .get(&biome)?
         .iter()
         .map(|&index| &rules.entries[index])
-        .filter(|entry| can_spawn_in_conditions(entry, lookup, tick))
+        .filter(|entry| can_spawn_in_conditions(world, entry, lookup, tick))
         .collect();
     let total: u32 = candidates.iter().map(|entry| entry.weight).sum();
     let mut roll = if total == 0 {
@@ -379,7 +407,16 @@ fn permuted<'e>(world: &mut World, entry: &'e SpawnEntry) -> &'e SpawnTarget {
     &entry.own
 }
 
-fn can_spawn_in_conditions(entry: &SpawnEntry, conditions: &Conditions, tick: &Tick) -> bool {
+/// The entry's conditions at `conditions`. The rule's own placement test
+/// ([`SpawnEntry::check`], the slime's) runs after the height and
+/// surface/underground conditions and before the difficulty and brightness
+/// filters, and may draw from the world's random.
+fn can_spawn_in_conditions(
+    world: &mut World,
+    entry: &SpawnEntry,
+    conditions: &Conditions,
+    tick: &Tick,
+) -> bool {
     let y = conditions.pos.y;
     (MIN_Y..MAX_Y).contains(&y)
         && (entry.height.0..=entry.height.1).contains(&y)
@@ -387,6 +424,10 @@ fn can_spawn_in_conditions(entry: &SpawnEntry, conditions: &Conditions, tick: &T
         && (!conditions.lava || entry.lava)
         && (!conditions.surface || entry.surface)
         && (!conditions.underground || entry.underground)
+        && entry
+            .check
+            .as_ref()
+            .is_none_or(|check| check.allows(world, conditions.pos, conditions.brightness))
         && (entry.difficulty.0..=entry.difficulty.1).contains(&tick.difficulty)
         && (entry.brightness.0..=entry.brightness.1).contains(&conditions.brightness)
         && (entry.world_age.0..=entry.world_age.1).contains(&tick.age)
@@ -432,8 +473,9 @@ fn census(world: &mut World, rules: &NaturalSpawnRules, (cx, cz): (i32, i32)) ->
     census
 }
 
-/// Spawn one herd member of `entry` when its native class's spawn check
-/// passes and its body does not overlap block collision.
+/// Spawn one herd member of `entry` when its body has room at `position`
+/// and its native class's spawn check passes; both run before the mob is
+/// created.
 #[allow(clippy::too_many_arguments)]
 fn spawn_one(
     world: &mut World,
@@ -449,15 +491,26 @@ fn spawn_one(
         actor,
         class,
         immune_to_wither,
+        room,
     } = target
     else {
         return;
     };
+    let blocks = &world.resource::<BlockRegistryResource>().0;
+    if !has_room(
+        world,
+        blocks,
+        Aabb::from_feet(position, room.width, room.height),
+    ) {
+        return;
+    }
     let feet = position.floor().as_ivec3();
-    if !rules
-        .native_blocks
-        .allows(world, class, immune_to_wither, feet)
-    {
+    let passes = world.resource_scope(|world, mut random: Mut<EntityRandom>| {
+        rules
+            .native_blocks
+            .allows(world, class, immune_to_wither, feet, &mut random.0)
+    });
+    if !passes {
         return;
     }
     let mob = match &entry.spawn_event {
@@ -471,13 +524,6 @@ fn spawn_one(
             return;
         }
     };
-    let obstructed = world.get::<PhysicsBody>(mob).is_some_and(|body| {
-        collides_with_blocks(world, Aabb::from_feet(position, body.width, body.height))
-    });
-    if obstructed {
-        world.despawn(mob);
-        return;
-    }
     if surface {
         world.entity_mut(mob).insert(SurfaceMob);
     }
@@ -531,7 +577,7 @@ fn chunk_at(world: &World, pos: IVec3) -> Option<&ChunkData> {
     world.get::<ChunkData>(world.resource::<ChunkManager>().get_by_coords(cx, cz)?)
 }
 
-fn biome_at(world: &World, pos: IVec3) -> Option<u32> {
+pub(super) fn biome_at(world: &World, pos: IVec3) -> Option<u32> {
     let (x, y, z) = world_to_local_coords(pos.x, pos.y, pos.z);
     chunk_at(world, pos)?.inner.biome_at(x, y, z)
 }

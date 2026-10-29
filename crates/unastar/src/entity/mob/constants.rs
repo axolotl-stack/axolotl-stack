@@ -98,6 +98,9 @@ pub const LIQUID_GRAVITY: f64 = 0.02;
 pub const LAVA_DRAG: f64 = 0.5;
 /// Acceleration input while swimming (underwater movement attribute).
 pub const WATER_MOVE_SPEED: f32 = 0.02;
+/// Acceleration factor of a mob travelling through air: the forward input
+/// times this, whatever its movement speed (confirmed: matches BDS 1.26.51).
+pub const MOB_AIR_SPEED: f64 = 0.02;
 /// Native chicken wing-flap drag: travelling through air with a negative
 /// vertical velocity after gravity and drag, that velocity is multiplied by
 /// `1 - WING_FLAP_VERTICAL_DRAG` each tick.
@@ -515,51 +518,55 @@ pub const NET_VELOCITY_THRESHOLD_SQ: f64 = 0.04;
 
 // --- Natural spawning (`entity::spawning`) --------------------------------------
 
-/// Each tick every ticking chunk rolls `nextInt(SPAWN_TICK_ROLL)`; a spawn
-/// attempt runs when the roll is at most [`SPAWN_TICK_ROLL_MAX`] (11 in 2000).
+/// Each tick every chunk a player ticks rolls `nextInt(SPAWN_TICK_ROLL)`; a
+/// spawn attempt runs when the roll is at most [`SPAWN_TICK_ROLL_MAX`]
+/// (11 in 2000) (confirmed).
 pub const SPAWN_TICK_ROLL: i32 = 2000;
 pub const SPAWN_TICK_ROLL_MAX: i32 = 10;
 /// Mobs are counted for the population caps in the square of chunks within
-/// this many chunks of the spawning chunk (9 × 9).
+/// this many chunks of the spawning chunk (9 × 9) (confirmed).
 pub const SPAWN_CENSUS_RADIUS_CHUNKS: i32 = 4;
-/// A cluster never takes the spawnable mob count past this many.
+/// A cluster never takes the spawnable mob count past this many (confirmed).
 pub const SPAWN_GLOBAL_MOB_LIMIT: u32 = 200;
 /// Population cap per category in the census area for mobs spawned on the
 /// surface, indexed by [`crate::entity::spawning::Category`] (animal,
 /// monster, water_animal, villager, ambient, cat, pillager). A cap of 0
-/// never spawns.
+/// never spawns (confirmed, every category).
 pub const MOBS_PER_CHUNK_SURFACE: [f32; 7] = [4.0, 8.0, 36.0, 0.0, 0.0, 4.0, 8.0];
-/// The same caps for mobs spawned underground.
+/// The same caps for mobs spawned underground (confirmed, every category).
 pub const MOBS_PER_CHUNK_UNDERGROUND: [f32; 7] = [4.0, 16.0, 36.0, 0.0, 2.0, 0.0, 8.0];
 /// Naturally spawned mobs stand at the spawn block's corner plus this on x
-/// and z (worlds of base game version 1.21.0 or later).
+/// and z (worlds of base game version 1.21.0 or later) (confirmed).
 pub const SPAWN_POSITION_OFFSET: f64 = 0.49;
-/// `minecraft:weight` when a condition has none.
+/// `minecraft:weight` when a condition has none (confirmed).
 pub const DEFAULT_SPAWN_WEIGHT: u32 = 100;
 /// `minecraft:distance_filter` when a condition has none: no player closer
-/// than `min`, the nearest player within `max` blocks.
+/// than `min`, the nearest player within `max` blocks (confirmed).
 pub const DEFAULT_SPAWN_DISTANCE_MIN: i32 = 24;
 pub const DEFAULT_SPAWN_DISTANCE_MAX: i32 = 128;
-/// An authored `distance_filter.max` is clamped to this (`min` to ≥ 0).
+/// An authored `distance_filter.max` is clamped to this (`min` to ≥ 0)
+/// (confirmed).
 pub const SPAWN_DISTANCE_CAP: i32 = 128;
 /// From this chunk tick range up, a spawn needs its chunk and the 8 around
-/// it ticking. With exactly [`SPAWN_SHORT_TICK_RANGE`] the neighbours are not
+/// it ticked. With exactly [`SPAWN_SHORT_TICK_RANGE`] the neighbours are not
 /// checked but the player distance is capped at
-/// [`SPAWN_SHORT_TICK_RANGE_DISTANCE`]; below that nothing spawns.
+/// [`SPAWN_SHORT_TICK_RANGE_DISTANCE`]; below that nothing spawns
+/// (confirmed, all three).
 pub const SPAWN_FULL_TICK_RANGE: i32 = 5;
 pub const SPAWN_SHORT_TICK_RANGE: i32 = 4;
 pub const SPAWN_SHORT_TICK_RANGE_DISTANCE: i32 = 44;
 /// Block material ordinals (`material.type`) the spawn block search treats
-/// as open space: air, water, lava and bubble columns.
+/// as open space: air, water, lava and bubble columns (confirmed).
 pub const SPAWN_OPEN_MATERIALS: [u8; 4] = [0, 5, 6, 18];
-/// Material ordinals of water and lava (in-liquid spawn conditions).
+/// Material ordinals of water and lava (in-liquid spawn conditions)
+/// (confirmed).
 pub const MATERIAL_WATER: u8 = 5;
 pub const MATERIAL_LAVA: u8 = 6;
 /// Material ordinal of ice, which counts as a spawn block although it is not
-/// a solid block.
+/// a solid block (confirmed).
 pub const MATERIAL_ICE: u8 = 13;
 /// Material ordinal of leaves: a spawn column whose top spawn block is
-/// leaves keeps its next spawn block below on the surface.
+/// leaves keeps its next spawn block below on the surface (confirmed).
 pub const MATERIAL_LEAVES: u8 = 7;
 /// The overworld brightness ramp: the brightness each raw light level
 /// `0..=15` stands for, `(1 - f) / (3f + 1)` with `f = 1 - level / 15`, as
@@ -660,6 +667,32 @@ pub const SPAWN_REFUSING_BLOCKS: [&str; 48] = [
 /// A mob that the wither effect can affect does not spawn with its feet in
 /// this block (confirmed).
 pub const SPAWN_WITHER_ROSE: &str = "minecraft:wither_rose";
+
+// Slime natural spawning (`entity::spawning::slime_chunk`, the
+// `minecraft:slime` spawn rule's placement test and the slime class check).
+
+/// A chunk's slime-chunk MT19937 seed is `(cx × this) as u32 ^ cz as u32`
+/// with the chunk coordinates alone; the world seed plays no part (matches
+/// BDS 1.26.51).
+pub const SLIME_CHUNK_SEED_MULTIPLIER: i32 = 0x1f1f_1f1f;
+/// A chunk is a slime chunk when the first output of its MT19937 is a
+/// multiple of this: 1 chunk in 10 (matches BDS 1.26.51).
+pub const SLIME_CHUNK_CHANCE: u32 = 10;
+/// The slime-chunk test passes only for a spawn block at most this high
+/// (below 39) (matches BDS 1.26.51).
+pub const SLIME_CHUNK_MAX_Y: i32 = 38;
+/// The swamp surface test passes only for a spawn block in this height band
+/// (matches BDS 1.26.51).
+pub const SLIME_SWAMP_HEIGHT: std::ops::RangeInclusive<i32> = 50..=68;
+/// The swamp surface test needs raw brightness below this above the spawn
+/// block, and at most a draw in `0..this` (matches BDS 1.26.51).
+pub const SLIME_SWAMP_BRIGHTNESS_LIMIT: i32 = 8;
+/// The swamp surface test needs this biome tag on the biome of the block
+/// above the spawn block (swamp, mangrove swamp) (matches BDS 1.26.51).
+pub const SLIME_BIOME_TAG: &str = "slime";
+/// In a superflat world the slime class's native spawn check passes only
+/// when a draw in `0..this` is 1: 1 spawn in 4 (matches BDS 1.26.51).
+pub const SLIME_SUPERFLAT_SPAWN_CHANCE: i32 = 4;
 
 // --- Environment filters (`mob::events`) ---------------------------------------
 
@@ -972,3 +1005,18 @@ pub const ARROW_EFFECT_DURATION_DIVISOR: u32 = 8;
 pub const FLEE_SUN_TRIES: u32 = 10;
 pub const FLEE_SUN_SPREAD_XZ: i32 = 10;
 pub const FLEE_SUN_SPREAD_Y: i32 = 3;
+
+// --- Hopping, area attacks and splitting (slime lane) ---------------------------
+
+/// A dying mob of a splitting class leaves `SPLIT_BASE_COUNT +
+/// nextInt(SPLIT_EXTRA_COUNTS)` children (2–4) when its body is removed
+/// (confirmed: matches BDS 1.26.51).
+pub const SPLIT_BASE_COUNT: u32 = 2;
+pub const SPLIT_EXTRA_COUNTS: u32 = 3;
+/// Split children appear at the parent's block centre on x and z and this
+/// far above the floor of its block (confirmed: matches BDS 1.26.51).
+pub const SPLIT_CHILD_OFFSET: f64 = 0.5;
+/// Level sound of an `area_attack` hit with `play_attack_sound` (confirmed:
+/// matches BDS 1.26.51; played at the attacker's box centre, provisional:
+/// the point of the ranged shot sound).
+pub const AREA_ATTACK_SOUND: &str = "attack";

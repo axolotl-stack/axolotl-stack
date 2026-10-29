@@ -45,6 +45,11 @@ pub mod explode;
 // Skeleton lane.
 pub mod flee_sun;
 pub mod ranged_attack;
+// Slime lane.
+pub mod area_attack;
+pub mod mob_effect_immunity;
+pub mod slime_goals;
+pub mod variant;
 
 use std::sync::Arc;
 
@@ -72,7 +77,7 @@ pub use hurt_on_condition::{HurtCondition, HurtOnConditionConfig};
 pub use interact::{InteractConfig, Interaction, SpawnEggInteraction, SpawnItems};
 pub use knockback::{KnockbackPower, KnockbackRules};
 pub use loot::{ExperienceRewardConfig, LootConfig};
-pub use movement::{BasicMovementConfig, JumpConfig, WalkNavigationConfig};
+pub use movement::{BasicMovementConfig, JumpConfig, JumpMovementConfig, WalkNavigationConfig};
 pub use sensors::{EnvironmentSensorConfig, Timer};
 pub use spawn_entity::{SpawnEntityConfig, SpawnEntityTimers, SpawnRule, SpawnTimer};
 
@@ -232,6 +237,11 @@ pub fn register_component_kinds(
     ranged_attack::register_component_kinds(builder)?;
     flee_sun::register_component_kinds(builder)?;
     inert::<bodies::FreezingImmune>(builder)?;
+    // Slime lane.
+    mob_effect_immunity::register_component_kinds(builder)?;
+    variant::register_component_kinds(builder)?;
+    area_attack::register_component_kinds(builder)?;
+    slime_goals::register_component_kinds(builder)?;
     spawn_entity::register_component_kinds(builder, items)?;
     equipment::register_component_kinds(builder, items)?;
     knockback::register_component_kinds(builder)

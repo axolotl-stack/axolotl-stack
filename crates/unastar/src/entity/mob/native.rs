@@ -54,7 +54,45 @@ pub struct NativeTraits {
     /// classes number their kind (skeleton 0, wither skeleton 1, stray 2,
     /// bogged 3, parched 4).
     pub variant: Option<i32>,
+    // Slime lane.
+    /// The class splits when its dead body is removed (the slime;
+    /// `mob::life::split`).
+    pub split: Option<SplitTraits>,
+    /// The class sends the `CLIENT_EVENT` actor data, byte 0 (the slime;
+    /// measured from the retained 1.26.51 summon capture).
+    pub client_event_data: bool,
 }
+
+/// How a splitting class splits. A dead mob whose size (its `VARIANT`
+/// actor data) is above 1 leaves `SPLIT_BASE_COUNT +
+/// nextInt(SPLIT_EXTRA_COUNTS)` children of the same type and half its
+/// size when its body is removed; each child gets the component group of
+/// its size (matches BDS 1.26.51).
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub struct SplitTraits {
+    /// The size groups: small (size below 2), medium (size 2) and large.
+    pub size_groups: [&'static str; 3],
+}
+
+impl SplitTraits {
+    /// The component group a child of `size` gets.
+    pub const fn size_group(&self, size: i32) -> &'static str {
+        match size {
+            ..2 => self.size_groups[0],
+            2 => self.size_groups[1],
+            _ => self.size_groups[2],
+        }
+    }
+}
+
+/// The slime's size groups (matches BDS 1.26.51).
+const SLIME_SPLIT: SplitTraits = SplitTraits {
+    size_groups: [
+        "minecraft:slime_small",
+        "minecraft:slime_medium",
+        "minecraft:slime_large",
+    ],
+};
 
 /// Which native natural-spawn check an actor class runs.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -65,6 +103,9 @@ pub enum SpawnClass {
     Animal,
     /// The monster walk-target value plus the darkness test.
     Monster,
+    /// The slime: the plain mob check, which in a superflat world passes
+    /// only 1 time in `SLIME_SUPERFLAT_SPAWN_CHANCE` (matches BDS 1.26.51).
+    Slime,
 }
 
 impl NativeTraits {
@@ -82,6 +123,11 @@ impl NativeTraits {
         };
         let carried_block_data = matches!(actor_type, ActorType::Enderman);
         let variant = skeleton_kind(actor_type);
+        let split = match actor_type {
+            ActorType::Slime => Some(SLIME_SPLIT),
+            _ => None,
+        };
+        let client_event_data = matches!(actor_type, ActorType::Slime);
         match actor_type {
             ActorType::Chicken => Self {
                 wing_flap_drag: Some(WING_FLAP_VERTICAL_DRAG),
@@ -96,6 +142,8 @@ impl NativeTraits {
                 angry_ambient_sound,
                 carried_block_data,
                 variant,
+                split,
+                client_event_data,
             },
             _ => Self {
                 wing_flap_drag: None,
@@ -110,6 +158,8 @@ impl NativeTraits {
                 angry_ambient_sound,
                 carried_block_data,
                 variant,
+                split,
+                client_event_data,
             },
         }
     }
@@ -192,6 +242,7 @@ impl SpawnClass {
             | A::Npc
             | A::SnowGolem
             | A::Villager => Self::Mob,
+            A::Slime => Self::Slime,
             A::Bee
             | A::Cat
             | A::Chicken

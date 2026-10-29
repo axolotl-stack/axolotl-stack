@@ -324,6 +324,14 @@ impl EntityMetadata {
         )
     }
 
+    /// The `Int` value of `key`, if it holds one.
+    pub fn get_int(&self, key: u32) -> Option<i32> {
+        match self.get(key)? {
+            DataItemEntryPayload::DataItemIntPayload(payload) => Some(payload.value),
+            _ => None,
+        }
+    }
+
     pub fn set_int(&mut self, key: u32, value: i32) -> bool {
         self.set_payload(
             key,

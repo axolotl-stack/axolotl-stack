@@ -72,9 +72,10 @@ pub enum Move {
     Toward(Entity),
 }
 
-/// The overworld brightness of the light at `block`.
+/// The overworld brightness of the light at `block` (raw brightness,
+/// `world::light::brightness`).
 fn brightness(world: &World, block: IVec3) -> f32 {
-    let light = crate::world::clock::sky_brightness(world, block);
+    let light = crate::world::light::brightness(world, block);
     OVERWORLD_BRIGHTNESS_RAMP[usize::from(light.min(15))]
 }
 

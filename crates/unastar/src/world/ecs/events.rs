@@ -1,7 +1,8 @@
 //! Block change events for the ECS world.
 //!
 //! This module provides two event types for block modifications:
-//! - `BlockChanged`: Immediate trigger for game logic (physics, lighting, redstone)
+//! - `BlockChanged`: Immediate trigger for game logic (physics, redstone);
+//!   block light follows the chunk's own record of cell writes (`world::light`)
 //! - `BlockBroadcastEvent`: Batched event for network broadcasting
 //!
 //! ## Architecture
@@ -19,7 +20,6 @@ use glam::IVec3;
 /// Observers react to this synchronously within the same tick.
 /// Used for game logic that requires immediate causality:
 /// - Block physics (sand/gravel falling)
-/// - Lighting updates
 /// - Redstone signal propagation
 ///
 /// Note: This is an observer trigger, not a standard event.

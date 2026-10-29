@@ -552,3 +552,23 @@ pub const SHOOTER_MAGIC: bool = false;
 pub const SHOOTER_POWER: f32 = 0.0;
 /// `projectiles` entry `lose_target` false.
 pub const SHOOTER_PROJECTILE_LOSE_TARGET: bool = false;
+
+// Slime lane: minecraft:movement.jump, minecraft:area_attack and
+// minecraft:variant (Mojang forms `minecraft_movement_jump.form.json`,
+// `minecraft_area_attack.form.json`, `minecraft_variant.form.json`).
+
+/// `movement.jump` `max_turn` 30 degrees per tick.
+pub const MOVEMENT_JUMP_MAX_TURN: f32 = 30.0;
+/// `movement.jump` `jump_delay`: the form gives no default; an absent delay
+/// is a zero range (the mob jumps whenever it lands).
+pub const MOVEMENT_JUMP_JUMP_DELAY: FloatRange = FloatRange { min: 0.0, max: 0.0 };
+/// `area_attack` `damage_per_tick` 2.
+pub const AREA_ATTACK_DAMAGE_PER_TICK: i32 = 2;
+/// `area_attack` `damage_range` 0.2 blocks.
+pub const AREA_ATTACK_DAMAGE_RANGE: f32 = 0.2;
+/// `area_attack` `damage_cooldown` 0 seconds.
+pub const AREA_ATTACK_DAMAGE_COOLDOWN: f32 = 0.0;
+/// `area_attack` `play_attack_sound` true.
+pub const AREA_ATTACK_PLAY_ATTACK_SOUND: bool = true;
+/// `variant` `value` 0.
+pub const VARIANT_VALUE: i32 = 0;

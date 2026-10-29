@@ -6,15 +6,15 @@ use glam::{DVec3, IVec3};
 use unastar_data::blocks::{BlockData, StateValue};
 
 use super::rules::SpawnEntry;
+use super::ticking_area::TickedChunks;
 use crate::entity::mob::constants::{
     MATERIAL_ICE, MATERIAL_LAVA, MATERIAL_WATER, SPAWN_FULL_TICK_RANGE, SPAWN_OPEN_MATERIALS,
     SPAWN_SHORT_TICK_RANGE, SPAWN_SHORT_TICK_RANGE_DISTANCE,
 };
-use crate::entity::systems::physics::BlockSource;
+use crate::entity::systems::physics::{BlockSource, collides_with_blocks};
 use crate::registry::BlockRegistry;
+use crate::registry::collision::Aabb;
 use crate::world::chunk::MIN_Y;
-use crate::world::ecs::systems::world_to_chunk_coords;
-use crate::world::ecs::{ChunkManager, ChunkStateFlags};
 
 /// Move `pos` down to the next spawn block: the first motion-blocking block
 /// below open space that is solid, ice or a top slab. On the surface search
@@ -76,7 +76,8 @@ pub(super) fn slab_half(blocks: &BlockRegistry, id: u32) -> Option<bool> {
 }
 
 /// Player distance, spawn blocks, and room at the feet. `tick_range` is the
-/// chunk tick range; `players` the positions spawns can happen around.
+/// chunk tick range; `players` the positions spawns can happen around;
+/// `ticked` the chunks players tick.
 pub(super) fn spawn_position_ok(
     world: &World,
     blocks: &BlockRegistry,
@@ -84,9 +85,10 @@ pub(super) fn spawn_position_ok(
     feet: IVec3,
     tick_range: i32,
     players: &[DVec3],
+    ticked: &TickedChunks,
 ) -> bool {
     let max = if tick_range >= SPAWN_FULL_TICK_RANGE {
-        if !neighbourhood_ticking(world, feet) {
+        if !ticked.neighbourhood(feet) {
             return false;
         }
         entry.distance.1
@@ -164,18 +166,17 @@ pub(super) fn spawn_position_ok(
     !solid_blocking(world, blocks, feet)
 }
 
-/// The chunk of `feet` and the 8 around it are loaded and ticking.
-fn neighbourhood_ticking(world: &World, feet: IVec3) -> bool {
-    let (cx, cz) = world_to_chunk_coords(feet.x, feet.z);
-    let manager = world.resource::<ChunkManager>();
-    (-1..=1).all(|dx| {
-        (-1..=1).all(|dz| {
-            manager
-                .get_by_coords(cx + dx, cz + dz)
-                .and_then(|entity| world.get::<ChunkStateFlags>(entity))
-                .is_some_and(ChunkStateFlags::is_ticking)
-        })
-    })
+/// Room for a body at its spawn position, before the mob exists: refused
+/// only when a block in the cells `aabb` spans is solid-blocking and `aabb`
+/// overlaps block collision (matches BDS 1.26.51).
+pub(super) fn has_room(world: &World, blocks: &BlockRegistry, aabb: Aabb) -> bool {
+    let min = aabb.min.floor().as_ivec3();
+    let max = aabb.max.ceil().as_ivec3();
+    let solid = (min.x..max.x).any(|x| {
+        (min.y..max.y)
+            .any(|y| (min.z..max.z).any(|z| solid_blocking(world, blocks, IVec3::new(x, y, z))))
+    });
+    !(solid && collides_with_blocks(world, aabb))
 }
 
 pub(super) fn block(

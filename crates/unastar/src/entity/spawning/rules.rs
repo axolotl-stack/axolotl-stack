@@ -3,8 +3,10 @@
 //!
 //! Every `conditions[]` element of a spawn rule file is one entry with its
 //! own weight. An entry is in a biome's pool when its `biome_filter` accepts
-//! the biome's tags; the spawn cycle draws from the pool among the entries
-//! whose conditions the spawn position meets. Entries fall in three groups:
+//! the biome (`has_biome_tag` against its tags, `is_snow_covered` against
+//! its climate's snow accumulation); the spawn cycle draws from the pool
+//! among the entries whose conditions the spawn position meets. Entries
+//! fall in three groups:
 //!
 //! - **spawnable**: every condition is implemented and at least one of the
 //!   mobs the entry spawns (its own mob and its `permute_type` targets) can
@@ -25,16 +27,26 @@
 //! `minecraft:spawn_event` names the event a spawned member fires instead of
 //! `minecraft:entity_spawned`; a target whose definition lacks that event
 //! is blocked.
+//!
+//! A rule's actor type may add a placement test its file does not describe
+//! ([`SpawnRuleCheck`]): `minecraft:slime` spawns only in slime chunks deep
+//! down or on dark swamp surfaces (`slime_chunk.rs`).
 
 use std::collections::HashMap;
 use std::sync::Arc;
 
+use bevy_ecs::prelude::World;
+use glam::IVec3;
+use unastar_data::actor_components::{self, ComponentBody, decode};
+use unastar_data::actor_definitions::ActorDefinition;
 use unastar_data::actor_identifiers::ActorType;
+use unastar_data::biomes::BiomeData;
 use unastar_data::spawn_rules::{SpawnRuleFile, body};
 use unastar_rules::filter::{
     BuiltinTest, Fact, Filter, FilterContext, FilterRegistry, FilterTest, Subject,
 };
 
+use super::slime_chunk::SlimeSpawnRule;
 use super::spawn_check::NativeSpawnBlocks;
 use crate::entity::mob::MobRegistry;
 use crate::entity::mob::constants::{
@@ -127,7 +139,7 @@ impl Herd {
 /// One `minecraft:permute_type` entry: herd members beyond the guaranteed
 /// ones become `entity_type` (or the rule's own mob when it is `None`) with
 /// probability `weight / Σ weight`.
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq)]
 pub struct Permutation {
     pub weight: u32,
     pub min_guaranteed: u32,
@@ -138,7 +150,7 @@ pub struct Permutation {
 
 /// A mob a spawn entry spawns: the rule's own mob or a `permute_type`
 /// target.
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq)]
 pub enum SpawnTarget {
     Mob {
         actor: ActorType,
@@ -146,6 +158,8 @@ pub enum SpawnTarget {
         class: SpawnClass,
         /// The wither effect cannot affect the archetype's native class.
         immune_to_wither: bool,
+        /// The box the room check tests before the mob is created.
+        room: RoomBox,
     },
     /// The target cannot spawn, and why; a herd member drawn as it spawns
     /// nothing.
@@ -169,11 +183,16 @@ impl SpawnTarget {
             });
         };
         let native = archetype.native;
+        let room = match RoomBox::of(&archetype.source) {
+            Ok(room) => room,
+            Err(error) => return Self::Blocked(format!("{name}'s collision box: {error}")),
+        };
         match native.spawn_class {
             Some(class) => Self::Mob {
                 actor,
                 class,
                 immune_to_wither: native.immune_to_wither,
+                room,
             },
             None => Self::Blocked(format!(
                 "the native spawn check of {name}'s class {} is not modelled",
@@ -188,6 +207,38 @@ impl SpawnTarget {
             Self::Blocked(reason) => Some(reason),
         }
     }
+}
+
+/// The box a natural spawn checks for room before the mob exists: the
+/// definition's `minecraft:collision_box` (none is an empty box) times its
+/// `minecraft:scale`, both from the root components (the spawn event has not
+/// run yet).
+#[derive(Debug, Clone, Copy, PartialEq)]
+pub struct RoomBox {
+    pub width: f64,
+    pub height: f64,
+}
+
+impl RoomBox {
+    fn of(definition: &ActorDefinition) -> Result<Self, String> {
+        let scale = root_component::<actor_components::body::Scale>(definition)?
+            .map_or(1.0, |scale| scale.value);
+        // Published rule: negative collision dimensions count as zero.
+        let (width, height) = root_component::<actor_components::body::CollisionBox>(definition)?
+            .map_or((0.0, 0.0), |b| (b.width.max(0.0), b.height.max(0.0)));
+        Ok(Self {
+            width: f64::from(width * scale),
+            height: f64::from(height * scale),
+        })
+    }
+}
+
+fn root_component<B: ComponentBody>(definition: &ActorDefinition) -> Result<Option<B>, String> {
+    definition
+        .components
+        .get(B::COMPONENT.name())
+        .map(decode::<B>)
+        .transpose()
 }
 
 /// Block runtime-id ranges a block descriptor matches.
@@ -221,6 +272,32 @@ impl BlockSet {
     }
 }
 
+/// A placement test a spawn rule runs among its conditions that its file
+/// does not describe, chosen by the rule's actor type.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub enum SpawnRuleCheck {
+    /// `minecraft:slime`: slime chunks and swamp surfaces
+    /// (`slime_chunk.rs`).
+    Slime(SlimeSpawnRule),
+}
+
+impl SpawnRuleCheck {
+    fn of(actor: Option<ActorType>) -> Option<Self> {
+        match actor? {
+            ActorType::Slime => Some(Self::Slime(SlimeSpawnRule::resolve())),
+            _ => None,
+        }
+    }
+
+    /// Whether the test passes for spawn block `block` with raw brightness
+    /// `brightness` above it; it may draw from the world's random.
+    pub fn allows(&self, world: &mut World, block: IVec3, brightness: i32) -> bool {
+        match self {
+            Self::Slime(rule) => rule.allows(world, block, brightness),
+        }
+    }
+}
+
 /// A compiled spawn condition.
 #[derive(Debug, Clone)]
 pub struct SpawnEntry {
@@ -240,6 +317,10 @@ pub struct SpawnEntry {
     pub underground: bool,
     pub underwater: bool,
     pub lava: bool,
+    /// The rule's placement test beyond its file's conditions, if any; it
+    /// runs after the height and surface/underground conditions and before
+    /// the difficulty and brightness filters.
+    pub check: Option<SpawnRuleCheck>,
     pub brightness: (i32, i32),
     pub height: (i32, i32),
     pub difficulty: (Difficulty, Difficulty),
@@ -341,11 +422,11 @@ impl NaturalSpawnRules {
             }
         }
         for biome in unastar_data::biomes::iter() {
-            let tags = BiomeTags(&biome.tags);
+            let facts = BiomeFacts(biome);
             let pool: Vec<usize> = filters
                 .iter()
                 .enumerate()
-                .filter(|(_, filter)| filter.as_ref().is_none_or(|f| f.evaluate(&tags)))
+                .filter(|(_, filter)| filter.as_ref().is_none_or(|f| f.evaluate(&facts)))
                 .map(|(index, _)| index)
                 .collect();
             if !pool.is_empty() {
@@ -366,20 +447,34 @@ impl NaturalSpawnRules {
     }
 }
 
-/// Biome tags as the filter context of a `biome_filter`.
-struct BiomeTags<'a>(&'a [String]);
+/// A biome as the filter context of a `biome_filter`: its tags and whether
+/// it is snow covered.
+struct BiomeFacts<'a>(&'a BiomeData);
 
-impl FilterContext for BiomeTags<'_> {
+impl FilterContext for BiomeFacts<'_> {
     fn fact(&self, _subject: Subject, test: &FilterTest) -> Option<Fact> {
         match test.builtin()? {
             BuiltinTest::HasBiomeTag => {
                 let want = test.value.as_str()?;
-                Some(Fact::Matches(self.0.iter().any(|tag| tag == want)))
+                Some(Fact::Matches(self.0.tags.iter().any(|tag| tag == want)))
             }
+            BuiltinTest::IsSnowCovered => Some(Fact::Bool(snow_covered(self.0))),
             _ => None,
         }
     }
 }
+
+/// `is_snow_covered` in a spawn rule's biome filter: the biome's minimum
+/// `minecraft:climate` snow accumulation is above 0 (matches BDS 1.26.51).
+fn snow_covered(biome: &BiomeData) -> bool {
+    biome
+        .climate
+        .and_then(|climate| climate.snow_accumulation)
+        .is_some_and(|(min, _)| min > 0.0)
+}
+
+/// The tests a spawn rule's biome filter may use.
+const BIOME_FILTER_TESTS: [BuiltinTest; 2] = [BuiltinTest::HasBiomeTag, BuiltinTest::IsSnowCovered];
 
 fn compile_entry(
     identifier: &Arc<str>,
@@ -504,6 +599,7 @@ fn compile_entry(
         persistent: condition.is_persistent.is_some(),
         own,
         spawn_event,
+        check: SpawnRuleCheck::of(actor),
         blocked: None,
     };
     entry.blocked = blocked_reason(&entry);
@@ -557,7 +653,11 @@ fn compile_biome_filter(json: &serde_json::Value) -> Result<Filter, RuleError> {
     }
     let mut failure = None;
     filter.for_each_test(&mut |test| {
-        if failure.is_none() && test.builtin() != Some(BuiltinTest::HasBiomeTag) {
+        if failure.is_none()
+            && !test
+                .builtin()
+                .is_some_and(|builtin| BIOME_FILTER_TESTS.contains(&builtin))
+        {
             failure = Some(test.name.clone());
         }
     });

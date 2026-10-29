@@ -23,7 +23,8 @@ use crate::entity::mob::native::SpawnClass;
 use crate::entity::spawning::spawn_check::walk_target_value;
 use crate::entity::systems::BlockSource;
 use crate::world::chunk::{MIN_Y, SUBCHUNK_COUNT};
-use crate::world::clock::{is_daytime, sky_brightness};
+use crate::world::clock::is_daytime;
+use crate::world::light::brightness;
 
 impl GoalContext<'_> {
     pub(super) fn flee_sun_can_start(&mut self) -> bool {
@@ -73,7 +74,7 @@ impl GoalContext<'_> {
                 .block_at(spot - IVec3::Y)
                 .and_then(|state| self.world.registry().get_by_runtime_id(state))
                 .is_some_and(|block| block.string_id == GRASS_BLOCK);
-        walk_target_value(class, on_grass, sky_brightness(self.world, spot)) < 0.0
+        walk_target_value(class, on_grass, brightness(self.world, spot)) < 0.0
     }
 
     pub(super) fn flee_sun_start(&mut self) {

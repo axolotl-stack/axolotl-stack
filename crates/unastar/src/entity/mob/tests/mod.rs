@@ -20,3 +20,5 @@ mod spider;
 mod creeper;
 // Skeleton lane: the skeleton and stray.
 mod skeleton;
+// Slime lane.
+mod slime;

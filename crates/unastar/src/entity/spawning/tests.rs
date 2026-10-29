@@ -309,16 +309,22 @@ fn world_generation_places_herds_in_fresh_animal_chunks() {
     };
     let (mut server, mut rx) = build_server(&terrain, 3);
     // Chunks start ticking at the end of the first tick; the second tick is
-    // their first ticking tick.
+    // their first ticking tick. Tick range 6 from chunk (0, 0) ticks
+    // `|cx| + |cz| <= 7`, so only the corners of the radius-4 square stay
+    // unpopulated.
     tick(&mut server, &mut rx, 2);
     let world = server.ecs.world_mut();
-    let mut flags = world.query::<&ChunkStateFlags>();
-    assert!(
-        flags
-            .iter(world)
-            .all(|f| !f.needs_population() || !f.is_ticking()),
-        "ticking chunks were populated"
-    );
+    let mut flags = world.query::<(&ChunkPosition, &ChunkStateFlags)>();
+    for (pos, flags) in flags.iter(world) {
+        let ticked = pos.x.abs() + pos.z.abs() <= 7;
+        assert_eq!(
+            flags.needs_population(),
+            !ticked,
+            "chunk ({}, {}) is populated when a player ticks it",
+            pos.x,
+            pos.z
+        );
+    }
     let placed = mobs(&mut server);
     assert!(!placed.is_empty(), "the world-generation pass placed herds");
     // Loaded chunks are not populated: the same tick on stored chunks places
@@ -837,4 +843,410 @@ fn strays_spawn_in_frozen_biomes_through_their_spawn_event() {
             "{groups:?}"
         );
     }
+}
+
+// Block light lane.
+
+/// Torches 8 blocks apart on the ground of every column within `radius`,
+/// so every cell above the ground holds block light (at least 6).
+fn light_with_torches(server: &mut GameServer, radius: i32) {
+    let torch = crate::registry::BlockRegistry::vanilla()
+        .default_state_id_by_name("minecraft:torch")
+        .unwrap();
+    let world = server.ecs.world_mut();
+    for cx in -radius..=radius {
+        for cz in -radius..=radius {
+            let chunk = world
+                .resource::<ChunkManager>()
+                .get_by_coords(cx, cz)
+                .unwrap();
+            let mut data = world
+                .get_mut::<crate::world::ecs::ChunkData>(chunk)
+                .unwrap();
+            for lx in [4, 12] {
+                for lz in [4, 12] {
+                    data.inner.set_block(lx, GROUND_Y + 1, lz, torch);
+                }
+            }
+        }
+    }
+}
+
+#[test]
+fn monsters_never_spawn_on_a_torch_lit_platform_at_night_but_do_in_the_dark() {
+    let (mut server, mut rx) = monster_server(&Terrain::plains(2), MIDNIGHT, Difficulty::Easy);
+    let monsters: Vec<String> = server
+        .ecs
+        .world()
+        .resource::<NaturalSpawnRules>()
+        .entries
+        .iter()
+        .filter(|entry| entry.category == Some(super::Category::Monster))
+        .map(|entry| entry.identifier.to_string())
+        .collect();
+    let monsters: Vec<&str> = monsters.iter().map(String::as_str).collect();
+    let dark = watch_spawns(&mut server, &mut rx, &monsters, 4000);
+    assert!(!dark.is_empty(), "monsters spawned in the dark");
+
+    let (mut server, mut rx) = monster_server(&Terrain::plains(2), MIDNIGHT, Difficulty::Easy);
+    light_with_torches(&mut server, 2);
+    tick(&mut server, &mut rx, 1);
+    let world = server.ecs.world();
+    for x in -32..48 {
+        for z in -32..48 {
+            let feet = glam::IVec3::new(x, i32::from(GROUND_Y) + 1, z);
+            assert!(
+                crate::world::light::block_light(world, feet) >= 6,
+                "{feet} is torch-lit"
+            );
+        }
+    }
+    let lit = watch_spawns(&mut server, &mut rx, &monsters, 4000);
+    assert!(lit.is_empty(), "no monster on the lit platform: {lit:?}");
+}
+
+// Spawn gaps lane.
+
+/// Every mob the cycle spawned over `ticks`: identifier and feet.
+fn spawn_log(
+    server: &mut GameServer,
+    rx: &mut mpsc::Receiver<jolyne::valentine::McpePacket>,
+    ticks: usize,
+) -> Vec<(String, DVec3)> {
+    let mut seen = std::collections::HashSet::new();
+    let mut log = Vec::new();
+    for _ in 0..ticks {
+        tick(server, rx, 1);
+        for (entity, id, pos, _) in mobs(server) {
+            if seen.insert(entity) {
+                log.push((id, pos));
+            }
+        }
+    }
+    log
+}
+
+fn set_block_at(server: &mut GameServer, pos: glam::IVec3, block: u32) {
+    let world = server.ecs.world_mut();
+    let chunk = world
+        .resource::<ChunkManager>()
+        .get_by_coords(pos.x >> 4, pos.z >> 4)
+        .unwrap();
+    let mut data = world
+        .get_mut::<crate::world::ecs::ChunkData>(chunk)
+        .unwrap();
+    data.inner
+        .set_block((pos.x & 15) as u8, pos.y as i16, (pos.z & 15) as u8, block);
+}
+
+/// A snow layer of `height` (the state, 0..=7).
+fn snow_layer(height: i32) -> u32 {
+    let entry = crate::registry::BlockRegistry::vanilla()
+        .get_by_name("minecraft:snow_layer")
+        .unwrap();
+    entry
+        .with_state_value(
+            entry.default_state_id,
+            "height",
+            crate::registry::block::StateValue::Int(height),
+        )
+        .unwrap()
+}
+
+#[test]
+fn players_tick_a_diamond_of_chunks_without_its_tips() {
+    use super::ticking_area::tick_offsets;
+    for (range, count) in [(4, 57), (6, 109)] {
+        let offsets: Vec<(i32, i32)> = tick_offsets(range).collect();
+        let unique: std::collections::HashSet<_> = offsets.iter().copied().collect();
+        assert_eq!(
+            (offsets.len(), unique.len()),
+            (count, count),
+            "range {range}"
+        );
+        for &(dx, dz) in &offsets {
+            assert!(
+                dx.abs() + dz.abs() <= range + 1 && dx.abs() <= range && dz.abs() <= range,
+                "range {range}: ({dx}, {dz})"
+            );
+        }
+        for inside in [(0, 0), (range, 0), (range, 1), (1, range), (-range, -1)] {
+            assert!(unique.contains(&inside), "range {range}: {inside:?}");
+        }
+        for outside in [(range + 1, 0), (0, range + 1), (range, 2), (range, range)] {
+            assert!(!unique.contains(&outside), "range {range}: {outside:?}");
+        }
+    }
+    assert_eq!(tick_offsets(0).count(), 0, "tick range 0 ticks nothing");
+}
+
+/// Tick range 6: the player in chunk (0, 0) ticks `|dx| + |dz| <= 7` within
+/// ±6, so a spawn chunk whose 8 neighbours tick has `|cx| + |cz| <= 5` and
+/// `|cx|, |cz| <= 5` (the loaded square reaches ±6).
+#[test]
+fn spawns_stay_where_players_tick_the_chunk_and_its_neighbours() {
+    let (mut server, mut rx) = build_server(&Terrain::plains(6), 41);
+    let log = spawn_log(&mut server, &mut rx, 1500);
+    assert!(!log.is_empty(), "animals spawned");
+    for (id, pos) in &log {
+        let (cx, cz) = ((pos.x.floor() as i32) >> 4, (pos.z.floor() as i32) >> 4);
+        assert!(
+            cx.abs() + cz.abs() <= 5 && cx.abs() <= 5 && cz.abs() <= 5,
+            "{id} at {pos} in chunk ({cx}, {cz})"
+        );
+    }
+}
+
+#[test]
+fn tick_range_four_spawns_within_44_blocks_and_below_four_nothing_spawns() {
+    let eye = DVec3::new(
+        8.5,
+        f64::from(GROUND_Y + 1) + crate::entity::PLAYER_EYE_HEIGHT,
+        8.5,
+    );
+    let (mut server, mut rx) = build_server(&Terrain::plains(6), 41);
+    server
+        .ecs
+        .world_mut()
+        .resource_mut::<crate::world::ecs::ChunkLoadConfig>()
+        .simulation_distance = 4;
+    let log = spawn_log(&mut server, &mut rx, 1500);
+    assert!(!log.is_empty(), "animals spawned with tick range 4");
+    for (id, pos) in &log {
+        // The player distance is measured from the feet block's corner.
+        let distance = pos.floor().distance(eye);
+        assert!(
+            (24.0..44.0).contains(&distance),
+            "{id} at {pos}: {distance}"
+        );
+    }
+
+    let (mut server, mut rx) = build_server(&Terrain::plains(6), 41);
+    server
+        .ecs
+        .world_mut()
+        .resource_mut::<crate::world::ecs::ChunkLoadConfig>()
+        .simulation_distance = 3;
+    let log = spawn_log(&mut server, &mut rx, 1500);
+    assert!(log.is_empty(), "nothing spawns below tick range 4: {log:?}");
+}
+
+#[test]
+fn spectators_are_not_spawned_around_but_dead_players_are() {
+    let player = |server: &mut GameServer| {
+        let world = server.ecs.world_mut();
+        world
+            .query_filtered::<Entity, With<Player>>()
+            .single(world)
+            .unwrap()
+    };
+    let (mut server, mut rx) = build_server(&Terrain::plains(2), 41);
+    let spectator = player(&mut server);
+    *server
+        .ecs
+        .world_mut()
+        .get_mut::<GameMode>(spectator)
+        .unwrap() = GameMode::Spectator;
+    let log = spawn_log(&mut server, &mut rx, 1500);
+    assert!(log.is_empty(), "no spawn around a spectator: {log:?}");
+
+    let (mut server, mut rx) = build_server(&Terrain::plains(2), 41);
+    let dead = player(&mut server);
+    server
+        .ecs
+        .world_mut()
+        .entity_mut(dead)
+        .insert(crate::entity::player_life::Dead);
+    let log = spawn_log(&mut server, &mut rx, 1500);
+    assert!(!log.is_empty(), "a dead player is spawned around");
+}
+
+/// The rabbit's first condition (taiga but not mega, snow covered, or
+/// desert) is in exactly the pools of the biomes it accepts, a biome being
+/// snow covered when its minimum snow accumulation is above 0.
+#[test]
+fn is_snow_covered_biome_filters_follow_the_climate_snow_accumulation() {
+    let (server, _rx) = build_server(&Terrain::plains(1), 1);
+    let rules = server.ecs.world().resource::<NaturalSpawnRules>();
+    assert!(
+        rules
+            .unsupported
+            .iter()
+            .all(|entry| !entry.reason.contains("is_snow_covered")),
+        "{:?}",
+        rules.unsupported
+    );
+    let rabbit = rules
+        .entries
+        .iter()
+        .position(|entry| &*entry.identifier == "minecraft:rabbit" && entry.source.ends_with("#0"))
+        .expect("the rabbit's first condition compiles");
+    let mut by_snow_only = 0;
+    for biome in unastar_data::biomes::iter() {
+        let tag = |want: &str| biome.tags.iter().any(|tag| tag == want);
+        let snow = biome
+            .climate
+            .and_then(|climate| climate.snow_accumulation)
+            .is_some_and(|(min, _)| min > 0.0);
+        let by_tags = (tag("taiga") && !tag("mega")) || tag("desert");
+        let pooled = rules
+            .pools
+            .get(&biome.id)
+            .is_some_and(|pool| pool.contains(&rabbit));
+        assert_eq!(pooled, by_tags || snow, "{}", biome.identifier);
+        if snow && !by_tags {
+            by_snow_only += 1;
+        }
+    }
+    assert!(
+        by_snow_only > 0,
+        "some biome is accepted for its snow alone"
+    );
+}
+
+#[test]
+fn the_room_check_needs_a_solid_blocking_block_the_box_overlaps() {
+    use super::position::has_room;
+    use crate::registry::collision::Aabb;
+    let (mut server, _rx) = build_server(&Terrain::plains(1), 1);
+    let registry = crate::registry::BlockRegistry::vanilla();
+    let y = i32::from(GROUND_Y) + 1;
+    let feet = DVec3::new(0.49, f64::from(y), 0.49);
+    let zombie = Aabb::from_feet(feet, 0.6, 1.9);
+    let spider = Aabb::from_feet(feet, 1.4, 0.9);
+    let room = |server: &GameServer, aabb| has_room(server.ecs.world(), registry, aabb);
+    let at = |x, dy| glam::IVec3::new(x, y + dy, 0);
+    assert!(room(&server, zombie), "open air");
+    for height in 0..=7 {
+        set_block_at(&mut server, at(0, 0), snow_layer(height));
+        assert!(room(&server, zombie), "snow layer {height} at the feet");
+    }
+    set_block_at(&mut server, at(0, 0), *blocks::STONE);
+    assert!(!room(&server, zombie), "stone at the feet");
+    set_block_at(&mut server, at(0, 0), *blocks::AIR);
+    // The spider's box reaches 0.19 into the next column, the zombie's not.
+    set_block_at(&mut server, at(1, 0), *blocks::STONE);
+    assert!(!room(&server, spider), "stone beside a wide box");
+    assert!(room(&server, zombie), "stone beside a narrow box");
+    // Above a 0.9-tall box: outside the cells it spans.
+    set_block_at(&mut server, at(1, 0), *blocks::AIR);
+    set_block_at(&mut server, at(1, 1), *blocks::STONE);
+    assert!(room(&server, spider), "stone above a low box");
+    set_block_at(&mut server, at(1, 0), snow_layer(7));
+    assert!(room(&server, spider), "a snow layer the box overlaps");
+}
+
+/// Snow layers of any height at the feet leave room (they are never
+/// solid-blocking), so monsters spawn standing in them.
+#[test]
+fn zombies_spawn_in_snow_layers_of_any_height() {
+    for height in [1, 7] {
+        let (mut server, mut rx) = monster_server(&Terrain::plains(2), MIDNIGHT, Difficulty::Easy);
+        for x in -32..48 {
+            for z in -32..48 {
+                set_block_at(
+                    &mut server,
+                    glam::IVec3::new(x, i32::from(GROUND_Y) + 1, z),
+                    snow_layer(height),
+                );
+            }
+        }
+        let herds = watch_zombies(&mut server, &mut rx, 4000);
+        assert!(
+            !herds.is_empty(),
+            "zombies spawned in snow of height {height}"
+        );
+        for herd in &herds {
+            assert!(
+                (herd.pos.y - f64::from(GROUND_Y + 1)).abs() < 1.0,
+                "height {height}: {herd:?}"
+            );
+        }
+    }
+}
+
+/// A copy of a cow entry of the plains pool, changed by `change`, added to
+/// the plains pool.
+fn add_plains_entry(server: &mut GameServer, change: impl FnOnce(&mut super::SpawnEntry)) {
+    let plains = biome_id("minecraft:plains");
+    let world = server.ecs.world_mut();
+    let rules = &mut *world.resource_mut::<NaturalSpawnRules>();
+    let cow = *rules.pools[&plains]
+        .iter()
+        .find(|&&index| {
+            let entry = &rules.entries[index];
+            &*entry.identifier == "minecraft:cow" && entry.blocked.is_none()
+        })
+        .expect("a spawnable cow entry in plains");
+    let mut entry = rules.entries[cow].clone();
+    change(&mut entry);
+    rules.entries.push(entry);
+    let added = rules.entries.len() - 1;
+    rules.pools.get_mut(&plains).unwrap().push(added);
+}
+
+/// The weighted draw is among the entries whose conditions hold: an entry
+/// whose brightness never holds at noon changes nothing, whatever its weight.
+#[test]
+fn entries_whose_conditions_fail_are_left_out_of_the_draw() {
+    let run = |extra: bool| {
+        let (mut server, mut rx) = build_server(&Terrain::plains(4), 41);
+        if extra {
+            add_plains_entry(&mut server, |entry| {
+                entry.brightness = (0, 0);
+                entry.weight = 100_000;
+            });
+        }
+        spawn_log(&mut server, &mut rx, 600)
+    };
+    let plain = run(false);
+    assert!(!plain.is_empty(), "animals spawned");
+    assert_eq!(run(true), plain);
+}
+
+/// The spawn position is checked after the draw: a heavy entry whose
+/// ground filter never matches wins most draws and wastes those attempts.
+#[test]
+fn a_drawn_entry_whose_position_fails_wastes_the_attempt() {
+    let run = |extra: bool| {
+        let (mut server, mut rx) = build_server(&Terrain::plains(6), 41);
+        if extra {
+            add_plains_entry(&mut server, |entry| {
+                entry.on_blocks = super::rules::BlockSet::named(
+                    crate::registry::BlockRegistry::vanilla(),
+                    &["minecraft:sand"],
+                );
+                entry.weight = 100_000;
+            });
+        }
+        spawn_log(&mut server, &mut rx, 600).len()
+    };
+    let plain = run(false);
+    let wasted = run(true);
+    assert!(plain >= 4, "{plain} animals spawned");
+    assert!(
+        wasted * 4 <= plain,
+        "{wasted} with the failing entry, {plain} without"
+    );
+}
+
+#[test]
+fn conditions_without_a_weight_weigh_100() {
+    use crate::entity::mob::constants::DEFAULT_SPAWN_WEIGHT;
+    let (server, _rx) = build_server(&Terrain::plains(1), 1);
+    let rules = server.ecs.world().resource::<NaturalSpawnRules>();
+    let mut checked = 0;
+    for file in unastar_data::spawn_rules::vanilla() {
+        for (index, condition) in file.document.spawn_rules.conditions.iter().enumerate() {
+            if condition.weight.is_some() {
+                continue;
+            }
+            let source = format!("{}#{index}", file.source);
+            if let Some(entry) = rules.entries.iter().find(|entry| entry.source == source) {
+                assert_eq!(entry.weight, DEFAULT_SPAWN_WEIGHT, "{source}");
+                checked += 1;
+            }
+        }
+    }
+    assert!(checked > 0, "a compiled condition has no weight");
 }

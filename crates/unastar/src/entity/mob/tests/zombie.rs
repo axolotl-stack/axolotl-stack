@@ -757,3 +757,56 @@ mod equipment {
         }
     }
 }
+
+/// Torch light at night: the zombie's native spawn check refuses lit
+/// ground (raw brightness 8+, or any block light at all) and takes the
+/// dark; torch light is no daylight, so a zombie beside a torch never
+/// burns.
+#[test]
+fn a_torch_lit_zombie_follows_the_brightness_rules() {
+    let mut h = harness(9, Difficulty::Easy, MIDNIGHT, GameMode::Creative);
+    let torch = IVec3::new(-8, 64, -8);
+    h.set_block(torch, "minecraft:torch");
+    h.ticks(1);
+    let world = h.world();
+    let class = world
+        .resource::<MobRegistry>()
+        .get("minecraft:zombie")
+        .unwrap()
+        .native
+        .spawn_class
+        .unwrap();
+    let rules = world.resource::<crate::entity::spawning::NaturalSpawnRules>();
+    // The zombie's class draws nothing from the random.
+    let allows = |feet: IVec3| {
+        rules
+            .native_blocks
+            .allows(world, class, false, feet, &mut rand::thread_rng())
+    };
+    let lit = torch + IVec3::X;
+    let faint = torch + IVec3::new(12, 0, 0);
+    let dark = IVec3::new(20, 64, 20);
+    assert_eq!(crate::world::light::brightness(world, lit), 13);
+    assert!(!allows(lit), "bright torch light");
+    // Moonlit sky (4) is brighter than the faint torch light (2): the raw
+    // brightness passes, the block light alone refuses.
+    assert_eq!(crate::world::light::block_light(world, faint), 2);
+    assert_eq!(crate::world::light::brightness(world, faint), 4);
+    assert!(!allows(faint), "any block light");
+    assert_eq!(crate::world::light::block_light(world, dark), 0);
+    assert!(allows(dark), "darkness");
+
+    let zombie = h.zombie(DVec3::new(-6.5, 64.0, -7.5), false);
+    assert!(!burns(&mut h, zombie), "torch light is no daylight");
+
+    // Removing the torch darkens the ground again.
+    h.set_block(torch, "minecraft:air");
+    h.ticks(1);
+    let world = h.world();
+    let rules = world.resource::<crate::entity::spawning::NaturalSpawnRules>();
+    assert!(
+        rules
+            .native_blocks
+            .allows(world, class, false, lit, &mut rand::thread_rng())
+    );
+}

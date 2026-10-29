@@ -875,7 +875,6 @@ use super::events::BlockChanged;
 /// enabling immediate game logic reactions:
 /// - Mark chunk dirty for persistence
 /// - TODO: Check neighbor blocks for physics (sand falling, etc.)
-/// - TODO: Update lighting
 /// - TODO: Trigger redstone updates
 ///
 /// Register with: `world.add_observer(on_block_changed)`
@@ -896,7 +895,6 @@ pub fn on_block_changed(trigger: On<BlockChanged>, mut chunks: Query<&mut ChunkS
     );
 
     // TODO: Check neighbor blocks for physics (sand falling, etc.)
-    // TODO: Update lighting
     // TODO: Trigger redstone updates
 }
 

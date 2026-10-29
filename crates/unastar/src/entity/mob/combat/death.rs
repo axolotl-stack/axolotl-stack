@@ -21,6 +21,7 @@ use unastar_rules::molang::{BuiltinQuery, Expr, QueryId};
 use crate::ecs::resources::TickCounter;
 use crate::entity::components::{Health, OnGround, Position};
 use crate::entity::definition::flags::ActorFlags;
+use crate::entity::definition::metadata::EntityMetadata;
 use crate::entity::mob::combat::send_actor_event;
 use crate::entity::mob::components::{ExperienceRewardConfig, LootConfig};
 use crate::entity::mob::events::{held_item, is_family};
@@ -31,6 +32,7 @@ use crate::entity::{EntityRandom, spawn_item_drop};
 use crate::item::enchant::{Enchantment, enchantment_level};
 use crate::server::game::types::{ItemRegistryResource, RecipeRegistryResource};
 use crate::server::game::{LootContext, LootLevel, loot_stacks};
+use jolyne::valentine::actor_data_i_ds;
 
 /// The death animation of a [`Dead`] mob: the server tick its body is
 /// removed at.
@@ -197,6 +199,13 @@ impl MolangContext for RewardMolang<'_> {
                 MolangValue::Str(family) => is_family(self.world, self.mob, family),
                 _ => false,
             })),
+            // Slime lane: the `VARIANT` actor data (the slime's size).
+            BuiltinQuery::Variant => MolangValue::Num(
+                self.world
+                    .get::<EntityMetadata>(self.mob)
+                    .and_then(|metadata| metadata.get_int(actor_data_i_ds::VARIANT))
+                    .unwrap_or(0) as f32,
+            ),
             _ => return None,
         })
     }
@@ -238,7 +247,8 @@ pub fn die_at_zero_health(
 }
 
 /// System (exclusive): at the end of a death animation spawn the
-/// experience reward and remove the body.
+/// experience reward, split a splitting mob (`mob::life::split`) and remove
+/// the body.
 pub fn tick_dying(
     world: &mut World,
     dying: &mut QueryState<(Entity, &Dying)>,
@@ -259,6 +269,9 @@ pub fn tick_dying(
         if let (Some(expr), Some(position)) = (reward, position) {
             let amount = experience_reward(world, mob, &expr);
             spawn_experience(world, position, amount);
+        }
+        if let Err(error) = crate::entity::mob::life::split::split(world, mob) {
+            warn!(?mob, %error, "split failed");
         }
         world.despawn(mob);
     }

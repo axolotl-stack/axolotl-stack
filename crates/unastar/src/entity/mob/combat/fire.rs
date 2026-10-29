@@ -44,6 +44,7 @@ use crate::registry::block::LiquidKind;
 use crate::registry::collision::Aabb;
 use crate::world::clock;
 use crate::world::ecs::{ChunkData, ChunkManager, world_to_chunk_coords, world_to_local_coords};
+use crate::world::light;
 
 /// A burning mob: it burns until `until_tick` and takes its next burn
 /// damage at `next_burn_tick`.
@@ -219,7 +220,7 @@ fn sees_daylight(world: &World, aabb: Aabb, darken: u8) -> bool {
     let light_pos = (feet + glam::DVec3::Y * height * DAYLIGHT_BURN_LIGHT_HEIGHT)
         .floor()
         .as_ivec3();
-    let light = clock::sky_brightness_with_darken(world, light_pos, darken);
+    let light = light::brightness_with_darken(world, light_pos, darken);
     if OVERWORLD_BRIGHTNESS_RAMP[usize::from(light.min(15))] <= DAYLIGHT_BURN_MIN_BRIGHTNESS {
         return false;
     }

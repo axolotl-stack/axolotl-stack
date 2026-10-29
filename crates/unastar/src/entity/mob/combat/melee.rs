@@ -28,6 +28,7 @@ use crate::entity::components::{
 };
 use crate::entity::mob::MobKind;
 use crate::entity::mob::components::hostile::melee_goal;
+use crate::entity::mob::components::mob_effect_immunity::MobEffectImmunityConfig;
 use crate::entity::mob::components::{AttackConfig, MeleeBoxAttackGoal, SelfEvent};
 use crate::entity::mob::constants::{
     MELEE_FIRE_SPREAD_CHANCE, STRENGTH_DAMAGE_ADD, STRENGTH_DAMAGE_SCALE, TICKS_PER_SECOND,
@@ -118,10 +119,17 @@ fn give_effect(world: &mut World, target: Entity, effect: EffectType, duration_t
 }
 
 /// The effects an actor cannot have: the undead family is immune to poison
-/// and regeneration, and native classes refuse what [`NativeTraits`] lists.
+/// and regeneration, native classes refuse what [`NativeTraits`] lists and
+/// `minecraft:mob_effect_immunity` refuses its effects.
 ///
 /// [`NativeTraits`]: crate::entity::mob::native::NativeTraits
 pub(crate) fn immune_to_effect(world: &World, target: Entity, effect: EffectType) -> bool {
+    if world
+        .get::<MobEffectImmunityConfig>(target)
+        .is_some_and(|immunity| immunity.effects.contains(&effect))
+    {
+        return true;
+    }
     let native = world.get::<MobKind>(target).map(|kind| kind.0.native);
     match effect {
         EffectType::POISON => {

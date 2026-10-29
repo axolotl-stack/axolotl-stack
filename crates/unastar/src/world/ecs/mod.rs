@@ -20,7 +20,7 @@
 //! are now included in PlayerBundle at spawn time to avoid archetype changes.
 //!
 //! ## Events
-//! - `BlockChanged` - Observer trigger for immediate game logic (physics, lighting)
+//! - `BlockChanged` - Observer trigger for immediate game logic (physics)
 //! - `BlockBroadcastEvent` - Batched event for network broadcasting
 //! - `PlayerSpawnedEvent` - Batched event for player spawn broadcasting
 //! - `PlayerDespawnedEvent` - Batched event for player despawn broadcasting
