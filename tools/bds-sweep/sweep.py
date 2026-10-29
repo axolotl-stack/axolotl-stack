@@ -4,9 +4,11 @@
     python tools/bds-sweep/sweep.py drops --blocks all --states all --out DIR
     python tools/bds-sweep/sweep.py armor-slots --out DIR
     python tools/bds-sweep/sweep.py fuel --out DIR
+    python tools/bds-sweep/sweep.py blocks --scenarios doors,torches,crops --out DIR
 
 Starts BDS 1.26.51 under Endstone on a fresh superflat creative world
-(`bds-sweep-1.26.51`, peaceful, operators by default), launches
+(`bds-sweep-1.26.51`, peaceful, operators by default) on UDP `--port`
+(default 19140, IPv6 on the next port; never the 19132 game port), launches
 `bds-sweep-client` (cargo build -p bds-sweep) as the sweep player and waits
 for the plugin (`endstone-sweep`, installed editable into the shared venv) to
 write `done.json` or `error.txt`. Results are appended to
@@ -14,7 +16,8 @@ write `done.json` or `error.txt`. Results are appended to
 so a sweep can be interrupted and resumed. To hand the BDS slot over
 mid-sweep, create `<out>/stop.request`: the runner stops BDS gracefully
 within a second and restores `server.properties`. Raw results stay out of
-the repository; `summarize.py` turns them into measured data.
+the repository; `summarize.py` turns them into measured data. `--dry-run`
+writes `job.json` and prints the client command without starting BDS.
 """
 
 from __future__ import annotations
@@ -39,9 +42,15 @@ STOP_REQUEST = 'stop.request'
 # Superflat: grass top at y=-61, so the player stands at y=-60.
 # `miner` = x, y, z, yaw, pitch: facing east (yaw -90) at the west face (4) of
 # `mine_block`, which is at eye level (eyes at y + 1.62).
+# `blocks`: the stone floor of the block-behaviour arena (x/z corners) is the
+# superflat top layer, so the player stands on it at y=-60.
 ARENA = {'player': [0.5, -60, 0.5], 'block': [3, -60, 0], 'furnaces': [-8, -60, 6],
          'miner': [0.5, -60, 0.5, -90, 0], 'mine_block': [1, -59, 0], 'mine_face': 4,
-         'target': [2.0, -60, 0.5]}
+         'target': [2.0, -60, 0.5], 'blocks': {'min': [-10, -12], 'max': [24, 24], 'floor': -61}}
+BLOCK_SCENARIOS = ('doors', 'torches', 'crops')
+# Server packets the `blocks` job's client logs per step.
+BLOCK_TRACE = ('LevelSoundEventPacket', 'LevelEventPacket', 'LevelEventGenericPacket', 'UpdateBlockPacket',
+               'UpdateBlockSyncedPacket', 'UpdateSubChunkBlocksPacket', 'BlockEventPacket', 'AddItemActorPacket')
 SETUP = [
     'gamerule domobspawning false',
     'gamerule dodaylightcycle false',
@@ -237,12 +246,28 @@ def build_job(args, out: Path) -> dict:
         job.update(furnace='furnace', lit_furnace='minecraft:lit_furnace', input='cobblestone',
                    max_ticks=args.max_ticks,
                    items=[{'key': name, 'item': name} for name in item_names(args.items, SLICE_FUELS)])
+    elif args.kind == 'blocks':
+        names = args.scenarios.split(',')
+        unknown = sorted(set(names) - set(BLOCK_SCENARIOS))
+        if unknown:
+            raise SystemExit(f'unknown blocks scenarios: {unknown}; choose from {BLOCK_SCENARIOS}')
+        runs = [[int(speed), float(seconds)] for speed, seconds in
+                (run.split(':') for run in args.growth_runs.split(','))]
+        job['items'] = [{'key': name, **({'growth_runs': runs} if name == 'crops' else {})} for name in names]
     return job
+
+
+def client_command(args, out: Path) -> list[str]:
+    command = [str(args.client), '--name', PLAYER, '--addr', f'127.0.0.1:{args.port}']
+    if args.kind == 'blocks':
+        command += ['--capture-dir', str(out / 'capture'), '--trace', ','.join(BLOCK_TRACE)]
+    return command
 
 
 def main() -> int:
     parser = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
-    parser.add_argument('kind', choices=['drops', 'mining', 'armor-slots', 'armor-values', 'attack', 'fuel'])
+    parser.add_argument('kind', choices=['drops', 'mining', 'armor-slots', 'armor-values', 'attack', 'fuel',
+                                         'blocks'])
     parser.add_argument('--out', type=Path)
     parser.add_argument('--blocks', default='slice', help="'slice', 'all' or comma-separated identifiers")
     parser.add_argument('--states', default='first', choices=['first', 'all'])
@@ -252,7 +277,16 @@ def main() -> int:
     parser.add_argument('--mine-ticks', type=int, default=600, help='mining: longest break to wait for')
     parser.add_argument('--client', type=Path, default=REPO / 'target' / 'debug' / 'bds-sweep-client.exe')
     parser.add_argument('--timeout', type=float, default=6 * 3600, help='seconds for the whole job')
+    parser.add_argument('--port', type=int, default=19140,
+                        help='BDS IPv4 UDP port (IPv6 uses the next one); 19132/19133 are refused')
+    parser.add_argument('--scenarios', default=','.join(BLOCK_SCENARIOS), help='blocks: scenarios to run')
+    parser.add_argument('--growth-runs', default='100:60,1:60',
+                        help='blocks/crops: comma-separated randomtickspeed:seconds growth runs')
+    parser.add_argument('--dry-run', action='store_true',
+                        help='write job.json and print the client command; do not start BDS')
     args = parser.parse_args()
+    if {args.port, args.port + 1} & {19132, 19133}:
+        parser.error('ports 19132/19133 are reserved for the game server; pick another --port')
     # A queue of sweep.py runs can be paused for someone else's BDS slot:
     # while this file exists, every new run exits without starting BDS.
     hold = bds_runtime.SWEEPS / 'hold'
@@ -274,21 +308,25 @@ def main() -> int:
     job_path = out / 'job.json'
     job_path.write_text(json.dumps(job, indent=1), encoding='utf-8')
     print(f'{len(job["items"])} items -> {out}')
+    command = client_command(args, out)
+    if args.dry_run:
+        print('client:', subprocess.list2cmdline(command))
+        return 0
 
     world = bds_runtime.SERVER / 'worlds' / LEVEL
     if world.exists():
         shutil.rmtree(world)
     properties = bds_runtime.base_properties(
         LEVEL, level_type='FLAT', gamemode='creative', force_gamemode='true', difficulty='peaceful',
-        default_player_permission_level='operator', view_distance=6, tick_distance=4)
+        default_player_permission_level='operator', view_distance=6, tick_distance=4,
+        server_port=args.port, server_portv6=args.port + 1)
     env = {'BDS_SWEEP_JOB': str(job_path), 'CLIENT_DIFF_CAPTURE_DIR': str(out / 'client-diff-plugin')}
     started = time.monotonic()
     status = 'timeout'
     try:
         with bds_runtime.Bds(properties, out / 'bds.log', endstone=True, env=env):
             with (out / 'client.log').open('a', encoding='utf-8') as log:
-                client = subprocess.Popen([str(args.client), '--name', PLAYER], cwd=REPO,
-                                          stdout=log, stderr=subprocess.STDOUT)
+                client = subprocess.Popen(command, cwd=REPO, stdout=log, stderr=subprocess.STDOUT)
                 logins = 1
                 try:
                     while time.monotonic() - started < args.timeout:
@@ -309,8 +347,7 @@ def main() -> int:
                             # start; retry during the first minutes of the run.
                             if client.returncode != 0 and logins < 3 and time.monotonic() - started < 300:
                                 logins += 1
-                                client = subprocess.Popen([str(args.client), '--name', PLAYER], cwd=REPO,
-                                                          stdout=log, stderr=subprocess.STDOUT)
+                                client = subprocess.Popen(command, cwd=REPO, stdout=log, stderr=subprocess.STDOUT)
                                 continue
                             status = f'client exited {client.returncode}'
                             break

@@ -3,12 +3,16 @@
     python tools/bds-sweep/summarize.py drops SWEEP_DIR [SWEEP_DIR ...] [repeat=SWEEP_DIR ...]
     python tools/bds-sweep/summarize.py armor-slots SWEEP_DIR
     python tools/bds-sweep/summarize.py fuel SWEEP_DIR
+    python tools/bds-sweep/summarize.py blocks SWEEP_DIR
     python tools/bds-sweep/summarize.py compare-drops SWEEP_DIR_A SWEEP_DIR_B
 
 Writes into `crates/unastar-data/data/measured/` and records every artefact
 (SHA-256, sweep parameters, sample counts, run times) in `manifest.json`
 there. Raw `results.jsonl`/logs stay in the sweep directories (outside the
-repository). See that directory's README for the schemas.
+repository). See that directory's README for the schemas. `blocks` instead
+writes the observed-results fixture
+`crates/unastar/src/server/game/block_behaviour/testdata/bds_1_26_51_blocks.json`
+(from `results.jsonl` and the packets the client logged in `client.log`).
 """
 
 from __future__ import annotations
@@ -16,6 +20,7 @@ from __future__ import annotations
 import hashlib
 import json
 import math
+import re
 import subprocess
 import sys
 from collections import Counter, defaultdict
@@ -410,6 +415,220 @@ def summarize_mining(sweep: Path) -> None:
     })
 
 
+# ---------------------------------------------------------------- blocks
+
+BLOCKS_FIXTURE = (REPO / 'crates' / 'unastar' / 'src' / 'server' / 'game' / 'block_behaviour' / 'testdata'
+                  / 'bds_1_26_51_blocks.json')
+# Level event ids seen in the blocks job, with their usual protocol names.
+LEVEL_EVENTS = {2001: 'ParticlesDestroyBlock', 3600: 'StartBlockCracking', 3601: 'StopBlockCracking',
+                3602: 'UpdateBlockCracking', 3603: 'ParticlesCrackBlockDown', 3604: 'ParticlesCrackBlockUp',
+                3605: 'ParticlesCrackBlockNorth', 3606: 'ParticlesCrackBlockSouth',
+                3607: 'ParticlesCrackBlockWest', 3608: 'ParticlesCrackBlockEast'}
+_VEC = r'Vec3 \{ x: (\S+), y: (\S+), z: (\S+) \}'
+_TRACE = {
+    'LevelSoundEventPacket': re.compile(rf'sound_event: "([^"]*)", position: {_VEC}, data: (-?\d+), '
+                                        r'actor_identifier: "([^"]*)", is_baby: (\w+), is_global: (\w+)'),
+    'LevelEventPacket': re.compile(rf'event_id: (-?\d+), position: {_VEC}, data: (-?\d+)'),
+    'UpdateBlockPacket': re.compile(r'block_position: BlockPos \{ x: (-?\d+), y: (-?\d+), z: (-?\d+) \}, '
+                                    r'block_runtime_id: (\d+), flags: (\d+), layer: (\d+)'),
+    'AddItemActorPacket': re.compile(r'item: CerealizerNetworkItemStackDescriptorSerializedData \{ id: (-?\d+), '
+                                     r'stacksize: (\d+)'),
+}
+_SUB_CHUNK_BLOCK = re.compile(r'pos: BlockPos \{ x: (-?\d+), y: (-?\d+), z: (-?\d+) \}, runtime_id: (\d+), '
+                              r'update_flags: (\d+)')
+_MARK = re.compile(r'"bds-sweep:mark (\S+)"')
+_TRACE_LINE = re.compile(r' trace (\w+)\((.*)\)$')
+
+
+def block_text(state: dict) -> str:
+    states = ','.join(f'{k}={json.dumps(v)}' for k, v in sorted(state['states'].items()))
+    return f'{state["name"]}[{states}]' if states else state['name']
+
+
+def trace_packets(client_log: Path, names: dict[int, str]) -> dict[str, dict]:
+    """Server packets the client logged after each `SCENARIO/STEP` mark,
+    decoded and grouped: identical packets (same kind, position and data)
+    become one entry with a `times` count, in first-seen order. Runtime ids
+    that match a block state seen in the job are written as that state."""
+    steps: dict[str, dict] = {}
+    current = None
+
+    def block(runtime_id: int):
+        return names.get(runtime_id & 0xFFFFFFFF, runtime_id)
+
+    def vec(match, start):
+        return [round(float(match.group(i)), 3) for i in range(start, start + 3)]
+
+    for line in client_log.read_text(encoding='utf-8', errors='replace').splitlines():
+        if 'plugin message' in line and (mark := _MARK.search(line)):
+            current = steps.setdefault(mark.group(1), {})
+            continue
+        trace = _TRACE_LINE.search(line)
+        if current is None or trace is None:
+            continue
+        kind, body = trace.groups()
+        match = _TRACE[kind].search(body) if kind in _TRACE else None
+        entries = []
+        if kind == 'LevelSoundEventPacket' and match:
+            entry = {'sound': match.group(1), 'position': vec(match, 2), 'data': block(int(match.group(5)))}
+            if match.group(6):
+                entry['actor'] = match.group(6)
+            entries.append(('sounds', entry))
+        elif kind == 'LevelEventPacket' and match:
+            event = int(match.group(1))
+            entries.append(('level_events', {
+                'event': event, 'name': LEVEL_EVENTS.get(event), 'position': vec(match, 2),
+                'data': block(int(match.group(5))) if event == 2001 else int(match.group(5))}))
+        elif kind == 'UpdateBlockPacket' and match:
+            entry = {'position': [int(match.group(i)) for i in (1, 2, 3)], 'block': block(int(match.group(4)))}
+            if (int(match.group(5)), int(match.group(6))) != (3, 0):
+                entry.update(flags=int(match.group(5)), layer=int(match.group(6)))
+            entries.append(('block_updates', entry))
+        elif kind == 'UpdateSubChunkBlocksPacket':
+            standard, _, extra = body.partition('blocks_changed_extras')
+            for layer, part in ((0, standard), (1, extra)):
+                for found in _SUB_CHUNK_BLOCK.finditer(part):
+                    entry = {'position': [int(found.group(i)) for i in (1, 2, 3)],
+                             'block': block(int(found.group(4))), 'via': 'UpdateSubChunkBlocks'}
+                    if (int(found.group(5)), layer) != (3, 0):
+                        entry.update(flags=int(found.group(5)), layer=layer)
+                    entries.append(('block_updates', entry))
+        elif kind == 'AddItemActorPacket' and match:
+            entries.append(('item_actors', {'item_network_id': int(match.group(1)), 'count': int(match.group(2))}))
+        else:
+            entries.append(('other', {'packet': kind, 'debug': body[:300]}))
+        for group, entry in entries:
+            bucket = current.setdefault(group, [])
+            for existing in bucket:
+                if {k: v for k, v in existing.items() if k != 'times'} == entry:
+                    existing['times'] = existing.get('times', 1) + 1
+                    break
+            else:
+                bucket.append(entry)
+    return steps
+
+
+def _drops(items: list[dict]) -> list[dict]:
+    totals: dict[str, list[int]] = {}
+    for item in items:
+        total = totals.setdefault(item['item'], [0, 0])
+        total[0] += item['count']
+        total[1] += 1
+    return [{'item': name, 'count': count, 'stacks': stacks} for name, (count, stacks) in sorted(totals.items())]
+
+
+def _cells(states: dict, positions: dict) -> dict:
+    return {label: {'pos': positions.get(label), 'name': s['name'], 'states': s['states']}
+            for label, s in states.items()}
+
+
+def _changes(changes: list) -> list[dict]:
+    return [{'tick': tick, 'cell': cell, 'block': block_text(state)} for tick, cell, state in changes]
+
+
+def _series(samples: list[dict], field: str) -> dict:
+    """Per plant: [[tick, value], ...] at the first sample and every change."""
+    out: dict[str, list] = {}
+    for sample in samples:
+        for key, value in sample[field].items():
+            series = out.setdefault(key, [])
+            if not series or series[-1][1] != value:
+                series.append([sample['tick'], value])
+    return dict(sorted(out.items()))
+
+
+def blocks_step(step: dict, packets: dict) -> dict:
+    out = {'step': step['step'].split('/', 1)[1], 'action': step['action']}
+    positions = step.get('cells', {})
+    if step['action'] == 'use':
+        out.update(clicked=step['block'], face=step['face'], click=step['click'],
+                   player={'feet': step['look']['position'], 'yaw': step['look']['server'][0],
+                           'pitch': step['look']['server'][1]},
+                   used=bool(step['interactions']), changed=step['changed'],
+                   held_after=step['held_after'], cells=_cells(step['after'], positions))
+    elif step['action'] == 'setblock':
+        out.update(command=step['command'], same_tick=_cells(step['same_tick'], positions),
+                   changes=_changes(step['changes']), cells=_cells(step['after'], positions),
+                   drops=_drops(step['drops']))
+    elif step['action'] == 'mine':
+        out.update(block=step['block'], face=step['face'],
+                   events=[{'tick': t, 'event': kind, 'pos': pos} for t, kind, pos in step['events']],
+                   changes=_changes(step['changes']), cells=_cells(step['after'], positions),
+                   drops=_drops(step['drops']))
+    elif step['action'] == 'random_ticks':
+        samples = step['samples']
+        full = {key: next((s['tick'] for s in samples if s['growth'].get(key) == 7), None)
+                for key in samples[0]['growth']}
+        out.update(randomtickspeed=step['randomtickspeed'], seconds=step['seconds'],
+                   sample_ticks=samples[1]['tick'] - samples[0]['tick'] if len(samples) > 1 else None,
+                   growth=_series(samples, 'growth'),
+                   farmland_moisturized_amount=_series(samples, 'moisturized_amount'),
+                   first_sample_at_growth_7=dict(sorted(full.items())),
+                   final_growth=dict(sorted((k, v['states'].get('growth')) for k, v in step['after'].items())))
+        if any(s['other'] for s in samples):
+            out['not_wheat'] = [s for s in samples if s['other']][:3]
+    step_packets = packets.get(step['step'], {})
+    if step_packets and step['action'] == 'random_ticks':
+        # One block update per growth stage; only the totals matter here.
+        out['packet_counts'] = {group: sum(e.get('times', 1) for e in entries)
+                                for group, entries in step_packets.items()}
+        out['block_updates_seen'] = sorted({e['block'] for e in step_packets.get('block_updates', [])
+                                            if isinstance(e['block'], str)})
+    elif step_packets:
+        out['packets'] = step_packets
+    return out
+
+
+def compact_json(value, indent: int = 0, width: int = 180) -> str:
+    """JSON with every value that fits in `width` columns on one line."""
+    flat = json.dumps(value, ensure_ascii=False)
+    if len(flat) + indent <= width or not isinstance(value, (dict, list)) or not value:
+        return flat
+    pad = ' ' * (indent + 1)
+    if isinstance(value, dict):
+        items = [f'{pad}{json.dumps(k)}: {compact_json(v, indent + 1, width)}' for k, v in value.items()]
+        return '{\n' + ',\n'.join(items) + '\n' + ' ' * indent + '}'
+    items = [pad + compact_json(v, indent + 1, width) for v in value]
+    return '[\n' + ',\n'.join(items) + '\n' + ' ' * indent + ']'
+
+
+def summarize_blocks(sweep: Path) -> None:
+    """The observed-results fixture of a `blocks` sweep: per scenario step
+    the watched cells' states, tick delays, drops and the server packets."""
+    rows = {row['key']: row for row in results(sweep)}
+    names: dict[int, str] = {}
+    for row in rows.values():
+        for step in row['steps']:
+            for key in ('before', 'after', 'same_tick'):
+                for state in (step.get(key) or {}).values():
+                    if isinstance(state, dict) and 'runtime_id' in state:
+                        names[state['runtime_id']] = block_text(state)
+            for _, _, state in step.get('changes', []):
+                names[state['runtime_id']] = block_text(state)
+    packets = trace_packets(sweep / 'client.log', names)
+    finished = [r for r in runs(sweep) if r['status'] == 'done'] or runs(sweep)
+    stamp = finished[-1]['started']
+    fixture = {
+        'source': f'measured on BDS 1.26.51 with the bds-sweep blocks job, {stamp[:4]}-{stamp[4:6]}-{stamp[6:8]} UTC',
+        'conventions': {
+            'arena': 'stone floor at y=-61, survival player standing on it (feet y=-60), noon, clear sky',
+            'faces': '0 down, 1 up, 2 north (-z), 3 south (+z), 4 west (-x), 5 east (+x)',
+            'yaw': 'yaw 0 south, 90 west, 180 north, 270 east',
+            'ticks': 'server ticks after the command or order; a change at tick n was first seen n ticks later',
+            'cells': 'block name and full state map of each watched cell after the step',
+            'packets': 'server packets received after the step, identical ones merged with a "times" count; '
+                       'block runtime ids are written as the block state they denote; block updates have '
+                       'flags 3 and layer 0 unless listed',
+        },
+    }
+    for key in ('doors', 'torches', 'crops'):
+        if key in rows:
+            fixture[key] = [blocks_step(step, packets) for step in rows[key]['steps']]
+    BLOCKS_FIXTURE.parent.mkdir(parents=True, exist_ok=True)
+    BLOCKS_FIXTURE.write_bytes((compact_json(fixture) + '\n').encode('utf-8'))
+    print(f'{BLOCKS_FIXTURE.relative_to(REPO)}: {", ".join(rows)}')
+
+
 def main() -> int:
     if len(sys.argv) < 3:
         print(__doc__)
@@ -431,6 +650,8 @@ def main() -> int:
         summarize_mining(dirs[0])
     elif kind == 'attack':
         summarize_attack(dirs[0])
+    elif kind == 'blocks':
+        summarize_blocks(dirs[0])
     else:
         print(__doc__)
         return 2
