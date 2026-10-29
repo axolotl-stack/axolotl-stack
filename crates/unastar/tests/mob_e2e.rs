@@ -9,6 +9,11 @@
 //! - `natural_spawning_populates_new_chunks_over_loopback`: joins a superflat
 //!   plains world and waits for the animals the world-generation pass spawns
 //!   in the chunks loaded around the bot.
+//! - `zombie_kills_the_player_who_then_respawns_over_loopback`: on hard at
+//!   midnight, summons a zombie next to the survival bot, which stands still
+//!   while the zombie closes in and hits it to death, then answers the
+//!   respawn screen and checks it comes back at the world spawn with full
+//!   health.
 //!
 //! The tests bind a UDP socket on `127.0.0.1` (never a public interface), so
 //! they are ignored by default. Run them with:
@@ -36,7 +41,9 @@ use std::time::Duration;
 use jolyne::stream::RakNetTransport;
 use jolyne::valentine::types::{
     ActorRuntimeId, EnumsActorEvent, EnumsItemUseOnActorInventoryTransactionActionType,
-    InventoryTransactionPacketTransaction, ItemUseOnActorInventoryTransaction, Vec3,
+    EnumsPlayerActionType, EnumsPlayerPositionModeComponentPositionMode, EnumsPlayerRespawnState,
+    InventoryTransactionPacketTransaction, ItemUseOnActorInventoryTransaction, TextPacketBody,
+    Vec3,
 };
 use jolyne::valentine::{
     CommandOriginDatajson, CommandRequestPacket, EnumsConnectionDisconnectFailReason,
@@ -45,7 +52,7 @@ use jolyne::valentine::{
     ItemStackRequestCerealCraftCreativeActionData, ItemStackRequestCerealPlaceActionData,
     ItemStackRequestCerealSlotInfoData, ItemStackRequestPacket,
     ItemStackRequestPacketDataRequestData, ItemStackRequestPacketDataRequestDataActionsItem,
-    ItemUseInventoryTransaction, McpePacket, McpePacketData,
+    ItemUseInventoryTransaction, McpePacket, McpePacketData, PlayerActionPacket, RespawnPacket,
     TypedClientNetIdstructItemStackRequestIdTagint32T0,
 };
 use jolyne::{BedrockStream, Client, ClientHandshakeConfig, GameData, Play};
@@ -53,6 +60,7 @@ use tokio::sync::{mpsc, oneshot};
 use tokio::time::Instant;
 use unastar::UnastarConfig;
 use unastar::server::UnastarServer;
+use unastar::world::rules::Difficulty;
 use unastar::world::{WorldConfig, WorldGenerator};
 
 /// Display name of the test client; listed as a server operator.
@@ -68,6 +76,20 @@ const CHICKEN_TIMEOUT: Duration = Duration::from_secs(60);
 /// Bound for watching the natural spawns ([`FIRST_SPAWN_WITHIN`] plus
 /// [`POPULATION_SETTLE`] and slack).
 const SPAWN_TIMEOUT: Duration = Duration::from_secs(120);
+/// Bound for the zombie's summon, fight, death and respawn.
+const ZOMBIE_TIMEOUT: Duration = Duration::from_secs(120);
+/// How long the zombie may take to kill the bot ([`ZOMBIE_TIMEOUT`] less
+/// the respawn and slack).
+const ZOMBIE_KILLS_WITHIN: Duration = Duration::from_secs(60);
+/// How long the zombie may go without a hit before the bot steps next to it
+/// again (or a new zombie is summoned when it is gone).
+const ZOMBIE_STALL: Duration = Duration::from_secs(5);
+/// How long the death packets (`DeathInfo`, chat, `Respawn`, health 0) may
+/// trail `ActorEvent(Death)`, and the respawn packets the bot's request.
+const DEATH_PACKETS_WITHIN: Duration = Duration::from_secs(5);
+/// How long the bot keeps listening after respawning to show it is still
+/// connected.
+const CONNECTED_AFTER_RESPAWN: Duration = Duration::from_secs(2);
 /// Spacing between hits: longer than the 10-tick (0.5 s) hurt cooldown.
 const HIT_SPACING: Duration = Duration::from_millis(600);
 /// How long after `ActorEvent(Death)` the corpse's `RemoveActor` may take.
@@ -97,6 +119,18 @@ const CHICKEN: &str = "minecraft:chicken";
 const EGG: &str = "minecraft:egg";
 /// The animals vanilla spawns on plains grass that the test waits for.
 const PASSIVE_ANIMALS: [&str; 4] = [COW, "minecraft:sheep", "minecraft:pig", CHICKEN];
+const ZOMBIE: &str = "minecraft:zombie";
+/// The vanilla zombie's `minecraft:attack` damage before difficulty scaling.
+const ZOMBIE_ATTACK: f32 = 3.0;
+/// Hard multiplies mob damage on players by 1.5 (3 → 4.5 for the zombie).
+const HARD_DAMAGE_SCALE: f32 = 1.5;
+/// The zombie's melee cooldown (`behavior.melee_box_attack`): one hit per
+/// second while the target stays in reach.
+const ZOMBIE_ATTACK_TICKS: u64 = 20;
+/// Blocks along +z from the bot the zombie is summoned, so it must walk to
+/// it.
+const ZOMBIE_SUMMON_DISTANCE: f32 = 4.0;
+const PLAYER_MAX_HEALTH: f32 = 20.0;
 const HEALTH: &str = "minecraft:health";
 
 /// Serialises the tests: each makes its own temporary directory the process
@@ -137,12 +171,27 @@ fn natural_spawning_populates_new_chunks_over_loopback() {
     });
 }
 
+#[test]
+#[ignore = "loopback socket run: use the native lock"]
+fn zombie_kills_the_player_who_then_respawns_over_loopback() {
+    run_loopback(Scenario::Zombie, |config| {
+        // The cow's platform, wide enough that the bot's own spawn chunk
+        // generates inline. Hard scales the zombie's 3 damage to 4.5;
+        // survival lets it be hurt and targeted (the zombie ignores creative
+        // players). The bot is an operator by default.
+        config.world = WorldConfig::void_spawn_platform(4);
+        config.server.difficulty = Difficulty::Hard;
+        config.server.default_gamemode = "survival".into();
+    });
+}
+
 /// What the joined bot does.
 #[derive(Debug, Clone, Copy)]
 enum Scenario {
     Cow,
     Chicken,
     NaturalSpawning,
+    Zombie,
 }
 
 impl Scenario {
@@ -151,6 +200,7 @@ impl Scenario {
             Self::Cow => COW_TIMEOUT,
             Self::Chicken => CHICKEN_TIMEOUT,
             Self::NaturalSpawning => SPAWN_TIMEOUT,
+            Self::Zombie => ZOMBIE_TIMEOUT,
         }
     }
 
@@ -159,6 +209,7 @@ impl Scenario {
             Self::Cow => fight_cow(bot).await,
             Self::Chicken => glide_egg_and_kill_chicken(bot).await,
             Self::NaturalSpawning => watch_natural_spawns(bot).await,
+            Self::Zombie => zombie_kills_and_bot_respawns(bot).await,
         }
     }
 }
@@ -511,6 +562,444 @@ async fn watch_natural_spawns(bot: &mut Bot) {
     }
 }
 
+/// a. midnight without natural spawns, b. a zombie closes in on the
+/// standing bot and hits it to death, c. the bot answers the respawn screen
+/// and comes back at the world spawn with full health.
+async fn zombie_kills_and_bot_respawns(bot: &mut Bot) {
+    // a. zombies burn in daylight: midnight, with the clock stopped there.
+    // Natural spawns could add other attackers on the dark platform.
+    bot.run_command("/gamerule dodaylightcycle false", "has been updated")
+        .await;
+    bot.run_command("/gamerule domobspawning false", "has been updated")
+        .await;
+    bot.run_command("/time set midnight", "Set the time to")
+        .await;
+    // The default spawn location puts the bot's eye at y 17, its feet inside
+    // the platform; a real client lands and reports itself standing on top.
+    // The bot sends no movement, so it is teleported there instead.
+    let (x, z) = (bot.position.x, bot.position.z);
+    bot.run_command(
+        &format!("/tp {x:.2} {:.2} {z:.2}", PLATFORM_TOP + EYE_HEIGHT),
+        "Teleported to",
+    )
+    .await;
+
+    // b.
+    let (fight, zombie) = watch_zombie_fight(bot).await;
+    check_zombie_fight(bot, &fight, zombie);
+
+    // c.
+    answer_respawn_screen(bot).await;
+    let listen_until = Instant::now() + CONNECTED_AFTER_RESPAWN;
+    while let Some(packet) = bot.next_until(listen_until).await {
+        if let McpePacketData::DisconnectPacket(disconnect) = packet {
+            panic!("disconnected after respawning: {disconnect:?}");
+        }
+    }
+    assert!(bot.connected(), "the bot stays connected after respawning");
+}
+
+/// What the bot saw of the zombie fight and its death.
+#[derive(Default)]
+struct ZombieFight {
+    /// Arrival of each `ActorEvent(StartAttacking)` of the zombie.
+    swings: Vec<Instant>,
+    /// Horizontal distance from the bot to the zombie at its first swing.
+    first_swing_distance: Option<f32>,
+    /// The bot's own `ActorEvent(Hurt)` count.
+    hurt: usize,
+    /// The bot's health updates: (server tick, health, arrival).
+    health: Vec<(u64, f32, Instant)>,
+    /// `SetActorMotion` to the bot, with the horizontal direction from the
+    /// zombie to the bot when it arrived.
+    knockbacks: Vec<(Vec3, (f32, f32))>,
+    /// When the bot stepped back next to the zombie.
+    teleports: Vec<Instant>,
+    zombies_summoned: usize,
+    died: Option<Instant>,
+    /// `DeathInfo` (key, parameters).
+    death_info: Option<(String, Vec<String>)>,
+    /// The translated death message in chat (key, parameters).
+    death_chat: Option<(String, Vec<String>)>,
+    /// `Respawn` packets of the respawn screen (state, position).
+    respawn_screen: Vec<(EnumsPlayerRespawnState, Vec3)>,
+}
+
+impl ZombieFight {
+    /// Whether the death and everything that follows it arrived.
+    fn death_seen(&self) -> bool {
+        self.died.is_some()
+            && self.death_info.is_some()
+            && self.death_chat.is_some()
+            && self.respawn_screen.len() >= 2
+            && self
+                .health
+                .last()
+                .is_some_and(|(_, health, _)| *health == 0.0)
+    }
+}
+
+/// Summons a zombie [`ZOMBIE_SUMMON_DISTANCE`] blocks from the standing bot
+/// and records the fight until the bot's death and respawn screen. The bot
+/// steps next to the zombie (or summons another one when it is gone) when
+/// no hit lands for [`ZOMBIE_STALL`]. Returns the record and the zombie.
+async fn watch_zombie_fight(bot: &mut Bot) -> (ZombieFight, u64) {
+    let me = bot.runtime_id;
+    // On the platform's surface, whatever height the server has for the bot.
+    let at = format!("~ {PLATFORM_TOP} ~{ZOMBIE_SUMMON_DISTANCE}");
+    let mut fight = ZombieFight::default();
+    let mut zombie = summon(bot, ZOMBIE, &at).await;
+    fight.zombies_summoned = 1;
+    let kill_deadline = Instant::now() + ZOMBIE_KILLS_WITHIN;
+    let mut last_hit = Instant::now();
+    loop {
+        let deadline = fight
+            .died
+            .map_or(kill_deadline, |died| died + DEATH_PACKETS_WITHIN);
+        if fight.death_seen() || Instant::now() >= deadline {
+            break;
+        }
+        if fight.died.is_none() && last_hit.elapsed() >= ZOMBIE_STALL {
+            if let Some(feet) = bot.actors.get(&zombie).cloned() {
+                bot.log(format!(
+                    "no hit for {ZOMBIE_STALL:?}: stepping next to the zombie"
+                ));
+                bot.command(&format!(
+                    "/tp {:.2} {:.2} {:.2}",
+                    feet.x,
+                    feet.y + EYE_HEIGHT,
+                    feet.z - 1.0
+                ));
+                fight.teleports.push(Instant::now());
+            } else {
+                bot.log("the zombie is gone: summoning another".into());
+                zombie = summon(bot, ZOMBIE, &at).await;
+                fight.zombies_summoned += 1;
+            }
+            last_hit = Instant::now();
+        }
+        let wake = if fight.died.is_some() {
+            deadline
+        } else {
+            deadline.min(last_hit + ZOMBIE_STALL)
+        };
+        let Some(packet) = bot.next_until(wake).await else {
+            assert!(bot.connected(), "the bot stays connected during the fight");
+            continue;
+        };
+        match packet {
+            McpePacketData::ActorEventPacket(event)
+                if event.target_runtime_id.actor_runtime_id == zombie
+                    && event.event_id == EnumsActorEvent::StartAttacking =>
+            {
+                fight.swings.push(Instant::now());
+                if fight.first_swing_distance.is_none() {
+                    let (dx, dz) = bot.direction_from(zombie);
+                    fight.first_swing_distance = Some(dx.hypot(dz));
+                }
+            }
+            McpePacketData::ActorEventPacket(event)
+                if event.target_runtime_id.actor_runtime_id == me =>
+            {
+                match event.event_id {
+                    EnumsActorEvent::Hurt => fight.hurt += 1,
+                    EnumsActorEvent::Death => fight.died = Some(Instant::now()),
+                    _ => {}
+                }
+            }
+            McpePacketData::UpdateAttributesPacket(update)
+                if update.target_runtime_id.actor_runtime_id == me =>
+            {
+                if let Some(health) = update
+                    .attribute_list
+                    .iter()
+                    .find(|attribute| &*attribute.name == HEALTH)
+                {
+                    fight.health.push((
+                        update.tick.inputtick,
+                        health.current_value,
+                        Instant::now(),
+                    ));
+                    last_hit = Instant::now();
+                }
+            }
+            McpePacketData::SetActorMotionPacket(motion)
+                if motion.target_runtime_id.actor_runtime_id == me =>
+            {
+                let away = bot.direction_from(zombie);
+                fight.knockbacks.push((motion.motion, away));
+            }
+            McpePacketData::DeathInfoPacket(info) => {
+                fight.death_info = Some((
+                    info.death_cause_attack_name.to_string(),
+                    info.death_cause_message_list
+                        .iter()
+                        .map(ToString::to_string)
+                        .collect(),
+                ));
+            }
+            McpePacketData::TextPacket(text) => {
+                if let TextPacketBody::MessageAndParams(message) = text.body
+                    && message.message.starts_with("death.")
+                {
+                    fight.death_chat = Some((
+                        message.message.to_string(),
+                        message
+                            .parameter_list
+                            .iter()
+                            .map(ToString::to_string)
+                            .collect(),
+                    ));
+                }
+            }
+            McpePacketData::RespawnPacket(respawn) => {
+                fight.respawn_screen.push((respawn.state, respawn.position));
+            }
+            McpePacketData::DisconnectPacket(disconnect) => {
+                panic!("disconnected during the fight: {disconnect:?}")
+            }
+            _ => {}
+        }
+    }
+    (fight, zombie)
+}
+
+/// Checks the recorded fight: the zombie closed in and swung, each hit hurt
+/// the bot by the zombie's damage on hard (with a held weapon's bonus when
+/// the zombie spawned holding one) once per cooldown and knocked it away,
+/// and the bot died to it with the death screen and chat message.
+fn check_zombie_fight(bot: &Bot, fight: &ZombieFight, zombie: u64) {
+    let trace: Vec<(u64, f32)> = fight
+        .health
+        .iter()
+        .map(|(tick, health, _)| (*tick, *health))
+        .collect();
+    let swings = fight.swings.len();
+    bot.log(format!(
+        "zombie fight: {} zombie(s) summoned, {swings} swings, first at {:?} blocks, \
+         {} hurt events, {} knockbacks, {} step(s) back to the zombie, health (tick, value) {trace:?}",
+        fight.zombies_summoned,
+        fight.first_swing_distance,
+        fight.hurt,
+        fight.knockbacks.len(),
+        fight.teleports.len(),
+    ));
+    assert!(
+        fight.died.is_some(),
+        "the zombie kills the bot (ActorEvent Death) within {ZOMBIE_KILLS_WITHIN:?}: \
+         health {trace:?}, {swings} swings"
+    );
+
+    // The zombie walked up to the bot before its first swing.
+    let first_swing = fight
+        .first_swing_distance
+        .expect("the zombie swings (ActorEvent StartAttacking)");
+    assert!(
+        first_swing < ZOMBIE_SUMMON_DISTANCE - 1.0,
+        "the zombie closes in from {ZOMBIE_SUMMON_DISTANCE} blocks before swinging: \
+         it swung at {first_swing:.2}"
+    );
+
+    // Its damage: the attack plus a held weapon's, scaled for hard.
+    let weapon = bot
+        .mainhand
+        .get(&zombie)
+        .copied()
+        .filter(|id| *id != 0)
+        .map(|id| bot.item_name(id));
+    let weapon_bonus = weapon.map_or(0.0, |name| {
+        unastar_data::melee::attack_damage(Some(name)) - unastar_data::melee::attack_damage(None)
+    });
+    let damage = (ZOMBIE_ATTACK + weapon_bonus) * HARD_DAMAGE_SCALE;
+    bot.log(format!(
+        "the zombie holds {weapon:?}: {damage} damage per hit on hard"
+    ));
+    let mut expected = Vec::new();
+    let mut health = PLAYER_MAX_HEALTH;
+    while health > 0.0 {
+        health = (health - damage).max(0.0);
+        expected.push(health);
+    }
+    let observed: Vec<f32> = trace.iter().map(|(_, health)| *health).collect();
+    assert!(
+        observed.len() == expected.len()
+            && observed
+                .iter()
+                .zip(&expected)
+                .all(|(seen, wanted)| (seen - wanted).abs() < 1e-3),
+        "each hit takes {damage} health: expected {expected:?}, got {trace:?}"
+    );
+    let hits = observed.len();
+
+    // One swing per hit (two when the zombie holds something), one hurt
+    // event and one knockback per hit.
+    let swings_per_hit = if weapon.is_some() { 2 } else { 1 };
+    assert_eq!(
+        swings,
+        hits * swings_per_hit,
+        "ActorEvent StartAttacking per hit (holding {weapon:?})"
+    );
+    assert_eq!(fight.hurt, hits, "the bot's ActorEvent Hurt per hit");
+    assert_eq!(
+        fight.knockbacks.len(),
+        hits,
+        "SetActorMotion knockback per hit"
+    );
+    for (motion, (dx, dz)) in &fight.knockbacks {
+        assert!(
+            motion.x * dx + motion.z * dz > 0.0 && motion.y > 0.0,
+            "the knockback {motion:?} pushes the bot up and away from the zombie \
+             (direction {dx:.2}, {dz:.2})"
+        );
+    }
+
+    // Hits land every cooldown while the bot stays in reach.
+    let mut spaced = 0;
+    for pair in fight.health.windows(2) {
+        let ((before, _, before_at), (after, _, after_at)) = (pair[0], pair[1]);
+        let stepped = fight
+            .teleports
+            .iter()
+            .any(|at| *at > before_at && *at <= after_at);
+        if !stepped {
+            assert_eq!(
+                after - before,
+                ZOMBIE_ATTACK_TICKS,
+                "consecutive hits are one cooldown apart: {trace:?}"
+            );
+            spaced += 1;
+        }
+    }
+    assert!(
+        spaced > 0,
+        "at least two consecutive hits without a step: {trace:?}"
+    );
+
+    // The death screen and the chat name the zombie.
+    let message = (
+        "death.attack.mob".to_owned(),
+        vec![BOT.to_owned(), "%entity.zombie.name".to_owned()],
+    );
+    assert_eq!(
+        fight.death_info.as_ref(),
+        Some(&message),
+        "DeathInfo names the zombie"
+    );
+    assert_eq!(
+        fight.death_chat.as_ref(),
+        Some(&message),
+        "the chat death message names the zombie"
+    );
+    let states: Vec<_> = fight
+        .respawn_screen
+        .iter()
+        .map(|(state, _)| *state)
+        .collect();
+    assert_eq!(
+        states,
+        [
+            EnumsPlayerRespawnState::Searchingforspawn,
+            EnumsPlayerRespawnState::Readytospawn
+        ],
+        "the respawn screen opens: Respawn state 0 then 1"
+    );
+    for (_, position) in &fight.respawn_screen {
+        assert!(
+            near(position, &bot.spawn),
+            "the respawn screen points at the world spawn {:?}: {position:?}",
+            bot.spawn
+        );
+    }
+}
+
+/// Answers the respawn screen as the client's respawn button does
+/// (`Respawn` client-ready-to-spawn, then `PlayerAction` respawn, which the
+/// server ignores once the player lives) and checks the respawn: the
+/// server's ready-to-spawn acknowledgement, `MovePlayer` to the world spawn,
+/// `ActorEvent` spawn-alive and full health.
+async fn answer_respawn_screen(bot: &mut Bot) {
+    let me = bot.runtime_id;
+    bot.log("-> Respawn ClientReadyToSpawn, PlayerAction Respawn".into());
+    bot.send(RespawnPacket {
+        position: Vec3::default(),
+        state: EnumsPlayerRespawnState::Clientreadytospawn,
+        player_runtime_id: ActorRuntimeId {
+            actor_runtime_id: me,
+        },
+    });
+    bot.send(PlayerActionPacket {
+        player_runtime_id: ActorRuntimeId {
+            actor_runtime_id: me,
+        },
+        action: EnumsPlayerActionType::Respawn,
+        ..Default::default()
+    });
+    let deadline = Instant::now() + DEATH_PACKETS_WITHIN;
+    let (mut acknowledged, mut moved, mut alive, mut health) = (None, None, false, None);
+    while acknowledged.is_none() || moved.is_none() || !alive || health.is_none() {
+        let Some(packet) = bot.next_until(deadline).await else {
+            panic!(
+                "the respawn completes within {DEATH_PACKETS_WITHIN:?}: Respawn ack {acknowledged:?}, \
+                 MovePlayer {moved:?}, spawn-alive {alive}, health {health:?}, connected {}",
+                bot.connected()
+            );
+        };
+        match packet {
+            McpePacketData::RespawnPacket(respawn) => acknowledged = Some(respawn.state),
+            McpePacketData::MovePlayerPacket(move_player)
+                if move_player.player_runtime_id.actor_runtime_id == me =>
+            {
+                moved = Some((move_player.position, move_player.position_mode));
+            }
+            McpePacketData::ActorEventPacket(event)
+                if event.target_runtime_id.actor_runtime_id == me
+                    && event.event_id == EnumsActorEvent::SpawnAlive =>
+            {
+                alive = true;
+            }
+            McpePacketData::UpdateAttributesPacket(update)
+                if update.target_runtime_id.actor_runtime_id == me && health.is_none() =>
+            {
+                health = update
+                    .attribute_list
+                    .iter()
+                    .find(|attribute| &*attribute.name == HEALTH)
+                    .map(|attribute| attribute.current_value);
+            }
+            McpePacketData::DisconnectPacket(disconnect) => {
+                panic!("disconnected while respawning: {disconnect:?}")
+            }
+            _ => {}
+        }
+    }
+    assert_eq!(
+        acknowledged,
+        Some(EnumsPlayerRespawnState::Readytospawn),
+        "the server acknowledges the client's ready-to-spawn"
+    );
+    let (position, mode) = moved.expect("MovePlayer after the respawn");
+    assert!(
+        near(&position, &bot.spawn),
+        "MovePlayer respawns the bot at the world spawn {:?}: {position:?}",
+        bot.spawn
+    );
+    assert_eq!(
+        mode,
+        EnumsPlayerPositionModeComponentPositionMode::Respawn,
+        "MovePlayer in respawn mode"
+    );
+    assert_eq!(
+        health,
+        Some(PLAYER_MAX_HEALTH),
+        "UpdateAttributes restores full health"
+    );
+}
+
+/// Whether two positions are the same to wire precision.
+fn near(a: &Vec3, b: &Vec3) -> bool {
+    (a.x - b.x).abs() < 0.01 && (a.y - b.y).abs() < 0.01 && (a.z - b.z).abs() < 0.01
+}
+
 /// Hits `mob` until it dies, respecting the hurt cooldown, and checks hurt,
 /// health, death and removal; returns the item IDs that dropped.
 async fn kill(bot: &mut Bot, mob: u64) -> Vec<i16> {
@@ -602,11 +1091,15 @@ struct Bot {
     runtime_id: u64,
     /// Where the server last placed the bot (eye position).
     position: Vec3,
+    /// The world spawn (eye position) from `StartGame`, where the bot joined.
+    spawn: Vec3,
     item_ids: HashMap<String, i16>,
     /// Last known position of every actor, by runtime ID.
     actors: HashMap<u64, Vec3>,
     /// (current, max) health from each actor's `AddActor`.
     health_on_add: HashMap<u64, (f32, f32)>,
+    /// Main-hand item ID of each mob, from its `MobEquipment` (0 when empty).
+    mainhand: HashMap<u64, i16>,
     /// Creative item network ID by item ID, from `CreativeContent`.
     creative: HashMap<i32, u32>,
     started: Instant,
@@ -664,6 +1157,7 @@ impl Bot {
         Self {
             runtime_id,
             position: game_data.start_game.position.clone(),
+            spawn: game_data.start_game.position.clone(),
             item_ids: game_data
                 .item_registry
                 .item_data
@@ -672,6 +1166,7 @@ impl Bot {
                 .collect(),
             actors: HashMap::new(),
             health_on_add: HashMap::new(),
+            mainhand: HashMap::new(),
             creative: HashMap::new(),
             started: Instant::now(),
             outbound: Some(outbound),
@@ -686,6 +1181,33 @@ impl Bot {
             .expect("bot is running")
             .send(packet.into())
             .expect("bot connection is open");
+    }
+
+    /// Whether the connection is still open.
+    fn connected(&self) -> bool {
+        self.io.as_ref().is_some_and(|io| !io.is_finished())
+    }
+
+    /// Runs an operator command and waits for its system reply containing
+    /// `reply`.
+    async fn run_command(&mut self, line: &str, reply: &str) {
+        self.command(line);
+        self.expect(&format!("the reply to {line}"), |packet| match packet {
+            McpePacketData::TextPacket(text) => {
+                let body = format!("{:?}", text.body);
+                assert!(!body.contains("Error"), "{line} was refused: {body}");
+                body.contains(reply).then_some(())
+            }
+            _ => None,
+        })
+        .await;
+    }
+
+    /// The horizontal direction (not normalised) from `actor`'s last known
+    /// position to the bot.
+    fn direction_from(&self, actor: u64) -> (f32, f32) {
+        let at = self.actors.get(&actor).cloned().unwrap_or_default();
+        (self.position.x - at.x, self.position.z - at.z)
     }
 
     fn command(&self, line: &str) {
@@ -908,33 +1430,55 @@ impl Bot {
                 if moved.player_runtime_id.actor_runtime_id == self.runtime_id =>
             {
                 self.position = moved.position.clone();
-                self.log(format!("<- MovePlayer (self) to {:?}", moved.position));
+                self.log(format!(
+                    "<- MovePlayer (self) to {:?} mode {:?}",
+                    moved.position, moved.position_mode
+                ));
             }
             McpePacketData::ActorEventPacket(event) => self.log(format!(
                 "<- ActorEvent {:?} runtime {} data {}",
                 event.event_id, event.target_runtime_id.actor_runtime_id, event.data
             )),
-            McpePacketData::UpdateAttributesPacket(update)
-                if update.target_runtime_id.actor_runtime_id != self.runtime_id =>
-            {
+            McpePacketData::UpdateAttributesPacket(update) => {
                 let health = update
                     .attribute_list
                     .iter()
                     .find(|attribute| &*attribute.name == HEALTH)
                     .map(|attribute| (attribute.current_value, attribute.max_value));
+                let id = update.target_runtime_id.actor_runtime_id;
+                let whose = if id == self.runtime_id { " (self)" } else { "" };
                 self.log(format!(
-                    "<- UpdateAttributes runtime {} health {health:?}",
-                    update.target_runtime_id.actor_runtime_id
+                    "<- UpdateAttributes runtime {id}{whose} tick {} health {health:?}",
+                    update.tick.inputtick
                 ));
             }
-            McpePacketData::SetActorMotionPacket(motion)
-                if motion.target_runtime_id.actor_runtime_id != self.runtime_id =>
+            McpePacketData::SetActorMotionPacket(motion) => {
+                let id = motion.target_runtime_id.actor_runtime_id;
+                let whose = if id == self.runtime_id { " (self)" } else { "" };
+                self.log(format!(
+                    "<- SetActorMotion runtime {id}{whose} {:?}",
+                    motion.motion
+                ));
+            }
+            McpePacketData::MobEquipmentPacket(equipment)
+                if equipment.slot == 0 && equipment.container_id == 0 =>
             {
+                let id = equipment.target_runtime_id.actor_runtime_id;
+                self.mainhand.insert(id, equipment.item.id);
                 self.log(format!(
-                    "<- SetActorMotion runtime {} {:?}",
-                    motion.target_runtime_id.actor_runtime_id, motion.motion
+                    "<- MobEquipment runtime {id} main hand {} (id {})",
+                    self.item_name(equipment.item.id),
+                    equipment.item.id
                 ));
             }
+            McpePacketData::DeathInfoPacket(info) => self.log(format!(
+                "<- DeathInfo {:?} {:?}",
+                info.death_cause_attack_name, info.death_cause_message_list
+            )),
+            McpePacketData::RespawnPacket(respawn) => self.log(format!(
+                "<- Respawn {:?} at {:?} runtime {}",
+                respawn.state, respawn.position, respawn.player_runtime_id.actor_runtime_id
+            )),
             McpePacketData::RemoveActorPacket(remove) => {
                 self.actors
                     .remove(&(remove.target_actor_id.actor_unique_id as u64));
@@ -944,11 +1488,7 @@ impl Bot {
                 ));
             }
             McpePacketData::AddItemActorPacket(item) => {
-                let name = self
-                    .item_ids
-                    .iter()
-                    .find(|(_, id)| **id == item.item.id)
-                    .map_or("?", |(name, _)| name.as_str());
+                let name = self.item_name(item.item.id);
                 self.log(format!(
                     "<- AddItemActor runtime {} {name} (id {}) x{} at {:?}",
                     item.target_runtime_id.actor_runtime_id,
@@ -992,6 +1532,17 @@ impl Bot {
             .item_ids
             .get(name)
             .unwrap_or_else(|| panic!("{name} in the item registry"))
+    }
+
+    /// The registry name of item `id`, or `?` for an unknown ID (0 is air).
+    fn item_name(&self, id: i16) -> &str {
+        if id == 0 {
+            return "minecraft:air";
+        }
+        self.item_ids
+            .iter()
+            .find(|(_, item)| **item == id)
+            .map_or("?", |(name, _)| name.as_str())
     }
 
     fn log(&self, line: String) {
