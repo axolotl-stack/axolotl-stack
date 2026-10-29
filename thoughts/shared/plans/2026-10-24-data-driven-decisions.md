@@ -69,7 +69,7 @@ fields that have no published schema). Status per group:
 | Entity pushing | every mob and player each tick pushes the pushable actors touching its box grown 0.2 on x/z, and is pushed back when itself pushable (two pushes per mob pair per tick); each push is 0.05 × (dx, dz) / √m × min(1, 1/√m) with m = max(\|dx\|, \|dz\|) between positions, none when m < 0.1 | Confirmed (26.30 + 1.26.50.26) |
 | Combat | hurt timer 10 ticks with excess-only damage, knockback retain 0.5 + 0.4 horizontal + 0.4×1.2 vertical capped 0.4, death animation 20 ticks, loot at death, XP at removal, orb sizes 2477…1 | Confirmed (26.30) |
 | Melee reach 6, last-hit-by-player window 100 ticks, XP orb lifetime/gravity/drag/follow | | Provisional: Java Edition / public client reach |
-| Breeding/ageing | love 600 ticks, `breed_cooldown` and `ageable.duration` in seconds ×20 | Confirmed (26.30) |
+| Breeding/ageing | love 600 ticks, `breed_cooldown` and `ageable.duration` in seconds ×20; every breed/ageable item use sends `ActorEvent` Feed (network id << 16 \| aux) to viewers; a feed item on a baby that is not paused then sends `ActorEvent` BabyAge (data 0); love hearts come from the in-love flag, no actor event | Confirmed (26.30) |
 | Feed growth 0.1, legacy bucket aux mapping, /summon whole-number centring | | Provisional: Microsoft Learn / Minecraft Wiki |
 | Despawn | 32/128 blocks, 44 when tick range < 5, inactivity 30 s, 1/800 chance, persistent exemption | Confirmed (26.30) |
 | Replication | MoveActorDelta past 4° summed rotation or 1e-4 position²; motion packet past Δv² 0.04 | Confirmed (26.30) |

@@ -193,6 +193,32 @@ fn actor_events(packets: &[McpePacketData], runtime_id: i64) -> Vec<EnumsActorEv
         .collect()
 }
 
+/// Actor events about `runtime_id` with their data.
+fn actor_event_data(packets: &[McpePacketData], runtime_id: i64) -> Vec<(EnumsActorEvent, i32)> {
+    packets
+        .iter()
+        .filter_map(|packet| match packet {
+            McpePacketData::ActorEventPacket(event)
+                if event.target_runtime_id.actor_runtime_id == runtime_id as u64 =>
+            {
+                Some((event.event_id, event.data))
+            }
+            _ => None,
+        })
+        .collect()
+}
+
+/// `ActorEvent` Feed data for a held `item` with aux 0.
+fn feed_data(world: &World, item: &str) -> i32 {
+    let network_id = world
+        .resource::<crate::server::game::types::ItemRegistryResource>()
+        .0
+        .get_by_name(item)
+        .unwrap()
+        .network_id;
+    network_id << constants::FEED_EVENT_ITEM_SHIFT
+}
+
 #[test]
 fn wheat_puts_adult_cows_in_love_and_mating_breeds_a_baby() {
     let mut h = harness(GameMode::Survival);
@@ -205,9 +231,10 @@ fn wheat_puts_adult_cows_in_love_and_mating_breeds_a_baby() {
     h.interact(a);
     let packets = h.packets();
     let runtime_a = h.world().get::<RuntimeId>(a).unwrap().0;
+    let wheat = feed_data(h.world(), "minecraft:wheat");
     assert_eq!(
-        actor_events(&packets, runtime_a),
-        [EnumsActorEvent::InLoveHearts]
+        actor_event_data(&packets, runtime_a),
+        [(EnumsActorEvent::Feed, wheat)]
     );
     assert!(
         packets
@@ -327,7 +354,7 @@ fn calf_grows_up_after_its_duration_and_wheat_speeds_it() {
     let runtime_id = h.world().get::<RuntimeId>(calf).unwrap().0;
     assert_eq!(
         actor_events(&h.packets(), runtime_id),
-        [EnumsActorEvent::BabyAge]
+        [EnumsActorEvent::Feed, EnumsActorEvent::BabyAge]
     );
     assert_eq!(h.remaining(calf), Some(start - 2400));
     assert_eq!(h.slot(0).count, 63);
@@ -352,6 +379,52 @@ fn calf_grows_up_after_its_duration_and_wheat_speeds_it() {
     assert!(world.get::<AgeableConfig>(calf).is_none());
     assert!(world.get::<BabyAge>(calf).is_none());
     assert!(world.get::<BreedableConfig>(calf).is_some());
+}
+
+#[test]
+fn feeding_a_calf_sends_the_feed_and_baby_age_events_to_viewers() {
+    let mut h = harness(GameMode::Survival);
+    let calf = spawn_mob(
+        h.world(),
+        "minecraft:cow",
+        DVec3::new(8.5, 64.0, 8.5),
+        0.0,
+        SpawnCause::Born,
+    )
+    .unwrap();
+    h.server.tick();
+    h.packets();
+    let runtime_id = h.world().get::<RuntimeId>(calf).unwrap().0;
+    let wheat = feed_data(h.world(), "minecraft:wheat");
+    assert_ne!(wheat, 0);
+    h.hold("minecraft:wheat", 2);
+
+    // The calf eats the wheat (crumbs and eating sound at its mouth), then
+    // shows the growth sparkles.
+    h.interact(calf);
+    assert_eq!(
+        actor_event_data(&h.packets(), runtime_id),
+        [
+            (EnumsActorEvent::Feed, wheat),
+            (EnumsActorEvent::BabyAge, 0)
+        ]
+    );
+
+    // A calf whose growth is paused still eats, without the sparkles.
+    h.world()
+        .entity_mut(calf)
+        .insert(BabyAge::Paused { remaining: 20_000 });
+    h.interact(calf);
+    assert_eq!(
+        actor_event_data(&h.packets(), runtime_id),
+        [(EnumsActorEvent::Feed, wheat)]
+    );
+    assert_eq!(
+        h.world().get::<BabyAge>(calf),
+        Some(&BabyAge::Paused {
+            remaining: 20_000 - 2400
+        })
+    );
 }
 
 #[test]
