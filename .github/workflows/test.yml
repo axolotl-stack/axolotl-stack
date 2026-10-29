@@ -46,6 +46,12 @@ jobs:
       - name: Clippy
         run: cargo clippy --workspace --all-targets -- -D warnings
 
+      - name: Vanilla parity catalog
+        # Fails when a generated row has no status, a status names an unknown
+        # row, a done/verified row lacks an existing test, or
+        # docs/parity/PARITY.md is stale (see docs/parity/README.md).
+        run: cargo run -p parity -- check
+
       - name: Jolyne feature combinations
         run: |
           cargo clippy -p jolyne --lib --no-default-features --features client,raknet -- -D warnings

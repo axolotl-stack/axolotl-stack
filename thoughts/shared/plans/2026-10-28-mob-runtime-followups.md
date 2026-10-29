@@ -1,8 +1,15 @@
 # Mob runtime: follow-ups and design notes (2026-10-28)
 
-Tracking list for the definition-driven mob runtime (`crates/unastar/src/entity/mob/`),
+Engineering follow-ups for the definition-driven mob runtime (`crates/unastar/src/entity/mob/`),
 started with the vanilla cow. Each row says what, why, and its state. Update the state
 column when an item lands; delete rows only when done.
+
+Vanilla-parity items (components accepted without behaviour, codegen defaults to confirm
+natively, built-in constants to re-check on 1.26.51, lava drag, `/gamemode`, natural
+spawning) moved to the parity catalog: [`docs/parity/entities.toml`](../../../docs/parity/entities.toml),
+[`docs/parity/commands.toml`](../../../docs/parity/commands.toml) and
+[`docs/parity/PARITY.md`](../../../docs/parity/PARITY.md). Built-in constants and their
+provenance stay in decisions doc D12.
 
 ## ECS cost
 
@@ -32,22 +39,6 @@ column when an item lands; delete rows only when done.
 | # | Item | Why | State |
 |---|---|---|---|
 | D1 | Split actor-component codegen out of `unastar-data` into its own small crate | Any edit under `unastar-data/build/` reruns the whole build script (actor definitions, loot, recipes, biomes, defaults, typed components); iteration takes minutes | Open (owner request) |
-| D2 | Codegen judgement calls to confirm natively: omitted `health.max` equals `value`; `damage_sensor.deals_damage` defaults to yes; panic `damage_sources` uses the 18-cause legacy-form list | Public documentation contradicts itself or vanilla data | Open |
-| D3 | Components accepted without server behaviour: `leashable`, `leashable_to`, `balloonable`, `rideable`, `behavior.mount_pathing`, `conditional_bandwidth_optimization` (`mob/components/mod.rs` `ACCEPTED_WITHOUT_BEHAVIOUR`) | Needed for the cow definition to compile; leads and riding are not implemented | Open: implement leads/riding; mirror in decisions doc D12 |
 | D4 | Unknown fields in component bodies reject the definition | Closed typed bodies (`deny_unknown_fields`) | Note only |
 | D5 | Vanilla pack is embedded at build time; changing a definition needs a rebuild | Runtime addon/behaviour-pack loading not wired yet | Open |
 
-## Native constants
-
-| # | Item | Why | State |
-|---|---|---|---|
-| N1 | Built-in mob constants in `entity/mob/constants.rs` were confirmed against native behaviour of the 26.30 game build | Closest build with inspectable behaviour; not yet re-checked on 1.26.51 | Open: re-check on 1.26.51 when possible; mirror in decisions doc D12 |
-| N2 | Lava drag is provisional (Java Edition value) | Not confirmed natively | Open |
-
-## Gameplay surface
-
-| # | Item | Why | State |
-|---|---|---|---|
-| G1 | Operators: nothing in production granted `Operator`, so `/summon` was unusable | Needed for client checks | Interaction slice adds an `operators` config list |
-| G2 | No `/gamemode` command; creative only via `default_gamemode` (new players; saved players keep their mode) | Testing convenience | Open |
-| G3 | Chicken (milestone 2), natural spawning of passive mobs | Milestone 2 | Open |

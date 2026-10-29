@@ -1,0 +1,244 @@
+# Parity status: Protocol (protocol).
+# One row per 1.26.51 packet: inbound packets are handled, outbound packets are
+# sent when vanilla would send them.
+#
+# Rows are generated from vanilla data by `cargo run -p parity -- generate`, which
+# also rewrites this file in canonical form. Edit only the values; comments are
+# regenerated. Schema and rules: docs/parity/README.md.
+
+# bidirectional (80)
+"ActorEventPacket" = { status = "partial", owner = "entities", tests = ["crates/unastar/src/entity/mob/tests/zombie.rs::zombie_targets_a_survival_player_and_hits_on_the_native_cooldown", "crates/unastar/src/entity/mob/tests/passive.rs::a_sheared_sheep_eats_grass_and_regrows_wool"], gaps = "sent for hurt, death, respawn and mob events; client-sent actor events (eating particles, feeding) are ignored" }  # id 27
+"ActorPickRequestPacket" = { status = "missing" }  # id 35
+"AnimatePacket" = { status = "partial", owner = "entities", tests = ["crates/unastar/src/server/broadcast.rs::swings_reach_nearby_players_and_fire_the_plugin_event"], gaps = "client swings are relayed to nearby players; the server never originates animations (critical hits, wake up, rowing)" }  # id 44
+"AnvilDamagePacket" = { status = "missing" }  # id 141
+"AutomationClientConnectPacket" = { status = "missing", notes = "sent for /wsserver" }  # id 95
+"BlockActorDataPacket" = { status = "partial", owner = "items", tests = ["crates/unastar/src/server/game/containers/tests.rs::placing_a_container_announces_the_same_client_state_as_bds", "crates/unastar/src/server/game/containers/tests.rs::double_chest_pairs_with_the_existing_chest_as_lead_and_unpairs_on_break"], gaps = "sent for containers only (matches the BDS chest capture); client edits such as signs are not handled" }  # id 56
+"BlockPickRequestPacket" = { status = "done", owner = "items", tests = ["crates/unastar/src/server/game/inventory/pick.rs::picked_item_is_the_creative_block_item_within_reach_of_a_living_player", "crates/unastar/src/server/game/inventory/pick.rs::survival_selects_hotbar_matches_and_swaps_main_matches_into_the_hotbar"] }  # id 34
+"BookEditPacket" = { status = "missing" }  # id 97
+"BossEventPacket" = { status = "missing" }  # id 74
+"ClientCacheBlobStatusPacket" = { status = "missing", notes = "the client blob cache is never enabled; chunks are always sent in full" }  # id 135
+"ClientCacheStatusPacket" = { status = "missing", notes = "ignored by the server; chunks are always sent without the blob cache" }  # id 129
+"ClientCameraAimAssistPacket" = { status = "missing" }  # id 321
+"ClientMovementPredictionSyncPacket" = { status = "missing" }  # id 322
+"ClientToServerHandshakePacket" = { status = "done", owner = "protocol", tests = ["crates/jolyne/src/proto/tests.rs::compression_and_encryption_are_active_in_play", "crates/jolyne/src/proto/tests.rs::online_identity_is_authenticated_only_after_the_encryption_handshake"] }  # id 4
+"CodeBuilderSourcePacket" = { status = "not_applicable", notes = "Code Builder is Education Edition only; vanilla Bedrock servers never use it" }  # id 178
+"CommandBlockUpdatePacket" = { status = "missing" }  # id 78
+"CommandRequestPacket" = { status = "partial", owner = "commands", tests = ["crates/unastar/src/server/game/commands.rs::teleport_rejects_nonoperators_without_moving", "crates/unastar/src/server/game/world_commands/tests.rs::difficulty_command_broadcasts_and_reaches_start_game"], gaps = "old dispatcher (7 commands) answers with chat text instead of CommandOutputPacket; no BDS syntax errors; player origin only", notes = "Jviguy/stab-commands: BDS-captured parser and CommandOutputPacket feedback for ~26 commands; pending merge" }  # id 77
+"ContainerClosePacket" = { status = "done", owner = "items", tests = ["crates/unastar/tests/container_loopback.rs::chest_open_move_close_over_loopback", "crates/unastar/src/server/game/inventory/mod.rs::inventory_windows_count_like_bds"] }  # id 47
+"ContainerOpenPacket" = { status = "done", owner = "items", tests = ["crates/unastar/tests/container_loopback.rs::chest_open_move_close_over_loopback", "crates/unastar/src/server/game/inventory/mod.rs::crafting_table_opens_one_workbench_window_at_the_block", "crates/unastar/src/server/game/containers/tests.rs::chest_window_opens_moves_through_the_engine_saves_and_animates_the_lid"] }  # id 46
+"CreatePhotoPacket" = { status = "not_applicable", notes = "camera/portfolio photos are Education Edition only; vanilla Bedrock servers never use it" }  # id 171
+"DebugInfoPacket" = { status = "missing" }  # id 155
+"EditorNetworkPacket" = { status = "not_applicable", notes = "Bedrock Editor mode only; unastar does not host Editor sessions" }  # id 190
+"EmoteListPacket" = { status = "missing" }  # id 152
+"EmotePacket" = { status = "missing" }  # id 138
+"GameTestResultsPacket" = { status = "not_applicable", notes = "GameTest framework (developer test harness) only" }  # id 195
+"InteractPacket" = { status = "partial", owner = "items", tests = ["crates/unastar/tests/container_loopback.rs::chest_open_move_close_over_loopback", "crates/unastar/src/server/game/inventory/mod.rs::inventory_windows_count_like_bds"], gaps = "only open-inventory is handled; leave-vehicle, mouse-over and other actions are ignored" }  # id 33
+"InventoryTransactionPacket" = { status = "partial", owner = "items", tests = ["crates/unastar/tests/container_loopback.rs::chest_open_move_close_over_loopback", "crates/unastar/src/server/game/blocks.rs::allowed_survival_place_consumes_exactly_one_and_cannot_replay_over_block", "crates/unastar/src/entity/mob/tests/interaction.rs::milking_a_cow_with_an_empty_bucket_gives_milk"], gaps = "block clicks, use-on-actor and throwables handled; item use in the air (eating, bows) and release actions are ignored" }  # id 30
+"ItemStackRequestPacket" = { status = "partial", owner = "items", tests = ["crates/unastar/src/server/game/inventory/engine.rs::engine_answers_like_bds_inventory_moves", "crates/unastar/src/server/game/inventory/engine.rs::recorded_plank_actions_succeed_with_matched_grid_and_exact_consume_source"], gaps = "take/place/swap/drop/destroy/creative/recipe crafting only; auto-craft, anvil, grindstone, loom, smithing, enchanting, beacon and trade requests are rejected" }  # id 147
+"LabTablePacket" = { status = "not_applicable", notes = "chemistry lab table is Education Edition only; vanilla Bedrock servers never use it" }  # id 109
+"LecternUpdatePacket" = { status = "missing" }  # id 125
+"LevelSoundEventPacket" = { status = "partial", owner = "entities", tests = ["crates/unastar/src/entity/mob/tests/chicken.rs::adult_chicken_lays_an_egg_within_the_max_wait_and_a_baby_never_does", "crates/unastar/src/server/game/containers/tests.rs::chest_window_opens_moves_through_the_engine_saves_and_animates_the_lid"], gaps = "sent for block break/place, mobs and containers; client-sent sounds are not relayed to other players; many vanilla sounds never sent" }  # id 123
+"LoginPacket" = { status = "done", owner = "protocol", tests = ["crates/jolyne/src/auth/security_tests.rs::online_client_login_is_accepted_by_online_server", "crates/jolyne/src/proto/tests.rs::protocol_mismatch_answers_play_status_and_client_reports_refusal"] }  # id 1
+"MapCreateLockedCopyPacket" = { status = "missing" }  # id 131
+"MapInfoRequestPacket" = { status = "missing" }  # id 68
+"MobEquipmentPacket" = { status = "partial", owner = "entities", tests = ["crates/unastar/src/entity/mob/gear/replicate.rs::changes_are_sent_per_slot_once", "crates/unastar/src/server/game/inventory/mod.rs::held_slot_events_describe_committed_selection_and_do_not_repeat_after_clamping"], gaps = "hotbar selection handled and mob hands replicated; a player's held item is not shown to other players" }  # id 31
+"ModalFormResponsePacket" = { status = "missing" }  # id 101
+"MovePlayerPacket" = { status = "done", owner = "entities", tests = ["crates/unastar/src/server/game/commands.rs::teleport_allows_server_granted_operators", "crates/unastar/src/entity/player_life/tests/respawn.rs::the_client_ready_respawn_restores_the_player_at_the_world_spawn"], notes = "sent for teleports, respawns and other players' movement; inbound MovePlayer is ignored like BDS (server-authoritative input)" }  # id 19
+"MultiplayerSettingsPacket" = { status = "not_applicable", notes = "join-code multiplayer settings are Education Edition only; vanilla Bedrock servers never use it" }  # id 139
+"NetworkStackLatencyPacket" = { status = "missing" }  # id 115
+"NpcRequestPacket" = { status = "missing" }  # id 98
+"OpenSignPacket" = { status = "missing" }  # id 303
+"PacketViolationWarningPacket" = { status = "verified", owner = "items", tests = ["crates/unastar/src/server/game/inventory/mod.rs::terminating_warning_matches_retained_bds_positive_id_capture", "crates/unastar/src/server/game/inventory/mod.rs::fatal_request_ids_warn_and_stop_queued_inventory_actions_until_transport_closes"], evidence = "crates/unastar/src/server/game/inventory/testdata/bds-invalid-request-id.jsonl", notes = "inbound warnings are logged (crates/unastar/src/network/mod.rs)" }  # id 156
+"PlayerActionPacket" = { status = "partial", owner = "entities", tests = ["crates/unastar/src/entity/player_life/tests/respawn.rs::the_respawn_action_restores_the_player_at_the_world_spawn", "crates/unastar/src/server/game/blocks.rs::survival_prediction_cannot_skip_mining_duration"], gaps = "respawn, block breaking, sprint, sneak, jump handled; gliding, swimming, crawling, item-use interruption and dimension change are not" }  # id 36
+"PlayerAuthInputPacket" = { status = "partial", owner = "entities", tests = ["crates/unastar/src/entity/player_life/tests/environment.rs::a_ten_block_fall_deals_seven_damage"], gaps = "client positions are trusted: no movement validation or CorrectPlayerMovePrediction; item interactions in the input are ignored" }  # id 144
+"PlayerSkinPacket" = { status = "missing" }  # id 93
+"PlayerToggleCrafterSlotRequestPacket" = { status = "missing" }  # id 306
+"PositionTrackingDBClientRequestPacket" = { status = "missing" }  # id 154
+"PurchaseReceiptPacket" = { status = "missing" }  # id 92
+"RequestAbilityPacket" = { status = "missing" }  # id 184
+"RequestChunkRadiusPacket" = { status = "done", owner = "protocol", tests = ["crates/jolyne/src/proto/tests.rs::chunk_radius_requires_one_and_honours_the_server_override", "crates/unastar/tests/container_loopback.rs::chest_open_move_close_over_loopback"] }  # id 69
+"RequestNetworkSettingsPacket" = { status = "done", owner = "protocol", tests = ["crates/jolyne/src/proto/tests.rs::protocol_mismatch_answers_play_status_and_client_reports_refusal", "crates/jolyne/src/proto/tests.rs::join_sequence_follows_the_bds_capture"] }  # id 193
+"RequestPermissionsPacket" = { status = "missing" }  # id 185
+"ResourcePackChunkRequestPacket" = { status = "done", owner = "protocol", tests = ["crates/jolyne/src/proto/packs/tests.rs::chunk_pacing_holds_replies_on_a_timer", "crates/jolyne/src/proto/packs/tests.rs::server_rejects_out_of_order_unknown_and_refused"] }  # id 84
+"ResourcePackClientResponsePacket" = { status = "done", owner = "protocol", tests = ["crates/jolyne/src/proto/packs/tests.rs::transfers_verifies_and_orders_stack_after_downloads", "crates/jolyne/src/proto/packs/tests.rs::declined_packs_are_not_downloaded"] }  # id 8
+"RespawnPacket" = { status = "done", owner = "entities", tests = ["crates/unastar/src/entity/player_life/tests/respawn.rs::the_client_ready_respawn_restores_the_player_at_the_world_spawn", "crates/unastar/src/entity/player_life/tests/respawn.rs::immediate_respawn_skips_the_death_screen"] }  # id 45
+"ScriptMessagePacket" = { status = "missing" }  # id 177
+"ServerSettingsRequestPacket" = { status = "missing" }  # id 102
+"ServerboundDiagnosticsPacket" = { status = "missing" }  # id 315
+"ServerboundLoadingScreenPacket" = { status = "missing", notes = "ignored by the server" }  # id 312
+"ServerboundPackSettingChangePacket" = { status = "missing" }  # id 329
+"SetActorLinkPacket" = { status = "missing" }  # id 41
+"SetDefaultGameTypePacket" = { status = "missing" }  # id 105
+"SetDifficultyPacket" = { status = "partial", owner = "mainline", tests = ["crates/unastar/src/server/game/world_commands/tests.rs::configured_difficulty_reaches_start_game_and_the_join", "crates/unastar/src/server/game/world_commands/tests.rs::difficulty_command_broadcasts_and_reaches_start_game"], gaps = "sent at join and on /difficulty; the client settings-screen change is not handled" }  # id 60
+"SetLocalPlayerAsInitializedPacket" = { status = "done", owner = "protocol", tests = ["crates/jolyne/src/proto/tests.rs::runtime_id_mismatch_is_rejected", "crates/jolyne/src/proto/tests.rs::streamed_spawn_lets_the_application_deliver_the_view_first"] }  # id 113
+"SetPlayerFurnaceOptionsPacket" = { status = "missing" }  # id 351
+"SetPlayerGameTypePacket" = { status = "partial", owner = "mainline", tests = ["crates/unastar/src/server/game/world_commands/tests.rs::gamemode_creative_switches_mode_with_the_bds_packets"], gaps = "sent at join and on /gamemode; the client settings-screen change is not handled" }  # id 62
+"SetPlayerInventoryOptionsPacket" = { status = "missing" }  # id 307
+"SettingsCommandPacket" = { status = "missing" }  # id 140
+"ShowCreditsPacket" = { status = "missing" }  # id 75
+"SimpleEventPacket" = { status = "missing" }  # id 64
+"SpawnExperienceOrbPacket" = { status = "missing", notes = "orbs are replicated as actors with AddActorPacket (crates/unastar/src/entity/xp_orb.rs)" }  # id 66
+"StructureBlockUpdatePacket" = { status = "missing" }  # id 90
+"StructureTemplateDataRequestPacket" = { status = "missing" }  # id 132
+"StructureTemplateDataResponsePacket" = { status = "missing" }  # id 133
+"SubChunkRequestPacket" = { status = "done", owner = "protocol", tests = ["crates/unastar/src/server/game/chunks.rs::edited_superflat_subchunk_is_served_live"] }  # id 175
+"SubClientLoginPacket" = { status = "missing" }  # id 94
+"TextPacket" = { status = "partial", owner = "mainline", tests = ["crates/unastar/src/plugin/manager.rs::chat_without_plugins_delivers_once", "crates/unastar/src/server/game/commands.rs::chat_only_queues_cancellable_event_without_delivery", "crates/unastar/src/entity/player_life/tests/death.rs::deaths_by_falling_and_lava_have_their_own_messages"], gaps = "chat and death messages only; no whispers, /me, /say, raw/JSON text, announcements or translated system messages" }  # id 9
+"UpdateBlockPacket" = { status = "done", owner = "blocks", tests = ["crates/unastar/src/server/game/blocks.rs::forged_placement_sends_authoritative_block_and_inventory_corrections"] }  # id 21
+"UpdateClientOptionsPacket" = { status = "missing" }  # id 323
+"UpdatePlayerGameTypePacket" = { status = "done", owner = "mainline", tests = ["crates/unastar/src/server/game/world_commands/tests.rs::gamemode_creative_switches_mode_with_the_bds_packets"] }  # id 151
+
+# clientbound (146)
+"AddActorPacket" = { status = "verified", owner = "entities", tests = ["crates/unastar/src/entity/mob/tests/spawn.rs::spawned_adult_cow_add_actor_matches_native_summon", "crates/unastar/src/entity/mob/tests/zombie.rs::spawned_baby_zombie_add_actor_matches_native_summon", "crates/unastar/src/entity/xp_orb.rs::orb_add_actor_matches_the_native_summon"], evidence = "crates/bds-extractor/captures/1.26.51/operator/summons/cow.bin", notes = "only actors with a runtime (cow, chicken, pig, sheep, zombie, egg, xp orb, ...) are spawned; see entities.toml" }  # id 13
+"AddBehaviorTreePacket" = { status = "missing" }  # id 89
+"AddItemActorPacket" = { status = "done", owner = "entities", tests = ["crates/unastar/src/server/broadcast.rs::items_spawn_move_resize_and_leave_with_their_chunk_viewers", "crates/unastar/src/server/game/mod.rs::broken_block_drops_a_real_item_that_players_pick_up"] }  # id 15
+"AddPaintingPacket" = { status = "missing" }  # id 22
+"AddPlayerPacket" = { status = "partial", owner = "entities", gaps = "sent to other players on join and chunk view, but untested and not preceded by a PlayerList entry (no skin)" }  # id 12
+"AddVolumeEntityPacket" = { status = "missing" }  # id 166
+"AgentActionEventPacket" = { status = "not_applicable", notes = "the Agent is Education Edition only; vanilla Bedrock servers never use it" }  # id 181
+"AgentAnimationPacket" = { status = "not_applicable", notes = "the Agent is Education Edition only; vanilla Bedrock servers never use it" }  # id 304
+"AnimateEntityPacket" = { status = "missing" }  # id 158
+"AvailableActorIdentifiersPacket" = { status = "verified", owner = "protocol", tests = ["crates/unastar/src/registry/entity.rs::available_identifiers_equal_bds_1_26_51_byte_for_byte", "crates/jolyne/src/proto/tests.rs::join_sequence_follows_the_bds_capture"], evidence = "crates/unastar/src/registry/testdata/bds-1.26.51-actor-identifiers.bin" }  # id 119
+"AvailableCommandsPacket" = { status = "missing", notes = "BDS sends it during the join (bds-1.26.51-join-s2c.txt); unastar does not. Jviguy/stab-commands: rebuilt byte-identical to the member and operator captures; pending merge" }  # id 76
+"AwardAchievementPacket" = { status = "missing" }  # id 309
+"BiomeDefinitionListPacket" = { status = "done", owner = "protocol", tests = ["crates/jolyne/src/proto/tests.rs::join_sequence_follows_the_bds_capture"], notes = "send order matches the BDS 1.26.51 join trace (bds-1.26.51-join-s2c.txt); content is not compared against a capture" }  # id 122
+"BlockEventPacket" = { status = "partial", owner = "items", tests = ["crates/unastar/src/server/game/containers/tests.rs::chest_window_opens_moves_through_the_engine_saves_and_animates_the_lid", "crates/unastar/tests/container_loopback.rs::chest_open_move_close_over_loopback"], gaps = "chest lid open/close only; note blocks, pistons, bells and other block events missing" }  # id 26
+"CameraAimAssistActorPriorityPacket" = { status = "missing" }  # id 339
+"CameraAimAssistPacket" = { status = "missing" }  # id 316
+"CameraAimAssistPresetsPacket" = { status = "missing", notes = "BDS sends it during the join (bds-1.26.51-join-s2c.txt); unastar does not" }  # id 320
+"CameraInstructionPacket" = { status = "missing" }  # id 300
+"CameraPacket" = { status = "missing" }  # id 73
+"CameraPresetsPacket" = { status = "missing", notes = "BDS sends it during the join (bds-1.26.51-join-s2c.txt); unastar does not" }  # id 198
+"CameraShakePacket" = { status = "missing" }  # id 159
+"CameraSplinePacket" = { status = "missing", notes = "BDS sends it during the join (bds-1.26.51-join-s2c.txt); unastar does not" }  # id 338
+"ChangeDimensionPacket" = { status = "missing" }  # id 61
+"ChangeMobPropertyPacket" = { status = "missing" }  # id 182
+"ChunkRadiusUpdatedPacket" = { status = "done", owner = "protocol", tests = ["crates/jolyne/src/proto/tests.rs::chunk_radius_requires_one_and_honours_the_server_override", "crates/jolyne/src/proto/tests.rs::join_sequence_follows_the_bds_capture"], notes = "send order matches the BDS 1.26.51 join trace (bds-1.26.51-join-s2c.txt); content is not compared against a capture" }  # id 70
+"ClientCacheMissResponsePacket" = { status = "missing" }  # id 136
+"ClientboundAttributeLayerSyncPacket" = { status = "missing" }  # id 345
+"ClientboundCloseFormPacket" = { status = "missing" }  # id 310
+"ClientboundControlSchemeSetPacket" = { status = "missing" }  # id 327
+"ClientboundDataDrivenUICloseScreenPacket" = { status = "missing" }  # id 334
+"ClientboundDataDrivenUIReloadPacket" = { status = "missing" }  # id 335
+"ClientboundDataDrivenUIShowScreenPacket" = { status = "missing" }  # id 333
+"ClientboundDataStorePacket" = { status = "missing" }  # id 330
+"ClientboundDebugRendererPacket" = { status = "missing" }  # id 164
+"ClientboundMapItemDataPacket" = { status = "missing" }  # id 67
+"ClientboundTextureShiftPacket" = { status = "missing" }  # id 336
+"ClientboundUpdateSoundDataPacket" = { status = "missing" }  # id 348
+"CodeBuilderPacket" = { status = "not_applicable", notes = "Code Builder is Education Edition only; vanilla Bedrock servers never use it" }  # id 150
+"CommandOutputPacket" = { status = "missing", notes = "commands answer with TextPacket on main. Jviguy/stab-commands: BDS feedback via CommandOutputPacket checked against captures; pending merge" }  # id 79
+"CompletedUsingItemPacket" = { status = "missing", notes = "Jviguy/stab-items-prereq (in Jviguy/mainline-2): sent when eating/drinking finishes; pending merge" }  # id 142
+"ContainerRegistryCleanupPacket" = { status = "missing" }  # id 317
+"ContainerSetDataPacket" = { status = "partial", owner = "items", tests = ["crates/unastar/src/server/game/containers/tests.rs::furnace_smelts_with_bds_timing_swaps_lit_state_and_pays_xp_on_take"], gaps = "furnace-family progress only; brewing stands and other data-bearing containers missing" }  # id 51
+"CorrectPlayerMovePredictionPacket" = { status = "missing" }  # id 161
+"CraftingDataPacket" = { status = "done", owner = "items", tests = ["crates/unastar/tests/crafting_data_parity.rs::real_join_crafting_advertisement_matches_bds_1_26_51", "crates/unastar/src/crafting/mod.rs::a_recipe_at_two_stations_has_independent_wire_uuids"], notes = "the BDS comparison reads an external capture (UNASTAR_CRAFTING_DATA_CAPTURE) that is not committed, so not verified" }  # id 52
+"CreativeContentPacket" = { status = "done", owner = "protocol", tests = ["crates/jolyne/src/proto/tests.rs::join_sequence_follows_the_bds_capture", "crates/unastar/src/server/game/mod.rs::creative_items_carry_bds_shaped_user_data"], notes = "send order matches the BDS 1.26.51 join trace (bds-1.26.51-join-s2c.txt); content is not compared against a capture" }  # id 145
+"CurrentStructureFeaturePacket" = { status = "missing" }  # id 314
+"DeathInfoPacket" = { status = "done", owner = "entities", tests = ["crates/unastar/src/entity/player_life/tests/death.rs::a_player_killed_by_a_mob_dies_drops_everything_and_sees_the_respawn_screen", "crates/unastar/src/entity/player_life/tests/death.rs::deaths_by_falling_and_lava_have_their_own_messages"] }  # id 189
+"DimensionDataPacket" = { status = "done", owner = "protocol", tests = ["crates/jolyne/src/proto/tests.rs::join_sequence_follows_the_bds_capture"], notes = "BDS sends none for vanilla dimensions; jolyne sends it only when the application supplies custom dimension data" }  # id 180
+"DisconnectPacket" = { status = "done", owner = "protocol", tests = ["crates/jolyne/src/proto/tests.rs::server_full_and_admission_refusals_reach_the_client_typed", "crates/jolyne/src/proto/tests.rs::resource_pack_timeouts_and_failures_have_their_own_disconnect_reasons", "crates/jolyne/src/proto/conn.rs::inbound_disconnect_is_a_typed_error_then_closed"] }  # id 5
+"EduUriResourcePacket" = { status = "not_applicable", notes = "Education Edition only; vanilla Bedrock servers never use it" }  # id 170
+"EducationSettingsPacket" = { status = "not_applicable", notes = "Education Edition only; vanilla Bedrock servers never use it" }  # id 137
+"FeatureRegistryPacket" = { status = "missing" }  # id 191
+"GameRulesChangedPacket" = { status = "verified", owner = "mainline", tests = ["crates/unastar/src/world/clock/tests.rs::game_rules_match_the_bds_join_capture", "crates/unastar/src/server/game/world_commands/tests.rs::gamerule_keepinventory_changes_the_rule_and_broadcasts_it"], evidence = "crates/bds-extractor/captures/1.26.51/member/join/00037-GameRulesChangedPacket.bin" }  # id 72
+"GameTestRequestPacket" = { status = "not_applicable", notes = "GameTest framework (developer test harness) only" }  # id 194
+"GraphicsOverrideParameterPacket" = { status = "missing" }  # id 331
+"GuiDataPickItemPacket" = { status = "missing" }  # id 54
+"HurtArmorPacket" = { status = "missing" }  # id 38
+"InventoryContentPacket" = { status = "done", owner = "items", tests = ["crates/unastar/tests/container_loopback.rs::chest_open_move_close_over_loopback", "crates/unastar/src/server/game/inventory/engine.rs::engine_answers_like_bds_inventory_moves", "crates/unastar/tests/persistence.rs::disconnect_reconnect_restores_inventory_and_player_state"] }  # id 49
+"InventorySlotPacket" = { status = "done", owner = "items", tests = ["crates/unastar/src/entity/mob/tests/interaction.rs::milking_a_cow_with_an_empty_bucket_gives_milk", "crates/unastar/src/server/game/blocks.rs::plugin_given_block_echo_can_be_placed_and_consumed"] }  # id 50
+"ItemRegistryPacket" = { status = "verified", owner = "protocol", tests = ["crates/unastar/src/registry/item.rs::vanilla_item_registry_packet_matches_bds_capture", "crates/jolyne/src/proto/tests.rs::join_sequence_follows_the_bds_capture"], evidence = "crates/unastar/src/registry/testdata/bds-1.26.51-item-registry.bin" }  # id 162
+"ItemStackResponsePacket" = { status = "verified", owner = "items", tests = ["crates/unastar/src/server/game/inventory/engine.rs::engine_answers_like_bds_inventory_moves", "crates/unastar/src/server/game/inventory/mod.rs::rejected_creative_requests_change_nothing_and_send_only_the_status"], evidence = "crates/unastar/src/server/game/inventory/testdata/bds-inventory-moves.jsonl" }  # id 148
+"JigsawStructureDataPacket" = { status = "verified", owner = "protocol", tests = ["crates/jolyne/src/proto/tests.rs::join_sequence_follows_the_bds_capture", "crates/unastar/src/server/game/join_data.rs::vendored_payloads_decode_exactly_and_reencode_identically"], evidence = "crates/unastar/data/bds-1.26.51/jigsaw_structure_data.nbt", notes = "sends the BDS payload verbatim; the test checks it decodes and re-encodes to the captured bytes" }  # id 313
+"LegacyTelemetryEventPacket" = { status = "missing" }  # id 65
+"LessonProgressPacket" = { status = "not_applicable", notes = "lessons are Education Edition only; vanilla Bedrock servers never use it" }  # id 183
+"LevelChunkPacket" = { status = "done", owner = "protocol", tests = ["crates/unastar/src/server/game/mod.rs::first_tick_after_join_sends_view_chunks_then_player_spawn", "crates/jolyne/src/proto/tests.rs::streamed_spawn_lets_the_application_deliver_the_view_first"] }  # id 58
+"LevelEventGenericPacket" = { status = "missing", notes = "BDS sends it during the join (bds-1.26.51-join-s2c.txt); unastar does not" }  # id 124
+"LevelEventPacket" = { status = "partial", owner = "blocks", tests = ["crates/unastar/src/entity/mob/tests/chicken.rs::thrown_egg_follows_its_arc_breaks_on_the_floor_and_uses_one_egg", "crates/unastar/src/entity/mob/tests/doors.rs::breaker_breaks_a_closed_oak_door_after_the_native_time_on_hard"], gaps = "block cracking/destroy, door breaking, egg and grazing particles only; most vanilla level events (weather, sleeping, redstone, portals, ...) never sent" }  # id 25
+"LocatorBarPacket" = { status = "missing" }  # id 341
+"MobArmorEquipmentPacket" = { status = "partial", owner = "entities", tests = ["crates/unastar/src/entity/mob/gear/replicate.rs::new_viewers_get_hands_then_armour", "crates/unastar/src/entity/mob/tests/zombie.rs::hard_zombies_spawn_with_gear_their_viewers_see"], gaps = "mob armour is replicated; player armour is not shown to other players" }  # id 32
+"MobEffectPacket" = { status = "missing", notes = "Jviguy/stab-items-prereq (in Jviguy/mainline-2): add/update/remove for player effects; pending merge" }  # id 28
+"ModalFormRequestPacket" = { status = "missing" }  # id 100
+"MotionPredictionHintsPacket" = { status = "missing" }  # id 157
+"MoveActorAbsolutePacket" = { status = "done", owner = "entities", tests = ["crates/unastar/src/server/broadcast.rs::items_spawn_move_resize_and_leave_with_their_chunk_viewers"] }  # id 18
+"MoveActorDeltaPacket" = { status = "done", owner = "entities", tests = ["crates/unastar/src/entity/mob/ai/tests.rs::walking_cow_sends_move_actor_delta_to_viewers"] }  # id 111
+"MovementEffectPacket" = { status = "missing" }  # id 318
+"NetworkChunkPublisherUpdatePacket" = { status = "done", owner = "protocol", tests = ["crates/unastar/src/server/game/mod.rs::first_tick_after_join_sends_view_chunks_then_player_spawn", "crates/jolyne/src/proto/tests.rs::spawn_does_not_announce_terrain_it_does_not_send"] }  # id 121
+"NetworkSettingsPacket" = { status = "done", owner = "protocol", tests = ["crates/jolyne/src/proto/tests.rs::join_sequence_follows_the_bds_capture"], notes = "send order matches the BDS 1.26.51 join trace (bds-1.26.51-join-s2c.txt); content is not compared against a capture" }  # id 143
+"NpcDialoguePacket" = { status = "missing" }  # id 169
+"OnScreenTextureAnimationPacket" = { status = "missing" }  # id 130
+"PhotoTransferPacket" = { status = "not_applicable", notes = "camera/portfolio photos are Education Edition only; vanilla Bedrock servers never use it" }  # id 99
+"PlaySoundPacket" = { status = "missing" }  # id 86
+"PlayStatusPacket" = { status = "done", owner = "protocol", tests = ["crates/jolyne/src/proto/tests.rs::post_encryption_packets_match_bds_bytes", "crates/jolyne/src/proto/tests.rs::join_sequence_follows_the_bds_capture"], notes = "send order matches the BDS join trace; the BDS byte comparison is written inline in the test, not a committed capture" }  # id 2
+"PlayerArmorDamagePacket" = { status = "missing" }  # id 149
+"PlayerEnchantOptionsPacket" = { status = "missing" }  # id 146
+"PlayerFogPacket" = { status = "missing", notes = "BDS sends it during the join (bds-1.26.51-join-s2c.txt); unastar does not" }  # id 160
+"PlayerHotbarPacket" = { status = "done", owner = "items", tests = ["crates/unastar/src/server/game/inventory/pick.rs::creative_places_new_items_in_an_empty_hotbar_slot_or_moves_the_held_item_aside"] }  # id 48
+"PlayerListPacket" = { status = "missing", notes = "BDS sends it during the join (bds-1.26.51-join-s2c.txt); unastar does not; players appear without skins" }  # id 63
+"PlayerLocationPacket" = { status = "missing" }  # id 326
+"PlayerStartItemCooldownPacket" = { status = "missing" }  # id 176
+"PlayerUpdateEntityOverridesPacket" = { status = "missing" }  # id 325
+"PlayerVideoCapturePacket" = { status = "missing" }  # id 324
+"PositionTrackingDBServerBroadcastPacket" = { status = "missing" }  # id 153
+"PrimitiveShapesPacket" = { status = "missing" }  # id 328
+"RecordStartedPacket" = { status = "missing" }  # id 352
+"RefreshEntitlementsPacket" = { status = "missing" }  # id 305
+"RemoveActorPacket" = { status = "done", owner = "entities", tests = ["crates/unastar/src/server/broadcast.rs::items_spawn_move_resize_and_leave_with_their_chunk_viewers", "crates/unastar/src/entity/mob/combat/hit/tests.rs::a_killed_cow_dies_drops_loot_and_after_twenty_ticks_leaves_experience"] }  # id 14
+"RemoveObjectivePacket" = { status = "missing" }  # id 106
+"RemoveVolumeEntityPacket" = { status = "missing" }  # id 167
+"ResourcePackChunkDataPacket" = { status = "done", owner = "protocol", tests = ["crates/jolyne/src/proto/packs/tests.rs::client_bounds_offers_chunk_size_and_hash", "crates/jolyne/src/proto/packs/tests.rs::transfers_verifies_and_orders_stack_after_downloads"] }  # id 83
+"ResourcePackDataInfoPacket" = { status = "done", owner = "protocol", tests = ["crates/jolyne/src/proto/packs/tests.rs::data_info_must_match_the_advertised_size", "crates/jolyne/src/proto/packs/tests.rs::transfers_verifies_and_orders_stack_after_downloads"] }  # id 82
+"ResourcePackStackPacket" = { status = "done", owner = "protocol", tests = ["crates/jolyne/src/proto/tests.rs::post_encryption_packets_match_bds_bytes", "crates/jolyne/src/proto/packs/tests.rs::stack_entries_must_be_downloaded_builtin_or_declined"], notes = "send order matches the BDS join trace; the BDS byte comparison is written inline in the test, not a committed capture" }  # id 7
+"ResourcePacksInfoPacket" = { status = "done", owner = "protocol", tests = ["crates/jolyne/src/proto/tests.rs::post_encryption_packets_match_bds_bytes", "crates/jolyne/src/proto/packs/tests.rs::empty_offer_skips_to_stack_and_builtins_are_accepted"], notes = "send order matches the BDS join trace; the BDS byte comparison is written inline in the test, not a committed capture" }  # id 6
+"SendPartyDestinationCookiePacket" = { status = "missing" }  # id 349
+"ServerPlayerPostMovePositionPacket" = { status = "missing" }  # id 16
+"ServerPresenceInfoPacket" = { status = "missing" }  # id 347
+"ServerSettingsResponsePacket" = { status = "missing" }  # id 103
+"ServerStatsPacket" = { status = "missing" }  # id 192
+"ServerStoreInfoPacket" = { status = "missing" }  # id 346
+"ServerToClientHandshakePacket" = { status = "done", owner = "protocol", tests = ["crates/jolyne/src/proto/tests.rs::join_sequence_follows_the_bds_capture", "crates/jolyne/src/proto/tests.rs::post_encryption_packets_match_bds_bytes"], notes = "send order matches the BDS 1.26.51 join trace (bds-1.26.51-join-s2c.txt); content is not compared against a capture" }  # id 3
+"SetActorDataPacket" = { status = "verified", owner = "entities", tests = ["crates/unastar/src/server/game/join.rs::initial_player_flags_match_native_join_control"], evidence = "crates/bds-extractor/captures/1.26.51/member/join/00062-SetActorDataPacket.bin", notes = "mob metadata updates are also sent (entity/mob/net/network.rs)" }  # id 39
+"SetActorMotionPacket" = { status = "done", owner = "entities", tests = ["crates/unastar/src/entity/mob/combat/hit/tests.rs::a_sword_hit_hurts_flashes_and_knocks_the_cow_back", "crates/unastar/src/entity/player_life/tests/hurt.rs::a_mob_hit_is_scaled_by_difficulty_reduced_by_armour_and_knocks_the_player_back"] }  # id 40
+"SetCommandsEnabledPacket" = { status = "missing", notes = "BDS sends it during the join (bds-1.26.51-join-s2c.txt); unastar does not. Jviguy/stab-commands: sent at join; pending merge" }  # id 59
+"SetDisplayObjectivePacket" = { status = "missing" }  # id 107
+"SetHealthPacket" = { status = "missing", notes = "BDS sends it after spawn (member join capture 00202); unastar sends health through UpdateAttributesPacket only" }  # id 42
+"SetHudPacket" = { status = "missing" }  # id 308
+"SetLastHurtByPacket" = { status = "missing" }  # id 96
+"SetScorePacket" = { status = "missing" }  # id 108
+"SetScoreboardIdentityPacket" = { status = "missing" }  # id 112
+"SetSpawnPositionPacket" = { status = "missing", notes = "BDS sends it during the join (bds-1.26.51-join-s2c.txt); unastar does not. Jviguy/stab-commands: sent at join and by /spawnpoint and /setworldspawn; pending merge" }  # id 43
+"SetTimePacket" = { status = "not_applicable", notes = "BDS 1.26.51 never sends it: time is synced with SyncWorldClocksPacket only (thoughts/shared/research/bds-quirks.md)" }  # id 10
+"SetTitlePacket" = { status = "missing" }  # id 88
+"ShowProfilePacket" = { status = "missing" }  # id 104
+"ShowStoreOfferPacket" = { status = "missing" }  # id 91
+"SimulationTypePacket" = { status = "missing" }  # id 168
+"SpawnParticleEffectPacket" = { status = "missing" }  # id 118
+"StartGamePacket" = { status = "done", owner = "protocol", tests = ["crates/jolyne/src/proto/tests.rs::join_sequence_follows_the_bds_capture", "crates/unastar/src/server/game/world_commands/tests.rs::configured_difficulty_reaches_start_game_and_the_join"], notes = "send order matches the BDS 1.26.51 join trace (bds-1.26.51-join-s2c.txt); content is not compared against a capture" }  # id 11
+"StopSoundPacket" = { status = "missing" }  # id 87
+"SubChunkPacket" = { status = "done", owner = "protocol", tests = ["crates/unastar/src/server/game/chunks.rs::edited_superflat_subchunk_is_served_live"] }  # id 174
+"SyncActorPropertyPacket" = { status = "verified", owner = "entities", tests = ["crates/unastar/src/entity/definition/properties/tests.rs::vanilla_descriptors_equal_all_retained_native_property_schemas"], evidence = "crates/bds-extractor/captures/1.26.51/member/join-sequence.json" }  # id 165
+"SyncWorldClocksPacket" = { status = "verified", owner = "mainline", tests = ["crates/unastar/src/world/clock/tests.rs::clock_registry_matches_the_bds_join_capture", "crates/unastar/src/world/clock/tests.rs::clock_state_reaches_players_every_256_ticks"], evidence = "crates/bds-extractor/captures/1.26.51/member/join/00032-SyncWorldClocksPacket.bin" }  # id 344
+"TakeItemActorPacket" = { status = "done", owner = "entities", tests = ["crates/unastar/src/server/game/items.rs::items_wait_for_their_pickup_delay", "crates/unastar/src/entity/mob/tests/zombie.rs::zombie_picks_up_a_better_sword_and_drops_its_old_one"] }  # id 17
+"TickingAreasLoadStatusPacket" = { status = "missing" }  # id 179
+"ToastRequestPacket" = { status = "missing" }  # id 186
+"TransferPacket" = { status = "missing" }  # id 85
+"TrimDataPacket" = { status = "missing", notes = "BDS sends it during the join (bds-1.26.51-join-s2c.txt); unastar does not" }  # id 302
+"UnlockedRecipesPacket" = { status = "missing" }  # id 199
+"UpdateAbilitiesPacket" = { status = "done", owner = "mainline", tests = ["crates/unastar/src/server/game/world_commands/tests.rs::gamemode_creative_switches_mode_with_the_bds_packets"] }  # id 187
+"UpdateAdventureSettingsPacket" = { status = "missing", notes = "BDS sends it during the join (bds-1.26.51-join-s2c.txt); unastar does not" }  # id 188
+"UpdateAttributesPacket" = { status = "partial", owner = "entities", tests = ["crates/unastar/src/entity/mob/combat/hit/tests.rs::a_sword_hit_hurts_flashes_and_knocks_the_cow_back", "crates/unastar/src/entity/xp_orb.rs::orbs_fly_to_a_nearby_player_who_collects_their_experience"], gaps = "player join ranges for saturation, exhaustion and absorption differ from the BDS join capture; no hunger/absorption updates", notes = "Jviguy/mainline-2: join ranges fixed from the BDS capture and hunger/absorption synced (items milestone 5); pending merge" }  # id 29
+"UpdateBlockSyncedPacket" = { status = "missing" }  # id 110
+"UpdateClientInputLocksPacket" = { status = "missing" }  # id 196
+"UpdateEquipPacket" = { status = "missing" }  # id 81
+"UpdateSoftEnumPacket" = { status = "missing" }  # id 114
+"UpdateSubChunkBlocksPacket" = { status = "missing" }  # id 172
+"UpdateTradePacket" = { status = "missing" }  # id 80
+"VoxelShapesPacket" = { status = "verified", owner = "protocol", tests = ["crates/jolyne/src/proto/tests.rs::join_sequence_follows_the_bds_capture", "crates/unastar/src/server/game/join_data.rs::vendored_payloads_decode_exactly_and_reencode_identically"], evidence = "crates/unastar/data/bds-1.26.51/voxel_shapes.bin", notes = "sends the BDS payload verbatim; the test checks it decodes and re-encodes to the captured bytes" }  # id 337
+
+# serverbound (5)
+"PartyChangedPacket" = { status = "missing" }  # id 342
+"PartyDestinationCookieResponsePacket" = { status = "missing" }  # id 350
+"ResourcePacksReadyForValidationPacket" = { status = "missing" }  # id 340
+"ServerboundDataDrivenScreenClosedPacket" = { status = "missing" }  # id 343
+"ServerboundDataStorePacket" = { status = "missing" }  # id 332

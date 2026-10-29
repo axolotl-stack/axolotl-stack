@@ -96,8 +96,8 @@ Without that jar, set `[world.generator] kind = "super_flat"` in `unastar.toml` 
 
 ### Tests
 CI (`.github/workflows/test.yml`) runs `cargo fmt --all -- --check`,
-`cargo clippy --workspace --all-targets -- -D warnings` and the per-crate `cargo test` commands listed
-there; run the same before opening a pull request.
+`cargo clippy --workspace --all-targets -- -D warnings`, the per-crate `cargo test` commands listed
+there and `cargo run -p parity -- check`; run the same before opening a pull request.
 
 ### Running Examples
 Check out the examples in `crates/jolyne/examples` (listed in `crates/jolyne/README.md`) to see the stack in action:
@@ -112,11 +112,21 @@ cargo run -p jolyne --example 01_server
 cargo run -p jolyne --example 04_proxy
 ```
 
+## 📋 Vanilla parity
+
+[`docs/parity/PARITY.md`](docs/parity/PARITY.md) is the single catalog of everything vanilla
+Bedrock 1.26.51 has (actors and their components, blocks, items and their behaviours, commands,
+packets, Java and Bedrock world generation, gameplay systems) and how far `unastar` is with each.
+The rows are generated from vanilla data; the statuses live in `docs/parity/<domain>.toml`.
+Looking for something to work on? Pick a `missing` or `partial` row there. See
+[`docs/parity/README.md`](docs/parity/README.md) for how it works.
+
 ## 🤝 Contributing
 
 We welcome contributions! Whether it's fixing a protocol bug in Valentine, optimizing the transport in RakNet, or adding features to Jolyne, your help is appreciated.
 
-Please check the individual crate directories for specific contribution guidelines.
+Read [CONTRIBUTING.md](CONTRIBUTING.md) first; the individual crate directories have crate-specific guidelines.
+A gameplay feature is not finished until its rows in `docs/parity/` are updated in the same commit.
 
 ---
 
