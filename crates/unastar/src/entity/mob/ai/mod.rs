@@ -7,7 +7,7 @@
 //! when the definition changed, ticks the goal selector, follows the current
 //! path, runs the move and look controls, and turns the result into body
 //! yaw, head yaw and velocity (acceleration and jumps) that the physics step
-//! then integrates. [`push_mobs`] then separates overlapping pushable mobs.
+//! then integrates. [`push_mobs`] then pushes nearby pushable mobs apart.
 
 mod break_door;
 mod control;
@@ -37,7 +37,8 @@ use self::path::WalkPolicy;
 use super::MobKind;
 use super::components::{BasicMovementConfig, JumpConfig, Pushable, WalkNavigationConfig};
 use super::constants::{
-    DEFAULT_JUMP_POWER, DEFAULT_MAX_TURN, ENTITY_PUSH_STRENGTH, PLAYER_BOX_HEIGHT, PLAYER_BOX_WIDTH,
+    DEFAULT_JUMP_POWER, DEFAULT_MAX_TURN, ENTITY_PUSH_MIN_DISTANCE, ENTITY_PUSH_REACH,
+    ENTITY_PUSH_STRENGTH, PLAYER_BOX_HEIGHT, PLAYER_BOX_WIDTH,
 };
 use super::state::{AttackTarget, Dead, InLove, MateRequest, Persistent};
 use crate::ecs::TickCounter;
@@ -441,20 +442,30 @@ fn set_flag(mob: &mut EntityWorldMut<'_>, flag: u32, on: bool) {
     }
 }
 
-/// A pushing box this tick ([`push_mobs`]).
+/// A pushing actor this tick ([`push_mobs`]).
 #[derive(Debug, Clone, Copy)]
 pub struct Pusher {
+    /// The mob, or `None` for a player.
     entity: Option<Entity>,
     aabb: Aabb,
     centre: DVec3,
+    /// Whether pushes move this actor (`pushable_by_entity`; players are
+    /// pushable, but their own client moves them).
+    pushable: bool,
 }
 
-/// System: overlapping actors push each other apart. Every living mob with
-/// `pushable_by_entity` receives, for every other mob or player box it
-/// overlaps, a horizontal impulse away from it: along the vector between the
-/// two positions, scaled by `1 / sqrt(max(|dx|, |dz|))` (capped at 1) and by
-/// [`ENTITY_PUSH_STRENGTH`]. Players are moved by their own client and only
-/// push.
+/// System: actors near each other push each other apart, as BDS does once
+/// per tick for every mob and player.
+///
+/// Each actor looks for every other actor whose box touches its own box
+/// grown by [`ENTITY_PUSH_REACH`] horizontally. It pushes each pushable one
+/// away from itself and, when both are pushable, is pushed back by the same
+/// amount, so a pair of pushable mobs each receive two pushes per tick. A
+/// push follows the vector between the two positions, scaled by
+/// `1 / sqrt(max(|dx|, |dz|))` (capped at 1) and by
+/// [`ENTITY_PUSH_STRENGTH`]; positions closer than
+/// [`ENTITY_PUSH_MIN_DISTANCE`] on both axes do not push. Only mob
+/// velocities change: players are moved by their own client.
 #[allow(clippy::type_complexity)]
 pub fn push_mobs(
     mut mobs: Query<
@@ -469,14 +480,15 @@ pub fn push_mobs(
     >,
     players: Query<&Position, With<Player>>,
     mut pushers: Local<Vec<Pusher>>,
+    mut impulses: Local<Vec<DVec3>>,
 ) {
     pushers.clear();
-    for (entity, position, body, _, _) in &mobs {
-        let aabb = Aabb::from_feet(position.0, body.width, body.height);
+    for (entity, position, body, pushable, _) in &mobs {
         pushers.push(Pusher {
             entity: Some(entity),
-            aabb,
+            aabb: Aabb::from_feet(position.0, body.width, body.height),
             centre: position.0,
+            pushable: pushable.is_some_and(|p| p.by_entity),
         });
     }
     for position in &players {
@@ -485,49 +497,57 @@ pub fn push_mobs(
             entity: None,
             aabb: Aabb::from_feet(feet, PLAYER_BOX_WIDTH, PLAYER_BOX_HEIGHT),
             centre: feet,
+            pushable: true,
         });
     }
     if pushers.len() < 2 {
         return;
     }
-    // Sweep along x so only boxes overlapping on that axis are compared.
+    // Sweep along x so only actors within reach on that axis are compared.
     pushers.sort_by(|a, b| a.aabb.min.x.total_cmp(&b.aabb.min.x));
+    impulses.clear();
+    impulses.resize(pushers.len(), DVec3::ZERO);
+    let reach = DVec3::new(ENTITY_PUSH_REACH, 0.0, ENTITY_PUSH_REACH);
     for i in 0..pushers.len() {
-        let Some(entity) = pushers[i].entity else {
-            continue;
-        };
-        let Ok((_, _, _, pushable, mut velocity)) = mobs.get_mut(entity) else {
-            continue;
-        };
-        if !pushable.is_some_and(|p| p.by_entity) {
-            continue;
-        }
-        let own = pushers[i];
-        let mut impulse = DVec3::ZERO;
+        let pusher = pushers[i];
+        let area = pusher.aabb.inflate(reach);
         for (j, other) in pushers.iter().enumerate() {
-            if other.aabb.min.x >= own.aabb.max.x {
+            if other.aabb.min.x >= area.max.x {
                 break;
             }
-            if j == i || !own.aabb.intersects(&other.aabb) {
+            if j == i || !other.pushable || !area.intersects(&other.aabb) {
                 continue;
             }
-            impulse += push_impulse(own.centre, other.centre);
+            let Some(push) = push_impulse(other.centre, pusher.centre) else {
+                continue;
+            };
+            impulses[j] += push;
+            if pusher.pushable {
+                impulses[i] -= push;
+            }
         }
-        if impulse != DVec3::ZERO {
-            velocity.0 += impulse;
+    }
+    for (pusher, impulse) in pushers.iter().zip(impulses.iter()) {
+        if let Some(entity) = pusher.entity
+            && pusher.pushable
+            && *impulse != DVec3::ZERO
+            && let Ok((_, _, _, _, mut velocity)) = mobs.get_mut(entity)
+        {
+            velocity.0 += *impulse;
         }
     }
 }
 
-/// The impulse `own` receives from an overlapping actor at `other`.
-fn push_impulse(own: DVec3, other: DVec3) -> DVec3 {
-    let dx = other.x - own.x;
-    let dz = other.z - own.z;
+/// The push an actor at `pushed` receives from a pusher at `pusher`, if
+/// they are far enough apart to push.
+fn push_impulse(pushed: DVec3, pusher: DVec3) -> Option<DVec3> {
+    let dx = pusher.x - pushed.x;
+    let dz = pusher.z - pushed.z;
     let dominant = dx.abs().max(dz.abs());
-    if dominant < 0.01 {
-        return DVec3::ZERO;
+    if dominant < ENTITY_PUSH_MIN_DISTANCE {
+        return None;
     }
     let root = dominant.sqrt();
     let scale = (1.0 / root).min(1.0) / root * ENTITY_PUSH_STRENGTH;
-    DVec3::new(-dx * scale, 0.0, -dz * scale)
+    Some(DVec3::new(-dx * scale, 0.0, -dz * scale))
 }

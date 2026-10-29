@@ -216,10 +216,15 @@ pub const DAYLIGHT_BURN_BLOCKER: &str = "minecraft:powder_snow";
 
 // --- Entity pushing ---------------------------------------------------------------
 
-/// Overlapping pushable actors are pushed apart by this much per tick along
-/// the dominant horizontal axis direction; provisional: Java Edition
-/// `Entity#push`.
+/// A pushed actor moves this much per tick along the vector away from its
+/// pusher, scaled by `1 / sqrt(max(|dx|, |dz|))` capped at 1.
 pub const ENTITY_PUSH_STRENGTH: f64 = 0.05;
+/// An actor pushes the actors whose boxes touch its own box grown by this
+/// much on x and z (not on y).
+pub const ENTITY_PUSH_REACH: f64 = 0.2;
+/// Actors whose positions are closer than this on both horizontal axes do
+/// not push each other.
+pub const ENTITY_PUSH_MIN_DISTANCE: f64 = 0.1;
 /// Player collision box (blocks), for pushing and tempt stop distance.
 pub const PLAYER_BOX_WIDTH: f64 = 0.6;
 pub const PLAYER_BOX_HEIGHT: f64 = 1.8;
@@ -334,6 +339,9 @@ pub const XP_ORB_FOLLOW_ACCELERATION: f64 = 0.1;
 // --- Breeding / ageing --------------------------------------------------------
 
 pub const LOVE_TICKS: u32 = 600;
+/// `ActorEvent` Feed data: the fed item's network id shifted left by this,
+/// over its aux value.
+pub const FEED_EVENT_ITEM_SHIFT: u32 = 16;
 /// Growth fraction per feed when `feed_items` gives none (provisional:
 /// Microsoft Learn `minecraft:ageable`).
 pub const AGEABLE_FEED_GROWTH: f32 = 0.1;
