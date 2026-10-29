@@ -837,13 +837,18 @@ tabled below.
    that would bury a motion-blocking block another origin placed.
    `roofed_forest_chunk_starts_with_the_native_trees` fails without that
    rule.
+3. **Wide dark-oak trunks grow straight.** Chunk (4,-4)'s first dark oak
+   draws two lean steps (the draws are still consumed) but grows straight in
+   BDS. 2-wide trunks without `allow_diagonal_growth` no longer lean.
+   `roofed_forest_wide_trunk_grows_straight` pins its west half and fails
+   with the lean.
 
-| Metric | Before | After 1 | After 2 |
-| --- | ---: | ---: | ---: |
-| terrain exact | 0.88591 | 0.88597 | 0.88586 |
-| terrain within 2 | 0.92446 | 0.92440 | 0.92440 |
-| terrain mean abs error | 1.20347 | 1.20370 | 1.20381 |
-| surface exact | 0.85455 | 0.85116 | 0.85064 |
-| surface block | 0.84892 | 0.84702 | 0.84771 |
-| surface biome | 0.99506 | 0.99500 | 0.99506 |
-| histogram L1 | 0.02368 | 0.02371 | 0.02378 |
+| Metric | Before | After 1 | After 2 | After 3 |
+| --- | ---: | ---: | ---: | ---: |
+| terrain exact | 0.88591 | 0.88597 | 0.88586 | 0.88591 |
+| terrain within 2 | 0.92446 | 0.92440 | 0.92440 | 0.92440 |
+| terrain mean abs error | 1.20347 | 1.20370 | 1.20381 | 1.20376 |
+| surface exact | 0.85455 | 0.85116 | 0.85064 | 0.85082 |
+| surface block | 0.84892 | 0.84702 | 0.84771 | 0.84743 |
+| surface biome | 0.99506 | 0.99500 | 0.99506 | 0.99506 |
+| histogram L1 | 0.02368 | 0.02371 | 0.02378 | 0.02378 |
