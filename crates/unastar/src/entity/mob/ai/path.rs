@@ -21,7 +21,7 @@ use crate::entity::components::PhysicsBody;
 use crate::entity::mob::components::WalkNavigationConfig;
 use crate::entity::mob::constants::{
     DOOR_HINGE_STATE, DOOR_OPEN_STATE, GRASS_WALK_TARGET_SCORE, IRON_DOOR_BLOCK,
-    PATH_DAMAGING_BLOCKS, PATH_MAX_DROP, PATH_MAX_RANGE, RANDOM_POS_ATTEMPTS,
+    PATH_DAMAGING_BLOCKS, PATH_MAX_DROP, PATH_MAX_EXPANSIONS, RANDOM_POS_ATTEMPTS,
 };
 use crate::entity::navigation::{
     NavigationScratch, WalkBlockRole, WalkNavigation, WalkPathOutcome, WalkPathRequest,
@@ -32,9 +32,9 @@ use crate::registry::BlockRegistry;
 use crate::registry::block::{LiquidKind, StateValue};
 use crate::registry::collision::Aabb;
 
-/// Retained nodes per path search. A bound on search work, not a behaviour
-/// value: a breadth-first search over the whole [`PATH_MAX_RANGE`] square
-/// around the mob stays within it on open ground.
+/// Retained nodes per path search: a memory bound, not a behaviour value.
+/// [`PATH_MAX_EXPANSIONS`] normally ends a search long before it; terrain
+/// with many stacked surfaces per column may exhaust it first.
 const PATH_NODE_BUDGET: usize = 2048;
 
 const WATER: u8 = 1;
@@ -107,6 +107,11 @@ impl PathBlockTable {
         self.get(runtime_id) & GRASS != 0
     }
 
+    /// Whether `runtime_id` is lava or a block that hurts a body touching it.
+    fn is_damaging(&self, runtime_id: u32) -> bool {
+        self.get(runtime_id) & DAMAGING != 0
+    }
+
     /// Whether `runtime_id` is a door half (wooden, copper or iron).
     pub fn is_door(&self, runtime_id: u32) -> bool {
         self.get(runtime_id) & DOOR != 0
@@ -132,6 +137,11 @@ pub struct WalkPolicy {
     pub can_open_iron_doors: bool,
     /// The mob breaks doors (`minecraft:annotation.break_door`).
     pub door_breaker: bool,
+    /// `navigation.climb`: the mob climbs walls (see `super::climb`).
+    pub climbs_walls: bool,
+    /// The mob's follow range: how far around its goal a path search
+    /// reaches.
+    pub follow_range: f64,
 }
 
 impl WalkPolicy {
@@ -140,6 +150,7 @@ impl WalkPolicy {
         door_breaker: bool,
         jump_power: f32,
         gravity: f64,
+        follow_range: f32,
     ) -> Self {
         let walk = walk.copied();
         Self {
@@ -151,6 +162,8 @@ impl WalkPolicy {
             can_open_doors: walk.is_some_and(|w| w.can_open_doors),
             can_open_iron_doors: walk.is_some_and(|w| w.can_open_iron_doors),
             door_breaker,
+            climbs_walls: walk.is_some_and(|w| w.climbs_walls),
+            follow_range: f64::from(follow_range),
         }
     }
 }
@@ -220,6 +233,8 @@ fn jump_apex(power: f32, gravity: f64) -> f64 {
 
 /// Search a walk path from `start` to `goal` into `out`. Water is never
 /// forbidden for a body that is already in it, so a wading mob can leave.
+/// With `partial`, a goal the search cannot reach yields the route to the
+/// node closest to it instead (none when that is the start).
 #[allow(clippy::too_many_arguments)]
 pub fn find_path(
     blocks: &impl BlockSource,
@@ -229,13 +244,15 @@ pub fn find_path(
     in_water: bool,
     start: DVec3,
     goal: DVec3,
+    partial: bool,
     scratch: &mut NavigationScratch,
     out: &mut WalkNavigation,
 ) -> bool {
     let request = WalkPathRequest {
         start,
         goal,
-        max_range: PATH_MAX_RANGE,
+        max_range: policy.follow_range,
+        max_expansions: PATH_MAX_EXPANSIONS,
         node_budget: PATH_NODE_BUDGET,
         step_height: body.step_height,
         jump_height: if policy.can_jump {
@@ -244,6 +261,7 @@ pub fn find_path(
             0.0
         },
         max_drop: PATH_MAX_DROP,
+        partial,
     };
     let forbid = (if policy.avoid_water && !in_water {
         WATER
@@ -270,7 +288,91 @@ pub fn find_path(
             }
         },
     );
-    outcome == WalkPathOutcome::Found
+    matches!(outcome, WalkPathOutcome::Found | WalkPathOutcome::Partial)
+}
+
+/// Whether a wall climber at `start` can head straight for the block
+/// `target` (its minimum corner): a grid walk on the start's block level
+/// over every column the line crosses, checking a `size_xz` × `size_y` ×
+/// `size_xz` box of cells around each (the start's box is
+/// [`DIRECT_SWEEP_START_MARGIN`] wider), counting only cells whose centre
+/// is not behind the start. A climber passes through any cell that is not
+/// lava or a damaging block (it climbs over the rest) and needs no floor,
+/// but never crosses a damaging floor, or a water floor unless it is in
+/// water. A target closer than [`DIRECT_SWEEP_MIN_DIST_SQ`] horizontally
+/// cannot be headed for.
+#[allow(clippy::too_many_arguments)]
+pub fn climber_walks_directly(
+    blocks: &impl BlockSource,
+    table: &PathBlockTable,
+    start: DVec3,
+    target: DVec3,
+    size_xz: i32,
+    size_y: i32,
+    in_water: bool,
+) -> bool {
+    use crate::entity::mob::constants::{DIRECT_SWEEP_MIN_DIST_SQ, DIRECT_SWEEP_START_MARGIN};
+    let (dx, dz) = (target.x - start.x, target.z - start.z);
+    let length_sq = dx * dx + dz * dz;
+    if length_sq < DIRECT_SWEEP_MIN_DIST_SQ {
+        return false;
+    }
+    let length = length_sq.sqrt();
+    let direction = (dx / length, dz / length);
+    let level = start.y.floor() as i32;
+    let passable = |cx: i32, cz: i32, size: i32| {
+        let (x0, z0) = (cx - size / 2, cz - size / 2);
+        for x in x0..x0 + size {
+            for z in z0..z0 + size {
+                let ahead = (f64::from(x) + 0.5 - start.x) * direction.0
+                    + (f64::from(z) + 0.5 - start.z) * direction.1;
+                if ahead < 0.0 {
+                    continue;
+                }
+                for y in level..level + size_y {
+                    match blocks.block_at(IVec3::new(x, y, z)) {
+                        Some(id) if !table.is_damaging(id) => {}
+                        _ => return false,
+                    }
+                }
+                match blocks.block_at(IVec3::new(x, level - 1, z)) {
+                    Some(id) if table.is_damaging(id) => return false,
+                    Some(id) if table.is_water(id) && !in_water => return false,
+                    Some(_) => {}
+                    None => return false,
+                }
+            }
+        }
+        true
+    };
+    let (mut x, mut z) = (start.x.floor() as i32, start.z.floor() as i32);
+    if !passable(x, z, size_xz + DIRECT_SWEEP_START_MARGIN) {
+        return false;
+    }
+    let step = (1.0 / direction.0.abs(), 1.0 / direction.1.abs());
+    let sign = (
+        if direction.0 < 0.0 { -1 } else { 1 },
+        if direction.1 < 0.0 { -1 } else { 1 },
+    );
+    // Distance along the line to the next column boundary on each axis.
+    let mut next_x =
+        (f64::from(x) - start.x + f64::from(i32::from(direction.0 >= 0.0))) / direction.0;
+    let mut next_z =
+        (f64::from(z) - start.z + f64::from(i32::from(direction.1 >= 0.0))) / direction.1;
+    let (end_x, end_z) = (target.x.floor() as i32, target.z.floor() as i32);
+    while (end_x - x) * sign.0 > 0 || (end_z - z) * sign.1 > 0 {
+        if next_x < next_z {
+            next_x += step.0;
+            x += sign.0;
+        } else {
+            next_z += step.1;
+            z += sign.1;
+        }
+        if !passable(x, z, size_xz) {
+            return false;
+        }
+    }
+    true
 }
 
 fn solid(blocks: &impl BlockSource, pos: IVec3) -> bool {
@@ -422,6 +524,8 @@ mod tests {
             can_open_doors,
             can_open_iron_doors,
             door_breaker,
+            climbs_walls: false,
+            follow_range: 16.0,
         }
     }
 
@@ -477,6 +581,7 @@ mod tests {
             false,
             DVec3::new(-1.5, 1.0, 0.5),
             DVec3::new(3.5, 1.0, 0.5),
+            false,
             &mut NavigationScratch::default(),
             &mut out,
         )
@@ -549,5 +654,41 @@ mod tests {
         assert_eq!(door_passage(&walker, iron | OPEN), Passage::Shape);
         let blind = policy(false, false, false, false);
         assert_eq!(door_passage(&blind, wooden | OPEN), Passage::Wall);
+    }
+
+    #[test]
+    fn climbers_head_straight_over_walls_but_not_through_lava_or_onto_damaging_floors() {
+        let table = PathBlockTable::new(BlockRegistry::vanilla());
+        let walled = || {
+            let mut blocks = TestBlocks::floor("minecraft:stone", 0);
+            for z in -4..=4 {
+                for y in 1..=3 {
+                    blocks.set(IVec3::new(2, y, z), "minecraft:stone");
+                }
+            }
+            blocks
+        };
+        let start = DVec3::new(-1.5, 1.0, 0.5);
+        let sweep = |blocks: &TestBlocks, target: DVec3| {
+            climber_walks_directly(blocks, &table, start, target, 2, 2, false)
+        };
+        let target = DVec3::new(4.0, 4.0, 0.0);
+        assert!(sweep(&walled(), target), "a climber crosses the wall");
+        assert!(
+            !sweep(&walled(), DVec3::new(-1.5, 4.0, 0.5)),
+            "no horizontal distance"
+        );
+        let mut lava = walled();
+        lava.set(IVec3::new(3, 1, 0), "minecraft:lava");
+        assert!(!sweep(&lava, target));
+        let mut magma = walled();
+        magma.set(IVec3::new(3, 0, 0), "minecraft:magma");
+        assert!(!sweep(&magma, target));
+        let mut behind = walled();
+        behind.set(IVec3::new(-4, 1, 0), "minecraft:lava");
+        assert!(
+            sweep(&behind, target),
+            "cells behind the start do not count"
+        );
     }
 }

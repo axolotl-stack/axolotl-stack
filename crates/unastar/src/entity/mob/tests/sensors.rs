@@ -52,7 +52,11 @@ fn harness(seed: u64) -> Harness {
     let player = world
         .spawn((
             Player,
-            Position(DVec3::new(12.5, 64.0 + crate::entity::PLAYER_EYE_HEIGHT, 12.5)),
+            Position(DVec3::new(
+                12.5,
+                64.0 + crate::entity::PLAYER_EYE_HEIGHT,
+                12.5,
+            )),
             Rotation::default(),
             GameMode::Creative,
             MainInventory::default(),
@@ -209,7 +213,10 @@ fn an_underwater_zombie_starts_transforming_and_shakes_when_the_timer_fires() {
     h.set_riding(zombie, true);
     h.tick_held(zombie);
     assert!(!h.riding(zombie), "on_stop_riding_zombie_horse fired");
-    assert!(h.world().get::<Timer>(zombie).is_none(), "group change waits for the barrier");
+    assert!(
+        h.world().get::<Timer>(zombie).is_none(),
+        "group change waits for the barrier"
+    );
     // The next tick's barrier adds start_drowned_transformation and its timer.
     h.tick_held(zombie);
     let timer = h.world().get::<Timer>(zombie).unwrap().clone();
@@ -220,7 +227,10 @@ fn an_underwater_zombie_starts_transforming_and_shakes_when_the_timer_fires() {
     h.run_until(zombie, timer.deadline);
     let waiting = h.world().get::<Timer>(zombie).unwrap();
     assert!(!waiting.fired, "nothing fires before the deadline");
-    assert_eq!(waiting.deadline, timer.deadline, "nothing is written while waiting");
+    assert_eq!(
+        waiting.deadline, timer.deadline,
+        "nothing is written while waiting"
+    );
     assert!(!flag(h.world(), zombie, actor_flags::SHAKING));
 
     // The deadline tick fires convert_to_drowned; its groups apply next tick.

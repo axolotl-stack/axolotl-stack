@@ -12,6 +12,7 @@
 //! A few components are accepted without server-side behaviour; see
 //! [`ACCEPTED_WITHOUT_BEHAVIOUR`] for the list and the reason for each.
 
+pub mod angry;
 pub mod ambient;
 pub mod body;
 pub mod breeding;
@@ -25,12 +26,22 @@ pub mod goals;
 pub mod hostile;
 pub mod hurt_on_condition;
 pub mod interact;
+pub mod leap;
 pub mod knockback;
 pub mod loot;
 pub mod movement;
 pub mod sensors;
 pub mod shearing;
 pub mod spawn_entity;
+// Enderman lane.
+pub mod auto_step;
+pub mod block_carry;
+pub mod follow_range;
+pub mod looked_at;
+pub mod teleport;
+// Creeper lane.
+pub mod avoid_mob_type;
+pub mod explode;
 
 use std::sync::Arc;
 
@@ -134,6 +145,18 @@ pub const ACCEPTED_WITHOUT_BEHAVIOUR: &[(ActorComponent, &str)] = &[
         "emits flap/move/swim game events, which only vibration listeners \
          (sculk sensors, wardens, allays) consume; vibrations are not implemented",
     ),
+    // Spider lane.
+    (
+        ActorComponent::Addrider,
+        "riding is not implemented: the spider jockey's skeleton (and the \
+         stray, bogged, parched and wither skeleton jockeys) never spawn; the \
+         jockey events still add the spider's own neutral group",
+    ),
+    (
+        ActorComponent::BlockMovementSlowdownImmunity,
+        "no block slows movement yet (cobwebs do not hold mobs or players), \
+         so immunity to the slowdown changes nothing",
+    ),
 ];
 
 /// Register every mob component kind (besides the core kinds of
@@ -152,6 +175,12 @@ pub fn register_component_kinds(
     breeding::register_component_kinds(builder)?;
     loot::register_component_kinds(builder)?;
     interact::register_component_kinds(builder)?;
+    // Enderman lane.
+    block_carry::register_component_kinds(builder)?;
+    looked_at::register_component_kinds(builder)?;
+    teleport::register_component_kinds(builder)?;
+    auto_step::register_component_kinds(builder)?;
+    follow_range::register_component_kinds(builder)?;
     inert::<bodies::ConditionalBandwidthOptimization>(builder)?;
     inert::<bodies::Leashable>(builder)?;
     inert::<bodies::LeashableTo>(builder)?;
@@ -166,6 +195,14 @@ pub fn register_component_kinds(
     inert::<bodies::BehaviorStompTurtleEgg>(builder)?;
     inert::<bodies::BehaviorFindMount>(builder)?;
     inert::<bodies::BehaviorUseKineticWeapon>(builder)?;
+    // Spider lane.
+    inert::<bodies::Addrider>(builder)?;
+    inert::<bodies::BlockMovementSlowdownImmunity>(builder)?;
+    // Creeper lane.
+    explode::register_component_kinds(builder)?;
+    avoid_mob_type::register_component_kinds(builder)?;
+    angry::register_component_kinds(builder)?;
+    leap::register_component_kinds(builder)?;
     hostile::register_component_kinds(builder)?;
     sensors::register_component_kinds(builder)?;
     color::register_component_kinds(builder)?;

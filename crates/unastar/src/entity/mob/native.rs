@@ -5,7 +5,7 @@ use unastar_data::actor_identifiers::ActorType;
 
 use super::constants::{
     ANIMAL_AMBIENT_SOUND_INTERVAL, CHICKEN_FALL_DAMAGE_MULTIPLIER, DEFAULT_AMBIENT_SOUND_INTERVAL,
-    WING_FLAP_VERTICAL_DRAG,
+    MAD_SOUND, WING_FLAP_VERTICAL_DRAG,
 };
 
 /// The native traits of one actor class.
@@ -31,6 +31,25 @@ pub struct NativeTraits {
     /// zombie classes number their kind (zombie 0, zombie villager 1, husk 2,
     /// zombie pigman 3, drowned 4).
     pub aux_value: Option<i16>,
+    /// Poison cannot affect the class (the spider and the cave spider; no
+    /// other effect is refused).
+    pub immune_to_poison: bool,
+    /// The class swells while its fuse burns (the creeper): it keeps a
+    /// swell counter that hisses when the fuse lights, and only this class
+    /// may run `minecraft:behavior.swell`.
+    pub swells: bool,
+    /// The class teleports when hurt (the enderman): a projectile hit makes
+    /// it try random teleports instead of taking damage, and other hits
+    /// that leave it alive make it teleport 9 times in 10 before landing
+    /// (`mob::life::teleport::hurt_teleport`).
+    pub teleports_when_hurt: bool,
+    /// The ambient sound event name the class uses while its `ANGRY` flag
+    /// is set (the enderman's [`MAD_SOUND`]).
+    pub angry_ambient_sound: Option<&'static str>,
+    /// The class sends the `DEPRECATED_CARRY_BLOCK_RUNTIME_ID` actor data,
+    /// always air (the enderman: the block it carries reaches viewers as
+    /// its held item instead).
+    pub carried_block_data: bool,
 }
 
 /// Which native natural-spawn check an actor class runs.
@@ -50,6 +69,14 @@ impl NativeTraits {
         let immune_to_wither = matches!(actor_type, ActorType::WitherSkeleton);
         let ambient_sound_interval = ambient_sound_interval(actor_type);
         let aux_value = zombie_kind(actor_type);
+        let immune_to_poison = matches!(actor_type, ActorType::Spider | ActorType::CaveSpider);
+        let swells = matches!(actor_type, ActorType::Creeper);
+        let teleports_when_hurt = matches!(actor_type, ActorType::Enderman);
+        let angry_ambient_sound = match actor_type {
+            ActorType::Enderman => Some(MAD_SOUND),
+            _ => None,
+        };
+        let carried_block_data = matches!(actor_type, ActorType::Enderman);
         match actor_type {
             ActorType::Chicken => Self {
                 wing_flap_drag: Some(WING_FLAP_VERTICAL_DRAG),
@@ -58,6 +85,11 @@ impl NativeTraits {
                 immune_to_wither,
                 ambient_sound_interval,
                 aux_value,
+                immune_to_poison,
+                swells,
+                teleports_when_hurt,
+                angry_ambient_sound,
+                carried_block_data,
             },
             _ => Self {
                 wing_flap_drag: None,
@@ -66,6 +98,11 @@ impl NativeTraits {
                 immune_to_wither,
                 ambient_sound_interval,
                 aux_value,
+                immune_to_poison,
+                swells,
+                teleports_when_hurt,
+                angry_ambient_sound,
+                carried_block_data,
             },
         }
     }

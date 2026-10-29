@@ -78,13 +78,17 @@ impl CommandCoordinate {
     }
 }
 
-/// `/summon <entity> [x y z]`, applied by the server with world access.
+/// `/summon <entity> [x y z] [spawnEvent]`, applied by the server with
+/// world access.
 #[derive(Debug, Clone, PartialEq)]
 pub struct SummonRequest {
     /// Namespaced actor identifier (`minecraft:cow`).
     pub identifier: String,
     /// `None` summons at the executor's feet.
     pub position: Option<[CommandCoordinate; 3]>,
+    /// The event fired on the new actor instead of
+    /// `minecraft:entity_spawned`.
+    pub spawn_event: Option<String>,
 }
 
 impl SummonRequest {
@@ -392,13 +396,13 @@ impl Command for SummonCommand {
     }
 
     fn usage(&self) -> &'static str {
-        "/summon <entity> [x y z]"
+        "/summon <entity> [x y z] [spawnEvent]"
     }
 
     fn execute(&self, _ctx: &CommandContext, args: &mut CommandArgs) -> CommandOutput {
         let mut output = CommandOutput::default();
         let args = args.rest();
-        if !matches!(args.len(), 1 | 4) {
+        if !matches!(args.len(), 1 | 4 | 5) {
             output.error(format!("Usage: {}", self.usage()));
             return output;
         }
@@ -408,7 +412,7 @@ impl Command for SummonCommand {
         } else {
             format!("minecraft:{entity}")
         };
-        let position = if args.len() == 4 {
+        let position = if args.len() >= 4 {
             let mut coordinates = [CommandCoordinate::Relative(0.0); 3];
             for (index, axis) in ["x", "y", "z"].iter().enumerate() {
                 let token = &args[index + 1];
@@ -427,6 +431,7 @@ impl Command for SummonCommand {
         output.summon = Some(SummonRequest {
             identifier,
             position,
+            spawn_event: args.get(4).cloned(),
         });
         output
     }
@@ -498,6 +503,14 @@ mod tests {
             glam::DVec3::new(1.5, 61.0, -0.5)
         );
         assert_eq!(parse("/summon cow").summon.unwrap().position, None);
+        let request = parse("/summon minecraft:creeper ~ ~ ~ minecraft:become_charged")
+            .summon
+            .unwrap();
+        assert_eq!(
+            request.spawn_event.as_deref(),
+            Some("minecraft:become_charged")
+        );
+        assert_eq!(parse("/summon cow 1 2 3").summon.unwrap().spawn_event, None);
         for bad in ["/summon", "/summon cow 1 2", "/summon cow 1 x 2"] {
             let output = parse(bad);
             assert!(

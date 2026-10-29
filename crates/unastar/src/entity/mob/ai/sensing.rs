@@ -10,6 +10,18 @@ use crate::registry::collision::Aabb;
 /// are visited along the segment (voxel traversal) and each block's boxes
 /// are tested against it; an unloaded block blocks sight.
 pub fn can_see(blocks: &impl BlockSource, from: DVec3, to: DVec3) -> bool {
+    trace(blocks, from, to, true)
+}
+
+/// Whether `from` sees the block at `cell`: the segment to the block's
+/// centre passes no other block's collision box.
+pub fn can_see_block(blocks: &impl BlockSource, from: DVec3, cell: IVec3) -> bool {
+    trace(blocks, from, cell.as_dvec3() + DVec3::splat(0.5), false)
+}
+
+/// [`can_see`]; the boxes of the cell `to` lies in are tested only when
+/// `test_end`.
+fn trace(blocks: &impl BlockSource, from: DVec3, to: DVec3, test_end: bool) -> bool {
     let delta = to - from;
     let length = delta.length();
     if !length.is_finite() {
@@ -47,6 +59,9 @@ pub fn can_see(blocks: &impl BlockSource, from: DVec3, to: DVec3) -> bool {
     loop {
         if blocks.block_at(cell).is_none() {
             return false;
+        }
+        if cell == end && !test_end {
+            return true;
         }
         let min = cell.as_dvec3();
         boxes.clear();

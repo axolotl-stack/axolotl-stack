@@ -17,7 +17,7 @@ use crate::command::{
 use crate::ecs::events::ServerEvent;
 use crate::entity::components::transform::Position;
 use crate::entity::components::{PlayerName, PlayerSession, PlayerUuid, RuntimeEntityId};
-use crate::entity::mob::{SpawnCause, spawn_mob};
+use crate::entity::mob::{SpawnCause, spawn_mob, spawn_mob_with_event};
 use crate::world::ecs::ChunkLoader;
 use jolyne::valentine::types::{
     ActorRuntimeId, EnumsPlayerPositionModeComponentPositionMode, EnumsTextPacketType,
@@ -248,7 +248,8 @@ fn handle_teleport_command(
 }
 
 /// Spawn a `/summon`ed mob (relative coordinates resolve against the
-/// executor's feet) and reply with the outcome.
+/// executor's feet; a spawn event replaces `minecraft:entity_spawned`) and
+/// reply with the outcome.
 fn apply_summon(world: &mut World, executor: Entity, request: &SummonRequest) {
     let Some(eye) = world.get::<Position>(executor).map(|p| p.0) else {
         return;
@@ -256,13 +257,17 @@ fn apply_summon(world: &mut World, executor: Entity, request: &SummonRequest) {
     let feet = eye - DVec3::new(0.0, crate::entity::PLAYER_EYE_HEIGHT, 0.0);
     let position = request.resolve(feet);
     let mut output = CommandOutput::default();
-    match spawn_mob(
-        world,
-        &request.identifier,
-        position,
-        0.0,
-        SpawnCause::Spawned,
-    ) {
+    let spawned = match &request.spawn_event {
+        Some(event) => spawn_mob_with_event(world, &request.identifier, position, 0.0, event),
+        None => spawn_mob(
+            world,
+            &request.identifier,
+            position,
+            0.0,
+            SpawnCause::Spawned,
+        ),
+    };
+    match spawned {
         Ok(_) => output.message("Object successfully summoned"),
         Err(error) => output.error(format!("Unable to summon object: {error}")),
     }
@@ -472,6 +477,45 @@ mod tests {
             }
         }
         texts
+    }
+
+    #[test]
+    fn summon_fires_the_spawn_event_instead_of_entity_spawned() {
+        let (mut server, player, mut rx) = summon_server(true);
+        summon(
+            &mut server,
+            player,
+            "/summon minecraft:creeper ~ ~ ~ minecraft:become_charged",
+        );
+        let world = server.ecs.world_mut();
+        let powered: Vec<bool> = world
+            .query_filtered::<&crate::entity::definition::flags::ActorFlags, With<crate::entity::mob::MobKind>>()
+            .iter(world)
+            .map(|flags| {
+                flags
+                    .get(jolyne::valentine::actor_flags::POWERED)
+                    .unwrap()
+            })
+            .collect();
+        assert_eq!(powered, [true], "the charged creeper shows POWERED");
+        assert!(
+            texts(&mut rx)
+                .iter()
+                .any(|t| t.contains("Object successfully summoned"))
+        );
+
+        let (mut server, player, mut rx) = summon_server(true);
+        summon(
+            &mut server,
+            player,
+            "/summon creeper ~ ~ ~ minecraft:not_an_event",
+        );
+        assert!(mob_positions(&mut server).is_empty());
+        assert!(
+            texts(&mut rx)
+                .iter()
+                .any(|t| t.contains("Unable to summon object") && t.contains("not_an_event"))
+        );
     }
 
     #[test]

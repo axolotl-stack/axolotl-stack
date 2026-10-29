@@ -20,6 +20,11 @@
 //!   ahead, then after a turn) and checks from every cow's `MoveActorDelta`
 //!   and `MoveActorAbsolute` that the cows follow side by side instead of in
 //!   single file, without stacking on each other.
+//! - `creeper_explodes_next_to_the_player_over_loopback`: on normal at
+//!   midnight, summons a creeper two blocks from the standing survival bot
+//!   and checks the fuse (`IGNITED`, `FUSE_TIME` 29 … 0), the explosion's
+//!   level events, the bot's hurt, knockback and health, the platform
+//!   blocks turning to air and the creeper's removal, in BDS order.
 //!
 //! The tests bind a UDP socket on `127.0.0.1` (never a public interface), so
 //! they are ignored by default. Run them with:
@@ -186,6 +191,27 @@ const TEMPT_HERD_SHARE: f32 = 0.8;
 const TEMPT_LAG_GROWTH: f32 = 1.0;
 /// Tempt gives up beyond this horizontal distance (`within_radius` 16).
 const TEMPT_RADIUS: f32 = 16.0;
+const CREEPER: &str = "minecraft:creeper";
+/// Bound for the creeper's summon, fuse and explosion.
+const CREEPER_TIMEOUT: Duration = Duration::from_secs(60);
+/// How long after the summon the explosion may take: the target pick, the
+/// 30-tick fuse and slack.
+const CREEPER_EXPLODES_WITHIN: Duration = Duration::from_secs(15);
+/// How long the bot keeps listening after the explosion for its trailing
+/// packets (block updates, removal, sound, health).
+const EXPLOSION_SETTLE: Duration = Duration::from_secs(2);
+/// Blocks along +x from the bot the creeper is summoned: its box is 1.4
+/// blocks from the bot's, inside the 2.5-block `target_nearby_sensor`
+/// range that lights the fuse.
+const CREEPER_SUMMON_DISTANCE: f32 = 2.0;
+/// The creeper's fuse in ticks (`fuse_length` 1.5 s).
+const CREEPER_FUSE_TICKS: i32 = 30;
+/// The `ActorEvent(Hurt)` data of explosion damage (`entity_explosion`).
+const ENTITY_EXPLOSION_CAUSE: i32 = 11;
+/// `LevelEvent` ParticlesExplosion and `LevelEventGeneric`
+/// ParticlesBlockExplosion.
+const PARTICLES_EXPLOSION: i32 = 2025;
+const PARTICLES_BLOCK_EXPLOSION: i32 = 2026;
 
 /// Serialises the tests: each makes its own temporary directory the process
 /// working directory.
@@ -251,6 +277,18 @@ fn tempted_cows_spread_out_while_following_over_loopback() {
     });
 }
 
+#[test]
+#[ignore = "loopback socket run: use the native lock"]
+fn creeper_explodes_next_to_the_player_over_loopback() {
+    run_loopback(Scenario::Creeper, |config| {
+        // The zombie's platform; survival lets the creeper target and hurt
+        // the bot. The bot is an operator by default.
+        config.world = WorldConfig::void_spawn_platform(4);
+        config.server.difficulty = Difficulty::Normal;
+        config.server.default_gamemode = "survival".into();
+    });
+}
+
 /// What the joined bot does.
 #[derive(Debug, Clone, Copy)]
 enum Scenario {
@@ -259,6 +297,7 @@ enum Scenario {
     NaturalSpawning,
     Zombie,
     TemptedCows,
+    Creeper,
 }
 
 impl Scenario {
@@ -269,6 +308,7 @@ impl Scenario {
             Self::NaturalSpawning => SPAWN_TIMEOUT,
             Self::Zombie => ZOMBIE_TIMEOUT,
             Self::TemptedCows => TEMPT_TIMEOUT,
+            Self::Creeper => CREEPER_TIMEOUT,
         }
     }
 
@@ -279,6 +319,7 @@ impl Scenario {
             Self::NaturalSpawning => watch_natural_spawns(bot).await,
             Self::Zombie => zombie_kills_and_bot_respawns(bot).await,
             Self::TemptedCows => tempted_cows_follow(bot).await,
+            Self::Creeper => creeper_explodes(bot).await,
         }
     }
 }
@@ -666,6 +707,208 @@ async fn zombie_kills_and_bot_respawns(bot: &mut Bot) {
         }
     }
     assert!(bot.connected(), "the bot stays connected after respawning");
+}
+
+/// What the bot saw of a creeper's fuse and explosion, in arrival order.
+#[derive(Debug)]
+enum Seen {
+    Ignited,
+    Fuse(i32),
+    Hurt(i32),
+    Motion(Vec3),
+    LevelEvent(i32, i32),
+    LevelEventGeneric(i32),
+    /// An `UpdateBlock` to air at this height.
+    AirBlock(i32),
+    Removed,
+    Health(f32),
+    Sound(String),
+}
+
+/// a. midnight without natural spawns, standing on the platform, b. a
+/// creeper next to the bot lights its fuse and explodes, c. the packets
+/// arrive in BDS order.
+async fn creeper_explodes(bot: &mut Bot) {
+    // a.
+    bot.run_command("/gamerule dodaylightcycle false", "has been updated")
+        .await;
+    bot.run_command("/gamerule domobspawning false", "has been updated")
+        .await;
+    bot.run_command("/time set midnight", "Set the time to")
+        .await;
+    let (x, z) = (bot.position.x, bot.position.z);
+    bot.run_command(
+        &format!("/tp {x:.2} {:.2} {z:.2}", PLATFORM_TOP + EYE_HEIGHT),
+        "Teleported to",
+    )
+    .await;
+
+    // b.
+    let at = format!("~{CREEPER_SUMMON_DISTANCE} {PLATFORM_TOP} ~");
+    let summoned = Instant::now();
+    let creeper = summon(bot, CREEPER, &at).await;
+    let me = bot.runtime_id;
+    let blocks = unastar::registry::BlockRegistry::vanilla();
+    let air_state = blocks
+        .default_state_id_by_name("minecraft:air")
+        .expect("air");
+    let air = [Some(air_state), blocks.network_hash(air_state)];
+    let ignited_bit = 1i64 << jolyne::valentine::actor_flags::IGNITED;
+    let mut seen: Vec<(Duration, Seen)> = Vec::new();
+    let mut exploded = None;
+    loop {
+        let deadline = exploded.map_or(summoned + CREEPER_EXPLODES_WITHIN, |at: Instant| {
+            at + EXPLOSION_SETTLE
+        });
+        let Some(packet) = bot.next_until(deadline).await else {
+            break;
+        };
+        let event = match packet {
+            McpePacketData::SetActorDataPacket(data)
+                if data.target_runtime_id.actor_runtime_id == creeper =>
+            {
+                use jolyne::valentine::types::DataItemEntryPayload as Payload;
+                let mut events = Vec::new();
+                for entry in &data.actor_data.data {
+                    match (&entry.payload, entry.id) {
+                        (Payload::DataItemInt64Payload(flags), 0)
+                            if flags.value & ignited_bit != 0
+                                && !seen.iter().any(|(_, s)| matches!(s, Seen::Ignited)) =>
+                        {
+                            events.push(Seen::Ignited)
+                        }
+                        (Payload::DataItemIntPayload(fuse), id)
+                            if id == jolyne::valentine::actor_data_i_ds::FUSE_TIME =>
+                        {
+                            events.push(Seen::Fuse(fuse.value))
+                        }
+                        _ => {}
+                    }
+                }
+                events
+            }
+            McpePacketData::ActorEventPacket(event)
+                if event.target_runtime_id.actor_runtime_id == me
+                    && event.event_id == EnumsActorEvent::Hurt =>
+            {
+                vec![Seen::Hurt(event.data)]
+            }
+            McpePacketData::SetActorMotionPacket(motion)
+                if motion.target_runtime_id.actor_runtime_id == me =>
+            {
+                vec![Seen::Motion(motion.motion)]
+            }
+            McpePacketData::LevelEventPacket(event) if event.event_id == PARTICLES_EXPLOSION => {
+                exploded = Some(Instant::now());
+                vec![Seen::LevelEvent(event.event_id, event.data)]
+            }
+            McpePacketData::LevelEventGenericPacket(event) => {
+                vec![Seen::LevelEventGeneric(event.event_id)]
+            }
+            McpePacketData::UpdateBlockPacket(update)
+                if air.contains(&Some(update.block_runtime_id)) =>
+            {
+                vec![Seen::AirBlock(update.block_position.y)]
+            }
+            McpePacketData::RemoveActorPacket(remove)
+                if remove.target_actor_id.actor_unique_id as u64 == creeper =>
+            {
+                vec![Seen::Removed]
+            }
+            McpePacketData::UpdateAttributesPacket(update)
+                if update.target_runtime_id.actor_runtime_id == me =>
+            {
+                update
+                    .attribute_list
+                    .iter()
+                    .find(|attribute| &*attribute.name == HEALTH)
+                    .map(|health| Seen::Health(health.current_value))
+                    .into_iter()
+                    .collect()
+            }
+            McpePacketData::LevelSoundEventPacket(sound) => {
+                vec![Seen::Sound((*sound.sound_event).to_owned())]
+            }
+            McpePacketData::DisconnectPacket(disconnect) => {
+                panic!("disconnected during the explosion: {disconnect:?}")
+            }
+            _ => Vec::new(),
+        };
+        let elapsed = summoned.elapsed();
+        seen.extend(event.into_iter().map(|event| (elapsed, event)));
+    }
+    for (elapsed, event) in &seen {
+        bot.log(format!("creeper +{elapsed:?}: {event:?}"));
+    }
+
+    // c.
+    let index = |what: &str, pick: &dyn Fn(&Seen) -> bool| {
+        seen.iter()
+            .position(|(_, event)| pick(event))
+            .unwrap_or_else(|| panic!("no {what}: {seen:?}"))
+    };
+    let ignited = index("IGNITED", &|e| matches!(e, Seen::Ignited));
+    let fuse: Vec<i32> = seen
+        .iter()
+        .filter_map(|(_, event)| match event {
+            // The summon's own data carries the unlit -1.
+            Seen::Fuse(value) if *value >= 0 => Some(*value),
+            _ => None,
+        })
+        .collect();
+    assert_eq!(
+        fuse,
+        (0..CREEPER_FUSE_TICKS).rev().collect::<Vec<_>>(),
+        "FUSE_TIME counts 29 … 0, one per tick"
+    );
+    let hurt = index("hurt", &|e| matches!(e, Seen::Hurt(_)));
+    let Seen::Hurt(cause) = &seen[hurt].1 else {
+        unreachable!()
+    };
+    assert_eq!(*cause, ENTITY_EXPLOSION_CAUSE, "explosion damage");
+    let particles = index("ParticlesExplosion", &|e| {
+        matches!(e, Seen::LevelEvent(PARTICLES_EXPLOSION, 3))
+    });
+    let block_particles = index("ParticlesBlockExplosion", &|e| {
+        matches!(e, Seen::LevelEventGeneric(PARTICLES_BLOCK_EXPLOSION))
+    });
+    let first_air = index(
+        "a platform block turning to air",
+        &|e| matches!(e, Seen::AirBlock(y) if (*y as f32) < PLATFORM_TOP),
+    );
+    let removed = index("the creeper's RemoveActor", &|e| matches!(e, Seen::Removed));
+    let health = index(
+        "the bot's health dropping",
+        &|e| matches!(e, Seen::Health(h) if *h < PLAYER_MAX_HEALTH),
+    );
+    let sound = index(
+        "the explode sound",
+        &|e| matches!(e, Seen::Sound(s) if s == "explode"),
+    );
+    let motions: Vec<&Vec3> = seen[..particles]
+        .iter()
+        .filter_map(|(_, event)| match event {
+            Seen::Motion(motion) => Some(motion),
+            _ => None,
+        })
+        .collect();
+    let [knockback, pushed] = motions.as_slice() else {
+        panic!("the hurt knockback, then it plus the push: {motions:?}")
+    };
+    assert!(
+        knockback.x < 0.0 && pushed.x < knockback.x && pushed.y > knockback.y,
+        "the push points away from the creeper (at +x) and up: {knockback:?} then {pushed:?}"
+    );
+    assert!(
+        ignited < hurt
+            && hurt < particles
+            && particles < block_particles
+            && block_particles < first_air
+            && first_air < removed
+            && removed < sound
+            && particles < health,
+        "BDS order: {seen:?}"
+    );
 }
 
 /// What the bot saw of the zombie fight and its death.

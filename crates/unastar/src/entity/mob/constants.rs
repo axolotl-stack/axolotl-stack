@@ -36,11 +36,13 @@ pub const LOOK_IDLE_HEAD_TURN: f32 = 10.0;
 
 // --- Navigation -----------------------------------------------------------------
 
-/// Path search range around the mob; provisional: Microsoft Learn
-/// `minecraft:follow_range` default (16).
-pub const PATH_MAX_RANGE: f64 = 16.0;
-/// Highest drop a walk path takes; provisional: Java Edition mob maximum
-/// fall distance (3).
+/// A walk path search expands at most this many nodes, then ends as if no
+/// route were left (a partial route goes to the expanded node closest to
+/// the goal). Its range is the mob's follow range around the goal (see
+/// `WalkPathRequest`). Confirmed against BDS (26.30).
+pub const PATH_MAX_EXPANSIONS: usize = 140;
+/// Highest drop a walk path takes (the default preferred-path
+/// `max_fall_blocks`). Confirmed against BDS (26.30).
 pub const PATH_MAX_DROP: f64 = 3.0;
 /// A waypoint on the mob's block level counts as reached once the feet are
 /// horizontally closer to it than `max(width / 2, PATH_WAYPOINT_REACH)`; the
@@ -52,12 +54,12 @@ pub const PATH_WAYPOINT_REACH: f64 = 0.6;
 /// and diagonal steps (a diagonal only between two sides reachable without
 /// climbing). Confirmed against BDS (26.30).
 pub const PATH_ESTIMATE_WEIGHT: f64 = 1.5;
-/// Every this many ticks of path following the mob must have moved at least
-/// `speed' × 100 × PATH_STUCK_DISTANCE_FACTOR` blocks (`speed'` = speed when
-/// ≥ 1, else speed²), or the path is dropped as stuck; provisional: Java
-/// Edition `PathNavigation` stuck detection.
+/// Every time more than this many ticks of path following have passed since
+/// the last check (or the path was installed), the mob must have moved at
+/// least [`PATH_STUCK_DISTANCE`] blocks (3D) or the path is dropped as stuck.
+/// Confirmed against BDS (26.30).
 pub const PATH_STUCK_CHECK_TICKS: u32 = 100;
-pub const PATH_STUCK_DISTANCE_FACTOR: f32 = 0.25;
+pub const PATH_STUCK_DISTANCE: f64 = 1.5;
 /// Blocks a walk path avoids when `avoid_damage_blocks` is set; provisional:
 /// Java Edition walk-node danger classes (fire, lava, magma, cactus, berry
 /// bush, wither rose, lit campfires).
@@ -147,8 +149,9 @@ pub const BREED_HEAD_TURN: f32 = 10.0;
 
 // --- Hostile mobs (target goals, melee) -------------------------------------------
 
-/// Follow range of a mob without `behavior.nearest_attackable_target`'s
-/// `within_radius` (confirmed).
+/// Follow range of a mob without `minecraft:follow_range`: target goals drop
+/// a target farther away (`within_radius` plays no part) and walk path
+/// searches reach this far around their goal (confirmed).
 pub const DEFAULT_FOLLOW_RANGE: f32 = 16.0;
 /// `behavior.hurt_by_target` reacts to an attacker that hurt the mob within
 /// this many ticks (confirmed).
@@ -706,3 +709,221 @@ pub const PICKUP_REPATH_FAIL_TICKS: i32 = 15;
 /// Head turn speed toward the item, degrees per tick (confirmed: 30, the
 /// same both axes).
 pub const PICKUP_HEAD_TURN: f32 = 30.0;
+
+// --- Wall climbing, leaping and poison (spider lane) ------------------------------
+
+/// A living body climbing a wall (wall-climbing flag set, last move blocked
+/// horizontally, not in water) moves up at this vertical velocity, which
+/// neither gravity nor vertical drag reduce that tick (confirmed).
+pub const CLIMB_SPEED: f64 = 0.2;
+/// Climb navigation approaching its target directly (no path) arrives once
+/// its squared distance to the target block's centre is within this times
+/// the squared box width (confirmed).
+pub const CLIMB_ARRIVAL_WIDTH_SQ_FACTOR: f64 = 0.75;
+/// A climber's direct sweep checks boxes this many times its rounded-up
+/// height tall (its width rounded up wide) (confirmed).
+pub const CLIMB_SWEEP_HEIGHT_FACTOR: i32 = 2;
+/// The direct sweep refuses a target closer than this squared horizontal
+/// distance (confirmed).
+pub const DIRECT_SWEEP_MIN_DIST_SQ: f64 = 1.0e-6;
+/// The direct sweep's box around the start column is this many cells wider
+/// on each horizontal axis than the boxes along the line (confirmed).
+pub const DIRECT_SWEEP_START_MARGIN: i32 = 2;
+/// `behavior.leap_at_target` starts only for a target whose squared distance
+/// is within `[LEAP_MIN_DISTANCE_SQ, LEAP_MAX_DISTANCE_SQ]` (confirmed).
+pub const LEAP_MIN_DISTANCE_SQ: f64 = 4.0;
+pub const LEAP_MAX_DISTANCE_SQ: f64 = 16.0;
+/// … and then with a 1-in-this chance per tick (confirmed).
+pub const LEAP_CHANCE: u32 = 5;
+/// The leap adds the horizontal direction to the target times this plus
+/// the current horizontal velocity times [`LEAP_VELOCITY_RETAIN`]
+/// (confirmed).
+pub const LEAP_HORIZONTAL_SPEED: f64 = 0.4;
+pub const LEAP_VELOCITY_RETAIN: f64 = 0.2;
+/// Poison deals this much magic damage per application (confirmed) …
+pub const POISON_DAMAGE: f32 = 1.0;
+/// … every `POISON_INTERVAL_TICKS >> amplifier` ticks of remaining duration,
+/// every tick once that is 0 (confirmed) …
+pub const POISON_INTERVAL_TICKS: u32 = 25;
+/// … and never takes health below this: an application that would is
+/// skipped (confirmed).
+pub const POISON_MIN_HEALTH: f32 = 1.0;
+
+// --- Fuses, swelling, target sensing and avoidance (creeper lane) ---------------
+
+/// The swell counter of a class that swells (`NativeTraits::swells`) moves
+/// one step per tick toward this cap while the `IGNITED` flag is set and
+/// back toward 0 otherwise; it does not depend on `fuse_length`
+/// (confirmed against BDS).
+pub const SWELL_MAX: f32 = 30.0;
+/// Native controls of `behavior.swell`: movement only (confirmed against
+/// BDS).
+pub(crate) const SWELL_CONTROLS: crate::entity::goal_selector::GoalControls =
+    crate::entity::goal_selector::GoalControls::MOVE;
+/// The level sound a swelling mob plays on the first tick it is ignited
+/// with an empty swell counter (confirmed against BDS: `Fuse`).
+pub const FUSE_SOUND: &str = "fuse";
+/// Native controls of `behavior.avoid_mob_type`: movement only (confirmed
+/// against BDS).
+pub(crate) const AVOID_MOB_CONTROLS: crate::entity::goal_selector::GoalControls =
+    crate::entity::goal_selector::GoalControls::MOVE;
+/// `behavior.melee_attack` reach: the mob's width counts as at least this
+/// much (confirmed against BDS).
+pub const MELEE_ATTACK_MIN_WIDTH: f64 = 0.5;
+/// The eyes attach point of a mob, as a share of its box height above the
+/// feet: explosions measure their distance from the exploding mob's eyes
+/// and push actors toward their eyes (confirmed: the BDS 1.26.51 creeper
+/// capture puts a 1.8-block creeper's eyes at 1.62).
+pub const MOB_EYES_ATTACH_RATIO: f64 = 0.9;
+/// The head attach point of a mob, as a share of its box height above the
+/// feet: where the fuse hiss plays (confirmed: the BDS 1.26.51 creeper
+/// capture plays it 1.53 above a 1.8-block creeper's feet).
+pub const MOB_HEAD_ATTACH_RATIO: f64 = 0.85;
+/// The swing source of the arm swing a `minecraft:interact` row with
+/// `swing` sends (confirmed against BDS: the interact source; the wire
+/// casing is provisional, matching unastar's lowercase `attack`).
+pub const SWING_SOURCE_INTERACT: &str = "interact";
+
+// --- Explosions (`world::explosion`) ----------------------------------------------
+
+/// Block rays leave the centre through every cell on the shell of a grid
+/// this many cells wide (1352 rays; confirmed against BDS).
+pub const EXPLOSION_GRID: i32 = 16;
+/// A ray starts with `power × (BASE + U·SPREAD)` (confirmed against BDS).
+pub const EXPLOSION_RAY_BASE: f32 = 0.7;
+/// See [`EXPLOSION_RAY_BASE`] (confirmed against BDS).
+pub const EXPLOSION_RAY_SPREAD: f32 = 0.6;
+/// A ray advances this far per step (confirmed against BDS).
+pub const EXPLOSION_RAY_STEP: f32 = 0.3;
+/// A ray loses this much strength per step (confirmed against BDS).
+pub const EXPLOSION_STEP_DECAY: f32 = 0.225;
+/// A non-air block costs a ray `(resistance + OFFSET) × FACTOR`
+/// (confirmed against BDS).
+pub const EXPLOSION_RESISTANCE_OFFSET: f32 = 0.3;
+/// See [`EXPLOSION_RESISTANCE_OFFSET`] (confirmed against BDS).
+pub const EXPLOSION_RESISTANCE_FACTOR: f32 = 0.3;
+/// Behaviour packs author block explosion resistance (and `explode`
+/// `max_resistance`) at this many times the scale the rays use (confirmed
+/// against BDS: stone's authored 30 costs a ray as 6).
+pub const EXPLOSION_RESISTANCE_SCALE: f32 = 5.0;
+/// Explosion damage is `((impact² + impact) / 2 × FACTOR × 2·power + 1) ×
+/// damage_scaling` (confirmed against BDS and the 1.26.51 capture).
+pub const EXPLOSION_DAMAGE_FACTOR: f64 = 7.0;
+/// An explosion whose `damage_scaling` is within this of 0 hurts nobody
+/// (it still pushes; confirmed against BDS).
+pub const EXPLOSION_DAMAGE_SCALING_EPSILON: f32 = 1.0e-5;
+/// An actor closer than this to the centre is not pushed in any
+/// direction (confirmed against BDS).
+pub const EXPLOSION_KNOCKBACK_MIN_LENGTH: f64 = 1.0e-4;
+/// The exposure sample points sit this high above their grid row
+/// (confirmed against BDS).
+pub const EXPLOSION_SAMPLE_Y_OFFSET: f64 = 0.1;
+/// One destroyed block position in this many is sent in the block
+/// explosion particles (confirmed against BDS).
+pub const EXPLOSION_PARTICLE_CHANCE: u32 = 8;
+/// With `causes_fire`, one air position in this many reached by the rays
+/// catches fire (confirmed against BDS).
+pub const EXPLOSION_FIRE_CHANCE: u32 = 3;
+/// `LevelEvent` ParticlesExplosion: sent at the centre with the power as
+/// data (confirmed: BDS 1.26.51 capture).
+pub const LEVEL_EVENT_PARTICLES_EXPLOSION: i32 = 2025;
+/// `LevelEventGeneric` ParticlesBlockExplosion: the centre, the radius and
+/// the sampled block positions (confirmed: BDS 1.26.51 capture).
+pub const LEVEL_EVENT_PARTICLES_BLOCK_EXPLOSION: i32 = 2026;
+
+/// The damage-cause id `ActorEvent` hurt carries as data (confirmed
+/// against BDS and the 1.26.51 captures: an explosion sends 11, fire_tick
+/// 7). `none` and `all` are filter values, never a hit's cause; they send
+/// -1.
+pub const fn damage_cause_id(cause: unastar_data::actor_components::body::ActorDamageCause) -> i32 {
+    use unastar_data::actor_components::body::ActorDamageCause as C;
+    match cause {
+        C::None | C::All => -1,
+        C::Override => 0,
+        C::Contact => 1,
+        C::EntityAttack => 2,
+        C::Projectile => 3,
+        C::Suffocation => 4,
+        C::Fall => 5,
+        C::Fire => 6,
+        C::FireTick => 7,
+        C::Lava => 8,
+        C::Drowning => 9,
+        C::BlockExplosion => 10,
+        C::EntityExplosion => 11,
+        C::Void => 12,
+        C::SelfDestruct => 13,
+        C::Magic => 14,
+        C::Wither => 15,
+        C::Starve => 16,
+        C::Anvil => 17,
+        C::Thorns => 18,
+        C::FallingBlock => 19,
+        C::Piston => 20,
+        C::FlyIntoWall => 21,
+        C::Magma => 22,
+        C::Fireworks => 23,
+        C::Lightning => 24,
+        C::Charging => 25,
+        C::Temperature => 26,
+        C::Freezing => 27,
+        C::Stalactite => 28,
+        C::Stalagmite => 29,
+        C::RamAttack => 30,
+        C::SonicBoom => 31,
+        C::Campfire => 32,
+        C::SoulCampfire => 33,
+        C::MaceSmash => 34,
+    }
+}
+
+// --- Looked at, teleporting and the enderman class (enderman lane) --------------
+
+/// `minecraft:looked_at` `field_of_view` is clamped to this range (degrees)
+/// before the view test (confirmed against BDS).
+pub const LOOKED_AT_MIN_FIELD_OF_VIEW: f32 = 1.0;
+pub const LOOKED_AT_MAX_FIELD_OF_VIEW: f32 = 180.0;
+/// The level sound an owner plays at its head when a looker is detected
+/// (confirmed against BDS: `Stare`).
+pub const STARE_SOUND: &str = "stare";
+/// `minecraft:teleport` light test: the brightness at the feet above which
+/// `light_teleport_chance` applies (with the open sky above), else
+/// `dark_teleport_chance` (confirmed against BDS).
+pub const TELEPORT_LIGHT_BRIGHTNESS: f32 = 0.5;
+/// A teleport toward a target lands `U(-0.5, 0.5) × SPREAD` around the mob
+/// on x and z and `nextInt(VERTICAL_RANGE) − VERTICAL_RANGE / 2` on y, then
+/// `PULL` blocks along the unit vector from the target's head to the mob's
+/// middle, subtracted (confirmed against BDS).
+pub const TELEPORT_TOWARD_SPREAD: f64 = 8.0;
+pub const TELEPORT_TOWARD_VERTICAL_RANGE: i32 = 16;
+pub const TELEPORT_TOWARD_PULL: f64 = 16.0;
+/// Level event at the start and end of a teleport (confirmed against BDS;
+/// name provisional: gophertunnel `LevelEventSoundTeleportEnderman`).
+pub const LEVEL_EVENT_SOUND_TELEPORT: i32 = 1018;
+/// Generic level event of the teleport particle trail, with the tag fields
+/// below (confirmed against BDS).
+pub const LEVEL_EVENT_PARTICLES_TELEPORT_TRAIL: i32 = 2023;
+/// The trail's `DirScale` and `Count` fields (confirmed against BDS).
+pub const TELEPORT_TRAIL_DIR_SCALE: f32 = 0.2;
+pub const TELEPORT_TRAIL_COUNT: i32 = 128;
+/// `MoveActorAbsolute` header bits: on the ground, teleported (provisional:
+/// gophertunnel `MoveFlagOnGround`/`MoveFlagTeleport`).
+pub const MOVE_ABSOLUTE_ON_GROUND: u8 = 0x01;
+pub const MOVE_ABSOLUTE_TELEPORT: u8 = 0x02;
+/// A class that teleports when hurt (`NativeTraits::teleports_when_hurt`)
+/// tries this many random teleports when a projectile hits it, stopping at
+/// the first that lands; the projectile deals no damage either way
+/// (confirmed against BDS).
+pub const HURT_TELEPORT_PROJECTILE_ATTEMPTS: u32 = 64;
+/// … and before any other hit that leaves it alive it teleports unless
+/// `nextInt(HURT_TELEPORT_SKIP_ROLL)` is 0 (9 times in 10), the hit then
+/// still landing (confirmed against BDS).
+pub const HURT_TELEPORT_SKIP_ROLL: u32 = 10;
+/// The ambient sound event name of a class with an angry ambient sound
+/// (`NativeTraits::angry_ambient_sound`) while its `ANGRY` flag is set
+/// (confirmed against BDS: `Mad`).
+pub const MAD_SOUND: &str = "mad";
+/// The ambient sound event name of a mob without
+/// `minecraft:ambient_sound_interval` (measured from the retained 1.26.51
+/// summon captures).
+pub const DEFAULT_AMBIENT_SOUND: &str = "ambient";

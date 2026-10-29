@@ -17,30 +17,40 @@ use bevy_ecs::prelude::*;
 use jolyne::valentine::types::EnumsActorEvent;
 use rand::Rng;
 use tracing::warn;
+use jolyne::valentine::types::EnumsMobEffectPacketPayloadEvent;
 use unastar_data::actor_components::body::ActorDamageCause;
 
 use super::{Hit, fire, hurt_mob, knockback_power_of, send_actor_event};
 use crate::ecs::resources::TickCounter;
 use crate::entity::EntityRandom;
-use crate::entity::components::{EffectType, Effects, GameMode, Health, Player, Position};
+use crate::entity::components::{
+    EffectType, Effects, GameMode, Health, Player, PlayerSession, Position, RuntimeEntityId,
+};
 use crate::entity::mob::MobKind;
+use crate::entity::mob::components::hostile::melee_goal;
 use crate::entity::mob::components::{AttackConfig, MeleeBoxAttackGoal, SelfEvent};
 use crate::entity::mob::constants::{
     MELEE_FIRE_SPREAD_CHANCE, STRENGTH_DAMAGE_ADD, STRENGTH_DAMAGE_SCALE, TICKS_PER_SECOND,
     WEAKNESS_DAMAGE_ADD, WEAKNESS_DAMAGE_SCALE,
 };
-use crate::entity::mob::events::fire_event;
+use crate::entity::mob::events::{fire_event, is_family};
+use crate::entity::mob::life::angry::restart_anger;
 use crate::entity::mob::gear;
 use crate::entity::mob::state::{Dead, MeleeAttackedOnce};
 use crate::entity::player_life::environment::ignite_player;
 use crate::entity::player_life::hurt_player;
+use crate::entity::systems::effects::effect_packet;
 use crate::world::rules::Difficulty;
 
 /// `attacker` hits `target` (the melee goal found it in reach this tick).
 pub fn melee_attack(world: &mut World, attacker: Entity, target: Entity) {
     let (Some(attack), Some(goal), Some(feet)) = (
         world.get::<AttackConfig>(attacker).cloned(),
-        world.get::<MeleeBoxAttackGoal>(attacker).cloned(),
+        world
+            .get_entity(attacker)
+            .ok()
+            .and_then(melee_goal)
+            .cloned(),
         world.get::<Position>(attacker).map(|p| p.0),
     ) else {
         return;
@@ -48,6 +58,8 @@ pub fn melee_attack(world: &mut World, attacker: Entity, target: Entity) {
     if world.get::<Dead>(attacker).is_some() || !alive(world, target) {
         return;
     }
+    // Every attack attempt keeps an angry attacker angry.
+    restart_anger(world, attacker);
     let holding = gear::mainhand(world, attacker).is_some();
     send_actor_event(world, attacker, EnumsActorEvent::StartAttacking, 0);
     if holding {
@@ -76,12 +88,48 @@ pub fn melee_attack(world: &mut World, attacker: Entity, target: Entity) {
         && alive(world, target)
         && !immune(world, target)
     {
-        world
-            .entity_mut(target)
-            .entry::<Effects>()
-            .or_default()
-            .get_mut()
-            .add(effect.effect, 0, effect.duration_ticks);
+        give_effect(world, target, effect.effect, effect.duration_ticks);
+    }
+}
+
+/// Give `target` the effect a hit applies (amplifier 0) unless it cannot be
+/// affected by it; a player's client is told about the effect it now has.
+fn give_effect(world: &mut World, target: Entity, effect: EffectType, duration_ticks: u32) {
+    if immune_to_effect(world, target, effect) {
+        return;
+    }
+    let mut entity = world.entity_mut(target);
+    let mut effects = entity.entry::<Effects>().or_default();
+    effects.get_mut().add(effect, 0, duration_ticks);
+    let Some(instance) = effects.get().get(effect).cloned() else {
+        return;
+    };
+    if let (Some(session), Some(runtime_id)) = (
+        entity.get::<PlayerSession>(),
+        entity.get::<RuntimeEntityId>(),
+    ) {
+        let _ = session.send(effect_packet(
+            runtime_id.0 as u64,
+            EnumsMobEffectPacketPayloadEvent::Add,
+            effect,
+            &instance,
+        ));
+    }
+}
+
+/// The effects an actor cannot have: the undead family is immune to poison
+/// and regeneration, and native classes refuse what [`NativeTraits`] lists.
+///
+/// [`NativeTraits`]: crate::entity::mob::native::NativeTraits
+fn immune_to_effect(world: &World, target: Entity, effect: EffectType) -> bool {
+    let native = world.get::<MobKind>(target).map(|kind| kind.0.native);
+    match effect {
+        EffectType::POISON => {
+            native.is_some_and(|n| n.immune_to_poison) || is_family(world, target, "undead")
+        }
+        EffectType::REGENERATION => is_family(world, target, "undead"),
+        EffectType::WITHER => native.is_some_and(|n| n.immune_to_wither),
+        _ => false,
     }
 }
 

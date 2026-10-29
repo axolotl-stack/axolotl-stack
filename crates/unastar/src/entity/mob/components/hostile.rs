@@ -15,7 +15,7 @@ use super::common::{FilterError, SelfEvent, SelfEventError, filter, insert, self
 use crate::entity::components::EffectType;
 use crate::entity::definition::{ComponentError, ComponentKindsBuilder, DefinitionError};
 use crate::entity::goal_selector::GoalControls;
-use crate::entity::mob::constants::{DEFAULT_FOLLOW_RANGE, TICKS_PER_SECOND};
+use crate::entity::mob::constants::TICKS_PER_SECOND;
 use crate::entity::mob::gear::GearSlot;
 
 /// Why a hostile component body cannot be compiled.
@@ -27,6 +27,15 @@ pub enum HostileError {
     AttackTypes(String),
     #[error("burns_in_daylight protection slot {0:?} is not a head, chest, legs or feet slot")]
     ProtectionSlot(EquipmentSlot),
+    // Creeper lane.
+    #[error(
+        "avoid_mob_type probability_per_strength {0}: the strength roll (llamas) is not implemented"
+    )]
+    AvoidStrength(f32),
+    #[error("avoid_mob_type avoid_mob_sound: the avoidance sound is not implemented")]
+    AvoidSound,
+    #[error("avoid_mob_type check_if_outnumbered: group sizes are not implemented")]
+    AvoidOutnumbered,
     #[error(transparent)]
     Filter(#[from] FilterError),
     #[error(transparent)]
@@ -52,8 +61,23 @@ pub struct AttackConfig {
     pub effect: Option<AttackEffect>,
 }
 
-/// `minecraft:behavior.melee_box_attack`, its seconds converted to ticks
-/// and its boundaries squared as the native goal stores them.
+/// How a melee goal decides its target is in reach.
+#[derive(Debug, Clone, Copy, PartialEq)]
+pub enum MeleeReach {
+    /// `behavior.melee_box_attack`: the target's box meets the mob's box
+    /// grown by this much horizontally.
+    Box { horizontal: f64 },
+    /// `behavior.melee_attack`: the target's feet are within
+    /// `(reach_multiplier × max(width, MELEE_ATTACK_MIN_WIDTH))² + target
+    /// width` squared blocks of the mob's feet (in 3D, or horizontally with
+    /// the boxes overlapping vertically).
+    Multiplier { reach_multiplier: f64 },
+}
+
+/// A melee goal, its seconds converted to ticks and its boundaries squared
+/// as the native goal stores them: `minecraft:behavior.melee_box_attack`
+/// itself, and inside [`MeleeAttackGoal`] `minecraft:behavior.melee_attack`
+/// (the two differ only in [`MeleeReach`]).
 #[derive(Component, Debug, Clone, PartialEq)]
 pub struct MeleeBoxAttackGoal {
     pub priority: i32,
@@ -61,7 +85,7 @@ pub struct MeleeBoxAttackGoal {
     pub attack_once: bool,
     pub can_spread_on_fire: bool,
     pub cooldown_ticks: i32,
-    pub horizontal_reach: f64,
+    pub reach: MeleeReach,
     pub min_path_ticks: i32,
     pub max_path_ticks: i32,
     pub path_fail_ticks: i32,
@@ -81,6 +105,24 @@ pub struct MeleeBoxAttackGoal {
     /// Keep re-pathing without line of sight to the target.
     pub track_target: bool,
 }
+
+/// `minecraft:behavior.melee_attack`.
+#[derive(Component, Debug, Clone, PartialEq)]
+pub struct MeleeAttackGoal(pub MeleeBoxAttackGoal);
+
+/// The melee goal `entity` runs: its `behavior.melee_box_attack`, else its
+/// `behavior.melee_attack`.
+pub fn melee_goal(entity: EntityRef<'_>) -> Option<&MeleeBoxAttackGoal> {
+    entity
+        .get::<MeleeBoxAttackGoal>()
+        .or_else(|| entity.get::<MeleeAttackGoal>().map(|goal| &goal.0))
+}
+
+/// `minecraft:on_target_escape`: fired on the mob when its target is
+/// cleared (not when it switches to another target), with the old target
+/// as `other`. `None` when the event is empty.
+#[derive(Component, Debug, Clone, PartialEq)]
+pub struct OnTargetEscape(pub Option<SelfEvent>);
 
 /// One `entity_types` entry of a target goal.
 #[derive(Debug, Clone, PartialEq)]
@@ -112,9 +154,6 @@ pub struct TargetGoalBase {
 #[derive(Component, Debug, Clone, PartialEq)]
 pub struct NearestAttackableTargetGoal {
     pub base: TargetGoalBase,
-    /// The mob's follow range (`within_radius`, else the native default):
-    /// the distance beyond which any target goal drops its target.
-    pub follow_range: f32,
     /// 1-in-N chance per tick to scan when positive; else scans run every
     /// `scan_interval` ticks.
     pub attack_interval_ticks: i32,
@@ -167,6 +206,18 @@ pub fn register_component_kinds(
                 .filter(|slot| !slot.is_hand())
                 .ok_or(HostileError::ProtectionSlot(b.protection_slot))?,
         })
+    })?;
+    insert(builder, |b: body::BehaviorMeleeAttack| {
+        melee_attack_goal(b).map(MeleeAttackGoal)
+    })?;
+    insert(builder, |b: body::OnTargetEscape| {
+        Ok::<_, HostileError>(OnTargetEscape(optional_event(
+            body::ActorDefinitionTrigger {
+                event: b.event,
+                filters: b.filters,
+                target: b.target,
+            },
+        )?))
     })
 }
 
@@ -193,7 +244,9 @@ fn compile_attack(b: body::Attack) -> Result<AttackConfig, HostileError> {
                 duration_ticks: (b.effect_duration.max(0.0) * TICKS_PER_SECOND) as u32,
             })
         })
-        .transpose()?;
+        .transpose()?
+        // A zero duration (the easy cave spider's poison) applies nothing.
+        .filter(|effect| effect.duration_ticks > 0);
     Ok(AttackConfig {
         damage_min,
         damage_max,
@@ -259,34 +312,49 @@ fn optional_event(
     Ok(Some(self_event(&EventTrigger::Trigger(trigger))?))
 }
 
+/// The melee goal fields `behavior.melee_box_attack` and
+/// `behavior.melee_attack` share (their bodies use the same names).
+macro_rules! melee_goal {
+    ($b:expr, $reach:expr) => {{
+        let b = $b;
+        if !b.attack_types.is_empty() {
+            return Err(HostileError::AttackTypes(b.attack_types));
+        }
+        Ok(MeleeBoxAttackGoal {
+            priority: b.priority,
+            controls: controls(&b.control_flags, GoalControls::MOVE | GoalControls::LOOK),
+            attack_once: b.attack_once,
+            can_spread_on_fire: b.can_spread_on_fire,
+            cooldown_ticks: seconds_to_ticks(b.cooldown_time),
+            reach: $reach,
+            min_path_ticks: seconds_to_ticks(b.min_path_time),
+            max_path_ticks: seconds_to_ticks(b.max_path_time),
+            path_fail_ticks: seconds_to_ticks(b.path_fail_time_increase),
+            inner_boundary_ticks: seconds_to_ticks(b.inner_boundary_time_increase),
+            outer_boundary_ticks: seconds_to_ticks(b.outer_boundary_time_increase),
+            inner_boundary_sq: f64::from(b.path_inner_boundary * b.path_inner_boundary),
+            outer_boundary_sq: f64::from(b.path_outer_boundary * b.path_outer_boundary),
+            melee_fov: b.melee_fov,
+            y_max_head_rotation: b.y_max_head_rotation,
+            on_attack: optional_event(b.on_attack)?,
+            on_kill: optional_event(b.on_kill)?,
+            random_stop_interval: b.random_stop_interval,
+            speed_multiplier: b.speed_multiplier,
+            track_target: b.track_target,
+        })
+    }};
+}
+
 fn compile_melee_box_attack(
     b: body::BehaviorMeleeBoxAttack,
 ) -> Result<MeleeBoxAttackGoal, HostileError> {
-    if !b.attack_types.is_empty() {
-        return Err(HostileError::AttackTypes(b.attack_types));
-    }
-    Ok(MeleeBoxAttackGoal {
-        priority: b.priority,
-        controls: controls(&b.control_flags, GoalControls::MOVE | GoalControls::LOOK),
-        attack_once: b.attack_once,
-        can_spread_on_fire: b.can_spread_on_fire,
-        cooldown_ticks: seconds_to_ticks(b.cooldown_time),
-        horizontal_reach: f64::from(b.horizontal_reach),
-        min_path_ticks: seconds_to_ticks(b.min_path_time),
-        max_path_ticks: seconds_to_ticks(b.max_path_time),
-        path_fail_ticks: seconds_to_ticks(b.path_fail_time_increase),
-        inner_boundary_ticks: seconds_to_ticks(b.inner_boundary_time_increase),
-        outer_boundary_ticks: seconds_to_ticks(b.outer_boundary_time_increase),
-        inner_boundary_sq: f64::from(b.path_inner_boundary * b.path_inner_boundary),
-        outer_boundary_sq: f64::from(b.path_outer_boundary * b.path_outer_boundary),
-        melee_fov: b.melee_fov,
-        y_max_head_rotation: b.y_max_head_rotation,
-        on_attack: optional_event(b.on_attack)?,
-        on_kill: optional_event(b.on_kill)?,
-        random_stop_interval: b.random_stop_interval,
-        speed_multiplier: b.speed_multiplier,
-        track_target: b.track_target,
-    })
+    let horizontal = f64::from(b.horizontal_reach);
+    melee_goal!(b, MeleeReach::Box { horizontal })
+}
+
+fn melee_attack_goal(b: body::BehaviorMeleeAttack) -> Result<MeleeBoxAttackGoal, HostileError> {
+    let reach_multiplier = f64::from(b.reach_multiplier);
+    melee_goal!(b, MeleeReach::Multiplier { reach_multiplier })
 }
 
 fn entries(types: &EntityTypes) -> Result<Arc<[TargetEntry]>, HostileError> {
@@ -325,11 +393,6 @@ fn compile_nearest_attackable_target(
             must_see: b.must_see,
             must_see_forget_ticks: seconds_to_ticks(b.must_see_forget_duration),
             persist_ticks: seconds_to_ticks(b.persist_time),
-        },
-        follow_range: if b.within_radius > 0.0 {
-            b.within_radius
-        } else {
-            DEFAULT_FOLLOW_RANGE
         },
         attack_interval_ticks: seconds_to_ticks(b.attack_interval.max),
         scan_interval: b.scan_interval.max(1),

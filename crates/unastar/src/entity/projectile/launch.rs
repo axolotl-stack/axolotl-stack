@@ -125,7 +125,7 @@ fn throw_held(world: &mut World, player: Entity) {
 }
 
 /// The unit view vector of a rotation (degrees; Bedrock yaw/pitch).
-fn view_direction(yaw: f32, pitch: f32) -> DVec3 {
+pub(crate) fn view_direction(yaw: f32, pitch: f32) -> DVec3 {
     let (yaw, pitch) = (f64::from(yaw).to_radians(), f64::from(pitch).to_radians());
     DVec3::new(
         -yaw.sin() * pitch.cos(),

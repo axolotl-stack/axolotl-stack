@@ -5,7 +5,8 @@
 //! metadata, synced properties and attributes. Existing viewers get, per
 //! tick and only for what changed: `SetActorData` (coalesced dirty metadata
 //! keys plus the property snapshot), `UpdateAttributes`, `MoveActorDelta`
-//! when movement is significant, `SetActorMotion` when velocity changed
+//! when movement is significant (`MoveActorAbsolute` with the teleport bit
+//! after a teleport), `SetActorMotion` when velocity changed
 //! enough (thresholds in [`constants`]) and the equipment slots that
 //! changed; a new viewer of a mob with equipment also gets its equipment
 //! after the `AddActor` (`mob::gear::replicate`).
@@ -13,12 +14,12 @@
 use bevy_ecs::prelude::*;
 use glam::DVec3;
 use jolyne::valentine::types::{
-    ActorRuntimeId, ActorUniqueId, AttributeData, MoveActorDeltaData, PlayerInputTick,
-    PropertySyncData, SynchedActorDataCopyableDataList, Vec2, Vec3,
+    ActorRuntimeId, ActorUniqueId, AttributeData, MoveActorAbsoluteData, MoveActorDeltaData,
+    PlayerInputTick, PropertySyncData, SynchedActorDataCopyableDataList, Vec2, Vec3,
 };
 use jolyne::valentine::{
-    AddActorPacket, McpePacket, MoveActorDeltaPacket, RemoveActorPacket, SetActorDataPacket,
-    SetActorMotionPacket, UpdateAttributesPacket,
+    AddActorPacket, McpePacket, MoveActorAbsolutePacket, MoveActorDeltaPacket, RemoveActorPacket,
+    SetActorDataPacket, SetActorMotionPacket, UpdateAttributesPacket,
 };
 
 use crate::entity::components::{
@@ -46,6 +47,13 @@ pub struct MobNetState {
     pub properties_revision: u64,
     pub attributes_revision: u64,
 }
+
+/// The mob teleported this tick (`mob::life::teleport`): its viewers get
+/// one `MoveActorAbsolute` with the teleport bit instead of a delta move.
+/// Removed once replicated.
+#[derive(Component, Debug, Clone, Copy, PartialEq, Eq)]
+#[component(storage = "SparseSet")]
+pub struct Teleported;
 
 /// Degrees to the protocol's 1/256-turn rotation byte.
 pub fn rotation_byte(degrees: f32) -> u8 {
@@ -110,6 +118,7 @@ pub fn sync_mob_viewers(
     sessions: Query<&PlayerSession>,
     items: Option<Res<ItemRegistryResource>>,
     config: Option<Res<ServerConfigResource>>,
+    mut commands: Commands,
     mut mobs: Query<(
         &MobKind,
         &RuntimeId,
@@ -123,6 +132,8 @@ pub fn sync_mob_viewers(
         &mut ActorViewers,
         &mut MobNetState,
         Option<&mut MobEquipment>,
+        Entity,
+        Option<&Teleported>,
     )>,
 ) {
     let block_ids = config
@@ -141,6 +152,8 @@ pub fn sync_mob_viewers(
         mut viewers,
         mut net,
         mut gear,
+        entity,
+        teleported,
     ) in &mut mobs
     {
         let (cx, cz) = crate::world::ecs::world_to_chunk_coords(
@@ -227,7 +240,26 @@ pub fn sync_mob_viewers(
             .sum();
         let moved_sq = position.0.distance_squared(net.position);
         let settling = moved_sq > 1.0e-6 && velocity.0.length_squared() < 1.0e-6;
-        if turned_degrees > constants::NET_ROTATION_THRESHOLD
+        if teleported.is_some() {
+            commands.entity(entity).remove::<Teleported>();
+            let mut header = constants::MOVE_ABSOLUTE_TELEPORT;
+            if on_ground.0 {
+                header |= constants::MOVE_ABSOLUTE_ON_GROUND;
+            }
+            updates.push(McpePacket::from(MoveActorAbsolutePacket {
+                move_data: MoveActorAbsoluteData {
+                    actor_runtime_id: rid.clone(),
+                    header,
+                    position: wire(position.0),
+                    rotation_x: bytes[0],
+                    rotation_y: bytes[1],
+                    rotation_y_head: bytes[2],
+                },
+            }));
+            net.position = position.0;
+            net.rotation = bytes;
+            net.on_ground = on_ground.0;
+        } else if turned_degrees > constants::NET_ROTATION_THRESHOLD
             || moved_sq > constants::NET_POSITION_THRESHOLD_SQ
             || settling
             || on_ground.0 != net.on_ground

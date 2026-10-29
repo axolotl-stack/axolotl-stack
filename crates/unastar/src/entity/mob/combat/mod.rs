@@ -1,12 +1,13 @@
 //! Mob combat: hits and the hurt rule ([`hit`]), damage sensors
 //! ([`damage_sensor`]), fall damage ([`fall`]), fire ([`fire`]), mob melee
-//! hits ([`melee`]) and death ([`death`]).
+//! hits ([`melee`]), death ([`death`]) and fuses ([`explode`]).
 //!
 //! Every damage source goes through [`hurt_mob`]; the component
 //! configuration these systems read lives in `mob::components`.
 
 pub mod damage_sensor;
 pub mod death;
+pub mod explode;
 pub mod fall;
 pub mod fire;
 pub mod hit;
