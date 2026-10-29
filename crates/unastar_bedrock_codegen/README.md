@@ -867,3 +867,48 @@ tabled below.
 | surface biome | 0.99506 | 0.99500 | 0.99506 | 0.99506 | 0.99506 |
 | histogram L1 | 0.02368 | 0.02371 | 0.02378 | 0.02378 | 0.02380 |
 | roofed tree voxels exact (of 1828) | not measured | not measured | not measured | 713 | 788 |
+
+### Carver source seeding (2026-10-29)
+
+The worm carvers seed each source chunk `(sx, sz)` with `(sx * a + sz * b) ^
+L` (wrapping 32-bit). `L` is the level seed and `a`, `b` are the first two
+31-bit draws of a random seeded with `L`, each forced odd; every carver
+feature shares these seeds. Per source the random first draws the start
+count `r(r(r(15) + 1) + 1)`, then the skip roll `r(skip_carve_chance) ==
+0`. Each start draws z, y, x. Rooms draw their thickness, then a seed for a
+random of their own that supplies the vertical scale. Tunnels and branches
+seed their own randoms from 31-bit draws, branches after drawing their
+thickness. Degenerate float ranges draw nothing. Previously each source chunk
+was a private 64-bit hash of the feature identifier, with the skip roll on
+the hash.
+
+Evidence: the natural seed-12345 BDS world, 13 chunks around x -5..=-2, z
+1..=4. The fixture `bds_1_26_51_seed_12345_underground_open.json` lists the
+10221 cells BDS leaves open below y 0 (air, water or lava).
+`underground_open_cells_ratchet_against_bds` counts how many are open in
+ours: 2395 -> 4135.
+
+- Cells open in both variants (noise caves and aquifers) were already 75%
+  shared.
+- The old carver's tunnels shared almost none; the seeded ones about 63%.
+- 70% of our open cells below y 0 are now open in BDS too, against 30%
+  before.
+
+We still carve less than BDS: 5937 open cells there against 10221. That
+costs the aggregate floors (the old tunnels carved roughly the right volume
+in the wrong places).
+
+| Metric | Before | After |
+| --- | ---: | ---: |
+| underground open cells shared (of 10221) | 2395 | 4135 |
+| terrain exact | 0.88591 | 0.88505 |
+| terrain within 2 | 0.92440 | 0.92400 |
+| terrain mean abs error | 1.20376 | 1.20588 |
+| surface exact | 0.85168 | 0.85139 |
+| surface block | 0.84754 | 0.84725 |
+| surface biome | 0.99506 | 0.99506 |
+| histogram L1 | 0.02380 | 0.03696 |
+| roofed tree voxels exact | 788 | 787 |
+
+Next: measure tunnel geometry against the native cave air (radii, steps,
+branch points) to recover the missing volume.
