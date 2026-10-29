@@ -176,10 +176,10 @@ pub fn carve_chunk<C: CarveContext>(
     ctx: &mut C,
 ) {
     let geometry = CarverGeometry::for_dimension(dimension);
-    let carvers: &[ConfiguredCarver] = match dimension {
-        JavaDimension::Overworld => &carvers::OVERWORLD_CARVERS,
-        JavaDimension::Nether => &carvers::NETHER_CARVERS,
-        JavaDimension::End => &carvers::END_CARVERS,
+    let (carvers, names): (&[ConfiguredCarver], &[&'static str]) = match dimension {
+        JavaDimension::Overworld => (&carvers::OVERWORLD_CARVERS, &carvers::OVERWORLD_CARVER_NAMES),
+        JavaDimension::Nether => (&carvers::NETHER_CARVERS, &carvers::NETHER_CARVER_NAMES),
+        JavaDimension::End => (&carvers::END_CARVERS, &carvers::END_CARVER_NAMES),
     };
     if carvers.is_empty() {
         for dx in -START_RANGE..=START_RANGE {
@@ -211,6 +211,10 @@ pub fn carve_chunk<C: CarveContext>(
                 if random.next_float() >= carver.probability() {
                     continue;
                 }
+                let _coverage = unastar_noise::coverage::scope(
+                    unastar_noise::coverage::Kind::Carver,
+                    names[index],
+                );
                 match carver {
                     ConfiguredCarver::Cave(config) => {
                         carving.cave(CaveKind::Cave, config, &mut random, start)
@@ -574,6 +578,7 @@ impl<C: CarveContext> Carving<'_, C> {
                     materials.cave_air
                 };
                 self.chunk.set_block(local_x, y as i16, local_z, carved);
+                unastar_noise::coverage::record_write(self.pos.x, self.pos.z);
             }
             return;
         }
@@ -596,6 +601,7 @@ impl<C: CarveContext> Carving<'_, C> {
             }
         };
         self.chunk.set_block(local_x, y as i16, local_z, carved);
+        unastar_noise::coverage::record_write(self.pos.x, self.pos.z);
         if *reached_surface
             && self.chunk.get_block(local_x, (y - 1) as i16, local_z) == materials.dirt
         {

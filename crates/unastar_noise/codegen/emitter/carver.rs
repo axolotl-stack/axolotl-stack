@@ -208,6 +208,10 @@ pub fn emit(
             &format!("{}_CARVERS", preset.name.to_uppercase()),
             Span::call_site(),
         );
+        let names_ident = Ident::new(
+            &format!("{}_CARVER_NAMES", preset.name.to_uppercase()),
+            Span::call_site(),
+        );
         let doc = format!(
             "The {} biomes' native carvers in list order (the index salts the start seed).",
             preset.name,
@@ -215,6 +219,8 @@ pub fn emit(
         tables.push(quote! {
             #[doc = #doc]
             pub static #ident: [ConfiguredCarver; #count] = [#(#entries),*];
+            /// Registry ids of the carvers above, in the same order.
+            pub static #names_ident: [&str; #count] = [#(#names),*];
         });
     }
     let bitsets = ctx.bitsets.values().map(|(ident, bits)| {

@@ -20,10 +20,13 @@ use crate::codegen::parser::surface_rule::{
 
 struct Emitter<'a> {
     blocks: &'a JavaBlocks,
+    preset: &'a str,
     min_y: i32,
     height: i32,
     /// Gradient random names in first-use order.
     gradients: Vec<String>,
+    /// Coverage labels of the block-placing leaves, in rule order.
+    leaves: Vec<String>,
 }
 
 fn pascal_ident(name: &str) -> Result<Ident, String> {
@@ -68,10 +71,21 @@ impl Emitter<'_> {
             }
             RuleSource::Block { result_state } => {
                 let block = self.block(result_state)?;
-                quote! { return Some(#block); }
+                let leaf = self.leaf(&result_state.name);
+                quote! { return { crate::coverage::surface_rule(#leaf); Some(#block) }; }
             }
-            RuleSource::Bandlands {} => quote! { return Some(env.band()); },
+            RuleSource::Bandlands {} => {
+                let leaf = self.leaf("bandlands");
+                quote! { return { crate::coverage::surface_rule(#leaf); Some(env.band()) }; }
+            }
         })
+    }
+
+    /// Coverage label of the next leaf: preset, rule-order index and result.
+    fn leaf(&mut self, result: &str) -> String {
+        let label = format!("{}#{} {result}", self.preset, self.leaves.len());
+        self.leaves.push(label.clone());
+        label
     }
 
     fn condition(&mut self, condition: &ConditionSource) -> Result<TokenStream, String> {
@@ -175,9 +189,11 @@ pub fn emit(
 ) -> Result<TokenStream, String> {
     let mut emitter = Emitter {
         blocks,
+        preset,
         min_y: settings.noise.min_y,
         height: settings.noise.height,
         gradients: Vec::new(),
+        leaves: Vec::new(),
     };
     let body = emitter.rule(&settings.surface_rule)?;
     let fallback = (!always_places(&settings.surface_rule)).then(|| quote! { None });
@@ -210,6 +226,8 @@ pub fn emit(
         Literal::i32_suffixed(hash)
     });
 
+    let leaf_count = emitter.leaves.len();
+    let leaves = emitter.leaves.iter();
     let band = |name: &str| default_block(blocks, name);
     let [terracotta, orange, yellow, brown, red, white, light_gray] = [
         band("minecraft:terracotta")?,
@@ -244,6 +262,9 @@ pub fn emit(
 
         /// Vertical-gradient random names, by gradient index.
         pub static GRADIENT_NAMES: [&str; #gradient_count] = [#(#gradient_names),*];
+
+        /// Coverage labels of the block-placing rule leaves, in rule order.
+        pub static RULE_LEAVES: [&str; #leaf_count] = [#(#leaves),*];
 
         /// Native legacy `String.hashCode` of each gradient name, before its
         /// sign-extended XOR with the legacy positional factory seed.

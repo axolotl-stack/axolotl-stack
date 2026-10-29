@@ -190,6 +190,7 @@ impl<S: NativeStructureSource> FeatureWorld for RegionWorld<'_, '_, S> {
         };
         if (self.region.min_y()..self.region.min_y() + self.region.height()).contains(&pos.y) {
             self.region.set_block(pos.x, pos.y, pos.z, u32::from(state.0));
+            unastar_noise::coverage::record_write(pos.x >> 4, pos.z >> 4);
         }
         if creates_actor {
             if let Some(actor) = live {

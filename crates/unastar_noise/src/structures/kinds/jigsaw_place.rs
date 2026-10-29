@@ -578,6 +578,18 @@ fn place_element(
             legacy,
             ..
         } => {
+            let _template = crate::coverage::scope(crate::coverage::Kind::Template, template);
+            // Named lists are shared statics, so pointer identity names the list.
+            let _processors = crate::coverage::ENABLED
+                .then(|| {
+                    crate::structures::generated::PROCESSOR_LISTS
+                        .iter()
+                        .find(|(_, list)| std::ptr::eq(*list, processors))
+                        .map(|&(name, _)| {
+                            crate::coverage::scope(crate::coverage::Kind::ProcessorList, name)
+                        })
+                })
+                .flatten();
             let (t, _) = template_with_jigsaws(template);
             let mut settings = PlaceSettings::new(t);
             settings.rotation = rotation;
