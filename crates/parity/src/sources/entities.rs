@@ -78,7 +78,9 @@ fn family(identifier: &str, definition: &actor_definitions::ActorDefinition) -> 
     }
     let families = type_families(definition);
     let is = |family: &str| families.contains(family);
-    if is("inanimate") || is("boat") || is("minecart") || !is("mob") {
+    // Not every mob lists the `mob` family (goats, fish), so objects are
+    // inanimate families or actors without health.
+    if is("inanimate") || is("boat") || is("minecart") || !has("minecraft:health") {
         "object"
     } else if is("monster") || is("illager") {
         "hostile"

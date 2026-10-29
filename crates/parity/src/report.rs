@@ -4,11 +4,13 @@ use std::collections::BTreeMap;
 use std::fmt::Write as _;
 
 use crate::catalog::{DomainRows, Row};
-use crate::status::{Entry, Status, StatusFile};
+use crate::status::{Status, StatusFile};
 
-/// Missing rows of one family are listed by id up to this many; larger
-/// families point at the status file instead.
-const LIST_MISSING_UP_TO: usize = 25;
+/// Ids listed per gap line before the rest are summarised as "and N more";
+/// the status file has them all.
+const LIST_IDS_UP_TO: usize = 12;
+/// Gap groups (rows sharing one `gaps` text) shown per family.
+const GAP_GROUPS_UP_TO: usize = 5;
 /// Rows in the "most-needed sub-rows" rollup.
 const FACET_ROLLUP: usize = 30;
 
@@ -128,51 +130,70 @@ fn render_domain(out: &mut String, rows: &DomainRows, entries: &StatusFile) {
     }
 
     let _ = writeln!(out, "### {} gaps\n", domain.title());
+    if has_sub_rows {
+        out.push_str(
+            "Top-level rows only; sub-row gaps are in the status file and rolled up by facet \
+             above.\n\n",
+        );
+    }
     let mut any = false;
     for (family, members) in &families {
-        let partial: Vec<&Row> = members
-            .iter()
-            .copied()
-            .filter(|r| entries[&r.id].status == Status::Partial)
-            .collect();
-        let missing: Vec<&Row> = members
-            .iter()
-            .copied()
-            .filter(|r| r.parent.is_none() && entries[&r.id].status == Status::Missing)
+        let top = || members.iter().copied().filter(|r| r.parent.is_none());
+        // Partial rows grouped by identical gap text, largest group first.
+        let mut partial: Vec<(&str, Vec<&Row>)> = Vec::new();
+        for row in top().filter(|r| entries[&r.id].status == Status::Partial) {
+            let gaps = entries[&row.id].gaps.as_str();
+            match partial.iter_mut().find(|(text, _)| *text == gaps) {
+                Some((_, rows)) => rows.push(row),
+                None => partial.push((gaps, vec![row])),
+            }
+        }
+        partial.sort_by_key(|(_, rows)| std::cmp::Reverse(rows.len()));
+        let missing: Vec<&Row> = top()
+            .filter(|r| entries[&r.id].status == Status::Missing)
             .collect();
         if partial.is_empty() && missing.is_empty() {
             continue;
         }
         any = true;
         let _ = writeln!(out, "**{family}**\n");
-        for row in &partial {
-            let entry: &Entry = &entries[&row.id];
-            let owner = if entry.owner.is_empty() {
-                String::new()
-            } else {
-                format!(" ({})", entry.owner)
-            };
-            let _ = writeln!(out, "- `{}`{owner}: {}", row.id, entry.gaps);
+        for (gaps, rows) in partial.iter().take(GAP_GROUPS_UP_TO) {
+            let _ = writeln!(out, "- {}: {gaps}", id_list(rows, LIST_IDS_UP_TO));
+        }
+        let other: usize = partial
+            .iter()
+            .skip(GAP_GROUPS_UP_TO)
+            .map(|(_, rows)| rows.len())
+            .sum();
+        if other > 0 {
+            let _ = writeln!(
+                out,
+                "- {other} more partial rows with other gaps (see [{0}.toml]({0}.toml))",
+                domain.name()
+            );
         }
         if !missing.is_empty() {
-            if missing.len() <= LIST_MISSING_UP_TO {
-                let ids: Vec<String> = missing.iter().map(|r| format!("`{}`", r.id)).collect();
-                let _ = writeln!(out, "- missing: {}", ids.join(", "));
-            } else {
-                let _ = writeln!(
-                    out,
-                    "- missing: {} rows (see [{}.toml]({}.toml))",
-                    missing.len(),
-                    domain.name(),
-                    domain.name()
-                );
-            }
+            let _ = writeln!(out, "- missing: {}", id_list(&missing, LIST_IDS_UP_TO));
         }
         out.push('\n');
     }
     if !any {
         out.push_str("None.\n\n");
     }
+}
+
+/// `` `a`, `b` `` or `` `a`, `b` and 12 more ``.
+fn id_list(rows: &[&Row], up_to: usize) -> String {
+    let shown: Vec<String> = rows
+        .iter()
+        .take(up_to)
+        .map(|r| format!("`{}`", r.id))
+        .collect();
+    let mut list = shown.join(", ");
+    if rows.len() > up_to {
+        let _ = write!(list, " and {} more", rows.len() - up_to);
+    }
+    list
 }
 
 /// Sub-rows rolled up by facet (entity component, item behaviour), most

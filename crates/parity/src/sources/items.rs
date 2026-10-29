@@ -34,7 +34,12 @@ pub fn rows() -> anyhow::Result<Vec<Row>> {
         let components = pack.map(|p| &p.components);
         let pack_has = |f: fn(&item_components::ItemComponents) -> bool| components.is_some_and(f);
 
-        if blocks::get(id).is_some()
+        // `minecraft:item.<block>` is the hidden block item of a block whose
+        // name a real item also uses (`item.wheat` places the wheat crop).
+        let placed_block = id
+            .strip_prefix("minecraft:item.")
+            .map_or_else(|| id.to_owned(), |block| format!("minecraft:{block}"));
+        if blocks::get(&placed_block).is_some()
             || pack_has(|c| c.block_placer.is_some() || c.block.is_some() || c.seed.is_some())
         {
             facets.insert("block_placer");
@@ -63,15 +68,18 @@ pub fn rows() -> anyhow::Result<Vec<Row>> {
         if item.has_tag("minecraft:music_disc") {
             facets.insert("record");
         }
+        // Items named like an actor: projectiles are thrown; food and block
+        // items that merely share a mob's or primed block's name (cod, slime,
+        // tnt) place nothing.
         if actors.contains(id) {
             let projectile = actor_definitions::get(id).is_some_and(|definition| {
                 definition.components.contains_key("minecraft:projectile")
             });
-            facets.insert(if projectile {
-                "throwable"
-            } else {
-                "entity_placer"
-            });
+            if projectile {
+                facets.insert("throwable");
+            } else if !facets.contains("food") && !facets.contains("block_placer") {
+                facets.insert("entity_placer");
+            }
         } else if [
             "minecraft:boat",
             "minecraft:is_minecart",

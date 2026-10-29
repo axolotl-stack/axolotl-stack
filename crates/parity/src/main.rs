@@ -85,8 +85,8 @@ fn generate(root: &Path) -> anyhow::Result<()> {
         let unknown = check::unknown_ids(&rows, &entries);
         if !unknown.is_empty() {
             bail!(
-                "{} names rows that are no longer generated (rename or delete them): {}",
-                path.display(),
+                "docs/parity/{}.toml names rows that are no longer generated (rename or delete them): {}",
+                rows.domain.name(),
                 unknown.join(", ")
             );
         }
@@ -125,8 +125,8 @@ fn check(root: &Path) -> anyhow::Result<()> {
             let canonical = status::render(&rows, &entries);
             if !same_text(&read_path(&path)?, &canonical) {
                 problems.push(format!(
-                    "{} is not in canonical form; run `parity generate`",
-                    path.display()
+                    "docs/parity/{}.toml is not in canonical form; run `parity generate`",
+                    rows.domain.name()
                 ));
             }
         }
