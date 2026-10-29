@@ -9,8 +9,9 @@
 //! The decisions doc D12 table mirrors this module; change both together.
 
 use super::body::{
-    ActorDamageCause, DealsDamage, DealsDamageMode, DismountMode, FloatRange, LeashSpringType,
-    LevelSoundEvent, MolangValue, MutationStrategy, RideableSeat, VariantInterval, Vec3,
+    ActorDamageCause, DealsDamage, DealsDamageMode, Difficulty, DismountMode, FloatRange,
+    LeashSpringType, LevelSoundEvent, MolangValue, MutationStrategy, RideableSeat, VariantInterval,
+    Vec3,
 };
 
 // minecraft:ageable
@@ -26,6 +27,18 @@ pub const AMBIENT_SOUND_INTERVAL_EVENT_NAME: &str = "ambient";
 pub const AMBIENT_SOUND_INTERVAL_RANGE: f32 = 16.0;
 /// ML `minecraftcomponent_ambient_sound_interval`: `value` 8.
 pub const AMBIENT_SOUND_INTERVAL_VALUE: f32 = 8.0;
+
+// minecraft:annotation.break_door (Mojang form `minecraft_annotation_break_door.form.json`)
+
+/// `break_time` 12 seconds.
+pub const BREAK_DOOR_BREAK_TIME: f32 = 12.0;
+/// `min_difficulty` "hard".
+pub const BREAK_DOOR_MIN_DIFFICULTY: Difficulty = Difficulty::Hard;
+
+// minecraft:attack (Mojang form `minecraft_attack.form.json`)
+
+/// `effect_duration` 0 seconds.
+pub const ATTACK_EFFECT_DURATION: f32 = 0.0;
 
 // minecraft:balloonable
 
@@ -392,3 +405,30 @@ pub const TRANSFORMATION_FLAG: bool = false;
 /// `block_radius`, `range_min`, `range_max`, `value`) all default to 0.
 pub const TRANSFORMATION_DELAY_VALUE: f32 = 0.0;
 pub const TRANSFORMATION_DELAY_BLOCK_COUNT: i32 = 0;
+
+// minecraft:timer (Mojang form `minecraft_timer.form.json`)
+
+/// `looping` true.
+pub const TIMER_LOOPING: bool = true;
+/// `randomInterval` true.
+pub const TIMER_RANDOM_INTERVAL: bool = true;
+/// `time` 0 seconds (the form publishes no default; ML lists 0.0).
+pub const TIMER_TIME: f32 = 0.0;
+
+// minecraft:equip_item (Mojang form `minecraft_equip_item.form.json`)
+
+/// `can_wear_armor`: the form lists the field without a default; BDS
+/// defaults it to true (vanilla only ever authors `false`, for the fox).
+pub const EQUIP_ITEM_CAN_WEAR_ARMOR: bool = true;
+
+// minecraft:shareables (Mojang form `minecraft_shareables.form.json`)
+
+/// `all_items_max_amount`, `all_items_surplus_amount`,
+/// `all_items_want_amount` and the per-item `max_amount`, `pickup_limit`,
+/// `surplus_amount` and `want_amount` default to -1 (no limit).
+pub const SHAREABLES_AMOUNT: i32 = -1;
+/// `all_items`, `singular_pickup` and the per-item `admire`, `barter`,
+/// `consume_item`, `pickup_only` and `stored_in_inventory` default to false.
+pub const SHAREABLES_FLAG: bool = false;
+/// Per-item `priority` 0 (the most wanted).
+pub const SHAREABLES_PRIORITY: i32 = 0;

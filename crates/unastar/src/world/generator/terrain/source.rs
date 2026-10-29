@@ -3,8 +3,8 @@
 
 use std::simd::f64x4;
 
-use unastar_noise::{NoiseRef, NoiseSource};
 use unastar_noise::structures::beardifier::Beardifier;
+use unastar_noise::{NoiseRef, NoiseSource};
 
 use super::JavaGenerator;
 use crate::world::ChunkPos;
@@ -21,12 +21,17 @@ impl JavaGenerator {
             let context = self.structures.context(self.seed, self);
             let references = self.structures.manager.references(&context, pos.x, pos.z);
             Beardifier::for_chunk(
-                references.iter().map(|(starts, index)| &starts[*index]), pos.x, pos.z,
+                references.iter().map(|(starts, index)| &starts[*index]),
+                pos.x,
+                pos.z,
             )
         } else {
             Beardifier::default()
         };
-        NativeTerrainSource { noises: self.native_noises().java_source(), beardifier }
+        NativeTerrainSource {
+            noises: self.native_noises().java_source(),
+            beardifier,
+        }
     }
 }
 
@@ -56,22 +61,50 @@ impl NoiseSource for NativeTerrainSource<'_> {
     #[inline]
     #[allow(clippy::too_many_arguments)]
     fn sample_blended_noise(
-        &self, x: f64, y: f64, z: f64, xz_scale: f64, y_scale: f64,
-        xz_factor: f64, y_factor: f64, smear_scale_multiplier: f64,
+        &self,
+        x: f64,
+        y: f64,
+        z: f64,
+        xz_scale: f64,
+        y_scale: f64,
+        xz_factor: f64,
+        y_factor: f64,
+        smear_scale_multiplier: f64,
     ) -> f64 {
         self.noises.sample_blended_noise(
-            x, y, z, xz_scale, y_scale, xz_factor, y_factor, smear_scale_multiplier,
+            x,
+            y,
+            z,
+            xz_scale,
+            y_scale,
+            xz_factor,
+            y_factor,
+            smear_scale_multiplier,
         )
     }
 
     #[inline]
     #[allow(clippy::too_many_arguments)]
     fn sample_blended_noise_4(
-        &self, x: f64, y: f64x4, z: f64, xz_scale: f64, y_scale: f64,
-        xz_factor: f64, y_factor: f64, smear_scale_multiplier: f64,
+        &self,
+        x: f64,
+        y: f64x4,
+        z: f64,
+        xz_scale: f64,
+        y_scale: f64,
+        xz_factor: f64,
+        y_factor: f64,
+        smear_scale_multiplier: f64,
     ) -> f64x4 {
         self.noises.sample_blended_noise_4(
-            x, y, z, xz_scale, y_scale, xz_factor, y_factor, smear_scale_multiplier,
+            x,
+            y,
+            z,
+            xz_scale,
+            y_scale,
+            xz_factor,
+            y_factor,
+            smear_scale_multiplier,
         )
     }
 }

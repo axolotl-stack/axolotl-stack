@@ -18,8 +18,9 @@ use super::path::{PathBlockTable, WalkPolicy, find_path, ground_below, random_ta
 use crate::entity::components::PhysicsBody;
 use crate::entity::goal_selector::{GoalCallbacks, GoalControls, GoalId, GoalKind, GoalSpec};
 use crate::entity::mob::components::{
-    BreedGoal, BreedableConfig, EatBlockGoal, FloatGoal, FollowParentGoal, LookAtPlayerGoal,
-    PanicGoal, RandomLookAroundGoal, RandomStrollGoal, TemptGoal, WalkNavigationConfig,
+    BreedGoal, BreedableConfig, EatBlockGoal, EquipItemGoal, FloatGoal, FollowParentGoal,
+    HurtByTargetGoal, LookAtPlayerGoal, MeleeBoxAttackGoal, NearestAttackableTargetGoal, PanicGoal,
+    PickupItemsGoal, RandomLookAroundGoal, RandomStrollGoal, TemptGoal, WalkNavigationConfig,
 };
 use crate::entity::mob::constants::{
     BREED_CHECK_TICKS, BREED_HEAD_TURN, BREED_MAX_PARTNER_DIST, BREED_SEARCH, BREED_TOUCH_DIST,
@@ -48,10 +49,15 @@ pub enum Goal {
     LookAtPlayer,
     RandomLookAround,
     EatBlock,
+    HurtByTarget,
+    NearestAttackableTarget,
+    MeleeBoxAttack,
+    PickupItems,
+    EquipItem,
 }
 
 impl Goal {
-    const ALL: [Goal; 9] = [
+    const ALL: [Goal; 14] = [
         Goal::Float,
         Goal::Panic,
         Goal::Breed,
@@ -61,6 +67,11 @@ impl Goal {
         Goal::LookAtPlayer,
         Goal::RandomLookAround,
         Goal::EatBlock,
+        Goal::HurtByTarget,
+        Goal::NearestAttackableTarget,
+        Goal::MeleeBoxAttack,
+        Goal::PickupItems,
+        Goal::EquipItem,
     ];
 
     pub fn id(self) -> GoalId {
@@ -71,7 +82,8 @@ impl Goal {
         Self::ALL[usize::from(id.0)]
     }
 
-    /// The goal kind's controls; `behavior.eat_block` authors its own.
+    /// The goal kind's native controls; `behavior.eat_block`,
+    /// `behavior.pickup_items` and `behavior.equip_item` may author their own.
     fn controls(self) -> GoalControls {
         match self {
             Goal::Float => GoalControls::JUMP,
@@ -81,6 +93,9 @@ impl Goal {
             }
             Goal::LookAtPlayer => GoalControls::LOOK,
             Goal::EatBlock => crate::entity::mob::constants::EAT_BLOCK_DEFAULT_CONTROLS,
+            Goal::HurtByTarget | Goal::NearestAttackableTarget => GoalControls::TARGET,
+            Goal::MeleeBoxAttack | Goal::PickupItems => GoalControls::MOVE | GoalControls::LOOK,
+            Goal::EquipItem => GoalControls::NONE,
         }
     }
 }
@@ -136,6 +151,50 @@ pub fn goal_specs(world: &World, entity: Entity, out: &mut Vec<GoalSpec>) {
             controls: goal.controls,
         });
     }
+    let targets = [
+        (
+            Goal::HurtByTarget,
+            entity.get::<HurtByTargetGoal>().map(|g| g.base.priority),
+        ),
+        (
+            Goal::NearestAttackableTarget,
+            entity
+                .get::<NearestAttackableTargetGoal>()
+                .map(|g| g.base.priority),
+        ),
+    ];
+    out.extend(targets.into_iter().filter_map(|(goal, priority)| {
+        Some(GoalSpec {
+            id: goal.id(),
+            kind: GoalKind::Target,
+            priority: priority?,
+            controls: goal.controls(),
+        })
+    }));
+    if let Some(goal) = entity.get::<MeleeBoxAttackGoal>() {
+        out.push(GoalSpec {
+            id: Goal::MeleeBoxAttack.id(),
+            kind: GoalKind::Normal,
+            priority: goal.priority,
+            controls: goal.controls,
+        });
+    }
+    if let Some(goal) = entity.get::<PickupItemsGoal>() {
+        out.push(GoalSpec {
+            id: Goal::PickupItems.id(),
+            kind: GoalKind::Normal,
+            priority: goal.priority,
+            controls: goal.controls,
+        });
+    }
+    if let Some(goal) = entity.get::<EquipItemGoal>() {
+        out.push(GoalSpec {
+            id: Goal::EquipItem.id(),
+            kind: GoalKind::Normal,
+            priority: goal.priority,
+            controls: goal.controls,
+        });
+    }
 }
 
 /// World writes the goals request; applied after the mob's tick.
@@ -148,6 +207,12 @@ pub struct Effects {
     pub eat_started: bool,
     /// The eat timer ran out: eat the block now.
     pub eat_finished: bool,
+    /// The target goals changed the target: mirror it to `AttackTarget`.
+    pub target: Option<Option<Entity>>,
+    /// The melee goal hits this actor now.
+    pub attack: Option<Entity>,
+    /// The pickup and equip goals' item work (`super::pickup`).
+    pub gear: super::pickup::GearWork,
 }
 
 #[derive(Debug, Default)]
@@ -180,10 +245,13 @@ pub struct GoalStates {
     /// Ticks until `behavior.eat_block` eats.
     eat_ticks: u32,
     /// A path prepared by `can_start`, installed by `start`.
-    staging: WalkNavigation,
+    pub(super) staging: WalkNavigation,
     scratch: NavigationScratch,
     candidates: Vec<(f32, DVec3)>,
     boxes: Vec<Aabb>,
+    pub(super) targets: super::targeting::TargetStates,
+    pub(super) melee: super::melee::MeleeState,
+    pub(super) pickup: super::pickup::PickupState,
 }
 
 /// Everything a goal reads and writes during one mob's tick.
@@ -196,6 +264,7 @@ pub struct GoalContext<'a> {
     pub physics: &'a PhysicsBody,
     pub policy: WalkPolicy,
     pub yaw: f32,
+    pub head_yaw: f32,
     pub baby: bool,
     pub tick: u64,
     pub rng: &'a mut StdRng,
@@ -217,7 +286,7 @@ fn view_range(duration: (i32, i32), rng: &mut StdRng) -> i32 {
 }
 
 impl<'a> GoalContext<'a> {
-    fn config<T: Component>(&self) -> Option<&'a T> {
+    pub(super) fn config<T: Component>(&self) -> Option<&'a T> {
         self.world.get::<T>(self.entity)
     }
 
@@ -241,14 +310,14 @@ impl<'a> GoalContext<'a> {
     }
 
     /// Search a path onto the ground under `point` into the staging buffer.
-    fn path_toward(&mut self, point: DVec3) -> bool {
+    pub(super) fn path_toward(&mut self, point: DVec3) -> bool {
         let Some(goal) = ground_below(self.world, point, &mut self.states.boxes) else {
             return false;
         };
         self.path_to(goal)
     }
 
-    fn follow_staged(&mut self, speed_multiplier: f32) {
+    pub(super) fn follow_staged(&mut self, speed_multiplier: f32) {
         self.nav
             .install(&mut self.states.staging, speed_multiplier, self.body.feet);
     }
@@ -355,7 +424,7 @@ impl<'a> GoalContext<'a> {
             .map(|m| m.entity)
     }
 
-    fn aabb(&self) -> Aabb {
+    pub(super) fn aabb(&self) -> Aabb {
         Aabb::from_feet(self.body.feet, self.body.width, self.body.height)
     }
 
@@ -542,6 +611,11 @@ impl GoalCallbacks for GoalContext<'_> {
                 super::eat_block::edible(self.world, goal, feet).is_some()
                     || super::eat_block::edible(self.world, goal, feet - glam::IVec3::Y).is_some()
             }
+            Goal::HurtByTarget => self.hurt_by_can_start(),
+            Goal::NearestAttackableTarget => self.nearest_target_can_start(),
+            Goal::MeleeBoxAttack => self.melee_can_start(),
+            Goal::PickupItems => self.pickup_can_start(),
+            Goal::EquipItem => self.equip_can_start(),
         }
     }
 
@@ -594,6 +668,11 @@ impl GoalCallbacks for GoalContext<'_> {
             }
             Goal::RandomLookAround => self.states.look_ticks > 0,
             Goal::EatBlock => self.states.eat_ticks > 0,
+            Goal::HurtByTarget => self.hurt_by_can_continue(),
+            Goal::NearestAttackableTarget => self.nearest_target_can_continue(),
+            Goal::MeleeBoxAttack => self.melee_can_continue(),
+            Goal::PickupItems => self.pickup_can_continue(),
+            Goal::EquipItem => self.equip_can_start(),
             Goal::Breed => {
                 let Some(partner) = self.mob(self.states.breed.partner) else {
                     return false;
@@ -663,6 +742,11 @@ impl GoalCallbacks for GoalContext<'_> {
                 self.effects.eat_started = true;
                 self.nav.stop(self.movement);
             }
+            Goal::HurtByTarget => self.hurt_by_start(),
+            Goal::NearestAttackableTarget => self.nearest_target_start(),
+            Goal::MeleeBoxAttack => self.melee_start(),
+            Goal::PickupItems => self.pickup_start(),
+            Goal::EquipItem => {}
         }
     }
 
@@ -688,6 +772,13 @@ impl GoalCallbacks for GoalContext<'_> {
             Goal::LookAtPlayer => self.states.look_player = None,
             Goal::RandomLookAround => self.states.look_ticks = 0,
             Goal::EatBlock => self.states.eat_ticks = 0,
+            Goal::HurtByTarget => self.target_stop(super::targeting::TargetSource::HurtBy),
+            Goal::NearestAttackableTarget => {
+                self.target_stop(super::targeting::TargetSource::Nearest)
+            }
+            Goal::MeleeBoxAttack => self.melee_stop(),
+            Goal::PickupItems => self.pickup_stop(),
+            Goal::EquipItem => {}
         }
     }
 
@@ -721,6 +812,10 @@ impl GoalCallbacks for GoalContext<'_> {
                     self.effects.eat_finished = true;
                 }
             }
+            Goal::HurtByTarget | Goal::NearestAttackableTarget => self.target_tick(),
+            Goal::MeleeBoxAttack => self.melee_tick(),
+            Goal::PickupItems => self.pickup_tick(),
+            Goal::EquipItem => self.equip_tick(),
             Goal::Tempt => {
                 let Some(goal) = self.config::<TemptGoal>() else {
                     return;

@@ -1,8 +1,10 @@
 //! Movement domain system.
 //!
 //! Processes PlayerAuthInput and PlayerAction packets, updating position,
-//! rotation, input state, and player state flags. Forwards block actions
-//! from AuthInput to the block packet queue.
+//! rotation, input state, player state flags and the fall the player life
+//! systems resolve. Forwards block actions from AuthInput to the block
+//! packet queue. (`PlayerAction` respawn is routed to
+//! `player_life::respawn` instead.)
 
 use bevy_ecs::prelude::*;
 use glam::DVec3;
@@ -16,22 +18,32 @@ use super::packet_queues::{
 use crate::ecs::events::ServerEvent;
 use crate::entity::components::transform::{Position, Rotation};
 use crate::entity::components::{PlayerInput, PlayerState};
+use crate::entity::player_life::environment::PlayerFall;
 use jolyne::valentine::types::{EnumsPlayerActionType, EnumsPlayerAuthInputPacketPayloadInputData};
+
+/// The player state the movement packets write.
+type MovingPlayers<'w, 's> = Query<
+    'w,
+    's,
+    (
+        &'static mut Position,
+        &'static mut Rotation,
+        &'static mut PlayerState,
+        &'static mut PlayerInput,
+        Option<&'static mut PlayerFall>,
+    ),
+>;
 
 /// ECS system: drain movement packet queue and apply state changes.
 ///
 /// Runs in `PacketApplySet`. Can execute in parallel with inventory, chat, and chunks
-/// because it writes disjoint components (Position, Rotation, PlayerState, PlayerInput).
+/// because it writes disjoint components (Position, Rotation, PlayerState, PlayerInput,
+/// PlayerFall).
 pub fn apply_movement(
     mut queue: ResMut<MovementPacketQueue>,
     mut block_queue: ResMut<BlockPacketQueue>,
     mut events: ResMut<MovementEvents>,
-    mut players: Query<(
-        &mut Position,
-        &mut Rotation,
-        &mut PlayerState,
-        &mut PlayerInput,
-    )>,
+    mut players: MovingPlayers,
 ) {
     let _span = tracing::info_span!("apply_movement", count = queue.0.len()).entered();
     for (entity, input) in queue.0.drain(..) {
@@ -59,15 +71,10 @@ pub fn apply_movement(
 fn process_auth_input(
     entity: Entity,
     pk: &jolyne::valentine::PlayerAuthInputPacket,
-    players: &mut Query<(
-        &mut Position,
-        &mut Rotation,
-        &mut PlayerState,
-        &mut PlayerInput,
-    )>,
+    players: &mut MovingPlayers,
     events: &mut ResMut<MovementEvents>,
 ) {
-    let Ok((mut pos, mut rot, mut state, mut input)) = players.get_mut(entity) else {
+    let Ok((mut pos, mut rot, mut state, mut input, fall)) = players.get_mut(entity) else {
         return;
     };
 
@@ -105,8 +112,9 @@ fn process_auth_input(
     input.sneaking = input_data.contains(&EnumsPlayerAuthInputPacketPayloadInputData::Sneaking);
     input.sprinting = input_data.contains(&EnumsPlayerAuthInputPacketPayloadInputData::Sprinting);
     input.tick = pk.client_tick.inputtick as i64;
+    // Vertical collision: the move ended against the ground (or a ceiling).
     input.on_ground =
-        !input_data.contains(&EnumsPlayerAuthInputPacketPayloadInputData::Verticalcollision);
+        input_data.contains(&EnumsPlayerAuthInputPacketPayloadInputData::Verticalcollision);
 
     // Update persistent state flags
     let mut toggle_sneak = None;
@@ -147,6 +155,10 @@ fn process_auth_input(
         state.flying = false;
     }
 
+    if let Some(mut fall) = fall {
+        fall.after_move(new_pos.y - old_pos.y, input.on_ground, state.flying);
+    }
+
     // Emit events
     if old_pos.distance_squared(new_pos) > 1e-3 {
         events.0.push(ServerEvent::PlayerMove {
@@ -176,12 +188,7 @@ fn process_auth_input(
 fn process_player_action(
     entity: Entity,
     pk: &jolyne::valentine::PlayerActionPacket,
-    players: &mut Query<(
-        &mut Position,
-        &mut Rotation,
-        &mut PlayerState,
-        &mut PlayerInput,
-    )>,
+    players: &mut MovingPlayers,
     events: &mut ResMut<MovementEvents>,
 ) {
     trace!(action = ?pk.action, "PlayerAction received");
@@ -202,27 +209,24 @@ fn process_player_action(
             });
         }
         EnumsPlayerActionType::Startsprinting => {
-            if let Ok((_, _, mut state, _)) = players.get_mut(entity) {
+            if let Ok((_, _, mut state, _, _)) = players.get_mut(entity) {
                 state.sprinting = true;
             }
         }
         EnumsPlayerActionType::Stopsprinting => {
-            if let Ok((_, _, mut state, _)) = players.get_mut(entity) {
+            if let Ok((_, _, mut state, _, _)) = players.get_mut(entity) {
                 state.sprinting = false;
             }
         }
         EnumsPlayerActionType::Startsneaking => {
-            if let Ok((_, _, mut state, _)) = players.get_mut(entity) {
+            if let Ok((_, _, mut state, _, _)) = players.get_mut(entity) {
                 state.sneaking = true;
             }
         }
         EnumsPlayerActionType::Stopsneaking => {
-            if let Ok((_, _, mut state, _)) = players.get_mut(entity) {
+            if let Ok((_, _, mut state, _, _)) = players.get_mut(entity) {
                 state.sneaking = false;
             }
-        }
-        EnumsPlayerActionType::Respawn => {
-            trace!("Player requested respawn");
         }
         EnumsPlayerActionType::Changedimensionack => {
             trace!("Player acknowledged dimension change");

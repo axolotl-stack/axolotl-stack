@@ -366,7 +366,8 @@ impl BlockStateSpace {
             Self::Bedrock => state == *blocks::AIR,
             Self::Java => {
                 unastar_noise::java_blocks::JAVA_STATE_CLASSES[state as usize]
-                    & unastar_noise::block_class::AIR != 0
+                    & unastar_noise::block_class::AIR
+                    != 0
             }
         }
     }
@@ -420,14 +421,20 @@ struct SecondaryStorage {
 impl SecondaryStorage {
     fn decoded(storage: PalettedStorage) -> Result<Option<Box<Self>>, String> {
         let non_air = if storage.size == PaletteSize::Bits0 {
-            if storage.palette[0] == *blocks::AIR { 0 } else { BLOCKS_PER_SUBCHUNK as u16 }
+            if storage.palette[0] == *blocks::AIR {
+                0
+            } else {
+                BLOCKS_PER_SUBCHUNK as u16
+            }
         } else {
             let mut count = 0u16;
             for x in 0..16 {
                 for z in 0..16 {
                     for y in 0..16 {
                         let index = storage.get_palette_index(x, y, z) as usize;
-                        let block = storage.palette.get(index)
+                        let block = storage
+                            .palette
+                            .get(index)
                             .ok_or("secondary storage index is outside its palette")?;
                         count += u16::from(*block != *blocks::AIR);
                     }
@@ -560,14 +567,30 @@ impl Chunk {
 
     /// Create an empty chunk in an explicit source-native block-state domain.
     pub fn new_in_space(x: i32, z: i32, state_space: BlockStateSpace) -> Self {
-        Self::new_with_bounds(x, z, state_space, MIN_Y..MIN_Y + i32::from(SUBCHUNK_COUNT) * 16)
+        Self::new_with_bounds(
+            x,
+            z,
+            state_space,
+            MIN_Y..MIN_Y + i32::from(SUBCHUNK_COUNT) * 16,
+        )
     }
 
     /// Empty native chunk with legal build bounds inside the shared physical storage.
-    pub fn new_with_bounds(x: i32, z: i32, state_space: BlockStateSpace, bounds: Range<i32>) -> Self {
+    pub fn new_with_bounds(
+        x: i32,
+        z: i32,
+        state_space: BlockStateSpace,
+        bounds: Range<i32>,
+    ) -> Self {
         Self::assert_bounds(&bounds);
         let sub_chunks = (0..SUBCHUNK_COUNT)
-            .map(|_| SubChunk::with_storage(PalettedStorage::single_block(state_space.air()), None, state_space))
+            .map(|_| {
+                SubChunk::with_storage(
+                    PalettedStorage::single_block(state_space.air()),
+                    None,
+                    state_space,
+                )
+            })
             .collect();
 
         let biomes = (0..SUBCHUNK_COUNT)
@@ -578,7 +601,9 @@ impl Chunk {
             x,
             z,
             state_space,
-            height_map: HeightMap { data: [bounds.start as i16; 256] },
+            height_map: HeightMap {
+                data: [bounds.start as i16; 256],
+            },
             bounds,
             sub_chunks,
             biomes,
@@ -591,7 +616,11 @@ impl Chunk {
     /// (`SUBCHUNK_COUNT * 4096` entries), in the explicitly supplied identity domain.
     pub fn from_dense(x: i32, z: i32, blocks: &[u32], state_space: BlockStateSpace) -> Self {
         Self::from_dense_with_bounds(
-            x, z, blocks, state_space, MIN_Y..MIN_Y + i32::from(SUBCHUNK_COUNT) * 16,
+            x,
+            z,
+            blocks,
+            state_space,
+            MIN_Y..MIN_Y + i32::from(SUBCHUNK_COUNT) * 16,
         )
     }
 
@@ -621,7 +650,9 @@ impl Chunk {
                 SubChunk::with_storage(storage, None, state_space)
             })
             .collect();
-        let mut height_map = HeightMap { data: [bounds.start as i16; 256] };
+        let mut height_map = HeightMap {
+            data: [bounds.start as i16; 256],
+        };
         for lz in 0..16usize {
             for lx in 0..16usize {
                 let top = ((bounds.start - MIN_Y) as usize..(bounds.end - MIN_Y) as usize)
@@ -660,9 +691,11 @@ impl Chunk {
 
     fn assert_bounds(bounds: &Range<i32>) {
         assert!(
-            bounds.start >= MIN_Y && bounds.end <= MIN_Y + i32::from(SUBCHUNK_COUNT) * 16
+            bounds.start >= MIN_Y
+                && bounds.end <= MIN_Y + i32::from(SUBCHUNK_COUNT) * 16
                 && bounds.start < bounds.end
-                && bounds.start % 16 == 0 && bounds.end % 16 == 0,
+                && bounds.start % 16 == 0
+                && bounds.end % 16 == 0,
             "logical chunk bounds {bounds:?} exceed physical storage"
         );
     }
@@ -680,12 +713,15 @@ impl Chunk {
                 section.fill_solid(self.state_space.air(), self.state_space);
             }
         }
-        self.block_entities.retain(|entity| self.bounds.contains(&entity.position()[1]));
+        self.block_entities
+            .retain(|entity| self.bounds.contains(&entity.position()[1]));
         self.rebuild_heightmap();
     }
 
     fn rebuild_heightmap(&mut self) {
-        self.height_map = HeightMap { data: [self.bounds.start as i16; 256] };
+        self.height_map = HeightMap {
+            data: [self.bounds.start as i16; 256],
+        };
         for z in 0..16 {
             for x in 0..16 {
                 let top = (self.bounds.start as i16..self.bounds.end as i16)
@@ -711,10 +747,14 @@ impl Chunk {
         let mut actors = Vec::with_capacity(self.block_entities.len());
         for actor in &self.block_entities {
             if !self.bounds.contains(&actor.position()[1]) {
-                return Err(std::io::Error::new(std::io::ErrorKind::InvalidData, format!(
-                    "native actor at {:?} cannot be stored within Bedrock build bounds {:?}",
-                    actor.position(), self.bounds,
-                )));
+                return Err(std::io::Error::new(
+                    std::io::ErrorKind::InvalidData,
+                    format!(
+                        "native actor at {:?} cannot be stored within Bedrock build bounds {:?}",
+                        actor.position(),
+                        self.bounds,
+                    ),
+                ));
             }
             let mut actor = actor.clone();
             actor.convert_to_bedrock()?;
@@ -728,10 +768,15 @@ impl Chunk {
             let mut section_air_changed = false;
             for state in &mut storage.palette {
                 let mapped = BlockStateSpace::Java.to_bedrock(*state);
-                section_air_changed |= BlockStateSpace::Java.is_air(*state) != (mapped == *blocks::AIR);
+                section_air_changed |=
+                    BlockStateSpace::Java.is_air(*state) != (mapped == *blocks::AIR);
                 *state = mapped;
             }
-            if storage.palette.iter().all(|&state| state == storage.palette[0]) {
+            if storage
+                .palette
+                .iter()
+                .all(|&state| state == storage.palette[0])
+            {
                 storage.palette.truncate(1);
                 storage.indices.clear();
                 storage.size = PaletteSize::Bits0;
@@ -745,9 +790,16 @@ impl Chunk {
             for biome in &mut storage.palette {
                 *biome = unastar_noise::java_biomes::JavaBiome::from_index(
                     u16::try_from(*biome).expect("native Java biome id overflow"),
-                ).expect("native Java biome id").data().bedrock_id;
+                )
+                .expect("native Java biome id")
+                .data()
+                .bedrock_id;
             }
-            if storage.palette.iter().all(|&biome| biome == storage.palette[0]) {
+            if storage
+                .palette
+                .iter()
+                .all(|&biome| biome == storage.palette[0])
+            {
                 storage.palette.truncate(1);
                 storage.indices.clear();
                 storage.size = PaletteSize::Bits0;
@@ -761,8 +813,11 @@ impl Chunk {
     }
 
     fn assert_bedrock(&self) {
-        assert_eq!(self.state_space, BlockStateSpace::Bedrock,
-            "canonical Java chunk must be finalized before Bedrock storage/network encoding");
+        assert_eq!(
+            self.state_space,
+            BlockStateSpace::Bedrock,
+            "canonical Java chunk must be finalized before Bedrock storage/network encoding"
+        );
     }
 
     /// Fill the bottom layers with blocks.
@@ -867,7 +922,12 @@ impl Chunk {
                 continue;
             }
             if sub.secondary.is_some()
-                || !sub.storage.palette.iter().all(|&state| self.state_space.is_air(state)) {
+                || !sub
+                    .storage
+                    .palette
+                    .iter()
+                    .all(|&state| self.state_space.is_air(state))
+            {
                 return (i + 1) as u16; // Return count, not index
             }
         }
@@ -1095,10 +1155,7 @@ impl Chunk {
     /// Insert or replace an actor, rejecting another chunk or invalid world height.
     pub fn set_block_entity(&mut self, entity: BlockEntity) -> bool {
         let [x, y, z] = entity.position();
-        if x >> 4 != self.x
-            || z >> 4 != self.z
-            || !self.bounds.contains(&y)
-        {
+        if x >> 4 != self.x || z >> 4 != self.z || !self.bounds.contains(&y) {
             return false;
         }
         self.insert_block_entity(entity)
@@ -1143,7 +1200,9 @@ impl Chunk {
                 return false;
             }
             let state = self.get_block((x & 15) as u8, y as i16, (z & 15) as u8);
-            let state = unastar_noise::features::JavaState(u16::try_from(state).expect("canonical Java state id"));
+            let state = unastar_noise::features::JavaState(
+                u16::try_from(state).expect("canonical Java state id"),
+            );
             actor.promote_java_pending(state.block().name())
         });
         self.block_entities = actors;
@@ -1173,8 +1232,13 @@ impl Chunk {
         let array_idx = (y_index - (MIN_Y >> 4)) as usize;
         self.sub_chunks
             .get(array_idx)
-            .map(|s| s.secondary.is_none()
-                && s.storage.palette.iter().all(|&state| self.state_space.is_air(state)))
+            .map(|s| {
+                s.secondary.is_none()
+                    && s.storage
+                        .palette
+                        .iter()
+                        .all(|&state| self.state_space.is_air(state))
+            })
             .unwrap_or(true)
     }
 
@@ -1224,15 +1288,26 @@ impl Chunk {
             return self.state_space.air();
         }
         let adjusted_y = i32::from(y) - MIN_Y;
-        self.sub_chunks[(adjusted_y / 16) as usize].secondary.as_ref()
-            .map(|layer| layer.storage.get_block(x as usize, (adjusted_y % 16) as usize, z as usize))
+        self.sub_chunks[(adjusted_y / 16) as usize]
+            .secondary
+            .as_ref()
+            .map(|layer| {
+                layer
+                    .storage
+                    .get_block(x as usize, (adjusted_y % 16) as usize, z as usize)
+            })
             .unwrap_or_else(|| self.state_space.air())
     }
 
     /// Atomically replace both Bedrock storages at one cell. Source Java states
     /// retain waterlogging in their primary identity until conversion instead.
     pub fn set_block_layers(
-        &mut self, x: u8, y: i16, z: u8, primary: u32, secondary: Option<u32>,
+        &mut self,
+        x: u8,
+        y: i16,
+        z: u8,
+        primary: u32,
+        secondary: Option<u32>,
     ) -> Option<u32> {
         self.assert_bedrock();
         self.set_block_inner(x, y, z, primary, secondary)
@@ -1252,7 +1327,12 @@ impl Chunk {
     }
 
     fn set_block_inner(
-        &mut self, x: u8, y: i16, z: u8, block_id: u32, secondary: Option<u32>,
+        &mut self,
+        x: u8,
+        y: i16,
+        z: u8,
+        block_id: u32,
+        secondary: Option<u32>,
     ) -> Option<u32> {
         let adjusted_y = (y as i32) - MIN_Y;
         if x >= 16 || z >= 16 || !self.bounds.contains(&i32::from(y)) {
@@ -1262,8 +1342,14 @@ impl Chunk {
         let subchunk_idx = (adjusted_y / 16) as usize;
         let local_y = (adjusted_y % 16) as u8;
 
-        let old = self.sub_chunks[subchunk_idx]
-            .set_block_layers(x, local_y, z, block_id, secondary, self.state_space);
+        let old = self.sub_chunks[subchunk_idx].set_block_layers(
+            x,
+            local_y,
+            z,
+            block_id,
+            secondary,
+            self.state_space,
+        );
         if old != block_id && !self.block_entities.is_empty() {
             let position = [(self.x << 4) | x as i32, y as i32, (self.z << 4) | z as i32];
             if let Some(index) = self
@@ -1351,7 +1437,9 @@ impl Chunk {
         }
         let storage_count = data[1];
         if storage_count > 2 {
-            return Err(format!("Unsupported subchunk storage count: {storage_count}"));
+            return Err(format!(
+                "Unsupported subchunk storage count: {storage_count}"
+            ));
         }
         let storage = if storage_count == 0 {
             PalettedStorage::single_block(*blocks::AIR)
@@ -1368,7 +1456,8 @@ impl Chunk {
         };
         // Commit only after both layers decode. A later single-layer snapshot
         // replaces, rather than accidentally retaining, an older liquid layer.
-        self.sub_chunks[array_idx] = SubChunk::with_storage(storage, secondary, BlockStateSpace::Bedrock);
+        self.sub_chunks[array_idx] =
+            SubChunk::with_storage(storage, secondary, BlockStateSpace::Bedrock);
         self.refresh_subchunk_heightmap(y_index);
 
         Ok(())
@@ -1382,7 +1471,8 @@ impl Chunk {
                 if i32::from(current) > base + 16 {
                     continue;
                 }
-                let top = (0..16).rev()
+                let top = (0..16)
+                    .rev()
                     .map(|y| (base + y) as i16)
                     .find(|&y| self.occupied(x, y, z));
                 let height = if let Some(top) = top {
@@ -1392,7 +1482,8 @@ impl Chunk {
                         self.bounds.start as i16
                     })
                 } else if i32::from(current) > base {
-                    (self.bounds.start as i16..base as i16).rev()
+                    (self.bounds.start as i16..base as i16)
+                        .rev()
                         .find(|&y| self.occupied(x, y, z))
                         .map_or(self.bounds.start as i16, |y| y + 1)
                 } else {
@@ -1413,7 +1504,11 @@ impl Default for Chunk {
 impl SubChunk {
     /// Create an empty (all air) Bedrock sub-chunk.
     pub fn empty() -> Self {
-        Self::with_storage(PalettedStorage::single_block(*blocks::AIR), None, BlockStateSpace::Bedrock)
+        Self::with_storage(
+            PalettedStorage::single_block(*blocks::AIR),
+            None,
+            BlockStateSpace::Bedrock,
+        )
     }
 
     fn with_storage(
@@ -1421,7 +1516,11 @@ impl SubChunk {
         secondary: Option<Box<SecondaryStorage>>,
         space: BlockStateSpace,
     ) -> Self {
-        let mut section = Self { storage, secondary, non_air: 0 };
+        let mut section = Self {
+            storage,
+            secondary,
+            non_air: 0,
+        };
         section.recount(space);
         section
     }
@@ -1430,9 +1529,17 @@ impl SubChunk {
     fn recount(&mut self, space: BlockStateSpace) {
         let storage = &self.storage;
         self.non_air = if storage.size == PaletteSize::Bits0 {
-            if space.is_air(storage.palette[0]) { 0 } else { BLOCKS_PER_SUBCHUNK as u16 }
+            if space.is_air(storage.palette[0]) {
+                0
+            } else {
+                BLOCKS_PER_SUBCHUNK as u16
+            }
         } else {
-            let air: Vec<bool> = storage.palette.iter().map(|&state| space.is_air(state)).collect();
+            let air: Vec<bool> = storage
+                .palette
+                .iter()
+                .map(|&state| space.is_air(state))
+                .collect();
             let mut count = 0u16;
             for x in 0..16 {
                 for y in 0..16 {
@@ -1448,7 +1555,8 @@ impl SubChunk {
     /// Check if this subchunk is all air.
     pub fn is_empty(&self) -> bool {
         self.secondary.is_none()
-            && self.storage.palette.len() == 1 && self.storage.palette[0] == *blocks::AIR
+            && self.storage.palette.len() == 1
+            && self.storage.palette[0] == *blocks::AIR
     }
 
     /// Fill an entire Y layer with a block.
@@ -1473,7 +1581,11 @@ impl SubChunk {
     pub fn fill_solid(&mut self, block_id: u32, space: BlockStateSpace) {
         self.storage = PalettedStorage::single_block(block_id);
         self.secondary = None;
-        self.non_air = if space.is_air(block_id) { 0 } else { BLOCKS_PER_SUBCHUNK as u16 };
+        self.non_air = if space.is_air(block_id) {
+            0
+        } else {
+            BLOCKS_PER_SUBCHUNK as u16
+        };
     }
 
     /// Observed primary block at local coordinates (0-15 for each axis): plain
@@ -1491,13 +1603,26 @@ impl SubChunk {
     /// write into a section with only air changes nothing and returns that air,
     /// as Java's chunk `setBlockState` does.
     pub(crate) fn set_block_layers(
-        &mut self, x: u8, y: u8, z: u8, primary: u32, secondary: Option<u32>, space: BlockStateSpace,
+        &mut self,
+        x: u8,
+        y: u8,
+        z: u8,
+        primary: u32,
+        secondary: Option<u32>,
+        space: BlockStateSpace,
     ) -> u32 {
-        if self.non_air == 0 && primary == space.air() && secondary.is_none() && self.secondary.is_none() {
+        if self.non_air == 0
+            && primary == space.air()
+            && secondary.is_none()
+            && self.secondary.is_none()
+        {
             return primary;
         }
-        let old = self.storage.set_block(x as usize, y as usize, z as usize, primary);
-        self.non_air = self.non_air + u16::from(!space.is_air(primary)) - u16::from(!space.is_air(old));
+        let old = self
+            .storage
+            .set_block(x as usize, y as usize, z as usize, primary);
+        self.non_air =
+            self.non_air + u16::from(!space.is_air(primary)) - u16::from(!space.is_air(old));
         if self.secondary.is_some() || secondary.is_some() {
             self.set_secondary(x, y, z, secondary.unwrap_or(*blocks::AIR));
         }
@@ -1506,22 +1631,28 @@ impl SubChunk {
 
     /// Underlying-liquid block, or `None` when this section has no secondary storage.
     pub(crate) fn secondary_block(&self, x: u8, y: u8, z: u8) -> Option<u32> {
-        self.secondary.as_ref()
+        self.secondary
+            .as_ref()
             .map(|layer| layer.storage.get_block(x as usize, y as usize, z as usize))
     }
 
     fn set_secondary(&mut self, x: u8, y: u8, z: u8, block: u32) {
         if let Some(layer) = &mut self.secondary {
-            let old = layer.storage.set_block(x as usize, y as usize, z as usize, block);
-            layer.non_air = layer.non_air + u16::from(block != *blocks::AIR)
-                - u16::from(old != *blocks::AIR);
+            let old = layer
+                .storage
+                .set_block(x as usize, y as usize, z as usize, block);
+            layer.non_air =
+                layer.non_air + u16::from(block != *blocks::AIR) - u16::from(old != *blocks::AIR);
             if layer.non_air == 0 {
                 self.secondary = None;
             }
         } else if block != *blocks::AIR {
             let mut storage = PalettedStorage::single_block(*blocks::AIR);
             storage.set_block(x as usize, y as usize, z as usize, block);
-            self.secondary = Some(Box::new(SecondaryStorage { storage, non_air: 1 }));
+            self.secondary = Some(Box::new(SecondaryStorage {
+                storage,
+                non_air: 1,
+            }));
         }
     }
 
@@ -2536,21 +2667,37 @@ mod layered_state_tests {
 
     #[test]
     fn java_waterlogging_and_aquatic_fluid_survive_the_single_projection_boundary() {
-        let bars = JavaBlock::by_name("minecraft:iron_bars").unwrap().default_state();
+        let bars = JavaBlock::by_name("minecraft:iron_bars")
+            .unwrap()
+            .default_state();
         let wet = bars.with("waterlogged", "true");
         let dry = bars.with("waterlogged", "false");
-        let plant = JavaBlock::by_name("minecraft:seagrass").unwrap().default_state();
-        let flowing = JavaBlock::by_name("minecraft:water").unwrap().default_state().with("level", "7");
+        let plant = JavaBlock::by_name("minecraft:seagrass")
+            .unwrap()
+            .default_state();
+        let flowing = JavaBlock::by_name("minecraft:water")
+            .unwrap()
+            .default_state()
+            .with("level", "7");
         let mut chunk = Chunk::new_in_space(-1, -1, BlockStateSpace::Java);
         chunk.set_block(15, -1, 15, u32::from(wet.0));
         chunk.set_block(15, 0, 15, u32::from(dry.0));
         chunk.set_block(14, 0, 15, u32::from(plant.0));
         chunk.set_block(13, 0, 15, u32::from(flowing.0));
         assert_eq!(chunk.get_block(15, -1, 15), u32::from(wet.0));
-        assert_eq!(chunk.get_block_layer(15, -1, 15, 1), BlockStateSpace::Java.air());
+        assert_eq!(
+            chunk.get_block_layer(15, -1, 15, 1),
+            BlockStateSpace::Java.air()
+        );
         chunk.convert_to_bedrock().unwrap();
-        assert_eq!(chunk.get_block(15, -1, 15), blocks::get_block_id("minecraft:iron_bars"));
-        assert_eq!(chunk.get_block(15, 0, 15), blocks::get_block_id("minecraft:iron_bars"));
+        assert_eq!(
+            chunk.get_block(15, -1, 15),
+            blocks::get_block_id("minecraft:iron_bars")
+        );
+        assert_eq!(
+            chunk.get_block(15, 0, 15),
+            blocks::get_block_id("minecraft:iron_bars")
+        );
         assert_eq!(chunk.get_block_layer(15, -1, 15, 1), *blocks::WATER);
         assert_eq!(chunk.get_block_layer(15, 0, 15, 1), *blocks::AIR);
         assert_eq!(chunk.get_block_layer(14, 0, 15, 1), *blocks::WATER);
@@ -2599,12 +2746,16 @@ mod layered_state_tests {
             }
             assert!(chunk.decode_subchunk(-1, &wire[..wire.len() - 1]).is_err());
             assert_eq!(chunk.get_block_layer(15, -1, 15, 1), *blocks::WATER);
-            chunk.decode_subchunk(-1, &uniform_packet(version, *blocks::AIR, None)).unwrap();
+            chunk
+                .decode_subchunk(-1, &uniform_packet(version, *blocks::AIR, None))
+                .unwrap();
             assert_eq!(chunk.get_block(15, -1, 15), *blocks::AIR);
             assert_eq!(chunk.get_block_layer(15, -1, 15, 1), *blocks::AIR);
             assert_eq!(chunk.height_map().at(15, 15), MIN_Y as i16);
         }
-        chunk.set_block_layers(15, -1, 15, primary, Some(*blocks::WATER)).unwrap();
+        chunk
+            .set_block_layers(15, -1, 15, primary, Some(*blocks::WATER))
+            .unwrap();
         assert!(chunk.decode_subchunk(-1, &[9, 3, 255]).is_err());
         assert_eq!(chunk.get_block_layer(15, -1, 15, 1), *blocks::WATER);
         chunk.decode_subchunk(-1, &[9, 0, 255]).unwrap();
@@ -2615,8 +2766,12 @@ mod layered_state_tests {
     #[test]
     fn primary_replacement_and_bulk_clear_remove_liquid_without_hiding_other_layers() {
         let mut chunk = Chunk::new(0, 0);
-        chunk.set_block_layers(15, 0, 15, *blocks::AIR, Some(*blocks::WATER)).unwrap();
-        chunk.set_block_layers(15, 319, 15, *blocks::AIR, Some(*blocks::WATER)).unwrap();
+        chunk
+            .set_block_layers(15, 0, 15, *blocks::AIR, Some(*blocks::WATER))
+            .unwrap();
+        chunk
+            .set_block_layers(15, 319, 15, *blocks::AIR, Some(*blocks::WATER))
+            .unwrap();
         assert_eq!(chunk.highest_subchunk(), 24);
         assert!(!chunk.is_subchunk_empty(19));
         assert_eq!(chunk.height_map().at(15, 15), 320);
@@ -2629,7 +2784,9 @@ mod layered_state_tests {
         assert_eq!(chunk.get_block_layer(15, 0, 15, 1), *blocks::AIR);
         assert_eq!(chunk.height_map().at(15, 15), MIN_Y as i16);
         assert_eq!(chunk.highest_subchunk(), 0);
-        chunk.set_block_layers(15, 1, 15, *blocks::AIR, Some(*blocks::WATER)).unwrap();
+        chunk
+            .set_block_layers(15, 1, 15, *blocks::AIR, Some(*blocks::WATER))
+            .unwrap();
         chunk.fill_floor(2, *blocks::AIR);
         assert_eq!(chunk.height_map().at(15, 15), MIN_Y as i16);
         assert_eq!(chunk.encode_subchunk_disk(0).unwrap()[1], 1);
@@ -2638,7 +2795,9 @@ mod layered_state_tests {
     #[test]
     fn clipping_world_bounds_cannot_reveal_old_secondary_water_after_expansion() {
         let mut chunk = Chunk::new(0, 0);
-        chunk.set_block_layers(0, 319, 0, *blocks::AIR, Some(*blocks::WATER)).unwrap();
+        chunk
+            .set_block_layers(0, 319, 0, *blocks::AIR, Some(*blocks::WATER))
+            .unwrap();
         chunk.set_block_bounds(0..256);
         chunk.set_block_bounds(MIN_Y..320);
         assert_eq!(chunk.get_block_layer(0, 319, 0, 1), *blocks::AIR);
@@ -2648,8 +2807,10 @@ mod layered_state_tests {
 
     #[test]
     fn unrepresentable_native_actor_bounds_leave_the_entire_source_chunk_unchanged() {
-        let bars = JavaBlock::by_name("minecraft:iron_bars").unwrap()
-            .default_state().with("waterlogged", "true");
+        let bars = JavaBlock::by_name("minecraft:iron_bars")
+            .unwrap()
+            .default_state()
+            .with("waterlogged", "true");
         let mut chunk = Chunk::new_in_space(0, 0, BlockStateSpace::Java);
         chunk.set_block(0, 10, 0, u32::from(bars.0));
         chunk.set_native_block_entity(BlockEntity::pending_java([1, 10, 0], "minecraft:chest"));
@@ -2658,7 +2819,10 @@ mod layered_state_tests {
         assert!(chunk.convert_to_bedrock().is_err());
         assert_eq!(chunk.state_space(), BlockStateSpace::Java);
         assert_eq!(chunk.get_block(0, 10, 0), u32::from(bars.0));
-        assert_eq!(chunk.get_block_layer(0, 10, 0, 1), BlockStateSpace::Java.air());
+        assert_eq!(
+            chunk.get_block_layer(0, 10, 0, 1),
+            BlockStateSpace::Java.air()
+        );
         assert_eq!(chunk.block_entities(), actors.as_slice());
     }
 }

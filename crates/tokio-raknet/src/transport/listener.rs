@@ -47,7 +47,7 @@ pub struct RaknetListenerConfig {
     pub socket_send_buffer_size: Option<usize>,
 
     /// Timeout duration for inactive sessions (Optimized; Vanilla uses
-    /// Mojang's fixed 10 s `timeoutTime`).
+    /// the fixed 10 s timeout measured on BDS, open-source RakNet's `timeoutTime`).
     pub session_timeout: Duration,
 
     /// Duration before a session is considered stale (Optimized only).

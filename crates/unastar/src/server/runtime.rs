@@ -182,6 +182,33 @@ impl UnastarServer {
         let local_addr = listener.local_addr();
         info!("Listening on {:?}", local_addr);
 
+        // Where dead players respawn: the configured or generated world
+        // spawn (no player's previous position).
+        let world_spawn = {
+            let template = self
+                .server
+                .ecs
+                .world()
+                .resource::<crate::server::game::types::ServerWorldTemplate>()
+                .0
+                .clone();
+            crate::server::resolve_spawn_location(
+                &self.config,
+                None,
+                &template,
+                &self.player_data_store,
+                None,
+            )
+            .await
+        };
+        self.server.ecs.world_mut().insert_resource(
+            crate::entity::player_life::respawn::WorldSpawn(glam::DVec3::new(
+                f64::from(world_spawn.x),
+                f64::from(world_spawn.y),
+                f64::from(world_spawn.z),
+            )),
+        );
+
         // Consolidated bounded event channel. This is the main inbound
         // backpressure point between network tasks and the 20 TPS game loop.
         let event_channel_capacity = (self.config.server.max_players.max(1) as usize)
@@ -208,6 +235,12 @@ impl UnastarServer {
                     .get_resource::<crate::server::game::types::ServerWorldTemplate>()
                     .unwrap()
                     .0
+                    .clone(),
+                world_state: self
+                    .server
+                    .ecs
+                    .world()
+                    .resource::<crate::world::rules::StartGameWorldState>()
                     .clone(),
                 key: self.server_key.clone(),
                 config: self.config.clone(),
@@ -406,6 +439,7 @@ impl UnastarServer {
 
 struct AcceptLoopState {
     template: Arc<jolyne::WorldTemplate>,
+    world_state: crate::world::rules::StartGameWorldState,
     key: SecretKey,
     config: Arc<UnastarConfig>,
     player_data_store: Arc<PlayerDataStore>,
@@ -421,6 +455,7 @@ fn spawn_accept_loop(mut listener: BedrockListener<RaknetListener>, state: Accep
         let mut next_session_id: u64 = 1;
         let AcceptLoopState {
             template,
+            world_state,
             key,
             config,
             player_data_store,
@@ -449,6 +484,7 @@ fn spawn_accept_loop(mut listener: BedrockListener<RaknetListener>, state: Accep
                     };
 
                     let template = template.clone();
+                    let world_state = world_state.clone();
                     let key = key.clone();
                     let config = config.clone();
                     let player_data_store = player_data_store.clone();
@@ -461,7 +497,10 @@ fn spawn_accept_loop(mut listener: BedrockListener<RaknetListener>, state: Accep
                     tokio::spawn(async move {
                         let _connection_permit = permit;
                         match accept_join_sequence(
-                            &template,
+                            crate::server::connect::JoinWorld {
+                                template: &template,
+                                state: &world_state,
+                            },
                             &key,
                             &config,
                             &player_data_store,

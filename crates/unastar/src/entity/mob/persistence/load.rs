@@ -48,6 +48,8 @@ pub enum ActorDecodeError {
     PropertyTag { name: String },
     #[error(transparent)]
     Property(#[from] PropertyError),
+    #[error(transparent)]
+    Gear(#[from] crate::entity::mob::gear::persist::GearDecodeError),
     #[error("cannot spawn the actor: {0}")]
     Spawn(#[source] MobSpawnError),
 }
@@ -170,7 +172,10 @@ pub fn restore_mob(world: &mut World, nbt: &[u8]) -> Result<Entity, RestoreError
         .map_err(ActorDecodeError::Spawn)?;
     match restore_state(world, mob, &fields, pitch, motion) {
         Ok(()) => {
-            world.entity_mut(mob).insert(MobUniqueId(unique_id));
+            world
+                .entity_mut(mob)
+                .remove::<super::Restoring>()
+                .insert(MobUniqueId(unique_id));
             Ok(mob)
         }
         Err(error) => {
@@ -359,6 +364,7 @@ fn restore_state(
         };
         timers.restore(fields.0.get("entries"), legacy, now);
     }
+    crate::entity::mob::gear::persist::restore(world, mob, fields.0)?;
     derive_entity(world, mob);
     Ok(())
 }

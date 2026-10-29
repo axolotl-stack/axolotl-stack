@@ -13,6 +13,14 @@ use p384::SecretKey;
 use crate::config::{PlayerDataStore, SpawnLocation, UnastarConfig};
 use crate::storage::{PlayerData, PlayerProvider};
 
+/// What StartGame is built from: the startup template and the live clock,
+/// difficulty and game rules.
+#[derive(Clone, Copy)]
+pub struct JoinWorld<'a> {
+    pub template: &'a WorldTemplate,
+    pub state: &'a crate::world::rules::StartGameWorldState,
+}
+
 /// Performs the complete join sequence for a connecting player.
 ///
 /// This includes:
@@ -26,7 +34,7 @@ use crate::storage::{PlayerData, PlayerProvider};
 ///
 /// A failed step sends the client a reasoned disconnect before returning.
 pub async fn accept_join_sequence(
-    template: &WorldTemplate,
+    world: JoinWorld<'_>,
     server_key: &SecretKey,
     config: &UnastarConfig,
     player_data_store: &PlayerDataStore,
@@ -72,7 +80,7 @@ pub async fn accept_join_sequence(
     let spawn = resolve_spawn_location(
         config,
         Some(&uuid),
-        template,
+        world.template,
         player_data_store,
         saved_data.as_ref(),
     )
@@ -89,9 +97,12 @@ pub async fn accept_join_sequence(
     // 6. Build join params (use session_id as entity/runtime ID for now). The
     // server grants its default view distance; later radius requests are
     // handled by the chunk systems.
-    let mut join_params = template.to_join_params(session_id as i64);
+    let mut join_params = world.template.to_join_params(session_id as i64);
     join_params.chunk_radius = Some(config.server.default_chunk_radius);
     join_params.start_game.position = initial_position.clone();
+    // The clock, difficulty and game rules as they are now, not as the
+    // template was built at startup.
+    world.state.apply(&mut join_params.start_game);
     if let Some(saved) = &saved_data {
         join_params.start_game.game_type = match saved.game_mode {
             0 => jolyne::valentine::EnumsGameType::Survival,

@@ -1,4 +1,5 @@
-//! Fall damage of mobs.
+//! Fall damage of mobs (players land through [`resolve_landing`] too, from
+//! `entity::player_life`).
 //!
 //! The physics step keeps each mob's [`FallDistance`] and records it on the
 //! landing tick. [`apply_fall_damage`] then applies the native landing rule:
@@ -126,63 +127,105 @@ pub fn apply_fall_damage(
 }
 
 fn land(world: &mut World, table: &LandingTable, landing: Landing) {
-    let probe = IVec3::new(
-        landing.feet.x.floor() as i32,
-        (landing.feet.y - FALL_LANDING_PROBE).floor() as i32,
-        landing.feet.z.floor() as i32,
-    );
-    let block = world.block_at(probe);
-    let (rule, dust) = block.map_or((LandingRule::Default, false), |id| table.get(id));
-    let (distance, multiplier, cause) = match rule {
-        LandingRule::NoDamage => return,
-        LandingRule::Default => (landing.distance, 1.0, ActorDamageCause::Fall),
-        LandingRule::ScaleDistance(scale) => {
-            (landing.distance * scale, 1.0, ActorDamageCause::Fall)
-        }
-        LandingRule::Stalagmite => (
-            landing.distance + STALAGMITE_EXTRA_DISTANCE,
-            STALAGMITE_MULTIPLIER,
-            ActorDamageCause::Stalagmite,
-        ),
+    let Some(outcome) = resolve_landing(world, table, landing.mob, landing.feet, landing.distance)
+    else {
+        return;
     };
-    if dust && distance > FALL_SAFE_DISTANCE {
+    if outcome.dust {
         send_actor_event(world, landing.mob, EnumsActorEvent::GroundDust, 0);
     }
-    let jump_boost = world
-        .get::<Effects>(landing.mob)
-        .and_then(|effects| effects.get(EffectType::JUMP_BOOST))
-        .map_or(0.0, |effect| f64::from(effect.level) + 1.0);
-    let actor_multiplier = world
-        .get::<EntityMetadata>(landing.mob)
-        .and_then(|metadata| match metadata.get(ids::FALL_DAMAGE_MULTIPLIER) {
-            Some(DataItemEntryPayload::DataItemFloatPayload(value)) => Some(f64::from(value.value)),
-            _ => None,
-        })
-        .unwrap_or(1.0);
-    let damage =
-        ((distance - FALL_SAFE_DISTANCE - jump_boost) * actor_multiplier * multiplier).ceil();
-    if damage <= 0.0 {
+    if outcome.damage <= 0.0 {
         return;
     }
-    let sound = if damage > FALL_BIG_SOUND_DAMAGE {
-        "fall.big"
-    } else {
-        "fall.small"
-    };
-    play_level_sound(world, Some(landing.mob), landing.feet, sound, -1);
+    play_landing_sound(world, landing.mob, landing.feet, outcome.damage);
     hurt_mob(
         world,
         landing.mob,
         Hit {
-            damage: damage as f32,
-            cause,
+            damage: outcome.damage as f32,
+            cause: outcome.cause,
             attacker: None,
             by_player: false,
             knockback_from: None,
             knockback_power: KnockbackPower::DEFAULT,
         },
     );
+    play_block_fall_sound(world, landing.mob, landing.feet, outcome.block);
+}
+
+/// What landing after a fall does to an actor (mob or player).
+#[derive(Debug, Clone, Copy, PartialEq)]
+pub struct LandingOutcome {
+    /// Damage before the hurt rules; not positive for a harmless landing.
+    pub damage: f64,
+    pub cause: ActorDamageCause,
+    /// The landing block's runtime ID, when its chunk is loaded.
+    pub block: Option<u32>,
+    /// Whether the landing raises ground dust.
+    pub dust: bool,
+}
+
+/// Resolve the landing of `actor` with its feet at `feet` after falling
+/// `distance` blocks under the native landing rule (see the module docs).
+/// `None` when the landing block absorbs the fall (liquids).
+pub fn resolve_landing(
+    world: &World,
+    table: &LandingTable,
+    actor: Entity,
+    feet: DVec3,
+    distance: f64,
+) -> Option<LandingOutcome> {
+    let probe = IVec3::new(
+        feet.x.floor() as i32,
+        (feet.y - FALL_LANDING_PROBE).floor() as i32,
+        feet.z.floor() as i32,
+    );
+    let block = world.block_at(probe);
+    let (rule, dust) = block.map_or((LandingRule::Default, false), |id| table.get(id));
+    let (distance, multiplier, cause) = match rule {
+        LandingRule::NoDamage => return None,
+        LandingRule::Default => (distance, 1.0, ActorDamageCause::Fall),
+        LandingRule::ScaleDistance(scale) => (distance * scale, 1.0, ActorDamageCause::Fall),
+        LandingRule::Stalagmite => (
+            distance + STALAGMITE_EXTRA_DISTANCE,
+            STALAGMITE_MULTIPLIER,
+            ActorDamageCause::Stalagmite,
+        ),
+    };
+    let jump_boost = world
+        .get::<Effects>(actor)
+        .and_then(|effects| effects.get(EffectType::JUMP_BOOST))
+        .map_or(0.0, |effect| f64::from(effect.level) + 1.0);
+    let actor_multiplier = world
+        .get::<EntityMetadata>(actor)
+        .and_then(|metadata| match metadata.get(ids::FALL_DAMAGE_MULTIPLIER) {
+            Some(DataItemEntryPayload::DataItemFloatPayload(value)) => Some(f64::from(value.value)),
+            _ => None,
+        })
+        .unwrap_or(1.0);
+    Some(LandingOutcome {
+        damage: ((distance - FALL_SAFE_DISTANCE - jump_boost) * actor_multiplier * multiplier)
+            .ceil(),
+        cause,
+        block,
+        dust: dust && distance > FALL_SAFE_DISTANCE,
+    })
+}
+
+/// `fall.big` (above [`FALL_BIG_SOUND_DAMAGE`]) or `fall.small` at the feet
+/// of `actor`, played before the fall hurts it.
+pub fn play_landing_sound(world: &World, actor: Entity, feet: DVec3, damage: f64) {
+    let sound = if damage > FALL_BIG_SOUND_DAMAGE {
+        "fall.big"
+    } else {
+        "fall.small"
+    };
+    play_level_sound(world, Some(actor), feet, sound, -1);
+}
+
+/// The landing block's own `fall` sound, played after the fall hurt `actor`.
+pub fn play_block_fall_sound(world: &World, actor: Entity, feet: DVec3, block: Option<u32>) {
     if let Some(block) = block {
-        play_level_sound(world, Some(landing.mob), landing.feet, "fall", block as i32);
+        play_level_sound(world, Some(actor), feet, "fall", block as i32);
     }
 }

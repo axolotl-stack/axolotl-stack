@@ -150,7 +150,9 @@ fn encode_template(
                         let compiled =
                             block_entity::compile(origin, tag, block_entity::Source::Java)?;
                         rec.push(2);
-                        let source = actors.get(&block_index).ok_or("missing lossless native template actor")?;
+                        let source = actors
+                            .get(&block_index)
+                            .ok_or("missing lossless native template actor")?;
                         let patch = snapshots.patch(origin, block_index, source)?;
                         put_str(&mut rec, id);
                         put_bytes(&mut rec, source);

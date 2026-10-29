@@ -2023,7 +2023,10 @@ mod tests {
     #[test]
     fn first_decorated_spider_chunk_wins_and_later_chunks_skip_candidate_draws() {
         let corridor = spider_corridor();
-        let ctx = Flat { seed: 0, surface: 80 };
+        let ctx = Flat {
+            seed: 0,
+            surface: 80,
+        };
         let mut world = TestWorld::flat(80);
         let first_box = BoundingBox::chunk(0, 1, -64, 319);
         assert!(!first_box.is_inside(corridor.bbox().center()));
@@ -2070,7 +2073,10 @@ mod tests {
     #[test]
     fn spider_flag_commits_before_rejected_world_write() {
         let corridor = spider_corridor();
-        let ctx = Flat { seed: 0, surface: 80 };
+        let ctx = Flat {
+            seed: 0,
+            surface: 80,
+        };
         let mut world = TestWorld::flat(80);
         world.writable = Some((0, 0, 2, 15));
         corridor.post_process(

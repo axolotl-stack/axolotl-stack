@@ -72,10 +72,6 @@ pub struct EventCompileError<E: std::error::Error + 'static> {
 pub enum EventCompileReason<E: std::error::Error + 'static> {
     #[error("component definition belongs to another actor identifier")]
     ForeignDefinition,
-    #[error("remove references undeclared component group {0}")]
-    UndeclaredRemoveGroup(String),
-    #[error("add references undeclared component group {0}")]
-    UndeclaredAddGroup(String),
     #[error("trigger references undeclared self event {0}")]
     UndeclaredEvent(String),
     #[error(transparent)]
@@ -387,20 +383,26 @@ impl<B: EventBindings> Compiler<'_, B> {
             .map(|filter| self.bindings.filter(filter).map_err(binding))
             .transpose()?;
         let mut effects = Vec::new();
-        for name in source.remove.iter().flatten() {
-            let group = self
-                .definition
-                .group(name)
-                .ok_or_else(|| error(EventCompileReason::UndeclaredRemoveGroup(name.clone())))?;
-            effects.push(EventEffectOwned::RemoveGroup(group));
-        }
-        for name in source.add.iter().flatten() {
-            let group = self
-                .definition
-                .group(name)
-                .ok_or_else(|| error(EventCompileReason::UndeclaredAddGroup(name.clone())))?;
-            effects.push(EventEffectOwned::AddGroup(group));
-        }
+        // BDS resolves each named group when the event runs and skips names
+        // the definition does not declare; vanilla relies on it (the zombie
+        // adds the undeclared `minecraft:on_foot`, the bee removes
+        // `collect_nectar`). Such a name contributes no effect.
+        effects.extend(
+            source
+                .remove
+                .iter()
+                .flatten()
+                .filter_map(|name| self.definition.group(name))
+                .map(EventEffectOwned::RemoveGroup),
+        );
+        effects.extend(
+            source
+                .add
+                .iter()
+                .flatten()
+                .filter_map(|name| self.definition.group(name))
+                .map(EventEffectOwned::AddGroup),
+        );
         for (name, value) in source.set_property.iter().flatten() {
             let assignment = self
                 .properties

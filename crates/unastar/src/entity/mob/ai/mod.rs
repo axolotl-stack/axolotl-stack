@@ -7,17 +7,23 @@
 //! when the definition changed, ticks the goal selector, follows the current
 //! path, runs the move and look controls, and turns the result into body
 //! yaw, head yaw and velocity (acceleration and jumps) that the physics step
-//! then integrates. [`push_mobs`] then separates overlapping pushable mobs.
+//! then integrates. [`push_mobs`] then pushes nearby pushable mobs apart.
 
+mod break_door;
 mod control;
 mod eat_block;
 mod goals;
+mod melee;
 mod nearby;
 mod path;
+mod pickup;
+pub mod sensing;
+mod targeting;
 
 #[cfg(test)]
 mod tests;
 
+pub(crate) use self::break_door::stop_breaking_doors;
 pub use self::path::PathBlockTable;
 
 use bevy_ecs::prelude::*;
@@ -26,17 +32,20 @@ use jolyne::valentine::actor_flags;
 
 use self::control::{Body, LookControl, MoveControl, PathFollower, travel};
 use self::goals::{Effects, GoalContext, GoalStates, goal_specs};
-use self::nearby::{MobView, Nearby, PlayerView};
+use self::nearby::{ItemView, MobView, Nearby, PlayerView};
 use self::path::WalkPolicy;
 use super::MobKind;
 use super::components::{BasicMovementConfig, JumpConfig, Pushable, WalkNavigationConfig};
 use super::constants::{
-    DEFAULT_JUMP_POWER, DEFAULT_MAX_TURN, ENTITY_PUSH_STRENGTH, PLAYER_BOX_HEIGHT, PLAYER_BOX_WIDTH,
+    DEFAULT_JUMP_POWER, DEFAULT_MAX_TURN, ENTITY_PUSH_MIN_DISTANCE, ENTITY_PUSH_REACH,
+    ENTITY_PUSH_STRENGTH, PLAYER_BOX_HEIGHT, PLAYER_BOX_WIDTH,
 };
-use super::state::{Dead, InLove, MateRequest, Persistent};
+use super::state::{AttackTarget, Dead, InLove, MateRequest, Persistent};
 use crate::ecs::TickCounter;
 use crate::entity::EntityRandom;
-use crate::entity::components::{OnGround, PhysicsBody, Player, Position, Rotation, Velocity};
+use crate::entity::components::{
+    DroppedItem, OnGround, PhysicsBody, Player, Position, Rotation, Velocity,
+};
 use crate::entity::definition::DefinitionState;
 use crate::entity::definition::components::MovementConfig;
 use crate::entity::definition::flags::ActorFlags;
@@ -83,6 +92,14 @@ pub struct AiScratch {
     /// Mobs whose eat timer ran out this tick; they eat once the AI's
     /// resource scopes end (eating fires events, which draw randomness).
     eaten: Vec<Entity>,
+    /// Melee hits `(attacker, target)` of this tick; dealt once the AI's
+    /// resource scopes end (hits draw randomness and hurt players).
+    attacks: Vec<(Entity, Entity)>,
+    /// Item pickups, equips and pickup events of this tick; made once the
+    /// AI's resource scopes end (they spawn items and fire events).
+    gear: Vec<(Entity, pickup::GearWork)>,
+    /// Door collision boxes for [`break_door`].
+    boxes: Vec<Aabb>,
 }
 
 type BrainQuery = (Entity, Ref<'static, DefinitionState>, Has<Dead>);
@@ -102,6 +119,7 @@ pub fn tick_mob_ai(
     brains: &mut QueryState<BrainQuery, (With<MobKind>, With<MobBrain>)>,
     views: &mut QueryState<ViewQuery, With<MobKind>>,
     players: &mut QueryState<(Entity, &Position, &Rotation), With<Player>>,
+    items: &mut QueryState<(Entity, &Position), With<DroppedItem>>,
     mut scratch: Local<AiScratch>,
 ) {
     let scratch = &mut *scratch;
@@ -136,6 +154,12 @@ pub fn tick_mob_ai(
                 dead,
             }),
     );
+    scratch
+        .nearby
+        .rebuild_items(items.iter(world).map(|(entity, position)| ItemView {
+            entity,
+            feet: position.0,
+        }));
     world.resource_scope(|world, table: Mut<PathBlockTable>| {
         world.resource_scope(|world, mut rng: Mut<EntityRandom>| {
             for &(entity, turn) in &scratch.mobs {
@@ -162,7 +186,14 @@ pub fn tick_mob_ai(
                         .expect("queried with a brain") = brain;
                 }
                 if let Some(output) = output {
-                    apply(world, entity, output, &mut scratch.eaten);
+                    apply(
+                        world,
+                        entity,
+                        output,
+                        &mut scratch.eaten,
+                        &mut scratch.attacks,
+                        &mut scratch.gear,
+                    );
                 }
             }
         });
@@ -170,6 +201,22 @@ pub fn tick_mob_ai(
     for entity in scratch.eaten.drain(..) {
         eat_block::finish_eating(world, entity);
     }
+    for (attacker, target) in scratch.attacks.drain(..) {
+        super::combat::melee::melee_attack(world, attacker, target);
+    }
+    for (entity, work) in scratch.gear.drain(..) {
+        pickup::finish(world, entity, work);
+    }
+    break_door::tick_door_breakers(
+        world,
+        scratch
+            .mobs
+            .iter()
+            .filter(|(_, turn)| *turn != Turn::Die)
+            .map(|&(entity, _)| entity),
+        tick,
+        &mut scratch.boxes,
+    );
 }
 
 /// The result of one mob's tick.
@@ -218,6 +265,8 @@ fn think(
     };
     let policy = WalkPolicy::new(
         mob.get::<WalkNavigationConfig>(),
+        mob.get::<ActorFlags>()
+            .is_some_and(|f| f.get(actor_flags::DOOR_BREAKER).unwrap_or(false)),
         jump_power,
         physics.gravity,
     );
@@ -230,6 +279,11 @@ fn think(
         movement,
         look,
     } = brain;
+    if turn == Turn::Think(true) {
+        // A rebuilt composition rebuilds the native goals.
+        states.melee.reset();
+        states.targets.reset();
+    }
     let mut effects = Effects::default();
     let mut ctx = GoalContext {
         world,
@@ -240,6 +294,7 @@ fn think(
         physics,
         policy,
         yaw: rotation.yaw,
+        head_yaw: rotation.head_yaw,
         baby,
         tick,
         rng: &mut rng.0,
@@ -254,6 +309,7 @@ fn think(
     match turn {
         Turn::Die => {
             selector.stop_all(&mut ctx);
+            ctx.effects.target = Some(None);
             return Some(Output {
                 yaw: rotation.yaw,
                 head_yaw: rotation.head_yaw,
@@ -272,7 +328,17 @@ fn think(
     selector.tick(&mut ctx);
     let goal_jump = ctx.jump;
 
-    nav.tick(&body, movement);
+    let door_hold = nav.current().is_some_and(|(index, path)| {
+        break_door::held_by_breakable_door(
+            world,
+            entity,
+            table,
+            path,
+            index,
+            Aabb::from_feet(feet, physics.width, physics.height),
+        )
+    });
+    nav.tick(&body, movement, door_hold);
     let mut yaw = rotation.yaw;
     let move_jump = movement.tick(&body, &mut yaw, max_turn);
     let mut head_yaw = rotation.head_yaw;
@@ -294,7 +360,14 @@ fn think(
     })
 }
 
-fn apply(world: &mut World, entity: Entity, output: Output, eaten: &mut Vec<Entity>) {
+fn apply(
+    world: &mut World,
+    entity: Entity,
+    output: Output,
+    eaten: &mut Vec<Entity>,
+    attacks: &mut Vec<(Entity, Entity)>,
+    gear: &mut Vec<(Entity, pickup::GearWork)>,
+) {
     let Output {
         yaw,
         head_yaw,
@@ -316,6 +389,15 @@ fn apply(world: &mut World, entity: Entity, output: Output, eaten: &mut Vec<Enti
     if effects.persistent && !mob.contains::<Persistent>() {
         mob.insert(Persistent);
     }
+    match effects.target {
+        Some(Some(target)) => {
+            mob.insert(AttackTarget(target));
+        }
+        Some(None) => {
+            mob.remove::<AttackTarget>();
+        }
+        None => {}
+    }
     if let Some(tempted) = effects.tempted {
         set_flag(&mut mob, actor_flags::TEMPTED, tempted);
     }
@@ -334,6 +416,12 @@ fn apply(world: &mut World, entity: Entity, output: Output, eaten: &mut Vec<Enti
     }
     if effects.eat_finished {
         eaten.push(entity);
+    }
+    if let Some(target) = effects.attack {
+        attacks.push((entity, target));
+    }
+    if !effects.gear.is_empty() {
+        gear.push((entity, effects.gear));
     }
 }
 
@@ -354,20 +442,30 @@ fn set_flag(mob: &mut EntityWorldMut<'_>, flag: u32, on: bool) {
     }
 }
 
-/// A pushing box this tick ([`push_mobs`]).
+/// A pushing actor this tick ([`push_mobs`]).
 #[derive(Debug, Clone, Copy)]
 pub struct Pusher {
+    /// The mob, or `None` for a player.
     entity: Option<Entity>,
     aabb: Aabb,
     centre: DVec3,
+    /// Whether pushes move this actor (`pushable_by_entity`; players are
+    /// pushable, but their own client moves them).
+    pushable: bool,
 }
 
-/// System: overlapping actors push each other apart. Every living mob with
-/// `pushable_by_entity` receives, for every other mob or player box it
-/// overlaps, a horizontal impulse away from it: along the vector between the
-/// two positions, scaled by `1 / sqrt(max(|dx|, |dz|))` (capped at 1) and by
-/// [`ENTITY_PUSH_STRENGTH`]. Players are moved by their own client and only
-/// push.
+/// System: actors near each other push each other apart, as BDS does once
+/// per tick for every mob and player.
+///
+/// Each actor looks for every other actor whose box touches its own box
+/// grown by [`ENTITY_PUSH_REACH`] horizontally. It pushes each pushable one
+/// away from itself and, when both are pushable, is pushed back by the same
+/// amount, so a pair of pushable mobs each receive two pushes per tick. A
+/// push follows the vector between the two positions, scaled by
+/// `1 / sqrt(max(|dx|, |dz|))` (capped at 1) and by
+/// [`ENTITY_PUSH_STRENGTH`]; positions closer than
+/// [`ENTITY_PUSH_MIN_DISTANCE`] on both axes do not push. Only mob
+/// velocities change: players are moved by their own client.
 #[allow(clippy::type_complexity)]
 pub fn push_mobs(
     mut mobs: Query<
@@ -382,14 +480,15 @@ pub fn push_mobs(
     >,
     players: Query<&Position, With<Player>>,
     mut pushers: Local<Vec<Pusher>>,
+    mut impulses: Local<Vec<DVec3>>,
 ) {
     pushers.clear();
-    for (entity, position, body, _, _) in &mobs {
-        let aabb = Aabb::from_feet(position.0, body.width, body.height);
+    for (entity, position, body, pushable, _) in &mobs {
         pushers.push(Pusher {
             entity: Some(entity),
-            aabb,
+            aabb: Aabb::from_feet(position.0, body.width, body.height),
             centre: position.0,
+            pushable: pushable.is_some_and(|p| p.by_entity),
         });
     }
     for position in &players {
@@ -398,49 +497,57 @@ pub fn push_mobs(
             entity: None,
             aabb: Aabb::from_feet(feet, PLAYER_BOX_WIDTH, PLAYER_BOX_HEIGHT),
             centre: feet,
+            pushable: true,
         });
     }
     if pushers.len() < 2 {
         return;
     }
-    // Sweep along x so only boxes overlapping on that axis are compared.
+    // Sweep along x so only actors within reach on that axis are compared.
     pushers.sort_by(|a, b| a.aabb.min.x.total_cmp(&b.aabb.min.x));
+    impulses.clear();
+    impulses.resize(pushers.len(), DVec3::ZERO);
+    let reach = DVec3::new(ENTITY_PUSH_REACH, 0.0, ENTITY_PUSH_REACH);
     for i in 0..pushers.len() {
-        let Some(entity) = pushers[i].entity else {
-            continue;
-        };
-        let Ok((_, _, _, pushable, mut velocity)) = mobs.get_mut(entity) else {
-            continue;
-        };
-        if !pushable.is_some_and(|p| p.by_entity) {
-            continue;
-        }
-        let own = pushers[i];
-        let mut impulse = DVec3::ZERO;
+        let pusher = pushers[i];
+        let area = pusher.aabb.inflate(reach);
         for (j, other) in pushers.iter().enumerate() {
-            if other.aabb.min.x >= own.aabb.max.x {
+            if other.aabb.min.x >= area.max.x {
                 break;
             }
-            if j == i || !own.aabb.intersects(&other.aabb) {
+            if j == i || !other.pushable || !area.intersects(&other.aabb) {
                 continue;
             }
-            impulse += push_impulse(own.centre, other.centre);
+            let Some(push) = push_impulse(other.centre, pusher.centre) else {
+                continue;
+            };
+            impulses[j] += push;
+            if pusher.pushable {
+                impulses[i] -= push;
+            }
         }
-        if impulse != DVec3::ZERO {
-            velocity.0 += impulse;
+    }
+    for (pusher, impulse) in pushers.iter().zip(impulses.iter()) {
+        if let Some(entity) = pusher.entity
+            && pusher.pushable
+            && *impulse != DVec3::ZERO
+            && let Ok((_, _, _, _, mut velocity)) = mobs.get_mut(entity)
+        {
+            velocity.0 += *impulse;
         }
     }
 }
 
-/// The impulse `own` receives from an overlapping actor at `other`.
-fn push_impulse(own: DVec3, other: DVec3) -> DVec3 {
-    let dx = other.x - own.x;
-    let dz = other.z - own.z;
+/// The push an actor at `pushed` receives from a pusher at `pusher`, if
+/// they are far enough apart to push.
+fn push_impulse(pushed: DVec3, pusher: DVec3) -> Option<DVec3> {
+    let dx = pusher.x - pushed.x;
+    let dz = pusher.z - pushed.z;
     let dominant = dx.abs().max(dz.abs());
-    if dominant < 0.01 {
-        return DVec3::ZERO;
+    if dominant < ENTITY_PUSH_MIN_DISTANCE {
+        return None;
     }
     let root = dominant.sqrt();
     let scale = (1.0 / root).min(1.0) / root * ENTITY_PUSH_STRENGTH;
-    DVec3::new(-dx * scale, 0.0, -dz * scale)
+    Some(DVec3::new(-dx * scale, 0.0, -dz * scale))
 }

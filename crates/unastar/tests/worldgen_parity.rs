@@ -11,16 +11,19 @@
 //! from Bedrock surface builders and its caves from Bedrock carver features, so BDS terrain
 //! and surface heights belong to the Bedrock-style generator's gates (its noise router is
 //! shared, which `examples/worldgen_parity_report.rs` still shows).
+//!
+//! Every gate here runs the Java generator, which places structures and so needs the
+//! structure templates embedded by `java-worldgen` (`UNASTAR_JAVA_SERVER_JAR`).
+
+#![cfg(feature = "java-worldgen")]
 
 use std::path::Path;
 use std::sync::Arc;
 
-#[cfg(feature = "java-worldgen")]
 use unastar::world::generator::parity::{Fixture, ParityMetrics, measure};
 use unastar::world::generator::parity::{ProtoFixture, measure_proto};
 use unastar::world::generator::{ChunkPipeline, JavaGenerator};
 
-#[cfg(feature = "java-worldgen")]
 fn metrics(fixture: &str) -> ParityMetrics {
     let path = Path::new(env!("CARGO_MANIFEST_DIR"))
         .join("tests/fixtures")
@@ -57,8 +60,7 @@ fn assert_ratchets(fixture: &str, checks: &[(&str, f64, f64)]) {
     assert!(failures.is_empty(), "{fixture}: {}", failures.join("; "));
 }
 
-/// Finished chunks include structures, whose templates need `java-worldgen`.
-#[cfg(feature = "java-worldgen")]
+/// Finished chunks, including structures.
 #[test]
 fn java_style_vs_java_reference() {
     let fixture = "java_1_21_11_seed_12345.json";
@@ -79,7 +81,6 @@ fn java_style_vs_java_reference() {
 
 /// Biome placement is shared by both editions (BDS places Java's biomes); terrain height
 /// is not gated here because BDS carves with its own cave carver features.
-#[cfg(feature = "java-worldgen")]
 #[test]
 fn java_style_biomes_vs_bds_reference() {
     let fixture = "bds_1_26_51_seed_12345.json";
@@ -117,8 +118,7 @@ fn java_style_protos_vs_java_reference() {
 /// World spawn of the Java reference world (seed 12345, `level.dat` `spawn.pos`). Java
 /// picks the same spawn with and without features, so the undecorated generator must hit
 /// it exactly.
-/// `JavaGenerator` always loads the structure tables, which need `java-worldgen`.
-#[cfg(feature = "java-worldgen")]
+/// `JavaGenerator` always loads the structure tables.
 #[test]
 fn java_style_spawn_matches_java_reference() {
     let spawn = std::thread::Builder::new()

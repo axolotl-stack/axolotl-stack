@@ -13,7 +13,7 @@ use crate::ecs::resources::TickCounter;
 use crate::entity::EntityRandom;
 use crate::entity::components::Health;
 use crate::entity::components::{
-    DroppedItem, GameMode, HeldSlot, ItemEntityStack, MainInventory, OnFire, Player, PlayerSession,
+    DroppedItem, GameMode, HeldSlot, ItemEntityStack, MainInventory, Player, PlayerSession,
     Projectile, RuntimeEntityId,
 };
 use crate::entity::mob::components::spawn_entity::{SpawnEntityTimers, SpawnTimer};
@@ -306,7 +306,10 @@ fn chicken_follows_a_player_holding_wheat_seeds() {
         .get_mut::<MainInventory>(player)
         .unwrap()
         .0
-        .set_item(0, crate::item::test_support::stack("minecraft:wheat_seeds", 1))
+        .set_item(
+            0,
+            crate::item::test_support::stack("minecraft:wheat_seeds", 1),
+        )
         .unwrap();
     let chicken = spawn(
         world,
@@ -339,7 +342,7 @@ fn killed_chicken_drops_raw_or_cooked_chicken_and_feathers() {
             false,
         );
         if burning {
-            world.entity_mut(chicken).insert(OnFire::new(200));
+            crate::entity::mob::combat::fire::ignite(world, chicken, 200);
         }
         combat::hurt_mob(
             world,

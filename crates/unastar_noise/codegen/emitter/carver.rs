@@ -22,7 +22,6 @@ pub struct Preset<'a> {
     pub height: i32,
 }
 
-
 struct Context<'a> {
     min_y: i32,
     height: i32,

@@ -13,7 +13,7 @@
 
 use bevy_ecs::prelude::*;
 use glam::IVec3;
-use jolyne::valentine::types::{GameRuleRuleValue, Vec3};
+use jolyne::valentine::types::Vec3;
 use jolyne::valentine::{LevelEventPacket, McpePacket};
 use rand::Rng;
 use rand::rngs::StdRng;
@@ -24,9 +24,7 @@ use unastar_rules::molang::{BuiltinQuery, QueryId};
 use crate::entity::components::{PlayerSession, Position};
 use crate::entity::mob::MobKind;
 use crate::entity::mob::components::EatBlockGoal;
-use crate::entity::mob::constants::{
-    LEVEL_EVENT_PARTICLES_DESTROY_BLOCK, MOB_GRIEFING_DEFAULT, MOB_GRIEFING_RULE,
-};
+use crate::entity::mob::constants::LEVEL_EVENT_PARTICLES_DESTROY_BLOCK;
 use crate::entity::systems::BlockSource;
 use crate::world::ecs::{
     BlockBroadcastEvent, BlockChanged, ChunkData, ChunkManager, ChunkStateFlags, ChunkViewers,
@@ -90,27 +88,6 @@ pub(super) fn edible(world: &World, goal: &EatBlockGoal, pos: IVec3) -> Option<(
         .map(|pair| (state, pair.replace))
 }
 
-/// The `mobgriefing` game rule as the world announces it.
-fn mob_griefing(world: &World) -> bool {
-    world
-        .get_resource::<crate::server::game::types::ServerWorldTemplate>()
-        .and_then(|template| {
-            template
-                .0
-                .start_game_template
-                .settings
-                .rule_data
-                .rules_list
-                .iter()
-                .find(|rule| rule.rule_name.eq_ignore_ascii_case(MOB_GRIEFING_RULE))
-                .and_then(|rule| match rule.rule_value {
-                    GameRuleRuleValue::Bool(on) => Some(on),
-                    _ => None,
-                })
-        })
-        .unwrap_or(MOB_GRIEFING_DEFAULT)
-}
-
 /// The eat timer of `mob` ran out: eat the block (see the module docs).
 pub(super) fn finish_eating(world: &mut World, mob: Entity) {
     let Some(goal) = world.get::<EatBlockGoal>(mob).cloned() else {
@@ -126,7 +103,10 @@ pub(super) fn finish_eating(world: &mut World, mob: Entity) {
     else {
         return;
     };
-    if mob_griefing(world) {
+    if world
+        .resource::<crate::world::rules::GameRules>()
+        .mob_griefing
+    {
         let particles = LevelEventPacket {
             event_id: LEVEL_EVENT_PARTICLES_DESTROY_BLOCK,
             position: Vec3 {
@@ -156,7 +136,12 @@ pub(super) fn finish_eating(world: &mut World, mob: Entity) {
 
 /// Set the block at `pos` to `state` (block-change observers run and viewers
 /// get the update) and send the chunk's viewers `particles` first.
-fn replace_block(world: &mut World, pos: IVec3, state: u32, particles: LevelEventPacket) {
+pub(super) fn replace_block(
+    world: &mut World,
+    pos: IVec3,
+    state: u32,
+    particles: LevelEventPacket,
+) {
     let (cx, cz) = world_to_chunk_coords(pos.x, pos.z);
     let Some(chunk) = world.resource::<ChunkManager>().get_by_coords(cx, cz) else {
         return;

@@ -32,7 +32,6 @@ struct BlockJson {
     properties: Vec<(String, Vec<String>)>,
 }
 
-
 /// One Java block.
 #[derive(Debug, Clone)]
 pub struct Block {
@@ -107,7 +106,9 @@ impl JavaBlocks {
                 .clone();
             let flags = (first..first + count)
                 .map(|s| {
-                    let (&support, &behavior) = support_flags.get(s).zip(behavior_flags.get(s))
+                    let (&support, &behavior) = support_flags
+                        .get(s)
+                        .zip(behavior_flags.get(s))
                         .ok_or_else(|| format!("native physics has no state {s}"))?;
                     Ok((behavior & 1) | ((support & 0x3f) << 1) | ((behavior & 4) << 5))
                 })
@@ -125,7 +126,9 @@ impl JavaBlocks {
             first += count;
         }
         if first != support_flags.len() || first != behavior_flags.len() {
-            return Err("java_data identities and native physics disagree on the state count".into());
+            return Err(
+                "java_data identities and native physics disagree on the state count".into(),
+            );
         }
         let tags_dir = &java_data.join("tags/block");
 

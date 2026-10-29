@@ -614,11 +614,21 @@ mod tests {
             heights: &'a serde_json::Value,
         }
         impl StructureContext for CapturedContext<'_> {
-            fn seed(&self) -> i64 { self.seed }
-            fn min_y(&self) -> i32 { 0 }
-            fn height(&self) -> i32 { 128 }
-            fn level_height(&self) -> i32 { 256 }
-            fn sea_level(&self) -> i32 { 0 }
+            fn seed(&self) -> i64 {
+                self.seed
+            }
+            fn min_y(&self) -> i32 {
+                0
+            }
+            fn height(&self) -> i32 {
+                128
+            }
+            fn level_height(&self) -> i32 {
+                256
+            }
+            fn sea_level(&self) -> i32 {
+                0
+            }
             fn noise_biome(&self, _: i32, _: i32, _: i32) -> u8 {
                 panic!("End-city assembly unexpectedly queried a biome")
             }
@@ -635,7 +645,8 @@ mod tests {
         }
         let capture: serde_json::Value = serde_json::from_str(include_str!(
             "../../../tests/data/native_end_city_1_21_11.json"
-        )).unwrap();
+        ))
+        .unwrap();
         assert_eq!(capture["denied_network_attempts"], serde_json::json!([]));
         assert_eq!(capture["server_constructed"], false);
         let mut count = 0;
@@ -651,7 +662,10 @@ mod tests {
             let stub = find_generation_point(&mut g);
             assert_eq!(stub.is_some(), case["present"].as_bool().unwrap());
             let Some(stub) = stub else { continue };
-            assert_eq!(serde_json::json!([stub.position.x, stub.position.y, stub.position.z]), case["position"]);
+            assert_eq!(
+                serde_json::json!([stub.position.x, stub.position.y, stub.position.z]),
+                case["position"]
+            );
             let pieces = assemble(&mut g.random, stub.position, rotation);
             let native = case["pieces"].as_array().unwrap();
             assert_eq!(pieces.len(), native.len(), "{cx},{cz}");
@@ -659,19 +673,45 @@ mod tests {
                 let context = (cx, cz, index);
                 let pos = piece.template_position;
                 let b = piece.base.bbox;
-                assert_eq!(piece.template.name, native["template"].as_str().unwrap(), "{context:?} template");
-                assert_eq!(serde_json::json!([pos.x, pos.y, pos.z]), native["position"], "{context:?} origin");
-                assert_eq!(serde_json::json!([b.min_x, b.min_y, b.min_z, b.max_x, b.max_y, b.max_z]), native["bounds"], "{context:?} bounds");
-                assert_eq!(piece.base.gen_depth, native["depth"].as_i64().unwrap() as i32, "{context:?} collision group");
+                assert_eq!(
+                    piece.template.name,
+                    native["template"].as_str().unwrap(),
+                    "{context:?} template"
+                );
+                assert_eq!(
+                    serde_json::json!([pos.x, pos.y, pos.z]),
+                    native["position"],
+                    "{context:?} origin"
+                );
+                assert_eq!(
+                    serde_json::json!([b.min_x, b.min_y, b.min_z, b.max_x, b.max_y, b.max_z]),
+                    native["bounds"],
+                    "{context:?} bounds"
+                );
+                assert_eq!(
+                    piece.base.gen_depth,
+                    native["depth"].as_i64().unwrap() as i32,
+                    "{context:?} collision group"
+                );
                 let rotation = match piece.placement.rotation {
                     Rotation::None => "NONE",
                     Rotation::Clockwise90 => "CLOCKWISE_90",
                     Rotation::Clockwise180 => "CLOCKWISE_180",
                     Rotation::CounterClockwise90 => "COUNTERCLOCKWISE_90",
                 };
-                assert_eq!(rotation, native["rotation"].as_str().unwrap(), "{context:?} rotation");
+                assert_eq!(
+                    rotation,
+                    native["rotation"].as_str().unwrap(),
+                    "{context:?} rotation"
+                );
             }
-            assert_eq!(pieces.iter().filter(|piece| piece.template.name == SHIP).count(), 1);
+            assert_eq!(
+                pieces
+                    .iter()
+                    .filter(|piece| piece.template.name == SHIP)
+                    .count(),
+                1
+            );
             count += pieces.len();
         }
         assert_eq!(count, 148);

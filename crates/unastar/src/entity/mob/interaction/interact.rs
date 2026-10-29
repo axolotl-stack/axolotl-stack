@@ -35,6 +35,7 @@ use crate::entity::mob::life::ageing::BabyAge;
 use crate::entity::mob::state::{BreedCooldown, Dead, InLove, Persistent};
 use crate::entity::mob::{MobKind, SpawnCause, constants, spawn_mob};
 use crate::item::ItemStack;
+use crate::server::game::types::ItemRegistryResource;
 use crate::server::game::{send_slot, world_stack};
 
 /// A player uses their held item on `target`.
@@ -177,7 +178,9 @@ fn spawn_baby_from_egg(
 }
 
 /// `minecraft:ageable` on a baby: feed items advance growth, pause items
-/// stop it and reset items let it grow again.
+/// stop it and reset items let it grow again. Every use is a feed (viewers
+/// get [`feed_event`]); a feed item on a baby that is not paused also sends
+/// `ActorEvent` BabyAge, which the client shows as happy-villager sparkles.
 fn ageable_interaction(
     world: &mut World,
     player: Entity,
@@ -208,7 +211,8 @@ fn ageable_interaction(
         return false;
     }
     world.entity_mut(target).insert(age);
-    if fed {
+    feed_event(world, target, held);
+    if fed && !matches!(age, BabyAge::Paused { .. }) {
         broadcast_actor_event(world, target, EnumsActorEvent::BabyAge, 0);
     }
     use_held_item(world, player, None);
@@ -216,7 +220,9 @@ fn ageable_interaction(
 }
 
 /// `minecraft:breedable`: a breed item puts an adult that is neither in
-/// love nor cooling down into love mode for [`constants::LOVE_TICKS`].
+/// love nor cooling down into love mode for [`constants::LOVE_TICKS`]. The
+/// item is fed ([`feed_event`]); the in-love flag makes the client draw
+/// hearts.
 fn fall_in_love(world: &mut World, player: Entity, target: Entity, held: &ItemStack) -> bool {
     let Some(config) = world.get::<BreedableConfig>(target) else {
         return false;
@@ -243,7 +249,7 @@ fn fall_in_love(world: &mut World, player: Entity, target: Entity, held: &ItemSt
         player: Some(player),
     });
     set_love_flag(world, target, true);
-    broadcast_actor_event(world, target, EnumsActorEvent::InLoveHearts, 0);
+    feed_event(world, target, held);
     use_held_item(world, player, None);
     true
 }
@@ -391,14 +397,14 @@ fn spawn_interaction_loot(
     let recipes = world
         .get_resource::<crate::server::game::types::RecipeRegistryResource>()
         .map(|r| r.0.clone());
+    let items = world
+        .get_resource::<ItemRegistryResource>()
+        .map(|r| r.0.clone());
     let ctx = crate::server::game::LootContext {
-        on_fire: Some(
-            world
-                .get::<crate::entity::components::OnFire>(mob)
-                .is_some_and(crate::entity::components::OnFire::is_on_fire),
-        ),
+        on_fire: Some(crate::entity::mob::combat::fire::is_burning(world, mob)),
         recipes: recipes.as_deref(),
         color_index: crate::entity::mob::components::color::color_of(world, mob),
+        items: items.as_deref(),
         ..Default::default()
     };
     let seed = world.resource_mut::<EntityRandom>().0.r#gen::<u64>();
@@ -527,6 +533,18 @@ fn resend_held(world: &World, player: Entity) {
         return;
     };
     send_slot(world, player, slot, stack);
+}
+
+/// Viewers see `mob` eat `held`: `ActorEvent` Feed whose data is the item's
+/// network id above [`constants::FEED_EVENT_ITEM_SHIFT`] and its aux value
+/// below. The client spawns the item's crumbs at the mob's mouth and plays
+/// its eating sound.
+fn feed_event(world: &World, mob: Entity, held: &ItemStack) {
+    let Some(network_id) = held.item().map(|item| item.network_id()) else {
+        return;
+    };
+    let data = (network_id << constants::FEED_EVENT_ITEM_SHIFT) | i32::from(held.damage as u16);
+    broadcast_actor_event(world, mob, EnumsActorEvent::Feed, data);
 }
 
 /// Send an actor event about `mob` to its viewers.
