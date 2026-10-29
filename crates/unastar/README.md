@@ -121,7 +121,7 @@ player and its viewers as BDS groups them; the evidence and tests are in
 The default spawn rule keeps returning players at their saved position and otherwise
 uses the generator's spawn; set `location` (with `always_at_location = true`) to pin it.
 Java-style chunks are generated on a bounded pool of `world.generation_threads`
-workers (0 = half the cores, 1..=8), off the ECS tick thread. Chunk biomes are 3D
+workers (0 = half the cores, 1..=16), off the ECS tick thread. Chunk biomes are 3D
 (4x4x4 quarts) on the wire and in storage (`Data3D`).
 
 Generation runs through `world::generator::ChunkPipeline`: per-chunk terrain stages

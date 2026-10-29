@@ -63,7 +63,7 @@ dimension = 0
 storage_provider = "level_db"
 # BlazeDB cache capacity in chunks (used only with "blaze_db").
 blazedb_cache_chunks = 4096
-# Chunk generation worker threads (0 = half the cores, at most 8).
+# Chunk generation worker threads (0 = half the cores, at most 16).
 generation_threads = 0
 
 [world.bounds]
