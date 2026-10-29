@@ -582,17 +582,35 @@ impl<'a> Emitter<'a> {
         placed_id: Option<u16>,
     ) -> Result<()> {
         let cf = self.configured_ref(&pf.feature)?;
+        // Coverage scopes compile to nothing without `worldgen-coverage`.
+        let call = match &pf.feature {
+            ConfiguredRef::Ref(name) => quote! {{
+                let _coverage = crate::coverage::scope(crate::coverage::Kind::ConfiguredFeature, #name);
+                #cf(world, rng, p)
+            }},
+            ConfiguredRef::Inline(_) => quote! { #cf(world, rng, p) },
+        };
         let mut cont = quote! {
-            if #cf(world, rng, p) {
+            if #call {
                 placed = true;
             }
         };
         for m in pf.placement.iter().rev() {
             cont = self.emit_modifier(m, cont, placed_id)?;
         }
+        let coverage = placed_id.map(|pid| {
+            let pid = pid as usize;
+            quote! {
+                let _coverage = crate::coverage::scope(
+                    crate::coverage::Kind::PlacedFeature,
+                    PLACED_NAMES[#pid],
+                );
+            }
+        });
         self.items.push(quote! {
             #[allow(unused_variables, unused_mut, clippy::all)]
             pub fn #id<W: FeatureWorld + ?Sized>(world: &mut W, rng: &mut FeatureRandom, origin: BlockPos) -> bool {
+                #coverage
                 let mut placed = false;
                 let p = origin;
                 #cont

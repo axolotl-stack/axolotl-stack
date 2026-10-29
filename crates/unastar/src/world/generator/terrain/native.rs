@@ -288,6 +288,7 @@ impl JavaGenerator {
         A: FnMut(i32, i32, i32) -> Option<u32>,
     {
         if stage >= JavaTerrainStage::Surface {
+            let _coverage_chunk = unastar_noise::coverage::chunk_scope(pos.x, pos.z);
             let surface = profile::scope(Stage::Surface);
             // Native reference profile: center BIOMES/NOISE, then additional
             // BIOMES chunks dz-outer/dx-inner. The center is borrowed, not copied.

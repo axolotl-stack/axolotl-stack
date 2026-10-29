@@ -704,9 +704,24 @@ fn main() {
             .stack_size(64 << 20)
             .spawn(move || {
                 let reference = load(Path::new(&args[1]))?;
+                // Only writes into compared chunks count as exercised coverage.
+                #[cfg(feature = "worldgen-coverage")]
+                unastar_noise::coverage::set_targets(reference.chunks.iter().map(|c| (c.x, c.z)));
                 let actual = generate(&reference)?;
                 let text = serde_json::to_string(&actual).map_err(|error| error.to_string())?;
                 std::fs::write(&args[2], text).map_err(|error| error.to_string())?;
+                #[cfg(feature = "worldgen-coverage")]
+                {
+                    let mut coverage: BTreeMap<&str, Vec<&str>> = BTreeMap::new();
+                    for (kind, name) in unastar_noise::coverage::take_hits() {
+                        coverage.entry(kind.key()).or_default().push(name);
+                    }
+                    let mut path = args[2].clone();
+                    path.push(".coverage.json");
+                    let text =
+                        serde_json::to_string(&coverage).map_err(|error| error.to_string())?;
+                    std::fs::write(path, text).map_err(|error| error.to_string())?;
+                }
                 println!(
                     "captured {} native chunks, {} full-volume voxels",
                     actual.chunks.len(),

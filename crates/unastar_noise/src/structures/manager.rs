@@ -282,6 +282,7 @@ pub fn place_in_chunk<W: FeatureWorld>(
     chunk_box: &BoundingBox,
     chunk: (i32, i32),
 ) {
+    let _coverage = crate::coverage::scope(crate::coverage::Kind::Structure, start.def().name);
     let Some(first) = start.pieces.first() else {
         return;
     };
