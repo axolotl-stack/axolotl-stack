@@ -424,8 +424,8 @@ impl GoalContext<'_> {
         states.persist_ticks = 0;
     }
 
-    /// The native `TargetGoal::canContinueToUse`; drops the target when it
-    /// fails.
+    /// Whether the current target is still valid; drops the target when it
+    /// is not.
     fn keep_target(&mut self, base: &TargetGoalBase) -> bool {
         let keep = self.keep_target_inner(base);
         if !keep {
