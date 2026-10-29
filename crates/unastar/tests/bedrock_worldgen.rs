@@ -82,22 +82,27 @@ fn bedrock_style_vs_bds_reference_ratchets() {
             // halves histogram error but re-baselines terrain within 2 and
             // terrain error: see "Single-block deep sea floor" in that README.
             // Open-space snapping then raised the terrain floors again.
+            // Per-rule feature seeding (coordinator-approved, 2026-10-28) is
+            // proven against native probe worlds and cuts histogram error by a
+            // quarter, but re-baselines terrain within 2, terrain error and the
+            // surface floors while feature algorithms still differ: see
+            // "Per-rule seeding re-baseline" in that README.
             for (name, value, floor) in [
-                ("terrain_exact", m.terrain_exact, 0.8782),
-                ("terrain_within_2", m.terrain_within_2, 0.9240),
-                ("surface_exact", m.surface_exact, 0.8526),
-                ("surface_block", m.surface_block, 0.8432),
-                ("surface_biome", m.surface_biome, 0.9950),
+                ("terrain_exact", m.terrain_exact, 0.8791),
+                ("terrain_within_2", m.terrain_within_2, 0.9223),
+                ("surface_exact", m.surface_exact, 0.8510),
+                ("surface_block", m.surface_block, 0.8421),
+                ("surface_biome", m.surface_biome, 0.9946),
             ] {
                 assert!(value >= floor, "{name} {value:.6} fell below {floor:.6}");
             }
             assert!(
-                m.terrain_mean_abs_error <= 1.2217,
+                m.terrain_mean_abs_error <= 1.2288,
                 "terrain error rose: {}",
                 m.terrain_mean_abs_error
             );
             assert!(
-                m.histogram_l1 <= 0.0277,
+                m.histogram_l1 <= 0.02031,
                 "histogram error rose: {}",
                 m.histogram_l1
             );

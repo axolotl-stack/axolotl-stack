@@ -535,11 +535,61 @@ chunk.
   although its definition and its place in identifier order were those of
   `a_probe`. The seed depends on the rule identifier, not on a rule index.
 
-The current decorator runs every rule of every pass from one shared per-chunk
-stream, so any chance-based rule (geodes at 1 in 24, for example) lands in
-different chunks than BDS whatever its implementation; geode blocks are about
-twice BDS on the fixture for this reason. The exact seed formula is still
-unknown. The population seed combined with FNV-1a (64 or 32 bit), Java
-`hashCode` or CRC32 of the identifier, by xor or addition, read as `% 16` or
-high-bit draws, matches no probe.
+A third world ran 50-iteration probes (`x`, `z`, `y` uniform over 16,
+`coordinate_eval_order` `xzy`). For each such volume exactly one 32-bit
+MT19937 seed reproduces all 50 positions, with plain `% 16` draws in `x`, `z`,
+`y` order from the first output. Seeds recovered for `c_probe` in four chunks
+and `d_probe` in one fix the formula the runtime now implements:
+
+- population seed `s = level_seed ^ (chunk_x * px + chunk_z * pz)` (wrapping,
+  chunk units), where `px` and `pz` are the first two non-negative 31-bit
+  draws (`next_u32() >> 1`) of a random seeded with the level seed, each
+  forced odd. The previous decorator used the full 32-bit draws.
+- rule seed `((s << 6) + h + (s >> 2) + 0x9e3779b9) ^ s`, where `h` is the low
+  32 bits of the 64-bit FNV-1 hash (multiply, then xor) of the rule
+  identifier. `rules.rs` folds `h` at build time.
+- the scatter starts a fresh MT19937 from the rule seed; the placed feature
+  starts its own fresh MT19937 from the same seed.
+
+These predict every probe position in all three worlds (69, 69 and 64
+chunks; `first_pass` and `final_pass`; one and 50 iterations).
+`decorate::tests::feature_rule_streams_match_native_probe_worlds` pins the
+five recovered seeds and seven single-iteration positions. Carvers seed their
+own per-source randoms from the world seed, so carving output does not move.
+**Unmeasured:** how seeds wider than 32 bits fold into the level seed, and
+the geology and structure streams that are still salted from the population
+seed.
+
+### Per-rule seeding re-baseline (2026-10-28)
+
+With every rule on its own stream, chance-gated rules land in BDS's chunks:
+the fixture's two geode chunks (-1,1) and (-4,3) had no generated geode
+before and both have one now. Totals move towards BDS where the per-chunk
+placement decides the count:
+
+| Block (68-chunk fixture) | BDS | Shared stream | Per-rule streams |
+|---|---:|---:|---:|
+| clay | 26162 | 31591 | 27958 |
+| kelp | 4506 | 4462 | 4764 |
+| big dripleaf | 190 | 439 | 267 |
+| magma | 142 | 393 | 367 |
+| amethyst block | 366 | 888 | 1100 |
+
+| Parity metric | Before | After |
+|---|---:|---:|
+| Terrain height exact | 0.8782 | 0.8791 |
+| Terrain height within 2 | 0.9240 | 0.9224 |
+| Terrain mean abs error | 1.2217 | 1.2287 |
+| Surface height exact | 0.8526 | 0.8510 |
+| Surface block match | 0.8432 | 0.8421 |
+| Surface biome match | 0.9950 | 0.9947 |
+| Histogram L1 | 0.0277 | 0.0203 |
+
+The coordinator approved re-baselining the five lowered floors to these
+measured values (D8): vegetation and ores now draw from the correct streams,
+and what still differs is the feature algorithms themselves. Each generated
+geode is about three times BDS's size (amethyst 477 vs 141 in chunk (-1,1))
+and spills into neighbouring chunks; tree internals are the next suspect for
+the surface metrics. **Unmeasured:** Molang `math.random` inside rule
+distributions still draws from the rule's scatter stream.
 
