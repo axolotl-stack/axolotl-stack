@@ -769,3 +769,31 @@ inclusive draw overgrew every moss patch and hid a moss deficit:
 
 Under D8 only the histogram ceiling is re-baselined, to 0.02379.
 
+### Dripleaf draws (2026-10-28)
+
+BDS's `dripleaf_feature` draws one float: below 0.2 it grows a small
+dripleaf, otherwise a big one through `big_dripleaf_<dir>_feature`. The
+facing is drawn next as `next_int(4)` (south, west, north, east) in both
+cases, before any placement check. We drew a single `next_int(5)`, so each
+big dripleaf took one draw too few and shifted every later draw of its lush
+patch chain. `dripleaf_picks_size_by_float_then_facing` fails with the old
+selection.
+
+| Count | BDS | Before | After |
+| --- | ---: | ---: | ---: |
+| big dripleaf, natural world chunks (-5..4,-5..4) | 379 | 520 | 423 |
+| big dripleaf, fixture | 190 | 229 | 269 |
+| small dripleaf, fixture | 20 | 52 | 40 |
+| clay, fixture | 26162 | 27575 | 27043 |
+
+Positions still mostly differ (big dripleaf overlap 24 -> 15 of 379), so the
+single counts move with the shifted patch chains. Histogram L1 falls 0.02379
+-> 0.02368 and its ceiling is tightened. Terrain error rises 1.20335 ->
+1.20347 and, under D8, only that ceiling is re-baselined, to 1.2035.
+
+Not landed: bounding `snap_to_surface` by the start biome and to
+`range - 1` blocks, as BDS's column scan does. It brought lush clay to
+39491 vs BDS 39313 in the natural world, but lowered positional overlap and
+raised fixture histogram L1 to 0.02426, so it waits until the lush-cave
+biome extent is measured.
+

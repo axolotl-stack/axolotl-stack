@@ -102,7 +102,7 @@ fn bedrock_style_vs_bds_reference_ratchets() {
                 assert!(value >= floor, "{name} {value:.6} fell below {floor:.6}");
             }
             assert!(
-                m.terrain_mean_abs_error <= 1.2034,
+                m.terrain_mean_abs_error <= 1.2035,
                 "terrain error rose: {}",
                 m.terrain_mean_abs_error
             );
@@ -112,9 +112,11 @@ fn bedrock_style_vs_bds_reference_ratchets() {
             // see "Geode point count" and "Magma depth below solid ground" in
             // that README. Block-exact geodes then lowered the error again.
             // Upper-exclusive vegetation-patch ranges stop overgrown moss
-            // hiding a moss deficit (D8): see "Vegetation patch ranges".
+            // hiding a moss deficit (D8): see "Vegetation patch ranges". The
+            // native dripleaf draws then cost the terrain error a fraction of
+            // a column (D8): see "Dripleaf draws".
             assert!(
-                m.histogram_l1 <= 0.02379,
+                m.histogram_l1 <= 0.02368,
                 "histogram error rose: {}",
                 m.histogram_l1
             );
