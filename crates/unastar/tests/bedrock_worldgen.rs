@@ -97,16 +97,16 @@ fn bedrock_style_vs_bds_reference_ratchets() {
             // ceilings below; each is tabled under "Roofed forest draw order"
             // in the codegen README.
             for (name, value, floor) in [
-                ("terrain_exact", m.terrain_exact, 0.8858),
+                ("terrain_exact", m.terrain_exact, 0.8859),
                 ("terrain_within_2", m.terrain_within_2, 0.9244),
-                ("surface_exact", m.surface_exact, 0.8506),
-                ("surface_block", m.surface_block, 0.8477),
+                ("surface_exact", m.surface_exact, 0.8508),
+                ("surface_block", m.surface_block, 0.8474),
                 ("surface_biome", m.surface_biome, 0.9950),
             ] {
                 assert!(value >= floor, "{name} {value:.6} fell below {floor:.6}");
             }
             assert!(
-                m.terrain_mean_abs_error <= 1.2039,
+                m.terrain_mean_abs_error <= 1.2038,
                 "terrain error rose: {}",
                 m.terrain_mean_abs_error
             );
@@ -369,4 +369,33 @@ fn roofed_forest_second_tree_follows_the_litter_scatter() {
     let logs = blocks_named(&chunk, "minecraft:oak_log", (10, 10), (-63, 319), (1, 1));
     let expected: BTreeSet<_> = (124..=127).map(|y| (10u8, y, 1u8)).collect();
     assert_eq!(logs, expected);
+}
+
+/// Natural seed-12345 BDS world, roofed forest chunk (4,-4): the first dark
+/// oak (base (75,122,-54)) draws two lean steps yet grows straight: its two
+/// west trunk columns hold logs y 122..=128 and its only west branch hangs at
+/// y 124..=127, with no log further west. (The east trunk columns stand on
+/// higher BDS terrain and are left out.)
+#[test]
+fn roofed_forest_wide_trunk_grows_straight() {
+    let chunk = generate_chunk(4, -4);
+    // Chunk-local x 9..=11, z 8..=12 is block x 73..=75, z -56..=-52.
+    let actual = blocks_named(
+        &chunk,
+        "minecraft:dark_oak_log",
+        (9, 11),
+        (118, 135),
+        (8, 12),
+    );
+    let mut expected = BTreeSet::new();
+    for (x, z, lo, hi) in [
+        (11u8, 10u8, 122i16, 128i16),
+        (11, 11, 122, 128),
+        (10, 10, 124, 127),
+    ] {
+        for y in lo..=hi {
+            expected.insert((x, y, z));
+        }
+    }
+    assert_eq!(actual, expected);
 }
