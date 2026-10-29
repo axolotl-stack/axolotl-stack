@@ -30,12 +30,16 @@ impl Rotation {
 
     /// `Rotation.getRandom(random)`.
     #[inline]
-    pub fn random<S: BitSource, const RETAIN_GAUSSIAN: bool>(rng: &mut WorldgenRandom<S, RETAIN_GAUSSIAN>) -> Rotation {
+    pub fn random<S: BitSource, const RETAIN_GAUSSIAN: bool>(
+        rng: &mut WorldgenRandom<S, RETAIN_GAUSSIAN>,
+    ) -> Rotation {
         Self::ALL[rng.next_int_bounded(4) as usize]
     }
 
     /// `Rotation.getShuffled(random)`: all rotations, shuffled.
-    pub fn shuffled<S: BitSource, const RETAIN_GAUSSIAN: bool>(rng: &mut WorldgenRandom<S, RETAIN_GAUSSIAN>) -> [Rotation; 4] {
+    pub fn shuffled<S: BitSource, const RETAIN_GAUSSIAN: bool>(
+        rng: &mut WorldgenRandom<S, RETAIN_GAUSSIAN>,
+    ) -> [Rotation; 4] {
         let mut list = Self::ALL;
         crate::structures::util::shuffle(&mut list, rng);
         list

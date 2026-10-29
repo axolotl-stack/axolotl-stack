@@ -200,9 +200,8 @@ fn beard(x: i32, y: i32, z: i32, ground_distance: i32) -> f64 {
     let squared = x as f64 * x as f64 + dy * dy + z as f64 * z as f64;
     let inverse = fast_inv_sqrt(squared / 2.0);
     let direction = -dy * inverse / 2.0;
-    let index = (z + RADIUS) as usize * SIZE * SIZE
-        + (x + RADIUS) as usize * SIZE
-        + (y + RADIUS) as usize;
+    let index =
+        (z + RADIUS) as usize * SIZE * SIZE + (x + RADIUS) as usize * SIZE + (y + RADIUS) as usize;
     direction * KERNEL[index] as f64
 }
 
@@ -215,14 +214,14 @@ fn fast_inv_sqrt(value: f64) -> f64 {
 
 #[cfg(test)]
 mod tests {
-    use super::*;
-    use serde::Deserialize;
     use super::super::generated::STRUCTURES;
     use super::super::jigsaw::PoolElement;
     use super::super::kinds::jigsaw_place::PoolElementPiece;
     use super::super::kinds::scattered::BuriedTreasurePiece;
     use super::super::piece::StructurePiece;
     use super::super::transform::Rotation;
+    use super::*;
+    use serde::Deserialize;
 
     #[derive(Deserialize)]
     struct Capture {
@@ -268,8 +267,10 @@ mod tests {
     }
 
     fn capture() -> Capture {
-        serde_json::from_str(include_str!("../../tests/data/native_beardifier_1_21_11.json"))
-            .unwrap()
+        serde_json::from_str(include_str!(
+            "../../tests/data/native_beardifier_1_21_11.json"
+        ))
+        .unwrap()
     }
 
     fn adjustment(name: &str) -> TerrainAdjustment {
@@ -346,7 +347,8 @@ mod tests {
             let structure = STRUCTURES
                 .iter()
                 .position(|def| def.terrain_adaptation == terrain_adjustment)
-                .expect("vanilla data contains every terrain adjustment") as u16;
+                .expect("vanilla data contains every terrain adjustment")
+                as u16;
             let mut pieces: Vec<Box<dyn StructurePiece>> = Vec::new();
             for input in &case.inputs {
                 let b = bbox(input.bbox);
@@ -377,14 +379,25 @@ mod tests {
                     pieces.push(Box::new(piece));
                 }
             }
-            let start = StructureStart::new(structure, case.chunk[0], case.chunk[1], pieces).unwrap();
+            let start =
+                StructureStart::new(structure, case.chunk[0], case.chunk[1], pieces).unwrap();
             let field = Beardifier::for_chunk([&start], case.chunk[0], case.chunk[1]);
-            let expected: Vec<_> = case.pieces.iter().map(|p| Rigid {
-                bbox: bbox(p.bbox),
-                adjustment: adjustment(&p.adjustment),
-                ground_level_delta: p.ground_delta,
-            }).collect();
-            assert_eq!(field.pieces(), expected, "{} {:?}", case.adjustment, case.chunk);
+            let expected: Vec<_> = case
+                .pieces
+                .iter()
+                .map(|p| Rigid {
+                    bbox: bbox(p.bbox),
+                    adjustment: adjustment(&p.adjustment),
+                    ground_level_delta: p.ground_delta,
+                })
+                .collect();
+            assert_eq!(
+                field.pieces(),
+                expected,
+                "{} {:?}",
+                case.adjustment,
+                case.chunk
+            );
             let expected_junctions: Vec<_> = case.junctions.iter().copied().map(junction).collect();
             assert_eq!(field.junctions(), expected_junctions);
             assert_eq!(field.affected_box(), case.affected_box.map(bbox));

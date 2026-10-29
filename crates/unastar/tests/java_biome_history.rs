@@ -12,7 +12,8 @@ fn native_section_traversal_retains_surface_biomes_at_cave_fitness_ties() {
         .stack_size(64 << 20)
         .spawn(|| {
             let generator = JavaGenerator::new(12345);
-            let plains = generator.generate_stage(ChunkPos::new(-130, 27), JavaTerrainStage::Biomes);
+            let plains =
+                generator.generate_stage(ChunkPos::new(-130, 27), JavaTerrainStage::Biomes);
             for (qx, qy, qz) in [(1, 9, 0), (2, 23, 2)] {
                 assert_eq!(
                     JavaBiome::from_index(plains.biomes.get(qx, qy, qz)),
@@ -20,7 +21,8 @@ fn native_section_traversal_retains_surface_biomes_at_cave_fitness_ties() {
                     "native equal-fitness cave boundary at local quart ({qx},{qy},{qz})",
                 );
             }
-            let jungle = generator.generate_stage(ChunkPos::new(-120, 34), JavaTerrainStage::Biomes);
+            let jungle =
+                generator.generate_stage(ChunkPos::new(-120, 34), JavaTerrainStage::Biomes);
             assert_eq!(
                 JavaBiome::from_index(jungle.biomes.get(1, 16, 1)),
                 Some(JavaBiome::SparseJungle),

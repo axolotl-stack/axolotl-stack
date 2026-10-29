@@ -46,7 +46,10 @@ pub fn blackstone_replace(state: JavaState) -> JavaState {
     with_properties_of(to, state)
 }
 
-fn random_facing_stairs<S: BitSource, const RETAIN_GAUSSIAN: bool>(rng: &mut WorldgenRandom<S, RETAIN_GAUSSIAN>, block: JavaBlock) -> JavaState {
+fn random_facing_stairs<S: BitSource, const RETAIN_GAUSSIAN: bool>(
+    rng: &mut WorldgenRandom<S, RETAIN_GAUSSIAN>,
+    block: JavaBlock,
+) -> JavaState {
     let facing = Direction::HORIZONTAL[rng.next_int_bounded(4) as usize];
     let half = ["top", "bottom"][rng.next_int_bounded(2) as usize];
     block
@@ -114,8 +117,12 @@ pub fn block_age<S: BitSource, const RETAIN_GAUSSIAN: bool>(
         // template blocks into mossy slabs of the same type.
         return (rng.next_float() < mossiness).then(|| {
             let mossy = states::MOSSY_STONE_BRICK_SLAB;
-            let mossy = state.value("type").map_or(mossy, |shape| mossy.with("type", shape));
-            state.value("waterlogged").map_or(mossy, |wet| mossy.with("waterlogged", wet))
+            let mossy = state
+                .value("type")
+                .map_or(mossy, |shape| mossy.with("type", shape));
+            state
+                .value("waterlogged")
+                .map_or(mossy, |wet| mossy.with("waterlogged", wet))
         });
     }
     if state.is_in(tags::WALLS) {
@@ -139,7 +146,12 @@ mod tests {
         for shape in ["bottom", "top", "double"] {
             let source = states::STONE_BRICK_SLAB.with("type", shape);
             let aged = block_age(source, 1.0, &mut LegacyRandom::new(0)).unwrap();
-            assert_eq!(aged, states::MOSSY_STONE_BRICK_SLAB.with("type", shape).with("waterlogged", "false"));
+            assert_eq!(
+                aged,
+                states::MOSSY_STONE_BRICK_SLAB
+                    .with("type", shape)
+                    .with("waterlogged", "false")
+            );
         }
     }
 }

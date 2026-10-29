@@ -42,7 +42,6 @@ struct BedrockFile {
     bedrock_ordinals: Vec<u32>,
 }
 
-
 #[derive(Deserialize)]
 struct PhysicsFile {
     java_version: String,
@@ -97,7 +96,9 @@ impl JavaBlocks {
         }
         let state_count = bedrock.bedrock_ordinals.len();
         if physics.java_version != blocks.java_version || physics.states.len() != state_count {
-            return Err("block_physics.json disagrees with the pinned Java version/state count".into());
+            return Err(
+                "block_physics.json disagrees with the pinned Java version/state count".into(),
+            );
         }
         let mut shape_support = Vec::with_capacity(state_count);
         let mut shape_wall_above = Vec::with_capacity(state_count);
@@ -105,7 +106,9 @@ impl JavaBlocks {
         let mut state_physics = Vec::with_capacity(state_count);
         for (id, state) in physics.states.iter().enumerate() {
             if state.id as usize != id {
-                return Err(format!("block_physics.json has an invalid state id at {id}"));
+                return Err(format!(
+                    "block_physics.json has an invalid state id at {id}"
+                ));
             }
             shape_support.push(state.flags);
             shape_wall_above.push(state.wall_above_flags);
@@ -114,7 +117,8 @@ impl JavaBlocks {
         }
         if format!("{:x}", Sha256::digest(&shape_support)) != physics.flags_sha256
             || format!("{:x}", Sha256::digest(&shape_wall_above)) != physics.wall_above_flags_sha256
-            || format!("{:x}", Sha256::digest(&shape_center_support)) != physics.center_support_flags_sha256
+            || format!("{:x}", Sha256::digest(&shape_center_support))
+                != physics.center_support_flags_sha256
             || format!("{:x}", Sha256::digest(&state_physics)) != physics.behavior_flags_sha256
         {
             return Err("block_physics.json native physics checksum mismatch".into());
@@ -129,13 +133,22 @@ impl JavaBlocks {
                 let id = block.first_id as usize + offset;
                 let props = decode_state(block, offset);
                 let native = &physics.states[id];
-                if native.block != block.name || native.properties.len() != props.len()
-                    || !native.properties.iter().all(|(key, value)| props.get(key) == Some(value))
+                if native.block != block.name
+                    || native.properties.len() != props.len()
+                    || !native
+                        .properties
+                        .iter()
+                        .all(|(key, value)| props.get(key) == Some(value))
                 {
-                    return Err(format!("block_physics.json state {id} identity disagrees with blocks.json"));
+                    return Err(format!(
+                        "block_physics.json state {id} identity disagrees with blocks.json"
+                    ));
                 }
                 classes[id] = classify(
-                    &block.name, &props, native.flags & 0x80 != 0, native.behavior_flags & 0x10 != 0,
+                    &block.name,
+                    &props,
+                    native.flags & 0x80 != 0,
+                    native.behavior_flags & 0x10 != 0,
                 );
             }
         }
@@ -282,7 +295,12 @@ fn decode_state(block: &JavaBlock, mut offset: usize) -> BTreeMap<String, String
 /// `BLOCKS_MOTION` is captured from native `BlockState.blocksMotion`, including explicit
 /// force-solid overrides that cannot be reconstructed from collision bounds.
 /// `FULL_TOP_FACE` is the actual native full upper collision face, not a sturdy face.
-fn classify(name: &str, props: &BTreeMap<String, String>, blocks_motion: bool, full_top_face: bool) -> u8 {
+fn classify(
+    name: &str,
+    props: &BTreeMap<String, String>,
+    blocks_motion: bool,
+    full_top_face: bool,
+) -> u8 {
     let mut flags = 0u8;
     let short = name.trim_start_matches("minecraft:");
     if matches!(short, "air" | "cave_air" | "void_air") {
@@ -306,4 +324,3 @@ fn classify(name: &str, props: &BTreeMap<String, String>, blocks_motion: bool, f
     }
     flags
 }
-

@@ -105,10 +105,8 @@ fn overworld_biomes_decorate_only_overworld_features() {
 /// generator's memoized sorter, including features absent from the local biome.
 #[test]
 fn registered_step_indices_match_native_all_dimensions() {
-    let fixture: serde_json::Value = serde_json::from_str(include_str!(
-        "data/native_feature_order_1_21_11.json"
-    ))
-    .unwrap();
+    let fixture: serde_json::Value =
+        serde_json::from_str(include_str!("data/native_feature_order_1_21_11.json")).unwrap();
     for (dim, generated) in [
         ("overworld", &OVERWORLD_FEATURES),
         ("nether", &NETHER_FEATURES),
@@ -123,7 +121,10 @@ fn registered_step_indices_match_native_all_dimensions() {
                 .iter()
                 .enumerate()
                 .map(|(index, entry)| {
-                    assert_eq!(entry["native_index_mapping"].as_u64().unwrap(), index as u64);
+                    assert_eq!(
+                        entry["native_index_mapping"].as_u64().unwrap(),
+                        index as u64
+                    );
                     entry["placed_feature"].as_str().unwrap()
                 })
                 .collect();
@@ -149,7 +150,10 @@ fn registered_step_indices_match_native_all_dimensions() {
                     .collect();
                 expected.sort_unstable();
                 expected.dedup();
-                assert_eq!(generated.biome_steps[b][s], expected, "{dim} {name} step {s}");
+                assert_eq!(
+                    generated.biome_steps[b][s], expected,
+                    "{dim} {name} step {s}"
+                );
             }
         }
     }

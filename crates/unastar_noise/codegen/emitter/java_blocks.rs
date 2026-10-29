@@ -19,16 +19,34 @@ pub fn emit(blocks: &JavaBlocks) -> TokenStream {
     let bedrock_classes = blocks.bedrock_class_table();
     let bedrock_len = bedrock_classes.len();
     let bedrock_classes = bedrock_classes.iter().map(|&v| Literal::u8_unsuffixed(v));
-    let shape_support = blocks.shape_support_table().iter().map(|&v| Literal::u8_unsuffixed(v));
-    let shape_wall_above = blocks.shape_wall_above_table().iter().map(|&v| Literal::u8_unsuffixed(v));
-    let shape_center_support = blocks.shape_center_support_table().iter().map(|&v| Literal::u8_unsuffixed(v));
-    let state_physics = blocks.state_physics_table().iter().map(|&v| Literal::u8_unsuffixed(v));
+    let shape_support = blocks
+        .shape_support_table()
+        .iter()
+        .map(|&v| Literal::u8_unsuffixed(v));
+    let shape_wall_above = blocks
+        .shape_wall_above_table()
+        .iter()
+        .map(|&v| Literal::u8_unsuffixed(v));
+    let shape_center_support = blocks
+        .shape_center_support_table()
+        .iter()
+        .map(|&v| Literal::u8_unsuffixed(v));
+    let state_physics = blocks
+        .state_physics_table()
+        .iter()
+        .map(|&v| Literal::u8_unsuffixed(v));
 
     // Java fluid-bearing plants and waterlogged states retain their source water
     // in Bedrock's second storage. Ordinary water is already the primary block.
-    let mut secondary_water: Vec<bool> = blocks.class_table().iter()
-        .map(|flags| flags & class::WATER != 0).collect();
-    for id in blocks.state_ids("minecraft:water").expect("pinned Java data requires water") {
+    let mut secondary_water: Vec<bool> = blocks
+        .class_table()
+        .iter()
+        .map(|flags| flags & class::WATER != 0)
+        .collect();
+    for id in blocks
+        .state_ids("minecraft:water")
+        .expect("pinned Java data requires water")
+    {
         secondary_water[id as usize] = false;
     }
 

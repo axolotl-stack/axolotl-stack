@@ -16,11 +16,12 @@ struct Flat {
 
 pub fn emit(preset: &str, params: &BiomeParameters) -> Result<TokenStream, String> {
     if params.biomes.is_empty() || params.points.is_empty() {
-        return Err(format!("{preset} multi-noise biome parameter list is empty"));
+        return Err(format!(
+            "{preset} multi-noise biome parameter list is empty"
+        ));
     }
-    let module_doc = format!(
-        "Multi-noise biome source from `java_data/biome_parameters_{preset}.json`."
-    );
+    let module_doc =
+        format!("Multi-noise biome source from `java_data/biome_parameters_{preset}.json`.");
     let biome_idents: Vec<Ident> = params
         .biomes
         .iter()

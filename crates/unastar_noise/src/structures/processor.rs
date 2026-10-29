@@ -329,12 +329,24 @@ mod tests {
 
     #[test]
     fn pinned_native_capped_per_block_pass_preserves_current_info() {
-        static ROT: Processor = Processor::BlockRot { integrity: 0.0, rottable: None };
+        static ROT: Processor = Processor::BlockRot {
+            integrity: 0.0,
+            rottable: None,
+        };
         let capture: serde_json::Value = serde_json::from_str(include_str!(
             "../../tests/data/native_structure_primitives_1_21_11.json"
-        )).unwrap();
-        let original = BlockInfo { pos: BlockPos::new(0, 0, 0), state: states::GRAVEL, nbt: None };
-        let current = BlockInfo { pos: BlockPos::new(-16, 41, 9), state: states::SAND, nbt: None };
+        ))
+        .unwrap();
+        let original = BlockInfo {
+            pos: BlockPos::new(0, 0, 0),
+            state: states::GRAVEL,
+            nbt: None,
+        };
+        let current = BlockInfo {
+            pos: BlockPos::new(-16, 41, 9),
+            state: states::SAND,
+            nbt: None,
+        };
         let mut world = TestWorld::default();
         let mut settings = PlaceSettings::new(&TEMPLATE);
         let mut rng = FeatureRandom::new(12345);
@@ -343,26 +355,44 @@ mod tests {
                 delegate: &ROT,
                 limit: IntProvider::Constant(row["limit"].as_i64().unwrap() as i32),
             };
-            let result = capped.process(
-                &mut world, original.pos, original.pos, &original, current,
-                &mut settings, &mut rng,
-            ).unwrap();
+            let result = capped
+                .process(
+                    &mut world,
+                    original.pos,
+                    original.pos,
+                    &original,
+                    current,
+                    &mut settings,
+                    &mut rng,
+                )
+                .unwrap();
             assert_eq!(Some(result), Some(current));
-            assert_eq!(result == current, row["same_current_object"].as_bool().unwrap());
-            assert_eq!(result == original, row["same_original_object"].as_bool().unwrap());
+            assert_eq!(
+                result == current,
+                row["same_current_object"].as_bool().unwrap()
+            );
+            assert_eq!(
+                result == original,
+                row["same_original_object"].as_bool().unwrap()
+            );
             assert_eq!(result.state, states::SAND);
-            assert_eq!(serde_json::json!([result.pos.x, result.pos.y, result.pos.z]), row["position"]);
+            assert_eq!(
+                serde_json::json!([result.pos.x, result.pos.y, result.pos.z]),
+                row["position"]
+            );
         }
     }
 
     #[test]
     fn capped_delegate_waits_for_finalization_and_never_exceeds_limit() {
         let offset = BlockPos::new(-20, 40, 7);
-        let originals: Vec<_> = (0..16).map(|x| BlockInfo {
-            pos: offset.offset(x, 0, 0),
-            state: states::GRAVEL,
-            nbt: None,
-        }).collect();
+        let originals: Vec<_> = (0..16)
+            .map(|x| BlockInfo {
+                pos: offset.offset(x, 0, 0),
+                state: states::GRAVEL,
+                nbt: None,
+            })
+            .collect();
         for limit in [0, 2, 3, 6, 20] {
             let processor = Processor::Capped {
                 delegate: &RULE,
@@ -371,19 +401,38 @@ mod tests {
             let mut world = TestWorld::default();
             let mut settings = PlaceSettings::new(&TEMPLATE);
             let mut rng = FeatureRandom::new(12345);
-            let mut processed: Vec<_> = originals.iter().map(|original| {
-                let current = processor.process(
-                    &mut world, offset, offset, original, *original,
-                    &mut settings, &mut rng,
-                );
-                assert_eq!(current, Some(*original));
-                current.unwrap()
-            }).collect();
+            let mut processed: Vec<_> = originals
+                .iter()
+                .map(|original| {
+                    let current = processor.process(
+                        &mut world,
+                        offset,
+                        offset,
+                        original,
+                        *original,
+                        &mut settings,
+                        &mut rng,
+                    );
+                    assert_eq!(current, Some(*original));
+                    current.unwrap()
+                })
+                .collect();
             processor.finalize(
-                &mut world, offset, offset, &originals, &mut processed,
-                &mut settings, &mut rng,
+                &mut world,
+                offset,
+                offset,
+                &originals,
+                &mut processed,
+                &mut settings,
+                &mut rng,
             );
-            assert_eq!(processed.iter().filter(|info| info.state == states::SUSPICIOUS_GRAVEL).count(), limit.min(16) as usize);
+            assert_eq!(
+                processed
+                    .iter()
+                    .filter(|info| info.state == states::SUSPICIOUS_GRAVEL)
+                    .count(),
+                limit.min(16) as usize
+            );
         }
     }
 }

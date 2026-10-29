@@ -11,8 +11,8 @@ use super::transform::{BoundingBox, Mirror, Rotation, mirror_state, rotate_state
 use super::util::pos_seed;
 use crate::features::java_blocks::states;
 use crate::features::random::{FeatureRandom, LegacyRandom};
-use crate::features::{BlockPos, Direction, FeatureWorld, JavaState};
 use crate::features::shape::{VoxelShape, update_from_neighbour_shapes, update_shape_at_edge};
+use crate::features::{BlockPos, Direction, FeatureWorld, JavaState};
 
 /// Where a placed block's block entity data comes from.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -367,14 +367,27 @@ pub fn place_in_world<W: FeatureWorld + ?Sized>(
             true
         });
     }
-    if !settings.known_shape && let Some(first) = infos.first() {
+    if !settings.known_shape
+        && let Some(first) = infos.first()
+    {
         let mut min = first.pos;
         let mut max = first.pos;
         for info in &infos[1..] {
-            min = BlockPos::new(min.x.min(info.pos.x), min.y.min(info.pos.y), min.z.min(info.pos.z));
-            max = BlockPos::new(max.x.max(info.pos.x), max.y.max(info.pos.y), max.z.max(info.pos.z));
+            min = BlockPos::new(
+                min.x.min(info.pos.x),
+                min.y.min(info.pos.y),
+                min.z.min(info.pos.z),
+            );
+            max = BlockPos::new(
+                max.x.max(info.pos.x),
+                max.y.max(info.pos.y),
+                max.z.max(info.pos.z),
+            );
         }
-        let mut shape = VoxelShape::new(min, [max.x - min.x + 1, max.y - min.y + 1, max.z - min.z + 1]);
+        let mut shape = VoxelShape::new(
+            min,
+            [max.x - min.x + 1, max.y - min.y + 1, max.z - min.z + 1],
+        );
         for info in &infos {
             shape.fill(info.pos);
         }
@@ -456,9 +469,18 @@ mod tests {
         );
         // Native CappedProcessor's per-block pass is identity (pinned in
         // processor.rs); only finalization rewrites `limit` aligned originals.
-        assert_eq!(blocks.iter().filter(|b| b.state == states::GOLD_BLOCK).count(), 0);
+        assert_eq!(
+            blocks
+                .iter()
+                .filter(|b| b.state == states::GOLD_BLOCK)
+                .count(),
+            0
+        );
         assert_eq!(blocks.iter().filter(|b| b.state == states::DIRT).count(), 1);
-        assert_eq!(blocks.iter().filter(|b| b.state == states::STONE).count(), 1);
+        assert_eq!(
+            blocks.iter().filter(|b| b.state == states::STONE).count(),
+            1
+        );
         assert_eq!(
             blocks.iter().map(|b| b.pos).collect::<Vec<_>>(),
             [BlockPos::new(11, 40, 20), BlockPos::new(12, 40, 20)],
@@ -469,7 +491,9 @@ mod tests {
         name: "test:known_shape_stair",
         size: [1, 1, 1],
         palettes: vec![vec![TemplateBlock {
-            x: 0, y: 0, z: 0,
+            x: 0,
+            y: 0,
+            z: 0,
             state: states::PURPUR_STAIRS.with("shape", "outer_right"),
             block_entity: None,
         }]],
@@ -485,9 +509,18 @@ mod tests {
             let mut settings = PlaceSettings::new(&STAIR);
             settings.known_shape = known;
             let mut random = FeatureRandom::new(0);
-            assert!(place_in_world(&mut world, pos, pos, &mut settings, &mut random, &mut |_| {}));
-            assert_eq!(world.get_state(pos).value("shape"),
-                Some(if known { "outer_right" } else { "straight" }));
+            assert!(place_in_world(
+                &mut world,
+                pos,
+                pos,
+                &mut settings,
+                &mut random,
+                &mut |_| {}
+            ));
+            assert_eq!(
+                world.get_state(pos).value("shape"),
+                Some(if known { "outer_right" } else { "straight" })
+            );
         }
     }
 }

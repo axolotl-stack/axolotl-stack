@@ -30,7 +30,11 @@ pub enum DataProfile {
 }
 
 pub(super) fn files(root: &Path) -> Result<BTreeMap<String, Vec<u8>>, String> {
-    fn visit(root: &Path, dir: &Path, output: &mut BTreeMap<String, Vec<u8>>) -> Result<(), String> {
+    fn visit(
+        root: &Path,
+        dir: &Path,
+        output: &mut BTreeMap<String, Vec<u8>>,
+    ) -> Result<(), String> {
         for entry in std::fs::read_dir(dir).map_err(|e| format!("{}: {e}", dir.display()))? {
             let entry = entry.map_err(|e| e.to_string())?;
             let path = entry.path();
@@ -38,11 +42,21 @@ pub(super) fn files(root: &Path) -> Result<BTreeMap<String, Vec<u8>>, String> {
             if kind.is_dir() {
                 visit(root, &path, output)?;
             } else if kind.is_file() {
-                let name = path.strip_prefix(root).map_err(|e| e.to_string())?
-                    .to_str().ok_or("non-UTF8 datapack path")?.replace('\\', "/");
-                output.insert(name, std::fs::read(&path).map_err(|e| format!("{}: {e}", path.display()))?);
+                let name = path
+                    .strip_prefix(root)
+                    .map_err(|e| e.to_string())?
+                    .to_str()
+                    .ok_or("non-UTF8 datapack path")?
+                    .replace('\\', "/");
+                output.insert(
+                    name,
+                    std::fs::read(&path).map_err(|e| format!("{}: {e}", path.display()))?,
+                );
             } else {
-                return Err(format!("{}: non-regular native input cannot be fingerprinted", path.display()));
+                return Err(format!(
+                    "{}: non-regular native input cannot be fingerprinted",
+                    path.display()
+                ));
             }
         }
         Ok(())
@@ -64,7 +78,8 @@ pub(super) fn fingerprint(files: &BTreeMap<String, Vec<u8>>) -> String {
 }
 
 pub(super) fn vanilla_biomes() -> Result<BTreeMap<String, Vec<u8>>, String> {
-    files(Path::new(concat!(env!("CARGO_MANIFEST_DIR"), "/../unastar_noise/worldgen_data/biome")))
+    files(Path::new(concat!(
+        env!("CARGO_MANIFEST_DIR"),
+        "/../unastar_noise/worldgen_data/biome"
+    )))
 }
-
-

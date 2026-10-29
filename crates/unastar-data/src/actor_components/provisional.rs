@@ -10,8 +10,8 @@
 
 use super::body::{
     ActorDamageCause, DealsDamage, DealsDamageMode, Difficulty, DismountMode, FloatRange,
-    LeashSpringType, LevelSoundEvent, MolangValue, MutationStrategy, RideableSeat,
-    VariantInterval, Vec3,
+    LeashSpringType, LevelSoundEvent, MolangValue, MutationStrategy, RideableSeat, VariantInterval,
+    Vec3,
 };
 
 // minecraft:ageable

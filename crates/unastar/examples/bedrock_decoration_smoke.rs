@@ -82,7 +82,9 @@ fn run() {
             let mut chunk = terrain
                 .generate_noise_proto(ChunkPos::new(cx + (i % 3) - 1, cz + (i / 3) - 1))
                 .chunk;
-            chunk.convert_to_bedrock().expect("native terrain conversion");
+            chunk
+                .convert_to_bedrock()
+                .expect("native terrain conversion");
             chunk
         })
         .collect();

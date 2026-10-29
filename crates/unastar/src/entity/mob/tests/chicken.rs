@@ -306,7 +306,10 @@ fn chicken_follows_a_player_holding_wheat_seeds() {
         .get_mut::<MainInventory>(player)
         .unwrap()
         .0
-        .set_item(0, crate::item::test_support::stack("minecraft:wheat_seeds", 1))
+        .set_item(
+            0,
+            crate::item::test_support::stack("minecraft:wheat_seeds", 1),
+        )
         .unwrap();
     let chicken = spawn(
         world,

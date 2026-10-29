@@ -169,14 +169,25 @@ pub(crate) fn updated_carpet_state<W: FeatureWorld + ?Sized>(
 /// see [`updated_carpet_state`]), and air without any face. Native tree
 /// shape-edge updates give base carpets beside new dirt or logs a low side
 /// (holdout seeds 218638932310160429 and 2392495292141698612).
-pub(crate) fn update_carpet_shape<W: FeatureWorld + ?Sized>(world: &mut W, state: JavaState, pos: BlockPos) -> JavaState {
+pub(crate) fn update_carpet_shape<W: FeatureWorld + ?Sized>(
+    world: &mut W,
+    state: JavaState,
+    pos: BlockPos,
+) -> JavaState {
     let below = world.get_state(pos.below());
-    let survives = if is_base(state) { !below.is_air() } else { below.is(b::PALE_MOSS_CARPET) && is_base(below) };
+    let survives = if is_base(state) {
+        !below.is_air()
+    } else {
+        below.is(b::PALE_MOSS_CARPET) && is_base(below)
+    };
     if !survives {
         return states::AIR;
     }
     let state = updated_carpet_state(world, state, pos, false);
-    let has_faces = is_base(state) || Direction::HORIZONTAL.iter().any(|d| state.value(d.name()) != Some("none"));
+    let has_faces = is_base(state)
+        || Direction::HORIZONTAL
+            .iter()
+            .any(|d| state.value(d.name()) != Some("none"));
     if has_faces { state } else { states::AIR }
 }
 

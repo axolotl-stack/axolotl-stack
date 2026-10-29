@@ -141,7 +141,11 @@ impl MobFacts<'_> {
         if !matches!(liquid.kind, crate::registry::block::LiquidKind::Water) {
             return Some(false);
         }
-        let level = if liquid.depth < 8 { liquid.depth + 1 } else { 1 };
+        let level = if liquid.depth < 8 {
+            liquid.depth + 1
+        } else {
+            1
+        };
         let surface = f64::from(block.y) + 1.0
             - f64::from(level - 1) / super::constants::UNDERWATER_LEVEL_STEPS;
         Some(point.y < surface)
@@ -224,7 +228,9 @@ impl FilterContext for MobFacts<'_> {
                     return None;
                 }
                 let stack = held_item(self.world, entity);
-                Fact::Matches(stack.is_some_and(|stack| want.matches(stack.item_id(), stack.damage)))
+                Fact::Matches(
+                    stack.is_some_and(|stack| want.matches(stack.item_id(), stack.damage)),
+                )
             }
             _ => return None,
         })

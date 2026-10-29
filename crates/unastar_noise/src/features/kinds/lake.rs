@@ -189,7 +189,6 @@ mod tests {
         assert_eq!(rng.next_long(), FeatureRandom::new(1).next_long());
     }
 
-
     #[test]
     fn rejects_air_in_lower_shell() {
         // Everything is air: the lower shell is not solid and not lava.

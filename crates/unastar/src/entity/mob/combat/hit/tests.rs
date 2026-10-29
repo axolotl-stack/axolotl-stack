@@ -93,7 +93,9 @@ impl Harness {
 
     fn hold(&mut self, item: Option<&str>) {
         let player = self.player;
-        let stack = item.map_or_else(ItemStack::empty, |id| crate::item::test_support::stack(id, 1));
+        let stack = item.map_or_else(ItemStack::empty, |id| {
+            crate::item::test_support::stack(id, 1)
+        });
         self.world()
             .get_mut::<MainInventory>(player)
             .unwrap()

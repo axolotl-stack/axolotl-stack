@@ -87,7 +87,10 @@ fn pane_connects(neighbour: JavaState, face: Direction) -> bool {
 }
 
 fn is_stair(state: JavaState) -> bool {
-    matches!(state.block().def().kind, "minecraft:stair" | "minecraft:weathering_copper_stair")
+    matches!(
+        state.block().def().kind,
+        "minecraft:stair" | "minecraft:weathering_copper_stair"
+    )
 }
 
 fn can_take_stair_shape<W: FeatureWorld + ?Sized>(
@@ -215,12 +218,23 @@ mod tests {
 
     #[test]
     fn fences_require_matching_wood_tag_and_perpendicular_gate() {
-        assert!(fence_connects(states::OAK_FENCE, states::BIRCH_FENCE, Direction::North));
-        assert!(!fence_connects(states::OAK_FENCE, states::NETHER_BRICK_FENCE, Direction::North));
+        assert!(fence_connects(
+            states::OAK_FENCE,
+            states::BIRCH_FENCE,
+            Direction::North
+        ));
+        assert!(!fence_connects(
+            states::OAK_FENCE,
+            states::NETHER_BRICK_FENCE,
+            Direction::North
+        ));
         let gate = states::OAK_FENCE_GATE.with("facing", "north");
         assert!(fence_connects(states::OAK_FENCE, gate, Direction::East));
         assert!(!fence_connects(states::OAK_FENCE, gate, Direction::North));
-        assert!(pane_connects(states::WHITE_STAINED_GLASS_PANE, Direction::East));
+        assert!(pane_connects(
+            states::WHITE_STAINED_GLASS_PANE,
+            Direction::East
+        ));
         assert!(pane_connects(states::COBBLESTONE_WALL, Direction::East));
     }
 
@@ -232,10 +246,21 @@ mod tests {
             .with("facing", "north")
             .with_bool("open", true)
             .with_bool("powered", true);
-        world.blocks.insert(pos.rel(Direction::West), states::COBBLESTONE_WALL);
+        world
+            .blocks
+            .insert(pos.rel(Direction::West), states::COBBLESTONE_WALL);
         let updated = update_shape(&mut world, gate, pos, Direction::East, states::AIR).unwrap();
         assert_eq!(updated, gate.with_bool("in_wall", true));
-        assert_eq!(update_shape(&mut world, gate, pos, Direction::North, states::COBBLESTONE_WALL), Some(gate));
+        assert_eq!(
+            update_shape(
+                &mut world,
+                gate,
+                pos,
+                Direction::North,
+                states::COBBLESTONE_WALL
+            ),
+            Some(gate)
+        );
     }
 
     #[test]
@@ -243,15 +268,22 @@ mod tests {
         let mut world = TestWorld::default();
         let pos = BlockPos::new(0, 64, 0);
         for half in ["bottom", "top"] {
-            let stair = states::OAK_STAIRS.with("facing", "north").with("half", half);
-            let corner = states::STONE_STAIRS.with("facing", "west").with("half", half);
+            let stair = states::OAK_STAIRS
+                .with("facing", "north")
+                .with("half", half);
+            let corner = states::STONE_STAIRS
+                .with("facing", "west")
+                .with("half", half);
             world.blocks.clear();
             world.blocks.insert(pos.rel(Direction::North), corner);
             assert_eq!(stairs_shape(&mut world, stair, pos), "outer_left");
             world.blocks.insert(pos.rel(Direction::East), stair);
             assert_eq!(stairs_shape(&mut world, stair, pos), "straight");
             world.blocks.remove(&pos.rel(Direction::East));
-            world.blocks.insert(pos.rel(Direction::North), corner.with("half", if half == "top" { "bottom" } else { "top" }));
+            world.blocks.insert(
+                pos.rel(Direction::North),
+                corner.with("half", if half == "top" { "bottom" } else { "top" }),
+            );
             assert_eq!(stairs_shape(&mut world, stair, pos), "straight");
         }
     }
@@ -260,36 +292,68 @@ mod tests {
     fn stair_inner_corner_blocker_and_waterlogged_identity() {
         let mut world = TestWorld::default();
         let pos = BlockPos::new(0, 64, 0);
-        let stair = states::OAK_STAIRS.with("facing", "north").with_bool("waterlogged", true);
-        world.blocks.insert(pos.rel(Direction::South), states::STONE_STAIRS.with("facing", "east"));
-        assert_eq!(update_shape(&mut world, stair, pos, Direction::West, states::AIR), Some(stair.with("shape", "inner_right")));
+        let stair = states::OAK_STAIRS
+            .with("facing", "north")
+            .with_bool("waterlogged", true);
+        world.blocks.insert(
+            pos.rel(Direction::South),
+            states::STONE_STAIRS.with("facing", "east"),
+        );
+        assert_eq!(
+            update_shape(&mut world, stair, pos, Direction::West, states::AIR),
+            Some(stair.with("shape", "inner_right"))
+        );
         world.blocks.insert(pos.rel(Direction::East), stair);
         assert_eq!(stairs_shape(&mut world, stair, pos), "straight");
         let stale = stair.with("shape", "outer_left");
-        assert_eq!(update_shape(&mut world, stale, pos, Direction::Up, states::STONE), Some(stale));
+        assert_eq!(
+            update_shape(&mut world, stale, pos, Direction::Up, states::STONE),
+            Some(stale)
+        );
     }
 
     #[test]
     fn wall_recomputes_sides_from_native_coverage_and_keeps_waterlogged() {
         let mut world = TestWorld::default();
         let pos = BlockPos::new(0, 64, 0);
-        let wall = states::COBBLESTONE_WALL.with("north", "low").with("south", "low").with_bool("waterlogged", true);
+        let wall = states::COBBLESTONE_WALL
+            .with("north", "low")
+            .with("south", "low")
+            .with_bool("waterlogged", true);
         let updated = update_shape(&mut world, wall, pos, Direction::Up, states::STONE).unwrap();
-        assert_eq!(updated, wall.with("north", "tall").with("south", "tall").with_bool("up", false));
-        assert_eq!(update_shape(&mut world, updated, pos, Direction::Down, states::AIR), Some(updated));
+        assert_eq!(
+            updated,
+            wall.with("north", "tall")
+                .with("south", "tall")
+                .with_bool("up", false)
+        );
+        assert_eq!(
+            update_shape(&mut world, updated, pos, Direction::Down, states::AIR),
+            Some(updated)
+        );
         let updated = update_shape(&mut world, updated, pos, Direction::Up, states::AIR).unwrap();
         assert_eq!(updated, wall.with_bool("up", false));
     }
 
     #[test]
     fn wall_post_order_prioritizes_above_post_then_topology_then_tall_pairs() {
-        let wall = states::COBBLESTONE_WALL.with("north", "low").with("south", "low");
+        let wall = states::COBBLESTONE_WALL
+            .with("north", "low")
+            .with("south", "low");
         assert!(!should_raise_post(wall, states::AIR, 0));
         assert!(should_raise_post(wall, states::AIR, 1));
         let tall = wall.with("north", "tall").with("south", "tall");
         assert!(!should_raise_post(tall, states::STONE, 1));
-        assert!(should_raise_post(tall, states::COBBLESTONE_WALL.with_bool("up", true), 0));
+        assert!(should_raise_post(
+            tall,
+            states::COBBLESTONE_WALL.with_bool("up", true),
+            0
+        ));
         assert!(should_raise_post(wall.with("east", "low"), states::AIR, 0));
-        assert!(should_raise_post(wall.with("north", "none").with("south", "none"), states::AIR, 0));
+        assert!(should_raise_post(
+            wall.with("north", "none").with("south", "none"),
+            states::AIR,
+            0
+        ));
     }
 }

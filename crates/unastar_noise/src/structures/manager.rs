@@ -152,7 +152,9 @@ impl StructureManager {
         let mut begin = 0;
         while begin < refs.len() {
             let structure = refs[begin].0[refs[begin].1].structure;
-            let end = begin + refs[begin..].partition_point(|(starts, index)| starts[*index].structure == structure);
+            let end = begin
+                + refs[begin..]
+                    .partition_point(|(starts, index)| starts[*index].structure == structure);
             sort_native_reference_set(&mut refs[begin..end], |(starts, index)| {
                 let start = &starts[*index];
                 u64::from(start.chunk_x as u32) | (u64::from(start.chunk_z as u32) << 32)
@@ -263,7 +265,11 @@ fn sort_native_reference_set<T>(references: &mut [T], key: impl Fn(&T) -> u64) {
     }
     references.sort_unstable_by_key(|reference| {
         let value = key(reference);
-        std::cmp::Reverse(if value == 0 { table.len() } else { slot(value, &table) })
+        std::cmp::Reverse(if value == 0 {
+            table.len()
+        } else {
+            slot(value, &table)
+        })
     });
 }
 
@@ -313,17 +319,29 @@ mod tests {
     fn pinned_native_reference_sets_preserve_decoration_iteration_order() {
         let fixture: serde_json::Value = serde_json::from_str(include_str!(
             "../../tests/data/native_reference_order_1_21_11.json"
-        )).unwrap();
+        ))
+        .unwrap();
         let cases = fixture["cases"].as_array().unwrap();
         assert_eq!(cases.len(), 9);
         for case in cases {
-            let native: Vec<_> = case["native_order"].as_array().unwrap().iter()
-                .map(|value| value.as_i64().unwrap() as u64).collect();
+            let native: Vec<_> = case["native_order"]
+                .as_array()
+                .unwrap()
+                .iter()
+                .map(|value| value.as_i64().unwrap() as u64)
+                .collect();
             let mut insertion = native.clone();
             insertion.sort_by_key(|&packed| (packed as i32, (packed >> 32) as i32));
-            assert_ne!(insertion, native, "fixture must expose an ordering difference");
+            assert_ne!(
+                insertion, native,
+                "fixture must expose an ordering difference"
+            );
             sort_native_reference_set(&mut insertion, |&packed| packed);
-            assert_eq!(insertion, native, "{} / {}", case["profile"], case["capture"]);
+            assert_eq!(
+                insertion, native,
+                "{} / {}",
+                case["profile"], case["capture"]
+            );
         }
     }
 
@@ -331,18 +349,28 @@ mod tests {
     fn pinned_native_reference_set_zero_collisions_and_rehash_boundaries() {
         let capture: serde_json::Value = serde_json::from_str(include_str!(
             "../../tests/data/native_structure_primitives_1_21_11.json"
-        )).unwrap();
+        ))
+        .unwrap();
         let cases = capture["result"]["reference_sets"].as_array().unwrap();
         assert_eq!(cases.len(), 9);
         for case in cases {
             let read = |name: &str| -> Vec<u64> {
-                case[name].as_array().unwrap().iter()
-                    .map(|value| value.as_i64().unwrap() as u64).collect()
+                case[name]
+                    .as_array()
+                    .unwrap()
+                    .iter()
+                    .map(|value| value.as_i64().unwrap() as u64)
+                    .collect()
             };
             let mut insertion = read("insertion");
             let native = read("native_iteration");
             sort_native_reference_set(&mut insertion, |&packed| packed);
-            assert_eq!(insertion, native, "native set with {} references", native.len());
+            assert_eq!(
+                insertion,
+                native,
+                "native set with {} references",
+                native.len()
+            );
         }
     }
 
@@ -352,23 +380,45 @@ mod tests {
     fn possible_sets_match_native_dimension_sources() {
         use crate::features::generated::{END_BIOMES, NETHER_BIOMES};
         let cases: [(u128, &[&str]); 3] = [
-            (OVERWORLD_BIOMES, &[
-                "minecraft:ancient_cities", "minecraft:buried_treasures",
-                "minecraft:desert_pyramids", "minecraft:igloos", "minecraft:jungle_temples",
-                "minecraft:mineshafts", "minecraft:ocean_monuments", "minecraft:ocean_ruins",
-                "minecraft:pillager_outposts", "minecraft:ruined_portals", "minecraft:shipwrecks",
-                "minecraft:strongholds", "minecraft:swamp_huts", "minecraft:trail_ruins",
-                "minecraft:trial_chambers", "minecraft:villages", "minecraft:woodland_mansions",
-            ]),
-            (NETHER_BIOMES, &[
-                "minecraft:nether_complexes", "minecraft:nether_fossils", "minecraft:ruined_portals",
-            ]),
+            (
+                OVERWORLD_BIOMES,
+                &[
+                    "minecraft:ancient_cities",
+                    "minecraft:buried_treasures",
+                    "minecraft:desert_pyramids",
+                    "minecraft:igloos",
+                    "minecraft:jungle_temples",
+                    "minecraft:mineshafts",
+                    "minecraft:ocean_monuments",
+                    "minecraft:ocean_ruins",
+                    "minecraft:pillager_outposts",
+                    "minecraft:ruined_portals",
+                    "minecraft:shipwrecks",
+                    "minecraft:strongholds",
+                    "minecraft:swamp_huts",
+                    "minecraft:trail_ruins",
+                    "minecraft:trial_chambers",
+                    "minecraft:villages",
+                    "minecraft:woodland_mansions",
+                ],
+            ),
+            (
+                NETHER_BIOMES,
+                &[
+                    "minecraft:nether_complexes",
+                    "minecraft:nether_fossils",
+                    "minecraft:ruined_portals",
+                ],
+            ),
             (END_BIOMES, &["minecraft:end_cities"]),
         ];
         for (biomes, expected) in cases {
             let manager = StructureManager::new(biomes);
-            let actual: Vec<_> = manager.possible_sets.iter()
-                .map(|&index| super::super::generated::STRUCTURE_SETS[index].name).collect();
+            let actual: Vec<_> = manager
+                .possible_sets
+                .iter()
+                .map(|&index| super::super::generated::STRUCTURE_SETS[index].name)
+                .collect();
             assert_eq!(actual, expected);
         }
     }
@@ -381,9 +431,8 @@ mod tests {
         for biomes in [OVERWORLD_BIOMES, NETHER_BIOMES, END_BIOMES] {
             let manager = StructureManager::new(biomes);
             let name = |step: usize, index: usize| {
-                super::super::generated::STRUCTURES[
-                    manager.step_structures[step][index] as usize
-                ].name
+                super::super::generated::STRUCTURES[manager.step_structures[step][index] as usize]
+                    .name
             };
             assert_eq!(name(4, 0), "minecraft:bastion_remnant");
             assert_eq!(name(4, 2), "minecraft:end_city");
