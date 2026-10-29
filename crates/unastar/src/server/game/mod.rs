@@ -7,6 +7,8 @@ pub mod attributes;
 mod block_drops;
 pub(crate) mod blocks;
 mod chunks;
+#[cfg(test)]
+mod command_tests;
 mod commands;
 mod containers;
 pub mod durability;
@@ -27,14 +29,12 @@ mod packets;
 mod placement;
 mod plugins;
 pub mod types;
-#[cfg(test)]
-mod command_tests;
 
 use bevy_ecs::prelude::*;
 pub(crate) use block_drops::{drop_block_items, loot_stacks};
 pub(crate) use blocks::{commit_block_event, reject_block_event};
-pub use inventory::RequestIdAssignments;
 pub use commands::ConsoleCommands;
+pub use inventory::RequestIdAssignments;
 pub(crate) use items::{PICKUP_REACH, item_descriptor, player_box};
 pub(crate) use items::{send_slot, world_stack};
 pub(crate) use join::send_inventory_contents;
@@ -334,8 +334,7 @@ impl GameServer {
             .init_resource::<crate::world::clock::ClockSync>();
         ecs.world_mut()
             .init_resource::<crate::command::CommandRegistry>();
-        ecs.world_mut()
-            .init_resource::<commands::PendingCommands>();
+        ecs.world_mut().init_resource::<commands::PendingCommands>();
         ecs.world_mut().insert_resource(ItemEntityIdCounter(100000));
         ecs.world_mut()
             .insert_resource(types::RecipeRegistryResource(Arc::new(recipes)));
