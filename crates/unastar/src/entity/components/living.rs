@@ -90,6 +90,10 @@ pub struct ActiveEffect {
     pub duration_ticks: u32,
     pub ambient: bool,
     pub show_particles: bool,
+    /// Never expires (`/effect … infinite`); `duration_ticks` then keeps
+    /// counting down (wrapping) so periodic effects (regeneration, poison)
+    /// still pulse.
+    pub infinite: bool,
 }
 
 impl ActiveEffect {
@@ -99,15 +103,20 @@ impl ActiveEffect {
             duration_ticks,
             ambient: false,
             show_particles: true,
+            infinite: false,
         }
     }
 
     pub fn tick(&mut self) {
-        self.duration_ticks = self.duration_ticks.saturating_sub(1);
+        self.duration_ticks = if self.infinite {
+            self.duration_ticks.wrapping_sub(1)
+        } else {
+            self.duration_ticks.saturating_sub(1)
+        };
     }
 
     pub fn is_expired(&self) -> bool {
-        self.duration_ticks == 0
+        !self.infinite && self.duration_ticks == 0
     }
 }
 
@@ -124,16 +133,26 @@ impl Effects {
 
     /// Add or update an effect. Higher level or longer duration overwrites.
     pub fn add(&mut self, effect_type: EffectType, level: u8, duration_ticks: u32) {
+        self.apply(effect_type, ActiveEffect::new(level, duration_ticks));
+    }
+
+    /// Apply `effect` under the [`add`](Self::add) rule: it replaces the
+    /// active one unless that has a higher level, or the same level and
+    /// lasts longer (infinite outlasts any duration). Returns whether it
+    /// was applied.
+    pub fn apply(&mut self, effect_type: EffectType, effect: ActiveEffect) -> bool {
         if let Some(existing) = self.active.get(&effect_type) {
-            if existing.level > level {
-                return;
+            if existing.level > effect.level {
+                return false;
             }
-            if existing.level == level && existing.duration_ticks > duration_ticks {
-                return;
+            let outlasts = !effect.infinite
+                && (existing.infinite || existing.duration_ticks > effect.duration_ticks);
+            if existing.level == effect.level && outlasts {
+                return false;
             }
         }
-        self.active
-            .insert(effect_type, ActiveEffect::new(level, duration_ticks));
+        self.active.insert(effect_type, effect);
+        true
     }
 
     pub fn remove(&mut self, effect_type: EffectType) {

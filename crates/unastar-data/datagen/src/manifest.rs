@@ -247,6 +247,16 @@ pub fn write_manifest(output_dir: &Path, inputs: &ManifestInputs<'_>) -> miette:
         "high",
         false,
     )?);
+    sources.push(source_from_path(
+        "bds_help_usage_1_26_51",
+        "measured_help_listing",
+        &PathBuf::from(env!("CARGO_MANIFEST_DIR"))
+            .join("../output")
+            .join(unastar_data::help::ARTIFACT),
+        Some("BDS-1.26.51;protocol-2193;capture-20261029T162355Z".into()),
+        "high",
+        false,
+    )?);
     for role in ["operator", "member"] {
         sources.push(source_from_path(
             &format!("bds_actor_wire_{role}_1_26_51"),
@@ -402,6 +412,7 @@ fn collect_artifacts(
         "actor_identifiers.json",
         unastar_data::commands::ARTIFACT,
         unastar_data::game_rules::ARTIFACT,
+        unastar_data::help::ARTIFACT,
     ] {
         let path = output_dir.join(name);
         if path.exists() {

@@ -1,13 +1,14 @@
 //! The respawn screen and respawning.
 //!
 //! When a player dies the server opens the respawn screen with `Respawn`
-//! searching-for-spawn and then ready-to-spawn, both at the world spawn (the
-//! layout BDS sends at join: the player's eye position and runtime ID 0).
+//! searching-for-spawn and then ready-to-spawn, both at its respawn position
+//! (its [`PlayerSpawnPoint`], else the world spawn; the layout BDS sends at
+//! join: the player's eye position and runtime ID 0).
 //! The client answers with `Respawn` client-ready-to-spawn, which the server
 //! acknowledges with ready-to-spawn, and `PlayerAction` respawn; the first
 //! of them respawns the player ([`respawn`]): full health, fresh hunger, no
-//! fire or fall, back at the world spawn (`MovePlayer` in respawn mode) and
-//! `ActorEvent` spawn-alive.
+//! fire or fall, back at the respawn position (`MovePlayer` in respawn mode)
+//! and `ActorEvent` spawn-alive.
 
 use bevy_ecs::prelude::*;
 use glam::DVec3;
@@ -29,6 +30,19 @@ use crate::entity::mob::state::LastHurt;
 /// height above the feet).
 #[derive(Resource, Debug, Clone, Copy, PartialEq)]
 pub struct WorldSpawn(pub DVec3);
+
+/// A player's own respawn point (`/spawnpoint`), in the same `Position`
+/// convention as [`WorldSpawn`]; players without one respawn at the world
+/// spawn.
+#[derive(Component, Debug, Clone, Copy, PartialEq)]
+pub struct PlayerSpawnPoint(pub DVec3);
+
+/// Where `player` respawns: its own spawn point, else the world spawn.
+pub fn respawn_position(world: &World, player: Entity) -> DVec3 {
+    world
+        .get::<PlayerSpawnPoint>(player)
+        .map_or_else(|| world.resource::<WorldSpawn>().0, |point| point.0)
+}
 
 /// A player's request to respawn.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -63,7 +77,7 @@ fn respawn_packet(spawn: DVec3, state: EnumsPlayerRespawnState) -> McpePacket {
 
 /// Open the respawn screen of a dead `player`.
 pub fn open_respawn_screen(world: &World, player: Entity) {
-    let spawn = world.resource::<WorldSpawn>().0;
+    let spawn = respawn_position(world, player);
     if let Some(session) = world.get::<PlayerSession>(player) {
         for state in [
             EnumsPlayerRespawnState::Searchingforspawn,
@@ -86,7 +100,7 @@ pub fn apply_respawn_requests(
             continue;
         }
         if request == RespawnRequest::ClientReady {
-            let spawn = world.resource::<WorldSpawn>().0;
+            let spawn = respawn_position(world, player);
             if let Some(session) = world.get::<PlayerSession>(player) {
                 let _ = session.send(respawn_packet(spawn, EnumsPlayerRespawnState::Readytospawn));
             }
@@ -95,12 +109,12 @@ pub fn apply_respawn_requests(
     }
 }
 
-/// Bring a dead `player` back at the world spawn.
+/// Bring a dead `player` back at its respawn position.
 pub fn respawn(world: &mut World, player: Entity) {
     if world.get::<Dead>(player).is_none() {
         return;
     }
-    let spawn = world.resource::<WorldSpawn>().0;
+    let spawn = respawn_position(world, player);
     {
         let mut entity = world.entity_mut(player);
         entity.remove::<(Dead, Burning, HurtTimer, LastHurt)>();

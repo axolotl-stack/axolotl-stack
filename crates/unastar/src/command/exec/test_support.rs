@@ -5,7 +5,7 @@ use crate::entity::PLAYER_EYE_HEIGHT;
 use crate::entity::components::transform::{Position, Rotation};
 use crate::entity::components::{
     ArmourInventory, Experience, GameMode, HeldSlot, MainInventory, OffhandSlot, Player,
-    PlayerName, PlayerSession, PlayerUuid, RuntimeEntityId,
+    PlayerName, PlayerSession, PlayerUi, PlayerUuid, RuntimeEntityId,
 };
 use crate::server::game::{GameServer, ServerConfig};
 use bevy_ecs::prelude::*;
@@ -74,6 +74,7 @@ impl Harness {
                 MainInventory::default(),
                 ArmourInventory::default(),
                 OffhandSlot::default(),
+                PlayerUi::default(),
                 HeldSlot(0),
             ))
             .id();

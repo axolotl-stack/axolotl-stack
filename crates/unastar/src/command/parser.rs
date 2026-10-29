@@ -337,6 +337,14 @@ pub fn parse_overloads(
                 if o.params[index..].iter().all(|p| p.optional) {
                     break;
                 }
+                // A missing final `message` is not a syntax error on BDS: `/me`
+                // and `/tell @s` reach the command, which answers
+                // `commands.generic.invalidMessage`.
+                if index + 1 == o.params.len() && param.kind == ParamKind::Basic(BasicType::Message)
+                {
+                    args.insert(param.name.as_str(), ArgValue::Message(String::new()));
+                    break;
+                }
                 furthest = furthest.max(cursor.pos);
                 continue 'overloads;
             }

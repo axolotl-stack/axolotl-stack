@@ -158,6 +158,15 @@ fn parsed_values_keep_their_meaning() {
         args.raw("message"),
         Some(&ArgValue::Message("hello   world".into()))
     );
+    // BDS answers `/me` and `/tell @s` with `invalidMessage`, not a syntax error.
+    assert_eq!(
+        parse_ok("me").raw("message"),
+        Some(&ArgValue::Message(String::new()))
+    );
+    assert_eq!(
+        parse_ok("tell @s").raw("message"),
+        Some(&ArgValue::Message(String::new()))
+    );
 }
 
 #[test]

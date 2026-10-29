@@ -360,3 +360,66 @@ pub fn write_game_rules(output_dir: &Path) -> miette::Result<()> {
     info!("Wrote {} ({} rules)", out.display(), artifact.rules.len());
     Ok(())
 }
+
+/// `output/help_usage.json` from a bds-extractor `--commands` capture that ran
+/// `/help 1` … `/help N` as an operator (`command-outputs.json`): the usage
+/// lines BDS's `/help` pages list, in its order.
+pub fn write_help_usage(command_outputs: &Path, output_dir: &Path) -> miette::Result<()> {
+    use unastar_data::help::{HelpUsageArtifact, PAGE_SIZE};
+
+    let bytes = std::fs::read(command_outputs)
+        .map_err(|e| miette::miette!("read {}: {e}", command_outputs.display()))?;
+    let sha256 = hex::encode(Sha256::digest(&bytes));
+    let windows: Vec<serde_json::Value> =
+        serde_json::from_slice(&bytes).map_err(|e| miette::miette!("command outputs: {e}"))?;
+    let page_body = |page: usize| -> Option<(usize, String)> {
+        let window = windows
+            .iter()
+            .find(|w| w["command"] == format!("/help {page}").as_str())?;
+        let output = window["packets"]
+            .as_array()?
+            .iter()
+            .find(|p| p["packet"] == "CommandOutputPacket")?;
+        let messages = output["data"]["output"]["output_messages"].as_array()?;
+        let pages = messages.first()?["parameters"][1].as_str()?.parse().ok()?;
+        Some((pages, messages.get(1)?["message_id"].as_str()?.to_owned()))
+    };
+    let (pages, _) = page_body(1).ok_or_else(|| miette::miette!("no `/help 1` in the capture"))?;
+    let mut lines = Vec::new();
+    for page in 1..=pages {
+        let (_, body) =
+            page_body(page).ok_or_else(|| miette::miette!("no `/help {page}` in the capture"))?;
+        let page_lines: Vec<String> = body.split('\n').map(str::to_owned).collect();
+        if page < pages && page_lines.len() != PAGE_SIZE {
+            return Err(miette::miette!(
+                "page {page} has {} lines",
+                page_lines.len()
+            ));
+        }
+        lines.extend(page_lines);
+    }
+    if lines.len().div_ceil(PAGE_SIZE) != pages {
+        return Err(miette::miette!(
+            "{} lines do not make {pages} pages",
+            lines.len()
+        ));
+    }
+    let artifact = HelpUsageArtifact {
+        bds_version: "1.26.51".into(),
+        protocol: 2193,
+        permission: "operator".into(),
+        capture_sha256: sha256,
+        lines,
+    };
+    let mut json = serde_json::to_string_pretty(&artifact)
+        .map_err(|e| miette::miette!("serialize help usage: {e}"))?;
+    json.push('\n');
+    let out = output_dir.join(unastar_data::help::ARTIFACT);
+    std::fs::write(&out, json).map_err(|e| miette::miette!("write {}: {e}", out.display()))?;
+    info!(
+        "Wrote {} ({} usage lines)",
+        out.display(),
+        artifact.lines.len()
+    );
+    Ok(())
+}

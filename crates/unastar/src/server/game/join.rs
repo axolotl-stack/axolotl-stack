@@ -152,6 +152,11 @@ impl GameServer {
         let _ = session.send(McpePacket::from(SetDifficultyPacket {
             difficulty: world.resource::<Difficulty>().wire(),
         }));
+        // [INFERENCE] Ongoing weather as the `/weather` events (BDS's join
+        // order for them is not measured).
+        for event in crate::world::weather::join_packets(world) {
+            let _ = session.send(McpePacket::from(event));
+        }
 
         // Send gamemode to client (hides hunger bar in creative, etc.)
         let _ = session.send(McpePacket::from(SetPlayerGameTypePacket {

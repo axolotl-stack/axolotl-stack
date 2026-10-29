@@ -15,18 +15,19 @@ use jolyne::valentine::types::{
     AvailableCommandsPacketPayloadSoftEnumData,
 };
 use std::collections::HashMap;
-use std::sync::Arc;
+use std::sync::{Arc, LazyLock};
 use unastar_data::commands::{
-    CommandDefinition, CommandEnum, CommandsArtifact, ParamKind, SYMBOL_CHAINED, SYMBOL_ENUM,
-    SYMBOL_POSTFIX, SYMBOL_SOFT_ENUM, SYMBOL_VALID,
+    BasicType, CommandDefinition, CommandEnum, CommandOverload, CommandParam, CommandPermission,
+    CommandsArtifact, ParamKind, SYMBOL_CHAINED, SYMBOL_ENUM, SYMBOL_POSTFIX, SYMBOL_SOFT_ENUM,
+    SYMBOL_VALID,
 };
 
 /// Frozen command syntax: the cached join packet plus lookup tables.
 pub struct CommandSchema {
     syntax: &'static CommandsArtifact,
     packet: Arc<AvailableCommandsPacket>,
-    /// Lowercase command names and aliases → index in `syntax.commands`.
-    by_name: HashMap<String, usize>,
+    /// Lowercase command names and aliases → definition.
+    by_name: HashMap<String, &'static CommandDefinition>,
     /// Enum name → lowercase value → canonical value.
     enums: HashMap<&'static str, HashMap<String, &'static str>>,
 }
@@ -39,6 +40,42 @@ impl std::fmt::Debug for CommandSchema {
     }
 }
 
+/// `/help` (`/?`): BDS runs it although `AvailableCommands` does not list it
+/// (the client offers it on its own). Its aliases are the captured
+/// `helpCommandAliases` enum; its two overloads are the ones BDS's own help
+/// lists for it (`/help <page: int>`, `/help [command: CommandName]`), over the
+/// captured `CommandName` enum.
+static HELP: LazyLock<CommandDefinition> = LazyLock::new(|| {
+    let param = |name: &str, kind: ParamKind, optional| CommandParam {
+        name: name.into(),
+        kind,
+        optional,
+        options: 0,
+    };
+    CommandDefinition {
+        name: "help".into(),
+        description: "commands.help.description".into(),
+        flags: 0,
+        permission: CommandPermission::Any,
+        aliases: Some("helpCommandAliases".into()),
+        chained_subcommands: Vec::new(),
+        overloads: vec![
+            CommandOverload {
+                chaining: false,
+                params: vec![param("page", ParamKind::Basic(BasicType::Int), false)],
+            },
+            CommandOverload {
+                chaining: false,
+                params: vec![param(
+                    "command",
+                    ParamKind::Enum("CommandName".into()),
+                    true,
+                )],
+            },
+        ],
+    }
+});
+
 impl CommandSchema {
     /// The vanilla BDS 1.26.51 syntax.
     pub fn vanilla() -> Self {
@@ -47,12 +84,12 @@ impl CommandSchema {
 
     pub fn new(syntax: &'static CommandsArtifact) -> Self {
         let mut by_name = HashMap::new();
-        for (index, command) in syntax.commands.iter().enumerate() {
-            by_name.insert(command.name.to_ascii_lowercase(), index);
+        for command in syntax.commands.iter().chain([&*HELP]) {
+            by_name.insert(command.name.to_ascii_lowercase(), command);
             if let Some(aliases) = &command.aliases {
                 let aliases = syntax.enum_named(aliases).expect("validated alias enum");
                 for alias in &aliases.values {
-                    by_name.entry(alias.to_ascii_lowercase()).or_insert(index);
+                    by_name.entry(alias.to_ascii_lowercase()).or_insert(command);
                 }
             }
         }
@@ -78,11 +115,23 @@ impl CommandSchema {
         &self.packet
     }
 
-    /// Looks up a command by name or alias, case-insensitively.
+    /// Looks up a command by name or alias, case-insensitively, including
+    /// commands BDS runs without advertising them (`/help`).
     pub fn command(&self, name: &str) -> Option<&'static CommandDefinition> {
-        self.by_name
-            .get(&name.to_ascii_lowercase())
-            .map(|&index| &self.syntax.commands[index])
+        self.by_name.get(&name.to_ascii_lowercase()).copied()
+    }
+
+    /// The names a command is known by: its name, then its other aliases.
+    pub fn names(&self, command: &CommandDefinition) -> Vec<&'static str> {
+        let mut names = Vec::new();
+        if let Some(aliases) = command
+            .aliases
+            .as_ref()
+            .and_then(|a| self.syntax.enum_named(a))
+        {
+            names.extend(aliases.values.iter().map(String::as_str));
+        }
+        names
     }
 
     /// Matches `value` against an enum case-insensitively, returning BDS's spelling.
@@ -280,7 +329,10 @@ mod tests {
         assert_eq!(schema.command("msg").unwrap().name, "tell");
         assert_eq!(schema.command("w").unwrap().name, "tell");
         assert_eq!(schema.command("whitelist").unwrap().name, "allowlist");
-        assert!(schema.command("help").is_none());
+        // `/help` runs (as `/?` too) but is not advertised.
+        assert_eq!(schema.command("?").unwrap().name, "help");
+        assert!(!schema.packet().commands.iter().any(|c| &*c.name == "help"));
+        assert!(schema.command("defaultgamemode").is_none());
         assert_eq!(schema.enum_value("GameMode", "Creative"), Some("creative"));
         assert_eq!(
             schema.enum_value("Item", "minecraft:WHEAT"),

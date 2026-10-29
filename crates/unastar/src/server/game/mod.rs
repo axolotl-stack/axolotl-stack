@@ -95,7 +95,7 @@ fn game_mode_to_storage_id(game_mode: GameMode) -> u8 {
 }
 
 /// The stored state of a player. A player saved while dead is stored as it
-/// will respawn (world spawn, full health, fresh hunger), so it never
+/// will respawn (respawn position, full health, fresh hunger), so it never
 /// reloads with zero health.
 fn player_record(world: &World, entity: Entity) -> Option<(uuid::Uuid, PlayerData)> {
     use crate::entity::components::{Experience, Health, Hunger};
@@ -104,9 +104,7 @@ fn player_record(world: &World, entity: Entity) -> Option<(uuid::Uuid, PlayerDat
         .get::<crate::entity::player_life::Dead>(entity)
         .is_some();
     let position = if dead {
-        world
-            .resource::<crate::entity::player_life::respawn::WorldSpawn>()
-            .0
+        crate::entity::player_life::respawn::respawn_position(world, entity)
     } else {
         world.get::<Position>(entity)?.0
     };
@@ -319,6 +317,10 @@ impl GameServer {
             .insert_resource(types::ServerWorldTemplate(world_template.clone()));
         ecs.world_mut()
             .insert_resource(ServerConfigResource(config.clone()));
+        ecs.world_mut()
+            .insert_resource(crate::command::exec::OperatorList::new(
+                config.operators.clone(),
+            ));
         ecs.world_mut().insert_resource(difficulty);
         ecs.world_mut().insert_resource(game_rules);
         ecs.world_mut().insert_resource(world_time);
@@ -770,11 +772,11 @@ impl GameServer {
             .unwrap()
             .0;
         let default_gamemode = config.default_gamemode;
-        let operator = config.operators.iter().any(|entry| {
-            !entry.is_empty()
-                && (entry.eq_ignore_ascii_case(&data.display_name)
-                    || data.xuid.as_deref() == Some(entry.as_str()))
-        });
+        let operator = self
+            .ecs
+            .world()
+            .resource::<crate::command::exec::OperatorList>()
+            .grants(&data.display_name, data.xuid.as_deref());
 
         let mut rotation = Rotation::default();
         let mut game_mode = default_gamemode;

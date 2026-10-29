@@ -8,9 +8,11 @@
 //!    screen, and every player gets it in chat as a translated `Text` when
 //!    the `show_death_messages` game rule is on;
 //! 3. without `keep_inventory`, the inventory, armour, offhand and cursor
-//!    items scatter as item entities at the feet, the player's
-//!    `minecraft:experience_reward` (`min(level × 7, 100)` for vanilla)
-//!    drops as experience orbs and the player's experience is cleared;
+//!    items scatter as item entities at the feet (stacks carrying the
+//!    `minecraft:keep_on_death` item component stay in their slots), the
+//!    player's `minecraft:experience_reward` (`min(level × 7, 100)` for
+//!    vanilla) drops as experience orbs and the player's experience is
+//!    cleared;
 //! 4. the respawn position goes to the client (`respawn::open_respawn_screen`)
 //!    and, with `do_immediate_respawn`, the player respawns at once (the
 //!    client skips its death screen by the same game rule).
@@ -251,6 +253,7 @@ fn broadcast_death_message(world: &mut World, message: &DeathMessage) {
 
 /// Scatter every item `player` carries at its feet, drop its experience and
 /// clear both; the client gets the emptied containers and experience.
+/// Stacks with `minecraft:keep_on_death` stay where they are.
 fn drop_everything(world: &mut World, player: Entity) {
     let Some(feet) = world
         .get::<Position>(player)
@@ -262,16 +265,16 @@ fn drop_everything(world: &mut World, player: Entity) {
     {
         let mut entity = world.entity_mut(player);
         if let Some(mut inventory) = entity.get_mut::<MainInventory>() {
-            stacks.extend(inventory.0.clear());
+            take_dropped(inventory.0.slots_mut(), &mut stacks);
         }
         if let Some(mut armour) = entity.get_mut::<ArmourInventory>() {
-            stacks.extend(armour.clear());
+            take_dropped(armour.inventory_mut().slots_mut(), &mut stacks);
         }
         if let Some(mut offhand) = entity.get_mut::<OffhandSlot>() {
-            stacks.push(std::mem::take(&mut offhand.0));
+            take_dropped(std::slice::from_mut(&mut offhand.0), &mut stacks);
         }
         if let Some(mut ui) = entity.get_mut::<PlayerUi>() {
-            stacks.extend(ui.0.clear());
+            take_dropped(ui.0.slots_mut(), &mut stacks);
         }
     }
     for stack in stacks {
@@ -311,6 +314,27 @@ fn drop_everything(world: &mut World, player: Entity) {
         player,
         crate::entity::xp_orb::experience_attributes(&Experience::default()).to_vec(),
     );
+}
+
+/// Move every non-empty stack of `slots` without `minecraft:keep_on_death`
+/// into `dropped`, leaving the slot empty.
+fn take_dropped(slots: &mut [crate::item::ItemStack], dropped: &mut Vec<crate::item::ItemStack>) {
+    for slot in slots {
+        if !slot.is_empty() && !keeps_on_death(slot) {
+            dropped.push(std::mem::take(slot));
+        }
+    }
+}
+
+/// Whether `stack` carries the `minecraft:keep_on_death` item component
+/// (a byte `1` under that key in its NBT, as `/give` components write it).
+pub(crate) fn keeps_on_death(stack: &crate::item::ItemStack) -> bool {
+    crate::item::enchant::item_tag(stack).is_some_and(|tag| {
+        matches!(
+            tag.0.get("minecraft:keep_on_death"),
+            Some(zuri_nbt::NBTTag::Byte(value)) if value.0 == 1
+        )
+    })
 }
 
 /// Molang facts about a dying player (its `experience_reward`); the

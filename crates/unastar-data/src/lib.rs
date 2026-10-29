@@ -19,6 +19,7 @@ pub mod equipment;
 pub mod fuel;
 pub mod item_components;
 pub mod game_rules;
+pub mod help;
 pub mod item_identity;
 pub mod items;
 pub mod lang;

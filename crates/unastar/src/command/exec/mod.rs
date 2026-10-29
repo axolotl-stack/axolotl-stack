@@ -4,18 +4,32 @@
 //! Captured commands without a `register` line answer
 //! [`CommandOutput::not_implemented`](super::CommandOutput::not_implemented).
 
+mod chat;
+mod clear;
+mod clone;
 mod difficulty;
+mod effect;
+mod enchant;
+mod fill;
 mod gamemode;
 mod gamerule;
+mod give;
+mod help;
 mod kill;
+mod op;
+mod setblock;
+mod spawnpoint;
 mod stop;
 mod summon;
 mod teleport;
 #[cfg(test)]
 pub(crate) mod test_support;
 mod time;
+mod weather;
+mod xp;
 
 pub use gamemode::set_game_mode;
+pub use op::OperatorList;
 pub use stop::StopRequested;
 pub use teleport::move_entity;
 
@@ -25,14 +39,32 @@ use super::registry::CommandRegistry;
 /// typed declaration against the captured syntax.
 pub fn register_vanilla(registry: &mut CommandRegistry) {
     registry
+        .register(clear::run)
+        .register(clone::run)
+        .register(op::run_deop)
         .register(difficulty::run)
+        .register(effect::run)
+        .register(enchant::run)
+        .register(fill::run)
         .register(gamemode::run)
         .register(gamerule::run)
+        .register(give::run)
+        .register(help::run)
         .register(kill::run)
+        .register(chat::run_list)
+        .register(chat::run_me)
+        .register(op::run_op)
+        .register(chat::run_say)
+        .register(setblock::run)
+        .register(spawnpoint::run_setworldspawn)
+        .register(spawnpoint::run_spawnpoint)
         .register(stop::run)
         .register(summon::run)
         .register(teleport::run)
-        .register(time::run);
+        .register(chat::run_tell)
+        .register(time::run)
+        .register(weather::run)
+        .register(xp::run);
 }
 
 #[cfg(test)]

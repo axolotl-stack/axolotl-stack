@@ -516,15 +516,76 @@ of the complete timing/motion matrix.
 
 
 
-## Gameplay Permissions and Chat
+## Commands
 
-Player commands, including `/tp` and `/teleport`, execute through the command
-registry. Teleport requires the server-owned `unastar::command::Operator` ECS
-marker on the player entity; its absence denies operator commands. Trusted
-server code can grant or revoke this marker. There is currently no operator
-provisioning command or configuration option, and client-supplied command origins
-never grant permissions. Custom commands can require the same permission with
-`Command::requires_operator`.
+Commands follow BDS 1.26.51 (`src/command/`):
+
+- **Syntax is data.** `unastar-data`'s `available_commands.json` is a lossless
+  projection of the `AvailableCommands` packet BDS sends at join (identical for
+  members and operators). Unastar rebuilds the packet from it and sends it after
+  `CraftingData`; tests prove it byte-identical to the member and operator
+  captures. Game-rule defaults (`game_rules.json`, the join `GameRulesChanged`)
+  and BDS's `/help` listing (`help_usage.json`) are measured the same way.
+- **One parser** matches a command line against the captured overloads (every
+  parameter type, selectors with all arguments, `~`/`^` coordinates, postfixes)
+  and reports BDS's `commands.generic.syntax` position.
+- **Executors are typed.** Each command declares one Rust enum with one variant
+  per captured overload (`overloads!`, `arg_enum!`); registration checks the
+  declaration against the captured syntax, and the executor matches over it.
+  Feedback is BDS's `CommandOutputPacket`: the same translation keys,
+  parameters, success flags and counts, plus the side packets BDS sends
+  (rawtext target messages, `UpdatePlayerGameType`, `MovePlayer`, …), checked
+  against a scripted BDS capture of 81 commands.
+- **Permissions:** players have BDS command level `any`; operators
+  (`server.operators` in the config, or `/op` from the console) get
+  `gamedirectors`, BDS's operator abilities and permission level. Unknown
+  commands answer `commands.generic.unknown`, commands above the source's level
+  `commands.generic.error.permissions`. Client-supplied origins never grant
+  permissions.
+- **Server console:** lines typed on stdin run as commands with owner level
+  (so `/stop`, `/op`, `/deop` work there); output is printed in English from
+  the vanilla `en_US.lang`.
+
+Implemented: `/clear`, `/clone`, `/deop`, `/difficulty`, `/effect`, `/enchant`,
+`/fill`, `/gamemode`, `/gamerule`, `/give`, `/help` (`/?`), `/kill`, `/list`,
+`/me`, `/op`, `/say`, `/setblock`, `/setworldspawn`, `/spawnpoint`, `/stop`,
+`/summon`, `/teleport` (`/tp`), `/tell` (`/msg`, `/w`), `/time`, `/weather`,
+`/xp`. Known differences from BDS:
+
+| Command | Difference | Why |
+|---|---|---|
+| `/give`, `/clear`, `/setblock`, `/fill` | Legacy names and data values (`wool 14`, `wool ["color"="red"]`) fail with "not implemented"; current identifiers (`red_wool`) work | No legacy item/block upgrade table in the repository yet |
+| `/give` | No `UnlockedRecipes`; `PlayerHotbar` sent with `shouldselectslot=true` | No recipe-unlock system; shared inventory resync |
+| `/gamemode` | Also resends `UpdateAbilities` | Unastar's join abilities depend on the game mode |
+| `/effect` | Speed/slowness do not change movement; no visible-effects actor data | No attribute-modifier system yet |
+| `/weather` | State and client events only; no natural cycle, durations do not count down, no gameplay effect | Weather is not simulated |
+| `/spawnpoint`, `/setworldspawn` | Not persisted; new joiners still use the config spawn rules | No level-data store |
+| `/op`, `/deop` | Not written back to the config file | Runtime-only operator list |
+| `/fill`, `/clone` | One `UpdateBlock` per block instead of `UpdateSubChunkBlocks`; `/clone` copies no block-entity data | Block update path |
+| `/help` | Lists the operator listing for the console too | Owner-only usage lines were not captured |
+| Item names in feedback | Flattened block items without their own language key use the title-cased identifier ("Red Wool") | No legacy description-id data |
+
+Every other command BDS offers stays advertised exactly as BDS sends it and
+answers a literal "/<name> is not implemented in unastar yet" failure, because
+the game system behind it does not exist yet: `aimassist`, `allowlist`,
+`camera`, `camerashake`, `changesetting`, `clearspawnpoint`, `controlscheme`,
+`damage`, `daylock`, `dialogue`, `editor-allowlist`, `event`, `execute`, `fog`,
+`function`, `gametest`, `hud`, `inputpermission`, `kick`, `locate`, `loot`,
+`mobevent`, `music`, `packstack`, `particle`, `permission`, `place`,
+`playanimation`, `playsound`, `recipe`, `reload`, `reloadconfig`,
+`reloadpacketlimitconfig`, `replaceitem`, `ride`, `save`, `schedule`,
+`scoreboard`, `script`, `scriptevent`, `sendshowstoreoffer`, `serveridentity`,
+`setmaxplayers`, `spreadplayers`, `stopsound`, `structure`, `tag`, `tellraw`,
+`testfor`, `testforblock`, `testforblocks`, `tickingarea`, `title`,
+`titleraw`, `toggledownfall`, `transfer`, `wsserver`.
+
+Adding a command: declare its overloads and write `run` in
+`src/command/exec/<name>.rs`, then add one `register` line in
+`src/command/exec/mod.rs` (see `src/command/mod.rs` and the existing executors).
+Tests use `exec::test_support::Harness`. The loopback check is
+`cargo test -p unastar --test commands_e2e -- --ignored --nocapture`.
+
+## Gameplay Permissions and Chat
 
 Incoming chat queues a cancellable `PlayerChat` event without sending packets.
 The plugin manager alone broadcasts the default chat message after event dispatch,
