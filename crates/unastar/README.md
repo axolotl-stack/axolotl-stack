@@ -571,7 +571,7 @@ counter; ItemStackRequest crafting then uses the 3x3 grid. Closing any screen
 returns the cursor and crafting-grid items to the inventory and throws what
 does not fit (dragonfly's `MoveItemsToInventory`).
 
-`BlockPickRequest` follows BDS's `selectItem` rules (`server/game/inventory/pick.rs`):
+`BlockPickRequest` follows the BDS 1.26.51 pick-block behaviour (`server/game/inventory/pick.rs`):
 reach 14 blocks in Creative and 8.7 otherwise from the eye to the block corner,
 hotbar matches are selected, main-inventory matches swap into the hotbar, only
 Creative creates the item, and an `item_lock` held item is never displaced. The

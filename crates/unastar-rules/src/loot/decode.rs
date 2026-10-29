@@ -26,12 +26,12 @@ fn float(v: &Value, path: &str) -> Result<f32> {
         .ok_or_else(|| ParseError::new(path, format!("expected a number, got {v}")))
 }
 
-/// `object[key]` as a number, `default` when absent (BDS `asFloat(default)`).
+/// `object[key]` as a number, `default` when absent.
 fn float_or(object: &Value, key: &str, default: f32, path: &str) -> Result<f32> {
     object.get(key).map_or(Ok(default), |v| float(v, path))
 }
 
-/// `object[key]` as an integer, `default` when absent (BDS `asInt(default)`).
+/// `object[key]` as an integer, `default` when absent.
 fn int_or(object: &Value, key: &str, default: i32, path: &str) -> Result<i32> {
     object.get(key).map_or(Ok(default), |v| {
         v.as_i64()

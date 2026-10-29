@@ -13,9 +13,10 @@ otherwise.
 | D4 | Built-in facts that BDS does not ship as data (armour values, tool tiers, block fuels, block drops, and similar) are measured from BDS with sweeps/extraction, not taken from wiki tables. |
 | D5 | Scope is regular vanilla only for now. The registries and APIs are designed so that addon packs (behavior/resource packs loaded at runtime) and WASM mods (the existing wasmtime plugin system) can be bolted on later without redesign: data families are keyed by identifier, loaded into registries that can accept extra or overriding rows before they are frozen, and gameplay hooks go through explicit events/components rather than per-entity code. |
 
-Evidence rule: nothing committed references decompilation (no tool names, addresses or
-recovered symbols). Repo text describes behaviour and cites observed captures, public
-Mojang documentation, public data sets or open-source code.
+Evidence rule: nothing committed names the internal implementation of BDS or the
+Bedrock client (no class, function or symbol names, addresses or memory layouts).
+Repo text describes behaviour and cites observed captures, public Mojang
+documentation, public data sets or open-source code.
 
 ## Worldgen (2026-10-24, later the same day)
 

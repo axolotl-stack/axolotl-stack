@@ -1,7 +1,7 @@
 //! Container block actors (I8): which blocks own one, their live contents,
 //! and the BDS 1.26.51 block-actor NBT they persist and send.
 //!
-//! NBT layout (BDS `save`): `id`, `x`, `y`, `z` (Int), then per kind:
+//! NBT layout (as BDS 1.26.51 saves it): `id`, `x`, `y`, `z` (Int), then per kind:
 //! - chest, trapped chest, barrel: `Items` (only non-empty slots, each the
 //!   item NBT plus a `Slot` Byte; each half of a double chest saves only its
 //!   own 27), `Findable` Byte, and when paired `pairlead` Byte with the
@@ -361,8 +361,8 @@ impl BlockContainer {
     }
 }
 
-/// Ticks `stack` burns in a block that cooks one item per `cook_ticks`
-/// (BDS `getBurnDuration`): an add-on item's `minecraft:fuel` component
+/// Ticks `stack` burns in a block that cooks one item per `cook_ticks`: an
+/// add-on item's `minecraft:fuel` component
 /// (`cook_ticks * seconds / 10`, at least 1), else the measured vanilla table
 /// scaled by the cook interval. Zero means it is not fuel.
 pub fn burn_ticks(stack: &ItemStack, cook_ticks: u32) -> u32 {
@@ -400,7 +400,7 @@ fn items_list(items: &Inventory) -> NBTTag {
     ))
 }
 
-/// BDS `ItemStackBase::save` keys for one stack (without `Slot`).
+/// The NBT keys BDS 1.26.51 saves for one stack (without `Slot`).
 pub fn item_to_nbt(stack: &ItemStack) -> tag::Compound {
     let mut out: HashMap<String, NBTTag> = HashMap::new();
     out.insert("Name".into(), string(stack.item_id()));

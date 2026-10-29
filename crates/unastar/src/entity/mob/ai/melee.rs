@@ -147,7 +147,12 @@ impl GoalContext<'_> {
         }
     }
 
-    /// The native `_attemptMoveToTargetPosition`.
+    /// Look at the target and count down the path timer. Unless the target
+    /// is unseen and the goal does not track it, re-path to the target's
+    /// ground position when [`Self::should_repath`] says so, and reset the
+    /// timer to a random value between the goal's bounds plus the boundary
+    /// penalty for distant targets and the failure penalty when no path is
+    /// found.
     fn move_toward_target(
         &mut self,
         goal: &MeleeBoxAttackGoal,
@@ -184,7 +189,7 @@ impl GoalContext<'_> {
         self.states.melee.path_timer = timer;
     }
 
-    /// The native `_shouldRecalculatePath`: when the timer ran out, re-path
+    /// Whether to re-path now: when the timer ran out, re-path
     /// if there is no path, the first time, when the target left the path's
     /// end block (unless already in reach), or with a small chance anyway.
     fn should_repath(&mut self, in_reach: bool, previous: DVec3, wanted: DVec3) -> bool {

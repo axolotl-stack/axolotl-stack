@@ -219,7 +219,7 @@ impl GoalContext<'_> {
         best
     }
 
-    /// The native `_canAttack`: whether `target` may become (or stay) the
+    /// The shared target-goal filter: whether `target` may become (or stay) the
     /// target of a goal with `base`.
     fn can_attack(
         &mut self,
@@ -372,7 +372,7 @@ impl GoalContext<'_> {
         None
     }
 
-    /// The native `_selectTarget`: roll the acquisition probability, find
+    /// One acquisition attempt: roll the acquisition probability, find
     /// the nearest valid target and start its entry's cooldown.
     fn select_target(&mut self, goal: &NearestAttackableTargetGoal) -> Option<Entity> {
         if goal.target_acquisition_probability < 1.0
@@ -424,8 +424,8 @@ impl GoalContext<'_> {
         states.persist_ticks = 0;
     }
 
-    /// The native `TargetGoal::canContinueToUse`; drops the target when it
-    /// fails.
+    /// Whether the current target stays valid this tick; drops the target
+    /// when it does not.
     fn keep_target(&mut self, base: &TargetGoalBase) -> bool {
         let keep = self.keep_target_inner(base);
         if !keep {
