@@ -31,6 +31,7 @@
 pub mod args;
 pub mod context;
 pub mod exec;
+pub mod format;
 pub mod names;
 pub mod output;
 pub mod parser;
@@ -38,8 +39,7 @@ pub mod registry;
 pub mod schema;
 pub mod selector;
 
-pub(crate) use args::arg_enum;
-pub use args::{ArgEnum, Args, FromArg, RelativeFloat};
+pub use args::{ArgEnum, Args, FromArg, Overloads, RelativeFloat};
 pub use context::{CommandContext, CommandSource, Operator, SourceKind};
 pub use output::{CommandMessage, CommandOutput, CommandResult};
 pub use registry::{CommandHandler, CommandRegistry};
@@ -47,10 +47,15 @@ pub use schema::CommandSchema;
 
 /// Everything an executor module needs.
 pub mod prelude {
-    pub(crate) use super::arg_enum;
+    pub use super::args::{
+        BlockPosition, BlockStates, Chained, CommandLine, EnumValue, FilePath, Message, Postfixed,
+        RawText, SoftEnumValue, Text, WildcardInt, WildcardTarget,
+    };
+    pub(crate) use super::args::{arg_enum, overloads};
+    pub use super::format;
     pub(crate) use super::output::{failure, success};
-    pub use super::parser::{CommandPosition, Target};
-    pub use super::{ArgEnum, Args, CommandContext, CommandOutput, CommandResult, RelativeFloat};
+    pub use super::parser::{CommandPosition, IntRange, Target};
+    pub use super::{ArgEnum, CommandContext, CommandOutput, CommandResult, RelativeFloat};
     pub use bevy_ecs::prelude::{Entity, World};
     pub use glam::{DVec3, IVec3};
 }

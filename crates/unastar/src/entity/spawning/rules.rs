@@ -6,15 +6,21 @@
 //! the biome's tags; the spawn cycle draws from the pool among the entries
 //! whose conditions the spawn position meets. Entries fall in three groups:
 //!
-//! - **spawnable**: every condition is implemented and the mob can be built;
+//! - **spawnable**: every condition is implemented and at least one of the
+//!   mobs the entry spawns (its own mob and its `permute_type` targets) can
+//!   be built and has a modelled native spawn check;
 //! - **blocked**: the conditions are evaluated (so the entry keeps its share
-//!   of the weighted draw), but when it is drawn nothing spawns, because the
-//!   mob itself or the native checks after the draw are not implemented;
+//!   of the weighted draw), but none of its mobs can spawn, so when it is
+//!   drawn nothing spawns;
 //! - **unsupported**: a condition cannot be evaluated, so the entry is left
 //!   out of every pool.
 //!
-//! Blocked and unsupported entries carry their reason and are logged once
-//! when the rules are installed.
+//! A spawnable entry may still have targets that cannot spawn: such a
+//! target keeps its permutation weight, and a herd member drawn as it
+//! spawns nothing.
+//!
+//! Blocked entries, blocked targets and unsupported entries carry their
+//! reason and are logged once when the rules are installed.
 
 use std::collections::HashMap;
 use std::sync::Arc;
@@ -25,12 +31,15 @@ use unastar_rules::filter::{
     BuiltinTest, Fact, Filter, FilterContext, FilterRegistry, FilterTest, Subject,
 };
 
+use super::spawn_check::NativeSpawnBlocks;
 use crate::entity::mob::MobRegistry;
 use crate::entity::mob::constants::{
     DEFAULT_SPAWN_DISTANCE_MAX, DEFAULT_SPAWN_DISTANCE_MIN, DEFAULT_SPAWN_WEIGHT,
     LEGACY_BLOCK_NAMES, SPAWN_DISTANCE_CAP,
 };
+use crate::entity::mob::native::SpawnClass;
 use crate::registry::BlockRegistry;
+use crate::world::rules::Difficulty;
 
 /// A `population_control` category with a population cap. The order is the
 /// index into the cap tables.
@@ -76,23 +85,13 @@ impl Category {
     }
 }
 
-/// World difficulty, ordered as `difficulty_filter` compares it.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord)]
-pub enum Difficulty {
-    Peaceful,
-    Easy,
-    Normal,
-    Hard,
-}
-
-impl From<body::SpawnDifficultyLegacy> for Difficulty {
-    fn from(value: body::SpawnDifficultyLegacy) -> Self {
-        match value {
-            body::SpawnDifficultyLegacy::Peaceful => Self::Peaceful,
-            body::SpawnDifficultyLegacy::Easy => Self::Easy,
-            body::SpawnDifficultyLegacy::Normal => Self::Normal,
-            body::SpawnDifficultyLegacy::Hard => Self::Hard,
-        }
+/// `difficulty_filter` bounds as the world difficulty they compare with.
+fn difficulty(value: body::SpawnDifficultyLegacy) -> Difficulty {
+    match value {
+        body::SpawnDifficultyLegacy::Peaceful => Difficulty::Peaceful,
+        body::SpawnDifficultyLegacy::Easy => Difficulty::Easy,
+        body::SpawnDifficultyLegacy::Normal => Difficulty::Normal,
+        body::SpawnDifficultyLegacy::Hard => Difficulty::Hard,
     }
 }
 
@@ -129,18 +128,84 @@ pub struct Permutation {
     pub weight: u32,
     pub min_guaranteed: u32,
     pub entity_type: Option<Arc<str>>,
-    /// `entity_type` as an actor type (`None` when absent or not an actor).
-    pub actor: Option<ActorType>,
+    /// What `entity_type` spawns (unused when `entity_type` is `None`).
+    pub target: SpawnTarget,
+}
+
+/// A mob a spawn entry spawns: the rule's own mob or a `permute_type`
+/// target.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub enum SpawnTarget {
+    Mob {
+        actor: ActorType,
+        /// The archetype's native natural-spawn check.
+        class: SpawnClass,
+        /// The wither effect cannot affect the archetype's native class.
+        immune_to_wither: bool,
+    },
+    /// The target cannot spawn, and why; a herd member drawn as it spawns
+    /// nothing.
+    Blocked(String),
+}
+
+impl SpawnTarget {
+    fn resolve(name: &str, actor: Option<ActorType>, mobs: &MobRegistry) -> Self {
+        if name.contains('<') {
+            return Self::Blocked(format!(
+                "spawning {name} with a spawn event is not implemented"
+            ));
+        }
+        let Some(actor) = actor else {
+            return Self::Blocked(format!("{name} is not an actor type"));
+        };
+        let Some(archetype) = mobs.get(actor.name()) else {
+            return Self::Blocked(match mobs.unsupported_reason(actor.name()) {
+                Some(reason) => format!("{name} is not supported yet: {reason}"),
+                None => format!("{name} is not a mob definition"),
+            });
+        };
+        let native = archetype.native;
+        match native.spawn_class {
+            Some(class) => Self::Mob {
+                actor,
+                class,
+                immune_to_wither: native.immune_to_wither,
+            },
+            None => Self::Blocked(format!(
+                "the native spawn check of {name}'s class {} is not modelled",
+                archetype.actor_type.name()
+            )),
+        }
+    }
+
+    pub fn blocked(&self) -> Option<&str> {
+        match self {
+            Self::Mob { .. } => None,
+            Self::Blocked(reason) => Some(reason),
+        }
+    }
 }
 
 /// Block runtime-id ranges a block descriptor matches.
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq, Default)]
 pub struct BlockSet {
     ranges: Vec<(u32, u32)>,
     names: Vec<String>,
 }
 
 impl BlockSet {
+    /// The blocks `names` name; a name no block has never matches.
+    pub fn named(blocks: &BlockRegistry, names: &[&str]) -> Self {
+        let mut set = Self::default();
+        for &name in names {
+            if let Some(entry) = blocks.get_by_name(name) {
+                set.ranges.push((entry.min_state_id, entry.max_state_id));
+            }
+            set.names.push(name.to_owned());
+        }
+        set
+    }
+
     pub fn is_empty(&self) -> bool {
         self.names.is_empty()
     }
@@ -149,15 +214,6 @@ impl BlockSet {
         self.ranges
             .iter()
             .any(|&(min, max)| (min..=max).contains(&runtime_id))
-    }
-
-    /// Whether every descriptor names `minecraft:grass_block`.
-    fn only_grass(&self) -> bool {
-        !self.names.is_empty()
-            && self
-                .names
-                .iter()
-                .all(|name| name == "minecraft:grass_block")
     }
 }
 
@@ -193,8 +249,23 @@ pub struct SpawnEntry {
     pub above_blocks: Option<(BlockSet, i32)>,
     pub permutations: Vec<Permutation>,
     pub persistent: bool,
-    /// Why a drawn entry spawns nothing (see the module docs).
+    /// What the rule's own mob spawns as (permutations without an
+    /// `entity_type`, or every member when there are no permutations).
+    pub own: SpawnTarget,
+    /// Why a drawn entry spawns nothing: none of its targets can spawn
+    /// (see the module docs).
     pub blocked: Option<String>,
+}
+
+impl SpawnEntry {
+    /// What a herd member drawn as `permutation` spawns as.
+    pub fn target<'a>(&'a self, permutation: &'a Permutation) -> &'a SpawnTarget {
+        if permutation.entity_type.is_some() {
+            &permutation.target
+        } else {
+            &self.own
+        }
+    }
 }
 
 /// A spawn rule condition left out of every pool.
@@ -214,6 +285,8 @@ pub struct NaturalSpawnRules {
     /// Mob type → population category (from its spawn rule).
     pub categories: HashMap<ActorType, Category>,
     pub unsupported: Vec<UnsupportedEntry>,
+    /// The blocks the native spawn checks test.
+    pub native_blocks: NativeSpawnBlocks,
 }
 
 /// Why a condition cannot be compiled.
@@ -232,7 +305,10 @@ pub enum RuleError {
 impl NaturalSpawnRules {
     /// Compile `files` against the mob and block registries.
     pub fn compile(files: &[SpawnRuleFile], mobs: &MobRegistry, blocks: &BlockRegistry) -> Self {
-        let mut rules = Self::default();
+        let mut rules = Self {
+            native_blocks: NativeSpawnBlocks::resolve(blocks),
+            ..Self::default()
+        };
         let mut filters = Vec::new();
         for file in files {
             let identifier: Arc<str> = Arc::from(file.identifier());
@@ -341,9 +417,14 @@ fn compile_entry(
         body::SpawnBiomeConditionsHerd::SpawnHerd(one) => vec![herd(one)],
     };
     let permutations = match &condition.permute_type {
-        body::SpawnBiomeConditionsPermuteType::List(list) => list.iter().map(permutation).collect(),
-        body::SpawnBiomeConditionsPermuteType::SpawnPermuteType(one) => vec![permutation(one)],
+        body::SpawnBiomeConditionsPermuteType::List(list) => {
+            list.iter().map(|p| permutation(p, mobs)).collect()
+        }
+        body::SpawnBiomeConditionsPermuteType::SpawnPermuteType(one) => {
+            vec![permutation(one, mobs)]
+        }
     };
+    let actor = ActorType::from_name(identifier);
     let on_blocks = block_set(blocks, on_block_list(&condition.spawns_on_block_filter))?;
     let prevented_blocks = block_set(
         blocks,
@@ -372,7 +453,7 @@ fn compile_entry(
         });
     let mut entry = SpawnEntry {
         identifier: Arc::clone(identifier),
-        actor: ActorType::from_name(identifier),
+        actor,
         source: source.to_owned(),
         category,
         weight: weight.map_or(DEFAULT_SPAWN_WEIGHT, |w| {
@@ -396,7 +477,7 @@ fn compile_entry(
             .difficulty_filter
             .as_ref()
             .map_or((Difficulty::Peaceful, Difficulty::Hard), |d| {
-                (d.min.into(), d.max.into())
+                (difficulty(d.min), difficulty(d.max))
             }),
         distance,
         world_age,
@@ -409,56 +490,34 @@ fn compile_entry(
         above_blocks: (!above_set.is_empty()).then_some((above_set, above.distance)),
         permutations,
         persistent: condition.is_persistent.is_some(),
+        own: SpawnTarget::resolve(identifier, actor, mobs),
         blocked: None,
     };
-    entry.blocked = blocked_reason(&entry, mobs);
+    entry.blocked = blocked_reason(&entry);
     Ok((entry, filter))
 }
 
-/// Why a compiled entry cannot spawn its mob, if it cannot.
-fn blocked_reason(entry: &SpawnEntry, mobs: &MobRegistry) -> Option<String> {
-    let mut targets: Vec<(&str, Option<ActorType>)> = Vec::new();
-    if entry.permutations.is_empty()
+/// Why none of the targets a drawn entry can spawn spawns, if none does.
+fn blocked_reason(entry: &SpawnEntry) -> Option<String> {
+    let total: u32 = entry.permutations.iter().map(|p| p.weight).sum();
+    let own_drawn = total == 0
         || entry
             .permutations
             .iter()
-            .any(|p| p.entity_type.is_none() && p.weight > 0)
-    {
-        targets.push((&entry.identifier, entry.actor));
-    }
-    targets.extend(
-        entry
-            .permutations
-            .iter()
-            .filter_map(|p| Some((p.entity_type.as_deref()?, p.actor))),
-    );
-    for (name, actor) in targets {
-        if name.contains('<') {
-            return Some(format!(
-                "spawning {name} with a spawn event is not implemented"
-            ));
-        }
-        let Some(actor) = actor else {
-            return Some(format!("{name} is not an actor type"));
-        };
-        if mobs.get(actor.name()).is_none() {
-            return Some(match mobs.unsupported_reason(actor.name()) {
-                Some(reason) => format!("{name} is not supported yet: {reason}"),
-                None => format!("{name} is not a mob definition"),
-            });
+            .any(|p| p.entity_type.is_none() && p.weight > 0);
+    let permuted = entry
+        .permutations
+        .iter()
+        .filter(|p| p.entity_type.is_some() && (p.weight > 0 || p.min_guaranteed > 0))
+        .map(|p| &p.target);
+    let mut reasons = Vec::new();
+    for target in own_drawn.then_some(&entry.own).into_iter().chain(permuted) {
+        match target.blocked() {
+            None => return None,
+            Some(reason) => reasons.push(reason),
         }
     }
-    // After the draw the mob class checks its walk-target value at the spawn
-    // block; for an animal on a grass block it is the constant 10 (passes).
-    // Elsewhere it depends on the client brightness ramp and on the native
-    // mob class, neither of which is modelled.
-    if entry.category != Some(Category::Animal) || !entry.on_blocks.only_grass() {
-        return Some(
-            "the native walk-target check is only implemented for animals spawning on grass blocks"
-                .into(),
-        );
-    }
-    None
+    Some(reasons.join("; "))
 }
 
 fn compile_biome_filter(json: &serde_json::Value) -> Result<Filter, RuleError> {
@@ -496,13 +555,19 @@ fn herd(herd: &body::SpawnHerd) -> Herd {
     }
 }
 
-fn permutation(permutation: &body::SpawnPermuteType) -> Permutation {
+fn permutation(permutation: &body::SpawnPermuteType, mobs: &MobRegistry) -> Permutation {
+    let entity_type: Option<Arc<str>> =
+        (!permutation.entity_type.is_empty()).then(|| Arc::from(permutation.entity_type.as_str()));
+    let target = SpawnTarget::resolve(
+        &permutation.entity_type,
+        ActorType::from_name(&permutation.entity_type),
+        mobs,
+    );
     Permutation {
         weight: u32::try_from(permutation.weight).unwrap_or(0),
         min_guaranteed: u32::try_from(permutation.min_guaranteed).unwrap_or(0),
-        entity_type: (!permutation.entity_type.is_empty())
-            .then(|| Arc::from(permutation.entity_type.as_str())),
-        actor: ActorType::from_name(&permutation.entity_type),
+        entity_type,
+        target,
     }
 }
 
@@ -529,10 +594,7 @@ fn block_set(
     blocks: &BlockRegistry,
     descriptors: Vec<&body::BlockDescriptor>,
 ) -> Result<BlockSet, RuleError> {
-    let mut set = BlockSet {
-        ranges: Vec::new(),
-        names: Vec::new(),
-    };
+    let mut set = BlockSet::default();
     for descriptor in descriptors {
         let name = match descriptor {
             body::BlockDescriptor::String(name) => name.as_str(),

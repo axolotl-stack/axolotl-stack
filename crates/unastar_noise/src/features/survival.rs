@@ -273,8 +273,13 @@ mod tests {
         // y=128 is valid storage and has no sky light, despite 128 noise blocks.
         let pos = BlockPos::new(0, 128, 0);
         let mut world = TestWorld {
-            min_y: 0, height: 256, gen_depth: 128, fill_y: 128,
-            fill: states::BEDROCK, has_skylight: false, ..Default::default()
+            min_y: 0,
+            height: 256,
+            gen_depth: 128,
+            fill_y: 128,
+            fill: states::BEDROCK,
+            has_skylight: false,
+            ..Default::default()
         };
         assert!(can_survive(&mut world, states::BROWN_MUSHROOM, pos));
         world.has_skylight = true;
@@ -286,7 +291,10 @@ mod tests {
     #[test]
     fn native_mushroom_support_uses_solid_render_not_full_collision() {
         let pos = BlockPos::new(0, 1, 0);
-        let mut world = TestWorld { has_skylight: false, ..Default::default() };
+        let mut world = TestWorld {
+            has_skylight: false,
+            ..Default::default()
+        };
         // Native full-collision glass and ice are not solid-rendering; stone
         // and glowstone are. These properties are independent of emission.
         for (below, expected) in [
@@ -296,7 +304,10 @@ mod tests {
             (states::GLOWSTONE, true),
         ] {
             world.blocks.insert(pos.below(), below);
-            assert_eq!(can_survive(&mut world, states::BROWN_MUSHROOM, pos), expected);
+            assert_eq!(
+                can_survive(&mut world, states::BROWN_MUSHROOM, pos),
+                expected
+            );
             assert_eq!(can_survive(&mut world, states::RED_MUSHROOM, pos), expected);
         }
     }
@@ -305,7 +316,8 @@ mod tests {
     fn native_virgin_light_storage_drives_mushroom_survival() {
         let fixture: serde_json::Value = serde_json::from_str(include_str!(
             "../../tests/data/native_vegetation_virgin_light_1_21_11.json"
-        )).unwrap();
+        ))
+        .unwrap();
         for case in fixture["cases"].as_array().unwrap() {
             let xyz = case["pos"].as_array().unwrap();
             let pos = BlockPos::new(
@@ -325,7 +337,10 @@ mod tests {
             if darken == 0 {
                 // A roof does not initialize or propagate the native engine's
                 // visible storage during the pre-light FEATURES stage.
-                assert_eq!(can_survive(&mut world, states::BROWN_MUSHROOM, pos), expected < 13);
+                assert_eq!(
+                    can_survive(&mut world, states::BROWN_MUSHROOM, pos),
+                    expected < 13
+                );
                 world.blocks.insert(pos.below(), states::MYCELIUM);
                 assert!(can_survive(&mut world, states::BROWN_MUSHROOM, pos));
             }

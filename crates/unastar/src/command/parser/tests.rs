@@ -105,57 +105,66 @@ fn every_captured_overload_parses_with_and_without_optional_parameters() {
 }
 
 #[test]
-fn typed_values_come_back_with_their_meaning() {
+fn parsed_values_keep_their_meaning() {
     let args = parse_ok("give @s minecraft:WHEAT 64 0 {\"minecraft:can_destroy\":{}}");
-    assert_eq!(args.get::<&str>("itemName"), Some("minecraft:wheat"));
-    assert_eq!(args.get::<i32>("amount"), Some(64));
-    assert!(
-        args.get::<&serde_json::Value>("components")
-            .unwrap()
-            .is_object()
+    assert_eq!(
+        args.raw("itemName"),
+        Some(&ArgValue::Enum("minecraft:wheat"))
     );
+    assert_eq!(args.raw("amount"), Some(&ArgValue::Int(64)));
+    assert!(matches!(args.raw("components"), Some(ArgValue::Json(v)) if v.is_object()));
     assert!(matches!(
-        args.get::<&Target>("player"),
-        Some(Target::Selector(_))
+        args.raw("player"),
+        Some(ArgValue::Target(Target::Selector(_)))
     ));
 
     let args = parse_ok("tp Steve ~1 ~ 5.5 ~90 -10");
     assert_eq!(
-        args.get::<&Target>("victim"),
-        Some(&Target::Name("Steve".into()))
+        args.raw("victim"),
+        Some(&ArgValue::Target(Target::Name("Steve".into())))
     );
     assert_eq!(
-        args.get::<&CommandPosition>("destination"),
-        Some(&CommandPosition([
+        args.raw("destination"),
+        Some(&ArgValue::Position(CommandPosition([
             Coordinate::Relative(1.0),
             Coordinate::Relative(0.0),
             Coordinate::Absolute(5.5),
-        ]))
+        ])))
     );
-    let yaw: crate::command::RelativeFloat = args.get("yRot").unwrap();
-    assert_eq!(yaw.resolve(10.0), 100.0);
+    assert_eq!(
+        args.raw("yRot"),
+        Some(&ArgValue::Value {
+            relative: true,
+            value: 90.0
+        })
+    );
 
     let args = parse_ok("xp 5L @a");
     assert_eq!(args.overload(), 1);
-    assert_eq!(args.get::<i32>("amount"), Some(5));
+    assert_eq!(args.raw("amount"), Some(&ArgValue::Postfix(5)));
 
     let args = parse_ok("setblock ~ ~-1 ~ wool[\"color\"=\"red\"] keep");
     assert_eq!(
-        args.get::<&[(String, StateLiteral)]>("blockStates"),
-        Some(&[("color".to_owned(), StateLiteral::String("red".into()))][..])
+        args.raw("blockStates"),
+        Some(&ArgValue::BlockStates(vec![(
+            "color".to_owned(),
+            StateLiteral::String("red".into())
+        )]))
     );
-    assert_eq!(args.get::<&str>("oldBlockHandling"), Some("keep"));
+    assert_eq!(args.raw("oldBlockHandling"), Some(&ArgValue::Enum("keep")));
 
     let args = parse_ok("say  hello   world ");
-    assert_eq!(args.get::<&str>("message"), Some("hello   world"));
+    assert_eq!(
+        args.raw("message"),
+        Some(&ArgValue::Message("hello   world".into()))
+    );
 }
 
 #[test]
 fn coordinates_follow_bedrock_rules() {
-    let position = |text: &str| {
-        *parse_ok(&format!("setworldspawn {text}"))
-            .get::<&CommandPosition>("spawnPoint")
-            .unwrap()
+    let position = |text: &str| match parse_ok(&format!("setworldspawn {text}")).raw("spawnPoint") {
+        Some(ArgValue::Position(p)) => *p,
+        other => panic!("{other:?}"),
     };
     // Whole-number x/z are block centres; y and decimals are kept.
     assert_eq!(

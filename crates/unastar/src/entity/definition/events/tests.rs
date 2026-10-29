@@ -133,9 +133,8 @@ struct Baby;
 #[derive(Component)]
 struct Scale(f64);
 
-fn compile(
-    source: &ActorDefinition,
-) -> (Arc<CompiledDefinition>, Arc<PropertyLayout>, CompiledEvents) {
+/// The two typed kinds the control definitions use: `is_baby` and `scale`.
+fn control_kinds() -> Arc<crate::entity::definition::ComponentKinds> {
     let mut kinds = ComponentKindsBuilder::default();
     kinds
         .register(
@@ -159,7 +158,13 @@ fn compile(
             },
         )
         .unwrap();
-    let definition = CompiledDefinition::compile(source, kinds.freeze()).unwrap();
+    kinds.freeze()
+}
+
+fn compile(
+    source: &ActorDefinition,
+) -> (Arc<CompiledDefinition>, Arc<PropertyLayout>, CompiledEvents) {
+    let definition = CompiledDefinition::compile(source, control_kinds()).unwrap();
     let properties = Arc::new(PropertyLayout::compile(&source.description).unwrap());
     let events = CompiledEvents::compile(
         source,
@@ -610,11 +615,11 @@ fn unknown_action_invalidates_known_siblings_and_descendants_without_binding_the
     assert!(output.triggers.is_empty());
 }
 
+/// Undeclared group names are skipped, not errors
+/// (`undeclared_groups_in_add_and_remove_are_skipped_like_bds`).
 #[test]
 fn missing_names_and_unsupported_recognized_bindings_fail_compilation() {
     for event in [
-        json!({"add": {"component_groups": ["missing"]}}),
-        json!({"remove": {"component_groups": ["missing"]}}),
         json!({"trigger": "missing"}),
         json!({"set_property": {"missing": true}}),
         json!({"run_command": {"command": "say unsupported"}}),
@@ -679,4 +684,44 @@ fn runtime_binding_failure_restores_appended_output_and_scratch() {
     assert_eq!(outcome.effects.len(), 1);
     assert!(outcome.triggers.is_empty());
     assert_eq!(scratch, vec![123]);
+}
+
+#[test]
+fn undeclared_groups_in_add_and_remove_are_skipped_like_bds() {
+    // An undeclared self event is still a compile error.
+    let source = control(json!({"broken": {"trigger": "missing"}}));
+    let definition = CompiledDefinition::compile(&source, control_kinds()).unwrap();
+    let properties = Arc::new(PropertyLayout::compile(&source.description).unwrap());
+    let error = CompiledEvents::compile(
+        &source,
+        &definition,
+        &properties,
+        QueryRegistry::vanilla(),
+        &mut Bindings,
+    )
+    .err()
+    .expect("undeclared trigger target");
+    assert!(matches!(
+        &error.reason,
+        EventCompileReason::UndeclaredEvent(name) if name == "missing"
+    ));
+
+    let source = control(json!({
+        "grow": {
+            "add": {"component_groups": ["minecraft:on_foot", "large"]},
+            "remove": {"component_groups": ["collect_nectar", "small"]}
+        }
+    }));
+    let (definition, layout, events) = compile(&source);
+    let outcome = evaluate(&events, "grow", &Context::default(), 0.0);
+    assert!(matches!(
+        outcome.effects.as_slice(),
+        [EventEffect::RemoveGroup(_), EventEffect::AddGroup(_)]
+    ));
+    let mut properties = ActorProperties::new(Arc::clone(&layout), &mut LiteralOnly).unwrap();
+    let mut world = World::new();
+    let actor = world.spawn_empty().id();
+    attach_definition(&mut world, actor, definition).unwrap();
+    apply(&outcome, &mut world, actor, &mut properties);
+    assert_eq!(world.get::<Scale>(actor).unwrap().0, 2.0);
 }

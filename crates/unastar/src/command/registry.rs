@@ -1,24 +1,26 @@
 //! Command name → executor, next to the frozen syntax.
 //!
-//! Adding a command is one function and one `register` line:
+//! Adding a command is a typed declaration, one function and one line:
 //!
 //! ```ignore
 //! // command/exec/difficulty.rs
-//! pub fn run(ctx: &mut CommandContext<'_>, args: &Args) -> CommandResult { … }
+//! overloads! { pub enum Difficulty for "difficulty" { 0 => Named { … }, 1 => Number { … } } }
+//! pub fn run(ctx: &mut CommandContext<'_>, args: Difficulty) -> CommandResult { match args { … } }
 //! // command/exec/mod.rs, in `register_vanilla`
-//! registry.register("difficulty", difficulty::run);
+//! registry.register(difficulty::run);
 //! ```
 //!
 //! The syntax (overloads, enums, permission) already comes from the captured
 //! packet; registering a name the syntax does not have panics at startup.
 
-use super::args::Args;
+use super::args::{Args, Overloads, check_shape};
 use super::context::CommandContext;
 use super::output::CommandResult;
 use super::schema::CommandSchema;
 use bevy_ecs::prelude::Resource;
 use std::collections::HashMap;
 use std::sync::Arc;
+use unastar_data::commands::CommandDefinition;
 
 /// Runs one parsed command. Plain `fn(&mut CommandContext, &Args) -> CommandResult`
 /// items implement it; plugins may register closures.
@@ -75,8 +77,29 @@ impl CommandRegistry {
         registry
     }
 
-    /// Registers the executor of a captured command (canonical name, not an alias).
-    pub fn register(&mut self, name: &str, handler: impl CommandHandler) -> &mut Self {
+    /// Registers a command's executor over its typed overloads. Panics when
+    /// the declaration does not match the captured syntax (see
+    /// [`check_shape`](super::args::check_shape)).
+    pub fn register<T: Overloads>(
+        &mut self,
+        run: fn(&mut CommandContext<'_>, T) -> CommandResult,
+    ) -> &mut Self {
+        let definition = self.definition(T::COMMAND);
+        check_shape(T::SHAPE, definition).unwrap_or_else(|error| panic!("{error}"));
+        self.insert(
+            T::COMMAND,
+            move |ctx: &mut CommandContext<'_>, args: &Args| run(ctx, T::from_args(args)),
+        )
+    }
+
+    /// Registers an executor over the raw arguments (for commands added at
+    /// runtime, e.g. by plugins, without a typed declaration).
+    pub fn register_raw(&mut self, name: &str, handler: impl CommandHandler) -> &mut Self {
+        self.definition(name);
+        self.insert(name, handler)
+    }
+
+    fn definition(&self, name: &str) -> &'static CommandDefinition {
         let definition = self
             .schema
             .command(name)
@@ -86,6 +109,10 @@ impl CommandRegistry {
             "register /{} by its canonical name",
             definition.name
         );
+        definition
+    }
+
+    fn insert(&mut self, name: &str, handler: impl CommandHandler) -> &mut Self {
         let previous = self.handlers.insert(name.to_owned(), Arc::new(handler));
         assert!(previous.is_none(), "/{name} registered twice");
         self

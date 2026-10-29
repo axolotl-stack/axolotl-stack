@@ -2,9 +2,9 @@
 
 use std::ops::Range;
 
-use unastar_noise as noise;
-use noise::java_biomes::JavaBiome;
 use noise::NoiseSource;
+use noise::java_biomes::JavaBiome;
+use unastar_noise as noise;
 
 use super::super::JavaDimension;
 use super::super::proto::{NativeBiome, QuartBiomes};
@@ -36,15 +36,18 @@ pub fn sample_biome_native<N: NoiseSource>(
 ) -> JavaBiome {
     let ctx = noise::FunctionContext::new(quart_x << 2, quart_y << 2, quart_z << 2);
     match dimension {
-        JavaDimension::Overworld => noise::overworld_biome_source::find(
-            &climate_target!(unastar_noise, &ctx, noises),
-        ),
-        JavaDimension::Nether => noise::nether_biome_source::find(
-            &climate_target!(unastar_noise::nether_compiled, &ctx, noises),
-        ),
+        JavaDimension::Overworld => {
+            noise::overworld_biome_source::find(&climate_target!(unastar_noise, &ctx, noises))
+        }
+        JavaDimension::Nether => noise::nether_biome_source::find(&climate_target!(
+            unastar_noise::nether_compiled,
+            &ctx,
+            noises
+        )),
         JavaDimension::End => super::sample_end_biome(quart_x, quart_z, |x, z| {
             noise::end_compiled::compute_erosion_native_uncached(
-                &noise::FunctionContext::new(x, 0, z), noises,
+                &noise::FunctionContext::new(x, 0, z),
+                noises,
             )
         }),
     }
@@ -88,12 +91,12 @@ pub fn fill_overworld_native<N: NoiseSource>(
     flat: &noise::FlatCacheGrid,
     columns: &noise::ColumnContextGrid,
 ) -> QuartBiomes {
-    let columns: [_; 16] = std::array::from_fn(|i| {
-        columns.get((i % 4) * 4, (i / 4) * 4).as_scalar()
-    });
+    let columns: [_; 16] =
+        std::array::from_fn(|i| columns.get((i % 4) * 4, (i / 4) * 4).as_scalar());
     let climates: [[f64; 5]; 16] = std::array::from_fn(|i| {
         let ctx = noise::FunctionContext::new(
-            pos.x * 16 + (i % 4) as i32 * 4, 0,
+            pos.x * 16 + (i % 4) as i32 * 4,
+            0,
             pos.z * 16 + (i / 4) as i32 * 4,
         );
         let col = &columns[i];
@@ -105,17 +108,27 @@ pub fn fill_overworld_native<N: NoiseSource>(
             noise::compute_ridges_native(&ctx, noises, flat, col),
         ]
     });
-    fill_lattice(JavaDimension::Overworld.block_bounds(), |qx, y, qz| {
-        let i = qz * 4 + qx;
-        let [temperature, vegetation, continents, erosion, ridges] = climates[i];
-        let ctx = noise::FunctionContext::new(
-            pos.x * 16 + qx as i32 * 4, y, pos.z * 16 + qz as i32 * 4,
-        );
-        noise::overworld_biome_source::target(
-            temperature, vegetation, continents, erosion,
-            noise::compute_depth_native(&ctx, noises, flat, &columns[i]), ridges,
-        )
-    }, noise::overworld_biome_source::find)
+    fill_lattice(
+        JavaDimension::Overworld.block_bounds(),
+        |qx, y, qz| {
+            let i = qz * 4 + qx;
+            let [temperature, vegetation, continents, erosion, ridges] = climates[i];
+            let ctx = noise::FunctionContext::new(
+                pos.x * 16 + qx as i32 * 4,
+                y,
+                pos.z * 16 + qz as i32 * 4,
+            );
+            noise::overworld_biome_source::target(
+                temperature,
+                vegetation,
+                continents,
+                erosion,
+                noise::compute_depth_native(&ctx, noises, flat, &columns[i]),
+                ridges,
+            )
+        },
+        noise::overworld_biome_source::find,
+    )
 }
 
 /// Nether's native climate has no Y dependency. Reuse arithmetic, not search
@@ -123,13 +136,17 @@ pub fn fill_overworld_native<N: NoiseSource>(
 pub fn fill_nether_native<N: NoiseSource>(noises: &N, pos: ChunkPos) -> QuartBiomes {
     let targets: [[i64; 7]; 16] = std::array::from_fn(|i| {
         let ctx = noise::FunctionContext::new(
-            pos.x * 16 + (i % 4) as i32 * 4, 0,
+            pos.x * 16 + (i % 4) as i32 * 4,
+            0,
             pos.z * 16 + (i / 4) as i32 * 4,
         );
         climate_target!(unastar_noise::nether_compiled, &ctx, noises)
     });
-    fill_lattice(JavaDimension::Nether.block_bounds(),
-        |qx, _, qz| targets[qz * 4 + qx], noise::nether_biome_source::find)
+    fill_lattice(
+        JavaDimension::Nether.block_bounds(),
+        |qx, _, qz| targets[qz * 4 + qx],
+        noise::nether_biome_source::find,
+    )
 }
 
 /// Every End quart of a chunk shares its containing-chunk selector sample.

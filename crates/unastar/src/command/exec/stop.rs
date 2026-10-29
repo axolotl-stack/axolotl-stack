@@ -7,7 +7,13 @@ use crate::command::prelude::*;
 #[derive(bevy_ecs::prelude::Resource, Debug, Default)]
 pub struct StopRequested;
 
-pub fn run(ctx: &mut CommandContext<'_>, _args: &Args) -> CommandResult {
+overloads! {
+    pub enum StopArgs for "stop" {
+        0 => Stop {},
+    }
+}
+
+pub fn run(ctx: &mut CommandContext<'_>, _args: StopArgs) -> CommandResult {
     ctx.world.insert_resource(StopRequested);
     success!("commands.stop.start")
 }

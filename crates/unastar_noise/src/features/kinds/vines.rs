@@ -1,9 +1,7 @@
 //! `minecraft:vines`.
 //!
-//! Approximation: Java's `VineBlock.isAcceptableNeighbour` accepts a
-//! neighbour whose support shape or collision shape covers the touching face
-//! fully; the block data only carries sturdy-face flags, so the check uses
-//! [`crate::features::blocks::JavaState::is_face_sturdy`] on that face.
+//! `VineBlock.isAcceptableNeighbour` is `MultifaceBlock.canAttachTo`; see
+//! [`super::multiface_growth::can_attach_to`] for what the physics data covers.
 
 use crate::features::blocks::{BlockPos, Direction};
 use crate::features::eval::FeatureWorld;
@@ -29,10 +27,7 @@ pub fn place<W: FeatureWorld + ?Sized>(
         if dir == Direction::Down {
             continue;
         }
-        if world
-            .get_state(origin.rel(dir))
-            .is_face_sturdy(dir.opposite())
-        {
+        if super::multiface_growth::can_attach_to(world.get_state(origin.rel(dir)), dir) {
             world.set_state(origin, states::VINE.with_bool(dir.name(), true));
             return true;
         }
@@ -43,6 +38,17 @@ pub fn place<W: FeatureWorld + ?Sized>(
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    /// Native jungle vines hang from leaves (empty support shape, full
+    /// collision cube), e.g. seed 4432651951229459881 at (1253, 86, 1242).
+    #[test]
+    fn hangs_from_leaves() {
+        let mut world = TestWorld::flat(0);
+        let origin = BlockPos::new(0, 10, 0);
+        world.blocks.insert(origin.above(), states::JUNGLE_LEAVES);
+        assert!(place(&mut world, &mut FeatureRandom::new(0), origin));
+        assert_eq!(world.get_state(origin), states::VINE.with_bool("up", true));
+    }
     use crate::features::java_blocks::blocks as b;
     use crate::features::test_world::TestWorld;
 

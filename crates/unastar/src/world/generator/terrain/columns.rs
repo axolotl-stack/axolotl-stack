@@ -1,8 +1,8 @@
 //! Structure queries use native one-horizontal-cell column construction, never
 //! a finished bulk chunk, a raw density point, or a synthetic default-fluid column.
 
-use unastar_noise as noise;
 use noise::features::{JavaState, java_blocks::states};
+use unastar_noise as noise;
 
 use super::{JavaDimension, JavaGenerator, TerrainBackend, java_aquifer_substance};
 use crate::world::generator::aquifer::{NoiseBasedAquifer, OverworldFluidPicker};
@@ -16,7 +16,9 @@ macro_rules! secondary_column {
             use noise::$settings as settings;
             out.fill(states::AIR);
             let generated = out.len().min(settings::HEIGHT as usize);
-            if generated == 0 { return; }
+            if generated == 0 {
+                return;
+            }
             let source = self.native_noises().java_source();
             let mut sampler = router::NativeColumnSampler::new(x, z, &source);
             let in_z = z.rem_euclid(settings::CELL_WIDTH) as usize;
@@ -27,7 +29,9 @@ macro_rules! secondary_column {
                 sampler.select_cell_yz(cell_y, 0);
                 for in_y in (0..height).rev() {
                     let index = cell_y * height + in_y;
-                    if index >= generated { continue; }
+                    if index >= generated {
+                        continue;
+                    }
                     let y = settings::MIN_Y + index as i32;
                     sampler.update_y(y);
                     sampler.update_x(x);
@@ -35,9 +39,15 @@ macro_rules! secondary_column {
                     let block = if density > 0.0 {
                         settings::DEFAULT_BLOCK
                     } else {
-                        super::native::disabled_aquifer(y, settings::SEA_LEVEL, settings::DEFAULT_FLUID)
+                        super::native::disabled_aquifer(
+                            y,
+                            settings::SEA_LEVEL,
+                            settings::DEFAULT_FLUID,
+                        )
                     };
-                    out[index] = JavaState(u16::try_from(block).expect("native Java state exceeds its registry width"));
+                    out[index] = JavaState(
+                        u16::try_from(block).expect("native Java state exceeds its registry width"),
+                    );
                 }
             }
         }
@@ -52,15 +62,24 @@ impl JavaGenerator {
         use noise::overworld_settings as settings;
         out.fill(states::AIR);
         let generated = out.len().min(settings::HEIGHT as usize);
-        if generated == 0 { return; }
+        if generated == 0 {
+            return;
+        }
         // Column interpolation has one horizontal cell. The actual aquifer still
         // uses its enclosing ChunkPos and full chunk-native preliminary caches.
         let source = self.native_noises().java_source();
         let flat = noise::FlatCacheGrid::new_native(x >> 4, z >> 4, &source);
         let columns = noise::ColumnContextGrid::new_native(x >> 4, z >> 4, &source, &flat);
         let mut aquifer = NoiseBasedAquifer::new(
-            x >> 4, z >> 4, settings::MIN_Y, settings::HEIGHT, &source,
-            &flat, &columns, self.seed, OverworldFluidPicker::new(settings::SEA_LEVEL),
+            x >> 4,
+            z >> 4,
+            settings::MIN_Y,
+            settings::HEIGHT,
+            &source,
+            &flat,
+            &columns,
+            self.seed,
+            OverworldFluidPicker::new(settings::SEA_LEVEL),
         );
         let veins = NativeOreVeinifier::new(self.ore_random.clone());
         let mut sampler = noise::NativeColumnSampler::new(x, z, &source);
@@ -72,7 +91,9 @@ impl JavaGenerator {
             sampler.select_cell_yz(cell_y, 0);
             for in_y in (0..height).rev() {
                 let index = cell_y * height + in_y;
-                if index >= generated { continue; }
+                if index >= generated {
+                    continue;
+                }
                 let y = settings::MIN_Y + index as i32;
                 sampler.update_y(y);
                 sampler.update_x(x);
@@ -81,15 +102,23 @@ impl JavaGenerator {
                 let fluid = if density > 0.0 {
                     None
                 } else {
-                    aquifer.compute_substance(&ctx, density).map(java_aquifer_substance)
+                    aquifer
+                        .compute_substance(&ctx, density)
+                        .map(java_aquifer_substance)
                 };
                 let block = fluid.unwrap_or_else(|| {
-                    veins.compute_with_samples(
-                        &ctx, sampler.vein_toggle(in_z),
-                        || sampler.vein_ridged(in_z), || sampler.vein_gap(in_z),
-                    ).unwrap_or(settings::DEFAULT_BLOCK)
+                    veins
+                        .compute_with_samples(
+                            &ctx,
+                            sampler.vein_toggle(in_z),
+                            || sampler.vein_ridged(in_z),
+                            || sampler.vein_gap(in_z),
+                        )
+                        .unwrap_or(settings::DEFAULT_BLOCK)
                 });
-                out[index] = JavaState(u16::try_from(block).expect("native Java state exceeds its registry width"));
+                out[index] = JavaState(
+                    u16::try_from(block).expect("native Java state exceeds its registry width"),
+                );
             }
         }
     }
@@ -101,8 +130,10 @@ impl NativeStructureSource for JavaGenerator {
     }
 
     fn base_column(&self, x: i32, z: i32, out: &mut [JavaState]) {
-        assert!(matches!(&self.backend, TerrainBackend::NativeJava(_)),
-            "native structure columns require the native Java backend");
+        assert!(
+            matches!(&self.backend, TerrainBackend::NativeJava(_)),
+            "native structure columns require the native Java backend"
+        );
         match self.options.dimension {
             JavaDimension::Overworld => self.overworld_column(x, z, out),
             JavaDimension::Nether => self.nether_column(x, z, out),

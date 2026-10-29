@@ -91,7 +91,14 @@ pub trait WorldGenRegion {
     fn get_block_layer(&self, x: i32, y: i32, z: i32, layer: u8) -> u32;
     /// Atomically write both Bedrock layers. Java uses a canonical primary state
     /// and never supplies a separate secondary state before conversion.
-    fn set_block_layers(&mut self, x: i32, y: i32, z: i32, primary: u32, secondary: Option<u32>) -> bool;
+    fn set_block_layers(
+        &mut self,
+        x: i32,
+        y: i32,
+        z: i32,
+        primary: u32,
+        secondary: Option<u32>,
+    ) -> bool;
     /// Retain an actor at an absolute position; reject positions outside the region/height.
     fn set_block_entity(&mut self, entity: BlockEntity) -> bool;
     /// First y above the highest block counted by `kind` in the column (`min_y` if none).
@@ -169,8 +176,11 @@ impl DecorationWrites {
 
     /// Replay both sparse actors and block writes at their original chronological points.
     pub fn apply_to(&self, dx: i32, dz: i32, chunk: &mut Chunk) {
-        assert_eq!(chunk.state_space(), self.state_space,
-            "decoration writes cannot cross Java/Bedrock state domains");
+        assert_eq!(
+            chunk.state_space(),
+            self.state_space,
+            "decoration writes cannot cross Java/Bedrock state domains"
+        );
         let slot = slot_of(dx, dz);
         let blocks = &self.per_slot[slot];
         let mut applied = 0;
@@ -287,9 +297,11 @@ impl<'a> DecorationRegion<'a> {
         bounds: Range<i32>,
     ) -> Self {
         assert!(
-            bounds.start >= MIN_Y && bounds.end <= MIN_Y + WORLD_HEIGHT
+            bounds.start >= MIN_Y
+                && bounds.end <= MIN_Y + WORLD_HEIGHT
                 && bounds.start < bounds.end
-                && bounds.start % 16 == 0 && bounds.end % 16 == 0,
+                && bounds.start % 16 == 0
+                && bounds.end % 16 == 0,
             "decoration bounds {bounds:?} exceed physical chunk storage"
         );
         for (slot, &(dx, dz)) in SLOT_OFFSETS.iter().enumerate() {
@@ -299,8 +311,11 @@ impl<'a> DecorationRegion<'a> {
                 (origin.x + dx, origin.z + dz),
                 "decoration region proto in the wrong slot"
             );
-            assert_eq!(proto.chunk.state_space(), protos.get(0).chunk.state_space(),
-                "decoration region mixes Java and Bedrock proto identities");
+            assert_eq!(
+                proto.chunk.state_space(),
+                protos.get(0).chunk.state_space(),
+                "decoration region mixes Java and Bedrock proto identities"
+            );
         }
         let state_space = protos.get(0).chunk.state_space();
         Self {
@@ -336,7 +351,9 @@ impl<'a> DecorationRegion<'a> {
         if !self.bounds.contains(&y) && self.state_space() != BlockStateSpace::Java {
             return None;
         }
-        self.actors(slot).iter().find(|entity| entity.position() == [x, y, z])
+        self.actors(slot)
+            .iter()
+            .find(|entity| entity.position() == [x, y, z])
     }
 
     /// Native WorldGenRegion can install pending NBT after a height-rejected block
@@ -359,7 +376,11 @@ impl<'a> DecorationRegion<'a> {
         let inserted = match &mut self.protos {
             RegionProtos::Mutable(protos) => {
                 let chunk = &mut protos[slot].0.chunk;
-                if native { chunk.set_native_block_entity(entity) } else { chunk.set_block_entity(entity) }
+                if native {
+                    chunk.set_native_block_entity(entity)
+                } else {
+                    chunk.set_block_entity(entity)
+                }
             }
             RegionProtos::Shared(protos) => {
                 // Mirror Chunk::{set_block_entity, set_native_block_entity}: the
@@ -399,10 +420,18 @@ impl<'a> DecorationRegion<'a> {
             RegionProtos::Mutable(protos) => protos[slot].0.chunk.remove_block_entity(x, y, z),
             RegionProtos::Shared(protos) => {
                 let chunk = &protos[slot].chunk;
-                match chunk.block_bounds().contains(&y).then(|| {
-                    self.actor_overlays[slot].as_deref().unwrap_or(chunk.block_entities())
-                        .iter().position(|actor| actor.position() == [x, y, z])
-                }).flatten() {
+                match chunk
+                    .block_bounds()
+                    .contains(&y)
+                    .then(|| {
+                        self.actor_overlays[slot]
+                            .as_deref()
+                            .unwrap_or(chunk.block_entities())
+                            .iter()
+                            .position(|actor| actor.position() == [x, y, z])
+                    })
+                    .flatten()
+                {
                     Some(index) => {
                         self.actor_overlays[slot]
                             .get_or_insert_with(|| chunk.block_entities().to_vec())
@@ -448,7 +477,9 @@ impl<'a> DecorationRegion<'a> {
             return if layer == 0 {
                 section.get_block(x, local_y, z)
             } else {
-                section.secondary_block(x, local_y, z).unwrap_or_else(|| chunk.state_space().air())
+                section
+                    .secondary_block(x, local_y, z)
+                    .unwrap_or_else(|| chunk.state_space().air())
             };
         }
         chunk.get_block_layer(x, y, z, layer)
@@ -461,7 +492,15 @@ impl<'a> DecorationRegion<'a> {
     }
 
     /// Apply one block write with exactly the chunk's storage/actor semantics.
-    fn write_block(&mut self, slot: usize, x: u8, y: i16, z: u8, block: u32, secondary: Option<u32>) {
+    fn write_block(
+        &mut self,
+        slot: usize,
+        x: u8,
+        y: i16,
+        z: u8,
+        block: u32,
+        secondary: Option<u32>,
+    ) {
         let space = self.state_space();
         let protos = match &mut self.protos {
             RegionProtos::Mutable(protos) => {
@@ -484,8 +523,14 @@ impl<'a> DecorationRegion<'a> {
             .get_or_insert_with(|| chunk.sub_chunk(section_index).clone())
             .set_block_layers(x, (y & 15) as u8, z, block, secondary);
         if old != block && !space.same_block(old, block) {
-            let position = [(chunk.x << 4) | i32::from(x), i32::from(y), (chunk.z << 4) | i32::from(z)];
-            let actors = self.actor_overlays[slot].as_deref().unwrap_or(chunk.block_entities());
+            let position = [
+                (chunk.x << 4) | i32::from(x),
+                i32::from(y),
+                (chunk.z << 4) | i32::from(z),
+            ];
+            let actors = self.actor_overlays[slot]
+                .as_deref()
+                .unwrap_or(chunk.block_entities());
             if let Some(index) = actors.iter().position(|actor| actor.position() == position) {
                 self.actor_overlays[slot]
                     .get_or_insert_with(|| chunk.block_entities().to_vec())
@@ -508,7 +553,10 @@ impl<'a> DecorationRegion<'a> {
             let chunk = &self.protos.get(slot).chunk;
             (chunk.get_block(x, y, z), chunk.get_block_layer(x, y, z, 1))
         } else {
-            (self.block_layer(slot, x, y, z, 0), self.block_layer(slot, x, y, z, 1))
+            (
+                self.block_layer(slot, x, y, z, 0),
+                self.block_layer(slot, x, y, z, 1),
+            )
         };
         let mut flags = self.class_of(primary);
         if !self.state_space().is_air(secondary) {
@@ -519,7 +567,10 @@ impl<'a> DecorationRegion<'a> {
 
     fn column_top(&self, slot: usize, kind: HeightmapKind, lx: u8, lz: u8, from_y: i32) -> i16 {
         let frozen = self.state_space() == BlockStateSpace::Java
-            && matches!(kind, HeightmapKind::WorldSurfaceWg | HeightmapKind::OceanFloorWg);
+            && matches!(
+                kind,
+                HeightmapKind::WorldSurfaceWg | HeightmapKind::OceanFloorWg
+            );
         let mut y = from_y.min(self.bounds.end - 1);
         while y >= self.bounds.start {
             let flags = self.cell_flags(slot, frozen, lx, y as i16, lz);
@@ -537,8 +588,10 @@ impl<'a> DecorationRegion<'a> {
     }
 
     fn heights(&self, slot: usize, kind: HeightmapKind) -> &[i16; 256] {
-        if matches!(kind, HeightmapKind::WorldSurfaceWg | HeightmapKind::OceanFloorWg)
-            && let RegionProtos::Mutable(protos) = &self.protos
+        if matches!(
+            kind,
+            HeightmapKind::WorldSurfaceWg | HeightmapKind::OceanFloorWg
+        ) && let RegionProtos::Mutable(protos) = &self.protos
         {
             return &protos[slot].1[kind.index()];
         }
@@ -595,7 +648,12 @@ impl WorldGenRegion for DecorationRegion<'_> {
     }
 
     fn set_block_layers(
-        &mut self, x: i32, y: i32, z: i32, block: u32, secondary: Option<u32>,
+        &mut self,
+        x: i32,
+        y: i32,
+        z: i32,
+        block: u32,
+        secondary: Option<u32>,
     ) -> bool {
         let Some((slot, lx, lz)) = self.locate(x, z) else {
             return false;
@@ -606,7 +664,10 @@ impl WorldGenRegion for DecorationRegion<'_> {
         let space = self.state_space();
         let secondary_state = secondary.unwrap_or_else(|| space.air());
         if space == BlockStateSpace::Java {
-            assert!(secondary.is_none(), "Java waterlogging must remain in its canonical primary state");
+            assert!(
+                secondary.is_none(),
+                "Java waterlogging must remain in its canonical primary state"
+            );
         }
         self.write_block(slot, lx, y as i16, lz, block, secondary);
         if matches!(self.protos, RegionProtos::Shared(_)) {
@@ -626,7 +687,10 @@ impl WorldGenRegion for DecorationRegion<'_> {
             // Persisted CARVERS selects the four final maps. The WG maps remain
             // frozen at carver completion throughout native FEATURES writes.
             if self.state_space() == BlockStateSpace::Java
-                && matches!(kind, HeightmapKind::WorldSurfaceWg | HeightmapKind::OceanFloorWg)
+                && matches!(
+                    kind,
+                    HeightmapKind::WorldSurfaceWg | HeightmapKind::OceanFloorWg
+                )
             {
                 continue;
             }
@@ -673,7 +737,8 @@ impl WorldGenRegion for DecorationRegion<'_> {
         };
         let quart_y = quart_y.clamp(self.bounds.start >> 2, (self.bounds.end - 1) >> 2);
         let qy = (quart_y - (MIN_Y >> 2)) as usize;
-        self.protos.get(slot)
+        self.protos
+            .get(slot)
             .biomes
             .get(lx as usize >> 2, qy, lz as usize >> 2)
     }
@@ -780,13 +845,17 @@ mod tests {
     #[test]
     fn native_dimension_consumers_observe_storage_not_noise_bounds() {
         use crate::world::generator::JavaDimension;
-        use unastar_noise::features::{java_blocks::states, eval::BlockEntityData};
+        use unastar_noise::features::{eval::BlockEntityData, java_blocks::states};
 
         let air = u32::from(states::AIR.0);
         let stone = u32::from(states::STONE.0);
         let chest = u32::from(states::CHEST.0);
         let origin = ChunkPos::new(0, 0);
-        for dimension in [JavaDimension::Overworld, JavaDimension::Nether, JavaDimension::End] {
+        for dimension in [
+            JavaDimension::Overworld,
+            JavaDimension::Nether,
+            JavaDimension::End,
+        ] {
             let bounds = dimension.block_bounds();
             let mut protos = SLOT_OFFSETS.map(|(dx, dz)| {
                 ProtoChunk::empty_in_space(ChunkPos::new(dx, dz), 1, BlockStateSpace::Java)
@@ -803,10 +872,20 @@ mod tests {
             protos[center].biomes.set(0, top_quart, 0, 3);
             let refs = std::array::from_fn(|slot| &protos[slot]);
             let mut region = DecorationRegion::new_with_bounds(
-                7, origin, refs, &unastar_noise::java_blocks::JAVA_STATE_CLASSES, bounds.clone(),
+                7,
+                origin,
+                refs,
+                &unastar_noise::java_blocks::JAVA_STATE_CLASSES,
+                bounds.clone(),
             );
-            assert_eq!((region.min_y(), region.height()), (bounds.start, bounds.end - bounds.start));
-            assert_eq!(region.heightmap(HeightmapKind::WorldSurfaceWg, 0, 0), bounds.start);
+            assert_eq!(
+                (region.min_y(), region.height()),
+                (bounds.start, bounds.end - bounds.start)
+            );
+            assert_eq!(
+                region.heightmap(HeightmapKind::WorldSurfaceWg, 0, 0),
+                bounds.start
+            );
             assert_eq!(region.get_block(0, bounds.start - 1, 0), air);
             assert_eq!(region.get_block(0, bounds.end, 0), air);
             assert_eq!(region.biome_at(0, i32::MIN, 0), 2);
@@ -814,7 +893,9 @@ mod tests {
             for y in [bounds.start - 1, bounds.end] {
                 assert!(!region.set_block(0, y, 0, chest));
                 assert!(!region.set_block_entity(BlockEntity::generated_java(
-                    [0, y, 0], "minecraft:chest", BlockEntityData::loot("minecraft:chests/simple_dungeon", 7),
+                    [0, y, 0],
+                    "minecraft:chest",
+                    BlockEntityData::loot("minecraft:chests/simple_dungeon", 7),
                 )));
                 assert!(!region.remove_block_entity(0, y, 0));
             }
@@ -822,19 +903,37 @@ mod tests {
             let top = bounds.end - 1;
             assert!(region.set_block(0, top, 0, chest));
             assert!(region.set_block_entity(BlockEntity::generated_java(
-                [0, top, 0], "minecraft:chest", BlockEntityData::loot("minecraft:chests/simple_dungeon", 7),
+                [0, top, 0],
+                "minecraft:chest",
+                BlockEntityData::loot("minecraft:chests/simple_dungeon", 7),
             )));
             assert_eq!(region.get_block(0, top, 0), chest);
-            assert_eq!(region.heightmap(HeightmapKind::WorldSurfaceWg, 0, 0), bounds.start);
-            assert_eq!(region.heightmap(HeightmapKind::WorldSurface, 0, 0), bounds.end);
+            assert_eq!(
+                region.heightmap(HeightmapKind::WorldSurfaceWg, 0, 0),
+                bounds.start
+            );
+            assert_eq!(
+                region.heightmap(HeightmapKind::WorldSurface, 0, 0),
+                bounds.end
+            );
             assert!(region.set_block(0, top, 0, air));
-            assert_eq!(region.heightmap(HeightmapKind::WorldSurface, 0, 0), bounds.start);
+            assert_eq!(
+                region.heightmap(HeightmapKind::WorldSurface, 0, 0),
+                bounds.start
+            );
             assert!(region.set_block(0, top, 0, chest));
             assert!(region.set_block_entity(BlockEntity::generated_java(
-                [0, top, 0], "minecraft:chest", BlockEntityData::loot("minecraft:chests/simple_dungeon", 9),
+                [0, top, 0],
+                "minecraft:chest",
+                BlockEntityData::loot("minecraft:chests/simple_dungeon", 9),
             )));
             let writes = region.into_writes();
-            assert!(writes.for_offset(0, 0).iter().all(|write| bounds.contains(&i32::from(write.y))));
+            assert!(
+                writes
+                    .for_offset(0, 0)
+                    .iter()
+                    .all(|write| bounds.contains(&i32::from(write.y)))
+            );
             let mut replay = protos[center].chunk.clone();
             replay.set_block_bounds(bounds.clone());
             writes.apply_to(0, 0, &mut replay);
@@ -850,15 +949,20 @@ mod tests {
     #[test]
     fn underlying_water_participates_in_region_reads_heights_and_atomic_replay() {
         let origin = ChunkPos::new(-1, -1);
-        let protos = SLOT_OFFSETS.map(|(dx, dz)| {
-            ProtoChunk::empty(ChunkPos::new(origin.x + dx, origin.z + dz), 1)
-        });
+        let protos = SLOT_OFFSETS
+            .map(|(dx, dz)| ProtoChunk::empty(ChunkPos::new(origin.x + dx, origin.z + dz), 1));
         let refs = std::array::from_fn(|slot| &protos[slot]);
         let mut region = DecorationRegion::new(
-            7, origin, refs, &unastar_noise::java_blocks::BEDROCK_STATE_CLASSES,
+            7,
+            origin,
+            refs,
+            &unastar_noise::java_blocks::BEDROCK_STATE_CLASSES,
         );
         assert_eq!(region.heightmap(HeightmapKind::WorldSurface, -1, -1), MIN_Y);
-        assert_eq!(region.heightmap(HeightmapKind::MotionBlocking, -1, -1), MIN_Y);
+        assert_eq!(
+            region.heightmap(HeightmapKind::MotionBlocking, -1, -1),
+            MIN_Y
+        );
         assert!(region.set_block_layers(-1, 2, -1, *blocks::AIR, Some(*blocks::WATER)));
         assert!(region.set_block_layers(-2, 2, -1, *blocks::STONE, Some(*blocks::WATER)));
         assert!(region.set_block(-2, 2, -1, *blocks::STONE));
@@ -901,7 +1005,11 @@ mod tests {
         let mut replay = protos[slot_of(-1, -1)].chunk.clone();
         writes.apply_to(-1, -1, &mut replay);
         for y in levels {
-            let expected = if y == 319 { *blocks::AIR } else { *blocks::DIRT };
+            let expected = if y == 319 {
+                *blocks::AIR
+            } else {
+                *blocks::DIRT
+            };
             assert_eq!(replay.get_block(15, y as i16, 15), expected);
         }
     }

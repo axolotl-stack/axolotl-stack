@@ -356,6 +356,8 @@ pub struct Candidate {
     /// Wire game type for players.
     pub game_mode: Option<i32>,
     pub level: i32,
+    /// Dead players stay selectable by `@a` only.
+    pub alive: bool,
     pub families: Vec<String>,
     /// Items carried (players): identifier, aux, count, location, slot.
     pub items: Vec<CarriedItem>,
@@ -447,12 +449,14 @@ impl Selector {
 
         let mut matched: Vec<&Candidate> = candidates
             .iter()
+            // `@a` includes dead players; every other selector skips the dead.
             .filter(|c| match kind {
                 SelectorKind::Executor => Some(c.entity) == source,
                 SelectorKind::Initiator => false,
-                SelectorKind::AllPlayers | SelectorKind::NearestPlayer => c.is_player,
-                SelectorKind::RandomPlayer => !self.types.is_empty() || c.is_player,
-                SelectorKind::AllEntities => true,
+                SelectorKind::AllPlayers => c.is_player,
+                SelectorKind::NearestPlayer => c.is_player && c.alive,
+                SelectorKind::RandomPlayer => (!self.types.is_empty() || c.is_player) && c.alive,
+                SelectorKind::AllEntities => c.alive,
             })
             .filter(|c| self.matches(c, origin))
             .collect();
@@ -613,6 +617,7 @@ mod tests {
             pitch: 0.0,
             game_mode: player.then_some(0),
             level: 0,
+            alive: true,
             families: vec![],
             items: vec![],
         }

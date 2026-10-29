@@ -176,7 +176,9 @@ pub fn test_rule<S: BitSource, const RETAIN_GAUSSIAN: bool>(
 
 /// `Direction.Axis.getRandom(random)`.
 #[inline]
-pub fn random_axis<S: BitSource, const RETAIN_GAUSSIAN: bool>(rng: &mut WorldgenRandom<S, RETAIN_GAUSSIAN>) -> &'static str {
+pub fn random_axis<S: BitSource, const RETAIN_GAUSSIAN: bool>(
+    rng: &mut WorldgenRandom<S, RETAIN_GAUSSIAN>,
+) -> &'static str {
     ["x", "y", "z"][rng.next_int_bounded(3) as usize]
 }
 
@@ -318,21 +320,40 @@ mod provider_tests {
     use std::sync::LazyLock;
 
     static MEADOW_NOISE: LazyLock<LegacyNoise> = LazyLock::new(|| {
-        LegacyNoise::new(2345, NoiseSpec { first_octave: -3, amplitudes: &[1.0] })
+        LegacyNoise::new(
+            2345,
+            NoiseSpec {
+                first_octave: -3,
+                amplitudes: &[1.0],
+            },
+        )
     });
     static MEADOW_SLOW_NOISE: LazyLock<LegacyNoise> = LazyLock::new(|| {
-        LegacyNoise::new(2345, NoiseSpec { first_octave: -10, amplitudes: &[1.0] })
+        LegacyNoise::new(
+            2345,
+            NoiseSpec {
+                first_octave: -10,
+                amplitudes: &[1.0],
+            },
+        )
     });
     static MEADOW_STATES: [JavaState; 8] = [
-        states::TALL_GRASS, states::ALLIUM, states::POPPY, states::AZURE_BLUET,
-        states::DANDELION, states::CORNFLOWER, states::OXEYE_DAISY, states::SHORT_GRASS,
+        states::TALL_GRASS,
+        states::ALLIUM,
+        states::POPPY,
+        states::AZURE_BLUET,
+        states::DANDELION,
+        states::CORNFLOWER,
+        states::OXEYE_DAISY,
+        states::SHORT_GRASS,
     ];
 
     #[test]
     fn native_meadow_provider_consumer_witnesses() {
         let fixture: serde_json::Value = serde_json::from_str(include_str!(
             "../../tests/data/native_vegetation_provider_1_21_11.json"
-        )).unwrap();
+        ))
+        .unwrap();
         let provider = StateProvider::DualNoise {
             noise: &MEADOW_NOISE,
             slow_noise: &MEADOW_SLOW_NOISE,
@@ -351,7 +372,11 @@ mod provider_tests {
                 xyz[2].as_i64().unwrap() as i32,
             );
             let actual = provide_state(&provider, &mut rng, pos);
-            assert_eq!(actual.block().name(), case["expected"].as_str().unwrap(), "{pos:?}");
+            assert_eq!(
+                actual.block().name(),
+                case["expected"].as_str().unwrap(),
+                "{pos:?}"
+            );
         }
         // Noise providers must not shift the enclosing feature's random stream.
         assert_eq!(rng.next_long(), unchanged_rng.next_long());

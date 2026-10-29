@@ -113,7 +113,10 @@ pub fn place<W: FeatureWorld + ?Sized>(
                 // drawn only when a chest block entity exists there.
                 if world.is_block(p, b::CHEST) {
                     let seed = rng.next_long();
-                    world.set_block_entity(p, BlockEntityData::loot("minecraft:chests/simple_dungeon", seed));
+                    world.set_block_entity(
+                        p,
+                        BlockEntityData::loot("minecraft:chests/simple_dungeon", seed),
+                    );
                 }
                 break;
             }
@@ -162,7 +165,6 @@ fn reorient<W: FeatureWorld + ?Sized>(world: &mut W, pos: BlockPos, state: JavaS
     }
     state.with("facing", dir.name())
 }
-
 
 #[cfg(test)]
 mod tests {

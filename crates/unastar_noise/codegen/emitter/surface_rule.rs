@@ -187,8 +187,9 @@ pub fn emit(
     // rule as the function's tail expression rather than `return Some(...)`.
     if let Some(last) = body.stmts.last_mut() {
         let tail = match last {
-            syn::Stmt::Expr(syn::Expr::Return(ret), _) => ret.expr.take()
-                .map(|value| syn::Stmt::Expr(*value, None)),
+            syn::Stmt::Expr(syn::Expr::Return(ret), _) => {
+                ret.expr.take().map(|value| syn::Stmt::Expr(*value, None))
+            }
             _ => None,
         };
         if let Some(tail) = tail {

@@ -79,13 +79,13 @@ impl BedrockGenerator {
     }
 
     fn surface_blocks(&self, pos: ChunkPos) -> (DenseBlocks, QuartBiomes) {
-        let (mut blocks, mut biomes) = self.core.generate_noise_with(
-            pos,
-            |noises, pos, grid, columns| {
-                let _biomes = unastar_noise::profile::scope(unastar_noise::profile::Stage::Biomes);
-                biome_source::fill_chunk_with(noises, pos, grid, columns, Self::lookup_climate)
-            },
-        );
+        let (mut blocks, mut biomes) =
+            self.core
+                .generate_noise_with(pos, |noises, pos, grid, columns| {
+                    let _biomes =
+                        unastar_noise::profile::scope(unastar_noise::profile::Stage::Biomes);
+                    biome_source::fill_chunk_with(noises, pos, grid, columns, Self::lookup_climate)
+                });
         {
             let _noise = unastar_noise::profile::scope(unastar_noise::profile::Stage::Noise);
             blocks.convert_to_bedrock();

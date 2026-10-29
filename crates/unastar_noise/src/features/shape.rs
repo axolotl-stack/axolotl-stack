@@ -10,8 +10,8 @@ mod connections;
 use super::blocks::{BlockPos, Direction, JavaState};
 use super::eval::FeatureWorld;
 use super::java_blocks::{states, tags};
-use crate::java_blocks::{SHAPE_CENTER_SUPPORT_FLAGS, SHAPE_SUPPORT_FLAGS, SHAPE_WALL_ABOVE_FLAGS};
 use super::survival::can_survive;
+use crate::java_blocks::{SHAPE_CENTER_SUPPORT_FLAGS, SHAPE_SUPPORT_FLAGS, SHAPE_WALL_ABOVE_FLAGS};
 
 #[inline]
 fn sturdy(state: JavaState, direction: Direction) -> bool {
@@ -44,7 +44,11 @@ pub struct VoxelShape {
 
 impl VoxelShape {
     pub fn new(min: BlockPos, size: [i32; 3]) -> Self {
-        Self { min, size, bits: vec![false; (size[0] * size[1] * size[2]) as usize] }
+        Self {
+            min,
+            size,
+            bits: vec![false; (size[0] * size[1] * size[2]) as usize],
+        }
     }
 
     #[inline]
@@ -65,7 +69,12 @@ impl VoxelShape {
 
     #[inline]
     fn is_full(&self, x: i32, y: i32, z: i32) -> bool {
-        x >= 0 && y >= 0 && z >= 0 && x < self.size[0] && y < self.size[1] && z < self.size[2]
+        x >= 0
+            && y >= 0
+            && z >= 0
+            && x < self.size[0]
+            && y < self.size[1]
+            && z < self.size[2]
             && self.bits[self.index(x, y, z)]
     }
 }
@@ -76,7 +85,14 @@ pub fn update_from_neighbour_shapes<W: FeatureWorld + ?Sized>(
     pos: BlockPos,
     mut state: JavaState,
 ) -> JavaState {
-    for direction in [Direction::West, Direction::East, Direction::North, Direction::South, Direction::Down, Direction::Up] {
+    for direction in [
+        Direction::West,
+        Direction::East,
+        Direction::North,
+        Direction::South,
+        Direction::Down,
+        Direction::Up,
+    ] {
         let neighbour = world.get_state(pos.rel(direction));
         state = update_shape(world, state, pos, direction, neighbour);
     }
@@ -92,16 +108,41 @@ pub fn update_shape_at_edge<W: FeatureWorld + ?Sized>(world: &mut W, shape: &Vox
         let state = world.get_state(pos);
         let neighbour = world.get_state(npos);
         let changed = update_shape(world, state, pos, direction, neighbour);
-        if changed != state { world.set_state(pos, changed); }
+        if changed != state {
+            world.set_state(pos, changed);
+        }
         let changed_neighbour = update_shape(world, neighbour, npos, direction.opposite(), changed);
-        if changed_neighbour != neighbour { world.set_state(npos, changed_neighbour); }
+        if changed_neighbour != neighbour {
+            world.set_state(npos, changed_neighbour);
+        }
     };
     type Map = fn(i32, i32, i32) -> (i32, i32, i32);
     let [xs, ys, zs] = shape.size;
     let passes: [(i32, i32, i32, Map, Direction, Direction); 3] = [
-        (xs, ys, zs, |a, b, c| (a, b, c), Direction::North, Direction::South),
-        (zs, xs, ys, |a, b, c| (b, c, a), Direction::Down, Direction::Up),
-        (ys, zs, xs, |a, b, c| (c, a, b), Direction::West, Direction::East),
+        (
+            xs,
+            ys,
+            zs,
+            |a, b, c| (a, b, c),
+            Direction::North,
+            Direction::South,
+        ),
+        (
+            zs,
+            xs,
+            ys,
+            |a, b, c| (b, c, a),
+            Direction::Down,
+            Direction::Up,
+        ),
+        (
+            ys,
+            zs,
+            xs,
+            |a, b, c| (c, a, b),
+            Direction::West,
+            Direction::East,
+        ),
     ];
     for (outer, middle, run, map, negative, positive) in passes {
         for a in 0..outer {
@@ -143,20 +184,49 @@ pub fn update_shape<W: FeatureWorld + ?Sized>(
     }
     let block = state.block();
     match block.def().kind {
-        "minecraft:double_plant" | "minecraft:tall_flower" | "minecraft:tall_seagrass" | "minecraft:small_dripleaf" => {
+        "minecraft:double_plant"
+        | "minecraft:tall_flower"
+        | "minecraft:tall_seagrass"
+        | "minecraft:small_dripleaf" => {
             let lower = state.value("half") == Some("lower");
-            let toward_other_half = matches!(direction, Direction::Up | Direction::Down) && lower == (direction == Direction::Up);
-            let other_half_ok = neighbour.is(block) && neighbour.value("half") != state.value("half");
-            if (toward_other_half && !other_half_ok) || !can_survive(world, state, pos) { states::AIR } else { state }
+            let toward_other_half = matches!(direction, Direction::Up | Direction::Down)
+                && lower == (direction == Direction::Up);
+            let other_half_ok =
+                neighbour.is(block) && neighbour.value("half") != state.value("half");
+            if (toward_other_half && !other_half_ok) || !can_survive(world, state, pos) {
+                states::AIR
+            } else {
+                state
+            }
         }
-        "minecraft:flower" | "minecraft:tall_grass" | "minecraft:bush" | "minecraft:sapling"
-        | "minecraft:sweet_berry_bush" | "minecraft:flower_bed" | "minecraft:firefly_bush"
-        | "minecraft:eyeblossom" | "minecraft:wither_rose" | "minecraft:dry_vegetation"
-        | "minecraft:short_dry_grass" | "minecraft:tall_dry_grass" | "minecraft:leaf_litter"
-        | "minecraft:azalea" | "minecraft:fungus" | "minecraft:roots" | "minecraft:nether_sprouts"
-        | "minecraft:mushroom" | "minecraft:waterlily" | "minecraft:seagrass" | "minecraft:snow_layer"
-        | "minecraft:carpet" | "minecraft:wool_carpet" => {
-            if can_survive(world, state, pos) { state } else { states::AIR }
+        "minecraft:flower"
+        | "minecraft:tall_grass"
+        | "minecraft:bush"
+        | "minecraft:sapling"
+        | "minecraft:sweet_berry_bush"
+        | "minecraft:flower_bed"
+        | "minecraft:firefly_bush"
+        | "minecraft:eyeblossom"
+        | "minecraft:wither_rose"
+        | "minecraft:dry_vegetation"
+        | "minecraft:short_dry_grass"
+        | "minecraft:tall_dry_grass"
+        | "minecraft:leaf_litter"
+        | "minecraft:azalea"
+        | "minecraft:fungus"
+        | "minecraft:roots"
+        | "minecraft:nether_sprouts"
+        | "minecraft:mushroom"
+        | "minecraft:waterlily"
+        | "minecraft:seagrass"
+        | "minecraft:snow_layer"
+        | "minecraft:carpet"
+        | "minecraft:wool_carpet" => {
+            if can_survive(world, state, pos) {
+                state
+            } else {
+                states::AIR
+            }
         }
         _ => {
             if direction == Direction::Up && state.has("snowy") {
@@ -190,14 +260,19 @@ mod tests {
     }
 
     fn position(value: &Value) -> BlockPos {
-        BlockPos::new(value[0].as_i64().unwrap() as i32, value[1].as_i64().unwrap() as i32, value[2].as_i64().unwrap() as i32)
+        BlockPos::new(
+            value[0].as_i64().unwrap() as i32,
+            value[1].as_i64().unwrap() as i32,
+            value[2].as_i64().unwrap() as i32,
+        )
     }
 
     #[test]
     fn pinned_native_shape_consumers_preserve_full_states() {
         let capture: Value = serde_json::from_str(include_str!(
             "../../tests/data/native_shape_consumers_1_21_11.json"
-        )).unwrap();
+        ))
+        .unwrap();
         assert_eq!(capture["denied_network_attempts"], serde_json::json!([]));
         assert_eq!(capture["server_constructed"], false);
         let cases = capture["cases"].as_array().unwrap();
@@ -210,12 +285,17 @@ mod tests {
             let input = state(case["input"].as_str().unwrap());
             world.blocks.insert(pos, input);
             for row in case["world"].as_array().unwrap() {
-                world.blocks.insert(position(&row["pos"]), state(row["state"].as_str().unwrap()));
+                world
+                    .blocks
+                    .insert(position(&row["pos"]), state(row["state"].as_str().unwrap()));
             }
             let direction = match case["direction"].as_str().unwrap() {
-                "DOWN" => Direction::Down, "UP" => Direction::Up,
-                "NORTH" => Direction::North, "SOUTH" => Direction::South,
-                "WEST" => Direction::West, "EAST" => Direction::East,
+                "DOWN" => Direction::Down,
+                "UP" => Direction::Up,
+                "NORTH" => Direction::North,
+                "SOUTH" => Direction::South,
+                "WEST" => Direction::West,
+                "EAST" => Direction::East,
                 other => panic!("unknown native direction {other}"),
             };
             let neighbour = world.get_state(pos.rel(direction));
@@ -228,6 +308,9 @@ mod tests {
                 }
             }
         }
-        assert!(differing.is_empty(), "native shape differences {differing:?}; examples {examples:#?}");
+        assert!(
+            differing.is_empty(),
+            "native shape differences {differing:?}; examples {examples:#?}"
+        );
     }
 }

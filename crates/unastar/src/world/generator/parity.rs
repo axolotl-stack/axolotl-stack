@@ -232,7 +232,8 @@ pub fn measure(fixture: &Fixture, pipeline: &ChunkPipeline) -> ParityReport {
     let mut histogram: BTreeMap<String, (u64, u64)> = BTreeMap::new();
 
     for reference in &fixture.chunks {
-        let chunk = pipeline.generate(reference.pos)
+        let chunk = pipeline
+            .generate(reference.pos)
             .expect("parity fixture contains an unrepresentable native actor");
         for (name, count) in &reference.histogram {
             histogram.entry(name.clone()).or_default().0 += count;

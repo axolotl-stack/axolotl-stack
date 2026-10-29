@@ -6,8 +6,7 @@ use tokio::sync::mpsc::Receiver;
 
 use super::*;
 use crate::entity::components::{
-    DroppedItem, Experience, HeldSlot, ItemEntityStack, MainInventory, OnFire, Rotation,
-    RuntimeEntityId,
+    DroppedItem, Experience, HeldSlot, ItemEntityStack, MainInventory, Rotation, RuntimeEntityId,
 };
 use crate::entity::mob::state::Dead;
 use crate::entity::mob::{SpawnCause, spawn_mob};
@@ -94,7 +93,9 @@ impl Harness {
 
     fn hold(&mut self, item: Option<&str>) {
         let player = self.player;
-        let stack = item.map_or_else(ItemStack::empty, |id| crate::item::test_support::stack(id, 1));
+        let stack = item.map_or_else(ItemStack::empty, |id| {
+            crate::item::test_support::stack(id, 1)
+        });
         self.world()
             .get_mut::<MainInventory>(player)
             .unwrap()
@@ -340,7 +341,7 @@ fn a_killed_cow_dies_drops_loot_and_after_twenty_ticks_leaves_experience() {
 fn a_burning_cow_drops_cooked_beef() {
     let mut h = harness(5);
     let cow = h.cow(DVec3::new(8.5, 64.0, 8.5));
-    h.world().entity_mut(cow).insert(OnFire::new(100));
+    crate::entity::mob::combat::fire::ignite(h.world(), cow, 100);
     kill(&mut h, cow);
     let drops = h.drops();
     assert!(

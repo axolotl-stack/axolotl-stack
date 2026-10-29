@@ -113,9 +113,9 @@ impl ChunkGenerationWorker {
                 }
                 tracing::debug!(chunk = ?(pos.x, pos.z), dimension = req.dimension, "Generating missing chunk");
                 let chunk = pipeline.generate(pos).map_err(|error| {
-                    crate::storage::StorageError::Serialization(
-                        format!("chunk {pos:?}: native Bedrock adaptation failed: {error}"),
-                    )
+                    crate::storage::StorageError::Serialization(format!(
+                        "chunk {pos:?}: native Bedrock adaptation failed: {error}"
+                    ))
                 })?;
                 Ok((ChunkColumn::new(chunk), false))
             })();

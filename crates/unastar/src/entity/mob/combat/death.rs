@@ -2,7 +2,8 @@
 //!
 //! When a mob's health reaches zero it is marked [`Dead`] (AI, interaction
 //! and despawn skip it), its viewers get `ActorEvent` death and its loot
-//! table is rolled and dropped at once. The body stays for the death
+//! table is rolled and dropped at once, followed by its equipment
+//! (`mob::gear::drops`). The body stays for the death
 //! animation, [`constants::DEATH_TICKS`] after the death tick (the native
 //! death counter is 1 on the death tick and the body goes once it passes
 //! 20); then the mob's `experience_reward.on_death` is spawned as
@@ -18,7 +19,7 @@ use unastar_rules::molang::eval::{MolangContext, Value as MolangValue, evaluate_
 use unastar_rules::molang::{BuiltinQuery, Expr, QueryId};
 
 use crate::ecs::resources::TickCounter;
-use crate::entity::components::{Health, OnFire, OnGround, Position};
+use crate::entity::components::{Health, OnGround, Position};
 use crate::entity::definition::flags::ActorFlags;
 use crate::entity::mob::combat::send_actor_event;
 use crate::entity::mob::components::{ExperienceRewardConfig, LootConfig};
@@ -28,8 +29,8 @@ use crate::entity::mob::{MobKind, constants};
 use crate::entity::xp_orb::spawn_experience;
 use crate::entity::{EntityRandom, spawn_item_drop};
 use crate::item::enchant::{Enchantment, enchantment_level};
-use crate::server::game::types::RecipeRegistryResource;
-use crate::server::game::{LootContext, loot_stacks};
+use crate::server::game::types::{ItemRegistryResource, RecipeRegistryResource};
+use crate::server::game::{LootContext, LootLevel, loot_stacks};
 
 /// The death animation of a [`Dead`] mob: the server tick its body is
 /// removed at.
@@ -62,6 +63,8 @@ pub fn begin_death(world: &mut World, mob: Entity) {
     ));
     send_actor_event(world, mob, EnumsActorEvent::Death, 0);
     drop_loot(world, mob);
+    let killed_by_player = last_hit_by_player(world, mob);
+    crate::entity::mob::gear::drops::drop_equipment(world, mob, killed_by_player);
 }
 
 /// Roll the mob's `minecraft:loot` table and drop the result at its feet.
@@ -85,7 +88,7 @@ fn drop_loot(world: &mut World, mob: Entity) {
         .filter(|_| killed_by_player)
         .and_then(|killer| held_item(world, killer))
         .cloned();
-    let on_fire = world.get::<OnFire>(mob).is_some_and(OnFire::is_on_fire);
+    let on_fire = super::fire::is_burning(world, mob);
     let recipes = world
         .get_resource::<RecipeRegistryResource>()
         .map(|r| r.0.clone());
@@ -97,12 +100,23 @@ fn drop_loot(world: &mut World, mob: Entity) {
         tool: tool.as_ref(),
         block: None,
         killed_by_player,
+        // No mob can be tamed yet, so no killer is a player's pet.
+        killed_by_pet: false,
         looting: tool
             .as_ref()
             .map_or(0, |tool| enchantment_level(tool, Enchantment::Looting)),
         on_fire: Some(on_fire),
         recipes: recipes.as_deref(),
         color_index: crate::entity::mob::components::color::color_of(world, mob),
+        is_baby: world
+            .get::<ActorFlags>(mob)
+            .is_some_and(|flags| flags.get(actor_flags::BABY).unwrap_or(false)),
+        // Riding is not implemented: no mob has a vehicle.
+        vehicle: None,
+        level: LootLevel::of(world),
+        items: world
+            .get_resource::<ItemRegistryResource>()
+            .map(|items| &*items.0),
     };
     let drops = match unastar_rules::loot::roll(
         unastar_data::loot::vanilla(),
@@ -170,8 +184,9 @@ impl MolangContext for RewardMolang<'_> {
             BuiltinQuery::IsOnGround => {
                 molang_bool(self.world.get::<OnGround>(self.mob).is_some_and(|g| g.0))
             }
-            // Mobs hold no equipment in unastar.
-            BuiltinQuery::EquipmentCount => MolangValue::Num(0.0),
+            BuiltinQuery::EquipmentCount => MolangValue::Num(
+                crate::entity::mob::gear::equipment_count(self.world, self.mob) as f32,
+            ),
             BuiltinQuery::HasAnyFamily => molang_bool(args.iter().any(|arg| match arg {
                 MolangValue::Str(family) => is_family(self.world, self.mob, family),
                 _ => false,

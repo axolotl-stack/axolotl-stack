@@ -176,6 +176,7 @@ fn main() -> miette::Result<()> {
             .map(|path| resolve_cli_path(&manifest_dir, path))
             .expect("clap requires --commands-capture");
         commands::write_commands(&capture, &output_path)?;
+        commands::write_game_rules(&output_path)?;
         write_manifest(None)?;
         return Ok(());
     }

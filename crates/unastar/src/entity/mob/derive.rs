@@ -37,6 +37,10 @@ type DeriveInputs<'a> = (
 struct Derived {
     body: PhysicsBody,
     scale: f32,
+    /// The authored collision box, before `scale`: actor data carries it
+    /// unscaled next to the scale (the native baby zombie summon reports
+    /// 0.98 × 1.96 with scale 0.5), while the physics box is scaled.
+    box_size: (f32, f32),
     gravity: bool,
     collision: bool,
     can_walk: bool,
@@ -61,6 +65,7 @@ fn derive(
     Derived {
         body,
         scale,
+        box_size: (width, height),
         gravity,
         collision: has_collision,
         can_walk: walk.is_some_and(|w| w.can_walk),
@@ -94,8 +99,8 @@ fn store(
     metadata.set_long(ids::RESERVED_0, words.words()[0] as i64);
     metadata.set_long(ids::RESERVED_092, words.words()[1] as i64);
     metadata.set_float(ids::RESERVED_038, derived.scale);
-    metadata.set_float(ids::RESERVED_053, derived.body.width as f32);
-    metadata.set_float(ids::RESERVED_054, derived.body.height as f32);
+    metadata.set_float(ids::RESERVED_053, derived.box_size.0);
+    metadata.set_float(ids::RESERVED_054, derived.box_size.1);
     metadata.set_float(
         ids::FALL_DAMAGE_MULTIPLIER,
         archetype.native.fall_damage_multiplier,

@@ -129,19 +129,30 @@ pub fn with_durability_damage(stack: &ItemStack, damage: i32) -> ItemStack {
 
 /// `stack` carrying `levels` (test and plugin helper).
 pub fn with_enchantments(stack: &ItemStack, levels: &[(Enchantment, u8)]) -> ItemStack {
+    with_enchantment_ids(
+        stack,
+        levels
+            .iter()
+            .map(|(enchantment, level)| (*enchantment as i16, *level)),
+    )
+}
+
+/// `stack` carrying the enchantments `(Bedrock enchantment id, level)`, in
+/// order, replacing any it had.
+pub fn with_enchantment_ids(
+    stack: &ItemStack,
+    levels: impl IntoIterator<Item = (i16, u8)>,
+) -> ItemStack {
     let mut compound = item_tag(stack).unwrap_or_default();
     let list = levels
-        .iter()
-        .map(|(enchantment, level)| {
+        .into_iter()
+        .map(|(id, level)| {
             NBTTag::Compound(tag::Compound(
                 [
-                    (
-                        "id".to_string(),
-                        NBTTag::Short(tag::Short(*enchantment as i16)),
-                    ),
+                    ("id".to_string(), NBTTag::Short(tag::Short(id))),
                     (
                         "lvl".to_string(),
-                        NBTTag::Short(tag::Short(i16::from(*level))),
+                        NBTTag::Short(tag::Short(i16::from(level))),
                     ),
                 ]
                 .into_iter()

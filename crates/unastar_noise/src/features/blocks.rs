@@ -27,7 +27,8 @@ impl std::fmt::Display for JavaState {
                 if index != 0 {
                     out.write_str(",")?;
                 }
-                let value = property.values[(offset / property.stride) as usize % property.values.len()];
+                let value =
+                    property.values[(offset / property.stride) as usize % property.values.len()];
                 write!(out, "{}={value}", property.name)?;
             }
             out.write_str("]")?;

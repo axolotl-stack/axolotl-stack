@@ -42,16 +42,22 @@ pub struct LootConfig {
 pub fn register_component_kinds(
     builder: &mut ComponentKindsBuilder,
 ) -> Result<(), DefinitionError> {
-    insert(builder, |b: body::ExperienceReward| {
-        Ok::<_, RewardError>(ExperienceRewardConfig {
-            on_bred: molang(&b.on_bred)?,
-            on_death: molang(&b.on_death)?,
-        })
-    })?;
+    insert(builder, compile_experience_reward)?;
     insert(builder, |b: body::Loot| {
         let path = b.table.ok_or(RewardError::MissingTable)?;
         Ok::<_, RewardError>(LootConfig {
             table: loot_table(&path)?,
         })
+    })
+}
+
+/// Compile a `minecraft:experience_reward` body (mobs through the component
+/// registry; players from the vanilla player definition).
+pub(crate) fn compile_experience_reward(
+    b: body::ExperienceReward,
+) -> Result<ExperienceRewardConfig, RewardError> {
+    Ok(ExperienceRewardConfig {
+        on_bred: molang(&b.on_bred)?,
+        on_death: molang(&b.on_death)?,
     })
 }

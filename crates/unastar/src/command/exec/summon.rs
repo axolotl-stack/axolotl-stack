@@ -1,33 +1,101 @@
 //! `/summon`, on the entity runtime's `spawn_mob`.
+//!
+//! Measured (BDS 1.26.51): `commands.summon.success` with no parameters; an
+//! unknown type is a syntax error (the `EntityType` enum).
 
 use crate::command::prelude::*;
 use crate::command::selector::normalize_type;
 use crate::entity::EntityMetadata;
+use crate::entity::geometry::yaw_towards;
 use crate::entity::mob::{MobRegistry, MobSpawnError, SpawnCause, spawn_mob};
 
-pub fn run(ctx: &mut CommandContext<'_>, args: &Args) -> CommandResult {
-    let identifier = normalize_type(args.get::<&str>("entityType").expect("required"));
-    let position = ctx.position(args.get("spawnPos"));
-    let look_at = match (
-        args.get::<&CommandPosition>("lookAtPosition"),
-        args.get("lookAtEntity"),
-    ) {
-        (Some(p), _) => Some(ctx.position(Some(p))),
-        (None, Some(target)) => {
-            let entity = ctx.entities(Some(target))?[0];
-            ctx.feet(entity)
-        }
-        (None, None) => None,
+overloads! {
+    pub enum SummonArgs for "summon" {
+        0 => Rotated {
+            entity_type: EnumValue = "entityType",
+            position: Option<CommandPosition> = "spawnPos",
+            yaw: Option<RelativeFloat> = "yRot",
+            pitch: Option<RelativeFloat> = "xRot",
+            event: Option<SoftEnumValue> = "spawnEvent",
+            name: Option<Text> = "nameTag",
+        },
+        1 => Named {
+            entity_type: EnumValue = "entityType",
+            name: Text = "nameTag",
+            position: Option<CommandPosition> = "spawnPos",
+        },
+        2 => FacingPosition {
+            entity_type: EnumValue = "entityType",
+            position: Option<CommandPosition> = "spawnPos",
+            facing: EnumValue,
+            at: CommandPosition = "lookAtPosition",
+            event: Option<SoftEnumValue> = "spawnEvent",
+            name: Option<Text> = "nameTag",
+        },
+        3 => FacingEntity {
+            entity_type: EnumValue = "entityType",
+            position: Option<CommandPosition> = "spawnPos",
+            facing: EnumValue,
+            at: Target = "lookAtEntity",
+            event: Option<SoftEnumValue> = "spawnEvent",
+            name: Option<Text> = "nameTag",
+        },
+    }
+}
+
+/// Which way the mob faces.
+enum Facing {
+    Yaw(Option<RelativeFloat>),
+    Position(CommandPosition),
+    Entity(Target),
+}
+
+pub fn run(ctx: &mut CommandContext<'_>, args: SummonArgs) -> CommandResult {
+    use SummonArgs as S;
+    let (entity_type, position, facing, event, name) = match args {
+        S::Rotated {
+            entity_type,
+            position,
+            yaw,
+            event,
+            name,
+            ..
+        } => (entity_type, position, Facing::Yaw(yaw), event, name),
+        S::Named {
+            entity_type,
+            name,
+            position,
+        } => (entity_type, position, Facing::Yaw(None), None, Some(name)),
+        S::FacingPosition {
+            entity_type,
+            position,
+            at,
+            event,
+            name,
+            ..
+        } => (entity_type, position, Facing::Position(at), event, name),
+        S::FacingEntity {
+            entity_type,
+            position,
+            at,
+            event,
+            name,
+            ..
+        } => (entity_type, position, Facing::Entity(at), event, name),
     };
-    let yaw = match look_at {
-        Some(at) => facing_yaw(position, at),
-        None => args
-            .get::<RelativeFloat>("yRot")
-            .map_or(0.0, |y| y.resolve(ctx.source.yaw)),
+    let identifier = normalize_type(&entity_type);
+    let position = ctx.position(position);
+    let yaw = match facing {
+        Facing::Yaw(yaw) => yaw.map_or(0.0, |y| y.resolve(ctx.source.yaw)),
+        Facing::Position(at) => yaw_towards(position, ctx.position(Some(at))),
+        Facing::Entity(target) => {
+            let entity = ctx.entities(Some(&target))?[0];
+            ctx.feet(entity).map_or(0.0, |at| yaw_towards(position, at))
+        }
     };
 
     // A spawn event replaces the default `minecraft:entity_spawned`.
-    let event = match args.get::<&str>("spawnEvent") {
+    let event = match &event {
         Some(name) => Some(
             ctx.world
                 .get_resource::<MobRegistry>()
@@ -54,17 +122,11 @@ pub fn run(ctx: &mut CommandContext<'_>, args: &Args) -> CommandResult {
             .map_err(|_| CommandOutput::failure("commands.summon.failed", vec![]))?;
         crate::entity::definition::apply_pending_definitions(ctx.world);
     }
-    if let Some(name) = args.get::<&str>("nameTag")
+    if let Some(name) = name
         && let Some(mut metadata) = ctx.world.get_mut::<EntityMetadata>(entity)
     {
-        let tagged = std::mem::take(&mut *metadata).with_nametag(name);
+        let tagged = std::mem::take(&mut *metadata).with_nametag(&name);
         *metadata = tagged;
     }
     success!("commands.summon.success")
-}
-
-/// Yaw (degrees, Bedrock convention) that faces from `from` towards `to`.
-pub fn facing_yaw(from: DVec3, to: DVec3) -> f32 {
-    let delta = to - from;
-    (-delta.x.atan2(delta.z)).to_degrees() as f32
 }

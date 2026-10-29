@@ -472,7 +472,6 @@ impl FreeShape {
 // ---------------------------------------------------------------------------
 // Pieces
 
-
 /// `PoolElementStructurePiece`: one pool element placed at a position and
 /// rotation (orientation-free piece, generation depth 0).
 #[derive(Debug, Clone)]
@@ -1251,7 +1250,10 @@ mod tests {
     /// next block does not.
     #[test]
     fn start_padding_uses_the_last_buildable_block() {
-        let ctx = Flat { seed: 0, surface: 70 };
+        let ctx = Flat {
+            seed: 0,
+            surface: 70,
+        };
         let at_top = BoundingBox::new(0, 300, 0, 4, 309, 4);
         let above_top = BoundingBox::new(0, 300, 0, 4, 310, 4);
         assert!(!start_too_close_to_limits(&ctx, (10, 10), &at_top));

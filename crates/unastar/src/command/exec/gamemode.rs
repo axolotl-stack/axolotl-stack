@@ -1,18 +1,19 @@
 //! `/gamemode <mode> [player]`.
 //!
-//! Measured on BDS 1.26.51: each target gets `UpdatePlayerGameType` and a
-//! `gameMode.changed` message; the source gets `commands.gamemode.success.self`
-//! (or `.other`). BDS sends no `UpdateAbilities`; the client derives them.
+//! Measured on BDS 1.26.51: `UpdatePlayerGameType` for each target and a
+//! `gameMode.changed` message to it; the source gets
+//! `commands.gamemode.success.self` (or `.other`).
 
 use crate::command::prelude::*;
-use crate::entity::components::{GameMode, Player, RuntimeEntityId};
+use crate::entity::components::{GameMode, Player, PlayerSession, RuntimeEntityId};
 use crate::server::game::ServerConfigResource;
+use crate::server::game::join::{abilities_packet, game_type};
 use jolyne::valentine::UpdatePlayerGameTypePacket;
-use jolyne::valentine::types::{ActorUniqueId, EnumsGameType, PlayerInputTick};
+use jolyne::valentine::types::{ActorUniqueId, PlayerInputTick};
 
 arg_enum! {
     /// The captured `GameMode` enum.
-    pub enum GameModeArg in "GameMode" {
+    pub enum GameModeName in "GameMode" {
         Survival = "survival" | "s",
         Creative = "creative" | "c",
         Adventure = "adventure" | "a",
@@ -21,34 +22,41 @@ arg_enum! {
     }
 }
 
-pub fn run(ctx: &mut CommandContext<'_>, args: &Args) -> CommandResult {
-    let requested = match args.choice::<GameModeArg>("gameMode") {
-        Some(mode) => mode,
-        None => {
-            let id = args.get::<i32>("gameMode").expect("int overload");
-            match id {
-                0 => GameModeArg::Survival,
-                1 => GameModeArg::Creative,
-                2 => GameModeArg::Adventure,
-                5 => GameModeArg::Default,
-                6 => GameModeArg::Spectator,
-                _ => return failure!("commands.gamemode.fail.invalid", id),
-            }
+overloads! {
+    pub enum GameModeArgs for "gamemode" {
+        0 => Named { mode: GameModeName = "gameMode", player: Option<Target> },
+        1 => Numbered { mode: i32 = "gameMode", player: Option<Target> },
+    }
+}
+
+pub fn run(ctx: &mut CommandContext<'_>, args: GameModeArgs) -> CommandResult {
+    let (name, player) = match args {
+        GameModeArgs::Named { mode, player } => (mode, player),
+        GameModeArgs::Numbered { mode, player } => {
+            let name = match mode {
+                0 => GameModeName::Survival,
+                1 => GameModeName::Creative,
+                2 => GameModeName::Adventure,
+                5 => GameModeName::Default,
+                6 => GameModeName::Spectator,
+                _ => return failure!("commands.gamemode.fail.invalid", mode),
+            };
+            (name, player)
         }
     };
-    let mode = match requested {
-        GameModeArg::Survival => GameMode::Survival,
-        GameModeArg::Creative => GameMode::Creative,
-        GameModeArg::Adventure => GameMode::Adventure,
-        GameModeArg::Spectator => GameMode::Spectator,
-        GameModeArg::Default => ctx
+    let mode = match name {
+        GameModeName::Survival => GameMode::Survival,
+        GameModeName::Creative => GameMode::Creative,
+        GameModeName::Adventure => GameMode::Adventure,
+        GameModeName::Spectator => GameMode::Spectator,
+        GameModeName::Default => ctx
             .world
             .get_resource::<ServerConfigResource>()
             .map_or(GameMode::Survival, |config| config.0.default_gamemode),
     };
     let mode_name = format!("%createWorldScreen.gameMode.{}", mode_key(mode));
 
-    let players = ctx.players(args.get("player"))?;
+    let players = ctx.players(player.as_ref())?;
     let mut output = CommandOutput::default();
     for &player in &players {
         set_game_mode(ctx.world, player, mode);
@@ -74,27 +82,30 @@ fn mode_key(mode: GameMode) -> &'static str {
     }
 }
 
-/// Changes a player's game mode and tells their client.
+/// Changes a player's game mode: `UpdatePlayerGameType` to every player (as
+/// BDS does), and the new mode's abilities. BDS sends no abilities update, but
+/// unastar's join abilities depend on the game mode (flight, instant build),
+/// so they are resent rather than left stale.
 pub fn set_game_mode(world: &mut World, player: Entity, mode: GameMode) {
     if world.get::<Player>(player).is_none() {
         return;
     }
     world.entity_mut(player).insert(mode);
-    let unique_id = world.get::<RuntimeEntityId>(player).map_or(0, |id| id.0);
-    let packet = UpdatePlayerGameTypePacket {
-        player_game_type: match mode {
-            GameMode::Survival => EnumsGameType::Survival,
-            GameMode::Creative => EnumsGameType::Creative,
-            GameMode::Adventure => EnumsGameType::Adventure,
-            GameMode::Spectator => EnumsGameType::Spectator,
-        },
+    let runtime_id = world.get::<RuntimeEntityId>(player).map_or(0, |id| id.0);
+    let operator = world.get::<crate::command::Operator>(player).is_some();
+    let game_type = UpdatePlayerGameTypePacket {
+        player_game_type: game_type(mode),
+        // Players use one id as unique and runtime id.
         targetplayer: ActorUniqueId {
-            actor_unique_id: unique_id,
+            actor_unique_id: runtime_id,
         },
         tick: PlayerInputTick { inputtick: 0 },
     };
-    if let Some(session) = world.get::<crate::entity::components::PlayerSession>(player) {
-        let _ = session.send(packet.into());
+    let abilities = abilities_packet(runtime_id, mode, operator);
+    let mut sessions = world.query::<&PlayerSession>();
+    for session in sessions.iter(world) {
+        let _ = session.send(game_type.clone().into());
+        let _ = session.send(abilities.clone().into());
     }
 }
 
@@ -103,10 +114,11 @@ mod tests {
     use super::*;
     use crate::command::exec::test_support::Harness;
     use jolyne::valentine::McpePacketData;
+    use jolyne::valentine::types::EnumsGameType;
 
     #[test]
     fn game_mode_enum_covers_the_captured_values() {
-        crate::command::args::assert_covers::<GameModeArg>();
+        crate::command::args::assert_covers::<GameModeName>();
     }
 
     #[test]
@@ -123,12 +135,15 @@ mod tests {
         );
         assert_eq!(h.world().get::<GameMode>(alice), Some(&GameMode::Creative));
         let sent = h.sent(alice);
-        assert!(
-            matches!(&sent[0], McpePacketData::UpdatePlayerGameTypePacket(p)
+        assert!(sent.iter().any(
+            |p| matches!(p, McpePacketData::UpdatePlayerGameTypePacket(p)
             if p.player_game_type == EnumsGameType::Creative)
+        ));
+        assert!(
+            sent.iter()
+                .any(|p| matches!(p, McpePacketData::TextPacket(t)
+            if format!("{t:?}").contains("gameMode.changed")))
         );
-        assert!(matches!(&sent[1], McpePacketData::TextPacket(t)
-            if format!("{t:?}").contains("gameMode.changed")));
     }
 
     #[test]

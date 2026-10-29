@@ -45,8 +45,7 @@ pub trait Generator: Send + Sync + 'static {
 
     /// Legal build/storage blocks. The default preserves Bedrock/flat Overworld geometry.
     fn world_bounds(&self) -> std::ops::Range<i32> {
-        crate::world::chunk::MIN_Y
-            ..crate::world::chunk::MIN_Y + super::proto::WORLD_HEIGHT
+        crate::world::chunk::MIN_Y..crate::world::chunk::MIN_Y + super::proto::WORLD_HEIGHT
     }
 
     /// Terrain stages for one chunk: noise, aquifers, ore veins, 3D biomes, surface, carvers.
@@ -144,7 +143,8 @@ impl ChunkPipeline {
 
     /// Pipeline caching up to `proto_capacity` protos and as many decorations.
     pub fn with_capacity(generator: Arc<dyn Generator>, proto_capacity: usize) -> Self {
-        let native = generator.decorates_in_order()
+        let native = generator
+            .decorates_in_order()
             .then(|| Mutex::new(NativeSession::default()));
         Self {
             generator,
@@ -195,7 +195,9 @@ impl ChunkPipeline {
     /// shared source world once; repeated requests preserve the existing state.
     pub fn decorate_origin(&self, origin: ChunkPos) {
         if let Some(session) = &self.native {
-            session.lock().expect("native generation session poisoned")
+            session
+                .lock()
+                .expect("native generation session poisoned")
                 .decorate(&*self.generator, origin);
         } else {
             self.decoration(origin);
@@ -205,15 +207,30 @@ impl ChunkPipeline {
     /// Observe native state at the current request boundary, without completing
     /// new neighboring feature origins. Independent replay has no such world.
     pub fn native_snapshot(&self, pos: ChunkPos) -> Option<Chunk> {
-        self.native.as_ref()?.lock().expect("native generation session poisoned")
+        self.native
+            .as_ref()?
+            .lock()
+            .expect("native generation session poisoned")
             .snapshot(&*self.generator, pos)
+    }
+
+    /// Observe a native chunk as Java's FULL status saves it: the current
+    /// request boundary with pending ProtoChunk actors promoted from the block
+    /// now at their position. Completes no new feature origins.
+    pub fn native_full_snapshot(&self, pos: ChunkPos) -> Option<Chunk> {
+        let mut chunk = self.native_snapshot(pos)?;
+        chunk.promote_java_pending_actors();
+        Some(chunk)
     }
 
     /// WG maps freeze when CARVERS commits, while native FEATURES and later
     /// neighbor writes update the four final maps. Do not rescan finished blocks
     /// to invent new WG values at an observation boundary.
     pub fn native_worldgen_heightmaps(&self, pos: ChunkPos) -> Option<[[i16; 256]; 2]> {
-        self.native.as_ref()?.lock().expect("native generation session poisoned")
+        self.native
+            .as_ref()?
+            .lock()
+            .expect("native generation session poisoned")
             .worldgen_heightmaps(pos)
     }
 
@@ -231,26 +248,33 @@ impl ChunkPipeline {
     /// All lossy adaptation happens in the final `generate` boundary.
     pub fn generate_native(&self, pos: ChunkPos) -> Chunk {
         if let Some(session) = &self.native {
-            let mut session = session.lock().expect("native generation session poisoned");
-            session.decorate(&*self.generator, pos);
-            for (dx, dz) in SLOT_OFFSETS {
-                session.decorate(&*self.generator, ChunkPos::new(pos.x + dx, pos.z + dz));
+            {
+                let mut session = session.lock().expect("native generation session poisoned");
+                session.decorate(&*self.generator, pos);
+                for (dx, dz) in SLOT_OFFSETS {
+                    session.decorate(&*self.generator, ChunkPos::new(pos.x + dx, pos.z + dz));
+                }
             }
-            let mut chunk = session.snapshot(&*self.generator, pos)
+            return self
+                .native_full_snapshot(pos)
                 .expect("completed native origin has no source chunk");
-            chunk.promote_java_pending_actors();
-            return chunk;
         }
         let generator = &self.generator;
         if !generator.decorates() {
             let ProtoChunk {
-                mut chunk, mut biomes, ..
+                mut chunk,
+                mut biomes,
+                ..
             } = generator.generate_proto(pos);
             chunk.set_block_bounds(generator.world_bounds());
             biomes.set_block_bounds(generator.world_bounds());
             let java = chunk.state_space() == crate::world::chunk::BlockStateSpace::Java;
             chunk.set_biomes_from_quarts(&biomes, |biome| {
-                if java { u32::from(biome) } else { generator.bedrock_biome(biome) }
+                if java {
+                    u32::from(biome)
+                } else {
+                    generator.bedrock_biome(biome)
+                }
             });
             chunk.x = pos.x;
             chunk.z = pos.z;
@@ -266,7 +290,11 @@ impl ChunkPipeline {
         }
         let java = chunk.state_space() == crate::world::chunk::BlockStateSpace::Java;
         chunk.set_biomes_from_quarts(&proto.biomes, |biome| {
-            if java { u32::from(biome) } else { generator.bedrock_biome(biome) }
+            if java {
+                u32::from(biome)
+            } else {
+                generator.bedrock_biome(biome)
+            }
         });
         chunk.x = pos.x;
         chunk.z = pos.z;
@@ -275,8 +303,10 @@ impl ChunkPipeline {
 
     /// World spawn chosen by the generator over this pipeline's finished chunks.
     pub fn find_spawn(&self) -> SpawnPoint {
-        self.generator.find_spawn(&|pos| self.generate(pos)
-            .expect("spawn chunk contains an unrepresentable native actor"))
+        self.generator.find_spawn(&|pos| {
+            self.generate(pos)
+                .expect("spawn chunk contains an unrepresentable native actor")
+        })
     }
 
     /// Number of cached protos (for benchmarks and tests).
@@ -504,7 +534,10 @@ mod tests {
         let a2 = backward.generate(pos).unwrap();
         assert_eq!(actor_semantics(&a), actor_semantics(&a2));
         assert_eq!(actor_semantics(&b), actor_semantics(&b2));
-        assert_eq!(actor_semantics(&a), actor_semantics(&forward.generate(pos).unwrap()));
+        assert_eq!(
+            actor_semantics(&a),
+            actor_semantics(&forward.generate(pos).unwrap())
+        );
         let positions: Vec<_> = actor_semantics(&a)
             .into_iter()
             .map(|(position, _)| position)

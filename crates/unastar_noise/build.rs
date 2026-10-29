@@ -30,7 +30,11 @@ fn load_nether_biome_parameters(
     let text = std::fs::read_to_string(&path).map_err(|e| format!("{}: {e}", path.display()))?;
     let file: Parameters =
         serde_json::from_str(&text).map_err(|e| format!("{}: {e}", path.display()))?;
-    let targets: Vec<_> = file.biomes.iter().map(|entry| entry.parameters.clone()).collect();
+    let targets: Vec<_> = file
+        .biomes
+        .iter()
+        .map(|entry| entry.parameters.clone())
+        .collect();
     let spaces = codegen::emitter::settings::spawn_target(&targets)?;
     Ok(BiomeParameters {
         biomes: file.biomes.into_iter().map(|entry| entry.biome).collect(),
@@ -125,9 +129,11 @@ fn main() {
 
     // Java block registry for decoration (features/structures).
     let mut decor_blocks = codegen::java_blocks::JavaBlocks::load(
-        &java_data, java_blocks.shape_support_table(), java_blocks.state_physics_table(),
+        &java_data,
+        java_blocks.shape_support_table(),
+        java_blocks.state_physics_table(),
     )
-        .unwrap_or_else(|e| panic!("Failed to load Java block data: {e}"));
+    .unwrap_or_else(|e| panic!("Failed to load Java block data: {e}"));
     // Features intern block states and sets, so they are emitted first.
     codegen::emitter::feature::emit_features(
         &output_dir,

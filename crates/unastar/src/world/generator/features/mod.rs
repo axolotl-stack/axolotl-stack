@@ -15,17 +15,16 @@ use unastar_noise::features::generated::{
     OVERWORLD_BIOMES, OVERWORLD_FEATURES,
 };
 use unastar_noise::features::java_blocks::{self, states};
+use unastar_noise::features::random::RegionRandom;
 use unastar_noise::features::{BlockPos, FeatureWorld, Heightmap, JavaBlock, JavaState};
 use unastar_noise::java_biomes::JAVA_BIOMES;
-use unastar_noise::features::random::RegionRandom;
 
+use super::JavaDimension;
 use super::biome_source::{zoom_seed, zoomed_biome};
 use super::region::{DecorationRegion, HeightmapKind, SLOT_OFFSETS, WorldGenRegion};
 use super::structures::{JavaStructures, NativeStructureSource};
-use super::JavaDimension;
 use crate::world::block_entity::{BlockEntity, NATIVE_ACTOR_BLOCKS};
 use crate::world::chunk::BlockStateSpace;
-
 
 /// The native registry's EntityBlock predicate, indexed by canonical block
 /// identity rather than properties or a lossy Bedrock actor/state mapping.
@@ -64,23 +63,46 @@ pub(super) struct DimensionDecoration {
 
 pub(super) fn dimension_decoration(dimension: JavaDimension) -> DimensionDecoration {
     use unastar_noise::{end_settings as end, nether_settings as nether, overworld_settings as ow};
-    let (features, biomes, min_y, gen_depth, sea_level, legacy_random, has_skylight) = match dimension {
-        JavaDimension::Overworld => (
-            &OVERWORLD_FEATURES, OVERWORLD_BIOMES, ow::MIN_Y, ow::HEIGHT,
-            ow::SEA_LEVEL, ow::LEGACY_RANDOM_SOURCE, ow::HAS_SKYLIGHT,
-        ),
-        JavaDimension::Nether => (
-            &NETHER_FEATURES, NETHER_BIOMES, nether::MIN_Y, nether::HEIGHT,
-            nether::SEA_LEVEL, nether::LEGACY_RANDOM_SOURCE, nether::HAS_SKYLIGHT,
-        ),
-        JavaDimension::End => (
-            &END_FEATURES, END_BIOMES, end::MIN_Y, end::HEIGHT,
-            end::SEA_LEVEL, end::LEGACY_RANDOM_SOURCE, end::HAS_SKYLIGHT,
-        ),
-    };
-    DimensionDecoration { features, biomes, min_y, gen_depth, sea_level, legacy_random, has_skylight }
+    let (features, biomes, min_y, gen_depth, sea_level, legacy_random, has_skylight) =
+        match dimension {
+            JavaDimension::Overworld => (
+                &OVERWORLD_FEATURES,
+                OVERWORLD_BIOMES,
+                ow::MIN_Y,
+                ow::HEIGHT,
+                ow::SEA_LEVEL,
+                ow::LEGACY_RANDOM_SOURCE,
+                ow::HAS_SKYLIGHT,
+            ),
+            JavaDimension::Nether => (
+                &NETHER_FEATURES,
+                NETHER_BIOMES,
+                nether::MIN_Y,
+                nether::HEIGHT,
+                nether::SEA_LEVEL,
+                nether::LEGACY_RANDOM_SOURCE,
+                nether::HAS_SKYLIGHT,
+            ),
+            JavaDimension::End => (
+                &END_FEATURES,
+                END_BIOMES,
+                end::MIN_Y,
+                end::HEIGHT,
+                end::SEA_LEVEL,
+                end::LEGACY_RANDOM_SOURCE,
+                end::HAS_SKYLIGHT,
+            ),
+        };
+    DimensionDecoration {
+        features,
+        biomes,
+        min_y,
+        gen_depth,
+        sea_level,
+        legacy_random,
+        has_skylight,
+    }
 }
-
 
 fn kind_of(h: Heightmap) -> HeightmapKind {
     match h {
@@ -104,9 +126,16 @@ pub struct RegionWorld<'r, 'a, S: NativeStructureSource> {
 }
 
 impl<'r, 'a, S: NativeStructureSource> RegionWorld<'r, 'a, S> {
-    pub fn new(region: &'r mut DecorationRegion<'a>, dimension: JavaDimension, source: &'r S) -> Self {
-        assert_eq!(region.state_space(), BlockStateSpace::Java,
-            "Java features require source-native Java protos, not an inverse Bedrock mapping");
+    pub fn new(
+        region: &'r mut DecorationRegion<'a>,
+        dimension: JavaDimension,
+        source: &'r S,
+    ) -> Self {
+        assert_eq!(
+            region.state_space(),
+            BlockStateSpace::Java,
+            "Java features require source-native Java protos, not an inverse Bedrock mapping"
+        );
         LazyLock::force(&BIOMES_ALIGNED);
         let seed = region.seed();
         let origin = region.origin();
@@ -169,8 +198,10 @@ impl<S: NativeStructureSource> FeatureWorld for RegionWorld<'_, '_, S> {
         if !(self.region.min_y()..self.region.min_y() + self.region.height()).contains(&pos.y) {
             return states::VOID_AIR;
         }
-        JavaState(u16::try_from(self.region.get_block(pos.x, pos.y, pos.z))
-            .expect("Java feature region contains an invalid state id"))
+        JavaState(
+            u16::try_from(self.region.get_block(pos.x, pos.y, pos.z))
+                .expect("Java feature region contains an invalid state id"),
+        )
     }
     fn set_state(&mut self, pos: BlockPos, state: JavaState) -> bool {
         if !self.inside(pos.x, pos.z) {
@@ -183,23 +214,30 @@ impl<S: NativeStructureSource> FeatureWorld for RegionWorld<'_, '_, S> {
         // state setter has stronger removal rules, so retain that native actor
         // across this write. A pending marker, however, is always replaced.
         let live = if creates_actor && previous.block() != state.block() {
-            self.region.block_entity(pos.x, pos.y, pos.z)
-                .filter(|actor| !actor.is_java_pending()).cloned()
+            self.region
+                .block_entity(pos.x, pos.y, pos.z)
+                .filter(|actor| !actor.is_java_pending())
+                .cloned()
         } else {
             None
         };
         if (self.region.min_y()..self.region.min_y() + self.region.height()).contains(&pos.y) {
-            self.region.set_block(pos.x, pos.y, pos.z, u32::from(state.0));
+            self.region
+                .set_block(pos.x, pos.y, pos.z, u32::from(state.0));
         }
         if creates_actor {
             if let Some(actor) = live {
                 self.region.set_native_block_entity(actor);
-            } else if self.region.block_entity(pos.x, pos.y, pos.z)
+            } else if self
+                .region
+                .block_entity(pos.x, pos.y, pos.z)
                 .is_none_or(BlockEntity::is_java_pending)
             {
-                self.region.set_native_block_entity(BlockEntity::pending_java(
-                    [pos.x, pos.y, pos.z], state.block().name(),
-                ));
+                self.region
+                    .set_native_block_entity(BlockEntity::pending_java(
+                        [pos.x, pos.y, pos.z],
+                        state.block().name(),
+                    ));
             }
         } else if has_native_actor(previous) {
             self.region.remove_block_entity(pos.x, pos.y, pos.z);
@@ -238,7 +276,9 @@ impl<S: NativeStructureSource> FeatureWorld for RegionWorld<'_, '_, S> {
             actor.with_java_feature_data(data)
         } else {
             BlockEntity::generated_java(
-                [pos.x, pos.y, pos.z], self.get_state(pos).block().name(), data,
+                [pos.x, pos.y, pos.z],
+                self.get_state(pos).block().name(),
+                data,
             )
         };
         self.region.set_block_entity(actor);
@@ -280,11 +320,21 @@ pub fn decorate<S: NativeStructureSource>(
         let ctx = structures.context(seed, source);
         let mut hook = structures.manager.decoration_hook(&ctx, origin.x, origin.z);
         decorate_chunk(
-            &mut world, settings.features, origin.x, origin.z, biomes, &mut hook,
+            &mut world,
+            settings.features,
+            origin.x,
+            origin.z,
+            biomes,
+            &mut hook,
         );
     } else {
         decorate_chunk(
-            &mut world, settings.features, origin.x, origin.z, biomes, &mut NoStructures,
+            &mut world,
+            settings.features,
+            origin.x,
+            origin.z,
+            biomes,
+            &mut NoStructures,
         );
     }
 }
@@ -303,12 +353,17 @@ mod state_identity_tests {
                 let origin = ChunkPos::new(-1, -1);
                 let protos = SLOT_OFFSETS.map(|(dx, dz)| {
                     ProtoChunk::empty_in_space(
-                        ChunkPos::new(origin.x + dx, origin.z + dz), 0, BlockStateSpace::Java,
+                        ChunkPos::new(origin.x + dx, origin.z + dz),
+                        0,
+                        BlockStateSpace::Java,
                     )
                 });
                 let refs = std::array::from_fn(|slot| &protos[slot]);
                 let mut region = DecorationRegion::new(
-                    0, origin, refs, &unastar_noise::java_blocks::JAVA_STATE_CLASSES,
+                    0,
+                    origin,
+                    refs,
+                    &unastar_noise::java_blocks::JAVA_STATE_CLASSES,
                 );
                 let source = crate::world::generator::JavaGenerator::new(0);
                 let mut world = RegionWorld::new(&mut region, JavaDimension::Overworld, &source);
@@ -316,8 +371,14 @@ mod state_identity_tests {
                 let wet = states::OAK_STAIRS.with_bool("waterlogged", true);
                 assert!(world.set_state(position, wet));
                 let fluid = world.get_state(position).fluid();
-                assert!(fluid.source, "later features must observe the placed source water");
-                assert_eq!(fluid.kind, unastar_noise::features::blocks::FluidKind::Water);
+                assert!(
+                    fluid.source,
+                    "later features must observe the placed source water"
+                );
+                assert_eq!(
+                    fluid.kind,
+                    unastar_noise::features::blocks::FluidKind::Water
+                );
             })
             .unwrap()
             .join()
@@ -328,7 +389,8 @@ mod state_identity_tests {
         serde_json::from_str(include_str!(concat!(
             env!("CARGO_MANIFEST_DIR"),
             "/tests/fixtures/java_1_21_11_native_actor_transitions.json",
-        ))).unwrap()
+        )))
+        .unwrap()
     }
 
     fn captured_state(text: &str) -> JavaState {
@@ -343,7 +405,11 @@ mod state_identity_tests {
             state = state.with(name, value);
             count += 1;
         }
-        assert_eq!(count, block.def().props.len(), "capture must retain every property");
+        assert_eq!(
+            count,
+            block.def().props.len(),
+            "capture must retain every property"
+        );
         state
     }
 
@@ -352,17 +418,28 @@ mod state_identity_tests {
         static CAPTURE: LazyLock<(Vec<u8>, Vec<u8>)> = LazyLock::new(|| {
             let source = Tag::Compound(std::collections::BTreeMap::from([
                 (key("id"), string("minecraft:barrel")),
-                (key("LootTable"), string("minecraft:chests/shipwreck_supply")),
+                (
+                    key("LootTable"),
+                    string("minecraft:chests/shipwreck_supply"),
+                ),
                 (key("LootTableSeed"), Tag::Long(17)),
-            ])).write_root().unwrap();
+            ]))
+            .write_root()
+            .unwrap();
             // Native loadStatic adds only components to this source;
             // position is supplied by the runtime recipe.
             let normalization = Tag::Compound(std::collections::BTreeMap::from([
                 (key("remove"), Tag::List(8, vec![])),
-                (key("set"), Tag::Compound(std::collections::BTreeMap::from([
-                    (key("components"), Tag::Compound(Default::default())),
-                ]))),
-            ])).write_root().unwrap();
+                (
+                    key("set"),
+                    Tag::Compound(std::collections::BTreeMap::from([(
+                        key("components"),
+                        Tag::Compound(Default::default()),
+                    )])),
+                ),
+            ]))
+            .write_root()
+            .unwrap();
             (source, normalization)
         });
         BlockEntityData {
@@ -378,103 +455,171 @@ mod state_identity_tests {
 
     #[test]
     fn native_proto_actor_transitions_match_actual_worldgen_region() {
-        std::thread::Builder::new().stack_size(64 << 20).spawn(|| {
-            let fixture = native_actor_fixture();
-            assert_eq!(fixture["native_tick_count"], 0);
-            let origin = ChunkPos::new(0, 0);
-            let protos = SLOT_OFFSETS.map(|(dx, dz)| ProtoChunk::empty_in_space(
-                ChunkPos::new(dx, dz), 0, BlockStateSpace::Java,
-            ));
-            let refs = std::array::from_fn(|slot| &protos[slot]);
-            let mut region = DecorationRegion::new(
-                0, origin, refs, &unastar_noise::java_blocks::JAVA_STATE_CLASSES,
-            );
-            let source = crate::world::generator::JavaGenerator::new(0);
-            let mut world = RegionWorld::new(&mut region, JavaDimension::Overworld, &source);
-            let mut pos = BlockPos::new(1, 200, 1);
-            for name in fixture["actor_blocks"].as_array().unwrap() {
-                let state = JavaBlock::by_name(name.as_str().unwrap()).unwrap().default_state();
-                assert!(world.set_state(pos, state));
-                let actor = world.region.block_entity(pos.x, pos.y, pos.z).unwrap();
-                assert!(actor.is_java_pending(), "{}", name);
-                assert_eq!(actor.canonical_java_nbt().unwrap(), fixture["transitions"][0]["saved"]);
-            }
-            for expected in fixture["transitions"].as_array().unwrap() {
-                let operation = expected["operation"].as_str().unwrap();
-                match operation {
-                    "explicit_loot" => world.set_block_entity(pos, BlockEntityData::loot(
-                        "minecraft:chests/simple_dungeon", i64::MIN,
-                    )),
-                    "explicit_loot_after_actor_replacement" => world.set_block_entity(pos, BlockEntityData::loot(
-                        "minecraft:chests/simple_dungeon", 0,
-                    )),
-                    "explicit_template" => world.set_block_entity(pos, captured_barrel_template()),
-                    "explicit_template_over_live" => {
-                        let mut data = captured_barrel_template();
-                        data.loot = Some(("minecraft:chests/shipwreck_supply", -29));
-                        world.set_block_entity(pos, data);
-                    }
-                    "above_bounds_chest:true" => {
-                        pos.y = 320;
-                        assert!(world.set_state(pos, states::CHEST));
-                    }
-                    _ => assert!(world.set_state(pos, captured_state(expected["state"].as_str().unwrap()))),
+        std::thread::Builder::new()
+            .stack_size(64 << 20)
+            .spawn(|| {
+                let fixture = native_actor_fixture();
+                assert_eq!(fixture["native_tick_count"], 0);
+                let origin = ChunkPos::new(0, 0);
+                let protos = SLOT_OFFSETS.map(|(dx, dz)| {
+                    ProtoChunk::empty_in_space(ChunkPos::new(dx, dz), 0, BlockStateSpace::Java)
+                });
+                let refs = std::array::from_fn(|slot| &protos[slot]);
+                let mut region = DecorationRegion::new(
+                    0,
+                    origin,
+                    refs,
+                    &unastar_noise::java_blocks::JAVA_STATE_CLASSES,
+                );
+                let source = crate::world::generator::JavaGenerator::new(0);
+                let mut world = RegionWorld::new(&mut region, JavaDimension::Overworld, &source);
+                let mut pos = BlockPos::new(1, 200, 1);
+                for name in fixture["actor_blocks"].as_array().unwrap() {
+                    let state = JavaBlock::by_name(name.as_str().unwrap())
+                        .unwrap()
+                        .default_state();
+                    assert!(world.set_state(pos, state));
+                    let actor = world.region.block_entity(pos.x, pos.y, pos.z).unwrap();
+                    assert!(actor.is_java_pending(), "{}", name);
+                    assert_eq!(
+                        actor.canonical_java_nbt().unwrap(),
+                        fixture["transitions"][0]["saved"]
+                    );
                 }
-                assert_eq!(world.get_state(pos), captured_state(expected["state"].as_str().unwrap()), "{operation}");
-                let actual = world.region.block_entity(pos.x, pos.y, pos.z);
-                assert_eq!(actual.map(|a| a.canonical_java_nbt().unwrap()),
-                    (!expected["saved"].is_null()).then(|| expected["saved"].clone()), "{operation}");
-                if let Some(actor) = actual {
-                    assert_eq!(actor.is_java_pending(), expected["pending"] == 1, "{operation}");
+                for expected in fixture["transitions"].as_array().unwrap() {
+                    let operation = expected["operation"].as_str().unwrap();
+                    match operation {
+                        "explicit_loot" => world.set_block_entity(
+                            pos,
+                            BlockEntityData::loot("minecraft:chests/simple_dungeon", i64::MIN),
+                        ),
+                        "explicit_loot_after_actor_replacement" => world.set_block_entity(
+                            pos,
+                            BlockEntityData::loot("minecraft:chests/simple_dungeon", 0),
+                        ),
+                        "explicit_template" => {
+                            world.set_block_entity(pos, captured_barrel_template())
+                        }
+                        "explicit_template_over_live" => {
+                            let mut data = captured_barrel_template();
+                            data.loot = Some(("minecraft:chests/shipwreck_supply", -29));
+                            world.set_block_entity(pos, data);
+                        }
+                        "above_bounds_chest:true" => {
+                            pos.y = 320;
+                            assert!(world.set_state(pos, states::CHEST));
+                        }
+                        _ => {
+                            assert!(world.set_state(
+                                pos,
+                                captured_state(expected["state"].as_str().unwrap())
+                            ))
+                        }
+                    }
+                    assert_eq!(
+                        world.get_state(pos),
+                        captured_state(expected["state"].as_str().unwrap()),
+                        "{operation}"
+                    );
+                    let actual = world.region.block_entity(pos.x, pos.y, pos.z);
+                    assert_eq!(
+                        actual.map(|a| a.canonical_java_nbt().unwrap()),
+                        (!expected["saved"].is_null()).then(|| expected["saved"].clone()),
+                        "{operation}"
+                    );
+                    if let Some(actor) = actual {
+                        assert_eq!(
+                            actor.is_java_pending(),
+                            expected["pending"] == 1,
+                            "{operation}"
+                        );
+                    }
                 }
-            }
-            let mut replay = crate::world::chunk::Chunk::new_in_space(0, 0, BlockStateSpace::Java);
-            region.into_writes().apply_to(0, 0, &mut replay);
-            assert_eq!(replay.block_entities().len(), 1);
-            assert_eq!(replay.block_entities()[0].canonical_java_nbt().unwrap(),
-                fixture["transitions"].as_array().unwrap().last().unwrap()["saved"]);
-        }).unwrap().join().unwrap();
+                let mut replay =
+                    crate::world::chunk::Chunk::new_in_space(0, 0, BlockStateSpace::Java);
+                region.into_writes().apply_to(0, 0, &mut replay);
+                assert_eq!(replay.block_entities().len(), 1);
+                assert_eq!(
+                    replay.block_entities()[0].canonical_java_nbt().unwrap(),
+                    fixture["transitions"].as_array().unwrap().last().unwrap()["saved"]
+                );
+            })
+            .unwrap()
+            .join()
+            .unwrap();
     }
 
     #[test]
     fn actual_features_pending_sculk_actors_reach_canonical_consumer_unchanged() {
-        std::thread::Builder::new().stack_size(64 << 20).spawn(|| {
-            let fixture = native_actor_fixture();
-            let capture = &fixture["features_witnesses"];
-            let seed = capture["seed"].as_i64().unwrap();
-            let origin = ChunkPos::new(
-                capture["chunk"][0].as_i64().unwrap() as i32,
-                capture["chunk"][1].as_i64().unwrap() as i32,
-            );
-            let protos = SLOT_OFFSETS.map(|(dx, dz)| ProtoChunk::empty_in_space(
-                ChunkPos::new(origin.x + dx, origin.z + dz), 0, BlockStateSpace::Java,
-            ));
-            let refs = std::array::from_fn(|slot| &protos[slot]);
-            let mut region = DecorationRegion::new(
-                seed, origin, refs, &unastar_noise::java_blocks::JAVA_STATE_CLASSES,
-            );
-            let source = crate::world::generator::JavaGenerator::new(seed);
-            let mut world = RegionWorld::new(&mut region, JavaDimension::Overworld, &source);
-            let witnesses = capture["actors"].as_array().unwrap();
-            for expected in witnesses {
-                let xyz = expected["position"].as_array().unwrap();
-                let pos = BlockPos::new(xyz[0].as_i64().unwrap() as i32,
-                    xyz[1].as_i64().unwrap() as i32, xyz[2].as_i64().unwrap() as i32);
-                let state = captured_state(expected["state"].as_str().unwrap());
-                assert!(world.set_state(pos, state));
-                assert_eq!(world.get_state(pos), state);
-            }
-            let mut chunk = crate::world::chunk::Chunk::new_in_space(origin.x, origin.z, BlockStateSpace::Java);
-            region.into_writes().apply_to(0, 0, &mut chunk);
-            assert_eq!(chunk.block_entities().len(), witnesses.len());
-            for expected in witnesses {
-                let xyz = expected["position"].as_array().unwrap();
-                let position = [xyz[0].as_i64().unwrap() as i32,
-                    xyz[1].as_i64().unwrap() as i32, xyz[2].as_i64().unwrap() as i32];
-                let actor = chunk.block_entities().iter().find(|a| a.position() == position).unwrap();
-                assert_eq!(actor.canonical_java_nbt().unwrap(), expected["canonical_nbt"]);
-                assert!(actor.write_disk_nbt(&mut Vec::new()).is_err(), "no early Bedrock conversion");
-            }
-        }).unwrap().join().unwrap();
+        std::thread::Builder::new()
+            .stack_size(64 << 20)
+            .spawn(|| {
+                let fixture = native_actor_fixture();
+                let capture = &fixture["features_witnesses"];
+                let seed = capture["seed"].as_i64().unwrap();
+                let origin = ChunkPos::new(
+                    capture["chunk"][0].as_i64().unwrap() as i32,
+                    capture["chunk"][1].as_i64().unwrap() as i32,
+                );
+                let protos = SLOT_OFFSETS.map(|(dx, dz)| {
+                    ProtoChunk::empty_in_space(
+                        ChunkPos::new(origin.x + dx, origin.z + dz),
+                        0,
+                        BlockStateSpace::Java,
+                    )
+                });
+                let refs = std::array::from_fn(|slot| &protos[slot]);
+                let mut region = DecorationRegion::new(
+                    seed,
+                    origin,
+                    refs,
+                    &unastar_noise::java_blocks::JAVA_STATE_CLASSES,
+                );
+                let source = crate::world::generator::JavaGenerator::new(seed);
+                let mut world = RegionWorld::new(&mut region, JavaDimension::Overworld, &source);
+                let witnesses = capture["actors"].as_array().unwrap();
+                for expected in witnesses {
+                    let xyz = expected["position"].as_array().unwrap();
+                    let pos = BlockPos::new(
+                        xyz[0].as_i64().unwrap() as i32,
+                        xyz[1].as_i64().unwrap() as i32,
+                        xyz[2].as_i64().unwrap() as i32,
+                    );
+                    let state = captured_state(expected["state"].as_str().unwrap());
+                    assert!(world.set_state(pos, state));
+                    assert_eq!(world.get_state(pos), state);
+                }
+                let mut chunk = crate::world::chunk::Chunk::new_in_space(
+                    origin.x,
+                    origin.z,
+                    BlockStateSpace::Java,
+                );
+                region.into_writes().apply_to(0, 0, &mut chunk);
+                assert_eq!(chunk.block_entities().len(), witnesses.len());
+                for expected in witnesses {
+                    let xyz = expected["position"].as_array().unwrap();
+                    let position = [
+                        xyz[0].as_i64().unwrap() as i32,
+                        xyz[1].as_i64().unwrap() as i32,
+                        xyz[2].as_i64().unwrap() as i32,
+                    ];
+                    let actor = chunk
+                        .block_entities()
+                        .iter()
+                        .find(|a| a.position() == position)
+                        .unwrap();
+                    assert_eq!(
+                        actor.canonical_java_nbt().unwrap(),
+                        expected["canonical_nbt"]
+                    );
+                    assert!(
+                        actor.write_disk_nbt(&mut Vec::new()).is_err(),
+                        "no early Bedrock conversion"
+                    );
+                }
+            })
+            .unwrap()
+            .join()
+            .unwrap();
     }
 }

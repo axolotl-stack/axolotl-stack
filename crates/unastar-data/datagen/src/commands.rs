@@ -287,3 +287,76 @@ fn from_packet(
         constraints,
     })
 }
+
+const GAME_RULES_FIXTURE: &str = "member/join/00037-GameRulesChangedPacket.bin";
+
+/// `output/game_rules.json` from the committed join `GameRulesChanged` fixture.
+pub fn write_game_rules(output_dir: &Path) -> miette::Result<()> {
+    use unastar_data::game_rules::{GameRuleDefault, GameRuleValue, GameRulesArtifact};
+    use valentine::bedrock::version::v1_26_51::GameRuleRuleValue;
+
+    let root =
+        PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../../bds-extractor/captures/1.26.51");
+    let path = root.join(GAME_RULES_FIXTURE);
+    let bytes =
+        std::fs::read(&path).map_err(|e| miette::miette!("read {}: {e}", path.display()))?;
+    let sha256 = hex::encode(Sha256::digest(&bytes));
+    let manifest: serde_json::Value = serde_json::from_str(
+        &std::fs::read_to_string(extractor_manifest("member"))
+            .map_err(|e| miette::miette!("read member manifest: {e}"))?,
+    )
+    .map_err(|e| miette::miette!("member manifest: {e}"))?;
+    let wanted = GAME_RULES_FIXTURE.trim_start_matches("member/");
+    let recorded = manifest["files"]
+        .as_array()
+        .into_iter()
+        .flatten()
+        .find(|entry| entry["path"] == wanted)
+        .and_then(|entry| entry["sha256"].as_str())
+        .ok_or_else(|| miette::miette!("member manifest records no {wanted}"))?;
+    if recorded != sha256 {
+        return Err(miette::miette!(
+            "{} has SHA-256 {sha256}, the manifest records {recorded}",
+            path.display()
+        ));
+    }
+    let (_, data) = McpePacketData::decode_inner_bytes(&mut framed(&bytes), McpePacketArgs)
+        .map_err(|e| miette::miette!("decode GameRulesChanged: {e:?}"))?;
+    let McpePacketData::GameRulesChangedPacket(packet) = data else {
+        return Err(miette::miette!("fixture is not a GameRulesChangedPacket"));
+    };
+    let rules = packet
+        .rule_data
+        .rules_list
+        .iter()
+        .map(|rule| {
+            let value = match rule.rule_value {
+                GameRuleRuleValue::Bool(v) => GameRuleValue::Bool(v),
+                GameRuleRuleValue::Int32(v) => GameRuleValue::Int(v),
+                GameRuleRuleValue::Float(v) => GameRuleValue::Float(v),
+                GameRuleRuleValue::Empty0 => {
+                    return Err(miette::miette!("rule {} has no value", rule.rule_name));
+                }
+            };
+            Ok(GameRuleDefault {
+                name: rule.rule_name.to_string(),
+                editable: rule.rule_can_be_modified,
+                value,
+            })
+        })
+        .collect::<miette::Result<Vec<_>>>()?;
+    let artifact = GameRulesArtifact {
+        bds_version: "1.26.51".into(),
+        protocol: 2193,
+        capture: format!("crates/bds-extractor/captures/1.26.51/{GAME_RULES_FIXTURE}"),
+        capture_sha256: sha256,
+        rules,
+    };
+    let mut json = serde_json::to_string_pretty(&artifact)
+        .map_err(|e| miette::miette!("serialize game rules: {e}"))?;
+    json.push('\n');
+    let out = output_dir.join(unastar_data::game_rules::ARTIFACT);
+    std::fs::write(&out, json).map_err(|e| miette::miette!("write {}: {e}", out.display()))?;
+    info!("Wrote {} ({} rules)", out.display(), artifact.rules.len());
+    Ok(())
+}

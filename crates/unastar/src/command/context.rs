@@ -1,6 +1,6 @@
 //! Who runs a command and the world it runs in.
 
-use super::args::RelativeFloat;
+use super::args::{BlockPosition, RelativeFloat};
 use super::output::CommandOutput;
 use super::parser::{CommandPosition, Target};
 use super::schema::CommandSchema;
@@ -10,6 +10,7 @@ use crate::entity::components::{
     ArmourInventory, Experience, GameMode, MainInventory, OffhandSlot, Player, PlayerName,
     PlayerSession,
 };
+use crate::entity::geometry::feet_position;
 use crate::entity::item_drop::{EntityRandom, PLAYER_EYE_HEIGHT};
 use crate::item::ItemStack;
 use bevy_ecs::prelude::*;
@@ -182,15 +183,16 @@ impl<'w> CommandContext<'w> {
 
     /// A position parameter resolved against the source; omitted is the
     /// source's own (feet) position.
-    pub fn position(&self, position: Option<&CommandPosition>) -> DVec3 {
+    pub fn position(&self, position: Option<CommandPosition>) -> DVec3 {
         position.map_or(self.source.position, |p| {
             p.resolve(self.source.position, self.source.yaw, self.source.pitch)
         })
     }
 
-    /// A block position parameter resolved against the source and floored.
-    pub fn block_position(&self, position: Option<&CommandPosition>) -> IVec3 {
-        self.position(position).floor().as_ivec3()
+    /// A block position parameter resolved against the source and floored;
+    /// omitted is the block the source stands in.
+    pub fn block_position(&self, position: Option<BlockPosition>) -> IVec3 {
+        self.position(position.map(|p| p.0)).floor().as_ivec3()
     }
 
     /// A rotation parameter (`yRot`/`xRot`), relative to the source's rotation.
@@ -238,20 +240,15 @@ impl<'w> CommandContext<'w> {
         }
     }
 
-    /// Feet position of an entity (players store their eye position).
+    /// Feet position of an entity.
     pub fn feet(&self, entity: Entity) -> Option<DVec3> {
-        feet(self.world, entity)
+        feet_position(self.world, entity)
     }
-}
 
-/// Feet position of an entity (players store their eye position).
-pub fn feet(world: &World, entity: Entity) -> Option<DVec3> {
-    let position = world.get::<Position>(entity)?.0;
-    Some(if world.get::<Player>(entity).is_some() {
-        position - DVec3::Y * PLAYER_EYE_HEIGHT
-    } else {
-        position
-    })
+    /// Eye position of an entity.
+    pub fn eye(&self, entity: Entity) -> Option<DVec3> {
+        crate::entity::geometry::eye_position(self.world, entity)
+    }
 }
 
 /// Wire game type of a game mode (0 survival, 1 creative, 2 adventure, 6 spectator).
@@ -270,7 +267,7 @@ pub fn candidates(world: &mut World) -> Vec<Candidate> {
     let mut players = world.query_filtered::<Entity, With<Player>>();
     let player_entities: Vec<Entity> = players.iter(world).collect();
     for entity in player_entities {
-        let Some(feet) = feet(world, entity) else {
+        let Some(feet) = feet_position(world, entity) else {
             continue;
         };
         let rotation = world.get::<Rotation>(entity).copied().unwrap_or_default();
@@ -288,6 +285,9 @@ pub fn candidates(world: &mut World) -> Vec<Candidate> {
             level: world.get::<Experience>(entity).map_or(0, |x| x.level),
             families: vec!["player".into()],
             items: carried_items(world, entity),
+            alive: world
+                .get::<crate::entity::mob::state::Dead>(entity)
+                .is_none(),
         });
     }
     let mut actors = world.query_filtered::<(Entity, &Position), Without<Player>>();
@@ -314,6 +314,7 @@ pub fn candidates(world: &mut World) -> Vec<Candidate> {
             pitch: rotation.pitch,
             game_mode: None,
             level: 0,
+            alive: true,
             items: Vec::new(),
         });
     }

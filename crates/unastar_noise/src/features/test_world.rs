@@ -77,7 +77,11 @@ impl FeatureWorld for TestWorld {
         63
     }
     fn raw_brightness(&mut self, _pos: BlockPos, sky_darken: i32) -> i32 {
-        if self.has_skylight { 15_i32.wrapping_sub(sky_darken).max(0) } else { 0 }
+        if self.has_skylight {
+            15_i32.wrapping_sub(sky_darken).max(0)
+        } else {
+            0
+        }
     }
     fn seed(&self) -> i64 {
         self.seed

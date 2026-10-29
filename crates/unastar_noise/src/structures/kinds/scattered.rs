@@ -165,8 +165,10 @@ pub struct ScatteredFeature {
     pub width: i32,
     pub height: i32,
     pub depth: i32,
-    /// Initial per-placement state; every `post_process` works on a copy.
-    live: Live,
+    /// Placement state shared by every chunk that places this piece: Java
+    /// levels the piece once, in the first chunk decorated, and every later
+    /// chunk reuses that height.
+    live: std::sync::Mutex<Live>,
 }
 
 impl ScatteredFeature {
@@ -194,17 +196,22 @@ impl ScatteredFeature {
             width,
             height,
             depth,
-            live: Live {
+            live: std::sync::Mutex::new(Live {
                 height_position: -1,
                 dy: 0,
                 flags: 0,
-            },
+            }),
         }
     }
 
-    /// A fresh copy of the placement state (pieces never change while placed).
+    /// The current placement state.
     fn lock(&self) -> Live {
-        self.live
+        *self.live.lock().expect("scattered piece state")
+    }
+
+    /// Persist the placement state for later chunks.
+    fn store(&self, live: Live) {
+        *self.live.lock().expect("scattered piece state") = live;
     }
 
     /// The piece as currently placed (box moved by levelling).
@@ -227,18 +234,14 @@ impl ScatteredFeature {
         live.dy += height_position - min_y + height;
     }
 
-    /// `updateAverageGroundHeight(level, bounds, height)`: average ground
-    /// height under the piece.
-    ///
-    /// Java averages the `MOTION_BLOCKING_NO_LEAVES` heightmap over the columns
-    /// inside the box of whichever chunk is decorated first, and keeps that
-    /// height for the other chunks. Decoration order is not fixed here, so the
-    /// average is taken over the whole footprint from the noise-only terrain
-    /// (`StructureContext::base_height`), which every chunk computes the same.
+    /// `updateAverageGroundHeight(level, bounds, height)`: on first placement,
+    /// the average live `MOTION_BLOCKING_NO_LEAVES` height over the footprint
+    /// columns inside the decorated chunk `bounds`.
     fn update_average_ground_height(
         &self,
         live: &mut Live,
-        ctx: &dyn StructureContext,
+        world: &mut dyn FeatureWorld,
+        bounds: &BoundingBox,
         height: i32,
     ) -> bool {
         if live.height_position >= 0 {
@@ -248,8 +251,10 @@ impl ScatteredFeature {
         let (mut sum, mut count) = (0i32, 0i32);
         for z in bb.min_z..=bb.max_z {
             for x in bb.min_x..=bb.max_x {
-                sum += ctx.base_height(x, z, Heightmap::MotionBlockingNoLeaves);
-                count += 1;
+                if bounds.is_inside(BlockPos::new(x, 64, z)) {
+                    sum += world.get_height(Heightmap::MotionBlockingNoLeaves, x, z);
+                    count += 1;
+                }
             }
         }
         if count == 0 {
@@ -259,24 +264,24 @@ impl ScatteredFeature {
         true
     }
 
-    /// `updateHeightPositionToLowestGroundHeight(level, height)`: lowest ground
-    /// height over the whole footprint, from the noise-only terrain for the
-    /// same order-independence reason as [`Self::update_average_ground_height`].
+    /// `updateHeightPositionToLowestGroundHeight(level, height)`: on first
+    /// placement, the lowest live `MOTION_BLOCKING_NO_LEAVES` height over
+    /// the whole footprint.
     fn update_lowest_ground_height(
         &self,
         live: &mut Live,
-        ctx: &dyn StructureContext,
+        world: &mut dyn FeatureWorld,
         height: i32,
     ) -> bool {
         if live.height_position >= 0 {
             return true;
         }
         let bb = self.placed(live).bbox;
-        let mut lowest = ctx.min_y() + ctx.height();
+        let mut lowest = world.min_y() + world.height();
         let mut any = false;
         for z in bb.min_z..=bb.max_z {
             for x in bb.min_x..=bb.max_x {
-                lowest = lowest.min(ctx.base_height(x, z, Heightmap::MotionBlockingNoLeaves));
+                lowest = lowest.min(world.get_height(Heightmap::MotionBlockingNoLeaves, x, z));
                 any = true;
             }
         }
@@ -437,22 +442,20 @@ impl StructurePiece for DesertPyramidPiece {
     fn post_process(
         &self,
         world: &mut dyn FeatureWorld,
-        ctx: &dyn StructureContext,
+        _ctx: &dyn StructureContext,
         rng: &mut FeatureRandom,
         chunk_box: &BoundingBox,
         _chunk: (i32, i32),
         _pivot: BlockPos,
     ) {
-        // Java sinks the pyramid by `nextInt(3)` drawn in the first decorated
-        // chunk. Every chunk still makes the draw; the offset itself comes from a
-        // random seeded by the piece's corner so all chunks agree.
-        let _ = rng.next_int_bounded(3);
-        let c = self.sf.base.bbox;
-        let lower = -LegacyRandom::new(pos_seed(c.min_x, 0, c.min_z)).next_int_bounded(3);
+        // Java evaluates `-random.nextInt(3)` in every chunk, but only the
+        // first decorated chunk levels the shared piece with it.
+        let lower = -rng.next_int_bounded(3);
         let mut live = self.sf.lock();
-        if !self.sf.update_lowest_ground_height(&mut live, ctx, lower) {
+        if !self.sf.update_lowest_ground_height(&mut live, world, lower) {
             return;
         }
+        self.sf.store(live);
         let p = self.sf.placed(&live);
         let pt = Painter {
             p: &p,
@@ -678,6 +681,7 @@ impl StructurePiece for DesertPyramidPiece {
         }
 
         add_cellar(&pt, w);
+        self.sf.store(live);
     }
 }
 
@@ -817,20 +821,6 @@ fn place_suspicious_sand(world: &mut dyn FeatureWorld, chunk_box: &BoundingBox, 
     }
 }
 
-/// The desert pyramid's box after levelling, computed the same way its
-/// `post_process` does (pure: noise heights and a corner-seeded sink offset).
-pub fn levelled_pyramid_box(base: &PieceBase, ctx: &dyn StructureContext) -> BoundingBox {
-    let bb = base.bbox;
-    let lower = -LegacyRandom::new(pos_seed(bb.min_x, 0, bb.min_z)).next_int_bounded(3);
-    let mut lowest = ctx.min_y() + ctx.height();
-    for z in bb.min_z..=bb.max_z {
-        for x in bb.min_x..=bb.max_x {
-            lowest = lowest.min(ctx.base_height(x, z, Heightmap::MotionBlockingNoLeaves));
-        }
-    }
-    bb.moved(0, lowest - bb.min_y + lower, 0)
-}
-
 /// `DesertPyramidStructure.afterPlace`: turns the cellar's candidate positions
 /// into sand, 5 to 7 of them (shuffled with a positional random from the
 /// start's box centre) into suspicious sand, and the collapsed roof position
@@ -840,7 +830,7 @@ pub fn levelled_pyramid_box(base: &PieceBase, ctx: &dyn StructureContext) -> Bou
 /// from [`find_desert_pyramid_point`]).
 pub fn after_place_desert_pyramid(
     world: &mut dyn FeatureWorld,
-    ctx: &dyn StructureContext,
+    _ctx: &dyn StructureContext,
     _rng: &mut FeatureRandom,
     chunk_box: &BoundingBox,
     _chunk: (i32, i32),
@@ -850,8 +840,10 @@ pub fn after_place_desert_pyramid(
     let mut candidates = Vec::new();
     let mut whole: Option<BoundingBox> = None;
     for piece in pieces {
+        // afterPlace runs after this chunk placed the piece, which levelled
+        // it (in this or an earlier chunk); use that shared box.
         let placed = PieceBase {
-            bbox: levelled_pyramid_box(piece.base(), ctx),
+            bbox: piece.bbox(),
             ..*piece.base()
         };
         match whole.as_mut() {
@@ -910,16 +902,20 @@ impl StructurePiece for JungleTemplePiece {
     fn post_process(
         &self,
         world: &mut dyn FeatureWorld,
-        ctx: &dyn StructureContext,
+        _ctx: &dyn StructureContext,
         rng: &mut FeatureRandom,
         chunk_box: &BoundingBox,
         _chunk: (i32, i32),
         _pivot: BlockPos,
     ) {
         let mut live = self.sf.lock();
-        if !self.sf.update_average_ground_height(&mut live, ctx, 0) {
+        if !self
+            .sf
+            .update_average_ground_height(&mut live, world, chunk_box, 0)
+        {
             return;
         }
+        self.sf.store(live);
         let p = self.sf.placed(&live);
         let pt = Painter {
             p: &p,
@@ -1139,10 +1135,12 @@ impl StructurePiece for JungleTemplePiece {
         pt.set(w, states::STICKY_PISTON.with("facing", "west"), 10, -2, 8);
         pt.set(w, states::STICKY_PISTON.with("facing", "west"), 10, -1, 8);
         pt.set(w, states::REPEATER.with("facing", "north"), 10, -2, 10);
-        // The chest sits in one chunk; placing it there is Java's "once".
-        if live.flags & PLACED_HIDDEN_CHEST == 0 {
-            p.create_chest(w, chunk_box, r, 9, -3, 10, JUNGLE_TEMPLE_LOOT);
+        if live.flags & PLACED_HIDDEN_CHEST == 0
+            && p.create_chest(w, chunk_box, r, 9, -3, 10, JUNGLE_TEMPLE_LOOT)
+        {
+            live.flags |= PLACED_HIDDEN_CHEST;
         }
+        self.sf.store(live);
     }
 }
 
@@ -1179,16 +1177,20 @@ impl StructurePiece for SwampHutPiece {
     fn post_process(
         &self,
         world: &mut dyn FeatureWorld,
-        ctx: &dyn StructureContext,
+        _ctx: &dyn StructureContext,
         _rng: &mut FeatureRandom,
         chunk_box: &BoundingBox,
         _chunk: (i32, i32),
         _pivot: BlockPos,
     ) {
         let mut live = self.sf.lock();
-        if !self.sf.update_average_ground_height(&mut live, ctx, 0) {
+        if !self
+            .sf
+            .update_average_ground_height(&mut live, world, chunk_box, 0)
+        {
             return;
         }
+        self.sf.store(live);
         let p = self.sf.placed(&live);
         let pt = Painter {
             p: &p,
@@ -1726,7 +1728,7 @@ mod tests {
             true,
         );
         // Levelled onto the ground (lowest height 70, lowered by 0..2).
-        let bb = levelled_pyramid_box(pieces[0].base(), &ctx);
+        let bb = pieces[0].bbox();
         assert!((68..=70).contains(&bb.min_y), "levelled box {bb:?}");
         assert_eq!(count_block(&world, b::CHEST), 4);
         assert_eq!(loot_count(&world, DESERT_PYRAMID_LOOT), 4);

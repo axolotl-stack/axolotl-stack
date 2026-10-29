@@ -328,11 +328,13 @@ pub fn parse_overloads(
             pos: start,
         };
         let mut args = Args::new(definition, overload);
-        for param in &o.params {
+        for (index, param) in o.params.iter().enumerate() {
             let before = cursor.pos;
             cursor.skip_whitespace();
             if cursor.at_end() {
-                if param.optional {
+                // The line may stop here only if nothing after is required
+                // (`/summon` has an optional position before required ones).
+                if o.params[index..].iter().all(|p| p.optional) {
                     break;
                 }
                 furthest = furthest.max(cursor.pos);

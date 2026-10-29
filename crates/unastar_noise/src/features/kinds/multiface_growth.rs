@@ -48,10 +48,14 @@ pub(crate) fn has_face(state: JavaState, dir: Direction) -> bool {
 }
 
 /// `MultifaceBlock.canAttachTo(level, dir, neighbourPos, neighbourState)`:
-/// the neighbour in direction `dir` offers a full face towards the block.
+/// the neighbour's support shape or its collision shape covers the touching
+/// face fully. Native vines hang from leaves, whose support shape is empty
+/// but whose collision shape is a full cube. The physics data carries the
+/// sturdy support faces and full-cube collision; a non-cube collision shape
+/// with a full face but no sturdy face is not represented.
 #[inline]
 pub(crate) fn can_attach_to(neighbour: JavaState, dir: Direction) -> bool {
-    neighbour.is_face_sturdy(dir.opposite())
+    neighbour.is_face_sturdy(dir.opposite()) || neighbour.is_collision_full_cube()
 }
 
 #[inline]

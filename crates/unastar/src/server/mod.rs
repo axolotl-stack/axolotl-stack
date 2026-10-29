@@ -8,6 +8,6 @@ pub mod runtime;
 pub mod timer;
 
 pub use config::ServerConfig;
-pub use connect::{accept_join_sequence, resolve_spawn_location};
+pub use connect::{JoinWorld, accept_join_sequence, resolve_spawn_location};
 pub use game::{GameServer, PlayerSpawnData, SessionEntityMap};
 pub use runtime::UnastarServer;

@@ -72,11 +72,27 @@ const FORM_ONLY_FIELDS: [(&str, &str, &str); 8] = [
     ("minecraft:addrider", "entity_type", "string"),
     ("minecraft:addrider", "spawn_event", "string"),
     ("minecraft:behavior.leap_at_target", "target_dist", "number"),
-    ("minecraft:behavior.random_fly", "avoid_damage_blocks", "boolean"),
+    (
+        "minecraft:behavior.random_fly",
+        "avoid_damage_blocks",
+        "boolean",
+    ),
     ("minecraft:behavior.random_fly", "y_offset", "number"),
-    ("minecraft:behavior.random_look_around", "look_distance", "number"),
-    ("minecraft:behavior.ranged_attack", "attack_interval_max", "number"),
-    ("minecraft:behavior.ranged_attack", "attack_interval_min", "number"),
+    (
+        "minecraft:behavior.random_look_around",
+        "look_distance",
+        "number",
+    ),
+    (
+        "minecraft:behavior.ranged_attack",
+        "attack_interval_max",
+        "number",
+    ),
+    (
+        "minecraft:behavior.ranged_attack",
+        "attack_interval_min",
+        "number",
+    ),
 ];
 
 pub fn write(files: &[PathBuf], forms: &Path, registry: &BTreeSet<String>, out: &Path) {
@@ -159,7 +175,9 @@ pub fn write(files: &[PathBuf], forms: &Path, registry: &BTreeSet<String>, out: 
         "extra fields for non-object component schemas"
     );
 
-    let emit = Emit { types: &lower.types };
+    let emit = Emit {
+        types: &lower.types,
+    };
     let body_items = emit.body_items(&components);
     let component_enum = component_enum(registry, &selected);
     let dispatch = components.iter().map(|(_, id, _)| {
@@ -199,8 +217,14 @@ pub fn write(files: &[PathBuf], forms: &Path, registry: &BTreeSet<String>, out: 
          // Untyped schema nodes lowered to serde_json::Value: {}\n",
         registry.len(),
         components.len(),
-        lower.types.iter().filter(|definition| !definition.external).count(),
-        EXTERNAL_FILES.map(|file| shared_type_name(file, "")).join(", "),
+        lower
+            .types
+            .iter()
+            .filter(|definition| !definition.external)
+            .count(),
+        EXTERNAL_FILES
+            .map(|file| shared_type_name(file, ""))
+            .join(", "),
         lower.holes.len(),
     );
     for hole in &lower.holes {
@@ -233,7 +257,9 @@ fn legacy_fields(
         .map(|path| {
             let registry = component_defaults::load(path, schemas);
             let version = component_defaults::version(
-                registry["x-format-version"].as_str().expect("schema version"),
+                registry["x-format-version"]
+                    .as_str()
+                    .expect("schema version"),
             );
             (version, path.clone(), registry)
         })
@@ -266,8 +292,7 @@ fn legacy_fields(
                 serde_json::json!({ "$ref": reference }),
                 schemas,
             );
-            let Some(properties) = older.schema.get("properties").and_then(Value::as_object)
-            else {
+            let Some(properties) = older.schema.get("properties").and_then(Value::as_object) else {
                 continue;
             };
             for (field, node) in properties {
@@ -615,7 +640,9 @@ impl Lower<'_> {
                 let doc = description(&annotations);
                 let doc = if legacy {
                     Some(match doc {
-                        Some(doc) => format!("Legacy field, absent from the selected schema.\n{doc}"),
+                        Some(doc) => {
+                            format!("Legacy field, absent from the selected schema.\n{doc}")
+                        }
                         None => "Legacy field, absent from the selected schema.".to_owned(),
                     })
                 } else {
@@ -744,7 +771,10 @@ struct Emit<'a> {
 }
 
 impl Emit<'_> {
-    fn body_items(&self, components: &[(String, usize, component_defaults::Resolved)]) -> TokenStream {
+    fn body_items(
+        &self,
+        components: &[(String, usize, component_defaults::Resolved)],
+    ) -> TokenStream {
         let mut items = TokenStream::new();
         let mut default_fns = TokenStream::new();
         let mut default_names = BTreeSet::new();
@@ -1079,7 +1109,9 @@ fn trivial_default(ty: &Ty, value: &Value) -> bool {
     match ty {
         Ty::Bool => value == &Value::Bool(false),
         Ty::Int(_) => value.as_f64() == Some(0.0),
-        Ty::F32 => value.as_f64().is_some_and(|value| value == 0.0 && value.is_sign_positive()),
+        Ty::F32 => value
+            .as_f64()
+            .is_some_and(|value| value == 0.0 && value.is_sign_positive()),
         Ty::String => value.as_str() == Some(""),
         Ty::Vec(_) => value.as_array().is_some_and(Vec::is_empty),
         Ty::Map(_) => value.as_object().is_some_and(serde_json::Map::is_empty),
@@ -1189,7 +1221,10 @@ fn component_type_name(name: &str) -> String {
 
 fn shared_type_name(file: &str, pointer: &str) -> String {
     if let Some((_, name)) = RENAMED_FILES.iter().find(|(renamed, _)| *renamed == file) {
-        assert!(pointer.is_empty(), "renamed schema {file} is referenced by pointer");
+        assert!(
+            pointer.is_empty(),
+            "renamed schema {file} is referenced by pointer"
+        );
         return (*name).to_owned();
     }
     let stem = file.strip_suffix(".json").expect("JSON schema file");
@@ -1270,7 +1305,10 @@ fn field_ident(json: &str) -> Ident {
     // Spawn-rule conditions key their fields by namespaced component name
     // (`minecraft:herd` → `herd`).
     let ident = snake(json.strip_prefix("minecraft:").unwrap_or(json));
-    assert!(!ident.is_empty(), "field {json:?} has no identifier characters");
+    assert!(
+        !ident.is_empty(),
+        "field {json:?} has no identifier characters"
+    );
     if matches!(ident.as_str(), "self" | "super" | "crate" | "gen") {
         Ident::new(&format!("{ident}_"), Span::call_site())
     } else if RAW.contains(&ident.as_str()) {
