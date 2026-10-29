@@ -730,3 +730,42 @@ and the error ceiling to 1.2062. The surface floors rise to 0.8545 / 0.8489 /
 0.9950 and the histogram ceiling falls to 0.02048. Grid distributions (cocoa
 only) are unmeasured and unchanged.
 
+### Vegetation patch ranges (2026-10-28)
+
+BDS stores a vegetation patch's `range_max` as written and draws
+`horizontal_radius` and `depth` as `min + next_int(max - min)`, with no draw
+when `max - min <= 1`, so the upper bound is exclusive. We drew inclusively.
+Evidence from the natural seed-12345 BDS world, chunks (-5..4,-5..4):
+
+| Moss run depth | BDS | Inclusive | Exclusive |
+| --- | ---: | ---: | ---: |
+| 1 | 9285 | 4020 | 7511 |
+| 2 | 6295 | 5145 | 4556 |
+| 3 | 34 | 3420 | 3 |
+
+`moss_ceiling_feature` declares depth `{1, 3}` and `moss_patch_feature`
+`{1, 2}`. BDS almost never has 3-deep moss, so `3` is never drawn. Clay
+blocks matching BDS position for position go 28079 -> 28552 of 39313, and
+big dripleaf 5 -> 24 of 379. `ranges_are_drawn_upper_exclusive` fails with
+the inclusive draw.
+
+Fixture effect (BDS / before / after):
+
+| Block | BDS | Before | After |
+| --- | ---: | ---: | ---: |
+| clay | 26162 | 27990 | 27575 |
+| big dripleaf | 190 | 272 | 229 |
+| moss block | 14031 | 15658 | 10596 |
+| deepslate | 883698 | 892572 | 896334 |
+
+Terrain exact rises 0.88574 -> 0.88591 and terrain error falls 1.20617 ->
+1.20335; both floors are raised. Histogram L1 rises 0.02047 -> 0.02379. The
+inclusive draw overgrew every moss patch and hid a moss deficit:
+
+- moss zones missing entirely, in chunks (-3,4) and (-2,4) (1870 BDS blocks
+  with no moss of ours nearby);
+- about 10% fewer moss-ceiling iterations finding a ceiling than BDS (717 vs
+  787 near the first 125 positions of the shared lush chunks).
+
+Under D8 only the histogram ceiling is re-baselined, to 0.02379.
+

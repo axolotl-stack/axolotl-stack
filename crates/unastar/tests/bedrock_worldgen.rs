@@ -90,9 +90,10 @@ fn bedrock_style_vs_bds_reference_ratchets() {
             // surface-relative threshold below water then raised the terrain
             // floors. Native scatter distributions (coordinator-approved)
             // raise the surface floors and lower terrain within 2 and terrain
-            // error by one column: see "Native scatter distributions".
+            // error by one column: see "Native scatter distributions". Upper-
+            // exclusive vegetation-patch ranges then raised the terrain floors.
             for (name, value, floor) in [
-                ("terrain_exact", m.terrain_exact, 0.8857),
+                ("terrain_exact", m.terrain_exact, 0.8859),
                 ("terrain_within_2", m.terrain_within_2, 0.9244),
                 ("surface_exact", m.surface_exact, 0.8545),
                 ("surface_block", m.surface_block, 0.8489),
@@ -101,7 +102,7 @@ fn bedrock_style_vs_bds_reference_ratchets() {
                 assert!(value >= floor, "{name} {value:.6} fell below {floor:.6}");
             }
             assert!(
-                m.terrain_mean_abs_error <= 1.2062,
+                m.terrain_mean_abs_error <= 1.2034,
                 "terrain error rose: {}",
                 m.terrain_mean_abs_error
             );
@@ -110,8 +111,10 @@ fn bedrock_style_vs_bds_reference_ratchets() {
             // stone, unmasking existing excesses (D8, one ceiling each time):
             // see "Geode point count" and "Magma depth below solid ground" in
             // that README. Block-exact geodes then lowered the error again.
+            // Upper-exclusive vegetation-patch ranges stop overgrown moss
+            // hiding a moss deficit (D8): see "Vegetation patch ranges".
             assert!(
-                m.histogram_l1 <= 0.02048,
+                m.histogram_l1 <= 0.02379,
                 "histogram error rose: {}",
                 m.histogram_l1
             );
