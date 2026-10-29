@@ -1,0 +1,1185 @@
+{
+ "source": "measured on BDS 1.26.51 with the bds-sweep blocks job, 2026-10-29 UTC",
+ "conventions": {
+  "arena": "stone floor at y=-61, survival player standing on it (feet y=-60), noon, clear sky",
+  "faces": "0 down, 1 up, 2 north (-z), 3 south (+z), 4 west (-x), 5 east (+x)",
+  "yaw": "yaw 0 south, 90 west, 180 north, 270 east",
+  "ticks": "server ticks after the command or order; a change at tick n was first seen n ticks later",
+  "cells": "block name and full state map of each watched cell after the step",
+  "packets": "server packets received after the step, identical ones merged with a \"times\" count; block runtime ids are written as the block state they denote; block updates have flags 3 and layer 0 unless listed"
+ },
+ "doors": [
+  {
+   "step": "place_looking_north",
+   "action": "use",
+   "clicked": [0, -61, 0],
+   "face": "up",
+   "click": [0.5, 1.0, 0.5],
+   "player": {"feet": [0.5, -60.0, 2.5], "yaw": 180.0, "pitch": 39.01},
+   "used": true,
+   "changed": ["lower", "upper"],
+   "held_after": ["minecraft:wooden_door", 63],
+   "cells": {
+    "lower": {"pos": [0, -60, 0], "name": "minecraft:wooden_door", "states": {"door_hinge_bit": false, "minecraft:cardinal_direction": "east", "open_bit": false, "upper_block_bit": false}},
+    "upper": {"pos": [0, -59, 0], "name": "minecraft:wooden_door", "states": {"door_hinge_bit": false, "minecraft:cardinal_direction": "east", "open_bit": false, "upper_block_bit": true}}
+   },
+   "packets": {
+    "block_updates": [
+     {"position": [0, -61, 0], "block": "minecraft:stone", "times": 2},
+     {"position": [0, -60, 0], "block": "minecraft:wooden_door[door_hinge_bit=false,minecraft:cardinal_direction=\"east\",open_bit=false,upper_block_bit=false]", "times": 2},
+     {"position": [0, -62, 0], "block": "minecraft:dirt"},
+     {"position": [0, -59, 0], "block": "minecraft:wooden_door[door_hinge_bit=false,minecraft:cardinal_direction=\"east\",open_bit=false,upper_block_bit=true]"},
+     {
+      "position": [0, -60, 0],
+      "block": "minecraft:wooden_door[door_hinge_bit=false,minecraft:cardinal_direction=\"east\",open_bit=false,upper_block_bit=false]",
+      "via": "UpdateSubChunkBlocks"
+     },
+     {
+      "position": [0, -59, 0],
+      "block": "minecraft:wooden_door[door_hinge_bit=false,minecraft:cardinal_direction=\"east\",open_bit=false,upper_block_bit=true]",
+      "via": "UpdateSubChunkBlocks"
+     }
+    ],
+    "sounds": [
+     {
+      "sound": "place",
+      "position": [0.0, -60.0, 0.0],
+      "data": "minecraft:wooden_door[door_hinge_bit=false,minecraft:cardinal_direction=\"east\",open_bit=false,upper_block_bit=false]"
+     }
+    ]
+   }
+  },
+  {
+   "step": "place_looking_east",
+   "action": "use",
+   "clicked": [0, -61, 0],
+   "face": "up",
+   "click": [0.5, 1.0, 0.5],
+   "player": {"feet": [-1.5, -60.0, 0.5], "yaw": 270.0, "pitch": 39.01},
+   "used": true,
+   "changed": ["lower", "upper"],
+   "held_after": ["minecraft:wooden_door", 63],
+   "cells": {
+    "lower": {"pos": [0, -60, 0], "name": "minecraft:wooden_door", "states": {"door_hinge_bit": false, "minecraft:cardinal_direction": "south", "open_bit": false, "upper_block_bit": false}},
+    "upper": {"pos": [0, -59, 0], "name": "minecraft:wooden_door", "states": {"door_hinge_bit": false, "minecraft:cardinal_direction": "south", "open_bit": false, "upper_block_bit": true}}
+   },
+   "packets": {
+    "block_updates": [
+     {"position": [0, -61, 0], "block": "minecraft:stone", "times": 2},
+     {"position": [0, -60, 0], "block": "minecraft:wooden_door[door_hinge_bit=false,minecraft:cardinal_direction=\"south\",open_bit=false,upper_block_bit=false]", "times": 2},
+     {"position": [0, -62, 0], "block": "minecraft:dirt"},
+     {"position": [0, -59, 0], "block": "minecraft:wooden_door[door_hinge_bit=false,minecraft:cardinal_direction=\"south\",open_bit=false,upper_block_bit=true]"},
+     {
+      "position": [0, -60, 0],
+      "block": "minecraft:wooden_door[door_hinge_bit=false,minecraft:cardinal_direction=\"south\",open_bit=false,upper_block_bit=false]",
+      "via": "UpdateSubChunkBlocks"
+     },
+     {
+      "position": [0, -59, 0],
+      "block": "minecraft:wooden_door[door_hinge_bit=false,minecraft:cardinal_direction=\"south\",open_bit=false,upper_block_bit=true]",
+      "via": "UpdateSubChunkBlocks"
+     }
+    ],
+    "sounds": [
+     {
+      "sound": "place",
+      "position": [0.0, -60.0, 0.0],
+      "data": "minecraft:wooden_door[door_hinge_bit=false,minecraft:cardinal_direction=\"south\",open_bit=false,upper_block_bit=false]"
+     }
+    ]
+   }
+  },
+  {
+   "step": "place_looking_north_click_west_half",
+   "action": "use",
+   "clicked": [0, -61, 0],
+   "face": "up",
+   "click": [0.2, 1.0, 0.5],
+   "player": {"feet": [0.5, -60.0, 2.5], "yaw": 180.0, "pitch": 38.7},
+   "used": true,
+   "changed": ["lower", "upper"],
+   "held_after": ["minecraft:wooden_door", 63],
+   "cells": {
+    "lower": {"pos": [0, -60, 0], "name": "minecraft:wooden_door", "states": {"door_hinge_bit": false, "minecraft:cardinal_direction": "east", "open_bit": false, "upper_block_bit": false}},
+    "upper": {"pos": [0, -59, 0], "name": "minecraft:wooden_door", "states": {"door_hinge_bit": false, "minecraft:cardinal_direction": "east", "open_bit": false, "upper_block_bit": true}}
+   },
+   "packets": {
+    "block_updates": [
+     {"position": [0, -61, 0], "block": "minecraft:stone", "times": 2},
+     {"position": [0, -60, 0], "block": "minecraft:wooden_door[door_hinge_bit=false,minecraft:cardinal_direction=\"east\",open_bit=false,upper_block_bit=false]", "times": 2},
+     {"position": [0, -62, 0], "block": "minecraft:dirt"},
+     {"position": [0, -59, 0], "block": "minecraft:wooden_door[door_hinge_bit=false,minecraft:cardinal_direction=\"east\",open_bit=false,upper_block_bit=true]"},
+     {
+      "position": [0, -60, 0],
+      "block": "minecraft:wooden_door[door_hinge_bit=false,minecraft:cardinal_direction=\"east\",open_bit=false,upper_block_bit=false]",
+      "via": "UpdateSubChunkBlocks"
+     },
+     {
+      "position": [0, -59, 0],
+      "block": "minecraft:wooden_door[door_hinge_bit=false,minecraft:cardinal_direction=\"east\",open_bit=false,upper_block_bit=true]",
+      "via": "UpdateSubChunkBlocks"
+     }
+    ],
+    "sounds": [
+     {
+      "sound": "place",
+      "position": [0.0, -60.0, 0.0],
+      "data": "minecraft:wooden_door[door_hinge_bit=false,minecraft:cardinal_direction=\"east\",open_bit=false,upper_block_bit=false]"
+     }
+    ]
+   }
+  },
+  {
+   "step": "place_looking_north_click_east_half",
+   "action": "use",
+   "clicked": [0, -61, 0],
+   "face": "up",
+   "click": [0.8, 1.0, 0.5],
+   "player": {"feet": [0.5, -60.0, 2.5], "yaw": 180.0, "pitch": 38.7},
+   "used": true,
+   "changed": ["lower", "upper"],
+   "held_after": ["minecraft:wooden_door", 63],
+   "cells": {
+    "lower": {"pos": [0, -60, 0], "name": "minecraft:wooden_door", "states": {"door_hinge_bit": false, "minecraft:cardinal_direction": "east", "open_bit": false, "upper_block_bit": false}},
+    "upper": {"pos": [0, -59, 0], "name": "minecraft:wooden_door", "states": {"door_hinge_bit": false, "minecraft:cardinal_direction": "east", "open_bit": false, "upper_block_bit": true}}
+   },
+   "packets": {
+    "block_updates": [
+     {"position": [0, -61, 0], "block": "minecraft:stone", "times": 2},
+     {"position": [0, -60, 0], "block": "minecraft:wooden_door[door_hinge_bit=false,minecraft:cardinal_direction=\"east\",open_bit=false,upper_block_bit=false]", "times": 2},
+     {"position": [0, -62, 0], "block": "minecraft:dirt"},
+     {"position": [0, -59, 0], "block": "minecraft:wooden_door[door_hinge_bit=false,minecraft:cardinal_direction=\"east\",open_bit=false,upper_block_bit=true]"},
+     {
+      "position": [0, -60, 0],
+      "block": "minecraft:wooden_door[door_hinge_bit=false,minecraft:cardinal_direction=\"east\",open_bit=false,upper_block_bit=false]",
+      "via": "UpdateSubChunkBlocks"
+     },
+     {
+      "position": [0, -59, 0],
+      "block": "minecraft:wooden_door[door_hinge_bit=false,minecraft:cardinal_direction=\"east\",open_bit=false,upper_block_bit=true]",
+      "via": "UpdateSubChunkBlocks"
+     }
+    ],
+    "sounds": [
+     {
+      "sound": "place",
+      "position": [0.0, -60.0, 0.0],
+      "data": "minecraft:wooden_door[door_hinge_bit=false,minecraft:cardinal_direction=\"east\",open_bit=false,upper_block_bit=false]"
+     }
+    ]
+   }
+  },
+  {
+   "step": "place_stone_stacked_west",
+   "action": "use",
+   "clicked": [0, -61, 0],
+   "face": "up",
+   "click": [0.5, 1.0, 0.5],
+   "player": {"feet": [0.5, -60.0, 2.5], "yaw": 180.0, "pitch": 39.01},
+   "used": true,
+   "changed": ["lower", "upper"],
+   "held_after": ["minecraft:wooden_door", 63],
+   "cells": {
+    "lower": {"pos": [0, -60, 0], "name": "minecraft:wooden_door", "states": {"door_hinge_bit": false, "minecraft:cardinal_direction": "east", "open_bit": false, "upper_block_bit": false}},
+    "upper": {"pos": [0, -59, 0], "name": "minecraft:wooden_door", "states": {"door_hinge_bit": false, "minecraft:cardinal_direction": "east", "open_bit": false, "upper_block_bit": true}}
+   },
+   "packets": {
+    "block_updates": [
+     {"position": [0, -61, 0], "block": "minecraft:stone", "times": 2},
+     {"position": [0, -60, 0], "block": "minecraft:wooden_door[door_hinge_bit=false,minecraft:cardinal_direction=\"east\",open_bit=false,upper_block_bit=false]", "times": 2},
+     {"position": [0, -62, 0], "block": "minecraft:dirt"},
+     {"position": [0, -59, 0], "block": "minecraft:wooden_door[door_hinge_bit=false,minecraft:cardinal_direction=\"east\",open_bit=false,upper_block_bit=true]"},
+     {
+      "position": [0, -60, 0],
+      "block": "minecraft:wooden_door[door_hinge_bit=false,minecraft:cardinal_direction=\"east\",open_bit=false,upper_block_bit=false]",
+      "via": "UpdateSubChunkBlocks"
+     },
+     {
+      "position": [0, -59, 0],
+      "block": "minecraft:wooden_door[door_hinge_bit=false,minecraft:cardinal_direction=\"east\",open_bit=false,upper_block_bit=true]",
+      "via": "UpdateSubChunkBlocks"
+     }
+    ],
+    "sounds": [
+     {
+      "sound": "place",
+      "position": [0.0, -60.0, 0.0],
+      "data": "minecraft:wooden_door[door_hinge_bit=false,minecraft:cardinal_direction=\"east\",open_bit=false,upper_block_bit=false]"
+     }
+    ]
+   }
+  },
+  {
+   "step": "place_stone_stacked_east",
+   "action": "use",
+   "clicked": [0, -61, 0],
+   "face": "up",
+   "click": [0.5, 1.0, 0.5],
+   "player": {"feet": [0.5, -60.0, 2.5], "yaw": 180.0, "pitch": 39.01},
+   "used": true,
+   "changed": ["lower", "upper"],
+   "held_after": ["minecraft:wooden_door", 63],
+   "cells": {
+    "lower": {"pos": [0, -60, 0], "name": "minecraft:wooden_door", "states": {"door_hinge_bit": false, "minecraft:cardinal_direction": "east", "open_bit": false, "upper_block_bit": false}},
+    "upper": {"pos": [0, -59, 0], "name": "minecraft:wooden_door", "states": {"door_hinge_bit": true, "minecraft:cardinal_direction": "east", "open_bit": false, "upper_block_bit": true}}
+   },
+   "packets": {
+    "block_updates": [
+     {"position": [0, -61, 0], "block": "minecraft:stone", "times": 2},
+     {"position": [0, -60, 0], "block": "minecraft:wooden_door[door_hinge_bit=false,minecraft:cardinal_direction=\"east\",open_bit=false,upper_block_bit=false]", "times": 2},
+     {"position": [0, -62, 0], "block": "minecraft:dirt"},
+     {"position": [0, -59, 0], "block": "minecraft:wooden_door[door_hinge_bit=true,minecraft:cardinal_direction=\"east\",open_bit=false,upper_block_bit=true]"},
+     {
+      "position": [0, -60, 0],
+      "block": "minecraft:wooden_door[door_hinge_bit=false,minecraft:cardinal_direction=\"east\",open_bit=false,upper_block_bit=false]",
+      "via": "UpdateSubChunkBlocks"
+     },
+     {
+      "position": [0, -59, 0],
+      "block": "minecraft:wooden_door[door_hinge_bit=true,minecraft:cardinal_direction=\"east\",open_bit=false,upper_block_bit=true]",
+      "via": "UpdateSubChunkBlocks"
+     }
+    ],
+    "sounds": [
+     {
+      "sound": "place",
+      "position": [0.0, -60.0, 0.0],
+      "data": "minecraft:wooden_door[door_hinge_bit=false,minecraft:cardinal_direction=\"east\",open_bit=false,upper_block_bit=false]"
+     }
+    ]
+   }
+  },
+  {
+   "step": "pair_first",
+   "action": "use",
+   "clicked": [0, -61, 0],
+   "face": "up",
+   "click": [0.5, 1.0, 0.5],
+   "player": {"feet": [0.5, -60.0, 2.5], "yaw": 180.0, "pitch": 39.01},
+   "used": true,
+   "changed": ["lower", "upper"],
+   "held_after": ["minecraft:wooden_door", 63],
+   "cells": {
+    "lower": {"pos": [0, -60, 0], "name": "minecraft:wooden_door", "states": {"door_hinge_bit": false, "minecraft:cardinal_direction": "east", "open_bit": false, "upper_block_bit": false}},
+    "upper": {"pos": [0, -59, 0], "name": "minecraft:wooden_door", "states": {"door_hinge_bit": false, "minecraft:cardinal_direction": "east", "open_bit": false, "upper_block_bit": true}}
+   },
+   "packets": {
+    "block_updates": [
+     {"position": [0, -61, 0], "block": "minecraft:stone", "times": 2},
+     {"position": [0, -60, 0], "block": "minecraft:wooden_door[door_hinge_bit=false,minecraft:cardinal_direction=\"east\",open_bit=false,upper_block_bit=false]", "times": 2},
+     {"position": [0, -62, 0], "block": "minecraft:dirt"},
+     {"position": [0, -59, 0], "block": "minecraft:wooden_door[door_hinge_bit=false,minecraft:cardinal_direction=\"east\",open_bit=false,upper_block_bit=true]"},
+     {
+      "position": [0, -60, 0],
+      "block": "minecraft:wooden_door[door_hinge_bit=false,minecraft:cardinal_direction=\"east\",open_bit=false,upper_block_bit=false]",
+      "via": "UpdateSubChunkBlocks"
+     },
+     {
+      "position": [0, -59, 0],
+      "block": "minecraft:wooden_door[door_hinge_bit=false,minecraft:cardinal_direction=\"east\",open_bit=false,upper_block_bit=true]",
+      "via": "UpdateSubChunkBlocks"
+     }
+    ],
+    "sounds": [
+     {
+      "sound": "place",
+      "position": [0.0, -60.0, 0.0],
+      "data": "minecraft:wooden_door[door_hinge_bit=false,minecraft:cardinal_direction=\"east\",open_bit=false,upper_block_bit=false]"
+     }
+    ]
+   }
+  },
+  {
+   "step": "pair_second_east",
+   "action": "use",
+   "clicked": [1, -61, 0],
+   "face": "up",
+   "click": [0.5, 1.0, 0.5],
+   "player": {"feet": [1.5, -60.0, 2.5], "yaw": 180.0, "pitch": 39.01},
+   "used": true,
+   "changed": ["lower", "upper"],
+   "held_after": ["minecraft:wooden_door", 63],
+   "cells": {
+    "first_lower": {"pos": [0, -60, 0], "name": "minecraft:wooden_door", "states": {"door_hinge_bit": false, "minecraft:cardinal_direction": "east", "open_bit": false, "upper_block_bit": false}},
+    "first_upper": {"pos": [0, -59, 0], "name": "minecraft:wooden_door", "states": {"door_hinge_bit": false, "minecraft:cardinal_direction": "east", "open_bit": false, "upper_block_bit": true}},
+    "lower": {"pos": [1, -60, 0], "name": "minecraft:wooden_door", "states": {"door_hinge_bit": false, "minecraft:cardinal_direction": "east", "open_bit": false, "upper_block_bit": false}},
+    "upper": {"pos": [1, -59, 0], "name": "minecraft:wooden_door", "states": {"door_hinge_bit": true, "minecraft:cardinal_direction": "east", "open_bit": false, "upper_block_bit": true}}
+   },
+   "packets": {
+    "block_updates": [
+     {"position": [1, -61, 0], "block": "minecraft:stone", "times": 2},
+     {"position": [1, -60, 0], "block": "minecraft:wooden_door[door_hinge_bit=false,minecraft:cardinal_direction=\"east\",open_bit=false,upper_block_bit=false]", "times": 2},
+     {"position": [1, -62, 0], "block": "minecraft:dirt"},
+     {"position": [1, -59, 0], "block": "minecraft:wooden_door[door_hinge_bit=true,minecraft:cardinal_direction=\"east\",open_bit=false,upper_block_bit=true]"},
+     {
+      "position": [1, -60, 0],
+      "block": "minecraft:wooden_door[door_hinge_bit=false,minecraft:cardinal_direction=\"east\",open_bit=false,upper_block_bit=false]",
+      "via": "UpdateSubChunkBlocks"
+     },
+     {
+      "position": [1, -59, 0],
+      "block": "minecraft:wooden_door[door_hinge_bit=true,minecraft:cardinal_direction=\"east\",open_bit=false,upper_block_bit=true]",
+      "via": "UpdateSubChunkBlocks"
+     }
+    ],
+    "sounds": [
+     {
+      "sound": "place",
+      "position": [1.0, -60.0, 0.0],
+      "data": "minecraft:wooden_door[door_hinge_bit=false,minecraft:cardinal_direction=\"east\",open_bit=false,upper_block_bit=false]"
+     }
+    ]
+   }
+  },
+  {
+   "step": "toggle_place",
+   "action": "use",
+   "clicked": [0, -61, 0],
+   "face": "up",
+   "click": [0.5, 1.0, 0.5],
+   "player": {"feet": [0.5, -60.0, 2.5], "yaw": 180.0, "pitch": 39.01},
+   "used": true,
+   "changed": ["lower", "upper"],
+   "held_after": ["minecraft:wooden_door", 63],
+   "cells": {
+    "lower": {"pos": [0, -60, 0], "name": "minecraft:wooden_door", "states": {"door_hinge_bit": false, "minecraft:cardinal_direction": "east", "open_bit": false, "upper_block_bit": false}},
+    "upper": {"pos": [0, -59, 0], "name": "minecraft:wooden_door", "states": {"door_hinge_bit": false, "minecraft:cardinal_direction": "east", "open_bit": false, "upper_block_bit": true}}
+   },
+   "packets": {
+    "block_updates": [
+     {"position": [0, -61, 0], "block": "minecraft:stone", "times": 2},
+     {"position": [0, -60, 0], "block": "minecraft:wooden_door[door_hinge_bit=false,minecraft:cardinal_direction=\"east\",open_bit=false,upper_block_bit=false]", "times": 2},
+     {"position": [0, -62, 0], "block": "minecraft:dirt"},
+     {"position": [0, -59, 0], "block": "minecraft:wooden_door[door_hinge_bit=false,minecraft:cardinal_direction=\"east\",open_bit=false,upper_block_bit=true]"},
+     {
+      "position": [0, -60, 0],
+      "block": "minecraft:wooden_door[door_hinge_bit=false,minecraft:cardinal_direction=\"east\",open_bit=false,upper_block_bit=false]",
+      "via": "UpdateSubChunkBlocks"
+     },
+     {
+      "position": [0, -59, 0],
+      "block": "minecraft:wooden_door[door_hinge_bit=false,minecraft:cardinal_direction=\"east\",open_bit=false,upper_block_bit=true]",
+      "via": "UpdateSubChunkBlocks"
+     }
+    ],
+    "sounds": [
+     {
+      "sound": "place",
+      "position": [0.0, -60.0, 0.0],
+      "data": "minecraft:wooden_door[door_hinge_bit=false,minecraft:cardinal_direction=\"east\",open_bit=false,upper_block_bit=false]"
+     }
+    ]
+   }
+  },
+  {
+   "step": "toggle_lower_1",
+   "action": "use",
+   "clicked": [0, -60, 0],
+   "face": "south",
+   "click": [0.5, 0.5, 1.0],
+   "player": {"feet": [0.5, -60.0, 2.5], "yaw": 180.0, "pitch": 36.75},
+   "used": true,
+   "changed": ["lower"],
+   "held_after": ["minecraft:dirt", 64],
+   "cells": {
+    "in_front": {"pos": [0, -60, 1], "name": "minecraft:air", "states": {}},
+    "lower": {"pos": [0, -60, 0], "name": "minecraft:wooden_door", "states": {"door_hinge_bit": false, "minecraft:cardinal_direction": "east", "open_bit": true, "upper_block_bit": false}},
+    "upper": {"pos": [0, -59, 0], "name": "minecraft:wooden_door", "states": {"door_hinge_bit": false, "minecraft:cardinal_direction": "east", "open_bit": false, "upper_block_bit": true}}
+   },
+   "packets": {
+    "block_updates": [
+     {
+      "position": [0, -60, 0],
+      "block": "minecraft:wooden_door[door_hinge_bit=false,minecraft:cardinal_direction=\"east\",open_bit=true,upper_block_bit=false]",
+      "via": "UpdateSubChunkBlocks"
+     },
+     {
+      "position": [0, -59, 0],
+      "block": "minecraft:wooden_door[door_hinge_bit=false,minecraft:cardinal_direction=\"east\",open_bit=false,upper_block_bit=true]",
+      "via": "UpdateSubChunkBlocks"
+     }
+    ],
+    "sounds": [
+     {
+      "sound": "door.open",
+      "position": [0.5, -59.5, 0.5],
+      "data": "minecraft:wooden_door[door_hinge_bit=false,minecraft:cardinal_direction=\"east\",open_bit=false,upper_block_bit=false]"
+     }
+    ]
+   }
+  },
+  {
+   "step": "toggle_lower_2",
+   "action": "use",
+   "clicked": [0, -60, 0],
+   "face": "south",
+   "click": [0.5, 0.5, 1.0],
+   "player": {"feet": [0.5, -60.0, 2.5], "yaw": 180.0, "pitch": 36.75},
+   "used": true,
+   "changed": ["lower"],
+   "held_after": ["minecraft:dirt", 64],
+   "cells": {
+    "in_front": {"pos": [0, -60, 1], "name": "minecraft:air", "states": {}},
+    "lower": {"pos": [0, -60, 0], "name": "minecraft:wooden_door", "states": {"door_hinge_bit": false, "minecraft:cardinal_direction": "east", "open_bit": false, "upper_block_bit": false}},
+    "upper": {"pos": [0, -59, 0], "name": "minecraft:wooden_door", "states": {"door_hinge_bit": false, "minecraft:cardinal_direction": "east", "open_bit": false, "upper_block_bit": true}}
+   },
+   "packets": {
+    "block_updates": [
+     {
+      "position": [0, -60, 0],
+      "block": "minecraft:wooden_door[door_hinge_bit=false,minecraft:cardinal_direction=\"east\",open_bit=false,upper_block_bit=false]",
+      "via": "UpdateSubChunkBlocks"
+     },
+     {
+      "position": [0, -59, 0],
+      "block": "minecraft:wooden_door[door_hinge_bit=false,minecraft:cardinal_direction=\"east\",open_bit=false,upper_block_bit=true]",
+      "via": "UpdateSubChunkBlocks"
+     }
+    ],
+    "sounds": [
+     {
+      "sound": "door.close",
+      "position": [0.5, -59.5, 0.5],
+      "data": "minecraft:wooden_door[door_hinge_bit=false,minecraft:cardinal_direction=\"east\",open_bit=true,upper_block_bit=false]"
+     }
+    ]
+   }
+  },
+  {
+   "step": "toggle_lower_3",
+   "action": "use",
+   "clicked": [0, -60, 0],
+   "face": "south",
+   "click": [0.5, 0.5, 1.0],
+   "player": {"feet": [0.5, -60.0, 2.5], "yaw": 180.0, "pitch": 36.75},
+   "used": true,
+   "changed": ["lower"],
+   "held_after": ["minecraft:dirt", 64],
+   "cells": {
+    "in_front": {"pos": [0, -60, 1], "name": "minecraft:air", "states": {}},
+    "lower": {"pos": [0, -60, 0], "name": "minecraft:wooden_door", "states": {"door_hinge_bit": false, "minecraft:cardinal_direction": "east", "open_bit": true, "upper_block_bit": false}},
+    "upper": {"pos": [0, -59, 0], "name": "minecraft:wooden_door", "states": {"door_hinge_bit": false, "minecraft:cardinal_direction": "east", "open_bit": false, "upper_block_bit": true}}
+   },
+   "packets": {
+    "block_updates": [
+     {
+      "position": [0, -60, 0],
+      "block": "minecraft:wooden_door[door_hinge_bit=false,minecraft:cardinal_direction=\"east\",open_bit=true,upper_block_bit=false]",
+      "via": "UpdateSubChunkBlocks"
+     },
+     {
+      "position": [0, -59, 0],
+      "block": "minecraft:wooden_door[door_hinge_bit=false,minecraft:cardinal_direction=\"east\",open_bit=false,upper_block_bit=true]",
+      "via": "UpdateSubChunkBlocks"
+     }
+    ],
+    "sounds": [
+     {
+      "sound": "door.open",
+      "position": [0.5, -59.5, 0.5],
+      "data": "minecraft:wooden_door[door_hinge_bit=false,minecraft:cardinal_direction=\"east\",open_bit=false,upper_block_bit=false]"
+     }
+    ]
+   }
+  },
+  {
+   "step": "toggle_upper_1",
+   "action": "use",
+   "clicked": [0, -59, 0],
+   "face": "south",
+   "click": [0.5, 0.5, 1.0],
+   "player": {"feet": [0.5, -60.0, 2.5], "yaw": 180.0, "pitch": 4.57},
+   "used": true,
+   "changed": ["lower"],
+   "held_after": ["minecraft:dirt", 64],
+   "cells": {
+    "in_front": {"pos": [0, -60, 1], "name": "minecraft:air", "states": {}},
+    "lower": {"pos": [0, -60, 0], "name": "minecraft:wooden_door", "states": {"door_hinge_bit": false, "minecraft:cardinal_direction": "east", "open_bit": false, "upper_block_bit": false}},
+    "upper": {"pos": [0, -59, 0], "name": "minecraft:wooden_door", "states": {"door_hinge_bit": false, "minecraft:cardinal_direction": "east", "open_bit": false, "upper_block_bit": true}}
+   },
+   "packets": {
+    "block_updates": [
+     {
+      "position": [0, -60, 0],
+      "block": "minecraft:wooden_door[door_hinge_bit=false,minecraft:cardinal_direction=\"east\",open_bit=false,upper_block_bit=false]",
+      "via": "UpdateSubChunkBlocks"
+     },
+     {
+      "position": [0, -59, 0],
+      "block": "minecraft:wooden_door[door_hinge_bit=false,minecraft:cardinal_direction=\"east\",open_bit=false,upper_block_bit=true]",
+      "via": "UpdateSubChunkBlocks"
+     }
+    ],
+    "sounds": [
+     {
+      "sound": "door.close",
+      "position": [0.5, -58.5, 0.5],
+      "data": "minecraft:wooden_door[door_hinge_bit=false,minecraft:cardinal_direction=\"east\",open_bit=true,upper_block_bit=false]"
+     }
+    ]
+   }
+  },
+  {
+   "step": "iron_place",
+   "action": "use",
+   "clicked": [0, -61, 0],
+   "face": "up",
+   "click": [0.5, 1.0, 0.5],
+   "player": {"feet": [0.5, -60.0, 2.5], "yaw": 180.0, "pitch": 39.01},
+   "used": true,
+   "changed": ["lower", "upper"],
+   "held_after": ["minecraft:iron_door", 63],
+   "cells": {
+    "lower": {"pos": [0, -60, 0], "name": "minecraft:iron_door", "states": {"door_hinge_bit": false, "minecraft:cardinal_direction": "east", "open_bit": false, "upper_block_bit": false}},
+    "upper": {"pos": [0, -59, 0], "name": "minecraft:iron_door", "states": {"door_hinge_bit": false, "minecraft:cardinal_direction": "east", "open_bit": false, "upper_block_bit": true}}
+   },
+   "packets": {
+    "block_updates": [
+     {"position": [0, -61, 0], "block": "minecraft:stone", "times": 2},
+     {"position": [0, -60, 0], "block": "minecraft:iron_door[door_hinge_bit=false,minecraft:cardinal_direction=\"east\",open_bit=false,upper_block_bit=false]", "times": 2},
+     {"position": [0, -62, 0], "block": "minecraft:dirt"},
+     {"position": [0, -59, 0], "block": "minecraft:iron_door[door_hinge_bit=false,minecraft:cardinal_direction=\"east\",open_bit=false,upper_block_bit=true]"},
+     {
+      "position": [0, -60, 0],
+      "block": "minecraft:iron_door[door_hinge_bit=false,minecraft:cardinal_direction=\"east\",open_bit=false,upper_block_bit=false]",
+      "via": "UpdateSubChunkBlocks"
+     },
+     {
+      "position": [0, -59, 0],
+      "block": "minecraft:iron_door[door_hinge_bit=false,minecraft:cardinal_direction=\"east\",open_bit=false,upper_block_bit=true]",
+      "via": "UpdateSubChunkBlocks"
+     }
+    ],
+    "sounds": [
+     {
+      "sound": "place",
+      "position": [0.0, -60.0, 0.0],
+      "data": "minecraft:iron_door[door_hinge_bit=false,minecraft:cardinal_direction=\"east\",open_bit=false,upper_block_bit=false]"
+     }
+    ]
+   }
+  },
+  {
+   "step": "iron_click_empty_hand",
+   "action": "use",
+   "clicked": [0, -60, 0],
+   "face": "south",
+   "click": [0.5, 0.5, 1.0],
+   "player": {"feet": [0.5, -60.0, 2.5], "yaw": 180.0, "pitch": 36.75},
+   "used": true,
+   "changed": [],
+   "held_after": null,
+   "cells": {
+    "in_front": {"pos": [0, -60, 1], "name": "minecraft:air", "states": {}},
+    "lower": {"pos": [0, -60, 0], "name": "minecraft:iron_door", "states": {"door_hinge_bit": false, "minecraft:cardinal_direction": "east", "open_bit": false, "upper_block_bit": false}},
+    "upper": {"pos": [0, -59, 0], "name": "minecraft:iron_door", "states": {"door_hinge_bit": false, "minecraft:cardinal_direction": "east", "open_bit": false, "upper_block_bit": true}}
+   },
+   "packets": {
+    "block_updates": [
+     {"position": [0, -60, 0], "block": "minecraft:iron_door[door_hinge_bit=false,minecraft:cardinal_direction=\"east\",open_bit=false,upper_block_bit=false]"},
+     {"position": [0, -59, 0], "block": "minecraft:iron_door[door_hinge_bit=false,minecraft:cardinal_direction=\"east\",open_bit=false,upper_block_bit=true]"},
+     {"position": [0, -61, 0], "block": "minecraft:stone"},
+     {"position": [0, -60, 1], "block": "minecraft:air"},
+     {"position": [0, -59, 1], "block": "minecraft:air"},
+     {"position": [0, -61, 1], "block": "minecraft:stone"}
+    ]
+   }
+  },
+  {
+   "step": "iron_click_dirt",
+   "action": "use",
+   "clicked": [0, -60, 0],
+   "face": "south",
+   "click": [0.5, 0.5, 1.0],
+   "player": {"feet": [0.5, -60.0, 2.5], "yaw": 180.0, "pitch": 36.75},
+   "used": true,
+   "changed": ["in_front"],
+   "held_after": ["minecraft:dirt", 63],
+   "cells": {
+    "in_front": {"pos": [0, -60, 1], "name": "minecraft:dirt", "states": {}},
+    "lower": {"pos": [0, -60, 0], "name": "minecraft:iron_door", "states": {"door_hinge_bit": false, "minecraft:cardinal_direction": "east", "open_bit": false, "upper_block_bit": false}},
+    "upper": {"pos": [0, -59, 0], "name": "minecraft:iron_door", "states": {"door_hinge_bit": false, "minecraft:cardinal_direction": "east", "open_bit": false, "upper_block_bit": true}}
+   },
+   "packets": {
+    "block_updates": [
+     {"position": [0, -60, 0], "block": "minecraft:iron_door[door_hinge_bit=false,minecraft:cardinal_direction=\"east\",open_bit=false,upper_block_bit=false]"},
+     {"position": [0, -59, 0], "block": "minecraft:iron_door[door_hinge_bit=false,minecraft:cardinal_direction=\"east\",open_bit=false,upper_block_bit=true]"},
+     {"position": [0, -61, 0], "block": "minecraft:stone"},
+     {"position": [0, -60, 1], "block": "minecraft:dirt", "times": 2},
+     {"position": [0, -59, 1], "block": "minecraft:air"},
+     {"position": [0, -61, 1], "block": "minecraft:stone"}
+    ],
+    "sounds": [{"sound": "place", "position": [0.5, -59.5, 1.5], "data": "minecraft:dirt"}]
+   }
+  },
+  {
+   "step": "break_upper_place",
+   "action": "use",
+   "clicked": [0, -61, 0],
+   "face": "up",
+   "click": [0.5, 1.0, 0.5],
+   "player": {"feet": [0.5, -60.0, 2.5], "yaw": 180.0, "pitch": 39.01},
+   "used": true,
+   "changed": ["lower", "upper"],
+   "held_after": ["minecraft:wooden_door", 63],
+   "cells": {
+    "lower": {"pos": [0, -60, 0], "name": "minecraft:wooden_door", "states": {"door_hinge_bit": false, "minecraft:cardinal_direction": "east", "open_bit": false, "upper_block_bit": false}},
+    "upper": {"pos": [0, -59, 0], "name": "minecraft:wooden_door", "states": {"door_hinge_bit": false, "minecraft:cardinal_direction": "east", "open_bit": false, "upper_block_bit": true}}
+   },
+   "packets": {
+    "block_updates": [
+     {"position": [0, -61, 0], "block": "minecraft:stone", "times": 2},
+     {"position": [0, -60, 0], "block": "minecraft:wooden_door[door_hinge_bit=false,minecraft:cardinal_direction=\"east\",open_bit=false,upper_block_bit=false]", "times": 2},
+     {"position": [0, -62, 0], "block": "minecraft:dirt"},
+     {"position": [0, -59, 0], "block": "minecraft:wooden_door[door_hinge_bit=false,minecraft:cardinal_direction=\"east\",open_bit=false,upper_block_bit=true]"},
+     {
+      "position": [0, -60, 0],
+      "block": "minecraft:wooden_door[door_hinge_bit=false,minecraft:cardinal_direction=\"east\",open_bit=false,upper_block_bit=false]",
+      "via": "UpdateSubChunkBlocks"
+     },
+     {
+      "position": [0, -59, 0],
+      "block": "minecraft:wooden_door[door_hinge_bit=false,minecraft:cardinal_direction=\"east\",open_bit=false,upper_block_bit=true]",
+      "via": "UpdateSubChunkBlocks"
+     }
+    ],
+    "sounds": [
+     {
+      "sound": "place",
+      "position": [0.0, -60.0, 0.0],
+      "data": "minecraft:wooden_door[door_hinge_bit=false,minecraft:cardinal_direction=\"east\",open_bit=false,upper_block_bit=false]"
+     }
+    ]
+   }
+  },
+  {
+   "step": "break_upper_by_hand",
+   "action": "mine",
+   "block": [0, -59, 0],
+   "face": "south",
+   "events": [{"tick": 2, "event": "left_click_block", "pos": [0, -59, 0]}, {"tick": 90, "event": "break", "pos": [0, -59, 0]}],
+   "changes": [{"tick": 91, "cell": "lower", "block": "minecraft:air"}, {"tick": 91, "cell": "upper", "block": "minecraft:air"}],
+   "cells": {"lower": {"pos": [0, -60, 0], "name": "minecraft:air", "states": {}}, "upper": {"pos": [0, -59, 0], "name": "minecraft:air", "states": {}}},
+   "drops": [{"item": "minecraft:wooden_door", "count": 1, "stacks": 1}],
+   "packets": {
+    "level_events": [
+     {"event": 3600, "name": "StartBlockCracking", "position": [0.0, -59.0, 0.0], "data": 728, "times": 90},
+     {"event": 3606, "name": "ParticlesCrackBlockSouth", "position": [0.5, -58.5, 0.5], "data": 1762906656, "times": 89},
+     {"event": 3602, "name": "UpdateBlockCracking", "position": [0.0, -59.0, 0.0], "data": 728, "times": 89},
+     {"event": 3601, "name": "StopBlockCracking", "position": [0.0, -59.0, 0.0], "data": 0, "times": 90},
+     {
+      "event": 2001,
+      "name": "ParticlesDestroyBlock",
+      "position": [0.5, -59.5, 0.5],
+      "data": "minecraft:wooden_door[door_hinge_bit=false,minecraft:cardinal_direction=\"east\",open_bit=false,upper_block_bit=false]"
+     },
+     {
+      "event": 2001,
+      "name": "ParticlesDestroyBlock",
+      "position": [0.5, -58.5, 0.5],
+      "data": "minecraft:wooden_door[door_hinge_bit=false,minecraft:cardinal_direction=\"east\",open_bit=false,upper_block_bit=true]"
+     }
+    ],
+    "block_updates": [
+     {"position": [0, -59, 0], "block": "minecraft:air", "times": 2},
+     {"position": [0, -58, 0], "block": "minecraft:air", "times": 2},
+     {"position": [0, -60, 0], "block": "minecraft:air", "via": "UpdateSubChunkBlocks"},
+     {"position": [0, -59, 0], "block": "minecraft:air", "via": "UpdateSubChunkBlocks"}
+    ],
+    "item_actors": [{"item_network_id": 362, "count": 1}]
+   }
+  },
+  {
+   "step": "break_lower_place",
+   "action": "use",
+   "clicked": [0, -61, 0],
+   "face": "up",
+   "click": [0.5, 1.0, 0.5],
+   "player": {"feet": [0.5, -60.0, 2.5], "yaw": 180.0, "pitch": 39.01},
+   "used": true,
+   "changed": ["lower", "upper"],
+   "held_after": ["minecraft:wooden_door", 63],
+   "cells": {
+    "lower": {"pos": [0, -60, 0], "name": "minecraft:wooden_door", "states": {"door_hinge_bit": false, "minecraft:cardinal_direction": "east", "open_bit": false, "upper_block_bit": false}},
+    "upper": {"pos": [0, -59, 0], "name": "minecraft:wooden_door", "states": {"door_hinge_bit": false, "minecraft:cardinal_direction": "east", "open_bit": false, "upper_block_bit": true}}
+   },
+   "packets": {
+    "block_updates": [
+     {"position": [0, -61, 0], "block": "minecraft:stone", "times": 2},
+     {"position": [0, -60, 0], "block": "minecraft:wooden_door[door_hinge_bit=false,minecraft:cardinal_direction=\"east\",open_bit=false,upper_block_bit=false]", "times": 2},
+     {"position": [0, -62, 0], "block": "minecraft:dirt"},
+     {"position": [0, -59, 0], "block": "minecraft:wooden_door[door_hinge_bit=false,minecraft:cardinal_direction=\"east\",open_bit=false,upper_block_bit=true]"},
+     {
+      "position": [0, -60, 0],
+      "block": "minecraft:wooden_door[door_hinge_bit=false,minecraft:cardinal_direction=\"east\",open_bit=false,upper_block_bit=false]",
+      "via": "UpdateSubChunkBlocks"
+     },
+     {
+      "position": [0, -59, 0],
+      "block": "minecraft:wooden_door[door_hinge_bit=false,minecraft:cardinal_direction=\"east\",open_bit=false,upper_block_bit=true]",
+      "via": "UpdateSubChunkBlocks"
+     }
+    ],
+    "sounds": [
+     {
+      "sound": "place",
+      "position": [0.0, -60.0, 0.0],
+      "data": "minecraft:wooden_door[door_hinge_bit=false,minecraft:cardinal_direction=\"east\",open_bit=false,upper_block_bit=false]"
+     }
+    ]
+   }
+  },
+  {
+   "step": "break_lower_by_hand",
+   "action": "mine",
+   "block": [0, -60, 0],
+   "face": "south",
+   "events": [{"tick": 1, "event": "left_click_block", "pos": [0, -60, 0]}, {"tick": 90, "event": "break", "pos": [0, -60, 0]}],
+   "changes": [{"tick": 91, "cell": "lower", "block": "minecraft:air"}, {"tick": 91, "cell": "upper", "block": "minecraft:air"}],
+   "cells": {"lower": {"pos": [0, -60, 0], "name": "minecraft:air", "states": {}}, "upper": {"pos": [0, -59, 0], "name": "minecraft:air", "states": {}}},
+   "drops": [{"item": "minecraft:wooden_door", "count": 1, "stacks": 1}],
+   "packets": {
+    "level_events": [
+     {"event": 3600, "name": "StartBlockCracking", "position": [0.0, -60.0, 0.0], "data": 728, "times": 90},
+     {"event": 3606, "name": "ParticlesCrackBlockSouth", "position": [0.5, -59.5, 0.5], "data": -1476754069, "times": 89},
+     {"event": 3602, "name": "UpdateBlockCracking", "position": [0.0, -60.0, 0.0], "data": 728, "times": 89},
+     {"event": 3601, "name": "StopBlockCracking", "position": [0.0, -60.0, 0.0], "data": 0, "times": 90},
+     {
+      "event": 2001,
+      "name": "ParticlesDestroyBlock",
+      "position": [0.5, -58.5, 0.5],
+      "data": "minecraft:wooden_door[door_hinge_bit=false,minecraft:cardinal_direction=\"east\",open_bit=false,upper_block_bit=true]"
+     },
+     {
+      "event": 2001,
+      "name": "ParticlesDestroyBlock",
+      "position": [0.5, -59.5, 0.5],
+      "data": "minecraft:wooden_door[door_hinge_bit=false,minecraft:cardinal_direction=\"east\",open_bit=false,upper_block_bit=false]"
+     }
+    ],
+    "block_updates": [
+     {"position": [0, -60, 0], "block": "minecraft:air", "times": 2},
+     {"position": [0, -59, 0], "block": "minecraft:air", "times": 2},
+     {"position": [0, -59, 0], "block": "minecraft:air", "via": "UpdateSubChunkBlocks"},
+     {"position": [0, -60, 0], "block": "minecraft:air", "via": "UpdateSubChunkBlocks"}
+    ],
+    "item_actors": [{"item_network_id": 362, "count": 1}]
+   }
+  },
+  {
+   "step": "floor_removed_place",
+   "action": "use",
+   "clicked": [0, -61, 0],
+   "face": "up",
+   "click": [0.5, 1.0, 0.5],
+   "player": {"feet": [0.5, -60.0, 2.5], "yaw": 180.0, "pitch": 39.01},
+   "used": true,
+   "changed": ["lower", "upper"],
+   "held_after": ["minecraft:wooden_door", 63],
+   "cells": {
+    "lower": {"pos": [0, -60, 0], "name": "minecraft:wooden_door", "states": {"door_hinge_bit": false, "minecraft:cardinal_direction": "east", "open_bit": false, "upper_block_bit": false}},
+    "upper": {"pos": [0, -59, 0], "name": "minecraft:wooden_door", "states": {"door_hinge_bit": false, "minecraft:cardinal_direction": "east", "open_bit": false, "upper_block_bit": true}}
+   },
+   "packets": {
+    "block_updates": [
+     {"position": [0, -61, 0], "block": "minecraft:stone", "times": 2},
+     {"position": [0, -60, 0], "block": "minecraft:wooden_door[door_hinge_bit=false,minecraft:cardinal_direction=\"east\",open_bit=false,upper_block_bit=false]", "times": 2},
+     {"position": [0, -62, 0], "block": "minecraft:dirt"},
+     {"position": [0, -59, 0], "block": "minecraft:wooden_door[door_hinge_bit=false,minecraft:cardinal_direction=\"east\",open_bit=false,upper_block_bit=true]"},
+     {
+      "position": [0, -60, 0],
+      "block": "minecraft:wooden_door[door_hinge_bit=false,minecraft:cardinal_direction=\"east\",open_bit=false,upper_block_bit=false]",
+      "via": "UpdateSubChunkBlocks"
+     },
+     {
+      "position": [0, -59, 0],
+      "block": "minecraft:wooden_door[door_hinge_bit=false,minecraft:cardinal_direction=\"east\",open_bit=false,upper_block_bit=true]",
+      "via": "UpdateSubChunkBlocks"
+     }
+    ],
+    "sounds": [
+     {
+      "sound": "place",
+      "position": [0.0, -60.0, 0.0],
+      "data": "minecraft:wooden_door[door_hinge_bit=false,minecraft:cardinal_direction=\"east\",open_bit=false,upper_block_bit=false]"
+     }
+    ]
+   }
+  },
+  {
+   "step": "floor_removed",
+   "action": "setblock",
+   "command": "setblock 0 -61 0 air",
+   "same_tick": {
+    "lower": {"pos": [0, -60, 0], "name": "minecraft:wooden_door", "states": {"door_hinge_bit": false, "minecraft:cardinal_direction": "east", "open_bit": false, "upper_block_bit": false}},
+    "upper": {"pos": [0, -59, 0], "name": "minecraft:wooden_door", "states": {"door_hinge_bit": false, "minecraft:cardinal_direction": "east", "open_bit": false, "upper_block_bit": true}}
+   },
+   "changes": [{"tick": 1, "cell": "lower", "block": "minecraft:air"}, {"tick": 2, "cell": "upper", "block": "minecraft:air"}],
+   "cells": {"lower": {"pos": [0, -60, 0], "name": "minecraft:air", "states": {}}, "upper": {"pos": [0, -59, 0], "name": "minecraft:air", "states": {}}},
+   "drops": [{"item": "minecraft:wooden_door", "count": 1, "stacks": 1}],
+   "packets": {
+    "block_updates": [{"position": [0, -61, 0], "block": "minecraft:air"}, {"position": [0, -60, 0], "block": "minecraft:air"}, {"position": [0, -59, 0], "block": "minecraft:air"}],
+    "level_events": [
+     {
+      "event": 2001,
+      "name": "ParticlesDestroyBlock",
+      "position": [0.5, -59.5, 0.5],
+      "data": "minecraft:wooden_door[door_hinge_bit=false,minecraft:cardinal_direction=\"east\",open_bit=false,upper_block_bit=false]"
+     },
+     {
+      "event": 2001,
+      "name": "ParticlesDestroyBlock",
+      "position": [0.5, -58.5, 0.5],
+      "data": "minecraft:wooden_door[door_hinge_bit=false,minecraft:cardinal_direction=\"east\",open_bit=false,upper_block_bit=true]"
+     }
+    ],
+    "item_actors": [{"item_network_id": 362, "count": 1}]
+   }
+  }
+ ],
+ "torches": [
+  {
+   "step": "floor_top",
+   "action": "use",
+   "clicked": [0, -61, 0],
+   "face": "up",
+   "click": [0.5, 1.0, 0.5],
+   "player": {"feet": [0.5, -60.0, 2.5], "yaw": 180.0, "pitch": 39.01},
+   "used": true,
+   "changed": ["target"],
+   "held_after": ["minecraft:torch", 63],
+   "cells": {
+    "clicked": {"pos": [0, -61, 0], "name": "minecraft:stone", "states": {}},
+    "target": {"pos": [0, -60, 0], "name": "minecraft:torch", "states": {"torch_facing_direction": "top"}}
+   },
+   "packets": {
+    "block_updates": [
+     {"position": [0, -61, 0], "block": "minecraft:stone", "times": 2},
+     {"position": [0, -60, 0], "block": "minecraft:torch[torch_facing_direction=\"top\"]", "times": 3},
+     {"position": [0, -62, 0], "block": "minecraft:dirt"},
+     {"position": [0, -59, 0], "block": "minecraft:air"}
+    ],
+    "sounds": [{"sound": "place", "position": [0.5, -59.5, 0.5], "data": -1188029192}]
+   }
+  },
+  {
+   "step": "stone_north_face",
+   "action": "use",
+   "clicked": [6, -60, 0],
+   "face": "north",
+   "click": [0.5, 0.5, 0.0],
+   "player": {"feet": [6.5, -60.0, -2.5], "yaw": 0.0, "pitch": 24.13},
+   "used": true,
+   "changed": ["target"],
+   "held_after": ["minecraft:torch", 62],
+   "cells": {
+    "clicked": {"pos": [6, -60, 0], "name": "minecraft:stone", "states": {}},
+    "target": {"pos": [6, -60, -1], "name": "minecraft:torch", "states": {"torch_facing_direction": "south"}}
+   },
+   "packets": {
+    "block_updates": [
+     {"position": [6, -60, 0], "block": "minecraft:stone"},
+     {"position": [6, -59, 0], "block": "minecraft:air"},
+     {"position": [6, -61, 0], "block": "minecraft:stone"},
+     {"position": [6, -60, -1], "block": "minecraft:torch[torch_facing_direction=\"south\"]", "times": 2},
+     {"position": [6, -59, -1], "block": "minecraft:air"},
+     {"position": [6, -61, -1], "block": "minecraft:stone"}
+    ],
+    "sounds": [{"sound": "place", "position": [6.5, -59.5, -0.5], "data": -1188029192}]
+   }
+  },
+  {
+   "step": "stone_south_face",
+   "action": "use",
+   "clicked": [6, -60, 0],
+   "face": "south",
+   "click": [0.5, 0.5, 1.0],
+   "player": {"feet": [6.5, -60.0, 3.5], "yaw": 180.0, "pitch": 24.13},
+   "used": true,
+   "changed": ["target"],
+   "held_after": ["minecraft:torch", 61],
+   "cells": {
+    "clicked": {"pos": [6, -60, 0], "name": "minecraft:stone", "states": {}},
+    "target": {"pos": [6, -60, 1], "name": "minecraft:torch", "states": {"torch_facing_direction": "north"}}
+   },
+   "packets": {
+    "block_updates": [
+     {"position": [6, -60, 0], "block": "minecraft:stone"},
+     {"position": [6, -59, 0], "block": "minecraft:air"},
+     {"position": [6, -61, 0], "block": "minecraft:stone"},
+     {"position": [6, -60, 1], "block": "minecraft:torch[torch_facing_direction=\"north\"]", "times": 2},
+     {"position": [6, -59, 1], "block": "minecraft:air"},
+     {"position": [6, -61, 1], "block": "minecraft:stone"}
+    ],
+    "sounds": [{"sound": "place", "position": [6.5, -59.5, 1.5], "data": -1188029192}]
+   }
+  },
+  {
+   "step": "stone_west_face",
+   "action": "use",
+   "clicked": [6, -60, 0],
+   "face": "west",
+   "click": [0.0, 0.5, 0.5],
+   "player": {"feet": [3.5, -60.0, 0.5], "yaw": 270.0, "pitch": 24.13},
+   "used": true,
+   "changed": ["target"],
+   "held_after": ["minecraft:torch", 60],
+   "cells": {
+    "clicked": {"pos": [6, -60, 0], "name": "minecraft:stone", "states": {}},
+    "target": {"pos": [5, -60, 0], "name": "minecraft:torch", "states": {"torch_facing_direction": "east"}}
+   },
+   "packets": {
+    "block_updates": [
+     {"position": [6, -60, 0], "block": "minecraft:stone"},
+     {"position": [6, -59, 0], "block": "minecraft:air"},
+     {"position": [6, -61, 0], "block": "minecraft:stone"},
+     {"position": [5, -60, 0], "block": "minecraft:torch[torch_facing_direction=\"east\"]", "times": 2},
+     {"position": [5, -59, 0], "block": "minecraft:air"},
+     {"position": [5, -61, 0], "block": "minecraft:stone"}
+    ],
+    "sounds": [{"sound": "place", "position": [5.5, -59.5, 0.5], "data": -1188029192}]
+   }
+  },
+  {
+   "step": "stone_east_face",
+   "action": "use",
+   "clicked": [6, -60, 0],
+   "face": "east",
+   "click": [1.0, 0.5, 0.5],
+   "player": {"feet": [9.5, -60.0, 0.5], "yaw": 90.0, "pitch": 24.13},
+   "used": true,
+   "changed": ["target"],
+   "held_after": ["minecraft:torch", 59],
+   "cells": {
+    "clicked": {"pos": [6, -60, 0], "name": "minecraft:stone", "states": {}},
+    "target": {"pos": [7, -60, 0], "name": "minecraft:torch", "states": {"torch_facing_direction": "west"}}
+   },
+   "packets": {
+    "block_updates": [
+     {"position": [6, -60, 0], "block": "minecraft:stone"},
+     {"position": [6, -59, 0], "block": "minecraft:air"},
+     {"position": [6, -61, 0], "block": "minecraft:stone"},
+     {"position": [7, -60, 0], "block": "minecraft:torch[torch_facing_direction=\"west\"]", "times": 2},
+     {"position": [7, -59, 0], "block": "minecraft:air"},
+     {"position": [7, -61, 0], "block": "minecraft:stone"}
+    ],
+    "sounds": [{"sound": "place", "position": [7.5, -59.5, 0.5], "data": -1188029192}]
+   }
+  },
+  {
+   "step": "overhang_bottom_face",
+   "action": "use",
+   "clicked": [12, -58, 0],
+   "face": "down",
+   "click": [0.5, 0.0, 0.5],
+   "player": {"feet": [12.5, -60.0, 2.5], "yaw": 180.0, "pitch": -10.76},
+   "used": true,
+   "changed": [],
+   "held_after": ["minecraft:torch", 59],
+   "cells": {"clicked": {"pos": [12, -58, 0], "name": "minecraft:stone", "states": {}}, "target": {"pos": [12, -59, 0], "name": "minecraft:air", "states": {}}},
+   "packets": {
+    "block_updates": [
+     {"position": [12, -58, 0], "block": "minecraft:stone", "times": 2},
+     {"position": [12, -57, 0], "block": "minecraft:air"},
+     {"position": [12, -59, 0], "block": "minecraft:air", "times": 2},
+     {"position": [12, -60, 0], "block": "minecraft:air"}
+    ]
+   }
+  },
+  {
+   "step": "oak_fence_top",
+   "action": "use",
+   "clicked": [16, -60, 0],
+   "face": "up",
+   "click": [0.5, 1.0, 0.5],
+   "player": {"feet": [16.5, -60.0, 2.5], "yaw": 180.0, "pitch": 17.22},
+   "used": true,
+   "changed": ["target"],
+   "held_after": ["minecraft:torch", 58],
+   "cells": {
+    "clicked": {
+     "pos": [16, -60, 0],
+     "name": "minecraft:oak_fence",
+     "states": {"minecraft:connection_east": false, "minecraft:connection_north": false, "minecraft:connection_south": false, "minecraft:connection_west": false}
+    },
+    "target": {"pos": [16, -59, 0], "name": "minecraft:torch", "states": {"torch_facing_direction": "top"}}
+   },
+   "packets": {
+    "block_updates": [
+     {
+      "position": [16, -60, 0],
+      "block": "minecraft:oak_fence[minecraft:connection_east=false,minecraft:connection_north=false,minecraft:connection_south=false,minecraft:connection_west=false]",
+      "times": 2
+     },
+     {"position": [16, -59, 0], "block": "minecraft:torch[torch_facing_direction=\"top\"]", "times": 3},
+     {"position": [16, -61, 0], "block": "minecraft:stone"},
+     {"position": [16, -58, 0], "block": "minecraft:air"}
+    ],
+    "sounds": [{"sound": "place", "position": [16.5, -58.5, 0.5], "data": -1188029192}]
+   }
+  },
+  {
+   "step": "glass_top",
+   "action": "use",
+   "clicked": [20, -60, 0],
+   "face": "up",
+   "click": [0.5, 1.0, 0.5],
+   "player": {"feet": [20.5, -60.0, 2.5], "yaw": 180.0, "pitch": 17.22},
+   "used": true,
+   "changed": ["target"],
+   "held_after": ["minecraft:torch", 57],
+   "cells": {
+    "clicked": {"pos": [20, -60, 0], "name": "minecraft:glass", "states": {}},
+    "target": {"pos": [20, -59, 0], "name": "minecraft:torch", "states": {"torch_facing_direction": "top"}}
+   },
+   "packets": {
+    "block_updates": [
+     {"position": [20, -60, 0], "block": "minecraft:glass", "times": 2},
+     {"position": [20, -59, 0], "block": "minecraft:torch[torch_facing_direction=\"top\"]", "times": 3},
+     {"position": [20, -61, 0], "block": "minecraft:stone"},
+     {"position": [20, -58, 0], "block": "minecraft:air"}
+    ],
+    "sounds": [{"sound": "place", "position": [20.5, -58.5, 0.5], "data": -1188029192}]
+   }
+  },
+  {
+   "step": "support_removed",
+   "action": "setblock",
+   "command": "setblock 6 -60 0 air",
+   "same_tick": {
+    "east": {"pos": [7, -60, 0], "name": "minecraft:torch", "states": {"torch_facing_direction": "west"}},
+    "north": {"pos": [6, -60, -1], "name": "minecraft:torch", "states": {"torch_facing_direction": "south"}},
+    "south": {"pos": [6, -60, 1], "name": "minecraft:torch", "states": {"torch_facing_direction": "north"}},
+    "west": {"pos": [5, -60, 0], "name": "minecraft:torch", "states": {"torch_facing_direction": "east"}}
+   },
+   "changes": [
+    {"tick": 1, "cell": "north", "block": "minecraft:air"},
+    {"tick": 1, "cell": "south", "block": "minecraft:air"},
+    {"tick": 1, "cell": "west", "block": "minecraft:air"},
+    {"tick": 1, "cell": "east", "block": "minecraft:air"}
+   ],
+   "cells": {
+    "east": {"pos": [7, -60, 0], "name": "minecraft:air", "states": {}},
+    "north": {"pos": [6, -60, -1], "name": "minecraft:air", "states": {}},
+    "south": {"pos": [6, -60, 1], "name": "minecraft:air", "states": {}},
+    "west": {"pos": [5, -60, 0], "name": "minecraft:air", "states": {}}
+   },
+   "drops": [{"item": "minecraft:torch", "count": 4, "stacks": 4}],
+   "packets": {
+    "block_updates": [
+     {"position": [6, -60, 0], "block": "minecraft:air"},
+     {"position": [6, -60, -1], "block": "minecraft:air"},
+     {"position": [5, -60, 0], "block": "minecraft:air", "via": "UpdateSubChunkBlocks"},
+     {"position": [7, -60, 0], "block": "minecraft:air", "via": "UpdateSubChunkBlocks"},
+     {"position": [6, -60, 1], "block": "minecraft:air", "via": "UpdateSubChunkBlocks"}
+    ],
+    "level_events": [
+     {"event": 2001, "name": "ParticlesDestroyBlock", "position": [6.5, -59.5, -0.5], "data": "minecraft:torch[torch_facing_direction=\"south\"]"},
+     {"event": 2001, "name": "ParticlesDestroyBlock", "position": [5.5, -59.5, 0.5], "data": "minecraft:torch[torch_facing_direction=\"east\"]"},
+     {"event": 2001, "name": "ParticlesDestroyBlock", "position": [7.5, -59.5, 0.5], "data": "minecraft:torch[torch_facing_direction=\"west\"]"},
+     {"event": 2001, "name": "ParticlesDestroyBlock", "position": [6.5, -59.5, 1.5], "data": "minecraft:torch[torch_facing_direction=\"north\"]"}
+    ],
+    "item_actors": [{"item_network_id": 50, "count": 1, "times": 4}]
+   }
+  }
+ ],
+ "crops": [
+  {
+   "step": "seeds_on_farmland",
+   "action": "use",
+   "clicked": [0, -61, -6],
+   "face": "up",
+   "click": [0.5, 1.0, 0.5],
+   "player": {"feet": [0.5, -60.0, -3.5], "yaw": 180.0, "pitch": 39.01},
+   "used": true,
+   "changed": ["target"],
+   "held_after": ["minecraft:wheat_seeds", 63],
+   "cells": {
+    "clicked": {"pos": [0, -61, -6], "name": "minecraft:farmland", "states": {"moisturized_amount": 0}},
+    "target": {"pos": [0, -60, -6], "name": "minecraft:wheat", "states": {"growth": 0}}
+   },
+   "packets": {
+    "block_updates": [
+     {"position": [0, -61, -6], "block": "minecraft:farmland[moisturized_amount=0]", "times": 2},
+     {"position": [0, -60, -6], "block": "minecraft:wheat[growth=0]", "times": 3},
+     {"position": [0, -62, -6], "block": "minecraft:dirt"},
+     {"position": [0, -59, -6], "block": "minecraft:air"}
+    ],
+    "sounds": [{"sound": "place", "position": [0.5, -60.5, -5.5], "data": "minecraft:wheat[growth=0]"}]
+   }
+  },
+  {
+   "step": "seeds_on_dirt",
+   "action": "use",
+   "clicked": [3, -61, -6],
+   "face": "up",
+   "click": [0.5, 1.0, 0.5],
+   "player": {"feet": [3.5, -60.0, -3.5], "yaw": 180.0, "pitch": 39.01},
+   "used": true,
+   "changed": [],
+   "held_after": ["minecraft:wheat_seeds", 63],
+   "cells": {"clicked": {"pos": [3, -61, -6], "name": "minecraft:dirt", "states": {}}, "target": {"pos": [3, -60, -6], "name": "minecraft:air", "states": {}}},
+   "packets": {
+    "block_updates": [
+     {"position": [3, -61, -6], "block": "minecraft:dirt", "times": 2},
+     {"position": [3, -60, -6], "block": "minecraft:air", "times": 2},
+     {"position": [3, -62, -6], "block": "minecraft:dirt"},
+     {"position": [3, -59, -6], "block": "minecraft:air"}
+    ]
+   }
+  },
+  {
+   "step": "growth_randomtickspeed_100",
+   "action": "random_ticks",
+   "randomtickspeed": 100,
+   "seconds": 60.0,
+   "sample_ticks": 20,
+   "growth": {
+    "-1,7": [[0, 0], [560, 1], [960, 2]],
+    "-1,8": [[0, 0], [40, 1], [80, 2], [320, 3], [600, 4], [900, 5], [920, 6], [940, 7]],
+    "-1,9": [[0, 0], [60, 1], [220, 2], [360, 3], [460, 4], [720, 5], [980, 6], [1100, 7]],
+    "0,7": [[0, 0], [260, 1], [860, 2], [940, 3], [1200, 4]],
+    "0,9": [[0, 0], [180, 1], [360, 2], [720, 3], [780, 5], [1020, 6], [1200, 7]],
+    "1,7": [[0, 0], [540, 1], [560, 2], [880, 3], [920, 4], [940, 5], [1000, 6], [1100, 7]],
+    "1,8": [[0, 0], [180, 1], [320, 2], [380, 3], [660, 4], [840, 5], [900, 6], [1080, 7]],
+    "1,9": [[0, 0], [300, 1], [320, 2], [660, 3], [720, 4], [1200, 5]]
+   },
+   "farmland_moisturized_amount": {
+    "-1,7": [[0, 0], [20, 7]],
+    "-1,8": [[0, 0], [40, 7]],
+    "-1,9": [[0, 0], [20, 7]],
+    "0,7": [[0, 0], [20, 7]],
+    "0,9": [[0, 0], [20, 7]],
+    "1,7": [[0, 0], [20, 7]],
+    "1,8": [[0, 0], [40, 7]],
+    "1,9": [[0, 0], [40, 7]]
+   },
+   "first_sample_at_growth_7": {"-1,7": null, "-1,8": 940, "-1,9": 1100, "0,7": null, "0,9": 1200, "1,7": 1100, "1,8": 1080, "1,9": null},
+   "final_growth": {"-1,7": 2, "-1,8": 7, "-1,9": 7, "0,7": 4, "0,9": 7, "1,7": 7, "1,8": 7, "1,9": 5},
+   "packet_counts": {"block_updates": 54},
+   "block_updates_seen": ["minecraft:wheat[growth=2]", "minecraft:wheat[growth=4]", "minecraft:wheat[growth=5]", "minecraft:wheat[growth=7]"]
+  },
+  {
+   "step": "growth_randomtickspeed_1",
+   "action": "random_ticks",
+   "randomtickspeed": 1,
+   "seconds": 60.0,
+   "sample_ticks": 20,
+   "growth": {"-1,7": [[0, 0]], "-1,8": [[0, 0]], "-1,9": [[0, 0]], "0,7": [[0, 0]], "0,9": [[0, 0]], "1,7": [[0, 0]], "1,8": [[0, 0]], "1,9": [[0, 0]]},
+   "farmland_moisturized_amount": {
+    "-1,7": [[0, 0]],
+    "-1,8": [[0, 0]],
+    "-1,9": [[0, 0], [400, 7]],
+    "0,7": [[0, 0], [1160, 7]],
+    "0,9": [[0, 0], [1000, 7]],
+    "1,7": [[0, 0], [1120, 7]],
+    "1,8": [[0, 0]],
+    "1,9": [[0, 0]]
+   },
+   "first_sample_at_growth_7": {"-1,7": null, "-1,8": null, "-1,9": null, "0,7": null, "0,9": null, "1,7": null, "1,8": null, "1,9": null},
+   "final_growth": {"-1,7": 0, "-1,8": 0, "-1,9": 0, "0,7": 0, "0,9": 0, "1,7": 0, "1,8": 0, "1,9": 0},
+   "packet_counts": {"block_updates": 4},
+   "block_updates_seen": []
+  }
+ ]
+}

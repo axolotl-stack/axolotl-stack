@@ -583,6 +583,35 @@ whose pick item differs (wall signs, crops), picks with block-entity data and
 `GuiDataPickItem` wait for a measured pick-item table, I8 block entities and a
 BDS capture respectively.
 
+### Block behaviour
+
+Placement states, survival, interaction, neighbour updates and block ticks
+live in `server/game/block_behaviour/`, one module per behaviour family
+(doors, beds, torches/ladders/buttons/levers/vines, signs, trapdoors/fence
+gates, fences/walls/panes/stairs corners, crops/stems/nether wart/farmland,
+plants/sugar cane/cacti). Every block change goes through
+`blocks::set_block`, which sends UpdateBlock in the session's block numbering
+and queues neighbour updates; a block that can no longer stay (lost support,
+wrong soil, missing door half) breaks with its drops one tick later, as on
+BDS. Random ticks follow BDS's per-chunk budget (`(int)((top sub-chunk + 1) ×
+2.5) × randomtickspeed` positions in each chunk of a player's ticking diamond);
+`randomtickspeed` is a server resource (default 1), not yet a game rule.
+
+Measured on BDS 1.26.51 with the bds-sweep `blocks` job and replayed by
+`block_behaviour/bds_parity.rs` (`testdata/bds_1_26_51_blocks.json`): door
+direction (the look turned 90° clockwise), hinge on the upper half only, open
+state on the lower half only, `door.open`/`door.close` sounds, iron doors
+ignoring hands, both halves breaking together with one drop, torch facing
+(named after the support side, refused under blocks, accepted on fences and
+glass), seeds planting only on farmland, and the wheat growth rate. Other
+constants (crop growth formula, bone meal +2..4, farmland moisture and
+trampling, button durations, sugar cane/cactus growth, trapdoor and lever
+states) follow BDS behaviour not yet captured; family modules mark what is
+provisional. Not modelled yet: redstone, liquids flowing, fire, block light,
+bed colour and sign text (both need block actors), sneaking hanging signs.
+UpdateSubChunkBlocks batching (BDS sends both door halves in one packet) is
+replaced by two UpdateBlock packets.
+
 ### Containers
 
 Chests (single and double), trapped chests, barrels, ender chests, furnaces,
