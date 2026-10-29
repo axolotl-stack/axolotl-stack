@@ -446,7 +446,7 @@ impl<'a> DecorationRegion<'a> {
         {
             let local_y = (y & 15) as u8;
             return if layer == 0 {
-                section.get_block(x, local_y, z)
+                section.get_block(x, local_y, z, chunk.state_space())
             } else {
                 section.secondary_block(x, local_y, z).unwrap_or_else(|| chunk.state_space().air())
             };
@@ -482,7 +482,7 @@ impl<'a> DecorationRegion<'a> {
         let section_index = ((i32::from(y) - MIN_Y) >> 4) as usize;
         let old = self.overlays[slot][section_index]
             .get_or_insert_with(|| chunk.sub_chunk(section_index).clone())
-            .set_block_layers(x, (y & 15) as u8, z, block, secondary);
+            .set_block_layers(x, (y & 15) as u8, z, block, secondary, space);
         if old != block && !space.same_block(old, block) {
             let position = [(chunk.x << 4) | i32::from(x), i32::from(y), (chunk.z << 4) | i32::from(z)];
             let actors = self.actor_overlays[slot].as_deref().unwrap_or(chunk.block_entities());
