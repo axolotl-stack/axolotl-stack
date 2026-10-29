@@ -40,7 +40,7 @@ type session struct {
 	blocks    map[protocol.BlockPos]uint32
 	entities  map[string]uint64
 	positions map[uint64]mgl32.Vec3
-	recipes   map[string]singleRecipe
+	recipes   map[string]craftRecipe
 	requestID int32
 	// window, windowType and block are the open block container window
 	// (ContainerOpen) and its contents (InventoryContent/InventorySlot for
@@ -48,10 +48,20 @@ type session struct {
 	window      byte
 	windowType  byte
 	windowItems map[int]protocol.ItemInstance
+	// grid is the inventory crafting grid (PlayerUI slots 28-31) as accepted
+	// ItemStackResponses report it.
+	grid map[int]protocol.ItemInstance
 }
 
 // blockSlots bounds block window slots (a double chest has 54).
 const blockSlots = 54
+
+// craftingGridFirst and craftingGridLast bound the PlayerUI slots of the
+// inventory's 2x2 crafting grid.
+const (
+	craftingGridFirst = 28
+	craftingGridLast  = 31
+)
 
 // containerIDs names the ContainerEnumName of each addressable container.
 var containerIDs = map[string]byte{
@@ -62,6 +72,7 @@ var containerIDs = map[string]byte{
 	"ingredient": protocol.ContainerFurnaceIngredient,
 	"fuel":       protocol.ContainerFurnaceFuel,
 	"result":     protocol.ContainerFurnaceResult,
+	"crafting":   protocol.ContainerCraftingInput,
 }
 
 // inBlock reports whether a ContainerEnumName addresses the open block window.
@@ -83,8 +94,9 @@ func newSession(conn *minecraft.Conn) *session {
 		blocks:      make(map[protocol.BlockPos]uint32),
 		entities:    make(map[string]uint64),
 		positions:   make(map[uint64]mgl32.Vec3),
-		recipes:     make(map[string]singleRecipe),
+		recipes:     make(map[string]craftRecipe),
 		windowItems: make(map[int]protocol.ItemInstance),
+		grid:        make(map[int]protocol.ItemInstance),
 	}
 }
 
@@ -173,6 +185,15 @@ func (s *session) handle(pk packet.Packet) []packet.Packet {
 		} else if s.window != 0 && pk.WindowID == uint32(s.window) {
 			s.windowItems[int(pk.Slot)] = pk.NewItem
 		}
+	case *packet.InventoryTransaction:
+		// Commands such as /enchant replace inventory stacks (with new stack
+		// network IDs) only through an s2c transaction.
+		for _, action := range pk.Actions {
+			window, ok := action.WindowID.Value()
+			if action.SourceType == protocol.InventoryActionSourceContainer && ok && window == protocol.WindowIDInventory && action.InventorySlot < inventorySize {
+				s.inventory[int(action.InventorySlot)] = action.NewItem
+			}
+		}
 	case *packet.UpdateBlock:
 		if pk.Layer == 0 {
 			s.blocks[pk.Position] = pk.NewBlockRuntimeID
@@ -209,6 +230,8 @@ func (s *session) applySlot(container byte, info protocol.StackResponseSlotInfo)
 		item = s.inventory[int(info.Slot)]
 	case protocol.ContainerCursor:
 		item = s.cursor
+	case protocol.ContainerCraftingInput:
+		item = s.grid[int(info.Slot)]
 	default:
 		if !inBlock(container) {
 			return
@@ -221,11 +244,14 @@ func (s *session) applySlot(container byte, info protocol.StackResponseSlotInfo)
 		item.Stack.Count = uint16(info.Count)
 		item.StackNetworkID = info.StackNetworkID
 	}
-	if container == protocol.ContainerCursor {
+	switch {
+	case container == protocol.ContainerCursor:
 		s.cursor = item
-	} else if inBlock(container) {
+	case container == protocol.ContainerCraftingInput:
+		s.grid[int(info.Slot)] = item
+	case inBlock(container):
 		s.windowItems[int(info.Slot)] = item
-	} else {
+	default:
 		s.inventory[int(info.Slot)] = item
 	}
 }
@@ -255,6 +281,11 @@ func (s *session) blockSlot(container string, slot int) protocol.StackRequestSlo
 
 func cursorSlot(stack int32) protocol.StackRequestSlotInfo {
 	return protocol.StackRequestSlotInfo{Container: protocol.FullContainerName{ContainerID: protocol.ContainerCursor}, Slot: 0, StackNetworkID: stack}
+}
+
+// gridSlot addresses a slot of the inventory crafting grid (PlayerUI 28-31).
+func gridSlot(slot int, stack int32) protocol.StackRequestSlotInfo {
+	return protocol.StackRequestSlotInfo{Container: protocol.FullContainerName{ContainerID: protocol.ContainerCraftingInput}, Slot: byte(slot), StackNetworkID: stack}
 }
 
 func (s *session) nextRequestID() int32 {
@@ -391,35 +422,40 @@ func (s *session) entity(st step) (uint64, error) {
 	return id, nil
 }
 
-// singleRecipe is a crafting recipe with exactly one ingredient, which the
-// craft step can consume from one inventory slot.
-type singleRecipe struct {
+// craftRecipe is a crafting recipe the craft step can use: one with exactly
+// one ingredient, consumed from one inventory slot, or a multi recipe (e.g.
+// repairing two items in the crafting grid) consumed from grid slots.
+type craftRecipe struct {
 	networkID   uint32
 	outputCount uint16
 }
 
 // addRecipes records the single-ingredient recipes of a CraftingData packet by
-// recipe ID (e.g. minecraft:oak_planks, a 1x1 shaped recipe). The caller holds
-// s.mu.
+// recipe ID (e.g. minecraft:oak_planks, a 1x1 shaped recipe) and the multi
+// recipes by UUID (e.g. 00000000-0000-0000-0000-000000000001). The caller
+// holds s.mu.
 func (s *session) addRecipes(pk *packet.CraftingData) {
 	for _, recipe := range pk.ShapedRecipes {
 		if recipe.Width*recipe.Height == 1 && len(recipe.Output) == 1 {
-			s.recipes[recipe.RecipeID] = singleRecipe{recipe.RecipeNetworkID, recipe.Output[0].Count}
+			s.recipes[recipe.RecipeID] = craftRecipe{recipe.RecipeNetworkID, recipe.Output[0].Count}
 		}
 	}
 	for _, recipe := range pk.ShapelessRecipes {
 		if len(recipe.Input) == 1 && len(recipe.Output) == 1 {
-			s.recipes[recipe.RecipeID] = singleRecipe{recipe.RecipeNetworkID, recipe.Output[0].Count}
+			s.recipes[recipe.RecipeID] = craftRecipe{recipe.RecipeNetworkID, recipe.Output[0].Count}
 		}
+	}
+	for _, recipe := range pk.MultiRecipes {
+		s.recipes[recipe.UUID.String()] = craftRecipe{recipe.RecipeNetworkID, 1}
 	}
 }
 
-func (s *session) recipe(id string) (singleRecipe, error) {
+func (s *session) recipe(id string) (craftRecipe, error) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 	recipe, ok := s.recipes[id]
 	if !ok {
-		return recipe, fmt.Errorf("no single-ingredient recipe %q among %d", id, len(s.recipes))
+		return recipe, fmt.Errorf("no single-ingredient or multi recipe %q among %d", id, len(s.recipes))
 	}
 	return recipe, nil
 }
@@ -563,24 +599,45 @@ func (s *session) packets(st step) ([]packet.Packet, error) {
 		if err != nil {
 			return nil, err
 		}
-		item, err := s.item(st.Slot)
-		if err != nil {
-			return nil, err
+		actions := []protocol.StackRequestAction{&protocol.CraftRecipeStackRequestAction{RecipeNetworkID: recipe.networkID, NumberOfCrafts: 1}}
+		if st.Result != "" {
+			result := protocol.StackRequestItem{Identifier: st.Result, Count: recipe.outputCount}
+			if st.ResultDamage != 0 {
+				result.NBTData = map[string]any{"Damage": st.ResultDamage}
+			}
+			actions = append(actions, &protocol.CraftResultsDeprecatedStackRequestAction{ResultItems: []protocol.StackRequestItem{result}, TimesCrafted: 1})
+		}
+		if len(st.Grid) > 0 {
+			s.mu.Lock()
+			for _, slot := range st.Grid {
+				item := s.grid[slot]
+				if item.Stack.Count == 0 {
+					s.mu.Unlock()
+					return nil, fmt.Errorf("crafting grid slot %d is empty", slot)
+				}
+				consume := &protocol.ConsumeStackRequestAction{}
+				consume.Count = 1
+				consume.Source = gridSlot(slot, item.StackNetworkID)
+				actions = append(actions, consume)
+			}
+			s.mu.Unlock()
+		} else {
+			item, err := s.item(st.Slot)
+			if err != nil {
+				return nil, err
+			}
+			consume := &protocol.ConsumeStackRequestAction{}
+			consume.Count = 1
+			consume.Source = inventorySlot(st.Slot, item.StackNetworkID)
+			actions = append(actions, consume)
 		}
 		requestID := s.nextRequestID()
-		consume := &protocol.ConsumeStackRequestAction{}
-		consume.Count = 1
-		consume.Source = inventorySlot(st.Slot, item.StackNetworkID)
 		take := &protocol.TakeStackRequestAction{}
 		take.Count = byte(recipe.outputCount)
 		// The crafted stack is addressed by the request ID until placed.
 		take.Source = protocol.StackRequestSlotInfo{Container: protocol.FullContainerName{ContainerID: protocol.ContainerCreatedOutput}, Slot: 50, StackNetworkID: requestID}
 		take.Destination = inventorySlot(st.To, 0)
-		return []packet.Packet{&packet.ItemStackRequest{Requests: []protocol.ItemStackRequest{{RequestID: requestID, Actions: []protocol.StackRequestAction{
-			&protocol.CraftRecipeStackRequestAction{RecipeNetworkID: recipe.networkID, NumberOfCrafts: 1},
-			consume,
-			take,
-		}}}}}, nil
+		return []packet.Packet{&packet.ItemStackRequest{Requests: []protocol.ItemStackRequest{{RequestID: requestID, Actions: append(actions, take)}}}}, nil
 	}
 	return nil, fmt.Errorf("unsupported interaction %q", st.Kind)
 }
@@ -621,6 +678,11 @@ func (s *session) stackRequest(st step) ([]packet.Packet, error) {
 		}
 		if st.ToContainer == "armor" || st.ToContainer == "offhand" {
 			take.Destination = otherSlot(st.ToContainer, st.To)
+		} else if st.ToContainer == "crafting" {
+			dest := s.grid[st.To]
+			take.Destination = gridSlot(st.To, dest.StackNetworkID)
+			predict(&dest, source)
+			s.grid[st.To] = dest
 		} else if st.ToContainer != "" {
 			take.Destination = s.blockSlot(st.ToContainer, st.To)
 			dest := s.windowItems[st.To]

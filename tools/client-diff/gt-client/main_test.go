@@ -66,6 +66,8 @@ func TestScenarioValidation(t *testing.T) {
 		{AuthInput: true, Steps: []step{{Kind: "move"}}},
 		{AuthInput: true, Steps: []step{{Kind: "drop", Slot: 36, Count: 1}}},
 		{AuthInput: true, Steps: []step{{Kind: "select", Slot: 9}}},
+		{AuthInput: true, Steps: []step{{Kind: "craft", Recipe: "r", Count: 1, Grid: []int{27}}}},
+		{AuthInput: true, Steps: []step{{Kind: "move_item", Count: 1, To: 32, ToContainer: "crafting"}}},
 	} {
 		if err := scenario.validate(); err == nil {
 			t.Fatalf("accepted invalid scenario: %+v", scenario)
@@ -75,6 +77,9 @@ func TestScenarioValidation(t *testing.T) {
 		t.Fatal(err)
 	}
 	if err := (scenario{AuthInput: true, Steps: []step{{Kind: "move", Ticks: 2}, {Kind: "click", Face: 1}, {Kind: "drop", Slot: 35, Count: 64}, {Kind: "use"}, {Kind: "release"}, {Kind: "consume"}}}).validate(); err != nil {
+		t.Fatal(err)
+	}
+	if err := (scenario{AuthInput: true, Steps: []step{{Kind: "move_item", Count: 1, To: 28, ToContainer: "crafting"}, {Kind: "craft", Recipe: "r", Count: 1, Grid: []int{28, 31}}}}).validate(); err != nil {
 		t.Fatal(err)
 	}
 }

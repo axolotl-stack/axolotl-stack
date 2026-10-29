@@ -93,7 +93,7 @@ offsets from the same feet block and slots 0–8/9–35 are hotbar/inventory:
 | `break` | `x`,`y`,`z`,`face` | aim, then `PlayerAuthInput` block actions |
 | `click` | `x`,`y`,`z`,`face` | aim, then `InventoryTransaction` use-item on block |
 | `select` | `slot` | `MobEquipment` |
-| `move_item`, `drop`, `craft` | `slot`,`to`,`count`,`recipe` | `ItemStackRequest` take/drop/craft |
+| `move_item`, `drop`, `craft` | `slot`,`to`,`count`,`recipe`, craft: optional `grid`,`result`,`result_damage` | `ItemStackRequest` take/drop/craft |
 | `take_cursor`, `place_cursor`, `drop_cursor`, `swap`, `destroy` | `slot`,`to`,`count` | `ItemStackRequest` take into / place from / drop from the cursor (UI slot 0), swap, destroy |
 | `open_inventory`, `close_inventory` | — | `Interact` OpenInventory; `ContainerClose` window 0 type 0xff |
 | `attack`, `interact` | `entity` (type, e.g. `minecraft:zombie`) | aim, then `InventoryTransaction` use-item on entity |
@@ -105,6 +105,14 @@ Inventory steps also take `"stale": true` (send an unassigned source stack ID) a
 that container). `-Mode capture -Scenario inventory-moves` runs the inventory scenario
 whose BDS capture is replayed by unastar's inventory engine tests
 (`crates/unastar/src/server/game/inventory/testdata/bds-inventory-moves.jsonl`).
+
+Crafting grid: `move_item` with `"to_container": "crafting"` moves into the
+inventory's 2x2 grid (`to` = PlayerUI slot 28–31). `craft` looks up
+single-ingredient recipes by recipe ID and multi recipes by UUID (repair is
+`00000000-0000-0000-0000-000000000001`); with `"grid": [28, 29]` it consumes
+one item from each listed grid slot instead of inventory slot `slot`, and
+`"result"`/`"result_damage"` add the client's predicted output
+(`CraftResultsDeprecated`, one item with that identifier and `Damage` tag).
 
 Block windows: `move_item` also takes `"from_container"`/`"to_container"`
 `chest`, `barrel`, `ingredient`, `fuel` or `result` (slots of the window the
@@ -128,6 +136,15 @@ in an `UpdateBlock`.
 (apple, golden apple, cooked beef, rotten flesh, honey), drink (milk, water
 potion), eat suspicious stew 0–9 and use a bow, snowball, egg, crossbow,
 trident and ender pearl in survival; `item-use-dry` is their short smoke run.
+`item-use-potions` drinks every potion 0–46 (natural regeneration off,
+health restored before each, harming drunk before healing),
+`item-use-throwables` throws splash potions at the feet and 3/5 blocks ahead,
+an ender pearl and a tipped arrow, `item-use-lingering` throws a lingering
+potion at the feet and stays in the cloud, `item-use-tridents` throws a plain
+trident and teleports onto it, a loyalty trident and a riptide trident in
+rain, and `item-use-repair` repairs two damaged wooden pickaxes in the
+crafting grid; `item-use-2-dry` is their smoke run. Retained spawn packets
+from these runs are in `crates/bds-extractor/captures/1.26.51/items/`.
 Jolyne runs only chat/command scenarios and rejects interaction steps before
 connecting.
 

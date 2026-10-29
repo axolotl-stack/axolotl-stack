@@ -58,13 +58,21 @@ type step struct {
 	// Stale sends an unassigned source stack network ID (inventory steps).
 	Stale bool `json:"stale"`
 	// ToContainer addresses the destination of move_item/place_cursor in
-	// "armor" or "offhand", or in the open block window ("chest", "barrel",
-	// "ingredient", "fuel", "result"), instead of the player inventory
-	// (slot = To).
+	// "armor" or "offhand", the inventory crafting grid ("crafting", slots
+	// 28-31), or in the open block window ("chest", "barrel", "ingredient",
+	// "fuel", "result"), instead of the player inventory (slot = To).
 	ToContainer string `json:"to_container"`
 	// FromContainer addresses the source of move_item in the open block
 	// window (same names as ToContainer, slot = Slot).
 	FromContainer string `json:"from_container"`
+	// Grid makes craft consume one item from each listed crafting grid slot
+	// (PlayerUI slots 28-31 are the inventory's 2x2 grid) instead of Slot.
+	Grid []int `json:"grid"`
+	// Result makes craft also send the client's predicted output
+	// (CraftResultsDeprecated): one item with this identifier and, if
+	// non-zero, ResultDamage as its Damage tag.
+	Result       string `json:"result"`
+	ResultDamage int32  `json:"result_damage"`
 }
 
 type scenario struct {
@@ -114,11 +122,19 @@ func (s scenario) validate() error {
 					return fmt.Errorf("step %d: unknown container %q", i, name)
 				}
 			}
-			if step.FromContainer != "" && step.Kind != "move_item" || step.FromContainer == "armor" || step.FromContainer == "offhand" {
+			if step.FromContainer != "" && step.Kind != "move_item" || step.FromContainer == "armor" || step.FromContainer == "offhand" || step.FromContainer == "crafting" {
 				return fmt.Errorf("step %d: from_container is for move_item out of a block window", i)
 			}
 			if step.Kind == "craft" && step.Recipe == "" {
 				return fmt.Errorf("step %d: craft needs a recipe", i)
+			}
+			for _, slot := range step.Grid {
+				if step.Kind != "craft" || slot < craftingGridFirst || slot > craftingGridLast {
+					return fmt.Errorf("step %d: grid is for craft, with crafting grid slots %d..%d", i, craftingGridFirst, craftingGridLast)
+				}
+			}
+			if step.ToContainer == "crafting" && (step.To < craftingGridFirst || step.To > craftingGridLast) {
+				return fmt.Errorf("step %d: crafting grid slots are %d..%d", i, craftingGridFirst, craftingGridLast)
 			}
 			if step.Stale && step.Kind == "craft" {
 				return fmt.Errorf("step %d: craft cannot use a stale stack ID", i)
