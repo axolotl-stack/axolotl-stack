@@ -23,11 +23,10 @@ use jolyne::valentine::{
 };
 use rand::Rng;
 
-use crate::ecs::resources::TickCounter;
 use crate::entity::components::{
     ActorViewers, Age, Experience, GameMode, GravityStage, GroundFriction, Health, OnGround,
-    PhysicsBody, PhysicsModel, Player, PlayerSession, Position, Rotation, RuntimeEntityId,
-    RuntimeId, Velocity,
+    PhysicsBody, PhysicsModel, Player, PlayerInput, PlayerSession, Position, Rotation,
+    RuntimeEntityId, RuntimeId, Velocity,
 };
 use crate::entity::definition::flags::ActorFlags;
 use crate::entity::definition::metadata::EntityMetadata;
@@ -238,7 +237,6 @@ fn collects(mode: &GameMode, health: Option<&Health>) -> bool {
 #[allow(clippy::type_complexity)]
 pub fn tick_xp_orbs(
     mut commands: Commands,
-    tick: Option<Res<TickCounter>>,
     mut orbs: Query<(Entity, &XpOrb, &Position, &mut Velocity, &Age)>,
     mut players: Query<
         (
@@ -249,6 +247,7 @@ pub fn tick_xp_orbs(
             &mut Experience,
             &RuntimeEntityId,
             Option<&PlayerSession>,
+            Option<&PlayerInput>,
         ),
         With<Player>,
     >,
@@ -273,7 +272,8 @@ pub fn tick_xp_orbs(
         };
         let orb_box = Aabb::from_feet(position.0, XP_ORB_BODY.width, XP_ORB_BODY.height);
         if player_box(eye).inflate(PICKUP_REACH).intersects(&orb_box) {
-            let Ok((_, _, _, _, mut experience, runtime_id, session)) = players.get_mut(player)
+            let Ok((_, _, _, _, mut experience, runtime_id, session, input)) =
+                players.get_mut(player)
             else {
                 continue;
             };
@@ -284,9 +284,7 @@ pub fn tick_xp_orbs(
                         actor_runtime_id: runtime_id.0 as u64,
                     },
                     attribute_list: experience_attributes(&experience).into(),
-                    tick: PlayerInputTick {
-                        inputtick: tick.as_ref().map_or(0, |t| t.current),
-                    },
+                    tick: input.map_or(PlayerInputTick { inputtick: 0 }, PlayerInput::wire_tick),
                 }));
             }
             commands.entity(orb).despawn();

@@ -81,6 +81,24 @@ impl EffectType {
     pub const HEALTH_BOOST: Self = Self(21);
     pub const ABSORPTION: Self = Self(22);
     pub const SATURATION: Self = Self(23);
+    pub const LEVITATION: Self = Self(24);
+    pub const SLOW_FALLING: Self = Self(27);
+    pub const WEAVING: Self = Self(33);
+
+    /// Whether the effect changes how the player moves. Only these effects
+    /// carry the player's input tick in `MobEffect` (measured on BDS
+    /// 1.26.51); every other effect is sent with tick 0.
+    pub fn affects_movement(self) -> bool {
+        [
+            Self::SPEED,
+            Self::SLOWNESS,
+            Self::JUMP_BOOST,
+            Self::LEVITATION,
+            Self::SLOW_FALLING,
+            Self::WEAVING,
+        ]
+        .contains(&self)
+    }
 }
 
 /// A single active effect.

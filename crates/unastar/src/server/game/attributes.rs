@@ -9,7 +9,7 @@
 //! experience code itself (`entity::xp_orb`).
 
 use bevy_ecs::prelude::*;
-use jolyne::valentine::types::{ActorRuntimeId, AttributeData, PlayerInputTick};
+use jolyne::valentine::types::{ActorRuntimeId, AttributeData};
 use jolyne::valentine::{McpePacket, UpdateAttributesPacket};
 
 use crate::entity::components::{Health, Hunger, PlayerInput, PlayerSession, RuntimeEntityId};
@@ -161,9 +161,7 @@ pub fn sync_player_attributes(
                 actor_runtime_id: runtime_id.0 as u64,
             },
             attribute_list: changed,
-            tick: PlayerInputTick {
-                inputtick: u64::try_from(input.tick).unwrap_or(0),
-            },
+            tick: input.wire_tick(),
         }));
     }
 }

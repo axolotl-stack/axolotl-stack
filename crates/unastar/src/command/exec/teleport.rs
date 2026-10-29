@@ -11,14 +11,13 @@
 //! head yaw 0.
 
 use crate::command::prelude::*;
-use crate::ecs::resources::TickCounter;
 use crate::entity::PLAYER_EYE_HEIGHT;
 use crate::entity::components::transform::{Position, Rotation};
 use crate::entity::components::{Player, PlayerSession, RuntimeEntityId};
 use crate::entity::geometry::look_at;
 use crate::world::ecs::ChunkLoader;
 use jolyne::valentine::types::{
-    ActorRuntimeId, EnumsPlayerPositionModeComponentPositionMode, PlayerInputTick, Vec2, Vec3,
+    ActorRuntimeId, EnumsPlayerPositionModeComponentPositionMode, Vec2, Vec3,
 };
 use jolyne::valentine::{MovePlayerPacket, MovePlayerTeleportData};
 
@@ -343,7 +342,6 @@ pub fn move_entity(world: &mut World, entity: Entity, position: DVec3, yaw: f32,
         );
     }
     let runtime_id = world.get::<RuntimeEntityId>(entity).map_or(0, |r| r.0);
-    let tick = world.get_resource::<TickCounter>().map_or(0, |t| t.current);
     let packet = MovePlayerPacket {
         player_runtime_id: ActorRuntimeId {
             actor_runtime_id: runtime_id as u64,
@@ -365,7 +363,8 @@ pub fn move_entity(world: &mut World, entity: Entity, position: DVec3, yaw: f32,
             teleportation_cause: TELEPORT_CAUSE_COMMAND,
             source_actor_type: SOURCE_ACTOR_TYPE,
         }),
-        tick: PlayerInputTick { inputtick: tick },
+        // The teleported player's own input tick, like every packet about it.
+        tick: crate::entity::components::input_tick_of(world, entity),
     };
     if let Some(session) = world.get::<PlayerSession>(entity) {
         let _ = session.send(packet.into());

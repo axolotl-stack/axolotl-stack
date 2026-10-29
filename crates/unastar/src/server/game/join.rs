@@ -15,8 +15,8 @@ use jolyne::valentine::types::{
     ActorRuntimeId, CerealizerNetworkItemStackDescriptorSerializedData, DataItemEntry,
     DataItemEntryPayload, DataItemFloatPayload, DataItemInt64Payload, DataItemShortPayload,
     EnumsCommandPermissionLevel, EnumsDataItemType, EnumsGameType, EnumsPlayerPermissionLevel,
-    PlayerInputTick, PropertySyncData, SerializedAbilitiesData,
-    SerializedAbilitiesDataSerializedLayer, SynchedActorDataCopyableDataList,
+    PropertySyncData, SerializedAbilitiesData, SerializedAbilitiesDataSerializedLayer,
+    SynchedActorDataCopyableDataList,
 };
 use jolyne::valentine::{
     GameRulesChangedPacket, InventoryContentPacket, McpePacket, SetCommandsEnabledPacket,
@@ -133,10 +133,7 @@ impl GameServer {
             .copied()
             .unwrap_or(GameMode::Survival);
 
-        let current_tick = world
-            .get_resource::<crate::ecs::resources::TickCounter>()
-            .unwrap()
-            .current;
+        let input_tick = crate::entity::components::input_tick_of(world, entity);
 
         for packet in world
             .resource::<crate::entity::definition::properties::ActorPropertyRegistry>()
@@ -187,9 +184,7 @@ impl GameServer {
                 actor_runtime_id: runtime_id as u64,
             },
             attribute_list: player_attributes(&health, &hunger, absorption, &experience),
-            tick: PlayerInputTick {
-                inputtick: current_tick,
-            },
+            tick: input_tick.clone(),
         }));
 
         let actor_data = initial_player_actor_data();
@@ -200,9 +195,7 @@ impl GameServer {
             },
             actor_data: SynchedActorDataCopyableDataList { data: actor_data },
             synched_properties: PropertySyncData::default(),
-            tick: PlayerInputTick {
-                inputtick: current_tick,
-            },
+            tick: input_tick,
         }));
 
         // Send inventory contents to enable inventory UI

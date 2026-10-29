@@ -167,6 +167,28 @@ pub struct PlayerInput {
     pub tick: i64,
 }
 
+impl PlayerInput {
+    /// The `PlayerInputTick` a packet about this player carries: the tick of
+    /// the player's latest `PlayerAuthInput` (0 before the first one).
+    ///
+    /// Clients treat this as their own input timeline and reject a value
+    /// that goes backwards, so it must never be mixed with the server tick.
+    pub fn wire_tick(&self) -> jolyne::valentine::types::PlayerInputTick {
+        jolyne::valentine::types::PlayerInputTick {
+            inputtick: u64::try_from(self.tick).unwrap_or(0),
+        }
+    }
+}
+
+/// The `PlayerInputTick` a packet about `entity` carries: the player's latest
+/// input tick ([`PlayerInput::wire_tick`]), or 0 for any other actor.
+pub fn input_tick_of(world: &World, entity: Entity) -> jolyne::valentine::types::PlayerInputTick {
+    world.get::<PlayerInput>(entity).map_or(
+        jolyne::valentine::types::PlayerInputTick { inputtick: 0 },
+        PlayerInput::wire_tick,
+    )
+}
+
 /// Chunk view radius for this player.
 #[derive(Component, Debug, Clone, Copy)]
 pub struct ChunkRadius(pub i32);

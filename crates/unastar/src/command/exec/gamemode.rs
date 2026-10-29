@@ -9,7 +9,7 @@ use crate::entity::components::{GameMode, Player, PlayerSession, RuntimeEntityId
 use crate::server::game::ServerConfigResource;
 use crate::server::game::join::{abilities_packet, game_type};
 use jolyne::valentine::UpdatePlayerGameTypePacket;
-use jolyne::valentine::types::{ActorUniqueId, PlayerInputTick};
+use jolyne::valentine::types::ActorUniqueId;
 
 arg_enum! {
     /// The captured `GameMode` enum.
@@ -99,7 +99,7 @@ pub fn set_game_mode(world: &mut World, player: Entity, mode: GameMode) {
         targetplayer: ActorUniqueId {
             actor_unique_id: runtime_id,
         },
-        tick: PlayerInputTick { inputtick: 0 },
+        tick: crate::entity::components::input_tick_of(world, player),
     };
     let abilities = abilities_packet(runtime_id, mode, operator);
     let mut sessions = world.query::<&PlayerSession>();

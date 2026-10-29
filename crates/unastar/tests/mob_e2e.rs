@@ -136,6 +136,9 @@ const HARD_DAMAGE_SCALE: f32 = 1.5;
 /// The zombie's melee cooldown (`behavior.melee_box_attack`): one hit per
 /// second while the target stays in reach.
 const ZOMBIE_ATTACK_TICKS: u64 = 20;
+/// How far apart two hits a cooldown apart may land on the bot's input
+/// clock, which runs on real time beside the server's tick.
+const INPUT_CLOCK_JITTER_TICKS: u64 = 3;
 /// Blocks along +z from the bot the zombie is summoned, so it must walk to
 /// it.
 const ZOMBIE_SUMMON_DISTANCE: f32 = 4.0;
@@ -647,7 +650,8 @@ async fn zombie_kills_and_bot_respawns(bot: &mut Bot) {
         .await;
     // The default spawn location puts the bot's eye at y 17, its feet inside
     // the platform; a real client lands and reports itself standing on top.
-    // The bot sends no movement, so it is teleported there instead.
+    // The bot is teleported there, then sends one standing `PlayerAuthInput`
+    // per tick, as a real client does, for the rest of the scenario.
     let (x, z) = (bot.position.x, bot.position.z);
     // `/tp` coordinates are feet, as in Bedrock.
     bot.run_command(
@@ -655,6 +659,7 @@ async fn zombie_kills_and_bot_respawns(bot: &mut Bot) {
         "commands.tp.success.coordinates",
     )
     .await;
+    bot.start_input_clock();
 
     // b.
     let (fight, zombie) = watch_zombie_fight(bot).await;
@@ -669,6 +674,38 @@ async fn zombie_kills_and_bot_respawns(bot: &mut Bot) {
         }
     }
     assert!(bot.connected(), "the bot stays connected after respawning");
+    check_input_ticks(bot);
+}
+
+/// Every `PlayerInputTick` in a packet about the bot follows the bot's own
+/// input timeline: never ahead of the latest input it sent, never going
+/// backwards, and not 0 once it has sent input. A client disconnects on a
+/// tick that goes backwards.
+fn check_input_ticks(bot: &Bot) {
+    let ticks = &bot.self_ticks;
+    bot.log(format!(
+        "input ticks (packet, received, latest sent): {ticks:?}"
+    ));
+    assert!(
+        ticks.iter().any(|(kind, ..)| *kind == "SetActorMotion")
+            && ticks.iter().any(|(kind, ..)| *kind == "UpdateAttributes")
+            && ticks.iter().any(|(kind, ..)| *kind == "MovePlayer"),
+        "knockback, attributes and the respawn move reached the bot: {ticks:?}"
+    );
+    for (kind, received, sent) in ticks {
+        assert!(
+            received <= sent,
+            "{kind} carried tick {received}, ahead of the bot's latest input {sent}: {ticks:?}"
+        );
+        assert!(
+            *sent == 0 || *received > 0,
+            "{kind} carried tick 0 after the bot sent input {sent}: {ticks:?}"
+        );
+    }
+    assert!(
+        ticks.windows(2).all(|pair| pair[0].1 <= pair[1].1),
+        "input ticks went backwards: {ticks:?}"
+    );
 }
 
 /// What the bot saw of the zombie fight and its death.
@@ -887,44 +924,47 @@ fn check_zombie_fight(bot: &Bot, fight: &ZombieFight, zombie: u64) {
     bot.log(format!(
         "the zombie holds {weapon:?}: {damage} damage per hit on hard"
     ));
-    // Hits lower health by the damage (the last one to zero). Between hits
-    // natural regeneration (full food) may heal one point at a time.
-    let mut hits = Vec::new();
+    // Health updates that lowered health are the hits; between them a fed
+    // player may regenerate.
     let mut previous = PLAYER_MAX_HEALTH;
-    for &(_, health, at) in &fight.health {
-        if health < previous {
+    let mut hit_updates = Vec::new();
+    for update in &fight.health {
+        if update.1 < previous {
+            hit_updates.push(*update);
+        }
+        previous = update.1;
+    }
+    let mut previous = PLAYER_MAX_HEALTH;
+    for (_, health, _) in &fight.health {
+        if *health < previous {
             let expected = (previous - damage).max(0.0);
             assert!(
                 (health - expected).abs() < 1e-3,
-                "each hit takes {damage} health: {previous} -> {health}, trace {trace:?}"
+                "each hit takes {damage} health: {previous} became {health}, trace {trace:?}"
             );
-            hits.push(at);
-        } else if health > previous {
+        } else {
             assert!(
-                (health - previous - 1.0).abs() < 1e-3,
-                "only natural regeneration (one point) heals during the fight: \
-                 {previous} -> {health}, trace {trace:?}"
+                *health - previous <= 1.0 + 1e-3,
+                "between hits health only regenerates a point at a time: {trace:?}"
             );
         }
-        previous = health;
+        previous = *health;
     }
-    assert_eq!(
-        previous, 0.0,
-        "the last health update is the death: {trace:?}"
-    );
+    assert_eq!(previous, 0.0, "the hits end at zero health: {trace:?}");
+    let hits = hit_updates.len();
 
     // One swing per hit (two when the zombie holds something), one hurt
     // event and one knockback per hit.
     let swings_per_hit = if weapon.is_some() { 2 } else { 1 };
     assert_eq!(
         swings,
-        hits.len() * swings_per_hit,
+        hits * swings_per_hit,
         "ActorEvent StartAttacking per hit (holding {weapon:?})"
     );
-    assert_eq!(fight.hurt, hits.len(), "the bot's ActorEvent Hurt per hit");
+    assert_eq!(fight.hurt, hits, "the bot's ActorEvent Hurt per hit");
     assert_eq!(
         fight.knockbacks.len(),
-        hits.len(),
+        hits,
         "SetActorMotion knockback per hit"
     );
     for (motion, (dx, dz)) in &fight.knockbacks {
@@ -935,23 +975,20 @@ fn check_zombie_fight(bot: &Bot, fight: &ZombieFight, zombie: u64) {
         );
     }
 
-    // Hits land every cooldown while the bot stays in reach. The health
-    // update carries the player's last input tick (as BDS sends it), which
-    // this standing bot never advances, so the spacing is measured by
-    // arrival time in server ticks.
+    // Hits land every cooldown while the bot stays in reach. Health updates
+    // carry the bot's own input tick, which follows the server's tick only
+    // as closely as the bot's real-time input clock does.
     let mut spaced = 0;
-    for pair in hits.windows(2) {
-        let (before_at, after_at) = (pair[0], pair[1]);
+    for pair in hit_updates.windows(2) {
+        let ((before, _, before_at), (after, _, after_at)) = (pair[0], pair[1]);
         let stepped = fight
             .teleports
             .iter()
             .any(|at| *at > before_at && *at <= after_at);
         if !stepped {
-            let ticks = (after_at - before_at).as_secs_f64() / TICK.as_secs_f64();
             assert!(
-                (ticks - ZOMBIE_ATTACK_TICKS as f64).abs() <= 3.0,
-                "consecutive hits are one cooldown ({ZOMBIE_ATTACK_TICKS} ticks) apart, \
-                 got {ticks:.1}: {trace:?}"
+                after.abs_diff(before).abs_diff(ZOMBIE_ATTACK_TICKS) <= INPUT_CLOCK_JITTER_TICKS,
+                "consecutive hits are one cooldown apart on the bot's input clock: {trace:?}"
             );
             spaced += 1;
         }
@@ -1474,6 +1511,14 @@ struct Bot {
     /// Creative item network ID by item ID, from `CreativeContent`.
     creative: HashMap<i32, u32>,
     started: Instant,
+    /// The bot's own input timeline: the last `PlayerAuthInput` tick sent.
+    input_tick: u64,
+    /// When the next `PlayerAuthInput` is due, while the bot sends one per
+    /// tick as a real client does ([`Bot::start_input_clock`]).
+    next_input: Option<Instant>,
+    /// `PlayerInputTick` of every packet about the bot, with the bot's
+    /// latest input tick when it arrived: (packet, received, latest sent).
+    self_ticks: Vec<(&'static str, u64, u64)>,
     outbound: Option<mpsc::UnboundedSender<McpePacket>>,
     inbound: mpsc::UnboundedReceiver<McpePacketData>,
     io: Option<tokio::task::JoinHandle<()>>,
@@ -1540,6 +1585,9 @@ impl Bot {
             mainhand: HashMap::new(),
             creative: HashMap::new(),
             started: Instant::now(),
+            input_tick: 0,
+            next_input: None,
+            self_ticks: Vec::new(),
             outbound: Some(outbound),
             inbound,
             io: Some(io),
@@ -1774,9 +1822,60 @@ impl Bot {
     }
 
     async fn next(&mut self) -> Option<McpePacketData> {
-        let packet = self.inbound.recv().await?;
+        let packet = loop {
+            let Some(due) = self.next_input else {
+                break self.inbound.recv().await?;
+            };
+            match tokio::time::timeout_at(due, self.inbound.recv()).await {
+                Ok(packet) => break packet?,
+                Err(_) => self.send_tick_input(),
+            }
+        };
+        self.record_input_tick(&packet);
         self.observe(&packet);
         Some(packet)
+    }
+
+    /// From now on, send one standing `PlayerAuthInput` per tick with an
+    /// advancing client tick while waiting for packets, as a real client does.
+    fn start_input_clock(&mut self) {
+        self.next_input = Some(Instant::now());
+    }
+
+    fn send_tick_input(&mut self) {
+        self.input_tick += 1;
+        let feet = (self.position.x, self.position.z);
+        self.auth_input(feet, 0.0, false, self.input_tick);
+        let due = self.next_input.map_or_else(Instant::now, |due| due + TICK);
+        self.next_input = Some(due.max(Instant::now()));
+    }
+
+    /// Records the `PlayerInputTick` of a packet about the bot itself.
+    fn record_input_tick(&mut self, packet: &McpePacketData) {
+        let me = self.runtime_id;
+        let tick = match packet {
+            McpePacketData::UpdateAttributesPacket(p)
+                if p.target_runtime_id.actor_runtime_id == me =>
+            {
+                ("UpdateAttributes", p.tick.inputtick)
+            }
+            McpePacketData::SetActorMotionPacket(p)
+                if p.target_runtime_id.actor_runtime_id == me =>
+            {
+                ("SetActorMotion", p.tick.inputtick)
+            }
+            McpePacketData::MobEffectPacket(p) if p.target_runtime_id.actor_runtime_id == me => {
+                ("MobEffect", p.tick.inputtick)
+            }
+            McpePacketData::MovePlayerPacket(p) if p.player_runtime_id.actor_runtime_id == me => {
+                ("MovePlayer", p.tick.inputtick)
+            }
+            McpePacketData::SetActorDataPacket(p) if p.target_runtime_id.actor_runtime_id == me => {
+                ("SetActorData", p.tick.inputtick)
+            }
+            _ => return,
+        };
+        self.self_ticks.push((tick.0, tick.1, self.input_tick));
     }
 
     /// The next packet, or `None` once `deadline` passes.

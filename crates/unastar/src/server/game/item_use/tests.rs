@@ -4,7 +4,7 @@ use bevy_ecs::prelude::*;
 use jolyne::valentine::{McpePacket, McpePacketData};
 
 use super::*;
-use crate::entity::components::{EffectType, Effects, Hunger, Rotation};
+use crate::entity::components::{EffectType, Effects, Hunger, PlayerInput, Rotation};
 use crate::item::test_support::stack;
 use crate::registry::ItemRegistry;
 use crate::server::game::attributes::Absorption;

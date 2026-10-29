@@ -16,7 +16,7 @@ use jolyne::valentine::{McpePacket, MobEffectPacket};
 
 use super::attributes::{Absorption, MAX_ABSORPTION};
 use crate::entity::components::{
-    EffectType, Effects, GameMode, Health, Hunger, PlayerSession, RuntimeEntityId,
+    EffectType, Effects, GameMode, Health, Hunger, PlayerInput, PlayerSession, RuntimeEntityId,
 };
 
 /// Bedrock effect identifiers and their protocol ids.
@@ -225,15 +225,18 @@ pub struct SentEffects(HashMap<EffectType, (u8, u32)>);
 
 /// System: send each player `MobEffect` add, modify and remove packets for
 /// the changes since the last tick.
+#[allow(clippy::type_complexity)]
 pub fn sync_player_effects(
     mut players: Query<(
         &RuntimeEntityId,
         &PlayerSession,
         Option<&Effects>,
         &mut SentEffects,
+        Option<&PlayerInput>,
     )>,
 ) {
-    for (runtime_id, session, effects, mut sent) in &mut players {
+    for (runtime_id, session, effects, mut sent, input) in &mut players {
+        let tick = input.map_or(PlayerInputTick { inputtick: 0 }, PlayerInput::wire_tick);
         let send = |event, effect: EffectType, amplifier: u8, duration: u32| {
             let _ = session.send(McpePacket::from(MobEffectPacket {
                 target_runtime_id: ActorRuntimeId {
@@ -244,7 +247,11 @@ pub fn sync_player_effects(
                 effect_amplifier: i32::from(amplifier),
                 show_particles: true,
                 effect_duration_ticks: duration as i32,
-                tick: PlayerInputTick { inputtick: 0 },
+                tick: if effect.affects_movement() {
+                    tick.clone()
+                } else {
+                    PlayerInputTick { inputtick: 0 }
+                },
                 ambient: false,
             }));
         };

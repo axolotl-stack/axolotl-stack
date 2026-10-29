@@ -827,9 +827,7 @@ pub(super) fn grant_experience(world: &mut World, player: Entity, points: i32) {
         name: name.into(),
         modifiers: vec![],
     };
-    let tick = world
-        .get_resource::<crate::ecs::resources::TickCounter>()
-        .map_or(0, |tick| tick.current);
+    let tick = crate::entity::components::input_tick_of(world, player);
     send(
         world,
         player,
@@ -841,7 +839,7 @@ pub(super) fn grant_experience(world: &mut World, player: Entity, points: i32) {
                 attribute("minecraft:player.level", level as f32, i32::MAX as f32),
                 attribute("minecraft:player.experience", progress, 1.0),
             ],
-            tick: jolyne::valentine::PlayerInputTick { inputtick: tick },
+            tick,
         },
     );
 }

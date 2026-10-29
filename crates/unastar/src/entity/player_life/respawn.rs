@@ -14,7 +14,7 @@ use bevy_ecs::prelude::*;
 use glam::DVec3;
 use jolyne::valentine::types::{
     ActorRuntimeId, EnumsActorEvent, EnumsPlayerPositionModeComponentPositionMode,
-    EnumsPlayerRespawnState, PlayerInputTick, Vec2, Vec3,
+    EnumsPlayerRespawnState, Vec2, Vec3,
 };
 use jolyne::valentine::{ActorEventPacket, McpePacket, MovePlayerPacket, RespawnPacket};
 
@@ -154,7 +154,7 @@ pub fn respawn(world: &mut World, player: Entity) {
             actor_runtime_id: 0,
         },
         teleport_data: None,
-        tick: PlayerInputTick { inputtick: 0 },
+        tick: crate::entity::components::input_tick_of(world, player),
     }));
     let _ = session.send(McpePacket::from(ActorEventPacket {
         target_runtime_id: ActorRuntimeId {

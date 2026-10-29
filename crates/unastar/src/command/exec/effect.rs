@@ -455,7 +455,13 @@ fn send_effect(
         } else {
             active.duration_ticks as i32
         },
-        tick: PlayerInputTick { inputtick: 0 },
+        // The player's input tick only for effects that change movement, as
+        // BDS 1.26.51 sends them; 0 for every other effect and for mobs.
+        tick: if effect.affects_movement() {
+            crate::entity::components::input_tick_of(world, target)
+        } else {
+            PlayerInputTick { inputtick: 0 }
+        },
         ambient: active.ambient,
     });
     if player {

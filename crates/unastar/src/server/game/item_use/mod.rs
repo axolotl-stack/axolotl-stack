@@ -17,7 +17,7 @@ pub mod ranged;
 use bevy_ecs::prelude::*;
 use jolyne::valentine::types::{
     ActorRuntimeId, DataItemEntry, DataItemEntryPayload, DataItemInt64Payload, EnumsDataItemType,
-    PlayerInputTick, PropertySyncData, SynchedActorDataCopyableDataList,
+    PropertySyncData, SynchedActorDataCopyableDataList,
 };
 use jolyne::valentine::{
     CompletedUsingItemPacket, McpePacket, SetActorDataPacket, actor_data_i_ds, actor_flags,
@@ -25,7 +25,7 @@ use jolyne::valentine::{
 
 use crate::ecs::events::{EventBuffer, ServerEvent};
 use crate::entity::components::{
-    GameMode, Health, HeldSlot, MainInventory, PlayerInput, PlayerSession, PlayerState, Position,
+    GameMode, Health, HeldSlot, MainInventory, PlayerSession, PlayerState, Position,
     RuntimeEntityId,
 };
 use crate::item::ItemStack;
@@ -155,13 +155,6 @@ pub fn send_to(world: &World, players: &[Entity], packet: &McpePacket) {
     }
 }
 
-/// The player's own input tick.
-fn input_tick(world: &World, player: Entity) -> i64 {
-    world
-        .get::<PlayerInput>(player)
-        .map_or(0, |input| input.tick)
-}
-
 /// The current server tick.
 fn server_tick(world: &World) -> u64 {
     world
@@ -223,9 +216,7 @@ fn broadcast_using(world: &World, player: Entity, using: bool) {
             }],
         },
         synched_properties: PropertySyncData::default(),
-        tick: PlayerInputTick {
-            inputtick: u64::try_from(input_tick(world, player)).unwrap_or(0),
-        },
+        tick: crate::entity::components::input_tick_of(world, player),
     });
     send_to(world, &nearby_players(world, player), &packet);
 }
@@ -378,9 +369,7 @@ pub fn teleport(world: &mut World, player: Entity, feet: glam::DVec3, cause: Tel
             // Bedrock's actor type id of the player.
             source_actor_type: 63,
         }),
-        tick: PlayerInputTick {
-            inputtick: u64::try_from(input_tick(world, player)).unwrap_or(0),
-        },
+        tick: crate::entity::components::input_tick_of(world, player),
     });
     // Other players follow through the regular position broadcast.
     send_to(world, &[player], &packet);

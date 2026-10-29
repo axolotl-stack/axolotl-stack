@@ -40,6 +40,7 @@ pub fn process_plugin_actions(
         &PlayerSession,
         &mut crate::entity::components::MainInventory,
     )>,
+    inputs: Query<&crate::entity::components::PlayerInput>,
 ) {
     let actions = action_queue.drain();
     let _span = tracing::info_span!("process_plugin_actions", count = actions.len()).entered();
@@ -83,7 +84,10 @@ pub fn process_plugin_actions(
                             teleportation_cause: MOVE_PLAYER_TELEPORT_CAUSE_COMMAND,
                             source_actor_type: MOVE_PLAYER_SOURCE_ACTOR_TYPE_PLAYER,
                         }),
-                        tick: PlayerInputTick { inputtick: 0 },
+                        tick: inputs.get(entity).map_or(
+                            PlayerInputTick { inputtick: 0 },
+                            crate::entity::components::PlayerInput::wire_tick,
+                        ),
                     };
                     let _ = session.send(McpePacket::from(packet));
 
