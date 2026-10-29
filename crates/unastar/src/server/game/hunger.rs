@@ -115,6 +115,21 @@ impl FoodRules {
     }
 }
 
+/// Add the exhaustion `pick` selects from the player definition's values
+/// to a survival or adventure player.
+pub fn exhaust_player(world: &mut World, player: Entity, pick: impl Fn(&ExhaustionValues) -> f32) {
+    let amount = pick(&world.get_resource_or_init::<ExhaustionValues>());
+    if world
+        .get::<GameMode>(player)
+        .is_some_and(|mode| matches!(mode, GameMode::Creative | GameMode::Spectator))
+    {
+        return;
+    }
+    if let Some(mut hunger) = world.get_mut::<Hunger>(player) {
+        hunger.exhaust(amount);
+    }
+}
+
 /// One exhaustion step.
 pub fn tick_exhaustion(hunger: &mut Hunger, difficulty: Difficulty) {
     if hunger.exhaustion < Hunger::EXHAUSTION_PER_POINT {

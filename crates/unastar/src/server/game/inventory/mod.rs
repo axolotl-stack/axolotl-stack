@@ -332,6 +332,28 @@ fn invalid_request_warning() -> jolyne::valentine::PacketViolationWarningPacket 
 /// BDS follows a committed armour change with `InventorySlot` for the armour
 /// window (120) and an offhand change with the offhand window's (119)
 /// `InventoryContent`, both before the response.
+/// Send one armour slot of `player` to its client (`InventorySlot` in the
+/// armour window, as after an equipment change).
+pub(crate) fn send_armour_slot(world: &World, player: Entity, slot: usize) {
+    let (Some(armour), Some(session)) = (
+        world.get::<ArmourInventory>(player),
+        world.get::<PlayerSession>(player),
+    ) else {
+        return;
+    };
+    let changes = engine::EquipmentChanges {
+        armor: vec![slot],
+        offhand: false,
+    };
+    send_equipment_updates(
+        &changes,
+        armour,
+        &ItemStack::empty(),
+        session,
+        super::types::block_network_ids(world),
+    );
+}
+
 fn send_equipment_updates(
     changes: &engine::EquipmentChanges,
     armor: &ArmourInventory,

@@ -9,6 +9,7 @@ mod blocks;
 mod chunks;
 mod commands;
 mod containers;
+pub mod durability;
 pub mod effects;
 mod falling;
 pub mod hunger;
