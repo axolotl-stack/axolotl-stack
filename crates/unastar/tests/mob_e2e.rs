@@ -25,6 +25,12 @@
 //!   and checks the fuse (`IGNITED`, `FUSE_TIME` 29 … 0), the explosion's
 //!   level events, the bot's hurt, knockback and health, the platform
 //!   blocks turning to air and the creeper's removal, in BDS order.
+//! - `skeleton_shoots_the_player_over_loopback`: on normal at midnight,
+//!   summons a skeleton eight blocks from the survival bot, which stands
+//!   still sending one `PlayerAuthInput` per tick, and checks the drawn bow
+//!   (`FACING_TARGET_TO_RANGE_ATTACK`), the arrow's `AddActor`, the bot's
+//!   hurt, knockback and dropping health, and the input ticks of the
+//!   packets about the bot.
 //!
 //! The tests bind a UDP socket on `127.0.0.1` (never a public interface), so
 //! they are ignored by default. Run them with:
@@ -215,6 +221,19 @@ const ENTITY_EXPLOSION_CAUSE: i32 = 11;
 /// ParticlesBlockExplosion.
 const PARTICLES_EXPLOSION: i32 = 2025;
 const PARTICLES_BLOCK_EXPLOSION: i32 = 2026;
+const SKELETON: &str = "minecraft:skeleton";
+const ARROW: &str = "minecraft:arrow";
+/// Generous: the first shot comes about 3 s after the skeleton spots the
+/// bot.
+const SKELETON_TIMEOUT: Duration = Duration::from_secs(60);
+/// The first arrow hits within this of the summon.
+const SKELETON_HITS_WITHIN: Duration = Duration::from_secs(15);
+/// Packets after the first hit that are still collected.
+const SKELETON_SETTLE: Duration = Duration::from_secs(2);
+/// Within the skeleton's 15-block attack range, on the platform.
+const SKELETON_SUMMON_DISTANCE: f32 = 8.0;
+/// `ActorDamageCause::Projectile` in `ActorEvent(Hurt)` data.
+const PROJECTILE_CAUSE: i32 = 3;
 
 /// Serialises the tests: each makes its own temporary directory the process
 /// working directory.
@@ -292,6 +311,18 @@ fn creeper_explodes_next_to_the_player_over_loopback() {
     });
 }
 
+#[test]
+#[ignore = "loopback socket run: use the native lock"]
+fn skeleton_shoots_the_player_over_loopback() {
+    run_loopback(Scenario::Skeleton, |config| {
+        // The creeper's platform; survival lets the skeleton target and
+        // hurt the bot. The bot is an operator by default.
+        config.world = WorldConfig::void_spawn_platform(4);
+        config.server.difficulty = Difficulty::Normal;
+        config.server.default_gamemode = "survival".into();
+    });
+}
+
 /// What the joined bot does.
 #[derive(Debug, Clone, Copy)]
 enum Scenario {
@@ -301,6 +332,7 @@ enum Scenario {
     Zombie,
     TemptedCows,
     Creeper,
+    Skeleton,
 }
 
 impl Scenario {
@@ -312,6 +344,7 @@ impl Scenario {
             Self::Zombie => ZOMBIE_TIMEOUT,
             Self::TemptedCows => TEMPT_TIMEOUT,
             Self::Creeper => CREEPER_TIMEOUT,
+            Self::Skeleton => SKELETON_TIMEOUT,
         }
     }
 
@@ -323,6 +356,7 @@ impl Scenario {
             Self::Zombie => zombie_kills_and_bot_respawns(bot).await,
             Self::TemptedCows => tempted_cows_follow(bot).await,
             Self::Creeper => creeper_explodes(bot).await,
+            Self::Skeleton => skeleton_shoots(bot).await,
         }
     }
 }
@@ -946,6 +980,158 @@ async fn creeper_explodes(bot: &mut Bot) {
             && particles < health,
         "BDS order: {seen:?}"
     );
+}
+
+/// What the bot saw of a skeleton's shots, in arrival order.
+#[derive(Debug)]
+enum Shot {
+    /// `FACING_TARGET_TO_RANGE_ATTACK` set (`true`) or cleared.
+    Drawn(bool),
+    Arrow,
+    Sound(String),
+    Hurt(i32),
+    Motion(Vec3),
+    Health(f32),
+}
+
+/// a. midnight without natural spawns, standing on the platform with the
+/// input clock running, b. a skeleton eight blocks away draws its bow and
+/// shoots, c. the arrow hurts the bot, d. the input ticks hold.
+async fn skeleton_shoots(bot: &mut Bot) {
+    // a.
+    bot.run_command("/gamerule dodaylightcycle false", "has been updated")
+        .await;
+    bot.run_command("/gamerule domobspawning false", "has been updated")
+        .await;
+    bot.run_command("/time set midnight", "Set the time to")
+        .await;
+    let (x, z) = (bot.position.x, bot.position.z);
+    bot.run_command(
+        &format!("/tp {x:.2} {:.2} {z:.2}", PLATFORM_TOP + EYE_HEIGHT),
+        "Teleported to",
+    )
+    .await;
+    bot.start_input_clock();
+
+    // b.
+    let at = format!("~{SKELETON_SUMMON_DISTANCE} {PLATFORM_TOP} ~");
+    let summoned = Instant::now();
+    let skeleton = summon(bot, SKELETON, &at).await;
+    let me = bot.runtime_id;
+    // The second flags word holds flags 64 and up.
+    let drawn_bit = 1i64 << (jolyne::valentine::actor_flags::FACING_TARGET_TO_RANGE_ATTACK - 64);
+    let mut drawn = false;
+    let mut seen: Vec<(Duration, Shot)> = Vec::new();
+    let mut hit = None;
+    loop {
+        let deadline = hit.map_or(summoned + SKELETON_HITS_WITHIN, |at: Instant| {
+            at + SKELETON_SETTLE
+        });
+        let Some(packet) = bot.next_until(deadline).await else {
+            break;
+        };
+        let event = match packet {
+            McpePacketData::SetActorDataPacket(data)
+                if data.target_runtime_id.actor_runtime_id == skeleton =>
+            {
+                use jolyne::valentine::types::DataItemEntryPayload as Payload;
+                data.actor_data
+                    .data
+                    .iter()
+                    .find_map(|entry| match (&entry.payload, entry.id) {
+                        (Payload::DataItemInt64Payload(flags), id)
+                            if id == jolyne::valentine::actor_data_i_ds::RESERVED_092 =>
+                        {
+                            let now = flags.value & drawn_bit != 0;
+                            (now != drawn).then(|| {
+                                drawn = now;
+                                Shot::Drawn(now)
+                            })
+                        }
+                        _ => None,
+                    })
+                    .into_iter()
+                    .collect()
+            }
+            McpePacketData::AddActorPacket(actor) if &*actor.actor_type == ARROW => {
+                vec![Shot::Arrow]
+            }
+            McpePacketData::LevelSoundEventPacket(sound) => {
+                vec![Shot::Sound((*sound.sound_event).to_owned())]
+            }
+            McpePacketData::ActorEventPacket(event)
+                if event.target_runtime_id.actor_runtime_id == me
+                    && event.event_id == EnumsActorEvent::Hurt =>
+            {
+                hit.get_or_insert_with(Instant::now);
+                vec![Shot::Hurt(event.data)]
+            }
+            McpePacketData::SetActorMotionPacket(motion)
+                if motion.target_runtime_id.actor_runtime_id == me =>
+            {
+                vec![Shot::Motion(motion.motion)]
+            }
+            McpePacketData::UpdateAttributesPacket(update)
+                if update.target_runtime_id.actor_runtime_id == me =>
+            {
+                update
+                    .attribute_list
+                    .iter()
+                    .find(|attribute| &*attribute.name == HEALTH)
+                    .map(|health| Shot::Health(health.current_value))
+                    .into_iter()
+                    .collect()
+            }
+            McpePacketData::DisconnectPacket(disconnect) => {
+                panic!("disconnected while shot at: {disconnect:?}")
+            }
+            _ => Vec::new(),
+        };
+        let elapsed = summoned.elapsed();
+        seen.extend(event.into_iter().map(|event| (elapsed, event)));
+    }
+    for (elapsed, event) in &seen {
+        bot.log(format!("skeleton +{elapsed:?}: {event:?}"));
+    }
+
+    // c.
+    let index = |what: &str, pick: &dyn Fn(&Shot) -> bool| {
+        seen.iter()
+            .position(|(_, event)| pick(event))
+            .unwrap_or_else(|| panic!("no {what}: {seen:?}"))
+    };
+    let drawn = index("FACING_TARGET_TO_RANGE_ATTACK", &|e| {
+        matches!(e, Shot::Drawn(true))
+    });
+    let arrow = index("the arrow's AddActor", &|e| matches!(e, Shot::Arrow));
+    let bow = index(
+        "the bow sound",
+        &|e| matches!(e, Shot::Sound(s) if s == "bow"),
+    );
+    let hurt = index("hurt", &|e| matches!(e, Shot::Hurt(_)));
+    let Shot::Hurt(cause) = &seen[hurt].1 else {
+        unreachable!()
+    };
+    assert_eq!(*cause, PROJECTILE_CAUSE, "arrow damage");
+    let health = index(
+        "the bot's health dropping",
+        &|e| matches!(e, Shot::Health(h) if *h < PLAYER_MAX_HEALTH),
+    );
+    let knockback = index("the arrow's knockback", &|e| matches!(e, Shot::Motion(_)));
+    assert!(
+        drawn < arrow && arrow < hurt && bow < hurt && hurt < health && arrow < knockback,
+        "drawn, shot, then hurt: {seen:?}"
+    );
+    let Shot::Motion(motion) = &seen[knockback].1 else {
+        unreachable!()
+    };
+    assert!(
+        motion.x < 0.0,
+        "pushed along the arrow's flight, away from the skeleton at +x: {motion:?}"
+    );
+
+    // d.
+    check_input_ticks(bot);
 }
 
 /// What the bot saw of the zombie fight and its death.

@@ -153,6 +153,12 @@ pub enum LootFunctionKind {
     EnchantRandomGear {
         chance: f32,
     },
+    /// `set_potion`: the item holds this potion (a tipped arrow's data is
+    /// the potion id plus [`crate::potion::TIPPED_ARROW_DATA_OFFSET`], any
+    /// other item's the potion id).
+    SetPotion {
+        potion: u8,
+    },
     Other {
         name: String,
         json: serde_json::Value,

@@ -166,6 +166,17 @@ impl MobFacts<'_> {
         ))
     }
 
+    /// `in_block`: the block at the actor's feet is the named one (a bare
+    /// name is in the `minecraft` namespace).
+    fn in_block(&self, entity: Entity, name: &str) -> Option<bool> {
+        let state = self.world.block_at(self.feet(entity)?.floor().as_ivec3())?;
+        let block = self.world.registry().get_by_runtime_id(state)?;
+        Some(match name.split_once(':') {
+            Some(_) => block.string_id == name,
+            None => block.string_id.strip_prefix("minecraft:") == Some(name),
+        })
+    }
+
     fn property(&self, entity: Entity, test: &FilterTest) -> Option<PropertyValue> {
         let properties = self.world.get::<ActorProperties>(entity)?;
         let slot = properties.layout().slot(test.domain_str()?)?;
@@ -256,6 +267,11 @@ impl FilterContext for MobFacts<'_> {
             BuiltinTest::IsDaytime => Fact::Bool(crate::world::clock::is_daytime(self.world)),
             BuiltinTest::IsUnderground => Fact::Bool(self.underground(entity)?),
             BuiltinTest::IsSnowCovered => Fact::Bool(self.snow_covered(entity)?),
+            // Skeleton lane.
+            BuiltinTest::InBlock => Fact::Matches(self.in_block(entity, test.value.as_str()?)?),
+            BuiltinTest::HasRangedWeapon => {
+                Fact::Bool(super::gear::holds_ranged_weapon(self.world, entity))
+            }
             BuiltinTest::IsBaby => Fact::Bool(
                 self.world
                     .get::<ActorFlags>(entity)

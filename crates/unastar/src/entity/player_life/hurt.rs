@@ -8,7 +8,9 @@
 //! 2. Damage from a non-player attacker scales with the difficulty:
 //!    peaceful none, easy `min(damage / 2 + 1, damage)`, normal as is, hard
 //!    × 1.5 (provisional: Minecraft Wiki "Difficulty", which gives the
-//!    zombie's 2.5 / 3 / 4.5). A hit scaled to nothing is ignored.
+//!    zombie's 2.5 / 3 / 4.5). Projectile damage is not scaled (matches BDS
+//!    1.26.51: a skeleton's arrow deals the same on every difficulty). A
+//!    hit scaled to nothing is ignored.
 //! 3. The hurt timer, shared with mobs (`mob::combat::HurtTimer`): for
 //!    [`HURT_TICKS`] after a full hit a new one only deals what exceeds the
 //!    damage that started the timer, and nothing when it does not exceed it
@@ -89,15 +91,16 @@ pub(super) fn apply_hit(
     if !allowed_by_rules(world.resource::<GameRules>(), hit.cause) {
         return (0.0, None);
     }
-    let damage = if hit.attacker.is_some() && !hit.by_player {
-        let scaled = scale_for_difficulty(*world.resource::<Difficulty>(), hit.damage);
-        if scaled <= 0.0 {
-            return (0.0, None);
-        }
-        scaled
-    } else {
-        hit.damage
-    };
+    let damage =
+        if hit.attacker.is_some() && !hit.by_player && hit.cause != ActorDamageCause::Projectile {
+            let scaled = scale_for_difficulty(*world.resource::<Difficulty>(), hit.damage);
+            if scaled <= 0.0 {
+                return (0.0, None);
+            }
+            scaled
+        } else {
+            hit.damage
+        };
 
     let ignores_timer = matches!(
         hit.cause,

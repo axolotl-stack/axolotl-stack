@@ -50,6 +50,10 @@ pub struct NativeTraits {
     /// always air (the enderman: the block it carries reaches viewers as
     /// its held item instead).
     pub carried_block_data: bool,
+    /// The `VARIANT` actor data the class sends: the native skeleton
+    /// classes number their kind (skeleton 0, wither skeleton 1, stray 2,
+    /// bogged 3, parched 4).
+    pub variant: Option<i32>,
 }
 
 /// Which native natural-spawn check an actor class runs.
@@ -77,6 +81,7 @@ impl NativeTraits {
             _ => None,
         };
         let carried_block_data = matches!(actor_type, ActorType::Enderman);
+        let variant = skeleton_kind(actor_type);
         match actor_type {
             ActorType::Chicken => Self {
                 wing_flap_drag: Some(WING_FLAP_VERTICAL_DRAG),
@@ -90,6 +95,7 @@ impl NativeTraits {
                 teleports_when_hurt,
                 angry_ambient_sound,
                 carried_block_data,
+                variant,
             },
             _ => Self {
                 wing_flap_drag: None,
@@ -103,6 +109,7 @@ impl NativeTraits {
                 teleports_when_hurt,
                 angry_ambient_sound,
                 carried_block_data,
+                variant,
             },
         }
     }
@@ -155,6 +162,20 @@ const fn zombie_kind(class: ActorType) -> Option<i16> {
         A::Husk => 2,
         A::ZombiePigman => 3,
         A::Drowned => 4,
+        _ => return None,
+    })
+}
+
+/// The kind number the native skeleton classes send as `VARIANT` (matches
+/// BDS 1.26.51).
+const fn skeleton_kind(class: ActorType) -> Option<i32> {
+    use ActorType as A;
+    Some(match class {
+        A::Skeleton => 0,
+        A::WitherSkeleton => 1,
+        A::Stray => 2,
+        A::Bogged => 3,
+        A::Parched => 4,
         _ => return None,
     })
 }

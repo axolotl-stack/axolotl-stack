@@ -15,9 +15,9 @@
 
 use bevy_ecs::prelude::*;
 use jolyne::valentine::types::EnumsActorEvent;
+use jolyne::valentine::types::EnumsMobEffectPacketPayloadEvent;
 use rand::Rng;
 use tracing::warn;
-use jolyne::valentine::types::EnumsMobEffectPacketPayloadEvent;
 use unastar_data::actor_components::body::ActorDamageCause;
 
 use super::{Hit, fire, hurt_mob, knockback_power_of, send_actor_event};
@@ -34,8 +34,8 @@ use crate::entity::mob::constants::{
     WEAKNESS_DAMAGE_ADD, WEAKNESS_DAMAGE_SCALE,
 };
 use crate::entity::mob::events::{fire_event, is_family};
-use crate::entity::mob::life::angry::restart_anger;
 use crate::entity::mob::gear;
+use crate::entity::mob::life::angry::restart_anger;
 use crate::entity::mob::state::{Dead, MeleeAttackedOnce};
 use crate::entity::player_life::environment::ignite_player;
 use crate::entity::player_life::hurt_player;
@@ -121,7 +121,7 @@ fn give_effect(world: &mut World, target: Entity, effect: EffectType, duration_t
 /// and regeneration, and native classes refuse what [`NativeTraits`] lists.
 ///
 /// [`NativeTraits`]: crate::entity::mob::native::NativeTraits
-fn immune_to_effect(world: &World, target: Entity, effect: EffectType) -> bool {
+pub(crate) fn immune_to_effect(world: &World, target: Entity, effect: EffectType) -> bool {
     let native = world.get::<MobKind>(target).map(|kind| kind.0.native);
     match effect {
         EffectType::POISON => {

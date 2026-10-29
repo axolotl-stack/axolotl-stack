@@ -521,17 +521,23 @@ fn spiders_spawn_at_night_in_the_dark() {
     );
 }
 
-/// [`monster_server`] where only the spiders' spawn entries carry weight,
-/// so other monsters do not fill the cap first.
-fn spider_server(terrain: &Terrain, time: u64) -> TestServer {
+/// [`monster_server`] on Easy where only the spawn entries of `keep`
+/// carry weight, so other monsters do not fill the cap first.
+fn weighted_server(terrain: &Terrain, time: u64, keep: &[&str]) -> TestServer {
     let (mut server, rx) = monster_server(terrain, time, Difficulty::Easy);
     let world = server.ecs.world_mut();
-    let mut rules = world.resource_mut::<NaturalSpawnRules>();
-    for entry in &mut rules.entries {
-        if !SPIDERS.contains(&&*entry.identifier) {
+    for entry in &mut world.resource_mut::<NaturalSpawnRules>().entries {
+        if !keep.contains(&&*entry.identifier) {
             entry.weight = 0;
         }
     }
+    (server, rx)
+}
+
+/// [`weighted_server`] for the spiders.
+fn spider_server(terrain: &Terrain, time: u64) -> TestServer {
+    let (server, rx) = weighted_server(terrain, time, &SPIDERS);
+    let rules = server.ecs.world().resource::<NaturalSpawnRules>();
     assert!(
         rules
             .spawnable()
@@ -591,7 +597,9 @@ fn cave_spiders_spawn_only_underground_in_sulfur_caves() {
 // Creeper lane.
 #[test]
 fn creepers_spawn_at_night_in_the_dark() {
-    let (mut server, mut rx) = monster_server(&Terrain::plains(2), MIDNIGHT, Difficulty::Easy);
+    // Skeletons and spiders share the monster cap: only creepers draw.
+    let creeper = ["minecraft:creeper"];
+    let (mut server, mut rx) = weighted_server(&Terrain::plains(2), MIDNIGHT, &creeper);
     let spawned = watch_spawns(&mut server, &mut rx, &["minecraft:creeper"], 4000);
     assert!(!spawned.is_empty(), "creepers spawned at night");
     for (_, pos, surface) in &spawned {
@@ -599,7 +607,7 @@ fn creepers_spawn_at_night_in_the_dark() {
         assert_eq!(pos.y, f64::from(GROUND_Y + 1), "{pos:?}");
     }
 
-    let (mut server, mut rx) = monster_server(&Terrain::plains(2), NOON, Difficulty::Easy);
+    let (mut server, mut rx) = weighted_server(&Terrain::plains(2), NOON, &creeper);
     let spawned = watch_spawns(&mut server, &mut rx, &["minecraft:creeper"], 4000);
     assert!(
         spawned.is_empty(),
@@ -696,4 +704,137 @@ fn endermen_spawn_in_herds_of_up_to_four_on_end_biome_ground_at_night() {
     // The cap or a refused member can cut a herd short.
     assert!(herds.iter().all(|&n| (1..=4).contains(&n)), "{herds:?}");
     assert!(herds.iter().any(|&n| n >= 2), "{herds:?}");
+}
+
+// Skeleton lane.
+
+const SKELETONS: [&str; 2] = ["minecraft:skeleton", "minecraft:stray"];
+
+/// The component groups `mob` has added since it spawned.
+fn added_groups(server: &mut GameServer, mob: Entity) -> Vec<String> {
+    server
+        .ecs
+        .world()
+        .get::<crate::entity::definition::compiled::DefinitionState>(mob)
+        .unwrap()
+        .group_history()
+        .filter(|(_, added)| *added)
+        .map(|(group, _)| group.to_owned())
+        .collect()
+}
+
+/// The spawned mobs among `identifiers` with the groups they added.
+fn watch_spawn_groups(
+    server: &mut GameServer,
+    rx: &mut mpsc::Receiver<jolyne::valentine::McpePacket>,
+    identifiers: &[&str],
+    ticks: usize,
+) -> Vec<(String, bool, Vec<String>)> {
+    let mut seen = std::collections::HashSet::new();
+    let mut spawned = Vec::new();
+    for _ in 0..ticks {
+        tick(server, rx, 1);
+        for (entity, id, _, surface) in mobs(server) {
+            if identifiers.contains(&id.as_str()) && seen.insert(entity) {
+                let groups = added_groups(server, entity);
+                spawned.push((id, surface, groups));
+            }
+        }
+    }
+    spawned
+}
+
+#[test]
+fn skeletons_spawn_at_night_in_the_dark_outside_frozen_biomes() {
+    let (mut server, mut rx) = weighted_server(&Terrain::plains(2), MIDNIGHT, &SKELETONS);
+    let spawned = watch_spawn_groups(&mut server, &mut rx, &SKELETONS, 4000);
+    assert!(!spawned.is_empty(), "skeletons spawned at night");
+    for (id, surface, groups) in &spawned {
+        assert_eq!(id, "minecraft:skeleton", "strays need a frozen biome");
+        assert!(*surface);
+        assert!(
+            groups.iter().any(|g| g == "minecraft:ranged_attack"),
+            "entity_spawned gave the bow attack: {groups:?}"
+        );
+    }
+
+    let (mut server, mut rx) = weighted_server(&Terrain::plains(2), NOON, &SKELETONS);
+    let spawned = watch_spawns(&mut server, &mut rx, &SKELETONS, 4000);
+    assert!(spawned.is_empty(), "no skeleton in sunlight: {spawned:?}");
+
+    // Under a roof the dark ground is underground, where the rule spawns
+    // skeletons too.
+    let covered = Terrain {
+        roof: true,
+        ..Terrain::plains(2)
+    };
+    let (mut server, mut rx) = weighted_server(&covered, NOON, &SKELETONS);
+    let spawned = watch_spawns(&mut server, &mut rx, &SKELETONS, 4000);
+    assert!(!spawned.is_empty(), "skeletons spawned under the roof");
+    assert!(
+        spawned
+            .iter()
+            .all(|(id, _, surface)| id == "minecraft:skeleton" && !surface)
+    );
+}
+
+/// The stray's rules fire `change_to_skeleton` instead of
+/// `minecraft:entity_spawned`: the strays never gain the bow groups that
+/// event adds, and underground every stray gains `revert_to_skeleton`.
+#[test]
+fn strays_spawn_in_frozen_biomes_through_their_spawn_event() {
+    let entries: Vec<_> = {
+        let (server, _) = weighted_server(&Terrain::plains(0), MIDNIGHT, &SKELETONS);
+        let rules = server.ecs.world().resource::<NaturalSpawnRules>();
+        rules
+            .spawnable()
+            .filter(|entry| &*entry.identifier == "minecraft:stray")
+            .map(|entry| entry.spawn_event.as_deref().map(str::to_owned))
+            .collect()
+    };
+    assert_eq!(
+        entries,
+        vec![Some("change_to_skeleton".to_owned()); 2],
+        "both stray rules compile with their spawn event"
+    );
+
+    let snowy = Terrain {
+        biome: biome_id("minecraft:ice_plains"),
+        ..Terrain::plains(2)
+    };
+    let (mut server, mut rx) = weighted_server(&snowy, MIDNIGHT, &SKELETONS);
+    let spawned = watch_spawn_groups(&mut server, &mut rx, &SKELETONS, 4000);
+    assert!(!spawned.is_empty(), "strays spawned on frozen ground");
+    for (id, surface, groups) in &spawned {
+        assert_eq!(id, "minecraft:stray", "skeletons avoid frozen biomes");
+        assert!(*surface);
+        assert!(
+            !groups
+                .iter()
+                .any(|g| g.starts_with("minecraft:ranged_attack")),
+            "entity_spawned did not run: {groups:?}"
+        );
+    }
+
+    // The frozen ocean rule spawns underground between y 60 and 66, where
+    // the event always adds the transformation back to a skeleton.
+    let frozen_ocean = Terrain {
+        roof: true,
+        biome: biome_id("minecraft:frozen_ocean"),
+        ..Terrain::plains(2)
+    };
+    let (mut server, mut rx) = weighted_server(&frozen_ocean, NOON, &SKELETONS);
+    let spawned = watch_spawn_groups(&mut server, &mut rx, &SKELETONS, 4000);
+    assert!(
+        !spawned.is_empty(),
+        "strays spawned under the frozen ocean roof"
+    );
+    for (id, surface, groups) in &spawned {
+        assert_eq!(id, "minecraft:stray");
+        assert!(!surface);
+        assert!(
+            groups.iter().any(|g| g == "minecraft:revert_to_skeleton"),
+            "{groups:?}"
+        );
+    }
 }

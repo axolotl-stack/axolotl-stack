@@ -12,8 +12,8 @@
 //! A few components are accepted without server-side behaviour; see
 //! [`ACCEPTED_WITHOUT_BEHAVIOUR`] for the list and the reason for each.
 
-pub mod angry;
 pub mod ambient;
+pub mod angry;
 pub mod body;
 pub mod breeding;
 pub mod color;
@@ -26,8 +26,8 @@ pub mod goals;
 pub mod hostile;
 pub mod hurt_on_condition;
 pub mod interact;
-pub mod leap;
 pub mod knockback;
+pub mod leap;
 pub mod loot;
 pub mod movement;
 pub mod sensors;
@@ -42,6 +42,9 @@ pub mod teleport;
 // Creeper lane.
 pub mod avoid_mob_type;
 pub mod explode;
+// Skeleton lane.
+pub mod flee_sun;
+pub mod ranged_attack;
 
 use std::sync::Arc;
 
@@ -123,7 +126,11 @@ pub const ACCEPTED_WITHOUT_BEHAVIOUR: &[(ActorComponent, &str)] = &[
          the zombie gains it after 30 s underwater, but its target, the \
          drowned, is not spawnable yet (it needs swim navigation, the \
          trident ranged attack and target_nearby_sensor), so an underwater \
-         zombie shakes (is_shaking) without converting",
+         zombie shakes (is_shaking) without converting; a skeleton gains it \
+         after 20 s in powder snow and shakes without becoming a stray; a \
+         naturally spawned stray gains it from its change_to_skeleton spawn \
+         event (always underground, else 1 in 5) and stays a stray instead \
+         of becoming a skeleton",
     ),
     (
         ActorComponent::BehaviorStompTurtleEgg,
@@ -161,6 +168,12 @@ pub const ACCEPTED_WITHOUT_BEHAVIOUR: &[(ActorComponent, &str)] = &[
         ActorComponent::BlockMovementSlowdownImmunity,
         "no block slows movement yet (cobwebs do not hold mobs or players), \
          so immunity to the slowdown changes nothing",
+    ),
+    // Skeleton lane.
+    (
+        ActorComponent::FreezingImmune,
+        "freezing is not implemented: powder snow never freezes or hurts an \
+         actor, so immunity to it changes nothing",
     ),
 ];
 
@@ -215,7 +228,11 @@ pub fn register_component_kinds(
     shearing::register_component_kinds(builder)?;
     damage_sensor::register_component_kinds(builder)?;
     ambient::register_component_kinds(builder)?;
+    // Skeleton lane.
+    ranged_attack::register_component_kinds(builder)?;
+    flee_sun::register_component_kinds(builder)?;
+    inert::<bodies::FreezingImmune>(builder)?;
     spawn_entity::register_component_kinds(builder, items)?;
-    equipment::register_component_kinds(builder)?;
+    equipment::register_component_kinds(builder, items)?;
     knockback::register_component_kinds(builder)
 }

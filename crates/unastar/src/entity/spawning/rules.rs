@@ -21,6 +21,10 @@
 //!
 //! Blocked entries, blocked targets and unsupported entries carry their
 //! reason and are logged once when the rules are installed.
+//!
+//! `minecraft:spawn_event` names the event a spawned member fires instead of
+//! `minecraft:entity_spawned`; a target whose definition lacks that event
+//! is blocked.
 
 use std::collections::HashMap;
 use std::sync::Arc;
@@ -248,6 +252,9 @@ pub struct SpawnEntry {
     pub prevented_blocks: BlockSet,
     pub above_blocks: Option<(BlockSet, i32)>,
     pub permutations: Vec<Permutation>,
+    /// `minecraft:spawn_event`: fired on each member instead of
+    /// `minecraft:entity_spawned`.
+    pub spawn_event: Option<Arc<str>>,
     pub persistent: bool,
     /// What the rule's own mob spawns as (permutations without an
     /// `entity_type`, or every member when there are no permutations).
@@ -397,10 +404,6 @@ fn compile_entry(
             condition.player_in_village_filter.is_some(),
             "minecraft:player_in_village_filter",
         ),
-        (
-            !condition.spawn_event.event.is_empty(),
-            "minecraft:spawn_event",
-        ),
     ] {
         if present {
             return Err(RuleError::Unimplemented(name));
@@ -416,7 +419,9 @@ fn compile_entry(
         body::SpawnBiomeConditionsHerd::List(list) => list.iter().map(herd).collect(),
         body::SpawnBiomeConditionsHerd::SpawnHerd(one) => vec![herd(one)],
     };
-    let permutations = match &condition.permute_type {
+    let spawn_event: Option<Arc<str>> = (!condition.spawn_event.event.is_empty())
+        .then(|| Arc::from(condition.spawn_event.event.as_str()));
+    let mut permutations: Vec<Permutation> = match &condition.permute_type {
         body::SpawnBiomeConditionsPermuteType::List(list) => {
             list.iter().map(|p| permutation(p, mobs)).collect()
         }
@@ -425,6 +430,13 @@ fn compile_entry(
         }
     };
     let actor = ActorType::from_name(identifier);
+    let mut own = SpawnTarget::resolve(identifier, actor, mobs);
+    if let Some(event) = &spawn_event {
+        let permuted = permutations.iter_mut().map(|p| &mut p.target);
+        for target in std::iter::once(&mut own).chain(permuted) {
+            require_event(target, event, mobs);
+        }
+    }
     let on_blocks = block_set(blocks, on_block_list(&condition.spawns_on_block_filter))?;
     let prevented_blocks = block_set(
         blocks,
@@ -490,11 +502,23 @@ fn compile_entry(
         above_blocks: (!above_set.is_empty()).then_some((above_set, above.distance)),
         permutations,
         persistent: condition.is_persistent.is_some(),
-        own: SpawnTarget::resolve(identifier, actor, mobs),
+        own,
+        spawn_event,
         blocked: None,
     };
     entry.blocked = blocked_reason(&entry);
     Ok((entry, filter))
+}
+
+/// A target whose definition lacks the entry's `spawn_event` cannot spawn.
+fn require_event(target: &mut SpawnTarget, event: &str, mobs: &MobRegistry) {
+    if let SpawnTarget::Mob { actor, .. } = *target
+        && mobs
+            .get(actor.name())
+            .is_some_and(|archetype| archetype.events.event(event).is_none())
+    {
+        *target = SpawnTarget::Blocked(format!("{} has no spawn event {event}", actor.name()));
+    }
 }
 
 /// Why none of the targets a drawn entry can spawn spawns, if none does.

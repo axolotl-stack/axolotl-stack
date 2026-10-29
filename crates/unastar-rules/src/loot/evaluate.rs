@@ -6,6 +6,8 @@ const MAX_TABLE_DEPTH: u8 = 16;
 /// `enchant_random_gear` level: `BASE + clamped regional difficulty × nextInt(SPREAD)`.
 const GEAR_ENCHANT_BASE_LEVEL: f32 = 5.0;
 const GEAR_ENCHANT_LEVEL_SPREAD: i32 = 18;
+/// The item `set_potion` turns into a tipped arrow.
+const TIPPED_ARROW_ITEM: &str = "minecraft:arrow";
 
 /// Facts supplied by the entity/item/block caller. Enchantment names are
 /// resolved to protocol ids at decode, so rolls do not parse item NBT or
@@ -273,9 +275,7 @@ fn apply_functions(
                     let keep = 1.0 / radius;
                     if keep < 1.0 {
                         let total = count.max(0);
-                        count = (0..total)
-                            .filter(|_| rng.r#gen::<f32>() <= keep)
-                            .count() as i64;
+                        count = (0..total).filter(|_| rng.r#gen::<f32>() <= keep).count() as i64;
                     }
                 }
             }
@@ -316,6 +316,14 @@ fn apply_functions(
                         );
                     }
                 }
+            }
+            LootFunctionKind::SetPotion { potion } => {
+                let potion = i16::from(*potion);
+                drop.data = if drop.item_id == TIPPED_ARROW_ITEM {
+                    potion + crate::potion::TIPPED_ARROW_DATA_OFFSET
+                } else {
+                    potion
+                };
             }
             LootFunctionKind::Other { name, .. } => {
                 return Err(LootError::Unsupported(name.clone()));

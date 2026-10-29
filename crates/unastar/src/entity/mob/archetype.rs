@@ -130,6 +130,8 @@ fn supported_test(test: BuiltinTest, subject: Subject) -> bool {
         | BuiltinTest::IsDaytime
         | BuiltinTest::IsUnderground
         | BuiltinTest::IsSnowCovered => subject == Subject::Self_,
+        // Skeleton lane.
+        BuiltinTest::HasRangedWeapon | BuiltinTest::InBlock => subject == Subject::Self_,
         _ => false,
     }
 }

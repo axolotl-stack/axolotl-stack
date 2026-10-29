@@ -18,3 +18,5 @@ mod enderman;
 mod spider;
 // Creeper lane: the creeper and explosions.
 mod creeper;
+// Skeleton lane: the skeleton and stray.
+mod skeleton;

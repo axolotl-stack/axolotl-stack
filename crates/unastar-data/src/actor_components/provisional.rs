@@ -541,3 +541,14 @@ pub const VARIABLE_MAX_AUTO_STEP_CONTROLLED_VALUE: f32 = 0.5625;
 pub const VARIABLE_MAX_AUTO_STEP_JUMP_PREVENTED_VALUE: f32 = 0.5625;
 /// ML `minecraftcomponent_follow_range`: `value` 16 blocks.
 pub const FOLLOW_RANGE_VALUE: f32 = 16.0;
+
+// Skeleton lane: minecraft:shooter (Mojang form `minecraft_shooter.form.json`).
+
+/// `aux_val` -1: the default projectile carries no potion.
+pub const SHOOTER_AUX_VAL: i32 = -1;
+/// `magic` false.
+pub const SHOOTER_MAGIC: bool = false;
+/// `power` 0: the projectile's own `power` is used.
+pub const SHOOTER_POWER: f32 = 0.0;
+/// `projectiles` entry `lose_target` false.
+pub const SHOOTER_PROJECTILE_LOSE_TARGET: bool = false;

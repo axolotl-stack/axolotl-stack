@@ -27,6 +27,9 @@ mod leap;
 // Creeper lane.
 mod avoid_mob_type;
 mod swell;
+// Skeleton lane.
+mod flee_sun;
+mod ranged_attack;
 
 #[cfg(test)]
 mod tests;
@@ -176,6 +179,9 @@ pub struct AiScratch {
     /// Goal events `(mob, event, other)` of this tick (`on_target_escape`,
     /// `on_escape_event`); fired once the AI's resource scopes end.
     events: Vec<(Entity, SelfEvent, Option<Entity>)>,
+    /// Ranged shots `(shooter, target)` of this tick; made once the AI's
+    /// resource scopes end (they spawn projectiles and draw randomness).
+    shots: Vec<(Entity, Entity)>,
     /// Door collision boxes for [`break_door`].
     boxes: Vec<Aabb>,
 }
@@ -273,6 +279,7 @@ pub fn tick_mob_ai(
                         &mut scratch.gear,
                         &mut scratch.carry,
                         &mut scratch.events,
+                        &mut scratch.shots,
                     );
                 }
             }
@@ -292,6 +299,9 @@ pub fn tick_mob_ai(
     }
     for (entity, event, other) in scratch.events.drain(..) {
         fire_goal_event(world, entity, &event, other);
+    }
+    for (shooter, target) in scratch.shots.drain(..) {
+        super::combat::shoot::shoot(world, shooter, target);
     }
     break_door::tick_door_breakers(
         world,
@@ -373,6 +383,7 @@ fn think(
         // A rebuilt composition rebuilds the native goals.
         states.melee.reset();
         states.targets.reset();
+        states.ranged.reset();
     }
     let mut effects = Effects::default();
     let mut ctx = GoalContext {
@@ -436,9 +447,9 @@ fn think(
         nav.tick(&body, movement, door_hold);
         false
     };
-    let mut yaw = rotation.yaw;
+    let mut yaw = effects.face.unwrap_or(rotation.yaw);
     let move_jump = movement.tick(&body, &mut yaw, max_turn);
-    let mut head_yaw = rotation.head_yaw;
+    let mut head_yaw = effects.face.unwrap_or(rotation.head_yaw);
     look.tick(feet + DVec3::Y * body.height, yaw, &mut head_yaw);
     let velocity = effects
         .leap
@@ -472,6 +483,7 @@ fn apply(
     gear: &mut Vec<(Entity, pickup::GearWork)>,
     carry: &mut Vec<(Entity, block_carry::CarryWork)>,
     events: &mut Vec<(Entity, SelfEvent, Option<Entity>)>,
+    shots: &mut Vec<(Entity, Entity)>,
 ) {
     let Output {
         yaw,
@@ -517,6 +529,9 @@ fn apply(
         }
         None => {}
     }
+    if let Some(facing) = effects.facing_target {
+        set_flag(&mut mob, actor_flags::FACING_TARGET_TO_RANGE_ATTACK, facing);
+    }
     if let Some(avoiding) = effects.avoiding {
         set_flag(&mut mob, actor_flags::IS_AVOIDING_MOBS, avoiding);
     }
@@ -550,6 +565,17 @@ fn apply(
     }
     if !effects.gear.is_empty() {
         gear.push((entity, effects.gear));
+    }
+    if let Some(target) = effects.shot {
+        shots.push((entity, target));
+    }
+    if effects.swing {
+        super::interaction::interact::broadcast_actor_event(
+            world,
+            entity,
+            jolyne::valentine::types::EnumsActorEvent::StartAttacking,
+            0,
+        );
     }
     if let Some(work) = effects.carry {
         carry.push((entity, work));

@@ -6,7 +6,8 @@ use bevy_ecs::prelude::*;
 use glam::DVec3;
 use thiserror::Error;
 use unastar_data::actor_components::body::{
-    self, FilterSubject, ParticleType, ProjectileAnchor, ShouldBounce,
+    self, FilterSubject, ImpactDamageDifficultyRandomization, ParticleType, ProjectileAnchor,
+    ShouldBounce,
 };
 use unastar_data::actor_components::{ActorComponent, decode};
 use unastar_data::actor_identifiers::ActorType;
@@ -63,6 +64,15 @@ pub struct ProjectileRules {
     pub angle_offset: f32,
     /// Spawn offset from the thrower's eye; x/z turn with the thrower's yaw.
     pub offset: DVec3,
+    /// `anchor` `eye_height`: a mob shooter launches from its eye, else
+    /// from its feet (a player always throws from its eye).
+    pub anchor_eye: bool,
+    /// Spread of a mob shot: `max(0, base − difficulty × multiplier)`.
+    pub uncertainty_base: f32,
+    pub uncertainty_multiplier: f32,
+    /// `on_hit.arrow_effect`: a hit actor gets the effects of the potion
+    /// the projectile carries (`ProjectilePotion`), an eighth as long.
+    pub arrow_effect: bool,
     pub multiple_targets: bool,
     pub ignored: Box<[ActorType]>,
     pub hit_sound: Option<Arc<str>>,
@@ -95,6 +105,8 @@ pub struct ImpactDamage {
     pub power_multiplier: f32,
     /// Round speed damage up before the critical bonus.
     pub ceil_pre_critical: bool,
+    /// How the world difficulty randomises speed damage.
+    pub difficulty_randomization: ImpactDamageDifficultyRandomization,
     /// Only this actor is damaged (e.g. snowballs hurt blazes); others are
     /// hit without damage.
     pub filter: Option<Arc<str>>,
@@ -157,9 +169,9 @@ fn compile(b: body::Projectile, items: &ItemRegistry) -> Result<ProjectileRules,
     // only removes mob travel, which projectiles never have; `particle`,
     // `on_fire_time`, `reflect_immunity`, `shoot_target` and `splash_range`
     // only matter to the features rejected below.
-    // `eye_height` launches from the thrower's eye, which is where every
-    // launch starts (only players throw on this server; their position is
-    // the eye).
+    // A player throws from its eye whatever the anchor (its position is
+    // the eye); a mob shooter launches from its eye with `eye_height`,
+    // else from its feet.
     reject(
         !matches!(
             b.anchor,
@@ -185,8 +197,8 @@ fn compile(b: body::Projectile, items: &ItemRegistry) -> Result<ProjectileRules,
         ),
         "should_bounce",
     )?;
-    // `uncertainty_*` is the spread of mob shots; the items players shoot
-    // with (bow, crossbow, trident) set their own spread at launch.
+    // `uncertainty_*` is the spread of mob shots (`launch_at`); the items
+    // players shoot with (bow, crossbow, trident) set their own spread.
     let ignored = b
         .ignored_entities
         .iter()
@@ -206,6 +218,10 @@ fn compile(b: body::Projectile, items: &ItemRegistry) -> Result<ProjectileRules,
         liquid_inertia: f64::from(b.liquid_inertia),
         angle_offset: b.angle_offset,
         offset,
+        anchor_eye: b.anchor == ProjectileAnchor::EyeHeight,
+        uncertainty_base: b.uncertainty_base,
+        uncertainty_multiplier: b.uncertainty_multiplier,
+        arrow_effect: false,
         multiple_targets: b.multiple_targets,
         ignored,
         hit_sound: sound(b.hit_sound),
@@ -248,8 +264,9 @@ fn compile(b: body::Projectile, items: &ItemRegistry) -> Result<ProjectileRules,
         .map(|particle| compile_particle(particle, items))
         .transpose()?;
     rules.remove_on_hit = on_hit.remove_on_hit.is_some();
-    // Plain arrows carry no potion, so `arrow_effect` has nothing to apply;
-    // bows only shoot plain arrows (tipped arrows are not implemented).
+    // Shields are not implemented, so `apply_effect_to_blocking_targets`
+    // never applies.
+    rules.arrow_effect = on_hit.arrow_effect.is_some();
     rules.stick_in_ground = on_hit
         .stick_in_ground
         .map(|stick| (stick.shake_time * 20.0).round().max(0.0) as u32);
@@ -265,9 +282,8 @@ fn compile_impact(
     // damage clamps never apply.
     reject(b.catch_fire, "impact_damage catch_fire")?;
     reject(b.channeling, "impact_damage channeling")?;
-    // `difficulty_randomization` varies the damage of mob shots by
-    // difficulty; only players shoot on this server, so it never applies.
-
+    // `difficulty_randomization` varies the speed damage of mob shots by
+    // difficulty (`projectile::hit`).
     Ok(ImpactDamage {
         min: b.damage.min,
         max: b.damage.max.max(b.damage.min),
@@ -277,6 +293,7 @@ fn compile_impact(
         last_hurt_requires_damage: b.set_last_hurt_requires_damage,
         power_multiplier: b.power_multiplier,
         ceil_pre_critical: b.ceil_pre_critical_damage,
+        difficulty_randomization: b.difficulty_randomization,
         filter: (!b.filter.is_empty()).then(|| {
             let name = b.filter.as_str();
             let name = if name.contains(':') {

@@ -588,8 +588,10 @@ pub const MOB_WALK_TARGET: f32 = 0.0;
 /// A monster's walk-target value is this minus the brightness ramp at the
 /// block (confirmed).
 pub const MONSTER_WALK_TARGET_BASE: f32 = 0.5;
-/// An animal's walk-target value with a grass block below (confirmed).
+/// An animal's walk-target value with [`GRASS_BLOCK`] below (confirmed).
 pub const ANIMAL_GRASS_WALK_TARGET: f32 = 10.0;
+/// The block an animal's walk target prefers (confirmed).
+pub const GRASS_BLOCK: &str = "minecraft:grass_block";
 /// An animal's walk-target value elsewhere is the brightness ramp at the
 /// block plus this (confirmed).
 pub const ANIMAL_WALK_TARGET_OFFSET: f32 = -0.5;
@@ -931,3 +933,42 @@ pub const MAD_SOUND: &str = "mad";
 /// `minecraft:ambient_sound_interval` (measured from the retained 1.26.51
 /// summon captures).
 pub const DEFAULT_AMBIENT_SOUND: &str = "ambient";
+
+// --- Ranged attacks, shooters and arrows (skeleton lane) ------------------------
+
+/// `behavior.ranged_attack` `follow_target` keeps walking until the target
+/// is within `attack_radius_min` plus this (confirmed against BDS).
+pub const RANGED_FOLLOW_STOP_MARGIN: f64 = 0.5;
+/// A mob closer than `attack_radius_min` backs off by the shortfall plus
+/// this (confirmed against BDS).
+pub const RANGED_BACK_OFF_MARGIN: f64 = 0.5;
+/// A mob's eyes, where an `eye_height` projectile starts, are this fraction
+/// of its box height above the feet (confirmed against BDS; the head, for
+/// sight, is [`MOB_EYE_HEIGHT_RATIO`]).
+pub const MOB_EYES_HEIGHT_RATIO: f64 = 0.9;
+/// A mob's shot starts this far horizontally toward the target from the
+/// launch point (confirmed against BDS).
+pub const MOB_SHOT_STEP: f64 = 1.0;
+/// Each axis of a mob shot's unit direction gets a gaussian times this times
+/// the uncertainty (confirmed against BDS).
+pub const MOB_SHOT_SPREAD: f64 = 0.0075;
+/// A mob shot with no horizontal distance to its target is not fired
+/// (confirmed against BDS).
+pub const MOB_SHOT_MIN_HORIZONTAL: f64 = 1.0e-7;
+/// A mob shot the ballistic solve cannot reach flies at this pitch, upward
+/// (confirmed against BDS).
+pub const MOB_SHOT_OUT_OF_REACH_PITCH: f32 = -45.0;
+/// `difficulty_randomization` speed damage: per difficulty level (0–3) and
+/// per standard gaussian, added to `power_multiplier` (`multiplicative`,
+/// times the speed) or to the speed damage (`additive`) (confirmed against
+/// BDS).
+pub const IMPACT_DAMAGE_PER_DIFFICULTY: f32 = 0.11;
+pub const IMPACT_DAMAGE_GAUSSIAN: f32 = 0.25;
+/// `arrow_effect` applies the potion's effects for this fraction of their
+/// duration (at least one tick), at their amplifier (confirmed against BDS).
+pub const ARROW_EFFECT_DURATION_DIVISOR: u32 = 8;
+/// `behavior.flee_sun` tries this many random blocks within ±`SPREAD_XZ`
+/// on x and z and `−SPREAD_Y..SPREAD_Y` on y (confirmed against BDS).
+pub const FLEE_SUN_TRIES: u32 = 10;
+pub const FLEE_SUN_SPREAD_XZ: i32 = 10;
+pub const FLEE_SUN_SPREAD_Y: i32 = 3;

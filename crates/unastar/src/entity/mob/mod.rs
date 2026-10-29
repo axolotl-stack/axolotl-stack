@@ -110,11 +110,32 @@ pub fn spawn_mob(
     yaw: f32,
     cause: SpawnCause,
 ) -> Result<Entity, MobSpawnError> {
-    spawn(world, identifier, position, yaw, cause, None)
+    spawn(world, identifier, position, yaw, cause, None, None)
 }
 
-/// [`spawn_mob`] for `/summon` with a spawn event: `event` is fired instead
-/// of `minecraft:entity_spawned`. An event the actor does not define spawns
+/// [`spawn_mob`] for an actor `owner` creates (a projectile its shooter
+/// launches): `minecraft:entity_spawned` sees `owner` as `other`.
+pub fn spawn_mob_by(
+    world: &mut World,
+    identifier: &str,
+    position: DVec3,
+    yaw: f32,
+    owner: Entity,
+) -> Result<Entity, MobSpawnError> {
+    spawn(
+        world,
+        identifier,
+        position,
+        yaw,
+        SpawnCause::Spawned,
+        None,
+        Some(owner),
+    )
+}
+
+/// [`spawn_mob`] for `/summon` with a spawn event and spawn rules with a
+/// `minecraft:spawn_event`: `event` is fired instead of
+/// `minecraft:entity_spawned`. An event the actor does not define spawns
 /// nothing.
 pub fn spawn_mob_with_event(
     world: &mut World,
@@ -130,6 +151,7 @@ pub fn spawn_mob_with_event(
         yaw,
         SpawnCause::Spawned,
         Some(event),
+        None,
     )
 }
 
@@ -140,6 +162,7 @@ fn spawn(
     yaw: f32,
     cause: SpawnCause,
     spawn_event: Option<&str>,
+    other: Option<Entity>,
 ) -> Result<Entity, MobSpawnError> {
     let registry = world
         .get_resource::<MobRegistry>()
@@ -181,7 +204,7 @@ fn spawn(
         SpawnCause::Loaded => None,
     };
     if let Some(event) = event
-        && let Err(error) = events::fire_event(world, entity, event, None)
+        && let Err(error) = events::fire_event(world, entity, event, other)
     {
         world.despawn(entity);
         return Err(error.into());
@@ -233,6 +256,9 @@ fn spawn_unattached(
         );
         if let Some(kind) = archetype.native.aux_value {
             metadata.set_short(jolyne::valentine::actor_data_i_ds::AUX_VALUE_DATA, kind);
+        }
+        if let Some(kind) = archetype.native.variant {
+            metadata.set_int(jolyne::valentine::actor_data_i_ds::VARIANT, kind);
         }
         // Enderman lane: the native carried-block data, always air.
         if archetype.native.carried_block_data

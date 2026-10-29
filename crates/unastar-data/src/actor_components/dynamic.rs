@@ -252,6 +252,10 @@ defaults! {
     auto_step_jump_prevented_value -> f32 = p::VARIABLE_MAX_AUTO_STEP_JUMP_PREVENTED_VALUE;
     follow_range_value -> f32 = p::FOLLOW_RANGE_VALUE;
     looked_at_cooldown -> FloatRange = FloatRange { min: 0.0, max: 0.0 };
+    shooter_aux_val -> i32 = p::SHOOTER_AUX_VAL;
+    shooter_magic -> bool = p::SHOOTER_MAGIC;
+    shooter_power -> f32 = p::SHOOTER_POWER;
+    shooter_lose_target -> bool = p::SHOOTER_PROJECTILE_LOSE_TARGET;
 }
 
 /// `minecraft:ageable`: a growth timer, accelerated by feeding.
@@ -1622,6 +1626,43 @@ pub struct FollowRange {
     pub value: f32,
 }
 
+/// `minecraft:shooter`: the projectile a ranged attack launches.
+#[derive(Debug, Clone, PartialEq, Deserialize)]
+#[serde(deny_unknown_fields)]
+pub struct Shooter {
+    /// The potion the default projectile carries (-1: none).
+    #[serde(default = "shooter_aux_val")]
+    pub aux_val: i32,
+    /// The default projectile's actor identifier.
+    #[serde(default)]
+    pub def: String,
+    /// The projectiles are magic (excludes other magic goals).
+    #[serde(default = "shooter_magic")]
+    pub magic: bool,
+    /// Launch speed in blocks per tick; 0 keeps the projectile's `power`.
+    #[serde(default = "shooter_power")]
+    pub power: f32,
+    /// Projectiles picked by filter before the default, first match wins.
+    #[serde(default)]
+    pub projectiles: Vec<ShooterProjectile>,
+    /// Sound event played on each shot (none when empty).
+    #[serde(default)]
+    pub sound: String,
+}
+
+/// One `minecraft:shooter` `projectiles` entry.
+#[derive(Debug, Clone, PartialEq, Deserialize)]
+#[serde(deny_unknown_fields)]
+pub struct ShooterProjectile {
+    #[serde(default = "shooter_aux_val")]
+    pub aux_val: i32,
+    pub def: String,
+    pub filters: Option<FilterJson>,
+    /// Drop the target after shooting this projectile.
+    #[serde(default = "shooter_lose_target")]
+    pub lose_target: bool,
+}
+
 macro_rules! dynamic_bodies {
     ($($name:ident),* $(,)?) => {
         $(impl ComponentBody for $name {
@@ -1693,4 +1734,6 @@ dynamic_bodies!(
     Teleport,
     VariableMaxAutoStep,
     FollowRange,
+    // Skeleton lane.
+    Shooter,
 );

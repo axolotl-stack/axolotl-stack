@@ -430,6 +430,14 @@ const GROUP_KEYS: [(&str, GroupKind); 7] = [
     ("none_of", GroupKind::None),
 ];
 const NOT_KEY: &str = "NOT";
+/// Legacy filter keys BDS 1.26.51 still accepts in place of a test: the
+/// key's value is the `is_family` value checked on `other` (`==` with,
+/// `!=` without). The vanilla skeleton's lightning damage sensor uses
+/// `other_with_families`.
+const LEGACY_FAMILY_KEYS: [(&str, &str); 2] = [
+    ("other_with_families", "=="),
+    ("other_without_families", "!="),
+];
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 enum GroupKind {
@@ -461,6 +469,16 @@ impl Filter {
                 let mut groups = Vec::new();
                 for (key, member) in map {
                     let member_path = format!("{path}/{key}");
+                    if let Some((_, operator)) = LEGACY_FAMILY_KEYS.iter().find(|(k, _)| k == key) {
+                        let mut test = Map::new();
+                        test.insert("test".into(), Value::String("is_family".into()));
+                        test.insert("subject".into(), Value::String("other".into()));
+                        test.insert("operator".into(), Value::String((*operator).into()));
+                        test.insert("value".into(), member.clone());
+                        let test = FilterTest::parse(&test, registry, &member_path, diags)?;
+                        groups.push(Self::Test(test));
+                        continue;
+                    }
                     let kind = if key == NOT_KEY {
                         GroupKind::None
                     } else if let Some((_, kind)) = GROUP_KEYS.iter().find(|(k, _)| k == key) {
@@ -913,5 +931,17 @@ mod tests {
         ));
         assert!(eval(json!([])));
         assert!(!eval(json!({"any_of": []})));
+    }
+
+    #[test]
+    fn legacy_family_keys_are_is_family_tests_on_other() {
+        let (f, diags) = parse(json!({"other_with_families": "lightning"}));
+        assert!(diags.is_empty(), "{diags:?}");
+        assert_eq!(
+            f.to_json(),
+            json!({"test": "is_family", "subject": "other", "operator": "==", "value": "lightning"})
+        );
+        let (f, _) = parse(json!({"other_without_families": "player"}));
+        assert_eq!(f.to_json()["operator"], "!=");
     }
 }

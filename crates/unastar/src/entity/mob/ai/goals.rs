@@ -29,6 +29,9 @@ use crate::entity::mob::components::SelfEvent;
 use crate::entity::mob::components::avoid_mob_type::AvoidMobTypeGoal;
 use crate::entity::mob::components::explode::SwellGoal;
 use crate::entity::mob::components::hostile::melee_goal;
+// Skeleton lane.
+use crate::entity::mob::components::flee_sun::FleeSunGoal;
+use crate::entity::mob::components::ranged_attack::RangedAttackGoal;
 use crate::entity::mob::constants::{
     BREED_CHECK_TICKS, BREED_HEAD_TURN, BREED_MAX_PARTNER_DIST, BREED_SEARCH, BREED_TOUCH_DIST,
     FOLLOW_PARENT_MAX_DIST, FOLLOW_PARENT_MIN_DIST, FOLLOW_PARENT_REPATH_TICKS,
@@ -69,10 +72,13 @@ pub enum Goal {
     // Creeper lane.
     Swell,
     AvoidMobType,
+    // Skeleton lane.
+    RangedAttack,
+    FleeSun,
 }
 
 impl Goal {
-    const ALL: [Goal; 19] = [
+    const ALL: [Goal; 21] = [
         Goal::Float,
         Goal::Panic,
         Goal::Breed,
@@ -92,6 +98,8 @@ impl Goal {
         Goal::Leap,
         Goal::Swell,
         Goal::AvoidMobType,
+        Goal::RangedAttack,
+        Goal::FleeSun,
     ];
 
     pub fn id(self) -> GoalId {
@@ -118,7 +126,8 @@ impl Goal {
             Goal::EquipItem => GoalControls::NONE,
             Goal::TakeBlock | Goal::PlaceBlock => GoalControls::NONE,
             Goal::Leap => GoalControls::MOVE | GoalControls::JUMP,
-            Goal::Swell | Goal::AvoidMobType => GoalControls::MOVE,
+            Goal::Swell | Goal::AvoidMobType | Goal::FleeSun => GoalControls::MOVE,
+            Goal::RangedAttack => GoalControls::MOVE | GoalControls::LOOK,
         }
     }
 }
@@ -261,6 +270,23 @@ pub fn goal_specs(world: &World, entity: Entity, out: &mut Vec<GoalSpec>) {
             controls: goal.controls,
         });
     }
+    // Skeleton lane.
+    if let Some(goal) = entity.get::<RangedAttackGoal>() {
+        out.push(GoalSpec {
+            id: Goal::RangedAttack.id(),
+            kind: GoalKind::Normal,
+            priority: goal.priority,
+            controls: goal.controls,
+        });
+    }
+    if let Some(goal) = entity.get::<FleeSunGoal>() {
+        out.push(GoalSpec {
+            id: Goal::FleeSun.id(),
+            kind: GoalKind::Normal,
+            priority: goal.priority,
+            controls: goal.controls,
+        });
+    }
 }
 
 /// World writes the goals request; applied after the mob's tick.
@@ -288,6 +314,16 @@ pub struct Effects {
     pub avoiding: Option<bool>,
     /// Events the goals fire on the mob after its tick, with their `other`.
     pub events: Vec<(SelfEvent, Option<Entity>)>,
+    /// The ranged attack goal shoots at this actor now (`super::ranged_attack`).
+    pub shot: Option<Entity>,
+    /// The ranged attack goal started (`Some(true)`) or stopped: the
+    /// `FACING_TARGET_TO_RANGE_ATTACK` flag.
+    pub facing_target: Option<bool>,
+    /// Turn body and head to this yaw now (the ranged attack goal faces
+    /// its target).
+    pub face: Option<f32>,
+    /// Swing the arm (`ActorEvent` StartAttacking to viewers).
+    pub swing: bool,
 }
 
 #[derive(Debug, Default)]
@@ -328,6 +364,7 @@ pub struct GoalStates {
     pub(super) melee: super::melee::MeleeState,
     pub(super) pickup: super::pickup::PickupState,
     pub(super) avoid: super::avoid_mob_type::AvoidState,
+    pub(super) ranged: super::ranged_attack::RangedState,
 }
 
 /// Everything a goal reads and writes during one mob's tick.
@@ -372,7 +409,7 @@ impl<'a> GoalContext<'a> {
 
     /// Search a path to `goal` into the staging buffer. A wall climber
     /// records `goal`'s block as its destination (`super::climb`).
-    fn path_to(&mut self, goal: DVec3) -> bool {
+    pub(super) fn path_to(&mut self, goal: DVec3) -> bool {
         self.record_destination(goal);
         self.search_path(goal, false)
     }
@@ -726,6 +763,8 @@ impl GoalCallbacks for GoalContext<'_> {
             Goal::Leap => self.leap_can_start(),
             Goal::Swell => self.swell_can_start(),
             Goal::AvoidMobType => self.avoid_can_start(),
+            Goal::RangedAttack => self.ranged_can_start(),
+            Goal::FleeSun => self.flee_sun_can_start(),
         }
     }
 
@@ -788,6 +827,8 @@ impl GoalCallbacks for GoalContext<'_> {
             Goal::Leap => self.leap_can_continue(),
             Goal::Swell => self.swell_can_start(),
             Goal::AvoidMobType => self.avoid_can_continue(),
+            Goal::RangedAttack => self.ranged_can_continue(),
+            Goal::FleeSun => !self.nav.is_done(),
             Goal::Breed => {
                 let Some(partner) = self.mob(self.states.breed.partner) else {
                     return false;
@@ -867,6 +908,8 @@ impl GoalCallbacks for GoalContext<'_> {
             Goal::Leap => self.leap_start(),
             Goal::Swell => self.swell_start(),
             Goal::AvoidMobType => self.avoid_start(),
+            Goal::RangedAttack => self.ranged_start(),
+            Goal::FleeSun => self.flee_sun_start(),
         }
     }
 
@@ -902,6 +945,8 @@ impl GoalCallbacks for GoalContext<'_> {
             Goal::TakeBlock | Goal::PlaceBlock => {}
             Goal::Leap | Goal::Swell => {}
             Goal::AvoidMobType => self.avoid_stop(),
+            Goal::RangedAttack => self.ranged_stop(),
+            Goal::FleeSun => self.nav.stop(self.movement),
         }
     }
 
@@ -942,6 +987,8 @@ impl GoalCallbacks for GoalContext<'_> {
             Goal::TakeBlock | Goal::PlaceBlock => {}
             Goal::Leap | Goal::Swell => {}
             Goal::AvoidMobType => self.avoid_tick(),
+            Goal::RangedAttack => self.ranged_tick(),
+            Goal::FleeSun => {}
             Goal::Tempt => {
                 let Some(goal) = self.config::<TemptGoal>() else {
                     return;

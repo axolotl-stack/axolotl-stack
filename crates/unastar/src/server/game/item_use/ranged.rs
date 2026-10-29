@@ -129,7 +129,7 @@ fn sound(world: &World, player: Entity, name: &str) {
 }
 
 /// The arrow a crossbow holds, if loaded.
-fn charged(stack: &ItemStack) -> bool {
+pub fn charged(stack: &ItemStack) -> bool {
     item_tag(stack).is_some_and(|tag| tag.0.contains_key("chargedItem"))
 }
 

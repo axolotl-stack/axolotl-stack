@@ -230,7 +230,7 @@ fn sees_daylight(world: &World, aabb: Aabb, darken: u8) -> bool {
 
 /// The height map of the column at `x`, `z` (the lowest y with open sky);
 /// `None` when its chunk is not loaded.
-fn column_height(world: &World, x: i32, z: i32) -> Option<i32> {
+pub(crate) fn column_height(world: &World, x: i32, z: i32) -> Option<i32> {
     let (cx, cz) = world_to_chunk_coords(x, z);
     let chunk = world
         .get_resource::<ChunkManager>()?

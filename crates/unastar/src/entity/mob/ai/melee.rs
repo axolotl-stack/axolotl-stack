@@ -48,7 +48,7 @@ impl<'a> GoalContext<'a> {
         melee_goal(self.world.entity(self.entity))
     }
 
-    fn melee_target(&self) -> Option<Candidate> {
+    pub(super) fn melee_target(&self) -> Option<Candidate> {
         Candidate::of(self.world, self.states.targets.target?)
     }
 
@@ -65,7 +65,7 @@ impl<'a> GoalContext<'a> {
     /// Search a path to the ground under `target` into the staging buffer.
     /// A route to the node closest to an unreachable target is enough; a
     /// wall climber records the target's block as its destination.
-    fn path_to_target(&mut self, target: &Candidate) -> bool {
+    pub(super) fn path_to_target(&mut self, target: &Candidate) -> bool {
         self.request_path(Self::target_ground(target), target.pos, true)
     }
 
@@ -165,7 +165,8 @@ impl<'a> GoalContext<'a> {
         let dx = target.pos.x - self.body.feet.x;
         let dz = target.pos.z - self.body.feet.z;
         self.move_toward_target(goal, &target, in_reach, dx * dx + dz * dz);
-        if in_reach && self.within_fov(goal, &target) {
+        let centre = (target.aabb.min + target.aabb.max) / 2.0;
+        if in_reach && self.within_fov(centre, goal.melee_fov) {
             self.states.melee.attack_ticks = Some(goal.cooldown_ticks);
             self.effects.attack = Some(target.entity);
         }
@@ -235,11 +236,10 @@ impl<'a> GoalContext<'a> {
         self.rng.r#gen::<f32>() < MELEE_REPATH_CHANCE
     }
 
-    /// The target's box centre lies within `melee_fov` degrees of the
-    /// mob's look direction.
-    fn within_fov(&self, goal: &MeleeBoxAttackGoal, target: &Candidate) -> bool {
-        let centre = (target.aabb.min + target.aabb.max) / 2.0;
-        let to = centre - self.self_eye();
+    /// `point` lies within `fov` degrees of the mob's look direction (its
+    /// head yaw), seen from its eye.
+    pub(super) fn within_fov(&self, point: DVec3, fov: f32) -> bool {
+        let to = point - self.self_eye();
         let length = to.length();
         if length < 1.0e-4 {
             return true;
@@ -247,6 +247,6 @@ impl<'a> GoalContext<'a> {
         let yaw = f64::from(self.head_yaw).to_radians();
         let look = DVec3::new(-yaw.sin(), 0.0, yaw.cos());
         let cos = (look.dot(to) / length).clamp(-1.0, 1.0);
-        cos.acos().to_degrees() < f64::from(goal.melee_fov)
+        cos.acos().to_degrees() < f64::from(fov)
     }
 }

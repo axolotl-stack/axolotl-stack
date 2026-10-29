@@ -259,6 +259,14 @@ fn function(v: &Value, path: &str) -> Result<LootFunction> {
         "enchant_random_gear" => LootFunctionKind::EnchantRandomGear {
             chance: float_or(v, "chance", 0.0, path)?,
         },
+        "set_potion" => {
+            let id = text(&v["id"], path)?;
+            LootFunctionKind::SetPotion {
+                potion: crate::potion::by_name(id)
+                    .ok_or_else(|| ParseError::new(path, format!("unknown potion {id}")))?
+                    .id,
+            }
+        }
         _ => LootFunctionKind::Other {
             name: name.to_owned(),
             json: v.clone(),
