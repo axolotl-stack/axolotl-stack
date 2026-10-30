@@ -610,7 +610,9 @@ impl Request<'_, '_> {
         // dyed item's NBT, such as a shulker box's contents.
         if let Some(index) = plan.user_data_source {
             let ui_slot = plan.grid_size.ui_slot(index).expect("bounded grid cell");
-            let source = self.staging.get(self.stores, (Store::Ui, usize::from(ui_slot)));
+            let source = self
+                .staging
+                .get(self.stores, (Store::Ui, usize::from(ui_slot)));
             if let Some(tag) = crate::item::enchant::item_tag(source) {
                 output = crate::item::enchant::with_item_tag(&output, tag);
             }
@@ -841,9 +843,15 @@ impl Request<'_, '_> {
             return Err(ENCHANT_NOTHING);
         }
         let price = slot as u8 + 1;
-        if !self.ctx.creative && (self.ctx.levels < offer.cost || self.ctx.levels < i32::from(price))
+        if !self.ctx.creative
+            && (self.ctx.levels < offer.cost || self.ctx.levels < i32::from(price))
         {
             return Err(ENCHANT_UNAFFORDABLE);
+        }
+        // Measured: enough levels but too little lapis answers
+        // `Missingmaterialitem` (status 40).
+        if self.ui_stack(ENCHANTING_MATERIAL_SLOT).count < price {
+            return Err(Status::Missingmaterialitem);
         }
         let output = crate::item::enchanting::enchanted(
             &input.clone().with_count(1),
