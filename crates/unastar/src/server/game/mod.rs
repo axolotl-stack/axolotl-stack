@@ -3,15 +3,22 @@
 //! This module provides the pure ECS server implementation,
 //! replacing the legacy Server struct.
 
+pub mod attributes;
 mod block_drops;
-mod blocks;
+pub(crate) mod blocks;
 mod chunks;
+#[cfg(test)]
+mod command_tests;
 mod commands;
 mod containers;
+pub mod durability;
+pub mod effects;
 mod falling;
+pub mod hunger;
 mod inventory;
+pub mod item_use;
 mod items;
-mod join;
+pub(crate) mod join;
 mod join_data;
 mod loot;
 mod mining;
@@ -22,11 +29,11 @@ mod packets;
 mod placement;
 mod plugins;
 pub mod types;
-mod world_commands;
 
 use bevy_ecs::prelude::*;
 pub(crate) use block_drops::{drop_block_items, loot_stacks};
 pub(crate) use blocks::{commit_block_event, reject_block_event};
+pub use commands::ConsoleCommands;
 pub use inventory::RequestIdAssignments;
 pub(crate) use items::{PICKUP_REACH, item_descriptor, player_box};
 pub(crate) use items::{send_slot, world_stack};
@@ -38,7 +45,6 @@ pub(crate) use loot::{LootContext, LootLevel};
 use std::sync::Arc;
 use tracing::{info, warn};
 
-use crate::command::CommandRegistry;
 use crate::ecs::{
     CleanupSet, EntityLogicSet, NetworkSendSet, PacketApplySet, PhysicsSet, UnastarEcs,
 };
@@ -72,8 +78,8 @@ use crate::world::ecs::{
 // Re-export public types
 pub use super::config::ServerConfig;
 pub use types::{
-    CommandRegistryResource, ItemEntityIdCounter, PlayerPersistenceData, PlayerSpawnData,
-    ServerConfigResource, SessionEntityMap,
+    ItemEntityIdCounter, PlayerPersistenceData, PlayerSpawnData, ServerConfigResource,
+    SessionEntityMap,
 };
 
 /// The ECS-based game server.
@@ -94,7 +100,7 @@ fn game_mode_to_storage_id(game_mode: GameMode) -> u8 {
 }
 
 /// The stored state of a player. A player saved while dead is stored as it
-/// will respawn (world spawn, full health, fresh hunger), so it never
+/// will respawn (respawn position, full health, fresh hunger), so it never
 /// reloads with zero health.
 fn player_record(world: &World, entity: Entity) -> Option<(uuid::Uuid, PlayerData)> {
     use crate::entity::components::{Experience, Health, Hunger};
@@ -103,9 +109,7 @@ fn player_record(world: &World, entity: Entity) -> Option<(uuid::Uuid, PlayerDat
         .get::<crate::entity::player_life::Dead>(entity)
         .is_some();
     let position = if dead {
-        world
-            .resource::<crate::entity::player_life::respawn::WorldSpawn>()
-            .0
+        crate::entity::player_life::respawn::respawn_position(world, entity)
     } else {
         world.get::<Position>(entity)?.0
     };
@@ -318,6 +322,10 @@ impl GameServer {
             .insert_resource(types::ServerWorldTemplate(world_template.clone()));
         ecs.world_mut()
             .insert_resource(ServerConfigResource(config.clone()));
+        ecs.world_mut()
+            .insert_resource(crate::command::exec::OperatorList::new(
+                config.operators.clone(),
+            ));
         ecs.world_mut().insert_resource(difficulty);
         ecs.world_mut().insert_resource(game_rules);
         ecs.world_mut().insert_resource(world_time);
@@ -325,7 +333,8 @@ impl GameServer {
         ecs.world_mut()
             .init_resource::<crate::world::clock::ClockSync>();
         ecs.world_mut()
-            .insert_resource(CommandRegistryResource(CommandRegistry::with_defaults()));
+            .init_resource::<crate::command::CommandRegistry>();
+        ecs.world_mut().init_resource::<commands::PendingCommands>();
         ecs.world_mut().insert_resource(ItemEntityIdCounter(100000));
         ecs.world_mut()
             .insert_resource(types::RecipeRegistryResource(Arc::new(recipes)));
@@ -371,6 +380,8 @@ impl GameServer {
             .init_resource::<crate::entity::mob::interaction::actions::MobActionQueue>();
         ecs.world_mut()
             .init_resource::<crate::entity::projectile::ThrowQueue>();
+        ecs.world_mut().init_resource::<item_use::ItemUseQueue>();
+        ecs.world_mut().init_resource::<hunger::ExhaustionValues>();
         ecs.world_mut()
             .init_resource::<bevy_ecs::message::Messages<crate::entity::mob::state::MateRequest>>();
         // Player damage, death and respawn; players respawn where the
@@ -413,11 +424,27 @@ impl GameServer {
                 .after(inventory::apply_inventory)
                 .after(blocks::apply_block_actions),
         );
-        // Thrown items (eggs) queued by the inventory system's item use.
+        // Air use of the held item (eating, throwing), after the inventory
+        // so the held slot reflects this tick's changes; thrown items it
+        // queued fly the same tick.
         ecs.schedule_mut().add_systems(
-            crate::entity::projectile::apply_throws
+            (
+                item_use::apply_item_use,
+                crate::entity::projectile::apply_throws,
+            )
+                .chain()
                 .in_set(PacketApplySet)
-                .after(inventory::apply_inventory),
+                .after(inventory::apply_inventory)
+                .after(blocks::apply_block_actions),
+        );
+        // Commands run with the whole world, after this tick's movement,
+        // inventory and block/mob actions were applied.
+        ecs.schedule_mut().add_systems(
+            commands::run_commands
+                .in_set(PacketApplySet)
+                .after(commands::apply_chat_and_commands)
+                .after(crate::entity::mob::interaction::actions::apply_mob_actions)
+                .after(crate::entity::projectile::apply_throws),
         );
         // Consolidate per-domain events into main EventBuffer after all domain systems
         ecs.schedule_mut().add_systems(
@@ -538,6 +565,29 @@ impl GameServer {
                 .after(despawn_dead)
                 .before(tick_block_breaking),
         );
+        // Player food and effects after the damage above, then the eating
+        // animation of players still using an item.
+        ecs.schedule_mut().add_systems(
+            (
+                effects::apply_player_effects,
+                hunger::tick_hunger,
+                item_use::tick_using,
+                crate::entity::projectile::pick_up_stuck_projectiles,
+            )
+                .chain()
+                .in_set(EntityLogicSet)
+                .after(crate::entity::xp_orb::tick_xp_orbs)
+                .before(tick_block_breaking),
+        );
+        // What changed for each player's client this tick.
+        ecs.schedule_mut().add_systems(
+            (
+                effects::sync_player_effects,
+                attributes::sync_player_attributes,
+            )
+                .chain()
+                .in_set(NetworkSendSet),
+        );
         // Love and breed-cooldown timers and mating, then baby growth.
         ecs.schedule_mut().add_systems(
             (
@@ -603,11 +653,6 @@ impl GameServer {
             )
                 .chain()
                 .in_set(NetworkSendSet),
-        );
-        // The players' own health attribute, after every system that hurt
-        // or healed them this tick.
-        ecs.schedule_mut().add_systems(
-            crate::entity::player_life::attributes::replicate_player_health.in_set(NetworkSendSet),
         );
         ecs.schedule_mut()
             .add_systems(cleanup_despawned_entities.in_set(CleanupSet));
@@ -758,11 +803,11 @@ impl GameServer {
             .unwrap()
             .0;
         let default_gamemode = config.default_gamemode;
-        let operator = config.operators.iter().any(|entry| {
-            !entry.is_empty()
-                && (entry.eq_ignore_ascii_case(&data.display_name)
-                    || data.xuid.as_deref() == Some(entry.as_str()))
-        });
+        let operator = self
+            .ecs
+            .world()
+            .resource::<crate::command::exec::OperatorList>()
+            .grants(&data.display_name, data.xuid.as_deref());
 
         let mut rotation = Rotation::default();
         let mut game_mode = default_gamemode;
@@ -848,12 +893,18 @@ impl GameServer {
             .id();
         // The streamed spawn still owes `PlayStatus(PlayerSpawn)`; the chunk
         // systems send it after the player's first view and chunks.
+        let (health_sent, hunger_sent) = (health.clone(), hunger.clone());
         self.ecs.world_mut().entity_mut(entity).insert((
             health,
             hunger,
             experience,
             crate::entity::player_life::environment::PlayerFall::default(),
             AwaitingSpawnStatus,
+            hunger::FoodTimer::default(),
+            // Join sends these values in its first UpdateAttributes.
+            attributes::SentAttributes::sent(&health_sent, &hunger_sent, 0.0),
+            crate::entity::components::Effects::default(),
+            effects::SentEffects::default(),
         ));
         if operator {
             self.ecs

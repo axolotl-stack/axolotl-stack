@@ -1,0 +1,281 @@
+{
+  "bds_version": "1.26.51",
+  "protocol": 2193,
+  "capture": "crates/bds-extractor/captures/1.26.51/member/join/00037-GameRulesChangedPacket.bin",
+  "capture_sha256": "7b41bfb056c59c01e106377413d5aa60aec53ad34c4a915b1b2b30286049cf12",
+  "rules": [
+    {
+      "name": "commandBlockOutput",
+      "editable": true,
+      "value": {
+        "bool": true
+      }
+    },
+    {
+      "name": "doDayLightCycle",
+      "editable": true,
+      "value": {
+        "bool": true
+      }
+    },
+    {
+      "name": "doEntityDrops",
+      "editable": true,
+      "value": {
+        "bool": true
+      }
+    },
+    {
+      "name": "doFireTick",
+      "editable": true,
+      "value": {
+        "bool": true
+      }
+    },
+    {
+      "name": "recipesUnlock",
+      "editable": true,
+      "value": {
+        "bool": true
+      }
+    },
+    {
+      "name": "doLimitedCrafting",
+      "editable": true,
+      "value": {
+        "bool": false
+      }
+    },
+    {
+      "name": "doMobLoot",
+      "editable": true,
+      "value": {
+        "bool": true
+      }
+    },
+    {
+      "name": "doMobSpawning",
+      "editable": true,
+      "value": {
+        "bool": true
+      }
+    },
+    {
+      "name": "doTileDrops",
+      "editable": true,
+      "value": {
+        "bool": true
+      }
+    },
+    {
+      "name": "doWeatherCycle",
+      "editable": true,
+      "value": {
+        "bool": true
+      }
+    },
+    {
+      "name": "drowningDamage",
+      "editable": true,
+      "value": {
+        "bool": true
+      }
+    },
+    {
+      "name": "fallDamage",
+      "editable": true,
+      "value": {
+        "bool": true
+      }
+    },
+    {
+      "name": "fireDamage",
+      "editable": true,
+      "value": {
+        "bool": true
+      }
+    },
+    {
+      "name": "keepInventory",
+      "editable": true,
+      "value": {
+        "bool": false
+      }
+    },
+    {
+      "name": "mobGriefing",
+      "editable": true,
+      "value": {
+        "bool": true
+      }
+    },
+    {
+      "name": "pvp",
+      "editable": true,
+      "value": {
+        "bool": true
+      }
+    },
+    {
+      "name": "showCoordinates",
+      "editable": true,
+      "value": {
+        "bool": false
+      }
+    },
+    {
+      "name": "playerWaypoints",
+      "editable": true,
+      "value": {
+        "int": 1
+      }
+    },
+    {
+      "name": "locatorbar",
+      "editable": true,
+      "value": {
+        "bool": true
+      }
+    },
+    {
+      "name": "showDaysPlayed",
+      "editable": true,
+      "value": {
+        "bool": false
+      }
+    },
+    {
+      "name": "naturalRegeneration",
+      "editable": true,
+      "value": {
+        "bool": true
+      }
+    },
+    {
+      "name": "tntExplodes",
+      "editable": true,
+      "value": {
+        "bool": true
+      }
+    },
+    {
+      "name": "sendCommandFeedback",
+      "editable": true,
+      "value": {
+        "bool": true
+      }
+    },
+    {
+      "name": "maxCommandChainLength",
+      "editable": true,
+      "value": {
+        "int": 65535
+      }
+    },
+    {
+      "name": "doInsomnia",
+      "editable": true,
+      "value": {
+        "bool": true
+      }
+    },
+    {
+      "name": "commandBlocksEnabled",
+      "editable": true,
+      "value": {
+        "bool": true
+      }
+    },
+    {
+      "name": "randomTickSpeed",
+      "editable": true,
+      "value": {
+        "int": 1
+      }
+    },
+    {
+      "name": "doImmediateRespawn",
+      "editable": true,
+      "value": {
+        "bool": false
+      }
+    },
+    {
+      "name": "showDeathMessages",
+      "editable": true,
+      "value": {
+        "bool": true
+      }
+    },
+    {
+      "name": "functionCommandLimit",
+      "editable": true,
+      "value": {
+        "int": 10000
+      }
+    },
+    {
+      "name": "spawnRadius",
+      "editable": true,
+      "value": {
+        "int": 10
+      }
+    },
+    {
+      "name": "showTags",
+      "editable": true,
+      "value": {
+        "bool": true
+      }
+    },
+    {
+      "name": "freezeDamage",
+      "editable": true,
+      "value": {
+        "bool": true
+      }
+    },
+    {
+      "name": "respawnBlocksExplode",
+      "editable": true,
+      "value": {
+        "bool": true
+      }
+    },
+    {
+      "name": "showBorderEffect",
+      "editable": true,
+      "value": {
+        "bool": true
+      }
+    },
+    {
+      "name": "showRecipeMessages",
+      "editable": true,
+      "value": {
+        "bool": true
+      }
+    },
+    {
+      "name": "playersSleepingPercentage",
+      "editable": true,
+      "value": {
+        "int": 100
+      }
+    },
+    {
+      "name": "projectilesCanBreakBlocks",
+      "editable": true,
+      "value": {
+        "bool": true
+      }
+    },
+    {
+      "name": "tntExplosionDropDecay",
+      "editable": true,
+      "value": {
+        "bool": false
+      }
+    }
+  ]
+}

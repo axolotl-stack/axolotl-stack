@@ -20,13 +20,13 @@
 //! when the hit has a source position, knocks the player back: the player
 //! moves itself, so the push goes to its own client as `SetActorMotion`.
 //! The health change reaches the client through
-//! `attributes::replicate_player_health`; at zero health the player dies
+//! `server::game::attributes::sync_player_attributes`; at zero health the player dies
 //! (`death`).
 //!
 //! [`HURT_TICKS`]: crate::entity::mob::constants::HURT_TICKS
 
 use glam::{DVec2, DVec3};
-use jolyne::valentine::types::{ActorRuntimeId, EnumsActorEvent, PlayerInputTick, Vec3};
+use jolyne::valentine::types::{ActorRuntimeId, EnumsActorEvent, Vec3};
 use jolyne::valentine::{ActorEventPacket, McpePacket, SetActorMotionPacket};
 use rand::Rng;
 use unastar_data::actor_components::body::ActorDamageCause;
@@ -135,6 +135,13 @@ pub(super) fn apply_hit(
         send_hurt_event(world, player);
         if let Some(from) = hit.knockback_from {
             knock_back(world, player, from, hit.knockback_power);
+        }
+    }
+    // A hit that hurt wears the worn armour and costs the player food.
+    if applied > 0.0 {
+        crate::server::game::durability::wear_armour(world, player, damage, hit.cause);
+        if crate::server::game::durability::armour_wears_from(hit.cause) {
+            crate::server::game::hunger::exhaust_player(world, player, |values| values.damage);
         }
     }
     if dead {
@@ -270,7 +277,7 @@ fn knock_back(world: &mut World, player: Entity, from: DVec3, power: KnockbackPo
             y: velocity.y as f32,
             z: velocity.z as f32,
         },
-        tick: PlayerInputTick { inputtick: 0 },
+        tick: crate::entity::components::input_tick_of(world, player),
     }));
 }
 

@@ -408,6 +408,8 @@ fn break_door(world: &mut World, cell: IVec3) {
     let other_state = world
         .block_at(other)
         .filter(|&other| (entry.min_state_id..=entry.max_state_id).contains(&other));
+    // Particle data names the block by its wire id.
+    let ids = crate::server::game::types::block_network_ids(world);
 
     level_event(world, centre(cell), LEVEL_EVENT_SOUND_ZOMBIE_DOOR_CRASH, 0);
     replace_block(
@@ -417,7 +419,7 @@ fn break_door(world: &mut World, cell: IVec3) {
         LevelEventPacket {
             event_id: LEVEL_EVENT_PARTICLES_DESTROY_BLOCK_NO_SOUND,
             position: wire(centre(cell)),
-            data: default_state as i32,
+            data: ids.to_wire(default_state) as i32,
         },
     );
     if let Some(other_state) = other_state {
@@ -428,7 +430,7 @@ fn break_door(world: &mut World, cell: IVec3) {
             LevelEventPacket {
                 event_id: LEVEL_EVENT_PARTICLES_DESTROY_BLOCK,
                 position: wire(centre(other)),
-                data: other_state as i32,
+                data: ids.to_wire(other_state) as i32,
             },
         );
         crate::server::game::drop_block_items(world, other, other_state, None);

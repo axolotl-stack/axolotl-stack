@@ -13,7 +13,7 @@ use crate::entity::mob::constants::{
     JUMP_COOLDOWN_TICKS, LIQUID_JUMP_IMPULSE, LOOK_IDLE_HEAD_TURN, MOVE_ARRIVAL_FLOOR,
     MOVE_ARRIVE_DIST_SQ, MOVE_ARRIVE_HEIGHT, MOVE_DESCEND_CAP, MOVE_JUMP_HEIGHT_IN_WATER,
     MOVE_SPEED_RAMP, NORMAL_GROUND_FRICTION, PATH_STUCK_CHECK_TICKS, PATH_STUCK_DISTANCE_FACTOR,
-    PATH_WAYPOINT_REACH, PATH_WAYPOINT_REACH_Y, WATER_MOVE_SPEED,
+    PATH_WAYPOINT_REACH, WATER_MOVE_SPEED,
 };
 use crate::entity::navigation::{WalkNavigation, WalkWaypoint};
 use crate::registry::block::LiquidKind;
@@ -226,17 +226,19 @@ impl PathFollower {
             self.active = false;
             return;
         }
-        let reach = if body.width > PATH_WAYPOINT_REACH {
-            body.width * 0.5
-        } else {
-            PATH_WAYPOINT_REACH - body.width * 0.5
-        };
-        let node = self.path.waypoints[self.index].feet;
-        if (body.feet.x - node.x).abs() < reach
-            && (body.feet.z - node.z).abs() < reach
-            && (body.feet.y - node.y).abs() < PATH_WAYPOINT_REACH_Y
-        {
-            self.index += 1;
+        // Every waypoint ahead on the mob's block level that the feet are
+        // horizontally within reach of counts as passed.
+        let reach = (body.width * 0.5).max(PATH_WAYPOINT_REACH);
+        let level = body.feet.y.floor();
+        for (k, waypoint) in self.path.waypoints.iter().enumerate().skip(self.index) {
+            let node = waypoint.feet;
+            if node.y.floor() != level {
+                break;
+            }
+            let (dx, dz) = (body.feet.x - node.x, body.feet.z - node.z);
+            if dx * dx + dz * dz < reach * reach {
+                self.index = k + 1;
+            }
         }
         if self.index >= self.path.waypoints.len() {
             self.active = false;
@@ -384,5 +386,48 @@ mod tests {
         let v = travel(&body(), &mut control, false, 0.42, 0.0, 0.6, DVec3::ZERO);
         assert!((v.z - 0.04).abs() < 1e-6, "{v}");
         assert!(v.x.abs() < 1e-12);
+    }
+
+    fn follow(points: &[DVec3]) -> (PathFollower, MoveControl) {
+        use crate::entity::navigation::WalkMovement;
+        let mut path = WalkNavigation {
+            waypoints: points
+                .iter()
+                .map(|&feet| WalkWaypoint {
+                    feet,
+                    movement: WalkMovement::Walk,
+                    lift_height: 0.0,
+                })
+                .collect(),
+        };
+        let mut follower = PathFollower::default();
+        follower.install(&mut path, 1.0, points[0]);
+        let mut control = MoveControl::default();
+        follower.tick(&body(), &mut control, false);
+        (follower, control)
+    }
+
+    #[test]
+    fn every_waypoint_within_reach_on_the_level_is_passed() {
+        // The cow's 0.9 width reaches max(0.45, 0.6) = 0.6.
+        let (follower, control) = follow(&[
+            DVec3::ZERO,
+            DVec3::new(0.3, 0.0, 0.3),
+            DVec3::new(0.55, 0.0, 0.0),
+            DVec3::new(0.0, 0.0, 0.65),
+            DVec3::new(2.0, 0.0, 0.0),
+        ]);
+        assert_eq!(follower.index, 3);
+        assert_eq!(control.wanted, Some(DVec3::new(0.0, 0.0, 0.65)));
+    }
+
+    #[test]
+    fn a_waypoint_on_another_level_ends_the_reach_check() {
+        let (follower, _) = follow(&[
+            DVec3::ZERO,
+            DVec3::new(0.2, 1.0, 0.0),
+            DVec3::new(0.3, 0.0, 0.0),
+        ]);
+        assert_eq!(follower.index, 1);
     }
 }

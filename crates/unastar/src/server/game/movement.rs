@@ -17,7 +17,7 @@ use super::packet_queues::{
 };
 use crate::ecs::events::ServerEvent;
 use crate::entity::components::transform::{Position, Rotation};
-use crate::entity::components::{PlayerInput, PlayerState};
+use crate::entity::components::{GameMode, Hunger, PlayerInput, PlayerState};
 use crate::entity::player_life::environment::PlayerFall;
 use jolyne::valentine::types::{EnumsPlayerActionType, EnumsPlayerAuthInputPacketPayloadInputData};
 
@@ -43,13 +43,20 @@ pub fn apply_movement(
     mut queue: ResMut<MovementPacketQueue>,
     mut block_queue: ResMut<BlockPacketQueue>,
     mut events: ResMut<MovementEvents>,
+    exhaustion: Res<super::hunger::ExhaustionValues>,
     mut players: MovingPlayers,
+    mut hungry: Query<(&mut Hunger, &GameMode)>,
 ) {
     let _span = tracing::info_span!("apply_movement", count = queue.0.len()).entered();
     for (entity, input) in queue.0.drain(..) {
         match input {
             MovementInput::AuthInput(pk) => {
-                process_auth_input(entity, &pk, &mut players, &mut events);
+                let moved = process_auth_input(entity, &pk, &mut players, &mut events);
+                if let (Some(moved), Ok((mut hunger, mode))) = (moved, hungry.get_mut(entity))
+                    && !matches!(mode, GameMode::Creative | GameMode::Spectator)
+                {
+                    hunger.exhaust(moved.exhaustion(&exhaustion));
+                }
 
                 // Forward block actions to block queue
                 if let Some(block_actions) = pk.player_block_actions
@@ -73,9 +80,9 @@ fn process_auth_input(
     pk: &jolyne::valentine::PlayerAuthInputPacket,
     players: &mut MovingPlayers,
     events: &mut ResMut<MovementEvents>,
-) {
+) -> Option<Moved> {
     let Ok((mut pos, mut rot, mut state, mut input, fall)) = players.get_mut(entity) else {
-        return;
+        return None;
     };
 
     // Update position
@@ -92,7 +99,7 @@ fn process_auth_input(
             to = ?new_pos,
             "Rejected implausible PlayerAuthInput movement delta"
         );
-        return;
+        return None;
     }
     pos.0 = new_pos;
 
@@ -182,6 +189,50 @@ fn process_auth_input(
             is_sprinting,
         });
     }
+    Some(Moved {
+        delta: new_pos - old_pos,
+        sprinting: state.sprinting,
+        swimming: state.swimming,
+        flying: state.flying,
+        jumped,
+    })
+}
+
+/// What one accepted `PlayerAuthInput` moved, for food exhaustion.
+#[derive(Debug, Clone, Copy, PartialEq)]
+struct Moved {
+    delta: DVec3,
+    sprinting: bool,
+    swimming: bool,
+    flying: bool,
+    jumped: bool,
+}
+
+impl Moved {
+    /// Exhaustion per `minecraft:exhaustion_values`: swimming per metre
+    /// moved, sprinting and walking per horizontal metre, and per jump
+    /// (`sprint_jump` while sprinting). Flying costs nothing.
+    fn exhaustion(&self, values: &super::hunger::ExhaustionValues) -> f32 {
+        if self.flying {
+            return 0.0;
+        }
+        let horizontal = self.delta.x.hypot(self.delta.z) as f32;
+        let mut out = if self.swimming {
+            self.delta.length() as f32 * values.swim
+        } else if self.sprinting {
+            horizontal * values.sprint
+        } else {
+            horizontal * values.walk
+        };
+        if self.jumped && !self.swimming {
+            out += if self.sprinting {
+                values.sprint_jump
+            } else {
+                values.jump
+            };
+        }
+        out
+    }
 }
 
 /// Process a PlayerAction packet: sprint/sneak state, StartBreak event.
@@ -237,5 +288,43 @@ fn process_player_action(
         _ => {
             trace!(action = ?pk.action, "Unhandled player action");
         }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    fn moved(delta: DVec3, sprinting: bool, swimming: bool, jumped: bool) -> Moved {
+        Moved {
+            delta,
+            sprinting,
+            swimming,
+            flying: false,
+            jumped,
+        }
+    }
+
+    #[test]
+    fn movement_exhaustion_uses_the_player_definition_values() {
+        let values = super::super::hunger::ExhaustionValues::vanilla();
+        let step = DVec3::new(3.0, 1.0, 4.0);
+        // Walking costs nothing; sprinting 0.1 per horizontal metre.
+        assert_eq!(moved(step, false, false, false).exhaustion(&values), 0.0);
+        assert!((moved(step, true, false, false).exhaustion(&values) - 0.5).abs() < 1e-6);
+        // Swimming 0.01 per metre in 3D.
+        let swim = moved(step, false, true, false).exhaustion(&values);
+        assert!((swim - 0.01 * 26f32.sqrt()).abs() < 1e-6);
+        assert_eq!(
+            moved(DVec3::ZERO, false, false, true).exhaustion(&values),
+            0.05
+        );
+        assert_eq!(
+            moved(DVec3::ZERO, true, false, true).exhaustion(&values),
+            0.2
+        );
+        let mut flying = moved(step, true, false, true);
+        flying.flying = true;
+        assert_eq!(flying.exhaustion(&values), 0.0);
     }
 }

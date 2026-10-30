@@ -257,7 +257,8 @@ fn broadcast_block_crack_stop(world: &World, x: i32, y: i32, z: i32) {
     }
 }
 
-pub(super) fn block_at(world: &World, position: (i32, i32, i32)) -> Option<u32> {
+/// Runtime id of the block at `position`; `None` outside the world or an unloaded chunk.
+pub(crate) fn block_at(world: &World, position: (i32, i32, i32)) -> Option<u32> {
     let (x, y, z) = position;
     if !(crate::world::chunk::MIN_Y
         ..crate::world::chunk::MIN_Y + i32::from(crate::world::chunk::SUBCHUNK_COUNT) * 16)
@@ -570,6 +571,7 @@ fn apply_break_block(world: &mut World, breaking_player: Entity, x: i32, y: i32,
             tool.as_ref(),
         );
         wear_held_tool(world, breaking_player, original_block_id);
+        super::hunger::exhaust_player(world, breaking_player, |values| values.mine);
     }
 
     // Broadcast update to viewers
@@ -713,60 +715,20 @@ fn player_break_ticks(world: &World, player: Entity, position: (i32, i32, i32)) 
     super::mining::break_ticks(block, tool.as_ref(), mining_conditions(world, player))
 }
 
-/// Apply mining wear to the held tool after breaking `block_runtime_id`;
-/// unbreaking may spare it, and a tool worn down to `maxDamage` breaks.
+/// Apply mining wear to the held tool after breaking `block_runtime_id`
+/// (shared durability rules; see `durability`).
 fn wear_held_tool(world: &mut World, player: Entity, block_runtime_id: u32) {
-    use crate::entity::components::{HeldSlot, MainInventory};
-    use crate::item::enchant::{
-        Enchantment, durability_damage, enchantment_level, with_durability_damage,
-    };
     let Some(tool) = held_item(world, player) else {
         return;
     };
-    let Some(registry) = world
+    let Some(block) = world
         .get_resource::<super::types::BlockRegistryResource>()
-        .map(|r| r.0.clone())
+        .and_then(|r| r.0.get_by_runtime_id(block_runtime_id).cloned())
     else {
         return;
     };
-    let Some(block) = registry.get_by_runtime_id(block_runtime_id) else {
-        return;
-    };
-    let wear = super::mining::mining_wear(block, &tool);
-    let Some(max_damage) = tool
-        .item()
-        .map(|item| item.tool_info().max_damage)
-        .filter(|max| *max > 0 && wear > 0)
-    else {
-        return;
-    };
-    let unbreaking = enchantment_level(&tool, Enchantment::Unbreaking);
-    let mut applied = 0;
-    {
-        let mut rng = world.get_resource_or_init::<crate::entity::EntityRandom>();
-        for _ in 0..wear {
-            let roll = rand::Rng::gen_range(&mut rng.0, 0..=unbreaking);
-            if !super::mining::unbreaking_spares(unbreaking, roll) {
-                applied += 1;
-            }
-        }
-    }
-    if applied == 0 {
-        return;
-    }
-    let damage = durability_damage(&tool) + applied;
-    let worn = if damage >= max_damage {
-        crate::item::ItemStack::empty()
-    } else {
-        with_durability_damage(&tool, damage)
-    };
-    let slot = world.get::<HeldSlot>(player).map_or(0, |slot| slot.0);
-    if let Some(mut inventory) = world.get_mut::<MainInventory>(player)
-        && let Some(stack) = inventory.hotbar_mut(slot)
-    {
-        *stack = worn.clone();
-    }
-    super::items::send_slot(world, player, usize::from(slot), &worn);
+    let wear = super::mining::mining_wear(&block, &tool);
+    super::durability::wear_held(world, player, wear);
 }
 
 /// Handle block click from InventoryTransaction ItemUse::ClickBlock.
@@ -828,6 +790,18 @@ fn handle_block_click(
         && world
             .get::<crate::entity::components::HeldSlot>(entity)
             .is_some_and(|slot| data.slot == i32::from(slot.0));
+    // Tools, bone meal, buckets and fire starters act on the clicked block
+    // instead of placing anything.
+    if main_hand_selected
+        && super::item_use::on_block::use_on_block(
+            world,
+            entity,
+            IVec3::new(clicked.0, clicked.1, clicked.2),
+            data.face,
+        )
+    {
+        return;
+    }
     if main_hand_selected
         && block_at(world, clicked).is_some_and(|block| block != *blocks::AIR)
         && crate::entity::mob::interaction::interact::use_spawn_egg_on_block(
@@ -991,7 +965,7 @@ fn place_block(world: &mut World, x: i32, y: i32, z: i32, block_runtime_id: u32)
 /// Set a block at world coordinates, broadcast the change to the chunk's
 /// viewers (with the place sound when `place_sound`) and schedule gravity
 /// checks for the block and the one above it.
-pub(super) fn set_block(world: &mut World, pos: IVec3, block_runtime_id: u32, place_sound: bool) {
+pub(crate) fn set_block(world: &mut World, pos: IVec3, block_runtime_id: u32, place_sound: bool) {
     let (x, y, z) = (pos.x, pos.y, pos.z);
     let (cx, cz) = world_to_chunk_coords(x, z);
     let (local_x, local_y, local_z) = world_to_local_coords(x, y, z);
@@ -1077,6 +1051,45 @@ pub(super) fn set_block(world: &mut World, pos: IVec3, block_runtime_id: u32, pl
                 }
             }
         }
+    }
+}
+
+/// Break the block at `pos` without a breaker, as `/setblock … destroy` and
+/// `/fill … destroy` do: viewers see the break particles, the block becomes
+/// air, and its tool-less drops and any container contents fall as items
+/// (BDS's order: `LevelEvent` 2001, `UpdateBlock`, `AddItemActor`).
+pub(crate) fn destroy_block(world: &mut World, pos: IVec3) {
+    let Some(original) = block_at(world, (pos.x, pos.y, pos.z)) else {
+        return;
+    };
+    if original == *blocks::AIR {
+        return;
+    }
+    let (cx, cz) = world_to_chunk_coords(pos.x, pos.z);
+    let chunk = world
+        .get_resource::<ChunkManager>()
+        .and_then(|chunks| chunks.get_by_coords(cx, cz));
+    if let Some(viewers) = chunk.and_then(|chunk| world.get::<ChunkViewers>(chunk)) {
+        let particles = LevelEventPacket {
+            event_id: LEVEL_EVENT_PARTICLES_DESTROY_BLOCK,
+            position: Vec3 {
+                x: pos.x as f32 + 0.5,
+                y: pos.y as f32 + 0.5,
+                z: pos.z as f32 + 0.5,
+            },
+            data: super::types::block_network_ids(world).to_wire(original) as i32,
+        };
+        for viewer in viewers.iter() {
+            if let Some(session) = world.get::<PlayerSession>(viewer) {
+                let _ = session.send(McpePacket::from(particles.clone()));
+            }
+        }
+    }
+    let broken = super::containers::breaking(world, pos);
+    set_block(world, pos, *blocks::AIR, false);
+    super::block_drops::drop_block_items(world, pos, original, None);
+    if let Some(broken) = broken {
+        super::containers::drop_contents(world, pos, broken);
     }
 }
 

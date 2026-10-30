@@ -398,9 +398,14 @@ fn a_sheared_sheep_eats_grass_and_regrows_wool() {
     h.packets();
 
     let mut ate = false;
+    // The eaten grass's particles and the dirt that replaces it name blocks
+    // by their wire ids.
+    let mut block_ids = 0;
     for _ in 0..20_000 {
         h.server.tick();
         let packets = h.packets();
+        let ids = crate::server::game::types::block_network_ids(h.world());
+        block_ids += crate::server::wire_audit::assert_block_ids_on_wire(ids, &packets);
         ate |= packets.iter().any(|packet| {
             matches!(packet, McpePacketData::ActorEventPacket(event)
                 if event.target_runtime_id.actor_runtime_id == runtime_id
@@ -411,6 +416,7 @@ fn a_sheared_sheep_eats_grass_and_regrows_wool() {
         }
     }
     assert!(ate, "viewers saw the sheep lower its head");
+    assert!(block_ids >= 2, "the eating sent block ids: {block_ids}");
     let world = h.world();
     assert!(!flag(world, sheep, actor_flags::SHEARED), "wool regrew");
     assert!(

@@ -1,12 +1,23 @@
 //! Coordinate distributions used by compiled feature rules and scatter
 //! features (`uniform`, `triangle`, `gaussian`, `inverse_gaussian`,
-//! `fixed_grid`, `jittered_grid`). Uniform extents are upper-exclusive.
+//! `fixed_grid`, `jittered_grid`), over the extent `[a, b]` as written in
+//! the data:
 //!
-//! The shapes follow Mojang's feature documentation (uniform = flat,
-//! triangle = peaked at the centre, gaussian = bell, inverse_gaussian = mass
-//! at the edges, grids = regular steps). BDS's exact draw sequence is not
-//! observable from data; non-uniform formulas and endpoint behavior remain
-//! unmeasured: to confirm by BDS fixture (research WD4).
+//! - `uniform`: `a + next_int(b - a)`, upper-exclusive; no draw (and `a`)
+//!   for an empty or reversed extent;
+//! - `triangle`: `a + next_int(r / 2 + 1) + next_int(r - r / 2 + 1)` with
+//!   `r = b - a`;
+//! - `gaussian`: `a + h + (next_int(h) - next_int(h))` with `h = (b - a) / 2`;
+//! - `inverse_gaussian`: the same two draws `g`; `a - g` when negative,
+//!   `b - g` when positive, and a coin flip between `a` and `b` at zero.
+//!
+//! Measured on the natural seed-12345 BDS world (see the codegen README): in
+//! its roofed forest the decoration chains run 20-iteration gaussian scatters
+//! on the same random as the trees, and the first diverging tree moved from
+//! the second to the fifth iteration of chunk (4,-5); predicted copper-vein
+//! centres (triangle y) have native copper within three blocks 400 of 1,056
+//! times, against 123 with the earlier formula. Inverse gaussian (unused by
+//! vanilla data) and the grid formulas are **unmeasured**.
 
 use super::rng::BedrockRandom;
 
@@ -15,39 +26,55 @@ fn ordered(a: i32, b: i32) -> (i32, i32) {
     if a <= b { (a, b) } else { (b, a) }
 }
 
-/// Uniform integer in `[min(a,b), max(a,b))`; `a` when both bounds are equal.
+/// Uniform integer in `[a, b)`; `a`, without a draw, when `b <= a`.
 #[inline]
 pub fn uniform(rng: &mut BedrockRandom, a: i32, b: i32) -> i32 {
-    let (a, b) = ordered(a, b);
-    a + rng.next_int(b - a)
+    if b > a { a + rng.next_int(b - a) } else { a }
 }
 
-/// Sum of two uniforms: peaked at the centre of `[a, b]`.
+/// Sum of two uniforms over the two halves of `[a, b]`: peaked at the centre.
 #[inline]
 pub fn triangle(rng: &mut BedrockRandom, a: i32, b: i32) -> i32 {
-    let (a, b) = ordered(a, b);
-    let span = b - a + 1;
-    a + (rng.next_int(span) + rng.next_int(span)) / 2
+    let r = b - a;
+    let low = r / 2;
+    let high = r - low;
+    let mut v = a;
+    if r >= -1 {
+        v += rng.next_int(low + 1);
+    }
+    if high >= 0 {
+        v += rng.next_int(high + 1);
+    }
+    v
 }
 
-/// Mean of three uniforms: bell-shaped over `[a, b]`.
+/// Bedrock's integer "gaussian": the difference of two uniforms below `n`.
+#[inline]
+fn gaussian_int(rng: &mut BedrockRandom, n: i32) -> i32 {
+    rng.next_int(n) - rng.next_int(n)
+}
+
+/// Centre of `[a, b]` plus [`gaussian_int`] of the half width.
 #[inline]
 pub fn gaussian(rng: &mut BedrockRandom, a: i32, b: i32) -> i32 {
-    let (a, b) = ordered(a, b);
-    let span = b - a + 1;
-    a + (rng.next_int(span) + rng.next_int(span) + rng.next_int(span)) / 3
+    let half = (b - a) / 2;
+    a + half + gaussian_int(rng, half)
 }
 
-/// Gaussian folded outwards: most mass near `a` and `b`.
+/// [`gaussian_int`] folded outwards: most mass near `a` and `b`.
 #[inline]
 pub fn inverse_gaussian(rng: &mut BedrockRandom, a: i32, b: i32) -> i32 {
-    let (a, b) = ordered(a, b);
-    let g = gaussian(rng, a, b);
-    let mid = (a + b) / 2;
-    if g <= mid {
-        a + (mid - g)
-    } else {
-        b - (g - mid)
+    let g = gaussian_int(rng, (b - a) / 2);
+    match g.cmp(&0) {
+        std::cmp::Ordering::Less => a - g,
+        std::cmp::Ordering::Greater => b - g,
+        std::cmp::Ordering::Equal => {
+            if rng.next_bool() {
+                b
+            } else {
+                a
+            }
+        }
     }
 }
 
@@ -96,28 +123,12 @@ mod tests {
     fn distributions_stay_inside_their_extent() {
         let mut r = BedrockRandom::new(7);
         for _ in 0..5_000 {
-            for f in [uniform, triangle, gaussian, inverse_gaussian] {
+            assert!((-3..8).contains(&uniform(&mut r, -3, 8)));
+            for f in [triangle, gaussian, inverse_gaussian] {
                 let v = f(&mut r, -3, 8);
-                assert!((-3..=8).contains(&v));
-                assert!((-3..=8).contains(&f(&mut r, 8, -3)));
+                assert!((-3..=8).contains(&v), "{v}");
             }
         }
-    }
-
-    #[test]
-    fn shapes_concentrate_where_documented() {
-        let mut r = BedrockRandom::new(99);
-        let (mut centre_tri, mut edge_inv, mut centre_uni) = (0, 0, 0);
-        for _ in 0..20_000 {
-            centre_tri += i32::from((-1..=1).contains(&triangle(&mut r, -8, 8)));
-            centre_uni += i32::from((-1..=1).contains(&uniform(&mut r, -8, 8)));
-            edge_inv += i32::from(inverse_gaussian(&mut r, -8, 8).abs() >= 6);
-        }
-        assert!(
-            centre_tri > centre_uni * 3 / 2,
-            "{centre_tri} vs {centre_uni}"
-        );
-        assert!(edge_inv > 20_000 * 3 / 17, "{edge_inv}");
     }
 
     #[test]

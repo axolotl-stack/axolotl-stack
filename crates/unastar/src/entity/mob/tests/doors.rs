@@ -42,6 +42,8 @@ struct Harness {
     server: GameServer,
     player: Entity,
     rx: mpsc::Receiver<McpePacket>,
+    /// Block ids the wire audit checked so far.
+    block_ids_checked: usize,
 }
 
 /// A door half of `name` whose closed panel stands across the x axis on the
@@ -140,7 +142,12 @@ fn harness(seed: u64, door: &str, difficulty: Difficulty) -> Harness {
                 .insert(ChunkPosition::new(cx, cz), chunk);
         }
     }
-    Harness { server, player, rx }
+    Harness {
+        server,
+        player,
+        rx,
+        block_ids_checked: 0,
+    }
 }
 
 impl Harness {
@@ -207,11 +214,16 @@ impl Harness {
     }
 
     /// `(tick, event id, data)` of every level event at the door cell's
-    /// centre sent this tick.
+    /// centre sent this tick. Every block id sent must be a wire id.
     fn door_events(&mut self, tick: u64, out: &mut Vec<(u64, i32, i32)>) {
         let centre = DOOR.as_vec3() + glam::Vec3::splat(0.5);
-        while let Ok(packet) = self.rx.try_recv() {
-            if let McpePacketData::LevelEventPacket(event) = packet.data
+        let packets: Vec<_> =
+            std::iter::from_fn(|| self.rx.try_recv().ok().map(|p| p.data)).collect();
+        let ids = crate::server::game::types::block_network_ids(self.world());
+        self.block_ids_checked +=
+            crate::server::wire_audit::assert_block_ids_on_wire(ids, &packets);
+        for packet in packets {
+            if let McpePacketData::LevelEventPacket(event) = packet
                 && (event.position.x - centre.x).abs() < 1e-4
                 && (event.position.y - centre.y).abs() < 1e-4
                 && (event.position.z - centre.z).abs() < 1e-4
@@ -280,11 +292,16 @@ fn breaker_breaks_a_closed_oak_door_after_the_native_time_on_hard() {
         .rfind(|(tick, id, _)| *id == LEVEL_EVENT_START_BLOCK_CRACKING && *tick <= crash.0)
         .unwrap();
     assert_eq!(crash.0 - last_start.0, BREAK_TICKS, "{events:?}");
-    assert!(events.contains(&(
-        crash.0,
-        LEVEL_EVENT_PARTICLES_DESTROY_BLOCK_NO_SOUND,
-        oak_default as i32
-    )));
+    let oak_wire = crate::registry::block::BlockNetworkIds::Hashed.to_wire(oak_default) as i32;
+    assert!(
+        events.contains(&(
+            crash.0,
+            LEVEL_EVENT_PARTICLES_DESTROY_BLOCK_NO_SOUND,
+            oak_wire
+        )),
+        "the broken door's particles name it by its wire id: {events:?}"
+    );
+    assert!(h.block_ids_checked > 0, "block ids were on the wire");
     assert_eq!(h.block(DOOR), air);
     assert_eq!(h.block(DOOR + IVec3::Y), air);
     assert_eq!(h.door_items(), 0, "a broken door drops nothing");

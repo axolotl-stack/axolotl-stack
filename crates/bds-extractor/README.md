@@ -56,14 +56,25 @@ plus `--settle` seconds. With `--summon` (operator only) it then runs
 summonable, keeps the first AddActor/AddPainting after each command and clears
 the world between summons (mob spawning, mob loot and entity drops off; two
 `kill` passes so slime/sulfur cube splits are not mistaken for the next actor).
+With `--commands FILE` it then runs each command of FILE (one per line, leading
+`/` optional, blank lines and `#` comments skipped) as a player-origin
+CommandRequest, exactly like the summons, waiting `--command-wait`
+milliseconds (default 1500) after each so every server packet is attributable
+to the command before it.
 
 From the recording it writes `join-sequence.json` (server packets of the join
 phase, in order), `join/<seq>-<Packet>.{bin,json}` (every non-chunk join
 packet), `commands/<permission>.{bin,json}` (each AvailableCommands, named by the
-preceding UpdateAbilities permission), `summons/<identifier>.{bin,json}` and
+preceding UpdateAbilities permission), `summons/<identifier>.{bin,json}`,
+`command-outputs.json` (with `--commands`: per command, its text, request
+`seq` and every server packet up to the next request as `{seq, t_ms, packet,
+data}`, `data` being the JSON form below; LevelChunk, SubChunk,
+NetworkChunkPublisherUpdate, NetworkStackLatency and movement of actors other
+than the player are only counted, under `excluded`) and
 `manifest.json` (size and SHA-256 of every file, phases, per-summon actor type
-and command feedback). `.bin` is the packet header and payload, the same format
-as `crates/unastar/src/registry/testdata/bds-1.26.51-item-registry.bin`;
+and command feedback, per-command packet names). `.bin` is the packet header
+and payload, the same format as
+`crates/unastar/src/registry/testdata/bds-1.26.51-item-registry.bin`;
 `.json` is the packet's derived `Debug` form converted to JSON (`debug_json.rs`;
 NBT decoded with sorted keys, tag types dropped).
 
@@ -79,6 +90,13 @@ cargo build -p bds-extractor
 C:/Users/jvigu/orca/bds-runtime/venv/Scripts/python.exe tools/bds-sweep/capture.py
 C:/Users/jvigu/orca/bds-runtime/venv/Scripts/python.exe tools/bds-sweep/commit_fixtures.py
 ```
+
+`capture.py --commands tools/bds-sweep/command-script.txt` instead runs one
+`operator-commands/` session (operator first join on the same fresh world, then
+the vanilla command feedback script, about two and a half minutes) into a new
+timestamped cache directory and leaves `latest.txt` alone;
+`tools/bds-sweep/command_digest.py <capture>/operator-commands` summarises its
+`command-outputs.json` as `digest.md` in the capture directory.
 
 ### What is committed (licensing)
 

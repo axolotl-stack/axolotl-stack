@@ -261,6 +261,12 @@ impl UnastarServer {
         let mut interval = tokio::time::interval(TICK_DURATION);
         interval.set_missed_tick_behavior(tokio::time::MissedTickBehavior::Skip);
 
+        // Server console: stdin lines run as commands with server permission.
+        self.server
+            .ecs
+            .world_mut()
+            .insert_resource(crate::server::game::ConsoleCommands::stdin());
+
         info!("Server ready, entering tick loop");
 
         let mut tick_count: u64 = 0;
@@ -417,23 +423,27 @@ impl UnastarServer {
                             "SLOW TICK detected"
                         );
                     }
+                    if self.server.ecs.world().contains_resource::<crate::command::exec::StopRequested>() {
+                        info!("Stop requested by command, saving data...");
+                        return self.shutdown().await;
+                    }
                 }
                 _ = &mut shutdown => {
                     info!("Shutdown signal received, saving data...");
-
-                    // Save all player data
-                    let players_saved = self.server.save_all_players().await;
-                    info!(players = players_saved, "Player data saved");
-
-                    // Save all modified chunks
-                    let chunks_saved = self.server.save_all_chunks().await;
-                    info!(chunks = chunks_saved, "Chunk data saved");
-
-                    info!("Server shutdown complete");
-                    return Ok(());
+                    return self.shutdown().await;
                 }
             }
         }
+    }
+
+    /// Saves players and chunks before the process exits.
+    async fn shutdown(&mut self) -> Result<(), Box<dyn std::error::Error>> {
+        let players_saved = self.server.save_all_players().await;
+        info!(players = players_saved, "Player data saved");
+        let chunks_saved = self.server.save_all_chunks().await;
+        info!(chunks = chunks_saved, "Chunk data saved");
+        info!("Server shutdown complete");
+        Ok(())
     }
 }
 
