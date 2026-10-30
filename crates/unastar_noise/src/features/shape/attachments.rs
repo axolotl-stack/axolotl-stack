@@ -71,8 +71,12 @@ pub(super) fn update_shape<W: FeatureWorld + ?Sized>(
         | "minecraft:untinted_particle_leaves"
         | "minecraft:mangrove_leaves" => state,
         "minecraft:vine" => vine(world, state, pos, dir),
-        "minecraft:mossy_carpet" => super::super::kinds::simple_block::update_carpet_shape(world, state, pos),
-        "minecraft:glow_lichen" | "minecraft:sculk_vein" | "minecraft:multiface" => multiface(state, dir, neighbour),
+        "minecraft:mossy_carpet" => {
+            super::super::kinds::simple_block::update_carpet_shape(world, state, pos)
+        }
+        "minecraft:glow_lichen" | "minecraft:sculk_vein" | "minecraft:multiface" => {
+            multiface(state, dir, neighbour)
+        }
         _ => return None,
     })
 }
@@ -92,14 +96,23 @@ fn multiface(state: JavaState, dir: Direction, neighbour: JavaState) -> JavaStat
         return state;
     }
     let removed = state.with_bool(dir.name(), false);
-    if has_any(removed) { removed } else { super::super::java_blocks::states::AIR }
+    if has_any(removed) {
+        removed
+    } else {
+        super::super::java_blocks::states::AIR
+    }
 }
 
 /// `VineBlock.updateShape`: except from below, recompute every face
 /// (`getUpdatedState`) and become air without one. Native tree shape-edge
 /// updates remove unsupported vine tops this way (seed 2097595355691761853,
 /// jungle chunk -104,104).
-fn vine<W: FeatureWorld + ?Sized>(world: &mut W, mut state: JavaState, pos: BlockPos, dir: Direction) -> JavaState {
+fn vine<W: FeatureWorld + ?Sized>(
+    world: &mut W,
+    mut state: JavaState,
+    pos: BlockPos,
+    dir: Direction,
+) -> JavaState {
     use super::super::kinds::multiface_growth::can_attach_to;
     if dir == Direction::Down {
         return state;
@@ -118,8 +131,14 @@ fn vine<W: FeatureWorld + ?Sized>(world: &mut W, mut state: JavaState, pos: Bloc
             || (above.is(b::VINE) && above.value(prop) == Some("true"));
         state = state.with_bool(prop, ok);
     }
-    let has_face = ["up", "north", "south", "west", "east"].iter().any(|p| state.value(p) == Some("true"));
-    if has_face { state } else { super::super::java_blocks::states::AIR }
+    let has_face = ["up", "north", "south", "west", "east"]
+        .iter()
+        .any(|p| state.value(p) == Some("true"));
+    if has_face {
+        state
+    } else {
+        super::super::java_blocks::states::AIR
+    }
 }
 
 fn supported<W: FeatureWorld + ?Sized>(
@@ -143,7 +162,11 @@ fn supported<W: FeatureWorld + ?Sized>(
     } else {
         super::sturdy(below_or_attached, face)
     };
-    if survives { state } else { b::AIR.default_state() }
+    if survives {
+        state
+    } else {
+        b::AIR.default_state()
+    }
 }
 
 fn is_door(state: JavaState) -> bool {
@@ -172,7 +195,8 @@ fn door<W: FeatureWorld + ?Sized>(
             b::AIR.default_state()
         };
     }
-    if lower && dir == Direction::Down
+    if lower
+        && dir == Direction::Down
         && !super::sturdy(world.get_state(pos.below()), Direction::Up)
     {
         return b::AIR.default_state();
@@ -207,58 +231,109 @@ fn chest(state: JavaState, dir: Direction, neighbour: JavaState, copper: bool) -
             && state.value("facing") == neighbour.value("facing")
             && chest_connection(neighbour) == dir.opposite()
         {
-            result = state.with("type", if other_type == "left" { "right" } else { "left" });
+            result = state.with(
+                "type",
+                if other_type == "left" {
+                    "right"
+                } else {
+                    "left"
+                },
+            );
         }
         // A connectable neighbour of the wrong type/facing does NOT split an
         // existing double chest: that branch belongs only to the outer else.
     } else if chest_connection(state) == dir {
         result = state.with("type", "single");
     }
-    if copper && connects && result.value("type") != Some("single")
-        && chest_connection(result) == dir && result.block() != neighbour.block()
+    if copper
+        && connects
+        && result.value("type") != Some("single")
+        && chest_connection(result) == dir
+        && result.block() != neighbour.block()
     {
         // CopperChestBlock's final hook adopts its connected neighbour's block
         // while copying this side's properties, including its waterlogged bit.
-        return neighbour.block().default_state()
-            .with("facing", result.value("facing").expect("native chest has facing"))
+        return neighbour
+            .block()
+            .default_state()
+            .with(
+                "facing",
+                result.value("facing").expect("native chest has facing"),
+            )
             .with("type", result.value("type").expect("native chest has type"))
-            .with("waterlogged", result.value("waterlogged").expect("native chest is waterloggable"));
+            .with(
+                "waterlogged",
+                result
+                    .value("waterlogged")
+                    .expect("native chest is waterloggable"),
+            );
     }
     result
 }
 
 #[cfg(test)]
 mod tests {
-    use super::*;
     use super::super::super::test_world::TestWorld;
+    use super::*;
 
     #[test]
     fn door_observes_only_counterpart_and_lower_support_sides() {
         let mut world = TestWorld::default();
         let pos = BlockPos::new(0, 64, 0);
         let lower = b::OAK_DOOR.default_state().with("half", "lower");
-        let upper = b::IRON_DOOR.default_state()
+        let upper = b::IRON_DOOR
+            .default_state()
             .with("half", "upper")
             .with("facing", "east")
             .with("hinge", "right")
             .with("open", "true")
             .with("powered", "true");
-        assert_eq!(update_shape(&mut world, lower, pos, Direction::Up, upper),
-            Some(upper.with("half", "lower")));
-        assert_eq!(update_shape(&mut world, lower, pos, Direction::Up, lower),
-            Some(b::AIR.default_state()));
-        assert_eq!(update_shape(&mut world, lower, pos, Direction::North, b::AIR.default_state()),
-            Some(lower));
-        assert_eq!(update_shape(&mut world, lower, pos, Direction::Down, b::STONE.default_state()),
-            Some(b::AIR.default_state()));
-        assert_eq!(update_shape(&mut world, upper, pos, Direction::Up, b::AIR.default_state()),
-            Some(upper));
+        assert_eq!(
+            update_shape(&mut world, lower, pos, Direction::Up, upper),
+            Some(upper.with("half", "lower"))
+        );
+        assert_eq!(
+            update_shape(&mut world, lower, pos, Direction::Up, lower),
+            Some(b::AIR.default_state())
+        );
+        assert_eq!(
+            update_shape(
+                &mut world,
+                lower,
+                pos,
+                Direction::North,
+                b::AIR.default_state()
+            ),
+            Some(lower)
+        );
+        assert_eq!(
+            update_shape(
+                &mut world,
+                lower,
+                pos,
+                Direction::Down,
+                b::STONE.default_state()
+            ),
+            Some(b::AIR.default_state())
+        );
+        assert_eq!(
+            update_shape(
+                &mut world,
+                upper,
+                pos,
+                Direction::Up,
+                b::AIR.default_state()
+            ),
+            Some(upper)
+        );
     }
 
     #[test]
     fn chest_pair_directions_and_unusual_native_no_split_branch() {
         for facing in Direction::HORIZONTAL {
-            let single = b::CHEST.default_state().with("facing", facing.name())
+            let single = b::CHEST
+                .default_state()
+                .with("facing", facing.name())
                 .with("waterlogged", "true");
             for (other_type, own_type) in [("left", "right"), ("right", "left")] {
                 let other = single.with("type", other_type).with("waterlogged", "false");
@@ -266,23 +341,48 @@ mod tests {
                 let joined = single.with("type", own_type);
                 assert_eq!(chest(single, direction, other, false), joined);
                 assert_eq!(chest(single, direction.opposite(), other, false), single);
-                assert_eq!(chest(joined, direction, b::AIR.default_state(), false), single);
+                assert_eq!(
+                    chest(joined, direction, b::AIR.default_state(), false),
+                    single
+                );
                 assert_eq!(chest(joined, direction, single, false), joined);
-                assert_eq!(chest(joined, direction, other.with("facing", facing.opposite().name()), false), joined);
-                assert_eq!(chest(joined, Direction::Up, b::AIR.default_state(), false), joined);
+                assert_eq!(
+                    chest(
+                        joined,
+                        direction,
+                        other.with("facing", facing.opposite().name()),
+                        false
+                    ),
+                    joined
+                );
+                assert_eq!(
+                    chest(joined, Direction::Up, b::AIR.default_state(), false),
+                    joined
+                );
             }
         }
     }
 
     #[test]
     fn copper_chest_adopts_partner_block_but_preserves_own_water() {
-        let single = b::COPPER_CHEST.default_state()
-            .with("facing", "north").with("waterlogged", "true");
-        let partner = b::WAXED_OXIDIZED_COPPER_CHEST.default_state()
-            .with("facing", "north").with("type", "left").with("waterlogged", "false");
+        let single = b::COPPER_CHEST
+            .default_state()
+            .with("facing", "north")
+            .with("waterlogged", "true");
+        let partner = b::WAXED_OXIDIZED_COPPER_CHEST
+            .default_state()
+            .with("facing", "north")
+            .with("type", "left")
+            .with("waterlogged", "false");
         let result = chest(single, Direction::West, partner, true);
-        assert_eq!(result, partner.with("type", "right").with("waterlogged", "true"));
-        assert_eq!(chest(single, Direction::West, b::CHEST.default_state(), true), single);
+        assert_eq!(
+            result,
+            partner.with("type", "right").with("waterlogged", "true")
+        );
+        assert_eq!(
+            chest(single, Direction::West, b::CHEST.default_state(), true),
+            single
+        );
     }
 
     #[test]
@@ -290,17 +390,43 @@ mod tests {
         let pos = BlockPos::new(0, 64, 0);
         let mut world = TestWorld::default();
         let air = b::AIR.default_state();
-        let ladder = b::LADDER.default_state().with("facing", "north")
+        let ladder = b::LADDER
+            .default_state()
+            .with("facing", "north")
             .with("waterlogged", "true");
-        assert_eq!(update_shape(&mut world, ladder, pos, Direction::Down, air), Some(ladder));
-        assert_eq!(update_shape(&mut world, ladder, pos, Direction::South, air), Some(air));
-        world.blocks.insert(pos.rel(Direction::South), b::STONE.default_state());
-        assert_eq!(update_shape(&mut world, ladder, pos, Direction::South, air), Some(ladder));
-        for (face, direction) in [("floor", Direction::Down), ("ceiling", Direction::Up), ("wall", Direction::North)] {
-            let lever = b::LEVER.default_state().with("face", face).with("facing", "south")
+        assert_eq!(
+            update_shape(&mut world, ladder, pos, Direction::Down, air),
+            Some(ladder)
+        );
+        assert_eq!(
+            update_shape(&mut world, ladder, pos, Direction::South, air),
+            Some(air)
+        );
+        world
+            .blocks
+            .insert(pos.rel(Direction::South), b::STONE.default_state());
+        assert_eq!(
+            update_shape(&mut world, ladder, pos, Direction::South, air),
+            Some(ladder)
+        );
+        for (face, direction) in [
+            ("floor", Direction::Down),
+            ("ceiling", Direction::Up),
+            ("wall", Direction::North),
+        ] {
+            let lever = b::LEVER
+                .default_state()
+                .with("face", face)
+                .with("facing", "south")
                 .with("powered", "true");
-            assert_eq!(update_shape(&mut world, lever, pos, direction.opposite(), air), Some(lever));
-            assert_eq!(update_shape(&mut world, lever, pos, direction, air), Some(air));
+            assert_eq!(
+                update_shape(&mut world, lever, pos, direction.opposite(), air),
+                Some(lever)
+            );
+            assert_eq!(
+                update_shape(&mut world, lever, pos, direction, air),
+                Some(air)
+            );
         }
     }
 
@@ -310,15 +436,32 @@ mod tests {
         let mut world = TestWorld::default();
         let air = b::AIR.default_state();
         let torch = b::TORCH.default_state();
-        world.blocks.insert(pos.below(), b::OAK_FENCE.default_state());
-        assert_eq!(update_shape(&mut world, torch, pos, Direction::Down, air), Some(torch));
-        let hanging = b::LANTERN.default_state().with("hanging", "true").with("waterlogged", "true");
-        world.blocks.insert(pos.above(), b::OAK_FENCE_GATE.default_state());
-        assert_eq!(update_shape(&mut world, hanging, pos, Direction::Up, air), Some(air));
-        for state in [b::OAK_TRAPDOOR.default_state().with("waterlogged", "true"),
+        world
+            .blocks
+            .insert(pos.below(), b::OAK_FENCE.default_state());
+        assert_eq!(
+            update_shape(&mut world, torch, pos, Direction::Down, air),
+            Some(torch)
+        );
+        let hanging = b::LANTERN
+            .default_state()
+            .with("hanging", "true")
+            .with("waterlogged", "true");
+        world
+            .blocks
+            .insert(pos.above(), b::OAK_FENCE_GATE.default_state());
+        assert_eq!(
+            update_shape(&mut world, hanging, pos, Direction::Up, air),
+            Some(air)
+        );
+        for state in [
+            b::OAK_TRAPDOOR.default_state().with("waterlogged", "true"),
             b::OAK_SLAB.default_state().with("waterlogged", "true"),
-            b::OAK_LEAVES.default_state().with("distance", "7").with("waterlogged", "true")]
-        {
+            b::OAK_LEAVES
+                .default_state()
+                .with("distance", "7")
+                .with("waterlogged", "true"),
+        ] {
             for dir in Direction::ALL {
                 assert_eq!(update_shape(&mut world, state, pos, dir, air), Some(state));
             }

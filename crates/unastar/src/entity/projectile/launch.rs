@@ -42,11 +42,14 @@ pub enum LaunchError {
 
 /// The projectile actor and its climate variant label an item throws when
 /// used, if it is a throwable item.
-pub fn thrown_by(item: &str) -> Option<(ActorType, &'static str)> {
+pub fn thrown_by(item: &str) -> Option<(ActorType, Option<&'static str>)> {
+    if item == "minecraft:snowball" {
+        return Some((ActorType::Snowball, None));
+    }
     THROWN_EGG_ITEMS
         .iter()
         .find(|(name, _)| *name == item)
-        .map(|(_, climate)| (ActorType::Egg, *climate))
+        .map(|(_, climate)| (ActorType::Egg, Some(*climate)))
 }
 
 /// Spawn-time derived state of a projectile actor (it has no living body):
@@ -119,7 +122,7 @@ fn throw_held(world: &mut World, player: Entity) {
             send_slot(world, player, slot, &stack);
         }
     }
-    if let Err(error) = launch(world, player, actor, Some(climate)) {
+    if let Err(error) = launch(world, player, actor, climate) {
         warn!(%error, actor = actor.name(), "Throwing a projectile failed");
     }
 }
@@ -143,6 +146,42 @@ pub(super) fn heading(velocity: DVec3) -> (f32, f32) {
     )
 }
 
+/// How an item launches a projectile, beyond the definition's rules.
+#[derive(Debug, Clone, PartialEq)]
+pub struct LaunchSpec {
+    /// Launch speed in blocks per tick instead of the definition's `power`.
+    pub speed: Option<f64>,
+    /// Spread: each axis of the unit launch direction gets a gaussian times
+    /// `0.0172275 × inaccuracy` (public reference, unmeasured).
+    pub inaccuracy: f64,
+    /// A critical shot (fully drawn bow, crossbow).
+    pub critical: bool,
+    /// The item a player gets back from the stuck projectile.
+    pub item: Option<crate::item::ItemStack>,
+    /// Play the definition's throw sound (throwables); shooters play their
+    /// own.
+    pub throw_sound: bool,
+}
+
+impl Default for LaunchSpec {
+    fn default() -> Self {
+        Self {
+            speed: None,
+            inaccuracy: 0.0,
+            critical: false,
+            item: None,
+            throw_sound: true,
+        }
+    }
+}
+
+/// A standard normal sample (Box-Muller).
+fn gaussian(rng: &mut impl rand::Rng) -> f64 {
+    let u: f64 = rng.r#gen::<f64>().max(f64::MIN_POSITIVE);
+    let v: f64 = rng.r#gen();
+    (-2.0 * u.ln()).sqrt() * (std::f64::consts::TAU * v).cos()
+}
+
 /// Throw a new `actor` projectile from `thrower` (a player: its `Position`
 /// is the eye), optionally setting its climate variant.
 pub fn launch(
@@ -150,6 +189,18 @@ pub fn launch(
     thrower: Entity,
     actor: ActorType,
     climate: Option<&str>,
+) -> Result<Entity, LaunchError> {
+    launch_with(world, thrower, actor, climate, LaunchSpec::default())
+}
+
+/// [`launch`] with an item's launch speed, spread, critical flag and
+/// returned item.
+pub fn launch_with(
+    world: &mut World,
+    thrower: Entity,
+    actor: ActorType,
+    climate: Option<&str>,
+    spec: LaunchSpec,
 ) -> Result<Entity, LaunchError> {
     let (Some(eye), Some(look)) = (
         world.get::<Position>(thrower).map(|p| p.0),
@@ -195,8 +246,16 @@ pub fn launch(
         feet = moved.aabb.feet();
     }
     let pitch = look.pitch + rules.angle_offset * f64::from(look.pitch).to_radians().cos() as f32;
-    let direction = view_direction(look.yaw, pitch);
-    let velocity = direction / direction.length().max(0.001) * rules.power;
+    let mut direction = view_direction(look.yaw, pitch);
+    direction /= direction.length().max(0.001);
+    if spec.inaccuracy > 0.0 {
+        let rng = &mut world
+            .get_resource_or_init::<crate::entity::EntityRandom>()
+            .0;
+        let spread = 0.0172275 * spec.inaccuracy;
+        direction += DVec3::new(gaussian(rng), gaussian(rng), gaussian(rng)) * spread;
+    }
+    let velocity = direction * spec.speed.unwrap_or(rules.power);
     let (yaw, pitch) = heading(velocity);
     let mut entity = world.entity_mut(projectile);
     entity.insert((
@@ -206,13 +265,30 @@ pub fn launch(
     ));
     if let Some(mut flight) = entity.get_mut::<ProjectileFlight>() {
         flight.owner = Some(thrower);
+        flight.critical = spec.critical;
     }
-    play_level_sound(
-        world,
-        Some(thrower),
-        eye - DVec3::Y * THROW_SOUND_EYE_DROP,
-        THROW_SOUND,
-        -1,
-    );
+    if let Some(item) = spec.item {
+        entity.insert(super::ProjectileItem(item));
+    }
+    if spec.critical
+        && let Some(mut flags) = entity.get_mut::<ActorFlags>()
+    {
+        flags
+            .update(actor_flags::CRITICAL, true)
+            .expect("catalogue flag index");
+        let words = *flags.snapshot().words();
+        if let Some(mut metadata) = entity.get_mut::<EntityMetadata>() {
+            metadata.set_long(ids::RESERVED_0, words[0] as i64);
+        }
+    }
+    if spec.throw_sound {
+        play_level_sound(
+            world,
+            Some(thrower),
+            eye - DVec3::Y * THROW_SOUND_EYE_DROP,
+            THROW_SOUND,
+            -1,
+        );
+    }
     Ok(projectile)
 }

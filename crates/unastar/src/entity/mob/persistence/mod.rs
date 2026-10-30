@@ -20,6 +20,10 @@
 //! | `Age` | Int | baby age: negative ticks until grown, when growing |
 //! | `GrowthPaused` | Byte | baby growth paused |
 //! | `entries` | List of Compound | `minecraft:spawn_entity` timers by rule: `SpawnTimer` (Int, ticks until the rule fires, 0 = roll a new wait) and `StopSpawning` (Byte, a fired single-use rule) |
+//! | `Mainhand`, `Offhand` | List of 1 item Compound | held items ([`crate::entity::mob::gear::persist`]: `Name`, `Count`, `Damage`, `WasPickedUp`, optional `tag`) |
+//! | `Armor` | List of 4 item Compounds | head, chest, legs, feet |
+//! | `SlotDropChances` | List of Compound | authored drop chances: `Slot` (String: `mainhand`, `offhand`, `head`, `chest`, `legs`, `feet`) and `DropChance` (Float) |
+//! | `canPickupItems`, `hasSetCanPickupItems` | Byte | the `pickup_based_on_chance` roll, once made |
 //!
 //! Restoring spawns the mob without its lifecycle event, replays the saved
 //! groups (so a baby stays a baby and an adult keeps its adult components)
@@ -60,6 +64,15 @@ pub(super) const HEALTH_ATTRIBUTE: &str = "minecraft:health";
 #[derive(Component, Debug, Clone, Copy, PartialEq, Eq)]
 #[component(storage = "SparseSet", on_insert = unique_id_inserted, on_replace = unique_id_replaced)]
 pub struct MobUniqueId(pub i64);
+
+/// The mob is being restored from storage ([`restore_mob`]): component
+/// kinds that roll state when they are added (the gear table, the pickup
+/// chance) leave it to the saved record. Inserted by `spawn_mob` for
+/// [`crate::entity::mob::SpawnCause::Loaded`] and removed when the restore
+/// finishes or fails.
+#[derive(Component, Debug, Clone, Copy, PartialEq, Eq)]
+#[component(storage = "SparseSet")]
+pub struct Restoring;
 
 /// Unique IDs of the mobs currently in the world, so an actor listed by two
 /// chunks' stored actor lists is restored once.

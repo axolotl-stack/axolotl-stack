@@ -204,7 +204,10 @@ mod tests {
                 .unwrap()
                 .iter()
                 .map(|block| {
-                    assert_eq!(block["state"].as_str().unwrap(), "minecraft:nether_quartz_ore");
+                    assert_eq!(
+                        block["state"].as_str().unwrap(),
+                        "minecraft:nether_quartz_ore"
+                    );
                     (
                         BlockPos::new(
                             block["x"].as_i64().unwrap() as i32,

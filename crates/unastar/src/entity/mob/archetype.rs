@@ -109,14 +109,18 @@ fn supported_test(test: BuiltinTest, subject: Subject) -> bool {
         BuiltinTest::HasBiomeTag
         | BuiltinTest::HasComponent
         | BuiltinTest::InLava
-        | BuiltinTest::InWater
         | BuiltinTest::IsBaby
         | BuiltinTest::IsDifficulty
         | BuiltinTest::BoolProperty
         | BuiltinTest::IntProperty
         | BuiltinTest::RiderCount => subject == Subject::Self_,
         BuiltinTest::IsSneakHeld => subject == Subject::Other,
-        BuiltinTest::IsFamily | BuiltinTest::HasEquipment | BuiltinTest::EnumProperty => {
+        BuiltinTest::IsFamily
+        | BuiltinTest::HasEquipment
+        | BuiltinTest::EnumProperty
+        | BuiltinTest::InWater
+        | BuiltinTest::IsUnderwater
+        | BuiltinTest::IsVehicleFamily => {
             matches!(subject, Subject::Self_ | Subject::Other)
         }
         _ => false,

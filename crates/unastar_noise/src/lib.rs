@@ -56,6 +56,9 @@ pub mod structures;
 // Optional benchmark instrumentation (zero-sized scopes in production builds).
 pub mod profile;
 
+// Opt-in registry coverage of compared generation (no-ops in ordinary builds).
+pub mod coverage;
+
 // Runtime types of the compiled carvers (`carvers`)
 pub mod carver;
 

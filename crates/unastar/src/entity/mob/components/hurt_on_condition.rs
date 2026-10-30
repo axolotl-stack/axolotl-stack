@@ -41,7 +41,11 @@ pub fn register_component_kinds(
     insert(builder, compile)
 }
 
-fn compile(b: body::HurtOnCondition) -> Result<HurtOnConditionConfig, HurtOnConditionError> {
+/// Compile a `minecraft:hurt_on_condition` body (mobs through the component
+/// registry; players from the vanilla player definition).
+pub(crate) fn compile(
+    b: body::HurtOnCondition,
+) -> Result<HurtOnConditionConfig, HurtOnConditionError> {
     let conditions = b
         .damage_conditions
         .unwrap_or_default()

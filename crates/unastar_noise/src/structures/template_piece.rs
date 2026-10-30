@@ -207,6 +207,7 @@ impl StructurePiece for TemplatePiece {
         _chunk: (i32, i32),
         pivot: BlockPos,
     ) {
+        let _coverage = crate::coverage::scope(crate::coverage::Kind::Template, self.template.name);
         let mut settings = self.settings(chunk_box);
         let mut placed = Vec::new();
         if !place_in_world(

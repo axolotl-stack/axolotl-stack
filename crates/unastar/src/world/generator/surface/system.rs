@@ -10,9 +10,8 @@ use unastar_noise::java_biomes::JavaBiome;
 use unastar_noise::surface::{BAND_COUNT, SurfaceEnv, clay_bands};
 use unastar_noise::xoroshiro::{JavaRandom, PositionalRandomFactory, get_seed};
 use unastar_noise::{
-    NoiseRef, NoiseSource, biome_climate, block_class, end_settings, end_surface,
-    java_blocks, nether_settings, nether_surface, overworld_settings, overworld_surface,
-    random_hashes,
+    NoiseRef, NoiseSource, biome_climate, block_class, end_settings, end_surface, java_blocks,
+    nether_settings, nether_surface, overworld_settings, overworld_surface, random_hashes,
 };
 
 use crate::world::ChunkPos;
@@ -174,7 +173,9 @@ impl SurfaceSystem {
             ),
         };
         let noise_random = SurfaceRandom::new(seed, legacy);
-        let gradient_randoms = hashes.iter().zip(java_hashes)
+        let gradient_randoms = hashes
+            .iter()
+            .zip(java_hashes)
             .map(|(&hash, &java_hash)| noise_random.fork(hash, java_hash))
             .collect();
         let clay_bands = if let SurfaceRandom::Xoroshiro(factory) = &noise_random {
@@ -183,7 +184,12 @@ impl SurfaceSystem {
         } else {
             None
         };
-        Self { dimension, noise_random, gradient_randoms, clay_bands }
+        Self {
+            dimension,
+            noise_random,
+            gradient_randoms,
+            clay_bands,
+        }
     }
 
     /// Apply the selected preset's compiled surface rules. `corners` contains floored
@@ -198,9 +204,15 @@ impl SurfaceSystem {
         biome_at: &mut B,
     ) {
         match self.dimension {
-            JavaDimension::Overworld => self.build_surface_for::<Overworld, N, B>(chunk, pos, noises, corners, biome_at),
-            JavaDimension::Nether => self.build_surface_for::<Nether, N, B>(chunk, pos, noises, corners, biome_at),
-            JavaDimension::End => self.build_surface_for::<End, N, B>(chunk, pos, noises, corners, biome_at),
+            JavaDimension::Overworld => {
+                self.build_surface_for::<Overworld, N, B>(chunk, pos, noises, corners, biome_at)
+            }
+            JavaDimension::Nether => {
+                self.build_surface_for::<Nether, N, B>(chunk, pos, noises, corners, biome_at)
+            }
+            JavaDimension::End => {
+                self.build_surface_for::<End, N, B>(chunk, pos, noises, corners, biome_at)
+            }
         }
     }
 
@@ -241,9 +253,15 @@ impl SurfaceSystem {
                     stone_depth_below: 0,
                     water_height: i32::MIN,
                 };
-                let column_biome = env.biome_at(if P::LEGACY_BIOME_INITIALIZATION { 0 } else { top });
+                let column_biome = env.biome_at(if P::LEGACY_BIOME_INITIALIZATION {
+                    0
+                } else {
+                    top
+                });
                 if column_biome == JavaBiome::ErodedBadlands {
-                    self.eroded_badlands_extension::<P, N>(chunk, noises, local_x, local_z, x, z, top);
+                    self.eroded_badlands_extension::<P, N>(
+                        chunk, noises, local_x, local_z, x, z, top,
+                    );
                 }
                 let top = top_non_air::<P>(chunk, local_x, local_z) + 1;
 
@@ -332,9 +350,15 @@ impl SurfaceSystem {
         has_fluid: bool,
     ) -> Option<u32> {
         match self.dimension {
-            JavaDimension::Overworld => self.top_material_for::<Overworld, N, B>(chunk, pos, noises, corners, biome_at, x, y, z, has_fluid),
-            JavaDimension::Nether => self.top_material_for::<Nether, N, B>(chunk, pos, noises, corners, biome_at, x, y, z, has_fluid),
-            JavaDimension::End => self.top_material_for::<End, N, B>(chunk, pos, noises, corners, biome_at, x, y, z, has_fluid),
+            JavaDimension::Overworld => self.top_material_for::<Overworld, N, B>(
+                chunk, pos, noises, corners, biome_at, x, y, z, has_fluid,
+            ),
+            JavaDimension::Nether => self.top_material_for::<Nether, N, B>(
+                chunk, pos, noises, corners, biome_at, x, y, z, has_fluid,
+            ),
+            JavaDimension::End => self.top_material_for::<End, N, B>(
+                chunk, pos, noises, corners, biome_at, x, y, z, has_fluid,
+            ),
         }
     }
 
@@ -387,7 +411,9 @@ impl SurfaceSystem {
     fn band<N: NoiseSource>(&self, noises: &N, x: i32, y: i32, z: i32) -> u32 {
         let offset = (noises.sample(NoiseRef::ClayBandsOffset, x as f64, 0.0, z as f64) * 4.0 + 0.5)
             .floor() as i32;
-        self.clay_bands.as_ref().expect("preset surface rule has no clay bands")
+        self.clay_bands
+            .as_ref()
+            .expect("preset surface rule has no clay bands")
             [(y + offset).rem_euclid(BAND_COUNT as i32) as usize]
     }
 
@@ -440,12 +466,7 @@ impl SurfaceSystem {
         }
         let mut y = pillar_top;
         while y >= P::MIN_Y && is_air(chunk.get_block(local_x, y as i16, local_z)) {
-            chunk.set_block(
-                local_x,
-                y as i16,
-                local_z,
-                P::DEFAULT_BLOCK,
-            );
+            chunk.set_block(local_x, y as i16, local_z, P::DEFAULT_BLOCK);
             y -= 1;
         }
     }
@@ -500,7 +521,9 @@ impl SurfaceSystem {
         }
         let mut random = match &self.noise_random {
             SurfaceRandom::Xoroshiro(factory) => ColumnRandom::Xoroshiro(factory.at(x, 0, z)),
-            SurfaceRandom::Legacy(seed) => ColumnRandom::Legacy(JavaRandom::from_seed(*seed ^ get_seed(x, 0, z))),
+            SurfaceRandom::Legacy(seed) => {
+                ColumnRandom::Legacy(JavaRandom::from_seed(*seed ^ get_seed(x, 0, z)))
+            }
         };
         let snow_depth = 2 + random.next_int(4) as i32;
         let snow_min_y = sea_level + 18 + random.next_int(10) as i32;
@@ -679,13 +702,7 @@ impl<N: NoiseSource, B: FnMut(i32, i32, i32) -> JavaBiome> SurfaceEnv for Column
 
     fn cold_enough_to_snow(&mut self) -> bool {
         let biome = self.biome();
-        biome_climate::cold_enough_to_snow(
-            biome,
-            self.x,
-            self.y,
-            self.z,
-            self.sea_level,
-        )
+        biome_climate::cold_enough_to_snow(biome, self.x, self.y, self.z, self.sea_level)
     }
 
     fn band(&mut self) -> u32 {
@@ -768,13 +785,31 @@ mod tests {
                 assert_eq!(nether.chunk.state_space(), BlockStateSpace::Java);
                 let ys = [0, 1, 2, 3, 4, 5, 122, 123, 124, 125, 126, 127];
                 for (x, z, expected_bedrock) in [
-                    (0, 0, [true, true, true, true, false, false, false, false, true, true, false, true]),
-                    (15, 15, [true, true, false, false, false, false, false, false, true, false, true, true]),
+                    (
+                        0,
+                        0,
+                        [
+                            true, true, true, true, false, false, false, false, true, true, false,
+                            true,
+                        ],
+                    ),
+                    (
+                        15,
+                        15,
+                        [
+                            true, true, false, false, false, false, false, false, true, false,
+                            true, true,
+                        ],
+                    ),
                 ] {
                     for (y, is_bedrock) in ys.into_iter().zip(expected_bedrock) {
                         assert_eq!(
                             nether.chunk.get_block(x, y, z),
-                            if is_bedrock { bedrock } else { nether_settings::DEFAULT_BLOCK },
+                            if is_bedrock {
+                                bedrock
+                            } else {
+                                nether_settings::DEFAULT_BLOCK
+                            },
                             "native Nether SURFACE seed=0 block=({x},{y},{z})"
                         );
                     }

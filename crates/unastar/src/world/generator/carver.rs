@@ -9,6 +9,7 @@
 
 use std::sync::LazyLock;
 
+use unastar_noise::NoiseSource;
 use unastar_noise::carver::{
     CanyonConfig, CaveConfig, ConfiguredCarver, cos, is_replaceable, set_large_feature_seed, sin,
 };
@@ -16,10 +17,9 @@ use unastar_noise::xoroshiro::JavaRandom;
 use unastar_noise::{
     FunctionContext, carvers, end_settings, java_blocks, nether_settings, overworld_settings,
 };
-use unastar_noise::NoiseSource;
 
-use super::aquifer::{FluidPicker, NoiseBasedAquifer};
 use super::JavaDimension;
+use super::aquifer::{FluidPicker, NoiseBasedAquifer};
 use crate::world::ChunkPos;
 use crate::world::generator::proto::DenseBlocks;
 
@@ -32,8 +32,7 @@ struct CarverBlocks {
 
 static CARVER_BLOCKS: LazyLock<CarverBlocks> = LazyLock::new(|| {
     let id = |name: &str| {
-        java_blocks::default_state(name)
-            .unwrap_or_else(|| panic!("{name} is not a Java block"))
+        java_blocks::default_state(name).unwrap_or_else(|| panic!("{name} is not a Java block"))
     };
     CarverBlocks {
         dirt: id("minecraft:dirt"),
@@ -176,10 +175,13 @@ pub fn carve_chunk<C: CarveContext>(
     ctx: &mut C,
 ) {
     let geometry = CarverGeometry::for_dimension(dimension);
-    let carvers: &[ConfiguredCarver] = match dimension {
-        JavaDimension::Overworld => &carvers::OVERWORLD_CARVERS,
-        JavaDimension::Nether => &carvers::NETHER_CARVERS,
-        JavaDimension::End => &carvers::END_CARVERS,
+    let (carvers, names): (&[ConfiguredCarver], &[&'static str]) = match dimension {
+        JavaDimension::Overworld => (
+            &carvers::OVERWORLD_CARVERS,
+            &carvers::OVERWORLD_CARVER_NAMES,
+        ),
+        JavaDimension::Nether => (&carvers::NETHER_CARVERS, &carvers::NETHER_CARVER_NAMES),
+        JavaDimension::End => (&carvers::END_CARVERS, &carvers::END_CARVER_NAMES),
     };
     if carvers.is_empty() {
         for dx in -START_RANGE..=START_RANGE {
@@ -211,6 +213,10 @@ pub fn carve_chunk<C: CarveContext>(
                 if random.next_float() >= carver.probability() {
                     continue;
                 }
+                let _coverage = unastar_noise::coverage::scope(
+                    unastar_noise::coverage::Kind::Carver,
+                    names[index],
+                );
                 match carver {
                     ConfiguredCarver::Cave(config) => {
                         carving.cave(CaveKind::Cave, config, &mut random, start)
@@ -544,7 +550,15 @@ impl<C: CarveContext> Carving<'_, C> {
                     let ry = (by as f64 - 0.5 - y) / vertical_radius;
                     if !skip.should_skip(rx, ry, rz, by) && !self.mask.get(lx, by, lz) {
                         self.mask.set(lx, by, lz);
-                        self.carve_block(kind, replaceable, lava_level, lx, by, lz, &mut reached_surface);
+                        self.carve_block(
+                            kind,
+                            replaceable,
+                            lava_level,
+                            lx,
+                            by,
+                            lz,
+                            &mut reached_surface,
+                        );
                     }
                     by -= 1;
                 }
@@ -574,6 +588,7 @@ impl<C: CarveContext> Carving<'_, C> {
                     materials.cave_air
                 };
                 self.chunk.set_block(local_x, y as i16, local_z, carved);
+                unastar_noise::coverage::record_write(self.pos.x, self.pos.z);
             }
             return;
         }
@@ -596,6 +611,7 @@ impl<C: CarveContext> Carving<'_, C> {
             }
         };
         self.chunk.set_block(local_x, y as i16, local_z, carved);
+        unastar_noise::coverage::record_write(self.pos.x, self.pos.z);
         if *reached_surface
             && self.chunk.get_block(local_x, (y - 1) as i16, local_z) == materials.dirt
         {

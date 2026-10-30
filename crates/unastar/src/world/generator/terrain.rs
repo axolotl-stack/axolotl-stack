@@ -8,8 +8,8 @@
 //! - Surface rules for biome-based block placement
 //! - Cave and canyon carvers
 
-mod native;
 mod columns;
+mod native;
 mod source;
 
 use std::collections::HashSet;
@@ -19,25 +19,25 @@ use super::JavaDimension;
 #[cfg(feature = "bedrock-worldgen")]
 use super::aquifer::{NoiseBasedAquifer, OverworldFluidPicker};
 use super::biome_source;
-use super::density::{NativeNoiseRegistry, NoiseRegistry};
 #[cfg(feature = "bedrock-worldgen")]
 use super::density::{ColumnContextGrid, FlatCacheGrid, JavaNoiseSource};
+use super::density::{NativeNoiseRegistry, NoiseRegistry};
 use super::pipeline::{Generator, SpawnPoint};
 use super::proto::{NativeBiome, ProtoChunk};
 use super::region::DecorationRegion;
 use super::surface::SurfaceSystem;
 use super::xoroshiro::PositionalRandomFactory;
 use crate::world::ChunkPos;
-use crate::world::chunk::{Chunk, blocks};
 #[cfg(feature = "bedrock-worldgen")]
 use crate::world::chunk::BlockStateSpace;
+use crate::world::chunk::{Chunk, blocks};
 #[cfg(feature = "bedrock-worldgen")]
 use crate::world::generator::proto::DenseBlocks;
+use unastar_noise::features::java_blocks::states;
 use unastar_noise::java_biomes::JavaBiome;
 use unastar_noise::overworld_settings;
 #[cfg(feature = "bedrock-worldgen")]
 use unastar_noise::profile::{self, Stage};
-use unastar_noise::features::java_blocks::states;
 
 /// The shared aquifer's output domain is exactly ordinary air and source water/lava.
 /// Translate that closed producer contract, never an arbitrary Bedrock state or a
@@ -133,10 +133,17 @@ impl JavaGenerator {
             ($settings:path) => {{
                 use $settings as settings;
                 let params = settings::BLENDED_NOISE;
-                NoiseRegistry::with_router_settings(seed, settings::LEGACY_RANDOM_SOURCE, [
-                    params.xz_scale, params.y_scale, params.xz_factor,
-                    params.y_factor, params.smear_scale_multiplier,
-                ])
+                NoiseRegistry::with_router_settings(
+                    seed,
+                    settings::LEGACY_RANDOM_SOURCE,
+                    [
+                        params.xz_scale,
+                        params.y_scale,
+                        params.xz_factor,
+                        params.y_factor,
+                        params.smear_scale_multiplier,
+                    ],
+                )
             }};
         }
         let noises = match options.dimension {
@@ -152,19 +159,25 @@ impl JavaGenerator {
     #[cfg(feature = "bedrock-worldgen")]
     pub fn for_bedrock_shared_terrain(seed: i64) -> Self {
         let params = overworld_settings::BLENDED_NOISE;
-        let noises = NoiseRegistry::with_router_settings(seed, overworld_settings::LEGACY_RANDOM_SOURCE, [
-            params.xz_scale, params.y_scale, params.xz_factor,
-            params.y_factor, params.smear_scale_multiplier,
-        ]);
-        let options = JavaGenerationOptions { generate_structures: false, ..JavaGenerationOptions::default() };
+        let noises = NoiseRegistry::with_router_settings(
+            seed,
+            overworld_settings::LEGACY_RANDOM_SOURCE,
+            [
+                params.xz_scale,
+                params.y_scale,
+                params.xz_factor,
+                params.y_factor,
+                params.smear_scale_multiplier,
+            ],
+        );
+        let options = JavaGenerationOptions {
+            generate_structures: false,
+            ..JavaGenerationOptions::default()
+        };
         Self::with_backend(seed, options, TerrainBackend::SharedBedrock(noises))
     }
 
-    fn with_backend(
-        seed: i64,
-        options: JavaGenerationOptions,
-        backend: TerrainBackend,
-    ) -> Self {
+    fn with_backend(seed: i64, options: JavaGenerationOptions, backend: TerrainBackend) -> Self {
         let surface_system = SurfaceSystem::new(seed, options.dimension);
 
         // `fromHashOf("minecraft:ore").forkPositional()` of the world's base factory.
@@ -194,7 +207,9 @@ impl JavaGenerator {
     fn bedrock_source(&self) -> JavaNoiseSource<'_> {
         match &self.backend {
             TerrainBackend::SharedBedrock(noises) => noises.java_source(),
-            TerrainBackend::NativeJava(_) => panic!("Bedrock sampling requires the Bedrock backend"),
+            TerrainBackend::NativeJava(_) => {
+                panic!("Bedrock sampling requires the Bedrock backend")
+            }
         }
     }
 
@@ -214,7 +229,9 @@ impl JavaGenerator {
                 if stage >= JavaTerrainStage::StructureStarts {
                     self.structure_starts(pos.x, pos.z);
                 }
-                if stage == JavaTerrainStage::StructureReferences && self.options.generate_structures {
+                if stage == JavaTerrainStage::StructureReferences
+                    && self.options.generate_structures
+                {
                     let context = self.structures.context(self.seed, self);
                     self.structures.manager.references(&context, pos.x, pos.z);
                 }
@@ -237,8 +254,10 @@ impl JavaGenerator {
 
     #[cfg(feature = "bedrock-worldgen")]
     fn generate_shared_stage(&self, pos: ChunkPos, stage: JavaTerrainStage) -> ProtoChunk {
-        assert!((JavaTerrainStage::Biomes..=JavaTerrainStage::Noise).contains(&stage),
-            "the shared Bedrock backend only exposes biome and noise stages");
+        assert!(
+            (JavaTerrainStage::Biomes..=JavaTerrainStage::Noise).contains(&stage),
+            "the shared Bedrock backend only exposes biome and noise stages"
+        );
         if stage == JavaTerrainStage::Biomes {
             let source = self.bedrock_source();
             let flat = FlatCacheGrid::new_native(pos.x, pos.z, &source);
@@ -246,7 +265,9 @@ impl JavaGenerator {
             return ProtoChunk {
                 pos,
                 chunk: Chunk::new_with_bounds(
-                    pos.x, pos.z, BlockStateSpace::Java,
+                    pos.x,
+                    pos.z,
+                    BlockStateSpace::Java,
                     self.options.dimension.block_bounds(),
                 ),
                 biomes: biome_source::fill_overworld_native(&source, pos, &flat, &columns),
@@ -255,7 +276,11 @@ impl JavaGenerator {
         let (dense, biomes) = self.generate_noise_with(pos, |source, pos, flat, columns| {
             biome_source::fill_overworld_native(source, pos, flat, columns)
         });
-        ProtoChunk { pos, chunk: dense.to_chunk(pos), biomes }
+        ProtoChunk {
+            pos,
+            chunk: dense.to_chunk(pos),
+            biomes,
+        }
     }
 
     /// Share the density stage and climate caches without imposing Java's
@@ -272,8 +297,15 @@ impl JavaGenerator {
         let columns = ColumnContextGrid::new_native(pos.x, pos.z, &source, &flat);
         let biomes = fill(&source, pos, &flat, &columns);
         let mut aquifer = NoiseBasedAquifer::new(
-            pos.x, pos.z, overworld_settings::MIN_Y, overworld_settings::HEIGHT, &source,
-            &flat, &columns, self.seed, OverworldFluidPicker::new(Self::SEA_LEVEL),
+            pos.x,
+            pos.z,
+            overworld_settings::MIN_Y,
+            overworld_settings::HEIGHT,
+            &source,
+            &flat,
+            &columns,
+            self.seed,
+            OverworldFluidPicker::new(Self::SEA_LEVEL),
         );
         let dense = self.overworld_native_cells(pos, &source, &flat, &columns, &mut aquifer);
         (dense, biomes)
@@ -357,8 +389,13 @@ impl Generator for JavaGenerator {
 
     fn decorate(&self, region: &mut DecorationRegion<'_>) {
         super::features::decorate(
-            self.seed, self.options.dimension, &self.structures, self, region,
-            self.options.generate_structures, self.options.biome_features,
+            self.seed,
+            self.options.dimension,
+            &self.structures,
+            self,
+            region,
+            self.options.generate_structures,
+            self.options.biome_features,
         );
     }
 
@@ -375,13 +412,18 @@ impl Generator for JavaGenerator {
 
     fn find_spawn(&self, chunk_at: &dyn Fn(ChunkPos) -> Chunk) -> SpawnPoint {
         let start = match &self.backend {
-            TerrainBackend::NativeJava(noises) => biome_source::spawn_search_start(&noises.java_source()),
+            TerrainBackend::NativeJava(noises) => {
+                biome_source::spawn_search_start(&noises.java_source())
+            }
             #[cfg(feature = "bedrock-worldgen")]
-            TerrainBackend::SharedBedrock(noises) => biome_source::spawn_search_start(&noises.java_source()),
+            TerrainBackend::SharedBedrock(noises) => {
+                biome_source::spawn_search_start(&noises.java_source())
+            }
         };
         super::spawn::java_spawn(
-            start, chunk_at, &unastar_noise::java_blocks::BEDROCK_STATE_CLASSES,
+            start,
+            chunk_at,
+            &unastar_noise::java_blocks::BEDROCK_STATE_CLASSES,
         )
     }
 }
-

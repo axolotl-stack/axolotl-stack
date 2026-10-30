@@ -55,6 +55,21 @@ pub struct BreedCooldown {
     pub until_tick: u64,
 }
 
+/// The actor a hostile mob is after. Written by the target goals
+/// (`behavior.hurt_by_target`, `behavior.nearest_attackable_target`) through
+/// the AI apply step; read by the melee goal, `has_target` filters and door
+/// breaking. Present only while the mob has a target.
+#[derive(Component, Debug, Clone, Copy, PartialEq, Eq)]
+#[component(storage = "SparseSet")]
+pub struct AttackTarget(pub Entity);
+
+/// The mob has landed its one melee hit (`behavior.melee_box_attack`
+/// `attack_once`); the melee goal no longer starts or continues. Written by
+/// `mob::combat::melee` after a hit that hurt the target.
+#[derive(Component, Debug, Clone, Copy, PartialEq, Eq, Default)]
+#[component(storage = "SparseSet")]
+pub struct MeleeAttackedOnce;
+
 /// Raised by the breed goal when two partners in love touch at a mating
 /// check; consumed by interaction, which spawns the baby.
 #[derive(Message, Debug, Clone, Copy, PartialEq, Eq)]

@@ -6,8 +6,7 @@ use tokio::sync::mpsc::Receiver;
 
 use super::*;
 use crate::entity::components::{
-    DroppedItem, Experience, HeldSlot, ItemEntityStack, MainInventory, OnFire, Rotation,
-    RuntimeEntityId,
+    DroppedItem, Experience, HeldSlot, ItemEntityStack, MainInventory, Rotation, RuntimeEntityId,
 };
 use crate::entity::mob::state::Dead;
 use crate::entity::mob::{SpawnCause, spawn_mob};
@@ -94,7 +93,9 @@ impl Harness {
 
     fn hold(&mut self, item: Option<&str>) {
         let player = self.player;
-        let stack = item.map_or_else(ItemStack::empty, |id| crate::item::test_support::stack(id, 1));
+        let stack = item.map_or_else(ItemStack::empty, |id| {
+            crate::item::test_support::stack(id, 1)
+        });
         self.world()
             .get_mut::<MainInventory>(player)
             .unwrap()
@@ -340,7 +341,7 @@ fn a_killed_cow_dies_drops_loot_and_after_twenty_ticks_leaves_experience() {
 fn a_burning_cow_drops_cooked_beef() {
     let mut h = harness(5);
     let cow = h.cow(DVec3::new(8.5, 64.0, 8.5));
-    h.world().entity_mut(cow).insert(OnFire::new(100));
+    crate::entity::mob::combat::fire::ignite(h.world(), cow, 100);
     kill(&mut h, cow);
     let drops = h.drops();
     assert!(
@@ -397,4 +398,45 @@ fn a_cow_standing_in_lava_burns_to_death_without_experience() {
     assert!(died_at.is_some_and(|tick| tick <= 22), "{died_at:?}");
     assert!(h.world().get_entity(cow).is_err(), "body removed");
     assert!(h.orbs().is_empty(), "no experience without a player kill");
+}
+
+#[test]
+fn landed_hits_wear_the_weapon_and_cost_food() {
+    use crate::entity::components::Hunger;
+    use crate::item::enchant::durability_damage;
+    let mut h = harness(11);
+    let player = h.player;
+    h.world().entity_mut(player).insert(Hunger::default());
+    for (weapon, wear) in [("minecraft:iron_sword", 1), ("minecraft:iron_axe", 2)] {
+        let cow = h.cow(DVec3::new(8.5, 64.0, 8.5));
+        h.hold(Some(weapon));
+        h.attack(cow);
+        let held = h
+            .world()
+            .get::<MainInventory>(player)
+            .unwrap()
+            .0
+            .item(0)
+            .unwrap()
+            .clone();
+        assert_eq!(durability_damage(&held), wear, "{weapon}");
+        h.world().despawn(cow);
+    }
+    // Two attacks at 0.1 exhaustion each (player.json exhaustion_values).
+    let exhaustion = h.world().get::<Hunger>(player).unwrap().exhaustion;
+    assert!((exhaustion - 0.2).abs() < 1e-6, "{exhaustion}");
+    // A creative player's weapon never wears.
+    *h.world().get_mut::<GameMode>(player).unwrap() = GameMode::Creative;
+    let cow = h.cow(DVec3::new(8.5, 64.0, 8.5));
+    h.hold(Some("minecraft:iron_sword"));
+    h.attack(cow);
+    let held = h
+        .world()
+        .get::<MainInventory>(player)
+        .unwrap()
+        .0
+        .item(0)
+        .unwrap()
+        .clone();
+    assert_eq!(durability_damage(&held), 0);
 }

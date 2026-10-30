@@ -96,13 +96,15 @@ offsets from the same feet block and slots 0–8/9–35 are hotbar/inventory:
 | `move_item`, `drop`, `craft` | `slot`,`to`,`count`,`recipe` | `ItemStackRequest` take/drop/craft |
 | `take_cursor`, `place_cursor`, `drop_cursor`, `swap`, `destroy` | `slot`,`to`,`count` | `ItemStackRequest` take into / place from / drop from the cursor (UI slot 0), swap, destroy |
 | `open_inventory`, `close_inventory` | — | `Interact` OpenInventory; `ContainerClose` window 0 type 0xff |
+| `attack`, `interact` | `entity` (type, e.g. `minecraft:zombie`) | aim, then `InventoryTransaction` use-item on entity |
+| `use` | optional `x`,`y`,`z` (aim at that block first) | `InventoryTransaction` use-item click-air with the held stack, then `PlayerAuthInput` with `StartUsingItem` |
+| `release`, `consume` | — | `InventoryTransaction` release-item, action 0 (release) or 1 (consume), with the held stack and head position |
 
 Inventory steps also take `"stale": true` (send an unassigned source stack ID) and, for
 `move_item`/`place_cursor`, `"to_container": "armor"|"offhand"` (destination slot `to` in
 that container). `-Mode capture -Scenario inventory-moves` runs the inventory scenario
 whose BDS capture is replayed by unastar's inventory engine tests
 (`crates/unastar/src/server/game/inventory/testdata/bds-inventory-moves.jsonl`).
-| `attack`, `interact` | `entity` (type, e.g. `minecraft:zombie`) | aim, then `InventoryTransaction` use-item on entity |
 
 Block windows: `move_item` also takes `"from_container"`/`"to_container"`
 `chest`, `barrel`, `ingredient`, `fuel` or `result` (slots of the window the
@@ -110,19 +112,22 @@ last `ContainerOpen` opened, up to 53), and `close_container` closes that
 window (it sends nothing if the server opened none). Scenarios
 `containers-dry`, `containers` and `chest-obstruction` use them.
 
-BDS 1.26.51 answers this bot's block `click` transactions with a block and
-inventory resync instead of placing or opening, so container windows
-(`ContainerOpen` and friends) are not yet covered; the click and resync
-packets themselves are. The `containers-dry` runs of 2026-10-28 rule out the
-obvious causes: trigger type 1 (player input), predicted result 1 (success),
-the held item with the server's stack ID, the selected hotbar slot, the
-clicked block's runtime ID, a click position inside the block's shape, and
-`PlayerAuthInput` every 50 ms with the transaction's eye position and a look
-(and interact rotation and camera orientation) pointing at the clicked point.
-BDS answers both opening a chest and placing cobblestone on the ground with a
-3x3 `UpdateBlock` resync, `UpdateAttributes`, `SetActorData`, the four
-`InventoryContent` windows and `PlayerHotbar`, and logs nothing. A capture of
-the real client clicking a block is needed to find the missing condition.
+Interaction scenarios report the join loading screen like the vanilla client
+(`ServerBoundLoadingScreen` start and end, sent right after spawn because the
+fork's spawn sequence sends neither). Without them BDS 1.26.51 never simulates
+the player: effects never tick or expire, hunger never drains, and both block
+`click` and air `use` transactions are answered with a block, attribute,
+actor-data and inventory resync (the `containers-dry` runs of 2026-10-28, and
+the `item-use-dry` runs of 2026-10-29 before the change). With them, opening a
+chest yields `ContainerOpen` and air use eats, drinks and shoots. Placing
+cobblestone on the ground is still answered with an `UpdateBlock` resync of
+the target column; the bot sends block runtime ID 0 for blocks it has not seen
+in an `UpdateBlock`.
+
+`item-use-food`, `item-use-drink`, `item-use-stew` and `item-use-ranged` eat
+(apple, golden apple, cooked beef, rotten flesh, honey), drink (milk, water
+potion), eat suspicious stew 0–9 and use a bow, snowball, egg, crossbow,
+trident and ender pearl in survival; `item-use-dry` is their short smoke run.
 Jolyne runs only chat/command scenarios and rejects interaction steps before
 connecting.
 

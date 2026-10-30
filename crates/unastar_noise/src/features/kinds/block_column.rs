@@ -171,12 +171,7 @@ mod tests {
         // The origin itself is not probed. A one-block obstruction just above
         // it truncates to zero, but a blocked origin with air above is replaced.
         world.set_state(origin.above(), states::STONE);
-        assert!(place(
-            &mut world,
-            &mut rng,
-            &cfg(true),
-            origin,
-        ));
+        assert!(place(&mut world, &mut rng, &cfg(true), origin,));
         assert_eq!(world.count(states::OAK_LOG), 0);
         assert_eq!(world.count(states::OAK_LEAVES), 0);
         world.blocks.clear();

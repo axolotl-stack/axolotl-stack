@@ -54,7 +54,10 @@ impl JavaDimension {
     pub fn block_bounds(self) -> std::ops::Range<i32> {
         use unastar_noise::{end_settings, nether_settings, overworld_settings};
         let (min_y, height) = match self {
-            Self::Overworld => (overworld_settings::WORLD_MIN_Y, overworld_settings::WORLD_HEIGHT),
+            Self::Overworld => (
+                overworld_settings::WORLD_MIN_Y,
+                overworld_settings::WORLD_HEIGHT,
+            ),
             Self::Nether => (nether_settings::WORLD_MIN_Y, nether_settings::WORLD_HEIGHT),
             Self::End => (end_settings::WORLD_MIN_Y, end_settings::WORLD_HEIGHT),
         };

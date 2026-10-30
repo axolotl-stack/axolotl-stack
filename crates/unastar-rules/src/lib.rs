@@ -24,6 +24,7 @@
 //! parser tolerates is listed next to it, and every tolerated oddity of vanilla
 //! data is reported as a [`Diagnostic`] instead of being silently dropped.
 
+pub mod enchanting;
 pub mod event;
 pub mod filter;
 pub mod loot;

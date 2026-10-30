@@ -15,8 +15,17 @@ fn end_biomes_remain_distinct_until_final_bedrock_conversion() {
     assert_ne!(highlands, barrens);
     assert_eq!(highlands.data().bedrock_id, barrens.data().bedrock_id);
     chunk.convert_to_bedrock().unwrap();
-    assert_eq!(chunk.biome_at(0, MIN_Y as i16, 0), Some(highlands.data().bedrock_id));
-    assert_eq!(chunk.biome_at(4, MIN_Y as i16, 0), Some(barrens.data().bedrock_id));
+    assert_eq!(
+        chunk.biome_at(0, MIN_Y as i16, 0),
+        Some(highlands.data().bedrock_id)
+    );
+    assert_eq!(
+        chunk.biome_at(4, MIN_Y as i16, 0),
+        Some(barrens.data().bedrock_id)
+    );
     chunk.convert_to_bedrock().unwrap();
-    assert_eq!(chunk.biome_at(4, MIN_Y as i16, 0), Some(barrens.data().bedrock_id));
+    assert_eq!(
+        chunk.biome_at(4, MIN_Y as i16, 0),
+        Some(barrens.data().bedrock_id)
+    );
 }

@@ -15,14 +15,7 @@ impl CarveContext for NoNetherCallbacks {
         panic!("Nether carving consulted the aquifer")
     }
 
-    fn top_material(
-        &mut self,
-        _: &DenseBlocks,
-        _: i32,
-        _: i32,
-        _: i32,
-        _: bool,
-    ) -> Option<u32> {
+    fn top_material(&mut self, _: &DenseBlocks, _: i32, _: i32, _: i32, _: bool) -> Option<u32> {
         panic!("Nether carving consulted surface rules")
     }
 }
@@ -43,14 +36,62 @@ fn native_thickness_and_random_post_state() {
     // Direct getThickness(RandomSource) observations with RandomSource.create(seed).
     // Pins and the separate configured-carver capture profile are in the fixture.
     let observations = [
-        (0, 1074972334, -7261648964369397258, 1083360942, 4437113781045784766),
-        (1, 1070069539, 7515937759503895804, 1078458147, 7564655870752979346),
-        (2, 1071783468, -2680663443691639204, 1080080846, -1817970389778669801),
-        (3, 1075221533, -7713215339908698230, 1082233291, 1309571695633557482),
-        (12345, 1067339770, -1528963862231680626, 1075728378, -1236052134575208584),
-        (-1, 1064974842, -8337289232527761815, 1073363450, 226341162490527646),
-        (i64::MIN, 1074972334, -7261648964369397258, 1083360942, 4437113781045784766),
-        (i64::MAX, 1064974842, -8337289232527761815, 1073363450, 226341162490527646),
+        (
+            0,
+            1074972334,
+            -7261648964369397258,
+            1083360942,
+            4437113781045784766,
+        ),
+        (
+            1,
+            1070069539,
+            7515937759503895804,
+            1078458147,
+            7564655870752979346,
+        ),
+        (
+            2,
+            1071783468,
+            -2680663443691639204,
+            1080080846,
+            -1817970389778669801,
+        ),
+        (
+            3,
+            1075221533,
+            -7713215339908698230,
+            1082233291,
+            1309571695633557482,
+        ),
+        (
+            12345,
+            1067339770,
+            -1528963862231680626,
+            1075728378,
+            -1236052134575208584,
+        ),
+        (
+            -1,
+            1064974842,
+            -8337289232527761815,
+            1073363450,
+            226341162490527646,
+        ),
+        (
+            i64::MIN,
+            1074972334,
+            -7261648964369397258,
+            1083360942,
+            4437113781045784766,
+        ),
+        (
+            i64::MAX,
+            1064974842,
+            -8337289232527761815,
+            1073363450,
+            226341162490527646,
+        ),
     ];
     for (seed, cave_bits, cave_next, nether_bits, nether_next) in observations {
         for (kind, bits, next) in [
@@ -113,7 +154,11 @@ fn native_nether_material_boundary_and_replaceability() {
             } else {
                 CARVER_BLOCKS.cave_air
             };
-            assert_eq!(carving.chunk.get_block(8, y as i16, 8), expected, "{name} y={y}");
+            assert_eq!(
+                carving.chunk.get_block(8, y as i16, 8),
+                expected,
+                "{name} y={y}"
+            );
             assert!(!reached_surface);
             if y < geometry.depth {
                 // The enclosing ellipsoid, not carveBlock, owns mask writes.
@@ -127,9 +172,13 @@ fn native_nether_material_boundary_and_replaceability() {
 fn native_nether_lava_boundary_tracks_context_floor() {
     // Native generator with a real LevelHeightAccessor(16, 64) produced
     // CarvingContext min=16/depth=64 and lava through 47, cave_air from 48.
-    let geometry = CarverGeometry { min_y: 16, depth: 64 };
+    let geometry = CarverGeometry {
+        min_y: 16,
+        depth: 64,
+    };
     let config = nether_config();
-    let mut chunk = DenseBlocks::filled(native_state("minecraft:netherrack"), BlockStateSpace::Java);
+    let mut chunk =
+        DenseBlocks::filled(native_state("minecraft:netherrack"), BlockStateSpace::Java);
     let mut ctx = NoNetherCallbacks;
     let mut carving = Carving {
         chunk: &mut chunk,
@@ -151,7 +200,11 @@ fn native_nether_lava_boundary_tracks_context_floor() {
         );
         assert_eq!(
             carving.chunk.get_block(8, y as i16, 8),
-            if y <= 47 { CARVER_BLOCKS.lava } else { CARVER_BLOCKS.cave_air },
+            if y <= 47 {
+                CARVER_BLOCKS.lava
+            } else {
+                CARVER_BLOCKS.cave_air
+            },
             "shifted context y={y}",
         );
     }
@@ -203,7 +256,11 @@ fn native_nether_ellipsoid_floor_ceiling_and_mask() {
             } else {
                 CARVER_BLOCKS.cave_air
             };
-            assert_eq!(carving.chunk.get_block(8, y as i16, 8), expected, "center={center_y} y={y}");
+            assert_eq!(
+                carving.chunk.get_block(8, y as i16, 8),
+                expected,
+                "center={center_y} y={y}"
+            );
             if y < geometry.depth {
                 assert_eq!(carving.mask.get(8, y, 8), carved, "center={center_y} y={y}");
             }
@@ -220,7 +277,10 @@ fn native_configured_nether_full_volume_and_random_post_state() {
     for capture in fixture["runs"].as_array().expect("native runs") {
         let seed = capture["seed"].as_i64().expect("native seed");
         let mut expected = vec![0u8; 16 * 16 * 256];
-        for run in capture["nonzero_runs_yzx"].as_array().expect("native volume") {
+        for run in capture["nonzero_runs_yzx"]
+            .as_array()
+            .expect("native volume")
+        {
             let first = run[0].as_u64().unwrap() as usize;
             let count = run[1].as_u64().unwrap() as usize;
             let code = run[2].as_u64().unwrap() as u8;
@@ -236,8 +296,17 @@ fn native_configured_nether_full_volume_and_random_post_state() {
             ctx: &mut ctx,
         };
         let mut random = JavaRandom::from_seed(seed);
-        carving.cave(CaveKind::Nether, nether_config(), &mut random, ChunkPos::new(0, 0));
-        assert_eq!(random.next_long(), capture["next_long"].as_i64().unwrap(), "seed {seed}");
+        carving.cave(
+            CaveKind::Nether,
+            nether_config(),
+            &mut random,
+            ChunkPos::new(0, 0),
+        );
+        assert_eq!(
+            random.next_long(),
+            capture["next_long"].as_i64().unwrap(),
+            "seed {seed}"
+        );
         for (index, code) in expected.into_iter().enumerate() {
             let x = (index % 16) as u8;
             let z = ((index / 16) % 16) as u8;
@@ -248,9 +317,17 @@ fn native_configured_nether_full_volume_and_random_post_state() {
                 2 => CARVER_BLOCKS.cave_air,
                 _ => panic!("unknown native state code"),
             };
-            assert_eq!(carving.chunk.get_block(x, y as i16, z), state, "seed {seed} ({x},{y},{z})");
+            assert_eq!(
+                carving.chunk.get_block(x, y as i16, z),
+                state,
+                "seed {seed} ({x},{y},{z})"
+            );
             if y < geometry.depth {
-                assert_eq!(carving.mask.get(x as i32, y, z as i32), code & 4 != 0, "seed {seed} mask ({x},{y},{z})");
+                assert_eq!(
+                    carving.mask.get(x as i32, y, z as i32),
+                    code & 4 != 0,
+                    "seed {seed} mask ({x},{y},{z})"
+                );
             } else {
                 assert_eq!(code, 0, "native writes outside generation depth");
             }
@@ -268,15 +345,22 @@ fn native_overworld_dry_aquifer_barrier_blocks_zero_density_carving() {
     // DimensionType.WAY_BELOW_MIN_Y (-32512), and pressure between the second
     // and third nearest statuses blocks carving. This exercises the real
     // generation consumer, including the generic native-aquifer callback.
-    let generator = JavaGenerator::with_options(0, JavaGenerationOptions {
-        dimension: JavaDimension::Overworld,
-        generate_structures: false,
-        biome_features: true,
-    });
+    let generator = JavaGenerator::with_options(
+        0,
+        JavaGenerationOptions {
+            dimension: JavaDimension::Overworld,
+            generate_structures: false,
+            biome_features: true,
+        },
+    );
     let carved = generator.generate_stage(ChunkPos::new(-1, -1), JavaTerrainStage::Carvers);
     let stone = native_state("minecraft:stone");
     assert_eq!(carved.chunk.state_space(), BlockStateSpace::Java);
     for x in [-12, -11] {
-        assert_eq!(carved.chunk.get_block((x & 15) as u8, 28, 9), stone, "({x},28,-7)");
+        assert_eq!(
+            carved.chunk.get_block((x & 15) as u8, 28, 9),
+            stone,
+            "({x},28,-7)"
+        );
     }
 }

@@ -113,8 +113,11 @@ fn step(
     ) else {
         return;
     };
-    // Frozen until its chunk loads, like every physics body.
-    if world.block_at(from.floor().as_ivec3()).is_none() {
+    // Frozen until its chunk loads, like every physics body; a stuck
+    // projectile no longer flies.
+    if world.block_at(from.floor().as_ivec3()).is_none()
+        || world.get::<super::Stuck>(projectile).is_some()
+    {
         return;
     }
     let now = world.resource::<TickCounter>().current;

@@ -98,10 +98,9 @@ pub fn player_attack(
     {
         return;
     }
-    let damage = unastar_data::melee::attack_damage(
-        held_item(world, player).map(|stack| stack.item_id()),
-    );
-    hurt_mob(
+    let held = held_item(world, player).cloned();
+    let damage = unastar_data::melee::attack_damage(held.as_ref().map(|stack| stack.item_id()));
+    let applied = hurt_mob(
         world,
         target,
         Hit {
@@ -113,6 +112,14 @@ pub fn player_attack(
             knockback_power: KnockbackPower::DEFAULT,
         },
     );
+    // The attacker pays food and, for a hit that landed, weapon durability.
+    crate::server::game::hunger::exhaust_player(world, player, |values| values.attack);
+    if applied > 0.0
+        && let Some(entry) = held.as_ref().and_then(|stack| stack.item())
+    {
+        let wear = crate::server::game::durability::attack_wear(entry);
+        crate::server::game::durability::wear_held(world, player, wear);
+    }
 }
 
 /// The eye position of a player that may attack this tick.
@@ -186,6 +193,13 @@ pub fn hurt_mob(world: &mut World, target: Entity, hit: Hit) -> f32 {
     }
     if let Some(index) = sensor_trigger {
         damage_sensor::after_hurt(world, target, index, hit.attacker);
+    }
+    // A hurt player's armour wears and the player pays food for it.
+    if world.get::<Player>(target).is_some() && applied > 0.0 {
+        crate::server::game::durability::wear_armour(world, target, hit.damage, hit.cause);
+        if crate::server::game::durability::armour_wears_from(hit.cause) {
+            crate::server::game::hunger::exhaust_player(world, target, |values| values.damage);
+        }
     }
     if dead {
         death::begin_death(world, target);

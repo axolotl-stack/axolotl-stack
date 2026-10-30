@@ -397,14 +397,14 @@ fn spawn_interaction_loot(
     let recipes = world
         .get_resource::<crate::server::game::types::RecipeRegistryResource>()
         .map(|r| r.0.clone());
+    let items = world
+        .get_resource::<ItemRegistryResource>()
+        .map(|r| r.0.clone());
     let ctx = crate::server::game::LootContext {
-        on_fire: Some(
-            world
-                .get::<crate::entity::components::OnFire>(mob)
-                .is_some_and(crate::entity::components::OnFire::is_on_fire),
-        ),
+        on_fire: Some(crate::entity::mob::combat::fire::is_burning(world, mob)),
         recipes: recipes.as_deref(),
         color_index: crate::entity::mob::components::color::color_of(world, mob),
+        items: items.as_deref(),
         ..Default::default()
     };
     let seed = world.resource_mut::<EntityRandom>().0.r#gen::<u64>();
@@ -540,12 +540,7 @@ fn resend_held(world: &World, player: Entity) {
 /// below. The client spawns the item's crumbs at the mob's mouth and plays
 /// its eating sound.
 fn feed_event(world: &World, mob: Entity, held: &ItemStack) {
-    let Some(network_id) = world
-        .resource::<ItemRegistryResource>()
-        .0
-        .get_by_name(held.item_id())
-        .map(|item| item.network_id())
-    else {
+    let Some(network_id) = held.item().map(|item| item.network_id()) else {
         return;
     };
     let data = (network_id << constants::FEED_EVENT_ITEM_SHIFT) | i32::from(held.damage as u16);

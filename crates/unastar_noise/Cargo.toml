@@ -10,6 +10,8 @@ default = []
 debug-worldgen = []
 # Exclusive stage timing and allocation attribution for worldgen_bench.
 worldgen-profile = []
+# Record which registry entries generation exercised (native conformance coverage).
+worldgen-coverage = []
 # Embed the Java Edition structure templates (`data/minecraft/structure/*.nbt`)
 # from the local server jar named by `UNASTAR_JAVA_SERVER_JAR` (Mojang assets:
 # read at build time, never committed). Required by the Java-style generator's
