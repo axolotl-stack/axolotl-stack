@@ -552,3 +552,5 @@ pub const SHOOTER_MAGIC: bool = false;
 pub const SHOOTER_POWER: f32 = 0.0;
 /// `projectiles` entry `lose_target` false.
 pub const SHOOTER_PROJECTILE_LOSE_TARGET: bool = false;
+/// `projectiles` entry `chance` 1: an entry whose filters pass is always used.
+pub const SHOOTER_PROJECTILE_CHANCE: f32 = 1.0;

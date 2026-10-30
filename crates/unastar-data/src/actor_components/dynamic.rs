@@ -256,6 +256,7 @@ defaults! {
     shooter_magic -> bool = p::SHOOTER_MAGIC;
     shooter_power -> f32 = p::SHOOTER_POWER;
     shooter_lose_target -> bool = p::SHOOTER_PROJECTILE_LOSE_TARGET;
+    shooter_projectile_chance -> f32 = p::SHOOTER_PROJECTILE_CHANCE;
 }
 
 /// `minecraft:ageable`: a growth timer, accelerated by feeding.
@@ -1615,15 +1616,40 @@ pub struct VariableMaxAutoStep {
     pub jump_prevented_value: f32,
 }
 
-/// `minecraft:follow_range`: how far the mob pursues its target.
+/// `minecraft:follow_range`: how far the mob pursues its target. A bare
+/// number is the `value` (the warden's form).
 #[derive(Debug, Clone, PartialEq, Deserialize)]
-#[serde(deny_unknown_fields)]
+#[serde(from = "FollowRangeJson")]
 pub struct FollowRange {
     /// Blocks; the follow range attribute's maximum (`value` when absent).
     pub max: Option<f32>,
     /// Blocks.
-    #[serde(default = "follow_range_value")]
     pub value: f32,
+}
+
+/// The two `minecraft:follow_range` forms.
+#[derive(Deserialize)]
+#[serde(untagged)]
+enum FollowRangeJson {
+    Value(f32),
+    Object(FollowRangeObject),
+}
+
+#[derive(Deserialize)]
+#[serde(deny_unknown_fields)]
+struct FollowRangeObject {
+    max: Option<f32>,
+    #[serde(default = "follow_range_value")]
+    value: f32,
+}
+
+impl From<FollowRangeJson> for FollowRange {
+    fn from(json: FollowRangeJson) -> Self {
+        match json {
+            FollowRangeJson::Value(value) => Self { max: None, value },
+            FollowRangeJson::Object(FollowRangeObject { max, value }) => Self { max, value },
+        }
+    }
 }
 
 /// `minecraft:shooter`: the projectile a ranged attack launches.
@@ -1656,6 +1682,9 @@ pub struct Shooter {
 pub struct ShooterProjectile {
     #[serde(default = "shooter_aux_val")]
     pub aux_val: i32,
+    /// Probability that this entry is used when its filters pass.
+    #[serde(default = "shooter_projectile_chance")]
+    pub chance: f32,
     pub def: String,
     pub filters: Option<FilterJson>,
     /// Drop the target after shooting this projectile.
