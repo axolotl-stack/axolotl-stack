@@ -10,7 +10,8 @@
 //! - `update_chunk_loaders` - Handles player movement across chunks
 //! - `send_chunk_publisher_updates` - Publishes each player's view before any chunk is sent;
 //!   players join with an empty view, so this also sends the first one after join
-//! - `process_chunk_load_queues` - Sends chunks to players center-outward
+//! - `apply_loaded_columns` / `stream_chunks` - Load views in the background and stream them
+//!   to players within their send windows (see `streaming`)
 //! - `send_spawn_status` - Sends a joining player's `PlayStatus(PlayerSpawn)` after its first
 //!   view and chunks (jolyne's streamed spawn, BDS order), never waiting for generation
 //! - `schedule_chunk_unloads` - Marks chunks with no viewers for unload
@@ -34,16 +35,17 @@ pub mod events;
 pub mod generation_worker;
 pub mod loader;
 pub mod manager;
+pub mod streaming;
 pub mod systems;
 
 pub use components::{
     ChunkActorStore, ChunkData, ChunkFlags, ChunkPendingUnload, ChunkPosition, ChunkState,
-    ChunkStateFlags, ChunkTickingState, ChunkViewers, PendingActorRestore, PendingChunkGenerations,
-    PendingGeneration,
+    ChunkStateFlags, ChunkTickingState, ChunkViewers, PendingActorRestore,
 };
 pub use events::{BlockBroadcastEvent, BlockChanged, PlayerDespawnedEvent, PlayerSpawnedEvent};
 pub use loader::ChunkLoader;
 pub use manager::{ChunkManager, ChunkManagerWorldExt};
+pub use streaming::{ChunkNetCache, ColumnLoads, EncodedColumn, SendWindow, StreamStats};
 pub use systems::{
     AwaitingSpawnStatus, ChunkLoadConfig, LastPublisherState, on_block_changed,
     register_chunk_systems, world_to_chunk_coords, world_to_local_coords,

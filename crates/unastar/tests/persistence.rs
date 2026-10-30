@@ -4,8 +4,8 @@ use bevy_ecs::prelude::*;
 use unastar::server::{GameServer, ServerConfig};
 use unastar::storage::{BlazeDBProvider, ChunkColumn, LevelDBWorldProvider, WorldProvider};
 use unastar::world::ecs::{
-    ChunkData, ChunkLoadConfig, ChunkManager, ChunkStateFlags, PendingChunkGenerations,
-    systems::{process_completed_generations, world_to_local_coords},
+    ChunkData, ChunkLoadConfig, ChunkManager, ChunkStateFlags, ColumnLoads, StreamStats,
+    systems::{apply_loaded_columns, world_to_local_coords},
 };
 use unastar::world::generator::QuartBiomes;
 use unastar::world::{Chunk, ChunkPos, WorldConfig, WorldGenerator};
@@ -33,33 +33,41 @@ async fn async_stored_chunks_survive_save_cycle_for_both_providers() {
             },
             ..ServerConfig::default()
         });
-        let viewer = server.ecs.world_mut().spawn_empty().id();
-        let receiver = {
-            let mut manager = server.ecs.world_mut().resource_mut::<ChunkManager>();
-            manager.set_provider(provider.clone());
-            manager.request_generation(2, -3, viewer).unwrap()
-        };
-        let result = receiver.await.unwrap();
-        let (tx, rx) = tokio::sync::oneshot::channel();
-        tx.send(result).unwrap();
         server
             .ecs
             .world_mut()
-            .resource_mut::<PendingChunkGenerations>()
-            .add(2, -3, rx);
-        server
-            .ecs
-            .world_mut()
-            .insert_resource(ChunkLoadConfig::default());
+            .resource_mut::<ChunkManager>()
+            .set_provider(provider.clone());
+        // The streaming path: an async storage read, then the column is spawned.
+        let world = server.ecs.world_mut();
+        world.resource_scope(|world, mut loads: Mut<ColumnLoads>| {
+            loads.start_read(
+                (2, -3),
+                world.resource::<ChunkManager>(),
+                ChunkLoadConfig::default().block_network_ids,
+                world.resource::<StreamStats>(),
+            );
+        });
         let mut schedule = Schedule::default();
-        schedule.add_systems(process_completed_generations);
+        schedule.add_systems(apply_loaded_columns);
+        let deadline = std::time::Instant::now() + std::time::Duration::from_secs(30);
+        let entity = loop {
+            schedule.run(server.ecs.world_mut());
+            if let Some(entity) = server
+                .ecs
+                .world()
+                .resource::<ChunkManager>()
+                .get_by_coords(2, -3)
+            {
+                break entity;
+            }
+            assert!(
+                std::time::Instant::now() < deadline,
+                "stored chunk never loaded"
+            );
+            tokio::time::sleep(std::time::Duration::from_millis(5)).await;
+        };
         schedule.run(server.ecs.world_mut());
-        let entity = server
-            .ecs
-            .world()
-            .resource::<ChunkManager>()
-            .get_by_coords(2, -3)
-            .unwrap();
         assert_eq!(
             server
                 .ecs
@@ -489,11 +497,27 @@ async fn storage_read_errors_never_generate_replacement_terrain() {
         ..WorldConfig::default()
     });
     manager.set_provider(Arc::new(UnreadableWorld));
-    let mut world = World::new();
-    let viewer = world.spawn_empty().id();
-    let receiver = manager.request_generation(0, 0, viewer).unwrap();
-    assert!(matches!(
-        receiver.await.unwrap(),
-        Err(StorageError::Database(_))
-    ));
+    let mut loads = ColumnLoads::default();
+    loads.start_read(
+        (0, 0),
+        &manager,
+        ChunkLoadConfig::default().block_network_ids,
+        &StreamStats::default(),
+    );
+    let deadline = std::time::Instant::now() + std::time::Duration::from_secs(30);
+    loop {
+        let drained = loads.drain();
+        assert!(drained.ready.is_empty(), "a failed read produced terrain");
+        if !drained.failed.is_empty() {
+            assert_eq!(drained.failed, vec![(0, 0)]);
+            break;
+        }
+        assert!(
+            std::time::Instant::now() < deadline,
+            "the read never finished"
+        );
+        tokio::time::sleep(std::time::Duration::from_millis(5)).await;
+    }
+    assert!(loads.is_idle());
+    assert!(!manager.contains_coords(0, 0));
 }

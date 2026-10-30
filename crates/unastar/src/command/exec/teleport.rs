@@ -15,7 +15,6 @@ use crate::entity::PLAYER_EYE_HEIGHT;
 use crate::entity::components::transform::{Position, Rotation};
 use crate::entity::components::{Player, PlayerSession, RuntimeEntityId};
 use crate::entity::geometry::look_at;
-use crate::world::ecs::ChunkLoader;
 use jolyne::valentine::types::{
     ActorRuntimeId, EnumsPlayerPositionModeComponentPositionMode, Vec2, Vec3,
 };
@@ -334,12 +333,6 @@ pub fn move_entity(world: &mut World, entity: Entity, position: DVec3, yaw: f32,
     let eye = position + DVec3::Y * PLAYER_EYE_HEIGHT;
     if let Some(mut current) = world.get_mut::<Position>(entity) {
         current.0 = eye;
-    }
-    if let Some(mut loader) = world.get_mut::<ChunkLoader>(entity) {
-        loader.move_to(
-            (position.x / 16.0).floor() as i32,
-            (position.z / 16.0).floor() as i32,
-        );
     }
     let runtime_id = world.get::<RuntimeEntityId>(entity).map_or(0, |r| r.0);
     let packet = MovePlayerPacket {

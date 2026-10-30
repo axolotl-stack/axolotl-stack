@@ -156,7 +156,7 @@ fn eat_mine_shoot_pearl_and_drink_over_loopback() {
     config.server.bind_address = format!("127.0.0.1:{port}");
     config.server.online_mode = false;
     config.server.default_gamemode = "survival".into();
-    config.server.default_chunk_radius = 2;
+    config.server.max_chunk_radius = 2;
     config.server.operators = vec![name.into()];
     config.world = unastar::world::WorldConfig::void_spawn_platform(1);
     config.players.data_dir = players;

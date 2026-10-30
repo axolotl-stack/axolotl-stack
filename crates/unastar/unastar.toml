@@ -28,10 +28,9 @@ default_gamemode = "survival"
 # Operators change it while the server runs with `/difficulty`.
 difficulty = "easy"
 
-# Chunk radius we will *advertise* to clients and stream.
-# (Clients may request a different radius; we clamp it by `max_chunk_radius`.)
-default_chunk_radius = 4
-max_chunk_radius = 12
+# Largest view distance (chunk radius) a client is granted: each player gets
+# the render distance it asks for, up to this (BDS `view-distance`).
+max_chunk_radius = 16
 
 # Authentication settings
 # Xbox Live authentication. Set to false for offline/cracked clients.
@@ -42,6 +41,10 @@ allow_legacy_auth = true
 encryption_enabled = true
 # Require clients to accept advertised resource packs.
 require_resource_packs = false
+# Deflate level (1-9) of outgoing packets. Terrain is most of the traffic:
+# level 4 streams a stored radius-12 view about 20% sooner than level 7 on
+# loopback (load_bench); raise it to save bandwidth on slow links.
+compression_level = 4
 
 [world]
 # Dimension ID: 0 = Overworld, 1 = Nether, 2 = End
@@ -51,7 +54,7 @@ dimension = 0
 storage_provider = "level_db"
 # BlazeDB cache capacity in chunks (used only with "blaze_db").
 blazedb_cache_chunks = 4096
-# Chunk generation worker threads (0 = half the cores, at most 8).
+# Chunk generation worker threads (0 = half the cores, at most 16).
 generation_threads = 0
 
 [world.bounds]

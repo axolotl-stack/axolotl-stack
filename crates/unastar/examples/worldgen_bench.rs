@@ -122,7 +122,7 @@ impl Options {
                 }
                 "--help" | "-h" => {
                     println!(
-                        "worldgen_bench [--kind java|bedrock|flat] [--mode serial|throughput|spawn|area] [--workers 1,4,8,16] [--json] [--ratchet path]\nArea mode: [--seed N] [--side 101], a cold row-major square centered on chunk 0,0.\nStage breakdown: build with --features worldgen-profile. Ratchets only accept serial stage-enabled runs."
+                        "worldgen_bench [--kind java|bedrock|flat] [--mode serial|throughput|spawn|area|network] [--workers 1,4,8,16] [--json] [--ratchet path]\nArea mode: [--seed N] [--side 101], a cold row-major square centered on chunk 0,0.\nStage breakdown: build with --features worldgen-profile. Ratchets only accept serial stage-enabled runs."
                     );
                     std::process::exit(0);
                 }
@@ -132,7 +132,7 @@ impl Options {
         ensure!(
             matches!(
                 options.mode.as_str(),
-                "serial" | "throughput" | "spawn" | "area"
+                "serial" | "throughput" | "spawn" | "area" | "network"
             ),
             "unknown mode {}",
             options.mode
@@ -427,6 +427,144 @@ fn pool_run(
     })
 }
 
+#[derive(Serialize)]
+struct NetworkResult {
+    kind: String,
+    chunks: usize,
+    /// Finished chunk generation (single thread, cold pipeline), per chunk.
+    generate_ms: f64,
+    /// `Chunk::encode_biomes`: the `LevelChunk` payload, per chunk.
+    serialize_ms: f64,
+    /// Packet framing without compression, per chunk.
+    packet_ms: f64,
+    /// Packet framing plus deflate at each level, per chunk.
+    compress_ms: BTreeMap<u32, f64>,
+    payload_bytes: f64,
+    compressed_bytes: BTreeMap<u32, f64>,
+    /// `LevelDBWorldProvider::save_column`, per chunk.
+    storage_save_ms: f64,
+    /// `LevelDBWorldProvider::load_column` of a stored chunk, per chunk
+    /// (reopened database: a cold block cache).
+    storage_load_ms: f64,
+}
+
+/// Saves the chunks to a scratch LevelDB world, reopens it and loads them
+/// again: per-chunk save and cold load time.
+fn storage(chunks: &[unastar::world::chunk::Chunk]) -> Result<(f64, f64)> {
+    use unastar::storage::{ChunkColumn, LevelDBWorldProvider, WorldProvider};
+    let dir = tempfile::tempdir()?;
+    let n = chunks.len() as f64;
+    let runtime = tokio::runtime::Builder::new_current_thread()
+        .enable_all()
+        .build()?;
+    runtime.block_on(async {
+        let provider = LevelDBWorldProvider::open(dir.path(), 0)?;
+        let started = Instant::now();
+        for chunk in chunks {
+            let pos = ChunkPos::new(chunk.x, chunk.z);
+            provider
+                .save_column(pos, 0, &ChunkColumn::new(chunk.clone()))
+                .await?;
+        }
+        let save_ms = started.elapsed().as_secs_f64() * 1e3 / n;
+        drop(provider);
+        let provider = LevelDBWorldProvider::open(dir.path(), 0)?;
+        let started = Instant::now();
+        for chunk in chunks {
+            let loaded = provider
+                .load_column(ChunkPos::new(chunk.x, chunk.z), 0)
+                .await?
+                .context("stored chunk loads")?;
+            std::hint::black_box(loaded);
+        }
+        let load_ms = started.elapsed().as_secs_f64() * 1e3 / n;
+        Ok((save_ms, load_ms))
+    })
+}
+
+/// Per-chunk cost of the network stages after generation, single-threaded:
+/// serialize the chunk, frame its `LevelChunk` packet, and compress the
+/// batch the way a session does (one chunk per batch).
+fn network(options: &Options, fixture: &Fixture) -> Result<()> {
+    use jolyne::proto::batch::{BatchCodec, BatchCompression, BatchEncoding};
+    use jolyne::valentine::types::{ChunkPos as WireChunkPos, DimensionType};
+    use jolyne::valentine::{LevelChunkPacket, McpePacket};
+
+    let pipeline = ChunkPipeline::new(generator(&options.kind, fixture.seed)?);
+    let n = fixture.chunks.len() as f64;
+    let started = Instant::now();
+    let chunks: Vec<_> = fixture
+        .chunks
+        .iter()
+        .map(|pos| pipeline.generate(ChunkPos::new(pos.x, pos.z)))
+        .collect::<std::io::Result<_>>()?;
+    let generate_ms = started.elapsed().as_secs_f64() * 1e3 / n;
+
+    let started = Instant::now();
+    let payloads: Vec<Vec<u8>> = chunks.iter().map(|c| c.encode_biomes()).collect();
+    let serialize_ms = started.elapsed().as_secs_f64() * 1e3 / n;
+    let payload_bytes = payloads.iter().map(Vec::len).sum::<usize>() as f64 / n;
+    let packets: Vec<McpePacket> = chunks
+        .iter()
+        .zip(&payloads)
+        .map(|(chunk, payload)| {
+            McpePacket::from(LevelChunkPacket {
+                chunk_position: WireChunkPos {
+                    x: chunk.x,
+                    z: chunk.z,
+                },
+                dimension_id: DimensionType { value: 0 },
+                subchunks_count: 0,
+                client_request_sub_chunk_limit: Some(chunk.highest_subchunk() as i32),
+                cache_enabled: false,
+                cache_metadata: vec![],
+                serialized_chunk_data: payload.clone().into(),
+            })
+        })
+        .collect();
+    let encode = |algorithm, level| -> Result<(f64, f64)> {
+        let mut codec = BatchCodec::new(BatchEncoding {
+            enabled: true,
+            algorithm,
+            level,
+            threshold: 1,
+            prefix: true,
+        })?;
+        let mut out = bytes::BytesMut::new();
+        let mut total = 0usize;
+        let started = Instant::now();
+        for packet in &packets {
+            out.clear();
+            codec.encode_batch_multi_into(std::slice::from_ref(packet), &mut out)?;
+            total += out.len();
+        }
+        Ok((started.elapsed().as_secs_f64() * 1e3 / n, total as f64 / n))
+    };
+    let (packet_ms, _) = encode(BatchCompression::None, 0)?;
+    let mut compress_ms = BTreeMap::new();
+    let mut compressed_bytes = BTreeMap::new();
+    for level in [1, 4, 7] {
+        let (ms, bytes) = encode(BatchCompression::Deflate, level)?;
+        compress_ms.insert(level, ms);
+        compressed_bytes.insert(level, bytes);
+    }
+    let (storage_save_ms, storage_load_ms) = storage(&chunks)?;
+    let result = NetworkResult {
+        kind: options.kind.clone(),
+        chunks: chunks.len(),
+        generate_ms,
+        serialize_ms,
+        packet_ms,
+        compress_ms,
+        payload_bytes,
+        compressed_bytes,
+        storage_save_ms,
+        storage_load_ms,
+    };
+    println!("{}", serde_json::to_string_pretty(&result)?);
+    Ok(())
+}
+
 fn run() -> Result<()> {
     let options = Options::parse()?;
     let path =
@@ -443,6 +581,7 @@ fn run() -> Result<()> {
     }
     match options.mode.as_str() {
         "serial" => serial(&options, &fixture),
+        "network" => network(&options, &fixture),
         _ => {
             let mut results = Vec::new();
             for &workers in &options.workers {

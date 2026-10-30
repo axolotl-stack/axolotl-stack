@@ -12,42 +12,52 @@
 //! - Player cleanup uses ChunkLoader's known set, not full world scan
 //! - Publisher updates only sent on position/radius change, not per-chunk
 
+use std::collections::{HashMap, HashSet};
+use std::sync::Arc;
+use std::sync::atomic::Ordering;
+use std::time::Instant;
+
 use bevy_ecs::prelude::*;
-use tracing::{debug, trace, warn};
+use tracing::{debug, trace};
 
 use crate::entity::components::{ChunkRadius, Player, PlayerSession, Position};
 use crate::entity::mob::persistence::{restore_chunk_actors, snapshot_chunks};
-use crate::world::ecs::manager::{block_on_storage, chunk_entity_components};
+use crate::registry::block::BlockNetworkIds;
+use crate::storage::ChunkColumn;
+use crate::world::ecs::manager::chunk_entity_components;
+use crate::world::ecs::streaming::{
+    ChunkNetCache, ColumnLoads, EncodedColumn, LoadState, MAX_STORAGE_READS,
+    PENDING_GENERATIONS_PER_WORKER, StreamStats, generate_inline, log_stream_stats,
+};
 use crate::world::ecs::{
     ChunkData, ChunkLoader, ChunkManager, ChunkPendingUnload, ChunkPosition, ChunkState,
-    ChunkStateFlags, ChunkTickingState, ChunkViewers, PendingChunkGenerations,
+    ChunkStateFlags, ChunkTickingState, ChunkViewers,
 };
-use jolyne::valentine::types::{BlockPos, ChunkPos, DimensionType};
+use jolyne::valentine::types::BlockPos;
 use jolyne::valentine::{
-    LevelChunkPacket, McpePacket, NetworkChunkPublisherUpdatePacket, PlayStatusPacket,
-    PlayStatusPacketStatus,
+    McpePacket, NetworkChunkPublisherUpdatePacket, PlayStatusPacket, PlayStatusPacketStatus,
 };
 
 /// Configuration for chunk loading behavior.
 #[derive(Resource, Debug, Clone)]
 pub struct ChunkLoadConfig {
-    /// Maximum chunks to send per player per tick.
-    pub chunks_per_tick: usize,
     /// Dimension ID for chunk packets.
     pub dimension: i32,
     /// Simulation distance in chunks.
     pub simulation_distance: i32,
     /// Grace period ticks before unloading chunks with no viewers.
     pub unload_grace_ticks: u32,
+    /// Block state numbering of encoded sub-chunks.
+    pub block_network_ids: BlockNetworkIds,
 }
 
 impl Default for ChunkLoadConfig {
     fn default() -> Self {
         Self {
-            chunks_per_tick: 16, // Increased from 8 after generator optimization
             dimension: 0,
             simulation_distance: 6,
             unload_grace_ticks: 100,
+            block_network_ids: BlockNetworkIds::Hashed,
         }
     }
 }
@@ -56,10 +66,10 @@ impl ChunkLoadConfig {
     /// Create from ServerConfig.
     pub fn from_server_config(config: &crate::server::ServerConfig) -> Self {
         Self {
-            chunks_per_tick: 8, // Low value to avoid slow ticks during terrain generation
             dimension: config.world.dimension,
             simulation_distance: config.simulation_distance,
             unload_grace_ticks: config.chunk_unload_ticks,
+            block_network_ids: config.block_network_ids,
         }
     }
 }
@@ -76,8 +86,6 @@ pub struct LastPublisherState {
     pub chunk_x: i32,
     pub chunk_z: i32,
     pub radius: i32,
-    /// True if we've sent the final update after queue emptied.
-    pub queue_was_empty: bool,
 }
 
 impl LastPublisherState {
@@ -178,19 +186,11 @@ pub fn send_chunk_publisher_updates(
 /// Evicts old chunks and queues new ones.
 pub fn update_chunk_loaders(
     chunk_manager: Res<ChunkManager>,
-    mut players: Query<
-        (
-            Entity,
-            &Position,
-            &ChunkRadius,
-            &mut ChunkLoader,
-            &mut LastPublisherState,
-        ),
-        With<Player>,
-    >,
+    mut players: Query<(Entity, &Position, &ChunkRadius, &mut ChunkLoader), With<Player>>,
     mut chunks: Query<&mut ChunkViewers>,
 ) {
-    for (player_entity, position, radius, mut loader, mut publisher_state) in players.iter_mut() {
+    for (player_entity, position, radius, mut loader) in players.iter_mut() {
+        loader.observe_position(position.0.x, position.0.z);
         let chunk_x = (position.0.x / 16.0).floor() as i32;
         let chunk_z = (position.0.z / 16.0).floor() as i32;
         let current_pos = loader.position();
@@ -241,7 +241,6 @@ pub fn update_chunk_loaders(
 
         // NOTE: Don't update publisher_state here - send_chunk_publisher_updates
         // detects the change and sends the NetworkChunkPublisherUpdate
-        publisher_state.queue_was_empty = false;
 
         trace!(
             player = ?player_entity,
@@ -254,185 +253,101 @@ pub fn update_chunk_loaders(
     }
 }
 
-/// System: Process chunk load queues and send chunks to players.
-/// Sends up to N chunks per player per tick, ordered center-outward.
-pub fn process_chunk_load_queues(
-    config: Res<ChunkLoadConfig>,
-    mut commands: Commands,
-    mut chunk_manager: ResMut<ChunkManager>,
-    mut players: Query<
-        (
-            Entity,
-            &PlayerSession,
-            &mut ChunkLoader,
-            &mut LastPublisherState,
-        ),
-        With<Player>,
-    >,
-    chunks: Query<(&mut ChunkViewers, &ChunkData)>,
+// =============================================================================
+// Streaming (see `streaming.rs` for the stages)
+// =============================================================================
+
+/// Spawns a loaded column as a chunk entity with its encoding. A column the
+/// world already has (created synchronously meanwhile) is dropped.
+fn spawn_column(
+    commands: &mut Commands,
+    manager: &mut ChunkManager,
+    pos: (i32, i32),
+    column: ChunkColumn,
+    encoded: Arc<EncodedColumn>,
+    stored: bool,
 ) {
-    for (player_entity, session, mut loader, mut publisher_state) in players.iter_mut() {
-        let sent_this_tick = loader.sent_this_tick;
-        loader.sent_this_tick = 0; // Reset for this tick
+    if manager.contains_coords(pos.0, pos.1) {
+        return;
+    }
+    let position = ChunkPosition::new(pos.0, pos.1);
+    let (mut components, actors) = chunk_entity_components(position, column, stored);
+    components.6 = ChunkNetCache::new(encoded);
+    let mut spawned = commands.spawn(components);
+    // Stored actors are restored by `restore_chunk_actors`.
+    if let Some(actors) = actors {
+        spawned.insert(actors);
+    }
+    let entity = spawned.id();
+    manager.insert(position, entity);
+}
 
-        // `send_chunk_publisher_updates` ran first; terrain waits for the view.
-        if !publisher_state.published() {
-            continue;
-        }
-
-        // If async generation is enabled, this system is a no-op for chunk loading.
-        // request_chunk_generation handles everything for vanilla worlds.
-        if chunk_manager.has_async_generation() {
-            let has_pending = loader.has_pending();
-            if publisher_state.queue_was_empty == has_pending {
-                debug!(player=?player_entity, has_pending, "Publisher state queue_was_empty updated");
-            }
-            publisher_state.queue_was_empty = !has_pending;
-            continue;
-        }
-
-        // Non-async path (superflat, void, etc) - use synchronous get_or_create
-        let mut sent_count = 0;
-        let mut retry_count = 0;
-
-        while sent_count < config.chunks_per_tick {
-            let Some((cx, cz)) = loader.next_to_load() else {
-                if sent_this_tick > 0 {
-                    // Log if we sent chunks last tick but not this one
-                    debug!(player=?player_entity, "Chunk queue is now empty.");
-                }
-                break;
-            };
-
-            // Get or create chunk entity - returns (entity, Option<(encoded_biomes, highest_subchunk)>)
-            // Phase 3: Now returns pre-encoded data to avoid ~200KB chunk clone
-            // This also registers the player as a pending viewer in the ChunkManager
-            let (chunk_entity, new_chunk_encoded) =
-                chunk_manager.get_or_create(cx, cz, &mut commands, player_entity);
-
-            // Track if this is a new chunk for logging
-            let is_new_chunk = new_chunk_encoded.is_some();
-
-            // Get chunk data from either the returned pre-encoded data or query the existing ChunkData component
-            let chunk_data_result =
-                if let Some((encoded_biomes, highest_subchunk)) = new_chunk_encoded {
-                    // Newly created - use the pre-encoded data directly (Phase 3: no clone!)
-                    Some((encoded_biomes, highest_subchunk))
-                } else {
-                    // Existing chunk - read from ChunkData component
-                    chunks.get(chunk_entity).ok().map(|(_, chunk_data)| {
-                        (
-                            chunk_data.inner.encode_biomes(),
-                            chunk_data.inner.highest_subchunk(),
-                        )
-                    })
-                };
-
-            let (payload, highest_subchunk) = match chunk_data_result {
-                Some(data) => data,
-                None => {
-                    // ChunkData component not ready yet (commands not flushed)
-                    // Leave in queue to retry next tick
-                    trace!(
-                        chunk = ?(cx, cz),
-                        player = ?player_entity,
-                        "ChunkData component not ready - will retry next tick"
-                    );
-                    retry_count += 1;
-
-                    // If we've hit too many retries in a row, break to avoid infinite loop
-                    // This can happen if chunks are being generated but components aren't flushing
-                    if retry_count >= 3 {
-                        debug!(
-                            player = ?player_entity,
-                            retry_count,
-                            "Hit retry limit - breaking to allow command flush"
-                        );
-                        break;
-                    }
-                    continue;
-                }
-            };
-
-            // Send LevelChunk packet
-            let send_result = session.send(McpePacket::from(LevelChunkPacket {
-                chunk_position: ChunkPos { x: cx, z: cz },
-                dimension_id: DimensionType {
-                    value: config.dimension,
-                },
-                subchunks_count: 0,
-                client_request_sub_chunk_limit: Some(highest_subchunk as i32),
-                cache_enabled: false,
-                cache_metadata: vec![],
-                serialized_chunk_data: payload.into(),
-            }));
-
-            if !send_result {
-                debug!(
-                    player = ?player_entity,
-                    chunk = ?(cx, cz),
-                    "Failed to send chunk packet (channel full or closed) - will retry next tick"
-                );
-                // Don't mark as loaded - leave in queue to retry
-                // Break instead of continue to avoid burning through the whole queue on network errors
-                break;
-            }
-
-            // ✅ ONLY mark as loaded after successful send
-            loader.mark_loaded(cx, cz);
-            sent_count += 1;
-            loader.sent_this_tick += 1;
-            retry_count = 0; // Reset retry counter on success
-
-            trace!(
-                chunk = ?(cx, cz),
-                highest_subchunk = highest_subchunk,
-                is_new = is_new_chunk,
-                "Sent LevelChunk packet"
-            );
-        }
-
-        // Track queue empty state for next tick
-        publisher_state.queue_was_empty = !loader.has_pending();
-
-        if sent_count > 0 {
-            debug!(
-                player = ?player_entity,
-                sent = sent_count,
-                remaining = loader.queue_len(),
-                "Processed chunk queue this tick"
-            );
-        }
-
-        // Diagnostic: Log if player has pending chunks but we couldn't send any
-        if loader.has_pending() && sent_count == 0 {
-            debug!(
-                player = ?player_entity,
-                pending_count = loader.queue_len(),
-                retry_count,
-                "Player has pending chunks but none were sent this tick (may need command flush or channel is full)"
-            );
+/// System: turns finished background loads into chunk entities. A column that
+/// failed to load leaves every queue (it is requested again only when the
+/// view is rebuilt), never replaced by generated terrain.
+pub fn apply_loaded_columns(
+    mut commands: Commands,
+    mut manager: ResMut<ChunkManager>,
+    mut loads: ResMut<ColumnLoads>,
+    mut loaders: Query<&mut ChunkLoader>,
+) {
+    let drained = loads.drain();
+    for loaded in drained.ready {
+        spawn_column(
+            &mut commands,
+            &mut manager,
+            loaded.pos,
+            loaded.column,
+            loaded.encoded,
+            loaded.stored,
+        );
+    }
+    if !drained.failed.is_empty() {
+        for mut loader in loaders.iter_mut() {
+            loader.retain_queue(|pos| !drained.failed.contains(pos));
         }
     }
 }
 
-// =============================================================================
-// Async Chunk Generation Systems (Phase 1 performance optimization)
-// =============================================================================
+/// Sends a column's `LevelChunk` to one player and records it in the
+/// player's loader. Returns `false` when the session's queue is full.
+fn send_column(
+    session: &PlayerSession,
+    loader: &mut ChunkLoader,
+    encoded: &EncodedColumn,
+    pos: (i32, i32),
+    dimension: i32,
+    now: Instant,
+) -> bool {
+    if !session.send(McpePacket::from(
+        encoded.level_chunk(pos.0, pos.1, dimension),
+    )) {
+        return false;
+    }
+    loader
+        .window_mut()
+        .sent(pos, encoded.highest_subchunk() > 0, now);
+    loader.mark_loaded(pos.0, pos.1);
+    true
+}
 
-/// System: Request async chunk generation for vanilla worlds.
+/// System: streams every player's view.
 ///
-/// This system handles the initial request phase for async generation:
-/// - Pops chunks from player load queues
-/// - For existing chunks: handles them immediately (send packet)
-/// - For new chunks: submits generation requests to the background worker
-/// - Tracks pending generations in `PendingChunkGenerations`
-///
-/// Non-blocking: generation happens in background, this just queues requests.
-pub fn request_chunk_generation(
-    mut chunk_manager: ResMut<ChunkManager>,
-    mut pending_gens: ResMut<PendingChunkGenerations>,
+/// Walks each player's queue in priority order and sends every column that is
+/// in memory while the player's [`SendWindow`](super::streaming::SendWindow)
+/// has room; there is no per-tick cap. Columns not in memory are collected as
+/// storage reads or generation requests, and the players' wishes are then
+/// started in turns (one per player per round, nearest first), up to
+/// [`MAX_STORAGE_READS`] reads and [`PENDING_GENERATIONS_PER_WORKER`] per pool
+/// worker in flight. Without storage and with a cheap generator, a column is
+/// generated right here when it can be sent.
+#[allow(clippy::type_complexity, clippy::too_many_arguments)]
+pub fn stream_chunks(
+    mut commands: Commands,
     config: Res<ChunkLoadConfig>,
+    mut manager: ResMut<ChunkManager>,
+    mut loads: ResMut<ColumnLoads>,
+    stats: Res<StreamStats>,
     mut players: Query<
         (
             Entity,
@@ -442,219 +357,180 @@ pub fn request_chunk_generation(
         ),
         With<Player>,
     >,
-    chunks: Query<&ChunkData>,
+    mut chunks: Query<(&ChunkData, Option<&mut ChunkNetCache>)>,
+    mut ticks: Local<u32>,
 ) {
-    // Skip if no async generation available (non-vanilla worlds)
-    if !chunk_manager.has_async_generation() {
-        return;
-    }
+    let now = Instant::now();
+    let ids = config.block_network_ids;
+    let has_storage = manager.provider().is_some();
+    let has_pool = manager.has_generation_pool();
+    let inline_generation = !has_storage && !has_pool;
+    let read_budget = if has_storage {
+        MAX_STORAGE_READS.saturating_sub(loads.reads_in_flight())
+    } else {
+        0
+    };
+    let generation_budget = (manager.generation_threads() * PENDING_GENERATIONS_PER_WORKER)
+        .saturating_sub(loads.generations_in_flight());
+    // Generated inline this tick: spawned through commands, not queryable yet.
+    let mut fresh: HashMap<(i32, i32), Arc<EncodedColumn>> = HashMap::new();
+    // Per player, nearest first: columns to read and columns to generate.
+    let mut wishes: Vec<(Vec<(i32, i32)>, Vec<(i32, i32)>)> = Vec::new();
 
-    // Limit total pending generations to prevent memory growth
-    const MAX_PENDING: usize = 64;
-
-    for (player_entity, session, mut loader, publisher_state) in players.iter_mut() {
-        // Terrain waits for the view `send_chunk_publisher_updates` publishes.
-        if !publisher_state.published() {
+    for (player, session, mut loader, publisher) in players.iter_mut() {
+        // `send_chunk_publisher_updates` ran first; terrain waits for the view.
+        if !publisher.published() || !loader.has_pending() {
             continue;
         }
-        let mut processed = 0;
-
-        while processed < config.chunks_per_tick {
-            if pending_gens.len() >= MAX_PENDING {
-                debug!("Max pending chunk generations reached, skipping for now.");
+        let unacked = loader.window_mut().expire(now);
+        if unacked > 0 {
+            stats.unacked.fetch_add(unacked as u64, Ordering::Relaxed);
+        }
+        let started = Instant::now();
+        let mut reads = Vec::new();
+        let mut generations = Vec::new();
+        let mut sent = HashSet::new();
+        let mut can_send = true;
+        for pos in loader.queue().to_vec() {
+            if !can_send && reads.len() >= read_budget && generations.len() >= generation_budget {
                 break;
             }
-
-            let Some((cx, cz)) = loader.next_to_load() else {
-                break; // No more chunks in this player's queue
-            };
-
-            // This is a critical log to see if we are processing the queue.
-            trace!(player=?player_entity, chunk=?(cx, cz), "Popped chunk from load queue.");
-
-            // Check if chunk already exists
-            if let Some(chunk_entity) = chunk_manager.get_by_coords(cx, cz) {
-                // Chunk exists - send it immediately
-                if let Ok(chunk_data) = chunks.get(chunk_entity) {
-                    let payload = chunk_data.inner.encode_biomes();
-                    let highest_subchunk = chunk_data.inner.highest_subchunk();
-
-                    let packet = LevelChunkPacket {
-                        chunk_position: ChunkPos { x: cx, z: cz },
-                        dimension_id: DimensionType {
-                            value: config.dimension,
-                        },
-                        subchunks_count: 0,
-                        client_request_sub_chunk_limit: Some(highest_subchunk as i32),
-                        cache_enabled: false,
-                        cache_metadata: vec![],
-                        serialized_chunk_data: payload.into(),
-                    };
-
-                    if session.send(McpePacket::from(packet)) {
-                        loader.mark_loaded(cx, cz);
-                        chunk_manager
-                            .pending_viewers
-                            .entry((cx, cz))
-                            .or_default()
-                            .push(player_entity);
-                        debug!(chunk = ?(cx, cz), player = ?player_entity, "Sent existing chunk to player.");
-                    } else {
-                        debug!(chunk = ?(cx, cz), player=?player_entity, "Failed to send existing chunk (channel full), will retry.");
-                        loader.requeue_front(cx, cz); // Re-queue at the front to retry next tick
-                        break; // Stop processing for this player if channel is full
-                    }
+            can_send &= loader.window().has_room();
+            let encoded = if let Some(encoded) = fresh.get(&pos) {
+                Some(encoded.clone())
+            } else if let Some(entity) = manager.get_by_coords(pos.0, pos.1) {
+                if !can_send {
+                    continue;
                 }
-                processed += 1;
-                continue;
-            }
-
-            // Skip if already pending generation
-            if chunk_manager.is_generation_pending(cx, cz) {
-                trace!(chunk = ?(cx, cz), "Chunk generation already pending, adding as viewer.");
-                if let Some(viewers) = chunk_manager.pending_generation.get_mut(&(cx, cz)) {
-                    viewers.push(player_entity)
-                }
-                loader.mark_loaded(cx, cz); // Mark as "loaded" to prevent re-requesting
-                processed += 1;
-                continue;
-            }
-
-            // Request async generation
-            if let Some(receiver) = chunk_manager.request_generation(cx, cz, player_entity) {
-                pending_gens.add(cx, cz, receiver);
-                loader.mark_loaded(cx, cz); // Mark as loaded to prevent re-requesting
-                processed += 1;
-                debug!(player = ?player_entity, chunk = ?(cx, cz), "Requested async chunk generation.");
-            }
-        }
-    }
-}
-
-/// System: Process completed async chunk generations.
-pub fn process_completed_generations(
-    mut commands: Commands,
-    mut chunk_manager: ResMut<ChunkManager>,
-    mut pending_gens: ResMut<PendingChunkGenerations>,
-    config: Res<ChunkLoadConfig>,
-    sessions: Query<&PlayerSession>,
-    mut loaders: Query<&mut ChunkLoader>,
-) {
-    if pending_gens.is_empty() {
-        return;
-    }
-
-    let mut completed = Vec::new();
-    let mut failed = Vec::new();
-    let initial_pending = pending_gens.len();
-
-    // Check for completed generations (non-blocking)
-    pending_gens.pending.retain_mut(|pending| {
-        match pending.receiver.try_recv() {
-            Ok(Ok((column, was_loaded))) => {
-                completed.push((pending.x, pending.z, column, was_loaded));
-                false
-            }
-            Ok(Err(error)) => {
-                warn!(chunk = ?(pending.x, pending.z), %error, "Chunk storage load failed; refusing to generate replacement terrain");
-                failed.push((pending.x, pending.z));
-                false
-            }
-            Err(tokio::sync::oneshot::error::TryRecvError::Empty) => true, // Keep
-            Err(tokio::sync::oneshot::error::TryRecvError::Closed) => {
-                warn!(chunk = ?(pending.x, pending.z), "Generation channel closed unexpectedly");
-                failed.push((pending.x, pending.z));
-                false // Remove from pending
-            }
-        }
-    });
-
-    for (x, z) in failed {
-        for viewer in chunk_manager.complete_generation(x, z).unwrap_or_default() {
-            if let Ok(mut loader) = loaders.get_mut(viewer) {
-                loader.mark_load_failed(x, z);
-            }
-        }
-    }
-
-    if !completed.is_empty() {
-        debug!(
-            count = completed.len(),
-            initial_pending, "Processing completed chunk generations."
-        );
-    }
-
-    // Process completed chunks
-    for (x, z, column, was_loaded) in completed {
-        // Get viewers that were waiting for this chunk
-        let viewers = chunk_manager.complete_generation(x, z).unwrap_or_default();
-
-        // Encode BEFORE spawning to avoid clone
-        let biome_data = column.chunk.encode_biomes();
-        let highest_subchunk = column.chunk.highest_subchunk();
-
-        // Spawn chunk entity; stored actors are restored by `restore_chunk_actors`.
-        let pos = ChunkPosition::new(x, z);
-        let (components, actors) = chunk_entity_components(pos, column, was_loaded);
-        let mut spawned = commands.spawn(components);
-        if let Some(actors) = actors {
-            spawned.insert(actors);
-        }
-        let entity = spawned.id();
-
-        chunk_manager.insert(pos, entity);
-
-        debug!(chunk = ?(x, z), viewers = viewers.len(), "Async chunk generation complete, spawned entity.");
-
-        // Send chunk to all waiting viewers
-        for viewer_entity in viewers {
-            if let Ok(session) = sessions.get(viewer_entity) {
-                let packet = LevelChunkPacket {
-                    chunk_position: ChunkPos { x, z },
-                    dimension_id: DimensionType {
-                        value: config.dimension,
-                    },
-                    subchunks_count: 0,
-                    client_request_sub_chunk_limit: Some(highest_subchunk as i32),
-                    cache_enabled: false,
-                    cache_metadata: vec![],
-                    serialized_chunk_data: biome_data.clone().into(),
+                // Spawned by this tick's loads only once commands apply.
+                let Ok((data, cache)) = chunks.get_mut(entity) else {
+                    continue;
                 };
-
-                if session.send(McpePacket::from(packet)) {
-                    // This was already marked as loaded on request, so we don't need to do it again.
-                    debug!(chunk = ?(x, z), viewer = ?viewer_entity, "Sent async-generated chunk to viewer.");
+                Some(match cache {
+                    Some(mut cache) => cache.current(&data.inner, ids, &stats),
+                    // A chunk spawned without one (tools, tests) gets one now.
+                    None => {
+                        let encoded = Arc::new(EncodedColumn::encode(&data.inner, ids));
+                        commands
+                            .entity(entity)
+                            .insert(ChunkNetCache::new(encoded.clone()));
+                        encoded
+                    }
+                })
+            } else {
+                match loads.state(pos) {
+                    Some(LoadState::Missing) if generations.len() < generation_budget => {
+                        generations.push(pos);
+                    }
+                    None if has_storage && reads.len() < read_budget => reads.push(pos),
+                    None if !has_storage && has_pool && generations.len() < generation_budget => {
+                        generations.push(pos);
+                    }
+                    _ => {}
+                }
+                if inline_generation && can_send {
+                    let column =
+                        generate_inline(manager.pipeline(), &manager.world_config().bounds, pos);
+                    let encoded = Arc::new(EncodedColumn::encode(&column.chunk, ids));
+                    spawn_column(
+                        &mut commands,
+                        &mut manager,
+                        pos,
+                        column,
+                        encoded.clone(),
+                        false,
+                    );
+                    fresh.insert(pos, encoded.clone());
+                    Some(encoded)
                 } else {
-                    warn!(chunk = ?(x, z), viewer = ?viewer_entity, "Failed to send async-generated chunk (channel full).");
-                    // We don't re-queue here because the loader thinks it's loaded.
-                    // The client will hopefully re-request if it's missing.
+                    None
+                }
+            };
+            let Some(encoded) = encoded else { continue };
+            if !can_send {
+                continue;
+            }
+            if !send_column(session, &mut loader, &encoded, pos, config.dimension, now) {
+                debug!(chunk = ?pos, player = ?player, "Session queue full; the chunk waits for the next tick");
+                can_send = false;
+                continue;
+            }
+            sent.insert(pos);
+            manager.pending_viewers.entry(pos).or_default().push(player);
+        }
+        if !sent.is_empty() {
+            loader.retain_queue(|pos| !sent.contains(pos));
+            stats.sent.record_many(sent.len() as u64, started.elapsed());
+        }
+        wishes.push((reads, generations));
+    }
+
+    // Start the wished loads in turns, one per player per round.
+    let (mut reads_left, mut generations_left) = (read_budget, generation_budget);
+    let mut round = 0;
+    while reads_left + generations_left > 0 {
+        let mut more = false;
+        for (reads, generations) in &wishes {
+            if let Some(&pos) = reads.get(round) {
+                more = true;
+                if reads_left > 0
+                    && loads.state(pos).is_none()
+                    && !manager.contains_coords(pos.0, pos.1)
+                {
+                    loads.start_read(pos, &manager, ids, &stats);
+                    reads_left -= 1;
                 }
             }
-
-            // Add viewer to the just-spawned chunk's ChunkViewers component
-            chunk_manager
-                .pending_viewers
-                .entry((x, z))
-                .or_default()
-                .push(viewer_entity);
+            if let Some(&pos) = generations.get(round) {
+                more = true;
+                if generations_left > 0
+                    && matches!(loads.state(pos), None | Some(LoadState::Missing))
+                    && !manager.contains_coords(pos.0, pos.1)
+                    && loads.start_generation(pos, &manager, ids, &stats)
+                {
+                    generations_left -= 1;
+                }
+            }
         }
+        if !more {
+            break;
+        }
+        round += 1;
+    }
+
+    // Now and then, forget storage misses no player wants any more.
+    *ticks += 1;
+    if (*ticks).is_multiple_of(200) {
+        let wanted: HashSet<(i32, i32)> = players
+            .iter()
+            .flat_map(|(_, _, loader, _)| loader.queue().iter().copied())
+            .collect();
+        loads.retain_missing(|pos| wanted.contains(&pos));
     }
 }
 
 /// System: Handle ChunkRadius changes.
-/// When a player's chunk radius changes, update their loader.
+/// When a player's chunk radius changes, update their loader; the publisher
+/// update follows from the loader's new radius.
 #[allow(clippy::type_complexity)]
 pub fn handle_radius_changes(
+    chunk_manager: Res<ChunkManager>,
     mut players: Query<
-        (&ChunkRadius, &mut ChunkLoader, &mut LastPublisherState),
+        (Entity, &ChunkRadius, &mut ChunkLoader),
         (With<Player>, Changed<ChunkRadius>),
     >,
+    mut chunks: Query<&mut ChunkViewers>,
 ) {
-    for (radius, mut loader, mut publisher_state) in players.iter_mut() {
+    for (player, radius, mut loader) in players.iter_mut() {
         if loader.radius() != radius.0 {
             let evicted = loader.set_radius(radius.0);
-            publisher_state.radius = radius.0;
-            publisher_state.queue_was_empty = false;
+            for (x, z) in &evicted {
+                if let Some(chunk) = chunk_manager.get_by_coords(*x, *z)
+                    && let Ok(mut viewers) = chunks.get_mut(chunk)
+                {
+                    viewers.remove(player);
+                }
+            }
 
             trace!(
                 new_radius = radius.0,
@@ -710,9 +586,10 @@ pub fn cancel_chunk_unloads(
 }
 
 /// System: Process pending chunk unloads.
-/// Ticks down grace periods. An expired chunk is saved together with the mobs
-/// standing in it (when anything changed), then the mobs and the chunk are
-/// removed from the world.
+/// Ticks down grace periods. An expired chunk is written in the background
+/// together with the mobs standing in it (when anything changed), and the mobs
+/// and the chunk are removed from the world; the column is not read again
+/// until the write finished.
 pub fn process_chunk_unloads(world: &mut World) {
     let mut pending = world.query::<(Entity, &mut ChunkPendingUnload)>();
     let expired: Vec<Entity> = pending
@@ -722,21 +599,12 @@ pub fn process_chunk_unloads(world: &mut World) {
     if expired.is_empty() {
         return;
     }
-    let (provider, dim) = {
-        let chunk_manager = world.resource::<ChunkManager>();
-        (chunk_manager.provider(), chunk_manager.dimension())
-    };
     for snapshot in snapshot_chunks(world, &expired, true) {
         let pos = snapshot.pos;
-        if let (Some(column), Some(provider)) = (snapshot.column, provider.clone()) {
-            match block_on_storage(async move { provider.save_column(pos, dim, &column).await }) {
-                Ok(()) => debug!(chunk = ?(pos.x, pos.z), "Saved chunk before unload"),
-                Err(e) => warn!(
-                    chunk = ?(pos.x, pos.z),
-                    error = %e,
-                    "Failed to save chunk before unload"
-                ),
-            }
+        if let Some(column) = snapshot.column {
+            world.resource_scope(|world, mut loads: Mut<ColumnLoads>| {
+                loads.start_save((pos.x, pos.z), column, world.resource::<ChunkManager>());
+            });
         }
         for mob in snapshot.mobs {
             world.despawn(mob);
@@ -907,14 +775,13 @@ pub fn on_block_changed(trigger: On<BlockChanged>, mut chunks: Query<&mut ChunkS
 /// NOTE: cleanup_disconnecting_player_views was removed. ChunkLoader's on_remove
 /// hook now handles cleanup automatically when player entities are despawned.
 ///
-/// ## Async Generation (Phase 1 performance optimization)
+/// ## Streaming
 ///
-/// For vanilla worlds, chunk generation is handled asynchronously:
-/// - `request_chunk_generation` - Queues chunks for async generation (non-blocking)
-/// - `process_completed_generations` - Spawns entities for completed generations
-/// - `process_chunk_load_queues` - Handles sync cases (existing chunks, disk loads, superflat)
-///
-/// This prevents 300ms+ terrain generation from blocking the tick loop.
+/// - `apply_loaded_columns` spawns the columns background loads finished (storage reads,
+///   generation, encoding); it runs first so the load slots it frees are refilled by the
+///   same tick's requests.
+/// - `stream_chunks` sends what each view needs within the player's send window and starts
+///   the loads it is missing. Nothing on the tick waits for storage or generation.
 pub fn register_chunk_systems(schedule: &mut bevy_ecs::schedule::Schedule) {
     use crate::ecs::ChunkSet;
 
@@ -924,41 +791,19 @@ pub fn register_chunk_systems(schedule: &mut bevy_ecs::schedule::Schedule) {
             update_chunk_loaders,
             send_chunk_publisher_updates, // the view precedes every chunk below
             flush_pending_viewers,
-            request_chunk_generation,      // NEW: Non-blocking async request
-            process_completed_generations, // NEW: Process async results
-            process_chunk_load_queues,     // Handles sync cases + existing chunks
-            restore_chunk_actors,          // Mobs stored with chunks loaded above
-            send_spawn_status,             // after the first view and chunks
+            // Finished loads first: the slots they free are refilled this tick.
+            apply_loaded_columns,
+            stream_chunks,
+            restore_chunk_actors, // Mobs stored with chunks loaded above
+            send_spawn_status,    // after the first view and chunks
             handle_radius_changes,
             schedule_chunk_unloads,
             cancel_chunk_unloads,
             process_chunk_unloads,
             update_chunk_ticking,
+            log_stream_stats,
         )
             .chain()
             .in_set(ChunkSet),
     );
-}
-
-#[cfg(test)]
-mod tests {
-    use super::*;
-
-    #[test]
-    fn test_chunk_load_config_default() {
-        let config = ChunkLoadConfig::default();
-        assert_eq!(config.chunks_per_tick, 16); // Increased from 8 after generator optimization
-        assert_eq!(config.dimension, 0);
-        assert_eq!(config.simulation_distance, 6);
-        assert_eq!(config.unload_grace_ticks, 100);
-    }
-
-    #[test]
-    fn test_last_publisher_state_default() {
-        let state = LastPublisherState::default();
-        assert_eq!(state.chunk_x, 0);
-        assert_eq!(state.chunk_z, 0);
-        assert_eq!(state.radius, 0);
-        assert!(!state.queue_was_empty);
-    }
 }

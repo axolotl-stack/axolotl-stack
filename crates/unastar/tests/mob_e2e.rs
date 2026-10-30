@@ -388,6 +388,8 @@ fn run_loopback(scenario: Scenario, configure: impl FnOnce(&mut UnastarConfig)) 
     config.server.bind_address = addr.to_string();
     config.server.online_mode = false;
     config.server.max_players = 2;
+    // The view these scenarios were written for (the client asks for 16).
+    config.server.max_chunk_radius = 4;
     config.server.operators = vec![BOT.into()];
     config.players.data_dir = dir.path().join("playerdata");
     configure(&mut config);

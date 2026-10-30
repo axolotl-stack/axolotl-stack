@@ -846,6 +846,28 @@ async fn chunk_radius_requires_one_and_honours_the_server_override() {
     assert_eq!(client.session.session.chunk_radius(), Some(4));
 }
 
+/// A radius limit caps the client's request (as BDS caps it at its
+/// `view-distance`) and leaves smaller requests unchanged.
+#[tokio::test]
+async fn chunk_radius_limit_caps_the_granted_request() {
+    let harness = Harness::new(BedrockListenerConfig {
+        online_mode: false,
+        ..Default::default()
+    });
+    // The harness client requests 16.
+    for (limit, granted) in [(12, 12), (32, 16)] {
+        let (spawn, client) = harness
+            .through_packs(WorldJoinParams {
+                max_chunk_radius: Some(limit),
+                ..params(1)
+            })
+            .await;
+        let (server, client) = finish_spawn(spawn, client);
+        assert_eq!(server.session.chunk_radius(), Some(granted));
+        assert_eq!(client.session.session.chunk_radius(), Some(granted));
+    }
+}
+
 #[tokio::test]
 async fn each_stage_has_a_mandatory_deadline() {
     let harness = Harness::new(BedrockListenerConfig {

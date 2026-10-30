@@ -162,7 +162,7 @@ pub struct WorldConfig {
     /// BlazeDB cache capacity in chunks (default: 4096).
     pub blazedb_cache_chunks: usize,
     /// Chunk generation worker threads; 0 picks half the available cores (at least 1,
-    /// at most 8).
+    /// at most 16).
     pub generation_threads: usize,
 }
 
