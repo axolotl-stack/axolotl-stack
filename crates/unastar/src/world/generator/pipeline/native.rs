@@ -135,14 +135,23 @@ impl NativeSession {
     /// origins whose areas are free go first and the busy one is retried;
     /// only when every remaining origin is busy does this wait. A single
     /// caller therefore keeps exactly its request order.
-    pub(super) fn decorate_all(&self, generator: &dyn Generator, origins: &[ChunkPos]) {
-        let mut remaining = origins.to_vec();
-        while !remaining.is_empty() {
-            let before = remaining.len();
-            remaining.retain(|&origin| !self.decorate_with(generator, origin, false));
-            if remaining.len() == before {
-                let origin = remaining.remove(0);
-                self.decorate(generator, origin);
+    pub(super) fn decorate_all<const N: usize>(
+        &self,
+        generator: &dyn Generator,
+        origins: [ChunkPos; N],
+    ) {
+        let mut done = [false; N];
+        while let Some(first) = done.iter().position(|&done| !done) {
+            let mut progressed = false;
+            for (origin, done) in origins.iter().zip(&mut done) {
+                if !*done && self.decorate_with(generator, *origin, false) {
+                    *done = true;
+                    progressed = true;
+                }
+            }
+            if !progressed {
+                self.decorate(generator, origins[first]);
+                done[first] = true;
             }
         }
     }
@@ -161,9 +170,10 @@ impl NativeSession {
             cells[slot] =
                 self.created(generator, ChunkPos::new(origin.x + dx, origin.z + dz), wait);
         }
-        let Some(cells) = cells.into_iter().collect::<Option<Vec<Cell>>>() else {
+        if cells.iter().any(Option::is_none) {
             return false;
-        };
+        }
+        let cells = cells.map(|cell| cell.expect("every slot created"));
         // One global lock order (by position) makes overlapping origins wait
         // for each other without deadlock; trying never waits at all.
         let mut order: [usize; 9] = std::array::from_fn(|slot| slot);

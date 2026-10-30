@@ -244,7 +244,7 @@ impl ChunkPipeline {
                     ChunkPos::new(pos.x + dx, pos.z + dz)
                 }
             });
-            session.decorate_all(&*self.generator, &origins);
+            session.decorate_all(&*self.generator, origins);
             return self
                 .native_full_snapshot(pos)
                 .expect("completed native origin has no source chunk");
