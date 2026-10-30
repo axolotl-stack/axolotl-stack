@@ -189,6 +189,46 @@ class RedstoneSteps(unittest.TestCase):
         self.assertEqual(job['palette_states'], palette[:1])
 
 
+class UtilitySteps(unittest.TestCase):
+    state = staticmethod(RedstoneSteps.state)
+
+    def test_utility_alias_lists_every_scenario_and_traces_actor_packets(self):
+        import argparse
+        from unittest import mock
+        args = argparse.Namespace(kind='blocks', scenarios='utility', growth_runs='1:1', port=19140,
+                                  client=Path('client.exe'))
+        palette = [{'name': 'minecraft:composter', 'states': {}}, {'name': 'minecraft:wheat', 'states': {}}]
+        with mock.patch.object(sweep.native, 'block_states', return_value=palette):
+            job = sweep.build_job(args, Path('out'))
+        self.assertEqual([item['key'] for item in job['items']], list(sweep.UTILITY_SCENARIOS))
+        self.assertEqual(job['palette_states'], palette[:1])
+        trace = sweep.client_command(args, Path('out'))[-1].split(',')
+        self.assertIn('AddActorPacket', trace)
+        self.assertIn('BlockActorDataPacket', trace)
+        args.scenarios = 'redstone'
+        self.assertNotIn('AddActorPacket', sweep.client_command(args, Path('out'))[-1])
+
+    def test_region_cells_are_listed_only_when_changed(self):
+        stone, air = self.state('minecraft:stone'), self.state('minecraft:air')
+        tnt = self.state('minecraft:tnt', explode_bit=False)
+        step = {'step': 'tnt/lit', 'action': 'act', 'cells': {'tnt': [0, 0, 0], '1,0,0': [1, 0, 0], '2,0,0': [2, 0, 0]},
+                'origin_tick': 7, 'ticks': 90, 'before': {'tnt': tnt, '1,0,0': stone, '2,0,0': stone},
+                'changes': [[2, 'tnt', air], [82, '1,0,0', air]], 'after': {'tnt': air, '1,0,0': air, '2,0,0': stone},
+                'actors': [{'tick': 2, 'event': 'appeared', 'id': '9', 'type': 'minecraft:tnt',
+                            'position': [0.5, 0, 0.5], 'velocity': [0, 0.2, 0]}],
+                'actors_after': {}, 'held_after': ['minecraft:flint_and_steel', 1, 1], 'interactions': [],
+                'commands': ['summon tnt'], 'succeeded': [True]}
+        out = summarize.utility_step(step, {'tnt/lit': {'add_actor': [{'actor': 'minecraft:tnt'}]}})
+        self.assertEqual(out['positions'], {'tnt': [0, 0, 0]})
+        self.assertEqual(out['before'], {'tnt': 'minecraft:tnt[explode_bit=false]', '1,0,0': 'minecraft:stone'})
+        self.assertEqual(out['changes'], [{'tick': 2, 'cells': {'tnt': 'minecraft:air'}},
+                                          {'tick': 82, 'cells': {'1,0,0': 'minecraft:air'}}])
+        self.assertEqual(out['region_cells_watched'], 2)
+        self.assertEqual(out['actors'], [{'tick': 2, 'event': 'appeared', 'type': 'minecraft:tnt',
+                                          'position': [0.5, 0, 0.5], 'velocity': [0, 0.2, 0]}])
+        self.assertEqual(out['add_actor'], [{'actor': 'minecraft:tnt'}])
+
+
 
 if __name__ == '__main__':
     unittest.main()

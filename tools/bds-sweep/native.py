@@ -131,6 +131,15 @@ def items() -> list[str]:
     return sorted(reader.payload(tag))
 
 
+def item_network_ids() -> dict[int, str]:
+    """Item network (runtime) id -> identifier, from the protocolgen item
+    registry."""
+    reader = _Reader((DATA / 'registry' / 'items.nbt').read_bytes())
+    tag = reader.byte()
+    reader.string()
+    return {entry['runtime_id']: name for name, entry in reader.payload(tag).items()}
+
+
 _TAG_ROW = re.compile(r'^\t"([^"]+)":\s+\[\]string\{([^}]*)\},$', re.M)
 
 

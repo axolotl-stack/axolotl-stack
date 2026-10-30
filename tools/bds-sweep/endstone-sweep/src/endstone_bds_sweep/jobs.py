@@ -643,20 +643,28 @@ class Blocks:
 
 
 def blocks(ctx: Context, job: dict):
-    """Block behaviour scenarios (doors, torches, crops; redstone and fire)
-    on a flat stone arena, played by the survival sweep player through
-    `bds-sweep:use` and `bds-sweep:mine`; one result row per scenario with
-    the full block states of the watched cells after every step (per tick
-    for the redstone and fire scenarios)."""
+    """Block behaviour scenarios (doors, torches, crops; redstone and fire;
+    utility blocks) on a flat stone arena, played by the survival sweep
+    player through `bds-sweep:use` and `bds-sweep:mine`; one result row per
+    scenario with the full block states of the watched cells after every
+    step (per tick for the redstone, fire and utility scenarios)."""
     b = Blocks(ctx, job)
     ctx.must(f'gamemode survival "{job["player"]}"')
     for item in job['items']:
         if item['key'] in ctx.done:
             continue
         b.scenario = item['key']
-        steps = yield from SCENARIOS[item['key']](b, item)
-        row = {'key': item['key'], 'steps': steps}
-        if item['key'] in REDSTONE_SCENARIOS:
+        if item['key'] in UTILITY_SCENARIOS:
+            # A failing utility scenario is recorded and the next one runs.
+            try:
+                steps = yield from SCENARIOS[item['key']](b, item)
+                row = {'key': item['key'], 'steps': steps}
+            except Exception as error:  # noqa: BLE001
+                row = {'key': item['key'], 'steps': [], 'error': f'{type(error).__name__}: {error}'}
+        else:
+            steps = yield from SCENARIOS[item['key']](b, item)
+            row = {'key': item['key'], 'steps': steps}
+        if item['key'] in REDSTONE_SCENARIOS or item['key'] in UTILITY_SCENARIOS:
             row['palette'] = b.palette(job.get('palette_states', []))
         ctx.record(row)
     ctx.player.inventory.clear()
@@ -1213,11 +1221,625 @@ def fire(b: Blocks, item: dict):
     return steps
 
 
+# Utility scenarios: interactive blocks (observers, dispensers, TNT, note
+# blocks, rails, composters, cauldrons, campfires, beehives, bells,
+# jukeboxes, flower pots, cake, end and nether portals, respawn anchors,
+# beds). Every step is an `act`: the watched cells every tick from the
+# order or command, the non-player actors that appeared or went away and
+# the held item after the step. The player has resistance V so explosions
+# leave it alive.
+
+# facing_direction (0 down, 1 up, 2 north, 3 south, 4 west, 5 east) -> offset.
+FACING_OFFSETS = {0: (0, -1, 0), 1: (0, 1, 0), 2: (0, 0, -1), 3: (0, 0, 1), 4: (-1, 0, 0), 5: (1, 0, 0)}
+
+
+def _add(pos, offset, scale: int = 1):
+    return (pos[0] + offset[0] * scale, pos[1] + offset[1] * scale, pos[2] + offset[2] * scale)
+
+
+def _setblock(ctx: Context, pos, block: str, states: dict | None = None) -> None:
+    """`/setblock` with an optional state map; checks the block name only
+    (`setblock` fails when the identical block is already there)."""
+    spec = block
+    if states:
+        spec += ' [' + ','.join(f'"{k}"={json.dumps(v)}' for k, v in states.items()) + ']'
+    ctx.cmd(f'setblock {pos[0]} {pos[1]} {pos[2]} {spec}')
+    if ctx.block(pos).type != f'minecraft:{block}':
+        raise RuntimeError(f'setblock {pos} {spec} left {ctx.block(pos).type}')
+
+
+def _vec(v) -> list[float]:
+    return [round(v.x, 3), round(v.y, 3), round(v.z, 3)]
+
+
+def _region(x_range, y_range, z_range) -> dict:
+    return {f'{x},{y},{z}': (x, y, z) for x in x_range for y in y_range for z in z_range}
+
+
+def _actors(ctx: Context) -> dict:
+    """Every non-player actor: type, position, velocity (and the stack of
+    item actors), by unique id."""
+    found = {}
+    for actor in ctx.dimension.actors:
+        if actor.type == 'minecraft:player':
+            continue
+        info = {'type': actor.type, 'position': _vec(actor.location), 'velocity': _vec(actor.velocity)}
+        if actor.type == 'minecraft:item':
+            stack = actor.item_stack
+            info.update(item=stack.type.id, data=stack.data, count=stack.amount)
+        found[str(actor.id)] = info
+    return found
+
+
+def _held(ctx: Context):
+    held = ctx.player.inventory.item_in_main_hand
+    return [held.type.id, held.amount, held.data] if held is not None else None
+
+
+def act(b: Blocks, step: str, cells: dict, ticks: int, use: dict | None = None, commands=(), schedule=(),
+        until=None):
+    """One utility step. `use` = {block, face, stand, yaw?, click?}: the
+    player right-clicks with the held item; `commands` run in the same tick;
+    `schedule` = [(tick, command)] run that many ticks later. The watched
+    `cells` and the actors are read every tick for `ticks` ticks or until
+    `until(states, elapsed, actor_log)`."""
+    ctx = b.ctx
+    look = None
+    if use:
+        number, face_click, _ = FACES[use['face']]
+        click = use.get('click') or face_click
+        block = use['block']
+        target = [block[0] + click[0], block[1] + click[1], block[2] + click[2]]
+        look = yield from b.stand(use['stand'], target, use.get('yaw'))
+    before = b.cells(cells)
+    seen = _actors(ctx)
+    label = b.mark(step)
+    ctx.plugin.events.clear()
+    origin = b.tick
+    if use:
+        runtime_id = ctx.block(block).data.runtime_id
+        ctx.player.send_message(
+            f'bds-sweep:use {block[0]} {block[1]} {block[2]} {number} {click[0]} {click[1]} {click[2]} {runtime_id}')
+    succeeded = [ctx.cmd(command) for command in commands]
+    last = b.cells(cells)
+    changes = [[0, k, last[k]] for k in cells if last[k] != before[k]]
+    log = []
+    pending = sorted(schedule)
+    ran = []
+    elapsed = 0
+    for _ in range(ticks):
+        yield 1
+        elapsed = b.tick - origin
+        while pending and pending[0][0] <= elapsed:
+            at, command = pending.pop(0)
+            ran.append([elapsed, command, ctx.cmd(command)])
+        now = b.cells(cells)
+        for key in cells:
+            if now[key] != last[key]:
+                changes.append([elapsed, key, now[key]])
+        current = _actors(ctx)
+        for actor_id, info in current.items():
+            if actor_id not in seen:
+                log.append({'tick': elapsed, 'event': 'appeared', 'id': actor_id, **info})
+        for actor_id, info in seen.items():
+            if actor_id not in current:
+                log.append({'tick': elapsed, 'event': 'gone', 'id': actor_id, 'type': info['type'],
+                            'last_position': info['position']})
+        seen, last = current, now
+        if until is not None and until(now, elapsed, log):
+            break
+    row = {'step': label, 'action': 'act', 'cells': {k: list(v) for k, v in cells.items()}, 'origin_tick': origin,
+           'ticks': elapsed, 'before': before, 'changes': changes, 'after': last, 'actors': log,
+           'actors_after': seen, 'held_after': _held(ctx),
+           'interactions': [[t - origin, k, list(w)] for t, k, w in ctx.plugin.events]}
+    if use:
+        row.update(block=list(block), face=use['face'], click=list(click), look=look)
+    if commands:
+        row.update(commands=list(commands), succeeded=succeeded)
+    if ran:
+        row['scheduled'] = ran
+    return row
+
+
+def _ureset(b: Blocks):
+    yield from b.reset()
+    b.ctx.cmd('kill @e[type=!player]')
+    b.ctx.cmd(f'effect "{b.name}" resistance 99999 4 true')
+    yield 2
+
+
+def _use(block, face: str, stand, yaw: float | None = None, click=None) -> dict:
+    return {'block': block, 'face': face, 'stand': stand, 'yaw': yaw, 'click': click}
+
+
+def _place(b: Blocks, step: str, item: str, support, face: str, stand, cells: dict, yaw: float | None = None,
+           ticks: int = 10, count: int = 64):
+    """Holds `count` x `item` and clicks `face` of `support`; watches `cells`."""
+    yield from b.hold(item, count)
+    return (yield from act(b, step, cells, ticks, use=_use(support, face, stand, yaw)))
+
+
+def _lever(b: Blocks, step: str, support, stand, cells: dict):
+    """A lever clicked onto the top of `support`; returns the step and the
+    lever cell."""
+    lever = _add(support, (0, 1, 0))
+    placed = yield from _place(b, step, 'minecraft:lever', support, 'up', stand, {'lever': lever, **cells})
+    return placed, lever
+
+
+def observer(b: Blocks, item: dict):
+    """Observers set facing east: one with the changed block east of it, one
+    with the changed block west of it; then two changes one tick apart."""
+    ctx = b.ctx
+    y = b.arena['floor'] + 1
+    steps = []
+    yield from _ureset(b)
+    _setblock(ctx, (0, y, 0), 'observer', {'minecraft:facing_direction': 'east'})
+    _setblock(ctx, (1, y, 0), 'stone')
+    _setblock(ctx, (0, y, 3), 'observer', {'minecraft:facing_direction': 'east'})
+    _setblock(ctx, (-1, y, 3), 'stone')
+    yield 10
+    yield from b.stand((4.5, y, 1.5), (0.5, y, 1.5))
+    cells = {'observer_a': (0, y, 0), 'east_of_a': (1, y, 0), 'observer_b': (0, y, 3), 'west_of_b': (-1, y, 3)}
+    steps.append((yield from act(b, 'change_east_of_a', cells, 12, commands=[f'setblock 1 {y} 0 dirt'])))
+    steps.append((yield from act(b, 'change_west_of_b', cells, 12, commands=[f'setblock -1 {y} 3 dirt'])))
+    steps.append((yield from act(b, 'two_changes_east_of_a', cells, 12, commands=[f'setblock 1 {y} 0 stone'],
+                                 schedule=[(1, f'setblock 1 {y} 0 dirt')])))
+    return steps
+
+
+def _place_facing(b: Blocks, step: str, item: str, pos):
+    """Places `item` into `pos` by clicking the floor top from three blocks
+    east, looking west; returns the step and the facing offset placed."""
+    stand = (pos[0] + 3.5, pos[1], pos[2] + 2.5)
+    placed = yield from _place(b, step, item, _add(pos, (0, -1, 0)), 'up', stand, {'placed': pos}, yaw=90)
+    facing = placed['after']['placed']['states'].get('facing_direction')
+    return placed, FACING_OFFSETS.get(facing)
+
+
+def dispensers(b: Blocks, item: dict):
+    """A dispenser placed by the player (looking west) holding arrows, a
+    water bucket or stone; a stone block behind it with a lever on top. A
+    dropper the same way with a chest in front. Containers are destroyed
+    with `setblock … air destroy` at the end to show their contents."""
+    ctx = b.ctx
+    y = b.arena['floor'] + 1
+    steps = []
+    pos = (0, y, 0)
+    stand = (3.5, y, 2.5)
+    for content, count in (('arrow', 3), ('water_bucket', 1), ('stone', 2), ('dropper', 2)):
+        yield from _ureset(b)
+        block = 'dropper' if content == 'dropper' else 'dispenser'
+        prefix = content
+        placed, facing = yield from _place_facing(b, f'{prefix}_place', f'minecraft:{block}', pos)
+        steps.append(placed)
+        if facing is None or facing[1] != 0:
+            continue
+        front, back = _add(pos, facing), _add(pos, facing, -1)
+        side = _add(pos, (facing[2], 0, facing[0]))
+        if content == 'dropper':
+            _setblock(ctx, front, 'chest')
+        ctx.must(f'replaceitem block {pos[0]} {pos[1]} {pos[2]} slot.container 0 '
+                 f'{"stone" if content == "dropper" else content} {count}')
+        _setblock(ctx, back, 'stone')
+        yield 4
+        cells = {block: pos, 'front': front, 'front_2': _add(pos, facing, 2), 'back': back, 'side': side}
+        lever_step, lever = yield from _lever(b, f'{prefix}_lever_place', back, stand, cells)
+        steps.append(lever_step)
+        cells['lever'] = lever
+        yield from b.hold(None)
+        flip = _use(lever, 'up', stand)
+        steps.append((yield from act(b, f'{prefix}_lever_on', cells, 30, use=flip)))
+        if content == 'arrow':
+            steps.append((yield from act(b, 'arrow_second_power_while_on', cells, 20,
+                                         commands=[f'setblock {side[0]} {side[1]} {side[2]} redstone_block'])))
+            steps.append((yield from act(b, 'arrow_lever_off_still_powered', cells, 20, use=flip)))
+            steps.append((yield from act(b, 'arrow_unpowered', cells, 20,
+                                         commands=[f'setblock {side[0]} {side[1]} {side[2]} air'])))
+            steps.append((yield from act(b, 'arrow_lever_on_again', cells, 30, use=flip)))
+        elif content == 'water_bucket':
+            steps.append((yield from act(b, 'water_bucket_lever_off', cells, 20, use=flip)))
+            steps.append((yield from act(b, 'water_bucket_lever_on_again', cells, 30, use=flip)))
+        else:
+            steps.append((yield from act(b, f'{prefix}_lever_off', cells, 20, use=flip)))
+        if content == 'dropper':
+            steps.append((yield from act(b, 'dropper_chest_destroyed', cells, 10,
+                                         commands=[f'setblock {front[0]} {front[1]} {front[2]} air destroy'])))
+        steps.append((yield from act(b, f'{prefix}_container_destroyed', cells, 10,
+                                     commands=[f'setblock {pos[0]} {pos[1]} {pos[2]} air destroy'])))
+    return steps
+
+
+def _tnt_cells(center, floor: int) -> dict:
+    return _region(range(center[0] - 3, center[0] + 4), range(floor - 1, floor + 2),
+                   range(center[2] - 3, center[2] + 4))
+
+
+def _no_tnt_left(states, elapsed, log) -> bool:
+    appeared = {e['id'] for e in log if e['event'] == 'appeared' and e['type'] == 'minecraft:tnt'}
+    gone = {e['id'] for e in log if e['event'] == 'gone'}
+    return bool(appeared) and appeared <= gone and elapsed >= max(e['tick'] for e in log) + 10
+
+
+def tnt(b: Blocks, item: dict):
+    """TNT on the floor at the origin: lit with flint and steel; lit by a
+    lever on a stone block next to it; primed by the explosion of a summoned
+    primed TNT two blocks away. The player walks off after the click; the
+    7x3x7 cells around the TNT are watched (floor-1 .. floor+1)."""
+    ctx = b.ctx
+    floor = b.arena['floor']
+    y = floor + 1
+    ticks = int(item.get('tnt_ticks', 160))
+    away = f'tp "{b.name}" 0.5 {y} 18.5'
+    steps = []
+    tnt_pos = (0, y, 0)
+    cells = _tnt_cells(tnt_pos, floor)
+
+    yield from _ureset(b)
+    _setblock(ctx, tnt_pos, 'tnt')
+    yield 2
+    yield from b.hold('minecraft:flint_and_steel', 1)
+    steps.append((yield from act(b, 'flint_and_steel', cells, ticks, use=_use(tnt_pos, 'south', (0.5, y, 3.5)),
+                                 schedule=[(5, away)], until=_no_tnt_left)))
+
+    yield from _ureset(b)
+    _setblock(ctx, tnt_pos, 'tnt')
+    _setblock(ctx, (-1, y, 0), 'stone')
+    yield 2
+    stand = (-0.5, y, 3.5)
+    lever_step, lever = yield from _lever(b, 'lever_place', (-1, y, 0), stand, {})
+    steps.append(lever_step)
+    yield from b.hold(None)
+    steps.append((yield from act(b, 'lever_on', cells, ticks, use=_use(lever, 'up', stand),
+                                 schedule=[(5, away)], until=_no_tnt_left)))
+
+    yield from _ureset(b)
+    _setblock(ctx, (2, y, 0), 'tnt')
+    yield 2
+    yield from b.stand((0.5, y, 18.5), (0.5, y, 0.5))
+    steps.append((yield from act(b, 'primed_by_explosion', {**cells, **_tnt_cells((2, y, 0), floor)}, ticks,
+                                 commands=[f'summon tnt 0.5 {y} 0.5'], until=_no_tnt_left)))
+    return steps
+
+
+def note_block_use(b: Blocks, item: dict):
+    """Note block on dirt: three empty-hand clicks, then a lever on the
+    east face of a stone block east of it, on and off."""
+    ctx = b.ctx
+    floor = b.arena['floor']
+    y = floor + 1
+    steps = []
+    yield from _ureset(b)
+    _setblock(ctx, (0, floor, 0), 'dirt')
+    _setblock(ctx, (0, y, 0), 'noteblock')
+    _setblock(ctx, (1, y, 0), 'stone')
+    yield 2
+    cells = {'note_block': (0, y, 0), 'under': (0, floor, 0), 'lever': (2, y, 0)}
+    yield from b.hold(None)
+    for click in (1, 2, 3):
+        steps.append((yield from act(b, f'use_{click}', cells, 6, use=_use((0, y, 0), 'south', (0.5, y, 2.5)))))
+    stand = (3.5, y, 2.5)
+    steps.append((yield from _place(b, 'lever_place', 'minecraft:lever', (1, y, 0), 'east', stand, cells)))
+    yield from b.hold(None)
+    for state in ('on', 'off'):
+        steps.append((yield from act(b, f'lever_{state}', cells, 10,
+                                     use=_use((2, y, 0), 'east', stand, click=(0.25, 0.5, 0.5)))))
+    return steps
+
+
+def rails(b: Blocks, item: dict):
+    """Rails clicked onto the floor: corner (0,0), then east (1,0), then
+    south (0,1); a minecart placed on the south rail. Ten golden rails along
+    +x at z=6 (/setblock, east-west) next to a stone block with a lever."""
+    ctx = b.ctx
+    floor = b.arena['floor']
+    y = floor + 1
+    steps = []
+    yield from _ureset(b)
+    cells = {'corner': (0, y, 0), 'east': (1, y, 0), 'south': (0, y, 1)}
+    stand = (3.5, y, 3.5)
+    for key in ('corner', 'east', 'south'):
+        x, _, z = cells[key]
+        steps.append((yield from _place(b, f'rail_{key}', 'minecraft:rail', (x, floor, z), 'up', stand, cells)))
+    steps.append((yield from _place(b, 'minecart', 'minecraft:minecart', cells['south'], 'up', stand, cells,
+                                    ticks=20, count=1)))
+
+    golden = {f'golden_{x:02}': (x, y, 6) for x in range(1, 11)}
+    _setblock(ctx, (0, y, 6), 'stone')
+    for pos in golden.values():
+        _setblock(ctx, pos, 'golden_rail', {'rail_direction': 1})
+    yield 4
+    stand = (0.5, y, 9.5)
+    lever_step, lever = yield from _lever(b, 'golden_lever_place', (0, y, 6), stand, golden)
+    steps.append(lever_step)
+    golden['lever'] = lever
+    yield from b.hold(None)
+    for state in ('on', 'off'):
+        steps.append((yield from act(b, f'golden_lever_{state}', golden, 20, use=_use(lever, 'up', stand))))
+    return steps
+
+
+def _fill(states) -> int:
+    return states['composter']['states']['composter_fill_level']
+
+
+def composter(b: Blocks, item: dict):
+    """Ten wheat seed uses on an empty composter; then a composter set to
+    level 6 used with seeds until it reaches 7 (watched until 8); then used
+    at 8 with an empty hand."""
+    ctx = b.ctx
+    y = b.arena['floor'] + 1
+    steps = []
+    yield from _ureset(b)
+    _setblock(ctx, (0, y, 0), 'composter')
+    yield 2
+    cells = {'composter': (0, y, 0)}
+    click = _use((0, y, 0), 'up', (0.5, y, 2.5))
+    yield from b.hold('minecraft:wheat_seeds')
+    for use in range(1, 11):
+        steps.append((yield from act(b, f'seeds_{use}', cells, 4, use=click)))
+    _setblock(ctx, (0, y, 0), 'composter', {'composter_fill_level': 6})
+    yield 4
+    for use in range(1, 41):
+        steps.append((yield from act(b, f'level_6_seeds_{use}', cells, 60, use=click,
+                                     until=lambda s, t, log: _fill(s) == 8 or (_fill(s) == 6 and t >= 3))))
+        if _fill(steps[-1]['after']) >= 7:
+            break
+    yield from b.hold(None)
+    steps.append((yield from act(b, 'use_at_8', cells, 20, use=click)))
+    return steps
+
+
+def cauldron(b: Blocks, item: dict):
+    ctx = b.ctx
+    y = b.arena['floor'] + 1
+    steps = []
+    yield from _ureset(b)
+    _setblock(ctx, (0, y, 0), 'cauldron')
+    yield 2
+    cells = {'cauldron': (0, y, 0)}
+    click = _use((0, y, 0), 'up', (0.5, y, 2.5))
+    yield from b.hold('minecraft:water_bucket', 1)
+    steps.append((yield from act(b, 'water_bucket', cells, 6, use=click)))
+    yield from b.hold('minecraft:glass_bottle', 3)
+    for use in (1, 2, 3):
+        steps.append((yield from act(b, f'glass_bottle_{use}', cells, 6, use=click)))
+    yield from b.hold('minecraft:lava_bucket', 1)
+    steps.append((yield from act(b, 'lava_bucket', cells, 6, use=click)))
+    yield from b.hold('minecraft:bucket', 1)
+    steps.append((yield from act(b, 'empty_bucket', cells, 6, use=click)))
+    return steps
+
+
+def campfire(b: Blocks, item: dict):
+    """A campfire placed looking north; raw beef put on it (watched until
+    the cooked item pops out); extinguished with a wooden shovel."""
+    y = b.arena['floor'] + 1
+    steps = []
+    yield from _ureset(b)
+    cells = {'campfire': (0, y, 0)}
+    stand = (0.5, y, 2.5)
+    steps.append((yield from _place(b, 'place', 'minecraft:campfire', (0, y - 1, 0), 'up', stand, cells, yaw=180)))
+    yield from b.hold('minecraft:beef', 4)
+    click = _use((0, y, 0), 'up', stand)
+    cooked = int(item.get('cook_ticks', 900))
+    steps.append((yield from act(
+        b, 'raw_beef', cells, cooked, use=click,
+        until=lambda s, t, log: any(e['event'] == 'appeared' and e['type'] == 'minecraft:item' for e in log))))
+    yield 10
+    yield from b.hold('minecraft:wooden_shovel', 1)
+    steps.append((yield from act(b, 'wooden_shovel', cells, 10, use=click)))
+    return steps
+
+
+def beehive(b: Blocks, item: dict):
+    ctx = b.ctx
+    y = b.arena['floor'] + 1
+    steps = []
+    yield from _ureset(b)
+    hives = {'shears': (0, y, 0), 'glass_bottle': (3, y, 0)}
+    for pos in hives.values():
+        _setblock(ctx, pos, 'beehive', {'direction': 0, 'honey_level': 5})
+    yield 2
+    for tool, pos in hives.items():
+        yield from b.hold(f'minecraft:{tool}', 1)
+        steps.append((yield from act(b, tool, {'beehive': pos}, 10,
+                                     use=_use(pos, 'south', (pos[0] + 0.5, y, 2.5)))))
+    return steps
+
+
+def bell(b: Blocks, item: dict):
+    """A standing bell (direction 0) clicked on each side face, then a lever
+    on a stone block west of it."""
+    ctx = b.ctx
+    y = b.arena['floor'] + 1
+    steps = []
+    yield from _ureset(b)
+    pos = (0, y, 0)
+    _setblock(ctx, pos, 'bell', {'attachment': 'standing', 'direction': 0})
+    _setblock(ctx, (-1, y, 0), 'stone')
+    yield 2
+    cells = {'bell': pos}
+    yield from b.hold(None)
+    stands = {'south': (0.5, y, 2.5), 'north': (0.5, y, -1.5), 'east': (2.5, y, 0.5), 'west': (-1.5, y, 1.5)}
+    for face in ('south', 'north', 'east', 'west'):
+        steps.append((yield from act(b, f'use_{face}_face', cells, 20, use=_use(pos, face, stands[face]))))
+    stand = (-0.5, y, 2.5)
+    lever_step, lever = yield from _lever(b, 'lever_place', (-1, y, 0), stand, cells)
+    steps.append(lever_step)
+    cells['lever'] = lever
+    yield from b.hold(None)
+    for state in ('on', 'off'):
+        steps.append((yield from act(b, f'lever_{state}', cells, 30, use=_use(lever, 'up', stand))))
+    return steps
+
+
+def jukebox(b: Blocks, item: dict):
+    ctx = b.ctx
+    y = b.arena['floor'] + 1
+    steps = []
+    yield from _ureset(b)
+    _setblock(ctx, (0, y, 0), 'jukebox')
+    yield 2
+    cells = {'jukebox': (0, y, 0)}
+    click = _use((0, y, 0), 'up', (0.5, y, 2.5))
+    yield from b.hold('minecraft:music_disc_13', 1)
+    steps.append((yield from act(b, 'insert_disc', cells, 20, use=click)))
+    yield from b.hold(None)
+    steps.append((yield from act(b, 'eject', cells, 20, use=click)))
+    return steps
+
+
+def flower_pot(b: Blocks, item: dict):
+    ctx = b.ctx
+    y = b.arena['floor'] + 1
+    steps = []
+    yield from _ureset(b)
+    _setblock(ctx, (0, y, 0), 'flower_pot')
+    yield 2
+    cells = {'flower_pot': (0, y, 0)}
+    click = _use((0, y, 0), 'up', (0.5, y, 2.5))
+    yield from b.hold('minecraft:poppy', 1)
+    steps.append((yield from act(b, 'poppy', cells, 6, use=click)))
+    yield from b.hold(None)
+    steps.append((yield from act(b, 'empty_hand', cells, 6, use=click)))
+    return steps
+
+
+def cake(b: Blocks, item: dict):
+    """Cake clicked at full hunger, then after a hunger effect (easy
+    difficulty) twice."""
+    ctx = b.ctx
+    y = b.arena['floor'] + 1
+    steps = []
+    yield from _ureset(b)
+    ctx.cmd('difficulty easy')
+    _setblock(ctx, (0, y, 0), 'cake')
+    yield 2
+    cells = {'cake': (0, y, 0)}
+    click = _use((0, y, 0), 'up', (0.5, y, 2.5))
+    yield from b.hold(None)
+    steps.append((yield from act(b, 'use_full_hunger', cells, 10, use=click)))
+    steps.append((yield from act(b, 'hunger_effect', cells, 50,
+                                 commands=[f'effect "{b.name}" hunger 2 255 true'])))
+    ctx.cmd(f'effect "{b.name}" clear')
+    ctx.cmd(f'effect "{b.name}" resistance 99999 4 true')
+    yield 5
+    for bite in (1, 2):
+        steps.append((yield from act(b, f'use_hungry_{bite}', cells, 10, use=click)))
+    ctx.cmd('difficulty peaceful')
+    return steps
+
+
+INWARD = {'north_edge': 'south', 'south_edge': 'north', 'west_edge': 'east', 'east_edge': 'west'}
+OUTWARD = {'north_edge': 'north', 'south_edge': 'south', 'west_edge': 'west', 'east_edge': 'east'}
+
+
+def end_portal(b: Blocks, item: dict):
+    """Twelve end portal frames around a 3x3 interior (/setblock, eleven
+    with eyes); the player inserts the twelfth eye into the south edge's
+    middle frame. Once with every frame's cardinal_direction pointing at the
+    interior, once pointing away."""
+    ctx = b.ctx
+    y = b.arena['floor'] + 1
+    steps = []
+    for variant, directions in (('inward', INWARD), ('outward', OUTWARD)):
+        yield from _ureset(b)
+        frames = {}
+        for i in (1, 2, 3):
+            frames[f'frame_n{i}'] = ((i, y, 0), directions['north_edge'])
+            frames[f'frame_s{i}'] = ((i, y, 4), directions['south_edge'])
+            frames[f'frame_w{i}'] = ((0, y, i), directions['west_edge'])
+            frames[f'frame_e{i}'] = ((4, y, i), directions['east_edge'])
+        last = (2, y, 4)
+        for pos, direction in frames.values():
+            _setblock(ctx, pos, 'end_portal_frame', {'minecraft:cardinal_direction': direction,
+                                                     'end_portal_eye_bit': pos != last})
+        yield 4
+        cells = {'last_frame': last, **_region(range(1, 4), (y,), range(1, 4))}
+        yield from b.hold('minecraft:ender_eye', 2)
+        steps.append((yield from act(b, f'{variant}_last_eye', cells, 20, use=_use(last, 'up', (2.5, y, 6.5)))))
+    return steps
+
+
+def nether_portal(b: Blocks, item: dict):
+    """Obsidian 4x5 frame in the x plane at z=0 (inner x 1..2, three high);
+    flint and steel on the top of the inner bottom obsidian; then the west
+    side's middle obsidian set to air."""
+    ctx = b.ctx
+    y = b.arena['floor'] + 1
+    steps = []
+    yield from _ureset(b)
+    for x in range(4):
+        for dy in range(5):
+            if x in (0, 3) or dy in (0, 4):
+                _setblock(ctx, (x, y + dy, 0), 'obsidian')
+    yield 4
+    cells = {'removed_frame': (0, y + 2, 0), **_region((1, 2), range(y + 1, y + 4), (0,))}
+    yield from b.hold('minecraft:flint_and_steel', 1)
+    steps.append((yield from act(b, 'flint_and_steel', cells, 40, use=_use((1, y, 0), 'up', (1.5, y, -2.5)))))
+    steps.append((yield from act(b, 'frame_removed', cells, 20, commands=[f'setblock 0 {y + 2} 0 air'])))
+    return steps
+
+
+def respawn_anchor(b: Blocks, item: dict):
+    """Overworld respawn anchor: charged with glowstone, then used with an
+    empty hand; the 7x3x7 cells around it are watched."""
+    ctx = b.ctx
+    floor = b.arena['floor']
+    y = floor + 1
+    steps = []
+    yield from _ureset(b)
+    pos = (0, y, 0)
+    _setblock(ctx, pos, 'respawn_anchor')
+    yield 2
+    cells = {'anchor': pos, **_region(range(-3, 4), range(floor - 1, floor + 3), range(-3, 4))}
+    click = _use(pos, 'south', (0.5, y, 3.5))
+    yield from b.hold('minecraft:glowstone', 4)
+    steps.append((yield from act(b, 'glowstone', cells, 6, use=click)))
+    yield from b.hold(None)
+    steps.append((yield from act(b, 'empty_hand', cells, 40, use=click,
+                                 schedule=[(5, f'tp "{b.name}" 0.5 {y} 18.5')])))
+    return steps
+
+
+def bed(b: Blocks, item: dict):
+    """A bed placed looking north (foot at the origin); used at noon, then
+    at night (`time set 18000`); the level time is read before and after."""
+    ctx = b.ctx
+    y = b.arena['floor'] + 1
+    steps = []
+    yield from _ureset(b)
+    cells = {'foot': (0, y, 0), 'head': (0, y, -1)}
+    stand = (0.5, y, 1.8)
+    steps.append((yield from _place(b, 'place', 'minecraft:bed', (0, y - 1, 0), 'up', stand, cells, yaw=180,
+                                    count=1)))
+    yield from b.hold(None)
+    click = _use((0, y, 0), 'up', stand)
+    steps.append((yield from act(b, 'use_noon', cells, 20, use=click)))
+    ctx.must('time set 18000')
+    yield 5
+    time_before = ctx.player.level.time
+    steps.append((yield from act(b, 'use_night', cells, int(item.get('sleep_ticks', 240)), use=click)))
+    steps[-1].update(level_time_before=time_before, level_time_after=ctx.player.level.time)
+    ctx.must('time set 6000')
+    yield 5
+    return steps
+
+
+UTILITY_SCENARIOS = {'observer': observer, 'dispensers': dispensers, 'tnt': tnt, 'note_block_use': note_block_use,
+                     'rails': rails, 'composter': composter, 'cauldron': cauldron, 'campfire': campfire,
+                     'beehive': beehive, 'bell': bell, 'jukebox': jukebox, 'flower_pot': flower_pot, 'cake': cake,
+                     'end_portal': end_portal, 'nether_portal': nether_portal, 'respawn_anchor': respawn_anchor,
+                     'bed': bed}
+
+
+
 REDSTONE_SCENARIOS = {'redstone_dust': redstone_dust, 'repeaters': repeaters, 'redstone_torch': redstone_torch,
                       'comparators': comparators, 'buttons': buttons, 'pressure_plates': pressure_plates,
                       'iron_door_lever': iron_door_lever, 'note_blocks': note_blocks, 'fire': fire}
 
-SCENARIOS = {'doors': doors, 'torches': torches, 'crops': crops, **REDSTONE_SCENARIOS}
+SCENARIOS = {'doors': doors, 'torches': torches, 'crops': crops, **REDSTONE_SCENARIOS, **UTILITY_SCENARIOS}
 
 JOBS = {'drops': drops, 'armor_slots': armor_slots, 'armor_values': armor_values, 'attack': attack,
         'fuel': fuel, 'mining': mining, 'blocks': blocks}

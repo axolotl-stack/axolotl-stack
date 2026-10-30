@@ -6,6 +6,7 @@
     python tools/bds-sweep/sweep.py fuel --out DIR
     python tools/bds-sweep/sweep.py blocks --scenarios doors,torches,crops --out DIR
     python tools/bds-sweep/sweep.py blocks --scenarios redstone --out DIR
+    python tools/bds-sweep/sweep.py blocks --scenarios utility --out DIR
 
 Starts BDS 1.26.51 under Endstone on a fresh superflat creative world
 (`bds-sweep-1.26.51`, peaceful, operators by default) on UDP `--port`
@@ -60,9 +61,23 @@ PALETTE_BLOCKS = ('air', 'stone', 'dirt', 'lever', 'redstone_wire', 'redstone_la
                   'redstone_torch', 'unlit_redstone_torch', 'stone_button', 'wooden_button', 'stone_pressure_plate',
                   'wooden_pressure_plate', 'iron_door', 'noteblock', 'fire', 'netherrack', 'oak_planks',
                   'redstone_block')
+# Interactive-block scenarios (`--scenarios utility` runs them all); their
+# summary is `summarize.py utility`.
+UTILITY_SCENARIOS = ('observer', 'dispensers', 'tnt', 'note_block_use', 'rails', 'composter', 'cauldron', 'campfire',
+                     'beehive', 'bell', 'jukebox', 'flower_pot', 'cake', 'end_portal', 'nether_portal',
+                     'respawn_anchor', 'bed')
+UTILITY_PALETTE_BLOCKS = ('observer', 'dispenser', 'dropper', 'chest', 'tnt', 'rail', 'golden_rail', 'composter',
+                          'cauldron', 'campfire', 'beehive', 'bell', 'jukebox', 'flower_pot', 'cake',
+                          'end_portal_frame', 'end_portal', 'obsidian', 'portal', 'respawn_anchor', 'bed', 'water',
+                          'flowing_water', 'lava', 'flowing_lava', 'glowstone', 'grass_block')
 # Server packets the `blocks` job's client logs per step.
 BLOCK_TRACE = ('LevelSoundEventPacket', 'LevelEventPacket', 'LevelEventGenericPacket', 'UpdateBlockPacket',
                'UpdateBlockSyncedPacket', 'UpdateSubChunkBlocksPacket', 'BlockEventPacket', 'AddItemActorPacket')
+# Also logged when a utility scenario runs: actors, block actor data,
+# messages, spawn points and hunger.
+UTILITY_TRACE = ('AddActorPacket', 'RemoveActorPacket', 'BlockActorDataPacket', 'ActorEventPacket',
+                 'SetActorDataPacket', 'SetActorMotionPacket', 'TextPacket', 'SetSpawnPositionPacket',
+                 'UpdateAttributesPacket', 'PlaySoundPacket')
 SETUP = [
     'gamerule domobspawning false',
     'gamerule dodaylightcycle false',
@@ -259,17 +274,22 @@ def build_job(args, out: Path) -> dict:
                    max_ticks=args.max_ticks,
                    items=[{'key': name, 'item': name} for name in item_names(args.items, SLICE_FUELS)])
     elif args.kind == 'blocks':
-        names = [n for name in args.scenarios.split(',')
-                 for n in (REDSTONE_SCENARIOS if name == 'redstone' else (name,))]
-        unknown = sorted(set(names) - set(BLOCK_SCENARIOS) - set(REDSTONE_SCENARIOS))
+        groups = {'redstone': REDSTONE_SCENARIOS, 'utility': UTILITY_SCENARIOS}
+        names = [n for name in args.scenarios.split(',') for n in groups.get(name, (name,))]
+        known = BLOCK_SCENARIOS + REDSTONE_SCENARIOS + UTILITY_SCENARIOS
+        unknown = sorted(set(names) - set(known))
         if unknown:
-            raise SystemExit(f'unknown blocks scenarios: {unknown}; choose from '
-                             f'{BLOCK_SCENARIOS + REDSTONE_SCENARIOS} or redstone')
+            raise SystemExit(f'unknown blocks scenarios: {unknown}; choose from {known}, redstone or utility')
         runs = [[int(speed), float(seconds)] for speed, seconds in
                 (run.split(':') for run in args.growth_runs.split(','))]
         job['items'] = [{'key': name, **({'growth_runs': runs} if name == 'crops' else {})} for name in names]
+        palette = set()
         if set(names) & set(REDSTONE_SCENARIOS):
-            wanted = {f'minecraft:{name}' for name in PALETTE_BLOCKS}
+            palette |= set(PALETTE_BLOCKS)
+        if set(names) & set(UTILITY_SCENARIOS):
+            palette |= set(PALETTE_BLOCKS) | set(UTILITY_PALETTE_BLOCKS)
+        if palette:
+            wanted = {f'minecraft:{name}' for name in palette}
             job['palette_states'] = [entry for entry in native.block_states() if entry['name'] in wanted]
     return job
 
@@ -277,7 +297,9 @@ def build_job(args, out: Path) -> dict:
 def client_command(args, out: Path) -> list[str]:
     command = [str(args.client), '--name', PLAYER, '--addr', f'127.0.0.1:{args.port}']
     if args.kind == 'blocks':
-        command += ['--capture-dir', str(out / 'capture'), '--trace', ','.join(BLOCK_TRACE)]
+        trace = BLOCK_TRACE + (UTILITY_TRACE if set(args.scenarios.split(',')) & {'utility', *UTILITY_SCENARIOS}
+                               else ())
+        command += ['--capture-dir', str(out / 'capture'), '--trace', ','.join(trace)]
     return command
 
 
