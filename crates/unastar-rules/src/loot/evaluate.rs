@@ -1,5 +1,5 @@
 use super::*;
-use rand::Rng;
+use rand::{Rng, RngCore};
 
 const MAX_TABLE_DEPTH: u8 = 16;
 
@@ -34,6 +34,30 @@ pub trait LootContext {
     fn data_alias(&self, _name: &str, _data: i16) -> Option<&str> {
         None
     }
+    /// Luck of the roll (fishing: the rod's Luck of the Sea level). Each
+    /// pool entry weighs `max(floor(weight + quality × luck), 0)`.
+    fn luck(&self) -> f32 {
+        0.0
+    }
+    /// Item-dependent functions (`set_damage`, `enchant_with_levels`).
+    fn item_functions(&self) -> Option<&dyn ItemFunctions> {
+        None
+    }
+}
+
+/// Functions that need the caller's item data, applied to the drop as it is
+/// built. They may rewrite the item (an enchanted book replaces a book).
+pub trait ItemFunctions {
+    /// Leave the item with `fraction` of its maximum durability.
+    fn set_damage(&self, drop: &mut LootDrop, fraction: f32) -> Result<(), LootError>;
+    /// Enchant the item as an enchanting table would at `levels`.
+    fn enchant_with_levels(
+        &self,
+        drop: &mut LootDrop,
+        levels: i32,
+        treasure: bool,
+        rng: &mut dyn RngCore,
+    ) -> Result<(), LootError>;
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -69,6 +93,15 @@ fn sample_int(number: LootNumber, rng: &mut impl Rng) -> i32 {
             }
         }
         LootNumber::Binomial { n, p } => binomial(n, p, rng) as i32,
+    }
+}
+
+fn sample_float(number: LootNumber, rng: &mut impl Rng) -> f32 {
+    match number {
+        LootNumber::Constant(v) => v,
+        LootNumber::Uniform { min, max } if max > min => rng.gen_range(min..max),
+        LootNumber::Uniform { min, .. } => min,
+        LootNumber::Binomial { n, p } => binomial(n, p, rng) as f32,
     }
 }
 
@@ -232,6 +265,18 @@ fn apply_functions(
                     }
                 }
             }
+            LootFunctionKind::SetDamage { damage } => {
+                let fraction = sample_float(*damage, rng);
+                ctx.item_functions()
+                    .ok_or(LootError::MissingContext("set_damage"))?
+                    .set_damage(drop, fraction)?;
+            }
+            LootFunctionKind::EnchantWithLevels { levels, treasure } => {
+                let levels = sample_int(*levels, rng);
+                ctx.item_functions()
+                    .ok_or(LootError::MissingContext("enchant_with_levels"))?
+                    .enchant_with_levels(drop, levels, *treasure, &mut *rng)?;
+            }
             LootFunctionKind::Other { name, .. } => {
                 return Err(LootError::Unsupported(name.clone()));
             }
@@ -300,26 +345,40 @@ impl<R: Rng> Roller<'_, R> {
         if !all_pass(&pool.conditions, self.ctx, self.rng)? {
             return Ok(());
         }
+        let luck = self.ctx.luck();
+        let weight = |entry: &LootEntry| {
+            if luck == 0.0 {
+                entry.weight
+            } else {
+                (entry.weight as f32 + entry.quality as f32 * luck)
+                    .floor()
+                    .max(0.0) as u32
+            }
+        };
         for _ in 0..sample_int(pool.rolls, self.rng).max(0) {
             self.eligible.clear();
             for (i, entry) in pool.entries.iter().enumerate() {
-                if entry.weight > 0 && all_pass(&entry.conditions, self.ctx, self.rng)? {
+                if weight(entry) > 0 && all_pass(&entry.conditions, self.ctx, self.rng)? {
                     self.eligible.push(i);
                 }
             }
-            let total: u32 = self.eligible.iter().map(|i| pool.entries[*i].weight).sum();
+            let total: u32 = self
+                .eligible
+                .iter()
+                .map(|i| weight(&pool.entries[*i]))
+                .sum();
             if total == 0 {
                 continue;
             }
             let mut pick = self.rng.gen_range(0..total);
             let mut selected = None;
             for i in &self.eligible {
-                let entry = &pool.entries[*i];
-                if pick < entry.weight {
+                let entry_weight = weight(&pool.entries[*i]);
+                if pick < entry_weight {
                     selected = Some(*i);
                     break;
                 }
-                pick -= entry.weight;
+                pick -= entry_weight;
             }
             if let Some(i) = selected {
                 self.entry(&pool.entries[i], depth)?;

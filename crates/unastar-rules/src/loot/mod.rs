@@ -8,7 +8,7 @@ mod decode;
 mod evaluate;
 
 pub use decode::decode_table;
-pub use evaluate::{LootContext, LootDrop, LootError, roll};
+pub use evaluate::{ItemFunctions, LootContext, LootDrop, LootError, roll};
 use std::collections::BTreeMap;
 
 /// Borrowed canonical recipe output. Smelting preserves the loot count.
@@ -119,6 +119,17 @@ pub enum LootFunctionKind {
     /// Data value from the THIS actor's palette colour; a legacy name that
     /// picks its item by data value (`minecraft:wool`) becomes that item.
     SetDataFromColorIndex,
+    /// Remaining durability as a fraction of the item's maximum; the
+    /// context's [`ItemFunctions`] writes the resulting damage.
+    SetDamage {
+        damage: LootNumber,
+    },
+    /// Enchant the item as an enchanting table would at `levels`; the
+    /// context's [`ItemFunctions`] picks the enchantments.
+    EnchantWithLevels {
+        levels: LootNumber,
+        treasure: bool,
+    },
     Other {
         name: String,
         json: serde_json::Value,
