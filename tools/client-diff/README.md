@@ -164,7 +164,32 @@ and `item-use-splash-sideways` measure how splash effect duration falls with
 distance (the latter teleports the player between throw and impact), and
 `item-use-tridents-water` throws an impaling trident at a drowned on land and
 in water and uses riptide 1/3 in a 2-deep pool. Retained spawn packets
-from these runs are in `crates/bds-extractor/captures/1.26.51/items/`.
+from these runs (and `fishing_hook` from `fishing`) are in
+`crates/bds-extractor/captures/1.26.51/items/`.
+
+Milestone-7 steps: block windows also name `enchanting_input` (UI 14),
+`enchanting_material` (15), `brewing_input` (0), `brewing_result` (1-3),
+`brewing_fuel` (4), `shulker_box` (0-26), `crafter`, `stonecutter_input` (3),
+`loom_input`/`loom_dye`/`loom_material` (9-11) and
+`cartography_input`/`cartography_additional` (12-13); BDS 1.26.51 accepts
+crafter items only through `chest` (LevelEntity) slots 0-8. `craft` takes
+`"action": "enchant"` with `option` (index into the last
+`PlayerEnchantOptions`), `"action": "loom"` with `pattern`, and
+`to_container` to place the result into the window. `move` takes `flags`
+(PlayerAuthInput flag names, e.g. `start_sneaking`, `start_gliding`);
+`break` with `ticks` mines like a survival player (StartBreak, CrackBreak
+per tick, PredictDestroyBlock, StopBreak); `book` sends `BookEdit`
+(`action` replace/add/delete/swap/sign, `page`, `to`, `text`, `title`,
+`author`); `toggle_crafter` sends `PlayerToggleCrafterSlotRequest`;
+`map_info` requests the held map; `wait_event` waits for an `ActorEvent`
+(`event`, `timeout_ms`, e.g. 13 for a fish bite); `"lenient": true` skips a
+step the bot cannot build. Scenarios: `items3-dry`, `enchanting`,
+`enchanting-slots`, `brewing`, `brewing-lingering`, `shulker`, `shulker-dye`,
+`crafter`, `stations-2`, `cartography`, `cart-zoom`, `cart-clone`,
+`cart-lock`, `itemuses-shield`, `itemuses-elytra`, `itemuses-elytra-2`,
+`itemuses-misc`, `fishing`, `lead-nametag`, `lead-nametag-2`. Map
+zoom/clone/lock requests sent as `CraftRecipe` with the multi recipe IDs
+crash BDS 1.26.51 (Endstone 0.11.12) or return status 9.
 Jolyne runs only chat/command scenarios and rejects interaction steps before
 connecting.
 
