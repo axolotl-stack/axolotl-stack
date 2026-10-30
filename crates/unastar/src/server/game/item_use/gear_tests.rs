@@ -616,8 +616,9 @@ fn a_rocket_used_on_a_block_rises_and_explodes_with_its_sounds() {
     assert!(f.sounds().contains(&"launch".to_owned()));
     f.ticks(10);
     let y = f.world().get::<Position>(rocket).unwrap().0.y;
-    // Measured climb: about 2 blocks in the first 10 ticks.
-    assert!((65.9..66.2).contains(&y), "{y}");
+    // Measured climb: 0.063, 0.096, 0.131 … blocks per tick, 2.33 blocks in
+    // the first 10 ticks (client-diff `itemuses-elytra-2`).
+    assert!((66.2..66.5).contains(&y), "{y}");
     f.ticks(22);
     assert!(
         rockets(f.world()).is_empty(),

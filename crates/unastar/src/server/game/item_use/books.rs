@@ -152,7 +152,7 @@ pub fn edit(stack: &ItemStack, operation: &Operation, world: &World) -> Option<I
             compound.0.insert("author".to_owned(), string_tag(&author));
             compound
                 .0
-                .insert("xuid".to_owned(), string_tag(&sign.xuid.to_string()));
+                .insert("xuid".to_owned(), string_tag(&sign.xuid));
             compound
                 .0
                 .insert("generation".to_owned(), NBTTag::Int(tag::Int(0)));
