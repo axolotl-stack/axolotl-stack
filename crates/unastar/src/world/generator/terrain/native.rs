@@ -481,7 +481,8 @@ where
     }
 }
 
-#[cfg(test)]
+/// The Java generator needs the `java-worldgen` templates.
+#[cfg(all(test, feature = "java-worldgen"))]
 mod tests {
     use super::*;
     use crate::world::chunk::blocks;
