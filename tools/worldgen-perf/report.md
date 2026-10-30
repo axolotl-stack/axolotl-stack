@@ -1404,3 +1404,50 @@ Gate (integrated tree): strict clippy (`-D warnings`, all targets/features) on
 passes; `cargo test` for those crates with all features passes except the
 Bedrock-owned known failure `bedrock_style_vs_bds_reference_ratchets` (D8),
 skipped explicitly. Release `worldgen_output_hash` and both ratchets pass.
+
+## 2026-10-30: round-3 mainline integration
+
+Branch `Jviguy/mainline-3`: main `2cdb3b18` plus the entities, blocks, items,
+Bedrock worldgen (`89131db5`), Java worldgen (`2a8111dd`, then milestone 4 at
+`94c26fdf`), spawning-gaps, chunk-streaming and blocks milestone 2 lanes.
+
+### Output goldens
+
+The Java golden changed for one chunk, (64,66), in the Java lane's own commit
+`3dd2aa8d`: a cold ocean ruin's data markers outside the placement box no
+longer place suspicious gravel or reseed its chest loot, and a native features
+capture of that chunk matches the new output. A pristine `2a8111dd` checkout
+gives the same 68 digests as the integrated tree did before that commit. The
+Bedrock golden is unchanged.
+
+### Allocation ceilings (re-baselined)
+
+Instrumented release `worldgen_bench`, same 68-chunk fixture, each column a
+separate build of that commit. Main `2cdb3b18` already failed both ceilings
+(the round-2 gate did not run them).
+
+| Fixture total | Previous ceiling | Main `2cdb3b18` | Round-3 lanes (`8db5c300`) | Integrated (new ceiling) |
+|---|---:|---:|---:|---:|
+| Java allocations | 76,669 | 78,776 | 78,784 | 79,048 |
+| Java requested bytes | 124,148,973 | 124,224,792 | 124,230,057 | 123,765,225 |
+| Bedrock allocations | 66,025 | 64,324 | 63,702 | 63,702 |
+| Bedrock requested bytes | 81,223,944 | 75,452,621 | 74,849,421 | 74,859,981 |
+
+Stage increases over the previous ceiling, by where they first appear:
+
+- Main between `26683888` and `2cdb3b18`: packing +2,103 allocations / +57 KB
+  (Java) and +1,850 / +50 KB (Bedrock); Bedrock first stage 12 → 22
+  allocations, underground 27,637 → 27,820; Java vegetal decoration +4.
+- Round-3 lanes: Java +8 pipeline allocations and +0.8–0.9 KB in underground
+  structures, underground decoration, structure pieces and templates, equal
+  to the Java tip `2a8111dd` alone (78,784 total). Bedrock first stage
+  22 → 16 (still above the old 12, as on the Bedrock tip `89131db5` alone),
+  underground +20 allocations with fewer bytes, surface +14 allocations;
+  carvers, after-surface and after-underground fall.
+- Chunk streaming (`2464da45`): Java pipeline +264 allocations with 489 KB
+  fewer bytes. Spawning gaps and later merges add only pipeline bytes
+  (+24 KB Java, +10 KB Bedrock).
+
+The new ceilings pin every stage to the integrated values; `--ratchet` passes
+for both editions at the integrated tree. Not measured: wall time (other
+workers were building).
