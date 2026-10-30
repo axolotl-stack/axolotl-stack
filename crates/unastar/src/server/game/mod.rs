@@ -123,6 +123,7 @@ fn player_record(world: &World, entity: Entity) -> Option<(uuid::Uuid, PlayerDat
             exhaustion: hunger.exhaustion,
             experience: experience.level,
             experience_progress: experience.progress,
+            enchantment_seed: Some(experience.enchantment_seed),
             inventory: inventory
                 .map(|inventory| inventory.0.slots().iter().map(Into::into).collect())
                 .unwrap_or_default(),
@@ -391,6 +392,26 @@ impl GameServer {
                 .in_set(PacketApplySet)
                 .after(inventory::apply_inventory)
                 .after(blocks::apply_block_actions),
+        );
+        // Book and quill edits (`BookEdit`), after the inventory so the book
+        // slot reflects this tick's changes.
+        ecs.schedule_mut().add_systems(
+            item_use::books::apply_book_edits
+                .in_set(PacketApplySet)
+                .after(inventory::apply_inventory),
+        );
+        // Gliding (elytra wear), firework rockets (flight, boosts, explosions)
+        // and raised shields, after the item uses of this tick.
+        ecs.schedule_mut().add_systems(
+            (
+                item_use::elytra::tick_gliding,
+                item_use::fireworks::tick_rockets,
+                item_use::shield::tick_shields,
+            )
+                .chain()
+                .in_set(EntityLogicSet)
+                .after(item_use::tick_using)
+                .before(tick_block_breaking),
         );
         // Consolidate per-domain events into main EventBuffer after all domain systems
         ecs.schedule_mut().add_systems(
@@ -751,7 +772,10 @@ impl GameServer {
         let mut held_slot = HeldSlot::default();
         let mut health = crate::entity::components::Health::default();
         let mut hunger = crate::entity::components::Hunger::default();
-        let mut experience = crate::entity::components::Experience::default();
+        let mut experience = crate::entity::components::Experience {
+            enchantment_seed: rand::random(),
+            ..Default::default()
+        };
         if let Some(saved) = saved_data {
             rotation = Rotation::new(saved.rotation[0], saved.rotation[1]);
             game_mode = match saved.game_mode {
@@ -769,6 +793,9 @@ impl GameServer {
             hunger.exhaustion = saved.exhaustion;
             experience.level = saved.experience;
             experience.progress = saved.experience_progress;
+            if let Some(seed) = saved.enchantment_seed {
+                experience.enchantment_seed = seed;
+            }
         }
 
         let entity = self
@@ -997,7 +1024,7 @@ mod tests {
         world.entity_mut(chunk).insert(viewers);
         // Dirt drops itself without a tool (stone would need a pickaxe).
         let dirt = *crate::world::chunk::blocks::DIRT;
-        block_drops::drop_block_items(world, glam::IVec3::new(8, 64, 8), dirt, None);
+        block_drops::drop_block_items(world, glam::IVec3::new(8, 64, 8), dirt, None, None);
 
         let mut packets = Vec::new();
         for _ in 0..30 {

@@ -121,6 +121,10 @@ pub struct CraftPlan<'a> {
     /// Per row-major cell, not per descriptor stack_size. Unused entries in a
     /// 2x2 grid are zero; every occupied matching cell consumes num_crafts.
     pub consumption: [u8; MAX_CELLS],
+    /// Row-major cell whose item user data the output inherits (a
+    /// user-data recipe's first ingredient: the shulker box or bundle being
+    /// dyed).
+    pub user_data_source: Option<usize>,
 }
 
 impl CraftPlan<'_> {
@@ -190,6 +194,11 @@ struct Recipe {
     ingredients: [Ingredient; MAX_CELLS],
     layout: Layout,
     outputs: Box<[ItemStack]>,
+    /// Advertised as a user-data recipe: the output keeps the user data of
+    /// the item matching the first ingredient.
+    inherits_user_data: bool,
+    /// The advertised station tag (`crafting_table`, `stonecutter`, ...).
+    tag: Box<str>,
 }
 
 impl Recipe {
@@ -327,6 +336,7 @@ impl CraftingExecutor {
                 id,
                 &recipe.ingredients,
                 &recipe.results,
+                &recipe.tag,
                 Layout::Shaped {
                     width,
                     height,
@@ -352,6 +362,7 @@ impl CraftingExecutor {
                 id,
                 &recipe.ingredients,
                 &recipe.results,
+                &recipe.tag,
                 Layout::Shapeless {
                     len: recipe.ingredients.len(),
                 },
@@ -409,6 +420,7 @@ impl CraftingExecutor {
         id: u32,
         ingredients: &[WireIngredient],
         outputs: &[WireResult],
+        tag: &str,
         layout: Layout,
     ) -> Result<(), CompileError> {
         self.check_id(catalog, id)?;
@@ -420,12 +432,16 @@ impl CraftingExecutor {
             .iter()
             .map(|output| compile_output(id, output, items))
             .collect::<Result<Box<[_]>, _>>()?;
+        let inherits_user_data =
+            matches!(catalog.origin(id), Some(super::RecipeOrigin::UserData(_)));
         self.recipes.insert(
             id,
             Recipe {
                 ingredients: compiled,
                 layout,
                 outputs,
+                inherits_user_data,
+                tag: tag.into(),
             },
         );
         Ok(())
@@ -450,6 +466,23 @@ impl CraftingExecutor {
     /// Whether `net_id` is an advertised smithing recipe.
     pub fn is_smithing(&self, net_id: u32) -> bool {
         self.smithing.contains_key(&net_id)
+    }
+
+    /// The advertised station tag of grid recipe `net_id`.
+    pub fn station_tag(&self, net_id: u32) -> Option<&str> {
+        self.recipes.get(&net_id).map(|recipe| &*recipe.tag)
+    }
+
+    /// The first network ID above every advertised recipe; enchanting
+    /// options are numbered from here so they never name a recipe.
+    pub fn next_free_net_id(&self) -> u32 {
+        self.recipes
+            .keys()
+            .chain(self.smithing.keys())
+            .chain(&self.non_grid)
+            .copied()
+            .max()
+            .map_or(1, |max| max + 1)
     }
 
     /// Match the smithing table's template, base and addition slots against
@@ -517,11 +550,19 @@ impl CraftingExecutor {
             consumption[index] = u8::try_from(num_crafts)
                 .expect("craft count is bounded by the occupied input stack");
         }
+        let user_data_source = if recipe.inherits_user_data {
+            grid.cells()
+                .iter()
+                .position(|stack| !stack.is_empty() && recipe.ingredients[0].matches(stack))
+        } else {
+            None
+        };
         Ok(CraftPlan {
             templates: &recipe.outputs,
             num_crafts,
             grid_size: grid.size(),
             consumption,
+            user_data_source,
         })
     }
 }
@@ -1047,6 +1088,26 @@ mod tests {
                 .unwrap_err(),
             ValidationError::UnknownRecipe(2)
         );
+    }
+
+    #[test]
+    fn user_data_recipes_name_the_first_ingredient_cell_as_user_data_source() {
+        let items = items();
+        let ingredients = || vec![input("test:a", 32767, 1), input("test:b", 32767, 1)];
+        let (a, b) = (
+            items.stack("test:a", 1).unwrap(),
+            items.stack("test:b", 1).unwrap(),
+        );
+        let empty = ItemStack::EMPTY;
+        // The dye (b) sits first in the grid; the dyed item (a) is the source.
+        let grid = CraftingGrid::Inventory([&b, &empty, &a, &empty]);
+        let dyeing = CraftingExecutor::new(&shapeless(ingredients(), true), &items).unwrap();
+        assert_eq!(
+            dyeing.validate(1, grid, 1).unwrap().user_data_source,
+            Some(2)
+        );
+        let plain = CraftingExecutor::new(&shapeless(ingredients(), false), &items).unwrap();
+        assert_eq!(plain.validate(1, grid, 1).unwrap().user_data_source, None);
     }
 
     #[test]

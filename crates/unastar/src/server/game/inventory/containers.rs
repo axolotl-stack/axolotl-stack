@@ -31,6 +31,17 @@ pub enum SlotKind {
     /// (client-diff grindstone-book); other unenchantable items follow the
     /// public reference.
     GrindstoneInput,
+    /// Brewing stand bottle slot: one potion or glass bottle.
+    BrewingBottle,
+    /// Brewing stand fuel slot: blaze powder only.
+    BrewingFuel,
+    /// Shulker box slot: anything but another shulker box.
+    ShulkerBox,
+    /// Enchanting table item slot: one item at a time (public reference,
+    /// minecraft.wiki "Enchanting Table").
+    EnchantingInput,
+    /// Enchanting table material slot: lapis lazuli only (public reference).
+    Lapis,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -66,12 +77,17 @@ impl ContainerRule {
                 super::super::durability::max_durability(item) > 0
                     || !crate::item::enchant::enchantments(stack).is_empty()
             }),
+            SlotKind::BrewingBottle => super::super::containers::is_brewing_bottle(stack),
+            SlotKind::BrewingFuel => super::super::containers::is_brewing_fuel(stack),
+            SlotKind::ShulkerBox => !crate::block_entity::is_shulker_box(stack.item_id()),
+            SlotKind::EnchantingInput => true,
+            SlotKind::Lapis => stack.item_id() == "minecraft:lapis_lazuli",
         }
     }
 
     pub fn set_count(self, stack: &ItemStack) -> u8 {
         match self.kind {
-            SlotKind::Armor => 1,
+            SlotKind::Armor | SlotKind::BrewingBottle | SlotKind::EnchantingInput => 1,
             SlotKind::FurnaceFuel
                 if matches!(
                     stack.item_id(),
@@ -180,8 +196,10 @@ const BLOCK_SCREEN_STANDARD: &[Name] = &[
 ];
 
 /// The block's own containers on its screen: chest, ender chest and hopper
-/// windows address `LevelEntityContainer`, the barrel `BarrelContainer`, and
-/// furnaces their ingredient (by block), fuel and result containers.
+/// windows address `LevelEntityContainer`, the barrel `BarrelContainer`, the
+/// shulker box `ShulkerBoxContainer`, furnaces their ingredient (by block),
+/// fuel and result containers, and the brewing stand its input (slot 0),
+/// result (bottles, slots 1..=3) and fuel (slot 4) containers.
 fn block_rule(screen: BlockScreen, name: Name) -> Option<ContainerRule> {
     let block = |first, len, kind| Some(rule(Store::Block, first, len, kind));
     match screen.kind {
@@ -196,6 +214,16 @@ fn block_rule(screen: BlockScreen, name: Name) -> Option<ContainerRule> {
             (name == Name::Barrelcontainer).then_some(())?;
             block(0, screen.size, SlotKind::Plain)
         }
+        ContainerKind::ShulkerBox => {
+            (name == Name::Shulkerboxcontainer).then_some(())?;
+            block(0, screen.size, SlotKind::ShulkerBox)
+        }
+        ContainerKind::BrewingStand => match name {
+            Name::Brewingstandinputcontainer => block(0, 1, SlotKind::Plain),
+            Name::Brewingstandresultcontainer => block(1, 3, SlotKind::BrewingBottle),
+            Name::Brewingstandfuelcontainer => block(4, 1, SlotKind::BrewingFuel),
+            _ => None,
+        },
         ContainerKind::Furnace | ContainerKind::BlastFurnace | ContainerKind::Smoker => {
             let smelter = screen.kind.smelter().expect("furnace kinds smelt");
             match name {
@@ -218,6 +246,17 @@ pub const SMITHING_MATERIAL_SLOT: u8 = 52;
 pub const SMITHING_TEMPLATE_SLOT: u8 = 53;
 pub const GRINDSTONE_INPUT_SLOT: u8 = 16;
 pub const GRINDSTONE_ADDITIONAL_SLOT: u8 = 17;
+/// UI slots of the newer stations (public reference: the UI container
+/// layout PocketMine documents; BDS's grindstone, anvil and smithing slots
+/// above follow the same layout).
+pub const STONECUTTER_INPUT_SLOT: u8 = 3;
+pub const LOOM_BANNER_SLOT: u8 = 9;
+pub const LOOM_DYE_SLOT: u8 = 10;
+pub const LOOM_PATTERN_SLOT: u8 = 11;
+pub const CARTOGRAPHY_INPUT_SLOT: u8 = 12;
+pub const CARTOGRAPHY_ADDITIONAL_SLOT: u8 = 13;
+pub const ENCHANTING_INPUT_SLOT: u8 = 14;
+pub const ENCHANTING_MATERIAL_SLOT: u8 = 15;
 
 /// A station's own containers: single UI slots plus the created output.
 fn station_rule(kind: StationKind, name: Name) -> Option<ContainerRule> {
@@ -250,6 +289,28 @@ fn station_rule(kind: StationKind, name: Name) -> Option<ContainerRule> {
             1,
             SlotKind::GrindstoneInput,
         )),
+        (StationKind::EnchantingTable, Name::Enchantinginputcontainer) => Some(rule(
+            Store::Ui,
+            ENCHANTING_INPUT_SLOT,
+            1,
+            SlotKind::EnchantingInput,
+        )),
+        (StationKind::EnchantingTable, Name::Enchantingmaterialcontainer) => Some(rule(
+            Store::Ui,
+            ENCHANTING_MATERIAL_SLOT,
+            1,
+            SlotKind::Lapis,
+        )),
+        (StationKind::Stonecutter, Name::Stonecutterinputcontainer) => ui(STONECUTTER_INPUT_SLOT),
+        (StationKind::Loom, Name::Loominputcontainer) => ui(LOOM_BANNER_SLOT),
+        (StationKind::Loom, Name::Loomdyecontainer) => ui(LOOM_DYE_SLOT),
+        (StationKind::Loom, Name::Loommaterialcontainer) => ui(LOOM_PATTERN_SLOT),
+        (StationKind::CartographyTable, Name::Cartographyinputcontainer) => {
+            ui(CARTOGRAPHY_INPUT_SLOT)
+        }
+        (StationKind::CartographyTable, Name::Cartographyadditionalcontainer) => {
+            ui(CARTOGRAPHY_ADDITIONAL_SLOT)
+        }
         _ => None,
     }
 }

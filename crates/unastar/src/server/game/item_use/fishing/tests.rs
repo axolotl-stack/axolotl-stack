@@ -135,6 +135,27 @@ impl Pond {
 }
 
 #[test]
+fn the_fishing_hook_definition_spawns() {
+    let mut pond = pond(&[]);
+    let player = pond.player;
+    let world = pond.world();
+    let registry = world.resource::<crate::entity::mob::MobRegistry>().clone();
+    assert!(
+        registry.get("minecraft:fishing_hook").is_some(),
+        "{:?}",
+        registry.unsupported_reason("minecraft:fishing_hook")
+    );
+    launch_with(
+        world,
+        player,
+        ActorType::FishingHook,
+        None,
+        LaunchSpec::default(),
+    )
+    .unwrap();
+}
+
+#[test]
 fn casting_spawns_an_owned_hook_and_reeling_removes_it() {
     let mut pond = pond(&[stack(FISHING_ROD, 1)]);
     pond.use_rod();

@@ -1,5 +1,6 @@
 //! Using the held item on a block: hoes, shovels, axes, shears, flint and
-//! steel, fire charges, bone meal and buckets.
+//! steel, fire charges, bone meal, buckets and firework rockets (see
+//! [`super::fireworks`]).
 //!
 //! The behaviour pack has no data for what these items do to blocks, so the
 //! rules are written here. Block
@@ -77,6 +78,12 @@ pub fn use_on_block(world: &mut World, player: Entity, clicked: IVec3, face: u8)
         "minecraft:bucket" => fill_bucket(world, &ctx),
         "minecraft:water_bucket" | "minecraft:lava_bucket" | "minecraft:powder_snow_bucket" => {
             empty_bucket(world, &ctx)
+        }
+        // Launched from the middle of the clicked face.
+        super::fireworks::FIREWORK => {
+            let at = centre(ctx.clicked) + face_offset(ctx.face).as_dvec3() * 0.5;
+            super::fireworks::use_on_block(world, ctx.player, ctx.slot, ctx.stack, at);
+            true
         }
         _ => false,
     }

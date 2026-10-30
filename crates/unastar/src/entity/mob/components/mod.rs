@@ -106,6 +106,11 @@ pub const ACCEPTED_WITHOUT_BEHAVIOUR: &[(ActorComponent, &str)] = &[
         "emits flap/move/swim game events, which only vibration listeners \
          (sculk sensors, wardens, allays) consume; vibrations are not implemented",
     ),
+    (
+        ActorComponent::Transient,
+        "keeps the actor out of saved chunks; vanilla gives it only to the fishing \
+         hook, a projectile, and projectiles are never saved",
+    ),
 ];
 
 /// Register every mob component kind (besides the core kinds of
@@ -135,6 +140,7 @@ pub fn register_component_kinds(
     inert::<bodies::Transformation>(builder)?;
     inert::<bodies::GameEventMovementTracking>(builder)?;
     inert::<bodies::DimensionBound>(builder)?;
+    inert::<bodies::Transient>(builder)?;
     color::register_component_kinds(builder)?;
     shearing::register_component_kinds(builder)?;
     damage_sensor::register_component_kinds(builder)?;

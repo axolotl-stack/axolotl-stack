@@ -117,14 +117,29 @@ pub(crate) fn loot_stacks(world: &World, drops: Vec<LootDrop>) -> Vec<ItemStack>
     stacks
 }
 
-/// Drop what breaking `block_runtime_id` at `pos` with `tool` yields.
+/// Drop what breaking `block_runtime_id` at `pos` with `tool` yields. The
+/// block's own item gets `carried` as its NBT (a shulker box's contents).
 pub(crate) fn drop_block_items(
     world: &mut World,
     pos: IVec3,
     block_runtime_id: u32,
     tool: Option<&ItemStack>,
+    carried: Option<&zuri_nbt::tag::Compound>,
 ) {
+    let own = carried.and_then(|_| {
+        world
+            .get_resource::<BlockRegistryResource>()?
+            .0
+            .get_by_runtime_id(block_runtime_id)
+            .map(|block| block.string_id.clone())
+    });
     for stack in block_drops(world, block_runtime_id, tool) {
+        let stack = match (carried, &own) {
+            (Some(carried), Some(own)) if stack.item_id() == own => {
+                crate::item::enchant::with_item_tag(&stack, carried.clone())
+            }
+            _ => stack,
+        };
         pop_resource(world, pos, stack);
     }
 }

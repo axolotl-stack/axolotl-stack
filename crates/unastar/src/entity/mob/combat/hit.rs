@@ -152,6 +152,11 @@ pub fn hurt_mob(world: &mut World, target: Entity, hit: Hit) -> f32 {
     if hit.damage < 0.0 {
         return 0.0;
     }
+    // A player's raised shield takes a hit from the front instead
+    // (`server::game::item_use::shield`).
+    if crate::server::game::item_use::shield::block(world, target, &hit) {
+        return 0.0;
+    }
     let ignores_timer = matches!(
         hit.cause,
         ActorDamageCause::Override | ActorDamageCause::SelfDestruct
@@ -167,7 +172,7 @@ pub fn hurt_mob(world: &mut World, target: Entity, hit: Hit) -> f32 {
         }
         _ => (hit.damage, now + u64::from(constants::HURT_TICKS), true),
     };
-    let dead = {
+    let mut dead = {
         let mut entity = world.entity_mut(target);
         entity.insert((
             HurtTimer {
@@ -185,6 +190,11 @@ pub fn hurt_mob(world: &mut World, target: Entity, hit: Hit) -> f32 {
         health.damage(applied);
         health.is_dead()
     };
+    // A totem of undying in a player's hand cancels the death
+    // (`server::game::item_use::totem`).
+    if dead && crate::server::game::item_use::totem::save_from_death(world, target, hit.cause) {
+        dead = false;
+    }
     if full {
         send_actor_event(world, target, EnumsActorEvent::Hurt, 0);
         if let Some(from) = hit.knockback_from {
