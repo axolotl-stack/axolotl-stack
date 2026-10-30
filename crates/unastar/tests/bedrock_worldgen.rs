@@ -97,18 +97,19 @@ fn bedrock_style_vs_bds_reference_ratchets() {
             // ceilings below; each is tabled under "Roofed forest draw order"
             // in the codegen README. Native carver source seeding moves
             // tunnels onto BDS's caves but carves less volume than BDS so
-            // far: see "Carver source seeding".
+            // far: see "Carver source seeding"; the measured carve height
+            // then lifts tunnels one block: see "Carve height".
             for (name, value, floor) in [
-                ("terrain_exact", m.terrain_exact, 0.8850),
-                ("terrain_within_2", m.terrain_within_2, 0.9240),
-                ("surface_exact", m.surface_exact, 0.8513),
-                ("surface_block", m.surface_block, 0.8472),
+                ("terrain_exact", m.terrain_exact, 0.8846),
+                ("terrain_within_2", m.terrain_within_2, 0.9241),
+                ("surface_exact", m.surface_exact, 0.8512),
+                ("surface_block", m.surface_block, 0.8473),
                 ("surface_biome", m.surface_biome, 0.9950),
             ] {
                 assert!(value >= floor, "{name} {value:.6} fell below {floor:.6}");
             }
             assert!(
-                m.terrain_mean_abs_error <= 1.2059,
+                m.terrain_mean_abs_error <= 1.2065,
                 "terrain error rose: {}",
                 m.terrain_mean_abs_error
             );
@@ -122,7 +123,7 @@ fn bedrock_style_vs_bds_reference_ratchets() {
             // native dripleaf draws then cost the terrain error a fraction of
             // a column (D8): see "Dripleaf draws".
             assert!(
-                m.histogram_l1 <= 0.03696,
+                m.histogram_l1 <= 0.03704,
                 "histogram error rose: {}",
                 m.histogram_l1
             );
@@ -454,8 +455,9 @@ fn roofed_forest_tree_voxels_ratchet_against_bds() {
 /// Natural seed-12345 BDS world, 13 chunks around x -5..=-2, z 1..=4: how
 /// many of the 10221 cells BDS leaves open below y 0 (air, water or lava:
 /// noise caves, aquifers and carver tunnels) are open in ours too. Carver
-/// tunnels only land there with the native source-chunk seeding; it may only
-/// rise (see "Carver source seeding" in the codegen README).
+/// tunnels only land there with the native source-chunk seeding and carve
+/// height; it may only rise (see "Carver source seeding" and "Carve height"
+/// in the codegen README).
 #[test]
 fn underground_open_cells_ratchet_against_bds() {
     let fixture: serde_json::Value = serde_json::from_str(include_str!(
@@ -494,7 +496,7 @@ fn underground_open_cells_ratchet_against_bds() {
     }
     println!("underground open cells: {shared} of {total} shared with BDS");
     assert!(
-        shared >= 4135,
+        shared >= 4325,
         "underground open cells regressed to {shared}"
     );
 }
