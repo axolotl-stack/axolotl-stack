@@ -1,0 +1,190 @@
+# Parity claims: areas someone is actively working on.
+#
+# PARITY.md's "Where to help" splits every domain's open rows into free
+# families and these claims. Add a claim in your first pull request for an
+# area and remove it when you stop; see docs/parity/README.md.
+#
+# Fields:
+#   area      short description of the area
+#   owner     `@github-handle` for contributors, `lane NAME` for the
+#             maintainers' agent lanes
+#   since     date the claim was made (a TOML date, no quotes)
+#   domain    status file stem: entities, blocks, items, commands, protocol,
+#             worldgen or systems
+#   families  row families of that domain (as in PARITY.md's family tables)
+#   ids       row ids; each also covers the row's sub-rows
+#   prefixes  plain prefixes of row ids
+#
+# `parity check` rejects unknown domains, families, ids and prefixes, and any
+# row covered by two claims. One claim covers one domain; an area spanning
+# several domains has one claim per domain.
+#
+# Protocol and transport rows are unclaimed.
+
+[[claim]]
+area = "Mobs: hostile, tameable and aquatic (with dolphins, turtles, axolotls and bats)"
+owner = "lane ENT"
+since = 2026-10-29
+domain = "entities"
+families = ["hostile", "aquatic"]
+ids = [
+    "minecraft:axolotl",
+    "minecraft:bat",
+    "minecraft:cat",
+    "minecraft:dolphin",
+    "minecraft:donkey",
+    "minecraft:horse",
+    "minecraft:llama",
+    "minecraft:mule",
+    "minecraft:ocelot",
+    "minecraft:parrot",
+    "minecraft:trader_llama",
+    "minecraft:turtle",
+    "minecraft:wolf",
+    "minecraft:zombie_horse",
+]
+
+[[claim]]
+area = "Block behaviour families, gravity, fire and redstone"
+owner = "lane BLOCKS"
+since = 2026-10-29
+domain = "blocks"
+families = [
+    "attached_lights",
+    "beds",
+    "buttons",
+    "crops_growing",
+    "doors",
+    "falling",
+    "fence_gates",
+    "fences",
+    "panes_bars",
+    "pressure_plates",
+    "redstone",
+    "signs",
+    "slabs",
+    "stairs",
+    "trapdoors",
+    "walls",
+]
+ids = ["minecraft:fire", "minecraft:soul_fire"]
+
+[[claim]]
+area = "Gravity, fire and redstone"
+owner = "lane BLOCKS"
+since = 2026-10-29
+domain = "systems"
+ids = ["world.falling_blocks", "world.fire", "world.pistons", "world.redstone"]
+
+[[claim]]
+area = "Liquids: water and lava flow, waterlogging, sponges"
+owner = "a contributor"
+since = 2026-10-29
+domain = "blocks"
+families = ["liquids"]
+ids = ["minecraft:sponge", "minecraft:wet_sponge"]
+
+[[claim]]
+area = "Liquids: water and lava flow, waterlogging, sponges"
+owner = "a contributor"
+since = 2026-10-29
+domain = "systems"
+ids = ["world.liquids"]
+
+[[claim]]
+area = "Item use"
+owner = "lane ITEMS"
+since = 2026-10-29
+domain = "items"
+families = [
+    "armour_wearables",
+    "block_items",
+    "buckets",
+    "education",
+    "entity_placers",
+    "food",
+    "materials_misc",
+    "melee_weapons",
+    "other_tools",
+    "potions_drinks",
+    "ranged_weapons",
+    "spawn_eggs",
+    "throwables",
+    "tools",
+]
+
+[[claim]]
+area = "Workstation blocks"
+owner = "lane ITEMS"
+since = 2026-10-29
+domain = "blocks"
+ids = [
+    "minecraft:anvil",
+    "minecraft:blast_furnace",
+    "minecraft:brewing_stand",
+    "minecraft:cartography_table",
+    "minecraft:chipped_anvil",
+    "minecraft:crafting_table",
+    "minecraft:damaged_anvil",
+    "minecraft:enchanting_table",
+    "minecraft:furnace",
+    "minecraft:grindstone",
+    "minecraft:lit_blast_furnace",
+    "minecraft:lit_furnace",
+    "minecraft:lit_smoker",
+    "minecraft:loom",
+    "minecraft:smithing_table",
+    "minecraft:smoker",
+    "minecraft:stonecutter_block",
+]
+
+[[claim]]
+area = "Workstations: crafting, smelting, anvil, grindstone, smithing, brewing, enchanting"
+owner = "lane ITEMS"
+since = 2026-10-29
+domain = "systems"
+ids = [
+    "crafting.anvil",
+    "crafting.brewing",
+    "crafting.crafting_grid",
+    "crafting.enchanting",
+    "crafting.grindstone",
+    "crafting.smelting",
+    "crafting.smithing",
+    "crafting.stonecutter_loom_cartography",
+]
+
+[[claim]]
+area = "Commands"
+owner = "lane COMMANDS"
+since = 2026-10-29
+domain = "commands"
+families = ["admin", "any", "gamedirectors", "host", "owner"]
+
+[[claim]]
+area = "Bedrock world generation"
+owner = "lane BED"
+since = 2026-10-29
+domain = "worldgen"
+prefixes = ["bedrock/"]
+
+[[claim]]
+area = "Java world generation"
+owner = "lane JAVA"
+since = 2026-10-29
+domain = "worldgen"
+prefixes = ["java/"]
+
+[[claim]]
+area = "Generation speed"
+owner = "lane PERF"
+since = 2026-10-29
+domain = "systems"
+ids = ["performance.generation_speed"]
+
+[[claim]]
+area = "Chunk streaming"
+owner = "lane LOAD"
+since = 2026-10-29
+domain = "systems"
+ids = ["performance.chunk_streaming"]

@@ -114,7 +114,7 @@ pub(super) fn finish_eating(world: &mut World, mob: Entity) {
                 y: feet.y as f32 + 0.5,
                 z: feet.z as f32 + 0.5,
             },
-            data: eaten as i32,
+            data: crate::server::game::types::block_network_ids(world).to_wire(eaten) as i32,
         };
         replace_block(world, target, replace, particles);
     }
@@ -153,6 +153,16 @@ pub(super) fn replace_block(
             }
         }
     }
+    set_block(world, pos, state);
+}
+
+/// Set the block at `pos` to `state`: block-change observers run and the
+/// chunk's viewers get the update.
+pub(super) fn set_block(world: &mut World, pos: IVec3, state: u32) {
+    let (cx, cz) = world_to_chunk_coords(pos.x, pos.z);
+    let Some(chunk) = world.resource::<ChunkManager>().get_by_coords(cx, cz) else {
+        return;
+    };
     let (lx, ly, lz) = world_to_local_coords(pos.x, pos.y, pos.z);
     let Some(mut data) = world.get_mut::<ChunkData>(chunk) else {
         return;

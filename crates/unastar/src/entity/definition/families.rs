@@ -85,6 +85,11 @@ impl FamilyRegistry {
         })
     }
 
+    /// Every registered family name, sorted.
+    pub fn names(&self) -> impl Iterator<Item = &str> {
+        self.names.keys().map(AsRef::as_ref)
+    }
+
     pub fn register_component_kind(
         self: &Arc<Self>,
         builder: &mut ComponentKindsBuilder,
@@ -104,7 +109,10 @@ impl FamilyRegistry {
     }
 
     /// Membership for family names that were all registered before freeze.
-    fn membership(self: &Arc<Self>, names: &[String]) -> Result<ActorFamilies, FamilyError> {
+    pub(crate) fn membership(
+        self: &Arc<Self>,
+        names: &[String],
+    ) -> Result<ActorFamilies, FamilyError> {
         let mut words = vec![0; self.names.len().div_ceil(u64::BITS as usize)];
         for name in names {
             let index = self

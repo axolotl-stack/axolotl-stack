@@ -2,11 +2,13 @@
 //! its box is within the mob's box grown by `horizontal_reach`.
 //!
 //! The goal runs while the mob has a target (set by the target goals) and
-//! a path to it. Each tick it looks at the target, counts down the attack
+//! a path toward it; a route to the node closest to an unreachable target
+//! is enough. Each tick it looks at the target, counts down the attack
 //! cooldown and re-paths when its path timer runs out: a random
 //! `[min_path_time, max_path_time)` plus the boundary increases for far
-//! targets, `path_fail_time_increase` more when no path is found. Without
-//! `track_target` it only re-paths while it sees the target. A hit needs
+//! targets, `path_fail_time_increase` more when no path is found (a wall
+//! climber instead heads straight for the target, `super::climb`).
+//! Without `track_target` it only re-paths while it sees the target. A hit needs
 //! the target in reach, the cooldown run out and the target inside the
 //! `melee_fov` cone; the hit itself is dealt after the mob's tick
 //! (`mob::combat::melee`). The cooldown starts full when the goal is
@@ -17,8 +19,9 @@ use rand::Rng;
 
 use super::goals::GoalContext;
 use super::targeting::Candidate;
+use crate::entity::mob::components::hostile::{MeleeReach, melee_goal};
 use crate::entity::mob::components::{AttackConfig, MeleeBoxAttackGoal};
-use crate::entity::mob::constants::MELEE_REPATH_CHANCE;
+use crate::entity::mob::constants::{MELEE_ATTACK_MIN_WIDTH, MELEE_REPATH_CHANCE};
 use crate::entity::mob::state::MeleeAttackedOnce;
 use crate::world::rules::Difficulty;
 
@@ -27,11 +30,8 @@ use crate::world::rules::Difficulty;
 pub struct MeleeState {
     /// Ticks until the next hit may land; `None` until the goal is built.
     attack_ticks: Option<i32>,
-    /// Ticks until the path to the target is recomputed.
+    /// Ticks until the path to the target is recalculated.
     path_timer: i32,
-    /// The target position the current path was computed for (x, box
-    /// bottom, z); zero before the first path.
-    last_target: DVec3,
 }
 
 impl MeleeState {
@@ -41,8 +41,14 @@ impl MeleeState {
     }
 }
 
-impl GoalContext<'_> {
-    fn melee_target(&self) -> Option<Candidate> {
+impl<'a> GoalContext<'a> {
+    /// The melee goal the mob runs (`behavior.melee_box_attack`, else
+    /// `behavior.melee_attack`).
+    fn melee_config(&self) -> Option<&'a MeleeBoxAttackGoal> {
+        melee_goal(self.world.entity(self.entity))
+    }
+
+    pub(super) fn melee_target(&self) -> Option<Candidate> {
         Candidate::of(self.world, self.states.targets.target?)
     }
 
@@ -56,8 +62,15 @@ impl GoalContext<'_> {
         )
     }
 
+    /// Search a path to the ground under `target` into the staging buffer.
+    /// A route to the node closest to an unreachable target is enough; a
+    /// wall climber records the target's block as its destination.
+    pub(super) fn path_to_target(&mut self, target: &Candidate) -> bool {
+        self.request_path(Self::target_ground(target), target.pos, true)
+    }
+
     pub(super) fn melee_can_start(&mut self) -> bool {
-        if self.config::<MeleeBoxAttackGoal>().is_none()
+        if self.melee_config().is_none()
             || self.config::<AttackConfig>().is_none()
             || self.world.get::<MeleeAttackedOnce>(self.entity).is_some()
         {
@@ -66,11 +79,11 @@ impl GoalContext<'_> {
         let Some(target) = self.melee_target() else {
             return false;
         };
-        self.path_toward(Self::target_ground(&target))
+        self.path_to_target(&target)
     }
 
     pub(super) fn melee_start(&mut self) {
-        let Some(goal) = self.config::<MeleeBoxAttackGoal>() else {
+        let Some(goal) = self.melee_config() else {
             return;
         };
         let (speed, cooldown, fail) = (
@@ -85,7 +98,7 @@ impl GoalContext<'_> {
     }
 
     pub(super) fn melee_can_continue(&mut self) -> bool {
-        let Some(goal) = self.config::<MeleeBoxAttackGoal>() else {
+        let Some(goal) = self.melee_config() else {
             return false;
         };
         if self.config::<AttackConfig>().is_none()
@@ -116,11 +129,10 @@ impl GoalContext<'_> {
 
     pub(super) fn melee_stop(&mut self) {
         self.nav.stop(self.movement);
-        self.states.melee.last_target = DVec3::ZERO;
     }
 
     pub(super) fn melee_tick(&mut self) {
-        let Some(goal) = self.config::<MeleeBoxAttackGoal>() else {
+        let Some(goal) = self.melee_config() else {
             return;
         };
         let Some(target) = self.melee_target() else {
@@ -131,28 +143,36 @@ impl GoalContext<'_> {
         if previous > 0 {
             melee.attack_ticks = Some(previous - 1);
         }
-        let reach = goal.horizontal_reach;
         let own = self.aabb();
-        let attack_box = crate::registry::collision::Aabb::new(
-            own.min - DVec3::new(reach, 0.0, reach),
-            own.max + DVec3::new(reach, 0.0, reach),
-        );
-        let in_reach = previous < 2 && attack_box.intersects(&target.aabb);
+        let touches = match goal.reach {
+            MeleeReach::Box { horizontal } => crate::registry::collision::Aabb::new(
+                own.min - DVec3::new(horizontal, 0.0, horizontal),
+                own.max + DVec3::new(horizontal, 0.0, horizontal),
+            )
+            .intersects(&target.aabb),
+            MeleeReach::Multiplier { reach_multiplier } => {
+                let width = self.body.width.max(MELEE_ATTACK_MIN_WIDTH);
+                let target_width = target.aabb.max.x - target.aabb.min.x;
+                let reach_sq = (reach_multiplier * width).powi(2) + target_width;
+                let feet = DVec3::new(target.pos.x, target.aabb.min.y, target.pos.z);
+                let delta = feet - self.body.feet;
+                let overlap_y = own.min.y < target.aabb.max.y && target.aabb.min.y < own.max.y;
+                delta.length_squared() <= reach_sq
+                    || (overlap_y && delta.x * delta.x + delta.z * delta.z <= reach_sq)
+            }
+        };
+        let in_reach = previous < 2 && touches;
         let dx = target.pos.x - self.body.feet.x;
         let dz = target.pos.z - self.body.feet.z;
         self.move_toward_target(goal, &target, in_reach, dx * dx + dz * dz);
-        if in_reach && self.within_fov(goal, &target) {
+        let centre = (target.aabb.min + target.aabb.max) / 2.0;
+        if in_reach && self.within_fov(centre, goal.melee_fov) {
             self.states.melee.attack_ticks = Some(goal.cooldown_ticks);
             self.effects.attack = Some(target.entity);
         }
     }
 
-    /// Look at the target and count down the path timer. Unless the target
-    /// is unseen and the goal does not track it, re-path to the target's
-    /// ground position when [`Self::should_repath`] says so, and reset the
-    /// timer to a random value between the goal's bounds plus the boundary
-    /// penalty for distant targets and the failure penalty when no path is
-    /// found.
+    /// Look at the target and, when the path timer ran out, re-path toward it.
     fn move_toward_target(
         &mut self,
         goal: &MeleeBoxAttackGoal,
@@ -165,10 +185,8 @@ impl GoalContext<'_> {
         if !goal.track_target && !self.sees(target) {
             return;
         }
-        let previous = self.states.melee.last_target;
         let wanted = DVec3::new(target.pos.x, target.aabb.min.y, target.pos.z);
-        self.states.melee.last_target = wanted;
-        if !self.should_repath(in_reach, previous, wanted) {
+        if !self.should_repath(in_reach, wanted) {
             return;
         }
         let spread = goal.max_path_ticks - goal.min_path_ticks;
@@ -181,30 +199,33 @@ impl GoalContext<'_> {
         } else if distance_sq > goal.inner_boundary_sq {
             timer += goal.inner_boundary_ticks;
         }
-        if self.path_toward(Self::target_ground(target)) {
+        if self.path_to_target(target) {
             self.follow_staged(goal.speed_multiplier);
+        } else if self.policy.climbs_walls {
+            // No path: a wall climber heads straight for the target
+            // (`super::climb`) at the goal's speed, without the fail delay.
+            self.nav.set_speed_multiplier(goal.speed_multiplier);
         } else {
             timer += goal.path_fail_ticks;
         }
         self.states.melee.path_timer = timer;
     }
 
-    /// Whether to re-path now: when the timer ran out, re-path
-    /// if there is no path, the first time, when the target left the path's
-    /// end block (unless already in reach), or with a small chance anyway.
-    fn should_repath(&mut self, in_reach: bool, previous: DVec3, wanted: DVec3) -> bool {
+    /// When the timer ran out, re-path
+    /// when the target stands exactly at the world origin, without a path,
+    /// when the target left the path's end block (unless already in reach),
+    /// or with a small chance anyway. The target position is taken before
+    /// the check (matches BDS 1.26.51), so a goal that just started keeps
+    /// the path it started with.
+    fn should_repath(&mut self, in_reach: bool, wanted: DVec3) -> bool {
         if self.states.melee.path_timer > 0 {
             return false;
         }
-        if previous == DVec3::ZERO {
+        if wanted == DVec3::ZERO {
             return true;
         }
-        let Some(end) = self
-            .nav
-            .current()
-            .and_then(|(_, waypoints)| waypoints.last())
-            .map(|waypoint| waypoint.feet)
-        else {
+        // The end of the last path, even once followed to its end.
+        let Some(end) = self.nav.path().last().map(|waypoint| waypoint.feet) else {
             return true;
         };
         let end = end.floor();
@@ -215,11 +236,10 @@ impl GoalContext<'_> {
         self.rng.r#gen::<f32>() < MELEE_REPATH_CHANCE
     }
 
-    /// The target's box centre lies within `melee_fov` degrees of the
-    /// mob's look direction.
-    fn within_fov(&self, goal: &MeleeBoxAttackGoal, target: &Candidate) -> bool {
-        let centre = (target.aabb.min + target.aabb.max) / 2.0;
-        let to = centre - self.self_eye();
+    /// `point` lies within `fov` degrees of the mob's look direction (its
+    /// head yaw), seen from its eye.
+    pub(super) fn within_fov(&self, point: DVec3, fov: f32) -> bool {
+        let to = point - self.self_eye();
         let length = to.length();
         if length < 1.0e-4 {
             return true;
@@ -227,6 +247,6 @@ impl GoalContext<'_> {
         let yaw = f64::from(self.head_yaw).to_radians();
         let look = DVec3::new(-yaw.sin(), 0.0, yaw.cos());
         let cos = (look.dot(to) / length).clamp(-1.0, 1.0);
-        cos.acos().to_degrees() < f64::from(goal.melee_fov)
+        cos.acos().to_degrees() < f64::from(fov)
     }
 }

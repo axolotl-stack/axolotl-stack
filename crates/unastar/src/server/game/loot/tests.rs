@@ -270,22 +270,25 @@ fn vanilla_entity_tables_roll_with_looting() {
     assert!(strings.iter().any(|c| *c > 2), "looting adds string");
 }
 
-/// Vanilla features no loot caller implements yet still fail the roll
-/// instead of being skipped (`killed_by_entity` guards the creeper's
-/// music discs).
+/// `killed_by_entity` guards the creeper's music discs: a player kill rolls
+/// the table without one (the skeleton kill is in `mob::tests::creeper`).
 #[test]
-fn unsupported_vanilla_features_are_errors_not_skipped() {
+fn killed_by_entity_needs_the_named_killer() {
     let ctx = LootContext {
         killed_by_player: true,
         ..LootContext::default()
     };
-    assert_eq!(
-        roll(
-            table("entities/creeper"),
-            &ctx,
-            &mut StdRng::seed_from_u64(3)
-        ),
-        Err(LootError::Unsupported("killed_by_entity".into()))
+    let drops = roll(
+        table("entities/creeper"),
+        &ctx,
+        &mut StdRng::seed_from_u64(3),
+    )
+    .unwrap();
+    assert!(
+        drops
+            .iter()
+            .all(|drop| drop.item_id == "minecraft:gunpowder"),
+        "{drops:?}"
     );
 }
 

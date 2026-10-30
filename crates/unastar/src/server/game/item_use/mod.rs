@@ -17,7 +17,7 @@ pub mod ranged;
 use bevy_ecs::prelude::*;
 use jolyne::valentine::types::{
     ActorRuntimeId, DataItemEntry, DataItemEntryPayload, DataItemInt64Payload, EnumsDataItemType,
-    PlayerInputTick, PropertySyncData, SynchedActorDataCopyableDataList,
+    PropertySyncData, SynchedActorDataCopyableDataList,
 };
 use jolyne::valentine::{
     CompletedUsingItemPacket, McpePacket, SetActorDataPacket, actor_data_i_ds, actor_flags,
@@ -25,7 +25,7 @@ use jolyne::valentine::{
 
 use crate::ecs::events::{EventBuffer, ServerEvent};
 use crate::entity::components::{
-    GameMode, Health, HeldSlot, MainInventory, PlayerInput, PlayerSession, PlayerState, Position,
+    GameMode, Health, HeldSlot, MainInventory, PlayerSession, PlayerState, Position,
     RuntimeEntityId,
 };
 use crate::item::ItemStack;
@@ -155,13 +155,6 @@ pub fn send_to(world: &World, players: &[Entity], packet: &McpePacket) {
     }
 }
 
-/// The player's own input tick.
-fn input_tick(world: &World, player: Entity) -> i64 {
-    world
-        .get::<PlayerInput>(player)
-        .map_or(0, |input| input.tick)
-}
-
 /// The current server tick.
 fn server_tick(world: &World) -> u64 {
     world
@@ -223,9 +216,7 @@ fn broadcast_using(world: &World, player: Entity, using: bool) {
             }],
         },
         synched_properties: PropertySyncData::default(),
-        tick: PlayerInputTick {
-            inputtick: u64::try_from(input_tick(world, player)).unwrap_or(0),
-        },
+        tick: crate::entity::components::input_tick_of(world, player),
     });
     send_to(world, &nearby_players(world, player), &packet);
 }
@@ -252,12 +243,14 @@ pub fn used_ticks(world: &World, using: &ItemUsing) -> u64 {
 }
 
 /// `CompletedUsingItem` methods BDS sends (capture `item-use-20261029`):
-/// 1 for food and -1 for the milk bucket and crossbow charging.
+/// 1 for food, 3 for potions and -1 for the milk bucket and crossbow
+/// charging.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 #[repr(i32)]
 pub enum UseMethod {
     None = -1,
     Eat = 1,
+    Drink = 3,
 }
 
 /// Tell the player's client the item use finished.
@@ -322,18 +315,51 @@ fn handle(world: &mut World, player: Entity, request: UseRequest) {
         (Some(UseKind::Draw(drawn)), UseRequest::Release, using) => {
             ranged::release_drawn(world, player, slot, &stack, drawn, using)
         }
-        (Some(UseKind::Throw), UseRequest::UseAir, _) => ranged::throw(world, player),
+        (Some(UseKind::Throw), UseRequest::UseAir, _) => {
+            ranged::throw(world, player, stack.item_id())
+        }
         (_, UseRequest::Release | UseRequest::Consume, _) => stop_using(world, player),
         (None, UseRequest::UseAir, _) => {}
     }
 }
 
-/// `MovePlayer` teleport causes (protocol constants).
+/// Push a player (whose movement its client simulates) with `motion`
+/// blocks per tick (`SetActorMotion`).
+pub fn push_player(world: &World, player: Entity, motion: glam::DVec3) {
+    let Some(runtime_id) = world.get::<RuntimeEntityId>(player).map(|r| r.0) else {
+        return;
+    };
+    let packet = McpePacket::from(jolyne::valentine::SetActorMotionPacket {
+        target_runtime_id: ActorRuntimeId {
+            actor_runtime_id: runtime_id as u64,
+        },
+        motion: jolyne::valentine::types::Vec3 {
+            x: motion.x as f32,
+            y: motion.y as f32,
+            z: motion.z as f32,
+        },
+        tick: crate::entity::components::input_tick_of(world, player),
+    });
+    send_to(world, &[player], &packet);
+}
+
+/// Why a player is teleported, and the `MovePlayer` teleport data and
+/// ground flag sent for it.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
-#[repr(i32)]
 pub enum TeleportCause {
-    Projectile = 1,
-    ChorusFruit = 2,
+    /// Measured on BDS 1.26.51: teleport data (0, 0), on ground.
+    EnderPearl,
+    /// Not measured: chorus fruit cause 2 with the player's actor type.
+    ChorusFruit,
+}
+
+impl TeleportCause {
+    fn wire(self) -> (i32, i32, bool) {
+        match self {
+            Self::EnderPearl => (0, 0, true),
+            Self::ChorusFruit => (2, 63, false),
+        }
+    }
 }
 
 /// Move a player to `feet` and tell its client (teleport mode).
@@ -354,6 +380,7 @@ pub fn teleport(world: &mut World, player: Entity, feet: glam::DVec3, cause: Tel
     if let Some(mut position) = world.get_mut::<Position>(player) {
         position.0 = eye;
     }
+    let (teleportation_cause, source_actor_type, on_ground) = cause.wire();
     let packet = McpePacket::from(jolyne::valentine::MovePlayerPacket {
         player_runtime_id: ActorRuntimeId {
             actor_runtime_id: runtime_id as u64,
@@ -369,18 +396,15 @@ pub fn teleport(world: &mut World, player: Entity, feet: glam::DVec3, cause: Tel
         },
         y_head_rotation: rotation.head_yaw,
         position_mode: EnumsPlayerPositionModeComponentPositionMode::Teleport,
-        on_ground: false,
+        on_ground,
         riding_runtime_id: ActorRuntimeId {
             actor_runtime_id: 0,
         },
         teleport_data: Some(MovePlayerTeleportData {
-            teleportation_cause: cause as i32,
-            // Bedrock's actor type id of the player.
-            source_actor_type: 63,
+            teleportation_cause,
+            source_actor_type,
         }),
-        tick: PlayerInputTick {
-            inputtick: u64::try_from(input_tick(world, player)).unwrap_or(0),
-        },
+        tick: crate::entity::components::input_tick_of(world, player),
     });
     // Other players follow through the regular position broadcast.
     send_to(world, &[player], &packet);

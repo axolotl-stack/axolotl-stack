@@ -157,6 +157,41 @@ fn observe_type(
     Ok(())
 }
 
+/// One native `AddActor` observation: the emitted alias must be
+/// `actor_type` and the attributes are kept in packet order.
+fn observe_add_actor(identifier: &str, actor_type: &str, bytes: &[u8], relative: &str) -> Value {
+    let McpePacketData::AddActorPacket(actor) =
+        decode(bytes).unwrap_or_else(|e| panic!("{relative}: {e}"))
+    else {
+        panic!("{relative}: expected AddActorPacket");
+    };
+    assert_eq!(
+        &*actor.actor_type, actor_type,
+        "{relative}: actual actor alias"
+    );
+    let mut names = BTreeSet::new();
+    let attributes: Vec<_> = actor
+        .attributes_list
+        .iter()
+        .map(|a| {
+            assert!(
+                names.insert(&*a.attribute_name),
+                "{identifier}: duplicate native attribute"
+            );
+            assert!(
+                a.min_value.is_finite() && a.current_value.is_finite() && a.max_value.is_finite(),
+                "{identifier}: nonfinite native attribute"
+            );
+            assert!(
+                a.min_value <= a.max_value,
+                "{identifier}: reversed native attribute bounds"
+            );
+            json!({"name": &*a.attribute_name, "min": a.min_value, "observed_current": a.current_value, "max": a.max_value})
+        })
+        .collect();
+    json!({"identifier": identifier, "actor_type": &*actor.actor_type, "attributes": attributes, "packet_sha256": hash(bytes)})
+}
+
 pub fn write(captures: &Path, out: &Path) {
     let operator_root = captures.join("operator");
     let member_root = captures.join("member");
@@ -193,24 +228,12 @@ pub fn write(captures: &Path, out: &Path) {
         );
         assert_eq!(record["seq"], summon["seq"], "{relative}: summon sequence");
         let bytes = operator.consume(&operator_root, &relative, &mut sources);
-        let McpePacketData::AddActorPacket(actor) =
-            decode(&bytes).unwrap_or_else(|e| panic!("{relative}: {e}"))
-        else {
-            panic!("{relative}: expected AddActorPacket");
-        };
-        assert_eq!(
-            &*actor.actor_type,
+        observations.push(observe_add_actor(
+            identifier,
             string(summon, "actor_type"),
-            "{relative}: actual actor alias"
-        );
-        let mut names = BTreeSet::new();
-        let attributes: Vec<_> = actor.attributes_list.iter().map(|a| {
-            assert!(names.insert(&*a.attribute_name), "{identifier}: duplicate native attribute");
-            assert!(a.min_value.is_finite() && a.current_value.is_finite() && a.max_value.is_finite(), "{identifier}: nonfinite native attribute");
-            assert!(a.min_value <= a.max_value, "{identifier}: reversed native attribute bounds");
-            json!({"name": &*a.attribute_name, "min": a.min_value, "observed_current": a.current_value, "max": a.max_value})
-        }).collect();
-        observations.push(json!({"identifier": identifier, "actor_type": &*actor.actor_type, "attributes": attributes, "packet_sha256": hash(&bytes)}));
+            &bytes,
+            &relative,
+        ));
     }
     let retained_summons: BTreeSet<_> = operator
         .files
@@ -221,6 +244,59 @@ pub fn write(captures: &Path, out: &Path) {
     assert_eq!(
         consumed_summons, retained_summons,
         "unmatched retained summon binaries"
+    );
+    // Actors that cannot be summoned (thrown tridents, ender pearls, lingering
+    // potions, area effect clouds) are observed where item use spawned them.
+    let items_root = captures.join("items");
+    let items = Capture::open(&items_root);
+    let mut consumed_spawns = BTreeSet::new();
+    for spawn in items.manifest["spawns"].as_array().expect("item spawns") {
+        let identifier = string(spawn, "identifier");
+        let local = identifier
+            .strip_prefix("minecraft:")
+            .expect("vanilla spawn namespace");
+        assert!(
+            !local.is_empty()
+                && local
+                    .bytes()
+                    .all(|c| c.is_ascii_lowercase() || c.is_ascii_digit() || c == b'_'),
+            "unsafe spawn identifier: {identifier}"
+        );
+        assert!(
+            observations
+                .iter()
+                .all(|o| string(o, "identifier") != identifier),
+            "{identifier}: observed both as a summon and as an item spawn"
+        );
+        let relative = format!("spawns/{local}.bin");
+        assert!(
+            consumed_spawns.insert(relative.clone()),
+            "duplicate item spawn: {identifier}"
+        );
+        let record = &items.files[&relative];
+        assert_eq!(
+            record["packet"].as_str(),
+            Some("AddActorPacket"),
+            "{relative}: packet manifest name"
+        );
+        assert_eq!(record["seq"], spawn["seq"], "{relative}: spawn sequence");
+        let bytes = items.consume(&items_root, &relative, &mut sources);
+        observations.push(observe_add_actor(
+            identifier,
+            string(spawn, "actor_type"),
+            &bytes,
+            &relative,
+        ));
+    }
+    let retained_spawns: BTreeSet<_> = items
+        .files
+        .keys()
+        .filter(|p| p.starts_with("spawns/") && p.ends_with(".bin"))
+        .cloned()
+        .collect();
+    assert_eq!(
+        consumed_spawns, retained_spawns,
+        "unmatched retained item spawn binaries"
     );
     observations.sort_by(|a, b| string(a, "identifier").cmp(string(b, "identifier")));
 
@@ -357,6 +433,7 @@ pub fn write(captures: &Path, out: &Path) {
         "protocol_version": operator.manifest["protocol_version"],
         "operator_manifest_sha256": operator.manifest_sha256,
         "member_manifest_sha256": member.manifest_sha256,
+        "items_manifest_sha256": items.manifest_sha256,
         "actor_definitions_sha256": hash(&definitions_bytes),
         "sources": sources.into_values().collect::<Vec<_>>(),
         "observations": observations,

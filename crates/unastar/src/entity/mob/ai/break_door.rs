@@ -36,20 +36,16 @@
 
 use bevy_ecs::prelude::*;
 use glam::{DVec3, IVec3};
-use jolyne::valentine::LevelEventPacket;
 use jolyne::valentine::actor_flags;
-use jolyne::valentine::types::Vec3;
 use rand::Rng;
 
-use super::eat_block::replace_block;
 use super::{MobBrain, PathBlockTable, set_flag};
 use crate::entity::EntityRandom;
 use crate::entity::components::{OnGround, PhysicsBody, Position};
 use crate::entity::definition::flags::ActorFlags;
 use crate::entity::mob::components::doors::{BreakDoorConfig, DoorBreakState};
 use crate::entity::mob::constants::{
-    BLOCK_CRACK_DATA_SCALE, BREAK_DOOR_BASH_ROLL, BREAK_DOOR_RESTART_ROLL, DOOR_UPPER_STATE,
-    LEVEL_EVENT_PARTICLES_DESTROY_BLOCK, LEVEL_EVENT_PARTICLES_DESTROY_BLOCK_NO_SOUND,
+    BLOCK_CRACK_DATA_SCALE, BREAK_DOOR_BASH_ROLL, BREAK_DOOR_RESTART_ROLL,
     LEVEL_EVENT_SOUND_ZOMBIE_DOOR_CRASH, LEVEL_EVENT_SOUND_ZOMBIE_WOODEN_DOOR,
     LEVEL_EVENT_START_BLOCK_CRACKING, LEVEL_EVENT_STOP_BLOCK_CRACKING,
 };
@@ -57,7 +53,6 @@ use crate::entity::mob::net::sound::level_event;
 use crate::entity::mob::state::AttackTarget;
 use crate::entity::navigation::WalkWaypoint;
 use crate::entity::systems::BlockSource;
-use crate::registry::block::StateValue;
 use crate::registry::collision::{Aabb, block_collision_boxes};
 use crate::world::rules::{Difficulty, GameRules};
 
@@ -384,63 +379,12 @@ fn check(
     );
 }
 
-/// Remove the door half at `cell` without drops (crash sound and quiet
-/// destroy particles), then destroy the unsupported other half with its
-/// drops.
+/// The mob breaks the door half at `cell`: the crash sound, then the door
+/// behaviour removes the half (quiet destroy particles, no drops) and breaks
+/// the other half, left without its partner, on the next tick.
 fn break_door(world: &mut World, cell: IVec3) {
-    let Some(state) = world.block_at(cell) else {
-        return;
-    };
-    let registry = world.registry();
-    let Some(entry) = registry.get_by_runtime_id(state) else {
-        return;
-    };
-    let Some(air) = registry.default_state_id_by_name("minecraft:air") else {
-        return;
-    };
-    let default_state = entry.default_state_id;
-    let upper = entry.state_value(state, DOOR_UPPER_STATE) == Some(StateValue::Byte(1));
-    let other = if upper {
-        cell - IVec3::Y
-    } else {
-        cell + IVec3::Y
-    };
-    let other_state = world
-        .block_at(other)
-        .filter(|&other| (entry.min_state_id..=entry.max_state_id).contains(&other));
-
     level_event(world, centre(cell), LEVEL_EVENT_SOUND_ZOMBIE_DOOR_CRASH, 0);
-    replace_block(
-        world,
-        cell,
-        air,
-        LevelEventPacket {
-            event_id: LEVEL_EVENT_PARTICLES_DESTROY_BLOCK_NO_SOUND,
-            position: wire(centre(cell)),
-            data: default_state as i32,
-        },
-    );
-    if let Some(other_state) = other_state {
-        replace_block(
-            world,
-            other,
-            air,
-            LevelEventPacket {
-                event_id: LEVEL_EVENT_PARTICLES_DESTROY_BLOCK,
-                position: wire(centre(other)),
-                data: other_state as i32,
-            },
-        );
-        crate::server::game::drop_block_items(world, other, other_state, None);
-    }
-}
-
-fn wire(position: DVec3) -> Vec3 {
-    Vec3 {
-        x: position.x as f32,
-        y: position.y as f32,
-        z: position.z as f32,
-    }
+    crate::server::game::block_behaviour::doors::break_by_mob(world, cell);
 }
 
 #[cfg(test)]
@@ -448,6 +392,7 @@ mod tests {
     use super::*;
     use crate::entity::navigation::WalkMovement;
     use crate::registry::BlockRegistry;
+    use crate::registry::block::StateValue;
 
     fn door(direction: &'static str, open: bool) -> u32 {
         let registry = BlockRegistry::vanilla();

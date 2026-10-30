@@ -22,6 +22,9 @@ pub struct ActorWireCatalog {
     /// Hashes of the retained capture manifests, which are the input trust roots.
     pub operator_manifest_sha256: String,
     pub member_manifest_sha256: String,
+    /// Hash of the retained item-use spawn manifest (actors that cannot be
+    /// summoned, observed where item use spawned them).
+    pub items_manifest_sha256: String,
     /// Canonical pack declarations used to identify observed property type codes.
     pub actor_definitions_sha256: String,
     /// Every consumed manifest-listed file, in relative path order.

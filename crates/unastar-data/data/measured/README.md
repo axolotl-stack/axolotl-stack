@@ -33,6 +33,9 @@ $py = 'C:/Users/jvigu/orca/bds-runtime/venv/Scripts/python.exe'
 | `recipe_legacy_identities.json` | canonical input/output item and aux identities for legacy recipe spellings | pinned 1.26.51 CraftingData capture; `../../tools/extract_recipe_identities.py` |
 | `builtin_recipes.json` | native shaped/shapeless/user-data recipes absent from pack JSON, stable UUID groups/multi identities, result NBT and canonical block states (`null` explicitly means no block state) | same pinned capture; transient network ids/random UUID values discarded; source SHA-256 included |
 | `potion_types.json` | lowercase pack potion type identifier to measured aux | unique labelled-graph solution against all captured brewing edges; source SHA-256 included |
+| `enchantments.json` | per enchantment: Bedrock id, max level, anvil item/book cost multipliers, minimum enchanting level (`base + (level - 1) * per_level`), curse flag, target item categories; category definitions; incompatibility groups | public reference (minecraft.wiki), not measured; see its `source` |
+| `repair_materials.json` | items (tags/identifiers) and the materials that unit-repair them in an anvil | public reference (minecraft.wiki), not measured; see its `source` |
+| `armor_trims.json` | smithing template → trim `Pattern`, material item → trim `Material` | public reference (minecraft.wiki), not measured; see its `source` |
 
 `loot_table` uses the behaviour-pack loot-table schema (`pools`, `rolls`,
 `entries` of `type` `item`/`empty`, `weight`, `functions` `set_count` and

@@ -7,12 +7,12 @@
 //! speed and requests jumps; the look control turns the head; finally
 //! [`travel`] converts speed and jump into velocity for the physics step.
 
-use glam::DVec3;
+use glam::{DVec3, IVec3};
 
 use crate::entity::mob::constants::{
     JUMP_COOLDOWN_TICKS, LIQUID_JUMP_IMPULSE, LOOK_IDLE_HEAD_TURN, MOVE_ARRIVAL_FLOOR,
     MOVE_ARRIVE_DIST_SQ, MOVE_ARRIVE_HEIGHT, MOVE_DESCEND_CAP, MOVE_JUMP_HEIGHT_IN_WATER,
-    MOVE_SPEED_RAMP, NORMAL_GROUND_FRICTION, PATH_STUCK_CHECK_TICKS, PATH_STUCK_DISTANCE_FACTOR,
+    MOVE_SPEED_RAMP, NORMAL_GROUND_FRICTION, PATH_STUCK_CHECK_TICKS, PATH_STUCK_DISTANCE,
     PATH_WAYPOINT_REACH, WATER_MOVE_SPEED,
 };
 use crate::entity::navigation::{WalkNavigation, WalkWaypoint};
@@ -29,12 +29,6 @@ pub struct Body {
     pub liquid: Option<LiquidKind>,
     /// Current value of the movement speed attribute.
     pub movement: f32,
-}
-
-impl Body {
-    pub fn centre(&self) -> DVec3 {
-        self.feet + DVec3::Y * (self.height * 0.5)
-    }
 }
 
 /// Yaw (degrees) facing from the origin along `delta`: 0 faces +z, 90 faces −x.
@@ -92,14 +86,8 @@ impl MoveControl {
             return false;
         };
         let target = body.movement * self.speed_multiplier;
-        // Distance is measured from the feet on the ground, from the box
-        // centre in the air.
-        let reference = if body.on_ground {
-            body.feet
-        } else {
-            body.centre()
-        };
-        let distance_sq = (wanted - reference).length_squared();
+        // Distance is measured from the feet, on the ground and in the air.
+        let distance_sq = (wanted - body.feet).length_squared();
         let rise = wanted.y - body.feet.y;
         if distance_sq < MOVE_ARRIVE_DIST_SQ && rise < MOVE_ARRIVE_HEIGHT {
             self.wanted = None;
@@ -182,6 +170,9 @@ pub struct PathFollower {
     speed_multiplier: f32,
     stuck_ticks: u32,
     stuck_from: DVec3,
+    /// Climb navigation's destination block (see `super::climb`); stopping
+    /// keeps it.
+    destination: Option<IVec3>,
 }
 
 impl PathFollower {
@@ -203,6 +194,23 @@ impl PathFollower {
         control.wanted = None;
     }
 
+    /// The speed multiplier of the last path or direct approach.
+    pub fn speed_multiplier(&self) -> f32 {
+        self.speed_multiplier
+    }
+
+    pub fn set_speed_multiplier(&mut self, speed_multiplier: f32) {
+        self.speed_multiplier = speed_multiplier;
+    }
+
+    pub fn destination(&self) -> Option<IVec3> {
+        self.destination
+    }
+
+    pub fn set_destination(&mut self, destination: Option<IVec3>) {
+        self.destination = destination;
+    }
+
     pub fn is_done(&self) -> bool {
         !self.active || self.index >= self.path.waypoints.len()
     }
@@ -211,6 +219,12 @@ impl PathFollower {
     /// path, while one is followed.
     pub fn current(&self) -> Option<(usize, &[WalkWaypoint])> {
         (!self.is_done()).then_some((self.index, self.path.waypoints.as_slice()))
+    }
+
+    /// Every waypoint of the last installed path, also once it was followed
+    /// to its end; empty after [`Self::stop`].
+    pub fn path(&self) -> &[WalkWaypoint] {
+        &self.path.waypoints
     }
 
     /// Count the waypoint being walked to as reached.
@@ -252,12 +266,8 @@ impl PathFollower {
         );
 
         self.stuck_ticks += 1;
-        if self.stuck_ticks >= PATH_STUCK_CHECK_TICKS {
-            let speed = body.movement * self.speed_multiplier;
-            let speed = if speed >= 1.0 { speed } else { speed * speed };
-            let min_travel =
-                f64::from(speed * PATH_STUCK_CHECK_TICKS as f32 * PATH_STUCK_DISTANCE_FACTOR);
-            if !door_hold && body.feet.distance_squared(self.stuck_from) < min_travel * min_travel {
+        if self.stuck_ticks > PATH_STUCK_CHECK_TICKS {
+            if !door_hold && body.feet.distance(self.stuck_from) < PATH_STUCK_DISTANCE {
                 self.stop(control);
                 return;
             }

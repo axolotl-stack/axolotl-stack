@@ -94,6 +94,10 @@ pub enum LootCondition {
     PassengerOfEntity {
         entity_type: String,
     },
+    /// The THIS actor's killer has this identifier (namespaced).
+    KilledByEntity {
+        entity_type: String,
+    },
     /// Random chance per level difficulty, indexed by [`Difficulty`].
     RandomDifficultyChance {
         chances: [f32; 4],
@@ -148,6 +152,12 @@ pub enum LootFunctionKind {
     /// single item at level `5 + clamped regional difficulty × nextInt(18)`.
     EnchantRandomGear {
         chance: f32,
+    },
+    /// `set_potion`: the item holds this potion (a tipped arrow's data is
+    /// the potion id plus [`crate::potion::TIPPED_ARROW_DATA_OFFSET`], any
+    /// other item's the potion id).
+    SetPotion {
+        potion: u8,
     },
     Other {
         name: String,

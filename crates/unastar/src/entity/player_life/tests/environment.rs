@@ -19,6 +19,15 @@ fn a_ten_block_fall_deals_seven_damage() {
     let packets = h.drain();
     assert_eq!(health_updates(&packets), [13.0]);
     assert!(actor_events(&packets, SESSION).contains(&EnumsActorEvent::Hurt));
+    // The landing block's `fall` sound names the block by its wire id.
+    assert!(packets.iter().any(|packet| matches!(packet,
+        McpePacketData::LevelSoundEventPacket(sound) if &*sound.sound_event == "fall")));
+    assert!(
+        crate::server::wire_audit::assert_block_ids_on_wire(
+            crate::registry::block::BlockNetworkIds::Hashed,
+            &packets
+        ) > 0
+    );
 
     // Three blocks are safe.
     h.fall(HOME, 3);

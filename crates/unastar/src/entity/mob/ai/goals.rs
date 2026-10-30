@@ -17,11 +17,21 @@ use super::nearby::{MobView, Nearby, PlayerView};
 use super::path::{PathBlockTable, WalkPolicy, find_path, ground_below, random_targets};
 use crate::entity::components::PhysicsBody;
 use crate::entity::goal_selector::{GoalCallbacks, GoalControls, GoalId, GoalKind, GoalSpec};
+use crate::entity::mob::components::block_carry::{PlaceBlockGoal, TakeBlockGoal};
+use crate::entity::mob::components::leap::LeapAtTargetGoal;
 use crate::entity::mob::components::{
     BreedGoal, BreedableConfig, EatBlockGoal, EquipItemGoal, FloatGoal, FollowParentGoal,
-    HurtByTargetGoal, LookAtPlayerGoal, MeleeBoxAttackGoal, NearestAttackableTargetGoal, PanicGoal,
-    PickupItemsGoal, RandomLookAroundGoal, RandomStrollGoal, TemptGoal, WalkNavigationConfig,
+    HurtByTargetGoal, LookAtPlayerGoal, NearestAttackableTargetGoal, PanicGoal, PickupItemsGoal,
+    RandomLookAroundGoal, RandomStrollGoal, TemptGoal, WalkNavigationConfig,
 };
+// Creeper lane.
+use crate::entity::mob::components::SelfEvent;
+use crate::entity::mob::components::avoid_mob_type::AvoidMobTypeGoal;
+use crate::entity::mob::components::explode::SwellGoal;
+use crate::entity::mob::components::hostile::melee_goal;
+// Skeleton lane.
+use crate::entity::mob::components::flee_sun::FleeSunGoal;
+use crate::entity::mob::components::ranged_attack::RangedAttackGoal;
 use crate::entity::mob::constants::{
     BREED_CHECK_TICKS, BREED_HEAD_TURN, BREED_MAX_PARTNER_DIST, BREED_SEARCH, BREED_TOUCH_DIST,
     FOLLOW_PARENT_MAX_DIST, FOLLOW_PARENT_MIN_DIST, FOLLOW_PARENT_REPATH_TICKS,
@@ -54,10 +64,21 @@ pub enum Goal {
     MeleeBoxAttack,
     PickupItems,
     EquipItem,
+    // Enderman lane.
+    TakeBlock,
+    PlaceBlock,
+    // Spider lane.
+    Leap,
+    // Creeper lane.
+    Swell,
+    AvoidMobType,
+    // Skeleton lane.
+    RangedAttack,
+    FleeSun,
 }
 
 impl Goal {
-    const ALL: [Goal; 14] = [
+    const ALL: [Goal; 21] = [
         Goal::Float,
         Goal::Panic,
         Goal::Breed,
@@ -72,6 +93,13 @@ impl Goal {
         Goal::MeleeBoxAttack,
         Goal::PickupItems,
         Goal::EquipItem,
+        Goal::TakeBlock,
+        Goal::PlaceBlock,
+        Goal::Leap,
+        Goal::Swell,
+        Goal::AvoidMobType,
+        Goal::RangedAttack,
+        Goal::FleeSun,
     ];
 
     pub fn id(self) -> GoalId {
@@ -96,6 +124,10 @@ impl Goal {
             Goal::HurtByTarget | Goal::NearestAttackableTarget => GoalControls::TARGET,
             Goal::MeleeBoxAttack | Goal::PickupItems => GoalControls::MOVE | GoalControls::LOOK,
             Goal::EquipItem => GoalControls::NONE,
+            Goal::TakeBlock | Goal::PlaceBlock => GoalControls::NONE,
+            Goal::Leap => GoalControls::MOVE | GoalControls::JUMP,
+            Goal::Swell | Goal::AvoidMobType | Goal::FleeSun => GoalControls::MOVE,
+            Goal::RangedAttack => GoalControls::MOVE | GoalControls::LOOK,
         }
     }
 }
@@ -171,7 +203,7 @@ pub fn goal_specs(world: &World, entity: Entity, out: &mut Vec<GoalSpec>) {
             controls: goal.controls(),
         })
     }));
-    if let Some(goal) = entity.get::<MeleeBoxAttackGoal>() {
+    if let Some(goal) = melee_goal(entity) {
         out.push(GoalSpec {
             id: Goal::MeleeBoxAttack.id(),
             kind: GoalKind::Normal,
@@ -195,6 +227,66 @@ pub fn goal_specs(world: &World, entity: Entity, out: &mut Vec<GoalSpec>) {
             controls: goal.controls,
         });
     }
+    // Enderman lane.
+    if let Some(goal) = entity.get::<TakeBlockGoal>() {
+        out.push(GoalSpec {
+            id: Goal::TakeBlock.id(),
+            kind: GoalKind::Normal,
+            priority: goal.priority,
+            controls: goal.controls,
+        });
+    }
+    if let Some(goal) = entity.get::<PlaceBlockGoal>() {
+        out.push(GoalSpec {
+            id: Goal::PlaceBlock.id(),
+            kind: GoalKind::Normal,
+            priority: goal.priority,
+            controls: goal.controls,
+        });
+    }
+    // Spider lane.
+    if let Some(goal) = entity.get::<LeapAtTargetGoal>() {
+        out.push(GoalSpec {
+            id: Goal::Leap.id(),
+            kind: GoalKind::Normal,
+            priority: goal.priority,
+            controls: goal.controls,
+        });
+    }
+    // Creeper lane.
+    if let Some(goal) = entity.get::<SwellGoal>() {
+        out.push(GoalSpec {
+            id: Goal::Swell.id(),
+            kind: GoalKind::Normal,
+            priority: goal.priority,
+            controls: goal.controls,
+        });
+    }
+    if let Some(goal) = entity.get::<AvoidMobTypeGoal>() {
+        out.push(GoalSpec {
+            id: Goal::AvoidMobType.id(),
+            kind: GoalKind::Normal,
+            priority: goal.priority,
+            controls: goal.controls,
+        });
+    }
+    // Skeleton lane.
+    if let Some(goal) = entity.get::<RangedAttackGoal>() {
+        out.push(GoalSpec {
+            id: Goal::RangedAttack.id(),
+            kind: GoalKind::Normal,
+            priority: goal.priority,
+            controls: goal.controls,
+        });
+    }
+    if let Some(goal) = entity.get::<FleeSunGoal>() {
+        out.push(GoalSpec {
+            id: Goal::FleeSun.id(),
+            kind: GoalKind::Normal,
+            priority: goal.priority,
+            controls: goal.controls,
+        });
+    }
 }
 
 /// World writes the goals request; applied after the mob's tick.
@@ -213,6 +305,25 @@ pub struct Effects {
     pub attack: Option<Entity>,
     /// The pickup and equip goals' item work (`super::pickup`).
     pub gear: super::pickup::GearWork,
+    /// The block goals' block move (`super::block_carry`).
+    pub carry: Option<super::block_carry::CarryWork>,
+    /// The leap goal jumps at its target (`super::leap`).
+    pub leap: Option<super::leap::Leap>,
+    /// The avoid goal started (`Some(true)`) or stopped fleeing: the
+    /// `IS_AVOIDING_MOBS` flag (`super::avoid_mob_type`).
+    pub avoiding: Option<bool>,
+    /// Events the goals fire on the mob after its tick, with their `other`.
+    pub events: Vec<(SelfEvent, Option<Entity>)>,
+    /// The ranged attack goal shoots at this actor now (`super::ranged_attack`).
+    pub shot: Option<Entity>,
+    /// The ranged attack goal started (`Some(true)`) or stopped: the
+    /// `FACING_TARGET_TO_RANGE_ATTACK` flag.
+    pub facing_target: Option<bool>,
+    /// Turn body and head to this yaw now (the ranged attack goal faces
+    /// its target).
+    pub face: Option<f32>,
+    /// Swing the arm (`ActorEvent` StartAttacking to viewers).
+    pub swing: bool,
 }
 
 #[derive(Debug, Default)]
@@ -252,6 +363,8 @@ pub struct GoalStates {
     pub(super) targets: super::targeting::TargetStates,
     pub(super) melee: super::melee::MeleeState,
     pub(super) pickup: super::pickup::PickupState,
+    pub(super) avoid: super::avoid_mob_type::AvoidState,
+    pub(super) ranged: super::ranged_attack::RangedState,
 }
 
 /// Everything a goal reads and writes during one mob's tick.
@@ -294,8 +407,14 @@ impl<'a> GoalContext<'a> {
         self.body.feet + DVec3::Y * self.body.height
     }
 
-    /// Search a path to `goal` into the staging buffer.
-    fn path_to(&mut self, goal: DVec3) -> bool {
+    /// Search a path to `goal` into the staging buffer. A wall climber
+    /// records `goal`'s block as its destination (`super::climb`).
+    pub(super) fn path_to(&mut self, goal: DVec3) -> bool {
+        self.record_destination(goal);
+        self.search_path(goal, false)
+    }
+
+    fn search_path(&mut self, goal: DVec3, partial: bool) -> bool {
         find_path(
             self.world,
             self.table,
@@ -304,17 +423,35 @@ impl<'a> GoalContext<'a> {
             self.body.liquid == Some(LiquidKind::Water),
             self.body.feet,
             goal,
+            partial,
             &mut self.states.scratch,
             &mut self.states.staging,
         )
     }
 
+    /// A wall climber's path requests record their destination block.
+    fn record_destination(&mut self, destination: DVec3) {
+        if self.policy.climbs_walls {
+            self.nav
+                .set_destination(Some(destination.floor().as_ivec3()));
+        }
+    }
+
     /// Search a path onto the ground under `point` into the staging buffer.
     pub(super) fn path_toward(&mut self, point: DVec3) -> bool {
+        self.request_path(point, point, false)
+    }
+
+    /// Search a path onto the ground under `point` into the staging
+    /// buffer; a wall climber records `destination`'s block first. With
+    /// `partial`, an unreachable point yields the route to the node closest
+    /// to it.
+    pub(super) fn request_path(&mut self, point: DVec3, destination: DVec3, partial: bool) -> bool {
+        self.record_destination(destination);
         let Some(goal) = ground_below(self.world, point, &mut self.states.boxes) else {
             return false;
         };
-        self.path_to(goal)
+        self.search_path(goal, partial)
     }
 
     pub(super) fn follow_staged(&mut self, speed_multiplier: f32) {
@@ -330,7 +467,12 @@ impl<'a> GoalContext<'a> {
     }
 
     /// Prepare a path to the best reachable random position.
-    fn prepare_random_path(&mut self, xz: i32, y: i32, away: Option<DVec3>) -> Option<DVec3> {
+    pub(super) fn prepare_random_path(
+        &mut self,
+        xz: i32,
+        y: i32,
+        away: Option<DVec3>,
+    ) -> Option<DVec3> {
         let mut candidates = std::mem::take(&mut self.states.candidates);
         random_targets(
             self.world,
@@ -616,6 +758,13 @@ impl GoalCallbacks for GoalContext<'_> {
             Goal::MeleeBoxAttack => self.melee_can_start(),
             Goal::PickupItems => self.pickup_can_start(),
             Goal::EquipItem => self.equip_can_start(),
+            Goal::TakeBlock => self.take_block_can_start(),
+            Goal::PlaceBlock => self.place_block_can_start(),
+            Goal::Leap => self.leap_can_start(),
+            Goal::Swell => self.swell_can_start(),
+            Goal::AvoidMobType => self.avoid_can_start(),
+            Goal::RangedAttack => self.ranged_can_start(),
+            Goal::FleeSun => self.flee_sun_can_start(),
         }
     }
 
@@ -673,6 +822,13 @@ impl GoalCallbacks for GoalContext<'_> {
             Goal::MeleeBoxAttack => self.melee_can_continue(),
             Goal::PickupItems => self.pickup_can_continue(),
             Goal::EquipItem => self.equip_can_start(),
+            // The block goals act once, when they start.
+            Goal::TakeBlock | Goal::PlaceBlock => false,
+            Goal::Leap => self.leap_can_continue(),
+            Goal::Swell => self.swell_can_start(),
+            Goal::AvoidMobType => self.avoid_can_continue(),
+            Goal::RangedAttack => self.ranged_can_continue(),
+            Goal::FleeSun => !self.nav.is_done(),
             Goal::Breed => {
                 let Some(partner) = self.mob(self.states.breed.partner) else {
                     return false;
@@ -747,6 +903,13 @@ impl GoalCallbacks for GoalContext<'_> {
             Goal::MeleeBoxAttack => self.melee_start(),
             Goal::PickupItems => self.pickup_start(),
             Goal::EquipItem => {}
+            Goal::TakeBlock => self.take_block_start(),
+            Goal::PlaceBlock => self.place_block_start(),
+            Goal::Leap => self.leap_start(),
+            Goal::Swell => self.swell_start(),
+            Goal::AvoidMobType => self.avoid_start(),
+            Goal::RangedAttack => self.ranged_start(),
+            Goal::FleeSun => self.flee_sun_start(),
         }
     }
 
@@ -779,6 +942,11 @@ impl GoalCallbacks for GoalContext<'_> {
             Goal::MeleeBoxAttack => self.melee_stop(),
             Goal::PickupItems => self.pickup_stop(),
             Goal::EquipItem => {}
+            Goal::TakeBlock | Goal::PlaceBlock => {}
+            Goal::Leap | Goal::Swell => {}
+            Goal::AvoidMobType => self.avoid_stop(),
+            Goal::RangedAttack => self.ranged_stop(),
+            Goal::FleeSun => self.nav.stop(self.movement),
         }
     }
 
@@ -816,6 +984,11 @@ impl GoalCallbacks for GoalContext<'_> {
             Goal::MeleeBoxAttack => self.melee_tick(),
             Goal::PickupItems => self.pickup_tick(),
             Goal::EquipItem => self.equip_tick(),
+            Goal::TakeBlock | Goal::PlaceBlock => {}
+            Goal::Leap | Goal::Swell => {}
+            Goal::AvoidMobType => self.avoid_tick(),
+            Goal::RangedAttack => self.ranged_tick(),
+            Goal::FleeSun => {}
             Goal::Tempt => {
                 let Some(goal) = self.config::<TemptGoal>() else {
                     return;

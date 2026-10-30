@@ -93,7 +93,7 @@ offsets from the same feet block and slots 0–8/9–35 are hotbar/inventory:
 | `break` | `x`,`y`,`z`,`face` | aim, then `PlayerAuthInput` block actions |
 | `click` | `x`,`y`,`z`,`face` | aim, then `InventoryTransaction` use-item on block |
 | `select` | `slot` | `MobEquipment` |
-| `move_item`, `drop`, `craft` | `slot`,`to`,`count`,`recipe` | `ItemStackRequest` take/drop/craft |
+| `move_item`, `drop`, `craft` | `slot`,`to`,`count`,`recipe`, craft: optional `consume`,`action`,`text`,`recipe_network_id`,`cost`,`result`,`result_nbt` | `ItemStackRequest` take/drop/craft |
 | `take_cursor`, `place_cursor`, `drop_cursor`, `swap`, `destroy` | `slot`,`to`,`count` | `ItemStackRequest` take into / place from / drop from the cursor (UI slot 0), swap, destroy |
 | `open_inventory`, `close_inventory` | — | `Interact` OpenInventory; `ContainerClose` window 0 type 0xff |
 | `attack`, `interact` | `entity` (type, e.g. `minecraft:zombie`) | aim, then `InventoryTransaction` use-item on entity |
@@ -106,11 +106,35 @@ that container). `-Mode capture -Scenario inventory-moves` runs the inventory sc
 whose BDS capture is replayed by unastar's inventory engine tests
 (`crates/unastar/src/server/game/inventory/testdata/bds-inventory-moves.jsonl`).
 
+Crafting: `move_item` with `"to_container": "crafting"` moves into the
+inventory's 2x2 grid (`to` = PlayerUI slot 28–31). `craft` looks up
+single-ingredient and smithing recipes by recipe ID (e.g.
+`minecraft:smithing_netherite_sword`, `minecraft:smithing_armor_trim`) and
+multi recipes by UUID (repair is `00000000-0000-0000-0000-000000000001`);
+`"consume": [{"container": "crafting", "slot": 28}, ...]` consumes from the
+listed slots (optional `count`, default 1) instead of inventory slot `slot`.
+`"action": "optional"` sends `CraftRecipeOptional` with `text` as the request's
+filter string (anvil; recipe network ID 0), `"action": "grindstone"` sends
+`CraftGrindstoneRecipe` (repair-and-disenchant) whose ID is the stack network
+ID of the first consumed input (BDS 1.26.51 rejects any other value with
+status 9) and `cost`. `"result"`/`"result_nbt"` add a predicted output
+(`CraftResultsDeprecated`; JSON integers become TAG_Int). The crafted stack is
+taken to inventory slot `to`, merging into a matching stack there.
+
 Block windows: `move_item` also takes `"from_container"`/`"to_container"`
-`chest`, `barrel`, `ingredient`, `fuel` or `result` (slots of the window the
-last `ContainerOpen` opened, up to 53), and `close_container` closes that
-window (it sends nothing if the server opened none). Scenarios
-`containers-dry`, `containers` and `chest-obstruction` use them.
+`chest`, `barrel`, `ingredient`, `fuel`, `result`, `anvil_input` (slot 1),
+`anvil_material` (2), `smithing_input` (51), `smithing_material` (52),
+`smithing_template` (53), `grindstone_input` (16) or `grindstone_additional`
+(17) (slots of the window the last `ContainerOpen` opened, up to 53), and
+`close_container` closes that window (it sends nothing if the server opened
+none). BDS lists the anvil, smithing table and grindstone slots from index 0
+in `InventoryContent`; the bot maps them to the UI slots above. Items left in
+those slots stay there after the window closes (BDS does not return them),
+so scenarios take refused inputs back out before closing. Scenarios
+`containers-dry`, `containers` and `chest-obstruction` use chests;
+`smithing-table`, `anvil`, `anvil-wear`, `anvil-fall`, `grindstone`,
+`grindstone-curse`, `grindstone-named` and `grindstone-book` cover the
+workstations (`blocks-dry` is their smoke run).
 
 Interaction scenarios report the join loading screen like the vanilla client
 (`ServerBoundLoadingScreen` start and end, sent right after spawn because the
@@ -128,6 +152,19 @@ in an `UpdateBlock`.
 (apple, golden apple, cooked beef, rotten flesh, honey), drink (milk, water
 potion), eat suspicious stew 0–9 and use a bow, snowball, egg, crossbow,
 trident and ender pearl in survival; `item-use-dry` is their short smoke run.
+`item-use-potions` drinks every potion 0–46 (natural regeneration off,
+health restored before each, harming drunk before healing),
+`item-use-throwables` throws splash potions at the feet and 3/5 blocks ahead,
+an ender pearl and a tipped arrow, `item-use-lingering` throws a lingering
+potion at the feet and stays in the cloud, `item-use-tridents` throws a plain
+trident and teleports onto it, a loyalty trident and a riptide trident in
+rain, and `item-use-repair` repairs two damaged wooden pickaxes in the
+crafting grid; `item-use-2-dry` is their smoke run. `item-use-splash-distance`
+and `item-use-splash-sideways` measure how splash effect duration falls with
+distance (the latter teleports the player between throw and impact), and
+`item-use-tridents-water` throws an impaling trident at a drowned on land and
+in water and uses riptide 1/3 in a 2-deep pool. Retained spawn packets
+from these runs are in `crates/bds-extractor/captures/1.26.51/items/`.
 Jolyne runs only chat/command scenarios and rejects interaction steps before
 connecting.
 

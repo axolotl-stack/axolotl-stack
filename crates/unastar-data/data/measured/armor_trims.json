@@ -1,0 +1,36 @@
+{
+  "source": "public reference, not measured on BDS: armor trim pattern and material ids as written in the item's Trim NBT (Pattern, Material), minecraft.wiki 'Armor trim', retrieved 2026-10-29",
+  "patterns": {
+    "minecraft:bolt_armor_trim_smithing_template": "bolt",
+    "minecraft:coast_armor_trim_smithing_template": "coast",
+    "minecraft:dune_armor_trim_smithing_template": "dune",
+    "minecraft:eye_armor_trim_smithing_template": "eye",
+    "minecraft:flow_armor_trim_smithing_template": "flow",
+    "minecraft:host_armor_trim_smithing_template": "host",
+    "minecraft:raiser_armor_trim_smithing_template": "raiser",
+    "minecraft:rib_armor_trim_smithing_template": "rib",
+    "minecraft:sentry_armor_trim_smithing_template": "sentry",
+    "minecraft:shaper_armor_trim_smithing_template": "shaper",
+    "minecraft:silence_armor_trim_smithing_template": "silence",
+    "minecraft:snout_armor_trim_smithing_template": "snout",
+    "minecraft:spire_armor_trim_smithing_template": "spire",
+    "minecraft:tide_armor_trim_smithing_template": "tide",
+    "minecraft:vex_armor_trim_smithing_template": "vex",
+    "minecraft:ward_armor_trim_smithing_template": "ward",
+    "minecraft:wayfinder_armor_trim_smithing_template": "wayfinder",
+    "minecraft:wild_armor_trim_smithing_template": "wild"
+  },
+  "materials": {
+    "minecraft:amethyst_shard": "amethyst",
+    "minecraft:copper_ingot": "copper",
+    "minecraft:diamond": "diamond",
+    "minecraft:emerald": "emerald",
+    "minecraft:gold_ingot": "gold",
+    "minecraft:iron_ingot": "iron",
+    "minecraft:lapis_lazuli": "lapis",
+    "minecraft:netherite_ingot": "netherite",
+    "minecraft:quartz": "quartz",
+    "minecraft:redstone": "redstone",
+    "minecraft:resin_brick": "resin"
+  }
+}

@@ -43,10 +43,10 @@ use crate::world::generator::density::{
 };
 use crate::world::generator::xoroshiro::PositionalRandomFactory;
 use unastar_noise::{
-    compute_barrier_native_uncached, compute_depth_native_uncached,
-    compute_erosion_native_uncached, compute_fluid_level_floodedness_native_uncached,
-    compute_fluid_level_spread_native_uncached, compute_lava_native_uncached,
-    compute_preliminary_surface_level_native,
+    compute_barrier_native_uncached, compute_depth_native, compute_depth_native_uncached,
+    compute_erosion_native, compute_erosion_native_uncached,
+    compute_fluid_level_floodedness_native_uncached, compute_fluid_level_spread_native_uncached,
+    compute_lava_native_uncached, compute_preliminary_surface_level_native,
 };
 
 // ========== Constants ==========
@@ -1069,8 +1069,25 @@ impl<'a, F: FluidPicker, N: NoiseSource> NoiseBasedAquifer<'a, F, N> {
         let ctx = FunctionContext::new(x, y, z);
 
         let deep_dark = if N::NATIVE_JAVA {
-            compute_erosion_native_uncached(&ctx, self.noises) < f64::from(-0.225_f32)
-                && compute_depth_native_uncached(&ctx, self.noises) > f64::from(0.9_f32)
+            // The native aquifer reads erosion and depth through the noise
+            // chunk's router, whose flat caches return the value at the
+            // quart corner (y=0) for any position over this chunk's 5x5 quart
+            // grid; only positions outside it are computed exactly.
+            let quart_x = (x >> 2) - self.grid.first_quart_x;
+            let quart_z = (z >> 2) - self.grid.first_quart_z;
+            let (erosion, depth) = if (0..5).contains(&quart_x) && (0..5).contains(&quart_z) {
+                let col = Self::column(x, z, self.noises, self.grid);
+                (
+                    compute_erosion_native(&ctx, self.noises, self.grid, &col),
+                    compute_depth_native(&ctx, self.noises, self.grid, &col),
+                )
+            } else {
+                (
+                    compute_erosion_native_uncached(&ctx, self.noises),
+                    compute_depth_native_uncached(&ctx, self.noises),
+                )
+            };
+            erosion < f64::from(-0.225_f32) && depth > f64::from(0.9_f32)
         } else {
             // Calibrated aquifer centers reuse their owning chunk's 2D grid.
             let chunk_x = x >> 4;

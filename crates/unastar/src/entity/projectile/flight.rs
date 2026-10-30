@@ -117,6 +117,7 @@ fn step(
     // projectile no longer flies.
     if world.block_at(from.floor().as_ivec3()).is_none()
         || world.get::<super::Stuck>(projectile).is_some()
+        || world.get::<super::Returning>(projectile).is_some()
     {
         return;
     }
@@ -168,8 +169,9 @@ fn step(
     hits.sort_by(|a, b| a.0.total_cmp(&b.0));
 
     let mut removed = false;
-    for &(_, target) in hits.iter() {
-        removed |= on_hit(world, projectile, flight.owner, rules, from, target);
+    for &(t, target) in hits.iter() {
+        let impact = from + velocity * t;
+        removed |= on_hit(world, projectile, flight.owner, rules, from, impact, target);
         if removed || !rules.multiple_targets {
             break;
         }

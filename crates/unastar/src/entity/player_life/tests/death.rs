@@ -122,6 +122,45 @@ fn keep_inventory_keeps_items_and_experience() {
 }
 
 #[test]
+fn keep_on_death_items_stay_in_their_slots() {
+    let mut h = harness(Difficulty::Normal);
+    equip(&mut h);
+    let kept = crate::item::enchant::with_item_tag(
+        &stack("minecraft:wheat", 64),
+        zuri_nbt::tag::Compound(
+            [(
+                "minecraft:keep_on_death".to_owned(),
+                zuri_nbt::NBTTag::Byte(zuri_nbt::tag::Byte(1)),
+            )]
+            .into_iter()
+            .collect(),
+        ),
+    );
+    let player = h.player;
+    h.world()
+        .get_mut::<MainInventory>(player)
+        .unwrap()
+        .0
+        .set_item(7, kept.clone())
+        .unwrap();
+    let cow = h.cow();
+    h.hit_from(cow, 100.0);
+    assert!(h.dead());
+    assert_eq!(
+        h.drops(),
+        [
+            ("minecraft:diamond".to_owned(), 3),
+            ("minecraft:iron_chestplate".to_owned(), 1),
+            ("minecraft:shield".to_owned(), 1),
+        ]
+    );
+    let world = h.world();
+    let main = &world.get::<MainInventory>(player).unwrap().0;
+    assert_eq!(main.item(7), Some(&kept.into_slot()));
+    assert_eq!(main.items().count(), 1);
+}
+
+#[test]
 fn deaths_by_falling_and_lava_have_their_own_messages() {
     let steve = || vec!["Steve".to_owned()];
 

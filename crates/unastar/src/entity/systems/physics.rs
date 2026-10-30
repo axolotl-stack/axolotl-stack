@@ -8,8 +8,16 @@
 //! into a ledge, sets `OnGround` when a downward move was stopped, and zeroes
 //! the velocity of every blocked axis.
 //!
+//! A living body with [`Climbing`] climbs on a tick where it shows the
+//! wall-climbing flag (set by climb navigation), its previous move was
+//! blocked horizontally and it is not in water: its vertical velocity becomes
+//! [`CLIMB_SPEED`] before the move and neither gravity nor vertical drag
+//! apply after it. Every move records whether it was blocked horizontally.
+//!
 //! Positions are feet positions (bottom-centre of the box). Chunks that are
 //! not loaded count as solid so entities never fall through unloaded terrain.
+//!
+//! [`CLIMB_SPEED`]: crate::entity::mob::constants::CLIMB_SPEED
 
 use bevy_ecs::prelude::*;
 use bevy_ecs::system::SystemParam;
@@ -436,6 +444,7 @@ fn apply_living_drag(
     feet: DVec3,
     on_ground: bool,
     liquid: Option<LiquidKind>,
+    climbing: bool,
     velocity: &mut DVec3,
 ) {
     use crate::entity::mob::constants::{LAVA_DRAG, LIQUID_GRAVITY, WATER_DRAG};
@@ -452,7 +461,10 @@ fn apply_living_drag(
         velocity.y = (velocity.y - gravity) * drag;
         drag
     } else {
-        velocity.y = (velocity.y - body.gravity) * body.vertical_drag;
+        // A climbing body keeps its climb speed: no gravity, no vertical drag.
+        if !climbing {
+            velocity.y = (velocity.y - body.gravity) * body.vertical_drag;
+        }
         if let Some(flap) = body.wing_flap_drag
             && velocity.y < 0.0
         {
@@ -482,11 +494,12 @@ pub fn step_body(
     on_ground: &mut bool,
     age: u64,
 ) -> DVec3 {
-    step_body_sensed(blocks, body, position, velocity, on_ground, age).0
+    step_body_sensed(blocks, body, position, velocity, on_ground, age, None).0
 }
 
 /// [`step_body`], also returning the liquid a living body travelled in
-/// (sensed before the move; `None` for other models).
+/// (sensed before the move; `None` for other models). A living body passes
+/// its [`Climbing`] state, which the step reads and updates.
 pub fn step_body_sensed(
     blocks: &impl BlockSource,
     body: &PhysicsBody,
@@ -494,6 +507,7 @@ pub fn step_body_sensed(
     velocity: &mut DVec3,
     on_ground: &mut bool,
     age: u64,
+    climbing: Option<&mut Climbing>,
 ) -> (DVec3, Option<LiquidKind>) {
     let aabb = Aabb::from_feet(position, body.width, body.height);
     let flotation = if body.model == PhysicsModel::Item {
@@ -530,8 +544,15 @@ pub fn step_body_sensed(
     if body.gravity_stage == GravityStage::BeforeMove && flotation.is_none() {
         velocity.y -= body.gravity;
     }
+    let climbs = climbing
+        .as_deref()
+        .is_some_and(|c| c.wall_climbing && c.collided && living_liquid != Some(LiquidKind::Water));
+    if climbs {
+        velocity.y = crate::entity::mob::constants::CLIMB_SPEED;
+    }
 
     let result = move_aabb(blocks, aabb, *velocity, body.step_height, *on_ground);
+    let blocked_horizontally = result.moved.x != velocity.x || result.moved.z != velocity.z;
     if result.moved.x != velocity.x {
         velocity.x = 0.0;
     }
@@ -542,6 +563,11 @@ pub fn step_body_sensed(
         velocity.z = 0.0;
     }
     *on_ground = result.on_ground;
+    if let Some(climbing) = climbing
+        && climbing.collided != blocked_horizontally
+    {
+        climbing.collided = blocked_horizontally;
+    }
     let feet = result.aabb.feet();
     if body.model == PhysicsModel::FallingBlock && *on_ground {
         *velocity = DVec3::ZERO;
@@ -549,7 +575,15 @@ pub fn step_body_sensed(
     }
 
     if body.model == PhysicsModel::Living {
-        apply_living_drag(blocks, body, feet, *on_ground, living_liquid, velocity);
+        apply_living_drag(
+            blocks,
+            body,
+            feet,
+            *on_ground,
+            living_liquid,
+            climbs,
+            velocity,
+        );
         return (feet, living_liquid);
     }
 
@@ -577,7 +611,9 @@ pub fn step_body_sensed(
 /// Bodies whose own chunk is not loaded are frozen until it loads. Bodies
 /// with a [`FallDistance`] accumulate the distance they fall: while airborne
 /// every downward move adds to it and any other move resets it, travelling
-/// in water resets it, and touching the ground records it as `landed`.
+/// in water resets it, and touching the ground records it as `landed`. A
+/// body showing the wall-climbing flag does not fall: its distance resets
+/// every tick, against a wall or not.
 #[allow(clippy::type_complexity)]
 pub fn tick_physics(
     blocks: WorldBlocks,
@@ -588,18 +624,38 @@ pub fn tick_physics(
         &PhysicsBody,
         &Age,
         Option<&mut FallDistance>,
+        Option<&mut Climbing>,
     )>,
 ) {
-    for (mut position, mut velocity, mut on_ground, body, age, fall) in query.iter_mut() {
+    for (mut position, mut velocity, mut on_ground, body, age, fall, climbing) in query.iter_mut() {
         if blocks.block_at(position.0.floor().as_ivec3()).is_none() {
             continue;
         }
         let mut vel = velocity.0;
         let mut grounded = on_ground.0;
-        let (feet, liquid) =
-            step_body_sensed(&blocks, body, position.0, &mut vel, &mut grounded, age.0);
+        let mut state = climbing.as_deref().copied();
+        let (feet, liquid) = step_body_sensed(
+            &blocks,
+            body,
+            position.0,
+            &mut vel,
+            &mut grounded,
+            age.0,
+            state.as_mut(),
+        );
+        let wall_climbing = state.is_some_and(|c| c.wall_climbing);
+        if let (Some(mut climbing), Some(state)) = (climbing, state)
+            && *climbing != state
+        {
+            *climbing = state;
+        }
         if let Some(mut fall) = fall {
-            let next = fall.after_move(feet.y - position.0.y, grounded, liquid);
+            let before = if wall_climbing {
+                FallDistance::default()
+            } else {
+                *fall
+            };
+            let next = before.after_move(feet.y - position.0.y, grounded, liquid);
             if *fall != next {
                 *fall = next;
             }

@@ -58,13 +58,40 @@ type step struct {
 	// Stale sends an unassigned source stack network ID (inventory steps).
 	Stale bool `json:"stale"`
 	// ToContainer addresses the destination of move_item/place_cursor in
-	// "armor" or "offhand", or in the open block window ("chest", "barrel",
-	// "ingredient", "fuel", "result"), instead of the player inventory
-	// (slot = To).
+	// "armor" or "offhand", the inventory crafting grid ("crafting", slots
+	// 28-31), or in the open block window ("chest", "barrel", "ingredient",
+	// "fuel", "result", "anvil_input", "anvil_material", "smithing_input",
+	// "smithing_material", "smithing_template", "grindstone_input",
+	// "grindstone_additional"), instead of the player inventory (slot = To).
 	ToContainer string `json:"to_container"`
 	// FromContainer addresses the source of move_item in the open block
 	// window (same names as ToContainer, slot = Slot).
 	FromContainer string `json:"from_container"`
+	// Consume makes craft consume one item from each listed slot (the
+	// crafting grid, or the input slots of the open anvil, smithing table or
+	// grindstone) instead of inventory slot Slot.
+	Consume []slotRef `json:"consume"`
+	// Action selects the craft action: "" sends CraftRecipe, "optional"
+	// CraftRecipeOptional with Text as the request's filter string (anvil),
+	// "grindstone" CraftGrindstoneRecipe with Cost. RecipeNetworkID is used
+	// when Recipe is empty: the anvil uses 0, the grindstone defaults to the
+	// stack network ID of the first consumed input.
+	Action          string `json:"action"`
+	RecipeNetworkID uint32 `json:"recipe_network_id"`
+	Cost            int32  `json:"cost"`
+	// Result makes craft also send the client's predicted output
+	// (CraftResultsDeprecated): one item with this identifier and ResultNBT
+	// as its tag (JSON integers become TAG_Int, e.g. {"Damage": 9}).
+	Result    string         `json:"result"`
+	ResultNBT map[string]any `json:"result_nbt"`
+}
+
+// slotRef is a container slot named like step.ToContainer; Count (default
+// 1) is how many items craft consumes from it.
+type slotRef struct {
+	Container string `json:"container"`
+	Slot      int    `json:"slot"`
+	Count     int    `json:"count"`
 }
 
 type scenario struct {
@@ -114,11 +141,25 @@ func (s scenario) validate() error {
 					return fmt.Errorf("step %d: unknown container %q", i, name)
 				}
 			}
-			if step.FromContainer != "" && step.Kind != "move_item" || step.FromContainer == "armor" || step.FromContainer == "offhand" {
+			if step.FromContainer != "" && step.Kind != "move_item" || step.FromContainer == "armor" || step.FromContainer == "offhand" || step.FromContainer == "crafting" {
 				return fmt.Errorf("step %d: from_container is for move_item out of a block window", i)
 			}
-			if step.Kind == "craft" && step.Recipe == "" {
+			if step.Kind == "craft" && step.Recipe == "" && step.Action == "" {
 				return fmt.Errorf("step %d: craft needs a recipe", i)
+			}
+			if step.Action != "" && step.Action != "optional" && step.Action != "grindstone" {
+				return fmt.Errorf("step %d: unknown craft action %q", i, step.Action)
+			}
+			for _, ref := range step.Consume {
+				if _, ok := containerIDs[ref.Container]; step.Kind != "craft" || !ok || ref.Container == "armor" || ref.Container == "offhand" {
+					return fmt.Errorf("step %d: consume is for craft, from the crafting grid or a block window", i)
+				}
+				if ref.Container == "crafting" && (ref.Slot < craftingGridFirst || ref.Slot > craftingGridLast) || ref.Slot < 0 || ref.Slot >= blockSlots {
+					return fmt.Errorf("step %d: consume slot %d out of range", i, ref.Slot)
+				}
+			}
+			if step.ToContainer == "crafting" && (step.To < craftingGridFirst || step.To > craftingGridLast) {
+				return fmt.Errorf("step %d: crafting grid slots are %d..%d", i, craftingGridFirst, craftingGridLast)
 			}
 			if step.Stale && step.Kind == "craft" {
 				return fmt.Errorf("step %d: craft cannot use a stale stack ID", i)

@@ -135,6 +135,75 @@ pub(crate) fn drop_block_items(
     }
 }
 
+/// The loot source tag of the tables in `data/overrides` (stand-ins for the
+/// drops built into BDS).
+const BUILT_IN_DROPS_SOURCE: &str = "unastar_block_loot_override";
+
+/// Item stacks an explosion of `radius` destroying `block_runtime_id`
+/// yields. No tool is involved, so blocks that need one still drop. Drops
+/// built into the server (the override tables and a block's own item) keep
+/// each whole stack with probability `1 / radius`; behaviour-pack tables
+/// decay through their `explosion_decay` functions instead.
+pub(crate) fn explosion_drops(
+    world: &mut World,
+    block_runtime_id: u32,
+    radius: f32,
+) -> Vec<ItemStack> {
+    let Some(registry) = world
+        .get_resource::<BlockRegistryResource>()
+        .map(|r| r.0.clone())
+    else {
+        return Vec::new();
+    };
+    let Some(block) = registry.get_by_runtime_id(block_runtime_id) else {
+        return Vec::new();
+    };
+    if block.state_value(block_runtime_id, "upper_block_bit") == Some(StateValue::Byte(1)) {
+        return Vec::new();
+    }
+    let name = block
+        .string_id
+        .strip_prefix("minecraft:")
+        .unwrap_or(&block.string_id);
+    let table = unastar_data::loot::get(&format!("blocks/{name}"));
+    let built_in = table.is_none_or(|table| table.source == BUILT_IN_DROPS_SOURCE);
+    let stacks = match table {
+        None => world_stack(world, &block.string_id, 1)
+            .into_iter()
+            .collect(),
+        Some(table) => {
+            let ctx = LootContext {
+                block: Some((block, block_runtime_id)),
+                explosion_radius: (!built_in).then_some(radius),
+                ..LootContext::default()
+            };
+            let rolled = {
+                let mut rng = world.get_resource_or_init::<EntityRandom>();
+                roll(unastar_data::loot::vanilla(), table, &ctx, &mut rng.0)
+            };
+            match rolled {
+                Ok(drops) => loot_stacks(world, drops),
+                Err(error) => {
+                    warn!(table = table.name, %error, "Block loot table cannot be evaluated");
+                    Vec::new()
+                }
+            }
+        }
+    };
+    if !built_in {
+        return stacks;
+    }
+    let keep = 1.0 / radius;
+    if keep >= 1.0 {
+        return stacks;
+    }
+    let mut rng = world.get_resource_or_init::<EntityRandom>();
+    stacks
+        .into_iter()
+        .filter(|_| rng.0.r#gen::<f32>() <= keep)
+        .collect()
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;

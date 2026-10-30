@@ -13,6 +13,7 @@
 //! [`ACCEPTED_WITHOUT_BEHAVIOUR`] for the list and the reason for each.
 
 pub mod ambient;
+pub mod angry;
 pub mod body;
 pub mod breeding;
 pub mod color;
@@ -26,11 +27,24 @@ pub mod hostile;
 pub mod hurt_on_condition;
 pub mod interact;
 pub mod knockback;
+pub mod leap;
 pub mod loot;
 pub mod movement;
 pub mod sensors;
 pub mod shearing;
 pub mod spawn_entity;
+// Enderman lane.
+pub mod auto_step;
+pub mod block_carry;
+pub mod follow_range;
+pub mod looked_at;
+pub mod teleport;
+// Creeper lane.
+pub mod avoid_mob_type;
+pub mod explode;
+// Skeleton lane.
+pub mod flee_sun;
+pub mod ranged_attack;
 
 use std::sync::Arc;
 
@@ -112,7 +126,11 @@ pub const ACCEPTED_WITHOUT_BEHAVIOUR: &[(ActorComponent, &str)] = &[
          the zombie gains it after 30 s underwater, but its target, the \
          drowned, is not spawnable yet (it needs swim navigation, the \
          trident ranged attack and target_nearby_sensor), so an underwater \
-         zombie shakes (is_shaking) without converting",
+         zombie shakes (is_shaking) without converting; a skeleton gains it \
+         after 20 s in powder snow and shakes without becoming a stray; a \
+         naturally spawned stray gains it from its change_to_skeleton spawn \
+         event (always underground, else 1 in 5) and stays a stray instead \
+         of becoming a skeleton",
     ),
     (
         ActorComponent::BehaviorStompTurtleEgg,
@@ -139,6 +157,24 @@ pub const ACCEPTED_WITHOUT_BEHAVIOUR: &[(ActorComponent, &str)] = &[
         "emits flap/move/swim game events, which only vibration listeners \
          (sculk sensors, wardens, allays) consume; vibrations are not implemented",
     ),
+    // Spider lane.
+    (
+        ActorComponent::Addrider,
+        "riding is not implemented: the spider jockey's skeleton (and the \
+         stray, bogged, parched and wither skeleton jockeys) never spawn; the \
+         jockey events still add the spider's own neutral group",
+    ),
+    (
+        ActorComponent::BlockMovementSlowdownImmunity,
+        "no block slows movement yet (cobwebs do not hold mobs or players), \
+         so immunity to the slowdown changes nothing",
+    ),
+    // Skeleton lane.
+    (
+        ActorComponent::FreezingImmune,
+        "freezing is not implemented: powder snow never freezes or hurts an \
+         actor, so immunity to it changes nothing",
+    ),
 ];
 
 /// Register every mob component kind (besides the core kinds of
@@ -157,6 +193,12 @@ pub fn register_component_kinds(
     breeding::register_component_kinds(builder)?;
     loot::register_component_kinds(builder)?;
     interact::register_component_kinds(builder)?;
+    // Enderman lane.
+    block_carry::register_component_kinds(builder)?;
+    looked_at::register_component_kinds(builder)?;
+    teleport::register_component_kinds(builder)?;
+    auto_step::register_component_kinds(builder)?;
+    follow_range::register_component_kinds(builder)?;
     inert::<bodies::ConditionalBandwidthOptimization>(builder)?;
     inert::<bodies::Leashable>(builder)?;
     inert::<bodies::LeashableTo>(builder)?;
@@ -172,13 +214,25 @@ pub fn register_component_kinds(
     inert::<bodies::BehaviorFindMount>(builder)?;
     inert::<bodies::BehaviorUseKineticWeapon>(builder)?;
     inert::<bodies::DimensionBound>(builder)?;
+    // Spider lane.
+    inert::<bodies::Addrider>(builder)?;
+    inert::<bodies::BlockMovementSlowdownImmunity>(builder)?;
+    // Creeper lane.
+    explode::register_component_kinds(builder)?;
+    avoid_mob_type::register_component_kinds(builder)?;
+    angry::register_component_kinds(builder)?;
+    leap::register_component_kinds(builder)?;
     hostile::register_component_kinds(builder)?;
     sensors::register_component_kinds(builder)?;
     color::register_component_kinds(builder)?;
     shearing::register_component_kinds(builder)?;
     damage_sensor::register_component_kinds(builder)?;
     ambient::register_component_kinds(builder)?;
+    // Skeleton lane.
+    ranged_attack::register_component_kinds(builder)?;
+    flee_sun::register_component_kinds(builder)?;
+    inert::<bodies::FreezingImmune>(builder)?;
     spawn_entity::register_component_kinds(builder, items)?;
-    equipment::register_component_kinds(builder)?;
+    equipment::register_component_kinds(builder, items)?;
     knockback::register_component_kinds(builder)
 }

@@ -41,33 +41,50 @@ pub fn pick_up_stuck_projectiles(
             continue;
         };
         let taker = players.iter(world).find(|(_, eye, mode, health)| {
-            let reach = player_box(eye.0).inflate(DVec3::new(1.0, 0.5, 1.0));
-            **mode != GameMode::Spectator
-                && !health.is_dead()
-                && (reach.min.cmple(at) & at.cmple(reach.max)).all()
+            **mode != GameMode::Spectator && !health.is_dead() && touches(eye.0, at)
         });
         let Some((player, ..)) = taker else {
             continue;
         };
-        if !give(world, player, stack) {
-            continue;
-        }
-        if let (Some(item_rid), Some(player_rid), Some(session)) = (
-            world.get::<RuntimeId>(projectile).map(|r| r.0),
-            world.get::<RuntimeEntityId>(player).map(|r| r.0),
-            world.get::<PlayerSession>(player),
-        ) {
-            let _ = session.send(McpePacket::from(TakeItemActorPacket {
-                item_runtime_id: ActorRuntimeId {
-                    actor_runtime_id: item_rid as u64,
-                },
-                actor_runtime_id: ActorRuntimeId {
-                    actor_runtime_id: player_rid as u64,
-                },
-            }));
-        }
-        world.despawn(projectile);
+        collect(world, projectile, player, stack);
     }
+}
+
+/// Whether a projectile at `at` is within pickup reach of a player whose
+/// eyes are at `eye`.
+pub fn touches(eye: DVec3, at: DVec3) -> bool {
+    let reach = player_box(eye).inflate(DVec3::new(1.0, 0.5, 1.0));
+    (reach.min.cmple(at) & at.cmple(reach.max)).all()
+}
+
+/// `player` takes `projectile`'s `stack`: the item goes to the inventory
+/// (whole stack or nothing), the player's client sees `TakeItemActor` and
+/// the projectile despawns. Returns whether it was taken.
+pub fn collect(
+    world: &mut World,
+    projectile: Entity,
+    player: Entity,
+    stack: crate::item::ItemStack,
+) -> bool {
+    if !give(world, player, stack) {
+        return false;
+    }
+    if let (Some(item_rid), Some(player_rid), Some(session)) = (
+        world.get::<RuntimeId>(projectile).map(|r| r.0),
+        world.get::<RuntimeEntityId>(player).map(|r| r.0),
+        world.get::<PlayerSession>(player),
+    ) {
+        let _ = session.send(McpePacket::from(TakeItemActorPacket {
+            item_runtime_id: ActorRuntimeId {
+                actor_runtime_id: item_rid as u64,
+            },
+            actor_runtime_id: ActorRuntimeId {
+                actor_runtime_id: player_rid as u64,
+            },
+        }));
+    }
+    world.despawn(projectile);
+    true
 }
 
 /// Put the whole stack into the player's inventory, or nothing.

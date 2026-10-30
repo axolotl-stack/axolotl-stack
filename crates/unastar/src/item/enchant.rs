@@ -1,4 +1,5 @@
-//! Enchantments and durability stored in an item's user-data NBT.
+//! Enchantments, durability and the other item instance data stored in an
+//! item's user data (NBT compound, can-place-on / can-destroy lists).
 //!
 //! Bedrock keeps both in the item's NBT compound (see
 //! [`crate::item::user_data`] for the buffer layout): enchantments as the
@@ -24,6 +25,10 @@ pub enum Enchantment {
     Unbreaking = 17,
     Fortune = 18,
     Infinity = 22,
+    Impaling = 29,
+    Riptide = 30,
+    Loyalty = 31,
+    Channeling = 32,
 }
 
 impl Enchantment {
@@ -37,6 +42,10 @@ impl Enchantment {
             "unbreaking" => Self::Unbreaking,
             "fortune" => Self::Fortune,
             "infinity" => Self::Infinity,
+            "impaling" => Self::Impaling,
+            "riptide" => Self::Riptide,
+            "loyalty" => Self::Loyalty,
+            "channeling" => Self::Channeling,
             _ => return None,
         })
     }
@@ -69,20 +78,99 @@ pub fn item_tag(stack: &ItemStack) -> Option<tag::Compound> {
     split_user_data(stack.nbt.as_deref()?)?.0
 }
 
+/// Whether two stacks carry the same user data, comparing the NBT compound
+/// by value: compound key order in the encoded bytes is not significant
+/// (BDS stacked anvil-renamed sticks into one slot, client-diff anvil-wear).
+pub fn same_user_data(a: &ItemStack, b: &ItemStack) -> bool {
+    let (a, b) = (a.user_data(), b.user_data());
+    match (split_user_data(&a), split_user_data(&b)) {
+        (Some(a), Some(b)) => a == b,
+        _ => a == b,
+    }
+}
+
 /// `stack` with its NBT compound replaced by `compound`, keeping the rest of
-/// the user data.
+/// the user data. An empty compound leaves the item without NBT.
 pub fn with_item_tag(stack: &ItemStack, compound: tag::Compound) -> ItemStack {
     let default = super::user_data::network_user_data(stack.item_id(), None);
     let buffer = stack.nbt.as_deref().unwrap_or(&default);
     let tail = split_user_data(buffer).map_or(&default[2..], |(_, tail)| tail);
     let mut out = Vec::with_capacity(buffer.len() + 16);
-    out.extend_from_slice(&NBT_PRESENT.to_le_bytes());
-    out.push(NBT_VERSION);
-    NBTTag::Compound(compound)
-        .write(&mut out, LittleEndian)
-        .expect("writing NBT into a Vec cannot fail");
+    if compound.0.is_empty() {
+        out.extend_from_slice(&0i16.to_le_bytes());
+    } else {
+        out.extend_from_slice(&NBT_PRESENT.to_le_bytes());
+        out.push(NBT_VERSION);
+        NBTTag::Compound(compound)
+            .write(&mut out, LittleEndian)
+            .expect("writing NBT into a Vec cannot fail");
+    }
     out.extend_from_slice(tail);
     stack.clone().with_nbt(out)
+}
+
+/// Read one block-name list (`i32` count of u16-prefixed strings) from the
+/// start of `bytes`; returns the names and the bytes after the list.
+fn read_block_list(bytes: &[u8]) -> Option<(Vec<String>, &[u8])> {
+    let count = i32::from_le_bytes(bytes.get(..4)?.try_into().ok()?);
+    let mut rest = bytes.get(4..)?;
+    let mut names = Vec::new();
+    for _ in 0..count.max(0) {
+        let len = usize::from(u16::from_le_bytes(rest.get(..2)?.try_into().ok()?));
+        names.push(String::from_utf8_lossy(rest.get(2..2 + len)?).into_owned());
+        rest = rest.get(2 + len..)?;
+    }
+    Some((names, rest))
+}
+
+fn write_block_list(out: &mut Vec<u8>, blocks: &[String]) {
+    out.extend_from_slice(&(blocks.len() as i32).to_le_bytes());
+    for block in blocks {
+        let bytes = &block.as_bytes()[..block.len().min(usize::from(u16::MAX))];
+        out.extend_from_slice(&(bytes.len() as u16).to_le_bytes());
+        out.extend_from_slice(bytes);
+    }
+}
+
+/// `stack` with its can-place-on and can-destroy block lists replaced,
+/// keeping its NBT compound and shield blocking tick.
+pub fn with_block_lists(
+    stack: &ItemStack,
+    can_place_on: &[String],
+    can_destroy: &[String],
+) -> ItemStack {
+    let default = super::user_data::network_user_data(stack.item_id(), None);
+    let buffer = stack.nbt.as_deref().unwrap_or(&default);
+    let (compound, tail) = split_user_data(buffer).unwrap_or((None, &default[2..]));
+    let after_lists = read_block_list(tail)
+        .and_then(|(_, rest)| read_block_list(rest))
+        .map_or(&default[10..], |(_, rest)| rest);
+    let mut out = Vec::with_capacity(buffer.len() + 32);
+    match compound {
+        Some(compound) => {
+            out.extend_from_slice(&NBT_PRESENT.to_le_bytes());
+            out.push(NBT_VERSION);
+            NBTTag::Compound(compound)
+                .write(&mut out, LittleEndian)
+                .expect("writing NBT into a Vec cannot fail");
+        }
+        None => out.extend_from_slice(&0i16.to_le_bytes()),
+    }
+    write_block_list(&mut out, can_place_on);
+    write_block_list(&mut out, can_destroy);
+    out.extend_from_slice(after_lists);
+    stack.clone().with_nbt(out)
+}
+
+/// The can-place-on and can-destroy block lists of `stack`'s user data.
+pub fn block_lists(stack: &ItemStack) -> (Vec<String>, Vec<String>) {
+    let lists = stack.nbt.as_deref().and_then(|buffer| {
+        let (_, tail) = split_user_data(buffer)?;
+        let (place_on, rest) = read_block_list(tail)?;
+        let (destroy, _) = read_block_list(rest)?;
+        Some((place_on, destroy))
+    });
+    lists.unwrap_or_default()
 }
 
 fn as_i32(tag: &NBTTag) -> Option<i32> {
@@ -113,6 +201,31 @@ pub fn enchantment_level(stack: &ItemStack, enchantment: Enchantment) -> u8 {
         .map_or(0, |level| level.clamp(0, i32::from(u8::MAX)) as u8)
 }
 
+/// Every enchantment on `stack` as `(Bedrock enchantment id, level)`, in
+/// stored order.
+pub fn enchantment_ids(stack: &ItemStack) -> Vec<(i16, u8)> {
+    let Some(compound) = item_tag(stack) else {
+        return Vec::new();
+    };
+    let Some(NBTTag::List(list)) = compound.0.get("ench") else {
+        return Vec::new();
+    };
+    list.0
+        .iter()
+        .filter_map(|entry| match entry {
+            NBTTag::Compound(entry) => Some((
+                i16::try_from(entry.0.get("id").and_then(as_i32)?).ok()?,
+                entry
+                    .0
+                    .get("lvl")
+                    .and_then(as_i32)?
+                    .clamp(0, i32::from(u8::MAX)) as u8,
+            )),
+            _ => None,
+        })
+        .collect()
+}
+
 /// Tool wear (`Damage`) of `stack`.
 pub fn durability_damage(stack: &ItemStack) -> i32 {
     item_tag(stack)
@@ -131,12 +244,11 @@ pub fn with_durability_damage(stack: &ItemStack, damage: i32) -> ItemStack {
 
 /// `stack` carrying `levels` (test and plugin helper).
 pub fn with_enchantments(stack: &ItemStack, levels: &[(Enchantment, u8)]) -> ItemStack {
-    with_enchantment_ids(
-        stack,
-        levels
-            .iter()
-            .map(|(enchantment, level)| (*enchantment as i16, *level)),
-    )
+    let list: Vec<(i16, i16)> = levels
+        .iter()
+        .map(|(enchantment, level)| (*enchantment as i16, i16::from(*level)))
+        .collect();
+    with_enchantment_list(stack, &list)
 }
 
 /// `stack` carrying the enchantments `(Bedrock enchantment id, level)`, in
@@ -145,17 +257,47 @@ pub fn with_enchantment_ids(
     stack: &ItemStack,
     levels: impl IntoIterator<Item = (i16, u8)>,
 ) -> ItemStack {
-    let mut compound = item_tag(stack).unwrap_or_default();
-    let list = levels
+    let list: Vec<(i16, i16)> = levels
         .into_iter()
+        .map(|(id, level)| (id, i16::from(level)))
+        .collect();
+    with_enchantment_list(stack, &list)
+}
+
+/// Every `(id, level)` in the item's `ench` list, in list order.
+pub fn enchantments(stack: &ItemStack) -> Vec<(i16, i16)> {
+    let Some(compound) = item_tag(stack) else {
+        return Vec::new();
+    };
+    let Some(NBTTag::List(list)) = compound.0.get("ench") else {
+        return Vec::new();
+    };
+    list.0
+        .iter()
+        .filter_map(|entry| match entry {
+            NBTTag::Compound(entry) => Some((
+                i16::try_from(entry.0.get("id").and_then(as_i32)?).ok()?,
+                i16::try_from(entry.0.get("lvl").and_then(as_i32)?).ok()?,
+            )),
+            _ => None,
+        })
+        .collect()
+}
+
+/// `stack` with its `ench` list set to `levels`; an empty list removes it.
+pub fn with_enchantment_list(stack: &ItemStack, levels: &[(i16, i16)]) -> ItemStack {
+    let mut compound = item_tag(stack).unwrap_or_default();
+    if levels.is_empty() {
+        compound.0.remove("ench");
+        return with_item_tag(stack, compound);
+    }
+    let list = levels
+        .iter()
         .map(|(id, level)| {
             NBTTag::Compound(tag::Compound(
                 [
-                    ("id".to_string(), NBTTag::Short(tag::Short(id))),
-                    (
-                        "lvl".to_string(),
-                        NBTTag::Short(tag::Short(i16::from(level))),
-                    ),
+                    ("id".to_string(), NBTTag::Short(tag::Short(*id))),
+                    ("lvl".to_string(), NBTTag::Short(tag::Short(*level))),
                 ]
                 .into_iter()
                 .collect(),
@@ -165,6 +307,73 @@ pub fn with_enchantment_ids(
     compound
         .0
         .insert("ench".to_string(), NBTTag::List(tag::List(list)));
+    with_item_tag(stack, compound)
+}
+
+/// The anvil prior-work penalty (`RepairCost`), 0 when absent.
+pub fn repair_cost(stack: &ItemStack) -> i32 {
+    item_tag(stack)
+        .and_then(|compound| compound.0.get("RepairCost").and_then(as_i32))
+        .unwrap_or(0)
+}
+
+/// Whether the item carries a `RepairCost` tag at all.
+pub fn has_repair_cost(stack: &ItemStack) -> bool {
+    item_tag(stack).is_some_and(|compound| compound.0.contains_key("RepairCost"))
+}
+
+/// `stack` with `RepairCost` set to `cost`, or removed for `None`.
+pub fn with_repair_cost(stack: &ItemStack, cost: Option<i32>) -> ItemStack {
+    let mut compound = item_tag(stack).unwrap_or_default();
+    match cost {
+        Some(cost) => {
+            compound
+                .0
+                .insert("RepairCost".to_string(), NBTTag::Int(tag::Int(cost)));
+        }
+        None => {
+            compound.0.remove("RepairCost");
+        }
+    }
+    with_item_tag(stack, compound)
+}
+
+/// The item's custom name (`display.Name`), if it has one.
+pub fn custom_name(stack: &ItemStack) -> Option<String> {
+    let compound = item_tag(stack)?;
+    let Some(NBTTag::Compound(display)) = compound.0.get("display") else {
+        return None;
+    };
+    match display.0.get("Name") {
+        Some(NBTTag::String(name)) => Some(name.0.clone()),
+        _ => None,
+    }
+}
+
+/// `stack` named `name`, or with its custom name removed for `None` (an
+/// emptied `display` compound is removed too).
+pub fn with_custom_name(stack: &ItemStack, name: Option<&str>) -> ItemStack {
+    let mut compound = item_tag(stack).unwrap_or_default();
+    let mut display = match compound.0.remove("display") {
+        Some(NBTTag::Compound(display)) => display,
+        _ => tag::Compound::default(),
+    };
+    match name {
+        Some(name) => {
+            display.0.insert(
+                "Name".to_string(),
+                NBTTag::String(tag::String(name.to_string())),
+            );
+        }
+        None => {
+            display.0.remove("Name");
+        }
+    }
+    if !display.0.is_empty() {
+        compound
+            .0
+            .insert("display".to_string(), NBTTag::Compound(display));
+    }
     with_item_tag(stack, compound)
 }
 

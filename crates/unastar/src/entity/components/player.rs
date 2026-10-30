@@ -167,15 +167,26 @@ pub struct PlayerInput {
     pub tick: i64,
 }
 
-/// The input tick stamped on packets that describe `player` to its own client
-/// (`UpdateAttributes`, `SetActorMotion`, ...): the tick of its latest
-/// `PlayerAuthInput`, or 0 before any input arrived. The client replays a
-/// correction at that tick, or applies it immediately for 0 or a tick older
-/// than its replay history, so every such packet must use this one source.
-pub fn player_input_tick(world: &World, player: Entity) -> u64 {
-    world
-        .get::<PlayerInput>(player)
-        .map_or(0, |input| u64::try_from(input.tick).unwrap_or(0))
+impl PlayerInput {
+    /// The `PlayerInputTick` a packet about this player carries: the tick of
+    /// the player's latest `PlayerAuthInput` (0 before the first one).
+    ///
+    /// Clients treat this as their own input timeline and reject a value
+    /// that goes backwards, so it must never be mixed with the server tick.
+    pub fn wire_tick(&self) -> jolyne::valentine::types::PlayerInputTick {
+        jolyne::valentine::types::PlayerInputTick {
+            inputtick: u64::try_from(self.tick).unwrap_or(0),
+        }
+    }
+}
+
+/// The `PlayerInputTick` a packet about `entity` carries: the player's latest
+/// input tick ([`PlayerInput::wire_tick`]), or 0 for any other actor.
+pub fn input_tick_of(world: &World, entity: Entity) -> jolyne::valentine::types::PlayerInputTick {
+    world.get::<PlayerInput>(entity).map_or(
+        jolyne::valentine::types::PlayerInputTick { inputtick: 0 },
+        PlayerInput::wire_tick,
+    )
 }
 
 /// Chunk view radius for this player.

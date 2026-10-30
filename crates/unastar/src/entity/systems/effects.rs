@@ -1,14 +1,61 @@
 //! Effect systems for status effects.
 
 use bevy_ecs::prelude::*;
+use jolyne::valentine::types::{ActorRuntimeId, EnumsMobEffectPacketPayloadEvent, PlayerInputTick};
+use jolyne::valentine::{McpePacket, MobEffectPacket};
+use unastar_data::actor_components::body::ActorDamageCause;
 
 use crate::entity::components::*;
+use crate::entity::mob::MobKind;
+use crate::entity::mob::combat::{Hit, hurt_mob};
+use crate::entity::mob::components::KnockbackPower;
+use crate::entity::mob::constants::{POISON_DAMAGE, POISON_INTERVAL_TICKS, POISON_MIN_HEALTH};
+use crate::entity::player_life::hurt_player;
 
-/// System: Tick all status effects.
-pub fn tick_effects(mut query: Query<&mut Effects>) {
-    for mut effects in query.iter_mut() {
-        effects.tick();
+/// System: Tick all status effects. A player whose effect runs out is told
+/// so (`MobEffect` remove).
+pub fn tick_effects(
+    mut query: Query<(
+        &mut Effects,
+        Option<&PlayerSession>,
+        Option<&RuntimeEntityId>,
+    )>,
+) {
+    for (mut effects, session, runtime_id) in query.iter_mut() {
+        let expired = effects.tick();
+        if let (Some(session), Some(runtime_id)) = (session, runtime_id) {
+            for effect in expired {
+                let _ = session.send(effect_packet(
+                    runtime_id.0 as u64,
+                    EnumsMobEffectPacketPayloadEvent::Remove,
+                    effect,
+                    &ActiveEffect::new(0, 0),
+                ));
+            }
+        }
     }
+}
+
+/// The `MobEffect` packet telling a player's client about `effect` on the
+/// actor with `runtime_id`.
+pub fn effect_packet(
+    runtime_id: u64,
+    event: EnumsMobEffectPacketPayloadEvent,
+    effect: EffectType,
+    instance: &ActiveEffect,
+) -> McpePacket {
+    McpePacket::from(MobEffectPacket {
+        target_runtime_id: ActorRuntimeId {
+            actor_runtime_id: runtime_id,
+        },
+        event_id: event,
+        effect_id: i32::from(effect.0),
+        effect_amplifier: i32::from(instance.level),
+        show_particles: instance.show_particles,
+        effect_duration_ticks: instance.duration_ticks as i32,
+        tick: PlayerInputTick { inputtick: 0 },
+        ambient: instance.ambient,
+    })
 }
 
 /// System: Apply regeneration effect healing.
@@ -25,16 +72,46 @@ pub fn apply_regeneration(mut query: Query<(&mut Health, &Effects), With<Living>
     }
 }
 
-/// System: Apply poison effect damage.
-pub fn apply_poison(mut query: Query<(&mut Health, &Effects), With<Living>>) {
-    for (mut health, effects) in query.iter_mut() {
-        if let Some(poison) = effects.get(EffectType::POISON) {
-            // Poison ticks every 25 / (level + 1) ticks, but doesn't kill
-            let interval = 25 / (poison.level as u32 + 1);
-            if poison.duration_ticks % interval == 0 && health.current > 1.0 {
-                let new_health = (health.current - 1.0).max(1.0);
-                health.current = new_health;
-            }
+/// System (exclusive): poison. While a player's or mob's poison runs, on
+/// every tick whose remaining duration is a multiple of
+/// `POISON_INTERVAL_TICKS >> level` (every tick once that is 0) it takes
+/// [`POISON_DAMAGE`] magic damage through the hurt rules, but only while its
+/// health is above [`POISON_MIN_HEALTH`]: poison never kills.
+#[allow(clippy::type_complexity)]
+pub fn apply_poison(
+    world: &mut World,
+    actors: &mut QueryState<
+        (Entity, &Effects, &Health, Has<Player>),
+        Or<(With<Player>, With<MobKind>)>,
+    >,
+    mut due: Local<Vec<(Entity, bool)>>,
+) {
+    due.extend(
+        actors
+            .iter(world)
+            .filter(|(_, effects, health, _)| {
+                effects.get(EffectType::POISON).is_some_and(|poison| {
+                    let interval = POISON_INTERVAL_TICKS.checked_shr(u32::from(poison.level));
+                    let interval = interval.unwrap_or(0);
+                    health.current - POISON_DAMAGE >= POISON_MIN_HEALTH
+                        && (interval == 0 || poison.duration_ticks % interval == 0)
+                })
+            })
+            .map(|(entity, _, _, player)| (entity, player)),
+    );
+    for (entity, player) in due.drain(..) {
+        let hit = Hit {
+            damage: POISON_DAMAGE,
+            cause: ActorDamageCause::Magic,
+            attacker: None,
+            by_player: false,
+            knockback_from: None,
+            knockback_power: KnockbackPower::DEFAULT,
+        };
+        if player {
+            hurt_player(world, entity, &hit);
+        } else {
+            hurt_mob(world, entity, hit);
         }
     }
 }

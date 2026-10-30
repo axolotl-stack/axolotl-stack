@@ -109,6 +109,7 @@ pub fn register_component_kinds(
     register_flag::<body::IsBaby, { actor_flags::BABY }>(builder)?;
     register_flag::<body::CanClimb, { actor_flags::CANCLIMB }>(builder)?;
     register_flag::<body::IsHiddenWhenInvisible, { actor_flags::HIDDEN_WHEN_INVISIBLE }>(builder)?;
+    register_flag::<body::RendersWhenInvisible, { actor_flags::RENDERS_WHEN_INVISIBLE }>(builder)?;
     register_flag::<body::UsesLegacyFriction, { actor_flags::USES_LEGACY_FRICTION }>(builder)?;
     register_flag::<body::IsSaddled, { actor_flags::SADDLED }>(builder)?;
     register_flag::<body::UsesUniformAirDrag, { actor_flags::USES_UNIFORM_AIR_DRAG }>(builder)?;

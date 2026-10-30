@@ -263,7 +263,24 @@ fn broadcast_block_crack_stop(world: &World, x: i32, y: i32, z: i32) {
     }
 }
 
-pub(super) fn block_at(world: &World, position: (i32, i32, i32)) -> Option<u32> {
+/// Whether the block at `pos` holds water (source or flowing).
+pub(crate) fn water_at(world: &World, pos: IVec3) -> bool {
+    let Some(registry) = world.get_resource::<super::types::BlockRegistryResource>() else {
+        return false;
+    };
+    block_at(world, (pos.x, pos.y, pos.z))
+        .and_then(|id| registry.0.liquid_state(id))
+        .is_some_and(|l| l.kind == crate::registry::block::LiquidKind::Water)
+}
+
+/// Whether a body standing at `feet` is in water (feet or the block above).
+pub(crate) fn body_in_water(world: &World, feet: glam::DVec3) -> bool {
+    let feet = feet.floor().as_ivec3();
+    water_at(world, feet) || water_at(world, feet + IVec3::Y)
+}
+
+/// Runtime id of the block at `position`; `None` outside the world or an unloaded chunk.
+pub(crate) fn block_at(world: &World, position: (i32, i32, i32)) -> Option<u32> {
     let (x, y, z) = position;
     if !(crate::world::chunk::MIN_Y
         ..crate::world::chunk::MIN_Y + i32::from(crate::world::chunk::SUBCHUNK_COUNT) * 16)
@@ -319,11 +336,13 @@ enum BlockUse {
     /// Doors, trapdoors, fence gates, buttons, levers
     /// ([`super::block_behaviour::use_block`]).
     Behaviour,
+    /// Anvil, smithing table and grindstone screens.
+    Station(crate::entity::components::StationKind),
 }
 
-/// An interactive block's `use` (crafting table, container, door, ...) runs
-/// before item placement unless the player is sneaking with an item in
-/// hand.
+/// An interactive block's `use` (crafting table, container, anvil, smithing
+/// table, grindstone, door, ...) runs before item placement unless the
+/// player is sneaking with an item in hand.
 fn block_use(world: &World, entity: Entity, clicked: (i32, i32, i32)) -> Option<BlockUse> {
     use crate::entity::components::{HeldSlot, MainInventory, PlayerState};
     let block_use = block_at(world, clicked).and_then(|runtime_id| {
@@ -333,6 +352,8 @@ fn block_use(world: &World, entity: Entity, clicked: (i32, i32, i32)) -> Option<
         let entry = registry.get_by_runtime_id(runtime_id)?;
         if entry.string_id == "minecraft:crafting_table" {
             Some(BlockUse::Workbench)
+        } else if let Some(kind) = super::inventory::stations::station_of(&entry.string_id) {
+            Some(BlockUse::Station(kind))
         } else if super::block_behaviour::is_usable(registry, runtime_id) {
             Some(BlockUse::Behaviour)
         } else {
@@ -776,6 +797,15 @@ pub(super) fn handle_block_click(
             }
             return;
         }
+        Some(BlockUse::Station(kind)) => {
+            super::inventory::stations::open(
+                world,
+                entity,
+                IVec3::new(clicked.0, clicked.1, clicked.2),
+                kind,
+            );
+            return;
+        }
         None => {}
     }
     // Spawn eggs spawn their mob on the clicked face instead of placing.
@@ -972,7 +1002,7 @@ fn place_block(world: &mut World, x: i32, y: i32, z: i32, block_runtime_id: u32)
 /// and the one above it, then runs the neighbour updates of
 /// [`super::block_behaviour`] (attached blocks that lost their support
 /// break, connections recompute).
-pub(super) fn set_block(world: &mut World, pos: IVec3, block_runtime_id: u32, place_sound: bool) {
+pub(crate) fn set_block(world: &mut World, pos: IVec3, block_runtime_id: u32, place_sound: bool) {
     let (x, y, z) = (pos.x, pos.y, pos.z);
     let (cx, cz) = world_to_chunk_coords(x, z);
     let (local_x, local_y, local_z) = world_to_local_coords(x, y, z);
@@ -1065,6 +1095,45 @@ pub(super) fn set_block(world: &mut World, pos: IVec3, block_runtime_id: u32, pl
     }
 }
 
+/// Break the block at `pos` without a breaker, as `/setblock … destroy` and
+/// `/fill … destroy` do: viewers see the break particles, the block becomes
+/// air, and its tool-less drops and any container contents fall as items
+/// (BDS's order: `LevelEvent` 2001, `UpdateBlock`, `AddItemActor`).
+pub(crate) fn destroy_block(world: &mut World, pos: IVec3) {
+    let Some(original) = block_at(world, (pos.x, pos.y, pos.z)) else {
+        return;
+    };
+    if original == *blocks::AIR {
+        return;
+    }
+    let (cx, cz) = world_to_chunk_coords(pos.x, pos.z);
+    let chunk = world
+        .get_resource::<ChunkManager>()
+        .and_then(|chunks| chunks.get_by_coords(cx, cz));
+    if let Some(viewers) = chunk.and_then(|chunk| world.get::<ChunkViewers>(chunk)) {
+        let particles = LevelEventPacket {
+            event_id: LEVEL_EVENT_PARTICLES_DESTROY_BLOCK,
+            position: Vec3 {
+                x: pos.x as f32 + 0.5,
+                y: pos.y as f32 + 0.5,
+                z: pos.z as f32 + 0.5,
+            },
+            data: super::types::block_network_ids(world).to_wire(original) as i32,
+        };
+        for viewer in viewers.iter() {
+            if let Some(session) = world.get::<PlayerSession>(viewer) {
+                let _ = session.send(McpePacket::from(particles.clone()));
+            }
+        }
+    }
+    let broken = super::containers::breaking(world, pos);
+    set_block(world, pos, *blocks::AIR, false);
+    super::block_drops::drop_block_items(world, pos, original, None);
+    if let Some(broken) = broken {
+        super::containers::drop_contents(world, pos, broken);
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -1142,6 +1211,35 @@ mod tests {
             block_use(&world, player, (1, 65, 1)).is_none(),
             "air is not a table"
         );
+    }
+
+    #[test]
+    fn anvils_smithing_tables_and_grindstones_open_their_station() {
+        use crate::entity::components::{PlayerState, StationKind};
+        let (mut world, player, chunk) =
+            block_world(GameMode::Survival, DVec3::new(1.5, 65.62, 1.5));
+        world.entity_mut(player).insert(PlayerState::default());
+        for (name, kind) in [
+            ("minecraft:anvil", StationKind::Anvil),
+            ("minecraft:chipped_anvil", StationKind::Anvil),
+            ("minecraft:damaged_anvil", StationKind::Anvil),
+            ("minecraft:smithing_table", StationKind::SmithingTable),
+            ("minecraft:grindstone", StationKind::Grindstone),
+        ] {
+            let state = crate::registry::BlockRegistry::vanilla()
+                .default_state_id_by_name(name)
+                .unwrap();
+            world
+                .get_mut::<ChunkData>(chunk)
+                .unwrap()
+                .inner
+                .set_block(1, 64, 1, state);
+            assert_eq!(
+                block_use(&world, player, (1, 64, 1)),
+                Some(BlockUse::Station(kind)),
+                "{name}"
+            );
+        }
     }
 
     #[test]

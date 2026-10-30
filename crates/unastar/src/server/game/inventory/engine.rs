@@ -31,10 +31,16 @@ use jolyne::valentine::{
     TypedServerNetIdstructItemStackNetIdTagint32T0,
 };
 
-use super::containers::{CREATED_OUTPUT_SLOT, ContainerRule, ScreenKind, Store};
-use crate::crafting::execution::{CraftingExecutor, CraftingGrid, ValidationError};
-use crate::entity::components::{ArmourInventory, Inventory};
+use super::containers::{
+    ANVIL_INPUT_SLOT, ANVIL_MATERIAL_SLOT, CREATED_OUTPUT_SLOT, ContainerRule,
+    GRINDSTONE_ADDITIONAL_SLOT, GRINDSTONE_INPUT_SLOT, SMITHING_INPUT_SLOT, SMITHING_MATERIAL_SLOT,
+    SMITHING_TEMPLATE_SLOT, ScreenKind, Store,
+};
+use super::stations;
+use crate::crafting::execution::{CraftingExecutor, CraftingGrid, SmithingPlan, ValidationError};
+use crate::entity::components::{ArmourInventory, Inventory, StationKind};
 use crate::item::{ItemStack, fresh_net_id};
+use crate::registry::ItemRegistry;
 
 /// The player's addressable storage.
 pub struct Stores<'a> {
@@ -164,6 +170,21 @@ pub struct Context<'a> {
     /// Stack for a creative item network ID (`CraftCreative`).
     pub creative_item: &'a dyn Fn(u32) -> Option<ItemStack>,
     pub crafting: &'a CraftingExecutor,
+    pub items: &'a ItemRegistry,
+    /// The player's XP level, which pays for anvil work outside creative.
+    pub levels: i32,
+}
+
+/// A station operation a committed request performed; the world commit
+/// charges or pays XP and wears the anvil.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum StationUse {
+    /// Anvil work costing `cost` levels.
+    Anvil { cost: i32 },
+    /// Grindstone work; the XP is drawn from `enchantment_value`.
+    Grindstone { enchantment_value: i32 },
+    /// A smithing-table transform or trim.
+    Smithing,
 }
 
 /// Slots of equipment containers a committed request changed; BDS follows
@@ -183,6 +204,8 @@ pub struct Outcome {
     /// Only successful frames expose drops to the world commit step.
     pub drops: Vec<ItemStack>,
     pub fatal_invalid_id: bool,
+    /// Only successful frames report station work.
+    pub station: Option<StationUse>,
 }
 
 /// A slot a request addressed, as the client named it.
@@ -196,6 +219,13 @@ struct ExpectedConsumption {
     stack: ItemStack,
     remaining: u8,
 }
+
+/// A station craft whose inputs make nothing (measured: anvil and
+/// grindstone answer `Invalidcraftresult`).
+const STATION_NO_RESULT: Status = Status::Invalidcraftresult;
+/// Anvil work a survival player cannot pay for, or "Too Expensive!". Not
+/// measured; answered like a craft without a result.
+const ANVIL_TOO_EXPENSIVE: Status = Status::Invalidcraftresult;
 
 /// Unsupported native contracts stay distinct from a mismatching grid. In
 /// particular, no client result descriptor can supply missing server output.
@@ -243,6 +273,9 @@ struct Request<'s, 'a> {
     crafted: bool,
     drops: Vec<ItemStack>,
     consumption: [Option<ExpectedConsumption>; 9],
+    /// The request's text fields (an anvil rename).
+    strings: &'s [jolyne::valentine::bedrock::codec::BedrockString],
+    station: Option<StationUse>,
 }
 
 /// Resolved slot address.
@@ -484,6 +517,12 @@ impl Request<'_, '_> {
 
     fn craft_recipe(&mut self, net_id: u32, num_crafts: u32) -> Result<(), Status> {
         let executor = self.ctx.crafting;
+        if executor.is_repair(net_id) {
+            return self.craft_repair(num_crafts);
+        }
+        if executor.is_smithing(net_id) && self.station() == Some(StationKind::SmithingTable) {
+            return self.craft_smithing(net_id, num_crafts);
+        }
         let large = executor
             .requires_3x3(net_id)
             .map_err(|error| GridCraftError::Validation(error).status())?;
@@ -539,6 +578,186 @@ impl Request<'_, '_> {
         Ok(())
     }
 
+    /// The item-repair recipe: exactly two single, damaged-or-not items of
+    /// the same durable kind anywhere in the grid make one item with their
+    /// remaining durability plus a bonus (see [`repaired_damage`]).
+    fn craft_repair(&mut self, num_crafts: u32) -> Result<(), Status> {
+        if num_crafts != 1 {
+            return Err(Status::Invalidrequestcraftactiontype);
+        }
+        let (first, len) = if self.ctx.screen == ScreenKind::Workbench {
+            (32, 9)
+        } else {
+            (28, 4)
+        };
+        let occupied: Vec<(u8, ItemStack)> = (first..first + len)
+            .map(|slot| {
+                (
+                    slot as u8,
+                    self.staging.get(self.stores, (Store::Ui, slot)).clone(),
+                )
+            })
+            .filter(|(_, stack)| !stack.is_empty())
+            .collect();
+        let [(slot_a, a), (slot_b, b)] = occupied.as_slice() else {
+            return Err(Status::Mismatchedrecipeforinputgriditems);
+        };
+        let max = a.item().map_or(0, super::super::durability::max_durability);
+        if a.item_id() != b.item_id() || max <= 0 || a.count != 1 || b.count != 1 {
+            return Err(Status::Mismatchedrecipeforinputgriditems);
+        }
+        let damage = repaired_damage(
+            max,
+            crate::item::enchant::durability_damage(a),
+            crate::item::enchant::durability_damage(b),
+        );
+        let template = a
+            .item_type()
+            .cloned()
+            .map(|item| ItemStack::new(item, 1))
+            .ok_or(Status::Mismatchedrecipeforinputgriditems)?;
+        let output = crate::item::enchant::with_durability_damage(&template, damage)
+            .with_net_id(fresh_net_id());
+        self.consumption = std::array::from_fn(|index| match index {
+            0 => Some(ExpectedConsumption {
+                ui_slot: *slot_a,
+                stack: a.clone(),
+                remaining: 1,
+            }),
+            1 => Some(ExpectedConsumption {
+                ui_slot: *slot_b,
+                stack: b.clone(),
+                remaining: 1,
+            }),
+            _ => None,
+        });
+        self.staging.set((Store::Ui, CREATED_OUTPUT_SLOT), output);
+        Ok(())
+    }
+
+    fn station(&self) -> Option<StationKind> {
+        match self.ctx.screen {
+            ScreenKind::Station(screen) => Some(screen.kind),
+            _ => None,
+        }
+    }
+
+    fn ui_stack(&self, slot: u8) -> ItemStack {
+        self.staging
+            .get(self.stores, (Store::Ui, usize::from(slot)))
+            .clone()
+    }
+
+    /// Place a station's output and expect `inputs` (UI slot, amount) to be
+    /// consumed by the request's Consume actions.
+    fn station_output(&mut self, output: ItemStack, inputs: &[(u8, u8)], used: StationUse) {
+        let mut expected =
+            inputs
+                .iter()
+                .filter(|(_, amount)| *amount != 0)
+                .map(|&(ui_slot, remaining)| ExpectedConsumption {
+                    ui_slot,
+                    stack: self.ui_stack(ui_slot),
+                    remaining,
+                });
+        self.consumption = std::array::from_fn(|_| expected.next());
+        self.staging.set(
+            (Store::Ui, CREATED_OUTPUT_SLOT),
+            output.with_net_id(fresh_net_id()),
+        );
+        self.station = Some(used);
+    }
+
+    /// Smithing table: the advertised transform or trim recipe `net_id`
+    /// over the template, input and material slots, one of each consumed.
+    fn craft_smithing(&mut self, net_id: u32, num_crafts: u32) -> Result<(), Status> {
+        if num_crafts != 1 {
+            return Err(Status::Invalidnumcrafts);
+        }
+        let template = self.ui_stack(SMITHING_TEMPLATE_SLOT);
+        let base = self.ui_stack(SMITHING_INPUT_SLOT);
+        let addition = self.ui_stack(SMITHING_MATERIAL_SLOT);
+        let plan = self
+            .ctx
+            .crafting
+            .smithing(net_id, &template, &base, &addition)
+            .map_err(|error| GridCraftError::Validation(error).status())?;
+        let output = match plan {
+            SmithingPlan::Transform(result) => {
+                stations::transformed(result, &base).ok_or(STATION_NO_RESULT)?
+            }
+            SmithingPlan::Trim => {
+                stations::trimmed(&base, &template, &addition).ok_or(STATION_NO_RESULT)?
+            }
+        };
+        self.station_output(
+            output,
+            &[
+                (SMITHING_INPUT_SLOT, 1),
+                (SMITHING_MATERIAL_SLOT, 1),
+                (SMITHING_TEMPLATE_SLOT, 1),
+            ],
+            StationUse::Smithing,
+        );
+        Ok(())
+    }
+
+    /// Anvil: rename to the request's filtered string `name_index`, repair
+    /// and combine (see [`stations::anvil`]).
+    fn craft_anvil(&mut self, name_index: i32) -> Result<(), Status> {
+        let name = usize::try_from(name_index)
+            .ok()
+            .and_then(|index| self.strings.get(index))
+            .map(|name| &**name);
+        let target = self.ui_stack(ANVIL_INPUT_SLOT);
+        let material = self.ui_stack(ANVIL_MATERIAL_SLOT);
+        let result = stations::anvil(&target, &material, name).ok_or(STATION_NO_RESULT)?;
+        if !self.ctx.creative
+            && (result.cost >= stations::ANVIL_COST_LIMIT || result.cost > self.ctx.levels)
+        {
+            return Err(ANVIL_TOO_EXPENSIVE);
+        }
+        self.station_output(
+            result.output,
+            &[
+                (ANVIL_INPUT_SLOT, result.input_used),
+                (ANVIL_MATERIAL_SLOT, result.material_used),
+            ],
+            StationUse::Anvil { cost: result.cost },
+        );
+        Ok(())
+    }
+
+    /// Grindstone: disenchant and combine (see [`stations::grindstone`]).
+    /// The action's recipe field names the input slot's stack network ID:
+    /// BDS (grindstone-probe) answered `Invalidcraftresult` to 0, 6, 9, 25
+    /// and -3 and succeeded only with the input stack's ID 3.
+    fn craft_grindstone(&mut self, named: i32) -> Result<(), Status> {
+        let input = self.ui_stack(GRINDSTONE_INPUT_SLOT);
+        let additional = self.ui_stack(GRINDSTONE_ADDITIONAL_SLOT);
+        let first = if input.is_empty() {
+            &additional
+        } else {
+            &input
+        };
+        if first.is_empty() || first.net_id != named {
+            return Err(STATION_NO_RESULT);
+        }
+        let result =
+            stations::grindstone(&input, &additional, self.ctx.items).ok_or(STATION_NO_RESULT)?;
+        self.station_output(
+            result.output,
+            &[
+                (GRINDSTONE_INPUT_SLOT, input.count),
+                (GRINDSTONE_ADDITIONAL_SLOT, additional.count),
+            ],
+            StationUse::Grindstone {
+                enchantment_value: result.enchantment_value,
+            },
+        );
+        Ok(())
+    }
+
     fn consume(
         &mut self,
         amount: u8,
@@ -569,7 +788,7 @@ impl Request<'_, '_> {
             return Err(Status::Consumedtoomuchfromslot);
         }
         let from = self.stack(&slot);
-        if !from.comparable(&expected.stack) || from.count < amount {
+        if !from.same_kind(&expected.stack) || from.count < amount {
             return Err(Status::Mismatchslotexpectedconsumeditem);
         }
         if from.net_id != expected.stack.net_id
@@ -650,6 +869,18 @@ impl Request<'_, '_> {
             // Deprecated client predictions are neither recipes nor authority
             // for output identity/count. The server's compiled plan owns both.
             Action::CraftResultsActionData(_) => Ok(()),
+            Action::CraftRecipeOptionalActionData(craft)
+                if self.station() == Some(StationKind::Anvil) =>
+            {
+                self.crafted = true;
+                self.craft_anvil(craft.filtered_string_index)
+            }
+            Action::CraftRepairAndDisenchantActionData(craft)
+                if self.station() == Some(StationKind::Grindstone) =>
+            {
+                self.crafted = true;
+                self.craft_grindstone(craft.recipe_net_id)
+            }
             Action::CraftRecipeOptionalActionData(_)
             | Action::CraftRepairAndDisenchantActionData(_)
             | Action::CraftLoomActionData(_)
@@ -668,27 +899,31 @@ impl Request<'_, '_> {
             amount: if stack.is_empty() { 0 } else { stack.count },
             item_stack_net_id: (!stack.is_empty())
                 .then_some(TypedServerNetIdstructItemStackNetIdTagint32T0 { id: stack.net_id }),
+            // BDS reports a durable item's wear (`Damage`), not its aux
+            // value: 100 for a sword given with data 100 (smithing-table).
+            durability_correction: if stack
+                .item()
+                .is_some_and(|item| super::super::durability::max_durability(item) > 0)
+            {
+                crate::item::enchant::durability_damage(stack)
+            } else {
+                i32::from(stack.damage)
+            },
             custom_name: BedrockSafetyRedactableString {
-                unredacted: custom_name(stack).into(),
+                unredacted: crate::item::enchant::custom_name(stack)
+                    .unwrap_or_default()
+                    .into(),
                 redacted: None,
             },
-            durability_correction: i32::from(stack.damage),
         }
     }
 }
 
-fn custom_name(stack: &ItemStack) -> String {
-    use zuri_nbt::NBTTag;
-    let Some(compound) = crate::item::enchant::item_tag(stack) else {
-        return String::new();
-    };
-    let Some(NBTTag::Compound(display)) = compound.0.get("display") else {
-        return String::new();
-    };
-    match display.0.get("Name") {
-        Some(NBTTag::String(name)) => name.0.clone(),
-        _ => String::new(),
-    }
+/// Damage of a grid-repaired item: the remaining durability of both inputs
+/// plus 5 % of the maximum (rounded down), capped at the maximum.
+pub fn repaired_damage(max: i32, damage_a: i32, damage_b: i32) -> i32 {
+    let remaining = (max - damage_a) + (max - damage_b) + max * 5 / 100;
+    (max - remaining).max(0)
 }
 
 /// Process one request against `stores`, committing it on success.
@@ -706,6 +941,7 @@ pub fn process(
             equipment,
             drops: Vec::new(),
             fatal_invalid_id: true,
+            station: None,
         };
     }
     cache.expire(ctx.now);
@@ -720,6 +956,7 @@ pub fn process(
             equipment,
             drops: Vec::new(),
             fatal_invalid_id: false,
+            station: None,
         };
     }
 
@@ -733,6 +970,8 @@ pub fn process(
         crafted: false,
         consumption: std::array::from_fn(|_| None),
         drops: Vec::new(),
+        strings: &request.strings_to_filter,
+        station: None,
     };
     for action in &request.actions {
         if let Err(status) = req.action(action) {
@@ -741,6 +980,7 @@ pub fn process(
                 equipment,
                 drops: Vec::new(),
                 fatal_invalid_id: false,
+                station: None,
             };
         }
     }
@@ -750,6 +990,7 @@ pub fn process(
             equipment,
             drops: Vec::new(),
             fatal_invalid_id: false,
+            station: None,
         };
     }
     // The created output only lives for the request that filled it.
@@ -776,6 +1017,7 @@ pub fn process(
         .map(|(key, stack)| (*key, stack.net_id))
         .collect();
     let drops = std::mem::take(&mut req.drops);
+    let station = req.station;
     let staging = std::mem::take(&mut req.staging);
     for ((store, index), stack) in staging.slots {
         match store {
@@ -792,13 +1034,12 @@ pub fn process(
         equipment,
         drops,
         fatal_invalid_id: false,
+        station,
     }
 }
 
 #[cfg(test)]
 mod tests {
-    use std::collections::HashMap;
-
     use jolyne::valentine::McpePacketData;
 
     use super::*;
@@ -806,113 +1047,7 @@ mod tests {
     use crate::item::test_support::VANILLA;
 
     use super::super::capture::{BDS_INVENTORY_MOVES as CAPTURE, decode};
-
-    /// Pairs BDS stack network IDs with ours: the replay must reuse an ID
-    /// exactly where BDS does and mint a fresh one exactly where BDS does.
-    #[derive(Default)]
-    struct IdMap {
-        ours: HashMap<i32, i32>,
-        theirs: HashMap<i32, i32>,
-    }
-
-    impl IdMap {
-        fn pair(&mut self, bds: i32, ours: i32, context: &str) {
-            match (self.ours.get(&bds), self.theirs.get(&ours)) {
-                (Some(&o), _) => assert_eq!(o, ours, "{context}: BDS reused {bds}"),
-                (None, Some(&b)) => {
-                    panic!("{context}: we reused {ours} where BDS minted {bds} (was {b})")
-                }
-                (None, None) => {
-                    self.ours.insert(bds, ours);
-                    self.theirs.insert(ours, bds);
-                }
-            }
-        }
-
-        fn to_ours(&self, bds: i32) -> i32 {
-            if bds <= 0 {
-                bds
-            } else {
-                // An ID BDS never assigned (the stale-ID step) stays unknown.
-                self.ours.get(&bds).copied().unwrap_or(i32::MAX)
-            }
-        }
-    }
-
-    fn stack_of(
-        wire: &jolyne::valentine::CerealizerNetworkItemStackDescriptorSerializedData,
-        ids: &mut IdMap,
-    ) -> ItemStack {
-        if wire.id == 0 {
-            return ItemStack::empty();
-        }
-        let item = VANILLA.item_type_by_network_id(i32::from(wire.id)).unwrap();
-        let bds = wire.net_id_variant.unwrap();
-        // A resent stack keeps the ID it already has.
-        let known = ids.ours.get(&bds).copied().unwrap_or(0);
-        let stack = ItemStack::new(item, wire.stacksize as u8)
-            .with_damage(wire.auxvalue as i16)
-            .with_runtime_id(wire.block_runtime_id as i32)
-            .with_nbt(wire.user_data_buffer.clone())
-            .with_net_id(known)
-            .into_slot();
-        ids.pair(bds, stack.net_id, "InventoryContent");
-        stack
-    }
-
-    fn set_window(
-        container: u32,
-        slots: &[jolyne::valentine::CerealizerNetworkItemStackDescriptorSerializedData],
-        stores: &mut Stores<'_>,
-        ids: &mut IdMap,
-    ) {
-        for (index, wire) in slots.iter().enumerate() {
-            set_slot(container, index, wire, stores, ids);
-        }
-    }
-
-    fn set_slot(
-        container: u32,
-        index: usize,
-        wire: &jolyne::valentine::CerealizerNetworkItemStackDescriptorSerializedData,
-        stores: &mut Stores<'_>,
-        ids: &mut IdMap,
-    ) {
-        let stack = stack_of(wire, ids);
-        match container {
-            0 => drop(stores.main.set_item(index, stack)),
-            119 => *stores.offhand = stack,
-            120 if index < 4 => drop(stores.armor.set_slot(index, stack)),
-            124 => drop(stores.ui.set_item(index, stack)),
-            _ => {}
-        }
-    }
-
-    fn translate(request: &mut ItemStackRequestPacketDataRequestData, ids: &IdMap) {
-        let fix = |info: &mut ItemStackRequestCerealSlotInfoData| {
-            info.net_id_variant = ids.to_ours(info.net_id_variant);
-        };
-        for action in &mut request.actions {
-            match action {
-                Action::TakeActionData(a) => {
-                    fix(&mut a.source);
-                    fix(&mut a.destination);
-                }
-                Action::PlaceActionData(a) => {
-                    fix(&mut a.source);
-                    fix(&mut a.destination);
-                }
-                Action::SwapActionData(a) => {
-                    fix(&mut a.source);
-                    fix(&mut a.destination);
-                }
-                Action::DropActionData(a) => fix(&mut a.source),
-                Action::DestroyActionData(a) => fix(&mut a.source),
-                Action::ConsumeActionData(a) => fix(&mut a.source),
-                _ => {}
-            }
-        }
-    }
+    use super::super::replay::{IdMap, assert_response, set_slot, set_window, translate};
 
     /// Replays every request of the capture through the engine and compares
     /// each response with BDS's: status, container order, slot order,
@@ -978,6 +1113,8 @@ mod tests {
                         now: Instant::now(),
                         creative_item: &no_creative,
                         crafting: &super::super::test_support::CRAFTING.1,
+                        items: &VANILLA,
+                        levels: 0,
                     };
                     let outcome = process(&request, &mut stores, &mut cache, &ctx);
                     pending = Some((request.client_request_id.id, outcome));
@@ -1006,28 +1143,7 @@ mod tests {
                     let ours = outcome.response.expect("negative odd IDs are answered");
                     assert_eq!(bds.client_request_id.id, id);
                     let context = format!("seq {seq} request {id}");
-                    assert_eq!(ours.result, bds.result, "{context}");
-                    let (theirs, ours) = (
-                        bds.containers.clone().unwrap_or_default(),
-                        ours.containers.unwrap_or_default(),
-                    );
-                    assert_eq!(ours.len(), theirs.len(), "{context}: containers");
-                    for (o, t) in ours.iter().zip(&theirs) {
-                        assert_eq!(o.full_container_name, t.full_container_name, "{context}");
-                        assert_eq!(o.slots.len(), t.slots.len(), "{context}: slots");
-                        for (o, t) in o.slots.iter().zip(&t.slots) {
-                            assert_eq!(
-                                (o.requested_slot, o.slot, o.amount, o.durability_correction),
-                                (t.requested_slot, t.slot, t.amount, t.durability_correction),
-                                "{context}"
-                            );
-                            match (&o.item_stack_net_id, &t.item_stack_net_id) {
-                                (Some(o), Some(t)) => ids.pair(t.id, o.id, &context),
-                                (None, None) => {}
-                                other => panic!("{context}: stack IDs {other:?}"),
-                            }
-                        }
-                    }
+                    assert_response(bds, ours, &mut ids, &context);
                     replayed += 1;
                 }
                 _ => {}
@@ -1058,6 +1174,8 @@ mod regressions {
         screen: ScreenKind,
         can_drop: bool,
         creative: bool,
+        levels: i32,
+        strings: Vec<&'static str>,
     }
 
     impl Harness {
@@ -1073,6 +1191,8 @@ mod regressions {
                 screen: ScreenKind::Inventory,
                 can_drop: true,
                 creative: false,
+                levels: 0,
+                strings: Vec::new(),
             }
         }
 
@@ -1088,6 +1208,7 @@ mod regressions {
                 &ItemStackRequestPacketDataRequestData {
                     client_request_id: TypedClientNetIdstructItemStackRequestIdTagint32T0 { id },
                     actions,
+                    strings_to_filter: self.strings.iter().map(|s| (*s).into()).collect(),
                     ..Default::default()
                 },
                 &mut stores,
@@ -1099,6 +1220,8 @@ mod regressions {
                     now: self.now,
                     creative_item: &|_| None,
                     crafting: &super::super::test_support::CRAFTING.1,
+                    items: &crate::item::test_support::VANILLA,
+                    levels: self.levels,
                 },
             )
         }
@@ -1676,6 +1799,67 @@ mod regressions {
             assert_eq!(containers[1].slots[0].slot, 13);
         }
 
+        fn repair_id() -> u32 {
+            test_support::CRAFTING
+                .0
+                .packet()
+                .multi_recipes
+                .iter()
+                .find(|r| r.multi_recipe_uuid == crate::crafting::execution::REPAIR_RECIPE_UUID)
+                .unwrap()
+                .net_id
+                .raw_id
+        }
+
+        #[test]
+        fn grid_repair_matches_the_bds_capture() {
+            use crate::item::enchant::{
+                Enchantment, durability_damage, enchantment_level, with_durability_damage,
+                with_enchantments,
+            };
+            let pickaxe = stack("minecraft:wooden_pickaxe", 1);
+            let mut h = Harness::new();
+            let a = with_enchantments(
+                &with_durability_damage(&pickaxe, 30),
+                &[(Enchantment::Efficiency, 1)],
+            );
+            h.ui.set_item(28, a).unwrap();
+            h.ui.set_item(29, with_durability_damage(&pickaxe, 40))
+                .unwrap();
+            let (id_a, id_b) = (h.ui.item(28).unwrap().net_id, h.ui.item(29).unwrap().net_id);
+            let outcome = h.run(
+                -5,
+                vec![
+                    craft(repair_id(), 1),
+                    consume(1, 28, id_a),
+                    consume(1, 29, id_b),
+                    output(1, -5, 2),
+                ],
+            );
+            assert_eq!(status(&outcome), Status::Success);
+            assert!(h.ui.item(28).unwrap().is_empty() && h.ui.item(29).unwrap().is_empty());
+            let result = h.main.item(2).unwrap();
+            assert_eq!(result.item_id(), "minecraft:wooden_pickaxe");
+            // 59 - ((59 - 30) + (59 - 40) + 59 * 5 / 100) = 9, enchantments dropped.
+            assert_eq!(durability_damage(result), 9);
+            assert_eq!(enchantment_level(result, Enchantment::Efficiency), 0);
+        }
+
+        #[test]
+        fn grid_repair_rejects_mismatched_items() {
+            for (first, second) in [
+                ("minecraft:wooden_pickaxe", "minecraft:stone_pickaxe"),
+                ("minecraft:stick", "minecraft:stick"),
+            ] {
+                let mut h = Harness::new();
+                let id = seed(&mut h, 28, first, 1);
+                seed(&mut h, 29, second, 1);
+                let outcome = h.run(-1, vec![craft(repair_id(), 1)]);
+                assert_eq!(status(&outcome), Status::Mismatchedrecipeforinputgriditems);
+                assert_eq!(h.ui.item(28).unwrap().net_id, id);
+            }
+        }
+
         #[test]
         fn wrong_recipe_grid_size_and_insufficient_input_reject_without_mutation() {
             for (net_id, name, count, crafts, expected) in [
@@ -1722,8 +1906,13 @@ mod regressions {
                 status(&h.run(-1, vec![craft(large.net_id.raw_id, 1)])),
                 Status::Mismatchedcraftingsize
             );
+            let other_multi = packet
+                .multi_recipes
+                .iter()
+                .find(|r| r.multi_recipe_uuid != crate::crafting::execution::REPAIR_RECIPE_UUID)
+                .unwrap();
             assert_eq!(
-                status(&h.run(-3, vec![craft(packet.multi_recipes[0].net_id.raw_id, 1)])),
+                status(&h.run(-3, vec![craft(other_multi.net_id.raw_id, 1)])),
                 Status::Invalidrequestcraftactiontype
             );
             assert_eq!(

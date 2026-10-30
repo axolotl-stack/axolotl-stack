@@ -42,15 +42,21 @@ pub(crate) enum WalkBlockRole {
     Collides,
 }
 
-/// Feet positions are exact, supported world positions, not block coordinates.
-/// Range bounds the Chebyshev distance of node feet and lift apexes from start.
-/// `node_budget` bounds retained search nodes, including start, not elapsed time.
-/// The exact-goal connector does not consume a retained node.
+/// Feet positions are exact world positions, not block coordinates. The goal
+/// must be supported under its centre; the start only needs a clear body
+/// resting on the ground somewhere under its box (see [`find_walk_path`]).
+/// A node is in range when the squared distance between its block and the
+/// goal's block, in whole blocks, is below `max_range²` truncated; the start
+/// is exempt. `max_expansions` bounds the nodes expanded (the search then
+/// ends as if the frontier ran out); `node_budget` bounds retained search
+/// nodes, including start. Neither is elapsed time. The exact-goal connector
+/// does not consume a retained node.
 #[derive(Debug, Clone, Copy)]
 pub(crate) struct WalkPathRequest {
     pub start: DVec3,
     pub goal: DVec3,
     pub max_range: f64,
+    pub max_expansions: usize,
     pub node_budget: usize,
     /// Additional caller restriction; also capped by `PhysicsBody::step_height`.
     pub step_height: f64,
@@ -59,6 +65,10 @@ pub(crate) struct WalkPathRequest {
     /// or a promise that a particular controller's jump impulse can execute it.
     pub jump_height: f64,
     pub max_drop: f64,
+    /// On failure, publish the route to the expanded node closest (in a
+    /// straight line) to the goal as [`WalkPathOutcome::Partial`], unless
+    /// that node is the start.
+    pub partial: bool,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -67,9 +77,13 @@ pub(crate) enum WalkPathOutcome {
     /// No route in this bounded, conservative column-centre graph. Also used
     /// for invalid/nonfinite inputs or an unsupported/obstructed exact endpoint.
     Unreachable,
-    /// A valid unvisited node could not be retained under the node budget and
-    /// the retained graph contained no route. No partial route is published.
+    /// The expansion cap ended the search, or a valid unvisited node could
+    /// not be retained under the node budget, and the graph searched
+    /// contained no route. No partial route is published.
     BudgetExceeded,
+    /// No route reached the goal; a requested partial route to the expanded
+    /// node closest to the goal was published instead.
+    Partial,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -91,8 +105,9 @@ pub(crate) struct WalkWaypoint {
     pub lift_height: f64,
 }
 
-/// Caller-owned output. Includes exact start and goal on success; is empty on
-/// every failure. Clearing or performing another search retains its capacity.
+/// Caller-owned output. Includes exact start and goal on success, or the start
+/// up to the closest node on a partial result; is empty on every other
+/// failure. Clearing or performing another search retains its capacity.
 #[derive(Debug, Default)]
 pub(crate) struct WalkNavigation {
     pub waypoints: Vec<WalkWaypoint>,
@@ -216,8 +231,14 @@ pub(crate) struct NavigationScratch {
 /// to every swept corridor, including endpoint connectors. Centre-line support
 /// must cover the entire edge (at endpoint heights or between them); forbidden
 /// support touching the swept footprint also rejects the edge conservatively.
+/// The one exception is the start: a mob standing half over a block edge
+/// rests on its box, not its centre, and still paths from where it stands
+/// (as in BDS 1.26.51), so edges leaving a start whose centre is unsupported
+/// skip the centre-line check. A start not resting on the ground at all
+/// (falling, jumping, climbing) has no path.
 /// A valid geometric route is required even when start and goal share a cell.
-/// No nearest-reachable target or unchecked straight-line fallback is returned.
+/// No unchecked straight-line fallback is returned; a nearest-reachable route
+/// is returned only when the request asks for a partial result.
 pub(crate) fn find_walk_path(
     blocks: &impl BlockSource,
     body: &PhysicsBody,
@@ -244,12 +265,16 @@ pub(crate) fn find_walk_path(
         request,
         scratch,
         permitted,
+        start_off_centre: false,
     };
-    if !search.in_range(request.goal)
-        || !search.standable(request.start)
-        || !search.standable(request.goal)
-    {
+    if !search.standable(request.goal) || !search.clear_area(search.body_box(request.start)) {
         return WalkPathOutcome::Unreachable;
+    }
+    if !search.supported_segment(request.start, request.start) {
+        if !search.resting(request.start) {
+            return WalkPathOutcome::Unreachable;
+        }
+        search.start_off_centre = true;
     }
     if request.node_budget == 0 {
         return WalkPathOutcome::BudgetExceeded;
@@ -273,35 +298,34 @@ pub(crate) fn find_walk_path(
         node: 0,
     });
     let mut pushed = 1;
+    let mut expanded = 0;
     let mut exhausted = false;
+    // The expanded node closest to the goal and its distance (partial routes).
+    let mut closest = (0, f64::INFINITY);
     while let Some(Open { node: cursor, .. }) = search.scratch.open.pop() {
         if search.scratch.nodes[cursor].closed {
             // A stale entry of a node reached again more cheaply.
             continue;
         }
+        if expanded == request.max_expansions {
+            exhausted = true;
+            break;
+        }
+        expanded += 1;
         search.scratch.nodes[cursor].closed = true;
         let from = search.scratch.nodes[cursor].point.feet;
         let walked = search.scratch.nodes[cursor].cost;
+        let distance = from.distance(request.goal);
+        if distance < closest.1 {
+            closest = (cursor, distance);
+        }
         // An exact-goal connector is an ordinary fully checked edge, not a
         // fallback. Restrict its horizontal reach to a neighbouring column.
         if (from.x - request.goal.x).abs() <= 1.5
             && (from.z - request.goal.z).abs() <= 1.5
             && let Some(goal) = search.edge(from, request.goal)
         {
-            let mut length = usize::from(from != request.goal);
-            let mut parent = Some(cursor);
-            while let Some(index) = parent {
-                length += 1;
-                parent = search.scratch.nodes[index].parent;
-            }
-            output.waypoints.reserve(length);
-            let mut parent = Some(cursor);
-            while let Some(index) = parent {
-                let node = search.scratch.nodes[index];
-                output.waypoints.push(node.point);
-                parent = node.parent;
-            }
-            output.waypoints.reverse();
+            publish(&search.scratch.nodes, cursor, output);
             if from != request.goal {
                 output.waypoints.push(goal);
             }
@@ -377,11 +401,32 @@ pub(crate) fn find_walk_path(
             }
         }
     }
-    if exhausted {
+    if request.partial && closest.0 != 0 {
+        publish(&search.scratch.nodes, closest.0, output);
+        WalkPathOutcome::Partial
+    } else if exhausted {
         WalkPathOutcome::BudgetExceeded
     } else {
         WalkPathOutcome::Unreachable
     }
+}
+
+/// Write the route from the start to `last` into `output`.
+fn publish(nodes: &[Node], last: usize, output: &mut WalkNavigation) {
+    let mut length = 0;
+    let mut parent = Some(last);
+    while let Some(index) = parent {
+        length += 1;
+        parent = nodes[index].parent;
+    }
+    output.waypoints.reserve(length + 1);
+    let mut parent = Some(last);
+    while let Some(index) = parent {
+        let node = nodes[index];
+        output.waypoints.push(node.point);
+        parent = node.parent;
+    }
+    output.waypoints.reverse();
 }
 
 fn valid_request(body: &PhysicsBody, r: WalkPathRequest) -> bool {
@@ -416,11 +461,16 @@ struct Search<'a, B, P> {
     request: WalkPathRequest,
     scratch: &'a mut NavigationScratch,
     permitted: P,
+    /// The start rests on its box but not under its centre.
+    start_off_centre: bool,
 }
 
 impl<B: BlockSource, P: Fn(u32, WalkBlockRole) -> bool> Search<'_, B, P> {
+    /// Whether a node at `feet` lies within range of the goal (see
+    /// [`WalkPathRequest`]).
     fn in_range(&self, feet: DVec3) -> bool {
-        (feet - self.request.start).abs().max_element() <= self.request.max_range + EPSILON
+        let blocks = feet.floor() - self.request.goal.floor();
+        blocks.length_squared() < (self.request.max_range * self.request.max_range).floor()
     }
 
     fn body_box(&self, feet: DVec3) -> Aabb {
@@ -497,17 +547,49 @@ impl<B: BlockSource, P: Fn(u32, WalkBlockRole) -> bool> Search<'_, B, P> {
         self.supported_segment(feet, feet)
     }
 
+    /// Whether the body at `feet` rests on an allowed support shape whose
+    /// top meets the feet anywhere under its footprint (positive overlap,
+    /// like the physics ground contact); forbidden support touching the
+    /// footprint rejects it.
+    fn resting(&mut self, feet: DVec3) -> bool {
+        let half = self.body.width * 0.5;
+        let min = feet - DVec3::new(half, 0.0, half);
+        let max = feet + DVec3::new(half, 0.0, half);
+        let mut rests = false;
+        for y in (feet.y.floor() as i32 - 2)..=feet.y.floor() as i32 {
+            for x in min.x.floor() as i32..max.x.ceil() as i32 {
+                for z in min.z.floor() as i32..max.z.ceil() as i32 {
+                    let cached = self.cached_block(IVec3::new(x, y, z));
+                    for i in cached.first..cached.first + cached.count {
+                        let shape = self.scratch.boxes[i];
+                        if (shape.max.y - feet.y).abs() > EPSILON
+                            || shape.min.x >= max.x
+                            || shape.max.x <= min.x
+                            || shape.min.z >= max.z
+                            || shape.max.z <= min.z
+                        {
+                            continue;
+                        }
+                        if !cached.support_allowed {
+                            return false;
+                        }
+                        rests = true;
+                    }
+                }
+            }
+        }
+        rests
+    }
+
     fn candidate_heights(&mut self, x: f64, z: f64, from_y: f64) {
         self.scratch.heights.clear();
-        let lower =
-            (from_y - self.request.max_drop).max(self.request.start.y - self.request.max_range);
-        let upper = (from_y
+        let lower = from_y - self.request.max_drop;
+        let upper = from_y
             + self
                 .request
                 .step_height
                 .min(self.body.step_height)
-                .max(self.request.jump_height))
-        .min(self.request.start.y + self.request.max_range);
+                .max(self.request.jump_height);
         for y in (lower.floor() as i32 - 2)..=upper.floor() as i32 {
             let cached = self.cached_block(IVec3::new(x.floor() as i32, y, z.floor() as i32));
             if !cached.support_allowed {
@@ -553,13 +635,13 @@ impl<B: BlockSource, P: Fn(u32, WalkBlockRole) -> bool> Search<'_, B, P> {
         };
         let raised = from + DVec3::Y * lift_height;
         let across = DVec3::new(to.x, raised.y, to.z);
+        let off_centre_start = self.start_off_centre && from == self.request.start;
         if !self.in_range(to)
-            || !self.in_range(raised)
             || !self.standable(to)
             || !self.clear_area(self.body_box(from).expand_towards(DVec3::Y * lift_height))
             || !self.clear_area(self.body_box(raised).expand_towards(across - raised))
             || !self.clear_area(self.body_box(across).expand_towards(to - across))
-            || !self.supported_segment(from, to)
+            || !(off_centre_start || self.supported_segment(from, to))
         {
             return None;
         }
@@ -654,10 +736,12 @@ mod tests {
             start,
             goal,
             max_range: 8.0,
+            max_expansions: 1024,
             node_budget: 1024,
             step_height: 0.6,
             jump_height: 0.0,
             max_drop: 1.0,
+            partial: false,
         }
     }
 
@@ -779,6 +863,37 @@ mod tests {
             &PhysicsBody::living(0.9, 1.4),
             request(DVec3::new(-1.5, 1.0, 0.5), DVec3::new(2.5, 1.0, 0.5)),
         );
+        assert_eq!(outcome, WalkPathOutcome::Unreachable);
+        assert!(output.waypoints.is_empty());
+    }
+
+    #[test]
+    fn partial_request_publishes_the_route_to_the_closest_expanded_node() {
+        let mut blocks = TestBlocks::floor("minecraft:stone", 0);
+        for (x, z) in [(1, 0), (3, 0), (2, -1), (2, 1)] {
+            for y in 1..=3 {
+                blocks.set(IVec3::new(x, y, z), "minecraft:stone");
+            }
+        }
+        let body = PhysicsBody::living(0.9, 1.4);
+        let r = WalkPathRequest {
+            partial: true,
+            ..request(DVec3::new(-1.5, 1.0, 0.5), DVec3::new(2.5, 1.0, 0.5))
+        };
+        let (outcome, output) = find(&blocks, &body, r);
+        assert_eq!(outcome, WalkPathOutcome::Partial);
+        assert_eq!(output.waypoints.first().unwrap().feet, r.start);
+        let last = output.waypoints.last().unwrap().feet;
+        // The nearest columns outside the sealed cell are one diagonal away.
+        assert!(
+            (last.distance(r.goal) - 2f64.sqrt()).abs() < EPSILON,
+            "{:?}",
+            output.waypoints
+        );
+        assert_clear_corridors(&blocks, &body, &output);
+
+        // Already at the closest node: nothing to publish.
+        let (outcome, output) = find(&blocks, &body, WalkPathRequest { start: last, ..r });
         assert_eq!(outcome, WalkPathOutcome::Unreachable);
         assert!(output.waypoints.is_empty());
     }
@@ -998,6 +1113,21 @@ mod tests {
                 &body,
                 WalkPathRequest {
                     node_budget: 1,
+                    ..r
+                },
+                &mut scratch,
+                &mut output,
+                |_, _| true,
+            ),
+            WalkPathOutcome::BudgetExceeded
+        );
+        assert!(output.waypoints.is_empty());
+        assert_eq!(
+            find_walk_path(
+                &blocks,
+                &body,
+                WalkPathRequest {
+                    max_expansions: 2,
                     ..r
                 },
                 &mut scratch,

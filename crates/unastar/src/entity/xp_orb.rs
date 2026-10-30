@@ -26,8 +26,7 @@ use rand::Rng;
 use crate::entity::components::{
     ActorViewers, Age, Experience, GameMode, GravityStage, GroundFriction, Health, OnGround,
     PhysicsBody, PhysicsModel, Player, PlayerInput, PlayerSession, Position, Rotation,
-    RuntimeEntityId,
-    RuntimeId, Velocity,
+    RuntimeEntityId, RuntimeId, Velocity,
 };
 use crate::entity::definition::flags::ActorFlags;
 use crate::entity::definition::metadata::EntityMetadata;
@@ -285,9 +284,7 @@ pub fn tick_xp_orbs(
                         actor_runtime_id: runtime_id.0 as u64,
                     },
                     attribute_list: experience_attributes(&experience).into(),
-                    tick: PlayerInputTick {
-                        inputtick: input.map_or(0, |i| u64::try_from(i.tick).unwrap_or(0)),
-                    },
+                    tick: input.map_or(PlayerInputTick { inputtick: 0 }, PlayerInput::wire_tick),
                 }));
             }
             commands.entity(orb).despawn();

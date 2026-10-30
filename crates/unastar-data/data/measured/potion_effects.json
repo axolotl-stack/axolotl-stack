@@ -1,0 +1,507 @@
+{
+  "source": "BDS 1.26.51, client-diff scenario item-use-potions (2026-10-29): each potion aux 0-46 drunk once; effects are the MobEffect adds at the finish (instant health and damage are sent with duration 1). Aux 36 has no brewing recipe, so its name is not in potion_types.json.",
+  "potions": [
+    {
+      "aux": 0,
+      "name": "minecraft:potion_type:water",
+      "effects": []
+    },
+    {
+      "aux": 1,
+      "name": "minecraft:potion_type:mundane",
+      "effects": []
+    },
+    {
+      "aux": 2,
+      "name": "minecraft:potion_type:long_mundane",
+      "effects": []
+    },
+    {
+      "aux": 3,
+      "name": "minecraft:potion_type:thick",
+      "effects": []
+    },
+    {
+      "aux": 4,
+      "name": "minecraft:potion_type:awkward",
+      "effects": []
+    },
+    {
+      "aux": 5,
+      "name": "minecraft:potion_type:nightvision",
+      "effects": [
+        {
+          "effect": 16,
+          "amplifier": 0,
+          "duration": 3600
+        }
+      ]
+    },
+    {
+      "aux": 6,
+      "name": "minecraft:potion_type:long_nightvision",
+      "effects": [
+        {
+          "effect": 16,
+          "amplifier": 0,
+          "duration": 9600
+        }
+      ]
+    },
+    {
+      "aux": 7,
+      "name": "minecraft:potion_type:invisibility",
+      "effects": [
+        {
+          "effect": 14,
+          "amplifier": 0,
+          "duration": 3600
+        }
+      ]
+    },
+    {
+      "aux": 8,
+      "name": "minecraft:potion_type:long_invisibility",
+      "effects": [
+        {
+          "effect": 14,
+          "amplifier": 0,
+          "duration": 9600
+        }
+      ]
+    },
+    {
+      "aux": 9,
+      "name": "minecraft:potion_type:leaping",
+      "effects": [
+        {
+          "effect": 8,
+          "amplifier": 0,
+          "duration": 3600
+        }
+      ]
+    },
+    {
+      "aux": 10,
+      "name": "minecraft:potion_type:long_leaping",
+      "effects": [
+        {
+          "effect": 8,
+          "amplifier": 0,
+          "duration": 9600
+        }
+      ]
+    },
+    {
+      "aux": 11,
+      "name": "minecraft:potion_type:strong_leaping",
+      "effects": [
+        {
+          "effect": 8,
+          "amplifier": 1,
+          "duration": 1800
+        }
+      ]
+    },
+    {
+      "aux": 12,
+      "name": "minecraft:potion_type:fire_resistance",
+      "effects": [
+        {
+          "effect": 12,
+          "amplifier": 0,
+          "duration": 3600
+        }
+      ]
+    },
+    {
+      "aux": 13,
+      "name": "minecraft:potion_type:long_fire_resistance",
+      "effects": [
+        {
+          "effect": 12,
+          "amplifier": 0,
+          "duration": 9600
+        }
+      ]
+    },
+    {
+      "aux": 14,
+      "name": "minecraft:potion_type:swiftness",
+      "effects": [
+        {
+          "effect": 1,
+          "amplifier": 0,
+          "duration": 3600
+        }
+      ]
+    },
+    {
+      "aux": 15,
+      "name": "minecraft:potion_type:long_swiftness",
+      "effects": [
+        {
+          "effect": 1,
+          "amplifier": 0,
+          "duration": 9600
+        }
+      ]
+    },
+    {
+      "aux": 16,
+      "name": "minecraft:potion_type:strong_swiftness",
+      "effects": [
+        {
+          "effect": 1,
+          "amplifier": 1,
+          "duration": 1800
+        }
+      ]
+    },
+    {
+      "aux": 17,
+      "name": "minecraft:potion_type:slowness",
+      "effects": [
+        {
+          "effect": 2,
+          "amplifier": 0,
+          "duration": 1800
+        }
+      ]
+    },
+    {
+      "aux": 18,
+      "name": "minecraft:potion_type:long_slowness",
+      "effects": [
+        {
+          "effect": 2,
+          "amplifier": 0,
+          "duration": 4800
+        }
+      ]
+    },
+    {
+      "aux": 19,
+      "name": "minecraft:potion_type:water_breathing",
+      "effects": [
+        {
+          "effect": 13,
+          "amplifier": 0,
+          "duration": 3600
+        }
+      ]
+    },
+    {
+      "aux": 20,
+      "name": "minecraft:potion_type:long_water_breathing",
+      "effects": [
+        {
+          "effect": 13,
+          "amplifier": 0,
+          "duration": 9600
+        }
+      ]
+    },
+    {
+      "aux": 21,
+      "name": "minecraft:potion_type:healing",
+      "effects": [
+        {
+          "effect": 6,
+          "amplifier": 0,
+          "duration": 1
+        }
+      ]
+    },
+    {
+      "aux": 22,
+      "name": "minecraft:potion_type:strong_healing",
+      "effects": [
+        {
+          "effect": 6,
+          "amplifier": 1,
+          "duration": 1
+        }
+      ]
+    },
+    {
+      "aux": 23,
+      "name": "minecraft:potion_type:harming",
+      "effects": [
+        {
+          "effect": 7,
+          "amplifier": 0,
+          "duration": 1
+        }
+      ]
+    },
+    {
+      "aux": 24,
+      "name": "minecraft:potion_type:strong_harming",
+      "effects": [
+        {
+          "effect": 7,
+          "amplifier": 1,
+          "duration": 1
+        }
+      ]
+    },
+    {
+      "aux": 25,
+      "name": "minecraft:potion_type:poison",
+      "effects": [
+        {
+          "effect": 19,
+          "amplifier": 0,
+          "duration": 900
+        }
+      ]
+    },
+    {
+      "aux": 26,
+      "name": "minecraft:potion_type:long_poison",
+      "effects": [
+        {
+          "effect": 19,
+          "amplifier": 0,
+          "duration": 2400
+        }
+      ]
+    },
+    {
+      "aux": 27,
+      "name": "minecraft:potion_type:strong_poison",
+      "effects": [
+        {
+          "effect": 19,
+          "amplifier": 1,
+          "duration": 450
+        }
+      ]
+    },
+    {
+      "aux": 28,
+      "name": "minecraft:potion_type:regeneration",
+      "effects": [
+        {
+          "effect": 10,
+          "amplifier": 0,
+          "duration": 900
+        }
+      ]
+    },
+    {
+      "aux": 29,
+      "name": "minecraft:potion_type:long_regeneration",
+      "effects": [
+        {
+          "effect": 10,
+          "amplifier": 0,
+          "duration": 2400
+        }
+      ]
+    },
+    {
+      "aux": 30,
+      "name": "minecraft:potion_type:strong_regeneration",
+      "effects": [
+        {
+          "effect": 10,
+          "amplifier": 1,
+          "duration": 450
+        }
+      ]
+    },
+    {
+      "aux": 31,
+      "name": "minecraft:potion_type:strength",
+      "effects": [
+        {
+          "effect": 5,
+          "amplifier": 0,
+          "duration": 3600
+        }
+      ]
+    },
+    {
+      "aux": 32,
+      "name": "minecraft:potion_type:long_strength",
+      "effects": [
+        {
+          "effect": 5,
+          "amplifier": 0,
+          "duration": 9600
+        }
+      ]
+    },
+    {
+      "aux": 33,
+      "name": "minecraft:potion_type:strong_strength",
+      "effects": [
+        {
+          "effect": 5,
+          "amplifier": 1,
+          "duration": 1800
+        }
+      ]
+    },
+    {
+      "aux": 34,
+      "name": "minecraft:potion_type:weakness",
+      "effects": [
+        {
+          "effect": 18,
+          "amplifier": 0,
+          "duration": 1800
+        }
+      ]
+    },
+    {
+      "aux": 35,
+      "name": "minecraft:potion_type:long_weakness",
+      "effects": [
+        {
+          "effect": 18,
+          "amplifier": 0,
+          "duration": 4800
+        }
+      ]
+    },
+    {
+      "aux": 36,
+      "name": "minecraft:potion_type:wither",
+      "effects": [
+        {
+          "effect": 20,
+          "amplifier": 1,
+          "duration": 800
+        }
+      ]
+    },
+    {
+      "aux": 37,
+      "name": "minecraft:potion_type:turtle_master",
+      "effects": [
+        {
+          "effect": 2,
+          "amplifier": 3,
+          "duration": 400
+        },
+        {
+          "effect": 11,
+          "amplifier": 2,
+          "duration": 400
+        }
+      ]
+    },
+    {
+      "aux": 38,
+      "name": "minecraft:potion_type:long_turtle_master",
+      "effects": [
+        {
+          "effect": 2,
+          "amplifier": 3,
+          "duration": 800
+        },
+        {
+          "effect": 11,
+          "amplifier": 2,
+          "duration": 800
+        }
+      ]
+    },
+    {
+      "aux": 39,
+      "name": "minecraft:potion_type:strong_turtle_master",
+      "effects": [
+        {
+          "effect": 2,
+          "amplifier": 5,
+          "duration": 400
+        },
+        {
+          "effect": 11,
+          "amplifier": 3,
+          "duration": 400
+        }
+      ]
+    },
+    {
+      "aux": 40,
+      "name": "minecraft:potion_type:slow_falling",
+      "effects": [
+        {
+          "effect": 27,
+          "amplifier": 0,
+          "duration": 1800
+        }
+      ]
+    },
+    {
+      "aux": 41,
+      "name": "minecraft:potion_type:long_slow_falling",
+      "effects": [
+        {
+          "effect": 27,
+          "amplifier": 0,
+          "duration": 4800
+        }
+      ]
+    },
+    {
+      "aux": 42,
+      "name": "minecraft:potion_type:strong_slowness",
+      "effects": [
+        {
+          "effect": 2,
+          "amplifier": 3,
+          "duration": 400
+        }
+      ]
+    },
+    {
+      "aux": 43,
+      "name": "minecraft:potion_type:wind_charged",
+      "effects": [
+        {
+          "effect": 32,
+          "amplifier": 0,
+          "duration": 3600
+        }
+      ]
+    },
+    {
+      "aux": 44,
+      "name": "minecraft:potion_type:weaving",
+      "effects": [
+        {
+          "effect": 33,
+          "amplifier": 0,
+          "duration": 3600
+        }
+      ]
+    },
+    {
+      "aux": 45,
+      "name": "minecraft:potion_type:oozing",
+      "effects": [
+        {
+          "effect": 34,
+          "amplifier": 0,
+          "duration": 3600
+        }
+      ]
+    },
+    {
+      "aux": 46,
+      "name": "minecraft:potion_type:infested",
+      "effects": [
+        {
+          "effect": 35,
+          "amplifier": 0,
+          "duration": 3600
+        }
+      ]
+    }
+  ]
+}

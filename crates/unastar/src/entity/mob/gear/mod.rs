@@ -230,6 +230,14 @@ pub fn mainhand(world: &World, mob: Entity) -> Option<&ItemStack> {
         .filter(|stack| !stack.is_empty())
 }
 
+/// `has_ranged_weapon`: the mob's main hand holds a bow or crossbow (the
+/// drawn weapons of `server::game::item_use::ranged`).
+pub fn holds_ranged_weapon(world: &World, mob: Entity) -> bool {
+    mainhand(world, mob).is_some_and(|stack| {
+        crate::server::game::item_use::ranged::drawn(stack.item_id()).is_some()
+    })
+}
+
 /// The slots a `has_equipment` filter `domain` names; `None` for a domain
 /// that is not an equipment domain. `body` and `inventory` name no slot a
 /// supported mob has.

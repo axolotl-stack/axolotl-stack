@@ -178,6 +178,13 @@ impl Definition {
     }
 }
 
+/// Highest level of enchantment `id`; `None` for an id outside the table.
+pub fn max_level(id: u8) -> Option<u8> {
+    ENCHANTMENTS
+        .get(usize::from(id))
+        .map(|definition| definition.max_level)
+}
+
 /// Add `enchantment` to `existing` (an item of `slots`) the way BDS item
 /// enchant lists do: the enchantment must fit the item's slots and be
 /// compatible with the enchantments in its list; an enchantment the item

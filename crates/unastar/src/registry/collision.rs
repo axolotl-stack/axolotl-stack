@@ -102,6 +102,15 @@ impl Aabb {
             && self.max.z > other.min.z
     }
 
+    /// The shortest distance between the two boxes (0 when they touch or
+    /// overlap).
+    pub fn gap(&self, other: &Aabb) -> f64 {
+        (self.min - other.max)
+            .max(other.min - self.max)
+            .max(DVec3::ZERO)
+            .length()
+    }
+
     /// Bottom-centre point.
     pub fn feet(&self) -> DVec3 {
         DVec3::new(
