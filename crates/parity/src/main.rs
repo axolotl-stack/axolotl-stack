@@ -5,12 +5,15 @@
 //!   rewrites those files in canonical form and regenerates `PARITY.md`.
 //! - `parity check` fails if a row lacks a status, a status names an unknown
 //!   row, a `done`/`verified` row has no existing test, a status file is not in
-//!   canonical form, or `PARITY.md` (or the Bedrock worldgen snapshot) is stale.
+//!   canonical form, `docs/parity/claims.toml` names unknown domains,
+//!   families or rows or has overlapping claims, or `PARITY.md` (or the
+//!   Bedrock worldgen snapshot) is stale.
 //!
 //! See `docs/parity/README.md`.
 
 mod catalog;
 mod check;
+mod claims;
 mod report;
 mod sources;
 mod status;
@@ -101,8 +104,9 @@ fn generate(root: &Path) -> anyhow::Result<()> {
         write_path(&path, &status::render(&rows, &entries))?;
         domains.push((rows, entries));
     }
-    write(root, REPORT, &report::render(&domains))?;
-    let problems = validate_all(root, &domains);
+    let claims = claims::load(root)?;
+    write(root, REPORT, &report::render(&domains, &claims))?;
+    let problems = validate_all(root, &domains, &claims);
     report_problems(&problems)?;
     print_summary(&domains);
     Ok(())
@@ -137,9 +141,10 @@ fn check(root: &Path) -> anyhow::Result<()> {
         }
         domains.push((rows, entries));
     }
-    problems.extend(validate_all(root, &domains));
+    let claims = claims::load(root)?;
+    problems.extend(validate_all(root, &domains, &claims));
     if problems.is_empty() {
-        let fresh = report::render(&domains);
+        let fresh = report::render(&domains, &claims);
         if !same_text(&read(root, REPORT)?, &fresh) {
             problems.push(format!("{REPORT} is stale; run `parity generate`"));
         }
@@ -149,12 +154,19 @@ fn check(root: &Path) -> anyhow::Result<()> {
     Ok(())
 }
 
-fn validate_all(root: &Path, domains: &[(DomainRows, StatusFile)]) -> Vec<String> {
+fn validate_all(
+    root: &Path,
+    domains: &[(DomainRows, StatusFile)],
+    claims: &[claims::Claim],
+) -> Vec<String> {
     let mut files = check::TestFiles::default();
-    domains
+    let mut problems: Vec<String> = domains
         .iter()
         .flat_map(|(rows, entries)| check::validate(root, rows, entries, &mut files))
-        .collect()
+        .collect();
+    let rows: Vec<&DomainRows> = domains.iter().map(|(rows, _)| rows).collect();
+    problems.extend(claims::validate(claims, &rows));
+    problems
 }
 
 fn report_problems(problems: &[String]) -> anyhow::Result<()> {
@@ -167,16 +179,23 @@ fn report_problems(problems: &[String]) -> anyhow::Result<()> {
     Ok(())
 }
 
+/// Done-or-verified over each domain's headline rows (see `Domain::headline`).
 fn print_summary(domains: &[(DomainRows, StatusFile)]) {
     for (rows, entries) in domains {
-        let total = rows.rows.len();
-        let complete = rows
-            .rows
-            .iter()
-            .filter(|r| entries[&r.id].status.is_complete())
-            .count();
+        let headline = rows.domain.headline();
+        let (total, complete) = rows.rows.iter().filter(|r| headline.includes(r)).fold(
+            (0, 0),
+            |(total, complete), r| {
+                let done = entries[&r.id].status.is_complete();
+                (total + 1, complete + usize::from(done))
+            },
+        );
+        let kind = match headline {
+            catalog::Headline::TopLevel => "rows",
+            catalog::Headline::SubRows => "sub-rows",
+        };
         println!(
-            "{:<9} {complete:>5} / {total:>5} rows done or verified",
+            "{:<9} {complete:>5} / {total:>5} {kind} done or verified",
             rows.domain.name()
         );
     }
