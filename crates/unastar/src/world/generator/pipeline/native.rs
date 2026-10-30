@@ -190,8 +190,8 @@ mod tests {
     use super::*;
     use crate::world::block_entity::BlockEntity;
     use crate::world::chunk::BlockStateSpace;
-    use crate::world::generator::{ChunkPipeline, SpawnPoint};
     use crate::world::generator::region::WorldGenRegion;
+    use crate::world::generator::{ChunkPipeline, SpawnPoint};
     use std::sync::{Arc, LazyLock};
     use unastar_noise::features::JavaBlock;
 
