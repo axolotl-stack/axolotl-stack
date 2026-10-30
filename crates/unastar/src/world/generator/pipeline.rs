@@ -235,10 +235,15 @@ impl ChunkPipeline {
     /// All lossy adaptation happens in the final `generate` boundary.
     pub fn generate_native(&self, pos: ChunkPos) -> Chunk {
         if let Some(session) = &self.native {
-            session.decorate(&*self.generator, pos);
-            for (dx, dz) in SLOT_OFFSETS {
-                session.decorate(&*self.generator, ChunkPos::new(pos.x + dx, pos.z + dz));
-            }
+            // The target first, then its 3x3 halo in slot order.
+            let origins: [ChunkPos; 10] = std::array::from_fn(|i| match i {
+                0 => pos,
+                _ => {
+                    let (dx, dz) = SLOT_OFFSETS[i - 1];
+                    ChunkPos::new(pos.x + dx, pos.z + dz)
+                }
+            });
+            session.decorate_all(&*self.generator, &origins);
             return self
                 .native_full_snapshot(pos)
                 .expect("completed native origin has no source chunk");
