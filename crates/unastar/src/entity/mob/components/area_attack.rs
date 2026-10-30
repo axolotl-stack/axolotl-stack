@@ -29,6 +29,12 @@ pub fn register_component_kinds(
     builder: &mut ComponentKindsBuilder,
 ) -> Result<(), DefinitionError> {
     insert(builder, |b: body::AreaAttack| {
+        if b.death_message_override.is_some() {
+            return Err(HostileError::AreaAttackDeathMessage);
+        }
+        if b.use_self_as_damage_source.is_some() {
+            return Err(HostileError::AreaAttackDamageSource);
+        }
         Ok::<_, HostileError>(AreaAttackConfig {
             cause: b.cause.unwrap_or(ActorDamageCause::None),
             damage: b.damage_per_tick as f32,

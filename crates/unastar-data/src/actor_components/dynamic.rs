@@ -1728,9 +1728,13 @@ pub struct AreaAttack {
     /// Blocks the owner's box is grown by on every side.
     #[serde(default = "area_attack_damage_range")]
     pub damage_range: f32,
+    /// Death message key for actors this attack kills.
+    pub death_message_override: Option<String>,
     pub entity_filter: Option<FilterJson>,
     #[serde(default = "area_attack_play_attack_sound")]
     pub play_attack_sound: bool,
+    /// Whether the damage names the attacking actor as its source.
+    pub use_self_as_damage_source: Option<bool>,
 }
 
 /// `minecraft:mob_effect_immunity`: effects the entity cannot have.

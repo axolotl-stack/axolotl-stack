@@ -36,6 +36,10 @@ pub enum HostileError {
     AvoidSound,
     #[error("avoid_mob_type check_if_outnumbered: group sizes are not implemented")]
     AvoidOutnumbered,
+    #[error("area_attack death_message_override: custom death messages are not implemented")]
+    AreaAttackDeathMessage,
+    #[error("area_attack use_self_as_damage_source: the damage source choice is not implemented")]
+    AreaAttackDamageSource,
     #[error(transparent)]
     Filter(#[from] FilterError),
     #[error(transparent)]
