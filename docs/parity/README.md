@@ -2,7 +2,9 @@
 
 One list of everything vanilla Bedrock 1.26.51 has, and how far `unastar` is with each
 thing, across every domain. The summary is [PARITY.md](PARITY.md). If you are looking for
-something to work on, pick a `missing` or `partial` row.
+something to work on, start at its [Where to help](PARITY.md#where-to-help) section: per
+domain, the free families with the most missing or partial rows, and the areas already
+claimed in [claims.toml](claims.toml).
 
 ## The rule
 
@@ -14,8 +16,9 @@ That means status, tests, evidence and gaps in `docs/parity/<domain>.toml`, foll
 
 | File | What it is | Edited by |
 |---|---|---|
-| `PARITY.md` | Counts per domain and family, the most incomplete sub-row facets, and gap lists | generated; never edit |
+| `PARITY.md` | Counts per domain and family, where to help (free and claimed areas), the most incomplete sub-row facets, and gap lists | generated; never edit |
 | `<domain>.toml` | One status entry per generated row | you (values only) and `parity generate` (layout) |
+| `claims.toml` | Areas someone is actively working on, and by whom | you (add a claim when you start, remove it when you stop) |
 | `source/bedrock-worldgen.tsv` | Bedrock worldgen row list, generated from a BDS install | generated; never edit |
 
 ## Where the rows come from
@@ -31,7 +34,7 @@ version adds rows automatically. The generators live in `crates/parity/src/sourc
 | commands | every advertised command | the commands lane's decoded BDS 1.26.51 `AvailableCommands` capture, `crates/unastar-data/output/available_commands.json` | permission level |
 | protocol | every packet | `crates/valentine_gen/protocolgen/generated/1.26.51/manifest.json` | manifest direction (`bidirectional` includes client-to-server packets) |
 | worldgen | Java 1.21.11 and Bedrock 1.26.51 biomes, features, structures, carvers and surface rules per dimension | Java: `crates/unastar_noise/worldgen_data` and its biome tags. Bedrock: the BDS install through `unastar_bedrock_codegen::model::Model` (rows cached in `source/bedrock-worldgen.tsv`) | `<edition>/<dimension>/<kind>` |
-| systems | cross-cutting systems no data file enumerates (redstone, liquids, weather, lighting, enchanting, raids, ...) | hand-maintained list in `crates/parity/src/sources/systems.rs` | world, mobs, player, crafting, interface, platform |
+| systems | cross-cutting systems no data file enumerates (redstone, liquids, weather, lighting, enchanting, raids, ..., and speed against BDS) | hand-maintained list in `crates/parity/src/sources/systems.rs` | world, mobs, player, crafting, interface, platform, performance |
 
 Notes on ids:
 
@@ -71,6 +74,36 @@ Text in `gaps`, `notes` and `evidence` describes behaviour, never engine interna
 BDS or client class/function names, addresses or offsets). Black-box provenance such as
 "matches the BDS 1.26.51 capture" is fine. `parity check` rejects a few obvious patterns.
 
+## Headline rows
+
+Each domain's first summary line in `PARITY.md` is its headline, and the family table,
+gap list and "Where to help" count those rows. Usually they are the top-level rows. Item
+rows only mean the item exists in the registry, so the items headline is its behaviour
+sub-rows and the registry line is labelled "registered"; entity rows mean an actor can be
+summoned and is replicated, and are labelled so. `Domain::headline`,
+`Domain::top_level_label` and `Domain::sub_row_label` in `crates/parity/src/catalog.rs`
+decide this.
+
+## Claims
+
+[`claims.toml`](claims.toml) records who is working on what, so contributors do not
+duplicate work. Each `[[claim]]` has:
+
+| Field | Meaning |
+|---|---|
+| `area` | short description |
+| `owner` | `@github-handle` for contributors, `lane NAME` for the maintainers' agent lanes |
+| `since` | the date the claim was made, as a TOML date (`2026-10-29`, no quotes) |
+| `domain` | status file stem (`entities`, `blocks`, `items`, `commands`, `protocol`, `worldgen`, `systems`) |
+| `families` | row families of that domain, as in `PARITY.md`'s family tables |
+| `ids` | row ids; each also covers the row's sub-rows |
+| `prefixes` | plain prefixes of row ids (`bedrock/`, `world.`) |
+
+A claim covers one domain; an area spanning several domains has one claim per domain.
+Add a claim in your first pull request for an area and remove it when you stop. Claims
+never change a row's status. Overlap is an error: to take part of a claimed family, agree
+with its owner and narrow their claim to ids.
+
 ## Commands
 
 ```sh
@@ -86,6 +119,8 @@ UNASTAR_BDS_DIR=/path/to/bds/server cargo run -p parity -- generate   # also ref
 - a `done`/`verified` row lists no test, or a test file or `fn` that does not exist;
 - a required field is missing (see the table above), or `verified` evidence is not a path in
   the repository;
+- a claim names an unknown domain, family or row id, a prefix that matches no row, has no
+  owner, no selector or a `since` that is not a date, or two claims cover the same row;
 - a status file is not in canonical form, `PARITY.md` is stale, or (with `UNASTAR_BDS_DIR`)
   the Bedrock worldgen snapshot is stale.
 

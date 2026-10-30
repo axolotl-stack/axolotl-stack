@@ -40,6 +40,10 @@
 "mobs.villages" = { status = "missing", notes = "engine gap: no villages, POIs or raids (entity backlog section 5)" }  # village detection, POIs, beds, bells and workstations
 "mobs.wither_summoning" = { status = "missing" }  # building and summoning the wither
 
+# performance (2)
+"performance.chunk_streaming" = { status = "partial", gaps = "chunks stream to players nearest first under a fixed per-player chunk budget per tick; no committed join or flight benchmark and no comparison with BDS 1.26.51 on the same machine" }  # time from join or movement until the view is loaded on the client, compared with BDS
+"performance.generation_speed" = { status = "partial", gaps = "the worldgen_bench example measures generation throughput and allocations (tools/worldgen-perf); no committed comparison with BDS 1.26.51 on the same machine" }  # chunk generation throughput and latency compared with BDS for the same world
+
 # platform (6)
 "platform.addons" = { status = "partial", owner = "platform", tests = ["crates/unastar/src/registry/entity.rs::addon_registration_replaces_the_entire_definition_before_freeze", "crates/unastar/src/registry/item.rs::identity_resolution_keeps_legacy_variants_and_exact_numeric_addons_distinct"], gaps = "actor and item registries accept addon definitions in code; no custom behaviour packs are loaded from disk and custom blocks/recipes are not supported" }  # loading custom behaviour packs (actors, items, blocks, recipes)
 "platform.login_auth" = { status = "done", owner = "protocol", tests = ["crates/jolyne/src/auth/security_tests.rs::online_client_login_is_accepted_by_online_server", "crates/jolyne/src/proto/tests.rs::online_identity_is_authenticated_only_after_the_encryption_handshake", "crates/jolyne/src/proto/tests.rs::join_sequence_follows_the_bds_capture", "crates/jolyne/src/proto/tests.rs::post_encryption_packets_match_bds_bytes"], notes = "join packet order matches the BDS join trace; Xbox Live tokens are tested with test provider keys" }  # Xbox Live authentication, encryption and login sequence

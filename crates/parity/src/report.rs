@@ -1,9 +1,11 @@
-//! `docs/parity/PARITY.md`: counts per domain and family, then gap lists.
+//! `docs/parity/PARITY.md`: counts per domain, where to help (free and claimed
+//! areas), then per domain its families, facets and gap lists.
 
-use std::collections::BTreeMap;
+use std::collections::{BTreeMap, BTreeSet};
 use std::fmt::Write as _;
 
-use crate::catalog::{DomainRows, Row};
+use crate::catalog::{DomainRows, Headline, Row};
+use crate::claims::{self, Claim};
 use crate::status::{Status, StatusFile};
 
 /// Ids listed per gap line before the rest are summarised as "and N more";
@@ -13,6 +15,9 @@ const LIST_IDS_UP_TO: usize = 12;
 const GAP_GROUPS_UP_TO: usize = 5;
 /// Rows in the "most-needed sub-rows" rollup.
 const FACET_ROLLUP: usize = 30;
+/// Free families listed per domain in "Where to help" before the rest are
+/// summed into one line.
+const FREE_FAMILIES_UP_TO: usize = 8;
 
 #[derive(Default, Clone, Copy)]
 struct Counts {
@@ -57,7 +62,7 @@ impl Counts {
 const COUNT_HEADER: &str = "Rows | Missing | Partial | Done | Verified | N/A | Done+verified";
 const COUNT_RULE: &str = "---:|---:|---:|---:|---:|---:|---:";
 
-pub fn render(domains: &[(DomainRows, StatusFile)]) -> String {
+pub fn render(domains: &[(DomainRows, StatusFile)], claims: &[Claim]) -> String {
     let mut out = String::new();
     out.push_str(
         "# Vanilla parity\n\n\
@@ -66,41 +71,158 @@ pub fn render(domains: &[(DomainRows, StatusFile)]) -> String {
          (protocol 2193); Java world-generation rows target Java Edition 1.21.11. Row meanings, \
          the status schema and the update rule are in [README.md](README.md).\n\n\
          *Done+verified* is (done + verified) / (rows - N/A). `verified` means a test compares \
-         against committed native evidence; `done` means a test exists.\n\n",
+         against committed native evidence; `done` means a test exists.\n\n\
+         Looking for something to work on? See [Where to help](#where-to-help).\n\n",
     );
 
     out.push_str("## Summary\n\n");
+    out.push_str(
+        "Each domain's first line is its headline: the rows its family table, gap list and \
+         \"Where to help\" count. A label after the domain says what a line's rows mean when \
+         that is narrower than the domain name; item rows, for example, only mean the item \
+         exists in the registry, so the items headline is its behaviour sub-rows.\n\n",
+    );
     let _ = writeln!(out, "| Domain | {COUNT_HEADER} |");
     let _ = writeln!(out, "|---|{COUNT_RULE}|");
     for (rows, entries) in domains {
+        let domain = rows.domain;
         let top = counts(rows.rows.iter().filter(|r| r.parent.is_none()), entries);
-        let _ = writeln!(
-            out,
-            "| [{}](#{}) | {} |",
-            rows.domain.title(),
-            anchor(rows.domain.title()),
-            top.cells()
-        );
+        let mut lines = vec![(domain.top_level_label(), top)];
         if rows.rows.iter().any(|r| r.parent.is_some()) {
             let sub = counts(rows.rows.iter().filter(|r| r.parent.is_some()), entries);
-            let _ = writeln!(
-                out,
-                "| {} sub-rows | {} |",
-                rows.domain.title(),
-                sub.cells()
-            );
+            lines.push((Some(domain.sub_row_label()), sub));
+        }
+        if domain.headline() == Headline::SubRows {
+            lines.reverse();
+        }
+        for (n, (label, counts)) in lines.iter().enumerate() {
+            let mut name = if n == 0 {
+                format!("[{}](#{})", domain.title(), anchor(domain.title()))
+            } else {
+                domain.title().to_owned()
+            };
+            if let Some(label) = label {
+                let _ = write!(name, ": {label}");
+            }
+            let _ = writeln!(out, "| {name} | {} |", counts.cells());
         }
     }
     out.push('\n');
 
+    render_where_to_help(&mut out, domains, claims);
     for (rows, entries) in domains {
         render_domain(&mut out, rows, entries);
     }
     out
 }
 
+/// Open (missing or partial) headline rows per domain, split into free
+/// families and claims, so a contributor sees at a glance what is taken.
+fn render_where_to_help(out: &mut String, domains: &[(DomainRows, StatusFile)], claims: &[Claim]) {
+    out.push_str(
+        "## Where to help\n\n\
+         Open rows are missing or partial headline rows (the first summary line of each domain). \
+         Free families have open rows that no claim in [claims.toml](claims.toml) covers; \
+         \"part claimed\" means a claim takes some of the family and the count is the free rest. \
+         Each family's gaps are listed in its domain section below.\n\n\
+         ### How to claim an area\n\n\
+         Add a `[[claim]]` to [claims.toml](claims.toml) in your first pull request for the \
+         area: `area`, `owner` (your `@github-handle`), `since` (the date), `domain`, and the \
+         `families`, `ids` or id `prefixes` you are taking; remove it when you stop. \
+         `parity check` rejects unknown families or ids and claims that overlap, so talk to the \
+         owner of a claimed area before working inside it. The rest of the workflow is in \
+         [CONTRIBUTING.md](../../CONTRIBUTING.md).\n\n",
+    );
+    for (rows, entries) in domains {
+        let domain = rows.domain;
+        let headline = domain.headline();
+        let mut free: BTreeMap<&str, Counts> = BTreeMap::new();
+        let mut part_claimed: BTreeSet<&str> = BTreeSet::new();
+        let mut claimed_open = vec![0usize; claims.len()];
+        for row in rows.rows.iter().filter(|r| headline.includes(r)) {
+            let status = entries[&row.id].status;
+            let open = matches!(status, Status::Missing | Status::Partial);
+            match claims::covering(claims, domain, row) {
+                Some(claim) => {
+                    part_claimed.insert(&row.family);
+                    if open {
+                        claimed_open[claim] += 1;
+                    }
+                }
+                None if open => free.entry(&row.family).or_default().add(status),
+                None => {}
+            }
+        }
+        let open = |c: &Counts| c.get(Status::Missing) + c.get(Status::Partial);
+        let mut free: Vec<(&str, Counts)> = free.into_iter().collect();
+        free.sort_by(|(a_name, a), (b_name, b)| {
+            open(b).cmp(&open(a)).then_with(|| a_name.cmp(b_name))
+        });
+        let free_total: usize = free.iter().map(|(_, c)| open(c)).sum();
+        let claimed_total: usize = claimed_open.iter().sum();
+        let _ = writeln!(
+            out,
+            "**{}**: {free_total} open rows free, {claimed_total} claimed.\n",
+            domain.title()
+        );
+        if !free.is_empty() {
+            out.push_str("| Free family | Open | Missing | Partial |\n|---|---:|---:|---:|\n");
+            for (family, counts) in free.iter().take(FREE_FAMILIES_UP_TO) {
+                let note = if part_claimed.contains(family) {
+                    " (part claimed)"
+                } else {
+                    ""
+                };
+                let _ = writeln!(
+                    out,
+                    "| {family}{note} | {} | {} | {} |",
+                    open(counts),
+                    counts.get(Status::Missing),
+                    counts.get(Status::Partial)
+                );
+            }
+            let rest = &free[free.len().min(FREE_FAMILIES_UP_TO)..];
+            if !rest.is_empty() {
+                let mut sum = Counts::default();
+                for (_, counts) in rest {
+                    for status in [Status::Missing, Status::Partial] {
+                        sum.by_status[status as usize] += counts.get(status);
+                    }
+                }
+                let _ = writeln!(
+                    out,
+                    "| {} more families | {} | {} | {} |",
+                    rest.len(),
+                    open(&sum),
+                    sum.get(Status::Missing),
+                    sum.get(Status::Partial)
+                );
+            }
+            out.push('\n');
+        }
+        let mine: Vec<usize> = (0..claims.len())
+            .filter(|&i| claims[i].domain == domain.name())
+            .collect();
+        if mine.is_empty() {
+            out.push_str("Nothing in this domain is claimed.\n\n");
+        } else {
+            out.push_str("| Claimed area | Claimed by | Since | Open |\n|---|---|---|---:|\n");
+            for i in mine {
+                let claim = &claims[i];
+                let _ = writeln!(
+                    out,
+                    "| {} | {} | {} | {} |",
+                    claim.area, claim.owner, claim.since, claimed_open[i]
+                );
+            }
+            out.push('\n');
+        }
+    }
+}
+
 fn render_domain(out: &mut String, rows: &DomainRows, entries: &StatusFile) {
     let domain = rows.domain;
+    let headline = domain.headline();
     let _ = write!(
         out,
         "## {}\n\n{} Status file: [{}.toml]({}.toml).\n\n",
@@ -109,20 +231,26 @@ fn render_domain(out: &mut String, rows: &DomainRows, entries: &StatusFile) {
         domain.name(),
         domain.name()
     );
+    if headline == Headline::SubRows {
+        out.push_str(
+            "The family table and gaps below count sub-rows; top-level rows are counted in the \
+             summary.\n\n",
+        );
+    }
 
     let mut families: BTreeMap<&str, Vec<&Row>> = BTreeMap::new();
-    for row in &rows.rows {
+    for row in rows.rows.iter().filter(|r| headline.includes(r)) {
         families.entry(&row.family).or_default().push(row);
     }
     let has_sub_rows = rows.rows.iter().any(|r| r.parent.is_some());
     let _ = writeln!(out, "| Family | {COUNT_HEADER} |");
     let _ = writeln!(out, "|---|{COUNT_RULE}|");
     for (family, members) in &families {
-        let top = counts(
-            members.iter().copied().filter(|r| r.parent.is_none()),
-            entries,
+        let _ = writeln!(
+            out,
+            "| {family} | {} |",
+            counts(members.iter().copied(), entries).cells()
         );
-        let _ = writeln!(out, "| {family} | {} |", top.cells());
     }
     out.push('\n');
     if has_sub_rows {
@@ -130,7 +258,7 @@ fn render_domain(out: &mut String, rows: &DomainRows, entries: &StatusFile) {
     }
 
     let _ = writeln!(out, "### {} gaps\n", domain.title());
-    if has_sub_rows {
+    if has_sub_rows && headline == Headline::TopLevel {
         out.push_str(
             "Top-level rows only; sub-row gaps are in the status file and rolled up by facet \
              above.\n\n",
@@ -138,10 +266,13 @@ fn render_domain(out: &mut String, rows: &DomainRows, entries: &StatusFile) {
     }
     let mut any = false;
     for (family, members) in &families {
-        let top = || members.iter().copied().filter(|r| r.parent.is_none());
         // Partial rows grouped by identical gap text, largest group first.
         let mut partial: Vec<(&str, Vec<&Row>)> = Vec::new();
-        for row in top().filter(|r| entries[&r.id].status == Status::Partial) {
+        for row in members
+            .iter()
+            .copied()
+            .filter(|r| entries[&r.id].status == Status::Partial)
+        {
             let gaps = entries[&row.id].gaps.as_str();
             match partial.iter_mut().find(|(text, _)| *text == gaps) {
                 Some((_, rows)) => rows.push(row),
@@ -149,7 +280,9 @@ fn render_domain(out: &mut String, rows: &DomainRows, entries: &StatusFile) {
             }
         }
         partial.sort_by_key(|(_, rows)| std::cmp::Reverse(rows.len()));
-        let missing: Vec<&Row> = top()
+        let missing: Vec<&Row> = members
+            .iter()
+            .copied()
             .filter(|r| entries[&r.id].status == Status::Missing)
             .collect();
         if partial.is_empty() && missing.is_empty() {
@@ -246,4 +379,105 @@ fn anchor(title: &str) -> String {
             _ => None,
         })
         .collect()
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::catalog::Domain;
+    use crate::status::Entry;
+
+    fn entry(status: Status) -> Entry {
+        Entry {
+            status,
+            gaps: "something".to_owned(),
+            ..Entry::missing()
+        }
+    }
+
+    fn domain(domain: Domain, rows: Vec<(Row, Status)>) -> (DomainRows, StatusFile) {
+        let entries = rows
+            .iter()
+            .map(|(row, status)| (row.id.clone(), entry(*status)))
+            .collect();
+        let rows = DomainRows::new(domain, rows.into_iter().map(|(row, _)| row).collect());
+        (rows.unwrap(), entries)
+    }
+
+    fn section<'a>(text: &'a str, from: &str, to: &str) -> &'a str {
+        let start = text.find(from).unwrap();
+        let end = start + text[start..].find(to).unwrap();
+        &text[start..end]
+    }
+
+    #[test]
+    fn where_to_help_splits_open_rows_into_free_families_and_claims() {
+        let blocks = domain(
+            Domain::Blocks,
+            vec![
+                (Row::new("minecraft:oak_door", "doors"), Status::Missing),
+                (Row::new("minecraft:iron_door", "doors"), Status::Partial),
+                (Row::new("minecraft:birch_door", "doors"), Status::Done),
+                (Row::new("minecraft:water", "liquids"), Status::Missing),
+                (Row::new("minecraft:allium", "plants"), Status::Partial),
+                (Row::new("minecraft:poppy", "plants"), Status::Missing),
+            ],
+        );
+        let claims = claims::parse(
+            r#"
+            [[claim]]
+            area = "Liquids"
+            owner = "@someone"
+            since = 2026-10-29
+            domain = "blocks"
+            families = ["liquids"]
+            ids = ["minecraft:iron_door"]
+            "#,
+        )
+        .unwrap();
+        let text = render(&[blocks], &claims);
+        let help = section(&text, "**Blocks**", "## Blocks");
+        assert_eq!(
+            help,
+            "**Blocks**: 3 open rows free, 2 claimed.\n\n\
+             | Free family | Open | Missing | Partial |\n|---|---:|---:|---:|\n\
+             | plants | 2 | 1 | 1 |\n\
+             | doors (part claimed) | 1 | 1 | 0 |\n\n\
+             | Claimed area | Claimed by | Since | Open |\n|---|---|---|---:|\n\
+             | Liquids | @someone | 2026-10-29 | 2 |\n\n"
+        );
+    }
+
+    #[test]
+    fn item_registration_rows_are_labelled_and_behaviour_sub_rows_are_the_headline() {
+        let apple = Row::new("minecraft:apple", "food");
+        let stick = Row::new("minecraft:stick", "materials_misc");
+        let items = domain(
+            Domain::Items,
+            vec![
+                (Row::child(&apple, "food"), Status::Partial),
+                (apple, Status::Done),
+                (stick, Status::Done),
+            ],
+        );
+        let text = render(&[items], &[]);
+        let summary = section(&text, "| [Items]", "\n\n");
+        assert_eq!(
+            summary,
+            "| [Items](#items): behaviour sub-rows (food, durability, placement, ...) \
+             | 1 | 0 | 1 | 0 | 0 | 0 | 0.0% |\n\
+             | Items: registered (exists in the registry, no behaviour) \
+             | 2 | 0 | 0 | 2 | 0 | 0 | 100.0% |"
+        );
+        // The family table counts the behaviour sub-row, not the registered items.
+        assert!(
+            text.contains("| food | 1 | 0 | 1 | 0 | 0 | 0 | 0.0% |\n"),
+            "{text}"
+        );
+        assert!(!text.contains("| materials_misc |"), "{text}");
+        assert!(
+            text.contains("**Items**: 1 open rows free, 0 claimed."),
+            "{text}"
+        );
+    }
 }

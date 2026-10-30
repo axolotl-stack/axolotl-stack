@@ -19,7 +19,39 @@ pub enum Domain {
     Systems,
 }
 
+/// Which rows carry a domain's headline numbers: the summary lists them first,
+/// and the family table, gap list and "where to help" count them.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum Headline {
+    TopLevel,
+    SubRows,
+}
+
+impl Headline {
+    pub fn includes(self, row: &Row) -> bool {
+        match self {
+            Headline::TopLevel => row.parent.is_none(),
+            Headline::SubRows => row.parent.is_some(),
+        }
+    }
+}
+
 impl Domain {
+    pub const ALL: [Domain; 7] = [
+        Domain::Entities,
+        Domain::Blocks,
+        Domain::Items,
+        Domain::Commands,
+        Domain::Protocol,
+        Domain::Worldgen,
+        Domain::Systems,
+    ];
+
+    /// The domain whose status file stem is `name`.
+    pub fn from_name(name: &str) -> Option<Domain> {
+        Domain::ALL.into_iter().find(|d| d.name() == name)
+    }
+
     /// File stem under `docs/parity/`.
     pub fn name(self) -> &'static str {
         match self {
@@ -80,6 +112,34 @@ impl Domain {
                 "Cross-cutting gameplay systems with no data source to enumerate them from; this \
                  list is maintained by hand in `crates/parity/src/sources/systems.rs`."
             }
+        }
+    }
+
+    /// Item rows only say the item is registered, so a 100% there says nothing
+    /// about behaviour; the behaviour sub-rows are the items headline.
+    pub fn headline(self) -> Headline {
+        match self {
+            Domain::Items => Headline::SubRows,
+            _ => Headline::TopLevel,
+        }
+    }
+
+    /// Summary label for top-level rows whose meaning is narrower than the
+    /// domain name suggests; `None` when the domain name says it.
+    pub fn top_level_label(self) -> Option<&'static str> {
+        match self {
+            Domain::Entities => Some("actor rows (summon and replication)"),
+            Domain::Items => Some("registered (exists in the registry, no behaviour)"),
+            _ => None,
+        }
+    }
+
+    /// Summary label for sub-rows.
+    pub fn sub_row_label(self) -> &'static str {
+        match self {
+            Domain::Entities => "behaviour sub-rows (components, spawn rules)",
+            Domain::Items => "behaviour sub-rows (food, durability, placement, ...)",
+            _ => "sub-rows",
         }
     }
 }

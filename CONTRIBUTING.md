@@ -6,8 +6,19 @@ crate directories have their own READMEs.
 ## Finding work
 
 [`docs/parity/PARITY.md`](docs/parity/PARITY.md) lists everything vanilla Bedrock 1.26.51
-has and how far `unastar` is with each thing. Pick a `missing` or `partial` row; its `gaps`
-say what is left.
+has and how far `unastar` is with each thing. Its
+[Where to help](docs/parity/PARITY.md#where-to-help) section shows, per domain, the free
+families with the most missing or partial rows and the areas already claimed. Pick a free
+`missing` or `partial` row; its `gaps` say what is left.
+
+## Claiming an area
+
+Add a `[[claim]]` to [`docs/parity/claims.toml`](docs/parity/claims.toml) in your first pull
+request for an area, with your `@github-handle` as `owner`, today's date as `since`, the
+`domain`, and the `families`, `ids` or id `prefixes` you are taking (fields are explained in
+[docs/parity/README.md](docs/parity/README.md#claims)). Remove the claim when you stop
+working on it. `parity check` rejects claims that overlap an existing one; if you want part
+of a claimed area, ask its owner in an issue first.
 
 ## The parity rule
 
