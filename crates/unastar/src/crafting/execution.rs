@@ -302,6 +302,13 @@ pub struct CraftingExecutor {
 /// in the crafting grid (advertised in BDS 1.26.51's `CraftingData`).
 pub const REPAIR_RECIPE_UUID: uuid::Uuid = uuid::Uuid::from_u128(1);
 
+/// The advertised parts of a grid recipe.
+struct WireGrid<'a> {
+    ingredients: &'a [WireIngredient],
+    outputs: &'a [WireResult],
+    tag: &'a str,
+}
+
 impl CraftingExecutor {
     pub fn new(catalog: &CraftingCatalog, items: &ItemRegistry) -> Result<Self, CompileError> {
         let packet = catalog.packet();
@@ -334,9 +341,11 @@ impl CraftingExecutor {
                 catalog,
                 items,
                 id,
-                &recipe.ingredients,
-                &recipe.results,
-                &recipe.tag,
+                WireGrid {
+                    ingredients: &recipe.ingredients,
+                    outputs: &recipe.results,
+                    tag: &recipe.tag,
+                },
                 Layout::Shaped {
                     width,
                     height,
@@ -360,9 +369,11 @@ impl CraftingExecutor {
                 catalog,
                 items,
                 id,
-                &recipe.ingredients,
-                &recipe.results,
-                &recipe.tag,
+                WireGrid {
+                    ingredients: &recipe.ingredients,
+                    outputs: &recipe.results,
+                    tag: &recipe.tag,
+                },
                 Layout::Shapeless {
                     len: recipe.ingredients.len(),
                 },
@@ -418,17 +429,16 @@ impl CraftingExecutor {
         catalog: &CraftingCatalog,
         items: &ItemRegistry,
         id: u32,
-        ingredients: &[WireIngredient],
-        outputs: &[WireResult],
-        tag: &str,
+        wire: WireGrid<'_>,
         layout: Layout,
     ) -> Result<(), CompileError> {
         self.check_id(catalog, id)?;
         let mut compiled = std::array::from_fn(|_| Ingredient::Empty);
-        for (target, ingredient) in compiled.iter_mut().zip(ingredients) {
+        for (target, ingredient) in compiled.iter_mut().zip(wire.ingredients) {
             *target = compile_ingredient(id, ingredient, items)?;
         }
-        let outputs = outputs
+        let outputs = wire
+            .outputs
             .iter()
             .map(|output| compile_output(id, output, items))
             .collect::<Result<Box<[_]>, _>>()?;
@@ -441,7 +451,7 @@ impl CraftingExecutor {
                 layout,
                 outputs,
                 inherits_user_data,
-                tag: tag.into(),
+                tag: wire.tag.into(),
             },
         );
         Ok(())

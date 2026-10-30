@@ -44,20 +44,25 @@
 //! book, any curse refuses the craft, anvil inputs stay in their slots
 //! after a close.
 //!
-//! Enchanting table, stonecutter, loom and cartography table (public
-//! reference, not yet measured): windows `ContainerOpen` type 3, 29, 24 and
-//! 30 (the protocol's container types) listing the station's input slots;
-//! the enchanting table counts bookshelves two blocks out on the table's
-//! level and the one above, each column only when both blocks between it
-//! and the table are air (minecraft.wiki "Enchanting table mechanics",
-//! Bedrock), sends `PlayerEnchantOptions` whenever its input slot changes
-//! (see [`crate::item::enchanting`] for the offers), and an enchant
-//! charges the offer slot's number of levels and replaces the player's
-//! seed. Stonecutter and cartography crafts are the advertised recipes
-//! tagged `stonecutter` / `cartography_table`; filled maps do not exist on
-//! this server, so the cartography table's map multi recipes (clone,
-//! extend, lock) answer like any unsupported recipe. The loom adds one
-//! pattern in the dye's colour to a banner's `Patterns`.
+//! Enchanting table, stonecutter, loom and cartography table, measured on
+//! BDS 1.26.51 (client-diff items3-20261030 `enchanting`, `stations-2`,
+//! `cartography`): windows `ContainerOpen` type 3, 29, 24 and 30 with 2,
+//! 2, 4 and 3 slots; the enchanting table sends `PlayerEnchantOptions`
+//! (before the response) when an enchantable item is put in, and empty
+//! ones before its window opens and whenever the item slot changes to
+//! anything else; an enchant
+//! charges the offer slot's number of levels and lapis and replaces the
+//! player's seed (see [`crate::item::enchanting`] for the offers);
+//! stonecutter and cartography crafts are the advertised recipes tagged
+//! `stonecutter` / `cartography_table`; the loom adds one pattern in the
+//! dye's colour to a banner's `Patterns` and keeps the pattern item.
+//! Filled maps do not exist on this server: the cartography table's map
+//! multi recipes (clone, extend, lock) answer `Invalidcraftresult`, as BDS
+//! did for the request shapes the bot sent. Public reference: bookshelves
+//! count two blocks out on the table's level and the one above, each
+//! column only when both blocks between it and the table are air
+//! (minecraft.wiki "Enchanting table mechanics", Bedrock; the measured
+//! counts with a blocking stone fit).
 
 use bevy_ecs::prelude::*;
 use glam::IVec3;
@@ -442,21 +447,24 @@ pub fn station_of(identifier: &str) -> Option<StationKind> {
     }
 }
 
-/// The UI slots a station window lists, from its first input slot.
-/// Measured for the anvil (1..=3), smithing table (51..=53) and grindstone
-/// (16..=18); the others list their input slots (public reference).
-fn window_slots(kind: StationKind) -> std::ops::Range<usize> {
+/// A station window's content: its UI input slots from the first, then
+/// empty preview slots up to the window size. Measured (BDS 1.26.51):
+/// anvil 1..=3, smithing table 51..=53 and grindstone 16..=18 (three UI
+/// slots each); enchanting table 2 slots, stonecutter 2, loom 4 and
+/// cartography table 3 (client-diff items3-20261030), whose inputs are 1,
+/// 1, 3 and 2 UI slots.
+fn window_slots(kind: StationKind) -> (std::ops::Range<usize>, usize) {
     use super::containers::*;
-    let (first, len) = match kind {
-        StationKind::Anvil => (ANVIL_INPUT_SLOT, 3),
-        StationKind::SmithingTable => (SMITHING_INPUT_SLOT, 3),
-        StationKind::Grindstone => (GRINDSTONE_INPUT_SLOT, 3),
-        StationKind::EnchantingTable => (ENCHANTING_INPUT_SLOT, 2),
-        StationKind::Stonecutter => (STONECUTTER_INPUT_SLOT, 1),
-        StationKind::Loom => (LOOM_BANNER_SLOT, 3),
-        StationKind::CartographyTable => (CARTOGRAPHY_INPUT_SLOT, 2),
+    let (first, inputs, size) = match kind {
+        StationKind::Anvil => (ANVIL_INPUT_SLOT, 3, 3),
+        StationKind::SmithingTable => (SMITHING_INPUT_SLOT, 3, 3),
+        StationKind::Grindstone => (GRINDSTONE_INPUT_SLOT, 3, 3),
+        StationKind::EnchantingTable => (ENCHANTING_INPUT_SLOT, 2, 2),
+        StationKind::Stonecutter => (STONECUTTER_INPUT_SLOT, 1, 2),
+        StationKind::Loom => (LOOM_BANNER_SLOT, 3, 4),
+        StationKind::CartographyTable => (CARTOGRAPHY_INPUT_SLOT, 2, 3),
     };
-    usize::from(first)..usize::from(first) + len
+    (usize::from(first)..usize::from(first) + inputs, size)
 }
 
 /// Station `use`: open its window at the block from the player's window
@@ -478,6 +486,10 @@ pub(in crate::server::game) fn open(
     let Some(session) = world.get::<PlayerSession>(player) else {
         return;
     };
+    // Measured: an enchanting table window is preceded by empty offers.
+    if kind == StationKind::EnchantingTable {
+        let _ = session.send(McpePacket::from(PlayerEnchantOptionsPacket::default()));
+    }
     let _ = session.send(McpePacket::from(ContainerOpenPacket {
         container_id,
         container_type: wire_type(kind) as u8,
@@ -490,23 +502,23 @@ pub(in crate::server::game) fn open(
             actor_unique_id: -1,
         },
     }));
-    // BDS lists the station's UI slots from index 0: empty for a fresh
+    // BDS lists the station's slots from index 0: empty for a fresh
     // window, the kept anvil inputs on a reopen.
     let block_ids = crate::server::game::types::block_network_ids(world);
-    let slots = world
+    let (inputs, size) = window_slots(kind);
+    let mut slots: Vec<_> = world
         .get::<crate::entity::components::PlayerUi>(player)
-        .map_or_else(
-            || vec![Default::default(); window_slots(kind).len()],
-            |ui| {
-                window_slots(kind)
-                    .map(|slot| {
-                        ui.0.item(slot)
-                            .and_then(|stack| super::wire_item(stack, block_ids))
-                            .unwrap_or_default()
-                    })
-                    .collect()
-            },
-        );
+        .map(|ui| {
+            inputs
+                .map(|slot| {
+                    ui.0.item(slot)
+                        .and_then(|stack| super::wire_item(stack, block_ids))
+                        .unwrap_or_default()
+                })
+                .collect()
+        })
+        .unwrap_or_default();
+    slots.resize(size, Default::default());
     let _ = session.send(McpePacket::from(InventoryContentPacket {
         container_id: container_id.into(),
         slots,
@@ -790,10 +802,11 @@ pub fn enchant_options(
 }
 
 /// After a request changed the input slot of the player's enchanting table
-/// at `at` from `before`: send the offers for the new item, unless the
-/// table cannot enchant it. Measured: options follow an item put in (also
-/// the same item again), never a removal, lapis or an enchanted item, and
-/// precede the request's response.
+/// at `at` from `before`: send the offers for the new item, or empty offers
+/// when the table cannot enchant it. Measured: offers follow an item put
+/// in (also the same item again); taking it out, an enchant and an
+/// enchanted item send empty offers; lapis sends nothing; all precede the
+/// request's response; only non-empty offers take network IDs.
 pub(in crate::server::game) fn offer_on_change(
     world: &mut World,
     player: Entity,
@@ -801,36 +814,40 @@ pub(in crate::server::game) fn offer_on_change(
     before: &ItemStack,
 ) {
     let stack = enchanting_input(world, player);
-    if same_slot(before, &stack) || !crate::item::enchanting::can_enchant(&stack) {
+    if same_slot(before, &stack) {
         return;
     }
-    let Some(first_free) = world
-        .get_resource::<crate::server::game::types::CraftingExecutorResource>()
-        .map(|executor| executor.0.next_free_net_id())
-    else {
-        return;
-    };
-    let ids = world
-        .get::<EnchantOptionIds>(player)
-        .copied()
-        .unwrap_or(EnchantOptionIds {
-            next: first_free,
-            current: None,
+    let packet = if crate::item::enchanting::can_enchant(&stack) {
+        let Some(first_free) = world
+            .get_resource::<crate::server::game::types::CraftingExecutorResource>()
+            .map(|executor| executor.0.next_free_net_id())
+        else {
+            return;
+        };
+        let ids = world
+            .get::<EnchantOptionIds>(player)
+            .copied()
+            .unwrap_or(EnchantOptionIds {
+                next: first_free,
+                current: None,
+            });
+        let first = ids.next;
+        world.entity_mut(player).insert(EnchantOptionIds {
+            next: first + 3,
+            current: Some(first),
         });
-    let first = ids.next;
-    world.entity_mut(player).insert(EnchantOptionIds {
-        next: first + 3,
-        current: Some(first),
-    });
-    let Some(table) = enchanting_context(world, player, at) else {
-        return;
+        let Some(table) = enchanting_context(world, player, at) else {
+            return;
+        };
+        enchant_options(
+            &stack,
+            table,
+            &mut world.get_resource_or_init::<EntityRandom>().0,
+        )
+        .expect("the table enchants the item")
+    } else {
+        PlayerEnchantOptionsPacket::default()
     };
-    let packet = enchant_options(
-        &stack,
-        table,
-        &mut world.get_resource_or_init::<EntityRandom>().0,
-    )
-    .expect("the table enchants the item");
     if let Some(session) = world.get::<PlayerSession>(player) {
         let _ = session.send(McpePacket::from(packet));
     }
@@ -1235,7 +1252,12 @@ mod tests {
                 StationKind::CartographyTable,
             ]
             .map(|kind| (wire_type(kind), window_slots(kind))),
-            [(3, 14..16), (29, 3..4), (24, 9..12), (30, 12..14)]
+            [
+                (3, (14..16, 2)),
+                (29, (3..4, 2)),
+                (24, (9..12, 4)),
+                (30, (12..14, 3))
+            ]
         );
         assert_eq!(
             [

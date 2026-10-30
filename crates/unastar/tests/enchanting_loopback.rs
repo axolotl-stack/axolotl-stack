@@ -392,30 +392,36 @@ fn enchant_a_sword_over_loopback() {
             ),
         )
         .await;
-        let (mut done, mut level) = (None, None);
-        recv_until(&mut client, "enchant response and level", |data| {
-            match data {
-                McpePacketData::ItemStackResponsePacket(packet) => {
-                    done = Some(packet.responses[0].clone());
-                }
-                McpePacketData::UpdateAttributesPacket(update) => {
-                    if let Some(value) = update
-                        .attribute_list
-                        .iter()
-                        .find(|a| &*a.name == "minecraft:player.level")
-                        .map(|a| a.current_value)
-                    {
-                        level = Some(value);
+        let (mut emptied, mut done, mut level) = (None, None, None);
+        recv_until(
+            &mut client,
+            "empty offers, enchant response and level",
+            |data| {
+                match data {
+                    McpePacketData::ItemStackResponsePacket(packet) => {
+                        assert!(emptied.is_some(), "empty offers precede the response");
+                        done = Some(packet.responses[0].clone());
                     }
+                    McpePacketData::UpdateAttributesPacket(update) => {
+                        if let Some(value) = update
+                            .attribute_list
+                            .iter()
+                            .find(|a| &*a.name == "minecraft:player.level")
+                            .map(|a| a.current_value)
+                        {
+                            level = Some(value);
+                        }
+                    }
+                    McpePacketData::PlayerEnchantOptionsPacket(options) => {
+                        emptied = Some(options.options.is_empty());
+                    }
+                    _ => {}
                 }
-                McpePacketData::PlayerEnchantOptionsPacket(_) => {
-                    panic!("no new offers after an enchant")
-                }
-                _ => {}
-            }
-            (done.is_some() && level.is_some()).then_some(())
-        })
+                (done.is_some() && level.is_some()).then_some(())
+            },
+        )
         .await;
+        assert_eq!(emptied, Some(true), "the emptied table offers nothing");
         let done = done.unwrap();
         assert_eq!(done.result, EnumsItemStackNetResult::Success);
         assert_eq!(level, Some(30.0 - f32::from(index + 1)));

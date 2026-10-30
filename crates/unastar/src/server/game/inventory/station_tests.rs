@@ -31,12 +31,61 @@ const ANVIL_WEAR: &str = include_str!("testdata/bds-anvil-wear.jsonl");
 const SMITHING: &str = include_str!("testdata/bds-smithing-table.jsonl");
 const GRINDSTONE: &str = include_str!("testdata/bds-grindstone.jsonl");
 const GRINDSTONE_PROBE: &str = include_str!("testdata/bds-grindstone-probe.jsonl");
+const ENCHANTING: &str = include_str!("testdata/bds-enchanting.jsonl");
+const ENCHANTING_SEED2: &str = include_str!("testdata/bds-enchanting-seed2.jsonl");
+const STATIONS: &str = include_str!("testdata/bds-stations.jsonl");
+const CARTOGRAPHY: &str = include_str!("testdata/bds-cartography.jsonl");
 
-/// BDS's own recipe network IDs in the smithing capture (its CraftingData).
+/// BDS's own recipe network IDs in the captures (its CraftingData).
 const BDS_SMITHING_RECIPES: &[(u32, &str)] = &[
     (1567, "minecraft:smithing_netherite_sword"),
     (1558, "minecraft:smithing_armor_trim"),
 ];
+const BDS_STATION_RECIPES: &[(u32, &str, &str)] = &[
+    (909, "minecraft:stonecutter_stonebrick", "stonecutter"),
+    (982, "minecraft:stonecutter_stonebrick_slab", "stonecutter"),
+    (1172, "minecraft:cartography_table_map", "cartography_table"),
+];
+/// BDS's multi recipe network IDs and UUIDs.
+const BDS_MULTI_RECIPES: &[(u32, &str)] = &[
+    (4755, "b5c5d105-75a2-4076-af2b-923ea2bf4bf0"),
+    (4756, "d81aaeaf-e172-4440-9225-868df030d27b"),
+    (4757, "00000000-0000-0000-0000-0000000000c8"),
+    (4758, "00000000-0000-0000-0000-000000000002"),
+    (4759, "85939755-ba10-4d9d-a4cc-efb7a8e943c4"),
+    (4760, "442d85ed-8272-4543-a6f1-418f90ded05d"),
+    (4761, "d392b075-4ba1-40ae-8789-af868d56f6ce"),
+    (4762, "8b36268c-1829-483c-a0f1-993b7156a8f2"),
+    (4763, "602234e4-cac1-4353-8bb7-b1ebff70024b"),
+    (4764, "aecd2294-4b94-434b-8667-4499bb2c9327"),
+    (4765, "98c84b38-1085-46bd-b1ce-dd38c159e6cc"),
+    (4766, "00000000-0000-0000-0000-000000000001"),
+    (4767, "d1ca6b84-338e-4f2f-9c6b-76cc8b4bd98d"),
+    (4768, "685a742a-c42e-4a4e-88ea-5eb83fc98e5b"),
+];
+
+/// Our network ID of BDS recipe `bds`.
+fn our_recipe(bds: u32) -> u32 {
+    if let Some((_, identifier)) = BDS_SMITHING_RECIPES.iter().find(|(id, _)| *id == bds) {
+        return smithing_recipe_id(identifier);
+    }
+    if let Some((_, identifier, tag)) = BDS_STATION_RECIPES.iter().find(|(id, ..)| *id == bds) {
+        return tagged_recipe(identifier, tag);
+    }
+    let (_, uuid) = BDS_MULTI_RECIPES
+        .iter()
+        .find(|(id, _)| *id == bds)
+        .unwrap_or_else(|| panic!("captured recipe {bds}"));
+    let uuid: uuid::Uuid = uuid.parse().unwrap();
+    super::test_support::CRAFTING
+        .0
+        .packet()
+        .multi_recipes
+        .iter()
+        .find(|recipe| recipe.multi_recipe_uuid == uuid)
+        .map(|recipe| recipe.net_id.raw_id)
+        .unwrap_or_else(|| panic!("multi recipe {uuid} is advertised"))
+}
 
 /// Our network ID of the advertised smithing recipe `identifier`.
 fn smithing_recipe_id(identifier: &str) -> u32 {
@@ -65,8 +114,21 @@ struct Replayed {
     anvil_events: Vec<i32>,
     /// Inventory stacks whose NBT we compared with BDS's resend.
     compared_stacks: usize,
+    /// Of those, enchanted ones (their `ench` lists come from different
+    /// random draws, so only their presence is compared).
+    enchanted_stacks: usize,
     /// Total XP of the orbs BDS spawned.
     orb_xp: u32,
+    /// Every response status, in order.
+    statuses: Vec<Status>,
+}
+
+/// An item's NBT without its `ench` list.
+fn without_ench(stack: &ItemStack) -> Option<zuri_nbt::tag::Compound> {
+    item_tag(stack).map(|mut tag| {
+        tag.0.remove("ench");
+        tag
+    })
 }
 
 fn level_of(packet: &jolyne::valentine::UpdateAttributesPacket) -> Option<i32> {
@@ -78,9 +140,14 @@ fn level_of(packet: &jolyne::valentine::UpdateAttributesPacket) -> Option<i32> {
 }
 
 /// Replay one station capture: every request through the engine, every
-/// response compared with BDS's, every anvil level charge compared with
-/// BDS's level update, and every inventory stack BDS resends unchanged
-/// compared with ours (item, count and NBT).
+/// response compared with BDS's, every anvil and enchant level charge
+/// compared with BDS's level update, and every inventory stack BDS resends
+/// unchanged compared with ours (item, count and NBT).
+///
+/// Enchanting offers come from our own random draw, so an enchant request
+/// names BDS's offer slot (from its last `PlayerEnchantOptions`) and runs
+/// with a seed whose offer in that slot enchants the item; the applied
+/// enchantments themselves are not compared.
 fn replay(capture: &str) -> Replayed {
     let mut main = Inventory::new(36);
     let mut armor = ArmourInventory::default();
@@ -97,6 +164,7 @@ fn replay(capture: &str) -> Replayed {
     let mut ids = IdMap::default();
     let mut screen = ScreenKind::None;
     let mut levels = 0;
+    let mut bds_first_option = None;
     let mut expected_level = None;
     let mut pending: Option<(i32, Outcome)> = None;
     let mut seen = Replayed::default();
@@ -112,6 +180,10 @@ fn replay(capture: &str) -> Replayed {
                     5 => StationKind::Anvil,
                     33 => StationKind::SmithingTable,
                     26 => StationKind::Grindstone,
+                    3 => StationKind::EnchantingTable,
+                    29 => StationKind::Stonecutter,
+                    24 => StationKind::Loom,
+                    30 => StationKind::CartographyTable,
                     other => panic!("seq {seq}: window type {other}"),
                 };
                 let at = IVec3::new(open.position.x, open.position.y, open.position.z);
@@ -133,7 +205,13 @@ fn replay(capture: &str) -> Replayed {
                         let context = format!("seq {seq} slot {slot}");
                         assert_eq!(ours.item_id(), theirs.item_id(), "{context}");
                         assert_eq!(ours.count, theirs.count, "{context}");
-                        assert_eq!(item_tag(ours), item_tag(&theirs), "{context}: NBT");
+                        assert_eq!(without_ench(ours), without_ench(&theirs), "{context}: NBT");
+                        let (a, b) = (
+                            crate::item::enchant::enchantments(ours),
+                            crate::item::enchant::enchantments(&theirs),
+                        );
+                        assert_eq!(a.is_empty(), b.is_empty(), "{context}: ench");
+                        seen.enchanted_stacks += usize::from(!a.is_empty());
                         seen.compared_stacks += 1;
                     }
                 }
@@ -151,9 +229,16 @@ fn replay(capture: &str) -> Replayed {
             {
                 if let Some(level) = level_of(&update) {
                     if let Some(expected) = expected_level.take() {
-                        assert_eq!(level, expected, "seq {seq}: level after the anvil");
+                        assert_eq!(level, expected, "seq {seq}: level after the station use");
                     }
                     levels = level;
+                }
+            }
+            McpePacketData::PlayerEnchantOptionsPacket(options) => {
+                // Empty offers (window open, item taken out) name nothing.
+                if let Some(first) = options.options.first() {
+                    assert_eq!(options.options.len(), 3, "seq {seq}");
+                    bds_first_option = Some(first.enchant_net_id.raw_id);
                 }
             }
             McpePacketData::LevelEventPacket(event)
@@ -178,13 +263,33 @@ fn replay(capture: &str) -> Replayed {
             McpePacketData::ItemStackRequestPacket(packet) => {
                 assert_eq!(packet.requests.len(), 1);
                 let mut request = packet.requests[0].clone();
+                let mut enchanting = None;
                 for action in &mut request.actions {
                     if let Action::CraftRecipeActionData(craft) = action {
-                        let (_, identifier) = BDS_SMITHING_RECIPES
-                            .iter()
-                            .find(|(bds, _)| *bds == craft.recipe_net_id.raw_id)
-                            .expect("captured smithing recipe");
-                        craft.recipe_net_id.raw_id = smithing_recipe_id(identifier);
+                        let bds = craft.recipe_net_id.raw_id;
+                        if let ScreenKind::Station(StationScreen {
+                            kind: StationKind::EnchantingTable,
+                            ..
+                        }) = screen
+                        {
+                            let slot = bds - bds_first_option.expect("offers before an enchant");
+                            let input = stores.ui.item(14).unwrap().clone();
+                            let seed = (0..1000)
+                                .find(|seed| {
+                                    crate::item::enchanting::offers(&input, 15, *seed).is_some_and(
+                                        |offers| !offers[slot as usize].enchantments.is_empty(),
+                                    )
+                                })
+                                .expect("a seed whose offer enchants");
+                            enchanting = Some(super::engine::EnchantingContext {
+                                seed,
+                                bookshelves: 15,
+                                first_option_id: OPTION_BASE,
+                            });
+                            craft.recipe_net_id.raw_id = OPTION_BASE + slot;
+                        } else {
+                            craft.recipe_net_id.raw_id = our_recipe(bds);
+                        }
                     }
                 }
                 translate(&mut request, &ids);
@@ -197,7 +302,7 @@ fn replay(capture: &str) -> Replayed {
                     crafting: &super::test_support::CRAFTING.1,
                     items: &VANILLA,
                     levels,
-                    enchanting: None,
+                    enchanting,
                 };
                 let outcome = process(&request, &mut stores, &mut cache, &ctx);
                 pending = Some((request.client_request_id.id, outcome));
@@ -209,9 +314,14 @@ fn replay(capture: &str) -> Replayed {
                 let context = format!("seq {seq} request {id}");
                 let ours = outcome.response.expect("negative odd IDs are answered");
                 assert_response(bds, ours, &mut ids, &context);
+                seen.statuses.push(bds.result);
                 if let Some(used) = outcome.station {
-                    if let StationUse::Anvil { cost } = used {
-                        expected_level = Some(levels - cost);
+                    match used {
+                        StationUse::Anvil { cost: spent }
+                        | StationUse::Enchant { levels: spent } => {
+                            expected_level = Some(levels - spent);
+                        }
+                        _ => {}
                     }
                     seen.uses.push(used);
                 }
@@ -222,7 +332,7 @@ fn replay(capture: &str) -> Replayed {
     }
     assert!(
         expected_level.is_none(),
-        "every anvil use updates the level"
+        "every anvil use and enchant updates the level"
     );
     seen
 }
@@ -293,6 +403,69 @@ fn grindstone_answers_like_bds() {
     let low = grindstone_xp(enchantment_value, |_| 0);
     let high = grindstone_xp(enchantment_value, |half| half - 1);
     assert!((low..=high).contains(&16), "{low}..={high}");
+}
+
+fn enchant_levels(seen: &Replayed) -> Vec<i32> {
+    seen.uses
+        .iter()
+        .filter_map(|used| match used {
+            StationUse::Enchant { levels } => Some(*levels),
+            _ => None,
+        })
+        .collect()
+}
+
+#[test]
+fn enchanting_table_answers_like_bds() {
+    // Both player seeds: the sword with offer 3 (3 levels, 3 lapis), the
+    // book with offer 1, and a level 2 player refused offer 3 (status 39).
+    for capture in [ENCHANTING, ENCHANTING_SEED2] {
+        let seen = replay(capture);
+        assert_eq!(enchant_levels(&seen), [3, 1], "{seen:?}");
+        assert!(
+            seen.statuses
+                .contains(&Status::Insufficientplayerleveltoenchant),
+            "{seen:?}"
+        );
+        assert!(seen.responses > 40, "{seen:?}");
+        assert!(seen.enchanted_stacks > 0, "{seen:?}");
+    }
+}
+
+#[test]
+fn stonecutter_loom_and_cartography_table_answer_like_bds() {
+    let seen = replay(STATIONS);
+    // Stone bricks, a two-slab craft, two loom patterns (the flower keeps
+    // its pattern item) and paper made into an empty map.
+    assert_eq!(seen.uses, [StationUse::Crafted; 5], "{seen:?}");
+    assert!(
+        seen.statuses
+            .iter()
+            .all(|status| *status == Status::Success),
+        "{seen:?}"
+    );
+    assert!(seen.compared_stacks > 0, "{seen:?}");
+}
+
+#[test]
+fn cartography_map_recipes_make_nothing_like_bds() {
+    // A filled map with paper, an empty map or a glass pane under the map
+    // multi recipes: nothing is made (status 9), the moves around them
+    // succeed.
+    let seen = replay(CARTOGRAPHY);
+    assert!(seen.uses.is_empty(), "{seen:?}");
+    let refused = seen
+        .statuses
+        .iter()
+        .filter(|status| **status == Status::Invalidcraftresult)
+        .count();
+    assert!(refused >= 7, "{seen:?}");
+    assert!(
+        seen.statuses
+            .iter()
+            .all(|status| matches!(status, Status::Invalidcraftresult | Status::Success)),
+        "{seen:?}"
+    );
 }
 
 // ── Engine rules ────────────────────────────────────────────────────────────
@@ -1385,13 +1558,16 @@ mod world {
             let player = h.player;
             stations::open(h.world(), player, at, StationKind::EnchantingTable);
             let open = h.packets();
+            // Measured: empty offers precede the window.
             let [
+                McpePacketData::PlayerEnchantOptionsPacket(empty),
                 McpePacketData::ContainerOpenPacket(window),
                 McpePacketData::InventoryContentPacket(content),
             ] = &open[..]
             else {
                 panic!("{open:?}");
             };
+            assert!(empty.options.is_empty());
             assert_eq!((window.container_type, content.slots.len()), (3, 2));
 
             let sword = stack("minecraft:iron_sword", 1);
@@ -1477,7 +1653,8 @@ mod world {
                 &[],
             );
             let packets = h.packets();
-            // Measured: only the level attribute follows; no new offers.
+            // Measured: empty offers precede the response, only the level
+            // attribute follows.
             assert_eq!(
                 kinds(&packets),
                 [
@@ -1485,11 +1662,10 @@ mod world {
                     "attributes [(\"minecraft:player.level\", 999.0)]".to_string()
                 ]
             );
-            assert!(
-                !packets
-                    .iter()
-                    .any(|p| matches!(p, McpePacketData::PlayerEnchantOptionsPacket(_)))
-            );
+            let Some(McpePacketData::PlayerEnchantOptionsPacket(emptied)) = packets.first() else {
+                panic!("{packets:?}");
+            };
+            assert!(emptied.options.is_empty());
             let world = h.world();
             assert_ne!(
                 world.get::<Experience>(player).unwrap().enchantment_seed,

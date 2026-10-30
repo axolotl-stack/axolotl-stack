@@ -884,11 +884,14 @@ impl Request<'_, '_> {
     ) -> Result<(), Status> {
         let executor = self.ctx.crafting;
         if executor.station_tag(net_id) != Some(tag) {
-            // Unknown and non-grid IDs keep the grid's statuses.
-            executor
-                .requires_3x3(net_id)
-                .map_err(|error| GridCraftError::Validation(error).status())?;
-            return Err(WRONG_STATION_RECIPE);
+            return Err(match executor.requires_3x3(net_id) {
+                Err(ValidationError::UnknownRecipe(_)) => Status::Failedtofindrecipebynetid,
+                // Multi recipes (the cartography table's map clone, extend
+                // and lock): BDS answered `Invalidcraftresult` (client-diff
+                // items3-20261030 `cartography`).
+                Err(_) => STATION_NO_RESULT,
+                Ok(_) => WRONG_STATION_RECIPE,
+            });
         }
         let grid = CraftingGrid::Inventory(std::array::from_fn(|index| {
             slots.get(index).map_or(&EMPTY, |slot| {
@@ -1087,14 +1090,16 @@ impl Request<'_, '_> {
             item_stack_net_id: (!stack.is_empty())
                 .then_some(TypedServerNetIdstructItemStackNetIdTagint32T0 { id: stack.net_id }),
             // BDS reports a durable item's wear (`Damage`), not its aux
-            // value: 100 for a sword given with data 100 (smithing-table).
+            // value: 100 for a sword given with data 100 (smithing-table),
+            // and 0 for other items: a white banner (aux 15) reported 0
+            // (client-diff items3-20261030 `stations-2`).
             durability_correction: if stack
                 .item()
                 .is_some_and(|item| super::super::durability::max_durability(item) > 0)
             {
                 crate::item::enchant::durability_damage(stack)
             } else {
-                i32::from(stack.damage)
+                0
             },
             custom_name: BedrockSafetyRedactableString {
                 unredacted: crate::item::enchant::custom_name(stack)
@@ -1775,7 +1780,9 @@ mod regressions {
         let response = outcome.response.unwrap().containers.unwrap();
         assert_eq!(response[0].slots[0].custom_name.unredacted, "Named stone");
         assert_eq!(response[0].slots[1].custom_name.unredacted, "Named stone");
-        assert_eq!(response[0].slots[1].durability_correction, 3);
+        // Non-durable items report no durability, whatever their aux
+        // (measured with a white banner, aux 15).
+        assert_eq!(response[0].slots[1].durability_correction, 0);
         h.main
             .set_item(2, source.with_count(63).with_net_id(0))
             .unwrap();
