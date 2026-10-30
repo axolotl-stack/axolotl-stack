@@ -1,0 +1,63 @@
+{
+  "format": 1,
+  "server_version": "1.26.51",
+  "protocol_version": 2193,
+  "captured_at": "unix:1793287313",
+  "source": "client-diff scenarios item-use-tridents, item-use-throwables and item-use-lingering (run item-use-2-20261029); splash_potion is observed by the operator summon capture instead",
+  "files": [
+    {
+      "path": "spawns/thrown_trident.bin",
+      "bytes": 418,
+      "sha256": "ebb4dfdd39f1b433e15c25579131eb383e1b81f9d160d7035152f9505222bbb5",
+      "packet": "AddActorPacket",
+      "seq": 318
+    },
+    {
+      "path": "spawns/ender_pearl.bin",
+      "bytes": 407,
+      "sha256": "d7b38aac7fa214d4cfdff591bc44c33bdb0bf92b9e7b7f16efb1288a6201e415",
+      "packet": "AddActorPacket",
+      "seq": 1257
+    },
+    {
+      "path": "spawns/lingering_potion.bin",
+      "bytes": 421,
+      "sha256": "73bf5084dd415cc97ba3e3f583e24fbe9ee9a7b865567a774e50d427cc044d9e",
+      "packet": "AddActorPacket",
+      "seq": 305
+    },
+    {
+      "path": "spawns/area_effect_cloud.bin",
+      "bytes": 468,
+      "sha256": "3dd2603a5cf4812ab35c4b327018e514a008ead38a2b41c31d3838123088464d",
+      "packet": "AddActorPacket",
+      "seq": 320
+    }
+  ],
+  "spawns": [
+    {
+      "identifier": "minecraft:thrown_trident",
+      "actor_type": "minecraft:thrown_trident",
+      "scenario": "item-use-tridents",
+      "seq": 318
+    },
+    {
+      "identifier": "minecraft:ender_pearl",
+      "actor_type": "minecraft:ender_pearl",
+      "scenario": "item-use-throwables",
+      "seq": 1257
+    },
+    {
+      "identifier": "minecraft:lingering_potion",
+      "actor_type": "minecraft:lingering_potion",
+      "scenario": "item-use-lingering",
+      "seq": 305
+    },
+    {
+      "identifier": "minecraft:area_effect_cloud",
+      "actor_type": "minecraft:area_effect_cloud",
+      "scenario": "item-use-lingering",
+      "seq": 320
+    }
+  ]
+}

@@ -50,6 +50,7 @@
 //! [`flight`] moves and collides, [`hit`] runs the `on_hit` effects,
 //! [`pickup`] hands stuck projectiles' items to players.
 
+pub mod cloud;
 pub mod config;
 pub mod flight;
 pub mod hit;
@@ -58,6 +59,7 @@ pub mod pickup;
 
 use bevy_ecs::prelude::*;
 
+pub use cloud::tick_clouds;
 pub(crate) use config::check_spawns;
 pub use config::{
     ImpactDamage, OnSpawn, ParticleOnHit, ProjectileConfig, ProjectileError, ProjectileRules,
@@ -92,16 +94,51 @@ pub struct Stuck {
     pub since: u64,
 }
 
+/// The potion a thrown potion or tipped arrow carries (its aux value).
+#[derive(Component, Debug, Clone, Copy, PartialEq, Eq)]
+pub struct ProjectilePotion(pub i16);
+
+/// Give a just-launched projectile its potion and show it to clients, as
+/// BDS 1.26.51 does: thrown potions carry the potion aux in actor data
+/// `AUX_VALUE_DATA`, tipped arrows their arrow aux (potion + 1) in
+/// `CUSTOM_DISPLAY`.
+pub fn carry_potion(world: &mut World, projectile: Entity, potion: i16, arrow: bool) {
+    use jolyne::valentine::actor_data_i_ds as ids;
+    let mut entity = world.entity_mut(projectile);
+    entity.insert(ProjectilePotion(potion));
+    if let Some(mut metadata) =
+        entity.get_mut::<crate::entity::definition::metadata::EntityMetadata>()
+    {
+        if arrow {
+            metadata.set_byte(ids::CUSTOM_DISPLAY, (potion + 1) as i8);
+        } else {
+            metadata.set_short(ids::AUX_VALUE_DATA, potion);
+        }
+    }
+}
+
+/// Impaling level of a thrown trident: 2.5 extra damage per level to an
+/// actor in water (BDS 1.26.51: a drowned in water dies to an Impaling V
+/// trident, one on land takes no bonus).
+#[derive(Component, Debug, Clone, Copy, PartialEq, Eq)]
+pub struct Impaling(pub u8);
+
+/// A projectile that hurt an actor (`stop_on_hurt`); a Loyalty trident
+/// starts its return from here.
+#[derive(Component, Debug, Clone, Copy, PartialEq, Eq)]
+#[component(storage = "SparseSet")]
+pub struct DealtDamage;
+
+/// A Loyalty trident flying back to its owner: moved by its owner's return
+/// rule, not by flight, so it neither collides nor falls.
+#[derive(Component, Debug, Clone, Copy, PartialEq, Eq)]
+#[component(storage = "SparseSet")]
+pub struct Returning;
+
 /// The item a player gets back by walking into the stuck projectile
 /// (arrows shot and tridents thrown in survival).
 #[derive(Component, Debug, Clone, PartialEq)]
 pub struct ProjectileItem(pub crate::item::ItemStack);
-
-/// The tipped-arrow data a projectile carries (its shooter's `aux_val`,
-/// replicated as `CUSTOM_DISPLAY`): the potion id plus one. Its
-/// `arrow_effect` applies that potion to the actor it hits.
-#[derive(Component, Debug, Clone, Copy, PartialEq, Eq)]
-pub struct ProjectilePotion(pub i8);
 
 /// Players that used a throwable item this tick (queued by the inventory
 /// system, thrown by [`apply_throws`]).

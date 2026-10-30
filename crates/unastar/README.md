@@ -728,9 +728,13 @@ come from data: food values, effects, `using_converts_to` and use durations
 from the pack's `minecraft:food`/`use_modifiers` (or the native
 `maxUseDuration`), durability from `minecraft:durability` or the native
 `maxDamage`, exhaustion from `player.json` `exhaustion_values`, block
-conversions from registered block names. Evidence: the BDS 1.26.51 capture
-`tools/client-diff/runs/item-use-20261029` (client-diff `item-use-*`
-scenarios); "public reference" rows are not measured yet and are listed in
+conversions from registered block names, potion effects from
+`unastar-data/data/measured/potion_effects.json`. Evidence: the BDS 1.26.51
+captures `tools/client-diff/runs/item-use-20261029` and
+`item-use-2-20261029` (client-diff `item-use-*` scenarios; the `AddActor`
+shapes of thrown tridents, ender pearls, lingering potions and area effect
+clouds are retained under `bds-extractor/captures/1.26.51/items`); "public
+reference" rows are not measured yet and are listed in
 `thoughts/shared/research/bds-quirks.md`.
 
 | Behaviour | Status | Evidence |
@@ -745,20 +749,33 @@ scenarios); "public reference" rows are not measured yet and are listed in
 | Player effects (regeneration, poison, wither, hunger, saturation, absorption, instant health) and `MobEffect` packets | done | stew/golden apple captures; BDS sends a duplicate modify after a stew effect, not copied |
 | Tool wear: mining, melee (sword 1, other tools 2), bow and crossbow shots, Unbreaking, break sound | done | public reference |
 | Armour wear when hurt (`max(1, damage/4)` per piece) | done | public reference |
-| Grid repair (multi recipe `...0001`) | not done | BDS advertises it; result rule unmeasured |
+| Grid repair (multi recipe `...0001`): two of one durable item, remaining durability + 5 % of the maximum, enchantments dropped | done | BDS capture (wooden pickaxe 30 + 40 -> 9) |
 | Hoe, shovel, axe (strip, wax off, scrape), shears on pumpkins, flint and steel, fire charges | done | public reference; sound names unmeasured |
-| Bone meal on crops, stems, berry bushes and grass | done | public reference; saplings (tree features) and flowers not done |
+| Bone meal on crops, stems, berry bushes and grass | done | public reference; flowers not done |
+| Bone meal on saplings | not done | the tree features exist only in the `bedrock-worldgen` generator (needs a BDS install at build time) and have no block-world adapter |
 | Buckets: take and place water, lava, powder snow | done | public reference; liquids do not flow, fish/axolotl buckets not done |
 | Bow, crossbow, snowball, egg | done | capture (speeds 3.0/3.15/1.5, sounds); draw curve and spread are public references |
 | Stuck arrows: shake, pickup, despawn after 1200 ticks | done | capture (shake event); lifetime is a public reference |
-| Ender pearls | not done | needs `teleport_owner` and the endermite archetype (entity lane) |
-| Tridents | not done | `minecraft:thrown_trident` lacks a measured `AddActor` shape |
-| Potions, splash potions, tipped arrows | not done | potion effect table not measured |
+| Ender pearls: 20-tick cooldown, teleport to the landing point on the ground, particles 2013 and sound 1032 at both ends, 5 fall damage | done | BDS capture; never spawns an endermite (no endermite archetype yet) |
+| Tridents: draw >= 10 ticks, throw at power 4 with one durability, stick and pickup, enchanted glint flag | done | BDS capture |
+| Loyalty: returns ~6 ticks after landing or after a hit, return flag and sound, `v x 0.95 + 0.05 x level` towards the owner, caught on touch | done | BDS capture (speeds match the rule) |
+| Riptide | partial | in water only (no weather); launch speed `3(1+level)/4` and sound measured; BDS moves the player with `CorrectPlayerMovePrediction` and sets the spin flag for 19 ticks, this server pushes with `SetActorMotion` and sends no spin state |
+| Impaling: +2.5 per level against actors in water | done | BDS capture (drowned in water killed, on land no bonus); exact value is a public reference |
+| Channeling | not done | no lightning |
+| Drinking potions 0-46: effects, durations, amplifiers, instant health/damage, glass bottle, `CompletedUsingItem` 3, `bottle.empty` | done | BDS capture of every potion |
+| Splash potions: potion aux in actor data, splash level event 2002 with the potion colour, `1 - d/4` by distance to the actor's feet square, water puts out fire | done | BDS capture (feet, sideways and diagonal distances); colours of mixed effects are a public reference |
+| Lingering potions and area effect clouds: radius 3, a quarter duration every 40 ticks per actor, radius -0.5 per use, gone after 600 ticks | done | BDS capture; instant effects at half strength are a public reference |
+| Tipped arrows: arrow aux in actor data, an eighth of the potion on hit, bows and crossbows shoot them | done | BDS capture (shape); the 1/8 duration is a public reference |
 | Player death from starvation or arrows | not done | entity lane (player death and respawn) |
+| Smithing table: netherite upgrade keeps the input's data, armour trims add `Trim {Material, Pattern}`, the template is consumed | done | BDS capture (client-diff `blocks-20261029`); trim ids are a public reference |
+| Anvil: rename (1 level, no prior-work raise), repair with material, combine two items, enchantment merging with books, prior-work penalty, "Too Expensive" at 40 levels (creative exempt), level charge, wear with level events 1021 (use) / 1020 (break) | done | BDS capture of every cost in the scenarios; enchantment table, repair materials, 12 % wear chance and combine bonuses are public references |
+| Grindstone: strips non-curse enchantments (books become plain books), refuses cursed items, combines two items, `RepairCost` 0, XP as orbs at the eyes | done | BDS capture; the XP formula is a public reference (measured totals fall in its range) |
+| Falling anvils hurting entities | not done | measured only: landing level event 1022, 2 damage per block fallen (8 to a player, 9.84 to an armoured zombie) |
 
 The loopback test `tests/item_use_loopback.rs` eats an apple, mines stone
-with an iron pickaxe and shoots a cow with a bow through a real client
-(take the native lock to run it).
+with an iron pickaxe, shoots a cow with a bow, throws an ender pearl and is
+teleported, then drinks a night vision potion through a real client (take
+the native lock to run it).
 
 
 ## Plugin Isolation

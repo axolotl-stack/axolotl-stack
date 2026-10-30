@@ -259,19 +259,51 @@ impl Recipe {
     }
 }
 
+/// A smithing-table recipe: one template, one base and one addition.
+#[derive(Debug)]
+struct Smithing {
+    template: Ingredient,
+    base: Ingredient,
+    addition: Ingredient,
+    /// The transform result template; `None` for a trim.
+    result: Option<ItemStack>,
+}
+
+/// What a matched smithing recipe makes.
+#[derive(Debug, Clone, Copy)]
+pub enum SmithingPlan<'a> {
+    /// The result item, carrying the base's user data.
+    Transform(&'a ItemStack),
+    /// The base with a trim from the template and addition.
+    Trim,
+}
+
 /// Startup-compiled execution index for exactly the IDs advertised by a catalog.
 #[derive(Debug)]
 pub struct CraftingExecutor {
     recipes: HashMap<u32, Recipe>,
+    smithing: HashMap<u32, Smithing>,
     non_grid: HashSet<u32>,
+    /// Network id of the advertised item-repair multi recipe.
+    repair: Option<u32>,
 }
+
+/// UUID of the multi recipe that repairs two damaged items of the same kind
+/// in the crafting grid (advertised in BDS 1.26.51's `CraftingData`).
+pub const REPAIR_RECIPE_UUID: uuid::Uuid = uuid::Uuid::from_u128(1);
 
 impl CraftingExecutor {
     pub fn new(catalog: &CraftingCatalog, items: &ItemRegistry) -> Result<Self, CompileError> {
         let packet = catalog.packet();
         let mut executor = Self {
             recipes: HashMap::new(),
+            smithing: HashMap::new(),
             non_grid: HashSet::new(),
+            repair: packet
+                .multi_recipes
+                .iter()
+                .find(|r| r.multi_recipe_uuid == REPAIR_RECIPE_UUID)
+                .map(|r| r.net_id.raw_id),
         };
         for recipe in &packet.shaped_recipes {
             let id = recipe.net_id.raw_id;
@@ -324,18 +356,29 @@ impl CraftingExecutor {
                 },
             )?;
         }
-        for id in packet
-            .multi_recipes
-            .iter()
-            .map(|r| r.net_id.raw_id)
-            .chain(
-                packet
-                    .smithing_transform_recipes
-                    .iter()
-                    .map(|r| r.net_id.raw_id),
-            )
-            .chain(packet.smithing_trim_recipes.iter().map(|r| r.net_id.raw_id))
-        {
+        for recipe in &packet.smithing_transform_recipes {
+            let id = recipe.net_id.raw_id;
+            executor.check_id(catalog, id)?;
+            let smithing = Smithing {
+                template: compile_ingredient(id, &recipe.template_ingredient, items)?,
+                base: compile_ingredient(id, &recipe.base_ingredient, items)?,
+                addition: compile_ingredient(id, &recipe.addition_ingredient, items)?,
+                result: Some(compile_output(id, &recipe.result, items)?),
+            };
+            executor.smithing.insert(id, smithing);
+        }
+        for recipe in &packet.smithing_trim_recipes {
+            let id = recipe.net_id.raw_id;
+            executor.check_id(catalog, id)?;
+            let smithing = Smithing {
+                template: compile_ingredient(id, &recipe.template_ingredient, items)?,
+                base: compile_ingredient(id, &recipe.base_ingredient, items)?,
+                addition: compile_ingredient(id, &recipe.addition_ingredient, items)?,
+                result: None,
+            };
+            executor.smithing.insert(id, smithing);
+        }
+        for id in packet.multi_recipes.iter().map(|r| r.net_id.raw_id) {
             executor.check_id(catalog, id)?;
             executor.non_grid.insert(id);
         }
@@ -349,7 +392,10 @@ impl CraftingExecutor {
                 "advertised network ID has no catalog origin",
             ));
         }
-        if self.recipes.contains_key(&id) || self.non_grid.contains(&id) {
+        if self.recipes.contains_key(&id)
+            || self.smithing.contains_key(&id)
+            || self.non_grid.contains(&id)
+        {
             return Err(compile_error(id, "duplicate advertised network ID"));
         }
         Ok(())
@@ -386,7 +432,7 @@ impl CraftingExecutor {
 
     fn recipe(&self, net_id: u32) -> Result<&Recipe, ValidationError> {
         self.recipes.get(&net_id).ok_or_else(|| {
-            if self.non_grid.contains(&net_id) {
+            if self.non_grid.contains(&net_id) || self.smithing.contains_key(&net_id) {
                 ValidationError::UnsupportedRecipe(net_id)
             } else {
                 ValidationError::UnknownRecipe(net_id)
@@ -395,6 +441,41 @@ impl CraftingExecutor {
     }
 
     /// Dimensional requirement only: station tag is NOT a grid-screen check.
+    /// Whether `net_id` is the item-repair multi recipe.
+    pub fn is_repair(&self, net_id: u32) -> bool {
+        self.repair == Some(net_id)
+    }
+
+    /// Whether `net_id` is an advertised smithing recipe.
+    pub fn is_smithing(&self, net_id: u32) -> bool {
+        self.smithing.contains_key(&net_id)
+    }
+
+    /// Match the smithing table's template, base and addition slots against
+    /// smithing recipe `net_id`.
+    pub fn smithing(
+        &self,
+        net_id: u32,
+        template: &ItemStack,
+        base: &ItemStack,
+        addition: &ItemStack,
+    ) -> Result<SmithingPlan<'_>, ValidationError> {
+        let recipe = self
+            .smithing
+            .get(&net_id)
+            .ok_or(ValidationError::UnknownRecipe(net_id))?;
+        if !recipe.template.matches(template)
+            || !recipe.base.matches(base)
+            || !recipe.addition.matches(addition)
+        {
+            return Err(ValidationError::GridMismatch);
+        }
+        Ok(match &recipe.result {
+            Some(result) => SmithingPlan::Transform(result),
+            None => SmithingPlan::Trim,
+        })
+    }
+
     pub fn requires_3x3(&self, net_id: u32) -> Result<bool, ValidationError> {
         self.recipe(net_id).map(Recipe::requires_3x3)
     }

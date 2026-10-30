@@ -244,6 +244,18 @@ impl MobFacts<'_> {
     }
 }
 
+/// A boolean game rule's current value, if the rule exists and is boolean.
+pub(crate) fn game_rule_bool(world: &World, rule: &str) -> Option<bool> {
+    match world
+        .get_resource::<crate::world::rules::GameRules>()?
+        .value(rule)?
+        .1
+    {
+        unastar_data::game_rules::GameRuleValue::Bool(value) => Some(value),
+        _ => None,
+    }
+}
+
 impl FilterContext for MobFacts<'_> {
     fn fact(&self, subject: Subject, test: &FilterTest) -> Option<Fact> {
         let entity = self.subject(subject)?;
@@ -296,6 +308,10 @@ impl FilterContext for MobFacts<'_> {
                 PropertyValue::Int(value) => Fact::Number(f64::from(value)),
                 _ => return None,
             },
+            BuiltinTest::IsGameRule => {
+                let rule = test.domain_str()?;
+                Fact::Bool(game_rule_bool(self.world, rule)?)
+            }
             // Riding is not implemented: no actor ever has a rider.
             BuiltinTest::RiderCount => Fact::Number(0.0),
             BuiltinTest::HasComponent => {

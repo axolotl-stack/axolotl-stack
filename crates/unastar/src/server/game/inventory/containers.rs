@@ -2,8 +2,8 @@
 //! container block a window shows.
 
 use crate::block_entity::ContainerKind;
-use crate::entity::components::BlockScreen;
 pub use crate::entity::components::ScreenKind;
+use crate::entity::components::{BlockScreen, StationKind};
 use crate::item::{ItemStack, equipment};
 use jolyne::valentine::EnumsContainerEnumName as Name;
 
@@ -26,6 +26,11 @@ pub enum SlotKind {
     CreatedOutput,
     /// Furnace-family fuel slot: accepts only items that burn.
     FurnaceFuel,
+    /// Grindstone input: items with durability or enchantments. BDS refused
+    /// an enchanted book without enchantments with `CannotPlaceItem`
+    /// (client-diff grindstone-book); other unenchantable items follow the
+    /// public reference.
+    GrindstoneInput,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -57,6 +62,10 @@ impl ContainerRule {
             // An empty bucket has no burn time; a furnace leaves it behind
             // after lava, from where it can only be taken.
             SlotKind::FurnaceFuel => crate::block_entity::burn_ticks(stack, 200) > 0,
+            SlotKind::GrindstoneInput => stack.item().is_some_and(|item| {
+                super::super::durability::max_durability(item) > 0
+                    || !crate::item::enchant::enchantments(stack).is_empty()
+            }),
         }
     }
 
@@ -200,6 +209,51 @@ fn block_rule(screen: BlockScreen, name: Name) -> Option<ContainerRule> {
     }
 }
 
+/// UI slots of a station's inputs, as BDS's client addresses them
+/// (client-diff scenarios `anvil`, `smithing-table`, `grindstone`).
+pub const ANVIL_INPUT_SLOT: u8 = 1;
+pub const ANVIL_MATERIAL_SLOT: u8 = 2;
+pub const SMITHING_INPUT_SLOT: u8 = 51;
+pub const SMITHING_MATERIAL_SLOT: u8 = 52;
+pub const SMITHING_TEMPLATE_SLOT: u8 = 53;
+pub const GRINDSTONE_INPUT_SLOT: u8 = 16;
+pub const GRINDSTONE_ADDITIONAL_SLOT: u8 = 17;
+
+/// A station's own containers: single UI slots plus the created output.
+fn station_rule(kind: StationKind, name: Name) -> Option<ContainerRule> {
+    let ui = |slot| Some(rule(Store::Ui, slot, 1, SlotKind::Plain));
+    match (kind, name) {
+        (_, Name::Createdoutputcontainer) => Some(rule(
+            Store::Ui,
+            CREATED_OUTPUT_SLOT as u8,
+            1,
+            SlotKind::CreatedOutput,
+        )),
+        (StationKind::Anvil, Name::Anvilinputcontainer) => ui(ANVIL_INPUT_SLOT),
+        (StationKind::Anvil, Name::Anvilmaterialcontainer) => ui(ANVIL_MATERIAL_SLOT),
+        (StationKind::SmithingTable, Name::Smithingtableinputcontainer) => ui(SMITHING_INPUT_SLOT),
+        (StationKind::SmithingTable, Name::Smithingtablematerialcontainer) => {
+            ui(SMITHING_MATERIAL_SLOT)
+        }
+        (StationKind::SmithingTable, Name::Smithingtabletemplatecontainer) => {
+            ui(SMITHING_TEMPLATE_SLOT)
+        }
+        (StationKind::Grindstone, Name::Grindstoneinputcontainer) => Some(rule(
+            Store::Ui,
+            GRINDSTONE_INPUT_SLOT,
+            1,
+            SlotKind::GrindstoneInput,
+        )),
+        (StationKind::Grindstone, Name::Grindstoneadditionalcontainer) => Some(rule(
+            Store::Ui,
+            GRINDSTONE_ADDITIONAL_SLOT,
+            1,
+            SlotKind::GrindstoneInput,
+        )),
+        _ => None,
+    }
+}
+
 impl ScreenKind {
     fn policy(self) -> &'static ScreenPolicy {
         SCREENS
@@ -209,14 +263,18 @@ impl ScreenKind {
     }
 
     pub fn rule(self, name: Name) -> Option<ContainerRule> {
-        if let ScreenKind::Block(screen) = self {
-            if BLOCK_SCREEN_STANDARD.contains(&name) {
-                return VALIDATORS
-                    .iter()
-                    .find(|(kind, _)| *kind == name)
-                    .map(|row| row.1);
-            }
-            return block_rule(screen, name);
+        if let ScreenKind::Block(_) | ScreenKind::Station(_) = self
+            && BLOCK_SCREEN_STANDARD.contains(&name)
+        {
+            return VALIDATORS
+                .iter()
+                .find(|(kind, _)| *kind == name)
+                .map(|row| row.1);
+        }
+        match self {
+            ScreenKind::Block(screen) => return block_rule(screen, name),
+            ScreenKind::Station(screen) => return station_rule(screen.kind, name),
+            _ => {}
         }
         let screen = self.policy();
         if !screen.allowed.contains(&name) {
@@ -232,7 +290,7 @@ impl ScreenKind {
 
     /// Destroy is only legal on the inventory and crafting-table screens.
     pub fn allows_destroy(self) -> bool {
-        !matches!(self, ScreenKind::Block(_)) && self.policy().destroy
+        !matches!(self, ScreenKind::Block(_) | ScreenKind::Station(_)) && self.policy().destroy
     }
 }
 

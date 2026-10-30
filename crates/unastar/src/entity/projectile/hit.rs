@@ -26,17 +26,20 @@ use crate::entity::mob::net::sound::{level_event, play_level_sound};
 use crate::entity::mob::{MobKind, MobRegistry, SpawnCause, derive_entity, spawn_mob};
 use crate::entity::systems::physics::collect_block_boxes;
 use crate::registry::collision::Aabb;
+use crate::server::game::effects::PotionScale;
 use crate::server::game::types::ItemRegistryResource;
 use crate::world::rules::Difficulty;
 
 /// Run the `on_hit` effects of one hit at `at`; returns whether the
-/// projectile is removed.
+/// projectile is removed. `at` is where the projectile was at the start of
+/// the tick, `impact` where its path met the target.
 pub(super) fn on_hit(
     world: &mut World,
     projectile: Entity,
     owner: Option<Entity>,
     rules: &ProjectileRules,
     at: DVec3,
+    impact: DVec3,
     target: Target,
 ) -> bool {
     let mut removed = false;
@@ -60,6 +63,40 @@ pub(super) fn on_hit(
     if let Some(spawn) = &rules.spawn_chance {
         spawn_on_hit(world, projectile, spawn, at);
     }
+    if rules.teleport_owner
+        && let Some(owner) = owner
+    {
+        teleport_owner(world, owner, impact);
+    }
+    let potion = world
+        .get::<super::ProjectilePotion>(projectile)
+        .map(|p| p.0);
+    // Splash and lingering potions show a splash of the potion's colour.
+    if let Some(aux) = potion
+        && (rules.thrown_potion || rules.aoe_cloud.is_some())
+    {
+        level_event(
+            world,
+            impact,
+            POTION_SPLASH_EVENT,
+            crate::server::game::effects::potion_color(aux),
+        );
+    }
+    if let Some(aux) = potion
+        && (rules.thrown_potion || rules.douse_fire)
+    {
+        if rules.thrown_potion {
+            splash(world, aux, impact, target);
+        }
+        if rules.douse_fire && aux == WATER_POTION {
+            douse_fire(world, impact);
+        }
+    }
+    if let Some(cloud) = &rules.aoe_cloud
+        && let Some(potion) = cloud.potion.or(potion)
+    {
+        super::cloud::spawn_cloud(world, cloud, potion, owner, impact);
+    }
     let sound = match target {
         Target::Actor(actor) => rules
             .hit_sound
@@ -74,17 +111,15 @@ pub(super) fn on_hit(
 }
 
 /// `arrow_effect` on a hit actor: the effects of the potion the projectile
-/// carries ([`super::ProjectilePotion`], the potion id plus one), each at
-/// its amplifier for [`ARROW_EFFECT_DURATION_DIVISOR`]th of its duration
-/// (at least one tick). A player gets them through the player effect rules,
-/// a mob unless its class or family is immune.
+/// carries ([`super::ProjectilePotion`], the potion aux), each at its
+/// amplifier for [`ARROW_EFFECT_DURATION_DIVISOR`]th of its duration (at
+/// least one tick). A player gets them through the player effect rules, a
+/// mob unless its class or family is immune.
 fn arrow_effect(world: &mut World, projectile: Entity, actor: Entity) {
-    let Some(super::ProjectilePotion(data)) = world.get(projectile).copied() else {
+    let Some(super::ProjectilePotion(aux)) = world.get(projectile).copied() else {
         return;
     };
-    let Some(potion) = unastar_rules::potion::by_id(
-        i32::from(data) - i32::from(unastar_rules::potion::TIPPED_ARROW_DATA_OFFSET),
-    ) else {
+    let Some(potion) = unastar_rules::potion::by_id(i32::from(aux)) else {
         return;
     };
     if world.get::<Health>(actor).is_none_or(Health::is_dead) {
@@ -178,6 +213,7 @@ fn impact_damage(
     } else {
         impact.min
     };
+    let damage = damage + impaling_bonus(world, projectile, actor);
     let owner = owner.filter(|owner| world.get_entity(*owner).is_ok());
     let names_attacker = damage > 0.0 || !impact.last_hurt_requires_damage;
     let attacker = owner.filter(|_| names_attacker);
@@ -206,14 +242,204 @@ fn impact_damage(
 /// no damage bounces back (`should_bounce`), one that hurt drops away
 /// (`stop_on_hurt`, tridents).
 fn rebound(world: &mut World, projectile: Entity, rules: &ProjectileRules, applied: f32) {
-    let Some(mut velocity) = world.get_mut::<crate::entity::components::Velocity>(projectile)
+    let factor = if applied <= 0.0 && rules.bounce_without_damage {
+        DVec3::splat(-0.1)
+    } else if applied > 0.0 && rules.stop_on_hurt {
+        DVec3::new(-0.01, -0.1, -0.01)
+    } else {
+        return;
+    };
+    let mut entity = world.entity_mut(projectile);
+    if let Some(mut velocity) = entity.get_mut::<crate::entity::components::Velocity>() {
+        velocity.0 *= factor;
+    }
+    if applied > 0.0 && rules.stop_on_hurt {
+        entity.insert(super::DealtDamage);
+    }
+}
+
+/// Extra damage of an Impaling trident against an actor in water.
+fn impaling_bonus(world: &World, projectile: Entity, actor: Entity) -> f32 {
+    let Some(super::Impaling(level)) = world.get::<super::Impaling>(projectile).copied() else {
+        return 0.0;
+    };
+    let Some(position) = world.get::<crate::entity::components::Position>(actor) else {
+        return 0.0;
+    };
+    let feet = if world.get::<Player>(actor).is_some() {
+        position.0 - DVec3::new(0.0, crate::entity::PLAYER_EYE_HEIGHT, 0.0)
+    } else {
+        position.0
+    };
+    if crate::server::game::body_in_water(world, feet) {
+        2.5 * f32::from(level)
+    } else {
+        0.0
+    }
+}
+
+/// `teleport_owner` (ender pearls), as measured on BDS 1.26.51: the owning
+/// player, if alive and not a spectator, moves to the hit point (teleport
+/// particles there, the pearl sound at both ends) and takes 5 fall damage.
+fn teleport_owner(world: &mut World, owner: Entity, at: DVec3) {
+    if world.get::<Player>(owner).is_none()
+        || world.get::<GameMode>(owner) == Some(&GameMode::Spectator)
+        || world
+            .get::<crate::entity::components::Health>(owner)
+            .is_none_or(|h| h.is_dead())
+    {
+        return;
+    }
+    let Some(from) = world
+        .get::<crate::entity::components::Position>(owner)
+        .map(|p| p.0)
     else {
         return;
     };
-    if applied <= 0.0 && rules.bounce_without_damage {
-        velocity.0 *= -0.1;
-    } else if applied > 0.0 && rules.stop_on_hurt {
-        velocity.0 *= DVec3::new(-0.01, -0.1, -0.01);
+    level_event(world, at, PEARL_TELEPORT_PARTICLES, 0);
+    crate::server::game::item_use::teleport(
+        world,
+        owner,
+        at,
+        crate::server::game::item_use::TeleportCause::EnderPearl,
+    );
+    let to = at + DVec3::new(0.0, crate::entity::PLAYER_EYE_HEIGHT, 0.0);
+    level_event(world, from, PEARL_TELEPORT_SOUND, 0);
+    level_event(world, to, PEARL_TELEPORT_SOUND, 0);
+    hurt_mob(
+        world,
+        owner,
+        Hit {
+            damage: PEARL_FALL_DAMAGE,
+            cause: ActorDamageCause::Fall,
+            attacker: None,
+            by_player: false,
+            knockback_from: None,
+            knockback_power: crate::entity::mob::components::KnockbackPower::DEFAULT,
+        },
+    );
+}
+
+/// Level events and damage of a pearl landing, measured on BDS 1.26.51
+/// (client-diff `item-use-ranged`): teleport particles 2013, the pearl
+/// teleport sound 1032, 5 fall damage.
+const PEARL_TELEPORT_PARTICLES: i32 = 2013;
+const PEARL_TELEPORT_SOUND: i32 = 1032;
+const PEARL_FALL_DAMAGE: f32 = 5.0;
+
+/// Level event of a potion splash; its data is the potion's ARGB colour
+/// (BDS 1.26.51 capture).
+const POTION_SPLASH_EVENT: i32 = 2002;
+
+/// Aux of the water potion.
+const WATER_POTION: i16 = 0;
+/// Reach of a splash, blocks of horizontal distance.
+const SPLASH_RANGE: f64 = 4.0;
+/// Added to an actor's half-width when measuring a splash's distance.
+const SPLASH_MARGIN: f64 = 0.15;
+/// Vertical reach of a splash above and below the impact (public
+/// reference).
+const SPLASH_HEIGHT: f64 = 2.0;
+
+/// Horizontal distance from `at` to a box of half-width `half` centred on
+/// `centre`.
+fn distance_to_square(at: DVec3, centre: DVec3, half: f64) -> f64 {
+    let dx = ((at.x - centre.x).abs() - half).max(0.0);
+    let dz = ((at.z - centre.z).abs() - half).max(0.0);
+    dx.hypot(dz)
+}
+
+/// `thrown_potion_effect`, as measured on BDS 1.26.51 (client-diff
+/// `item-use-splash-distance`): every living actor gets the potion scaled by
+/// `1 - d / 4`, where `d` is the horizontal distance from the impact to a
+/// square around the actor's feet of half-width (half its width + 0.15;
+/// 0.45 for players), in any direction. The actor hit directly gets it in
+/// full.
+fn splash(world: &mut World, aux: i16, at: DVec3, target: Target) {
+    let direct = match target {
+        Target::Actor(actor) => Some(actor),
+        Target::Block => None,
+    };
+    let mut targets: Vec<(Entity, f64)> = Vec::new();
+    let mut living = world.query_filtered::<(
+        Entity,
+        &crate::entity::components::Position,
+        &crate::entity::components::Health,
+        Option<&Player>,
+        Option<&crate::entity::definition::components::RawCollisionBox>,
+    ), Or<(With<Player>, With<crate::entity::components::Living>)>>();
+    for (entity, position, health, player, collision) in living.iter(world) {
+        if health.is_dead() {
+            continue;
+        }
+        let (feet, width, height) = if player.is_some() {
+            (
+                position.0 - DVec3::new(0.0, crate::entity::PLAYER_EYE_HEIGHT, 0.0),
+                0.6,
+                1.8,
+            )
+        } else {
+            let (w, h) = collision.map_or((0.0, 0.0), |b| (b.width, b.height));
+            (position.0, f64::from(w), f64::from(h))
+        };
+        let scale = if Some(entity) == direct {
+            1.0
+        } else {
+            if at.y < feet.y - SPLASH_HEIGHT || at.y > feet.y + height + SPLASH_HEIGHT {
+                continue;
+            }
+            let d = distance_to_square(at, feet, width / 2.0 + SPLASH_MARGIN);
+            if d >= SPLASH_RANGE {
+                continue;
+            }
+            1.0 - d / SPLASH_RANGE
+        };
+        targets.push((entity, scale));
+    }
+    for (entity, scale) in targets {
+        crate::server::game::effects::apply_potion(
+            world,
+            entity,
+            aux,
+            PotionScale {
+                duration: scale,
+                instant: scale,
+            },
+        );
+    }
+}
+
+/// `douse_fire`: a water splash puts out fire in the hit block and the
+/// blocks beside it.
+fn douse_fire(world: &mut World, at: DVec3) {
+    let centre = at.floor().as_ivec3();
+    let registry = world
+        .resource::<crate::server::game::types::BlockRegistryResource>()
+        .0
+        .clone();
+    let Some(air) = registry.default_state_id_by_name("minecraft:air") else {
+        return;
+    };
+    for offset in [
+        glam::IVec3::ZERO,
+        glam::IVec3::X,
+        glam::IVec3::NEG_X,
+        glam::IVec3::Y,
+        glam::IVec3::Z,
+        glam::IVec3::NEG_Z,
+    ] {
+        let pos = centre + offset;
+        let burning = crate::server::game::block_at(world, (pos.x, pos.y, pos.z))
+            .and_then(|id| registry.get_by_runtime_id(id))
+            .is_some_and(|b| {
+                matches!(
+                    b.string_id.as_str(),
+                    "minecraft:fire" | "minecraft:soul_fire"
+                )
+            });
+        if burning {
+            crate::server::game::set_block(world, pos, air, false);
+        }
     }
 }
 
@@ -293,6 +519,15 @@ pub(crate) fn spawn_count(spawn: &SpawnChance, rng: &mut impl Rng) -> u32 {
 }
 
 fn spawn_on_hit(world: &mut World, projectile: Entity, spawn: &SpawnChance, at: DVec3) {
+    // A target without a runtime archetype (see `SPAWNS_WITHOUT_ARCHETYPE`)
+    // is skipped before rolling.
+    let Some(archetype) = world
+        .get_resource::<MobRegistry>()
+        .and_then(|registry| registry.get(spawn.definition.name()))
+        .map(Arc::clone)
+    else {
+        return;
+    };
     let count = spawn_count(spawn, &mut world.get_resource_or_init::<EntityRandom>().0);
     if count == 0 {
         return;
@@ -317,13 +552,6 @@ fn spawn_on_hit(world: &mut World, projectile: Entity, spawn: &SpawnChance, at: 
         SpawnCause::Born
     } else {
         SpawnCause::Spawned
-    };
-    let Some(archetype) = world
-        .get_resource::<MobRegistry>()
-        .and_then(|registry| registry.get(spawn.definition.name()))
-        .map(Arc::clone)
-    else {
-        return;
     };
     for _ in 0..count {
         let spawned = match spawn_mob(world, &archetype.identifier, feet, yaw, cause) {

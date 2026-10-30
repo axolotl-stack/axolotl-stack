@@ -49,7 +49,7 @@ fn bins(dir: &Path, out: &mut Vec<PathBuf>) {
 
 #[test]
 fn committed_fixtures_match_manifests_and_round_trip() {
-    let manifests: HashMap<&str, _> = ["member", "operator"]
+    let manifests: HashMap<&str, _> = ["member", "operator", "items"]
         .into_iter()
         .map(|session| (session, manifest(session)))
         .collect();

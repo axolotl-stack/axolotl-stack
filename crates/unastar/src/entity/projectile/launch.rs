@@ -54,8 +54,12 @@ pub enum LaunchError {
 /// The projectile actor and its climate variant label an item throws when
 /// used, if it is a throwable item.
 pub fn thrown_by(item: &str) -> Option<(ActorType, Option<&'static str>)> {
-    if item == "minecraft:snowball" {
-        return Some((ActorType::Snowball, None));
+    match item {
+        "minecraft:snowball" => return Some((ActorType::Snowball, None)),
+        "minecraft:ender_pearl" => return Some((ActorType::EnderPearl, None)),
+        "minecraft:splash_potion" => return Some((ActorType::SplashPotion, None)),
+        "minecraft:lingering_potion" => return Some((ActorType::LingeringPotion, None)),
+        _ => {}
     }
     THROWN_EGG_ITEMS
         .iter()
@@ -111,10 +115,15 @@ pub fn apply_throws(world: &mut World) {
 }
 
 fn throw_held(world: &mut World, player: Entity) {
-    let Some((actor, climate)) = held_item(world, player).and_then(|s| thrown_by(s.item_id()))
-    else {
+    let Some(held) = held_item(world, player) else {
         return;
     };
+    let Some((actor, climate)) = thrown_by(held.item_id()) else {
+        return;
+    };
+    // A thrown potion carries the held potion's type.
+    let potion = matches!(actor, ActorType::SplashPotion | ActorType::LingeringPotion)
+        .then_some(held.damage);
     let mode = world.get::<GameMode>(player).copied().unwrap_or_default();
     if mode == GameMode::Spectator || world.get::<Health>(player).is_some_and(Health::is_dead) {
         return;
@@ -133,8 +142,13 @@ fn throw_held(world: &mut World, player: Entity) {
             send_slot(world, player, slot, &stack);
         }
     }
-    if let Err(error) = launch(world, player, actor, climate) {
-        warn!(%error, actor = actor.name(), "Throwing a projectile failed");
+    match launch(world, player, actor, climate) {
+        Ok(projectile) => {
+            if let Some(potion) = potion {
+                super::carry_potion(world, projectile, potion, false);
+            }
+        }
+        Err(error) => warn!(%error, actor = actor.name(), "Throwing a projectile failed"),
     }
 }
 
@@ -276,7 +290,8 @@ pub fn launch_with(
 pub struct MobShot {
     /// Launch speed instead of the projectile's `power`.
     pub power: Option<f64>,
-    /// Tipped-arrow data the projectile carries ([`super::ProjectilePotion`]).
+    /// The shooter's `aux_val`: tipped-arrow data (the potion aux plus one)
+    /// the projectile carries and replicates.
     pub potion: Option<i8>,
 }
 
@@ -344,12 +359,9 @@ pub fn launch_at(
         power,
     );
     release(world, projectile, shooter, at, velocity, false);
-    if let Some(potion) = shot.potion {
-        let mut entity = world.entity_mut(projectile);
-        entity.insert(super::ProjectilePotion(potion));
-        if let Some(mut metadata) = entity.get_mut::<EntityMetadata>() {
-            metadata.set_byte(ids::CUSTOM_DISPLAY, potion);
-        }
+    if let Some(data) = shot.potion {
+        let aux = i16::from(data) - unastar_rules::potion::TIPPED_ARROW_DATA_OFFSET;
+        super::carry_potion(world, projectile, aux, true);
     }
     Ok(projectile)
 }

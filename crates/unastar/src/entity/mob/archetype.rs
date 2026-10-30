@@ -116,6 +116,8 @@ fn supported_test(test: BuiltinTest, subject: Subject) -> bool {
         | BuiltinTest::RiderCount
         | BuiltinTest::InContactWithWater => subject == Subject::Self_,
         BuiltinTest::IsSneakHeld => subject == Subject::Other,
+        // Game rules are global: any subject.
+        BuiltinTest::IsGameRule => true,
         BuiltinTest::IsFamily
         | BuiltinTest::HasEquipment
         | BuiltinTest::EnumProperty

@@ -257,6 +257,22 @@ fn broadcast_block_crack_stop(world: &World, x: i32, y: i32, z: i32) {
     }
 }
 
+/// Whether the block at `pos` holds water (source or flowing).
+pub(crate) fn water_at(world: &World, pos: IVec3) -> bool {
+    let Some(registry) = world.get_resource::<super::types::BlockRegistryResource>() else {
+        return false;
+    };
+    block_at(world, (pos.x, pos.y, pos.z))
+        .and_then(|id| registry.0.liquid_state(id))
+        .is_some_and(|l| l.kind == crate::registry::block::LiquidKind::Water)
+}
+
+/// Whether a body standing at `feet` is in water (feet or the block above).
+pub(crate) fn body_in_water(world: &World, feet: glam::DVec3) -> bool {
+    let feet = feet.floor().as_ivec3();
+    water_at(world, feet) || water_at(world, feet + IVec3::Y)
+}
+
 /// Runtime id of the block at `position`; `None` outside the world or an unloaded chunk.
 pub(crate) fn block_at(world: &World, position: (i32, i32, i32)) -> Option<u32> {
     let (x, y, z) = position;
@@ -314,11 +330,13 @@ enum BlockUse {
     /// Doors, trapdoors, fence gates, buttons, levers
     /// ([`super::block_behaviour::use_block`]).
     Behaviour,
+    /// Anvil, smithing table and grindstone screens.
+    Station(crate::entity::components::StationKind),
 }
 
-/// An interactive block's `use` (crafting table, container, door, ...) runs
-/// before item placement unless the player is sneaking with an item in
-/// hand.
+/// An interactive block's `use` (crafting table, container, anvil, smithing
+/// table, grindstone, door, ...) runs before item placement unless the
+/// player is sneaking with an item in hand.
 fn block_use(world: &World, entity: Entity, clicked: (i32, i32, i32)) -> Option<BlockUse> {
     use crate::entity::components::{HeldSlot, MainInventory, PlayerState};
     let block_use = block_at(world, clicked).and_then(|runtime_id| {
@@ -328,6 +346,8 @@ fn block_use(world: &World, entity: Entity, clicked: (i32, i32, i32)) -> Option<
         let entry = registry.get_by_runtime_id(runtime_id)?;
         if entry.string_id == "minecraft:crafting_table" {
             Some(BlockUse::Workbench)
+        } else if let Some(kind) = super::inventory::stations::station_of(&entry.string_id) {
+            Some(BlockUse::Station(kind))
         } else if super::block_behaviour::is_usable(registry, runtime_id) {
             Some(BlockUse::Behaviour)
         } else {
@@ -771,6 +791,15 @@ pub(super) fn handle_block_click(
             }
             return;
         }
+        Some(BlockUse::Station(kind)) => {
+            super::inventory::stations::open(
+                world,
+                entity,
+                IVec3::new(clicked.0, clicked.1, clicked.2),
+                kind,
+            );
+            return;
+        }
         None => {}
     }
     // Spawn eggs spawn their mob on the clicked face instead of placing.
@@ -1176,6 +1205,35 @@ mod tests {
             block_use(&world, player, (1, 65, 1)).is_none(),
             "air is not a table"
         );
+    }
+
+    #[test]
+    fn anvils_smithing_tables_and_grindstones_open_their_station() {
+        use crate::entity::components::{PlayerState, StationKind};
+        let (mut world, player, chunk) =
+            block_world(GameMode::Survival, DVec3::new(1.5, 65.62, 1.5));
+        world.entity_mut(player).insert(PlayerState::default());
+        for (name, kind) in [
+            ("minecraft:anvil", StationKind::Anvil),
+            ("minecraft:chipped_anvil", StationKind::Anvil),
+            ("minecraft:damaged_anvil", StationKind::Anvil),
+            ("minecraft:smithing_table", StationKind::SmithingTable),
+            ("minecraft:grindstone", StationKind::Grindstone),
+        ] {
+            let state = crate::registry::BlockRegistry::vanilla()
+                .default_state_id_by_name(name)
+                .unwrap();
+            world
+                .get_mut::<ChunkData>(chunk)
+                .unwrap()
+                .inner
+                .set_block(1, 64, 1, state);
+            assert_eq!(
+                block_use(&world, player, (1, 64, 1)),
+                Some(BlockUse::Station(kind)),
+                "{name}"
+            );
+        }
     }
 
     #[test]

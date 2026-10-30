@@ -1,0 +1,17 @@
+{
+  "source": "public reference, not measured on BDS: minecraft.wiki 'Anvil mechanics' unit repair table, retrieved 2026-10-29. Each row maps items (by item tag or identifier) to the materials that repair them; items not listed repair only by combining with another of the same item.",
+  "rows": [
+    {"tags": ["minecraft:wooden_tier"], "items": ["minecraft:shield"], "material_tags": ["minecraft:planks"], "materials": []},
+    {"tags": ["minecraft:stone_tier"], "items": [], "material_tags": ["minecraft:stone_tool_materials"], "materials": []},
+    {"tags": ["minecraft:leather_tier"], "items": [], "material_tags": [], "materials": ["minecraft:leather"]},
+    {"tags": ["minecraft:copper_tier"], "items": [], "material_tags": [], "materials": ["minecraft:copper_ingot"]},
+    {"tags": ["minecraft:iron_tier", "minecraft:chainmail_tier"], "items": [], "material_tags": [], "materials": ["minecraft:iron_ingot"]},
+    {"tags": ["minecraft:golden_tier"], "items": [], "material_tags": [], "materials": ["minecraft:gold_ingot"]},
+    {"tags": ["minecraft:diamond_tier"], "items": [], "material_tags": [], "materials": ["minecraft:diamond"]},
+    {"tags": ["minecraft:netherite_tier"], "items": [], "material_tags": [], "materials": ["minecraft:netherite_ingot"]},
+    {"tags": [], "items": ["minecraft:turtle_helmet"], "material_tags": [], "materials": ["minecraft:turtle_scute"]},
+    {"tags": [], "items": ["minecraft:elytra"], "material_tags": [], "materials": ["minecraft:phantom_membrane"]},
+    {"tags": [], "items": ["minecraft:mace"], "material_tags": [], "materials": ["minecraft:breeze_rod"]},
+    {"tags": [], "items": ["minecraft:wolf_armor"], "material_tags": [], "materials": ["minecraft:armadillo_scute"]}
+  ]
+}
