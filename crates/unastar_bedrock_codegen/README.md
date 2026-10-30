@@ -960,3 +960,36 @@ ordinary solid rock, so no density threshold explains them. Most form long
 tunnels about 10 blocks wide at y -16..-1. None of our cave carver starts
 reaches them: we scored all 289 source chunks of both carvers with the skip
 roll ignored, and only the start above fits. Their source is still open.
+
+### Java-exact Bedrock terrain (2026-10-29)
+
+The Bedrock generator's terrain core now runs the overworld noise router,
+aquifers and ore veins in Java-exact arithmetic, using the Java backend's
+registry and cell loop. It previously used the older fused "calibrated"
+sampler with its own octave normalization table. The core does not use Java's
+structure starts or terrain beardifier. Climate sampling and biome filling use
+the same arithmetic but keep the Bedrock path's own nearest-biome lookup.
+
+Evidence: the BDS seed-12345 fixture (68 chunks, 17408 columns). The noise
+stage alone, before surface rules, carvers or features, matches BDS terrain
+heights as follows:
+
+| Noise stage | exact | within 2 | mean abs error |
+| --- | ---: | ---: | ---: |
+| calibrated | 0.8940 | 0.9330 | 1.123 |
+| Java-exact | 0.9370 | 0.9436 | 0.960 |
+
+Its noise caves were also the better match (see "Carve height"). Through the
+full pipeline:
+
+| Metric | Before | After |
+| --- | ---: | ---: |
+| terrain exact | 0.88465 | 0.92659 |
+| terrain within 2 | 0.92412 | 0.93474 |
+| terrain mean abs error | 1.20640 | 1.06480 |
+| surface exact | 0.85122 | 0.85133 |
+| surface block | 0.84731 | 0.84656 |
+| surface biome | 0.99506 | 0.99506 |
+| histogram L1 | 0.03703 | 0.02679 |
+| underground open cells shared (of 10221) | 4325 | 5605 |
+| roofed tree voxels exact (of 1828) | 787 | 788 |

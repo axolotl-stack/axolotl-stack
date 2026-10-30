@@ -13,8 +13,11 @@
 
 mod end;
 mod native;
+pub use native::{
+    fill_end_native, fill_nether_native, fill_overworld_native, sample_biome_native,
+};
+pub(crate) use native::{fill_overworld_native_with, overworld_target_native};
 pub use end::sample_end_biome;
-pub use native::{fill_end_native, fill_nether_native, fill_overworld_native, sample_biome_native};
 
 use sha2::{Digest, Sha256};
 use unastar_noise::java_biomes::JavaBiome;

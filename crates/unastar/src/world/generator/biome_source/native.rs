@@ -36,14 +36,12 @@ pub fn sample_biome_native<N: NoiseSource>(
 ) -> JavaBiome {
     let ctx = noise::FunctionContext::new(quart_x << 2, quart_y << 2, quart_z << 2);
     match dimension {
-        JavaDimension::Overworld => {
-            noise::overworld_biome_source::find(&climate_target!(unastar_noise, &ctx, noises))
-        }
-        JavaDimension::Nether => noise::nether_biome_source::find(&climate_target!(
-            unastar_noise::nether_compiled,
-            &ctx,
-            noises
-        )),
+        JavaDimension::Overworld => noise::overworld_biome_source::find(
+            &overworld_target_native(noises, quart_x, quart_y, quart_z),
+        ),
+        JavaDimension::Nether => noise::nether_biome_source::find(
+            &climate_target!(unastar_noise::nether_compiled, &ctx, noises),
+        ),
         JavaDimension::End => super::sample_end_biome(quart_x, quart_z, |x, z| {
             noise::end_compiled::compute_erosion_native_uncached(
                 &noise::FunctionContext::new(x, 0, z),
@@ -83,6 +81,18 @@ pub(super) fn fill_lattice(
     biomes
 }
 
+/// Overworld climate target at an absolute quart, in Java-exact arithmetic,
+/// before a caller chooses its search-history policy.
+pub(crate) fn overworld_target_native<N: NoiseSource>(
+    noises: &N,
+    quart_x: i32,
+    quart_y: i32,
+    quart_z: i32,
+) -> [i64; 7] {
+    let ctx = noise::FunctionContext::new(quart_x << 2, quart_y << 2, quart_z << 2);
+    climate_target!(unastar_noise, &ctx, noises)
+}
+
 /// Overworld depth varies with Y; the other five vanilla climate axes do not.
 /// Scalar cache extraction and those five samples happen once per quart column.
 pub fn fill_overworld_native<N: NoiseSource>(
@@ -91,8 +101,20 @@ pub fn fill_overworld_native<N: NoiseSource>(
     flat: &noise::FlatCacheGrid,
     columns: &noise::ColumnContextGrid,
 ) -> QuartBiomes {
-    let columns: [_; 16] =
-        std::array::from_fn(|i| columns.get((i % 4) * 4, (i / 4) * 4).as_scalar());
+    fill_overworld_native_with(noises, pos, flat, columns, noise::overworld_biome_source::find)
+}
+
+/// [`fill_overworld_native`] with an edition-owned biome lookup policy.
+pub(crate) fn fill_overworld_native_with<N: NoiseSource>(
+    noises: &N,
+    pos: ChunkPos,
+    flat: &noise::FlatCacheGrid,
+    columns: &noise::ColumnContextGrid,
+    lookup: impl FnMut(&[i64; 7]) -> JavaBiome,
+) -> QuartBiomes {
+    let columns: [_; 16] = std::array::from_fn(|i| {
+        columns.get((i % 4) * 4, (i / 4) * 4).as_scalar()
+    });
     let climates: [[f64; 5]; 16] = std::array::from_fn(|i| {
         let ctx = noise::FunctionContext::new(
             pos.x * 16 + (i % 4) as i32 * 4,
@@ -108,27 +130,17 @@ pub fn fill_overworld_native<N: NoiseSource>(
             noise::compute_ridges_native(&ctx, noises, flat, col),
         ]
     });
-    fill_lattice(
-        JavaDimension::Overworld.block_bounds(),
-        |qx, y, qz| {
-            let i = qz * 4 + qx;
-            let [temperature, vegetation, continents, erosion, ridges] = climates[i];
-            let ctx = noise::FunctionContext::new(
-                pos.x * 16 + qx as i32 * 4,
-                y,
-                pos.z * 16 + qz as i32 * 4,
-            );
-            noise::overworld_biome_source::target(
-                temperature,
-                vegetation,
-                continents,
-                erosion,
-                noise::compute_depth_native(&ctx, noises, flat, &columns[i]),
-                ridges,
-            )
-        },
-        noise::overworld_biome_source::find,
-    )
+    fill_lattice(JavaDimension::Overworld.block_bounds(), |qx, y, qz| {
+        let i = qz * 4 + qx;
+        let [temperature, vegetation, continents, erosion, ridges] = climates[i];
+        let ctx = noise::FunctionContext::new(
+            pos.x * 16 + qx as i32 * 4, y, pos.z * 16 + qz as i32 * 4,
+        );
+        noise::overworld_biome_source::target(
+            temperature, vegetation, continents, erosion,
+            noise::compute_depth_native(&ctx, noises, flat, &columns[i]), ridges,
+        )
+    }, lookup)
 }
 
 /// Nether's native climate has no Y dependency. Reuse arithmetic, not search
