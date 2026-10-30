@@ -25,7 +25,7 @@ use super::density::{NativeNoiseRegistry, NoiseRegistry};
 #[cfg(feature = "bedrock-worldgen")]
 use super::ore_veinifier::OreVeinifier;
 use super::pipeline::{Generator, SpawnPoint};
-use super::proto::{NativeBiome, ProtoChunk};
+use super::proto::{NativeBiome, ProtoChunk, QuartBiomes};
 use super::region::DecorationRegion;
 use super::surface::SurfaceSystem;
 use super::xoroshiro::PositionalRandomFactory;
@@ -116,6 +116,10 @@ pub struct JavaGenerator {
     /// Native source chunks cache their first carver-biome lookup. AOT verifies
     /// equal carver lists across each preset, so only cache presence is needed.
     carver_biomes: Mutex<HashSet<ChunkPos>>,
+    /// History-independent native biome fills (see `native_biomes`). A chunk's
+    /// own terrain and the surfaces of its eight neighbours each fill its
+    /// biomes.
+    biome_fills: super::pipeline::ChunkCache<Option<(QuartBiomes, biome_source::Replay)>>,
 }
 
 impl JavaGenerator {
@@ -181,6 +185,7 @@ impl JavaGenerator {
             options,
             backend,
             carver_biomes: Mutex::new(HashSet::new()),
+            biome_fills: super::pipeline::ChunkCache::new(super::pipeline::DEFAULT_PROTO_CACHE),
         }
     }
 

@@ -1,5 +1,7 @@
 //! Concrete native preset kernels and source-native post-noise stages.
 
+use std::sync::Arc;
+
 use noise::NoiseSource;
 use noise::features::java_blocks::states;
 use noise::java_biomes::JavaBiome;
@@ -28,8 +30,41 @@ pub(super) fn disabled_aquifer(y: i32, sea_level: i32, default_fluid: u32) -> u3
     }
 }
 
+/// A chunk's native biomes: shared with the replay cache when its fill is
+/// history-independent, else this call's own.
+enum NativeBiomes {
+    Shared(Arc<Option<(QuartBiomes, biome_source::Replay)>>),
+    Owned(QuartBiomes),
+}
+
+impl std::ops::Deref for NativeBiomes {
+    type Target = QuartBiomes;
+
+    fn deref(&self) -> &QuartBiomes {
+        match self {
+            Self::Shared(cached) => {
+                let (biomes, _) = cached
+                    .as_ref()
+                    .as_ref()
+                    .expect("only replayable fills are shared");
+                biomes
+            }
+            Self::Owned(biomes) => biomes,
+        }
+    }
+}
+
+impl NativeBiomes {
+    fn into_owned(self) -> QuartBiomes {
+        match self {
+            Self::Owned(biomes) => biomes,
+            Self::Shared(_) => (*self).clone(),
+        }
+    }
+}
+
 macro_rules! secondary_stage {
-    ($method:ident, $router:ident, $settings:ident, $biomes:ident) => {
+    ($method:ident, $router:ident, $settings:ident) => {
         pub(super) fn $method(&self, pos: ChunkPos, stage: JavaTerrainStage) -> ProtoChunk {
             use noise::$router as router;
             use noise::$settings as settings;
@@ -37,7 +72,7 @@ macro_rules! secondary_stage {
             let source = self.terrain_source(pos);
             let biomes = {
                 let _biomes = profile::scope(Stage::Biomes);
-                biome_source::$biomes(&source, pos)
+                self.generate_native_biomes(pos).into_owned()
             };
             if stage == JavaTerrainStage::Biomes {
                 return self.biomes_stage(pos, biomes);
@@ -128,7 +163,10 @@ impl JavaGenerator {
         let columns = noise::ColumnContextGrid::new_native(pos.x, pos.z, &source, &flat);
         let biomes = {
             let _biomes = profile::scope(Stage::Biomes);
-            biome_source::fill_overworld_native(&source, pos, &flat, &columns)
+            self.native_biomes(pos, || {
+                biome_source::fill_overworld_native(&source, pos, &flat, &columns)
+            })
+            .into_owned()
         };
         if stage == JavaTerrainStage::Biomes {
             return self.biomes_stage(pos, biomes);
@@ -209,18 +247,8 @@ impl JavaGenerator {
         })
     }
 
-    secondary_stage!(
-        generate_nether_native,
-        nether_compiled,
-        nether_settings,
-        fill_nether_native
-    );
-    secondary_stage!(
-        generate_end_native,
-        end_compiled,
-        end_settings,
-        fill_end_native
-    );
+    secondary_stage!(generate_nether_native, nether_compiled, nether_settings);
+    secondary_stage!(generate_end_native, end_compiled, end_settings);
 
     pub(super) fn biomes_stage(&self, pos: ChunkPos, mut biomes: QuartBiomes) -> ProtoChunk {
         biomes.set_block_bounds(self.options.dimension.block_bounds());
@@ -236,16 +264,52 @@ impl JavaGenerator {
         }
     }
 
-    pub(super) fn generate_native_biomes(&self, pos: ChunkPos) -> QuartBiomes {
+    fn generate_native_biomes(&self, pos: ChunkPos) -> NativeBiomes {
         let source = self.terrain_source(pos);
         match self.options.dimension {
-            JavaDimension::Overworld => {
+            JavaDimension::Overworld => self.native_biomes(pos, || {
                 let flat = noise::FlatCacheGrid::new_native(pos.x, pos.z, &source);
                 let columns = noise::ColumnContextGrid::new_native(pos.x, pos.z, &source, &flat);
                 biome_source::fill_overworld_native(&source, pos, &flat, &columns)
+            }),
+            JavaDimension::Nether => {
+                self.native_biomes(pos, || biome_source::fill_nether_native(&source, pos))
             }
-            JavaDimension::Nether => biome_source::fill_nether_native(&source, pos),
-            JavaDimension::End => biome_source::fill_end_native(&source, pos),
+            JavaDimension::End => NativeBiomes::Owned(biome_source::fill_end_native(&source, pos)),
+        }
+    }
+
+    /// The biomes `fill` computes for `pos` with the calling thread's search
+    /// history. A fill none of whose searches met an equal-distance tie is
+    /// the same from every history: it runs once, and later calls share its
+    /// biomes and restore the history it leaves. Other fills run every time.
+    fn native_biomes(
+        &self,
+        pos: ChunkPos,
+        mut fill: impl FnMut() -> biome_source::NativeFill,
+    ) -> NativeBiomes {
+        let mut computed = None;
+        let cached = self.biome_fills.get_or_compute(pos, || {
+            let biome_source::NativeFill { biomes, replay } = fill();
+            match replay {
+                Some(replay) => Some((biomes, replay)),
+                None => {
+                    computed = Some(biomes);
+                    None
+                }
+            }
+        });
+        if let Some(biomes) = computed {
+            // This thread ran a fill with ties against its own history.
+            return NativeBiomes::Owned(biomes);
+        }
+        match &*cached {
+            Some((_, replay)) => {
+                // Idempotent when this thread just ran the fill itself.
+                replay.apply();
+                NativeBiomes::Shared(cached)
+            }
+            None => NativeBiomes::Owned(fill().biomes),
         }
     }
 
@@ -292,7 +356,7 @@ impl JavaGenerator {
             let surface = profile::scope(Stage::Surface);
             // Native reference profile: center BIOMES/NOISE, then additional
             // BIOMES chunks dz-outer/dx-inner. The center is borrowed, not copied.
-            let neighbors: [Option<QuartBiomes>; 9] = std::array::from_fn(|slot| {
+            let neighbors: [Option<NativeBiomes>; 9] = std::array::from_fn(|slot| {
                 let dx = slot as i32 % 3 - 1;
                 let dz = slot as i32 / 3 - 1;
                 (slot != 4)
@@ -308,7 +372,7 @@ impl JavaGenerator {
                         "native surface queried outside its biome neighborhood"
                     );
                     let slot = ((dz + 1) * 3 + dx + 1) as usize;
-                    let column = neighbors[slot].as_ref().unwrap_or(&biomes);
+                    let column = neighbors[slot].as_deref().unwrap_or(&biomes);
                     JavaBiome::from_index(column.at_block(
                         ((qx & 3) * 4) as u8,
                         qy * 4,

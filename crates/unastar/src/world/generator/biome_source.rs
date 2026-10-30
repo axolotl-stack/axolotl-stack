@@ -14,7 +14,10 @@
 mod end;
 mod native;
 pub use end::sample_end_biome;
-pub use native::{fill_end_native, fill_nether_native, fill_overworld_native, sample_biome_native};
+pub use native::{
+    NativeFill, Replay, fill_end_native, fill_nether_native, fill_overworld_native,
+    sample_biome_native,
+};
 
 use sha2::{Digest, Sha256};
 use unastar_noise::java_biomes::JavaBiome;
