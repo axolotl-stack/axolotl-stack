@@ -32,7 +32,7 @@ mod plugins;
 pub mod types;
 
 use bevy_ecs::prelude::*;
-pub(crate) use block_drops::{drop_block_items, explosion_drops, loot_stacks, pop_resource};
+pub(crate) use block_drops::{explosion_drops, loot_stacks, pop_resource};
 pub(crate) use blocks::{commit_block_event, reject_block_event};
 pub use commands::ConsoleCommands;
 pub use inventory::RequestIdAssignments;
