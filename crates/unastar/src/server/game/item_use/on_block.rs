@@ -62,6 +62,12 @@ pub fn use_on_block(world: &mut World, player: Entity, clicked: IVec3, face: u8)
         block: &block,
     };
     let id = entry.identifier();
+    // A minecart item on a rail places a minecart (block behaviour rules).
+    if crate::server::game::block_behaviour::utility::rails::minecart_actor(id).is_some()
+        && block.string_id.ends_with("rail")
+    {
+        return crate::server::game::block_behaviour::use_block(world, player, clicked);
+    }
     if entry.has_tag("minecraft:is_hoe") {
         return till(world, &ctx);
     }
@@ -338,6 +344,13 @@ fn carve(world: &mut World, ctx: &Use) -> bool {
 /// fire to the air next to the clicked face (soul fire on soul sand and
 /// soul soil). Flint and steel wears, a fire charge is used up.
 fn ignite(world: &mut World, ctx: &Use) -> bool {
+    // TNT is primed by the block behaviour rules instead of catching fire.
+    if matches!(
+        ctx.block_name(),
+        "minecraft:tnt" | "minecraft:underwater_tnt"
+    ) {
+        return crate::server::game::block_behaviour::use_block(world, ctx.player, ctx.clicked);
+    }
     let flint = ctx.stack.item_id() == "minecraft:flint_and_steel";
     let lit = match ctx.block_name() {
         "minecraft:campfire" | "minecraft:soul_campfire" => {

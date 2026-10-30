@@ -13,16 +13,58 @@
 //! - **Breaking** either half by a player removes the partner without drops
 //!   and yields the broken half's own drop, so a bed drops one bed item
 //!   whichever half breaks.
+//! - **Using** a bed ([`use_bed`]) always counts as an interaction. A use
+//!   of the foot acts on the head (nothing happens when the head is
+//!   missing). Then, in order:
+//!   1. outside the overworld, with `respawnBlocksExplode` on, both halves
+//!      become air and the bed explodes at the midpoint of their centres
+//!      (the head's centre alone when the foot is missing) with power 5,
+//!      setting fire and breaking blocks of any resistance; with the rule
+//!      off nothing happens;
+//!   2. an `occupied_bit` head is cleared (nobody is ever asleep in a bed);
+//!   3. a player whose position is more than 3 blocks from the head's
+//!      corner along x or z, or more than 4 along y, gets
+//!      `tile.bed.tooFar`;
+//!   4. the head becomes the player's respawn block
+//!      ([`super::utility::respawn_anchor::set_spawn_block`]:
+//!      `SetSpawnPosition` with the player's cell and the head), so the
+//!      spawn is set even when sleeping then fails; when it changed, the
+//!      player gets `tile.bed.respawnSet`;
+//!   5. during the day (sky darkened by less than 4) the player gets
+//!      `tile.bed.noSleep`;
+//!   6. outside creative and peaceful, a monster within ±8 (x, z) and ±5
+//!      (y) of the head's corner gets the player `tile.bed.notSafe`.
+//!
+//! Messages are grey rawtext translations (the BDS 1.26.51 capture of a
+//! noon use: SetSpawnPosition, `tile.bed.respawnSet`, `tile.bed.noSleep`).
+//! Not modelled: sleeping (a night use that passes every check does
+//! nothing more: no `occupied_bit`, no sleeping-players event, no night
+//! skip), the water-breathing check of a waterlogged bed,
+//! `tile.bed.obstructed` (no free spot next to the bed), monsters counted
+//! by their box rather than their feet.
 //!
 //! The bed's colour lives in its block entity, which the server does not
 //! keep yet: placed beds show the default colour and drop a plain bed.
 
-use glam::IVec3;
+use bevy_ecs::prelude::*;
+use glam::{DVec3, IVec3};
 
-use super::{Place, SupportKind, bit, int, name_at, provides_support, with};
+use super::utility::respawn_anchor::{
+    OVERWORLD, dimension, respawn_block_explosion, respawn_blocks_explode, set_spawn_block, tell,
+};
+use super::{Place, SupportKind, air, bit, centre, deferred, int, name_at, provides_support, with};
+use crate::entity::components::{GameMode, Position};
 use crate::entity::systems::BlockSource;
 use crate::registry::block::{BlockEntry, StateValue};
+use crate::server::game::blocks::set_block;
 use crate::server::game::placement::Horizontal;
+use crate::server::game::types::BlockRegistryResource;
+
+/// How far (x and z, then y) from the head's corner a player may use a bed.
+const USE_REACH: DVec3 = DVec3::new(3.0, 4.0, 3.0);
+/// How far (x and z, then y) from the head's corner monsters keep a player
+/// awake.
+const MONSTER_RANGE: DVec3 = DVec3::new(8.0, 5.0, 8.0);
 
 /// Bed state properties.
 pub const DIRECTION: &str = "direction";
@@ -102,6 +144,100 @@ pub fn parts(entry: &BlockEntry, position: IVec3, state: u32) -> Vec<(IVec3, u32
 /// drops a player's break yields (the broken half itself).
 pub fn structure(entry: &BlockEntry, pos: IVec3, state: u32) -> (Vec<IVec3>, u32) {
     (partner(entry, pos, state).into_iter().collect(), state)
+}
+
+/// Whether `state` is a half of the bed block `entry`.
+fn is_bed(entry: &BlockEntry, state: Option<u32>) -> bool {
+    state.is_some_and(|state| (entry.min_state_id..=entry.max_state_id).contains(&state))
+}
+
+/// A player uses the bed half `state` at `pos` (see the module docs).
+/// Always an interaction.
+pub fn use_bed(world: &mut World, player: Entity, pos: IVec3, state: u32) -> bool {
+    let registry = world.resource::<BlockRegistryResource>().0.clone();
+    let Some(entry) = registry.get_by_runtime_id(state) else {
+        return true;
+    };
+    let head = if bit(entry, state, HEAD) {
+        Some(pos)
+    } else {
+        partner(entry, pos, state)
+    };
+    let Some(head) = head.filter(|head| is_bed(entry, world.block_at(*head))) else {
+        return true;
+    };
+    let mut head_state = world.block_at(head).unwrap_or(state);
+    if dimension(world) != OVERWORLD {
+        if respawn_blocks_explode(world) {
+            explode_bed(world, entry, head, head_state);
+        }
+        return true;
+    }
+    if bit(entry, head_state, OCCUPIED) {
+        head_state = with(entry, head_state, OCCUPIED, StateValue::Byte(0));
+        set_block(world, head, head_state, false);
+    }
+    let Some(eye) = world.get::<Position>(player).map(|position| position.0) else {
+        return true;
+    };
+    let distance = (eye - head.as_dvec3()).abs();
+    if distance.cmpgt(USE_REACH).any() {
+        tell(world, player, "tile.bed.tooFar");
+        return true;
+    }
+    if set_spawn_block(world, player, head) {
+        tell(world, player, "tile.bed.respawnSet");
+    }
+    if crate::world::clock::is_daytime(world) {
+        tell(world, player, "tile.bed.noSleep");
+        return true;
+    }
+    let creative = world.get::<GameMode>(player) == Some(&GameMode::Creative);
+    let peaceful = world
+        .get_resource::<crate::world::rules::Difficulty>()
+        .is_some_and(|difficulty| *difficulty == crate::world::rules::Difficulty::Peaceful);
+    if !creative && !peaceful && monsters_near(world, head) {
+        tell(world, player, "tile.bed.notSafe");
+    }
+    true
+}
+
+/// Remove the bed whose head is at `head` and explode it.
+fn explode_bed(world: &mut World, entry: &BlockEntry, head: IVec3, head_state: u32) {
+    let foot = partner(entry, head, head_state).filter(|foot| is_bed(entry, world.block_at(*foot)));
+    let air = air(&world.resource::<BlockRegistryResource>().0);
+    deferred(world, |world| {
+        set_block(world, head, air, false);
+        if let Some(foot) = foot {
+            set_block(world, foot, air, false);
+        }
+    });
+    let at = match foot {
+        Some(foot) => (centre(head) + centre(foot)) / 2.0,
+        None => centre(head),
+    };
+    respawn_block_explosion(world, at);
+}
+
+/// Whether a living monster stands within [`MONSTER_RANGE`] of the corner
+/// of `head`.
+fn monsters_near(world: &mut World, head: IVec3) -> bool {
+    if !world.contains_resource::<crate::entity::mob::MobRegistry>() {
+        return false;
+    }
+    let corner = head.as_dvec3();
+    let (min, max) = (corner - MONSTER_RANGE, corner + MONSTER_RANGE);
+    let mut query = world.query_filtered::<(Entity, &Position), (
+        With<crate::entity::definition::families::ActorFamilies>,
+        Without<crate::entity::mob::state::Dead>,
+    )>();
+    let near: Vec<Entity> = query
+        .iter(world)
+        .filter(|(_, position)| position.0.cmpge(min).all() && position.0.cmple(max).all())
+        .map(|(entity, _)| entity)
+        .collect();
+    near.into_iter()
+        .any(|entity| crate::entity::mob::events::is_family(world, entity, "monster"))
 }
 
 #[cfg(test)]
@@ -231,5 +367,119 @@ mod tests {
                     .collect();
             assert_eq!(drops, vec![("minecraft:bed".to_string(), 1)]);
         }
+    }
+
+    /// A bed lying south from [`FOOT`]; returns the head.
+    fn put_bed(h: &mut Harness) -> IVec3 {
+        let head = FOOT + IVec3::Z;
+        h.put(FOOT, bed_state(Horizontal::South, false));
+        h.put(head, bed_state(Horizontal::South, true));
+        head
+    }
+
+    /// The translation keys of the chat messages the player got.
+    fn messages(h: &mut Harness) -> Vec<String> {
+        use jolyne::valentine::McpePacketData;
+        use jolyne::valentine::types::TextPacketBody;
+        h.packets()
+            .into_iter()
+            .filter_map(|packet| match packet {
+                McpePacketData::TextPacket(text) => match text.body {
+                    TextPacketBody::MessageOnly(body) => {
+                        let rawtext: serde_json::Value =
+                            serde_json::from_str(&body.message).unwrap();
+                        Some(rawtext["rawtext"][1]["translate"].as_str()?.to_string())
+                    }
+                    _ => None,
+                },
+                _ => None,
+            })
+            .collect()
+    }
+
+    fn use_at(h: &mut Harness, pos: IVec3) -> bool {
+        let state = h.state(pos);
+        use_bed(&mut h.world, h.player, pos, state)
+    }
+
+    fn spawn_block(h: &Harness, block: IVec3) -> bool {
+        super::super::utility::respawn_anchor::is_spawn_block(&h.world, h.player, block)
+    }
+
+    #[test]
+    fn using_a_bed_by_day_sets_the_spawn_at_its_head() {
+        let mut h = Harness::new();
+        let head = put_bed(&mut h);
+        h.packets();
+        assert!(use_at(&mut h, FOOT));
+        assert!(spawn_block(&h, head));
+        assert_eq!(
+            messages(&mut h),
+            ["tile.bed.respawnSet", "tile.bed.noSleep"]
+        );
+        assert!(use_at(&mut h, head));
+        assert_eq!(
+            messages(&mut h),
+            ["tile.bed.noSleep"],
+            "the same spawn again"
+        );
+    }
+
+    #[test]
+    fn using_a_bed_at_night_sets_the_spawn_without_complaint() {
+        let mut h = Harness::new();
+        h.world
+            .resource_mut::<crate::world::rules::WorldTime>()
+            .ticks = 18000;
+        let head = put_bed(&mut h);
+        h.put(
+            head,
+            with(bed(), h.state(head), OCCUPIED, StateValue::Byte(1)),
+        );
+        h.packets();
+        assert!(use_at(&mut h, head));
+        assert!(spawn_block(&h, head));
+        assert_eq!(h.state(head), bed_state(Horizontal::South, true));
+        assert_eq!(messages(&mut h), ["tile.bed.respawnSet"]);
+    }
+
+    #[test]
+    fn a_bed_too_far_away_sets_nothing() {
+        let mut h = Harness::new();
+        put_bed(&mut h);
+        h.stand(DVec3::new(4.5, 65.62, 1.5), 0.0, 0.0);
+        h.packets();
+        assert!(use_at(&mut h, FOOT));
+        assert!(
+            h.world
+                .get::<crate::entity::player_life::respawn::PlayerSpawnPoint>(h.player)
+                .is_none()
+        );
+        assert_eq!(messages(&mut h), ["tile.bed.tooFar"]);
+    }
+
+    #[test]
+    fn a_bed_explodes_outside_the_overworld() {
+        let mut h = Harness::new();
+        h.world
+            .resource_mut::<crate::server::game::types::ServerConfigResource>()
+            .0
+            .world
+            .dimension = super::super::utility::respawn_anchor::NETHER;
+        let head = put_bed(&mut h);
+        h.stand(DVec3::new(40.5, 80.0, 40.5), 0.0, 0.0);
+        assert!(use_at(&mut h, FOOT));
+        assert_eq!(h.name(FOOT), "minecraft:air");
+        assert_eq!(h.name(head), "minecraft:air");
+        assert_eq!(
+            h.name(FOOT - IVec3::Y),
+            "minecraft:air",
+            "the blast breaks the floor"
+        );
+        assert!(
+            h.world
+                .get::<crate::entity::player_life::respawn::PlayerSpawnPoint>(h.player)
+                .is_none()
+        );
     }
 }

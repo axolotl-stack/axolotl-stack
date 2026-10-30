@@ -39,6 +39,7 @@
 //! highest sub-chunk with a non-air block; crops, stems, nether wart,
 //! farmland, sugar cane and cacti grow or change there.
 
+pub mod actors;
 pub mod attached;
 pub mod beds;
 pub mod connections;
@@ -51,6 +52,7 @@ pub mod redstone;
 pub mod signs;
 mod support;
 pub mod toggles;
+pub mod utility;
 
 #[cfg(test)]
 mod bds_parity;
@@ -161,6 +163,10 @@ pub enum Family {
     /// Concrete powder: falls, and hardens into concrete next to water
     /// ([`gravity`]).
     ConcretePowder,
+    /// Interactive utility blocks ([`utility`]): dispensers, rails, TNT,
+    /// cauldrons, composters, beehives, campfires, lecterns, bells,
+    /// jukeboxes, flower pots, cakes, portals, respawn anchors, sculk.
+    Utility(utility::Utility),
 }
 
 impl Family {
@@ -180,6 +186,9 @@ impl Family {
         }
         if matches!(id, "minecraft:fire" | "minecraft:soul_fire") {
             return Self::Fire;
+        }
+        if let Some(kind) = utility::Utility::of(entry) {
+            return Self::Utility(kind);
         }
         if id.ends_with("_concrete_powder") {
             return Self::ConcretePowder;
@@ -486,6 +495,7 @@ fn neighbour_changed(world: &mut World, pos: IVec3, from: IVec3) {
         Family::Vine => attached::vine_neighbour_changed(world, pos, state),
         Family::Fire => fire::neighbour_changed(world, pos, state),
         Family::ConcretePowder => gravity::harden_concrete_powder(world, pos, state),
+        Family::Utility(kind) => utility::neighbour_changed(world, kind, pos, state, from),
         _ => {}
     }
     // Redstone components and the blocks power acts on (doors, trapdoors,
@@ -502,6 +512,7 @@ fn placed(world: &mut World, pos: IVec3, state: u32, family: Family) {
     match family {
         Family::Fire => fire::placed(world, pos, state),
         Family::ConcretePowder => gravity::harden_concrete_powder(world, pos, state),
+        Family::Utility(kind) => utility::placed(world, kind, pos, state),
         _ => {}
     }
     if family == Family::Redstone || redstone::is_consumer(family) {
@@ -571,6 +582,7 @@ pub fn can_survive(blocks: &impl BlockSource, pos: IVec3, state: u32) -> bool {
         Family::Carpet => plants::carpet_can_survive(blocks, pos),
         Family::Fire => fire::can_survive(blocks, pos, state, entry),
         Family::Redstone => redstone::can_survive(blocks, pos, state, entry),
+        Family::Utility(kind) => utility::can_survive(kind, blocks, pos, state, entry),
         Family::Plain
         | Family::Trapdoor { .. }
         | Family::FenceGate
@@ -612,6 +624,7 @@ pub fn placement_state(
         Family::FenceGate => toggles::fence_gate_placement(&place)?,
         Family::Connected | Family::Stairs => connections::placement(&place)?,
         Family::Redstone => redstone::placement(&place)?,
+        Family::Utility(kind) => utility::placement(kind, &place)?,
         _ => state,
     };
     let mut placed = vec![(position, state)];
@@ -751,6 +764,8 @@ pub fn use_block(world: &mut World, player: Entity, pos: IVec3) -> bool {
         Family::Button { wooden } => toggles::press_button(world, pos, state, wooden),
         Family::Lever => toggles::toggle_lever(world, pos, state),
         Family::Redstone => redstone::use_block(world, player, pos, state),
+        Family::Utility(kind) => utility::use_block(world, kind, player, pos, state),
+        Family::Bed => beds::use_bed(world, player, pos, state),
         _ => false,
     }
 }
@@ -763,11 +778,23 @@ pub fn is_usable(registry: &BlockRegistry, state: u32) -> bool {
         | Family::Trapdoor { iron: false }
         | Family::FenceGate
         | Family::Button { .. }
-        | Family::Lever => true,
+        | Family::Lever
+        | Family::Bed => true,
         Family::Redstone => registry
             .get_by_runtime_id(state)
             .is_some_and(redstone::is_usable),
+        Family::Utility(kind) => registry
+            .get_by_runtime_id(state)
+            .is_some_and(|entry| utility::is_usable(kind, entry, state)),
         _ => false,
+    }
+}
+
+/// A player is breaking the block `state` at `pos` (before anything is
+/// removed): blocks holding items drop them.
+pub fn breaking(world: &mut World, pos: IVec3, state: u32) {
+    if let Family::Utility(kind) = family(world, state) {
+        utility::breaking(world, kind, pos, state);
     }
 }
 
@@ -1006,6 +1033,7 @@ fn scheduled_tick(world: &mut World, pos: IVec3, state: u32) {
         Family::Connected => connections::neighbour_changed(world, pos, state),
         Family::Fire => fire::scheduled_tick(world, pos, state),
         Family::Redstone | Family::Torch => redstone::scheduled_tick(world, pos, state),
+        Family::Utility(kind) => utility::scheduled_tick(world, kind, pos, state),
         _ => {}
     }
 }
@@ -1111,6 +1139,7 @@ pub fn random_tick(world: &mut World, pos: IVec3, state: u32) {
         Family::SugarCane => plants::sugar_cane_random_tick(world, pos, state),
         Family::Cactus => plants::cactus_random_tick(world, pos, state),
         Family::Liquid if is_lava(world, state) => fire::lava_ignites(world, pos),
+        Family::Utility(kind) => utility::random_tick(world, kind, pos, state),
         Family::Fire => fire::random_tick(world, pos, state),
         _ => {}
     }

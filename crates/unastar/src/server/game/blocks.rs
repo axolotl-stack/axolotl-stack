@@ -559,7 +559,10 @@ fn apply_break_block(world: &mut World, breaking_player: Entity, x: i32, y: i32,
         return;
     };
 
-    // A container hands its contents over before its actor goes with the block.
+    // Blocks holding items (campfires, jukeboxes, lecterns, flower pots)
+    // drop them, and a container hands its contents over, before the actor
+    // goes with the block.
+    super::block_behaviour::breaking(world, pos, original_block_id);
     let broken = super::containers::breaking(world, pos);
 
     let drop_state = super::block_behaviour::deferred(world, |world| {
@@ -790,12 +793,14 @@ pub(super) fn handle_block_click(
             super::containers::open(world, entity, IVec3::new(clicked.0, clicked.1, clicked.2));
             return;
         }
+        // A block that does nothing with this click (an end portal frame
+        // without an eye in hand, an empty respawn anchor) lets the item act
+        // or be placed instead.
         Some(BlockUse::Behaviour) => {
             let pos = IVec3::new(clicked.0, clicked.1, clicked.2);
-            if !super::block_behaviour::use_block(world, entity, pos) {
-                correct_block(world, entity, clicked);
+            if super::block_behaviour::use_block(world, entity, pos) {
+                return;
             }
-            return;
         }
         Some(BlockUse::Station(kind)) => {
             super::inventory::stations::open(

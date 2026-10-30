@@ -9,7 +9,7 @@
 //!   attached to; pressure plates ([`plates`]); redstone blocks give 15
 //!   weakly to every neighbour; redstone torches ([`torch`]).
 //! - [`dust`], [`diode`] (repeaters and comparators) and [`consumers`]
-//!   (doors, trapdoors, fence gates, lamps, note blocks).
+//!   (doors, trapdoors, fence gates, lamps, note blocks, hoppers).
 //! - [`observer`]s pulse when the block they watch changes; [`piston`]s
 //!   push and pull blocks.
 //!
@@ -146,10 +146,12 @@ pub fn kind(entry: &BlockEntry) -> Option<Kind> {
 }
 
 /// Whether `entry` is a redstone component with its own family
-/// ([`Family::Redstone`]).
+/// ([`Family::Redstone`]); hoppers belong to it as power consumers without
+/// a [`Kind`].
 pub fn is_component(entry: &BlockEntry) -> bool {
     let id = entry.string_id.as_str();
     id.ends_with("_pressure_plate")
+        || is_hopper(entry)
         || matches!(
             id,
             "minecraft:redstone_wire"
@@ -170,13 +172,19 @@ pub fn is_component(entry: &BlockEntry) -> bool {
         )
 }
 
+/// Whether `entry` is a hopper (locked by power, [`consumers::hopper_evaluate`]).
+pub fn is_hopper(entry: &BlockEntry) -> bool {
+    entry.string_id == "minecraft:hopper"
+}
+
 /// Whether blocks of `family` react to power (doors, trapdoors, fence
 /// gates, redstone torches).
 pub fn is_consumer(family: Family) -> bool {
-    matches!(
-        family,
-        Family::Door { .. } | Family::Trapdoor { .. } | Family::FenceGate | Family::Torch
-    )
+    match family {
+        Family::Door { .. } | Family::Trapdoor { .. } | Family::FenceGate | Family::Torch => true,
+        Family::Utility(kind) => kind.reacts_to_power(),
+        _ => false,
+    }
 }
 
 /// The offset from a lever, button or torch to the block it hangs on.
@@ -205,11 +213,11 @@ pub fn power_at(world: &World, pos: IVec3) -> u8 {
     power::received(world, pos, true)
 }
 
-/// Repeaters and comparators react to use.
+/// Repeaters, comparators and note blocks react to use.
 pub fn is_usable(entry: &BlockEntry) -> bool {
     matches!(
         kind(entry),
-        Some(Kind::Repeater { .. } | Kind::Comparator { .. })
+        Some(Kind::Repeater { .. } | Kind::Comparator { .. } | Kind::NoteBlock)
     )
 }
 
@@ -310,6 +318,9 @@ fn react(world: &mut World, pos: IVec3, state: u32, from: IVec3) {
                 return consumers::record_door(world, pos, state);
             }
             Family::Door { .. } | Family::Trapdoor { .. } | Family::FenceGate => {}
+            // Hoppers (the only components without a kind).
+            Family::Redstone => {}
+            Family::Utility(kind) if kind.reacts_to_power() => {}
             _ => return,
         },
         _ => {}
@@ -352,6 +363,11 @@ fn evaluate_state(world: &mut World, pos: IVec3, state: u32) {
             Family::Door { .. } => consumers::door_evaluate(world, pos, state),
             Family::Trapdoor { .. } => consumers::trapdoor_evaluate(world, pos, state),
             Family::FenceGate => consumers::fence_gate_evaluate(world, pos, state),
+            Family::Redstone => consumers::hopper_evaluate(world, pos, state),
+            Family::Utility(kind) if kind.reacts_to_power() => {
+                let powered = power_at(world, pos) > 0;
+                super::utility::power_changed(world, kind, pos, state, powered);
+            }
             _ => {}
         },
     }
@@ -397,7 +413,8 @@ pub fn scheduled_tick(world: &mut World, pos: IVec3, state: u32) {
     }
 }
 
-/// Use: a repeater cycles its delay, a comparator toggles its mode.
+/// Use: a repeater cycles its delay, a comparator toggles its mode, a note
+/// block tunes up and plays.
 pub fn use_block(world: &mut World, _player: Entity, pos: IVec3, state: u32) -> bool {
     let Some(part) = world.registry().get_by_runtime_id(state).map(kind) else {
         return false;
@@ -405,6 +422,7 @@ pub fn use_block(world: &mut World, _player: Entity, pos: IVec3, state: u32) -> 
     match part {
         Some(Kind::Repeater { .. }) => diode::cycle_delay(world, pos, state),
         Some(Kind::Comparator { .. }) => diode::toggle_mode(world, pos, state),
+        Some(Kind::NoteBlock) => consumers::tune_note_block(world, pos),
         _ => false,
     }
 }

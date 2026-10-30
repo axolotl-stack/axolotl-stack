@@ -179,16 +179,19 @@ const BLOCK_SCREEN_STANDARD: &[Name] = &[
     Name::Cursorcontainer,
 ];
 
-/// The block's own containers on its screen: chest, ender chest and hopper
-/// windows address `LevelEntityContainer`, the barrel `BarrelContainer`, and
-/// furnaces their ingredient (by block), fuel and result containers.
+/// The block's own containers on its screen: chest, ender chest, hopper,
+/// dispenser and dropper windows address `LevelEntityContainer`, the barrel
+/// `BarrelContainer`, and furnaces their ingredient (by block), fuel and
+/// result containers.
 fn block_rule(screen: BlockScreen, name: Name) -> Option<ContainerRule> {
     let block = |first, len, kind| Some(rule(Store::Block, first, len, kind));
     match screen.kind {
         ContainerKind::Chest
         | ContainerKind::TrappedChest
         | ContainerKind::EnderChest
-        | ContainerKind::Hopper => {
+        | ContainerKind::Hopper
+        | ContainerKind::Dispenser
+        | ContainerKind::Dropper => {
             (name == Name::Levelentitycontainer).then_some(())?;
             block(0, screen.size, SlotKind::Plain)
         }

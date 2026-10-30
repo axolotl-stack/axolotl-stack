@@ -29,8 +29,11 @@
 //! 4. **Breaking.** Each remembered block position is sampled for the
 //!    block-explosion particles with chance 1/8; every non-air one drops
 //!    its items (whole-stack or per-item decay `1 / power`, see
-//!    `server::game::explosion_drops`) and becomes air. The drops, merged by
-//!    item, appear after the loop at the first block that produced them.
+//!    `server::game::explosion_drops`) and becomes air. TNT drops nothing:
+//!    it becomes air and a primed TNT actor with the short chain-reaction
+//!    fuse takes its place (`block_behaviour::utility::tnt`). The drops,
+//!    merged by item, appear after the loop at the first block that
+//!    produced them.
 //! 5. **Viewers** get `LevelEventGeneric` ParticlesBlockExplosion with the
 //!    sampled positions.
 //! 6. **Fire.** With `causes_fire`, every remembered position that is air
@@ -39,14 +42,16 @@
 //!    caller removed the exploding actor and the network sync spawned the
 //!    drops) the explosion sound ([`send_explosion_sounds`]), the wire order
 //!    of the BDS 1.26.51 capture.
+//! 8. **Neighbour updates.** Every changed block then runs the block change
+//!    path's updates (`block_behaviour::block_changed`), held back until
+//!    all of them are queued: attached blocks that lost their support
+//!    break, redstone re-reads its power, fire starts ticking.
 //!
-//! Not modelled: TNT blocks are destroyed like any other block instead of
-//! being primed (there is no primed TNT actor yet), shields do not halve
-//! the impact, knockback resistance is 0 for every actor, item,
-//! experience-orb and projectile actors are not affected, a hurt player is
-//! not sent `SetLastHurtBy` (no actor-type id with its class flags is
-//! known), and several changes in one sub-chunk go out as several
-//! `UpdateBlock` rather than one `UpdateSubChunkBlocks`.
+//! Not modelled: shields do not halve the impact, knockback resistance is 0
+//! for every actor, item, experience-orb and projectile actors are not
+//! affected, a hurt player is not sent `SetLastHurtBy` (no actor-type id
+//! with its class flags is known), and several changes in one sub-chunk go
+//! out as several `UpdateBlock` rather than one `UpdateSubChunkBlocks`.
 
 use std::collections::HashSet;
 
@@ -86,6 +91,7 @@ use crate::item::ItemStack;
 use crate::registry::block::LiquidKind;
 use crate::registry::collision::Aabb;
 use crate::server::broadcast::{BLOCK_UPDATE_NEIGHBOURS, BLOCK_UPDATE_NETWORK};
+use crate::server::game::block_behaviour::utility::tnt;
 use crate::server::game::types::ServerConfigResource;
 use crate::world::ecs::{
     BlockChanged, ChunkData, ChunkManager, ChunkStateFlags, ChunkViewers, world_to_chunk_coords,
@@ -177,6 +183,11 @@ pub fn explode(world: &mut World, explosion: &Explosion) -> ExplosionOutcome {
         ignite(world, &positions, &mut outcome, &mut changes);
     }
     send_block_updates(world, &changes);
+    crate::server::game::block_behaviour::deferred(world, |world| {
+        for &(pos, _) in &changes {
+            crate::server::game::block_behaviour::block_changed(world, pos);
+        }
+    });
     outcome
 }
 
@@ -521,6 +532,7 @@ fn break_blocks(
         .expect("air is a vanilla block");
     let mut sampled = Vec::new();
     let mut drops: Vec<(IVec3, ItemStack)> = Vec::new();
+    let mut primed = Vec::new();
     for &pos in positions {
         let chosen = world
             .resource_mut::<EntityRandom>()
@@ -533,11 +545,22 @@ fn break_blocks(
         let Some(state) = world.block_at(pos).filter(|&state| state != air) else {
             continue;
         };
-        for stack in crate::server::game::explosion_drops(world, state, explosion.power) {
-            merge_drop(&mut drops, pos, stack);
+        let is_tnt = world
+            .registry()
+            .get_by_runtime_id(state)
+            .is_some_and(tnt::is_tnt);
+        if is_tnt {
+            primed.push(pos);
+        } else {
+            for stack in crate::server::game::explosion_drops(world, state, explosion.power) {
+                merge_drop(&mut drops, pos, stack);
+            }
         }
         set_block(world, pos, air, changes);
         outcome.destroyed.push(pos);
+    }
+    for pos in primed {
+        tnt::prime_from_explosion(world, pos);
     }
     for (pos, stack) in drops {
         crate::server::game::pop_resource(world, pos, stack);

@@ -6,7 +6,10 @@
 //!   soil (where it becomes soul fire). Soul fire stays only over soul sand
 //!   and soul soil. Fire that loses its place goes out without particles or
 //!   drops.
-//! - **Placing** fire over soul sand or soul soil turns it into soul fire at
+//! - **Placing** fire inside a valid obsidian frame in the overworld or the
+//!   nether lights a nether portal instead ([`super::utility::portals`]):
+//!   the frame fills with portal blocks and the fire is gone. Otherwise
+//!   fire over soul sand or soul soil turns into soul fire at
 //!   once; any other fire gets its first tick one tick later. When the
 //!   block below a fire becomes soul sand or soul soil, the fire turns into
 //!   soul fire three ticks later. Soul fire never ticks: it neither ages,
@@ -39,13 +42,12 @@
 //!   A campfire or soul campfire is lit. Any other block is removed (never
 //!   with drops); then, when `nextInt(age + 10) < 5`, fire of age
 //!   `min(age + nextInt(5) / 4, 15)` takes its place if fire can stay
-//!   there. TNT is removed without fire; priming it is not modelled.
+//!   there. TNT is primed instead (`utility::tnt::ignite`).
 //! - **Not modelled**: rain and humid biomes (the server has no weather, so
 //!   rain never puts fire out or stops it spreading, and no biome lowers the
 //!   odds); the `tntExplodes` rule (there is none, so it counts as on and
 //!   fire over TNT burns like fire over any block); water held by a
-//!   waterlogged block below (only a water block below counts); nether
-//!   portals lit by fire.
+//!   waterlogged block below (only a water block below counts).
 //! - **Random ticks** do nothing to fire.
 //! - **Punching** the face of a block with fire or soul fire in the cell
 //!   beyond that face puts it out with the `extinguish.fire` sound at the
@@ -338,6 +340,9 @@ pub fn placed(world: &mut World, pos: IVec3, state: u32) {
     let Some(entry) = registry.get_by_runtime_id(state) else {
         return;
     };
+    if entry.string_id == FIRE && super::utility::portals::try_light(world, pos) {
+        return;
+    }
     if !can_survive(world, pos, state, entry) {
         set_block(world, pos, air(&registry), false);
         return;
@@ -497,10 +502,12 @@ fn burn(world: &mut World, pos: IVec3, bound: i32, age: i32) {
     } else {
         None
     };
-    set_block(world, pos, air(&registry), false);
     if matches!(name, "minecraft:tnt" | "minecraft:underwater_tnt") {
+        // Burning TNT is primed (the priming removes the block).
+        super::utility::tnt::ignite(world, pos);
         return;
     }
+    set_block(world, pos, air(&registry), false);
     if let Some(new_age) = new_age
         && next_to_flammable(world, pos)
         && let Some(fire) = fire_state(&registry, new_age)

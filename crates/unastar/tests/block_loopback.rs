@@ -452,3 +452,55 @@ fn a_lever_beside_an_iron_door_opens_and_closes_it() {
         },
     );
 }
+
+#[test]
+fn flint_and_steel_primes_tnt_that_explodes_after_its_fuse() {
+    run(
+        "Demolisher",
+        &[("minecraft:tnt", 1), ("minecraft:flint_and_steel", 1)],
+        |session| async move {
+            let Session {
+                mut client,
+                mut view,
+                runtime_id,
+            } = session;
+            let tnt = view.hotbar[0].clone();
+            send(&mut client, click(FLOOR, 1, tnt, 0)).await;
+            until(&mut client, &mut view, "the TNT block", |view, _| {
+                view.name(LOWER) == Some("minecraft:tnt")
+            })
+            .await;
+            send(
+                &mut client,
+                MobEquipmentPacket {
+                    target_runtime_id: ActorRuntimeId {
+                        actor_runtime_id: runtime_id,
+                    },
+                    slot: 1,
+                    selected_slot: 1,
+                    container_id: 0,
+                    ..Default::default()
+                },
+            )
+            .await;
+            let flint = view.hotbar[1].clone();
+            let target = BlockPos {
+                x: LOWER.0,
+                y: LOWER.1,
+                z: LOWER.2,
+            };
+            send(&mut client, click(target, 2, flint, 1)).await;
+            until(&mut client, &mut view, "the primed TNT actor", |_, packet| {
+                matches!(packet, McpePacketData::AddActorPacket(actor)
+                    if &*actor.actor_type == "minecraft:tnt")
+            })
+            .await;
+            assert_eq!(view.name(LOWER), Some("minecraft:air"), "the block was primed");
+            // The fuse runs about four seconds; the explosion breaks the floor.
+            until(&mut client, &mut view, "the explosion", |view, _| {
+                view.name((FLOOR.x, FLOOR.y, FLOOR.z)) == Some("minecraft:air")
+            })
+            .await;
+        },
+    );
+}
