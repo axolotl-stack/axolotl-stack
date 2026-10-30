@@ -134,7 +134,9 @@ impl FilterContext for MobFacts<'_> {
     fn fact(&self, subject: Subject, test: &FilterTest) -> Option<Fact> {
         let entity = self.subject(subject)?;
         Some(match test.builtin()? {
-            BuiltinTest::HasBiomeTag => {
+            // `is_biome` names a biome type ("jungle"); the biome's tags
+            // carry its type names (public reference, unmeasured).
+            BuiltinTest::HasBiomeTag | BuiltinTest::IsBiome => {
                 let want = test.value.as_str()?;
                 Fact::Matches(self.biome_tags(entity)?.iter().any(|tag| tag == want))
             }

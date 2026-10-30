@@ -14,26 +14,32 @@
 //!
 //! While the hook bobs in water the bite cycle runs: a wait of 100–600
 //! ticks less 100 per Lure level, a fish approaching for 20–80 ticks, then
-//! a bite of 20–40 ticks during which the hook dips. A missed bite starts a
-//! new wait. Reeling in
+//! a bite of 20–40 ticks during which the hook dips; the bite starts with
+//! `ActorEvent` 13 on the hook. A missed bite starts a new wait. Reeling in
 //! - during a bite rolls the hook's `minecraft:loot` table (the definition
 //!   switches to the jungle table in jungle biomes) with the rod's Luck of
 //!   the Sea level as luck, flings every item from the hook towards the
-//!   owner, gives the owner one experience orb of 1–6 and wears the rod by 1;
-//! - with an actor hooked pulls it towards the owner by a tenth of the
-//!   distance and wears the rod by 5;
+//!   owner, gives the owner 1–6 experience (split into orbs) and wears the
+//!   rod by 1;
+//! - with an actor hooked (the hook's actor data `TARGET` is its unique
+//!   id) pulls it towards the owner by a tenth of the distance and wears
+//!   the rod by 3;
 //! - with the hook on the ground wears the rod by 2; otherwise nothing.
 //!
 //! The hook is removed when its owner leaves, dies, no longer holds a
 //! fishing rod in the selected slot or is more than 32 blocks away, and
 //! 1200 ticks after it stuck in a block.
 //!
-//! Every number here is a public reference, unmeasured on BDS (recorded in
-//! `bds-quirks.md`): the cast velocity and start, the bobbing motion, the
-//! bite timers, the pull, the catch velocity and experience, the wear and
-//! the range. The hook's actor events and particles are not sent. This
-//! server has no weather, so rain does not shorten the wait, and the open
-//! sky is not checked.
+//! Measured on BDS 1.26.51 (client-diff `fishing`, items3 capture): the
+//! `OWNER` and `TARGET` actor data, the bite event, the wear (catch 1,
+//! ground 2, hooked cow 3, reel before a bite 0) and the removal on a slot
+//! switch. Public references, unmeasured (recorded in `bds-quirks.md`): the
+//! cast velocity and start, the bobbing motion, the bite timers, the pull,
+//! the catch velocity and experience amount, the range. Not sent: the
+//! approach events 12/14 with the fish position in `FISHX`/`FISHZ`/
+//! `FISHANGLE`, the cast, splash and hooked sounds, and the hurt event of a
+//! hooked actor. This server has no weather, so rain does not shorten the
+//! wait, and the open sky is not checked.
 
 use std::ops::RangeInclusive;
 use std::sync::Arc;
@@ -75,8 +81,10 @@ pub const FISHING_ROD: &str = "minecraft:fishing_rod";
 const MAX_OWNER_DISTANCE: f64 = 32.0;
 /// Ticks a hook stuck in a block stays.
 const GROUND_LIFETIME: u64 = 1200;
-/// The hook starts this far ahead of the eye, horizontally.
-const CAST_FORWARD: f64 = 0.3;
+/// The hook starts this far ahead of the eye, horizontally, and
+/// [`CAST_DROP`] below it (measured on BDS 1.26.51: 0.15 and 0.38).
+const CAST_FORWARD: f64 = 0.15;
+const CAST_DROP: f64 = 0.38;
 /// Cast speed: each axis of the cast vector (horizontal unit, vertical the
 /// pitch tangent clamped to ±[`CAST_MAX_SLOPE`]) is scaled by
 /// `CAST_SPEED / length + CAST_MODE ± CAST_SPREAD` (triangular).
@@ -106,7 +114,7 @@ const BITE_TICKS: RangeInclusive<i32> = 20..=40;
 const CATCH_EXPERIENCE: RangeInclusive<u32> = 1..=6;
 const WEAR_CATCH: i32 = 1;
 const WEAR_GROUND: i32 = 2;
-const WEAR_ACTOR: i32 = 5;
+const WEAR_ACTOR: i32 = 3;
 
 /// The hook a player has out.
 #[derive(Component, Debug, Clone, Copy, PartialEq, Eq)]
@@ -195,7 +203,10 @@ fn cast_motion(eye: DVec3, look: Rotation, rng: &mut impl Rng) -> (DVec3, DVec3)
         direction.y * scale(),
         direction.z * scale(),
     );
-    (eye + forward * CAST_FORWARD, velocity)
+    (
+        eye + forward * CAST_FORWARD - DVec3::Y * CAST_DROP,
+        velocity,
+    )
 }
 
 /// The rotation a hook flying along `velocity` faces (as projectiles do).
@@ -357,7 +368,11 @@ fn catch(
     }
     let experience = rng.gen_range(CATCH_EXPERIENCE);
     if let Some(feet) = owner_feet(world, owner) {
-        crate::entity::xp_orb::spawn_orb(world, feet + DVec3::new(0.0, 0.5, 0.5), experience);
+        crate::entity::xp_orb::spawn_experience(
+            world,
+            feet + DVec3::new(0.0, 0.5, 0.5),
+            experience,
+        );
     }
 }
 
@@ -539,6 +554,11 @@ fn fly(
         state.state = HookState::Bobbing;
     } else if let Some(target) = next_catch(world, hook, state.owner, actors, scratch) {
         leave_flight(world, hook);
+        if let Some(target_id) = drop_thrower_id(world, target)
+            && let Some(mut metadata) = world.get_mut::<EntityMetadata>(hook)
+        {
+            metadata.set_long(ids::TARGET, target_id);
+        }
         state.state = HookState::Hooked(target);
         return ride(world, hook, state, target);
     }
@@ -586,13 +606,24 @@ fn bob(world: &mut World, hook: Entity, mut state: FishingHook, position: DVec3)
         velocity.y - offset * f64::from(rng.r#gen::<f32>()) * BOB_PULL,
         velocity.z * BOB_DRAG,
     );
+    let mut bite_started = false;
     if surface.is_some() {
         if state.biting() {
             velocity.y -= BITE_DIP * f64::from(rng.r#gen::<f32>()) * f64::from(rng.r#gen::<f32>());
         }
+        let was_biting = state.biting();
         bite_cycle(&mut state, rng);
+        bite_started = state.biting() && !was_biting;
     } else {
         velocity.y -= GRAVITY;
+    }
+    if bite_started {
+        crate::entity::mob::combat::send_actor_event(
+            world,
+            hook,
+            jolyne::valentine::types::EnumsActorEvent::FishhookHooktime,
+            0,
+        );
     }
     let (width, height) = hook_size(world, hook);
     let moved = move_aabb(

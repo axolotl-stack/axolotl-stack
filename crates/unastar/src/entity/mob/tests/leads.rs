@@ -182,7 +182,8 @@ fn a_lead_leashes_a_cow_to_the_player_and_is_used_up() {
     field.interact(cow);
     let world = field.world();
     assert!(world.get::<Leashed>(cow).is_none());
-    assert_eq!(leash_holder(world, cow), Some(0));
+    // Measured on BDS 1.26.51: an unleashed mob's holder is -1.
+    assert_eq!(leash_holder(world, cow), Some(-1));
     assert!(!leashed_flag(world, cow));
     assert_eq!(field.leads_on_ground(), 1);
     assert_eq!(field.held().count, 1);

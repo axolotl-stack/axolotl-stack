@@ -201,7 +201,7 @@ fn hook_lands_in_water_bites_and_reels_in_a_catch() {
     pond.use_rod();
     assert!(pond.hook().is_none());
     assert!(pond.count::<ItemEntityStack>() > items, "a catch appears");
-    assert_eq!(pond.count::<XpOrb>(), orbs + 1);
+    assert!(pond.count::<XpOrb>() > orbs, "experience orbs appear");
     let world = pond.world();
     let mut catches = world.query::<(&ItemEntityStack, &Velocity)>();
     let (_, velocity) = catches.iter(world).next().unwrap();
@@ -267,6 +267,9 @@ fn hooking_a_cow_pulls_it_and_costs_more_durability() {
     pond.world()
         .entity_mut(cow)
         .insert(Position(DVec3::new(8.5, 64.0, 3.0)));
+    // Look down at the cow so the cast meets it.
+    let player = pond.player;
+    pond.world().get_mut::<Rotation>(player).unwrap().pitch = 20.0;
     pond.use_rod();
     assert!(pond.until(20, |p| p.state().state == HookState::Hooked(cow)));
     let hook = pond.hook().unwrap();

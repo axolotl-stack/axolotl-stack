@@ -107,6 +107,7 @@ pub fn component_kinds(
 fn supported_test(test: BuiltinTest, subject: Subject) -> bool {
     match test {
         BuiltinTest::HasBiomeTag
+        | BuiltinTest::IsBiome
         | BuiltinTest::HasComponent
         | BuiltinTest::InLava
         | BuiltinTest::InWater

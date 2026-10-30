@@ -2,24 +2,30 @@
 //!
 //! A lead used on a mob with `minecraft:leashable` that is not on a lead
 //! (or whose lead `can_be_stolen`) leashes it to the player: the mob's
-//! actor data `LEASH_HOLDER` is the player's runtime id and its `LEASHED`
-//! flag is set (clients draw the lead), its `on_leash` event fires, one lead
-//! is used up outside creative and the mob becomes persistent. Interacting
-//! with a mob one holds on a lead unleashes it and drops the lead.
+//! actor data `LEASH_HOLDER` is the player's unique id and its `LEASHED`
+//! flag is set (clients draw the lead), `lead.leash` plays at the mob, its
+//! `on_leash` event fires, one lead is used up outside creative and the mob
+//! becomes persistent. Interacting with a mob one holds on a lead unleashes
+//! it and drops the lead. Unleashed, `LEASH_HOLDER` is -1.
 //!
 //! Every tick ([`tick_leashes`]) a leashed mob farther than its
 //! `max_distance` from the holder's feet (10 blocks when the definition
-//! leaves it at 0) breaks free and drops the lead; farther than its
-//! `hard_distance` it is pulled: each axis of the unit offset towards the
-//! holder adds `0.4 × axis²` (signed) to its velocity. A mob whose holder
-//! left, died or became a spectator, or that died itself, drops the lead.
+//! leaves it at 0) breaks free: `ActorEvent` 63 (data 1) on the mob, the
+//! lead drops at the mob and `lead.break` plays at the holder. Farther than
+//! its `hard_distance` it is pulled: each axis of the unit offset towards
+//! the holder adds `0.4 × axis²` (signed) to its velocity. A mob whose
+//! holder left, died or became a spectator, or that died itself, drops the
+//! lead.
 //!
-//! Public reference, unmeasured (recorded in `bds-quirks.md`): the pull, the
-//! break distance default and the unleashed `LEASH_HOLDER` value (0, as in a
-//! fresh mob's actor data). Not implemented: walking towards the holder
-//! between `soft_distance` and `hard_distance` (needs a mob AI goal), tying
-//! leads to fences (the `minecraft:leash_knot` actor has no definition or
-//! spawn path), mob-to-mob leads and saving the lead with the mob.
+//! Measured on BDS 1.26.51 (client-diff `lead-nametag`, items3 capture):
+//! the leash actor data and flag, no actor link, the leash and break sounds,
+//! the break event and the dropped lead. Public reference, unmeasured
+//! (recorded in `bds-quirks.md`): the pull and the break distance default.
+//! Not implemented: walking towards the holder between `soft_distance` and
+//! `hard_distance` (needs a mob AI goal), tying leads to fences (BDS spawns
+//! a `minecraft:leash_knot` actor that becomes the holder; it has no
+//! definition or spawn path here), mob-to-mob leads and saving the lead
+//! with the mob.
 
 use bevy_ecs::prelude::*;
 use glam::DVec3;
@@ -34,6 +40,7 @@ use crate::entity::item_drop::drop_thrower_id;
 use crate::entity::mob::MobKind;
 use crate::entity::mob::components::SelfEvent;
 use crate::entity::mob::components::leash::LeashableConfig;
+use crate::entity::mob::net::sound::play_level_sound;
 use crate::entity::mob::state::{Dead, Leashed};
 use crate::item::ItemStack;
 use crate::server::game::world_stack;
@@ -73,6 +80,9 @@ pub(super) fn use_lead(
         return false;
     };
     set_leash_state(world, target, holder_id, true);
+    if let Some(position) = world.get::<Position>(target).map(|p| p.0) {
+        play_level_sound(world, Some(target), position, "lead.leash", -1);
+    }
     world.entity_mut(target).insert(Leashed { holder: player });
     super::interact::use_held_item(world, player, None);
     if let Some(event) = &config.on_leash {
@@ -86,7 +96,7 @@ pub fn unleash(world: &mut World, mob: Entity, drop: bool) {
     if world.entity_mut(mob).take::<Leashed>().is_none() {
         return;
     }
-    set_leash_state(world, mob, 0, false);
+    set_leash_state(world, mob, -1, false);
     if let Some(event) = world
         .get::<LeashableConfig>(mob)
         .and_then(|config| config.on_unleash.clone())
@@ -182,7 +192,14 @@ pub fn tick_leashes(
         let offset = feet - position;
         let distance = offset.length();
         if distance > max_distance {
+            crate::entity::mob::combat::send_actor_event(
+                world,
+                mob,
+                jolyne::valentine::types::EnumsActorEvent::LeashDestroyed,
+                1,
+            );
             unleash(world, mob, true);
+            play_level_sound(world, Some(holder), feet, "lead.break", -1);
         } else if distance > hard_distance
             && let Some(mut velocity) = world.get_mut::<Velocity>(mob)
         {

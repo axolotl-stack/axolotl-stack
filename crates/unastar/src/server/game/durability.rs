@@ -23,14 +23,25 @@ use crate::item::enchant::{
 };
 use crate::registry::item::ItemEntry;
 
+/// Items that wear on BDS 1.26.51 (client-diff `fishing`: the rod's
+/// `Damage` grows per use) although their native `maxDamage` is 0, with
+/// their durability (public reference, unmeasured).
+const UNLISTED_DURABILITY: &[(&str, i32)] = &[("minecraft:fishing_rod", 384)];
+
 /// The durability of `entry`, 0 when it does not wear.
 pub fn max_durability(entry: &ItemEntry) -> i32 {
-    entry
+    let native = entry
         .components()
         .durability
         .as_ref()
-        .map_or(entry.data().max_damage, |d| d.max_durability)
-        .max(0)
+        .map_or(entry.data().max_damage, |d| d.max_durability);
+    if native > 0 {
+        return native;
+    }
+    UNLISTED_DURABILITY
+        .iter()
+        .find(|(id, _)| *id == entry.identifier())
+        .map_or(0, |(_, durability)| *durability)
 }
 
 /// Durability a melee hit with `entry` costs.
