@@ -353,6 +353,17 @@ const SYSTEMS: &[(&str, &str, &str)] = &[
         "platform.server_config",
         "server.properties-equivalent configuration, allowlist and permissions files",
     ),
+    // Performance against BDS on the same machine.
+    (
+        "performance",
+        "performance.generation_speed",
+        "chunk generation throughput and latency compared with BDS for the same world",
+    ),
+    (
+        "performance",
+        "performance.chunk_streaming",
+        "time from join or movement until the view is loaded on the client, compared with BDS",
+    ),
 ];
 
 pub fn rows() -> Vec<Row> {

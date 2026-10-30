@@ -118,7 +118,9 @@ cargo run -p jolyne --example 04_proxy
 Bedrock 1.26.51 has (actors and their components, blocks, items and their behaviours, commands,
 packets, Java and Bedrock world generation, gameplay systems) and how far `unastar` is with each.
 The rows are generated from vanilla data; the statuses live in `docs/parity/<domain>.toml`.
-Looking for something to work on? Pick a `missing` or `partial` row there. See
+Looking for something to work on? The [Where to help](docs/parity/PARITY.md#where-to-help)
+section lists, per domain, the free families with the most missing or partial rows and the
+areas already claimed in [`docs/parity/claims.toml`](docs/parity/claims.toml). See
 [`docs/parity/README.md`](docs/parity/README.md) for how it works.
 
 ## 🤝 Contributing
