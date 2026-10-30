@@ -619,8 +619,8 @@ mod tests {
     use glam::IVec3;
     use jolyne::valentine::McpePacketData;
 
+    use super::super::LEVEL_EVENT_PARTICLES_DESTROY_BLOCK;
     use super::super::tests::{FLOOR, Harness, state};
-    use super::super::{DoFireTick, LEVEL_EVENT_PARTICLES_DESTROY_BLOCK};
     use super::*;
     use crate::registry::BlockRegistry;
 
@@ -751,7 +751,13 @@ mod tests {
     #[test]
     fn without_fire_ticks_fire_neither_ages_burns_nor_spreads() {
         let mut h = Harness::new();
-        h.world.insert_resource(DoFireTick(false));
+        h.world
+            .resource_mut::<crate::world::rules::GameRules>()
+            .set_value(
+                "doFireTick",
+                unastar_data::game_rules::GameRuleValue::Bool(false),
+            )
+            .unwrap();
         let walls = plank_hut(&mut h);
         h.set(FIRE_POS, id(FIRE));
         h.tick(6000);
@@ -930,7 +936,13 @@ mod tests {
         assert!(lava_fires(&mut h, lava, 300).is_empty(), "coal");
         // Without doFireTick.
         let mut h = Harness::new();
-        h.world.insert_resource(DoFireTick(false));
+        h.world
+            .resource_mut::<crate::world::rules::GameRules>()
+            .set_value(
+                "doFireTick",
+                unastar_data::game_rules::GameRuleValue::Bool(false),
+            )
+            .unwrap();
         h.put(lava, id("minecraft:lava"));
         h.put(lava + IVec3::X, id("minecraft:oak_log"));
         assert!(lava_fires(&mut h, lava, 300).is_empty(), "doFireTick off");

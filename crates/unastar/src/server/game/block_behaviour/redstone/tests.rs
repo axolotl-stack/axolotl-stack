@@ -692,3 +692,18 @@ fn door_placed_in_power_stays_closed_until_the_power_changes() {
     h.tick(2);
     assert!(open(&h, door));
 }
+
+#[test]
+fn redstone_items_place_dust_repeaters_and_comparators() {
+    for (item, block) in [
+        ("minecraft:redstone", "minecraft:redstone_wire"),
+        ("minecraft:repeater", "minecraft:unpowered_repeater"),
+        ("minecraft:comparator", "minecraft:unpowered_comparator"),
+    ] {
+        let mut h = Harness::new();
+        h.stand(DVec3::new(0.5, Y as f64 + 1.62, 3.5), 180.0, 30.0);
+        h.hold(item, 4);
+        h.click(at(0, 0) - IVec3::Y, 1, DVec3::new(0.5, 1.0, 0.5));
+        assert_eq!(h.name(at(0, 0)), block, "{item}");
+    }
+}

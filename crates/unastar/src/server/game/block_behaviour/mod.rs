@@ -35,7 +35,7 @@
 //! release); the tick only runs when the same block is still there.
 //! Random ticks ([`tick_blocks`]): every chunk in a player's ticking
 //! diamond (simulation distance) gets `(int)((top + 1) × 2.5) ×`
-//! [`RandomTickSpeed`] random positions per game tick, `top` being its
+//! `randomTickSpeed` ([`random_tick_speed`]) random positions per game tick, `top` being its
 //! highest sub-chunk with a non-air block; crops, stems, nether wart,
 //! farmland, sugar cane and cacti grow or change there.
 
@@ -318,30 +318,30 @@ pub fn family_of(registry: &BlockRegistry, state: u32) -> Family {
         .map_or(Family::Plain, Family::of)
 }
 
-/// Random ticks per non-empty sub-chunk per game tick (Bedrock's default
-/// `randomtickspeed` is 1).
-#[derive(Resource, Debug, Clone, Copy, PartialEq, Eq)]
-pub struct RandomTickSpeed(pub u32);
+/// The game rule `name` (BDS's default when the world has no rules).
+fn game_rule(world: &World, name: &str) -> Option<unastar_data::game_rules::GameRuleValue> {
+    world
+        .get_resource::<crate::world::rules::GameRules>()
+        .and_then(|rules| rules.value(name))
+        .map(|(_, value)| value)
+}
 
-impl Default for RandomTickSpeed {
-    fn default() -> Self {
-        Self(1)
+/// The `randomTickSpeed` game rule: random ticks per chunk budget unit
+/// (BDS's default is 1).
+pub fn random_tick_speed(world: &World) -> u32 {
+    match game_rule(world, "randomTickSpeed") {
+        Some(unastar_data::game_rules::GameRuleValue::Int(speed)) => speed.max(0) as u32,
+        _ => 1,
     }
 }
 
-/// Whether fire spreads and burns out (`doFireTick`, default on).
-#[derive(Resource, Debug, Clone, Copy, PartialEq, Eq)]
-pub struct DoFireTick(pub bool);
-
-impl Default for DoFireTick {
-    fn default() -> Self {
-        Self(true)
-    }
-}
-
-/// The `doFireTick` rule.
+/// The `doFireTick` game rule: whether fire spreads, ages and burns out
+/// (on by default).
 pub fn fire_ticks(world: &World) -> bool {
-    world.get_resource::<DoFireTick>().is_none_or(|rule| rule.0)
+    !matches!(
+        game_rule(world, "doFireTick"),
+        Some(unastar_data::game_rules::GameRuleValue::Bool(false))
+    )
 }
 
 /// Random source of block ticks and growth (seedable in tests).
@@ -643,7 +643,9 @@ pub fn parts(blocks: &impl BlockSource, position: IVec3, state: u32) -> Vec<(IVe
 /// - `minecraft:block_placer` places its `block`;
 /// - a sign item (`<wood>_sign`) places that wood's standing sign (oak's is
 ///   `standing_sign`, dark oak's `darkoak_standing_sign`; the wall variant
-///   is chosen by [`signs::placement`]), `sugar_cane` places `reeds`;
+///   is chosen by [`signs::placement`]); `sugar_cane` places `reeds`,
+///   `redstone` places `redstone_wire`, `repeater` and `comparator` place
+///   their unpowered blocks;
 /// - every other item places the block of the same name, if there is one.
 pub fn item_block<'a>(
     registry: &'a BlockRegistry,
@@ -664,8 +666,15 @@ pub fn item_block<'a>(
         return named(&placer.block);
     }
     let id = item.identifier();
-    if id == "minecraft:sugar_cane" {
-        return registry.get_by_name("minecraft:reeds");
+    let placed = match id {
+        "minecraft:sugar_cane" => Some("minecraft:reeds"),
+        "minecraft:redstone" => Some("minecraft:redstone_wire"),
+        "minecraft:repeater" => Some("minecraft:unpowered_repeater"),
+        "minecraft:comparator" => Some("minecraft:unpowered_comparator"),
+        _ => None,
+    };
+    if let Some(block) = placed {
+        return registry.get_by_name(block);
     }
     if let Some(wood) = id.strip_suffix("_sign").filter(|wood| {
         !wood.ends_with("_hanging") && !wood.ends_with("_standing") && !wood.ends_with("_wall")
@@ -1019,7 +1028,7 @@ fn ticking_offsets(n: i32) -> impl Iterator<Item = (i32, i32)> {
 /// over all sub-chunks up to that one. Each position's block runs its
 /// random tick when its family has one.
 fn random_ticks(world: &mut World) {
-    let speed = world.get_resource_or_init::<RandomTickSpeed>().0;
+    let speed = random_tick_speed(world);
     if speed == 0 {
         return;
     }
