@@ -29,9 +29,12 @@
 //!   radius is `1.5 + sin(pi * step / steps) * thickness`; thick tunnels split
 //!   once into two thinner side branches; 3 in 4 steps carve an ellipsoid.
 //!
-//! An ellipsoid carves block centres with `x^2 + y^2 + z^2 < 1` (coordinates
+//! An ellipsoid carves blocks with `x^2 + y^2 + z^2 < 1` (coordinates
 //! relative to the centre, divided by the radii) and `y > floor_level`, which
-//! flattens cave floors.
+//! flattens cave floors. `x` and `z` are measured at block centres, `y` half a
+//! block *below* the block (`block_y - 0.5`), so caves sit one block higher
+//! than a centred test would put them (measured against the natural
+//! seed-12345 BDS world, see "Carve height" in the codegen README).
 //!
 //! Interpretation of the pack keys (documented next to each [`Params`]
 //! field): `height_limit` is the span of start heights above `min_y + 8`
@@ -447,8 +450,10 @@ impl Carver<'_> {
         let Some((z_lo, z_hi)) = clip_span(cz, horizontal, self.z0, self.z0 + 15) else {
             return false;
         };
-        // Never the bottom layer (vanilla keeps `min_y` intact).
-        let Some((y_lo, y_hi)) = clip_span(cy, vertical, self.min_y + 1, self.max_y - 1) else {
+        // Never the bottom layer (vanilla keeps `min_y` intact). Heights are
+        // tested at `y - 0.5`, i.e. a centred test around `cy + 1`.
+        let Some((y_lo, y_hi)) = clip_span(cy + 1.0, vertical, self.min_y + 1, self.max_y - 1)
+        else {
             return false;
         };
         if self.params.kind == Kind::UnderwaterCave
@@ -469,7 +474,7 @@ impl Carver<'_> {
                 // dirt it exposes (see `carve_block`).
                 let mut exposed_top = None;
                 for y in (y_lo..=y_hi).rev() {
-                    let dy = (f64::from(y) + 0.5 - cy) / vertical;
+                    let dy = (f64::from(y) - 0.5 - cy) / vertical;
                     if in_carve_shape(dxz_sq, dy, floor) {
                         carved |= self.carve_block(ctx, BlockPos::new(x, y, z), &mut exposed_top);
                     }
@@ -755,11 +760,13 @@ mod tests {
         };
         // Centre on the column edge: half of it lies in the next column.
         assert!(carver.carve_ellipsoid(&mut ctx, 15.5, 20.0, 8.5, 6.0, 4.0, -0.5));
-        // Floor at 20 - 0.5 * 4 = 18: centre 18.5 carved, 17.5 kept.
-        assert_eq!(world.get(BlockPos::new(15, 18, 8)), bb::AIR);
-        assert_eq!(world.get(BlockPos::new(15, 17, 8)), bb::STONE);
-        assert_eq!(world.get(BlockPos::new(15, 23, 8)), bb::AIR);
-        assert_eq!(world.get(BlockPos::new(15, 24, 8)), bb::STONE);
+        // Heights are tested at y - 0.5. Floor at 20 - 0.5 * 4 = 18: block 19
+        // (tested at 18.5) carved, 18 (17.5) kept; top 20 + 4 = 24: block 24
+        // (23.5) carved, 25 (24.5) kept.
+        assert_eq!(world.get(BlockPos::new(15, 19, 8)), bb::AIR);
+        assert_eq!(world.get(BlockPos::new(15, 18, 8)), bb::STONE);
+        assert_eq!(world.get(BlockPos::new(15, 24, 8)), bb::AIR);
+        assert_eq!(world.get(BlockPos::new(15, 25, 8)), bb::STONE);
         // Nothing outside [0, 16) x [0, 16).
         assert_eq!(world.get(BlockPos::new(16, 20, 8)), bb::STONE);
         assert_eq!(world.get(BlockPos::new(18, 20, 8)), bb::STONE);

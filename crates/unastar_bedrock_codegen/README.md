@@ -919,3 +919,44 @@ missing, not width. The cells open in both worlds without any tunnel (noise
 caves and aquifers) are 75% shared, but BDS has about 2.7 times our
 noise-cave volume (ours 3125 cells). That points at the cave terms of the
 shared terrain noise, which still need measuring against BDS.
+
+### Carve height (2026-10-29)
+
+Carver ellipsoids measure a block's height at `y - 0.5` (half a block below
+the block) instead of its centre, so tunnels and rooms sit one block higher.
+
+Evidence: the same 13 chunks of the natural seed-12345 BDS world as above.
+We rebuilt the seeded tunnels offline and tried every shift of up to 4 blocks
+vertically and 2 horizontally. Only one block up improves the match: 1861 ->
+2121 of the cells BDS has open outside its noise caves; every horizontal shift
+is worse. With the change, each tunnel of the one start reaching these chunks
+below y 0 (source chunk (-7, 1), the extra carver) is 68-72% open in BDS. Its
+main tunnel's cross-sections are fully open in BDS up to the split.
+`underground_open_cells_ratchet_against_bds` rises 4135 -> 4325.
+
+Tunnels near the surface now open one block higher, which costs the aggregate
+column metrics slightly:
+
+| Metric | Before | After |
+| --- | ---: | ---: |
+| underground open cells shared (of 10221) | 4135 | 4325 |
+| terrain exact | 0.88505 | 0.88465 |
+| terrain within 2 | 0.92400 | 0.92412 |
+| terrain mean abs error | 1.20588 | 1.20640 |
+| surface exact | 0.85139 | 0.85122 |
+| surface block | 0.84725 | 0.84731 |
+| histogram L1 | 0.03696 | 0.03703 |
+
+**Noise caves.** The BDS open cells that no tunnel explains were compared with
+our two terrain backends' noise stage (before carvers):
+- The Java-exact backend opens 3792 cells below y 0, 3532 of them open in BDS
+  (93%).
+- The Bedrock backend's calibrated noise opens 2893, of which only 2174 are
+  open in BDS (75%).
+
+About 4800 BDS open cells remain with neither a tunnel nor a Java noise cave.
+59% of them have positive final density in the Java router, distributed like
+ordinary solid rock, so no density threshold explains them. Most form long
+tunnels about 10 blocks wide at y -16..-1. None of our cave carver starts
+reaches them: we scored all 289 source chunks of both carvers with the skip
+roll ignored, and only the start above fits. Their source is still open.
