@@ -689,6 +689,11 @@ impl GameServer {
     }
 
     pub async fn save_all_chunks(&mut self) -> usize {
+        // Unloaded columns still being written finish first.
+        if let Some(mut loads) = self.ecs.world_mut().remove_resource::<ColumnLoads>() {
+            loads.finish_saves().await;
+            self.ecs.world_mut().insert_resource(loads);
+        }
         let Some((provider, dimension)) =
             self.ecs
                 .world()

@@ -18,13 +18,13 @@ use std::sync::atomic::Ordering;
 use std::time::Instant;
 
 use bevy_ecs::prelude::*;
-use tracing::{debug, trace, warn};
+use tracing::{debug, trace};
 
 use crate::entity::components::{ChunkRadius, Player, PlayerSession, Position};
 use crate::entity::mob::persistence::{restore_chunk_actors, snapshot_chunks};
 use crate::registry::block::BlockNetworkIds;
 use crate::storage::ChunkColumn;
-use crate::world::ecs::manager::{block_on_storage, chunk_entity_components};
+use crate::world::ecs::manager::chunk_entity_components;
 use crate::world::ecs::streaming::{
     ChunkNetCache, ColumnLoads, EncodedColumn, LoadState, MAX_STORAGE_READS,
     PENDING_GENERATIONS_PER_WORKER, StreamStats, generate_inline, log_stream_stats,
@@ -586,9 +586,10 @@ pub fn cancel_chunk_unloads(
 }
 
 /// System: Process pending chunk unloads.
-/// Ticks down grace periods. An expired chunk is saved together with the mobs
-/// standing in it (when anything changed), then the mobs and the chunk are
-/// removed from the world.
+/// Ticks down grace periods. An expired chunk is written in the background
+/// together with the mobs standing in it (when anything changed), and the mobs
+/// and the chunk are removed from the world; the column is not read again
+/// until the write finished.
 pub fn process_chunk_unloads(world: &mut World) {
     let mut pending = world.query::<(Entity, &mut ChunkPendingUnload)>();
     let expired: Vec<Entity> = pending
@@ -598,21 +599,12 @@ pub fn process_chunk_unloads(world: &mut World) {
     if expired.is_empty() {
         return;
     }
-    let (provider, dim) = {
-        let chunk_manager = world.resource::<ChunkManager>();
-        (chunk_manager.provider(), chunk_manager.dimension())
-    };
     for snapshot in snapshot_chunks(world, &expired, true) {
         let pos = snapshot.pos;
-        if let (Some(column), Some(provider)) = (snapshot.column, provider.clone()) {
-            match block_on_storage(async move { provider.save_column(pos, dim, &column).await }) {
-                Ok(()) => debug!(chunk = ?(pos.x, pos.z), "Saved chunk before unload"),
-                Err(e) => warn!(
-                    chunk = ?(pos.x, pos.z),
-                    error = %e,
-                    "Failed to save chunk before unload"
-                ),
-            }
+        if let Some(column) = snapshot.column {
+            world.resource_scope(|world, mut loads: Mut<ColumnLoads>| {
+                loads.start_save((pos.x, pos.z), column, world.resource::<ChunkManager>());
+            });
         }
         for mob in snapshot.mobs {
             world.despawn(mob);

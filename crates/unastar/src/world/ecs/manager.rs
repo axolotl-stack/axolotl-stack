@@ -8,7 +8,7 @@ use super::components::{
     ChunkActorStore, ChunkData, ChunkPosition, ChunkState, ChunkStateFlags, ChunkViewers,
     PendingActorRestore,
 };
-use super::generation_worker::{ChunkGenerationWorker, ChunkLoadResult, generation_threads};
+use super::generation_worker::{ChunkGenerationWorker, generation_threads};
 use super::streaming::{ChunkNetCache, generate_inline};
 use crate::storage::{ChunkColumn, WorldProvider};
 use crate::world::generator::ChunkPipeline;
@@ -259,16 +259,10 @@ impl ChunkManager {
             .map_or(0, ChunkGenerationWorker::threads)
     }
 
-    /// Asks the pool to generate a column storage does not have. `None`
-    /// without a pool or once it shut down.
-    pub fn request_pool_generation(
-        &self,
-        x: i32,
-        z: i32,
-    ) -> Option<tokio::sync::oneshot::Receiver<ChunkLoadResult>> {
-        self.generation_worker
-            .as_ref()?
-            .generate(x, z, None, self.dimension())
+    /// The generation pool (expensive generators only). Storage misses are
+    /// requested with no provider: the caller has already read storage.
+    pub fn generation_pool(&self) -> Option<ChunkGenerationWorker> {
+        self.generation_worker.clone()
     }
 }
 
@@ -293,6 +287,11 @@ impl ChunkManagerWorldExt for bevy_ecs::world::World {
             }
         }
 
+        // A column still being written after an unload is read only once the
+        // write is done.
+        if let Some(mut loads) = self.get_resource_mut::<super::streaming::ColumnLoads>() {
+            loads.wait_for_save((x, z));
+        }
         let (column, was_loaded) = self
             .get_resource::<ChunkManager>()
             .expect("ChunkManager must exist")
