@@ -29,6 +29,9 @@ pub enum NetworkEvent {
         /// Bounded channel to send packets to this player.
         /// Uses bounded capacity to prevent memory explosion on slow connections.
         outbound_tx: mpsc::Sender<McpePacket>,
+        /// Bytes the transport has queued towards this player, when it
+        /// tracks them; chunk streaming stays under the transport's limit.
+        send_queue: Option<jolyne::stream::transport::SendQueueProbe>,
     },
 
     /// Player sent a packet.

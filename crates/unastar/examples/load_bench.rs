@@ -69,6 +69,10 @@ struct Args {
     /// Server deflate level; `None` leaves the server's default (and keeps
     /// the config readable by builds without the setting).
     compression_level: Option<u32>,
+    /// After the view loaded: `tp` (a `/tp` command) or `respawn` (set a
+    /// spawn point, `/kill`, respawn) `jump_distance` blocks away.
+    jump: Option<String>,
+    jump_distance: f32,
     label: String,
     json: Option<PathBuf>,
 }
@@ -86,6 +90,8 @@ fn parse_args() -> Args {
         fly_speed: DEFAULT_FLY_SPEED,
         generation_threads: 0,
         compression_level: None,
+        jump: None,
+        jump_distance: 3000.0,
         label: String::new(),
         json: None,
     };
@@ -107,6 +113,10 @@ fn parse_args() -> Args {
             }
             "--compression-level" => {
                 args.compression_level = Some(value().parse().expect("--compression-level integer"))
+            }
+            "--jump" => args.jump = Some(value()),
+            "--jump-distance" => {
+                args.jump_distance = value().parse().expect("--jump-distance number")
             }
             "--label" => args.label = value(),
             "--json" => args.json = Some(value().into()),
@@ -158,6 +168,28 @@ struct PlayerResult {
     /// the square view completed.
     terrain_bytes: usize,
     flight: Option<FlightResult>,
+    jump: Option<JumpResult>,
+}
+
+/// Loading the view after the player's view moved at once (`/tp` or a
+/// respawn): time from the command, and how the terrain arrived.
+#[derive(Debug, Default, Serialize)]
+struct JumpResult {
+    kind: String,
+    distance: f32,
+    /// The server moved the player (`MovePlayer`).
+    moved_ms: Option<f64>,
+    first_chunk_ms: Option<f64>,
+    disk_view_ms: Option<f64>,
+    /// `LevelChunk`s of the new view received per 50 ms after the command.
+    headers_per_tick: Vec<usize>,
+    /// Columns completed (sub-chunks answered) per 50 ms after the command.
+    completed_per_tick: Vec<usize>,
+    /// Distance in chunks from the new center of the first 64 `LevelChunk`s,
+    /// in arrival order.
+    header_distances: Vec<f32>,
+    /// Render-disk columns still missing when the bound expired.
+    disk_missing_at_timeout: Option<usize>,
 }
 
 #[derive(Debug, Default, Serialize)]
@@ -293,6 +325,8 @@ fn write_config(dir: &Path, args: &Args, addr: SocketAddr) {
     config.server.max_players = args.players as u32 + 1;
     config.server.max_chunk_radius = args.radius;
     config.server.default_gamemode = "creative".into();
+    // `--jump` uses operator commands.
+    config.server.operators = (0..args.players).map(|i| format!("LoadBot{i}")).collect();
     config.players.data_dir = dir.join("playerdata");
     config.world.generation_threads = args.generation_threads;
     config.world.generator = match args.generator.as_str() {
@@ -695,6 +729,21 @@ async fn measure_player(addr: SocketAddr, args: &Args, index: usize) -> PlayerRe
             .await,
         );
     }
+    if let Some(kind) = &args.jump {
+        let runtime_id = game_data.start_game.runtime_id.clone();
+        result.jump = Some(
+            jump(
+                &mut play,
+                &mut terrain,
+                &mut position,
+                &mut tick,
+                kind,
+                args.jump_distance,
+                runtime_id,
+            )
+            .await,
+        );
+    }
     let _ = tokio::time::timeout(
         Duration::from_secs(2),
         play.disconnect(
@@ -785,6 +834,152 @@ async fn fly(
         nearest_missing_at_worst: worst.1,
         catch_up_ms,
     }
+}
+
+/// Sends an operator command.
+async fn command(play: &mut BedrockStream<Play, Client, RakNetTransport>, line: &str) {
+    use jolyne::valentine::CommandRequestPacket;
+    use jolyne::valentine::types::CommandOriginDatajson;
+    let _ = play
+        .send_packet(McpePacket::from(CommandRequestPacket {
+            command: line.into(),
+            origin: CommandOriginDatajson {
+                type_: "player".into(),
+                request_id: "load_bench".into(),
+                ..Default::default()
+            },
+            is_internal: false,
+            version: "latest".into(),
+        }))
+        .await;
+}
+
+/// Moves the player's whole view at once and records how the new view
+/// arrives: `tp` sends `/tp`, `respawn` sets a spawn point `distance` blocks
+/// away, sends `/kill` and respawns like a client (`Respawn` client-ready and
+/// `PlayerAction` respawn once the server is ready).
+async fn jump(
+    play: &mut BedrockStream<Play, Client, RakNetTransport>,
+    terrain: &mut Terrain,
+    position: &mut Vec3,
+    tick: &mut u64,
+    kind: &str,
+    distance: f32,
+    runtime_id: jolyne::valentine::types::ActorRuntimeId,
+) -> JumpResult {
+    use jolyne::valentine::types::{BlockPos, EnumsPlayerActionType, EnumsPlayerRespawnState};
+    use jolyne::valentine::{PlayerActionPacket, RespawnPacket};
+    let target = (position.x + distance, position.y, position.z);
+    let line = format!("{} {} {}", target.0, target.1, target.2);
+    match kind {
+        "tp" => command(play, &format!("tp @s {line}")).await,
+        "respawn" => {
+            command(play, &format!("spawnpoint @s {line}")).await;
+            command(play, "kill @s").await;
+        }
+        other => panic!("unknown --jump {other} (tp or respawn)"),
+    }
+    let started = Instant::now();
+    let center = |p: &Vec3| ((p.x.floor() as i32) >> 4, (p.z.floor() as i32) >> 4);
+    let new_center = center(&Vec3 {
+        x: target.0,
+        y: target.1,
+        z: target.2,
+    });
+    let mut result = JumpResult {
+        kind: kind.into(),
+        distance,
+        ..JumpResult::default()
+    };
+    terrain.received.clear();
+    let bin = |result: &mut Vec<usize>| {
+        let index = (started.elapsed().as_millis() / 50) as usize;
+        if result.len() <= index {
+            result.resize(index + 1, 0);
+        }
+        result[index] += 1;
+    };
+    let mut requests = Vec::new();
+    let mut input = tokio::time::interval(INPUT_INTERVAL);
+    let deadline = started + VIEW_TIMEOUT;
+    let mut respawned = false;
+    while result.disk_view_ms.is_none() {
+        tokio::select! {
+            raw = play.recv_packet_raw() => {
+                let raw = raw.expect("connection stays open after the jump");
+                match raw.name() {
+                    Some(McpePacketName::MovePlayerPacket) => {
+                        if let Ok(McpePacketData::MovePlayerPacket(moved)) = raw.decode().map(|p| p.data)
+                            && moved.player_runtime_id == runtime_id
+                        {
+                            *position = moved.position.clone();
+                            result.moved_ms.get_or_insert(ms(started.elapsed()));
+                        }
+                        continue;
+                    }
+                    Some(McpePacketName::RespawnPacket) => {
+                        if let Ok(McpePacketData::RespawnPacket(respawn)) = raw.decode().map(|p| p.data)
+                            && respawn.state == EnumsPlayerRespawnState::Readytospawn
+                            && !respawned
+                        {
+                            respawned = true;
+                            let _ = play.send_packet(McpePacket::from(RespawnPacket {
+                                position: respawn.position.clone(),
+                                state: EnumsPlayerRespawnState::Clientreadytospawn,
+                                player_runtime_id: runtime_id.clone(),
+                            })).await;
+                            let _ = play.send_packet(McpePacket::from(PlayerActionPacket {
+                                player_runtime_id: runtime_id.clone(),
+                                action: EnumsPlayerActionType::Respawn,
+                                block_position: BlockPos::default(),
+                                result_pos: BlockPos::default(),
+                                face: -1,
+                            })).await;
+                        }
+                        continue;
+                    }
+                    _ => {}
+                }
+                let Some(event) = terrain_packet(&mut requests, raw).await else { continue };
+                let now = ms(started.elapsed());
+                match event {
+                    TerrainEvent::Header => {
+                        result.first_chunk_ms.get_or_insert(now);
+                        bin(&mut result.headers_per_tick);
+                        if let Some(&(column, _)) = requests.last()
+                            && result.header_distances.len() < 64
+                        {
+                            let (dx, dz) = (column.0 - new_center.0, column.1 - new_center.1);
+                            result.header_distances.push(((dx * dx + dz * dz) as f32).sqrt());
+                        }
+                    }
+                    TerrainEvent::Complete(columns) => {
+                        for _ in &columns {
+                            bin(&mut result.completed_per_tick);
+                        }
+                        terrain.received.extend(columns);
+                        if terrain.disk(new_center).all(|c| terrain.received.contains(&c)) {
+                            result.disk_view_ms = Some(now);
+                        }
+                    }
+                }
+            }
+            _ = input.tick() => {
+                *tick += 1;
+                send_input(play, position, (0.0, 0.0), *tick).await;
+                flush_requests(play, &mut requests, center(position)).await;
+            }
+        }
+        if Instant::now() >= deadline {
+            let (missing, _, _) = terrain.missing_disk(new_center);
+            eprintln!(
+                "jump: render disk incomplete after {VIEW_TIMEOUT:?}: {missing} columns missing"
+            );
+            result.disk_missing_at_timeout = Some(missing);
+            break;
+        }
+    }
+    result
 }
 
 async fn send_input(

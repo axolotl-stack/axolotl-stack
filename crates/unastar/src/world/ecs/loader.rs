@@ -406,7 +406,7 @@ mod tests {
     fn moving_away_evicts_every_sent_chunk_and_forgets_its_window_slot() {
         let mut loader = ChunkLoader::new_at(1, (0, 0));
         let now = std::time::Instant::now();
-        loader.window_mut().sent((1, 1), true, now);
+        loader.window_mut().sent((1, 1), true, 4096, now);
         load_all(&mut loader);
         assert_eq!(loader.loaded_count(), 13);
 

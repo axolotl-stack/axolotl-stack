@@ -507,7 +507,10 @@ async fn storage_read_errors_never_generate_replacement_terrain() {
     let deadline = std::time::Instant::now() + std::time::Duration::from_secs(30);
     loop {
         let drained = loads.drain();
-        assert!(drained.ready.is_empty(), "a failed read produced terrain");
+        assert!(
+            loads.next_ready().is_none(),
+            "a failed read produced terrain"
+        );
         if !drained.failed.is_empty() {
             assert_eq!(drained.failed, vec![(0, 0)]);
             break;

@@ -278,7 +278,7 @@ fn insert_session(
             pending_rx: Some(rx),
             announced: false,
             handshake_confirmed: false,
-            rtt: crate::transport::RttCell::new(),
+            link: crate::transport::LinkCell::new(),
             client_guid,
             created_at: now,
         },

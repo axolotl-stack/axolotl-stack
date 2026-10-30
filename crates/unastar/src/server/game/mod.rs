@@ -784,6 +784,18 @@ impl GameServer {
         saved
     }
 
+    /// Gives a spawned player's session the transport's send queue, which
+    /// chunk streaming reads to stay under the transport's queue limit.
+    pub fn attach_send_queue(
+        &mut self,
+        player: Entity,
+        probe: jolyne::stream::transport::SendQueueProbe,
+    ) {
+        if let Some(mut session) = self.ecs.world_mut().get_mut::<PlayerSession>(player) {
+            session.set_send_queue(probe);
+        }
+    }
+
     pub fn spawn_player(&mut self, data: PlayerSpawnData) -> crate::storage::StorageResult<Entity> {
         let player_uuid = data
             .uuid
@@ -1312,11 +1324,11 @@ mod tests {
     }
 
     /// The streamed spawn hands the player over at its radius request, before
-    /// `PlayStatus(PlayerSpawn)`. The first tick sends BDS's order: the view
-    /// (`NetworkChunkPublisherUpdate`), the chunks it has, then `PlayerSpawn`
-    /// once.
+    /// `PlayStatus(PlayerSpawn)`. The first tick sends the view
+    /// (`NetworkChunkPublisherUpdate`) and then `PlayerSpawn`, once; the
+    /// terrain, loaded in the background, follows the view.
     #[test]
-    fn first_tick_after_join_sends_view_chunks_then_player_spawn() {
+    fn first_tick_after_join_sends_view_then_player_spawn_and_terrain_follows() {
         let mut server = GameServer::with_config(ServerConfig {
             max_chunk_radius: 4,
             world: crate::world::WorldConfig::void_spawn_platform(1),
@@ -1337,39 +1349,36 @@ mod tests {
             })
             .expect("fresh player spawns");
         let mut drain = || {
-            let mut packets = Vec::new();
+            let mut names = Vec::new();
             while let Ok(packet) = outbound_rx.try_recv() {
-                packets.push(packet);
+                names.push(packet.data.packet_id());
             }
-            packets
+            names
         };
-        let names = |packets: &[jolyne::valentine::McpePacket]| -> Vec<_> {
-            packets
-                .iter()
-                .map(|packet| packet.data.packet_id())
-                .collect()
-        };
-        let joined = drain();
         assert!(
-            !names(&joined).contains(&McpePacketName::PlayStatusPacket),
+            !drain().contains(&McpePacketName::PlayStatusPacket),
             "PlayerSpawn waits for the first view"
         );
 
         server.tick();
-        let first = names(&drain());
+        let first = drain();
         let position = |name| first.iter().position(|sent| *sent == name);
         let publisher = position(McpePacketName::NetworkChunkPublisherUpdatePacket)
             .unwrap_or_else(|| panic!("no publisher update on the first tick: {first:?}"));
-        let first_chunk = position(McpePacketName::LevelChunkPacket)
-            .unwrap_or_else(|| panic!("no chunk on the first tick: {first:?}"));
         let spawn = position(McpePacketName::PlayStatusPacket)
             .unwrap_or_else(|| panic!("no PlayerSpawn on the first tick: {first:?}"));
-        assert!(publisher < first_chunk && first_chunk < spawn, "{first:?}");
+        assert!(publisher < spawn, "{first:?}");
 
-        server.tick();
-        let second = drain();
+        let deadline = std::time::Instant::now() + std::time::Duration::from_secs(10);
+        let mut later = Vec::new();
+        while !later.contains(&McpePacketName::LevelChunkPacket) {
+            assert!(std::time::Instant::now() < deadline, "no terrain followed");
+            std::thread::sleep(std::time::Duration::from_millis(2));
+            server.tick();
+            later.extend(drain());
+        }
         assert!(
-            !names(&second).contains(&McpePacketName::PlayStatusPacket),
+            !later.contains(&McpePacketName::PlayStatusPacket),
             "PlayerSpawn is sent once"
         );
     }
@@ -1422,18 +1431,29 @@ mod tests {
             columns
         };
 
-        server.tick();
-        let first = columns();
+        // Ticks until `ticks` in a row sent nothing new, giving the background
+        // loads time; returns what was sent.
+        let mut settle = |server: &mut GameServer, ticks: usize| {
+            let mut sent = Vec::new();
+            let mut quiet = 0;
+            for _ in 0..2000 {
+                std::thread::sleep(std::time::Duration::from_millis(2));
+                server.tick();
+                let more = columns();
+                quiet = if more.is_empty() { quiet + 1 } else { 0 };
+                sent.extend(more);
+                if quiet >= ticks && !sent.is_empty() {
+                    break;
+                }
+            }
+            sent
+        };
+
+        let first = settle(&mut server, 20);
         assert_eq!(
             first.len(),
             SendWindow::INITIAL,
-            "one window on the first tick"
-        );
-        assert_eq!(first[0], (0, 0), "nearest first");
-        server.tick();
-        assert!(
-            columns().is_empty(),
-            "nothing beyond the window without requests"
+            "one window, then nothing more without requests"
         );
 
         // The view disk: dx² + dz² <= (radius + 1)².
@@ -1446,8 +1466,7 @@ mod tests {
         let mut unacked = first;
         for _ in 0..100 {
             // The client requests every column it got, like load_bench does.
-            let mut queue = server.ecs.world_mut().resource_mut::<ChunkPacketQueue>();
-            queue.0.extend(unacked.drain(..).map(|(x, z)| {
+            let requests = unacked.drain(..).map(|(x, z)| {
                 (
                     player,
                     ChunkAction::SubchunkRequest(SubChunkRequestPacket {
@@ -1462,12 +1481,15 @@ mod tests {
                         },
                     }),
                 )
-            }));
-            server.tick();
-            let more = columns();
-            // How far the window grows depends on how fast this build ticks
-            // (window growth is covered by the SendWindow tests); the requests
-            // must let more through.
+            });
+            server
+                .ecs
+                .world_mut()
+                .resource_mut::<ChunkPacketQueue>()
+                .0
+                .extend(requests);
+            // The requests reopen the window.
+            let more = settle(&mut server, 5);
             assert!(!more.is_empty(), "requests reopen the window");
             received.extend(&more);
             unacked = more;

@@ -131,7 +131,7 @@ pub struct RaknetStream {
     peer: SocketAddr,
     incoming: mpsc::Receiver<Result<ReceivedMessage, crate::RaknetError>>,
     outbound_tx: PollSender<OutboundMsg>,
-    rtt: super::RttCell,
+    link: super::LinkCell,
 }
 
 impl RaknetStream {
@@ -141,14 +141,14 @@ impl RaknetStream {
         peer: SocketAddr,
         incoming: mpsc::Receiver<Result<ReceivedMessage, crate::RaknetError>>,
         outbound_tx: mpsc::Sender<OutboundMsg>,
-        rtt: super::RttCell,
+        link: super::LinkCell,
     ) -> Self {
         Self {
             local,
             peer,
             incoming,
             outbound_tx: PollSender::new(outbound_tx),
-            rtt,
+            link,
         }
     }
 
@@ -157,7 +157,13 @@ impl RaknetStream {
     /// sliding window's `estimatedRTT` (Vanilla, Mojang RakNet). Readable
     /// without involving the transport task.
     pub fn rtt(&self) -> Option<Duration> {
-        self.rtt.load()
+        self.link.rtt()
+    }
+
+    /// A cloneable view of this session's RTT and send queue, readable
+    /// without the stream.
+    pub fn link_monitor(&self) -> super::LinkMonitor {
+        super::LinkMonitor(self.link.clone())
     }
 
     /// Connect to a RakNet server at the given address using default configuration.
@@ -216,7 +222,7 @@ impl RaknetStream {
                 TransmissionPolicy::Vanilla => VANILLA_TICK_INTERVAL,
                 TransmissionPolicy::Optimized => TICK_INTERVAL,
             };
-            let rtt = super::RttCell::new();
+            let link = super::LinkCell::new();
             let context = ClientMuxerContext {
                 server,
                 server_guid: handshake.server_guid,
@@ -227,13 +233,13 @@ impl RaknetStream {
                 ready: ready_tx,
                 config,
                 maintenance_interval,
-                rtt: rtt.clone(),
+                link: link.clone(),
             };
 
             tokio::spawn(run_client_muxer(socket, context));
 
             match ready_rx.await {
-                Ok(Ok(())) => Ok(Self::new(local, server, to_app_rx, outbound_tx, rtt)),
+                Ok(Ok(())) => Ok(Self::new(local, server, to_app_rx, outbound_tx, link)),
                 Ok(Err(e)) => Err(e),
                 Err(_) => Err(crate::RaknetError::ConnectionAborted),
             }
@@ -368,8 +374,8 @@ struct ClientMuxerContext {
     /// `TICK_INTERVAL` for Optimized. Tests may lengthen it to prove a
     /// behaviour does not depend on maintenance.
     maintenance_interval: Duration,
-    /// RTT estimate published to the `RaknetStream`.
-    rtt: super::RttCell,
+    /// Link state published to the `RaknetStream`.
+    link: super::LinkCell,
 }
 
 /// Windows reports a datagram longer than the receive buffer as `WSAEMSGSIZE`
@@ -475,7 +481,7 @@ async fn run_client_muxer(socket: UdpSocket, mut context: ClientMuxerContext) {
     }
 
     loop {
-        context.rtt.store(managed.rtt_micros());
+        context.link.store(&managed);
         let ack_deadline = managed.ack_deadline();
         if let Some(deadline) = ack_deadline {
             ack_timer.as_mut().reset(deadline.into());
@@ -836,7 +842,7 @@ mod tests {
                 // so scheduler load cannot turn a maintenance flush into a pass
                 // and the window can be generous enough not to flake.
                 maintenance_interval: Duration::from_secs(30),
-                rtt: crate::transport::RttCell::new(),
+                link: crate::transport::LinkCell::new(),
             },
         ));
         let mut session = ManagedSession::with_config(
@@ -936,7 +942,7 @@ mod tests {
                     ..RaknetStreamConfig::default()
                 },
                 maintenance_interval: TICK_INTERVAL,
-                rtt: crate::transport::RttCell::new(),
+                link: crate::transport::LinkCell::new(),
             },
         ));
         // A connected datagram flag without its mandatory sequence number.
@@ -1039,7 +1045,7 @@ mod tests {
                         ..RaknetStreamConfig::default()
                     },
                     maintenance_interval: Duration::from_millis(100),
-                    rtt: crate::transport::RttCell::new(),
+                    link: crate::transport::LinkCell::new(),
                 },
             ));
             let mut buffer = [0; 2048];
@@ -1091,7 +1097,7 @@ mod tests {
                     ready,
                     config,
                     maintenance_interval: VANILLA_TICK_INTERVAL,
-                    rtt: crate::transport::RttCell::new(),
+                    link: crate::transport::LinkCell::new(),
                 },
             ));
             let mut session = ManagedSession::with_config(
