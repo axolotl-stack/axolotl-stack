@@ -803,7 +803,7 @@ Cross-cutting gameplay systems with no data source to enumerate them from; this 
 
 **performance**
 
-- `performance.chunk_streaming`: chunks stream to players nearest first under a fixed per-player chunk budget per tick; no committed join or flight benchmark and no comparison with BDS 1.26.51 on the same machine
+- `performance.chunk_streaming`: not yet checked with the real client; the BDS 1.26.51 comparison covers radius 4-6 only (BDS stops answering the benchmark client's sub-chunk requests from radius 8) and no BDS flight; eight players flying apart into fresh terrain outrun generation
 - `performance.generation_speed`: the worldgen_bench example measures generation throughput and allocations (tools/worldgen-perf); no committed comparison with BDS 1.26.51 on the same machine
 
 **platform**
